@@ -25,14 +25,15 @@ namespace PCTP.VIEWSTOCK.Repository
         public PhieuNhapInfo GetPhieuByFind(string find)
         {
             const string sql = @"SELECT STT, FIND, LOT_NO, MODEL, TEN_SAN_PHAM, MA_SAN_PHAM,
-                                         CA_SAN_XUAT, NGAY_SAN_XUAT, SL_DA_SAN_XUAT,
-                                         SL_DA_NHAP, SL_DA_TRA, LY_DO_TRA, TON_KHO_TP, KET_THUC_LOT
-                                  FROM vNhapTP WHERE FIND = @find";
+                                 CA_SAN_XUAT, NGAY_SAN_XUAT, SL_DA_SAN_XUAT,
+                                 SL_DA_NHAP, SL_DA_TRA, LY_DO_TRA, TON_KHO_TP, KET_THUC_LOT
+                          FROM vNhapTP WHERE FIND = @find";
 
-            DataTable dt = _sql.ExecuteQuery(_sql.B7R2_FCCdb, sql,
-                new List<SqlParameter> { new SqlParameter("@find", find) });
+            // ← ĐỔI: LoadData1 thay vì ExecuteQuery(List<SqlParameter>)
+            DataTable dt = _sql.LoadData1(_sql.B7R2_FCCdb, sql,
+                new SqlParameter("@find", find));
 
-            return dt.Rows.Count > 0 ? MapPhieu(dt.Rows[0]) : null;
+            return dt != null && dt.Rows.Count > 0 ? MapPhieu(dt.Rows[0]) : null;
         }
 
         public List<PhieuNhapInfo> GetPhieuTong()
@@ -75,11 +76,12 @@ namespace PCTP.VIEWSTOCK.Repository
 
         public StockItem GetByLot(string lot)
         {
-            DataTable dt = _sql.ExecuteQuery(_sql.B7R2_FCCdb,
+            DataTable dt = _sql.LoadData1(_sql.B7R2_FCCdb,
                 "SELECT * FROM STOCKTP WHERE LOT = @lot",
-                new List<SqlParameter> { new SqlParameter("@lot", lot) });
+               new SqlParameter("@lot", lot));
 
-            if (dt.Rows.Count == 0) return null;
+            if (dt == null || dt.Rows.Count == 0) return null;
+
             DataRow r = dt.Rows[0];
 
             return new StockItem
@@ -212,10 +214,11 @@ namespace PCTP.VIEWSTOCK.Repository
             const string sql = @"SELECT LOT, NGAYTRA, SLTRA, SLNHANLAI, LY_DO_NG
                                   FROM STOCKTPTRAHANG WHERE STATUS = 0 AND LOT = @lot";
 
-            DataTable dt = _sql.ExecuteQuery(_sql.B7R2_FCCdb, sql,
-                new List<SqlParameter> { new SqlParameter("@lot", lot) });
+            DataTable dt = _sql.LoadData1(_sql.B7R2_FCCdb, sql,
+             new SqlParameter("@lot", lot));
 
             var list = new List<StockTraHangInfo>();
+            if (dt == null) return list;
             foreach (DataRow r in dt.Rows)
             {
                 list.Add(new StockTraHangInfo
@@ -258,6 +261,63 @@ namespace PCTP.VIEWSTOCK.Repository
                 new SqlParameter("@status", status),
                 new SqlParameter("@lot", lot),
                 new SqlParameter("@lyDo", lyDoNg ?? ""));
+        }
+        // ══════════════ Overload transaction-aware (dùng trong NhapTpReceivingService) ══════════════
+        public bool ExistsStockTp(SqlConnection conn, SqlTransaction tran, string lot)
+        {
+            object kq = _sql.ExecuteScalar(conn, tran,
+                "SELECT COUNT(*) FROM STOCKTP WHERE LOT = @lot",
+                new[] { new SqlParameter("@lot", lot) });
+            return int.TryParse(kq?.ToString(), out int v) && v > 0;
+        }
+
+        public void InsertStockTp(SqlConnection conn, SqlTransaction tran, NhapKhoItem item, int status)
+        {
+            const string sql = @"INSERT INTO STOCKTP
+        (LOT, MODEL, Part, NAME, CASX, NGAYSX, SLSX, NGAYNHAP, SLNHAP, NGAYXUAT, SLXUAT, SLCONLAI, Satus)
+        VALUES (@lot, @model, @part, @name, @casx, @ngaysx, @slsx, @ngaynhap, @slnhap, @ngaynhap, 0, @slnhap, @status)";
+
+            _sql.ExecuteNonQuery(conn, tran, sql,
+                new SqlParameter("@lot", item.Lot),
+                new SqlParameter("@model", (object)item.Model ?? ""),
+                new SqlParameter("@part", (object)item.Part ?? ""),
+                new SqlParameter("@name", (object)item.Name ?? ""),
+                new SqlParameter("@casx", item.CaSX),
+                new SqlParameter("@ngaysx", (object)item.NgaySX ?? DBNull.Value),
+                new SqlParameter("@slsx", item.SlSanXuat),
+                new SqlParameter("@ngaynhap", DateTime.Now),
+                new SqlParameter("@slnhap", item.SlNhap),
+                new SqlParameter("@status", status));
+        }
+
+        public void UpdateStockTp(SqlConnection conn, SqlTransaction tran, string lot, int slSeNhap, int status)
+        {
+            const string sql = @"UPDATE STOCKTP SET
+        SLNHAP = ISNULL(SLNHAP,0) + @sl,
+        SLCONLAI = ISNULL(SLCONLAI,0) + @sl,
+        NGAYNHAP = CAST(GETDATE() AS smalldatetime),
+        Satus = @status
+        WHERE LOT = @lot";
+
+            _sql.ExecuteNonQuery(conn, tran, sql,
+                new SqlParameter("@sl", slSeNhap),
+                new SqlParameter("@status", status),
+                new SqlParameter("@lot", lot));
+        }
+
+        public bool ExistsCaseHistory(SqlConnection conn, SqlTransaction tran, string caseNo)
+        {
+            object kq = _sql.ExecuteScalar(conn, tran,
+                "SELECT COUNT(*) FROM NHAP_TP_HIS WHERE LOTCASE = @caseNo",
+                new[] { new SqlParameter("@caseNo", caseNo) });
+            return int.TryParse(kq?.ToString(), out int v) && v > 0;
+        }
+
+        public void InsertCaseHistory(SqlConnection conn, SqlTransaction tran, string caseNo)
+        {
+            _sql.ExecuteNonQuery(conn, tran,
+                "INSERT INTO NHAP_TP_HIS (LOTCASE) VALUES (@caseNo)",
+                new SqlParameter("@caseNo", caseNo));
         }
     }
 }

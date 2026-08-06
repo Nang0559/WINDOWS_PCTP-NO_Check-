@@ -68,7 +68,12 @@ namespace PCTP.VIEWSTOCK.Repository
             var check = KiemTraTruocKhiNhap(qr);
             if (!check.IsOK) return check;
 
-            string lotNo = NhapKhoLotNoHelper.NormalizeLot(qr.RawLotNo ?? qr.LotNo);
+            string lotNo = LotNoHelper.NormalizeLot(qr.RawLotNo ?? qr.LotNo); // hoặc LotNoHelper sau khi gộp
+
+            // ── Build CASE_NO giống logic gốc NHAP_TP: LotNoSL + SoPhieuTong (hoặc "4" nếu NG) ──
+            string caseNo = !string.IsNullOrEmpty(qr.SoPhieuTong)
+                ? qr.RawLotNo + qr.SoPhieuTong
+                : qr.RawLotNo + "4";
 
             SlotHelper.ParseSlotString(selectedSlotText,
                 out string wh, out string rack, out int slotNumber, out int capacity);
@@ -82,71 +87,55 @@ namespace PCTP.VIEWSTOCK.Repository
             {
                 try
                 {
+                    // ── Check trùng case NGAY TRONG TRANSACTION (tránh race condition) ──
+                    if (_stockTpRepo.ExistsCaseHistory(conn, tran, caseNo))
+                    {
+                        tran.Rollback();
+                        return ScanResult.Trung($"Case [{caseNo}] đã được nhập kho trước đó!");
+                    }
+
                     // ── Bước 1: STOCKTP — nguồn sự thật duy nhất về tổng tồn ────
-                    bool daTonTai = _sql.ExecuteScalar(conn, tran,
-                        "SELECT COUNT(*) FROM STOCKTP WHERE LOT = @Lot",
-                        new[] { new SqlParameter("@Lot", lotNo) }) is int cnt && cnt > 0
-                        || Convert.ToInt32(_sql.ExecuteScalar(conn, tran,
-                            "SELECT COUNT(*) FROM STOCKTP WHERE LOT = @Lot",
-                            new[] { new SqlParameter("@Lot", lotNo) })) > 0;
+                    bool daTonTai = _stockTpRepo.ExistsStockTp(conn, tran, lotNo);
+
+                    var nhapItem = new NhapKhoItem
+                    {
+                        Lot = lotNo,
+                        Part = qr.ItemCode,
+                        Name = qr.ItemCode,
+                        NgaySX = qr.ImportDate,
+                        SlSanXuat = qr.Quantity,
+                        SlNhap = qr.Quantity
+                    };
 
                     if (daTonTai)
-                    {
-                        _sql.ExecuteNonQuery(conn, tran, @"
-                            UPDATE STOCKTP SET
-                                SLNHAP   = ISNULL(SLNHAP,0) + @Sl,
-                                SLCONLAI = ISNULL(SLCONLAI,0) + @Sl,
-                                NGAYNHAP = CAST(GETDATE() AS smalldatetime)
-                            WHERE LOT = @Lot",
-                            new SqlParameter("@Sl", qr.Quantity),
-                            new SqlParameter("@Lot", lotNo));
-                    }
+                        _stockTpRepo.UpdateStockTp(conn, tran, lotNo, qr.Quantity, 0);
                     else
-                    {
-                        _sql.ExecuteNonQuery(conn, tran, @"
-                            INSERT INTO STOCKTP
-                                (LOT, PART, NAME, NGAYSX, SLSX,
-                                 NGAYNHAP, SLNHAP, SLXUAT, SLCONLAI, MODEL)
-                            VALUES
-                                (@Lot, @Part, @Name, @NgaySX, @Sl,
-                                 GETDATE(), @Sl, 0, @Sl, @Model)",
-                            new SqlParameter("@Lot", lotNo),
-                            new SqlParameter("@Part", (object)qr.ItemCode ?? DBNull.Value),
-                            new SqlParameter("@Name", (object)qr.ItemCode ?? DBNull.Value),
-                            new SqlParameter("@NgaySX", (object)qr.ImportDate ?? DateTime.Now),
-                            new SqlParameter("@Sl", qr.Quantity),
-                            new SqlParameter("@Model", DBNull.Value));
-                    }
+                        _stockTpRepo.InsertStockTp(conn, tran, nhapItem, 0);
 
-                    // ── Bước 2: Tạo phiếu kho mới (Active) ──────────────────────
+                    // ── Bước 2: Tạo phiếu kho mới (Active) — giữ nguyên như cũ ──
                     string maPhieuMoi = PhieuNoHelper.NewMaPhieuNhap(lotNo);
-
                     _phieuRepo.InsertPhieuMoi(conn, tran,
-                        slotId: slotId,
-                        itemCode: qr.ItemCode,
-                        lotNo: lotNo,
-                        quantity: qr.Quantity,
-                        temCode: qr.MaPhieu,       // mã tem in trên nhãn
-                        qrData: qr.RawQr,
-                        importDate: qr.ImportDate ?? DateTime.Now,
-                        ngaySX: qr.NgaySX,
-                        soPhieuTong: qr.SoPhieuTong,  // số phiếu gốc trên tem — KHÔNG đổi
-                        maPhieuMoi: maPhieuMoi,        // số phiếu KHO — dùng để trace vị trí/tách
-                        parentSoPhieu: null,           // phiếu gốc, chưa từng bị tách
-                        status: PhieuStatus.Active);
+                        slotId: slotId, itemCode: qr.ItemCode, lotNo: lotNo,
+                        quantity: qr.Quantity, temCode: qr.MaPhieu, qrData: qr.RawQr,
+                        importDate: qr.ImportDate ?? DateTime.Now, ngaySX: qr.NgaySX,
+                        soPhieuTong: qr.SoPhieuTong, maPhieuMoi: maPhieuMoi,
+                        parentSoPhieu: null, status: PhieuStatus.Active);
 
-                    // ── Bước 3: Cộng dồn tổng hợp lên Slot ──────────────────────
+                    // ── Bước 3: Cộng dồn tổng hợp lên Slot — giữ nguyên ──
                     _sql.ExecuteNonQuery(conn, tran, @"
-                        UPDATE Slot SET
-                            Quantity   = ISNULL(Quantity,0) + @Sl,
-                            ItemCode   = @ItemCode,
-                            ImportDate = @ImportDate,
-                            IsOccupied = 1
-                        WHERE SlotId = @SlotId",
+                UPDATE Slot SET
+                    Quantity   = ISNULL(Quantity,0) + @Sl,
+                    ItemCode   = @ItemCode,
+                    ImportDate = @ImportDate,
+                    IsOccupied = 1
+                WHERE SlotId = @SlotId",
                         new SqlParameter("@Sl", qr.Quantity),
                         new SqlParameter("@ItemCode", (object)qr.ItemCode ?? DBNull.Value),
                         new SqlParameter("@ImportDate", (object)qr.ImportDate ?? DateTime.Now),
                         new SqlParameter("@SlotId", slotId));
+
+                    // ── Bước 4: Ghi lịch sử case — chống bắn lại QR này ──────────
+                    _stockTpRepo.InsertCaseHistory(conn, tran, caseNo);
 
                     tran.Commit();
                 }

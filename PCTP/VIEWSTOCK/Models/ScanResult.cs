@@ -11,7 +11,7 @@ namespace PCTP.VIEWSTOCK.Models
     {
         // ── Trạng thái ───────────────────────────────────────────────────
         public bool IsOK { get;  set; }
-        public bool IsSlKhongKhop { get; private set; }  // SL HVN ≠ SL FCC
+        public bool IsSlKhongKhop { get;  set; }  // SL HVN ≠ SL FCC
         public bool IsTrung { get; private set; }  // trùng case/lot
         public bool IsLoi { get; private set; }  // lỗi nghiệp vụ khác
         public string Message { get;  set; }

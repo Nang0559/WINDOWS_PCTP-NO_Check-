@@ -737,7 +737,6 @@
     <Compile Include="VIEWSTOCK\Fuction\QRCodeParser.cs" />
     <Compile Include="VIEWSTOCK\Fuction\SlotHelper.cs" />
     <Compile Include="VIEWSTOCK\FunctionForm\CommonSlotFormUI.cs" />
-    <Compile Include="VIEWSTOCK\FunctionForm\NhapKhoLotNoHelper.cs" />
     <Compile Include="VIEWSTOCK\FunctionForm\StockService.cs" />
     <Compile Include="VIEWSTOCK\FunctionForm\WaitFormExp.cs">
       <SubType>Form</SubType>
@@ -783,7 +782,6 @@
     <Compile Include="VIEWSTOCK\Repository\IPhieuTrackingRepository.cs" />
     <Compile Include="VIEWSTOCK\Repository\IStockTPRepository.cs" />
     <Compile Include="VIEWSTOCK\Repository\NhapTpReceivingService.cs" />
-    <Compile Include="VIEWSTOCK\Repository\PhieuNhapRepository.cs" />
     <Compile Include="VIEWSTOCK\Repository\PhieuTrackingRepository.cs" />
     <Compile Include="VIEWSTOCK\Repository\StockTPRepository.cs" />
     <Compile Include="VIEWSTOCK\RpIn\RpInNhapKho.cs">

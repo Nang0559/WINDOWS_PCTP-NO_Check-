@@ -90,8 +90,8 @@ namespace PCTP.VIEWSTOCK.FunctionForm
 
             if ((config?.CheckLotNo ?? true) && !string.IsNullOrWhiteSpace(expectedLotNo))
             {
-                string normalizedQr = NhapKhoLotNoHelper.NormalizeLot(qr.RawLotNo ?? qr.LotNo);
-                string normalizedExpected = NhapKhoLotNoHelper.NormalizeLot(expectedLotNo);
+                string normalizedQr = LotNoHelper.NormalizeLot(qr.RawLotNo ?? qr.LotNo);
+                string normalizedExpected = LotNoHelper.NormalizeLot(expectedLotNo);
 
                 if (!string.Equals(normalizedQr, normalizedExpected, StringComparison.OrdinalIgnoreCase))
                 {
@@ -166,10 +166,10 @@ namespace PCTP.VIEWSTOCK.FunctionForm
             if (capacity <= 0)
                 capacity = _slotHelper.GetSlotCapacityById(slotId);
 
-            var newLot = NhapKhoLotNoHelper.CreateLot(qr);
+            var newLot = LotNoHelper.CreateLot(qr);
             var existingLots = _slotHelper.GetSlotLots(slotId);
-            var mergedLots = NhapKhoLotNoHelper.MergeLotInfos(existingLots, new List<LotInfo> { newLot });
-            int finalQty = NhapKhoLotNoHelper.GetTotalQuantity(mergedLots);
+            var mergedLots = LotNoHelper.MergeLotInfos(existingLots, new List<LotInfo> { newLot });
+            int finalQty = LotNoHelper.GetTotalQuantity(mergedLots);
 
             if (capacity > 0 && finalQty > capacity)
             {
@@ -207,7 +207,7 @@ namespace PCTP.VIEWSTOCK.FunctionForm
         public LotSplitResult ExportFromSlot(int slotId, int exportQty, string itemCode = null)
         {
             var currentLots = _slotHelper.GetSlotLots(slotId);
-            var result = NhapKhoLotNoHelper.SubtractLots(currentLots, exportQty);
+            var result = LotNoHelper.SubtractLots(currentLots, exportQty);
 
             _slotHelper.SaveSlotLots(slotId, result.RemainingLots, updateSlot: true);
 
@@ -270,9 +270,9 @@ namespace PCTP.VIEWSTOCK.FunctionForm
             var sourceLots = _slotHelper.GetSlotLots(fromSlotId);
             var destLots = _slotHelper.GetSlotLots(toSlotId);
 
-            var split = NhapKhoLotNoHelper.SubtractLots(sourceLots, exportQty);
-            var mergedLots = NhapKhoLotNoHelper.MergeLotInfos(destLots, split.RemainingLots);
-            int finalQty = NhapKhoLotNoHelper.GetTotalQuantity(mergedLots);
+            var split = LotNoHelper.SubtractLots(sourceLots, exportQty);
+            var mergedLots = LotNoHelper.MergeLotInfos(destLots, split.RemainingLots);
+            int finalQty = LotNoHelper.GetTotalQuantity(mergedLots);
 
             if (capacity > 0 && finalQty > capacity)
             {
@@ -303,7 +303,7 @@ namespace PCTP.VIEWSTOCK.FunctionForm
         public void MoveLot(int fromSlotId, int toSlotId, string lotNo)
         {
             var sourceLots = _slotHelper.GetSlotLots(fromSlotId);
-            var lot = NhapKhoLotNoHelper.FindLot(sourceLots, lotNo);
+            var lot = LotNoHelper.FindLot(sourceLots, lotNo);
 
             if (lot == null)
                 throw new InvalidOperationException($"Không tìm thấy Lot {lotNo} trong slot nguồn.");
@@ -312,7 +312,7 @@ namespace PCTP.VIEWSTOCK.FunctionForm
             _slotHelper.SaveSlotLots(fromSlotId, remaining, updateSlot: true);
 
             var destLots = _slotHelper.GetSlotLots(toSlotId);
-            var merged = NhapKhoLotNoHelper.MergeLotInfos(destLots, new List<LotInfo> { lot });
+            var merged = LotNoHelper.MergeLotInfos(destLots, new List<LotInfo> { lot });
             _slotHelper.SaveSlotLots(toSlotId, merged, updateSlot: true);
 
             SlotHelper.SaveHistory("MOVE", lot.QRInfo?.ItemCode, lot, fromSlotId, toSlotId);
@@ -327,7 +327,7 @@ namespace PCTP.VIEWSTOCK.FunctionForm
             if (slot == null || result == null) return;
 
             slot.Lots = result.RemainingLots;
-            slot.Quantity = NhapKhoLotNoHelper.GetTotalQuantity(result.RemainingLots);
+            slot.Quantity = LotNoHelper.GetTotalQuantity(result.RemainingLots);
             slot.IsOccupied = slot.Quantity > 0;
 
             if (result.RemainingLots.Any())
@@ -382,13 +382,13 @@ namespace PCTP.VIEWSTOCK.FunctionForm
         #region In tem / phiếu
 
         /// <summary>Gộp danh sách Lot thành dữ liệu in tem/phiếu (tổng SL, chuỗi LotNo/TemCode, QR gộp...).</summary>
-        public PrintLotResult CreatePrintData(List<LotInfo> lots) => NhapKhoLotNoHelper.CreatePrintData(lots);
+        public PrintLotResult CreatePrintData(List<LotInfo> lots) => LotNoHelper.CreatePrintData(lots);
 
         /// <summary>Tạo dữ liệu in tem cho toàn bộ Lot hiện có trong 1 slot.</summary>
         public PrintLotResult CreatePrintDataForSlot(int slotId)
         {
             var lots = _slotHelper.GetSlotLots(slotId);
-            return NhapKhoLotNoHelper.CreatePrintData(lots);
+            return LotNoHelper.CreatePrintData(lots);
         }
 
         /// <summary>Dựng model PXuatINModel để in phiếu xuất kho (dùng cho report Xuất kho).</summary>
@@ -438,14 +438,14 @@ namespace PCTP.VIEWSTOCK.FunctionForm
                 throw new ArgumentNullException(nameof(slot));
 
             var lots = _slotHelper.GetSlotLots(slot.SlotId);
-            int tongSoLuong = NhapKhoLotNoHelper.GetTotalQuantity(lots);
+            int tongSoLuong = LotNoHelper.GetTotalQuantity(lots);
 
             if (exportQty > tongSoLuong)
                 throw new InvalidOperationException("Số lượng xuất lớn hơn tồn kho.");
 
-            var split = NhapKhoLotNoHelper.SubtractLots(lots, exportQty);
-            var exportPrint = NhapKhoLotNoHelper.CreatePrintData(split.ExportLots);
-            var remainPrint = NhapKhoLotNoHelper.CreatePrintData(split.RemainingLots);
+            var split = LotNoHelper.SubtractLots(lots, exportQty);
+            var exportPrint = LotNoHelper.CreatePrintData(split.ExportLots);
+            var remainPrint = LotNoHelper.CreatePrintData(split.RemainingLots);
 
             // ✅ REFACTOR: build PXuatINModel qua PrintHelper.CreatePrintModel (nơi DUY NHẤT quyết
             // định cách map PrintLotResult -> PXuatINModel) thay vì tự "new PXuatINModel" ở đây —

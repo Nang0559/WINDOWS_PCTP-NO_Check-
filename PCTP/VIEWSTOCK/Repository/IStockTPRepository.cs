@@ -3,6 +3,7 @@ using PCTP.VIEWSTOCK.Services;
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Data.SqlClient;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -40,5 +41,11 @@ namespace PCTP.VIEWSTOCK.Repository
         List<StockTraHangInfo> GetTraHangConLai(string lot);
         void InsertNhanTra(string lot, string part, string name, int slNhanLai, string lyDoNg);
         void UpdateTraHangSauNhanLai(string lot, string lyDoNg, int slNhanLai, int status);
+        // ── THÊM: overload transaction-aware ─────────────────────────────
+        bool ExistsStockTp(SqlConnection conn, SqlTransaction tran, string lot);
+        void InsertStockTp(SqlConnection conn, SqlTransaction tran, NhapKhoItem item, int status);
+        void UpdateStockTp(SqlConnection conn, SqlTransaction tran, string lot, int slSeNhap, int status);
+        bool ExistsCaseHistory(SqlConnection conn, SqlTransaction tran, string caseNo);
+        void InsertCaseHistory(SqlConnection conn, SqlTransaction tran, string caseNo);
     }
 }
