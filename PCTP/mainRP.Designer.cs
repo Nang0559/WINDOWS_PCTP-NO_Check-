@@ -1,0 +1,101 @@
+﻿namespace PCTP
+{
+    partial class mainRP
+    {
+        /// <summary>
+        /// Required designer variable.
+        /// </summary>
+        private System.ComponentModel.IContainer components = null;
+
+        /// <summary> 
+        /// Clean up any resources being used.
+        /// </summary>
+        /// <param name="disposing">true if managed resources should be disposed; otherwise, false.</param>
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing && (components != null))
+            {
+                components.Dispose();
+            }
+            base.Dispose(disposing);
+        }
+
+        #region Designer generated code
+
+        /// <summary>
+        /// Required method for Designer support - do not modify
+        /// the contents of this method with the code editor.
+        /// </summary>
+        private void InitializeComponent()
+        {
+            DevExpress.XtraCharts.XYDiagram3D xyDiagram3D1 = new DevExpress.XtraCharts.XYDiagram3D();
+            DevExpress.XtraCharts.Series series1 = new DevExpress.XtraCharts.Series();
+            DevExpress.XtraCharts.ManhattanBarSeriesView manhattanBarSeriesView1 = new DevExpress.XtraCharts.ManhattanBarSeriesView();
+            this.TopMargin = new DevExpress.XtraReports.UI.TopMarginBand();
+            this.BottomMargin = new DevExpress.XtraReports.UI.BottomMarginBand();
+            this.Detail = new DevExpress.XtraReports.UI.DetailBand();
+            this.xrChart1 = new DevExpress.XtraReports.UI.XRChart();
+            ((System.ComponentModel.ISupportInitialize)(this.xrChart1)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(xyDiagram3D1)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(series1)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(manhattanBarSeriesView1)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this)).BeginInit();
+            // 
+            // TopMargin
+            // 
+            this.TopMargin.HeightF = 16.66667F;
+            this.TopMargin.Name = "TopMargin";
+            // 
+            // BottomMargin
+            // 
+            this.BottomMargin.Name = "BottomMargin";
+            // 
+            // Detail
+            // 
+            this.Detail.Controls.AddRange(new DevExpress.XtraReports.UI.XRControl[] {
+            this.xrChart1});
+            this.Detail.HeightF = 327.5F;
+            this.Detail.Name = "Detail";
+            // 
+            // xrChart1
+            // 
+            this.xrChart1.BorderColor = System.Drawing.Color.Black;
+            this.xrChart1.Borders = DevExpress.XtraPrinting.BorderSide.None;
+            xyDiagram3D1.RotationMatrixSerializable = "0.766044443118978;-0.219846310392954;0.604022773555054;0;0;0.939692620785908;0.34" +
+    "2020143325669;0;-0.642787609686539;-0.262002630229385;0.719846310392954;0;0;0;0;" +
+    "1";
+            this.xrChart1.Diagram = xyDiagram3D1;
+            this.xrChart1.Legend.Name = "Default Legend";
+            this.xrChart1.LocationFloat = new DevExpress.Utils.PointFloat(0F, 0F);
+            this.xrChart1.Name = "xrChart1";
+            series1.Name = "Series 1";
+            series1.View = manhattanBarSeriesView1;
+            this.xrChart1.SeriesSerializable = new DevExpress.XtraCharts.Series[] {
+        series1};
+            this.xrChart1.SizeF = new System.Drawing.SizeF(650F, 327.5F);
+            // 
+            // mainRP
+            // 
+            this.Bands.AddRange(new DevExpress.XtraReports.UI.Band[] {
+            this.TopMargin,
+            this.BottomMargin,
+            this.Detail});
+            this.Font = new DevExpress.Drawing.DXFont("Arial", 9.75F);
+            this.Margins = new DevExpress.Drawing.DXMargins(100, 100, 17, 100);
+            this.Version = "19.2";
+            ((System.ComponentModel.ISupportInitialize)(xyDiagram3D1)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(manhattanBarSeriesView1)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(series1)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.xrChart1)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this)).EndInit();
+
+        }
+
+        #endregion
+
+        private DevExpress.XtraReports.UI.TopMarginBand TopMargin;
+        private DevExpress.XtraReports.UI.BottomMarginBand BottomMargin;
+        private DevExpress.XtraReports.UI.DetailBand Detail;
+        private DevExpress.XtraReports.UI.XRChart xrChart1;
+    }
+}

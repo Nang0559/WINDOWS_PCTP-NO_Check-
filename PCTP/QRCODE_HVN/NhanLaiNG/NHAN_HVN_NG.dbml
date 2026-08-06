@@ -1,0 +1,40 @@
+﻿<?xml version="1.0" encoding="utf-8"?><Database Name="B7R2_FCC" Class="NHAN_HVN_NGDataContext" xmlns="http://schemas.microsoft.com/linqtosql/dbml/2007">
+  <Connection Mode="AppSettings" ConnectionString="Data Source=192.168.200.14\BRAVO;Initial Catalog=B7R2_FCC;User ID=sa;Connect Timeout=30;Encrypt=False;TrustServerCertificate=False" SettingsObjectName="PCTP.Properties.Settings" SettingsPropertyName="B7R2_FCCConnectionString5" Provider="System.Data.SqlClient" />
+  <Table Name="dbo.TMPPHIEUGIAOHANGDBCT" Member="TMPPHIEUGIAOHANGDBCTs">
+    <Type Name="TMPPHIEUGIAOHANGDBCT">
+      <Column Name="ID" Type="System.Int32" DbType="Int NOT NULL IDENTITY" IsPrimaryKey="true" IsDbGenerated="true" CanBeNull="false" />
+      <Column Name="IDP" Type="System.Int32" DbType="Int" CanBeNull="true" />
+      <Column Name="GGFCC" Type="System.String" DbType="NVarChar(50)" CanBeNull="true" />
+      <Column Name="STT" Type="System.Int16" DbType="SmallInt" CanBeNull="true" />
+      <Column Name="CUA" Type="System.String" DbType="NVarChar(50)" CanBeNull="true" />
+      <Column Name="TRUYEN" Type="System.String" DbType="NVarChar(50)" CanBeNull="true" />
+      <Column Name="MAHANG" Type="System.String" DbType="NVarChar(50)" CanBeNull="true" />
+      <Column Name="TENHANG" Type="System.String" DbType="NVarChar(50)" CanBeNull="true" />
+      <Column Name="LOT" Type="System.String" DbType="NVarChar(200)" CanBeNull="true" />
+      <Column Name="DV" Type="System.String" DbType="NVarChar(50)" CanBeNull="true" />
+      <Column Name="SOLUONG" Type="System.Int16" DbType="SmallInt" CanBeNull="true" />
+      <Column Name="NGAYGIAO" Type="System.DateTime" DbType="SmallDateTime" CanBeNull="true" />
+      <Column Name="GIOGIAO" Type="System.String" DbType="NVarChar(50)" CanBeNull="true" />
+      <Column Name="STATUS" Type="System.String" DbType="NVarChar(50)" CanBeNull="true" />
+      <Column Name="TTPHIEU" Type="System.String" DbType="NVarChar(50)" CanBeNull="true" />
+      <Column Name="NHAMAY" Type="System.String" DbType="VarChar(50)" CanBeNull="true" />
+      <Column Name="ADDNM" Type="System.Int32" DbType="Int" CanBeNull="true" />
+      <Column Name="HOP" Type="System.Int32" DbType="Int" CanBeNull="true" />
+      <Column Name="STATUSDOC" Type="System.String" DbType="NVarChar(50)" CanBeNull="true" />
+      <Column Name="NGAYNHAN" Type="System.DateTime" DbType="SmallDateTime" CanBeNull="true" />
+      <Column Name="TTNHAN" Type="System.Boolean" DbType="Bit" CanBeNull="true" />
+      <Column Name="Note" Type="System.String" DbType="NVarChar(250)" CanBeNull="true" />
+    </Type>
+  </Table>
+  <Table Name="dbo.TMPPHIEUNHANDB" Member="TMPPHIEUNHANDBs">
+    <Type Name="TMPPHIEUNHANDB">
+      <Column Name="IDP" Type="System.Int32" DbType="Int NOT NULL IDENTITY" IsPrimaryKey="true" IsDbGenerated="true" CanBeNull="false" />
+      <Column Name="NAME" Type="System.String" DbType="NVarChar(250)" CanBeNull="true" />
+      <Column Name="TRANGTHAINHAN" Type="System.Boolean" DbType="Bit" CanBeNull="true" />
+      <Column Name="NOTE" Type="System.String" DbType="NVarChar(250)" CanBeNull="true" />
+      <Column Name="NGAYLAP" Type="System.DateTime" DbType="SmallDateTime" CanBeNull="true" />
+      <Column Name="NHAMAY" Type="System.Int32" DbType="Int NOT NULL" CanBeNull="false" />
+      <Column Name="NHAMAYNAME" Type="System.String" DbType="NVarChar(50)" CanBeNull="true" />
+    </Type>
+  </Table>
+</Database>

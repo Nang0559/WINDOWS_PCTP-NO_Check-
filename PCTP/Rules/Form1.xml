@@ -1,0 +1,14 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+
+<rules>
+	<required target="TXT_QRCODE.Text" errorMessage="this field cannot be empty."/>
+	<rangeInt target="txt_sllot1.Text" minValue="0" maxValue="70" errorMessage="Value {v:value} is not in the range : {v:min} - {v:max}"/>
+	<rangeInt target="txt_sllot2.Text" minValue="0" maxValue="70" errorMessage="Value {v:value} is not in the range : {v:min} - {v:max}"/>
+	<rangeInt target="txt_sllot3.Text" minValue="0" maxValue="70" errorMessage="Value {v:value} is not in the range : {v:min} - {v:max}"/>
+
+	<!--<rangeDouble target="txtDouble.Text" minValue="30" maxValue="30.88" errorMessage="incorrect range"/>
+	<regExp target="txtEmail.Text" exp="\w+([-+.]\w+)*@\w+([-.]\w+)*\.\w+([-.]\w+)*" errorMessage="incorrect email. check format" when="cbEmailCondition.Checked = true"/>
+	
+  <rangeInt target="txtRequired.Text.Length" minValue="1" errorMessage="stupid but ok!"/>
+  -->
+</rules>

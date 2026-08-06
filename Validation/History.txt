@@ -1,0 +1,15 @@
+﻿[19.June.09] v0.21
+
++ Multi-level property support 
+
+[30.May.09] v0.2 
+
++ Conditional validation support : when attribute
+	.Simple Evaluator
++ Created Xml Schema for rule xml
+	.Rule.xsd
++ .AddRule() now checks validity of rule xml
+
+[29.May.09] v0.1 (Initial Release)
+
++ RangeDouble, RangeInt, RegExp, Required Validators
