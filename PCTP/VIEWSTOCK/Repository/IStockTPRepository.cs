@@ -24,7 +24,13 @@ namespace PCTP.VIEWSTOCK.Repository
         int GetSlConLai(string lot);
         void InsertStockTp(NhapKhoItem item, int status);
         void UpdateStockTp(string lot, int slSeNhap, int status);
-        void GanRackSlot(string lot, string rackCode, string slotCode);
+
+        // ── Xuất kho thật (giao hàng) ─────────────────────────────
+        void XuatKhoThat(string lot, int slXuat);
+
+        // ── Đối chiếu tồn kho ──────────────────────────────────────
+        List<(string Lot, int SlConLai)> GetDanhSachLotConTon();
+        Dictionary<string, int> GetSlConLaiBatch(IEnumerable<string> lots);
 
         // ── Case dedup (NHAP_TP_HIS) ──────────────────────────────
         bool ExistsCaseHistory(string caseNo);

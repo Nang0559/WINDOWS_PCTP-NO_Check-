@@ -1,4 +1,5 @@
-﻿using System;
+﻿using PCTP.Models;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -8,6 +9,11 @@ namespace PCTP.VIEWSTOCK.Models
 {
     public class LotInfo
     {
+        // phiếu nhập 
+        public string MaPhieuKho { get; set; }      // ← MỚI, map cột SlotLot.MaPhieu
+        public string ParentSoPhieuKho { get; set; } // ← MỚI, map cột SlotLot.ParentSoPhieu
+        public PhieuStatus PhieuStatus { get; set; } = PhieuStatus.Active; // ← MỚI
+        // phiếu giao
         public string LotNo { get; set; }
 
         public int Quantity { get; set; }

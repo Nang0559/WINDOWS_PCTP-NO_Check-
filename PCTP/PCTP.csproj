@@ -298,6 +298,7 @@
     <Compile Include="Infrastructure\Repositories\IFSRepository.cs" />
     <Compile Include="Infrastructure\Repositories\PhieuRepository.cs" />
     <Compile Include="Infrastructure\Repositories\SqlRepository.cs" />
+    <Compile Include="Models\PhieuStatus.cs" />
     <Compile Include="Models\QRCODE.cs" />
     <Compile Include="DBSQLServerUtils.cs" />
     <Compile Include="DBUtils.cs" />
@@ -730,6 +731,7 @@
     </Compile>
     <Compile Include="VIEWSTOCK\Fuction\CheckInfor.cs" />
     <Compile Include="VIEWSTOCK\Fuction\LotNoHelper.cs" />
+    <Compile Include="VIEWSTOCK\Fuction\PhieuNoHelper.cs" />
     <Compile Include="VIEWSTOCK\Fuction\PrintHelper.cs" />
     <Compile Include="VIEWSTOCK\Fuction\QRCodeBuilder.cs" />
     <Compile Include="VIEWSTOCK\Fuction\QRCodeParser.cs" />

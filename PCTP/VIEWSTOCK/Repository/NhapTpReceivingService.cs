@@ -9,10 +9,10 @@ namespace PCTP.VIEWSTOCK.Repository
 {
     public class NhapTpReceivingService
     {
-        private readonly INhapTpRepository _repo;
+        private readonly IStockTpRepository _repo;
         private static readonly HashSet<string> _sessionCases = new HashSet<string>(); // thay SQLPROVIDER.c_Ns
 
-        public NhapTpReceivingService(INhapTpRepository repo) => _repo = repo;
+        public NhapTpReceivingService(IStockTpRepository repo) => _repo = repo;
 
         /// <summary>Bước 1: chỉ validate, KHÔNG ghi DB</summary>
         public ScanResult TiepNhanTemTong(QRCodeInfo qr, string loaiNhap)

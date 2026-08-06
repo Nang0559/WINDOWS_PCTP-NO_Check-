@@ -1,14 +1,15 @@
-﻿using System;
+﻿using DevExpress.CodeParser;
+using DevExpress.XtraEditors;
+using Oracle.ManagedDataAccess.Client;
+using PCTP.VIEWSTOCK.Models;
+using System;
 using System.Collections.Generic;
+using System.Data;
+using System.Data.SqlClient;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using System.Data.SqlClient;
 using System.Windows.Forms;
-using System.Data;
-using Oracle.ManagedDataAccess.Client;
-using DevExpress.XtraEditors;
-using PCTP.VIEWSTOCK.Models;
 using static System.Runtime.CompilerServices.RuntimeHelpers;
 
 namespace PCTP.ClassSQL
@@ -19,8 +20,33 @@ namespace PCTP.ClassSQL
         //public string B7R2_FCCdb = @"Data Source=192.168.200.14\BRAVO;Initial Catalog=B7R2_FCC;User ID=sa;Password=fccbrv";
         public string B7R2_FCCdb = @"Data Source=192.168.200.57;Initial Catalog=B7R2_FCC;User ID=sa;Password=fccbrv";
         // Tạo connection to VIEWSTOCK
-        public string B7R2_FCCdbb = @"Data Source=192.168.200.14\BRAVO;Initial Catalog=VIEWSTOCK;User ID=sa;Password=fccbrv";
-        //public string B7R2_FCCdb = @"Data Source=192.168.200.57;Initial Catalog=B7R2_FCC;User ID=sa;Password=fccbrv";
+        //public string B7R2_FCCdbb = @"Data Source=192.168.200.14\BRAVO;Initial Catalog=VIEWSTOCK;User ID=sa;Password=fccbrv";
+        public string B7R2_FCCdbb = @"Data Source=192.168.200.57;Initial Catalog=B7R2_FCC;User ID=sa;Password=fccbrv";
+
+   
+        // ════════════════════════════════════════════════════════════════════
+        // TRANSACTION SUPPORT
+        // B7R2_FCCdb và B7R2_FCCdbb hiện trỏ CÙNG server + CÙNG catalog
+        // (192.168.200.57 / B7R2_FCC) → STOCKTP và Slot/SlotLot nằm chung 1 DB.
+        // Vì vậy dùng được SqlTransaction cục bộ thật (không cần MSDTC,
+        // không cần prefix catalog trong câu SQL).
+        //
+        // Orchestrator mở 1 SqlConnection duy nhất bằng BeginTransaction(),
+        // truyền (conn, tran) xuống từng bước ghi, rồi Commit/Rollback 1 lần.
+        // ════════════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// Mở 1 SqlConnection + bắt đầu transaction. Caller chịu trách nhiệm
+        /// Commit/Rollback và Dispose (dùng using cho cả conn lẫn tran).
+        /// Luôn dùng B7R2_FCCdb (hoặc B7R2_FCCdbb — nay là cùng 1 chuỗi).
+        /// </summary>
+        public SqlConnection BeginTransaction(string connectionSTR, out SqlTransaction tran)
+        {
+            var conn = new SqlConnection(connectionSTR);
+            conn.Open();
+            tran = conn.BeginTransaction();
+            return conn;
+        }
         public string GetProductNameByCode(string itemCode)
         {
             if (string.IsNullOrEmpty(itemCode)) return "";
@@ -33,7 +59,7 @@ namespace PCTP.ClassSQL
 
             try
             {
-                using (SqlConnection connection = new SqlConnection(B7R2_FCCdbb))
+                using (SqlConnection connection = new SqlConnection(B7R2_FCCdb))
                 {
                     using (SqlCommand command = new SqlCommand(query, connection))
                     {
@@ -53,7 +79,7 @@ namespace PCTP.ClassSQL
         }
         public void UpdateSlotAfterExport(Slot slot,int SlotId)
         {
-            using (var conn = new SqlConnection(B7R2_FCCdbb))
+            using (var conn = new SqlConnection(B7R2_FCCdb))
             {
                 conn.Open();
                 var cmd = new SqlCommand(@"
@@ -103,7 +129,7 @@ namespace PCTP.ClassSQL
                 VALUES (@WarehouseName)";
 
                     int warehouseId = Convert.ToInt32(
-                        sqlProvider.ExecuteScalar(sqlProvider.B7R2_FCCdbb, insertWarehouseQuery,
+                        sqlProvider.ExecuteScalar(sqlProvider.B7R2_FCCdb, insertWarehouseQuery,
                         new[] { new SqlParameter("@WarehouseName", warehouse.Name) }));
 
                     // Insert Rack
@@ -113,7 +139,7 @@ namespace PCTP.ClassSQL
                 VALUES (@WarehouseId, @RackName)";
 
                     int rackId = Convert.ToInt32(
-                        sqlProvider.ExecuteScalar(sqlProvider.B7R2_FCCdbb, insertRackQuery, new[]
+                        sqlProvider.ExecuteScalar(sqlProvider.B7R2_FCCdb, insertRackQuery, new[]
                         {
                     new SqlParameter("@WarehouseId", warehouseId),
                     new SqlParameter("@RackName",    rack.Name)
@@ -130,7 +156,7 @@ namespace PCTP.ClassSQL
                         (@RackId, @SlotNumber, @IsOccupied, @Capacity,
                          @TemCode, @ItemCode, @LotNo, @Quantity, @ImportDate)";
 
-                        sqlProvider.ExecuteScalar(sqlProvider.B7R2_FCCdbb, insertSlotQuery, new[]
+                        sqlProvider.ExecuteScalar(sqlProvider.B7R2_FCCdb, insertSlotQuery, new[]
                          {
                             new SqlParameter("@RackId",     SqlDbType.Int)          { Value = rackId          },
                             new SqlParameter("@SlotNumber", SqlDbType.Int)          { Value = slot.SlotNumber },
@@ -445,6 +471,110 @@ namespace PCTP.ClassSQL
                 }
             }
         }
+        public int ExecuteNonQuery(SqlConnection conn, SqlTransaction tran,
+           string query, params SqlParameter[] parameters)
+        {
+            using (SqlCommand command = new SqlCommand(query, conn, tran))
+            {
+                if (parameters != null && parameters.Length > 0)
+                    command.Parameters.AddRange(parameters);
+
+                return command.ExecuteNonQuery();
+            }
+        }
+
+        // ── ExecuteScalar (transaction-aware) ───────────────────────────────
+        public object ExecuteScalar(SqlConnection conn, SqlTransaction tran,
+            string query, SqlParameter[] parameters = null)
+        {
+            using (SqlCommand command = new SqlCommand(query, conn, tran))
+            {
+                if (parameters != null)
+                {
+                    foreach (var p in parameters)
+                    {
+                        command.Parameters.Add(new SqlParameter(p.ParameterName, p.SqlDbType)
+                        {
+                            Value = p.Value,
+                            Direction = p.Direction,
+                            IsNullable = p.IsNullable,
+                            Size = p.Size
+                        });
+                    }
+                }
+
+                return command.ExecuteScalar();
+            }
+        }
+
+        // ── ExecuteReader dạng scalar-string (transaction-aware) ────────────
+        // Giữ đúng hành vi ExecuteReader(string,string) hiện có.
+        public string ExecuteReader(SqlConnection conn, SqlTransaction tran, string query)
+        {
+            string value = "";
+            using (SqlCommand command = new SqlCommand(query, conn, tran))
+            using (SqlDataReader reader = command.ExecuteReader())
+            {
+                while (reader.Read())
+                    value = string.Format("{0}", reader[0]);
+            }
+            return value;
+        }
+
+        // ── ExecuteQuery (transaction-aware) ────────────────────────────────
+        public DataTable ExecuteQuery(SqlConnection conn, SqlTransaction tran,
+            string query, List<SqlParameter> parameters = null)
+        {
+            DataTable data = new DataTable();
+            using (SqlCommand command = new SqlCommand(query, conn, tran))
+            {
+                if (parameters != null)
+                    command.Parameters.AddRange(parameters.ToArray());
+
+                using (SqlDataAdapter adapter = new SqlDataAdapter(command))
+                    adapter.Fill(data);
+            }
+            return data;
+        }
+
+        // ── LoadData1 (transaction-aware) ───────────────────────────────────
+        public DataTable LoadData1(SqlConnection conn, SqlTransaction tran,
+            string query, params SqlParameter[] paramList)
+        {
+            using (var cmd = new SqlCommand(query, conn, tran))
+            {
+                if (paramList != null && paramList.Length > 0)
+                    cmd.Parameters.AddRange(paramList);
+
+                using (var adap = new SqlDataAdapter(cmd))
+                {
+                    DataTable dt = new DataTable();
+                    adap.Fill(dt);
+                    return dt;
+                }
+            }
+        }
+
+        // ── Stored procedure (transaction-aware) — dùng cho các Usp_* hiện có ─
+        public DataSet ExecuteProcedureReturnDataSet(SqlConnection conn, SqlTransaction tran,
+            string procName, params SqlParameter[] parameters)
+        {
+            using (var command = conn.CreateCommand())
+            using (SqlDataAdapter sda = new SqlDataAdapter(command))
+            {
+                command.Transaction = tran;
+                command.CommandType = CommandType.StoredProcedure;
+                command.CommandText = procName;
+                sda.SelectCommand.CommandTimeout = 1200;
+
+                if (parameters != null)
+                    command.Parameters.AddRange(parameters);
+
+                var result = new DataSet();
+                sda.Fill(result);
+                return result;
+            }
+        }
         public int ExecuteNonQuery(string connectionSTR, string query, params SqlParameter[] parameters)
         {
             int data = 0;
@@ -522,7 +652,7 @@ namespace PCTP.ClassSQL
         LEFT JOIN Slot s ON s.RackId = r.RackId
         ORDER BY w.WarehouseId, r.RackId, s.SlotNumber";
 
-            DataTable dt = ExecuteQuery(B7R2_FCCdbb, query);
+            DataTable dt = ExecuteQuery(B7R2_FCCdb, query);
 
             var warehouseDict = new Dictionary<int, Warehouse>();
             var rackDict = new Dictionary<int, Rack>();
