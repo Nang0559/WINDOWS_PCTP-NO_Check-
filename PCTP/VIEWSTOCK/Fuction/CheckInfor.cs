@@ -152,10 +152,12 @@ namespace PCTP.VIEWSTOCK.Fuction
                     FROM Slot s
                     JOIN Rack r     ON s.RackId      = r.RackId
                     JOIN Warehouse w ON r.WarehouseId = w.WarehouseId
-                    WHERE 
+                    WHERE w.Name <> @BulkWh   -- ✅ THÊM: loại bỏ Slot ảo khỏi kết quả chọn thường
+                      AND (
                         (s.ItemCode = @ItemCode AND (s.Capacity - s.Quantity) >= @SoLuongNhap)
                         OR 
                         (s.IsOccupied = 0)
+                      )
                     ORDER BY 
                         CASE WHEN s.ItemCode = @ItemCode THEN 0 ELSE 1 END,
                         w.Name, r.RackName, s.SlotNumber";
@@ -163,6 +165,7 @@ namespace PCTP.VIEWSTOCK.Fuction
                 {
                     cmd.Parameters.AddWithValue("@ItemCode", itemCode);
                     cmd.Parameters.AddWithValue("@SoLuongNhap", soLuongNhap);
+                    cmd.Parameters.AddWithValue("@BulkWh", PCTP.VIEWSTOCK.Models.BulkImportConfig.WarehouseName);
                     using (SqlDataReader reader = cmd.ExecuteReader())
                     {
                         while (reader.Read())

@@ -639,5 +639,40 @@ namespace PCTP.VIEWSTOCK.FunctionForm
         }
 
         #endregion
+        public string GetOrCreateBulkImportSlotText()
+        {
+            string query = @"
+        SELECT s.SlotNumber, s.Capacity
+        FROM Slot s
+        JOIN Rack r ON r.RackId = s.RackId
+        JOIN Warehouse w ON w.WarehouseId = r.WarehouseId
+        WHERE w.Name = @wh AND r.RackName = @rack";
+
+            var dt = _sql.LoadData1(_sql.B7R2_FCCdbb, query,
+                new SqlParameter("@wh", BulkImportConfig.WarehouseName),
+                new SqlParameter("@rack", BulkImportConfig.RackName));
+
+            if (dt.Rows.Count > 0)
+            {
+                int slotNo = Convert.ToInt32(dt.Rows[0]["SlotNumber"]);
+                int cap = Convert.ToInt32(dt.Rows[0]["Capacity"]);
+                return $"WH : {BulkImportConfig.WarehouseName} - Rack : {BulkImportConfig.RackName} - Slot : {slotNo} - Capacity : {cap}";
+            }
+
+            int whId = Convert.ToInt32(_sql.ExecuteScalar(_sql.B7R2_FCCdbb,
+                "INSERT INTO Warehouse (Name) OUTPUT INSERTED.WarehouseId VALUES (@n)",
+                new[] { new SqlParameter("@n", BulkImportConfig.WarehouseName) }));
+
+            int rackId = Convert.ToInt32(_sql.ExecuteScalar(_sql.B7R2_FCCdbb,
+                "INSERT INTO Rack (WarehouseId, RackName) OUTPUT INSERTED.RackId VALUES (@w,@r)",
+                new[] { new SqlParameter("@w", whId), new SqlParameter("@r", BulkImportConfig.RackName) }));
+
+            _sql.ExecuteNonQuery(_sql.B7R2_FCCdbb,
+                "INSERT INTO Slot (RackId, SlotNumber, IsOccupied, Capacity, Quantity) VALUES (@rk, 1, 0, @cap, 0)",
+                new SqlParameter("@rk", rackId),
+                new SqlParameter("@cap", BulkImportConfig.Capacity));
+
+            return $"WH : {BulkImportConfig.WarehouseName} - Rack : {BulkImportConfig.RackName} - Slot : 1 - Capacity : {BulkImportConfig.Capacity}";
+        }
     }
 }

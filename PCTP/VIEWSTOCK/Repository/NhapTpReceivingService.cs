@@ -63,14 +63,16 @@ namespace PCTP.VIEWSTOCK.Repository
         /// Slot đích lấy từ selectedSlotText dạng
         /// "WH : .. - Rack : .. - Slot : .. - Capacity : ..".
         /// </summary>
-        public ScanResult NhapTpVaoSlot(QRCodeInfo qr, string selectedSlotText)
+        public ScanResult NhapTpVaoSlot(QRCodeInfo qr, string selectedSlotText, PhieuNhapInfo matchedPhieu = null)
         {
             var check = KiemTraTruocKhiNhap(qr);
             if (!check.IsOK) return check;
 
-            string lotNo = LotNoHelper.NormalizeLot(qr.RawLotNo ?? qr.LotNo); // hoặc LotNoHelper sau khi gộp
+            // ✅ Ưu tiên LOT chuẩn từ vNhapTP thay vì tự normalize từ QR
+            string lotNo = matchedPhieu != null
+                ? matchedPhieu.LotNo
+                : LotNoHelper.NormalizeLot(qr.RawLotNo ?? qr.LotNo);
 
-            // ── Build CASE_NO giống logic gốc NHAP_TP: LotNoSL + SoPhieuTong (hoặc "4" nếu NG) ──
             string caseNo = !string.IsNullOrEmpty(qr.SoPhieuTong)
                 ? qr.RawLotNo + qr.SoPhieuTong
                 : qr.RawLotNo + "4";
@@ -83,27 +85,44 @@ namespace PCTP.VIEWSTOCK.Repository
             if (slotId <= 0)
                 return ScanResult.Fail("Không tìm thấy Slot đích.");
 
+            if (capacity <= 0)
+                capacity = slotHelper.GetSlotCapacityById(slotId);
+
             using (var conn = _sql.BeginTransaction(_sql.B7R2_FCCdb, out SqlTransaction tran))
             {
                 try
                 {
-                    // ── Check trùng case NGAY TRONG TRANSACTION (tránh race condition) ──
                     if (_stockTpRepo.ExistsCaseHistory(conn, tran, caseNo))
                     {
                         tran.Rollback();
                         return ScanResult.Trung($"Case [{caseNo}] đã được nhập kho trước đó!");
                     }
 
-                    // ── Bước 1: STOCKTP — nguồn sự thật duy nhất về tổng tồn ────
+                    // ✅ THÊM: kiểm tra sức chứa Slot đích (thiếu ở bản gốc)
+                    if (capacity > 0)
+                    {
+                        object qtyRaw = _sql.ExecuteScalar(conn, tran,
+                            "SELECT ISNULL(Quantity,0) FROM Slot WHERE SlotId = @SlotId",
+                            new[] { new SqlParameter("@SlotId", slotId) });
+                        int qtyHienTai = qtyRaw == null || qtyRaw == DBNull.Value ? 0 : Convert.ToInt32(qtyRaw);
+
+                        if (qtyHienTai + qr.Quantity > capacity)
+                        {
+                            tran.Rollback();
+                            return ScanResult.Fail(
+                                $"Vượt sức chứa Slot ({qtyHienTai + qr.Quantity}/{capacity}). Chọn Slot khác.");
+                        }
+                    }
+
                     bool daTonTai = _stockTpRepo.ExistsStockTp(conn, tran, lotNo);
 
                     var nhapItem = new NhapKhoItem
                     {
                         Lot = lotNo,
                         Part = qr.ItemCode,
-                        Name = qr.ItemCode,
-                        NgaySX = qr.ImportDate,
-                        SlSanXuat = qr.Quantity,
+                        Name = matchedPhieu?.TenSP ?? qr.ItemCode,           // ✅ fix: tên SP thật
+                        NgaySX = matchedPhieu?.NgaySX ?? qr.ImportDate,
+                        SlSanXuat = matchedPhieu?.SlSanXuat ?? qr.Quantity,  // ✅ fix: tổng SLSX thật
                         SlNhap = qr.Quantity
                     };
 
@@ -112,7 +131,6 @@ namespace PCTP.VIEWSTOCK.Repository
                     else
                         _stockTpRepo.InsertStockTp(conn, tran, nhapItem, 0);
 
-                    // ── Bước 2: Tạo phiếu kho mới (Active) — giữ nguyên như cũ ──
                     string maPhieuMoi = PhieuNoHelper.NewMaPhieuNhap(lotNo);
                     _phieuRepo.InsertPhieuMoi(conn, tran,
                         slotId: slotId, itemCode: qr.ItemCode, lotNo: lotNo,
@@ -121,7 +139,6 @@ namespace PCTP.VIEWSTOCK.Repository
                         soPhieuTong: qr.SoPhieuTong, maPhieuMoi: maPhieuMoi,
                         parentSoPhieu: null, status: PhieuStatus.Active);
 
-                    // ── Bước 3: Cộng dồn tổng hợp lên Slot — giữ nguyên ──
                     _sql.ExecuteNonQuery(conn, tran, @"
                 UPDATE Slot SET
                     Quantity   = ISNULL(Quantity,0) + @Sl,
@@ -134,7 +151,6 @@ namespace PCTP.VIEWSTOCK.Repository
                         new SqlParameter("@ImportDate", (object)qr.ImportDate ?? DateTime.Now),
                         new SqlParameter("@SlotId", slotId));
 
-                    // ── Bước 4: Ghi lịch sử case — chống bắn lại QR này ──────────
                     _stockTpRepo.InsertCaseHistory(conn, tran, caseNo);
 
                     tran.Commit();

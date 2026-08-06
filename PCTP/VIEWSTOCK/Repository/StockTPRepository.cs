@@ -1,4 +1,5 @@
 ﻿using PCTP.ClassSQL;
+using PCTP.VIEWSTOCK.Fuction;
 using PCTP.VIEWSTOCK.Models;
 using System;
 using System.Collections.Generic;
@@ -318,6 +319,29 @@ namespace PCTP.VIEWSTOCK.Repository
             _sql.ExecuteNonQuery(conn, tran,
                 "INSERT INTO NHAP_TP_HIS (LOTCASE) VALUES (@caseNo)",
                 new SqlParameter("@caseNo", caseNo));
+        }
+        // StockTpRepository.cs — thêm (using PCTP.VIEWSTOCK.Fuction;)
+        public PhieuNhapInfo TimPhieuTheoLotQR(string rawLotNoSL, string maHang)
+        {
+            if (string.IsNullOrWhiteSpace(rawLotNoSL) || string.IsNullOrWhiteSpace(maHang))
+                return null;
+
+            // ⚠️ Phải dùng đúng query STUFF('00000',...) như NHAP_TP.cs gốc —
+            // đây là ID mã hàng đã pad 5 ký tự, KHÁC với GetIdMaHang() (không pad)
+            // dùng ở DocQRRepository. BuildFindList phụ thuộc đúng độ dài chuỗi này.
+            string idPadded = _sql.ExecuteReader(_sql.B7R2_FCCdb,
+                "SELECT STUFF('00000', 5-LEN(id)+1, LEN(id), id) " +
+                $"FROM B20Item WHERE code = '{maHang.Replace("'", "''")}'");
+
+            if (string.IsNullOrWhiteSpace(idPadded)) return null;
+
+            var finds = LotNoHelper.BuildFindList(rawLotNoSL, idPadded);
+            foreach (var find in finds)
+            {
+                var phieu = GetPhieuByFind(find);
+                if (phieu != null) return phieu;
+            }
+            return null;
         }
     }
 }

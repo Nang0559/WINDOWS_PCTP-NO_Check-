@@ -47,5 +47,7 @@ namespace PCTP.VIEWSTOCK.Repository
         void UpdateStockTp(SqlConnection conn, SqlTransaction tran, string lot, int slSeNhap, int status);
         bool ExistsCaseHistory(SqlConnection conn, SqlTransaction tran, string caseNo);
         void InsertCaseHistory(SqlConnection conn, SqlTransaction tran, string caseNo);
+        // IStockTPRepository.cs — thêm
+        PhieuNhapInfo TimPhieuTheoLotQR(string rawLotNoSL, string maHang);
     }
 }

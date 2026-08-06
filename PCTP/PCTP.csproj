@@ -757,6 +757,7 @@
       <DependentUpon>MainStock.cs</DependentUpon>
     </Compile>
     <Compile Include="VIEWSTOCK\Models\BoxScanResult.cs" />
+    <Compile Include="VIEWSTOCK\Models\BulkImportConfig.cs" />
     <Compile Include="VIEWSTOCK\Models\CustomerConfig.cs" />
     <Compile Include="VIEWSTOCK\Models\CustomerTableConfig.cs" />
     <Compile Include="VIEWSTOCK\Models\InspectionConfig.cs" />
@@ -778,7 +779,6 @@
     <Compile Include="VIEWSTOCK\Models\SlotRenderInfo.cs" />
     <Compile Include="VIEWSTOCK\Models\StockTraHangInfo.cs" />
     <Compile Include="VIEWSTOCK\Models\Warehouse.cs" />
-    <Compile Include="VIEWSTOCK\Presenters\NhapKhoPresenter.cs" />
     <Compile Include="VIEWSTOCK\Repository\IPhieuTrackingRepository.cs" />
     <Compile Include="VIEWSTOCK\Repository\IStockTPRepository.cs" />
     <Compile Include="VIEWSTOCK\Repository\NhapTpReceivingService.cs" />
