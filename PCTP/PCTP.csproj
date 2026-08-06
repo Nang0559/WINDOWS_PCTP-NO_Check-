@@ -765,6 +765,7 @@
     <Compile Include="VIEWSTOCK\Models\LotSplitResult.cs" />
     <Compile Include="VIEWSTOCK\Models\NGResult.cs" />
     <Compile Include="VIEWSTOCK\Models\NhapKhoItem.cs" />
+    <Compile Include="VIEWSTOCK\Models\PhieuLocationInfo.cs" />
     <Compile Include="VIEWSTOCK\Models\PhieuNhapInfo.cs" />
     <Compile Include="VIEWSTOCK\Models\PrintLotResult.cs" />
     <Compile Include="VIEWSTOCK\Models\PXuatINModel.cs" />
@@ -779,9 +780,11 @@
     <Compile Include="VIEWSTOCK\Models\StockTraHangInfo.cs" />
     <Compile Include="VIEWSTOCK\Models\Warehouse.cs" />
     <Compile Include="VIEWSTOCK\Presenters\NhapKhoPresenter.cs" />
+    <Compile Include="VIEWSTOCK\Repository\IPhieuTrackingRepository.cs" />
     <Compile Include="VIEWSTOCK\Repository\IStockTPRepository.cs" />
     <Compile Include="VIEWSTOCK\Repository\NhapTpReceivingService.cs" />
     <Compile Include="VIEWSTOCK\Repository\PhieuNhapRepository.cs" />
+    <Compile Include="VIEWSTOCK\Repository\PhieuTrackingRepository.cs" />
     <Compile Include="VIEWSTOCK\Repository\StockTPRepository.cs" />
     <Compile Include="VIEWSTOCK\RpIn\RpInNhapKho.cs">
       <SubType>Component</SubType>

@@ -1,111 +1,178 @@
-﻿using PCTP.VIEWSTOCK.Models;
+﻿using PCTP.ClassSQL;
+using PCTP.Models;
+using PCTP.VIEWSTOCK.Fuction;
+using PCTP.VIEWSTOCK.FunctionForm;
+using PCTP.VIEWSTOCK.Models;
 using System;
 using System.Collections.Generic;
+using System.Data.SqlClient;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace PCTP.VIEWSTOCK.Repository
 {
+    /// <summary>
+    /// Nhập hàng TP vào Slot — thay thế hoàn toàn luồng NHAP_TP cũ.
+    /// Mỗi lần nhập = 1 transaction gồm:
+    ///   1) Ghi/Cộng dồn STOCKTP (nguồn sự thật cho tổng tồn kho)
+    ///   2) Tạo 1 "phiếu" mới (SlotLot, PhieuStatus=Active) tại Slot đã chọn
+    ///   3) Cập nhật tổng hợp Slot (Quantity/ItemCode/ImportDate/IsOccupied)
+    /// Không bao giờ được làm rời từng bước — nếu 1 bước lỗi, toàn bộ rollback.
+    /// </summary>
     public class NhapTpReceivingService
     {
-        private readonly IStockTpRepository _repo;
-        private static readonly HashSet<string> _sessionCases = new HashSet<string>(); // thay SQLPROVIDER.c_Ns
+        private readonly SQLPROVIDER _sql;
+        private readonly IStockTpRepository _stockTpRepo;
+        private readonly IPhieuTrackingRepository _phieuRepo;
 
-        public NhapTpReceivingService(IStockTpRepository repo) => _repo = repo;
-
-        /// <summary>Bước 1: chỉ validate, KHÔNG ghi DB</summary>
-        public ScanResult TiepNhanTemTong(QRCodeInfo qr, string loaiNhap)
+        public NhapTpReceivingService(
+            SQLPROVIDER sql,
+            IStockTpRepository stockTpRepo,
+            IPhieuTrackingRepository phieuRepo)
         {
-            if (qr == null) return ScanResult.Fail("Không đọc được QR.");
-
-            if (!qr.IsTongPhieu && loaiNhap != "NG")
-                return ScanResult.Fail("Bạn đang bắn tem thùng (tem thùng chỉ cho phép nhập lại NG).");
-
-            if (string.IsNullOrEmpty(qr.CaseNo))
-                return ScanResult.Fail("QR thiếu mã Case.");
-
-            // Dedup: session + DB (port KTTRUNGLIST + check NHAP_TP_HIS)
-            if (_sessionCases.Contains(qr.CaseNo))
-                return ScanResult.Trung($"Case [{qr.CaseNo}] đã quét trong phiên này!");
-
-            if (_repo.ExistsCaseHistory(qr.CaseNo))
-                return ScanResult.Trung($"Case [{qr.CaseNo}] đã được nhập trước đó!");
-
-            return loaiNhap == "N" ? XuLyNhapThuong(qr) : XuLyNhapNG(qr);
+            _sql = sql;
+            _stockTpRepo = stockTpRepo;
+            _phieuRepo = phieuRepo;
         }
 
-        private ScanResult XuLyNhapThuong(QRCodeInfo qr)
+        /// <summary>
+        /// Kiểm tra sơ bộ TRƯỚC khi mở transaction — dùng để UI báo lỗi sớm,
+        /// không tốn transaction cho các trường hợp chắc chắn fail.
+        /// </summary>
+        public ScanResult KiemTraTruocKhiNhap(QRCodeInfo qr)
         {
-            var phieu = _repo.GetPhieuByFind(qr.LotNo);
-            if (phieu == null)
-                return ScanResult.Fail("Không tồn tại phiếu nhập tương ứng LOT này.");
+            if (qr == null)
+                return ScanResult.Fail("Không đọc được dữ liệu QR.");
 
-            if (phieu.KetThucLot)
-                return ScanResult.Fail($"LOT [{phieu.LotNo}] đã kết thúc, không thể nhập thêm.");
+            if (!qr.IsTongPhieu)
+                return ScanResult.Fail("Vui lòng bắn tem TỔNG để nhập kho (không nhận tem thùng).");
 
-            var item = NhapKhoItem.FromPhieu(phieu, "N");
-            item.SlNhap = qr.Quantity;
+            if (qr.Quantity <= 0)
+                return ScanResult.Fail("Số lượng trên tem không hợp lệ.");
 
-            var result = ScanResult.OKNhapKho(item);
-            result.CaseNo = qr.CaseNo;
-            // Port điều kiện: SLDANHAP + SLSENHAP > SLSX → cảnh báo, KHÔNG chặn cứng (giống code cũ dùng YesNo)
-            result.CanhBaoVuotSanLuong = (phieu.SlDaNhap + qr.Quantity) > phieu.SlSanXuat;
-            return result;
+            // Chống quét trùng — mỗi QR gốc chỉ được nhập kho đúng 1 lần
+            if (_phieuRepo.ExistsQrData(qr.RawQr))
+                return ScanResult.Trung("Tem này đã được nhập kho trước đó!");
+
+            return new ScanResult { IsOK = true };
         }
 
-        private ScanResult XuLyNhapNG(QRCodeInfo qr)
+        /// <summary>
+        /// Thực hiện nhập kho thật — TOÀN BỘ trong 1 transaction.
+        /// Slot đích lấy từ selectedSlotText dạng
+        /// "WH : .. - Rack : .. - Slot : .. - Capacity : ..".
+        /// </summary>
+        public ScanResult NhapTpVaoSlot(QRCodeInfo qr, string selectedSlotText)
         {
-            var dsTra = _repo.GetTraHangConLai(qr.LotNo);
-            if (dsTra == null || dsTra.Count == 0)
-                return ScanResult.Fail("Không tồn tại phiếu nhập NG cho LOT này.");
+            var check = KiemTraTruocKhiNhap(qr);
+            if (!check.IsOK) return check;
 
-            var r = ScanResult.OKNgList(dsTra);
-            r.CaseNo = qr.CaseNo;
-            return r;
-        }
+            string lotNo = NhapKhoLotNoHelper.NormalizeLot(qr.RawLotNo ?? qr.LotNo);
 
-        /// <summary>Bước 3: GHI DB — chỉ gọi sau khi qua Inspection (nếu có) và user xác nhận</summary>
-        public (bool ok, string error) XacNhanGhiNhan(NhapKhoItem item, string caseNo)
-        {
-            try
+            SlotHelper.ParseSlotString(selectedSlotText,
+                out string wh, out string rack, out int slotNumber, out int capacity);
+
+            var slotHelper = new SlotHelper();
+            int slotId = slotHelper.GetSlotID(wh, rack, slotNumber);
+            if (slotId <= 0)
+                return ScanResult.Fail("Không tìm thấy Slot đích.");
+
+            using (var conn = _sql.BeginTransaction(_sql.B7R2_FCCdb, out SqlTransaction tran))
             {
-                int status = (item.SlDaNhap + item.SlNhap >= item.SlSanXuat) ? 1 : 0;
+                try
+                {
+                    // ── Bước 1: STOCKTP — nguồn sự thật duy nhất về tổng tồn ────
+                    bool daTonTai = _sql.ExecuteScalar(conn, tran,
+                        "SELECT COUNT(*) FROM STOCKTP WHERE LOT = @Lot",
+                        new[] { new SqlParameter("@Lot", lotNo) }) is int cnt && cnt > 0
+                        || Convert.ToInt32(_sql.ExecuteScalar(conn, tran,
+                            "SELECT COUNT(*) FROM STOCKTP WHERE LOT = @Lot",
+                            new[] { new SqlParameter("@Lot", lotNo) })) > 0;
 
-                if (_repo.ExistsStockTp(item.Lot))
-                    _repo.UpdateStockTp(item.Lot, item.SlNhap, status);
-                else
-                    _repo.InsertStockTp(item, status);
+                    if (daTonTai)
+                    {
+                        _sql.ExecuteNonQuery(conn, tran, @"
+                            UPDATE STOCKTP SET
+                                SLNHAP   = ISNULL(SLNHAP,0) + @Sl,
+                                SLCONLAI = ISNULL(SLCONLAI,0) + @Sl,
+                                NGAYNHAP = CAST(GETDATE() AS smalldatetime)
+                            WHERE LOT = @Lot",
+                            new SqlParameter("@Sl", qr.Quantity),
+                            new SqlParameter("@Lot", lotNo));
+                    }
+                    else
+                    {
+                        _sql.ExecuteNonQuery(conn, tran, @"
+                            INSERT INTO STOCKTP
+                                (LOT, PART, NAME, NGAYSX, SLSX,
+                                 NGAYNHAP, SLNHAP, SLXUAT, SLCONLAI, MODEL)
+                            VALUES
+                                (@Lot, @Part, @Name, @NgaySX, @Sl,
+                                 GETDATE(), @Sl, 0, @Sl, @Model)",
+                            new SqlParameter("@Lot", lotNo),
+                            new SqlParameter("@Part", (object)qr.ItemCode ?? DBNull.Value),
+                            new SqlParameter("@Name", (object)qr.ItemCode ?? DBNull.Value),
+                            new SqlParameter("@NgaySX", (object)qr.ImportDate ?? DateTime.Now),
+                            new SqlParameter("@Sl", qr.Quantity),
+                            new SqlParameter("@Model", DBNull.Value));
+                    }
 
-                _repo.InsertCaseHistory(caseNo);
-                _sessionCases.Add(caseNo);
-                return (true, null);
+                    // ── Bước 2: Tạo phiếu kho mới (Active) ──────────────────────
+                    string maPhieuMoi = PhieuNoHelper.NewMaPhieuNhap(lotNo);
+
+                    _phieuRepo.InsertPhieuMoi(conn, tran,
+                        slotId: slotId,
+                        itemCode: qr.ItemCode,
+                        lotNo: lotNo,
+                        quantity: qr.Quantity,
+                        temCode: qr.MaPhieu,       // mã tem in trên nhãn
+                        qrData: qr.RawQr,
+                        importDate: qr.ImportDate ?? DateTime.Now,
+                        ngaySX: qr.NgaySX,
+                        soPhieuTong: qr.SoPhieuTong,  // số phiếu gốc trên tem — KHÔNG đổi
+                        maPhieuMoi: maPhieuMoi,        // số phiếu KHO — dùng để trace vị trí/tách
+                        parentSoPhieu: null,           // phiếu gốc, chưa từng bị tách
+                        status: PhieuStatus.Active);
+
+                    // ── Bước 3: Cộng dồn tổng hợp lên Slot ──────────────────────
+                    _sql.ExecuteNonQuery(conn, tran, @"
+                        UPDATE Slot SET
+                            Quantity   = ISNULL(Quantity,0) + @Sl,
+                            ItemCode   = @ItemCode,
+                            ImportDate = @ImportDate,
+                            IsOccupied = 1
+                        WHERE SlotId = @SlotId",
+                        new SqlParameter("@Sl", qr.Quantity),
+                        new SqlParameter("@ItemCode", (object)qr.ItemCode ?? DBNull.Value),
+                        new SqlParameter("@ImportDate", (object)qr.ImportDate ?? DateTime.Now),
+                        new SqlParameter("@SlotId", slotId));
+
+                    tran.Commit();
+                }
+                catch (Exception ex)
+                {
+                    tran.Rollback();
+                    return ScanResult.Fail("Lỗi nhập kho: " + ex.Message);
+                }
             }
-            catch (Exception ex) { return (false, ex.Message); }
+
+            return new ScanResult
+            {
+                IsOK = true,
+                Message = $"Đã nhập LOT {lotNo} (SL: {qr.Quantity}) vào {wh}/{rack}/Slot {slotNumber}."
+            };
         }
 
-        public (bool ok, string error) XacNhanNhanLaiNG(
-            string lot, string part, string name, string lyDoNg, int slNhanLai, string caseNo)
+        /// <summary>
+        /// Đối chiếu: tổng SlotLot Active của 1 LOT phải khớp STOCKTP.SLCONLAI.
+        /// Dùng cho màn hình kiểm tra dữ liệu / báo cáo lệch tồn.
+        /// </summary>
+        public bool KiemTraKhopTonKho(string lotNo, out int slActive, out int slConLaiStockTp)
         {
-            try
-            {
-                var traInfo = _repo.GetTraHangConLai(lot).FirstOrDefault(x => x.LyDoNg == lyDoNg);
-                if (traInfo == null) return (false, "Không tìm thấy dòng trả hàng tương ứng.");
-
-                if (!_repo.ExistsStockTp(lot))
-                    return (false, $"LOT [{lot}] chưa tồn tại trong STOCKTP để nhận lại NG.");
-
-                int slConLaiSauNhan = traInfo.SlConLai - slNhanLai;
-                int status = slConLaiSauNhan <= 0 ? 0 : 1;
-
-                _repo.UpdateStockTp(lot, slNhanLai, 0);
-                _repo.InsertNhanTra(lot, part, name, slNhanLai, lyDoNg);
-                _repo.UpdateTraHangSauNhanLai(lot, lyDoNg, slNhanLai, status);
-                _repo.InsertCaseHistory(caseNo);
-                _sessionCases.Add(caseNo);
-                return (true, null);
-            }
-            catch (Exception ex) { return (false, ex.Message); }
+            slActive = _phieuRepo.GetTongSlActiveTheoLot(lotNo);
+            slConLaiStockTp = _stockTpRepo.GetSlConLai(lotNo);
+            return slActive == slConLaiStockTp;
         }
     }
 }

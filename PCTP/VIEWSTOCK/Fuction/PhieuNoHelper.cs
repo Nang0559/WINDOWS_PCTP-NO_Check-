@@ -18,5 +18,7 @@ namespace PCTP.VIEWSTOCK.Fuction
 
             return $"{lotShort}-{DateTime.Now:yyMMddHHmmssfff}";
         }
+        public static string NewMaPhieuNhap(string lotNo) => "N-" + NewMaPhieu(lotNo);
+        public static string NewMaPhieuTach(string lotNo) => "T-" + NewMaPhieu(lotNo);
     }
 }

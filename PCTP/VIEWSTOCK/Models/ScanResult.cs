@@ -14,7 +14,7 @@ namespace PCTP.VIEWSTOCK.Models
         public bool IsSlKhongKhop { get; private set; }  // SL HVN ≠ SL FCC
         public bool IsTrung { get; private set; }  // trùng case/lot
         public bool IsLoi { get; private set; }  // lỗi nghiệp vụ khác
-        public string Message { get; private set; }
+        public string Message { get;  set; }
         public bool CanhBaoVuotSanLuong { get; set; }
         public string CaseNo { get; set; }
         public List<StockTraHangInfo> NgList { get; set; }
