@@ -370,39 +370,36 @@ namespace PCTP.VIEWSTOCK.Repository
             string idPadded = _sql.ExecuteReader(_sql.B7R2_FCCdb,
                 "SELECT STUFF('00000', 5-LEN(id)+1, LEN(id), id) " +
                 $"FROM B20Item WHERE code = '{maHang.Replace("'", "''")}'");
-
             if (string.IsNullOrWhiteSpace(idPadded)) return null;
 
-            // ── BƯỚC 1: Thử theo thuật toán offset cũ (nhanh, đúng khi độ dài field chuẩn) ──
+            PhieuNhapInfo phieu = null;
+
+            // BƯỚC 1
             var finds = LotNoHelper.BuildFindList(rawLotNoSL, idPadded);
             foreach (var find in finds)
             {
-                var phieu = GetPhieuByFind(find);
-                if (phieu != null)
-                    DongBoSLSXVaMoLaiNeuThayDoi(phieu.LotNo, phieu.Find, phieu.SlSanXuat);
-                return phieu;
+                phieu = GetPhieuByFind(find);
+                if (phieu != null) break;
             }
 
-            // ── BƯỚC 2 (FALLBACK): match theo prefix đáng tin cậy ───────────────────
-            // Prefix 11 ký tự đầu (ngày SX 6 ký tự + ID mã hàng pad 5 ký tự) luôn đúng
-            // vì được build cố định (không phụ thuộc độ dài Ca/Machine/Gear biến động).
-            // Ký tự thứ 12 (nếu QR đủ dài) là Ca sản xuất.
-            if (rawLotNoSL.Length < 11) return null;
-
-            string prefix11 = rawLotNoSL.Substring(0, 11);
-            string ca = rawLotNoSL.Length > 11 ? rawLotNoSL.Substring(11, 1) : "";
-
-            // Thử khớp chặt trước: prefix + Ca (12 ký tự) — giảm rủi ro nhầm giữa 2 ca
-            // sản xuất khác nhau của cùng mã hàng trong cùng ngày.
-            if (!string.IsNullOrEmpty(ca))
+            // BƯỚC 2 (FALLBACK) — chỉ chạy nếu bước 1 không tìm thấy gì
+            if (phieu == null && rawLotNoSL.Length >= 11)
             {
-                var phieuCa = GetPhieuByLotPrefix(prefix11 + ca, maHang);
-                if (phieuCa != null) return phieuCa;
+                string prefix11 = rawLotNoSL.Substring(0, 11);
+                string ca = rawLotNoSL.Length > 11 ? rawLotNoSL.Substring(11, 1) : "";
+
+                if (!string.IsNullOrEmpty(ca))
+                    phieu = GetPhieuByLotPrefix(prefix11 + ca, maHang);
+
+                if (phieu == null)
+                    phieu = GetPhieuByLotPrefix(prefix11, maHang);
             }
 
-            // Khớp lỏng hơn: chỉ prefix 11 ký tự — CHỈ chấp nhận nếu duy nhất 1 dòng,
-            // tránh nhập nhầm khi prefix trùng giữa nhiều lệnh SX khác nhau trong ngày.
-            return GetPhieuByLotPrefix(prefix11, maHang);
+            // ── Điểm đối chiếu DUY NHẤT — áp dụng cho cả 2 bước, không sót nhánh nào ──
+            if (phieu != null)
+                DongBoSLSXVaMoLaiNeuThayDoi(phieu.LotNo, phieu.Find, phieu.SlSanXuat);
+
+            return phieu;
         }
 
         private PhieuNhapInfo GetPhieuByLotPrefix(string lotPrefix, string maHang)
