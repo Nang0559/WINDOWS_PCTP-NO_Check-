@@ -376,11 +376,26 @@ namespace PCTP.VIEWSTOCK.Repository
 
             // BƯỚC 1
             var finds = LotNoHelper.BuildFindList(rawLotNoSL, idPadded);
-            foreach (var find in finds)
+            var candidates = finds
+           .Select(f => GetPhieuByFind(f))
+           .Where(p => p != null && p.MaSP == maHang)   // ✅ thêm điều kiện lọc mã hàng
+           .ToList();
+
+            if (candidates.Count == 1)
+                return candidates[0];
+
+            if (candidates.Count > 1)
             {
-                phieu = GetPhieuByFind(find);
-                if (phieu != null) break;
+                // Ambiguous — log lại để rà soát thay vì âm thầm lấy candidate đầu tiên
+                System.Diagnostics.Debug.WriteLine(
+                    $"[TimPhieuTheoLotQR] Khớp {candidates.Count} phiếu cho QR={rawLotNoSL} — cần rà soát thuật toán BuildFindList");
+                return null;
             }
+            //foreach (var find in finds)
+            //{
+            //    phieu = GetPhieuByFind(find);
+            //    if (phieu != null) break;
+            //}
 
             // BƯỚC 2 (FALLBACK) — chỉ chạy nếu bước 1 không tìm thấy gì
             if (phieu == null && rawLotNoSL.Length >= 11)

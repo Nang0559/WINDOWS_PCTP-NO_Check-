@@ -68,9 +68,10 @@ namespace PCTP.VIEWSTOCK.Repository
             var check = KiemTraTruocKhiNhap(qr);
             if (!check.IsOK) return check;
 
-            string lotNo = matchedPhieu != null
-                ? matchedPhieu.LotNo
-                : LotNoHelper.NormalizeLot(qr.RawLotNo ?? qr.LotNo);
+            //string lotNo = matchedPhieu != null
+            //    ? matchedPhieu.LotNo
+            //    : LotNoHelper.NormalizeLot(qr.RawLotNo ?? qr.LotNo);
+            string lotNo = matchedPhieu.LotNo;
 
             string caseNo = !string.IsNullOrEmpty(qr.SoPhieuTong)
                 ? qr.RawLotNo + qr.SoPhieuTong
