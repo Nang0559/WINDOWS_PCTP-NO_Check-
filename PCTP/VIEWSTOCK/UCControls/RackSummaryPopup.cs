@@ -168,11 +168,11 @@ using System.Windows.Forms;
                 t.Start();
             }
 
-            protected override void OnDeactivate(EventArgs e)
-            {
-                base.OnDeactivate(e);
-                Hide();
-            }
+            //protected override void OnDeactivate(EventArgs e)
+            //{
+            //    base.OnDeactivate(e);
+            //    Hide();
+            //}
         }
     }
 

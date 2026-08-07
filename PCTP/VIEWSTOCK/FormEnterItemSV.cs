@@ -125,7 +125,8 @@ namespace PCTP.VIEWSTOCK
             {
                 Text = "Nhập hàng loạt (không cần chọn Slot — vào kho tạm)",
                 Dock = DockStyle.Fill,
-                Font = new Font("Tahoma", 10, FontStyle.Bold)
+                Font = new Font("Tahoma", 10, FontStyle.Bold),
+                Checked = true
             };
             chkNhapHangLoat.Properties.Appearance.ForeColor = Color.DarkOrange;
             chkNhapHangLoat.Properties.Appearance.Options.UseForeColor = true;

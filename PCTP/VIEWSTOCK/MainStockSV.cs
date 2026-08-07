@@ -129,6 +129,15 @@ namespace PCTP.VIEWSTOCK
             _hidePopupTimer.Tick += (s, e) =>
             {
                 _hidePopupTimer.Stop();
+
+                // ✅ FIX: kiểm tra lại chuột có đang thực sự nằm trong popup không
+                // (MouseLeave có thể đã fire "giả" do di chuột qua child control như
+                // SimpleButton/GridControl — những control này có HWND riêng)
+                if (_rackPopup.Visible && _rackPopup.Bounds.Contains(Cursor.Position))
+                {
+                    return; // Chuột vẫn đang trong popup -> KHÔNG ẩn
+                }
+
                 _rackPopup.Hide();
                 _hoveredRackForPopup = null;
             };
@@ -274,11 +283,6 @@ namespace PCTP.VIEWSTOCK
                     string titleText = $"WH: {rack.RackData.WarehouseName} | Rack: {rack.RackData.RackName}";
                     g.DrawString(titleText, headerFont, Brushes.Black, rack.HeaderBounds.X + 8, rack.HeaderBounds.Y + 8);
 
-                    //string itemSummaryDisplay = string.Join(" | ", rack.RackData.ItemSummary.Select(kvp => $"[{kvp.Key}: vị trí {kvp.Value.Item1}, SL {kvp.Value.Item2}]"));
-                    //string statusText = $"Trống: {rack.RackData.EmptySlotCount}/{rack.RackData.SlotCount} " + (string.IsNullOrEmpty(itemSummaryDisplay) ? "" : $" - {itemSummaryDisplay}");
-
-                    //SizeF statusSize = g.MeasureString(statusText, summaryFont);
-                    //g.DrawString(statusText, summaryFont, Brushes.DarkBlue, rack.HeaderBounds.Right - statusSize.Width - 10, rack.HeaderBounds.Y + 9);
                     // "Trống: x/y" cố định bên phải
                     string trongText = $"Trống: {rack.RackData.EmptySlotCount}/{rack.RackData.SlotCount}";
                     SizeF trongSize = g.MeasureString(trongText, summaryFont);
@@ -286,6 +290,9 @@ namespace PCTP.VIEWSTOCK
                     g.DrawString(trongText, summaryFont, Brushes.DarkBlue, trongX, rack.HeaderBounds.Y + 9);
 
                     // Vùng còn lại giữa title và "Trống" -> rút gọn theo chiều rộng thật, ellipsis nếu tràn
+                    // ✅ FIX: rack.RackData.ItemSummary giờ đã tổng hợp đúng theo từng LOT
+                    // (xem LoadRackRenderInfosSync) nên phần tóm tắt này tự động hiển thị
+                    // đầy đủ tất cả mã hàng, kể cả khi 1 Slot chứa nhiều mã khác nhau.
                     SizeF titleSize = g.MeasureString(titleText, headerFont);
                     float summaryStartX = rack.HeaderBounds.X + 8 + titleSize.Width + 20;
                     float summaryMaxWidth = trongX - summaryStartX - 10;
@@ -354,10 +361,28 @@ namespace PCTP.VIEWSTOCK
                         // 🌟 BỔ SUNG: Hiển thị thông tin ItemCode, LotNo, Quantity chi tiết vào thân ô nếu đang có hàng
                         if (slot.IsOccupied)
                         {
-                            // Vẽ Mã hàng (ItemCode) màu đỏ đậm
-                            string itemCodeStr = !string.IsNullOrEmpty(slot.ItemCode)
-                                ? (slot.ItemCode.Length > 8 ? slot.ItemCode.Substring(0, 7) + ".." : slot.ItemCode)
-                                : "";
+                            // ✅ FIX: Slot ảo (kho A0 gom hàng tạm) có thể chứa NHIỀU mã hàng
+                            // khác nhau (nhiều dòng SlotLot). slot.ItemCode chỉ là 1 cột đơn —
+                            // bị GHI ĐÈ bởi lần nhập cuối cùng (xem
+                            // NhapTpReceivingService.NhapTpVaoSlot) — nên KHÔNG dùng để hiển
+                            // thị nữa. Lấy danh sách mã hàng thật từ slot.Lots (đã JOIN sẵn
+                            // từ bảng SlotLot, mỗi Lot biết đúng ItemCode của chính nó).
+                            var distinctItemCodes = slot.Lots
+                                .Select(l => l.QRInfo?.ItemCode)
+                                .Where(ic => !string.IsNullOrEmpty(ic))
+                                .Distinct()
+                                .ToList();
+
+                            string itemCodeStr;
+                            if (distinctItemCodes.Count == 0)
+                                itemCodeStr = "";
+                            else if (distinctItemCodes.Count == 1)
+                                itemCodeStr = distinctItemCodes[0].Length > 8
+                                    ? distinctItemCodes[0].Substring(0, 7) + ".."
+                                    : distinctItemCodes[0];
+                            else
+                                itemCodeStr = $"{distinctItemCodes.Count} mã hàng"; // nhiều mã, không thể rút gọn 1 chuỗi
+
                             g.DrawString(itemCodeStr, boldSlotFont, Brushes.DarkRed, slotLayout.Bounds.X + 4, slotLayout.Bounds.Y + 16);
 
                             // Vẽ Số Lot (LotNo)
@@ -624,37 +649,48 @@ namespace PCTP.VIEWSTOCK
 
         // ── [SQL CONNECTIONS] ĐỌC DỮ LIỆU ĐỒNG BỘ TỪ CƠ SỞ DỮ LIỆU ─────────────────
 
+        // ════════════════════════════════════════════════════════════════════════════
+        // PATCH: MainStockSV.cs
+        // Fix: Slot ảo (kho A0 gom hàng tạm) chứa nhiều mã hàng khác nhau (nhiều dòng
+        // SlotLot) nhưng UI chỉ hiển thị 1 mã, do bám vào Slot.ItemCode (cột đơn,
+        // bị ghi đè bởi lần nhập cuối cùng). Sửa bằng cách tính ItemSummary và vẽ
+        // itemCodeStr dựa trên slot.Lots (đã JOIN từ SlotLot, mỗi Lot có ItemCode
+        // riêng qua LotInfo.QRInfo.ItemCode) thay vì Slot.ItemCode.
+        // ════════════════════════════════════════════════════════════════════════════
+
+        // ── [SQL CONNECTIONS] ĐỌC DỮ LIỆU ĐỒNG BỘ TỪ CƠ SỞ DỮ LIỆU ─────────────────
+
         private List<RackRenderInfo> LoadRackRenderInfosSync()
         {
-            // ✅ KIẾN TRÚC MỚI: Slot không còn lưu LotNo/TemCode trực tiếp.
+            // ✅ KIẾN TRÚC: Slot không còn lưu LotNo/TemCode trực tiếp.
             // LEFT JOIN thêm SlotLot để lấy toàn bộ Lot của từng Slot (1 Slot - N Lot).
             // Lưu ý: query này trả 1 dòng / (Slot x Lot) — cần gộp lại theo SlotId ở tầng C#.
             string query = @"
-            SELECT 
-                w.Name      AS WarehouseName,
-                r.RackName,
-                r.RackId,
-                s.SlotId,
-                s.SlotNumber,
-                s.ItemCode,
-                s.Quantity,
-                s.Capacity,
-                s.ImportDate,
-                s.IsOccupied,
-                sl.LotNo,
-                sl.ItemCode    AS LotItemCode,
-                sl.Quantity    AS LotQuantity,
-                sl.TemCode     AS LotTemCode,
-                sl.QrData,
-                sl.ImportDate  AS LotImportDate,
-                sl.NgaySX,
-                sl.SoPhieuTong,
-                sl.MaPhieu
-            FROM Warehouse w
-            INNER JOIN Rack r    ON r.WarehouseId = w.WarehouseId
-            LEFT  JOIN Slot s    ON s.RackId      = r.RackId
-            LEFT  JOIN SlotLot sl ON sl.SlotId    = s.SlotId
-            ORDER BY w.Name, r.RackName, s.SlotNumber, sl.LotNo";
+    SELECT 
+        w.Name      AS WarehouseName,
+        r.RackName,
+        r.RackId,
+        s.SlotId,
+        s.SlotNumber,
+        s.ItemCode,
+        s.Quantity,
+        s.Capacity,
+        s.ImportDate,
+        s.IsOccupied,
+        sl.LotNo,
+        sl.ItemCode    AS LotItemCode,
+        sl.Quantity    AS LotQuantity,
+        sl.TemCode     AS LotTemCode,
+        sl.QrData,
+        sl.ImportDate  AS LotImportDate,
+        sl.NgaySX,
+        sl.SoPhieuTong,
+        sl.MaPhieu
+    FROM Warehouse w
+    INNER JOIN Rack r    ON r.WarehouseId = w.WarehouseId
+    LEFT  JOIN Slot s    ON s.RackId      = r.RackId
+    LEFT  JOIN SlotLot sl ON sl.SlotId    = s.SlotId
+    ORDER BY w.Name, r.RackName, s.SlotNumber, sl.LotNo";
 
             DataTable dt = sqlProvider.LoadData1(sqlProvider.B7R2_FCCdbb, query);
             var rackDict = new Dictionary<string, RackRenderInfo>();
@@ -738,16 +774,22 @@ namespace PCTP.VIEWSTOCK
                 info.SlotCount = info.Slots.Count;
                 info.EmptySlotCount = info.Slots.Count(s => !s.Slot.IsOccupied);
 
-                // Tổng hợp ItemSummary sau khi Lots đã gộp xong (tránh cộng trùng do nhiều dòng SlotLot)
+                // ✅ FIX: Tổng hợp ItemSummary theo TỪNG LOT (SlotLot), KHÔNG theo
+                // Slot.ItemCode đơn lẻ như trước đây — vì 1 Slot (đặc biệt Slot ảo
+                // kho A0 gom hàng tạm) có thể chứa nhiều LOT khác mã hàng cùng lúc.
+                // Dùng Lots đã gộp xong (tránh cộng trùng do nhiều dòng SlotLot).
                 foreach (var sr in info.Slots)
                 {
                     var slot = sr.Slot;
-                    if (!string.IsNullOrEmpty(slot.ItemCode) && slot.Quantity > 0)
+                    foreach (var lot in slot.Lots)
                     {
-                        if (info.ItemSummary.TryGetValue(slot.ItemCode, out var s))
-                            info.ItemSummary[slot.ItemCode] = (s.Item1 + 1, s.Item2 + slot.Quantity);
+                        string itemCode = lot.QRInfo?.ItemCode;
+                        if (string.IsNullOrEmpty(itemCode) || lot.Quantity <= 0) continue;
+
+                        if (info.ItemSummary.TryGetValue(itemCode, out var s))
+                            info.ItemSummary[itemCode] = (s.Item1 + 1, s.Item2 + lot.Quantity);
                         else
-                            info.ItemSummary[slot.ItemCode] = (1, slot.Quantity);
+                            info.ItemSummary[itemCode] = (1, lot.Quantity);
                     }
                 }
             }
