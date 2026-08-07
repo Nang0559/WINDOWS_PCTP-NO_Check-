@@ -1,4 +1,6 @@
 ﻿using PCTP.ClassSQL;
+using PCTP.Domain.Events;
+using PCTP.Infrastructure;
 using PCTP.VIEWSTOCK.Fuction;
 using PCTP.VIEWSTOCK.Models;
 using System;
@@ -50,21 +52,59 @@ namespace PCTP.VIEWSTOCK.Repository
 
         private static PhieuNhapInfo MapPhieu(DataRow r) => new PhieuNhapInfo
         {
-            Stt = r["STT"] == DBNull.Value ? 0 : Convert.ToInt32(r["STT"]),
+            Stt = SafeInt(r["STT"]),
             Find = r["FIND"] as string,
             LotNo = r["LOT_NO"] as string,
             Model = r["MODEL"] as string,
             TenSP = r["TEN_SAN_PHAM"] as string,
             MaSP = r["MA_SAN_PHAM"] as string,
-            CaSX = r["CA_SAN_XUAT"] == DBNull.Value ? 0 : Convert.ToInt32(r["CA_SAN_XUAT"]),
-            NgaySX = r["NGAY_SAN_XUAT"] == DBNull.Value ? DateTime.MinValue : Convert.ToDateTime(r["NGAY_SAN_XUAT"]),
-            SlSanXuat = r["SL_DA_SAN_XUAT"] == DBNull.Value ? 0 : Convert.ToInt32(r["SL_DA_SAN_XUAT"]),
-            SlDaNhap = r["SL_DA_NHAP"] == DBNull.Value ? 0 : Convert.ToInt32(r["SL_DA_NHAP"]),
-            SlDaTra = r["SL_DA_TRA"] == DBNull.Value ? 0 : Convert.ToInt32(r["SL_DA_TRA"]),
+            CaSX = SafeInt(r["CA_SAN_XUAT"]),
+            NgaySX = SafeDate(r["NGAY_SAN_XUAT"]),
+            SlSanXuat = SafeInt(r["SL_DA_SAN_XUAT"]),
+            SlDaNhap = SafeInt(r["SL_DA_NHAP"]),
+            SlDaTra = SafeInt(r["SL_DA_TRA"]),
             LyDoTra = r["LY_DO_TRA"] as string,
-            TonKhoTP = r["TON_KHO_TP"] == DBNull.Value ? 0 : Convert.ToInt32(r["TON_KHO_TP"]),
-            KetThucLot = r["KET_THUC_LOT"] != DBNull.Value && Convert.ToInt32(r["KET_THUC_LOT"]) == 1
+            TonKhoTP = SafeInt(r["TON_KHO_TP"]),
+            KetThucLot = SafeInt(r["KET_THUC_LOT"]) == 1
         };
+
+        // ── Helper: parse int an toàn — chịu được NULL, "", khoảng trắng,
+        // hoặc chuỗi số có phần thập phân ("16000.00") mà không throw ────────
+        private static int SafeInt(object val)
+        {
+            if (val == null || val == DBNull.Value) return 0;
+
+            // Trường hợp cột thật sự là kiểu số (int/decimal/double...) — convert trực tiếp
+            if (val is int i) return i;
+            if (val is decimal || val is double || val is float)
+            {
+                try { return Convert.ToInt32(val); } catch { return 0; }
+            }
+
+            // Trường hợp cột là string (rỗng, có khoảng trắng, hoặc "123.00")
+            string s = val.ToString().Trim();
+            if (string.IsNullOrEmpty(s)) return 0;
+
+            if (int.TryParse(s, out int result))
+                return result;
+
+            // Chuỗi số dạng thập phân "123.00" — thử parse qua decimal rồi ép về int
+            if (decimal.TryParse(s, System.Globalization.NumberStyles.Any,
+                System.Globalization.CultureInfo.InvariantCulture, out decimal d))
+                return (int)d;
+
+            return 0; // không parse được -> 0, không throw
+        }
+
+        private static DateTime SafeDate(object val)
+        {
+            if (val == null || val == DBNull.Value) return DateTime.MinValue;
+            if (val is DateTime dt) return dt;
+
+            return DateTime.TryParse(val.ToString(), out DateTime parsed)
+                ? parsed
+                : DateTime.MinValue;
+        }
 
         // ══════════════ STOCKTP ══════════════
         public bool ExistsStockTp(string lot)
@@ -321,27 +361,145 @@ namespace PCTP.VIEWSTOCK.Repository
                 new SqlParameter("@caseNo", caseNo));
         }
         // StockTpRepository.cs — thêm (using PCTP.VIEWSTOCK.Fuction;)
+        // StockTpRepository.cs — thêm (using PCTP.VIEWSTOCK.Fuction;)
         public PhieuNhapInfo TimPhieuTheoLotQR(string rawLotNoSL, string maHang)
         {
             if (string.IsNullOrWhiteSpace(rawLotNoSL) || string.IsNullOrWhiteSpace(maHang))
                 return null;
 
-            // ⚠️ Phải dùng đúng query STUFF('00000',...) như NHAP_TP.cs gốc —
-            // đây là ID mã hàng đã pad 5 ký tự, KHÁC với GetIdMaHang() (không pad)
-            // dùng ở DocQRRepository. BuildFindList phụ thuộc đúng độ dài chuỗi này.
             string idPadded = _sql.ExecuteReader(_sql.B7R2_FCCdb,
                 "SELECT STUFF('00000', 5-LEN(id)+1, LEN(id), id) " +
                 $"FROM B20Item WHERE code = '{maHang.Replace("'", "''")}'");
 
             if (string.IsNullOrWhiteSpace(idPadded)) return null;
 
+            // ── BƯỚC 1: Thử theo thuật toán offset cũ (nhanh, đúng khi độ dài field chuẩn) ──
             var finds = LotNoHelper.BuildFindList(rawLotNoSL, idPadded);
             foreach (var find in finds)
             {
                 var phieu = GetPhieuByFind(find);
-                if (phieu != null) return phieu;
+                if (phieu != null)
+                    DongBoSLSXVaMoLaiNeuThayDoi(phieu.LotNo, phieu.Find, phieu.SlSanXuat);
+                return phieu;
             }
-            return null;
+
+            // ── BƯỚC 2 (FALLBACK): match theo prefix đáng tin cậy ───────────────────
+            // Prefix 11 ký tự đầu (ngày SX 6 ký tự + ID mã hàng pad 5 ký tự) luôn đúng
+            // vì được build cố định (không phụ thuộc độ dài Ca/Machine/Gear biến động).
+            // Ký tự thứ 12 (nếu QR đủ dài) là Ca sản xuất.
+            if (rawLotNoSL.Length < 11) return null;
+
+            string prefix11 = rawLotNoSL.Substring(0, 11);
+            string ca = rawLotNoSL.Length > 11 ? rawLotNoSL.Substring(11, 1) : "";
+
+            // Thử khớp chặt trước: prefix + Ca (12 ký tự) — giảm rủi ro nhầm giữa 2 ca
+            // sản xuất khác nhau của cùng mã hàng trong cùng ngày.
+            if (!string.IsNullOrEmpty(ca))
+            {
+                var phieuCa = GetPhieuByLotPrefix(prefix11 + ca, maHang);
+                if (phieuCa != null) return phieuCa;
+            }
+
+            // Khớp lỏng hơn: chỉ prefix 11 ký tự — CHỈ chấp nhận nếu duy nhất 1 dòng,
+            // tránh nhập nhầm khi prefix trùng giữa nhiều lệnh SX khác nhau trong ngày.
+            return GetPhieuByLotPrefix(prefix11, maHang);
+        }
+
+        private PhieuNhapInfo GetPhieuByLotPrefix(string lotPrefix, string maHang)
+        {
+            const string sql = @"SELECT STT, FIND, LOT_NO, MODEL, TEN_SAN_PHAM, MA_SAN_PHAM,
+                                 CA_SAN_XUAT, NGAY_SAN_XUAT, SL_DA_SAN_XUAT,
+                                 SL_DA_NHAP, SL_DA_TRA, LY_DO_TRA, TON_KHO_TP, KET_THUC_LOT
+                          FROM vNhapTP
+                          WHERE LOT_NO LIKE @prefix + '%'
+                            AND MA_SAN_PHAM = @maHang";
+
+            DataTable dt = _sql.LoadData1(_sql.B7R2_FCCdb, sql,
+                new SqlParameter("@prefix", lotPrefix),
+                new SqlParameter("@maHang", maHang));
+
+            if (dt == null || dt.Rows.Count == 0) return null;
+
+            // ⚠️ Chỉ chấp nhận khi khớp DUY NHẤT — nếu >1 dòng thì prefix chưa đủ để
+            // phân biệt, thà trả null (báo "không tìm thấy phiếu") còn hơn nhập nhầm LOT.
+            if (dt.Rows.Count > 1) return null;
+
+            return MapPhieu(dt.Rows[0]);
+        }
+        // StockTpRepository.cs — thêm
+        public int GetSlDaNhap(SqlConnection conn, SqlTransaction tran, string lot)
+        {
+            object kq = _sql.ExecuteScalar(conn, tran,
+                "SELECT ISNULL(SLNHAP, 0) FROM STOCKTP WHERE LOT = @lot",
+                new[] { new SqlParameter("@lot", lot) });
+            return int.TryParse(kq?.ToString(), out int v) ? v : 0;
+        }
+        // StockTpRepository
+        public void MoLaiLot(string lot, string find = null)
+        {
+            _sql.ExecuteNonQuery(_sql.B7R2_FCCdb,
+                "UPDATE STOCKTP SET Satus = 0 WHERE LOT = @lot",
+                new SqlParameter("@lot", lot));
+
+            AppEventBus.Instance.Publish(new LotStatusResetEvent(lot, find));
+        }
+        // StockTpRepository.cs — thêm
+        public List<PhieuNhapInfo> GetPhieuDangSanXuat(int soNgayGanDay = 30)
+        {
+            const string sql = @"SELECT STT, FIND, LOT_NO, MODEL, TEN_SAN_PHAM, MA_SAN_PHAM,
+                                 CA_SAN_XUAT, NGAY_SAN_XUAT, SL_DA_SAN_XUAT,
+                                 SL_DA_NHAP, SL_DA_TRA, LY_DO_TRA, TON_KHO_TP, KET_THUC_LOT
+                          FROM vNhapTP
+                          WHERE NGAY_SAN_XUAT >= DATEADD(DAY, -@SoNgay, CAST(GETDATE() AS DATE))
+                          ORDER BY NGAY_SAN_XUAT DESC, STT DESC";
+
+            DataTable dt = _sql.LoadData1(_sql.B7R2_FCCdb, sql,
+                new SqlParameter("@SoNgay", soNgayGanDay));
+
+            if (dt == null) return new List<PhieuNhapInfo>();
+            var list = dt.Rows.Cast<DataRow>().Select(MapPhieu).ToList();
+            foreach (var p in list)
+                DongBoSLSXVaMoLaiNeuThayDoi(p.LotNo, p.Find, p.SlSanXuat);
+
+            return list;
+        }
+        // StockTpRepository — thêm method đối chiếu + tự mở khoá
+        /// <summary>
+        /// Đối chiếu SLSX hiện tại (từ vNhapTP — nguồn MES sống) với SLSX đã lưu trong STOCKTP.
+        /// Nếu khác nhau (MES tăng/giảm sản lượng), coi như "kế hoạch SX đổi" -> tự mở lại LOT
+        /// (Satus = 0) và đồng bộ lại SLSX mới, publish event cho các form đang mở biết.
+        /// Trả về true nếu vừa thực hiện reset (để caller biết mà refresh UI nếu cần).
+        /// </summary>
+        public bool DongBoSLSXVaMoLaiNeuThayDoi(string lot, string find, int slsxMoiTuMES)
+        {
+            if (string.IsNullOrWhiteSpace(lot)) return false;
+
+            object kq = _sql.ExecuteScalar(_sql.B7R2_FCCdb,
+                "SELECT Satus, ISNULL(SLSX,0) FROM STOCKTP WHERE LOT = @lot",
+                new[] { new SqlParameter("@lot", lot) });
+
+            // Chưa từng nhập kho LOT này -> không có gì để đồng bộ
+            if (kq == null || kq == DBNull.Value) return false;
+
+            DataTable dt = _sql.LoadData1(_sql.B7R2_FCCdb,
+                "SELECT Satus, ISNULL(SLSX,0) AS SLSX FROM STOCKTP WHERE LOT = @lot",
+                new SqlParameter("@lot", lot));
+            if (dt.Rows.Count == 0) return false;
+
+            int satusHienTai = dt.Rows[0]["Satus"] == DBNull.Value ? 0 : Convert.ToInt32(dt.Rows[0]["Satus"]);
+            int slsxDaLuu = Convert.ToInt32(dt.Rows[0]["SLSX"]);
+
+            // Chỉ cần xử lý khi đang bị khoá (Satus=1) VÀ SLSX MES đã đổi so với lúc khoá
+            if (satusHienTai != 1 || slsxMoiTuMES == slsxDaLuu)
+                return false;
+
+            _sql.ExecuteNonQuery(_sql.B7R2_FCCdb,
+                "UPDATE STOCKTP SET Satus = 0, SLSX = @slsxMoi WHERE LOT = @lot",
+                new SqlParameter("@slsxMoi", slsxMoiTuMES),
+                new SqlParameter("@lot", lot));
+
+            AppEventBus.Instance.Publish(new LotStatusResetEvent(lot, find));
+            return true;
         }
     }
 }

@@ -68,7 +68,6 @@ namespace PCTP.VIEWSTOCK.Repository
             var check = KiemTraTruocKhiNhap(qr);
             if (!check.IsOK) return check;
 
-            // ✅ Ưu tiên LOT chuẩn từ vNhapTP thay vì tự normalize từ QR
             string lotNo = matchedPhieu != null
                 ? matchedPhieu.LotNo
                 : LotNoHelper.NormalizeLot(qr.RawLotNo ?? qr.LotNo);
@@ -98,7 +97,6 @@ namespace PCTP.VIEWSTOCK.Repository
                         return ScanResult.Trung($"Case [{caseNo}] đã được nhập kho trước đó!");
                     }
 
-                    // ✅ THÊM: kiểm tra sức chứa Slot đích (thiếu ở bản gốc)
                     if (capacity > 0)
                     {
                         object qtyRaw = _sql.ExecuteScalar(conn, tran,
@@ -120,16 +118,26 @@ namespace PCTP.VIEWSTOCK.Repository
                     {
                         Lot = lotNo,
                         Part = qr.ItemCode,
-                        Name = matchedPhieu?.TenSP ?? qr.ItemCode,           // ✅ fix: tên SP thật
+                        Name = matchedPhieu?.TenSP ?? qr.ItemCode,
                         NgaySX = matchedPhieu?.NgaySX ?? qr.ImportDate,
-                        SlSanXuat = matchedPhieu?.SlSanXuat ?? qr.Quantity,  // ✅ fix: tổng SLSX thật
+                        SlSanXuat = matchedPhieu?.SlSanXuat ?? qr.Quantity,
                         SlNhap = qr.Quantity
                     };
 
+                    // ✅ THÊM: tính tổng SL đã nhập LUỸ KẾ sau lần nhập này, để quyết định
+                    // Status = 1 (kết thúc) hay 0 (còn dở), giống logic gốc:
+                    // if (SLSENHAP + SLDN == SLSX || SLSENHAP == SLDN) Status = 1;
+                    int slDaNhapTruoc = daTonTai ? _stockTpRepo.GetSlDaNhap(conn, tran, lotNo) : 0;
+                    int tongSlSauKhiNhap = slDaNhapTruoc + qr.Quantity;
+                    int slSanXuatThuc = matchedPhieu?.SlSanXuat ?? nhapItem.SlSanXuat;
+
+                    // Status = 1 khi nhập đủ hoặc vượt SL sản xuất — khớp logic gốc
+                    int status = (tongSlSauKhiNhap >= slSanXuatThuc && slSanXuatThuc > 0) ? 1 : 0;
+
                     if (daTonTai)
-                        _stockTpRepo.UpdateStockTp(conn, tran, lotNo, qr.Quantity, 0);
+                        _stockTpRepo.UpdateStockTp(conn, tran, lotNo, qr.Quantity, status);
                     else
-                        _stockTpRepo.InsertStockTp(conn, tran, nhapItem, 0);
+                        _stockTpRepo.InsertStockTp(conn, tran, nhapItem, status);
 
                     string maPhieuMoi = PhieuNoHelper.NewMaPhieuNhap(lotNo);
                     _phieuRepo.InsertPhieuMoi(conn, tran,
@@ -154,6 +162,15 @@ namespace PCTP.VIEWSTOCK.Repository
                     _stockTpRepo.InsertCaseHistory(conn, tran, caseNo);
 
                     tran.Commit();
+
+                    // ✅ Trả thêm cờ để UI biết có nên hiển thị cảnh báo "đã kết thúc LOT" không
+                    return new ScanResult
+                    {
+                        IsOK = true,
+                        Message = status == 1
+                            ? $"Đã nhập LOT {lotNo} (SL: {qr.Quantity}) — ĐỦ SỐ LƯỢNG, LOT đã tự động KẾT THÚC."
+                            : $"Đã nhập LOT {lotNo} (SL: {qr.Quantity}) vào {wh}/{rack}/Slot {slotNumber}."
+                    };
                 }
                 catch (Exception ex)
                 {
@@ -161,12 +178,6 @@ namespace PCTP.VIEWSTOCK.Repository
                     return ScanResult.Fail("Lỗi nhập kho: " + ex.Message);
                 }
             }
-
-            return new ScanResult
-            {
-                IsOK = true,
-                Message = $"Đã nhập LOT {lotNo} (SL: {qr.Quantity}) vào {wh}/{rack}/Slot {slotNumber}."
-            };
         }
 
         /// <summary>

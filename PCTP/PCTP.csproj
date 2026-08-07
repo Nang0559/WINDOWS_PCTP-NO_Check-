@@ -285,6 +285,7 @@
     <Compile Include="Domain\Events\DomainEvent.cs" />
     <Compile Include="Domain\Events\LayLaiLotEventArgs.cs" />
     <Compile Include="Domain\Events\ChonLotThuCongEventArgs.cs" />
+    <Compile Include="Domain\Events\LotStatusResetEvent.cs" />
     <Compile Include="Domain\Events\TTPHIEUEventArgs.cs" />
     <Compile Include="Domain\Interfaces\IEventBus.cs" />
     <Compile Include="Domain\Interfaces\IRepositories.cs" />
@@ -292,6 +293,7 @@
     <Compile Include="FuctionMain\QrInput.cs" />
     <Compile Include="FuctionMain\SqlHelper.cs" />
     <Compile Include="FuctionMain\StopwatchLogger.cs" />
+    <Compile Include="Infrastructure\AppEventBus.cs" />
     <Compile Include="Infrastructure\InProcessEventBus.cs" />
     <Compile Include="Infrastructure\Repositories\DocQRRepository.cs" />
     <Compile Include="Infrastructure\Repositories\GioXuatRepository.cs" />

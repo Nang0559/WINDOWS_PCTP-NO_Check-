@@ -49,5 +49,9 @@ namespace PCTP.VIEWSTOCK.Repository
         void InsertCaseHistory(SqlConnection conn, SqlTransaction tran, string caseNo);
         // IStockTPRepository.cs — thêm
         PhieuNhapInfo TimPhieuTheoLotQR(string rawLotNoSL, string maHang);
+        int GetSlDaNhap(SqlConnection conn, SqlTransaction tran, string lot);
+        void MoLaiLot(string lot, string find);
+        List<PhieuNhapInfo> GetPhieuDangSanXuat(int soNgayGanDay = 30);
+        bool DongBoSLSXVaMoLaiNeuThayDoi(string lot, string find, int slsxMoiTuMES);
     }
 }

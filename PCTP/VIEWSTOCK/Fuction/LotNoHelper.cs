@@ -34,33 +34,41 @@ namespace PCTP.VIEWSTOCK.Fuction
 
             if (!int.TryParse(idSP, out int intId)) return result;
 
+            // ✅ prefixLen luôn tính trên idSP đã pad (5 ký tự, từ STUFF('00000',...))
+            // Đây là độ dài CỐ ĐỊNH dùng để định vị trong LOTNOSL gốc — tương đương
+            // LOT1.Length trong NHAP_TP.cs. KHÔNG được thay bằng lot.Length (biến,
+            // phụ thuộc intId không pad) như code cũ đang làm.
             int prefixLen = 6 + idSP.Length;
             if (lotNoSL.Length <= prefixLen) return result;
 
-            string ca = lotNoSL.Substring(prefixLen - 1, 1);
-            string lot = lotNoSL.Substring(0, 6) + intId + ca;
+            // ✅ FIX lỗi off-by-one: Ca nằm NGAY SAU prefix đã pad → index = prefixLen
+            // (code cũ: prefixLen - 1 → sai lệch 1 ký tự)
+            string ca = lotNoSL.Substring(prefixLen, 1);
 
-            // Dạng 1 — LOT cơ bản
+            // LOT cơ bản — dùng intId KHÔNG pad, đúng như IntID.ToString() bản gốc
+            string lot = lotNoSL.Substring(0, 6) + intId + ca;
             result.Add(lot);
 
-            // Dạng 2 — BP từ cuối
+            // Dạng 2 — BP lấy từ cuối chuỗi, Gear lấy ở vị trí prefixLen+1 (FIX: dùng
+            // prefixLen thay vì lot.Length)
             if (lotNoSL.Length >= 8)
             {
                 string bp = lotNoSL.Substring(lotNoSL.Length - 8, 4);
-                string gear = lotNoSL.Length > lot.Length + 1
-                    ? lotNoSL.Substring(lot.Length + 1, 1) : "";
+                string gear = lotNoSL.Length > prefixLen + 1
+                    ? lotNoSL.Substring(prefixLen + 1, 1) : "";
                 result.Add(lotNoSL.Substring(0, 6) + intId + ca + bp + gear);
             }
 
-            // Dạng 3 — BP từ vị trí khác
-            if (lotNoSL.Length >= lot.Length + 6)
+            // Dạng 3 — BP2 ở vị trí prefixLen+2 (dài 4), Gear2 ở prefixLen+1
+            // (FIX: dùng prefixLen thay vì lot.Length)
+            if (lotNoSL.Length >= prefixLen + 6)
             {
-                string bp2 = lotNoSL.Substring(lot.Length + 2, 4);
-                string gear2 = lotNoSL.Substring(lot.Length + 1, 1);
+                string bp2 = lotNoSL.Substring(prefixLen + 2, 4);
+                string gear2 = lotNoSL.Substring(prefixLen + 1, 1);
                 result.Add(lotNoSL.Substring(0, 6) + intId + ca + bp2 + gear2);
             }
 
-            // Dạng LOTCH — 20 ký tự đầu (= vNhapTP.FIND)
+            // Dạng LOTCH — 20 ký tự đầu (= vNhapTP.FIND khi LY_DO_TRA rỗng)
             if (lotNoSL.Length >= 20)
                 result.Add(lotNoSL.Substring(0, 20));
 
