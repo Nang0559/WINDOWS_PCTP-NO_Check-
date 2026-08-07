@@ -794,6 +794,9 @@
     </Compile>
     <Compile Include="VIEWSTOCK\Services\NhapKhoCompletedEvent.cs" />
     <Compile Include="VIEWSTOCK\Models\StockItem.cs" />
+    <Compile Include="VIEWSTOCK\UCControls\RackSummaryPopup.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="VIEWSTOCK\ViewForm\FormEnterStock.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -1291,7 +1294,6 @@
     <Folder Include="QRCODE_HVN\PGH\NewFolder1\" />
     <Folder Include="QRFunction\Customerschedule\" />
     <Folder Include="QRFunction\QrcodeRead\" />
-    <Folder Include="VIEWSTOCK\UCControls\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <ItemGroup>

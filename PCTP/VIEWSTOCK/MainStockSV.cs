@@ -10,7 +10,6 @@ using PCTP.VIEWSTOCK.CanVas;
 using PCTP.VIEWSTOCK.Fuction;
 using PCTP.VIEWSTOCK.FunctionForm;
 using PCTP.VIEWSTOCK.Models;
-
 using PCTP.VIEWSTOCK.ViewForm;
 using System;
 using System.Collections.Generic;
@@ -48,7 +47,9 @@ namespace PCTP.VIEWSTOCK
         private DateTime _cacheTime = DateTime.MinValue;
         private const int CACHE_SECONDS = 30;
         private bool isFirstShown = false;
-
+        private RackSummaryPopup _rackPopup;
+        private RackRenderInfo _hoveredRackForPopup = null;
+        private System.Windows.Forms.Timer _hidePopupTimer;
         public MainStockSV()
         {
             InitializeComponent();
@@ -113,8 +114,30 @@ namespace PCTP.VIEWSTOCK
             pnlMain.Paint += PnlMain_Paint;
             pnlMain.MouseClick += pnlMain_MouseClick;
             pnlMain.MouseMove += PnlMain_MouseMove;
-        }
+            // ← THÊM
+            _rackPopup = new RackSummaryPopup();
+            // ← THÊM: khi chuột vào popup -> huỷ lịch ẩn
+            _rackPopup.MouseEnter += (s, e) => _hidePopupTimer.Stop();
+            // ← THÊM: khi chuột rời popup -> lên lịch ẩn
+            _rackPopup.MouseLeave += (s, e) => ScheduleHidePopup();
 
+            // ← THÊM: khi chuột rời hẳn pnlMain -> lên lịch ẩn (không ẩn ngay, cho kịp chạy sang popup)
+            pnlMain.MouseLeave += (s, e) => ScheduleHidePopup();
+
+            // ← THÊM: timer trễ ẩn, giống AutoPopDelay của ToolTip
+            _hidePopupTimer = new System.Windows.Forms.Timer { Interval = 250 };
+            _hidePopupTimer.Tick += (s, e) =>
+            {
+                _hidePopupTimer.Stop();
+                _rackPopup.Hide();
+                _hoveredRackForPopup = null;
+            };
+        }
+        private void ScheduleHidePopup()
+        {
+            _hidePopupTimer.Stop();
+            _hidePopupTimer.Start();
+        }
         private async void MainStock_Shown(object sender, EventArgs e)
         {
             if (isFirstShown) return;
@@ -136,7 +159,7 @@ namespace PCTP.VIEWSTOCK
             this.WindowState = FormWindowState.Maximized;
             DevExpress.XtraSplashScreen.SplashScreenManager.CloseForm();
         }
-
+       
         // ── [TÍNH TOÁN & VẼ CANVAS] VÙNG XỬ LÝ ĐỒ HỌA CHÍNH ───────────────────────
         public async Task LoadAllWarehouses()
         {
@@ -251,11 +274,39 @@ namespace PCTP.VIEWSTOCK
                     string titleText = $"WH: {rack.RackData.WarehouseName} | Rack: {rack.RackData.RackName}";
                     g.DrawString(titleText, headerFont, Brushes.Black, rack.HeaderBounds.X + 8, rack.HeaderBounds.Y + 8);
 
-                    string itemSummaryDisplay = string.Join(" | ", rack.RackData.ItemSummary.Select(kvp => $"[{kvp.Key}: vị trí {kvp.Value.Item1}, SL {kvp.Value.Item2}]"));
-                    string statusText = $"Trống: {rack.RackData.EmptySlotCount}/{rack.RackData.SlotCount} " + (string.IsNullOrEmpty(itemSummaryDisplay) ? "" : $" - {itemSummaryDisplay}");
+                    //string itemSummaryDisplay = string.Join(" | ", rack.RackData.ItemSummary.Select(kvp => $"[{kvp.Key}: vị trí {kvp.Value.Item1}, SL {kvp.Value.Item2}]"));
+                    //string statusText = $"Trống: {rack.RackData.EmptySlotCount}/{rack.RackData.SlotCount} " + (string.IsNullOrEmpty(itemSummaryDisplay) ? "" : $" - {itemSummaryDisplay}");
 
-                    SizeF statusSize = g.MeasureString(statusText, summaryFont);
-                    g.DrawString(statusText, summaryFont, Brushes.DarkBlue, rack.HeaderBounds.Right - statusSize.Width - 10, rack.HeaderBounds.Y + 9);
+                    //SizeF statusSize = g.MeasureString(statusText, summaryFont);
+                    //g.DrawString(statusText, summaryFont, Brushes.DarkBlue, rack.HeaderBounds.Right - statusSize.Width - 10, rack.HeaderBounds.Y + 9);
+                    // "Trống: x/y" cố định bên phải
+                    string trongText = $"Trống: {rack.RackData.EmptySlotCount}/{rack.RackData.SlotCount}";
+                    SizeF trongSize = g.MeasureString(trongText, summaryFont);
+                    float trongX = rack.HeaderBounds.Right - trongSize.Width - 10;
+                    g.DrawString(trongText, summaryFont, Brushes.DarkBlue, trongX, rack.HeaderBounds.Y + 9);
+
+                    // Vùng còn lại giữa title và "Trống" -> rút gọn theo chiều rộng thật, ellipsis nếu tràn
+                    SizeF titleSize = g.MeasureString(titleText, headerFont);
+                    float summaryStartX = rack.HeaderBounds.X + 8 + titleSize.Width + 20;
+                    float summaryMaxWidth = trongX - summaryStartX - 10;
+
+                    if (rack.RackData.ItemSummary.Count > 0 && summaryMaxWidth > 30)
+                    {
+                        string fullSummary = string.Join(" | ", rack.RackData.ItemSummary
+                            .Select(kvp => $"[{kvp.Key}: vị trí {kvp.Value.Item1}, SL {kvp.Value.Item2}]"));
+
+                        string displayText = TruncateToWidth(g, fullSummary, summaryFont, summaryMaxWidth);
+
+                        var summaryRect = new RectangleF(summaryStartX, rack.HeaderBounds.Y + 9, summaryMaxWidth, 18);
+                        g.DrawString(displayText, summaryFont, Brushes.DimGray, summaryRect);
+
+                        // Lưu bounds ở toạ độ "ảo" (đồng nhất với hệ toạ độ dùng trong MouseMove)
+                        rack.SummaryTextBounds = Rectangle.Round(summaryRect);
+                    }
+                    else
+                    {
+                        rack.SummaryTextBounds = Rectangle.Empty;
+                    }
 
                     // 3. Vẽ các ô vuông biểu thị Slot
                     foreach (var slotLayout in rack.Slots)
@@ -326,7 +377,31 @@ namespace PCTP.VIEWSTOCK
             // Khôi phục lại trạng thái ma trận mặc định
             g.ResetTransform();
         }
+        private string TruncateToWidth(Graphics g, string text, Font font, float maxWidth)
+        {
+            if (g.MeasureString(text, font).Width <= maxWidth)
+                return text;
 
+            const string ellipsis = "...";
+            int lo = 0, hi = text.Length;
+            string result = ellipsis;
+
+            while (lo < hi)
+            {
+                int mid = (lo + hi + 1) / 2;
+                string candidate = text.Substring(0, mid) + ellipsis;
+                if (g.MeasureString(candidate, font).Width <= maxWidth)
+                {
+                    result = candidate;
+                    lo = mid;
+                }
+                else
+                {
+                    hi = mid - 1;
+                }
+            }
+            return result;
+        }
         private void pnlMain_MouseClick(object sender, MouseEventArgs e)
         {
             // 🌟 KHẮC PHỤC LAG VÀ LỆCH TỌA ĐỘ: Đổi tọa độ chuột thực tế sang tọa độ ảo theo thanh cuộn
@@ -366,15 +441,46 @@ namespace PCTP.VIEWSTOCK
             }
         }
 
+        //private void PnlMain_MouseMove(object sender, MouseEventArgs e)
+        //{
+        //    bool isHoveringSlot = false;
+
+        //    // 🌟 KHẮC PHỤC LỆCH TỌA ĐỘ KHI CUỘN CHUỘT
+        //    Point logicalLocation = new Point(e.X - pnlMain.AutoScrollPosition.X, e.Y - pnlMain.AutoScrollPosition.Y);
+
+        //    foreach (var rack in _rackLayouts)
+        //    {
+        //        if (rack.Bounds.Contains(logicalLocation))
+        //        {
+        //            foreach (var slotLayout in rack.Slots)
+        //            {
+        //                if (slotLayout.Bounds.Contains(logicalLocation))
+        //                {
+        //                    isHoveringSlot = true;
+        //                    break;
+        //                }
+        //            }
+        //        }
+        //        if (isHoveringSlot) break;
+        //    }
+
+        //    pnlMain.Cursor = isHoveringSlot ? Cursors.Hand : Cursors.Default;
+        //}
         private void PnlMain_MouseMove(object sender, MouseEventArgs e)
         {
             bool isHoveringSlot = false;
-
-            // 🌟 KHẮC PHỤC LỆCH TỌA ĐỘ KHI CUỘN CHUỘT
             Point logicalLocation = new Point(e.X - pnlMain.AutoScrollPosition.X, e.Y - pnlMain.AutoScrollPosition.Y);
+
+            RackLayoutInfo hoveredSummaryRack = null;
 
             foreach (var rack in _rackLayouts)
             {
+                if (rack.SummaryTextBounds != Rectangle.Empty &&
+                    rack.SummaryTextBounds.Contains(logicalLocation))
+                {
+                    hoveredSummaryRack = rack;
+                }
+
                 if (rack.Bounds.Contains(logicalLocation))
                 {
                     foreach (var slotLayout in rack.Slots)
@@ -389,9 +495,34 @@ namespace PCTP.VIEWSTOCK
                 if (isHoveringSlot) break;
             }
 
-            pnlMain.Cursor = isHoveringSlot ? Cursors.Hand : Cursors.Default;
-        }
+            pnlMain.Cursor = isHoveringSlot || hoveredSummaryRack != null
+                ? Cursors.Hand
+                : Cursors.Default;
 
+            if (hoveredSummaryRack != null)
+            {
+                _hidePopupTimer.Stop(); // đang hover đúng chỗ -> huỷ lịch ẩn
+
+                if (_hoveredRackForPopup != hoveredSummaryRack.RackData)
+                {
+                    _hoveredRackForPopup = hoveredSummaryRack.RackData;
+
+                    Point screenPoint = pnlMain.PointToScreen(new Point(e.X + 15, e.Y + 15));
+
+                    _rackPopup.ShowSummary(
+                        $"Rack: {hoveredSummaryRack.RackData.RackName}",
+                        hoveredSummaryRack.RackData.ItemSummary,
+                        screenPoint);
+                }
+            }
+            else
+            {
+                // ← THÊM: rời khỏi vùng tóm tắt -> lên lịch ẩn (không ẩn ngay để không giật
+                // khi chuột đi ngang qua nhanh)
+                if (_hoveredRackForPopup != null)
+                    ScheduleHidePopup();
+            }
+        }
         // ── [SỰ KIỆN CHUỘT PHẢI & XỬ LÝ LOGIC NGHIỆP VỤ] ──────────────────────────
 
         private void ShowExportFormFromCanvas(Slot slotData)
@@ -874,6 +1005,12 @@ namespace PCTP.VIEWSTOCK
             {
                 form.ShowDialog(this);
             }
+        }
+        protected override void OnFormClosed(FormClosedEventArgs e)
+        {
+            _rackPopup?.Close();
+            _rackPopup?.Dispose();
+            base.OnFormClosed(e);
         }
     }
 }
