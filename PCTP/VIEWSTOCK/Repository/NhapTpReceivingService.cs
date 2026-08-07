@@ -68,10 +68,36 @@ namespace PCTP.VIEWSTOCK.Repository
             var check = KiemTraTruocKhiNhap(qr);
             if (!check.IsOK) return check;
 
-            //string lotNo = matchedPhieu != null
-            //    ? matchedPhieu.LotNo
-            //    : LotNoHelper.NormalizeLot(qr.RawLotNo ?? qr.LotNo);
-            string lotNo = matchedPhieu.LotNo;
+            // ── THÊM: Re-validate phiếu ngay trước khi tính toán / mở transaction ──────
+            // matchedPhieu có thể đã cache cũ (lấy lúc hiển thị grid/khi bấm OK sau một
+            // khoảng thời gian) trong khi vNhapTP tính lại LOT_NO khác (dữ liệu MES đổi,
+            // hoặc người khác vừa nhập/mở lại LOT). Luôn lấy lại theo đúng Find — khóa
+            // duy nhất KHÔNG phụ thuộc công thức build LOT — để đảm bảo STOCKTP luôn
+            // ghi dưới đúng 1 LotNo, khớp với những gì UI đang hiển thị.
+            PhieuNhapInfo phieuLive = matchedPhieu;
+            if (matchedPhieu != null && !string.IsNullOrEmpty(matchedPhieu.Find))
+            {
+                phieuLive = _stockTpRepo.GetPhieuByFind(matchedPhieu.Find);
+
+                if (phieuLive == null)
+                    return ScanResult.Fail(
+                        $"Không còn tìm thấy phiếu sản xuất [{matchedPhieu.Find}]. " +
+                        "Vui lòng tải lại danh sách và quét lại tem.");
+
+                if (!string.Equals(phieuLive.LotNo, matchedPhieu.LotNo, StringComparison.OrdinalIgnoreCase))
+                    return ScanResult.Fail(
+                        $"LOT của phiếu đã thay đổi ({matchedPhieu.LotNo} → {phieuLive.LotNo}). " +
+                        "Dữ liệu trên màn hình đã cũ, vui lòng tải lại danh sách và quét lại tem.");
+
+                if (!string.Equals(phieuLive.MaSP, qr.ItemCode, StringComparison.OrdinalIgnoreCase))
+                    return ScanResult.Fail(
+                        $"Mã hàng của phiếu không khớp với tem quét " +
+                        $"(Phiếu: {phieuLive.MaSP} / Tem: {qr.ItemCode}).");
+            }
+
+            string lotNo = phieuLive != null
+                ? phieuLive.LotNo
+                : LotNoHelper.NormalizeLot(qr.RawLotNo ?? qr.LotNo);
 
             string caseNo = !string.IsNullOrEmpty(qr.SoPhieuTong)
                 ? qr.RawLotNo + qr.SoPhieuTong
@@ -119,20 +145,16 @@ namespace PCTP.VIEWSTOCK.Repository
                     {
                         Lot = lotNo,
                         Part = qr.ItemCode,
-                        Name = matchedPhieu?.TenSP ?? qr.ItemCode,
-                        NgaySX = matchedPhieu?.NgaySX ?? qr.ImportDate,
-                        SlSanXuat = matchedPhieu?.SlSanXuat ?? qr.Quantity,
+                        Name = phieuLive?.TenSP ?? qr.ItemCode,
+                        NgaySX = phieuLive?.NgaySX ?? qr.ImportDate,
+                        SlSanXuat = phieuLive?.SlSanXuat ?? qr.Quantity,
                         SlNhap = qr.Quantity
                     };
 
-                    // ✅ THÊM: tính tổng SL đã nhập LUỸ KẾ sau lần nhập này, để quyết định
-                    // Status = 1 (kết thúc) hay 0 (còn dở), giống logic gốc:
-                    // if (SLSENHAP + SLDN == SLSX || SLSENHAP == SLDN) Status = 1;
                     int slDaNhapTruoc = daTonTai ? _stockTpRepo.GetSlDaNhap(conn, tran, lotNo) : 0;
                     int tongSlSauKhiNhap = slDaNhapTruoc + qr.Quantity;
-                    int slSanXuatThuc = matchedPhieu?.SlSanXuat ?? nhapItem.SlSanXuat;
+                    int slSanXuatThuc = phieuLive?.SlSanXuat ?? nhapItem.SlSanXuat;
 
-                    // Status = 1 khi nhập đủ hoặc vượt SL sản xuất — khớp logic gốc
                     int status = (tongSlSauKhiNhap >= slSanXuatThuc && slSanXuatThuc > 0) ? 1 : 0;
 
                     if (daTonTai)
@@ -164,7 +186,6 @@ namespace PCTP.VIEWSTOCK.Repository
 
                     tran.Commit();
 
-                    // ✅ Trả thêm cờ để UI biết có nên hiển thị cảnh báo "đã kết thúc LOT" không
                     return new ScanResult
                     {
                         IsOK = true,
