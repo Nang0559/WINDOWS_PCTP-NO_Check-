@@ -1,4 +1,5 @@
 ﻿using PCTP.ClassSQL;
+using PCTP.Common;
 using PCTP.Domain.Entities;
 using PCTP.Domain.Interfaces;
 using PCTP.FuctionMain;
@@ -578,8 +579,8 @@ namespace PCTP.Infrastructure.Repositories
         // Kho
         // ════════════════════════════════════════════════════════════════════════
         public int CapNhapKho(string gioGiaoFcc, string nhaMay,
-                       string tmpTable, string docQRTable,
-                       out DataTable errors)
+                string tmpTable, string docQRTable,
+                out DataTable errors)
         {
             var ds = _sql.ExecuteProcedureReturnDataSet(
                 _sql.B7R2_FCCdb,
@@ -591,16 +592,20 @@ namespace PCTP.Infrastructure.Repositories
 
             errors = ds.Tables.Count > 1 ? ds.Tables[1] : new DataTable();
             DataTable stok = ds.Tables[0]; // ← dòng thành công
-                                           // ── Chỉ đánh dấu IsDelivered cho YMVN/HTN (có OrderTable) ───────
-                                           // HVN không có OrderTable → bỏ qua
-                                           // ── (1) Trừ SlotLot của kho ảo A0 theo từng LOT vừa xuất OK ──────────
+
+            // ── (1) Trừ SlotLot của kho ảo A0 theo từng LOT vừa xuất OK ──────────
+            // ✅ FIX: chuẩn hoá LOT về đúng LEN_HEAD_FIXED (20 ký tự) TRƯỚC khi so khớp
+            // SlotLot — không tin tưởng SP đã trả về đúng độ dài, luôn tự chuẩn hoá
+            // tại điểm ranh giới giữa các tầng để tránh lệch khi SP đổi/khác định dạng.
             bool coAnhHuongA0 = false;
             if (stok.Rows.Count > 0)
             {
                 var bulkService = new BulkStockAdjustService();
                 foreach (DataRow row in stok.Rows)
                 {
-                    string lot = row["LOT"]?.ToString();
+                    string lotRaw = row["LOT"]?.ToString();
+                    string lot = LotCodeHelper.TrimTo(lotRaw, LotCodeHelper.LEN_HEAD_FIXED);
+
                     int sl = row["SOLUONG"] == DBNull.Value ? 0 : Convert.ToInt32(row["SOLUONG"]);
                     if (string.IsNullOrWhiteSpace(lot) || sl <= 0) continue;
 
@@ -612,10 +617,13 @@ namespace PCTP.Infrastructure.Repositories
             // ── (2) Báo cho MainStockSV (nếu đang mở) vẽ lại — chỉ khi có ảnh hưởng A0 ─
             if (coAnhHuongA0)
                 StockChangedNotifier.RaiseStockChanged();
+
+            // ── Chỉ đánh dấu IsDelivered cho YMVN/HTN (có OrderTable) ───────
+            // HVN không có OrderTable → bỏ qua
             if (_cfg != null
-            && _cfg.LoadTuBangRieng
-            && !string.IsNullOrEmpty(_cfg.OrderTable)
-            && stok.Rows.Count > 0)
+                && _cfg.LoadTuBangRieng
+                && !string.IsNullOrEmpty(_cfg.OrderTable)
+                && stok.Rows.Count > 0)
             {
                 foreach (DataRow row in stok.Rows)
                 {
@@ -665,7 +673,11 @@ namespace PCTP.Infrastructure.Repositories
 
                 foreach (DataRow row in stok.Rows)
                 {
-                    string lot = row["LOT"]?.ToString();
+                    string lotRaw = row["LOT"]?.ToString();
+                    // ✅ FIX: chuẩn hoá cùng LEN_HEAD_FIXED như CapNhapKho — tránh lệch giữa
+                    // 2 luồng CNK (thường vs SP) khi cùng ghi/đọc SlotLot.
+                    string lot = LotCodeHelper.TrimTo(lotRaw, LotCodeHelper.LEN_HEAD_FIXED);
+
                     int sl = row["SOLUONG"] == DBNull.Value ? 0 : Convert.ToInt32(row["SOLUONG"]);
                     if (string.IsNullOrWhiteSpace(lot) || sl <= 0) continue;
 
@@ -680,9 +692,8 @@ namespace PCTP.Infrastructure.Repositories
             return stok.Rows.Count;
         }
         public bool CapNhapKhoYMVN(int stt, string lotSl, string maHang,
-                              string ngayGiao, string gioGiao, string nhaMay,
-                  
-                              out DS_ERR_CNK error)
+                      string ngayGiao, string gioGiao, string nhaMay,
+                      out DS_ERR_CNK error)
         {
             error = null;
             var bulkService = new BulkStockAdjustService();
@@ -699,16 +710,19 @@ namespace PCTP.Infrastructure.Repositories
                 string[] tach = part.Trim().Split('-');
                 if (tach.Length < 2) continue;
 
-                string lot = tach[0].Length >= 13
-                    ? tach[0].Substring(0, 13) : tach[0];
+                // ✅ FIX: đổi từ Substring(0,13) → LotCodeHelper.TrimTo(...,LEN_HEAD_FIXED)
+                // 13 ký tự KHÔNG đủ để phân biệt duy nhất 1 LOT (Lines+Machine nằm ở
+                // ký tự 14-20) — cắt 13 có thể match nhầm sang LOT khác cùng ngày/mã hàng/
+                // ca/gear nhưng khác Line/Machine, dẫn tới trừ sai tồn kho.
+                string lot = LotCodeHelper.TrimTo(tach[0], LotCodeHelper.LEN_HEAD_FIXED);
 
                 if (!int.TryParse(tach[1], out int sl)) continue;
 
                 // ── Kiểm tra tồn kho ─────────────────────────────────────────────
                 string slConlaiRaw = _sql.ExecuteReader(_sql.B7R2_FCCdb,
                     $"SELECT ISNULL(slconlai,0) FROM STOCKTP " +
-                    $"WHERE SUBSTRING(LOT,1,13) = '{SqlHelper.Esc(lot)}'");
-                
+                    $"WHERE SUBSTRING(LOT,1,{LotCodeHelper.LEN_HEAD_FIXED}) = '{SqlHelper.Esc(lot)}'");
+
                 if (!int.TryParse(slConlaiRaw, out int slConlai) || slConlai < sl)
                 {
                     error = new DS_ERR_CNK
@@ -731,7 +745,8 @@ namespace PCTP.Infrastructure.Repositories
                     $"    t.slxuat     = slxuat + {sl}, " +
                     $"    t.slconlai   = slconlai - {sl} " +
                     $"FROM (SELECT TOP 1 * FROM STOCKTP " +
-                    $"      WHERE SUBSTRING(LOT,1,13) = '{SqlHelper.Esc(lot)}') t");
+                    $"      WHERE SUBSTRING(LOT,1,{LotCodeHelper.LEN_HEAD_FIXED}) = '{SqlHelper.Esc(lot)}') t");
+
                 // ── THÊM ĐÚNG CHỖ: chỉ trừ A0 SAU KHI STOCKTP đã trừ thành công ──
                 if (bulkService.TruKhoAoTheoLot(lot, sl))
                     coAnhHuongA0 = true;
@@ -739,36 +754,36 @@ namespace PCTP.Infrastructure.Repositories
 
             // ── Lưu LUUDOCQRCODE — dùng tên bảng động ───────────────────────────
             _sql.ExecuteNonQuery(_sql.B7R2_FCCdb, $@"
-        INSERT INTO LUUDOCQRCODE
-            (LOTFCC, MAHANGFCC, SLTEMFCC, LOTHVN, MAHANGHVN, SLTEMHVN,
-             STATUS, MAFCC, STT, KETQUA, NGAYXUAT, GIOXUAT, NHAMAY)
-        SELECT
-            LEFT(LOTFCC,  500), LEFT(MAHANGFCC, 60), SLTEMFCC,
-            LEFT(LOTHVN,  500), LEFT(MAHANGHVN, 60), SLTEMHVN,
-            STATUS, LEFT(MAFCC, 50), STT, KETQUA,
-            '{ngayGiao}', '{SqlHelper.Esc(gioGiao)}', '{SqlHelper.Esc(nhaMay)}'
-        FROM [{docQRTable}]
-        WHERE MAHANGFCC = '{SqlHelper.Esc(maHang)}'
-          AND KETQUA    = 'DG'");
+                INSERT INTO LUUDOCQRCODE
+                    (LOTFCC, MAHANGFCC, SLTEMFCC, LOTHVN, MAHANGHVN, SLTEMHVN,
+                     STATUS, MAFCC, STT, KETQUA, NGAYXUAT, GIOXUAT, NHAMAY)
+                SELECT
+                    LEFT(LOTFCC,  500), LEFT(MAHANGFCC, 60), SLTEMFCC,
+                    LEFT(LOTHVN,  500), LEFT(MAHANGHVN, 60), SLTEMHVN,
+                    STATUS, LEFT(MAFCC, 50), STT, KETQUA,
+                    '{ngayGiao}', '{SqlHelper.Esc(gioGiao)}', '{SqlHelper.Esc(nhaMay)}'
+                FROM [{docQRTable}]
+                WHERE MAHANGFCC = '{SqlHelper.Esc(maHang)}'
+                  AND KETQUA    = 'DG'");
 
-            // ── Lưu LUUPHIEUGIAOHANG — thêm GEAR từ cột đúng ────────────────────
-            // TMPPHIEUGIAOHANG_100002.GEAR → LUUPHIEUGIAOHANG.GearYMVN
-            _sql.ExecuteNonQuery(_sql.B7R2_FCCdb, $@"
-        INSERT INTO LUUPHIEUGIAOHANG
-            (STT, CUA, TRUYEN, MAHANG, TENHANG, LOT, DV, SOLUONG,
-             NGAYGIAO, GIOGIAO, STATUS, GearYMVN,       -- ← đúng tên cột LUUPHIEUGIAOHANG
-             NHAMAY, GIOGIAOFCC,
-             PO_NO, TTPHIEU)
-        SELECT
-            STT, CUA, TRUYEN, MAHANG, TENHANG, LOT, DV, SOLUONG,
-            NGAYGIAO, GIOGIAO, 'OK',
-            ISNULL(GEAR,''),                            -- ← GEAR từ TMPPHIEUGIAOHANG_100002
-            '{SqlHelper.Esc(nhaMay)}',
-            CONVERT(VARCHAR(8), GETDATE(), 108),
-            ISNULL(PO_NO,''), ISNULL(TTPHIEU,'')
-        FROM [{tmpTable}]
-        WHERE STT    = {stt}
-          AND STATUS = 'NG'");
+                            // ── Lưu LUUPHIEUGIAOHANG — thêm GEAR từ cột đúng ────────────────────
+                            // TMPPHIEUGIAOHANG_100002.GEAR → LUUPHIEUGIAOHANG.GearYMVN
+                            _sql.ExecuteNonQuery(_sql.B7R2_FCCdb, $@"
+                INSERT INTO LUUPHIEUGIAOHANG
+                    (STT, CUA, TRUYEN, MAHANG, TENHANG, LOT, DV, SOLUONG,
+                     NGAYGIAO, GIOGIAO, STATUS, GearYMVN,       -- ← đúng tên cột LUUPHIEUGIAOHANG
+                     NHAMAY, GIOGIAOFCC,
+                     PO_NO, TTPHIEU)
+                SELECT
+                    STT, CUA, TRUYEN, MAHANG, TENHANG, LOT, DV, SOLUONG,
+                    NGAYGIAO, GIOGIAO, 'OK',
+                    ISNULL(GEAR,''),                            -- ← GEAR từ TMPPHIEUGIAOHANG_100002
+                    '{SqlHelper.Esc(nhaMay)}',
+                    CONVERT(VARCHAR(8), GETDATE(), 108),
+                    ISNULL(PO_NO,''), ISNULL(TTPHIEU,'')
+                FROM [{tmpTable}]
+                WHERE STT    = {stt}
+                  AND STATUS = 'NG'");
 
             // ── Cập nhật STATUS = OK ─────────────────────────────────────────────
             _sql.ExecuteNonQuery(_sql.B7R2_FCCdb,
@@ -778,9 +793,12 @@ namespace PCTP.Infrastructure.Repositories
             _sql.ExecuteNonQuery(_sql.B7R2_FCCdb,
                 $"DELETE FROM [{docQRTable}] " +
                 $"WHERE MAHANGFCC = '{SqlHelper.Esc(maHang)}' AND KETQUA = 'DG'");
-            // ── Đánh dấu IsDelivered=1 trong Purchase_Order ──────────────────
+
+            // ── Báo A0 thay đổi ────────────────────────────────────────────────
             if (coAnhHuongA0)
                 StockChangedNotifier.RaiseStockChanged();
+
+            // ── Đánh dấu IsDelivered=1 trong Purchase_Order ──────────────────
             // Lấy PO_NO từ TMP để xác định đúng đơn hàng
             string poNo = _sql.ExecuteReader(_sql.B7R2_FCCdb,
                 $"SELECT ISNULL(PO_NO,'') FROM [{tmpTable}] WHERE STT={stt}");
