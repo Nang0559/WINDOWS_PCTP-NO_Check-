@@ -588,7 +588,8 @@ namespace PCTP.Infrastructure.Repositories
                 new SqlParameter("@GIOGIAOFCC", gioGiaoFcc ?? ""),
                 new SqlParameter("@NHAMAY", nhaMay ?? ""),
                 new SqlParameter("@TMPTABLE", tmpTable ?? "TMPPHIEUGIAOHANG"),
-                new SqlParameter("@DOCQRTABLE", docQRTable ?? "DOCQRCODE"));
+                new SqlParameter("@DOCQRTABLE", docQRTable ?? "DOCQRCODE"),
+                new SqlParameter("@LOT_KEY_LEN", PCTP.Common.LotCodeHelper.LEN_HEAD_FIXED));
 
             errors = ds.Tables.Count > 1 ? ds.Tables[1] : new DataTable();
             DataTable stok = ds.Tables[0]; // ← dòng thành công

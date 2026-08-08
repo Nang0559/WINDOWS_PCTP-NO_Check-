@@ -14,7 +14,9 @@ namespace PCTP.VIEWSTOCK.Services
         private readonly SlotHelper _slotHelper = new SlotHelper();
         private readonly StockService _stockService = new StockService();
 
-        private const int LOT_MATCH_LEN = 12; // đồng bộ với SUBSTRING(LOT,1,12) trong SP
+        // ✅ SỬA: không tự định nghĩa hằng số riêng nữa — luôn lấy từ LotCodeHelper
+        // để không bao giờ lệch với các nơi khác (PhieuRepository, StockTpRepository...).
+        private static int KeyLen => PCTP.Common.LotCodeHelper.LEN_HEAD_FIXED; // = 20
 
         public bool TruKhoAoTheoLot(string lotNo, int slXuat)
         {
@@ -26,6 +28,7 @@ namespace PCTP.VIEWSTOCK.Services
 
             var lots = _slotHelper.GetSlotLots(slotId);
             string prefix = Prefix(lotNo);
+
             var candidates = lots.Where(l => Prefix(l.LotNo) == prefix)
                                   .OrderBy(l => l.QRInfo?.ImportDate ?? DateTime.MaxValue)
                                   .ToList();
@@ -42,13 +45,13 @@ namespace PCTP.VIEWSTOCK.Services
             }
 
             var remaining = lots.Where(l => l.Quantity > 0).ToList();
-            _slotHelper.SaveSlotLots(slotId, remaining, updateSlot: true); // ✅ cập nhật SlotLot + Slot
+            _slotHelper.SaveSlotLots(slotId, remaining, updateSlot: true);
 
             SlotHelper.SaveHistory("EXPORT_AUTO_HVN",
                candidates.First().QRInfo?.ItemCode,
                new LotInfo { LotNo = lotNo, Quantity = slXuat - Math.Max(conLaiCanTru, 0) },
                slotId, toSlotId: null,
-               performedBy: "SYSTEM_HVN_CNK");
+               performedBy: "SYSTEM_HVN_CNK"); // ← cần thêm tham số này ở SlotHelper (mục 2)
 
             if (conLaiCanTru > 0)
                 System.Diagnostics.Debug.WriteLine(
@@ -57,10 +60,9 @@ namespace PCTP.VIEWSTOCK.Services
             return true;
         }
 
-        //private static string Prefix(string lot) =>
-        //    string.IsNullOrEmpty(lot) ? "" : (lot.Length >= 12 ? lot.Substring(0, 12) : lot);
-
+        // ✅ SỬA: dùng LotCodeHelper.TrimTo thay vì Substring tay + hằng số riêng.
+        // TrimTo tự an toàn nếu chuỗi ngắn hơn KeyLen, không cần check length thủ công.
         private static string Prefix(string lot) =>
-            string.IsNullOrEmpty(lot) ? "" : (lot.Length >= LOT_MATCH_LEN ? lot.Substring(0, LOT_MATCH_LEN) : lot);
+            PCTP.Common.LotCodeHelper.TrimTo(lot, KeyLen);
     }
 }

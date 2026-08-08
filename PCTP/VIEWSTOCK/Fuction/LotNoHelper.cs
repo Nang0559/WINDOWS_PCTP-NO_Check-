@@ -12,16 +12,20 @@ namespace PCTP.VIEWSTOCK.Fuction
 
     public static class LotNoHelper
     {
-
+        /// <summary>
+        /// Khoá HIỂN THỊ dùng riêng cho module kho Slot/SlotLot (Warehouse/Rack/Slot) —
+        /// KHÔNG liên quan STOCKTP, KHÔNG dùng để so khớp tồn kho.
+        /// </summary>
         public static string NormalizeLot(string rawLotNo)
         => PCTP.Common.LotCodeHelper.NormalizeLotForSlotDisplay(rawLotNo);
+
         /// <summary>
-        /// Khoá CHUẨN DUY NHẤT dùng để ghi/so khớp cột STOCKTP.LOT.
-        /// Mọi nơi ghi vào STOCKTP hoặc so khớp với STOCKTP đều PHẢI gọi qua hàm này,
-        /// không tự cắt chuỗi riêng (Substring(0,13), Substring(0,20)...).
+        /// Khoá CHUẨN DUY NHẤT dùng để ghi/so khớp cột STOCKTP.LOT (20 ký tự đầu:
+        /// Date+ItemId+Shift+Gear+Line+Machine). Mọi nơi ghi vào STOCKTP hoặc so khớp
+        /// với STOCKTP đều PHẢI gọi qua hàm này — KHÔNG tự Substring riêng.
         /// </summary>
         public static string GetStockTpKey(string rawLotNo)
-            => NormalizeLot(rawLotNo);
+            => PCTP.Common.LotCodeHelper.StripCounterAndQty(rawLotNo);
         // Giữ nguyên logic cũ từ NHAP_TP — build danh sách FIND để tìm grid
         public static List<string> BuildFindList(string lotNoSL, string idSP)
          => PCTP.Common.LotCodeHelper.BuildCandidateFinds(lotNoSL, idSP);
