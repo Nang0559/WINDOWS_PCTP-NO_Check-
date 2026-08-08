@@ -823,7 +823,7 @@ namespace PCTP.Presentation.Presenters
 
              _uiContext.Post(_ =>
              {
-                 _isBanQR = false;
+                 //_isBanQR = false;
                  _qrSvc.SetCheDoBanSP(false);
                  _view.UnlockAllRadio();
                  _view.SwitchToPhieuView();

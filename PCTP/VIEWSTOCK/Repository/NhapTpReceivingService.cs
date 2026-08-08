@@ -65,6 +65,7 @@ namespace PCTP.VIEWSTOCK.Repository
         /// </summary>
         public ScanResult NhapTpVaoSlot(QRCodeInfo qr, string selectedSlotText, PhieuNhapInfo matchedPhieu = null)
         {
+            DateTime ngayNhapThucTe = DateTime.Now;
             var check = KiemTraTruocKhiNhap(qr);
             if (!check.IsOK) return check;
 
@@ -148,8 +149,8 @@ namespace PCTP.VIEWSTOCK.Repository
                         Name = phieuLive?.TenSP ?? qr.ItemCode,
                         NgaySX = phieuLive?.NgaySX ?? qr.ImportDate,
                         SlSanXuat = phieuLive?.SlSanXuat ?? qr.Quantity,
-                        SlNhap = qr.Quantity,
-                        ng
+                        SlNhap = qr.Quantity
+                        
                     };
 
                     int slDaNhapTruoc = daTonTai ? _stockTpRepo.GetSlDaNhap(conn, tran, lotNo) : 0;
@@ -167,7 +168,8 @@ namespace PCTP.VIEWSTOCK.Repository
                     _phieuRepo.InsertPhieuMoi(conn, tran,
                         slotId: slotId, itemCode: qr.ItemCode, lotNo: lotNo,
                         quantity: qr.Quantity, temCode: qr.MaPhieu, qrData: qr.RawQr,
-                        importDate: qr.ImportDate ?? DateTime.Now, ngaySX: qr.NgaySX,
+                        importDate: ngayNhapThucTe,
+                        ngaySX : qr.NgaySX,
                         soPhieuTong: qr.SoPhieuTong, maPhieuMoi: maPhieuMoi,
                         parentSoPhieu: null, status: PhieuStatus.Active);
 
@@ -180,7 +182,7 @@ namespace PCTP.VIEWSTOCK.Repository
                 WHERE SlotId = @SlotId",
                         new SqlParameter("@Sl", qr.Quantity),
                         new SqlParameter("@ItemCode", (object)qr.ItemCode ?? DBNull.Value),
-                        new SqlParameter("@ImportDate", (object)qr.ImportDate ?? DateTime.Now),
+                        new SqlParameter("@ImportDate", ngayNhapThucTe),
                         new SqlParameter("@SlotId", slotId));
 
                     _stockTpRepo.InsertCaseHistory(conn, tran, caseNo);

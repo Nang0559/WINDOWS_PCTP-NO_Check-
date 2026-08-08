@@ -384,6 +384,9 @@ namespace PCTP.VIEWSTOCK.Fuction
                     // Đồng bộ Quantity theo đúng cột Quantity hiện tại của SlotLot (nguồn số liệu
                     // chính thức), phòng trường hợp QrData bị lệch so với Quantity đã cập nhật.
                     qrInfo.Quantity = quantity;
+                    qrInfo.ImportDate = row["ImportDate"] == DBNull.Value
+                                ? (DateTime?)null
+                                : Convert.ToDateTime(row["ImportDate"]);
                 }
 
                 lots.Add(new LotInfo
@@ -540,7 +543,18 @@ namespace PCTP.VIEWSTOCK.Fuction
                 }
             }
         }
-
+        // LotNoHelper.cs
+        /// <summary>
+        /// Trích "khoá lô sản xuất" — phần ổn định dùng để đối chiếu giữa
+        /// LOT lưu ở STOCKTP và LOT quét lúc giao hàng. KHÔNG chứa số lượng
+        /// hay dữ liệu riêng của từng lần quét tem.
+        /// Format: NgàySX(6) + IDMãHàng(5) + Ca(1) + BộPhận(4) = 16 ký tự.
+        /// </summary>
+        public static string GetLotKey(string rawLot)
+        {
+            if (string.IsNullOrWhiteSpace(rawLot)) return rawLot;
+            return rawLot.Length >= 16 ? rawLot.Substring(0, 16) : rawLot;
+        }
     }
 
 }
