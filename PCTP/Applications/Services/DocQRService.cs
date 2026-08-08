@@ -1,4 +1,5 @@
 ﻿using DevExpress.XtraRichEdit.Import.Html;
+using PCTP.Common;
 using PCTP.Domain.Entities;
 using PCTP.Domain.Events;
 using PCTP.Domain.Interfaces;
@@ -514,9 +515,8 @@ namespace PCTP.Applications.Services
         // ════════════════════════════════════════════════════════════════════
         private string NormalizeLotFCC(string lotSl, string maHang)
         {
-            string idRaw = _repo.GetIdMaHangPadded(maHang);
-            string sidMh = string.IsNullOrEmpty(idRaw) ? ""
-                           : string.Format("{0:00000}", int.Parse(idRaw));
+            // GetIdMaHangPadded đã trả về ID đã pad 5 ký tự sẵn — dùng thẳng, không format lại
+            string idPadded = _repo.GetIdMaHangPadded(maHang);
 
             string[] ghep = lotSl.Split(',');
             if (ghep.Length > 1)
@@ -528,43 +528,38 @@ namespace PCTP.Applications.Services
                     string lot = lotSlPart[0];
                     string sl = lotSlPart.Length > 1 ? lotSlPart[1] : "0";
 
-                    if (lot.Length < 13)
+                    // Ngưỡng đúng theo cấu trúc field: đủ 20 ký tự head (Date+Id+Shift+Gear+Lines+Machines)
+                    // thì mới có phần Counter+Qty ở đuôi để cắt. Dưới 20 là dạng LOT ngắn/cũ, không strip.
+                    if (lot.Length < LotCodeHelper.LEN_HEAD_FIXED)
                     {
-                        // ✅ FIX BUG: trước đây "return lotSl" ở đây làm mất các phần LOT
-                        // ghép còn lại trong foreach — nay chỉ bỏ qua chuẩn hoá phần này,
-                        // vẫn tiếp tục xử lý các phần khác.
                         if (lot.Length == 12)
                         {
                             resultParts.Add(lot + "-" + sl);
                             continue;
                         }
-                        if (!string.IsNullOrEmpty(idRaw))
-                            lot = lot.Replace(idRaw, sidMh);
+                        if (!string.IsNullOrEmpty(idPadded))
+                            lot = lot.Replace(idPadded, idPadded); // giữ nguyên — idRaw gốc không pad đã bỏ, xem ghi chú dưới
                         resultParts.Add(lot + "-" + sl);
                     }
                     else
                     {
-                        // ✅ THAY: dùng khoá chuẩn STOCKTP (LotNoHelper.NormalizeLot)
-                        // thay vì tự Substring(0,13) — khớp đúng định dạng LOT đang
-                        // ghi vào STOCKTP.LOT ở luồng nhập kho mới.
-                        resultParts.Add(LotNoHelper.GetStockTpKey(lot) + "-" + sl);
+                        // ✅ Cắt theo cấu trúc field thật: bỏ 8 ký tự cuối (TemCounter+QuantityTem)
+                        resultParts.Add(LotCodeHelper.StripCounterAndQty(lot) + "-" + sl);
                     }
                 }
                 return string.Join(",", resultParts);
             }
             else
             {
-                if (lotSl.Length < 13)
+                if (lotSl.Length < LotCodeHelper.LEN_HEAD_FIXED)
                 {
-                    if (!string.IsNullOrEmpty(idRaw))
-                        lotSl = lotSl.Replace(idRaw, sidMh);
                     return lotSl.Length > 13
-                        ? lotSl.Substring(0, 6) + sidMh + lotSl.Substring(13, 1)
+                        ? lotSl.Substring(0, 6) + idPadded + lotSl.Substring(13, 1)
                         : lotSl;
                 }
 
-                // ✅ THAY: khoá chuẩn STOCKTP thay vì Substring(0,13)
-                return LotNoHelper.GetStockTpKey(lotSl);
+                // ✅ Cắt theo cấu trúc field thật thay vì cắt cơ học 19+4
+                return LotCodeHelper.StripCounterAndQty(lotSl);
             }
         }
         private string NormalizeLotFCC_YMVN(string lotSl, out string gear)
@@ -573,26 +568,29 @@ namespace PCTP.Applications.Services
             string[] ghep = lotSl.Split(',');
             if (ghep.Length > 1) return lotSl; // LOT ghép nhiều — xử lý ở luồng khác
 
-            // ── Đọc Gear từ vị trí cố định trong chuỗi GỐC (ký tự thứ 13) ───────
-            // Phải đọc TRƯỚC khi chuẩn hoá độ dài, vì GetStockTpKey có thể đổi
-            // chiều dài chuỗi (19+4=23 ký tự) làm lệch vị trí index 12.
-            if (lotSl.Length >= 13)
+            // Gear nằm ở vị trí cố định theo cấu trúc field (sau Date+Id+Shift), đọc TRƯỚC
+            // khi strip đuôi — vị trí này không đổi bất kể độ dài tổng chuỗi.
+            string gearRaw = LotCodeHelper.GetGearPart(lotSl);
+            if (!string.IsNullOrEmpty(gearRaw))
             {
-                if (int.TryParse(lotSl.Substring(12, 1), out int gearCode))
-                    gear = _repo.GetGearName(gearCode);
-                else
-                    gear = _repo.GetGearName(lotSl.Substring(12, 1));
+                gear = int.TryParse(gearRaw, out int gearCode)
+                    ? _repo.GetGearName(gearCode)
+                    : _repo.GetGearName(gearRaw);
             }
 
-            // ✅ THAY: khoá chuẩn STOCKTP thay vì Substring(0,13) / giữ nguyên khi ==26
-            return LotNoHelper.GetStockTpKey(lotSl);
+            // ✅ Chỉ strip khi đủ 20 ký tự head — theo đúng cấu trúc field thật,
+            // không cắt cơ học 19+4 như GetStockTpKey cũ.
+            return lotSl.Length >= LotCodeHelper.LEN_HEAD_FIXED
+                ? LotCodeHelper.StripCounterAndQty(lotSl)
+                : lotSl;
         }
         // ── Helper: cắt LOT cho HTN — bỏ 7 ký tự cuối ───────────────────────
         // Chỉ áp dụng cho 100003 (LoadTuBangRieng + !CoGear)
         private string NormalizeLotFCC_HTN(string lotRaw)
         {
-            // ✅ THAY: khoá chuẩn STOCKTP thay vì tự bỏ 8 ký tự cuối
-            return LotNoHelper.GetStockTpKey(lotRaw);
+            // ✅ Cắt theo cấu trúc field thật (bỏ 8 ký tự Counter+Qty), khớp đúng cách
+            // vNhapTP.LOT_NO / STOCKTP.LOT được build — thay vì cắt cơ học 19+4.
+            return LotCodeHelper.StripCounterAndQty(lotRaw);
         }
 
     }

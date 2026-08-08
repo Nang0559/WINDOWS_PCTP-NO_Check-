@@ -1,4 +1,5 @@
 ﻿using PCTP.ClassSQL;
+using PCTP.Common;
 using PCTP.Domain.Events;
 using PCTP.Infrastructure;
 using PCTP.VIEWSTOCK.Fuction;
@@ -374,34 +375,28 @@ namespace PCTP.VIEWSTOCK.Repository
 
             PhieuNhapInfo phieu = null;
 
-            // BƯỚC 1
-            var finds = LotNoHelper.BuildFindList(rawLotNoSL, idPadded);
+            // BƯỚC 1 — dùng LotCodeHelper thay LotNoHelper (đồng bộ với NhapTpReceivingService
+            // và DocQRService — cùng 1 nguồn logic build ứng viên FIND)
+            var finds = LotCodeHelper.BuildCandidateFinds(rawLotNoSL, idPadded);
             var candidates = finds
-           .Select(f => GetPhieuByFind(f))
-           .Where(p => p != null && p.MaSP == maHang)   // ✅ thêm điều kiện lọc mã hàng
-           .ToList();
+                .Select(f => GetPhieuByFind(f))
+                .Where(p => p != null && p.MaSP == maHang)
+                .ToList();
 
             if (candidates.Count == 1)
                 return candidates[0];
 
             if (candidates.Count > 1)
             {
-                // Ambiguous — log lại để rà soát thay vì âm thầm lấy candidate đầu tiên
                 System.Diagnostics.Debug.WriteLine(
-                    $"[TimPhieuTheoLotQR] Khớp {candidates.Count} phiếu cho QR={rawLotNoSL} — cần rà soát thuật toán BuildFindList");
+                    $"[TimPhieuTheoLotQR] Khớp {candidates.Count} phiếu cho QR={rawLotNoSL} — cần rà soát thuật toán BuildCandidateFinds");
                 return null;
             }
-            //foreach (var find in finds)
-            //{
-            //    phieu = GetPhieuByFind(find);
-            //    if (phieu != null) break;
-            //}
 
-            // BƯỚC 2 (FALLBACK) — chỉ chạy nếu bước 1 không tìm thấy gì
+            // BƯỚC 2 (FALLBACK) — dùng LotCodeHelper.GetReliablePrefix thay tự Substring(0,11)
             if (phieu == null && rawLotNoSL.Length >= 11)
             {
-                string prefix11 = rawLotNoSL.Substring(0, 11);
-                string ca = rawLotNoSL.Length > 11 ? rawLotNoSL.Substring(11, 1) : "";
+                string prefix11 = LotCodeHelper.GetReliablePrefix(rawLotNoSL, out string ca);
 
                 if (!string.IsNullOrEmpty(ca))
                     phieu = GetPhieuByLotPrefix(prefix11 + ca, maHang);
@@ -410,7 +405,6 @@ namespace PCTP.VIEWSTOCK.Repository
                     phieu = GetPhieuByLotPrefix(prefix11, maHang);
             }
 
-            // ── Điểm đối chiếu DUY NHẤT — áp dụng cho cả 2 bước, không sót nhánh nào ──
             if (phieu != null)
                 DongBoSLSXVaMoLaiNeuThayDoi(phieu.LotNo, phieu.Find, phieu.SlSanXuat);
 

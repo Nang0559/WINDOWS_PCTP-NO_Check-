@@ -1,4 +1,5 @@
 ﻿using PCTP.ClassSQL;
+using PCTP.Common;
 using PCTP.Models;
 using PCTP.VIEWSTOCK.Fuction;
 using PCTP.VIEWSTOCK.FunctionForm;
@@ -98,7 +99,7 @@ namespace PCTP.VIEWSTOCK.Repository
 
             string lotNo = phieuLive != null
                 ? phieuLive.LotNo
-                : LotNoHelper.NormalizeLot(qr.RawLotNo ?? qr.LotNo);
+                : LotCodeHelper.StripCounterAndQty(qr.RawLotNo ?? qr.LotNo);
 
             string caseNo = !string.IsNullOrEmpty(qr.SoPhieuTong)
                 ? qr.RawLotNo + qr.SoPhieuTong
