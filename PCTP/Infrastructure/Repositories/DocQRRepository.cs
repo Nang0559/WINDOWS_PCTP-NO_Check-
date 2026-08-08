@@ -407,12 +407,13 @@ namespace PCTP.Infrastructure.Repositories
             return _sql.ExecuteQuery(_sql.B7R2_FCCdb, sql);
         }
         /// ------------------------------------------------------------
-        public string GetIdMaHang(string maHang)
+        // Thêm vào IDocQRRepository / DocQRRepository — dùng CHUNG cho mọi nơi cần ID pad
+        public string GetIdMaHangPadded(string maHang)
         {
             string raw = _sql.ExecuteReader(_sql.B7R2_FCCdb,
-                $"SELECT ISNULL(CAST(Id AS VARCHAR(10)),'') " +
+                "SELECT STUFF('00000', 5-LEN(id)+1, LEN(id), id) " +
                 $"FROM B20Item WHERE code = '{Esc(maHang)}'");
-            return raw.Trim();
+            return raw.Trim(); // luôn "00123"
         }
 
         public bool KiemTraTemMa(string maHvn)

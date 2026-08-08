@@ -513,9 +513,7 @@ namespace PCTP.Applications.Services
         // ════════════════════════════════════════════════════════════════════
         private string NormalizeLotFCC(string lotSl, string maHang)
         {
-            string idRaw = _repo.GetIdMaHang(maHang);
-            string sidMh = string.IsNullOrEmpty(idRaw) ? ""
-                           : string.Format("{0:00000}", int.Parse(idRaw));
+            string sidMh = _repo.GetIdMaHangPadded(maHang);
 
             string[] ghep = lotSl.Split(',');
             if (ghep.Length > 1)

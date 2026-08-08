@@ -142,8 +142,8 @@ namespace PCTP.Domain.Interfaces
         int CountChuaDG(bool isSP);
         int CountChuaDG(string docQrTable);
 
-        string GetIdMaHang(string maHang);
-    
+        string GetIdMaHangPadded(string maHang);
+
 
         // ── Kiểm tra khi quét HVN ───────────────────────────────────────────
         bool KiemTraTemMa(string maHvn);
