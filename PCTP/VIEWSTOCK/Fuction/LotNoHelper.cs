@@ -24,7 +24,13 @@ namespace PCTP.VIEWSTOCK.Fuction
             return rawLotNo.Substring(0, 19)
                  + rawLotNo.Substring(rawLotNo.Length - 4);
         }
-
+        /// <summary>
+        /// Khoá CHUẨN DUY NHẤT dùng để ghi/so khớp cột STOCKTP.LOT.
+        /// Mọi nơi ghi vào STOCKTP hoặc so khớp với STOCKTP đều PHẢI gọi qua hàm này,
+        /// không tự cắt chuỗi riêng (Substring(0,13), Substring(0,20)...).
+        /// </summary>
+        public static string GetStockTpKey(string rawLotNo)
+            => NormalizeLot(rawLotNo);
         // Giữ nguyên logic cũ từ NHAP_TP — build danh sách FIND để tìm grid
         public static List<string> BuildFindList(string lotNoSL, string idSP)
         {

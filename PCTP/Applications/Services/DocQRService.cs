@@ -2,6 +2,7 @@
 using PCTP.Domain.Entities;
 using PCTP.Domain.Events;
 using PCTP.Domain.Interfaces;
+using PCTP.VIEWSTOCK.Fuction;
 using PCTP.VIEWSTOCK.Models;
 using System;
 using System.Collections.Generic;
@@ -513,7 +514,9 @@ namespace PCTP.Applications.Services
         // ════════════════════════════════════════════════════════════════════
         private string NormalizeLotFCC(string lotSl, string maHang)
         {
-            string sidMh = _repo.GetIdMaHangPadded(maHang);
+            string idRaw = _repo.GetIdMaHangPadded(maHang);
+            string sidMh = string.IsNullOrEmpty(idRaw) ? ""
+                           : string.Format("{0:00000}", int.Parse(idRaw));
 
             string[] ghep = lotSl.Split(',');
             if (ghep.Length > 1)
@@ -527,72 +530,69 @@ namespace PCTP.Applications.Services
 
                     if (lot.Length < 13)
                     {
-                        if (lot.Length == 12) return lotSl;
+                        // ✅ FIX BUG: trước đây "return lotSl" ở đây làm mất các phần LOT
+                        // ghép còn lại trong foreach — nay chỉ bỏ qua chuẩn hoá phần này,
+                        // vẫn tiếp tục xử lý các phần khác.
+                        if (lot.Length == 12)
+                        {
+                            resultParts.Add(lot + "-" + sl);
+                            continue;
+                        }
                         if (!string.IsNullOrEmpty(idRaw))
                             lot = lot.Replace(idRaw, sidMh);
                         resultParts.Add(lot + "-" + sl);
                     }
                     else
-                        resultParts.Add(lot.Substring(0, 13) + "-" + sl);
+                    {
+                        // ✅ THAY: dùng khoá chuẩn STOCKTP (LotNoHelper.NormalizeLot)
+                        // thay vì tự Substring(0,13) — khớp đúng định dạng LOT đang
+                        // ghi vào STOCKTP.LOT ở luồng nhập kho mới.
+                        resultParts.Add(LotNoHelper.GetStockTpKey(lot) + "-" + sl);
+                    }
                 }
                 return string.Join(",", resultParts);
             }
             else
             {
-                string lott;
                 if (lotSl.Length < 13)
                 {
                     if (!string.IsNullOrEmpty(idRaw))
                         lotSl = lotSl.Replace(idRaw, sidMh);
-                    lott = lotSl.Length > 13
+                    return lotSl.Length > 13
                         ? lotSl.Substring(0, 6) + sidMh + lotSl.Substring(13, 1)
                         : lotSl;
                 }
-                else
-                    lott = lotSl.Substring(0, 13);
-                return lott;
+
+                // ✅ THAY: khoá chuẩn STOCKTP thay vì Substring(0,13)
+                return LotNoHelper.GetStockTpKey(lotSl);
             }
         }
-
         private string NormalizeLotFCC_YMVN(string lotSl, out string gear)
         {
             gear = "";
             string[] ghep = lotSl.Split(',');
-            if (ghep.Length > 1) return lotSl;
+            if (ghep.Length > 1) return lotSl; // LOT ghép nhiều — xử lý ở luồng khác
 
-            string lotFcc;
-            if (lotSl.Length == 26)
+            // ── Đọc Gear từ vị trí cố định trong chuỗi GỐC (ký tự thứ 13) ───────
+            // Phải đọc TRƯỚC khi chuẩn hoá độ dài, vì GetStockTpKey có thể đổi
+            // chiều dài chuỗi (19+4=23 ký tự) làm lệch vị trí index 12.
+            if (lotSl.Length >= 13)
             {
-                lotFcc = lotSl;
-            }
-            else if (lotSl.Length == 27 || lotSl.Length == 28)
-            {
-                lotFcc = lotSl.Substring(0, 13);
-
-                // ← ký tự thứ 12 là mã số (int) → dùng overload int
                 if (int.TryParse(lotSl.Substring(12, 1), out int gearCode))
-                    gear = _repo.GetGearName(gearCode);  // ← overload int
+                    gear = _repo.GetGearName(gearCode);
                 else
-                    gear = _repo.GetGearName(lotSl.Substring(12, 1)); // ← overload string fallback
-            }
-            else
-            {
-                lotFcc = lotSl.Length >= 13 ? lotSl.Substring(0, 13) : lotSl;
+                    gear = _repo.GetGearName(lotSl.Substring(12, 1));
             }
 
-            return lotFcc;
+            // ✅ THAY: khoá chuẩn STOCKTP thay vì Substring(0,13) / giữ nguyên khi ==26
+            return LotNoHelper.GetStockTpKey(lotSl);
         }
         // ── Helper: cắt LOT cho HTN — bỏ 7 ký tự cuối ───────────────────────
         // Chỉ áp dụng cho 100003 (LoadTuBangRieng + !CoGear)
         private string NormalizeLotFCC_HTN(string lotRaw)
         {
-            // HTN: bỏ 8 ký tự cuối
-            // VD: "260721031241010540001226000" (27 ký tự)
-            //   → "2607210312410105400"         (19 ký tự)
-            const int BoKyTuCuoi = 8;
-            if (lotRaw.Length > BoKyTuCuoi)
-                return lotRaw.Substring(0, lotRaw.Length - BoKyTuCuoi);
-            return lotRaw;
+            // ✅ THAY: khoá chuẩn STOCKTP thay vì tự bỏ 8 ký tự cuối
+            return LotNoHelper.GetStockTpKey(lotRaw);
         }
 
     }

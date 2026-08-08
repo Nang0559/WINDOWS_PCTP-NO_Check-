@@ -148,7 +148,8 @@ namespace PCTP.VIEWSTOCK.Repository
                         Name = phieuLive?.TenSP ?? qr.ItemCode,
                         NgaySX = phieuLive?.NgaySX ?? qr.ImportDate,
                         SlSanXuat = phieuLive?.SlSanXuat ?? qr.Quantity,
-                        SlNhap = qr.Quantity
+                        SlNhap = qr.Quantity,
+                        ng
                     };
 
                     int slDaNhapTruoc = daTonTai ? _stockTpRepo.GetSlDaNhap(conn, tran, lotNo) : 0;
