@@ -2,7 +2,9 @@
 using PCTP.Domain.Entities;
 using PCTP.Domain.Interfaces;
 using PCTP.FuctionMain;
+using PCTP.VIEWSTOCK.Fuction;
 using PCTP.VIEWSTOCK.Models;
+using PCTP.VIEWSTOCK.Services;
 using PCTP.YMN;
 using System;
 using System.Collections.Generic;
@@ -591,10 +593,29 @@ namespace PCTP.Infrastructure.Repositories
             DataTable stok = ds.Tables[0]; // ← dòng thành công
                                            // ── Chỉ đánh dấu IsDelivered cho YMVN/HTN (có OrderTable) ───────
                                            // HVN không có OrderTable → bỏ qua
+                                           // ── (1) Trừ SlotLot của kho ảo A0 theo từng LOT vừa xuất OK ──────────
+            bool coAnhHuongA0 = false;
+            if (stok.Rows.Count > 0)
+            {
+                var bulkService = new BulkStockAdjustService();
+                foreach (DataRow row in stok.Rows)
+                {
+                    string lot = row["LOT"]?.ToString();
+                    int sl = row["SOLUONG"] == DBNull.Value ? 0 : Convert.ToInt32(row["SOLUONG"]);
+                    if (string.IsNullOrWhiteSpace(lot) || sl <= 0) continue;
+
+                    bool anhHuong = bulkService.TruKhoAoTheoLot(lot, sl); // ← đổi trả về bool
+                    if (anhHuong) coAnhHuongA0 = true;
+                }
+            }
+
+            // ── (2) Báo cho MainStockSV (nếu đang mở) vẽ lại — chỉ khi có ảnh hưởng A0 ─
+            if (coAnhHuongA0)
+                StockChangedNotifier.RaiseStockChanged();
             if (_cfg != null
-    && _cfg.LoadTuBangRieng
-    && !string.IsNullOrEmpty(_cfg.OrderTable)
-    && stok.Rows.Count > 0)
+            && _cfg.LoadTuBangRieng
+            && !string.IsNullOrEmpty(_cfg.OrderTable)
+            && stok.Rows.Count > 0)
             {
                 foreach (DataRow row in stok.Rows)
                 {
@@ -632,8 +653,31 @@ namespace PCTP.Infrastructure.Repositories
                 _sql.B7R2_FCCdb, "Usp_Qrcode_Update_Stock_SP",
                 new SqlParameter("@GIOGIAOFCC", gioGiaoFcc),
                 new SqlParameter("@NHAMAY", nhaMay));
+
             errors = ds.Tables.Count > 1 ? ds.Tables[1] : new DataTable();
-            return ds.Tables[0].Rows.Count;
+            DataTable stok = ds.Tables[0];
+
+            // ── THÊM: trừ kho ảo A0 — CHỈ patch nếu xác nhận SP này có cột LOT/SOLUONG ──
+            if (stok.Rows.Count > 0 && stok.Columns.Contains("LOT") && stok.Columns.Contains("SOLUONG"))
+            {
+                var bulkService = new BulkStockAdjustService();
+                bool coAnhHuongA0 = false;
+
+                foreach (DataRow row in stok.Rows)
+                {
+                    string lot = row["LOT"]?.ToString();
+                    int sl = row["SOLUONG"] == DBNull.Value ? 0 : Convert.ToInt32(row["SOLUONG"]);
+                    if (string.IsNullOrWhiteSpace(lot) || sl <= 0) continue;
+
+                    if (bulkService.TruKhoAoTheoLot(lot, sl))
+                        coAnhHuongA0 = true;
+                }
+
+                if (coAnhHuongA0)
+                    StockChangedNotifier.RaiseStockChanged();
+            }
+
+            return stok.Rows.Count;
         }
         public bool CapNhapKhoYMVN(int stt, string lotSl, string maHang,
                               string ngayGiao, string gioGiao, string nhaMay,
@@ -641,7 +685,8 @@ namespace PCTP.Infrastructure.Repositories
                               out DS_ERR_CNK error)
         {
             error = null;
-
+            var bulkService = new BulkStockAdjustService();
+            bool coAnhHuongA0 = false;
             string tmpTable = _cfg.TmpTable;      // TMPPHIEUGIAOHANG_100002
             string docQRTable = _cfg.DocQRTable;    // YMVN_DOCQRCODE
             string tmpTableSP = _cfg.TmpTableSP;   // SP_TMPPHIEUGIAOHANG
@@ -663,7 +708,7 @@ namespace PCTP.Infrastructure.Repositories
                 string slConlaiRaw = _sql.ExecuteReader(_sql.B7R2_FCCdb,
                     $"SELECT ISNULL(slconlai,0) FROM STOCKTP " +
                     $"WHERE SUBSTRING(LOT,1,13) = '{SqlHelper.Esc(lot)}'");
-
+                
                 if (!int.TryParse(slConlaiRaw, out int slConlai) || slConlai < sl)
                 {
                     error = new DS_ERR_CNK
@@ -687,6 +732,9 @@ namespace PCTP.Infrastructure.Repositories
                     $"    t.slconlai   = slconlai - {sl} " +
                     $"FROM (SELECT TOP 1 * FROM STOCKTP " +
                     $"      WHERE SUBSTRING(LOT,1,13) = '{SqlHelper.Esc(lot)}') t");
+                // ── THÊM ĐÚNG CHỖ: chỉ trừ A0 SAU KHI STOCKTP đã trừ thành công ──
+                if (bulkService.TruKhoAoTheoLot(lot, sl))
+                    coAnhHuongA0 = true;
             }
 
             // ── Lưu LUUDOCQRCODE — dùng tên bảng động ───────────────────────────
@@ -731,6 +779,8 @@ namespace PCTP.Infrastructure.Repositories
                 $"DELETE FROM [{docQRTable}] " +
                 $"WHERE MAHANGFCC = '{SqlHelper.Esc(maHang)}' AND KETQUA = 'DG'");
             // ── Đánh dấu IsDelivered=1 trong Purchase_Order ──────────────────
+            if (coAnhHuongA0)
+                StockChangedNotifier.RaiseStockChanged();
             // Lấy PO_NO từ TMP để xác định đúng đơn hàng
             string poNo = _sql.ExecuteReader(_sql.B7R2_FCCdb,
                 $"SELECT ISNULL(PO_NO,'') FROM [{tmpTable}] WHERE STT={stt}");

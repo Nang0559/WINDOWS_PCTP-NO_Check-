@@ -738,6 +738,7 @@
     <Compile Include="VIEWSTOCK\Fuction\QRCodeBuilder.cs" />
     <Compile Include="VIEWSTOCK\Fuction\QRCodeParser.cs" />
     <Compile Include="VIEWSTOCK\Fuction\SlotHelper.cs" />
+    <Compile Include="VIEWSTOCK\Fuction\StockChangedNotifier.cs" />
     <Compile Include="VIEWSTOCK\FunctionForm\CommonSlotFormUI.cs" />
     <Compile Include="VIEWSTOCK\FunctionForm\StockService.cs" />
     <Compile Include="VIEWSTOCK\FunctionForm\WaitFormExp.cs">
@@ -792,8 +793,15 @@
     <Compile Include="VIEWSTOCK\RpIn\RpInNhapKho.Designer.cs">
       <DependentUpon>RpInNhapKho.cs</DependentUpon>
     </Compile>
+    <Compile Include="VIEWSTOCK\Services\BulkStockAdjustService.cs" />
     <Compile Include="VIEWSTOCK\Services\NhapKhoCompletedEvent.cs" />
     <Compile Include="VIEWSTOCK\Models\StockItem.cs" />
+    <Compile Include="VIEWSTOCK\UCControls\FormBulkSlotView.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="VIEWSTOCK\UCControls\FormBulkSlotView.Designer.cs">
+      <DependentUpon>FormBulkSlotView.cs</DependentUpon>
+    </Compile>
     <Compile Include="VIEWSTOCK\UCControls\RackSummaryPopup.cs">
       <SubType>Form</SubType>
     </Compile>

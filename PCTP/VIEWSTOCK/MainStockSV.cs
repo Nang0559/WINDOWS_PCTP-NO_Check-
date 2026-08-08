@@ -10,6 +10,7 @@ using PCTP.VIEWSTOCK.CanVas;
 using PCTP.VIEWSTOCK.Fuction;
 using PCTP.VIEWSTOCK.FunctionForm;
 using PCTP.VIEWSTOCK.Models;
+using PCTP.VIEWSTOCK.UCControls;
 using PCTP.VIEWSTOCK.ViewForm;
 using System;
 using System.Collections.Generic;
@@ -59,13 +60,25 @@ namespace PCTP.VIEWSTOCK
             PEditInput.Closed += PEditInput_Closed;
             PEditInput.KeyDown += PEditInput_KeyDown;
             PEditInput.MouseClick += PEditInput_MouseClick;
-
+            StockChangedNotifier.StockChanged += OnExternalStockChanged; // ← THÊM
             if (PEditInput.Properties.View != null)
             {
                 PEditInput.Properties.View.KeyDown += GridView_KeyDown;
             }
         }
+        private void OnExternalStockChanged()
+        {
+            // HVN_PGH có thể gọi CNK trên UI thread khác form nhưng cùng process WinForms
+            // -> vẫn nên Invoke cho an toàn tuyệt đối (giống pattern ShowLoading hiện có)
+            if (this.InvokeRequired)
+            {
+                this.BeginInvoke(new Action(OnExternalStockChanged));
+                return;
+            }
+            if (this.IsDisposed || !isFirstShown) return;
 
+            OnSlotUpdated(); // ← đã có sẵn: refresh PEditInput + LoadAllWarehouses (vẽ lại Canvas)
+        }
         // ── [HÀM MỚI 1] SỰ KIỆN LOAD FORM CHÍNH HỆ THỐNG ──────────────────────────
         private void MainStock_Load(object sender, EventArgs e)
         {
@@ -77,7 +90,13 @@ namespace PCTP.VIEWSTOCK
         private void OnSlotClicked(Slot slot)
         {
             if (slot == null) return;
-
+            if (BulkImportConfig.IsBulkSlot(slot))
+            {
+                // Kho ảo: KHÔNG cho xuất tay — chỉ xem danh sách đang tồn tạm
+                var view = new FormBulkSlotView(slot); // form mới, chỉ read-only
+                view.ShowDialog(this);
+                return;
+            }
             try
             {
                 if (slot.IsOccupied)
@@ -1052,6 +1071,7 @@ namespace PCTP.VIEWSTOCK
         {
             _rackPopup?.Close();
             _rackPopup?.Dispose();
+            StockChangedNotifier.StockChanged -= OnExternalStockChanged;
             base.OnFormClosed(e);
         }
     }

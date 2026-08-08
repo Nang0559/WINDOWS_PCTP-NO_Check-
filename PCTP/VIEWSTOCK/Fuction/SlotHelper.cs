@@ -465,7 +465,8 @@ namespace PCTP.VIEWSTOCK.Fuction
             string itemCode,
             LotInfo lot,
             int? fromSlotId,
-            int? toSlotId = null)
+            int? toSlotId = null,
+            string performedBy = null)
         {
             var provider = new SQLPROVIDER();
 
@@ -531,7 +532,9 @@ namespace PCTP.VIEWSTOCK.Fuction
                         .Value = (object)lot?.QRInfo?.MaPhieu ?? DBNull.Value;
 
                     cmd.Parameters.Add("@PerformedBy", SqlDbType.NVarChar, 50)
-                        .Value = Environment.UserName;
+                    .Value = !string.IsNullOrEmpty(performedBy)
+                    ? (object)performedBy
+                    : Environment.UserName;
 
                     cmd.ExecuteNonQuery();
                 }
