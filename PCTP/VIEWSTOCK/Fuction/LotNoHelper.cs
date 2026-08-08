@@ -14,16 +14,7 @@ namespace PCTP.VIEWSTOCK.Fuction
     {
 
         public static string NormalizeLot(string rawLotNo)
-        {
-            if (string.IsNullOrWhiteSpace(rawLotNo))
-                return rawLotNo;
-
-            if (rawLotNo.Length < 26)
-                return rawLotNo;
-
-            return rawLotNo.Substring(0, 19)
-                 + rawLotNo.Substring(rawLotNo.Length - 4);
-        }
+        => PCTP.Common.LotCodeHelper.NormalizeLotForSlotDisplay(rawLotNo);
         /// <summary>
         /// Khoá CHUẨN DUY NHẤT dùng để ghi/so khớp cột STOCKTP.LOT.
         /// Mọi nơi ghi vào STOCKTP hoặc so khớp với STOCKTP đều PHẢI gọi qua hàm này,
@@ -33,53 +24,7 @@ namespace PCTP.VIEWSTOCK.Fuction
             => NormalizeLot(rawLotNo);
         // Giữ nguyên logic cũ từ NHAP_TP — build danh sách FIND để tìm grid
         public static List<string> BuildFindList(string lotNoSL, string idSP)
-        {
-            var result = new List<string>();
-            if (string.IsNullOrEmpty(lotNoSL) || string.IsNullOrEmpty(idSP))
-                return result;
-
-            if (!int.TryParse(idSP, out int intId)) return result;
-
-            // ✅ prefixLen luôn tính trên idSP đã pad (5 ký tự, từ STUFF('00000',...))
-            // Đây là độ dài CỐ ĐỊNH dùng để định vị trong LOTNOSL gốc — tương đương
-            // LOT1.Length trong NHAP_TP.cs. KHÔNG được thay bằng lot.Length (biến,
-            // phụ thuộc intId không pad) như code cũ đang làm.
-            int prefixLen = 6 + idSP.Length;
-            if (lotNoSL.Length <= prefixLen) return result;
-
-            // ✅ FIX lỗi off-by-one: Ca nằm NGAY SAU prefix đã pad → index = prefixLen
-            // (code cũ: prefixLen - 1 → sai lệch 1 ký tự)
-            string ca = lotNoSL.Substring(prefixLen, 1);
-
-            // LOT cơ bản — dùng intId KHÔNG pad, đúng như IntID.ToString() bản gốc
-            string lot = lotNoSL.Substring(0, 6) + intId + ca;
-            result.Add(lot);
-
-            // Dạng 2 — BP lấy từ cuối chuỗi, Gear lấy ở vị trí prefixLen+1 (FIX: dùng
-            // prefixLen thay vì lot.Length)
-            if (lotNoSL.Length >= 8)
-            {
-                string bp = lotNoSL.Substring(lotNoSL.Length - 8, 4);
-                string gear = lotNoSL.Length > prefixLen + 1
-                    ? lotNoSL.Substring(prefixLen + 1, 1) : "";
-                result.Add(lotNoSL.Substring(0, 6) + intId + ca + bp + gear);
-            }
-
-            // Dạng 3 — BP2 ở vị trí prefixLen+2 (dài 4), Gear2 ở prefixLen+1
-            // (FIX: dùng prefixLen thay vì lot.Length)
-            if (lotNoSL.Length >= prefixLen + 6)
-            {
-                string bp2 = lotNoSL.Substring(prefixLen + 2, 4);
-                string gear2 = lotNoSL.Substring(prefixLen + 1, 1);
-                result.Add(lotNoSL.Substring(0, 6) + intId + ca + bp2 + gear2);
-            }
-
-            // Dạng LOTCH — 20 ký tự đầu (= vNhapTP.FIND khi LY_DO_TRA rỗng)
-            if (lotNoSL.Length >= 20)
-                result.Add(lotNoSL.Substring(0, 20));
-
-            return result;
-        }
+         => PCTP.Common.LotCodeHelper.BuildCandidateFinds(lotNoSL, idSP);
         public static PrintLotResult CreatePrintData(List<LotInfo> lots)
         {
             var result = new PrintLotResult();

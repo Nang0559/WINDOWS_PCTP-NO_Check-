@@ -274,6 +274,7 @@
     <Compile Include="ClassSQL\IClass_DH.cs" />
     <Compile Include="ClassSQL\SQL.cs" />
     <Compile Include="ClsResize.cs" />
+    <Compile Include="Common\LotCodeHelper.cs" />
     <Compile Include="DAL\QrcodeDAL.cs" />
     <Compile Include="DAL\XuLySQL.cs" />
     <Compile Include="Domain\Entities\DocQRCode.cs" />
