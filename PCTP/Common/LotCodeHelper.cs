@@ -13,8 +13,8 @@ namespace PCTP.Common
     /// + Id_Item padded 5 ký tự (STUFF '00000',...)   -- LEN_ID_ITEM = 5
     /// + ShiftCode (1 ký tự, mặc định '9' nếu null)   -- LEN_SHIFT = 1
     /// + GearCode (1 ký tự, mặc định '0' nếu null)    -- LEN_GEAR = 1
-    /// + LinesCode (độ dài BIẾN ĐỘNG theo cấu hình)   -- LinesLen
-    /// + MachinesCode (độ dài BIẾN ĐỘNG theo cấu hình)-- MachinesLen
+    /// + LinesCode (độ dài BIẾN ĐỘNG theo cấu hình)   -- LinesLen = 3
+    /// + MachinesCode (độ dài BIẾN ĐỘNG theo cấu hình)-- MachinesLen = 4
     /// + TemCounter padded 4 ký tự (STUFF '0000',...) -- LEN_COUNTER = 4
     /// + QuantityTem padded 4 ký tự (STUFF '0000',...)-- LEN_QTY = 4
     ///
@@ -30,17 +30,19 @@ namespace PCTP.Common
         public const int LEN_ID_ITEM = 5;      // Id hàng đã pad '00000'
         public const int LEN_SHIFT = 1;      // Ca sản xuất
         public const int LEN_GEAR = 1;      // Mã Gear
+        public const int LEN_LinesCode = 3;      // Mã Line
+        public const int LEN_MachinesCode = 4;      // Mã Bộ phận
         public const int LEN_COUNTER = 4;      // STT tem trong lô (TemCounter)
         public const int LEN_QTY = 4;      // Số lượng trên tem (QuantityTem)
 
         /// <summary>Date+Id+Shift+Gear — phần đầu luôn cố định 9 ký tự.</summary>
-        public const int LEN_HEAD_FIXED = LEN_DATE + LEN_ID_ITEM + LEN_SHIFT + LEN_GEAR; // = 9
+        public const int LEN_HEAD_FIXED = LEN_DATE + LEN_ID_ITEM + LEN_SHIFT + LEN_GEAR + LEN_LinesCode + LEN_MachinesCode; // = 20
 
         /// <summary>Counter+Qty — phần đuôi luôn cố định 8 ký tự.</summary>
         public const int LEN_TAIL_FIXED = LEN_COUNTER + LEN_QTY; // = 8
 
         /// <summary>Độ dài tối thiểu hợp lệ của 1 chuỗi LOT đầy đủ (không có Line/Machine).</summary>
-        public const int MIN_TOTAL_LEN = LEN_HEAD_FIXED + LEN_TAIL_FIXED; // = 17
+        public const int MIN_TOTAL_LEN = LEN_HEAD_FIXED + LEN_TAIL_FIXED; // = 20
 
         // ══════════════════════════════════════════════════════════════════════
         // 1. TÁCH THEO ĐUÔI — dùng cho NHẬP KHO / LƯU KHO (bỏ Counter+Qty)
@@ -93,7 +95,23 @@ namespace PCTP.Common
             => lot != null && lot.Length >= LEN_HEAD_FIXED
                 ? lot.Substring(LEN_DATE + LEN_ID_ITEM + LEN_SHIFT, LEN_GEAR)
                 : "";
+        /// <summary>Lấy riêng phần LineCode (3 ký tự), bắt đầu sau phần đầu cố định 13 ký tự.</summary>
+        public static string GetLineCodePart(string lot)
+        {
+            int startIdx = LEN_DATE + LEN_ID_ITEM + LEN_SHIFT + LEN_GEAR; // = 13
+            return lot != null && lot.Length >= startIdx + LEN_LinesCode
+                ? lot.Substring(startIdx, LEN_LinesCode)
+                : "";
+        }
 
+        /// <summary>Lấy riêng phần MachinesCode (4 ký tự), bắt đầu sau LineCode.</summary>
+        public static string GetMachineCodePart(string lot)
+        {
+            int startIdx = LEN_DATE + LEN_ID_ITEM + LEN_SHIFT + LEN_GEAR + LEN_LinesCode; // = 13 + 3 = 16
+            return lot != null && lot.Length >= startIdx + LEN_MachinesCode
+                ? lot.Substring(startIdx, LEN_MachinesCode)
+                : "";
+        }
         /// <summary>
         /// Phần giữa Line+Machine — suy ra bằng phép trừ (đầu cố định 9, đuôi cố định 8,
         /// phần còn lại ở giữa chính là Line+Machine gộp lại, độ dài biến động theo dữ liệu thực tế).
