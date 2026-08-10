@@ -1,5 +1,7 @@
 ﻿using PCTP.ClassSQL;
 using PCTP.Models;
+using PCTP.VIEWSTOCK.Fuction;
+using PCTP.VIEWSTOCK.Models;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -25,9 +27,9 @@ namespace PCTP.VIEWSTOCK.Repository
         {
             _sql.ExecuteNonQuery(conn, tran, @"
                 INSERT INTO STOCKTPTRAHANG
-                    (LOT, NGAYTRA, SLTRA, SLNHANLAI, LY_DO_NG, STATUS)
+                    (LOT, NGAYTRA, SLTRA, SLNHANLAI,SLCONLAI, LY_DO_NG, STATUS)
                 VALUES
-                    (@lot, GETDATE(), @sl, 0, @lyDo, 0)",
+                    (@lot, GETDATE(), @sl, 0,@sl, @lyDo, 0)",
                 new SqlParameter("@lot", lot),
                 new SqlParameter("@sl", slTra),
                 new SqlParameter("@lyDo", $"[{nguon}] " + (lyDoNg ?? "")));
@@ -172,6 +174,249 @@ namespace PCTP.VIEWSTOCK.Repository
             _sql.ExecuteNonQuery(conn, tran,
                 "UPDATE TMPPHIEUNHANDB SET DA_NHAP_KHO = 1 WHERE IDP = @idp",
                 new SqlParameter("@idp", idp));
+        }
+        // TraHangRepository.cs — thêm implementation
+
+        /// <summary>
+        /// Ghi lại toàn bộ SlotLot của 1 Slot (xoá cũ, insert lại danh sách mới) và cập nhật
+        /// bảng Slot tổng hợp (Quantity/ItemCode/ImportDate/IsOccupied) — TẤT CẢ trong cùng
+        /// conn/tran được truyền vào từ ngoài.
+        ///
+        /// Đây là bản sao có chủ đích của SlotHelper.SaveSlotLots + SlotHelper.UpdateSlotQuantity,
+        /// KHÔNG được gọi lại 2 hàm đó vì chúng tự mở SqlConnection/SqlTransaction riêng — nếu gọi
+        /// sẽ phá vỡ tính atomic của giao dịch trả hàng NG (Slot có thể bị trừ dù STOCKTP rollback).
+        /// Mọi thay đổi nghiệp vụ ở SaveSlotLots gốc (ví dụ thêm cột mới) cần đồng bộ lại ở đây.
+        /// </summary>
+        public void SaveSlotLotsInTransaction(SqlConnection conn, SqlTransaction tran,
+            int slotId, List<LotInfo> lots)
+        {
+            lots = lots ?? new List<LotInfo>();
+
+            // ── 1. Xoá toàn bộ Lot cũ của Slot ───────────────────────────────────
+            using (var cmdDelete = new SqlCommand(
+                "DELETE FROM SlotLot WHERE SlotId = @SlotId", conn, tran))
+            {
+                cmdDelete.Parameters.AddWithValue("@SlotId", slotId);
+                cmdDelete.ExecuteNonQuery();
+            }
+
+            // ── 2. Insert lại toàn bộ Lot còn lại ────────────────────────────────
+            foreach (var lot in lots)
+            {
+                using (var cmdInsert = new SqlCommand(@"
+            INSERT INTO SlotLot
+            (
+                SlotId,
+                ItemCode,
+                LotNo,
+                Quantity,
+                TemCode,
+                QrData,
+                ImportDate,
+                MaPhieu
+            )
+            VALUES
+            (
+                @SlotId,
+                @ItemCode,
+                @LotNo,
+                @Quantity,
+                @TemCode,
+                @QrData,
+                @ImportDate,
+                @MaPhieu
+            )", conn, tran))
+                {
+                    cmdInsert.Parameters.AddWithValue("@SlotId", slotId);
+                    cmdInsert.Parameters.AddWithValue("@LotNo",
+                        (object)lot.LotNo ?? DBNull.Value);
+                    cmdInsert.Parameters.AddWithValue("@Quantity", lot.Quantity);
+                    cmdInsert.Parameters.AddWithValue("@TemCode",
+                        (object)lot.TemCode ?? DBNull.Value);
+                    cmdInsert.Parameters.AddWithValue("@QrData",
+                        (object)lot.QRInfo?.RawQr ?? DBNull.Value);
+                    cmdInsert.Parameters.AddWithValue("@MaPhieu",
+                        (object)lot.QRInfo?.MaPhieu ?? DBNull.Value);
+                    cmdInsert.Parameters.AddWithValue("@ItemCode",
+                        (object)lot.QRInfo?.ItemCode ?? DBNull.Value);
+                    cmdInsert.Parameters.AddWithValue("@ImportDate",
+                        (object)lot.QRInfo?.ImportDate ?? DateTime.Now);
+
+                    cmdInsert.ExecuteNonQuery();
+                }
+            }
+
+            // ── 3. Cập nhật lại Slot tổng hợp — y hệt SlotHelper.UpdateSlotQuantity ─
+            using (var cmdUpdate = new SqlCommand(@"
+        UPDATE s
+        SET
+            Quantity =
+            (
+                SELECT ISNULL(SUM(sl.Quantity),0)
+                FROM SlotLot sl
+                WHERE sl.SlotId = s.SlotId
+            ),
+
+            ItemCode =
+            (
+                SELECT TOP (1) sl.ItemCode
+                FROM SlotLot sl
+                WHERE sl.SlotId = s.SlotId
+                ORDER BY sl.ImportDate DESC, sl.CreatedDate DESC
+            ),
+
+            ImportDate =
+            (
+                SELECT TOP (1) sl.ImportDate
+                FROM SlotLot sl
+                WHERE sl.SlotId = s.SlotId
+                ORDER BY sl.ImportDate DESC, sl.CreatedDate DESC
+            ),
+
+            IsOccupied =
+            CASE
+                WHEN EXISTS
+                (
+                    SELECT 1
+                    FROM SlotLot sl
+                    WHERE sl.SlotId = s.SlotId
+                )
+                THEN 1
+                ELSE 0
+            END
+
+        FROM Slot s
+        WHERE s.SlotId = @SlotId;", conn, tran))
+            {
+                cmdUpdate.Parameters.AddWithValue("@SlotId", slotId);
+                cmdUpdate.ExecuteNonQuery();
+            }
+        }
+
+        // TraHangRepository.cs — thêm implementation
+
+        /// <summary>
+        /// Đọc SlotLot theo đúng conn/tran hiện tại (không tự mở connection mới như
+        /// SlotHelper.GetSlotLots) — dùng khi cần đọc-sửa-ghi trong cùng 1 giao dịch,
+        /// ví dụ ExportSpecificLot bên dưới.
+        /// </summary>
+        public List<LotInfo> GetSlotLotsInTransaction(SqlConnection conn, SqlTransaction tran, int slotId)
+        {
+            var lots = new List<LotInfo>();
+
+            using (var cmd = new SqlCommand(@"
+        SELECT ItemCode, LotNo, Quantity, TemCode, QrData, MaPhieu, ImportDate
+        FROM SlotLot
+        WHERE SlotId = @SlotId
+        ORDER BY LotNo", conn, tran))
+            {
+                cmd.Parameters.AddWithValue("@SlotId", slotId);
+
+                using (var reader = cmd.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        string lotNo = reader["LotNo"] == DBNull.Value ? "" : reader["LotNo"].ToString();
+                        int quantity = Convert.ToInt32(reader["Quantity"]);
+                        string temCode = reader["TemCode"] == DBNull.Value ? "" : reader["TemCode"].ToString();
+                        string qrData = reader["QrData"] == DBNull.Value ? "" : reader["QrData"].ToString();
+
+                        QRCodeInfo qrInfo = null;
+                        if (!string.IsNullOrWhiteSpace(qrData))
+                        {
+                            try { qrInfo = QRCodeParser.ParseQRCode(qrData); }
+                            catch (FormatException) { qrInfo = null; }
+                        }
+
+                        if (qrInfo == null)
+                        {
+                            qrInfo = new QRCodeInfo
+                            {
+                                LotNo = lotNo,
+                                ItemCode = reader["ItemCode"] == DBNull.Value ? "" : reader["ItemCode"].ToString(),
+                                Quantity = quantity,
+                                MaPhieu = reader["MaPhieu"] == DBNull.Value ? "" : reader["MaPhieu"].ToString(),
+                                ImportDate = reader["ImportDate"] == DBNull.Value
+                                    ? (DateTime?)null : Convert.ToDateTime(reader["ImportDate"]),
+                                RawQr = qrData
+                            };
+                        }
+                        else
+                        {
+                            qrInfo.Quantity = quantity;
+                        }
+
+                        lots.Add(new LotInfo
+                        {
+                            LotNo = lotNo,
+                            Quantity = quantity,
+                            TemCode = temCode,
+                            RawQr = qrData,
+                            QRInfo = qrInfo
+                        });
+                    }
+                }
+            }
+
+            return lots;
+        }
+
+        // TraHangRepository.cs — thêm
+        /// <summary>
+        /// Khi CapNhapKho (HVN_PGH) đã trừ STOCKTP.SLXUAT thành công cho 1 danh sách LOT
+        /// (tức phiếu giao đã ghép LOT + xác nhận CNK), đóng luôn các dòng TMPCHOGIAO
+        /// tương ứng (nếu có) sang DA_GIAO — tránh việc TMPCHOGIAO bị "mồ côi" mãi ở
+        /// trạng thái CHO_GIAO trong khi hàng đã thực sự rời kho theo giấy tờ.
+        ///
+        /// KHÔNG trừ STOCKTP ở đây — SP Usp_Qrcode_Update_Stock2405 đã trừ rồi.
+        /// </summary>
+        public void CloseChoGiaoTheoLot(SqlConnection conn, SqlTransaction tran,
+            IEnumerable<string> lotsDaXuat)
+        {
+            var lots = lotsDaXuat?.Where(l => !string.IsNullOrWhiteSpace(l)).Distinct().ToList();
+            if (lots == null || lots.Count == 0) return;
+
+            string inClause = string.Join(",", lots.Select(l => $"'{Esc(l)}'"));
+            _sql.ExecuteNonQuery(conn, tran, $@"
+        UPDATE TMPCHOGIAO
+        SET TrangThai = 'DA_GIAO'
+        WHERE LotGoc IN ({inClause})
+          AND TrangThai = 'CHO_GIAO'");
+        }
+        // TraHangRepository.cs — thêm
+        /// <summary>Trả về các LOT (trong danh sách truyền vào) đang tồn tại trong bất kỳ
+        /// TMPPHIEUGIAOHANG* nào với STATUS != 'OK' — nghĩa là đang chờ CNK bên HVN_PGH.</summary>
+        public List<string> LocLotDangChoCNK(IEnumerable<string> lots)
+        {
+            var lotList = lots?.Where(l => !string.IsNullOrWhiteSpace(l)).Distinct().ToList();
+            if (lotList == null || lotList.Count == 0) return new List<string>();
+
+            string inClause = string.Join(",", lotList.Select(l => $"'{Esc(l)}'"));
+            // Kiểm tra qua bảng TMPPHIEUGIAOHANG chính — nếu bạn có nhiều bảng TMP theo customer
+            // (TmpTableSP, TmpTable_100002...), cân nhắc UNION thêm ở đây.
+            DataTable dt = _sql.ExecuteQuery(_sql.B7R2_FCCdb, $@"
+        SELECT DISTINCT LOT FROM TMPPHIEUGIAOHANG
+        WHERE LOT IN ({inClause}) AND ISNULL(STATUS,'') <> 'OK'");
+
+            return dt.Rows.Cast<DataRow>().Select(r => r["LOT"].ToString()).ToList();
+        }
+        // TraHangRepository.cs
+        public List<string> LocLotDaCNK(IEnumerable<string> lots)
+        {
+            var lotList = lots?.Where(l => !string.IsNullOrWhiteSpace(l)).Distinct().ToList();
+            if (lotList == null || lotList.Count == 0) return new List<string>();
+
+            string inClause = string.Join(",", lotList.Select(l => $"'{Esc(l)}'"));
+            DataTable dt = _sql.ExecuteQuery(_sql.B7R2_FCCdb, $@"
+        SELECT DISTINCT LOT FROM TMPPHIEUGIAOHANG
+        WHERE LOT IN ({inClause}) AND STATUS = 'OK'");
+
+            return dt.Rows.Cast<DataRow>().Select(r => r["LOT"].ToString()).ToList();
+        }
+
+        public int GetSlXuatHienTai(string lot)
+        {
+
         }
     }
 }

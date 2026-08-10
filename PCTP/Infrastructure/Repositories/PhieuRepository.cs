@@ -5,6 +5,7 @@ using PCTP.Domain.Interfaces;
 using PCTP.FuctionMain;
 using PCTP.VIEWSTOCK.Fuction;
 using PCTP.VIEWSTOCK.Models;
+using PCTP.VIEWSTOCK.Repository;
 using PCTP.VIEWSTOCK.Services;
 using PCTP.YMN;
 using System;
@@ -27,7 +28,8 @@ namespace PCTP.Infrastructure.Repositories
     {
         private readonly SQLPROVIDER _sql;
         private readonly CustomerConfig _cfg;
-        public PhieuRepository(SQLPROVIDER sql, CustomerConfig cfg) { _sql = sql; _cfg = cfg; }
+        private readonly ITraHangRepository _traHangRepo;
+        public PhieuRepository(SQLPROVIDER sql, CustomerConfig cfg, ITraHangRepository traHangRepo = null) { _sql = sql; _cfg = cfg; _traHangRepo = traHangRepo; }
 
         // ════════════════════════════════════════════════════════════════════════
         // Đếm / kiểm tra
@@ -599,6 +601,7 @@ namespace PCTP.Infrastructure.Repositories
             // SlotLot — không tin tưởng SP đã trả về đúng độ dài, luôn tự chuẩn hoá
             // tại điểm ranh giới giữa các tầng để tránh lệch khi SP đổi/khác định dạng.
             bool coAnhHuongA0 = false;
+            var lotsDaXuatThanhCong = new List<string>();
             if (stok.Rows.Count > 0)
             {
                 var bulkService = new BulkStockAdjustService();
@@ -612,13 +615,31 @@ namespace PCTP.Infrastructure.Repositories
 
                     bool anhHuong = bulkService.TruKhoAoTheoLot(lot, sl); // ← đổi trả về bool
                     if (anhHuong) coAnhHuongA0 = true;
+                    lotsDaXuatThanhCong.Add(lot);
                 }
             }
 
             // ── (2) Báo cho MainStockSV (nếu đang mở) vẽ lại — chỉ khi có ảnh hưởng A0 ─
             if (coAnhHuongA0)
                 StockChangedNotifier.RaiseStockChanged();
-
+            // ── (2) MỚI: đóng TMPCHOGIAO tương ứng — best-effort, không throw nếu lỗi ──
+            if (lotsDaXuatThanhCong.Count > 0 && _traHangRepo != null)
+            {
+                try
+                {
+                    using (var conn = _sql.BeginTransaction(_sql.B7R2_FCCdb, out SqlTransaction tran))
+                    {
+                        _traHangRepo.CloseChoGiaoTheoLot(conn, tran, lotsDaXuatThanhCong);
+                        tran.Commit();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // Không throw — STOCKTP đã trừ đúng rồi, đây chỉ là bước dọn hiển thị.
+                    System.Diagnostics.Debug.WriteLine(
+                        $"[CapNhapKho] Không đóng được TMPCHOGIAO: {ex.Message}");
+                }
+            }
             // ── Chỉ đánh dấu IsDelivered cho YMVN/HTN (có OrderTable) ───────
             // HVN không có OrderTable → bỏ qua
             if (_cfg != null

@@ -45,41 +45,53 @@ namespace PCTP.VIEWSTOCK.FunctionForm
             if (string.IsNullOrWhiteSpace(lot) || soLuong <= 0)
                 return ScanResult.Fail("Thiếu LOT hoặc số lượng không hợp lệ.");
 
-            int slConLai = _stockTpRepo.GetSlConLai(lot);
-            if (soLuong > slConLai)
-                return ScanResult.Fail($"Số lượng trả ({soLuong}) vượt quá tồn kho hiện tại của LOT ({slConLai}).");
-
-            try
+            using (var conn = _sql.BeginTransaction(_sql.B7R2_FCCdb, out SqlTransaction tran))
             {
-                // 1. Xuất khỏi Slot — dùng chung logic tách LOT có sẵn
-                var splitResult = _stockService.ExportFromSlot(slotId, soLuong, null);
-
-                // 2+3. STOCKTP + STOCKTPTRAHANG trong 1 transaction
-                using (var conn = _sql.BeginTransaction(_sql.B7R2_FCCdb, out SqlTransaction tran))
+                try
                 {
-                    try
-                    {
-                        _traHangRepo.TruSlConLai(conn, tran, lot, soLuong);
-                        _traHangRepo.InsertTraHang(conn, tran, lot, soLuong, lyDo, "TU_KHO");
-                        tran.Commit();
-                    }
-                    catch
+                    // 1. Đọc Lot hiện tại của Slot TRONG transaction này
+                    var allLots = _traHangRepo.GetSlotLotsInTransaction(conn, tran, slotId);
+                    var targetLots = allLots.Where(x => x.LotNo == lot).ToList();
+                    int available = targetLots.Sum(x => x.Quantity);
+
+                    if (soLuong > available)
                     {
                         tran.Rollback();
-                        throw;
+                        return ScanResult.Fail(
+                            $"LOT [{lot}] trong Slot chỉ còn {available}, không đủ {soLuong} để trả.");
                     }
-                }
 
-                return new ScanResult
+                    // 2. Tách đúng LOT cần trả, giữ nguyên các LOT khác trong Slot
+                    var split = LotNoHelper.SubtractLots(targetLots, soLuong);
+                    var remaining = allLots.Where(x => x.LotNo != lot)
+                                            .Concat(split.RemainingLots)
+                                            .ToList();
+
+                    // 3. Ghi lại SlotLot + cập nhật Slot tổng hợp — cùng transaction
+                    _traHangRepo.SaveSlotLotsInTransaction(conn, tran, slotId, remaining);
+
+                    // 4. STOCKTP + STOCKTPTRAHANG — cùng transaction
+                    _traHangRepo.TruSlConLai(conn, tran, lot, soLuong);
+                    _traHangRepo.InsertTraHang(conn, tran, lot, soLuong, lyDo, "TU_KHO");
+
+                    tran.Commit();
+                }
+                catch (Exception ex)
                 {
-                    IsOK = true,
-                    Message = $"Đã trả {soLuong} SP của LOT [{lot}] về sản xuất để rework."
-                };
+                    tran.Rollback();
+                    return ScanResult.Fail("Lỗi trả hàng về sản xuất: " + ex.Message);
+                }
             }
-            catch (Exception ex)
+
+            // Lịch sử ghi sau khi transaction đã chắc chắn thành công (giống pattern NhapTpReceivingService)
+            SlotHelper.SaveHistory("RETURN_TO_PRODUCTION",
+                null, new LotInfo { LotNo = lot, Quantity = soLuong }, slotId, null);
+
+            return new ScanResult
             {
-                return ScanResult.Fail("Lỗi trả hàng về sản xuất: " + ex.Message);
-            }
+                IsOK = true,
+                Message = $"Đã trả {soLuong} SP của LOT [{lot}] về sản xuất để rework."
+            };
         }
 
         // ════════════════════════════════════════════════════════════════
@@ -98,8 +110,20 @@ namespace PCTP.VIEWSTOCK.FunctionForm
             if (items.Count == 0)
                 return ScanResult.Fail("Các dòng đã chọn không còn ở trạng thái chờ giao.");
 
-            var nhomTheoLot = items
-                .GroupBy(x => x.LotGoc)
+            // ── Guard MỚI: nếu LOT đã được CNK (STATUS='OK' bên TMPPHIEUGIAOHANG),
+            // nghĩa là SLXUAT đã bị trừ theo giấy tờ — không cho huỷ nữa vì sẽ làm
+            // STOCKTP sai (đã coi là xuất nhưng giờ lại đưa về SX).
+            var lotDaCnk = _traHangRepo.LocLotDaCNK(items.Select(x => x.LotGoc).Distinct());
+            if (lotDaCnk.Count > 0)
+                return ScanResult.Fail(
+                    $"LOT [{string.Join(", ", lotDaCnk)}] đã được Cập Nhật Kho (coi như đã giao) — " +
+                    "không thể huỷ chờ giao. Nếu hàng thực sự có lỗi, dùng luồng \"Trả hàng NG sau giao\" (Luồng 2).");
+
+            var itemsHopLe = items.Where(x => !lotDaCnk.Contains(x.LotGoc)).ToList();
+            if (itemsHopLe.Count == 0)
+                return ScanResult.Fail("Tất cả các dòng đã chọn đều đã được CNK, không thể huỷ.");
+
+            var nhomTheoLot = itemsHopLe.GroupBy(x => x.LotGoc)
                 .Select(g => new { LotGoc = g.Key, TongSl = g.Sum(x => x.SoLuong) })
                 .ToList();
 
@@ -107,11 +131,9 @@ namespace PCTP.VIEWSTOCK.FunctionForm
             {
                 try
                 {
-                    // 1. Đổi trạng thái các thùng đã chọn
                     _traHangRepo.CapNhatTrangThaiChoGiao(conn, tran,
-                        items.Select(x => x.Id), "HUY_TRA_SX");
+                        itemsHopLe.Select(x => x.Id), "HUY_TRA_SX");
 
-                    // 2-4. Với từng LOT_GOC: trừ SLCONLAI + ghi STOCKTPTRAHANG
                     foreach (var nhom in nhomTheoLot)
                     {
                         _traHangRepo.TruSlConLai(conn, tran, nhom.LotGoc, nhom.TongSl);
@@ -128,15 +150,15 @@ namespace PCTP.VIEWSTOCK.FunctionForm
                 }
             }
 
-            foreach (var it in items)
+            foreach (var it in itemsHopLe)
                 SlotHelper.SaveHistory("RETURN_TO_PRODUCTION_FROM_STAGING", it.MaHang,
-                    new VIEWSTOCK.Models.LotInfo { LotNo = it.LotGoc, Quantity = it.SoLuong, TemCode = it.LotThung },
+                    new LotInfo { LotNo = it.LotGoc, Quantity = it.SoLuong, TemCode = it.LotThung },
                     it.SlotIdNguon, null);
 
             return new ScanResult
             {
                 IsOK = true,
-                Message = $"Đã huỷ {items.Count} thùng ({nhomTheoLot.Count} LOT), trả về sản xuất."
+                Message = $"Đã huỷ {itemsHopLe.Count} thùng ({nhomTheoLot.Count} LOT), trả về sản xuất."
             };
         }
 
@@ -195,6 +217,10 @@ namespace PCTP.VIEWSTOCK.FunctionForm
                 {
                     foreach (var nhom in nhomLot)
                     {
+                        int slXuatHienTai = _traHangRepo.GetSlXuatHienTai(nhom.LotGoc); // SELECT ISNULL(SLXUAT,0) FROM STOCKTP
+                        if (nhom.TongSl > slXuatHienTai)
+                            return ScanResult.Fail(
+                                $"LOT [{nhom.LotGoc}]: SL trả ({nhom.TongSl}) vượt quá SL đã xuất ({slXuatHienTai}).");
                         _traHangRepo.NhapLaiHangKhachTra(conn, tran, nhom.LotGoc, nhom.TongSl);
                         _traHangRepo.InsertNhanTraTheoIDP(conn, tran, nhom.LotGoc, nhom.TongSl, idp);
                     }
@@ -232,6 +258,15 @@ namespace PCTP.VIEWSTOCK.FunctionForm
         /// đã bị trừ khi pick (ExportFormSV), nhưng STOCKTP tổng vẫn coi là "còn trong kho"
         /// cho tới bước này.
         /// </summary>
+        /// <summary>
+        /// CHỈ dùng cho hàng "chờ giao" KHÔNG đi qua luồng HVN_PGH (không có LOT nào
+        /// được ghép vào TMPPHIEUGIAOHANG để CNK) — ví dụ: chuyển kho nội bộ, xuất
+        /// cho mục đích khác không phải giao khách theo phiếu.
+        ///
+        /// NẾU LOT này SẼ được CNK qua HVN_PGH, KHÔNG gọi hàm này — để CapNhapKho tự
+        /// trừ SLXUAT và tự đóng TMPCHOGIAO (xem PhieuRepository.CapNhapKho).
+        /// Gọi cả 2 cho cùng 1 LOT sẽ trừ SLXUAT 2 lần.
+        /// </summary>
         public ScanResult XacNhanDaGiao(List<int> choGiaoIds)
         {
             if (choGiaoIds == null || choGiaoIds.Count == 0)
@@ -244,6 +279,13 @@ namespace PCTP.VIEWSTOCK.FunctionForm
             if (items.Count == 0)
                 return ScanResult.Fail("Các dòng đã chọn không còn ở trạng thái chờ giao.");
 
+            // ── Guard: cảnh báo nếu LOT này đã có mặt trong TMPPHIEUGIAOHANG (đang chờ CNK) ──
+            var lotTrungHVN = _traHangRepo.LocLotDangChoCNK(items.Select(x => x.LotGoc).Distinct());
+            if (lotTrungHVN.Count > 0)
+                return ScanResult.Fail(
+                    $"LOT [{string.Join(", ", lotTrungHVN)}] đang chờ Cập Nhật Kho bên phiếu giao HVN — " +
+                    "vui lòng xác nhận qua nút CNK bên đó, không xác nhận thủ công ở đây để tránh trừ trùng.");
+
             var nhomTheoLot = items.GroupBy(x => x.LotGoc)
                 .Select(g => new { LotGoc = g.Key, TongSl = g.Sum(x => x.SoLuong) })
                 .ToList();
@@ -255,7 +297,7 @@ namespace PCTP.VIEWSTOCK.FunctionForm
                     _traHangRepo.CapNhatTrangThaiChoGiao(conn, tran, items.Select(x => x.Id), "DA_GIAO");
 
                     foreach (var nhom in nhomTheoLot)
-                        _stockTpRepo.XuatKhoThat(nhom.LotGoc, nhom.TongSl);   // trừ SLCONLAI + cộng SLXUAT
+                        _stockTpRepo.XuatKhoThat(nhom.LotGoc, nhom.TongSl);
 
                     tran.Commit();
                 }
@@ -269,7 +311,7 @@ namespace PCTP.VIEWSTOCK.FunctionForm
             return new ScanResult
             {
                 IsOK = true,
-                Message = $"Đã xác nhận giao {items.Count} thùng ({nhomTheoLot.Count} LOT)."
+                Message = $"Đã xác nhận giao {items.Count} thùng ({nhomTheoLot.Count} LOT) — xuất nội bộ, không qua phiếu HVN."
             };
         }
     }

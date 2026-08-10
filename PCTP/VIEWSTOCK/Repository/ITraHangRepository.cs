@@ -1,4 +1,5 @@
 ﻿using PCTP.Models;
+using PCTP.VIEWSTOCK.Models;
 using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
@@ -34,5 +35,17 @@ namespace PCTP.VIEWSTOCK.Repository
         void NhapLaiHangKhachTra(SqlConnection conn, SqlTransaction tran, string lot, int soLuong);
         void InsertNhanTraTheoIDP(SqlConnection conn, SqlTransaction tran,
             string lot, int slNhanTra, int idp);
+
+        // ITraHangRepository.cs — thêm khai báo
+        List<LotInfo> GetSlotLotsInTransaction(SqlConnection conn, SqlTransaction tran, int slotId);
+        void SaveSlotLotsInTransaction(SqlConnection conn, SqlTransaction tran, int slotId, List<LotInfo> lots);
+
+        // ITraHangRepository.cs — thêm
+        void CloseChoGiaoTheoLot(SqlConnection conn, SqlTransaction tran, IEnumerable<string> lotsDaXuat);
+        // ITraHangRepository.cs — thêm
+        List<string> LocLotDangChoCNK(IEnumerable<string> lots);
+        List<string> LocLotDaCNK(IEnumerable<string> lots);
+
+        int GetSlXuatHienTai(string lot);
     }
 }

@@ -739,5 +739,13 @@ namespace PCTP.VIEWSTOCK.FunctionForm
 
             return $"WH : {warehouseName} - Rack : {rackName} - Slot : 1 - Capacity : {capacity}";
         }
+        public void ImportRawLotToSlot(int slotId, string lotNo, string itemCode, int quantity, string ngaySX = null, string temCode = null)
+        {
+            var lot = new LotInfo { LotNo = lotNo, Quantity = quantity, TemCode = temCode };
+            var existing = _slotHelper.GetSlotLots(slotId);
+            var merged = LotNoHelper.MergeLotInfos(existing, new List<LotInfo> { lot });
+            _slotHelper.SaveSlotLots(slotId, merged, updateSlot: true);
+            _slotHelper.UpdateSlotInfo(slotId, itemCode, DateTime.Now, LotNoHelper.GetTotalQuantity(merged));
+        }
     }
 }
