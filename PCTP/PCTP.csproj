@@ -810,6 +810,12 @@
     <Compile Include="VIEWSTOCK\UCControls\RackSummaryPopup.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="VIEWSTOCK\ViewForm\FormChoGiaoHuy.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="VIEWSTOCK\ViewForm\FormChoGiaoHuy.Designer.cs">
+      <DependentUpon>FormChoGiaoHuy.cs</DependentUpon>
+    </Compile>
     <Compile Include="VIEWSTOCK\ViewForm\FormEnterStock.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -845,6 +851,18 @@
     </Compile>
     <Compile Include="VIEWSTOCK\ViewForm\FormStockHistory.Designer.cs">
       <DependentUpon>FormStockHistory.cs</DependentUpon>
+    </Compile>
+    <Compile Include="VIEWSTOCK\ViewForm\FormTraHangNGNew.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="VIEWSTOCK\ViewForm\FormTraHangNGNew.Designer.cs">
+      <DependentUpon>FormTraHangNGNew.cs</DependentUpon>
+    </Compile>
+    <Compile Include="VIEWSTOCK\ViewForm\FormXacNhanGiaoNoiBo.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="VIEWSTOCK\ViewForm\FormXacNhanGiaoNoiBo.Designer.cs">
+      <DependentUpon>FormXacNhanGiaoNoiBo.cs</DependentUpon>
     </Compile>
     <Compile Include="VIEWSTOCK\Views\INhapKhoView.cs" />
     <Compile Include="WaitForm1.cs">

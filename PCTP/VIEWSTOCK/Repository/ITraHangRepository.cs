@@ -17,6 +17,7 @@ namespace PCTP.VIEWSTOCK.Repository
 
         // ── Luồng 1b: staging "chờ giao" ─────────────────────────────────────
         List<ChoGiaoItem> GetChoGiaoTheoDanhSach(IEnumerable<int> ids);
+        List<ChoGiaoItem> GetChoGiaoDangCho();
         void CapNhatTrangThaiChoGiao(SqlConnection conn, SqlTransaction tran,
             IEnumerable<int> ids, string trangThaiMoi);
         void InsertChoGiao(int slotIdNguon, string lotThung, string lotGoc,

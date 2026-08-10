@@ -143,6 +143,7 @@
             this.lblHostName = new System.Windows.Forms.Label();
             this.lblMayBan = new System.Windows.Forms.Label();
             this.helpProvider1 = new System.Windows.Forms.HelpProvider();
+            this.accordionControlElement30 = new DevExpress.XtraBars.Navigation.AccordionControlElement();
             ((System.ComponentModel.ISupportInitialize)(this.ribbonControl)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.accordionControl)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.dockManager)).BeginInit();
@@ -635,7 +636,8 @@
             // 
             this.E_Trahang.Elements.AddRange(new DevExpress.XtraBars.Navigation.AccordionControlElement[] {
             this.trahangngPD,
-            this.trahangndHVN});
+            this.trahangndHVN,
+            this.accordionControlElement30});
             this.E_Trahang.Expanded = true;
             this.E_Trahang.ImageOptions.Image = ((System.Drawing.Image)(resources.GetObject("E_Trahang.ImageOptions.Image")));
             this.E_Trahang.Name = "E_Trahang";
@@ -955,7 +957,7 @@
         series1,
         series2,
         series3};
-            this.CharHVN.Size = new System.Drawing.Size(985, 475);
+            this.CharHVN.Size = new System.Drawing.Size(1231, 594);
             this.CharHVN.SmallChartText.TextColor = System.Drawing.Color.FromArgb(((int)(((byte)(255)))), ((int)(((byte)(255)))), ((int)(((byte)(255)))));
             this.CharHVN.TabIndex = 5;
             // 
@@ -1021,7 +1023,7 @@
         series4,
         series5,
         series6};
-            this.CharYMVN.Size = new System.Drawing.Size(1381, 718);
+            this.CharYMVN.Size = new System.Drawing.Size(1726, 898);
             this.CharYMVN.SmallChartText.TextColor = System.Drawing.Color.FromArgb(((int)(((byte)(255)))), ((int)(((byte)(255)))), ((int)(((byte)(255)))));
             this.CharYMVN.TabIndex = 6;
             // 
@@ -1049,6 +1051,13 @@
             // helpProvider1
             // 
             this.helpProvider1.HelpNamespace = "\\\\192.168.200.1\\fcc\\003.DEPLOY\\009.QRCODE\\HDSB.chm";
+            // 
+            // accordionControlElement30
+            // 
+            this.accordionControlElement30.Name = "accordionControlElement30";
+            this.accordionControlElement30.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item;
+            this.accordionControlElement30.Text = "Trả Hàng NG";
+            this.accordionControlElement30.Click += new System.EventHandler(this.accordionControlElement30_Click_1);
             // 
             // Main_APP
             // 
@@ -1202,5 +1211,6 @@
         private DevExpress.XtraBars.Navigation.AccordionControlElement acrImageControl;
         private DevExpress.XtraBars.Navigation.AccordionControlElement cmdRackControl;
         private DevExpress.XtraBars.Navigation.AccordionControlElement HTDelever;
+        private DevExpress.XtraBars.Navigation.AccordionControlElement accordionControlElement30;
     }
 }

@@ -416,7 +416,30 @@ namespace PCTP.VIEWSTOCK.Repository
 
         public int GetSlXuatHienTai(string lot)
         {
+            object kq = _sql.ExecuteScalar(_sql.B7R2_FCCdb,
+                "SELECT ISNULL(SLXUAT,0) FROM STOCKTP WHERE LOT = @lot",
+                new[] { new SqlParameter("@lot", lot) });
+            return int.TryParse(kq?.ToString(), out int v) ? v : 0;
+        }
 
+        public List<ChoGiaoItem> GetChoGiaoDangCho()
+        {
+            var result = new List<ChoGiaoItem>();
+            DataTable dt = _sql.ExecuteQuery(_sql.B7R2_FCCdb,
+                "SELECT * FROM TMPCHOGIAO WHERE TrangThai = 'CHO_GIAO' ORDER BY LotGoc, MaHang");
+
+            foreach (DataRow r in dt.Rows)
+                result.Add(new ChoGiaoItem
+                {
+                    Id = Convert.ToInt32(r["Id"]),
+                    LotThung = r["LotThung"].ToString(),
+                    LotGoc = r["LotGoc"].ToString(),
+                    MaHang = r["MaHang"].ToString(),
+                    SoLuong = Convert.ToInt32(r["SoLuong"]),
+                    SlotIdNguon = r["SlotIdNguon"] == DBNull.Value ? (int?)null : Convert.ToInt32(r["SlotIdNguon"]),
+                    TrangThai = r["TrangThai"].ToString()
+                });
+            return result;
         }
     }
 }

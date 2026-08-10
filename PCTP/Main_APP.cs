@@ -1,37 +1,37 @@
-﻿using System;
+﻿using DevExpress.XtraBars;
+using DevExpress.XtraBars.Docking2010.Views;
+using DevExpress.XtraBars.Navigation;
+using DevExpress.XtraCharts;
+using DevExpress.XtraEditors;
+using DevExpress.XtraReports.UI;
+using DevExpress.XtraReports.UserDesigner;
+using DevExpress.XtraSplashScreen;
+using PCTP.Acess_Image;
+using PCTP.FuctionPrint;
+using PCTP.Giao_Hang_XK;
+using PCTP.QRCODE_HVN;
+using PCTP.QRCODE_HVN.ComaprePart;
+using PCTP.QRCODE_HVN.Report;
+using PCTP.QRCODE_HVN.Report;
+using PCTP.QRCODE_HVN.YMN;
+using PCTP.VIEWSTOCK;
+using PCTP.VIEWSTOCK.FunctionForm;
+using PCTP.VIEWSTOCK.ViewForm;
+using PCTP.YMN;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
+using System.Diagnostics;
 using System.Drawing;
-using System.Text;
+using System.Drawing.Design;
+using System.IO;
 using System.Linq;
+using System.Net;
+using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using DevExpress.XtraEditors;
-using DevExpress.XtraBars.Docking2010.Views;
-using DevExpress.XtraBars;
-using DevExpress.XtraBars.Navigation;
-using PCTP.QRCODE_HVN;
-using PCTP.QRCODE_HVN.Report;
-using PCTP.YMN;
-using PCTP.QRCODE_HVN.YMN;
-using DevExpress.XtraCharts;
-using DevExpress.XtraReports.UI;
-using DevExpress.XtraReports.UserDesigner;
-using System.Drawing.Design;
-using PCTP.QRCODE_HVN.Report;
-
 using System.Windows.Forms.DataVisualization.Charting;
-using PCTP.Giao_Hang_XK;
-using System.Net;
-using System.Diagnostics;
-using PCTP.QRCODE_HVN.ComaprePart;
-using PCTP.FuctionPrint;
-using System.IO;
-using PCTP.Acess_Image;
-using PCTP.VIEWSTOCK;
-using DevExpress.XtraSplashScreen;
-using PCTP.VIEWSTOCK.FunctionForm;
 using Series = DevExpress.XtraCharts.Series;
 using ViewType = DevExpress.XtraCharts.ViewType;
 
@@ -770,6 +770,12 @@ namespace PCTP
         private void HTDelever_Click(object sender, EventArgs e)
         {
             var frm = new QRCODE_HVN.PGH.HVN_PGH("100003");
+            frm.Show();
+        }
+
+        private void accordionControlElement30_Click_1(object sender, EventArgs e)
+        {
+            var frm = new FormTraHangNGNew();
             frm.Show();
         }
     }
