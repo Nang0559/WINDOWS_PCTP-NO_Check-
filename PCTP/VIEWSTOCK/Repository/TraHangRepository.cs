@@ -441,5 +441,125 @@ namespace PCTP.VIEWSTOCK.Repository
                 });
             return result;
         }
+        // TraHangRepository.cs — thêm
+
+        /// <summary>
+        /// Lịch sử giao hàng của 1 LOT — LOT trong LUUPHIEUGIAOHANG có thể là chuỗi ghép
+        /// "LOTA-100,LOTB-50" nên phải LIKE theo 3 dạng thay vì so khớp tuyệt đối.
+        /// lotKey PHẢI là khoá chuẩn 20 ký tự (LotNoHelper.GetStockTpKey), không phải
+        /// khoá hiển thị NormalizeLot.
+        /// </summary>
+        public List<LichSuGiaoHangInfo> GetLichSuGiaoHangTheoLot(string lotKey)
+        {
+            var result = new List<LichSuGiaoHangInfo>();
+            if (string.IsNullOrWhiteSpace(lotKey)) return result;
+
+            string esc = Esc(lotKey);
+            string sql = $@"
+        SELECT LOT, MAHANG, TENHANG, SOLUONG, NGAYGIAO, GIOGIAO, NHAMAY, CUA, TRUYEN
+        FROM LUUPHIEUGIAOHANG
+        WHERE LOT = '{esc}'
+           OR LOT LIKE '{esc}-%'
+           OR LOT LIKE '%,{esc}-%'
+        ORDER BY NGAYGIAO DESC";
+
+            DataTable dt = _sql.ExecuteQuery(_sql.B7R2_FCCdb, sql);
+            foreach (DataRow r in dt.Rows)
+            {
+                result.Add(new LichSuGiaoHangInfo
+                {
+                    Lot = r["LOT"]?.ToString(),
+                    MaHang = r["MAHANG"]?.ToString(),
+                    TenHang = r["TENHANG"]?.ToString(),
+                    SoLuong = r["SOLUONG"] == DBNull.Value ? 0 : Convert.ToInt32(r["SOLUONG"]),
+                    NgayGiao = r["NGAYGIAO"] == DBNull.Value ? (DateTime?)null : Convert.ToDateTime(r["NGAYGIAO"]),
+                    GioGiao = r["GIOGIAO"]?.ToString(),
+                    NhaMay = r["NHAMAY"]?.ToString(),
+                    Cua = r["CUA"]?.ToString(),
+                    Truyen = r["TRUYEN"]?.ToString()
+                });
+            }
+            return result;
+        }
+
+        /// <summary>LOTFCC/LOTHVN trong LUUDOCQRCODE đã là khoá đơn (StockTpKey) — so khớp trực tiếp.</summary>
+        public List<LichSuQrCodeInfo> GetLichSuQrCodeTheoLot(string lotKey)
+        {
+            var result = new List<LichSuQrCodeInfo>();
+            if (string.IsNullOrWhiteSpace(lotKey)) return result;
+
+            string esc = Esc(lotKey);
+            string sql = $@"
+        SELECT LOTFCC, MAHANGFCC, SLTEMFCC, LOTHVN, MAHANGHVN, SLTEMHVN,
+               KETQUA, NGAYXUAT, GIOXUAT, NHAMAY
+        FROM LUUDOCQRCODE
+        WHERE LOTFCC = '{esc}' OR LOTHVN = '{esc}'
+        ORDER BY NGAYXUAT DESC";
+
+            DataTable dt = _sql.ExecuteQuery(_sql.B7R2_FCCdb, sql);
+            foreach (DataRow r in dt.Rows)
+            {
+                result.Add(new LichSuQrCodeInfo
+                {
+                    LotFcc = r["LOTFCC"]?.ToString(),
+                    MaHangFcc = r["MAHANGFCC"]?.ToString(),
+                    SlTemFcc = r["SLTEMFCC"] == DBNull.Value ? 0 : Convert.ToInt32(r["SLTEMFCC"]),
+                    LotHvn = r["LOTHVN"]?.ToString(),
+                    MaHangHvn = r["MAHANGHVN"]?.ToString(),
+                    SlTemHvn = r["SLTEMHVN"] == DBNull.Value ? 0 : Convert.ToInt32(r["SLTEMHVN"]),
+                    KetQua = r["KETQUA"]?.ToString(),
+                    NgayXuat = r["NGAYXUAT"] == DBNull.Value ? (DateTime?)null : Convert.ToDateTime(r["NGAYXUAT"]),
+                    GioXuat = r["GIOXUAT"]?.ToString(),
+                    NhaMay = r["NHAMAY"]?.ToString()
+                });
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// Tra LOT theo Mã hàng + khoảng ngày giao — dùng khi người dùng KHÔNG có LotNo
+        /// trong tay (chỉ biết mã hàng, ngày giao khách báo trả). LOT ở đây tách từ chuỗi
+        /// ghép "LOTA-100,LOTB-50" thành từng LOT riêng bằng STRING_SPLIT (SQL Server 2016+;
+        /// nếu DB cũ hơn cần thay bằng hàm split thủ công/CLR — xem ghi chú dưới).
+        /// </summary>
+        public List<LotUngVienInfo> TimLotTheoMaHangNgay(string maHang, DateTime tuNgay, DateTime denNgay)
+        {
+            var result = new List<LotUngVienInfo>();
+            if (string.IsNullOrWhiteSpace(maHang)) return result;
+
+            string sql = @"
+            SELECT
+                LEFT(part.value, CHARINDEX('-', part.value + '-') - 1) AS LOT,
+                g.MAHANG,
+                g.NGAYGIAO,
+                SUM(TRY_CAST(SUBSTRING(part.value, CHARINDEX('-', part.value + '-') + 1, 50) AS INT)) AS TongSl,
+                COUNT(DISTINCT g.STT) AS SoPhieu
+            FROM LUUPHIEUGIAOHANG g
+            CROSS APPLY STRING_SPLIT(g.LOT, ',') part
+            WHERE g.MAHANG = @maHang
+              AND CAST(g.NGAYGIAO AS DATE) BETWEEN @tuNgay AND @denNgay
+              AND part.value <> ''
+            GROUP BY LEFT(part.value, CHARINDEX('-', part.value + '-') - 1), g.MAHANG, g.NGAYGIAO
+            ORDER BY g.NGAYGIAO DESC";
+
+            DataTable dt = _sql.LoadData1(_sql.B7R2_FCCdb, sql,
+                    new SqlParameter("@maHang", maHang),
+                    new SqlParameter("@tuNgay", tuNgay.Date),
+                    new SqlParameter("@denNgay", denNgay.Date)
+                );
+            if (dt == null) return result;
+            foreach (DataRow r in dt.Rows)
+            {
+                result.Add(new LotUngVienInfo
+                {
+                    Lot = r["LOT"]?.ToString(),
+                    MaHang = r["MAHANG"]?.ToString(),
+                    NgayGiao = r["NGAYGIAO"] == DBNull.Value ? (DateTime?)null : Convert.ToDateTime(r["NGAYGIAO"]),
+                    TongSlDaGiaoTheoLot = r["TongSl"] == DBNull.Value ? 0 : Convert.ToInt32(r["TongSl"]),
+                    SoPhieuGiao = Convert.ToInt32(r["SoPhieu"])
+                });
+            }
+            return result;
+        }
     }
 }

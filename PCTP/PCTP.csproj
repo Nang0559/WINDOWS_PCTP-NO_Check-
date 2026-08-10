@@ -301,6 +301,7 @@
     <Compile Include="Infrastructure\Repositories\IFSRepository.cs" />
     <Compile Include="Infrastructure\Repositories\PhieuRepository.cs" />
     <Compile Include="Infrastructure\Repositories\SqlRepository.cs" />
+    <Compile Include="Models\LichSuGiaoHangInfo.cs" />
     <Compile Include="Models\PhieuStatus.cs" />
     <Compile Include="Models\QRCODE.cs" />
     <Compile Include="DBSQLServerUtils.cs" />

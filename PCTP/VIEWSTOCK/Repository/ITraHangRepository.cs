@@ -48,5 +48,10 @@ namespace PCTP.VIEWSTOCK.Repository
         List<string> LocLotDaCNK(IEnumerable<string> lots);
 
         int GetSlXuatHienTai(string lot);
+
+        // ITraHangRepository.cs — thêm
+        List<LichSuGiaoHangInfo> GetLichSuGiaoHangTheoLot(string lotKey);
+        List<LichSuQrCodeInfo> GetLichSuQrCodeTheoLot(string lotKey);
+        List<LotUngVienInfo> TimLotTheoMaHangNgay(string maHang, DateTime tuNgay, DateTime denNgay);
     }
 }

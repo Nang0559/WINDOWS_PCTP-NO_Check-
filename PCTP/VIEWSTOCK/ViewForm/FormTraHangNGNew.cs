@@ -4,6 +4,7 @@ using DevExpress.XtraGrid.Columns;
 using DevExpress.XtraGrid.Views.Grid;
 using DevExpress.XtraTab;
 using PCTP.ClassSQL;
+using PCTP.Models;
 using PCTP.VIEWSTOCK.Fuction;
 using PCTP.VIEWSTOCK.FunctionForm;
 using PCTP.VIEWSTOCK.Models;
@@ -39,6 +40,19 @@ namespace PCTP.VIEWSTOCK.ViewForm
         private StockItem _currentStock;
         private int _slotIdHienTai;
 
+        // ── Các trường mới bổ sung cho Tab 1 ──────────────────────────
+        private RadioGroup _rdoCheDoTim;
+        private TextEdit _txtMaHang;
+        private DateEdit _dateTu, _dateDen;
+        private SimpleButton _btnTimLot;
+        private GridControl _gridLotUngVien;
+        private GridView _gridViewLotUngVien;
+
+        private GridControl _gridLichSuGiao;
+        private GridView _gridViewLichSuGiao;
+        private GridControl _gridLichSuQr;
+        private GridView _gridViewLichSuQr;
+
         // ── Tab 2: khách trả — quét thùng ──────────────────────────────
         private SpinEdit _spinIdp;
         private TextEdit _txtQrThung;
@@ -59,7 +73,7 @@ namespace PCTP.VIEWSTOCK.ViewForm
         private void BuildUI()
         {
             Text = "Trả hàng NG";
-            Size = new System.Drawing.Size(1000, 680);
+            Size = new System.Drawing.Size(1200, 750); // Mở rộng form để hiển thị thoải mái các grid lịch sử
             StartPosition = FormStartPosition.CenterParent;
 
             _tabs = new XtraTabControl { Dock = DockStyle.Fill };
@@ -71,70 +85,198 @@ namespace PCTP.VIEWSTOCK.ViewForm
         // ════════════════════════════════════════════════════════════
         // TAB 1 — Trả hàng đang lưu kho về sản xuất (Luồng 1a)
         // ════════════════════════════════════════════════════════════
+        // ════════════════════════════════════════════════════════════
+        // TAB 1 — Trả hàng đang lưu kho về sản xuất (Luồng 1a)
+        // ════════════════════════════════════════════════════════════
         private XtraTabPage BuildTabTuKho()
         {
             var page = new XtraTabPage { Text = "Trả hàng từ kho → SX (rework)" };
 
-            var layout = new TableLayoutPanel { Dock = DockStyle.Fill, RowCount = 6, ColumnCount = 2, Padding = new Padding(15) };
-            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 140));
-            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
-            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 130));
-            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
-            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
-            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 55)); // Tăng chiều cao chứa nút để không bị cắt chữ
-            layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            var mainLayout = new TableLayoutPanel { Dock = DockStyle.Fill, RowCount = 2, ColumnCount = 1, Padding = new Padding(10) };
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 160)); // Panel điều kiện tìm kiếm & nhập liệu
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100)); // Panel chứa thông tin và các grid lịch sử
 
-            layout.Controls.Add(new LabelControl { Text = "Quét/Nhập LOT NO:", Dock = DockStyle.Fill, Appearance = { Font = new System.Drawing.Font("Tahoma", 9.5F, System.Drawing.FontStyle.Bold) } }, 0, 0);
-            _txtLot1 = new TextEdit { Dock = DockStyle.Fill, Font = new System.Drawing.Font("Tahoma", 12) };
+            // 1. Phần Top: Chọn chế độ tìm & Nhập liệu
+            var panelTop = new TableLayoutPanel { Dock = DockStyle.Fill, RowCount = 4, ColumnCount = 2, Padding = new Padding(5) };
+            panelTop.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 150));
+            panelTop.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            panelTop.RowStyles.Add(new RowStyle(SizeType.Absolute, 35));
+            panelTop.RowStyles.Add(new RowStyle(SizeType.Absolute, 35));
+            panelTop.RowStyles.Add(new RowStyle(SizeType.Absolute, 35));
+            panelTop.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
+
+            panelTop.Controls.Add(new LabelControl { Text = "Hình thức tìm kiếm:", Dock = DockStyle.Fill, Appearance = { Font = new System.Drawing.Font("Tahoma", 9F, System.Drawing.FontStyle.Bold) } }, 0, 0);
+
+            _rdoCheDoTim = new RadioGroup { Dock = DockStyle.Fill };
+            _rdoCheDoTim.Properties.Items.Add(new DevExpress.XtraEditors.Controls.RadioGroupItem(0, "Theo LotNo trực tiếp"));
+            _rdoCheDoTim.Properties.Items.Add(new DevExpress.XtraEditors.Controls.RadioGroupItem(1, "Theo Mã hàng + Ngày giao"));
+            _rdoCheDoTim.EditValue = 0;
+            _rdoCheDoTim.SelectedIndexChanged += (s, e) => ToggleCheDoTim();
+            panelTop.Controls.Add(_rdoCheDoTim, 1, 0);
+
+            var lblLot = new LabelControl { Text = "Quét/Nhập LOT NO:", Dock = DockStyle.Fill, Appearance = { Font = new System.Drawing.Font("Tahoma", 9.5F, System.Drawing.FontStyle.Bold) } };
+            _txtLot1 = new TextEdit { Dock = DockStyle.Fill, Font = new System.Drawing.Font("Tahoma", 11) };
             _txtLot1.KeyDown += TxtLot1_KeyDown;
-            layout.Controls.Add(_txtLot1, 1, 0);
+            panelTop.Controls.Add(lblLot, 0, 1);
+            panelTop.Controls.Add(_txtLot1, 1, 1);
+
+            var panelMaHangDate = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 5 };
+            panelMaHangDate.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 70));
+            panelMaHangDate.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 40));
+            panelMaHangDate.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 45));
+            panelMaHangDate.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 30));
+            panelMaHangDate.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 30));
+
+            _txtMaHang = new TextEdit { Dock = DockStyle.Fill };
+            _dateTu = new DateEdit { Dock = DockStyle.Fill, DateTime = DateTime.Today.AddDays(-7) };
+            _dateDen = new DateEdit { Dock = DockStyle.Fill, DateTime = DateTime.Today };
+            _btnTimLot = new SimpleButton { Text = "🔍 Tìm", Dock = DockStyle.Fill };
+            _btnTimLot.Click += BtnTimLot_Click;
+
+            panelMaHangDate.Controls.Add(new LabelControl { Text = "Mã hàng:" }, 0, 0);
+            panelMaHangDate.Controls.Add(_txtMaHang, 1, 0);
+            panelMaHangDate.Controls.Add(new LabelControl { Text = " Từ:" }, 2, 0);
+            panelMaHangDate.Controls.Add(_dateTu, 3, 0);
+            panelMaHangDate.Controls.Add(_dateDen, 4, 0);
+
+            panelTop.Controls.Add(new LabelControl { Text = "Điều kiện lọc:", Dock = DockStyle.Fill }, 0, 2);
+            panelTop.Controls.Add(panelMaHangDate, 1, 2);
+
+            panelTop.Controls.Add(new LabelControl { Text = "", Dock = DockStyle.Fill }, 0, 3);
+            panelTop.Controls.Add(_btnTimLot, 1, 3);
+
+            mainLayout.Controls.Add(panelTop, 0, 0);
+
+            // 2. Phần Bottom: Chia 2 cột (Trái: thông tin + nút trả + grid ứng viên; Phải: 2 bảng lịch sử có tiêu đề)
+            var splitContent = new SplitContainerControl { Dock = DockStyle.Fill, SplitterPosition = 350 };
+
+            var leftPanel = new TableLayoutPanel { Dock = DockStyle.Fill, RowCount = 5, ColumnCount = 1, Padding = new Padding(5) };
+            leftPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 90));
+            leftPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 40)); // Tăng chiều cao dòng chứa SpinEdit để thoáng hơn
+            leftPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
+            leftPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 50));
+            leftPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
             _lblInfo1 = new LabelControl
             {
                 Dock = DockStyle.Fill,
                 AutoSizeMode = LabelAutoSizeMode.None,
-                Appearance = { Font = new System.Drawing.Font("Tahoma", 10) },
+                Appearance = { Font = new System.Drawing.Font("Tahoma", 9F) },
                 Text = "Chưa có thông tin LOT."
             };
-            layout.SetColumnSpan(_lblInfo1, 2);
-            layout.Controls.Add(_lblInfo1, 0, 1);
+            leftPanel.Controls.Add(_lblInfo1, 0, 0);
 
-            layout.Controls.Add(new LabelControl { Text = "SL trả rework:", Dock = DockStyle.Fill, Appearance = { Font = new System.Drawing.Font("Tahoma", 9.5F) } }, 0, 2);
-            _spinSl1 = new SpinEdit { Dock = DockStyle.Fill, Properties = { MinValue = 1, IsFloatValue = false } };
-            layout.Controls.Add(_spinSl1, 1, 2);
+            // ✅ FIX: Nới rộng cột nhãn (120px) và để SpinEdit giãn hết cỡ để không bị cắt chữ số lượng
+            var slPanel = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2 };
+            slPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 120));
+            slPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            slPanel.Controls.Add(new LabelControl { Text = "SL trả rework:", Dock = DockStyle.Fill, Appearance = { Font = new System.Drawing.Font("Tahoma", 9.5F, System.Drawing.FontStyle.Bold) } }, 0, 0);
+            _spinSl1 = new SpinEdit { Dock = DockStyle.Fill, Properties = { MinValue = 1, IsFloatValue = false }, Font = new System.Drawing.Font("Tahoma", 11) };
+            slPanel.Controls.Add(_spinSl1, 1, 0);
+            leftPanel.Controls.Add(slPanel, 0, 1);
 
-            layout.Controls.Add(new LabelControl { Text = "Lý do NG:", Dock = DockStyle.Fill, Appearance = { Font = new System.Drawing.Font("Tahoma", 9.5F) } }, 0, 3);
-            _txtLyDo1 = new TextEdit { Dock = DockStyle.Fill };
-            layout.Controls.Add(_txtLyDo1, 1, 3);
+            var lyDoPanel = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2 };
+            lyDoPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 120));
+            lyDoPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            lyDoPanel.Controls.Add(new LabelControl { Text = "Lý do NG:", Dock = DockStyle.Fill, Appearance = { Font = new System.Drawing.Font("Tahoma", 9.5F, System.Drawing.FontStyle.Bold) } }, 0, 0);
+            _txtLyDo1 = new TextEdit { Dock = DockStyle.Fill, Font = new System.Drawing.Font("Tahoma", 10) };
+            lyDoPanel.Controls.Add(_txtLyDo1, 1, 0);
+            leftPanel.Controls.Add(lyDoPanel, 0, 2);
 
-            // Sửa lỗi hiển thị nút: Gộp 2 cột cho panel chứa nút bấm
-            _btnTra1 = new SimpleButton { Text = "Trả về sản xuất", Anchor = AnchorStyles.Right | AnchorStyles.Top, Width = 220, Height = 40, Enabled = false };
+            _btnTra1 = new SimpleButton { Text = "Trả về sản xuất", Dock = DockStyle.Fill, Height = 40, Enabled = false };
             _btnTra1.Appearance.BackColor = System.Drawing.Color.IndianRed;
             _btnTra1.Appearance.ForeColor = System.Drawing.Color.White;
             _btnTra1.Appearance.Font = new System.Drawing.Font("Tahoma", 10, System.Drawing.FontStyle.Bold);
             _btnTra1.Click += BtnTra1_Click;
+            leftPanel.Controls.Add(_btnTra1, 0, 3);
 
-            var btnPanel = new Panel { Dock = DockStyle.Fill };
-            btnPanel.Controls.Add(_btnTra1);
+            _gridLotUngVien = new GridControl { Dock = DockStyle.Fill };
+            _gridViewLotUngVien = new GridView(_gridLotUngVien);
+            _gridLotUngVien.MainView = _gridViewLotUngVien;
+            _gridViewLotUngVien.OptionsBehavior.Editable = false;
+            _gridViewLotUngVien.DoubleClick += GridViewLotUngVien_DoubleClick;
+            leftPanel.Controls.Add(_gridLotUngVien, 0, 4);
 
-            layout.SetColumnSpan(btnPanel, 2);
-            layout.Controls.Add(btnPanel, 0, 4);
+            splitContent.Panel1.Controls.Add(leftPanel);
 
-            page.Controls.Add(layout);
+            // 3. Phần Right: Chia đôi theo chiều dọc cho 2 bảng Lịch sử giao & Quét QRcode (Đã có tiêu đề)
+            var rightLayout = new TableLayoutPanel { Dock = DockStyle.Fill, RowCount = 4, ColumnCount = 1, Padding = new Padding(5) };
+            rightLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 25)); // Tiêu đề bảng 1
+            rightLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 50));  // Grid bảng 1
+            rightLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 25)); // Tiêu đề bảng 2
+            rightLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 50));  // Grid bảng 2
+
+            // ✅ Bổ sung tiêu đề: Dữ liệu phiếu giao hàng
+            var lblTitleGiao = new LabelControl
+            {
+                Text = "📋 Dữ liệu phiếu giao hàng",
+                Dock = DockStyle.Fill,
+                Appearance = { Font = new System.Drawing.Font("Tahoma", 9.5F, System.Drawing.FontStyle.Bold), ForeColor = System.Drawing.Color.Navy }
+            };
+            rightLayout.Controls.Add(lblTitleGiao, 0, 0);
+
+            _gridLichSuGiao = new GridControl { Dock = DockStyle.Fill };
+            _gridViewLichSuGiao = new GridView(_gridLichSuGiao);
+            _gridLichSuGiao.MainView = _gridViewLichSuGiao;
+            _gridViewLichSuGiao.OptionsBehavior.Editable = false;
+            rightLayout.Controls.Add(_gridLichSuGiao, 0, 1);
+
+            // ✅ Bổ sung tiêu đề: Dữ liệu đọc QRcode
+            var lblTitleQr = new LabelControl
+            {
+                Text = "📋 Dữ liệu đọc QRcode",
+                Dock = DockStyle.Fill,
+                Appearance = { Font = new System.Drawing.Font("Tahoma", 9.5F, System.Drawing.FontStyle.Bold), ForeColor = System.Drawing.Color.Navy }
+            };
+            rightLayout.Controls.Add(lblTitleQr, 0, 2);
+
+            _gridLichSuQr = new GridControl { Dock = DockStyle.Fill };
+            _gridViewLichSuQr = new GridView(_gridLichSuQr);
+            _gridLichSuQr.MainView = _gridViewLichSuQr;
+            _gridViewLichSuQr.OptionsBehavior.Editable = false;
+            rightLayout.Controls.Add(_gridLichSuQr, 0, 3);
+
+            splitContent.Panel2.Controls.Add(rightLayout);
+
+            mainLayout.Controls.Add(splitContent, 0, 1);
+            page.Controls.Add(mainLayout);
+
+            ToggleCheDoTim();
             return page;
+        }
+
+        private void ToggleCheDoTim()
+        {
+            bool theoLot = Convert.ToInt32(_rdoCheDoTim.EditValue) == 0;
+            _txtLot1.Enabled = theoLot;
+            _txtMaHang.Enabled = !theoLot;
+            _dateTu.Enabled = !theoLot;
+            _dateDen.Enabled = !theoLot;
+            _btnTimLot.Enabled = !theoLot;
+            _gridLotUngVien.Visible = !theoLot;
         }
 
         private void TxtLot1_KeyDown(object sender, KeyEventArgs e)
         {
             if (e.KeyCode != Keys.Enter) return;
-            string lot = LotNoHelper.NormalizeLot(_txtLot1.Text.Trim());
+            string lot = LotNoHelper.GetStockTpKey(_txtLot1.Text.Trim());
             if (string.IsNullOrEmpty(lot)) return;
+            TraCuuLot(lot);
+        }
 
+        private void TraCuuLot(string lot)
+        {
             _currentStock = _stockTpRepo.GetByLot(lot);
+
+            var lichSuGiao = _traHangRepo.GetLichSuGiaoHangTheoLot(lot);
+            var lichSuQr = _traHangRepo.GetLichSuQrCodeTheoLot(lot);
+            _gridLichSuGiao.DataSource = lichSuGiao;
+            _gridLichSuQr.DataSource = lichSuQr;
+
             if (_currentStock == null)
             {
-                _lblInfo1.Text = $"Không tìm thấy LOT [{lot}] trong STOCKTP.";
+                _lblInfo1.Text = $"Không tìm thấy LOT [{lot}] trong STOCKTP " +
+                    $"(có {lichSuGiao.Count} lần giao trong lịch sử — xem bảng dưới).";
                 _btnTra1.Enabled = false;
                 return;
             }
@@ -145,11 +287,11 @@ namespace PCTP.VIEWSTOCK.ViewForm
 
             _lblInfo1.Text =
                 $"Mã hàng: {_currentStock.Part}  |  Tên: {_currentStock.Name}\n" +
-                $"Đã sản xuất/nhập: {slNhap}   |   Đã xuất/giao: {slXuat}   |   Còn trong kho: {slConLai}";
+                $"Nhập: {slNhap} | Xuất: {slXuat} | Tồn kho: {slConLai} | Đã giao: {lichSuGiao.Count}";
 
             if (slConLai <= 0)
             {
-                _lblInfo1.Text += $"\n⚠ Kho không còn tồn — LOT này đã xuất hết (Đã xuất {slXuat}/{slNhap}). Hãy dùng tab \"Khách trả\".";
+                _lblInfo1.Text += $"\n⚠ Kho hết tồn. Xem lịch sử giao bên dưới để xử lý thu hồi.";
                 _btnTra1.Enabled = false;
             }
             else
@@ -157,7 +299,6 @@ namespace PCTP.VIEWSTOCK.ViewForm
                 _spinSl1.Properties.MaxValue = slConLai;
                 _spinSl1.Value = slConLai;
                 _btnTra1.Enabled = true;
-
                 _slotIdHienTai = TimSlotChuaLot(lot);
             }
         }
@@ -173,8 +314,7 @@ namespace PCTP.VIEWSTOCK.ViewForm
         {
             if (_currentStock == null || _slotIdHienTai <= 0)
             {
-                XtraMessageBox.Show("Không xác định được Slot chứa LOT này — không thể trả tự động.\n" +
-                    "Vui lòng kiểm tra thủ công trong màn hình kho.",
+                XtraMessageBox.Show("Không xác định được Slot chứa LOT này — không thể trả tự động.",
                     "Không thể trả", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
@@ -202,6 +342,33 @@ namespace PCTP.VIEWSTOCK.ViewForm
                 _btnTra1.Enabled = false;
                 _currentStock = null;
             }
+        }
+
+        private void BtnTimLot_Click(object sender, EventArgs e)
+        {
+            string maHang = _txtMaHang.Text.Trim();
+            if (string.IsNullOrEmpty(maHang))
+            {
+                XtraMessageBox.Show("Vui lòng nhập mã hàng cần tìm.", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            var ungVien = _traHangRepo.TimLotTheoMaHangNgay(
+                maHang, _dateTu.DateTime, _dateDen.DateTime);
+
+            _gridLotUngVien.DataSource = ungVien;
+
+            if (ungVien.Count == 0)
+                XtraMessageBox.Show("Không tìm thấy LOT nào đã giao khớp mã hàng/khoảng ngày.", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+        private void GridViewLotUngVien_DoubleClick(object sender, EventArgs e)
+        {
+            var row = _gridViewLotUngVien.GetFocusedRow() as LotUngVienInfo;
+            if (row == null || string.IsNullOrEmpty(row.Lot)) return;
+
+            _txtLot1.Text = row.Lot;
+            TraCuuLot(row.Lot);
         }
 
         // ════════════════════════════════════════════════════════════
@@ -266,7 +433,6 @@ namespace PCTP.VIEWSTOCK.ViewForm
             int idp = Convert.ToInt32(_spinIdp.Value);
             if (idp <= 0) return;
 
-            // FIX: Nạp dữ liệu dự kiến từ cơ sở dữ liệu dựa trên IDP thực tế thay vì để null
             string query = $"SELECT * FROM TMPPHIEUGIAOHANGDBCT WHERE IDP = {idp}";
             _donHangDuKien = _sql.ExecuteQuery(_sql.B7R2_FCCdbb, query);
 
@@ -288,7 +454,6 @@ namespace PCTP.VIEWSTOCK.ViewForm
                 return;
             }
 
-            // Gọi hàm load lại để đảm bảo _donHangDuKien đã sẵn sàng dữ liệu
             if (_donHangDuKien == null)
             {
                 LoadThungTheoIdp();
