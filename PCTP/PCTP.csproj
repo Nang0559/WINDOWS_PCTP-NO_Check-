@@ -311,6 +311,7 @@
       <SubType>Component</SubType>
     </Compile>
     <Compile Include="DHRepository\DHRepository.cs" />
+    <Compile Include="Models\TraHangModels.cs" />
     <Compile Include="Presentation\Presenters\HVN_Presenter.cs" />
     <Compile Include="Presentation\Views\IHVNView.cs" />
     <Compile Include="QRCODE_HVN\PGH\FRM_CHON_LOT_KHO.cs">
@@ -742,6 +743,7 @@
     <Compile Include="VIEWSTOCK\Fuction\StockChangedNotifier.cs" />
     <Compile Include="VIEWSTOCK\FunctionForm\CommonSlotFormUI.cs" />
     <Compile Include="VIEWSTOCK\FunctionForm\StockService.cs" />
+    <Compile Include="VIEWSTOCK\FunctionForm\TraHangService.cs" />
     <Compile Include="VIEWSTOCK\FunctionForm\WaitFormExp.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -785,9 +787,11 @@
     <Compile Include="VIEWSTOCK\Models\Warehouse.cs" />
     <Compile Include="VIEWSTOCK\Repository\IPhieuTrackingRepository.cs" />
     <Compile Include="VIEWSTOCK\Repository\IStockTPRepository.cs" />
+    <Compile Include="VIEWSTOCK\Repository\ITraHangRepository.cs" />
     <Compile Include="VIEWSTOCK\Repository\NhapTpReceivingService.cs" />
     <Compile Include="VIEWSTOCK\Repository\PhieuTrackingRepository.cs" />
     <Compile Include="VIEWSTOCK\Repository\StockTPRepository.cs" />
+    <Compile Include="VIEWSTOCK\Repository\TraHangRepository.cs" />
     <Compile Include="VIEWSTOCK\RpIn\RpInNhapKho.cs">
       <SubType>Component</SubType>
     </Compile>

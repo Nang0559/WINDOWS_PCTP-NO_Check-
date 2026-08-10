@@ -674,5 +674,70 @@ namespace PCTP.VIEWSTOCK.FunctionForm
 
             return $"WH : {BulkImportConfig.WarehouseName} - Rack : {BulkImportConfig.RackName} - Slot : 1 - Capacity : {BulkImportConfig.Capacity}";
         }
+        /// <summary>
+        /// Nhập trực tiếp 1 LOT (không qua QR) vào slot — dùng cho khách trả hàng,
+        /// nơi ta chỉ có LOT_GOC + tổng SL đã quét, không có QR gốc từng thùng.
+        /// </summary>
+        public ScanResult ImportLotDirectly(string selectedSlotText, string lotNo,
+            string itemCode, int quantity)
+        {
+            SlotHelper.ParseSlotString(selectedSlotText, out string wh, out string rack,
+                out int slotNo, out int capacity);
+            int slotId = _slotHelper.GetSlotID(wh, rack, slotNo);
+            if (slotId <= 0)
+                return new ScanResult { IsOK = false, Message = "Không tìm thấy Slot." };
+
+            var newLot = new LotInfo { LotNo = lotNo, Quantity = quantity, TemCode = "" };
+            var existingLots = _slotHelper.GetSlotLots(slotId);
+            var mergedLots = LotNoHelper.MergeLotInfos(existingLots, new List<LotInfo> { newLot });
+            int finalQty = LotNoHelper.GetTotalQuantity(mergedLots);
+
+            if (capacity > 0 && finalQty > capacity)
+                return new ScanResult { IsOK = false, Message = $"Vượt sức chứa Slot ({finalQty}/{capacity})." };
+
+            _slotHelper.SaveSlotLots(slotId, mergedLots, updateSlot: true);
+            _slotHelper.UpdateSlotInfo(slotId, itemCode, DateTime.Now, finalQty);
+            SlotHelper.SaveHistory("CUSTOMER_RETURN", itemCode, newLot, fromSlotId: null, toSlotId: slotId);
+
+            return new ScanResult { IsOK = true, Message = $"Đã nhập LOT {lotNo} (SL: {quantity}) vào {wh}/{rack}/Slot {slotNo}." };
+        }
+
+        /// <summary>
+        /// Tạo/lấy Slot ảo dùng chung cho 1 mục đích đặc biệt (VD: "KHACH_TRA_NG"),
+        /// tương tự GetOrCreateBulkImportSlotText nhưng đặt tên kho/rack tùy biến.
+        /// </summary>
+        public string GetOrCreateVirtualSlotText(string warehouseName, string rackName, int capacity = 999999999)
+        {
+            string query = @"
+        SELECT s.SlotNumber, s.Capacity
+        FROM Slot s
+        JOIN Rack r ON r.RackId = s.RackId
+        JOIN Warehouse w ON w.WarehouseId = r.WarehouseId
+        WHERE w.Name = @wh AND r.RackName = @rack";
+
+            var dt = _sql.LoadData1(_sql.B7R2_FCCdbb, query,
+                new SqlParameter("@wh", warehouseName), new SqlParameter("@rack", rackName));
+
+            if (dt.Rows.Count > 0)
+            {
+                int slotNo = Convert.ToInt32(dt.Rows[0]["SlotNumber"]);
+                int cap = Convert.ToInt32(dt.Rows[0]["Capacity"]);
+                return $"WH : {warehouseName} - Rack : {rackName} - Slot : {slotNo} - Capacity : {cap}";
+            }
+
+            int whId = Convert.ToInt32(_sql.ExecuteScalar(_sql.B7R2_FCCdbb,
+                "INSERT INTO Warehouse (Name) OUTPUT INSERTED.WarehouseId VALUES (@n)",
+                new[] { new SqlParameter("@n", warehouseName) }));
+
+            int rackId = Convert.ToInt32(_sql.ExecuteScalar(_sql.B7R2_FCCdbb,
+                "INSERT INTO Rack (WarehouseId, RackName) OUTPUT INSERTED.RackId VALUES (@w,@r)",
+                new[] { new SqlParameter("@w", whId), new SqlParameter("@r", rackName) }));
+
+            _sql.ExecuteNonQuery(_sql.B7R2_FCCdbb,
+                "INSERT INTO Slot (RackId, SlotNumber, IsOccupied, Capacity, Quantity) VALUES (@rk, 1, 0, @cap, 0)",
+                new SqlParameter("@rk", rackId), new SqlParameter("@cap", capacity));
+
+            return $"WH : {warehouseName} - Rack : {rackName} - Slot : 1 - Capacity : {capacity}";
+        }
     }
 }

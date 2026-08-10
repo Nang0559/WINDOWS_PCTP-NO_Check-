@@ -8,6 +8,7 @@ using PCTP.QRCODE_HVN.Report;
 using PCTP.VIEWSTOCK.Fuction;
 using PCTP.VIEWSTOCK.FunctionForm;
 using PCTP.VIEWSTOCK.Models;
+using PCTP.VIEWSTOCK.Repository;
 using PCTP.VIEWSTOCK.RpIn;
 using System;
 using System.Collections.Generic;
@@ -61,12 +62,15 @@ namespace PCTP.VIEWSTOCK
         private MainStockSV _mainStockForm;
 
         private readonly StockService _stockService = new StockService();
-
-        public ExportFormSV(Slot slot, string rackname, string whName, MainStockSV mainStockForm)
+        private readonly ITraHangRepository _traHangRepo =
+        new TraHangRepository(new SQLPROVIDER());   // ← THÊM
+        private readonly string _phieuGiaoId;
+        public ExportFormSV(Slot slot, string rackname, string whName, MainStockSV mainStockForm, string phieuGiaoId = null)
         {
             this.whname = whName;
             this.rackName = rackname;
             this.slot = slot;
+            this._phieuGiaoId = phieuGiaoId;
             this.Text = "XUẤT KHO - FVN";
             this.Size = new Size(450, 420);
             this.StartPosition = FormStartPosition.CenterParent;
@@ -155,7 +159,7 @@ namespace PCTP.VIEWSTOCK
             groupSlotList.Controls.Add(listBoxSlots);
 
             // ==== Bottom Panel ====
-            btnExport = new SimpleButton { Text = "Xuất kho", Width = 100, Margin = new Padding(5) };
+            btnExport = new SimpleButton { Text = "Pick hàng (Chờ giao)", Width = 130, Margin = new Padding(5) };
             btnExport.Click += BtnExport_Click;
             btnPrint = new SimpleButton { Text = "In phiếu", Width = 100, Margin = new Padding(5) };
             btnPrint.Click += BtnPrint_Click;
@@ -313,10 +317,15 @@ namespace PCTP.VIEWSTOCK
                 SplashScreenManager.ShowForm(this, typeof(WaitFormExp), true, true, false);
                 SplashScreenManager.Default.SetWaitFormCaption("Đang cập nhật thông tin kho...");
 
-                // Đồng bộ trực tiếp dữ liệu ảo lên form nền Canvas và ép vẽ lại giao diện
                 _mainStockForm?.OnSlotUpdated();
 
                 SplashScreenManager.CloseForm();
+
+                XtraMessageBox.Show(
+                    "Đã pick hàng khỏi kệ — hàng đang ở trạng thái CHỜ GIAO.\n" +
+                    "Nếu phát hiện lỗi trước khi xe rời kho, dùng màn hình \"Huỷ chờ giao\" để trả về sản xuất.",
+                    "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
                 this.Close();
             }
         }
@@ -338,9 +347,11 @@ namespace PCTP.VIEWSTOCK
 
         private bool ExportToSameSlot(int qty)
         {
+            string lotGocTruocKhiXuat = slot.LotNo;
             // Xuất tại chỗ: trừ Lot, lưu phần còn lại vào Slot hiện tại, ghi lịch sử xuất.
             var result = _stockService.ExportFromSlot(slot.SlotId, qty, slot.ItemCode);
-
+            // ── THÊM: ghi nhận "chờ giao" cho từng LOT đã thực sự bị xuất ─────────
+            GhiNhanChoGiao(result.ExportLots, slot.SlotId);
             // Đồng bộ object đang hiển thị (Lots/Quantity/ItemCode/ImportDate/IsOccupied)
             _stockService.SyncSlotFromSplitResult(slot, result);
 
@@ -357,7 +368,7 @@ namespace PCTP.VIEWSTOCK
 
             string itemCode = slot.ItemCode;
             string selectedSlotText = listBoxSlots.SelectedItem.ToString();
-
+            int slotIdNguon = slot.SlotId;
             // Xuất qty từ slot hiện tại + chuyển toàn bộ phần dư sang slot đích + xoá slot nguồn,
             // kèm ghi lịch sử EXPORT (phần xuất) và MOVE (phần dư) — tất cả trong 1 lời gọi.
             var moveResult = _stockService.ExportAndMoveRemaining(
@@ -371,7 +382,8 @@ namespace PCTP.VIEWSTOCK
                 MessageBox.Show(moveResult.Message);
                 return false;
             }
-
+            // ── THÊM: ghi nhận "chờ giao" cho phần đã thực xuất ────────────────────
+            GhiNhanChoGiao(moveResult.Split.ExportLots, slotIdNguon);
             // Slot nguồn đã bị xoá sạch trong DB -> đồng bộ lại object hiển thị trên form.
             _stockService.ClearSlotTemporarily(slot);
 
@@ -412,6 +424,29 @@ namespace PCTP.VIEWSTOCK
 
             new ReportPrintTool(report)
                 .ShowPreviewDialog();
+        }
+
+        /// <summary>
+        /// Ghi 1 dòng TMPCHOGIAO cho mỗi LotInfo vừa được tách ra để xuất — dùng LotInfo.LotNo
+        /// làm LotGoc và LotInfo.TemCode (nếu có) làm LotThung tham chiếu, để sau này nếu phát
+        /// hiện NG trước khi xe rời kho, có thể huỷ đúng phần này (HuyChoGiaoVeSanXuat).
+        /// </summary>
+        private void GhiNhanChoGiao(List<LotInfo> exportedLots, int slotIdNguon)
+        {
+            if (exportedLots == null) return;
+
+            foreach (var lot in exportedLots)
+            {
+                if (lot.Quantity <= 0) continue;
+
+                _traHangRepo.InsertChoGiao(
+                    slotIdNguon: slotIdNguon,
+                    lotThung: string.IsNullOrWhiteSpace(lot.TemCode) ? lot.LotNo : lot.TemCode,
+                    lotGoc: lot.LotNo,
+                    maHang: slot.ItemCode,
+                    soLuong: lot.Quantity,
+                    phieuGiaoId: _phieuGiaoId);
+            }
         }
     }
 }
