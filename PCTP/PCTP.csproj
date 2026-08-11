@@ -743,6 +743,7 @@
     <Compile Include="VIEWSTOCK\Fuction\SlotHelper.cs" />
     <Compile Include="VIEWSTOCK\Fuction\StockChangedNotifier.cs" />
     <Compile Include="VIEWSTOCK\FunctionForm\CommonSlotFormUI.cs" />
+    <Compile Include="VIEWSTOCK\FunctionForm\GiaoBuNGService.cs" />
     <Compile Include="VIEWSTOCK\FunctionForm\StockService.cs" />
     <Compile Include="VIEWSTOCK\FunctionForm\TraHangService.cs" />
     <Compile Include="VIEWSTOCK\FunctionForm\WaitFormExp.cs">
@@ -786,6 +787,8 @@
     <Compile Include="VIEWSTOCK\Models\SlotRenderInfo.cs" />
     <Compile Include="VIEWSTOCK\Models\StockTraHangInfo.cs" />
     <Compile Include="VIEWSTOCK\Models\Warehouse.cs" />
+    <Compile Include="VIEWSTOCK\Repository\GiaoBuNGRepository.cs" />
+    <Compile Include="VIEWSTOCK\Repository\IGiaoBuNGRepository.cs" />
     <Compile Include="VIEWSTOCK\Repository\IPhieuTrackingRepository.cs" />
     <Compile Include="VIEWSTOCK\Repository\IStockTPRepository.cs" />
     <Compile Include="VIEWSTOCK\Repository\ITraHangRepository.cs" />
@@ -847,6 +850,12 @@
     <Compile Include="VIEWSTOCK\ViewForm\FormInspectionHistory.Designer.cs">
       <DependentUpon>FormInspectionHistory.cs</DependentUpon>
     </Compile>
+    <Compile Include="VIEWSTOCK\ViewForm\FormQuetQRGiaoBuNG.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="VIEWSTOCK\ViewForm\FormQuetQRGiaoBuNG.Designer.cs">
+      <DependentUpon>FormQuetQRGiaoBuNG.cs</DependentUpon>
+    </Compile>
     <Compile Include="VIEWSTOCK\ViewForm\FormStockHistory.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -864,6 +873,12 @@
     </Compile>
     <Compile Include="VIEWSTOCK\ViewForm\FormXacNhanGiaoNoiBo.Designer.cs">
       <DependentUpon>FormXacNhanGiaoNoiBo.cs</DependentUpon>
+    </Compile>
+    <Compile Include="VIEWSTOCK\ViewForm\frmGiaoBuNG.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="VIEWSTOCK\ViewForm\frmGiaoBuNG.Designer.cs">
+      <DependentUpon>frmGiaoBuNG.cs</DependentUpon>
     </Compile>
     <Compile Include="VIEWSTOCK\Views\INhapKhoView.cs" />
     <Compile Include="WaitForm1.cs">

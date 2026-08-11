@@ -28,7 +28,10 @@ namespace PCTP.VIEWSTOCK.ViewForm
         private readonly ITraHangRepository _traHangRepo;
         private readonly TraHangService _traHangService;
         private readonly StockService _stockService;
-
+        private List<ChoGiaoItem> _choGiaoHienTai = new List<ChoGiaoItem>();
+        private List<SlotChuaLotInfo> _danhSachSlotChuaLot = new List<SlotChuaLotInfo>();
+        private enum CheDoTra { KhongXacDinh, TuKho, ChoGiao }
+        private CheDoTra _cheDoTraHienTai = CheDoTra.KhongXacDinh;
         private XtraTabControl _tabs;
 
         // ── Tab 1: trả hàng từ kho (rework trước khi giao) ────────────
@@ -52,6 +55,7 @@ namespace PCTP.VIEWSTOCK.ViewForm
         private GridView _gridViewLichSuGiao;
         private GridControl _gridLichSuQr;
         private GridView _gridViewLichSuQr;
+        private LabelControl _lblTitleQr;
 
         // ── Tab 2: khách trả — quét thùng ──────────────────────────────
         private SpinEdit _spinIdp;
@@ -59,6 +63,10 @@ namespace PCTP.VIEWSTOCK.ViewForm
         private GridControl _gridThung;
         private GridView _gridViewThung;
         private DataTable _donHangDuKien;
+
+        private GridControl _gridSlot;
+        private GridView _gridViewSlot;
+        private List<LichSuQrCodeInfo> _lichSuQrFull = new List<LichSuQrCodeInfo>(); // cache toàn bộ, filter theo Stt khi chọn phiếu
 
         public FormTraHangNGNew()
         {
@@ -73,7 +81,7 @@ namespace PCTP.VIEWSTOCK.ViewForm
         private void BuildUI()
         {
             Text = "Trả hàng NG";
-            Size = new System.Drawing.Size(1200, 750); // Mở rộng form để hiển thị thoải mái các grid lịch sử
+            Size = new System.Drawing.Size(1200, 750);
             StartPosition = FormStartPosition.CenterParent;
 
             _tabs = new XtraTabControl { Dock = DockStyle.Fill };
@@ -83,18 +91,18 @@ namespace PCTP.VIEWSTOCK.ViewForm
         }
 
         // ════════════════════════════════════════════════════════════
-        // TAB 1 — Trả hàng đang lưu kho về sản xuất (Luồng 1a)
+        // TAB 1 — Trả hàng đang lưu kho về sản xuất (Luồng 1a/1b)
         // ════════════════════════════════════════════════════════════
         // ════════════════════════════════════════════════════════════
-        // TAB 1 — Trả hàng đang lưu kho về sản xuất (Luồng 1a)
+        // TAB 1 — Trả hàng đang lưu kho về sản xuất (Luồng 1a/1b)
         // ════════════════════════════════════════════════════════════
         private XtraTabPage BuildTabTuKho()
         {
             var page = new XtraTabPage { Text = "Trả hàng từ kho → SX (rework)" };
 
             var mainLayout = new TableLayoutPanel { Dock = DockStyle.Fill, RowCount = 2, ColumnCount = 1, Padding = new Padding(10) };
-            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 160)); // Panel điều kiện tìm kiếm & nhập liệu
-            mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100)); // Panel chứa thông tin và các grid lịch sử
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 160));
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
             // 1. Phần Top: Chọn chế độ tìm & Nhập liệu
             var panelTop = new TableLayoutPanel { Dock = DockStyle.Fill, RowCount = 4, ColumnCount = 2, Padding = new Padding(5) };
@@ -147,15 +155,19 @@ namespace PCTP.VIEWSTOCK.ViewForm
 
             mainLayout.Controls.Add(panelTop, 0, 0);
 
-            // 2. Phần Bottom: Chia 2 cột (Trái: thông tin + nút trả + grid ứng viên; Phải: 2 bảng lịch sử có tiêu đề)
-            var splitContent = new SplitContainerControl { Dock = DockStyle.Fill, SplitterPosition = 350 };
+            // 2. Phần Bottom: Chia 2 cột (Trái: thông tin + nút trả + grid ứng viên + grid Slot; Phải: 2 bảng lịch sử)
+            var splitContent = new SplitContainerControl { Dock = DockStyle.Fill, SplitterPosition = 420 };
 
-            var leftPanel = new TableLayoutPanel { Dock = DockStyle.Fill, RowCount = 5, ColumnCount = 1, Padding = new Padding(5) };
-            leftPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 90));
-            leftPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 40)); // Tăng chiều cao dòng chứa SpinEdit để thoáng hơn
-            leftPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
-            leftPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 50));
-            leftPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            // ── LEFT PANEL — 8 hàng tối ưu bố cục ──────────────────────────
+            var leftPanel = new TableLayoutPanel { Dock = DockStyle.Fill, RowCount = 8, ColumnCount = 1, Padding = new Padding(5) };
+            leftPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 85));  // 0: info
+            leftPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 38));  // 1: SL trả
+            leftPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 38));  // 2: Lý do NG
+            leftPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 45));  // 3: Nút trả về sản xuất
+            leftPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 24));  // 4: Tiêu đề Lot hiện có
+            leftPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 50));   // 5: Grid Lot ứng viên
+            leftPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 24));  // 6: Tiêu đề Slot
+            leftPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 50));   // 7: Grid Slot
 
             _lblInfo1 = new LabelControl
             {
@@ -166,7 +178,6 @@ namespace PCTP.VIEWSTOCK.ViewForm
             };
             leftPanel.Controls.Add(_lblInfo1, 0, 0);
 
-            // ✅ FIX: Nới rộng cột nhãn (120px) và để SpinEdit giãn hết cỡ để không bị cắt chữ số lượng
             var slPanel = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2 };
             slPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 120));
             slPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
@@ -190,23 +201,58 @@ namespace PCTP.VIEWSTOCK.ViewForm
             _btnTra1.Click += BtnTra1_Click;
             leftPanel.Controls.Add(_btnTra1, 0, 3);
 
+            // Tiêu đề & Grid Lot ứng viên
+            var lblTitleLotUV = new LabelControl
+            {
+                Text = "📦 Thông tin Lot hiện có",
+                Dock = DockStyle.Fill,
+                Appearance = { Font = new System.Drawing.Font("Tahoma", 9F, System.Drawing.FontStyle.Bold), ForeColor = System.Drawing.Color.DarkGreen }
+            };
+            leftPanel.Controls.Add(lblTitleLotUV, 0, 4);
+
             _gridLotUngVien = new GridControl { Dock = DockStyle.Fill };
             _gridViewLotUngVien = new GridView(_gridLotUngVien);
             _gridLotUngVien.MainView = _gridViewLotUngVien;
             _gridViewLotUngVien.OptionsBehavior.Editable = false;
             _gridViewLotUngVien.DoubleClick += GridViewLotUngVien_DoubleClick;
-            leftPanel.Controls.Add(_gridLotUngVien, 0, 4);
+            leftPanel.Controls.Add(_gridLotUngVien, 0, 5);
+
+            // Tiêu đề & Grid Slot chứa LOT
+            var lblTitleSlot = new LabelControl
+            {
+                Text = "📦 Thông tin Slot đang chứa LOT",
+                Dock = DockStyle.Fill,
+                Appearance = { Font = new System.Drawing.Font("Tahoma", 9F, System.Drawing.FontStyle.Bold), ForeColor = System.Drawing.Color.DarkGreen }
+            };
+            leftPanel.Controls.Add(lblTitleSlot, 0, 6);
+
+            _gridSlot = new GridControl { Dock = DockStyle.Fill };
+            _gridViewSlot = new GridView(_gridSlot);
+            _gridSlot.MainView = _gridViewSlot;
+            _gridViewSlot.OptionsBehavior.Editable = false;
+            _gridViewSlot.OptionsView.ShowGroupPanel = false;
+
+            // Kiểm tra tránh add trùng cột nếu gọi lại BuildUI nhiều lần
+            if (_gridViewSlot.Columns.Count == 0)
+            {
+                _gridViewSlot.Columns.Add(new GridColumn { FieldName = "WarehouseName", Caption = "Kho", Width = 80, VisibleIndex = 0 });
+                _gridViewSlot.Columns.Add(new GridColumn { FieldName = "RackName", Caption = "Rack", Width = 70, VisibleIndex = 1 });
+                _gridViewSlot.Columns.Add(new GridColumn { FieldName = "SlotNumber", Caption = "Slot", Width = 45, VisibleIndex = 2 });
+                _gridViewSlot.Columns.Add(new GridColumn { FieldName = "Quantity", Caption = "SL", Width = 50, VisibleIndex = 3 });
+                _gridViewSlot.Columns.Add(new GridColumn { FieldName = "TemCode", Caption = "TemCode", Width = 90, VisibleIndex = 4 });
+            }
+            _gridViewSlot.FocusedRowChanged += GridViewSlot_FocusedRowChanged;
+            leftPanel.Controls.Add(_gridSlot, 0, 7);
 
             splitContent.Panel1.Controls.Add(leftPanel);
 
-            // 3. Phần Right: Chia đôi theo chiều dọc cho 2 bảng Lịch sử giao & Quét QRcode (Đã có tiêu đề)
+            // 3. Phần Right: 2 bảng Lịch sử giao & Đọc QR (master-detail theo Stt)
             var rightLayout = new TableLayoutPanel { Dock = DockStyle.Fill, RowCount = 4, ColumnCount = 1, Padding = new Padding(5) };
-            rightLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 25)); // Tiêu đề bảng 1
-            rightLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 50));  // Grid bảng 1
-            rightLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 25)); // Tiêu đề bảng 2
-            rightLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 50));  // Grid bảng 2
+            rightLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 25));
+            rightLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
+            rightLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 25));
+            rightLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
 
-            // ✅ Bổ sung tiêu đề: Dữ liệu phiếu giao hàng
             var lblTitleGiao = new LabelControl
             {
                 Text = "📋 Dữ liệu phiếu giao hàng",
@@ -219,16 +265,16 @@ namespace PCTP.VIEWSTOCK.ViewForm
             _gridViewLichSuGiao = new GridView(_gridLichSuGiao);
             _gridLichSuGiao.MainView = _gridViewLichSuGiao;
             _gridViewLichSuGiao.OptionsBehavior.Editable = false;
+            _gridViewLichSuGiao.FocusedRowChanged += GridViewLichSuGiao_FocusedRowChanged;
             rightLayout.Controls.Add(_gridLichSuGiao, 0, 1);
 
-            // ✅ Bổ sung tiêu đề: Dữ liệu đọc QRcode
-            var lblTitleQr = new LabelControl
+            _lblTitleQr = new LabelControl
             {
                 Text = "📋 Dữ liệu đọc QRcode",
                 Dock = DockStyle.Fill,
                 Appearance = { Font = new System.Drawing.Font("Tahoma", 9.5F, System.Drawing.FontStyle.Bold), ForeColor = System.Drawing.Color.Navy }
             };
-            rightLayout.Controls.Add(lblTitleQr, 0, 2);
+            rightLayout.Controls.Add(_lblTitleQr, 0, 2);
 
             _gridLichSuQr = new GridControl { Dock = DockStyle.Fill };
             _gridViewLichSuQr = new GridView(_gridLichSuQr);
@@ -243,6 +289,77 @@ namespace PCTP.VIEWSTOCK.ViewForm
 
             ToggleCheDoTim();
             return page;
+        }
+
+        private void GridViewSlot_FocusedRowChanged(object sender, DevExpress.XtraGrid.Views.Base.FocusedRowChangedEventArgs e)
+        {
+            var view = sender as GridView;
+            if (view == null) return;
+
+            var row = view.GetRow(e.FocusedRowHandle) as SlotChuaLotInfo;
+            if (row == null || _cheDoTraHienTai != CheDoTra.TuKho) return;
+
+            _slotIdHienTai = row.SlotId;
+            _spinSl1.Properties.MaxValue = row.Quantity;
+            _spinSl1.Value = row.Quantity;
+            _btnTra1.Enabled = true;
+        }
+
+        private void GridViewLichSuGiao_FocusedRowChanged(object sender, DevExpress.XtraGrid.Views.Base.FocusedRowChangedEventArgs e)
+        {
+            var view = sender as GridView;
+            if (view == null) return;
+
+            var row = view.GetRow(e.FocusedRowHandle) as LichSuGiaoHangInfo;
+            if (row == null)
+            {
+                _gridLichSuQr.DataSource = new List<LichSuQrCodeInfo>();
+                return;
+            }
+
+            var selectedLotUV = _gridViewLotUngVien.GetFocusedRow() as LotUngVienInfo;
+            string rawLot = selectedLotUV?.Lot?.Trim() ?? "";
+
+            if (string.IsNullOrEmpty(rawLot))
+            {
+                _gridLichSuQr.DataSource = new List<LichSuQrCodeInfo>();
+                return;
+            }
+
+            string fullLot = rawLot;
+            string shortLot = rawLot.Length > 7 ? rawLot.Substring(0, rawLot.Length - 7) : rawLot;
+
+            string rowGioGiao = row.GioGiao?.Trim() ?? "";
+            DateTime? rowDate = row.NgayGiao?.Date;
+
+            // 1. Lọc danh sách QRcode khớp phiếu
+            var qrCuaPhieuNay = _lichSuQrFull.Where(x =>
+                (!rowDate.HasValue || !x.NgayXuat.HasValue || x.NgayXuat.Value.Date == rowDate.Value)
+                &&
+                (
+                    string.IsNullOrEmpty(rowGioGiao) ||
+                    (!string.IsNullOrEmpty(x.GioXuat) && x.GioXuat.Trim().Equals(rowGioGiao, StringComparison.OrdinalIgnoreCase)) ||
+                    (!string.IsNullOrEmpty(x.GioGiao) && x.GioGiao.Trim().Equals(rowGioGiao, StringComparison.OrdinalIgnoreCase))
+                )
+                &&
+                (
+                    (!string.IsNullOrEmpty(x.LotFcc) && (x.LotFcc.Contains(shortLot) || x.LotFcc.Contains(fullLot))) ||
+                    (!string.IsNullOrEmpty(x.LotHvn) && (x.LotHvn.Contains(shortLot) || x.LotHvn.Contains(fullLot)))
+                )
+            ).ToList();
+
+            _gridLichSuQr.DataSource = qrCuaPhieuNay;
+
+            // 2. TÍNH SUM SỐ LƯỢNG ĐỂ ĐỐI CHÍNH XÁC:
+            // - Số lượng từ chuỗi lot ghép của phiếu giao hiện tại:
+            int slTheoPhieuGiao = GetSlFromLotString(row.Lot, rawLot);
+
+            // - Tổng số lượng từ các dòng đọc QR (ví dụ cộng cột SlTemFcc):
+            int slTheoDocQr = qrCuaPhieuNay.Sum(x => x.SlTemFcc);
+
+            // ✅ Hiển thị kết quả lên tiêu đề Group/Grid hoặc Label để kiểm tra khớp nhau
+            // Ví dụ gán vào tiêu đề nhóm của grid QR hoặc Status:
+            _lblTitleQr.Text = $"📋 Dữ liệu đọc QRcode  |  (SL Phiếu giao: {slTheoPhieuGiao}  -  SL Quét QR: {slTheoDocQr})";
         }
 
         private void ToggleCheDoTim()
@@ -269,57 +386,73 @@ namespace PCTP.VIEWSTOCK.ViewForm
             _currentStock = _stockTpRepo.GetByLot(lot);
 
             var lichSuGiao = _traHangRepo.GetLichSuGiaoHangTheoLot(lot);
-            var lichSuQr = _traHangRepo.GetLichSuQrCodeTheoLot(lot);
+            _lichSuQrFull = _traHangRepo.GetLichSuQrCodeTheoLot(lot);
             _gridLichSuGiao.DataSource = lichSuGiao;
-            _gridLichSuQr.DataSource = lichSuQr;
+            _gridLichSuQr.DataSource = new List<LichSuQrCodeInfo>(); // để trống, chờ chọn phiếu
+
+            _danhSachSlotChuaLot = _traHangRepo.GetSlotsChuaLot(lot);
+            _gridSlot.DataSource = _danhSachSlotChuaLot;
+
+            _choGiaoHienTai = _traHangRepo.GetChoGiaoTheoLot(lot);
 
             if (_currentStock == null)
             {
                 _lblInfo1.Text = $"Không tìm thấy LOT [{lot}] trong STOCKTP " +
                     $"(có {lichSuGiao.Count} lần giao trong lịch sử — xem bảng dưới).";
                 _btnTra1.Enabled = false;
+                _cheDoTraHienTai = CheDoTra.KhongXacDinh;
                 return;
             }
 
             int slXuat = _currentStock.SlXuat ?? 0;
             int slConLai = _currentStock.SlConLai ?? 0;
             int slNhap = _currentStock.SlNhap ?? 0;
+            int tongSlTrongSlot = _danhSachSlotChuaLot.Sum(x => x.Quantity);
 
             _lblInfo1.Text =
                 $"Mã hàng: {_currentStock.Part}  |  Tên: {_currentStock.Name}\n" +
-                $"Nhập: {slNhap} | Xuất: {slXuat} | Tồn kho: {slConLai} | Đã giao: {lichSuGiao.Count}";
+                $"Nhập: {slNhap} | Xuất: {slXuat} | Tồn kho: {slConLai} | Đã giao: {lichSuGiao.Count} phiếu\n" +
+                $"Đang nằm trong {_danhSachSlotChuaLot.Count} Slot (tổng {tongSlTrongSlot})";
 
-            if (slConLai <= 0)
+            if (_danhSachSlotChuaLot.Count > 0)
             {
-                _lblInfo1.Text += $"\n⚠ Kho hết tồn. Xem lịch sử giao bên dưới để xử lý thu hồi.";
-                _btnTra1.Enabled = false;
+                _cheDoTraHienTai = CheDoTra.TuKho;
+                _spinSl1.Enabled = true;
+                _slotIdHienTai = 0; // chờ user chọn 1 dòng trong _gridSlot
+                _btnTra1.Enabled = false; // bật lại khi chọn Slot cụ thể — xem GridViewSlot_FocusedRowChanged
+
+                if (_danhSachSlotChuaLot.Count == 1)
+                    _gridViewSlot.FocusedRowHandle = 0; // chỉ 1 Slot -> tự chọn luôn
+            }
+            else if (_choGiaoHienTai.Count > 0)
+            {
+                int tongChoGiao = _choGiaoHienTai.Sum(x => x.SoLuong);
+                _lblInfo1.Text += $"\n🚚 Nguồn: đang CHỜ GIAO ({_choGiaoHienTai.Count} thùng, tổng SL {tongChoGiao}) — sẽ huỷ toàn bộ để rework";
+                _cheDoTraHienTai = CheDoTra.ChoGiao;
+                _spinSl1.Properties.MaxValue = tongChoGiao;
+                _spinSl1.Value = tongChoGiao;
+                _spinSl1.Enabled = false;
+                _btnTra1.Enabled = true;
             }
             else
             {
-                _spinSl1.Properties.MaxValue = slConLai;
-                _spinSl1.Value = slConLai;
-                _btnTra1.Enabled = true;
-                _slotIdHienTai = TimSlotChuaLot(lot);
+                _lblInfo1.Text += "\n⚠ Không tìm thấy LOT trong Slot hoặc trong danh sách chờ giao — không thể trả tự động.";
+                _cheDoTraHienTai = CheDoTra.KhongXacDinh;
+                _btnTra1.Enabled = false;
             }
         }
 
-        private int TimSlotChuaLot(string lot)
-        {
-            DataTable dt = _sql.ExecuteQuery(_sql.B7R2_FCCdbb,
-                $"SELECT TOP 1 SlotId FROM SlotLot WHERE LotNo = '{lot.Replace("'", "''")}' ORDER BY Quantity DESC");
-            return dt.Rows.Count > 0 ? Convert.ToInt32(dt.Rows[0]["SlotId"]) : 0;
-        }
+        
 
         private void BtnTra1_Click(object sender, EventArgs e)
         {
-            if (_currentStock == null || _slotIdHienTai <= 0)
+            if (_currentStock == null || _cheDoTraHienTai == CheDoTra.KhongXacDinh)
             {
-                XtraMessageBox.Show("Không xác định được Slot chứa LOT này — không thể trả tự động.",
+                XtraMessageBox.Show("Không xác định được nguồn của LOT này — không thể trả tự động.",
                     "Không thể trả", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
-            int sl = Convert.ToInt32(_spinSl1.Value);
             string lyDo = _txtLyDo1.Text.Trim();
             if (string.IsNullOrEmpty(lyDo))
             {
@@ -327,10 +460,34 @@ namespace PCTP.VIEWSTOCK.ViewForm
                 return;
             }
 
-            if (XtraMessageBox.Show($"Trả {sl} SP của LOT [{_currentStock.Lot}] về sản xuất để rework?",
-                "Xác nhận", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
+            ScanResult result;
 
-            var result = _traHangService.TraHangSanXuat(_slotIdHienTai, _currentStock.Lot, sl, lyDo);
+            if (_cheDoTraHienTai == CheDoTra.TuKho)
+            {
+                if (_slotIdHienTai <= 0)
+                {
+                    XtraMessageBox.Show("Vui lòng chọn 1 Slot trong danh sách trước khi trả.",
+                        "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                int sl = Convert.ToInt32(_spinSl1.Value);
+
+                if (XtraMessageBox.Show($"Trả {sl} SP của LOT [{_currentStock.Lot}] về sản xuất để rework?",
+                    "Xác nhận", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
+
+                result = _traHangService.TraHangSanXuat(_slotIdHienTai, _currentStock.Lot, sl, lyDo);
+            }
+            else // ChoGiao — huỷ nguyên cả LOT
+            {
+                int tongSl = _choGiaoHienTai.Sum(x => x.SoLuong);
+                if (XtraMessageBox.Show(
+                    $"Huỷ {_choGiaoHienTai.Count} thùng chờ giao ({tongSl} SP) của LOT [{_currentStock.Lot}], trả về sản xuất?",
+                    "Xác nhận", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
+
+                result = _traHangService.HuyChoGiaoVeSanXuat(
+                    _choGiaoHienTai.Select(x => x.Id).ToList(), lyDo);
+            }
 
             XtraMessageBox.Show(result.Message, result.IsOK ? "Thành công" : "Lỗi",
                 MessageBoxButtons.OK, result.IsOK ? MessageBoxIcon.Information : MessageBoxIcon.Error);
@@ -340,7 +497,14 @@ namespace PCTP.VIEWSTOCK.ViewForm
                 _txtLot1.Text = "";
                 _lblInfo1.Text = "Chưa có thông tin LOT.";
                 _btnTra1.Enabled = false;
+                _spinSl1.Enabled = true;
                 _currentStock = null;
+                _choGiaoHienTai.Clear();
+                _danhSachSlotChuaLot.Clear();
+                _gridSlot.DataSource = null;
+                _gridLichSuQr.DataSource = null;
+                _slotIdHienTai = 0;
+                _cheDoTraHienTai = CheDoTra.KhongXacDinh;
             }
         }
 
@@ -480,6 +644,35 @@ namespace PCTP.VIEWSTOCK.ViewForm
                 MessageBoxButtons.OK, result.IsOK ? MessageBoxIcon.Information : MessageBoxIcon.Error);
 
             LoadThungTheoIdp();
+        }
+        private int GetSlFromLotString(string lotString, string targetLot)
+        {
+            if (string.IsNullOrEmpty(lotString) || string.IsNullOrEmpty(targetLot)) return 0;
+
+            targetLot = targetLot.Trim();
+            string shortTarget = targetLot.Length > 7 ? targetLot.Substring(0, targetLot.Length - 7) : targetLot;
+
+            int totalSl = 0;
+            // Tách các cụm cách nhau bằng dấu phẩy
+            var parts = lotString.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+            foreach (var p in parts)
+            {
+                string item = p.Trim();
+                // Tìm xem cụm này có chứa mã lot đang tìm không (so sánh cả bản full hoặc short)
+                if (item.Contains(targetLot) || item.Contains(shortTarget))
+                {
+                    var subParts = item.Split('-');
+                    if (subParts.Length >= 2)
+                    {
+                        // Lấy phần tử cuối hoặc phần tử ngay sau dấu '-' sát với mã lot
+                        if (int.TryParse(subParts[subParts.Length - 1].Trim(), out int sl))
+                        {
+                            totalSl += sl;
+                        }
+                    }
+                }
+            }
+            return totalSl;
         }
     }
 }

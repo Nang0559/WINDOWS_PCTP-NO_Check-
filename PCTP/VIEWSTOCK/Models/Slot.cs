@@ -44,5 +44,14 @@ namespace PCTP.VIEWSTOCK.Models
                 ? string.Join(",", Lots.Where(l => !string.IsNullOrWhiteSpace(l.LotNo)).Select(l => l.LotNo))
                 : "";
     }
-
+    public class SlotChuaLotInfo
+    {
+        public int SlotId { get; set; }
+        public string WarehouseName { get; set; }
+        public string RackName { get; set; }
+        public int SlotNumber { get; set; }
+        public int Quantity { get; set; }
+        public string TemCode { get; set; }
+        public DateTime? ImportDate { get; set; }
+    }
 }

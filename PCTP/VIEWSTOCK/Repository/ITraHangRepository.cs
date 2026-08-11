@@ -53,5 +53,7 @@ namespace PCTP.VIEWSTOCK.Repository
         List<LichSuGiaoHangInfo> GetLichSuGiaoHangTheoLot(string lotKey);
         List<LichSuQrCodeInfo> GetLichSuQrCodeTheoLot(string lotKey);
         List<LotUngVienInfo> TimLotTheoMaHangNgay(string maHang, DateTime tuNgay, DateTime denNgay);
+        List<ChoGiaoItem> GetChoGiaoTheoLot(string lotGoc);
+        List<SlotChuaLotInfo> GetSlotsChuaLot(string lot);
     }
 }

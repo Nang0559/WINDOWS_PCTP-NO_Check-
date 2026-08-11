@@ -17,11 +17,11 @@ namespace PCTP.ClassSQL
     public  class SQLPROVIDER
     {
         public static List<string> c_Ns = new List<string>();
-        //public string B7R2_FCCdb = @"Data Source=192.168.200.14\BRAVO;Initial Catalog=B7R2_FCC;User ID=sa;Password=fccbrv";
-        public string B7R2_FCCdb = @"Data Source=192.168.200.57;Initial Catalog=B7R2_FCC;User ID=sa;Password=fccbrv";
+        public string B7R2_FCCdb = @"Data Source=192.168.200.14\BRAVO;Initial Catalog=B7R2_FCC;User ID=sa;Password=fccbrv";
+        //public string B7R2_FCCdb = @"Data Source=192.168.200.57;Initial Catalog=B7R2_FCC;User ID=sa;Password=fccbrv";
         // Tạo connection to VIEWSTOCK
-        //public string B7R2_FCCdbb = @"Data Source=192.168.200.14\BRAVO;Initial Catalog=VIEWSTOCK;User ID=sa;Password=fccbrv";
-        public string B7R2_FCCdbb = @"Data Source=192.168.200.57;Initial Catalog=B7R2_FCC;User ID=sa;Password=fccbrv";
+        public string B7R2_FCCdbb = @"Data Source=192.168.200.14\BRAVO;Initial Catalog=VIEWSTOCK;User ID=sa;Password=fccbrv";
+        //public string B7R2_FCCdbb = @"Data Source=192.168.200.57;Initial Catalog=B7R2_FCC;User ID=sa;Password=fccbrv";
 
    
         // ════════════════════════════════════════════════════════════════════

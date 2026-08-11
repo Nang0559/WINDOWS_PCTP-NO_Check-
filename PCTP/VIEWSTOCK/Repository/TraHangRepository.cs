@@ -454,26 +454,34 @@ namespace PCTP.VIEWSTOCK.Repository
             var result = new List<LichSuGiaoHangInfo>();
             if (string.IsNullOrWhiteSpace(lotKey)) return result;
 
+            lotKey = lotKey.Trim();
+
+            // ✅ Nếu độ dài lớn hơn 7, tiến hành cắt bỏ 7 ký tự cuối để khớp với bảng lịch sử giao hàng
+            if (lotKey.Length > 7)
+            {
+                lotKey = lotKey.Substring(0, lotKey.Length - 7);
+            }
+
             string esc = Esc(lotKey);
             string sql = $@"
-        SELECT LOT, MAHANG, TENHANG, SOLUONG, NGAYGIAO, GIOGIAO, NHAMAY, CUA, TRUYEN
-        FROM LUUPHIEUGIAOHANG
-        WHERE LOT = '{esc}'
-           OR LOT LIKE '{esc}-%'
-           OR LOT LIKE '%,{esc}-%'
-        ORDER BY NGAYGIAO DESC";
+            SELECT DISTINCT g.STT, g.LOT, g.MAHANG, g.TENHANG, g.SOLUONG, g.NGAYGIAO, g.GIOGIAOFCC, g.NHAMAY, g.CUA, g.TRUYEN
+            FROM LUUPHIEUGIAOHANG g
+            CROSS APPLY STRING_SPLIT(g.LOT, ',') part
+            WHERE LTRIM(RTRIM(LEFT(part.value, CHARINDEX('-', part.value + '-') - 1))) = '{esc}'
+            ORDER BY g.NGAYGIAO DESC";
 
             DataTable dt = _sql.ExecuteQuery(_sql.B7R2_FCCdb, sql);
             foreach (DataRow r in dt.Rows)
             {
                 result.Add(new LichSuGiaoHangInfo
                 {
+                    Stt = r["STT"] == DBNull.Value ? 0 : Convert.ToInt32(r["STT"]),
                     Lot = r["LOT"]?.ToString(),
                     MaHang = r["MAHANG"]?.ToString(),
                     TenHang = r["TENHANG"]?.ToString(),
                     SoLuong = r["SOLUONG"] == DBNull.Value ? 0 : Convert.ToInt32(r["SOLUONG"]),
                     NgayGiao = r["NGAYGIAO"] == DBNull.Value ? (DateTime?)null : Convert.ToDateTime(r["NGAYGIAO"]),
-                    GioGiao = r["GIOGIAO"]?.ToString(),
+                    GioGiao = r["GIOGIAOFCC"]?.ToString(),
                     NhaMay = r["NHAMAY"]?.ToString(),
                     Cua = r["CUA"]?.ToString(),
                     Truyen = r["TRUYEN"]?.ToString()
@@ -488,19 +496,33 @@ namespace PCTP.VIEWSTOCK.Repository
             var result = new List<LichSuQrCodeInfo>();
             if (string.IsNullOrWhiteSpace(lotKey)) return result;
 
+            lotKey = lotKey.Trim();
+
+            // ✅ Cắt bỏ 7 ký tự cuối nếu độ dài lớn hơn 7 để đồng bộ với định dạng lưu trữ ngắn
+            if (lotKey.Length > 7)
+            {
+                lotKey = lotKey.Substring(0, lotKey.Length - 7);
+            }
+
             string esc = Esc(lotKey);
+
+            // ✅ Dùng STRING_SPLIT và CROSS APPLY để tách chuỗi ghép trong LOTFCC hoặc LOTHVN chính xác 100%
             string sql = $@"
-        SELECT LOTFCC, MAHANGFCC, SLTEMFCC, LOTHVN, MAHANGHVN, SLTEMHVN,
-               KETQUA, NGAYXUAT, GIOXUAT, NHAMAY
-        FROM LUUDOCQRCODE
-        WHERE LOTFCC = '{esc}' OR LOTHVN = '{esc}'
-        ORDER BY NGAYXUAT DESC";
+        SELECT DISTINCT qr.STT, qr.LOTFCC, qr.MAHANGFCC, qr.SLTEMFCC, qr.LOTHVN, qr.MAHANGHVN, qr.SLTEMHVN,
+               qr.KETQUA, qr.NGAYXUAT, qr.GIOXUAT, qr.NHAMAY, qr.GIOGIAO
+        FROM LUUDOCQRCODE qr
+        OUTER APPLY STRING_SPLIT(qr.LOTFCC, ',') part_fcc
+        OUTER APPLY STRING_SPLIT(qr.LOTHVN, ',') part_hvn
+        WHERE LTRIM(RTRIM(LEFT(part_fcc.value, CHARINDEX('-', part_fcc.value + '-') - 1))) = '{esc}'
+           OR LTRIM(RTRIM(LEFT(part_hvn.value, CHARINDEX('-', part_hvn.value + '-') - 1))) = '{esc}'
+        ORDER BY qr.NGAYXUAT DESC";
 
             DataTable dt = _sql.ExecuteQuery(_sql.B7R2_FCCdb, sql);
             foreach (DataRow r in dt.Rows)
             {
                 result.Add(new LichSuQrCodeInfo
                 {
+                    Stt = r["STT"] == DBNull.Value ? 0 : Convert.ToInt32(r["STT"]),
                     LotFcc = r["LOTFCC"]?.ToString(),
                     MaHangFcc = r["MAHANGFCC"]?.ToString(),
                     SlTemFcc = r["SLTEMFCC"] == DBNull.Value ? 0 : Convert.ToInt32(r["SLTEMFCC"]),
@@ -510,7 +532,8 @@ namespace PCTP.VIEWSTOCK.Repository
                     KetQua = r["KETQUA"]?.ToString(),
                     NgayXuat = r["NGAYXUAT"] == DBNull.Value ? (DateTime?)null : Convert.ToDateTime(r["NGAYXUAT"]),
                     GioXuat = r["GIOXUAT"]?.ToString(),
-                    NhaMay = r["NHAMAY"]?.ToString()
+                    NhaMay = r["NHAMAY"]?.ToString(),
+                    GioGiao = r["GIOGIAO"]?.ToString()
                 });
             }
             return result;
@@ -528,19 +551,34 @@ namespace PCTP.VIEWSTOCK.Repository
             if (string.IsNullOrWhiteSpace(maHang)) return result;
 
             string sql = @"
-            SELECT
-                LEFT(part.value, CHARINDEX('-', part.value + '-') - 1) AS LOT,
-                g.MAHANG,
-                g.NGAYGIAO,
-                SUM(TRY_CAST(SUBSTRING(part.value, CHARINDEX('-', part.value + '-') + 1, 50) AS INT)) AS TongSl,
-                COUNT(DISTINCT g.STT) AS SoPhieu
-            FROM LUUPHIEUGIAOHANG g
-            CROSS APPLY STRING_SPLIT(g.LOT, ',') part
-            WHERE g.MAHANG = @maHang
-              AND CAST(g.NGAYGIAO AS DATE) BETWEEN @tuNgay AND @denNgay
-              AND part.value <> ''
-            GROUP BY LEFT(part.value, CHARINDEX('-', part.value + '-') - 1), g.MAHANG, g.NGAYGIAO
-            ORDER BY g.NGAYGIAO DESC";
+            SELECT 
+                    s.LOT,
+                    s.PART AS MAHANG,
+                    s.NAME AS TENHANG,
+                    s.SLSX AS SoLuongSanXuat,
+                    s.SLNHAP AS SoLuongNhap,
+                    s.SLCONLAI AS SoLuongConLai,
+                    s.NGAYNHAP AS NgayNhap,
+                    ISNULL(giao.TongSl, 0) AS TongSlDaGiao,
+                    ISNULL(giao.SoPhieu, 0) AS SoPhieuGiao
+                FROM STOCKTP s
+                INNER JOIN (
+                    -- Gom nhóm lịch sử giao hàng theo từng mã LOT (đã cắt 7 ký tự cuối)
+                    SELECT 
+                        LTRIM(RTRIM(LEFT(part.value, CHARINDEX('-', part.value + '-') - 1))) AS LOT,
+                        g.MAHANG,
+                        SUM(TRY_CAST(SUBSTRING(part.value, CHARINDEX('-', part.value + '-') + 1, 50) AS INT)) AS TongSl,
+                        COUNT(DISTINCT g.STT) AS SoPhieu
+                    FROM LUUPHIEUGIAOHANG g
+                    CROSS APPLY STRING_SPLIT(g.LOT, ',') part
+                    WHERE g.MAHANG = @maHang
+                      AND CAST(g.NGAYGIAO AS DATE) BETWEEN @tuNgay AND @denNgay
+                      AND part.value <> ''
+                    GROUP BY LTRIM(RTRIM(LEFT(part.value, CHARINDEX('-', part.value + '-') - 1))), g.MAHANG
+                ) giao ON LEFT(LTRIM(RTRIM(s.LOT)), LEN(LTRIM(RTRIM(s.LOT))) - 7) = giao.LOT 
+                      AND s.PART = giao.MAHANG
+                WHERE s.PART = @maHang
+                ORDER BY s.LOT DESC;";
 
             DataTable dt = _sql.LoadData1(_sql.B7R2_FCCdb, sql,
                     new SqlParameter("@maHang", maHang),
@@ -554,11 +592,64 @@ namespace PCTP.VIEWSTOCK.Repository
                 {
                     Lot = r["LOT"]?.ToString(),
                     MaHang = r["MAHANG"]?.ToString(),
-                    NgayGiao = r["NGAYGIAO"] == DBNull.Value ? (DateTime?)null : Convert.ToDateTime(r["NGAYGIAO"]),
-                    TongSlDaGiaoTheoLot = r["TongSl"] == DBNull.Value ? 0 : Convert.ToInt32(r["TongSl"]),
-                    SoPhieuGiao = Convert.ToInt32(r["SoPhieu"])
+                    TenHang = r["TENHANG"]?.ToString(),
+                    SoLuongSanXuat = r["SoLuongSanXuat"] == DBNull.Value ? 0 : Convert.ToInt32(r["SoLuongSanXuat"]),
+                    SoLuongNhap = r["SoLuongNhap"] == DBNull.Value ? 0 : Convert.ToInt32(r["SoLuongNhap"]),
+                    SoLuongConLai = r["SoLuongConLai"] == DBNull.Value ? 0 : Convert.ToInt32(r["SoLuongConLai"]),
+                    NgayNhap = r["NgayNhap"] == DBNull.Value ? (DateTime?)null : Convert.ToDateTime(r["NgayNhap"]),
+                    TongSlDaGiaoTheoLot = r["TongSlDaGiao"] == DBNull.Value ? 0 : Convert.ToInt32(r["TongSlDaGiao"]),
+                    SoPhieuGiao = r["SoPhieuGiao"] == DBNull.Value ? 0 : Convert.ToInt32(r["SoPhieuGiao"])
                 });
             }
+            return result;
+        }
+        public List<ChoGiaoItem> GetChoGiaoTheoLot(string lotGoc)
+        {
+            var result = new List<ChoGiaoItem>();
+            DataTable dt = _sql.LoadData1(_sql.B7R2_FCCdb,
+                "SELECT * FROM TMPCHOGIAO WHERE LotGoc=@lot AND TrangThai='CHO_GIAO'",
+                 new SqlParameter("@lot", lotGoc) );
+            if (dt == null) return result;
+            foreach (DataRow r in dt.Rows)
+                result.Add(new ChoGiaoItem
+                {
+                    Id = Convert.ToInt32(r["Id"]),
+                    LotThung = r["LotThung"].ToString(),
+                    LotGoc = r["LotGoc"].ToString(),
+                    MaHang = r["MaHang"].ToString(),
+                    SoLuong = Convert.ToInt32(r["SoLuong"]),
+                    SlotIdNguon = r["SlotIdNguon"] == DBNull.Value ? (int?)null : Convert.ToInt32(r["SlotIdNguon"]),
+                    TrangThai = r["TrangThai"].ToString()
+                });
+            return result;
+        }
+        public List<SlotChuaLotInfo> GetSlotsChuaLot(string lot)
+        {
+            var result = new List<SlotChuaLotInfo>();
+            if (string.IsNullOrWhiteSpace(lot)) return result;
+
+            DataTable dt = _sql.LoadData1(_sql.B7R2_FCCdbb, @"
+                SELECT sl.SlotId, sl.Quantity, sl.TemCode, sl.ImportDate,
+                       s.SlotNumber, r.RackName, w.Name AS WarehouseName
+                FROM SlotLot sl
+                JOIN Slot s      ON s.SlotId      = sl.SlotId
+                JOIN Rack r      ON r.RackId      = s.RackId
+                JOIN Warehouse w ON w.WarehouseId = r.WarehouseId
+                WHERE sl.LotNo = @lot
+                ORDER BY sl.Quantity DESC",
+                 new SqlParameter("@lot", lot) );
+            if (dt == null) return result;
+            foreach (DataRow r in dt.Rows)
+                result.Add(new SlotChuaLotInfo
+                {
+                    SlotId = Convert.ToInt32(r["SlotId"]),
+                    Quantity = Convert.ToInt32(r["Quantity"]),
+                    TemCode = r["TemCode"]?.ToString(),
+                    ImportDate = r["ImportDate"] == DBNull.Value ? (DateTime?)null : Convert.ToDateTime(r["ImportDate"]),
+                    WarehouseName = r["WarehouseName"]?.ToString(),
+                    RackName = r["RackName"]?.ToString(),
+                    SlotNumber = Convert.ToInt32(r["SlotNumber"])
+                });
             return result;
         }
     }
