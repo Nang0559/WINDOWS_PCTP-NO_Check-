@@ -1,4 +1,5 @@
 ﻿using PCTP.ClassSQL;
+using PCTP.Common;
 using PCTP.Models;
 using PCTP.VIEWSTOCK.Models;
 using System;
@@ -22,12 +23,37 @@ namespace PCTP.VIEWSTOCK.Repository
             var result = new List<PhieuGiaoGocInfo>();
             if (string.IsNullOrWhiteSpace(lot)) return result;
 
-            string esc = Esc(lot);
-            DataTable dt = _sql.ExecuteQuery(_sql.B7R2_FCCdb, $@"
-            SELECT * FROM vWDinhDanhPhieuGiao
-            WHERE LOT = '{esc}' OR LOT LIKE '{esc}-%' OR LOT LIKE '%,{esc}-%'
-            ORDER BY NGAYGIAO DESC");
+            string lotKey = lot.Trim();
 
+            // ── Bước 1: so khớp CHÍNH XÁC — luôn thử trước, an toàn tuyệt đối ───────
+            var exact = QueryByLot(lotKey, exactOnly: true);
+            if (exact.Count > 0) return exact;
+
+            // ── Bước 2: fallback prefix — CHỈ khi bước 1 không ra kết quả ───────────
+            return QueryByLot(lotKey, exactOnly: false);
+        }
+
+        private List<PhieuGiaoGocInfo> QueryByLot(string lotKey, bool exactOnly)
+        {
+            string whereExtra = exactOnly
+                ? "AND x.LotPure = @lot"
+                : @"AND (
+                 (LEN(x.LotPure) >= LEN(@lot) AND LEFT(x.LotPure, LEN(@lot)) = @lot)
+              OR (LEN(x.LotPure) <  LEN(@lot) AND LEFT(@lot, LEN(x.LotPure)) = x.LotPure)
+            )";
+
+            string sql = $@"
+        SELECT DISTINCT g.*
+        FROM vWDinhDanhPhieuGiao g
+        CROSS APPLY STRING_SPLIT(g.LOT, ',') part
+        CROSS APPLY (SELECT LTRIM(RTRIM(
+            LEFT(part.value, CHARINDEX('-', part.value + '-') - 1)
+        )) AS LotPure) x
+        WHERE x.LotPure <> ''   -- ✅ GUARD BẮT BUỘC: chặn fragment rỗng khỏi mọi so khớp
+        {whereExtra}
+        ORDER BY g.NGAYGIAO DESC";
+
+            DataTable dt = _sql.LoadData1(_sql.B7R2_FCCdb, sql, new SqlParameter("@lot", lotKey));
             return MapPhieuGoc(dt);
         }
 

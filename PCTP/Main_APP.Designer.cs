@@ -106,6 +106,7 @@
             this.E_Trahang = new DevExpress.XtraBars.Navigation.AccordionControlElement();
             this.trahangngPD = new DevExpress.XtraBars.Navigation.AccordionControlElement();
             this.trahangndHVN = new DevExpress.XtraBars.Navigation.AccordionControlElement();
+            this.accordionControlElement30 = new DevExpress.XtraBars.Navigation.AccordionControlElement();
             this.accordionControlElement23 = new DevExpress.XtraBars.Navigation.AccordionControlElement();
             this.accordionControlSeparator10 = new DevExpress.XtraBars.Navigation.AccordionControlSeparator();
             this.accordionControlElement26 = new DevExpress.XtraBars.Navigation.AccordionControlElement();
@@ -143,7 +144,8 @@
             this.lblHostName = new System.Windows.Forms.Label();
             this.lblMayBan = new System.Windows.Forms.Label();
             this.helpProvider1 = new System.Windows.Forms.HelpProvider();
-            this.accordionControlElement30 = new DevExpress.XtraBars.Navigation.AccordionControlElement();
+            this.accordionControlElement36 = new DevExpress.XtraBars.Navigation.AccordionControlElement();
+            this.accordionControlElement37 = new DevExpress.XtraBars.Navigation.AccordionControlElement();
             ((System.ComponentModel.ISupportInitialize)(this.ribbonControl)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.accordionControl)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.dockManager)).BeginInit();
@@ -662,6 +664,13 @@
             this.trahangndHVN.Text = "HVN Trả";
             this.trahangndHVN.Click += new System.EventHandler(this.accordionControlElement27_Click);
             // 
+            // accordionControlElement30
+            // 
+            this.accordionControlElement30.Name = "accordionControlElement30";
+            this.accordionControlElement30.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item;
+            this.accordionControlElement30.Text = "Trả Hàng NG";
+            this.accordionControlElement30.Click += new System.EventHandler(this.accordionControlElement30_Click_1);
+            // 
             // accordionControlElement23
             // 
             this.accordionControlElement23.ImageOptions.Image = ((System.Drawing.Image)(resources.GetObject("accordionControlElement23.ImageOptions.Image")));
@@ -693,7 +702,8 @@
             this.accordionControlElement22.Elements.AddRange(new DevExpress.XtraBars.Navigation.AccordionControlElement[] {
             this.E_GHHVN_MP,
             this.E_GHHVN_SP,
-            this.HTDelever});
+            this.HTDelever,
+            this.accordionControlElement36});
             this.accordionControlElement22.Expanded = true;
             this.accordionControlElement22.ImageOptions.Image = ((System.Drawing.Image)(resources.GetObject("accordionControlElement22.ImageOptions.Image")));
             this.accordionControlElement22.ImageOptions.ImageLayoutMode = DevExpress.XtraBars.Navigation.ImageLayoutMode.Squeeze;
@@ -1052,12 +1062,20 @@
             // 
             this.helpProvider1.HelpNamespace = "\\\\192.168.200.1\\fcc\\003.DEPLOY\\009.QRCODE\\HDSB.chm";
             // 
-            // accordionControlElement30
+            // accordionControlElement36
             // 
-            this.accordionControlElement30.Name = "accordionControlElement30";
-            this.accordionControlElement30.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item;
-            this.accordionControlElement30.Text = "Trả Hàng NG";
-            this.accordionControlElement30.Click += new System.EventHandler(this.accordionControlElement30_Click_1);
+            this.accordionControlElement36.Elements.AddRange(new DevExpress.XtraBars.Navigation.AccordionControlElement[] {
+            this.accordionControlElement37});
+            this.accordionControlElement36.Expanded = true;
+            this.accordionControlElement36.Name = "accordionControlElement36";
+            this.accordionControlElement36.Text = "GIAO BÙ NG";
+            // 
+            // accordionControlElement37
+            // 
+            this.accordionControlElement37.Name = "accordionControlElement37";
+            this.accordionControlElement37.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item;
+            this.accordionControlElement37.Text = "GIAO BÙ HÀNG";
+            this.accordionControlElement37.Click += new System.EventHandler(this.accordionControlElement37_Click);
             // 
             // Main_APP
             // 
@@ -1212,5 +1230,7 @@
         private DevExpress.XtraBars.Navigation.AccordionControlElement cmdRackControl;
         private DevExpress.XtraBars.Navigation.AccordionControlElement HTDelever;
         private DevExpress.XtraBars.Navigation.AccordionControlElement accordionControlElement30;
+        private DevExpress.XtraBars.Navigation.AccordionControlElement accordionControlElement36;
+        private DevExpress.XtraBars.Navigation.AccordionControlElement accordionControlElement37;
     }
 }

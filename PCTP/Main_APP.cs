@@ -778,6 +778,12 @@ namespace PCTP
             var frm = new FormTraHangNGNew();
             frm.Show();
         }
+
+        private void accordionControlElement37_Click(object sender, EventArgs e)
+        {
+            var frm = new frmGiaoBuNG();
+            frm.Show();
+        }
     }
 
     // =========================================================================

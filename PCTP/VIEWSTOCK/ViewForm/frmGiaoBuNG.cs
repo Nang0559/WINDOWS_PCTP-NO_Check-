@@ -50,42 +50,54 @@ namespace PCTP.VIEWSTOCK.ViewForm
             Size = new System.Drawing.Size(1000, 650);
             StartPosition = FormStartPosition.CenterParent;
 
-            var main = new TableLayoutPanel { Dock = DockStyle.Fill, RowCount = 3, ColumnCount = 1, Padding = new Padding(10) };
-            main.RowStyles.Add(new RowStyle(SizeType.Absolute, 110));
-            main.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-            main.RowStyles.Add(new RowStyle(SizeType.Absolute, 55));
-
             // ── Panel tìm kiếm ──────────────────────────────────────────
-            var panelTop = new TableLayoutPanel { Dock = DockStyle.Fill, RowCount = 3, ColumnCount = 2 };
+            var panelTop = new TableLayoutPanel { Dock = DockStyle.Fill, RowCount = 3, ColumnCount = 2, Padding = new Padding(2) };
             panelTop.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 150));
             panelTop.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            panelTop.RowStyles.Add(new RowStyle(SizeType.Absolute, 35)); // Dòng 0: Radio
+            panelTop.RowStyles.Add(new RowStyle(SizeType.Absolute, 35)); // Dòng 1: LotNo
+            panelTop.RowStyles.Add(new RowStyle(SizeType.Absolute, 35)); // Dòng 2: Mã hàng + Date
 
             _rdoCheDoTim = new RadioGroup { Dock = DockStyle.Fill };
             _rdoCheDoTim.Properties.Items.Add(new DevExpress.XtraEditors.Controls.RadioGroupItem(0, "Theo LotNo"));
             _rdoCheDoTim.Properties.Items.Add(new DevExpress.XtraEditors.Controls.RadioGroupItem(1, "Theo Mã hàng + Ngày giao"));
             _rdoCheDoTim.EditValue = 0;
             _rdoCheDoTim.SelectedIndexChanged += (s, e) => ToggleCheDoTim();
-            panelTop.Controls.Add(new LabelControl { Text = "Tìm kiếm theo:" }, 0, 0);
+            panelTop.Controls.Add(new LabelControl { Text = "Tìm kiếm theo:", Dock = DockStyle.Fill, Appearance = { Font = new System.Drawing.Font("Tahoma", 9F, System.Drawing.FontStyle.Bold) } }, 0, 0);
             panelTop.Controls.Add(_rdoCheDoTim, 1, 0);
 
             _txtLot = new TextEdit { Dock = DockStyle.Fill };
             _txtLot.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) TimTheoLot(); };
-            panelTop.Controls.Add(new LabelControl { Text = "LotNo:" }, 0, 1);
+            panelTop.Controls.Add(new LabelControl { Text = "LotNo:", Dock = DockStyle.Fill }, 0, 1);
             panelTop.Controls.Add(_txtLot, 1, 1);
 
-            var panelMaHang = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 4 };
+            // ✅ Đã sửa chuẩn ColumnStyles và thêm RowStyles cho panelMaHang
+            var panelMaHang = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 1 };
+            panelMaHang.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 40)); // Mã hàng
+            panelMaHang.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25)); // Từ ngày
+            panelMaHang.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25)); // Đến ngày
+            panelMaHang.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 60)); // Nút tìm
+            panelMaHang.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+
             _txtMaHang = new TextEdit { Dock = DockStyle.Fill };
             _dateTu = new DateEdit { Dock = DockStyle.Fill, DateTime = DateTime.Today.AddDays(-14) };
             _dateDen = new DateEdit { Dock = DockStyle.Fill, DateTime = DateTime.Today };
             _btnTim = new SimpleButton { Text = "🔍 Tìm", Dock = DockStyle.Fill };
             _btnTim.Click += (s, e) => TimTheoMaHangNgay();
+
             panelMaHang.Controls.Add(_txtMaHang, 0, 0);
             panelMaHang.Controls.Add(_dateTu, 1, 0);
             panelMaHang.Controls.Add(_dateDen, 2, 0);
             panelMaHang.Controls.Add(_btnTim, 3, 0);
-            panelTop.Controls.Add(new LabelControl { Text = "Mã hàng / Ngày:" }, 0, 2);
+
+            panelTop.Controls.Add(new LabelControl { Text = "Mã hàng / Ngày:", Dock = DockStyle.Fill }, 0, 2);
             panelTop.Controls.Add(panelMaHang, 1, 2);
 
+            // ── Main Layout ─────────────────────────────────────────────
+            var main = new TableLayoutPanel { Dock = DockStyle.Fill, RowCount = 3, ColumnCount = 1, Padding = new Padding(10) };
+            main.RowStyles.Add(new RowStyle(SizeType.Absolute, 125));
+            main.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            main.RowStyles.Add(new RowStyle(SizeType.Absolute, 55));
             main.Controls.Add(panelTop, 0, 0);
 
             // ── Grid phiếu gốc ────────────────────────────────────────
@@ -139,12 +151,11 @@ namespace PCTP.VIEWSTOCK.ViewForm
 
         private void TimTheoLot()
         {
-            string lot = LotNoHelper.GetStockTpKey(_txtLot.Text.Trim());
+            string lot = _txtLot.Text.Trim();
             if (string.IsNullOrEmpty(lot)) return;
 
             var ds = _service.TimPhieuGocTheoLot(lot);
             _gridPhieuGoc.DataSource = ds;
-
             if (ds.Count == 0)
                 XtraMessageBox.Show("Không tìm thấy phiếu giao nào khớp LOT này.", "Thông báo",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
