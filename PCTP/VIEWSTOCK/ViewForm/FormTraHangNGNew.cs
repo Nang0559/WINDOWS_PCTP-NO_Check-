@@ -4,6 +4,7 @@ using DevExpress.XtraGrid.Columns;
 using DevExpress.XtraGrid.Views.Grid;
 using DevExpress.XtraTab;
 using PCTP.ClassSQL;
+using PCTP.Common;
 using PCTP.Models;
 using PCTP.VIEWSTOCK.Fuction;
 using PCTP.VIEWSTOCK.FunctionForm;
@@ -343,10 +344,7 @@ namespace PCTP.VIEWSTOCK.ViewForm
                     (!string.IsNullOrEmpty(x.GioGiao) && x.GioGiao.Trim().Equals(rowGioGiao, StringComparison.OrdinalIgnoreCase))
                 )
                 &&
-                (
-                    (!string.IsNullOrEmpty(x.LotFcc) && (x.LotFcc.Contains(shortLot) || x.LotFcc.Contains(fullLot))) ||
-                    (!string.IsNullOrEmpty(x.LotHvn) && (x.LotHvn.Contains(shortLot) || x.LotHvn.Contains(fullLot)))
-                )
+                (LotNoHelper.LotStringContainsMatch(x.LotFcc, rawLot) || LotNoHelper.LotStringContainsMatch(x.LotHvn, rawLot))
             ).ToList();
 
             _gridLichSuQr.DataSource = qrCuaPhieuNay;
@@ -658,34 +656,29 @@ namespace PCTP.VIEWSTOCK.ViewForm
 
             LoadThungTheoIdp();
         }
+        // ✅ SỬA
         private int GetSlFromLotString(string lotString, string targetLot)
         {
             if (string.IsNullOrEmpty(lotString) || string.IsNullOrEmpty(targetLot)) return 0;
-
             targetLot = targetLot.Trim();
-            string shortTarget = targetLot.Length > 7 ? targetLot.Substring(0, targetLot.Length - 7) : targetLot;
 
             int totalSl = 0;
-            // Tách các cụm cách nhau bằng dấu phẩy
             var parts = lotString.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
             foreach (var p in parts)
             {
                 string item = p.Trim();
-                // Tìm xem cụm này có chứa mã lot đang tìm không (so sánh cả bản full hoặc short)
-                if (item.Contains(targetLot) || item.Contains(shortTarget))
-                {
-                    var subParts = item.Split('-');
-                    if (subParts.Length >= 2)
-                    {
-                        // Lấy phần tử cuối hoặc phần tử ngay sau dấu '-' sát với mã lot
-                        if (int.TryParse(subParts[subParts.Length - 1].Trim(), out int sl))
-                        {
-                            totalSl += sl;
-                        }
-                    }
-                }
+                int dashIdx = item.LastIndexOf('-');
+                if (dashIdx <= 0) continue;
+
+                string lotPart = item.Substring(0, dashIdx).Trim();
+                string slPart = item.Substring(dashIdx + 1).Trim();
+
+                if (LotCodeHelper.AreLotKeysEquivalent(lotPart, targetLot) && int.TryParse(slPart, out int sl))
+                    totalSl += sl;
             }
             return totalSl;
         }
+
+       
     }
 }

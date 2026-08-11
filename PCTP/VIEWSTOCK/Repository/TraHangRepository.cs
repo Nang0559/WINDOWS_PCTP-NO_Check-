@@ -1,4 +1,5 @@
 ﻿using PCTP.ClassSQL;
+using PCTP.Common;
 using PCTP.Models;
 using PCTP.VIEWSTOCK.Fuction;
 using PCTP.VIEWSTOCK.Models;
@@ -37,34 +38,38 @@ namespace PCTP.VIEWSTOCK.Repository
 
         public void TruSlConLai(SqlConnection conn, SqlTransaction tran, string lot, int soLuong)
         {
+            string match = LotCodeHelper.BuildLotMatchSql("LOT", "@lot");
             _sql.ExecuteNonQuery(conn, tran,
-                "UPDATE STOCKTP SET SLCONLAI = ISNULL(SLCONLAI,0) - @sl WHERE LOT = @lot",
+                $"UPDATE STOCKTP SET SLCONLAI = ISNULL(SLCONLAI,0) - @sl WHERE {match}",
                 new SqlParameter("@sl", soLuong), new SqlParameter("@lot", lot));
         }
 
         // Khách trả hàng: cộng lại tồn, trừ SLXUAT (vì hàng coi như "chưa xuất" nữa)
         public void NhapLaiHangKhachTra(SqlConnection conn, SqlTransaction tran, string lot, int soLuong)
         {
-            _sql.ExecuteNonQuery(conn, tran, @"
-                UPDATE STOCKTP SET
-                    SLCONLAI = ISNULL(SLCONLAI,0) + @sl,
-                    SLXUAT   = ISNULL(SLXUAT,0)   - @sl
-                WHERE LOT = @lot",
+            string match = LotCodeHelper.BuildLotMatchSql("LOT", "@lot");
+            _sql.ExecuteNonQuery(conn, tran, $@"
+        UPDATE STOCKTP SET
+            SLCONLAI = ISNULL(SLCONLAI,0) + @sl,
+            SLXUAT   = ISNULL(SLXUAT,0)   - @sl
+        WHERE {match}",
                 new SqlParameter("@sl", soLuong), new SqlParameter("@lot", lot));
         }
 
         public void InsertNhanTraTheoIDP(SqlConnection conn, SqlTransaction tran,
-            string lot, int slNhanTra, int idp)
+     string lot, int slNhanTra, int idp)
         {
-            _sql.ExecuteNonQuery(conn, tran, @"
-                INSERT INTO STOCKTPNHANTRA
-                    (LOT, PART_NO, PART_NAME, NGAY_NHAN_TRA, SL_NHAN_TRA, LY_DO_NG)
-                SELECT TOP 1 @lot, PART, NAME, GETDATE(), @sl, N'Khách trả — Phiếu ' + CAST(@idp AS NVARCHAR(20))
-                FROM STOCKTP WHERE LOT = @lot",
+            string match = LotCodeHelper.BuildLotMatchSql("LOT", "@lot");
+            _sql.ExecuteNonQuery(conn, tran, $@"
+        INSERT INTO STOCKTPNHANTRA
+            (LOT, PART_NO, PART_NAME, NGAY_NHAN_TRA, SL_NHAN_TRA, LY_DO_NG)
+        SELECT TOP 1 @lot, PART, NAME, GETDATE(), @sl, N'Khách trả — Phiếu ' + CAST(@idp AS NVARCHAR(20))
+        FROM STOCKTP WHERE {match}",
                 new SqlParameter("@lot", lot),
                 new SqlParameter("@sl", slNhanTra),
                 new SqlParameter("@idp", idp));
         }
+
 
         // ════════════════════════════════════════════════════════════════
         // TMPCHOGIAO — staging chờ giao
@@ -408,16 +413,17 @@ namespace PCTP.VIEWSTOCK.Repository
 
             string inClause = string.Join(",", lotList.Select(l => $"'{Esc(l)}'"));
             DataTable dt = _sql.ExecuteQuery(_sql.B7R2_FCCdb, $@"
-        SELECT DISTINCT LOT FROM TMPPHIEUGIAOHANG
-        WHERE LOT IN ({inClause}) AND STATUS = 'OK'");
+                SELECT DISTINCT LOT FROM TMPPHIEUGIAOHANG
+                WHERE LOT IN ({inClause}) AND STATUS = 'OK'");
 
             return dt.Rows.Cast<DataRow>().Select(r => r["LOT"].ToString()).ToList();
         }
 
         public int GetSlXuatHienTai(string lot)
         {
+            string match = LotCodeHelper.BuildLotMatchSql("LOT", "@lot");
             object kq = _sql.ExecuteScalar(_sql.B7R2_FCCdb,
-                "SELECT ISNULL(SLXUAT,0) FROM STOCKTP WHERE LOT = @lot",
+                $"SELECT ISNULL(SLXUAT,0) FROM STOCKTP WHERE {match}",
                 new[] { new SqlParameter("@lot", lot) });
             return int.TryParse(kq?.ToString(), out int v) ? v : 0;
         }
@@ -453,24 +459,19 @@ namespace PCTP.VIEWSTOCK.Repository
         {
             var result = new List<LichSuGiaoHangInfo>();
             if (string.IsNullOrWhiteSpace(lotKey)) return result;
-
             lotKey = lotKey.Trim();
 
-            // ✅ Nếu độ dài lớn hơn 7, tiến hành cắt bỏ 7 ký tự cuối để khớp với bảng lịch sử giao hàng
-            if (lotKey.Length > 7)
-            {
-                lotKey = lotKey.Substring(0, lotKey.Length - 7);
-            }
+            string lotValueExpr = "LTRIM(RTRIM(LEFT(part.value, CHARINDEX('-', part.value + '-') - 1)))";
+            string match = LotCodeHelper.BuildLotMatchSql(lotValueExpr, "@lot");
 
-            string esc = Esc(lotKey);
             string sql = $@"
-            SELECT DISTINCT g.STT, g.LOT, g.MAHANG, g.TENHANG, g.SOLUONG, g.NGAYGIAO, g.GIOGIAOFCC, g.NHAMAY, g.CUA, g.TRUYEN
-            FROM LUUPHIEUGIAOHANG g
-            CROSS APPLY STRING_SPLIT(g.LOT, ',') part
-            WHERE LTRIM(RTRIM(LEFT(part.value, CHARINDEX('-', part.value + '-') - 1))) = '{esc}'
-            ORDER BY g.NGAYGIAO DESC";
+        SELECT DISTINCT g.STT, g.LOT, g.MAHANG, g.TENHANG, g.SOLUONG, g.NGAYGIAO, g.GIOGIAOFCC, g.NHAMAY, g.CUA, g.TRUYEN
+        FROM LUUPHIEUGIAOHANG g
+        CROSS APPLY STRING_SPLIT(g.LOT, ',') part
+        WHERE {match}
+        ORDER BY g.NGAYGIAO DESC";
 
-            DataTable dt = _sql.ExecuteQuery(_sql.B7R2_FCCdb, sql);
+            DataTable dt = _sql.LoadData1(_sql.B7R2_FCCdb, sql, new SqlParameter("@lot", lotKey));
             foreach (DataRow r in dt.Rows)
             {
                 result.Add(new LichSuGiaoHangInfo
@@ -495,29 +496,24 @@ namespace PCTP.VIEWSTOCK.Repository
         {
             var result = new List<LichSuQrCodeInfo>();
             if (string.IsNullOrWhiteSpace(lotKey)) return result;
-
             lotKey = lotKey.Trim();
 
-            // ✅ Cắt bỏ 7 ký tự cuối nếu độ dài lớn hơn 7 để đồng bộ với định dạng lưu trữ ngắn
-            if (lotKey.Length > 7)
-            {
-                lotKey = lotKey.Substring(0, lotKey.Length - 7);
-            }
+            string fccExpr = "LTRIM(RTRIM(LEFT(part_fcc.value, CHARINDEX('-', part_fcc.value + '-') - 1)))";
+            string hvnExpr = "LTRIM(RTRIM(LEFT(part_hvn.value, CHARINDEX('-', part_hvn.value + '-') - 1)))";
+            string matchFcc = LotCodeHelper.BuildLotMatchSql(fccExpr, "@lot");
+            string matchHvn = LotCodeHelper.BuildLotMatchSql(hvnExpr, "@lot");
 
-            string esc = Esc(lotKey);
-
-            // ✅ Dùng STRING_SPLIT và CROSS APPLY để tách chuỗi ghép trong LOTFCC hoặc LOTHVN chính xác 100%
             string sql = $@"
         SELECT DISTINCT qr.STT, qr.LOTFCC, qr.MAHANGFCC, qr.SLTEMFCC, qr.LOTHVN, qr.MAHANGHVN, qr.SLTEMHVN,
                qr.KETQUA, qr.NGAYXUAT, qr.GIOXUAT, qr.NHAMAY, qr.GIOGIAO
         FROM LUUDOCQRCODE qr
         OUTER APPLY STRING_SPLIT(qr.LOTFCC, ',') part_fcc
         OUTER APPLY STRING_SPLIT(qr.LOTHVN, ',') part_hvn
-        WHERE LTRIM(RTRIM(LEFT(part_fcc.value, CHARINDEX('-', part_fcc.value + '-') - 1))) = '{esc}'
-           OR LTRIM(RTRIM(LEFT(part_hvn.value, CHARINDEX('-', part_hvn.value + '-') - 1))) = '{esc}'
+        WHERE ({matchFcc}) OR ({matchHvn})
         ORDER BY qr.NGAYXUAT DESC";
 
-            DataTable dt = _sql.ExecuteQuery(_sql.B7R2_FCCdb, sql);
+            DataTable dt = _sql.ExecuteQuery(_sql.B7R2_FCCdb, sql,
+                new List<SqlParameter> { new SqlParameter("@lot", lotKey) });
             foreach (DataRow r in dt.Rows)
             {
                 result.Add(new LichSuQrCodeInfo
@@ -550,41 +546,40 @@ namespace PCTP.VIEWSTOCK.Repository
             var result = new List<LotUngVienInfo>();
             if (string.IsNullOrWhiteSpace(maHang)) return result;
 
-            string sql = @"
+            string joinMatch = LotCodeHelper.BuildLotMatchSql("s.LOT", "giao.LOT");
+
+            string sql = $@"
+    SELECT 
+            s.LOT,
+            s.PART AS MAHANG,
+            s.NAME AS TENHANG,
+            s.SLSX AS SoLuongSanXuat,
+            s.SLNHAP AS SoLuongNhap,
+            s.SLCONLAI AS SoLuongConLai,
+            s.NGAYNHAP AS NgayNhap,
+            ISNULL(giao.TongSl, 0) AS TongSlDaGiao,
+            ISNULL(giao.SoPhieu, 0) AS SoPhieuGiao
+        FROM STOCKTP s
+        INNER JOIN (
             SELECT 
-                    s.LOT,
-                    s.PART AS MAHANG,
-                    s.NAME AS TENHANG,
-                    s.SLSX AS SoLuongSanXuat,
-                    s.SLNHAP AS SoLuongNhap,
-                    s.SLCONLAI AS SoLuongConLai,
-                    s.NGAYNHAP AS NgayNhap,
-                    ISNULL(giao.TongSl, 0) AS TongSlDaGiao,
-                    ISNULL(giao.SoPhieu, 0) AS SoPhieuGiao
-                FROM STOCKTP s
-                INNER JOIN (
-                    -- Gom nhóm lịch sử giao hàng theo từng mã LOT (đã cắt 7 ký tự cuối)
-                    SELECT 
-                        LTRIM(RTRIM(LEFT(part.value, CHARINDEX('-', part.value + '-') - 1))) AS LOT,
-                        g.MAHANG,
-                        SUM(TRY_CAST(SUBSTRING(part.value, CHARINDEX('-', part.value + '-') + 1, 50) AS INT)) AS TongSl,
-                        COUNT(DISTINCT g.STT) AS SoPhieu
-                    FROM LUUPHIEUGIAOHANG g
-                    CROSS APPLY STRING_SPLIT(g.LOT, ',') part
-                    WHERE g.MAHANG = @maHang
-                      AND CAST(g.NGAYGIAO AS DATE) BETWEEN @tuNgay AND @denNgay
-                      AND part.value <> ''
-                    GROUP BY LTRIM(RTRIM(LEFT(part.value, CHARINDEX('-', part.value + '-') - 1))), g.MAHANG
-                ) giao ON LEFT(LTRIM(RTRIM(s.LOT)), LEN(LTRIM(RTRIM(s.LOT))) - 7) = giao.LOT 
-                      AND s.PART = giao.MAHANG
-                WHERE s.PART = @maHang
-                ORDER BY s.LOT DESC;";
+                LTRIM(RTRIM(LEFT(part.value, CHARINDEX('-', part.value + '-') - 1))) AS LOT,
+                g.MAHANG,
+                SUM(TRY_CAST(SUBSTRING(part.value, CHARINDEX('-', part.value + '-') + 1, 50) AS INT)) AS TongSl,
+                COUNT(DISTINCT g.STT) AS SoPhieu
+            FROM LUUPHIEUGIAOHANG g
+            CROSS APPLY STRING_SPLIT(g.LOT, ',') part
+            WHERE g.MAHANG = @maHang
+              AND CAST(g.NGAYGIAO AS DATE) BETWEEN @tuNgay AND @denNgay
+              AND part.value <> ''
+            GROUP BY LTRIM(RTRIM(LEFT(part.value, CHARINDEX('-', part.value + '-') - 1))), g.MAHANG
+        ) giao ON {joinMatch} AND s.PART = giao.MAHANG
+        WHERE s.PART = @maHang
+        ORDER BY s.LOT DESC;";
 
             DataTable dt = _sql.LoadData1(_sql.B7R2_FCCdb, sql,
                     new SqlParameter("@maHang", maHang),
                     new SqlParameter("@tuNgay", tuNgay.Date),
-                    new SqlParameter("@denNgay", denNgay.Date)
-                );
+                    new SqlParameter("@denNgay", denNgay.Date));
             if (dt == null) return result;
             foreach (DataRow r in dt.Rows)
             {

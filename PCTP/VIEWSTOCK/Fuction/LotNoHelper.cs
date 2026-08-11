@@ -1,4 +1,5 @@
-﻿using PCTP.VIEWSTOCK.Models;
+﻿using PCTP.Common;
+using PCTP.VIEWSTOCK.Models;
 
 using System;
 using System.Collections.Generic;
@@ -229,7 +230,20 @@ namespace PCTP.VIEWSTOCK.Fuction
                 QRInfo = qr
             };
         }
-
+        // ✅ SỬA — thêm helper cục bộ tách LOT trong chuỗi ghép rồi so bằng AreLotKeysEquivalent
+        public static bool LotStringContainsMatch(string ghepLotString, string targetLot)
+        {
+            if (string.IsNullOrEmpty(ghepLotString) || string.IsNullOrEmpty(targetLot)) return false;
+            foreach (var p in ghepLotString.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                string item = p.Trim();
+                int dashIdx = item.LastIndexOf('-');
+                string lotPart = dashIdx > 0 ? item.Substring(0, dashIdx).Trim() : item;
+                if (LotCodeHelper.AreLotKeysEquivalent(lotPart, targetLot))
+                    return true;
+            }
+            return false;
+        }
 
     }
 }

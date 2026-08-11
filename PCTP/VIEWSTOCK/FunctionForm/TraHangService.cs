@@ -1,4 +1,5 @@
 ﻿using PCTP.ClassSQL;
+using PCTP.Common;
 using PCTP.VIEWSTOCK.Fuction;
 using PCTP.VIEWSTOCK.Models;
 using PCTP.VIEWSTOCK.Repository;
@@ -51,7 +52,7 @@ namespace PCTP.VIEWSTOCK.FunctionForm
                 {
                     // 1. Đọc Lot hiện tại của Slot TRONG transaction này
                     var allLots = _traHangRepo.GetSlotLotsInTransaction(conn, tran, slotId);
-                    var targetLots = allLots.Where(x => x.LotNo == lot).ToList();
+                    var targetLots = allLots.Where(x => LotCodeHelper.AreLotKeysEquivalent(x.LotNo, lot)).ToList();
                     int available = targetLots.Sum(x => x.Quantity);
 
                     if (soLuong > available)
@@ -63,9 +64,9 @@ namespace PCTP.VIEWSTOCK.FunctionForm
 
                     // 2. Tách đúng LOT cần trả, giữ nguyên các LOT khác trong Slot
                     var split = LotNoHelper.SubtractLots(targetLots, soLuong);
-                    var remaining = allLots.Where(x => x.LotNo != lot)
-                                            .Concat(split.RemainingLots)
-                                            .ToList();
+                    var remaining = allLots.Where(x => !LotCodeHelper.AreLotKeysEquivalent(x.LotNo, lot))
+                         .Concat(split.RemainingLots)
+                         .ToList();
 
                     // 3. Ghi lại SlotLot + cập nhật Slot tổng hợp — cùng transaction
                     _traHangRepo.SaveSlotLotsInTransaction(conn, tran, slotId, remaining);
