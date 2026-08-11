@@ -23,17 +23,21 @@ namespace PCTP.VIEWSTOCK.Services
 
         // ✅ Không tự định nghĩa hằng số riêng — luôn lấy từ LotCodeHelper để không
         // bao giờ lệch với các nơi khác (PhieuRepository, StockTpRepository...).
-        private static int KeyLen => LotCodeHelper.LEN_HEAD_FIXED; // = 20
+        //private static int KeyLen => LotCodeHelper.LEN_HEAD_FIXED; // = 20
 
         /// <summary>
         /// Trừ số lượng slXuat khỏi kho ảo A0 theo LotNo — có thể phải "ăn" qua NHIỀU
         /// dòng SlotLot cùng LotNo (vì mỗi lần nhập tạo 1 dòng riêng, không merge).
         ///
-        /// FIX: chuẩn hoá LotNo bằng CÙNG 1 hàm (LotCodeHelper.TrimTo, độ dài KeyLen)
-        /// ở cả 2 phía để so khớp — trước đây dùng Prefix() tự chế không đồng nhất với
-        /// cách CapNhapKho chuẩn hoá lotNo đầu vào, nên chỉ khớp được 1/N dòng SlotLot
-        /// cùng LOT, gây thiếu số lượng bị trừ (chỉ mất 1 dòng thay vì đủ N dòng theo
-        /// đúng số lượng xuất thực tế).
+        /// FIX (bản mới): so khớp qua LotCodeHelper.AreLotKeysEquivalent thay vì
+        /// TrimTo(...) + so bằng == cứng theo 1 độ dài cố định (20). Lý do: dữ liệu
+        /// LOT trong A0 có thể là LOT cũ chỉ có 13 ký tự (Date+IdItem+Shift+Gear,
+        /// KHÔNG có Line/Machine) trong khi lotNo truyền vào từ CapNhapKho có thể
+        /// đã đủ 20 ký tự (hoặc ngược lại) — so bằng == theo TrimTo cố định 20 sẽ
+        /// KHÔNG BAO GIỜ khớp giữa 1 chuỗi 13 và 1 chuỗi 20 ký tự dù về bản chất là
+        /// cùng 1 LOT, dẫn đến A0 "quên trừ" và tồn ảo bị lệch dần theo thời gian.
+        /// AreLotKeysEquivalent tự hạ về so khớp 13 ký tự khi 1 trong 2 bên là LOT
+        /// cũ, và vẫn giữ so khớp chính xác 20 ký tự khi cả 2 bên đều đủ dữ liệu.
         /// </summary>
         public bool TruKhoAoTheoLot(string lotNo, int slXuat)
         {
@@ -48,14 +52,11 @@ namespace PCTP.VIEWSTOCK.Services
             // trong 1 lần CNK).
             var lots = _slotHelper.GetSlotLots(slotId);
 
-            // ✅ Chuẩn hoá CẢ HAI phía bằng đúng 1 hàm/độ dài — khớp với cách
-            // CapNhapKho đã chuẩn hoá lotNo trước khi truyền vào
-            // (LotCodeHelper.TrimTo(rawLot, LotCodeHelper.LEN_HEAD_FIXED)).
-            string keyTarget = LotCodeHelper.TrimTo(lotNo, KeyLen);
-
+            // ✅ SỬA: dùng AreLotKeysEquivalent — tương thích cả LOT cũ (13 ký tự)
+            // lẫn LOT mới (20 ký tự) ở cả 2 phía so sánh.
             var candidates = lots
                 .Where(l => l.Quantity > 0) // bỏ rác — tránh dòng 0 SL lọt vào so khớp/log nhầm
-                .Where(l => LotCodeHelper.TrimTo(l.LotNo, KeyLen) == keyTarget)
+                .Where(l => LotCodeHelper.AreLotKeysEquivalent(l.LotNo, lotNo))
                 .OrderBy(l => l.QRInfo?.ImportDate ?? DateTime.MaxValue) // FIFO — nhập trước xuất trước
                 .ToList();
 

@@ -43,6 +43,9 @@ namespace PCTP.Common
 
         /// <summary>Độ dài tối thiểu hợp lệ của 1 chuỗi LOT đầy đủ (không có Line/Machine).</summary>
         public const int MIN_TOTAL_LEN = LEN_HEAD_FIXED + LEN_TAIL_FIXED; // = 20
+        /// LEN_HEAD_FIXED (13 ký tự đầu của 20 ký tự mới) — không phải một chuẩn khác.
+        
+        public const int LEN_LEGACY_KEY = LEN_DATE + LEN_ID_ITEM + LEN_SHIFT + LEN_GEAR; // = 13
 
         // ══════════════════════════════════════════════════════════════════════
         // 1. TÁCH THEO ĐUÔI — dùng cho NHẬP KHO / LƯU KHO (bỏ Counter+Qty)
@@ -249,6 +252,64 @@ namespace PCTP.Common
             if (rawLotNo.Length < 26) return rawLotNo;
 
             return rawLotNo.Substring(0, 19) + rawLotNo.Substring(rawLotNo.Length - 4);
+
+
+        }
+        // ══════════════════════════════════════════════════════════════════════
+        // 6. SO KHỚP TƯƠNG THÍCH NGƯỢC — dùng khi 1 bên là LOT cũ (13 ký tự),
+        //    1 bên là LOT mới (20 ký tự). ĐÂY LÀ ĐIỂM DUY NHẤT xử lý khác biệt
+        //    độ dài dữ liệu cũ/mới — mọi nơi so khớp LOT (STOCKTP, SlotLot,
+        //    TMPCHOGIAO, LUUPHIEUGIAOHANG...) PHẢI gọi qua đây thay vì tự so
+        //    sánh trực tiếp bằng == hoặc SQL "=".
+        // ══════════════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// So khớp 2 khoá LOT, tương thích cả khoá cũ (13 ký tự, thiếu Line/Machine)
+        /// lẫn khoá mới (20 ký tự, đủ Line/Machine).
+        ///
+        /// Quy tắc:
+        /// - Nếu CẢ HAI đủ 20 ký tự -> so khớp chính xác 20 ký tự (giữ độ chính xác cao
+        ///   nhất khi có đủ dữ liệu — tránh gộp nhầm 2 LOT khác Line/Machine).
+        /// - Nếu MỘT trong hai bên chỉ có 13 ký tự (dữ liệu lịch sử) -> hạ xuống so khớp
+        ///   13 ký tự đầu (LEN_LEGACY_KEY), vì dữ liệu cũ không còn cách nào biết
+        ///   Line/Machine để so chính xác hơn.
+        /// - Không dùng OR giữa 2 điều kiện — nếu OR, hai LOT khác Line/Machine nhưng
+        ///   trùng 13 ký tự đầu sẽ bị match nhầm dù cả hai đều có đủ 20 ký tự.
+        /// </summary>
+        public static bool AreLotKeysEquivalent(string lot1, string lot2)
+        {
+            string k1 = TrimTo(lot1 ?? "", LEN_HEAD_FIXED);
+            string k2 = TrimTo(lot2 ?? "", LEN_HEAD_FIXED);
+
+            if (k1.Length < LEN_LEGACY_KEY || k2.Length < LEN_LEGACY_KEY)
+                return false; // quá ngắn, không đủ tin cậy để kết luận khớp
+
+            if (k1.Length == LEN_HEAD_FIXED && k2.Length == LEN_HEAD_FIXED)
+                return string.Equals(k1, k2, StringComparison.OrdinalIgnoreCase);
+
+            return string.Equals(
+                k1.Substring(0, LEN_LEGACY_KEY),
+                k2.Substring(0, LEN_LEGACY_KEY),
+                StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
+        /// Sinh fragment SQL tương đương AreLotKeysEquivalent, dùng khi build câu lệnh
+        /// SQL động (không thể gọi hàm C# trong SQL Server không có CLR function).
+        /// columnExpr: biểu thức cột LOT phía DB (vd "LOT", "s.LOT").
+        /// literalOrParam: giá trị so sánh — literal đã escape (vd "'26080800858...'")
+        /// hoặc tên tham số (vd "@lot").
+        /// </summary>
+        public static string BuildLotMatchSql(string columnExpr, string literalOrParam)
+        {
+            return
+                $"(" +
+                $"  (LEN({columnExpr}) >= {LEN_HEAD_FIXED} AND LEN({literalOrParam}) >= {LEN_HEAD_FIXED} " +
+                $"   AND SUBSTRING({columnExpr},1,{LEN_HEAD_FIXED}) = SUBSTRING({literalOrParam},1,{LEN_HEAD_FIXED})) " +
+                $"  OR " +
+                $"  ((LEN({columnExpr}) < {LEN_HEAD_FIXED} OR LEN({literalOrParam}) < {LEN_HEAD_FIXED}) " +
+                $"   AND SUBSTRING({columnExpr},1,{LEN_LEGACY_KEY}) = SUBSTRING({literalOrParam},1,{LEN_LEGACY_KEY})) " +
+                $")";
         }
     }
 }

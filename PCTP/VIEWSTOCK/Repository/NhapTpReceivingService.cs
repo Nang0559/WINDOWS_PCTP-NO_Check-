@@ -19,6 +19,7 @@ namespace PCTP.VIEWSTOCK.Repository
     ///   1) Ghi/Cộng dồn STOCKTP (nguồn sự thật cho tổng tồn kho)
     ///   2) Tạo 1 "phiếu" mới (SlotLot, PhieuStatus=Active) tại Slot đã chọn
     ///   3) Cập nhật tổng hợp Slot (Quantity/ItemCode/ImportDate/IsOccupied)
+    ///   4) Ghi StockHistory (ActionType = IMPORT hoặc BULK_IMPORT tuỳ Slot đích)
     /// Không bao giờ được làm rời từng bước — nếu 1 bước lỗi, toàn bộ rollback.
     /// </summary>
     public class NhapTpReceivingService
@@ -37,10 +38,6 @@ namespace PCTP.VIEWSTOCK.Repository
             _phieuRepo = phieuRepo;
         }
 
-        /// <summary>
-        /// Kiểm tra sơ bộ TRƯỚC khi mở transaction — dùng để UI báo lỗi sớm,
-        /// không tốn transaction cho các trường hợp chắc chắn fail.
-        /// </summary>
         public ScanResult KiemTraTruocKhiNhap(QRCodeInfo qr)
         {
             if (qr == null)
@@ -52,30 +49,18 @@ namespace PCTP.VIEWSTOCK.Repository
             if (qr.Quantity <= 0)
                 return ScanResult.Fail("Số lượng trên tem không hợp lệ.");
 
-            // Chống quét trùng — mỗi QR gốc chỉ được nhập kho đúng 1 lần
             if (_phieuRepo.ExistsQrData(qr.RawQr))
                 return ScanResult.Trung("Tem này đã được nhập kho trước đó!");
 
             return new ScanResult { IsOK = true };
         }
 
-        /// <summary>
-        /// Thực hiện nhập kho thật — TOÀN BỘ trong 1 transaction.
-        /// Slot đích lấy từ selectedSlotText dạng
-        /// "WH : .. - Rack : .. - Slot : .. - Capacity : ..".
-        /// </summary>
         public ScanResult NhapTpVaoSlot(QRCodeInfo qr, string selectedSlotText, PhieuNhapInfo matchedPhieu = null)
         {
             DateTime ngayNhapThucTe = DateTime.Now;
             var check = KiemTraTruocKhiNhap(qr);
             if (!check.IsOK) return check;
 
-            // ── THÊM: Re-validate phiếu ngay trước khi tính toán / mở transaction ──────
-            // matchedPhieu có thể đã cache cũ (lấy lúc hiển thị grid/khi bấm OK sau một
-            // khoảng thời gian) trong khi vNhapTP tính lại LOT_NO khác (dữ liệu MES đổi,
-            // hoặc người khác vừa nhập/mở lại LOT). Luôn lấy lại theo đúng Find — khóa
-            // duy nhất KHÔNG phụ thuộc công thức build LOT — để đảm bảo STOCKTP luôn
-            // ghi dưới đúng 1 LotNo, khớp với những gì UI đang hiển thị.
             PhieuNhapInfo phieuLive = matchedPhieu;
             if (matchedPhieu != null && !string.IsNullOrEmpty(matchedPhieu.Find))
             {
@@ -116,6 +101,13 @@ namespace PCTP.VIEWSTOCK.Repository
             if (capacity <= 0)
                 capacity = slotHelper.GetSlotCapacityById(slotId);
 
+            // ★ THÊM: xác định action type để ghi StockHistory đúng nghĩa —
+            // dùng chuẩn Slot ảo A0 (BulkImportConfig) làm mốc phân biệt Hướng A/B
+            // theo đúng sơ đồ quy trình chuẩn.
+            bool isBulkSlot = string.Equals(wh, BulkImportConfig.WarehouseName, StringComparison.OrdinalIgnoreCase)
+                            && string.Equals(rack, BulkImportConfig.RackName, StringComparison.OrdinalIgnoreCase);
+            string actionType = isBulkSlot ? "BULK_IMPORT" : "IMPORT";
+
             using (var conn = _sql.BeginTransaction(_sql.B7R2_FCCdb, out SqlTransaction tran))
             {
                 try
@@ -151,7 +143,6 @@ namespace PCTP.VIEWSTOCK.Repository
                         NgaySX = phieuLive?.NgaySX ?? qr.ImportDate,
                         SlSanXuat = phieuLive?.SlSanXuat ?? qr.Quantity,
                         SlNhap = qr.Quantity
-                        
                     };
 
                     int slDaNhapTruoc = daTonTai ? _stockTpRepo.GetSlDaNhap(conn, tran, lotNo) : 0;
@@ -170,17 +161,17 @@ namespace PCTP.VIEWSTOCK.Repository
                         slotId: slotId, itemCode: qr.ItemCode, lotNo: lotNo,
                         quantity: qr.Quantity, temCode: qr.MaPhieu, qrData: qr.RawQr,
                         importDate: ngayNhapThucTe,
-                        ngaySX : qr.NgaySX,
+                        ngaySX: qr.NgaySX,
                         soPhieuTong: qr.SoPhieuTong, maPhieuMoi: maPhieuMoi,
                         parentSoPhieu: null, status: PhieuStatus.Active);
 
                     _sql.ExecuteNonQuery(conn, tran, @"
-                UPDATE Slot SET
-                    Quantity   = ISNULL(Quantity,0) + @Sl,
-                    ItemCode   = @ItemCode,
-                    ImportDate = @ImportDate,
-                    IsOccupied = 1
-                WHERE SlotId = @SlotId",
+            UPDATE Slot SET
+                Quantity   = ISNULL(Quantity,0) + @Sl,
+                ItemCode   = @ItemCode,
+                ImportDate = @ImportDate,
+                IsOccupied = 1
+            WHERE SlotId = @SlotId",
                         new SqlParameter("@Sl", qr.Quantity),
                         new SqlParameter("@ItemCode", (object)qr.ItemCode ?? DBNull.Value),
                         new SqlParameter("@ImportDate", ngayNhapThucTe),
@@ -189,14 +180,6 @@ namespace PCTP.VIEWSTOCK.Repository
                     _stockTpRepo.InsertCaseHistory(conn, tran, caseNo);
 
                     tran.Commit();
-
-                    return new ScanResult
-                    {
-                        IsOK = true,
-                        Message = status == 1
-                            ? $"Đã nhập LOT {lotNo} (SL: {qr.Quantity}) — ĐỦ SỐ LƯỢNG, LOT đã tự động KẾT THÚC."
-                            : $"Đã nhập LOT {lotNo} (SL: {qr.Quantity}) vào {wh}/{rack}/Slot {slotNumber}."
-                    };
                 }
                 catch (Exception ex)
                 {
@@ -204,12 +187,43 @@ namespace PCTP.VIEWSTOCK.Repository
                     return ScanResult.Fail("Lỗi nhập kho: " + ex.Message);
                 }
             }
+
+            // ★ THÊM: ghi StockHistory SAU KHI transaction đã commit thành công —
+            // giống đúng pattern đang dùng ở TraHangService/BulkStockAdjustService
+            // (SaveHistory tự mở connection riêng, không tham gia transaction chính,
+            // nên phải gọi sau khi chắc chắn giao dịch chính đã chốt, tránh ghi
+            // history cho 1 giao dịch sau đó bị rollback).
+            try
+            {
+                SlotHelper.SaveHistory(
+                    actionType,
+                    qr.ItemCode,
+                    new LotInfo
+                    {
+                        LotNo = lotNo,
+                        Quantity = qr.Quantity,
+                        TemCode = qr.MaPhieu,
+                        RawQr = qr.RawQr,
+                        QRInfo = qr
+                    },
+                    fromSlotId: null,
+                    toSlotId: slotId);
+            }
+            catch (Exception exHist)
+            {
+                // Không throw — STOCKTP/SlotLot/Slot đã commit thành công, đây chỉ là
+                // ghi log audit. Log lại để biết mà bổ sung thủ công nếu cần đối soát.
+                System.Diagnostics.Debug.WriteLine(
+                    $"[NhapTpReceivingService] Nhập kho THÀNH CÔNG nhưng ghi StockHistory lỗi: {exHist.Message}");
+            }
+
+            return new ScanResult
+            {
+                IsOK = true,
+                Message = $"Đã nhập LOT {lotNo} (SL: {qr.Quantity}) vào {wh}/{rack}/Slot {slotNumber}."
+            };
         }
 
-        /// <summary>
-        /// Đối chiếu: tổng SlotLot Active của 1 LOT phải khớp STOCKTP.SLCONLAI.
-        /// Dùng cho màn hình kiểm tra dữ liệu / báo cáo lệch tồn.
-        /// </summary>
         public bool KiemTraKhopTonKho(string lotNo, out int slActive, out int slConLaiStockTp)
         {
             slActive = _phieuRepo.GetTongSlActiveTheoLot(lotNo);
