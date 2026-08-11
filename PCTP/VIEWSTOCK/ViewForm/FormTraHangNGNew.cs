@@ -89,7 +89,8 @@ namespace PCTP.VIEWSTOCK.ViewForm
             _tabs.TabPages.Add(BuildTabKhachTra());
             Controls.Add(_tabs);
         }
-
+        private void RunWithLoadingSync(Action action, string caption = "Đang xử lý...")
+        => WaitFormRunner.RunWithLoadingSync(this, action, caption);
         // ════════════════════════════════════════════════════════════
         // TAB 1 — Trả hàng đang lưu kho về sản xuất (Luồng 1a/1b)
         // ════════════════════════════════════════════════════════════
@@ -383,67 +384,67 @@ namespace PCTP.VIEWSTOCK.ViewForm
 
         private void TraCuuLot(string lot)
         {
-            _currentStock = _stockTpRepo.GetByLot(lot);
-
-            var lichSuGiao = _traHangRepo.GetLichSuGiaoHangTheoLot(lot);
-            _lichSuQrFull = _traHangRepo.GetLichSuQrCodeTheoLot(lot);
-            _gridLichSuGiao.DataSource = lichSuGiao;
-            _gridLichSuQr.DataSource = new List<LichSuQrCodeInfo>(); // để trống, chờ chọn phiếu
-
-            _danhSachSlotChuaLot = _traHangRepo.GetSlotsChuaLot(lot);
-            _gridSlot.DataSource = _danhSachSlotChuaLot;
-
-            _choGiaoHienTai = _traHangRepo.GetChoGiaoTheoLot(lot);
-
-            if (_currentStock == null)
+            RunWithLoadingSync(() =>
             {
-                _lblInfo1.Text = $"Không tìm thấy LOT [{lot}] trong STOCKTP " +
-                    $"(có {lichSuGiao.Count} lần giao trong lịch sử — xem bảng dưới).";
-                _btnTra1.Enabled = false;
-                _cheDoTraHienTai = CheDoTra.KhongXacDinh;
-                return;
-            }
+                _currentStock = _stockTpRepo.GetByLot(lot);
 
-            int slXuat = _currentStock.SlXuat ?? 0;
-            int slConLai = _currentStock.SlConLai ?? 0;
-            int slNhap = _currentStock.SlNhap ?? 0;
-            int tongSlTrongSlot = _danhSachSlotChuaLot.Sum(x => x.Quantity);
+                var lichSuGiao = _traHangRepo.GetLichSuGiaoHangTheoLot(lot);
+                _lichSuQrFull = _traHangRepo.GetLichSuQrCodeTheoLot(lot);
+                _gridLichSuGiao.DataSource = lichSuGiao;
+                _gridLichSuQr.DataSource = new List<LichSuQrCodeInfo>(); // để trống, chờ chọn phiếu
 
-            _lblInfo1.Text =
-                $"Mã hàng: {_currentStock.Part}  |  Tên: {_currentStock.Name}\n" +
-                $"Nhập: {slNhap} | Xuất: {slXuat} | Tồn kho: {slConLai} | Đã giao: {lichSuGiao.Count} phiếu\n" +
-                $"Đang nằm trong {_danhSachSlotChuaLot.Count} Slot (tổng {tongSlTrongSlot})";
+                _danhSachSlotChuaLot = _traHangRepo.GetSlotsChuaLot(lot);
+                _gridSlot.DataSource = _danhSachSlotChuaLot;
 
-            if (_danhSachSlotChuaLot.Count > 0)
-            {
-                _cheDoTraHienTai = CheDoTra.TuKho;
-                _spinSl1.Enabled = true;
-                _slotIdHienTai = 0; // chờ user chọn 1 dòng trong _gridSlot
-                _btnTra1.Enabled = false; // bật lại khi chọn Slot cụ thể — xem GridViewSlot_FocusedRowChanged
+                _choGiaoHienTai = _traHangRepo.GetChoGiaoTheoLot(lot);
 
-                if (_danhSachSlotChuaLot.Count == 1)
-                    _gridViewSlot.FocusedRowHandle = 0; // chỉ 1 Slot -> tự chọn luôn
-            }
-            else if (_choGiaoHienTai.Count > 0)
-            {
-                int tongChoGiao = _choGiaoHienTai.Sum(x => x.SoLuong);
-                _lblInfo1.Text += $"\n🚚 Nguồn: đang CHỜ GIAO ({_choGiaoHienTai.Count} thùng, tổng SL {tongChoGiao}) — sẽ huỷ toàn bộ để rework";
-                _cheDoTraHienTai = CheDoTra.ChoGiao;
-                _spinSl1.Properties.MaxValue = tongChoGiao;
-                _spinSl1.Value = tongChoGiao;
-                _spinSl1.Enabled = false;
-                _btnTra1.Enabled = true;
-            }
-            else
-            {
-                _lblInfo1.Text += "\n⚠ Không tìm thấy LOT trong Slot hoặc trong danh sách chờ giao — không thể trả tự động.";
-                _cheDoTraHienTai = CheDoTra.KhongXacDinh;
-                _btnTra1.Enabled = false;
-            }
+                if (_currentStock == null)
+                {
+                    _lblInfo1.Text = $"Không tìm thấy LOT [{lot}] trong STOCKTP " +
+                        $"(có {lichSuGiao.Count} lần giao trong lịch sử — xem bảng dưới).";
+                    _btnTra1.Enabled = false;
+                    _cheDoTraHienTai = CheDoTra.KhongXacDinh;
+                    return;
+                }
+
+                int slXuat = _currentStock.SlXuat ?? 0;
+                int slConLai = _currentStock.SlConLai ?? 0;
+                int slNhap = _currentStock.SlNhap ?? 0;
+                int tongSlTrongSlot = _danhSachSlotChuaLot.Sum(x => x.Quantity);
+
+                _lblInfo1.Text =
+                    $"Mã hàng: {_currentStock.Part}  |  Tên: {_currentStock.Name}\n" +
+                    $"Nhập: {slNhap} | Xuất: {slXuat} | Tồn kho: {slConLai} | Đã giao: {lichSuGiao.Count} phiếu\n" +
+                    $"Đang nằm trong {_danhSachSlotChuaLot.Count} Slot (tổng {tongSlTrongSlot})";
+
+                if (_danhSachSlotChuaLot.Count > 0)
+                {
+                    _cheDoTraHienTai = CheDoTra.TuKho;
+                    _spinSl1.Enabled = true;
+                    _slotIdHienTai = 0; // chờ user chọn 1 dòng trong _gridSlot
+                    _btnTra1.Enabled = false; // bật lại khi chọn Slot cụ thể — xem GridViewSlot_FocusedRowChanged
+
+                    if (_danhSachSlotChuaLot.Count == 1)
+                        _gridViewSlot.FocusedRowHandle = 0; // chỉ 1 Slot -> tự chọn luôn
+                }
+                else if (_choGiaoHienTai.Count > 0)
+                {
+                    int tongChoGiao = _choGiaoHienTai.Sum(x => x.SoLuong);
+                    _lblInfo1.Text += $"\n🚚 Nguồn: đang CHỜ GIAO ({_choGiaoHienTai.Count} thùng, tổng SL {tongChoGiao}) — sẽ huỷ toàn bộ để rework";
+                    _cheDoTraHienTai = CheDoTra.ChoGiao;
+                    _spinSl1.Properties.MaxValue = tongChoGiao;
+                    _spinSl1.Value = tongChoGiao;
+                    _spinSl1.Enabled = false;
+                    _btnTra1.Enabled = true;
+                }
+                else
+                {
+                    _lblInfo1.Text += "\n⚠ Không tìm thấy LOT trong Slot hoặc trong danh sách chờ giao — không thể trả tự động.";
+                    _cheDoTraHienTai = CheDoTra.KhongXacDinh;
+                    _btnTra1.Enabled = false;
+                }
+            }, "Đang tra cứu LOT...");
         }
-
-        
-
         private void BtnTra1_Click(object sender, EventArgs e)
         {
             if (_currentStock == null || _cheDoTraHienTai == CheDoTra.KhongXacDinh)
@@ -460,7 +461,7 @@ namespace PCTP.VIEWSTOCK.ViewForm
                 return;
             }
 
-            ScanResult result;
+            ScanResult result = null;
 
             if (_cheDoTraHienTai == CheDoTra.TuKho)
             {
@@ -476,7 +477,10 @@ namespace PCTP.VIEWSTOCK.ViewForm
                 if (XtraMessageBox.Show($"Trả {sl} SP của LOT [{_currentStock.Lot}] về sản xuất để rework?",
                     "Xác nhận", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
 
-                result = _traHangService.TraHangSanXuat(_slotIdHienTai, _currentStock.Lot, sl, lyDo);
+                RunWithLoadingSync(() =>
+                {
+                    result = _traHangService.TraHangSanXuat(_slotIdHienTai, _currentStock.Lot, sl, lyDo);
+                }, "Đang trả hàng về sản xuất...");
             }
             else // ChoGiao — huỷ nguyên cả LOT
             {
@@ -485,8 +489,11 @@ namespace PCTP.VIEWSTOCK.ViewForm
                     $"Huỷ {_choGiaoHienTai.Count} thùng chờ giao ({tongSl} SP) của LOT [{_currentStock.Lot}], trả về sản xuất?",
                     "Xác nhận", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
 
-                result = _traHangService.HuyChoGiaoVeSanXuat(
-                    _choGiaoHienTai.Select(x => x.Id).ToList(), lyDo);
+                RunWithLoadingSync(() =>
+                {
+                    result = _traHangService.HuyChoGiaoVeSanXuat(
+                        _choGiaoHienTai.Select(x => x.Id).ToList(), lyDo);
+                }, "Đang huỷ chờ giao và trả về sản xuất...");
             }
 
             XtraMessageBox.Show(result.Message, result.IsOK ? "Thành công" : "Lỗi",
@@ -517,8 +524,11 @@ namespace PCTP.VIEWSTOCK.ViewForm
                 return;
             }
 
-            var ungVien = _traHangRepo.TimLotTheoMaHangNgay(
-                maHang, _dateTu.DateTime, _dateDen.DateTime);
+            List<LotUngVienInfo> ungVien = null;
+            RunWithLoadingSync(() =>
+            {
+                ungVien = _traHangRepo.TimLotTheoMaHangNgay(maHang, _dateTu.DateTime, _dateDen.DateTime);
+            }, "Đang tìm LOT theo mã hàng...");
 
             _gridLotUngVien.DataSource = ungVien;
 
@@ -597,11 +607,14 @@ namespace PCTP.VIEWSTOCK.ViewForm
             int idp = Convert.ToInt32(_spinIdp.Value);
             if (idp <= 0) return;
 
-            string query = $"SELECT * FROM TMPPHIEUGIAOHANGDBCT WHERE IDP = {idp}";
-            _donHangDuKien = _sql.ExecuteQuery(_sql.B7R2_FCCdbb, query);
+            RunWithLoadingSync(() =>
+            {
+                string query = $"SELECT * FROM TMPPHIEUGIAOHANGDBCT WHERE IDP = {idp}";
+                _donHangDuKien = _sql.ExecuteQuery(_sql.B7R2_FCCdbb, query);
 
-            var nhom = _traHangRepo.GetNhomLotChuaXuLy(idp);
-            _gridThung.DataSource = nhom;
+                var nhom = _traHangRepo.GetNhomLotChuaXuLy(idp);
+                _gridThung.DataSource = nhom;
+            }, "Đang tải danh sách thùng...");
         }
 
         private void TxtQrThung_KeyDown(object sender, KeyEventArgs e)

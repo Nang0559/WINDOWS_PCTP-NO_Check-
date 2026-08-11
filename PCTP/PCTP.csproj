@@ -753,6 +753,7 @@
     <Compile Include="VIEWSTOCK\FunctionForm\WaitFormExp.Designer.cs">
       <DependentUpon>WaitFormExp.cs</DependentUpon>
     </Compile>
+    <Compile Include="VIEWSTOCK\FunctionForm\WaitFormRunner.cs" />
     <Compile Include="VIEWSTOCK\MainStockSV.cs">
       <SubType>Form</SubType>
     </Compile>
