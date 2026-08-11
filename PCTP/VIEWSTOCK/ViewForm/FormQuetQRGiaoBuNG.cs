@@ -2,8 +2,11 @@
 using DevExpress.XtraGrid;
 using DevExpress.XtraGrid.Columns;
 using DevExpress.XtraGrid.Views.Grid;
+using PCTP.Common;
+using PCTP.Domain.Interfaces;
 using PCTP.Models;
 using PCTP.VIEWSTOCK.FunctionForm;
+using PCTP.VIEWSTOCK.Models;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -20,7 +23,9 @@ namespace PCTP.VIEWSTOCK.ViewForm
     {
         private readonly PhieuGiaoGocInfo _phieuGoc;
     private readonly GiaoBuNGService _service; // ← THÊM: cần để resolve slot ngay khi quét
-    private readonly BindingList<TemFccQuetInfo> _danhSachTem = new BindingList<TemFccQuetInfo>();
+        private readonly CustomerConfig _cfg;
+        private readonly IDocQRRepository _docQrRepo;
+        private readonly BindingList<TemFccQuetInfo> _danhSachTem = new BindingList<TemFccQuetInfo>();
 
     private TextEdit _txtQr;
     private GridControl _gridTem;
@@ -30,27 +35,51 @@ namespace PCTP.VIEWSTOCK.ViewForm
 
     public List<TemFccQuetInfo> DanhSachTemDaQuet => _danhSachTem.ToList();
 
-    public FormQuetQRGiaoBuNG(PhieuGiaoGocInfo phieuGoc, GiaoBuNGService service)
+    public FormQuetQRGiaoBuNG(PhieuGiaoGocInfo phieuGoc, GiaoBuNGService service,CustomerConfig cfg, IDocQRRepository docQrRepo)
     {
         _phieuGoc = phieuGoc;
         _service = service;
-        BuildUI();
-    }
+            _cfg = cfg;
+            _docQrRepo = docQrRepo;
+            BuildUI();
+            Text += TemFccParser.ExpectsTemTong(_cfg)
+           ? "  [Bắn TEM TỔNG - 6 phần]"
+           : "  [Bắn TEM THÙNG - 4 phần]";
+        }
 
-    private void BuildUI()
+        private void BuildUI()
         {
-            Text = $"Quét tem FCC giao bù — Mã hàng: {_phieuGoc.MaHang} — LOT gốc: {_phieuGoc.Lot}";
-            Size = new System.Drawing.Size(700, 500);
+            // 1. Tiêu đề ngắn gọn trên thanh Title Bar
+            Text = "Quét tem FCC giao bù";
+            Size = new System.Drawing.Size(700, 540); // Tăng chiều cao lên chút cho thoáng
             StartPosition = FormStartPosition.CenterParent;
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false;
 
-            var main = new TableLayoutPanel { Dock = DockStyle.Fill, RowCount = 4, ColumnCount = 1, Padding = new Padding(10) };
+            // Tăng số dòng của TableLayoutPanel lên 5 để chứa thêm dòng thông tin
+            var main = new TableLayoutPanel { Dock = DockStyle.Fill, RowCount = 5, ColumnCount = 1, Padding = new Padding(10) };
+
+            // Dòng 0: Dành cho thông tin chi tiết Mã hàng & LOT gốc
+            main.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
+            // Dòng 1: Ô quét QR
             main.RowStyles.Add(new RowStyle(SizeType.Absolute, 45));
+            // Dòng 2: Grid danh sách tem
             main.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            // Dòng 3: Tổng hợp số lượng
             main.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));
+            // Dòng 4: Nút bấm xác nhận/hủy
             main.RowStyles.Add(new RowStyle(SizeType.Absolute, 50));
 
+            // --- Thêm Label hiển thị thông tin chi tiết ở trong form ---
+            var lblInfo = new LabelControl
+            {
+                Dock = DockStyle.Fill,
+                Appearance = { Font = new System.Drawing.Font("Tahoma", 9.5F, System.Drawing.FontStyle.Regular), ForeColor = System.Drawing.Color.DimGray },
+                Text = $"Mã hàng: {_phieuGoc.MaHang}\nLOT gốc: {_phieuGoc.Lot}"
+            };
+            main.Controls.Add(lblInfo, 0, 0);
+
+            // --- Panel quét QR (chuyển xuống dòng 1) ---
             var scanPanel = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2 };
             scanPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 120));
             scanPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
@@ -63,8 +92,9 @@ namespace PCTP.VIEWSTOCK.ViewForm
             _txtQr = new TextEdit { Dock = DockStyle.Fill, Font = new System.Drawing.Font("Tahoma", 12) };
             _txtQr.KeyDown += TxtQr_KeyDown;
             scanPanel.Controls.Add(_txtQr, 1, 0);
-            main.Controls.Add(scanPanel, 0, 0);
+            main.Controls.Add(scanPanel, 0, 1);
 
+            // --- Grid Control (dòng 2) ---
             _gridTem = new GridControl { Dock = DockStyle.Fill, DataSource = _danhSachTem };
             _gridViewTem = new GridView(_gridTem);
             _gridTem.MainView = _gridViewTem;
@@ -80,16 +110,18 @@ namespace PCTP.VIEWSTOCK.ViewForm
                     CapNhatTongHop();
                 }
             };
-            main.Controls.Add(_gridTem, 0, 1);
+            main.Controls.Add(_gridTem, 0, 2);
 
+            // --- Label tổng hợp (dòng 3) ---
             _lblTongHop = new LabelControl
             {
                 Dock = DockStyle.Fill,
                 Appearance = { Font = new System.Drawing.Font("Tahoma", 9.5F, System.Drawing.FontStyle.Bold) },
                 Text = "Đã quét: 0 tem, tổng SL: 0"
             };
-            main.Controls.Add(_lblTongHop, 0, 2);
+            main.Controls.Add(_lblTongHop, 0, 3);
 
+            // --- Bottom Panel (dòng 4) ---
             var bottomPanel = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.RightToLeft };
             _btnXacNhan = new SimpleButton { Text = "✅ Xác nhận giao bù", Width = 160, Height = 40, Enabled = false };
             _btnXacNhan.Appearance.BackColor = System.Drawing.Color.SeaGreen;
@@ -99,7 +131,7 @@ namespace PCTP.VIEWSTOCK.ViewForm
             _btnHuy.Click += (s, e) => { DialogResult = DialogResult.Cancel; Close(); };
             bottomPanel.Controls.Add(_btnXacNhan);
             bottomPanel.Controls.Add(_btnHuy);
-            main.Controls.Add(bottomPanel, 0, 3);
+            main.Controls.Add(bottomPanel, 0, 4);
 
             Controls.Add(main);
         }
@@ -112,32 +144,41 @@ namespace PCTP.VIEWSTOCK.ViewForm
             _txtQr.Clear();
             if (string.IsNullOrEmpty(raw)) return;
 
-            var parts = raw.Split(':');
-            if (parts.Length != 4)
+            var parsed = TemFccParser.Parse(raw, _cfg,
+                getIdMaHangPadded: ma => _docQrRepo.GetIdMaHangPadded(ma),
+                getGearNameByCode: code => _docQrRepo.GetGearName(code));
+
+            if (!parsed.Success)
             {
-                XtraMessageBox.Show("Chỉ được quét tem FCC nội bộ (định dạng 4 phần).\n" +
-                    "Không quét tem khách hàng (HVN) trong màn hình giao bù này.",
-                    "Sai loại tem", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                XtraMessageBox.Show(parsed.ErrorMessage, "Sai định dạng tem",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
-            string lotFcc = parts[0].Trim();
-            string maHangFcc = parts[1].Trim();
-            if (!int.TryParse(parts[3].Trim(), out int slTem))
+            // Chống trùng trong phiên hiện tại — phân biệt theo loại tem:
+            // tem tổng trùng nếu cùng LotFcc + SoPhieu; tem thùng trùng nếu cùng LotFcc.
+            bool daTrung = parsed.IsTongPhieu
+                ? _danhSachTem.Any(t => t.LotFcc == parsed.LotFcc && t.SoPhieu == parsed.SoPhieu)
+                : _danhSachTem.Any(t => t.LotFcc == parsed.LotFcc);
+
+            if (daTrung)
             {
-                XtraMessageBox.Show("Số lượng trên tem không hợp lệ.", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                XtraMessageBox.Show("Tem này đã được quét.", "Trùng tem",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
-            if (_danhSachTem.Any(t => t.LotFcc == lotFcc))
+            var tem = new TemFccQuetInfo
             {
-                XtraMessageBox.Show("Tem này đã được quét.", "Trùng tem", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
+                LotFcc = parsed.LotFcc,
+                MaHangFcc = parsed.MaHangFcc,
+                SlTemFcc = parsed.SlTemFcc,
+                Gear = parsed.Gear,
+                SoPhieu = parsed.SoPhieu,
+                IsTongPhieu = parsed.IsTongPhieu,
+                RawQr = raw
+            };
 
-            var tem = new TemFccQuetInfo { LotFcc = lotFcc, MaHangFcc = maHangFcc, SlTemFcc = slTem, RawQr = raw };
-
-            // ✅ MỚI: resolve ngay khi quét — báo lỗi ngay lập tức nếu LOT chưa nhập kho / không đủ tồn / rải nhiều Slot
             var resolveResult = _service.ResolveTemFcc(_phieuGoc.MaHang, tem);
             if (!resolveResult.IsOK)
             {

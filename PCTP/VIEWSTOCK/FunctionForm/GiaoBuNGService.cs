@@ -1,4 +1,5 @@
 ﻿using PCTP.ClassSQL;
+using PCTP.Common;
 using PCTP.Models;
 using PCTP.VIEWSTOCK.Fuction;
 using PCTP.VIEWSTOCK.Models;
@@ -29,55 +30,110 @@ namespace PCTP.VIEWSTOCK.FunctionForm
         public List<PhieuGiaoGocInfo> TimPhieuGocTheoMaHangNgay(string maHang, DateTime tu, DateTime den)
             => _repo.TimPhieuGocTheoMaHangNgay(maHang, tu, den);
 
-        /// <summary>
-        /// Gọi ngay sau khi user quét 1 tem FCC trong dialog — resolve xem LOT này có thực sự
-        /// đang nằm trong kho (đã qua nhập kho rework bình thường) hay không, và nằm ở Slot nào.
-        /// Nếu LOT nằm rải nhiều Slot, ưu tiên Slot có đủ số lượng lớn nhất; nếu không Slot nào
-        /// đủ riêng lẻ, trả lỗi — KHÔNG tự gộp nhiều Slot cho 1 tem (tem vật lý chỉ nằm ở 1 chỗ).
-        /// </summary>
+        // ════════════════════════════════════════════════════════════════
+        // ResolveTemFcc — gọi NGAY khi quét (FormQuetQRGiaoBuNG.TxtQr_KeyDown)
+        // Kiểm tra: mã hàng khớp phiếu gốc → LOT đã nhập kho (STOCKTP) → đủ
+        // tồn (SLCONLAI) → tìm được Slot vật lý đang chứa LOT này để phân bổ.
+        // Đối xử THỐNG NHẤT cho cả tem thùng lẫn tem tổng — khác biệt duy nhất
+        // là tem tổng còn phải chống trùng SoPhieu qua ExistsGiaoBuTem.
+        // ════════════════════════════════════════════════════════════════
         public ScanResult ResolveTemFcc(string maHangPhieuGoc, TemFccQuetInfo tem)
         {
+            if (tem == null)
+                return ScanResult.Fail("Không có dữ liệu tem.");
+
+            // ── 1. Mã hàng phải khớp phiếu gốc ──────────────────────────
             if (!string.Equals(tem.MaHangFcc, maHangPhieuGoc, StringComparison.OrdinalIgnoreCase))
-                return ScanResult.Fail($"Mã hàng trên tem [{tem.MaHangFcc}] không khớp phiếu gốc [{maHangPhieuGoc}].");
-
-            var stock = _repo.TraCuuLotDaNhapKho(tem.LotFcc);
-            if (stock == null)
                 return ScanResult.Fail(
-                    $"LOT [{tem.LotFcc}] chưa được nhập kho. Vui lòng nhập kho hàng rework qua màn hình " +
-                    "Nhập kho (FormEnterItemSV) trước khi giao bù.");
+                    $"Sai mã hàng!\nTem quét: {tem.MaHangFcc}\nPhiếu gốc cần bù: {maHangPhieuGoc}");
 
-            int slConLai = stock.SlConLai ?? 0;
+            // ── 2. Tem tổng: chống quét lại tem đã dùng giao bù trước đó ─
+            if (tem.IsTongPhieu && _repo.ExistsGiaoBuTem(tem.LotFcc, tem.SoPhieu))
+                return ScanResult.Fail(
+                    $"Tem tổng [Số phiếu: {tem.SoPhieu}] đã được dùng để giao bù trước đó!");
+
+            // ── 3. LOT phải đã nhập kho thật (STOCKTP) ───────────────────
+            var stockItem = _repo.TraCuuLotDaNhapKho(tem.LotFcc);
+            if (stockItem == null)
+                return ScanResult.Fail(
+                    $"LOT [{tem.LotFcc}] chưa từng nhập kho (không có trong STOCKTP).\n" +
+                    "Kiểm tra lại: hàng rework đã được nhập lại kho (Nhập TP) chưa?");
+
+            int slConLai = stockItem.SlConLai ?? 0;
             if (slConLai < tem.SlTemFcc)
                 return ScanResult.Fail(
                     $"LOT [{tem.LotFcc}] chỉ còn tồn {slConLai}, không đủ {tem.SlTemFcc} để giao bù.");
 
-            var slots = _repo.GetSlotsChuaLot(tem.LotFcc);
-            var slotDu = slots.FirstOrDefault(s => s.Quantity >= tem.SlTemFcc);
-            if (slotDu == null)
-                return ScanResult.Fail(
-                    $"LOT [{tem.LotFcc}] đang rải rác ở {slots.Count} Slot, không có Slot nào đủ " +
-                    $"{tem.SlTemFcc} để xuất trực tiếp. Cần gộp Slot thủ công trước khi giao bù.");
+            // ── 4. Tìm Slot vật lý đang giữ LOT này — phân bổ FIFO theo
+            //      ImportDate, giống cách BulkStockAdjustService đang làm ──
+            var slots = _repo.GetSlotsChuaLot(tem.LotFcc)
+                .OrderBy(s => s.ImportDate ?? DateTime.MaxValue)
+                .ToList();
 
-            tem.SlotIdNguon = slotDu.SlotId;
-            tem.SlConLaiTaiSlot = slotDu.Quantity;
+            if (slots.Count == 0)
+                return ScanResult.Fail(
+                    $"LOT [{tem.LotFcc}] có tồn trong STOCKTP ({slConLai}) nhưng không tìm thấy " +
+                    "trong bất kỳ Slot nào (SlotLot) — dữ liệu kho vật lý bị lệch với STOCKTP. " +
+                    "Cần đối soát trước khi giao bù.");
+
+            var phanBo = new List<SlotAllocation>();
+            int conLaiCanPhanBo = tem.SlTemFcc;
+
+            foreach (var s in slots)
+            {
+                if (conLaiCanPhanBo <= 0) break;
+                if (s.Quantity <= 0) continue;
+
+                int lay = Math.Min(conLaiCanPhanBo, s.Quantity);
+                phanBo.Add(new SlotAllocation
+                {
+                    SlotId = s.SlotId,
+                    WarehouseName = s.WarehouseName,
+                    RackName = s.RackName,
+                    SlotNumber = s.SlotNumber,
+                    SoLuong = lay
+                });
+                conLaiCanPhanBo -= lay;
+            }
+
+            if (conLaiCanPhanBo > 0)
+                return ScanResult.Fail(
+                    $"LOT [{tem.LotFcc}]: các Slot đang chứa chỉ cộng lại được " +
+                    $"{tem.SlTemFcc - conLaiCanPhanBo}/{tem.SlTemFcc} — thiếu {conLaiCanPhanBo}. " +
+                    "Tồn kho vật lý (SlotLot) không đủ so với STOCKTP.SLCONLAI, cần đối soát.");
+
+            tem.PhanBoSlot = phanBo;
+            tem.DaResolve = true;
+
             return new ScanResult { IsOK = true };
         }
 
-        /// <summary>
-        /// Xác nhận giao bù — transaction gồm: xuất từng tem khỏi đúng Slot của nó (SlotLot),
-        /// trừ SLCONLAI/cộng SLXUAT ở STOCKTP (KHÔNG đụng SLSX), ghi LUUPHIEUGIAOHANG + LUUDOCQRCODE.
-        /// </summary>
-        public ScanResult XacNhanGiaoBu(PhieuGiaoGocInfo phieuGoc, List<TemFccQuetInfo> temDaQuet, string nguoiThucHien)
+        // ════════════════════════════════════════════════════════════════
+        // XacNhanGiaoBu — 1 transaction duy nhất: trừ SlotLot theo từng
+        // phân bổ → trừ STOCKTP (SLXUAT/SLCONLAI) → lưu LUUDOCQRCODE từng
+        // tem → lưu 1 dòng LUUPHIEUGIAOHANG gộp tất cả tem.
+        // ════════════════════════════════════════════════════════════════
+        public ScanResult XacNhanGiaoBu(PhieuGiaoGocInfo phieuGoc,
+            List<TemFccQuetInfo> temDaQuet, string nguoiThucHien)
         {
             if (phieuGoc == null)
-                return ScanResult.Fail("Chưa chọn phiếu giao gốc cần bù.");
+                return ScanResult.Fail("Chưa chọn phiếu giao gốc.");
+
             if (temDaQuet == null || temDaQuet.Count == 0)
                 return ScanResult.Fail("Chưa quét tem FCC nào.");
-            if (temDaQuet.Any(t => t.SlotIdNguon <= 0))
-                return ScanResult.Fail("Có tem chưa được xác định Slot nguồn — không thể giao bù.");
+
+            // Re-resolve phòng trường hợp UI đưa vào tem chưa qua ResolveTemFcc
+            foreach (var tem in temDaQuet)
+            {
+                if (tem.DaResolve) continue;
+                var rr = ResolveTemFcc(phieuGoc.MaHang, tem);
+                if (!rr.IsOK) return rr;
+            }
 
             int tongSl = temDaQuet.Sum(t => t.SlTemFcc);
-            string lotFccGop = string.Join(",", temDaQuet.Select(t => $"{t.LotFcc}-{t.SlTemFcc}"));
+            if (tongSl < phieuGoc.SoLuong)
+                return ScanResult.Fail(
+                    $"Tổng SL đã quét ({tongSl}) chưa đủ SL cần bù ({phieuGoc.SoLuong}).");
 
             using (var conn = _sql.BeginTransaction(_sql.B7R2_FCCdb, out SqlTransaction tran))
             {
@@ -85,51 +141,72 @@ namespace PCTP.VIEWSTOCK.FunctionForm
                 {
                     foreach (var tem in temDaQuet)
                     {
-                        // ── Xuất khỏi SlotLot (giảm/xoá đúng LOT trong đúng Slot) ──────────
-                        var allLots = _slotRepo.GetSlotLotsInTransaction(conn, tran, tem.SlotIdNguon);
-                        var targetLots = allLots.Where(x => x.LotNo == tem.LotFcc).ToList();
-                        int available = targetLots.Sum(x => x.Quantity);
+                        // ── 1. Trừ SlotLot cho từng phần đã phân bổ ─────────
+                        foreach (var alloc in tem.PhanBoSlot)
+                            TruSlotLotTrongTransaction(conn, tran, alloc.SlotId, tem.LotFcc, alloc.SoLuong);
 
-                        if (tem.SlTemFcc > available)
-                            throw new InvalidOperationException(
-                                $"LOT [{tem.LotFcc}] tại Slot chỉ còn {available}, không đủ {tem.SlTemFcc}.");
-
-                        var split = LotNoHelper.SubtractLots(targetLots, tem.SlTemFcc);
-                        var remaining = allLots.Where(x => x.LotNo != tem.LotFcc)
-                                                .Concat(split.RemainingLots)
-                                                .ToList();
-
-                        _slotRepo.SaveSlotLotsInTransaction(conn, tran, tem.SlotIdNguon, remaining);
-
-                        // ── STOCKTP: chỉ xuất — KHÔNG đụng SLSX ─────────────────────────
+                        // ── 2. Trừ STOCKTP (chỉ SLXUAT/SLCONLAI — KHÔNG đụng SLSX) ─
                         _repo.XuatKhoGiaoBu(conn, tran, tem.LotFcc, tem.SlTemFcc);
+
+                        // ── 3. Lưu lịch sử quét (LUUDOCQRCODE) ──────────────
+                        _repo.InsertLuuDocQRCodeGiaoBu(conn, tran,
+                            tem.LotFcc, tem.MaHangFcc, tem.SlTemFcc,
+                            phieuGoc.NhaMay, phieuGoc.DinhDanhKey);
                     }
 
-                    _repo.InsertLuuPhieuGiaoBu(conn, tran, phieuGoc, lotFccGop, tongSl, nguoiThucHien);
+                    // ── 4. Gộp LOT-SL thành 1 chuỗi, lưu 1 dòng LUUPHIEUGIAOHANG ─
+                    string lotFccGop = string.Join(",",
+                        temDaQuet.Select(t => $"{t.LotFcc}-{t.SlTemFcc}"));
 
-                    foreach (var tem in temDaQuet)
-                        _repo.InsertLuuDocQRCodeGiaoBu(conn, tran,
-                            tem.LotFcc, tem.MaHangFcc, tem.SlTemFcc, phieuGoc.NhaMay, phieuGoc.DinhDanhKey);
+                    _repo.InsertLuuPhieuGiaoBu(conn, tran, phieuGoc, lotFccGop, tongSl, nguoiThucHien);
 
                     tran.Commit();
                 }
                 catch (Exception ex)
                 {
                     tran.Rollback();
-                    return ScanResult.Fail("Lỗi giao bù NG: " + ex.Message);
+                    return ScanResult.Fail("Lỗi khi lưu giao bù: " + ex.Message);
                 }
             }
 
-            // ── Ghi lịch sử Slot sau khi transaction chắc chắn thành công (giống pattern NhapTpReceivingService) ──
-            foreach (var tem in temDaQuet)
-                SlotHelper.SaveHistory("GIAO_BU_NG", tem.MaHangFcc,
-                    new LotInfo { LotNo = tem.LotFcc, Quantity = tem.SlTemFcc }, tem.SlotIdNguon, null);
+            // Báo Canvas kho (nếu đang mở) vẽ lại — dùng lại notifier có sẵn
+            StockChangedNotifier.RaiseStockChanged();
 
             return new ScanResult
             {
                 IsOK = true,
-                Message = $"Đã giao bù {temDaQuet.Count} tem ({tongSl} SP) cho phiếu gốc [{phieuGoc.DinhDanhKey}]."
+                Message = $"Đã giao bù {temDaQuet.Count} tem, tổng SL {tongSl} " +
+                          $"cho phiếu gốc LOT [{phieuGoc.Lot}] (Mã hàng {phieuGoc.MaHang})."
             };
         }
+
+        // ── Helper: trừ đúng 1 dòng SlotLot (theo LotNo) trong Slot, giữ
+        //    nguyên các LOT khác — cùng pattern với BulkStockAdjustService ──
+        private void TruSlotLotTrongTransaction(SqlConnection conn, SqlTransaction tran,
+            int slotId, string lotNo, int soLuongTru)
+        {
+            var lots = _slotRepo.GetSlotLotsInTransaction(conn, tran, slotId);
+
+            string keyTarget = LotCodeHelper.TrimTo(lotNo, LotCodeHelper.LEN_HEAD_FIXED);
+            var target = lots.FirstOrDefault(l =>
+                LotCodeHelper.TrimTo(l.LotNo, LotCodeHelper.LEN_HEAD_FIXED) == keyTarget
+                && l.Quantity > 0);
+
+            if (target == null)
+                throw new InvalidOperationException(
+                    $"Không tìm thấy LOT [{lotNo}] trong Slot #{slotId} (dữ liệu đã thay đổi " +
+                    "giữa lúc quét và lúc xác nhận — vui lòng quét lại).");
+
+            if (target.Quantity < soLuongTru)
+                throw new InvalidOperationException(
+                    $"LOT [{lotNo}] trong Slot #{slotId} chỉ còn {target.Quantity}, " +
+                    $"không đủ {soLuongTru} (có thể đã bị người khác xuất trước).");
+
+            target.Quantity -= soLuongTru;
+
+            var remaining = lots.Where(l => l.Quantity > 0).ToList();
+            _slotRepo.SaveSlotLotsInTransaction(conn, tran, slotId, remaining);
+        }
+    
     }
 }

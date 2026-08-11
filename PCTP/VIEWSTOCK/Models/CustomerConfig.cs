@@ -68,5 +68,13 @@ namespace PCTP.VIEWSTOCK.Models
 
         private static string Sanitize(string n) =>
             System.Text.RegularExpressions.Regex.Replace(n ?? "LOCAL", @"[^A-Za-z0-9_]", "_");
+
+        /// <summary>
+        /// Các chuỗi con (không phân biệt hoa/thường) từng xuất hiện trong cột
+        /// LUUPHIEUGIAOHANG.NHAMAY / vWDinhDanhPhieuGiao.NHAMAY khi khách hàng này
+        /// giao hàng — dùng để resolve ngược từ dữ liệu view về đúng CustomerConfig
+        /// khi không có cột CustomerNo trực tiếp.
+        /// </summary>
+        public string[] NhaMayMatchPatterns { get; set; } = Array.Empty<string>();
     }
 }

@@ -52,5 +52,24 @@ namespace PCTP.Models
         // ── Resolve sau khi tra STOCKTP/Slot — dùng lúc xác nhận giao bù ──
         public int SlotIdNguon { get; set; }
         public int SlConLaiTaiSlot { get; set; }
+        // ── Đặc thù theo loại tem ─────────────────────────────────────────
+        public string Gear { get; set; } = "";     // chỉ có ở 100002 (YMVN)
+        public string SoPhieu { get; set; } = "";  // chỉ có ở tem TỔNG (100003)
+        public bool IsTongPhieu { get; set; }      // true = tem tổng 6 phần
+
+        // ── Kết quả ResolveTemFcc gán vào — dùng lúc XacNhanGiaoBu ─────────
+        public bool DaResolve { get; set; }
+        public List<SlotAllocation> PhanBoSlot { get; set; } = new List<SlotAllocation>();
+
+        public int TongSlDaPhanBo => PhanBoSlot.Sum(x => x.SoLuong);
+    }
+    /// <summary>1 phần số lượng của tem được cấp phát từ 1 Slot cụ thể.</summary>
+    public class SlotAllocation
+    {
+        public int SlotId { get; set; }
+        public string WarehouseName { get; set; }
+        public string RackName { get; set; }
+        public int SlotNumber { get; set; }
+        public int SoLuong { get; set; }
     }
 }

@@ -33,7 +33,8 @@ namespace PCTP.VIEWSTOCK.Models
                     NhaMayCase =
                     "CASE WHEN col.SHIP_ADDR_NO = 1 " +
                     "THEN 'HON DA -VIET NAM- (NHA MAY VINH PHUC)' " +
-                    "ELSE 'HON DA -VIET NAM- (NHA MAY HA NAM)' END"
+                    "ELSE 'HON DA -VIET NAM- (NHA MAY HA NAM)' END",
+                    NhaMayMatchPatterns = new[] { "HON DA" }
                 },
                 ["100003"] = new CustomerConfig
                 {
@@ -55,6 +56,7 @@ namespace PCTP.VIEWSTOCK.Models
                     NhaMayCase =
                       "NHA MAY 100003"  ,          // không cần CASE, trả thẳng
                     OrderTable = "Purchase_Order_HTN",
+                    NhaMayMatchPatterns = new[] { "100003", "HONDA TRADING" }
                 },
                 ["100002"] = new CustomerConfig
                 {
@@ -84,6 +86,7 @@ namespace PCTP.VIEWSTOCK.Models
 
                     NhaMayCase = "YAMAHA - VIET NAM",
                     OrderTable = "Purchase_Order_YMVN",
+                    NhaMayMatchPatterns = new[] { "YAMAHA" }
                 }
             };
 
@@ -92,5 +95,25 @@ namespace PCTP.VIEWSTOCK.Models
             : throw new KeyNotFoundException($"Chưa cấu hình customer: {customerNo}");
 
         public static IEnumerable<CustomerConfig> All => _configs.Values;
+        /// <summary>
+        /// Resolve CustomerConfig từ chuỗi NHAMAY thô lấy được từ view (vD: dòng
+        /// vWDinhDanhPhieuGiao đang chọn). Dùng khi không có sẵn CustomerNo trực tiếp
+        /// trong nguồn dữ liệu. Trả null nếu không khớp — caller PHẢI tự xử lý (báo
+        /// lỗi rõ ràng, không được đoán bừa 1 khách hàng mặc định).
+        /// </summary>
+        public static CustomerConfig ResolveByNhaMay(string nhaMay)
+        {
+            if (string.IsNullOrWhiteSpace(nhaMay)) return null;
+
+            foreach (var cfg in _configs.Values)
+            {
+                foreach (var pattern in cfg.NhaMayMatchPatterns)
+                {
+                    if (nhaMay.IndexOf(pattern, StringComparison.OrdinalIgnoreCase) >= 0)
+                        return cfg;
+                }
+            }
+            return null; // không nhận diện được — để caller quyết định (chặn thao tác)
+        }
     }
 }

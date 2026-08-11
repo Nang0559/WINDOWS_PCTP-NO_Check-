@@ -26,5 +26,12 @@ namespace PCTP.VIEWSTOCK.Repository
 
         // ── CHỈ xuất kho — trừ SLCONLAI, cộng SLXUAT. KHÔNG đụng SLSX ──
         void XuatKhoGiaoBu(SqlConnection conn, SqlTransaction tran, string lot, int soLuong);
+
+        /// <summary>
+        /// Tem TỔNG (100003) có SoPhieu định danh duy nhất — chống quét lại tem tổng
+        /// đã dùng giao bù trước đó (khác với tem thùng, vốn đã bị chặn trùng ở UI
+        /// theo LotFcc trong phiên hiện tại, nhưng không chặn được across-phiên).
+        /// </summary>
+        bool ExistsGiaoBuTem(string lotFcc, string soPhieu);
     }
 }

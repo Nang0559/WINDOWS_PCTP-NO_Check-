@@ -200,5 +200,20 @@ namespace PCTP.VIEWSTOCK.Repository
                 new SqlParameter("@sl", soLuong),
                 new SqlParameter("@lot", lot));
         }
+        // GiaoBuNGRepository.cs — thêm implementation
+        public bool ExistsGiaoBuTem(string lotFcc, string soPhieu)
+        {
+            if (string.IsNullOrWhiteSpace(soPhieu)) return false;
+
+            object kq = _sql.ExecuteScalar(_sql.B7R2_FCCdb,
+                "SELECT COUNT(*) FROM LUUDOCQRCODE " +
+                "WHERE LOTFCC = @lot AND MAFCC = @soPhieu AND KETQUA = 'GIAO_BU_NG'",
+                new[]
+                {
+            new SqlParameter("@lot", lotFcc),
+            new SqlParameter("@soPhieu", soPhieu)
+                });
+            return int.TryParse(kq?.ToString(), out int v) && v > 0;
+        }
     }
 }

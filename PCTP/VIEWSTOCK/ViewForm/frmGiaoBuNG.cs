@@ -3,9 +3,11 @@ using DevExpress.XtraGrid;
 using DevExpress.XtraGrid.Columns;
 using DevExpress.XtraGrid.Views.Grid;
 using PCTP.ClassSQL;
+using PCTP.Infrastructure.Repositories;
 using PCTP.Models;
 using PCTP.VIEWSTOCK.Fuction;
 using PCTP.VIEWSTOCK.FunctionForm;
+using PCTP.VIEWSTOCK.Models;
 using PCTP.VIEWSTOCK.Repository;
 using System;
 using System.Collections.Generic;
@@ -36,6 +38,7 @@ namespace PCTP.VIEWSTOCK.ViewForm
         private SimpleButton _btnThucHienGiaoBu;
 
         private PhieuGiaoGocInfo _phieuGocDangChon;
+        private CustomerConfig _cfgDangChon;
 
         public frmGiaoBuNG()
         {
@@ -117,6 +120,22 @@ namespace PCTP.VIEWSTOCK.ViewForm
             _gridViewPhieuGoc.FocusedRowChanged += (s, e) =>
             {
                 _phieuGocDangChon = _gridViewPhieuGoc.GetFocusedRow() as PhieuGiaoGocInfo;
+                // ✅ Resolve CustomerConfig ngay khi chọn dòng — KHÔNG chờ tới lúc bấm nút
+                _cfgDangChon = _phieuGocDangChon != null
+                    ? CustomerTableConfig.ResolveByNhaMay(_phieuGocDangChon.NhaMay)
+                    : null;
+                if (_phieuGocDangChon != null && _cfgDangChon == null)
+                {
+                    // Không nhận diện được khách hàng — không cho thực hiện giao bù,
+                    // vì không biết phải bắn tem tổng hay tem thùng.
+                    _btnThucHienGiaoBu.Enabled = false;
+                    XtraMessageBox.Show(
+                        $"Không xác định được khách hàng từ Nhà máy: [{_phieuGocDangChon.NhaMay}].\n" +
+                        "Vui lòng kiểm tra lại cấu hình NhaMayMatchPatterns trong CustomerTableConfig.",
+                        "Không nhận diện được khách hàng",
+                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
                 _btnThucHienGiaoBu.Enabled = _phieuGocDangChon != null;
             };
             main.Controls.Add(_gridPhieuGoc, 0, 1);
@@ -181,8 +200,15 @@ namespace PCTP.VIEWSTOCK.ViewForm
         private void BtnThucHienGiaoBu_Click(object sender, EventArgs e)
         {
             if (_phieuGocDangChon == null) return;
-
-            using (var frmQuet = new FormQuetQRGiaoBuNG(_phieuGocDangChon, _service))
+            if (_cfgDangChon == null)
+            {
+                XtraMessageBox.Show("Chưa xác định được khách hàng — không thể thực hiện giao bù.",
+                    "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+            var docQrRepo = new DocQRRepository(_sql, _cfgDangChon);
+            using (var frmQuet = new FormQuetQRGiaoBuNG(
+           _phieuGocDangChon, _service, _cfgDangChon, docQrRepo))
             {
                 if (frmQuet.ShowDialog(this) != DialogResult.OK) return;
 
@@ -197,6 +223,7 @@ namespace PCTP.VIEWSTOCK.ViewForm
                 if (result.IsOK)
                 {
                     _phieuGocDangChon = null;
+                    _cfgDangChon = null;
                     _btnThucHienGiaoBu.Enabled = false;
                     _gridPhieuGoc.DataSource = null;
                 }
