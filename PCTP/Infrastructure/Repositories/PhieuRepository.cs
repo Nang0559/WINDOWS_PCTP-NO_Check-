@@ -3,6 +3,7 @@ using PCTP.Common;
 using PCTP.Domain.Entities;
 using PCTP.Domain.Interfaces;
 using PCTP.FuctionMain;
+using PCTP.Models;
 using PCTP.VIEWSTOCK.Fuction;
 using PCTP.VIEWSTOCK.Models;
 using PCTP.VIEWSTOCK.Repository;
@@ -623,19 +624,28 @@ namespace PCTP.Infrastructure.Repositories
             if (coAnhHuongA0)
                 StockChangedNotifier.RaiseStockChanged();
             // ── (2) MỚI: đóng TMPCHOGIAO tương ứng — best-effort, không throw nếu lỗi ──
+            // PhieuRepository.cs — trong CapNhapKho, thay khối "(2) MỚI: đóng TMPCHOGIAO"
             if (lotsDaXuatThanhCong.Count > 0 && _traHangRepo != null)
             {
                 try
                 {
+                    List<ChoGiaoItem> closedItems;
                     using (var conn = _sql.BeginTransaction(_sql.B7R2_FCCdb, out SqlTransaction tran))
                     {
-                        _traHangRepo.CloseChoGiaoTheoLot(conn, tran, lotsDaXuatThanhCong);
+                        closedItems = _traHangRepo.CloseChoGiaoTheoLotAndReturn(conn, tran, lotsDaXuatThanhCong);
                         tran.Commit();
                     }
+
+                    // ← THÊM: ghi lịch sử EXPORT cho từng thùng đã pick từ Slot thật (SlotIdNguon != null).
+                    // Đây là mốc xác nhận "CNK HVN đã coi LOT này là đã giao" — song song với
+                    // BulkStockAdjustService ghi "EXPORT_AUTO_HVN" cho phần LOT nằm trong A0.
+                    foreach (var it in closedItems.Where(x => x.SlotIdNguon.HasValue))
+                        SlotHelper.SaveHistory("EXPORT_CONFIRMED_HVN", it.MaHang,
+                            new LotInfo { LotNo = it.LotGoc, Quantity = it.SoLuong, TemCode = it.LotThung },
+                            it.SlotIdNguon, null, performedBy: "SYSTEM_HVN_CNK");
                 }
                 catch (Exception ex)
                 {
-                    // Không throw — STOCKTP đã trừ đúng rồi, đây chỉ là bước dọn hiển thị.
                     System.Diagnostics.Debug.WriteLine(
                         $"[CapNhapKho] Không đóng được TMPCHOGIAO: {ex.Message}");
                 }
@@ -737,37 +747,24 @@ namespace PCTP.Infrastructure.Repositories
                 // ký tự 14-20) — cắt 13 có thể match nhầm sang LOT khác cùng ngày/mã hàng/
                 // ca/gear nhưng khác Line/Machine, dẫn tới trừ sai tồn kho.
                 string lot = LotCodeHelper.TrimTo(tach[0], LotCodeHelper.LEN_HEAD_FIXED);
-
+                string matchCondition = LotCodeHelper.BuildLotMatchSql("LOT", $"'{SqlHelper.Esc(lot)}'");
                 if (!int.TryParse(tach[1], out int sl)) continue;
 
                 // ── Kiểm tra tồn kho ─────────────────────────────────────────────
                 string slConlaiRaw = _sql.ExecuteReader(_sql.B7R2_FCCdb,
-                    $"SELECT ISNULL(slconlai,0) FROM STOCKTP " +
-                    $"WHERE SUBSTRING(LOT,1,{LotCodeHelper.LEN_HEAD_FIXED}) = '{SqlHelper.Esc(lot)}'");
+                   $"SELECT ISNULL(slconlai,0) FROM STOCKTP WHERE {matchCondition}");
 
                 if (!int.TryParse(slConlaiRaw, out int slConlai) || slConlai < sl)
                 {
-                    error = new DS_ERR_CNK
-                    {
-                        MH = maHang,
-                        LOT = lot,
-                        SLC = sl,
-                        SLTK = slConlai,
-                        SLT = sl - slConlai,
-                        Ms = "Không đủ tồn kho"
-                    };
+                    error = new DS_ERR_CNK { MH = maHang, LOT = lot, SLC = sl, SLTK = slConlai, SLT = sl - slConlai, Ms = "Không đủ tồn kho" };
                     return false;
                 }
 
-                // ── Trừ kho ──────────────────────────────────────────────────────
                 string gg = ngayGiao + " " + gioGiao + ":00";
                 _sql.ExecuteNonQuery(_sql.B7R2_FCCdb,
                     $"UPDATE t " +
-                    $"SET t.ngayxuat   = '{gg}', " +
-                    $"    t.slxuat     = slxuat + {sl}, " +
-                    $"    t.slconlai   = slconlai - {sl} " +
-                    $"FROM (SELECT TOP 1 * FROM STOCKTP " +
-                    $"      WHERE SUBSTRING(LOT,1,{LotCodeHelper.LEN_HEAD_FIXED}) = '{SqlHelper.Esc(lot)}') t");
+                    $"SET t.ngayxuat = '{gg}', t.slxuat = slxuat + {sl}, t.slconlai = slconlai - {sl} " +
+                    $"FROM (SELECT TOP 1 * FROM STOCKTP WHERE {matchCondition}) t");
 
                 // ── THÊM ĐÚNG CHỖ: chỉ trừ A0 SAU KHI STOCKTP đã trừ thành công ──
                 if (bulkService.TruKhoAoTheoLot(lot, sl))

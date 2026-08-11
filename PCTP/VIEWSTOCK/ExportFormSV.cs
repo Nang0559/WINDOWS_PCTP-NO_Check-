@@ -349,7 +349,7 @@ namespace PCTP.VIEWSTOCK
         {
             string lotGocTruocKhiXuat = slot.LotNo;
             // Xuất tại chỗ: trừ Lot, lưu phần còn lại vào Slot hiện tại, ghi lịch sử xuất.
-            var result = _stockService.ExportFromSlot(slot.SlotId, qty, slot.ItemCode);
+            var result = _stockService.ExportFromSlot(slot.SlotId, qty, slot.ItemCode, actionType: "PICK_CHO_GIAO");
             // ── THÊM: ghi nhận "chờ giao" cho từng LOT đã thực sự bị xuất ─────────
             GhiNhanChoGiao(result.ExportLots, slot.SlotId);
             // Đồng bộ object đang hiển thị (Lots/Quantity/ItemCode/ImportDate/IsOccupied)
@@ -375,7 +375,7 @@ namespace PCTP.VIEWSTOCK
                 slot.SlotId,
                 selectedSlotText,
                 qty,
-                itemCode);
+                itemCode, actionType: "PICK_CHO_GIAO");
 
             if (!moveResult.Success)
             {

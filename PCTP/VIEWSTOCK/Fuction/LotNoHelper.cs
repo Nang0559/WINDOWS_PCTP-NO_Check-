@@ -219,7 +219,7 @@ namespace PCTP.VIEWSTOCK.Fuction
         {
             return new LotInfo
             {
-                LotNo = NormalizeLot(qr.RawLotNo),
+                LotNo = GetStockTpKey(qr.RawLotNo),
 
                 Quantity = qr.Quantity,
 

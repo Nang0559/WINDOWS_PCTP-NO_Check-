@@ -388,37 +388,92 @@ namespace PCTP.VIEWSTOCK.Repository
         WHERE LotGoc IN ({inClause})
           AND TrangThai = 'CHO_GIAO'");
         }
+        // TraHangRepository.cs
+        public List<ChoGiaoItem> CloseChoGiaoTheoLotAndReturn(SqlConnection conn, SqlTransaction tran,
+    IEnumerable<string> lotsDaXuat)
+        {
+            var targets = lotsDaXuat?.Where(l => !string.IsNullOrWhiteSpace(l)).Distinct().ToList();
+            var result = new List<ChoGiaoItem>();
+            if (targets == null || targets.Count == 0) return result;
+
+            // ── Lấy toàn bộ dòng đang CHO_GIAO rồi so khớp bằng AreLotKeysEquivalent
+            // trong C# — không dùng SQL IN(...) vì độ dài khoá LOT (13 vs 20 ký tự)
+            // giữa TMPCHOGIAO.LotGoc và giá trị truyền vào có thể không đồng nhất.
+            var pending = new List<ChoGiaoItem>();
+            using (var cmd = new SqlCommand(
+                "SELECT Id, LotThung, LotGoc, MaHang, SoLuong, SlotIdNguon, PhieuGiaoId, TrangThai " +
+                "FROM TMPCHOGIAO WHERE TrangThai = 'CHO_GIAO'", conn, tran))
+            using (var reader = cmd.ExecuteReader())
+            {
+                while (reader.Read())
+                {
+                    pending.Add(new ChoGiaoItem
+                    {
+                        Id = Convert.ToInt32(reader["Id"]),
+                        LotThung = reader["LotThung"] as string,
+                        LotGoc = reader["LotGoc"] as string,
+                        MaHang = reader["MaHang"] as string,
+                        SoLuong = Convert.ToInt32(reader["SoLuong"]),
+                        SlotIdNguon = reader["SlotIdNguon"] == DBNull.Value ? (int?)null : Convert.ToInt32(reader["SlotIdNguon"]),
+                        TrangThai = reader["TrangThai"] as string
+                    });
+                }
+            }
+
+            var matched = pending
+                .Where(p => targets.Any(t => LotCodeHelper.AreLotKeysEquivalent(p.LotGoc, t)))
+                .ToList();
+            if (matched.Count == 0) return result;
+
+            string idClause = string.Join(",", matched.Select(x => x.Id));
+            using (var cmdUpdate = new SqlCommand(
+                $"UPDATE TMPCHOGIAO SET TrangThai = 'DA_GIAO' WHERE Id IN ({idClause})", conn, tran))
+                cmdUpdate.ExecuteNonQuery();
+
+            return matched; // TrangThai trong list vẫn "CHO_GIAO" cũ nhưng caller chỉ cần LotGoc/SlotIdNguon để log
+        }
         // TraHangRepository.cs — thêm
         /// <summary>Trả về các LOT (trong danh sách truyền vào) đang tồn tại trong bất kỳ
         /// TMPPHIEUGIAOHANG* nào với STATUS != 'OK' — nghĩa là đang chờ CNK bên HVN_PGH.</summary>
         public List<string> LocLotDangChoCNK(IEnumerable<string> lots)
-        {
-            var lotList = lots?.Where(l => !string.IsNullOrWhiteSpace(l)).Distinct().ToList();
-            if (lotList == null || lotList.Count == 0) return new List<string>();
+    => LocLotTheoTrangThaiCNK(lots, daCnk: false);
 
-            string inClause = string.Join(",", lotList.Select(l => $"'{Esc(l)}'"));
-            // Kiểm tra qua bảng TMPPHIEUGIAOHANG chính — nếu bạn có nhiều bảng TMP theo customer
-            // (TmpTableSP, TmpTable_100002...), cân nhắc UNION thêm ở đây.
-            DataTable dt = _sql.ExecuteQuery(_sql.B7R2_FCCdb, $@"
-        SELECT DISTINCT LOT FROM TMPPHIEUGIAOHANG
-        WHERE LOT IN ({inClause}) AND ISNULL(STATUS,'') <> 'OK'");
-
-            return dt.Rows.Cast<DataRow>().Select(r => r["LOT"].ToString()).ToList();
-        }
-        // TraHangRepository.cs
         public List<string> LocLotDaCNK(IEnumerable<string> lots)
+            => LocLotTheoTrangThaiCNK(lots, daCnk: true);
+        /// <summary>
+        /// Kiểm tra hàng loạt xem mỗi LOT trong danh sách có nằm trong TMPPHIEUGIAOHANG
+        /// với trạng thái đã CNK (STATUS='OK') hay chưa CNK (STATUS &lt;&gt; 'OK').
+        /// TMPPHIEUGIAOHANG.LOT là chuỗi ghép "LOT-sl,LOT2-sl2" -> phải STRING_SPLIT
+        /// rồi so khớp qua BuildLotMatchSql (chịu được lệch khoá cũ 13 ký tự / mới 20 ký tự),
+        /// KHÔNG được so trực tiếp bằng LOT IN (...).
+        /// </summary>
+        private List<string> LocLotTheoTrangThaiCNK(IEnumerable<string> lots, bool daCnk)
         {
             var lotList = lots?.Where(l => !string.IsNullOrWhiteSpace(l)).Distinct().ToList();
             if (lotList == null || lotList.Count == 0) return new List<string>();
 
-            string inClause = string.Join(",", lotList.Select(l => $"'{Esc(l)}'"));
-            DataTable dt = _sql.ExecuteQuery(_sql.B7R2_FCCdb, $@"
-                SELECT DISTINCT LOT FROM TMPPHIEUGIAOHANG
-                WHERE LOT IN ({inClause}) AND STATUS = 'OK'");
+            // Bảng ảo chứa các LOT cần kiểm tra — tránh N round-trip
+            var valuesSql = string.Join(",", lotList.Select((l, i) => $"(@lot{i})"));
+            var parameters = lotList.Select((l, i) => new SqlParameter($"@lot{i}", l)).ToList();
 
-            return dt.Rows.Cast<DataRow>().Select(r => r["LOT"].ToString()).ToList();
+            string lotValueExpr = "LTRIM(RTRIM(LEFT(part.value, CHARINDEX('-', part.value + '-') - 1)))";
+            string match = LotCodeHelper.BuildLotMatchSql(lotValueExpr, "input.LotIn");
+            string statusCond = daCnk ? "g.STATUS = 'OK'" : "ISNULL(g.STATUS,'') <> 'OK'";
+
+            string sql = $@"
+        SELECT DISTINCT input.LotIn
+        FROM (VALUES {valuesSql}) AS input(LotIn)
+        CROSS JOIN TMPPHIEUGIAOHANG g
+        CROSS APPLY STRING_SPLIT(g.LOT, ',') part
+        WHERE part.value <> '' AND {statusCond} AND {match}";
+
+            DataTable dt = _sql.ExecuteQuery(_sql.B7R2_FCCdb, sql, parameters);
+
+            // Trả về đúng chuỗi LOT ĐẦU VÀO (LotGoc) — không trả giá trị thô từ DB —
+            // để caller (HuyChoGiaoVeSanXuat) dùng .Contains(x.LotGoc) khớp chính xác,
+            // bất kể format lưu trong TMPPHIEUGIAOHANG khác gì so với LotGoc truyền vào.
+            return dt.Rows.Cast<DataRow>().Select(r => r["LotIn"].ToString()).ToList();
         }
-
         public int GetSlXuatHienTai(string lot)
         {
             string match = LotCodeHelper.BuildLotMatchSql("LOT", "@lot");

@@ -55,5 +55,9 @@ namespace PCTP.VIEWSTOCK.Repository
         List<LotUngVienInfo> TimLotTheoMaHangNgay(string maHang, DateTime tuNgay, DateTime denNgay);
         List<ChoGiaoItem> GetChoGiaoTheoLot(string lotGoc);
         List<SlotChuaLotInfo> GetSlotsChuaLot(string lot);
+
+        // ITraHangRepository.cs
+        List<ChoGiaoItem> CloseChoGiaoTheoLotAndReturn(SqlConnection conn, SqlTransaction tran,
+            IEnumerable<string> lotsDaXuat);
     }
 }

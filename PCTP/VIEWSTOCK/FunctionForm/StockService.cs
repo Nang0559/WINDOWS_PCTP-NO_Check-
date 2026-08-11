@@ -204,7 +204,7 @@ namespace PCTP.VIEWSTOCK.FunctionForm
         /// (LotNoHelper.SubtractLots), cập nhật lại Slot với các lot còn lại, ghi lịch sử xuất
         /// cho từng lot đã xuất.
         /// </summary>
-        public LotSplitResult ExportFromSlot(int slotId, int exportQty, string itemCode = null)
+        public LotSplitResult ExportFromSlot(int slotId, int exportQty, string itemCode = null, string actionType = "EXPORT")
         {
             var currentLots = _slotHelper.GetSlotLots(slotId);
             var result = LotNoHelper.SubtractLots(currentLots, exportQty);
@@ -218,7 +218,7 @@ namespace PCTP.VIEWSTOCK.FunctionForm
             foreach (var exportedLot in result.ExportLots)
             {
                 SlotHelper.SaveHistory(
-                    "EXPORT",
+                    actionType,
                     itemCode ?? exportedLot.QRInfo?.ItemCode,
                     exportedLot,
                     fromSlotId: slotId,
@@ -256,7 +256,7 @@ namespace PCTP.VIEWSTOCK.FunctionForm
             int fromSlotId,
             string toSlotSelectedText,
             int exportQty,
-            string itemCode = null)
+            string itemCode = null, string actionType = "EXPORT")
         {
             SlotHelper.ParseSlotString(toSlotSelectedText, out string whDest, out string rackDest, out int slotNumber, out int capacity);
             int toSlotId = _slotHelper.GetSlotID(whDest, rackDest, slotNumber);
@@ -288,7 +288,7 @@ namespace PCTP.VIEWSTOCK.FunctionForm
             _slotHelper.ClearSlot(fromSlotId);
 
             foreach (var lot in split.ExportLots)
-                SlotHelper.SaveHistory("EXPORT", itemCode ?? lot.QRInfo?.ItemCode, lot, fromSlotId, toSlotId: null);
+                SlotHelper.SaveHistory(actionType, itemCode ?? lot.QRInfo?.ItemCode, lot, fromSlotId, toSlotId: null);
 
             foreach (var lot in split.RemainingLots)
                 SlotHelper.SaveHistory("MOVE", itemCode ?? lot.QRInfo?.ItemCode, lot, fromSlotId, toSlotId);

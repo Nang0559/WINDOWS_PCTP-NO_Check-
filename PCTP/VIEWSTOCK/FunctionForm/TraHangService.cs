@@ -178,7 +178,7 @@ namespace PCTP.VIEWSTOCK.FunctionForm
             if (!int.TryParse(parts[3].Trim(), out int slThung))
                 return ScanResult.Fail("Số lượng trên tem không hợp lệ.");
 
-            string lotGoc = LotNoHelper.NormalizeLot(lotThung);
+            string lotGoc = LotNoHelper.GetStockTpKey(lotThung);
 
             // b. Mã hàng phải khớp 1 dòng trong phiếu dự kiến
             bool coTrongPhieu = donHangDuKien.Rows.Cast<DataRow>()
@@ -268,6 +268,7 @@ namespace PCTP.VIEWSTOCK.FunctionForm
         /// trừ SLXUAT và tự đóng TMPCHOGIAO (xem PhieuRepository.CapNhapKho).
         /// Gọi cả 2 cho cùng 1 LOT sẽ trừ SLXUAT 2 lần.
         /// </summary>
+        // TraHangService.cs
         public ScanResult XacNhanDaGiao(List<int> choGiaoIds)
         {
             if (choGiaoIds == null || choGiaoIds.Count == 0)
@@ -280,7 +281,6 @@ namespace PCTP.VIEWSTOCK.FunctionForm
             if (items.Count == 0)
                 return ScanResult.Fail("Các dòng đã chọn không còn ở trạng thái chờ giao.");
 
-            // ── Guard: cảnh báo nếu LOT này đã có mặt trong TMPPHIEUGIAOHANG (đang chờ CNK) ──
             var lotTrungHVN = _traHangRepo.LocLotDangChoCNK(items.Select(x => x.LotGoc).Distinct());
             if (lotTrungHVN.Count > 0)
                 return ScanResult.Fail(
@@ -308,6 +308,15 @@ namespace PCTP.VIEWSTOCK.FunctionForm
                     return ScanResult.Fail("Lỗi xác nhận giao hàng: " + ex.Message);
                 }
             }
+
+            // ← THÊM: ghi lịch sử EXPORT sau khi transaction chắc chắn thành công.
+            // Đây là mốc "hàng thực sự rời kho" — khớp với việc STOCKTP.SLXUAT vừa
+            // bị trừ vĩnh viễn ở trên. Ghi theo TỪNG THÙNG (item), giữ SlotIdNguon
+            // để biết hàng xuất phát từ Slot nào, khác với ghi theo LOT gộp.
+            foreach (var it in items)
+                SlotHelper.SaveHistory("EXPORT", it.MaHang,
+                    new LotInfo { LotNo = it.LotGoc, Quantity = it.SoLuong, TemCode = it.LotThung },
+                    it.SlotIdNguon, null, performedBy: "SYSTEM_XAC_NHAN_GIAO");
 
             return new ScanResult
             {
