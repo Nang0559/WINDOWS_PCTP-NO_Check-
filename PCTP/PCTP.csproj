@@ -320,10 +320,10 @@
     <Compile Include="Shared\Models\TraHangModels.cs" />
     <Compile Include="Presentation\Presenters\HVN_Presenter.cs" />
     <Compile Include="Presentation\Views\IHVNView.cs" />
-    <Compile Include="Modules\GiaoHangKhach\HVN\FRM_CHON_LOT_KHO.cs">
+    <Compile Include="Modules\GiaoHangKhach\SubForm\FRM_CHON_LOT_KHO.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="Modules\GiaoHangKhach\HVN\FRM_CHON_LOT_KHO.Designer.cs">
+    <Compile Include="Modules\GiaoHangKhach\SubForm\FRM_CHON_LOT_KHO.Designer.cs">
       <DependentUpon>FRM_CHON_LOT_KHO.cs</DependentUpon>
     </Compile>
     <Compile Include="Legacy_Archive\TEST\TEST.cs">
@@ -439,10 +439,10 @@
     </Compile>
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Legacy_Archive\TraHangMP\FRM_LISTRUNGMSL.cs">
+    <Compile Include="Modules\GiaoHangKhach\SubForm\FRM_LISTRUNGMSL.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="Legacy_Archive\TraHangMP\FRM_LISTRUNGMSL.Designer.cs">
+    <Compile Include="Modules\GiaoHangKhach\SubForm\FRM_LISTRUNGMSL.Designer.cs">
       <DependentUpon>FRM_LISTRUNGMSL.cs</DependentUpon>
     </Compile>
     <Compile Include="Modules\GiaoHangKhach\NhanLaiNG\ComaprePart\ComaparePart.cs">
@@ -459,10 +459,10 @@
       <DesignTime>True</DesignTime>
       <DependentUpon>DataSet1.xsd</DependentUpon>
     </Compile>
-    <Compile Include="Legacy_Archive\FRM_SUALOTHVN.cs">
+    <Compile Include="Modules\GiaoHangKhach\SubForm\FRM_SUALOTHVN.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="Legacy_Archive\FRM_SUALOTHVN.Designer.cs">
+    <Compile Include="Modules\GiaoHangKhach\SubForm\FRM_SUALOTHVN.Designer.cs">
       <DependentUpon>FRM_SUALOTHVN.cs</DependentUpon>
     </Compile>
     <Compile Include="Legacy_Archive\GIODAGIAHANG.cs">
@@ -520,16 +520,16 @@
     <Compile Include="Legacy_Archive\Form1.Designer.cs">
       <DependentUpon>Form1.cs</DependentUpon>
     </Compile>
-    <Compile Include="Modules\GiaoHangKhach\HVN\frm_err-cnk.cs">
+    <Compile Include="Modules\GiaoHangKhach\SubForm\frm_err-cnk.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="Modules\GiaoHangKhach\HVN\frm_err-cnk.Designer.cs">
+    <Compile Include="Modules\GiaoHangKhach\SubForm\frm_err-cnk.Designer.cs">
       <DependentUpon>frm_err-cnk.cs</DependentUpon>
     </Compile>
-    <Compile Include="Modules\GiaoHangKhach\HVN\FRM_HTIN.cs">
+    <Compile Include="Modules\GiaoHangKhach\SubForm\FRM_HTIN.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="Modules\GiaoHangKhach\HVN\FRM_HTIN.Designer.cs">
+    <Compile Include="Modules\GiaoHangKhach\SubForm\FRM_HTIN.Designer.cs">
       <DependentUpon>FRM_HTIN.cs</DependentUpon>
     </Compile>
     <Compile Include="Modules\GiaoHangKhach\HVN\FuctionQR\UF_QRCodeERR.cs">
@@ -634,10 +634,10 @@
     <Compile Include="Modules\GiaoHangKhach\Reports\YMVN_PGH.Designer.cs">
       <DependentUpon>YMVN_PGH.cs</DependentUpon>
     </Compile>
-    <Compile Include="Legacy_Archive\THEMPDB.cs">
+    <Compile Include="Modules\GiaoHangKhach\SubForm\THEMPDB.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="Legacy_Archive\THEMPDB.Designer.cs">
+    <Compile Include="Modules\GiaoHangKhach\SubForm\THEMPDB.Designer.cs">
       <DependentUpon>THEMPDB.cs</DependentUpon>
     </Compile>
     <Compile Include="Legacy_Archive\TraHangMP\frm_TraMP.cs">
@@ -1030,7 +1030,7 @@
     <EmbeddedResource Include="Acess Image\WaitForm3.resx">
       <DependentUpon>WaitForm3.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="Modules\GiaoHangKhach\HVN\FRM_CHON_LOT_KHO.resx">
+    <EmbeddedResource Include="Modules\GiaoHangKhach\SubForm\FRM_CHON_LOT_KHO.resx">
       <DependentUpon>FRM_CHON_LOT_KHO.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Legacy_Archive\TEST\TEST.resx">
@@ -1101,13 +1101,13 @@
       <DependentUpon>Resources.resx</DependentUpon>
       <DesignTime>True</DesignTime>
     </Compile>
-    <EmbeddedResource Include="Legacy_Archive\TraHangMP\FRM_LISTRUNGMSL.resx">
+    <EmbeddedResource Include="Modules\GiaoHangKhach\SubForm\FRM_LISTRUNGMSL.resx">
       <DependentUpon>FRM_LISTRUNGMSL.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Modules\GiaoHangKhach\NhanLaiNG\ComaprePart\ComaparePart.resx">
       <DependentUpon>ComaparePart.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="Legacy_Archive\FRM_SUALOTHVN.resx">
+    <EmbeddedResource Include="Modules\GiaoHangKhach\SubForm\FRM_SUALOTHVN.resx">
       <DependentUpon>FRM_SUALOTHVN.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Legacy_Archive\GIODAGIAHANG.resx">
@@ -1131,10 +1131,10 @@
     <EmbeddedResource Include="Modules\GiaoHangKhach\HVN\Edit_DH.resx">
       <DependentUpon>Edit_DH.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="Modules\GiaoHangKhach\HVN\frm_err-cnk.resx">
+    <EmbeddedResource Include="Modules\GiaoHangKhach\SubForm\frm_err-cnk.resx">
       <DependentUpon>frm_err-cnk.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="Modules\GiaoHangKhach\HVN\FRM_HTIN.resx">
+    <EmbeddedResource Include="Modules\GiaoHangKhach\SubForm\FRM_HTIN.resx">
       <DependentUpon>FRM_HTIN.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Modules\GiaoHangKhach\HVN\FuctionQR\UF_QRCodeERR.resx">
@@ -1188,7 +1188,7 @@
     <EmbeddedResource Include="Modules\GiaoHangKhach\Reports\YMVN_PGH.resx">
       <DependentUpon>YMVN_PGH.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="Legacy_Archive\THEMPDB.resx">
+    <EmbeddedResource Include="Modules\GiaoHangKhach\SubForm\THEMPDB.resx">
       <DependentUpon>THEMPDB.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Legacy_Archive\TraHangMP\frm_TraMP.resx">
