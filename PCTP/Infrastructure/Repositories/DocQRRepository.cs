@@ -1,4 +1,5 @@
 ﻿using PCTP.ClassSQL;
+using PCTP.Common;
 using PCTP.Domain.Entities;
 using PCTP.Domain.Interfaces;
 using PCTP.VIEWSTOCK.Models;
@@ -456,15 +457,16 @@ namespace PCTP.Infrastructure.Repositories
             return int.TryParse(raw, out int v) ? v : 0;
         }
 
-        public bool KiemTraTrungTemTong(string lotFcc, string soPhieu,
-            string docQrTable)
+        public bool KiemTraTrungTemTong(string lotFcc, string soPhieu, string docQrTable)
         {
+            string matchCondition = LotCodeHelper.BuildLotMatchSql("LOTFCC", "@lot");
+
             object kq = _sql.ExecuteScalar(_sql.B7R2_FCCdb,
                 $"SELECT COUNT(*) FROM {Q(docQrTable)} " +
-                $"WHERE LOTFCC = @lot AND SOPHIEU = @sophieu",
+                $"WHERE {matchCondition} AND SOPHIEU = @sophieu",
                 new SqlParameter[] {
-                new SqlParameter("@lot",     lotFcc),
-                new SqlParameter("@sophieu", soPhieu)
+            new SqlParameter("@lot",     lotFcc),
+            new SqlParameter("@sophieu", soPhieu)
                 });
             return int.TryParse(kq?.ToString(), out int v) && v > 0;
         }
