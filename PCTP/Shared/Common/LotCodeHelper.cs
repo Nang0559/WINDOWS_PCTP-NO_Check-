@@ -311,5 +311,14 @@ namespace PCTP.Common
                 $"   AND SUBSTRING({columnExpr},1,{LEN_LEGACY_KEY}) = SUBSTRING({literalOrParam},1,{LEN_LEGACY_KEY})) " +
                 $")";
         }
+        public static string BuildLegacyShortLot(string rawLot, string idPadded)
+        {
+            if (string.IsNullOrEmpty(rawLot) || string.IsNullOrEmpty(idPadded))
+                return rawLot;
+
+            return rawLot.Length > LEN_LEGACY_KEY
+                ? rawLot.Substring(0, LEN_DATE) + idPadded + rawLot.Substring(LEN_LEGACY_KEY, 1)
+                : rawLot;
+        }
     }
 }

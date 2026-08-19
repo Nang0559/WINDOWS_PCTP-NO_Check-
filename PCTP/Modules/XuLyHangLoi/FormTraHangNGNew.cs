@@ -7,6 +7,7 @@ using PCTP.ClassSQL;
 using PCTP.Common;
 using PCTP.Domain.Entities;
 using PCTP.Models;
+using PCTP.Shared.Helpers;
 using PCTP.VIEWSTOCK.Fuction;
 using PCTP.VIEWSTOCK.FunctionForm;
 using PCTP.VIEWSTOCK.Models;
@@ -31,6 +32,7 @@ namespace PCTP.VIEWSTOCK.ViewForm
         private readonly TraHangService _traHangService;
         private readonly StockService _stockService;
         private readonly IPhieuLoiRepository _phieuLoiRepo;
+        private readonly IWaitFormService _waitFormService;
         private List<ChoGiaoItem> _choGiaoHienTai = new List<ChoGiaoItem>();
         private List<SlotChuaLotInfo> _danhSachSlotChuaLot = new List<SlotChuaLotInfo>();
         public int? PreselectPhieuBatThuongId { get; set; }
@@ -82,8 +84,8 @@ namespace PCTP.VIEWSTOCK.ViewForm
             _traHangRepo = new TraHangRepository(_sql);
             _stockService = new StockService();
             _phieuLoiRepo = new PhieuLoiRepository(_sql);
-            _traHangService = new TraHangService(_sql, _stockTpRepo, _traHangRepo, _stockService,_phieuLoiRepo);
-
+            _traHangService = new TraHangService(_sql, _stockTpRepo, _traHangRepo,_phieuLoiRepo, _stockService);
+            _waitFormService = new WaitFormService(this);
             BuildUI();
         }
         public FormTraHangNGNew(int? preselectPhieuBatThuongId = null) : this()
@@ -101,8 +103,7 @@ namespace PCTP.VIEWSTOCK.ViewForm
             _tabs.TabPages.Add(BuildTabKhachTra());
             Controls.Add(_tabs);
         }
-        private void RunWithLoadingSync(Action action, string caption = "Đang xử lý...")
-        => WaitFormRunner.RunWithLoadingSync(this, action, caption);
+       
         // ════════════════════════════════════════════════════════════
         // TAB 1 — Trả hàng đang lưu kho về sản xuất (Luồng 1a/1b)
         // ════════════════════════════════════════════════════════════
@@ -394,8 +395,9 @@ namespace PCTP.VIEWSTOCK.ViewForm
 
         private void TraCuuLot(string lot)
         {
-            RunWithLoadingSync(() =>
-            {
+            _waitFormService.Run(
+            () =>
+             {
                 _currentStock = _stockTpRepo.GetByLot(lot);
 
                 var lichSuGiao = _traHangRepo.GetLichSuGiaoHangTheoLot(lot);
@@ -527,7 +529,7 @@ namespace PCTP.VIEWSTOCK.ViewForm
                 if (XtraMessageBox.Show($"Trả {sl} SP của LOT [{_currentStock.Lot}] về sản xuất để rework?",
                     "Xác nhận", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
 
-                RunWithLoadingSync(() =>
+                _waitFormService.Run(() =>
                 {
                     result = _traHangService.TraHangSanXuatTheoPhieuBatThuong(
                         _phieuQCHienTai.Id, _slotIdHienTai, _currentStock.Lot, sl, lyDo);
@@ -540,7 +542,7 @@ namespace PCTP.VIEWSTOCK.ViewForm
                     $"Huỷ {_choGiaoHienTai.Count} thùng chờ giao ({tongSl} SP) của LOT [{_currentStock.Lot}], trả về sản xuất?",
                     "Xác nhận", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
 
-                RunWithLoadingSync(() =>
+                _waitFormService.Run(() =>
                 {
                     result = _traHangService.HuyChoGiaoVeSanXuatTheoLot(
                         _currentStock.Lot, _choGiaoHienTai.Select(x => x.Id).ToList(), lyDo);
@@ -577,7 +579,7 @@ namespace PCTP.VIEWSTOCK.ViewForm
             }
 
             List<LotUngVienInfo> ungVien = null;
-            RunWithLoadingSync(() =>
+            _waitFormService.Run(() =>
             {
                 ungVien = _traHangRepo.TimLotTheoMaHangNgay(maHang, _dateTu.DateTime, _dateDen.DateTime);
             }, "Đang tìm LOT theo mã hàng...");
@@ -668,10 +670,10 @@ namespace PCTP.VIEWSTOCK.ViewForm
             int idp = Convert.ToInt32(_spinIdp.Value);
             if (idp <= 0) return;
 
-            RunWithLoadingSync(() =>
+            _waitFormService.Run(() =>
             {
                 string query = $"SELECT * FROM TMPPHIEUGIAOHANGDBCT WHERE IDP = {idp}";
-                _donHangDuKien = _sql.ExecuteQuery(_sql.B7R2_FCCdbb, query);
+                _donHangDuKien = _sql.LoadData1(_sql.B7R2_FCCdbb, query);
 
                 var nhom = _traHangRepo.GetNhomLotChuaXuLy(idp);
                 _gridThung.DataSource = nhom;

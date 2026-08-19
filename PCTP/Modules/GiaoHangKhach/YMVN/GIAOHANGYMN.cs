@@ -366,7 +366,7 @@ namespace PCTP.QRCODE_HVN.YMN
                                      " from Purchase_Order_YMVN where   CONVERT(VARCHAR(10), NgayGiao, 101) = '" + N_XHSQL + "' and CONVERT(VARCHAR, NgayGiao, 108) in (" + GX + ") and CUA = 'VSP1' order by NgayGiao";
                 }    
             }
-            TB_SQL = sqlBRV.ExecuteQuery(sqlBRV.B7R2_FCCdb, sql);
+            TB_SQL = sqlBRV.LoadData1(sqlBRV.B7R2_FCCdb, sql);
 
             if (TB_SQL.Rows.Count > 0)
             {
@@ -573,7 +573,7 @@ namespace PCTP.QRCODE_HVN.YMN
 
             DataTable TMPGH = new DataTable();
             sql = "select CONVERT(VARCHAR(10), NgayGiao, 101) as NG from SP_TMPPHIEUGIAOHANG group by CONVERT(VARCHAR(10), NgayGiao, 101)";
-            TMPGH = sqlBRV.ExecuteQuery(sqlBRV.B7R2_FCCdb, sql);
+            TMPGH = sqlBRV.LoadData1(sqlBRV.B7R2_FCCdb, sql);
             string ngayg = TMPGH.Rows[0]["NG"].ToString();
             dateNG.DateTime = Convert.ToDateTime(DateTime.ParseExact(ngayg, "MM/dd/yyyy", CultureInfo.InvariantCulture));
 
@@ -583,7 +583,7 @@ namespace PCTP.QRCODE_HVN.YMN
           LOADGX();
             KT = false;
             sql = "select NGAYGIAO,GIOGIAO from SP_TMPPHIEUGIAOHANG group by NGAYGIAO,GIOGIAO";
-            TMPGH = sqlBRV.ExecuteQuery(sqlBRV.B7R2_FCCdb, sql);
+            TMPGH = sqlBRV.LoadData1(sqlBRV.B7R2_FCCdb, sql);
             for (int i = 0; i < TMPGH.Rows.Count; i++)
             {
                 object ngaygiao = TMPGH.Rows[i].Field<DateTime>("NGAYGIAO");
@@ -605,7 +605,7 @@ namespace PCTP.QRCODE_HVN.YMN
             sql = " select STT, NGAYGIAO as WANTED_DELIVERY_DATE,SLGIAO as BUY_QTY_DUE,'pcs' as DV,'' as Gear,NHAMAY,PO_NO as PO,MAHANG as CUSTOMER_PART_NO,TENHANG as CATALOG_DESC,CUA as DOCK_CODE, " +
                    " '' AS HOP,LOTNO as LOT,STATUS  from SP_TMPPHIEUGIAOHANG ";
             DataTable TMPPGH = new DataTable();
-            TMPPGH = sqlBRV.ExecuteQuery(sqlBRV.B7R2_FCCdb, sql);
+            TMPPGH = sqlBRV.LoadData1(sqlBRV.B7R2_FCCdb, sql);
             gridCtrDONHANG.DataSource = TMPPGH;
             //gridCtrDONHANG.RefreshDataSource();
             DataSet GHEPLOT = sqlBRV.ExecuteProcedureReturnDataSet(sqlBRV.B7R2_FCCdb, "Usp_Qrcode_gheplotYM1");
@@ -618,7 +618,7 @@ namespace PCTP.QRCODE_HVN.YMN
         {
             Boolean KQ;
             string sql = "select lotno,status from SP_tmpphieugiaohang where lotno <> ''";
-            DataTable SKQ = sqlBRV.ExecuteQuery(sqlBRV.B7R2_FCCdb, sql);
+            DataTable SKQ = sqlBRV.LoadData1(sqlBRV.B7R2_FCCdb, sql);
 
             if (SKQ.Rows.Count > 1)
             {
@@ -637,13 +637,13 @@ namespace PCTP.QRCODE_HVN.YMN
 
             DataTable TMPGH = new DataTable();
             sql = "select CONVERT(VARCHAR(10), NgayGiao, 101) as NG from YMVN_TMPPHIEUGIAOHANG group by CONVERT(VARCHAR(10), NgayGiao, 101)";
-            TMPGH = sqlBRV.ExecuteQuery(sqlBRV.B7R2_FCCdb, sql);
+            TMPGH = sqlBRV.LoadData1(sqlBRV.B7R2_FCCdb, sql);
             string ngayg = TMPGH.Rows[0]["NG"].ToString();
             dateNG.DateTime = Convert.ToDateTime(DateTime.ParseExact(ngayg, "MM/dd/yyyy", CultureInfo.InvariantCulture));
             LOADGX();
             KT = false;
                 sql = "select NGAYGIAO,GIOGIAO from YMVN_TMPPHIEUGIAOHANG group by NGAYGIAO,GIOGIAO";
-                TMPGH = sqlBRV.ExecuteQuery(sqlBRV.B7R2_FCCdb, sql);
+                TMPGH = sqlBRV.LoadData1(sqlBRV.B7R2_FCCdb, sql);
                 for (int i = 0; i < TMPGH.Rows.Count; i++)
                 {
                     object ngaygiao = TMPGH.Rows[i].Field<DateTime>("NGAYGIAO");
@@ -665,7 +665,7 @@ namespace PCTP.QRCODE_HVN.YMN
             sql = " select STT, NGAYGIAO as WANTED_DELIVERY_DATE,SOLUONG as BUY_QTY_DUE,DV,NHAMAY,CUA as PO,MAHANG as CUSTOMER_PART_NO,TENHANG as CATALOG_DESC,TRUYEN as DOCK_CODE, " +
                    " '' AS HOP,LOT,STATUS,TTPHIEU as Gear  from YMVN_TMPPHIEUGIAOHANG ";
                 DataTable TMPPGH = new DataTable();
-                TMPPGH = sqlBRV.ExecuteQuery(sqlBRV.B7R2_FCCdb, sql);
+                TMPPGH = sqlBRV.LoadData1(sqlBRV.B7R2_FCCdb, sql);
                 gridCtrDONHANG.DataSource = TMPPGH;
             //gridCtrDONHANG.RefreshDataSource();
             DataSet GHEPLOT = sqlBRV.ExecuteProcedureReturnDataSet(sqlBRV.B7R2_FCCdb, "Usp_Qrcode_gheplotYM1");
@@ -687,7 +687,7 @@ namespace PCTP.QRCODE_HVN.YMN
                      //  " CONVERT(VARCHAR(8), NgayGiao, 101) AS DATES " +
                      " from Purchase_Order_YMVN " +
                      " where CONVERT(VARCHAR(10), NgayGiao, 101) = '" + N_XHG + "' group by NgayGiao order by NgayGiao ";
-            tblGX = sqlBRV.ExecuteQuery(sqlBRV.B7R2_FCCdb, sql);
+            tblGX = sqlBRV.LoadData1(sqlBRV.B7R2_FCCdb, sql);
       
             for (int i = 0; i < tblGX.Rows.Count; i++)
             {
@@ -905,7 +905,7 @@ namespace PCTP.QRCODE_HVN.YMN
             DataTable TONKHOTHEOMA1 = new DataTable();
             DataTable TONKHOTHEOMATMP = new DataTable();
             TONKHOTHEOMA1.Clear();
-            TONKHOTHEOMA1 = sqlBRV.ExecuteQuery(sqlBRV.B7R2_FCCdb, sql);
+            TONKHOTHEOMA1 = sqlBRV.LoadData1(sqlBRV.B7R2_FCCdb, sql);
             // Lấy tồn kho tổng của mã hàng.
 
             //Duyệt Đơn hàng và với kho .
@@ -948,7 +948,7 @@ namespace PCTP.QRCODE_HVN.YMN
                 {
                     sqlTMP = "select lot,part,isnull(slconlai,0) as slconlai ,isnull(slconlaitmp,0) as slconlaitmp  from stocktp where part = '" + PartNo + "' and slconlai > 0  order by lot";
                 }    
-                TONKHOTHEOMATMP = sqlBRV.ExecuteQuery(sqlBRV.B7R2_FCCdb, sqlTMP);
+                TONKHOTHEOMATMP = sqlBRV.LoadData1(sqlBRV.B7R2_FCCdb, sqlTMP);
                 // Duyệt Hàng theo TMP tồn kho .
                 //if(PartNo = "")
                 Boolean canghep = false;
@@ -1491,7 +1491,7 @@ namespace PCTP.QRCODE_HVN.YMN
         {
             Boolean KQ;
             string sql = "select lot,status from YMVN_TMPPHIEUGIAOHANG where lot <> ''";
-            DataTable SKQ = sqlBRV.ExecuteQuery(sqlBRV.B7R2_FCCdb, sql);
+            DataTable SKQ = sqlBRV.LoadData1(sqlBRV.B7R2_FCCdb, sql);
 
             if (SKQ.Rows.Count > 1)
             {
@@ -1564,7 +1564,7 @@ namespace PCTP.QRCODE_HVN.YMN
             {
                 sql = "select STT,LOTNO,MAHANG,GIOGIAO,PO_NO as CUA,STATUS from SP_TMPPHIEUGIAOHANG where LOTNO <> '' and (STATUS != 'OK' or STATUS is null )  order by STT";
             }
-                BANGTAM = sqlBRV.ExecuteQuery(sqlBRV.B7R2_FCCdb, sql);
+                BANGTAM = sqlBRV.LoadData1(sqlBRV.B7R2_FCCdb, sql);
             if (BANGTAM.Rows.Count == 0)
             {
                 MessageBox.Show("Bạn chưa cập nhập được kho vì chưa hoàn thành phiếu !", "Thông Báo !", MessageBoxButtons.OK, MessageBoxIcon.Error);

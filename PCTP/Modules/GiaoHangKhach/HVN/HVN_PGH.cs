@@ -454,28 +454,33 @@ namespace PCTP.QRCODE_HVN.PGH
         // ── Chuyển về màn hình phiếu GIAO DB ────────────────────────────────
         public void SwitchToPhieuDBView()
         {
-            UIButtonHOME.Visible = false;
-            panelPhieu.Visible = true;
-            gridCtrDONHANG.BringToFront();
-            GCT_HT.BringToFront();
-            gridCTTGL.BringToFront();
-
             UIButton.AllowGlyphSkinning = false;
             UIButton.Buttons.Clear();
             UIButton.Buttons.AddRange(new WindowsUIButton[]
             {
-                new WindowsUIButton { Caption = "DOC QRCODE", Style = ButtonStyle.PushButton, ImageUri = "IndentIncrease;Size16x16;Colored" },
-                new WindowsUIButton { Caption = "Thêm",       Style = ButtonStyle.PushButton, ImageUri = "new;Size16x16;Colored"            },
-                new WindowsUIButton { Caption = "Xóa",        Style = ButtonStyle.PushButton, ImageUri = "Delete;Size16x16;Colored"         },
-                new WindowsUIButton { Caption = "Lưu",        Style = ButtonStyle.PushButton, ImageUri = "Save;Size16x16;Colored"           },
-                new WindowsUIButton { Caption = "In Phiếu",   Style = ButtonStyle.PushButton, ImageUri = "Print;Size16x16;Colored"          }
+        new WindowsUIButton { Caption = "Upload Đơn Hàng",  // ✅ thêm
+            Style = ButtonStyle.PushButton,
+            ImageUri = "Import;Size16x16;Colored" },
+        new WindowsUIButton { Caption = "DOC QRCODE",
+            Style = ButtonStyle.PushButton,
+            ImageUri = "IndentIncrease;Size16x16;Colored" },
+        new WindowsUIButton { Caption = "Thêm",
+            Style = ButtonStyle.PushButton,
+            ImageUri = "new;Size16x16;Colored" },
+        new WindowsUIButton { Caption = "Xóa",
+            Style = ButtonStyle.PushButton,
+            ImageUri = "Delete;Size16x16;Colored" },
+        new WindowsUIButton { Caption = "Lưu",
+            Style = ButtonStyle.PushButton,
+            ImageUri = "Save;Size16x16;Colored" },
+        new WindowsUIButton { Caption = "In Phiếu",
+            Style = ButtonStyle.PushButton,
+            ImageUri = "Print;Size16x16;Colored" }
             });
-            UIButton.Buttons.Insert(1, new WindowsUISeparator());
-            UIButton.Buttons.Insert(3, new WindowsUISeparator());
         }
 
         // ── Cấu hình nút phiếu thường (có thể ẩn/hiện CNK và KiemTraMaNG) ──
-        
+
 
         // HVN_PGH
         public void SetupPhieuButtons(bool showCapNhapKho, bool showKiemTraMaNG,
@@ -667,16 +672,7 @@ namespace PCTP.QRCODE_HVN.PGH
         // ════════════════════════════════════════════════════════════════════
         // VI. DIALOG PHỨC TẠP
         // ════════════════════════════════════════════════════════════════════
-        public bool XuLyChuyenGiaoDB(int addNm)
-        {
-            var tp = new THEMPDB(addNm);
-            tp.ShowDialog();
-            if (THEMPDB.ER) return false;
-            _tenpdb = tp.TENP;
-            _ggfccpdb = tp.GG;
-            if (tp.Xemlai) LoadDBOKView();
-            return true;
-        }
+       
 
         // View load phiếu GIAO DB đã lưu để hiển thị lại
         private void LoadDBOKView()
@@ -789,8 +785,7 @@ namespace PCTP.QRCODE_HVN.PGH
         public event EventHandler XoaToanBoQRClicked = delegate { };
         public event EventHandler SuaSoLuongTemClicked = delegate { };
         public event EventHandler<LayLaiLotEventArgs> LayLaiLotNoClicked = delegate { };
-        public event EventHandler ThemDongGiaoDBClicked = delegate { };
-        public event EventHandler XoaDongGiaoDBClicked = delegate { };
+        public event EventHandler UploadGiaoDBClicked = delegate { };
         public event EventHandler LuuGiaoDBClicked = delegate { };
         public event EventHandler<TTPHIEUEventArgs> CapNhapTTPHIEUClicked
         = delegate { };
@@ -1347,12 +1342,8 @@ namespace PCTP.QRCODE_HVN.PGH
                         break;
                     }
                 // ── GIAO DB ───────────────────────────────────────────────────
-                case "Thêm":
-                    ThemDongGiaoDBClicked.Invoke(this, EventArgs.Empty);
-                    break;
-                case "Xóa":
-                    if (Confirm("Xóa dòng đang chọn?"))
-                        XoaDongGiaoDBClicked.Invoke(this, EventArgs.Empty);
+                case "Upload Đơn Hàng":
+                    UploadGiaoDBClicked.Invoke(this, EventArgs.Empty);
                     break;
                 case "Lưu":
                     LuuGiaoDBClicked.Invoke(this, EventArgs.Empty);

@@ -663,16 +663,11 @@ namespace PCTP
             rM_LOTNO_UPDATE_INFOR.Show();
         }
 
-        private void accordionControlElement26_Click(object sender, EventArgs e)
-        {
-            TRAHANGNG UF_TRAHANGNG = new TRAHANGNG();
-            UF_TRAHANGNG.Show();
-        }
+        
 
         private void accordionControlElement27_Click(object sender, EventArgs e)
         {
-            QRCODE_HVN.NhanLaiNG.frm_NhanHangHVN frm_NhanHang = new QRCODE_HVN.NhanLaiNG.frm_NhanHangHVN();
-            frm_NhanHang.Show();
+           
         }
 
         private void accordionControlElement24_Click(object sender, EventArgs e)
@@ -688,9 +683,9 @@ namespace PCTP
                 if (rs == DialogResult.Yes)
                 {
                     string sqlChange = $"update tbl_QR_MAY_DOCQR set LichSu = '{TM_BANQR} --> {hostname} : {DateTime.Now}', TT = 0 where TT = 1";
-                    SQL.ExecuteQuery(SQL.B7R2_FCCdb, sqlChange);
+                    SQL.LoadData1(SQL.B7R2_FCCdb, sqlChange);
                     string sqlAdd = $"insert into tbl_QR_MAY_DOCQR(TenMay,LichSu,TT) values ('{hostname}','KO',1)";
-                    SQL.ExecuteQuery(SQL.B7R2_FCCdb, sqlAdd);
+                    SQL.LoadData1(SQL.B7R2_FCCdb, sqlAdd);
                     System.Windows.Forms.Application.Restart();
                 }
             }

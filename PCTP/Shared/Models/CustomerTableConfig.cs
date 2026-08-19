@@ -34,7 +34,8 @@ namespace PCTP.VIEWSTOCK.Models
                     "CASE WHEN col.SHIP_ADDR_NO = 1 " +
                     "THEN 'HON DA -VIET NAM- (NHA MAY VINH PHUC)' " +
                     "ELSE 'HON DA -VIET NAM- (NHA MAY HA NAM)' END",
-                    NhaMayMatchPatterns = new[] { "HON DA" }
+                    NhaMayMatchPatterns = new[] { "HON DA" },
+                    OrderTableGiaoDacBiet = "Purchase_Order_HVNDB",
                 },
                 ["100003"] = new CustomerConfig
                 {

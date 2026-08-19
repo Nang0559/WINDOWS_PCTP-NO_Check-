@@ -47,7 +47,7 @@ namespace PCTP.Infrastructure.Repositories
                 $") A " +
                 $"ORDER BY A.MinID";
 
-            DataTable dt = _sql.ExecuteQuery(_sql.B7R2_FCCdb, sql);
+            DataTable dt = _sql.LoadData1(_sql.B7R2_FCCdb, sql);
             var list = new List<GioXuat>();
 
             foreach (DataRow row in dt.Rows)
@@ -72,7 +72,7 @@ namespace PCTP.Infrastructure.Repositories
                 $"RIGHT('0' + CAST(GIOHVN AS VARCHAR(2)), 2) AS GIOHVN " + // ← đảm bảo 2 chữ số
                 $"FROM QRCODE_CHANGETIME";
 
-            DataTable dt = _sql.ExecuteQuery(_sql.B7R2_FCCdb, sql);
+            DataTable dt = _sql.LoadData1(_sql.B7R2_FCCdb, sql);
             var dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
             foreach (DataRow row in dt.Rows)
@@ -166,7 +166,7 @@ namespace PCTP.Infrastructure.Repositories
           AND GIO IS NOT NULL
         ORDER BY GIO";
 
-            DataTable dt = _sql.ExecuteQuery(_sql.B7R2_FCCdb, sql);
+            DataTable dt = _sql.LoadData1(_sql.B7R2_FCCdb, sql);
             return dt.Rows.Cast<DataRow>()
                 .Select(r => r["GIO"].ToString().Trim())
                 .Where(g => !string.IsNullOrEmpty(g))

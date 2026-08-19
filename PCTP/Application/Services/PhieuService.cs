@@ -4,6 +4,7 @@ using PCTP.Domain.Entities;
 using PCTP.Domain.Events;
 using PCTP.Domain.Interfaces;
 using PCTP.FuctionMain;
+using PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao;
 using PCTP.VIEWSTOCK.Models;
 using PCTP.YMN;
 using System;

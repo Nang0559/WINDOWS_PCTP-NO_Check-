@@ -126,9 +126,9 @@ namespace PCTP
                         _sqlttk = SQLTTKHO + " lot = '" + _LOTNO + "'";
                         _sqlttqr = SQLTTQRCODE + " lotfcc like '%" + _LOTNO + "%'";
                         _sqltttongx = SQLTONGX + " lot like '%" + _LOTNO + "%' order by NGAYGIAO,GIOGIAO";
-                        TTLOT = SQLPROVIDER.ExecuteQuery(SQLPROVIDER.B7R2_FCCdb, _sqlttk);
+                        TTLOT = SQLPROVIDER.LoadData1(SQLPROVIDER.B7R2_FCCdb, _sqlttk);
                         gridCtrTTKHO.DataSource = TTLOT;
-                        TTLOT = SQLPROVIDER.ExecuteQuery(SQLPROVIDER.B7R2_FCCdb, _sqlttqr);
+                        TTLOT = SQLPROVIDER.LoadData1(SQLPROVIDER.B7R2_FCCdb, _sqlttqr);
                         gridCtrQRCODE.DataSource = TTLOT;
                         for (int i = 0; i < bandedGridView2.RowCount; i++)
                         {
@@ -146,7 +146,7 @@ namespace PCTP
                                 }
                             }
                         }
-                        TTLOT = SQLPROVIDER.ExecuteQuery(SQLPROVIDER.B7R2_FCCdb, _sqltttongx);
+                        TTLOT = SQLPROVIDER.LoadData1(SQLPROVIDER.B7R2_FCCdb, _sqltttongx);
 
 
                         for (int i = 0; i < TTLOT.Rows.Count; i++)
@@ -229,9 +229,9 @@ namespace PCTP
                             _sqltttongx = SQLTONGX + " CHARINDEX('" + NSX_TEX + "',' ' + REPLACE(REPLACE(LOT,',',' '),'.',' ') + ' ') <>0 order by NGAYGIAO,giogiao";
                         }
                         int TTONGSLXUAT = 0;
-                        TTLOT = SQLPROVIDER.ExecuteQuery(SQLPROVIDER.B7R2_FCCdb, _sqlttk);
+                        TTLOT = SQLPROVIDER.LoadData1(SQLPROVIDER.B7R2_FCCdb, _sqlttk);
                         gridCtrTTKHO.DataSource = TTLOT;
-                        TTLOT = SQLPROVIDER.ExecuteQuery(SQLPROVIDER.B7R2_FCCdb, _sqlttqr);
+                        TTLOT = SQLPROVIDER.LoadData1(SQLPROVIDER.B7R2_FCCdb, _sqlttqr);
                         for (int i = 0; i < TTLOT.Rows.Count; i++)
                         {
                             string[] LOTGHEPSL = TTLOT.Rows[i]["LOTFCC"].ToString().Split(',');
@@ -259,7 +259,7 @@ namespace PCTP
                             }
                         }
                         gridCtrQRCODE.DataSource = TTLOT;
-                        TTLOT = SQLPROVIDER.ExecuteQuery(SQLPROVIDER.B7R2_FCCdb, _sqltttongx);
+                        TTLOT = SQLPROVIDER.LoadData1(SQLPROVIDER.B7R2_FCCdb, _sqltttongx);
 
                         for (int i = 0; i < TTLOT.Rows.Count; i++)
                         {
@@ -333,7 +333,7 @@ namespace PCTP
 
                             string sql = "select LOT from LUUPHIEUGIAOHANG  where MAHANG = '" + MH + "' and Convert(CHAR(8),NGAYGIAO,112) =  '" + NX_STOCK + "'";
 
-                            DSLOT = SQLPROVIDER.ExecuteQuery(SQLPROVIDER.B7R2_FCCdb, sql);
+                            DSLOT = SQLPROVIDER.LoadData1(SQLPROVIDER.B7R2_FCCdb, sql);
                             TIMDS(DSLOT);
                             DSLOTNO = DSLOTNO == "" ? "''" : DSLOTNO;
                             _sqlttk = SQLTTKHO + " lot in (" + DSLOTNO + ")";
@@ -348,7 +348,7 @@ namespace PCTP
                             string sql = "select LOT from LUUPHIEUGIAOHANG  where  Convert(CHAR(8),NGAYGIAO,112) =  '" + NX_STOCK + "'";
 
 
-                            DSLOT = SQLPROVIDER.ExecuteQuery(SQLPROVIDER.B7R2_FCCdb, sql);
+                            DSLOT = SQLPROVIDER.LoadData1(SQLPROVIDER.B7R2_FCCdb, sql);
                             TIMDS(DSLOT);
                             DSLOTNO = DSLOTNO == "" ? "''" : DSLOTNO;
                             _sqlttk = SQLTTKHO + " lot in (" + DSLOTNO + ")";
@@ -361,7 +361,7 @@ namespace PCTP
                             string sql;
                             sql = "select LOT from LUUPHIEUGIAOHANG  where rtrim(mahang) =  '" + MH.Trim() + "' and Convert(CHAR(8),NGAYGIAO,112) =  '" + NX_STOCK + "' and GIOGIAOFCC = '" + KGX.Trim() + "'";
 
-                            DSLOT = SQLPROVIDER.ExecuteQuery(SQLPROVIDER.B7R2_FCCdb, sql);
+                            DSLOT = SQLPROVIDER.LoadData1(SQLPROVIDER.B7R2_FCCdb, sql);
                             TIMDS(DSLOT);
                             DSLOTNO = DSLOTNO == "" ? "''" : DSLOTNO;
                             _sqlttk = SQLTTKHO + " lot in (" + DSLOTNO + ")";
@@ -375,7 +375,7 @@ namespace PCTP
 
                             string sql = "select LOT from LUUPHIEUGIAOHANG  where  Convert(CHAR(8),NGAYGIAO,112) =  '" + NX_STOCK + "' and GioGiaofcc = '" + KGX.Trim() + "'";
 
-                            DSLOT = SQLPROVIDER.ExecuteQuery(SQLPROVIDER.B7R2_FCCdb, sql);
+                            DSLOT = SQLPROVIDER.LoadData1(SQLPROVIDER.B7R2_FCCdb, sql);
 
                             TIMDS(DSLOT);
                             DSLOTNO = DSLOTNO == "" ? "''" : DSLOTNO;
@@ -390,7 +390,7 @@ namespace PCTP
                             string sql;
                             sql = "select LOT from LUUPHIEUGIAOHANG  where rtrim(mahang) =  '" + MH.Trim() + "' and  GIOGIAOFCC = '" + KGX.Trim() + "' group by LOT";
 
-                            DSLOT = SQLPROVIDER.ExecuteQuery(SQLPROVIDER.B7R2_FCCdb, sql);
+                            DSLOT = SQLPROVIDER.LoadData1(SQLPROVIDER.B7R2_FCCdb, sql);
                             TIMDS(DSLOT);
                             DSLOTNO = DSLOTNO == "" ? "''" : DSLOTNO;
                             _sqlttk = SQLTTKHO + " lot in (" + DSLOTNO + ")";
@@ -405,7 +405,7 @@ namespace PCTP
                             string sql;
                             sql = "select LOT from LUUPHIEUGIAOHANG  where   GIOGIAOFCC = '" + KGX.Trim() + "' group by LOT";
 
-                            DSLOT = SQLPROVIDER.ExecuteQuery(SQLPROVIDER.B7R2_FCCdb, sql);
+                            DSLOT = SQLPROVIDER.LoadData1(SQLPROVIDER.B7R2_FCCdb, sql);
                             TIMDS(DSLOT);
                             DSLOTNO = DSLOTNO == "" ? "''" : DSLOTNO;
                             _sqlttk = SQLTTKHO + " lot in (" + DSLOTNO + ")";
@@ -416,11 +416,11 @@ namespace PCTP
                         }
                         WaitForm2.SO = 1;
                         splashScreenManager2.ShowWaitForm();
-                        TTLOT = SQLPROVIDER.ExecuteQuery(SQLPROVIDER.B7R2_FCCdb, _sqlttk);
+                        TTLOT = SQLPROVIDER.LoadData1(SQLPROVIDER.B7R2_FCCdb, _sqlttk);
                         gridCtrTTKHO.DataSource = TTLOT;
-                        TTLOT = SQLPROVIDER.ExecuteQuery(SQLPROVIDER.B7R2_FCCdb, _sqlttqr);
+                        TTLOT = SQLPROVIDER.LoadData1(SQLPROVIDER.B7R2_FCCdb, _sqlttqr);
                         gridCtrQRCODE.DataSource = TTLOT;
-                        TTLOT = SQLPROVIDER.ExecuteQuery(SQLPROVIDER.B7R2_FCCdb, _sqltttongx);
+                        TTLOT = SQLPROVIDER.LoadData1(SQLPROVIDER.B7R2_FCCdb, _sqltttongx);
                         int TTONGSLXUAT;
                         for (int i = 0; i < TTLOT.Rows.Count; i++)
                         {
@@ -569,7 +569,7 @@ namespace PCTP
             string SQL = "SELECT K.Code,K.Name FROM B20Item K left join STOCKTP TP " +
             "on k.Code = TP.PART " +
             "where k.IsGroup = 0   group BY k.Code,k.NAME";
-            MH = SQLPROVIDER.ExecuteQuery(SQLPROVIDER.B7R2_FCCdb, SQL);
+            MH = SQLPROVIDER.LoadData1(SQLPROVIDER.B7R2_FCCdb, SQL);
             lookUpMHSX.Properties.DataSource = MH;
             lookUpMHSX.Properties.DisplayMember = "Code";
             lookUpMHSX.Properties.ValueMember = "Code";
@@ -588,7 +588,7 @@ namespace PCTP
             //"SELECT PART,NAME FROM B GROUP BY PART,NAME";
 
             string SQL = "select Code,Name from B20Shift where IsActive = 1";
-            Csx = SQLPROVIDER.ExecuteQuery(SQLPROVIDER.B7R2_FCCdb, SQL);
+            Csx = SQLPROVIDER.LoadData1(SQLPROVIDER.B7R2_FCCdb, SQL);
             LookupCasx.Properties.DataSource = Csx;
             LookupCasx.Properties.DisplayMember = "Code";
             LookupCasx.Properties.ValueMember = "Code";
@@ -605,7 +605,7 @@ namespace PCTP
             //"SELECT PART,NAME FROM B GROUP BY PART,NAME";
 
             string SQL = "select distinct NHAMAY  from  [LUUPHIEUGIAOHANG]";
-            NM = SQLPROVIDER.ExecuteQuery(SQLPROVIDER.B7R2_FCCdb, SQL);
+            NM = SQLPROVIDER.LoadData1(SQLPROVIDER.B7R2_FCCdb, SQL);
             lookUpNhaMay.Properties.DataSource = NM;
             lookUpNhaMay.Properties.DisplayMember = "NHAMAY";
             lookUpNhaMay.Properties.ValueMember = "NHAMAY";
@@ -790,7 +790,7 @@ namespace PCTP
 
 
             string SQL = "SELECT giogiaofcc FROM luuphieugiaohang GROUP BY giogiaofcc order by giogiaofcc";
-            KGX = SQLPROVIDER.ExecuteQuery(SQLPROVIDER.B7R2_FCCdb, SQL);
+            KGX = SQLPROVIDER.LoadData1(SQLPROVIDER.B7R2_FCCdb, SQL);
             lookUpGXH.Properties.DataSource = KGX;
             lookUpGXH.Properties.DisplayMember = "giogiaofcc";
             lookUpGXH.Properties.ValueMember = "giogiaofcc";

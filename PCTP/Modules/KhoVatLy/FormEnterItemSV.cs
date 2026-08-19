@@ -8,6 +8,14 @@ using DevExpress.XtraSplashScreen;
 using PCTP.ClassSQL;
 using PCTP.Domain.Events;
 using PCTP.Infrastructure;
+using PCTP.Modules.GiaoHangKhach;
+using PCTP.Modules.KhoVatLy;
+using PCTP.Modules.KhoVatLy.Application.Interfaces;
+using PCTP.Modules.KhoVatLy.Application.Services;
+using PCTP.Modules.KhoVatLy.Repositories;
+using PCTP.Modules.NhapKho.Repository;
+using PCTP.Modules.NhapKho.Services;
+using PCTP.Shared.Common;
 using PCTP.VIEWSTOCK.Fuction;
 using PCTP.VIEWSTOCK.FunctionForm;
 using PCTP.VIEWSTOCK.Models;
@@ -67,13 +75,15 @@ namespace PCTP.VIEWSTOCK
         private PhieuNhapInfo _matchedPhieu;
 
         // ==== Dependencies ====
-        private readonly StockService _stockService = new StockService();
+        
         private readonly MainStockSV _mainStockForm;
 
-        // ==== THÊM: dependencies cho luồng nhập STOCKTP (giống NHAP_TP.cs cũ) ====
-        private readonly SQLPROVIDER _sql = new SQLPROVIDER();
-        private readonly IStockTpRepository _stockTpRepo;
-        private readonly NhapTpReceivingService _nhapTpService;
+        // ★ CHỈ CÒN 2 SERVICE — không còn field Repository nào trong Form
+        private readonly INhapTpReceivingService _nhapTpService;
+        private readonly ISlotService _slotService;
+        private readonly IStockService _stockService;
+
+
         // Thêm fields trong class FormEnterItemSV
         private GridControl _gridPhieu;
         private GridView _gridViewPhieu;
@@ -88,14 +98,12 @@ namespace PCTP.VIEWSTOCK
           
             _mainStockForm = mainStockForm;
 
-            // ── Khởi tạo repository/service cho luồng nhập STOCKTP ──────────────
-            _stockTpRepo = new StockTpRepository(_sql);
-            _nhapTpService = new NhapTpReceivingService(
-                _sql,
-                _stockTpRepo,
-                new PhieuTrackingRepository(_sql));
+            // ★ Toàn bộ wiring nằm ở Factory — Form không biết Repository nào tồn tại
+            var module = NhapTpModuleFactory.Build();
+            _nhapTpService = module.NhapTpService;
+            _slotService = module.SlotService;
+            _stockService = module.StockService;
             InitializeForm();
-            // ✅ Đăng ký lắng nghe
             AppEventBus.Instance.Subscribe<LotStatusResetEvent>(OnLotStatusReset);
         }
 
@@ -178,32 +186,26 @@ namespace PCTP.VIEWSTOCK
         private void OnLotStatusReset(LotStatusResetEvent e)
         {
             if (string.IsNullOrEmpty(e.Lot)) return;
-            if (_dsPhieuIndex == null) return;   // form chưa load xong danh sách (phòng thủ)
+            if (_dsPhieuIndex == null) return;
 
-            // ── Ưu tiên tra theo Find (chính xác tuyệt đối) ──────────────────────
             PhieuNhapInfo target = null;
             if (!string.IsNullOrEmpty(e.Find))
                 _dsPhieuIndex.TryGetValue(e.Find, out target);
 
-            // ── Fallback: tra theo LotNo nếu Publish không kèm Find ──────────────
             if (target == null)
                 target = _dsPhieuIndex.Values
                     .FirstOrDefault(x => string.Equals(x.LotNo, e.Lot, StringComparison.OrdinalIgnoreCase));
 
-            if (target == null) return;   // LOT này không nằm trong danh sách đang hiển thị -> bỏ qua
+            if (target == null) return;
 
-            var latest = _stockTpRepo.GetPhieuByFind(target.Find);
+            // ★ đổi từ _productionRepo.GetPhieuByFind sang _nhapTpService
+            var latest = _nhapTpService.GetPhieuByFind(target.Find);
             if (latest == null) return;
 
-            // ── Mutate TRỰC TIẾP object đang nằm trong _dsPhieuIndex/_dsPhieu ────
-            // (đây là object mà _gridViewPhieu đang bind — sửa tại chỗ để grid vẽ lại đúng)
             target.KetThucLot = latest.KetThucLot;
             target.SlDaNhap = latest.SlDaNhap;
             target.SlSanXuat = latest.SlSanXuat;
 
-            // ── Đồng bộ luôn _matchedPhieu nếu đang trỏ đúng Find này ─────────────
-            // (không dùng == để so identity vì _matchedPhieu có thể là instance khác
-            //  target dù cùng Find — do TimPhieuTheoLotQR luôn tạo object mới)
             if (_matchedPhieu != null &&
                 string.Equals(_matchedPhieu.Find, target.Find, StringComparison.OrdinalIgnoreCase))
             {
@@ -212,8 +214,9 @@ namespace PCTP.VIEWSTOCK
                 _matchedPhieu.SlSanXuat = latest.SlSanXuat;
             }
 
-            _gridViewPhieu.RefreshData();   // ép GridViewPhieu_RowStyle chạy lại -> đổi màu ngay
+            _gridViewPhieu.RefreshData();
         }
+
 
         private void GridViewPhieu_RowStyle(object sender, RowStyleEventArgs e)
         {
@@ -291,19 +294,16 @@ namespace PCTP.VIEWSTOCK
             {
                 this.Cursor = Cursors.WaitCursor;
 
-                var list = _stockTpRepo.GetPhieuDangSanXuat(soNgayGanDay: 30);
+                // ★ đổi từ _productionRepo.GetPhieuDangSanXuat sang _nhapTpService
+                var list = _nhapTpService.GetPhieuDangSanXuat(soNgayGanDay: 30);
 
                 _dsPhieu = new BindingList<PhieuNhapInfo>(list);
                 _gridPhieu.DataSource = _dsPhieu;
 
-                // ✅ Build index tra cứu O(1) theo Find — dùng trong UpdateSlDaNhapInGrid
-                // thay vì FirstOrDefault (O(n)) mỗi lần quét.
                 _dsPhieuIndex = list
                     .Where(x => !string.IsNullOrEmpty(x.Find))
                     .GroupBy(x => x.Find)
                     .ToDictionary(g => g.Key, g => g.First());
-                // GroupBy + First phòng trường hợp Find bị trùng trong view (không nên xảy ra,
-                // nhưng tránh crash ToDictionary nếu dữ liệu thực tế có trùng).
             }
             catch (Exception ex)
             {
@@ -320,6 +320,7 @@ namespace PCTP.VIEWSTOCK
                 this.Cursor = Cursors.Default;
             }
         }
+
         private void TxtQRCode_KeyDown(object sender, KeyEventArgs e)
         {
             if (e.KeyCode != Keys.Enter) return;
@@ -356,7 +357,8 @@ namespace PCTP.VIEWSTOCK
                 return;
             }
 
-            var phieu = _stockTpRepo.TimPhieuTheoLotQR(parsed.RawLotNo, parsed.ItemCode);
+            // ★ đổi từ _productionRepo.TimPhieuTheoLotQR sang _nhapTpService
+            var phieu = _nhapTpService.TimPhieuTheoLotQR(parsed.RawLotNo, parsed.ItemCode);
             if (phieu == null)
             {
                 XtraMessageBox.Show(
@@ -365,8 +367,9 @@ namespace PCTP.VIEWSTOCK
                     "Không hợp lệ", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
-            // ✅ THÊM: highlight ngay khi tìm thấy — áp dụng cho cả 2 chế độ
+
             HighlightMatchedRow(phieu);
+
             if (phieu.KetThucLot)
             {
                 var confirmMoLai = XtraMessageBox.Show(
@@ -377,9 +380,8 @@ namespace PCTP.VIEWSTOCK
 
                 if (confirmMoLai != DialogResult.Yes) return;
 
-                _stockTpRepo.MoLaiLot(phieu.LotNo,phieu.Find);
-                // Không cần re-query phieu — status sẽ tự tính lại đúng trong NhapTpVaoSlot
-                // dựa trên SlSanXuat/SlDaNhap thực tế, KetThucLot ở đây chỉ dùng để hỏi UI.
+                // ★ đổi từ _stocTpStatus.MoLaiLot sang _nhapTpService.MoLaiLot
+                _nhapTpService.MoLaiLot(phieu.LotNo, phieu.Find);
             }
 
             if (!string.Equals(phieu.MaSP, parsed.ItemCode, StringComparison.OrdinalIgnoreCase))
@@ -418,19 +420,16 @@ namespace PCTP.VIEWSTOCK
                 }
             }
 
-            // ── PHÂN NHÁNH: chế độ bulk -> lưu NGAY, không chờ OK ────────────────
-            // Mỗi tem quét được xử lý độc lập, không ghi đè lên nhau, không cần
-            // người dùng thao tác thêm -> đúng bản chất "nhập hàng loạt liên tục".
-         
             if (chkNhapHangLoat.Checked)
             {
                 SaveScanImmediately(parsed, phieu);
                 return;
             }
-            // ── Chế độ thường: giữ nguyên luồng cũ — hiển thị UI, chờ chọn Slot + OK ──
+
             _matchedPhieu = phieu;
             ShowQRCodeInfo(parsed);
         }
+
 
         /// <summary>
         /// Lưu 1 tem ngay khi quét xong — dùng riêng cho chế độ "Nhập hàng loạt".
@@ -439,8 +438,21 @@ namespace PCTP.VIEWSTOCK
         /// </summary>
         private void SaveScanImmediately(QRCodeInfo qr, PhieuNhapInfo matchedPhieu)
         {
-            string targetSlotText = _stockService.GetOrCreateBulkImportSlotText();
-            var result = _nhapTpService.NhapTpVaoSlot(qr, targetSlotText, matchedPhieu);
+            // ★ đổi từ _stockService.GetOrCreateBulkImportSlotText sang _slotService
+            string slotText = _slotService.GetOrCreateVirtualSlotText(
+                BulkImportConfig.WarehouseName,
+                BulkImportConfig.RackName,
+                BulkImportConfig.Capacity);
+
+            int slotId = ResolveSlotId(slotText);
+            if (slotId <= 0)
+            {
+                lblBulkStatus.Text = "❌ Không xác định được Slot ảo gom hàng.";
+                lblBulkStatus.Appearance.ForeColor = Color.Red;
+                return;
+            }
+
+            var result = _nhapTpService.NhapTpVaoSlot(qr, slotId, matchedPhieu); // ★ int, không còn string
 
             if (!result.IsOK)
             {
@@ -449,7 +461,6 @@ namespace PCTP.VIEWSTOCK
                 return;
             }
 
-            // ✅ THÊM: cập nhật SL đã nhập ngay trên grid
             UpdateSlDaNhapInGrid(matchedPhieu.Find, qr.Quantity);
 
             lblBulkStatus.Text = $"✅ {result.Message}";
@@ -609,21 +620,14 @@ namespace PCTP.VIEWSTOCK
 
             listBoxSlots.SelectedIndexChanged += (s, e) =>
             {
-                if (listBoxSlots.SelectedItem == null)
-                    return;
+                if (listBoxSlots.SelectedItem == null) return;
 
                 try
                 {
-                    StockService.ParseSlotString(
-                        listBoxSlots.SelectedItem.ToString(),
-                        out string targetWh,
-                        out string targetRack,
-                        out int targetSlot,
-                        out int capacity);
-
-                    lblwhName.Text = targetWh;
-                    lblrackName.Text = targetRack;
-                    lblSlotNumber.Text = targetSlot.ToString();
+                    var info = _slotService.GetSlotInfoFromString(listBoxSlots.SelectedItem.ToString());
+                    lblwhName.Text = info.WarehouseName;
+                    lblrackName.Text = info.RackName;
+                    lblSlotNumber.Text = info.SlotNumber.ToString();
                 }
                 catch (Exception ex)
                 {
@@ -748,7 +752,10 @@ namespace PCTP.VIEWSTOCK
             if (chkNhapHangLoat.Checked)
             {
                 // Nhập hàng loạt -> luôn dùng Slot ảo cố định, tự tạo nếu chưa có
-                targetSlotText = _stockService.GetOrCreateBulkImportSlotText();
+                targetSlotText = _slotService.GetOrCreateVirtualSlotText(
+               BulkImportConfig.WarehouseName,
+               BulkImportConfig.RackName,
+               BulkImportConfig.Capacity);
             }
             else
             {
@@ -762,11 +769,14 @@ namespace PCTP.VIEWSTOCK
                 targetSlotText = listBoxSlots.SelectedItem.ToString();
             }
 
-            // ── THAY ĐỔI: dùng NhapTpReceivingService thay vì StockService.ImportLotToSlot
-            // -> ghi đồng thời STOCKTP + SlotLot + Slot trong 1 transaction, có check
-            // trùng case (NHAP_TP_HIS), check sức chứa Slot, và dùng đúng LOT/tên SP/
-            // SLSX từ phiếu vNhapTP đã đối chiếu (_matchedPhieu) nếu có. ─────────────
-            var result = _nhapTpService.NhapTpVaoSlot(codeInfo, targetSlotText, _matchedPhieu);
+            int slotId = ResolveSlotId(targetSlotText);
+            if (slotId <= 0)
+            {
+                XtraMessageBox.Show("Không xác định được Slot đích.", "Lỗi",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+            var result = _nhapTpService.NhapTpVaoSlot(codeInfo, slotId, _matchedPhieu);
 
             if (!result.IsOK)
             {
@@ -800,6 +810,12 @@ namespace PCTP.VIEWSTOCK
             // nếu không Unsubscribe form sẽ không bao giờ bị GC.
             AppEventBus.Instance.Unsubscribe<LotStatusResetEvent>(OnLotStatusReset);
             base.OnFormClosed(e);
+        }
+        // ── Helper resolve string slot -> id, chỗ DUY NHẤT trong Form ────────
+        private int ResolveSlotId(string slotText)
+        {
+            if (string.IsNullOrWhiteSpace(slotText)) return -1;
+            return _slotService.GetSlotIdFromString(slotText);
         }
     }
 }

@@ -11,22 +11,43 @@ namespace PCTP.VIEWSTOCK.Repository
 {
     public interface IPhieuTrackingRepository
     {
-        // ── Đọc (không cần transaction) ─────────────────────────────────
-        List<PhieuLocationInfo> GetPhieuTheoLot(string lotNo);
-        int GetTongSlActiveTheoLot(string lotNo);
-        bool ExistsQrData(string qrData);
+        // ============================================================
+        // ĐỌC
+        // ============================================================
 
-        // ── Ghi (transaction-aware — PHẢI dùng chung conn/tran với STOCKTP) ─
-        void InsertPhieuMoi(SqlConnection conn, SqlTransaction tran,
-            int slotId, string itemCode, string lotNo, int quantity,
-            string temCode, string qrData, DateTime? importDate,
-            string ngaySX, string soPhieuTong, string maPhieuMoi,
-            string parentSoPhieu, PhieuStatus status);
+        List<PhieuLocationInfo> GetPhieuTheoLot(
+            string lotNo);
 
-        void CapNhatTrangThai(SqlConnection conn, SqlTransaction tran,
-            string maPhieu, PhieuStatus status);
+        int GetTongSlActiveTheoLot(
+            string lotNo);
 
-        void CapNhatQuantity(SqlConnection conn, SqlTransaction tran,
-            string maPhieu, int quantityMoi);
+        bool ExistsQrData(
+            string qrData);
+
+        // ============================================================
+        // GHI
+        // ============================================================
+
+        void InsertPhieuMoi(
+            int slotId,
+            string itemCode,
+            string lotNo,
+            int quantity,
+            string temCode,
+            string qrData,
+            DateTime? importDate,
+            string ngaySX,
+            string soPhieuTong,
+            string maPhieuMoi,
+            string parentSoPhieu,
+            PhieuStatus status);
+
+        void CapNhatTrangThai(
+            string maPhieu,
+            PhieuStatus status);
+
+        void CapNhatQuantity(
+            string maPhieu,
+            int quantityMoi);
     }
 }

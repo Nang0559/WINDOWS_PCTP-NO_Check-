@@ -202,8 +202,8 @@
             this.txt_UDSLXuat.Size = new System.Drawing.Size(200, 26);
             this.txt_UDSLXuat.TabIndex = 2;
             this.txt_UDSLXuat.EditValueChanged += new System.EventHandler(this.txtUDSLNHAP_EditValueChanged);
-            this.txt_UDSLXuat.EditValueChanging += new DevExpress.XtraEditors.Controls.ChangingEventHandler(this.txtE_UDSLXuat_EditValueChanging);
-            this.txt_UDSLXuat.TextChanged += new System.EventHandler(this.txtUDSLNHAP_TextChanged);
+            //this.txt_UDSLXuat.EditValueChanging += new DevExpress.XtraEditors.Controls.ChangingEventHandler(this.txtE_UDSLXuat_EditValueChanging);
+            //this.txt_UDSLXuat.TextChanged += new System.EventHandler(this.txtUDSLNHAP_TextChanged);
             this.txt_UDSLXuat.KeyPress += new System.Windows.Forms.KeyPressEventHandler(this.txtUDSLNHAP_KeyPress);
             this.txt_UDSLXuat.Validating += new System.ComponentModel.CancelEventHandler(this.txt_UDSLXuat_Validating);
             // 
@@ -218,7 +218,7 @@
             this.txtUDSLNHAP.Size = new System.Drawing.Size(200, 26);
             this.txtUDSLNHAP.TabIndex = 2;
             this.txtUDSLNHAP.EditValueChanged += new System.EventHandler(this.txtUDSLNHAP_EditValueChanged);
-            this.txtUDSLNHAP.TextChanged += new System.EventHandler(this.txtUDSLNHAP_TextChanged);
+            //this.txtUDSLNHAP.TextChanged += new System.EventHandler(this.txtUDSLNHAP_TextChanged);
             this.txtUDSLNHAP.KeyPress += new System.Windows.Forms.KeyPressEventHandler(this.txtUDSLNHAP_KeyPress);
             // 
             // txtSLDX

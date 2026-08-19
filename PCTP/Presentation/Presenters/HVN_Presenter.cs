@@ -5,6 +5,7 @@ using PCTP.Domain.Entities;
 using PCTP.Domain.Events;
 using PCTP.Domain.Interfaces;
 using PCTP.Infrastructure.Repositories;
+using PCTP.Modules.GiaoHangKhach.SubForm;
 using PCTP.Presentation.Views;
 using PCTP.QRCODE_HVN.Report;
 using PCTP.VIEWSTOCK.Models;
@@ -99,15 +100,13 @@ namespace PCTP.Presentation.Presenters
             _view.XoaToanBoQRClicked += OnXoaToanBoQR;
             _view.SuaSoLuongTemClicked += OnSuaSoLuongTem;
             _view.LayLaiLotNoClicked += OnLayLaiLotNo;
-            _view.ThemDongGiaoDBClicked += OnThemDongGiaoDB;
-            _view.XoaDongGiaoDBClicked += OnXoaDongGiaoDB;
             _view.LuuGiaoDBClicked += OnLuuGiaoDB;
             _view.CapNhapTTPHIEUClicked += OnCapNhapTTPHIEU;
             _view.HoanThanhYMVNClicked += OnHoanThanhYMVN;
             _view.UploadMilkrunSPClicked += OnUploadMilkrunSP;
             _view.LoaiPhieuChanged += OnLoaiPhieuChanged;
             _view.GioXuatCheckedChanged += OnGioXuatCheckedChanged;
-
+            _view.UploadGiaoDBClicked += OnUploadGiaoDB;
             _view.ChonLotThuCongClicked += OnChonLotThuCong;
         }
 
@@ -1238,17 +1237,21 @@ namespace PCTP.Presentation.Presenters
             }, "Đang xử lý lấy lại số LOT...");
         }
 
-        public bool OnGiaoDBChanging(int addNm) => _view.XuLyChuyenGiaoDB(addNm);
-
-        private void OnThemDongGiaoDB(object sender, EventArgs e)
+        public bool OnGiaoDBChanging(int addNm)
         {
-            DataTable danhSachMa = _phieuSvc.ThemDongGiaoDB();
-            _view.ThemDongGiaoDB(danhSachMa);
+            // ✅ Không mở THEMPDB nữa
+            // Chỉ hỏi xác nhận nếu cần
+            return true;  // ← luôn cho phép chuyển sang GIAO DB
         }
 
-        private void OnXoaDongGiaoDB(object sender, EventArgs e)
+        private void OnUploadGiaoDB(object sender, EventArgs e)
         {
-            _view.XoaDongGiaoDB();
+            using (var frm = new FRM_UploadGiaoDB(new SQLPROVIDER()))
+            {
+                if (frm.ShowDialog() != DialogResult.OK) return;
+            }
+            // ✅ Reload phiếu sau upload
+            LoadPhieuHienTai();
         }
 
         private void OnLuuGiaoDB(object sender, EventArgs e)
@@ -1467,8 +1470,7 @@ namespace PCTP.Presentation.Presenters
             _view.XoaToanBoQRClicked -= OnXoaToanBoQR;
             _view.SuaSoLuongTemClicked -= OnSuaSoLuongTem;
             _view.LayLaiLotNoClicked -= OnLayLaiLotNo;
-            _view.ThemDongGiaoDBClicked -= OnThemDongGiaoDB;
-            _view.XoaDongGiaoDBClicked -= OnXoaDongGiaoDB;
+           
             _view.LuuGiaoDBClicked -= OnLuuGiaoDB;
             _view.CapNhapTTPHIEUClicked -= OnCapNhapTTPHIEU;
             _view.HoanThanhYMVNClicked -= OnHoanThanhYMVN;

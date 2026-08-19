@@ -48,7 +48,7 @@ namespace PCTP.VIEWSTOCK.Repository
         }
 
         public DataTable GetGridLechDoiChieu()
-            => _sql.ExecuteQuery(_sql.B7R2_FCCdb, BuildSqlLech());
+            => _sql.LoadData1(_sql.B7R2_FCCdb, BuildSqlLech());
 
         // ── các method khác giữ nguyên như bản trước ──
         public int DemPhieuChoNhap()
@@ -59,7 +59,7 @@ namespace PCTP.VIEWSTOCK.Repository
             return int.TryParse(raw, out int v) ? v : 0;
         }
 
-        public DataTable GetGridChoNhap() => _sql.ExecuteQuery(_sql.B7R2_FCCdb, @"
+        public DataTable GetGridChoNhap() => _sql.LoadData1(_sql.B7R2_FCCdb, @"
         SELECT FIND, LOT_NO, MODEL, TEN_SAN_PHAM, MA_SAN_PHAM, CA_SAN_XUAT,
                NGAY_SAN_XUAT, SL_DA_SAN_XUAT, SL_DA_NHAP,
                (SL_DA_SAN_XUAT - SL_DA_NHAP) AS SL_CON_THIEU
@@ -75,7 +75,7 @@ namespace PCTP.VIEWSTOCK.Repository
             return int.TryParse(raw, out int v) ? v : 0;
         }
 
-        public DataTable GetGridDaNhapHomNay() => _sql.ExecuteQuery(_sql.B7R2_FCCdb, @"
+        public DataTable GetGridDaNhapHomNay() => _sql.LoadData1(_sql.B7R2_FCCdb, @"
         SELECT sl.LotNo, sl.ItemCode, sl.Quantity, sl.TemCode, sl.CreatedDate,
                s.SlotNumber, r.RackName, w.Name AS WarehouseName
         FROM SlotLot sl

@@ -2,15 +2,8 @@
 {
     partial class ImagesControl
     {
-        /// <summary> 
-        /// Required designer variable.
-        /// </summary>
         private System.ComponentModel.IContainer components = null;
 
-        /// <summary> 
-        /// Clean up any resources being used.
-        /// </summary>
-        /// <param name="disposing">true if managed resources should be disposed; otherwise, false.</param>
         protected override void Dispose(bool disposing)
         {
             if (disposing && (components != null))
@@ -22,10 +15,6 @@
 
         #region Component Designer generated code
 
-        /// <summary> 
-        /// Required method for Designer support - do not modify 
-        /// the contents of this method with the code editor.
-        /// </summary>
         private void InitializeComponent()
         {
             this.panelControl1 = new DevExpress.XtraEditors.PanelControl();
@@ -41,6 +30,8 @@
             this.cmdAdd = new DevExpress.XtraEditors.SimpleButton();
             this.cmdEdit = new DevExpress.XtraEditors.SimpleButton();
             this.cmdSave = new DevExpress.XtraEditors.SimpleButton();
+            this.cmdDelete = new DevExpress.XtraEditors.SimpleButton();   // ← THÊM
+            this.cmdCancel = new DevExpress.XtraEditors.SimpleButton();   // ← THÊM
             this.sidePanel1 = new DevExpress.XtraEditors.SidePanel();
             this.txtMota1 = new DevExpress.XtraEditors.TextEdit();
             this.labelControl3 = new DevExpress.XtraEditors.LabelControl();
@@ -81,13 +72,13 @@
             // 
             // lokupItemCode
             // 
-            this.lokupItemCode.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left) 
+            this.lokupItemCode.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom)
+            | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
             this.lokupItemCode.Location = new System.Drawing.Point(0, 5);
             this.lokupItemCode.Name = "lokupItemCode";
             this.lokupItemCode.Properties.Buttons.AddRange(new DevExpress.XtraEditors.Controls.EditorButton[] {
-            new DevExpress.XtraEditors.Controls.EditorButton(DevExpress.XtraEditors.Controls.ButtonPredefines.Combo)});
+        new DevExpress.XtraEditors.Controls.EditorButton(DevExpress.XtraEditors.Controls.ButtonPredefines.Combo)});
             this.lokupItemCode.Properties.DisplayMember = "code";
             this.lokupItemCode.Properties.NullText = "Chọn Mã Sản Phẩm";
             this.lokupItemCode.Properties.SearchMode = DevExpress.XtraEditors.Controls.SearchMode.AutoSuggest;
@@ -98,8 +89,8 @@
             // 
             // textEdit1
             // 
-            this.textEdit1.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left) 
+            this.textEdit1.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom)
+            | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
             this.textEdit1.Enabled = false;
             this.textEdit1.Location = new System.Drawing.Point(73, 32);
@@ -110,8 +101,8 @@
             // 
             // gridControl1
             // 
-            this.gridControl1.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left) 
+            this.gridControl1.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom)
+            | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
             this.gridControl1.EmbeddedNavigator.Margin = new System.Windows.Forms.Padding(4, 2, 4, 2);
             this.gridControl1.Location = new System.Drawing.Point(4, 69);
@@ -121,14 +112,15 @@
             this.gridControl1.Size = new System.Drawing.Size(464, 434);
             this.gridControl1.TabIndex = 5;
             this.gridControl1.ViewCollection.AddRange(new DevExpress.XtraGrid.Views.Base.BaseView[] {
-            this.gridView1});
+        this.gridView1});
             // 
             // gridView1
             // 
             this.gridView1.GridControl = this.gridControl1;
             this.gridView1.Name = "gridView1";
             this.gridView1.OptionsFilter.InHeaderSearchMode = DevExpress.XtraGrid.Views.Grid.GridInHeaderSearchMode.TextSearch;
-            this.gridView1.RowClick += new DevExpress.XtraGrid.Views.Grid.RowClickEventHandler(this.gridView1_RowClick_1);
+            // ✅ SỬA: khớp đúng tên method trong code-behind (bỏ hậu tố "_1")
+            this.gridView1.RowClick += new DevExpress.XtraGrid.Views.Grid.RowClickEventHandler(this.gridView1_RowClick);
             // 
             // panelControl2
             // 
@@ -178,6 +170,8 @@
             // 
             // sidePanel3
             // 
+            this.sidePanel3.Controls.Add(this.cmdCancel);   // ← THÊM
+            this.sidePanel3.Controls.Add(this.cmdDelete);    // ← THÊM
             this.sidePanel3.Controls.Add(this.cmdAdd);
             this.sidePanel3.Controls.Add(this.cmdEdit);
             this.sidePanel3.Controls.Add(this.cmdSave);
@@ -191,10 +185,10 @@
             // cmdAdd
             // 
             this.cmdAdd.Anchor = System.Windows.Forms.AnchorStyles.None;
-            this.cmdAdd.Location = new System.Drawing.Point(17, 14);
+            this.cmdAdd.Location = new System.Drawing.Point(4, 14);
             this.cmdAdd.Margin = new System.Windows.Forms.Padding(4, 2, 4, 2);
             this.cmdAdd.Name = "cmdAdd";
-            this.cmdAdd.Size = new System.Drawing.Size(96, 24);
+            this.cmdAdd.Size = new System.Drawing.Size(65, 24);
             this.cmdAdd.TabIndex = 15;
             this.cmdAdd.Text = "Add";
             this.cmdAdd.Click += new System.EventHandler(this.cmdAdd_Click);
@@ -202,24 +196,48 @@
             // cmdEdit
             // 
             this.cmdEdit.Anchor = System.Windows.Forms.AnchorStyles.None;
-            this.cmdEdit.Location = new System.Drawing.Point(127, 14);
+            this.cmdEdit.Location = new System.Drawing.Point(73, 14);
             this.cmdEdit.Margin = new System.Windows.Forms.Padding(4, 2, 4, 2);
             this.cmdEdit.Name = "cmdEdit";
-            this.cmdEdit.Size = new System.Drawing.Size(96, 24);
+            this.cmdEdit.Size = new System.Drawing.Size(65, 24);
             this.cmdEdit.TabIndex = 15;
             this.cmdEdit.Text = "Edit";
             this.cmdEdit.Click += new System.EventHandler(this.cmdEdit_Click);
             // 
+            // cmdDelete
+            // 
+            this.cmdDelete.Anchor = System.Windows.Forms.AnchorStyles.None;
+            this.cmdDelete.Appearance.ForeColor = System.Drawing.Color.IndianRed;
+            this.cmdDelete.Appearance.Options.UseForeColor = true;
+            this.cmdDelete.Location = new System.Drawing.Point(142, 14);
+            this.cmdDelete.Margin = new System.Windows.Forms.Padding(4, 2, 4, 2);
+            this.cmdDelete.Name = "cmdDelete";
+            this.cmdDelete.Size = new System.Drawing.Size(65, 24);
+            this.cmdDelete.TabIndex = 19;
+            this.cmdDelete.Text = "Delete";
+            this.cmdDelete.Click += new System.EventHandler(this.cmdDelete_Click);
+            // 
             // cmdSave
             // 
             this.cmdSave.Anchor = System.Windows.Forms.AnchorStyles.None;
-            this.cmdSave.Location = new System.Drawing.Point(246, 14);
+            this.cmdSave.Location = new System.Drawing.Point(211, 14);
             this.cmdSave.Margin = new System.Windows.Forms.Padding(4, 2, 4, 2);
             this.cmdSave.Name = "cmdSave";
-            this.cmdSave.Size = new System.Drawing.Size(96, 24);
+            this.cmdSave.Size = new System.Drawing.Size(65, 24);
             this.cmdSave.TabIndex = 16;
             this.cmdSave.Text = "Save";
             this.cmdSave.Click += new System.EventHandler(this.cmdSave_Click);
+            // 
+            // cmdCancel
+            // 
+            this.cmdCancel.Anchor = System.Windows.Forms.AnchorStyles.None;
+            this.cmdCancel.Location = new System.Drawing.Point(280, 14);
+            this.cmdCancel.Margin = new System.Windows.Forms.Padding(4, 2, 4, 2);
+            this.cmdCancel.Name = "cmdCancel";
+            this.cmdCancel.Size = new System.Drawing.Size(65, 24);
+            this.cmdCancel.TabIndex = 20;
+            this.cmdCancel.Text = "Cancel";
+            this.cmdCancel.Click += new System.EventHandler(this.cmdCancel_Click);
             // 
             // sidePanel1
             // 
@@ -238,8 +256,8 @@
             // 
             // txtMota1
             // 
-            this.txtMota1.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left) 
+            this.txtMota1.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom)
+            | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
             this.txtMota1.Location = new System.Drawing.Point(78, 3);
             this.txtMota1.Margin = new System.Windows.Forms.Padding(4, 2, 4, 2);
@@ -249,8 +267,8 @@
             // 
             // labelControl3
             // 
-            this.labelControl3.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left) 
+            this.labelControl3.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom)
+            | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
             this.labelControl3.Location = new System.Drawing.Point(5, 54);
             this.labelControl3.Name = "labelControl3";
@@ -260,8 +278,8 @@
             // 
             // txtMota2
             // 
-            this.txtMota2.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left) 
+            this.txtMota2.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom)
+            | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
             this.txtMota2.Location = new System.Drawing.Point(78, 29);
             this.txtMota2.Margin = new System.Windows.Forms.Padding(4, 2, 4, 2);
@@ -271,8 +289,8 @@
             // 
             // labelControl2
             // 
-            this.labelControl2.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left) 
+            this.labelControl2.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom)
+            | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
             this.labelControl2.Location = new System.Drawing.Point(5, 32);
             this.labelControl2.Name = "labelControl2";
@@ -282,8 +300,8 @@
             // 
             // txtMota3
             // 
-            this.txtMota3.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left) 
+            this.txtMota3.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom)
+            | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
             this.txtMota3.Location = new System.Drawing.Point(78, 55);
             this.txtMota3.Margin = new System.Windows.Forms.Padding(4, 2, 4, 2);
@@ -293,8 +311,8 @@
             // 
             // labelControl1
             // 
-            this.labelControl1.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left) 
+            this.labelControl1.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom)
+            | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
             this.labelControl1.Location = new System.Drawing.Point(5, 10);
             this.labelControl1.Name = "labelControl1";
@@ -357,6 +375,8 @@
         private DevExpress.XtraEditors.SidePanel sidePanel3;
         private DevExpress.XtraEditors.SimpleButton cmdEdit;
         private DevExpress.XtraEditors.SimpleButton cmdSave;
+        private DevExpress.XtraEditors.SimpleButton cmdDelete;   // ← THÊM
+        private DevExpress.XtraEditors.SimpleButton cmdCancel;   // ← THÊM
         private DevExpress.XtraEditors.PanelControl panelControl3;
         private DevExpress.XtraEditors.PictureEdit pictureEdit1;
         private DevExpress.XtraEditors.Controls.ImageSlider imageSlider1;

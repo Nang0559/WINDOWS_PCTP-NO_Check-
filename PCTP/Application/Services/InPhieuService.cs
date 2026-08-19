@@ -1,5 +1,6 @@
 ﻿using PCTP.Domain.Entities;
 using PCTP.Domain.Interfaces;
+using PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao;
 using PCTP.VIEWSTOCK.Models;
 using System;
 using System.Collections.Generic;

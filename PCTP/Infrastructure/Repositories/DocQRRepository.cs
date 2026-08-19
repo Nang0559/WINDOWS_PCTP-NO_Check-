@@ -31,6 +31,42 @@ namespace PCTP.Infrastructure.Repositories
         private static string Q(string table) => "[dbo].[" + table + "]";
 
         // ── Helper: lấy tên bảng đúng theo loại SP/MP ────────────────────────
+        public string GetMaHangMapped(string maHang)
+        {
+            if (string.IsNullOrWhiteSpace(maHang))
+                return "";
+
+            const string query = @"
+        SELECT TOP 1 PartNoCompare
+        FROM tbl_QR_ComparePart
+        WHERE IsActive = 1
+          AND PartNo = @Ma;";
+
+            try
+            {
+                object result = _sql.ExecuteScalar(
+                    _sql.B7R2_FCCdb,
+                    query,
+                    new[]
+                    {
+                new SqlParameter("@Ma", SqlDbType.NVarChar, 100)
+                {
+                    Value = maHang.Trim()
+                }
+                    });
+
+                return result == null || result == DBNull.Value
+                    ? ""
+                    : result.ToString().Trim();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine(
+                    $"[GetMaHangMapped] PartNo={maHang}, Error={ex.Message}");
+
+                return "";
+            }
+        }
         private string GetDocQRTable(bool isSP = false)
             => isSP && !string.IsNullOrEmpty(_cfg.DocQRTableSP)
                 ? _cfg.DocQRTableSP
@@ -85,7 +121,7 @@ namespace PCTP.Infrastructure.Repositories
                 $"SELECT STT, LOTFCC, MAHANGFCC, MAFCC, SLTEMFCC, " +
                 $"       LOTHVN, MAHANGHVN, SLTEMHVN, GIO, KETQUA " +
                 $"FROM {Q(docQrTable)} ORDER BY STT";
-            DataTable dt = _sql.ExecuteQuery(_sql.B7R2_FCCdb, query);
+            DataTable dt = _sql.LoadData1(_sql.B7R2_FCCdb, query);
             var list = new List<DocQRCode>(dt.Rows.Count);
             foreach (DataRow r in dt.Rows)
                 list.Add(MapRow(r));
@@ -105,7 +141,7 @@ namespace PCTP.Infrastructure.Repositories
                 $"SELECT STT, LOTFCC, MAHANGFCC, SLTEMFCC, " +
                 $"       LOTHVN, MAHANGHVN, SLTEMHVN, GIO, SUALOTHVN, KETQUA " +
                 $"FROM {Q(docQrTable)} ORDER BY STT";
-            return _sql.ExecuteQuery(_sql.B7R2_FCCdb, query);
+            return _sql.LoadData1(_sql.B7R2_FCCdb, query);
         }
 
         public int Count(string docQrTable)
@@ -172,7 +208,7 @@ namespace PCTP.Infrastructure.Repositories
                 $"GROUP BY Gear " +
                 $"ORDER BY Gear";
 
-            return _sql.ExecuteQuery(_sql.B7R2_FCCdb, sql);
+            return _sql.LoadData1(_sql.B7R2_FCCdb, sql);
         }
         /// ------------------------------------------------------------
         // Thêm vào IDocQRRepository / DocQRRepository — dùng CHUNG cho mọi nơi cần ID pad

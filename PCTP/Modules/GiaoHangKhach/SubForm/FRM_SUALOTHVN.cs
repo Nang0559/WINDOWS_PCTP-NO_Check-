@@ -31,7 +31,7 @@ namespace PCTP.QRCODE_HVN
             string sql = "select * from docqrcode where MAHANGFCC = '" + _MH + "' order by LOTHVN";
             
             DataTable table = new DataTable();
-            table = sqlBRV.ExecuteQuery(sqlBRV.B7R2_FCCdb, sql);
+            table = sqlBRV.LoadData1(sqlBRV.B7R2_FCCdb, sql);
             gridCtrSUALOTHVN.DataSource = table;
             
         }
@@ -40,7 +40,7 @@ namespace PCTP.QRCODE_HVN
             string sql = "select * from docqrcode where MAHANGFCC = '" + _MH + "' order by LOTHVN";
 
             DataTable table = new DataTable();
-            table = sqlBRV.ExecuteQuery(sqlBRV.B7R2_FCCdb, sql);
+            table = sqlBRV.LoadData1(sqlBRV.B7R2_FCCdb, sql);
             gridCtrSUALOTHVN.DataSource = table;
         }
         private void simpleButton1_Click(object sender, EventArgs e)

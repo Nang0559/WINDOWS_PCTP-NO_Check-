@@ -217,13 +217,13 @@ namespace PCTP.VIEWSTOCK.Repository
         }
         public List<PhieuXuLyBatThuong> GetDanhSachChoQC()
         {
-            DataTable dt = _sql.ExecuteQuery(_sql.B7R2_FCCdbb,
+            DataTable dt = _sql.LoadData1(_sql.B7R2_FCCdbb,
                 "SELECT * FROM PhieuXuLyBatThuong WHERE TrangThai = 0 ORDER BY NgayTao");
             return dt.Rows.Cast<DataRow>().Select(MapPhieuXuLyBatThuong).ToList();
         }
         public List<PhieuXuLyBatThuong> GetDanhSachDaDuyetChuaTra()
         {
-            DataTable dt = _sql.ExecuteQuery(_sql.B7R2_FCCdbb,
+            DataTable dt = _sql.LoadData1(_sql.B7R2_FCCdbb,
                 "SELECT * FROM PhieuXuLyBatThuong WHERE TrangThai = 1 ORDER BY NgayQCDuyet");
             return dt.Rows.Cast<DataRow>().Select(MapPhieuXuLyBatThuong).ToList();
         }
@@ -306,7 +306,7 @@ namespace PCTP.VIEWSTOCK.Repository
 
         public DataTable GetGridBuoc1_ChungTuMoi()
         {
-            return _sql.ExecuteQuery(_sql.B7R2_FCCdbb, @"
+            return _sql.LoadData1(_sql.B7R2_FCCdbb, @"
         SELECT h.Id AS HeaderId, h.Nguon, h.SoPhieuKhach, h.NgayPhatHanh, h.SlipNo,
                ct.Id AS CTId, ct.Stt, ct.Model, ct.MaHang, ct.TenHang, ct.SoLo,
                ct.SoLuong, ct.NoiDungLoi,
@@ -326,7 +326,7 @@ namespace PCTP.VIEWSTOCK.Repository
 
         public DataTable GetGridBuoc3_ChoQC()
         {
-            return _sql.ExecuteQuery(_sql.B7R2_FCCdbb, @"
+            return _sql.LoadData1(_sql.B7R2_FCCdbb, @"
         SELECT Id, SoPhieu, Model, MaSanPham, SoLo, SoLoLoi, SoLuongLoi,
                PhanLoaiXuLy, NoiDungBatThuong, CapDoQuanTrong,
                NguoiThucHien, BoPhanPhatHanh, NgayTao,
@@ -338,7 +338,7 @@ namespace PCTP.VIEWSTOCK.Repository
 
         public DataTable GetGridBuoc4_SanSangTra()
         {
-            return _sql.ExecuteQuery(_sql.B7R2_FCCdbb, @"
+            return _sql.LoadData1(_sql.B7R2_FCCdbb, @"
         SELECT Id, SoPhieu, Model, MaSanPham, SoLo, SoLoLoi, SoLuongLoi,
                PhuongPhapXuLy, PhuongPhapSua, KetQuaXuLy,
                NguoiQCDuyet, NgayQCDuyet,

@@ -75,38 +75,37 @@ namespace PCTP.Applications.Services
         // ProcessScan — phân luồng theo loại
         // ════════════════════════════════════════════════════════════════════
         public ScanResult ProcessScan(string rawQr,
-            Func<string, bool> kiemTraMaTrongPhieu,
-            Func<string, int, bool> kiemTraSlDaBan)
+    Func<string, bool> kiemTraMaTrongPhieu,
+    Func<string, int, bool> kiemTraSlDaBan)
         {
             rawQr = rawQr.Trim().ToUpper();
             string[] parts = rawQr.Split(':');
 
-            // 100003: tem tổng 6 phần
             if (parts.Length == 6 && !_cfg.CoNhieuNhaMay && !_cfg.CoGear)
                 return ScanFCC_TongTem(parts, kiemTraMaTrongPhieu, kiemTraSlDaBan);
 
-            // 100002 FCC: 4 phần + CoGear
             if (parts.Length == 4 && _cfg.CoGear)
                 return ScanFCC_YMVN(parts, kiemTraMaTrongPhieu, kiemTraSlDaBan);
 
-            // 100002 YMVN: format P...K...Q...
             if (_cfg.CoGear)
                 return ScanYMVN(rawQr, kiemTraMaTrongPhieu, kiemTraSlDaBan);
 
             if (parts.Length == 4)
             {
-                // ── SP: chỉ bắn FCC, không cần HVN ─────────────────────────
                 if (_isBanSP)
                     return ScanFCC_SP(parts, kiemTraMaTrongPhieu, kiemTraSlDaBan);
-
-                // ── O TYPE: bắn FCC → HVN giống MP ──────────────────────────
-                // _isBanOType chỉ ảnh hưởng bảng DB (nếu config riêng)
-                // luồng bắn giống hệt MP
                 return ScanFCC(parts, kiemTraMaTrongPhieu, kiemTraSlDaBan);
             }
 
-            // HVN — bước 2 (MP + O TYPE)
             return ScanHVN(parts);
+        }
+
+        // ✅ Helper dùng trong các ScanXXX — map mã hàng nếu có trong ComparePart
+        private string MapMaHang(string maHang)
+        {
+            // ✅ Tra bảng tbl_QR_ComparePart — nếu có thì trả mã đích
+            string mapped = _repo.GetMaHangMapped(maHang);
+            return string.IsNullOrEmpty(mapped) ? maHang : mapped;
         }
 
         // ════════════════════════════════════════════════════════════════════
@@ -116,16 +115,18 @@ namespace PCTP.Applications.Services
             Func<string, bool> kiemTraMa,
             Func<string, int, bool> kiemTraSl)
         {
-            string maHang = parts[1].Replace(" ", "");
+            string maFcc = parts[1].Trim();
+            string maHangThuc = MapMaHang(maFcc);
+
             if (!int.TryParse(parts[3], out int slTem))
                 return ScanResult.Fail("Số lượng tem không hợp lệ.");
 
-            string lotFcc = NormalizeLotFCC(parts[0], maHang);
+            string lotFcc = NormalizeLotFCC(parts[0], maHangThuc);
 
-            if (!kiemTraMa(maHang))
+            if (!kiemTraMa(maHangThuc))
                 return ScanResult.Fail("Không tồn tại mã trong phiếu giao!");
 
-            if (!kiemTraSl(maHang, slTem))
+            if (!kiemTraSl(maHangThuc, slTem))
                 return ScanResult.Fail(
                     "Tổng số lượng đã bắn vượt quá số lượng giao!\n" +
                     "Hãy kiểm tra lại phiếu.");
@@ -136,12 +137,12 @@ namespace PCTP.Applications.Services
             {
                 STT = sttBan,
                 LotFCC = lotFcc,
-                MaHangFCC = maHang,
-                MaFCC = maHang,
+                MaHangFCC = maHangThuc,
+                MaFCC = maHangThuc,
                 SlTemFCC = slTem,
                 // SP: tự ghép HVN = FCC luôn, không đợi scan HVN
                 LotHVN = lotFcc,
-                MaHangHVN = maHang,
+                MaHangHVN = maHangThuc,
                 SlTemHVN = slTem,
                 KetQua = "OK",
                 Gio = ""
@@ -158,21 +159,22 @@ namespace PCTP.Applications.Services
         // MP + O TYPE: bắn FCC (bước 1)
         // ════════════════════════════════════════════════════════════════════
         private ScanResult ScanFCC(string[] parts,
-            Func<string, bool> kiemTraMa,
-            Func<string, int, bool> kiemTraSl)
+        Func<string, bool> kiemTraMa,
+        Func<string, int, bool> kiemTraSl)
         {
             if (!KiemTraThuTuFCC()) return ScanResult.Fail("Sai Thứ tự bắn!");
 
-            string maHang = parts[1];
+            string maFcc = parts[1].Trim();
+            string maHangThuc = MapMaHang(maFcc);
             if (!int.TryParse(parts[3], out int slTem))
                 return ScanResult.Fail("Số lượng tem không hợp lệ.");
 
-            string lotFcc = NormalizeLotFCC(parts[0], maHang);
+            string lotFcc = NormalizeLotFCC(parts[0], maHangThuc);
 
-            if (!kiemTraMa(maHang))
+            if (!kiemTraMa(maHangThuc))
                 return ScanResult.Fail("Không tồn tại mã trong phiếu giao!");
 
-            if (!kiemTraSl(maHang, slTem))
+            if (!kiemTraSl(maHangThuc, slTem))
                 return ScanResult.Fail("Số lượng bắn đang vượt quá số lượng giao!");
 
             int sttBan = _repo.GetMaxStt(DocQRTable) + 1;
@@ -181,8 +183,8 @@ namespace PCTP.Applications.Services
             {
                 STT = sttBan,
                 LotFCC = lotFcc,
-                MaHangFCC = maHang,
-                MaFCC = maHang,
+                MaHangFCC = maHangThuc,
+                MaFCC = maHangThuc,
                 SlTemFCC = slTem,
                 Gio = ""
             };
@@ -515,7 +517,6 @@ namespace PCTP.Applications.Services
         // ════════════════════════════════════════════════════════════════════
         private string NormalizeLotFCC(string lotSl, string maHang)
         {
-            // GetIdMaHangPadded đã trả về ID đã pad 5 ký tự sẵn — dùng thẳng, không format lại
             string idPadded = _repo.GetIdMaHangPadded(maHang);
 
             string[] ghep = lotSl.Split(',');
@@ -528,8 +529,6 @@ namespace PCTP.Applications.Services
                     string lot = lotSlPart[0];
                     string sl = lotSlPart.Length > 1 ? lotSlPart[1] : "0";
 
-                    // Ngưỡng đúng theo cấu trúc field: đủ 20 ký tự head (Date+Id+Shift+Gear+Lines+Machines)
-                    // thì mới có phần Counter+Qty ở đuôi để cắt. Dưới 20 là dạng LOT ngắn/cũ, không strip.
                     if (lot.Length < LotCodeHelper.LEN_HEAD_FIXED)
                     {
                         if (lot.Length == 12)
@@ -537,13 +536,13 @@ namespace PCTP.Applications.Services
                             resultParts.Add(lot + "-" + sl);
                             continue;
                         }
-                        if (!string.IsNullOrEmpty(idPadded))
-                            lot = lot.Replace(idPadded, idPadded); // giữ nguyên — idRaw gốc không pad đã bỏ, xem ghi chú dưới
+                        // ✅ Fallback tra cứu tương thích ngược — KHÔNG phải chuẩn ghi mới
+                        lot = LotCodeHelper.BuildLegacyShortLot(lot, idPadded);
                         resultParts.Add(lot + "-" + sl);
                     }
                     else
                     {
-                        // ✅ Cắt theo cấu trúc field thật: bỏ 8 ký tự cuối (TemCounter+QuantityTem)
+                        // ✅ Chuẩn ghi mới — luôn strip theo 20 ký tự head
                         resultParts.Add(LotCodeHelper.StripCounterAndQty(lot) + "-" + sl);
                     }
                 }
@@ -553,12 +552,11 @@ namespace PCTP.Applications.Services
             {
                 if (lotSl.Length < LotCodeHelper.LEN_HEAD_FIXED)
                 {
-                    return lotSl.Length > 13
-                        ? lotSl.Substring(0, 6) + idPadded + lotSl.Substring(13, 1)
-                        : lotSl;
+                    // ✅ Fallback tra cứu tương thích ngược — KHÔNG phải chuẩn ghi mới
+                    return LotCodeHelper.BuildLegacyShortLot(lotSl, idPadded);
                 }
 
-                // ✅ Cắt theo cấu trúc field thật thay vì cắt cơ học 19+4
+                // ✅ Chuẩn ghi mới — luôn strip theo 20 ký tự head
                 return LotCodeHelper.StripCounterAndQty(lotSl);
             }
         }
@@ -596,21 +594,4 @@ namespace PCTP.Applications.Services
     }
 
 
-        // ── Result type ─────────────────────────────────────────────────────────────
-        public class ScanResult
-    {
-        public bool Success { get; private set; }
-        public bool SlKhacBiet { get; private set; }
-        public string Message { get; private set; } = "";
-        public DocQRCode Item { get; private set; }
-
-        public static ScanResult OK(DocQRCode item)
-            => new ScanResult { Success = true, Item = item };
-
-        public static ScanResult Fail(string message)
-            => new ScanResult { Success = false, Message = message };
-
-        public static ScanResult SlKhongKhop(DocQRCode item)
-            => new ScanResult { Success = false, SlKhacBiet = true, Item = item };
-    }
 }

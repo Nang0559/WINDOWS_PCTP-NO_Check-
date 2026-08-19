@@ -25,7 +25,7 @@ namespace PCTP
         {
             DataTable Tbl = new DataTable();
             string sql = "select * from QRCODE_CHANGETIME order by GIOHVN";
-            Tbl = sqlBRV.ExecuteQuery(sqlBRV.B7R2_FCCdb, sql);
+            Tbl = sqlBRV.LoadData1(sqlBRV.B7R2_FCCdb, sql);
             gridControl1.DataSource = Tbl;
         }
         

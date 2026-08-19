@@ -49,7 +49,7 @@ namespace PCTP
         {
             DataTable DLNHAPKHO = new DataTable();
             string sql = "select * from vNhapTP order by NGAY_SAN_XUAT DESC";
-            DLNHAPKHO = sqlBRV.ExecuteQuery(sqlBRV.B7R2_FCCdb, sql);
+            DLNHAPKHO = sqlBRV.LoadData1(sqlBRV.B7R2_FCCdb, sql);
             gridCTRNHAPKHO.DataSource = DLNHAPKHO;
         }
         public void exportToExcel()
@@ -155,7 +155,7 @@ namespace PCTP
                     string Linescode = sqlBRV.ExecuteReader(sqlBRV.B7R2_FCCdb, sqllinecode);
                    ///
                     string sqlc = "select  STUFF('0000', 4-LEN(A.MachinesCode)+1, LEN(A.MachinesCode), A.MachinesCode) as Dept, GearCode,ShiftCode from B30AccDoc A where  stt = '" + sp + "'";
-                    DataTable tbsql = sqlBRV.ExecuteQuery(sqlBRV.B7R2_FCCdb, sqlc);
+                    DataTable tbsql = sqlBRV.LoadData1(sqlBRV.B7R2_FCCdb, sqlc);
                     object dept = tbsql.Rows[0]["Dept"];
                     object GearCode = tbsql.Rows[0]["GearCode"];
                     object Casx = tbsql.Rows[0]["ShiftCode"];
@@ -256,17 +256,17 @@ namespace PCTP
                         else
                         {
                            
-                            if (KTTRUNGLIST(CASE_NO) == true || tontai != 0)
-                            {
-                                MessageBox.Show("không thể nhập do trùng case ", "Thông Báo FCC",
-                                             MessageBoxButtons.OK,
-                                             MessageBoxIcon.Error);
+                            //if (KTTRUNGLIST(CASE_NO) == true || tontai != 0)
+                            //{
+                            //    MessageBox.Show("không thể nhập do trùng case ", "Thông Báo FCC",
+                            //                 MessageBoxButtons.OK,
+                            //                 MessageBoxIcon.Error);
 
-                                LOTDANHAP lOTDANHAP = new LOTDANHAP(CASE_NO);
-                                lOTDANHAP.Show();
-                                TXT_DOCQRCODE.Text = "";
+                            //    LOTDANHAP lOTDANHAP = new LOTDANHAP(CASE_NO);
+                            //    lOTDANHAP.Show();
+                            //    TXT_DOCQRCODE.Text = "";
 
-                            }
+                            //}
                         }
                         
                     }
@@ -293,7 +293,7 @@ namespace PCTP
                     if (KT > 0)
                     {
                         string sqldlng = "select lot,NGAYTRA,SLTRA,slnhanlai,LY_DO_NG from STOCKTPTRAHANG where STATUS= 0 and lot= '" + LOT + "'";
-                        Tb_NG = sqlBRV.ExecuteQuery(sqlBRV.B7R2_FCCdb, sqldlng);
+                        Tb_NG = sqlBRV.LoadData1(sqlBRV.B7R2_FCCdb, sqldlng);
                         NGL.DataSource = Tb_NG;
                     
                         UF_NHAPLAI_NG UF_NGLIST = new UF_NHAPLAI_NG(LOT, NGL);
@@ -514,8 +514,8 @@ namespace PCTP
 
         private void CMD_MOLOT_Click(object sender, EventArgs e)
         {
-            MOLAILOT ML = new MOLAILOT();
-            ML.Show();
+        //    MOLAILOT ML = new MOLAILOT();
+        //    ML.Show();
         }
 
         private void CMD_REFESH_Click(object sender, EventArgs e)

@@ -4,6 +4,7 @@ using DevExpress.XtraGrid.Columns;
 using DevExpress.XtraGrid.Views.Grid;
 using PCTP.ClassSQL;
 using PCTP.Domain.Entities;
+using PCTP.Modules.XuLyHangLoi;
 using PCTP.UserControls;
 using PCTP.VIEWSTOCK.FunctionForm;
 using PCTP.VIEWSTOCK.Repository;
@@ -24,6 +25,7 @@ namespace PCTP.VIEWSTOCK.ViewForm
         private readonly SQLPROVIDER _sql = new SQLPROVIDER();
         private readonly IPhieuLoiRepository _repo;
         private readonly TraHangService _traHangService;
+        private readonly KhachTraHangReceivingService _khachTraHangReceivingService;
 
         // ── Timeline ─────────────────────────────────────────────────────
         private TableLayoutPanel _pnlTimeline;
@@ -45,7 +47,12 @@ namespace PCTP.VIEWSTOCK.ViewForm
             var stockTpRepo = new StockTpRepository(_sql);
             var traHangRepo = new TraHangRepository(_sql);
             var stockService = new StockService();
-            _traHangService = new TraHangService(_sql, stockTpRepo, traHangRepo, stockService, _repo);
+            _traHangService = new TraHangService(
+                _sql,
+                stockTpRepo,
+                traHangRepo,
+                _repo,
+                stockService);
 
             BuildUI();
             RefreshBadges();

@@ -1,337 +1,1119 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
-using System.Text;
-using System.Linq;
-using System.Threading.Tasks;
-using System.Windows.Forms;
-using DevExpress.XtraEditors;
+﻿
+    using DevExpress.DataProcessing.InMemoryDataProcessor;
+    using DevExpress.XtraEditors;
+    using DevExpress.XtraGrid.Views.Grid;
+    using DevExpress.XtraRichEdit.Export.Doc;
 using PCTP.ClassSQL;
-using DevExpress.XtraGrid.Views.Grid;
+using System;
+    using System.ComponentModel;
+    using System.Data;
+    using System.Data.SqlClient;
+    using System.Windows.Forms;
 
-namespace PCTP
-{
-    public partial class NHAPKHOKHONGQRCODE : DevExpress.XtraEditors.XtraForm
+    namespace PCTP
     {
-        public NHAPKHOKHONGQRCODE()
+        public partial class NHAPKHOKHONGQRCODE : XtraForm
         {
-            InitializeComponent();
-        }
-        SQLPROVIDER sqlBrv = new SQLPROVIDER();
-        private void LODDL()
-        {
-            DataTable Tbl, Shift,TK;
-            string sql = "select Code, Name from  ITEM_NO_QRCODE group by Code, Name ";
-            string shift = "select Code,Name from B20Shift  where IsActive= 1 order by Code";
-            string SQLTK  = "select lot,part,name,ngaysx,casx,slsx,ngaynhap,slnhap,ngayxuat,slxuat,slconlai as SLCONLAI , slconlaitmp as SOLUONGDANGGIAO from STOCKTP where  slconlai > 0 and part in (select Code from ITEM_NO_QRCODE) ";
-            TK = sqlBrv.ExecuteQuery(sqlBrv.B7R2_FCCdb, SQLTK);
-            gridCTTCT.DataSource = TK;
-            Tbl = sqlBrv.ExecuteQuery(sqlBrv.B7R2_FCCdb, sql);
-            
-            lookUpMHNOQR.Properties.DataSource = Tbl;
-          
-            lookUpMHNOQR.Properties.DisplayMember = "Code";
-            lookUpMHNOQR.Properties.ValueMember = "Code";
-            Shift = sqlBrv.ExecuteQuery(sqlBrv.B7R2_FCCdb, shift);
-            lookUpCA.Properties.DataSource = Shift;
+            private readonly SQLPROVIDER _sql;
 
-            lookUpCA.Properties.DisplayMember = "Code";
-            lookUpCA.Properties.ValueMember = "Code";
-            sidePThemMoi.Enabled = false;
-            textCode.Text = "";
-            textName.Text = "";
-            textSLNHAP.Text = "";
-            lookUpCA.Text = "";
-            dateENgayNhap.DateTime = DateTime.Now;
-        }
+            public NHAPKHOKHONGQRCODE()
+            {
+                InitializeComponent();
 
-        private void NHAPKHOKHONGQRCODE_Load(object sender, EventArgs e)
-        {
-            LODDL();
-           
-        }
+                _sql = new SQLPROVIDER();
 
-        private void sidePanel3_Click(object sender, EventArgs e)
-        {
+                dateNN.DateTime = DateTime.Today;
+                dateENgayNhap.DateTime = DateTime.Now;
 
-        }
+                sidePThemMoi.Enabled = false;
+            }
 
-        private void CMDTHEMMOI_Click(object sender, EventArgs e)
-        {
-            sidePThemMoi.Enabled = true;
-        }
+            #region FORM LOAD
+
+            private void NHAPKHOKHONGQRCODE_Load(object sender, EventArgs e)
+            {
+                LoadData();
+            }
+
+            /// <summary>
+            /// Load danh sách mã hàng, ca sản xuất và tồn kho.
+            /// Dùng LoadData1 vì đây là SQL Text.
+            /// </summary>
+            private void LoadData()
+            {
+                try
+                {
+                    LoadItemNoQrCode();
+                    LoadShift();
+                    LoadStock();
+
+                    ResetInput();
+                }
+                catch (Exception ex)
+                {
+                    XtraMessageBox.Show(
+                        $"Không thể tải dữ liệu.\r\n\r\n{ex.Message}",
+                        "Lỗi",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Error);
+                }
+            }
+
+            private void LoadItemNoQrCode()
+            {
+                const string sql = @"
+                SELECT 
+                    Code,
+                    Name
+                FROM ITEM_NO_QRCODE
+                GROUP BY Code, Name
+                ORDER BY Code;";
+
+                DataTable dt = _sql.LoadData1(
+                    _sql.B7R2_FCCdb,
+                    sql);
+
+                lookUpMHNOQR.Properties.DataSource = dt;
+                lookUpMHNOQR.Properties.DisplayMember = "Code";
+                lookUpMHNOQR.Properties.ValueMember = "Code";
+                lookUpMHNOQR.Properties.NullText = "Chọn mã hàng";
+            }
+
+            private void LoadShift()
+            {
+                const string sql = @"
+                SELECT 
+                    Code,
+                    Name
+                FROM B20Shift
+                WHERE IsActive = 1
+                ORDER BY Code;";
+
+                DataTable dt = _sql.LoadData1(
+                    _sql.B7R2_FCCdb,
+                    sql);
+
+                lookUpCA.Properties.DataSource = dt;
+                lookUpCA.Properties.DisplayMember = "Code";
+                lookUpCA.Properties.ValueMember = "Code";
+                lookUpCA.Properties.NullText = "Chọn ca";
+            }
+
+            private void LoadStock()
+            {
+                const string sql = @"
+                SELECT
+                    LOT,
+                    Part,
+                    Name,
+                    NGAYSX,
+                    CASX,
+                    SLSX,
+                    NGAYNHAP,
+                    SLNHAP,
+                    NGAYXUAT,
+                    SLXUAT,
+                    SLCONLAI,
+                    SLCONLAITMP AS SOLUONGDANGGIAO
+                FROM STOCKTP
+                WHERE SLCONLAI > 0
+                  AND Part IN
+                  (
+                      SELECT Code
+                      FROM ITEM_NO_QRCODE
+                  )
+                ORDER BY NGAYSX DESC, LOT;";
+
+                DataTable dt = _sql.LoadData1(
+                    _sql.B7R2_FCCdb,
+                    sql);
+
+                gridCTTCT.DataSource = dt;
+            }
+
+            #endregion
+
+            #region RESET / UI
+
+            private void ResetInput()
+            {
+                sidePThemMoi.Enabled = false;
+
+                textCode.Text = string.Empty;
+                textName.Text = string.Empty;
+                textSLNHAP.Text = string.Empty;
+
+                lookUpMHNOQR.EditValue = null;
+                lookUpCA.EditValue = null;
+
+                dateNN.DateTime = DateTime.Today;
+                dateENgayNhap.DateTime = DateTime.Now;
+
+                ClearErrors();
+            }
+
+            private void ClearErrors()
+            {
+                textCode.ErrorText = string.Empty;
+                textName.ErrorText = string.Empty;
+                textSLNHAP.ErrorText = string.Empty;
+                lookUpMHNOQR.ErrorText = string.Empty;
+                lookUpCA.ErrorText = string.Empty;
+                dateNN.ErrorText = string.Empty;
+            }
+
+            #endregion
+
+            #region THÊM MÃ HÀNG KHÔNG QR
+
+            private void CMDTHEMMOI_Click(object sender, EventArgs e)
+            {
+                sidePThemMoi.Enabled = true;
+
+                textCode.Focus();
+            }
 
         private void cmdOK_Click(object sender, EventArgs e)
         {
-            string Code,Name,sqlinsert,IDtrung ,IDMAX,sqlB20,sql_TIMIDMAX = "select max(ID) from B20Item";
-            int ID;
-            Code = textCode.Text.Trim();
-            Name = textName.Text.Trim();
-            if (Code.Trim() == "" || Name.Trim() == "")
-            {
-                XtraMessageBox.Show("Không được bỏ trống giá trị tên hàng và mã hàng ! ");
-            }
-            else
-            {
-                sqlB20 = "select Id from b20item where Code = '" + Code + "'";
-                IDMAX = sqlBrv.ExecuteReader(sqlBrv.B7R2_FCCdb, sqlB20);
-                if (KTNHAPMM() == true)
-                {
-                    //extCode.Select();
-                    //textCode.IsModified = true;
-                    //textName.Select();
-                    //textName.IsModified = true;
-                    //if (textCode.DoValidate() && textCode.DoValidate())
-                    //{
-                        if (IDMAX == null || IDMAX == "")
-                    {
+            if (!ValidateNewItem())
+                return;
 
-                        IDMAX = sqlBrv.ExecuteReader(sqlBrv.B7R2_FCCdb, sql_TIMIDMAX);
-                        IDtrung = "select ID from ITEM_NO_QRCODE where ID = " + int.Parse(IDMAX) + "+ 1";
-                        if (sqlBrv.ExecuteReader(sqlBrv.B7R2_FCCdb, IDtrung) != null || sqlBrv.ExecuteReader(sqlBrv.B7R2_FCCdb, IDtrung) != "")
+            string code = textCode.Text.Trim();
+            string name = textName.Text.Trim();
+
+            SqlTransaction tran = null;
+
+            try
+            {
+                // ============================================================
+                // 1. Kiểm tra mã đã tồn tại trong ITEM_NO_QRCODE
+                // ============================================================
+
+                const string sqlCheck = @"
+            SELECT COUNT(1)
+            FROM ITEM_NO_QRCODE
+            WHERE Code = @Code;";
+
+                int count = Convert.ToInt32(
+                    _sql.ExecuteScalar(
+                        _sql.B7R2_FCCdb,
+                        sqlCheck,
+                        new[]
                         {
-                            IDtrung = "select max(Id) from ITEM_NO_QRCODE ";
-                            IDMAX = sqlBrv.ExecuteReader(sqlBrv.B7R2_FCCdb, IDtrung);
-                            sqlB20 = "insert into b20item  (ParentId,Code,Name,Unit) values (1,'" + Code + "',' " + Name + "','Cái')";
-                            sqlBrv.ExecuteNonQuery(sqlBrv.B7R2_FCCdb, sqlB20);
+                    new SqlParameter("@Code", SqlDbType.NVarChar, 50)
+                    {
+                        Value = code
+                    }
+                        }));
+
+                if (count > 0)
+                {
+                    XtraMessageBox.Show(
+                        $"Mã hàng [{code}] đã tồn tại.",
+                        "Trùng mã",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+
+                    textCode.Focus();
+                    textCode.SelectAll();
+                    return;
+                }
+
+                // ============================================================
+                // 2. Mở transaction
+                // ============================================================
+
+                using (SqlConnection conn = _sql.BeginTransaction(
+                    _sql.B7R2_FCCdb,
+                    out tran))
+                {
+                    try
+                    {
+                        // ====================================================
+                        // 3. Lấy ID mới cho ITEM_NO_QRCODE
+                        // ====================================================
+
+                        const string sqlMaxId = @"
+                    SELECT ISNULL(MAX(ID), 0) + 1
+                    FROM ITEM_NO_QRCODE;";
+
+                        int newId = Convert.ToInt32(
+                            _sql.ExecuteScalar(
+                                conn,
+                                tran,
+                                sqlMaxId));
+
+                        // ====================================================
+                        // 4. Kiểm tra B20Item
+                        // ====================================================
+
+                        const string sqlCheckB20 = @"
+                    SELECT COUNT(1)
+                    FROM B20Item
+                    WHERE Code = @Code;";
+
+                        int b20Count = Convert.ToInt32(
+                            _sql.ExecuteScalar(
+                                conn,
+                                tran,
+                                sqlCheckB20,
+                                new[]
+                                {
+                            new SqlParameter("@Code", SqlDbType.NVarChar, 50)
+                            {
+                                Value = code
+                            }
+                                }));
+
+                        // ====================================================
+                        // 5. Nếu chưa có B20Item thì thêm mới
+                        // ====================================================
+
+                        if (b20Count == 0)
+                        {
+                            const string sqlInsertB20 = @"
+                        INSERT INTO B20Item
+                        (
+                            ParentId,
+                            Code,
+                            Name,
+                            Unit
+                        )
+                        VALUES
+                        (
+                            @ParentId,
+                            @Code,
+                            @Name,
+                            @Unit
+                        );";
+
+                            _sql.ExecuteNonQuery(
+                                conn,
+                                tran,
+                                sqlInsertB20,
+                                new SqlParameter("@ParentId", SqlDbType.Int)
+                                {
+                                    Value = 1
+                                },
+                                new SqlParameter("@Code", SqlDbType.NVarChar, 50)
+                                {
+                                    Value = code
+                                },
+                                new SqlParameter("@Name", SqlDbType.NVarChar, 255)
+                                {
+                                    Value = name
+                                },
+                                new SqlParameter("@Unit", SqlDbType.NVarChar, 50)
+                                {
+                                    Value = "Cái"
+                                });
                         }
-                        ID = int.Parse(IDMAX) + 1;
 
+                        // ====================================================
+                        // 6. Thêm ITEM_NO_QRCODE
+                        // ====================================================
+
+                        const string sqlInsertNoQr = @"
+                    INSERT INTO ITEM_NO_QRCODE
+                    (
+                        ID,
+                        Code,
+                        Name
+                    )
+                    VALUES
+                    (
+                        @ID,
+                        @Code,
+                        @Name
+                    );";
+
+                        _sql.ExecuteNonQuery(
+                            conn,
+                            tran,
+                            sqlInsertNoQr,
+                            new SqlParameter("@ID", SqlDbType.Int)
+                            {
+                                Value = newId
+                            },
+                            new SqlParameter("@Code", SqlDbType.NVarChar, 50)
+                            {
+                                Value = code
+                            },
+                            new SqlParameter("@Name", SqlDbType.NVarChar, 255)
+                            {
+                                Value = name
+                            });
+
+                        // ====================================================
+                        // 7. Commit
+                        // ====================================================
+
+                        tran.Commit();
+                        tran = null;
+                    }
+                    catch
+                    {
+                        try
+                        {
+                            tran?.Rollback();
+                        }
+                        catch
+                        {
+                            // Không che mất exception SQL gốc
+                        }
+
+                        throw;
+                    }
+                }
+
+                // ============================================================
+                // 8. Thành công
+                // ============================================================
+
+                XtraMessageBox.Show(
+                    $"Đã thêm mã hàng thành công.\r\n\r\n" +
+                    $"Mã hàng: {code}\r\n" +
+                    $"Tên hàng: {name}",
+                    "Hoàn tất",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+
+                LoadData();
+
+                // Reset form
+                textCode.Text = string.Empty;
+                textName.Text = string.Empty;
+                textCode.Focus();
+            }
+            catch (SqlException ex)
+            {
+                XtraMessageBox.Show(
+                    "Không thể lưu mã hàng vào cơ sở dữ liệu.\r\n\r\n" +
+                    ex.Message,
+                    "Lỗi SQL",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+            }
+            catch (Exception ex)
+            {
+                XtraMessageBox.Show(
+                    "Không thể thêm mã hàng.\r\n\r\n" +
+                    ex.Message,
+                    "Lỗi",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+            }
+        }
+
+        private bool ValidateNewItem()
+            {
+                ClearErrors();
+
+                bool valid = true;
+
+                if (string.IsNullOrWhiteSpace(textCode.Text))
+                {
+                    textCode.ErrorText = "Chưa nhập mã hàng.";
+                    valid = false;
+                }
+
+                if (string.IsNullOrWhiteSpace(textName.Text))
+                {
+                    textName.ErrorText = "Chưa nhập tên hàng.";
+                    valid = false;
+                }
+
+                if (!valid)
+                {
+                    XtraMessageBox.Show(
+                        "Vui lòng nhập đầy đủ thông tin.",
+                        "Thông báo",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+                }
+
+                return valid;
+            }
+
+            #endregion
+
+            #region LOT
+
+            /// <summary>
+            /// Lấy ID của mã hàng không QR.
+            /// </summary>
+            private int GetItemNoQrId(string code)
+            {
+                const string sql = @"
+                SELECT TOP 1 ID
+                FROM ITEM_NO_QRCODE
+                WHERE Code = @Code;";
+
+                object result = _sql.ExecuteScalar(
+                    _sql.B7R2_FCCdb,
+                    sql,
+                    new[]
+                    {
+                    new SqlParameter("@Code", SqlDbType.NVarChar, 50)
+                    {
+                        Value = code
+                    }
+                    });
+
+                if (result == null || result == DBNull.Value)
+                    return 0;
+
+                return Convert.ToInt32(result);
+            }
+
+            /// <summary>
+            /// Sinh LOT theo cấu trúc cũ:
+            /// SP + yyMMdd + ID mã hàng + Ca
+            /// </summary>
+            private string GenerateLotNo(
+                string itemCode,
+                DateTime productionDate,
+                string shift)
+            {
+                int itemId = GetItemNoQrId(itemCode);
+
+                if (itemId <= 0)
+                    throw new InvalidOperationException(
+                        $"Không tìm thấy ID của mã hàng [{itemCode}].");
+
+                return $"SP{productionDate:yyMMdd}{itemId}{shift}";
+            }
+
+            #endregion
+
+            #region VALIDATE NHẬP KHO
+
+            private bool ValidateImport()
+            {
+                ClearErrors();
+
+                bool valid = true;
+
+                if (lookUpMHNOQR.EditValue == null ||
+                    string.IsNullOrWhiteSpace(lookUpMHNOQR.EditValue.ToString()))
+                {
+                    lookUpMHNOQR.ErrorText = "Hãy chọn mã hàng.";
+                    valid = false;
+                }
+
+                if (lookUpCA.EditValue == null ||
+                    string.IsNullOrWhiteSpace(lookUpCA.EditValue.ToString()))
+                {
+                    lookUpCA.ErrorText = "Hãy chọn ca sản xuất.";
+                    valid = false;
+                }
+
+                if (dateNN.EditValue == null)
+                {
+                    dateNN.ErrorText = "Hãy chọn ngày sản xuất.";
+                    valid = false;
+                }
+
+                if (!int.TryParse(
+                        textSLNHAP.Text.Trim(),
+                        out int quantity) ||
+                    quantity <= 0)
+                {
+                    textSLNHAP.ErrorText =
+                        "Số lượng nhập phải là số nguyên lớn hơn 0.";
+                    valid = false;
+                }
+
+                if (!valid)
+                {
+                    XtraMessageBox.Show(
+                        "Vui lòng kiểm tra lại thông tin nhập kho.",
+                        "Dữ liệu chưa hợp lệ",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+                }
+
+                return valid;
+            }
+
+            #endregion
+
+            #region SAVE STOCKTP
+
+            private void SaveData()
+            {
+                string itemCode = lookUpMHNOQR.EditValue?.ToString()?.Trim();
+                string shift = lookUpCA.EditValue?.ToString()?.Trim();
+
+                int quantity = Convert.ToInt32(textSLNHAP.Text.Trim());
+
+                DateTime productionDate = dateNN.DateTime.Date;
+                DateTime importDate = dateENgayNhap.DateTime;
+
+                string lotNo = GenerateLotNo(
+                    itemCode,
+                    productionDate,
+                    shift);
+
+                using (SqlConnection conn =
+                    _sql.BeginTransaction(
+                        _sql.B7R2_FCCdb,
+                        out SqlTransaction tran))
+                {
+                    try
+                    {
+                        // Lấy tên hàng từ bảng ITEM_NO_QRCODE.
+                        const string sqlGetName = @"
+                        SELECT TOP 1 Name
+                        FROM ITEM_NO_QRCODE
+                        WHERE Code = @Code;";
+
+                        object nameResult = _sql.ExecuteScalar(
+                            conn,
+                            tran,
+                            sqlGetName,
+                            new[]
+                            {
+                            new SqlParameter("@Code", SqlDbType.NVarChar, 50)
+                            {
+                                Value = itemCode
+                            }
+                            });
+
+                        string itemName =
+                            nameResult == null || nameResult == DBNull.Value
+                                ? string.Empty
+                                : nameResult.ToString().Trim();
+
+                        if (string.IsNullOrWhiteSpace(itemName))
+                        {
+                            throw new InvalidOperationException(
+                                $"Không tìm thấy tên hàng của mã [{itemCode}].");
+                        }
+
+                        // Kiểm tra LOT.
+                        const string sqlCheckLot = @"
+                        SELECT COUNT(1)
+                        FROM STOCKTP
+                        WHERE LOT = @LOT;";
+
+                        int lotCount = Convert.ToInt32(
+                            _sql.ExecuteScalar(
+                                conn,
+                                tran,
+                                sqlCheckLot,
+                                new[]
+                                {
+                                new SqlParameter("@LOT", SqlDbType.NVarChar, 100)
+                                {
+                                    Value = lotNo
+                                }
+                                }));
+
+                        if (lotCount == 0)
+                        {
+                            // LOT mới.
+                            const string sqlInsert = @"
+                            INSERT INTO STOCKTP
+                            (
+                                LOT,
+                                Part,
+                                NAME,
+                                CASX,
+                                NGAYSX,
+                                NGAYNHAP,
+                                SLNHAP,
+                                NGAYXUAT,
+                                SLXUAT,
+                                SLCONLAI,
+                                Satus
+                            )
+                            VALUES
+                            (
+                                @LOT,
+                                @Part,
+                                @Name,
+                                @CaSX,
+                                @NgaySX,
+                                @NgayNhap,
+                                @SLNhap,
+                                @NgayXuat,
+                                @SLXuat,
+                                @SLConLai,
+                                @Status
+                            );";
+
+                            _sql.ExecuteNonQuery(
+                                conn,
+                                tran,
+                                sqlInsert,
+                                new SqlParameter("@LOT", SqlDbType.NVarChar, 100)
+                                {
+                                    Value = lotNo
+                                },
+                                new SqlParameter("@Part", SqlDbType.NVarChar, 50)
+                                {
+                                    Value = itemCode
+                                },
+                                new SqlParameter("@Name", SqlDbType.NVarChar, 255)
+                                {
+                                    Value = itemName
+                                },
+                                new SqlParameter("@CaSX", SqlDbType.Int)
+                                {
+                                    Value = Convert.ToInt32(shift)
+                                },
+                                new SqlParameter("@NgaySX", SqlDbType.DateTime)
+                                {
+                                    Value = productionDate
+                                },
+                                new SqlParameter("@NgayNhap", SqlDbType.DateTime)
+                                {
+                                    Value = importDate
+                                },
+                                new SqlParameter("@SLNhap", SqlDbType.Int)
+                                {
+                                    Value = quantity
+                                },
+                                new SqlParameter("@NgayXuat", SqlDbType.DateTime)
+                                {
+                                    Value = productionDate
+                                },
+                                new SqlParameter("@SLXuat", SqlDbType.Int)
+                                {
+                                    Value = 0
+                                },
+                                new SqlParameter("@SLConLai", SqlDbType.Int)
+                                {
+                                    Value = quantity
+                                },
+                                new SqlParameter("@Status", SqlDbType.Int)
+                                {
+                                    Value = 1
+                                });
+                        }
+                        else
+                        {
+                            // LOT đã tồn tại -> cộng thêm số lượng.
+                            const string sqlUpdate = @"
+                            UPDATE STOCKTP
+                            SET
+                                SLNHAP = ISNULL(SLNHAP, 0) + @SLNhap,
+                                SLCONLAI = ISNULL(SLCONLAI, 0) + @SLNhap,
+                                NGAYNHAP = @NgayNhap
+                            WHERE LOT = @LOT;";
+
+                            _sql.ExecuteNonQuery(
+                                conn,
+                                tran,
+                                sqlUpdate,
+                                new SqlParameter("@SLNhap", SqlDbType.Int)
+                                {
+                                    Value = quantity
+                                },
+                                new SqlParameter("@NgayNhap", SqlDbType.DateTime)
+                                {
+                                    Value = importDate
+                                },
+                                new SqlParameter("@LOT", SqlDbType.NVarChar, 100)
+                                {
+                                    Value = lotNo
+                                });
+                        }
+
+                        tran.Commit();
+                    }
+                    catch
+                    {
+                        try
+                        {
+                            tran.Rollback();
+                        }
+                        catch
+                        {
+                            // Giữ exception gốc.
+                        }
+
+                        throw;
+                    }
+                }
+            }
+
+            #endregion
+
+            #region BUTTON NHẬP KHO
+
+            private void simpleButton1_Click(object sender, EventArgs e)
+            {
+                if (!ValidateImport())
+                    return;
+
+                try
+                {
+                    string itemCode = lookUpMHNOQR.EditValue.ToString();
+                    string shift = lookUpCA.EditValue.ToString();
+
+                    string lotNo = GenerateLotNo(
+                        itemCode,
+                        dateNN.DateTime.Date,
+                        shift);
+
+                    SaveData();
+
+                    XtraMessageBox.Show(
+                        $"Nhập kho thành công.\r\n\r\nLOT: {lotNo}\r\nSố lượng: {textSLNHAP.Text}",
+                        "Hoàn tất",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Information);
+
+                    LoadData();
+
+                    lookUpMHNOQR.Focus();
+                }
+                catch (Exception ex)
+                {
+                    XtraMessageBox.Show(
+                        $"Nhập kho thất bại.\r\n\r\n{ex.Message}",
+                        "Lỗi",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Error);
+                }
+            }
+
+            #endregion
+
+            #region SỬA LOT
+
+            private void cmdSua_ButtonClick(
+                object sender,
+                DevExpress.XtraEditors.Controls.ButtonPressedEventArgs e)
+            {
+                GridView view = gridVCTK;
+
+                if (view.FocusedRowHandle < 0)
+                    return;
+
+                string lot = Convert.ToString(
+                    view.GetRowCellValue(
+                        view.FocusedRowHandle,
+                        "lot"));
+
+                if (string.IsNullOrWhiteSpace(lot))
+                    return;
+
+                int slNhap = GetGridInt(view, "slnhap");
+                int slConLai = GetGridInt(view, "SLCONLAI");
+                int slXuat = GetGridInt(view, "slxuat");
+                int slSx = GetGridInt(view, "slsx");
+
+                if (slNhap < slXuat)
+                {
+                    XtraMessageBox.Show(
+                        "SL nhập không được nhỏ hơn SL xuất.",
+                        "Dữ liệu không hợp lệ",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+
+                    return;
+                }
+
+                if (slConLai != slNhap - slXuat)
+                {
+                    XtraMessageBox.Show(
+                        $"SL còn lại phải bằng SL nhập - SL xuất.\r\n\r\n" +
+                        $"SL nhập: {slNhap}\r\n" +
+                        $"SL xuất: {slXuat}\r\n" +
+                        $"SL còn lại đúng: {slNhap - slXuat}",
+                        "Dữ liệu không hợp lệ",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+
+                    return;
+                }
+
+                const string sql = @"
+                UPDATE STOCKTP
+                SET
+                    SLNHAP = @SLNhap,
+                    SLCONLAI = @SLConLai,
+                    SLSX = @SLSX,
+                    SLXUAT = @SLXuat
+                WHERE LOT = @LOT;";
+
+                try
+                {
+                    int affected = _sql.ExecuteNonQuery(
+                        _sql.B7R2_FCCdb,
+                        sql,
+                        new SqlParameter("@SLNhap", SqlDbType.Int)
+                        {
+                            Value = slNhap
+                        },
+                        new SqlParameter("@SLConLai", SqlDbType.Int)
+                        {
+                            Value = slConLai
+                        },
+                        new SqlParameter("@SLSX", SqlDbType.Int)
+                        {
+                            Value = slSx
+                        },
+                        new SqlParameter("@SLXuat", SqlDbType.Int)
+                        {
+                            Value = slXuat
+                        },
+                        new SqlParameter("@LOT", SqlDbType.NVarChar, 100)
+                        {
+                            Value = lot
+                        });
+
+                    if (affected > 0)
+                    {
+                        XtraMessageBox.Show(
+                            $"Đã cập nhật LOT [{lot}].",
+                            "Hoàn tất",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Information);
+
+                        LoadStock();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    XtraMessageBox.Show(
+                        $"Không thể cập nhật LOT.\r\n\r\n{ex.Message}",
+                        "Lỗi",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Error);
+                }
+            }
+
+            private int GetGridInt(
+                GridView view,
+                string fieldName)
+            {
+                object value = view.GetRowCellValue(
+                    view.FocusedRowHandle,
+                    fieldName);
+
+                if (value == null || value == DBNull.Value)
+                    return 0;
+
+                if (int.TryParse(value.ToString(), out int result))
+                    return result;
+
+                return 0;
+            }
+
+            #endregion
+
+            #region XÓA LOT
+
+            private void cmdxoa_Click(object sender, EventArgs e)
+            {
+                if (gridVCTK.FocusedRowHandle < 0)
+                    return;
+
+                string lot = Convert.ToString(
+                    gridVCTK.GetRowCellValue(
+                        gridVCTK.FocusedRowHandle,
+                        "lot"));
+
+                if (string.IsNullOrWhiteSpace(lot))
+                    return;
+
+                DialogResult result = XtraMessageBox.Show(
+                    $"Bạn có chắc muốn xóa LOT:\r\n\r\n{lot}?",
+                    "Xác nhận xóa",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Warning);
+
+                if (result != DialogResult.Yes)
+                    return;
+
+                try
+                {
+                    const string sql = @"
+                    DELETE FROM STOCKTP
+                    WHERE LOT = @LOT;";
+
+                    int affected = _sql.ExecuteNonQuery(
+                        _sql.B7R2_FCCdb,
+                        sql,
+                        new SqlParameter("@LOT", SqlDbType.NVarChar, 100)
+                        {
+                            Value = lot
+                        });
+
+                    if (affected > 0)
+                    {
+                        XtraMessageBox.Show(
+                            $"Đã xóa LOT [{lot}].",
+                            "Hoàn tất",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Information);
                     }
                     else
                     {
-                        ID = int.Parse(IDMAX);
+                        XtraMessageBox.Show(
+                            $"Không tìm thấy LOT [{lot}].",
+                            "Thông báo",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Warning);
                     }
 
-
-
-
-                    sqlinsert = "insert into ITEM_NO_QRCODE values (" + ID + ",'" + Code + "','" + Name + "')";
-
-                    sqlBrv.ExecuteNonQuery(sqlBrv.B7R2_FCCdb, sqlinsert);
-
-                    MessageBox.Show("Complete!!! ", "Thông Báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    LODDL();
+                    LoadStock();
+                }
+                catch (Exception ex)
+                {
+                    XtraMessageBox.Show(
+                        $"Không thể xóa LOT.\r\n\r\n{ex.Message}",
+                        "Lỗi",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Error);
                 }
             }
-        }
-            // Kiểm tra nhập mã mới .
-            private Boolean KTNHAPMM()
-            {
-                Boolean KQ = false;
-                string sql = "select count(*) from ITEM_NO_QRCODE where Code = '" + textCode.Text.Trim() + "'";
 
-                string KQTV = sqlBrv.ExecuteReader(sqlBrv.B7R2_FCCdb, sql);
-                if (textCode.Text == "" || textName.Text == "")
+            #endregion
+
+            #region COPY GRID
+
+            private void gridVCTK_KeyDown(
+                object sender,
+                KeyEventArgs e)
+            {
+                GridView view = sender as GridView;
+
+                if (view == null)
+                    return;
+
+                if (e.Control && e.KeyCode == Keys.C)
                 {
-                    MessageBox.Show("Không được bỏ trắng giá trị ", "Thông Báo", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    KQ = false;
+                    object value = view.GetRowCellValue(
+                        view.FocusedRowHandle,
+                        view.FocusedColumn);
+
+                    if (value != null && value != DBNull.Value)
+                    {
+                        Clipboard.SetText(value.ToString());
+                    }
+
+                    e.Handled = true;
+                }
+            }
+
+            #endregion
+
+            #region VALIDATING
+
+            private void textCode_Properties_Validating(
+                object sender,
+                CancelEventArgs e)
+            {
+                TextEdit edit = sender as TextEdit;
+
+                if (string.IsNullOrWhiteSpace(edit.Text))
+                {
+                    edit.ErrorText = "Không được để trống mã hàng.";
+                    e.Cancel = true;
                 }
                 else
                 {
-                    if (int.Parse(KQTV) == 0)
-                    {
-                        KQ = true;
-                    }
-                    else
-                    {
-
-                        MessageBox.Show("Đã có mã trùng, không thể nhập ", "Thông Báo", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                        KQ = false;
-
-                    }
+                    edit.ErrorText = string.Empty;
                 }
-                return KQ;
             }
-        private string LOTNO()
-        {
-            string Code,TIMID,CA,LOT = "";
-            CA = lookUpCA.Text.Trim();
-            Code = lookUpMHNOQR.Text.Trim();
-            string Ngay = dateNN.DateTime.ToString("yyMMdd");
-            string sql = "select Id from ITEM_NO_QRCODE where Code = '" + Code + "'";
-            TIMID = sqlBrv.ExecuteReader(sqlBrv.B7R2_FCCdb, sql);
 
-            LOT = "SP" + Ngay + TIMID + CA;
-            return LOT;
-        }
-        private Boolean KiemTRaNhapKho()
-        {
-            Boolean KQ= false;
-            string MH = lookUpMHNOQR.Text.Trim();
-            string N = dateNN.DateTime.ToString("yyMMdd");
-            string SL = textSLNHAP.Text;
-            string Ca = lookUpCA.Text.Trim();
-            if(MH == lookUpMHNOQR.Properties.NullText || N =="010101" || SL == "" || Ca == lookUpCA.Properties.NullText )
+            private void textName_Properties_Validating(
+                object sender,
+                CancelEventArgs e)
             {
-                KQ = false;
-            }
-            else
-            {
-                KQ = true;
-            }
-            return KQ;
-        }
+                TextEdit edit = sender as TextEdit;
 
-        private void button1_Click(object sender, EventArgs e)
-        {
-            
-        }
-        private void SaveData()
-        {
-            string MH = lookUpMHNOQR.Text.Trim();
-            string sql = "select Name from ITEM_NO_QRCODE where Code = '" + MH + "'";
-            string Name = sqlBrv.ExecuteReader(sqlBrv.B7R2_FCCdb, sql);
-            string N = dateNN.DateTime.ToString("MM/dd/yyy");
-            string NN = dateENgayNhap.DateTime.ToString("MM/dd/yyy");
-            string SL = textSLNHAP.Text;
-            string Ca = lookUpCA.Text.Trim();
-            string TT;
-            sql= "select LOT from STOCKTP where LOT = '" + LOTNO() + "'";
-            TT = sqlBrv.ExecuteReader(sqlBrv.B7R2_FCCdb, sql);
-                
-            if(TT == "")
-            {
-                sql = "INSERT INTO STOCKTP(LOT,Part, NAME, CASX, NGAYSX, NGAYNHAP, SLNHAP, NGAYXUAT, SLXUAT, SLCONLAI, Satus) VALUES('" + LOTNO() + "', '" + MH + "','" + Name.Trim() + "'," + Ca + ",'" + N + "','" + NN + "', " + SL + ", '" + N + "', " + 0 + ", " + SL + ",  " + 1 + " )";
-                sqlBrv.ExecuteNonQuery(sqlBrv.B7R2_FCCdb, sql);
-            }
-            else
-            {
-                sql = "UPDATE STOCKTP SET slnhap = (slnhap + " + SL + "),SLCONLAI = (SLCONLAI + " + SL + "),NGAYNHAP = '" + N + "'  WHERE LOT = '" + LOTNO() + "'";
-                sqlBrv.ExecuteNonQuery(sqlBrv.B7R2_FCCdb, sql);
-            }
-        
-        }
-
-        private void cmdSua_ButtonClick(object sender, DevExpress.XtraEditors.Controls.ButtonPressedEventArgs e)
-        {
-           string LOT =  gridVCTK.GetRowCellValue(gridVCTK.FocusedRowHandle, "lot").ToString();
-            int slnhap = int.Parse(gridVCTK.GetRowCellValue(gridVCTK.FocusedRowHandle, "slnhap").ToString());
-            int slconlai = int.Parse(gridVCTK.GetRowCellValue(gridVCTK.FocusedRowHandle, "SLCONLAI").ToString());
-            int slsx;
-            int slxuat = int.Parse(gridVCTK.GetRowCellValue(gridVCTK.FocusedRowHandle, "slxuat").ToString());
-            if (gridVCTK.GetRowCellValue(gridVCTK.FocusedRowHandle, "slsx").ToString() == "")
-            {
-                slsx = 0;
-            }
-            else { slsx = int.Parse(gridVCTK.GetRowCellValue(gridVCTK.FocusedRowHandle, "slsx").ToString()); }
-            string sql = "update Stocktp set SLNHAP =  " + slnhap + ",slconlai =" + slconlai + ",slsx = " + slsx + ",slxuat = "+ slxuat + " where lot = '" + LOT + "'";
-            sqlBrv.ExecuteNonQuery(sqlBrv.B7R2_FCCdb, sql);
-            MessageBox.Show("Sửa LOT :  " + LOT + " . " , "Thông Báo", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            LODDL();
-        }
-
-        private void cmdxoa_Click(object sender, EventArgs e)
-        {
-            string sql,LOT = gridVCTK.GetRowCellValue(gridVCTK.FocusedRowHandle, "lot").ToString();
-            DialogResult rs = MessageBox.Show("Xóa LOT :  " + LOT + " . ", "Thông Báo", MessageBoxButtons.YesNo, MessageBoxIcon.Information);
-            if(rs== DialogResult.Yes)
-            {
-                sql = "delete Stocktp where LOT = '" + LOT + "'";
-                sqlBrv.ExecuteNonQuery(sqlBrv.B7R2_FCCdb, sql);
-                gridVCTK.DeleteRow(gridVCTK.FocusedRowHandle);
-            }
-            LODDL();
-        }
-
-        private void simpleButton1_Click(object sender, EventArgs e)
-        {
-            lookUpMHNOQR.Select();
-            lookUpMHNOQR.IsModified = true;
-            dateNN.Select();
-            dateNN.IsModified = true;
-            textSLNHAP.Select();
-            textSLNHAP.IsModified = true;
-            lookUpCA.Select();
-            lookUpCA.IsModified = true;
-
-            if (lookUpMHNOQR.DoValidate() && dateNN.DoValidate() &&  textSLNHAP.DoValidate() && lookUpCA.DoValidate() )
-            {
-                SaveData();
-                MessageBox.Show("OK ", "Thông Báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                NHAPKHOKHONGQRCODE NewForm = new NHAPKHOKHONGQRCODE();
-                NewForm.Show();
-                this.Dispose(false);
-                //LODDL();
-            }
-            else
-                XtraMessageBox.Show("Hãy nhập đầy đủ thông tin !", "Thông Báo", MessageBoxButtons.OK, MessageBoxIcon.Error);
-
-
-        }
-        
-       
-
-        private void gridVCTK_KeyDown(object sender, KeyEventArgs e)
-        {
-            GridView view = sender as GridView;
-            if (e.Control && e.KeyCode == Keys.C)
-            {
-                if (view.GetRowCellValue(view.FocusedRowHandle, view.FocusedColumn) != null && view.GetRowCellValue(view.FocusedRowHandle, view.FocusedColumn).ToString() != String.Empty)
-                    Clipboard.SetText(view.GetRowCellValue(view.FocusedRowHandle, view.FocusedColumn).ToString());
+                if (string.IsNullOrWhiteSpace(edit.Text))
+                {
+                    edit.ErrorText = "Không được để trống tên hàng.";
+                    e.Cancel = true;
+                }
                 else
-                    MessageBox.Show("The value in the selected cell is null or empty!");
-                e.Handled = true;
+                {
+                    edit.ErrorText = string.Empty;
+                }
             }
-        }
 
-        
-
-        private void textCode_Properties_Validating(object sender, CancelEventArgs e)
-        {
-            TextEdit edit = sender as TextEdit;
-            e.Cancel = string.IsNullOrEmpty(edit.Text);
-        }
-
-        private void textName_Properties_Validating(object sender, CancelEventArgs e)
-        {
-            TextEdit edit = sender as TextEdit;
-            e.Cancel = string.IsNullOrEmpty(edit.Text);
-        }
-
-        private void lookUpMHNOQR_Properties_Validating(object sender, CancelEventArgs e)
-        {
-            LookUpEdit edit = sender as LookUpEdit;
-
-            if (string.IsNullOrEmpty(edit.EditValue == null ? "" : edit.EditValue.ToString()) == true)
+            private void lookUpMHNOQR_Properties_Validating(
+                object sender,
+                CancelEventArgs e)
             {
-                
-                lookUpMHNOQR.ErrorText = "Hãy chọn Mã Hàng !";
-                e.Cancel = true;
-            }
-        }
+                LookUpEdit edit = sender as LookUpEdit;
 
-        private void dateNN_Properties_Validating(object sender, CancelEventArgs e)
-        {
-            DateEdit edit = sender as DateEdit;
-            if (string.IsNullOrEmpty(edit.Text) == true)
+                if (edit.EditValue == null ||
+                    string.IsNullOrWhiteSpace(edit.EditValue.ToString()))
+                {
+                    edit.ErrorText = "Hãy chọn mã hàng.";
+                    e.Cancel = true;
+                }
+                else
+                {
+                    edit.ErrorText = string.Empty;
+                }
+            }
+
+            private void dateNN_Properties_Validating(
+                object sender,
+                CancelEventArgs e)
             {
-                dateNN.ErrorText = "Chọn Ngày Sản Xuất !";
-                e.Cancel = true;
-            }
-        }
+                DateEdit edit = sender as DateEdit;
 
-        private void textSLNHAP_Properties_Validating(object sender, CancelEventArgs e)
-        {
-            TextEdit edit = sender as TextEdit;
-            if (string.IsNullOrEmpty(edit.Text) == true || int.Parse(edit.Text)==0)
+                if (edit.EditValue == null)
+                {
+                    edit.ErrorText = "Hãy chọn ngày sản xuất.";
+                    e.Cancel = true;
+                }
+                else
+                {
+                    edit.ErrorText = string.Empty;
+                }
+            }
+
+            private void textSLNHAP_Properties_Validating(
+                object sender,
+                CancelEventArgs e)
             {
-                textSLNHAP.ErrorText = "Chọn Số Lượng Nhập !";
-                e.Cancel = true;
+                TextEdit edit = sender as TextEdit;
+
+                if (!int.TryParse(
+                        edit.Text.Trim(),
+                        out int quantity) ||
+                    quantity <= 0)
+                {
+                    edit.ErrorText =
+                        "Số lượng phải là số nguyên lớn hơn 0.";
+
+                    e.Cancel = true;
+                }
+                else
+                {
+                    edit.ErrorText = string.Empty;
+                }
             }
-        }
 
-        private void lookUpCA_Properties_Validating(object sender, CancelEventArgs e)
-        {
-            LookUpEdit edit = sender as LookUpEdit;
-
-            if (string.IsNullOrEmpty(edit.EditValue == null ? "" : edit.EditValue.ToString()) == true)
+            private void lookUpCA_Properties_Validating(
+                object sender,
+                CancelEventArgs e)
             {
-                lookUpCA.ErrorText = "Chọn Ca Sản Xuất !";
-                e.Cancel = true;
+                LookUpEdit edit = sender as LookUpEdit;
+
+                if (edit.EditValue == null ||
+                    string.IsNullOrWhiteSpace(edit.EditValue.ToString()))
+                {
+                    edit.ErrorText = "Hãy chọn ca sản xuất.";
+                    e.Cancel = true;
+                }
+                else
+                {
+                    edit.ErrorText = string.Empty;
+                }
             }
+
+            #endregion
         }
     }
-}

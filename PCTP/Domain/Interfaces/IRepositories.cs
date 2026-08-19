@@ -14,99 +14,7 @@ using System.Windows.Forms;
 
 namespace PCTP.Domain.Interfaces
 {
-    // ─── Phiếu giao hàng ────────────────────────────────────────────────────────
-    public interface IPhieuRepository
-    {
-        // ── Đếm / kiểm tra ──────────────────────────────────────────────────────
-        int CountDocQRCode(string docQRTable);
-        bool CheckCoMaNG(string tenBan);
-        bool KiemTraMaTrongPhieu(string maHang, string tenBan);
 
-        // ── Load phiếu ──────────────────────────────────────────────────────────
-        DataTable LoadPhieuDocQR(string ngayGiao, string nhaMay,
-                                  string gioFcc, int addNm,
-                                  string tmpTable, string ifsTable,
-                                  string docQRTable);
-        DataTable LuuVaLoad(string tenSPBang, string tenSP, DataTable donHang,
-                             string ngayGiao, string nhaMay,
-                             string gioFcc, int addNm,
-                             string tenBan, string docQRTable,
-                             string ifsView = "");
-        DataTable LoadHangThieu(bool isMayBanQR, string tenBan);
-        DataTable LoadLuuPhieu(string nhaMay, string ngayGiao, string gioGiaoFcc);
-        DataTable LoadTmpPhieuGiaoDB(string tenBan);
-        DataTable LoadGhepLot();
-
-        DataTable GetDanhSachLotTuKho(string maHang);
-
-        // ── Trạng thái bắn QR ───────────────────────────────────────────────────
-        TrangThaiBan GetTrangThaiDangBan(string tmpTable, string docQRTable);
-        TrangThaiBan GetTrangThaiDangBanYMVN(string tmpTable, string docQRTable);
-        void XoaDocQRCode(string docQRTable);
-
-        DataTable GetDonHangHienTai(string tenBan);
-        // ── Lot ─────────────────────────────────────────────────────────────────
-        DataTable GetDonHangChuaLot(string tenBan, string docQRTable);
-        DataTable GetDanhSachTrungMaSl(string maHang, int sl,
-                                        string tenBan, string docQRTable);
-        int CountTrungMaSl(string maHang, int sl,
-                            string tenBan, string docQRTable);
-        string GetLotNo(string maHang, int stt, int dem, int slGiao,
-                string docQRTable = "DOCQRCODE",
-                string tmpTable = "TMPPHIEUGIAOHANG");
-        void CapNhapLotTmpPhieu(int stt, string lot, string tenBan);
-        void LayLaiLotNo(int stt, string tenBan, string docQRTable);
-
-        // ── Kho ─────────────────────────────────────────────────────────────────
-       
-        int CapNhapKhoSP(string gioGiaoFcc, string nhaMay, out DataTable errors);
-        int LuuPhieuSP(string nhaMay, string ngayGiao,
-                        string gioGiaoFcc, string loaiPhieu);
-        void CapNhapTTPHIEU(string nhaMay, string ngayGiao,
-                             string gioGiaoFcc, int stt, string ghiChu);
-        int CapNhapKho(string gioGiaoFcc, string nhaMay,
-               string tmpTable, string docQRTable,
-               out DataTable errors);
-
-        int CapNhapKhoHTN(string nhaMay, string tmpTable,
-                           string docQRTable, out DataTable errors);
-        bool CapNhapKhoYMVN(int stt, string lotSl, string maHang,
-                          string ngayGiao, string gioGiao, string nhaMay,
-                          out DS_ERR_CNK error);
-        void DanhDauDaGiao(string poNo, string maHang,
-            string ngayGiao, CustomerConfig cfg);
-
-        // ── Giao DB ─────────────────────────────────────────────────────────────
-        DataTable GetDanhSachMaHang();
-        void LuuGiaoDB(DataTable donHang, string gioFccMoTa,
-                        int addNm, string tmpTable, string ifsTable,
-                        string nhaMayOverride = "");   // ← THÊM param mới
-        //-YMVN
-        void ExecNonQuery(string spName);
-        void XoaTmpPhieu(string tenBan);
-        void ExecSP(string spName, params SqlParameter[] parms);
-        //DataTable LoadPhieuYMVN(string ngayGiao, string gioFcc,
-        //                        bool isLoaiSP = false);
-        DataTable ExecSPWithResult(string spName, params SqlParameter[] parms);
-        DataTable LoadPhieuDangDocYMVN(string tmpTable, bool isLoaiSP);
-        //DataTable LoadPhieuYMVN(string ngayXuatMDY, string gioFilter,
-        //                        bool isLoaiSP, string dockCodeSP);
-        DataTable LoadPhieuTuBangRieng(string ngayGiao, string gioFilter,
-                                bool isLoaiSP, string dockCodeSP,
-                                CustomerConfig cfg);
-        DataTable LoadTuTmpTable(string tmpTable);
-        IReadOnlyList<string> GetGioGiaoYMVN(string ngayGiao);
-        IReadOnlyList<string> GetDanhSachGioYMVN(string ngayXuatMDY);
-        void UploadMilkrunSP(DataTable donHang, string ngayGiao);
-     
-        //--- YMVN
-        void InsertTmpYMVN(string stt, string cua, string truyen,
-    string maHang, string tenHang, string lot, string dv,
-    int slXuat, string ngayGiao, string gear,string gioXuat, string tmpTable,
-    string poNo = "", string cusPoNo = "");
-        // ── Helpers ─────────────────────────────────────────────────────────────
-        Dictionary<string, int> GetQcDongGoiBatch(List<string> maHangList);
-    }
 
     public interface IGioXuatRepository
     {
@@ -129,7 +37,7 @@ namespace PCTP.Domain.Interfaces
         DataTable GetAllAsTable();
         DataTable GetAllAsTable(bool isSP);
         DataTable GetAllAsTable(string docQrTable);
-
+        string GetMaHangMapped(string maHang);
         int Count();
         int Count(bool isSP);
         int Count(string docQrTable);
@@ -213,20 +121,5 @@ namespace PCTP.Domain.Interfaces
         DataTable GetCustSchedLine(string customerNo, string shipAddrNo,
                                     string customerPartNo, string customerPoNo);
     }
-    //public interface IIFSRepository
-    //{
-
-    //    // ── Load phiếu thường — luôn dùng hinhThucIn = 1 (lọc addNm + giờ) ─
-    //    DataTable GetCustomerOrderJoin(string ngayXuat, string gioXuat,
-    //                                   string gioXuatH, string nhaMay, int addNm);
-
-    //    // ── In phiếu — hinhThucIn từ FRM_HTIN (1/2/3) ───────────────────────
-    //    DataTable GetCustomerOrderJoin(string ngayXuat, string gioXuat,
-    //                                   string gioXuatH, string nhaMay, int addNm,
-    //                                   int hinhThucIn);
-
-    //    DataTable GetCustomerAddress(string customerId);
-    //    DataTable GetCustSchedLine(string customerNo, string shipAddrNo,
-    //                               string customerPartNo, string customerPoNo);
-    //}
+   
 }

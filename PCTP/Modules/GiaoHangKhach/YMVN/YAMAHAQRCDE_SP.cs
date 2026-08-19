@@ -66,7 +66,7 @@ namespace PCTP.YMN
             string  sql;
             DataTable tbl = new DataTable();
             sql= "select PO_NO,TENHANG,SLGIAO from SP_TMPPHIEUGIAOHANG where MAHANG = '"+MH+"'";
-            tbl = sqlBRV.ExecuteQuery(sqlBRV.B7R2_FCCdb, sql);
+            tbl = sqlBRV.LoadData1(sqlBRV.B7R2_FCCdb, sql);
             return tbl;
         }
         private Boolean KTHANGDABAN_DANGBANQR(string MH, int SLBAN,string Cty)
@@ -88,7 +88,7 @@ namespace PCTP.YMN
             //sql = "select MAHANG,sum(SLG) as SOLUONG ,STATUS  from  SP_TMPPHIEUGIAOHANG where ( STATUS <> '1' or STATUS is null ) and MAHANG = '" + MH + "'  group by MAHANG ,STATUS ";
 
 
-            TB_CONLAI = sqlBRV.ExecuteQuery(sqlBRV.B7R2_FCCdb, sql);
+            TB_CONLAI = sqlBRV.LoadData1(sqlBRV.B7R2_FCCdb, sql);
             string sql1;
             if (TB_CONLAI.Rows.Count > 0)
             {
@@ -153,7 +153,7 @@ namespace PCTP.YMN
             string sql;
             DataTable Tbl_QR;
             sql = "select * from SP_DocQRCode order by STT asc";
-            Tbl_QR = sqlBRV.ExecuteQuery(sqlBRV.B7R2_FCCdb, sql);
+            Tbl_QR = sqlBRV.LoadData1(sqlBRV.B7R2_FCCdb, sql);
             gridCtrDOCQrCODE.DataSource = Tbl_QR;
             int newRowHandle = gridVDOCQRCODE.FocusedRowHandle;
             object newRow = gridVDOCQRCODE.GetRow(newRowHandle);
@@ -390,7 +390,7 @@ namespace PCTP.YMN
             LoadDOCQR();
             string MH, PO, sql = "select STT, PO_NO,MAHANG,TENHANG,SLGIAO,'' as SLBANFCC,'' as SLBANYMVN from SP_TMPPHIEUGIAOHANG";
             int SLG, SLBAN;
-            TB_PGH = sqlBRV.ExecuteQuery(sqlBRV.B7R2_FCCdb, sql);
+            TB_PGH = sqlBRV.LoadData1(sqlBRV.B7R2_FCCdb, sql);
             gridCTTDH.DataSource = TB_PGH;
             for (int i = 0; i < GridVTTDH.RowCount; i++)
             {
@@ -450,7 +450,7 @@ namespace PCTP.YMN
                     e.Appearance.BackColor = Color.Green;
                     e.Appearance.BackColor2 = Color.SeaShell;
                     sql = "select LOTNO,sum(SLTEM) as SLLOT from SP_DOCQRCODE where MAHANG = '" + MH + "' and PONO = '" + PO + "'  group by LOTNO";
-                    tb = sqlBRV.ExecuteQuery(sqlBRV.B7R2_FCCdb, sql);
+                    tb = sqlBRV.LoadData1(sqlBRV.B7R2_FCCdb, sql);
                     if (tb.Rows.Count > 0)
                     {
                         for (int j = 0; j < tb.Rows.Count; j++)

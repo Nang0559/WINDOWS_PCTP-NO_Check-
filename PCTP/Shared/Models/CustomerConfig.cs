@@ -76,5 +76,9 @@ namespace PCTP.VIEWSTOCK.Models
         /// khi không có cột CustomerNo trực tiếp.
         /// </summary>
         public string[] NhaMayMatchPatterns { get; set; } = Array.Empty<string>();
+
+        ///Thêm phần giao DB
+        public string OrderTableGiaoDacBiet { get; set; }
+        public bool CoGiaoDacBiet => !string.IsNullOrWhiteSpace(OrderTableGiaoDacBiet);
     }
 }

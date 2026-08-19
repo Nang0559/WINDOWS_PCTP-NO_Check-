@@ -95,7 +95,6 @@ namespace PCTP.Presentation.Views
         // ════════════════════════════════════════════════════════════════════
         // VI. DIALOG PHỨC TẠP
         // ════════════════════════════════════════════════════════════════════
-        bool XuLyChuyenGiaoDB(int addNm);
         int ShowChonSttTrungMa(ListView danhSachTrung);
         void ShowKiemTraMaNG(string maHang);
         void ShowTachLot();
@@ -109,6 +108,8 @@ namespace PCTP.Presentation.Views
         void ShowReportWithGioHeader(DataTable data, string gioHeader);
 
         // ── GIAO DB ─────────────────────────────────────────────────────────
+
+      
         void XoaDongGiaoDB();
 
         /// <summary>
@@ -145,10 +146,9 @@ namespace PCTP.Presentation.Views
         event EventHandler SuaSoLuongTemClicked;
         event EventHandler<LayLaiLotEventArgs> LayLaiLotNoClicked;
 
-        // ── GIAO DB ─────────────────────────────────────────────────────────
-        event EventHandler ThemDongGiaoDBClicked;
-        event EventHandler XoaDongGiaoDBClicked;
-        event EventHandler LuuGiaoDBClicked;
+        // ── GIAO DB — ✅ Chỉ giữ Upload + Lưu, bỏ hết Thêm/Xóa/XuLyChuyenGiaoDB ──
+        event EventHandler UploadGiaoDBClicked;   // ✅ Upload Excel → TMPPHIEUGIAOHANGDBCT
+        event EventHandler LuuGiaoDBClicked;      // ✅ Lưu sau khi CNK
         event EventHandler<TTPHIEUEventArgs> CapNhapTTPHIEUClicked;
 
         // ── YMVN: thêm mới ───────────────────────────────────────────────

@@ -369,7 +369,7 @@ namespace PCTP.YMN
 
                 if (string.IsNullOrEmpty(ngay)) continue;
 
-                DataTable dtCheck = _sql.ExecuteQuery(_sql.B7R2_FCCdb, $@"
+                DataTable dtCheck = _sql.LoadData1(_sql.B7R2_FCCdb, $@"
             SELECT TOP 1 IsDelivered
             FROM [{orderTable}]
             WHERE Oder_no = '{SqlHelper.Esc(poNo)}'

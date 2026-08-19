@@ -132,7 +132,7 @@ namespace PCTP.Infrastructure.Repositories
         {
             // Form gốc LoadDL() nhánh khi DOCQRCODE đã có data:
             // "select top(1) ADDNM,NGAYGIAO,GIOGIAOFCC,NHAMAY from IFSPHIEUGIAOHANG"
-            DataTable dt = _sql.ExecuteQuery(_sql.B7R2_FCCdb,
+            DataTable dt = _sql.LoadData1(_sql.B7R2_FCCdb,
                 "SELECT TOP 1 ADDNM, NGAYGIAO, GIOGIAOFCC, NHAMAY FROM IFSPHIEUGIAOHANG");
 
             if (dt == null || dt.Rows.Count == 0)

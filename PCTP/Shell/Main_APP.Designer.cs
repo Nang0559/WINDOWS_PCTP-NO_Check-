@@ -649,15 +649,8 @@
             this.E_Trahang.Name = "E_Trahang";
             this.E_Trahang.Text = "Trả Hàng";
             this.E_Trahang.Click += new System.EventHandler(this.E_Trahang_Click);
-            // 
-            // trahangngPD
-            // 
-            this.trahangngPD.ImageOptions.Image = ((System.Drawing.Image)(resources.GetObject("trahangngPD.ImageOptions.Image")));
-            this.trahangngPD.ImageOptions.ImageLayoutMode = DevExpress.XtraBars.Navigation.ImageLayoutMode.Squeeze;
-            this.trahangngPD.Name = "trahangngPD";
-            this.trahangngPD.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item;
-            this.trahangngPD.Text = "Trả Hàng PD";
-            this.trahangngPD.Click += new System.EventHandler(this.accordionControlElement26_Click);
+         
+      
             // 
             // trahangndHVN
             // 

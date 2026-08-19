@@ -1,4 +1,5 @@
 ﻿using PCTP.Common;
+using PCTP.Modules.KhoVatLy.Kho.Models;
 using PCTP.VIEWSTOCK.Models;
 
 using System;

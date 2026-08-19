@@ -46,7 +46,7 @@ namespace PCTP.QRCODE_HVN.PGH
         {
             string MH = label2.Text;
             string sql = "select LOT,slconlai from stocktp where part =  '" + MH.Trim() + "' and slconlai >0";
-            DataTable DML = sqlBRV.ExecuteQuery(sqlBRV.B7R2_FCCdb, sql);
+            DataTable DML = sqlBRV.LoadData1(sqlBRV.B7R2_FCCdb, sql);
             lookUpEdit1.Properties.DataSource = DML;
             lookUpEdit1.Properties.ValueMember = "slconlai";
             lookUpEdit1.Properties.DisplayMember = "LOT";

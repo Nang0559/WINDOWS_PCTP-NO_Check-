@@ -54,11 +54,11 @@ namespace PCTP
             string sql1;
             gridCtrTTTK.DataSource = null;
             sql1 = "select PART,NAME ,sum(slconlai) as SLCONLAI from STOCKTP where slconlai > 0 and LOT in (" + LOTNHAP + ") group by PART,NAME";
-            TK = sqlBRV.ExecuteQuery(sqlBRV.B7R2_FCCdb, sql1);
+            TK = sqlBRV.LoadData1(sqlBRV.B7R2_FCCdb, sql1);
             gridCtrTTTK.RefreshDataSource();
             gridCtrTTTK.DataSource = TK;
             sql1 = "select lot,part,name,ngaysx,casx,slsx,ngaynhap,slnhap,ngayxuat,slxuat,slconlai as SLCONLAI , slconlaitmp as SOLUONGDANGGIAO from STOCKTP where  slconlai > 0 and LOT in (" + LOTNHAP + ") order by LOT ASC ";
-            TK1 = sqlBRV.ExecuteQuery(sqlBRV.B7R2_FCCdb, sql1);
+            TK1 = sqlBRV.LoadData1(sqlBRV.B7R2_FCCdb, sql1);
             gridCTTCT.DataSource = TK1;
 
             gridCTTCT.RefreshDataSource();
@@ -85,7 +85,7 @@ namespace PCTP
             string SQL = "SELECT K.Code,K.Name FROM B20Item K left join STOCKTP TP " +
             "on k.Code = TP.PART " +
             "where k.IsGroup = 0   group BY k.Code,k.NAME";
-            MH = sqlBRV.ExecuteQuery(sqlBRV.B7R2_FCCdb, SQL);
+            MH = sqlBRV.LoadData1(sqlBRV.B7R2_FCCdb, SQL);
             lookUpMHSX.Properties.DataSource = MH;
             lookUpMHSX.Properties.DisplayMember = "Code";
             lookUpMHSX.Properties.ValueMember = "Code";
@@ -98,10 +98,10 @@ namespace PCTP
             DataTable TK = new DataTable();
             string sql;
             sql = "select PART,NAME ,sum(slconlai) as SLCONLAI from STOCKTP where slconlai > 0  group by PART,NAME";
-            TK = sqlBRV.ExecuteQuery(sqlBRV.B7R2_FCCdb, sql);
+            TK = sqlBRV.LoadData1(sqlBRV.B7R2_FCCdb, sql);
             gridCtrTTTK.DataSource = TK;
             sql = "select lot,part,name,ngaysx,casx,slsx,ngaynhap,slnhap,ngayxuat,slxuat,slconlai as SLCONLAI , slconlaitmp as SOLUONGDANGGIAO from STOCKTP where  slconlai > 0 order by LOT ASC";
-            TK = sqlBRV.ExecuteQuery(sqlBRV.B7R2_FCCdb, sql);
+            TK = sqlBRV.LoadData1(sqlBRV.B7R2_FCCdb, sql);
             gridCTTCT.DataSource = TK;
         }
 
@@ -182,7 +182,7 @@ namespace PCTP
             //gridCtrTTTK.DataSource = TMP;
 
             sql = "select lot,part,name,ngaysx,casx,slsx,ngaynhap,slnhap,ngayxuat,slxuat,slconlai as SLCONLAI , slconlaitmp as SOLUONGDANGGIAO from STOCKTP where part = '" + MAHANG + "' and slconlai > 0  order by LOT ASC";
-            TMP = sqlBRV.ExecuteQuery(sqlBRV.B7R2_FCCdb, sql);
+            TMP = sqlBRV.LoadData1(sqlBRV.B7R2_FCCdb, sql);
             gridCTTCT.DataSource = TMP;
         }
         private void gridCtrTTTK_DoubleClick(object sender, EventArgs e)
@@ -361,7 +361,7 @@ namespace PCTP
             DataTable TMP = new DataTable();
             string MAHANG = lookUpMHSX.Text.ToString().Trim();
             sql = "select PART,NAME ,sum(slconlai) as SLCONLAI from STOCKTP where slconlai > 0 and PART = '" + MAHANG + "'  group by PART,NAME";
-            TMP = sqlBRV.ExecuteQuery(sqlBRV.B7R2_FCCdb, sql);
+            TMP = sqlBRV.LoadData1(sqlBRV.B7R2_FCCdb, sql);
             gridCtrTTTK.DataSource = TMP;
             LOAD_DK(MAHANG);
         }

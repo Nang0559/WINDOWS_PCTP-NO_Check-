@@ -130,7 +130,7 @@ namespace PCTP.YMN
                 sql = "select TTPHIEU from YMVN_TMPPHIEUGIAOHANG where MAHANG = '" + MaHang + "' and TTPHIEU like '%" + Gear + "%' Group by TTPHIEU ";
                 string KQSQL;
                 string[] SQLKQ;
-                tbl = sqlBRV.ExecuteQuery(sqlBRV.B7R2_FCCdb, sql);
+                tbl = sqlBRV.LoadData1(sqlBRV.B7R2_FCCdb, sql);
 
                 if (tbl.Rows.Count > 0)
                 {
@@ -250,7 +250,7 @@ namespace PCTP.YMN
                 sql = "select MAHANG,sum(SOLUONG) as SOLUONG ,STATUS  from  YMVN_TMPPHIEUGIAOHANG where ( STATUS <> '1' or STATUS is null ) and MAHANG = '" + MH + "' and TTPHIEU like '%" + Gear + "%'  group by MAHANG ,STATUS ";
             }
            
-            TB_CONLAI = sqlBRV.ExecuteQuery(sqlBRV.B7R2_FCCdb, sql);
+            TB_CONLAI = sqlBRV.LoadData1(sqlBRV.B7R2_FCCdb, sql);
             string sql1;
             if (TB_CONLAI.Rows.Count > 0)
             {
@@ -681,7 +681,7 @@ namespace PCTP.YMN
             string sql;
             DataTable Tbl_QR;
             sql = "select * from YMVN_DOCQRCODE order by STT asc";
-            Tbl_QR= sqlBRV.ExecuteQuery(sqlBRV.B7R2_FCCdb, sql);
+            Tbl_QR= sqlBRV.LoadData1(sqlBRV.B7R2_FCCdb, sql);
             gridCtrDOCQrCODE.DataSource = Tbl_QR;
             int newRowHandle = gridVDOCQRCODE.FocusedRowHandle;
             object newRow = gridVDOCQRCODE.GetRow(newRowHandle);
@@ -751,7 +751,7 @@ namespace PCTP.YMN
             //DataTable DH = new DataTable();
             //DataTable QRCODE = new DataTable();
             //DataTable QRCODESUM = new DataTable();
-            //DH = sqlBRV.ExecuteQuery(sqlBRV.B7R2_FCCdb, sql);
+            //DH = sqlBRV.LoadData1(sqlBRV.B7R2_FCCdb, sql);
             //for (int i =0; i< DH.Rows.Count;i++)
             //{
             //    object  STTP = DH.Rows[i].Field<Int16>("STT");
@@ -816,7 +816,7 @@ namespace PCTP.YMN
             //        else
             //        {
             //            int TTSL = 0;
-            //            QRCODESUM = sqlBRV.ExecuteQuery(sqlBRV.B7R2_FCCdb, sql);
+            //            QRCODESUM = sqlBRV.LoadData1(sqlBRV.B7R2_FCCdb, sql);
             //            foreach (DataRow dt in QRCODESUM.Rows)
             //            {
             //                TTSL = TTSL + int.Parse(dt["SLB"].ToString());
@@ -836,7 +836,7 @@ namespace PCTP.YMN
             //            //    sql1 = "update YMVN_DOCQRCODE set KETQUA = 'DG' where  MAHANGFCC = '" + MH.ToString() + "' and Gear in (" + G + ") and LOTHVN  = '" + PO.ToString().Trim() + "'";
             //            //}
 
-            //            //QRCODE = sqlBRV.ExecuteQuery(sqlBRV.B7R2_FCCdb, sql);
+            //            //QRCODE = sqlBRV.LoadData1(sqlBRV.B7R2_FCCdb, sql);
             //            //string LT1,SL1,  LOTXUAT = "";
             //            //string[] LG,LG1;
             //            //object LOTFCC;
