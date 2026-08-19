@@ -1089,7 +1089,8 @@
       <DependentUpon>YMVN_CHONGIAO.cs</DependentUpon>
     </Compile>
     <None Include="Workflow\Diagram\WORKFLOW_NHAPKHO.md" />
-    <None Include="Workflow\Diagram\WORKFLOW_MAIN.md" />
+    <None Include="Workflow\Diagram\WORKFLOW_DEPEND.md" />
+    <None Include="Workflow\Diagram\WORKFLOW_WMS.md" />
     <Compile Include="Workflow\FRM_WORKFLOW_HANGLOI.cs" />
     <Compile Include="Workflow\FRM_WORKFLOW_MAIN.cs" />
     <Compile Include="Workflow\FRM_WORKFLOW_NHAPKHO.cs" />
