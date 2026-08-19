@@ -36,7 +36,7 @@ Khi người dùng thao tác trên màn hình chính, hệ thống điều hư�
 
 Theo nguyên tắc kiến trúc, Shell (`TrungTamDieuHanhKho`) không chứa logic nghiệp vụ mà thông qua tầng tổng hợp riêng (`IDashboardQueryService`):
 
-```csharp
+csharp
 public interface IDashboardQueryService {
     DashboardCounters GetCounters();
 }
