@@ -1,34 +1,4 @@
-﻿# Tài Liệu Thiết Kế: Màn Hình Chính & Trung Tâm Điều Hành Kho (Dashboard)
-
-> **Vị trí trong bộ tài liệu:** Đây là bản trực quan hoá (UI) của `WORKFLOW_WMS.md` (luồng nghiệp vụ) và tài liệu kiến trúc phân chia 4 phân khu (`WORKFLOW_DEPEND.md`). Tài liệu này không định nghĩa lại luồng hay phụ thuộc mà chỉ mô tả cách hiển thị trực quan những gì các tài liệu trước đã định nghĩa.
-
----
-
-## 1. Cấu Trúc Màn Hình Chính (Shell Dashboard Layout)
-
-Giao diện `TrungTamDieuHanhKho` được thiết kế theo nguyên tắc 1-1 với 4 Subsystems chính, giúp người dùng ngay khi mở ứng dụng có thể nắm bắt nhanh tình trạng công việc thông qua các con số thống kê (badge) thực tế từ cơ sở dữ liệu.
-
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│  TRUNG TÂM ĐIỀU HÀNH KHO          [Người dùng: ...]  [Ngày: ...] │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                   │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌───────┐│
-│  │ 📥 NHẬP KHO   │  │ 📤 XUẤT KHO   │  │ ⚠️ XỬ LÝ LỖI  │  │ 🏭 KHO ││
-│  │              │  │              │  │              │  │ CORE  ││
-│  │ Chờ nhập: 12 │  │ Chờ giao: 8  │  │ Chờ QC ĐH: 3 │  │       ││
-│  │ [Vào module] │  │ Chờ xác      │  │ Đang Rework: 5│  │Bản đồ ││
-│  └──────────────┘  │ nhận: 4      │  │ Chờ NC cuối: 2│  │kho vật││
-│                     │ [Vào module] │  │ [Vào module] │  │lý     ││
-│                     └──────────────┘  └──────────────┘  └───────┘│
-│                                                                   │
-│  ─────────────────── BẠN ĐANG Ở ĐÂU? ─────────────────────────  │
-│  [Sơ đồ luồng trực quan — highlight đúng bước hiện tại]         │
-│                                                                   │
-│  ─────────────────── TRA CỨU & BÁO CÁO NHANH ──────────────────  │
-│  [🔍 Tra cứu QR / Lệnh / Mã Lot]     [📊 Báo cáo tồn kho / Xuất nhập]│
-└─────────────────────────────────────────────────────────────────┘
-```mermaid
+﻿```mermaid
 graph TD
     Dashboard([Trung Tâm Điều Hành Kho - Dashboard]) --> Sub1[📥 Nhập Kho]
     Dashboard --> Sub2[📤 Xuất Kho]
