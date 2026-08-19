@@ -29,7 +29,7 @@ graph TD
     %% ----------------------------------------------------
     %% KHU VỰC 4: XỬ LÝ HÀNG LỖI / QTCHUNG (MÀU ĐỎ)
     %% ----------------------------------------------------
-    subgraphXuLyLoi_Zone ["XỬ LÝ HÀNG LỖI — Phiếu / QTChung / Rework / GiaoBu"]
+    subgraph XuLyLoi_Zone ["XỬ LÝ HÀNG LỖI — Phiếu / QTChung / Rework / GiaoBu"]
         ServiceKhachTra[IKhachTraHangService / ITraNoiBoService]
         IQTChungService[IQTChungService]
         IReworkStockService[IReworkStockService]
@@ -76,4 +76,4 @@ graph TD
     style KhoCore_Zone fill:#e2f0d9,stroke:#385723,stroke-width:2px
     style NhapKho_Zone fill:#d9e1f2,stroke:#2f5597,stroke-width:2px
     style XuatKho_Zone fill:#fce4d6,stroke:#c65911,stroke-width:2px
-    style subXuLyLoi_Zone fill:#f8cecc,stroke:#b85450,stroke-width:2px
+    style XuLyLoi_Zone fill:#f8cecc,stroke:#b85450,stroke-width:2px
