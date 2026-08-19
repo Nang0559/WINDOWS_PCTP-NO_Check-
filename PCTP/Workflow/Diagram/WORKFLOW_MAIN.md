@@ -1,4 +1,4 @@
-﻿```mermaid
+﻿﻿```mermaid
 graph TD
     Start([BẮT ĐẦU]) --> NhapKho[NHẬP KHO]
     Start --> XuatKho[XUẤT KHO]
