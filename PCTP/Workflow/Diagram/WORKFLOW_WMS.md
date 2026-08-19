@@ -67,49 +67,31 @@ Kho Core đóng vai trò là tầng dịch vụ nền tảng cung cấp các API
 
 ```mermaid
 graph TD
-    %% Định nghĩa các khối Module chính
-    subgraph Inbound [1. MODULE NHẬP KHO - INBOUND]
-        I_Start([Tiếp nhận lệnh SX / Trả hàng]) --> I_Check[Kiểm tra chống trùng NHAP_TP_HIS]
-        I_Check --> I_Mode{Hình thức nhập}
-        I_Mode -->|Hàng loạt| I_A0[Nhập ảo Kho A0]
-        I_Mode -->|Chi tiết| I_Slot[Chọn Warehouse / Rack / Slot]
+    %% 1. ĐẦU VÀO NHẬP KHO
+    StartInbound([Yêu cầu Nhập Kho]) --> InboundProcess["INhapTpReceivingService<br/>- Check trùng QR / Lệnh SX"]
+    InboundProcess --> CoreInbound["GỌI KHO CORE: Nhập dữ liệu<br/>- ISlotService.GetOrCreateVirtualSlotText / GetEmptySlots<br/>- ISlotService.LockSlotForUpdate<br/>- ISlotService.SaveLots + AddQuantity<br/>- IStockTpRepository (Cộng STOCKTP)"]
+
+    %% 2. ĐẦU VÀO XUẤT KHO & REWORK
+    StartOutbound([Yêu cầu Xuất / Rework / Bù NG]) --> OutboundProcess["IStockExportService / QTChungService<br/>- Phân định A0 hay Slot thường"]
+    OutboundProcess --> CoreOutbound["GỌI KHO CORE: Thao tác & Trừ kho<br/>- Xuất thẳng A0: Trừ trực tiếp STOCKTP<br/>- Pick Slot thường: LockSlotForUpdate<br/>- Bóc tách Lot & Đẩy vào FVN_HangChoGiao"]
+
+    %% KHO CORE LÀ TRUNG TÂM (CORE LAYER)
+    subgraph CoreLayer [KHO CORE — TRÁI TIM HỆ THỐNG]
+        CoreCore["Cung cấp Primitive Services:<br/>- Warehouse / Rack / Slot ma trận<br/>- GetLots / SaveLots<br/>- UpdateSlotHeaderFromLots<br/>- IStockHistoryRepository.SaveHistory"]
     end
 
-    subgraph Core [2. MODULE KHO CORE - PRIMITIVES]
-        C_API[ISlotService & IStockTpRepository]
-        C_Lock[LockSlotForUpdate - Chống tranh chấp]
-        C_Data[(STOCKTP & SlotLot & StockHistory)]
-        
-        C_API --> C_Lock --> C_Data
-    end
+    %% LIÊN KẾT VỚI KHO CORE
+    CoreInbound --> CoreCore
+    CoreOutbound --> CoreCore
 
-    subgraph Outbound [3. MODULE XUẤT KHO & REWORK - OUTBOUND / EXCEPTION]
-        O_Start([Yêu cầu Xuất / Rework / Trả hàng]) --> O_Type{Phân loại xuất}
-        O_Type -->|Xuất thẳng A0| O_Direct[XuatTrucTiep từ A0]
-        O_Type -->|Xuất từ Slot| O_Pick[PickToChoGiao -> Đẩy vào FVN_HangChoGiao]
-        O_Pick --> O_Confirm[Xác nhận Confirm: Giao hàng / Bù NG / Rework]
-        
-        O_Rework[QTChung & Rework Workflow<br/>- Phân tách OK/NG<br/>- Nhập lại kho NG]
-    end
+    %% COMMIT TRANSACTION CHUNG
+    CoreCore --> CommitDB[(Commit Database Transaction)]
+    CommitDB --> FinalEnd([Hoàn tất Tác vụ WMS])
 
-    %% Tương tác cốt lõi giữa 3 Module
-    I_A0 -->|Gửi dữ liệu nhập| C_API
-    I_Slot -->|Gửi dữ liệu nhập| C_API
-    
-    C_API -->|Cập nhật tồn kho tổng & không gian| O_Start
-    
-    O_Direct -->|Trừ tồn kho trực tiếp| C_API
-    O_Confirm -->|Chốt xuất & Trừ STOCKTP| C_API
-    
-    O_Rework -->|Phần OK/NG vòng ngược lại| C_API
-
-    %% Styling
-    style Inbound fill:#e1f5fe,stroke:#0288d1,stroke-width:2px
-    style Core fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
-    style Outbound fill:#fff3e0,stroke:#f57c00,stroke-width:2px
-    style C_API fill:#c8e6c9,stroke:#388e3c,stroke-width:2px
-    style StartRepo fill:#f9f,stroke:#333,stroke-width:2px
-    style Step2 fill:#bbf,stroke:#333,stroke-width:2px
-    style GiaoBu1 fill:#bfb,stroke:#333,stroke-width:2px
-    style Rework1 fill:#fbb,stroke:#333,stroke-width:2px
-    style FinalEnd fill:#fbb,stroke:#333,stroke-width:2px
+    %% STYLING
+    style CoreLayer fill:#e8f5e9,stroke:#388e3c,stroke-width:3px
+    style InboundProcess fill:#e1f5fe,stroke:#0288d1,stroke-width:2px
+    style OutboundProcess fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    style CoreInbound fill:#c8e6c9,stroke:#388e3c,stroke-width:2px
+    style CoreOutbound fill:#c8e6c9,stroke:#388e3c,stroke-width:2px
+    style FinalEnd fill:#bfb,stroke:#333,stroke-width:2px
