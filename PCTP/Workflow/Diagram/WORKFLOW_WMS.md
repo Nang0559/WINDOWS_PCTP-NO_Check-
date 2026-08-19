@@ -64,38 +64,50 @@ Kho Core đóng vai trò là tầng dịch vụ nền tảng cung cấp các API
 
 ## 3. Sơ Đồ Tổng Thể Quy Trình (Mermaid Diagram)
 
+
 ```mermaid
 graph TD
-    StartRepo[IPhieuKhachTraRepository] --> B1[IKhachTraHangService<br/>Nguồn: Khách Hàng]
-    StartRepo --> B2[ITraNoiBoService<br/>Nguồn: Nội Bộ]
-    
-    B1 --> Step1[IQTChungService<br/>Bước 1: TaoPhieuXuLyBatThuong]
-    B2 --> Step1
-    
-    Step1 --> Step2["Bước 2: QCDinhHuongRework<br/>(gate quyết định —<br/>QTChungStatus.DaDinhHuongRework)"]
-    
-    Step2 -->|Khách: Không lỗi thật| EndNoErr[END — Từ chối giao bù]
+    %% Định nghĩa các khối Module chính
+    subgraph Inbound [1. MODULE NHẬP KHO - INBOUND]
+        I_Start([Tiếp nhận lệnh SX / Trả hàng]) --> I_Check[Kiểm tra chống trùng NHAP_TP_HIS]
+        I_Check --> I_Mode{Hình thức nhập}
+        I_Mode -->|Hàng loạt| I_A0[Nhập ảo Kho A0]
+        I_Mode -->|Chi tiết| I_Slot[Chọn Warehouse / Rack / Slot]
+    end
 
-    Step2 -->|Khách: Có lỗi thật, chỉ cần đến hàng| GiaoBu1["IGiaoBuNGService.GiaoBuTheoQR<br/>-> IStockExportService.PickToChoGiao<br/>(Purpose=XuatGiaoBuNG)"]
-    GiaoBu1 --> GiaoBu2["IGiaoBuNGService.XacNhanHoanTatGiaoBu<br/>-> IStockExportService.ConfirmGiaoHangTuChoGiao"]
-    GiaoBu2 --> EndGiaoBu([END])
+    subgraph Core [2. MODULE KHO CORE - PRIMITIVES]
+        C_API[ISlotService & IStockTpRepository]
+        C_Lock[LockSlotForUpdate - Chống tranh chấp]
+        C_Data[(STOCKTP & SlotLot & StockHistory)]
+        
+        C_API --> C_Lock --> C_Data
+    end
 
-    Step2 -->|Nội bộ / Khách cần Rework| Rework1["IQTChungService.XuatKhoRework<br/>-> IReworkStockService.XuatKhoRework<br/>-> IStockExportService.PickToChoGiao<br/>(Purpose=XuatRework)"]
-    Rework1 --> Rework2["Xác nhận thực xuất:<br/>IReworkStockService.XacNhanXuatRework<br/>-> ConfirmGiaoHangTuChoGiao + InsertXuat"]
-    
-    Rework2 --> Step5["Bước 5: GiaoHangRework<br/>ITraHangQTChungRepository.InsertGiao<br/>(KHÔNG dùng Slot/STOCKTP)"]
-    Step5 --> Step6["Bước 6: SanXuatBaoReworkXong"]
-    Step6 --> Step7["Bước 7: QCXacNhanCuoi<br/>InsertQC — phân tách OK/NG"]
-    
-    Step7 -->|NG = 0| StatusHoanTat1[QTChungStatus.HoanTat]
-    Step7 -->|NG > 0| Step8["Bước 8: NhapLaiHangNG<br/>IReworkStockService.NhapLaiHangNG<br/>-> ISlotService.AddQuantity (Kho Core)<br/>-> IStockExportRepository.AdjustSlConLai (STOCKTP +)<br/>+ InsertNhapNG"]
-    
-    Step8 --> StatusHoanTat2[QTChungStatus.HoanTat]
+    subgraph Outbound [3. MODULE XUẤT KHO & REWORK - OUTBOUND / EXCEPTION]
+        O_Start([Yêu cầu Xuất / Rework / Trả hàng]) --> O_Type{Phân loại xuất}
+        O_Type -->|Xuất thẳng A0| O_Direct[XuatTrucTiep từ A0]
+        O_Type -->|Xuất từ Slot| O_Pick[PickToChoGiao -> Đẩy vào FVN_HangChoGiao]
+        O_Pick --> O_Confirm[Xác nhận Confirm: Giao hàng / Bù NG / Rework]
+        
+        O_Rework[QTChung & Rework Workflow<br/>- Phân tách OK/NG<br/>- Nhập lại kho NG]
+    end
 
-    StatusHoanTat1 --> FinalEnd([🏁 KẾT THÚC])
-    StatusHoanTat2 --> FinalEnd
-    EndNoErr --> FinalEnd
+    %% Tương tác cốt lõi giữa 3 Module
+    I_A0 -->|Gửi dữ liệu nhập| C_API
+    I_Slot -->|Gửi dữ liệu nhập| C_API
+    
+    C_API -->|Cập nhật tồn kho tổng & không gian| O_Start
+    
+    O_Direct -->|Trừ tồn kho trực tiếp| C_API
+    O_Confirm -->|Chốt xuất & Trừ STOCKTP| C_API
+    
+    O_Rework -->|Phần OK/NG vòng ngược lại| C_API
 
+    %% Styling
+    style Inbound fill:#e1f5fe,stroke:#0288d1,stroke-width:2px
+    style Core fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
+    style Outbound fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    style C_API fill:#c8e6c9,stroke:#388e3c,stroke-width:2px
     style StartRepo fill:#f9f,stroke:#333,stroke-width:2px
     style Step2 fill:#bbf,stroke:#333,stroke-width:2px
     style GiaoBu1 fill:#bfb,stroke:#333,stroke-width:2px
