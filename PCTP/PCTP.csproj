@@ -1390,7 +1390,7 @@
       <DependentUpon>report_in.edmx</DependentUpon>
     </None>
     <None Include="Workflow\Diagram\WORKFLOW_XUATKHO.md" />
-    <None Include="Workflow\Diagram\WORKPLOW_KHOCOREr.md" />
+    <None Include="Workflow\Diagram\WORKPLOW_KHOCORE.md" />
     <None Include="Workflow\Diagram\WORKFLOW_HANGLOI.md" />
   </ItemGroup>
   <ItemGroup>
