@@ -17,7 +17,7 @@ Màn hình `TrungTamDieuHanhKho` được chia thành các khu vực chính ánh
   * Ô tra cứu nhanh đa năng (Quét QR / Lệnh / Mã Lot).
   * Widget báo cáo tồn kho & lịch sử giao dịch nhanh.
 
-> ⚠️ **Lưu ý kiến trúc:** Khu vực *"Tra cứu & Báo cáo"* **không** phải là phân khu thứ 5, mà là tính năng xuyên suốt đọc dữ liệu từ cả 4 phân khu.
+> ⚠️ **Lưu ý kiến trúc:** Khu vực *"Tra cứu & Báo cáo"* **not** phải là phân khu thứ 5, mà là tính năng xuyên suốt đọc dữ liệu từ cả 4 phân khu.
 
 ---
 
