@@ -1,3 +1,4 @@
+```mermaid
 graph TD
     A[IPhieuKhachTraRepository] --> B1[IKhachTraHangService<br/>Nguồn: Khách Hàng]
     A --> B2[ITraNoiBoService<br/>Nguồn: Nội Bộ]
