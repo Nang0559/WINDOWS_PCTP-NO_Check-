@@ -1,4 +1,4 @@
-﻿﻿```mermaid
+```mermaid
 graph TD
     Start([BẮT ĐẦU]) --> NhapKho[NHẬP KHO]
     Start --> XuatKho[XUẤT KHO]
@@ -8,7 +8,6 @@ graph TD
     %% 1. NHÁNH NHẬP KHO
     %% ----------------------------------------------------
     NhapKho --> KhoCore[KHO CORE & STOCKTP]
-
 
     %% ----------------------------------------------------
     %% 2. NHÁNH XUẤT KHO
