@@ -1,65 +1,79 @@
 ```mermaid
 graph TD
-    Start([BẮT ĐẦU]) --> NhapKho[NHẬP KHO]
-    Start --> XuatKho[XUẤT KHO]
-    Start --> HangLoi[HÀNG LỖI / BẤT THƯỜNG<br/>Nội bộ / Khách trả]
+    %% ----------------------------------------------------
+    %% KHU VỰC 1: KHO CORE (MÀU XANH LÁ)
+    %% ----------------------------------------------------
+    subgraph KhoCore_Zone ["KHO CORE — Warehouse / Rack / Slot / SlotLot / StockHistory"]
+        ISlotService[ISlotService]
+        IWarehouseService[IWarehouseService]
+        IStockHistoryRepo[IStockHistoryRepository]
+        StockTP_Core[(STOCKTP)]
+    end
 
     %% ----------------------------------------------------
-    %% 1. NHÁNH NHẬP KHO
+    %% KHU VỰC 2: NHẬP KHO (MÀU XANH DƯƠNG)
     %% ----------------------------------------------------
-    NhapKho --> KhoCore[KHO CORE & STOCKTP]
+    subgraph NhapKho_Zone ["NHẬP KHO — STOCKTP (cộng)"]
+        INhapTpService[INhapTpReceivingService]
+    end
 
     %% ----------------------------------------------------
-    %% 2. NHÁNH XUẤT KHO
+    %% KHU VỰC 3: XUẤT KHO (MÀU CAM)
     %% ----------------------------------------------------
-    XuatKho --> GiaoHang[GIAO HÀNG CHO KHÁCH<br/>- Kho A0 hoặc Pick từ Slot]
+    subgraph XuatKho_Zone ["XUẤT KHO — STOCKTP (trừ) + FVN_HangChoGiao"]
+        IStockExportService[IStockExportService]
+        IHangChoGiaoRepo[IHangChoGiaoRepository]
+        StockTP_Xuat[(STOCKTP)]
+    end
+
+    %% ----------------------------------------------------
+    %% KHU VỰC 4: XỬ LÝ HÀNG LỖI / QTCHUNG (MÀU ĐỎ)
+    %% ----------------------------------------------------
+    subgraphXuLyLoi_Zone ["XỬ LÝ HÀNG LỖI — Phiếu / QTChung / Rework / GiaoBu"]
+        ServiceKhachTra[IKhachTraHangService / ITraNoiBoService]
+        IQTChungService[IQTChungService]
+        IReworkStockService[IReworkStockService]
+        IGiaoBuNGService[IGiaoBuNGService]
+        
+        TablePhieuKhachTra[(FVN_PhieuKhachTra)]
+        TablePhieuXuLy[(FVN_PhieuXuLyBatThuuong)]
+        TableTraHangQTChung[(FVN_TraHangQTChung_*)]
+    end
+
+
+    %% ----------------------------------------------------
+    %% CÁC LUỒNG LIÊN KẾT GIỮA CÁC PHÂN KHU
+    %% ----------------------------------------------------
     
-    XuatKho --> ChuyenRework[ĐƯA ĐI REWORK SẢN XUẤT<br/>- Nhổ từ Slot / FVN_HANGCHOGIAO<br/>- Trạng thái: waitrewwork]
-    
-    ChuyenRework --> XuongRework[Xưởng tiến hành Rework]
-    XuongRework --> NhapLaiNG[FRM_NHAPLAING<br/>Lọc trạng thái rewwork]
+    %% Nhập kho gọi Core
+    INhapTpService -->|gọi| ISlotService
+    INhapTpService -->|gọi| IWarehouseService
+    INhapTpService -->|gọi| IStockHistoryRepo
+    INhapTpService -->|tự sở hữu| StockTP_Core
 
-    NhapLaiNG -->|Phần OK| OKBranch[Nhập lại OK]
-    NhapLaiNG -->|Phần NG| NGBreak[Phần NG / Chuyển xử lý phế phẩm]
+    %% Xuất kho gọi Core & Quản lý bảng chờ giao
+    IStockExportService -->|gọi| ISlotService
+    IStockExportService -->|gọi| IStockHistoryRepo
+    IStockExportService -->|tự sở hữu| StockTP_Xuat
+    IStockExportService -->|tự sở hữu| IHangChoGiaoRepo
 
-    OKBranch --> KhoCore
+    %% Xử lý hàng lỗi khởi tạo & lưu trữ bảng phụ
+    ServiceKhachTra -->|khởi tạo| IQTChungService
+    ServiceKhachTra -->|tự sở hữu| TablePhieuKhachTra
+    IQTChungService -->|tự sở hữu| TablePhieuXuLy
 
+    %% Xử lý hàng lỗi điều phối các Service nghiệp vụ chuyên sâu
+    IQTChungService -->|điều phối| IReworkStockService
+    IQTChungService -->|điều phối| IGiaoBuNGService
 
-    %% ----------------------------------------------------
-    %% 3. NHÁNH HÀNG LỖI / BẤT THƯỜNG (QUY TRÌNH 6 BƯỚC)
-    %% ----------------------------------------------------
-    HangLoi --> RepoSource[IPhieuKhachTraRepository]
-    RepoSource --> BranchSource{Nguồn phát sinh?}
-    
-    BranchSource -->|Khách hàng| IKTra[IKhachTraHangService]
-    BranchSource -->|Nội bộ| ITNoiBo[ITraNoiBoService]
-
-    IKTra --> QTChung[IQTChungService<br/>Bước 1 & 2: Tiếp nhận & Phiếu Bất Thường]
-    ITNoiBo --> QTChung
-
-    QTChung --> QCDinhHuong[Bước 3: QC Định Hướng<br/>Kiểm tra thực tế lỗi]
-
-    QCDinhHuong -->|Khách: Không lỗi| EndKH[END / Từ chối giao bù]
-    QCDinhHuong -->|Khách: Có lỗi thật| GiaoBu[Quy trình Riêng: Giao Bù Hàng NG<br/>IGiaoBuNGService]
-    
-    QCDinhHuong -->|Có lỗi thật / Nội bộ| Step4[Bước 4: Chuyển qua Xưởng Rework / Xử lý]
-
-    Step4 --> Step5[Bước 5: QC Xác Nhận Cuối<br/>Phân tách OK / NG]
-    Step5 --> Step6[Bước 6: Nhập Kho Hàng NG<br/>ITraHangQTChungRepo & IStockTpReturnRepo]
+    %% Rework & Giao bù tương tác kiểm soát qua Xuất kho
+    IReworkStockService -->|tự sở hữu, chỉ audit| TableTraHangQTChung
+    IReworkStockService -->|gọi, KHÔNG tự đụng Slot/STOCKTP| IStockExportService
+    IGiaoBuNGService -->|gọi, KHÔNG tự đụng Slot/STOCKTP| IStockExportService
 
 
-    %% ----------------------------------------------------
-    %% HỘI TỤ KẾT THÚC
-    %% ----------------------------------------------------
-    NGBreak --> Step6
-    GiaoBu --> EventEnd[QTChung hoàn tất & EventHandler]
-    Step6 --> EventEnd
-    GiaoHang --> EventEnd
-    EventEnd --> FinalEnd([🏁 KẾT THÚC])
-
-
-    %% STYLE
-    style Start fill:#f9f,stroke:#333,stroke-width:2px
-    style KhoCore fill:#bbf,stroke:#333,stroke-width:2px
-    style NhapLaiNG fill:#bfb,stroke:#333,stroke-width:2px
-    style GiaoBu fill:#ff9,stroke:#333,stroke-width:2px
+    %% STYLING KHU VỰC
+    style KhoCore_Zone fill:#e2f0d9,stroke:#385723,stroke-width:2px
+    style NhapKho_Zone fill:#d9e1f2,stroke:#2f5597,stroke-width:2px
+    style XuatKho_Zone fill:#fce4d6,stroke:#c65911,stroke-width:2px
+    style subXuLyLoi_Zone fill:#f8cecc,stroke:#b85450,stroke-width:2px
