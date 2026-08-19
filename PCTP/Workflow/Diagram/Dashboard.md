@@ -49,3 +49,23 @@ public sealed class DashboardCounters {
     public int XuLyLoi_DangRework { get; set; }
     public int XuLyLoi_ChoQCXacNhanCuoi { get; set; }
 }
+
+## 2. Sơ Đồ Điều Hướng (Mermaid Diagram)
+
+Sơ đồ dưới đây minh họa cấu trúc điều hướng từ màn hình Trung tâm Điều hành Kho đến các module nghiệp vụ tương ứng (sử dụng hướng hiển thị ngang để tránh tràn dòng):
+
+```mermaid
+graph LR
+    Dashboard([Dashboard]) --> Sub1[📥 Nhập Kho]
+    Dashboard --> Sub2[📤 Xuất Kho]
+    Dashboard --> Sub3[⚠️ Xử Lý Lỗi]
+    Dashboard --> Sub4[🏭 Kho Core]
+    Dashboard -.-> Sub5[🔍 Tra Cứu & Báo Cáo]
+
+    Sub1 --> Screen1[Quản lý Nhập TP]
+    Sub2 --> Screen2[Quản lý Xuất & Chờ Giao]
+    Sub3 --> Screen3[QTChung & Phiếu Bất Thường]
+    Sub4 --> Screen4[Bản đồ Không gian Kho 2D]
+    Sub5 --> Screen5[Kết quả tra cứu tức thời]
+
+    style Sub5 stroke-dasharray: 5 5
