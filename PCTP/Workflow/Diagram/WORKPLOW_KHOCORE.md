@@ -1,4 +1,4 @@
-﻿```mermaid
+```mermaid
 graph TD
     Start([Yêu cầu tác động Kho Core]) --> ActionCheck{Phân loại tác động}
 

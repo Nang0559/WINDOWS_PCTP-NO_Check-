@@ -1,65 +1,76 @@
 ﻿```mermaid
 graph TD
-    Start([BẮT ĐẦU XUẤT KHO]) --> CheckSource{Xác định vị trí + mục đích xuất}
+    Start([BẮT ĐẦU XUẤT KHO]) --> CheckSource{Xác định vị trí hàng xuất}
 
     %% ========================================================
-    %% NHÁNH 1: HÀNG Ở KHO A0 (GIAO THẲNG)
+    %% NHÁNH 1: HÀNG Ở KHO A0 (XUẤT TRỰC TIẾP)
     %% ========================================================
-    CheckSource -->|Hàng ở Kho A0 — giao thẳng| DirectA0["IStockExportService.XuatTrucTiep<br/>(Source = KhoAoA0)"]
-    
-    DirectA0 --> LockA0["SlotService.LockSlotForUpdate<br/>(Kho Core)"]
-    LockA0 --> ExportRepoA0["IStockExportRepository.DeductStockTp<br/>(Lưu ngay)"]
-    ExportRepoA0 --> SaveSlotA0["SlotService.SaveLots<br/>(Kho Core)"]
-    SaveSlotA0 --> HistoryA0["SaveHistory<br/>ActionType: EXPORT"]
+    CheckSource -->|Hàng ở Kho A0| DirectA0["Mở form HVN-PGH<br/>- IStockExportService.XuatTrucTiep<br/>(Source = Bulk)<br/>- Không qua FVN_HangChoGiao"]
+    DirectA0 --> ExportA0["Trừ STOCKTP ngay<br/>(SLXUAT = SLCONLAI -)"]
 
 
     %% ========================================================
-    %% NHÁNH 2: HÀNG Ở SLOT (GIAO HÀNG / GIAO BÙ NG / REWORK)
+    %% NHÁNH 2: KHÔNG PICK TỪ ĐO — KHỞI TẠO QUA PHIẾU
     %% ========================================================
-    CheckSource -->|Hàng ở Slot — GiaoHang /<br/>GiaoBuNG / Rework| PickChoGiao["IStockExportService.PickToChoGiao<br/>(Purpose = GiaoHang /<br/>GiaoBuNG / XuatRework)"]
+    CheckSource -->|Không pick từ do — chỉ khởi tạo qua| RepoSource[IPhieuKhachTraRepository]
+    RepoSource --> ServiceInternal[ITraNoiBoService<br/>Nguồn: Nội Bộ]
+    RepoSource --> ServiceCustomer[IKhachTraHangService<br/>Nguồn: Khách Hàng]
+
+    ServiceInternal --> StepC[IQTChungService<br/>Bước 1&2: Tiếp nhận & Tạo Phiếu Bất Thường]
+    ServiceCustomer --> StepC
+
+    StepC --> StepD[Bước 3: QC Định Hướng]
+
+
+    %% ========================================================
+    %% NHÁNH 3: HÀNG Ở SLOT, MỤC ĐÍCH GIAO HÀNG
+    %% ========================================================
+    CheckSource -->|Hàng ở Slot, mục đích GIAO HÀNG| MainStock["Click Slot trên MainStockSV<br/>(IStockExportService.PickToChoGiao)<br/>- Purpose = GiaoHang / GiaoBuNG<br/>- CHƯA trừ STOCKTP"]
     
-    PickChoGiao --> LockSlot["SlotService.LockSlotForUpdate<br/>(Kho Core)"]
-    LockSlot --> DeductCore["LotNoHelper.SubtractLots +<br/>SlotService.SaveSlots/UpdateSlotHeader<br/>(Kho Core)"]
+    MainStock --> TableChoGiao[FVN_HangChoGiao<br/>TrangThai = ChoGiao]
+    TableChoGiao --> OpenPGH["Mở form HVN-PGH<br/>Thực hiện giao hàng cho khách"]
+    OpenPGH --> ConfirmPGH["ConfirmGiaoHangTuChoGiao<br/>- Trừ STOCKTP (SLXUAT +, SLCONLAI -)<br/>- TrangThai = DaGiao"]
+
+
+    %% ========================================================
+    %% NHÁNH 4: XỬ LÝ KẾT QUẢ QC ĐỊNH HƯỚNG
+    %% ========================================================
+    StepD -->|Khách: Không lỗi| EndNoErr[END — Từ chối giao bù]
     
-    DeductCore --> InsertChoGiao["HangChoGiaoRepository.Insert<br/>FVN_HangChoGiao —<br/>TrangThai: ChoGiao<br/>LoạiYeuCauChoGiao :<br/>GiaoHang | GiaoBuNG | Rework"]
+    StepD -->|Khách: Có lỗi thật| StepGiaoBu["IGiaoBuNGService.GiaoBuTheoQR<br/>-> IStockExportService.PickToChoGiao<br/>(Purpose=GiaoBuNG)<br/>-> FVN_HangChoGiao (Loại = GiaoBuNG)"]
+    StepGiaoBu --> ConfirmGiaoBu["IGiaoBuNGService.XacNhanHoanTatGiaoBu<br/>-> ConfirmGiaoHangTuChoGiao (trừ STOCKTP)"]
+
+    StepD -->|Nội bộ / Khách có lỗi cần Rework| StepReworkAction["IQTChungService điều phối<br/>IReworkStockService.XuatKhoRework(phieuxu.xy.id, slot.lotid, ...)<br/>- Trừ Slot.Lot (qua SlotService)<br/>- Chỉ trừ SL.CON LAI (KHÔNG dùng SL.XUẤT)<br/>- Ghi FVN_TraHangQITChung_Xuat<br/>(qua ITraHangQITChungRepository)<br/>(1 bước duy nhất — không qua FVN_HangChoGiao)"]
+
+
+    %% ========================================================
+    %% NHÁNH 5: TIẾN HÀNH REWORK & NHẬP LẠI
+    %% ========================================================
+    StepReworkAction --> DoRework[Tiến hành Rework tại xưởng]
+    DoRework --> ReworkDone[Rework hoàn tất]
+
+    ReworkDone --> FormNhapLai["frm_NhapLaiNG<br/>QC xác nhận, phân tách OK / NG"]
     
-    InsertChoGiao --> NotTrừStock["CHƯA trừ STOCKTP<br/>SaveHistory<br/>ActionType: CHO_GIAO"]
+    FormNhapLai --> ImportAction["IReworkStockService.NhapLaiNG<br/>- OK: cộng lại SL.CON LAI + Slot.lot dịch<br/>- NG: route vào Slot NG riêng<br/>- Ghi FVN_TraHangQITChung_NhapNG"]
     
-    NotTrừStock --> WaitConfirm[Chờ bước Confirm riêng]
-    
-    WaitConfirm --> CheckPurpose{Aggpy Confirm?}
-
-
-    %% --- Phân nhánh Confirm 1: Giao hàng HVN-PGH ---
-    CheckPurpose -->|Giao hàng: HVN-PGH xác<br/>nhận đăng giao| ConfirmPGH["IStockExportService.Confirm<br/>GiaoHangTuChoGiao"]
-    ConfirmPGH --> TrừStockPGH["Trừ STOCKTP (ngay)<br/>TrangThai: DaGiao<br/>SaveHistory<br/>ActionType: EXPORT"]
-
-
-    %% --- Phân nhánh Confirm 2: Giao bù NG ---
-    CheckPurpose -->|Giao bù NG:<br/>IGiaoBuNGService xác nhận| GiaoBuConfirm["IGiaoBuNGService.XacNhan<br/>HoanTatGiaoBu<br/>-> gọi lại<br/>ConfirmGiaoHangTuChoGiao<br/>ở chợ ứng dụng"]
-    GiaoBuConfirm --> TrừStockGiaoBu["Trừ STOCKTP (ngay)<br/>TrangThai: DaGiao<br/>SaveHistory<br/>ActionType: EXPORT_BU_N<br/>G"]
-
-
-    %% --- Phân nhánh Confirm 3: Rework ---
-    CheckPurpose -->|Rework:<br/>ReworkStockService xác<br/>nhận đã thực xuất| ReworkConfirm["ReworkStockService.XacNh<br/>anXuatRework<br/>-> gọi<br/>ConfirmGiaoHangTuChoGiao<br/>+ RỒI ghi<br/>FVN_TraHangQTChung_Xuat<br/>(audit riêng)"]
-    ReworkConfirm --> ReworkInsert["ITraHangQTChungRepository<br/>.InsertXuat<br/>(vừa Xuất/Hàng Loai: NG-Ngoại<br/>lượng này)"]
+    ImportAction --> EventEnd[QTChung hoàn tất<br/>QTC-HungHoanTatEvent]
 
 
     %% ========================================================
     %% HỘI TỤ KẾT THÚC CHUNG
     %% ========================================================
-    HistoryA0 --> End([HOÀN TẤT])
-    TrừStockPGH --> End
-    TrừStockGiaoBu --> End
-    ReworkInsert --> End
+    ExportA0 --> End([HOÀN TẤT])
+    ConfirmPGH --> End
+    EndNoErr --> End
+    ConfirmGiaoBu --> End
+    EventEnd --> End
 
 
     %% STYLING
     style Start fill:#f9f,stroke:#333,stroke-width:2px
     style CheckSource fill:#ff9,stroke:#333,stroke-width:2px
     style DirectA0 fill:#bbf,stroke:#333,stroke-width:2px
-    style PickChoGiao fill:#bbf,stroke:#333,stroke-width:2px
-    style InsertChoGiao fill:#ffc000,stroke:#333,stroke-width:2px
-    style ReworkConfirm fill:#fbb,stroke:#333,stroke-width:2px
-    style ReworkInsert fill:#fbb,stroke:#333,stroke-width:2px
-    style End fill:#bfb,stroke:#333,stroke-width:2px
+    style MainStock fill:#bbf,stroke:#333,stroke-width:2px
+    style StepReworkAction fill:#fbb,stroke:#333,stroke-width:2px
+    style FormNhapLai fill:#bfb,stroke:#333,stroke-width:2px
+    style End fill:#fbb,stroke:#333,stroke-width:2px
