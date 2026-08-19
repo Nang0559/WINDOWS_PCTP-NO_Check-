@@ -17,7 +17,7 @@ graph TD
     
     XuatKho --> ChuyenRework[ĐƯA ĐI REWORK SẢN XUẤT<br/>- Nhổ từ Slot / FVN_HANGCHOGIAO<br/>- Trạng thái: waitrewwork]
     
-    ChuyenRework --> X XuongRework[Xưởng tiến hành Rework]
+    ChuyenRework --> XuongRework[Xưởng tiến hành Rework]
     XuongRework --> NhapLaiNG[FRM_NHAPLAING<br/>Lọc trạng thái rewwork]
 
     NhapLaiNG -->|Phần OK| OKBranch[Nhập lại OK]
