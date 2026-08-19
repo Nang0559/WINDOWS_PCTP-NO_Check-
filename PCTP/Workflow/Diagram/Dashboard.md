@@ -32,25 +32,7 @@ Khi người dùng thao tác trên màn hình chính, hệ thống điều hư�
 
 ---
 
-## 3. Nguồn Dữ Liệu Cho Badge (Tránh Shell chứa logic nghiệp vụ)
-
-Theo nguyên tắc kiến trúc, Shell (`TrungTamDieuHanhKho`) không chứa logic nghiệp vụ mà thông qua tầng tổng hợp riêng (`IDashboardQueryService`):
-
-csharp
-public interface IDashboardQueryService {
-    DashboardCounters GetCounters();
-}
-
-public sealed class DashboardCounters {
-    public int NhapKho_ChoNhap { get; set; }
-    public int XuatKho_ChoGiao { get; set; }
-    public int XuatKho_ChoXacNhan { get; set; }
-    public int XuLyLoi_ChoQCDinhHuong { get; set; }
-    public int XuLyLoi_DangRework { get; set; }
-    public int XuLyLoi_ChoQCXacNhanCuoi { get; set; }
-}
-
-## 2. Sơ Đồ Điều Hướng (Mermaid Diagram)
+## 3. Sơ Đồ Điều Hướng (Mermaid Diagram)
 
 Sơ đồ dưới đây minh họa cấu trúc điều hướng từ màn hình Trung tâm Điều hành Kho đến các module nghiệp vụ tương ứng (sử dụng hướng hiển thị ngang để tránh tràn dòng):
 
@@ -69,3 +51,17 @@ graph LR
     Sub5 --> Screen5[Kết quả tra cứu tức thời]
 
     style Sub5 stroke-dasharray: 5 5
+4. Nguồn Dữ Liệu Cho Badge (Tránh Shell chứa logic nghiệp vụ)Theo nguyên tắc kiến trúc, Shell (TrungTamDieuHanhKho) không chứa logic nghiệp vụ mà thông qua tầng tổng hợp riêng (IDashboardQueryService):C#public interface IDashboardQueryService {
+    DashboardCounters GetCounters();
+}
+
+public sealed class DashboardCounters {
+    public int NhapKho_ChoNhap { get; set; }
+    public int XuatKho_ChoGiao { get; set; }
+    public int XuatKho_ChoXacNhan { get; set; }
+    public int XuLyLoi_ChoQCDinhHuong { get; set; }
+    public int XuLyLoi_DangRework { get; set; }
+    public int XuLyLoi_ChoQCXacNhanCuoi { get; set; }
+}
+Bảng Ánh Xạ Nguồn Dữ Liệu Badge Thực TếPhân KhuTên Badge / Chỉ SốNguồn Số Liệu (Service / Repository)Điều Kiện Lọc / Trạng TháiNhập KhoChờ nhậpINhapTpReceivingService / NHAP_TP_HISLọc theo các bản ghi có trạng thái chưa xử lý / chưa hoàn tất.Xuất KhoChờ giaoIHangChoGiaoRepositoryGetByReference với trạng thái ChoGiao, thực hiện COUNT theo loại reference.Xuất KhoChờ xác nhậnIHangChoGiaoRepository / IStockExportServiceCác lệnh đã pick vào chờ giao nhưng chưa thực hiện Confirm chốt xuất (TrangThai = DangGiao).Xử Lý LỗiChờ QC định hướngIPhieuXuLyBatThuongRepositoryLọc bản ghi có trạng thái QTChungStatus.ChoQCDinhHuong.Xử Lý LỗiĐang ReworkBảng phiếu xử lý / QTChungLọc bản ghi có trạng thái QTChungStatus.DangRework đang thực hiện sửa chữa tại xưởng.Xử Lý LỗiChờ QC xác nhận cuốiBảng phiếu xử lý / QTChungLọc bản ghi chờ QC kiểm tra sau khi hoàn tất Rework (QTChungStatus.ChoQCXacNhanCuoi).Lưu ý: DashboardCounters map trực tiếp theo đúng tên state trong enum QTChungStatus đã được định nghĩa tại luồng Xử lý hàng lỗi — không tự đặt tên trạng thái mới ở tầng UI.5. Cập Nhật Badge Theo Thời Gian Thực (Realtime Event Bus)Hệ thống không sử dụng cơ chế polling liên tục gây quá tải cơ sở dữ liệu, mà tái sử dụng cơ chế sự kiện sẵn có trong kiến trúc (ví dụ: StockChangedNotifier, AppEventBus hoặc LotStatusResetEvent). Khi một module con ghi nhận thay đổi dữ liệu (ví dụ: PhieuXuLyBatThuongRepository.UpdateTrangThai), hệ thống sẽ phát sự kiện; Dashboard sẽ đăng ký (subscribe) lắng nghe và tự động làm mới đúng badge liên quan mà không cần refresh toàn bộ màn hình.6. Khu Vực Tra Cứu & Báo Cáo Xuyên Suốt (Cross-Cutting Features)6.1. Ô Tra Cứu Nhanh Đa Năng (Global Quick Search)Chức năng: Cho phép nhập hoặc quét mã QR/Barcode trực tiếp từ thiết bị (mã lệnh sản xuất, mã pallet, mã lô hàng Lot, hoặc mã phiếu bất thường).Cơ chế điều hướng thông minh: Hệ thống tự động nhận diện định dạng mã (Pattern Matching) và điều hướng người dùng đến đúng màn hình chi tiết tương ứng.6.2. Báo Cáo Tồn Kho & Lịch Sử Giao Dịch Nhanh (Quick Reports Widget)Báo cáo Tồn kho theo thời gian thực: Hiển thị tổng tồn kho STOCKTP kết hợp phân bổ chi tiết theo từng khu vực kho (Kho A0, Kho thường, Kho lỗi/NG).Báo cáo Lịch sử giao dịch (StockHistory): Tích hợp lối tắt xem nhanh các biến động xuất/nhập/chuyển vị trí gần nhất dựa trên IStockHistoryRepository.
+    
