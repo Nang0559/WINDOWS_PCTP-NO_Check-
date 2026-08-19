@@ -3,7 +3,7 @@ graph TD
     A[Bắt đầu: Nhập / Xuất / Xử lý] --> B[Kho Core Manager]
     
     B --> C1[Nhập kho chuẩn / Nhập lại OK]
-    B --> C2[Xuất kho (HVN-PGH)]
+    B --> C2[Xuất kho - HVN-PGH]
     
     C1 --> D1[Cộng dồn StockTP]
     C1 --> D2[Gán vị trí Slot lưu trữ]
