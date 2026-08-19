@@ -28,7 +28,7 @@ Giao diện `TrungTamDieuHanhKho` được thiết kế theo nguyên tắc 1-1 v
 │  ─────────────────── TRA CỨU & BÁO CÁO NHANH ──────────────────  │
 │  [🔍 Tra cứu QR / Lệnh / Mã Lot]     [📊 Báo cáo tồn kho / Xuất nhập]│
 └─────────────────────────────────────────────────────────────────┘
-
+```mermaid
 graph TD
     Dashboard([Trung Tâm Điều Hành Kho - Dashboard]) --> Sub1[📥 Nhập Kho]
     Dashboard --> Sub2[📤 Xuất Kho]
