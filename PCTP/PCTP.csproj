@@ -1088,6 +1088,8 @@
     <Compile Include="Modules\GiaoHangKhach\YMVN\YMVN_CHONGIAO.Designer.cs">
       <DependentUpon>YMVN_CHONGIAO.cs</DependentUpon>
     </Compile>
+    <None Include="Workflow\Diagram\WORKFLOW_NHAPKHO.md" />
+    <None Include="Workflow\Diagram\WORKFLOW_MAIN.md" />
     <Compile Include="Workflow\FRM_WORKFLOW_HANGLOI.cs" />
     <Compile Include="Workflow\FRM_WORKFLOW_MAIN.cs" />
     <Compile Include="Workflow\FRM_WORKFLOW_NHAPKHO.cs" />
@@ -1387,6 +1389,9 @@
     <None Include="report_in.edmx.diagram">
       <DependentUpon>report_in.edmx</DependentUpon>
     </None>
+    <None Include="Workflow\Diagram\WORKFLOW_XUATKHO.md" />
+    <None Include="Workflow\Diagram\WORKPLOW_KHOCOREr.md" />
+    <None Include="Workflow\Diagram\WORKFLOW_HANGLOI.md" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
