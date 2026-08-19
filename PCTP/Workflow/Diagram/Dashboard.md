@@ -17,7 +17,7 @@ Màn hình `TrungTamDieuHanhKho` được chia thành các khu vực chính ánh
   * Ô tra cứu nhanh đa năng (Quét QR / Lệnh / Mã Lot).
   * Widget báo cáo tồn kho & lịch sử giao dịch nhanh.
 
-> ⚠️ **Lưu ý kiến trúc:** Khu vực *"Tra cứu & Báo cáo"* **not** phải là phân khu thứ 5, mà là tính năng xuyên suốt đọc dữ liệu từ cả 4 phân khu.
+> ⚠️ **Lưu ý kiến trúc:** Khu vực *"Tra cứu & Báo cáo"* **không** phải là phân khu thứ 5, mà là tính năng xuyên suốt đọc dữ liệu từ cả 4 phân khu.
 
 ---
 
@@ -34,32 +34,20 @@ Khi người dùng thao tác trên màn hình chính, hệ thống điều hư�
 
 ## 3. Sơ Đồ Điều Hướng (Mermaid Diagram)
 
-Sơ đồ dưới đây minh họa cấu trúc điều hướng từ màn hình Trung tâm Điều hành Kho đến các module nghiệp vụ tương ứng (sử dụng hướng hiển thị ngang để tránh tràn dòng):
+Sơ đồ dưới đây minh họa cấu trúc điều hướng từ màn hình Trung tâm Điều hành Kho đến các module nghiệp vụ tương ứng:
 
 ```mermaid
 graph LR
-    Dashboard([Dashboard]) --> Sub1[📥 Nhập Kho]
-    Dashboard --> Sub2[📤 Xuất Kho]
-    Dashboard --> Sub3[⚠️ Xử Lý Lỗi]
-    Dashboard --> Sub4[🏭 Kho Core]
-    Dashboard -.-> Sub5[🔍 Tra Cứu & Báo Cáo]
+    Dashboard([Dashboard]) --> Sub1["📥 Nhập Kho"]
+    Dashboard --> Sub2["📤 Xuất Kho"]
+    Dashboard --> Sub3["⚠️ Xử Lý Lỗi"]
+    Dashboard --> Sub4["🏭 Kho Core"]
+    Dashboard -.-> Sub5["🔍 Tra Cứu & Báo Cáo"]
 
-    Sub1 --> Screen1[Quản lý Nhập TP]
-    Sub2 --> Screen2[Quản lý Xuất & Chờ Giao]
-    Sub3 --> Screen3[QTChung & Phiếu Bất Thường]
-    Sub4 --> Screen4[Bản đồ Không gian Kho 2D]
-    Sub5 --> Screen5[Kết quả tra cứu tức thời]
+    Sub1 --> Screen1["Quản lý Nhập TP"]
+    Sub2 --> Screen2["Quản lý Xuất & Chờ Giao"]
+    Sub3 --> Screen3["QTChung & Phiếu Bất Thường"]
+    Sub4 --> Screen4["Bản đồ Không gian Kho 2D"]
+    Sub5 --> Screen5["Kết quả tra cứu tức thời"]
 
     style Sub5 stroke-dasharray: 5 5
-4. Nguồn Dữ Liệu Cho Badge (Tránh Shell chứa logic nghiệp vụ)Theo nguyên tắc kiến trúc, Shell (TrungTamDieuHanhKho) không chứa logic nghiệp vụ mà thông qua tầng tổng hợp riêng (IDashboardQueryService):C#public interface IDashboardQueryService {
-    DashboardCounters GetCounters();
-}
-
-public sealed class DashboardCounters {
-    public int NhapKho_ChoNhap { get; set; }
-    public int XuatKho_ChoGiao { get; set; }
-    public int XuatKho_ChoXacNhan { get; set; }
-    public int XuLyLoi_ChoQCDinhHuong { get; set; }
-    public int XuLyLoi_DangRework { get; set; }
-    public int XuLyLoi_ChoQCXacNhanCuoi { get; set; }
-}
