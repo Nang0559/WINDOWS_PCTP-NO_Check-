@@ -51,6 +51,7 @@ graph LR
     Sub5 --> Screen5["Kết quả tra cứu tức thời"]
 
     style Sub5 stroke-dasharray: 5 5
+
 ## 4. Nguồn Dữ Liệu Cho Badge (Tránh Shell chứa logic nghiệp vụ)
 
 Theo nguyên tắc kiến trúc, Shell (`TrungTamDieuHanhKho`) không chứa logic nghiệp vụ mà thông qua tầng tổng hợp riêng (`IDashboardQueryService`):
