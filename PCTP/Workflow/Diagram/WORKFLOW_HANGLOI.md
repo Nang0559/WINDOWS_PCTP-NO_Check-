@@ -21,6 +21,10 @@ Tài liệu này mô tả chi tiết luồng xử lý các phiếu bất thườ
 4. **Tiến Hành Rework & QC Xác Nhận Cuối:**
    * Sản phẩm được tiến hành sửa chữa tại xưởng (mốc trạng thái ngoài hệ thống).
    * Sau khi hoàn tất, thực hiện `IQTChungService.QCXacNhanCuoi` qua `ITraHangQTChungRepository.InsertQC` để ghi nhận số lượng OK/NG (Trạng thái: `DaQCXacNhanCuoi`).
+  **4b. Kiểm Tra Tem khi Nhập Lại sau Rework:**
+  - Sau QC xác nhận cuối (`QCXacNhanCuoi`)
+  - Nếu mã hàng có `NeedsInspection = true`
+  → chạy `FormInspection` cho phần hàng OK trước khi `NhapLaiHangNG`
 5. **Nhập Lại Kho & Hoàn Tất:**
    * *Trường hợp sản phẩm đạt chuẩn hoàn toàn (Số lượng NG = 0):* Chuyển thẳng trạng thái `HoanTat`.
    * *Trường hợp phát sinh phế phẩm (Số lượng NG > 0):* Gọi `IReworkStockService.NhapLaiHangNG` để:
