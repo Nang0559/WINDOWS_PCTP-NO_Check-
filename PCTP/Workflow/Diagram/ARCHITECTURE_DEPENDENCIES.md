@@ -414,117 +414,115 @@ Theo nguyên tắc:
 
 **Kho Core → Nhập Kho → Xuất Kho → Xử Lý Hàng Lỗi**
 được phân định trách nhiệm rõ ràng và không chồng chéo.
-## 3. Sơ Đồ Kiến Trúc Tổng Thể (Mermaid Diagram)
+## 12. Sơ Đồ Kiến Trúc Tổng Thể (Mermaid Diagram)
 
 ```mermaid
 graph TD
-
-    %% ==================================================
-    %% KHO CORE
-    %% ==================================================
-    subgraph KhoCore_Zone["KHO CORE"]
+    %% ----------------------------------------------------
+    %% KHU VUC 1: KHO CORE
+    %% ----------------------------------------------------
+    subgraph KhoCore_Zone["KHO CORE - Warehouse / Rack / Slot / SlotLot / StockHistory"]
         ISlotService["ISlotService"]
         IWarehouseService["IWarehouseService"]
         IStockHistoryRepo["IStockHistoryRepository"]
-        STOCKTP[(STOCKTP)]
+        StockTP_Core[("STOCKTP")]
     end
 
-    %% ==================================================
-    %% NHAP KHO
-    %% ==================================================
-    subgraph NhapKho_Zone["NHAP KHO"]
+    %% ----------------------------------------------------
+    %% KHU VUC 2: NHAP KHO
+    %% ----------------------------------------------------
+    subgraph NhapKho_Zone["NHAP KHO - STOCKTP Cong"]
         INhapTpService["INhapTpReceivingService"]
     end
 
-    %% ==================================================
-    %% XUAT KHO
-    %% ==================================================
-    subgraph XuatKho_Zone["XUAT KHO"]
+    %% ----------------------------------------------------
+    %% KHU VUC 3: XUAT KHO
+    %% ----------------------------------------------------
+    subgraph XuatKho_Zone["XUAT KHO - STOCKTP Tru + FVN_HangChoGiao"]
         IStockExportService["IStockExportService"]
         IHangChoGiaoRepo["IHangChoGiaoRepository"]
+        StockTP_Xuat[("STOCKTP")]
     end
 
-    %% ==================================================
-    %% XU LY HANG LOI / QTCHUNG
-    %% ==================================================
-    subgraph XuLyLoi_Zone["XU LY HANG LOI / QTCHUNG"]
+    %% ----------------------------------------------------
+    %% KHU VUC 4: XU LY HANG LOI / QTCHUNG
+    %% ----------------------------------------------------
+    subgraph XuLyLoi_Zone["XU LY HANG LOI - Phieu / QTChung / Rework / GiaoBu"]
 
         ServiceKhachTra["IKhachTraHangService"]
         ServiceTraNoiBo["ITraNoiBoService"]
 
-        FormChonSlotNoiBo["FormChonSlotNoiBo"]
-
-        SlotReadOnly["READ ONLY"]
+        FormChonSlotNoiBo["FormChonSlotNoiBo<br/>Tao phieu tu Slot LOT"]
 
         IQTChungService["IQTChungService"]
         IReworkStockService["IReworkStockService"]
         IGiaoBuNGService["IGiaoBuNGService"]
 
-        TablePhieuKhachTra[(FVN_PhieuKhachTra)]
-        TablePhieuXuLy[(FVN_PhieuXuLyBatThuong)]
-        TableTraHangQTChung[(FVN_TraHangQTChung_*)]
-
+        TablePhieuKhachTra[("FVN_PhieuKhachTra")]
+        TablePhieuXuLy[("FVN_PhieuXuLyBatThuong")]
+        TableTraHangQTChung[("FVN_TraHangQTChung_*")]
     end
 
-*   %% ============================*=====================
-    %% NHAP *HO -> CORE
-    %% ================*=================================
-*   INhapTpService -->|Cap nhat vi *ri| ISlotService
-    INhapTpServic* -->|Thong tin kho| IWarehouseServ*ce
-    INhapTpService -->|Ghi lich*su| IStockHistoryRepo
-    INhapTpS*rvice -->|Cong ton| STOCKTP
+    %% ----------------------------------------------------
+    %% NHAP KHO GOI KHO CORE
+    %% ----------------------------------------------------
+    INhapTpService -->|goi| ISlotService
+    INhapTpService -->|goi| IWarehouseService
+    INhapTpService -->|goi| IStockHistoryRepo
+    INhapTpService -->|cap nhat ton| StockTP_Core
 
-    %* =================================*================
-    %% XUAT KHO -* CORE
-    %%*==================================*===============
-    IStockExportSe*vice -->|*ick Tru ton| ISlotService
-    ISto*kExportService -->|Ghi lich su| IS*ockHistoryRepo
-    IStock*xportService -->|Cap nhat ton| STO*KTP
-   *IStockExportService -->|Quan ly| I*angChoGiaoRepo
+    %% ----------------------------------------------------
+    %% XUAT KHO GOI KHO CORE
+    %% ----------------------------------------------------
+    IStockExportService -->|pick va tru ton| ISlotService
+    IStockExportService -->|ghi lich su| IStockHistoryRepo
+    IStockExportService -->|cap nhat ton| StockTP_Xuat
+    IStockExportService -->|quan ly| IHangChoGiaoRepo
 
-    %% ===========*==================================*===
-    %% KHOI TAO QTCHUNG
-    %%*==================================*===============
-    ServiceKhachTr* -->|Khoi tao| IQTChungService
-   *Service*raNoiBo -->|Khoi tao| IQTChungServ*ce
+    %% ----------------------------------------------------
+    %% XU LY HANG LOI - CAC LUONG KHOI TAO
+    %% ----------------------------------------------------
+    ServiceKhachTra -->|khoi tao| IQTChungService
+    ServiceTraNoiBo -->|khoi tao| IQTChungService
 
-    ServiceKhachTra -->|Luu| T*blePhieuKhachTra
-    IQTChungServi*e -->*Luu phieu| TablePhieuXuLy
+    ServiceKhachTra -->|luu| TablePhieuKhachTra
+    IQTChungService -->|luu phieu| TablePhieuXuLy
 
-    %% *==================================*==============
-    %% FORM NOI BO
-*   %% ============================*=====================
-    FormChon*lotNoiBo -.->|Doc Slot LOT| ISlotS*rvice
-    FormChonSlotNoiBo -->|Ta* phieu Noi Bo| IQTChungService
+    %% ----------------------------------------------------
+    %% NHANH TAO PHIEU NOI BO TU SLOT
+    %% ----------------------------------------------------
+    FormChonSlotNoiBo -.->|DOC Slot LOT dang ton| ISlotService
 
-  * FormChon*lotNoiBo -.-> SlotReadOnly
-   *SlotReadOnly -.*> ISlotService
+    FormChonSlotNoiBo -->|tao phieu Noi Bo| IQTChungService
 
-    %% ===========*==================================*===
+    SlotReadOnly["READ ONLY<br/>Chi doc Slot LOT de lua chon<br/>Khong ghi hoac tru ton"]
+
+    FormChonSlotNoiBo -.-> SlotReadOnly
+    SlotReadOnly -.-> ISlotService
+
+    %% ----------------------------------------------------
     %% QTCHUNG DIEU PHOI
-   *%%*==================================*===============
-    IQTChungServic* -->|*ieu phoi| IReworkStockService
-    *QTChungService -->|Dieu phoi| IGia*BuNGService
+    %% ----------------------------------------------------
+    IQTChungService -->|dieu phoi| IReworkStockService
+    IQTChungService -->|dieu phoi| IGiaoBuNGService
 
-    %% ==============*==================================*
-    %% REWORK / GIAO BU
-    %%*==================================*===============
-    IRe*ork*tockService -->|PickToChoGiao| ISt*ckExportService
-    IGiaoBuNGServi*e -->|PickToChoGiao| IStockExportS*rvice
+    %% ----------------------------------------------------
+    %% REWORK / GIAO BU GOI XUAT KHO
+    %% ----------------------------------------------------
+    IReworkStockService -->|goi PickToChoGiao| IStockExportService
+    IGiaoBuNGService -->|goi PickToChoGiao| IStockExportService
 
-    %% ====================*=============================
-    *% AUDIT
-    %% ===================*==============================
-   *IReworkStockService -->|Audit| Tab*eTraHangQTChung
-    IGiaoBuNGServi*e -->|Audit| TableTraHangQTChung
+    %% Audit
+    IReworkStockService -->|ghi audit| TableTraHangQTChung
+    IGiaoBuNGService -->|ghi audit| TableTraHangQTChung
 
-*   %% ============================*=====================
-    %% STYLE*    %% ===========================*======================
-    style K*oCore_Zone fill:#e2f0d9,stroke:#38*723,stroke-width:2px
-    style Nh*pKho_Zone fill:#d9e1f2,stroke:#2f5*97,stroke-width:2px
-    style X*at*ho_Zone fill:#fce4d6,stroke:#c6591*,stroke-width:2px
-    style XuLyLo*_*one fill:#f8cecc,stroke:#b85450,st*oke-width:2px
+    %% ----------------------------------------------------
+    %% STYLE
+    %% ----------------------------------------------------
+    style KhoCore_Zone fill:#e2f0d9,stroke:#385723,stroke-width:2px
+    style NhapKho_Zone fill:#d9e1f2,stroke:#2f5597,stroke-width:2px
+    style XuatKho_Zone fill:#fce4d6,stroke:#c65911,stroke-width:2px
+    style XuLyLoi_Zone fill:#f8cecc,stroke:#b85450,stroke-width:2px
 
-    style FormChonS*otNoiBo fill:#fff2cc,stroke:#bf900*,stroke-width:2px
-    style*Slot*eadOnly fill:#fff2cc,stroke:#bf900*,stroke-width:1px
-```
+    style FormChonSlotNoiBo fill:#fff2cc,stroke:#bf9000,stroke-width:2px
+    style SlotReadOnly fill:#fff2cc,stroke:#bf9000,stroke-width:1px
