@@ -9,6 +9,11 @@ Tài liệu này mô tả chi tiết luồng xử lý các phiếu bất thườ
 1. **Khởi Tạo & Tiếp Nhận Ban Đầu:**
    * Tiếp nhận thông tin từ `IPhieuKhachTraRepository` thông qua `IKhachTraHangService` (Nguồn: Khách hàng) hoặc `ITraNoiBoService` (Nguồn: Nội bộ).
    * Gọi `IQTChungService.TaoPhieuXuLyBatThuong` để khởi tạo phiếu với trạng thái ban đầu (`Moi` $\rightarrow$ `DaTaoPhieuBatThuong`).
+   * **Nhánh 1c (mới) — Tạo trực tiếp từ Slot, nguồn Nội Bộ, không qua chứng từ khách trả:**
+     `FormChonSlotNoiBo` đọc danh sách Slot/LOT đang tồn qua `ISlotService.GetAllActiveSlotLots()`
+     (Kho Core), sau đó gọi `IPhieuLoiRepository.InsertPhieuXuLyBatThuongNoiBo` để tạo phiếu với
+     `Nguon = NguonPhieuBatThuong.NoiBo`, `TrangThai = ChoQC` — rơi thẳng vào bước 2 (QC Định Hướng),
+     dùng chung toàn bộ luồng phía sau với phiếu sinh từ khách trả.
 2. **QC Định Hướng (Gate Quyết Định):**
    * Thực hiện qua `IQTChungService.QCDinhHuongRework` để chuyển trạng thái sang `DaDinhHuongRework` và phân tách thành 3 nhánh xử lý chính:
    * **Nhánh 1 (Khách không lỗi thật):** Dừng quy trình, từ chối giao bù ($\rightarrow$ `END`).
