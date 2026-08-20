@@ -70,6 +70,28 @@ IRackService ──▶ IRackRepository ──▶ bảng Rack
 - Nếu `CheckLotNo = true` → scan tem thùng phải khớp LotNo
 - Nếu `CheckNSX = true` → scan tem hộp phải có ngày SX hợp lệ
 - `DefaultQty` → số thùng/hộp tối thiểu phải scan
+  ### 2.4. `IInspectionService` + `IInspectionLogRepository`
+> Đặt tại `KhoCore/` — dùng chung cho Nhập kho, Xuất kho, Xử lý hàng lỗi.
+
+**`IInspectionService`**
+| Method | Mô tả |
+|---|---|
+| `Inspect(temTong, config, rawBoxScans)` | So sánh tem thùng với tem tổng theo config → trả `InspectionResult` |
+| `SaveLog(inspectionCode, temTong, results, finalResult)` | Ghi log kiểm tra vào `InspectionLog` |
+
+**`IInspectionLogRepository`**
+| Method | Mô tả |
+|---|---|
+| `SaveLog(entry)` | Insert 1 dòng vào bảng `InspectionLog` |
+| `GetByInspectionCode(code)` | Lấy toàn bộ log theo mã kiểm tra |
+
+**Quy tắc đọc tem thống nhất (dùng chung QRCodeParser):**
+- Mọi điểm scan (nhập kho / xuất kho / kiểm tra hàng lỗi) đều gọi
+  `QRCodeParser.ParseQRCode(raw)` trước tiên
+- Sau đó gọi `IInspectionService.Inspect(...)` nếu mã hàng có
+  `IInspectionConfigService.NeedsInspection = true`
+- Kết quả `InspectionResult.AllPassed` quyết định có cho phép
+  tiếp tục giao dịch không
 ---
 
 ## 3. Nhánh 2 — Primitive Slot (`ISlotService`)
