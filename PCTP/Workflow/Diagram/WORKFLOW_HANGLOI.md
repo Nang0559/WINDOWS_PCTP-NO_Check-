@@ -111,55 +111,116 @@ Mỗi bước nghiệp vụ ghi vào đúng 1 bảng con riêng — không dồn
 ```csharp
 // Bước: IReworkStockService.XacNhanXuatRework / IGiaoBuNGService.XacNhanHoanTatGiaoBu
 public class TraHangQTChungXuat
-{
-    public int Id { get; set; }
-    public int PhieuXuLyBatThuongId { get; set; }
-    public int SlotIdNguon { get; set; }
-    public string LotXuat { get; set; }
-    public int SoLuongXuat { get; set; }
-    public string LoaiXuat { get; set; }        // "Rework" | "GiaoBuNG"
-    public DateTime NgayXuat { get; set; }
-    public string NguoiXuat { get; set; }
-}
+    {
+        public int Id { get; set; }
+
+        public int PhieuXuLyBatThuongId { get; set; }
+
+        public int SlotIdNguon { get; set; }
+
+        public string LotXuat { get; set; }
+        public string LoaiXuat { get; set; }// "Rework" | "GiaoBuNG"
+
+        public string MaHang { get; set; }
+
+        public int SoLuongXuat { get; set; }
+
+        /// <summary>
+        /// Tồn trước khi xuất.
+        /// </summary>
+        public int TonTruoc { get; set; }
+
+        /// <summary>
+        /// Tồn sau khi xuất.
+        /// </summary>
+        public int TonSau { get; set; }
+
+        public DateTime NgayXuat { get; set; }
+
+        public string NguoiXuat { get; set; }
+
+        public string LyDo { get; set; }
+
+        public string Note { get; set; }
+    }
 
 // Bước: IQTChungService.GhiNhanGiaoSanXuat
-public class TraHangQTChungGiao
-{
-    public int Id { get; set; }
-    public int PhieuXuLyBatThuongId { get; set; }
-    public string LotGiao { get; set; }
-    public int SoLuongGiao { get; set; }
-    public string BoPhanNhan { get; set; }
-    public DateTime NgayGiao { get; set; }
-    public string NguoiGiao { get; set; }
-}
+ public class TraHangQTChungGiao
+    {
+        public int Id { get; set; }
+
+        public int PhieuXuLyBatThuongId { get; set; }
+
+        public string LotGiao { get; set; }
+
+        public string MaHang { get; set; }
+
+        public int SoLuongGiao { get; set; }
+
+        public DateTime ThoiGian { get; set; }
+
+        public string NgayGiao { get; set; }
+
+        public string NguoiNhan { get; set; }
+
+        public string BoPhanNhan { get; set; }
+
+        /// <summary>
+        /// Số phiếu giao nhận nội bộ.
+        /// </summary>
+        public string SoPhieuGiaoNhan { get; set; }
+
+        public string Note { get; set; }
+    }
 
 // Bước: IQTChungService.QCXacNhanCuoi
-public class TraHangQTChungQC
-{
-    public int Id { get; set; }
-    public int PhieuXuLyBatThuongId { get; set; }
-    public int SoLuongOK { get; set; }
-    public int SoLuongNG { get; set; }
-    public bool DaKiemTraTem { get; set; }       // true nếu NeedsInspection=true và đã qua FormInspection
-    public DateTime NgayQC { get; set; }
-    public string NguoiQC { get; set; }
-    public string GhiChu { get; set; }
-}
+ public class TraHangQTChungQC
+    {
+        public int Id { get; set; }
+
+        public int PhieuXuLyBatThuongId { get; set; }
+
+        public int SoLuongDaRework { get; set; }
+
+        public int SoLuongOK { get; set; }
+
+        public int SoLuongNG { get; set; }
+        public bool DaKiemTraTem { get; set; } // true nếu NeedsInspection=true và đã qua FormInspection
+
+        public DateTime ThoiGian { get; set; }
+
+        public string NguoiQC { get; set; }
+
+        public string KetLuan { get; set; }
+
+        public string Note { get; set; }
+    }
 
 // Bước: IReworkStockService.NhapLaiHangNG
 public class TraHangQTChungNhapNG
-{
-    public int Id { get; set; }
-    public int PhieuXuLyBatThuongId { get; set; }
-    public int SlotIdOK { get; set; }
-    public int SlotIdNG { get; set; }
-    public string LotNhapLai { get; set; }
-    public int SoLuongOK { get; set; }
-    public int SoLuongNG { get; set; }
-    public DateTime NgayNhap { get; set; }
-    public string NguoiNhap { get; set; }
-}
+    {
+        public int Id { get; set; }
+
+        public int PhieuXuLyBatThuongId { get; set; }
+        public int SlotIdOK { get; set; }
+        public int SlotIdNG { get; set; }
+
+        public string LotNhapLai { get; set; }
+
+        public string MaHang { get; set; }
+
+        public int SoLuongNG { get; set; }
+
+        public int? SlotIdNhap { get; set; }
+
+        public DateTime NgayNhap { get; set; }
+
+        public string NguoiNhap { get; set; }
+
+        public string LyDo { get; set; }
+
+        public string Note { get; set; }
+    }
 ```
 
 ---
