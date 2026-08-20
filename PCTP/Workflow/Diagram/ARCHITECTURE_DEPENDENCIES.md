@@ -414,3 +414,117 @@ Theo nguyên tắc:
 
 **Kho Core → Nhập Kho → Xuất Kho → Xử Lý Hàng Lỗi**
 được phân định trách nhiệm rõ ràng và không chồng chéo.
+## 3. Sơ Đồ Kiến Trúc Tổng Thể (Mermaid Diagram)
+
+```mermaid
+graph TD
+
+    %% ==================================================
+    %% KHO CORE
+    %% ==================================================
+    subgraph KhoCore_Zone["KHO CORE"]
+        ISlotService["ISlotService"]
+        IWarehouseService["IWarehouseService"]
+        IStockHistoryRepo["IStockHistoryRepository"]
+        STOCKTP[(STOCKTP)]
+    end
+
+    %% ==================================================
+    %% NHAP KHO
+    %% ==================================================
+    subgraph NhapKho_Zone["NHAP KHO"]
+        INhapTpService["INhapTpReceivingService"]
+    end
+
+    %% ==================================================
+    %% XUAT KHO
+    %% ==================================================
+    subgraph XuatKho_Zone["XUAT KHO"]
+        IStockExportService["IStockExportService"]
+        IHangChoGiaoRepo["IHangChoGiaoRepository"]
+    end
+
+    %% ==================================================
+    %% XU LY HANG LOI / QTCHUNG
+    %% ==================================================
+    subgraph XuLyLoi_Zone["XU LY HANG LOI / QTCHUNG"]
+
+        ServiceKhachTra["IKhachTraHangService"]
+        ServiceTraNoiBo["ITraNoiBoService"]
+
+        FormChonSlotNoiBo["FormChonSlotNoiBo"]
+
+        SlotReadOnly["READ ONLY"]
+
+        IQTChungService["IQTChungService"]
+        IReworkStockService["IReworkStockService"]
+        IGiaoBuNGService["IGiaoBuNGService"]
+
+        TablePhieuKhachTra[(FVN_PhieuKhachTra)]
+        TablePhieuXuLy[(FVN_PhieuXuLyBatThuong)]
+        TableTraHangQTChung[(FVN_TraHangQTChung_*)]
+
+    end
+
+*   %% ============================*=====================
+    %% NHAP *HO -> CORE
+    %% ================*=================================
+*   INhapTpService -->|Cap nhat vi *ri| ISlotService
+    INhapTpServic* -->|Thong tin kho| IWarehouseServ*ce
+    INhapTpService -->|Ghi lich*su| IStockHistoryRepo
+    INhapTpS*rvice -->|Cong ton| STOCKTP
+
+    %* =================================*================
+    %% XUAT KHO -* CORE
+    %%*==================================*===============
+    IStockExportSe*vice -->|*ick Tru ton| ISlotService
+    ISto*kExportService -->|Ghi lich su| IS*ockHistoryRepo
+    IStock*xportService -->|Cap nhat ton| STO*KTP
+   *IStockExportService -->|Quan ly| I*angChoGiaoRepo
+
+    %% ===========*==================================*===
+    %% KHOI TAO QTCHUNG
+    %%*==================================*===============
+    ServiceKhachTr* -->|Khoi tao| IQTChungService
+   *Service*raNoiBo -->|Khoi tao| IQTChungServ*ce
+
+    ServiceKhachTra -->|Luu| T*blePhieuKhachTra
+    IQTChungServi*e -->*Luu phieu| TablePhieuXuLy
+
+    %% *==================================*==============
+    %% FORM NOI BO
+*   %% ============================*=====================
+    FormChon*lotNoiBo -.->|Doc Slot LOT| ISlotS*rvice
+    FormChonSlotNoiBo -->|Ta* phieu Noi Bo| IQTChungService
+
+  * FormChon*lotNoiBo -.-> SlotReadOnly
+   *SlotReadOnly -.*> ISlotService
+
+    %% ===========*==================================*===
+    %% QTCHUNG DIEU PHOI
+   *%%*==================================*===============
+    IQTChungServic* -->|*ieu phoi| IReworkStockService
+    *QTChungService -->|Dieu phoi| IGia*BuNGService
+
+    %% ==============*==================================*
+    %% REWORK / GIAO BU
+    %%*==================================*===============
+    IRe*ork*tockService -->|PickToChoGiao| ISt*ckExportService
+    IGiaoBuNGServi*e -->|PickToChoGiao| IStockExportS*rvice
+
+    %% ====================*=============================
+    *% AUDIT
+    %% ===================*==============================
+   *IReworkStockService -->|Audit| Tab*eTraHangQTChung
+    IGiaoBuNGServi*e -->|Audit| TableTraHangQTChung
+
+*   %% ============================*=====================
+    %% STYLE*    %% ===========================*======================
+    style K*oCore_Zone fill:#e2f0d9,stroke:#38*723,stroke-width:2px
+    style Nh*pKho_Zone fill:#d9e1f2,stroke:#2f5*97,stroke-width:2px
+    style X*at*ho_Zone fill:#fce4d6,stroke:#c6591*,stroke-width:2px
+    style XuLyLo*_*one fill:#f8cecc,stroke:#b85450,st*oke-width:2px
+
+    style FormChonS*otNoiBo fill:#fff2cc,stroke:#bf900*,stroke-width:2px
+    style*Slot*eadOnly fill:#fff2cc,stroke:#bf900*,stroke-width:1px
+```
