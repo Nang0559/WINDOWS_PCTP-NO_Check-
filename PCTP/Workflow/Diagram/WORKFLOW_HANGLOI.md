@@ -52,58 +52,80 @@ FormChonSlotNoiBo
 
 ```mermaid
 graph TD
-    %% KHỞI TẠO & TIẾP NHẬN BAN ĐẦU
-    StartRepo[IPhieuKhachTraRepository] --> B1[IKhachTraHangService<br/>Nguồn: Khách Hàng]
-    StartRepo --> B2[ITraNoiBoService<br/>Nguồn: Nội Bộ]
-    
+    %% KHOI TAO VA TIEP NHAN
+    StartRepo["IPhieuKhachTraRepository"] --> B1["IKhachTraHangService<br/>Nguon: Khach Hang"]
+    StartRepo --> B2["ITraNoiBoService<br/>Nguon: Noi Bo"]
+
     B1 --> Step1["IQTChungService.TaoPhieuXuLyBatThuong<br/>Status: Moi -> DaTaoPhieuBatThuong"]
     B2 --> Step1
-    %% NHÁNH 1c: TẠO TRỰC TIẾP TỪ SLOT NỘI BỘ
-    SlotForm["FormChonSlotNoiBo<br/>Tạo phiếu trực tiếp từ Slot/LOT"] -->|Đọc Slot/LOT đang tồn| SlotService["ISlotService<br/>(Kho Core)"]
-    SlotService -->|GetAllActiveSlotLots()| SlotForm
-    SlotForm -->|InsertPhieuXuLyBatThuongNoiBo<br/>Nguon = NoiBo<br/>TrangThai = ChoQC| Step2
 
-    %% NHẤN MẠNH: ĐỌC, KHÔNG GHI/TRỪ TỒN
-    SlotReadNote["READ ONLY<br/>Đọc dữ liệu để chọn Slot/LOT<br/>Không ghi/trừ tồn tại ISlotService"]
+    %% NHANH 1c - TAO TRUC TIEP TU SLOT NOI BO
+    SlotForm["FormChonSlotNoiBo<br/>Tao phieu truc tiep tu Slot LOT"]
+
+    SlotService["ISlotService<br/>Kho Core"]
+
+    SlotForm -->|Doc Slot LOT| SlotService
+    SlotService -->|Tra danh sach ton| SlotForm
+
+    SlotForm -->|Tao phieu Noi Bo| Step2
+
+    %% GHI CHU DOC DU LIEU
+    SlotReadNote["READ ONLY<br/>Chi doc de chon Slot LOT<br/>Khong ghi hoac tru ton"]
+
     SlotForm -.-> SlotReadNote
     SlotReadNote -.-> SlotService
 
-    Step1 --> Step2["IQTChungService.QCDinhHuongRework<br/>(gate quyết định)<br/>Status: DaDinhHuongRework"]
-    
-    %% PHÂN NHÁNH 1: KHÁCH KHÔNG LỖI THẬT
-    Step2 -->|Khách: Không lỗi thật| EndNoErr[END — Từ chối giao bù]
+    %% QC DINH HUONG
+    Step1 --> Step2["IQTChungService.QCDinhHuongRework<br/>Gate quyet dinh<br/>Status: DaDinhHuongRework"]
 
-    %% PHÂN NHÁNH 2: KHÁCH CÓ LỖI THẬT (GIAO BÙ)
-    Step2 -->|Khách: Có lỗi thật, chỉ cần giao bù| GiaoBu1["IGiaoBuNGService.GiaoBuTheoQR<br/>-> IStockExportService.PickToChoGiao<br/>(Loại = GiaoBuNG)"]
-    
-    GiaoBu1 --> GiaoBu2["IGiaoBuNGService.XacNhanHoanTatGiaoBu<br/>-> ConfirmGiaoHangTuChoGiao"]
-    GiaoBu2 --> EndGiaoBu([END])
+    %% NHANH 1 - KHACH KHONG LOI THAT
+    Step2 -->|Khach khong loi that| EndNoErr["END<br/>Tu choi giao bu"]
 
-    %% PHÂN NHÁNH 3: NỘI BỘ / KHÁCH CẦN REWORK
-    Step2 -->|Nội bộ / Khách cần Rework| Rework1["IQTChungService.XuatKhoRework<br/>-> IReworkStockService.XuatKhoRework<br/>-> IStockExportService.PickToChoGiao<br/>(Loại = Rework)<br/>Status: DaXuatKhoRework"]
-    
-    Rework1 --> Rework2["IReworkStockService.XacNhanXuatRework<br/>-> ConfirmGiaoHangTuChoGiao<br/>+ ITraHangQTChungRepository.InsertXuat"]
-    
-    Rework2 --> Step5["IQTChungService.GhiNhanGiaoSanXuat<br/>ITraHangQTChungRepository.InsertGiao<br/>(KHÔNG dùng Slot/STOCKTP)<br/>Status: DaGiaoSanXuat"]
-    
-    Step5 --> Step6[Rework tại xưởng<br/>mốc trạng thái ngoài hệ thống]
-    
-    Step6 --> Step7["IQTChungService.QCXacNhanCuoi<br/>ITraHangQTChungRepository.InsertQC<br/>(SoLuongOK / SoLuongNG)<br/>Status: DaQCXacNhanCuoi"]
-    
-    %% Phân tách sau QC cuối
-    Step7 -->|SoLuongNG = 0| StatusHoanTat1[Status: HoanTat]
-    Step7 -->|SoLuongNG > 0| Step8["IReworkStockService.NhapLaiHangNG<br/>- OK: ISlotService.AddQuantity + STOCKTP +<br/>- NG: Route Slot NG riêng<br/>- ITraHangQTChungRepository.InsertNhapNG"]
-    
-    Step8 --> StatusHoanTat2[Status: HoanTat]
+    %% NHANH 2 - GIAO BU
+    Step2 -->|Khach loi that chi can giao bu| GiaoBu1["IGiaoBuNGService.GiaoBuTheoQR<br/>IStockExportService.PickToChoGiao<br/>Loai: GiaoBuNG"]
 
-    %% KẾT THÚC CHUNG
-    StatusHoanTat1 --> FinalEnd([🏁 KẾT THÚC])
+    GiaoBu1 --> GiaoBu2["IGiaoBuNGService.XacNhanHoanTatGiaoBu<br/>ConfirmGiaoHangTuChoGiao"]
+
+    GiaoBu2 --> EndGiaoBu["END"]
+
+    %% NHANH 3 - REWORK
+    Step2 -->|Noi bo hoac Khach can Rework| Rework1["IQTChungService.XuatKhoRework<br/>IReworkStockService.XuatKhoRework<br/>IStockExportService.PickToChoGiao<br/>Loai: Rework<br/>Status: DaXuatKhoRework"]
+
+    Rework1 --> Rework2["IReworkStockService.XacNhanXuatRework<br/>ConfirmGiaoHangTuChoGiao<br/>InsertXuat"]
+
+    Rework2 --> Step5["IQTChungService.GhiNhanGiaoSanXuat<br/>InsertGiao<br/>Khong dung Slot STPCKTP<br/>Status: DaGiaoSanXuat"]
+
+    %% REWORK TAI XUONG
+    Step5 --> Step6["Rework tai xuong<br/>Moc trang thai ngoai he thong"]
+
+    %% QC CUOI
+    Step6 --> Step7["IQTChungService.QCXacNhanCuoi<br/>InsertQC<br/>SoLuongOK va SoLuongNG<br/>Status: DaQCXacNhanCuoi"]
+
+    %% KIEM TRA TEM
+    Step7 -->|NeedsInspection true| Inspection["FormInspection<br/>Kiem tra tem phan hang OK"]
+    Step7 -->|NeedsInspection false| QtyCheck["Kiem tra SoLuongNG"]
+
+    Inspection --> QtyCheck
+
+    %% PHAN TACH OK NG
+    QtyCheck -->|SoLuongNG bang 0| StatusHoanTat1["Status: HoanTat"]
+
+    QtyCheck -->|SoLuongNG lon hon 0| Step8["IReworkStockService.NhapLaiHangNG<br/>OK: ISlotService.AddQuantity<br/>OK: STOCKTP tang<br/>NG: Route vao Slot NG<br/>InsertNhapNG"]
+
+    Step8 --> StatusHoanTat2["Status: HoanTat"]
+
+    %% KET THUC
+    StatusHoanTat1 --> FinalEnd["KET THUC"]
     StatusHoanTat2 --> FinalEnd
     EndNoErr --> FinalEnd
+    EndGiaoBu --> FinalEnd
 
-    %% STYLING
+    %% STYLE
     style StartRepo fill:#f9f,stroke:#333,stroke-width:2px
     style Step2 fill:#bbf,stroke:#333,stroke-width:2px
     style GiaoBu1 fill:#bfb,stroke:#333,stroke-width:2px
     style Rework1 fill:#fbb,stroke:#333,stroke-width:2px
+    style SlotForm fill:#ffeb99,stroke:#333,stroke-width:2px
+    style SlotService fill:#d9ead3,stroke:#333,stroke-width:2px
+    style SlotReadNote fill:#fff2cc,stroke:#333,stroke-width:1px
     style FinalEnd fill:#fbb,stroke:#333,stroke-width:2px
