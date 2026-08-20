@@ -26,77 +26,110 @@ Tài liệu này mô tả sơ đồ kiến trúc tổng thể của hệ thống
 ```mermaid
 graph TD
     %% ----------------------------------------------------
-    %% KHU VỰC 1: KHO CORE (MÀU XANH LÁ)
+    %% KHU VUC 1: KHO CORE
     %% ----------------------------------------------------
-    subgraph KhoCore_Zone ["KHO CORE — Warehouse / Rack / Slot / SlotLot / StockHistory"]
-        ISlotService[ISlotService]
-        IWarehouseService[IWarehouseService]
-        IStockHistoryRepo[IStockHistoryRepository]
-        StockTP_Core[(STOCKTP)]
+    subgraph KhoCore_Zone["KHO CORE - Warehouse / Rack / Slot / SlotLot / StockHistory"]
+        ISlotService["ISlotService"]
+        IWarehouseService["IWarehouseService"]
+        IStockHistoryRepo["IStockHistoryRepository"]
+        StockTP_Core[("STOCKTP")]
     end
 
     %% ----------------------------------------------------
-    %% KHU VỰC 2: NHẬP KHO (MÀU XANH DƯƠNG)
+    %% KHU VUC 2: NHAP KHO
     %% ----------------------------------------------------
-    subgraph NhapKho_Zone ["NHẬP KHO — STOCKTP (cộng)"]
-        INhapTpService[INhapTpReceivingService]
+    subgraph NhapKho_Zone["NHAP KHO - STOCKTP Cong"]
+        INhapTpService["INhapTpReceivingService"]
     end
 
     %% ----------------------------------------------------
-    %% KHU VỰC 3: XUẤT KHO (MÀU CAM)
+    %% KHU VUC 3: XUAT KHO
     %% ----------------------------------------------------
-    subgraph XuatKho_Zone ["XUẤT KHO — STOCKTP (trừ) + FVN_HangChoGiao"]
-        IStockExportService[IStockExportService]
-        IHangChoGiaoRepo[IHangChoGiaoRepository]
-        StockTP_Xuat[(STOCKTP)]
+    subgraph XuatKho_Zone["XUAT KHO - STOCKTP Tru + FVN_HangChoGiao"]
+        IStockExportService["IStockExportService"]
+        IHangChoGiaoRepo["IHangChoGiaoRepository"]
+        StockTP_Xuat[("STOCKTP")]
     end
 
     %% ----------------------------------------------------
-    %% KHU VỰC 4: XỬ LÝ HÀNG LỖI / QTCHUNG (MÀU ĐỎ)
+    %% KHU VUC 4: XU LY HANG LOI / QTCHUNG
     %% ----------------------------------------------------
-    subgraph XuLyLoi_Zone ["XỬ LÝ HÀNG LỖI — Phiếu / QTChung / Rework / GiaoBu"]
-        ServiceKhachTra[IKhachTraHangService / ITraNoiBoService]
-        IQTChungService[IQTChungService]
-        IReworkStockService[IReworkStockService]
-        IGiaoBuNGService[IGiaoBuNGService]
-        
-        TablePhieuKhachTra[(FVN_PhieuKhachTra)]
-        TablePhieuXuLy[(FVN_PhieuXuLyBatThuong)]
-        TableTraHangQTChung[(FVN_TraHangQTChung_*)]
+    subgraph XuLyLoi_Zone["XU LY HANG LOI - Phieu / QTChung / Rework / GiaoBu"]
+
+        ServiceKhachTra["IKhachTraHangService"]
+        ServiceTraNoiBo["ITraNoiBoService"]
+
+        FormChonSlotNoiBo["FormChonSlotNoiBo<br/>Tao phieu tu Slot LOT"]
+
+        IQTChungService["IQTChungService"]
+        IReworkStockService["IReworkStockService"]
+        IGiaoBuNGService["IGiaoBuNGService"]
+
+        TablePhieuKhachTra[("FVN_PhieuKhachTra")]
+        TablePhieuXuLy[("FVN_PhieuXuLyBatThuong")]
+        TableTraHangQTChung[("FVN_TraHangQTChung_*")]
     end
 
     %% ----------------------------------------------------
-    %% CÁC LUỒNG LIÊN KẾT GIỮA CÁC PHÂN KHU
+    %% NHAP KHO GOI KHO CORE
     %% ----------------------------------------------------
-    
-    %% Nhập kho gọi Core
-    INhapTpService -->|gọi| ISlotService
-    INhapTpService -->|gọi| IWarehouseService
-    INhapTpService -->|gọi| IStockHistoryRepo
-    INhapTpService -->|tự sở hữu| StockTP_Core
+    INhapTpService -->|goi| ISlotService
+    INhapTpService -->|goi| IWarehouseService
+    INhapTpService -->|goi| IStockHistoryRepo
+    INhapTpService -->|cap nhat ton| StockTP_Core
 
-    %% Xuất kho gọi Core & Quản lý bảng chờ giao
-    IStockExportService -->|gọi| ISlotService
-    IStockExportService -->|gọi| IStockHistoryRepo
-    IStockExportService -->|tự sở hữu| StockTP_Xuat
-    IStockExportService -->|tự sở hữu| IHangChoGiaoRepo
+    %% ----------------------------------------------------
+    %% XUAT KHO GOI KHO CORE
+    %% ----------------------------------------------------
+    IStockExportService -->|pick va tru ton| ISlotService
+    IStockExportService -->|ghi lich su| IStockHistoryRepo
+    IStockExportService -->|cap nhat ton| StockTP_Xuat
+    IStockExportService -->|quan ly| IHangChoGiaoRepo
 
-    %% Xử lý hàng lỗi khởi tạo & lưu trữ bảng phụ
-    ServiceKhachTra -->|khởi tạo| IQTChungService
-    ServiceKhachTra -->|tự sở hữu| TablePhieuKhachTra
-    IQTChungService -->|tự sở hữu| TablePhieuXuLy
+    %% ----------------------------------------------------
+    %% XU LY HANG LOI - CAC LUONG KHOI TAO
+    %% ----------------------------------------------------
+    ServiceKhachTra -->|khoi tao| IQTChungService
+    ServiceTraNoiBo -->|khoi tao| IQTChungService
 
-    %% Xử lý hàng lỗi điều phối các Service nghiệp vụ chuyên sâu
-    IQTChungService -->|điều phối| IReworkStockService
-    IQTChungService -->|điều phối| IGiaoBuNGService
+    ServiceKhachTra -->|luu| TablePhieuKhachTra
+    IQTChungService -->|luu phieu| TablePhieuXuLy
 
-    %% Rework & Giao bù tương tác kiểm soát qua Xuất kho
-    IReworkStockService -->|tự sở hữu, chỉ audit| TableTraHangQTChung
-    IReworkStockService -->|gọi, KHÔNG tự đụng Slot/STOCKTP| IStockExportService
-    IGiaoBuNGService -->|gọi, KHÔNG tự đụng Slot/STOCKTP| IStockExportService
+    %% ----------------------------------------------------
+    %% NHANH TAO PHIEU NOI BO TU SLOT
+    %% ----------------------------------------------------
+    FormChonSlotNoiBo -.->|DOC Slot LOT dang ton| ISlotService
 
-    %% STYLING KHU VỰC
+    FormChonSlotNoiBo -->|tao phieu Noi Bo| IQTChungService
+
+    SlotReadOnly["READ ONLY<br/>Chi doc Slot LOT de lua chon<br/>Khong ghi hoac tru ton"]
+
+    FormChonSlotNoiBo -.-> SlotReadOnly
+    SlotReadOnly -.-> ISlotService
+
+    %% ----------------------------------------------------
+    %% QTCHUNG DIEU PHOI
+    %% ----------------------------------------------------
+    IQTChungService -->|dieu phoi| IReworkStockService
+    IQTChungService -->|dieu phoi| IGiaoBuNGService
+
+    %% ----------------------------------------------------
+    %% REWORK / GIAO BU GOI XUAT KHO
+    %% ----------------------------------------------------
+    IReworkStockService -->|goi PickToChoGiao| IStockExportService
+    IGiaoBuNGService -->|goi PickToChoGiao| IStockExportService
+
+    %% Audit
+    IReworkStockService -->|ghi audit| TableTraHangQTChung
+    IGiaoBuNGService -->|ghi audit| TableTraHangQTChung
+
+    %% ----------------------------------------------------
+    %% STYLE
+    %% ----------------------------------------------------
     style KhoCore_Zone fill:#e2f0d9,stroke:#385723,stroke-width:2px
     style NhapKho_Zone fill:#d9e1f2,stroke:#2f5597,stroke-width:2px
     style XuatKho_Zone fill:#fce4d6,stroke:#c65911,stroke-width:2px
     style XuLyLoi_Zone fill:#f8cecc,stroke:#b85450,stroke-width:2px
+
+    style FormChonSlotNoiBo fill:#fff2cc,stroke:#bf9000,stroke-width:2px
+    style SlotReadOnly fill:#fff2cc,stroke:#bf9000,stroke-width:1px
