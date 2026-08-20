@@ -56,7 +56,6 @@ Tài liệu này mô tả chi tiết luồng xử lý các phiếu bất thườ
 
 ```mermaid
 graph TD
-graph TD
     %% ====================================================
     %% KHOI TAO VA TIEP NHAN
     %% ====================================================
