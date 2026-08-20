@@ -52,7 +52,24 @@ IRackService ──▶ IRackRepository ──▶ bảng Rack
 | `Create(warehouseId, rackName, rowCount, columnCount)` | Tạo Rack mới |
 | `UpdateLayout(rackId, rowCount, columnCount)` | Cập nhật số hàng/cột |
 | `Delete(rackId)` | Xoá Rack |
+### 2.3. `IInspectionConfigService` (mới — tách từ IWarehouseService)
 
+> Lý do tách: InspectionConfig là nghiệp vụ kiểm tra hàng hóa,
+> không thuộc phạm vi quản lý không gian kho.
+
+| Method | Mô tả |
+|---|---|
+| `GetAll()` | Lấy toàn bộ cấu hình kiểm tra |
+| `GetByItemCode(itemCode)` | Lấy cấu hình theo mã hàng |
+| `Save(config)` | Tạo mới hoặc cập nhật cấu hình |
+| `Delete(configId)` | Xóa cấu hình theo Id |
+| `NeedsInspection(itemCode)` | Kiểm tra mã hàng có cần KT không |
+
+**Nghiệp vụ kiểm tra khi xuất kho:**
+- Nếu `CheckItemCode = true` → scan tem thùng phải khớp mã hàng trong phiếu
+- Nếu `CheckLotNo = true` → scan tem thùng phải khớp LotNo
+- Nếu `CheckNSX = true` → scan tem hộp phải có ngày SX hợp lệ
+- `DefaultQty` → số thùng/hộp tối thiểu phải scan
 ---
 
 ## 3. Nhánh 2 — Primitive Slot (`ISlotService`)
