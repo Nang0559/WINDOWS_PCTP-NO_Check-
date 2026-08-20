@@ -110,6 +110,7 @@ IRackService ──▶ IRackRepository ──▶ bảng Rack
 | `GetQuantityWithLock(slotId)` | Số lượng hiện tại, có khoá dòng — chỉ dùng trong transaction đang mở |
 | `FindSlotsContainingLot(lotNo)` | Tìm mọi Slot đang chứa 1 LOT — trả `List<SlotChuaLotInfo>` |
 | `GetEmptySlots(itemCode, soLuongNhap)` | Tìm Slot trống phù hợp để nhập hàng |
+| `GetAllActiveSlotLots()` | Liệt kê toàn bộ SlotLot đang có tồn (`Quantity > 0`) kèm toạ độ Warehouse/Rack/Slot — dùng cho các màn hình chọn nguồn Slot/LOT (VD: `FormChonSlotNoiBo`) |
 
 ### 3.2. Cập nhật Slot (toàn bộ / header)
 
@@ -170,6 +171,18 @@ public sealed class SlotLotInfo
     public int Quantity { get; set; }
     public string TemCode { get; set; }
     public DateTime? ImportDate { get; set; }
+}
+public sealed class SlotLotViewInfo
+{
+    public int SlotId { get; set; }
+    public int SlotLotId { get; set; }
+    public string WarehouseName { get; set; }
+    public string RackName { get; set; }
+    public int SlotNumber { get; set; }
+    public string ItemCode { get; set; }
+    public string LotNo { get; set; }
+    public int Quantity { get; set; }
+    public string TemCode { get; set; }
 }
 ```
 
