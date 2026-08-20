@@ -7,34 +7,134 @@ Tài liệu này mô tả chi tiết luồng xử lý các phiếu bất thườ
 ## 0. State Machine — `QTChungStatus`
 
 ```csharp
-public enum QTChungStatus
-{
-    Moi                 = 0,
-    ChoQCDinhHuong       = 10,
-    TuChoiKhongLoiThat   = 15,   // Terminal — QC kết luận khách không lỗi thật
-    ChoXuatKhoRework     = 20,
-    DaXuatKhoRework      = 30,
-    ChoGiaoSanXuat       = 40,
-    DaGiaoSanXuat        = 50,
-    DangRework           = 60,
-    ChoQCXacNhanCuoi     = 70,
-    QCDaXacNhan          = 80,
-    DaNhapNG             = 90,
-    HoanTat              = 100,  // Terminal
-    Huy                  = 900   // Terminal
-}
+/// <summary>
+    /// State machine con — gắn với PhieuXuLyBatThuong, mô tả chi tiết từng bước
+    /// QC/Rework. Khác cấp với PhieuTraHangStatus (gắn PhieuKhachTra, chỉ có 1 mốc
+    /// "DangXuLyQTChung" bao trùm toàn bộ enum này).
+    /// </summary>
+    public enum QTChungStatus
+    {
+        Moi = 0,
+
+        /// <summary>IQTChungService.TaoPhieuXuLyBatThuong đã chạy.</summary>
+        DaTaoPhieuBatThuong = 10,
+
+        /// <summary>
+        /// IQTChungService.QCDinhHuongRework đã chạy — HuongXuLyBatThuong đã được set.
+        /// Từ đây transition tiếp theo phụ thuộc HuongXuLyBatThuong (xem mục 3).
+        /// </summary>
+        DaDinhHuongRework = 20,
+
+        // ── Nhánh 1: TuChoiGiaoBu ────────────────────────────────────────
+        /// <summary>End state — khách không lỗi thật, quy trình dừng tại đây.</summary>
+        TuChoiGiaoBu = 25,
+
+        // ── Nhánh 2: ChiGiaoBu (không rework) ────────────────────────────
+        /// <summary>Đã đẩy vào FVN_HangChoGiao (Purpose=GiaoBuNG), chờ IGiaoBuNGService xác nhận.</summary>
+        ChoGiaoBu = 30,
+
+        /// <summary>IGiaoBuNGService.XacNhanHoanTatGiaoBu đã chạy — trừ STOCKTP xong.</summary>
+        DaGiaoBu = 35,
+
+        // ── Nhánh 3: CanRework ────────────────────────────────────────────
+        /// <summary>IQTChungService.XuatKhoRework đã chạy — hàng đã rời Slot, STOCKTP đã trừ.</summary>
+        DaXuatKhoRework = 40,
+
+        /// <summary>IQTChungService.GhiNhanGiaoSanXuat đã chạy — KHÔNG đụng Slot/STOCKTP, chỉ audit.</summary>
+        DaGiaoSanXuat = 50,
+
+        /// <summary>IQTChungService.QCXacNhanCuoi đã chạy — đã có SoLuongOK/SoLuongNG.</summary>
+        DaQCXacNhanCuoi = 60,
+
+        /// <summary>Chỉ có khi SoLuongNG > 0 — IReworkStockService.NhapLaiHangNG đã chạy.</summary>
+        DaNhapLaiKho = 70,
+
+        // ── Kết thúc chung ───────────────────────────────────────────────
+        HoanTat = 100,
+        Huy = 900
+    }
 ```
 
 Transition hợp lệ do `QTChungStatusTransition.IsValid(from, to)` kiểm soát (giữ nguyên `from == to` luôn hợp lệ, cho phép thao tác idempotent). Điểm khác biệt so với bản trước: từ `ChoQCDinhHuong` có 2 lối ra hợp lệ, không còn dùng chung `Huy` cho cả 2 trường hợp:
 
 ```csharp
-[QTChungStatus.ChoQCDinhHuong] = new[]
-{
-    QTChungStatus.ChoXuatKhoRework,      // Khách có lỗi thật (Giao bù NG) hoặc Nội bộ/cần Rework
-    QTChungStatus.TuChoiKhongLoiThat,    // Khách không lỗi thật -> từ chối, END (không phải Hủy)
-    QTChungStatus.Huy
-},
-[QTChungStatus.TuChoiKhongLoiThat] = Array.Empty<QTChungStatus>(),
+ public static class QTChungStatusTransition
+    {
+        // ── Các bước KHÔNG phụ thuộc HuongXuLyBatThuong (giống nhau mọi nhánh) ──
+        private static readonly Dictionary<QTChungStatus, QTChungStatus[]> ChungMap =
+            new Dictionary<QTChungStatus, QTChungStatus[]>
+            {
+                [QTChungStatus.Moi] = new[] { QTChungStatus.DaTaoPhieuBatThuong, QTChungStatus.Huy },
+                [QTChungStatus.DaTaoPhieuBatThuong] = new[] { QTChungStatus.DaDinhHuongRework, QTChungStatus.Huy },
+                // DaDinhHuongRework → tuỳ HuongXuLyBatThuong, xem GetAllowedNext bên dưới
+            };
+
+        // ── Nhánh 1: TuChoiGiaoBu ─────────────────────────────────────────
+        private static readonly Dictionary<QTChungStatus, QTChungStatus[]> TuChoiGiaoBuMap =
+            new Dictionary<QTChungStatus, QTChungStatus[]>
+            {
+                [QTChungStatus.DaDinhHuongRework] = new[] { QTChungStatus.TuChoiGiaoBu },
+                [QTChungStatus.TuChoiGiaoBu] = new[] { QTChungStatus.HoanTat },
+            };
+
+        // ── Nhánh 2: ChiGiaoBu (không rework) ────────────────────────────
+        private static readonly Dictionary<QTChungStatus, QTChungStatus[]> ChiGiaoBuMap =
+            new Dictionary<QTChungStatus, QTChungStatus[]>
+            {
+                [QTChungStatus.DaDinhHuongRework] = new[] { QTChungStatus.ChoGiaoBu, QTChungStatus.Huy },
+                [QTChungStatus.ChoGiaoBu] = new[] { QTChungStatus.DaGiaoBu, QTChungStatus.Huy },
+                [QTChungStatus.DaGiaoBu] = new[] { QTChungStatus.HoanTat },
+            };
+
+        // ── Nhánh 3: CanRework ────────────────────────────────────────────
+        private static readonly Dictionary<QTChungStatus, QTChungStatus[]> ReworkMap =
+            new Dictionary<QTChungStatus, QTChungStatus[]>
+            {
+                [QTChungStatus.DaDinhHuongRework] = new[] { QTChungStatus.DaXuatKhoRework, QTChungStatus.Huy },
+                [QTChungStatus.DaXuatKhoRework] = new[] { QTChungStatus.DaGiaoSanXuat, QTChungStatus.Huy },
+                [QTChungStatus.DaGiaoSanXuat] = new[] { QTChungStatus.DaQCXacNhanCuoi, QTChungStatus.Huy },
+                // Sau QC cuối: rẽ theo SoLuongNG (không phải theo HuongXuLyBatThuong)
+                //   NG = 0  → thẳng HoanTat
+                //   NG > 0  → DaNhapLaiKho rồi mới HoanTat
+                [QTChungStatus.DaQCXacNhanCuoi] = new[] { QTChungStatus.HoanTat, QTChungStatus.DaNhapLaiKho, QTChungStatus.Huy },
+                [QTChungStatus.DaNhapLaiKho] = new[] { QTChungStatus.HoanTat },
+            };
+
+        public static bool IsValidTransition(HuongXuLyBatThuong huong, QTChungStatus from, QTChungStatus to)
+        {
+            if (ChungMap.TryGetValue(from, out var chungAllowed) && chungAllowed.Contains(to))
+                return true;
+
+            var nhanhMap = huong switch
+            {
+                HuongXuLyBatThuong.TuChoiGiaoBu => TuChoiGiaoBuMap,
+                HuongXuLyBatThuong.ChiGiaoBu => ChiGiaoBuMap,
+                HuongXuLyBatThuong.CanRework => ReworkMap,
+                _ => null
+            };
+
+            if (nhanhMap == null) return false; // ChuaXacDinh — chưa được phép rẽ nhánh
+            return nhanhMap.TryGetValue(from, out var allowed) && allowed.Contains(to);
+        }
+
+        /// <summary>Dùng cho UI — liệt kê các trạng thái kế tiếp hợp lệ để hiển thị nút bấm.</summary>
+        public static IReadOnlyList<QTChungStatus> GetAllowedNext(HuongXuLyBatThuong huong, QTChungStatus from)
+        {
+            var result = new List<QTChungStatus>();
+            if (ChungMap.TryGetValue(from, out var c)) result.AddRange(c);
+
+            var nhanhMap = huong switch
+            {
+                HuongXuLyBatThuong.TuChoiGiaoBu => TuChoiGiaoBuMap,
+                HuongXuLyBatThuong.ChiGiaoBu => ChiGiaoBuMap,
+                HuongXuLyBatThuong.CanRework => ReworkMap,
+                _ => null
+            };
+            if (nhanhMap != null && nhanhMap.TryGetValue(from, out var n)) result.AddRange(n);
+
+            return result.Distinct().ToList();
+        }
+    }
 ```
 
 **Phân biệt `TuChoiKhongLoiThat` vs `Huy`:** `TuChoiKhongLoiThat` là một kết quả nghiệp vụ hợp lệ của bước QC Định Hướng (khiếu nại không có căn cứ). `Huy` dành cho phiếu bị hủy do sai sót/tạo nhầm/trùng lặp, có thể xảy ra ở bất kỳ bước nào trước `HoanTat`. Hai state này không được gộp chung để báo cáo tỷ lệ khiếu nại vô căn cứ tách biệt khỏi tỷ lệ hủy phiếu do lỗi thao tác.
@@ -220,6 +320,237 @@ public class TraHangQTChungNhapNG
         public string LyDo { get; set; }
 
         public string Note { get; set; }
+    }
+    // 
+    /// <summary>
+    /// Kết luận của QC ở bước Định Hướng (IQTChungService.QCDinhHuongRework) —
+    /// quyết định QTChungStatus rẽ nhánh nào tiếp theo. Lưu trên PhieuXuLyBatThuong.
+    /// </summary>
+    public enum HuongXuLyBatThuong
+    {
+        ChuaXacDinh = 0,
+
+        /// <summary>Khách: không phải lỗi thật — dừng, không giao bù.</summary>
+        TuChoiGiaoBu = 1,
+
+        /// <summary>Khách: có lỗi thật nhưng không cần sửa — giao bù thẳng, KHÔNG qua Rework.</summary>
+        ChiGiaoBu = 2,
+
+        /// <summary>Nội bộ, hoặc khách cần sửa chữa — đi hết chuỗi Rework.</summary>
+        CanRework = 3
+    }
+    public enum PhieuTraHangStatus
+    {
+        Moi = 0,
+
+        /// <summary>
+        /// Đã nhập chứng từ khách nhưng chưa tạo phiếu bất thường.
+        /// </summary>
+        ChoTaoPhieuBatThuong = 10,
+
+        /// <summary>
+        /// Đã tạo phiếu bất thường.
+        /// </summary>
+        DaTaoPhieuBatThuong = 20,
+
+        /// <summary>
+        /// Đang chạy QTChung.
+        /// </summary>
+        DangXuLyQTChung = 30,
+
+        /// <summary>
+        /// QC đã xác nhận kết quả cuối.
+        /// </summary>
+        QCDaXacNhan = 40,
+
+        /// <summary>
+        /// Hàng OK đã nhập lại kho.
+        /// </summary>
+        DaNhapLaiKho = 50,
+
+        /// <summary>
+        /// Đang chờ giao bù cho khách.
+        /// </summary>
+        ChoGiaoBu = 60,
+
+        /// <summary>
+        /// Đã giao bù đầy đủ.
+        /// </summary>
+        DaGiaoBu = 70,
+
+        /// <summary>
+        /// Hoàn tất toàn bộ quy trình.
+        /// </summary>
+        HoanTat = 100,
+
+        /// <summary>
+        /// Có lỗi cần xử lý lại.
+        /// </summary>
+        Loi = 900
+    }
+     public static class PhieuTraHangStatusTransition
+    {
+        // ============================================================
+        // KHÁCH TRẢ
+        // ============================================================
+        private static readonly Dictionary<PhieuTraHangStatus, PhieuTraHangStatus[]> KhachTraMap =
+            new Dictionary<PhieuTraHangStatus, PhieuTraHangStatus[]>
+            {
+                [PhieuTraHangStatus.Moi] = new[]
+                {
+                PhieuTraHangStatus.ChoTaoPhieuBatThuong,
+                PhieuTraHangStatus.Loi
+                },
+
+                [PhieuTraHangStatus.ChoTaoPhieuBatThuong] = new[]
+                {
+                PhieuTraHangStatus.DaTaoPhieuBatThuong,
+                PhieuTraHangStatus.Loi
+                },
+
+                // ----------------------------------------------------
+                // Sau khi tạo phiếu:
+                //
+                // 1. Luồng QTChung bình thường:
+                //    DaTaoPhieuBatThuong
+                //        -> DangXuLyQTChung
+                //
+                // 2. Luồng ChiGiaoBu (không Rework):
+                //    DaTaoPhieuBatThuong
+                //        -> ChoGiaoBu
+                //
+                // Không đi qua DaNhapLaiKho vì không có hàng Rework/NG
+                // cần nhập lại kho.
+                // ----------------------------------------------------
+                [PhieuTraHangStatus.DaTaoPhieuBatThuong] = new[]
+                {
+                PhieuTraHangStatus.DangXuLyQTChung,
+
+                // Nhánh ChiGiaoBu: bỏ qua DaNhapLaiKho
+                PhieuTraHangStatus.ChoGiaoBu,
+
+                PhieuTraHangStatus.Loi
+                },
+
+                [PhieuTraHangStatus.DangXuLyQTChung] = new[]
+                {
+                PhieuTraHangStatus.QCDaXacNhan,
+                PhieuTraHangStatus.Loi
+                },
+
+                [PhieuTraHangStatus.QCDaXacNhan] = new[]
+                {
+                PhieuTraHangStatus.DaNhapLaiKho,
+                PhieuTraHangStatus.Loi
+                },
+
+                [PhieuTraHangStatus.DaNhapLaiKho] = new[]
+                {
+                PhieuTraHangStatus.ChoGiaoBu,
+                PhieuTraHangStatus.Loi
+                },
+
+                [PhieuTraHangStatus.ChoGiaoBu] = new[]
+                {
+                PhieuTraHangStatus.DaGiaoBu,
+                PhieuTraHangStatus.Loi
+                },
+
+                [PhieuTraHangStatus.DaGiaoBu] = new[]
+                {
+                PhieuTraHangStatus.HoanTat,
+                PhieuTraHangStatus.Loi
+                },
+
+                // ----------------------------------------------------
+                // Nếu QTChung bị lỗi / Hủy:
+                // cho phép quay lại để tạo lại phiếu bất thường
+                // hoặc tiếp tục xử lý QTChung.
+                // ----------------------------------------------------
+                [PhieuTraHangStatus.Loi] = new[]
+                {
+                PhieuTraHangStatus.DangXuLyQTChung,
+                PhieuTraHangStatus.ChoTaoPhieuBatThuong
+                },
+
+                [PhieuTraHangStatus.HoanTat] =
+                    Array.Empty<PhieuTraHangStatus>()
+            };
+
+
+        // ============================================================
+        // TRẢ NỘI BỘ
+        //
+        // Nội bộ KHÔNG có luồng giao bù cho khách.
+        // Hàng nhập lại kho xong -> HoanTat.
+        // ============================================================
+        private static readonly Dictionary<PhieuTraHangStatus, PhieuTraHangStatus[]> TraNoiBoMap =
+            new Dictionary<PhieuTraHangStatus, PhieuTraHangStatus[]>
+            {
+                [PhieuTraHangStatus.Moi] = new[]
+                {
+                PhieuTraHangStatus.ChoTaoPhieuBatThuong,
+                PhieuTraHangStatus.Loi
+                },
+
+                [PhieuTraHangStatus.ChoTaoPhieuBatThuong] = new[]
+                {
+                PhieuTraHangStatus.DaTaoPhieuBatThuong,
+                PhieuTraHangStatus.Loi
+                },
+
+                [PhieuTraHangStatus.DaTaoPhieuBatThuong] = new[]
+                {
+                PhieuTraHangStatus.DangXuLyQTChung,
+                PhieuTraHangStatus.Loi
+                },
+
+                [PhieuTraHangStatus.DangXuLyQTChung] = new[]
+                {
+                PhieuTraHangStatus.QCDaXacNhan,
+                PhieuTraHangStatus.Loi
+                },
+
+                [PhieuTraHangStatus.QCDaXacNhan] = new[]
+                {
+                PhieuTraHangStatus.DaNhapLaiKho,
+                PhieuTraHangStatus.Loi
+                },
+
+                [PhieuTraHangStatus.DaNhapLaiKho] = new[]
+                {
+                PhieuTraHangStatus.HoanTat,
+                PhieuTraHangStatus.Loi
+                },
+
+                [PhieuTraHangStatus.Loi] = new[]
+                {
+                PhieuTraHangStatus.DangXuLyQTChung,
+                PhieuTraHangStatus.ChoTaoPhieuBatThuong
+                },
+
+                [PhieuTraHangStatus.HoanTat] =
+                    Array.Empty<PhieuTraHangStatus>()
+            };
+
+
+        // ============================================================
+        // VALIDATE TRANSITION
+        // ============================================================
+        public static bool IsValidTransition(
+            NguonXuLyBatThuong nguon,
+            PhieuTraHangStatus from,
+            PhieuTraHangStatus to)
+        {
+            var map = nguon == NguonXuLyBatThuong.KhachTra
+                ? KhachTraMap
+                : TraNoiBoMap;
+
+            PhieuTraHangStatus[] allowed;
+
+            return map.TryGetValue(from, out allowed)
+                && allowed.Contains(to);
+        }
     }
 ```
 
