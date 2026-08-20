@@ -7,14 +7,14 @@ Tài liệu này mô tả chi tiết luồng xử lý các phiếu bất thườ
 ## 1. Mô Tả Chi Tiết Các Bước Trong Luồng Xử Lý Hàng Lỗi
 
 1. **Khởi Tạo & Tiếp Nhận Ban Đầu:**
-     - Nguồn Khách hàng:
-  - Tiếp nhận thông tin từ `IPhieuKhachTraRepository` thông qua `IKhachTraHangService`.
-  - Gọi `IQTChungService.TaoPhieuXuLyBatThuong`.
-  - Trạng thái: `Moi` → `DaTaoPhieuBatThuong`.
+- Nguồn Khách hàng:
+       - Tiếp nhận thông tin từ `IPhieuKhachTraRepository` thông qua `IKhachTraHangService`.
+       - Gọi `IQTChungService.TaoPhieuXuLyBatThuong`.
+       - Trạng thái: `Moi` → `DaTaoPhieuBatThuong`.
 
 - Nguồn Nội bộ:
-  - Tiếp nhận thông tin thông qua `ITraNoiBoService`.
-  - Gọi `IQTChungService.TaoPhieuXuLyBatThuong`.
+       - Tiếp nhận thông tin thông qua `ITraNoiBoService`.
+       - Gọi `IQTChungService.TaoPhieuXuLyBatThuong`.
 
 - **Nhánh tạo trực tiếp từ Slot — Nội bộ:**
   - Người dùng chọn Slot/LOT đang tồn trên `FormChonSlotNoiBo`.
