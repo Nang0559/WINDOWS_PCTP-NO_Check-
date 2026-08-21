@@ -679,312 +679,155 @@ Sau khi lưu → `IQTChungService.TaoPhieuXuLyBatThuong` nhận `PhieuTraHang.Id
 
 ```mermaid
 graph TD
+
     %% ====================================================
     %% KHOI TAO VA TIEP NHAN
     %% ====================================================
+
     StartRepo["IPhieuKhachTraRepository"]
 
-    B1["IKhachTraHangService<br/>Nguon: KhachTra"]
-    B2["ITraNoiBoService<br/>Nguon: TraNoiBo"]
+    B1["IKhachTraHangService<br/>Nguon = KhachTra"]
+    B2["ITraNoiBoService<br/>Nguon = TraNoiBo"]
 
     StartRepo --> B1
     StartRepo --> B2
 
-    B1 --> Step1["IQTChungService.TaoPhieuXuLyBatThuong<br/>FVN_PhieuXuLyBatThuong<br/>QTChungStatus: Moi -> DaTaoPhieuBatThuong"]
+    B1 --> Step1["IQTChungService.TaoPhieuXuLyBatThuong<br/>FVN_PhieuXuLyBatThuong<br/>Status: Moi -> DaTaoPhieuBatThuong"]
 
     B2 --> Step1
 
 
     %% ====================================================
-    %% NHANH - TAO TRUC TIEP TU SLOT NOI BO
+    %% TAO TRUC TIEP TU SLOT NOI BO
     %% ====================================================
-    SlotForm["FormChonSlotNoiBo<br/>ISlotService.GetAllActiveSlotLots<br/>Tao phieu Noi Bo tu Slot/LOT<br/>SlotIdNguon + LotNguon"]
 
-    SlotForm -->|Tao phieu Noi Bo| Step1
+    SlotForm["FormChonSlotNoiBo<br/>ISlotService.GetAllActiveSlotLots<br/>Tao phieu TraNoiBo tu Slot va LOT<br/>Ghi SlotIdNguon + LotNguon"]
 
-
-    %% ====================================================
-    %% PHIEU TRA HANG CAP HEADER
-    %% ====================================================
-    Step1 --> TraHangStatus["PhieuTraHangStatus: DaTaoPhieuBatThuong<br/>PhieuXuLyBatThuongId da duoc tao"]
-
-    TraHangStatus --> Step2
+    SlotForm --> Step2
 
 
     %% ====================================================
-    %% QTCHUNG - QC DINH HUONG
+    %% QC DINH HUONG
     %% ====================================================
-    Step2["IQTChungService.QCDinhHuongRework<br/>QTChungStatus: DaTaoPhieuBatThuong -> DaDinhHuongRework<br/>Ghi HuongXuLy / NgayDinhHuong / NguoiDinhHuong"]
 
-
-    %% ====================================================
-    %% GATE HUONG XU LY
-    %% ====================================================
-    Step2 --> HuongBranch{"HuongXuLyBatThuong?"}
+    Step1 --> Step2["IQTChungService.QCDinhHuongRework<br/>Gate quyet dinh<br/>Ghi HuongXuLy + NgayDinhHuong + NguoiDinhHuong<br/>Status: DaTaoPhieuBatThuong -> DaDinhHuongRework"]
 
 
     %% ====================================================
     %% NHANH 1 - TU CHOI GIAO BU
     %% ====================================================
-    HuongBranch -->|TuChoiGiaoBu| EndNoErr[
-        "QTChungStatus: TuChoiGiaoBu<br/>
-        Khach khong loi that<br/>
-        Terminal QTChung"
-    ]
+
+    Step2 -->|TuChoiGiaoBu| EndNoErr["QTChungStatus = TuChoiGiaoBu<br/>Khach khong phai loi that<br/>Terminal"]
+
+    EndNoErr --> FinalEnd
 
 
     %% ====================================================
     %% NHANH 2 - CHI GIAO BU
     %% ====================================================
-    HuongBranch -->|ChiGiaoBu| GiaoBuStart[
-        "PhieuTraHangStatus: ChoGiaoBu<br/>
-        QTChungStatus: ChoGiaoBu"
-    ]
 
-    GiaoBuStart --> GiaoBu1[
-        "IGiaoBuNGService.GiaoBuTheoQR<br/>
-        IStockExportService.PickToChoGiao<br/>
-        LoaiXuat = GiaoBuNG<br/>
-        -> FVN_TraHangQTChung_Xuat"
-    ]
+    Step2 -->|ChiGiaoBu| GiaoBu1["IGiaoBuNGService.GiaoBuTheoQR<br/>IStockExportService.PickToChoGiao<br/>LoaiXuat = GiaoBuNG<br/>Ghi FVN_TraHangQTChung_Xuat<br/>Status = ChoGiaoBu"]
 
-    GiaoBu1 --> GiaoBu2[
-        "IGiaoBuNGService.XacNhanHoanTatGiaoBu<br/>
-        ConfirmGiaoHangTuChoGiao<br/>
-        QTChungStatus: ChoGiaoBu -> DaGiaoBu"
-    ]
+    GiaoBu1 --> GiaoBu2["IGiaoBuNGService.XacNhanHoanTatGiaoBu<br/>ConfirmGiaoHangTuChoGiao<br/>Status = DaGiaoBu"]
 
-    GiaoBu2 --> DaGiaoBu[
-        "PhieuTraHangStatus: DaGiaoBu"
-    ]
+    GiaoBu2 --> GiaoBuEnd["QTChungStatus = HoanTat"]
 
-    DaGiaoBu --> EndGiaoBu[
-        "PhieuTraHangStatus: HoanTat<br/>
-        KET THUC"
-    ]
+    GiaoBuEnd --> FinalEnd
 
 
     %% ====================================================
-    %% NHANH 3 - CAN REWORK
+    %% NHANH 3 - REWORK
     %% ====================================================
-    HuongBranch -->|CanRework| ReworkStart[
-        "QTChungStatus: DaDinhHuongRework<br/>
-        -> DaXuatKhoRework"
-    ]
 
+    Step2 -->|CanRework| Rework1["IQTChungService.XuatKhoRework<br/>IReworkStockService.XuatKhoRework<br/>IStockExportService.PickToChoGiao<br/>LoaiXuat = Rework<br/>Status = DaXuatKhoRework"]
 
-    %% ====================================================
-    %% XUAT KHO REWORK
-    %% ====================================================
-    ReworkStart --> Rework1[
-        "IQTChungService.XuatKhoRework<br/>
-        IReworkStockService.XuatKhoRework<br/>
-        IStockExportService.PickToChoGiao<br/>
-        LoaiXuat = Rework"
-    ]
+    Rework1 --> Rework2["IReworkStockService.XacNhanXuatRework<br/>ConfirmGiaoHangTuChoGiao<br/>Ghi FVN_TraHangQTChung_Xuat"]
 
-    Rework1 --> Rework2[
-        "IReworkStockService.XacNhanXuatRework<br/>
-        ConfirmGiaoHangTuChoGiao<br/>
-        -> FVN_TraHangQTChung_Xuat<br/>
-        QTChungStatus: DaXuatKhoRework"
-    ]
-
-
-    %% ====================================================
-    %% GIAO SAN XUAT
-    %% ====================================================
-    Rework2 --> Step5[
-        "IQTChungService.GhiNhanGiaoSanXuat<br/>
-        -> FVN_TraHangQTChung_Giao<br/>
-        Khong dung Slot va STOCKTP<br/>
-        QTChungStatus: DaGiaoSanXuat"
-    ]
+    Rework2 --> Step5["IQTChungService.GhiNhanGiaoSanXuat<br/>Ghi FVN_TraHangQTChung_Giao<br/>Khong dung Slot va STOCKTP<br/>Status = DaGiaoSanXuat"]
 
 
     %% ====================================================
     %% REWORK TAI XUONG
     %% ====================================================
-    Step5 --> Step6[
-        "Rework tai xuong<br/>
-        Xu ly sua chua tai bo phan san xuat<br/>
-        Khong thay doi ton kho trong giai doan nay"
-    ]
+
+    Step5 --> Step6["Rework tai xuong<br/>Xu ly sua chua san pham<br/>Status = DangRework"]
 
 
     %% ====================================================
     %% QC CUOI
     %% ====================================================
-    Step6 --> Step7[
-        "IQTChungService.QCXacNhanCuoi<br/>
-        -> FVN_TraHangQTChung_QC<br/>
-        Ghi SoLuongOK / SoLuongNG<br/>
-        QTChungStatus: DaQCXacNhanCuoi"
-    ]
+
+    Step6 --> Step7["IQTChungService.QCXacNhanCuoi<br/>Ghi FVN_TraHangQTChung_QC<br/>Ghi SoLuongOK + SoLuongNG<br/>Status = QCDaXacNhan"]
 
 
     %% ====================================================
     %% KIEM TRA TEM
     %% ====================================================
-    Step7 --> InspectionBranch{"NeedsInspection?"}
 
-    InspectionBranch -->|Co| Inspection[
-        "FormInspection<br/>
-        Kiem tra tem phan hang OK<br/>
-        TraHangQTChungQC.DaKiemTraTem = true"
-    ]
+    Step7 -->|NeedsInspection = true| Inspection["FormInspection<br/>Kiem tra tem phan hang OK<br/>TraHangQTChungQC.DaKiemTraTem = true"]
 
-    InspectionBranch -->|Khong| QtyCheck
+    Step7 -->|NeedsInspection = false| QtyCheck["Kiem tra SoLuongNG"]
 
-    Inspection --> QtyCheck[
-        "Kiem tra SoLuongOK / SoLuongNG"
-    ]
+    Inspection --> QtyCheck
 
 
     %% ====================================================
-    %% NHAP LAI KHO
+    %% PHAN TACH OK NG
     %% ====================================================
-    QtyCheck --> ImportAction[
-        "IReworkStockService.NhapLaiHangNG<br/>
-        OK: AddQuantity + STOCKTP+<br/>
-        NG: SlotNG rieng<br/>
-        -> FVN_TraHangQTChung_NhapNG"
-    ]
 
-    ImportAction --> DaNhapLaiKho[
-        "PhieuTraHangStatus: DaNhapLaiKho"
-    ]
+    QtyCheck -->|SoLuongNG = 0| ImportAction["Nhap lai phan OK<br/>ISlotService.AddQuantity<br/>STOCKTP cong<br/>ActionType = NHAP_LAI_SAU_REWORK"]
+
+    QtyCheck -->|SoLuongNG > 0| ImportActionNG["IReworkStockService.NhapLaiHangNG<br/>OK: SlotIdOK + AddQuantity + STOCKTP cong<br/>NG: SlotIdNG rieng<br/>Ghi FVN_TraHangQTChung_NhapNG<br/>Status = DaNhapLaiKho"]
 
 
     %% ====================================================
-    %% SAU KHI NHAP KHO - PHAN NHANH THEO NGUON
+    %% HOP NHAT SAU KHI NHAP KHO
     %% ====================================================
-    DaNhapLaiKho --> NguonBranch{"NguonXuLyBatThuong?"}
 
+    ImportAction --> BranchGiaoLai
 
-    %% ====================================================
-    %% KHACH TRA
-    %% ====================================================
-    NguonBranch -->|KhachTra| KhachTraCustomer[
-        "NguonKhachTra<br/>
-        HVN / YMVN / HTN<br/>
-        Resolve CustomerConfig"
-    ]
-
-    KhachTraCustomer --> ChoGiaoBu[
-        "PhieuTraHangStatus: ChoGiaoBu"
-    ]
-
-    ChoGiaoBu --> GiaoBuAfterRework[
-        "IGiaoBuNGService.GiaoBuTheoQR<br/>
-        Giao bu cho khach"
-    ]
-
-    GiaoBuAfterRework --> XacNhanGiaoBu[
-        "IGiaoBuNGService.XacNhanHoanTatGiaoBu<br/>
-        ConfirmGiaoHangTuChoGiao"
-    ]
-
-    XacNhanGiaoBu --> DaGiaoBuAfterRework[
-        "PhieuTraHangStatus: DaGiaoBu"
-    ]
-
-    DaGiaoBuAfterRework --> FinalKhach[
-        "PhieuTraHangStatus: HoanTat"
-    ]
+    ImportActionNG --> BranchGiaoLai
 
 
     %% ====================================================
-    %% TRA NOI BO
+    %% GIAO LAI BO PHAN - CHI TRA NOI BO
     %% ====================================================
-    NguonBranch -->|TraNoiBo| BranchGiaoLai{
-        "Can giao lai bo phan<br/>
-        phat hien loi?"
-    }
 
+    BranchGiaoLai{"Nguon = TraNoiBo<br/>va can giao lai bo phan?"}
 
-    %% ====================================================
-    %% TRA NOI BO - KHONG CAN GIAO LAI
-    %% ====================================================
-    BranchGiaoLai -->|Khong| FinalNoiBo[
-        "PhieuTraHangStatus: HoanTat<br/>
-        Khong can giao lai"
-    ]
+    BranchGiaoLai -->|Co| ChoGiaoLai["Status = ChoGiaoLaiBoPhan<br/>Cho giao lai bo phan phat hien loi"]
 
+    BranchGiaoLai -->|Khong| EventEnd["Khong can giao lai<br/>Ket thuc QTChung"]
 
-    %% ====================================================
-    %% TRA NOI BO - CAN GIAO LAI
-    %% ====================================================
-    BranchGiaoLai -->|Co| ChoGiaoLai[
-        "PhieuTraHangStatus: ChoGiaoLaiBoPhan<br/>
-        Chuan bi giao lai bo phan"
-    ]
+    ChoGiaoLai --> GiaoLai["ITraNoiBoService.GiaoLaiBoPhanPhatHien<br/>Ghi BoPhanNhanLai + SoLuongGiaoLai<br/>Ghi NgayGiaoLaiBoPhan + NguoiGiaoLaiBoPhan<br/>Repo.DanhDauDaGiaoLaiBoPhan<br/>Status = DaGiaoLaiBoPhan"]
 
-    ChoGiaoLai --> GiaoLai[
-        "ITraNoiBoService.GiaoLaiBoPhanPhatHien<br/>
-        BoPhanNhanLai<br/>
-        SoLuongGiaoLai<br/>
-        NguoiGiaoLaiBoPhan"
-    ]
+    GiaoLai --> EventEndFinal["Status = HoanTat"]
 
-    GiaoLai --> DaGiaoLai[
-        "Repo.DanhDauDaGiaoLaiBoPhan<br/>
-        PhieuTraHangStatus: DaGiaoLaiBoPhan"
-    ]
-
-    DaGiaoLai --> FinalNoiBoGiaoLai[
-        "PhieuTraHangStatus: HoanTat"
-    ]
+    EventEnd --> FinalEnd
+    EventEndFinal --> FinalEnd
 
 
     %% ====================================================
     %% KET THUC
     %% ====================================================
-    EndNoErr --> FinalEnd[
-        "KET THUC QTCHUNG"
-    ]
 
-    EndGiaoBu --> FinalEnd
-
-    FinalKhach --> FinalEnd
-
-    FinalNoiBo --> FinalEnd
-
-    FinalNoiBoGiaoLai --> FinalEnd
+    FinalEnd["KET THUC QTChung"]
 
 
     %% ====================================================
     %% STYLE
     %% ====================================================
+
     style StartRepo fill:#f9f,stroke:#333,stroke-width:2px
-
     style Step2 fill:#bbf,stroke:#333,stroke-width:2px
-
-    style HuongBranch fill:#dde,stroke:#333,stroke-width:2px
-
-    style GiaoBuStart fill:#bfb,stroke:#333,stroke-width:2px
     style GiaoBu1 fill:#bfb,stroke:#333,stroke-width:2px
-    style GiaoBu2 fill:#bfb,stroke:#333,stroke-width:2px
-
-    style ReworkStart fill:#fbb,stroke:#333,stroke-width:2px
     style Rework1 fill:#fbb,stroke:#333,stroke-width:2px
-    style Rework2 fill:#fbb,stroke:#333,stroke-width:2px
-
     style SlotForm fill:#ffeb99,stroke:#333,stroke-width:2px
-
-    style KhachTraCustomer fill:#d9ead3,stroke:#333,stroke-width:2px
-
-    style BranchGiaoLai fill:#fff2cc,stroke:#333,stroke-width:2px
-    style ChoGiaoLai fill:#fff2cc,stroke:#333,stroke-width:2px
-    style GiaoLai fill:#fff2cc,stroke:#333,stroke-width:2px
-    style DaGiaoLai fill:#fff2cc,stroke:#333,stroke-width:2px
-
     style EndNoErr fill:#ffd6d6,stroke:#333,stroke-width:2px
-
-    style FinalKhach fill:#d9ead3,stroke:#333,stroke-width:2px
-    style FinalNoiBo fill:#d9ead3,stroke:#333,stroke-width:2px
-    style FinalNoiBoGiaoLai fill:#d9ead3,stroke:#333,stroke-width:2px
-
+    style BranchGiaoLai fill:#ffe0b2,stroke:#333,stroke-width:2px
+    style ChoGiaoLai fill:#ffe0b2,stroke:#333,stroke-width:2px
+    style GiaoLai fill:#b3e5fc,stroke:#333,stroke-width:2px
+    style EventEndFinal fill:#c8e6c9,stroke:#333,stroke-width:2px
     style FinalEnd fill:#fbb,stroke:#333,stroke-width:2px
 ```
 
