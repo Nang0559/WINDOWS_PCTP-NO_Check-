@@ -340,218 +340,248 @@ public class TraHangQTChungNhapNG
         CanRework = 3
     }
     public enum PhieuTraHangStatus
-    {
-        Moi = 0,
+{
+    Moi = 0,
 
-        /// <summary>
-        /// Đã nhập chứng từ khách nhưng chưa tạo phiếu bất thường.
-        /// </summary>
-        ChoTaoPhieuBatThuong = 10,
+    /// <summary>
+    /// Đã lập phiếu trả hàng nhưng chưa tạo phiếu xử lý bất thường.
+    /// </summary>
+    ChoTaoPhieuBatThuong = 10,
 
-        /// <summary>
-        /// Đã tạo phiếu bất thường.
-        /// </summary>
-        DaTaoPhieuBatThuong = 20,
+    /// <summary>
+    /// Đã tạo PhieuXuLyBatThuong.
+    /// </summary>
+    DaTaoPhieuBatThuong = 20,
 
-        /// <summary>
-        /// Đang chạy QTChung.
-        /// </summary>
-        DangXuLyQTChung = 30,
+    /// <summary>
+    /// Phiếu đang nằm trong QTChung.
+    /// Toàn bộ quá trình QC/Rework được quản lý bởi QTChungStatus.
+    /// </summary>
+    DangXuLyQTChung = 30,
 
-        /// <summary>
-        /// QC đã xác nhận kết quả cuối.
-        /// </summary>
-        QCDaXacNhan = 40,
+    /// <summary>
+    /// QC đã xác nhận kết quả cuối của QTChung.
+    /// </summary>
+    QCDaXacNhan = 40,
 
-        /// <summary>
-        /// Hàng OK đã nhập lại kho.
-        /// </summary>
-        DaNhapLaiKho = 50,
+    /// <summary>
+    /// Hàng OK/NG đã được xử lý nhập lại kho theo nghiệp vụ.
+    /// </summary>
+    DaNhapLaiKho = 50,
 
-        /// <summary>
-        /// Đang chờ giao bù cho khách.
-        /// </summary>
-        ChoGiaoBu = 60,
+    /// <summary>
+    /// Khách trả: đang chờ giao bù cho khách.
+    /// </summary>
+    ChoGiaoBu = 60,
 
-        /// <summary>
-        /// Đã giao bù đầy đủ.
-        /// </summary>
-        DaGiaoBu = 70,
+    /// <summary>
+    /// Khách trả: đã giao bù đầy đủ.
+    /// </summary>
+    DaGiaoBu = 70,
 
-        /// <summary>
-        /// Hoàn tất toàn bộ quy trình.
-        /// </summary>
-        HoanTat = 100,
+    /// <summary>
+    /// Trả nội bộ: hàng đã nhập kho và đang chờ giao lại
+    /// cho bộ phận phát hiện lỗi.
+    /// </summary>
+    ChoGiaoLaiBoPhan = 75,
 
-        /// <summary>
-        /// Có lỗi cần xử lý lại.
-        /// </summary>
-        Loi = 900
-    }
+    /// <summary>
+    /// Trả nội bộ: đã giao lại hàng cho bộ phận phát hiện lỗi.
+    /// </summary>
+    DaGiaoLaiBoPhan = 80,
+
+    /// <summary>
+    /// Hoàn tất toàn bộ quy trình.
+    /// </summary>
+    HoanTat = 100,
+
+    /// <summary>
+    /// Có lỗi cần xử lý lại.
+    /// </summary>
+    Loi = 900
+}
      public static class PhieuTraHangStatusTransition
-    {
-        // ============================================================
-        // KHÁCH TRẢ
-        // ============================================================
-        private static readonly Dictionary<PhieuTraHangStatus, PhieuTraHangStatus[]> KhachTraMap =
-            new Dictionary<PhieuTraHangStatus, PhieuTraHangStatus[]>
-            {
-                [PhieuTraHangStatus.Moi] = new[]
-                {
-                PhieuTraHangStatus.ChoTaoPhieuBatThuong,
-                PhieuTraHangStatus.Loi
-                },
-
-                [PhieuTraHangStatus.ChoTaoPhieuBatThuong] = new[]
-                {
-                PhieuTraHangStatus.DaTaoPhieuBatThuong,
-                PhieuTraHangStatus.Loi
-                },
-
-                // ----------------------------------------------------
-                // Sau khi tạo phiếu:
-                //
-                // 1. Luồng QTChung bình thường:
-                //    DaTaoPhieuBatThuong
-                //        -> DangXuLyQTChung
-                //
-                // 2. Luồng ChiGiaoBu (không Rework):
-                //    DaTaoPhieuBatThuong
-                //        -> ChoGiaoBu
-                //
-                // Không đi qua DaNhapLaiKho vì không có hàng Rework/NG
-                // cần nhập lại kho.
-                // ----------------------------------------------------
-                [PhieuTraHangStatus.DaTaoPhieuBatThuong] = new[]
-                {
-                PhieuTraHangStatus.DangXuLyQTChung,
-
-                // Nhánh ChiGiaoBu: bỏ qua DaNhapLaiKho
-                PhieuTraHangStatus.ChoGiaoBu,
-
-                PhieuTraHangStatus.Loi
-                },
-
-                [PhieuTraHangStatus.DangXuLyQTChung] = new[]
-                {
-                PhieuTraHangStatus.QCDaXacNhan,
-                PhieuTraHangStatus.Loi
-                },
-
-                [PhieuTraHangStatus.QCDaXacNhan] = new[]
-                {
-                PhieuTraHangStatus.DaNhapLaiKho,
-                PhieuTraHangStatus.Loi
-                },
-
-                [PhieuTraHangStatus.DaNhapLaiKho] = new[]
-                {
-                PhieuTraHangStatus.ChoGiaoBu,
-                PhieuTraHangStatus.Loi
-                },
-
-                [PhieuTraHangStatus.ChoGiaoBu] = new[]
-                {
-                PhieuTraHangStatus.DaGiaoBu,
-                PhieuTraHangStatus.Loi
-                },
-
-                [PhieuTraHangStatus.DaGiaoBu] = new[]
-                {
-                PhieuTraHangStatus.HoanTat,
-                PhieuTraHangStatus.Loi
-                },
-
-                // ----------------------------------------------------
-                // Nếu QTChung bị lỗi / Hủy:
-                // cho phép quay lại để tạo lại phiếu bất thường
-                // hoặc tiếp tục xử lý QTChung.
-                // ----------------------------------------------------
-                [PhieuTraHangStatus.Loi] = new[]
-                {
-                PhieuTraHangStatus.DangXuLyQTChung,
-                PhieuTraHangStatus.ChoTaoPhieuBatThuong
-                },
-
-                [PhieuTraHangStatus.HoanTat] =
-                    Array.Empty<PhieuTraHangStatus>()
-            };
-
-
-        // ============================================================
-        // TRẢ NỘI BỘ
-        //
-        // Nội bộ KHÔNG có luồng giao bù cho khách.
-        // Hàng nhập lại kho xong -> HoanTat.
-        // ============================================================
-        private static readonly Dictionary<PhieuTraHangStatus, PhieuTraHangStatus[]> TraNoiBoMap =
-            new Dictionary<PhieuTraHangStatus, PhieuTraHangStatus[]>
-            {
-                [PhieuTraHangStatus.Moi] = new[]
-                {
-                PhieuTraHangStatus.ChoTaoPhieuBatThuong,
-                PhieuTraHangStatus.Loi
-                },
-
-                [PhieuTraHangStatus.ChoTaoPhieuBatThuong] = new[]
-                {
-                PhieuTraHangStatus.DaTaoPhieuBatThuong,
-                PhieuTraHangStatus.Loi
-                },
-
-                [PhieuTraHangStatus.DaTaoPhieuBatThuong] = new[]
-                {
-                PhieuTraHangStatus.DangXuLyQTChung,
-                PhieuTraHangStatus.Loi
-                },
-
-                [PhieuTraHangStatus.DangXuLyQTChung] = new[]
-                {
-                PhieuTraHangStatus.QCDaXacNhan,
-                PhieuTraHangStatus.Loi
-                },
-
-                [PhieuTraHangStatus.QCDaXacNhan] = new[]
-                {
-                PhieuTraHangStatus.DaNhapLaiKho,
-                PhieuTraHangStatus.Loi
-                },
-
-                [PhieuTraHangStatus.DaNhapLaiKho] = new[]
-                {
-                PhieuTraHangStatus.HoanTat,
-                PhieuTraHangStatus.Loi
-                },
-
-                [PhieuTraHangStatus.Loi] = new[]
-                {
-                PhieuTraHangStatus.DangXuLyQTChung,
-                PhieuTraHangStatus.ChoTaoPhieuBatThuong
-                },
-
-                [PhieuTraHangStatus.HoanTat] =
-                    Array.Empty<PhieuTraHangStatus>()
-            };
-
-
-        // ============================================================
-        // VALIDATE TRANSITION
-        // ============================================================
-        public static bool IsValidTransition(
-            NguonXuLyBatThuong nguon,
-            PhieuTraHangStatus from,
-            PhieuTraHangStatus to)
+{
+    // ============================================================
+    // KHÁCH TRẢ
+    // ============================================================
+    private static readonly Dictionary<PhieuTraHangStatus, PhieuTraHangStatus[]> KhachTraMap =
+        new Dictionary<PhieuTraHangStatus, PhieuTraHangStatus[]>
         {
-            var map = nguon == NguonXuLyBatThuong.KhachTra
-                ? KhachTraMap
-                : TraNoiBoMap;
+            [PhieuTraHangStatus.Moi] = new[]
+            {
+            PhieuTraHangStatus.ChoTaoPhieuBatThuong,
+            PhieuTraHangStatus.Loi
+            },
 
-            PhieuTraHangStatus[] allowed;
+            [PhieuTraHangStatus.ChoTaoPhieuBatThuong] = new[]
+            {
+            PhieuTraHangStatus.DaTaoPhieuBatThuong,
+            PhieuTraHangStatus.Loi
+            },
 
-            return map.TryGetValue(from, out allowed)
-                && allowed.Contains(to);
-        }
+            // ----------------------------------------------------
+            // Sau khi tạo phiếu:
+            //
+            // 1. Luồng QTChung bình thường:
+            //    DaTaoPhieuBatThuong
+            //        -> DangXuLyQTChung
+            //
+            // 2. Luồng ChiGiaoBu (không Rework):
+            //    DaTaoPhieuBatThuong
+            //        -> ChoGiaoBu
+            //
+            // Không đi qua DaNhapLaiKho vì không có hàng Rework/NG
+            // cần nhập lại kho.
+            // ----------------------------------------------------
+            [PhieuTraHangStatus.DaTaoPhieuBatThuong] = new[]
+            {
+            PhieuTraHangStatus.DangXuLyQTChung,
+
+            // Nhánh ChiGiaoBu: bỏ qua DaNhapLaiKho
+            PhieuTraHangStatus.ChoGiaoBu,
+
+            PhieuTraHangStatus.Loi
+            },
+
+            [PhieuTraHangStatus.DangXuLyQTChung] = new[]
+            {
+            PhieuTraHangStatus.QCDaXacNhan,
+            PhieuTraHangStatus.Loi
+            },
+
+            [PhieuTraHangStatus.QCDaXacNhan] = new[]
+            {
+            PhieuTraHangStatus.DaNhapLaiKho,
+            PhieuTraHangStatus.Loi
+            },
+
+            [PhieuTraHangStatus.DaNhapLaiKho] = new[]
+            {
+            PhieuTraHangStatus.ChoGiaoBu,
+            PhieuTraHangStatus.Loi
+            },
+
+            [PhieuTraHangStatus.ChoGiaoBu] = new[]
+            {
+            PhieuTraHangStatus.DaGiaoBu,
+            PhieuTraHangStatus.Loi
+            },
+
+            [PhieuTraHangStatus.DaGiaoBu] = new[]
+            {
+            PhieuTraHangStatus.HoanTat,
+            PhieuTraHangStatus.Loi
+            },
+
+            // ----------------------------------------------------
+            // Nếu QTChung bị lỗi / Hủy:
+            // cho phép quay lại để tạo lại phiếu bất thường
+            // hoặc tiếp tục xử lý QTChung.
+            // ----------------------------------------------------
+            [PhieuTraHangStatus.Loi] = new[]
+            {
+            PhieuTraHangStatus.DangXuLyQTChung,
+            PhieuTraHangStatus.ChoTaoPhieuBatThuong
+            },
+
+            [PhieuTraHangStatus.HoanTat] =
+                Array.Empty<PhieuTraHangStatus>()
+        };
+
+
+    // ============================================================
+    // TRẢ NỘI BỘ
+    //
+    // Nội bộ KHÔNG có luồng giao bù cho khách.
+    // Hàng nhập lại kho xong -> HoanTat.
+    // ============================================================
+    private static readonly Dictionary<PhieuTraHangStatus, PhieuTraHangStatus[]> TraNoiBoMap =
+new Dictionary<PhieuTraHangStatus, PhieuTraHangStatus[]>
+{
+    [PhieuTraHangStatus.Moi] = new[]
+    {
+        PhieuTraHangStatus.ChoTaoPhieuBatThuong,
+        PhieuTraHangStatus.Loi
+    },
+
+    [PhieuTraHangStatus.ChoTaoPhieuBatThuong] = new[]
+    {
+        PhieuTraHangStatus.DaTaoPhieuBatThuong,
+        PhieuTraHangStatus.Loi
+    },
+
+    [PhieuTraHangStatus.DaTaoPhieuBatThuong] = new[]
+    {
+        PhieuTraHangStatus.DangXuLyQTChung,
+        PhieuTraHangStatus.Loi
+    },
+
+    [PhieuTraHangStatus.DangXuLyQTChung] = new[]
+    {
+        PhieuTraHangStatus.QCDaXacNhan,
+        PhieuTraHangStatus.Loi
+    },
+
+    [PhieuTraHangStatus.QCDaXacNhan] = new[]
+    {
+        PhieuTraHangStatus.DaNhapLaiKho,
+        PhieuTraHangStatus.Loi
+    },
+
+    // ----------------------------------------------------
+    // Sau khi nhập lại kho:
+    // 1. Có phần OK cần trả về bộ phận phát hiện lỗi -> ChoGiaoLaiBoPhan
+    // 2. Không cần giao lại (VD: 100% NG, không phần OK nào) -> HoanTat thẳng
+    // ----------------------------------------------------
+    [PhieuTraHangStatus.DaNhapLaiKho] = new[]
+    {
+        PhieuTraHangStatus.ChoGiaoLaiBoPhan,
+        PhieuTraHangStatus.HoanTat,
+        PhieuTraHangStatus.Loi
+    },
+
+    [PhieuTraHangStatus.ChoGiaoLaiBoPhan] = new[]
+    {
+        PhieuTraHangStatus.DaGiaoLaiBoPhan,
+        PhieuTraHangStatus.Loi
+    },
+
+    [PhieuTraHangStatus.DaGiaoLaiBoPhan] = new[]
+    {
+        PhieuTraHangStatus.HoanTat,
+        PhieuTraHangStatus.Loi
+    },
+
+    [PhieuTraHangStatus.Loi] = new[]
+    {
+        PhieuTraHangStatus.DangXuLyQTChung,
+        PhieuTraHangStatus.ChoTaoPhieuBatThuong
+    },
+
+    [PhieuTraHangStatus.HoanTat] =
+        Array.Empty<PhieuTraHangStatus>()
+};
+
+
+    // ============================================================
+    // VALIDATE TRANSITION
+    // ============================================================
+    public static bool IsValidTransition(
+        NguonXuLyBatThuong nguon,
+        PhieuTraHangStatus from,
+        PhieuTraHangStatus to)
+    {
+        var map = nguon == NguonXuLyBatThuong.KhachTra
+            ? KhachTraMap
+            : TraNoiBoMap;
+
+        PhieuTraHangStatus[] allowed;
+
+        return map.TryGetValue(from, out allowed)
+            && allowed.Contains(to);
     }
+}
 ```
 
 ---
@@ -573,7 +603,25 @@ public class TraHangQTChungNhapNG
      - Hệ thống tạo phiếu qua `IPhieuLoiRepository.InsertPhieuXuLyBatThuongNoiBo`, ghi `SlotIdNguon` + `LotNguon` lấy trực tiếp từ dòng Slot/LOT được chọn.
      - Phiếu tạo với `Nguon = TraNoiBo`, `Status = ChoQCDinhHuong`, bỏ qua bước tiếp nhận chứng từ khách trả và đi thẳng vào **QC Định Hướng**.
      - Từ đây dùng chung toàn bộ workflow QTChung phía sau.
+| # | Vấn đề | Trạng thái |
+|---|---|---|
+| 6 | `FormPhieuLoiKhachTra` tách riêng Khách/Nội bộ | ✅ Gộp thành `frmLapPhieuTraHang` — phân biệt qua `NguonXuLyBatThuong` |
+| 7 | Form dùng `IPhieuLoiRepository` trực tiếp | ✅ Inject `IPhieuLoiService` |
 
+## 1.0. Khởi Tạo Phiếu Trả Hàng (bước mới đầu luồng)
+
+**Form:** `frmLapPhieuTraHang`
+**Service:** `IPhieuLoiService.LapPhieuTraHang(phieu)`
+
+| Trường | KhachTra | TraNoiBo |
+|---|---|---|
+| Nguồn khách (HVN/YMVN) | ✅ bắt buộc | ❌ ẩn |
+| Ca | ✅ HVN only | ❌ ẩn |
+| Phòng ban | ❌ ẩn | ✅ bắt buộc |
+| Lý do trả | ❌ ẩn | ✅ bắt buộc |
+
+Sau khi lưu → `IQTChungService.TaoPhieuXuLyBatThuong` nhận `PhieuTraHang.Id`
+→ tiếp tục luồng QC Định Hướng như cũ.
 2. **QC Định Hướng (Gate Quyết Định):** (`Status: ChoQCDinhHuong → ...`)
 
    Thực hiện qua `IQTChungService.QCDinhHuongRework`, ghi `HuongXuLy`, `NgayDinhHuong`, `NguoiDinhHuong` vào bảng chính, rồi phân tách theo 3 nhánh:
@@ -605,19 +653,25 @@ public class TraHangQTChungNhapNG
      → chạy `FormInspection` cho phần hàng OK trước khi `NhapLaiHangNG`.
    - Kết quả ghi vào `TraHangQTChungQC.DaKiemTraTem`.
 
-5. **Nhập Lại Kho & Hoàn Tất:** (`Status: QCDaXacNhan → HoanTat` hoặc `QCDaXacNhan → DaNhapNG → HoanTat`)
-
-   - **Trường hợp sản phẩm đạt chuẩn hoàn toàn (`SoLuongNG = 0`):**
-     `ChangeStatus(HoanTat, ...)` trực tiếp.
-
-   - **Trường hợp phát sinh phế phẩm (`SoLuongNG > 0`):**
-     Gọi `IReworkStockService.NhapLaiHangNG`:
-     - Phần **OK**: cộng lại lượng tồn (`ISlotService.AddQuantity` tại `SlotIdOK`, tăng `STOCKTP`).
-     - Phần **NG**: định tuyến vào `SlotIdNG` riêng biệt.
-     - Ghi nhận audit vào `FVN_TraHangQTChung_NhapNG`.
-     - `ChangeStatus(DaNhapNG, ...)`. `DaNhapNG` self-loop cho phép nhập nhiều đợt; khi xong: `ChangeStatus(HoanTat, ...)`.
-
-   - Kết thúc toàn bộ quy trình sự kiện QTChung.
+5. **Nhập Lại Kho & Phân Nhánh Sau Nhập Kho:**
+   * *Trường hợp sản phẩm đạt chuẩn hoàn toàn (Số lượng NG = 0):* Chuyển thẳng trạng thái `HoanTat`.
+   * *Trường hợp phát sinh phế phẩm (Số lượng NG > 0):* Gọi `IReworkStockService.NhapLaiHangNG` để:
+     * Phần **OK**: Cộng lại lượng tồn (`ISlotService.AddQuantity` tại Kho Core và tăng tồn kho tổng `STOCKTP +`).
+       `ActionType = "NHAP_LAI_SAU_REWORK"` (KHÁC `"IMPORT"` của hàng nhập mới) — phân biệt rõ nguồn gốc hàng
+       trong `StockHistory`.
+     * Phần **NG**: Định tuyến vào Slot hàng lỗi riêng biệt.
+     * Ghi nhận audit vào `ITraHangQTChungRepository.InsertNhapNG` (kèm `PhieuTraHangId`).
+     * Chuyển trạng thái sang `DaNhapLaiKho`.
+   * **[MỚI — chỉ nhánh TraNoiBo] Giao lại bộ phận phát hiện lỗi:**
+     * Nếu phần OK sau rework cần trả về đúng bộ phận đã phát hiện lỗi ban đầu (khác "giao bù cho khách" —
+       nghiệp vụ này CHỈ tồn tại ở nhánh `TraNoiBo`, không có ở `KhachTra`):
+       `ITraNoiBoService.GiaoLaiBoPhanPhatHien(phieuTraHangId, boPhanNhan, soLuongGiaoLai, nguoiThucHien)`.
+     * Ghi nhận vào chính header `FVN_PhieuTraHang` (`BoPhanNhanLai`, `SoLuongGiaoLai`, `NgayGiaoLaiBoPhan`,
+       `NguoiGiaoLaiBoPhan`) — KHÔNG tạo bảng phụ riêng vì đây là 1-1 với phiếu, không lặp nhiều dòng.
+     * Trạng thái: `DaNhapLaiKho → ChoGiaoLaiBoPhan → DaGiaoLaiBoPhan → HoanTat`.
+     * Nếu không cần giao lại (VD: 100% hàng lỗi không cứu được): bỏ qua bước này, chuyển thẳng
+       `DaNhapLaiKho → HoanTat`.
+   * Kết thúc toàn bộ quy trình sự kiện QTChung.
 
 ---
 
@@ -636,89 +690,301 @@ graph TD
     StartRepo --> B1
     StartRepo --> B2
 
-    B1 --> Step1["IQTChungService.TaoPhieuXuLyBatThuong<br/>FVN_PhieuXuLyBatThuong<br/>Status: Moi -> ChoQCDinhHuong"]
+    B1 --> Step1["IQTChungService.TaoPhieuXuLyBatThuong<br/>FVN_PhieuXuLyBatThuong<br/>QTChungStatus: Moi -> DaTaoPhieuBatThuong"]
+
     B2 --> Step1
 
+
     %% ====================================================
-    %% NHANH 1c - TAO TRUC TIEP TU SLOT NOI BO
+    %% NHANH - TAO TRUC TIEP TU SLOT NOI BO
     %% ====================================================
     SlotForm["FormChonSlotNoiBo<br/>ISlotService.GetAllActiveSlotLots<br/>Tao phieu Noi Bo tu Slot/LOT<br/>SlotIdNguon + LotNguon"]
 
-    SlotForm -->|Tao phieu Noi Bo, Status=ChoQCDinhHuong| Step2
+    SlotForm -->|Tao phieu Noi Bo| Step1
+
 
     %% ====================================================
-    %% QC DINH HUONG
+    %% PHIEU TRA HANG CAP HEADER
     %% ====================================================
-    Step1 --> Step2["IQTChungService.QCDinhHuongRework<br/>Gate quyet dinh<br/>Ghi HuongXuLy/NgayDinhHuong/NguoiDinhHuong"]
+    Step1 --> TraHangStatus["PhieuTraHangStatus: DaTaoPhieuBatThuong<br/>PhieuXuLyBatThuongId da duoc tao"]
+
+    TraHangStatus --> Step2
+
 
     %% ====================================================
-    %% NHANH 1 - KHACH KHONG LOI THAT
+    %% QTCHUNG - QC DINH HUONG
     %% ====================================================
-    Step2 -->|Khach khong loi that| EndNoErr["Status: TuChoiKhongLoiThat<br/>(Terminal, KHONG phai Huy)<br/>END"]
+    Step2["IQTChungService.QCDinhHuongRework<br/>QTChungStatus: DaTaoPhieuBatThuong -> DaDinhHuongRework<br/>Ghi HuongXuLy / NgayDinhHuong / NguoiDinhHuong"]
 
-    %% ====================================================
-    %% NHANH 2 - GIAO BU
-    %% ====================================================
-    Step2 -->|Khach loi that, chi can giao bu<br/>Status: ChoXuatKhoRework| GiaoBu1["IGiaoBuNGService.GiaoBuTheoQR<br/>IStockExportService.PickToChoGiao<br/>Loai: GiaoBuNG<br/>-> FVN_TraHangQTChung_Xuat"]
-
-    GiaoBu1 --> GiaoBu2["IGiaoBuNGService.XacNhanHoanTatGiaoBu<br/>ConfirmGiaoHangTuChoGiao"]
-
-    GiaoBu2 --> EndGiaoBu["END"]
 
     %% ====================================================
-    %% NHANH 3 - REWORK
+    %% GATE HUONG XU LY
     %% ====================================================
-    Step2 -->|Noi bo hoac Khach can Rework<br/>Status: ChoXuatKhoRework| Rework1["IQTChungService.XuatKhoRework<br/>IReworkStockService.XuatKhoRework<br/>IStockExportService.PickToChoGiao<br/>Loai: Rework"]
+    Step2 --> HuongBranch{"HuongXuLyBatThuong?"}
 
-    Rework1 --> Rework2["IReworkStockService.XacNhanXuatRework<br/>ConfirmGiaoHangTuChoGiao<br/>-> FVN_TraHangQTChung_Xuat<br/>Status: DaXuatKhoRework"]
 
-    Rework2 --> Step5["IQTChungService.GhiNhanGiaoSanXuat<br/>-> FVN_TraHangQTChung_Giao<br/>Khong dung Slot va STOCKTP<br/>Status: ChoGiaoSanXuat -> DaGiaoSanXuat"]
+    %% ====================================================
+    %% NHANH 1 - TU CHOI GIAO BU
+    %% ====================================================
+    HuongBranch -->|TuChoiGiaoBu| EndNoErr[
+        "QTChungStatus: TuChoiGiaoBu<br/>
+        Khach khong loi that<br/>
+        Terminal QTChung"
+    ]
+
+
+    %% ====================================================
+    %% NHANH 2 - CHI GIAO BU
+    %% ====================================================
+    HuongBranch -->|ChiGiaoBu| GiaoBuStart[
+        "PhieuTraHangStatus: ChoGiaoBu<br/>
+        QTChungStatus: ChoGiaoBu"
+    ]
+
+    GiaoBuStart --> GiaoBu1[
+        "IGiaoBuNGService.GiaoBuTheoQR<br/>
+        IStockExportService.PickToChoGiao<br/>
+        LoaiXuat = GiaoBuNG<br/>
+        -> FVN_TraHangQTChung_Xuat"
+    ]
+
+    GiaoBu1 --> GiaoBu2[
+        "IGiaoBuNGService.XacNhanHoanTatGiaoBu<br/>
+        ConfirmGiaoHangTuChoGiao<br/>
+        QTChungStatus: ChoGiaoBu -> DaGiaoBu"
+    ]
+
+    GiaoBu2 --> DaGiaoBu[
+        "PhieuTraHangStatus: DaGiaoBu"
+    ]
+
+    DaGiaoBu --> EndGiaoBu[
+        "PhieuTraHangStatus: HoanTat<br/>
+        KET THUC"
+    ]
+
+
+    %% ====================================================
+    %% NHANH 3 - CAN REWORK
+    %% ====================================================
+    HuongBranch -->|CanRework| ReworkStart[
+        "QTChungStatus: DaDinhHuongRework<br/>
+        -> DaXuatKhoRework"
+    ]
+
+
+    %% ====================================================
+    %% XUAT KHO REWORK
+    %% ====================================================
+    ReworkStart --> Rework1[
+        "IQTChungService.XuatKhoRework<br/>
+        IReworkStockService.XuatKhoRework<br/>
+        IStockExportService.PickToChoGiao<br/>
+        LoaiXuat = Rework"
+    ]
+
+    Rework1 --> Rework2[
+        "IReworkStockService.XacNhanXuatRework<br/>
+        ConfirmGiaoHangTuChoGiao<br/>
+        -> FVN_TraHangQTChung_Xuat<br/>
+        QTChungStatus: DaXuatKhoRework"
+    ]
+
+
+    %% ====================================================
+    %% GIAO SAN XUAT
+    %% ====================================================
+    Rework2 --> Step5[
+        "IQTChungService.GhiNhanGiaoSanXuat<br/>
+        -> FVN_TraHangQTChung_Giao<br/>
+        Khong dung Slot va STOCKTP<br/>
+        QTChungStatus: DaGiaoSanXuat"
+    ]
+
 
     %% ====================================================
     %% REWORK TAI XUONG
     %% ====================================================
-    Step5 --> Step6["Rework tai xuong<br/>Status: DangRework<br/>(moc trang thai ngoai he thong)"]
+    Step5 --> Step6[
+        "Rework tai xuong<br/>
+        Xu ly sua chua tai bo phan san xuat<br/>
+        Khong thay doi ton kho trong giai doan nay"
+    ]
+
 
     %% ====================================================
     %% QC CUOI
     %% ====================================================
-    Step6 --> Step7["IQTChungService.QCXacNhanCuoi<br/>-> FVN_TraHangQTChung_QC<br/>SoLuongOK va SoLuongNG<br/>Status: ChoQCXacNhanCuoi -> QCDaXacNhan"]
+    Step6 --> Step7[
+        "IQTChungService.QCXacNhanCuoi<br/>
+        -> FVN_TraHangQTChung_QC<br/>
+        Ghi SoLuongOK / SoLuongNG<br/>
+        QTChungStatus: DaQCXacNhanCuoi"
+    ]
+
 
     %% ====================================================
     %% KIEM TRA TEM
     %% ====================================================
-    Step7 -->|NeedsInspection true| Inspection["FormInspection<br/>Kiem tra tem phan hang OK<br/>-> TraHangQTChungQC.DaKiemTraTem"]
+    Step7 --> InspectionBranch{"NeedsInspection?"}
 
-    Step7 -->|NeedsInspection false| QtyCheck["Kiem tra SoLuongNG"]
+    InspectionBranch -->|Co| Inspection[
+        "FormInspection<br/>
+        Kiem tra tem phan hang OK<br/>
+        TraHangQTChungQC.DaKiemTraTem = true"
+    ]
 
-    Inspection --> QtyCheck
+    InspectionBranch -->|Khong| QtyCheck
+
+    Inspection --> QtyCheck[
+        "Kiem tra SoLuongOK / SoLuongNG"
+    ]
+
 
     %% ====================================================
-    %% PHAN TACH OK NG
+    %% NHAP LAI KHO
     %% ====================================================
-    QtyCheck -->|SoLuongNG = 0| StatusHoanTat1["Status: HoanTat"]
+    QtyCheck --> ImportAction[
+        "IReworkStockService.NhapLaiHangNG<br/>
+        OK: AddQuantity + STOCKTP+<br/>
+        NG: SlotNG rieng<br/>
+        -> FVN_TraHangQTChung_NhapNG"
+    ]
 
-    QtyCheck -->|SoLuongNG > 0| Step8["IReworkStockService.NhapLaiHangNG<br/>OK: SlotIdOK, AddQuantity, STOCKTP+<br/>NG: SlotIdNG rieng<br/>-> FVN_TraHangQTChung_NhapNG<br/>Status: DaNhapNG"]
+    ImportAction --> DaNhapLaiKho[
+        "PhieuTraHangStatus: DaNhapLaiKho"
+    ]
 
-    Step8 --> StatusHoanTat2["Status: HoanTat"]
+
+    %% ====================================================
+    %% SAU KHI NHAP KHO - PHAN NHANH THEO NGUON
+    %% ====================================================
+    DaNhapLaiKho --> NguonBranch{"NguonXuLyBatThuong?"}
+
+
+    %% ====================================================
+    %% KHACH TRA
+    %% ====================================================
+    NguonBranch -->|KhachTra| KhachTraCustomer[
+        "NguonKhachTra<br/>
+        HVN / YMVN / HTN<br/>
+        Resolve CustomerConfig"
+    ]
+
+    KhachTraCustomer --> ChoGiaoBu[
+        "PhieuTraHangStatus: ChoGiaoBu"
+    ]
+
+    ChoGiaoBu --> GiaoBuAfterRework[
+        "IGiaoBuNGService.GiaoBuTheoQR<br/>
+        Giao bu cho khach"
+    ]
+
+    GiaoBuAfterRework --> XacNhanGiaoBu[
+        "IGiaoBuNGService.XacNhanHoanTatGiaoBu<br/>
+        ConfirmGiaoHangTuChoGiao"
+    ]
+
+    XacNhanGiaoBu --> DaGiaoBuAfterRework[
+        "PhieuTraHangStatus: DaGiaoBu"
+    ]
+
+    DaGiaoBuAfterRework --> FinalKhach[
+        "PhieuTraHangStatus: HoanTat"
+    ]
+
+
+    %% ====================================================
+    %% TRA NOI BO
+    %% ====================================================
+    NguonBranch -->|TraNoiBo| BranchGiaoLai{
+        "Can giao lai bo phan<br/>
+        phat hien loi?"
+    }
+
+
+    %% ====================================================
+    %% TRA NOI BO - KHONG CAN GIAO LAI
+    %% ====================================================
+    BranchGiaoLai -->|Khong| FinalNoiBo[
+        "PhieuTraHangStatus: HoanTat<br/>
+        Khong can giao lai"
+    ]
+
+
+    %% ====================================================
+    %% TRA NOI BO - CAN GIAO LAI
+    %% ====================================================
+    BranchGiaoLai -->|Co| ChoGiaoLai[
+        "PhieuTraHangStatus: ChoGiaoLaiBoPhan<br/>
+        Chuan bi giao lai bo phan"
+    ]
+
+    ChoGiaoLai --> GiaoLai[
+        "ITraNoiBoService.GiaoLaiBoPhanPhatHien<br/>
+        BoPhanNhanLai<br/>
+        SoLuongGiaoLai<br/>
+        NguoiGiaoLaiBoPhan"
+    ]
+
+    GiaoLai --> DaGiaoLai[
+        "Repo.DanhDauDaGiaoLaiBoPhan<br/>
+        PhieuTraHangStatus: DaGiaoLaiBoPhan"
+    ]
+
+    DaGiaoLai --> FinalNoiBoGiaoLai[
+        "PhieuTraHangStatus: HoanTat"
+    ]
+
 
     %% ====================================================
     %% KET THUC
     %% ====================================================
-    StatusHoanTat1 --> FinalEnd["KET THUC"]
-    StatusHoanTat2 --> FinalEnd
-    EndNoErr --> FinalEnd
+    EndNoErr --> FinalEnd[
+        "KET THUC QTCHUNG"
+    ]
+
     EndGiaoBu --> FinalEnd
+
+    FinalKhach --> FinalEnd
+
+    FinalNoiBo --> FinalEnd
+
+    FinalNoiBoGiaoLai --> FinalEnd
+
 
     %% ====================================================
     %% STYLE
     %% ====================================================
     style StartRepo fill:#f9f,stroke:#333,stroke-width:2px
+
     style Step2 fill:#bbf,stroke:#333,stroke-width:2px
+
+    style HuongBranch fill:#dde,stroke:#333,stroke-width:2px
+
+    style GiaoBuStart fill:#bfb,stroke:#333,stroke-width:2px
     style GiaoBu1 fill:#bfb,stroke:#333,stroke-width:2px
+    style GiaoBu2 fill:#bfb,stroke:#333,stroke-width:2px
+
+    style ReworkStart fill:#fbb,stroke:#333,stroke-width:2px
     style Rework1 fill:#fbb,stroke:#333,stroke-width:2px
+    style Rework2 fill:#fbb,stroke:#333,stroke-width:2px
+
     style SlotForm fill:#ffeb99,stroke:#333,stroke-width:2px
+
+    style KhachTraCustomer fill:#d9ead3,stroke:#333,stroke-width:2px
+
+    style BranchGiaoLai fill:#fff2cc,stroke:#333,stroke-width:2px
+    style ChoGiaoLai fill:#fff2cc,stroke:#333,stroke-width:2px
+    style GiaoLai fill:#fff2cc,stroke:#333,stroke-width:2px
+    style DaGiaoLai fill:#fff2cc,stroke:#333,stroke-width:2px
+
     style EndNoErr fill:#ffd6d6,stroke:#333,stroke-width:2px
+
+    style FinalKhach fill:#d9ead3,stroke:#333,stroke-width:2px
+    style FinalNoiBo fill:#d9ead3,stroke:#333,stroke-width:2px
+    style FinalNoiBoGiaoLai fill:#d9ead3,stroke:#333,stroke-width:2px
+
     style FinalEnd fill:#fbb,stroke:#333,stroke-width:2px
 ```
 
