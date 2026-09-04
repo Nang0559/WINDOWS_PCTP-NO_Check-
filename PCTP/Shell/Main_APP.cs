@@ -144,7 +144,7 @@ namespace PCTP
             var uow = new UnitOfWork(provider);
 
             var phieuXuLyRepo = new PhieuXuLyBatThuongRepository(sql, uow);
-            var dashRepo = /* NhapKhoDashboardRepository — vẫn cần constructor thật, xem ghi chú dưới */;
+            var dashRepo = new NhapKhoDashboardRepository(sql,uow);
 
             _dashBar = new WarehouseDashboardBar(phieuXuLyRepo, dashRepo) { Dock = DockStyle.Top };
             Controls.Add(_dashBar);

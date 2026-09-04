@@ -1,6 +1,9 @@
 ﻿
 using PCTP.ClassSQL;
 using PCTP.Modules.GiaoHangKhach;
+using PCTP.Modules.KhoCore.Interfaces;
+using PCTP.Modules.KhoCore.Repositories;
+using PCTP.Modules.KhoCore.Services;
 using PCTP.Modules.KhoVatLy.Application.Interfaces;
 using PCTP.Modules.KhoVatLy.Application.Services;
 using PCTP.Modules.KhoVatLy.Repositories;
@@ -28,7 +31,8 @@ namespace PCTP.Modules.KhoVatLy
             {
                 public INhapTpReceivingService NhapTpService { get; set; }
                 public ISlotService SlotService { get; set; }
-                public IStockService StockService { get; set; }
+                public IWarehouseService WarehouseService { get; set; }
+            public IInspectionService InspectionService { get; set; }
         }
 
             public static Module Build()
@@ -44,10 +48,12 @@ namespace PCTP.Modules.KhoVatLy
                 var statusRepo = new StockTpStatusRepository(dbExecutor, uow);
                 var historyRepo = new StockHistoryRepository(dbExecutor, uow);
                 var warehouseRepo = new WarehouseRepository(dbExecutor, uow);
+                var rackRepo = new RackRepository(dbExecutor, uow);
+                 var inspectionLogRepo = new InspectionLogRepository(dbExecutor, uow);
+
                 var slotService = new SlotService(slotRepo);
-                var warehouseService = new WarehouseService(warehouseRepo);
-            var stockService = new StockService(
-           slotService, warehouseService, historyRepo, uow);
+                var warehouseService = new WarehouseService(warehouseRepo, rackRepo, uow);
+                var inspectionService = new InspectionService(inspectionLogRepo);
 
             var nhapTpService = new NhapTpReceivingService(
                     uow,
@@ -63,7 +69,8 @@ namespace PCTP.Modules.KhoVatLy
                 {
                     NhapTpService = nhapTpService,
                     SlotService = slotService,
-                    StockService = stockService
+                    WarehouseService = warehouseService,
+                    InspectionService = inspectionService
                 };
             }
         }

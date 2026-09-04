@@ -280,6 +280,7 @@
     <Compile Include="Modules\KhoVatLy\NhapTpModuleFactory.cs" />
     <Compile Include="Modules\KhoCore\Repositories\BulkStockSlotRepository.cs" />
     <Compile Include="Modules\KhoCore\Repositories\IBulkStockSlotRepository.cs" />
+    <Compile Include="Modules\NhapKho\Interfaces\IWarehouseDashboardService.cs" />
     <Compile Include="Modules\NhapKho\Models\StockImportPurpose.cs" />
     <Compile Include="Modules\NhapKho\Models\StockImportRequest.cs" />
     <Compile Include="Modules\NhapKho\Interfaces\IStockTpRepository.cs" />
@@ -324,6 +325,7 @@
     <Compile Include="Modules\NhapKho\Repository\StockTpProductionRepository.cs" />
     <Compile Include="Modules\NhapKho\Repository\StockTpStatusRepository.cs" />
     <Compile Include="Modules\NhapKho\Services\INhapTpReceivingService.cs" />
+    <Compile Include="Modules\NhapKho\Services\WarehouseDashboardService.cs" />
     <Compile Include="Modules\XuatKho\Interfaces\IHangChoGiaoRepository.cs" />
     <Compile Include="Modules\XuatKho\Interfaces\IStockExportHistoryRepository.cs" />
     <Compile Include="Modules\XuatKho\Interfaces\IStockExportRepository.cs" />

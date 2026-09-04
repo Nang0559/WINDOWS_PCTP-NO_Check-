@@ -16,5 +16,9 @@ namespace PCTP.VIEWSTOCK.Repository
         DataTable GetGridChoNhap();
         DataTable GetGridDaNhapHomNay();
         DataTable GetGridLechDoiChieu();
+        // ── THÊM cho Dashboard bar của MainStockSV ──
+        int GetTongTonStockTp();
+        int GetTongTonRackThat();
+        int GetTongTonKhoTam();
     }
 }

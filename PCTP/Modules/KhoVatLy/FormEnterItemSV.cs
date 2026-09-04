@@ -9,6 +9,7 @@ using PCTP.ClassSQL;
 using PCTP.Domain.Events;
 using PCTP.Infrastructure;
 using PCTP.Modules.GiaoHangKhach;
+using PCTP.Modules.KhoCore.Interfaces;
 using PCTP.Modules.KhoVatLy;
 using PCTP.Modules.KhoVatLy.Application.Interfaces;
 using PCTP.Modules.KhoVatLy.Application.Services;
@@ -78,11 +79,11 @@ namespace PCTP.VIEWSTOCK
         
         private readonly MainStockSV _mainStockForm;
 
-        // ★ CHỈ CÒN 2 SERVICE — không còn field Repository nào trong Form
+        // ★ CHỈ CÒN 4 SERVICE — không còn field Repository nào trong Form
         private readonly INhapTpReceivingService _nhapTpService;
         private readonly ISlotService _slotService;
-        private readonly IStockService _stockService;
-
+        private readonly IWarehouseService _warehouseService;
+        private readonly IInspectionService _inspectionService;
 
         // Thêm fields trong class FormEnterItemSV
         private GridControl _gridPhieu;
@@ -102,7 +103,8 @@ namespace PCTP.VIEWSTOCK
             var module = NhapTpModuleFactory.Build();
             _nhapTpService = module.NhapTpService;
             _slotService = module.SlotService;
-            _stockService = module.StockService;
+            _warehouseService = module.WarehouseService;
+            _inspectionService = module.InspectionService;
             InitializeForm();
             AppEventBus.Instance.Subscribe<LotStatusResetEvent>(OnLotStatusReset);
         }
@@ -332,7 +334,7 @@ namespace PCTP.VIEWSTOCK
             QRCodeInfo parsed;
             try
             {
-                parsed = _stockService.ParseQr(qrCode.ToUpper());
+                parsed = QRCodeParser.ParseQRCode(qrCode.ToUpper());
                 parsed.RawQr = qrCode.ToUpper();
             }
             catch (FormatException fex)
@@ -404,10 +406,10 @@ namespace PCTP.VIEWSTOCK
                 if (confirmVuot != DialogResult.Yes) return;
             }
 
-            var config = _stockService.GetInspectionConfig(parsed.ItemCode);
+            var config = _warehouseService.GetInspectionConfig(parsed.ItemCode);
             if (config != null)
             {
-                using (var formInspect = new FormInspection(parsed, config))
+                using (var formInspect = new FormInspection(parsed, config, _inspectionService))
                 {
                     var result = formInspect.ShowDialog(this);
                     if (result != DialogResult.OK)
@@ -648,7 +650,7 @@ namespace PCTP.VIEWSTOCK
             else
             {
                 // Danh sách slot trống/phù hợp cho ItemCode + số lượng cần nhập
-                var emptySlots = _stockService.GetAvailableSlotsForImport(
+                var emptySlots = _slotService.GetEmptySlots(
                     codeInfo.ItemCode,
                     codeInfo.Quantity);
 
