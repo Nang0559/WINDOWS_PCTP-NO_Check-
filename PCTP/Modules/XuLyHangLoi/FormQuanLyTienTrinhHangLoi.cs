@@ -1,4 +1,5 @@
-﻿using DevExpress.XtraEditors;
+﻿using DevExpress.XtraCharts.Native;
+using DevExpress.XtraEditors;
 using DevExpress.XtraGrid;
 using DevExpress.XtraGrid.Columns;
 using DevExpress.XtraGrid.Views.Grid;
@@ -551,16 +552,16 @@ namespace PCTP.VIEWSTOCK.ViewForm
 
 
         private bool CoQTState(
-            int phieuTraHangId,
-            QTChungStatus status)
+     int phieuTraHangId,
+     QTChungStatus status)
         {
             var p = _phieuXuLyRepo
                 .GetByPhieuTraHangId(phieuTraHangId);
 
             if (p == null)
                 return false;
-
-            return _qtChungService.GetTrangThai(p.Id) == status;
+            var trangthai=_phieuXuLyRepo.GetStatus(p.Id);
+            return trangthai == status;
         }
 
 
@@ -784,8 +785,8 @@ namespace PCTP.VIEWSTOCK.ViewForm
                         pht.HuongXuLy.ToString();
 
                     row.QTStatus =
-                        _qtChungService.GetTrangThai(
-                            pht.Id);
+                         _phieuXuLyRepo.GetStatus(pht.Id)
+                         ?? QTChungStatus.Moi; // hoặc giá trị mặc định phù hợp với nghiệp vụ
 
                     row.SoLuongLoi =
                         pht.SoLuongLoi;

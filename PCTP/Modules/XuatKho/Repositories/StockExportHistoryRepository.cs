@@ -13,10 +13,20 @@ using System.Threading.Tasks;
 
 namespace PCTP.Modules.XuatKho.Repositories
 {
-    public sealed class StockExportHistoryRepository : IStockExportHistoryRepository
+    public sealed class StockExportHistoryRepository
+     : SqlRepositoryBase, IStockExportHistoryRepository
     {
-        private readonly IStockHistoryRepository _coreHistory;   // ← gọi xuống Kho Core, không tự viết SQL nữa
-        private readonly SqlRepositoryBase _base;                 // chỉ giữ lại cho ExistsHistoryForReference
+        private readonly IStockHistoryRepository _coreHistory; // gọi xuống Kho Core, không tự viết SQL insert nữa
+
+        public StockExportHistoryRepository(
+            PhieuSqlExecutor db,
+            IUnitOfWork uow,
+            IStockHistoryRepository coreHistory)
+            : base(db, uow)
+        {
+            _coreHistory = coreHistory
+                ?? throw new ArgumentNullException(nameof(coreHistory));
+        }
 
         public void SaveHistory(
             string actionType, string itemCode, string lotNo, int quantity,
@@ -24,34 +34,27 @@ namespace PCTP.Modules.XuatKho.Repositories
             StockExportReferenceType? referenceType, int? referenceId, string performedBy)
         {
             string maPhieu = StockExportReferenceFormatter.Format(referenceType, referenceId);
-
             _coreHistory.SaveHistory(
                 actionType, itemCode,
                 new LotInfo
                 {
                     LotNo = lotNo,
                     Quantity = quantity,
-                    MaPhieuKho = maPhieu,   // ⚠ xác nhận tên field đúng — xem Lỗi 5
+                    MaPhieuKho = maPhieu,   // ⚠ vẫn cần xác nhận tên field đúng trên LotInfo
                     RawQr = qrData
                 },
                 fromSlotId, toSlotId, performedBy);
-
-            // ⚠ Cột "SlotId" riêng của bản Xuất Kho (khác fromSlotId/toSlotId) KHÔNG
-            // còn chỗ ghi khi hợp nhất qua IStockHistoryRepository — cần xác nhận có
-            // ai đang query cột này không, nếu có phải thêm slotId vào chữ ký
-            // IStockHistoryRepository.SaveHistory (ảnh hưởng mọi caller), hoặc bỏ hẳn.
+            // ⚠ slotId (khác fromSlotId/toSlotId) chưa có chỗ ghi — vẫn cần quyết định
         }
 
         public bool ExistsHistoryForReference(
             string actionType, StockExportReferenceType referenceType, int referenceId)
         {
             string maPhieu = StockExportReferenceKey.Build(referenceType, referenceId);
-
-            object kq = ExecuteScalar(
+            object kq = ExecuteScalar(   // ✅ giờ gọi được trực tiếp vì đã kế thừa SqlRepositoryBase
                 "SELECT COUNT(*) FROM StockHistory WHERE ActionType = @at AND MaPhieu = @mp",
                 new SqlParameter("@at", actionType),
                 new SqlParameter("@mp", maPhieu));
-
             return kq != null && kq != DBNull.Value && Convert.ToInt32(kq) > 0;
         }
     }

@@ -1,5 +1,9 @@
 ﻿using DevExpress.XtraEditors;
 using PCTP.Common;
+using PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao;
+using PCTP.Modules.GiaoHangKhach.Repositories;
+using PCTP.Modules.XuLyHangLoi.Enums;
+using PCTP.Modules.XuLyHangLoi.Repository;
 using PCTP.VIEWSTOCK.Repository;
 using System;
 using System.Collections.Generic;
@@ -13,18 +17,20 @@ namespace PCTP.Shell.Widgets
 {
     public partial class WarehouseDashboardBar : XtraUserControl
     {
-        private readonly IPhieuLoiRepository _phieuLoiRepo;
+        private readonly IPhieuXuLyBatThuongRepository _phieuXuLyRepo;   // ← thay cho IPhieuLoiRepository
         private readonly INhapKhoDashboardRepository _dashRepo;
         private LabelControl _lblChoDinhHuong, _lblChoQC, _lblDaDuyetChuaTra, _lblLechA0;
 
-        public WarehouseDashboardBar(IPhieuLoiRepository phieuLoiRepo,
-                                      INhapKhoDashboardRepository dashRepo)
+        public WarehouseDashboardBar(
+            IPhieuXuLyBatThuongRepository phieuXuLyRepo,
+            INhapKhoDashboardRepository dashRepo)
         {
-            _phieuLoiRepo = phieuLoiRepo;
-            _dashRepo = dashRepo;
+            _phieuXuLyRepo = phieuXuLyRepo ?? throw new ArgumentNullException(nameof(phieuXuLyRepo));
+            _dashRepo = dashRepo ?? throw new ArgumentNullException(nameof(dashRepo));
             BuildUI();
             Refresh_();
         }
+
         public void BuildUI()
         {
             var pnl = new PanelControl { Dock = DockStyle.Top, Height = 42 };
@@ -47,7 +53,8 @@ namespace PCTP.Shell.Widgets
 
             // ── Mốc 4: đã duyệt, chờ trả về SX ───────────────────────────────────
             _lblDaDuyetChuaTra = MakeAppDashLabel("Đã duyệt chờ trả SX: --");
-            _lblDaDuyetChuaTra.Click += (s, e) => WarehouseProcessNavigator.OpenTraHangNG(this);
+            // WarehouseDashboardBar.cs
+            _lblDaDuyetChuaTra.Click += (s, e) => WarehouseProcessNavigator.OpenQuanLyTienTrinhHangLoi(this);
             _lblDaDuyetChuaTra.Cursor = Cursors.Hand;
 
             // ── Đối chiếu A0 ──────────────────────────────────────────────────────
@@ -69,10 +76,9 @@ namespace PCTP.Shell.Widgets
         {
             try
             {
-                // ── SHELL chỉ ĐỌC số liệu qua Repository (Tầng 3) — không tự viết SQL ──
-                int choDinhHuong = _phieuLoiRepo.DemChoBanHanhPhieuBatThuong(); // mốc 2→3a
-                int choQCCuoi = _phieuLoiRepo.DemChoQC();                      // mốc 3b
-                int daDuyetChuaTra = _phieuLoiRepo.DemSanSangTra();             // mốc 4
+                int choDinhHuong = _phieuXuLyRepo.CountByStatus(QTChungStatus.DaTaoPhieuBatThuong);
+                int choQCCuoi = _phieuXuLyRepo.CountByStatus(QTChungStatus.DaGiaoSanXuat);
+                int daDuyetChuaTra = _phieuXuLyRepo.CountByStatus(QTChungStatus.DaQCXacNhanCuoi);
                 int lech = _dashRepo.DemLechDoiChieu();
 
                 _lblChoDinhHuong.Text = $"🟡 QC chờ định hướng: {choDinhHuong}";
@@ -89,9 +95,10 @@ namespace PCTP.Shell.Widgets
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[Main_APP] RefreshAppDashboardBar lỗi: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"[WarehouseDashboardBar] Refresh_ lỗi: {ex.Message}");
             }
         }
+
         private LabelControl MakeAppDashLabel(string text) => new LabelControl
         {
             Text = text,

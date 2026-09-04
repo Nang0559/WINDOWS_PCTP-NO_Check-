@@ -1,4 +1,6 @@
-﻿using System;
+﻿using DevExpress.XtraSplashScreen;
+using PCTP.VIEWSTOCK.FunctionForm;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -68,23 +70,32 @@ namespace PCTP.Shared.Helpers
             return RunWithLoadingAsync(func, caption);
         }
 
-        private T RunWithLoadingSync<T>(
-            Func<T> action,
-            string caption)
+        private T RunWithLoadingSync<T>(Func<T> action, string caption)
         {
-            // ĐƯA IMPLEMENTATION RunWithLoadingSync
-            // HIỆN TẠI CỦA FormTraHangNGNew VÀO ĐÂY.
-
-            throw new NotImplementedException();
+            SplashScreenManager.ShowForm(_owner, typeof(WaitFormExp), true, true, false);
+            try
+            {
+                SplashScreenManager.Default.SetWaitFormCaption(caption);
+                return action();
+            }
+            finally
+            {
+                SplashScreenManager.CloseForm(false);
+            }
         }
 
-        private async Task<T> RunWithLoadingAsync<T>(
-            Func<Task<T>> action,
-            string caption)
+        private async Task<T> RunWithLoadingAsync<T>(Func<Task<T>> action, string caption)
         {
-            // Implementation async tương ứng.
-
-            throw new NotImplementedException();
+            SplashScreenManager.ShowForm(_owner, typeof(WaitFormExp), true, true, false);
+            try
+            {
+                SplashScreenManager.Default.SetWaitFormCaption(caption);
+                return await action();
+            }
+            finally
+            {
+                SplashScreenManager.CloseForm(false);
+            }
         }
     }
 }

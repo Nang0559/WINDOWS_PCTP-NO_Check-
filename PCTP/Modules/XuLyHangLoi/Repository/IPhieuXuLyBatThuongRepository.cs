@@ -252,5 +252,11 @@ namespace PCTP.Modules.XuLyHangLoi.Repository
             QTChungStatus expectedFrom,
             string lyDoHuy,
             string nguoiThucHien);
+
+        // Thêm vào IPhieuXuLyBatThuongRepository, cạnh GetStatus/GetById
+        /// <summary>
+        /// Đếm số phiếu xử lý bất thường đang ở đúng 1 trạng thái QTChung — dùng cho dashboard.
+        /// </summary>
+        int CountByStatus(QTChungStatus status);
     }
 }

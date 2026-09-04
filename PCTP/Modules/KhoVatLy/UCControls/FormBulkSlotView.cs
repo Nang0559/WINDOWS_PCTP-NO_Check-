@@ -2,6 +2,7 @@
 using DevExpress.XtraGrid;
 using DevExpress.XtraGrid.Columns;
 using DevExpress.XtraGrid.Views.Grid;
+using PCTP.Modules.KhoVatLy.Application.Interfaces;
 using PCTP.VIEWSTOCK.FunctionForm;
 using PCTP.VIEWSTOCK.Models;
 using System;
@@ -24,15 +25,15 @@ namespace PCTP.VIEWSTOCK.UCControls
     public partial class FormBulkSlotView : DevExpress.XtraEditors.XtraForm
     {
         private readonly Slot _slot;
-        private readonly StockService _stockService = new StockService();
-
+        private readonly ISlotService _slotService;   // ← thay cho StockService
         private GridControl _grid;
         private GridView _gridView;
         private LabelControl _lblSummary;
 
-        public FormBulkSlotView(Slot slot)
+        public FormBulkSlotView(Slot slot, ISlotService slotService)
         {
             _slot = slot ?? throw new ArgumentNullException(nameof(slot));
+            _slotService = slotService ?? throw new ArgumentNullException(nameof(slotService));
             InitializeComponent();
             BuildUI();
             LoadData();
@@ -154,8 +155,7 @@ namespace PCTP.VIEWSTOCK.UCControls
 
         private void LoadData()
         {
-            var lots = _stockService.GetSlotLots(_slot.SlotId);
-
+            var lots = _slotService.GetLots(_slot.SlotId);   // ← thay _stockService.GetSlotLots(...)
             var dt = new DataTable();
             dt.Columns.Add("ItemCode", typeof(string));
             dt.Columns.Add("LotNo", typeof(string));
@@ -163,7 +163,6 @@ namespace PCTP.VIEWSTOCK.UCControls
             dt.Columns.Add("TemCode", typeof(string));
             dt.Columns.Add("NgaySX", typeof(string));
             dt.Columns.Add("ImportDate", typeof(DateTime));
-
             foreach (var lot in lots)
             {
                 dt.Rows.Add(
@@ -174,13 +173,10 @@ namespace PCTP.VIEWSTOCK.UCControls
                     lot.QRInfo?.NgaySX ?? "",
                     lot.QRInfo?.ImportDate ?? (object)DBNull.Value);
             }
-
             _grid.DataSource = dt;
             _gridView.BestFitColumns();
-
             int soMaHang = lots.Select(l => l.QRInfo?.ItemCode).Distinct().Count();
             int tongSL = lots.Sum(l => l.Quantity);
-
             _lblSummary.Text =
                 $"Kho tạm: {_slot.whname} / {_slot.RackName}   |   " +
                 $"Số mã hàng: {soMaHang}   |   Tổng số lượng: {tongSL}   |   " +

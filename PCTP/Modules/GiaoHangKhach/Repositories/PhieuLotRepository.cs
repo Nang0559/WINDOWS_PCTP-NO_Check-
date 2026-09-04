@@ -12,13 +12,22 @@ using System.Threading.Tasks;
 
 namespace PCTP.Modules.GiaoHangKhach.Repositories
 {
-    public sealed class PhieuLotRepository : IPhieuLotRepository
+    public sealed class PhieuLotRepository
+    : SqlRepositoryBase,
+      IPhieuLotRepository
     {
         private readonly PhieuSqlExecutor _db;
 
-        public PhieuLotRepository(PhieuSqlExecutor db)
+        public PhieuLotRepository(
+            PhieuSqlExecutor sql,
+            IUnitOfWork unitOfWork)
+            : base(sql, unitOfWork)
         {
-            _db = db ?? throw new ArgumentNullException(nameof(db));
+            if (sql == null)
+                throw new ArgumentNullException(nameof(sql));
+            if (unitOfWork == null)
+                throw new ArgumentNullException(nameof(unitOfWork));
+            _db = sql;
         }
 
         // ============================================================
@@ -55,7 +64,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             _db.ValidateTableName(docQRTable);
             _db.ValidateTableName(tmpTable);
 
-            DataTable dt = _db.CallProcedure(
+            DataTable dt = _db.ExecuteStoredProcedure(
                 "Usp_Qrcode_Take_Lot2405",
 
                 new SqlParameter("@_MaFCC", maHang ?? ""),
@@ -187,7 +196,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
 
         public DataTable LoadGhepLot()
         {
-            return _db.CallProcedure(
+            return _db.ExecuteStoredProcedure(
                 "Usp_Qrcode_gheplot");
         }
 

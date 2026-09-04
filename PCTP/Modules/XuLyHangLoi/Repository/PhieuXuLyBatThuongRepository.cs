@@ -680,10 +680,10 @@ WHERE Id = @Id;";
             return DbValueHelper.ToInt(value);
         }
         public bool UpdateLyDoHuy(
-    int id,
-    QTChungStatus expectedFrom,
-    string lyDoHuy,
-    string nguoiThucHien)
+            int id,
+            QTChungStatus expectedFrom,
+            string lyDoHuy,
+            string nguoiThucHien)
         {
             if (id <= 0)
                 throw new ArgumentOutOfRangeException(nameof(id));
@@ -727,6 +727,14 @@ WHERE Id = @Id
                     (int)expectedFrom));
 
             return affected > 0;
+        }
+
+        public int CountByStatus(QTChungStatus status)
+        {
+            object kq = ExecuteScalar(
+                "SELECT COUNT(1) FROM FVN_PhieuXuLyBatThuong WHERE Status = @status",
+                new SqlParameter("@status", (int)status));   // ✅ sửa từ status.ToString() thành (int)status
+            return kq == null || kq == DBNull.Value ? 0 : Convert.ToInt32(kq);
         }
     }
 }

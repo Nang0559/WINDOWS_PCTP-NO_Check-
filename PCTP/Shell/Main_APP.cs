@@ -9,11 +9,17 @@ using DevExpress.XtraSplashScreen;
 using PCTP.Acess_Image;
 using PCTP.Common;
 using PCTP.FuctionPrint;
+using PCTP.Modules.GiaoHangKhach;
+using PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao;
+using PCTP.Modules.GiaoHangKhach.Repositories;
+using PCTP.Modules.XuLyHangLoi.Repository;
 using PCTP.QRCODE_HVN;
 using PCTP.QRCODE_HVN.ComaprePart;
 using PCTP.QRCODE_HVN.Report;
 using PCTP.QRCODE_HVN.Report;
 using PCTP.QRCODE_HVN.YMN;
+using PCTP.Shared.Common;
+using PCTP.Shared.Helpers;
 using PCTP.Shell.Widgets;
 using PCTP.VIEWSTOCK;
 using PCTP.VIEWSTOCK.FunctionForm;
@@ -97,14 +103,15 @@ namespace PCTP
         ClassSQL.IFSPROVIDER IFS = new ClassSQL.IFSPROVIDER();
         ClassSQL.SQLPROVIDER SQL = new ClassSQL.SQLPROVIDER();
 
+        //wait form 
+        private readonly IWaitFormService _waitForm;
+
         public static string hostname = "";
         public static string TM_BANQR = "";
         // đang mở module nào, luôn hiển thị ngay khi vào app.
         private LabelControl _lblAppChoQC, _lblAppChoDinhHuong, _lblAppDaDuyetChuaTra, _lblAppLechA0;
-        private readonly IPhieuLoiRepository _phieuLoiRepo
-            = new PhieuLoiRepository(new ClassSQL.SQLPROVIDER());
-        private readonly PCTP.VIEWSTOCK.Repository.INhapKhoDashboardRepository _dashRepo
-            = new PCTP.VIEWSTOCK.Repository.NhapKhoDashboardRepository(new ClassSQL.SQLPROVIDER());
+        private readonly IPhieuXuLyBatThuongRepository _phieuXuLyRepo;
+        private readonly INhapKhoDashboardRepository _dashRepo;
         private WarehouseDashboardBar _dashBar;
         // =====================================================================
         public Main_APP()
@@ -125,14 +132,21 @@ namespace PCTP
             InitDualChartLayout(CharYMVN, out splitYMVN, out chartYMVN_Main, out chartYMVN_Pct);
             BuildAppDashboardBar();
             // 3. Load toàn bộ data
-            LoadAllData();
+            _waitForm.Run(() => LoadAllData(), "Đang tải dữ liệu tổng quan...");
         }
         // ★ THÊM: thanh dashboard tổng — chỉ đọc số liệu quy trình, không thao tác.
         // Đặt Dock=Top, add SAU cùng để nó nổi trên cùng của form (theo đúng thứ tự
         // Dock=Top: control add sau nằm trên control add trước).
         private void BuildAppDashboardBar()
         {
-            _dashBar = new WarehouseDashboardBar(_phieuLoiRepo, _dashRepo) { Dock = DockStyle.Top };
+            var provider = new ClassSQL.SQLPROVIDER();
+            var sql = new PhieuSqlExecutor(provider);
+            var uow = new UnitOfWork(provider);
+
+            var phieuXuLyRepo = new PhieuXuLyBatThuongRepository(sql, uow);
+            var dashRepo = /* NhapKhoDashboardRepository — vẫn cần constructor thật, xem ghi chú dưới */;
+
+            _dashBar = new WarehouseDashboardBar(phieuXuLyRepo, dashRepo) { Dock = DockStyle.Top };
             Controls.Add(_dashBar);
             _dashBar.BringToFront();
         }
@@ -580,12 +594,15 @@ namespace PCTP
         // =====================================================================
         public void RefreshDashboard()
         {
-            _fullTableHVN = new DataTable();
-            _fullTableYMVN = new DataTable();
-            _pageHVN = 0;
-            _pageYMVN = 0;
-            LoadAllData();
-            _dashBar.Refresh();
+            _waitForm.Run(() =>
+            {
+                _fullTableHVN = new DataTable();
+                _fullTableYMVN = new DataTable();
+                _pageHVN = 0;
+                _pageYMVN = 0;
+                LoadAllData();
+                _dashBar.Refresh();
+            }, "Đang tải lại dữ liệu dashboard...");
         }
 
         // =====================================================================
@@ -604,10 +621,7 @@ namespace PCTP
         }
 
         private void E_Trahang_Click(object sender, EventArgs e)
-        {
-            FormQuanLyTienTrinhHangLoi frmQLLoi = new FormQuanLyTienTrinhHangLoi();
-            frmQLLoi.Show();// Chưa implement — giữ nguyên như code gốc
-        }
+        => WarehouseProcessNavigator.OpenQuanLyTienTrinhHangLoi(this);
 
         private void E_NhapTP_Click(object sender, EventArgs e)
         {
@@ -738,7 +752,7 @@ namespace PCTP
 
         void report_DesignerLoaded(object sender, DesignerLoadedEventArgs e)
         {
-            WaitForm2.SO = 1;
+            
             splashScreenManager1.ShowWaitForm();
             IToolboxService toolboxService =
                 (IToolboxService)e.DesignerHost.GetService(typeof(IToolboxService));
@@ -770,10 +784,10 @@ namespace PCTP
             => WarehouseProcessNavigator.OpenGiaoHangHVN("100003");
 
         private void accordionControlElement30_Click_1(object sender, EventArgs e)
-        => WarehouseProcessNavigator.OpenTraHangNG(this);
+     => WarehouseProcessNavigator.OpenQuanLyTienTrinhHangLoi(this);
 
         private void accordionControlElement37_Click(object sender, EventArgs e)
-            => WarehouseProcessNavigator.OpenGiaoBuNG(this);
+    => WarehouseProcessNavigator.OpenQuanLyTienTrinhHangLoi(this);
         // Designer, cần thêm 1 AccordionControlElement mới trỏ tới handler này.
         // ── SỬA: nút cũ trỏ tới OpenQCDuyet (không tồn tại) → tách theo đúng mốc ─────
         private void accordionControlElement_QCDinhHuong_Click(object sender, EventArgs e)

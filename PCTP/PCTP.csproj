@@ -257,12 +257,6 @@
     <Compile Include="Acess Image\ImagesControl.designer.cs">
       <DependentUpon>ImagesControl.cs</DependentUpon>
     </Compile>
-    <Compile Include="Acess Image\WaitForm3.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Acess Image\WaitForm3.Designer.cs">
-      <DependentUpon>WaitForm3.cs</DependentUpon>
-    </Compile>
     <Compile Include="ALLVAR.cs" />
     <Compile Include="Modules\GiaoHangKhach\Services\DocQRService.cs" />
     <Compile Include="Modules\GiaoHangKhach\Services\InPhieuService.cs" />
@@ -865,9 +859,6 @@
     </EmbeddedResource>
     <EmbeddedResource Include="Acess Image\ImagesControl.resx">
       <DependentUpon>ImagesControl.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Acess Image\WaitForm3.resx">
-      <DependentUpon>WaitForm3.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Modules\GiaoHangKhach\SubForm\FRM_CHON_LOT_KHO.resx">
       <DependentUpon>FRM_CHON_LOT_KHO.cs</DependentUpon>
