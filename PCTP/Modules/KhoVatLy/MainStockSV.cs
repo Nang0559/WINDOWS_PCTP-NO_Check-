@@ -7,8 +7,12 @@ using DevExpress.XtraSplashScreen;
 using DevExpress.XtraVerticalGrid;
 using PCTP.ClassSQL;
 using PCTP.Modules.GiaoHangKhach;
+using PCTP.Modules.KhoCore.Interfaces;
+using PCTP.Modules.KhoCore.Repositories;
+using PCTP.Modules.KhoCore.Services;
 using PCTP.Modules.KhoVatLy.Application.Interfaces;
 using PCTP.Modules.KhoVatLy.Application.Services;
+using PCTP.Modules.KhoVatLy.Kho.Models;
 using PCTP.Modules.KhoVatLy.Repositories;
 using PCTP.Modules.KhoVatLy.Repository;
 using PCTP.Modules.NhapKho.Interfaces;
@@ -80,10 +84,13 @@ namespace PCTP.VIEWSTOCK
             private readonly IPrintService _printService;
             private readonly IWarehouseDashboardService _dashboardService;
 
-            // ⚠️ TODO: _stockTpRepoForDetail vẫn là Repository truyền thẳng vào SlotDetailPanel.
-            // Cần SlotDetailPanel.cs để đổi chữ ký ShowSlot(...) sang nhận 1 Service thay vì
-            // IStockTpRepository. Giữ tạm để không phá vỡ control đang chạy.
-            private readonly IStockTpRepository _stockTpRepoForDetail;
+        private readonly IInspectionConfigService _inspectionConfigService;
+        private readonly IInspectionLogRepository _inspectionLogRepo;
+
+        // ⚠️ TODO: _stockTpRepoForDetail vẫn là Repository truyền thẳng vào SlotDetailPanel.
+        // Cần SlotDetailPanel.cs để đổi chữ ký ShowSlot(...) sang nhận 1 Service thay vì
+        // IStockTpRepository. Giữ tạm để không phá vỡ control đang chạy.
+        private readonly IStockTpRepository _stockTpRepoForDetail;
 
             public MainStockSV()
             {
@@ -100,21 +107,24 @@ namespace PCTP.VIEWSTOCK
                 var historyRepo = new StockHistoryRepository(dbExecutor, uow);
                 var stockExportRepo = new StockExportRepository(dbExecutor, uow);
                 var hangChoGiaoRepo = new HangChoGiaoRepository(dbExecutor, uow);
-                var exportHistoryRepo = new StockExportHistoryRepository(dbExecutor, uow);
+                var exportHistoryRepo = new StockExportHistoryRepository(dbExecutor, uow, historyRepo);
                 var dashRepo = new NhapKhoDashboardRepository(dbExecutor, uow);
-
-                _slotService = new SlotService(slotRepo);
+                var inspectionConfigRepo = new InspectionConfigRepository(dbExecutor, uow);
+                var inspectionLogRepo = new InspectionLogRepository(dbExecutor, uow);
+            _slotService = new SlotService(slotRepo);
                 _warehouseService = new WarehouseService(warehouseRepo, rackRepo, uow);
                 var exportValidationService = new StockExportValidationService(stockExportRepo, exportHistoryRepo);
                 _exportService = new StockExportService(
                     uow, _slotService, stockExportRepo, historyRepo, hangChoGiaoRepo, exportValidationService);
                 _printService = new PrintService(_slotService, _warehouseService);
                 _dashboardService = new WarehouseDashboardService(dashRepo);
+            _inspectionConfigService = new InspectionConfigService(inspectionConfigRepo);
+            _inspectionLogRepo = inspectionLogRepo;
 
-                // ⚠️ TODO: thay bằng service khi có SlotDetailPanel.cs
-                _stockTpRepoForDetail = new StockTpRepository(sqlProvider);
+         
+            _stockTpRepoForDetail = new StockTpRepository(dbExecutor, uow);
 
-                BuildDashboardBar();
+            BuildDashboardBar();
                 BuildSlotDetailPanel();
 
                 PEditInput.TextChanged += PEditInput_TextChanged;
@@ -201,7 +211,7 @@ namespace PCTP.VIEWSTOCK
 
                 if (BulkImportConfig.IsBulkSlot(slot))
                 {
-                    var view = new FormBulkSlotView(slot);
+                    var view = new FormBulkSlotView(slot, _slotService);
                     view.ShowDialog(this);
                     return;
                 }
@@ -965,21 +975,22 @@ namespace PCTP.VIEWSTOCK
             // ✅ Đã bỏ CheckInfor + sqlProvider.SaveWarehouseToDatabase — đi qua IWarehouseService
             private void btnRegisterRack_Click(object sender, EventArgs e)
             {
-                using (var form = new FormRegisterRack())
+                using (var form = new FormRegisterRack(_warehouseService))
                 {
                     if (form.ShowDialog() != DialogResult.OK) return;
 
-                    string whName = form.whName;
+                    string whName = form.WhName;
                     string rackName = form.RackName;
-                    int slotCount = form.SlotCount;
-                    int slotCapacity = form.SlotCapacity;
+                int rowCount = form.RowCount;
+                int columnCount = form.ColumnCount;
+                int slotCapacity = form.SlotCapacity;
 
                     try
                     {
                         // Giả định layout 1 hàng x slotCount cột — giữ đúng hành vi cũ (danh sách
                         // Slot phẳng đánh số 1..slotCount, không phân hàng/cột thật).
                         _warehouseService.RegisterWarehouseAndRack(
-                            whName, rackName, rowCount: 1, columnCount: slotCount, slotCapacity: slotCapacity);
+                            whName, rackName, rowCount: rowCount, columnCount: columnCount, slotCapacity: slotCapacity);
 
                         _ = LoadAllWarehouses();
                     }
@@ -1036,7 +1047,7 @@ namespace PCTP.VIEWSTOCK
 
             private void btnDKMa_Click(object sender, EventArgs e)
             {
-                using (var form = new FormInspectionConfig())
+                using (var form = new FormInspectionConfig(_inspectionConfigService, _warehouseService))
                 {
                     form.ShowDialog(this);
                 }
@@ -1044,7 +1055,7 @@ namespace PCTP.VIEWSTOCK
 
             private void btnHisCheck_Click(object sender, EventArgs e)
             {
-                using (var form = new FormInspectionHistory())
+                using (var form = new FormInspectionHistory(_inspectionLogRepo, _warehouseService))
                 {
                     form.ShowDialog(this);
                 }

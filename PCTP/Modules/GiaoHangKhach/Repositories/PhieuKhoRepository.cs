@@ -2,6 +2,8 @@
 using PCTP.FuctionMain;
 using PCTP.Models;
 using PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao;
+using PCTP.Modules.KhoVatLy.Kho.Models;
+using PCTP.Modules.KhoVatLy.Repositories;
 using PCTP.Shared.Common;
 using PCTP.VIEWSTOCK.Fuction;
 using PCTP.VIEWSTOCK.Models;
@@ -26,12 +28,19 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         private readonly CustomerConfig _cfg;
         private readonly ITraHangRepository _traHangRepo;
 
+        // ✅ FIX: "SlotHelper" (static helper cũ ghi thẳng StockHistory) không còn tồn tại
+        // trong codebase — theo WORKFLOW_WMS.md, mọi ghi lịch sử tồn kho phải đi qua
+        // IStockHistoryRepository.SaveHistory (Kho Core), không tự viết SQL lên StockHistory.
+        private readonly IStockHistoryRepository _historyRepo;
+
         public PhieuKhoRepository(
             PhieuSqlExecutor db,
+            IStockHistoryRepository historyRepo,
             CustomerConfig cfg = null,
             ITraHangRepository traHangRepo = null)
         {
             _db = db ?? throw new ArgumentNullException(nameof(db));
+            _historyRepo = historyRepo ?? throw new ArgumentNullException(nameof(historyRepo));
 
             _cfg = cfg;
             _traHangRepo = traHangRepo;
@@ -215,7 +224,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                             var it in closedItems.Where(
                                 x => x.SlotIdNguon.HasValue))
                         {
-                            SlotHelper.SaveHistory(
+                            _historyRepo.SaveHistory(
                                 "EXPORT_CONFIRMED_HVN",
                                 it.MaHang,
 

@@ -1,6 +1,7 @@
 ﻿using DevExpress.XtraEditors;
 using DevExpress.XtraGrid;
 using DevExpress.XtraGrid.Views.Grid;
+using PCTP.Modules.NhapKho.Repository;
 using PCTP.VIEWSTOCK.Models;
 using PCTP.VIEWSTOCK.Repository;
 using System;
