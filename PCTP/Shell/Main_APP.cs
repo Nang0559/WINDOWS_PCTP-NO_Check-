@@ -9,7 +9,6 @@ using DevExpress.XtraSplashScreen;
 using PCTP.Acess_Image;
 using PCTP.Common;
 using PCTP.FuctionPrint;
-using PCTP.Giao_Hang_XK;
 using PCTP.QRCODE_HVN;
 using PCTP.QRCODE_HVN.ComaprePart;
 using PCTP.QRCODE_HVN.Report;
@@ -612,14 +611,14 @@ namespace PCTP
 
         private void E_NhapTP_Click(object sender, EventArgs e)
         {
-            NHAP_TP UF_NHAPTP = new NHAP_TP();
-            UF_NHAPTP.Show();
+            //NHAP_TP UF_NHAPTP = new NHAP_TP();
+            //UF_NHAPTP.Show();
         }
 
         private void E_NhapTP_0QR_Click(object sender, EventArgs e)
         {
-            NHAPKHOKHONGQRCODE UF_NHAPSP = new NHAPKHOKHONGQRCODE();
-            UF_NHAPSP.Show();
+            //NHAPKHOKHONGQRCODE UF_NHAPSP = new NHAPKHOKHONGQRCODE();
+            //UF_NHAPSP.Show();
         }
         // ★ SỬA: đi qua Navigator thay vì new HVN_PGH trực tiếp
         private void E_GHHVN_MP_Click(object sender, EventArgs e)
@@ -635,20 +634,20 @@ namespace PCTP
 
         private void E_Tracuulotno_Click(object sender, EventArgs e)
         {
-            TruyTimLOTNO UF_TruyTim_LOT = new TruyTimLOTNO();
-            UF_TruyTim_LOT.Show();
+            //TruyTimLOTNO UF_TruyTim_LOT = new TruyTimLOTNO();
+            //UF_TruyTim_LOT.Show();
         }
 
         private void E_In_Le_Click(object sender, EventArgs e)
         {
-            UF_TACHLOT f_TACHLOT = new UF_TACHLOT();
-            f_TACHLOT.Show();
+            //UF_TACHLOT f_TACHLOT = new UF_TACHLOT();
+            //f_TACHLOT.Show();
         }
 
         private void E_TKTK_Click(object sender, EventArgs e)
         {
-            TONKHOTP UF_TKTP = new TONKHOTP();
-            UF_TKTP.Show();
+            //TONKHOTP UF_TKTP = new TONKHOTP();
+            //UF_TKTP.Show();
         }
 
         private void accordionControlElement21_Click(object sender, EventArgs e)
@@ -659,8 +658,8 @@ namespace PCTP
 
         private void accordionControlElement23_Click(object sender, EventArgs e)
         {
-            FRM_LOTNO_UPDATE_INFOR rM_LOTNO_UPDATE_INFOR = new FRM_LOTNO_UPDATE_INFOR();
-            rM_LOTNO_UPDATE_INFOR.Show();
+            //FRM_LOTNO_UPDATE_INFOR rM_LOTNO_UPDATE_INFOR = new FRM_LOTNO_UPDATE_INFOR();
+            //rM_LOTNO_UPDATE_INFOR.Show();
         }
 
         
@@ -699,8 +698,8 @@ namespace PCTP
 
         private void InGhepLot_Click(object sender, EventArgs e)
         {
-            UF_GHEPLOT fgeplot = new UF_GHEPLOT();
-            fgeplot.ShowDialog();
+            //UF_GHEPLOT fgeplot = new UF_GHEPLOT();
+            //fgeplot.ShowDialog();
         }
 
         private void btHelp_ItemClick(object sender, ItemClickEventArgs e)
@@ -719,14 +718,14 @@ namespace PCTP
 
         private void barButtonItem1_ItemClick(object sender, ItemClickEventArgs e)
         {
-            PCTP.REQUEST_LK.RequestLK FRM_RQLK = new PCTP.REQUEST_LK.RequestLK();
-            FRM_RQLK.Show();
+            //PCTP.REQUEST_LK.RequestLK FRM_RQLK = new PCTP.REQUEST_LK.RequestLK();
+            //FRM_RQLK.Show();
         }
 
         private void barButtonItem2_ItemClick(object sender, ItemClickEventArgs e)
         {
-            PGH_XK Frm_GHXK = new PGH_XK();
-            Frm_GHXK.Show();
+            //PGH_XK Frm_GHXK = new PGH_XK();
+            //Frm_GHXK.Show();
         }
 
         private void accordionControlElement19_Click(object sender, EventArgs e)

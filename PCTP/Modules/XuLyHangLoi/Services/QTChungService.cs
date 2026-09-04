@@ -1,9 +1,11 @@
 ﻿using PCTP.Modules.KhoVatLy.Kho.Models;
-using PCTP.Modules.XuLyHangLoi.Enum;
+using PCTP.Modules.XuLyHangLoi.Enums;
 using PCTP.Modules.XuLyHangLoi.Models;
 using PCTP.Modules.XuLyHangLoi.Repository;
 using PCTP.Shared.Common;
+using PCTP.Shared.Enums;
 using PCTP.Shared.Helpers;
+using PCTP.Shared.UiMd;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,732 +16,78 @@ namespace PCTP.Modules.XuLyHangLoi.Services
 {
     public sealed class QTChungService : IQTChungService
     {
+        private const string ProcessCodeQTChung = "QT_CHUNG";
+        private const string ProcessCodePhieuTraHang = "PHIEU_TRA_HANG";
+        private readonly IPhieuXuLyBatThuongRepository _repo;
+        private readonly IPhieuTraHangRepository _phieuTraHangRepo;
         private readonly IUnitOfWork _uow;
         private readonly IReworkStockService _reworkStockService;
-        private readonly ITraHangQTChungRepository _qtChungRepo;
-        private readonly IPhieuXuLyBatThuongRepository _phieuXuLyRepo;
+        private readonly IGiaoBuNGService _giaoBuNGService;
+        private readonly ITraHangQTChungRepository _traHangQTChungRepository;
+        private readonly IWorkflowTransitionService _workflow;
 
         public QTChungService(
-            IUnitOfWork uow,
-            IReworkStockService reworkStockService,
-            ITraHangQTChungRepository qtChungRepo,
-            IPhieuXuLyBatThuongRepository phieuXuLyRepo)
+            IPhieuXuLyBatThuongRepository repo, IPhieuTraHangRepository phieuTraHangRepo, IReworkStockService reworkStockService,
+            IGiaoBuNGService giaoBuNGService,
+            IUnitOfWork uow, ITraHangQTChungRepository traHangQTChungRepository, IWorkflowTransitionService workflow)
         {
-            _uow = uow ?? throw new ArgumentNullException(nameof(uow));
-            _reworkStockService =
-                reworkStockService ?? throw new ArgumentNullException(nameof(reworkStockService));
-            _qtChungRepo =
-                qtChungRepo ?? throw new ArgumentNullException(nameof(qtChungRepo));
-            _phieuXuLyRepo =
-                phieuXuLyRepo ?? throw new ArgumentNullException(nameof(phieuXuLyRepo));
+            _repo = repo
+                ?? throw new ArgumentNullException(nameof(repo));
+            _reworkStockService = reworkStockService ?? throw new ArgumentNullException(nameof(reworkStockService));
+            _giaoBuNGService = giaoBuNGService ?? throw new ArgumentNullException(nameof(giaoBuNGService));
+            _traHangQTChungRepository = traHangQTChungRepository ?? throw new ArgumentNullException(nameof(traHangQTChungRepository));
+            _phieuTraHangRepo = phieuTraHangRepo
+                ?? throw new ArgumentNullException(nameof(phieuTraHangRepo));
+            _uow = uow
+                ?? throw new ArgumentNullException(nameof(uow));
+            _workflow = workflow ?? throw new ArgumentNullException(nameof(workflow));
         }
 
-        // ════════════════════════════════════════════════════════════════
-        // 1. TẠO PHIẾU XỬ LÝ BẤT THƯỜNG
-        // ════════════════════════════════════════════════════════════════
-        public int TaoPhieuXuLyBatThuong(PhieuXuLyBatThuong phieu)
-        {
-            if (phieu == null)
-                throw new ArgumentNullException(nameof(phieu));
 
-            if (phieu.PhieuKhachTraId <= 0)
+        // ============================================================
+        // PRIVATE
+        // ============================================================
+
+        private PhieuXuLyBatThuong GetRequired(
+            int phieuXuLyId)
+        {
+            if (phieuXuLyId <= 0)
                 throw new ArgumentException(
-                    "Phiếu xử lý bất thường phải gắn với 1 phiếu cha (KhachTra/TraNoiBo).");
+                    "phieuXuLyId không hợp lệ.",
+                    nameof(phieuXuLyId));
 
-            phieu.Status = QTChungStatus.Moi;
-
-            try
-            {
-                _uow.Begin();
-
-                int id = _phieuXuLyRepo.Insert(phieu);
-
-                // Mới chỉ là trạng thái tức thời.
-                // Tạo xong -> Chờ QC định hướng.
-                _phieuXuLyRepo.UpdateStatus(
-                    id,
-                    QTChungStatus.ChoQCDinhHuong,
-                    phieu.CreatedBy);
-
-                _uow.Commit();
-
-                return id;
-            }
-            catch (Exception)
-            {
-                SafeRollback();
-                throw;
-            }
-        }
-
-
-        // ════════════════════════════════════════════════════════════════
-        // 2. QC ĐỊNH HƯỚNG REWORK
-        //
-        // Moi
-        //   ↓
-        // ChoQCDinhHuong
-        //   ↓
-        // ChoXuatKhoRework
-        // ════════════════════════════════════════════════════════════════
-        public void QCDinhHuongRework(
-            int phieuXuLyId,
-            string huongXuLy,
-            string nguoiThucHien)
-        {
-            if (string.IsNullOrWhiteSpace(huongXuLy))
-                throw new ArgumentException(
-                    "Hướng xử lý không được rỗng.",
-                    nameof(huongXuLy));
-
-            var phieu = RequirePhieu(phieuXuLyId);
-
-            RequireTransition(
-                phieu.Status,
-                QTChungStatus.ChoXuatKhoRework);
-
-            try
-            {
-                _uow.Begin();
-
-                _phieuXuLyRepo.UpdateHuongXuLy(
-                    phieuXuLyId,
-                    huongXuLy,
-                    nguoiThucHien);
-
-                // Sau khi QC định hướng xong:
-                // Chờ xuất kho rework.
-                _phieuXuLyRepo.UpdateStatus(
-                    phieuXuLyId,
-                    QTChungStatus.ChoXuatKhoRework,
-                    nguoiThucHien);
-
-                _uow.Commit();
-            }
-            catch (Exception)
-            {
-                SafeRollback();
-                throw;
-            }
-        }
-
-
-        // ════════════════════════════════════════════════════════════════
-        // 3. TÌM TOÀN BỘ LOT NG CÒN TRONG KHO
-        // ════════════════════════════════════════════════════════════════
-        public List<LotInfo> GetLotsCanRework(int phieuXuLyId)
-            => _reworkStockService.GetLotsCanReworkByPhieuXuLy(phieuXuLyId);
-
-
-        // ════════════════════════════════════════════════════════════════
-        // 4. XUẤT KHO ĐI REWORK
-        //
-        // ChoXuatKhoRework
-        //       ↓
-        // DaXuatKhoRework
-        //
-        // Cho phép xuất nhiều lần / nhiều LOT.
-        // ════════════════════════════════════════════════════════════════
-        public ScanResult XuatKhoRework(
-            int phieuXuLyId,
-            int slotId,
-            string lotNo,
-            int soLuong,
-            string nguoiXuat)
-        {
-            var phieu = RequirePhieu(phieuXuLyId);
-
-            if (phieu.Status != QTChungStatus.ChoXuatKhoRework &&
-                phieu.Status != QTChungStatus.DaXuatKhoRework)
-            {
-                return ScanResult.Fail(
-                    $"Phiếu đang ở trạng thái {phieu.Status} — " +
-                    "phải QC định hướng REWORK trước khi xuất kho.");
-            }
-
-            if (soLuong <= 0)
-                return ScanResult.Fail("Số lượng xuất kho phải lớn hơn 0.");
-
-            if (string.IsNullOrWhiteSpace(lotNo))
-                return ScanResult.Fail("LOT không được rỗng.");
-
-            // ReworkStockService tự transaction phần:
-            // Slot / STOCKTP / History / InsertXuat.
-            var result = _reworkStockService.XuatKhoRework(
-                phieuXuLyId,
-                slotId,
-                lotNo,
-                soLuong,
-                nguoiXuat);
-
-            if (!result.IsOK)
-                return result;
-
-            // Nếu lần đầu xuất:
-            //
-            // ChoXuatKhoRework -> DaXuatKhoRework
-            //
-            // Nếu đã xuất trước đó:
-            //
-            // DaXuatKhoRework -> DaXuatKhoRework
-            //
-            // là idempotent.
-            TryUpdateStatus(
-                phieuXuLyId,
-                QTChungStatus.DaXuatKhoRework,
-                nguoiXuat);
-
-            return result;
-        }
-
-
-        // ════════════════════════════════════════════════════════════════
-        // 5. GIAO HÀNG CHO SẢN XUẤT
-        //
-        // DaXuatKhoRework
-        //       ↓
-        // DaGiaoSanXuat
-        //
-        // Sau khi giao xong, sản xuất có thể bắt đầu rework.
-        // ════════════════════════════════════════════════════════════════
-        public ScanResult GiaoHangRework(
-            int phieuXuLyId,
-            List<LotInfo> lots,
-            string nguoiGiao)
-        {
-            if (lots == null || lots.Count == 0)
-                return ScanResult.Fail(
-                    "Danh sách LOT giao cho sản xuất đang rỗng.");
-
-            var phieu = RequirePhieu(phieuXuLyId);
-
-            if (phieu.Status != QTChungStatus.DaXuatKhoRework)
-            {
-                return ScanResult.Fail(
-                    $"Phiếu đang ở trạng thái {phieu.Status} — " +
-                    "phải xuất kho rework trước khi giao cho sản xuất.");
-            }
-
-            // Kiểm tra thêm bằng dữ liệu thực tế trong DB.
-            if (!_qtChungRepo.DaXuatKho(phieuXuLyId))
-            {
-                return ScanResult.Fail(
-                    "Phiếu chưa xuất kho — không thể giao cho sản xuất.");
-            }
-
-            int tongDaXuat =
-                _qtChungRepo.GetTongSoLuongDaXuat(phieuXuLyId);
-
-            int tongDaGiaoTruoc =
-                _qtChungRepo.GetTongSoLuongDaGiao(phieuXuLyId);
-
-            int tongGiaoLanNay =
-                lots.Sum(l => l.Quantity);
-
-            if (tongGiaoLanNay <= 0)
-            {
-                return ScanResult.Fail(
-                    "Tổng số lượng giao phải lớn hơn 0.");
-            }
-
-            if (tongDaGiaoTruoc + tongGiaoLanNay > tongDaXuat)
-            {
-                return ScanResult.Fail(
-                    $"Tổng SL giao ({tongDaGiaoTruoc + tongGiaoLanNay}) " +
-                    $"sẽ vượt quá SL đã xuất kho ({tongDaXuat}).");
-            }
-
-            try
-            {
-                _uow.Begin();
-
-                var giaoIds = new List<int>();
-
-                foreach (var lot in lots)
-                {
-                    if (lot == null)
-                        continue;
-
-                    if (lot.Quantity <= 0)
-                        continue;
-
-                    if (string.IsNullOrWhiteSpace(lot.LotNo))
-                        continue;
-
-                    giaoIds.Add(
-                        _qtChungRepo.InsertGiao(
-                            new TraHangQTChungGiao
-                            {
-                                PhieuXuLyId = phieuXuLyId,
-                                LotNo = lot.LotNo,
-                                MaHang = lot.QRInfo?.ItemCode
-                                         ?? phieu.MaSanPham,
-                                SoLuong = lot.Quantity,
-                                NguoiGiao = nguoiGiao
-                            }));
-                }
-
-                if (giaoIds.Count == 0)
-                {
-                    SafeRollback();
-
-                    return ScanResult.Fail(
-                        "Không có LOT hợp lệ để giao cho sản xuất.");
-                }
-
-                // Giao hàng thành công.
-                _phieuXuLyRepo.UpdateStatus(
-                    phieuXuLyId,
-                    QTChungStatus.DaGiaoSanXuat,
-                    nguoiGiao);
-
-                _uow.Commit();
-
-                return ScanResult.OK(
-                    $"Đã giao {tongGiaoLanNay} SP " +
-                    $"({giaoIds.Count} LOT) cho sản xuất.");
-            }
-            catch (Exception ex)
-            {
-                SafeRollback();
-
-                return ScanResult.Fail(
-                    "Lỗi giao hàng cho sản xuất: " + ex.Message);
-            }
-        }
-
-
-        // ════════════════════════════════════════════════════════════════
-        // 6. SẢN XUẤT BẮT ĐẦU / ĐANG REWORK
-        //
-        // DaGiaoSanXuat
-        //       ↓
-        // DangRework
-        //
-        // Vì enum có DangRework nên dùng trạng thái này làm mốc
-        // sản xuất đang xử lý.
-        // ════════════════════════════════════════════════════════════════
-        public void BatDauRework(
-            int phieuXuLyId,
-            string nguoiThucHien)
-        {
-            var phieu = RequirePhieu(phieuXuLyId);
-
-            RequireTransition(
-                phieu.Status,
-                QTChungStatus.DangRework);
-
-            try
-            {
-                _uow.Begin();
-
-                _phieuXuLyRepo.UpdateStatus(
-                    phieuXuLyId,
-                    QTChungStatus.DangRework,
-                    nguoiThucHien);
-
-                _uow.Commit();
-            }
-            catch (Exception)
-            {
-                SafeRollback();
-                throw;
-            }
-        }
-
-
-        // ════════════════════════════════════════════════════════════════
-        // 7. SẢN XUẤT BÁO REWORK XONG
-        //
-        // DangRework
-        //       ↓
-        // ChoQCXacNhanCuoi
-        // ════════════════════════════════════════════════════════════════
-        public void SanXuatBaoReworkXong(
-            int phieuXuLyId,
-            string ghiChu,
-            string nguoiThucHien)
-        {
-            var phieu = RequirePhieu(phieuXuLyId);
-
-            RequireTransition(
-                phieu.Status,
-                QTChungStatus.ChoQCXacNhanCuoi);
-
-            try
-            {
-                _uow.Begin();
-
-                _phieuXuLyRepo.UpdateStatus(
-                    phieuXuLyId,
-                    QTChungStatus.ChoQCXacNhanCuoi,
-                    nguoiThucHien);
-
-                _uow.Commit();
-            }
-            catch (Exception)
-            {
-                SafeRollback();
-                throw;
-            }
-        }
-
-
-        // ════════════════════════════════════════════════════════════════
-        // 8. QC XÁC NHẬN CUỐI
-        //
-        // ChoQCXacNhanCuoi
-        //       ↓
-        // QCDaXacNhan
-        //
-        // Nếu:
-        //   OK = toàn bộ -> HoanTat
-        //
-        // Nếu:
-        //   Có NG -> DaNhapNG
-        // ════════════════════════════════════════════════════════════════
-        public ScanResult QCXacNhanCuoi(
-            int phieuXuLyId,
-            int soLuongOK,
-            int soLuongNG,
-            string nguoiQC)
-        {
-            if (soLuongOK < 0 || soLuongNG < 0)
-            {
-                return ScanResult.Fail(
-                    "Số lượng OK/NG không được âm.");
-            }
-
-            if (soLuongOK == 0 && soLuongNG == 0)
-            {
-                return ScanResult.Fail(
-                    "Số lượng OK và NG không được đồng thời bằng 0.");
-            }
-
-            var phieu = RequirePhieu(phieuXuLyId);
-
-            if (phieu.Status != QTChungStatus.ChoQCXacNhanCuoi)
-            {
-                return ScanResult.Fail(
-                    $"Phiếu đang ở trạng thái {phieu.Status} — " +
-                    "SX phải báo rework xong trước khi QC xác nhận cuối.");
-            }
-
-            if (_qtChungRepo.DaQCXacNhan(phieuXuLyId))
-            {
-                return ScanResult.Fail(
-                    "Phiếu đã có QC xác nhận trước đó.");
-            }
-
-            try
-            {
-                _uow.Begin();
-
-                int qcId = _qtChungRepo.InsertQC(
-                    new TraHangQTChungQC
-                    {
-                        PhieuXuLyId = phieuXuLyId,
-                        SoLuongDaRework = soLuongOK + soLuongNG,
-                        SoLuongOK = soLuongOK,
-                        SoLuongNG = soLuongNG,
-                        NguoiQC = nguoiQC
-                    });
-
-                // Luôn ghi nhận mốc QC đã xác nhận.
-                _phieuXuLyRepo.UpdateStatus(
-                    phieuXuLyId,
-                    QTChungStatus.QCDaXacNhan,
-                    nguoiQC);
-
-                if (soLuongNG > 0)
-                {
-                    // Có hàng NG -> chờ nhập NG.
-                    _phieuXuLyRepo.UpdateStatus(
-                        phieuXuLyId,
-                        QTChungStatus.DaNhapNG,
-                        nguoiQC);
-                }
-                else
-                {
-                    // Không có NG -> hoàn tất ngay.
-                    _phieuXuLyRepo.UpdateStatus(
-                        phieuXuLyId,
-                        QTChungStatus.HoanTat,
-                        nguoiQC);
-                }
-
-                _uow.Commit();
-
-                return ScanResult.OK(
-                    $"QC xác nhận (QcId={qcId}): " +
-                    $"OK={soLuongOK}, NG={soLuongNG}." +
-                    (soLuongNG == 0
-                        ? " Không có hàng NG — QT chung đã hoàn tất."
-                        : " Còn hàng NG cần nhập lại kho."));
-            }
-            catch (Exception ex)
-            {
-                SafeRollback();
-
-                return ScanResult.Fail(
-                    "Lỗi QC xác nhận cuối: " + ex.Message);
-            }
-        }
-
-
-        // ════════════════════════════════════════════════════════════════
-        // 9. NHẬP LẠI HÀNG NG
-        //
-        // QCDaXacNhan
-        //       ↓
-        // DaNhapNG
-        //       ↓
-        // HoanTat
-        //
-        // Lưu ý:
-        // DaNhapNG là trạng thái "đang/đã nhập NG".
-        // Cho phép nhập nhiều lần cho đến khi đủ số lượng NG.
-        // ════════════════════════════════════════════════════════════════
-        public ScanResult NhapLaiHangNG(
-            int phieuXuLyId,
-            string lotNo,
-            int soLuongNG,
-            string nguoiNhap)
-        {
-            var phieu = RequirePhieu(phieuXuLyId);
-
-            if (phieu.Status != QTChungStatus.DaNhapNG)
-            {
-                return ScanResult.Fail(
-                    $"Phiếu đang ở trạng thái {phieu.Status} — " +
-                    "không cần/không thể nhập lại NG.");
-            }
-
-            if (soLuongNG <= 0)
-            {
-                return ScanResult.Fail(
-                    "Số lượng NG nhập lại phải lớn hơn 0.");
-            }
-
-            if (string.IsNullOrWhiteSpace(lotNo))
-            {
-                return ScanResult.Fail(
-                    "LOT nhập lại NG không được rỗng.");
-            }
-
-            var qc = _qtChungRepo.GetQC(phieuXuLyId);
-
-            if (qc == null)
-            {
-                return ScanResult.Fail(
-                    "Phiếu chưa có QC xác nhận — " +
-                    "không thể nhập lại hàng NG.");
-            }
-
-            if (qc.SoLuongNG <= 0)
-            {
-                return ScanResult.Fail(
-                    "Phiếu không có số lượng NG theo kết quả QC.");
-            }
-
-            int daNhapTruoc =
-                _qtChungRepo.GetTongSoLuongDaNhapNG(phieuXuLyId);
-
-            if (daNhapTruoc + soLuongNG > qc.SoLuongNG)
-            {
-                return ScanResult.Fail(
-                    $"Tổng SL nhập lại NG ({daNhapTruoc + soLuongNG}) " +
-                    $"sẽ vượt quá SL NG theo QC ({qc.SoLuongNG}).");
-            }
-
-            // ReworkStockService tự transaction cho:
-            // Slot / History / InsertNhapNG.
-            //
-            // slotIdDich = null:
-            // service tự chọn slot mặc định theo implementation hiện tại.
-            var result = _reworkStockService.NhapLaiHangNG(
-                phieuXuLyId,
-                lotNo,
-                soLuongNG,
-                slotIdDich: null,
-                nguoiNhap);
-
-            if (!result.IsOK)
-                return result;
-
-            int daNhapSauKhiThem =
-                _qtChungRepo.GetTongSoLuongDaNhapNG(phieuXuLyId);
-
-            // Chưa nhập đủ NG:
-            // giữ nguyên DaNhapNG.
-            if (daNhapSauKhiThem < qc.SoLuongNG)
-            {
-                return result;
-            }
-
-            // Đã nhập đủ toàn bộ NG -> hoàn tất.
-            TryUpdateStatus(
-                phieuXuLyId,
-                QTChungStatus.HoanTat,
-                nguoiNhap);
-
-            return result;
-        }
-
-
-        // ════════════════════════════════════════════════════════════════
-        // 10. HUỶ QT CHUNG
-        //
-        // Tất cả trạng thái chưa HoanTat/Huy đều có thể -> Huy.
-        // Nếu đã xuất kho thì hoàn trả kho trước khi đánh dấu Huy.
-        // ════════════════════════════════════════════════════════════════
-        public ScanResult HuyQTChung(
-            int phieuXuLyId,
-            string lyDoHuy,
-            string nguoiThucHien)
-        {
-            var phieu = RequirePhieu(phieuXuLyId);
-
-            if (phieu.Status == QTChungStatus.HoanTat)
-            {
-                return ScanResult.Fail(
-                    "Phiếu đã hoàn tất — không thể huỷ.");
-            }
-
-            if (phieu.Status == QTChungStatus.Huy)
-            {
-                return ScanResult.Fail(
-                    "Phiếu đã huỷ trước đó.");
-            }
-
-            // Hoàn trả kho — chỉ cần thiết nếu đã từng xuất kho.
-            ScanResult stockResult =
-                ScanResult.OK("Chưa xuất kho — không cần hoàn trả.");
-
-            if (_qtChungRepo.DaXuatKho(phieuXuLyId))
-            {
-                stockResult =
-                    _reworkStockService.HoanTraKhoKhiHuy(
-                        phieuXuLyId,
-                        nguoiThucHien);
-
-                if (!stockResult.IsOK)
-                    return stockResult;
-            }
-
-            try
-            {
-                _uow.Begin();
-
-                _phieuXuLyRepo.MarkHuy(
-                    phieuXuLyId,
-                    lyDoHuy,
-                    nguoiThucHien);
-
-                _uow.Commit();
-            }
-            catch (Exception ex)
-            {
-                SafeRollback();
-
-                return ScanResult.Fail(
-                    "Lỗi cập nhật trạng thái huỷ: " + ex.Message);
-            }
-
-            return ScanResult.OK(
-                $"Đã huỷ QT chung (Id={phieuXuLyId}). " +
-                stockResult.Message);
-        }
-
-
-        // ════════════════════════════════════════════════════════════════
-        // 11. TRA CỨU
-        // ════════════════════════════════════════════════════════════════
-        public PhieuXuLyBatThuong GetById(int phieuXuLyId)
-            => _phieuXuLyRepo.GetById(phieuXuLyId);
-
-        public QTChungStatus GetTrangThai(int phieuXuLyId)
-            => RequirePhieu(phieuXuLyId).Status;
-
-        public List<QTChungTimelineItem> GetTimeline(int phieuXuLyId)
-            => _qtChungRepo.GetTimeline(phieuXuLyId);
-
-
-        // ════════════════════════════════════════════════════════════════
-        // 12. HELPERS
-        // ════════════════════════════════════════════════════════════════
-
-        private PhieuXuLyBatThuong RequirePhieu(int phieuXuLyId)
-        {
-            var phieu = _phieuXuLyRepo.GetById(phieuXuLyId);
+            var phieu = _repo.GetById(phieuXuLyId);
 
             if (phieu == null)
             {
                 throw new InvalidOperationException(
-                    $"Không tìm thấy phiếu xử lý bất thường Id={phieuXuLyId}.");
+                    $"Không tìm thấy PhieuXuLyBatThuong Id={phieuXuLyId}.");
             }
 
             return phieu;
         }
 
 
-        private static void RequireTransition(
-            QTChungStatus from,
-            QTChungStatus to)
+        private static void ValidateNguoiThucHien(
+            string nguoiThucHien)
         {
-            if (!QTChungStatusTransition.IsValid(from, to))
+            if (string.IsNullOrWhiteSpace(nguoiThucHien))
             {
-                throw new InvalidOperationException(
-                    $"Không thể chuyển trạng thái {from} → {to}.");
+                throw new ArgumentException(
+                    "NguoiThucHien không được rỗng.",
+                    nameof(nguoiThucHien));
             }
         }
 
 
-        /// <summary>
-        /// Cập nhật trạng thái best-effort.
-        ///
-        /// Không throw nếu:
-        /// - Không tìm thấy phiếu
-        /// - Trạng thái đã là target
-        /// - Transition không hợp lệ
-        ///
-        /// Dùng cho các mốc có thể được gọi nhiều lần,
-        /// ví dụ xuất kho nhiều LOT hoặc nhập NG nhiều lần.
-        /// </summary>
-        private void TryUpdateStatus(
-            int phieuXuLyId,
-            QTChungStatus target,
-            string nguoiThucHien)
+        private void ValidateTransition(
+            PhieuXuLyBatThuong phieu,
+            QTChungStatus to)
         {
-            var phieu = _phieuXuLyRepo.GetById(phieuXuLyId);
-
-            if (phieu == null)
-                return;
-
-            if (phieu.Status == target)
-                return;
-
-            if (!QTChungStatusTransition.IsValid(
-                    phieu.Status,
-                    target))
+            if (!_workflow.CanTransition(ProcessCodeQTChung, (int)phieu.Status, (int)to))
             {
-                return;
-            }
-
-            try
-            {
-                _uow.Begin();
-
-                _phieuXuLyRepo.UpdateStatus(
-                    phieuXuLyId,
-                    target,
-                    nguoiThucHien);
-
-                _uow.Commit();
-            }
-            catch
-            {
-                SafeRollback();
+                throw new InvalidOperationException(
+                    $"Workflow không cho phép chuyển QT Chung {phieu.Status} → {to} cho PhieuXuLyBatThuong Id={phieu.Id}.");
             }
         }
 
@@ -752,7 +100,920 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             }
             catch
             {
-                // Không throw lỗi rollback đè lên lỗi gốc.
+                // Không che lỗi nghiệp vụ/database ban đầu.
+            }
+        }
+
+
+        // ============================================================
+        // 1. TẠO PHIẾU XỬ LÝ BẤT THƯỜNG
+        //
+        // Moi
+        //   ↓
+        // DaTaoPhieuBatThuong
+        // ============================================================
+
+        public int TaoPhieuXuLyBatThuong(
+            int phieuTraHangCTId,
+            string model,
+            string phanLoaiXuLy,
+            string boPhanPhatHanh,
+            string nguoiThucHien)
+        {
+            if (phieuTraHangCTId <= 0)
+            {
+                throw new ArgumentException(
+                    "phieuTraHangCTId không hợp lệ.",
+                    nameof(phieuTraHangCTId));
+            }
+
+            if (string.IsNullOrWhiteSpace(model))
+                throw new ArgumentException(
+                    "Model không được rỗng.",
+                    nameof(model));
+
+            if (string.IsNullOrWhiteSpace(phanLoaiXuLy))
+                throw new ArgumentException(
+                    "PhanLoaiXuLy không được rỗng.",
+                    nameof(phanLoaiXuLy));
+
+            if (string.IsNullOrWhiteSpace(boPhanPhatHanh))
+                throw new ArgumentException(
+                    "BoPhanPhatHanh không được rỗng.",
+                    nameof(boPhanPhatHanh));
+
+            ValidateNguoiThucHien(nguoiThucHien);
+
+            var p = new PhieuXuLyBatThuong
+            {
+                Model = model.Trim(),
+                PhanLoaiXuLy = phanLoaiXuLy.Trim(),
+                BoPhanPhatHanh = boPhanPhatHanh.Trim(),
+
+                Status = QTChungStatus.Moi,
+
+                CreatedBy = nguoiThucHien.Trim()
+            };
+
+            try
+            {
+                _uow.Begin();
+
+                var id = _repo.Insert(
+                    phieuTraHangCTId,
+                    p);
+
+                // Repository Insert tạo trạng thái Moi.
+                //
+                // Sau khi insert thành công:
+                //
+                // Moi
+                //   ↓
+                // DaTaoPhieuBatThuong
+
+                _repo.UpdateStatus(
+                    id,
+                    QTChungStatus.DaTaoPhieuBatThuong,
+                    nguoiThucHien);
+
+                _uow.Commit();
+
+                return id;
+            }
+            catch
+            {
+                SafeRollback();
+                throw;
+            }
+        }
+
+
+        // ============================================================
+        // 2. QC ĐỊNH HƯỚNG
+        //
+        // DaTaoPhieuBatThuong
+        //          ↓
+        //     DaDinhHuong
+        //
+        // Sau đó branch mới bắt đầu.
+        // ============================================================
+
+        public ScanResult QCDinhHuong(
+            int phieuXuLyId,
+            HuongXuLyBatThuong huong,
+            string nguoiThucHien)
+        {
+            ValidateNguoiThucHien(nguoiThucHien);
+
+            var phieu = GetRequired(phieuXuLyId);
+
+            if (phieu.Status !=
+                QTChungStatus.DaTaoPhieuBatThuong)
+            {
+                return ScanResult.Fail(
+                    $"QT Chung hiện tại là {phieu.Status}. " +
+                    "Chỉ được định hướng khi đang " +
+                    "DaTaoPhieuBatThuong.");
+            }
+
+            switch (huong)
+            {
+                case HuongXuLyBatThuong.TuChoiGiaoBu:
+                case HuongXuLyBatThuong.ChiGiaoBu:
+                case HuongXuLyBatThuong.CanRework:
+                    break;
+
+                default:
+                    return ScanResult.Fail(
+                        $"Hướng xử lý {huong} không hợp lệ.");
+            }
+
+            if (!_workflow.CanTransition(ProcessCodeQTChung, (int)phieu.Status, (int)QTChungStatus.DaDinhHuong))
+            {
+                return ScanResult.Fail(
+                    $"Không thể chuyển {phieu.Status} → " +
+                    $"{QTChungStatus.DaDinhHuong}.");
+            }
+
+            try
+            {
+                _uow.Begin();
+
+                // Ghi hướng xử lý trước.
+                _repo.UpdateDinhHuong(
+                    phieuXuLyId,
+                    huong,
+                    nguoiThucHien);
+
+                // Sau đó mới chuyển state.
+                _repo.UpdateStatus(
+                    phieuXuLyId,
+                    QTChungStatus.DaDinhHuong,
+                    nguoiThucHien);
+
+                _uow.Commit();
+
+                return ScanResult.OK(
+                    $"Đã định hướng {huong}.");
+            }
+            catch
+            {
+                SafeRollback();
+                throw;
+            }
+        }
+
+
+        // ============================================================
+        // 3. TRA CỨU LOT REWORK
+        //
+        // Phần này KHÔNG thể implementation bằng
+        // IPhieuXuLyBatThuongRepository hiện tại.
+        //
+        // Cần repository nghiệp vụ Lot/Stock riêng.
+        // ============================================================
+
+        public List<LotInfo> GetLotsCanRework(
+            int phieuXuLyId)
+        {
+            var phieu = GetRequired(phieuXuLyId);
+
+            if (phieu.HuongXuLy !=
+                HuongXuLyBatThuong.CanRework)
+            {
+                throw new InvalidOperationException(
+                    "Chỉ phiếu có hướng CanRework " +
+                    "mới được tra cứu Lot rework.");
+            }
+
+            throw new NotImplementedException(
+                "Cần repository Lot/Stock để lấy danh sách Lot rework.");
+        }
+
+
+        // ============================================================
+        // 4. XUẤT KHO REWORK
+        //
+        // DaDinhHuong
+        //      ↓
+        // DaXuatKhoRework
+        // ============================================================
+
+        public ScanResult XuatKhoRework(int phieuXuLyId, int slotId, string lotNo, int soLuong, string nguoiXuat)
+        {
+            ValidateNguoiThucHien(nguoiXuat);
+            if (slotId <= 0) return ScanResult.Fail("SlotId không hợp lệ.");
+            if (string.IsNullOrWhiteSpace(lotNo)) return ScanResult.Fail("LotNo không được rỗng.");
+            if (soLuong <= 0) return ScanResult.Fail("SoLuong phải lớn hơn 0.");
+
+            var phieu = GetRequired(phieuXuLyId);
+            if (phieu.HuongXuLy != HuongXuLyBatThuong.CanRework)
+                return ScanResult.Fail("Chỉ phiếu có hướng CanRework mới được xuất kho rework.");
+
+            ValidateTransition(phieu, QTChungStatus.DaXuatKhoRework);
+
+            try
+            {
+                _uow.Begin(); // depth=1 (hoặc tăng nếu ReworkStockService cũng Begin bên trong — vẫn OK nhờ reentrant)
+
+                // ReworkStockService.XuatKhoRework tự Begin/Commit nội bộ — với UOW reentrant,
+                // Commit của nó chỉ giảm depth, KHÔNG commit thật cho tới khi ra khỏi method này.
+                var result = _reworkStockService.XuatKhoRework(phieuXuLyId, slotId, lotNo, soLuong, nguoiXuat);
+                if (!result.IsOK)
+                {
+                    SafeRollback();
+                    return result;
+                }
+
+                _repo.UpdateStatus(phieuXuLyId, QTChungStatus.DaXuatKhoRework, nguoiXuat);
+                _uow.Commit();
+                return result;
+            }
+            catch (Exception ex)
+            {
+                SafeRollback();
+                return ScanResult.Fail("Lỗi xuất kho rework: " + ex.Message);
+            }
+        }
+
+
+        // ============================================================
+        // 5. GIAO HÀNG REWORK
+        //
+        // DaXuatKhoRework
+        //      ↓
+        // DaGiaoSanXuat
+        // ============================================================
+
+        public ScanResult GiaoHangRework(
+            int phieuXuLyId,
+            List<LotInfo> lots,
+            string ngayGiao,
+            string nguoiNhan,
+            string boPhanNhan)
+        {
+            ValidateNguoiThucHien(nguoiNhan);
+
+            if (lots == null || lots.Count == 0)
+                return ScanResult.Fail(
+                    "Danh sách Lot giao rework không được rỗng.");
+
+            if (string.IsNullOrWhiteSpace(ngayGiao))
+                return ScanResult.Fail(
+                    "NgayGiao không được rỗng.");
+
+            if (string.IsNullOrWhiteSpace(boPhanNhan))
+                return ScanResult.Fail(
+                    "BoPhanNhan không được rỗng.");
+
+            var phieu = GetRequired(phieuXuLyId);
+
+            if (phieu.HuongXuLy !=
+                HuongXuLyBatThuong.CanRework)
+            {
+                return ScanResult.Fail(
+                    "Chỉ phiếu CanRework mới được giao sản xuất.");
+            }
+
+            if (!_workflow.CanTransition(ProcessCodeQTChung, (int)phieu.Status, (int)QTChungStatus.DaGiaoSanXuat))
+            {
+                return ScanResult.Fail(
+                    $"Không thể chuyển {phieu.Status} → " +
+                    $"{QTChungStatus.DaGiaoSanXuat}.");
+            }
+
+            throw new NotImplementedException(
+                "Cần repository giao hàng/rework hiện tại.");
+        }
+
+
+        // ============================================================
+        // 6. GHI NHẬN ĐANG REWORK
+        //
+        // KHÔNG đổi QTChungStatus.
+        // ============================================================
+
+        public void GhiNhanDangRework(
+            int phieuXuLyId,
+            string ghiChu,
+            string nguoiThucHien)
+        {
+            ValidateNguoiThucHien(nguoiThucHien);
+
+            var phieu = GetRequired(phieuXuLyId);
+
+            if (phieu.HuongXuLy !=
+                HuongXuLyBatThuong.CanRework)
+            {
+                throw new InvalidOperationException(
+                    "Chỉ phiếu CanRework mới được ghi nhận rework.");
+            }
+
+            if (phieu.Status !=
+                QTChungStatus.DaGiaoSanXuat)
+            {
+                throw new InvalidOperationException(
+                    $"Không thể ghi nhận đang rework " +
+                    $"khi QT Chung đang {phieu.Status}.");
+            }
+
+            /*
+             * Đây là nghiệp vụ thông tin.
+             *
+             * Không được:
+             *
+             * Status = DangRework
+             *
+             * Vì enum không có state này.
+             *
+             * Cần repository lưu ghi chú/log rework
+             * nếu hệ thống có.
+             */
+
+            throw new NotImplementedException(
+                "Cần repository ghi nhận thông tin rework.");
+        }
+
+
+        // ============================================================
+        // 7. QC XÁC NHẬN CUỐI
+        //
+        // DaGiaoSanXuat
+        //      ↓
+        // DaQCXacNhanCuoi
+        //
+        // NG = 0:
+        //      DaQCXacNhanCuoi → HoanTat
+        //
+        // NG > 0:
+        //      DaQCXacNhanCuoi
+        //          ↓
+        //      DaNhapLaiKho
+        // ============================================================
+
+        public ScanResult QCXacNhanCuoi(
+        int phieuXuLyId,
+        int soLuongOK,
+        int soLuongNG,
+        string nguoiQC,
+        int? slotIdOK = null,   // ✅ bắt buộc nếu soLuongOK > 0
+        int? slotIdNG = null,   // ✅ bắt buộc nếu soLuongNG > 0
+        string lotNo = null)   // ✅ LOT nhập lại
+        {
+            ValidateNguoiThucHien(nguoiQC);
+
+            if (soLuongOK < 0) return ScanResult.Fail("SoLuongOK không hợp lệ.");
+            if (soLuongNG < 0) return ScanResult.Fail("SoLuongNG không hợp lệ.");
+            if (soLuongOK == 0 && soLuongNG == 0)
+                return ScanResult.Fail("Kết quả QC phải có OK hoặc NG.");
+
+            // ✅ Validate slot khi có OK/NG
+            if (soLuongOK > 0 && (!slotIdOK.HasValue || slotIdOK <= 0))
+                return ScanResult.Fail("Phải chỉ định SlotIdOK khi có hàng OK.");
+            if (soLuongNG > 0 && (!slotIdNG.HasValue || slotIdNG <= 0))
+                return ScanResult.Fail("Phải chỉ định SlotIdNG khi có hàng NG.");
+            if ((soLuongOK > 0 || soLuongNG > 0) && string.IsNullOrWhiteSpace(lotNo))
+                return ScanResult.Fail("LotNo không được rỗng.");
+
+            var phieu = GetRequired(phieuXuLyId);
+
+            if (phieu.HuongXuLy != HuongXuLyBatThuong.CanRework)
+                return ScanResult.Fail(
+                    "QC xác nhận cuối chỉ áp dụng cho nhánh CanRework.");
+
+            if (!_workflow.CanTransition(ProcessCodeQTChung, (int)phieu.Status, (int)QTChungStatus.DaQCXacNhanCuoi))
+                return ScanResult.Fail(
+                    $"Không thể chuyển {phieu.Status} → DaQCXacNhanCuoi.");
+
+            try
+            {
+                _uow.Begin();
+
+                // ── 1. Ghi kết quả QC ────────────────────────────────────────
+                int qcId = _traHangQTChungRepository.InsertQC(new TraHangQTChungQC
+                {
+                    PhieuXuLyBatThuongId = phieuXuLyId,
+                    SoLuongDaRework = soLuongOK + soLuongNG,
+                    SoLuongOK = soLuongOK,
+                    SoLuongNG = soLuongNG,
+                    DaKiemTraTem = false,
+                    NguoiQC = nguoiQC
+                });
+
+                _repo.UpdateStatus(
+                    phieuXuLyId,
+                    QTChungStatus.DaQCXacNhanCuoi,
+                    nguoiQC);
+
+                // ── 2. Nhập lại hàng OK (bất kể có NG hay không) ─────────────
+                if (soLuongOK > 0)
+                {
+                    var okResult = _reworkStockService.NhapLaiHangOK(
+                        phieuXuLyId, lotNo, soLuongOK,
+                        slotIdOK.Value, nguoiQC);
+
+                    if (!okResult.IsOK)
+                    {
+                        SafeRollback();
+                        return ScanResult.Fail(
+                            "Lỗi nhập lại hàng OK: " + okResult.Message);
+                    }
+                }
+
+                // ── 3. Rẽ nhánh theo NG ──────────────────────────────────────
+                if (soLuongNG == 0)
+                {
+                    // ✅ Không có NG → HoanTat luôn
+                    _repo.UpdateStatus(
+                        phieuXuLyId, QTChungStatus.HoanTat, nguoiQC);
+
+                    TryHoanTatHeader(phieu.PhieuTraHangId, nguoiQC);
+
+                    _uow.Commit();
+                    return ScanResult.OK(
+                        $"QC xác nhận (QcId={qcId}): " +
+                        $"OK={soLuongOK}, NG=0. QT chung hoàn tất.");
+                }
+                else
+                {
+                    // ✅ Có NG → nhập lại NG, rồi mới HoanTat
+                    var ngResult = _reworkStockService.NhapLaiHangNG(
+                        phieuXuLyId, lotNo, soLuongNG,
+                        slotIdOK, slotIdNG, nguoiQC);
+
+                    if (!ngResult.IsOK)
+                    {
+                        SafeRollback();
+                        return ScanResult.Fail(
+                            "Lỗi nhập lại hàng NG: " + ngResult.Message);
+                    }
+
+                    _repo.UpdateStatus(
+                        phieuXuLyId, QTChungStatus.DaNhapLaiKho, nguoiQC);
+                    _repo.UpdateStatus(
+                        phieuXuLyId, QTChungStatus.HoanTat, nguoiQC);
+
+                    TryHoanTatHeader(phieu.PhieuTraHangId, nguoiQC);
+
+                    _uow.Commit();
+                    return ScanResult.OK(
+                        $"QC xác nhận (QcId={qcId}): " +
+                        $"OK={soLuongOK}, NG={soLuongNG}. " +
+                        $"Đã nhập lại NG. QT chung hoàn tất.");
+                }
+            }
+            catch (Exception ex)
+            {
+                SafeRollback();
+                return ScanResult.Fail(
+                    "Lỗi QC xác nhận cuối: " + ex.Message);
+            }
+        }
+
+
+        // ============================================================
+        // 8. GHI NHẬN KIỂM TRA TEM
+        // ============================================================
+
+        public void GhiNhanKiemTraTem(
+            int qcId,
+            bool daKiemTra)
+        {
+            if (qcId <= 0)
+                throw new ArgumentException(
+                    "qcId không hợp lệ.",
+                    nameof(qcId));
+
+            /*
+             * IPhieuXuLyBatThuongRepository hiện tại
+             * không có method QC.
+             */
+            throw new NotImplementedException(
+                "Cần repository QC/FormInspection hiện tại.");
+        }
+
+
+        // QTChungService.cs — thêm implementation
+        public ScanResult XacNhanChoGiaoBu(int phieuXuLyId, string nguoiThucHien)
+        {
+            ValidateNguoiThucHien(nguoiThucHien);
+            var phieu = GetRequired(phieuXuLyId);
+
+            if (phieu.HuongXuLy != HuongXuLyBatThuong.ChiGiaoBu)
+                return ScanResult.Fail("Chỉ phiếu hướng ChiGiaoBu mới được xác nhận giao bù.");
+
+            ValidateTransition(phieu, QTChungStatus.DaGiaoBu);
+
+            try
+            {
+                _uow.Begin();
+
+                var result = _giaoBuNGService.XacNhanHoanTatGiaoBu(
+                    phieu.PhieuTraHangId ?? 0, nguoiThucHien);
+                if (!result.IsOK)
+                {
+                    SafeRollback();
+                    return result;
+                }
+
+                _repo.UpdateStatus(phieuXuLyId, QTChungStatus.DaGiaoBu, nguoiThucHien);
+                _repo.UpdateStatus(phieuXuLyId, QTChungStatus.HoanTat, nguoiThucHien);
+
+                if (phieu.PhieuTraHangId.HasValue && !_phieuTraHangRepo.ConChoXuLy(phieu.PhieuTraHangId.Value))
+                {
+                    var header = _phieuTraHangRepo.GetById(phieu.PhieuTraHangId.Value);
+                    if (header?.Status == PhieuTraHangStatus.DangXuLyQTChung)
+                        _phieuTraHangRepo.UpdateStatus(header.Id, PhieuTraHangStatus.HoanTat, nguoiThucHien);
+                }
+
+                _uow.Commit();
+                return result;
+            }
+            catch (Exception ex)
+            {
+                SafeRollback();
+                return ScanResult.Fail("Lỗi xác nhận giao bù: " + ex.Message);
+            }
+        }
+        public ScanResult DanhDauChoGiaoBu(int phieuXuLyId, string nguoiThucHien)
+        {
+            ValidateNguoiThucHien(nguoiThucHien);
+            var phieu = GetRequired(phieuXuLyId);
+            if (phieu.HuongXuLy != HuongXuLyBatThuong.ChiGiaoBu)
+                return ScanResult.Fail("Chỉ phiếu hướng ChiGiaoBu mới được đánh dấu chờ giao bù.");
+            ValidateTransition(phieu, QTChungStatus.ChoGiaoBu);
+
+            try
+            {
+                _uow.Begin();
+                UpdateStatusWithConcurrencyCheck(phieuXuLyId, phieu.Status, QTChungStatus.ChoGiaoBu, nguoiThucHien);
+                _uow.Commit();
+                return ScanResult.OK("Đã chuyển sang chờ giao bù.");
+            }
+            catch (Exception ex) { SafeRollback(); return ScanResult.Fail(ex.Message); }
+        }
+        // ============================================================
+        // 9. NHẬP LẠI HÀNG NG
+        //
+        // DaQCXacNhanCuoi
+        //      ↓
+        // DaNhapLaiKho
+        // ============================================================
+
+        public ScanResult NhapLaiHangNG(int phieuXuLyId, string lotNo, int soLuongNG,
+     int? slotIdOK, int? slotIdNG, string nguoiNhap)
+        {
+            ValidateNguoiThucHien(nguoiNhap);
+            if (string.IsNullOrWhiteSpace(lotNo)) return ScanResult.Fail("LotNo không được rỗng.");
+            if (soLuongNG <= 0) return ScanResult.Fail("SoLuongNG phải lớn hơn 0.");
+
+            var phieu = GetRequired(phieuXuLyId);
+            if (phieu.Status != QTChungStatus.DaQCXacNhanCuoi)
+                return ScanResult.Fail($"Chỉ được nhập lại hàng NG khi QT Chung đang DaQCXacNhanCuoi. Hiện tại: {phieu.Status}.");
+
+            ValidateTransition(phieu, QTChungStatus.DaNhapLaiKho);
+
+            try
+            {
+                _uow.Begin();
+
+                var result = _reworkStockService.NhapLaiHangNG(
+                    phieuXuLyId, lotNo, soLuongNG, slotIdOK, slotIdNG, nguoiNhap);
+                if (!result.IsOK)
+                {
+                    SafeRollback();
+                    return result;
+                }
+
+                _repo.UpdateStatus(phieuXuLyId, QTChungStatus.DaNhapLaiKho, nguoiNhap);
+
+                // Sau DaNhapLaiKho: theo QTChungStatusTransition, bước kế tiếp luôn là HoanTat
+                // (ReworkMap[DaNhapLaiKho] chỉ có 1 lối ra). Tự động hoàn tất luôn tại đây.
+                _repo.UpdateStatus(phieuXuLyId, QTChungStatus.HoanTat, nguoiNhap);
+
+                if (phieu.PhieuTraHangId.HasValue && !_phieuTraHangRepo.ConChoXuLy(phieu.PhieuTraHangId.Value))
+                {
+                    var header = _phieuTraHangRepo.GetById(phieu.PhieuTraHangId.Value);
+                    if (header?.Status == PhieuTraHangStatus.DangXuLyQTChung)
+                        _phieuTraHangRepo.UpdateStatus(header.Id, PhieuTraHangStatus.HoanTat, nguoiNhap);
+                }
+
+                _uow.Commit();
+                return result;
+            }
+            catch (Exception ex)
+            {
+                SafeRollback();
+                return ScanResult.Fail("Lỗi nhập lại hàng NG: " + ex.Message);
+            }
+        }
+
+
+        // ============================================================
+        // 10. HOÀN TẤT
+        //
+        // TuChoiGiaoBu → HoanTat
+        // DaGiaoBu      → HoanTat
+        // DaQCXacNhanCuoi → HoanTat
+        // DaNhapLaiKho  → HoanTat
+        // ============================================================
+
+        public ScanResult HoanTat(
+            int phieuXuLyId,
+            string nguoiThucHien)
+        {
+            ValidateNguoiThucHien(nguoiThucHien);
+
+            var phieu = GetRequired(phieuXuLyId);
+
+            if (!_workflow.CanTransition(ProcessCodeQTChung, (int)phieu.Status, (int)QTChungStatus.HoanTat))
+            {
+                return ScanResult.Fail(
+                    $"Không thể chuyển QT Chung " +
+                    $"{phieu.Status} → {QTChungStatus.HoanTat}.");
+            }
+
+            try
+            {
+                _uow.Begin();
+
+                _repo.UpdateStatus(
+                    phieuXuLyId,
+                    QTChungStatus.HoanTat,
+                    nguoiThucHien);
+                if (phieu.PhieuTraHangId.HasValue &&
+                  !_phieuTraHangRepo.ConChoXuLy(phieu.PhieuTraHangId.Value))
+                {
+                    var header = _phieuTraHangRepo.GetById(phieu.PhieuTraHangId.Value);
+                    if (header != null && header.Status == PhieuTraHangStatus.DangXuLyQTChung)
+                    {
+                        _phieuTraHangRepo.UpdateStatus(header.Id, PhieuTraHangStatus.HoanTat, nguoiThucHien);
+                    }
+                }
+                _uow.Commit();
+
+                return ScanResult.OK(
+                    "QT Chung đã hoàn tất.");
+            }
+            catch
+            {
+                SafeRollback();
+                throw;
+            }
+        }
+
+
+        // ============================================================
+        // 11. GIAO LẠI BỘ PHẬN PHÁT HIỆN
+        //
+        // KHÔNG thuộc QTChungStatus.
+        //
+        // Không được UpdateStatus() ở đây.
+        // ============================================================
+
+        public ScanResult GiaoLaiBoPhanPhatHien(
+            int phieuXuLyId,
+            string boPhanNhan,
+            int soLuongGiaoLai,
+            string nguoiThucHien)
+        {
+            ValidateNguoiThucHien(nguoiThucHien);
+
+            if (string.IsNullOrWhiteSpace(boPhanNhan))
+                return ScanResult.Fail(
+                    "BoPhanNhan không được rỗng.");
+
+            if (soLuongGiaoLai <= 0)
+                return ScanResult.Fail(
+                    "SoLuongGiaoLai phải lớn hơn 0.");
+
+            var phieu = GetRequired(phieuXuLyId);
+
+            /*
+             * Đây là nghiệp vụ cấp TraNoiBo / PhieuTraHang.
+             *
+             * QTChungService không có IPhieuTraHangRepository.
+             *
+             * Do đó không được ở đây làm:
+             *
+             * PhieuTraHangStatus.ChoGiaoLaiBoPhan
+             * PhieuTraHangStatus.DaGiaoLaiBoPhan
+             *
+             * Việc đó thuộc TraNoiBoService/Base.
+             */
+
+            throw new InvalidOperationException(
+                $"GiaoLaiBoPhanPhatHien không thuộc state machine " +
+                $"QTChung của PhieuXuLyBatThuong Id={phieu.Id}. " +
+                "Thao tác này phải được thực hiện ở TraNoiBoService.");
+        }
+
+
+        // ============================================================
+        // 12. HUỶ
+        //
+        // Chỉ những state mà Transition cho phép Huy
+        // mới được hủy.
+        // ============================================================
+
+        public ScanResult HuyQTChung(
+  int phieuXuLyId,
+  string lyDoHuy,
+  string nguoiThucHien)
+        {
+            ValidateNguoiThucHien(nguoiThucHien);
+
+            if (string.IsNullOrWhiteSpace(lyDoHuy))
+                return ScanResult.Fail("LyDoHuy không được rỗng.");
+
+            var phieu = GetRequired(phieuXuLyId);
+            ValidateTransition(phieu, QTChungStatus.Huy);
+
+            try
+            {
+                _uow.Begin();
+
+                // UpdateLyDoHuy đã tự làm cả 2 việc trong 1 UPDATE duy nhất:
+                // chuyển Status -> Huy (kèm optimistic concurrency check qua
+                // ExpectedFrom) VÀ ghi LyDoHuy/NgayHuy/NguoiHuy cùng lúc.
+                // KHÔNG gọi UpdateStatusIfCurrentIs riêng nữa — gọi trước nó sẽ
+                // khiến ExpectedFrom ở đây không còn khớp Status thật trong DB
+                // (vì Status đã bị đổi thành Huy ở lần gọi trước đó), làm bước
+                // này luôn báo nhầm "đã bị thay đổi bởi người khác".
+                bool okDetail = _repo.UpdateLyDoHuy(
+                    phieuXuLyId,
+                    phieu.Status, // Status cũ trước khi hủy (ExpectedFrom)
+                    lyDoHuy,
+                    nguoiThucHien);
+
+                if (!okDetail)
+                {
+                    _uow.Rollback();
+                    return ScanResult.Fail($"Trạng thái của phiếu xử lý {phieuXuLyId} đã bị thay đổi bởi người khác — Vui lòng tải lại.");
+                }
+
+                // Kiểm tra và hoàn tất Header nếu không còn phiếu nào chờ xử lý
+                if (phieu.PhieuTraHangId.HasValue &&
+                    !_phieuTraHangRepo.ConChoXuLy(phieu.PhieuTraHangId.Value))
+                {
+                    var header = _phieuTraHangRepo.GetById(phieu.PhieuTraHangId.Value);
+                    if (header != null && header.Status == PhieuTraHangStatus.DangXuLyQTChung)
+                    {
+                        bool okHeader = _phieuTraHangRepo.UpdateStatusIfCurrentIs(
+                            header.Id,
+                            PhieuTraHangStatus.DangXuLyQTChung,
+                            PhieuTraHangStatus.HoanTat,
+                            nguoiThucHien);
+
+                        if (!okHeader)
+                        {
+                            _uow.Rollback();
+                            return ScanResult.Fail($"Trạng thái của phiếu Header {header.Id} đã bị thay đổi bởi người khác trong lúc cập nhật — Vui lòng tải lại.");
+                        }
+                    }
+                }
+
+                _uow.Commit();
+
+                return ScanResult.OK($"Đã hủy QT Chung. Lý do: {lyDoHuy}");
+            }
+            catch (Exception ex)
+            {
+                SafeRollback();
+                return ScanResult.Fail("Lỗi khi thực hiện hủy QT Chung: " + ex.Message);
+            }
+        }
+
+
+        // ============================================================
+        // 13. GET BY ID
+        // ============================================================
+
+        public PhieuXuLyBatThuong GetById(
+            int phieuXuLyId)
+        {
+            return GetRequired(phieuXuLyId);
+        }
+
+
+        // ============================================================
+        // 14. GET STATUS
+        // ============================================================
+
+        //public QTChungStatus GetTrangThai(
+        //    int phieuXuLyId)
+        //{
+        //    GetRequired(phieuXuLyId);
+
+        //    return _repo.GetStatus(phieuXuLyId);
+        //}
+
+        private void UpdateStatusWithConcurrencyCheck(
+        int phieuXuLyId,
+        QTChungStatus expectedFrom,
+        QTChungStatus newStatus,
+        string nguoiThucHien)
+        {
+            bool success = _repo.UpdateStatusIfCurrentIs(phieuXuLyId, expectedFrom, newStatus, nguoiThucHien);
+
+            if (!success)
+            {
+                throw new InvalidOperationException(
+                    $"Trạng thái phiếu {phieuXuLyId} đã bị thay đổi bởi người khác (Kỳ vọng: {expectedFrom}) — Vui lòng tải lại.");
+            }
+        }
+        // ============================================================
+        // 15. GET ALLOWED NEXT
+        // ============================================================
+
+        public IReadOnlyList<QTChungStatus> GetAllowedNext(
+        int phieuXuLyId)
+        {
+            var phieu = GetRequired(phieuXuLyId);
+
+            var result = new List<QTChungStatus>();
+
+            foreach (QTChungStatus candidate in Enum.GetValues(typeof(QTChungStatus)))
+            {
+                if (candidate == phieu.Status)
+                    continue;
+
+                if (!_workflow.CanTransition(ProcessCodeQTChung, (int)phieu.Status, (int)candidate))
+                    continue;
+
+                if (!QTChungBranchMap.IsReachableForHuong(candidate, phieu.HuongXuLy))
+                    continue;
+
+                result.Add(candidate);
+            }
+
+            return result;
+        }
+
+
+        // ============================================================
+        // 16. TIMELINE
+        // ============================================================
+
+        public List<QTChungTimelineItem> GetTimeline(
+            int phieuXuLyId)
+        {
+            GetRequired(phieuXuLyId);
+
+            /*
+             * IPhieuXuLyBatThuongRepository hiện tại
+             * CHƯA có GetTimeline().
+             *
+             * Không được tự gọi một method repository chưa tồn tại.
+             */
+            throw new NotImplementedException(
+                "IPhieuXuLyBatThuongRepository hiện tại chưa cung cấp GetTimeline().");
+        }
+
+        // ✅ Thêm vào QTChungService — dùng chung cho QCXacNhanCuoi, NhapLaiHangNG, XacNhanChoGiaoBu, HuyQTChung
+        private void TryHoanTatHeader(int? phieuTraHangId, string nguoiThucHien)
+        {
+            if (!phieuTraHangId.HasValue) return;
+            if (_phieuTraHangRepo.ConChoXuLy(phieuTraHangId.Value)) return;
+
+            var header = _phieuTraHangRepo.GetById(phieuTraHangId.Value);
+            if (header?.Status == PhieuTraHangStatus.DangXuLyQTChung)
+                _phieuTraHangRepo.UpdateStatus(
+                    header.Id, PhieuTraHangStatus.HoanTat, nguoiThucHien);
+        }
+        /// <summary>
+        /// Thay thế phần "biết trạng thái nào thuộc nhánh xử lý nào" của
+        /// QTChungStatusTransition.cs cũ (ChungMap / TuChoiGiaoBuMap / ChiGiaoBuMap /
+        /// ReworkMap) — đây là phần logic KHÔNG thể chuyển vào bảng
+        /// sys_WorkflowTransitions, vì bảng chỉ biết "trạng thái A -> B có hợp lệ
+        /// về hình thức", không biết B thuộc nhánh HuongXuLy nào.
+        ///
+        /// Suy ra từ comment "NHÁNH 1/2/3" trong file SQL sys_WorkflowTransitions —
+        /// ĐỐI CHIẾU LẠI với QTChungStatusTransition.cs gốc trước khi xoá file đó,
+        /// để đảm bảo danh sách dưới đây khớp 100% logic cũ.
+        /// </summary>
+        internal static class QTChungBranchMap
+        {
+            private static readonly Dictionary<QTChungStatus, HuongXuLyBatThuong> _owner =
+                new Dictionary<QTChungStatus, HuongXuLyBatThuong>
+                {
+            { QTChungStatus.TuChoiGiaoBu,    HuongXuLyBatThuong.TuChoiGiaoBu },
+            { QTChungStatus.ChoGiaoBu,       HuongXuLyBatThuong.ChiGiaoBu },
+            { QTChungStatus.DaGiaoBu,        HuongXuLyBatThuong.ChiGiaoBu },
+            { QTChungStatus.DaXuatKhoRework, HuongXuLyBatThuong.CanRework },
+            { QTChungStatus.DaGiaoSanXuat,   HuongXuLyBatThuong.CanRework },
+            { QTChungStatus.DaQCXacNhanCuoi, HuongXuLyBatThuong.CanRework },
+            { QTChungStatus.DaNhapLaiKho,    HuongXuLyBatThuong.CanRework },
+                    // Moi, DaTaoPhieuBatThuong, DaDinhHuong, HoanTat, Huy:
+                    // dùng chung cho mọi nhánh -> không có mặt trong dictionary này.
+                };
+
+            public static bool IsReachableForHuong(QTChungStatus status, HuongXuLyBatThuong huong)
+            {
+                if (!_owner.TryGetValue(status, out HuongXuLyBatThuong requiredHuong))
+                    return true; // trạng thái dùng chung, không phân biệt nhánh
+
+                return huong == requiredHuong;
             }
         }
     }

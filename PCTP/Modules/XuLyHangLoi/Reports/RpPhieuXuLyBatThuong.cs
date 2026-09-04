@@ -16,6 +16,7 @@ namespace PCTP.VIEWSTOCK.RpIn
     using System.Drawing;
     using DevExpress.XtraReports.UI;
     using DevExpress.XtraPrinting;
+    using PCTP.Modules.XuLyHangLoi.Models;
 
     public partial class RpPhieuXuLyBatThuong : XtraReport
     {

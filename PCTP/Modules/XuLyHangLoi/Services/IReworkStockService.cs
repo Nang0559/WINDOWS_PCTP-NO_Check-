@@ -27,8 +27,21 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             List<LotInfo> GetLotsCanReworkByPhieuXuLy(int phieuXuLyId);
 
             ScanResult XuatKhoRework(int phieuXuLyId, int slotLotId, string lotNo, int soLuong, string nguoiXuat);
-            ScanResult NhapLaiHangNG(int phieuXuLyId, string lotNo, int soLuong, int? slotIdDich, string nguoiNhap);
-            ScanResult HoanTraKhoKhiHuy(int phieuXuLyId, string nguoiThucHien);
+        ScanResult NhapLaiHangNG(
+            int phieuXuLyId,
+            string lotNo,
+            int soLuongNG,
+            int? slotIdOK,
+            int? slotIdNG,
+            string nguoiNhap);
+        // Cộng STOCKTP + Slot, ghi lịch sử "NHAP_LAI_SAU_REWORK"
+        ScanResult NhapLaiHangOK(
+            int phieuXuLyId,
+            string lotNo,
+            int soLuongOK,
+            int slotIdOK,
+            string nguoiNhap);
+        ScanResult HoanTraKhoKhiHuy(int phieuXuLyId, string nguoiThucHien);
         }
 
         

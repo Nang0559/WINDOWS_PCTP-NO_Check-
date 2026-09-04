@@ -10,8 +10,9 @@ namespace PCTP.Modules.XuatKho.Models
     public sealed class StockExportRequest
     {
         public string LotNo { get; set; }
-        public string MaHang { get; set; }
-        public int SoLuong { get; set; }
+        public string ItemCode { get; set; }
+        public int Quantity { get; set; }
+        public string PhieuGiaoId { get; set; }
 
         public StockExportSource Source { get; set; }
         public StockTransactionType Purpose { get; set; }

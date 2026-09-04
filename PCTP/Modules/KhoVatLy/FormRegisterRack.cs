@@ -1,5 +1,6 @@
 ﻿using DevExpress.XtraEditors;
 using PCTP.ClassSQL;
+using PCTP.Modules.KhoVatLy.Application.Interfaces;
 using PCTP.VIEWSTOCK.Fuction;
 using System;
 using System.Collections.Generic;
@@ -17,25 +18,25 @@ namespace PCTP.VIEWSTOCK
 {
     public partial class FormRegisterRack : DevExpress.XtraEditors.XtraForm
     {
-        private SQLPROVIDER sql = new SQLPROVIDER();
-         
-        
-        CheckInfor checkInfor = new CheckInfor();
-        public string whName => txtWarehouseName.Text.Trim();
+        private readonly IWarehouseService _warehouseService;
+
+        public string WhName => txtWarehouseName.Text.Trim();
         public string RackName => txtRackName.Text.Trim();
-        
         public int RowCount => (int)spinRowCount.Value;
         public int ColumnCount => (int)spinColumnCount.Value;
-        public int SlotCount => RowCount * ColumnCount;
         public int SlotCapacity => (int)spinCapacity.Value;
-        public FormRegisterRack()
+
+        public FormRegisterRack(IWarehouseService warehouseService)
         {
+            _warehouseService = warehouseService
+                ?? throw new ArgumentNullException(nameof(warehouseService));
+
             InitializeComponent();
         }
 
         private void btnOK_Click(object sender, EventArgs e)
         {
-            if (string.IsNullOrWhiteSpace(txtWarehouseName.Text)) // ✅ thêm check tên kho
+            if (string.IsNullOrWhiteSpace(txtWarehouseName.Text))
             {
                 XtraMessageBox.Show("Vui lòng nhập tên Kho!", "Thông báo",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
@@ -53,7 +54,7 @@ namespace PCTP.VIEWSTOCK
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
-            if (spinCapacity.Value <= 0) // ✅ bắt buộc nhập capacity
+            if (SlotCapacity <= 0)
             {
                 XtraMessageBox.Show("Sức chứa mỗi Slot phải lớn hơn 0!", "Thông báo",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
@@ -71,15 +72,23 @@ namespace PCTP.VIEWSTOCK
             this.Close();
         }
 
+        // ✅ Gọi service thay vì CheckInfor tự SQL
         private void txtWarehouseName_Leave(object sender, EventArgs e)
         {
             string name = txtWarehouseName.Text.Trim();
             if (string.IsNullOrWhiteSpace(name)) return;
 
-            if (checkInfor.IsWarehouseExists(whName))
-                checkInfor.LoadWarehouseData(whName, cmbRack);
+            if (_warehouseService.Exists(name))
+            {
+                var rackNames = _warehouseService.GetRackNames(name); // trả List<string>
+                cmbRack.Items.Clear();
+                cmbRack.Items.AddRange(rackNames.ToArray());
+            }
             else
-                MessageBox.Show("Warehouse không tồn tại!");
+            {
+                XtraMessageBox.Show("Warehouse không tồn tại! (Sẽ được tạo mới khi bấm OK)",
+                    "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
         }
     }
 }

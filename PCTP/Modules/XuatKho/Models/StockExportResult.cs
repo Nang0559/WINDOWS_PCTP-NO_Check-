@@ -16,7 +16,8 @@ namespace PCTP.Modules.XuatKho.Models
             Status == StockExportStatus.Success;
 
         public string Message { get; private set; }
-
+        public string RemainingLotNo { get; set; }
+        public int RemainingQuantity { get; set; }
         /// <summary>
         /// Danh sách LOT/thùng thực tế đã xuất.
         /// Một request có thể tạo nhiều item nếu xuất từ nhiều slot.

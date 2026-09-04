@@ -4,6 +4,11 @@ using DevExpress.XtraGrid.Columns;
 using DevExpress.XtraGrid.Views.Grid;
 using PCTP.ClassSQL;
 using PCTP.Domain.Entities;
+using PCTP.Modules.KhoCore.Models;
+using PCTP.Modules.KhoVatLy.Application.Interfaces;
+using PCTP.Modules.XuLyHangLoi.Models;
+using PCTP.Modules.XuLyHangLoi.Repository;
+using PCTP.Shared.Enums;
 using PCTP.VIEWSTOCK.Repository;
 using System;
 using System.Collections.Generic;
@@ -27,8 +32,8 @@ namespace PCTP.VIEWSTOCK.ViewForm
     /// </summary>
     public partial class FormChonSlotNoiBo : XtraForm
     {
-        private readonly SQLPROVIDER _sql = new SQLPROVIDER();
-        private readonly IPhieuLoiRepository _repo;
+        private readonly ISlotService _slotSvc;   // ✅ thay SQLPROVIDER
+        private readonly IPhieuXuLyBatThuongRepository _repo;
 
         private GridControl _grid;
         private GridView _gridView;
@@ -48,9 +53,10 @@ namespace PCTP.VIEWSTOCK.ViewForm
 
         private DataRow _selectedRow;
 
-        public FormChonSlotNoiBo(IPhieuLoiRepository repo)
+        public FormChonSlotNoiBo(IPhieuXuLyBatThuongRepository repo,ISlotService slotSvc)
         {
             _repo = repo ?? throw new ArgumentNullException(nameof(repo));
+            _slotSvc = slotSvc ?? throw new ArgumentNullException(nameof(slotSvc));
             InitializeComponent();
             BuildUI();
             LoadData();
@@ -196,17 +202,10 @@ namespace PCTP.VIEWSTOCK.ViewForm
         // ════════════════════════════════════════════════════════════════
         private void LoadData()
         {
-            const string sql = @"
-                SELECT s.SlotId, w.Name AS WarehouseName, r.RackName, s.SlotNumber,
-                       sl.ItemCode, sl.LotNo, sl.Quantity, sl.TemCode
-                FROM SlotLot sl
-                JOIN Slot s ON s.SlotId = sl.SlotId
-                JOIN Rack r ON r.RackId = s.RackId
-                JOIN Warehouse w ON w.WarehouseId = r.WarehouseId
-                WHERE sl.Quantity > 0
-                ORDER BY w.Name, r.RackName, s.SlotNumber, sl.LotNo";
+            // ✅ Không còn raw SQL — gọi Kho Core qua ISlotService
+            var list = _slotSvc.GetAllActiveSlotLots();
 
-            DataTable dt = _sql.LoadData1(_sql.B7R2_FCCdbb, sql);
+            var dt = ToDataTable(list); // helper convert List<SlotLotViewInfo> -> DataTable cho GridControl
             _grid.DataSource = dt;
             _gridView.BestFitColumns();
 
@@ -303,7 +302,7 @@ namespace PCTP.VIEWSTOCK.ViewForm
 
                 var p = new PhieuXuLyBatThuong
                 {
-                    Nguon = NguonPhieuBatThuong.NoiBo,
+                    Nguon = NguonXuLyBatThuong.TraNoiBo,      // ✅ khớp enum của IPhieuXuLyBatThuongRepository
                     SlotIdNguon = slotId,
                     LotNguon = _txtSoLo.Text.Trim(),
                     Model = _txtModel.Text.Trim(),
@@ -316,7 +315,8 @@ namespace PCTP.VIEWSTOCK.ViewForm
                     BoPhanPhatHanh = _txtNguoiPhatHien.Text.Trim()
                 };
 
-                int id = _repo.InsertPhieuXuLyBatThuongNoiBo(p);
+                // ✅ đổi tên method: TaoPhieuNoiBo thay vì InsertPhieuXuLyBatThuongNoiBo
+                int id = _repo.TaoPhieuNoiBo(p);
                 p.Id = id;
 
                 DialogResult = DialogResult.OK;
@@ -327,6 +327,25 @@ namespace PCTP.VIEWSTOCK.ViewForm
                 XtraMessageBox.Show($"Lỗi tạo phiếu:\n{ex.Message}", "Lỗi",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+        }
+
+        private static DataTable ToDataTable(List<SlotLotViewInfo> list)
+        {
+            var dt = new DataTable();
+            dt.Columns.Add("SlotId", typeof(int));
+            dt.Columns.Add("SlotLotId", typeof(int));
+            dt.Columns.Add("WarehouseName", typeof(string));
+            dt.Columns.Add("RackName", typeof(string));
+            dt.Columns.Add("SlotNumber", typeof(int));
+            dt.Columns.Add("ItemCode", typeof(string));
+            dt.Columns.Add("LotNo", typeof(string));
+            dt.Columns.Add("Quantity", typeof(int));
+            dt.Columns.Add("TemCode", typeof(string));
+
+            foreach (var x in list)
+                dt.Rows.Add(x.SlotId, x.SlotLotId, x.WarehouseName, x.RackName,
+                            x.SlotNumber, x.ItemCode, x.LotNo, x.Quantity, x.TemCode);
+            return dt;
         }
     }
 }

@@ -4,7 +4,12 @@ using DevExpress.XtraEditors;
 using DevExpress.XtraReports.UI;
 using DevExpress.XtraSplashScreen;
 using PCTP.ClassSQL;
+using PCTP.Modules.KhoVatLy.Application.Interfaces;
+using PCTP.Modules.KhoVatLy.Kho.Models;
+using PCTP.Modules.XuatKho.Interfaces;
+using PCTP.Modules.XuatKho.Models;
 using PCTP.QRCODE_HVN.Report;
+using PCTP.Shared.Services;
 using PCTP.VIEWSTOCK.Fuction;
 using PCTP.VIEWSTOCK.FunctionForm;
 using PCTP.VIEWSTOCK.Models;
@@ -61,16 +66,23 @@ namespace PCTP.VIEWSTOCK
         private TableLayoutPanel contentPanel;
         private MainStockSV _mainStockForm;
 
-        private readonly StockService _stockService = new StockService();
-        private readonly ITraHangRepository _traHangRepo =
-        new TraHangRepository(new SQLPROVIDER());   // ← THÊM
+
+        private readonly ISlotService _slotService;
+        private readonly IStockExportService _exportService;
+        private readonly IPrintService _printService;
+        
         private readonly string _phieuGiaoId;
-        public ExportFormSV(Slot slot, string rackname, string whName, MainStockSV mainStockForm, string phieuGiaoId = null)
+        public ExportFormSV(Slot slot, string rackname, string whName, MainStockSV mainStockForm,
+            ISlotService slotService, IStockExportService exportService, IPrintService printService,
+            string phieuGiaoId = null)
         {
             this.whname = whName;
             this.rackName = rackname;
             this.slot = slot;
             this._phieuGiaoId = phieuGiaoId;
+            _slotService = slotService;
+            _exportService = exportService;
+            _printService = printService;
             this.Text = "XUẤT KHO - FVN";
             this.Size = new Size(450, 420);
             this.StartPosition = FormStartPosition.CenterParent;
@@ -220,7 +232,7 @@ namespace PCTP.VIEWSTOCK
             string itemCode = lblItemCode.Text;
             int exportQty = Convert.ToInt32(spinExportQty.Value);
 
-            var slots = _stockService.GetAvailableSlotsForImport(itemCode, exportQty);
+            var slots = _slotService.GetEmptySlots(itemCode, exportQty);
 
             listBoxSlots.Items.Clear();
             foreach (var s in slots)
@@ -262,9 +274,9 @@ namespace PCTP.VIEWSTOCK
                 return;
 
             // Load Lot mới nhất
-            slot.Lots = _stockService.GetSlotLots(slot.SlotId);
+            slot.Lots = _slotService.GetLots(slot.SlotId);
 
-            var printData = _stockService.CreatePrintData(slot.Lots);
+            var printData = _printService.CreatePrintData(slot.Lots);
 
             lblItemCode.Text = printData.ItemCode;
             lblQty.Text = printData.Quantity.ToString();
@@ -347,106 +359,65 @@ namespace PCTP.VIEWSTOCK
 
         private bool ExportToSameSlot(int qty)
         {
-            string lotGocTruocKhiXuat = slot.LotNo;
-            // Xuất tại chỗ: trừ Lot, lưu phần còn lại vào Slot hiện tại, ghi lịch sử xuất.
-            var result = _stockService.ExportFromSlot(slot.SlotId, qty, slot.ItemCode, actionType: "PICK_CHO_GIAO");
-            // ── THÊM: ghi nhận "chờ giao" cho từng LOT đã thực sự bị xuất ─────────
-            GhiNhanChoGiao(result.ExportLots, slot.SlotId);
-            // Đồng bộ object đang hiển thị (Lots/Quantity/ItemCode/ImportDate/IsOccupied)
-            _stockService.SyncSlotFromSplitResult(slot, result);
+            var result = _exportService.PickToChoGiao(new StockExportRequest
+            {
+                SlotId = slot.SlotId,
+                Quantity = qty,
+                ItemCode = slot.ItemCode,
+                PhieuGiaoId = _phieuGiaoId
+            });
 
+            if (!result.IsOK) { MessageBox.Show(result.Message); return false; }
+
+            // Đồng bộ object hiển thị — đọc lại từ DB thay vì tự sync tay
+            slot.Lots = _slotService.GetLots(slot.SlotId);
+            slot.Quantity = LotNoHelper.GetTotalQuantity(slot.Lots);
+            slot.IsOccupied = slot.Quantity > 0;
             return true;
         }
 
         private bool ExportToOtherSlot(int qty)
         {
-            if (listBoxSlots.SelectedItem == null)
+            if (listBoxSlots.SelectedItem == null) { MessageBox.Show("Vui lòng chọn vị trí."); return false; }
+
+            var pickResult = _exportService.PickToChoGiao(new StockExportRequest
             {
-                MessageBox.Show("Vui lòng chọn vị trí để chuyển phần hàng còn lại.");
-                return false;
+                SlotId = slot.SlotId,
+                Quantity = qty,
+                ItemCode = slot.ItemCode,
+                PhieuGiaoId = _phieuGiaoId
+            });
+
+            if (!pickResult.IsOK) { MessageBox.Show(pickResult.Message); return false; }
+
+            if (pickResult.RemainingQuantity > 0)
+            {
+                int toSlotId = _slotService.GetSlotIdFromString(listBoxSlots.SelectedItem.ToString());
+                _slotService.MoveLot(slot.SlotId, toSlotId, pickResult.RemainingLotNo);
             }
 
-            string itemCode = slot.ItemCode;
-            string selectedSlotText = listBoxSlots.SelectedItem.ToString();
-            int slotIdNguon = slot.SlotId;
-            // Xuất qty từ slot hiện tại + chuyển toàn bộ phần dư sang slot đích + xoá slot nguồn,
-            // kèm ghi lịch sử EXPORT (phần xuất) và MOVE (phần dư) — tất cả trong 1 lời gọi.
-            var moveResult = _stockService.ExportAndMoveRemaining(
-                slot.SlotId,
-                selectedSlotText,
-                qty,
-                itemCode, actionType: "PICK_CHO_GIAO");
-
-            if (!moveResult.Success)
-            {
-                MessageBox.Show(moveResult.Message);
-                return false;
-            }
-            // ── THÊM: ghi nhận "chờ giao" cho phần đã thực xuất ────────────────────
-            GhiNhanChoGiao(moveResult.Split.ExportLots, slotIdNguon);
-            // Slot nguồn đã bị xoá sạch trong DB -> đồng bộ lại object hiển thị trên form.
-            _stockService.ClearSlotTemporarily(slot);
-
+            _slotService.ClearSlotTemporarily(slot);
             return true;
         }
 
         private void BtnPrint_Click(object sender, EventArgs e)
         {
             int slXuat = Convert.ToInt32(spinExportQty.Value);
+            if (slXuat <= 0) { XtraMessageBox.Show("Vui lòng nhập số lượng xuất."); return; }
 
-            if (slXuat <= 0)
-            {
-                XtraMessageBox.Show("Vui lòng nhập số lượng xuất.");
-                return;
-            }
-
-            string productName = _stockService.GetProductNameByCode(slot.ItemCode);
-
-            List<PXuatINModel> dataSource;
             try
             {
-                // BuildExportPreview tự lấy Lot mới nhất và tách theo slXuat — chỉ để preview,
-                // KHÔNG lưu DB (giữ đúng hành vi gốc: bấm "In phiếu" không làm thay đổi tồn kho).
-                dataSource = _stockService.BuildExportPreview(slot, slXuat, productName, nguoiThucHien: "");
+                var dataSource = _printService.BuildExportPreview(
+                    slot.SlotId, slot.SlotNumber, slXuat, slot.ItemCode, nguoiThucHien: "");
+
+                var report = new RpInNhapKho { DataSource = dataSource };
+                new ReportPrintTool(report).ShowPreviewDialog();
             }
             catch (InvalidOperationException ex)
             {
                 XtraMessageBox.Show(ex.Message);
-                return;
-            }
-
-            //--------------------------------------------------------
-            // Preview
-            //--------------------------------------------------------
-
-            RpInNhapKho report = new RpInNhapKho();
-            report.DataSource = dataSource;
-
-            new ReportPrintTool(report)
-                .ShowPreviewDialog();
-        }
-
-        /// <summary>
-        /// Ghi 1 dòng TMPCHOGIAO cho mỗi LotInfo vừa được tách ra để xuất — dùng LotInfo.LotNo
-        /// làm LotGoc và LotInfo.TemCode (nếu có) làm LotThung tham chiếu, để sau này nếu phát
-        /// hiện NG trước khi xe rời kho, có thể huỷ đúng phần này (HuyChoGiaoVeSanXuat).
-        /// </summary>
-        private void GhiNhanChoGiao(List<LotInfo> exportedLots, int slotIdNguon)
-        {
-            if (exportedLots == null) return;
-
-            foreach (var lot in exportedLots)
-            {
-                if (lot.Quantity <= 0) continue;
-
-                _traHangRepo.InsertChoGiao(
-                    slotIdNguon: slotIdNguon,
-                    lotThung: string.IsNullOrWhiteSpace(lot.TemCode) ? lot.LotNo : lot.TemCode,
-                    lotGoc: lot.LotNo,
-                    maHang: slot.ItemCode,
-                    soLuong: lot.Quantity,
-                    phieuGiaoId: _phieuGiaoId);
             }
         }
+
     }
 }

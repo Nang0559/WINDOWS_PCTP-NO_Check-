@@ -19,17 +19,17 @@ namespace PCTP.Modules.XuLyHangLoi.Models
     {
         public int Id { get; set; }
 
-        public int PhieuXuLyId { get; set; }
+        public int PhieuXuLyBatThuongId { get; set; }
 
-        public string LotNo { get; set; }
+        public string LotGiao { get; set; }
 
         public string MaHang { get; set; }
 
-        public int SoLuong { get; set; }
+        public int SoLuongGiao { get; set; }
 
         public DateTime ThoiGian { get; set; }
 
-        public string NguoiGiao { get; set; }
+        public string NgayGiao { get; set; }
 
         public string NguoiNhan { get; set; }
 

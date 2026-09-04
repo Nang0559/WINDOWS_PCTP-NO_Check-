@@ -3,6 +3,7 @@ using DevExpress.XtraGrid;
 using DevExpress.XtraGrid.Columns;
 using DevExpress.XtraGrid.Views.Grid;
 using PCTP.ClassSQL;
+using PCTP.Modules.KhoCore.Interfaces;
 using PCTP.VIEWSTOCK.Fuction;
 using PCTP.VIEWSTOCK.Models;
 using System;
@@ -22,7 +23,7 @@ namespace PCTP.VIEWSTOCK.ViewForm
     {
         private readonly QRCodeInfo _temTong;
         private readonly InspectionConfig _config;
-        private readonly SQLPROVIDER _sql = new SQLPROVIDER();
+        private readonly IInspectionService _inspSvc;  // ✅ inject
         private readonly string _inspectionCode;
 
         private int _requiredQty;
@@ -37,11 +38,13 @@ namespace PCTP.VIEWSTOCK.ViewForm
 
         public bool InspectionPassed { get; private set; } = false;
 
-        public FormInspection(QRCodeInfo temTong, InspectionConfig config)
+        public FormInspection(QRCodeInfo temTong, InspectionConfig config, IInspectionService inspSvc)
         {
             InitializeComponent();
             _temTong = temTong;
             _config = config;
+            _inspSvc = inspSvc
+            ?? throw new ArgumentNullException(nameof(inspSvc));
             _requiredQty = config.DefaultQty;
             _inspectionCode = $"INS-{DateTime.Now:yyyyMMddHHmmss}";
             BuildUI();
@@ -198,12 +201,7 @@ namespace PCTP.VIEWSTOCK.ViewForm
             };
             _btnFail.Appearance.BackColor = Color.IndianRed;
             _btnFail.Appearance.ForeColor = Color.White;
-            _btnFail.Click += (s, ev) =>
-            {
-                SaveLog("FAIL");
-                this.DialogResult = DialogResult.Cancel;
-                this.Close();
-            };
+            _btnFail.Click += BtnFail_Click;
 
             _btnCancel = new SimpleButton { Text = "Huỷ", Width = 80, Height = 36 };
             _btnCancel.Click += (s, ev) =>
@@ -229,56 +227,35 @@ namespace PCTP.VIEWSTOCK.ViewForm
             _txtBoxScan.Clear();
             if (string.IsNullOrEmpty(raw)) return;
 
-            QRCodeInfo box;
-            try
-            {
-                box = QRCodeParser.ParseQRCode(raw.ToUpper());
-            }
+            // ✅ Gọi Service thay vì tự parse + so sánh
+            var result = _inspSvc.Inspect(
+                _temTong, _config,
+                new[] { raw });
+
+            if (result.Details.Count == 0) return;
+
+            var box = result.Details[0];
+
+            // Cảnh báo tem tổng
+            QRCodeInfo parsed;
+            try { parsed = QRCodeParser.ParseQRCode(raw.ToUpper()); }
             catch
             {
                 XtraMessageBox.Show("Tem không đúng định dạng!",
                     "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                e.Handled = true;
                 return;
             }
 
-            // ✅ Cảnh báo bắn nhầm tem tổng
-            if (box.IsTongPhieu)
+            if (parsed.IsTongPhieu)
             {
                 XtraMessageBox.Show("Đây là tem TỔNG! Vui lòng bắn tem THÙNG.",
                     "Sai loại tem", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                e.Handled = true;
                 return;
             }
 
-            // ✅ So sánh với tem tổng
-            var mismatches = new List<string>();
-
-            if (_config.CheckItemCode &&
-                !string.Equals(box.ItemCode, _temTong.ItemCode, StringComparison.OrdinalIgnoreCase))
-                mismatches.Add($"Mã hàng [{box.ItemCode} ≠ {_temTong.ItemCode}]");
-
-            if (_config.CheckLotNo)
-            {
-                // So sánh 10 ký tự đầu LotNo
-                string lotT = _temTong.LotNo.Length >= 10 ? _temTong.LotNo.Substring(0, 10) : _temTong.LotNo;
-                string lotB = box.LotNo.Length >= 10 ? box.LotNo.Substring(0, 10) : box.LotNo;
-                if (!string.Equals(lotT, lotB, StringComparison.OrdinalIgnoreCase))
-                    mismatches.Add($"LotNo [{box.LotNo} ≠ {_temTong.LotNo}]");
-            }
-
-            if (_config.CheckNSX &&
-                !string.Equals(box.NgaySX, _temTong.NgaySX, StringComparison.OrdinalIgnoreCase))
-                mismatches.Add($"Ngày SX [{box.NgaySX} ≠ {_temTong.NgaySX}]");
-
-            var result = new BoxScanResult
-            {
-                TemCode = box.LotNo,
-                ItemCode = box.ItemCode,
-                NSX = box.NgaySX,
-                IsMatch = mismatches.Count == 0,
-                MismatchFields = string.Join(" | ", mismatches)
-            };
-
-            _scannedBoxes.Add(result);
+            _scannedBoxes.Add(box);
             _grid.RefreshDataSource();
             _gridView.FocusedRowHandle = _gridView.RowCount - 1;
 
@@ -309,42 +286,20 @@ namespace PCTP.VIEWSTOCK.ViewForm
 
         private void BtnConfirmOK_Click(object sender, EventArgs e)
         {
-            SaveLog("PASS");
+            // ✅ Gọi Service thay vì tự ghi SQL
+            _inspSvc.SaveLog(
+                _inspectionCode, _temTong, _scannedBoxes, "PASS");
             InspectionPassed = true;
             this.DialogResult = DialogResult.OK;
             this.Close();
         }
 
-        private void SaveLog(string finalResult)
+        private void BtnFail_Click(object sender, EventArgs e)
         {
-            foreach (var box in _scannedBoxes)
-            {
-                _sql.ExecuteScalar(_sql.B7R2_FCCdbb, @"
-                INSERT INTO InspectionLog
-                    (InspectionCode, ItemCode, TemCodeTong, LotNoTong, NSXTong,
-                     SoLuongTong, BoxTemCode, BoxLotNo, BoxNSX,
-                     IsMatch, CheckedAt, FinalResult, MaPhieu)
-                VALUES
-                    (@InspectionCode, @ItemCode, @TemCodeTong, @LotNoTong, @NSXTong,
-                     @SoLuongTong, @BoxTemCode, @BoxLotNo, @BoxNSX,
-                     @IsMatch, @CheckedAt, @FinalResult, @MaPhieu)",
-                    new SqlParameter[]
-                    {
-                    new SqlParameter("@InspectionCode", SqlDbType.NVarChar) { Value = _inspectionCode },
-                    new SqlParameter("@ItemCode",       SqlDbType.NVarChar) { Value = _temTong.ItemCode },
-                    new SqlParameter("@TemCodeTong",    SqlDbType.NVarChar) { Value = _temTong.LotNo },
-                    new SqlParameter("@LotNoTong",      SqlDbType.NVarChar) { Value = (object)_temTong.LotNo   ?? DBNull.Value },
-                    new SqlParameter("@NSXTong",        SqlDbType.NVarChar) { Value = (object)_temTong.NgaySX  ?? DBNull.Value },
-                    new SqlParameter("@SoLuongTong",    SqlDbType.Int)      { Value = _temTong.Quantity },
-                    new SqlParameter("@BoxTemCode",     SqlDbType.NVarChar) { Value = (object)box.TemCode      ?? DBNull.Value },
-                    new SqlParameter("@BoxLotNo",       SqlDbType.NVarChar) { Value = (object)box.TemCode      ?? DBNull.Value },
-                    new SqlParameter("@BoxNSX",         SqlDbType.NVarChar) { Value = (object)box.NSX          ?? DBNull.Value },
-                    new SqlParameter("@IsMatch",        SqlDbType.Bit)      { Value = box.IsMatch },
-                    new SqlParameter("@CheckedAt",      SqlDbType.DateTime) { Value = DateTime.Now },
-                    new SqlParameter("@FinalResult",    SqlDbType.NVarChar) { Value = finalResult },
-                    new SqlParameter("@MaPhieu",        SqlDbType.NVarChar) { Value = (object)_temTong.MaPhieu ?? DBNull.Value },
-                    });
-            }
+            _inspSvc.SaveLog(
+                _inspectionCode, _temTong, _scannedBoxes, "FAIL");
+            this.DialogResult = DialogResult.Cancel;
+            this.Close();
         }
 
         // Helper tạo ô thông tin

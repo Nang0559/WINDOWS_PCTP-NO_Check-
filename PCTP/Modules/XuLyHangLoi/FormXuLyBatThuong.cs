@@ -6,6 +6,8 @@ using DevExpress.XtraGrid.Views.Grid;
 using DevExpress.XtraReports.UI;
 using PCTP.Domain.Entities;
 using PCTP.Models;
+using PCTP.Modules.XuLyHangLoi.Models;
+using PCTP.Modules.XuLyHangLoi.Repository;
 using PCTP.VIEWSTOCK.Repository;
 using PCTP.VIEWSTOCK.RpIn;
 using System;
@@ -31,7 +33,7 @@ namespace PCTP.VIEWSTOCK.ViewForm
 
     public partial class FormXuLyBatThuong : XtraForm
     {
-        private readonly IPhieuLoiRepository _repo;
+        private readonly IPhieuTraHangRepository _repo;
         private readonly XuLyBatThuongMode _mode;
         private readonly int? _preselectId;
 
@@ -74,7 +76,7 @@ namespace PCTP.VIEWSTOCK.ViewForm
         private PanelControl _pnlChiTiet;
 
         // ── Constructor chính ─────────────────────────────────────────────
-        public FormXuLyBatThuong(IPhieuLoiRepository repo, XuLyBatThuongMode mode, int? preselectId = null)
+        public FormXuLyBatThuong(IPhieuTraHangRepository repo, XuLyBatThuongMode mode, int? preselectId = null)
         {
             _repo = repo;
             _mode = mode;
@@ -85,7 +87,7 @@ namespace PCTP.VIEWSTOCK.ViewForm
         }
 
         // Constructor quá tải tương thích ngược (mặc định về DinhHuong)
-        public FormXuLyBatThuong(IPhieuLoiRepository repo, int? preselectId = null)
+        public FormXuLyBatThuong(IPhieuTraHangRepository repo, int? preselectId = null)
             : this(repo, XuLyBatThuongMode.DinhHuong, preselectId)
         {
         }
@@ -442,7 +444,7 @@ namespace PCTP.VIEWSTOCK.ViewForm
             try
             {
                 if (_mode == XuLyBatThuongMode.DinhHuong)
-                    _dsPhieu = _repo.GetDanhSachChoQCDinhHuong(); // TrangThai = ChoQC
+                    _dsPhieu = _repo.ge(); // TrangThai = ChoQC
                 else
                     _dsPhieu = _repo.GetDanhSachChoQCXacNhanCuoi(); // TrangThai = ChoQCXacNhanCuoi
             }

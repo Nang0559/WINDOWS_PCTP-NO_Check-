@@ -3,6 +3,8 @@ using DevExpress.XtraGrid;
 using DevExpress.XtraGrid.Columns;
 using DevExpress.XtraGrid.Views.Grid;
 using PCTP.ClassSQL;
+using PCTP.Modules.KhoCore.Repositories;
+using PCTP.Modules.KhoVatLy.Application.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -18,7 +20,8 @@ namespace PCTP.VIEWSTOCK.ViewForm
 {
     public partial class FormInspectionHistory : DevExpress.XtraEditors.XtraForm
     {
-        private readonly SQLPROVIDER _sql = new SQLPROVIDER();
+        private readonly IInspectionLogRepository _logRepo;
+        private readonly IWarehouseService _warehouseSvc;
 
         private DateEdit _dtFrom, _dtTo;
         private SearchLookUpEdit _cmbItemCode; // ✅ thay TextEdit
@@ -28,9 +31,11 @@ namespace PCTP.VIEWSTOCK.ViewForm
         private LabelControl _lblSummary;
         private DataTable _dtItems;     // ✅ thêm
 
-        public FormInspectionHistory()
+        public FormInspectionHistory(IInspectionLogRepository logRepo, IWarehouseService warehouseSvc)
         {
             InitializeComponent();
+            _logRepo = logRepo ?? throw new ArgumentNullException(nameof(logRepo));
+            _warehouseSvc = warehouseSvc ?? throw new ArgumentNullException(nameof(warehouseSvc));
             LoadItems(); // ✅ load trước khi BuildUI
             BuildUI();
             _dtFrom.DateTime = DateTime.Today.AddDays(-7);
@@ -43,12 +48,7 @@ namespace PCTP.VIEWSTOCK.ViewForm
         {
             try
             {
-                _dtItems = _sql.LoadData1(_sql.B7R2_FCCdb, @"
-                SELECT Code, Name 
-                FROM   B20Item
-                WHERE  IsActive = 1
-                  AND  IsGroup  = 0
-                ORDER  BY Code");
+                _dtItems = _warehouseSvc.GetActiveItemList();
             }
             catch
             {
@@ -284,81 +284,30 @@ namespace PCTP.VIEWSTOCK.ViewForm
         {
             DateTime from = _dtFrom.DateTime.Date;
             DateTime to = _dtTo.DateTime.Date.AddDays(1).AddSeconds(-1);
-            string itemCode = _cmbItemCode.EditValue?.ToString(); // ✅ từ lookup
+            string itemCode = _cmbItemCode.EditValue?.ToString();
             string result = _cmbResult.EditValue?.ToString();
 
-            string where = "WHERE CheckedAt BETWEEN @From AND @To";
-            if (!string.IsNullOrEmpty(itemCode))
-                where += " AND ItemCode = @ItemCode"; // ✅ = chính xác vì đã chọn từ list
-            if (result != "Tất cả" && !string.IsNullOrEmpty(result))
-                where += " AND FinalResult = @Result";
-
-            string queryMaster = $@"
-            SELECT 
-                InspectionCode,
-                MAX(ItemCode)    AS ItemCode,
-                MAX(LotNoTong)   AS LotNoTong,
-                MAX(NSXTong)     AS NSXTong,
-                MAX(SoLuongTong) AS SoLuongTong,
-                MAX(MaPhieu)     AS MaPhieu,
-                COUNT(*)         AS TotalBox,
-                SUM(CASE WHEN IsMatch = 1 THEN 1 ELSE 0 END) AS PassCount,
-                SUM(CASE WHEN IsMatch = 0 THEN 1 ELSE 0 END) AS FailCount,
-                MAX(FinalResult) AS FinalResult,
-                MIN(CheckedAt)   AS CheckedAt
-            FROM InspectionLog
-            {where}
-            GROUP BY InspectionCode
-            ORDER BY MIN(CheckedAt) DESC";
-
-            var paramList = new List<SqlParameter>
-        {
-            new SqlParameter("@From", SqlDbType.DateTime) { Value = from },
-            new SqlParameter("@To",   SqlDbType.DateTime) { Value = to   }
-        };
-            if (!string.IsNullOrEmpty(itemCode))
-                paramList.Add(new SqlParameter("@ItemCode", SqlDbType.NVarChar)
-                { Value = itemCode });
-            if (result != "Tất cả" && !string.IsNullOrEmpty(result))
-                paramList.Add(new SqlParameter("@Result", SqlDbType.NVarChar)
-                { Value = result });
-
-            var dt = _sql.LoadData1(_sql.B7R2_FCCdbb, queryMaster, paramList.ToArray());
+            var dt = _logRepo.GetHistoryMaster(from, to, itemCode, result);
             _gridMaster.DataSource = dt;
 
             int total = dt.Rows.Count;
-            int passCount = dt.AsEnumerable()
-                .Count(r => r["FinalResult"]?.ToString() == "PASS");
-            int failCount = dt.AsEnumerable()
-                .Count(r => r["FinalResult"]?.ToString() == "FAIL");
+            int passCount = dt.AsEnumerable().Count(r => r["FinalResult"]?.ToString() == "PASS");
+            int failCount = dt.AsEnumerable().Count(r => r["FinalResult"]?.ToString() == "FAIL");
 
-            _lblSummary.Text =
-                $"Tổng phiên: {total}   |   ✅ PASS: {passCount}   |   ❌ FAIL: {failCount}";
-
+            _lblSummary.Text = $"Tổng phiên: {total}   |   ✅ PASS: {passCount}   |   ❌ FAIL: {failCount}";
             _gridDetail.DataSource = null;
         }
 
         private void ViewMaster_FocusedRowChanged(object sender,
             DevExpress.XtraGrid.Views.Base.FocusedRowChangedEventArgs e)
         {
-            var row = _viewMaster.GetFocusedRow() as System.Data.DataRowView;
+            var row = _viewMaster.GetFocusedRow() as DataRowView;
             if (row == null) return;
 
             string inspCode = row["InspectionCode"]?.ToString();
             if (string.IsNullOrEmpty(inspCode)) return;
 
-            string queryDetail = @"
-            SELECT BoxLotNo, BoxNSX, IsMatch,
-                   MismatchFields, CheckedAt
-            FROM   InspectionLog
-            WHERE  InspectionCode = @Code
-            ORDER  BY LogId";
-
-            var dt = _sql.LoadData1(_sql.B7R2_FCCdbb, queryDetail,
-                new[] { new SqlParameter("@Code", SqlDbType.NVarChar)
-                { Value = inspCode } });
-
-            _gridDetail.DataSource = dt;
+            _gridDetail.DataSource = _logRepo.GetHistoryDetail(inspCode);
         }
 
         private void BtnExport_Click(object sender, EventArgs e)

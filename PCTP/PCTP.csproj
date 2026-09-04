@@ -88,6 +88,7 @@
     <Reference Include="DevExpress.CodeParser.v25.2, Version=25.2.4.0, Culture=neutral, PublicKeyToken=b88d1754d700e49a" />
     <Reference Include="DevExpress.Data.Desktop.v25.2, Version=25.2.4.0, Culture=neutral, PublicKeyToken=b88d1754d700e49a" />
     <Reference Include="DevExpress.Data.v25.2, Version=25.2.4.0, Culture=neutral, PublicKeyToken=b88d1754d700e49a" />
+    <Reference Include="DevExpress.Diagram.v25.2.Core, Version=25.2.4.0, Culture=neutral, PublicKeyToken=b88d1754d700e49a, processorArchitecture=MSIL" />
     <Reference Include="DevExpress.Drawing.v25.2, Version=25.2.4.0, Culture=neutral, PublicKeyToken=b88d1754d700e49a" />
     <Reference Include="DevExpress.DataAccess.v25.2, Version=25.2.4.0, Culture=neutral, PublicKeyToken=b88d1754d700e49a" />
     <Reference Include="DevExpress.Images.v25.2, Version=25.2.4.0, Culture=neutral, PublicKeyToken=b88d1754d700e49a, processorArchitecture=MSIL" />
@@ -108,6 +109,7 @@
     <Reference Include="DevExpress.XtraCharts.v25.2, Version=25.2.4.0, Culture=neutral, PublicKeyToken=b88d1754d700e49a, processorArchitecture=MSIL" />
     <Reference Include="DevExpress.XtraCharts.v25.2.UI, Version=25.2.4.0, Culture=neutral, PublicKeyToken=b88d1754d700e49a, processorArchitecture=MSIL" />
     <Reference Include="DevExpress.XtraCharts.v25.2.Wizard, Version=25.2.4.0, Culture=neutral, PublicKeyToken=b88d1754d700e49a, processorArchitecture=MSIL" />
+    <Reference Include="DevExpress.XtraDiagram.v25.2, Version=25.2.4.0, Culture=neutral, PublicKeyToken=b88d1754d700e49a, processorArchitecture=MSIL" />
     <Reference Include="DevExpress.XtraEditors.v25.2, Version=25.2.4.0, Culture=neutral, PublicKeyToken=b88d1754d700e49a, processorArchitecture=MSIL" />
     <Reference Include="DevExpress.XtraGauges.v25.2.Core, Version=25.2.4.0, Culture=neutral, PublicKeyToken=b88d1754d700e49a, processorArchitecture=MSIL" />
     <Reference Include="DevExpress.XtraGrid.v25.2, Version=25.2.4.0, Culture=neutral, PublicKeyToken=b88d1754d700e49a, processorArchitecture=MSIL" />
@@ -178,6 +180,9 @@
     <Reference Include="System.Design" />
     <Reference Include="System.Drawing.Common, Version=8.0.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
       <HintPath>..\packages\System.Drawing.Common.8.0.4\lib\net462\System.Drawing.Common.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Linq.Dynamic.Core, Version=1.7.3.0, Culture=neutral, PublicKeyToken=0f07ec44de6ac832, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Linq.Dynamic.Core.1.7.3\lib\net46\System.Linq.Dynamic.Core.dll</HintPath>
     </Reference>
     <Reference Include="System.Memory, Version=4.0.1.2, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
       <HintPath>..\packages\System.Memory.4.5.5\lib\net461\System.Memory.dll</HintPath>
@@ -259,31 +264,33 @@
       <DependentUpon>WaitForm3.cs</DependentUpon>
     </Compile>
     <Compile Include="ALLVAR.cs" />
-    <Compile Include="Application\Services\DocQRService.cs" />
-    <Compile Include="Application\Services\InPhieuService.cs" />
-    <Compile Include="Application\Services\PhieuService.cs" />
-    <Compile Include="B7R2_FCCDataSet.Designer.cs">
-      <AutoGen>True</AutoGen>
-      <DesignTime>True</DesignTime>
-      <DependentUpon>B7R2_FCCDataSet.xsd</DependentUpon>
-    </Compile>
+    <Compile Include="Modules\GiaoHangKhach\Services\DocQRService.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Services\InPhieuService.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Services\PhieuService.cs" />
     <Compile Include="ClassFunction.cs" />
     <Compile Include="Domain\Interfaces\IOrderLoadStrategy.cs" />
-    <Compile Include="Modules\KhoVatLy\Kho\Interfaces\IStockService.cs" />
-    <Compile Include="Modules\KhoVatLy\Kho\Models\LotInfo.cs" />
-    <Compile Include="Modules\KhoVatLy\Kho\Models\SlotLotInfo.cs" />
-    <Compile Include="Modules\KhoVatLy\Kho\Services\StockService.cs" />
-    <Compile Include="Modules\KhoVatLy\Kho\Models\SlotInfo.cs" />
+    <Compile Include="Modules\KhoCore\Interfaces\IInspectionConfigService.cs" />
+    <Compile Include="Modules\KhoCore\Interfaces\IInspectionService.cs" />
+    <Compile Include="Modules\KhoCore\Models\InspectionLogEntry.cs" />
+    <Compile Include="Modules\KhoCore\Models\InspectionResult.cs" />
+    <Compile Include="Modules\KhoCore\Models\LotInfo.cs" />
+    <Compile Include="Modules\KhoCore\Models\SlotLotInfo.cs" />
+    <Compile Include="Modules\KhoCore\Models\SlotInfo.cs" />
+    <Compile Include="Modules\KhoCore\Models\SlotLotViewInfo.cs" />
+    <Compile Include="Modules\KhoCore\Repositories\IInspectionConfigRepository.cs" />
+    <Compile Include="Modules\KhoCore\Repositories\IInspectionLogRepository.cs" />
+    <Compile Include="Modules\KhoCore\Repositories\InspectionConfigRepository.cs" />
+    <Compile Include="Modules\KhoCore\Repositories\InspectionLogRepository.cs" />
+    <Compile Include="Modules\KhoCore\Services\InspectionConfigService.cs" />
+    <Compile Include="Modules\KhoCore\Services\InspectionService.cs" />
     <Compile Include="Modules\KhoVatLy\NhapTpModuleFactory.cs" />
-    <Compile Include="Modules\KhoVatLy\Kho\Repositories\BulkStockSlotRepository.cs" />
-    <Compile Include="Modules\KhoVatLy\Kho\Repositories\IBulkStockSlotRepository.cs" />
+    <Compile Include="Modules\KhoCore\Repositories\BulkStockSlotRepository.cs" />
+    <Compile Include="Modules\KhoCore\Repositories\IBulkStockSlotRepository.cs" />
     <Compile Include="Modules\NhapKho\Models\StockImportPurpose.cs" />
     <Compile Include="Modules\NhapKho\Models\StockImportRequest.cs" />
     <Compile Include="Modules\NhapKho\Interfaces\IStockTpRepository.cs" />
-    <Compile Include="Legacy_Archive\ClassSQL\Class_DH.cs" />
     <Compile Include="Infrastructure\Sql\DataAccessException.cs" />
     <Compile Include="Infrastructure\Sql\DataAccessStatus.cs" />
-    <Compile Include="Legacy_Archive\ClassSQL\IClass_DH.cs" />
     <Compile Include="Infrastructure\Sql\SQL.cs" />
     <Compile Include="ClsResize.cs" />
     <Compile Include="Modules\GiaoHangKhach\IFSOrderLoad\IfsOrderLoadStrategy.cs" />
@@ -313,9 +320,9 @@
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="Modules\GiaoHangKhach\TableOrderLoad\OrderTableLoadStrategy.cs" />
-    <Compile Include="Modules\KhoVatLy\Application\Helpers\SlotParser.cs" />
-    <Compile Include="Modules\KhoVatLy\Kho\Repositories\StockHistoryRepository.cs" />
-    <Compile Include="Modules\KhoVatLy\Kho\Repositories\IStockHistoryRepository.cs" />
+    <Compile Include="Modules\KhoCore\Helpers\SlotParser.cs" />
+    <Compile Include="Modules\KhoCore\Repositories\StockHistoryRepository.cs" />
+    <Compile Include="Modules\KhoCore\Repositories\IStockHistoryRepository.cs" />
     <Compile Include="Modules\NhapKho\Interfaces\IStockTpCaseRepository.cs" />
     <Compile Include="Modules\NhapKho\Interfaces\IStockTpProductionRepository.cs" />
     <Compile Include="Modules\NhapKho\Interfaces\IStockTpStatusRepository.cs" />
@@ -344,10 +351,33 @@
     <Compile Include="Modules\XuatKho\Repositories\StockExportRepository.cs" />
     <Compile Include="Modules\XuatKho\Services\StockExportValidationService.cs" />
     <Compile Include="Modules\XuatKho\Services\StockExportService.cs" />
-    <Compile Include="Modules\XuLyHangLoi\Enum\QTChungStatus.cs" />
-    <Compile Include="Modules\XuLyHangLoi\Models\QTChungStatusTransition.cs" />
-    <Compile Include="Modules\XuLyHangLoi\Repository\PhieuTraHangStatusTransition.cs" />
+    <Compile Include="Modules\XuLyHangLoi\Enums\HuongXuLyBatThuong.cs" />
+    <Compile Include="Modules\XuLyHangLoi\Enums\NguonKhachTra.cs" />
+    <Compile Include="Modules\XuLyHangLoi\Enums\NguonXuLyBatThuongExtensions.cs" />
+    <Compile Include="Modules\XuLyHangLoi\Enums\QTChungStatus.cs" />
+    <Compile Include="Modules\XuLyHangLoi\FormNhapLaiHangNG.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Modules\XuLyHangLoi\FormNhapLaiHangNG.Designer.cs">
+      <DependentUpon>FormNhapLaiHangNG.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Modules\XuLyHangLoi\FormQCDinhHuong.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Modules\XuLyHangLoi\FormQCXacNhanCuoi.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Modules\XuLyHangLoi\FormReworkProcess.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Modules\XuLyHangLoi\FormTaoPhieuTraNoiBo.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Modules\XuLyHangLoi\FormTiepNhanPhieuKhachTra.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="Modules\XuLyHangLoi\Services\GiaoBuNGService.cs" />
+    <Compile Include="Modules\XuLyHangLoi\Services\IQTChungService.cs" />
     <Compile Include="Modules\XuLyHangLoi\Services\IReworkStockService.cs" />
     <Compile Include="Modules\XuLyHangLoi\Services\IXuLyHangLoiService.cs" />
     <Compile Include="Modules\XuLyHangLoi\Services\KhachTraHangService.cs" />
@@ -357,9 +387,9 @@
     <Compile Include="Modules\XuLyHangLoi\Services\XuLyHangLoiServiceBase.cs" />
     <Compile Include="Shared\Models\HangChoGiao.cs" />
     <Compile Include="Modules\XuLyHangLoi\Models\PhieuGiaoUngVienInfo.cs" />
-    <Compile Include="Modules\XuLyHangLoi\Models\PhieuKhachTra.cs" />
-    <Compile Include="Modules\XuLyHangLoi\Models\PhieuKhachTraItem.cs" />
-    <Compile Include="Modules\XuLyHangLoi\Enum\PhieuTraHangStatus.cs" />
+    <Compile Include="Modules\XuLyHangLoi\Models\PhieuTraHang.cs" />
+    <Compile Include="Modules\XuLyHangLoi\Models\PhieuTraHangCT.cs" />
+    <Compile Include="Modules\XuLyHangLoi\Enums\PhieuTraHangStatus.cs" />
     <Compile Include="Modules\XuLyHangLoi\Models\PhieuXuLyBatThuong.cs" />
     <Compile Include="Modules\XuLyHangLoi\Models\QTChungTimelineItem.cs" />
     <Compile Include="Modules\XuLyHangLoi\Models\TraHangQTChungGiao.cs" />
@@ -368,31 +398,29 @@
     <Compile Include="Modules\XuLyHangLoi\Models\TraHangQTChungXuat.cs" />
     <Compile Include="Modules\XuLyHangLoi\QTChungHoanTatEvent.cs" />
     <Compile Include="Modules\XuLyHangLoi\Repository\IPhieuGiaoRepository.cs" />
-    <Compile Include="Modules\XuLyHangLoi\Repository\IPhieuKhachTraRepository.cs" />
+    <Compile Include="Modules\XuLyHangLoi\Repository\IPhieuTraHangRepository.cs" />
     <Compile Include="Modules\XuLyHangLoi\Repository\IPhieuXuLyBatThuongRepository.cs" />
-    <Compile Include="Modules\XuLyHangLoi\Repository\IStockTpReturnRepository.cs" />
     <Compile Include="Modules\XuLyHangLoi\Repository\ITraHangQTChungRepository.cs" />
     <Compile Include="Modules\XuLyHangLoi\Repository\PhieuGiaoRepository.cs" />
-    <Compile Include="Modules\XuLyHangLoi\Repository\PhieuKhachTraRepository.cs" />
+    <Compile Include="Modules\XuLyHangLoi\Repository\PhieuTraHangRepository.cs" />
     <Compile Include="Modules\XuLyHangLoi\Repository\PhieuXuLyBatThuongRepository.cs" />
     <Compile Include="Modules\XuLyHangLoi\Repository\TraHangQTChungRepository.cs" />
     <Compile Include="Modules\XuLyHangLoi\Services\IGiaoBuNGService.cs" />
     <Compile Include="Modules\XuLyHangLoi\Services\IKhachTraHangService.cs" />
-    <Compile Include="Modules\XuLyHangLoi\Services\IQTChungService.cs" />
     <Compile Include="Modules\XuLyHangLoi\Services\ITraNoiBoService.cs" />
     <Compile Include="Shared\Common\DbValueHelper.cs" />
-    <Compile Include="Modules\KhoVatLy\Kho\Interfaces\IRackService.cs" />
-    <Compile Include="Modules\KhoVatLy\Kho\Interfaces\ISlotService.cs" />
-    <Compile Include="Modules\KhoVatLy\Kho\Interfaces\IWarehouseService.cs" />
-    <Compile Include="Modules\KhoVatLy\Kho\Services\RackService.cs" />
-    <Compile Include="Modules\KhoVatLy\Kho\Services\SlotService.cs" />
-    <Compile Include="Modules\KhoVatLy\Kho\Services\WarehouseService.cs" />
-    <Compile Include="Modules\KhoVatLy\Kho\Repositories\IRackRepository.cs" />
-    <Compile Include="Modules\KhoVatLy\Kho\Repositories\ISlotRepository.cs" />
-    <Compile Include="Modules\KhoVatLy\Kho\Repositories\IWarehouseRepository.cs" />
-    <Compile Include="Modules\KhoVatLy\Kho\Repositories\RackRepository.cs" />
-    <Compile Include="Modules\KhoVatLy\Kho\Repositories\SlotRepository.cs" />
-    <Compile Include="Modules\KhoVatLy\Kho\Repositories\WarehouseRepository.cs" />
+    <Compile Include="Modules\KhoCore\Interfaces\IRackService.cs" />
+    <Compile Include="Modules\KhoCore\Interfaces\ISlotService.cs" />
+    <Compile Include="Modules\KhoCore\Interfaces\IWarehouseService.cs" />
+    <Compile Include="Modules\KhoCore\Services\RackService.cs" />
+    <Compile Include="Modules\KhoCore\Services\SlotService.cs" />
+    <Compile Include="Modules\KhoCore\Services\WarehouseService.cs" />
+    <Compile Include="Modules\KhoCore\Repositories\IRackRepository.cs" />
+    <Compile Include="Modules\KhoCore\Repositories\ISlotRepository.cs" />
+    <Compile Include="Modules\KhoCore\Repositories\IWarehouseRepository.cs" />
+    <Compile Include="Modules\KhoCore\Repositories\RackRepository.cs" />
+    <Compile Include="Modules\KhoCore\Repositories\SlotRepository.cs" />
+    <Compile Include="Modules\KhoCore\Repositories\WarehouseRepository.cs" />
     <Compile Include="Shared\Common\IUnitOfWork.cs" />
     <Compile Include="Shared\Common\LotCodeHelper.cs" />
     <Compile Include="Shared\Common\PhieuValueObject.cs" />
@@ -400,8 +428,6 @@
     <Compile Include="Shared\Common\TemFccParseResult.cs" />
     <Compile Include="Shared\Common\UnitOfWork.cs" />
     <Compile Include="Shared\Common\WarehouseProcessNavigator.cs" />
-    <Compile Include="DAL\QrcodeDAL.cs" />
-    <Compile Include="DAL\XuLySQL.cs" />
     <Compile Include="Domain\Entities\DocQRCode.cs" />
     <Compile Include="Domain\Entities\DonHang.cs" />
     <Compile Include="Domain\Entities\GhepLotItem.cs" />
@@ -416,7 +442,6 @@
     <Compile Include="Domain\Interfaces\IEventBus.cs" />
     <Compile Include="Domain\Interfaces\IRepositories.cs" />
     <Compile Include="Domain\Interfaces\ISqlRepository.cs" />
-    <Compile Include="Legacy_Archive\FuctionMain\QrInput.cs" />
     <Compile Include="Shared\Common\SqlHelper.cs" />
     <Compile Include="Shared\Common\StopwatchLogger.cs" />
     <Compile Include="Infrastructure\AppEventBus.cs" />
@@ -427,7 +452,7 @@
     <Compile Include="Infrastructure\Repositories\SqlRepository.cs" />
     <Compile Include="Shared\Enums\HangChoGiaoLoai.cs" />
     <Compile Include="Shared\Enums\HangChoGiaoStatus.cs" />
-    <Compile Include="Shared\Enums\NguonXuLyBatThuong.cs" />
+    <Compile Include="Modules\XuLyHangLoi\Enums\NguonXuLyBatThuong.cs" />
     <Compile Include="Shared\Enums\MachineRole.cs" />
     <Compile Include="Shared\Enums\StockTransactionType.cs" />
     <Compile Include="Shared\Helpers\DinhDanhKeyHelper.cs" />
@@ -437,14 +462,6 @@
     <Compile Include="Shared\Models\PhieuStatus.cs" />
     <Compile Include="Shared\Models\QCDuyetInput.cs" />
     <Compile Include="Shared\Models\QRCODE.cs" />
-    <Compile Include="Legacy_Archive\DBSQLServerUtils.cs" />
-    <Compile Include="Legacy_Archive\DBUtils.cs" />
-    <Compile Include="DHRepository\BaseRepository.cs" />
-    <Compile Include="DHRepository\DateRange.cs" />
-    <Compile Include="DHRepository\DateRangeEdit.cs">
-      <SubType>Component</SubType>
-    </Compile>
-    <Compile Include="DHRepository\DHRepository.cs" />
     <Compile Include="Presentation\Presenters\HVN_Presenter.cs" />
     <Compile Include="Presentation\Views\IHVNView.cs" />
     <Compile Include="Modules\GiaoHangKhach\SubForm\FRM_CHON_LOT_KHO.cs">
@@ -453,98 +470,13 @@
     <Compile Include="Modules\GiaoHangKhach\SubForm\FRM_CHON_LOT_KHO.Designer.cs">
       <DependentUpon>FRM_CHON_LOT_KHO.cs</DependentUpon>
     </Compile>
-    <Compile Include="Legacy_Archive\TEST\TEST.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Legacy_Archive\TEST\TEST.Designer.cs">
-      <DependentUpon>TEST.cs</DependentUpon>
-    </Compile>
-    <Compile Include="Legacy_Archive\uF_TACHLOT.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Legacy_Archive\uF_TACHLOT.Designer.cs">
-      <DependentUpon>uF_TACHLOT.cs</DependentUpon>
-    </Compile>
-    <Compile Include="Legacy_Archive\FrmRenameCaption.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Legacy_Archive\FrmRenameCaption.Designer.cs">
-      <DependentUpon>FrmRenameCaption.cs</DependentUpon>
-    </Compile>
-    <Compile Include="Legacy_Archive\FRM_LOTNO_UPDATE_INFOR.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Legacy_Archive\FRM_LOTNO_UPDATE_INFOR.Designer.cs">
-      <DependentUpon>FRM_LOTNO_UPDATE_INFOR.cs</DependentUpon>
-    </Compile>
-    <Compile Include="Legacy_Archive\FuctionMain\FuctionGridView.cs" />
     <Compile Include="Domain\Data.cs" />
-    <Compile Include="Legacy_Archive\FuctionPrint\UF_GHEPLOT.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Legacy_Archive\FuctionPrint\UF_GHEPLOT.Designer.cs">
-      <DependentUpon>UF_GHEPLOT.cs</DependentUpon>
-    </Compile>
-    <Compile Include="Legacy_Archive\Giao Hang XK\PGH_XK.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Legacy_Archive\Giao Hang XK\PGH_XK.Designer.cs">
-      <DependentUpon>PGH_XK.cs</DependentUpon>
-    </Compile>
-    <Compile Include="Legacy_Archive\Giao Hang XK\RPGIAOHANGXK.cs">
-      <SubType>Component</SubType>
-    </Compile>
-    <Compile Include="Legacy_Archive\Giao Hang XK\RPGIAOHANGXK.Designer.cs">
-      <DependentUpon>RPGIAOHANGXK.cs</DependentUpon>
-    </Compile>
     <Compile Include="GridViewSettings.cs" />
-    <Compile Include="Legacy_Archive\IFS PUR OR\FRM_PURCHASE_ODERScs.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Legacy_Archive\IFS PUR OR\FRM_PURCHASE_ODERScs.Designer.cs">
-      <DependentUpon>FRM_PURCHASE_ODERScs.cs</DependentUpon>
-    </Compile>
-    <Compile Include="Legacy_Archive\KIEMTRABANQRCODE.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Legacy_Archive\KIEMTRABANQRCODE.Designer.cs">
-      <DependentUpon>KIEMTRABANQRCODE.cs</DependentUpon>
-    </Compile>
-    <Compile Include="Legacy_Archive\LISTNHAPKHO.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Legacy_Archive\LISTNHAPKHO.Designer.cs">
-      <DependentUpon>LISTNHAPKHO.cs</DependentUpon>
-    </Compile>
     <Compile Include="LogIn.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="LogIn.Designer.cs">
       <DependentUpon>LogIn.cs</DependentUpon>
-    </Compile>
-    <Compile Include="Legacy_Archive\mainRP.cs">
-      <SubType>Component</SubType>
-    </Compile>
-    <Compile Include="Legacy_Archive\mainRP.Designer.cs">
-      <DependentUpon>mainRP.cs</DependentUpon>
-    </Compile>
-    <Compile Include="Legacy_Archive\NHAPKHOKHONGQRCODE.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Legacy_Archive\NHAPKHOKHONGQRCODE.Designer.cs">
-      <DependentUpon>NHAPKHOKHONGQRCODE.cs</DependentUpon>
-    </Compile>
-    <Compile Include="Legacy_Archive\NHAPLAING.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Legacy_Archive\NHAPLAING.Designer.cs">
-      <DependentUpon>NHAPLAING.cs</DependentUpon>
-    </Compile>
-    <Compile Include="Legacy_Archive\NHAP_TP.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Legacy_Archive\NHAP_TP.Designer.cs">
-      <DependentUpon>NHAP_TP.cs</DependentUpon>
     </Compile>
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -560,27 +492,12 @@
     <Compile Include="Modules\GiaoHangKhach\ComaprePart\ComaparePart.Designer.cs">
       <DependentUpon>ComaparePart.cs</DependentUpon>
     </Compile>
-    <Compile Include="Legacy_Archive\TraHangMP\DataSet1.cs">
-      <DependentUpon>DataSet1.xsd</DependentUpon>
-    </Compile>
-    <Compile Include="Legacy_Archive\TraHangMP\DataSet1.Designer.cs">
-      <AutoGen>True</AutoGen>
-      <DesignTime>True</DesignTime>
-      <DependentUpon>DataSet1.xsd</DependentUpon>
-    </Compile>
     <Compile Include="Modules\GiaoHangKhach\SubForm\FRM_SUALOTHVN.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="Modules\GiaoHangKhach\SubForm\FRM_SUALOTHVN.Designer.cs">
       <DependentUpon>FRM_SUALOTHVN.cs</DependentUpon>
     </Compile>
-    <Compile Include="Legacy_Archive\GIODAGIAHANG.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Legacy_Archive\GIODAGIAHANG.Designer.cs">
-      <DependentUpon>GIODAGIAHANG.cs</DependentUpon>
-    </Compile>
-    <Compile Include="Legacy_Archive\TraHangMP\ListViewSorter.cs" />
     <Compile Include="Modules\GiaoHangKhach\NhanLaiNG\ImPortPGHDB.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -599,23 +516,11 @@
       <DependentUpon>NHAN_HVN_NG.dbml</DependentUpon>
     </Compile>
     <Compile Include="Modules\GiaoHangKhach\NhanLaiNG\TACKMH.cs" />
-    <Compile Include="Legacy_Archive\TraHangMP\NoteStock.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Legacy_Archive\TraHangMP\NoteStock.Designer.cs">
-      <DependentUpon>NoteStock.cs</DependentUpon>
-    </Compile>
     <Compile Include="Modules\GiaoHangKhach\HVN\Edit_DH.cs">
       <SubType>UserControl</SubType>
     </Compile>
     <Compile Include="Modules\GiaoHangKhach\HVN\Edit_DH.Designer.cs">
       <DependentUpon>Edit_DH.cs</DependentUpon>
-    </Compile>
-    <Compile Include="Legacy_Archive\Form1.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Legacy_Archive\Form1.Designer.cs">
-      <DependentUpon>Form1.cs</DependentUpon>
     </Compile>
     <Compile Include="Modules\GiaoHangKhach\SubForm\frm_err-cnk.cs">
       <SubType>Form</SubType>
@@ -629,12 +534,6 @@
     <Compile Include="Modules\GiaoHangKhach\SubForm\FRM_HTIN.Designer.cs">
       <DependentUpon>FRM_HTIN.cs</DependentUpon>
     </Compile>
-    <Compile Include="Modules\GiaoHangKhach\HVN\FuctionQR\UF_QRCodeERR.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Modules\GiaoHangKhach\HVN\FuctionQR\UF_QRCodeERR.Designer.cs">
-      <DependentUpon>UF_QRCodeERR.cs</DependentUpon>
-    </Compile>
     <Compile Include="Modules\GiaoHangKhach\HVN\HVN_PGH.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -646,12 +545,6 @@
     </Compile>
     <Compile Include="Modules\GiaoHangKhach\HVN\LOT_EDIT.Designer.cs">
       <DependentUpon>LOT_EDIT.cs</DependentUpon>
-    </Compile>
-    <Compile Include="Legacy_Archive\tes.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Legacy_Archive\tes.Designer.cs">
-      <DependentUpon>tes.cs</DependentUpon>
     </Compile>
     <Compile Include="Modules\XuLyHangLoi\Reports\NG_DETAIL.cs">
       <SubType>Component</SubType>
@@ -725,66 +618,33 @@
     <Compile Include="Modules\GiaoHangKhach\Reports\YMVN_PGH.Designer.cs">
       <DependentUpon>YMVN_PGH.cs</DependentUpon>
     </Compile>
-    <Compile Include="Legacy_Archive\TraHangMP\frm_TraMP.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Legacy_Archive\TraHangMP\frm_TraMP.Designer.cs">
-      <DependentUpon>frm_TraMP.cs</DependentUpon>
-    </Compile>
-    <Compile Include="Legacy_Archive\TraHangMP\WaitForm2.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Legacy_Archive\TraHangMP\WaitForm2.Designer.cs">
-      <DependentUpon>WaitForm2.cs</DependentUpon>
-    </Compile>
+    <Compile Include="Shared\Services\IPrintService.cs" />
+    <Compile Include="Shared\Services\PrintService.cs" />
+    <Compile Include="Shared\UiMd\IWorkflowRepository.cs" />
+    <Compile Include="Shared\UiMd\IWorkflowTransitionService.cs" />
+    <Compile Include="Shared\UiMd\MermaidToDevExpressAdvancedParser.cs" />
+    <Compile Include="Shared\UiMd\WorkflowEngine.cs" />
+    <Compile Include="Shared\UiMd\WorkflowRepository.cs" />
+    <Compile Include="Shared\UiMd\WorkflowTransition.cs" />
+    <Compile Include="Shared\UiMd\WorkflowTransitionService.cs" />
     <Compile Include="Shell\Main_APP.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="Shell\Main_APP.Designer.cs">
       <DependentUpon>Main_APP.cs</DependentUpon>
     </Compile>
-    <Compile Include="Legacy_Archive\REQUEST LK\RequestLK.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Legacy_Archive\REQUEST LK\RequestLK.designer.cs">
-      <DependentUpon>RequestLK.cs</DependentUpon>
-    </Compile>
-    <Compile Include="Legacy_Archive\REQUEST LK\XtraForm1.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Legacy_Archive\REQUEST LK\XtraForm1.Designer.cs">
-      <DependentUpon>XtraForm1.cs</DependentUpon>
-    </Compile>
     <Compile Include="Shell\Widgets\WarehouseDashboardBar.cs">
       <SubType>UserControl</SubType>
     </Compile>
     <Compile Include="SQLTABLECREATOR.cs" />
-    <Compile Include="Legacy_Archive\tesst.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Legacy_Archive\tesst.Designer.cs">
-      <DependentUpon>tesst.cs</DependentUpon>
-    </Compile>
     <Compile Include="UF_CHANGETIME.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="UF_CHANGETIME.Designer.cs">
       <DependentUpon>UF_CHANGETIME.cs</DependentUpon>
     </Compile>
-    <Compile Include="Legacy_Archive\UpdateStockPOP.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Legacy_Archive\UpdateStockPOP.Designer.cs">
-      <DependentUpon>UpdateStockPOP.cs</DependentUpon>
-    </Compile>
     <Compile Include="UserControls\TimelineStepButton.cs">
       <SubType>Component</SubType>
-    </Compile>
-    <Compile Include="UserControls\UCQr.cs">
-      <SubType>UserControl</SubType>
-    </Compile>
-    <Compile Include="UserControls\UCQr.Designer.cs">
-      <DependentUpon>UCQr.cs</DependentUpon>
     </Compile>
     <Compile Include="UserControls\UCSTOCK.cs">
       <SubType>UserControl</SubType>
@@ -792,19 +652,13 @@
     <Compile Include="UserControls\UCSTOCK.Designer.cs">
       <DependentUpon>UCSTOCK.cs</DependentUpon>
     </Compile>
-    <Compile Include="Modules\KhoVatLy\Kho\CanVas\RackLayoutInfo.cs" />
-    <Compile Include="Modules\KhoVatLy\Kho\CanVas\SlotLayoutInfo.cs" />
+    <Compile Include="Modules\KhoVatLy\CanVas\RackLayoutInfo.cs" />
+    <Compile Include="Modules\KhoVatLy\CanVas\SlotLayoutInfo.cs" />
     <Compile Include="Modules\KhoVatLy\ExportFormSV.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="Modules\KhoVatLy\ExportFormSV.Designer.cs">
       <DependentUpon>ExportFormSV.cs</DependentUpon>
-    </Compile>
-    <Compile Include="Legacy_Archive\ViewForm\ExportForm.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Legacy_Archive\ViewForm\ExportForm.Designer.cs">
-      <DependentUpon>ExportForm.cs</DependentUpon>
     </Compile>
     <Compile Include="Modules\KhoVatLy\FormEnterItemSV.cs">
       <SubType>Form</SubType>
@@ -812,19 +666,13 @@
     <Compile Include="Modules\KhoVatLy\FormEnterItemSV.Designer.cs">
       <DependentUpon>FormEnterItemSV.cs</DependentUpon>
     </Compile>
-    <Compile Include="Legacy_Archive\ViewForm\FormEnterItem.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Legacy_Archive\ViewForm\FormEnterItem.Designer.cs">
-      <DependentUpon>FormEnterItem.cs</DependentUpon>
-    </Compile>
     <Compile Include="Modules\KhoVatLy\FormRegisterRack.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="Modules\KhoVatLy\FormRegisterRack.Designer.cs">
       <DependentUpon>FormRegisterRack.cs</DependentUpon>
     </Compile>
-    <Compile Include="Modules\KhoVatLy\Fuction\CheckInfor.cs" />
+    <Compile Include="Modules\KhoCore\Fuction\CheckInfor.cs" />
     <Compile Include="Shared\Helpers\LotNoHelper.cs" />
     <Compile Include="Shared\Helpers\PhieuNoHelper.cs" />
     <Compile Include="Shared\Helpers\PrintHelper.cs" />
@@ -832,7 +680,6 @@
     <Compile Include="Shared\Helpers\QRCodeParser.cs" />
     <Compile Include="Shared\Notifiers\StockChangedNotifier.cs" />
     <Compile Include="Modules\KhoVatLy\CommonSlotFormUI.cs" />
-    <Compile Include="Application\Services\GiaoBuNGService.cs" />
     <Compile Include="Shared\WaitFormExp.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -846,40 +693,32 @@
     <Compile Include="Modules\KhoVatLy\MainStockSV.Designer.cs">
       <DependentUpon>MainStockSV.cs</DependentUpon>
     </Compile>
-    <Compile Include="Legacy_Archive\ViewForm\MainStock.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Legacy_Archive\ViewForm\MainStock.Designer.cs">
-      <DependentUpon>MainStock.cs</DependentUpon>
-    </Compile>
-    <Compile Include="Modules\KhoVatLy\Kho\Models\BoxScanResult.cs" />
+    <Compile Include="Modules\KhoCore\Models\BoxScanResult.cs" />
     <Compile Include="Shared\Models\BulkImportConfig.cs" />
     <Compile Include="Shared\Models\CustomerConfig.cs" />
     <Compile Include="Shared\Models\CustomerTableConfig.cs" />
-    <Compile Include="Shared\Models\InspectionConfig.cs" />
-    <Compile Include="Modules\KhoVatLy\Kho\Models\LotSplitResult.cs" />
-    <Compile Include="Modules\KhoVatLy\Kho\Models\NGResult.cs" />
+    <Compile Include="Modules\KhoCore\Models\InspectionConfig.cs" />
+    <Compile Include="Modules\KhoCore\Models\LotSplitResult.cs" />
+    <Compile Include="Modules\KhoCore\Models\NGResult.cs" />
     <Compile Include="Shared\Models\NhapKhoItem.cs" />
     <Compile Include="Shared\Models\PhieuLocationInfo.cs" />
     <Compile Include="Shared\Models\PhieuNhapInfo.cs" />
     <Compile Include="Shared\Models\PrintLotResult.cs" />
     <Compile Include="Shared\Models\PXuatINModel.cs" />
     <Compile Include="Shared\Models\QRCodeInfo.cs" />
-    <Compile Include="Modules\KhoVatLy\Kho\Models\Rack.cs" />
+    <Compile Include="Modules\KhoCore\Models\Rack.cs" />
     <Compile Include="Shared\Models\RackDefinition.cs" />
     <Compile Include="Shared\Models\RackRenderInfo.cs" />
     <Compile Include="Shared\Helpers\ScanResult.cs" />
-    <Compile Include="Modules\KhoVatLy\Kho\Models\Slot.cs" />
+    <Compile Include="Modules\KhoCore\Models\Slot.cs" />
     <Compile Include="Shared\Models\SlotHeaderInfo.cs" />
     <Compile Include="Shared\Models\SlotRenderInfo.cs" />
     <Compile Include="Shared\Models\StockTraHangInfo.cs" />
-    <Compile Include="Modules\KhoVatLy\Kho\Models\Warehouse.cs" />
+    <Compile Include="Modules\KhoCore\Models\Warehouse.cs" />
     <Compile Include="Modules\NhapKho\INhapKhoDashboardRepository.cs" />
-    <Compile Include="Infrastructure\Repositories\IPhieuLoiRepository.cs" />
     <Compile Include="Infrastructure\Repositories\IPhieuTrackingRepository.cs" />
     <Compile Include="Modules\NhapKho\NhapKhoDashboardRepository.cs" />
     <Compile Include="Modules\NhapKho\Services\NhapTpReceivingService.cs" />
-    <Compile Include="Infrastructure\Repositories\PhieuLoiRepository.cs" />
     <Compile Include="Infrastructure\Repositories\PhieuTrackingRepository.cs" />
     <Compile Include="Modules\NhapKho\Repository\StockTPRepository.cs" />
     <Compile Include="Modules\KhoVatLy\Report\RpInNhapKho.cs">
@@ -894,7 +733,7 @@
     <Compile Include="Modules\XuLyHangLoi\Reports\RpPhieuXuLyBatThuong.cs">
       <SubType>Component</SubType>
     </Compile>
-    <Compile Include="Application\Services\BulkStockAdjustService.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Services\BulkStockAdjustService.cs" />
     <Compile Include="Domain\Events\NhapKhoCompletedEvent.cs" />
     <Compile Include="Shared\Models\StockItem.cs" />
     <Compile Include="Modules\KhoVatLy\UCControls\FormBulkSlotView.cs">
@@ -903,35 +742,17 @@
     <Compile Include="Modules\KhoVatLy\UCControls\FormBulkSlotView.Designer.cs">
       <DependentUpon>FormBulkSlotView.cs</DependentUpon>
     </Compile>
-    <Compile Include="Modules\KhoVatLy\Kho\CanVas\RackSummaryPopup.cs">
+    <Compile Include="Modules\KhoVatLy\CanVas\RackSummaryPopup.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="Modules\KhoVatLy\UCControls\SlotDetailPanel.cs">
       <SubType>Component</SubType>
-    </Compile>
-    <Compile Include="Modules\XuLyHangLoi\FormChoGiaoHuy.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Modules\XuLyHangLoi\FormChoGiaoHuy.Designer.cs">
-      <DependentUpon>FormChoGiaoHuy.cs</DependentUpon>
     </Compile>
     <Compile Include="Modules\KhoVatLy\FormChonSlotNoiBo.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="Modules\KhoVatLy\FormChonSlotNoiBo.Designer.cs">
       <DependentUpon>FormChonSlotNoiBo.cs</DependentUpon>
-    </Compile>
-    <Compile Include="Legacy_Archive\FormEnterStock.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Legacy_Archive\FormEnterStock.Designer.cs">
-      <DependentUpon>FormEnterStock.cs</DependentUpon>
-    </Compile>
-    <Compile Include="Legacy_Archive\ViewForm\FormExportStock.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Legacy_Archive\ViewForm\FormExportStock.Designer.cs">
-      <DependentUpon>FormExportStock.cs</DependentUpon>
     </Compile>
     <Compile Include="Modules\KhoVatLy\FormInspection.cs">
       <SubType>Form</SubType>
@@ -957,23 +778,11 @@
     <Compile Include="Modules\NhapKho\FormNhapKhoTienTrinh.Designer.cs">
       <DependentUpon>FormNhapKhoTienTrinh.cs</DependentUpon>
     </Compile>
-    <Compile Include="Modules\XuLyHangLoi\FormPhieuLoiKhachTra.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Modules\XuLyHangLoi\FormPhieuLoiKhachTra.Designer.cs">
-      <DependentUpon>FormPhieuLoiKhachTra.cs</DependentUpon>
-    </Compile>
     <Compile Include="Modules\XuLyHangLoi\FormQuanLyTienTrinhHangLoi.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="Modules\XuLyHangLoi\FormQuanLyTienTrinhHangLoi.Designer.cs">
       <DependentUpon>FormQuanLyTienTrinhHangLoi.cs</DependentUpon>
-    </Compile>
-    <Compile Include="Modules\GiaoBu\FormQuetQRGiaoBuNG.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Modules\GiaoBu\FormQuetQRGiaoBuNG.Designer.cs">
-      <DependentUpon>FormQuetQRGiaoBuNG.cs</DependentUpon>
     </Compile>
     <Compile Include="Modules\KhoVatLy\FormStockHistory.cs">
       <SubType>Form</SubType>
@@ -981,17 +790,11 @@
     <Compile Include="Modules\KhoVatLy\FormStockHistory.Designer.cs">
       <DependentUpon>FormStockHistory.cs</DependentUpon>
     </Compile>
-    <Compile Include="Modules\XuLyHangLoi\FormTraHangNGNew.cs">
+    <Compile Include="Modules\XuLyHangLoi\FormGiaoBuNG.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="Modules\XuLyHangLoi\FormTraHangNGNew.Designer.cs">
-      <DependentUpon>FormTraHangNGNew.cs</DependentUpon>
-    </Compile>
-    <Compile Include="Modules\XuLyHangLoi\FormXacNhanGiaoNoiBo.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Modules\XuLyHangLoi\FormXacNhanGiaoNoiBo.Designer.cs">
-      <DependentUpon>FormXacNhanGiaoNoiBo.cs</DependentUpon>
+    <Compile Include="Modules\XuLyHangLoi\FormGiaoBuNG.Designer.cs">
+      <DependentUpon>FormGiaoBuNG.cs</DependentUpon>
     </Compile>
     <Compile Include="Modules\XuLyHangLoi\FormXuLyBatThuong.cs">
       <SubType>Form</SubType>
@@ -999,19 +802,7 @@
     <Compile Include="Modules\XuLyHangLoi\FormXuLyBatThuong.Designer.cs">
       <DependentUpon>FormXuLyBatThuong.cs</DependentUpon>
     </Compile>
-    <Compile Include="Modules\GiaoBu\frmGiaoBuNG.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Modules\GiaoBu\frmGiaoBuNG.Designer.cs">
-      <DependentUpon>frmGiaoBuNG.cs</DependentUpon>
-    </Compile>
     <Compile Include="Presentation\Views\INhapKhoView.cs" />
-    <Compile Include="Legacy_Archive\WaitForm1.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Legacy_Archive\WaitForm1.Designer.cs">
-      <DependentUpon>WaitForm1.cs</DependentUpon>
-    </Compile>
     <Compile Include="Modules\GiaoHangKhach\YMVN\ClsPGH.cs" />
     <Compile Include="Modules\GiaoHangKhach\YMVN\DS_ERR_CNK.cs" />
     <Compile Include="Modules\GiaoHangKhach\YMVN\ERR_CNK.cs">
@@ -1029,45 +820,12 @@
     <Compile Include="Modules\GiaoHangKhach\YMVN\GIAOHANGYMN.Designer.cs">
       <DependentUpon>GIAOHANGYMN.cs</DependentUpon>
     </Compile>
-    <Compile Include="report_in.Context.cs">
-      <AutoGen>True</AutoGen>
-      <DesignTime>True</DesignTime>
-      <DependentUpon>report_in.Context.tt</DependentUpon>
-    </Compile>
-    <Compile Include="report_in.cs">
-      <AutoGen>True</AutoGen>
-      <DesignTime>True</DesignTime>
-      <DependentUpon>report_in.tt</DependentUpon>
-    </Compile>
-    <Compile Include="report_in.Designer.cs">
-      <AutoGen>True</AutoGen>
-      <DesignTime>True</DesignTime>
-      <DependentUpon>report_in.edmx</DependentUpon>
-    </Compile>
     <Compile Include="resize_form.cs" />
     <Compile Include="SplashScreen1.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="SplashScreen1.Designer.cs">
       <DependentUpon>SplashScreen1.cs</DependentUpon>
-    </Compile>
-    <Compile Include="Legacy_Archive\TONKHOTP.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Legacy_Archive\TONKHOTP.Designer.cs">
-      <DependentUpon>TONKHOTP.cs</DependentUpon>
-    </Compile>
-    <Compile Include="Legacy_Archive\TruyTimLOTNO.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Legacy_Archive\TruyTimLOTNO.Designer.cs">
-      <DependentUpon>TruyTimLOTNO.cs</DependentUpon>
-    </Compile>
-    <Compile Include="Legacy_Archive\TTTracuu.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Legacy_Archive\TTTracuu.Designer.cs">
-      <DependentUpon>TTTracuu.cs</DependentUpon>
     </Compile>
     <Compile Include="Modules\GiaoHangKhach\YMVN\IDS_CNK.cs" />
     <Compile Include="Modules\GiaoHangKhach\YMVN\YAMAHAQRCDE_SP.cs">
@@ -1114,53 +872,11 @@
     <EmbeddedResource Include="Modules\GiaoHangKhach\SubForm\FRM_CHON_LOT_KHO.resx">
       <DependentUpon>FRM_CHON_LOT_KHO.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="Legacy_Archive\TEST\TEST.resx">
-      <DependentUpon>TEST.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Legacy_Archive\uF_TACHLOT.resx">
-      <DependentUpon>uF_TACHLOT.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Legacy_Archive\FrmRenameCaption.resx">
-      <DependentUpon>FrmRenameCaption.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Legacy_Archive\FRM_LOTNO_UPDATE_INFOR.resx">
-      <DependentUpon>FRM_LOTNO_UPDATE_INFOR.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Legacy_Archive\FuctionPrint\UF_GHEPLOT.resx">
-      <DependentUpon>UF_GHEPLOT.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Legacy_Archive\Giao Hang XK\PGH_XK.resx">
-      <DependentUpon>PGH_XK.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Legacy_Archive\Giao Hang XK\RPGIAOHANGXK.resx">
-      <DependentUpon>RPGIAOHANGXK.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Legacy_Archive\IFS PUR OR\FRM_PURCHASE_ODERScs.resx">
-      <DependentUpon>FRM_PURCHASE_ODERScs.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Legacy_Archive\KIEMTRABANQRCODE.resx">
-      <DependentUpon>KIEMTRABANQRCODE.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Legacy_Archive\LISTNHAPKHO.resx">
-      <DependentUpon>LISTNHAPKHO.cs</DependentUpon>
-    </EmbeddedResource>
     <EmbeddedResource Include="LogIn.resx">
       <DependentUpon>LogIn.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="Legacy_Archive\mainRP.resx">
-      <DependentUpon>mainRP.cs</DependentUpon>
-    </EmbeddedResource>
     <EmbeddedResource Include="Shell\Main_APP.resx">
       <DependentUpon>Main_APP.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Legacy_Archive\NHAPKHOKHONGQRCODE.resx">
-      <DependentUpon>NHAPKHOKHONGQRCODE.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Legacy_Archive\NHAPLAING.resx">
-      <DependentUpon>NHAPLAING.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Legacy_Archive\NHAP_TP.resx">
-      <DependentUpon>NHAP_TP.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Properties\licenses.licx" />
     <EmbeddedResource Include="Properties\Resources.resx">
@@ -1182,17 +898,11 @@
     <EmbeddedResource Include="Modules\GiaoHangKhach\SubForm\FRM_SUALOTHVN.resx">
       <DependentUpon>FRM_SUALOTHVN.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="Legacy_Archive\GIODAGIAHANG.resx">
-      <DependentUpon>GIODAGIAHANG.cs</DependentUpon>
-    </EmbeddedResource>
     <EmbeddedResource Include="Modules\GiaoHangKhach\NhanLaiNG\ImPortPGHDB.resx">
       <DependentUpon>ImPortPGHDB.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Modules\GiaoHangKhach\NhanLaiNG\NhanLaiTP\frmNhanLaiTP.resx">
       <DependentUpon>frmNhanLaiTP.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Legacy_Archive\TraHangMP\NoteStock.resx">
-      <DependentUpon>NoteStock.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Modules\GiaoHangKhach\HVN\Edit_DH.resx">
       <DependentUpon>Edit_DH.cs</DependentUpon>
@@ -1203,17 +913,11 @@
     <EmbeddedResource Include="Modules\GiaoHangKhach\SubForm\FRM_HTIN.resx">
       <DependentUpon>FRM_HTIN.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="Modules\GiaoHangKhach\HVN\FuctionQR\UF_QRCodeERR.resx">
-      <DependentUpon>UF_QRCodeERR.cs</DependentUpon>
-    </EmbeddedResource>
     <EmbeddedResource Include="Modules\GiaoHangKhach\HVN\HVN_PGH.resx">
       <DependentUpon>HVN_PGH.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Modules\GiaoHangKhach\HVN\LOT_EDIT.resx">
       <DependentUpon>LOT_EDIT.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Legacy_Archive\tes.resx">
-      <DependentUpon>tes.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Modules\XuLyHangLoi\Reports\NG_DETAIL.resx">
       <DependentUpon>NG_DETAIL.cs</DependentUpon>
@@ -1251,26 +955,8 @@
     <EmbeddedResource Include="Modules\GiaoHangKhach\Reports\YMVN_PGH.resx">
       <DependentUpon>YMVN_PGH.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="Legacy_Archive\TraHangMP\frm_TraMP.resx">
-      <DependentUpon>frm_TraMP.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Legacy_Archive\TraHangMP\WaitForm2.resx">
-      <DependentUpon>WaitForm2.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Legacy_Archive\REQUEST LK\RequestLK.resx">
-      <DependentUpon>RequestLK.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Legacy_Archive\tesst.resx">
-      <DependentUpon>tesst.cs</DependentUpon>
-    </EmbeddedResource>
     <EmbeddedResource Include="UF_CHANGETIME.resx">
       <DependentUpon>UF_CHANGETIME.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Legacy_Archive\UpdateStockPOP.resx">
-      <DependentUpon>UpdateStockPOP.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="UserControls\UCQr.resx">
-      <DependentUpon>UCQr.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="UserControls\UCSTOCK.resx">
       <DependentUpon>UCSTOCK.cs</DependentUpon>
@@ -1278,14 +964,8 @@
     <EmbeddedResource Include="Modules\KhoVatLy\ExportFormSV.resx">
       <DependentUpon>ExportFormSV.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="Legacy_Archive\ViewForm\ExportForm.resx">
-      <DependentUpon>ExportForm.cs</DependentUpon>
-    </EmbeddedResource>
     <EmbeddedResource Include="Modules\KhoVatLy\FormEnterItemSV.resx">
       <DependentUpon>FormEnterItemSV.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Legacy_Archive\ViewForm\FormEnterItem.resx">
-      <DependentUpon>FormEnterItem.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Modules\KhoVatLy\FormRegisterRack.resx">
       <DependentUpon>FormRegisterRack.cs</DependentUpon>
@@ -1296,9 +976,6 @@
     <EmbeddedResource Include="Modules\KhoVatLy\MainStockSV.resx">
       <DependentUpon>MainStockSV.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="Legacy_Archive\ViewForm\MainStock.resx">
-      <DependentUpon>MainStock.cs</DependentUpon>
-    </EmbeddedResource>
     <EmbeddedResource Include="Modules\KhoVatLy\Report\RpInNhapKho.resx">
       <DependentUpon>RpInNhapKho.cs</DependentUpon>
     </EmbeddedResource>
@@ -1307,9 +984,6 @@
     </EmbeddedResource>
     <EmbeddedResource Include="Modules\KhoVatLy\FormStockHistory.resx">
       <DependentUpon>FormStockHistory.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Legacy_Archive\WaitForm1.resx">
-      <DependentUpon>WaitForm1.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Modules\GiaoHangKhach\YMVN\ERR_CNK.resx">
       <DependentUpon>ERR_CNK.cs</DependentUpon>
@@ -1320,15 +994,6 @@
     <EmbeddedResource Include="SplashScreen1.resx">
       <DependentUpon>SplashScreen1.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="Legacy_Archive\TONKHOTP.resx">
-      <DependentUpon>TONKHOTP.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Legacy_Archive\TruyTimLOTNO.resx">
-      <DependentUpon>TruyTimLOTNO.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Legacy_Archive\TTTracuu.resx">
-      <DependentUpon>TTTracuu.cs</DependentUpon>
-    </EmbeddedResource>
     <EmbeddedResource Include="Modules\GiaoHangKhach\YMVN\YAMAHAQRCDE_SP.resx">
       <DependentUpon>YAMAHAQRCDE_SP.cs</DependentUpon>
     </EmbeddedResource>
@@ -1338,23 +1003,9 @@
     <EmbeddedResource Include="Modules\GiaoHangKhach\YMVN\YMVN_CHONGIAO.resx">
       <DependentUpon>YMVN_CHONGIAO.cs</DependentUpon>
     </EmbeddedResource>
-    <None Include="B7R2_FCCDataSet.xsc">
-      <DependentUpon>B7R2_FCCDataSet.xsd</DependentUpon>
-    </None>
-    <None Include="B7R2_FCCDataSet.xsd">
-      <Generator>MSDataSetGenerator</Generator>
-      <LastGenOutput>B7R2_FCCDataSet.Designer.cs</LastGenOutput>
-      <SubType>Designer</SubType>
-    </None>
-    <None Include="B7R2_FCCDataSet.xss">
-      <DependentUpon>B7R2_FCCDataSet.xsd</DependentUpon>
-    </None>
     <None Include="FVN.IT Nang.pfx" />
-    <None Include="Legacy_Archive\Help\Phần 1.mht" />
     <None Include="packages.config" />
     <None Include="PCIT.pfx" />
-    <None Include="PCTP_1_TemporaryKey.pfx" />
-    <None Include="PCTP_2_TemporaryKey.pfx" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>
@@ -1364,22 +1015,6 @@
       <DependentUpon>Settings.settings</DependentUpon>
       <DesignTimeSharedInput>True</DesignTimeSharedInput>
     </Compile>
-    <None Include="Legacy_Archive\TraHangMP\DataSet1.xsc">
-      <DependentUpon>DataSet1.xsd</DependentUpon>
-    </None>
-    <None Include="Legacy_Archive\TraHangMP\DataSet1.xsd">
-      <SubType>Designer</SubType>
-      <Generator>MSDataSetGenerator</Generator>
-      <LastGenOutput>DataSet1.Designer.cs</LastGenOutput>
-    </None>
-    <None Include="Legacy_Archive\TraHangMP\DataSet1.xss">
-      <DependentUpon>DataSet1.xsd</DependentUpon>
-    </None>
-    <None Include="Legacy_Archive\TraHangMP\DOCQRCODE.cs" />
-    <EntityDeploy Include="report_in.edmx">
-      <Generator>EntityModelCodeGenerator</Generator>
-      <LastGenOutput>report_in.Designer.cs</LastGenOutput>
-    </EntityDeploy>
     <None Include="Modules\GiaoHangKhach\NhanLaiNG\NHAN_HVN_NG.dbml">
       <Generator>MSLinqToSQLGenerator</Generator>
       <LastGenOutput>NHAN_HVN_NG.designer.cs</LastGenOutput>
@@ -1388,11 +1023,8 @@
     <None Include="Modules\GiaoHangKhach\NhanLaiNG\NHAN_HVN_NG.dbml.layout">
       <DependentUpon>NHAN_HVN_NG.dbml</DependentUpon>
     </None>
-    <None Include="report_in.edmx.diagram">
-      <DependentUpon>report_in.edmx</DependentUpon>
-    </None>
     <None Include="Workflow\Diagram\WORKFLOW_XUATKHO.md" />
-    <None Include="Workflow\Diagram\WORKPLOW_KHOCORE.md" />
+    <None Include="Workflow\Diagram\WORKFLOW_KHOCORE.md" />
     <None Include="Workflow\Diagram\WORKFLOW_HANGLOI.md" />
   </ItemGroup>
   <ItemGroup>
@@ -1404,16 +1036,6 @@
     <Service Include="{C0C07587-41A7-46C8-8FBD-3F9C8EBE2DDC}" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="report_in.Context.tt">
-      <Generator>TextTemplatingFileGenerator</Generator>
-      <LastGenOutput>report_in.Context.cs</LastGenOutput>
-      <DependentUpon>report_in.edmx</DependentUpon>
-    </Content>
-    <Content Include="report_in.tt">
-      <Generator>TextTemplatingFileGenerator</Generator>
-      <DependentUpon>report_in.edmx</DependentUpon>
-      <LastGenOutput>report_in.cs</LastGenOutput>
-    </Content>
     <None Include="Resources\edit_16x16.png" />
     <None Include="Resources\delete_16x16.png" />
     <None Include="Resources\edit_16x161.png" />
@@ -1424,14 +1046,7 @@
     <None Include="Resources\fcc.png" />
     <None Include="Resources\logo.png" />
     <None Include="Resources\hondatrading.jpg" />
-    <Content Include="Rules\Form1.xml">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
-    <EmbeddedResource Include="Rules\RuleSet.xml" />
     <Content Include="_123034.ico" />
-  </ItemGroup>
-  <ItemGroup>
-    <Content Include="Legacy_Archive\ExcelTemplate\FORMTRA.xlsx" />
   </ItemGroup>
   <ItemGroup>
     <BootstrapperPackage Include=".NETFramework,Version=v4.7.2">
@@ -1447,6 +1062,7 @@
   </ItemGroup>
   <ItemGroup>
     <Folder Include="4wAutoWH\" />
+    <Folder Include="Modules\GiaoHangKhach\HVN\FuctionQR\" />
     <Folder Include="Modules\XuLyHangLoi\Legacy\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

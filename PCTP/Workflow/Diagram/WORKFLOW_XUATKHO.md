@@ -7,6 +7,10 @@ Tài liệu này mô tả chi tiết luồng vận hành xuất kho, phân đị
 ## 1. Mô Tả Chi Tiết Các Nhánh Nghiệp Vụ Xuất Kho
 
 1. **Xác Định Vị Trí & Mục Đích Xuất:** Hệ thống tiếp nhận yêu cầu xuất kho và phân loại nguồn hàng cần xử lý.
+   **1b. Kiểm Tra Tem Thùng khi Xuất (nếu có InspectionConfig):**
+    - Sau khi scan tem tổng (PickToChoGiao hoặc XuatTrucTiep)
+    - Gọi `IInspectionConfigService.NeedsInspection(itemCode)`
+    - Nếu `true` → bắt buộc `FormInspection` trước khi confirm xuất
 2. **Nhánh 1: Hàng Ở Kho A0 (Xuất Trực Tiếp):**
    * Mở form HVN-PGH, gọi `IStockExportService.XuatTrucTiep` với nguồn từ Bulk (không qua bảng chờ giao).
    * Trừ tồn kho tổng `STOCKTP` ngay lập tức (`SLXUAT` tăng, `SLCONLAI` giảm).

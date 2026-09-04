@@ -66,7 +66,7 @@ namespace PCTP.Common
 
         public static void OpenTraHangNG(IWin32Window owner, int? preselectPhieuId = null)
         {
-            using (var f = new FormTraHangNGNew(preselectPhieuId))
+            using (var f = new FormGiaoBuNG(preselectPhieuId))
                 f.ShowDialog(owner);
         }
 

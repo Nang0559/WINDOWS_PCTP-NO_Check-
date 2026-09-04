@@ -20,9 +20,11 @@ namespace PCTP.Modules.XuLyHangLoi.Models
     {
         public int Id { get; set; }
 
-        public int PhieuXuLyId { get; set; }
+        public int PhieuXuLyBatThuongId { get; set; }
+        public int? SlotIdOK { get; set; }
+        public int? SlotIdNG { get; set; }
 
-        public string LotNo { get; set; }
+        public string LotNhapLai { get; set; }
 
         public string MaHang { get; set; }
 
@@ -30,7 +32,7 @@ namespace PCTP.Modules.XuLyHangLoi.Models
 
         public int? SlotIdNhap { get; set; }
 
-        public DateTime ThoiGian { get; set; }
+        public DateTime NgayNhap { get; set; }
 
         public string NguoiNhap { get; set; }
 

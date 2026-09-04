@@ -10,6 +10,14 @@ namespace PCTP.Modules.XuLyHangLoi.Services
 {
     public interface ITraNoiBoService : IXuLyHangLoiService
     {
-        int TaoPhieuTraNoiBo(string maHang, string lotNo, int soLuong, string noiDung, string nguoiTao);
+        /// <summary>Tạo phiếu trả nội bộ — nhận đủ header + ChiTiet nhiều dòng,
+        /// cùng pattern với IKhachTraHangService.TiepNhanPhieuKhachTra.</summary>
+        int TaoPhieuTraNoiBo(PhieuTraHang phieu);
+        /// <summary>
+        /// Giao lại hàng ĐÃ REWORK OK (đã nhập lại kho — Status = DaNhapLaiKho)
+        /// cho bộ phận đã phát hiện lỗi ban đầu (PhieuTraHang.BoPhanPhatHienLoi).
+        /// KHÁC "giao bù cho khách" (đó là nghiệp vụ riêng của IKhachTraHangService/IGiaoBuNGService).
+        /// </summary>
+        void GiaoLaiBoPhanPhatHien(int phieuTraHangId, string boPhanNhan, int soLuongGiaoLai, string nguoiThucHien);
     }
 }

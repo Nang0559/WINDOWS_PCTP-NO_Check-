@@ -1,4 +1,5 @@
 ﻿using PCTP.Modules.XuatKho.Models;
+using PCTP.VIEWSTOCK.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -30,5 +31,11 @@ namespace PCTP.Modules.XuatKho.Interfaces
         /// trong CÙNG 1 transaction, không qua staging.
         /// </summary>
         StockExportResult XuatTrucTiep(StockExportRequest request);
+
+        LotSplitResult ExportFromSlot(
+           int slotId,
+           int exportQty,
+           string itemCode = null,
+           string actionType = "EXPORT");
     }
 }

@@ -16,13 +16,14 @@ namespace PCTP.Modules.XuLyHangLoi.Models
     {
         public int Id { get; set; }
 
-        public int PhieuXuLyId { get; set; }
+        public int PhieuXuLyBatThuongId { get; set; }
 
         public int SoLuongDaRework { get; set; }
 
         public int SoLuongOK { get; set; }
 
         public int SoLuongNG { get; set; }
+        public bool DaKiemTraTem { get; set; } // true nếu NeedsInspection=true và đã qua FormInspection
 
         public DateTime ThoiGian { get; set; }
 

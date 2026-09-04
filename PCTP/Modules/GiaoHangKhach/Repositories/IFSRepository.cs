@@ -3,7 +3,6 @@ using DevExpress.Utils.Gesture;
 using DevExpress.XtraRichEdit.Import.Html;
 using PCTP.Applications.Services;
 using PCTP.ClassSQL;
-using PCTP.DHRepository;
 using PCTP.Domain.Interfaces;
 using PCTP.VIEWSTOCK.Models;
 using System;

@@ -12,12 +12,14 @@ namespace PCTP.Modules.XuLyHangLoi.Services
 
     public interface IKhachTraHangService : IXuLyHangLoiService
     {
-        int TiepNhanPhieuKhachTra(PhieuKhachTra phieu);
+        int TiepNhanPhieuKhachTra(PhieuTraHang phieu);
 
         List<PhieuGiaoUngVienInfo> TimPhieuGiaoUngVien(string maHang, DateTime? ngayGiao, string lotNo);
 
         void GanPhieuGiaoGoc(int phieuKhachTraItemId, string dinhDanhPhieuGiao);
 
-        void DanhDauPhieuGiaoChoGiaoBu(string dinhDanhPhieuGiao, string soPhieuKhachTra, string nguoiThucHien);
+        void DanhDauPhieuGiaoGocChoGiaoBu(string dinhDanhPhieuGiao, string soPhieuKhachTra, string nguoiThucHien);
+       
+     
     }
 }

@@ -24,15 +24,16 @@ namespace PCTP.Modules.XuLyHangLoi.Models
     {
         public int Id { get; set; }
 
-        public int PhieuXuLyId { get; set; }
+        public int PhieuXuLyBatThuongId { get; set; }
 
-        public int SlotId { get; set; }
+        public int SlotIdNguon { get; set; }
 
-        public string LotNo { get; set; }
+        public string LotXuat { get; set; }
+        public string LoaiXuat { get; set; }// "Rework" | "GiaoBuNG"
 
         public string MaHang { get; set; }
 
-        public int SoLuong { get; set; }
+        public int SoLuongXuat { get; set; }
 
         /// <summary>
         /// Tồn trước khi xuất.
@@ -44,7 +45,7 @@ namespace PCTP.Modules.XuLyHangLoi.Models
         /// </summary>
         public int TonSau { get; set; }
 
-        public DateTime ThoiGian { get; set; }
+        public DateTime NgayXuat { get; set; }
 
         public string NguoiXuat { get; set; }
 

@@ -15,6 +15,11 @@ Tài liệu này mô tả chi tiết luồng vận hành và kiến trúc xử l
    * Sử dụng `INhapTpReceivingService.KiemTraTruocKhiNhap` để kiểm tra xem mã QR đã được nhập chưa và kiểm tra trường hợp trùng Case dựa trên lịch sử `NHAP_TP_HIS`.
    * *Nếu trùng:* Trả về kết quả `ScanResult.Trung` $\rightarrow$ Từ chối giao dịch, không thực hiện transaction.
    * *Nếu hợp lệ:* Chuyển sang bước phân định hình thức nhập.
+   **3b. Kiểm Tra Tem Thùng (nếu có InspectionConfig):**
+    - Gọi `IInspectionConfigService.NeedsInspection(itemCode)`
+    - Nếu `true` → mở `FormInspection(temTong, config, inspSvc)`
+    - Nếu `InspectionPassed = false` → từ chối nhập kho
+    - Nếu `InspectionPassed = true` → tiếp tục bước 4 (NhapTpVaoSlot)
 4. **Phân Định Hình Thức Nhập:**
    * **Nhập hàng loạt (Bulk Mode):** Sử dụng `ISlotService.GetOrCreateVirtualSlotText` để định vị vào Kho Áo A0 mà không cần chọn Slot thủ công.
    * **Nhập chi tiết (Detailed Mode):** Người dùng thực hiện chọn không gian theo thứ tự `Warehouse` $\rightarrow$ `Rack` $\rightarrow$ chọn 1 Slot cụ thể thông qua `ISlotService.GetEmptySlots`.

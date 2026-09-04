@@ -3,6 +3,10 @@ using DevExpress.XtraGrid;
 using DevExpress.XtraGrid.Columns;
 using DevExpress.XtraGrid.Views.Grid;
 using PCTP.ClassSQL;
+using PCTP.Modules.KhoCore.Interfaces;
+using PCTP.Modules.KhoVatLy.Application.Interfaces;
+using PCTP.Shared.Common;
+using PCTP.VIEWSTOCK.Models;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -18,14 +22,21 @@ namespace PCTP.VIEWSTOCK.ViewForm
 {
     public partial class FormInspectionConfig : DevExpress.XtraEditors.XtraForm
     {
-        private readonly SQLPROVIDER _sql = new SQLPROVIDER();
+        // ✅ Inject Service thay vì SQLPROVIDER trực tiếp
+        private readonly IInspectionConfigService _svc;
+        private readonly IWarehouseService _warehouseSvc; // lấy ItemName
         private GridControl _grid;
         private GridView _gridView;
-        private DataTable _dt;
+        private List<InspectionConfig> _configs;
         private DataTable _dtItems; // ✅ danh sách mã hàng từ B20Item
 
-        public FormInspectionConfig()
+        public FormInspectionConfig(IInspectionConfigService svc,
+        IWarehouseService warehouseSvc)
         {
+            _svc = svc
+           ?? throw new ArgumentNullException(nameof(svc));
+            _warehouseSvc = warehouseSvc
+                ?? throw new ArgumentNullException(nameof(warehouseSvc));
             InitializeComponent();
             LoadItems();  // ✅ load trước
             BuildUI();
@@ -36,12 +47,13 @@ namespace PCTP.VIEWSTOCK.ViewForm
         // ✅ Load danh sách mã hàng active từ B20Item
         private void LoadItems()
         {
-            _dtItems = _sql.LoadData1(_sql.B7R2_FCCdb, @"
-        SELECT Code, Name 
-        FROM   vB20Item 
-        WHERE  IsActive = 1
-          AND  IsGroup  = 0
-        ORDER  BY Code");
+            // ✅ Dùng WarehouseService — không gọi SQL trực tiếp
+            // Tạm dùng SQLPROVIDER chỉ cho lookup B20Item vì chưa có ItemRepository
+            // TODO: tách ra IItemRepository khi có domain Item
+            var sql = new SQLPROVIDER();
+            _dtItems = sql.LoadData1(sql.B7R2_FCCdb,
+                "SELECT Code, Name FROM vB20Item " +
+                "WHERE IsActive=1 AND IsGroup=0 ORDER BY Code");
         }
 
         private void BuildUI()
@@ -232,54 +244,35 @@ namespace PCTP.VIEWSTOCK.ViewForm
 
         private void LoadData()
         {
-            // ✅ InspectionConfig lấy từ VIEWSTOCK
-            _dt = _sql.LoadData1(_sql.B7R2_FCCdbb, @"
-        SELECT c.ConfigId, c.ItemCode, 
-               c.DefaultQty, c.CheckItemCode, c.CheckLotNo, 
-               c.CheckNSX,   c.IsActive,      c.Note
-        FROM   InspectionConfig c
-        ORDER  BY c.ItemCode");
+            // ✅ Gọi Service thay vì SQL trực tiếp
+            _configs = _svc.GetAll();
 
-            // ✅ Điền ItemName từ _dtItems đã load sẵn
-            if (!_dt.Columns.Contains("ItemName"))
-                _dt.Columns.Add("ItemName", typeof(string));
-
-            foreach (DataRow row in _dt.Rows)
-            {
-                string code = row["ItemCode"]?.ToString();
-                if (string.IsNullOrEmpty(code)) continue;
-
-                var found = _dtItems.Select($"Code = '{code.Replace("'", "''")}'");
-                if (found.Length > 0)
-                    row["ItemName"] = found[0]["Name"].ToString();
-            }
-
-            _dt.AcceptChanges();
-            _grid.DataSource = _dt;
+            // Convert sang DataTable để bind grid giữ nguyên
+            DataTable dt = ToDataTable(_configs);
+            _grid.DataSource = dt;
         }
 
         private void BtnDelete_Click(object sender, EventArgs e)
         {
             if (_gridView.FocusedRowHandle < 0) return;
 
-            string itemCode = _gridView.GetFocusedRowCellValue("ItemCode")?.ToString();
-            var confirm = XtraMessageBox.Show(
-                $"Xóa mã [{itemCode}] khỏi danh sách kiểm tra?",
-                "Xác nhận", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+            string itemCode = _gridView
+                .GetFocusedRowCellValue("ItemCode")?.ToString();
+            if (XtraMessageBox.Show(
+                    $"Xóa mã [{itemCode}] khỏi danh sách kiểm tra?",
+                    "Xác nhận", MessageBoxButtons.YesNo, MessageBoxIcon.Warning)
+                != DialogResult.Yes) return;
 
-            if (confirm != DialogResult.Yes) return;
+            int configId = DbValueHelper.ToInt(
+                _gridView.GetFocusedRowCellValue("ConfigId"));
 
-            object configId = _gridView.GetFocusedRowCellValue("ConfigId");
-            if (configId != null && configId != DBNull.Value)
-            {
-                _sql.ExecuteNonQuery(_sql.B7R2_FCCdbb,
-                    "DELETE FROM InspectionConfig WHERE ConfigId = @Id",
-                    new[] { new SqlParameter("@Id", SqlDbType.Int)
-                    { Value = Convert.ToInt32(configId) } });
-            }
+            if (configId > 0)
+                // ✅ Gọi Service
+                _svc.Delete(configId);
 
             _gridView.DeleteRow(_gridView.FocusedRowHandle);
         }
+
 
         private void BtnSave_Click(object sender, EventArgs e)
         {
@@ -287,8 +280,10 @@ namespace PCTP.VIEWSTOCK.ViewForm
             _gridView.UpdateCurrentRow();
 
             int saved = 0, error = 0;
+            DataTable dt = _grid.DataSource as DataTable;
+            if (dt == null) return;
 
-            foreach (DataRow row in _dt.Rows)
+            foreach (DataRow row in dt.Rows)
             {
                 if (row.RowState == DataRowState.Unchanged) continue;
 
@@ -297,44 +292,62 @@ namespace PCTP.VIEWSTOCK.ViewForm
 
                 try
                 {
-                    if (row.RowState == DataRowState.Added)
+                    var cfg = new InspectionConfig
                     {
-                        _sql.ExecuteScalar(_sql.B7R2_FCCdbb, @"
-                        INSERT INTO InspectionConfig
-                            (ItemCode, DefaultQty, CheckItemCode, CheckLotNo, CheckNSX, IsActive, Note)
-                        VALUES
-                            (@ItemCode, @DefaultQty, @CheckItemCode, @CheckLotNo, @CheckNSX, @IsActive, @Note)",
-                            BuildParams(row));
-                    }
-                    else if (row.RowState == DataRowState.Modified)
-                    {
-                        _sql.ExecuteNonQuery(_sql.B7R2_FCCdbb, @"
-                        UPDATE InspectionConfig SET
-                            DefaultQty    = @DefaultQty,
-                            CheckItemCode = @CheckItemCode,
-                            CheckLotNo    = @CheckLotNo,
-                            CheckNSX      = @CheckNSX,
-                            IsActive      = @IsActive,
-                            Note          = @Note
-                        WHERE  ItemCode   = @ItemCode",
-                            BuildParams(row));
-                    }
+                        ConfigId = DbValueHelper.ToInt(row["ConfigId"]),
+                        ItemCode = itemCode,
+                        DefaultQty = DbValueHelper.ToInt(row["DefaultQty"]),
+                        CheckItemCode = Convert.ToBoolean(row["CheckItemCode"]),
+                        CheckLotNo = Convert.ToBoolean(row["CheckLotNo"]),
+                        CheckNSX = Convert.ToBoolean(row["CheckNSX"]),
+                        IsActive = Convert.ToBoolean(row["IsActive"]),
+                        Note = row["Note"]?.ToString()
+                    };
+
+                    // ✅ Service tự quyết Insert hay Update
+                    _svc.Save(cfg);
                     saved++;
                 }
                 catch (Exception ex)
                 {
                     error++;
-                    System.Diagnostics.Debug.WriteLine($"Lỗi lưu {itemCode}: {ex.Message}");
+                    System.Diagnostics.Debug.WriteLine(
+                        $"Lỗi lưu {itemCode}: {ex.Message}");
                 }
             }
 
-            _dt.AcceptChanges();
+            dt.AcceptChanges();
             XtraMessageBox.Show(
-                $"Đã lưu {saved} dòng." + (error > 0 ? $" Lỗi: {error} dòng." : ""),
+                $"Đã lưu {saved} dòng." +
+                (error > 0 ? $" Lỗi: {error} dòng." : ""),
                 "Kết quả", MessageBoxButtons.OK,
                 error > 0 ? MessageBoxIcon.Warning : MessageBoxIcon.Information);
         }
+        // ── Helper: List → DataTable ─────────────────────────────────────
+        private static DataTable ToDataTable(List<InspectionConfig> list)
+        {
+            var dt = new DataTable();
+            dt.Columns.Add("ConfigId", typeof(int));
+            dt.Columns.Add("ItemCode", typeof(string));
+            dt.Columns.Add("ItemName", typeof(string));
+            dt.Columns.Add("DefaultQty", typeof(int));
+            dt.Columns.Add("CheckItemCode", typeof(bool));
+            dt.Columns.Add("CheckLotNo", typeof(bool));
+            dt.Columns.Add("CheckNSX", typeof(bool));
+            dt.Columns.Add("IsActive", typeof(bool));
+            dt.Columns.Add("Note", typeof(string));
 
+            foreach (var c in list)
+            {
+                dt.Rows.Add(
+                    c.ConfigId, c.ItemCode, c.ItemName,
+                    c.DefaultQty,
+                    c.CheckItemCode, c.CheckLotNo, c.CheckNSX,
+                    c.IsActive, c.Note ?? "");
+            }
+            dt.AcceptChanges();
+            return dt;
+        }
         private SqlParameter[] BuildParams(DataRow row) => new[]
         {
         new SqlParameter("@ItemCode",      SqlDbType.NVarChar) { Value = row["ItemCode"] },

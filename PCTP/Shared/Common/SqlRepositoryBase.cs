@@ -12,40 +12,27 @@ namespace PCTP.Shared.Common
         protected readonly PhieuSqlExecutor Db;
         protected readonly IUnitOfWork Uow;
 
-        protected SqlRepositoryBase(
-            PhieuSqlExecutor db,
-            IUnitOfWork uow)
+        // Cho phép override theo repo nếu cần SP nặng hơn
+        protected virtual int CommandTimeoutSeconds => 120;
+
+        protected SqlRepositoryBase(PhieuSqlExecutor db, IUnitOfWork uow)
         {
             Db = db ?? throw new ArgumentNullException(nameof(db));
             Uow = uow ?? throw new ArgumentNullException(nameof(uow));
         }
 
-        protected SqlConnection Connection
-        {
-            get { return Uow.Connection; }
-        }
+        protected SqlConnection Connection => Uow.Connection;
+        protected SqlTransaction Transaction => Uow.Transaction;
+        protected bool HasTransaction => Uow.IsInTransaction;
 
-        protected SqlTransaction Transaction
-        {
-            get { return Uow.Transaction; }
-        }
-
-        protected bool HasTransaction
-        {
-            get { return Uow.IsInTransaction; }
-        }
-
-        protected DataTable LoadData(
-            string sql,
-            params SqlParameter[] parameters)
+        protected DataTable LoadData(string sql, params SqlParameter[] parameters)
         {
             if (!HasTransaction)
-                return Db.LoadData(sql, parameters);
+                return Db.LoadData(sql, CloneParameters(parameters));
 
             using (SqlCommand cmd = CreateCommand(sql, CommandType.Text))
             {
                 AddParameters(cmd, parameters);
-
                 using (SqlDataAdapter adapter = new SqlDataAdapter(cmd))
                 {
                     DataTable table = new DataTable();
@@ -55,12 +42,10 @@ namespace PCTP.Shared.Common
             }
         }
 
-        protected object ExecuteScalar(
-            string sql,
-            params SqlParameter[] parameters)
+        protected object ExecuteScalar(string sql, params SqlParameter[] parameters)
         {
             if (!HasTransaction)
-                return Db.ExecuteScalar(sql, parameters);
+                return Db.ExecuteScalar(sql, CloneParameters(parameters));
 
             using (SqlCommand cmd = CreateCommand(sql, CommandType.Text))
             {
@@ -69,12 +54,10 @@ namespace PCTP.Shared.Common
             }
         }
 
-        protected int ExecuteNonQuery(
-            string sql,
-            params SqlParameter[] parameters)
+        protected int ExecuteNonQuery(string sql, params SqlParameter[] parameters)
         {
             if (!HasTransaction)
-                return Db.ExecuteNonQuery(sql, parameters);
+                return Db.ExecuteNonQuery(sql, CloneParameters(parameters));
 
             using (SqlCommand cmd = CreateCommand(sql, CommandType.Text))
             {
@@ -83,22 +66,14 @@ namespace PCTP.Shared.Common
             }
         }
 
-        protected DataTable ExecuteStoredProcedure(
-            string procedureName,
-            params SqlParameter[] parameters)
+        protected DataTable ExecuteStoredProcedure(string procedureName, params SqlParameter[] parameters)
         {
             if (!HasTransaction)
-                return Db.ExecuteStoredProcedure(
-                    procedureName,
-                    parameters);
+                return Db.ExecuteStoredProcedure(procedureName, CloneParameters(parameters));
 
-            using (SqlCommand cmd =
-                CreateCommand(
-                    procedureName,
-                    CommandType.StoredProcedure))
+            using (SqlCommand cmd = CreateCommand(procedureName, CommandType.StoredProcedure))
             {
                 AddParameters(cmd, parameters);
-
                 using (SqlDataAdapter adapter = new SqlDataAdapter(cmd))
                 {
                     DataTable table = new DataTable();
@@ -111,7 +86,8 @@ namespace PCTP.Shared.Common
         protected object ExecuteScalarStoredProcedure(string procedureName, params SqlParameter[] parameters)
         {
             if (!HasTransaction)
-                return Db.ExecuteScalarStoredProcedure(procedureName, parameters);   // ✅ sửa
+                return Db.ExecuteScalarStoredProcedure(procedureName, CloneParameters(parameters));
+
             using (SqlCommand cmd = CreateCommand(procedureName, CommandType.StoredProcedure))
             {
                 AddParameters(cmd, parameters);
@@ -119,31 +95,101 @@ namespace PCTP.Shared.Common
             }
         }
 
-        private SqlCommand CreateCommand(
-            string commandText,
-            CommandType commandType)
+        private SqlCommand CreateCommand(string commandText, CommandType commandType)
         {
-            SqlCommand cmd = Connection.CreateCommand();
+            if (Connection == null)
+                throw new InvalidOperationException(
+                    "HasTransaction=true nhưng Uow.Connection là null — UnitOfWork chưa Begin() đúng cách.");
 
+            SqlCommand cmd = Connection.CreateCommand();
             cmd.CommandText = commandText;
             cmd.CommandType = commandType;
             cmd.Transaction = Transaction;
-
+            cmd.CommandTimeout = CommandTimeoutSeconds;   // ← THÊM
             return cmd;
         }
 
-        private static void AddParameters(
-            SqlCommand command,
-            SqlParameter[] parameters)
+        // ── AddParameters (dùng cho nhánh có transaction — command sở hữu riêng) ──
+        private static void AddParameters(SqlCommand command, SqlParameter[] parameters)
         {
-            if (parameters == null)
-                return;
+            if (parameters == null) return;
+            foreach (var p in CloneParameters(parameters))
+                command.Parameters.Add(p);
+        }
 
-            foreach (SqlParameter parameter in parameters)
+        // ── Clone để tránh "parameter already in another collection" ──────────
+        // Áp dụng ở MỌI điểm ra khỏi lớp này (kể cả gọi Db.*), vì tham số truyền vào
+        // có thể bị caller tái sử dụng cho lệnh gọi khác (retry, vòng lặp...).
+        private static SqlParameter[] CloneParameters(SqlParameter[] parameters)
+        {
+            if (parameters == null) return Array.Empty<SqlParameter>();
+
+            var result = new SqlParameter[parameters.Length];
+            for (int i = 0; i < parameters.Length; i++)
             {
-                if (parameter != null)
-                    command.Parameters.Add(parameter);
+                var p = parameters[i];
+                if (p == null) continue;
+
+                result[i] = new SqlParameter(p.ParameterName, p.SqlDbType, p.Size)
+                {
+                    Value = p.Value,
+                    Direction = p.Direction,
+                    IsNullable = p.IsNullable,
+                    Precision = p.Precision,
+                    Scale = p.Scale
+                };
             }
+            return result;
+        }
+
+        /// <summary>
+        /// Lấy Status hiện tại của một entity theo ID
+        /// </summary>
+        protected TStatus? GetStatus<TStatus, TId>(string tableName, TId id, string idColumnName = "Id", string statusColumnName = "Status")
+            where TStatus : struct
+        {
+            Db.ValidateTableName(tableName);
+
+            string sql = $"SELECT {statusColumnName} FROM {tableName} WHERE {idColumnName} = @Id";
+            object kq = ExecuteScalar(sql, new SqlParameter("@Id", id));
+
+            if (kq == null || kq == DBNull.Value)
+                return null;
+
+            return (TStatus)Enum.ToObject(typeof(TStatus), kq);
+        }
+
+        /// <summary>
+        /// Update Status có kiểm tra Concurrency (WHERE Status = expectedFrom)
+        /// </summary>
+        protected bool UpdateStatusIfCurrentIs<TStatus, TId>(
+            string tableName,
+            TId id,
+            TStatus expectedFrom,
+            TStatus newStatus,
+            string nguoiThucHien,
+            string idColumnName = "Id",
+            string statusColumnName = "Status")
+            where TStatus : struct
+        {
+            Db.ValidateTableName(tableName);
+
+            string sql = $@"
+            UPDATE {tableName}
+            SET {statusColumnName} = @NewStatus,
+                UpdatedAt = GETDATE(),
+                UpdatedBy = @UpdatedBy
+            WHERE {idColumnName} = @Id 
+              AND {statusColumnName} = @ExpectedFrom;";
+
+            int affected = ExecuteNonQuery(
+                sql,
+                new SqlParameter("@Id", id),
+                new SqlParameter("@NewStatus", Convert.ToInt32(newStatus)),
+                new SqlParameter("@ExpectedFrom", Convert.ToInt32(expectedFrom)),
+                new SqlParameter("@UpdatedBy", (object)nguoiThucHien ?? DBNull.Value));
+
+            return affected > 0;
         }
     }
 }

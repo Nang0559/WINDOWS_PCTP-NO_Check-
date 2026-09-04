@@ -5,6 +5,11 @@ using DevExpress.XtraGrid.Views.Grid;
 using PCTP.ClassSQL;
 using PCTP.Domain.Entities;
 using PCTP.Modules.XuLyHangLoi;
+using PCTP.Modules.XuLyHangLoi.Enums;
+using PCTP.Modules.XuLyHangLoi.Models;
+using PCTP.Modules.XuLyHangLoi.Repository;
+using PCTP.Modules.XuLyHangLoi.Services;
+using PCTP.Shared.Helpers;
 using PCTP.UserControls;
 using PCTP.VIEWSTOCK.FunctionForm;
 using PCTP.VIEWSTOCK.Repository;
@@ -20,533 +25,1541 @@ using System.Windows.Forms;
 
 namespace PCTP.VIEWSTOCK.ViewForm
 {
+
+
+
     public partial class FormQuanLyTienTrinhHangLoi : XtraForm
     {
-        private readonly SQLPROVIDER _sql = new SQLPROVIDER();
-        private readonly IPhieuLoiRepository _repo;
-        private readonly TraHangService _traHangService;
-        private readonly KhachTraHangReceivingService _khachTraHangReceivingService;
+        // ============================================================
+        // SERVICES
+        // ============================================================
 
-        // ── Timeline ─────────────────────────────────────────────────────
+        private readonly IKhachTraHangService _khachTraHangService;
+        private readonly ITraNoiBoService _traNoiBoService;
+        private readonly IQTChungService _qtChungService;
+        private readonly IReworkStockService _reworkStockService;
+        private readonly IGiaoBuNGService _giaoBuNGService;
+
+        // ============================================================
+        // REPOSITORIES - CHỈ DÙNG ĐỌC / HIỂN THỊ DỮ LIỆU
+        // ============================================================
+
+        private readonly IPhieuTraHangRepository _phieuTraHangRepo;
+        private readonly IPhieuXuLyBatThuongRepository _phieuXuLyRepo;
+        private readonly ITraHangQTChungRepository _qtChungRepo;
+        private readonly IPhieuGiaoRepository _phieuGiaoRepo;
+
+        // ============================================================
+        // TIMELINE
+        // ============================================================
+
         private TableLayoutPanel _pnlTimeline;
         private TimelineStepButton[] _steps;
         private int _activeStep = 1;
 
-        // ── Grid ─────────────────────────────────────────────────────────
+        // ============================================================
+        // GRID
+        // ============================================================
+
         private TextEdit _txtSearch;
         private GridControl _grid;
         private GridView _gridView;
+
+        private SimpleButton _btnActionPrimary;
+        private SimpleButton _btnActionSecondary;
         private SimpleButton _btnExportExcel;
-        private SimpleButton _btnActionPrimary; // Nút hành động chính
-        private SimpleButton _btnActionSecondary; // Nút phụ (ví dụ: tạo phiếu nội bộ ở bước 2)
+
         private LabelControl _lblHint;
 
-        public FormQuanLyTienTrinhHangLoi()
+        // ============================================================
+        // DATA
+        // ============================================================
+
+        private List<WorkflowRow> _rows = new List<WorkflowRow>();
+
+
+        // ============================================================
+        // CONSTRUCTOR
+        // ============================================================
+
+        public FormQuanLyTienTrinhHangLoi(
+            IKhachTraHangService khachTraHangService,
+            ITraNoiBoService traNoiBoService,
+            IQTChungService qtChungService,
+            IReworkStockService reworkStockService,
+            IGiaoBuNGService giaoBuNGService,
+            IPhieuTraHangRepository phieuTraHangRepo,
+            IPhieuXuLyBatThuongRepository phieuXuLyRepo,
+            ITraHangQTChungRepository qtChungRepo,
+            IPhieuGiaoRepository phieuGiaoRepo)
         {
-            _repo = new PhieuLoiRepository(_sql);
-            var stockTpRepo = new StockTpRepository(_sql);
-            var traHangRepo = new TraHangRepository(_sql);
-            var stockService = new StockService();
-            _traHangService = new TraHangService(
-                _sql,
-                stockTpRepo,
-                traHangRepo,
-                _repo,
-                stockService);
+            _khachTraHangService = khachTraHangService
+                ?? throw new ArgumentNullException(nameof(khachTraHangService));
+
+            _traNoiBoService = traNoiBoService
+                ?? throw new ArgumentNullException(nameof(traNoiBoService));
+
+            _qtChungService = qtChungService
+                ?? throw new ArgumentNullException(nameof(qtChungService));
+
+            _reworkStockService = reworkStockService
+                ?? throw new ArgumentNullException(nameof(reworkStockService));
+
+            _giaoBuNGService = giaoBuNGService
+                ?? throw new ArgumentNullException(nameof(giaoBuNGService));
+
+            _phieuTraHangRepo = phieuTraHangRepo
+                ?? throw new ArgumentNullException(nameof(phieuTraHangRepo));
+
+            _phieuXuLyRepo = phieuXuLyRepo
+                ?? throw new ArgumentNullException(nameof(phieuXuLyRepo));
+
+            _qtChungRepo = qtChungRepo
+                ?? throw new ArgumentNullException(nameof(qtChungRepo));
+
+            _phieuGiaoRepo = phieuGiaoRepo
+                ?? throw new ArgumentNullException(nameof(phieuGiaoRepo));
 
             BuildUI();
-            RefreshBadges();
+
+            RefreshAll();
+
             SetActiveStep(1);
         }
 
-        // ════════════════════════════════════════════════════════════════
+
+        // ============================================================
         // UI
-        // ════════════════════════════════════════════════════════════════
+        // ============================================================
+
         private void BuildUI()
         {
-            Text = "Quản lý tiến trình tiếp nhận & xử lý hàng lỗi (HVN / YMVN / Nội bộ)";
-            Size = new Size(1400, 780);
+            Text = "Quản lý tiến trình hàng lỗi";
+            Size = new Size(1450, 800);
             StartPosition = FormStartPosition.CenterParent;
 
-            var mainLayout = new TableLayoutPanel { Dock = DockStyle.Fill, RowCount = 4, ColumnCount = 1 };
-            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 115)); // Timeline
-            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));  // Search & Buttons bar
-            mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));  // Grid
-            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 38));  // Hint
+            var mainLayout = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                RowCount = 4,
+                ColumnCount = 1
+            };
 
-            // ── Row 0: Timeline 6 mốc ──────────────────────────────────────
+            mainLayout.RowStyles.Add(
+                new RowStyle(SizeType.Absolute, 115));
+
+            mainLayout.RowStyles.Add(
+                new RowStyle(SizeType.Absolute, 42));
+
+            mainLayout.RowStyles.Add(
+                new RowStyle(SizeType.Percent, 100));
+
+            mainLayout.RowStyles.Add(
+                new RowStyle(SizeType.Absolute, 40));
+
+
+            // ========================================================
+            // TIMELINE
+            // ========================================================
+
             _pnlTimeline = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
                 RowCount = 1,
-                ColumnCount = 11, // 6 Bước + 5 Mũi tên xen kẽ
+                ColumnCount = 11,
                 BackColor = Color.FromArgb(240, 243, 246)
             };
+
             for (int i = 0; i < 11; i++)
             {
-                if (i % 2 == 0) _pnlTimeline.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100 / 6f));
-                else _pnlTimeline.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+                if (i % 2 == 0)
+                {
+                    _pnlTimeline.ColumnStyles.Add(
+                        new ColumnStyle(
+                            SizeType.Percent,
+                            100f / 6f));
+                }
+                else
+                {
+                    _pnlTimeline.ColumnStyles.Add(
+                        new ColumnStyle(
+                            SizeType.AutoSize));
+                }
             }
+
             _steps = new[]
             {
-                new TimelineStepButton(1, "1. Nhập chứng từ khách", "Chờ tiếp nhận", Color.FromArgb(220, 53, 69)),
-                new TimelineStepButton(2, "2. Ban hành phiếu XN", "Chờ ban hành", Color.FromArgb(253, 126, 20)),
-                new TimelineStepButton(3, "3. QC định hướng", "Chờ định hướng", Color.FromArgb(111, 66, 193)),
-                new TimelineStepButton(4, "4. SX đang xử lý", "Chờ SX báo xong", Color.FromArgb(23, 162, 184)),
-                new TimelineStepButton(5, "5. QC xác nhận cuối", "Chờ QC chốt", Color.FromArgb(255, 193, 7)),
-                new TimelineStepButton(6, "6. Trả hàng NG về SX", "Sẵn sàng trả", Color.FromArgb(40, 167, 69)),
-            };
+            new TimelineStepButton(
+                1,
+                "1. Tiếp nhận",
+                "Chờ tiếp nhận",
+                Color.FromArgb(220, 53, 69)),
+
+            new TimelineStepButton(
+                2,
+                "2. Phiếu bất thường",
+                "Chờ tạo phiếu",
+                Color.FromArgb(253, 126, 20)),
+
+            new TimelineStepButton(
+                3,
+                "3. QC định hướng",
+                "Chờ QC",
+                Color.FromArgb(111, 66, 193)),
+
+            new TimelineStepButton(
+                4,
+                "4. Rework / Giao SX",
+                "Đang xử lý",
+                Color.FromArgb(23, 162, 184)),
+
+            new TimelineStepButton(
+                5,
+                "5. QC xác nhận cuối",
+                "Chờ QC cuối",
+                Color.FromArgb(255, 193, 7)),
+
+            new TimelineStepButton(
+                6,
+                "6. Hoàn tất / Giao lại",
+                "Chờ xử lý cuối",
+                Color.FromArgb(40, 167, 69))
+        };
 
             for (int i = 0; i < _steps.Length; i++)
             {
                 var step = _steps[i];
-                step.Dock = DockStyle.Fill; // Quan trọng: Để nút tự giãn theo cột
-                step.StepClicked += (s, e) => SetActiveStep(step.StepIndex);
-                _pnlTimeline.Controls.Add(step, i * 2, 0);
+
+                step.Dock = DockStyle.Fill;
+
+                step.StepClicked +=
+                    (s, e) => SetActiveStep(step.StepIndex);
+
+                _pnlTimeline.Controls.Add(
+                    step,
+                    i * 2,
+                    0);
 
                 if (i < _steps.Length - 1)
                 {
                     var arrow = new LabelControl
                     {
                         Text = "▶",
-                        Appearance = { ForeColor = Color.FromArgb(150, 160, 170), Font = new Font("Tahoma", 12) },
-                        AutoSizeMode = LabelAutoSizeMode.Horizontal,
-                        Dock = DockStyle.Fill
+                        AutoSizeMode =
+                            DevExpress.XtraEditors.LabelAutoSizeMode.Horizontal,
+                        Dock = DockStyle.Fill,
+                        Appearance =
+                    {
+                        ForeColor = Color.FromArgb(150, 160, 170),
+                        Font = new Font(
+                            "Tahoma",
+                            12,
+                            FontStyle.Bold)
+                    }
                     };
-                    _pnlTimeline.Controls.Add(arrow, i * 2 + 1, 0);
+
+                    _pnlTimeline.Controls.Add(
+                        arrow,
+                        i * 2 + 1,
+                        0);
                 }
             }
-            mainLayout.Controls.Add(_pnlTimeline, 0, 0);
 
-            // ── Row 1: Search bar + Action Buttons + Export ───────────────
-            var searchPanel = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 4, Padding = new Padding(3) };
-            searchPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            searchPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 180)); // Nút phụ (Tạo phiếu nội bộ)
-            searchPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 190)); // Nút chính theo bước
-            searchPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 130)); // Xuất Excel
+            mainLayout.Controls.Add(
+                _pnlTimeline,
+                0,
+                0);
 
-            _txtSearch = new TextEdit { Dock = DockStyle.Fill, Properties = { NullValuePrompt = "🔍 Tìm nhanh theo Mã hàng, Số phiếu, Số lô..." } };
-            _txtSearch.Properties.Appearance.Font = new Font("Tahoma", 9.5F);
-            _txtSearch.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) ApplyFilter(); };
-            searchPanel.Controls.Add(_txtSearch, 0, 0);
 
-            _btnActionSecondary = new SimpleButton { Text = "➕ Tạo phiếu nội bộ", Dock = DockStyle.Fill };
-            _btnActionSecondary.Appearance.Font = new Font("Tahoma", 9F, FontStyle.Bold);
-            _btnActionSecondary.Appearance.ForeColor = Color.DarkBlue;
-            _btnActionSecondary.Click += (s, e) => MoFormTaoPhieuNoiBo();
-            searchPanel.Controls.Add(_btnActionSecondary, 1, 0);
+            // ========================================================
+            // TOOLBAR
+            // ========================================================
 
-            _btnActionPrimary = new SimpleButton { Text = "", Dock = DockStyle.Fill };
-            _btnActionPrimary.Appearance.Font = new Font("Tahoma", 9.5F, FontStyle.Bold);
-            _btnActionPrimary.Click += BtnActionPrimary_Click;
-            searchPanel.Controls.Add(_btnActionPrimary, 2, 0);
-
-            _btnExportExcel = new SimpleButton { Text = "📥 Xuất Excel", Dock = DockStyle.Fill };
-            _btnExportExcel.Appearance.Font = new Font("Tahoma", 9.5F);
-            _btnExportExcel.Click += (s, e) => _gridView.ExportToXlsx(
-                $"HangLoi_Buoc{_activeStep}_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx");
-            searchPanel.Controls.Add(_btnExportExcel, 3, 0);
-
-            mainLayout.Controls.Add(searchPanel, 0, 1);
-
-            // ── Row 2: Grid ──────────────────────────────────────────────
-            _grid = new GridControl { Dock = DockStyle.Fill };
-            _gridView = new GridView(_grid);
-            _grid.MainView = _gridView;
-            _gridView.OptionsBehavior.Editable = false;
-            _gridView.OptionsView.ShowGroupPanel = false;
-            _gridView.OptionsView.RowAutoHeight = true;
-            _gridView.OptionsSelection.MultiSelect = true;
-            _gridView.OptionsSelection.MultiSelectMode = GridMultiSelectMode.CheckBoxRowSelect;
-            _gridView.DoubleClick += GridView_DoubleClick;
-
-            _gridView.RowStyle += (s, e) =>
+            var searchPanel = new TableLayoutPanel
             {
-                var row = _gridView.GetDataRow(e.RowHandle);
-                if (row == null) return;
-                if (!row.Table.Columns.Contains("TrangThaiHienThi")) return;
-                string tt = row["TrangThaiHienThi"]?.ToString();
-                switch (tt)
-                {
-                    case "CHUA_NHAP": e.Appearance.BackColor = Color.FromArgb(255, 240, 240); break;
-                    case "CHO_QC": e.Appearance.BackColor = Color.FromArgb(255, 250, 230); break;
-                    case "QC_DA_DUYET": e.Appearance.BackColor = Color.FromArgb(235, 255, 235); break;
-                }
+                Dock = DockStyle.Fill,
+                ColumnCount = 4,
+                Padding = new Padding(3)
             };
 
-            mainLayout.Controls.Add(_grid, 0, 2);
+            searchPanel.ColumnStyles.Add(
+                new ColumnStyle(
+                    SizeType.Percent,
+                    100));
 
-            // ── Row 3: Hint ──────────────────────────────────────────────
+            searchPanel.ColumnStyles.Add(
+                new ColumnStyle(
+                    SizeType.Absolute,
+                    190));
+
+            searchPanel.ColumnStyles.Add(
+                new ColumnStyle(
+                    SizeType.Absolute,
+                    210));
+
+            searchPanel.ColumnStyles.Add(
+                new ColumnStyle(
+                    SizeType.Absolute,
+                    130));
+
+
+            _txtSearch = new TextEdit
+            {
+                Dock = DockStyle.Fill
+            };
+
+            _txtSearch.Properties.NullValuePrompt =
+                "🔍 Tìm mã hàng, số phiếu, lot...";
+
+            _txtSearch.Properties.Appearance.Font =
+                new Font("Tahoma", 9.5F);
+
+            _txtSearch.KeyDown +=
+                (s, e) =>
+                {
+                    if (e.KeyCode == Keys.Enter)
+                        ApplyFilter();
+                };
+
+            searchPanel.Controls.Add(
+                _txtSearch,
+                0,
+                0);
+
+
+            _btnActionSecondary = new SimpleButton
+            {
+                Text = "➕ Tạo phiếu nội bộ",
+                Dock = DockStyle.Fill
+            };
+
+            _btnActionSecondary.Appearance.Font =
+                new Font("Tahoma", 9F, FontStyle.Bold);
+
+            _btnActionSecondary.Appearance.ForeColor =
+                Color.DarkBlue;
+
+            _btnActionSecondary.Click +=
+                (s, e) => TaoPhieuNoiBo();
+
+            searchPanel.Controls.Add(
+                _btnActionSecondary,
+                1,
+                0);
+
+
+            _btnActionPrimary = new SimpleButton
+            {
+                Dock = DockStyle.Fill
+            };
+
+            _btnActionPrimary.Appearance.Font =
+                new Font("Tahoma", 9.5F, FontStyle.Bold);
+
+            _btnActionPrimary.Click +=
+                BtnActionPrimary_Click;
+
+            searchPanel.Controls.Add(
+                _btnActionPrimary,
+                2,
+                0);
+
+
+            _btnExportExcel = new SimpleButton
+            {
+                Text = "📥 Xuất Excel",
+                Dock = DockStyle.Fill
+            };
+
+            _btnExportExcel.Click +=
+                (s, e) =>
+                {
+                    string fileName =
+                        $"HangLoi_Buoc{_activeStep}_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
+
+                    _gridView.ExportToXlsx(fileName);
+                };
+
+            searchPanel.Controls.Add(
+                _btnExportExcel,
+                3,
+                0);
+
+
+            mainLayout.Controls.Add(
+                searchPanel,
+                0,
+                1);
+
+
+            // ========================================================
+            // GRID
+            // ========================================================
+
+            _grid = new GridControl
+            {
+                Dock = DockStyle.Fill
+            };
+
+            _gridView = new GridView(_grid);
+
+            _grid.MainView = _gridView;
+
+            _gridView.OptionsBehavior.Editable = false;
+
+            _gridView.OptionsView.ShowGroupPanel = false;
+
+            _gridView.OptionsView.RowAutoHeight = true;
+
+            _gridView.OptionsSelection.MultiSelect = true;
+
+            _gridView.OptionsSelection.MultiSelectMode =
+                GridMultiSelectMode.CheckBoxRowSelect;
+
+            _gridView.DoubleClick +=
+                GridView_DoubleClick;
+
+            mainLayout.Controls.Add(
+                _grid,
+                0,
+                2);
+
+
+            // ========================================================
+            // HINT
+            // ========================================================
+
             _lblHint = new LabelControl
             {
                 Dock = DockStyle.Fill,
-                Text = "💡 Hướng dẫn: Click chọn mốc tiến trình phía trên để xem dữ liệu, thao tác trực tiếp hoặc Double-click để xử lý.",
                 Padding = new Padding(10, 6, 0, 0),
-                Appearance = { Font = new Font("Tahoma", 9F, FontStyle.Italic), ForeColor = Color.DimGray }
+                Appearance =
+            {
+                Font = new Font(
+                    "Tahoma",
+                    9F,
+                    FontStyle.Italic),
+
+                ForeColor = Color.DimGray
+            }
             };
-            mainLayout.Controls.Add(_lblHint, 0, 3);
+
+            mainLayout.Controls.Add(
+                _lblHint,
+                0,
+                3);
 
             Controls.Add(mainLayout);
         }
 
+
+        // ============================================================
+        // REFRESH
+        // ============================================================
+
+        private void RefreshAll()
+        {
+            RefreshBadges();
+            LoadCurrentStep();
+        }
+
+
+        private void RefreshBadges()
+        {
+            try
+            {
+                var tatCa = new List<PhieuTraHang>();
+
+                tatCa.AddRange(
+                    _khachTraHangService.GetChoXuLy()
+                    ?? new List<PhieuTraHang>());
+
+                tatCa.AddRange(
+                    _traNoiBoService.GetChoXuLy()
+                    ?? new List<PhieuTraHang>());
+
+                // Không để duplicate header
+                tatCa = tatCa
+                    .GroupBy(x => x.Id)
+                    .Select(g => g.First())
+                    .ToList();
+
+
+                int buoc1 = tatCa.Count(
+                    x => x.Status == PhieuTraHangStatus.Moi);
+
+
+                int buoc2 = tatCa.Count(
+                    x => CoPhieuDangChoTaoBatThuong(x.Id));
+
+
+                int buoc3 = tatCa.Count(
+                    x => CoQTState(
+                        x.Id,
+                        QTChungStatus.DaTaoPhieuBatThuong));
+
+
+                int buoc4 = tatCa.Count(
+                    x => CoQTState(
+                        x.Id,
+                        QTChungStatus.DaDinhHuong));
+
+
+                int buoc5 = tatCa.Count(
+                    x => CoQTState(
+                        x.Id,
+                        QTChungStatus.DaGiaoSanXuat));
+
+
+                int buoc6 = tatCa.Count(
+                    x => CoQTState(
+                        x.Id,
+                        QTChungStatus.DaQCXacNhanCuoi)
+                    ||
+                    CoQTState(
+                        x.Id,
+                        QTChungStatus.DaNhapLaiKho));
+
+
+                _steps[0].Count = buoc1;
+                _steps[1].Count = buoc2;
+                _steps[2].Count = buoc3;
+                _steps[3].Count = buoc4;
+                _steps[4].Count = buoc5;
+                _steps[5].Count = buoc6;
+            }
+            catch (Exception ex)
+            {
+                XtraMessageBox.Show(
+                    "Không thể cập nhật số lượng tiến trình.\r\n\r\n" +
+                    ex.Message,
+                    "Lỗi",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+            }
+        }
+
+
+        private bool CoPhieuDangChoTaoBatThuong(
+            int phieuTraHangId)
+        {
+            var p = _phieuXuLyRepo
+                .GetByPhieuTraHangId(phieuTraHangId);
+
+            return p == null;
+        }
+
+
+        private bool CoQTState(
+            int phieuTraHangId,
+            QTChungStatus status)
+        {
+            var p = _phieuXuLyRepo
+                .GetByPhieuTraHangId(phieuTraHangId);
+
+            if (p == null)
+                return false;
+
+            return _qtChungService.GetTrangThai(p.Id) == status;
+        }
+
+
+        // ============================================================
+        // STEP
+        // ============================================================
+
         private void SetActiveStep(int stepIndex)
         {
             _activeStep = stepIndex;
-            foreach (var s in _steps) s.SetActive(s.StepIndex == stepIndex);
 
-            _gridView.Columns.Clear();
-
-            // Nút "Tạo phiếu nội bộ" chỉ thực sự hữu ích và hiện ở bước 1 hoặc bước 2
-            _btnActionSecondary.Visible = (stepIndex == 1 || stepIndex == 2);
+            foreach (var step in _steps)
+            {
+                step.SetActive(
+                    step.StepIndex == stepIndex);
+            }
 
             switch (stepIndex)
             {
                 case 1:
-                    LoadBuoc1();
-                    _btnActionPrimary.Text = "➕ Nhập chứng từ mới";
-                    _lblHint.Text = "💡 Bước 1 (Chỉ nhánh khách): Nhập chứng từ Phiếu đổi phụ tùng lỗi (HVN) hoặc Return Slip (YMVN). Đối với hàng nội bộ, hệ thống tự động bỏ qua bước này.";
+                    _btnActionSecondary.Visible = true;
+                    _btnActionPrimary.Text =
+                        "➕ Tiếp nhận phiếu khách";
+                    _lblHint.Text =
+                        "Bước 1: Tiếp nhận Phiếu trả hàng khách hoặc tạo Phiếu trả nội bộ.";
                     break;
+
                 case 2:
-                    LoadBuoc2();
-                    _btnActionPrimary.Text = "📄 Sinh phiếu bất thường";
-                    _lblHint.Text = "💡 Bước 2: Chọn dòng chứng từ khách và bấm 'Sinh phiếu bất thường', hoặc bấm nút 'Tạo phiếu nội bộ' nếu là lỗi phát sinh nội bộ từ Slot.";
+                    _btnActionSecondary.Visible = true;
+                    _btnActionPrimary.Text =
+                        "📄 Tạo phiếu bất thường";
+                    _lblHint.Text =
+                        "Bước 2: Tạo PhieuXuLyBatThuong từ các dòng PhieuTraHangCT.";
                     break;
+
                 case 3:
-                    LoadBuoc3();
-                    _btnActionMultiDinhHuong();
+                    _btnActionSecondary.Visible = false;
+                    _btnActionPrimary.Text =
+                        "✍ QC định hướng";
+                    _lblHint.Text =
+                        "Bước 3: QC xác định hướng TuChoiGiaoBu / ChiGiaoBu / CanRework.";
                     break;
+
                 case 4:
-                    LoadBuoc4();
-                    _btnActionPrimary.Text = "⚙️ SX báo đã xử lý xong";
-                    _lblHint.Text = "💡 Bước 4: Danh sách đang chờ sản xuất xử lý. Double-click dòng để báo sản xuất hoàn tất (chuyển sang bước QC xác nhận cuối).";
+                    _btnActionSecondary.Visible = false;
+                    _btnActionPrimary.Text =
+                        "⚙ Xử lý Rework";
+                    _lblHint.Text =
+                        "Bước 4: Với CanRework, thực hiện xuất kho và giao cho sản xuất.";
                     break;
+
                 case 5:
-                    LoadBuoc5();
-                    _btnActionPrimary.Text = "🔍 Mở QC Xác Nhận Cuối";
-                    _lblHint.Text = "💡 Bước 5: Sản xuất đã báo xong, mở màn hình FormXuLyBatThuong (mode Final) để QC chốt OK/NG kết quả cuối.";
+                    _btnActionSecondary.Visible = false;
+                    _btnActionPrimary.Text =
+                        "🔍 QC xác nhận cuối";
+                    _lblHint.Text =
+                        "Bước 5: QC xác nhận OK/NG. Nếu NG > 0 sẽ chuyển sang nhập lại kho.";
                     break;
+
                 case 6:
-                    LoadBuoc6();
-                    _btnActionPrimary.Text = "↩ Trả hàng NG về sản xuất";
-                    _lblHint.Text = "💡 Bước 6: Các phiếu đã được QC chốt OK/NG sẵn sàng trả về kho/sản xuất (dùng FormTraHangNGNew).";
+                    _btnActionSecondary.Visible = false;
+                    _btnActionPrimary.Text =
+                        "↩ Xử lý hoàn tất";
+                    _lblHint.Text =
+                        "Bước 6: Nhập NG, giao bù, giao lại bộ phận phát hiện hoặc hoàn tất QT chung.";
                     break;
             }
+
+            LoadCurrentStep();
         }
 
-        private void _btnActionMultiDinhHuong()
+
+        // ============================================================
+        // LOAD CURRENT STEP
+        // ============================================================
+
+        private void LoadCurrentStep()
         {
-            _btnActionPrimary.Text = "✍️ QC Định hướng";
-            _lblHint.Text = "💡 Bước 3: Double-click dòng hoặc bấm nút để mở FormXuLyBatThuong (mode DinhHuong), cập nhật định hướng loại lỗi.";
-        }
-
-        private void RefreshBadges()
-        {
-            _steps[0].Count = _repo.DemChuaNhapLieu();
-            _steps[1].Count = _repo.DemChoBanHanhPhieuBatThuong();
-            _steps[2].Count = _repo.DemChoQCDinhHuong();
-            _steps[3].Count = _repo.DemDangSanXuat();
-            _steps[4].Count = _repo.DemChoXacNhanCuoi();
-            _steps[5].Count = _repo.DemSanSangTra();
-        }
-
-        private void ApplyFilter()
-        {
-            string kw = _txtSearch.Text.Trim();
-            _gridView.ActiveFilterString = string.IsNullOrEmpty(kw)
-                ? ""
-                : $"Contains([MaHang], '{kw}') Or Contains([SoPhieuKhach], '{kw}') Or " +
-                  $"Contains([SoPhieu], '{kw}') Or Contains([MaSanPham], '{kw}')";
-        }
-
-        // ════════════════════════════════════════════════════════════════
-        // Load Grid theo 6 bước
-        // ════════════════════════════════════════════════════════════════
-        private void LoadBuoc1()
-        {
-            var dt = _repo.GetGridBuoc1_ChungTuMoi();
-            _grid.DataSource = dt;
-            _gridView.PopulateColumns();
-            HideHelperColumns();
-            if (_gridView.Columns["HeaderId"] != null) _gridView.Columns["HeaderId"].Visible = false;
-            if (_gridView.Columns["CTId"] != null) _gridView.Columns["CTId"].Visible = false;
-            _gridView.BestFitColumns();
-        }
-
-        private void LoadBuoc2()
-        {
-            var dt = _repo.GetGridBuoc2_ChoSinhPhieuBatThuong();
-            _grid.DataSource = dt;
-            _gridView.PopulateColumns();
-            HideHelperColumns();
-            if (_gridView.Columns["HeaderId"] != null) _gridView.Columns["HeaderId"].Visible = false;
-            _gridView.BestFitColumns();
-        }
-
-        //private void LoadBuoc3()
-        //{
-        //    var dt = _repo.GetGridDinhHuong();
-        //    _grid.DataSource = dt;
-        //    _gridView.PopulateColumns();
-        //    HideHelperColumns();
-        //    _gridView.BestFitColumns();
-        //}
-        private void LoadBuoc3()
-        {
-            var dt = _repo.GetGridDinhHuong();
-            _grid.DataSource = dt;
-
-            // Xóa populate tự động nếu có
-            _gridView.Columns.Clear();
-
-            // Chỉ định rõ các cột quan trọng thực sự cần thiết hiển thị cho người dùng
-            _gridView.Columns.Add(new GridColumn { FieldName = "Id", Caption = "ID", Visible = false });
-            _gridView.Columns.Add(new GridColumn { FieldName = "SoPhieu", Caption = "Số phiếu", Width = 130, VisibleIndex = 0 });
-            _gridView.Columns.Add(new GridColumn { FieldName = "Model", Caption = "Model", Width = 90, VisibleIndex = 1 });
-            _gridView.Columns.Add(new GridColumn { FieldName = "MaSanPham", Caption = "Mã sản phẩm", Width = 140, VisibleIndex = 2 });
-            _gridView.Columns.Add(new GridColumn { FieldName = "SoLo", Caption = "Số lô", Width = 100, VisibleIndex = 3 });
-
-            var colSl = new GridColumn { FieldName = "SoLuongLoi", Caption = "SL lỗi", Width = 70, VisibleIndex = 4 };
-            colSl.DisplayFormat.FormatType = DevExpress.Utils.FormatType.Numeric;
-            colSl.DisplayFormat.FormatString = "n0";
-            _gridView.Columns.Add(colSl);
-
-            _gridView.Columns.Add(new GridColumn { FieldName = "PhanLoaiXuLy", Caption = "Phân loại", Width = 120, VisibleIndex = 5 });
-
-            var colDate = new GridColumn { FieldName = "NgayTao", Caption = "Ngày tạo", Width = 110, VisibleIndex = 6 };
-            colDate.DisplayFormat.FormatType = DevExpress.Utils.FormatType.DateTime;
-            colDate.DisplayFormat.FormatString = "dd/MM/yyyy HH:mm";
-            _gridView.Columns.Add(colDate);
-
-            _gridView.Columns.Add(new GridColumn { FieldName = "BoPhanPhatHanh", Caption = "Bộ phận tạo", Width = 110, VisibleIndex = 7 });
-
-            _gridView.BestFitColumns();
-        }
-        private void LoadBuoc4()
-        {
-            var dt = _repo.GetGridDangSanXuat();
-            _grid.DataSource = dt;
-            _gridView.PopulateColumns();
-            HideHelperColumns();
-            _gridView.BestFitColumns();
-        }
-
-        private void LoadBuoc5()
-        {
-            var dt = _repo.GetGridXacNhanCuoi();
-            _grid.DataSource = dt;
-            _gridView.PopulateColumns();
-            HideHelperColumns();
-            _gridView.BestFitColumns();
-        }
-
-        private void LoadBuoc6()
-        {
-            var dt = _repo.GetGridBuoc4_SanSangTra();
-            _grid.DataSource = dt;
-            _gridView.PopulateColumns();
-            HideHelperColumns();
-            _gridView.BestFitColumns();
-        }
-
-        private void HideHelperColumns()
-        {
-            if (_gridView.Columns["TrangThaiHienThi"] != null)
-                _gridView.Columns["TrangThaiHienThi"].Visible = false;
-        }
-
-        // ════════════════════════════════════════════════════════════════
-        // Điều phối hành động chính & Double-click
-        // ════════════════════════════════════════════════════════════════
-        private void BtnActionPrimary_Click(object sender, EventArgs e)
-        {
-            ExecuteActionByStep(_activeStep);
-        }
-
-        private void GridView_DoubleClick(object sender, EventArgs e)
-        {
-            ExecuteActionByStep(_activeStep);
-        }
-
-        private void ExecuteActionByStep(int step)
-        {
-            switch (step)
-            {
-                case 1: MoFormNhapChungTu(); break;
-                case 2: SinhPhieuBatThuongTuDongDaChon(); break;
-                case 3: MoFormXuLyBatThuongDinhHuong(); break;
-                case 4: XuLySXBaoxong(); break;
-                case 5: MoFormXuLyBatThuongFinal(); break;
-                case 6: MoFormTraHang(); break;
-            }
-        }
-
-        private void MoFormNhapChungTu()
-        {
-            using (var f = new FormPhieuLoiKhachTra(_repo))
-            {
-                if (f.ShowDialog(this) == DialogResult.OK)
-                {
-                    RefreshBadges();
-                    SetActiveStep(_activeStep);
-                }
-            }
-        }
-
-        // Nút phụ: Tạo phiếu nội bộ trực tiếp từ Slot (Bỏ qua bước 1 và 2 chứng từ khách)
-        private void MoFormTaoPhieuNoiBo()
-        {
-            // Mở form hoặc hộp thoại chọn Slot/Lot nội bộ để tạo phiếu bất thường nguồn Nội bộ (Nguon = 2)
-            // Tùy biến theo form chọn Slot sẵn có trong hệ thống của bạn, ví dụ:
-            using (var f = new FormChonSlotNoiBo(_repo))
-            {
-                if (f.ShowDialog(this) == DialogResult.OK)
-                {
-                    XtraMessageBox.Show("Đã tạo phiếu xử lý bất thường nội bộ thành công từ Slot!", "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    RefreshBadges();
-                    SetActiveStep(3); // Chuyển thẳng sang mốc 3 (QC định hướng)
-                }
-            }
-        }
-
-        private void SinhPhieuBatThuongTuDongDaChon()
-        {
-            var selectedRows = _gridView.GetSelectedRows()
-                .Select(h => _gridView.GetDataRow(h))
-                .Where(r => r != null)
-                .ToList();
-
-            if (selectedRows.Count == 0)
-            {
-                XtraMessageBox.Show("Vui lòng tick chọn ít nhất 1 dòng để sinh phiếu bất thường.",
-                    "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
-
-            var groups = selectedRows
-                .GroupBy(r => new {
-                    Model = r["Model"]?.ToString(),
-                    MaHang = r["MaHang"]?.ToString(),
-                    SoLo = r["SoLo"]?.ToString()
-                });
-
-            int soPhieuTao = 0;
-            foreach (var g in groups)
-            {
-                int ctIdDaiDien = Convert.ToInt32(g.First()["CTId"]);
-                int tongSl = g.Sum(r => Convert.ToInt32(r["SoLuong"]));
-                string noiDungGop = string.Join(" | ", g.Select(r => r["NoiDungLoi"]?.ToString()).Distinct());
-
-                var pht = new PhieuXuLyBatThuong
-                {
-                    Nguon = NguonPhieuBatThuong.KhachTra,
-                    PhieuLoiKhachTraCTId = ctIdDaiDien,
-                    Model = g.Key.Model,
-                    MaSanPham = g.Key.MaHang,
-                    SoLo = g.Key.SoLo,
-                    SoLoLoi = g.Key.SoLo,
-                    SoLuongLoi = tongSl,
-                    NoiDungBatThuong = noiDungGop,
-                    PhanLoaiXuLy = "Hàng lỗi khách trả",
-                    BoPhanPhatHanh = Environment.UserName
-                };
-
-                _repo.InsertPhieuXuLyBatThuong(pht);
-                soPhieuTao++;
-            }
-
-            var headerIds = selectedRows.Select(r => Convert.ToInt32(r["HeaderId"])).Distinct();
-            foreach (var hid in headerIds)
-            {
-                var header = _repo.GetPhieuLoiKhachTra(hid);
-                if (header != null)
-                    new DevExpress.XtraReports.UI.ReportPrintTool(
-                        new RpIn.RpPhieuXacNhanPhuTungLoi(header)).ShowPreviewDialog();
-            }
-
-            XtraMessageBox.Show($"Đã sinh {soPhieuTao} phiếu xử lý bất thường, chuyển sang QC định hướng.",
-                "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
-
-            RefreshBadges();
-            SetActiveStep(_activeStep);
-        }
-
-        private void MoFormXuLyBatThuongDinhHuong()
-        {
-            var focused = _gridView.GetFocusedDataRow();
-            if (focused == null)
-            {
-                XtraMessageBox.Show("Vui lòng chọn 1 phiếu để định hướng.", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
-
-            int id = Convert.ToInt32(focused["Id"]);
-            using (var f = new FormXuLyBatThuong(_repo, XuLyBatThuongMode.DinhHuong, id))
-            {
-                f.ShowDialog(this);
-            }
-            RefreshBadges();
-            SetActiveStep(_activeStep);
-        }
-
-        // Bước 4: SX báo xong (không cần form riêng, chỉ hỏi xác nhận + nhập nhanh ghi chú)
-        private void XuLySXBaoxong()
-        {
-            var focused = _gridView.GetFocusedDataRow();
-            if (focused == null)
-            {
-                XtraMessageBox.Show("Vui lòng chọn 1 dòng phiếu đang xử lý.", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
-
-            int id = Convert.ToInt32(focused["Id"]);
-            string soPhieu = focused["SoPhieu"]?.ToString();
-
-            // Hiển thị hộp thoại nhập ghi chú nhanh cho sản xuất
-            string ghiChu = XtraInputBox.Show($"Nhập ghi chú hoàn tất xử lý cho phiếu [{soPhieu}]:", "Sản xuất báo xong", "");
-            if (ghiChu == null) return; // Người dùng bấm Cancel
-
             try
             {
-                _repo.DanhDauSanXuatBaoXong(id, ghiChu, Environment.UserName);
-                XtraMessageBox.Show("Đã cập nhật trạng thái sang 'Chờ QC xác nhận cuối'.", "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                RefreshBadges();
-                SetActiveStep(_activeStep);
+                var rows = BuildWorkflowRows();
+
+                IEnumerable<WorkflowRow> result;
+
+                switch (_activeStep)
+                {
+                    case 1:
+                        result = rows.Where(
+                            x => x.PhieuTraHangStatus
+                                 == PhieuTraHangStatus.Moi);
+                        break;
+
+                    case 2:
+                        result = rows.Where(
+                            x => x.PhieuXuLyId == null);
+                        break;
+
+                    case 3:
+                        result = rows.Where(
+                            x => x.QTStatus
+                                 == QTChungStatus.DaTaoPhieuBatThuong);
+                        break;
+
+                    case 4:
+                        result = rows.Where(
+                            x => x.QTStatus
+                                 == QTChungStatus.DaDinhHuong);
+                        break;
+
+                    case 5:
+                        result = rows.Where(
+                            x => x.QTStatus
+                                 == QTChungStatus.DaGiaoSanXuat);
+                        break;
+
+                    case 6:
+                        result = rows.Where(
+                            x =>
+                                x.QTStatus
+                                == QTChungStatus.DaQCXacNhanCuoi
+
+                                ||
+
+                                x.QTStatus
+                                == QTChungStatus.DaNhapLaiKho
+
+                                ||
+
+                                x.QTStatus
+                                == QTChungStatus.DaGiaoBu
+
+                                ||
+
+                                x.QTStatus
+                                == QTChungStatus.TuChoiGiaoBu);
+                        break;
+
+                    default:
+                        result = rows;
+                        break;
+                }
+
+                _rows = result.ToList();
+
+                _grid.DataSource = _rows;
+
+                ConfigureGrid();
+
+                ApplyFilter();
             }
             catch (Exception ex)
             {
-                XtraMessageBox.Show($"Lỗi cập nhật: {ex.Message}", "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                XtraMessageBox.Show(
+                    "Không thể tải dữ liệu tiến trình.\r\n\r\n" +
+                    ex.Message,
+                    "Lỗi",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
             }
         }
 
-        private void MoFormXuLyBatThuongFinal()
+
+        // ============================================================
+        // BUILD WORKFLOW ROW
+        // ============================================================
+
+        private List<WorkflowRow> BuildWorkflowRows()
         {
-            var focused = _gridView.GetFocusedDataRow();
-            if (focused == null)
+            var result = new List<WorkflowRow>();
+
+            var headers = new List<PhieuTraHang>();
+
+            headers.AddRange(
+                _khachTraHangService.GetChoXuLy()
+                ?? new List<PhieuTraHang>());
+
+            headers.AddRange(
+                _traNoiBoService.GetChoXuLy()
+                ?? new List<PhieuTraHang>());
+
+
+            headers = headers
+                .GroupBy(x => x.Id)
+                .Select(g => g.First())
+                .ToList();
+
+
+            foreach (var header in headers)
             {
-                XtraMessageBox.Show("Vui lòng chọn 1 phiếu để QC xác nhận cuối.", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                var row = new WorkflowRow
+                {
+                    PhieuTraHangId = header.Id,
+
+                    SoPhieu = header.SoPhieu,
+
+                    PhieuTraHangStatus =
+                        header.Status,
+
+                    Nguon = header.Nguon.ToString(),
+
+                    BoPhanPhatHienLoi =
+                        header.BoPhanPhatHienLoi
+                };
+
+
+                var pht =
+                    _phieuXuLyRepo
+                        .GetByPhieuTraHangId(header.Id);
+
+
+                if (pht != null)
+                {
+                    row.PhieuXuLyId = pht.Id;
+
+                    row.Model = pht.Model;
+
+                    row.PhanLoaiXuLy =
+                        pht.PhanLoaiXuLy;
+
+                    row.HuongXuLy =
+                        pht.HuongXuLy.ToString();
+
+                    row.QTStatus =
+                        _qtChungService.GetTrangThai(
+                            pht.Id);
+
+                    row.SoLuongLoi =
+                        pht.SoLuongLoi;
+
+                    row.MaSanPham =
+                        pht.MaSanPham;
+
+                    row.SoLo =
+                        pht.SoLo;
+                }
+
+
+                result.Add(row);
+            }
+
+            return result;
+        }
+
+
+        // ============================================================
+        // GRID
+        // ============================================================
+
+        private void ConfigureGrid()
+        {
+            _gridView.Columns.Clear();
+
+            AddColumn(
+                "PhieuTraHangId",
+                "PT Id",
+                false);
+
+            AddColumn(
+                "PhieuXuLyId",
+                "QT Id",
+                false);
+
+            AddColumn(
+                "SoPhieu",
+                "Số phiếu",
+                true,
+                120);
+
+            AddColumn(
+                "Nguon",
+                "Nguồn",
+                true,
+                100);
+
+            AddColumn(
+                "Model",
+                "Model",
+                true,
+                90);
+
+            AddColumn(
+                "MaSanPham",
+                "Mã sản phẩm",
+                true,
+                140);
+
+            AddColumn(
+                "SoLo",
+                "Số lô",
+                true,
+                100);
+
+            AddColumn(
+                "SoLuongLoi",
+                "SL lỗi",
+                true,
+                70);
+
+            AddColumn(
+                "PhanLoaiXuLy",
+                "Phân loại",
+                true,
+                130);
+
+            AddColumn(
+                "HuongXuLy",
+                "Hướng xử lý",
+                true,
+                130);
+
+            AddColumn(
+                "PhieuTraHangStatus",
+                "Trạng thái trả hàng",
+                true,
+                150);
+
+            AddColumn(
+                "QTStatus",
+                "QT Chung",
+                true,
+                150);
+
+            AddColumn(
+                "BoPhanPhatHienLoi",
+                "Bộ phận phát hiện",
+                true,
+                150);
+
+
+            _gridView.BestFitColumns();
+        }
+
+
+        private void AddColumn(
+            string fieldName,
+            string caption,
+            bool visible,
+            int width = 100)
+        {
+            var col = new GridColumn
+            {
+                FieldName = fieldName,
+                Caption = caption,
+                Visible = visible,
+                Width = width
+            };
+
+            _gridView.Columns.Add(col);
+        }
+
+
+        // ============================================================
+        // SEARCH
+        // ============================================================
+
+        private void ApplyFilter()
+        {
+            string kw =
+                _txtSearch.Text?
+                    .Trim();
+
+            if (string.IsNullOrWhiteSpace(kw))
+            {
+                _gridView.ActiveFilterString = "";
                 return;
             }
 
-            int id = Convert.ToInt32(focused["Id"]);
-            using (var f = new FormXuLyBatThuong(_repo, XuLyBatThuongMode.XacNhanCuoi, id))
-            {
-                f.ShowDialog(this);
-            }
-            RefreshBadges();
-            SetActiveStep(_activeStep);
+            string safe =
+                kw.Replace(
+                    "'",
+                    "''");
+
+            _gridView.ActiveFilterString =
+                $"Contains([SoPhieu], '{safe}') " +
+                $"Or Contains([Model], '{safe}') " +
+                $"Or Contains([MaSanPham], '{safe}') " +
+                $"Or Contains([SoLo], '{safe}') " +
+                $"Or Contains([Nguon], '{safe}') " +
+                $"Or Contains([HuongXuLy], '{safe}')";
         }
 
-        private void MoFormTraHang()
-        {
-            var focused = _gridView.GetFocusedDataRow();
-            int? preselectId = focused != null ? Convert.ToInt32(focused["Id"]) : (int?)null;
 
-            using (var f = new FormTraHangNGNew(preselectId))
+        // ============================================================
+        // ACTION
+        // ============================================================
+
+        private void BtnActionPrimary_Click(
+            object sender,
+            EventArgs e)
+        {
+            ExecuteActionByStep(
+                _activeStep);
+        }
+
+
+        private void GridView_DoubleClick(
+            object sender,
+            EventArgs e)
+        {
+            ExecuteActionByStep(
+                _activeStep);
+        }
+
+
+        private void ExecuteActionByStep(
+            int step)
+        {
+            switch (step)
             {
-                f.ShowDialog(this);
+                case 1:
+                    TiepNhanKhach();
+                    break;
+
+                case 2:
+                    TaoPhieuXuLyBatThuong();
+                    break;
+
+                case 3:
+                    QCDinhHuong();
+                    break;
+
+                case 4:
+                    XuLyRework();
+                    break;
+
+                case 5:
+                    QCXacNhanCuoi();
+                    break;
+
+                case 6:
+                    XuLyBuocCuoi();
+                    break;
             }
+        }
+
+
+        // ============================================================
+        // STEP 1
+        // ============================================================
+
+        private void TiepNhanKhach()
+        {
+            using (var f =
+                new FormTiepNhanPhieuKhachTra(_khachTraHangService))
+            {
+                if (f.ShowDialog(this)
+                    != DialogResult.OK)
+                    return;
+
+                RefreshAfterAction();
+            }
+        }
+
+
+        // ============================================================
+        // STEP 2
+        // ============================================================
+
+        private void TaoPhieuXuLyBatThuong()
+        {
+            var row =
+                GetFocusedRow();
+
+            if (row == null)
+                return;
+
+            if (row.PhieuTraHangId <= 0)
+            {
+                ShowWarning(
+                    "Không xác định được PhieuTraHang.");
+                return;
+            }
+
+            var items =
+                _phieuTraHangRepo
+                    .GetItems(
+                        row.PhieuTraHangId);
+
+            if (items == null ||
+                items.Count == 0)
+            {
+                ShowWarning(
+                    "Phiếu trả hàng chưa có dòng chi tiết.");
+                return;
+            }
+
+
+            int created = 0;
+
+            foreach (var item in items)
+            {
+                try
+                {
+                    var existing =
+                        _phieuXuLyRepo
+                            .GetByPhieuTraHangId(
+                                row.PhieuTraHangId);
+
+                    if (existing != null)
+                        continue;
+
+
+                    _qtChungService.TaoPhieuXuLyBatThuong(
+                        item.Id,
+                        row.Model,
+                        row.PhanLoaiXuLy
+                            ?? "Hàng lỗi",
+                        Environment.UserName,
+                        Environment.UserName);
+
+                    created++;
+                }
+                catch (Exception ex)
+                {
+                    XtraMessageBox.Show(
+                        $"Không thể tạo phiếu cho dòng {item.Id}.\r\n\r\n" +
+                        ex.Message,
+                        "Lỗi",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Error);
+
+                    return;
+                }
+            }
+
+
+            if (created == 0)
+            {
+                ShowWarning(
+                    "Phiếu này đã có PhieuXuLyBatThuong.");
+                return;
+            }
+
+
+            XtraMessageBox.Show(
+                $"Đã tạo {created} phiếu xử lý bất thường.",
+                "Thành công",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Information);
+
+            RefreshAfterAction();
+        }
+
+
+        // ============================================================
+        // STEP 3
+        // ============================================================
+
+        private void QCDinhHuong()
+        {
+            var row =
+                GetFocusedRow();
+
+            if (row == null)
+                return;
+
+            if (!row.PhieuXuLyId.HasValue)
+            {
+                ShowWarning(
+                    "Phiếu chưa có PhieuXuLyBatThuong.");
+                return;
+            }
+
+
+            using (var f =
+                new FormQCDinhHuong(
+                    _qtChungService,
+                    row.PhieuXuLyId.Value))
+            {
+                if (f.ShowDialog(this)
+                    == DialogResult.OK)
+                {
+                    RefreshAfterAction();
+                }
+            }
+        }
+
+
+        // ============================================================
+        // STEP 4
+        // ============================================================
+
+        private void XuLyRework()
+        {
+            var row =
+                GetFocusedRow();
+
+            if (row == null)
+                return;
+
+            if (!row.PhieuXuLyId.HasValue)
+            {
+                ShowWarning(
+                    "Không xác định được phiếu xử lý.");
+                return;
+            }
+
+
+            var p =
+                _qtChungService.GetById(
+                    row.PhieuXuLyId.Value);
+
+            if (p == null)
+            {
+                ShowWarning(
+                    "Không tìm thấy PhieuXuLyBatThuong.");
+                return;
+            }
+
+
+            if (p.HuongXuLy
+                != HuongXuLyBatThuong.CanRework)
+            {
+                XtraMessageBox.Show(
+                    "Phiếu này không thuộc nhánh Rework.\r\n\r\n" +
+                    "Hướng xử lý hiện tại: " +
+                    p.HuongXuLy,
+                    "Thông báo",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+
+                return;
+            }
+
+
+            using (var f =
+                new FormReworkProcess(
+                    _qtChungService,
+                    _reworkStockService,
+                    row.PhieuXuLyId.Value))
+            {
+                if (f.ShowDialog(this)
+                    == DialogResult.OK)
+                {
+                    RefreshAfterAction();
+                }
+            }
+        }
+
+
+        // ============================================================
+        // STEP 5
+        // ============================================================
+
+        private void QCXacNhanCuoi()
+        {
+            var row =
+                GetFocusedRow();
+
+            if (row == null)
+                return;
+
+            if (!row.PhieuXuLyId.HasValue)
+            {
+                ShowWarning(
+                    "Không xác định được phiếu xử lý.");
+                return;
+            }
+
+
+            using (var f =
+                new FormQCXacNhanCuoi(
+                    _qtChungService,
+                    row.PhieuXuLyId.Value))
+            {
+                if (f.ShowDialog(this)
+                    == DialogResult.OK)
+                {
+                    RefreshAfterAction();
+                }
+            }
+        }
+
+
+        // ============================================================
+        // STEP 6
+        // ============================================================
+
+        private void XuLyBuocCuoi()
+        {
+            var row =
+                GetFocusedRow();
+
+            if (row == null)
+                return;
+
+            if (!row.PhieuXuLyId.HasValue)
+            {
+                ShowWarning(
+                    "Không xác định được phiếu xử lý.");
+                return;
+            }
+
+
+            var p =
+                _qtChungService.GetById(
+                    row.PhieuXuLyId.Value);
+
+            if (p == null)
+            {
+                ShowWarning(
+                    "Không tìm thấy phiếu xử lý.");
+                return;
+            }
+
+
+            switch (p.HuongXuLy)
+            {
+                case HuongXuLyBatThuong.ChiGiaoBu:
+
+                    XuLyGiaoBu(row);
+
+                    break;
+
+
+                case HuongXuLyBatThuong.TuChoiGiaoBu:
+
+                    HoanTatTuChoi(row);
+
+                    break;
+
+
+                case HuongXuLyBatThuong.CanRework:
+
+                    XuLySauQCRework(row);
+
+                    break;
+
+
+                default:
+
+                    ShowWarning(
+                        "Phiếu chưa có hướng xử lý hợp lệ.");
+
+                    break;
+            }
+        }
+
+
+        // ============================================================
+        // GIAO BÙ
+        // ============================================================
+
+        private void XuLyGiaoBu(
+            WorkflowRow row)
+        {
+            if (!row.PhieuXuLyId.HasValue)
+                return;
+
+
+            var phieu =
+                _phieuTraHangRepo
+                    .GetById(
+                        row.PhieuTraHangId);
+
+            if (phieu == null)
+            {
+                ShowWarning(
+                    "Không tìm thấy phiếu trả hàng.");
+                return;
+            }
+
+
+            string soPhieuKhachTra =
+                phieu.SoPhieu;
+
+
+            using (var f =
+                new FormGiaoBuNG(
+                    _giaoBuNGService,
+                    phieu.Id,
+                    soPhieuKhachTra))
+            {
+                if (f.ShowDialog(this)
+                    == DialogResult.OK)
+                {
+                    RefreshAfterAction();
+                }
+            }
+        }
+
+
+        // ============================================================
+        // TU CHỐI GIAO BÙ
+        // ============================================================
+
+        private void HoanTatTuChoi(
+            WorkflowRow row)
+        {
+            if (!row.PhieuXuLyId.HasValue)
+                return;
+
+
+            var confirm =
+                XtraMessageBox.Show(
+                    "Phiếu đang ở nhánh Từ chối giao bù.\r\n\r\n" +
+                    "Bạn có muốn hoàn tất QT chung?",
+                    "Xác nhận",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Question);
+
+            if (confirm != DialogResult.Yes)
+                return;
+
+
+            var result =
+                _qtChungService.HoanTat(
+                    row.PhieuXuLyId.Value,
+                    Environment.UserName);
+
+
+            ShowScanResult(
+                result);
+
+            RefreshAfterAction();
+        }
+
+
+        // ============================================================
+        // SAU QC REWORK
+        // ============================================================
+
+        private void XuLySauQCRework(
+            WorkflowRow row)
+        {
+            if (!row.PhieuXuLyId.HasValue)
+                return;
+
+
+            var qc =
+                _qtChungRepo.GetQC(
+                    row.PhieuXuLyId.Value);
+
+            if (qc == null)
+            {
+                ShowWarning(
+                    "Chưa có kết quả QC cuối.");
+                return;
+            }
+
+
+            if (qc.SoLuongNG <= 0)
+            {
+                var result =
+                    _qtChungService.HoanTat(
+                        row.PhieuXuLyId.Value,
+                        Environment.UserName);
+
+                ShowScanResult(result);
+
+                RefreshAfterAction();
+
+                return;
+            }
+
+
+            using (var f =
+                new FormNhapLaiHangNG(
+                    _reworkStockService,
+                    row.PhieuXuLyId.Value,
+                    qc.SoLuongNG))
+            {
+                if (f.ShowDialog(this)
+                    == DialogResult.OK)
+                {
+                    RefreshAfterAction();
+                }
+            }
+        }
+
+
+        // ============================================================
+        // TẠO PHIẾU NỘI BỘ
+        // ============================================================
+
+        private void TaoPhieuNoiBo()
+        {
+            using (var f = new FormTaoPhieuTraNoiBo(_traNoiBoService))
+            {
+                if (f.ShowDialog(this) == DialogResult.OK)
+                {
+                    RefreshBadges();
+                    SetActiveStep(3);
+                }
+            }
+        }
+
+
+        // ============================================================
+        // HELPERS
+        // ============================================================
+
+        private WorkflowRow GetFocusedRow()
+        {
+            int handle =
+                _gridView.FocusedRowHandle;
+
+            if (handle < 0)
+            {
+                ShowWarning(
+                    "Vui lòng chọn một dòng.");
+
+                return null;
+            }
+
+
+            return _gridView
+                .GetRow(handle)
+                as WorkflowRow;
+        }
+
+
+        private void RefreshAfterAction()
+        {
             RefreshBadges();
-            SetActiveStep(_activeStep);
+            LoadCurrentStep();
+        }
+
+
+        private void ShowWarning(
+            string message)
+        {
+            XtraMessageBox.Show(
+                message,
+                "Thông báo",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Warning);
+        }
+
+
+        private void ShowScanResult(
+            ScanResult result)
+        {
+            if (result == null)
+            {
+                XtraMessageBox.Show(
+                    "Không nhận được kết quả từ Service.",
+                    "Lỗi",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+
+                return;
+            }
+
+
+            if (result.IsOK)
+            {
+                XtraMessageBox.Show(
+                    result.Message,
+                    "Thành công",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+            }
+            else
+            {
+                XtraMessageBox.Show(
+                    result.Message,
+                    "Không thể thực hiện",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+            }
+        }
+
+
+        // ============================================================
+        // WORKFLOW ROW
+        // ============================================================
+
+        private sealed class WorkflowRow
+        {
+            public int PhieuTraHangId { get; set; }
+
+            public int? PhieuXuLyId { get; set; }
+
+            public string SoPhieu { get; set; }
+
+            public string Nguon { get; set; }
+
+            public string Model { get; set; }
+
+            public string MaSanPham { get; set; }
+
+            public string SoLo { get; set; }
+
+            public int SoLuongLoi { get; set; }
+
+            public string PhanLoaiXuLy { get; set; }
+
+            public string HuongXuLy { get; set; }
+
+            public string BoPhanPhatHienLoi { get; set; }
+
+            public PhieuTraHangStatus
+                PhieuTraHangStatus
+            { get; set; }
+
+            public QTChungStatus
+                QTStatus
+            { get; set; }
         }
     }
 }

@@ -1,4 +1,4 @@
-﻿using PCTP.Giao_Hang_XK;
+﻿
 using PCTP.QRCODE_HVN.YMN;
 using PCTP.YMN;
 using PCTP.FuctionPrint;
@@ -9,8 +9,6 @@ using System.Threading.Tasks;
 
 using System.Windows.Forms;
 using PCTP.QRCODE_HVN.Report;
-using PCTP.QRCODE_HVN.PGH.FuctionQR;
-using PCTP.TEST;
 using PCTP.VIEWSTOCK;
 
 namespace PCTP

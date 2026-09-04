@@ -16,24 +16,38 @@ namespace PCTP.Modules.XuLyHangLoi.Services
 {
     public sealed class GiaoBuNGService : IGiaoBuNGService
     {
+       
         private readonly IStockExportService _stockExportService;
         private readonly IHangChoGiaoRepository _choGiaoRepo;
         private readonly ISlotService _slotService;
 
         public GiaoBuNGService(
+            
             IStockExportService stockExportService,
             IHangChoGiaoRepository choGiaoRepo,
             ISlotService slotService)
         {
-            _stockExportService = stockExportService ?? throw new ArgumentNullException(nameof(stockExportService));
-            _choGiaoRepo = choGiaoRepo ?? throw new ArgumentNullException(nameof(choGiaoRepo));
-            _slotService = slotService ?? throw new ArgumentNullException(nameof(slotService));
+           
+            _stockExportService =
+                stockExportService
+                ?? throw new ArgumentNullException(nameof(stockExportService));
+
+            _choGiaoRepo =
+                choGiaoRepo
+                ?? throw new ArgumentNullException(nameof(choGiaoRepo));
+
+            _slotService =
+                slotService
+                ?? throw new ArgumentNullException(nameof(slotService));
         }
 
-        // ════════════════════════════════════════════════════════════════
-        // Danh sách hàng đã pick (chờ giao bù) cho 1 phiếu khách trả
-        // ════════════════════════════════════════════════════════════════
-        public List<HangChoGiao> GetHangSanSangGiaoBu(int phieuKhachTraId)
+
+        // ============================================================
+        // 1. DANH SÁCH HÀNG ĐÃ PICK - CHỜ GIAO BÙ
+        // ============================================================
+
+        public List<HangChoGiao> GetHangSanSangGiaoBu(
+            int phieuKhachTraId)
         {
             if (phieuKhachTraId <= 0)
                 return new List<HangChoGiao>();
@@ -44,124 +58,333 @@ namespace PCTP.Modules.XuLyHangLoi.Services
                 HangChoGiaoStatus.ChoGiao);
         }
 
-        // ════════════════════════════════════════════════════════════════
-        // Quét QR tem thùng hàng thay thế → pick khỏi Slot vào danh sách chờ giao bù
-        // (KHÔNG trừ STOCKTP ở bước này — đúng luồng Trường hợp 1, Bước 1)
-        // ════════════════════════════════════════════════════════════════
-        public ScanResult GiaoBuTheoQR(int phieuKhachTraId, string rawQr, string nguoiGiao)
+
+        // ============================================================
+        // 2. QUÉT QR HÀNG THAY THẾ
+        //
+        // Slot
+        //   ↓
+        // HangChoGiao
+        //
+        // CHƯA trừ STOCKTP.
+        // Việc trừ Slot + tạo HangChoGiao do StockExportService xử lý.
+        // ============================================================
+
+        public ScanResult GiaoBuTheoQR(
+            int phieuKhachTraId,
+            string rawQr,
+            string nguoiGiao)
         {
             if (phieuKhachTraId <= 0)
-                return ScanResult.Fail("Thiếu thông tin phiếu khách trả.");
+            {
+                return ScanResult.Fail(
+                    "Thiếu thông tin phiếu khách trả.");
+            }
 
             if (string.IsNullOrWhiteSpace(rawQr))
-                return ScanResult.Fail("Không có dữ liệu QR.");
+            {
+                return ScanResult.Fail(
+                    "Không có dữ liệu QR.");
+            }
 
-            // ── 1. Parse QR ────────────────────────────────────────────────
+            if (string.IsNullOrWhiteSpace(nguoiGiao))
+            {
+                return ScanResult.Fail(
+                    "Chưa xác định người giao.");
+            }
+
+
+            // ========================================================
+            // 1. PARSE QR
+            // ========================================================
+
             QRCodeInfo qr;
+
             try
             {
-                qr = QRCodeParser.ParseQRCode(rawQr.Trim().ToUpper());
+                qr = QRCodeParser.ParseQRCode(
+                    rawQr.Trim().ToUpper());
             }
-            catch (FormatException fex)
+            catch (FormatException ex)
             {
-                return ScanResult.Fail($"QR không đúng định dạng: {fex.Message}");
+                return ScanResult.Fail(
+                    $"QR không đúng định dạng: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                return ScanResult.Fail(
+                    $"Lỗi đọc QR: {ex.Message}");
+            }
+
+
+            // ========================================================
+            // 2. KHÔNG CHO TEM TỔNG
+            // ========================================================
+
+            if (qr == null)
+            {
+                return ScanResult.Fail(
+                    "Không đọc được thông tin QR.");
             }
 
             if (qr.IsTongPhieu)
-                return ScanResult.Fail("Vui lòng quét tem THÙNG hàng thay thế, không phải tem tổng.");
+            {
+                return ScanResult.Fail(
+                    "Vui lòng quét tem THÙNG hàng thay thế, " +
+                    "không phải tem tổng.");
+            }
+
+            if (string.IsNullOrWhiteSpace(qr.LotNo))
+            {
+                return ScanResult.Fail(
+                    "QR không có LOT.");
+            }
+
+            if (string.IsNullOrWhiteSpace(qr.ItemCode))
+            {
+                return ScanResult.Fail(
+                    "QR không có mã hàng.");
+            }
 
             if (qr.Quantity <= 0)
-                return ScanResult.Fail("Số lượng trên tem không hợp lệ.");
+            {
+                return ScanResult.Fail(
+                    "Số lượng trên tem không hợp lệ.");
+            }
 
-            // ── 2. Xác định Slot đang chứa Lot này ───────────────────────────
-            // (Người quét không biết slot, phải tự tra — StockExportRequest bắt buộc SlotId
-            // khi Source = Slot)
-            var slotsChuaLot = _slotService.FindSlotsContainingLot(qr.LotNo);
-            var candidates = slotsChuaLot.Where(s => s.Quantity >= qr.Quantity).ToList();
+
+            // ========================================================
+            // 3. TÌM SLOT ĐANG CHỨA LOT
+            // ========================================================
+
+            var slotsChuaLot =
+                _slotService.FindSlotsContainingLot(
+                    qr.LotNo);
+
+            if (slotsChuaLot == null ||
+                slotsChuaLot.Count == 0)
+            {
+                return ScanResult.Fail(
+                    $"Không tìm thấy Slot chứa LOT [{qr.LotNo}].");
+            }
+
+
+            // ========================================================
+            // 4. CHỈ LẤY SLOT ĐỦ SỐ LƯỢNG
+            // ========================================================
+
+            var candidates =
+                slotsChuaLot
+                    .Where(x => x.Quantity >= qr.Quantity)
+                    .OrderBy(x => x.ImportDate)
+                    .ToList();
 
             if (candidates.Count == 0)
             {
                 return ScanResult.Fail(
-                    $"Không tìm thấy Slot nào còn đủ {qr.Quantity} SP của LOT [{qr.LotNo}] " +
+                    $"Không tìm thấy Slot nào còn đủ " +
+                    $"{qr.Quantity} SP của LOT [{qr.LotNo}] " +
                     "để pick hàng giao bù.");
             }
 
-            if (candidates.Count > 1)
+
+            // ========================================================
+            // 5. CHỌN SLOT
+            //
+            // FIFO theo ImportDate.
+            // Không tự cộng/trừ tồn tại đây.
+            // ========================================================
+
+            int slotId =
+                candidates.First().SlotId;
+
+
+            // ========================================================
+            // 6. TẠO REQUEST
+            //
+            // Khớp hoàn toàn StockExportRequest hiện tại:
+            //
+            // Quantity
+            // SlotId
+            // ReferenceType
+            // ReferenceId
+            // LyDo
+            // NguoiThucHien
+            // ========================================================
+
+            var request =
+                new StockExportRequest
+                {
+                    LotNo = qr.LotNo,
+
+                    ItemCode = qr.ItemCode,
+
+                    Quantity = qr.Quantity,
+
+                    Source = StockExportSource.Slot,
+
+                    Purpose = StockTransactionType.XuatGiaoBuNG,
+
+                    SlotId = slotId,
+
+                    ReferenceType =
+                        StockExportReferenceType.PhieuKhachTra,
+
+                    ReferenceId =
+                        phieuKhachTraId,
+
+                    LyDo =
+                        "Pick hàng thay thế để giao bù NG",
+
+                    NguoiThucHien =
+                        nguoiGiao
+                };
+
+
+            // ========================================================
+            // 7. PICK VÀO HÀNG CHỜ GIAO
+            //
+            // StockExportService chịu trách nhiệm:
+            //
+            // Slot
+            //   ↓
+            // HangChoGiao
+            //
+            // Không trừ STOCKTP ở bước Pick.
+            // ========================================================
+
+            var result =
+                _stockExportService.PickToChoGiao(
+                    request);
+
+            if (!result.IsOK)
             {
-                // Không tự đoán khi có nhiều Slot đủ điều kiện — tránh pick nhầm.
-                // FIFO: chọn slot nhập trước nhất, nhưng chỉ log cảnh báo, vẫn tiếp tục.
-                candidates = candidates.OrderBy(s => s.ImportDate).ToList();
+                return ScanResult.Fail(
+                    result.Message);
             }
 
-            int slotId = candidates.First().SlotId;
 
-            // ── 3. Gọi StockExportService — nơi DUY NHẤT xử lý trừ Slot + ghi ChoGiao ──
-            var request = new StockExportRequest
-            {
-                LotNo = qr.LotNo,
-                MaHang = qr.ItemCode,
-                SoLuong = qr.Quantity,
-                Source = StockExportSource.Slot,
-                SlotId = slotId,
-                Purpose = StockTransactionType.XuatGiaoBuNG,
-                ReferenceType = StockExportReferenceType.PhieuKhachTra,
-                ReferenceId = phieuKhachTraId,
-                NguoiThucHien = nguoiGiao
-            };
+            // ========================================================
+            // 8. TRẢ PAYLOAD QR
+            // ========================================================
 
-            var result = _stockExportService.PickToChoGiao(request);
-
-            return result.IsOK
-                ? ScanResult.OKNhapKho(qr, nhapItem: null, message: result.Message)
-                : ScanResult.Fail(result.Message);
+            return ScanResult.OKNhapKho(
+                qr,
+                nhapItem: null,
+                message: result.Message);
         }
 
-        // ════════════════════════════════════════════════════════════════
-        // Xác nhận toàn bộ hàng đã pick cho phiếu này đã giao bù xong
-        // (Trường hợp 1, Bước 2 — trừ STOCKTP cho từng dòng)
-        // ════════════════════════════════════════════════════════════════
-        public ScanResult XacNhanHoanTatGiaoBu(int phieuKhachTraId, string nguoiGiao)
+
+        // ============================================================
+        // 3. XÁC NHẬN HOÀN TẤT GIAO BÙ
+        //
+        // HangChoGiao
+        //     ↓
+        // ConfirmGiaoHangTuChoGiao()
+        //     ↓
+        // Trừ STOCKTP
+        // ============================================================
+
+        public ScanResult XacNhanHoanTatGiaoBu(
+            int phieuKhachTraId,
+            string nguoiGiao)
         {
             if (phieuKhachTraId <= 0)
-                return ScanResult.Fail("Thiếu thông tin phiếu khách trả.");
+            {
+                return ScanResult.Fail(
+                    "Thiếu thông tin phiếu khách trả.");
+            }
 
-            var danhSachChoGiao = GetHangSanSangGiaoBu(phieuKhachTraId);
-            if (danhSachChoGiao.Count == 0)
-                return ScanResult.Fail("Chưa có hàng nào được pick để giao bù cho phiếu này.");
+            if (string.IsNullOrWhiteSpace(nguoiGiao))
+            {
+                return ScanResult.Fail(
+                    "Chưa xác định người giao.");
+            }
+
+
+            // ========================================================
+            // 1. LẤY HÀNG ĐANG CHỜ GIAO
+            // ========================================================
+
+            var danhSachChoGiao =
+                GetHangSanSangGiaoBu(
+                    phieuKhachTraId);
+
+            if (danhSachChoGiao == null ||
+                danhSachChoGiao.Count == 0)
+            {
+                return ScanResult.Fail(
+                    "Chưa có hàng nào được pick để giao bù " +
+                    "cho phiếu này.");
+            }
+
+
+            // ========================================================
+            // 2. XÁC NHẬN TỪNG DÒNG
+            //
+            // Mỗi dòng có transaction riêng bên
+            // StockExportService.
+            // ========================================================
 
             int soLuongThanhCong = 0;
-            var loi = new List<string>();
 
-            // Mỗi dòng ConfirmGiaoHangTuChoGiao tự có transaction riêng (đã đúng thiết kế
-            // trong StockExportService) — không gộp chung 1 transaction lớn ở đây, vì 1 dòng
-            // lỗi (ví dụ thiếu tồn STOCKTP tạm thời) không nên làm rollback các dòng đã
-            // xác nhận thành công trước đó.
+            var loi =
+                new List<string>();
+
             foreach (var item in danhSachChoGiao)
             {
-                var result = _stockExportService.ConfirmGiaoHangTuChoGiao(item.Id, nguoiGiao);
+                var result =
+                    _stockExportService.ConfirmGiaoHangTuChoGiao(
+                        item.Id,
+                        nguoiGiao);
+
                 if (result.IsOK)
+                {
                     soLuongThanhCong++;
+                }
                 else
-                    loi.Add($"LOT [{item.LotGoc}]: {result.Message}");
+                {
+                    loi.Add(
+                        $"LOT [{item.LotGoc}]: {result.Message}");
+                }
             }
+
+
+            // ========================================================
+            // 3. TẤT CẢ THÀNH CÔNG
+            // ========================================================
 
             if (loi.Count == 0)
             {
-                return ScanResult.OK($"Đã xác nhận giao bù xong {soLuongThanhCong}/{danhSachChoGiao.Count} dòng cho phiếu {phieuKhachTraId}.");
-                
+                return ScanResult.OK(
+                    $"Đã xác nhận giao bù xong " +
+                    $"{soLuongThanhCong}/{danhSachChoGiao.Count} " +
+                    $"dòng cho phiếu {phieuKhachTraId}.");
             }
+
+
+            // ========================================================
+            // 4. KHÔNG CÓ DÒNG NÀO THÀNH CÔNG
+            // ========================================================
 
             if (soLuongThanhCong == 0)
             {
                 return ScanResult.Fail(
-                    $"Không xác nhận được dòng nào ({loi.Count} lỗi):\n" + string.Join("\n", loi));
+                    $"Không xác nhận được dòng nào " +
+                    $"({loi.Count} lỗi):\n" +
+                    string.Join("\n", loi));
             }
 
-            // Thành công một phần — vẫn coi là lỗi để UI bắt user xử lý tiếp các dòng còn lại,
-            // nhưng giữ nguyên message liệt kê rõ dòng nào đã xong/dòng nào lỗi.
+
+            // ========================================================
+            // 5. THÀNH CÔNG MỘT PHẦN
+            // ========================================================
+
             return ScanResult.Fail(
-                $"Đã xác nhận {soLuongThanhCong}/{danhSachChoGiao.Count} dòng. " +
-                $"Còn {loi.Count} dòng lỗi:\n" + string.Join("\n", loi));
+                $"Đã xác nhận " +
+                $"{soLuongThanhCong}/{danhSachChoGiao.Count} dòng. " +
+                $"Còn {loi.Count} dòng lỗi:\n" +
+                string.Join("\n", loi));
         }
     }
 }
