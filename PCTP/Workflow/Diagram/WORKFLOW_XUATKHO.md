@@ -8,23 +8,23 @@ Tài liệu này mô tả chi tiết luồng vận hành xuất kho, phân đị
 
 1. **Xác Định Vị Trí & Mục Đích Xuất:** Hệ thống tiếp nhận yêu cầu xuất kho và phân loại nguồn hàng cần xử lý.
    **1b. Kiểm Tra Tem Thùng khi Xuất (nếu có InspectionConfig):**
-    - Sau khi scan tem tổng (PickToChoGiao hoặc XuatTrucTiep)
-    - Gọi `IInspectionConfigService.NeedsInspection(itemCode)`
-    - Nếu `true` → bắt buộc `FormInspection` trước khi confirm xuất
-2. **Nhánh 1: Hàng Ở Kho A0 (Xuất Trực Tiếp):**
+  - Sau khi scan tem tổng (PickToChoGiao hoặc XuatTrucTiep)
+  - Gọi `IInspectionConfigService.NeedsInspection(itemCode)`
+  - Nếu `true` → bắt buộc `FormInspection` trước khi confirm xuất
+3. **Nhánh 1: Hàng Ở Kho A0 (Xuất Trực Tiếp):**
    * Mở form HVN-PGH, gọi `IStockExportService.XuatTrucTiep` với nguồn từ Bulk (không qua bảng chờ giao).
    * Trừ tồn kho tổng `STOCKTP` ngay lập tức (`SLXUAT` tăng, `SLCONLAI` giảm).
-3. **Nhánh 2: Khởi Tạo Từ Phiếu Bất Thường (Exception & QTChung):**
+4. **Nhánh 2: Khởi Tạo Từ Phiếu Bất Thường (Exception & QTChung):**
    * Tiếp nhận thông tin từ `IPhieuKhachTraRepository` thông qua `ITraNoiBoService` (Nội bộ) hoặc `IKhachTraHangService` (Khách hàng).
    * Chuyển đến `IQTChungService` để tiếp nhận, tạo phiếu bất thường và thực hiện **QC Định Hướng**.
-4. **Nhánh 3: Hàng Ở Slot (Giao Hàng / Giao Bù / Rework qua Bảng Chờ Giao):**
+5. **Nhánh 3: Hàng Ở Slot (Giao Hàng / Giao Bù / Rework qua Bảng Chờ Giao):**
    * Thực hiện click Slot trên giao diện `MainStockSV`, gọi `IStockExportService.PickToChoGiao` với mục đích tương ứng (`GiaoHang`, `GiaoBuNG`, hoặc `XuatRework`). **Lưu ý: Chưa trừ tồn kho `STOCKTP` ở pha này.**
    * Dữ liệu được đẩy vào bảng trung gian `FVN_HangChoGiao` với trạng thái `ChoGiao`.
    * **Pha Xác Nhận (Confirm):** Tùy thuộc vào loại mục đích để thực hiện hành động chốt xuất:
      * *Giao hàng:* Gọi `ConfirmGiaoHangTuChoGiao` $\rightarrow$ Trừ tồn kho tổng.
      * *Giao bù NG:* Gọi `IGiaoBuNGService.XacNhanHoanTatGiaoBu` $\rightarrow$ Gọi lại Confirm trừ tồn kho.
      * *Rework:* Gọi `IReworkStockService.XacNhanXuatRework` $\rightarrow$ Ghi log audit vào bảng `FVN_TraHangQTChung_Xuat`.
-5. **Nhánh 4: Tiến Hành Rework & Nhập Lại Kho:**
+6. **Nhánh 4: Tiến Hành Rework & Nhập Lại Kho:**
    * Sau khi xuất Rework hoàn tất, hàng được đưa đi sửa chữa tại xưởng.
    * Mở form `frm_NhapLaiNG` để QC xác nhận, phân tách sản lượng **OK** và **NG**.
    * Gọi `IReworkStockService.NhapLaiNG`:

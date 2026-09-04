@@ -1,4 +1,4 @@
-﻿# ARCHITECTURE_DEPENDENCIES
+# ARCHITECTURE_DEPENDENCIES
 
 ## WMS - Kiến trúc Dependency giữa các Phân khu
 

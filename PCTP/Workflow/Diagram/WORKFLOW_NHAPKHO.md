@@ -15,7 +15,7 @@ Tài liệu này mô tả chi tiết luồng vận hành và kiến trúc xử l
    * Sử dụng `INhapTpReceivingService.KiemTraTruocKhiNhap` để kiểm tra xem mã QR đã được nhập chưa và kiểm tra trường hợp trùng Case dựa trên lịch sử `NHAP_TP_HIS`.
    * *Nếu trùng:* Trả về kết quả `ScanResult.Trung` $\rightarrow$ Từ chối giao dịch, không thực hiện transaction.
    * *Nếu hợp lệ:* Chuyển sang bước phân định hình thức nhập.
-   **3b. Kiểm Tra Tem Thùng (nếu có InspectionConfig):**
+     **3b. Kiểm Tra Tem Thùng (nếu có InspectionConfig):**
     - Gọi `IInspectionConfigService.NeedsInspection(itemCode)`
     - Nếu `true` → mở `FormInspection(temTong, config, inspSvc)`
     - Nếu `InspectionPassed = false` → từ chối nhập kho
