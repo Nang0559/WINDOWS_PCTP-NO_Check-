@@ -228,6 +228,17 @@ namespace PCTP.Modules.GiaoHangKhach
                 throw new ArgumentException($"Tên bảng không hợp lệ: '{tableName}'.", nameof(tableName));
         }
 
+        /// <summary>
+        /// Bulk insert vào bảng staging bằng SqlBulkCopy, tự mở/đóng connection riêng
+        /// (KHÔNG tham gia transaction ngoài — giữ đúng hành vi cũ của
+        /// SqlTableCreator.BulkInsertDataTable dùng UseInternalTransaction).
+        /// </summary>
+        public void BulkInsertDataTable(string tableName, DataTable table)
+        {
+            ValidateTableName(tableName);
+            PCTP.SqlTableCreator.BulkInsertDataTable(_sql.B7R2_FCCdb, tableName, table);
+        }
+
         private static void RequireConnTran(SqlConnection conn, SqlTransaction tran)
         {
             if (conn == null) throw new ArgumentNullException(nameof(conn));

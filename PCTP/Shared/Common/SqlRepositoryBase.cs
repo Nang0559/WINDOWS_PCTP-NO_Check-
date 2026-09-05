@@ -1,6 +1,4 @@
-﻿
-
-namespace PCTP.Shared.Common
+﻿namespace PCTP.Shared.Common
 {
     using PCTP.Modules.GiaoHangKhach;
     using System;
@@ -80,6 +78,52 @@ namespace PCTP.Shared.Common
                     adapter.Fill(table);
                     return table;
                 }
+            }
+        }
+
+        /// <summary>
+        /// Chạy stored procedure trả về NHIỀU resultset (VD: SP vừa trả dữ liệu vừa trả bảng lỗi).
+        /// Không transaction → uỷ quyền Db.ExecuteStoredProcedureDataSet (tự mở/đóng connection).
+        /// Có transaction → dùng chung Uow.Connection/Uow.Transaction.
+        /// </summary>
+        protected DataSet ExecuteStoredProcedureDataSet(string procedureName, params SqlParameter[] parameters)
+        {
+            if (!HasTransaction)
+                return Db.ExecuteStoredProcedureDataSet(procedureName, CloneParameters(parameters));
+
+            using (SqlCommand cmd = CreateCommand(procedureName, CommandType.StoredProcedure))
+            {
+                AddParameters(cmd, parameters);
+                using (SqlDataAdapter adapter = new SqlDataAdapter(cmd))
+                {
+                    DataSet ds = new DataSet();
+                    adapter.Fill(ds);
+                    return ds;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Bulk insert vào bảng staging bằng SqlBulkCopy.
+        /// Không transaction → uỷ quyền Db.BulkInsertDataTable (connection + transaction nội bộ riêng,
+        /// đúng hành vi cũ của SqlTableCreator.BulkInsertDataTable).
+        /// Có transaction → SqlBulkCopy dùng chung Uow.Connection/Uow.Transaction, tham gia
+        /// transaction ngoài (khác hành vi cũ — CHỈ áp dụng khi caller chủ động Uow.Begin()).
+        /// </summary>
+        protected void BulkInsert(string tableName, DataTable table)
+        {
+            Db.ValidateTableName(tableName);
+
+            if (!HasTransaction)
+            {
+                Db.BulkInsertDataTable(tableName, table);
+                return;
+            }
+
+            using (var bulkCopy = new SqlBulkCopy(Connection, SqlBulkCopyOptions.TableLock, Transaction))
+            {
+                bulkCopy.DestinationTableName = tableName;
+                bulkCopy.WriteToServer(table);
             }
         }
 

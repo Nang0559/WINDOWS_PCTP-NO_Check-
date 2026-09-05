@@ -6,6 +6,9 @@ using PCTP.FuctionMain;
 using PCTP.Infrastructure.Repositories;
 using PCTP.Models;
 using PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao;
+using PCTP.Modules.KhoVatLy.Kho.Models;
+using PCTP.Modules.XuatKho.Interfaces;
+using PCTP.Modules.XuLyHangLoi.Models;
 using PCTP.Shared.Common;
 using PCTP.VIEWSTOCK.Fuction;
 using PCTP.VIEWSTOCK.Models;
@@ -22,41 +25,59 @@ using System.Threading.Tasks;
 
 namespace PCTP.Modules.GiaoHangKhach.Repositories
 {
-    public class PhieuRepository : IPhieuRepository
+    /// <summary>
+    /// Kế thừa SqlRepositoryBase — KHÔNG còn giữ SQLPROVIDER trực tiếp. Mọi truy vấn
+    /// (LoadData/ExecuteScalar/ExecuteNonQuery/ExecuteStoredProcedure(DataSet)/BulkInsert,
+    /// kế thừa từ SqlRepositoryBase) tự động chạy trong transaction Uow nếu Uow.Begin()
+    /// đang mở (ambient), ngược lại tự mở/đóng connection riêng qua PhieuSqlExecutor —
+    /// giữ đúng hành vi "mỗi lệnh 1 connection" như SQLPROVIDER cũ khi không có transaction.
+    /// </summary>
+    public class PhieuRepository : SqlRepositoryBase, IPhieuRepository
     {
-        private readonly SQLPROVIDER _sql;
         private readonly CustomerConfig _cfg;
-        private readonly ITraHangRepository _traHangRepo;
+
+        /// <summary>
+        /// Repo của phân khu Xuất Kho, sở hữu bảng FVN_HangChoGiao (TMPCHOGIAO).
+        /// Dùng để đóng các dòng "chờ giao" theo LOT sau khi CNK xác nhận xuất kho
+        /// thành công (xem WORKFLOW_XUATKHO.md — không thuộc XuLyHangLoi/QTChung).
+        /// PHẢI được khởi tạo bằng CÙNG 1 IUnitOfWork instance đã truyền cho constructor
+        /// của chính PhieuRepository này (VD: new HangChoGiaoRepository(db, uow)) — nhờ vậy
+        /// Uow.Begin() ở đây và Uow bên trong _hangChoGiaoRepo trỏ chung 1 transaction.
+        /// </summary>
+        private readonly IHangChoGiaoRepository _hangChoGiaoRepo;
+
         private readonly IIFSRepository _ifsRepo;
 
-        public PhieuRepository(SQLPROVIDER sql, CustomerConfig cfg,
-            ITraHangRepository traHangRepo = null, IIFSRepository ifsRepo = null)
+        public PhieuRepository(PhieuSqlExecutor db, IUnitOfWork uow, CustomerConfig cfg,
+            IHangChoGiaoRepository hangChoGiaoRepo = null, IIFSRepository ifsRepo = null)
+            : base(db, uow)
         {
-            _sql = sql;
             _cfg = cfg;
-            _traHangRepo = traHangRepo;
+            _hangChoGiaoRepo = hangChoGiaoRepo;
             _ifsRepo = ifsRepo ?? IFSRepository.Create();
         }
+
+        private void ValidateTenBan(string tenBan) => Db.ValidateTableName(tenBan);
 
         #region ══ IPhieuValidationRepository ══════════════════════════════════
 
         public int CountDocQRCode(string docQRTable)
         {
             ValidateTenBan(docQRTable);
-            object kq = _sql.ExecuteScalar(_sql.B7R2_FCCdb, $"SELECT COUNT(*) FROM [{docQRTable}]");
+            object kq = ExecuteScalar($"SELECT COUNT(*) FROM [{docQRTable}]");
             return int.TryParse(kq?.ToString(), out int v) ? v : 0;
         }
 
         public bool CheckCoMaNG(string tenBan)
         {
-            string kq = _sql.ExecuteScalar(_sql.B7R2_FCCdb, "SELECT dbo.ufn_QRcode_ADD_CMD_MANG()")?.ToString() ?? "0";
+            string kq = ExecuteScalar("SELECT dbo.ufn_QRcode_ADD_CMD_MANG()")?.ToString() ?? "0";
             return int.TryParse(kq, out int v) && (v == 1 || v == 2);
         }
 
         public bool KiemTraMaTrongPhieu(string maHang, string tenBan)
         {
             ValidateTenBan(tenBan);
-            object kq = _sql.ExecuteScalar(_sql.B7R2_FCCdb,
+            object kq = ExecuteScalar(
                 $"SELECT COUNT(*) FROM [{tenBan}] WHERE MAHANG = @ma",
                 new SqlParameter[] { new SqlParameter("@ma", maHang) });
             return int.TryParse(kq?.ToString(), out int v) && v > 0;
@@ -82,7 +103,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                 $"AND MAHANG IN (" +
                 $"    SELECT MAHANGFCC FROM [{docQRTable}] " +
                 $"    WHERE ISNULL(KETQUA,'') <> 'DG' GROUP BY MAHANGFCC)";
-            return _sql.LoadData1(_sql.B7R2_FCCdb, sql,
+            return LoadData(sql,
                 new SqlParameter("@ma", maHang), new SqlParameter("@sl", sl));
         }
 
@@ -93,7 +114,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         {
             ValidateTenBan(tenBan);
             ValidateTenBan(docQRTable);
-            object kq = _sql.ExecuteScalar(_sql.B7R2_FCCdb,
+            object kq = ExecuteScalar(
                 $"SELECT COUNT(*) FROM [{tenBan}] " +
                 $"WHERE MAHANG = @ma AND SOLUONG = @sl " +
                 $"AND (LOT = '' OR LOT IS NULL) " +
@@ -111,7 +132,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         {
             ValidateTenBan(tenBan);
             ValidateTenBan(docQRTable);
-            return _sql.LoadData1(_sql.B7R2_FCCdb,
+            return LoadData(
                 $"SELECT STT, MAHANG, LOT, SOLUONG FROM [{tenBan}] " +
                 $"WHERE (LOT = '' OR LOT IS NULL) " +
                 $"AND MAHANG IN ( " +
@@ -132,7 +153,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             ValidateTenBan(tables.SourceTable);
             ValidateTenBan(tables.DocQRTable);
 
-            DataTable tt = _sql.LoadData1(_sql.B7R2_FCCdb,
+            DataTable tt = LoadData(
                 $"SELECT TOP 1 ADDNM, NGAYGIAO, GIOGIAOFCC, NHAMAY FROM [{tables.SourceTable}]");
             if (tt.Rows.Count > 0)
             {
@@ -177,25 +198,25 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                 () => DropCreate(tables.SourceTable, donHang));
 
             SWLog.Measure($"4c. BulkInsert {donHang.Rows.Count} rows → [{tables.SourceTable}]",
-                () => SqlTableCreator.BulkInsertDataTable(_sql.B7R2_FCCdb, tables.SourceTable, donHang));
+                () => BulkInsert(tables.SourceTable, donHang));
 
             // ── Guard: chỉ xoá TMP khi không đang bắn dở ──────────────────
             SWLog.Measure($"4d. Guard DELETE [{tables.TmpTable}]", () =>
             {
-                object tmpExistsRaw = _sql.ExecuteScalar(_sql.B7R2_FCCdb,
+                object tmpExistsRaw = ExecuteScalar(
                     "SELECT COUNT(*) FROM sys.objects " +
                     $"WHERE object_id = OBJECT_ID(N'[dbo].[{tables.TmpTable}]') AND type = 'U'");
                 int tmpExists = tmpExistsRaw == null || tmpExistsRaw == DBNull.Value ? 0 : Convert.ToInt32(tmpExistsRaw);
                 if (tmpExists != 1) return;
 
-                object docQRExistsRaw = _sql.ExecuteScalar(_sql.B7R2_FCCdb,
+                object docQRExistsRaw = ExecuteScalar(
                     "SELECT COUNT(*) FROM sys.objects " +
                     $"WHERE object_id = OBJECT_ID(N'[dbo].[{tables.DocQRTable}]') AND type = 'U'");
                 int docQRExists = docQRExistsRaw == null || docQRExistsRaw == DBNull.Value ? 0 : Convert.ToInt32(docQRExistsRaw);
 
                 if (docQRExists == 1)
                 {
-                    object demDocQRRaw = _sql.ExecuteScalar(_sql.B7R2_FCCdb, $"SELECT COUNT(*) FROM [{tables.DocQRTable}]");
+                    object demDocQRRaw = ExecuteScalar($"SELECT COUNT(*) FROM [{tables.DocQRTable}]");
                     int demDocQR = demDocQRRaw == null || demDocQRRaw == DBNull.Value ? 0 : Convert.ToInt32(demDocQRRaw);
                     if (demDocQR > 0)
                     {
@@ -205,7 +226,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                     }
                 }
 
-                _sql.ExecuteNonQuery(_sql.B7R2_FCCdb, $"DELETE FROM [{tables.TmpTable}]");
+                ExecuteNonQuery($"DELETE FROM [{tables.TmpTable}]");
                 System.Diagnostics.Debug.WriteLine($"[LuuVaLoad] Đã DELETE [{tables.TmpTable}]");
             });
 
@@ -232,13 +253,13 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                    ISNULL(PO_ITEM,'') AS PO_ITEM
             FROM [{tmpTable}]
             ORDER BY TRY_CAST(STT AS INT), STT";
-            return _sql.LoadData1(_sql.B7R2_FCCdb, sql);
+            return LoadData(sql);
         }
 
         public DataTable GetDonHangHienTai(string tenBan)
         {
             ValidateTenBan(tenBan);
-            return _sql.LoadData1(_sql.B7R2_FCCdb,
+            return LoadData(
                 "SELECT STT, MAHANG, LOT, STATUS, STATUSDOC " +
                 $"FROM [{tenBan}] ORDER BY STT");
         }
@@ -246,13 +267,13 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         public void XoaTmpPhieu(string tenBan)
         {
             ValidateTenBan(tenBan);
-            _sql.ExecuteNonQuery(_sql.B7R2_FCCdb, $"DELETE FROM [{tenBan}]");
+            ExecuteNonQuery($"DELETE FROM [{tenBan}]");
         }
 
         public void XoaDocQRCode(string docQRTable)
         {
             ValidateTenBan(docQRTable);
-            _sql.ExecuteNonQuery(_sql.B7R2_FCCdb, $"DELETE FROM [{docQRTable}]");
+            ExecuteNonQuery($"DELETE FROM [{docQRTable}]");
         }
 
         public TrangThaiBan GetTrangThaiDangBan(PhieuTableSet tables)
@@ -264,14 +285,14 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             ValidateTenBan(docQRTable);
             var result = new TrangThaiBan();
 
-            object demQRRaw = _sql.ExecuteScalar(_sql.B7R2_FCCdb, $"SELECT COUNT(*) FROM [{docQRTable}]");
+            object demQRRaw = ExecuteScalar($"SELECT COUNT(*) FROM [{docQRTable}]");
             if (!int.TryParse(demQRRaw?.ToString(), out int demQR) || demQR == 0)
             {
                 result.DangBan = false;
                 return result;
             }
 
-            object demPhieuRaw = _sql.ExecuteScalar(_sql.B7R2_FCCdb, $"SELECT COUNT(*) FROM [{tmpTable}]");
+            object demPhieuRaw = ExecuteScalar($"SELECT COUNT(*) FROM [{tmpTable}]");
             if (!int.TryParse(demPhieuRaw?.ToString(), out int demPhieu) || demPhieu == 0)
             {
                 result.DangBan = true;
@@ -279,7 +300,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                 return result;
             }
 
-            DataTable dt = _sql.LoadData1(_sql.B7R2_FCCdb,
+            DataTable dt = LoadData(
                 $"SELECT TOP 1 ADDNM, NGAYGIAO, GIOGIAO, NHAMAY FROM [{tmpTable}]");
             if (dt.Rows.Count == 0)
             {
@@ -310,21 +331,21 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             var result = new TrangThaiBan();
 
             string demTmpRaw = Convert.ToString(
-                _sql.ExecuteScalar(_sql.B7R2_FCCdb, $"SELECT COUNT(*) FROM [{tmpTable}] WHERE addnm = 0"));
+                ExecuteScalar($"SELECT COUNT(*) FROM [{tmpTable}] WHERE addnm = 0"));
             if (!int.TryParse(demTmpRaw, out int demTmp) || demTmp == 0)
             {
                 result.DangBan = false;
                 return result;
             }
 
-            int demQR = Convert.ToInt32(_sql.ExecuteScalar(_sql.B7R2_FCCdb, $"SELECT COUNT(*) FROM [{docQRTable}]") ?? 0);
+            int demQR = Convert.ToInt32(ExecuteScalar($"SELECT COUNT(*) FROM [{docQRTable}]") ?? 0);
             if (demQR == 0)
             {
                 result.DangBan = false;
                 return result;
             }
 
-            DataTable dt = _sql.LoadData1(_sql.B7R2_FCCdb, $"SELECT TOP 1 NGAYGIAO, GIOGIAO FROM [{tmpTable}]");
+            DataTable dt = LoadData($"SELECT TOP 1 NGAYGIAO, GIOGIAO FROM [{tmpTable}]");
             if (dt.Rows.Count == 0) { result.DangBan = false; return result; }
 
             result.DangBan = true;
@@ -350,7 +371,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                 "    NHAMAY NVARCHAR(100), ADDNM INT, LOT NVARCHAR(500), " +
                 "    STATUS NVARCHAR(50), STATUSDOC NVARCHAR(50))";
             foreach (var table in tables)
-                _sql.ExecuteNonQuery(_sql.B7R2_FCCdb, string.Format(createSql, table));
+                ExecuteNonQuery(string.Format(createSql, table));
         }
 
         #endregion
@@ -363,7 +384,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         public string GetLotNo(string maHang, int stt, int dem, int slGiao,
             string docQRTable = "DOCQRCODE", string tmpTable = "TMPPHIEUGIAOHANG")
         {
-            DataTable dt = _sql.LoadData(_sql.B7R2_FCCdb, "Usp_Qrcode_Take_Lot2405",
+            DataTable dt = ExecuteStoredProcedure("Usp_Qrcode_Take_Lot2405",
                 new SqlParameter("@_MaFCC", maHang),
                 new SqlParameter("@_STTP", stt),
                 new SqlParameter("@_DeM", dem),
@@ -380,7 +401,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         {
             if (stt <= 0 || string.IsNullOrWhiteSpace(lot)) return;
             ValidateTenBan(tenBan);
-            _sql.ExecuteNonQuery(_sql.B7R2_FCCdb,
+            ExecuteNonQuery(
                 $"UPDATE [{tenBan}] SET LOT = @lot WHERE STT = @stt",
                 new SqlParameter("@lot", lot), new SqlParameter("@stt", stt));
         }
@@ -392,11 +413,11 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         {
             ValidateTenBan(tenBan);
             ValidateTenBan(docQRTable);
-            _sql.ExecuteNonQuery(_sql.B7R2_FCCdb,
+            ExecuteNonQuery(
                 $"UPDATE [{tenBan}] SET LOT = '', STATUSDOC = 'NG', TTPHIEU = NULL " +
                 "WHERE STT = @stt AND ISNULL(STATUS,'') <> 'OK'",
                 new SqlParameter("@stt", stt));
-            _sql.ExecuteNonQuery(_sql.B7R2_FCCdb,
+            ExecuteNonQuery(
                 $"UPDATE [{docQRTable}] SET GIO = NULL, KETQUA = 'OK', STTBAN = NULL " +
                 "WHERE ISNULL(STTBAN, 0) = @stt AND KETQUA = 'DG'",
                 new SqlParameter("@stt", stt));
@@ -404,7 +425,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
 
         public DataTable LoadGhepLot()
         {
-            var ds = _sql.ExecuteProcedureReturnDataSet(_sql.B7R2_FCCdb, "Usp_Qrcode_gheplot");
+            var ds = ExecuteStoredProcedureDataSet("Usp_Qrcode_gheplot");
             return ds.Tables.Count > 0 ? ds.Tables[0] : new DataTable();
         }
 
@@ -415,7 +436,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             FROM STOCKTP
             WHERE PART = @ma AND SLCONLAI > 0
             ORDER BY LOT";
-            return _sql.LoadData1(_sql.B7R2_FCCdb, sql, new SqlParameter("@ma", maHang));
+            return LoadData(sql, new SqlParameter("@ma", maHang));
         }
 
         #endregion
@@ -427,7 +448,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
 
         public int CapNhapKho(string gioGiaoFcc, string nhaMay, string tmpTable, string docQRTable, out DataTable errors)
         {
-            var ds = _sql.ExecuteProcedureReturnDataSet(_sql.B7R2_FCCdb,
+            var ds = ExecuteStoredProcedureDataSet(
                 "Usp_Qrcode_Update_Stock2405",
                 new SqlParameter("@GIOGIAOFCC", gioGiaoFcc ?? ""),
                 new SqlParameter("@NHAMAY", nhaMay ?? ""),
@@ -460,15 +481,22 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                 StockChangedNotifier.RaiseStockChanged();
 
             // ── (2) Đóng TMPCHOGIAO tương ứng — best-effort ────────────────
-            if (lotsDaXuatThanhCong.Count > 0 && _traHangRepo != null)
+            if (lotsDaXuatThanhCong.Count > 0 && _hangChoGiaoRepo != null)
             {
                 try
                 {
-                    List<ChoGiaoItem> closedItems;
-                    using (var conn = _sql.BeginTransaction(_sql.B7R2_FCCdb, out SqlTransaction tran))
+                    List<HangChoGiao> closedItems;
+                    Uow.Begin();
+                    try
                     {
-                        closedItems = _traHangRepo.CloseChoGiaoTheoLotAndReturn(conn, tran, lotsDaXuatThanhCong);
-                        tran.Commit();
+                        closedItems = _hangChoGiaoRepo.CloseChoGiaoTheoLotAndReturn(
+                            lotsDaXuatThanhCong, nguoiGiao: "SYSTEM_HVN_CNK");
+                        Uow.Commit();
+                    }
+                    catch
+                    {
+                        Uow.Rollback();
+                        throw;
                     }
                     foreach (var it in closedItems.Where(x => x.SlotIdNguon.HasValue))
                         SlotHelper.SaveHistory("EXPORT_CONFIRMED_HVN", it.MaHang,
@@ -491,9 +519,9 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                     if (string.IsNullOrEmpty(maHang)) continue;
 
                     string whereClause = stt > 0 ? $"STT={stt}" : $"MAHANG='{SqlHelper.Esc(maHang)}' AND STATUS='OK'";
-                    string ngayGiao = Convert.ToString(_sql.ExecuteScalar(_sql.B7R2_FCCdb,
+                    string ngayGiao = Convert.ToString(ExecuteScalar(
                         $"SELECT CONVERT(varchar, NGAYGIAO, 23) FROM [{tmpTable}] WHERE {whereClause}"))?.Trim() ?? "";
-                    string poNo = Convert.ToString(_sql.ExecuteScalar(_sql.B7R2_FCCdb,
+                    string poNo = Convert.ToString(ExecuteScalar(
                         $"SELECT ISNULL(PO_NO,'') FROM [{tmpTable}] WHERE {whereClause}"))?.Trim() ?? "";
 
                     if (!string.IsNullOrEmpty(poNo) && !string.IsNullOrEmpty(ngayGiao))
@@ -512,7 +540,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
 
         public int CapNhapKhoSP(string gioGiaoFcc, string nhaMay, out DataTable errors)
         {
-            var ds = _sql.ExecuteProcedureReturnDataSet(_sql.B7R2_FCCdb, "Usp_Qrcode_Update_Stock_SP",
+            var ds = ExecuteStoredProcedureDataSet("Usp_Qrcode_Update_Stock_SP",
                 new SqlParameter("@GIOGIAOFCC", gioGiaoFcc),
                 new SqlParameter("@NHAMAY", nhaMay));
             errors = ds.Tables.Count > 1 ? ds.Tables[1] : new DataTable();
@@ -557,7 +585,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
 
                 if (!int.TryParse(tach[1], out int sl)) continue;
 
-                object slConlaiRaw = _sql.ExecuteScalar(_sql.B7R2_FCCdb,
+                object slConlaiRaw = ExecuteScalar(
                     $"SELECT ISNULL(slconlai,0) FROM STOCKTP WHERE {matchCondition}");
                 int slConlai = slConlaiRaw == null || slConlaiRaw == DBNull.Value ? 0 : Convert.ToInt32(slConlaiRaw);
 
@@ -576,7 +604,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                 }
 
                 string gg = ngayGiao + " " + gioGiao + ":00";
-                _sql.ExecuteNonQuery(_sql.B7R2_FCCdb,
+                ExecuteNonQuery(
                     $"UPDATE t SET t.ngayxuat = '{gg}', t.slxuat = slxuat + {sl}, t.slconlai = slconlai - {sl} " +
                     $"FROM (SELECT TOP 1 * FROM STOCKTP WHERE {matchCondition}) t");
 
@@ -584,7 +612,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                     coAnhHuongA0 = true;
             }
 
-            _sql.ExecuteNonQuery(_sql.B7R2_FCCdb, $@"
+            ExecuteNonQuery($@"
             INSERT INTO LUUDOCQRCODE
                 (LOTFCC, MAHANGFCC, SLTEMFCC, LOTHVN, MAHANGHVN, SLTEMHVN,
                  STATUS, MAFCC, STT, KETQUA, NGAYXUAT, GIOXUAT, NHAMAY)
@@ -596,7 +624,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             FROM [{docQRTable}]
             WHERE MAHANGFCC = '{SqlHelper.Esc(maHang)}' AND KETQUA = 'DG'");
 
-            _sql.ExecuteNonQuery(_sql.B7R2_FCCdb, $@"
+            ExecuteNonQuery($@"
             INSERT INTO LUUPHIEUGIAOHANG
                 (STT, CUA, TRUYEN, MAHANG, TENHANG, LOT, DV, SOLUONG,
                  NGAYGIAO, GIOGIAO, STATUS, GearYMVN, NHAMAY, GIOGIAOFCC, PO_NO, TTPHIEU)
@@ -608,16 +636,16 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             FROM [{tmpTable}]
             WHERE STT = {stt} AND STATUS = 'NG'");
 
-            _sql.ExecuteNonQuery(_sql.B7R2_FCCdb,
+            ExecuteNonQuery(
                 $"UPDATE [{tmpTable}] SET STATUS = 'OK' WHERE STT = {stt}");
 
-            _sql.ExecuteNonQuery(_sql.B7R2_FCCdb,
+            ExecuteNonQuery(
                 $"DELETE FROM [{docQRTable}] WHERE MAHANGFCC = '{SqlHelper.Esc(maHang)}' AND KETQUA = 'DG'");
 
             if (coAnhHuongA0)
                 StockChangedNotifier.RaiseStockChanged();
 
-            string poNo = Convert.ToString(_sql.ExecuteScalar(_sql.B7R2_FCCdb,
+            string poNo = Convert.ToString(ExecuteScalar(
                 $"SELECT ISNULL(PO_NO,'') FROM [{tmpTable}] WHERE STT={stt}"))?.Trim() ?? "";
 
             if (!string.IsNullOrEmpty(poNo) && !string.IsNullOrEmpty(_cfg.OrderTable))
@@ -629,7 +657,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         public void DanhDauDaGiao(string poNo, string maHang, string ngayGiao, CustomerConfig cfg)
         {
             if (string.IsNullOrEmpty(cfg.OrderTable)) return;
-            _sql.ExecuteNonQuery(_sql.B7R2_FCCdb,
+            ExecuteNonQuery(
                 $"UPDATE [{cfg.OrderTable}] SET IsDelivered = 1, DeliveredDate = GETDATE() " +
                 "WHERE Oder_no = @po AND Part_no = @pno AND CAST(NgayGiao AS DATE) = @ng AND IsDelivered = 0",
                 new SqlParameter("@po", poNo), new SqlParameter("@pno", maHang), new SqlParameter("@ng", ngayGiao));
@@ -648,7 +676,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                    ISNULL(PO_NO, '') AS PO_NO, ISNULL(PO_ITEM, '') AS PO_ITEM
             FROM LUUPHIEUGIAOHANG
             WHERE NHAMAY = @nm AND NGAYGIAO = @ng AND GIOGIAOFCC = @gg";
-            return _sql.LoadData1(_sql.B7R2_FCCdb, query,
+            return LoadData(query,
                 new SqlParameter("@nm", SqlDbType.NVarChar, 200) { Value = (object)nhaMay?.Trim() ?? DBNull.Value },
                 new SqlParameter("@ng", SqlDbType.NVarChar, 50) { Value = (object)ngayGiao?.Trim() ?? DBNull.Value },
                 new SqlParameter("@gg", SqlDbType.NVarChar, 50) { Value = (object)gioGiaoFcc?.Trim() ?? DBNull.Value });
@@ -656,13 +684,13 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
 
         public int LuuPhieuSP(string nhaMay, string ngayGiao, string gioGiaoFcc, string loaiPhieu)
         {
-            _sql.ExecuteNonQuery(_sql.B7R2_FCCdb,
+            ExecuteNonQuery(
                 "UPDATE LUUPHIEUGIAOHANG SET LOT = ISNULL(PO_NO,'') + '-' + ISNULL(PO_ITEM,'') " +
                 "WHERE NHAMAY=@nm AND NGAYGIAO=@ng AND GIOGIAOFCC=@gg " +
                 "AND (LOT IS NULL OR LOT='') AND ISNULL(PO_NO,'')<>''",
                 new SqlParameter("@nm", nhaMay), new SqlParameter("@ng", ngayGiao), new SqlParameter("@gg", gioGiaoFcc));
 
-            object kq = _sql.ExecuteScalar(_sql.B7R2_FCCdb,
+            object kq = ExecuteScalar(
                 "SELECT COUNT(*) FROM LUUPHIEUGIAOHANG " +
                 "WHERE NHAMAY=@nm AND NGAYGIAO=@ng AND GIOGIAOFCC=@gg AND LOT IS NOT NULL AND LOT<>''",
                 new[] { new SqlParameter("@nm", nhaMay), new SqlParameter("@ng", ngayGiao), new SqlParameter("@gg", gioGiaoFcc) });
@@ -672,7 +700,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         public void CapNhapTTPHIEU(string nhaMay, string ngayGiao, string gioGiaoFcc, int stt, string ghiChu)
         {
             string safe = ghiChu?.Trim() == "STOP" ? "STOP" : "";
-            _sql.ExecuteNonQuery(_sql.B7R2_FCCdb,
+            ExecuteNonQuery(
                 "UPDATE LUUPHIEUGIAOHANG SET TTPHIEU=@gc " +
                 "WHERE NHAMAY=@nm AND NGAYGIAO=@ng AND GIOGIAOFCC=@gg AND STT=@stt",
                 new SqlParameter("@gc", safe), new SqlParameter("@nm", nhaMay),
@@ -685,13 +713,13 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         #region ══ IPhieuGiaoDBRepository ═══════════════════════════════════════
 
         public DataTable GetDanhSachMaHang() =>
-            _sql.LoadData1(_sql.B7R2_FCCdb,
+            LoadData(
                 "SELECT ID, Code, Name FROM B20Item WHERE LEN(Code) > 10 GROUP BY ID, Code, Name ORDER BY ID");
 
         public DataTable LoadTmpPhieuGiaoDB(string tenBan)
         {
             ValidateTenBan(tenBan);
-            return _sql.LoadData1(_sql.B7R2_FCCdb,
+            return LoadData(
                 $"SELECT '' AS IDP, STT, CUA, TRUYEN, MAHANG, TENHANG, LOT, DV, " +
                 $"SOLUONG, NGAYGIAO, GIOGIAO, STATUS, TTPHIEU, NHAMAY, ADDNM, " +
                 $"HOP, STATUSDOC, Note, ISNULL(PO_NO,'') AS PO_NO, ISNULL(PO_ITEM,'') AS PO_ITEM " +
@@ -705,8 +733,8 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             ValidateTenBan(ifsTable);
 
             DropCreate(ifsTable, donHang);
-            _sql.ExecuteNonQuery(_sql.B7R2_FCCdb, $"DELETE FROM [{ifsTable}]");
-            SqlTableCreator.BulkInsertDataTable(_sql.B7R2_FCCdb, ifsTable, donHang);
+            ExecuteNonQuery($"DELETE FROM [{ifsTable}]");
+            BulkInsert(ifsTable, donHang);
 
             string nhaMay = !string.IsNullOrEmpty(nhaMayOverride)
                 ? nhaMayOverride
@@ -716,7 +744,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                 DateTime.Now.ToString("yyyy-MM-dd"), nhaMay, gioFccMoTa, addNm,
                 new PhieuTableSet(tmpTable, ifsTable, "DOCQRCODE"));
 
-            _sql.ExecuteNonQuery(_sql.B7R2_FCCdb,
+            ExecuteNonQuery(
                 $"UPDATE D SET D.GGFCC=T.GIOGIAO, D.LOT=T.LOT, D.NGAYGIAO=T.NGAYGIAO, D.STATUS='OK' " +
                 $"FROM [{tmpTable}] T " +
                 $"INNER JOIN TMPPHIEUGIAOHANGDBCT D " +
@@ -732,8 +760,8 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         public DataTable LoadHangThieu(bool isMayBanQR, string tenBan)
         {
             if (isMayBanQR)
-                return _sql.LoadData(_sql.B7R2_FCCdb, "Usp_Qrcode_LOAD_HANGTHIEU");
-            return _sql.LoadData(_sql.B7R2_FCCdb, "Usp_Qrcode_LOAD_HANGTHIEUView",
+                return ExecuteStoredProcedure("Usp_Qrcode_LOAD_HANGTHIEU");
+            return ExecuteStoredProcedure("Usp_Qrcode_LOAD_HANGTHIEUView",
                 new SqlParameter("@TENBAN", tenBan));
         }
 
@@ -744,15 +772,15 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
 
             string inClause = string.Join(",", maHangList.Select(m => $"'{m.Replace("'", "''")}'"));
             string sql = $"SELECT Code, ISNULL(CAST(MinCloseQty AS INT), 0) AS QC FROM B20Item WHERE Code IN ({inClause})";
-            DataTable dt = _sql.LoadData1(_sql.B7R2_FCCdb, sql);
+            DataTable dt = LoadData(sql);
             foreach (DataRow row in dt.Rows)
                 result[row["Code"].ToString().Trim()] = Convert.ToInt32(row["QC"]);
             return result;
         }
 
-        public void ExecNonQuery(string spName) => _sql.ExecuteNonQuery(_sql.B7R2_FCCdb, spName);
-        public void ExecSP(string spName, params SqlParameter[] parms) => _sql.ExecuteNonQuery(_sql.B7R2_FCCdb, spName, parms);
-        public DataTable ExecSPWithResult(string spName, params SqlParameter[] parms) => _sql.LoadData(_sql.B7R2_FCCdb, spName, parms);
+        public void ExecNonQuery(string spName) => ExecuteNonQuery(spName);
+        public void ExecSP(string spName, params SqlParameter[] parms) => ExecuteNonQuery(spName, parms);
+        public DataTable ExecSPWithResult(string spName, params SqlParameter[] parms) => ExecuteStoredProcedure(spName, parms);
 
         #endregion
 
@@ -780,20 +808,20 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             if (!string.IsNullOrEmpty(tables.IfsView))
                 paramList.Add(new SqlParameter("@IFSVIEW", tables.IfsView));
 
-            var ds = _sql.ExecuteProcedureReturnDataSet(_sql.B7R2_FCCdb, tenSP, paramList.ToArray());
+            var ds = ExecuteStoredProcedureDataSet(tenSP, paramList.ToArray());
             return ds.Tables[0];
         }
 
         private void DropCreate(string tenBang, DataTable schema)
         {
-            int checkExist = Convert.ToInt32(_sql.ExecuteScalar(_sql.B7R2_FCCdb,
+            int checkExist = Convert.ToInt32(ExecuteScalar(
                 "SELECT COUNT(*) FROM sys.objects " +
                 $"WHERE object_id = OBJECT_ID(N'[dbo].[{tenBang}]') AND type = 'U'") ?? 0);
 
             if (checkExist == 0)
-                _sql.ExecuteNonQuery(_sql.B7R2_FCCdb, SqlTableCreator.GetCreateFromDataTableSQL(tenBang, schema));
+                ExecuteNonQuery(SqlTableCreator.GetCreateFromDataTableSQL(tenBang, schema));
             else
-                _sql.ExecuteNonQuery(_sql.B7R2_FCCdb, $"TRUNCATE TABLE [{tenBang}]");
+                ExecuteNonQuery($"TRUNCATE TABLE [{tenBang}]");
         }
 
         private void MergeLotTuBangRieng(DataTable dt, string ngayGiao, string tenNhaMay)
@@ -807,7 +835,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                 "       ISNULL(GearYMVN,'') AS GEAR " +
                 "FROM LUUPHIEUGIAOHANG " +
                 $"WHERE CAST(NGAYGIAO AS DATE) = '{ngayGiao}' AND NHAMAY = '{tenNhaMay.Replace("'", "''")}'";
-            DataTable luuDt = _sql.LoadData1(_sql.B7R2_FCCdb, sql);
+            DataTable luuDt = LoadData(sql);
             if (luuDt.Rows.Count == 0) return;
 
             var lookup = new Dictionary<string, DataRow>(StringComparer.OrdinalIgnoreCase);
@@ -859,13 +887,6 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             int colonIdx = gio.IndexOf(':');
             if (colonIdx >= 0) gio = gio.Substring(0, colonIdx).Trim();
             return int.TryParse(gio, out int gioInt) ? gioInt.ToString("00") : "00";
-        }
-
-        private static void ValidateTenBan(string tenBan)
-        {
-            if (string.IsNullOrWhiteSpace(tenBan) ||
-                System.Text.RegularExpressions.Regex.IsMatch(tenBan, @"[^A-Za-z0-9_]"))
-                throw new ArgumentException($"Tên bảng không hợp lệ: '{tenBan}'");
         }
 
         private static int SafeInt(object val)

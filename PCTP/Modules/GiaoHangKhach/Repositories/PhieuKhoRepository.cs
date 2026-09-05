@@ -3,7 +3,8 @@ using PCTP.FuctionMain;
 using PCTP.Models;
 using PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao;
 using PCTP.Modules.KhoVatLy.Kho.Models;
-using PCTP.Modules.KhoVatLy.Repositories;
+using PCTP.Modules.XuatKho.Interfaces;
+using PCTP.Modules.XuLyHangLoi.Models;
 using PCTP.Shared.Common;
 using PCTP.VIEWSTOCK.Fuction;
 using PCTP.VIEWSTOCK.Models;
@@ -21,29 +22,34 @@ using System.Threading.Tasks;
 
 namespace PCTP.Modules.GiaoHangKhach.Repositories
 {
-    public sealed class PhieuKhoRepository : IPhieuKhoRepository
+    /// <summary>
+    /// Kế thừa SqlRepositoryBase — mọi truy vấn (Db.*/inherited ExecuteX) đều tự động
+    /// chạy trong transaction Uow nếu Uow.Begin() đang mở (ambient), ngược lại tự
+    /// mở/đóng connection riêng qua PhieuSqlExecutor — KHÔNG còn dùng SQLPROVIDER trực tiếp.
+    /// </summary>
+    public sealed class PhieuKhoRepository : SqlRepositoryBase, IPhieuKhoRepository
     {
-        private readonly PhieuSqlExecutor _db;
-
         private readonly CustomerConfig _cfg;
-        private readonly ITraHangRepository _traHangRepo;
 
-        // ✅ FIX: "SlotHelper" (static helper cũ ghi thẳng StockHistory) không còn tồn tại
-        // trong codebase — theo WORKFLOW_WMS.md, mọi ghi lịch sử tồn kho phải đi qua
-        // IStockHistoryRepository.SaveHistory (Kho Core), không tự viết SQL lên StockHistory.
-        private readonly IStockHistoryRepository _historyRepo;
+        /// <summary>
+        /// Repo của phân khu Xuất Kho, sở hữu bảng FVN_HangChoGiao (TMPCHOGIAO).
+        /// Dùng để đóng các dòng "chờ giao" theo LOT sau khi CNK xác nhận xuất kho
+        /// thành công (xem WORKFLOW_XUATKHO.md — không thuộc XuLyHangLoi/QTChung).
+        /// PHẢI được khởi tạo bằng CÙNG 1 IUnitOfWork instance đã truyền cho
+        /// constructor của chính PhieuKhoRepository này (VD: new HangChoGiaoRepository(db, uow))
+        /// — nhờ vậy Uow.Begin() ở đây và Uow bên trong _hangChoGiaoRepo trỏ chung 1 transaction.
+        /// </summary>
+        private readonly IHangChoGiaoRepository _hangChoGiaoRepo;
 
         public PhieuKhoRepository(
             PhieuSqlExecutor db,
-            IStockHistoryRepository historyRepo,
+            IUnitOfWork uow,
             CustomerConfig cfg = null,
-            ITraHangRepository traHangRepo = null)
+            IHangChoGiaoRepository hangChoGiaoRepo = null)
+            : base(db, uow)
         {
-            _db = db ?? throw new ArgumentNullException(nameof(db));
-            _historyRepo = historyRepo ?? throw new ArgumentNullException(nameof(historyRepo));
-
             _cfg = cfg;
-            _traHangRepo = traHangRepo;
+            _hangChoGiaoRepo = hangChoGiaoRepo;
         }
 
         // ============================================================
@@ -76,10 +82,10 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             string docQRTable,
             out DataTable errors)
         {
-            _db.ValidateTableName(tmpTable);
-            _db.ValidateTableName(docQRTable);
+            Db.ValidateTableName(tmpTable);
+            Db.ValidateTableName(docQRTable);
 
-            DataSet ds = _db.CallProcedureDataSet(
+            DataSet ds = ExecuteStoredProcedureDataSet(
                 "Usp_Qrcode_Update_Stock2405",
 
                 new SqlParameter(
@@ -197,25 +203,26 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             // --------------------------------------------------------
 
             if (lotsDaXuatThanhCong.Count > 0 &&
-                _traHangRepo != null)
+                _hangChoGiaoRepo != null)
             {
                 try
                 {
-                    List<ChoGiaoItem> closedItems;
+                    List<HangChoGiao> closedItems;
 
-                    using (
-                        var conn =
-                            _db.Sql.BeginTransaction(
-                                _db.Sql.B7R2_FCCdb,
-                                out SqlTransaction tran))
+                    Uow.Begin();
+                    try
                     {
                         closedItems =
-                            _traHangRepo.CloseChoGiaoTheoLotAndReturn(
-                                conn,
-                                tran,
-                                lotsDaXuatThanhCong);
+                            _hangChoGiaoRepo.CloseChoGiaoTheoLotAndReturn(
+                                lotsDaXuatThanhCong,
+                                nguoiGiao: "SYSTEM_HVN_CNK");
 
-                        tran.Commit();
+                        Uow.Commit();
+                    }
+                    catch
+                    {
+                        Uow.Rollback();
+                        throw;
                     }
 
                     if (closedItems != null)
@@ -224,7 +231,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                             var it in closedItems.Where(
                                 x => x.SlotIdNguon.HasValue))
                         {
-                            _historyRepo.SaveHistory(
+                            SlotHelper.SaveHistory(
                                 "EXPORT_CONFIRMED_HVN",
                                 it.MaHang,
 
@@ -294,7 +301,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
 
                     string ngayGiao =
                         Convert.ToString(
-                            _db.ExecuteScalar(
+                            ExecuteScalar(
                                 $"SELECT CONVERT(varchar, NGAYGIAO, 23) " +
                                 $"FROM [{tmpTable}] " +
                                 $"WHERE {whereClause}"))
@@ -302,7 +309,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
 
                     string poNo =
                         Convert.ToString(
-                            _db.ExecuteScalar(
+                            ExecuteScalar(
                                 $"SELECT ISNULL(PO_NO,'') " +
                                 $"FROM [{tmpTable}] " +
                                 $"WHERE {whereClause}"))
@@ -375,7 +382,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             out DataTable errors)
         {
             DataSet ds =
-                _db.CallProcedureDataSet(
+                ExecuteStoredProcedureDataSet(
                     "Usp_Qrcode_Update_Stock_SP",
 
                     new SqlParameter(
@@ -491,8 +498,8 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             string docQRTable =
                 _cfg.DocQRTable;
 
-            _db.ValidateTableName(tmpTable);
-            _db.ValidateTableName(docQRTable);
+            Db.ValidateTableName(tmpTable);
+            Db.ValidateTableName(docQRTable);
 
             if (string.IsNullOrWhiteSpace(lotSl))
                 return false;
@@ -541,7 +548,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                 // ----------------------------------------------------
 
                 object slConlaiRaw =
-                    _db.ExecuteScalar(
+                    ExecuteScalar(
                         "SELECT ISNULL(slconlai,0) " +
                         "FROM STOCKTP " +
                         $"WHERE {matchCondition}");
@@ -578,7 +585,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                     (gioGiao ?? "") +
                     ":00";
 
-                _db.ExecuteNonQuery(
+                ExecuteNonQuery(
                     $"UPDATE t " +
                     $"SET t.ngayxuat = @ngayxuat, " +
                     $"    t.slxuat = slxuat + @sl, " +
@@ -622,7 +629,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             // Lưu DOCQRCODE
             // ========================================================
 
-            _db.ExecuteNonQuery(
+            ExecuteNonQuery(
                 $@"
                     INSERT INTO LUUDOCQRCODE
                     (
@@ -695,7 +702,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             // Lưu phiếu giao hàng
             // ========================================================
 
-            _db.ExecuteNonQuery(
+            ExecuteNonQuery(
                 $@"
                     INSERT INTO LUUPHIEUGIAOHANG
                     (
@@ -757,7 +764,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             // Đánh dấu phiếu OK
             // ========================================================
 
-            _db.ExecuteNonQuery(
+            ExecuteNonQuery(
                 $"UPDATE [{tmpTable}] " +
                 "SET STATUS = 'OK' " +
                 "WHERE STT = @stt",
@@ -774,7 +781,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             // Xóa QR đã giao
             // ========================================================
 
-            _db.ExecuteNonQuery(
+            ExecuteNonQuery(
                 $"DELETE FROM [{docQRTable}] " +
                 "WHERE MAHANGFCC = @maHang " +
                 "AND KETQUA = 'DG'",
@@ -801,7 +808,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
 
             string poNo =
                 Convert.ToString(
-                    _db.ExecuteScalar(
+                    ExecuteScalar(
                         $"SELECT ISNULL(PO_NO,'') " +
                         $"FROM [{tmpTable}] " +
                         "WHERE STT = @stt",
@@ -854,10 +861,10 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                 return;
             }
 
-            _db.ValidateTableName(
+            Db.ValidateTableName(
                 cfg.OrderTable);
 
-            _db.ExecuteNonQuery(
+            ExecuteNonQuery(
                 $"UPDATE [{cfg.OrderTable}] " +
                 "SET IsDelivered = 1, " +
                 "    DeliveredDate = GETDATE() " +
@@ -898,7 +905,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         {
             if (isMayBanQR)
             {
-                return _db.ExecuteStoredProcedure(
+                return ExecuteStoredProcedure(
                     "Usp_Qrcode_LOAD_HANGTHIEU");
             }
 
@@ -909,9 +916,9 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                     nameof(tenBan));
             }
 
-            _db.ValidateTableName(tenBan);
+            Db.ValidateTableName(tenBan);
 
-            return _db.ExecuteStoredProcedure(
+            return ExecuteStoredProcedure(
                 "Usp_Qrcode_LOAD_HANGTHIEUView",
                 new SqlParameter("@TENBAN", tenBan));
         }

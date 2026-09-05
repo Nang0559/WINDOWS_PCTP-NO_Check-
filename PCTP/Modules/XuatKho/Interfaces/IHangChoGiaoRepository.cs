@@ -1,8 +1,10 @@
-﻿using PCTP.Modules.XuatKho.Models;
+﻿using DevExpress.XtraCharts.Native;
+using PCTP.Modules.XuatKho.Models;
 using PCTP.Modules.XuLyHangLoi.Models;
 using PCTP.Shared.Enums;
 using System;
 using System.Collections.Generic;
+using System.Data.SqlClient;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -21,5 +23,11 @@ namespace PCTP.Modules.XuatKho.Interfaces
         void UpdateStatus(int id, HangChoGiaoStatus status, string nguoiGiao = null);
 
         List<HangChoGiao> GetByReference(StockExportReferenceType type, int referenceId, HangChoGiaoStatus? status = null);
+
+        List<HangChoGiao> CloseChoGiaoTheoLotAndReturn(
+           SqlConnection conn,
+           SqlTransaction tran,
+           List<string> lots,
+           string nguoiGiao = null);
     }
 }
