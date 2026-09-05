@@ -6,10 +6,13 @@ using PCTP.FuctionMain;
 using PCTP.Infrastructure.Repositories;
 using PCTP.Models;
 using PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao;
+using PCTP.Modules.GiaoHangKhach.Services;          // BulkStockAdjustService (nếu khác namespace, chỉnh lại)
+using PCTP.Modules.KhoCore.Repositories;             // IBulkStockSlotRepository, IStockHistoryRepository
 using PCTP.Modules.KhoVatLy.Kho.Models;
-using PCTP.Modules.XuatKho.Interfaces;
+using PCTP.Modules.KhoVatLy.Repositories;
+using PCTP.Modules.XuatKho.Interfaces;               // IHangChoGiaoRepository
 using PCTP.Modules.XuLyHangLoi.Models;
-using PCTP.Shared.Common;
+using PCTP.Shared.Common;                            // SqlRepositoryBase, IUnitOfWork
 using PCTP.VIEWSTOCK.Fuction;
 using PCTP.VIEWSTOCK.Models;
 using PCTP.VIEWSTOCK.Repository;
@@ -25,39 +28,33 @@ using System.Threading.Tasks;
 
 namespace PCTP.Modules.GiaoHangKhach.Repositories
 {
-    /// <summary>
-    /// Kế thừa SqlRepositoryBase — KHÔNG còn giữ SQLPROVIDER trực tiếp. Mọi truy vấn
-    /// (LoadData/ExecuteScalar/ExecuteNonQuery/ExecuteStoredProcedure(DataSet)/BulkInsert,
-    /// kế thừa từ SqlRepositoryBase) tự động chạy trong transaction Uow nếu Uow.Begin()
-    /// đang mở (ambient), ngược lại tự mở/đóng connection riêng qua PhieuSqlExecutor —
-    /// giữ đúng hành vi "mỗi lệnh 1 connection" như SQLPROVIDER cũ khi không có transaction.
-    /// </summary>
     public class PhieuRepository : SqlRepositoryBase, IPhieuRepository
     {
         private readonly CustomerConfig _cfg;
-
-        /// <summary>
-        /// Repo của phân khu Xuất Kho, sở hữu bảng FVN_HangChoGiao (TMPCHOGIAO).
-        /// Dùng để đóng các dòng "chờ giao" theo LOT sau khi CNK xác nhận xuất kho
-        /// thành công (xem WORKFLOW_XUATKHO.md — không thuộc XuLyHangLoi/QTChung).
-        /// PHẢI được khởi tạo bằng CÙNG 1 IUnitOfWork instance đã truyền cho constructor
-        /// của chính PhieuRepository này (VD: new HangChoGiaoRepository(db, uow)) — nhờ vậy
-        /// Uow.Begin() ở đây và Uow bên trong _hangChoGiaoRepo trỏ chung 1 transaction.
-        /// </summary>
         private readonly IHangChoGiaoRepository _hangChoGiaoRepo;
-
         private readonly IIFSRepository _ifsRepo;
+        private readonly IBulkStockSlotRepository _bulkStockSlotRepo;
+        private readonly IStockHistoryRepository _historyRepo;
 
-        public PhieuRepository(PhieuSqlExecutor db, IUnitOfWork uow, CustomerConfig cfg,
-            IHangChoGiaoRepository hangChoGiaoRepo = null, IIFSRepository ifsRepo = null)
+        public PhieuRepository(
+            PhieuSqlExecutor db,
+            IUnitOfWork uow,
+            CustomerConfig cfg,
+            IBulkStockSlotRepository bulkStockSlotRepo,
+            IStockHistoryRepository historyRepo,
+            IHangChoGiaoRepository hangChoGiaoRepo = null,
+            IIFSRepository ifsRepo = null)
             : base(db, uow)
         {
             _cfg = cfg;
-            _hangChoGiaoRepo = hangChoGiaoRepo;
+            _bulkStockSlotRepo = bulkStockSlotRepo ?? throw new ArgumentNullException(nameof(bulkStockSlotRepo));
+            _historyRepo = historyRepo ?? throw new ArgumentNullException(nameof(historyRepo));
+            _hangChoGiaoRepo = hangChoGiaoRepo;   // giữ nullable như hành vi cũ (có null-check khi dùng)
             _ifsRepo = ifsRepo ?? IFSRepository.Create();
         }
 
-        private void ValidateTenBan(string tenBan) => Db.ValidateTableName(tenBan);
+        private BulkStockAdjustService CreateBulkService()
+            => new BulkStockAdjustService(_bulkStockSlotRepo, _historyRepo, Uow);
 
         #region ══ IPhieuValidationRepository ══════════════════════════════════
 
@@ -79,7 +76,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             ValidateTenBan(tenBan);
             object kq = ExecuteScalar(
                 $"SELECT COUNT(*) FROM [{tenBan}] WHERE MAHANG = @ma",
-                new SqlParameter[] { new SqlParameter("@ma", maHang) });
+                new SqlParameter("@ma", maHang));
             return int.TryParse(kq?.ToString(), out int v) && v > 0;
         }
 
@@ -90,21 +87,22 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         {
             ValidateTenBan(tenBan);
             ValidateTenBan(docQRTable);
+
             string sql =
                 $"SELECT STT, MAHANG, TENHANG, GIOGIAO, SOLUONG, " +
                 "CASE " +
-                "    WHEN STATUS IS NULL OR STATUS = '' THEN N'Chưa Bắn QRCODE' " +
-                "    WHEN STATUS = '0'                  THEN N'Đang Bắn QRCODE' " +
-                "    WHEN STATUS = '1'                  THEN N'Đã Bắn QRCODE' " +
-                "    ELSE STATUS " +
+                "  WHEN STATUS IS NULL OR STATUS = '' THEN N'Chưa Bắn QRCODE' " +
+                "  WHEN STATUS = '0' THEN N'Đang Bắn QRCODE' " +
+                "  WHEN STATUS = '1' THEN N'Đã Bắn QRCODE' " +
+                "  ELSE STATUS " +
                 $"END AS STATUS FROM [{tenBan}] " +
                 $"WHERE MAHANG = @ma AND SOLUONG = @sl " +
                 $"AND (LOT = '' OR LOT IS NULL) " +
                 $"AND MAHANG IN (" +
-                $"    SELECT MAHANGFCC FROM [{docQRTable}] " +
-                $"    WHERE ISNULL(KETQUA,'') <> 'DG' GROUP BY MAHANGFCC)";
-            return LoadData(sql,
-                new SqlParameter("@ma", maHang), new SqlParameter("@sl", sl));
+                $"  SELECT MAHANGFCC FROM [{docQRTable}] " +
+                $"  WHERE ISNULL(KETQUA,'') <> 'DG' GROUP BY MAHANGFCC)";
+
+            return LoadData(sql, new SqlParameter("@ma", maHang), new SqlParameter("@sl", sl));
         }
 
         public int CountTrungMaSl(string maHang, int sl, PhieuTableSet tables)
@@ -114,14 +112,16 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         {
             ValidateTenBan(tenBan);
             ValidateTenBan(docQRTable);
+
             object kq = ExecuteScalar(
                 $"SELECT COUNT(*) FROM [{tenBan}] " +
                 $"WHERE MAHANG = @ma AND SOLUONG = @sl " +
                 $"AND (LOT = '' OR LOT IS NULL) " +
                 $"AND MAHANG IN (" +
-                $"    SELECT MAHANGFCC FROM [{docQRTable}] " +
-                $"    WHERE KETQUA <> 'DG' GROUP BY MAHANGFCC)",
-                new SqlParameter[] { new SqlParameter("@ma", maHang), new SqlParameter("@sl", sl) });
+                $"  SELECT MAHANGFCC FROM [{docQRTable}] " +
+                $"  WHERE KETQUA <> 'DG' GROUP BY MAHANGFCC)",
+                new SqlParameter("@ma", maHang), new SqlParameter("@sl", sl));
+
             return int.TryParse(kq?.ToString(), out int v) ? v : 0;
         }
 
@@ -132,13 +132,14 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         {
             ValidateTenBan(tenBan);
             ValidateTenBan(docQRTable);
+
             return LoadData(
                 $"SELECT STT, MAHANG, LOT, SOLUONG FROM [{tenBan}] " +
                 $"WHERE (LOT = '' OR LOT IS NULL) " +
                 $"AND MAHANG IN ( " +
-                $"    SELECT MAHANGFCC FROM [{docQRTable}] " +
-                $"    WHERE ISNULL(KETQUA,'') <> 'DG' " +
-                $"    GROUP BY MAHANGFCC" +
+                $"  SELECT MAHANGFCC FROM [{docQRTable}] " +
+                $"  WHERE ISNULL(KETQUA,'') <> 'DG' " +
+                $"  GROUP BY MAHANGFCC" +
                 $") ORDER BY STT");
         }
 
@@ -155,6 +156,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
 
             DataTable tt = LoadData(
                 $"SELECT TOP 1 ADDNM, NGAYGIAO, GIOGIAOFCC, NHAMAY FROM [{tables.SourceTable}]");
+
             if (tt.Rows.Count > 0)
             {
                 ngayGiao = tt.Rows[0]["NGAYGIAO"].ToString();
@@ -162,6 +164,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                 gioFcc = tt.Rows[0]["GIOGIAOFCC"].ToString();
                 addNm = SafeInt(tt.Rows[0]["ADDNM"]);
             }
+
             return CallSP("Usp_Qrcode_LOAD_PHIEU_DOCQR2405", ngayGiao, nhaMay, gioFcc, addNm, tables);
         }
 
@@ -182,6 +185,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                 var dateTimeCols = donHang.Columns.Cast<DataColumn>()
                     .Where(c => c.DataType == typeof(DateTime))
                     .Select(c => c.ColumnName).ToList();
+
                 foreach (string colName in dateTimeCols)
                 {
                     string tempName = colName + "_STR";
@@ -197,8 +201,10 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             SWLog.Measure($"4b. DropCreate [{tables.SourceTable}]",
                 () => DropCreate(tables.SourceTable, donHang));
 
+            // ⚠️ BulkInsertDataTable cần connection string thô — lấy qua Db.Sql (SQLPROVIDER
+            // gốc bên trong PhieuSqlExecutor), KHÔNG tự giữ field SQLPROVIDER riêng nữa.
             SWLog.Measure($"4c. BulkInsert {donHang.Rows.Count} rows → [{tables.SourceTable}]",
-                () => BulkInsert(tables.SourceTable, donHang));
+                () => SqlTableCreator.BulkInsertDataTable(Db.Sql.B7R2_FCCdb, tables.SourceTable, donHang));
 
             // ── Guard: chỉ xoá TMP khi không đang bắn dở ──────────────────
             SWLog.Measure($"4d. Guard DELETE [{tables.TmpTable}]", () =>
@@ -246,13 +252,13 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         {
             ValidateTenBan(tmpTable);
             string sql = $@"
-            SELECT STT, CUA, TRUYEN, MAHANG, TENHANG, LOT, DV,
-                   SOLUONG, NGAYGIAO, GIOGIAO, STATUS, TTPHIEU,
-                   NHAMAY, ADDNM, HOP, STATUSDOC, Note,
-                   ISNULL(PO_NO,'')   AS PO_NO,
-                   ISNULL(PO_ITEM,'') AS PO_ITEM
-            FROM [{tmpTable}]
-            ORDER BY TRY_CAST(STT AS INT), STT";
+                SELECT STT, CUA, TRUYEN, MAHANG, TENHANG, LOT, DV,
+                       SOLUONG, NGAYGIAO, GIOGIAO, STATUS, TTPHIEU,
+                       NHAMAY, ADDNM, HOP, STATUSDOC, Note,
+                       ISNULL(PO_NO,'') AS PO_NO,
+                       ISNULL(PO_ITEM,'') AS PO_ITEM
+                FROM [{tmpTable}]
+                ORDER BY TRY_CAST(STT AS INT), STT";
             return LoadData(sql);
         }
 
@@ -283,6 +289,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         {
             ValidateTenBan(tmpTable);
             ValidateTenBan(docQRTable);
+
             var result = new TrangThaiBan();
 
             object demQRRaw = ExecuteScalar($"SELECT COUNT(*) FROM [{docQRTable}]");
@@ -300,8 +307,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                 return result;
             }
 
-            DataTable dt = LoadData(
-                $"SELECT TOP 1 ADDNM, NGAYGIAO, GIOGIAO, NHAMAY FROM [{tmpTable}]");
+            DataTable dt = LoadData($"SELECT TOP 1 ADDNM, NGAYGIAO, GIOGIAO, NHAMAY FROM [{tmpTable}]");
             if (dt.Rows.Count == 0)
             {
                 result.DangBan = true;
@@ -315,9 +321,11 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             result.AddNM = r["ADDNM"] == DBNull.Value ? 1 : Convert.ToInt32(r["ADDNM"]);
             result.NhaMay = r["NHAMAY"] == DBNull.Value ? "" : r["NHAMAY"].ToString().Trim();
             result.NgayGiao = r["NGAYGIAO"] == DBNull.Value ? "" : Convert.ToDateTime(r["NGAYGIAO"]).ToString("yyyy-MM-dd");
+
             string gioDon = r["GIOGIAO"] == DBNull.Value ? "" : r["GIOGIAO"].ToString().Trim();
             if (gioDon.Length == 1) gioDon = "0" + gioDon;
             result.GioGiaoFCC = gioDon;
+
             return result;
         }
 
@@ -328,6 +336,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         {
             ValidateTenBan(tmpTable);
             ValidateTenBan(docQRTable);
+
             var result = new TrangThaiBan();
 
             string demTmpRaw = Convert.ToString(
@@ -352,9 +361,11 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             result.DataKhongKhop = false;
             result.AddNM = 1;
             result.NhaMay = "YAMAHA - VIET NAM";
+
             string ngayRaw = dt.Rows[0]["NGAYGIAO"].ToString();
             result.NgayGiao = ngayRaw.Length >= 10 ? ngayRaw.Substring(0, 10) : ngayRaw;
             result.GioGiaoFCC = dt.Rows[0]["GIOGIAO"].ToString().Trim();
+
             return result;
         }
 
@@ -363,13 +374,14 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             string[] tables = { "IFSPHIEUGIAOHANG", "IFSPHIEUGIAOHANGView" };
             string createSql =
                 "IF NOT EXISTS (" +
-                "    SELECT * FROM sys.objects " +
-                "    WHERE object_id = OBJECT_ID(N'[dbo].[{0}]') AND type = 'U'" +
+                "  SELECT * FROM sys.objects " +
+                "  WHERE object_id = OBJECT_ID(N'[dbo].[{0}]') AND type = 'U'" +
                 ") CREATE TABLE [{0}] (" +
-                "    STT INT, MAHANG NVARCHAR(50), TENHANG NVARCHAR(100), SOLUONG INT, " +
-                "    NGAYGIAO SMALLDATETIME, GIOGIAO NVARCHAR(50), GIOGIAOFCC NVARCHAR(200), " +
-                "    NHAMAY NVARCHAR(100), ADDNM INT, LOT NVARCHAR(500), " +
-                "    STATUS NVARCHAR(50), STATUSDOC NVARCHAR(50))";
+                "  STT INT, MAHANG NVARCHAR(50), TENHANG NVARCHAR(100), SOLUONG INT, " +
+                "  NGAYGIAO SMALLDATETIME, GIOGIAO NVARCHAR(50), GIOGIAOFCC NVARCHAR(200), " +
+                "  NHAMAY NVARCHAR(100), ADDNM INT, LOT NVARCHAR(500), " +
+                "  STATUS NVARCHAR(50), STATUSDOC NVARCHAR(50))";
+
             foreach (var table in tables)
                 ExecuteNonQuery(string.Format(createSql, table));
         }
@@ -391,9 +403,11 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                 new SqlParameter("@_SLGIAO", slGiao),
                 new SqlParameter("@DOCQRTABLE", docQRTable),
                 new SqlParameter("@TMPTABLE", tmpTable));
+
             var parts = new List<string>();
             foreach (DataRow row in dt.Rows)
                 parts.Add($"{row["LOTFCC"].ToString().Trim()}-{row["FCC"].ToString().Trim()}");
+
             return string.Join(",", parts);
         }
 
@@ -401,6 +415,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         {
             if (stt <= 0 || string.IsNullOrWhiteSpace(lot)) return;
             ValidateTenBan(tenBan);
+
             ExecuteNonQuery(
                 $"UPDATE [{tenBan}] SET LOT = @lot WHERE STT = @stt",
                 new SqlParameter("@lot", lot), new SqlParameter("@stt", stt));
@@ -413,10 +428,12 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         {
             ValidateTenBan(tenBan);
             ValidateTenBan(docQRTable);
+
             ExecuteNonQuery(
                 $"UPDATE [{tenBan}] SET LOT = '', STATUSDOC = 'NG', TTPHIEU = NULL " +
                 "WHERE STT = @stt AND ISNULL(STATUS,'') <> 'OK'",
                 new SqlParameter("@stt", stt));
+
             ExecuteNonQuery(
                 $"UPDATE [{docQRTable}] SET GIO = NULL, KETQUA = 'OK', STTBAN = NULL " +
                 "WHERE ISNULL(STTBAN, 0) = @stt AND KETQUA = 'DG'",
@@ -424,18 +441,15 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         }
 
         public DataTable LoadGhepLot()
-        {
-            var ds = ExecuteStoredProcedureDataSet("Usp_Qrcode_gheplot");
-            return ds.Tables.Count > 0 ? ds.Tables[0] : new DataTable();
-        }
+            => ExecuteStoredProcedure("Usp_Qrcode_gheplot");
 
         public DataTable GetDanhSachLotTuKho(string maHang)
         {
             string sql = @"
-            SELECT LOT, SLCONLAI, SLXUAT, PART, NAME
-            FROM STOCKTP
-            WHERE PART = @ma AND SLCONLAI > 0
-            ORDER BY LOT";
+                SELECT LOT, SLCONLAI, SLXUAT, PART, NAME
+                FROM STOCKTP
+                WHERE PART = @ma AND SLCONLAI > 0
+                ORDER BY LOT";
             return LoadData(sql, new SqlParameter("@ma", maHang));
         }
 
@@ -448,7 +462,9 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
 
         public int CapNhapKho(string gioGiaoFcc, string nhaMay, string tmpTable, string docQRTable, out DataTable errors)
         {
-            var ds = ExecuteStoredProcedureDataSet(
+            // ⚠️ SP này cần DataSet ĐA BẢNG (stok + errors) — gọi thẳng Db (không qua Uow
+            // transaction, giữ đúng hành vi gốc: SP tự quản lý transaction bên trong).
+            var ds = Db.ExecuteStoredProcedureDataSet(
                 "Usp_Qrcode_Update_Stock2405",
                 new SqlParameter("@GIOGIAOFCC", gioGiaoFcc ?? ""),
                 new SqlParameter("@NHAMAY", nhaMay ?? ""),
@@ -462,15 +478,17 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             // ── (1) Trừ SlotLot của kho ảo A0 theo từng LOT vừa xuất OK ────
             bool coAnhHuongA0 = false;
             var lotsDaXuatThanhCong = new List<string>();
+
             if (stok.Rows.Count > 0)
             {
-                var bulkService = new BulkStockAdjustService();
+                var bulkService = CreateBulkService();
                 foreach (DataRow row in stok.Rows)
                 {
                     string lotRaw = row["LOT"]?.ToString();
                     string lot = LotCodeHelper.TrimTo(lotRaw, LotCodeHelper.LEN_HEAD_FIXED);
                     int sl = row["SOLUONG"] == DBNull.Value ? 0 : Convert.ToInt32(row["SOLUONG"]);
                     if (string.IsNullOrWhiteSpace(lot) || sl <= 0) continue;
+
                     bool anhHuong = bulkService.TruKhoAoTheoLot(lot, sl);
                     if (anhHuong) coAnhHuongA0 = true;
                     lotsDaXuatThanhCong.Add(lot);
@@ -486,11 +504,12 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                 try
                 {
                     List<HangChoGiao> closedItems;
+
                     Uow.Begin();
                     try
                     {
                         closedItems = _hangChoGiaoRepo.CloseChoGiaoTheoLotAndReturn(
-                            lotsDaXuatThanhCong, nguoiGiao: "SYSTEM_HVN_CNK");
+                            Connection, Transaction, lotsDaXuatThanhCong, "SYSTEM_HVN_CNK");
                         Uow.Commit();
                     }
                     catch
@@ -498,10 +517,14 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                         Uow.Rollback();
                         throw;
                     }
+
                     foreach (var it in closedItems.Where(x => x.SlotIdNguon.HasValue))
-                        SlotHelper.SaveHistory("EXPORT_CONFIRMED_HVN", it.MaHang,
+                        _historyRepo.SaveHistory(
+                            "EXPORT_CONFIRMED_HVN", it.MaHang,
                             new LotInfo { LotNo = it.LotGoc, Quantity = it.SoLuong, TemCode = it.LotThung },
-                            it.SlotIdNguon, null, performedBy: "SYSTEM_HVN_CNK");
+                            fromSlotId: it.SlotIdNguon,
+                            toSlotId: null,
+                            performedBy: "SYSTEM_HVN_CNK");
                 }
                 catch (Exception ex)
                 {
@@ -519,8 +542,10 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                     if (string.IsNullOrEmpty(maHang)) continue;
 
                     string whereClause = stt > 0 ? $"STT={stt}" : $"MAHANG='{SqlHelper.Esc(maHang)}' AND STATUS='OK'";
+
                     string ngayGiao = Convert.ToString(ExecuteScalar(
                         $"SELECT CONVERT(varchar, NGAYGIAO, 23) FROM [{tmpTable}] WHERE {whereClause}"))?.Trim() ?? "";
+
                     string poNo = Convert.ToString(ExecuteScalar(
                         $"SELECT ISNULL(PO_NO,'') FROM [{tmpTable}] WHERE {whereClause}"))?.Trim() ?? "";
 
@@ -530,7 +555,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             }
 
             return stok.Rows.Count;
-        } // ← BUG GỐC ĐÃ SỬA: thiếu dấu "}" này khiến CapNhapKhoHTN bị lồng bên trong CapNhapKho
+        }
 
         public int CapNhapKhoHTN(string nhaMay, PhieuTableSet tables, out DataTable errors)
             => CapNhapKho("", nhaMay, tables.TmpTable, tables.DocQRTable, out errors);
@@ -540,28 +565,33 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
 
         public int CapNhapKhoSP(string gioGiaoFcc, string nhaMay, out DataTable errors)
         {
-            var ds = ExecuteStoredProcedureDataSet("Usp_Qrcode_Update_Stock_SP",
+            var ds = Db.ExecuteStoredProcedureDataSet("Usp_Qrcode_Update_Stock_SP",
                 new SqlParameter("@GIOGIAOFCC", gioGiaoFcc),
                 new SqlParameter("@NHAMAY", nhaMay));
+
             errors = ds.Tables.Count > 1 ? ds.Tables[1] : new DataTable();
             DataTable stok = ds.Tables[0];
 
             if (stok.Rows.Count > 0 && stok.Columns.Contains("LOT") && stok.Columns.Contains("SOLUONG"))
             {
-                var bulkService = new BulkStockAdjustService();
+                var bulkService = CreateBulkService();
                 bool coAnhHuongA0 = false;
+
                 foreach (DataRow row in stok.Rows)
                 {
                     string lotRaw = row["LOT"]?.ToString();
                     string lot = LotCodeHelper.TrimTo(lotRaw, LotCodeHelper.LEN_HEAD_FIXED);
                     int sl = row["SOLUONG"] == DBNull.Value ? 0 : Convert.ToInt32(row["SOLUONG"]);
                     if (string.IsNullOrWhiteSpace(lot) || sl <= 0) continue;
+
                     if (bulkService.TruKhoAoTheoLot(lot, sl))
                         coAnhHuongA0 = true;
                 }
+
                 if (coAnhHuongA0)
                     StockChangedNotifier.RaiseStockChanged();
             }
+
             return stok.Rows.Count;
         }
 
@@ -569,8 +599,9 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             string gioGiao, string nhaMay, out DS_ERR_CNK error)
         {
             error = null;
-            var bulkService = new BulkStockAdjustService();
+            var bulkService = CreateBulkService();
             bool coAnhHuongA0 = false;
+
             string tmpTable = _cfg.TmpTable;
             string docQRTable = _cfg.DocQRTable;
 
@@ -585,8 +616,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
 
                 if (!int.TryParse(tach[1], out int sl)) continue;
 
-                object slConlaiRaw = ExecuteScalar(
-                    $"SELECT ISNULL(slconlai,0) FROM STOCKTP WHERE {matchCondition}");
+                object slConlaiRaw = ExecuteScalar($"SELECT ISNULL(slconlai,0) FROM STOCKTP WHERE {matchCondition}");
                 int slConlai = slConlaiRaw == null || slConlaiRaw == DBNull.Value ? 0 : Convert.ToInt32(slConlaiRaw);
 
                 if (slConlai < sl)
@@ -613,31 +643,30 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             }
 
             ExecuteNonQuery($@"
-            INSERT INTO LUUDOCQRCODE
+                INSERT INTO LUUDOCQRCODE
                 (LOTFCC, MAHANGFCC, SLTEMFCC, LOTHVN, MAHANGHVN, SLTEMHVN,
                  STATUS, MAFCC, STT, KETQUA, NGAYXUAT, GIOXUAT, NHAMAY)
-            SELECT
-                LEFT(LOTFCC, 500), LEFT(MAHANGFCC, 60), SLTEMFCC,
-                LEFT(LOTHVN, 500), LEFT(MAHANGHVN, 60), SLTEMHVN,
-                STATUS, LEFT(MAFCC, 50), STT, KETQUA,
-                '{ngayGiao}', '{SqlHelper.Esc(gioGiao)}', '{SqlHelper.Esc(nhaMay)}'
-            FROM [{docQRTable}]
-            WHERE MAHANGFCC = '{SqlHelper.Esc(maHang)}' AND KETQUA = 'DG'");
+                SELECT
+                    LEFT(LOTFCC, 500), LEFT(MAHANGFCC, 60), SLTEMFCC,
+                    LEFT(LOTHVN, 500), LEFT(MAHANGHVN, 60), SLTEMHVN,
+                    STATUS, LEFT(MAFCC, 50), STT, KETQUA,
+                    '{ngayGiao}', '{SqlHelper.Esc(gioGiao)}', '{SqlHelper.Esc(nhaMay)}'
+                FROM [{docQRTable}]
+                WHERE MAHANGFCC = '{SqlHelper.Esc(maHang)}' AND KETQUA = 'DG'");
 
             ExecuteNonQuery($@"
-            INSERT INTO LUUPHIEUGIAOHANG
+                INSERT INTO LUUPHIEUGIAOHANG
                 (STT, CUA, TRUYEN, MAHANG, TENHANG, LOT, DV, SOLUONG,
                  NGAYGIAO, GIOGIAO, STATUS, GearYMVN, NHAMAY, GIOGIAOFCC, PO_NO, TTPHIEU)
-            SELECT
-                STT, CUA, TRUYEN, MAHANG, TENHANG, LOT, DV, SOLUONG,
-                NGAYGIAO, GIOGIAO, 'OK', ISNULL(GEAR,''),
-                '{SqlHelper.Esc(nhaMay)}', CONVERT(VARCHAR(8), GETDATE(), 108),
-                ISNULL(PO_NO,''), ISNULL(TTPHIEU,'')
-            FROM [{tmpTable}]
-            WHERE STT = {stt} AND STATUS = 'NG'");
+                SELECT
+                    STT, CUA, TRUYEN, MAHANG, TENHANG, LOT, DV, SOLUONG,
+                    NGAYGIAO, GIOGIAO, 'OK', ISNULL(GEAR,''),
+                    '{SqlHelper.Esc(nhaMay)}', CONVERT(VARCHAR(8), GETDATE(), 108),
+                    ISNULL(PO_NO,''), ISNULL(TTPHIEU,'')
+                FROM [{tmpTable}]
+                WHERE STT = {stt} AND STATUS = 'NG'");
 
-            ExecuteNonQuery(
-                $"UPDATE [{tmpTable}] SET STATUS = 'OK' WHERE STT = {stt}");
+            ExecuteNonQuery($"UPDATE [{tmpTable}] SET STATUS = 'OK' WHERE STT = {stt}");
 
             ExecuteNonQuery(
                 $"DELETE FROM [{docQRTable}] WHERE MAHANGFCC = '{SqlHelper.Esc(maHang)}' AND KETQUA = 'DG'");
@@ -657,6 +686,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         public void DanhDauDaGiao(string poNo, string maHang, string ngayGiao, CustomerConfig cfg)
         {
             if (string.IsNullOrEmpty(cfg.OrderTable)) return;
+
             ExecuteNonQuery(
                 $"UPDATE [{cfg.OrderTable}] SET IsDelivered = 1, DeliveredDate = GETDATE() " +
                 "WHERE Oder_no = @po AND Part_no = @pno AND CAST(NgayGiao AS DATE) = @ng AND IsDelivered = 0",
@@ -665,17 +695,17 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
 
         #endregion
 
-
         #region ══ IPhieuLuuTruRepository ═══════════════════════════════════════
 
         public DataTable LoadLuuPhieu(string nhaMay, string ngayGiao, string gioGiaoFcc)
         {
             const string query = @"
-            SELECT STT, CUA, TRUYEN, MAHANG, TENHANG, LOT, DV, SOLUONG, NGAYGIAO, GIOGIAO,
-                   STATUS, TTPHIEU, NHAMAY, HOP, STATUSDOC, Note,
-                   ISNULL(PO_NO, '') AS PO_NO, ISNULL(PO_ITEM, '') AS PO_ITEM
-            FROM LUUPHIEUGIAOHANG
-            WHERE NHAMAY = @nm AND NGAYGIAO = @ng AND GIOGIAOFCC = @gg";
+                SELECT STT, CUA, TRUYEN, MAHANG, TENHANG, LOT, DV, SOLUONG, NGAYGIAO, GIOGIAO,
+                       STATUS, TTPHIEU, NHAMAY, HOP, STATUSDOC, Note,
+                       ISNULL(PO_NO, '') AS PO_NO, ISNULL(PO_ITEM, '') AS PO_ITEM
+                FROM LUUPHIEUGIAOHANG
+                WHERE NHAMAY = @nm AND NGAYGIAO = @ng AND GIOGIAOFCC = @gg";
+
             return LoadData(query,
                 new SqlParameter("@nm", SqlDbType.NVarChar, 200) { Value = (object)nhaMay?.Trim() ?? DBNull.Value },
                 new SqlParameter("@ng", SqlDbType.NVarChar, 50) { Value = (object)ngayGiao?.Trim() ?? DBNull.Value },
@@ -693,13 +723,15 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             object kq = ExecuteScalar(
                 "SELECT COUNT(*) FROM LUUPHIEUGIAOHANG " +
                 "WHERE NHAMAY=@nm AND NGAYGIAO=@ng AND GIOGIAOFCC=@gg AND LOT IS NOT NULL AND LOT<>''",
-                new[] { new SqlParameter("@nm", nhaMay), new SqlParameter("@ng", ngayGiao), new SqlParameter("@gg", gioGiaoFcc) });
+                new SqlParameter("@nm", nhaMay), new SqlParameter("@ng", ngayGiao), new SqlParameter("@gg", gioGiaoFcc));
+
             return int.TryParse(kq?.ToString(), out int v) ? v : 0;
         }
 
         public void CapNhapTTPHIEU(string nhaMay, string ngayGiao, string gioGiaoFcc, int stt, string ghiChu)
         {
             string safe = ghiChu?.Trim() == "STOP" ? "STOP" : "";
+
             ExecuteNonQuery(
                 "UPDATE LUUPHIEUGIAOHANG SET TTPHIEU=@gc " +
                 "WHERE NHAMAY=@nm AND NGAYGIAO=@ng AND GIOGIAOFCC=@gg AND STT=@stt",
@@ -713,8 +745,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         #region ══ IPhieuGiaoDBRepository ═══════════════════════════════════════
 
         public DataTable GetDanhSachMaHang() =>
-            LoadData(
-                "SELECT ID, Code, Name FROM B20Item WHERE LEN(Code) > 10 GROUP BY ID, Code, Name ORDER BY ID");
+            LoadData("SELECT ID, Code, Name FROM B20Item WHERE LEN(Code) > 10 GROUP BY ID, Code, Name ORDER BY ID");
 
         public DataTable LoadTmpPhieuGiaoDB(string tenBan)
         {
@@ -734,7 +765,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
 
             DropCreate(ifsTable, donHang);
             ExecuteNonQuery($"DELETE FROM [{ifsTable}]");
-            BulkInsert(ifsTable, donHang);
+            SqlTableCreator.BulkInsertDataTable(Db.Sql.B7R2_FCCdb, ifsTable, donHang);
 
             string nhaMay = !string.IsNullOrEmpty(nhaMayOverride)
                 ? nhaMayOverride
@@ -761,6 +792,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         {
             if (isMayBanQR)
                 return ExecuteStoredProcedure("Usp_Qrcode_LOAD_HANGTHIEU");
+
             return ExecuteStoredProcedure("Usp_Qrcode_LOAD_HANGTHIEUView",
                 new SqlParameter("@TENBAN", tenBan));
         }
@@ -772,15 +804,23 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
 
             string inClause = string.Join(",", maHangList.Select(m => $"'{m.Replace("'", "''")}'"));
             string sql = $"SELECT Code, ISNULL(CAST(MinCloseQty AS INT), 0) AS QC FROM B20Item WHERE Code IN ({inClause})";
+
             DataTable dt = LoadData(sql);
             foreach (DataRow row in dt.Rows)
                 result[row["Code"].ToString().Trim()] = Convert.ToInt32(row["QC"]);
+
             return result;
         }
 
-        public void ExecNonQuery(string spName) => ExecuteNonQuery(spName);
-        public void ExecSP(string spName, params SqlParameter[] parms) => ExecuteNonQuery(spName, parms);
+        public void ExecNonQuery(string spName) => ExecuteStoredProcedureNonQuery(spName);
+        public void ExecSP(string spName, params SqlParameter[] parms) => ExecuteStoredProcedureNonQuery(spName, parms);
         public DataTable ExecSPWithResult(string spName, params SqlParameter[] parms) => ExecuteStoredProcedure(spName, parms);
+
+        // ⚠️ SqlRepositoryBase (bản hiện tại) chưa có wrapper ExecuteStoredProcedureNonQuery
+        // theo transaction — dùng thẳng Db (không transaction), khớp hành vi gốc của
+        // ExecNonQuery/ExecSP (vốn cũng không nằm trong transaction nào cả).
+        private int ExecuteStoredProcedureNonQuery(string spName, params SqlParameter[] parms)
+            => Db.ExecuteStoredProcedureNonQuery(spName, parms);
 
         #endregion
 
@@ -790,13 +830,15 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             int addNm, PhieuTableSet tables)
         {
             object ngayParam = DateTime.TryParse(ngayGiao, out DateTime dt) ? (object)dt : DBNull.Value;
+
             var paramList = new List<SqlParameter>
-        {
-            new SqlParameter("@NGAYGIAO", SqlDbType.SmallDateTime) { Value = ngayParam },
-            new SqlParameter("@NHAMAY", nhaMay),
-            new SqlParameter("@GIOFCC", gioFcc),
-            new SqlParameter("@ADDNM", addNm)
-        };
+            {
+                new SqlParameter("@NGAYGIAO", SqlDbType.SmallDateTime) { Value = ngayParam },
+                new SqlParameter("@NHAMAY", nhaMay),
+                new SqlParameter("@GIOFCC", gioFcc),
+                new SqlParameter("@ADDNM", addNm)
+            };
+
             if (!string.IsNullOrEmpty(tables.TmpTable))
                 paramList.Add(new SqlParameter("@TMPTABLE", tables.TmpTable));
             if (!string.IsNullOrEmpty(tables.SourceTable))
@@ -808,8 +850,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             if (!string.IsNullOrEmpty(tables.IfsView))
                 paramList.Add(new SqlParameter("@IFSVIEW", tables.IfsView));
 
-            var ds = ExecuteStoredProcedureDataSet(tenSP, paramList.ToArray());
-            return ds.Tables[0];
+            return ExecuteStoredProcedure(tenSP, paramList.ToArray());
         }
 
         private void DropCreate(string tenBang, DataTable schema)
@@ -831,10 +872,11 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
 
             string sql =
                 "SELECT MAHANG, GIOGIAO, LOT, STATUS, STATUSDOC, " +
-                "       ISNULL(PO_NO,'') AS PO_NO, ISNULL(SOLUONG, 0) AS SOLUONG, " +
-                "       ISNULL(GearYMVN,'') AS GEAR " +
+                "  ISNULL(PO_NO,'') AS PO_NO, ISNULL(SOLUONG, 0) AS SOLUONG, " +
+                "  ISNULL(GearYMVN,'') AS GEAR " +
                 "FROM LUUPHIEUGIAOHANG " +
                 $"WHERE CAST(NGAYGIAO AS DATE) = '{ngayGiao}' AND NHAMAY = '{tenNhaMay.Replace("'", "''")}'";
+
             DataTable luuDt = LoadData(sql);
             if (luuDt.Rows.Count == 0) return;
 
@@ -844,6 +886,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                 string gioChuan = NormalizeGio(row["GIOGIAO"].ToString().Trim());
                 string keyFull = row["MAHANG"].ToString().Trim() + "|" + gioChuan + "|" + row["PO_NO"].ToString().Trim();
                 string keyShort = row["MAHANG"].ToString().Trim() + "|" + gioChuan;
+
                 if (!lookup.ContainsKey(keyFull)) lookup[keyFull] = row;
                 if (!lookup.ContainsKey(keyShort)) lookup[keyShort] = row;
             }
@@ -887,6 +930,13 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             int colonIdx = gio.IndexOf(':');
             if (colonIdx >= 0) gio = gio.Substring(0, colonIdx).Trim();
             return int.TryParse(gio, out int gioInt) ? gioInt.ToString("00") : "00";
+        }
+
+        private static void ValidateTenBan(string tenBan)
+        {
+            if (string.IsNullOrWhiteSpace(tenBan) ||
+                System.Text.RegularExpressions.Regex.IsMatch(tenBan, @"[^A-Za-z0-9_]"))
+                throw new ArgumentException($"Tên bảng không hợp lệ: '{tenBan}'");
         }
 
         private static int SafeInt(object val)
