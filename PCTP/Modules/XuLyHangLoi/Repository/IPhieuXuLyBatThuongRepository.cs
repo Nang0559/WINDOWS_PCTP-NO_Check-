@@ -258,5 +258,8 @@ namespace PCTP.Modules.XuLyHangLoi.Repository
         /// Đếm số phiếu xử lý bất thường đang ở đúng 1 trạng thái QTChung — dùng cho dashboard.
         /// </summary>
         int CountByStatus(QTChungStatus status);
+
+        // Thêm vào IPhieuXuLyBatThuongRepository
+        List<PhieuXuLyBatThuong> GetByStatus(QTChungStatus status);
     }
 }

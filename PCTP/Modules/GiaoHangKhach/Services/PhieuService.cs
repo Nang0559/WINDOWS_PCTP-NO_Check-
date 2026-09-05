@@ -31,6 +31,15 @@ namespace PCTP.Applications.Services
         private readonly string _tenBan;
         private readonly bool _isMayBanQR;
         private readonly CustomerConfig _cfg;
+
+        // ✅ FIX: LoadPhieuTuBangRieng / GetDanhSachGioYMVN / UploadMilkrunSP /
+        // InsertTmpYMVN nằm trong ITableOrderRepository — đã được tách riêng khỏi
+        // IPhieuRepository (xem comment trong ITableOrderRepository.cs: "Tách khỏi
+        // IPhieuRepository để OrderTableLoadStrategy chỉ phụ thuộc đúng những gì nó
+        // cần"). PhieuRepository hiện KHÔNG còn implement các method này nữa, nên
+        // PhieuService phải nhận riêng dependency này (implementation: TableOrderRepo).
+        private readonly ITableOrderRepository _tableOrderRepo;
+
         // ── Trạng thái hiện tại — được set từ Presenter ─────────────────────
         private bool _isBanQR = false;
         private bool _isLoaiSP = false;
@@ -41,7 +50,8 @@ namespace PCTP.Applications.Services
                             IGioXuatRepository gioXuatRepo,
                             string tenBan,
                             CustomerConfig cfg,
-                            bool isMayBanQR
+                            bool isMayBanQR,
+                            ITableOrderRepository tableOrderRepo
                             )
         {
             _phieuRepo = phieuRepo;
@@ -51,6 +61,7 @@ namespace PCTP.Applications.Services
             _tenBan = tenBan;
             _cfg = cfg;
             _isMayBanQR = isMayBanQR;
+            _tableOrderRepo = tableOrderRepo ?? throw new ArgumentNullException(nameof(tableOrderRepo));
         }
         public void SetTrangThaiBan(bool isBanQR, bool isLoaiSP)
         {
@@ -323,14 +334,14 @@ namespace PCTP.Applications.Services
                 {
                     // ── Chưa bắn hoặc đã hoàn thành → query Purchase_Order ──────
                     // Rồi merge LOT từ LUUPHIEUGIAOHANG
-                    donHang = _phieuRepo.LoadPhieuTuBangRieng(
+                    donHang = _tableOrderRepo.LoadPhieuTuBangRieng(
                         ngayGiaoSP, gioFcc, isLoaiSP, dockCodeSP, _cfg);
                 }
             }
             else
             {
                 // ── Máy view → luôn query Purchase_Order + merge LUUPHIEUGIAOHANG ─
-                donHang = _phieuRepo.LoadPhieuTuBangRieng(
+                donHang = _tableOrderRepo.LoadPhieuTuBangRieng(
                     ngayGiaoSP, gioFcc, isLoaiSP, dockCodeSP, _cfg);
             }
 
@@ -474,7 +485,7 @@ namespace PCTP.Applications.Services
         // ════════════════════════════════════════════════════════════════════════
         public bool KiemTraMaTrongPhieu(string maHang)
         {
-   
+
             return _phieuRepo.KiemTraMaTrongPhieu(maHang, GetTenBan());
         }
 
@@ -735,7 +746,7 @@ namespace PCTP.Applications.Services
                 }
             }
         }
-        
+
 
         public static int TinhSoHop(int soLuong, int qcDongGoi)
         {
@@ -799,13 +810,13 @@ namespace PCTP.Applications.Services
 
         // Lấy danh sách giờ từ Purchase_Order_YMVN
         public List<string> GetDanhSachGioYMVN(string ngayXuatMDY)
-    => _phieuRepo.GetDanhSachGioYMVN(ngayXuatMDY).ToList();
+    => _tableOrderRepo.GetDanhSachGioYMVN(ngayXuatMDY).ToList();
 
 
         // Upload Milkrun SP — tương đương UploadMIKR()
         public void UploadMilkrunSP(DataTable donHang, string ngayGiao)
         {
-            _phieuRepo.UploadMilkrunSP(donHang, ngayGiao);
+            _tableOrderRepo.UploadMilkrunSP(donHang, ngayGiao);
         }
 
 
@@ -857,7 +868,7 @@ namespace PCTP.Applications.Services
                 string gioXuat = Get("GIO");
                 if (string.IsNullOrEmpty(gioXuat)) gioXuat = gio;
 
-                _phieuRepo.InsertTmpYMVN(
+                _tableOrderRepo.InsertTmpYMVN(
                     stt: Get("STT"),
                     cua: Get("CUA"),
                     truyen: Get("TRUYEN"),
@@ -893,11 +904,11 @@ namespace PCTP.Applications.Services
 
         public DataTable GetDanhSachLotTuKho(string maHang)
         => _phieuRepo.GetDanhSachLotTuKho(maHang);
-        public void NhapLotThuCong(int stt, string lotNo,string tenbang)
+        public void NhapLotThuCong(int stt, string lotNo, string tenbang)
         {
             // Ghi LOT vào TMP — giống CapNhapLotTmpPhieu
             _phieuRepo.CapNhapLotTmpPhieu(stt, lotNo, GetTenBan());
         }
     }
-   
+
 }

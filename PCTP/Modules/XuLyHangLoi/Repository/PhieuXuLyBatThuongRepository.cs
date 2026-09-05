@@ -736,5 +736,25 @@ WHERE Id = @Id
                 new SqlParameter("@status", (int)status));   // ✅ sửa từ status.ToString() thành (int)status
             return kq == null || kq == DBNull.Value ? 0 : Convert.ToInt32(kq);
         }
+        // PhieuXuLyBatThuongRepository.cs
+        public List<PhieuXuLyBatThuong> GetByStatus(QTChungStatus status)
+        {
+            const string sql = @"
+SELECT
+    Id, SoPhieu, Nguon, PhieuTraHangId, SoPhieuTraHangGoc, PhieuKhachTraId,
+    SlotIdNguon, LotNguon, Model, MaSanPham, SoLo, SoLoLoi, SoLuongLoi,
+    NoiDungBatThuong, PhanLoaiXuLy, BoPhanPhatHanh, Status, HuongXuLy,
+    NgayDinhHuong, NguoiDinhHuong, LyDoHuy, NgayHuy, NguoiHuy,
+    CreatedAt, CreatedBy, UpdatedAt, UpdatedBy
+FROM FVN_PhieuXuLyBatThuong
+WHERE Status = @Status
+ORDER BY CreatedAt DESC, Id DESC;";
+            DataTable table = LoadData(sql, new SqlParameter("@Status", (int)status));
+            var result = new List<PhieuXuLyBatThuong>();
+            foreach (DataRow row in table.Rows)
+                result.Add(Map(row));
+            return result;
+        }
+
     }
 }
