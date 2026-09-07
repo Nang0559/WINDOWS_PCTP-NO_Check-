@@ -95,7 +95,6 @@ namespace PCTP.QRCODE_HVN.PGH
             this.CL_STTPHIEU = new DevExpress.XtraGrid.Columns.GridColumn();
             this.CL_SUALOTHVN = new DevExpress.XtraGrid.Columns.GridColumn();
             this.CL_KETQUA = new DevExpress.XtraGrid.Columns.GridColumn();
-            this.splashScreenManager1 = new DevExpress.XtraSplashScreen.SplashScreenManager(this, typeof(global::PCTP.QRCODE_HVN.WaitForm2), true, true);
             this.PN_DOCQR_SUASL1 = new DevExpress.XtraEditors.PanelControl();
             this.cmd_SuaLTemFCC = new DevExpress.XtraEditors.SimpleButton();
             this.TXT_FCCTU = new System.Windows.Forms.TextBox();

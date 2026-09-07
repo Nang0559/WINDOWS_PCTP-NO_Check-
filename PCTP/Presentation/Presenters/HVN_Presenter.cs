@@ -700,7 +700,7 @@ namespace PCTP.Presentation.Presenters
 
         private void OnQRCodeSubmitted(object sender, string rawQr)
         {
-            Applications.Services.ScanResult result;
+            PCTP.Shared.Helpers.ScanResult result;
 
             if (_cfg.CoGear)
             {
@@ -719,9 +719,9 @@ namespace PCTP.Presentation.Presenters
                     kiemTraSlDaBan: (ma, sl) => _qrSvc.KiemTraSlDaBan(ma, sl));
             }
 
-            if (result.Success) return;
+            if (result.IsOK) return;
 
-            if (result.SlKhacBiet)
+            if (result.IsSlKhongKhop)
             {
                 RunWithLoadingSync(() =>
                 {
@@ -732,8 +732,8 @@ namespace PCTP.Presentation.Presenters
                     if (!confirm) return;
 
                     // ← _qrSvc.ConfirmSlKhacBiet tự biết dùng bảng nào qua _cfg
-                    var confirmed = _qrSvc.ConfirmSlKhacBiet(result.Item);
-                    if (!confirmed.Success)
+                    var confirmed = _qrSvc.ConfirmSlKhacBiet(result.Pending);
+                    if (!confirmed.IsOK)
                         _view.ShowError(confirmed.Message);
 
                 }, "Đang xác nhận...");

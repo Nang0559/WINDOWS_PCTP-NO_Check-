@@ -39,7 +39,7 @@
             this.labelControl2 = new DevExpress.XtraEditors.LabelControl();
             this.txtMota3 = new DevExpress.XtraEditors.TextEdit();
             this.labelControl1 = new DevExpress.XtraEditors.LabelControl();
-            this.splashScreenManager1 = new DevExpress.XtraSplashScreen.SplashScreenManager(this, typeof(global::PCTP.Acess_Image.WaitForm3), true, true, typeof(System.Windows.Forms.UserControl));
+         
             ((System.ComponentModel.ISupportInitialize)(this.panelControl1)).BeginInit();
             this.panelControl1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.lokupItemCode.Properties)).BeginInit();
@@ -322,7 +322,7 @@
             // 
             // splashScreenManager1
             // 
-            this.splashScreenManager1.ClosingDelay = 500;
+          
             // 
             // ImagesControl
             // 
@@ -381,6 +381,6 @@
         private DevExpress.XtraEditors.PictureEdit pictureEdit1;
         private DevExpress.XtraEditors.Controls.ImageSlider imageSlider1;
         private DevExpress.XtraEditors.SimpleButton cmdAdd;
-        private DevExpress.XtraSplashScreen.SplashScreenManager splashScreenManager1;
+   
     }
 }

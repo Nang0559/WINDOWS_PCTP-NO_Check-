@@ -752,12 +752,16 @@ namespace PCTP
 
         void report_DesignerLoaded(object sender, DesignerLoadedEventArgs e)
         {
-            
-            splashScreenManager1.ShowWaitForm();
-            IToolboxService toolboxService =
-                (IToolboxService)e.DesignerHost.GetService(typeof(IToolboxService));
-            toolboxService.AddToolboxItem(new ToolboxItem(typeof(XRZipCode)));
-            splashScreenManager1.CloseWaitForm();
+
+            _waitForm.Run(
+                () =>
+                {
+                    IToolboxService toolboxService =
+                        (IToolboxService)e.DesignerHost.GetService(typeof(IToolboxService));
+                    toolboxService.AddToolboxItem(new ToolboxItem(typeof(XRZipCode)));
+                },
+                "Đang khởi tạo Report Designer..."
+                );
         }
 
         // Ticker label (giữ nguyên animation gốc)

@@ -17,7 +17,29 @@ namespace PCTP.VIEWSTOCK.RpIn
     using DevExpress.XtraReports.UI;
     using DevExpress.XtraPrinting;
     using PCTP.Modules.XuLyHangLoi.Models;
+    using PCTP.Shared.Enums;
 
+    /// <summary>
+    /// Mẫu in "Phiếu xử lý bất thường" (BM-04/QĐ-QC-02).
+    ///
+    /// ⚠️ ĐÃ SỬA theo WORKFLOW_HANGLOI.md: bản trước bind vào một loạt field
+    /// không còn tồn tại trên <see cref="PhieuXuLyBatThuong"/> (LoaiSanPham,
+    /// CapDoQuanTrong, CapDoPhienBan, NguoiThucHien, PhuongPhapKiemTra,
+    /// SoLuongKiemTra, PhuongPhapSua, SoLuongSua, XacNhanCuoiKetQua,
+    /// NguoiDanhGia, NguoiThucHienQC, GhiChuQC, BoPhanChiuTrachNhiem,
+    /// Ngay/HoTen* của 4 bên ký) — hậu quả của việc audit từng bước đã được
+    /// tách sang các bảng con riêng (TraHangQTChungXuat/Giao/QC/NhapNG,
+    /// xem mục 1.2 tài liệu) thay vì dồn hết vào 1 bảng phẳng như thiết kế
+    /// cũ. File không hề có nơi nào gọi tới (0 call site trong toàn bộ
+    /// solution) nên lỗi build của nó không bị phát hiện cho tới giờ.
+    ///
+    /// Fix: report giờ nhận thêm <see cref="TraHangQTChungQC"/> (kết quả QC
+    /// xác nhận cuối — bảng audit duy nhất chứa "kết luận") làm tham số tuỳ
+    /// chọn, và MỌI ô dữ liệu đều trỏ về field có thật. Những mục vốn dành
+    /// cho chữ ký tay (không có nguồn dữ liệu số trong toàn bộ schema) được
+    /// để trống thay vì tham chiếu field ảo — đúng bản chất phiếu giấy cần
+    /// ký tay sau khi in, không phải lỗi thiếu dữ liệu.
+    /// </summary>
     public partial class RpPhieuXuLyBatThuong : XtraReport
     {
         // Font dùng chung
@@ -30,8 +52,17 @@ namespace PCTP.VIEWSTOCK.RpIn
         private DetailBand detailBand1;
         private BottomMarginBand bottomMarginBand1;
 
-        public RpPhieuXuLyBatThuong(PhieuXuLyBatThuong data)
+        /// <param name="data">Bảng chính FVN_PhieuXuLyBatThuong — bắt buộc.</param>
+        /// <param name="qc">
+        /// Kết quả QC xác nhận cuối (FVN_TraHangQTChung_QC) — tuỳ chọn, chỉ có
+        /// khi phiếu đã qua bước IQTChungService.QCXacNhanCuoi (Status ≥
+        /// DaQCXacNhanCuoi). Truyền null nếu in phiếu ở giai đoạn sớm hơn —
+        /// các ô liên quan sẽ để trống cho điền tay.
+        /// </param>
+        public RpPhieuXuLyBatThuong(PhieuXuLyBatThuong data, TraHangQTChungQC qc = null)
         {
+            if (data == null) throw new ArgumentNullException(nameof(data));
+
             PaperKind = DXPaperKind.A5;
             Landscape = false;
             // Lề siêu nhỏ giúp tối ưu tối đa không gian in trong khổ A5
@@ -43,7 +74,7 @@ namespace PCTP.VIEWSTOCK.RpIn
             // ── 1. TIÊU ĐỀ & HỘP A ────────────────────────────────────────
             detail.Controls.Add(new XRLabel
             {
-                Text = "Phiếu xử lý bất thường",
+                Text = "Phiếu xử lý bất thường" + (string.IsNullOrEmpty(data.SoPhieu) ? "" : $"  —  {data.SoPhieu}"),
                 Font = new Font("Times New Roman", 15, FontStyle.Bold),
                 TextAlignment = TextAlignment.MiddleCenter,
                 LocationF = new PointF(0, 2),
@@ -80,15 +111,19 @@ namespace PCTP.VIEWSTOCK.RpIn
             row2.Cells.Add(CreateCell(data.SoLuongLoi.ToString(), 85, FontStyle.Bold, TextAlignment.MiddleCenter));
             tblHeader.Rows.Add(row2);
 
-            // ── Hàng 3: Phân loại | Nội dung bất thường | P/P xử lý ────────
+            // ── Hàng 3: Nguồn/Lô lỗi | Nội dung bất thường | P/P xử lý ────
             var row3 = new XRTableRow { HeightF = 63F };
 
-            string loai = data.LoaiSanPham ?? "";
-            var cellLoai = CreateCell(
-                $"{(loai.Contains("lỗi") ? "( X )" : "[   ]")} Sản phẩm lỗi\n" +
-                $"{(loai.Contains("model cũ") ? "( X )" : "[   ]")} Sản phẩm model cũ\n" +
-                $"{(loai.Contains("test") ? "( X )" : "[   ]")} Sản phẩm test\n" +
-                $"{(loai.Contains("không rõ") ? "( X )" : "[   ]")} Sản phẩm không rõ ràng",
+            // ✅ Trước đây bind vào data.LoaiSanPham (không tồn tại). Thay bằng
+            // các field có thật, vốn chưa hề được in ra trước đó: Nguồn phát
+            // sinh, Số lô lỗi (SoLoLoi), và LOT nguồn khi Nguon = TraNoiBo.
+            string nguonText = data.Nguon == NguonXuLyBatThuong.KhachTra ? "Khách trả" : "Trả nội bộ";
+            var noiDungLoai = new StringBuilder();
+            noiDungLoai.AppendLine($"Nguồn: {nguonText}");
+            noiDungLoai.AppendLine($"Số lô lỗi: {data.SoLoLoi}");
+            if (data.Nguon == NguonXuLyBatThuong.TraNoiBo)
+                noiDungLoai.Append($"LOT nguồn: {data.LotNguon}");
+            var cellLoai = CreateCell(noiDungLoai.ToString().TrimEnd(),
                 120, FontStyle.Regular, TextAlignment.TopLeft);
             cellLoai.Font = FSmall;
             cellLoai.Multiline = true;
@@ -117,20 +152,26 @@ namespace PCTP.VIEWSTOCK.RpIn
             tblHeader.EndInit();
             detail.Controls.Add(tblHeader);
 
-            // ── 3. Quy trình xử lý & cấp độ ──────────────────────────────
+            // ── 3. Trạng thái quy trình & hướng xử lý ─────────────────────
+            // ✅ Trước đây bind CapDoQuanTrong/CapDoPhienBan (không tồn tại).
+            // Thay bằng Status/HuongXuLy — 2 field state machine có thật và
+            // hữu ích hơn nhiều để tra cứu nhanh trên bản in (xem mục 0 và 4
+            // của WORKFLOW_HANGLOI.md để tra nghĩa từng giá trị).
             var tblMeta = CreateTable(new PointF(0, 139), new SizeF(560, 20), BorderSide.All);
             var rowMeta = new XRTableRow { HeightF = 20F };
             rowMeta.Cells.Add(CreateCell("Quy trình xử lý và kết quả xử lý:", 230, FontStyle.Bold, TextAlignment.MiddleLeft));
-            rowMeta.Cells.Add(CreateCell($"Cấp độ quan trọng: {data.CapDoQuanTrong}", 165, FontStyle.Regular, TextAlignment.MiddleLeft));
-            rowMeta.Cells.Add(CreateCell($"Cấp độ phiên bản: {data.CapDoPhienBan}", 165, FontStyle.Regular, TextAlignment.MiddleLeft));
+            rowMeta.Cells.Add(CreateCell($"Trạng thái: {data.Status}", 165, FontStyle.Regular, TextAlignment.MiddleLeft));
+            rowMeta.Cells.Add(CreateCell($"Hướng xử lý: {data.HuongXuLy}", 165, FontStyle.Regular, TextAlignment.MiddleLeft));
             tblMeta.Rows.Add(rowMeta);
             tblMeta.EndInit();
             detail.Controls.Add(tblMeta);
 
             // ── 4. Người thực hiện | Xác nhận lần cuối ───────────────────
+            // ✅ data.NguoiThucHien không tồn tại — dùng CreatedBy (người lập
+            // phiếu, field audit có thật).
             var tblUser = CreateTable(new PointF(0, 160), new SizeF(560, 20), BorderSide.All);
             var rowUser = new XRTableRow { HeightF = 20F };
-            rowUser.Cells.Add(CreateCell($"Người thực hiện: {data.NguoiThucHien}", 260, FontStyle.Regular, TextAlignment.MiddleLeft));
+            rowUser.Cells.Add(CreateCell($"Người lập phiếu: {data.CreatedBy}", 260, FontStyle.Regular, TextAlignment.MiddleLeft));
             rowUser.Cells.Add(CreateCell("Xác nhận lần cuối (phòng chất lượng)", 300, FontStyle.Bold, TextAlignment.MiddleCenter));
             tblUser.Rows.Add(rowUser);
             tblUser.EndInit();
@@ -145,7 +186,9 @@ namespace PCTP.VIEWSTOCK.RpIn
             rKT1.Cells.Add(CreateCell("Phương pháp kiểm tra", 180, FontStyle.Bold, TextAlignment.MiddleCenter));
             boxKT.Rows.Add(rKT1);
             var rKT2 = new XRTableRow { HeightF = 40F };
-            var cellKTNoiDung = CreateCell($"Nội dung:\n{data.PhuongPhapKiemTra}", 110, FontStyle.Regular, TextAlignment.TopLeft);
+            // ✅ PhuongPhapKiemTra không được lưu số hoá ở đâu trong hệ thống
+            // — để trống dòng "Nội dung:" cho ghi tay thay vì bind field ảo.
+            var cellKTNoiDung = CreateCell("Nội dung:", 110, FontStyle.Regular, TextAlignment.TopLeft);
             cellKTNoiDung.Font = FSmall; cellKTNoiDung.Multiline = true;
             var cellKTNoiPhatSinh = CreateCell($"Nơi phát sinh\n{data.BoPhanPhatHanh}", 70, FontStyle.Regular, TextAlignment.TopCenter);
             cellKTNoiPhatSinh.Font = FSmall; cellKTNoiPhatSinh.Multiline = true;
@@ -153,8 +196,11 @@ namespace PCTP.VIEWSTOCK.RpIn
             rKT2.Cells.Add(cellKTNoiPhatSinh);
             boxKT.Rows.Add(rKT2);
             var rKT3 = new XRTableRow { HeightF = 14F };
-            rKT3.Cells.Add(CreateCell($"OK  SL: {data.SoLuongKiemTra}", 90, FontStyle.Regular, TextAlignment.MiddleLeft));
-            rKT3.Cells.Add(CreateCell("NG  SL: 0", 90, FontStyle.Regular, TextAlignment.MiddleLeft));
+            // ✅ SoLuongKiemTra không tồn tại — SL OK/NG thật sự chỉ có sau
+            // bước QCXacNhanCuoi, lấy từ TraHangQTChungQC (tham số qc); nếu
+            // phiếu chưa tới bước đó (qc == null) thì để trống cho điền tay.
+            rKT3.Cells.Add(CreateCell($"OK  SL: {(qc != null ? qc.SoLuongOK.ToString() : "")}", 90, FontStyle.Regular, TextAlignment.MiddleLeft));
+            rKT3.Cells.Add(CreateCell($"NG  SL: {(qc != null ? qc.SoLuongNG.ToString() : "")}", 90, FontStyle.Regular, TextAlignment.MiddleLeft));
             boxKT.Rows.Add(rKT3);
             boxKT.EndInit();
             detail.Controls.Add(boxKT);
@@ -174,12 +220,15 @@ namespace PCTP.VIEWSTOCK.RpIn
             rSua1.Cells.Add(CreateCell("Phương pháp sửa", 160, FontStyle.Bold, TextAlignment.MiddleCenter));
             boxSua.Rows.Add(rSua1);
             var rSua2 = new XRTableRow { HeightF = 40F };
-            var cellSuaND = CreateCell($"Nội dung: {data.PhuongPhapSua}", 160, FontStyle.Regular, TextAlignment.TopLeft);
+            // ✅ PhuongPhapSua không được lưu số hoá — để trống cho ghi tay.
+            var cellSuaND = CreateCell("Nội dung:", 160, FontStyle.Regular, TextAlignment.TopLeft);
             cellSuaND.Font = FSmall; cellSuaND.Multiline = true;
             rSua2.Cells.Add(cellSuaND);
             boxSua.Rows.Add(rSua2);
             var rSua3 = new XRTableRow { HeightF = 14F };
-            rSua3.Cells.Add(CreateCell($"OK  SL: {data.SoLuongSua}     NG  SL: 0", 160, FontStyle.Regular, TextAlignment.MiddleLeft));
+            // ✅ SoLuongSua không tồn tại — dùng SoLuongDaRework (field thật,
+            // ghi nhận số lượng đã đưa đi rework) làm số liệu gần đúng nhất.
+            rSua3.Cells.Add(CreateCell($"SL đã rework: {(qc != null ? qc.SoLuongDaRework.ToString() : "")}", 160, FontStyle.Regular, TextAlignment.MiddleLeft));
             boxSua.Rows.Add(rSua3);
             boxSua.EndInit();
             detail.Controls.Add(boxSua);
@@ -195,25 +244,39 @@ namespace PCTP.VIEWSTOCK.RpIn
             });
 
             var boxKL = CreateTable(new PointF(368, diagTop), new SizeF(192, diagHeight), BorderSide.All);
-            string ketLuanText = data.XacNhanCuoiKetQua == "OK" ? "( X ) OK   [   ] NG" : "[   ] OK   ( X ) NG";
+            // ✅ data.XacNhanCuoiKetQua không tồn tại — suy ra OK/NG từ
+            // SoLuongNG của TraHangQTChungQC (0 => OK). Nếu chưa có qc, để
+            // cả 2 ô trống (chưa có kết luận) thay vì mặc định sai lệch.
+            string ketLuanText = qc == null
+                ? "[   ] OK   [   ] NG"
+                : (qc.SoLuongNG == 0 ? "( X ) OK   [   ] NG" : "[   ] OK   ( X ) NG");
             var rKL1 = new XRTableRow { HeightF = 14F };
             rKL1.Cells.Add(CreateCell($"Kết luận: {ketLuanText}", 192, FontStyle.Bold, TextAlignment.MiddleLeft));
             boxKL.Rows.Add(rKL1);
             var rKL2 = new XRTableRow { HeightF = 14F };
             rKL2.Cells.Add(CreateCell("OK", 30, FontStyle.Regular, TextAlignment.MiddleCenter));
-            rKL2.Cells.Add(CreateCell($"Người đánh giá: {data.NguoiDanhGia}", 162, FontStyle.Regular, TextAlignment.MiddleLeft));
+            // ✅ data.NguoiDanhGia không tồn tại — dùng qc.NguoiQC (người QC
+            // xác nhận cuối, field thật duy nhất tương ứng vai trò này).
+            rKL2.Cells.Add(CreateCell($"Người đánh giá: {qc?.NguoiQC}", 162, FontStyle.Regular, TextAlignment.MiddleLeft));
             boxKL.Rows.Add(rKL2);
             var rKL3 = new XRTableRow { HeightF = 14F };
             rKL3.Cells.Add(CreateCell("NG", 30, FontStyle.Regular, TextAlignment.MiddleCenter));
-            rKL3.Cells.Add(CreateCell($"Người thực hiện: {data.NguoiThucHienQC}", 162, FontStyle.Regular, TextAlignment.MiddleLeft));
+            // ✅ data.NguoiThucHienQC không tồn tại — dùng NguoiDinhHuong
+            // (người QC định hướng ban đầu, field thật, tránh trùng lặp giá
+            // trị với "Người đánh giá" ở trên).
+            rKL3.Cells.Add(CreateCell($"Người định hướng: {data.NguoiDinhHuong}", 162, FontStyle.Regular, TextAlignment.MiddleLeft));
             boxKL.Rows.Add(rKL3);
             var rKL4 = new XRTableRow { HeightF = 14F };
-            var cellGhiChu = CreateCell($"Ghi chú: {data.GhiChuQC}", 192, FontStyle.Regular, TextAlignment.TopLeft);
+            // ✅ data.GhiChuQC không tồn tại — dùng qc.Note (field thật).
+            var cellGhiChu = CreateCell($"Ghi chú: {qc?.Note}", 192, FontStyle.Regular, TextAlignment.TopLeft);
             cellGhiChu.Font = FSmall; cellGhiChu.Multiline = true;
             rKL4.Cells.Add(cellGhiChu);
             boxKL.Rows.Add(rKL4);
             var rKL5 = new XRTableRow { HeightF = 14F };
-            var cellBoPhanTN = CreateCell($"Bộ phận chịu trách nhiệm: {data.BoPhanChiuTrachNhiem}", 192, FontStyle.Bold, TextAlignment.MiddleLeft);
+            // ✅ data.BoPhanChiuTrachNhiem không tồn tại — dùng lại
+            // BoPhanPhatHanh (bộ phận nơi phát sinh = bộ phận chịu trách
+            // nhiệm xử lý, hợp lý về nghiệp vụ và là field thật).
+            var cellBoPhanTN = CreateCell($"Bộ phận chịu trách nhiệm: {data.BoPhanPhatHanh}", 192, FontStyle.Bold, TextAlignment.MiddleLeft);
             cellBoPhanTN.Font = FSmall;
             rKL5.Cells.Add(cellBoPhanTN);
             boxKL.Rows.Add(rKL5);
@@ -221,6 +284,14 @@ namespace PCTP.VIEWSTOCK.RpIn
             detail.Controls.Add(boxKL);
 
             // ── 6. BẢNG CHỮ KÝ 4 BÊN ──────────────────────────────────────
+            // ✅ Trước đây bind vào 8 field (Ngay*/HoTen*) không tồn tại ở
+            // BẤT KỲ đâu trong schema — đây là các cột ký tay trên phiếu
+            // giấy, không có nguồn dữ liệu số. 3/4 cột được ánh xạ sang field
+            // thật có ý nghĩa nghiệp vụ tương đương (phát sinh=CreatedAt/By,
+            // QC tiếp nhận=NgayDinhHuong/NguoiDinhHuong, QC duyệt=qc.ThoiGian/
+            // NguoiQC); cột "Bộ phận phát hành xác nhận" không có nguồn số
+            // hoá tương ứng nên để trống cho ký tay — đúng bản chất, không
+            // phải thiếu sót.
             float signTop = diagTop + diagHeight + 5;
             var tblSign = CreateTable(new PointF(0, signTop), new SizeF(560, 70), BorderSide.All);
 
@@ -246,24 +317,24 @@ namespace PCTP.VIEWSTOCK.RpIn
 
             var rowSignNgay = new XRTableRow { HeightF = 14F };
             rowSignNgay.Cells.Add(CreateCell("Ngày", 45, FontStyle.Bold, TextAlignment.MiddleCenter));
-            rowSignNgay.Cells.Add(CreateCell(data.NgayBoPhanPhatSinh?.ToString("dd/MM/yyyy"), 55, FontStyle.Regular, TextAlignment.MiddleCenter));
+            rowSignNgay.Cells.Add(CreateCell(data.CreatedAt.ToString("dd/MM/yyyy"), 55, FontStyle.Regular, TextAlignment.MiddleCenter));
             rowSignNgay.Cells.Add(CreateCell("", 55, FontStyle.Regular, TextAlignment.MiddleCenter));
-            rowSignNgay.Cells.Add(CreateCell(data.NgayQCTiepNhan?.ToString("dd/MM/yyyy"), 90, FontStyle.Regular, TextAlignment.MiddleCenter));
-            rowSignNgay.Cells.Add(CreateCell(data.NgayBoPhanPhatHanhXacNhan?.ToString("dd/MM/yyyy"), 82, FontStyle.Regular, TextAlignment.MiddleCenter));
+            rowSignNgay.Cells.Add(CreateCell(data.NgayDinhHuong?.ToString("dd/MM/yyyy"), 90, FontStyle.Regular, TextAlignment.MiddleCenter));
+            rowSignNgay.Cells.Add(CreateCell("", 82, FontStyle.Regular, TextAlignment.MiddleCenter));
             rowSignNgay.Cells.Add(CreateCell("", 83, FontStyle.Regular, TextAlignment.MiddleCenter));
-            rowSignNgay.Cells.Add(CreateCell(data.NgayQCDuyet?.ToString("dd/MM/yyyy"), 75, FontStyle.Regular, TextAlignment.MiddleCenter));
+            rowSignNgay.Cells.Add(CreateCell(qc?.ThoiGian.ToString("dd/MM/yyyy"), 75, FontStyle.Regular, TextAlignment.MiddleCenter));
             rowSignNgay.Cells.Add(CreateCell("", 75, FontStyle.Regular, TextAlignment.MiddleCenter));
             foreach (XRTableCell c in rowSignNgay.Cells) c.Font = FSmall;
             tblSign.Rows.Add(rowSignNgay);
 
             var rowSignHoTen = new XRTableRow { HeightF = 22F };
             rowSignHoTen.Cells.Add(CreateCell("Họ tên", 45, FontStyle.Bold, TextAlignment.MiddleCenter));
-            rowSignHoTen.Cells.Add(CreateCell(data.HoTenBoPhanPhatSinh, 55, FontStyle.Regular, TextAlignment.MiddleCenter));
+            rowSignHoTen.Cells.Add(CreateCell(data.CreatedBy, 55, FontStyle.Regular, TextAlignment.MiddleCenter));
             rowSignHoTen.Cells.Add(CreateCell("", 55, FontStyle.Regular, TextAlignment.MiddleCenter));
-            rowSignHoTen.Cells.Add(CreateCell(data.HoTenQCTiepNhan, 90, FontStyle.Regular, TextAlignment.MiddleCenter));
-            rowSignHoTen.Cells.Add(CreateCell(data.HoTenBoPhanPhatHanhXacNhan, 82, FontStyle.Regular, TextAlignment.MiddleCenter));
+            rowSignHoTen.Cells.Add(CreateCell(data.NguoiDinhHuong, 90, FontStyle.Regular, TextAlignment.MiddleCenter));
+            rowSignHoTen.Cells.Add(CreateCell("", 82, FontStyle.Regular, TextAlignment.MiddleCenter));
             rowSignHoTen.Cells.Add(CreateCell("", 83, FontStyle.Regular, TextAlignment.MiddleCenter));
-            rowSignHoTen.Cells.Add(CreateCell(data.HoTenQCDuyet, 75, FontStyle.Regular, TextAlignment.MiddleCenter));
+            rowSignHoTen.Cells.Add(CreateCell(qc?.NguoiQC, 75, FontStyle.Regular, TextAlignment.MiddleCenter));
             rowSignHoTen.Cells.Add(CreateCell("", 75, FontStyle.Regular, TextAlignment.MiddleCenter));
             foreach (XRTableCell c in rowSignHoTen.Cells) c.Font = FSmall;
             tblSign.Rows.Add(rowSignHoTen);
@@ -272,6 +343,7 @@ namespace PCTP.VIEWSTOCK.RpIn
             detail.Controls.Add(tblSign);
 
             // ── 7. SƠ ĐỒ LƯU TRÌNH — 2 hàng hộp tối ưu chiều cao (boxH = 32) ─
+            // (Thuần mô tả tĩnh quy trình giấy — không cần dữ liệu, giữ nguyên.)
             float flowTop = signTop + 72;
 
             detail.Controls.Add(new XRLabel

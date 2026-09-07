@@ -79,7 +79,7 @@ namespace PCTP.QRCODE_HVN.YMN
             this.xe = new DevExpress.XtraGrid.Columns.GridColumn();
             this.Hop = new DevExpress.XtraGrid.Columns.GridColumn();
             this.STATUS = new DevExpress.XtraGrid.Columns.GridColumn();
-            this.splashScreenManager1 = new DevExpress.XtraSplashScreen.SplashScreenManager(this, typeof(global::PCTP.QRCODE_HVN.WaitForm2), true, true);
+          
          
             this.simpleButton1 = new DevExpress.XtraEditors.SimpleButton();
             this.sidePanel1.SuspendLayout();
@@ -679,8 +679,7 @@ namespace PCTP.QRCODE_HVN.YMN
             this.STATUS.Width = 92;
             // 
             // splashScreenManager1
-            // 
-            this.splashScreenManager1.ClosingDelay = 500;
+          
             // 
             // dataSet11
             // 
@@ -788,7 +787,7 @@ namespace PCTP.QRCODE_HVN.YMN
         private SimpleButton CMD_INPHIEUGIAO;
         private SimpleButton cmd_Update_Stock;
         private DevExpress.XtraGrid.GridControl gridCLECH;
-        private DevExpress.XtraSplashScreen.SplashScreenManager splashScreenManager1;
+     
         private System.Windows.Forms.CheckedListBox CheckGX;
         private DevExpress.XtraGrid.Views.BandedGrid.BandedGridView bandedGridView1;
         private DevExpress.XtraGrid.Views.BandedGrid.GridBand gridBand2;

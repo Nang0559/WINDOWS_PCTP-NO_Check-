@@ -133,7 +133,7 @@
             this.accordionControlSeparator9 = new DevExpress.XtraBars.Navigation.AccordionControlSeparator();
             this.accordionControlSeparator8 = new DevExpress.XtraBars.Navigation.AccordionControlSeparator();
             this.accordionControlSeparator5 = new DevExpress.XtraBars.Navigation.AccordionControlSeparator();
-            this.splashScreenManager1 = new DevExpress.XtraSplashScreen.SplashScreenManager(this, typeof(global::PCTP.QRCODE_HVN.WaitForm2), true, true);
+        
             this.panel1 = new System.Windows.Forms.Panel();
             this.tgxem = new System.Windows.Forms.Label();
             this.panel2 = new System.Windows.Forms.Panel();
@@ -862,7 +862,7 @@
             // 
             // splashScreenManager1
             // 
-            this.splashScreenManager1.ClosingDelay = 500;
+       
             // 
             // panel1
             // 
@@ -1209,7 +1209,7 @@
         private DevExpress.XtraBars.Navigation.AccordionControlElement E_In_Le;
         private DevExpress.XtraBars.Navigation.AccordionControlElement accordionControlElement21;
         private DevExpress.XtraBars.Navigation.AccordionControlElement accordionControlElement19;
-        private DevExpress.XtraSplashScreen.SplashScreenManager splashScreenManager1;
+       
         private DevExpress.XtraBars.BarButtonItem barButtonItem1;
         private DevExpress.XtraBars.Ribbon.RibbonPageGroup ribbonPageGroup2;
         private System.Windows.Forms.Panel panel2;

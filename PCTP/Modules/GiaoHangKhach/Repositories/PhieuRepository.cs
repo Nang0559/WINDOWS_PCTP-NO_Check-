@@ -35,6 +35,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         private readonly IIFSRepository _ifsRepo;
         private readonly IBulkStockSlotRepository _bulkStockSlotRepo;
         private readonly IStockHistoryRepository _historyRepo;
+        private readonly IPhieuTmpRepository _tmpRepo;
 
         public PhieuRepository(
             PhieuSqlExecutor db,
@@ -43,7 +44,8 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             IBulkStockSlotRepository bulkStockSlotRepo,
             IStockHistoryRepository historyRepo,
             IHangChoGiaoRepository hangChoGiaoRepo = null,
-            IIFSRepository ifsRepo = null)
+            IIFSRepository ifsRepo = null,
+            IPhieuTmpRepository tmpRepo = null)
             : base(db, uow)
         {
             _cfg = cfg;
@@ -51,6 +53,11 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             _historyRepo = historyRepo ?? throw new ArgumentNullException(nameof(historyRepo));
             _hangChoGiaoRepo = hangChoGiaoRepo;   // giữ nullable như hành vi cũ (có null-check khi dùng)
             _ifsRepo = ifsRepo ?? IFSRepository.Create();
+
+            // Vòng đời bảng TMP (load/lưu/xoá/trạng thái/InsertTmpRow) được uỷ quyền cho
+            // PhieuTmpRepository — dùng chung Db/Uow với PhieuRepository nên tham gia đúng
+            // transaction hiện tại (nếu có). Cho phép inject riêng khi cần test/mock.
+            _tmpRepo = tmpRepo ?? new PhieuTmpRepository(db, uow);
         }
 
         private BulkStockAdjustService CreateBulkService()
@@ -145,246 +152,69 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
 
         #endregion
 
-        #region ══ IPhieuTmpRepository ══════════════════════════════════════════
+        #region ══ IPhieuTmpRepository (uỷ quyền PhieuTmpRepository) ═══════════
+        //
+        // Vòng đời bảng TMP đang bắn QR (load/lưu/xoá/trạng thái/InsertTmpRow) KHÔNG còn
+        // cài đặt SQL trực tiếp ở đây nữa — PhieuTmpRepository (_tmpRepo) là single source
+        // of truth, dùng chung Db/Uow với PhieuRepository nên tham gia đúng transaction
+        // hiện tại nếu có (LuuVaLoad tự mở transaction riêng khi caller chưa Begin()).
+        // Xem PhieuTmpRepository.cs để biết chi tiết implementation.
 
         public DataTable LoadPhieuDocQR(string ngayGiao, string nhaMay, string gioFcc, int addNm,
             PhieuTableSet tables)
-        {
-            ValidateTenBan(tables.TmpTable);
-            ValidateTenBan(tables.SourceTable);
-            ValidateTenBan(tables.DocQRTable);
-
-            DataTable tt = LoadData(
-                $"SELECT TOP 1 ADDNM, NGAYGIAO, GIOGIAOFCC, NHAMAY FROM [{tables.SourceTable}]");
-
-            if (tt.Rows.Count > 0)
-            {
-                ngayGiao = tt.Rows[0]["NGAYGIAO"].ToString();
-                nhaMay = tt.Rows[0]["NHAMAY"].ToString();
-                gioFcc = tt.Rows[0]["GIOGIAOFCC"].ToString();
-                addNm = SafeInt(tt.Rows[0]["ADDNM"]);
-            }
-
-            return CallSP("Usp_Qrcode_LOAD_PHIEU_DOCQR2405", ngayGiao, nhaMay, gioFcc, addNm, tables);
-        }
+            => _tmpRepo.LoadPhieuDocQR(ngayGiao, nhaMay, gioFcc, addNm, tables);
 
         public DataTable LoadPhieuDocQR(string ngayGiao, string nhaMay, string gioFcc, int addNm,
             string tmpTable, string ifsTable, string docQRTable)
-            => LoadPhieuDocQR(ngayGiao, nhaMay, gioFcc, addNm,
-                new PhieuTableSet(tmpTable, ifsTable, docQRTable));
+            => _tmpRepo.LoadPhieuDocQR(ngayGiao, nhaMay, gioFcc, addNm, tmpTable, ifsTable, docQRTable);
 
         public DataTable LuuVaLoad(PhieuTableSet tables, string tenSP, DataTable donHang,
             string ngayGiao, string nhaMay, string gioFcc, int addNm)
-        {
-            ValidateTenBan(tables.TmpTable);
-            ValidateTenBan(tables.SourceTable);
-            ValidateTenBan(tables.DocQRTable);
-
-            SWLog.Measure("4a. ConvertDateTimeColumns", () =>
-            {
-                var dateTimeCols = donHang.Columns.Cast<DataColumn>()
-                    .Where(c => c.DataType == typeof(DateTime))
-                    .Select(c => c.ColumnName).ToList();
-
-                foreach (string colName in dateTimeCols)
-                {
-                    string tempName = colName + "_STR";
-                    donHang.Columns.Add(tempName, typeof(string));
-                    foreach (DataRow row in donHang.Rows)
-                        row[tempName] = row[colName] == DBNull.Value
-                            ? "" : ((DateTime)row[colName]).ToString("yyyy-MM-dd");
-                    donHang.Columns.Remove(colName);
-                    donHang.Columns[tempName].ColumnName = colName;
-                }
-            });
-
-            SWLog.Measure($"4b. DropCreate [{tables.SourceTable}]",
-                () => DropCreate(tables.SourceTable, donHang));
-
-            // ⚠️ BulkInsertDataTable cần connection string thô — lấy qua Db.Sql (SQLPROVIDER
-            // gốc bên trong PhieuSqlExecutor), KHÔNG tự giữ field SQLPROVIDER riêng nữa.
-            SWLog.Measure($"4c. BulkInsert {donHang.Rows.Count} rows → [{tables.SourceTable}]",
-                () => SqlTableCreator.BulkInsertDataTable(Db.Sql.B7R2_FCCdb, tables.SourceTable, donHang));
-
-            // ── Guard: chỉ xoá TMP khi không đang bắn dở ──────────────────
-            SWLog.Measure($"4d. Guard DELETE [{tables.TmpTable}]", () =>
-            {
-                object tmpExistsRaw = ExecuteScalar(
-                    "SELECT COUNT(*) FROM sys.objects " +
-                    $"WHERE object_id = OBJECT_ID(N'[dbo].[{tables.TmpTable}]') AND type = 'U'");
-                int tmpExists = tmpExistsRaw == null || tmpExistsRaw == DBNull.Value ? 0 : Convert.ToInt32(tmpExistsRaw);
-                if (tmpExists != 1) return;
-
-                object docQRExistsRaw = ExecuteScalar(
-                    "SELECT COUNT(*) FROM sys.objects " +
-                    $"WHERE object_id = OBJECT_ID(N'[dbo].[{tables.DocQRTable}]') AND type = 'U'");
-                int docQRExists = docQRExistsRaw == null || docQRExistsRaw == DBNull.Value ? 0 : Convert.ToInt32(docQRExistsRaw);
-
-                if (docQRExists == 1)
-                {
-                    object demDocQRRaw = ExecuteScalar($"SELECT COUNT(*) FROM [{tables.DocQRTable}]");
-                    int demDocQR = demDocQRRaw == null || demDocQRRaw == DBNull.Value ? 0 : Convert.ToInt32(demDocQRRaw);
-                    if (demDocQR > 0)
-                    {
-                        System.Diagnostics.Debug.WriteLine(
-                            $"[LuuVaLoad] SKIP DELETE [{tables.TmpTable}] — đang có {demDocQR} dòng trong [{tables.DocQRTable}]");
-                        return;
-                    }
-                }
-
-                ExecuteNonQuery($"DELETE FROM [{tables.TmpTable}]");
-                System.Diagnostics.Debug.WriteLine($"[LuuVaLoad] Đã DELETE [{tables.TmpTable}]");
-            });
-
-            return SWLog.Measure($"4e. CallSP [{tenSP}]",
-                () => CallSP(tenSP, ngayGiao, nhaMay, gioFcc, addNm, tables));
-        }
+            => _tmpRepo.LuuVaLoad(tables, tenSP, donHang, ngayGiao, nhaMay, gioFcc, addNm);
 
         public DataTable LuuVaLoad(string tenSPBang, string tenSP, DataTable donHang,
             string ngayGiao, string nhaMay, string gioFcc, int addNm,
             string tenBan, string docQRTable, string ifsView = "")
-        {
-            var tables = new PhieuTableSet(tenBan, tenSPBang, docQRTable, tenBan, ifsView);
-            return LuuVaLoad(tables, tenSP, donHang, ngayGiao, nhaMay, gioFcc, addNm);
-        }
+            => _tmpRepo.LuuVaLoad(tenSPBang, tenSP, donHang, ngayGiao, nhaMay, gioFcc, addNm,
+                tenBan, docQRTable, ifsView);
+
+        // ✅ BỔ SUNG: PhieuRepository trước đây thiếu method này dù IPhieuTmpRepository
+        // đã khai báo — khiến build lỗi "does not implement interface member". Uỷ quyền
+        // thẳng cho PhieuTmpRepository.InsertTmpRow (đã có sẵn implementation chuẩn).
+        public void InsertTmpRow(
+            string tmpTable,
+            string stt, string cua, string truyen, string maHang, string tenHang,
+            string lot, string dv, int slXuat, string ngayGiao, string gear,
+            string gioXuat, string poNo = "", string cusPoNo = "")
+            => _tmpRepo.InsertTmpRow(tmpTable, stt, cua, truyen, maHang, tenHang,
+                lot, dv, slXuat, ngayGiao, gear, gioXuat, poNo, cusPoNo);
 
         public DataTable LoadTuTmpTable(string tmpTable)
-        {
-            ValidateTenBan(tmpTable);
-            string sql = $@"
-                SELECT STT, CUA, TRUYEN, MAHANG, TENHANG, LOT, DV,
-                       SOLUONG, NGAYGIAO, GIOGIAO, STATUS, TTPHIEU,
-                       NHAMAY, ADDNM, HOP, STATUSDOC, Note,
-                       ISNULL(PO_NO,'') AS PO_NO,
-                       ISNULL(PO_ITEM,'') AS PO_ITEM
-                FROM [{tmpTable}]
-                ORDER BY TRY_CAST(STT AS INT), STT";
-            return LoadData(sql);
-        }
+            => _tmpRepo.LoadTuTmpTable(tmpTable);
 
         public DataTable GetDonHangHienTai(string tenBan)
-        {
-            ValidateTenBan(tenBan);
-            return LoadData(
-                "SELECT STT, MAHANG, LOT, STATUS, STATUSDOC " +
-                $"FROM [{tenBan}] ORDER BY STT");
-        }
+            => _tmpRepo.GetDonHangHienTai(tenBan);
 
         public void XoaTmpPhieu(string tenBan)
-        {
-            ValidateTenBan(tenBan);
-            ExecuteNonQuery($"DELETE FROM [{tenBan}]");
-        }
+            => _tmpRepo.XoaTmpPhieu(tenBan);
 
         public void XoaDocQRCode(string docQRTable)
-        {
-            ValidateTenBan(docQRTable);
-            ExecuteNonQuery($"DELETE FROM [{docQRTable}]");
-        }
+            => _tmpRepo.XoaDocQRCode(docQRTable);
 
         public TrangThaiBan GetTrangThaiDangBan(PhieuTableSet tables)
-            => GetTrangThaiDangBan(tables.TmpTable, tables.DocQRTable);
+            => _tmpRepo.GetTrangThaiDangBan(tables);
 
         public TrangThaiBan GetTrangThaiDangBan(string tmpTable, string docQRTable)
-        {
-            ValidateTenBan(tmpTable);
-            ValidateTenBan(docQRTable);
-
-            var result = new TrangThaiBan();
-
-            object demQRRaw = ExecuteScalar($"SELECT COUNT(*) FROM [{docQRTable}]");
-            if (!int.TryParse(demQRRaw?.ToString(), out int demQR) || demQR == 0)
-            {
-                result.DangBan = false;
-                return result;
-            }
-
-            object demPhieuRaw = ExecuteScalar($"SELECT COUNT(*) FROM [{tmpTable}]");
-            if (!int.TryParse(demPhieuRaw?.ToString(), out int demPhieu) || demPhieu == 0)
-            {
-                result.DangBan = true;
-                result.DataKhongKhop = true;
-                return result;
-            }
-
-            DataTable dt = LoadData($"SELECT TOP 1 ADDNM, NGAYGIAO, GIOGIAO, NHAMAY FROM [{tmpTable}]");
-            if (dt.Rows.Count == 0)
-            {
-                result.DangBan = true;
-                result.DataKhongKhop = true;
-                return result;
-            }
-
-            DataRow r = dt.Rows[0];
-            result.DangBan = true;
-            result.DataKhongKhop = false;
-            result.AddNM = r["ADDNM"] == DBNull.Value ? 1 : Convert.ToInt32(r["ADDNM"]);
-            result.NhaMay = r["NHAMAY"] == DBNull.Value ? "" : r["NHAMAY"].ToString().Trim();
-            result.NgayGiao = r["NGAYGIAO"] == DBNull.Value ? "" : Convert.ToDateTime(r["NGAYGIAO"]).ToString("yyyy-MM-dd");
-
-            string gioDon = r["GIOGIAO"] == DBNull.Value ? "" : r["GIOGIAO"].ToString().Trim();
-            if (gioDon.Length == 1) gioDon = "0" + gioDon;
-            result.GioGiaoFCC = gioDon;
-
-            return result;
-        }
+            => _tmpRepo.GetTrangThaiDangBan(tmpTable, docQRTable);
 
         public TrangThaiBan GetTrangThaiDangBanYMVN(PhieuTableSet tables)
-            => GetTrangThaiDangBanYMVN(tables.TmpTable, tables.DocQRTable);
+            => _tmpRepo.GetTrangThaiDangBanYMVN(tables);
 
         public TrangThaiBan GetTrangThaiDangBanYMVN(string tmpTable, string docQRTable)
-        {
-            ValidateTenBan(tmpTable);
-            ValidateTenBan(docQRTable);
-
-            var result = new TrangThaiBan();
-
-            string demTmpRaw = Convert.ToString(
-                ExecuteScalar($"SELECT COUNT(*) FROM [{tmpTable}] WHERE addnm = 0"));
-            if (!int.TryParse(demTmpRaw, out int demTmp) || demTmp == 0)
-            {
-                result.DangBan = false;
-                return result;
-            }
-
-            int demQR = Convert.ToInt32(ExecuteScalar($"SELECT COUNT(*) FROM [{docQRTable}]") ?? 0);
-            if (demQR == 0)
-            {
-                result.DangBan = false;
-                return result;
-            }
-
-            DataTable dt = LoadData($"SELECT TOP 1 NGAYGIAO, GIOGIAO FROM [{tmpTable}]");
-            if (dt.Rows.Count == 0) { result.DangBan = false; return result; }
-
-            result.DangBan = true;
-            result.DataKhongKhop = false;
-            result.AddNM = 1;
-            result.NhaMay = "YAMAHA - VIET NAM";
-
-            string ngayRaw = dt.Rows[0]["NGAYGIAO"].ToString();
-            result.NgayGiao = ngayRaw.Length >= 10 ? ngayRaw.Substring(0, 10) : ngayRaw;
-            result.GioGiaoFCC = dt.Rows[0]["GIOGIAO"].ToString().Trim();
-
-            return result;
-        }
+            => _tmpRepo.GetTrangThaiDangBanYMVN(tmpTable, docQRTable);
 
         public void EnsureTablesExist()
-        {
-            string[] tables = { "IFSPHIEUGIAOHANG", "IFSPHIEUGIAOHANGView" };
-            string createSql =
-                "IF NOT EXISTS (" +
-                "  SELECT * FROM sys.objects " +
-                "  WHERE object_id = OBJECT_ID(N'[dbo].[{0}]') AND type = 'U'" +
-                ") CREATE TABLE [{0}] (" +
-                "  STT INT, MAHANG NVARCHAR(50), TENHANG NVARCHAR(100), SOLUONG INT, " +
-                "  NGAYGIAO SMALLDATETIME, GIOGIAO NVARCHAR(50), GIOGIAOFCC NVARCHAR(200), " +
-                "  NHAMAY NVARCHAR(100), ADDNM INT, LOT NVARCHAR(500), " +
-                "  STATUS NVARCHAR(50), STATUSDOC NVARCHAR(50))";
-
-            foreach (var table in tables)
-                ExecuteNonQuery(string.Format(createSql, table));
-        }
+            => _tmpRepo.EnsureTablesExist();
 
         #endregion
 
@@ -937,12 +767,6 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             if (string.IsNullOrWhiteSpace(tenBan) ||
                 System.Text.RegularExpressions.Regex.IsMatch(tenBan, @"[^A-Za-z0-9_]"))
                 throw new ArgumentException($"Tên bảng không hợp lệ: '{tenBan}'");
-        }
-
-        private static int SafeInt(object val)
-        {
-            if (val == null || val == DBNull.Value) return 0;
-            try { return Convert.ToInt32(val); } catch { return 0; }
         }
 
         #endregion

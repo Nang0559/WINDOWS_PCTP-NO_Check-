@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao
 {
-    /// <summary>Vòng đời bảng TMP đang bắn QR — load/lưu/xoá/trạng thái.</summary>
+    
     /// <summary>Vòng đời bảng TMP đang bắn QR — load/lưu/xoá/trạng thái.</summary>
     public interface IPhieuTmpRepository
     {

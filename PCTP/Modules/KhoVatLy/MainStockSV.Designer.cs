@@ -28,7 +28,7 @@
         /// </summary>
         private void InitializeComponent()
         {
-            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(MainStock));
+           
             this.panelTop = new DevExpress.XtraEditors.SidePanel();
             this.btnDKMa = new DevExpress.XtraEditors.SimpleButton();
             this.simpleButton1 = new DevExpress.XtraEditors.SimpleButton();
@@ -75,7 +75,7 @@
             // simpleButton1
             // 
             this.simpleButton1.Dock = System.Windows.Forms.DockStyle.Left;
-            this.simpleButton1.ImageOptions.Image = ((System.Drawing.Image)(resources.GetObject("simpleButton1.ImageOptions.Image")));
+          
             this.simpleButton1.Location = new System.Drawing.Point(238, 0);
             this.simpleButton1.Name = "simpleButton1";
             this.simpleButton1.Size = new System.Drawing.Size(169, 50);
@@ -119,7 +119,7 @@
             // btnReset
             // 
             this.btnReset.Dock = System.Windows.Forms.DockStyle.Right;
-            this.btnReset.ImageOptions.Image = ((System.Drawing.Image)(resources.GetObject("btnReset.ImageOptions.Image")));
+           
             this.btnReset.Location = new System.Drawing.Point(1165, 0);
             this.btnReset.Name = "btnReset";
             this.btnReset.Size = new System.Drawing.Size(126, 50);
@@ -130,7 +130,7 @@
             // btnEnterItem
             // 
             this.btnEnterItem.Dock = System.Windows.Forms.DockStyle.Left;
-            this.btnEnterItem.ImageOptions.Image = ((System.Drawing.Image)(resources.GetObject("btnEnterItem.ImageOptions.Image")));
+           
             this.btnEnterItem.Location = new System.Drawing.Point(119, 0);
             this.btnEnterItem.Name = "btnEnterItem";
             this.btnEnterItem.Size = new System.Drawing.Size(119, 50);
@@ -141,7 +141,7 @@
             // btnRegisterRack
             // 
             this.btnRegisterRack.Dock = System.Windows.Forms.DockStyle.Left;
-            this.btnRegisterRack.ImageOptions.Image = ((System.Drawing.Image)(resources.GetObject("btnRegisterRack.ImageOptions.Image")));
+       
             this.btnRegisterRack.Location = new System.Drawing.Point(0, 0);
             this.btnRegisterRack.Name = "btnRegisterRack";
             this.btnRegisterRack.Size = new System.Drawing.Size(119, 50);
@@ -163,7 +163,7 @@
             // btnHisCheck
             // 
             this.btnHisCheck.Dock = System.Windows.Forms.DockStyle.Left;
-            this.btnHisCheck.ImageOptions.Image = ((System.Drawing.Image)(resources.GetObject("simpleButton2.ImageOptions.Image")));
+     
             this.btnHisCheck.Location = new System.Drawing.Point(526, 0);
             this.btnHisCheck.Name = "btnHisCheck";
             this.btnHisCheck.Size = new System.Drawing.Size(119, 50);

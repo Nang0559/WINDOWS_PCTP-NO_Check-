@@ -31,10 +31,14 @@ namespace PCTP.VIEWSTOCK.ViewForm
         private SimpleButton _btnAction;
         private SimpleButton _btnScanAction; // Nút mở màn hình quét nhập riêng biệt
 
-        public FormNhapKhoTienTrinh(MainStockSV mainStockForm)
+        public FormNhapKhoTienTrinh(MainStockSV mainStockForm, INhapKhoDashboardRepository dashRepo)
         {
-            _dashRepo = new NhapKhoDashboardRepository(_sql);
-            _mainStockForm = mainStockForm;
+            _mainStockForm = mainStockForm
+            ?? throw new ArgumentNullException(nameof(mainStockForm));
+
+            _dashRepo = dashRepo
+                ?? throw new ArgumentNullException(nameof(dashRepo));
+
             BuildUI();
             RefreshBadges();
             SetActiveStep(1);

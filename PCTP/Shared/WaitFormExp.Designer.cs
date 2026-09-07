@@ -60,7 +60,7 @@
             this.tableLayoutPanel1.Controls.Add(this.progressPanel1, 0, 0);
             this.tableLayoutPanel1.Dock = System.Windows.Forms.DockStyle.Fill;
             this.tableLayoutPanel1.Location = new System.Drawing.Point(0, 0);
-            this.tableLayoutPanel1.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.tableLayoutPanel1.Margin = new System.Windows.Forms.Padding(4);
             this.tableLayoutPanel1.Name = "tableLayoutPanel1";
             this.tableLayoutPanel1.Padding = new System.Windows.Forms.Padding(0, 17, 0, 17);
             this.tableLayoutPanel1.RowCount = 1;
@@ -77,7 +77,7 @@
             this.ClientSize = new System.Drawing.Size(328, 90);
             this.Controls.Add(this.tableLayoutPanel1);
             this.DoubleBuffered = true;
-            this.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.Margin = new System.Windows.Forms.Padding(4);
             this.Name = "WaitFormExp";
             this.StartPosition = System.Windows.Forms.FormStartPosition.Manual;
             this.Text = "WaitFormExp";

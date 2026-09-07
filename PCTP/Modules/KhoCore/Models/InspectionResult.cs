@@ -12,6 +12,6 @@ namespace PCTP.Modules.KhoCore.Models
         public bool AllPassed { get; set; }
         public int ScannedCount { get; set; }
         public int FailedCount { get; set; }
-        public List<BoxScanResult> Details { get; set; } = new();
+        public List<BoxScanResult> Details { get; set; } = new List<BoxScanResult>();
     }
 }

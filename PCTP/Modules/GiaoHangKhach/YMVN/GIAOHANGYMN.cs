@@ -1,37 +1,40 @@
-﻿using System;
+﻿using DevExpress.CodeParser;
+using DevExpress.PivotGrid.PivotTable;
+using DevExpress.Utils.Serializing;
+using DevExpress.XtraEditors;
+using DevExpress.XtraGrid;
+using DevExpress.XtraGrid.Views.Grid;
+using DevExpress.XtraReports.UI;
+using DevExpress.XtraReports.UserDesigner;
+using DevExpress.XtraWaitForm;
+using PCTP;
+using PCTP.QRCODE_HVN.PGH;
+using PCTP.Shared.Helpers;
+using PCTP.YMN;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
 using System.Drawing;
-using System.Text;
+using System.Drawing.Design;
+using System.Drawing.Printing;
+using System.Globalization;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using DevExpress.XtraEditors;
-using PCTP;
-using DevExpress.CodeParser;
-using DevExpress.XtraReports.UI;
-using PCTP.YMN;
-using System.Globalization;
-using DevExpress.PivotGrid.PivotTable;
-using DevExpress.XtraGrid.Views.Grid;
-
-using DevExpress.XtraReports.UserDesigner;
-using System.Drawing.Design;
-using DevExpress.XtraGrid;
-using PCTP.QRCODE_HVN.PGH;
-using DevExpress.Utils.Serializing;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement;
-using System.Drawing.Printing;
 
 namespace PCTP.QRCODE_HVN.YMN
 {
    
     public partial class GIAOHANGYMN : DevExpress.XtraEditors.XtraForm
     {
+        private readonly IWaitFormService _waitForm;
         public GIAOHANGYMN()
         {
             InitializeComponent();
+            _waitForm = new WaitFormService(this);
             khoitao = 1;
             dateNG.DateTime = DateTime.Now;
             // LOADPHIEUDANGDOC();
@@ -134,52 +137,52 @@ namespace PCTP.QRCODE_HVN.YMN
         private void LOAD()
         {
            
-            WaitForm2.SO = 1;
-            //try
-            //{
-                splashScreenManager1.ShowWaitForm();
-            if (YMVN_CHONGIAO.MP_SP == "MP")
+
+            try
             {
-                if (TONTAI() == 0)
-                {
-
-                    dateNG.Enabled = true;
-                    LOAD_PHIEU_YMN();
-
-                }
-                else
-                {
-
-
-                    LOADPHIEUDANGDOC();
-                    dateNG.Enabled = false;
-
-                }
+                _waitForm.Run(
+                    () =>
+                    {
+                        if (YMVN_CHONGIAO.MP_SP == "MP")
+                        {
+                            if (TONTAI() == 0)
+                            {
+                                dateNG.Enabled = true;
+                                LOAD_PHIEU_YMN();
+                            }
+                            else
+                            {
+                                LOADPHIEUDANGDOC();
+                                dateNG.Enabled = false;
+                            }
+                        }
+                        else
+                        {
+                            if (TONTAISP() == 0)
+                            {
+                                dateNG.Enabled = true;
+                                LOAD_PHIEU_YMN();
+                            }
+                            else
+                            {
+                                LOADPHIEUDANGDOCSP();
+                                dateNG.Enabled = false;
+                            }
+                        }
+                    },
+                    "Đang tải dữ liệu giao hàng..."
+                );
             }
-            else
+            catch (Exception ex)
             {
-                if (TONTAISP() == 0)
-                {
-
-                    dateNG.Enabled = true;
-                    LOAD_PHIEU_YMN();
-
-                }
-                else
-                {
-
-
-                    LOADPHIEUDANGDOCSP();
-                    dateNG.Enabled = false;
-
-                }
-            }    
-                splashScreenManager1.CloseWaitForm();
-            //}
-            //catch
-            //{ }
+                XtraMessageBox.Show(
+                    $"Lỗi tải dữ liệu giao hàng:\n{ex.Message}",
+                    "Lỗi",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+            }
         }
-        
+
         private void LOAD_PHIEU_YMN()
         {
 

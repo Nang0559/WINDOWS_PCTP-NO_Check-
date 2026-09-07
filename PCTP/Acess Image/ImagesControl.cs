@@ -4,6 +4,7 @@ using DevExpress.XtraGrid.Views.Grid;
 using DevExpress.XtraSplashScreen;
 using PCTP.Acess_Image;
 using PCTP.ClassSQL;
+using PCTP.Shared.Helpers;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -28,6 +29,7 @@ namespace PCTP.ImagesControl
     /// </summary>
     public partial class ImagesControl : DevExpress.XtraEditors.XtraUserControl
     {
+        private IWaitFormService _waitForm;
         private enum Mode { None, View, Add, Edit }
 
         private readonly SQLPROVIDER _sql = new SQLPROVIDER();
@@ -39,6 +41,7 @@ namespace PCTP.ImagesControl
         public ImagesControl()
         {
             InitializeComponent();
+            
         }
 
         // ════════════════════════════════════════════════════════════════════
@@ -46,8 +49,11 @@ namespace PCTP.ImagesControl
         // ════════════════════════════════════════════════════════════════════
         private void UserControlnew_Load(object sender, EventArgs e)
         {
+            
             try
             {
+                
+
                 DataTable dt = _sql.LoadData1(_sql.B7R2_FCCdb,
                     "SELECT id, code, name, model FROM B20item ORDER BY code");
 
@@ -64,7 +70,24 @@ namespace PCTP.ImagesControl
                     "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
+        private IWaitFormService WaitForm
+        {
+            get
+            {
+                if (_waitForm == null)
+                {
+                    Form owner = this.FindForm();
 
+                    if (owner == null)
+                        throw new InvalidOperationException(
+                            "ImagesControl chưa được gắn vào Form.");
+
+                    _waitForm = new WaitFormService(owner);
+                }
+
+                return _waitForm;
+            }
+        }
         private void gridView1_RowClick(object sender, RowClickEventArgs e)
         {
             var gv = sender as GridView;
@@ -90,61 +113,105 @@ namespace PCTP.ImagesControl
         {
             if (lokupItemCode.EditValue == null)
             {
-                XtraMessageBox.Show("Vui lòng chọn mã hàng trước.", "Thông báo",
-                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                XtraMessageBox.Show(
+                    "Vui lòng chọn mã hàng trước.",
+                    "Thông báo",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+
                 return;
             }
 
-            if (!int.TryParse(lokupItemCode.EditValue.ToString(), out int parentId))
-                return;
+            int parentId;
 
-            ShowLoading(true);
+            if (!int.TryParse(
+                lokupItemCode.EditValue.ToString(),
+                out parentId))
+            {
+                return;
+            }
+
             try
             {
-                imageSlider1.Images.Clear();
-                textEdit1.Text = string.Empty;
-
-                DataTable dt = _sql.LoadData1(_sql.B7R2_FCCdb,
-                    "SELECT id, Image FROM B20ImageStore WHERE ParentId = @ParentId ORDER BY id",
-                    new SqlParameter("@ParentId", SqlDbType.Int) { Value = parentId });
-
-                bool coAnh = false;
-
-                foreach (DataRow row in dt.Rows)
-                {
-                    coAnh = true;
-                    string id = row["id"].ToString();
-                    byte[] raw = row["Image"] == DBNull.Value ? Array.Empty<byte>() : (byte[])row["Image"];
-
-                    Image img;
-                    if (raw.Length > 0)
+                WaitForm.Run(
+                    () =>
                     {
-                        using (var stream = new MemoryStream(raw))
-                            img = Image.FromStream(stream);
-                    }
-                    else
-                    {
-                        img = TextToBitmap("Không có ảnh", imageSlider1.Size);
-                    }
+                        imageSlider1.Images.Clear();
+                        textEdit1.Text = string.Empty;
 
-                    img.Tag = id;
-                    imageSlider1.Images.Add(img);
-                }
+                        DataTable dt = _sql.LoadData1(
+                            _sql.B7R2_FCCdb,
+                            "SELECT id, Image " +
+                            "FROM B20ImageStore " +
+                            "WHERE ParentId = @ParentId " +
+                            "ORDER BY id",
+                            new SqlParameter(
+                                "@ParentId",
+                                SqlDbType.Int)
+                            {
+                                Value = parentId
+                            });
 
-                if (imageSlider1.Images.Count > 0)
-                    textEdit1.Text = imageSlider1.CurrentImage?.Tag?.ToString() ?? "";
+                        bool coAnh = false;
 
-                cmdEdit.Enabled = coAnh;
-                SetMode(Mode.View);
+                        foreach (DataRow row in dt.Rows)
+                        {
+                            coAnh = true;
+
+                            string id = row["id"].ToString();
+
+                            byte[] raw =
+                                row["Image"] == DBNull.Value
+                                    ? new byte[0]
+                                    : (byte[])row["Image"];
+
+                            Image img;
+
+                            if (raw.Length > 0)
+                            {
+                                using (var stream = new MemoryStream(raw))
+                                {
+                                    using (var temp = Image.FromStream(stream))
+                                    {
+                                        img = new Bitmap(temp);
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                img = TextToBitmap(
+                                    "Không có ảnh",
+                                    imageSlider1.Size);
+                            }
+
+                            img.Tag = id;
+
+                            imageSlider1.Images.Add(img);
+                        }
+
+                        if (imageSlider1.Images.Count > 0)
+                        {
+                            textEdit1.Text =
+                                imageSlider1.CurrentImage != null &&
+                                imageSlider1.CurrentImage.Tag != null
+                                    ? imageSlider1.CurrentImage.Tag.ToString()
+                                    : "";
+                        }
+
+                        cmdEdit.Enabled = coAnh;
+
+                        SetMode(Mode.View);
+                    },
+                    "Đang tải ảnh..."
+                );
             }
             catch (Exception ex)
             {
-                XtraMessageBox.Show($"Lỗi tải ảnh:\n{ex.Message}", "Lỗi",
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-            finally
-            {
-                ShowLoading(false);
+                XtraMessageBox.Show(
+                    $"Lỗi tải ảnh:\n{ex.Message}",
+                    "Lỗi",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
             }
         }
 
@@ -196,36 +263,60 @@ namespace PCTP.ImagesControl
         /// <summary>Xoá ảnh hiện đang xem — có xác nhận, tách khỏi cmdSave để tránh nhầm lẫn.</summary>
         private void cmdDelete_Click(object sender, EventArgs e)
         {
-            if (imageSlider1.CurrentImage == null || string.IsNullOrEmpty(textEdit1.Text))
+            if (imageSlider1.CurrentImage == null ||
+                string.IsNullOrEmpty(textEdit1.Text))
             {
-                XtraMessageBox.Show("Chưa có ảnh nào để xoá.", "Thông báo",
-                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                XtraMessageBox.Show(
+                    "Chưa có ảnh nào để xoá.",
+                    "Thông báo",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+
                 return;
             }
 
-            if (!int.TryParse(textEdit1.Text, out int imageId)) return;
+            int imageId;
 
-            if (XtraMessageBox.Show("Xoá ảnh này khỏi hệ thống?", "Xác nhận",
-                MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
+            if (!int.TryParse(textEdit1.Text, out imageId))
                 return;
 
-            ShowLoading(true);
+            if (XtraMessageBox.Show(
+                "Xoá ảnh này khỏi hệ thống?",
+                "Xác nhận",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Question) != DialogResult.Yes)
+            {
+                return;
+            }
+
             try
             {
-                _sql.ExecuteNonQuery(_sql.B7R2_FCCdb,
-                    "DELETE FROM B20ImageStore WHERE id = @Id",
-                    new SqlParameter("@Id", SqlDbType.Int) { Value = imageId });
+                WaitForm.Run(
+                    () =>
+                    {
+                        _sql.ExecuteNonQuery(
+                            _sql.B7R2_FCCdb,
+                            "DELETE FROM B20ImageStore " +
+                            "WHERE id = @Id",
+                            new SqlParameter(
+                                "@Id",
+                                SqlDbType.Int)
+                            {
+                                Value = imageId
+                            });
+                    },
+                    "Đang xoá ảnh..."
+                );
 
                 LoadData();
             }
             catch (Exception ex)
             {
-                XtraMessageBox.Show($"Lỗi xoá ảnh:\n{ex.Message}", "Lỗi",
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-            finally
-            {
-                ShowLoading(false);
+                XtraMessageBox.Show(
+                    $"Lỗi xoá ảnh:\n{ex.Message}",
+                    "Lỗi",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
             }
         }
 
@@ -236,55 +327,139 @@ namespace PCTP.ImagesControl
         {
             if (pictureEdit1.Image == null)
             {
-                XtraMessageBox.Show("Chưa có ảnh để lưu.", "Thông báo",
-                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                XtraMessageBox.Show(
+                    "Chưa có ảnh để lưu.",
+                    "Thông báo",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+
                 return;
             }
 
-            ShowLoading(true);
             try
             {
-                byte[] data = ImageToByteArray(pictureEdit1.Image);
+                WaitForm.Run(
+                    () =>
+                    {
+                        byte[] data =
+                            ImageToByteArray(pictureEdit1.Image);
 
-                switch (_mode)
-                {
-                    case Mode.Add:
-                        if (lokupItemCode.EditValue == null) return;
-                        _sql.ExecuteNonQuery(_sql.B7R2_FCCdb,
-                            "INSERT INTO B20ImageStore ([ParentId],[Image],[Type],[CreatedAt]) " +
-                            "VALUES (@ParentId,@Image,@Type,@CreatedAt)",
-                            new SqlParameter("@ParentId", SqlDbType.Int) { Value = int.Parse(lokupItemCode.EditValue.ToString()) },
-                            new SqlParameter("@Image", SqlDbType.VarBinary, -1) { Value = data },
-                            new SqlParameter("@Type", SqlDbType.NVarChar, 50) { Value = "ITEM" },
-                            new SqlParameter("@CreatedAt", SqlDbType.DateTime) { Value = DateTime.Now });
-                        break;
+                        switch (_mode)
+                        {
+                            case Mode.Add:
 
-                    case Mode.Edit:
-                        if (!int.TryParse(textEdit1.Text, out int editId)) return;
-                        _sql.ExecuteNonQuery(_sql.B7R2_FCCdb,
-                            "UPDATE B20ImageStore SET [Image]=@Image,[Type]=@Type,[CreatedAt]=@CreatedAt " +
-                            "WHERE id = @Id",
-                            new SqlParameter("@Image", SqlDbType.VarBinary, -1) { Value = data },
-                            new SqlParameter("@Type", SqlDbType.NVarChar, 50) { Value = "ITEM" },
-                            new SqlParameter("@CreatedAt", SqlDbType.DateTime) { Value = DateTime.Now },
-                            new SqlParameter("@Id", SqlDbType.Int) { Value = editId });
-                        break;
+                                if (lokupItemCode.EditValue == null)
+                                    return;
 
-                    default:
-                        return;
-                }
+                                _sql.ExecuteNonQuery(
+                                    _sql.B7R2_FCCdb,
+                                    "INSERT INTO B20ImageStore " +
+                                    "([ParentId],[Image],[Type],[CreatedAt]) " +
+                                    "VALUES " +
+                                    "(@ParentId,@Image,@Type,@CreatedAt)",
+
+                                    new SqlParameter(
+                                        "@ParentId",
+                                        SqlDbType.Int)
+                                    {
+                                        Value = int.Parse(
+                                            lokupItemCode.EditValue.ToString())
+                                    },
+
+                                    new SqlParameter(
+                                        "@Image",
+                                        SqlDbType.VarBinary, -1)
+                                    {
+                                        Value = data
+                                    },
+
+                                    new SqlParameter(
+                                        "@Type",
+                                        SqlDbType.NVarChar, 50)
+                                    {
+                                        Value = "ITEM"
+                                    },
+
+                                    new SqlParameter(
+                                        "@CreatedAt",
+                                        SqlDbType.DateTime)
+                                    {
+                                        Value = DateTime.Now
+                                    });
+
+                                break;
+
+
+                            case Mode.Edit:
+
+                                int editId;
+
+                                if (!int.TryParse(
+                                    textEdit1.Text,
+                                    out editId))
+                                {
+                                    return;
+                                }
+
+                                _sql.ExecuteNonQuery(
+                                    _sql.B7R2_FCCdb,
+                                    "UPDATE B20ImageStore " +
+                                    "SET [Image]=@Image, " +
+                                    "[Type]=@Type, " +
+                                    "[CreatedAt]=@CreatedAt " +
+                                    "WHERE id=@Id",
+
+                                    new SqlParameter(
+                                        "@Image",
+                                        SqlDbType.VarBinary, -1)
+                                    {
+                                        Value = data
+                                    },
+
+                                    new SqlParameter(
+                                        "@Type",
+                                        SqlDbType.NVarChar, 50)
+                                    {
+                                        Value = "ITEM"
+                                    },
+
+                                    new SqlParameter(
+                                        "@CreatedAt",
+                                        SqlDbType.DateTime)
+                                    {
+                                        Value = DateTime.Now
+                                    },
+
+                                    new SqlParameter(
+                                        "@Id",
+                                        SqlDbType.Int)
+                                    {
+                                        Value = editId
+                                    });
+
+                                break;
+
+
+                            default:
+                                return;
+                        }
+                    },
+                    _mode == Mode.Add
+                        ? "Đang thêm ảnh..."
+                        : "Đang cập nhật ảnh..."
+                );
 
                 pictureEdit1.Image = null;
+
                 LoadData();
             }
             catch (Exception ex)
             {
-                XtraMessageBox.Show($"Lỗi lưu ảnh:\n{ex.Message}", "Lỗi",
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-            finally
-            {
-                ShowLoading(false);
+                XtraMessageBox.Show(
+                    $"Lỗi lưu ảnh:\n{ex.Message}",
+                    "Lỗi",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
             }
         }
 
@@ -380,18 +555,6 @@ namespace PCTP.ImagesControl
             cmdDelete.Enabled = !isEditing && imageSlider1.Images.Count > 0;
         }
 
-        private void ShowLoading(bool show)
-        {
-            if (show)
-            {
-                if (!splashScreenManager1.IsSplashFormVisible)
-                    splashScreenManager1.ShowWaitForm();
-            }
-            else
-            {
-                splashScreenManager1.CloseWaitForm();
-            }
-        }
         // ════════════════════════════════════════════════════════════════════
         // PHÍM TẮT khi focus vào ImageSlider — hỗ trợ Delete để xoá nhanh
         // ════════════════════════════════════════════════════════════════════

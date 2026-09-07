@@ -1,5 +1,6 @@
 ﻿using PCTP.Domain.Interfaces;
 using PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao;
+using PCTP.Shared.Common;
 using PCTP.VIEWSTOCK.Repository;
 using System;
 using System.Collections.Generic;
@@ -19,9 +20,17 @@ namespace PCTP.Modules.GiaoHangKhach.TableOrderLoad
     {
         private readonly ITableOrderRepository _phieuRepo;
 
-        public OrderTableLoadStrategy(ITableOrderRepository phieuRepo)
+        // ── THÊM: repo mới cho vòng đời bảng TMP (LuuVaLoad/LoadPhieuDocQR
+        // giờ nhận PhieuTableSet thay vì 3 chuỗi tên bảng rời rạc — xem
+        // IPhieuTmpRepository/PhieuTmpRepository bản mới). ────────────────
+        private readonly IPhieuTmpRepository _phieuTmpRepo;
+
+        public OrderTableLoadStrategy(
+            ITableOrderRepository phieuRepo,
+            IPhieuTmpRepository phieuTmpRepo)
         {
             _phieuRepo = phieuRepo ?? throw new ArgumentNullException(nameof(phieuRepo));
+            _phieuTmpRepo = phieuTmpRepo ?? throw new ArgumentNullException(nameof(phieuTmpRepo));
         }
 
         public DataTable LoadDonHangGoc(OrderLoadContext ctx)
@@ -48,9 +57,23 @@ namespace PCTP.Modules.GiaoHangKhach.TableOrderLoad
 
         public void SyncChoDocQR(DataTable donHang, OrderLoadContext ctx)
         {
-            _phieuRepo.LuuVaLoad(ctx.Cfg.OrderTable, "Usp_Qrcode_LOAD_PHIEU_DOCQR2405",
-                donHang, ctx.NgayGiao.ToString("yyyy-MM-dd"), ctx.NhaMay,
-                ctx.GioFccMoTa, ctx.AddNm, ctx.Cfg.TmpTable, ctx.Cfg.DocQRTable);
+            // ── CẬP NHẬT: dùng overload PhieuTableSet của IPhieuTmpRepository thay vì
+            // overload string cũ (TmpTable/SourceTable/DocQRTable rời rạc). PhieuTableSet
+            // gói đúng 3 tên bảng theo Cfg — tránh truyền sai thứ tự tham số như bản cũ
+            // (rất dễ nhầm khi có 3-4 chuỗi tên bảng liền nhau cùng kiểu string).
+            var tables = new PhieuTableSet(
+                tmpTable: ctx.Cfg.TmpTable,
+                sourceTable: ctx.Cfg.OrderTable,
+                docQRTable: ctx.Cfg.DocQRTable);
+
+            _phieuTmpRepo.LuuVaLoad(
+                tables,
+                "Usp_Qrcode_LOAD_PHIEU_DOCQR2405",
+                donHang,
+                ctx.NgayGiao.ToString("yyyy-MM-dd"),
+                ctx.NhaMay,
+                ctx.GioFccMoTa,
+                ctx.AddNm);
         }
 
         /// <summary>

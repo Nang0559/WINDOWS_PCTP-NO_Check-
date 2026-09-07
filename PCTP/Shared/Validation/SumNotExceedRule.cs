@@ -47,4 +47,22 @@ namespace PCTP.Shared.Validation
         public override bool Validate(Control control, object value)
             => int.TryParse(control.Text, out int v) && v >= _min && v <= _max;
     }
+
+    /// <summary>
+    /// Bắt buộc phải nhập và giá trị phải là số.
+    /// Không chấp nhận rỗng hoặc ký tự không phải số.
+    /// </summary>
+    public class RequiredNumericRule : ValidationRule
+    {
+        public override bool Validate(Control control, object value)
+        {
+            if (control == null)
+                return false;
+
+            return !string.IsNullOrWhiteSpace(control.Text)
+                   && double.TryParse(
+                       control.Text.Trim(),
+                       out _);
+        }
+    }
 }

@@ -2,6 +2,7 @@
 using PCTP.Common;
 using PCTP.Modules.KhoVatLy.Application.Interfaces;
 using PCTP.Modules.KhoVatLy.Application.Services;
+using PCTP.Modules.KhoVatLy.Kho.Models;
 using PCTP.Modules.KhoVatLy.Repositories;
 using PCTP.Shared.Common;
 using PCTP.VIEWSTOCK.Fuction;
