@@ -1,4 +1,4 @@
-﻿# Tài Liệu Kiến Trúc & Luồng Vận Hành Hệ Thống Kho (WMS / Production Management)
+# Tài Liệu Kiến Trúc & Luồng Vận Hành Hệ Thống Kho (WMS / Production Management)
 
 > **Vị trí trong bộ tài liệu:** Đây là tài liệu MẸ. Toàn bộ module nghiệp vụ (Nhập Kho, Xuất Kho, Giao Hàng Khách, Xử Lý Hàng Lỗi) đều là NGƯỜI DÙNG của Kho Core — không module nào được coi là "biệt lập". Chi tiết API nằm ở tài liệu con; tài liệu này chỉ mô tả cách 4 module nghiệp vụ nối vào Kho Core qua **1 cổng tồn kho duy nhất**.
 
