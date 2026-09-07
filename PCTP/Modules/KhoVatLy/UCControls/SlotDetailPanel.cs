@@ -2,6 +2,7 @@
 using DevExpress.XtraGrid;
 using DevExpress.XtraGrid.Views.Grid;
 using PCTP.Modules.NhapKho.Repository;
+using PCTP.Modules.NhapKho.Services;
 using PCTP.VIEWSTOCK.Models;
 using PCTP.VIEWSTOCK.Repository;
 using System;
@@ -87,7 +88,7 @@ namespace PCTP.VIEWSTOCK.UCControls
         }
 
         /// <summary>Nạp thông tin đối chiếu cho 1 Slot đang chọn.</summary>
-        public void ShowSlot(Slot slot, IStockTpRepository stockTpRepo)
+        public void ShowSlot(Slot slot, IStockTpLookupService stockTpLookup)
         {
             if (slot == null || !slot.IsOccupied)
             {
@@ -120,7 +121,7 @@ namespace PCTP.VIEWSTOCK.UCControls
             var canhBao = new List<string>();
             foreach (var lot in slot.Lots.GroupBy(l => l.LotNo))
             {
-                var item = stockTpRepo.GetByLot(lot.Key);
+                var item = stockTpLookup.GetByLot(lot.Key);
                 if (item == null)
                 {
                     canhBao.Add($"⚠ LOT [{lot.Key}] không có trong STOCKTP!");

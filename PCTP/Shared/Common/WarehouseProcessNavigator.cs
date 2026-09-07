@@ -6,6 +6,7 @@ using PCTP.Modules.KhoVatLy.Application.Services;
 using PCTP.Modules.KhoVatLy.Repositories;
 using PCTP.Modules.XuatKho.Repositories;
 using PCTP.Modules.XuatKho.Services;
+using PCTP.Modules.XuLyHangLoi;
 using PCTP.Modules.XuLyHangLoi.Repository;
 using PCTP.Modules.XuLyHangLoi.Services;
 using PCTP.QRCODE_HVN.PGH;
@@ -72,19 +73,12 @@ namespace PCTP.Common
         /// </summary>
         public static void OpenQCDinhHuong(IWin32Window owner, int? preselectId = null)
         {
-            using (var f = new FormXuLyBatThuong(CreatePhieuTraHangRepo(), XuLyBatThuongMode.DinhHuong, preselectId))
-                f.ShowDialog(owner);
+            OpenQuanLyTienTrinhHangLoi(owner, preselectId);   // ← truyền tiếp thay vì bỏ qua
         }
 
-        /// <summary>
-        /// Mốc 3b — QC Xác nhận lần cuối: sau khi SX đã sửa/xử lý xong, QC vào
-        /// chốt kết luận OK/NG cuối cùng (TrangThai chuyển sang QCDaDuyet).
-        /// Đây là điều kiện KHOÁ bắt buộc trước khi FormTraHangNGNew cho trả về SX.
-        /// </summary>
         public static void OpenQCXacNhanCuoi(IWin32Window owner, int? preselectId = null)
         {
-            using (var f = new FormXuLyBatThuong(CreatePhieuTraHangRepo(), XuLyBatThuongMode.XacNhanCuoi, preselectId))
-                f.ShowDialog(owner);
+            OpenQuanLyTienTrinhHangLoi(owner, preselectId);   // ← truyền tiếp thay vì bỏ qua
         }
         private static IGiaoBuNGService CreateGiaoBuNGService()
         {
@@ -110,19 +104,20 @@ namespace PCTP.Common
         }
         // ★ MỚI — mở màn hình quản lý tiến trình hàng lỗi (thay cho OpenTraHangNG/OpenGiaoBuNG cũ).
         // Người dùng tự chọn phiếu trong lưới, form tự xử lý mở FormGiaoBuNG/FormXuLyBatThuong theo bước tương ứng.
-        public static void OpenQuanLyTienTrinhHangLoi(IWin32Window owner)
+        public static void OpenQuanLyTienTrinhHangLoi(IWin32Window owner, int? preselectPhieuXuLyId = null)
         {
-            using (var f = CreateFormQuanLyTienTrinhHangLoi())
+            using (var f = CreateFormQuanLyTienTrinhHangLoi(preselectPhieuXuLyId))
                 f.ShowDialog(owner);
         }
 
-        private static FormQuanLyTienTrinhHangLoi CreateFormQuanLyTienTrinhHangLoi()
+
+        private static Modules.XuLyHangLoi.FormQuanLyTienTrinhHangLoi
+      CreateFormQuanLyTienTrinhHangLoi(int? preselectPhieuXuLyId = null)
         {
             var provider = new SQLPROVIDER();
             var sql = new PhieuSqlExecutor(provider);
             var uow = new UnitOfWork(provider);
 
-            // ── Repository tầng dưới ─────────────────────────────────────
             var phieuTraHangRepo = new PhieuTraHangRepository(sql, uow);
             var phieuXuLyRepo = new PhieuXuLyBatThuongRepository(sql, uow);
             var qtChungRepo = new TraHangQTChungRepository(sql, uow);
@@ -130,33 +125,44 @@ namespace PCTP.Common
 
             var slotRepo = new SlotRepository(sql, uow);
             var slotService = new SlotService(slotRepo);
+
             var stockExportRepo = new StockExportRepository(sql, uow);
             var stockHistoryRepo = new StockHistoryRepository(sql, uow);
 
-            // ── Workflow — dùng CHUNG 1 IWorkflowRepository ─────────────
             var workflowRepo = new WorkflowRepository(sql, uow);
             var workflow = new WorkflowTransitionService(workflowRepo);
             var workflowEngine = new WorkflowEngine(workflowRepo);
 
-            // ── GiaoBuNGService (đã ghép hoàn chỉnh từ trước) ────────────
             var giaoBuNGService = CreateGiaoBuNGService();
 
-            // ── ReworkStockService ────────────────────────────────────────
             var reworkStockService = new ReworkStockService(
-                uow, slotService, stockExportRepo, stockHistoryRepo, qtChungRepo, phieuXuLyRepo);
+                uow,
+                slotService,
+                stockExportRepo,
+                stockHistoryRepo,
+                qtChungRepo,
+                phieuXuLyRepo);
 
-            // ── QTChungService ────────────────────────────────────────────
             var qtChungService = new QTChungService(
-                phieuXuLyRepo, phieuTraHangRepo, reworkStockService,
-                giaoBuNGService, uow, qtChungRepo, workflow);
+                phieuXuLyRepo,
+                phieuTraHangRepo,
+                reworkStockService,
+                giaoBuNGService,
+                uow,
+                qtChungRepo,
+                workflow);
 
-            // ── KhachTraHangService ───────────────────────────────────────
             var khachTraHangService = new KhachTraHangService(
-                qtChungService, phieuTraHangRepo, phieuGiaoRepo, phieuXuLyRepo, uow);
+                qtChungService,
+                phieuTraHangRepo,
+                phieuGiaoRepo,
+                phieuXuLyRepo,
+                uow);
 
-            // ── TraNoiBoService ───────────────────────────────────────────
             var traNoiBoService = new TraNoiBoService(
-                phieuTraHangRepo, workflowEngine, uow);
+                phieuTraHangRepo,
+                workflowEngine,
+                uow);
 
             return new FormQuanLyTienTrinhHangLoi(
                 khachTraHangService,
@@ -167,7 +173,9 @@ namespace PCTP.Common
                 phieuTraHangRepo,
                 phieuXuLyRepo,
                 qtChungRepo,
-                phieuGiaoRepo);
+                phieuGiaoRepo,
+                slotService,             // ← bắt buộc
+                preselectPhieuXuLyId);  // ← bắt buộc
         }
         public static void OpenGiaoHangHVN(string customerNo)
         {

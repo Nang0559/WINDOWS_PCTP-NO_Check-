@@ -12,6 +12,7 @@ namespace PCTP.Modules.XuLyHangLoi
     using PCTP.Modules.KhoVatLy.Kho.Models;
     using PCTP.Modules.XuLyHangLoi.Enums;
     using PCTP.Modules.XuLyHangLoi.Services;
+    using PCTP.Shared.Helpers;
     using System;
     using System.Collections.Generic;
     using System.Drawing;
@@ -23,23 +24,19 @@ namespace PCTP.Modules.XuLyHangLoi
         // ============================================================
         // SERVICES
         // ============================================================
-
         private readonly IQTChungService _qtChungService;
         private readonly IReworkStockService _reworkStockService;
-
         private readonly int _phieuXuLyId;
 
         // ============================================================
         // UI
         // ============================================================
-
         private LabelControl _lblPhieu;
         private LabelControl _lblTrangThai;
         private LabelControl _lblHuongXuLy;
 
         private TextEdit _txtMaHang;
         private TextEdit _txtLotNo;
-
         private SimpleButton _btnLoadLot;
         private SimpleButton _btnXuatKho;
         private SimpleButton _btnGiaoSX;
@@ -59,6 +56,7 @@ namespace PCTP.Modules.XuLyHangLoi
         {
             BuildUI();
         }
+
         public FormReworkProcess(
             IQTChungService qtChungService,
             IReworkStockService reworkStockService,
@@ -66,10 +64,8 @@ namespace PCTP.Modules.XuLyHangLoi
         {
             _qtChungService = qtChungService
                 ?? throw new ArgumentNullException(nameof(qtChungService));
-
             _reworkStockService = reworkStockService
                 ?? throw new ArgumentNullException(nameof(reworkStockService));
-
             _phieuXuLyId = phieuXuLyId;
 
             BuildUI();
@@ -79,7 +75,6 @@ namespace PCTP.Modules.XuLyHangLoi
         // ============================================================
         // UI
         // ============================================================
-
         private void BuildUI()
         {
             Text = "Quản lý Rework";
@@ -104,130 +99,83 @@ namespace PCTP.Modules.XuLyHangLoi
             // ========================================================
             // HEADER
             // ========================================================
-
             var pnlHeader = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
                 ColumnCount = 3,
                 RowCount = 1
             };
-
-            pnlHeader.ColumnStyles.Add(
-                new ColumnStyle(SizeType.Percent, 45));
-
-            pnlHeader.ColumnStyles.Add(
-                new ColumnStyle(SizeType.Percent, 35));
-
-            pnlHeader.ColumnStyles.Add(
-                new ColumnStyle(SizeType.Percent, 20));
+            pnlHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 45));
+            pnlHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35));
+            pnlHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 20));
 
             _lblPhieu = new LabelControl
             {
                 Dock = DockStyle.Fill,
                 Appearance =
-            {
-                Font = new Font("Tahoma", 12F, FontStyle.Bold),
-                ForeColor = Color.DarkBlue
-            }
+                {
+                    Font = new Font("Tahoma", 12F, FontStyle.Bold),
+                    ForeColor = Color.DarkBlue
+                }
             };
-
             _lblTrangThai = new LabelControl
             {
                 Dock = DockStyle.Fill,
                 Appearance =
-            {
-                Font = new Font("Tahoma", 10F, FontStyle.Bold),
-                ForeColor = Color.DarkGreen
-            }
+                {
+                    Font = new Font("Tahoma", 10F, FontStyle.Bold),
+                    ForeColor = Color.DarkGreen
+                }
             };
-
             _lblHuongXuLy = new LabelControl
             {
                 Dock = DockStyle.Fill,
                 Appearance =
-            {
-                Font = new Font("Tahoma", 10F, FontStyle.Bold),
-                ForeColor = Color.DarkOrange
-            }
+                {
+                    Font = new Font("Tahoma", 10F, FontStyle.Bold),
+                    ForeColor = Color.DarkOrange
+                }
             };
 
             pnlHeader.Controls.Add(_lblPhieu, 0, 0);
             pnlHeader.Controls.Add(_lblTrangThai, 1, 0);
             pnlHeader.Controls.Add(_lblHuongXuLy, 2, 0);
-
             main.Controls.Add(pnlHeader, 0, 0);
 
             // ========================================================
             // SEARCH LOT
             // ========================================================
-
             var pnlSearch = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
                 ColumnCount = 6,
                 RowCount = 2
             };
-
-            pnlSearch.ColumnStyles.Add(
-                new ColumnStyle(SizeType.Absolute, 80));
-
-            pnlSearch.ColumnStyles.Add(
-                new ColumnStyle(SizeType.Percent, 35));
-
-            pnlSearch.ColumnStyles.Add(
-                new ColumnStyle(SizeType.Absolute, 70));
-
-            pnlSearch.ColumnStyles.Add(
-                new ColumnStyle(SizeType.Percent, 35));
-
-            pnlSearch.ColumnStyles.Add(
-                new ColumnStyle(SizeType.Absolute, 130));
-
-            pnlSearch.ColumnStyles.Add(
-                new ColumnStyle(SizeType.Absolute, 100));
+            pnlSearch.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 80));
+            pnlSearch.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35));
+            pnlSearch.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 70));
+            pnlSearch.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35));
+            pnlSearch.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 130));
+            pnlSearch.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100));
 
             var lblMaHang = new LabelControl
             {
                 Text = "Mã hàng:",
                 Dock = DockStyle.Fill,
-                Appearance =
-            {
-                Font = new Font("Tahoma", 9F, FontStyle.Bold)
-            }
+                Appearance = { Font = new Font("Tahoma", 9F, FontStyle.Bold) }
             };
-
-            _txtMaHang = new TextEdit
-            {
-                Dock = DockStyle.Fill
-            };
+            _txtMaHang = new TextEdit { Dock = DockStyle.Fill };
 
             var lblLot = new LabelControl
             {
                 Text = "LOT:",
                 Dock = DockStyle.Fill,
-                Appearance =
-            {
-                Font = new Font("Tahoma", 9F, FontStyle.Bold)
-            }
+                Appearance = { Font = new Font("Tahoma", 9F, FontStyle.Bold) }
             };
+            _txtLotNo = new TextEdit { Dock = DockStyle.Fill };
 
-            _txtLotNo = new TextEdit
-            {
-                Dock = DockStyle.Fill
-            };
-
-            _btnLoadLot = new SimpleButton
-            {
-                Text = "🔍 Tìm LOT",
-                Dock = DockStyle.Fill
-            };
-
-            _btnRefresh = new SimpleButton
-            {
-                Text = "⟳ Làm mới",
-                Dock = DockStyle.Fill
-            };
-
+            _btnLoadLot = new SimpleButton { Text = "🔍 Tìm LOT", Dock = DockStyle.Fill };
+            _btnRefresh = new SimpleButton { Text = "⟳ Làm mới", Dock = DockStyle.Fill };
             _btnLoadLot.Click += BtnLoadLot_Click;
             _btnRefresh.Click += (s, e) => LoadLots();
 
@@ -240,16 +188,14 @@ namespace PCTP.Modules.XuLyHangLoi
 
             var lblHuongDan = new LabelControl
             {
-                Text =
-                    "Chỉ các LOT hợp lệ cho hướng xử lý CanRework mới được phép xuất kho.",
+                Text = "Chỉ các LOT hợp lệ cho hướng xử lý CanRework mới được phép xuất kho.",
                 Dock = DockStyle.Fill,
                 Appearance =
-            {
-                Font = new Font("Tahoma", 8.5F, FontStyle.Italic),
-                ForeColor = Color.DimGray
-            }
+                {
+                    Font = new Font("Tahoma", 8.5F, FontStyle.Italic),
+                    ForeColor = Color.DimGray
+                }
             };
-
             pnlSearch.Controls.Add(lblHuongDan, 0, 1);
             pnlSearch.SetColumnSpan(lblHuongDan, 6);
 
@@ -258,52 +204,29 @@ namespace PCTP.Modules.XuLyHangLoi
             // ========================================================
             // ACTION BAR
             // ========================================================
-
             var pnlAction = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
                 ColumnCount = 4
             };
+            pnlAction.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25));
+            pnlAction.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25));
+            pnlAction.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25));
+            pnlAction.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25));
 
-            pnlAction.ColumnStyles.Add(
-                new ColumnStyle(SizeType.Percent, 25));
-
-            pnlAction.ColumnStyles.Add(
-                new ColumnStyle(SizeType.Percent, 25));
-
-            pnlAction.ColumnStyles.Add(
-                new ColumnStyle(SizeType.Percent, 25));
-
-            pnlAction.ColumnStyles.Add(
-                new ColumnStyle(SizeType.Percent, 25));
-
-            _btnXuatKho = new SimpleButton
-            {
-                Text = "📦 Xuất kho Rework",
-                Dock = DockStyle.Fill
-            };
-
-            _btnGiaoSX = new SimpleButton
-            {
-                Text = "🚚 Giao cho SX",
-                Dock = DockStyle.Fill
-            };
-
-            _btnDangRework = new SimpleButton
-            {
-                Text = "⚙ Đang Rework",
-                Dock = DockStyle.Fill
-            };
+            _btnXuatKho = new SimpleButton { Text = "📦 Xuất kho Rework", Dock = DockStyle.Fill };
+            _btnGiaoSX = new SimpleButton { Text = "🚚 Giao cho SX", Dock = DockStyle.Fill };
+            _btnDangRework = new SimpleButton { Text = "⚙ Đang Rework", Dock = DockStyle.Fill };
 
             var lblAction = new LabelControl
             {
                 Text = "Chọn LOT phía dưới trước khi thao tác.",
                 Dock = DockStyle.Fill,
                 Appearance =
-            {
-                Font = new Font("Tahoma", 8.5F, FontStyle.Italic),
-                ForeColor = Color.DimGray
-            }
+                {
+                    Font = new Font("Tahoma", 8.5F, FontStyle.Italic),
+                    ForeColor = Color.DimGray
+                }
             };
 
             _btnXuatKho.Click += BtnXuatKho_Click;
@@ -320,118 +243,78 @@ namespace PCTP.Modules.XuLyHangLoi
             // ========================================================
             // GRID + NOTE
             // ========================================================
-
             var content = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
                 ColumnCount = 1,
                 RowCount = 2
             };
-
-            content.RowStyles.Add(
-                new RowStyle(SizeType.Percent, 100));
-
-            content.RowStyles.Add(
-                new RowStyle(SizeType.Absolute, 75));
+            content.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            content.RowStyles.Add(new RowStyle(SizeType.Absolute, 75));
 
             // --------------------------------------------------------
             // GRID
             // --------------------------------------------------------
-
-            _grid = new GridControl
-            {
-                Dock = DockStyle.Fill
-            };
-
+            _grid = new GridControl { Dock = DockStyle.Fill };
             _gridView = new GridView(_grid);
-
             _grid.MainView = _gridView;
-
             _gridView.OptionsBehavior.Editable = false;
             _gridView.OptionsView.ShowGroupPanel = false;
             _gridView.OptionsView.RowAutoHeight = true;
-
             _gridView.OptionsSelection.MultiSelect = false;
-            _gridView.OptionsSelection.MultiSelectMode =
-                GridMultiSelectMode.RowSelect;
-
-            _gridView.FocusedRowChanged +=
-                (s, e) => UpdateActionState();
+            _gridView.OptionsSelection.MultiSelectMode = GridMultiSelectMode.RowSelect;
+            _gridView.FocusedRowChanged += (s, e) => UpdateActionState();
 
             content.Controls.Add(_grid, 0, 0);
 
             // --------------------------------------------------------
             // NOTE
             // --------------------------------------------------------
-
             var pnlNote = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
                 ColumnCount = 2
             };
-
-            pnlNote.ColumnStyles.Add(
-                new ColumnStyle(SizeType.Absolute, 100));
-
-            pnlNote.ColumnStyles.Add(
-                new ColumnStyle(SizeType.Percent, 100));
+            pnlNote.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100));
+            pnlNote.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
 
             var lblNote = new LabelControl
             {
                 Text = "Ghi chú:",
                 Dock = DockStyle.Fill,
-                Appearance =
-            {
-                Font = new Font("Tahoma", 9F, FontStyle.Bold)
-            }
+                Appearance = { Font = new Font("Tahoma", 9F, FontStyle.Bold) }
             };
-
-            _txtGhiChu = new MemoEdit
-            {
-                Dock = DockStyle.Fill
-            };
+            _txtGhiChu = new MemoEdit { Dock = DockStyle.Fill };
 
             pnlNote.Controls.Add(lblNote, 0, 0);
             pnlNote.Controls.Add(_txtGhiChu, 1, 0);
 
             content.Controls.Add(pnlNote, 0, 1);
-
             main.Controls.Add(content, 0, 3);
 
             // ========================================================
             // FOOTER
             // ========================================================
-
             var pnlFooter = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
                 ColumnCount = 2
             };
-
-            pnlFooter.ColumnStyles.Add(
-                new ColumnStyle(SizeType.Percent, 100));
-
-            pnlFooter.ColumnStyles.Add(
-                new ColumnStyle(SizeType.Absolute, 120));
+            pnlFooter.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            pnlFooter.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 120));
 
             var lblFooter = new LabelControl
             {
-                Text =
-                    "💡 Sau khi giao cho sản xuất, QC sẽ thực hiện xác nhận cuối tại bước QC.",
+                Text = "💡 Sau khi giao cho sản xuất, QC sẽ thực hiện xác nhận cuối tại bước QC.",
                 Dock = DockStyle.Fill,
                 Appearance =
-            {
-                Font = new Font("Tahoma", 8.5F, FontStyle.Italic),
-                ForeColor = Color.DimGray
-            }
+                {
+                    Font = new Font("Tahoma", 8.5F, FontStyle.Italic),
+                    ForeColor = Color.DimGray
+                }
             };
 
-            _btnDong = new SimpleButton
-            {
-                Text = "Đóng",
-                Dock = DockStyle.Fill
-            };
-
+            _btnDong = new SimpleButton { Text = "Đóng", Dock = DockStyle.Fill };
             _btnDong.Click += (s, e) =>
             {
                 DialogResult = DialogResult.OK;
@@ -449,13 +332,11 @@ namespace PCTP.Modules.XuLyHangLoi
         // ============================================================
         // LOAD PHIEU
         // ============================================================
-
         private void LoadPhieu()
         {
             try
             {
                 var phieu = _qtChungService.GetById(_phieuXuLyId);
-
                 if (phieu == null)
                 {
                     XtraMessageBox.Show(
@@ -463,44 +344,41 @@ namespace PCTP.Modules.XuLyHangLoi
                         "Thông báo",
                         MessageBoxButtons.OK,
                         MessageBoxIcon.Warning);
-
                     Close();
                     return;
                 }
 
-                _lblPhieu.Text =
-                    $"Phiếu xử lý: {GetPropertyString(phieu, "SoPhieu")}";
+                // ── ĐÃ SỬA ──────────────────────────────────────────────
+                // phieu đã là PhieuXuLyBatThuong cụ thể (không phải object
+                // vô danh) — đọc trực tiếp property thay vì qua reflection
+                // GetPropertyString, tránh sai tên field mà compiler không
+                // bắt được.
+                _lblPhieu.Text = $"Phiếu xử lý: {phieu.SoPhieu}";
 
-                var status = _qtChungService.GetTrangThai(_phieuXuLyId);
+                // ── ĐÃ SỬA ──────────────────────────────────────────────
+                // IQTChungService.GetTrangThai(int) đã bị bỏ khỏi
+                // QTChungService (method "14. GET STATUS" bị comment out
+                // trong service thật) — gọi lại sẽ lỗi biên dịch.
+                // Trạng thái nay lấy trực tiếp từ PhieuXuLyBatThuong.Status.
+                var status = phieu.Status;
+                _lblTrangThai.Text = $"Trạng thái: {status}";
 
-                _lblTrangThai.Text =
-                    $"Trạng thái: {status}";
-
-                string huong =
-                    GetPropertyString(phieu, "HuongXuLy");
-
-                _lblHuongXuLy.Text =
-                    $"Hướng: {huong}";
+                var huong = phieu.HuongXuLy;
+                _lblHuongXuLy.Text = $"Hướng: {huong}";
 
                 // ----------------------------------------------------
                 // REWORK CHỈ ĐƯỢC PHÉP CHO CanRework
                 // ----------------------------------------------------
-
-                if (!string.Equals(
-                        huong,
-                        HuongXuLyBatThuong.CanRework.ToString(),
-                        StringComparison.OrdinalIgnoreCase))
+                if (huong != HuongXuLyBatThuong.CanRework)
                 {
                     XtraMessageBox.Show(
                         "Phiếu này không có hướng xử lý CanRework.",
                         "Không thể Rework",
                         MessageBoxButtons.OK,
                         MessageBoxIcon.Warning);
-
                     _btnXuatKho.Enabled = false;
                     _btnGiaoSX.Enabled = false;
                     _btnDangRework.Enabled = false;
-
                     return;
                 }
 
@@ -515,7 +393,6 @@ namespace PCTP.Modules.XuLyHangLoi
         // ============================================================
         // LOAD LOT
         // ============================================================
-
         private void LoadLots()
         {
             try
@@ -524,25 +401,18 @@ namespace PCTP.Modules.XuLyHangLoi
                 string lotNo = _txtLotNo.Text.Trim();
 
                 List<LotInfo> lots;
-
                 if (!string.IsNullOrWhiteSpace(maHang) ||
                     !string.IsNullOrWhiteSpace(lotNo))
                 {
-                    lots = _reworkStockService.GetLotsCanRework(
-                        maHang,
-                        lotNo);
+                    lots = _reworkStockService.GetLotsCanRework(maHang, lotNo);
                 }
                 else
                 {
-                    lots =
-                        _reworkStockService.GetLotsCanReworkByPhieuXuLy(
-                            _phieuXuLyId);
+                    lots = _reworkStockService.GetLotsCanReworkByPhieuXuLy(_phieuXuLyId);
                 }
 
                 _grid.DataSource = lots;
-
                 BuildLotColumns();
-
                 UpdateActionState();
             }
             catch (Exception ex)
@@ -554,7 +424,6 @@ namespace PCTP.Modules.XuLyHangLoi
         // ============================================================
         // GRID
         // ============================================================
-
         private void BuildLotColumns()
         {
             _gridView.Columns.Clear();
@@ -571,28 +440,19 @@ namespace PCTP.Modules.XuLyHangLoi
             _gridView.BestFitColumns();
         }
 
-        private void AddColumn(
-            string fieldName,
-            string caption,
-            int width)
+        private void AddColumn(string fieldName, string caption, int width)
         {
-            var property =
-                typeof(LotInfo).GetProperty(fieldName);
-
+            var property = typeof(LotInfo).GetProperty(fieldName);
             if (property == null)
                 return;
 
             var col = _gridView.Columns.AddField(fieldName);
-
             col.Caption = caption;
             col.Width = width;
             col.Visible = true;
         }
 
-        private void AddColumnIfExists(
-            string fieldName,
-            string caption,
-            int width)
+        private void AddColumnIfExists(string fieldName, string caption, int width)
         {
             AddColumn(fieldName, caption, width);
         }
@@ -600,10 +460,7 @@ namespace PCTP.Modules.XuLyHangLoi
         // ============================================================
         // SEARCH
         // ============================================================
-
-        private void BtnLoadLot_Click(
-            object sender,
-            EventArgs e)
+        private void BtnLoadLot_Click(object sender, EventArgs e)
         {
             LoadLots();
         }
@@ -611,55 +468,41 @@ namespace PCTP.Modules.XuLyHangLoi
         // ============================================================
         // XUẤT KHO REWORK
         // ============================================================
-
-        private void BtnXuatKho_Click(
-            object sender,
-            EventArgs e)
+        private void BtnXuatKho_Click(object sender, EventArgs e)
         {
             var lot = GetFocusedLot();
-
             if (lot == null)
             {
                 ShowWarning("Vui lòng chọn LOT cần xuất kho.");
                 return;
             }
 
-            string lotNo =
-                GetPropertyString(lot, "LotNo");
-
-            int slotId =
-                GetPropertyInt(lot, "SlotId");
-
-            int soLuongKho =
-                GetPropertyInt(lot, "SoLuong");
+            string lotNo = GetPropertyString(lot, "LotNo");
+            int slotId = GetPropertyInt(lot, "SlotId");
+            int soLuongKho = GetPropertyInt(lot, "SoLuong");
 
             if (string.IsNullOrWhiteSpace(lotNo))
             {
                 ShowWarning("LOT không hợp lệ.");
                 return;
             }
-
             if (slotId <= 0)
             {
-                ShowWarning(
-                    "LOT chưa xác định được Slot nguồn.");
+                ShowWarning("LOT chưa xác định được Slot nguồn.");
                 return;
             }
-
             if (soLuongKho <= 0)
             {
-                ShowWarning(
-                    "Số lượng LOT không hợp lệ.");
+                ShowWarning("Số lượng LOT không hợp lệ.");
                 return;
             }
 
-            string input =
-                XtraInputBox.Show(
-                    $"LOT: {lotNo}\r\n" +
-                    $"Tồn khả dụng: {soLuongKho}\r\n\r\n" +
-                    "Nhập số lượng xuất Rework:",
-                    "Xuất kho Rework",
-                    soLuongKho.ToString());
+            string input = XtraInputBox.Show(
+                $"LOT: {lotNo}\r\n" +
+                $"Tồn khả dụng: {soLuongKho}\r\n\r\n" +
+                "Nhập số lượng xuất Rework:",
+                "Xuất kho Rework",
+                soLuongKho.ToString());
 
             if (input == null)
                 return;
@@ -669,11 +512,9 @@ namespace PCTP.Modules.XuLyHangLoi
                 ShowWarning("Số lượng không hợp lệ.");
                 return;
             }
-
             if (soLuong <= 0 || soLuong > soLuongKho)
             {
-                ShowWarning(
-                    $"Số lượng phải từ 1 đến {soLuongKho}.");
+                ShowWarning($"Số lượng phải từ 1 đến {soLuongKho}.");
                 return;
             }
 
@@ -692,15 +533,34 @@ namespace PCTP.Modules.XuLyHangLoi
 
             try
             {
-                _reworkStockService.XuatKhoRework(
+                // ── ĐÃ SỬA ──────────────────────────────────────────────
+                // Form gốc gọi thẳng _reworkStockService.XuatKhoRework(...),
+                // BỎ QUA _qtChungService.XuatKhoRework(...). Theo code thật
+                // của QTChungService.XuatKhoRework:
+                //   var result = _reworkStockService.XuatKhoRework(...);
+                //   if (!result.IsOK) { SafeRollback(); return result; }
+                //   _repo.UpdateStatus(phieuXuLyId, QTChungStatus.DaXuatKhoRework, nguoiXuat);
+                // Gọi thẳng ReworkStockService làm hàng xuất kho thật nhưng
+                // KHÔNG BAO GIỜ cập nhật QTChungStatus sang DaXuatKhoRework
+                // → nút "Giao cho SX" (điều kiện status==DaXuatKhoRework)
+                // sẽ không bao giờ bật được, quy trình bị kẹt vĩnh viễn.
+                // Đồng thời form gốc không kiểm tra kết quả trả về, luôn
+                // báo "thành công" kể cả khi thất bại.
+                ScanResult result = _qtChungService.XuatKhoRework(
                     _phieuXuLyId,
                     slotId,
                     lotNo,
                     soLuong,
                     Environment.UserName);
 
+                if (result == null || !result.IsOK)
+                {
+                    ShowWarning(result?.Message ?? "Xuất kho Rework không thành công.");
+                    return;
+                }
+
                 XtraMessageBox.Show(
-                    "Đã xuất kho Rework thành công.",
+                    result.Message ?? "Đã xuất kho Rework thành công.",
                     "Thành công",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Information);
@@ -710,70 +570,47 @@ namespace PCTP.Modules.XuLyHangLoi
             }
             catch (Exception ex)
             {
-                ShowError(
-                    "Không thể xuất kho Rework.",
-                    ex);
+                ShowError("Không thể xuất kho Rework.", ex);
             }
         }
 
         // ============================================================
         // GIAO CHO SX
         // ============================================================
-
-        private void BtnGiaoSX_Click(
-            object sender,
-            EventArgs e)
+        private void BtnGiaoSX_Click(object sender, EventArgs e)
         {
             try
             {
-                var lots =
-                    _reworkStockService
-                        .GetLotsCanReworkByPhieuXuLy(
-                            _phieuXuLyId);
-
+                var lots = _reworkStockService.GetLotsCanReworkByPhieuXuLy(_phieuXuLyId);
                 if (lots == null || lots.Count == 0)
                 {
-                    ShowWarning(
-                        "Không có LOT để giao cho sản xuất.");
+                    ShowWarning("Không có LOT để giao cho sản xuất.");
                     return;
                 }
 
-                string ngayGiao =
-                    DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                string ngayGiao = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
 
-                string nguoiNhan =
-                    XtraInputBox.Show(
-                        "Nhập người nhận:",
-                        "Giao hàng Rework",
-                        Environment.UserName);
-
-                if (nguoiNhan == null)
-                    return;
-
+                string nguoiNhan = XtraInputBox.Show(
+                    "Nhập người nhận:",
+                    "Giao hàng Rework",
+                    Environment.UserName);
+                if (nguoiNhan == null) return;
                 nguoiNhan = nguoiNhan.Trim();
-
                 if (string.IsNullOrWhiteSpace(nguoiNhan))
                 {
-                    ShowWarning(
-                        "Chưa nhập người nhận.");
+                    ShowWarning("Chưa nhập người nhận.");
                     return;
                 }
 
-                string boPhanNhan =
-                    XtraInputBox.Show(
-                        "Nhập bộ phận nhận:",
-                        "Giao hàng Rework",
-                        "SX");
-
-                if (boPhanNhan == null)
-                    return;
-
+                string boPhanNhan = XtraInputBox.Show(
+                    "Nhập bộ phận nhận:",
+                    "Giao hàng Rework",
+                    "SX");
+                if (boPhanNhan == null) return;
                 boPhanNhan = boPhanNhan.Trim();
-
                 if (string.IsNullOrWhiteSpace(boPhanNhan))
                 {
-                    ShowWarning(
-                        "Chưa nhập bộ phận nhận.");
+                    ShowWarning("Chưa nhập bộ phận nhận.");
                     return;
                 }
 
@@ -790,6 +627,13 @@ namespace PCTP.Modules.XuLyHangLoi
                     return;
                 }
 
+                // LƯU Ý: QTChungService.GiaoHangRework hiện tại (bản thật
+                // trên GitHub) đang là:
+                //   throw new NotImplementedException(
+                //       "Cần repository giao hàng/rework hiện tại.");
+                // → lời gọi dưới đây LUÔN ném exception cho tới khi backend
+                // implement xong repository giao hàng rework. Đây KHÔNG
+                // phải lỗi ở Form — Form gọi đúng API theo interface.
                 _qtChungService.GiaoHangRework(
                     _phieuXuLyId,
                     lots,
@@ -808,37 +652,32 @@ namespace PCTP.Modules.XuLyHangLoi
             }
             catch (Exception ex)
             {
-                ShowError(
-                    "Không thể giao hàng Rework cho sản xuất.",
-                    ex);
+                ShowError("Không thể giao hàng Rework cho sản xuất.", ex);
             }
         }
 
         // ============================================================
         // GHI NHẬN ĐANG REWORK
         // ============================================================
-
-        private void BtnDangRework_Click(
-            object sender,
-            EventArgs e)
+        private void BtnDangRework_Click(object sender, EventArgs e)
         {
-            string ghiChu =
-                _txtGhiChu.Text.Trim();
-
+            string ghiChu = _txtGhiChu.Text.Trim();
             if (string.IsNullOrWhiteSpace(ghiChu))
             {
-                ghiChu =
-                    XtraInputBox.Show(
-                        "Nhập ghi chú quá trình Rework:",
-                        "Đang Rework",
-                        "");
-
-                if (ghiChu == null)
-                    return;
+                ghiChu = XtraInputBox.Show(
+                    "Nhập ghi chú quá trình Rework:",
+                    "Đang Rework",
+                    "");
+                if (ghiChu == null) return;
             }
 
             try
             {
+                // LƯU Ý: QTChungService.GhiNhanDangRework hiện tại (bản
+                // thật trên GitHub) đang throw NotImplementedException
+                // (chưa có repository ghi nhận thông tin rework). Form gọi
+                // đúng API — đây là việc backend cần hoàn thiện, không
+                // phải lỗi ở Form.
                 _qtChungService.GhiNhanDangRework(
                     _phieuXuLyId,
                     ghiChu,
@@ -851,73 +690,54 @@ namespace PCTP.Modules.XuLyHangLoi
                     MessageBoxIcon.Information);
 
                 _txtGhiChu.Text = "";
-
                 LoadPhieu();
             }
             catch (Exception ex)
             {
-                ShowError(
-                    "Không thể ghi nhận trạng thái đang Rework.",
-                    ex);
+                ShowError("Không thể ghi nhận trạng thái đang Rework.", ex);
             }
         }
 
         // ============================================================
         // SELECTED LOT
         // ============================================================
-
         private LotInfo GetFocusedLot()
         {
-            int rowHandle =
-                _gridView.FocusedRowHandle;
-
+            int rowHandle = _gridView.FocusedRowHandle;
             if (rowHandle < 0)
                 return null;
-
             return _gridView.GetRow(rowHandle) as LotInfo;
         }
 
         // ============================================================
         // ENABLE / DISABLE BUTTON
         // ============================================================
-
         private void UpdateActionState()
         {
             try
             {
-                QTChungStatus status =
-                    _qtChungService.GetTrangThai(
-                        _phieuXuLyId);
+                // ── ĐÃ SỬA ──────────────────────────────────────────────
+                // GetTrangThai không còn tồn tại — đọc Status từ GetById.
+                QTChungStatus status = _qtChungService.GetById(_phieuXuLyId).Status;
 
-                bool daChonLot =
-                    GetFocusedLot() != null;
+                bool daChonLot = GetFocusedLot() != null;
 
                 // ----------------------------------------------------
-                // Xuất kho:
-                // chỉ có ý nghĩa trước khi đã giao SX.
+                // Xuất kho: chỉ có ý nghĩa trước khi đã giao SX.
                 // ----------------------------------------------------
-
                 _btnXuatKho.Enabled =
-                    daChonLot &&
-                    (
-                        status == QTChungStatus.DaDinhHuong
-                    );
+                    daChonLot && status == QTChungStatus.DaDinhHuong;
 
                 // ----------------------------------------------------
-                // Giao SX:
-                // Service sẽ tự validate số lượng / trạng thái.
+                // Giao SX: Service sẽ tự validate số lượng / trạng thái.
                 // ----------------------------------------------------
-
-                _btnGiaoSX.Enabled =
-                    status == QTChungStatus.DaXuatKhoRework;
+                _btnGiaoSX.Enabled = status == QTChungStatus.DaXuatKhoRework;
 
                 // ----------------------------------------------------
-                // Ghi nhận đang rework:
-                // Đây là nghiệp vụ note, KHÔNG tạo state DangRework.
+                // Ghi nhận đang rework: nghiệp vụ note, KHÔNG tạo state
+                // DangRework.
                 // ----------------------------------------------------
-
-                _btnDangRework.Enabled =
-                    status == QTChungStatus.DaGiaoSanXuat;
+                _btnDangRework.Enabled = status == QTChungStatus.DaGiaoSanXuat;
             }
             catch
             {
@@ -931,70 +751,45 @@ namespace PCTP.Modules.XuLyHangLoi
         // REFLECTION HELPERS
         // ============================================================
         //
-        // Dùng để form không phụ thuộc quá cứng vào việc LotInfo
-        // có thêm các property hiển thị hay không.
+        // Vẫn dùng cho LotInfo (PCTP.Modules.KhoVatLy.Kho.Models) vì form
+        // này không có định nghĩa đầy đủ của LotInfo trong phạm vi sửa —
+        // giữ nguyên cách tiếp cận "khoan dung" ban đầu cho các field hiển
+        // thị thêm (TenHang, ViTri) có thể không tồn tại.
         //
         // Các property nghiệp vụ chính vẫn đang dùng:
-        //     LotNo
-        //     SlotId
-        //     SoLuong
+        //   LotNo, SlotId, SoLuong
         //
         // ============================================================
-
-        private static string GetPropertyString(
-            object obj,
-            string propertyName)
+        private static string GetPropertyString(object obj, string propertyName)
         {
-            if (obj == null)
-                return "";
-
-            var prop =
-                obj.GetType().GetProperty(propertyName);
-
-            if (prop == null)
-                return "";
-
-            object value =
-                prop.GetValue(obj);
-
+            if (obj == null) return "";
+            var prop = obj.GetType().GetProperty(propertyName);
+            if (prop == null) return "";
+            object value = prop.GetValue(obj);
             return value?.ToString() ?? "";
         }
 
-        private static int GetPropertyInt(
-            object obj,
-            string propertyName)
+        private static int GetPropertyInt(object obj, string propertyName)
         {
-            if (obj == null)
-                return 0;
-
-            var prop =
-                obj.GetType().GetProperty(propertyName);
-
-            if (prop == null)
-                return 0;
-
-            object value =
-                prop.GetValue(obj);
-
-            if (value == null)
-                return 0;
-
-            try
-            {
-                return Convert.ToInt32(value);
-            }
-            catch
-            {
-                return 0;
-            }
+            if (obj == null) return 0;
+            var prop = obj.GetType().GetProperty(propertyName);
+            if (prop == null) return 0;
+            object value = prop.GetValue(obj);
+            if (value == null) return 0;
+            try { return Convert.ToInt32(value); }
+            catch { return 0; }
         }
 
         // ============================================================
         // MESSAGE
         // ============================================================
-
-        private static void ShowWarning(
-            string message)
+        // ── PHẦN NÀY BỊ GITHUB CẮT KHI HIỂN THỊ (blob viewer giới hạn
+        // ~1000 dòng, /raw/ bị robots chặn nên không lấy được nguyên văn).
+        // Dựng lại theo đúng pattern MessageBox dùng thống nhất trong
+        // toàn bộ các file khác của module (title "Thông báo"/"Lỗi",
+        // icon Warning/Error, nút OK) — nếu bản gốc có khác (vd thêm log,
+        // buttons khác), gửi lại đoạn gốc để tôi khớp chính xác.
+        private static void ShowWarning(string message)
         {
             XtraMessageBox.Show(
                 message,
@@ -1003,9 +798,7 @@ namespace PCTP.Modules.XuLyHangLoi
                 MessageBoxIcon.Warning);
         }
 
-        private static void ShowError(
-            string message,
-            Exception ex)
+        private static void ShowError(string message, Exception ex)
         {
             XtraMessageBox.Show(
                 $"{message}\r\n\r\n{ex.Message}",

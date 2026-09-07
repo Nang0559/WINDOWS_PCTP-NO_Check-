@@ -38,5 +38,10 @@ namespace PCTP.Modules.KhoVatLy.Repositories
             int columnCount);
         /// <summary>Tạo 1 Slot trống trong Rack — dùng khi đăng ký Rack mới với N Slot.</summary>
         void InsertSlot(int rackId, int slotNumber, int capacity);
+
+        List<RackRenderInfo> GetRackRenderInfos();
+        /// <summary>Xóa Rack cùng toàn bộ Slot của nó trong 1 transaction.</summary>
+        void DeleteCascade(int rackId);
+
     }
 }

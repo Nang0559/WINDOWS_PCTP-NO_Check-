@@ -274,5 +274,78 @@ namespace PCTP.Modules.GiaoHangKhach
             }
             return result;
         }
+
+        public void BulkInsert(string tableName, DataTable data)
+        {
+            ValidateTableName(tableName);
+            if (data == null || data.Rows.Count == 0) return;
+
+            using (var conn = new SqlConnection(_sql.B7R2_FCCdb))
+            {
+                conn.Open();
+                using (var bulkCopy = new SqlBulkCopy(conn) { DestinationTableName = tableName })
+                {
+                    foreach (DataColumn col in data.Columns)
+                        bulkCopy.ColumnMappings.Add(col.ColumnName, col.ColumnName);
+
+                    bulkCopy.WriteToServer(data);
+                }
+            }
+        }
+        // Thêm vào PhieuSqlExecutor.cs
+        public void DropCreate(string tableName, DataTable schema)
+        {
+            ValidateTableName(tableName);
+            if (schema == null) throw new ArgumentNullException(nameof(schema));
+
+            using (var conn = new SqlConnection(_sql.B7R2_FCCdb))
+            {
+                conn.Open();
+
+                string dropSql = $"IF OBJECT_ID(N'[dbo].[{tableName}]', 'U') IS NOT NULL DROP TABLE [{tableName}];";
+                using (var cmdDrop = new SqlCommand(dropSql, conn))
+                    cmdDrop.ExecuteNonQuery();
+
+                var colDefs = new List<string>();
+                foreach (DataColumn col in schema.Columns)
+                    colDefs.Add($"[{col.ColumnName}] {MapSqlType(col.DataType)}");
+
+                string createSql = $"CREATE TABLE [{tableName}] ({string.Join(", ", colDefs)});";
+                using (var cmdCreate = new SqlCommand(createSql, conn))
+                    cmdCreate.ExecuteNonQuery();
+            }
+        }
+
+        private static string MapSqlType(Type clrType)
+        {
+            if (clrType == typeof(string)) return "NVARCHAR(500)";
+            if (clrType == typeof(int) || clrType == typeof(short)) return "INT";
+            if (clrType == typeof(long)) return "BIGINT";
+            if (clrType == typeof(decimal) || clrType == typeof(double) || clrType == typeof(float)) return "DECIMAL(18,4)";
+            if (clrType == typeof(DateTime)) return "DATETIME";
+            if (clrType == typeof(bool)) return "BIT";
+            return "NVARCHAR(500)"; // fallback an toàn cho các kiểu chưa liệt kê
+        }
+        public DataTable CallPhieuSP(
+    string procedureName,
+    string ngayGiao,
+    string nhaMay,
+    string gioFcc,
+    int addNm,
+    PhieuTableSet tables)
+        {
+            if (tables == null)
+                throw new ArgumentNullException(nameof(tables));
+
+            return ExecuteStoredProcedure(
+                procedureName,
+                new SqlParameter("@NGAYGIAO", SqlDbType.NVarChar, 20) { Value = (object)ngayGiao ?? DBNull.Value },
+                new SqlParameter("@NHAMAY", SqlDbType.NVarChar, 50) { Value = (object)nhaMay ?? DBNull.Value },
+                new SqlParameter("@GIOFCC", SqlDbType.NVarChar, 200) { Value = (object)gioFcc ?? DBNull.Value },
+                new SqlParameter("@ADDNM", SqlDbType.Int) { Value = addNm },
+                new SqlParameter("@TMPTABLE", SqlDbType.NVarChar, 100) { Value = tables.TmpTable },
+                new SqlParameter("@IFSTABLE", SqlDbType.NVarChar, 100) { Value = tables.SourceTable },
+                new SqlParameter("@DOCQRTABLE", SqlDbType.NVarChar, 100) { Value = tables.DocQRTable });
+        }
     }
 }

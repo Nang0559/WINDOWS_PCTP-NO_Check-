@@ -5,6 +5,7 @@ using DevExpress.XtraGrid.Columns;
 using DevExpress.XtraGrid.Views.Grid;
 using PCTP.ClassSQL;
 using PCTP.Domain.Entities;
+using PCTP.Modules.KhoVatLy.Application.Interfaces;
 using PCTP.Modules.XuLyHangLoi;
 using PCTP.Modules.XuLyHangLoi.Enums;
 using PCTP.Modules.XuLyHangLoi.Models;
@@ -14,6 +15,7 @@ using PCTP.Shared.Helpers;
 using PCTP.UserControls;
 using PCTP.VIEWSTOCK.FunctionForm;
 using PCTP.VIEWSTOCK.Repository;
+using PCTP.VIEWSTOCK.ViewForm;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -24,13 +26,14 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
-namespace PCTP.VIEWSTOCK.ViewForm
+namespace PCTP.Modules.XuLyHangLoi
 {
 
 
 
     public partial class FormQuanLyTienTrinhHangLoi : XtraForm
     {
+        private readonly int? _preselectPhieuXuLyId;
         // ============================================================
         // SERVICES
         // ============================================================
@@ -40,6 +43,7 @@ namespace PCTP.VIEWSTOCK.ViewForm
         private readonly IQTChungService _qtChungService;
         private readonly IReworkStockService _reworkStockService;
         private readonly IGiaoBuNGService _giaoBuNGService;
+        private readonly ISlotService _slotService;
 
         // ============================================================
         // REPOSITORIES - CHỈ DÙNG ĐỌC / HIỂN THỊ DỮ LIỆU
@@ -57,7 +61,7 @@ namespace PCTP.VIEWSTOCK.ViewForm
         private TableLayoutPanel _pnlTimeline;
         private TimelineStepButton[] _steps;
         private int _activeStep = 1;
-
+      
         // ============================================================
         // GRID
         // ============================================================
@@ -92,7 +96,9 @@ namespace PCTP.VIEWSTOCK.ViewForm
             IPhieuTraHangRepository phieuTraHangRepo,
             IPhieuXuLyBatThuongRepository phieuXuLyRepo,
             ITraHangQTChungRepository qtChungRepo,
-            IPhieuGiaoRepository phieuGiaoRepo)
+            IPhieuGiaoRepository phieuGiaoRepo,
+            ISlotService slotService,
+            int? preselectPhieuXuLyId)
         {
             _khachTraHangService = khachTraHangService
                 ?? throw new ArgumentNullException(nameof(khachTraHangService));
@@ -120,14 +126,62 @@ namespace PCTP.VIEWSTOCK.ViewForm
 
             _phieuGiaoRepo = phieuGiaoRepo
                 ?? throw new ArgumentNullException(nameof(phieuGiaoRepo));
-
+            _slotService = slotService ?? throw new ArgumentNullException(nameof(slotService));
+            _preselectPhieuXuLyId = preselectPhieuXuLyId;
             BuildUI();
 
             RefreshAll();
 
-            SetActiveStep(1);
+            SetActiveStep(ResolveInitialStep());
+            FocusPreselectedRow();
+
+        }
+        /// <summary>
+        /// Nếu có preselect: đọc trạng thái QTChung hiện tại của phiếu để suy ra
+        /// đúng bước (step) cần mở — dùng CHUNG bảng ánh xạ trạng thái→bước đã có
+        /// sẵn trong LoadCurrentStep(), không phát minh logic nghiệp vụ mới.
+        /// </summary>
+        private int ResolveInitialStep()
+        {
+            if (!_preselectPhieuXuLyId.HasValue)
+                return 1;
+
+            var status = _phieuXuLyRepo.GetStatus(_preselectPhieuXuLyId.Value);
+            if (status == null)
+                return 1;
+
+            switch (status.Value)
+            {
+                case QTChungStatus.DaTaoPhieuBatThuong:
+                    return 3; // QC Định hướng
+
+                case QTChungStatus.DaDinhHuong:
+                    return 4; // Xử lý Rework
+
+                case QTChungStatus.DaGiaoSanXuat:
+                    return 5; // QC Xác nhận cuối
+
+                case QTChungStatus.DaQCXacNhanCuoi:
+                case QTChungStatus.DaNhapLaiKho:
+                case QTChungStatus.DaGiaoBu:
+                case QTChungStatus.TuChoiGiaoBu:
+                    return 6; // Xử lý bước cuối
+
+                default:
+                    return 1;
+            }
         }
 
+        /// <summary>Focus đúng dòng trong grid sau khi SetActiveStep đã load xong _rows.</summary>
+        private void FocusPreselectedRow()
+        {
+            if (!_preselectPhieuXuLyId.HasValue)
+                return;
+
+            int handle = _gridView.LocateByValue("PhieuXuLyId", _preselectPhieuXuLyId.Value);
+            if (handle >= 0)
+                _gridView.FocusedRowHandle = handle;
+        }
 
         // ============================================================
         // UI
@@ -279,119 +333,106 @@ namespace PCTP.VIEWSTOCK.ViewForm
             var searchPanel = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
-                ColumnCount = 4,
+                ColumnCount = 5,                    // ✅ 4 -> 5
                 Padding = new Padding(3)
             };
-
             searchPanel.ColumnStyles.Add(
                 new ColumnStyle(
                     SizeType.Percent,
                     100));
-
             searchPanel.ColumnStyles.Add(
                 new ColumnStyle(
                     SizeType.Absolute,
                     190));
-
+            searchPanel.ColumnStyles.Add(            // ✅ MỚI - cột cho _btnTaoTuSlot
+                new ColumnStyle(
+                    SizeType.Absolute,
+                    180));
             searchPanel.ColumnStyles.Add(
                 new ColumnStyle(
                     SizeType.Absolute,
                     210));
-
             searchPanel.ColumnStyles.Add(
                 new ColumnStyle(
                     SizeType.Absolute,
                     130));
 
-
             _txtSearch = new TextEdit
             {
                 Dock = DockStyle.Fill
             };
-
             _txtSearch.Properties.NullValuePrompt =
                 "🔍 Tìm mã hàng, số phiếu, lot...";
-
             _txtSearch.Properties.Appearance.Font =
                 new Font("Tahoma", 9.5F);
-
             _txtSearch.KeyDown +=
                 (s, e) =>
                 {
                     if (e.KeyCode == Keys.Enter)
                         ApplyFilter();
                 };
-
             searchPanel.Controls.Add(
                 _txtSearch,
                 0,
                 0);
-
 
             _btnActionSecondary = new SimpleButton
             {
                 Text = "➕ Tạo phiếu nội bộ",
                 Dock = DockStyle.Fill
             };
-
             _btnActionSecondary.Appearance.Font =
                 new Font("Tahoma", 9F, FontStyle.Bold);
-
             _btnActionSecondary.Appearance.ForeColor =
                 Color.DarkBlue;
-
             _btnActionSecondary.Click +=
                 (s, e) => TaoPhieuNoiBo();
-
             searchPanel.Controls.Add(
                 _btnActionSecondary,
                 1,
                 0);
 
+            // ✅ MỚI - đặt riêng cột 2
+            var _btnTaoTuSlot = new SimpleButton { Text = "🗄 Tạo từ Slot có sẵn", Dock = DockStyle.Fill };
+            _btnTaoTuSlot.Appearance.Font = new Font("Tahoma", 9F, FontStyle.Bold);
+            _btnTaoTuSlot.Appearance.ForeColor = Color.DarkGreen;
+            _btnTaoTuSlot.Click += (s, e) => TaoPhieuTuSlot();
+            searchPanel.Controls.Add(_btnTaoTuSlot, 2, 0);
 
             _btnActionPrimary = new SimpleButton
             {
                 Dock = DockStyle.Fill
             };
-
             _btnActionPrimary.Appearance.Font =
                 new Font("Tahoma", 9.5F, FontStyle.Bold);
-
             _btnActionPrimary.Click +=
                 BtnActionPrimary_Click;
-
             searchPanel.Controls.Add(
                 _btnActionPrimary,
-                2,
+                3,                                   // ✅ 2 -> 3 (dồn phải)
                 0);
-
 
             _btnExportExcel = new SimpleButton
             {
                 Text = "📥 Xuất Excel",
                 Dock = DockStyle.Fill
             };
-
             _btnExportExcel.Click +=
                 (s, e) =>
                 {
                     string fileName =
                         $"HangLoi_Buoc{_activeStep}_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
-
                     _gridView.ExportToXlsx(fileName);
                 };
-
             searchPanel.Controls.Add(
                 _btnExportExcel,
-                3,
+                4,                                   // ✅ 3 -> 4 (dồn phải)
                 0);
-
 
             mainLayout.Controls.Add(
                 searchPanel,
                 0,
                 1);
-
 
             // ========================================================
             // GRID
@@ -452,7 +493,17 @@ namespace PCTP.VIEWSTOCK.ViewForm
 
             Controls.Add(mainLayout);
         }
-
+        private void TaoPhieuTuSlot()
+        {
+            using (var f = new FormChonSlotNoiBo(_traNoiBoService, _phieuTraHangRepo, _qtChungService, _slotService))
+            {
+                if (f.ShowDialog(this) == DialogResult.OK)
+                {
+                    RefreshBadges();
+                    SetActiveStep(3); // phiếu tạo từ Slot đi thẳng vào ChoQC/DaTaoPhieuBatThuong
+                }
+            }
+        }
 
         // ============================================================
         // REFRESH

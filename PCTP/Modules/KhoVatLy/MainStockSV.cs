@@ -10,6 +10,7 @@ using PCTP.Modules.GiaoHangKhach;
 using PCTP.Modules.KhoCore.Interfaces;
 using PCTP.Modules.KhoCore.Repositories;
 using PCTP.Modules.KhoCore.Services;
+using PCTP.Modules.KhoVatLy;
 using PCTP.Modules.KhoVatLy.Application.Interfaces;
 using PCTP.Modules.KhoVatLy.Application.Services;
 using PCTP.Modules.KhoVatLy.Kho.Models;
@@ -45,99 +46,69 @@ using System.Windows.Forms;
 
 namespace PCTP.VIEWSTOCK
 {
-  
-        public partial class MainStockSV : DevExpress.XtraEditors.XtraForm
-        {
-            // ⚠️ TODO (xem ghi chú cuối câu trả lời): sqlProvider vẫn còn dùng trực tiếp ở
-            // LoadRackRenderInfosSync(), InitPEditInput(), DeleteRackFromCanvas() — 3 chỗ
-            // cần SlotRepository.cs / RackRepository.cs để chuyển hẳn qua ISlotService/IRackService.
-            private SQLPROVIDER sqlProvider = new SQLPROVIDER();
 
-            // ── [CANVAS STATE] DỮ LIỆU TỌA ĐỘ VÀ TRẠNG THÁI KHO ĐỂ VẼ ─────────────────
-            private List<RackLayoutInfo> _rackLayouts = new List<RackLayoutInfo>();
-            private Slot _currentSelectedSlotData = null;
-            private string _currentFilterTemCode = "";
+    public partial class MainStockSV : DevExpress.XtraEditors.XtraForm
+    {
+        // ── [CANVAS STATE] DỮ LIỆU TỌA ĐỘ VÀ TRẠNG THÁI KHO ĐỂ VẼ ─────────────────
+        private List<RackLayoutInfo> _rackLayouts = new List<RackLayoutInfo>();
+        private Slot _currentSelectedSlotData = null;
+        private string _currentFilterTemCode = "";
+        private const int STABLE_COLUMNS = 15;
+        private const int SLOT_HEIGHT = 55;
+        private const int SLOT_MARGIN = 6;
+        private const int RACK_PADDING = 15;
+        private const int HEADER_HEIGHT = 35;
+        private DataTable _cachedPEditData = null;
+        private DateTime _cacheTime = DateTime.MinValue;
+        private const int CACHE_SECONDS = 30;
+        private bool isFirstShown = false;
+        private RackSummaryPopup _rackPopup;
+        private RackRenderInfo _hoveredRackForPopup = null;
+        private System.Windows.Forms.Timer _hidePopupTimer;
+        private LabelControl _lblDashTongStockTp, _lblDashTongRack, _lblDashTongA0, _lblDashLech;
+        private SlotDetailPanel _slotDetailPanel;
 
-            private const int STABLE_COLUMNS = 15;
-            private const int SLOT_HEIGHT = 55;
-            private const int SLOT_MARGIN = 6;
-            private const int RACK_PADDING = 15;
-            private const int HEADER_HEIGHT = 35;
-
-            private DataTable _cachedPEditData = null;
-            private DateTime _cacheTime = DateTime.MinValue;
-            private const int CACHE_SECONDS = 30;
-
-            private bool isFirstShown = false;
-
-            private RackSummaryPopup _rackPopup;
-            private RackRenderInfo _hoveredRackForPopup = null;
-            private System.Windows.Forms.Timer _hidePopupTimer;
-
-            private LabelControl _lblDashTongStockTp, _lblDashTongRack, _lblDashTongA0, _lblDashLech;
-            private SlotDetailPanel _slotDetailPanel;
-
-            // ── [SERVICE — DUY NHẤT] Form chỉ biết Service, không biết Repository nào ──
-            private readonly ISlotService _slotService;
-            private readonly IWarehouseService _warehouseService;
-            private readonly IStockExportService _exportService;
-            private readonly IPrintService _printService;
-            private readonly IWarehouseDashboardService _dashboardService;
-
+        // ── [SERVICE — DUY NHẤT] Form chỉ biết Service, không biết Repository nào ──
+        private readonly ISlotService _slotService;
+        private readonly IWarehouseService _warehouseService;
+        private readonly IRackService _rackService;
+        private readonly IStockExportService _exportService;
+        private readonly IPrintService _printService;
+        private readonly IWarehouseDashboardService _dashboardService;
         private readonly IInspectionConfigService _inspectionConfigService;
         private readonly IInspectionLogRepository _inspectionLogRepo;
+        private readonly IStockTpLookupService _stockTpLookupService;
 
-        // ⚠️ TODO: _stockTpRepoForDetail vẫn là Repository truyền thẳng vào SlotDetailPanel.
-        // Cần SlotDetailPanel.cs để đổi chữ ký ShowSlot(...) sang nhận 1 Service thay vì
-        // IStockTpRepository. Giữ tạm để không phá vỡ control đang chạy.
-        private readonly IStockTpRepository _stockTpRepoForDetail;
+        private List<RackRenderInfo> LoadRackRenderInfosSync() => _rackService.GetRackRenderInfos();
 
-            public MainStockSV()
-            {
-                InitializeComponent();
+        public MainStockSV()
+        {
+            InitializeComponent();
 
-                // ── Dựng dependency graph DUY NHẤT tại đây — dùng chung 1 UnitOfWork cho
-                //    toàn bộ Service của Form (giống pattern NhapTpModuleFactory) ──
-                var dbExecutor = new PhieuSqlExecutor(new SQLPROVIDER());
-                var uow = new UnitOfWork(dbExecutor.Sql);
-
-                var slotRepo = new SlotRepository(dbExecutor, uow);
-                var warehouseRepo = new WarehouseRepository(dbExecutor, uow);
-                var rackRepo = new RackRepository(dbExecutor, uow);
-                var historyRepo = new StockHistoryRepository(dbExecutor, uow);
-                var stockExportRepo = new StockExportRepository(dbExecutor, uow);
-                var hangChoGiaoRepo = new HangChoGiaoRepository(dbExecutor, uow);
-                var exportHistoryRepo = new StockExportHistoryRepository(dbExecutor, uow, historyRepo);
-                var dashRepo = new NhapKhoDashboardRepository(dbExecutor, uow);
-                var inspectionConfigRepo = new InspectionConfigRepository(dbExecutor, uow);
-                var inspectionLogRepo = new InspectionLogRepository(dbExecutor, uow);
-            _slotService = new SlotService(slotRepo);
-                _warehouseService = new WarehouseService(warehouseRepo, rackRepo, uow);
-                var exportValidationService = new StockExportValidationService(stockExportRepo, exportHistoryRepo);
-                _exportService = new StockExportService(
-                    uow, _slotService, stockExportRepo, historyRepo, hangChoGiaoRepo, exportValidationService);
-                _printService = new PrintService(_slotService, _warehouseService);
-                _dashboardService = new WarehouseDashboardService(dashRepo);
-            _inspectionConfigService = new InspectionConfigService(inspectionConfigRepo);
-            _inspectionLogRepo = inspectionLogRepo;
-
-         
-            _stockTpRepoForDetail = new StockTpRepository(dbExecutor, uow);
+            var module = MainStockModuleFactory.Build();
+            _slotService = module.SlotService;
+            _warehouseService = module.WarehouseService;
+            _rackService = module.RackService;
+            _exportService = module.ExportService;
+            _printService = module.PrintService;
+            _dashboardService = module.DashboardService;
+            _inspectionConfigService = module.InspectionConfigService;
+            _inspectionLogRepo = module.InspectionLogRepo;
+            _stockTpLookupService = module.StockTpLookupService;
 
             BuildDashboardBar();
-                BuildSlotDetailPanel();
+            BuildSlotDetailPanel();
 
-                PEditInput.TextChanged += PEditInput_TextChanged;
-                PEditInput.Closed += PEditInput_Closed;
-                PEditInput.KeyDown += PEditInput_KeyDown;
-                PEditInput.MouseClick += PEditInput_MouseClick;
-                StockChangedNotifier.StockChanged += OnExternalStockChanged;
+            PEditInput.TextChanged += PEditInput_TextChanged;
+            PEditInput.Closed += PEditInput_Closed;
+            PEditInput.KeyDown += PEditInput_KeyDown;
+            PEditInput.MouseClick += PEditInput_MouseClick;
+            StockChangedNotifier.StockChanged += OnExternalStockChanged;
 
-                if (PEditInput.Properties.View != null)
-                    PEditInput.Properties.View.KeyDown += GridView_KeyDown;
-            }
-
-            private void BuildDashboardBar()
+            if (PEditInput.Properties.View != null)
+                PEditInput.Properties.View.KeyDown += GridView_KeyDown;
+        }
+        private void BuildDashboardBar()
             {
                 var pnl = new PanelControl { Dock = DockStyle.Top, Height = 40 };
                 var flow = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight, Padding = new Padding(10, 8, 0, 0) };
@@ -173,17 +144,17 @@ namespace PCTP.VIEWSTOCK
             // ✅ Không còn raw SQL — toàn bộ đi qua IWarehouseDashboardService
             private void RefreshDashboardBar()
             {
-                int tongStockTp = _dashboardService.GetTongTonStockTp();
-                int tongRack = _dashboardService.GetTongTonRackThat();
-                int tongA0 = _dashboardService.GetTongTonKhoTam();
-                int demLech = _dashboardService.DemLechDoiChieu();
+            int tongStockTp = _dashboardService.GetTongTonStockTp();
+            int tongRack = _dashboardService.GetTongTonRackThat();
+            int tongA0 = _dashboardService.GetTongTonKhoTam();
+            int demLech = _dashboardService.DemLechDoiChieu();
 
-                _lblDashTongStockTp.Text = $"📦 Tổng tồn STOCKTP: {tongStockTp:N0}";
-                _lblDashTongRack.Text = $"🏭 Trong Rack thật: {tongRack:N0}";
-                _lblDashTongA0.Text = $"📥 Trong kho tạm A0: {tongA0:N0}";
-                _lblDashLech.Text = demLech > 0 ? $"⚠ Lệch đối chiếu: {demLech} LOT (click xem)" : "✅ Không lệch đối chiếu";
-                _lblDashLech.Appearance.ForeColor = demLech > 0 ? Color.Red : Color.SeaGreen;
-            }
+            _lblDashTongStockTp.Text = $"📦 Tổng tồn STOCKTP: {tongStockTp:N0}";
+            _lblDashTongRack.Text = $"🏭 Trong Rack thật: {tongRack:N0}";
+            _lblDashTongA0.Text = $"📥 Trong kho tạm A0: {tongA0:N0}";
+            _lblDashLech.Text = demLech > 0 ? $"⚠ Lệch đối chiếu: {demLech} LOT (click xem)" : "✅ Không lệch đối chiếu";
+            _lblDashLech.Appearance.ForeColor = demLech > 0 ? Color.Red : Color.SeaGreen;
+        }
 
             private void ShowDoiChieuLech()
             {
@@ -518,7 +489,7 @@ namespace PCTP.VIEWSTOCK
                                 {
                                     _currentSelectedSlotData = slotLayout.SlotData;
                                     pnlMain.Invalidate();
-                                    _slotDetailPanel.ShowSlot(slotLayout.SlotData, _stockTpRepoForDetail);
+                                    _slotDetailPanel.ShowSlot(slotLayout.SlotData, _stockTpLookupService);
                                 }
                                 else if (e.Button == MouseButtons.Right)
                                 {
@@ -532,7 +503,7 @@ namespace PCTP.VIEWSTOCK
 
                 _currentSelectedSlotData = null;
                 pnlMain.Invalidate();
-                _slotDetailPanel.ShowSlot(null, _stockTpRepoForDetail);
+                _slotDetailPanel.ShowSlot(null, _stockTpLookupService);
             }
 
             private void pnlMain_MouseDoubleClick(object sender, MouseEventArgs e)
@@ -557,7 +528,8 @@ namespace PCTP.VIEWSTOCK
                     var itemExport = new ToolStripMenuItem("📤 Xuất kho");
                     itemExport.Click += (s, e) => OnSlotClicked(slot);
                     menu.Items.Add(itemExport);
-                }
+              
+            }
                 else
                 {
                     var itemImport = new ToolStripMenuItem("📥 Nhập kho vào đây");
@@ -671,9 +643,7 @@ namespace PCTP.VIEWSTOCK
                 menu.Show(pnlMain, mouseLocation);
             }
 
-            // ⚠️ TODO: chuyển sang IRackService.Delete(rackId) khi có RackService.cs
-            // (interface đã tài liệu hoá method Delete(rackId), nhưng chưa xác nhận được
-            // constructor RackService thật để dựng field an toàn — tránh đoán sai).
+        
             private void DeleteRackFromCanvas(RackRenderInfo rackInfo)
             {
                 var confirm = MessageBox.Show($"Xóa Rack [{rackInfo.RackName}] - Kho [{rackInfo.WarehouseName}]?\nThao tác không thể hoàn tác.", "Xác nhận", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
@@ -681,11 +651,9 @@ namespace PCTP.VIEWSTOCK
 
                 try
                 {
-                    sqlProvider.ExecuteNonQuery(sqlProvider.B7R2_FCCdbb, "DELETE FROM Slot WHERE RackId = @RackId", new[] { new SqlParameter("@RackId", rackInfo.RackId) });
-                    sqlProvider.ExecuteNonQuery(sqlProvider.B7R2_FCCdbb, "DELETE FROM Rack WHERE RackId = @RackId", new[] { new SqlParameter("@RackId", rackInfo.RackId) });
-
-                    _ = LoadAllWarehouses();
-                    MessageBox.Show("Xóa Rack thành công.", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                _rackService.Delete(rackInfo.RackId); // giờ đã cascade bên trong Service/Repository
+                _ = LoadAllWarehouses();
+                MessageBox.Show("Xóa Rack thành công.", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
                 catch (Exception ex)
                 {
@@ -712,132 +680,6 @@ namespace PCTP.VIEWSTOCK
                 pnlMain.Invalidate();
             }
 
-            // ⚠️ TODO: chuyển toàn bộ query này vào 1 method mới trên ISlotRepository/IRackService
-            // (vd. GetCanvasRenderInfos()), rồi expose qua ISlotService hoặc IRackService.
-            // Cần SlotRepository.cs/RackRepository.cs thật để biết field Db/Uow nội bộ, tránh đoán sai.
-            private List<RackRenderInfo> LoadRackRenderInfosSync()
-            {
-                string query = @"
-                SELECT
-                    w.Name AS WarehouseName,
-                    r.RackName,
-                    r.RackId,
-                    s.SlotId,
-                    s.SlotNumber,
-                    s.ItemCode,
-                    s.Quantity,
-                    s.Capacity,
-                    s.ImportDate,
-                    s.IsOccupied,
-                    sl.LotNo,
-                    sl.ItemCode AS LotItemCode,
-                    sl.Quantity AS LotQuantity,
-                    sl.TemCode AS LotTemCode,
-                    sl.QrData,
-                    sl.ImportDate AS LotImportDate,
-                    sl.NgaySX,
-                    sl.SoPhieuTong,
-                    sl.MaPhieu
-                FROM Warehouse w
-                INNER JOIN Rack r ON r.WarehouseId = w.WarehouseId
-                LEFT JOIN Slot s ON s.RackId = r.RackId
-                LEFT JOIN SlotLot sl ON sl.SlotId = s.SlotId
-                ORDER BY w.Name, r.RackName, s.SlotNumber, sl.LotNo";
-
-                DataTable dt = sqlProvider.LoadData1(sqlProvider.B7R2_FCCdbb, query);
-
-                var rackDict = new Dictionary<string, RackRenderInfo>();
-                var slotDict = new Dictionary<int, Slot>();
-
-                foreach (DataRow row in dt.Rows)
-                {
-                    string whName = row["WarehouseName"].ToString();
-                    string rackName = row["RackName"].ToString();
-                    string key = $"{whName}_{rackName}";
-
-                    if (!rackDict.TryGetValue(key, out var rackInfo))
-                    {
-                        rackInfo = new RackRenderInfo
-                        {
-                            WarehouseName = whName,
-                            RackName = rackName,
-                            RackId = Convert.ToInt32(row["RackId"]),
-                            Slots = new List<SlotRenderInfo>(),
-                            ItemSummary = new Dictionary<string, (int, int)>()
-                        };
-                        rackDict[key] = rackInfo;
-                    }
-
-                    if (row["SlotNumber"] is DBNull) continue;
-
-                    int slotId = Convert.ToInt32(row["SlotId"]);
-
-                    if (!slotDict.TryGetValue(slotId, out var slot))
-                    {
-                        slot = new Slot
-                        {
-                            SlotId = slotId,
-                            whname = whName,
-                            RackName = rackName,
-                            Rackid = Convert.ToInt32(row["RackId"]),
-                            SlotNumber = Convert.ToInt32(row["SlotNumber"]),
-                            ItemCode = row["ItemCode"]?.ToString(),
-                            Quantity = row["Quantity"] is DBNull ? 0 : Convert.ToInt32(row["Quantity"]),
-                            Capacity = row["Capacity"] is DBNull ? 0 : Convert.ToInt32(row["Capacity"]),
-                            ImportDate = row["ImportDate"] is DBNull ? DateTime.MinValue : Convert.ToDateTime(row["ImportDate"]),
-                            IsOccupied = row["IsOccupied"] is DBNull ? false : Convert.ToBoolean(row["IsOccupied"]),
-                            Lots = new List<LotInfo>()
-                        };
-                        slotDict[slotId] = slot;
-
-                        rackInfo.Slots.Add(new SlotRenderInfo { Slot = slot, RackName = rackName, WarehouseName = whName });
-                    }
-
-                    if (row["LotNo"] != DBNull.Value)
-                    {
-                        slot.Lots.Add(new LotInfo
-                        {
-                            LotNo = row["LotNo"].ToString(),
-                            Quantity = row["LotQuantity"] is DBNull ? 0 : Convert.ToInt32(row["LotQuantity"]),
-                            TemCode = row["LotTemCode"]?.ToString(),
-                            RawQr = row["QrData"]?.ToString(),
-                            QRInfo = new QRCodeInfo
-                            {
-                                ItemCode = row["LotItemCode"]?.ToString(),
-                                NgaySX = row["NgaySX"]?.ToString(),
-                                SoPhieuTong = row["SoPhieuTong"]?.ToString(),
-                                MaPhieu = row["MaPhieu"]?.ToString(),
-                                RawQr = row["QrData"]?.ToString()
-                            }
-                        });
-                    }
-                }
-
-                foreach (var info in rackDict.Values)
-                {
-                    info.SlotCount = info.Slots.Count;
-                    info.EmptySlotCount = info.Slots.Count(s => !s.Slot.IsOccupied);
-
-                    foreach (var sr in info.Slots)
-                    {
-                        var slot = sr.Slot;
-                        foreach (var lot in slot.Lots)
-                        {
-                            string itemCode = lot.QRInfo?.ItemCode;
-                            if (string.IsNullOrEmpty(itemCode) || lot.Quantity <= 0) continue;
-
-                            if (info.ItemSummary.TryGetValue(itemCode, out var s))
-                                info.ItemSummary[itemCode] = (s.Item1 + 1, s.Item2 + lot.Quantity);
-                            else
-                                info.ItemSummary[itemCode] = (1, lot.Quantity);
-                        }
-                    }
-                }
-
-                return rackDict.Values.ToList();
-            }
-
-            // ⚠️ TODO: chuyển sang ISlotService.GetOccupiedSlotsForLookup() khi có SlotRepository.cs
             private void InitPEditInput(bool forceRefresh = false)
             {
                 if (!forceRefresh && _cachedPEditData != null && (DateTime.Now - _cacheTime).TotalSeconds < CACHE_SECONDS)
@@ -845,16 +687,7 @@ namespace PCTP.VIEWSTOCK
                     BindPEditInput(_cachedPEditData);
                     return;
                 }
-
-                string query = @"
-                SELECT s.SlotNumber, w.Name WhName, r.RackName,
-                       s.ItemCode, s.TemCode, s.LotNo, s.ImportDate
-                FROM   Slot s
-                JOIN   Rack r      ON s.RackId      = r.RackId
-                JOIN   Warehouse w ON r.WarehouseId = w.WarehouseId
-                WHERE  s.IsOccupied = 1";
-
-                _cachedPEditData = sqlProvider.LoadData1(sqlProvider.B7R2_FCCdbb, query);
+                _cachedPEditData = _slotService.GetOccupiedSlotsForLookup();
                 _cacheTime = DateTime.Now;
                 BindPEditInput(_cachedPEditData);
             }

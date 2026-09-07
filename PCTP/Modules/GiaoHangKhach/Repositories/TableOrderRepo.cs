@@ -3,6 +3,7 @@ using PCTP.Domain.Interfaces;
 using PCTP.FuctionMain;
 using PCTP.Infrastructure.Repositories;
 using PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao;
+using PCTP.Shared.Common;
 using PCTP.VIEWSTOCK.Models;
 using System;
 using System.CodeDom.Compiler;
@@ -262,7 +263,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                 string ma = r["MAHANG"]?.ToString() ?? "";
 
                 int slGiao =
-                    PhieuSqlExecutor.SafeInt(r["SLGIAO"]);
+                    DbValueHelper.SafeInt(r["SLGIAO"]);
 
                 object result = _db.ExecuteScalar(
                     @"SELECT ISNULL(SUM(slconlai), 0)
@@ -377,7 +378,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                     row["CATALOG_DESC"]?.ToString() ?? "";
 
                 int sl =
-                    PhieuSqlExecutor.SafeInt(
+                    DbValueHelper.SafeInt(
                         row["BUY_QTY_DUE"]);
 
                 object checkObj = _db.ExecuteScalar(
@@ -563,7 +564,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                     .ToDictionary(
                         g => g.Key,
                         g => g.Sum(r =>
-                            PhieuSqlExecutor.SafeInt(
+                            DbValueHelper.SafeInt(
                                 r["SOLUONG"])),
                         StringComparer.OrdinalIgnoreCase);
 
@@ -604,7 +605,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                     .ToDictionary(
                         g => g.Key,
                         g => g.Sum(r =>
-                            PhieuSqlExecutor.SafeInt(
+                            DbValueHelper.SafeInt(
                                 r["SOLUONG"])),
                         StringComparer.OrdinalIgnoreCase);
 
@@ -881,7 +882,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                 if (string.IsNullOrWhiteSpace(maHang))
                     continue;
 
-                int qc = PhieuSqlExecutor.SafeInt(
+                int qc = DbValueHelper.SafeInt(
                     row["QCDG"]);
 
                 result[maHang] = qc;

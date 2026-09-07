@@ -8,6 +8,7 @@ using PCTP.Modules.KhoCore.Models;
 using PCTP.Modules.KhoVatLy.Application.Interfaces;
 using PCTP.Modules.XuLyHangLoi.Models;
 using PCTP.Modules.XuLyHangLoi.Repository;
+using PCTP.Modules.XuLyHangLoi.Services;
 using PCTP.Shared.Enums;
 using PCTP.VIEWSTOCK.Repository;
 using System;
@@ -32,8 +33,10 @@ namespace PCTP.VIEWSTOCK.ViewForm
     /// </summary>
     public partial class FormChonSlotNoiBo : XtraForm
     {
-        private readonly ISlotService _slotSvc;   // ✅ thay SQLPROVIDER
-        private readonly IPhieuXuLyBatThuongRepository _repo;
+        private readonly ISlotService _slotSvc;
+        private readonly ITraNoiBoService _traNoiBoSvc;
+        private readonly IPhieuTraHangRepository _phieuTraHangRepo;
+        private readonly IQTChungService _qtChungSvc;
 
         private GridControl _grid;
         private GridView _gridView;
@@ -53,9 +56,14 @@ namespace PCTP.VIEWSTOCK.ViewForm
 
         private DataRow _selectedRow;
 
-        public FormChonSlotNoiBo(IPhieuXuLyBatThuongRepository repo,ISlotService slotSvc)
+        public FormChonSlotNoiBo(ITraNoiBoService traNoiBoSvc,
+        IPhieuTraHangRepository phieuTraHangRepo,
+        IQTChungService qtChungSvc,
+        ISlotService slotSvc)
         {
-            _repo = repo ?? throw new ArgumentNullException(nameof(repo));
+            _traNoiBoSvc = traNoiBoSvc ?? throw new ArgumentNullException(nameof(traNoiBoSvc));
+            _phieuTraHangRepo = phieuTraHangRepo ?? throw new ArgumentNullException(nameof(phieuTraHangRepo));
+            _qtChungSvc = qtChungSvc ?? throw new ArgumentNullException(nameof(qtChungSvc));
             _slotSvc = slotSvc ?? throw new ArgumentNullException(nameof(slotSvc));
             InitializeComponent();
             BuildUI();
@@ -299,25 +307,39 @@ namespace PCTP.VIEWSTOCK.ViewForm
             try
             {
                 int slotId = Convert.ToInt32(_selectedRow["SlotId"]);
+                string nguoiThucHien = _txtNguoiPhatHien.Text.Trim();
 
-                var p = new PhieuXuLyBatThuong
+                // Bước 1: tạo Header + Detail (PhieuTraHang / PhieuTraHangCT)
+                var phieuTraHang = new PhieuTraHang
                 {
-                    Nguon = NguonXuLyBatThuong.TraNoiBo,      // ✅ khớp enum của IPhieuXuLyBatThuongRepository
-                    SlotIdNguon = slotId,
-                    LotNguon = _txtSoLo.Text.Trim(),
-                    Model = _txtModel.Text.Trim(),
-                    MaSanPham = _txtMaSanPham.Text.Trim(),
-                    SoLo = _txtSoLo.Text.Trim(),
-                    SoLoLoi = _txtSoLo.Text.Trim(),
-                    SoLuongLoi = soLuongLoi,
-                    NoiDungBatThuong = _txtNoiDung.Text.Trim(),
-                    PhanLoaiXuLy = "Hàng lỗi nội bộ (chưa xuất)",
-                    BoPhanPhatHanh = _txtNguoiPhatHien.Text.Trim()
+                    Nguon = NguonXuLyBatThuong.TraNoiBo,
+                    LyDo = _txtNoiDung.Text.Trim(),
+                    CreatedBy = nguoiThucHien,
+                    ChiTiet = new List<PhieuTraHangCT>
+        {
+            new PhieuTraHangCT
+            {
+                SlotIdNguon = slotId,
+                MaHang = _txtMaSanPham.Text.Trim(),
+                LotNo = _txtSoLo.Text.Trim(),
+                SoLuong = soLuongLoi
+            }
+        }
                 };
 
-                // ✅ đổi tên method: TaoPhieuNoiBo thay vì InsertPhieuXuLyBatThuongNoiBo
-                int id = _repo.TaoPhieuNoiBo(p);
-                p.Id = id;
+                int phieuTraHangId = _traNoiBoSvc.TaoPhieuTraNoiBo(phieuTraHang);
+
+                // Bước 2: lấy lại Id dòng chi tiết vừa tạo
+                var items = _phieuTraHangRepo.GetItems(phieuTraHangId);
+                int phieuTraHangCTId = items.First().Id;
+
+                // Bước 3: tạo PhieuXuLyBatThuong từ dòng chi tiết đó
+                int phieuXuLyId = _qtChungSvc.TaoPhieuXuLyBatThuong(
+                    phieuTraHangCTId,
+                    _txtModel.Text.Trim(),
+                    "Hàng lỗi nội bộ (chưa xuất)",
+                    nguoiThucHien,
+                    nguoiThucHien);
 
                 DialogResult = DialogResult.OK;
                 Close();

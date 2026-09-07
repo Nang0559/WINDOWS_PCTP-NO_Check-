@@ -25,5 +25,7 @@ namespace PCTP.Modules.KhoVatLy.Application.Interfaces
             int columnCount);
 
         void Delete(int rackId);
+
+        List<RackRenderInfo> GetRackRenderInfos();
     }
 }

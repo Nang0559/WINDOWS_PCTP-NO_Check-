@@ -102,7 +102,9 @@ namespace PCTP.Modules.KhoVatLy.Application.Services
                 throw new ArgumentException(
                     "RackId không hợp lệ.");
 
-            _repository.Delete(rackId);
+            _repository.DeleteCascade(rackId);
         }
+
+        public List<RackRenderInfo> GetRackRenderInfos() => _repository.GetRackRenderInfos();
     }
 }

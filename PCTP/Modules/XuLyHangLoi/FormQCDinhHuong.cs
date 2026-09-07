@@ -22,7 +22,6 @@ namespace PCTP.Modules.XuLyHangLoi
         // ============================================================
         // UI
         // ============================================================
-
         private LabelControl _lblSoPhieu;
         private LabelControl _lblModel;
         private LabelControl _lblMaHang;
@@ -40,7 +39,6 @@ namespace PCTP.Modules.XuLyHangLoi
         // ============================================================
         // CONSTRUCTOR
         // ============================================================
-
         public FormQCDinhHuong(
             IQTChungService qtChungService,
             int phieuXuLyId)
@@ -62,7 +60,6 @@ namespace PCTP.Modules.XuLyHangLoi
         // ============================================================
         // BUILD UI
         // ============================================================
-
         private void BuildUI()
         {
             Text = "QC định hướng xử lý hàng lỗi";
@@ -81,44 +78,38 @@ namespace PCTP.Modules.XuLyHangLoi
 
             main.ColumnStyles.Add(
                 new ColumnStyle(SizeType.Absolute, 150));
-
             main.ColumnStyles.Add(
                 new ColumnStyle(SizeType.Percent, 100));
 
             main.RowStyles.Add(
                 new RowStyle(SizeType.Absolute, 38));
-
             for (int i = 1; i < 8; i++)
             {
                 main.RowStyles.Add(
                     new RowStyle(SizeType.Absolute, 42));
             }
-
             main.RowStyles.Add(
                 new RowStyle(SizeType.Percent, 100));
 
             // ========================================================
             // TIÊU ĐỀ
             // ========================================================
-
             var lblTitle = new LabelControl
             {
                 Text = "QC ĐỊNH HƯỚNG XỬ LÝ",
                 Dock = DockStyle.Fill,
                 Appearance =
-            {
-                Font = new Font("Tahoma", 13F, FontStyle.Bold),
-                ForeColor = Color.DarkBlue
-            }
+                {
+                    Font = new Font("Tahoma", 13F, FontStyle.Bold),
+                    ForeColor = Color.DarkBlue
+                }
             };
-
             main.Controls.Add(lblTitle, 0, 0);
             main.SetColumnSpan(lblTitle, 2);
 
             // ========================================================
             // THÔNG TIN PHIẾU
             // ========================================================
-
             _lblSoPhieu = CreateValueLabel();
             _lblModel = CreateValueLabel();
             _lblMaHang = CreateValueLabel();
@@ -136,36 +127,32 @@ namespace PCTP.Modules.XuLyHangLoi
             // ========================================================
             // HƯỚNG XỬ LÝ
             // ========================================================
-
             var lblHuong = new LabelControl
             {
                 Text = "Hướng xử lý:",
                 Dock = DockStyle.Fill,
                 Appearance =
-            {
-                Font = new Font("Tahoma", 9F, FontStyle.Bold)
-            }
+                {
+                    Font = new Font("Tahoma", 9F, FontStyle.Bold)
+                }
             };
-
             main.Controls.Add(lblHuong, 0, 7);
 
             _cboHuongXuLy = new ComboBoxEdit
             {
                 Dock = DockStyle.Fill
             };
-
             _cboHuongXuLy.Properties.TextEditStyle =
                 DevExpress.XtraEditors.Controls.TextEditStyles.DisableTextEditor;
 
+            // Thứ tự khớp với HuongXuLyBatThuong (ChuaXacDinh=0 không hiển thị):
+            //   TuChoiGiaoBu = 1, ChiGiaoBu = 2, CanRework = 3
             _cboHuongXuLy.Properties.Items.Add(
                 "Từ chối giao bù");
-
             _cboHuongXuLy.Properties.Items.Add(
                 "Chỉ giao bù");
-
             _cboHuongXuLy.Properties.Items.Add(
                 "Cần Rework");
-
             _cboHuongXuLy.SelectedIndex = -1;
 
             main.Controls.Add(_cboHuongXuLy, 1, 7);
@@ -173,61 +160,49 @@ namespace PCTP.Modules.XuLyHangLoi
             // ========================================================
             // BOTTOM
             // ========================================================
-
             var bottom = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
                 ColumnCount = 3,
                 RowCount = 2
             };
-
             bottom.ColumnStyles.Add(
                 new ColumnStyle(SizeType.Percent, 100));
-
             bottom.ColumnStyles.Add(
                 new ColumnStyle(SizeType.Absolute, 130));
-
             bottom.ColumnStyles.Add(
                 new ColumnStyle(SizeType.Absolute, 130));
-
             bottom.RowStyles.Add(
                 new RowStyle(SizeType.Percent, 100));
-
             bottom.RowStyles.Add(
                 new RowStyle(SizeType.Absolute, 40));
 
             // Ghi chú
-
             var lblGhiChu = new LabelControl
             {
                 Text = "Ghi chú:",
                 Dock = DockStyle.Fill,
                 Appearance =
-            {
-                Font = new Font("Tahoma", 9F, FontStyle.Bold)
-            }
+                {
+                    Font = new Font("Tahoma", 9F, FontStyle.Bold)
+                }
             };
-
             bottom.Controls.Add(lblGhiChu, 0, 0);
 
             _txtGhiChu = new MemoEdit
             {
                 Dock = DockStyle.Fill
             };
-
             bottom.Controls.Add(_txtGhiChu, 0, 1);
 
             // Người thực hiện
-
             var pnlNguoi = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
                 ColumnCount = 2
             };
-
             pnlNguoi.ColumnStyles.Add(
                 new ColumnStyle(SizeType.Absolute, 100));
-
             pnlNguoi.ColumnStyles.Add(
                 new ColumnStyle(SizeType.Percent, 100));
 
@@ -236,13 +211,11 @@ namespace PCTP.Modules.XuLyHangLoi
                 Text = "Người thực hiện:",
                 Dock = DockStyle.Fill
             };
-
             _txtNguoiThucHien = new TextEdit
             {
                 Dock = DockStyle.Fill,
                 Text = Environment.UserName
             };
-
             pnlNguoi.Controls.Add(lblNguoi, 0, 0);
             pnlNguoi.Controls.Add(_txtNguoiThucHien, 1, 0);
 
@@ -250,16 +223,13 @@ namespace PCTP.Modules.XuLyHangLoi
             bottom.SetColumnSpan(pnlNguoi, 2);
 
             // Buttons
-
             _btnXacNhan = new SimpleButton
             {
                 Text = "✔ Xác nhận",
                 Dock = DockStyle.Fill
             };
-
             _btnXacNhan.Appearance.Font =
                 new Font("Tahoma", 9F, FontStyle.Bold);
-
             _btnXacNhan.Click += BtnXacNhan_Click;
 
             _btnHuy = new SimpleButton
@@ -267,7 +237,6 @@ namespace PCTP.Modules.XuLyHangLoi
                 Text = "Đóng",
                 Dock = DockStyle.Fill
             };
-
             _btnHuy.Click += (s, e) =>
             {
                 DialogResult = DialogResult.Cancel;
@@ -281,7 +250,6 @@ namespace PCTP.Modules.XuLyHangLoi
             main.SetColumnSpan(bottom, 2);
 
             Controls.Add(main);
-
             AcceptButton = _btnXacNhan;
             CancelButton = _btnHuy;
         }
@@ -289,7 +257,6 @@ namespace PCTP.Modules.XuLyHangLoi
         // ============================================================
         // UI HELPER
         // ============================================================
-
         private static LabelControl CreateValueLabel()
         {
             return new LabelControl
@@ -297,9 +264,9 @@ namespace PCTP.Modules.XuLyHangLoi
                 Dock = DockStyle.Fill,
                 AutoSizeMode = LabelAutoSizeMode.None,
                 Appearance =
-            {
-                Font = new Font("Tahoma", 9F)
-            }
+                {
+                    Font = new Font("Tahoma", 9F)
+                }
             };
         }
 
@@ -314,11 +281,10 @@ namespace PCTP.Modules.XuLyHangLoi
                 Text = caption,
                 Dock = DockStyle.Fill,
                 Appearance =
-            {
-                Font = new Font("Tahoma", 9F, FontStyle.Bold)
-            }
+                {
+                    Font = new Font("Tahoma", 9F, FontStyle.Bold)
+                }
             };
-
             panel.Controls.Add(label, 0, row);
             panel.Controls.Add(value, 1, row);
         }
@@ -326,13 +292,11 @@ namespace PCTP.Modules.XuLyHangLoi
         // ============================================================
         // LOAD DATA
         // ============================================================
-
         private void LoadData()
         {
             try
             {
                 var p = _qtChungService.GetById(_phieuXuLyId);
-
                 if (p == null)
                 {
                     XtraMessageBox.Show(
@@ -340,7 +304,6 @@ namespace PCTP.Modules.XuLyHangLoi
                         "Thông báo",
                         MessageBoxButtons.OK,
                         MessageBoxIcon.Warning);
-
                     DialogResult = DialogResult.Cancel;
                     Close();
                     return;
@@ -352,17 +315,23 @@ namespace PCTP.Modules.XuLyHangLoi
                 _lblLot.Text = p.SoLo;
                 _lblSoLuong.Text = p.SoLuongLoi.ToString("n0");
 
-                var status = _qtChungService.GetTrangThai(
-                    _phieuXuLyId);
-
+                // ── ĐÃ SỬA ──────────────────────────────────────────────
+                // IQTChungService.GetTrangThai(int) đã bị bỏ khỏi
+                // QTChungService (method "14. GET STATUS" hiện bị comment
+                // out trong service) — gọi lại sẽ lỗi biên dịch vì
+                // interface không còn khai báo method này.
+                // Trạng thái nay lấy trực tiếp từ PhieuXuLyBatThuong.Status
+                // (đã có sẵn trong đối tượng trả về từ GetById).
+                var status = p.Status;
                 _lblTrangThai.Text = status.ToString();
 
                 // Chỉ cho định hướng khi đang ở trạng thái
-                // DaTaoPhieuBatThuong.
+                // DaTaoPhieuBatThuong — khớp điều kiện thật trong
+                // QTChungService.QCDinhHuong: "if (phieu.Status !=
+                // QTChungStatus.DaTaoPhieuBatThuong) return ScanResult.Fail(...)".
                 if (status != QTChungStatus.DaTaoPhieuBatThuong)
                 {
                     _btnXacNhan.Enabled = false;
-
                     XtraMessageBox.Show(
                         $"Phiếu hiện đang ở trạng thái [{status}].\r\n\r\n" +
                         "Không thể thực hiện QC định hướng tại trạng thái này.",
@@ -378,7 +347,6 @@ namespace PCTP.Modules.XuLyHangLoi
                     "Lỗi",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Error);
-
                 DialogResult = DialogResult.Cancel;
                 Close();
             }
@@ -387,7 +355,6 @@ namespace PCTP.Modules.XuLyHangLoi
         // ============================================================
         // XÁC NHẬN
         // ============================================================
-
         private void BtnXacNhan_Click(object sender, EventArgs e)
         {
             if (_cboHuongXuLy.SelectedIndex < 0)
@@ -397,7 +364,6 @@ namespace PCTP.Modules.XuLyHangLoi
                     "Thông báo",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Warning);
-
                 _cboHuongXuLy.Focus();
                 return;
             }
@@ -412,27 +378,22 @@ namespace PCTP.Modules.XuLyHangLoi
                     "Thông báo",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Warning);
-
                 _txtNguoiThucHien.Focus();
                 return;
             }
 
             HuongXuLyBatThuong huong;
-
             switch (_cboHuongXuLy.SelectedIndex)
             {
                 case 0:
                     huong = HuongXuLyBatThuong.TuChoiGiaoBu;
                     break;
-
                 case 1:
                     huong = HuongXuLyBatThuong.ChiGiaoBu;
                     break;
-
                 case 2:
                     huong = HuongXuLyBatThuong.CanRework;
                     break;
-
                 default:
                     throw new InvalidOperationException(
                         "Hướng xử lý không hợp lệ.");
@@ -458,6 +419,13 @@ namespace PCTP.Modules.XuLyHangLoi
             {
                 _btnXacNhan.Enabled = false;
 
+                // Tên phương thức và kiểu ScanResult (PCTP.Shared.Helpers)
+                // đúng như QTChungService.QCDinhHuong thật:
+                //   public ScanResult QCDinhHuong(int phieuXuLyId,
+                //       HuongXuLyBatThuong huong, string nguoiThucHien)
+                // (Lưu ý: đây KHÔNG phải cùng class ScanResult dùng cho
+                // quét QR ở Applications.Services — class đó có .Success,
+                // còn class này ở Shared.Helpers có .IsOK / .OK() / .Fail().)
                 ScanResult result =
                     _qtChungService.QCDinhHuong(
                         _phieuXuLyId,
@@ -471,15 +439,8 @@ namespace PCTP.Modules.XuLyHangLoi
                         "Thông báo",
                         MessageBoxButtons.OK,
                         MessageBoxIcon.Warning);
-
                     return;
                 }
-
-                // ScanResult của hệ thống bạn có thể đang dùng
-                // property Success / Message.
-                //
-                // Nếu class ScanResult hiện tại dùng tên property
-                // khác thì chỉ cần đổi 2 dòng dưới.
 
                 if (!result.IsOK)
                 {
@@ -488,7 +449,6 @@ namespace PCTP.Modules.XuLyHangLoi
                         "Không thành công",
                         MessageBoxButtons.OK,
                         MessageBoxIcon.Warning);
-
                     return;
                 }
 
@@ -519,7 +479,6 @@ namespace PCTP.Modules.XuLyHangLoi
         // ============================================================
         // DISPLAY
         // ============================================================
-
         private static string GetTenHuong(
             HuongXuLyBatThuong huong)
         {
@@ -527,13 +486,10 @@ namespace PCTP.Modules.XuLyHangLoi
             {
                 case HuongXuLyBatThuong.TuChoiGiaoBu:
                     return "Từ chối giao bù";
-
                 case HuongXuLyBatThuong.ChiGiaoBu:
                     return "Chỉ giao bù";
-
                 case HuongXuLyBatThuong.CanRework:
                     return "Cần Rework";
-
                 default:
                     return huong.ToString();
             }

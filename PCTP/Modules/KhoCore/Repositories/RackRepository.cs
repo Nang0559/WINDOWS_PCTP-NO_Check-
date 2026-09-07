@@ -1,4 +1,5 @@
 ﻿using PCTP.Modules.GiaoHangKhach;
+using PCTP.Modules.KhoVatLy.Kho.Models;
 using PCTP.Shared.Common;
 using PCTP.VIEWSTOCK.Models;
 using System;
@@ -378,6 +379,120 @@ namespace PCTP.Modules.KhoVatLy.Repositories
                 new SqlParameter("@RackId", SqlDbType.Int) { Value = rackId },
                 new SqlParameter("@SlotNumber", SqlDbType.Int) { Value = slotNumber },
                 new SqlParameter("@Capacity", SqlDbType.Int) { Value = capacity });
+        }
+
+        public List<RackRenderInfo> GetRackRenderInfos()
+        {
+            const string sql = @"
+        SELECT
+            w.Name AS WarehouseName, r.RackName, r.RackId,
+            s.SlotId, s.SlotNumber, s.ItemCode, s.Quantity, s.Capacity,
+            s.ImportDate, s.IsOccupied,
+            sl.LotNo, sl.ItemCode AS LotItemCode, sl.Quantity AS LotQuantity,
+            sl.TemCode AS LotTemCode, sl.QrData, sl.ImportDate AS LotImportDate,
+            sl.NgaySX, sl.SoPhieuTong, sl.MaPhieu
+        FROM Warehouse w
+        INNER JOIN Rack r ON r.WarehouseId = w.WarehouseId
+        LEFT JOIN Slot s ON s.RackId = r.RackId
+        LEFT JOIN SlotLot sl ON sl.SlotId = s.SlotId
+        ORDER BY w.Name, r.RackName, s.SlotNumber, sl.LotNo";
+
+            DataTable dt = LoadData(sql);
+
+            var rackDict = new Dictionary<string, RackRenderInfo>();
+            var slotDict = new Dictionary<int, Slot>();
+
+            foreach (DataRow row in dt.Rows)
+            {
+                string whName = row["WarehouseName"].ToString();
+                string rackName = row["RackName"].ToString();
+                string key = $"{whName}_{rackName}";
+
+                if (!rackDict.TryGetValue(key, out var rackInfo))
+                {
+                    rackInfo = new RackRenderInfo
+                    {
+                        WarehouseName = whName,
+                        RackName = rackName,
+                        RackId = Convert.ToInt32(row["RackId"]),
+                        Slots = new List<SlotRenderInfo>(),
+                        ItemSummary = new Dictionary<string, (int, int)>()
+                    };
+                    rackDict[key] = rackInfo;
+                }
+
+                if (row["SlotNumber"] is DBNull) continue;
+
+                int slotId = Convert.ToInt32(row["SlotId"]);
+                if (!slotDict.TryGetValue(slotId, out var slot))
+                {
+                    slot = new Slot
+                    {
+                        SlotId = slotId,
+                        whname = whName,
+                        RackName = rackName,
+                        Rackid = Convert.ToInt32(row["RackId"]),
+                        SlotNumber = Convert.ToInt32(row["SlotNumber"]),
+                        ItemCode = row["ItemCode"]?.ToString(),
+                        Quantity = row["Quantity"] is DBNull ? 0 : Convert.ToInt32(row["Quantity"]),
+                        Capacity = row["Capacity"] is DBNull ? 0 : Convert.ToInt32(row["Capacity"]),
+                        ImportDate = row["ImportDate"] is DBNull ? DateTime.MinValue : Convert.ToDateTime(row["ImportDate"]),
+                        IsOccupied = row["IsOccupied"] is DBNull ? false : Convert.ToBoolean(row["IsOccupied"]),
+                        Lots = new List<LotInfo>()
+                    };
+                    slotDict[slotId] = slot;
+                    rackInfo.Slots.Add(new SlotRenderInfo { Slot = slot, RackName = rackName, WarehouseName = whName });
+                }
+
+                if (row["LotNo"] != DBNull.Value)
+                {
+                    slot.Lots.Add(new LotInfo
+                    {
+                        LotNo = row["LotNo"].ToString(),
+                        Quantity = row["LotQuantity"] is DBNull ? 0 : Convert.ToInt32(row["LotQuantity"]),
+                        TemCode = row["LotTemCode"]?.ToString(),
+                        RawQr = row["QrData"]?.ToString(),
+                        QRInfo = new QRCodeInfo
+                        {
+                            ItemCode = row["LotItemCode"]?.ToString(),
+                            NgaySX = row["NgaySX"]?.ToString(),
+                            SoPhieuTong = row["SoPhieuTong"]?.ToString(),
+                            MaPhieu = row["MaPhieu"]?.ToString(),
+                            RawQr = row["QrData"]?.ToString()
+                        }
+                    });
+                }
+            }
+
+            foreach (var info in rackDict.Values)
+            {
+                info.SlotCount = info.Slots.Count;
+                info.EmptySlotCount = info.Slots.Count(s => !s.Slot.IsOccupied);
+
+                foreach (var sr in info.Slots)
+                    foreach (var lot in sr.Slot.Lots)
+                    {
+                        string itemCode = lot.QRInfo?.ItemCode;
+                        if (string.IsNullOrEmpty(itemCode) || lot.Quantity <= 0) continue;
+
+                        if (info.ItemSummary.TryGetValue(itemCode, out var s))
+                            info.ItemSummary[itemCode] = (s.Item1 + 1, s.Item2 + lot.Quantity);
+                        else
+                            info.ItemSummary[itemCode] = (1, lot.Quantity);
+                    }
+            }
+
+            return rackDict.Values.ToList();
+        }
+
+        public void DeleteCascade(int rackId)
+        {
+            if (rackId <= 0) throw new ArgumentException("RackId không hợp lệ.", nameof(rackId));
+
+            ExecuteNonQuery("DELETE FROM Slot WHERE RackId = @RackId",
+                new SqlParameter("@RackId", SqlDbType.Int) { Value = rackId });
+            ExecuteNonQuery("DELETE FROM Rack WHERE RackId = @RackId",
+                new SqlParameter("@RackId", SqlDbType.Int) { Value = rackId });
         }
         // ============================================================
         // MAPPING

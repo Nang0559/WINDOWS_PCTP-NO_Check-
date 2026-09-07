@@ -19,9 +19,9 @@ namespace PCTP.Modules.GiaoHangKhach.TableOrderLoad
     {
         private readonly ITableOrderRepository _phieuRepo;
 
-        public OrderTableLoadStrategy(IPhieuRepository phieuRepo)
+        public OrderTableLoadStrategy(ITableOrderRepository phieuRepo)
         {
-            _phieuRepo = phieuRepo;
+            _phieuRepo = phieuRepo ?? throw new ArgumentNullException(nameof(phieuRepo));
         }
 
         public DataTable LoadDonHangGoc(OrderLoadContext ctx)

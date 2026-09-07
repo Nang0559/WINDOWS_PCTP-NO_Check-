@@ -411,6 +411,6 @@ namespace PCTP.Modules.KhoVatLy.Application.Services
 
             _repository.MoveLot(fromSlotId, toSlotId, lotNo);
         }
-
+        public DataTable GetOccupiedSlotsForLookup()=> _repository.GetOccupiedSlotsForLookup();
     }
 }

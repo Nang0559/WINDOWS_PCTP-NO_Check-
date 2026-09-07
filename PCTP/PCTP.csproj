@@ -277,6 +277,7 @@
     <Compile Include="Modules\KhoCore\Repositories\InspectionLogRepository.cs" />
     <Compile Include="Modules\KhoCore\Services\InspectionConfigService.cs" />
     <Compile Include="Modules\KhoCore\Services\InspectionService.cs" />
+    <Compile Include="Modules\KhoVatLy\MainStockModuleFactory.cs" />
     <Compile Include="Modules\KhoVatLy\NhapTpModuleFactory.cs" />
     <Compile Include="Modules\KhoCore\Repositories\BulkStockSlotRepository.cs" />
     <Compile Include="Modules\KhoCore\Repositories\IBulkStockSlotRepository.cs" />
@@ -325,6 +326,8 @@
     <Compile Include="Modules\NhapKho\Repository\StockTpProductionRepository.cs" />
     <Compile Include="Modules\NhapKho\Repository\StockTpStatusRepository.cs" />
     <Compile Include="Modules\NhapKho\Services\INhapTpReceivingService.cs" />
+    <Compile Include="Modules\NhapKho\Services\IStockTpLookupService.cs" />
+    <Compile Include="Modules\NhapKho\Services\StockTpLookupService.cs" />
     <Compile Include="Modules\NhapKho\Services\WarehouseDashboardService.cs" />
     <Compile Include="Modules\XuatKho\Interfaces\IHangChoGiaoRepository.cs" />
     <Compile Include="Modules\XuatKho\Interfaces\IStockExportHistoryRepository.cs" />
@@ -791,12 +794,6 @@
     </Compile>
     <Compile Include="Modules\XuLyHangLoi\FormGiaoBuNG.Designer.cs">
       <DependentUpon>FormGiaoBuNG.cs</DependentUpon>
-    </Compile>
-    <Compile Include="Modules\XuLyHangLoi\FormXuLyBatThuong.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Modules\XuLyHangLoi\FormXuLyBatThuong.Designer.cs">
-      <DependentUpon>FormXuLyBatThuong.cs</DependentUpon>
     </Compile>
     <Compile Include="Presentation\Views\INhapKhoView.cs" />
     <Compile Include="Modules\GiaoHangKhach\YMVN\ClsPGH.cs" />

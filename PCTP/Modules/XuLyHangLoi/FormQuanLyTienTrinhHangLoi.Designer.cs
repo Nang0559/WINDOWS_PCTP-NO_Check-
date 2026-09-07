@@ -1,4 +1,4 @@
-﻿namespace PCTP.VIEWSTOCK.ViewForm
+﻿namespace PCTP.Modules.XuLyHangLoi
 {
     partial class FormQuanLyTienTrinhHangLoi
     {

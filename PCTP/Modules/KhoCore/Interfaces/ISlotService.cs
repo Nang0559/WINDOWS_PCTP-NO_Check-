@@ -5,6 +5,7 @@ using PCTP.Modules.KhoVatLy.Models;
 using PCTP.VIEWSTOCK.Models;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -123,5 +124,7 @@ namespace PCTP.Modules.KhoVatLy.Application.Interfaces
         /// (a) sắp xếp lại kho nội bộ, (b) dời phần dư sau khi PickToChoGiao xuất 1 phần LOT.
         /// </summary>
         void MoveLot(int fromSlotId, int toSlotId, string lotNo);
+
+        DataTable GetOccupiedSlotsForLookup();
     }
 }

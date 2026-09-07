@@ -4,6 +4,7 @@ using PCTP.Modules.KhoVatLy.Models;
 using PCTP.VIEWSTOCK.Models;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Data.SqlClient;
 using System.Linq;
 using System.Text;
@@ -108,5 +109,8 @@ namespace PCTP.Modules.KhoVatLy.Repositories
         /// CẢ HAI Slot trong cùng 1 transaction. Ném lỗi nếu LOT không tồn tại ở nguồn.
         /// </summary>
         void MoveLot(int fromSlotId, int toSlotId, string lotNo);
+
+
+        DataTable GetOccupiedSlotsForLookup();
     }
 }

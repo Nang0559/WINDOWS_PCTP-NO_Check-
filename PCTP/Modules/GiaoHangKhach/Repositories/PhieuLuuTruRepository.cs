@@ -1,4 +1,6 @@
-﻿using PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao;
+﻿using PCTP.FuctionMain;
+using PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao;
+using PCTP.Shared.Common;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -158,7 +160,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                     "@gg",
                     gioGiaoFcc ?? ""));
 
-            return PhieuSqlExecutor.SafeInt(raw);
+            return DbValueHelper.SafeInt(raw);
         }
 
         /// <summary>

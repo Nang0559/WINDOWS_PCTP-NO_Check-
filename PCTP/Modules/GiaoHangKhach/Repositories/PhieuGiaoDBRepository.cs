@@ -97,7 +97,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             // 2. Bulk insert đơn hàng vào bảng IFS
             // ========================================================
 
-            _db.BulkInsert(
+            _db.BulkInsertDataTable(
                 ifsTable,
                 donHang);
 

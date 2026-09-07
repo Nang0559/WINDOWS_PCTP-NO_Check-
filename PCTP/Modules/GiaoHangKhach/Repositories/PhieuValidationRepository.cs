@@ -33,7 +33,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             object raw = _db.ExecuteScalar(
                 $"SELECT COUNT(*) FROM [{docQRTable}]");
 
-            return PhieuSqlExecutor.SafeInt(raw);
+            return DbValueHelper.SafeInt(raw);
         }
 
         /// <summary>
@@ -75,7 +75,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                     "@ma",
                     maHang ?? (object)DBNull.Value));
 
-            return PhieuSqlExecutor.SafeInt(raw) > 0;
+            return DbValueHelper.SafeInt(raw) > 0;
         }
 
         // ====================================================================
@@ -211,7 +211,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                 new SqlParameter("@ma", maHang ?? ""),
                 new SqlParameter("@sl", sl));
 
-            return PhieuSqlExecutor.SafeInt(raw);
+            return DbValueHelper.SafeInt(raw);
         }
 
         // ====================================================================

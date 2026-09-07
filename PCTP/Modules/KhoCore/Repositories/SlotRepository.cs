@@ -694,5 +694,13 @@ ORDER BY w.Name, r.RackName, s.SlotNumber;";
                 quantity > 0 ? latest?.ImportDate : null,
                 quantity);
         }
+
+        public DataTable GetOccupiedSlotsForLookup() => LoadData(@"
+    SELECT s.SlotNumber, w.Name WhName, r.RackName,
+           s.ItemCode, s.TemCode, s.LotNo, s.ImportDate
+    FROM Slot s
+    JOIN Rack r ON s.RackId = r.RackId
+    JOIN Warehouse w ON r.WarehouseId = w.WarehouseId
+    WHERE s.IsOccupied = 1");
     }
 }
