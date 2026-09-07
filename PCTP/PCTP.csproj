@@ -263,6 +263,9 @@
     <Compile Include="Modules\GiaoHangKhach\Services\PhieuService.cs" />
     <Compile Include="ClassFunction.cs" />
     <Compile Include="Domain\Interfaces\IOrderLoadStrategy.cs" />
+    <Compile Include="Modules\GiaoHangKhach\SubForm\UF_TACHLOT.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="Modules\KhoCore\Interfaces\IInspectionConfigService.cs" />
     <Compile Include="Modules\KhoCore\Interfaces\IInspectionService.cs" />
     <Compile Include="Modules\KhoCore\Models\InspectionLogEntry.cs" />

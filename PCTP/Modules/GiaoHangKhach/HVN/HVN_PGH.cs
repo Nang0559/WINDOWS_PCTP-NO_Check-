@@ -1,7 +1,4 @@
-﻿
-
-
-using DevExpress.XtraBars.Docking2010;
+﻿using DevExpress.XtraBars.Docking2010;
 using DevExpress.XtraEditors;
 using DevExpress.XtraEditors.Controls;
 using DevExpress.XtraEditors.Repository;
@@ -18,12 +15,18 @@ using PCTP.Infrastructure;
 using PCTP.Infrastructure;
 using PCTP.Infrastructure.Repositories;
 using PCTP.Infrastructure.Repositories;
+using PCTP.Modules.GiaoHangKhach;
+using PCTP.Modules.GiaoHangKhach.Repositories;
+using PCTP.Modules.GiaoHangKhach.SubForm;
+using PCTP.Modules.KhoVatLy.Repositories;
+using PCTP.Modules.XuatKho.Repositories;
 using PCTP.Presentation.Presenters;
 using PCTP.Presentation.Presenters;
 using PCTP.Presentation.Views;
 using PCTP.Presentation.Views;
 using PCTP.QRCODE_HVN;
 using PCTP.QRCODE_HVN.Report;
+using PCTP.Shared.Common;
 using PCTP.VIEWSTOCK.Models;
 using System;
 using System.Collections.Generic;
@@ -197,9 +200,27 @@ namespace PCTP.QRCODE_HVN.PGH
         {
             var sql = new SQLPROVIDER();
             var bus = new InProcessEventBus();
-            var phieuRepo = new PhieuRepository(sql,_cfg);
+
+            var phieuDb = new PhieuSqlExecutor(sql);
+            var phieuUow = new UnitOfWork(sql);
+
+            // Dependency bắt buộc của PhieuRepository (trừ kho ảo A0) — dùng chung
+            // phieuDb/phieuUow để mọi thao tác trong CapNhapKho tham gia đúng 1 transaction.
+            var bulkStockSlotRepo = new BulkStockSlotRepository(phieuDb, phieuUow);
+            var historyRepo = new StockHistoryRepository(phieuDb, phieuUow);
+            var hangChoGiaoRepo = new HangChoGiaoRepository(phieuDb, phieuUow);
+
+            var phieuRepo = new PhieuRepository(
+                phieuDb, phieuUow, _cfg,
+                bulkStockSlotRepo, historyRepo, hangChoGiaoRepo);
+
+            // PhieuTmpRepository sở hữu InsertTmpRow — TableOrderRepo uỷ quyền qua đây
+            // thay vì tự viết lại SQL INSERT bảng TMP (xem ghi chú trong TableOrderRepo.cs).
+            var phieuTmpRepo = new PhieuTmpRepository(phieuDb, phieuUow);
+            var tableOrderRepo = new TableOrderRepo(phieuDb, phieuTmpRepo);
+
             var gioRepo = new GioXuatRepository(sql);
-            var qrRepo = new DocQRRepository(sql,_cfg);
+            var qrRepo = new DocQRRepository(sql, _cfg);
             var sqlRepo = new SqlRepository(sql);
 
             var gioVP = gioRepo.GetDictGioVP();
@@ -215,18 +236,18 @@ namespace PCTP.QRCODE_HVN.PGH
                 StringComparison.OrdinalIgnoreCase);
 
             // ── Tính tenBan từ isMayBanQR — đây là nơi duy nhất biết cả hai ─────
-         
+
             string tenBan = isMayBanQR
                  ? _cfg.TmpTable
                  : _cfg.GetTmpViewTable(Environment.MachineName);
-            var phieuSvc = new PhieuService(phieuRepo, ifsRepo, bus, gioRepo,tenBan, _cfg, isMayBanQR);
-            var qrSvc = new DocQRService(qrRepo, bus,_cfg);
-            var inPhieuSvc = new InPhieuService(ifsRepo, phieuRepo, sqlRepo, gioVP, gioHN,_cfg);
-           
-            
+            var phieuSvc = new PhieuService(phieuRepo, ifsRepo, bus, gioRepo, tenBan, _cfg, isMayBanQR, tableOrderRepo);
+            var qrSvc = new DocQRService(qrRepo, bus, _cfg);
+            var inPhieuSvc = new InPhieuService(ifsRepo, phieuRepo, sqlRepo, gioVP, gioHN, _cfg);
+
+
 
             return new HVN_Presenter(this, phieuSvc, qrSvc, inPhieuSvc,
-                                      gioRepo, bus, isMayBanQR,tenBan, _cfg); // ← truyền vào
+                                      gioRepo, bus, isMayBanQR, tenBan, _cfg); // ← truyền vào
         }
         private static string SanitizeMachineName(string name)
     => System.Text.RegularExpressions.Regex.Replace(
@@ -285,7 +306,7 @@ namespace PCTP.QRCODE_HVN.PGH
         // ════════════════════════════════════════════════════════════════════
         // II. TRẠNG THÁI / CHUYỂN VIEW
         // ════════════════════════════════════════════════════════════════════
-     
+
         private System.Threading.Timer _loadingTimeout;
 
         public void ShowLoading(bool show, string caption = "Đang xử lý...")
@@ -363,7 +384,7 @@ namespace PCTP.QRCODE_HVN.PGH
         // ── Chuyển sang màn hình đọc QR ─────────────────────────────────────
         public void SwitchToDocQRView()
         {
-           
+
             tabPaneHVN.Click -= tabPaneHVN_Click;
 
             UIButtonHOME.Visible = true;
@@ -672,7 +693,7 @@ namespace PCTP.QRCODE_HVN.PGH
         // ════════════════════════════════════════════════════════════════════
         // VI. DIALOG PHỨC TẠP
         // ════════════════════════════════════════════════════════════════════
-       
+
 
         // View load phiếu GIAO DB đã lưu để hiển thị lại
         private void LoadDBOKView()
@@ -738,7 +759,7 @@ namespace PCTP.QRCODE_HVN.PGH
             // Gán Owner giúp Form lỗi luôn luôn nằm ĐÈ lên trên Form HVN_PGH, không bị chìm xuống dưới
             frmLoi.Show(this);
         }
-       
+
         public int? ShowSuaSoLuongTem(int sttBan, string lotFcc, int slFcc, int slHvn)
         {
             _sttSuaSl = sttBan;   // ← lưu STT, Presenter sẽ đọc qua SttDangSuaSl
@@ -751,7 +772,7 @@ namespace PCTP.QRCODE_HVN.PGH
 
         // Presenter gọi hàm này sau khi SuaSoLuongTemClicked để lấy giá trị user đã nhập
         private int _sttSuaSl = 0;
-       
+
 
         public int ShowChonHinhThucIn()
         {
@@ -849,7 +870,7 @@ namespace PCTP.QRCODE_HVN.PGH
             SetColumnVisible(GridViewDONHANG, "GEAR", bangrieng);
             SetColumnVisible(GridViewDONHANG, "PO_NO", bangrieng);
 
-            if (bangrieng )
+            if (bangrieng)
             {
                 SetColumnCaption(GridViewDONHANG, "GEAR", "Gear Sử Dụng");
                 SetColumnCaption(GridViewDONHANG, "CUA", "Cửa");
@@ -1280,7 +1301,7 @@ namespace PCTP.QRCODE_HVN.PGH
                 case "DOC QRCODE":
                     DocQRCodeClicked.Invoke(this, EventArgs.Empty);
                     break;
-                
+
                 case "Kiểm Tra Ghep Lot":
                     KiemTraGhepLotClicked.Invoke(this, EventArgs.Empty);
                     break;
@@ -1399,7 +1420,7 @@ namespace PCTP.QRCODE_HVN.PGH
                 case "HOME":
                     SwitchToPhieuView();
                     break;
-                
+
             }
         }
 

@@ -110,6 +110,46 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         }
 
         // ============================================================
+        // InsertTmpRow
+        // ============================================================
+        public void InsertTmpRow(
+            string tmpTable,
+            string stt, string cua, string truyen, string maHang, string tenHang,
+            string lot, string dv, int slXuat, string ngayGiao, string gear,
+            string gioXuat, string poNo = "", string cusPoNo = "")
+        {
+            Db.ValidateTableName(tmpTable);
+
+            string sql = $@"
+INSERT INTO [{tmpTable}]
+(
+    STT, CUA, TRUYEN, MAHANG, TENHANG, LOT, DV, SOLUONG,
+    NGAYGIAO, GEAR, GIOGIAO, STATUS, PO_NO, TTPHIEU
+)
+VALUES
+(
+    @STT, @CUA, @TRUYEN, @MAHANG, @TENHANG, @LOT, @DV, @SOLUONG,
+    @NGAYGIAO, @GEAR, @GIOGIAO, 'NG', @PO_NO, @CUSPO
+)";
+
+            ExecuteNonQuery(
+                sql,
+                new SqlParameter("@STT", stt),
+                new SqlParameter("@CUA", cua),
+                new SqlParameter("@TRUYEN", truyen),
+                new SqlParameter("@MAHANG", maHang),
+                new SqlParameter("@TENHANG", tenHang),
+                new SqlParameter("@LOT", lot),
+                new SqlParameter("@DV", dv),
+                new SqlParameter("@SOLUONG", slXuat),
+                new SqlParameter("@NGAYGIAO", ngayGiao),
+                new SqlParameter("@GEAR", gear),
+                new SqlParameter("@GIOGIAO", gioXuat),
+                new SqlParameter("@PO_NO", poNo ?? ""),
+                new SqlParameter("@CUSPO", cusPoNo ?? ""));
+        }
+
+        // ============================================================
         // LoadTuTmpTable
         // ============================================================
         public DataTable LoadTuTmpTable(string tmpTable)
@@ -231,11 +271,11 @@ ORDER BY TRY_CAST(STT AS INT), STT";
         public void EnsureTablesExist()
         {
             string[] tables = { "IFSPHIEUGIAOHANG", "IFSPHIEUGIAOHANGView" };
-        const string createSql =
-            "IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[{0}]') AND type = 'U') " +
-            "CREATE TABLE [{0}] (STT INT, MAHANG NVARCHAR(50), TENHANG NVARCHAR(100), SOLUONG INT, " +
-            "NGAYGIAO SMALLDATETIME, GIOGIAO NVARCHAR(50), GIOGIAOFCC NVARCHAR(200), NHAMAY NVARCHAR(100), " +
-            "ADDNM INT, LOT NVARCHAR(500), STATUS NVARCHAR(50), STATUSDOC NVARCHAR(50))";
+            const string createSql =
+                "IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[{0}]') AND type = 'U') " +
+                "CREATE TABLE [{0}] (STT INT, MAHANG NVARCHAR(50), TENHANG NVARCHAR(100), SOLUONG INT, " +
+                "NGAYGIAO SMALLDATETIME, GIOGIAO NVARCHAR(50), GIOGIAOFCC NVARCHAR(200), NHAMAY NVARCHAR(100), " +
+                "ADDNM INT, LOT NVARCHAR(500), STATUS NVARCHAR(50), STATUSDOC NVARCHAR(50))";
 
             foreach (string table in tables)
                 ExecuteNonQuery(string.Format(createSql, table));

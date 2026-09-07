@@ -31,11 +31,21 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         private readonly PhieuSqlExecutor _db;
         private readonly IIFSRepository _ifsRepo;
 
+        /// <summary>
+        /// Uỷ quyền cho IPhieuTmpRepository.InsertTmpRow — tránh lặp lại SQL INSERT
+        /// bảng TMP (STT/CUA/TRUYEN/MAHANG/TENHANG/LOT/DV/SOLUONG/NGAYGIAO/GEAR/GIOGIAO/
+        /// PO_NO/TTPHIEU) đã có sẵn ở PhieuTmpRepository — 2 repo khác nhau nhưng cùng
+        /// ghi vào 1 bảng TMP với cùng 1 schema, không nên tự SQL riêng ở đây nữa.
+        /// </summary>
+        private readonly IPhieuTmpRepository _phieuTmpRepo;
+
         public TableOrderRepo(
             PhieuSqlExecutor db,
+            IPhieuTmpRepository phieuTmpRepo,
             IIFSRepository ifsRepo = null)
         {
             _db = db ?? throw new ArgumentNullException(nameof(db));
+            _phieuTmpRepo = phieuTmpRepo ?? throw new ArgumentNullException(nameof(phieuTmpRepo));
             _ifsRepo = ifsRepo ?? IFSRepository.Create();
         }
 
@@ -453,59 +463,13 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             string poNo = "",
             string cusPoNo = "")
         {
-            _db.ValidateTableName(tmpTable);
-
-            string sql = $@"
-                INSERT INTO [{tmpTable}]
-                (
-                    STT,
-                    CUA,
-                    TRUYEN,
-                    MAHANG,
-                    TENHANG,
-                    LOT,
-                    DV,
-                    SOLUONG,
-                    NGAYGIAO,
-                    GEAR,
-                    GIOGIAO,
-                    STATUS,
-                    PO_NO,
-                    TTPHIEU
-                )
-                VALUES
-                (
-                    @STT,
-                    @CUA,
-                    @TRUYEN,
-                    @MAHANG,
-                    @TENHANG,
-                    @LOT,
-                    @DV,
-                    @SOLUONG,
-                    @NGAYGIAO,
-                    @GEAR,
-                    @GIOGIAO,
-                    'NG',
-                    @PO_NO,
-                    @CUSPO
-                )";
-
-            _db.ExecuteNonQuery(
-                sql,
-                new SqlParameter("@STT", stt),
-                new SqlParameter("@CUA", cua),
-                new SqlParameter("@TRUYEN", truyen),
-                new SqlParameter("@MAHANG", maHang),
-                new SqlParameter("@TENHANG", tenHang),
-                new SqlParameter("@LOT", lot),
-                new SqlParameter("@DV", dv),
-                new SqlParameter("@SOLUONG", slXuat),
-                new SqlParameter("@NGAYGIAO", ngayGiao),
-                new SqlParameter("@GEAR", gear),
-                new SqlParameter("@GIOGIAO", gioXuat),
-                new SqlParameter("@PO_NO", poNo),
-                new SqlParameter("@CUSPO", cusPoNo));
+            // Uỷ quyền cho IPhieuTmpRepository — cùng schema bảng TMP, không tự viết
+            // lại SQL INSERT ở đây nữa (xem ghi chú tại field _phieuTmpRepo).
+            _phieuTmpRepo.InsertTmpRow(
+                tmpTable,
+                stt, cua, truyen, maHang, tenHang,
+                lot, dv, slXuat, ngayGiao, gear,
+                gioXuat, poNo, cusPoNo);
         }
 
         // ============================================================
