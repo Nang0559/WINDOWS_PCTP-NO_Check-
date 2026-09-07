@@ -20,9 +20,12 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
     /// Implementation duy nhất của ITableOrderRepository. Toàn bộ SQL đọc/ghi
     /// Purchase_Order_* — tách nguyên khối từ region "IPhieuOrderTableRepository"
     /// cũ trong PhieuRepository. Cần IIFSRepository để SoSanhDonHangVoiIFS đối chiếu.
+    ///
+    /// Được <see cref="PCTP.Modules.GiaoHangKhach.TableOrderLoad.OrderTableLoadStrategy"/>
+    /// và <see cref="PCTP.Modules.GiaoHangKhach.Services.PhieuService"/> tiêu thụ như một
+    /// dependency RIÊNG (không đi qua IPhieuRepository) — xem WORKFLOW_GIAOHANGKHACH.md
+    /// mục 3 (Order Load Strategy) để biết vì sao interface này bị tách khỏi PhieuRepository.
     /// </summary>
-  
-
     public sealed class TableOrderRepo : ITableOrderRepository
     {
         private readonly PhieuSqlExecutor _db;

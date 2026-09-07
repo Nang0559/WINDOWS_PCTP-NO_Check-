@@ -840,6 +840,7 @@
       <DependentUpon>YMVN_CHONGIAO.cs</DependentUpon>
     </Compile>
     <None Include="Workflow\Diagram\Dashboard.md" />
+    <None Include="Workflow\Diagram\WORKFLOW_GIAOHANGKHACH.md" />
     <None Include="Workflow\Diagram\WORKFLOW_NHAPKHO.md" />
     <None Include="Workflow\Diagram\ARCHITECTURE_DEPENDENCIES.md" />
     <None Include="Workflow\Diagram\WORKFLOW_WMS.md" />

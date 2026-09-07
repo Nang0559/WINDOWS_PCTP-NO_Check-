@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 namespace PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao
 {
     /// <summary>Vòng đời bảng TMP đang bắn QR — load/lưu/xoá/trạng thái.</summary>
+    /// <summary>Vòng đời bảng TMP đang bắn QR — load/lưu/xoá/trạng thái.</summary>
     public interface IPhieuTmpRepository
     {
         DataTable LoadTuTmpTable(string tmpTable);
@@ -22,6 +23,20 @@ namespace PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao
         TrangThaiBan GetTrangThaiDangBan(PhieuTableSet tables);
         TrangThaiBan GetTrangThaiDangBanYMVN(PhieuTableSet tables);
         void EnsureTablesExist();
+
+        /// <summary>
+        /// Insert 1 dòng trực tiếp vào bảng TMP theo đúng schema chuẩn (STT, CUA, TRUYEN,
+        /// MAHANG, TENHANG, LOT, DV, SOLUONG, NGAYGIAO, GEAR, GIOGIAO, STATUS, PO_NO, TTPHIEU).
+        /// Dùng cho các nguồn đơn hàng ghi từng dòng một (VD: <c>TableOrderRepo</c> khi đồng
+        /// bộ đơn YMVN/HTN) thay vì đi qua <see cref="LuuVaLoad(PhieuTableSet, string, DataTable, string, string, string, int)"/>
+        /// (vốn dành cho nguồn nạp nguyên khối kèm gọi SP xử lý QR) — tránh mỗi nơi tự viết lại
+        /// SQL INSERT trên bảng TMP.
+        /// </summary>
+        void InsertTmpRow(
+            string tmpTable,
+            string stt, string cua, string truyen, string maHang, string tenHang,
+            string lot, string dv, int slXuat, string ngayGiao, string gear,
+            string gioXuat, string poNo = "", string cusPoNo = "");
 
         // ── Overload cũ giữ tương thích ngược (wrapper) ──────────────────
         DataTable LoadPhieuDocQR(string ngayGiao, string nhaMay, string gioFcc, int addNm,

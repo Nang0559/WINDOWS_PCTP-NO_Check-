@@ -5,10 +5,18 @@ using PCTP.Shared.Common;
 using PCTP.VIEWSTOCK.Models;
 using System;
 using System.Data;
+using System.Data.SqlClient;
 using System.Linq;
 
 namespace PCTP.Modules.GiaoHangKhach.Repositories
 {
+    /// <summary>
+    /// Vòng đời bảng TMP đang bắn QR (TMPPHIEUGIAOHANG/DOCQRCODE) — load, lưu (merge upsert),
+    /// xoá khi kết thúc phiên, và xác định trạng thái đang bán (trống/đang bán/đã CNK).
+    /// Implementation của <see cref="IPhieuTmpRepository"/>, một trong các mảnh được
+    /// <see cref="PhieuRepository"/> tổng hợp lại qua kế thừa nhiều interface — xem
+    /// WORKFLOW_GIAOHANGKHACH.md mục 2 để biết vị trí trong luồng Giao Hàng Khách.
+    /// </summary>
     public sealed class PhieuTmpRepository : SqlRepositoryBase, IPhieuTmpRepository
     {
         public PhieuTmpRepository(PhieuSqlExecutor db, IUnitOfWork uow)
@@ -223,11 +231,11 @@ ORDER BY TRY_CAST(STT AS INT), STT";
         public void EnsureTablesExist()
         {
             string[] tables = { "IFSPHIEUGIAOHANG", "IFSPHIEUGIAOHANGView" };
-            const string createSql =
-                "IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[{0}]') AND type = 'U') " +
-                "CREATE TABLE [{0}] (STT INT, MAHANG NVARCHAR(50), TENHANG NVARCHAR(100), SOLUONG INT, " +
-                "NGAYGIAO SMALLDATETIME, GIOGIAO NVARCHAR(50), GIOGIAOFCC NVARCHAR(200), NHAMAY NVARCHAR(100), " +
-                "ADDNM INT, LOT NVARCHAR(500), STATUS NVARCHAR(50), STATUSDOC NVARCHAR(50))";
+        const string createSql =
+            "IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[{0}]') AND type = 'U') " +
+            "CREATE TABLE [{0}] (STT INT, MAHANG NVARCHAR(50), TENHANG NVARCHAR(100), SOLUONG INT, " +
+            "NGAYGIAO SMALLDATETIME, GIOGIAO NVARCHAR(50), GIOGIAOFCC NVARCHAR(200), NHAMAY NVARCHAR(100), " +
+            "ADDNM INT, LOT NVARCHAR(500), STATUS NVARCHAR(50), STATUSDOC NVARCHAR(50))";
 
             foreach (string table in tables)
                 ExecuteNonQuery(string.Format(createSql, table));

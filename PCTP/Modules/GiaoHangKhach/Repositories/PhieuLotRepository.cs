@@ -12,6 +12,12 @@ using System.Threading.Tasks;
 
 namespace PCTP.Modules.GiaoHangKhach.Repositories
 {
+    /// <summary>
+    /// Cấp phát/thu hồi số LOT khi bắn QR: sinh LOT mới theo mã hàng + STT + đếm, ghi lại
+    /// vào bảng TMP, và "hoàn tác" (LayLaiLotNo) khi người dùng xoá dòng đã bắn nhầm.
+    /// Implementation của <see cref="IPhieuLotRepository"/> — một trong các mảnh được
+    /// <see cref="PhieuRepository"/> tổng hợp lại. Xem WORKFLOW_GIAOHANGKHACH.md mục 2.
+    /// </summary>
     public sealed class PhieuLotRepository
     : SqlRepositoryBase,
       IPhieuLotRepository

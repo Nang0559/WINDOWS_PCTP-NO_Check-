@@ -10,6 +10,14 @@ using System.Threading.Tasks;
 
 namespace PCTP.Modules.GiaoHangKhach.Services
 {
+    /// <summary>
+    /// Chọn <see cref="IOrderLoadStrategy"/> phù hợp cho 1 lần load đơn hàng, dựa trên
+    /// cấu hình khách hàng (<c>CustomerConfig</c>) chứ không hard-code theo tên khách
+    /// (HVN/YMVN/HTN) như code cũ trong <c>PhieuService</c>. Xem WORKFLOW_GIAOHANGKHACH.md
+    /// mục 3. LƯU Ý: factory này (và cả 2 strategy) hiện CHƯA được khởi tạo/inject ở
+    /// composition root (<c>HVN_PGH.cs</c>) — <c>PhieuService</c> vẫn gọi thẳng
+    /// <c>ITableOrderRepository</c>/<c>IIFSRepository</c> theo nhánh if/else cũ.
+    /// </summary>
     public class OrderLoadStrategyFactory : IOrderLoadStrategyFactory
     {
         private readonly IfsOrderLoadStrategy _ifsStrategy;

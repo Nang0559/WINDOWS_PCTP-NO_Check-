@@ -9,6 +9,14 @@ using System.Threading.Tasks;
 
 namespace PCTP.Domain.Interfaces
 {
+    /// <summary>
+    /// Strategy pattern chọn NGUỒN đơn hàng gốc cho Giao Hàng Khách: từ IFS
+    /// (<c>IfsOrderLoadStrategy</c> — luồng HVN thường) hoặc từ bảng riêng
+    /// Purchase_Order_* (<c>OrderTableLoadStrategy</c>, dùng <c>ITableOrderRepository</c>
+    /// — luồng YMVN/HTN và HVN "giao đặc biệt"). <c>OrderLoadStrategyFactory</c> chọn
+    /// implementation nào dựa trên <see cref="OrderLoadContext.CheDoGiaoDacBiet"/> và
+    /// <c>CustomerConfig.LoadTuBangRieng</c>. Xem WORKFLOW_GIAOHANGKHACH.md mục 3.
+    /// </summary>
     public interface IOrderLoadStrategy
     {
         /// <summary>Load đơn hàng gốc (chưa có LOT) — từ IFS, bảng riêng, hoặc file upload.</summary>

@@ -7,7 +7,9 @@ Tài liệu này mô tả chi tiết luồng xử lý các phiếu bất thườ
 ## 0. State Machine — `QTChungStatus`
 
 ```csharp
-/// <summary>
+namespace PCTP.Modules.XuLyHangLoi.Enums
+{
+    /// <summary>
     /// State machine con — gắn với PhieuXuLyBatThuong, mô tả chi tiết từng bước
     /// QC/Rework. Khác cấp với PhieuTraHangStatus (gắn PhieuKhachTra, chỉ có 1 mốc
     /// "DangXuLyQTChung" bao trùm toàn bộ enum này).
@@ -16,128 +18,95 @@ Tài liệu này mô tả chi tiết luồng xử lý các phiếu bất thườ
     {
         Moi = 0,
 
-        /// <summary>IQTChungService.TaoPhieuXuLyBatThuong đã chạy.</summary>
+        /// <summary>Phiếu xử lý bất thường đã được tạo và liên kết.</summary>
         DaTaoPhieuBatThuong = 10,
 
         /// <summary>
-        /// IQTChungService.QCDinhHuongRework đã chạy — HuongXuLyBatThuong đã được set.
+        /// Đã xác định hướng xử lý: TuChoiGiaoBu / ChiGiaoBu / CanRework.
         /// Từ đây transition tiếp theo phụ thuộc HuongXuLyBatThuong (xem mục 3).
         /// </summary>
-        DaDinhHuongRework = 20,
+        DaDinhHuong = 20,
 
-        // ── Nhánh 1: TuChoiGiaoBu ────────────────────────────────────────
-        /// <summary>End state — khách không lỗi thật, quy trình dừng tại đây.</summary>
+        // ── Nhánh 1: TỪ CHỐI GIAO BÙ ─────────────────────────────────────
+        /// <summary>Xác định không phải lỗi thật. Không giao bù, không rework.</summary>
         TuChoiGiaoBu = 25,
 
-        // ── Nhánh 2: ChiGiaoBu (không rework) ────────────────────────────
-        /// <summary>Đã đẩy vào FVN_HangChoGiao (Purpose=GiaoBuNG), chờ IGiaoBuNGService xác nhận.</summary>
+        // ── Nhánh 2: CHỈ GIAO BÙ ──────────────────────────────────────────
+        /// <summary>Đã tạo yêu cầu giao bù. Đang chờ giao bù hoàn tất.</summary>
         ChoGiaoBu = 30,
 
-        /// <summary>IGiaoBuNGService.XacNhanHoanTatGiaoBu đã chạy — trừ STOCKTP xong.</summary>
+        /// <summary>Giao bù đã hoàn tất.</summary>
         DaGiaoBu = 35,
 
-        // ── Nhánh 3: CanRework ────────────────────────────────────────────
-        /// <summary>IQTChungService.XuatKhoRework đã chạy — hàng đã rời Slot, STOCKTP đã trừ.</summary>
+        // ── Nhánh 3: REWORK ───────────────────────────────────────────────
+        /// <summary>Hàng đã được xuất khỏi kho để đưa đi rework.</summary>
         DaXuatKhoRework = 40,
 
-        /// <summary>IQTChungService.GhiNhanGiaoSanXuat đã chạy — KHÔNG đụng Slot/STOCKTP, chỉ audit.</summary>
+        /// <summary>Đã ghi nhận giao hàng cho sản xuất/rework. Không thay đổi tồn kho.</summary>
         DaGiaoSanXuat = 50,
 
-        /// <summary>IQTChungService.QCXacNhanCuoi đã chạy — đã có SoLuongOK/SoLuongNG.</summary>
+        /// <summary>QC đã xác nhận kết quả cuối: OK / NG.</summary>
         DaQCXacNhanCuoi = 60,
 
-        /// <summary>Chỉ có khi SoLuongNG > 0 — IReworkStockService.NhapLaiHangNG đã chạy.</summary>
+        /// <summary>Chỉ xuất hiện khi SoLuongNG > 0.</summary>
         DaNhapLaiKho = 70,
 
-        // ── Kết thúc chung ───────────────────────────────────────────────
+        // ── Kết thúc chung ────────────────────────────────────────────────
         HoanTat = 100,
         Huy = 900
     }
+}
 ```
 
-Transition hợp lệ do `QTChungStatusTransition.IsValid(from, to)` kiểm soát (giữ nguyên `from == to` luôn hợp lệ, cho phép thao tác idempotent). Điểm khác biệt so với bản trước: từ `ChoQCDinhHuong` có 2 lối ra hợp lệ, không còn dùng chung `Huy` cho cả 2 trường hợp:
+> ⚠️ **Đã đổi tên so với bản trước:** `DaDinhHuongRework` → `DaDinhHuong` (giá trị số `= 20` giữ nguyên). Mọi tham chiếu cũ tới `QTChungStatus.DaDinhHuongRework` trong code/tài liệu đều là lỗi biên dịch/lỗi thời — phải đổi sang `DaDinhHuong`.
+
+### Transition không còn hard-code trong C# — đã chuyển sang bảng `sys_WorkflowTransitions`
+
+**Thay đổi kiến trúc quan trọng:** class tĩnh `QTChungStatusTransition` (hard-code `Dictionary<QTChungStatus, QTChungStatus[]>` theo từng nhánh `HuongXuLyBatThuong`) **đã bị loại bỏ hoàn toàn**. Toàn bộ luật chuyển trạng thái giờ là **dữ liệu trong SQL** (bảng `sys_WorkflowTransitions`), được đọc qua 1 engine dùng chung cho MỌI process trong hệ thống (không riêng QTChung) — `IWorkflowRepository` / `WorkflowEngine` / `WorkflowTransitionService`, đặt tại `PCTP.Shared.UiMd`:
 
 ```csharp
- public static class QTChungStatusTransition
+public interface IWorkflowRepository
+{
+    IReadOnlyList<WorkflowTransition> GetTransitions(string processCode);
+    void InvalidateCache(string processCode = null);
+}
+
+public class WorkflowRepository : SqlRepositoryBase, IWorkflowRepository
+{
+    private static readonly ConcurrentDictionary<string, List<WorkflowTransition>> _cache = new();
+
+    public WorkflowRepository(PhieuSqlExecutor db, IUnitOfWork uow) : base(db, uow) { }
+
+    public IReadOnlyList<WorkflowTransition> GetTransitions(string processCode)
+        => _cache.GetOrAdd(processCode, LoadFromDb);
+
+    public void InvalidateCache(string processCode = null)
     {
-        // ── Các bước KHÔNG phụ thuộc HuongXuLyBatThuong (giống nhau mọi nhánh) ──
-        private static readonly Dictionary<QTChungStatus, QTChungStatus[]> ChungMap =
-            new Dictionary<QTChungStatus, QTChungStatus[]>
-            {
-                [QTChungStatus.Moi] = new[] { QTChungStatus.DaTaoPhieuBatThuong, QTChungStatus.Huy },
-                [QTChungStatus.DaTaoPhieuBatThuong] = new[] { QTChungStatus.DaDinhHuongRework, QTChungStatus.Huy },
-                // DaDinhHuongRework → tuỳ HuongXuLyBatThuong, xem GetAllowedNext bên dưới
-            };
-
-        // ── Nhánh 1: TuChoiGiaoBu ─────────────────────────────────────────
-        private static readonly Dictionary<QTChungStatus, QTChungStatus[]> TuChoiGiaoBuMap =
-            new Dictionary<QTChungStatus, QTChungStatus[]>
-            {
-                [QTChungStatus.DaDinhHuongRework] = new[] { QTChungStatus.TuChoiGiaoBu },
-                [QTChungStatus.TuChoiGiaoBu] = new[] { QTChungStatus.HoanTat },
-            };
-
-        // ── Nhánh 2: ChiGiaoBu (không rework) ────────────────────────────
-        private static readonly Dictionary<QTChungStatus, QTChungStatus[]> ChiGiaoBuMap =
-            new Dictionary<QTChungStatus, QTChungStatus[]>
-            {
-                [QTChungStatus.DaDinhHuongRework] = new[] { QTChungStatus.ChoGiaoBu, QTChungStatus.Huy },
-                [QTChungStatus.ChoGiaoBu] = new[] { QTChungStatus.DaGiaoBu, QTChungStatus.Huy },
-                [QTChungStatus.DaGiaoBu] = new[] { QTChungStatus.HoanTat },
-            };
-
-        // ── Nhánh 3: CanRework ────────────────────────────────────────────
-        private static readonly Dictionary<QTChungStatus, QTChungStatus[]> ReworkMap =
-            new Dictionary<QTChungStatus, QTChungStatus[]>
-            {
-                [QTChungStatus.DaDinhHuongRework] = new[] { QTChungStatus.DaXuatKhoRework, QTChungStatus.Huy },
-                [QTChungStatus.DaXuatKhoRework] = new[] { QTChungStatus.DaGiaoSanXuat, QTChungStatus.Huy },
-                [QTChungStatus.DaGiaoSanXuat] = new[] { QTChungStatus.DaQCXacNhanCuoi, QTChungStatus.Huy },
-                // Sau QC cuối: rẽ theo SoLuongNG (không phải theo HuongXuLyBatThuong)
-                //   NG = 0  → thẳng HoanTat
-                //   NG > 0  → DaNhapLaiKho rồi mới HoanTat
-                [QTChungStatus.DaQCXacNhanCuoi] = new[] { QTChungStatus.HoanTat, QTChungStatus.DaNhapLaiKho, QTChungStatus.Huy },
-                [QTChungStatus.DaNhapLaiKho] = new[] { QTChungStatus.HoanTat },
-            };
-
-        public static bool IsValidTransition(HuongXuLyBatThuong huong, QTChungStatus from, QTChungStatus to)
-        {
-            if (ChungMap.TryGetValue(from, out var chungAllowed) && chungAllowed.Contains(to))
-                return true;
-
-            var nhanhMap = huong switch
-            {
-                HuongXuLyBatThuong.TuChoiGiaoBu => TuChoiGiaoBuMap,
-                HuongXuLyBatThuong.ChiGiaoBu => ChiGiaoBuMap,
-                HuongXuLyBatThuong.CanRework => ReworkMap,
-                _ => null
-            };
-
-            if (nhanhMap == null) return false; // ChuaXacDinh — chưa được phép rẽ nhánh
-            return nhanhMap.TryGetValue(from, out var allowed) && allowed.Contains(to);
-        }
-
-        /// <summary>Dùng cho UI — liệt kê các trạng thái kế tiếp hợp lệ để hiển thị nút bấm.</summary>
-        public static IReadOnlyList<QTChungStatus> GetAllowedNext(HuongXuLyBatThuong huong, QTChungStatus from)
-        {
-            var result = new List<QTChungStatus>();
-            if (ChungMap.TryGetValue(from, out var c)) result.AddRange(c);
-
-            var nhanhMap = huong switch
-            {
-                HuongXuLyBatThuong.TuChoiGiaoBu => TuChoiGiaoBuMap,
-                HuongXuLyBatThuong.ChiGiaoBu => ChiGiaoBuMap,
-                HuongXuLyBatThuong.CanRework => ReworkMap,
-                _ => null
-            };
-            if (nhanhMap != null && nhanhMap.TryGetValue(from, out var n)) result.AddRange(n);
-
-            return result.Distinct().ToList();
-        }
+        if (processCode == null) _cache.Clear();
+        else _cache.TryRemove(processCode, out _);
     }
+
+    private List<WorkflowTransition> LoadFromDb(string processCode)
+    {
+        // SELECT FromStatus, ToStatus, ActionName, Description
+        // FROM sys_WorkflowTransitions WHERE ProcessCode=@pc AND IsActive=1 ORDER BY Id
+        ...
+    }
+}
 ```
 
-**Phân biệt `TuChoiKhongLoiThat` vs `Huy`:** `TuChoiKhongLoiThat` là một kết quả nghiệp vụ hợp lệ của bước QC Định Hướng (khiếu nại không có căn cứ). `Huy` dành cho phiếu bị hủy do sai sót/tạo nhầm/trùng lặp, có thể xảy ra ở bất kỳ bước nào trước `HoanTat`. Hai state này không được gộp chung để báo cáo tỷ lệ khiếu nại vô căn cứ tách biệt khỏi tỷ lệ hủy phiếu do lỗi thao tác.
+Có **2 lớp bọc** trên cùng 1 `IWorkflowRepository`, dùng cho 2 mục đích khác nhau — không trùng lặp:
+
+| Lớp | Dùng ở đâu | Vai trò |
+|---|---|---|
+| **`WorkflowTransitionService`** (`IWorkflowTransitionService`) | `QTChungService` (tiêm qua constructor, biến `_workflow`) | Kiểm tra đơn giản: `CanTransition(processCode, from, to)`, `EnsureCanTransition(...)` (ném exception nếu sai), `GetAvailableTransitions(...)` (liệt kê cho UI). Đây là API `QTChungService.ValidateTransition(...)` gọi trước mỗi lần đổi status. |
+| **`WorkflowEngine`** | Dựng sẵn ở `WarehouseProcessNavigator.CreateFormQuanLyTienTrinhHangLoi()` (biến `workflowEngine`) nhưng hiện **chưa thấy nơi nào tiêu thụ** `ResolveNext<T>` | Nâng cao hơn: `ResolveNext<T>(processCode, currentStatus, ctx)` — tự chọn transition kế tiếp khi CÓ ĐIỀU KIỆN, bằng cách evaluate cột `Description` như 1 biểu thức Dynamic LINQ trên `ctx` (ví dụ `Description = "> 0"` ứng với field `SoLuongNG` sẽ tự rẽ `DaQCXacNhanCuoi → DaNhapLaiKho` khi `ctx.SoLuongNG > 0`, ngược lại rẽ thẳng `HoanTat`). Mục tiêu: thay dần nhánh `if (soLuongNG > 0) ... else ...` viết tay trong `QTChungService` bằng luật đọc từ DB. |
+
+`processCode` dùng cho QTChung là hằng số `ProcessCodeQTChung = "QT_CHUNG"` khai trong `QTChungService` (còn `"PHIEU_TRA_HANG"` dùng cho state machine của `PhieuTraHangStatus`, khác cấp — xem đầu tài liệu).
+
+**Vì sao đổi từ C# sang SQL:** để thêm/sửa 1 luật chuyển trạng thái (VD: cho phép huỷ ở 1 mốc mới) không cần build lại ứng dụng — chỉ cần INSERT/UPDATE `sys_WorkflowTransitions` rồi gọi `InvalidateCache(processCode)`. Đánh đổi: luật giờ nằm trong dữ liệu vận hành (DBA/người quản trị chỉnh), không còn nằm trong source control theo dõi qua Git như `QTChungStatusTransition` cũ — cần quy trình kiểm soát thay đổi riêng cho bảng này (ai được sửa, review thế nào) nếu muốn giữ tính audit tương đương.
+
+**Phân biệt `TuChoiGiaoBu` vs `Huy`:** `TuChoiGiaoBu` là một kết quả nghiệp vụ hợp lệ của bước QC Định Hướng (khiếu nại không có căn cứ). `Huy` dành cho phiếu bị hủy do sai sót/tạo nhầm/trùng lặp, có thể xảy ra ở bất kỳ bước nào trước `HoanTat`. Hai state này không được gộp chung để báo cáo tỷ lệ khiếu nại vô căn cứ tách biệt khỏi tỷ lệ hủy phiếu do lỗi thao tác.
 
 ---
 
@@ -588,7 +557,7 @@ new Dictionary<PhieuTraHangStatus, PhieuTraHangStatus[]>
 
 ## 2. Mô Tả Chi Tiết Các Bước Trong Luồng Xử Lý Hàng Lỗi
 
-1. **Khởi Tạo & Tiếp Nhận Ban Đầu:** (`Status: Moi → ChoQCDinhHuong`)
+1. **Khởi Tạo & Tiếp Nhận Ban Đầu:** (`Status: Moi → DaTaoPhieuBatThuong`)
 
    - **Nguồn Khách hàng:**
      - Tiếp nhận thông tin từ `IPhieuKhachTraRepository` thông qua `IKhachTraHangService`.
@@ -601,59 +570,53 @@ new Dictionary<PhieuTraHangStatus, PhieuTraHangStatus[]>
    - **Nhánh tạo trực tiếp từ Slot — Nội bộ (`FormChonSlotNoiBo`):**
      - Người dùng chọn Slot/LOT đang tồn (đọc qua `ISlotService.GetAllActiveSlotLots`).
      - Hệ thống tạo phiếu qua `IPhieuLoiRepository.InsertPhieuXuLyBatThuongNoiBo`, ghi `SlotIdNguon` + `LotNguon` lấy trực tiếp từ dòng Slot/LOT được chọn.
-     - Phiếu tạo với `Nguon = TraNoiBo`, `Status = ChoQCDinhHuong`, bỏ qua bước tiếp nhận chứng từ khách trả và đi thẳng vào **QC Định Hướng**.
+     - Phiếu tạo với `Nguon = TraNoiBo`, `Status = DaTaoPhieuBatThuong`, bỏ qua bước tiếp nhận chứng từ khách trả và đi thẳng vào **QC Định Hướng**.
      - Từ đây dùng chung toàn bộ workflow QTChung phía sau.
-| # | Vấn đề | Trạng thái |
-|---|---|---|
-| 6 | `FormPhieuLoiKhachTra` tách riêng Khách/Nội bộ | ✅ Gộp thành `frmLapPhieuTraHang` — phân biệt qua `NguonXuLyBatThuong` |
-| 7 | Form dùng `IPhieuLoiRepository` trực tiếp | ✅ Inject `IPhieuLoiService` |
 
-## 1.0. Khởi Tạo Phiếu Trả Hàng (bước mới đầu luồng)
+   > **Khởi tạo qua form thống nhất `frmLapPhieuTraHang`:** cả 2 nguồn (Khách/Nội bộ) đều đi qua cùng 1 form
+   > (`IPhieuLoiService.LapPhieuTraHang(phieu)`), phân biệt bằng `NguonXuLyBatThuong` — thay vì 2 form riêng
+   > như bản trước (`FormPhieuLoiKhachTra` tách Khách/Nội bộ đã gộp; Form không còn dùng thẳng
+   > `IPhieuLoiRepository` mà qua `IPhieuLoiService`). Các trường bắt buộc khác nhau theo nguồn:
+   >
+   > | Trường | KhachTra | TraNoiBo |
+   > |---|---|---|
+   > | Nguồn khách (HVN/YMVN) | ✅ bắt buộc | ❌ ẩn |
+   > | Ca | ✅ HVN only | ❌ ẩn |
+   > | Phòng ban | ❌ ẩn | ✅ bắt buộc |
+   > | Lý do trả | ❌ ẩn | ✅ bắt buộc |
+   >
+   > Sau khi lưu → `IQTChungService.TaoPhieuXuLyBatThuong` nhận `PhieuTraHang.Id` → tiếp tục luồng QC Định Hướng như trên.
 
-**Form:** `frmLapPhieuTraHang`
-**Service:** `IPhieuLoiService.LapPhieuTraHang(phieu)`
+2. **QC Định Hướng (Gate Quyết Định):** (`Status: DaTaoPhieuBatThuong → DaDinhHuong → ...`)
 
-| Trường | KhachTra | TraNoiBo |
-|---|---|---|
-| Nguồn khách (HVN/YMVN) | ✅ bắt buộc | ❌ ẩn |
-| Ca | ✅ HVN only | ❌ ẩn |
-| Phòng ban | ❌ ẩn | ✅ bắt buộc |
-| Lý do trả | ❌ ẩn | ✅ bắt buộc |
-
-Sau khi lưu → `IQTChungService.TaoPhieuXuLyBatThuong` nhận `PhieuTraHang.Id`
-→ tiếp tục luồng QC Định Hướng như cũ.
-2. **QC Định Hướng (Gate Quyết Định):** (`Status: ChoQCDinhHuong → ...`)
-
-   Thực hiện qua `IQTChungService.QCDinhHuongRework`, ghi `HuongXuLy`, `NgayDinhHuong`, `NguoiDinhHuong` vào bảng chính, rồi phân tách theo 3 nhánh:
+   Thực hiện qua `IQTChungService.QCDinhHuongRework`, ghi `HuongXuLy`, `NgayDinhHuong`, `NguoiDinhHuong` vào bảng chính (`Status → DaDinhHuong`), rồi phân tách theo 3 nhánh (transition tiếp theo do `WorkflowEngine`/`sys_WorkflowTransitions` xác nhận hợp lệ trước khi `ChangeStatus`, xem mục 0):
 
    - **Nhánh 1 (Khách không lỗi thật):**
-     `ChangeStatus(TuChoiKhongLoiThat, ...)` — dừng quy trình, từ chối giao bù. Đây là state **terminal riêng biệt**, không dùng `Huy` ($\rightarrow$ `END`).
+     `ChangeStatus(TuChoiGiaoBu, ...)` — dừng quy trình, từ chối giao bù. Đây là state **terminal riêng biệt**, không dùng `Huy`, rồi tự động `ChangeStatus(HoanTat, ...)` ($\rightarrow$ `END`).
 
-   - **Nhánh 2 (Khách có lỗi thật, cần giao bù):**
-     `ChangeStatus(ChoXuatKhoRework, ...)` → gọi `IGiaoBuNGService.GiaoBuTheoQR` $\rightarrow$ `IStockExportService.PickToChoGiao` (Loại: `GiaoBuNG`), ghi 1 dòng vào `FVN_TraHangQTChung_Xuat` với `LoaiXuat = "GiaoBuNG"`. Sau đó xác nhận hoàn tất qua `IGiaoBuNGService.XacNhanHoanTatGiaoBu` để trừ tồn kho.
+   - **Nhánh 2 (Khách có lỗi thật, chỉ cần giao bù — không rework):**
+     `ChangeStatus(ChoGiaoBu, ...)` → gọi `IGiaoBuNGService.GiaoBuTheoQR` $\rightarrow$ `IStockExportService.PickToChoGiao` (Loại: `GiaoBuNG`), ghi 1 dòng vào `FVN_TraHangQTChung_Xuat` với `LoaiXuat = "GiaoBuNG"`. Sau đó xác nhận hoàn tất qua `IGiaoBuNGService.XacNhanHoanTatGiaoBu` để trừ tồn kho, `ChangeStatus(DaGiaoBu, ...)` rồi `HoanTat`.
 
    - **Nhánh 3 (Nội bộ / Khách cần Rework):**
-     `ChangeStatus(ChoXuatKhoRework, ...)` → chuyển sang luồng xuất kho Rework (bước 3).
+     `ChangeStatus(DaXuatKhoRework, ...)` sau khi xuất kho thành công → chuyển sang luồng Rework (bước 3).
 
-3. **Xuất Kho Rework & Giao Sản Xuất:** (`Status: ChoXuatKhoRework → DaXuatKhoRework → ChoGiaoSanXuat → DaGiaoSanXuat`)
+3. **Xuất Kho Rework & Giao Sản Xuất:** (`Status: DaDinhHuong → DaXuatKhoRework → DaGiaoSanXuat`)
 
-   - Gọi `IQTChungService.XuatKhoRework` $\rightarrow$ `IReworkStockService.XuatKhoRework` $\rightarrow$ `IStockExportService.PickToChoGiao` (Loại: `Rework`). `ChoXuatKhoRework` cho phép giữ nguyên trạng thái (self-loop) vì có thể scan/xử lý nhiều lần trước khi hoàn tất.
+   - Gọi `IQTChungService.XuatKhoRework` $\rightarrow$ `IReworkStockService.XuatKhoRework` $\rightarrow$ `IStockExportService.PickToChoGiao` (Loại: `Rework`).
    - Thực hiện xác nhận xuất qua `IReworkStockService.XacNhanXuatRework` kết hợp `ConfirmGiaoHangTuChoGiao`, ghi 1 dòng vào `FVN_TraHangQTChung_Xuat` với `LoaiXuat = "Rework"`. `ChangeStatus(DaXuatKhoRework, ...)`.
-   - `DaXuatKhoRework` có thể quay lại `ChoXuatKhoRework` nếu còn xuất bổ sung, hoặc tiến tới `ChoGiaoSanXuat`.
-   - Ghi nhận giao sản xuất qua `IQTChungService.GhiNhanGiaoSanXuat` → `FVN_TraHangQTChung_Giao` (không dùng Slot/STOCKTP). `ChoGiaoSanXuat` self-loop cho phép giao nhiều đợt; khi hoàn tất `ChangeStatus(DaGiaoSanXuat, ...)`.
+   - Ghi nhận giao sản xuất qua `IQTChungService.GhiNhanGiaoSanXuat` → `FVN_TraHangQTChung_Giao` (không dùng Slot/STOCKTP). Khi hoàn tất `ChangeStatus(DaGiaoSanXuat, ...)`.
 
-4. **Tiến Hành Rework & QC Xác Nhận Cuối:** (`Status: DaGiaoSanXuat → DangRework → ChoQCXacNhanCuoi → QCDaXacNhan`)
+4. **Tiến Hành Rework & QC Xác Nhận Cuối:** (`Status: DaGiaoSanXuat → DaQCXacNhanCuoi`)
 
-   - `ChangeStatus(DangRework, ...)` — sản phẩm được tiến hành sửa chữa tại xưởng (self-loop trong khi đang rework).
-   - Rework xong: `ChangeStatus(ChoQCXacNhanCuoi, ...)`.
-   - Thực hiện `IQTChungService.QCXacNhanCuoi` → ghi `FVN_TraHangQTChung_QC` (`SoLuongOK`, `SoLuongNG`). `ChoQCXacNhanCuoi` self-loop cho phép nhiều lượt kiểm tra trước khi chốt; khi chốt: `ChangeStatus(QCDaXacNhan, ...)`.
+   - Sản phẩm được tiến hành sửa chữa tại xưởng — bước này **ngoài hệ thống** (không có status riêng, không self-loop; xem `sys_WorkflowTransitions` để biết mốc trung gian nếu có bổ sung sau).
+   - Rework xong tại xưởng, QC thực hiện `IQTChungService.QCXacNhanCuoi` → ghi `FVN_TraHangQTChung_QC` (`SoLuongOK`, `SoLuongNG`), `ChangeStatus(DaQCXacNhanCuoi, ...)`.
 
    **4b. Kiểm Tra Tem khi Nhập Lại sau Rework:**
    - Sau `QCXacNhanCuoi`, nếu mã hàng có `IInspectionConfigService.NeedsInspection(itemCode) = true`
      → chạy `FormInspection` cho phần hàng OK trước khi `NhapLaiHangNG`.
    - Kết quả ghi vào `TraHangQTChungQC.DaKiemTraTem`.
 
-5. **Nhập Lại Kho & Phân Nhánh Sau Nhập Kho:**
+5. **Nhập Lại Kho & Phân Nhánh Sau Nhập Kho:** (`Status: DaQCXacNhanCuoi → HoanTat` hoặc `→ DaNhapLaiKho → HoanTat`)
    * *Trường hợp sản phẩm đạt chuẩn hoàn toàn (Số lượng NG = 0):* Chuyển thẳng trạng thái `HoanTat`.
    * *Trường hợp phát sinh phế phẩm (Số lượng NG > 0):* Gọi `IReworkStockService.NhapLaiHangNG` để:
      * Phần **OK**: Cộng lại lượng tồn (`ISlotService.AddQuantity` tại Kho Core và tăng tồn kho tổng `STOCKTP +`).
@@ -710,7 +673,7 @@ graph TD
     %% QC DINH HUONG
     %% ====================================================
 
-    Step1 --> Step2["IQTChungService.QCDinhHuongRework<br/>Gate quyet dinh<br/>Ghi HuongXuLy + NgayDinhHuong + NguoiDinhHuong<br/>Status: DaTaoPhieuBatThuong -> DaDinhHuongRework"]
+    Step1 --> Step2["IQTChungService.QCDinhHuongRework<br/>Gate quyet dinh<br/>Ghi HuongXuLy + NgayDinhHuong + NguoiDinhHuong<br/>Status: DaTaoPhieuBatThuong -> DaDinhHuong"]
 
 
     %% ====================================================
@@ -750,14 +713,14 @@ graph TD
     %% REWORK TAI XUONG
     %% ====================================================
 
-    Step5 --> Step6["Rework tai xuong<br/>Xu ly sua chua san pham<br/>Status = DangRework"]
+    Step5 --> Step6["Rework tai xuong<br/>Xu ly sua chua san pham (ngoai he thong, khong co status rieng)"]
 
 
     %% ====================================================
     %% QC CUOI
     %% ====================================================
 
-    Step6 --> Step7["IQTChungService.QCXacNhanCuoi<br/>Ghi FVN_TraHangQTChung_QC<br/>Ghi SoLuongOK + SoLuongNG<br/>Status = QCDaXacNhan"]
+    Step6 --> Step7["IQTChungService.QCXacNhanCuoi<br/>Ghi FVN_TraHangQTChung_QC<br/>Ghi SoLuongOK + SoLuongNG<br/>Status = DaQCXacNhanCuoi"]
 
 
     %% ====================================================
@@ -835,18 +798,19 @@ graph TD
 
 ## 4. Bảng Tra Cứu Nhanh — Status ↔ Bước Nghiệp Vụ ↔ Bảng Ghi Audit
 
-| Status | Bước nghiệp vụ | Bảng ghi audit |
+| Status (`QTChungStatus`) | Bước nghiệp vụ | Bảng ghi audit |
 |---|---|---|
-| `Moi` | Vừa nhận yêu cầu, chưa xử lý | `FVN_PhieuXuLyBatThuong` |
-| `ChoQCDinhHuong` | Chờ QC quyết định hướng xử lý | — |
-| `TuChoiKhongLoiThat` | **Terminal.** QC kết luận khách không lỗi thật | — |
-| `ChoXuatKhoRework` | Đã định hướng, chờ/đang xuất kho (Rework hoặc GiaoBuNG) | `FVN_TraHangQTChung_Xuat` |
-| `DaXuatKhoRework` | Đã xuất xong khỏi kho | `FVN_TraHangQTChung_Xuat` |
-| `ChoGiaoSanXuat` | Đang giao cho bộ phận sản xuất | `FVN_TraHangQTChung_Giao` |
-| `DaGiaoSanXuat` | Sản xuất đã nhận hàng | `FVN_TraHangQTChung_Giao` |
-| `DangRework` | Đang sửa chữa tại xưởng | — (mốc ngoài hệ thống) |
-| `ChoQCXacNhanCuoi` | Chờ QC kiểm tra kết quả rework | `FVN_TraHangQTChung_QC` |
-| `QCDaXacNhan` | QC đã chốt số lượng OK/NG | `FVN_TraHangQTChung_QC` |
-| `DaNhapNG` | Đang nhập lại kho (OK + NG) | `FVN_TraHangQTChung_NhapNG` |
-| `HoanTat` | **Terminal.** Kết thúc toàn bộ quy trình | — |
-| `Huy` | **Terminal.** Phiếu bị hủy do sai sót/trùng lặp | — |
+| `Moi` (0) | Vừa nhận yêu cầu, chưa xử lý | `FVN_PhieuXuLyBatThuong` |
+| `DaTaoPhieuBatThuong` (10) | Phiếu bất thường đã tạo, chờ QC định hướng | `FVN_PhieuXuLyBatThuong` |
+| `DaDinhHuong` (20) | QC đã chốt `HuongXuLyBatThuong` (TuChoiGiaoBu/ChiGiaoBu/CanRework) | `FVN_PhieuXuLyBatThuong` |
+| `TuChoiGiaoBu` (25) | **Terminal.** QC kết luận khách không lỗi thật | — |
+| `ChoGiaoBu` (30) | Đã đẩy `FVN_HangChoGiao` (Purpose=GiaoBuNG), chờ xác nhận | `FVN_TraHangQTChung_Xuat` |
+| `DaGiaoBu` (35) | Giao bù hoàn tất, đã trừ STOCKTP | `FVN_TraHangQTChung_Xuat` |
+| `DaXuatKhoRework` (40) | Đã xuất khỏi kho để đưa đi rework | `FVN_TraHangQTChung_Xuat` |
+| `DaGiaoSanXuat` (50) | Đã ghi nhận giao cho sản xuất/rework — không đụng Slot/STOCKTP | `FVN_TraHangQTChung_Giao` |
+| `DaQCXacNhanCuoi` (60) | QC đã chốt SoLuongOK/SoLuongNG | `FVN_TraHangQTChung_QC` |
+| `DaNhapLaiKho` (70) | Chỉ có khi SoLuongNG > 0 — đã nhập lại kho (OK + NG) | `FVN_TraHangQTChung_NhapNG` |
+| `HoanTat` (100) | **Terminal.** Kết thúc toàn bộ quy trình | — |
+| `Huy` (900) | **Terminal.** Phiếu bị hủy do sai sót/trùng lặp | — |
+
+> Danh sách transition hợp lệ giữa các status trên KHÔNG còn nằm trong bảng này hay trong code C# — tra cứu trực tiếp bảng `sys_WorkflowTransitions WHERE ProcessCode = 'QT_CHUNG'` (xem mục 0).
