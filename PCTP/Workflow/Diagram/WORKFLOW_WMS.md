@@ -96,7 +96,8 @@ graph TD
 
     style ExportGate fill:#fff3e0,stroke:#f57c00,stroke-width:3px
     style CoreLayer fill:#e8f5e9,stroke:#388e3c,stroke-width:3px
-    style ConfirmCall fill:#f3e5f5,stroke:#8e24aa,stroke-width:2px
-    style ConfirmLogic fill:#bbf,stroke:#333,stroke-width:2px
+    style InboundProcess fill:#e1f5fe,stroke:#0288d1,stroke-width:2px
+    style OutboundProcess fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    style CoreInbound fill:#c8e6c9,stroke:#388e3c,stroke-width:2px
+    style CoreOutbound fill:#c8e6c9,stroke:#388e3c,stroke-width:2px
     style FinalEnd fill:#bfb,stroke:#333,stroke-width:2px
-```
