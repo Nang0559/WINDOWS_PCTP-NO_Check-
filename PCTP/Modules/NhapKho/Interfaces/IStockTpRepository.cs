@@ -36,5 +36,13 @@ namespace PCTP.Modules.NhapKho.Repository
 
         int GetSlDaNhap(
             string lot);
+
+        /// <summary>
+        /// Ghi đè trực tiếp SLCONLAI của 1 LOT — CHỈ dùng cho màn hình điều chỉnh tồn kho thủ công
+        /// khi phát hiện lệch dữ liệu (ví dụ CapNhapKho báo lỗi, hoặc đối soát A0 vs STOCKTP).
+        /// KHÔNG dùng trong luồng nhập/xuất bình thường — các luồng đó phải cộng/trừ qua
+        /// UpdateStockTp / XuatKhoThat để giữ đúng lịch sử SLNHAP/SLXUAT.
+        /// </summary>
+        void DieuChinhSlConLai(string lot, int slConLaiMoi);
     }
 }

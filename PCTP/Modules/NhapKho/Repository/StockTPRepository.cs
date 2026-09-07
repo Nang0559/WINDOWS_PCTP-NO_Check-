@@ -284,5 +284,13 @@ namespace PCTP.VIEWSTOCK.Repository
             if (row[column] is DateTime dt) return dt;
             return DateTime.TryParse(row[column].ToString(), out DateTime result) ? result : (DateTime?)null;
         }
+
+        public void DieuChinhSlConLai(string lot, int slConLaiMoi)
+        {
+            ExecuteNonQuery(
+                "UPDATE STOCKTP SET SLCONLAI = @sl WHERE LOT = @lot",
+                new SqlParameter("@sl", slConLaiMoi),
+                new SqlParameter("@lot", lot));
+        }
     }
 }
