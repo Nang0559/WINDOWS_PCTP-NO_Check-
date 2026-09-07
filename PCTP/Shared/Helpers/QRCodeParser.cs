@@ -1,4 +1,5 @@
-﻿using PCTP.VIEWSTOCK.Models;
+﻿using PCTP.Shared.Models;
+using PCTP.VIEWSTOCK.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -56,5 +57,38 @@ namespace PCTP.VIEWSTOCK.Fuction
             throw new FormatException(
                 $"QR Code không hợp lệ: cần 4 hoặc 6 phần, nhận được {parts.Length} phần.\nNội dung: {qrText}");
         }
+        /// <summary>
+        /// QR riêng cho tem TÁCH LOT: "LOT+SLTEMFCC:ITEM:NGAYSX:SLTEMFCC" (4 phần).
+        /// Quirk: SLTEMFCC bị in dính vào cuối LOT (không tách dấu ':'), nên phải
+        /// trừ ngược độ dài để lấy LOT sạch. LOT chuẩn 27 ký tự → luôn cắt 4 số cuối.
+        /// </summary>
+        public static TachLotQrInfo ParseTachLotQr(string qrText)
+        {
+            if (string.IsNullOrWhiteSpace(qrText))
+                throw new FormatException("QR Code rỗng.");
+
+            var parts = qrText.Split(':');
+            if (parts.Length != 4)
+                throw new FormatException(
+                    $"QR Code TÁCH LOT không đúng định dạng: cần 4 phần, nhận được {parts.Length} phần.\nNội dung: {qrText}");
+
+            string rawLotToken = parts[0].Trim();
+            string itemCode = parts[1].Trim();
+            string ngaySx = parts[2].Trim();
+            string slTemRaw = parts[3].Trim();
+
+            string lot = rawLotToken.Length == 27
+                ? rawLotToken.Substring(0, rawLotToken.Length - 4)
+                : rawLotToken.Substring(0, Math.Max(0, rawLotToken.Length - slTemRaw.Length));
+
+            return new TachLotQrInfo
+            {
+                LotNo = lot,
+                ItemCode = itemCode,
+                NgaySX = ngaySx,
+                SlTemFccRaw = slTemRaw
+            };
+        }
     }
+
 }

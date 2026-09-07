@@ -620,6 +620,7 @@
     <Compile Include="Modules\GiaoHangKhach\Reports\YMVN_PGH.Designer.cs">
       <DependentUpon>YMVN_PGH.cs</DependentUpon>
     </Compile>
+    <Compile Include="Shared\Models\TachLotQrInfo.cs" />
     <Compile Include="Shared\Services\IPrintService.cs" />
     <Compile Include="Shared\Services\PrintService.cs" />
     <Compile Include="Shared\UiMd\IWorkflowRepository.cs" />
@@ -629,6 +630,10 @@
     <Compile Include="Shared\UiMd\WorkflowRepository.cs" />
     <Compile Include="Shared\UiMd\WorkflowTransition.cs" />
     <Compile Include="Shared\UiMd\WorkflowTransitionService.cs" />
+    <Compile Include="Shared\Validation\SumNotExceedRule.cs" />
+    <Compile Include="Shared\Validation\ValidatableXtraForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="Shell\Main_APP.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -1062,11 +1067,5 @@
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
     <Analyzer Include="C:\Program Files\DevExpress 25.2\Components\Offline Packages\devexpress.data\25.2.4\analyzers\dotnet\DevExpress.Generator.dll" Visible="false" Condition="Exists('C:\Program Files\DevExpress 25.2\Components\Offline Packages\devexpress.data\25.2.4\analyzers\dotnet\DevExpress.Generator.dll')" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\Validation\MyValidation.csproj">
-      <Project>{3D6911DA-FD00-48D2-8479-685B1699A7D2}</Project>
-      <Name>MyValidation</Name>
-    </ProjectReference>
   </ItemGroup>
 </Project>
