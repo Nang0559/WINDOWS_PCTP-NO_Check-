@@ -258,12 +258,18 @@
       <DependentUpon>ImagesControl.cs</DependentUpon>
     </Compile>
     <Compile Include="ALLVAR.cs" />
+    <Compile Include="Domain\Events\HoanThanhYMVNCompletedEvent.cs" />
     <Compile Include="Modules\GiaoHangKhach\FifoViolation.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Intefaces\IItemFifoConfigRepository.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Repositories\ItemFifoConfigRepository.cs" />
     <Compile Include="Modules\GiaoHangKhach\Services\DocQRService.cs" />
     <Compile Include="Modules\GiaoHangKhach\Services\InPhieuService.cs" />
     <Compile Include="Modules\GiaoHangKhach\Services\PhieuService.cs" />
     <Compile Include="ClassFunction.cs" />
     <Compile Include="Domain\Interfaces\IOrderLoadStrategy.cs" />
+    <Compile Include="Modules\GiaoHangKhach\SubForm\FormItemFifoConfig.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="Modules\GiaoHangKhach\SubForm\TONKHOTP.cs">
       <SubType>Form</SubType>
     </Compile>

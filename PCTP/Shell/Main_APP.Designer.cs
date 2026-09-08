@@ -100,15 +100,16 @@
             this.accordionControlSeparator11 = new DevExpress.XtraBars.Navigation.AccordionControlSeparator();
             this.acrImageControl = new DevExpress.XtraBars.Navigation.AccordionControlElement();
             this.cmdRackControl = new DevExpress.XtraBars.Navigation.AccordionControlElement();
+            this.accordionControlElement38 = new DevExpress.XtraBars.Navigation.AccordionControlElement();
             this.accordionControlElement18 = new DevExpress.XtraBars.Navigation.AccordionControlElement();
             this.E_NhapTP = new DevExpress.XtraBars.Navigation.AccordionControlElement();
             this.E_NhapTP_0QR = new DevExpress.XtraBars.Navigation.AccordionControlElement();
             this.E_Trahang = new DevExpress.XtraBars.Navigation.AccordionControlElement();
             this.trahangngPD = new DevExpress.XtraBars.Navigation.AccordionControlElement();
             this.trahangndHVN = new DevExpress.XtraBars.Navigation.AccordionControlElement();
-            this.accordionControlElement30 = new DevExpress.XtraBars.Navigation.AccordionControlElement();
             this.accordionControlElement_QCDinhHuong = new DevExpress.XtraBars.Navigation.AccordionControlElement();
             this.accordionControlElement_QCXacNhanCuoi = new DevExpress.XtraBars.Navigation.AccordionControlElement();
+            this.accordionControlElement30 = new DevExpress.XtraBars.Navigation.AccordionControlElement();
             this.accordionControlElement23 = new DevExpress.XtraBars.Navigation.AccordionControlElement();
             this.accordionControlSeparator10 = new DevExpress.XtraBars.Navigation.AccordionControlSeparator();
             this.accordionControlElement26 = new DevExpress.XtraBars.Navigation.AccordionControlElement();
@@ -117,6 +118,8 @@
             this.E_GHHVN_MP = new DevExpress.XtraBars.Navigation.AccordionControlElement();
             this.E_GHHVN_SP = new DevExpress.XtraBars.Navigation.AccordionControlElement();
             this.HTDelever = new DevExpress.XtraBars.Navigation.AccordionControlElement();
+            this.accordionControlElement36 = new DevExpress.XtraBars.Navigation.AccordionControlElement();
+            this.accordionControlElement37 = new DevExpress.XtraBars.Navigation.AccordionControlElement();
             this.accordionControlSeparator6 = new DevExpress.XtraBars.Navigation.AccordionControlSeparator();
             this.accordionControlElement25 = new DevExpress.XtraBars.Navigation.AccordionControlElement();
             this.E_GHYMVN_MP = new DevExpress.XtraBars.Navigation.AccordionControlElement();
@@ -133,7 +136,6 @@
             this.accordionControlSeparator9 = new DevExpress.XtraBars.Navigation.AccordionControlSeparator();
             this.accordionControlSeparator8 = new DevExpress.XtraBars.Navigation.AccordionControlSeparator();
             this.accordionControlSeparator5 = new DevExpress.XtraBars.Navigation.AccordionControlSeparator();
-        
             this.panel1 = new System.Windows.Forms.Panel();
             this.tgxem = new System.Windows.Forms.Label();
             this.panel2 = new System.Windows.Forms.Panel();
@@ -146,8 +148,6 @@
             this.lblHostName = new System.Windows.Forms.Label();
             this.lblMayBan = new System.Windows.Forms.Label();
             this.helpProvider1 = new System.Windows.Forms.HelpProvider();
-            this.accordionControlElement36 = new DevExpress.XtraBars.Navigation.AccordionControlElement();
-            this.accordionControlElement37 = new DevExpress.XtraBars.Navigation.AccordionControlElement();
             ((System.ComponentModel.ISupportInitialize)(this.ribbonControl)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.accordionControl)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.dockManager)).BeginInit();
@@ -533,7 +533,8 @@
             this.accordionControlElement29,
             this.accordionControlSeparator11,
             this.acrImageControl,
-            this.cmdRackControl});
+            this.cmdRackControl,
+            this.accordionControlElement38});
             this.accordionControlElement20.Expanded = true;
             this.accordionControlElement20.Name = "accordionControlElement20";
             this.accordionControlElement20.Text = "Công Cụ";
@@ -606,6 +607,18 @@
             this.cmdRackControl.Text = "QUẢN LÝ RACK";
             this.cmdRackControl.Click += new System.EventHandler(this.cmdRackControl_Click);
             // 
+            // accordionControlElement38
+            // 
+            this.accordionControlElement38.HeaderTemplate.AddRange(new DevExpress.XtraBars.Navigation.HeaderElementInfo[] {
+            new DevExpress.XtraBars.Navigation.HeaderElementInfo(DevExpress.XtraBars.Navigation.HeaderElementType.HeaderControl, DevExpress.XtraBars.Navigation.HeaderElementAlignment.Left),
+            new DevExpress.XtraBars.Navigation.HeaderElementInfo(DevExpress.XtraBars.Navigation.HeaderElementType.Image),
+            new DevExpress.XtraBars.Navigation.HeaderElementInfo(DevExpress.XtraBars.Navigation.HeaderElementType.Text),
+            new DevExpress.XtraBars.Navigation.HeaderElementInfo(DevExpress.XtraBars.Navigation.HeaderElementType.ContextButtons)});
+            this.accordionControlElement38.Name = "accordionControlElement38";
+            this.accordionControlElement38.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item;
+            this.accordionControlElement38.Text = "Cấu hình FIFO";
+            this.accordionControlElement38.Click += new System.EventHandler(this.accordionControlElement38_Click);
+            // 
             // accordionControlElement18
             // 
             this.accordionControlElement18.Elements.AddRange(new DevExpress.XtraBars.Navigation.AccordionControlElement[] {
@@ -649,24 +662,18 @@
             this.E_Trahang.Name = "E_Trahang";
             this.E_Trahang.Text = "Trả Hàng";
             this.E_Trahang.Click += new System.EventHandler(this.E_Trahang_Click);
-         
-      
+            // 
+            // trahangngPD
+            // 
+            this.trahangngPD.Name = "trahangngPD";
             // 
             // trahangndHVN
             // 
-            this.trahangndHVN.ImageOptions.Image = ((System.Drawing.Image)(resources.GetObject("trahangndHVN.ImageOptions.Image")));
             this.trahangndHVN.ImageOptions.ImageLayoutMode = DevExpress.XtraBars.Navigation.ImageLayoutMode.Squeeze;
             this.trahangndHVN.Name = "trahangndHVN";
             this.trahangndHVN.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item;
             this.trahangndHVN.Text = "HVN Trả";
             this.trahangndHVN.Click += new System.EventHandler(this.accordionControlElement27_Click);
-            // 
-            // accordionControlElement30
-            // 
-            this.accordionControlElement30.Name = "accordionControlElement30";
-            this.accordionControlElement30.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item;
-            this.accordionControlElement30.Text = "Trả Hàng NG";
-            this.accordionControlElement30.Click += new System.EventHandler(this.accordionControlElement30_Click_1);
             // 
             // accordionControlElement_QCDinhHuong
             // 
@@ -681,6 +688,13 @@
             this.accordionControlElement_QCXacNhanCuoi.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item;
             this.accordionControlElement_QCXacNhanCuoi.Text = "QC Xác Nhận Cuối";
             this.accordionControlElement_QCXacNhanCuoi.Click += new System.EventHandler(this.accordionControlElement_QCXacNhanCuoi_Click);
+            // 
+            // accordionControlElement30
+            // 
+            this.accordionControlElement30.Name = "accordionControlElement30";
+            this.accordionControlElement30.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item;
+            this.accordionControlElement30.Text = "Trả Hàng NG";
+            this.accordionControlElement30.Click += new System.EventHandler(this.accordionControlElement30_Click_1);
             // 
             // accordionControlElement23
             // 
@@ -744,6 +758,21 @@
             this.HTDelever.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item;
             this.HTDelever.Text = "HTV";
             this.HTDelever.Click += new System.EventHandler(this.HTDelever_Click);
+            // 
+            // accordionControlElement36
+            // 
+            this.accordionControlElement36.Elements.AddRange(new DevExpress.XtraBars.Navigation.AccordionControlElement[] {
+            this.accordionControlElement37});
+            this.accordionControlElement36.Expanded = true;
+            this.accordionControlElement36.Name = "accordionControlElement36";
+            this.accordionControlElement36.Text = "GIAO BÙ NG";
+            // 
+            // accordionControlElement37
+            // 
+            this.accordionControlElement37.Name = "accordionControlElement37";
+            this.accordionControlElement37.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item;
+            this.accordionControlElement37.Text = "GIAO BÙ HÀNG";
+            this.accordionControlElement37.Click += new System.EventHandler(this.accordionControlElement37_Click);
             // 
             // accordionControlSeparator6
             // 
@@ -860,10 +889,6 @@
             // 
             this.accordionControlSeparator5.Name = "accordionControlSeparator5";
             // 
-            // splashScreenManager1
-            // 
-       
-            // 
             // panel1
             // 
             this.panel1.BackColor = System.Drawing.Color.MistyRose;
@@ -978,7 +1003,7 @@
         series1,
         series2,
         series3};
-            this.CharHVN.Size = new System.Drawing.Size(1231, 594);
+            this.CharHVN.Size = new System.Drawing.Size(985, 475);
             this.CharHVN.SmallChartText.TextColor = System.Drawing.Color.FromArgb(((int)(((byte)(255)))), ((int)(((byte)(255)))), ((int)(((byte)(255)))));
             this.CharHVN.TabIndex = 5;
             // 
@@ -1044,7 +1069,7 @@
         series4,
         series5,
         series6};
-            this.CharYMVN.Size = new System.Drawing.Size(1726, 898);
+            this.CharYMVN.Size = new System.Drawing.Size(1381, 718);
             this.CharYMVN.SmallChartText.TextColor = System.Drawing.Color.FromArgb(((int)(((byte)(255)))), ((int)(((byte)(255)))), ((int)(((byte)(255)))));
             this.CharYMVN.TabIndex = 6;
             // 
@@ -1072,21 +1097,6 @@
             // helpProvider1
             // 
             this.helpProvider1.HelpNamespace = "\\\\192.168.200.1\\fcc\\003.DEPLOY\\009.QRCODE\\HDSB.chm";
-            // 
-            // accordionControlElement36
-            // 
-            this.accordionControlElement36.Elements.AddRange(new DevExpress.XtraBars.Navigation.AccordionControlElement[] {
-            this.accordionControlElement37});
-            this.accordionControlElement36.Expanded = true;
-            this.accordionControlElement36.Name = "accordionControlElement36";
-            this.accordionControlElement36.Text = "GIAO BÙ NG";
-            // 
-            // accordionControlElement37
-            // 
-            this.accordionControlElement37.Name = "accordionControlElement37";
-            this.accordionControlElement37.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item;
-            this.accordionControlElement37.Text = "GIAO BÙ HÀNG";
-            this.accordionControlElement37.Click += new System.EventHandler(this.accordionControlElement37_Click);
             // 
             // Main_APP
             // 
@@ -1245,5 +1255,6 @@
         private DevExpress.XtraBars.Navigation.AccordionControlElement accordionControlElement_QCXacNhanCuoi;
         private DevExpress.XtraBars.Navigation.AccordionControlElement accordionControlElement36;
         private DevExpress.XtraBars.Navigation.AccordionControlElement accordionControlElement37;
+        private DevExpress.XtraBars.Navigation.AccordionControlElement accordionControlElement38;
     }
 }

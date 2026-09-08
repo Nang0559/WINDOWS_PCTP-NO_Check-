@@ -117,6 +117,7 @@ namespace PCTP.Presentation.Presenters
             _bus.Subscribe<KhoUpdatedEvent>(OnKhoUpdated);
             _bus.Subscribe<TinhTongCompletedEvent>(OnTinhTongCompleted);
             _bus.Subscribe<QRScannedEvent>(OnQRScanned);
+            _bus.Subscribe<HoanThanhYMVNCompletedEvent>(OnHoanThanhYMVNCompleted);
         }
 
         // ════════════════════════════════════════════════════════════════════
@@ -160,40 +161,10 @@ namespace PCTP.Presentation.Presenters
                 }
             }, null);
         }
-        //private void OnKhoUpdated(KhoUpdatedEvent message)
-        //{
-        //    _uiContext.Post(_ =>
-        //    {
-        //        bool coLoi = message.Errors != null && message.Errors.Rows.Count > 0;
-
-        //        if (coLoi)
-        //        {
-        //            // ── CNK có lỗi tồn kho → chỉ hiển thị lỗi, KHÔNG reset, KHÔNG reload
-        //            // User phải sửa lỗi rồi CNK lại — phiếu giữ nguyên trạng thái
-        //            _view.ShowLoiCapNhapKho(message.Errors);
-        //            return; // ← thoát sớm, không làm gì thêm
-        //        }
-
-        //        // ── CNK thành công hoàn toàn ─────────────────────────────────────
-        //        if (message.SoLotCapNhap > 0)
-        //            _view.ShowInfo($"Đã cập nhật {message.SoLotCapNhap} LOT thành công.");
-
-        //        // Reset trạng thái sau CNK thành công
-        //        _isBanQR = false;
-        //        _qrSvc.SetCheDoBanSP(false);
-        //        _view.UnlockAllRadio();
-
-
-
-        //        // Load lại phiếu — lúc này DOCQRCODE đã xóa
-        //        // XetTrangThai → !DangBan → LoadPhieuHienTai đúng, không hỏi xóa DocQR
-        //        RunWithLoadingSync(() =>
-        //        {
-        //            LoadPhieuHienTai();
-        //        }, "Đang tải lại dữ liệu phiếu...");
-
-        //    }, null);
-        //}
+        private void OnHoanThanhYMVNCompleted(HoanThanhYMVNCompletedEvent e)
+        {
+            _view.BindHoanThanhYMVN(e.Result);
+        }
         private void OnKhoUpdated(KhoUpdatedEvent message)
         {
             _uiContext.Post(_ =>

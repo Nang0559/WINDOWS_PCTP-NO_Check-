@@ -12,6 +12,7 @@ using PCTP.FuctionPrint;
 using PCTP.Modules.GiaoHangKhach;
 using PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao;
 using PCTP.Modules.GiaoHangKhach.Repositories;
+using PCTP.Modules.GiaoHangKhach.SubForm;
 using PCTP.Modules.XuLyHangLoi.Repository;
 using PCTP.QRCODE_HVN;
 using PCTP.QRCODE_HVN.ComaprePart;
@@ -799,7 +800,7 @@ namespace PCTP
 
         private void accordionControlElement30_Click(object sender, EventArgs e)
         {
-           
+            
         }
 
         private void E_GHHVN_SP_Click(object sender, EventArgs e)
@@ -813,6 +814,12 @@ namespace PCTP
 
         private void accordionControlElement30_Click_1(object sender, EventArgs e)
      => WarehouseProcessNavigator.OpenQuanLyTienTrinhHangLoi(this);
+
+        private void accordionControlElement38_Click(object sender, EventArgs e)
+        {
+            FormItemFifoConfig frm = new FormItemFifoConfig();
+            frm.Show();
+        }
 
         private void accordionControlElement37_Click(object sender, EventArgs e)
     => WarehouseProcessNavigator.OpenQuanLyTienTrinhHangLoi(this);

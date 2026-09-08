@@ -779,19 +779,22 @@ namespace PCTP.Applications.Services
 
         ///////////////
         // Hoàn thành YMVN — gọi SP Usp_Qrcode_Take_LotYMVN
+        ///////////////
+        // Hoàn thành YMVN — gọi SP Usp_Qrcode_Take_LotYMVN
         public void HoanThanhYMVN(bool isLoaiSP = false)
         {
             System.Diagnostics.Debug.WriteLine(
                 $"[HoanThanhYMVN] TmpTable={_cfg.TmpTable}, DocQRTable={_cfg.DocQRTable}, isLoaiSP={isLoaiSP}");
 
             DataTable result = _phieuRepo.TakeLotYMVN(
-           _cfg.TmpTable,
-                 _cfg.DocQRTable,
+                _cfg.TmpTable,
+                _cfg.DocQRTable,
                 isLoaiSP);
 
             if (result == null || result.Rows.Count == 0)
             {
                 System.Diagnostics.Debug.WriteLine("[HoanThanhYMVN] Không có dữ liệu trả về!");
+                _bus.Publish(new HoanThanhYMVNCompletedEvent(new DataTable()));
                 return;
             }
 
@@ -804,8 +807,8 @@ namespace PCTP.Applications.Services
                     $"TONG_SLHVN={row["TONG_SLHVN"]}, SL_GIAO={row["SL_GIAO"]}, IsOK={row["IsOK"]}");
             }
 
-            // TODO: gán result vào GridControl/BindingSource để hiển thị lên UI
-            // ví dụ: gridControl1.DataSource = result;
+            // ── Đẩy kết quả ra ngoài qua EventBus — Presenter subscribe và bind lên View ──
+            _bus.Publish(new HoanThanhYMVNCompletedEvent(result));
         }
 
         // Lấy danh sách giờ từ Purchase_Order_YMVN

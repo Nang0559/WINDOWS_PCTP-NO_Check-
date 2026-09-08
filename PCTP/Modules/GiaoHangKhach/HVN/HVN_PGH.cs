@@ -281,7 +281,23 @@ namespace PCTP.QRCODE_HVN.PGH
             gridVDOCQRCODE.RefreshData();           // force grid refresh sau khi đổi DataSource
             gridVDOCQRCODE.MoveLastVisible();       // scroll xuống dòng mới nhất vừa scan
         }
+        public void BindHoanThanhYMVN(DataTable dt)
+        {
+            if (this.InvokeRequired)
+            {
+                this.Invoke(new Action(() => BindHoanThanhYMVN(dt)));
+                return;
+            }
 
+            if (dt == null || dt.Rows.Count == 0)
+            {
+                ShowInfo("Không có dữ liệu Hoàn Thành YMVN để hiển thị.");
+                return;
+            }
+
+            gridCtrDOCQrCODE.DataSource = dt;
+            gridVDOCQRCODE.RefreshData();
+        }
         public void BindGhepLot(DataTable dt) => gridCTTGL.DataSource = dt;
 
         public void SetGridCaption(string caption) => gridBandDH.Caption = caption;

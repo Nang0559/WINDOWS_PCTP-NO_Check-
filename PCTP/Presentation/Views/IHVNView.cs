@@ -60,6 +60,7 @@ namespace PCTP.Presentation.Views
         void SetupGridDonHangYMVN(bool coGear);
         void LockCheckListYMVN();
         void UnlockCheckListYMVN();
+        void BindHoanThanhYMVN(DataTable dt);
         // ════════════════════════════════════════════════════════════════════
         // III. ĐỌC GIÁ TRỊ TỪ UI
         // ════════════════════════════════════════════════════════════════════
