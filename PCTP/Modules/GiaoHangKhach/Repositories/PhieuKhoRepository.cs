@@ -31,26 +31,56 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         private readonly IBulkStockSlotRepository _bulkStockSlotRepo;
         private readonly IStockHistoryRepository _historyRepo;
         private readonly IPhieuValidationRepository _validationRepo;
+
         public PhieuKhoRepository(
             PhieuSqlExecutor db,
             IUnitOfWork uow,
             IBulkStockSlotRepository bulkStockSlotRepo,
             IStockHistoryRepository historyRepo,
-             IPhieuValidationRepository validationRepo,
             CustomerConfig cfg = null,
-            IHangChoGiaoRepository hangChoGiaoRepo = null)
+            IHangChoGiaoRepository hangChoGiaoRepo = null,
+            IPhieuValidationRepository validationRepo = null)
             : base(db, uow)
         {
             _bulkStockSlotRepo = bulkStockSlotRepo ?? throw new ArgumentNullException(nameof(bulkStockSlotRepo));
             _historyRepo = historyRepo ?? throw new ArgumentNullException(nameof(historyRepo));
-            _validationRepo = validationRepo ?? throw new ArgumentNullException(nameof(validationRepo));
             _cfg = cfg;
             _hangChoGiaoRepo = hangChoGiaoRepo;   // giữ nullable như hành vi cũ (có null-check khi dùng)
-           
+
+            // ✅ FIX: kiểm tra FIFO (Bước 3 thiết kế FIFO) phải chạy TRƯỚC khi CapNhapKho
+            // chạm vào STOCKTP/Slot — cần IPhieuValidationRepository.CheckFifoViolations.
+            _validationRepo = validationRepo ?? new PhieuValidationRepository(db, uow);
         }
 
         private BulkStockAdjustService CreateBulkService()
             => new BulkStockAdjustService(_bulkStockSlotRepo, _historyRepo, Uow);
+
+        /// <summary>
+        /// Dựng bảng "errors" cùng shape với bảng lỗi do SP Usp_Qrcode_Update_Stock2405 trả
+        /// về (MH/LOT/SLC/SLTK/SLT/STATUS) để UI hiển thị lỗi FIFO giống hệt các lỗi CNK khác,
+        /// không cần thêm code UI riêng cho trường hợp FIFO.
+        /// </summary>
+        private static DataTable BuildFifoErrorTable(List<FifoViolation> violations)
+        {
+            var dt = new DataTable();
+            dt.Columns.Add("MH", typeof(string));
+            dt.Columns.Add("LOT", typeof(string));
+            dt.Columns.Add("SLC", typeof(int));
+            dt.Columns.Add("SLTK", typeof(int));
+            dt.Columns.Add("SLT", typeof(int));
+            dt.Columns.Add("STATUS", typeof(string));
+
+            foreach (var v in violations)
+            {
+                dt.Rows.Add(
+                    v.MaHang,
+                    v.LotDaChon,
+                    0, 0, 0,
+                    $"VI PHẠM FIFO — phải xuất LOT [{v.LotDungRaPhaiChon}] tại Slot #{v.SlotIdDungRaPhaiChon} trước LOT [{v.LotDaChon}]");
+            }
+
+            return dt;
+        }
 
         // ============================================================
         // IPhieuKhoRepository
@@ -84,12 +114,20 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         {
             Db.ValidateTableName(tmpTable);
             Db.ValidateTableName(docQRTable);
+
+            // --------------------------------------------------------
+            // (0) Bước 3 thiết kế FIFO: chặn CNK NGAY TỪ ĐẦU nếu có dòng chọn sai
+            // LOT theo FIFO (mã hàng có ItemFifoConfig.EnforceFifo = true) — chạy
+            // TRƯỚC khi chạm vào STOCKTP/Slot, không cho SP Usp_Qrcode_Update_Stock2405
+            // chạy khi còn vi phạm.
+            // --------------------------------------------------------
             var fifoViolations = _validationRepo.CheckFifoViolations(tmpTable);
             if (fifoViolations.Count > 0)
             {
                 errors = BuildFifoErrorTable(fifoViolations);
-                return 0;   // ← KHÔNG chạy tiếp bất kỳ dòng nào bên dưới
+                return 0;
             }
+
             // ⚠️ SP trả DataSet ĐA BẢNG (stok + errors) — gọi thẳng Db (không qua
             // Uow transaction), giữ đúng hành vi gốc: SP tự quản lý transaction bên trong.
             DataSet ds = Db.ExecuteStoredProcedureDataSet(
@@ -246,14 +284,15 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
 
         public int CapNhapKhoSP(string gioGiaoFcc, string nhaMay, out DataTable errors)
         {
-            // ⚠️ CapNhapKhoSP không có tham số tmpTable trực tiếp — cần _cfg.TmpTable
-            // hoặc tham số truyền vào. Xác nhận: hàm này dùng bảng TMP nào?
-            var fifoViolations = _validationRepo.CheckFifoViolations(_cfg?.TmpTable);
+            // ✅ FIX: cùng gate FIFO như CapNhapKho — Usp_Qrcode_Update_Stock_SP đọc cố định
+            // từ TMPPHIEUGIAOHANG (không tham số hoá tên bảng, xem SP), nên hardcode ở đây.
+            var fifoViolations = _validationRepo.CheckFifoViolations("TMPPHIEUGIAOHANG");
             if (fifoViolations.Count > 0)
             {
                 errors = BuildFifoErrorTable(fifoViolations);
                 return 0;
             }
+
             DataSet ds = Db.ExecuteStoredProcedureDataSet(
                 "Usp_Qrcode_Update_Stock_SP",
                 new SqlParameter("@GIOGIAOFCC", SqlDbType.NVarChar, 200) { Value = (object)(gioGiaoFcc ?? "") },
@@ -309,18 +348,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             out DS_ERR_CNK error)
         {
             error = null;
-            var fifoViolations = _validationRepo.CheckFifoViolations(_cfg.TmpTable);
-            if (fifoViolations.Count > 0)
-            {
-                var v = fifoViolations.First(x => x.MaHang == maHang);
-                error = new DS_ERR_CNK
-                {
-                    MH = v.MaHang,
-                    LOT = v.LotDaChon,
-                    Ms = $"Vi phạm FIFO — phải xuất Lot {v.LotDungRaPhaiChon} (Slot {v.SlotIdDungRaPhaiChon}) trước."
-                };
-                return false;
-            }
+
             if (_cfg == null)
                 throw new InvalidOperationException("PhieuKhoRepository cần CustomerConfig để thực hiện CapNhapKhoYMVN.");
 
@@ -512,21 +540,6 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             return ExecuteStoredProcedure(
                 "Usp_Qrcode_LOAD_HANGTHIEUView",
                 new SqlParameter("@TENBAN", tenBan));
-        }
-
-        // ── Helper dựng bảng lỗi hiển thị lên UI (giống format `errors` hiện có từ SP) ──
-        private DataTable BuildFifoErrorTable(List<FifoViolation> violations)
-        {
-            var dt = new DataTable();
-            dt.Columns.Add("MH", typeof(string));
-            dt.Columns.Add("LOT", typeof(string));
-            dt.Columns.Add("Ms", typeof(string));
-
-            foreach (var v in violations)
-                dt.Rows.Add(v.MaHang, v.LotDaChon,
-                    $"Vi phạm FIFO — phải xuất Lot {v.LotDungRaPhaiChon} (Slot {v.SlotIdDungRaPhaiChon}) trước.");
-
-            return dt;
         }
     }
 }
