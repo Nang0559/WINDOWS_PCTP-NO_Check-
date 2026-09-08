@@ -59,40 +59,19 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             IStockHistoryRepository historyRepo,
             IHangChoGiaoRepository hangChoGiaoRepo = null,
             IIFSRepository ifsRepo = null)
-            : this(
-                  db,
-                  new PhieuValidationRepository(db,uow),
-                  new PhieuTmpRepository(db, uow),
-                  new PhieuLotRepository(db, uow),
-                  new PhieuKhoRepository(db, uow, bulkStockSlotRepo, historyRepo, cfg, hangChoGiaoRepo),
-                  new PhieuLuuTruRepository(db),
-                  new PhieuGiaoDBRepository(db))
-        {
-        }
-
-        /// <summary>
-        /// Constructor "thuần DI" — nhận thẳng 6 instance đã dựng sẵn.
-        /// KHUYẾN NGHỊ dùng constructor này từ GiaoHangKhachModuleFactory, để chính
-        /// factory kiểm soát vòng đời/cách dựng từng repo con, Facade chỉ lắp ráp.
-        /// </summary>
-        public PhieuRepository(
-            PhieuSqlExecutor db,
-            IPhieuValidationRepository validation,
-            IPhieuTmpRepository tmp,
-            IPhieuLotRepository lot,
-            IPhieuKhoRepository kho,
-            IPhieuLuuTruRepository luuTru,
-            IPhieuGiaoDBRepository giaoDB)
         {
             _db = db ?? throw new ArgumentNullException(nameof(db));
-            _validation = validation ?? throw new ArgumentNullException(nameof(validation));
-            _tmp = tmp ?? throw new ArgumentNullException(nameof(tmp));
-            _lot = lot ?? throw new ArgumentNullException(nameof(lot));
-            _kho = kho ?? throw new ArgumentNullException(nameof(kho));
-            _luuTru = luuTru ?? throw new ArgumentNullException(nameof(luuTru));
-            _giaoDB = giaoDB ?? throw new ArgumentNullException(nameof(giaoDB));
-        }
 
+            _validation = new PhieuValidationRepository(db, uow);   // ← dựng TRƯỚC
+            _tmp = new PhieuTmpRepository(db,uow);
+            _lot = new PhieuLotRepository(db, uow);
+            _giaoDB = new PhieuGiaoDBRepository(db);
+            _luuTru = new PhieuLuuTruRepository(db);
+            _kho = new PhieuKhoRepository(
+                              db, uow, bulkStockSlotRepo, historyRepo,
+                              _validation,   // ← TÁI DÙNG đúng instance vừa dựng, không tạo mới
+                              cfg, hangChoGiaoRepo);
+        }
         #region IPhieuValidationRepository — 100% delegate, KHÔNG chứa logic
 
         public int CountDocQRCode(string docQRTable)

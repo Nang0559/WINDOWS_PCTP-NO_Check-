@@ -173,7 +173,7 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
             _grid.RepositoryItems.Add(riCheck);
             colEnforce.ColumnEdit = riCheck;
 
-            _gridView.Columns["_IsNew"].Visible = false;
+            //_gridView.Columns["_IsNew"].Visible = false;
 
             _gridView.BestFitColumns();
         }
