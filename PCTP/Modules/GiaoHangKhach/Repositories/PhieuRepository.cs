@@ -272,7 +272,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
           => _kho.LoadHangThieu(isMayBanQR, tenBan);
 
         public Dictionary<string, int> GetQcDongGoiBatch(List<string> maHangList)
-        => _validation.GetQcDongGoiBatch(isMayBanQR, tenBan);
+             => _validation.GetQcDongGoiBatch(maHangList);
 
         #endregion
     }
