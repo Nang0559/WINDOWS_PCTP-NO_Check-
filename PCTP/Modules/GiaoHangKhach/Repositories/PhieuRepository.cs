@@ -33,13 +33,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
     /// ghi chú tại đó). Nếu thấy mình sắp gõ SqlParameter hay ExecuteScalar ở đây,
     /// dừng lại — method đó thuộc về 1 trong 6 repo con, không phải Facade.
     /// </summary>
-    public sealed class PhieuRepository :
-        IPhieuValidationRepository,
-        IPhieuTmpRepository,
-        IPhieuLotRepository,
-        IPhieuKhoRepository,
-        IPhieuLuuTruRepository,
-        IPhieuGiaoDBRepository
+    public sealed class PhieuRepository :IPhieuRepository
     {
         private readonly IPhieuValidationRepository _validation;
         private readonly IPhieuTmpRepository _tmp;
