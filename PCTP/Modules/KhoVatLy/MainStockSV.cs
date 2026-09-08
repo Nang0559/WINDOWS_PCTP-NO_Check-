@@ -6,6 +6,7 @@ using DevExpress.XtraGrid.Views.Grid;
 using DevExpress.XtraSplashScreen;
 using DevExpress.XtraVerticalGrid;
 using PCTP.ClassSQL;
+using PCTP.Common;
 using PCTP.Modules.GiaoHangKhach;
 using PCTP.Modules.KhoCore.Interfaces;
 using PCTP.Modules.KhoCore.Repositories;
@@ -156,13 +157,14 @@ namespace PCTP.VIEWSTOCK
             _lblDashLech.Appearance.ForeColor = demLech > 0 ? Color.Red : Color.SeaGreen;
         }
 
-            private void ShowDoiChieuLech()
-            {
-                using (var f = new FormNhapKhoTienTrinh(this))
-                    f.ShowDialog(this);
-            }
+        private void ShowDoiChieuLech()
+        {
+            WarehouseProcessNavigator.OpenNhapKhoTienTrinh(
+                this,
+                this);
+        }
 
-            private void OnExternalStockChanged()
+        private void OnExternalStockChanged()
             {
                 if (this.InvokeRequired)
                 {

@@ -285,12 +285,55 @@ namespace PCTP.VIEWSTOCK.Repository
             return DateTime.TryParse(row[column].ToString(), out DateTime result) ? result : (DateTime?)null;
         }
 
+        // StockTpRepository.cs — thêm (đặt cạnh GetDanhSachLotConTon)
+        public DataTable GetTonKhoHienTai()
+        {
+            const string sql = @"
+SELECT LOT, PART, NAME, CASX, NGAYSX, SLSX, NGAYNHAP, SLNHAP,
+       NGAYXUAT, SLXUAT, SLCONLAI, SATUS AS Satus
+FROM STOCKTP
+WHERE ISNULL(SLCONLAI,0) > 0
+ORDER BY NGAYNHAP DESC;";
+            return LoadData(sql);
+        }
+
+        public DataTable GetTonKhoTheoLot(List<string> lots)
+        {
+            if (lots == null || lots.Count == 0) return new DataTable();
+
+            var parameters = new List<SqlParameter>();
+            var placeholders = new List<string>();
+            for (int i = 0; i < lots.Count; i++)
+            {
+                string name = "@lot" + i;
+                placeholders.Add(name);
+                parameters.Add(new SqlParameter(name, lots[i]));
+            }
+
+            string sql = $@"
+            SELECT LOT, PART, NAME, CASX, NGAYSX, SLSX, NGAYNHAP, SLNHAP,
+                   NGAYXUAT, SLXUAT, SLCONLAI, SATUS AS Satus
+            FROM STOCKTP
+            WHERE LOT IN ({string.Join(", ", placeholders)})
+            ORDER BY NGAYNHAP DESC;";
+            return LoadData(sql, parameters.ToArray());
+        }
+
         public void DieuChinhSlConLai(string lot, int slConLaiMoi)
         {
-            ExecuteNonQuery(
-                "UPDATE STOCKTP SET SLCONLAI = @sl WHERE LOT = @lot",
+            if (string.IsNullOrWhiteSpace(lot))
+                throw new ArgumentException("LOT không được để trống.", nameof(lot));
+            if (slConLaiMoi < 0)
+                throw new ArgumentOutOfRangeException(nameof(slConLaiMoi));
+
+            int affected = ExecuteNonQuery(
+                "UPDATE STOCKTP SET SLCONLAI = @sl WHERE LOT = @lot;",
                 new SqlParameter("@sl", slConLaiMoi),
                 new SqlParameter("@lot", lot));
+
+            if (affected == 0)
+                throw new InvalidOperationException($"Không tìm thấy LOT '{lot}' trong STOCKTP.");
         }
+
     }
 }

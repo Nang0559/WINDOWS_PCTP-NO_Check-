@@ -258,6 +258,7 @@
       <DependentUpon>ImagesControl.cs</DependentUpon>
     </Compile>
     <Compile Include="ALLVAR.cs" />
+    <Compile Include="Modules\GiaoHangKhach\FifoViolation.cs" />
     <Compile Include="Modules\GiaoHangKhach\Services\DocQRService.cs" />
     <Compile Include="Modules\GiaoHangKhach\Services\InPhieuService.cs" />
     <Compile Include="Modules\GiaoHangKhach\Services\PhieuService.cs" />
@@ -286,6 +287,8 @@
     <Compile Include="Modules\KhoCore\Repositories\InspectionLogRepository.cs" />
     <Compile Include="Modules\KhoCore\Services\InspectionConfigService.cs" />
     <Compile Include="Modules\KhoCore\Services\InspectionService.cs" />
+    <Compile Include="Modules\KhoCore\Services\IStockHistoryService.cs" />
+    <Compile Include="Modules\KhoCore\Services\StockHistoryService.cs" />
     <Compile Include="Modules\KhoVatLy\MainStockModuleFactory.cs" />
     <Compile Include="Modules\KhoVatLy\NhapTpModuleFactory.cs" />
     <Compile Include="Modules\KhoCore\Repositories\BulkStockSlotRepository.cs" />
@@ -393,6 +396,7 @@
     <Compile Include="Modules\XuLyHangLoi\Services\ReworkStockService.cs" />
     <Compile Include="Modules\XuLyHangLoi\Services\TraNoiBoService.cs" />
     <Compile Include="Modules\XuLyHangLoi\Services\XuLyHangLoiServiceBase.cs" />
+    <Compile Include="Shared\Common\ItemFifoConfig.cs" />
     <Compile Include="Shared\Models\HangChoGiao.cs" />
     <Compile Include="Modules\XuLyHangLoi\Models\PhieuGiaoUngVienInfo.cs" />
     <Compile Include="Modules\XuLyHangLoi\Models\PhieuTraHang.cs" />

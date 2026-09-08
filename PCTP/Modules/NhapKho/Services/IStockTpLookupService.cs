@@ -1,6 +1,7 @@
 ﻿using PCTP.VIEWSTOCK.Models;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -15,5 +16,9 @@ namespace PCTP.Modules.NhapKho.Services
     public interface IStockTpLookupService
     {
         StockItem GetByLot(string lotNo);
+        DataTable GetTonKhoHienTai();
+        DataTable GetTonKhoTheoLot(List<string> lots);
+        void DieuChinhSlConLai(string lot, int slConLaiMoi);
     }
+
 }

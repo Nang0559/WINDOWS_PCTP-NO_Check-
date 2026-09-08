@@ -21,12 +21,14 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             => NguonXuLyBatThuong.TraNoiBo;
 
         public TraNoiBoService(
-            IPhieuTraHangRepository repo,
-            WorkflowEngine workflow,
-            IUnitOfWork uow)
-            : base(repo, uow)
+         IPhieuTraHangRepository repo,
+         WorkflowEngine workflow,
+         IUnitOfWork uow,
+         IWorkflowTransitionService workflowTransition)
+         : base(repo, uow, workflowTransition)
         {
-            _workflow = workflow ?? throw new ArgumentNullException(nameof(workflow));
+            _workflow = workflow
+                ?? throw new ArgumentNullException(nameof(workflow));
         }
 
         // ============================================================

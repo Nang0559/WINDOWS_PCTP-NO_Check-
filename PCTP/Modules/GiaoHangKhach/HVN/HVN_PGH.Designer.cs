@@ -870,7 +870,7 @@ namespace PCTP.QRCODE_HVN.PGH
             // 
             // splashScreenManager1
             // 
-            this.splashScreenManager1.ClosingDelay = 500;
+     
             // 
             // PN_DOCQR_SUASL1
             // 

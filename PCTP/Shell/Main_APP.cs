@@ -113,10 +113,12 @@ namespace PCTP
         private readonly IPhieuXuLyBatThuongRepository _phieuXuLyRepo;
         private readonly INhapKhoDashboardRepository _dashRepo;
         private WarehouseDashboardBar _dashBar;
+     
         // =====================================================================
         public Main_APP()
         {
             InitializeComponent();
+            _waitForm = new WaitFormService(this);
             accordionControl.SelectedElement = NHAccordionControlElement;
         }
 
@@ -132,7 +134,9 @@ namespace PCTP
             InitDualChartLayout(CharYMVN, out splitYMVN, out chartYMVN_Main, out chartYMVN_Pct);
             BuildAppDashboardBar();
             // 3. Load toàn bộ data
-            _waitForm.Run(() => LoadAllData(), "Đang tải dữ liệu tổng quan...");
+            _waitForm.Run(
+             () => LoadAllData(),
+             "Đang tải dữ liệu tổng quan...");
         }
         // ★ THÊM: thanh dashboard tổng — chỉ đọc số liệu quy trình, không thao tác.
         // Đặt Dock=Top, add SAU cùng để nó nổi trên cùng của form (theo đúng thứ tự
@@ -143,14 +147,34 @@ namespace PCTP
             var sql = new PhieuSqlExecutor(provider);
             var uow = new UnitOfWork(provider);
 
-            var phieuXuLyRepo = new PhieuXuLyBatThuongRepository(sql, uow);
-            var dashRepo = new NhapKhoDashboardRepository(sql,uow);
+            var phieuXuLyRepo =
+                new PhieuXuLyBatThuongRepository(sql, uow);
 
-            _dashBar = new WarehouseDashboardBar(phieuXuLyRepo, dashRepo) { Dock = DockStyle.Top };
+            var dashRepo =
+                new NhapKhoDashboardRepository(sql, uow);
+
+            // MainStockSV dùng chung cho luồng Nhập kho
+            _dashBar = new WarehouseDashboardBar(
+            phieuXuLyRepo,
+            dashRepo,
+            OpenNhapKhoFromMainApp)
+            {
+                Dock = DockStyle.Top
+            };
+
             Controls.Add(_dashBar);
             _dashBar.BringToFront();
         }
+        private void OpenNhapKhoFromMainApp()
+        {
+            var mainStock = new MainStockSV();
 
+            mainStock.Show();
+
+            WarehouseProcessNavigator.OpenNhapKhoTienTrinh(
+                this,
+                mainStock);
+        }
         // ★ THÊM: gọi lại khi LoadAllData/RefreshDashboard chạy, để số liệu
         // luôn khớp với thời điểm dữ liệu chart được refresh.
 

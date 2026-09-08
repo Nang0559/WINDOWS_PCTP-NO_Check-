@@ -10,6 +10,7 @@ using System.Windows.Forms;
 using DevExpress.XtraEditors;
 using DevExpress.XtraGrid.Views.Grid;
 using PCTP.YMN;
+using PCTP.Modules.GiaoHangKhach.SubForm;
 
 namespace PCTP.QRCODE_HVN.PGH
 {
@@ -32,10 +33,9 @@ namespace PCTP.QRCODE_HVN.PGH
         public static List<DS_ERR_CNK> dser = new List<DS_ERR_CNK>();
         private void GridView_cnk_err_RowClick(object sender, DevExpress.XtraGrid.Views.Grid.RowClickEventArgs e)
         {
-            String lot = (sender as GridView).GetFocusedRowCellDisplayText("LOT");
+            string lot = (sender as GridView).GetFocusedRowCellDisplayText("LOT");
             lot = "'" + lot + "'";
-            TONKHOTP tONKHOTP = new TONKHOTP(lot);
-            tONKHOTP.ShowDialog();
+            TONKHOTP.ShowForLot(this, lot);
         }
     }
 }

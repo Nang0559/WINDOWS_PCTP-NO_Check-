@@ -21,6 +21,8 @@ namespace PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao
         DataTable GetDanhSachTrungMaSl(string maHang, int sl, string tenBan, string docQRTable);
         int CountTrungMaSl(string maHang, int sl, string tenBan, string docQRTable);
         DataTable GetDonHangChuaLot(string tenBan, string docQRTable);
-   
+        // IPhieuValidationRepository — thêm
+        List<FifoViolation> CheckFifoViolations(string tenBangTmp);
+
     }
 }

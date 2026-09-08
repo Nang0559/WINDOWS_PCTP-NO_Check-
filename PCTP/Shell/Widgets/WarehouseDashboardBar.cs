@@ -4,6 +4,7 @@ using PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao;
 using PCTP.Modules.GiaoHangKhach.Repositories;
 using PCTP.Modules.XuLyHangLoi.Enums;
 using PCTP.Modules.XuLyHangLoi.Repository;
+using PCTP.VIEWSTOCK;
 using PCTP.VIEWSTOCK.Repository;
 using System;
 using System.Collections.Generic;
@@ -17,16 +18,22 @@ namespace PCTP.Shell.Widgets
 {
     public partial class WarehouseDashboardBar : XtraUserControl
     {
+        
         private readonly IPhieuXuLyBatThuongRepository _phieuXuLyRepo;   // ← thay cho IPhieuLoiRepository
         private readonly INhapKhoDashboardRepository _dashRepo;
         private LabelControl _lblChoDinhHuong, _lblChoQC, _lblDaDuyetChuaTra, _lblLechA0;
-
+        private readonly Action _openNhapKho;
         public WarehouseDashboardBar(
             IPhieuXuLyBatThuongRepository phieuXuLyRepo,
-            INhapKhoDashboardRepository dashRepo)
+            INhapKhoDashboardRepository dashRepo,
+            Action openNhapKho)
         {
+           
             _phieuXuLyRepo = phieuXuLyRepo ?? throw new ArgumentNullException(nameof(phieuXuLyRepo));
             _dashRepo = dashRepo ?? throw new ArgumentNullException(nameof(dashRepo));
+
+            _openNhapKho = openNhapKho
+             ?? throw new ArgumentNullException(nameof(openNhapKho));
             BuildUI();
             Refresh_();
         }
@@ -59,7 +66,7 @@ namespace PCTP.Shell.Widgets
 
             // ── Đối chiếu A0 ──────────────────────────────────────────────────────
             _lblLechA0 = MakeAppDashLabel("Lệch đối chiếu A0: --");
-            _lblLechA0.Click += (s, e) => WarehouseProcessNavigator.OpenNhapKhoTienTrinh(this);
+            _lblLechA0.Click += (s, e) => _openNhapKho();
             _lblLechA0.Cursor = Cursors.Hand;
 
             flow.Controls.AddRange(new Control[]

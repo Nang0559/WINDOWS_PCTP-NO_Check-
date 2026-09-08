@@ -3,6 +3,7 @@ using PCTP.Modules.XuLyHangLoi.Models;
 using PCTP.Modules.XuLyHangLoi.Repository;
 using PCTP.Shared.Common;
 using PCTP.Shared.Enums;
+using PCTP.Shared.UiMd;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -27,15 +28,17 @@ namespace PCTP.Modules.XuLyHangLoi.Services
         // ============================================================
 
         public KhachTraHangService(
-             IQTChungService qtChungService,
-            IPhieuTraHangRepository repo,
-            IPhieuGiaoRepository phieuGiaoRepo,
-            IPhieuXuLyBatThuongRepository phieuXuLyRepo,
-            IUnitOfWork uow)
-            : base(repo, uow)
+         IQTChungService qtChungService,
+         IPhieuTraHangRepository repo,
+         IPhieuGiaoRepository phieuGiaoRepo,
+         IPhieuXuLyBatThuongRepository phieuXuLyRepo,
+         IUnitOfWork uow,
+         IWorkflowTransitionService workflow)
+         : base(repo, uow, workflow)
         {
             _qtChungService = qtChungService
                 ?? throw new ArgumentNullException(nameof(qtChungService));
+
             _phieuGiaoRepo = phieuGiaoRepo
                 ?? throw new ArgumentNullException(nameof(phieuGiaoRepo));
 

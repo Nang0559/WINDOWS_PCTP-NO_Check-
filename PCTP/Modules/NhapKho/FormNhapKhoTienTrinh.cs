@@ -2,6 +2,7 @@
 using DevExpress.XtraGrid;
 using DevExpress.XtraGrid.Views.Grid;
 using PCTP.ClassSQL;
+using PCTP.Modules.NhapKho.Interfaces;
 using PCTP.UserControls;
 using PCTP.VIEWSTOCK.Repository;
 using System;
@@ -20,7 +21,7 @@ namespace PCTP.VIEWSTOCK.ViewForm
     public partial class FormNhapKhoTienTrinh : XtraForm
     {
         private readonly SQLPROVIDER _sql = new SQLPROVIDER();
-        private readonly INhapKhoDashboardRepository _dashRepo;
+        private readonly IWarehouseDashboardService _dashboardService;
         private readonly MainStockSV _mainStockForm;
 
         private TableLayoutPanel _pnlTimeline; // Dùng TableLayoutPanel thay FlowLayoutPanel để tự co giãn
@@ -31,13 +32,13 @@ namespace PCTP.VIEWSTOCK.ViewForm
         private SimpleButton _btnAction;
         private SimpleButton _btnScanAction; // Nút mở màn hình quét nhập riêng biệt
 
-        public FormNhapKhoTienTrinh(MainStockSV mainStockForm, INhapKhoDashboardRepository dashRepo)
+        public FormNhapKhoTienTrinh(MainStockSV mainStockForm, IWarehouseDashboardService dashboardService)
         {
             _mainStockForm = mainStockForm
             ?? throw new ArgumentNullException(nameof(mainStockForm));
 
-            _dashRepo = dashRepo
-                ?? throw new ArgumentNullException(nameof(dashRepo));
+            _dashboardService = dashboardService
+       ?? throw new ArgumentNullException(nameof(dashboardService));
 
             BuildUI();
             RefreshBadges();
@@ -133,9 +134,9 @@ namespace PCTP.VIEWSTOCK.ViewForm
 
         private void RefreshBadges()
         {
-            _steps[0].Count = _dashRepo.DemPhieuChoNhap();
-            _steps[1].Count = _dashRepo.DemDaNhapHomNay();
-            _steps[2].Count = _dashRepo.DemLechDoiChieu();
+            _steps[0].Count = _dashboardService.DemPhieuChoNhap();
+            _steps[1].Count = _dashboardService.DemDaNhapHomNay();
+            _steps[2].Count = _dashboardService.DemLechDoiChieu();
         }
 
         private void SetActiveStep(int step)
@@ -151,18 +152,21 @@ namespace PCTP.VIEWSTOCK.ViewForm
             switch (_activeStep)
             {
                 case 1:
-                    _grid.DataSource = _dashRepo.GetGridChoNhap();
+                    _grid.DataSource = _dashboardService.GetGridChoNhap();
                     _btnAction.Text = "🔄 Làm mới (Chờ)";
                     break;
+
                 case 2:
-                    _grid.DataSource = _dashRepo.GetGridDaNhapHomNay();
+                    _grid.DataSource = _dashboardService.GetGridDaNhapHomNay();
                     _btnAction.Text = "🔄 Làm mới (Đã nhập)";
                     break;
+
                 case 3:
-                    _grid.DataSource = _dashRepo.GetGridLechDoiChieu();
+                    _grid.DataSource = _dashboardService.GetGridLechDoiChieu();
                     _btnAction.Text = "🔄 Làm mới (Lệch)";
                     break;
             }
+
             _gridView.PopulateColumns();
             _gridView.BestFitColumns();
         }

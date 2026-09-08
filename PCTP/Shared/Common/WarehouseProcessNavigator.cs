@@ -2,6 +2,7 @@
 using PCTP.Modules.GiaoHangKhach;
 using PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao;
 using PCTP.Modules.GiaoHangKhach.Repositories;
+using PCTP.Modules.KhoVatLy;
 using PCTP.Modules.KhoVatLy.Application.Services;
 using PCTP.Modules.KhoVatLy.Repositories;
 using PCTP.Modules.XuatKho.Repositories;
@@ -60,10 +61,21 @@ namespace PCTP.Common
             f.Show(); // Show (không ShowDialog) — bản đồ kho dùng như cửa sổ làm việc song song
         }
 
-        public static void OpenNhapKhoTienTrinh(IWin32Window owner, MainStockSV mainStock = null)
+        public static void OpenNhapKhoTienTrinh(
+        IWin32Window owner,
+        MainStockSV mainStock)
         {
-            using (var f = new FormNhapKhoTienTrinh(mainStock))
+            if (mainStock == null)
+                throw new ArgumentNullException(nameof(mainStock));
+
+            var module = MainStockModuleFactory.Build();
+
+            using (var f = new FormNhapKhoTienTrinh(
+                mainStock,
+                module.DashboardService))
+            {
                 f.ShowDialog(owner);
+            }
         }
 
         /// <summary>
@@ -153,16 +165,18 @@ namespace PCTP.Common
                 workflow);
 
             var khachTraHangService = new KhachTraHangService(
-                qtChungService,
-                phieuTraHangRepo,
-                phieuGiaoRepo,
-                phieuXuLyRepo,
-                uow);
+                 qtChungService,
+                 phieuTraHangRepo,
+                 phieuGiaoRepo,
+                 phieuXuLyRepo,
+                 uow,
+                 workflow);
 
             var traNoiBoService = new TraNoiBoService(
                 phieuTraHangRepo,
                 workflowEngine,
-                uow);
+                uow,
+                workflow);
 
             return new FormQuanLyTienTrinhHangLoi(
                 khachTraHangService,

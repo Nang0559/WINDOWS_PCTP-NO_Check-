@@ -10,13 +10,58 @@ using System.Threading.Tasks;
 
 namespace PCTP.Modules.GiaoHangKhach.Repositories
 {
-    public sealed class PhieuValidationRepository : IPhieuValidationRepository
+    public sealed class PhieuValidationRepository
+    : SqlRepositoryBase, IPhieuValidationRepository
     {
-        private readonly PhieuSqlExecutor _db;
-
-        public PhieuValidationRepository(PhieuSqlExecutor db)
+        public PhieuValidationRepository(
+            PhieuSqlExecutor db,
+            IUnitOfWork uow)
+            : base(db, uow)
         {
-            _db = db ?? throw new ArgumentNullException(nameof(db));
+        }
+
+        // ============================================================
+        // FIFO
+        // ============================================================
+        public List<FifoViolation> CheckFifoViolations(string tmpTable)
+        {
+            Db.ValidateTableName(tmpTable);   // ✅ method đặc thù → qua Db (field kế thừa)
+
+            string sql = $@"
+                ;WITH LotDungFifo AS (
+                    SELECT
+                        sl.ItemCode,
+                        sl.LotNo,
+                        sl.SlotId,
+                        ROW_NUMBER() OVER (PARTITION BY sl.ItemCode ORDER BY sl.ImportDate ASC) AS Rn
+                    FROM SlotLot sl
+                    WHERE sl.PhieuStatus = 0 AND sl.Quantity > 0
+                )
+                SELECT
+                    tmp.MAHANG AS MaHang,
+                    tmp.LOT AS LotDaChon,
+                    fifo.LotNo AS LotDungRaPhaiChon,
+                    fifo.SlotId AS SlotIdDungRaPhaiChon
+                FROM [{tmpTable}] tmp
+                INNER JOIN LotDungFifo fifo
+                    ON fifo.ItemCode = tmp.MAHANG AND fifo.Rn = 1
+                WHERE tmp.LOT <> fifo.LotNo
+                  AND ISNULL(tmp.STATUS, '') <> 'NG';";
+
+            DataTable dt = LoadData(sql);   // ✅ 4 method CRUD chung → gọi trực tiếp, không tiền tố
+
+            var result = new List<FifoViolation>();
+            foreach (DataRow row in dt.Rows)
+            {
+                result.Add(new FifoViolation
+                {
+                    MaHang = row["MaHang"]?.ToString(),
+                    LotDaChon = row["LotDaChon"]?.ToString(),
+                    LotDungRaPhaiChon = row["LotDungRaPhaiChon"]?.ToString(),
+                    SlotIdDungRaPhaiChon = Convert.ToInt32(row["SlotIdDungRaPhaiChon"])
+                });
+            }
+            return result;
         }
 
         #region ═══════════════════════════════════════════════════════════════
@@ -28,9 +73,9 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         /// </summary>
         public int CountDocQRCode(string docQRTable)
         {
-            _db.ValidateTableName(docQRTable);
+            Db.ValidateTableName(docQRTable);
 
-            object raw = _db.ExecuteScalar(
+            object raw = Db.ExecuteScalar(
                 $"SELECT COUNT(*) FROM [{docQRTable}]");
 
             return DbValueHelper.SafeInt(raw);
@@ -49,7 +94,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             //
             // tenBan hiện không được sử dụng trong SQL vì function
             // dbo.ufn_QRcode_ADD_CMD_MANG() tự xác định trạng thái.
-            object raw = _db.ExecuteScalar(
+            object raw = Db.ExecuteScalar(
                 "SELECT dbo.ufn_QRcode_ADD_CMD_MANG()");
 
             string value = raw?.ToString() ?? "0";
@@ -65,9 +110,9 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             string maHang,
             string tenBan)
         {
-            _db.ValidateTableName(tenBan);
+            Db.ValidateTableName(tenBan);
 
-            object raw = _db.ExecuteScalar(
+            object raw = Db.ExecuteScalar(
                 $"SELECT COUNT(*) " +
                 $"FROM [{tenBan}] " +
                 $"WHERE MAHANG = @ma",
@@ -117,8 +162,8 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             string tenBan,
             string docQRTable)
         {
-            _db.ValidateTableName(tenBan);
-            _db.ValidateTableName(docQRTable);
+            Db.ValidateTableName(tenBan);
+            Db.ValidateTableName(docQRTable);
 
             string sqlTemplate =
                 "SELECT " +
@@ -152,7 +197,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                 tenBan,
                 docQRTable);
 
-            return _db.LoadData(
+            return Db.LoadData(
                 sql,
                 new SqlParameter("@ma", maHang ?? ""),
                 new SqlParameter("@sl", sl));
@@ -190,8 +235,8 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             string tenBan,
             string docQRTable)
         {
-            _db.ValidateTableName(tenBan);
-            _db.ValidateTableName(docQRTable);
+            Db.ValidateTableName(tenBan);
+            Db.ValidateTableName(docQRTable);
 
             string sql =
                 $"SELECT COUNT(*) " +
@@ -206,7 +251,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                 $"      GROUP BY MAHANGFCC" +
                 $"  )";
 
-            object raw = _db.ExecuteScalar(
+            object raw = Db.ExecuteScalar(
                 sql,
                 new SqlParameter("@ma", maHang ?? ""),
                 new SqlParameter("@sl", sl));
@@ -240,8 +285,8 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             string tenBan,
             string docQRTable)
         {
-            _db.ValidateTableName(tenBan);
-            _db.ValidateTableName(docQRTable);
+            Db.ValidateTableName(tenBan);
+            Db.ValidateTableName(docQRTable);
 
             string sql =
                 $"SELECT " +
@@ -259,9 +304,10 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                 $"  ) " +
                 $"ORDER BY STT";
 
-            return _db.LoadData(sql);
+            return Db.LoadData(sql);
         }
 
         #endregion
+        
     }
 }

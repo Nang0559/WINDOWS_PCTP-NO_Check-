@@ -278,10 +278,10 @@ ORDER BY CreatedAt DESC, Id DESC;";
         public List<PhieuTraHang> GetChoXuLy()
         {
             const string sql = @"
-SELECT *
-FROM FVN_PhieuTraHang
-WHERE Status <> @HoanTat
-ORDER BY CreatedAt DESC, Id DESC;";
+            SELECT *
+            FROM FVN_PhieuTraHang
+            WHERE Status <> @HoanTat
+            ORDER BY CreatedAt DESC, Id DESC;";
 
             DataTable table = _sql.LoadData(
                 sql,
