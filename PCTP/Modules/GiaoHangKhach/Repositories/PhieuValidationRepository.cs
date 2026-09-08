@@ -378,7 +378,20 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
 
             return Db.LoadData(sql);
         }
+        public Dictionary<string, int> GetQcDongGoiBatch(List<string> maHangList)
+        {
+            var result = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            if (maHangList == null || maHangList.Count == 0) return result;
 
+            string inClause = string.Join(",", maHangList.Select(m => $"'{m.Replace("'", "''")}'"));
+            DataTable dt = _db.LoadData(
+                $"SELECT Code, ISNULL(CAST(MinCloseQty AS INT), 0) AS QC FROM B20Item WHERE Code IN ({inClause})");
+
+            foreach (DataRow row in dt.Rows)
+                result[row["Code"].ToString().Trim()] = Convert.ToInt32(row["QC"]);
+
+            return result;
+        }
         #endregion
 
     }

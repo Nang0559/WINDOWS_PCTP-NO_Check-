@@ -327,5 +327,6 @@ ORDER BY TRY_CAST(STT AS INT), STT";
             ExecuteNonQuery($"DELETE FROM [{tmpTable}]");
             System.Diagnostics.Debug.WriteLine($"[LuuVaLoad] Đã DELETE [{tmpTable}]");
         }
+       
     }
 }

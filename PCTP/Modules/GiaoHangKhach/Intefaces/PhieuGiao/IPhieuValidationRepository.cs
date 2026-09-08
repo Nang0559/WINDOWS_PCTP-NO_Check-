@@ -13,6 +13,7 @@ namespace PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao
     {
         int CountDocQRCode(string docQRTable);
         bool CheckCoMaNG(string tenBan);
+        Dictionary<string, int> GetQcDongGoiBatch(List<string> maHangList);
         bool KiemTraMaTrongPhieu(string maHang, string tenBan);
         DataTable GetDanhSachTrungMaSl(string maHang, int sl, PhieuTableSet tables);
         int CountTrungMaSl(string maHang, int sl, PhieuTableSet tables);

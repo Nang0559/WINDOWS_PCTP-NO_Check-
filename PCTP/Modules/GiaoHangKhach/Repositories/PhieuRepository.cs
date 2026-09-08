@@ -231,8 +231,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         public void DanhDauDaGiao(string poNo, string maHang, string ngayGiao, CustomerConfig cfg)
             => _kho.DanhDauDaGiao(poNo, maHang, ngayGiao, cfg);
 
-        public DataTable LoadHangThieu(bool isMayBanQR, string tenBan)
-            => _kho.LoadHangThieu(isMayBanQR, tenBan);
+       
 
         #endregion
 
@@ -269,30 +268,11 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         // (dùng cho các form gọi SP đặc thù, không gắn với 1 nghiệp vụ Phiếu cụ thể nào).
         // Vì không có logic rẽ nhánh/điều kiện gì, giữ ở Facade là chấp nhận được — không
         // vi phạm nguyên tắc "không viết lại nghiệp vụ" vì bản thân nó không phải nghiệp vụ.
+        public DataTable LoadHangThieu(bool isMayBanQR, string tenBan)
+          => _kho.LoadHangThieu(isMayBanQR, tenBan);
 
         public Dictionary<string, int> GetQcDongGoiBatch(List<string> maHangList)
-        {
-            var result = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-            if (maHangList == null || maHangList.Count == 0) return result;
-
-            string inClause = string.Join(",", maHangList.Select(m => $"'{m.Replace("'", "''")}'"));
-            DataTable dt = _db.LoadData(
-                $"SELECT Code, ISNULL(CAST(MinCloseQty AS INT), 0) AS QC FROM B20Item WHERE Code IN ({inClause})");
-
-            foreach (DataRow row in dt.Rows)
-                result[row["Code"].ToString().Trim()] = Convert.ToInt32(row["QC"]);
-
-            return result;
-        }
-
-        public void ExecNonQuery(string spName)
-            => _db.ExecuteStoredProcedureNonQuery(spName);
-
-        public void ExecSP(string spName, params SqlParameter[] parms)
-            => _db.ExecuteStoredProcedureNonQuery(spName, parms);
-
-        public DataTable ExecSPWithResult(string spName, params SqlParameter[] parms)
-            => _db.ExecuteStoredProcedure(spName, parms);
+        => _validation.GetQcDongGoiBatch(isMayBanQR, tenBan);
 
         #endregion
     }

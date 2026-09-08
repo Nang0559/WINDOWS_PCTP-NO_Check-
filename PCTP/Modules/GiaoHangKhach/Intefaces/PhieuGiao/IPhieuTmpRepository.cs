@@ -46,5 +46,7 @@ namespace PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao
             string tenBan, string docQRTable, string ifsView = "");
         TrangThaiBan GetTrangThaiDangBan(string tmpTable, string docQRTable);
         TrangThaiBan GetTrangThaiDangBanYMVN(string tmpTable, string docQRTable);
+
+       
     }
 }
