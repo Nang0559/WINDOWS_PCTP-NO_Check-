@@ -19,99 +19,121 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             : base(db, uow)
         {
         }
+
         // ============================================================
         // FIFO
-        //
-        // Quy tắc nghiệp vụ:
-        //   FIFO = 7 ký tự đầu của LOTNO
-        //
-        //   YYMMDD + CA
-        //
-        //   CA:
-        //      0 = Hành chính
-        //      1 = Ca 1
-        //      2 = Ca 2
-        //      3 = Ca 3
-        //
-        // Không sử dụng ImportDate / CreatedDate / NGAYNHAP
-        // để quyết định FIFO.
         // ============================================================
+        /// <summary>
+        /// Đối chiếu từng dòng trong bảng TMP đang bắn QR với LOT KEY lẽ ra phải xuất
+        /// trước theo FIFO. CHỈ áp dụng cho mã hàng có <c>ItemFifoConfig.EnforceFifo = true</c>
+        /// (Bước 1 thiết kế FIFO) — không ép FIFO toàn hệ thống.
+        ///
+        /// Quy tắc FIFO khớp 1-1 với 2 SP <c>Usp_Qrcode_Update_Stock2405</c> /
+        /// <c>Usp_Qrcode_Update_Stock_SP</c> — TUYỆT ĐỐI không dùng <c>SlotLot.ImportDate</c>:
+        ///   - LOT KEY = <see cref="PCTP.Common.LotCodeHelper.LEN_LEGACY_KEY"/> (13) ký tự đầu
+        ///     của LotNo = YYMMDD(6) + ItemCode(5) + ShiftCode(1) + Gear(1).
+        ///   - Thứ tự FIFO: YYMMDD → ShiftCode → LOT KEY (không phải NGAYNHAP/ImportDate).
+        ///   - Nhiều dòng SlotLot vật lý CÙNG LOT KEY (khác Line/Machine) phải CỘNG TỔNG
+        ///     tồn lại rồi mới xếp hạng FIFO theo LOT KEY đó — không xếp hạng theo từng
+        ///     dòng vật lý riêng lẻ.
+        ///   - So khớp với TMP: so theo LOT KEY 13 ký tự đầu của tmp.LOT, KHÔNG so full LOT
+        ///     (full LOT luôn khác nhau do Counter/Qty/Tem riêng từng cuộn, so full sẽ luôn
+        ///     báo vi phạm kể cả khi chọn đúng).
+        ///
+        /// ⚠️ Cần bảng <c>ItemFifoConfig(ItemCode NVARCHAR(60) PK, EnforceFifo BIT)</c>.
+        /// Nếu bảng chưa tồn tại, hàm coi như KHÔNG mã hàng nào bị ép FIFO (an toàn — không
+        /// chặn nhầm CNK), nhưng ghi Debug log để biết cần tạo bảng.
+        /// </summary>
         public List<FifoViolation> CheckFifoViolations(string tmpTable)
         {
-            Db.ValidateTableName(tmpTable);
+            Db.ValidateTableName(tmpTable);   // ✅ method đặc thù → qua Db (field kế thừa)
+
+            if (!ItemFifoConfigTableExists())
+            {
+                System.Diagnostics.Debug.WriteLine(
+                    "[CheckFifoViolations] Bảng ItemFifoConfig chưa tồn tại — bỏ qua kiểm tra FIFO. " +
+                    "Tạo bảng: CREATE TABLE ItemFifoConfig (ItemCode NVARCHAR(60) PRIMARY KEY, EnforceFifo BIT NOT NULL DEFAULT 0);");
+                return new List<FifoViolation>();
+            }
+
+            const int keyLen = PCTP.Common.LotCodeHelper.LEN_LEGACY_KEY; // 13 — SỬA DUY NHẤT Ở ĐÂY nếu công thức LOT đổi
 
             string sql = $@"
-        ;WITH LotTon AS
-        (
-            SELECT
-                sl.ItemCode,
-                LEFT(sl.LotNo, 13) AS LotKey13,
-                SUM(sl.Quantity) AS TongTon
-            FROM SlotLot sl
-            WHERE sl.PhieuStatus = 0
-              AND sl.Quantity > 0
-              AND LEN(sl.LotNo) >= 13
-            GROUP BY
-                sl.ItemCode,
-                LEFT(sl.LotNo, 13)
-        ),
-        LotFifo AS
-        (
-            SELECT
-                ItemCode,
-                LotKey13,
-                ROW_NUMBER() OVER
-                (
-                    PARTITION BY ItemCode
-                    ORDER BY
-                        LEFT(LotKey13, 6) ASC,
-                        SUBSTRING(LotKey13, 12, 1) ASC,
-                        LotKey13 ASC
-                ) AS Rn
-            FROM LotTon
-            WHERE TongTon > 0
-        ),
-        LotDungFifo AS
-        (
-            SELECT
-                ItemCode,
-                LotKey13
-            FROM LotFifo
-            WHERE Rn = 1
-        )
-        SELECT
-            tmp.MAHANG AS MaHang,
-            tmp.LOT AS LotDaChon,
-            fifo.LotKey13 AS LotDungRaPhaiChon
-        FROM [{tmpTable}] tmp
-        INNER JOIN LotDungFifo fifo
-            ON RTRIM(fifo.ItemCode) = RTRIM(tmp.MAHANG)
-        WHERE LEFT(tmp.LOT, 13) <> fifo.LotKey13
-          AND ISNULL(tmp.STATUS, '') <> 'NG';";
+                ;WITH SlotLotKey AS (
+                    SELECT
+                        sl.ItemCode,
+                        LEFT(sl.LotNo, {keyLen}) AS LotKey,
+                        sl.SlotId,
+                        sl.Quantity
+                    FROM SlotLot sl
+                    WHERE sl.PhieuStatus = 0
+                      AND sl.Quantity > 0
+                      AND LEN(ISNULL(sl.LotNo, '')) >= {keyLen}
+                ),
+                -- Nhiều dòng vật lý cùng LOT KEY (khác Line/Machine) -> cộng tổng tồn lại.
+                LotKeyTon AS (
+                    SELECT
+                        ItemCode,
+                        LotKey,
+                        SUM(Quantity) AS TongTon,
+                        MIN(SlotId) AS SlotIdDaiDien
+                    FROM SlotLotKey
+                    GROUP BY ItemCode, LotKey
+                ),
+                -- FIFO: YYMMDD -> ShiftCode -> LOT KEY. KHÔNG dùng ImportDate.
+                LotDungFifo AS (
+                    SELECT
+                        ItemCode,
+                        LotKey,
+                        SlotIdDaiDien,
+                        ROW_NUMBER() OVER (
+                            PARTITION BY ItemCode
+                            ORDER BY
+                                LEFT(LotKey, 6) ASC,
+                                CASE SUBSTRING(LotKey, 12, 1)
+                                    WHEN '0' THEN 0 WHEN '1' THEN 1
+                                    WHEN '2' THEN 2 WHEN '3' THEN 3
+                                    ELSE 9
+                                END ASC,
+                                LotKey ASC
+                        ) AS Rn
+                    FROM LotKeyTon
+                    WHERE TongTon > 0
+                )
+                SELECT
+                    tmp.MAHANG AS MaHang,
+                    tmp.LOT AS LotDaChon,
+                    fifo.LotKey AS LotDungRaPhaiChon,
+                    fifo.SlotIdDaiDien AS SlotIdDungRaPhaiChon
+                FROM [{tmpTable}] tmp
+                INNER JOIN LotDungFifo fifo
+                    ON fifo.ItemCode = tmp.MAHANG AND fifo.Rn = 1
+                INNER JOIN ItemFifoConfig cfg
+                    ON cfg.ItemCode = tmp.MAHANG AND cfg.EnforceFifo = 1
+                WHERE LEFT(ISNULL(tmp.LOT, ''), {keyLen}) <> fifo.LotKey
+                  AND ISNULL(tmp.STATUS, '') <> 'NG';";
 
-            DataTable dt = LoadData(sql);
+            DataTable dt = LoadData(sql);   // ✅ 4 method CRUD chung → gọi trực tiếp, không tiền tố
 
             var result = new List<FifoViolation>();
-
             foreach (DataRow row in dt.Rows)
             {
                 result.Add(new FifoViolation
                 {
-                    MaHang = row["MaHang"] == DBNull.Value
-                        ? null
-                        : row["MaHang"].ToString(),
-
-                    LotDaChon = row["LotDaChon"] == DBNull.Value
-                        ? null
-                        : row["LotDaChon"].ToString(),
-
-                    LotDungRaPhaiChon = row["LotDungRaPhaiChon"] == DBNull.Value
-                        ? null
-                        : row["LotDungRaPhaiChon"].ToString()
+                    MaHang = row["MaHang"]?.ToString(),
+                    LotDaChon = row["LotDaChon"]?.ToString(),
+                    LotDungRaPhaiChon = row["LotDungRaPhaiChon"]?.ToString(),
+                    SlotIdDungRaPhaiChon = Convert.ToInt32(row["SlotIdDungRaPhaiChon"])
                 });
             }
-
             return result;
+        }
+
+        private bool ItemFifoConfigTableExists()
+        {
+            object raw = ExecuteScalar(
+                "SELECT COUNT(*) FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[ItemFifoConfig]') AND type = 'U'");
+            return DbValueHelper.SafeInt(raw) == 1;
         }
 
         #region ═══════════════════════════════════════════════════════════════
@@ -358,6 +380,6 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         }
 
         #endregion
-        
+
     }
 }
