@@ -1,0 +1,506 @@
+USE [B7R2_FCC]
+GO
+
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+ALTER PROC [dbo].[Usp_Qrcode_Update_Stock_SP]
+    @GIOGIAOFCC NVARCHAR(50) = N'',
+    @NHAMAY     NVARCHAR(50) = N''
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    ----------------------------------------------------------------------
+    -- LOT RULE
+    --
+    -- LOT KEY = LEFT(LOT,13)
+    --
+    -- 1-6   : YYMMDD
+    -- 7-11  : ItemCode
+    -- 12    : ShiftCode
+    -- 13    : Gear
+    --
+    -- 14-16 : MachineCode - không tham gia LOT KEY
+    -- 17-20 : LineCode    - không tham gia LOT KEY
+    --
+    -- FIFO:
+    --   YYMMDD
+    --   -> ShiftCode
+    --   -> LOT KEY
+    ----------------------------------------------------------------------
+
+    IF OBJECT_ID('TempDb..#STOK_SP') IS NOT NULL
+        DROP TABLE #STOK_SP;
+
+    IF OBJECT_ID('TempDb..#ERR_SP') IS NOT NULL
+        DROP TABLE #ERR_SP;
+
+    CREATE TABLE #STOK_SP
+    (
+        STT      NVARCHAR(50),
+        LOT      NVARCHAR(50),
+        SOLUONG  INT,
+        STATUS   NVARCHAR(20)
+    );
+
+    CREATE TABLE #ERR_SP
+    (
+        MH       NVARCHAR(50),
+        LOT      NVARCHAR(50),
+        SLCAN    INT,
+        SLCO     INT,
+        STATUS   NVARCHAR(500)
+    );
+
+    DECLARE
+        @stt      NVARCHAR(50),
+        @maHang   NVARCHAR(50),
+        @slCan    INT,
+        @lotChon  NVARCHAR(50),
+        @lotKey13 NVARCHAR(13),
+        @slConLai INT;
+
+    BEGIN TRY
+
+        BEGIN TRANSACTION;
+
+        ------------------------------------------------------------------
+        -- 1. DUYỆT PHIẾU GIAO
+        ------------------------------------------------------------------
+        DECLARE cur CURSOR LOCAL FAST_FORWARD FOR
+            SELECT
+                STT,
+                MAHANG,
+                SOLUONG
+            FROM TMPPHIEUGIAOHANG
+            WHERE ISNULL(STATUS, '') <> 'OK';
+
+        OPEN cur;
+
+        FETCH NEXT FROM cur
+        INTO
+            @stt,
+            @maHang,
+            @slCan;
+
+        WHILE @@FETCH_STATUS = 0
+        BEGIN
+
+            SET @lotChon = NULL;
+            SET @lotKey13 = NULL;
+            SET @slConLai = 0;
+
+            ------------------------------------------------------------------
+            -- 2. TÌM LOT KEY FIFO
+            --
+            -- Quan trọng:
+            --   GROUP BY LOT KEY 13
+            --   Không ORDER BY STOCKTP.LOT trong SELECT GROUP BY
+            --
+            -- Dùng CTE để tính tổng tồn theo LOT KEY trước,
+            -- sau đó mới ROW_NUMBER().
+            ------------------------------------------------------------------
+            ;WITH LotTon AS
+            (
+                SELECT
+                    LEFT(s.LOT, 13) AS LOTKEY13,
+                    SUM(ISNULL(s.SLCONLAI, 0)) AS TONGTON
+                FROM STOCKTP s WITH (UPDLOCK, ROWLOCK)
+                WHERE s.SP = @maHang
+                  AND ISNULL(s.SLCONLAI, 0) > 0
+                  AND LEN(ISNULL(s.LOT, '')) >= 13
+
+                  -- YYMMDD hợp lệ
+                  AND TRY_CONVERT(
+                        DATE,
+                        LEFT(s.LOT, 6),
+                        12
+                      ) IS NOT NULL
+
+                  -- ShiftCode 0-3
+                  AND SUBSTRING(s.LOT, 12, 1)
+                        IN ('0','1','2','3')
+
+                GROUP BY
+                    LEFT(s.LOT, 13)
+            ),
+            FIFO AS
+            (
+                SELECT
+                    LOTKEY13,
+                    TONGTON,
+                    ROW_NUMBER() OVER
+                    (
+                        ORDER BY
+                            LEFT(LOTKEY13, 6) ASC,
+
+                            CASE SUBSTRING(LOTKEY13, 12, 1)
+                                WHEN '0' THEN 0
+                                WHEN '1' THEN 1
+                                WHEN '2' THEN 2
+                                WHEN '3' THEN 3
+                            END ASC,
+
+                            LOTKEY13 ASC
+                    ) AS RN
+                FROM LotTon
+                WHERE TONGTON > 0
+            )
+            SELECT
+                @lotKey13 = LOTKEY13,
+                @slConLai = TONGTON
+            FROM FIFO
+            WHERE RN = 1;
+
+            ------------------------------------------------------------------
+            -- 3. KHÔNG CÓ LOT
+            ------------------------------------------------------------------
+            IF @lotKey13 IS NULL
+            BEGIN
+
+                INSERT INTO #ERR_SP
+                (
+                    MH,
+                    LOT,
+                    SLCAN,
+                    SLCO,
+                    STATUS
+                )
+                VALUES
+                (
+                    @maHang,
+                    N'',
+                    @slCan,
+                    0,
+                    N'THIEU_TON'
+                );
+
+            END
+            ELSE
+            BEGIN
+
+                ------------------------------------------------------------------
+                -- 4. KHÔNG ĐỦ TỒN
+                ------------------------------------------------------------------
+                IF ISNULL(@slConLai, 0) < @slCan
+                BEGIN
+
+                    INSERT INTO #ERR_SP
+                    (
+                        MH,
+                        LOT,
+                        SLCAN,
+                        SLCO,
+                        STATUS
+                    )
+                    VALUES
+                    (
+                        @maHang,
+                        @lotKey13,
+                        @slCan,
+                        ISNULL(@slConLai, 0),
+                        N'THIEU_TON'
+                    );
+
+                END
+                ELSE
+                BEGIN
+
+                    ------------------------------------------------------------------
+                    -- 5. CHỌN FULL LOT ĐẠI DIỆN
+                    --
+                    -- Chỉ dùng để ghi vào TMPPHIEUGIAOHANG.LOT.
+                    -- Tồn thực tế vẫn xử lý theo LOT KEY 13.
+                    ------------------------------------------------------------------
+                    SELECT TOP 1
+                        @lotChon = s.LOT
+                    FROM STOCKTP s WITH (UPDLOCK, ROWLOCK)
+                    WHERE LEFT(s.LOT, 13) = @lotKey13
+                      AND s.SP = @maHang
+                      AND ISNULL(s.SLCONLAI, 0) > 0
+                    ORDER BY
+                        s.LOT ASC;
+
+                    ------------------------------------------------------------------
+                    -- 6. PHÂN BỔ TỒN QUA CÁC PHYSICAL LOT
+                    ------------------------------------------------------------------
+                    DECLARE
+                        @Remain      INT,
+                        @LotPhysical NVARCHAR(50),
+                        @TonPhysical INT,
+                        @Tru         INT;
+
+                    SET @Remain = @slCan;
+
+                    DECLARE curStock CURSOR LOCAL FAST_FORWARD FOR
+                        SELECT
+                            s.LOT,
+                            ISNULL(s.SLCONLAI, 0)
+                        FROM STOCKTP s WITH (UPDLOCK, ROWLOCK)
+                        WHERE LEFT(s.LOT, 13) = @lotKey13
+                          AND s.SP = @maHang
+                          AND ISNULL(s.SLCONLAI, 0) > 0
+                        ORDER BY
+                            s.LOT ASC;
+
+                    OPEN curStock;
+
+                    FETCH NEXT FROM curStock
+                    INTO
+                        @LotPhysical,
+                        @TonPhysical;
+
+                    WHILE @@FETCH_STATUS = 0
+                      AND @Remain > 0
+                    BEGIN
+
+                        SET @Tru =
+                            CASE
+                                WHEN @TonPhysical >= @Remain
+                                    THEN @Remain
+                                ELSE @TonPhysical
+                            END;
+
+                        UPDATE STOCKTP
+                        SET
+                            SLXUAT =
+                                ISNULL(SLXUAT, 0) + @Tru,
+
+                            SLCONLAI =
+                                ISNULL(SLCONLAI, 0) - @Tru,
+
+                            NGAYXUAT =
+                                GETDATE()
+                        WHERE LOT = @LotPhysical
+                          AND SP = @maHang;
+
+                        SET @Remain =
+                            @Remain - @Tru;
+
+                        FETCH NEXT FROM curStock
+                        INTO
+                            @LotPhysical,
+                            @TonPhysical;
+                    END;
+
+                    CLOSE curStock;
+                    DEALLOCATE curStock;
+
+                    ------------------------------------------------------------------
+                    -- 7. KIỂM TRA LẠI SAU KHI PHÂN BỔ
+                    ------------------------------------------------------------------
+                    IF @Remain > 0
+                    BEGIN
+
+                        INSERT INTO #ERR_SP
+                        (
+                            MH,
+                            LOT,
+                            SLCAN,
+                            SLCO,
+                            STATUS
+                        )
+                        VALUES
+                        (
+                            @maHang,
+                            @lotKey13,
+                            @slCan,
+                            @slCan - @Remain,
+                            N'Không đủ tồn kho khi cập nhật thực tế'
+                        );
+
+                        ROLLBACK TRANSACTION;
+
+                        SELECT
+                            STT,
+                            LOT,
+                            SOLUONG,
+                            STATUS
+                        FROM #STOK_SP;
+
+                        SELECT
+                            MH,
+                            LOT,
+                            SLCAN AS SLC,
+                            SLCO AS SLTK,
+                            SLTHIEU AS SLT,
+                            STATUS
+                        FROM #ERR_SP;
+
+                        RETURN;
+                    END;
+
+                    ------------------------------------------------------------------
+                    -- 8. CẬP NHẬT TMP
+                    ------------------------------------------------------------------
+                    UPDATE TMPPHIEUGIAOHANG
+                    SET
+                        LOT = @lotChon,
+                        STATUS = 'OK'
+                    WHERE STT = @stt;
+
+                    ------------------------------------------------------------------
+                    -- 9. KẾT QUẢ
+                    ------------------------------------------------------------------
+                    INSERT INTO #STOK_SP
+                    (
+                        STT,
+                        LOT,
+                        SOLUONG,
+                        STATUS
+                    )
+                    VALUES
+                    (
+                        @stt,
+                        @lotChon,
+                        @slCan,
+                        'OK'
+                    );
+
+                END;
+            END;
+
+            FETCH NEXT FROM cur
+            INTO
+                @stt,
+                @maHang,
+                @slCan;
+        END;
+
+        CLOSE cur;
+        DEALLOCATE cur;
+
+        ------------------------------------------------------------------
+        -- 10. LƯU PHIẾU GIAO
+        ------------------------------------------------------------------
+        IF EXISTS
+        (
+            SELECT 1
+            FROM #STOK_SP
+            WHERE STATUS = 'OK'
+        )
+        BEGIN
+
+            INSERT INTO LUUPHIEUGIAOHANG
+            (
+                STT,
+                CUA,
+                TRUYEN,
+                MAHANG,
+                TENHANG,
+                LOT,
+                DV,
+                SOLUONG,
+                NGAYGIAO,
+                GIOGIAO,
+                STATUS,
+                TTPHIEU,
+                NHAMAY,
+                GIOGIAOFCC,
+                HOP,
+                STATUSDOC,
+                Note,
+                PO_NO,
+                PO_ITEM
+            )
+            SELECT
+                STT,
+                CUA,
+                TRUYEN,
+                MAHANG,
+                TENHANG,
+                LOT,
+                DV,
+                SOLUONG,
+                NGAYGIAO,
+                GIOGIAO,
+                'OK',
+                TTPHIEU,
+                @NHAMAY,
+                @GIOGIAOFCC,
+                HOP,
+                STATUSDOC,
+                Note,
+                PO_NO,
+                PO_ITEM
+            FROM TMPPHIEUGIAOHANG
+            WHERE STATUS = 'OK';
+
+        END;
+
+        ------------------------------------------------------------------
+        -- 11. COMMIT
+        ------------------------------------------------------------------
+        COMMIT TRANSACTION;
+
+    END TRY
+
+    BEGIN CATCH
+
+        IF CURSOR_STATUS('local', 'curStock') >= 0
+        BEGIN
+            CLOSE curStock;
+            DEALLOCATE curStock;
+        END;
+
+        IF CURSOR_STATUS('local', 'cur') >= 0
+        BEGIN
+            CLOSE cur;
+            DEALLOCATE cur;
+        END;
+
+        IF @@TRANCOUNT > 0
+            ROLLBACK TRANSACTION;
+
+        INSERT INTO #ERR_SP
+        (
+            MH,
+            LOT,
+            SLCAN,
+            SLCO,
+            STATUS
+        )
+        VALUES
+        (
+            N'SYSTEM ERROR',
+            N'Line ' + CAST(ERROR_LINE() AS NVARCHAR(10)),
+            0,
+            0,
+            LEFT
+            (
+                N'Lỗi dòng '
+                + CAST(ERROR_LINE() AS NVARCHAR(10))
+                + N': '
+                + ERROR_MESSAGE(),
+                500
+            )
+        );
+
+    END CATCH;
+
+    ----------------------------------------------------------------------
+    -- RESULT
+    ----------------------------------------------------------------------
+    SELECT
+        STT,
+        LOT,
+        SOLUONG,
+        STATUS
+    FROM #STOK_SP;
+
+    SELECT
+        MH,
+        LOT,
+        SLCAN AS SLC,
+        SLCO AS SLTK,
+        SLTHIEU AS SLT,
+        STATUS
+    FROM #ERR_SP;
+
+END
+GO
