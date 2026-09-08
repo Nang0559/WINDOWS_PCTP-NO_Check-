@@ -1,0 +1,250 @@
+USE [B7R2_FCC]
+GO
+
+/****** Object:  StoredProcedure [dbo].[Usp_Qrcode_LOAD_PHIEU_DOCQR2405]    Script Date: 9/8/2026 3:31:45 PM ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE PROC [dbo].[Usp_Qrcode_LOAD_PHIEU_DOCQR2405]      
+    @NGAYGIAO   nvarchar(20),      
+    @NHAMAY     nvarchar(50)  = N'',      
+    @GIOFCC     nvarchar(200) = N'',      
+    @ADDNM      int,  
+    @TMPTABLE   nvarchar(100) = N'TMPPHIEUGIAOHANG',  
+    @IFSTABLE   nvarchar(100) = N'IFSPHIEUGIAOHANG',  
+    @DOCQRTABLE nvarchar(100) = N'DOCQRCODE'  
+AS      
+BEGIN      
+    SET NOCOUNT ON;  
+
+    -- ── 1. SUY RA CUSTOMERID TỪ TÊN TABLE ───────────────────────────
+    DECLARE @CUSTOMERID nvarchar(20)
+    IF @TMPTABLE = N'TMPPHIEUGIAOHANG'
+        SET @CUSTOMERID = '100001'
+    ELSE IF CHARINDEX('_', @TMPTABLE) > 0
+        SET @CUSTOMERID = RIGHT(@TMPTABLE, LEN(@TMPTABLE) - CHARINDEX('_', @TMPTABLE))
+    ELSE
+        SET @CUSTOMERID = '100001'  -- fallback
+
+    DECLARE @TTIFS  int      
+    DECLARE @SQL    nvarchar(max)  
+
+    -- ── 2. BUILD #GioList ────────────────────────────────────────────
+    CREATE TABLE #GioList (GioInt int)      
+    INSERT INTO #GioList      
+    SELECT TRY_CAST(LTRIM(RTRIM(REPLACE(value, '''', ''))) AS INT)      
+    FROM STRING_SPLIT(REPLACE(@GIOFCC, '''', ''), ',')      
+    WHERE LTRIM(RTRIM(REPLACE(value, '''', ''))) <> ''      
+      AND LTRIM(RTRIM(REPLACE(value, '''', ''))) <> '(GIAO DB)'      
+      AND TRY_CAST(LTRIM(RTRIM(REPLACE(value, '''', ''))) AS INT) IS NOT NULL    
+
+    -- ── 3. ĐẾM IFS ──────────────────────────────────────────────────
+    SET @SQL = N'SELECT @CNT = COUNT(*) FROM ' + QUOTENAME(@IFSTABLE)  
+    EXEC sp_executesql @SQL, N'@CNT int OUTPUT', @TTIFS OUTPUT  
+
+    -- ── 4. NORMALIZE + BUILD @NHAMAY — CHỈ CHO 100001 ───────────────
+    IF @CUSTOMERID = '100001'
+    BEGIN
+        UPDATE LUUPHIEUGIAOHANG 
+            SET GIOGIAO = '00H' 
+            WHERE GIOGIAO = '0H'      
+        UPDATE LUUPHIEUGIAOHANG 
+            SET GIOGIAO = REPLACE(GIOGIAO, 'H', '') 
+            WHERE GIOGIAO <> '00H' AND GIOGIAO LIKE '%H'      
+        UPDATE LUUPHIEUGIAOHANG 
+            SET NHAMAY = 'HON DA - VIET NAM(NHA MAY VP)' 
+            WHERE NHAMAY LIKE '%VP)'      
+        UPDATE LUUPHIEUGIAOHANG 
+            SET GIOGIAOFCC = GIOGIAO 
+            WHERE GIOGIAOFCC = '(GIAO DB)' AND GIOGIAO <> '05'
+
+        -- Build pattern VP / HÀ NAM
+        IF CHARINDEX('(NHA MAY HA NAM)', @NHAMAY) > 0      
+            SET @NHAMAY = '%NHA MAY HA NAM%'      
+        ELSE      
+            SET @NHAMAY = '%(NHA MAY VP)'
+
+        -- Update GioFCC theo nhà máy (chỉ HVN có QRCODE_CHANGETIME)
+        IF EXISTS (      
+            SELECT 1 FROM LUUPHIEUGIAOHANG      
+            WHERE GIOGIAOFCC NOT LIKE '%H'      
+              AND GIOGIAOFCC NOT LIKE '(O TYPE%'      
+              AND NHAMAY <> 'YAMAHA - VIET NAM'      
+        )      
+        BEGIN      
+            IF @NHAMAY = '%NHA MAY HA NAM%'      
+                UPDATE L SET L.GIOGIAOFCC = C.GIOFCCHN      
+                FROM LUUPHIEUGIAOHANG L      
+                INNER JOIN QRCODE_CHANGETIME C ON C.GIOHVN = L.GIOGIAOFCC      
+                WHERE L.GIOGIAOFCC NOT LIKE '%H' 
+                  AND L.GIOGIAOFCC NOT LIKE '(O TYPE%'   
+                  AND L.NHAMAY <> 'YAMAHA - VIET NAM' 
+                  AND L.NHAMAY LIKE @NHAMAY      
+            ELSE      
+                UPDATE L SET L.GIOGIAOFCC = C.GioFCCVP      
+                FROM LUUPHIEUGIAOHANG L      
+                INNER JOIN QRCODE_CHANGETIME C ON C.GIOHVN = L.GIOGIAOFCC      
+                WHERE L.GIOGIAOFCC NOT LIKE '%H' 
+                  AND L.GIOGIAOFCC NOT LIKE '(O TYPE%'   
+                  AND L.NHAMAY <> 'YAMAHA - VIET NAM' 
+                  AND L.NHAMAY LIKE @NHAMAY      
+        END
+    END
+    ELSE
+    BEGIN
+        -- Customer khác: không normalize, filter tất cả nhà máy của customer đó
+        -- @NHAMAY truyền vào là tên thật hoặc rỗng
+        IF @NHAMAY = N''
+            SET @NHAMAY = '%'
+        ELSE
+            SET @NHAMAY = '%' + @NHAMAY + '%'
+    END
+
+    -- ── 5. TRƯỜNG HỢP GIAO DB ────────────────────────────────────────
+    IF @GIOFCC = '(GIAO DB)'      
+    BEGIN  
+        SET @SQL = N'
+            DELETE ' + QUOTENAME(@TMPTABLE) + N'
+            INSERT INTO ' + QUOTENAME(@TMPTABLE) + N'
+                (STT,CUA,TRUYEN,MAHANG,TENHANG,LOT,DV,SOLUONG,NGAYGIAO,GIOGIAO,
+                 STATUS,TTPHIEU,NHAMAY,ADDNM,HOP,STATUSDOC,Note,PO_NO,PO_ITEM)
+            SELECT STT,CUA,TRUYEN,MAHANG,TENHANG,LOT,DV,SOLUONG,NGAYGIAO,GIOGIAO,
+                   STATUS,TTPHIEU,NHAMAY,ADDNM,HOP,STATUSDOC,Note,
+                   ISNULL(PO_NO,''''), ISNULL(PO_ITEM,'''')
+            FROM ' + QUOTENAME(@IFSTABLE)  
+        EXEC sp_executesql @SQL  
+    END      
+    ELSE      
+    BEGIN  
+        -- ── 6. KIỂM TRA DOCQR ────────────────────────────────────────
+        DECLARE @CntDocQR int = 0  
+        SET @SQL = N'SELECT @CNT = COUNT(*) FROM ' + QUOTENAME(@DOCQRTABLE)  
+        EXEC sp_executesql @SQL, N'@CNT int OUTPUT', @CntDocQR OUTPUT  
+  
+        IF @CntDocQR = 0  
+        BEGIN      
+            SET @SQL = N'DELETE ' + QUOTENAME(@TMPTABLE)  
+            EXEC sp_executesql @SQL  
+
+            -- ── Set @ADDNM: 100001 theo VP/HN, customer khác dùng @ADDNM truyền vào
+            IF @CUSTOMERID = '100001'
+            BEGIN
+                IF @NHAMAY = '%(NHA MAY VP)'      
+                    SET @ADDNM = 1      
+                ELSE      
+                    SET @ADDNM = 2
+            END
+            -- ELSE: giữ nguyên @ADDNM được truyền từ C# (AddNmMacDinh trong config)
+
+            -- ── 7. TẠO BẢNG TẠM ─────────────────────────────────────
+            CREATE TABLE #LUU (      
+                MAHANG      nvarchar(50), 
+                NGAYGIAO    date, 
+                CUA         nvarchar(20),      
+                TRUYEN      nvarchar(20), 
+                SOLUONG     int, 
+                GIOGIAO     nvarchar(10),      
+                GIOGIAOFCC  nvarchar(50), 
+                LOT         nvarchar(500),      
+                STATUS      nvarchar(20), 
+                STATUSDOC   nvarchar(50)      
+            )
+
+            CREATE TABLE #LUUGIO (
+                MAHANG      nvarchar(50),
+                NGAYGIAO    date,
+                CUA         nvarchar(20),
+                TRUYEN      nvarchar(20),
+                SOLUONG     int,
+                GIO_PARSE   nvarchar(10),
+                LOT         nvarchar(500),
+                STATUS      nvarchar(20),
+                STATUSDOC   nvarchar(50)
+            )
+
+            -- ── 8. INSERT #LUU ───────────────────────────────────────
+            INSERT INTO #LUU      
+            SELECT       
+                RTRIM(MAHANG), CAST(NGAYGIAO AS date), RTRIM(CUA), RTRIM(TRUYEN),      
+                SOLUONG, GIOGIAO, GIOGIAOFCC, LOT, STATUS, STATUSDOC      
+            FROM (      
+                SELECT *,      
+                    ROW_NUMBER() OVER (      
+                        PARTITION BY RTRIM(MAHANG), CAST(NGAYGIAO AS date),      
+                                     RTRIM(CUA), RTRIM(TRUYEN),      
+                                     SOLUONG, GIOGIAO, RTRIM(NHAMAY)      
+                        ORDER BY TGLUU DESC      
+                    ) AS RN      
+                FROM LUUPHIEUGIAOHANG      
+                WHERE CAST(NGAYGIAO AS date) = CAST(@NGAYGIAO AS date)      
+                  AND NHAMAY LIKE @NHAMAY      
+                  AND GIOGIAO NOT LIKE '%[^0-9]%'        
+                  AND GIOGIAO <> ''
+                  AND (
+                      NOT EXISTS (SELECT 1 FROM #GioList)
+                      OR TRY_CAST(GIOGIAO AS INT) IN (SELECT GioInt FROM #GioList)
+                  )
+            ) x      
+            WHERE x.RN = 1
+
+            -- ── 9. INSERT #LUUGIO ────────────────────────────────────
+            INSERT INTO #LUUGIO      
+            SELECT       
+                l.MAHANG, l.NGAYGIAO, l.CUA, l.TRUYEN, l.SOLUONG,      
+                RIGHT('00' + LTRIM(RTRIM(gs.value)), 2) AS GIO_PARSE,      
+                l.LOT, l.STATUS, l.STATUSDOC      
+            FROM #LUU l      
+            CROSS APPLY STRING_SPLIT(      
+                REPLACE(REPLACE(REPLACE(l.GIOGIAOFCC, '(', ''), ')', ''), 'H', ''), '+'      
+            ) gs      
+            WHERE LTRIM(RTRIM(gs.value)) <> ''
+              AND (
+                  NOT EXISTS (SELECT 1 FROM #GioList)
+                  OR TRY_CAST(LTRIM(RTRIM(gs.value)) AS INT) IN (SELECT GioInt FROM #GioList)
+              )
+
+            CREATE NONCLUSTERED INDEX IX_LUUGIO 
+                ON #LUUGIO (MAHANG, CUA, TRUYEN, SOLUONG, GIO_PARSE)      
+
+            -- ── 10. INSERT VÀO TMP ĐỘNG ─────────────────────────────
+            SET @SQL = N'
+                INSERT INTO ' + QUOTENAME(@TMPTABLE) + N'
+                    (STT,CUA,TRUYEN,MAHANG,TENHANG,LOT,DV,SOLUONG,NGAYGIAO,GIOGIAO,
+                     STATUS,TTPHIEU,NHAMAY,ADDNM,HOP,STATUSDOC,Note,PO_NO,PO_ITEM)
+                SELECT
+                    i.STT, i.CUA, i.TRUYEN, i.MAHANG, i.TENHANG,
+                    ISNULL(l.LOT, i.LOT), i.DV, i.SOLUONG, i.NGAYGIAO, i.GIOGIAO,
+                    ISNULL(l.STATUS, i.STATUS), i.TTPHIEU, i.NHAMAY, @ADDNM,
+                    i.HOP, ISNULL(l.STATUSDOC, i.STATUSDOC), i.Note,
+                    ISNULL(i.PO_NO,''''), ISNULL(i.PO_ITEM,'''')
+                FROM ' + QUOTENAME(@IFSTABLE) + N' i
+                LEFT JOIN #LUUGIO l
+                    ON  l.MAHANG    = RTRIM(i.MAHANG)
+                    AND l.CUA       = RTRIM(i.CUA)
+                    AND l.TRUYEN    = RTRIM(i.TRUYEN)
+                    AND l.SOLUONG   = i.SOLUONG
+                    AND l.GIO_PARSE = RTRIM(i.GIOGIAO)'  
+            EXEC sp_executesql @SQL, N'@ADDNM int', @ADDNM  
+
+            DROP TABLE #LUU      
+            DROP TABLE #LUUGIO      
+        END      
+    END      
+
+    -- ── 11. SELECT KẾT QUẢ ──────────────────────────────────────────
+    SET @SQL = N'
+        SELECT STT,CUA,TRUYEN,MAHANG,TENHANG,LOT,DV,SOLUONG,NGAYGIAO,
+               GIOGIAO,STATUS,TTPHIEU,NHAMAY,ADDNM,HOP,STATUSDOC,Note,
+               ISNULL(PO_NO,'''') AS PO_NO, ISNULL(PO_ITEM,'''') AS PO_ITEM
+        FROM ' + QUOTENAME(@TMPTABLE) + N'
+        ORDER BY TRY_CAST(STT AS INT), STT'  
+    EXEC sp_executesql @SQL  
+
+    DROP TABLE #GioList      
+END
+GO
+
+
