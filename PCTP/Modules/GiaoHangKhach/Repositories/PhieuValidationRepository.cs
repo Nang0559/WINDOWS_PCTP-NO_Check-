@@ -384,7 +384,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             if (maHangList == null || maHangList.Count == 0) return result;
 
             string inClause = string.Join(",", maHangList.Select(m => $"'{m.Replace("'", "''")}'"));
-            DataTable dt = _db.LoadData(
+            DataTable dt = Db.LoadData(
                 $"SELECT Code, ISNULL(CAST(MinCloseQty AS INT), 0) AS QC FROM B20Item WHERE Code IN ({inClause})");
 
             foreach (DataRow row in dt.Rows)

@@ -20,6 +20,9 @@ namespace PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao
         string GetLotNo(string maHang, int stt, int dem, int slGiao,
             string docQRTable = "DOCQRCODE", string tmpTable = "TMPPHIEUGIAOHANG");
         void LayLaiLotNo(int stt, string tenBan, string docQRTable);
+
+        // IPhieuLotRepository.cs — thêm
+        DataTable TakeLotYMVN(string tmpTable, string docQRTable, bool isLoaiSP);
     }
 
 }

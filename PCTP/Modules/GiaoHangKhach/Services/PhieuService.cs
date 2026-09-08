@@ -784,10 +784,10 @@ namespace PCTP.Applications.Services
             System.Diagnostics.Debug.WriteLine(
                 $"[HoanThanhYMVN] TmpTable={_cfg.TmpTable}, DocQRTable={_cfg.DocQRTable}, isLoaiSP={isLoaiSP}");
 
-            DataTable result = _phieuRepo.ExecSPWithResult("Usp_Qrcode_Take_LotYMVN2405",
-                new SqlParameter("@TMPTABLE", _cfg.TmpTable),
-                new SqlParameter("@DOCQRTABLE", _cfg.DocQRTable),
-                new SqlParameter("@ISLOAISP", isLoaiSP ? 1 : 0));
+            DataTable result = _phieuRepo.TakeLotYMVN(
+           _cfg.TmpTable,
+                 _cfg.DocQRTable,
+                isLoaiSP);
 
             if (result == null || result.Rows.Count == 0)
             {

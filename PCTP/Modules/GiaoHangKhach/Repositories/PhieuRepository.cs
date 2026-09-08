@@ -274,6 +274,9 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         public Dictionary<string, int> GetQcDongGoiBatch(List<string> maHangList)
              => _validation.GetQcDongGoiBatch(maHangList);
 
+        public DataTable TakeLotYMVN(string tmpTable, string docQRTable, bool isLoaiSP)
+            => _lot.TakeLotYMVN(tmpTable, docQRTable, isLoaiSP);
+
         #endregion
     }
 }
