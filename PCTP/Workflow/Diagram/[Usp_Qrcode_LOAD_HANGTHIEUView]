@@ -1,0 +1,154 @@
+USE [B7R2_FCC]
+GO
+
+/****** Object:  StoredProcedure [dbo].[Usp_Qrcode_LOAD_HANGTHIEUView]    Script Date: 9/8/2026 3:33:57 PM ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE PROC [dbo].[Usp_Qrcode_LOAD_HANGTHIEUView]    
+    @TENBAN NVARCHAR(100) = N'TMPPHIEUGIAOHANGView' -- ← Tên bảng động của máy trạm
+AS    
+BEGIN    
+    SET NOCOUNT ON;    
+
+    -- ── 1. KIỂM TRA BẢO MẬT SQL INJECTION ──────────────────────────────────
+    IF PATINDEX('%[^A-Za-z0-9_]%', @TENBAN) > 0 OR LEN(@TENBAN) = 0
+    BEGIN
+        RAISERROR(N'Tên bảng không hợp lệ', 16, 1)
+        RETURN
+    END
+
+    -- Kiểm tra nếu bảng động chưa được tạo thì thoát để tránh lỗi Dynamic SQL
+    IF OBJECT_ID('[dbo].[' + @TENBAN + ']', 'U') IS NULL
+    BEGIN
+        -- Trả về cấu trúc trống an toàn không phụ thuộc bảng nào
+        SELECT TOP 0 
+            CAST(NULL AS NVARCHAR(56)) as MH, 
+            CAST(0 AS INT) as SLGIAO, 
+            CAST(0 AS INT) as SLTHIEU, 
+            CAST(NULL AS NVARCHAR(50)) as GIOGIAO
+        RETURN
+    END
+
+    -- Tên bảng kết quả động riêng cho từng máy trạm để tránh xung đột cột dữ liệu
+    DECLARE @RESULT_TABLE NVARCHAR(150) = @TENBAN + N'_Result'
+
+    -- Xóa bảng kết quả cũ nếu còn sót lại trước khi tạo mới
+    IF OBJECT_ID('[dbo].[' + @RESULT_TABLE + ']', 'U') IS NOT NULL
+    BEGIN
+        DECLARE @sqlDropOld NVARCHAR(MAX) = N'DROP TABLE [dbo].[' + @RESULT_TABLE + ']'
+        EXEC sp_executesql @sqlDropOld
+    END
+
+    -- ── 2. KHỞI TẠO BẢNG CHỨA KẾT QUẢ ĐỘNG (BẢNG VẬT LÝ THEO MÁY TRẠM) ──────
+    DECLARE @sqlCreateResult NVARCHAR(MAX)
+    SET @sqlCreateResult = N'
+        CREATE TABLE [dbo].[' + @RESULT_TABLE + '] (
+            MH NVARCHAR(56),
+            SLGIAO INT,
+            SLTHIEU INT,
+            GIOGIAO NVARCHAR(50)
+        )'
+    EXEC sp_executesql @sqlCreateResult
+
+    -- ── 3. TÍNH TOÁN @MaxDaGiao BẰNG DYNAMIC SQL ────────────────────────────
+    DECLARE @MaxDaGiao INT = 0
+    DECLARE @sqlMax NVARCHAR(MAX)
+
+    SET @sqlMax = N'
+        IF EXISTS (SELECT 1 FROM LUUPHIEUGIAOHANG WHERE NGAYGIAO = (SELECT TOP 1 NGAYGIAO FROM TBL_TT_MA) AND LEN(GIOGIAO) < 4)  
+        BEGIN  
+            SELECT @MaxOut = MAX(CAST(CASE WHEN CHARINDEX(''h'', GIOGIAO, 1) > 0   
+                                           THEN SUBSTRING(GIOGIAO, 1, CHARINDEX(''h'', GIOGIAO, 1) - 1)  
+                                           ELSE GIOGIAO  
+                                      END AS INT)) 
+            FROM LUUPHIEUGIAOHANG  
+            WHERE NGAYGIAO <= (SELECT TOP 1 NGAYGIAO FROM TBL_TT_MAView) AND LEN(GIOGIAO) < 4  
+        END'
+    
+    EXEC sp_executesql @sqlMax, N'@MaxOut INT OUTPUT', @MaxOut = @MaxDaGiao OUTPUT
+    SET @MaxDaGiao = ISNULL(@MaxDaGiao, 0)
+
+    -- ── 4. THỰC THI LOGIC DUYỆT DỮ LIỆU SỬ DỤNG DYNAMIC SQL TOÀN BỘ ────────
+    DECLARE @sqlMain NVARCHAR(MAX)
+    SET @sqlMain = N'
+        DECLARE @MAHANG NVARCHAR(56), @TTSLGIAO INT, @GIOGIAO NVARCHAR(50)
+        DECLARE @TK INT, @SLT INT, @SLGIAO INT
+
+        DECLARE IFSPGH CURSOR LOCAL FAST_FORWARD FOR  
+        SELECT MAHANG, SUM(TTSLG) as TTSLG 
+        FROM TBL_TT_MAView  
+        WHERE CAST(GIOGIAO AS INT) > @MaxDaGiao 
+        GROUP BY MAHANG  
+
+        OPEN IFSPGH  
+        FETCH NEXT FROM IFSPGH INTO @MAHANG, @TTSLGIAO  
+        WHILE @@FETCH_STATUS = 0  
+        BEGIN  
+            SELECT @TK = ISNULL(SUM(slconlai), 0) FROM STOCKTP WHERE SLCONLAI > 0 AND PART = @MAHANG  
+            
+            IF (@TK < @TTSLGIAO)  
+            BEGIN  
+                DECLARE DUYETHT CURSOR LOCAL FAST_FORWARD FOR  
+                SELECT MAHANG, SUM(TTSLG) as TTSLG, GIOGIAO  
+                FROM TBL_TT_MAView  
+                WHERE CAST(GIOGIAO AS INT) > @MaxDaGiao AND MAHANG = @MAHANG 
+                GROUP BY MAHANG, GIOGIAO 
+                ORDER BY CAST(GIOGIAO AS INT) ASC  
+
+                OPEN DUYETHT  
+                FETCH NEXT FROM DUYETHT INTO @MAHANG, @SLGIAO, @GIOGIAO  
+                WHILE @@FETCH_STATUS = 0  
+                BEGIN  
+                    IF (@TK > 0)  
+                    BEGIN  
+                        IF (@SLGIAO < @TK)  
+                        BEGIN  
+                            SET @TK = @TK - @SLGIAO  
+                            SET @TTSLGIAO = @TTSLGIAO - @SLGIAO  
+                        END  
+                        ELSE  
+                        BEGIN  
+                            SET @SLT = @SLGIAO - @TK  
+                            SET @TK = 0  
+                            INSERT INTO [dbo].[' + @RESULT_TABLE + '] VALUES(@MAHANG, @SLGIAO, @SLT, @GIOGIAO)  
+                        END  
+                    END  
+                    ELSE  
+                    BEGIN  
+                        INSERT INTO [dbo].[' + @RESULT_TABLE + '] VALUES(@MAHANG, @SLGIAO, @SLGIAO, @GIOGIAO)  
+                    END  
+
+                    FETCH NEXT FROM DUYETHT INTO @MAHANG, @SLGIAO, @GIOGIAO  
+                END  
+                CLOSE DUYETHT  
+                DEALLOCATE DUYETHT  
+            END  
+
+            FETCH NEXT FROM IFSPGH INTO @MAHANG, @TTSLGIAO  
+        END  
+        
+        CLOSE IFSPGH  
+        DEALLOCATE IFSPGH
+    '
+
+    -- Thực thi chuỗi lệnh để đổ dữ liệu vào bảng vật lý động riêng biệt
+    EXEC sp_executesql @sqlMain, N'@MaxDaGiao INT', @MaxDaGiao = @MaxDaGiao
+
+    -- ── 5. XUẤT KẾT QUẢ VÀ DỌN DẸP ─────────────────────────────────────────
+    DECLARE @sqlSelect NVARCHAR(MAX) = N'
+        SELECT MH, SLGIAO, SLTHIEU, GIOGIAO 
+        FROM [dbo].[' + @RESULT_TABLE + ']
+        ORDER BY MH, CAST(GIOGIAO AS INT) ASC'
+    EXEC sp_executesql @sqlSelect
+
+    -- Xóa bảng kết quả của phiên làm việc này ngay sau khi xuất dữ liệu xong
+    DECLARE @sqlDrop NVARCHAR(MAX) = N'DROP TABLE [dbo].[' + @RESULT_TABLE + ']'
+    EXEC sp_executesql @sqlDrop
+END
+GO
+
+
