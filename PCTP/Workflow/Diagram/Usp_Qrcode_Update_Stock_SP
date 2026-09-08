@@ -54,6 +54,7 @@ BEGIN
         LOT      NVARCHAR(50),
         SLCAN    INT,
         SLCO     INT,
+        SLTHIEU  INT,
         STATUS   NVARCHAR(500)
     );
 
@@ -169,6 +170,7 @@ BEGIN
                     LOT,
                     SLCAN,
                     SLCO,
+                    SLTHIEU,
                     STATUS
                 )
                 VALUES
@@ -177,6 +179,7 @@ BEGIN
                     N'',
                     @slCan,
                     0,
+                    @slCan,
                     N'THIEU_TON'
                 );
 
@@ -196,6 +199,7 @@ BEGIN
                         LOT,
                         SLCAN,
                         SLCO,
+                        SLTHIEU,
                         STATUS
                     )
                     VALUES
@@ -204,6 +208,7 @@ BEGIN
                         @lotKey13,
                         @slCan,
                         ISNULL(@slConLai, 0),
+                        @slCan - ISNULL(@slConLai, 0),
                         N'THIEU_TON'
                     );
 
@@ -303,6 +308,7 @@ BEGIN
                             LOT,
                             SLCAN,
                             SLCO,
+                            SLTHIEU,
                             STATUS
                         )
                         VALUES
@@ -311,6 +317,7 @@ BEGIN
                             @lotKey13,
                             @slCan,
                             @slCan - @Remain,
+                            @Remain,
                             N'Không đủ tồn kho khi cập nhật thực tế'
                         );
 
@@ -463,12 +470,14 @@ BEGIN
             LOT,
             SLCAN,
             SLCO,
+            SLTHIEU,
             STATUS
         )
         VALUES
         (
             N'SYSTEM ERROR',
             N'Line ' + CAST(ERROR_LINE() AS NVARCHAR(10)),
+            0,
             0,
             0,
             LEFT
