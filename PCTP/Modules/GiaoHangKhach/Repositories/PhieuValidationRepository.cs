@@ -19,48 +19,98 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             : base(db, uow)
         {
         }
-
         // ============================================================
         // FIFO
+        //
+        // Quy tắc nghiệp vụ:
+        //   FIFO = 7 ký tự đầu của LOTNO
+        //
+        //   YYMMDD + CA
+        //
+        //   CA:
+        //      0 = Hành chính
+        //      1 = Ca 1
+        //      2 = Ca 2
+        //      3 = Ca 3
+        //
+        // Không sử dụng ImportDate / CreatedDate / NGAYNHAP
+        // để quyết định FIFO.
         // ============================================================
         public List<FifoViolation> CheckFifoViolations(string tmpTable)
         {
-            Db.ValidateTableName(tmpTable);   // ✅ method đặc thù → qua Db (field kế thừa)
+            Db.ValidateTableName(tmpTable);
 
             string sql = $@"
-                ;WITH LotDungFifo AS (
-                    SELECT
-                        sl.ItemCode,
-                        sl.LotNo,
-                        sl.SlotId,
-                        ROW_NUMBER() OVER (PARTITION BY sl.ItemCode ORDER BY sl.ImportDate ASC) AS Rn
-                    FROM SlotLot sl
-                    WHERE sl.PhieuStatus = 0 AND sl.Quantity > 0
-                )
-                SELECT
-                    tmp.MAHANG AS MaHang,
-                    tmp.LOT AS LotDaChon,
-                    fifo.LotNo AS LotDungRaPhaiChon,
-                    fifo.SlotId AS SlotIdDungRaPhaiChon
-                FROM [{tmpTable}] tmp
-                INNER JOIN LotDungFifo fifo
-                    ON fifo.ItemCode = tmp.MAHANG AND fifo.Rn = 1
-                WHERE tmp.LOT <> fifo.LotNo
-                  AND ISNULL(tmp.STATUS, '') <> 'NG';";
+        ;WITH LotTon AS
+        (
+            SELECT
+                sl.ItemCode,
+                LEFT(sl.LotNo, 13) AS LotKey13,
+                SUM(sl.Quantity) AS TongTon
+            FROM SlotLot sl
+            WHERE sl.PhieuStatus = 0
+              AND sl.Quantity > 0
+              AND LEN(sl.LotNo) >= 13
+            GROUP BY
+                sl.ItemCode,
+                LEFT(sl.LotNo, 13)
+        ),
+        LotFifo AS
+        (
+            SELECT
+                ItemCode,
+                LotKey13,
+                ROW_NUMBER() OVER
+                (
+                    PARTITION BY ItemCode
+                    ORDER BY
+                        LEFT(LotKey13, 6) ASC,
+                        SUBSTRING(LotKey13, 12, 1) ASC,
+                        LotKey13 ASC
+                ) AS Rn
+            FROM LotTon
+            WHERE TongTon > 0
+        ),
+        LotDungFifo AS
+        (
+            SELECT
+                ItemCode,
+                LotKey13
+            FROM LotFifo
+            WHERE Rn = 1
+        )
+        SELECT
+            tmp.MAHANG AS MaHang,
+            tmp.LOT AS LotDaChon,
+            fifo.LotKey13 AS LotDungRaPhaiChon
+        FROM [{tmpTable}] tmp
+        INNER JOIN LotDungFifo fifo
+            ON RTRIM(fifo.ItemCode) = RTRIM(tmp.MAHANG)
+        WHERE LEFT(tmp.LOT, 13) <> fifo.LotKey13
+          AND ISNULL(tmp.STATUS, '') <> 'NG';";
 
-            DataTable dt = LoadData(sql);   // ✅ 4 method CRUD chung → gọi trực tiếp, không tiền tố
+            DataTable dt = LoadData(sql);
 
             var result = new List<FifoViolation>();
+
             foreach (DataRow row in dt.Rows)
             {
                 result.Add(new FifoViolation
                 {
-                    MaHang = row["MaHang"]?.ToString(),
-                    LotDaChon = row["LotDaChon"]?.ToString(),
-                    LotDungRaPhaiChon = row["LotDungRaPhaiChon"]?.ToString(),
-                    SlotIdDungRaPhaiChon = Convert.ToInt32(row["SlotIdDungRaPhaiChon"])
+                    MaHang = row["MaHang"] == DBNull.Value
+                        ? null
+                        : row["MaHang"].ToString(),
+
+                    LotDaChon = row["LotDaChon"] == DBNull.Value
+                        ? null
+                        : row["LotDaChon"].ToString(),
+
+                    LotDungRaPhaiChon = row["LotDungRaPhaiChon"] == DBNull.Value
+                        ? null
+                        : row["LotDungRaPhaiChon"].ToString()
                 });
             }
+
             return result;
         }
 

@@ -121,16 +121,16 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             Db.ValidateTableName(tmpTable);
 
             string sql = $@"
-INSERT INTO [{tmpTable}]
-(
-    STT, CUA, TRUYEN, MAHANG, TENHANG, LOT, DV, SOLUONG,
-    NGAYGIAO, GEAR, GIOGIAO, STATUS, PO_NO, TTPHIEU
-)
-VALUES
-(
-    @STT, @CUA, @TRUYEN, @MAHANG, @TENHANG, @LOT, @DV, @SOLUONG,
-    @NGAYGIAO, @GEAR, @GIOGIAO, 'NG', @PO_NO, @CUSPO
-)";
+                INSERT INTO [{tmpTable}]
+                (
+                    STT, CUA, TRUYEN, MAHANG, TENHANG, LOT, DV, SOLUONG,
+                    NGAYGIAO, GEAR, GIOGIAO, STATUS, PO_NO, TTPHIEU
+                )
+                VALUES
+                (
+                    @STT, @CUA, @TRUYEN, @MAHANG, @TENHANG, @LOT, @DV, @SOLUONG,
+                    @NGAYGIAO, @GEAR, @GIOGIAO, 'NG', @PO_NO, @CUSPO
+                )";
 
             ExecuteNonQuery(
                 sql,

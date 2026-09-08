@@ -30,20 +30,23 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         private readonly IHangChoGiaoRepository _hangChoGiaoRepo;
         private readonly IBulkStockSlotRepository _bulkStockSlotRepo;
         private readonly IStockHistoryRepository _historyRepo;
-
+        private readonly IPhieuValidationRepository _validationRepo;
         public PhieuKhoRepository(
             PhieuSqlExecutor db,
             IUnitOfWork uow,
             IBulkStockSlotRepository bulkStockSlotRepo,
             IStockHistoryRepository historyRepo,
+             IPhieuValidationRepository validationRepo,
             CustomerConfig cfg = null,
             IHangChoGiaoRepository hangChoGiaoRepo = null)
             : base(db, uow)
         {
             _bulkStockSlotRepo = bulkStockSlotRepo ?? throw new ArgumentNullException(nameof(bulkStockSlotRepo));
             _historyRepo = historyRepo ?? throw new ArgumentNullException(nameof(historyRepo));
+            _validationRepo = validationRepo ?? throw new ArgumentNullException(nameof(validationRepo));
             _cfg = cfg;
             _hangChoGiaoRepo = hangChoGiaoRepo;   // giữ nullable như hành vi cũ (có null-check khi dùng)
+           
         }
 
         private BulkStockAdjustService CreateBulkService()
@@ -81,7 +84,12 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         {
             Db.ValidateTableName(tmpTable);
             Db.ValidateTableName(docQRTable);
-
+            var fifoViolations = _validationRepo.CheckFifoViolations(tmpTable);
+            if (fifoViolations.Count > 0)
+            {
+                errors = BuildFifoErrorTable(fifoViolations);
+                return 0;   // ← KHÔNG chạy tiếp bất kỳ dòng nào bên dưới
+            }
             // ⚠️ SP trả DataSet ĐA BẢNG (stok + errors) — gọi thẳng Db (không qua
             // Uow transaction), giữ đúng hành vi gốc: SP tự quản lý transaction bên trong.
             DataSet ds = Db.ExecuteStoredProcedureDataSet(
@@ -238,6 +246,14 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
 
         public int CapNhapKhoSP(string gioGiaoFcc, string nhaMay, out DataTable errors)
         {
+            // ⚠️ CapNhapKhoSP không có tham số tmpTable trực tiếp — cần _cfg.TmpTable
+            // hoặc tham số truyền vào. Xác nhận: hàm này dùng bảng TMP nào?
+            var fifoViolations = _validationRepo.CheckFifoViolations(_cfg?.TmpTable);
+            if (fifoViolations.Count > 0)
+            {
+                errors = BuildFifoErrorTable(fifoViolations);
+                return 0;
+            }
             DataSet ds = Db.ExecuteStoredProcedureDataSet(
                 "Usp_Qrcode_Update_Stock_SP",
                 new SqlParameter("@GIOGIAOFCC", SqlDbType.NVarChar, 200) { Value = (object)(gioGiaoFcc ?? "") },
@@ -293,7 +309,18 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             out DS_ERR_CNK error)
         {
             error = null;
-
+            var fifoViolations = _validationRepo.CheckFifoViolations(_cfg.TmpTable);
+            if (fifoViolations.Count > 0)
+            {
+                var v = fifoViolations.First(x => x.MaHang == maHang);
+                error = new DS_ERR_CNK
+                {
+                    MH = v.MaHang,
+                    LOT = v.LotDaChon,
+                    Ms = $"Vi phạm FIFO — phải xuất Lot {v.LotDungRaPhaiChon} (Slot {v.SlotIdDungRaPhaiChon}) trước."
+                };
+                return false;
+            }
             if (_cfg == null)
                 throw new InvalidOperationException("PhieuKhoRepository cần CustomerConfig để thực hiện CapNhapKhoYMVN.");
 
@@ -485,6 +512,21 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             return ExecuteStoredProcedure(
                 "Usp_Qrcode_LOAD_HANGTHIEUView",
                 new SqlParameter("@TENBAN", tenBan));
+        }
+
+        // ── Helper dựng bảng lỗi hiển thị lên UI (giống format `errors` hiện có từ SP) ──
+        private DataTable BuildFifoErrorTable(List<FifoViolation> violations)
+        {
+            var dt = new DataTable();
+            dt.Columns.Add("MH", typeof(string));
+            dt.Columns.Add("LOT", typeof(string));
+            dt.Columns.Add("Ms", typeof(string));
+
+            foreach (var v in violations)
+                dt.Rows.Add(v.MaHang, v.LotDaChon,
+                    $"Vi phạm FIFO — phải xuất Lot {v.LotDungRaPhaiChon} (Slot {v.SlotIdDungRaPhaiChon}) trước.");
+
+            return dt;
         }
     }
 }
