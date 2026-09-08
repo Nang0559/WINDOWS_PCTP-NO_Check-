@@ -1,0 +1,166 @@
+USE [B7R2_FCC]
+GO
+
+/****** Object:  StoredProcedure [dbo].[Usp_Qrcode_gheplot]    Script Date: 9/8/2026 3:34:40 PM ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+  
+CREATE PROC [dbo].[Usp_Qrcode_gheplot]  
+  
+AS  
+BEGIN  
+    SET NOCOUNT ON;  
+   
+ DECLARE  @MAHANG NVARCHAR(56),@CUA NVARCHAR(10),@TRUYEN NVARCHAR(10),@SOLUONG as int, @NGAYGIAO smalldatetime ,@GIOGIAO  nvarchar(50),@QCDG as int,@STT as int ,@HT_LOT nvarchar(30),@HT_SL int  ,@_LG as nvarchar(256)
+ set @STT = 0  
+ IF OBJECT_ID ('TempDb..#TMPGHEPLOT')  IS NOT NULL DROP TABLE #TMPGHEPLOT  
+  SELECT top 0 MAHANG as MH,CUA as GG,LOT as LG
+  INTO #TMPGHEPLOT  
+  FROM tmpphieugiaohang  
+  --select top 0 MAHANG ,CUA,@_LG as LG from tmpphieugiaohang
+ --delete tmpphieugiaohang  
+ --insert into tmpphieugiaohang  (STT,CUA,TRUYEN,MAHANG,TENHANG,LOT,DV,SOLUONG,NGAYGIAO,GIOGIAO,ADDNM,STATUS)  
+ --(select STT,CUA,TRUYEN,MAHANG,TENHANG,LOT,DV,SOLUONG,NGAYGIAO,GIOGIAO,ADDNM,STATUS from IFSPHIEUGIAOHANG )  
+ ----Duyệt  
+ update STOCKTP set SLCONLAITMP= SLCONLAI where PART in (select MAHANG from IFSPHIEUGIAOHANG group by MAHANG) and SLCONLAI>0  
+   DECLARE IFSPGH CURSOR FOR  
+   select MAHANG,sum(SOLUONG) as SOLUONG,NGAYGIAO,GIOGIAO from IFSPHIEUGIAOHANG group by MAHANG,NGAYGIAO,GIOGIAO  
+   OPEN IFSPGH  
+  
+   FETCH NEXT FROM IFSPGH into @MAHANG,@SOLUONG,@NGAYGIAO,@GIOGIAO  
+   WHILE @@FETCH_STATUS = 0   
+   BEGIN  
+   set @STT= @STT+1  
+     
+   if EXISTS (SELECT cast(MinCloseQty as int)  from B20Item where Code = @MAHANG)  
+    SELECT @QCDG = cast(MinCloseQty as int)  from B20Item where Code = @MAHANG  
+   else  
+   set @QCDG = -1  
+  
+            update TMPPHIEUGIAOHANG set STT = @STT,HOP = CEILING (@SOLUONG/@QCDG) where  CUA=@CUA and TRUYEN = @TRUYEN and MAHANG = @MAHANG and SOLUONG = @SOLUONG and GIOGIAO= @GIOGIAO            
+         ---- Duyet ghep lot  
+      Declare @LOTGHEP as nvarchar(100) = '', @SLCANGHEP as int = 0,@SLGHEP as int = 0,@SLGIAO_CONLAI as int  
+      set @LOTGHEP = ''  
+        
+      DECLARE DHT CURSOR FOR  
+      select lot,SLCONLAITMP from STOCKTP where PART= @MAHANG and SLCONLAITMP > 0 order by LOT asc  
+        
+      OPEN DHT  
+    FETCH NEXT FROM DHT into @HT_LOT,@HT_SL  
+     
+      WHILE @@FETCH_STATUS = 0  
+         BEGIN  
+        if(@QCDG is null)  
+      break  
+     else  
+       begin  
+       if(@HT_SL < @SOLUONG)  
+          begin  
+         if(@SLCANGHEP >0)  
+           begin  
+            if(@HT_SL<@SLCANGHEP)  
+            begin  
+           set @LOTGHEP = @LOTGHEP + ',' + @HT_LOT + '-' + cast(@HT_SL as nvarchar)  
+           set @SLCANGHEP= @SLCANGHEP- @HT_SL  
+           set @SOLUONG= @SOLUONG-@HT_SL  
+           update stocktp set SLCONLAITMP= 0 where LOT= @HT_LOT  
+            end  
+          else  
+            begin  
+                
+              set @LOTGHEP = @LOTGHEP + ',' + @HT_LOT + '-' + cast(@SLCANGHEP as nvarchar)  
+           insert into #TMPGHEPLOT values (@MAHANG,@GIOGIAO,@LOTGHEP)  
+           set @LOTGHEP = ''  
+           set @SLGHEP =  (@HT_SL- @SLCANGHEP)% @QCDG  
+             if(@SLGHEP=0)  
+             set @SLCANGHEP=0  
+             else  
+             begin  
+                 set @SLCANGHEP = @QCDG - @SLGHEP  
+              set @LOTGHEP = @HT_LOT + '-' + cast(@SLGHEP as nvarchar)  
+                   end  
+           set @SOLUONG= @SOLUONG-@HT_SL  
+           update stocktp set SLCONLAITMP= 0 where LOT= @HT_LOT  
+            end  
+           end    
+         else  
+             begin  
+           set @SLGHEP =  @HT_SL% @QCDG  
+           if(@SLGHEP=0)  
+           set @SLCANGHEP=0  
+           else  
+           set @SLCANGHEP = @QCDG - @SLGHEP  
+           if(@SLGHEP>0)  
+            begin  
+             if @LOTGHEP = ''   
+               begin  
+                set @LOTGHEP = @HT_LOT + '-' + cast(@SLGHEP as nvarchar)  
+                update stocktp set SLCONLAITMP= 0 where LOT= @HT_LOT  
+                set @SOLUONG= @SOLUONG- @HT_SL  
+                  
+              end  
+              else  
+              begin  
+               set @LOTGHEP = @LOTGHEP + ',' + @HT_LOT + '-' + cast(@SLGHEP as nvarchar)  
+               update stocktp set SLCONLAITMP= 0  where LOT= @HT_LOT  
+               set @SLGIAO_CONLAI= @SOLUONG- @HT_SL  
+              end  
+            end  
+           else  
+             begin  
+            set @SLCANGHEP= 0  
+            set @SOLUONG= @SOLUONG- @HT_SL  
+             end  
+          end  
+            
+             end  
+       else  
+           begin  
+           if(@SLCANGHEP>0)  
+             begin  
+          set @LOTGHEP = @LOTGHEP + ',' + @HT_LOT + '-' + cast(@SLCANGHEP as nvarchar)  
+          insert into #TMPGHEPLOT values (@MAHANG,@GIOGIAO,@LOTGHEP)  
+           set @LOTGHEP = ''  
+           set @SLCANGHEP= 0  
+           update stocktp set SLCONLAITMP= @HT_SL-@SOLUONG  where LOT= @HT_LOT  
+           set @SOLUONG= 0  
+           break;  
+          end  
+          else  
+           begin  
+          set @SLCANGHEP= 0  
+          update stocktp set SLCONLAITMP= @HT_SL-@SOLUONG  where LOT= @HT_LOT  
+          break;  
+           end  
+        end  
+       end  
+          
+      FETCH NEXT FROM DHT into  @HT_LOT,@HT_SL  
+      end  
+  
+    CLOSE DHT  
+       DEALLOCATE DHT  
+    --if(@LOTGHEP <> '')  
+    --      begin  
+    --      insert into #TMPGHEPLOT values (@MAHANG,@GIOGIAO,@LOTGHEP)  
+    --   set @LOTGHEP = ''  
+    --         end  
+     -------------------------------  
+   FETCH NEXT FROM IFSPGH into  @MAHANG,@SOLUONG,@NGAYGIAO,@GIOGIAO  
+   END  
+   CLOSE IFSPGH  
+   DEALLOCATE IFSPGH  
+    
+   
+ select * from #TMPGHEPLOT where charindex(',',LG,1) >0   
+ -- Xuất KQ  
+   
+END  
+  
+GO
+
+
