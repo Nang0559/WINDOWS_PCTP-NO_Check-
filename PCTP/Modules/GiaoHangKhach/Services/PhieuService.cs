@@ -552,7 +552,15 @@ namespace PCTP.Applications.Services
             return _phieuRepo.GetDonHangChuaLot(GetTenBan(isSP), _cfg.GetDocQRTable(isSP));
         }
 
-        public DataTable LoadGhepLot() => _phieuRepo.LoadGhepLot();
+        public DataTable LoadGhepLot()
+        {
+            // ✅ FIX Bug 1: trước đây gọi _phieuRepo.LoadGhepLot() không tham số
+            // → luôn rơi vào default "TMPPHIEUGIAOHANG"/"IFSPHIEUGIAOHANG" của
+            // IPhieuLotRepository, bất kể máy nào gọi — máy view luôn đọc SAI
+            // bảng (bảng của máy bắn QR chính) nên lưới luôn trống.
+            string ifsTable = _isMayBanQR ? _cfg.IfsTable : _cfg.GetIfsViewTable();
+            return _phieuRepo.LoadGhepLot(_tenBan, ifsTable);
+        }
 
         public void LayLaiLotNo(int stt, bool isSP = false)
         {

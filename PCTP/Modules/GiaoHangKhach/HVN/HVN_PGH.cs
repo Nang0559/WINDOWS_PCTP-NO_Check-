@@ -227,7 +227,7 @@ namespace PCTP.QRCODE_HVN.PGH
 
             var gioRepo = new GioXuatRepository(sql);
             var qrRepo = new DocQRRepository(sql, _cfg);
-            var sqlRepo = new SqlRepository(sql);
+            var sqlRepo = new SqlRepository(phieuDb, phieuUow);
 
             var gioVP = gioRepo.GetDictGioVP();
             var gioHN = gioRepo.GetDictGioHN();

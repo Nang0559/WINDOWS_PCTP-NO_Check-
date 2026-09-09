@@ -500,60 +500,7 @@ namespace PCTP.Presentation.Presenters
             }, "Đang khởi tạo biểu mẫu in...");
         }
 
-        //private void OnInPhieu(object sender, EventArgs e)
-        //{
-        //    // BƯỚC 1: Xử lý các tương tác UI / Hỏi ý kiến User trước khi bật Loading
-        //    int hinhThucIn = 0;
-
-        //    // Nếu không phải Gear và không phải mã "#" thì mới cần hiện Dialog hỏi User
-        //    if (!_cfg.CoGear && _gioXuatHienTai.Ma != "#")
-        //    {
-        //        hinhThucIn = _view.ShowChonHinhThucIn();
-
-        //        // Nếu user bấm Cancel hoặc tắt Dialog không chọn (giả định trả về -1 hoặc 0 tùy code của bạn)
-        //        if (hinhThucIn == -1) return;
-        //    }
-
-        //    // BƯỚC 2: Bật wrapper quản lý Loading để xử lý tác vụ tính toán dữ liệu nặng
-        //    RunWithLoadingSync(() =>
-        //    {
-        //        DataTable data;
-
-        //        if (_cfg.CoGear)
-        //        {
-        //            // YMVN: dùng report riêng
-        //            data = _view.GetDonHangTable();
-        //            _view.ShowReportYMVN(data);
-        //            return;
-        //        }
-
-        //        if (_gioXuatHienTai.Ma == "#")
-        //        {
-        //            data = _inPhieuSvc.BuildReportDataGiaoDB(_view.GetDonHangTable());
-        //        }
-        //        else
-        //        {
-        //            // Đọc các thông tin UI còn lại an toàn trên UI Thread
-        //            string ngayGiao = _view.SelectedDate.ToString("ddMMyyyy");
-        //            DataTable dtAddress = _view.GetAddressTable();
-        //            string nhaMay = GetNhaMay();
-
-        //            // Gọi dịch vụ Build Report (Tác vụ nặng chiếm dụng CPU/Memory)
-        //            data = _inPhieuSvc.BuildReportData(
-        //                ngayGiao,
-        //                _gioXuatHienTai.Ma,
-        //                _gioXuatHienTai.MoTa,
-        //                nhaMay,
-        //                _addNM,
-        //                hinhThucIn, // Biến đã được lấy sẵn từ trước khi Loading bật
-        //                dtAddress);
-        //        }
-
-        //        // Hiển thị màn hình Report
-        //        _view.ShowReport(data);
-
-        //    }, "Đang khởi tạo biểu mẫu in...");
-        //}
+       
 
         private void OnInGhepLot(object sender, EventArgs e)
         {
@@ -561,14 +508,21 @@ namespace PCTP.Presentation.Presenters
             var selectedRows = _view.GetSelectedGhepLotRows();
 
             DataTable reportData = null;
+            // ✅ FIX: TMPLOTGHEP giờ phân biệt theo máy (cột MachineName) — phải
+            // truyền đúng tên máy hiện tại, không còn 1 bảng dùng chung nữa.
+            string machineName = Environment.MachineName;
 
             // 2. Bật Loading để chạy tác vụ truy vấn và build dữ liệu in (Tác vụ nặng)
             RunWithLoadingSync(() =>
             {
-                var items = _view.GetSelectedGhepLotItems();   // ← build List<GhepLotItem> từ lưới đã chọn
-                _sqlRepo.XoaVaInsertTmpLotGhep(items);           // ← chỗ cần thêm machineName
-                DataTable dt = _sqlRepo.GetGhepLotPrint();
-                reportData = _inPhieuSvc.InGhepLot(selectedRows.Any() ? selectedRows : null);
+                // ❌ Đã xoá: khối gọi trực tiếp _sqlRepo.XoaVaInsertTmpLotGhep/GetGhepLotPrint
+                // ở đây trước đó gọi _view.GetSelectedGhepLotItems() — method KHÔNG TỒN TẠI
+                // ở bất kỳ đâu (không phải IHVNView, không phải HVN_PGH.cs) — và kết quả cũng
+                // không được dùng vì bị ghi đè ngay bên dưới. IPhieuService.InGhepLot() đã tự
+                // làm đúng việc này (delete+insert TMPLOTGHEP rồi đọc lại qua Usp_gheplotPrint).
+                reportData = _inPhieuSvc.InGhepLot(
+                    selectedRows.Any() ? selectedRows : null,
+                    machineName);
             }, "Đang tổng hợp dữ liệu ghép LOT...");
 
             // 3. Sau khi RunWithLoadingSync chạy xong, Loading đã tự đóng giải phóng UI.
@@ -579,6 +533,7 @@ namespace PCTP.Presentation.Presenters
                 new ReportPrintTool(report).ShowPreviewDialog();
             }
         }
+
 
         private void OnInTachLot(object sender, EventArgs e) => _view.ShowTachLot();
 
@@ -998,152 +953,7 @@ namespace PCTP.Presentation.Presenters
                 LoadPhieuHienTai();
 
             }, "Đang kiểm tra trạng thái phiên làm việc cũ...");
-        //    private void XetTrangThai()
-        //=> RunWithLoadingSync(() =>
-        //{
-        //    // ── Máy không có quyền bắn QR → load thẳng ──────────────────────
-        //    if (!_isMayBanQR)
-        //    {
-        //        _isBanQR = false;
-        //        _qrSvc.SetCheDoBan("");
-        //        _view.UnlockAllRadio();
-
-        //        LoadPhieuHienTai();
-        //        return;
-        //    }
-
-        //    // ── YMVN (CoGear) → load thẳng, không check TMP ─────────────────
-        //    if (_cfg.CoGear)
-        //    {
-        //        _isBanQR = false;
-        //        _qrSvc.SetCheDoBan("");
-        //        _view.UnlockAllRadio();
-        //        LoadPhieuHienTai();
-        //        return;
-        //    }
-
-        //    // ── FIX: HTN (LoadTuBangRieng + !CoGear) ─────────────────────────
-        //    // HTN dùng GetTrangThaiDangBan giống HVN nhưng cần xử lý
-        //    // khác: không có GioXuat RadioGroup, không lock radio
-        //    if (_cfg.LoadTuBangRieng)
-        //    {
-        //        var ttHTN = _phieuSvc.GetTrangThaiDangBan();
-
-        //        if (!ttHTN.DangBan)
-        //        {
-        //            _isBanQR = false;
-        //            _qrSvc.SetCheDoBan("");
-        //            LoadPhieuHienTai();
-        //            return;
-        //        }
-
-        //        if (ttHTN.DataKhongKhop)
-        //        {
-        //            bool xoa = _view.HoiXoaDocQR();
-        //            if (xoa) _phieuSvc.XoaDocQRCode();
-        //            _isBanQR = false;
-        //            _qrSvc.SetCheDoBan("");
-        //            LoadPhieuHienTai();
-        //            return;
-        //        }
-
-        //        // ── Đang bắn dở → khôi phục ngày, set _isBanQR = true ───────
-        //        if (DateTime.TryParse(ttHTN.NgayGiao, out DateTime ngayHTN))
-        //            _view.SetDate(ngayHTN);
-
-        //        _isBanQR = true;
-        //        // HTN không có RadioGroup giờ → không cần lock radio
-        //        // HTN không có loại SP/OType → SetCheDoBan("")
-        //        _qrSvc.SetCheDoBan("");
-        //        _phieuSvc.SetTrangThaiBan(_isBanQR, false);
-
-        //        LoadPhieuHienTai();
-        //        return;
-        //    }
-
-        //    // ── HVN: check TMP + DocQR ────────────────────────────────────────
-        //    var tt = _phieuSvc.GetTrangThaiDangBan();
-
-        //    if (!tt.DangBan && _cfg.CoConfigSP)
-        //    {
-        //        var ttSP = _phieuSvc.GetTrangThaiDangBanSP();
-        //        if (ttSP.DangBan) tt = ttSP;
-        //    }
-
-        //    if (!tt.DangBan)
-        //    {
-        //        _isBanQR = false;
-        //        _qrSvc.SetCheDoBan("");
-        //        _view.UnlockAllRadio();
-        //        LoadPhieuHienTai();
-        //        return;
-        //    }
-
-        //    if (tt.DataKhongKhop)
-        //    {
-        //        bool xoa = _view.HoiXoaDocQR();
-        //        if (xoa) _phieuSvc.XoaDocQRCode();
-        //        _isBanQR = false;
-        //        _qrSvc.SetCheDoBan("");
-        //        _view.UnlockAllRadio();
-        //        LoadPhieuHienTai();
-        //        return;
-        //    }
-
-        //    // ── HVN đang bắn dở → khôi phục ────────────────────────────────
-        //    if (DateTime.TryParse(tt.NgayGiao, out DateTime ngay))
-        //        _view.SetDate(ngay);
-
-        //    _addNM = _cfg.CoNhieuNhaMay ? tt.AddNM : _cfg.AddNmMacDinh;
-        //    if (_cfg.CoNhieuNhaMay)
-        //        _view.SetTab(tt.AddNM);
-
-        //    _isBanQR = true;
-        //    string gioDonTuDB = tt.GioGiaoFCC;
-        //    string maKhungGio = "";
-        //    string moTaKhungGio = "";
-
-        //    var danhSachGio = (_addNM == 1)
-        //        ? _gioXuatRepo.GetDanhSachGioVP()
-        //        : _gioXuatRepo.GetDanhSachGioHN();
-
-        //    foreach (var gio in danhSachGio)
-        //    {
-        //        string maBam = GioXuatRepository.ParseGioThuong(gio.MoTa);
-        //        if (maBam.Contains($"'{gioDonTuDB}'"))
-        //        {
-        //            maKhungGio = gio.Ma;
-        //            moTaKhungGio = gio.MoTa;
-        //            break;
-        //        }
-        //    }
-
-        //    if (string.IsNullOrEmpty(maKhungGio))
-        //    {
-        //        maKhungGio = $"'{gioDonTuDB}'";
-        //        moTaKhungGio = gioDonTuDB + "H";
-        //    }
-
-        //    _qrSvc.SetCheDoBan(moTaKhungGio);
-        //    _phieuSvc.SetTrangThaiBan(_isBanQR, PhieuService.IsLoaiSP(moTaKhungGio));
-
-        //    _view.SuspendGioXuatChanged();
-        //    try
-        //    {
-        //        _gioXuatHienTai = new GioXuat(maKhungGio, moTaKhungGio);
-        //        _view.UpdateGioXuatFromDB(maKhungGio);
-        //        _view.LockRadioExcept(maKhungGio);
-        //    }
-        //    finally
-        //    {
-        //        _view.ResumeGioXuatChanged();
-        //    }
-
-        //    LoadPhieuHienTai();
-
-        //}, "Đang kiểm tra trạng thái phiên làm việc cũ...");
-
-        // ── Helper: parse GIOGIAOFCC của YMVN thành List<string> ─────────────────
+        
         private List<string> ParseGioYMVN(string gioDonTuDB)
         {
             if (string.IsNullOrWhiteSpace(gioDonTuDB))

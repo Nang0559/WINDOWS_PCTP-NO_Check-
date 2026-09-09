@@ -106,12 +106,17 @@ namespace PCTP.Applications.Services
         // ════════════════════════════════════════════════════════════════════
         // In Ghép Lot — không liên quan CustomerConfig, giữ nguyên
         // ════════════════════════════════════════════════════════════════════
-        public DataTable InGhepLot(IEnumerable<GhepLotItem> selectedRows = null)
+        /// <summary>
+        /// ✅ FIX: nhận thêm machineName — ISqlRepository.XoaVaInsertTmpLotGhep/
+        /// GetGhepLotPrint đã đổi sang lọc theo TMPLOTGHEP.MachineName (tránh 2
+        /// máy đá dữ liệu ghép lot của nhau), nên bắt buộc phải truyền vào đây.
+        /// </summary>
+        public DataTable InGhepLot(IEnumerable<GhepLotItem> selectedRows, string machineName)
         {
             if (selectedRows != null && selectedRows.Any())
-                _sqlRepo.XoaVaInsertTmpLotGhep(selectedRows);
+                _sqlRepo.XoaVaInsertTmpLotGhep(selectedRows, machineName);
 
-            return _sqlRepo.GetGhepLotPrint();
+            return _sqlRepo.GetGhepLotPrint(machineName);
         }
 
         // ════════════════════════════════════════════════════════════════════
