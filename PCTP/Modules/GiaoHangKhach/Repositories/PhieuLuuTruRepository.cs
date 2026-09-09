@@ -11,19 +11,28 @@ using System.Threading.Tasks;
 
 namespace PCTP.Modules.GiaoHangKhach.Repositories
 {
-    public sealed class PhieuLuuTruRepository : IPhieuLuuTruRepository
+    public sealed class PhieuLuuTruRepository : SqlRepositoryBase, IPhieuLuuTruRepository
     {
-        private readonly PhieuSqlExecutor _db;
+        
 
-        public PhieuLuuTruRepository(PhieuSqlExecutor db)
+        public PhieuLuuTruRepository(PhieuSqlExecutor db, IUnitOfWork uow) : base(db, uow)
         {
-            _db = db ?? throw new ArgumentNullException(nameof(db));
+           
         }
 
         #region ═══════════════════════════════════════════════════════════════
         #region IPhieuLuuTruRepository
         #endregion ═══════════════════════════════════════════════════════════
-
+        // PhieuLuuTruRepository — implement
+        public DataTable LoadLuuPhieuCaNgay(string nhaMay, string ngayGiao)
+        {
+            return LoadData(
+                @"SELECT MAHANG, GIOGIAO, SOLUONG " +
+                "FROM LUUPHIEUGIAOHANG " +
+                "WHERE NHAMAY = @nm AND CAST(NGAYGIAO AS DATE) = @ng",
+                new SqlParameter("@nm", nhaMay),
+                new SqlParameter("@ng", ngayGiao));
+        }
         /// <summary>
         /// Load các phiếu đã lưu trong LUUPHIEUGIAOHANG
         /// theo:
@@ -61,7 +70,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                   AND NGAYGIAO = @ng
                   AND GIOGIAOFCC = @gg";
 
-            return _db.LoadData(
+            return Db.LoadData(
                 sql,
                 new SqlParameter(
                     "@nm",
@@ -121,7 +130,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                       AND (LOT IS NULL OR LOT = '')
                       AND ISNULL(PO_NO, '') <> ''";
 
-            _db.ExecuteNonQuery(
+            Db.ExecuteNonQuery(
                 updateSql,
 
                 new SqlParameter(
@@ -145,7 +154,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                       AND LOT IS NOT NULL
                       AND LOT <> ''";
 
-            object raw = _db.ExecuteScalar(
+            object raw = Db.ExecuteScalar(
                 countSql,
 
                 new SqlParameter(
@@ -190,7 +199,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
               AND GIOGIAOFCC = @gg
               AND STT = @stt";
 
-            _db.ExecuteNonQuery(
+            Db.ExecuteNonQuery(
                 sql,
 
                 new SqlParameter(
@@ -213,7 +222,20 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                     "@stt",
                     stt));
         }
+        public Dictionary<string, int> LoadTonKhoBatch(List<string> maHangList)
+        {
+            string inClause = string.Join(",",
+                maHangList.Select(m => $"'{SqlHelper.Esc(m)}'"));
 
+            DataTable tonDt = Db.LoadData(
+                $"SELECT PART, ISNULL(SUM(SLCONLAI),0) AS TONG_TON " +
+                $"FROM STOCKTP WHERE PART IN ({inClause}) GROUP BY PART");
+
+            var map = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            foreach (DataRow row in tonDt.Rows)
+                map[row["PART"].ToString().Trim()] = Convert.ToInt32(row["TONG_TON"]);
+            return map;
+        }
         #endregion
     }
 }

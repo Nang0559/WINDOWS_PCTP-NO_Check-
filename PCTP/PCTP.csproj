@@ -261,8 +261,10 @@
     <Compile Include="Domain\Events\HoanThanhYMVNCompletedEvent.cs" />
     <Compile Include="Modules\GiaoHangKhach\FifoViolation.cs" />
     <Compile Include="Modules\GiaoHangKhach\Intefaces\IItemFifoConfigRepository.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Intefaces\IHangThieuCaNgayService.cs" />
     <Compile Include="Modules\GiaoHangKhach\Repositories\ItemFifoConfigRepository.cs" />
     <Compile Include="Modules\GiaoHangKhach\Services\DocQRService.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Services\HangThieuCaNgayService.cs" />
     <Compile Include="Modules\GiaoHangKhach\Services\InPhieuService.cs" />
     <Compile Include="Modules\GiaoHangKhach\Services\PhieuService.cs" />
     <Compile Include="ClassFunction.cs" />
@@ -403,6 +405,7 @@
     <Compile Include="Modules\XuLyHangLoi\Services\TraNoiBoService.cs" />
     <Compile Include="Modules\XuLyHangLoi\Services\XuLyHangLoiServiceBase.cs" />
     <Compile Include="Shared\Common\ItemFifoConfig.cs" />
+    <Compile Include="Shared\Helpers\GioHelpper.cs" />
     <Compile Include="Shared\Models\HangChoGiao.cs" />
     <Compile Include="Modules\XuLyHangLoi\Models\PhieuGiaoUngVienInfo.cs" />
     <Compile Include="Modules\XuLyHangLoi\Models\PhieuTraHang.cs" />

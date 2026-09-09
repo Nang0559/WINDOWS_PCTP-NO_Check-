@@ -29,7 +29,7 @@ namespace PCTP.Presentation.Views
         void SetGridCaption(string caption);
         void RefreshLotRow(int stt, string lot);
         //void RefreshDocQR();
-
+        void ShowHangThieuCaNgay(DataTable dt);
         // ════════════════════════════════════════════════════════════════════
         // II. TRẠNG THÁI / CHUYỂN VIEW
         // ════════════════════════════════════════════════════════════════════
@@ -129,6 +129,7 @@ namespace PCTP.Presentation.Views
         event EventHandler GioXuatChanged;
         event EventHandler TabChanged;
         event EventHandler<ChonLotThuCongEventArgs> ChonLotThuCongClicked;
+        event EventHandler XemHangThieuCaNgayClicked;
 
         // ── Phiếu thường ────────────────────────────────────────────────────
         event EventHandler CapNhapKhoClicked;

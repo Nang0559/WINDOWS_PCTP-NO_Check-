@@ -4,6 +4,7 @@ using PCTP.FuctionMain;
 using PCTP.Infrastructure.Repositories;
 using PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao;
 using PCTP.Shared.Common;
+using PCTP.Shared.Helpers;
 using PCTP.VIEWSTOCK.Models;
 using System;
 using System.CodeDom.Compiler;
@@ -686,7 +687,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             foreach (DataRow row in luuDt.Rows)
             {
                 string gioChuan =
-                    NormalizeGio(
+                    GioHelper.NormalizeGio(
                         row["GIOGIAO"]?.ToString()?.Trim());
 
                 string maHang =
@@ -722,7 +723,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             foreach (DataRow row in dt.Rows)
             {
                 string gioChuan =
-                    NormalizeGio(
+                    GioHelper.NormalizeGio(
                         row["GIO"]?.ToString()?.Trim());
 
                 string maHang =
@@ -857,34 +858,8 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
 
             return result;
         }
-        // ============================================================
-        // Private helper
-        // ============================================================
+        
 
-        private static string NormalizeGio(string gio)
-        {
-            if (string.IsNullOrWhiteSpace(gio))
-                return "00";
-
-            gio = gio
-                .Replace("H", "")
-                .Trim();
-
-            int colonIdx =
-                gio.IndexOf(':');
-
-            if (colonIdx >= 0)
-            {
-                gio =
-                    gio.Substring(0, colonIdx)
-                        .Trim();
-            }
-
-            return int.TryParse(
-                    gio,
-                    out int gioInt)
-                ? gioInt.ToString("00")
-                : "00";
-        }
+      
     }
 }

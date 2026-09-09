@@ -66,7 +66,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             _tmp = new PhieuTmpRepository(db,uow);
             _lot = new PhieuLotRepository(db, uow);
             _giaoDB = new PhieuGiaoDBRepository(db);
-            _luuTru = new PhieuLuuTruRepository(db);
+            _luuTru = new PhieuLuuTruRepository(db,uow);
             _kho = new PhieuKhoRepository(
                               db, uow, bulkStockSlotRepo, historyRepo,
                               _validation,   // ← TÁI DÙNG đúng instance vừa dựng, không tạo mới
@@ -239,7 +239,12 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         public void LuuGiaoDB(DataTable donHang, string gioFccMoTa, int addNm,
             string tmpTable, string ifsTable, string nhaMayOverride = "")
             => _giaoDB.LuuGiaoDB(donHang, gioFccMoTa, addNm, tmpTable, ifsTable, nhaMayOverride);
+        public DataTable LoadLuuPhieuCaNgay(string nhaMay, string ngayGiao)=>
 
+            _luuTru.LoadLuuPhieuCaNgay(nhaMay,ngayGiao);
+        public Dictionary<string, int> LoadTonKhoBatch(List<string> maHangList) =>
+
+           _luuTru.LoadTonKhoBatch( maHangList);
         #endregion
 
         #region Generic pass-through hạ tầng — KHÔNG phải nghiệp vụ, KHÔNG thuộc 6 repo con

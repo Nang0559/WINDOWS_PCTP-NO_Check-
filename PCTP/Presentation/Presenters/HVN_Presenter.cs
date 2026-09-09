@@ -1,10 +1,12 @@
 ﻿using DevExpress.XtraReports.UI;
+using DevExpress.XtraWaitForm;
 using PCTP.Applications.Services;
 using PCTP.ClassSQL;
 using PCTP.Domain.Entities;
 using PCTP.Domain.Events;
 using PCTP.Domain.Interfaces;
 using PCTP.Infrastructure.Repositories;
+using PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao;
 using PCTP.Modules.GiaoHangKhach.SubForm;
 using PCTP.Presentation.Views;
 using PCTP.QRCODE_HVN.Report;
@@ -33,6 +35,7 @@ namespace PCTP.Presentation.Presenters
         private readonly PhieuService _phieuSvc;
         private readonly DocQRService _qrSvc;
         private readonly InPhieuService _inPhieuSvc;
+        private readonly IHangThieuCaNgayService _hangThieuCaNgayService;
         private readonly IGioXuatRepository _gioXuatRepo;
         private readonly IEventBus _bus;
         private readonly CustomerConfig _cfg;
@@ -57,6 +60,7 @@ namespace PCTP.Presentation.Presenters
                              PhieuService phieuSvc,
                              DocQRService qrSvc,
                              InPhieuService inPhieuSvc,
+                             IHangThieuCaNgayService hangThieuCaNgayService,
                              IGioXuatRepository gioXuatRepo,
                              IEventBus bus,
                              bool isMayBanQR,
@@ -67,6 +71,7 @@ namespace PCTP.Presentation.Presenters
             _phieuSvc = phieuSvc;
             _qrSvc = qrSvc;
             _inPhieuSvc = inPhieuSvc;
+            _hangThieuCaNgayService = hangThieuCaNgayService;
             _gioXuatRepo = gioXuatRepo;
             _bus = bus;
             _isMayBanQR = isMayBanQR;
@@ -108,6 +113,7 @@ namespace PCTP.Presentation.Presenters
             _view.GioXuatCheckedChanged += OnGioXuatCheckedChanged;
             _view.UploadGiaoDBClicked += OnUploadGiaoDB;
             _view.ChonLotThuCongClicked += OnChonLotThuCong;
+            _view.ShowHangThieuCaNgay += OnXemHangThieuCaNgay;
         }
 
         private void SubscribeDomainEvents()
@@ -170,6 +176,15 @@ namespace PCTP.Presentation.Presenters
         private void OnHoanThanhYMVNCompleted(HoanThanhYMVNCompletedEvent e)
         {
             _view.BindHoanThanhYMVN(e.Result);
+        }
+        private void OnXemHangThieuCaNgay(object sender, EventArgs e)
+        {
+            RunWithLoading(() =>
+            {
+                var dt = _hangThieuCaNgayService.TinhHangThieuCaNgay(
+                    _view.SelectedDate, GetNhaMay(), _addNM, _cfg);
+                _uiContext.Post(_ => _view.ShowHangThieuCaNgay(dt), null);
+            }, "Đang tính hàng thiếu cả ngày...");
         }
         private void OnKhoUpdated(KhoUpdatedEvent message)
         {

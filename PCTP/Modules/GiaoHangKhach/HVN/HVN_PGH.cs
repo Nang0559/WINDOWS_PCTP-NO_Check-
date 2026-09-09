@@ -17,6 +17,7 @@ using PCTP.Infrastructure.Repositories;
 using PCTP.Infrastructure.Repositories;
 using PCTP.Modules.GiaoHangKhach;
 using PCTP.Modules.GiaoHangKhach.Repositories;
+using PCTP.Modules.GiaoHangKhach.Services;
 using PCTP.Modules.GiaoHangKhach.SubForm;
 using PCTP.Modules.KhoVatLy.Repositories;
 using PCTP.Modules.XuatKho.Repositories;
@@ -228,6 +229,7 @@ namespace PCTP.QRCODE_HVN.PGH
             var gioRepo = new GioXuatRepository(sql);
             var qrRepo = new DocQRRepository(sql, _cfg);
             var sqlRepo = new SqlRepository(phieuDb, phieuUow);
+            var luuTruRepo = new PhieuLuuTruRepository(phieuDb, phieuUow);
 
             var gioVP = gioRepo.GetDictGioVP();
             var gioHN = gioRepo.GetDictGioHN();
@@ -247,12 +249,13 @@ namespace PCTP.QRCODE_HVN.PGH
                  ? _cfg.TmpTable
                  : _cfg.GetTmpViewTable(Environment.MachineName);
             var phieuSvc = new PhieuService(phieuRepo, ifsRepo, bus, gioRepo, tenBan, _cfg, isMayBanQR, tableOrderRepo);
+            var hangthieucangaySvc = new HangThieuCaNgayService(ifsRepo, luuTruRepo, phieuDb);
             var qrSvc = new DocQRService(qrRepo, bus, _cfg);
             var inPhieuSvc = new InPhieuService(ifsRepo, phieuRepo, sqlRepo, gioVP, gioHN, _cfg);
 
 
 
-            return new HVN_Presenter(this, phieuSvc, qrSvc, inPhieuSvc,
+            return new HVN_Presenter(this, phieuSvc, qrSvc, inPhieuSvc,hangthieucangaySvc,
                                       gioRepo, bus, isMayBanQR, tenBan, _cfg); // ← truyền vào
         }
         private static string SanitizeMachineName(string name)
@@ -400,7 +403,10 @@ namespace PCTP.QRCODE_HVN.PGH
             report.DataSource = reportData;
             new ReportPrintTool(report).ShowPreviewDialog();
         }
-
+        public void ShowHangThieuCaNgay(DataTable dt)
+        {
+           
+        }
         // ── Chuyển sang màn hình đọc QR ─────────────────────────────────────
         public void SwitchToDocQRView()
         {
