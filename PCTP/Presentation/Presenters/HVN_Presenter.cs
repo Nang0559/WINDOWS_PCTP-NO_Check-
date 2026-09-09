@@ -765,31 +765,7 @@ namespace PCTP.Presentation.Presenters
              }, null);
          }, "Đang xử lý hoàn thành...");
 
-        // Upload Milkrun SP — tương đương UploadMIKR()
-        //private void OnUploadMilkrunSP(object sender, EventArgs e)
-        //{
-        //    // Bước 1: Mở FRM_UploadMikrun — user upload file Excel vào DB
-        //    using (var frm = new FRM_UploadMikrun(new SQLPROVIDER()))
-        //    {
-        //        frm.ShowDialog();
-        //        // ShowDialog() block tại đây cho đến khi user đóng form
-        //    }
-
-        //    // Bước 2: Sau khi đóng form, reload lại phiếu để hiển thị dữ liệu mới
-        //    _view.ShowLoading(true);
-        //    try
-        //    {
-        //        LoadPhieuHienTai();   // ← reload grid cho tươi
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        _view.ShowError("Lỗi reload sau upload: " + ex.Message);
-        //    }
-        //    finally
-        //    {
-        //        _view.ShowLoading(false);
-        //    }
-        //}
+       
 
         private void OnUploadMilkrunSP(object sender, EventArgs e)
         {

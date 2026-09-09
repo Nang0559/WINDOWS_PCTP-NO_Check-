@@ -46,19 +46,54 @@ namespace PCTP.Modules.GiaoHangKhach
         public DataTable LoadData(string sqlText, params SqlParameter[] parameters)
         {
             RequireSql(sqlText);
-            return _sql.LoadData1(_sql.B7R2_FCCdb, sqlText, CloneParameters(parameters));
+            using (var conn = new SqlConnection(_sql.B7R2_FCCdb))
+            using (var cmd = new SqlCommand(sqlText, conn))
+            {
+                cmd.CommandType = CommandType.Text;
+                cmd.CommandTimeout = DefaultTimeoutSeconds;
+                foreach (var p in CloneParameters(parameters))
+                    cmd.Parameters.Add(p);
+
+                conn.Open();
+                using (var adapter = new SqlDataAdapter(cmd))
+                {
+                    var table = new DataTable();
+                    adapter.Fill(table);
+                    return table;
+                }
+            }
         }
 
         public object ExecuteScalar(string sqlText, params SqlParameter[] parameters)
         {
             RequireSql(sqlText);
-            return _sql.ExecuteScalar(_sql.B7R2_FCCdb, sqlText, CloneParameters(parameters));
+            using (var conn = new SqlConnection(_sql.B7R2_FCCdb))
+            using (var cmd = new SqlCommand(sqlText, conn))
+            {
+                cmd.CommandType = CommandType.Text;
+                cmd.CommandTimeout = DefaultTimeoutSeconds;
+                foreach (var p in CloneParameters(parameters))
+                    cmd.Parameters.Add(p);
+
+                conn.Open();
+                return cmd.ExecuteScalar();
+            }
         }
 
         public int ExecuteNonQuery(string sqlText, params SqlParameter[] parameters)
         {
             RequireSql(sqlText);
-            return _sql.ExecuteNonQuery(_sql.B7R2_FCCdb, sqlText, CloneParameters(parameters));
+            using (var conn = new SqlConnection(_sql.B7R2_FCCdb))
+            using (var cmd = new SqlCommand(sqlText, conn))
+            {
+                cmd.CommandType = CommandType.Text;
+                cmd.CommandTimeout = DefaultTimeoutSeconds;
+                foreach (var p in CloneParameters(parameters))
+                    cmd.Parameters.Add(p);
+
+                conn.Open();
+                return cmd.ExecuteNonQuery();
+            }
         }
 
         // ============================================================
