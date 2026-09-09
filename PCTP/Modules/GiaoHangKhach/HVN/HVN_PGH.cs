@@ -870,6 +870,7 @@ namespace PCTP.QRCODE_HVN.PGH
         = delegate { };
         public event EventHandler HoanThanhYMVNClicked = delegate { };
         public event EventHandler UploadMilkrunSPClicked = delegate { };
+        public event EventHandler XemHangThieuCaNgayClicked;
 
         // ════════════════════════════════════════════════════════════════════
         // Form Load
@@ -1394,7 +1395,10 @@ namespace PCTP.QRCODE_HVN.PGH
                 case "Kiểm tra mã NG":
                     KiemTraMaNGClicked.Invoke(this, EventArgs.Empty);
                     break;
-
+                case "Xem Hàng Thiếu Cả Ngày":               // ← thêm — caption phải khớp CHÍNH XÁC với Text của WindowsUIButton trên designer
+                    if (_isLoading) return;                   // giữ nhất quán với "Cập Nhập Kho" — chặn double-click khi đang loading
+                    XemHangThieuCaNgayClicked?.Invoke(this, EventArgs.Empty);
+                    break;
                 // ── Màn hình đọc QR ───────────────────────────────────────────
                 //case "Hoàn Thành":
                 //    HoanThanhClicked.Invoke(this, EventArgs.Empty);

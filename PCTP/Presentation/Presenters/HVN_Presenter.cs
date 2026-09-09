@@ -113,7 +113,7 @@ namespace PCTP.Presentation.Presenters
             _view.GioXuatCheckedChanged += OnGioXuatCheckedChanged;
             _view.UploadGiaoDBClicked += OnUploadGiaoDB;
             _view.ChonLotThuCongClicked += OnChonLotThuCong;
-            _view.ShowHangThieuCaNgay += OnXemHangThieuCaNgay;
+            _view.XemHangThieuCaNgayClicked += OnXemHangThieuCaNgay;
         }
 
         private void SubscribeDomainEvents()
@@ -179,10 +179,12 @@ namespace PCTP.Presentation.Presenters
         }
         private void OnXemHangThieuCaNgay(object sender, EventArgs e)
         {
+            DateTime ngay = _view.SelectedDate;
+            string nhaMay = GetNhaMay();
+            int addNm = _addNM;
             RunWithLoading(() =>
             {
-                var dt = _hangThieuCaNgayService.TinhHangThieuCaNgay(
-                    _view.SelectedDate, GetNhaMay(), _addNM, _cfg);
+                var dt = _hangThieuCaNgayService.TinhHangThieuCaNgay(ngay, nhaMay, addNm, _cfg);
                 _uiContext.Post(_ => _view.ShowHangThieuCaNgay(dt), null);
             }, "Đang tính hàng thiếu cả ngày...");
         }
@@ -1292,6 +1294,7 @@ namespace PCTP.Presentation.Presenters
             _view.UploadMilkrunSPClicked -= OnUploadMilkrunSP;
             _view.LoaiPhieuChanged -= OnLoaiPhieuChanged;
             _view.ChonLotThuCongClicked -= OnChonLotThuCong;
+            _view.XemHangThieuCaNgayClicked -= OnXemHangThieuCaNgay;
             // ✅ ĐÃ THÊM: Unsubscribe Domain Events để giải phóng bộ nhớ!
             if (_bus != null)
             {
