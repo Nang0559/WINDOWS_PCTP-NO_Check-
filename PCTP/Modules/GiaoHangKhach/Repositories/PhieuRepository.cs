@@ -179,8 +179,8 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             => _lot.LayLaiLotNo(stt, tenBan, docQRTable);
 
         public DataTable LoadGhepLot(
-             string tenBan = "TMPPHIEUGIAOHANG", string ifsTable = "IFSPHIEUGIAOHANG",string machineName = null)
-             => _lot.LoadGhepLot(tenBan, ifsTable,machineName);
+             string tenBan = "TMPPHIEUGIAOHANG", string ifsTable = "IFSPHIEUGIAOHANG")
+             => _lot.LoadGhepLot(tenBan, ifsTable);
 
         public DataTable GetDanhSachLotTuKho(string maHang)
             => _lot.GetDanhSachLotTuKho(maHang);

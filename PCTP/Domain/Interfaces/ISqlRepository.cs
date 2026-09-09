@@ -40,12 +40,12 @@ namespace PCTP.Domain.Interfaces
         /// Xóa TMPLOTGHEP rồi insert các dòng user chọn.
         /// Form gốc: INGHEPLOT() — delete + insert TMPLOTGHEP
         /// </summary>
-        void XoaVaInsertTmpLotGhep(IEnumerable<GhepLotItem> items);
+        void XoaVaInsertTmpLotGhep(IEnumerable<GhepLotItem> items, string machineName);
 
         /// <summary>
         /// Gọi Usp_gheplotPrint → DataTable cho report ghép lot.
         /// </summary>
-        DataTable GetGhepLotPrint();
+        DataTable GetGhepLotPrint(string machineName);
 
         // ── Dùng trong Presenter (SET_PHIEU) ─────────────────────────────────
 

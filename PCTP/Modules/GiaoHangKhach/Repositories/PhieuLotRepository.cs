@@ -22,18 +22,18 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
     : SqlRepositoryBase,
       IPhieuLotRepository
     {
-        private readonly PhieuSqlExecutor _db;
+       
 
         public PhieuLotRepository(
             PhieuSqlExecutor sql,
             IUnitOfWork unitOfWork)
             : base(sql, unitOfWork)
         {
-            if (sql == null)
-                throw new ArgumentNullException(nameof(sql));
-            if (unitOfWork == null)
-                throw new ArgumentNullException(nameof(unitOfWork));
-            _db = sql;
+            //if (sql == null)
+            //    throw new ArgumentNullException(nameof(sql));
+            //if (unitOfWork == null)
+            //    throw new ArgumentNullException(nameof(unitOfWork));
+            //_db = sql;
         }
 
         // ============================================================
@@ -67,10 +67,10 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             string docQRTable = "DOCQRCODE",
             string tmpTable = "TMPPHIEUGIAOHANG")
         {
-            _db.ValidateTableName(docQRTable);
-            _db.ValidateTableName(tmpTable);
+            Db.ValidateTableName(docQRTable);
+            Db.ValidateTableName(tmpTable);
 
-            DataTable dt = _db.ExecuteStoredProcedure(
+            DataTable dt = Db.ExecuteStoredProcedure(
                 "Usp_Qrcode_Take_Lot2405",
 
                 new SqlParameter("@_MaFCC", maHang ?? ""),
@@ -120,9 +120,9 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             if (string.IsNullOrWhiteSpace(lot))
                 return;
 
-            _db.ValidateTableName(tenBan);
+            Db.ValidateTableName(tenBan);
 
-            _db.ExecuteNonQuery(
+            Db.ExecuteNonQuery(
                 $"UPDATE [{tenBan}] " +
                 "SET LOT = @lot " +
                 "WHERE STT = @stt",
@@ -162,14 +162,14 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             if (stt <= 0)
                 return;
 
-            _db.ValidateTableName(tenBan);
-            _db.ValidateTableName(docQRTable);
+            Db.ValidateTableName(tenBan);
+            Db.ValidateTableName(docQRTable);
 
             // --------------------------------------------------------
             // 1. Reset LOT trong bảng TMP
             // --------------------------------------------------------
 
-            _db.ExecuteNonQuery(
+            Db.ExecuteNonQuery(
                 $"UPDATE [{tenBan}] " +
                 "SET LOT = '', " +
                 "    STATUSDOC = 'NG', " +
@@ -184,7 +184,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             // 2. Reset QRCode đã ghép với STT
             // --------------------------------------------------------
 
-            _db.ExecuteNonQuery(
+            Db.ExecuteNonQuery(
                 $"UPDATE [{docQRTable}] " +
                 "SET GIO = NULL, " +
                 "    KETQUA = 'OK', " +
@@ -200,11 +200,10 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         // LoadGhepLot
         // ============================================================
 
-        public DataTable LoadGhepLot(string tenBan, string ifsTable, string machineName)
-     => Db.ExecuteStoredProcedure("Usp_Qrcode_gheplot",
+        public DataTable LoadGhepLot(string tenBan, string ifsTable)
+     => ExecuteStoredProcedure("Usp_Qrcode_gheplot",
          new SqlParameter("@TENBAN", tenBan),
-         new SqlParameter("@IFSTABLE", ifsTable),
-         new SqlParameter("@MACHINE", machineName));
+         new SqlParameter("@IFSTABLE", ifsTable));
 
         // ============================================================
         // GetDanhSachLotTuKho
@@ -225,7 +224,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
               AND SLCONLAI > 0
             ORDER BY LOT";
 
-            return _db.LoadData(
+            return Db.LoadData(
                 sql,
                 new SqlParameter(
                     "@ma",
@@ -234,7 +233,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
 
         public DataTable TakeLotYMVN(string tmpTable, string docQRTable, bool isLoaiSP)
         {
-            var ds = _db.ExecuteStoredProcedureDataSet( "Usp_Qrcode_Take_LotYMVN2405",
+            var ds = Db.ExecuteStoredProcedureDataSet( "Usp_Qrcode_Take_LotYMVN2405",
                 new SqlParameter("@TMPTABLE", tmpTable),
                 new SqlParameter("@DOCQRTABLE", docQRTable),
                 new SqlParameter("@ISLOAISP", isLoaiSP ? 1 : 0));

@@ -20,7 +20,7 @@ namespace PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao
         /// Dùng overload có tham số, truyền đúng tenBan/ifsTable của phiên hiện tại.
         /// </summary>
         DataTable LoadGhepLot(
-          string tenBan = "TMPPHIEUGIAOHANG", string ifsTable = "IFSPHIEUGIAOHANG",string machineName=null);
+          string tenBan = "TMPPHIEUGIAOHANG", string ifsTable = "IFSPHIEUGIAOHANG");
         DataTable GetDanhSachLotTuKho(string maHang);
 
         string GetLotNo(string maHang, int stt, int dem, int slGiao,

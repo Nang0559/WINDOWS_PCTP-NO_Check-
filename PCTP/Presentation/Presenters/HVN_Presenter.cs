@@ -565,6 +565,9 @@ namespace PCTP.Presentation.Presenters
             // 2. Bật Loading để chạy tác vụ truy vấn và build dữ liệu in (Tác vụ nặng)
             RunWithLoadingSync(() =>
             {
+                var items = _view.GetSelectedGhepLotItems();   // ← build List<GhepLotItem> từ lưới đã chọn
+                _sqlRepo.XoaVaInsertTmpLotGhep(items);           // ← chỗ cần thêm machineName
+                DataTable dt = _sqlRepo.GetGhepLotPrint();
                 reportData = _inPhieuSvc.InGhepLot(selectedRows.Any() ? selectedRows : null);
             }, "Đang tổng hợp dữ liệu ghép LOT...");
 
