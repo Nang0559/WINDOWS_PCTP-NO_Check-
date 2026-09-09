@@ -146,7 +146,7 @@ namespace PCTP.Presentation.Presenters
                     _view.SetGridCaption(e.Caption);
 
                     // 2. Kiểm tra các điều kiện logic nghiệp vụ
-                    bool coMaNG = !_cfg.CoGear && _phieuSvc.CheckCoMaNG();
+                    bool coMaNG = e.CoMaNG;
                     bool showCNK = _phieuSvc.CheckCanCapNhapKho(e.DonHangTable);
                     bool showLayLai = _isMayBanQR
                              && _phieuSvc.CheckCoLotChuaCNK(e.DonHangTable);

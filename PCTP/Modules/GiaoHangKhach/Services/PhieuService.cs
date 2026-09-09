@@ -135,8 +135,9 @@ namespace PCTP.Applications.Services
                             () => _phieuRepo.TinhHangThieuTuDonHang(donHangTemp));
 
                         string captionQR = $"ĐƠN HÀNG {_cfg.DisplayName}: {dt:dd/MM/yyyy}";
+                        bool coMaNG2 = !_cfg.CoGear && _phieuRepo.CheckCoMaNG(tmpTable);
                         _bus.Publish(new PhieuLoadedEvent(
-                            donHangTemp, hangThieuTemp, captionQR));
+                            donHangTemp, hangThieuTemp, captionQR,coMaNG2));
                         return;
                     }
                 }
@@ -208,12 +209,10 @@ namespace PCTP.Applications.Services
                             () => _phieuRepo.LoadPhieuDocQR(
                                       ngayGiaoSP, nhaMay, gioFccSP, addNm,
                                       tmpTable, ifsTable, docQRTable));
-                        //hangThieuTemp = SWLog.Measure("2P. LoadHangThieu",
-                        //    () => _phieuRepo.LoadHangThieu(
-                        //              isMayBanQR, tmpTable));
+                        bool coMaNG = !_cfg.CoGear && _phieuRepo.CheckCoMaNG(tmpTable);
 
                         _bus.Publish(new PhieuLoadedEvent(
-                            donHangTemp, new DataTable(), caption));
+                            donHangTemp, new DataTable(), caption,coMaNG));
                         return;
                     }
 
@@ -233,10 +232,9 @@ namespace PCTP.Applications.Services
                                   ngayGiaoSP, nhaMay, gioFccSP, addNm,
                                   tmpTable, docQRTable));
 
-                    //DataTable hangThieu = SWLog.Measure("5. LoadHangThieu",
-                    //    () => _phieuRepo.LoadHangThieu(isMayBanQR, tmpTable));
+                    bool coMaNG3 = !_cfg.CoGear && _phieuRepo.CheckCoMaNG(tmpTable);
 
-                    _bus.Publish(new PhieuLoadedEvent(donHang, new DataTable(), caption));
+                    _bus.Publish(new PhieuLoadedEvent(donHang, new DataTable(), caption,coMaNG3));
                 }
                 else
                 {
@@ -262,10 +260,9 @@ namespace PCTP.Applications.Services
                                   docQRTable,
                                   ifsViewTable));
 
-                    //DataTable hangThieu = SWLog.Measure("5. LoadHangThieu",
-                    //    () => _phieuRepo.LoadHangThieu(isMayBanQR, tenBanView));
+                    bool coMaNG4 = !_cfg.CoGear && _phieuRepo.CheckCoMaNG(tenBanView);
 
-                    _bus.Publish(new PhieuLoadedEvent(donHang, new DataTable(), caption));
+                    _bus.Publish(new PhieuLoadedEvent(donHang, new DataTable(), caption,coMaNG4));
                 }
             }
             catch (Exception)

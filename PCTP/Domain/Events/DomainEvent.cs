@@ -22,12 +22,14 @@ namespace PCTP.Domain.Events
         public DataTable DonHangTable { get; }
         public DataTable HangThieuTable { get; }
         public string Caption { get; }
+        public bool CoMaNG { get; }
 
-        public PhieuLoadedEvent(DataTable donHang, DataTable hangThieu, string caption)
+        public PhieuLoadedEvent(DataTable donHang, DataTable hangThieu, string caption, bool coMaNG=false)
         {
             DonHangTable = donHang;
             HangThieuTable = hangThieu;
             Caption = caption;
+            CoMaNG = coMaNG;
         }
     }
 
