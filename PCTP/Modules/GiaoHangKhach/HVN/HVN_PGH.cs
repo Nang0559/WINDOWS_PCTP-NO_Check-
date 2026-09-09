@@ -497,6 +497,7 @@ namespace PCTP.QRCODE_HVN.PGH
             var b1 = new WindowsUIButton { Caption = "Kiểm Tra Ghep Lot", Style = ButtonStyle.PushButton, Image = imageBT.Images[1] };
             var b2 = new WindowsUIButton { Caption = "In Phiếu", Style = ButtonStyle.PushButton, ImageUri = "Print;Size16x16;Colored" };
             var b3 = new WindowsUIButton { Caption = "DOC QRCODE", Style = ButtonStyle.PushButton, ImageUri = "IndentIncrease;Size16x16;Colored" };
+
             UIButton.Buttons.AddRange(new WindowsUIButton[] { b3, b1, b2 });
             UIButton.Buttons.Insert(1, new WindowsUISeparator());
 
@@ -587,7 +588,12 @@ namespace PCTP.QRCODE_HVN.PGH
                 Style = ButtonStyle.PushButton,
                 ImageUri = "Print;Size16x16;Colored"
             });
-
+            UIButton.Buttons.Add(new WindowsUIButton
+            {
+                Caption = "Xem Hàng Thiếu Cả Ngày",
+                Style = ButtonStyle.PushButton,
+                ImageUri = "Find;Size16x16;Colored"   // đổi icon tuỳ ý
+            });
             UIButton.Buttons.Insert(0, new WindowsUISeparator());
 
             // Nút chỉ máy bắn QR
@@ -870,7 +876,7 @@ namespace PCTP.QRCODE_HVN.PGH
         = delegate { };
         public event EventHandler HoanThanhYMVNClicked = delegate { };
         public event EventHandler UploadMilkrunSPClicked = delegate { };
-        public event EventHandler XemHangThieuCaNgayClicked;
+        public event EventHandler XemHangThieuCaNgayClicked = delegate { };
 
         // ════════════════════════════════════════════════════════════════════
         // Form Load
@@ -1332,40 +1338,6 @@ namespace PCTP.QRCODE_HVN.PGH
                 MessageBoxButtons.YesNo,
                 MessageBoxIcon.Warning) == DialogResult.Yes;
 
-        // ════════════════════════════════════════════════════════════════════════════
-        // FIX 6: IHVNView — thêm UpdateGioXuatFromDB
-        // HVN_PGH implement:
-        // ════════════════════════════════════════════════════════════════════════════
-
-        //public void UpdateGioXuatFromDB(string gioFCC)
-        //{
-        //    // Tìm radio item có AccessibleName khớp gioFCC rồi select
-        //    // VP
-        //    for (int i = 0; i < radioGroup2.Properties.Items.Count; i++)
-        //    {
-        //        var item = radioGroup2.Properties.Items[i];
-        //        if (item.AccessibleName != null && item.AccessibleName == gioFCC)
-        //        {
-        //            radioGroup2.SelectedIndex = i;
-        //            _presenter.UpdateGioXuat(new GioXuat(gioFCC, item.Description ?? gioFCC));
-        //            return;
-        //        }
-        //    }
-        //    // HN
-        //    for (int i = 0; i < RDO_GXHN.Properties.Items.Count; i++)
-        //    {
-        //        var item = RDO_GXHN.Properties.Items[i];
-        //        if (item.AccessibleName != null && item.AccessibleName == gioFCC)
-        //        {
-        //            RDO_GXHN.SelectedIndex = i;
-        //            _presenter.UpdateGioXuat(new GioXuat(gioFCC, item.Description ?? gioFCC));
-        //            return;
-        //        }
-        //    }
-        //}
-        // ════════════════════════════════════════════════════════════════════
-        // UIButton click — routing
-        // ════════════════════════════════════════════════════════════════════
         private void UIButton_ButtonClick(object sender, ButtonEventArgs e)
         {
             string cap = ((WindowsUIButton)e.Button).Caption;

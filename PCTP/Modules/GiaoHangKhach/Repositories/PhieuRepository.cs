@@ -253,8 +253,8 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         // (dùng cho các form gọi SP đặc thù, không gắn với 1 nghiệp vụ Phiếu cụ thể nào).
         // Vì không có logic rẽ nhánh/điều kiện gì, giữ ở Facade là chấp nhận được — không
         // vi phạm nguyên tắc "không viết lại nghiệp vụ" vì bản thân nó không phải nghiệp vụ.
-        public DataTable LoadHangThieu(bool isMayBanQR, string tenBan)
-          => _kho.LoadHangThieu(isMayBanQR, tenBan);
+        //public DataTable LoadHangThieu(bool isMayBanQR, string tenBan)
+        //  => _kho.LoadHangThieu(isMayBanQR, tenBan);
 
         public Dictionary<string, int> GetQcDongGoiBatch(List<string> maHangList)
              => _validation.GetQcDongGoiBatch(maHangList);

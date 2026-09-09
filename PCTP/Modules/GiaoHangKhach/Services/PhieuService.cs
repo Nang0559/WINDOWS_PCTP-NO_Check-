@@ -131,9 +131,8 @@ namespace PCTP.Applications.Services
                             () => _phieuRepo.LoadPhieuDocQR(
                                       ngayGiaoSP, nhaMay, gioFcc, addNm,
                                       tmpTable, ifsTable, docQRTable));
-                        hangThieuTemp = SWLog.Measure("2P. LoadHangThieu",
-                            () => _phieuRepo.LoadHangThieu(
-                                      isMayBanQR, tmpTable));
+                         hangThieuTemp = SWLog.Measure("2P. TinhHangThieuTuDonHang",
+                            () => _phieuRepo.TinhHangThieuTuDonHang(donHangTemp));
 
                         string captionQR = $"ĐƠN HÀNG {_cfg.DisplayName}: {dt:dd/MM/yyyy}";
                         _bus.Publish(new PhieuLoadedEvent(
@@ -209,12 +208,12 @@ namespace PCTP.Applications.Services
                             () => _phieuRepo.LoadPhieuDocQR(
                                       ngayGiaoSP, nhaMay, gioFccSP, addNm,
                                       tmpTable, ifsTable, docQRTable));
-                        hangThieuTemp = SWLog.Measure("2P. LoadHangThieu",
-                            () => _phieuRepo.LoadHangThieu(
-                                      isMayBanQR, tmpTable));
+                        //hangThieuTemp = SWLog.Measure("2P. LoadHangThieu",
+                        //    () => _phieuRepo.LoadHangThieu(
+                        //              isMayBanQR, tmpTable));
 
                         _bus.Publish(new PhieuLoadedEvent(
-                            donHangTemp, hangThieuTemp, caption));
+                            donHangTemp, new DataTable(), caption));
                         return;
                     }
 
@@ -234,10 +233,10 @@ namespace PCTP.Applications.Services
                                   ngayGiaoSP, nhaMay, gioFccSP, addNm,
                                   tmpTable, docQRTable));
 
-                    DataTable hangThieu = SWLog.Measure("5. LoadHangThieu",
-                        () => _phieuRepo.LoadHangThieu(isMayBanQR, tmpTable));
+                    //DataTable hangThieu = SWLog.Measure("5. LoadHangThieu",
+                    //    () => _phieuRepo.LoadHangThieu(isMayBanQR, tmpTable));
 
-                    _bus.Publish(new PhieuLoadedEvent(donHang, hangThieu, caption));
+                    _bus.Publish(new PhieuLoadedEvent(donHang, new DataTable(), caption));
                 }
                 else
                 {
@@ -263,10 +262,10 @@ namespace PCTP.Applications.Services
                                   docQRTable,
                                   ifsViewTable));
 
-                    DataTable hangThieu = SWLog.Measure("5. LoadHangThieu",
-                        () => _phieuRepo.LoadHangThieu(isMayBanQR, tenBanView));
+                    //DataTable hangThieu = SWLog.Measure("5. LoadHangThieu",
+                    //    () => _phieuRepo.LoadHangThieu(isMayBanQR, tenBanView));
 
-                    _bus.Publish(new PhieuLoadedEvent(donHang, hangThieu, caption));
+                    _bus.Publish(new PhieuLoadedEvent(donHang, new DataTable(), caption));
                 }
             }
             catch (Exception)

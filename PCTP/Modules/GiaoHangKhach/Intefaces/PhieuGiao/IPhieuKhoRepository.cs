@@ -13,7 +13,7 @@ namespace PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao
     /// <summary>Cập nhật tồn kho khi CNK (Confirm Nhận Kho) — nghiệp vụ nặng nhất, giữ riêng.</summary>
     public interface IPhieuKhoRepository
     {
-        DataTable LoadHangThieu(bool isMayBanQR, string tenBan);
+        //DataTable LoadHangThieu(bool isMayBanQR, string tenBan);
         int CapNhapKho(string gioGiaoFcc, string nhaMay, PhieuTableSet tables, out DataTable errors);
         int CapNhapKhoHTN(string nhaMay, PhieuTableSet tables, out DataTable errors);
         int CapNhapKhoSP(string gioGiaoFcc, string nhaMay, out DataTable errors);
