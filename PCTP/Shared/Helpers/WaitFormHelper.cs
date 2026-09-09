@@ -97,5 +97,31 @@ namespace PCTP.Shared.Helpers
                 SplashScreenManager.CloseForm(false);
             }
         }
+        private bool _isShowing;
+
+        public void Show(string caption = "Đang xử lý...")
+        {
+            if (_isShowing) { SetCaption(caption); return; }
+
+            SplashScreenManager.ShowForm(_owner, typeof(WaitFormExp), true, true, false);
+            _isShowing = true;
+            SetCaption(caption);
+        }
+
+        public void SetCaption(string caption)
+        {
+            try { SplashScreenManager.Default?.SetWaitFormCaption(caption); }
+            catch { /* chưa Show() hoặc form đã đóng — bỏ qua, giống hành vi cũ trong HVN_PGH.ShowLoading */ }
+        }
+
+        public void Close()
+        {
+            if (!_isShowing) return;
+
+            SplashScreenManager.CloseForm(false);
+            _isShowing = false;
+        }
+
+      
     }
 }

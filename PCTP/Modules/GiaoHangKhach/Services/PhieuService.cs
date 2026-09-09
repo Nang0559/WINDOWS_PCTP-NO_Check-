@@ -119,15 +119,21 @@ namespace PCTP.Applications.Services
                         DataTable donHangTemp = null;
                         DataTable hangThieuTemp = null;
 
-                        Parallel.Invoke(
-                            () => donHangTemp = SWLog.Measure("2. LoadPhieuDocQR",
-                                      () => _phieuRepo.LoadPhieuDocQR(
-                                                ngayGiaoSP, nhaMay, gioFcc, addNm,
-                                                tmpTable, ifsTable, docQRTable)),
-                            () => hangThieuTemp = SWLog.Measure("2P. LoadHangThieu",
-                                      () => _phieuRepo.LoadHangThieu(
-                                                isMayBanQR, tmpTable))
-                        );
+                        // ✅ FIX: "Lỗi tải phiếu: There is already an open DataReader
+                        // associated with this Command which must be closed first."
+                        // Parallel.Invoke chạy 2 query CÙNG LÚC trên 2 thread, nhưng cả
+                        // LoadPhieuDocQR và LoadHangThieu đều dùng CHUNG 1 SqlConnection
+                        // (_phieuRepo._db — PhieuSqlExecutor dùng chung theo Uow, xem
+                        // HVN_PGH.BuildPresenter). SqlConnection/SqlCommand không thread-safe
+                        // và connection string không bật MultipleActiveResultSets — chạy song
+                        // song trên cùng connection sẽ đá nhau. Đổi lại tuần tự.
+                        donHangTemp = SWLog.Measure("2. LoadPhieuDocQR",
+                            () => _phieuRepo.LoadPhieuDocQR(
+                                      ngayGiaoSP, nhaMay, gioFcc, addNm,
+                                      tmpTable, ifsTable, docQRTable));
+                        hangThieuTemp = SWLog.Measure("2P. LoadHangThieu",
+                            () => _phieuRepo.LoadHangThieu(
+                                      isMayBanQR, tmpTable));
 
                         string captionQR = $"ĐƠN HÀNG {_cfg.DisplayName}: {dt:dd/MM/yyyy}";
                         _bus.Publish(new PhieuLoadedEvent(
@@ -197,15 +203,15 @@ namespace PCTP.Applications.Services
                         DataTable donHangTemp = null;
                         DataTable hangThieuTemp = null;
 
-                        Parallel.Invoke(
-                            () => donHangTemp = SWLog.Measure("2. LoadPhieuDocQR",
-                                      () => _phieuRepo.LoadPhieuDocQR(
-                                                ngayGiaoSP, nhaMay, gioFccSP, addNm,
-                                                tmpTable, ifsTable, docQRTable)),
-                            () => hangThieuTemp = SWLog.Measure("2P. LoadHangThieu",
-                                      () => _phieuRepo.LoadHangThieu(
-                                                isMayBanQR, tmpTable))
-                        );
+                        // ✅ FIX: cùng bug DataReader như nhánh trên — không chạy song
+                        // song 2 query trên cùng 1 SqlConnection dùng chung (_phieuRepo).
+                        donHangTemp = SWLog.Measure("2. LoadPhieuDocQR",
+                            () => _phieuRepo.LoadPhieuDocQR(
+                                      ngayGiaoSP, nhaMay, gioFccSP, addNm,
+                                      tmpTable, ifsTable, docQRTable));
+                        hangThieuTemp = SWLog.Measure("2P. LoadHangThieu",
+                            () => _phieuRepo.LoadHangThieu(
+                                      isMayBanQR, tmpTable));
 
                         _bus.Publish(new PhieuLoadedEvent(
                             donHangTemp, hangThieuTemp, caption));

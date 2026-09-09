@@ -298,7 +298,7 @@ namespace PCTP.QRCODE_HVN.PGH
             this.groupControl1.Location = new System.Drawing.Point(0, 0);
             this.groupControl1.Margin = new System.Windows.Forms.Padding(4, 2, 4, 2);
             this.groupControl1.Name = "groupControl1";
-            this.groupControl1.Size = new System.Drawing.Size(1939, 106);
+            this.groupControl1.Size = new System.Drawing.Size(1551, 85);
             this.groupControl1.TabIndex = 0;
             this.groupControl1.Text = "KHUNG GIỜ";
             // 
@@ -308,7 +308,7 @@ namespace PCTP.QRCODE_HVN.PGH
             this.RDO_GXHN.Location = new System.Drawing.Point(2, 28);
             this.RDO_GXHN.Margin = new System.Windows.Forms.Padding(4, 2, 4, 2);
             this.RDO_GXHN.Name = "RDO_GXHN";
-            this.RDO_GXHN.Size = new System.Drawing.Size(1935, 76);
+            this.RDO_GXHN.Size = new System.Drawing.Size(1547, 55);
             this.RDO_GXHN.TabIndex = 0;
             // 
             // tabVP
@@ -481,7 +481,7 @@ namespace PCTP.QRCODE_HVN.PGH
             this.gridCtrDONHANG.MainView = this.GridViewDONHANG;
             this.gridCtrDONHANG.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.gridCtrDONHANG.Name = "gridCtrDONHANG";
-            this.gridCtrDONHANG.Size = new System.Drawing.Size(1771, 365);
+            this.gridCtrDONHANG.Size = new System.Drawing.Size(1771, 414);
             this.gridCtrDONHANG.TabIndex = 4;
             this.gridCtrDONHANG.ViewCollection.AddRange(new DevExpress.XtraGrid.Views.Base.BaseView[] {
             this.GridViewDONHANG});
@@ -738,7 +738,7 @@ namespace PCTP.QRCODE_HVN.PGH
             this.gridCtrDOCQrCODE.MainView = this.gridVDOCQRCODE;
             this.gridCtrDOCQrCODE.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.gridCtrDOCQrCODE.Name = "gridCtrDOCQrCODE";
-            this.gridCtrDOCQrCODE.Size = new System.Drawing.Size(1771, 365);
+            this.gridCtrDOCQrCODE.Size = new System.Drawing.Size(1771, 414);
             this.gridCtrDOCQrCODE.TabIndex = 3;
             this.gridCtrDOCQrCODE.ViewCollection.AddRange(new DevExpress.XtraGrid.Views.Base.BaseView[] {
             this.gridVDOCQRCODE});
@@ -867,10 +867,6 @@ namespace PCTP.QRCODE_HVN.PGH
             this.CL_KETQUA.Visible = true;
             this.CL_KETQUA.VisibleIndex = 9;
             this.CL_KETQUA.Width = 94;
-            // 
-            // splashScreenManager1
-            // 
-     
             // 
             // PN_DOCQR_SUASL1
             // 
@@ -1083,7 +1079,7 @@ namespace PCTP.QRCODE_HVN.PGH
             this.sidePanel3.Controls.Add(this.sidePanel5);
             this.sidePanel3.Controls.Add(this.sidePanel4);
             this.sidePanel3.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.sidePanel3.Location = new System.Drawing.Point(0, 537);
+            this.sidePanel3.Location = new System.Drawing.Point(0, 586);
             this.sidePanel3.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.sidePanel3.Name = "sidePanel3";
             this.sidePanel3.Size = new System.Drawing.Size(1771, 134);
@@ -1174,7 +1170,7 @@ namespace PCTP.QRCODE_HVN.PGH
             this.sidePanel2.Location = new System.Drawing.Point(0, 172);
             this.sidePanel2.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.sidePanel2.Name = "sidePanel2";
-            this.sidePanel2.Size = new System.Drawing.Size(1771, 365);
+            this.sidePanel2.Size = new System.Drawing.Size(1771, 414);
             this.sidePanel2.TabIndex = 4;
             this.sidePanel2.Text = "sidePanel2";
             // 
@@ -1182,7 +1178,7 @@ namespace PCTP.QRCODE_HVN.PGH
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 16F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(1771, 671);
+            this.ClientSize = new System.Drawing.Size(1771, 720);
             this.Controls.Add(this.sidePanel2);
             this.Controls.Add(this.sidePanel3);
             this.Controls.Add(this.PN_MAIN_TOP);

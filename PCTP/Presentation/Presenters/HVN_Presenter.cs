@@ -45,7 +45,7 @@ namespace PCTP.Presentation.Presenters
         private readonly bool _isMayBanQR;
         private readonly string _tenBan;
         private bool _isBanQR = false;
-      
+
         public int AddNM => _addNM;
         public bool IsBanQR => _isBanQR;
         public GioXuat GioXuatHienTai => _gioXuatHienTai;
@@ -123,7 +123,7 @@ namespace PCTP.Presentation.Presenters
         // ════════════════════════════════════════════════════════════════════
         // Domain Event Handlers (Đã bóc tách từ Lambda ra hàm rõ ràng)
         // ════════════════════════════════════════════════════════════════════
-       
+
         private void OnPhieuLoaded(PhieuLoadedEvent e)
         {
             // Đẩy toàn bộ logic cập nhật giao diện về luồng chính (UI Thread) an toàn
@@ -138,7 +138,6 @@ namespace PCTP.Presentation.Presenters
                     _view.BindDonHang(e.DonHangTable);
                     _view.BindHangThieu(e.HangThieuTable);
                     _view.SetGridCaption(e.Caption);
-                    _view.ShowLoading(false);
 
                     // 2. Kiểm tra các điều kiện logic nghiệp vụ
                     bool coMaNG = !_cfg.CoGear && _phieuSvc.CheckCoMaNG();
@@ -151,11 +150,18 @@ namespace PCTP.Presentation.Presenters
                         showCapNhapKho: showCNK && _isMayBanQR,
                         showKiemTraMaNG: coMaNG && _isMayBanQR,
                         showGhepLot: _isMayBanQR,
-                        showDocQRCode: _isMayBanQR ,  // YMVN không có DOC QRCODE
+                        showDocQRCode: _isMayBanQR,  // YMVN không có DOC QRCODE
                         showLayLaiLot: showLayLai);
+
+                    // ✅ FIX: đây mới là điểm HOÀN TẤT thật sự của 1 lượt LoadPhieu —
+                    // hết chờ, đóng WaitForm thật (không qua HideLoadingUnlessAwaitingPhieuLoad,
+                    // nếu không sẽ không bao giờ tự đóng được).
+                    _awaitingPhieuLoadedEvent = false;
+                    _view.ShowLoading(false);
                 }
                 catch (Exception ex)
                 {
+                    _awaitingPhieuLoadedEvent = false;
                     _view.ShowLoading(false);
                     _view.ShowError($"Lỗi khi hiển thị dữ liệu phiếu: {ex.Message}");
                 }
@@ -831,13 +837,13 @@ namespace PCTP.Presentation.Presenters
         {
             if (_cfg.CoGear)            // YMVN 100002 — Upload Milkrun SP
             {
-                using (var frm = new FRM_UploadMikrun(new SQLPROVIDER(),_cfg))
+                using (var frm = new FRM_UploadMikrun(new SQLPROVIDER(), _cfg))
                     frm.ShowDialog();
             }
             else if (_cfg.LoadTheoNgay) // HTN 100003 — Upload PO HTN
             {
                 using (var frm = new FRM_UploadMikrun(
-                    new SQLPROVIDER(),_cfg,
+                    new SQLPROVIDER(), _cfg,
                     targetTable: "Purchase_Order_HTN",
                     title: "Upload PO HTN"))
                     frm.ShowDialog();
@@ -856,137 +862,139 @@ namespace PCTP.Presentation.Presenters
             }
             finally
             {
-                _view.ShowLoading(false);
+                // ✅ FIX: xem ghi chú trong RunWithLoadingSync — LoadPhieuHienTai() cũng
+                // chỉ publish PhieuLoadedEvent rồi return ngay, không đóng WaitForm ở đây.
+                HideLoadingUnlessAwaitingPhieuLoad();
             }
         }
         // ── 2. XetTrangThai ──────────────────────────────────────────────────────
         private void XetTrangThai()
             => RunWithLoadingSync(() =>
-                 {
-                     // ── Máy không có quyền bắn QR → load thẳng ──────────────────────
-                     if (!_isMayBanQR)
-                     {
-                         _isBanQR = false;
-                         _view.UnlockAllRadio();
-                         _view.UnlockDatePicker();
-                         LoadPhieuHienTai();
-                         return;
-                     }
+            {
+                // ── Máy không có quyền bắn QR → load thẳng ──────────────────────
+                if (!_isMayBanQR)
+                {
+                    _isBanQR = false;
+                    _view.UnlockAllRadio();
+                    _view.UnlockDatePicker();
+                    LoadPhieuHienTai();
+                    return;
+                }
 
-                     // ── 1. Check trạng thái theo đúng bảng của _cfg ──────────────────
-                     // GetTrangThaiDangBan() đã tự dùng _cfg.TmpTable/_cfg.DocQRTable
-                     var tt = _phieuSvc.GetTrangThaiDangBan();
+                // ── 1. Check trạng thái theo đúng bảng của _cfg ──────────────────
+                // GetTrangThaiDangBan() đã tự dùng _cfg.TmpTable/_cfg.DocQRTable
+                var tt = _phieuSvc.GetTrangThaiDangBan();
 
-                     if (!tt.DangBan && _cfg.CoConfigSP)
-                     {
-                         var ttSP = _phieuSvc.GetTrangThaiDangBanSP();
-                         if (ttSP.DangBan)
-                         {
-                             tt = ttSP;
-                             _phieuSvc.SetTrangThaiBan(true, true);
-                             _qrSvc.SetCheDoBanSP(true);
-                         }
-                     }
+                if (!tt.DangBan && _cfg.CoConfigSP)
+                {
+                    var ttSP = _phieuSvc.GetTrangThaiDangBanSP();
+                    if (ttSP.DangBan)
+                    {
+                        tt = ttSP;
+                        _phieuSvc.SetTrangThaiBan(true, true);
+                        _qrSvc.SetCheDoBanSP(true);
+                    }
+                }
 
-                     if (!tt.DangBan)
-                     {
-                         _isBanQR = false;
-                         _qrSvc.SetCheDoBanSP(false);
-                         _view.UnlockAllRadio();
-                         _view.UnlockDatePicker();
-                         LoadPhieuHienTai();
-                         return;
-                     }
+                if (!tt.DangBan)
+                {
+                    _isBanQR = false;
+                    _qrSvc.SetCheDoBanSP(false);
+                    _view.UnlockAllRadio();
+                    _view.UnlockDatePicker();
+                    LoadPhieuHienTai();
+                    return;
+                }
 
-                     // ── 2. DataKhongKhop ─────────────────────────────────────────────
-                     if (tt.DataKhongKhop)
-                     {
-                         bool xoa = _view.HoiXoaDocQR();
-                         if (xoa) _phieuSvc.XoaDocQRCode();
-                         _isBanQR = false;
-                         _qrSvc.SetCheDoBanSP(false);
-                         _view.UnlockAllRadio();
-                         _view.UnlockDatePicker();
-                         LoadPhieuHienTai();
-                         return;
-                     }
+                // ── 2. DataKhongKhop ─────────────────────────────────────────────
+                if (tt.DataKhongKhop)
+                {
+                    bool xoa = _view.HoiXoaDocQR();
+                    if (xoa) _phieuSvc.XoaDocQRCode();
+                    _isBanQR = false;
+                    _qrSvc.SetCheDoBanSP(false);
+                    _view.UnlockAllRadio();
+                    _view.UnlockDatePicker();
+                    LoadPhieuHienTai();
+                    return;
+                }
 
-                     // ── 3. Đang bắn dở → lock ngày ───────────────────────────────────
-                     if (DateTime.TryParse(tt.NgayGiao, out DateTime ngay))
-                         _view.SetDate(ngay);
+                // ── 3. Đang bắn dở → lock ngày ───────────────────────────────────
+                if (DateTime.TryParse(tt.NgayGiao, out DateTime ngay))
+                    _view.SetDate(ngay);
 
-                     _addNM = _cfg.CoNhieuNhaMay ? tt.AddNM : _cfg.AddNmMacDinh;
-                     if (_cfg.CoNhieuNhaMay)
-                         _view.SetTab(tt.AddNM);
+                _addNM = _cfg.CoNhieuNhaMay ? tt.AddNM : _cfg.AddNmMacDinh;
+                if (_cfg.CoNhieuNhaMay)
+                    _view.SetTab(tt.AddNM);
 
-                     _isBanQR = true;
+                _isBanQR = true;
 
-                     // Lock ngày — áp dụng mọi customer khi đang bắn dở
-                     _view.LockDatePicker();
+                // Lock ngày — áp dụng mọi customer khi đang bắn dở
+                _view.LockDatePicker();
 
-                     // ── YMVN (CoGear): parse giờ từ GIOGIAOFCC ───────────────────────
-                     if (_cfg.CoGear)
-                     {
-                         var checkedGios = ParseGioYMVN(tt.GioGiaoFCC);
-                         bool isSP = PhieuService.IsLoaiSP(tt.GioGiaoFCC);
-                         _qrSvc.SetCheDoBanSP(isSP);
+                // ── YMVN (CoGear): parse giờ từ GIOGIAOFCC ───────────────────────
+                if (_cfg.CoGear)
+                {
+                    var checkedGios = ParseGioYMVN(tt.GioGiaoFCC);
+                    bool isSP = PhieuService.IsLoaiSP(tt.GioGiaoFCC);
+                    _qrSvc.SetCheDoBanSP(isSP);
 
-                         _view.SuspendGioXuatChanged();
-                         try
-                         {
-                             _view.SetCheckedGiosYMVN(checkedGios);
-                             _view.LockCheckListYMVN(); // ← thay LockRadioYMVN
-                         }
-                         finally { _view.ResumeGioXuatChanged(); }
+                    _view.SuspendGioXuatChanged();
+                    try
+                    {
+                        _view.SetCheckedGiosYMVN(checkedGios);
+                        _view.LockCheckListYMVN(); // ← thay LockRadioYMVN
+                    }
+                    finally { _view.ResumeGioXuatChanged(); }
 
-                         _phieuSvc.LoadPhieuTuBangRieng_Internal(
-                             tt.NgayGiao, checkedGios, isSP, _isMayBanQR, true);
-                         return;
-                     }
+                    _phieuSvc.LoadPhieuTuBangRieng_Internal(
+                        tt.NgayGiao, checkedGios, isSP, _isMayBanQR, true);
+                    return;
+                }
 
-                     // ── HVN + 100003 + YMVN không CoGear: khôi phục giờ ─────────────
-                     string gioDonTuDB = tt.GioGiaoFCC;
-                     string maKhung = "";
-                     string moTaKhung = "";
+                // ── HVN + 100003 + YMVN không CoGear: khôi phục giờ ─────────────
+                string gioDonTuDB = tt.GioGiaoFCC;
+                string maKhung = "";
+                string moTaKhung = "";
 
-                     var danhSachGio = _addNM == 1
-                         ? _gioXuatRepo.GetDanhSachGioVP()
-                         : _gioXuatRepo.GetDanhSachGioHN();
+                var danhSachGio = _addNM == 1
+                    ? _gioXuatRepo.GetDanhSachGioVP()
+                    : _gioXuatRepo.GetDanhSachGioHN();
 
-                     foreach (var gio in danhSachGio)
-                     {
-                         string maBam = GioXuatRepository.ParseGioThuong(gio.MoTa);
-                         if (maBam.Contains($"'{gioDonTuDB}'"))
-                         {
-                             maKhung = gio.Ma;
-                             moTaKhung = gio.MoTa;
-                             break;
-                         }
-                     }
+                foreach (var gio in danhSachGio)
+                {
+                    string maBam = GioXuatRepository.ParseGioThuong(gio.MoTa);
+                    if (maBam.Contains($"'{gioDonTuDB}'"))
+                    {
+                        maKhung = gio.Ma;
+                        moTaKhung = gio.MoTa;
+                        break;
+                    }
+                }
 
-                     if (string.IsNullOrEmpty(maKhung))
-                     {
-                         maKhung = $"'{gioDonTuDB}'";
-                         moTaKhung = gioDonTuDB + "H";
-                     }
+                if (string.IsNullOrEmpty(maKhung))
+                {
+                    maKhung = $"'{gioDonTuDB}'";
+                    moTaKhung = gioDonTuDB + "H";
+                }
 
-                     bool isSPHvn = PhieuService.IsLoaiSP(moTaKhung);
-                     _qrSvc.SetCheDoBanSP(isSPHvn);
+                bool isSPHvn = PhieuService.IsLoaiSP(moTaKhung);
+                _qrSvc.SetCheDoBanSP(isSPHvn);
 
-                     _view.SuspendGioXuatChanged();
-                     try
-                     {
-                         _gioXuatHienTai = new GioXuat(maKhung, moTaKhung);
-                         _view.UpdateGioXuatFromDB(maKhung);
-                         _view.LockRadioExcept(maKhung);
-                     }
-                     finally { _view.ResumeGioXuatChanged(); }
+                _view.SuspendGioXuatChanged();
+                try
+                {
+                    _gioXuatHienTai = new GioXuat(maKhung, moTaKhung);
+                    _view.UpdateGioXuatFromDB(maKhung);
+                    _view.LockRadioExcept(maKhung);
+                }
+                finally { _view.ResumeGioXuatChanged(); }
 
-                     // 100003: LoadPhieuHienTai sẽ tự vào nhánh LoadTuBangRieng
-                     // với isBanQR=true → load từ TMP_100003 hiện tại
-                     LoadPhieuHienTai();
+                // 100003: LoadPhieuHienTai sẽ tự vào nhánh LoadTuBangRieng
+                // với isBanQR=true → load từ TMP_100003 hiện tại
+                LoadPhieuHienTai();
 
-                 }, "Đang kiểm tra trạng thái phiên làm việc cũ...");
+            }, "Đang kiểm tra trạng thái phiên làm việc cũ...");
         //    private void XetTrangThai()
         //=> RunWithLoadingSync(() =>
         //{
@@ -1244,6 +1252,27 @@ namespace PCTP.Presentation.Presenters
 
         private bool _isLoadingPhieu = false;  // đổi tên tránh conflict với _isLoading của View
 
+        // ✅ FIX: LoadPhieu/LoadPhieuTuBangRieng_Internal chạy xong (return) KHÔNG có nghĩa
+        // là UI đã cập nhật xong — cả 2 chỉ publish PhieuLoadedEvent, còn việc bind grid
+        // thật sự chạy SAU qua _uiContext.Post (xếp hàng đợi, không chạy ngay). Nếu nơi gọi
+        // (RunWithLoadingSync, hoặc reload thủ công sau upload) đóng WaitForm ngay khi hàm
+        // return, WaitForm sẽ biến mất TRƯỚC khi OnPhieuLoaded thực sự chạy — đúng hiện
+        // tượng "wait form đã close 1 lúc đơn hàng mới nổi". Cờ này báo cho các nơi gọi biết
+        // đang có 1 lượt load đang chờ OnPhieuLoaded hoàn tất, để KHÔNG tự đóng WaitForm sớm
+        // — chỉ OnPhieuLoaded (thành công hoặc lỗi) mới được đóng thật.
+        private bool _awaitingPhieuLoadedEvent = false;
+
+        /// <summary>
+        /// Đóng WaitForm — trừ khi đang chờ OnPhieuLoaded xử lý xong (xem
+        /// _awaitingPhieuLoadedEvent). Dùng thay cho gọi thẳng _view.ShowLoading(false)
+        /// ở mọi nơi có thể race với luồng LoadPhieu bất đồng bộ qua PhieuLoadedEvent.
+        /// </summary>
+        private void HideLoadingUnlessAwaitingPhieuLoad()
+        {
+            if (_awaitingPhieuLoadedEvent) return;
+            _view.ShowLoading(false);
+        }
+
         private void LoadPhieuHienTai()
         {
             // ── Debounce: chặn gọi lại khi đang load ─────────────────────────
@@ -1294,6 +1323,10 @@ namespace PCTP.Presentation.Presenters
                 //        ngayGiao, nhaMay, gioMa, gioMoTa,
                 //        _addNM, _isMayBanQR, _isBanQR);
                 //}
+                // ✅ FIX: đánh dấu đang chờ OnPhieuLoaded TRƯỚC khi gọi — cả 2 nhánh dưới
+                // đây chỉ publish PhieuLoadedEvent rồi return ngay, UI thật sự cập nhật sau.
+                _awaitingPhieuLoadedEvent = true;
+
                 if (_cfg.LoadTuBangRieng)
                 {
                     _phieuSvc.LoadPhieuTuBangRieng_Internal(
@@ -1312,6 +1345,9 @@ namespace PCTP.Presentation.Presenters
             }
             catch (Exception ex)
             {
+                // Ném lỗi ĐỒNG BỘ (chưa kịp publish PhieuLoadedEvent) — không còn gì để
+                // chờ nữa, phải đóng WaitForm thật ngay tại đây.
+                _awaitingPhieuLoadedEvent = false;
                 _isLoadingPhieu = false;  // ← reset nếu exception
                 _uiContext.Post(_ =>
                 {
@@ -1396,8 +1432,12 @@ namespace PCTP.Presentation.Presenters
             }
             finally
             {
-                // 4. Tắt loading
-                _view.ShowLoading(false);
+                // ✅ FIX: nếu action() vừa chạy là XetTrangThai()/LoadPhieuHienTai() (chỉ
+                // publish PhieuLoadedEvent rồi return ngay, UI cập nhật sau qua
+                // _uiContext.Post), KHÔNG được đóng WaitForm ở đây — sẽ đóng sớm hơn lúc
+                // OnPhieuLoaded thực sự chạy xong. Dùng helper có kiểm tra
+                // _awaitingPhieuLoadedEvent; OnPhieuLoaded sẽ tự đóng thật khi xong.
+                HideLoadingUnlessAwaitingPhieuLoad();
             }
         }
         private void UpdateGioXuatFromCheckList(List<string> danhSachGio)
@@ -1417,7 +1457,7 @@ namespace PCTP.Presentation.Presenters
             System.Diagnostics.Debug.WriteLine(
                 $"[YMVN GioXuat] Ma={gioFcc} | MoTa={gioMoTa}");
         }
-        
+
         // ════════════════════════════════════════════════════════════════════
         // Dispose giải phóng triệt để sự kiện (Fix Memory Leak)
         // ════════════════════════════════════════════════════════════════════
@@ -1441,7 +1481,7 @@ namespace PCTP.Presentation.Presenters
             _view.XoaToanBoQRClicked -= OnXoaToanBoQR;
             _view.SuaSoLuongTemClicked -= OnSuaSoLuongTem;
             _view.LayLaiLotNoClicked -= OnLayLaiLotNo;
-           
+
             _view.LuuGiaoDBClicked -= OnLuuGiaoDB;
             _view.CapNhapTTPHIEUClicked -= OnCapNhapTTPHIEU;
             _view.HoanThanhYMVNClicked -= OnHoanThanhYMVN;
@@ -1475,5 +1515,5 @@ namespace PCTP.Presentation.Presenters
                 showStop: showStop);
         }
     }
-    
+
 }

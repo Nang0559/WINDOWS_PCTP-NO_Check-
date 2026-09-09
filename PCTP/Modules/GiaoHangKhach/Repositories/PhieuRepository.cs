@@ -178,8 +178,9 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         public void LayLaiLotNo(int stt, string tenBan, string docQRTable)
             => _lot.LayLaiLotNo(stt, tenBan, docQRTable);
 
-        public DataTable LoadGhepLot()
-            => _lot.LoadGhepLot();
+        public DataTable LoadGhepLot(
+             string tenBan = "TMPPHIEUGIAOHANG", string ifsTable = "IFSPHIEUGIAOHANG")
+             => _lot.LoadGhepLot(tenBan, ifsTable);
 
         public DataTable GetDanhSachLotTuKho(string maHang)
             => _lot.GetDanhSachLotTuKho(maHang);
@@ -255,7 +256,8 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
 
         public DataTable TakeLotYMVN(string tmpTable, string docQRTable, bool isLoaiSP)
             => _lot.TakeLotYMVN(tmpTable, docQRTable, isLoaiSP);
-
+        public DataTable TinhHangThieuTuDonHang(DataTable donHang)
+           => _validation.TinhHangThieuTuDonHang(donHang);
         #endregion
     }
 }

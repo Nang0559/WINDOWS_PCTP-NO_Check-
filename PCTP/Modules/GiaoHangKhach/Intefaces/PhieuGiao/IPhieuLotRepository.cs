@@ -14,7 +14,13 @@ namespace PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao
         string GetLotNo(string maHang, int stt, int dem, int slGiao, PhieuTableSet tables);
         void CapNhapLotTmpPhieu(int stt, string lot, string tenBan);
         void LayLaiLotNo(int stt, PhieuTableSet tables);
-        DataTable LoadGhepLot();
+        /// <summary>
+        /// ✅ FIX: overload cũ (không tham số) hardcode TMPPHIEUGIAOHANG/IFSPHIEUGIAOHANG bên
+        /// trong SP — không đọc đúng bảng của máy view (CustomerConfig.GetTmpViewTable).
+        /// Dùng overload có tham số, truyền đúng tenBan/ifsTable của phiên hiện tại.
+        /// </summary>
+        DataTable LoadGhepLot(
+          string tenBan = "TMPPHIEUGIAOHANG", string ifsTable = "IFSPHIEUGIAOHANG");
         DataTable GetDanhSachLotTuKho(string maHang);
 
         string GetLotNo(string maHang, int stt, int dem, int slGiao,

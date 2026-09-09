@@ -200,10 +200,16 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         // LoadGhepLot
         // ============================================================
 
-        public DataTable LoadGhepLot()
+        public DataTable LoadGhepLot(
+            string tenBan = "TMPPHIEUGIAOHANG", string ifsTable = "IFSPHIEUGIAOHANG")
         {
+            Db.ValidateTableName(tenBan);
+            Db.ValidateTableName(ifsTable);
+
             return _db.ExecuteStoredProcedure(
-                "Usp_Qrcode_gheplot");
+                "Usp_Qrcode_gheplot",
+                new SqlParameter("@TENBAN", SqlDbType.NVarChar, 100) { Value = tenBan },
+                new SqlParameter("@IFSTABLE", SqlDbType.NVarChar, 100) { Value = ifsTable });
         }
 
         // ============================================================

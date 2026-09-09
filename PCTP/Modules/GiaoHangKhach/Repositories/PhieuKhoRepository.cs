@@ -30,7 +30,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         private readonly IBulkStockSlotRepository _bulkStockSlotRepo;
         private readonly IStockHistoryRepository _historyRepo;
         private readonly IPhieuValidationRepository _validationRepo;
-
+        private const string SYSTEM_PERFORMED_BY = "SYSTEM_GIAOHANG_CNK";
         public PhieuKhoRepository(
             PhieuSqlExecutor db,
             IUnitOfWork uow,
@@ -102,7 +102,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
 
             // ✅ FIX (nghiêm trọng #2): trước đây logic đóng ChoGiao + audit nằm
             // Ở NGUYÊN TẠI ĐÂY, giờ rút thành helper dùng chung cho cả 3 nhánh.
-            HoanTatSauKhiTruKho(lotsDaXuatThanhCong, "SYSTEM_HVN_CNK");
+            HoanTatSauKhiTruKho(lotsDaXuatThanhCong, SYSTEM_PERFORMED_BY);
 
             if (_cfg != null && _cfg.LoadTuBangRieng && !string.IsNullOrEmpty(_cfg.OrderTable) && stok.Rows.Count > 0)
             {
@@ -184,7 +184,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             // ⚠️ Nếu xác nhận nhánh SP KHÔNG BAO GIỜ đi qua Pick→ChoGiao (luồng xuất
             // thẳng, không qua Slot), dòng dưới vẫn AN TOÀN (không có gì để đóng),
             // chỉ dư 1 lệnh query rỗng — không cần xoá.
-            HoanTatSauKhiTruKho(lotsDaXuatThanhCong, "SYSTEM_SP_CNK");
+            HoanTatSauKhiTruKho(lotsDaXuatThanhCong, SYSTEM_PERFORMED_BY);
 
             return stok.Rows.Count;
         }
@@ -362,7 +362,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             // ✅ FIX (nghiêm trọng #2): trước đây HOÀN TOÀN THIẾU ở nhánh YMVN.
             // Chạy SAU KHI transaction chính đã commit — là 1 transaction riêng,
             // không lồng vào transaction trên.
-            HoanTatSauKhiTruKho(lotsDaXuatThanhCong, "SYSTEM_YMVN_CNK");
+            HoanTatSauKhiTruKho(lotsDaXuatThanhCong, SYSTEM_PERFORMED_BY);
 
             if (coAnhHuongA0)
                 StockChangedNotifier.RaiseStockChanged();

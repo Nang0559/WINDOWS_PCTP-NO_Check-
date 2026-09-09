@@ -327,15 +327,27 @@ namespace PCTP.Modules.GiaoHangKhach
             return "NVARCHAR(500)"; // fallback an toàn cho các kiểu chưa liệt kê
         }
         public DataTable CallPhieuSP(
-    string procedureName,
-    string ngayGiao,
-    string nhaMay,
-    string gioFcc,
-    int addNm,
-    PhieuTableSet tables)
+           string procedureName,
+           string ngayGiao,
+           string nhaMay,
+           string gioFcc,
+           int addNm,
+           PhieuTableSet tables)
         {
             if (tables == null)
                 throw new ArgumentNullException(nameof(tables));
+
+            // ✅ FIX: "Usp_Qrcode_LOAD_PHIEU_DOCQRView2405" dùng tên tham số KHÁC với các
+            // SP còn lại — @TENBAN (không phải @TMPTABLE) và @IFSVIEW (không phải @IFSTABLE).
+            // CallPhieuSP là helper DÙNG CHUNG cho nhiều SP (LuuVaLoad gọi với tenSP tuỳ
+            // caller truyền vào), nên phải rẽ theo tên SP thay vì hardcode 1 bộ tên tham số —
+            // trước đây luôn gửi @TMPTABLE/@IFSTABLE, làm SP...View2405 báo lỗi
+            // "@TMPTABLE is not a parameter for procedure ...".
+            bool isViewVariant = procedureName != null &&
+                procedureName.EndsWith("View2405", StringComparison.OrdinalIgnoreCase);
+
+            string tmpTableParamName = isViewVariant ? "@TENBAN" : "@TMPTABLE";
+            string ifsTableParamName = isViewVariant ? "@IFSVIEW" : "@IFSTABLE";
 
             return ExecuteStoredProcedure(
                 procedureName,
@@ -343,8 +355,8 @@ namespace PCTP.Modules.GiaoHangKhach
                 new SqlParameter("@NHAMAY", SqlDbType.NVarChar, 50) { Value = (object)nhaMay ?? DBNull.Value },
                 new SqlParameter("@GIOFCC", SqlDbType.NVarChar, 200) { Value = (object)gioFcc ?? DBNull.Value },
                 new SqlParameter("@ADDNM", SqlDbType.Int) { Value = addNm },
-                new SqlParameter("@TMPTABLE", SqlDbType.NVarChar, 100) { Value = tables.TmpTable },
-                new SqlParameter("@IFSTABLE", SqlDbType.NVarChar, 100) { Value = tables.SourceTable },
+                new SqlParameter(tmpTableParamName, SqlDbType.NVarChar, 100) { Value = tables.TmpTable },
+                new SqlParameter(ifsTableParamName, SqlDbType.NVarChar, 100) { Value = tables.SourceTable },
                 new SqlParameter("@DOCQRTABLE", SqlDbType.NVarChar, 100) { Value = tables.DocQRTable });
         }
     }

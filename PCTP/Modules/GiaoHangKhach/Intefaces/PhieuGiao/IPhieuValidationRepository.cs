@@ -25,5 +25,14 @@ namespace PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao
         // IPhieuValidationRepository — thêm
         List<FifoViolation> CheckFifoViolations(string tenBangTmp);
 
+        /// <summary>
+        /// Tính hàng thiếu trực tiếp trên DataTable đơn hàng in-memory (KHÔNG qua TMP) —
+        /// dùng cho luồng bảng riêng (YMVN/HTN) nơi donHang có thể vừa lấy thẳng từ
+        /// Purchase_Order, chưa kịp sync vào TMP. Định nghĩa: theo từng MAHANG, tổng
+        /// SOLUONG cần giao (chỉ tính dòng CHƯA có LOT/STATUS khác 'OK') > SLCONLAI
+        /// hiện có trong STOCKTP.
+        /// </summary>
+        DataTable TinhHangThieuTuDonHang(DataTable donHang);
+
     }
 }

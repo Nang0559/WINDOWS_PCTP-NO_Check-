@@ -27,6 +27,7 @@ using PCTP.Presentation.Views;
 using PCTP.QRCODE_HVN;
 using PCTP.QRCODE_HVN.Report;
 using PCTP.Shared.Common;
+using PCTP.Shared.Helpers;
 using PCTP.VIEWSTOCK.Models;
 using System;
 using System.Collections.Generic;
@@ -66,12 +67,17 @@ namespace PCTP.QRCODE_HVN.PGH
         public bool IsLoaiSP => _isLoaiSP;
         private Button _btnToggleLoaiPhieu;
         public event EventHandler LoaiPhieuChanged = delegate { };
+
+        // ── Wait form (chuẩn) ────────────────────────────────────────────────
+        private readonly IWaitFormService _waitForm;
         // ════════════════════════════════════════════════════════════════════
         // Constructor
         // ════════════════════════════════════════════════════════════════════
         public HVN_PGH(string customerNo = "100001")
         {
             InitializeComponent();
+
+            _waitForm = new WaitFormService(this);
 
             _cfg = CustomerTableConfig.Get(customerNo);
             // Gỡ event tránh trigger khi form chưa ready
@@ -342,15 +348,13 @@ namespace PCTP.QRCODE_HVN.PGH
                 if (!_isLoading)
                 {
                     _isLoading = true;
-                    splashScreenManager1.ShowWaitForm();
+                    _waitForm.Show(caption);
                 }
-
-                // ── FIX 1: set caption vào WaitForm sau khi show ────────────────
-                try
+                else
                 {
-                    splashScreenManager1.SetWaitFormCaption(caption);
+                    // ── set caption vào WaitForm khi đã đang show ───────────────
+                    _waitForm.SetCaption(caption);
                 }
-                catch { }
 
                 // ── FIX 2: reset timeout mỗi lần gọi ShowLoading(true) ──────────
                 _loadingTimeout = new System.Threading.Timer(_ =>
@@ -376,7 +380,7 @@ namespace PCTP.QRCODE_HVN.PGH
                 if (!_isLoading) return;
 
                 _isLoading = false;
-                splashScreenManager1.CloseWaitForm();
+                _waitForm.Close();
             }
         }
 
@@ -406,7 +410,23 @@ namespace PCTP.QRCODE_HVN.PGH
             UIButtonHOME.Visible = true;
             panelPhieu.Visible = false;
             gridCtrDOCQrCODE.BringToFront();
-            PN_DOCQR_SUASL1.BringToFront();
+
+            // ✅ FIX: panel "sửa số lượng" (SL trên tem FCC/HVN) CHỈ hiện ở màn hình
+            // DocQR — trước đây chỉ BringToFront() (đổi z-order), không ẩn hẳn GCT_HT
+            // (hàng thiếu) nên có trường hợp panel này còn lộ ra ở màn hình Phiếu Giao
+            // Hàng nếu SwitchToPhieuView() không được gọi lại đúng lúc. Set Visible
+            // tường minh cho cả 2 để đảm bảo loại trừ lẫn nhau tuyệt đối. Bọc try/catch:
+            // đây là cosmetic, không được phép chặn phần còn lại của hàm bên dưới.
+            try
+            {
+                GCT_HT.Visible = false;
+                PN_DOCQR_SUASL1.Visible = true;
+                PN_DOCQR_SUASL1.BringToFront();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[SwitchToDocQRView] Lỗi set Visible: {ex.Message}");
+            }
             // Đảm bảo cập nhật trên UI Thread
             this.Invoke(new Action(() =>
             {
@@ -438,7 +458,21 @@ namespace PCTP.QRCODE_HVN.PGH
             UIButtonHOME.Visible = false;
             panelPhieu.Visible = true;
             gridCtrDONHANG.BringToFront();
-            GCT_HT.BringToFront();
+
+            // ✅ FIX: GCT_HT (hàng thiếu) hiện ở màn hình Phiếu Giao Hàng, panel sửa
+            // số lượng (PN_DOCQR_SUASL1) chỉ dành cho màn hình DocQR — set Visible
+            // tường minh, xem ghi chú trong SwitchToDocQRView(). Bọc try/catch: không
+            // được phép chặn phần reset textbox/nút bấm phía dưới nếu lỗi.
+            try
+            {
+                PN_DOCQR_SUASL1.Visible = false;
+                GCT_HT.Visible = true;
+                GCT_HT.BringToFront();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[SwitchToPhieuView] Lỗi set Visible: {ex.Message}");
+            }
 
             // ── Phục hồi: ẩn SUASL, hiện GHEPLOT ────────────────────────────────
             gridCtrSUASL.Visible = false;
@@ -876,7 +910,24 @@ namespace PCTP.QRCODE_HVN.PGH
             if (dateNX.DateTime == DateTime.MinValue || dateNX.DateTime.Year < 2000)
                 dateNX.DateTime = DateTime.Now;
 
+            // ── Load đơn hàng (qua Presenter.OnFormLoaded) TRƯỚC — không được để
+            // bất kỳ lỗi nào chặn dòng này, nếu không đơn hàng sẽ không load được.
             FormLoaded.Invoke(this, EventArgs.Empty);
+
+            // ✅ FIX: Designer không đặt sẵn Visible cho GCT_HT/PN_DOCQR_SUASL1 (2 control
+            // chồng khít nhau trong sidePanel5) — nếu không set tường minh, màn hình khởi
+            // động (Phiếu Giao Hàng) có thể lộ nhầm panel "sửa số lượng" của màn DocQR.
+            // Đặt SAU FormLoaded.Invoke + bọc try/catch: đây chỉ là cosmetic, tuyệt đối
+            // không được phép chặn việc load đơn hàng ở trên nếu DevExpress ném lỗi.
+            try
+            {
+                PN_DOCQR_SUASL1.Visible = false;
+                GCT_HT.Visible = true;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[HVN_PGH_Load] Lỗi set Visible GCT_HT/PN_DOCQR_SUASL1: {ex.Message}");
+            }
         }
 
         // ── Setup cột grid theo customer ─────────────────────────────────────────

@@ -1,4 +1,5 @@
-﻿using PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao;
+﻿using PCTP.FuctionMain;
+using PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao;
 using PCTP.Shared.Common;
 using System;
 using System.Collections.Generic;
@@ -389,6 +390,77 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
 
             foreach (DataRow row in dt.Rows)
                 result[row["Code"].ToString().Trim()] = Convert.ToInt32(row["QC"]);
+
+            return result;
+        }
+        public DataTable TinhHangThieuTuDonHang(DataTable donHang)
+        {
+            var result = new DataTable();
+            result.Columns.Add("MH", typeof(string));
+            result.Columns.Add("GIOGIAO", typeof(string));
+            result.Columns.Add("SLGIAO", typeof(int));
+            result.Columns.Add("SLTHIEU", typeof(int));
+
+            if (donHang == null || donHang.Rows.Count == 0)
+                return result;
+
+            // ── Gom SL cần giao theo (MAHANG, GIOGIAO) — chỉ tính dòng CHƯA CNK xong ──
+            var rows = new List<(string MaHang, string GioGiao, int Sl)>();
+
+            foreach (DataRow row in donHang.Rows)
+            {
+                string status = row.Table.Columns.Contains("STATUS")
+                    ? row["STATUS"]?.ToString().Trim() ?? "" : "";
+                if (string.Equals(status, "OK", StringComparison.OrdinalIgnoreCase))
+                    continue;   // đã CNK xong — không còn "thiếu" nữa
+
+                string maHang = row["MAHANG"]?.ToString().Trim() ?? "";
+                if (string.IsNullOrEmpty(maHang)) continue;
+
+                string gioGiao = row.Table.Columns.Contains("GIOGIAO")
+                    ? row["GIOGIAO"]?.ToString().Trim() ?? "" : "";
+
+                int sl = row.Table.Columns.Contains("SOLUONG") && row["SOLUONG"] != DBNull.Value
+                    ? Convert.ToInt32(row["SOLUONG"]) : 0;
+
+                rows.Add((maHang, gioGiao, sl));
+            }
+
+            if (rows.Count == 0)
+                return result;
+
+            // ── Batch query tồn STOCKTP theo danh sách MAHANG (1 lần, tránh N+1) ──
+            var maHangList = rows.Select(r => r.MaHang).Distinct().ToList();
+            string inClause = string.Join(",", maHangList.Select(m => $"'{SqlHelper.Esc(m)}'"));
+            DataTable tonDt = LoadData(
+                $"SELECT PART, ISNULL(SUM(SLCONLAI),0) AS TONG_TON " +
+                $"FROM STOCKTP WHERE PART IN ({inClause}) GROUP BY PART");
+
+            var tonMap = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            foreach (DataRow row in tonDt.Rows)
+                tonMap[row["PART"].ToString().Trim()] = Convert.ToInt32(row["TONG_TON"]);
+
+            // ── Gom theo (MAHANG, GIOGIAO), sắp theo GIOGIAO tăng dần trong từng MAHANG ──
+            var grouped = rows
+                .GroupBy(r => new { r.MaHang, r.GioGiao })
+                .Select(g => new { g.Key.MaHang, g.Key.GioGiao, SlGiao = g.Sum(x => x.Sl) })
+                .ToList();
+
+            // ── Phân bổ tồn kho theo thứ tự giờ giao sớm nhất trước (ưu tiên FIFO theo giờ) ──
+            foreach (var maHangGroup in grouped.GroupBy(x => x.MaHang))
+            {
+                int tonConLai = tonMap.TryGetValue(maHangGroup.Key, out int t) ? t : 0;
+
+                foreach (var gio in maHangGroup.OrderBy(x => x.GioGiao, StringComparer.OrdinalIgnoreCase))
+                {
+                    int slDuocCap = Math.Min(gio.SlGiao, Math.Max(tonConLai, 0));
+                    int slThieu = gio.SlGiao - slDuocCap;
+                    tonConLai -= slDuocCap;
+
+                    if (slThieu > 0)
+                        result.Rows.Add(gio.MaHang, gio.GioGiao, gio.SlGiao, slThieu);
+                }
+            }
 
             return result;
         }
