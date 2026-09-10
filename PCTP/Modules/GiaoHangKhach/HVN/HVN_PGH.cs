@@ -284,6 +284,8 @@ namespace PCTP.QRCODE_HVN.PGH
             LoaiPhieuChanged.Invoke(this, EventArgs.Empty);
         }
         public void BindHangThieu(DataTable dt) => GCT_HT.DataSource = dt;
+
+        public void BindLechIFS(DataTable dt) => gridCLECH.DataSource = dt;
         public void BindDocQRCode(DataTable dt)
         {
             gridCtrDOCQrCODE.DataSource = dt;
@@ -405,7 +407,15 @@ namespace PCTP.QRCODE_HVN.PGH
         }
         public void ShowHangThieuCaNgay(DataTable dt)
         {
-           
+            if (this.InvokeRequired)
+            {
+                this.Invoke(new Action(() => ShowHangThieuCaNgay(dt)));
+                return;
+            }
+
+            GCT_HT.DataSource = dt;
+            GCT_HT.Visible = true;
+            GCT_HT.BringToFront();
         }
         // ── Chuyển sang màn hình đọc QR ─────────────────────────────────────
         public void SwitchToDocQRView()
@@ -564,7 +574,7 @@ namespace PCTP.QRCODE_HVN.PGH
         public void SetupPhieuButtons(bool showCapNhapKho, bool showKiemTraMaNG,
                                        bool showGhepLot, bool showDocQRCode,
                                        bool showLayLaiLot = false,
-                                       bool showStop = false)
+                                       bool showStop = false, bool showHangThieuCaNgay = true)
         {
             UIButton.AllowGlyphSkinning = false;
             UIButton.Buttons.Clear();
@@ -588,12 +598,13 @@ namespace PCTP.QRCODE_HVN.PGH
                 Style = ButtonStyle.PushButton,
                 ImageUri = "Print;Size16x16;Colored"
             });
-            UIButton.Buttons.Add(new WindowsUIButton
-            {
-                Caption = "Xem Hàng Thiếu Cả Ngày",
-                Style = ButtonStyle.PushButton,
-                ImageUri = "Find;Size16x16;Colored"   // đổi icon tuỳ ý
-            });
+            if (showHangThieuCaNgay)
+                UIButton.Buttons.Add(new WindowsUIButton
+                {
+                    Caption = "Xem Hàng Thiếu Cả Ngày",
+                    Style = ButtonStyle.PushButton,
+                    ImageUri = "Find;Size16x16;Colored"
+                });
             UIButton.Buttons.Insert(0, new WindowsUISeparator());
 
             // Nút chỉ máy bắn QR
@@ -614,9 +625,10 @@ namespace PCTP.QRCODE_HVN.PGH
             if (showGhepLot)
                 UIButton.Buttons.Add(new WindowsUIButton
                 {
-                    Caption = "Kiểm Tra Ghep Lot",
+                    Caption = _cfg.LoadTuBangRieng ? "Show Thông Tin Lệch IFS" : "Kiểm Tra Ghep Lot",
                     Style = ButtonStyle.PushButton,
-                    Image = imageBT.Images[1]
+                    Image = imageBT.Images[1],
+                    Tag = "BTN_GHEPLOT_TOGGLE"   // ← THÊM: định danh cố định, không phụ thuộc Caption
                 });
 
             if (showCapNhapKho)
@@ -902,6 +914,8 @@ namespace PCTP.QRCODE_HVN.PGH
 
             // ── 5. Gắn events ────────────────────────────────────────
             GridViewDONHANG.ShowingEditor += GridViewDONHANG_ShowingEditor_LOT;
+            if (dateNX.DateTime == DateTime.MinValue || dateNX.DateTime.Year < 2000)
+                dateNX.DateTime = DateTime.Now;
             dateNX.EditValueChanged += dateNX_EditValueChanged;
 
             if (_cfg.CoNhieuNhaMay)
@@ -920,8 +934,7 @@ namespace PCTP.QRCODE_HVN.PGH
                 btnUploadMilkrun.Click += btnUploadMilkrun_Click;
             }
 
-            if (dateNX.DateTime == DateTime.MinValue || dateNX.DateTime.Year < 2000)
-                dateNX.DateTime = DateTime.Now;
+          
 
             // ── Load đơn hàng (qua Presenter.OnFormLoaded) TRƯỚC — không được để
             // bất kỳ lỗi nào chặn dòng này, nếu không đơn hàng sẽ không load được.
@@ -1340,7 +1353,14 @@ namespace PCTP.QRCODE_HVN.PGH
 
         private void UIButton_ButtonClick(object sender, ButtonEventArgs e)
         {
-            string cap = ((WindowsUIButton)e.Button).Caption;
+            var btn = (WindowsUIButton)e.Button;
+         
+            if (_cfg.LoadTuBangRieng && (btn.Tag as string) == "BTN_GHEPLOT_TOGGLE")
+            {
+                HandleGhepLotToggle(btn);
+                return;
+            }
+            string cap = btn.Caption;
             switch (cap)
             {
                 // ── Phiếu thường ─────────────────────────────────────────────
@@ -1473,6 +1493,30 @@ namespace PCTP.QRCODE_HVN.PGH
             }
         }
 
+
+        private void HandleGhepLotToggle(WindowsUIButton btn)
+        {
+            bool dangHienLech = gridCLECH.Visible;
+
+            if (dangHienLech)
+            {
+                // Đang xem Lệch IFS → quay lại GhepLot: chuyển grid + chạy kiểm tra ghép lot như bình thường
+                gridCLECH.Visible = false;
+                gridCTTGL.Visible = true;
+                gridCTTGL.BringToFront();
+                btn.Caption = "Show Thông Tin Lệch IFS";
+
+                KiemTraGhepLotClicked.Invoke(this, EventArgs.Empty);
+            }
+            else
+            {
+                // Đang xem GhepLot → chuyển sang xem Lệch IFS (data đã bind sẵn từ BindLechIFS, không cần gọi Presenter)
+                gridCTTGL.Visible = false;
+                gridCLECH.Visible = true;
+                gridCLECH.BringToFront();
+                btn.Caption = "GhepLot";
+            }
+        }
         // ── Double click trên gridVDOCQRCODE → mở panel sửa SL tem ──────────
         private void gridVDOCQRCODE_FocusedRowChanged(object sender,
     DevExpress.XtraGrid.Views.Base.FocusedRowChangedEventArgs e)

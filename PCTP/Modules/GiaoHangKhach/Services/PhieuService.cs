@@ -278,11 +278,11 @@ namespace PCTP.Applications.Services
         /// Dùng chung cho 100002 (YMVN - có CheckGX) và 100003 (HTN - load theo ngày)
         /// </summary>
         public void LoadPhieuTuBangRieng_Internal(
-         string ngayGiao,
-         List<string> checkedGios,
-         bool isLoaiSP,
-         bool isMayBanQR,
-         bool isBanQR)
+     string ngayGiao,
+     List<string> checkedGios,
+     bool isLoaiSP,
+     bool isMayBanQR,
+     bool isBanQR)
         {
             if (!DateTime.TryParse(ngayGiao, out DateTime dt) || dt.Year < 2000)
             {
@@ -347,6 +347,10 @@ namespace PCTP.Applications.Services
                     ngayGiaoSP, gioFcc, isLoaiSP, dockCodeSP, _cfg);
             }
 
+            // ← SỬA: tính hàng thiếu từ donHang vừa load, thay vì bỏ trống —
+            // đồng nhất với nhánh "đang bắn QR dở" ở LoadPhieu() vốn đã gọi hàm này.
+            DataTable hangThieu = _phieuRepo.TinhHangThieuTuDonHang(donHang);
+
             string caption;
             if (_cfg.CoGear)
             {
@@ -359,7 +363,7 @@ namespace PCTP.Applications.Services
                 caption = $"ĐƠN HÀNG {_cfg.DisplayName}: {dt:dd/MM/yyyy}";
             }
 
-            _bus.Publish(new PhieuLoadedEvent(donHang, new DataTable(), caption));
+            _bus.Publish(new PhieuLoadedEvent(donHang, hangThieu, caption)); // ← sửa: hangThieu thay vì new DataTable()
         }
 
         private DataTable LoadPhieuYMVNTuIFS(string ngayXuatIFS,
@@ -515,6 +519,13 @@ namespace PCTP.Applications.Services
         }
 
         public bool CheckCoMaNG() => _phieuRepo.CheckCoMaNG(GetTenBan());
+
+        public DataTable TinhLechIFS(DataTable donHang)
+        {
+            if (!_cfg.LoadTuBangRieng) return new DataTable();
+            string ifsTable = _cfg.GetIfsTable(_isLoaiSP);
+            return _phieuRepo.SoSanhLechIFS(donHang, ifsTable);
+        }
 
         // ════════════════════════════════════════════════════════════════════════
         // DOCQRCODE — dùng _cfg.DocQRTable

@@ -1,4 +1,5 @@
-﻿using PCTP.ClassSQL;
+﻿using DevExpress.XtraCharts.Native;
+using PCTP.ClassSQL;
 using PCTP.Shared.Common;
 using System;
 using System.Collections.Generic;
@@ -310,24 +311,11 @@ namespace PCTP.Modules.GiaoHangKhach
             return result;
         }
 
-        public void BulkInsert(string tableName, DataTable data)
-        {
-            ValidateTableName(tableName);
-            if (data == null || data.Rows.Count == 0) return;
 
-            using (var conn = new SqlConnection(_sql.B7R2_FCCdb))
-            {
-                conn.Open();
-                using (var bulkCopy = new SqlBulkCopy(conn) { DestinationTableName = tableName })
-                {
-                    foreach (DataColumn col in data.Columns)
-                        bulkCopy.ColumnMappings.Add(col.ColumnName, col.ColumnName);
-
-                    bulkCopy.WriteToServer(data);
-                }
-            }
-        }
         // Thêm vào PhieuSqlExecutor.cs
+        // ============================================================
+        // DropCreate — không transaction (giữ để dùng nơi khác nếu cần)
+        // ============================================================
         public void DropCreate(string tableName, DataTable schema)
         {
             ValidateTableName(tableName);
@@ -336,21 +324,75 @@ namespace PCTP.Modules.GiaoHangKhach
             using (var conn = new SqlConnection(_sql.B7R2_FCCdb))
             {
                 conn.Open();
-
-                string dropSql = $"IF OBJECT_ID(N'[dbo].[{tableName}]', 'U') IS NOT NULL DROP TABLE [{tableName}];";
-                using (var cmdDrop = new SqlCommand(dropSql, conn))
-                    cmdDrop.ExecuteNonQuery();
-
-                var colDefs = new List<string>();
-                foreach (DataColumn col in schema.Columns)
-                    colDefs.Add($"[{col.ColumnName}] {MapSqlType(col.DataType)}");
-
-                string createSql = $"CREATE TABLE [{tableName}] ({string.Join(", ", colDefs)});";
-                using (var cmdCreate = new SqlCommand(createSql, conn))
-                    cmdCreate.ExecuteNonQuery();
+                DropCreateCore(conn, null, tableName, schema);
             }
         }
 
+        /// <summary>
+        /// Bản CÓ TRANSACTION — dùng đúng Connection/Transaction đang mở.
+        /// </summary>
+        public void DropCreate(SqlConnection conn, SqlTransaction tran, string tableName, DataTable schema)
+        {
+            ValidateTableName(tableName);
+            RequireConnTran(conn, tran);
+            if (schema == null) throw new ArgumentNullException(nameof(schema));
+
+            DropCreateCore(conn, tran, tableName, schema);
+        }
+
+        private static void DropCreateCore(SqlConnection conn, SqlTransaction tran, string tableName, DataTable schema)
+        {
+            string dropSql = $"IF OBJECT_ID(N'[dbo].[{tableName}]', 'U') IS NOT NULL DROP TABLE [{tableName}];";
+            using (var cmdDrop = new SqlCommand(dropSql, conn, tran))
+                cmdDrop.ExecuteNonQuery();
+
+            var colDefs = new List<string>();
+            foreach (DataColumn col in schema.Columns)
+                colDefs.Add($"[{col.ColumnName}] {MapSqlType(col.DataType)}");
+
+            string createSql = $"CREATE TABLE [{tableName}] ({string.Join(", ", colDefs)});";
+            using (var cmdCreate = new SqlCommand(createSql, conn, tran))
+                cmdCreate.ExecuteNonQuery();
+        }
+        public void BulkInsert(string tableName, DataTable data)
+        {
+            ValidateTableName(tableName);
+            if (data == null || data.Rows.Count == 0) return;
+
+            using (var conn = new SqlConnection(_sql.B7R2_FCCdb))
+            {
+                conn.Open();
+                BulkInsertCore(conn, null, tableName, data);
+            }
+        }
+        /// <summary>
+        /// Bản CÓ TRANSACTION — dùng đúng Connection/Transaction đang mở, để
+        /// SqlBulkCopy tham gia cùng giao dịch với DropCreate/CallPhieuSP, thay vì
+        /// tự mở connection riêng gây lock-wait/deadlock chéo connection.
+        /// </summary>
+        public void BulkInsert(SqlConnection conn, SqlTransaction tran, string tableName, DataTable data)
+        {
+            ValidateTableName(tableName);
+            RequireConnTran(conn, tran);
+            if (data == null || data.Rows.Count == 0) return;
+
+            BulkInsertCore(conn, tran, tableName, data);
+        }
+        private static void BulkInsertCore(SqlConnection conn, SqlTransaction tran, string tableName, DataTable data)
+        {
+            // SqlBulkCopy nhận tran=null vẫn hợp lệ (chạy ngoài transaction) —
+            // constructor này chấp nhận cả 2 trường hợp mà không cần "if" riêng.
+            using (var bulkCopy = new SqlBulkCopy(conn, SqlBulkCopyOptions.Default, tran)
+            {
+                DestinationTableName = tableName,
+                BulkCopyTimeout = HeavySpTimeoutSeconds
+            })
+            {
+                foreach (DataColumn col in data.Columns)
+                    bulkCopy.ColumnMappings.Add(col.ColumnName, col.ColumnName);
+                bulkCopy.WriteToServer(data);
+            }
+        }
         private static string MapSqlType(Type clrType)
         {
             if (clrType == typeof(string)) return "NVARCHAR(500)";
@@ -361,38 +403,74 @@ namespace PCTP.Modules.GiaoHangKhach
             if (clrType == typeof(bool)) return "BIT";
             return "NVARCHAR(500)"; // fallback an toàn cho các kiểu chưa liệt kê
         }
-        public DataTable CallPhieuSP(
-           string procedureName,
-           string ngayGiao,
-           string nhaMay,
-           string gioFcc,
-           int addNm,
-           PhieuTableSet tables)
-        {
-            if (tables == null)
-                throw new ArgumentNullException(nameof(tables));
+        // ============================================================
+        // CallPhieuSP — helper dùng chung cho các SP "LOAD_PHIEU_DOCQR*"
+        // (được PhieuTmpRepository.LuuVaLoad gọi để nạp đơn hàng vào TMP)
+        // ============================================================
 
-            // ✅ FIX: "Usp_Qrcode_LOAD_PHIEU_DOCQRView2405" dùng tên tham số KHÁC với các
-            // SP còn lại — @TENBAN (không phải @TMPTABLE) và @IFSVIEW (không phải @IFSTABLE).
-            // CallPhieuSP là helper DÙNG CHUNG cho nhiều SP (LuuVaLoad gọi với tenSP tuỳ
-            // caller truyền vào), nên phải rẽ theo tên SP thay vì hardcode 1 bộ tên tham số —
-            // trước đây luôn gửi @TMPTABLE/@IFSTABLE, làm SP...View2405 báo lỗi
-            // "@TMPTABLE is not a parameter for procedure ...".
+        /// <summary>
+        /// Gọi SP nạp phiếu (Usp_Qrcode_LOAD_PHIEU_DOCQR2405 hoặc biến thể
+        /// ...View2405) — KHÔNG transaction. Tự mở/đóng connection riêng.
+        /// ⚠️ KHÔNG dùng bên trong LuuVaLoad (đã có Uow.Begin() mở sẵn) — dùng
+        /// overload (conn, tran) bên dưới để tham gia đúng transaction đang mở.
+        /// </summary>
+        public DataTable CallPhieuSP(
+            string procedureName,
+            string ngayGiao, string nhaMay, string gioFcc, int addNm,
+            PhieuTableSet tables)
+        {
+            if (tables == null) throw new ArgumentNullException(nameof(tables));
+
+            var parameters = BuildPhieuSPParameters(procedureName, ngayGiao, nhaMay, gioFcc, addNm, tables);
+            return ExecuteStoredProcedure(procedureName, parameters);
+        }
+
+        /// <summary>
+        /// Bản CÓ TRANSACTION — dùng đúng Connection/Transaction đang mở (vd. từ
+        /// SqlRepositoryBase.Uow trong PhieuTmpRepository.LuuVaLoad), để SP này
+        /// thực sự tham gia cùng 1 giao dịch với DropCreate/BulkInsert phía trước,
+        /// thay vì tự mở connection riêng gây lock-wait/deadlock chéo connection.
+        /// </summary>
+        public DataTable CallPhieuSP(
+            SqlConnection conn, SqlTransaction tran,
+            string procedureName,
+            string ngayGiao, string nhaMay, string gioFcc, int addNm,
+            PhieuTableSet tables)
+        {
+            if (tables == null) throw new ArgumentNullException(nameof(tables));
+            RequireConnTran(conn, tran);
+
+            var parameters = BuildPhieuSPParameters(procedureName, ngayGiao, nhaMay, gioFcc, addNm, tables);
+            return ExecuteStoredProcedure(conn, tran, procedureName, parameters);
+        }
+
+        /// <summary>
+        /// Dựng bộ tham số dùng chung cho cả 2 overload CallPhieuSP — tách riêng
+        /// để không lặp logic rẽ nhánh isViewVariant ở 2 nơi.
+        /// </summary>
+        private static SqlParameter[] BuildPhieuSPParameters(
+            string procedureName, string ngayGiao, string nhaMay, string gioFcc,
+            int addNm, PhieuTableSet tables)
+        {
+            // "Usp_Qrcode_LOAD_PHIEU_DOCQRView2405" dùng tên tham số KHÁC với các
+            // SP còn lại — @TENBAN (không phải @TMPTABLE) và @IFSVIEW (không phải
+            // @IFSTABLE). Rẽ theo tên SP thay vì hardcode 1 bộ tên tham số.
             bool isViewVariant = procedureName != null &&
                 procedureName.EndsWith("View2405", StringComparison.OrdinalIgnoreCase);
 
             string tmpTableParamName = isViewVariant ? "@TENBAN" : "@TMPTABLE";
             string ifsTableParamName = isViewVariant ? "@IFSVIEW" : "@IFSTABLE";
 
-            return ExecuteStoredProcedure(
-                procedureName,
-                new SqlParameter("@NGAYGIAO", SqlDbType.NVarChar, 20) { Value = (object)ngayGiao ?? DBNull.Value },
-                new SqlParameter("@NHAMAY", SqlDbType.NVarChar, 50) { Value = (object)nhaMay ?? DBNull.Value },
-                new SqlParameter("@GIOFCC", SqlDbType.NVarChar, 200) { Value = (object)gioFcc ?? DBNull.Value },
-                new SqlParameter("@ADDNM", SqlDbType.Int) { Value = addNm },
-                new SqlParameter(tmpTableParamName, SqlDbType.NVarChar, 100) { Value = tables.TmpTable },
-                new SqlParameter(ifsTableParamName, SqlDbType.NVarChar, 100) { Value = tables.SourceTable },
-                new SqlParameter("@DOCQRTABLE", SqlDbType.NVarChar, 100) { Value = tables.DocQRTable });
+            return new[]
+            {
+        new SqlParameter("@NGAYGIAO", SqlDbType.NVarChar, 20) { Value = (object)ngayGiao ?? DBNull.Value },
+        new SqlParameter("@NHAMAY", SqlDbType.NVarChar, 50) { Value = (object)nhaMay ?? DBNull.Value },
+        new SqlParameter("@GIOFCC", SqlDbType.NVarChar, 200) { Value = (object)gioFcc ?? DBNull.Value },
+        new SqlParameter("@ADDNM", SqlDbType.Int) { Value = addNm },
+        new SqlParameter(tmpTableParamName, SqlDbType.NVarChar, 100) { Value = tables.TmpTable },
+        new SqlParameter(ifsTableParamName, SqlDbType.NVarChar, 100) { Value = tables.SourceTable },
+        new SqlParameter("@DOCQRTABLE", SqlDbType.NVarChar, 100) { Value = tables.DocQRTable }
+    };
         }
     }
 }

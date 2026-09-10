@@ -11,7 +11,10 @@ namespace PCTP.Modules.GiaoHangKhach.Intefaces
     {
         DataTable GetAll();
         bool GetEnforceFifo(string itemCode);
-        void Upsert(string itemCode, bool enforceFifo);
-        void Delete(string itemCode);
+        void Upsert(string itemCode, bool enforceFifo, string nguoiThucHien);   // ★ SỬA — thêm tham số
+        void Delete(string itemCode, string nguoiThucHien);                     // ★ SỬA — thêm tham số
+        DataTable GetHistory(string itemCode);                                  // ★ MỚI
+
+        DataTable GetDanhSachMaHangKhaDung();
     }
 }

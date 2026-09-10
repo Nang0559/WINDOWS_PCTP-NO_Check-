@@ -6,6 +6,7 @@ using DevExpress.XtraGrid.Views.Grid;
 using PCTP.ClassSQL;
 using PCTP.Modules.GiaoHangKhach.Intefaces;
 using PCTP.Modules.GiaoHangKhach.Repositories;
+using PCTP.Shared.Common;   // ★ THÊM — IUnitOfWork
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -24,11 +25,9 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
     public partial class FormItemFifoConfig : XtraForm
     {
         private readonly IItemFifoConfigRepository _repo;
-
         private GridControl _grid;
         private GridView _gridView;
         private DataTable _dt;
-
         private SimpleButton _btnThem;
         private SimpleButton _btnXoa;
         private SimpleButton _btnLuu;
@@ -37,18 +36,31 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
 
         // ── Ctor mặc định: tự dựng dependency, dùng khi mở form từ menu ─────
         public FormItemFifoConfig()
-            : this(new ItemFifoConfigRepository(new PhieuSqlExecutor(new SQLPROVIDER())))
+            : this(CreateDefaultRepo())
         {
+        }
+
+        // ★ SỬA — tách factory riêng, dùng CHUNG 1 SQLPROVIDER cho cả
+        // PhieuSqlExecutor và UnitOfWork (đúng nguyên tắc "1 phiên làm việc =
+        // 1 kết nối logic" áp dụng xuyên suốt project).
+        private static IItemFifoConfigRepository CreateDefaultRepo()
+        {
+            var provider = new SQLPROVIDER();
+            var sql = new PhieuSqlExecutor(provider);
+            var uow = new UnitOfWork(provider);
+            return new ItemFifoConfigRepository(sql, uow);
         }
 
         // ── Ctor cho phép inject repo (test/tái sử dụng) ─────────────────────
         public FormItemFifoConfig(IItemFifoConfigRepository repo)
         {
             _repo = repo ?? throw new ArgumentNullException(nameof(repo));
-
             BuildUI();
             LoadData();
         }
+
+        // ★ THÊM — người thực hiện = tên máy, dùng chung cho Upsert/Delete
+        private static string NguoiThucHien => System.Net.Dns.GetHostName();
 
         // ════════════════════════════════════════════════════════════════
         // Dựng UI
@@ -116,7 +128,6 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
             _gridView = new GridView(_grid);
             _grid.MainView = _gridView;
             _grid.ViewCollection.Add(_gridView);
-
             _gridView.OptionsBehavior.Editable = true;
             _gridView.OptionsView.ShowGroupPanel = false;
             _gridView.OptionsView.ColumnAutoWidth = false;
@@ -133,7 +144,6 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
             try
             {
                 _dt = _repo.GetAll();
-
                 if (!_dt.Columns.Contains("_IsNew"))
                     _dt.Columns.Add("_IsNew", typeof(bool));
 
@@ -173,8 +183,29 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
             _grid.RepositoryItems.Add(riCheck);
             colEnforce.ColumnEdit = riCheck;
 
-            //_gridView.Columns["_IsNew"].Visible = false;
+            // ★ THÊM — hiển thị thông tin cập nhật gần nhất (giờ đã có sẵn từ
+            // GetAll() sau khi ItemFifoConfigRepository trả thêm UpdatedAt/UpdatedBy)
+            if (_dt.Columns.Contains("UpdatedAt"))
+            {
+                GridColumn colUpdatedAt = _gridView.Columns.AddField("UpdatedAt");
+                colUpdatedAt.Caption = "Cập nhật lúc";
+                colUpdatedAt.Visible = true;
+                colUpdatedAt.OptionsColumn.AllowEdit = false;
+                colUpdatedAt.Width = 130;
+                colUpdatedAt.DisplayFormat.FormatType = DevExpress.Utils.FormatType.DateTime;
+                colUpdatedAt.DisplayFormat.FormatString = "dd/MM/yyyy HH:mm";
+            }
 
+            if (_dt.Columns.Contains("UpdatedBy"))
+            {
+                GridColumn colUpdatedBy = _gridView.Columns.AddField("UpdatedBy");
+                colUpdatedBy.Caption = "Máy cập nhật";
+                colUpdatedBy.Visible = true;
+                colUpdatedBy.OptionsColumn.AllowEdit = false;
+                colUpdatedBy.Width = 130;
+            }
+
+            //_gridView.Columns["_IsNew"].Visible = false;
             _gridView.BestFitColumns();
         }
 
@@ -185,9 +216,10 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
         {
             try
             {
-                var sql = new SQLPROVIDER();
-                DataTable dsMaHang = sql.LoadData1(sql.B7R2_FCCdb,
-                    "SELECT Code, Name FROM B20Item WHERE LEN(Code) > 0 ORDER BY Code");
+                // ★ SỬA — qua repository thay vì tự new SQLPROVIDER() query trực tiếp
+                // trong Form (vi phạm Form → Service/Repository). Thêm method mới
+                // GetDanhSachMaHangKhaDung() vào IItemFifoConfigRepository.
+                DataTable dsMaHang = _repo.GetDanhSachMaHangKhaDung();
 
                 using (var frm = new FormChonMaHang(dsMaHang))
                 {
@@ -201,6 +233,7 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
                         .Any(r => string.Equals(
                             r["ItemCode"].ToString().Trim(), ma,
                             StringComparison.OrdinalIgnoreCase));
+
                     if (trung)
                     {
                         XtraMessageBox.Show("Mã hàng này đã có trong danh sách.",
@@ -213,8 +246,8 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
                     row["TenHang"] = frm.SelectedItemName ?? "";
                     row["EnforceFifo"] = false;
                     row["_IsNew"] = true;
-                    _dt.Rows.Add(row);
 
+                    _dt.Rows.Add(row);
                     _gridView.RefreshData();
                 }
             }
@@ -242,8 +275,10 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
 
             try
             {
-                _repo.Delete(ma);
+                // ★ SỬA — thêm NguoiThucHien (tên máy) để ghi vào bảng lịch sử
+                _repo.Delete(ma, NguoiThucHien);
                 _gridView.DeleteRow(handle);
+
                 XtraMessageBox.Show("Đã xóa.", "Thông báo",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
@@ -275,14 +310,15 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
                     bool enforce = row["EnforceFifo"] != DBNull.Value
                         && Convert.ToBoolean(row["EnforceFifo"]);
 
-                    _repo.Upsert(ma, enforce);
+                    // ★ SỬA — thêm NguoiThucHien (tên máy)
+                    _repo.Upsert(ma, enforce, NguoiThucHien);
                     soLuong++;
                 }
 
                 XtraMessageBox.Show($"Đã lưu {soLuong} mã hàng.",
                     "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
-                LoadData(); // reload để đồng bộ lại _IsNew, thứ tự...
+                LoadData(); // reload để đồng bộ lại _IsNew, thứ tự, UpdatedAt/UpdatedBy...
             }
             catch (Exception ex)
             {
@@ -294,6 +330,7 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
 
     // ════════════════════════════════════════════════════════════════════
     // Dialog chọn mã hàng đơn giản — dùng cho nút "Thêm Mã Hàng"
+    // (giữ nguyên 100%, không có thay đổi gì liên quan)
     // ════════════════════════════════════════════════════════════════════
     internal sealed class FormChonMaHang : XtraForm
     {
@@ -341,7 +378,6 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
         private void ChonDongHienTai()
         {
             if (_gridView.FocusedRowHandle < 0) return;
-
             SelectedItemCode = _gridView.GetFocusedRowCellDisplayText("Code");
             SelectedItemName = _gridView.GetFocusedRowCellDisplayText("Name");
             this.DialogResult = DialogResult.OK;

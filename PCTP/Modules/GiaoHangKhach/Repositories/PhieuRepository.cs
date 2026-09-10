@@ -103,6 +103,8 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
 
         public List<FifoViolation> CheckFifoViolations(string tenBangTmp)
     => _validation.CheckFifoViolations(tenBangTmp);
+        public DataTable SoSanhLechIFS(DataTable donHang, string ifsTable)
+        => _validation.SoSanhLechIFS(donHang, ifsTable);
 
         #endregion
 

@@ -144,7 +144,11 @@ namespace PCTP.Presentation.Presenters
                     _view.BindDonHang(e.DonHangTable);
                     _view.BindHangThieu(e.HangThieuTable);
                     _view.SetGridCaption(e.Caption);
-
+                    if (_cfg.LoadTuBangRieng)
+                    {
+                        DataTable lechDt = _phieuSvc.TinhLechIFS(e.DonHangTable);
+                        _view.BindLechIFS(lechDt);
+                    }
                     // 2. Kiểm tra các điều kiện logic nghiệp vụ
                     bool coMaNG = e.CoMaNG;
                     bool showCNK = _phieuSvc.CheckCanCapNhapKho(e.DonHangTable);
@@ -157,7 +161,8 @@ namespace PCTP.Presentation.Presenters
                         showKiemTraMaNG: coMaNG && _isMayBanQR,
                         showGhepLot: _isMayBanQR,
                         showDocQRCode: _isMayBanQR,  // YMVN không có DOC QRCODE
-                        showLayLaiLot: showLayLai);
+                        showLayLaiLot: showLayLai,
+                        showHangThieuCaNgay: !_cfg.LoadTuBangRieng);
 
                     // ✅ FIX: đây mới là điểm HOÀN TẤT thật sự của 1 lượt LoadPhieu —
                     // hết chờ, đóng WaitForm thật (không qua HideLoadingUnlessAwaitingPhieuLoad,
@@ -245,7 +250,8 @@ namespace PCTP.Presentation.Presenters
                 showKiemTraMaNG: coMaNG && _isMayBanQR,
                 showGhepLot: _isMayBanQR,
                 showDocQRCode: _isMayBanQR && !_cfg.CoGear,
-                showLayLaiLot: showLayLai && _isMayBanQR);
+                showLayLaiLot: showLayLai && _isMayBanQR,
+                showHangThieuCaNgay: !_cfg.LoadTuBangRieng);
         }
         private void OnTinhTongCompleted(TinhTongCompletedEvent e)
         {
@@ -1117,18 +1123,7 @@ namespace PCTP.Presentation.Presenters
             // ── BƯỚC 2: Gọi Service ──────────────────────────────────────────
             try
             {
-                //if (_cfg.CoGear)
-                //{
-                //    _phieuSvc.LoadPhieuYMVN_Internal(
-                //        ngayGiao, checkedGios, isLoaiSP,
-                //        _isMayBanQR, _isBanQR);
-                //}
-                //else
-                //{
-                //    _phieuSvc.LoadPhieu(
-                //        ngayGiao, nhaMay, gioMa, gioMoTa,
-                //        _addNM, _isMayBanQR, _isBanQR);
-                //}
+               
                 // ✅ FIX: đánh dấu đang chờ OnPhieuLoaded TRƯỚC khi gọi — cả 2 nhánh dưới
                 // đây chỉ publish PhieuLoadedEvent rồi return ngay, UI thật sự cập nhật sau.
                 _awaitingPhieuLoadedEvent = true;
@@ -1319,7 +1314,8 @@ namespace PCTP.Presentation.Presenters
                 showDocQRCode: _isMayBanQR,
                 // ✅ THỐNG NHẤT LOGIC: Ép thêm điều kiện thiết bị và trạng thái quét QR ở đây
                 showLayLaiLot: showLayLaiLot && _isMayBanQR && !_isBanQR,
-                showStop: showStop);
+                showStop: showStop,
+                showHangThieuCaNgay: !_cfg.LoadTuBangRieng);
         }
     }
 

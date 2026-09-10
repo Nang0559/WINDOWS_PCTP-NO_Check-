@@ -44,7 +44,7 @@ namespace PCTP.Presentation.Views
         void SetupPhieuButtons(bool showCapNhapKho, bool showKiemTraMaNG,
                         bool showGhepLot, bool showDocQRCode,
                         bool showLayLaiLot,
-                        bool showStop = false);
+                        bool showStop = false, bool showHangThieuCaNgay = true);
         // Thêm vào IHVNView:
         void SetDate(DateTime date);
         void SetTab(int addNM);                    // chuyển tab VP/HN
@@ -92,6 +92,8 @@ namespace PCTP.Presentation.Views
         // ════════════════════════════════════════════════════════════════════
         bool CoLotDeLuuKho();
         bool CoHangChuaOK();
+
+        void BindLechIFS(DataTable dt);
 
         // ════════════════════════════════════════════════════════════════════
         // VI. DIALOG PHỨC TẠP

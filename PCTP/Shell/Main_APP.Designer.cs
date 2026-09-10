@@ -1003,7 +1003,7 @@
         series1,
         series2,
         series3};
-            this.CharHVN.Size = new System.Drawing.Size(985, 475);
+            this.CharHVN.Size = new System.Drawing.Size(1231, 594);
             this.CharHVN.SmallChartText.TextColor = System.Drawing.Color.FromArgb(((int)(((byte)(255)))), ((int)(((byte)(255)))), ((int)(((byte)(255)))));
             this.CharHVN.TabIndex = 5;
             // 
@@ -1069,7 +1069,7 @@
         series4,
         series5,
         series6};
-            this.CharYMVN.Size = new System.Drawing.Size(1381, 718);
+            this.CharYMVN.Size = new System.Drawing.Size(1726, 898);
             this.CharYMVN.SmallChartText.TextColor = System.Drawing.Color.FromArgb(((int)(((byte)(255)))), ((int)(((byte)(255)))), ((int)(((byte)(255)))));
             this.CharYMVN.TabIndex = 6;
             // 

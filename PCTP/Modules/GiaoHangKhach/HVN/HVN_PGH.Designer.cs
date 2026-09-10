@@ -33,7 +33,7 @@ namespace PCTP.QRCODE_HVN.PGH
         private void InitializeComponent()
         {
             this.components = new System.ComponentModel.Container();
-            DevExpress.XtraBars.Docking2010.WindowsUIButtonImageOptions windowsUIButtonImageOptions1 = new DevExpress.XtraBars.Docking2010.WindowsUIButtonImageOptions();
+            DevExpress.XtraBars.Docking2010.WindowsUIButtonImageOptions windowsUIButtonImageOptions2 = new DevExpress.XtraBars.Docking2010.WindowsUIButtonImageOptions();
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(HVN_PGH));
             this.PN_MAIN_TOP = new DevExpress.XtraEditors.PanelControl();
             this.PN_DOCQR_TOP = new System.Windows.Forms.Panel();
@@ -119,6 +119,13 @@ namespace PCTP.QRCODE_HVN.PGH
             this.gridVSUASL = new DevExpress.XtraGrid.Views.Grid.GridView();
             this.imageBT = new DevExpress.Utils.ImageCollection(this.components);
             this.sidePanel2 = new DevExpress.XtraEditors.SidePanel();
+            this.gridCLECH = new DevExpress.XtraGrid.GridControl();
+            this.bandedGridViewLECH = new DevExpress.XtraGrid.Views.BandedGrid.BandedGridView();
+            this.colLechMaHang = new DevExpress.XtraGrid.Views.BandedGrid.BandedGridColumn();
+            this.colLechTenHang = new DevExpress.XtraGrid.Views.BandedGrid.BandedGridColumn();
+            this.colLechSoLuong = new DevExpress.XtraGrid.Views.BandedGrid.BandedGridColumn();
+            this.colLechNguon = new DevExpress.XtraGrid.Views.BandedGrid.BandedGridColumn();
+            this.gridBandLECH = new DevExpress.XtraGrid.Views.BandedGrid.GridBand();
             ((System.ComponentModel.ISupportInitialize)(this.PN_MAIN_TOP)).BeginInit();
             this.PN_MAIN_TOP.SuspendLayout();
             this.PN_DOCQR_TOP.SuspendLayout();
@@ -156,6 +163,8 @@ namespace PCTP.QRCODE_HVN.PGH
             ((System.ComponentModel.ISupportInitialize)(this.gridVSUASL)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.imageBT)).BeginInit();
             this.sidePanel2.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.gridCLECH)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.bandedGridViewLECH)).BeginInit();
             this.SuspendLayout();
             // 
             // PN_MAIN_TOP
@@ -298,7 +307,7 @@ namespace PCTP.QRCODE_HVN.PGH
             this.groupControl1.Location = new System.Drawing.Point(0, 0);
             this.groupControl1.Margin = new System.Windows.Forms.Padding(4, 2, 4, 2);
             this.groupControl1.Name = "groupControl1";
-            this.groupControl1.Size = new System.Drawing.Size(1551, 85);
+            this.groupControl1.Size = new System.Drawing.Size(1939, 106);
             this.groupControl1.TabIndex = 0;
             this.groupControl1.Text = "KHUNG GIỜ";
             // 
@@ -308,7 +317,7 @@ namespace PCTP.QRCODE_HVN.PGH
             this.RDO_GXHN.Location = new System.Drawing.Point(2, 28);
             this.RDO_GXHN.Margin = new System.Windows.Forms.Padding(4, 2, 4, 2);
             this.RDO_GXHN.Name = "RDO_GXHN";
-            this.RDO_GXHN.Size = new System.Drawing.Size(1547, 55);
+            this.RDO_GXHN.Size = new System.Drawing.Size(1935, 76);
             this.RDO_GXHN.TabIndex = 0;
             // 
             // tabVP
@@ -342,7 +351,7 @@ namespace PCTP.QRCODE_HVN.PGH
             // UIButtonHOME
             // 
             this.UIButtonHOME.Buttons.AddRange(new DevExpress.XtraEditors.ButtonPanel.IBaseButton[] {
-            new DevExpress.XtraBars.Docking2010.WindowsUIButton("HOME", true, windowsUIButtonImageOptions1, DevExpress.XtraBars.Docking2010.ButtonStyle.PushButton, "", -1, true, null, true, false, true, null, -1, false)});
+            new DevExpress.XtraBars.Docking2010.WindowsUIButton("HOME", true, windowsUIButtonImageOptions2, DevExpress.XtraBars.Docking2010.ButtonStyle.PushButton, "", -1, true, null, true, false, true, null, -1, false)});
             this.UIButtonHOME.Dock = System.Windows.Forms.DockStyle.Left;
             this.UIButtonHOME.Location = new System.Drawing.Point(0, 0);
             this.UIButtonHOME.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
@@ -1115,6 +1124,7 @@ namespace PCTP.QRCODE_HVN.PGH
             // 
             // sidePanel4
             // 
+            this.sidePanel4.Controls.Add(this.gridCLECH);
             this.sidePanel4.Controls.Add(this.gridCTTGL);
             this.sidePanel4.Controls.Add(this.gridCtrSUASL);
             this.sidePanel4.Dock = System.Windows.Forms.DockStyle.Left;
@@ -1174,6 +1184,76 @@ namespace PCTP.QRCODE_HVN.PGH
             this.sidePanel2.TabIndex = 4;
             this.sidePanel2.Text = "sidePanel2";
             // 
+            // gridCLECH
+            // 
+            this.gridCLECH.Location = new System.Drawing.Point(2, -1);
+            this.gridCLECH.MainView = this.bandedGridViewLECH;
+            this.gridCLECH.Name = "gridCLECH";
+            this.gridCLECH.Size = new System.Drawing.Size(389, 134);
+            this.gridCLECH.TabIndex = 3;
+            this.gridCLECH.ViewCollection.AddRange(new DevExpress.XtraGrid.Views.Base.BaseView[] {
+            this.bandedGridViewLECH});
+            this.gridCLECH.Visible = false;
+            // 
+            // bandedGridViewLECH
+            // 
+            this.bandedGridViewLECH.Bands.AddRange(new DevExpress.XtraGrid.Views.BandedGrid.GridBand[] {
+            this.gridBandLECH});
+            this.bandedGridViewLECH.Columns.AddRange(new DevExpress.XtraGrid.Views.BandedGrid.BandedGridColumn[] {
+            this.colLechMaHang,
+            this.colLechTenHang,
+            this.colLechSoLuong,
+            this.colLechNguon});
+            this.bandedGridViewLECH.GridControl = this.gridCLECH;
+            this.bandedGridViewLECH.Name = "bandedGridViewLECH";
+            // 
+            // colLechMaHang
+            // 
+            this.colLechMaHang.Caption = "Mã Hàng";
+            this.colLechMaHang.FieldName = "MAHANG";
+            this.colLechMaHang.MinWidth = 25;
+            this.colLechMaHang.Name = "colLechMaHang";
+            this.colLechMaHang.Visible = true;
+            this.colLechMaHang.Width = 100;
+            // 
+            // colLechTenHang
+            // 
+            this.colLechTenHang.Caption = "Tên Hàng";
+            this.colLechTenHang.FieldName = "TENHANG";
+            this.colLechTenHang.MinWidth = 25;
+            this.colLechTenHang.Name = "colLechTenHang";
+            this.colLechTenHang.Visible = true;
+            this.colLechTenHang.Width = 120;
+            // 
+            // colLechSoLuong
+            // 
+            this.colLechSoLuong.Caption = "Số Lượng";
+            this.colLechSoLuong.FieldName = "SOLUONG";
+            this.colLechSoLuong.MinWidth = 25;
+            this.colLechSoLuong.Name = "colLechSoLuong";
+            this.colLechSoLuong.Visible = true;
+            this.colLechSoLuong.Width = 70;
+            // 
+            // colLechNguon
+            // 
+            this.colLechNguon.Caption = "Nguồn Lệch";
+            this.colLechNguon.FieldName = "NGUON_LECH";
+            this.colLechNguon.MinWidth = 25;
+            this.colLechNguon.Name = "colLechNguon";
+            this.colLechNguon.Visible = true;
+            this.colLechNguon.Width = 130;
+            // 
+            // gridBandLECH
+            // 
+            this.gridBandLECH.Caption = "LỆCH GIỮA IFS VÀ THỰC TẾ";
+            this.gridBandLECH.Columns.Add(this.colLechNguon);
+            this.gridBandLECH.Columns.Add(this.colLechMaHang);
+            this.gridBandLECH.Columns.Add(this.colLechTenHang);
+            this.gridBandLECH.Columns.Add(this.colLechSoLuong);
+            this.gridBandLECH.Name = "gridBandLECH";
+            this.gridBandLECH.VisibleIndex = 0;
+            this.gridBandLECH.Width = 420;
+            // 
             // HVN_PGH
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 16F);
@@ -1228,6 +1308,8 @@ namespace PCTP.QRCODE_HVN.PGH
             ((System.ComponentModel.ISupportInitialize)(this.gridVSUASL)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.imageBT)).EndInit();
             this.sidePanel2.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)(this.gridCLECH)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.bandedGridViewLECH)).EndInit();
             this.ResumeLayout(false);
 
         }
@@ -1319,5 +1401,12 @@ namespace PCTP.QRCODE_HVN.PGH
         private CheckedListBoxControl CheckGX;
         private DevExpress.XtraGrid.Views.BandedGrid.BandedGridColumn bandedGridColumn9;
         private DevExpress.XtraGrid.Views.BandedGrid.GridBand gridBandDH;
+        private DevExpress.XtraGrid.GridControl gridCLECH;
+        private DevExpress.XtraGrid.Views.BandedGrid.BandedGridView bandedGridViewLECH;
+        private DevExpress.XtraGrid.Views.BandedGrid.GridBand gridBandLECH;
+        private DevExpress.XtraGrid.Views.BandedGrid.BandedGridColumn colLechNguon;
+        private DevExpress.XtraGrid.Views.BandedGrid.BandedGridColumn colLechMaHang;
+        private DevExpress.XtraGrid.Views.BandedGrid.BandedGridColumn colLechTenHang;
+        private DevExpress.XtraGrid.Views.BandedGrid.BandedGridColumn colLechSoLuong;
     }
 }

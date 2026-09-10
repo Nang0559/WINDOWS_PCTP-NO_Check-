@@ -62,33 +62,34 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         // LuuVaLoad
         // ============================================================
         public DataTable LuuVaLoad(
-            PhieuTableSet tables, string tenSP, DataTable donHang,
-            string ngayGiao, string nhaMay, string gioFcc, int addNm)
+    PhieuTableSet tables, string tenSP, DataTable donHang,
+    string ngayGiao, string nhaMay, string gioFcc, int addNm)
         {
             if (tables == null) throw new ArgumentNullException(nameof(tables));
             if (donHang == null) throw new ArgumentNullException(nameof(donHang));
-
             Db.ValidateTableName(tables.TmpTable);
             Db.ValidateTableName(tables.SourceTable);
             Db.ValidateTableName(tables.DocQRTable);
-
             ConvertDateTimeColumns(donHang);
 
             bool ownTransaction = !HasTransaction;
             if (ownTransaction) Uow.Begin();
             try
             {
+                // ✅ FIX: cả 3 bước giờ dùng CHUNG Connection/Transaction của Uow —
+                // không còn mở connection riêng, loại bỏ lock-wait/deadlock chéo
+                // connection từng khiến CallPhieuSP treo vô thời hạn không exception.
                 SWLog.Measure($"4b. DropCreate [{tables.SourceTable}]",
-                    () => Db.DropCreate(tables.SourceTable, donHang));
+                    () => Db.DropCreate(Connection, Transaction, tables.SourceTable, donHang));
 
                 SWLog.Measure($"4c. BulkInsert {donHang.Rows.Count} rows → [{tables.SourceTable}]",
-                    () => Db.BulkInsert(tables.SourceTable, donHang));
+                    () => Db.BulkInsert(Connection, Transaction, tables.SourceTable, donHang));
 
                 SWLog.Measure($"4d. Guard DELETE [{tables.TmpTable}]",
                     () => GuardDeleteTmp(tables.TmpTable, tables.DocQRTable));
 
                 var result = SWLog.Measure($"4e. CallSP [{tenSP}]",
-                    () => Db.CallPhieuSP(tenSP, ngayGiao, nhaMay, gioFcc, addNm, tables));
+                    () => Db.CallPhieuSP(Connection, Transaction, tenSP, ngayGiao, nhaMay, gioFcc, addNm, tables));
 
                 if (ownTransaction) Uow.Commit();
                 return result;

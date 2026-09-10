@@ -202,7 +202,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
 
         public DataTable LoadGhepLot(string tenBan, string ifsTable)
      => ExecuteStoredProcedure("Usp_Qrcode_gheplot",
-         new SqlParameter("@TENBAN", tenBan),
+         new SqlParameter("@TMPTABLE", tenBan),
          new SqlParameter("@IFSTABLE", ifsTable));
 
         // ============================================================

@@ -464,6 +464,60 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
 
             return result;
         }
+        public DataTable SoSanhLechIFS(DataTable donHangBangRieng, string ifsTable)
+        {
+            var result = new DataTable();
+            result.Columns.Add("MAHANG", typeof(string));
+            result.Columns.Add("TENHANG", typeof(string));
+            result.Columns.Add("SOLUONG", typeof(int));
+            result.Columns.Add("NGUON_LECH", typeof(string));
+
+            Db.ValidateTableName(ifsTable);
+
+            // ── 1. Mã hàng phía Bảng Riêng (donHang đang hiển thị trên phiếu) ──
+            var maBangRieng = new Dictionary<string, (string TenHang, int SoLuong)>(StringComparer.OrdinalIgnoreCase);
+            if (donHangBangRieng != null)
+            {
+                foreach (DataRow row in donHangBangRieng.Rows)
+                {
+                    string ma = row.Table.Columns.Contains("MAHANG")
+                        ? row["MAHANG"]?.ToString().Trim() ?? "" : "";
+                    if (string.IsNullOrEmpty(ma) || maBangRieng.ContainsKey(ma)) continue;
+
+                    string ten = row.Table.Columns.Contains("TENHANG")
+                        ? row["TENHANG"]?.ToString().Trim() ?? "" : "";
+                    int sl = row.Table.Columns.Contains("SOLUONG") && row["SOLUONG"] != DBNull.Value
+                        ? Convert.ToInt32(row["SOLUONG"]) : 0;
+
+                    maBangRieng[ma] = (ten, sl);
+                }
+            }
+
+            // ── 2. Mã hàng phía IFS (bảng đã upload cho phiên hiện tại) ──
+            DataTable ifsDt = LoadData($"SELECT MAHANG, TENHANG, SOLUONG FROM [{ifsTable}]");
+            var maIfs = new Dictionary<string, (string TenHang, int SoLuong)>(StringComparer.OrdinalIgnoreCase);
+            foreach (DataRow row in ifsDt.Rows)
+            {
+                string ma = row["MAHANG"]?.ToString().Trim() ?? "";
+                if (string.IsNullOrEmpty(ma) || maIfs.ContainsKey(ma)) continue;
+
+                string ten = row["TENHANG"]?.ToString().Trim() ?? "";
+                int sl = row["SOLUONG"] != DBNull.Value ? Convert.ToInt32(row["SOLUONG"]) : 0;
+                maIfs[ma] = (ten, sl);
+            }
+
+            // ── 3. Mã có ở Bảng Riêng nhưng KHÔNG có ở IFS ──
+            foreach (var kv in maBangRieng)
+                if (!maIfs.ContainsKey(kv.Key))
+                    result.Rows.Add(kv.Key, kv.Value.TenHang, kv.Value.SoLuong, "Chỉ có ở Bảng Riêng");
+
+            // ── 4. Mã có ở IFS nhưng KHÔNG có ở Bảng Riêng ──
+            foreach (var kv in maIfs)
+                if (!maBangRieng.ContainsKey(kv.Key))
+                    result.Rows.Add(kv.Key, kv.Value.TenHang, kv.Value.SoLuong, "Chỉ có ở IFS");
+
+            return result;
+        }
         #endregion
 
     }

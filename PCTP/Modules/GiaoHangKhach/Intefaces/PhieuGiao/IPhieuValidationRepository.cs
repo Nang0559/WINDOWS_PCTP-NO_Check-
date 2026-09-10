@@ -34,5 +34,8 @@ namespace PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao
         /// </summary>
         DataTable TinhHangThieuTuDonHang(DataTable donHang);
 
+
+        DataTable SoSanhLechIFS(DataTable donHangBangRieng, string ifsTable);
+
     }
 }
