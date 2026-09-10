@@ -1,248 +1,250 @@
--- ============================================================================  
--- Usp_Qrcode_gheplot — FIX Bug 1 + Bug 2 (xem WORKFLOW_GIAOHANGKHACH.md)  
---  
--- Bug 1 (lưới "Kiểm Tra Ghép Lot" trống ở máy view):  
---   Bản gốc hardcode TMPPHIEUGIAOHANG/IFSPHIEUGIAOHANG, không đọc đúng bảng  
---   riêng của máy view (CustomerConfig.GetTmpViewTable/GetIfsViewTable).  
---   → Thêm @TENBAN/@IFSTABLE, dùng dynamic SQL CHỈ cho 4 chỗ thực sự đụng  
---     bảng theo máy — phần logic ghép lot phức tạp (cursor DHT, STOCKTP,  
---     #TMPGHEPLOT) giữ NGUYÊN VĂN dạng tĩnh, không đổi 1 dòng nào, để không  
---     phải escape lại và không rủi ro gây sai lệch nghiệp vụ.  
---  
--- Bug 2 (2 máy chạy Ghép Lot cùng lúc đá nhau trên STOCKTP.SLCONLAITMP):  
---   STOCKTP.SLCONLAITMP là cột nháp DÙNG CHUNG toàn hệ thống (không phân  
---   theo máy) — SP dùng nó làm vùng tính toán tạm trong lúc duyệt cursor.  
---   → FIX AN TOÀN (ưu tiên đã chọn): sp_getapplock — chỉ 1 phiên được chạy  
---     đoạn đụng STOCKTP.SLCONLAITMP tại 1 thời điểm, các phiên khác phải  
---     đợi (timeout 15s rồi báo lỗi thay vì treo vô hạn hoặc chạy đè).  
---   → Hướng dứt điểm lâu dài (KHÔNG làm trong lần sửa này): bỏ hẳn cột nháp  
---     dùng chung, chuyển tính toán ghép lot sang tính trong bộ nhớ (app)  
---     hoặc cột nháp có phân biệt theo máy — ảnh hưởng cả họ SP  
---     Usp_Qrcode_Update_Stock2405/…View2405 đang dùng chung quy ước này,  
---     cần 1 đợt migrate riêng.  
--- ============================================================================  
 CREATE PROC [dbo].[Usp_Qrcode_gheplot]  
-    @TENBAN   NVARCHAR(128) = 'TMPPHIEUGIAOHANG',  
-    @IFSTABLE NVARCHAR(128) = 'IFSPHIEUGIAOHANG'  
+    @TMPTABLE  nvarchar(128) = N'TMPPHIEUGIAOHANG',  
+    @IFSTABLE  nvarchar(128) = N'IFSPHIEUGIAOHANG'  
 AS  
 BEGIN  
     SET NOCOUNT ON;  
   
-    -- Validate tên bảng: bắt buộc vì phải nối chuỗi thủ công cho dynamic SQL  
-    -- (không có cách tham số hoá tên bảng/tên đối tượng trong T-SQL).  
-    IF @TENBAN LIKE '%[^A-Za-z0-9_]%' OR @IFSTABLE LIKE '%[^A-Za-z0-9_]%'  
-    BEGIN  
-        RAISERROR('Tên bảng không hợp lệ.', 16, 1);  
-        RETURN;  
-    END  
-  
-    DECLARE @QTENBAN   SYSNAME = QUOTENAME(@TENBAN);  
-    DECLARE @QIFSTABLE SYSNAME = QUOTENAME(@IFSTABLE);  
-    DECLARE @sql NVARCHAR(MAX);  
-  
-    DECLARE @MAHANG NVARCHAR(56), @CUA NVARCHAR(10), @TRUYEN NVARCHAR(10), @SOLUONG INT,  
-            @NGAYGIAO SMALLDATETIME, @GIOGIAO NVARCHAR(50), @QCDG INT, @STT INT,  
-            @HT_LOT NVARCHAR(30), @HT_SL INT;  
+    DECLARE @MAHANG NVARCHAR(56), @SOLUONG INT, @NGAYGIAO SMALLDATETIME, @GIOGIAO NVARCHAR(50),  @EnforceFifo BIT = 0,
+            @QCDG INT, @STT INT, @HT_LOT NVARCHAR(30), @HT_SL INT, @SQL NVARCHAR(MAX);  
     SET @STT = 0;  
   
-    -- (a) Dựng #TMPGHEPLOT đúng shape của bảng TMP theo máy hiện tại.  
-    -- #temp table đã tự động scope theo session/connection gọi SP này, nên  
-    -- không cần thêm gì để tránh lẫn giữa các máy ở bước này.  
     IF OBJECT_ID('TempDb..#TMPGHEPLOT') IS NOT NULL DROP TABLE #TMPGHEPLOT;  
-    SET @sql = N'SELECT TOP 0 MAHANG AS MH, CUA AS GG, LOT AS LG INTO #TMPGHEPLOT FROM ' + @QTENBAN;  
-    EXEC sp_executesql @sql;  
   
-    -- ── Bug 2: khoá app-level trước khi đụng vào STOCKTP.SLCONLAITMP ────────  
-    DECLARE @lockResult INT;  
-    EXEC @lockResult = sp_getapplock  
-        @Resource    = 'GhepLot_STOCKTP_SLCONLAITMP',  
-        @LockMode    = 'Exclusive',  
-        @LockOwner   = 'Session',  
-        @LockTimeout = 15000;   -- 15s: đủ chờ máy khác chạy xong, không treo vô hạn  
+    SELECT TOP 0 CAST('' AS NVARCHAR(56)) AS MH, CAST('' AS NVARCHAR(50)) AS GG, CAST('' AS NVARCHAR(256)) AS LG  
+    INTO #TMPGHEPLOT;  
   
-    IF @lockResult < 0  
+    -- ── Cập nhật SLCONLAITMP ban đầu từ SLCONLAI thật ────────────────────  
+    SET @SQL = N'  
+    UPDATE STOCKTP SET SLCONLAITMP = SLCONLAI  
+    WHERE PART IN (SELECT MAHANG FROM ' + QUOTENAME(@IFSTABLE) + N' GROUP BY MAHANG)  
+      AND SLCONLAI > 0';  
+    EXEC sp_executesql @SQL;  
+  
+    -- ── Cursor 1: duyệt từng mã hàng/ngày giao/giờ giao trong IFS ────────  
+    SET @SQL = N'  
+    SELECT MAHANG, SUM(SOLUONG) AS SOLUONG, NGAYGIAO, GIOGIAO  
+    FROM ' + QUOTENAME(@IFSTABLE) + N'  
+    GROUP BY MAHANG, NGAYGIAO, GIOGIAO';  
+  
+    DECLARE @IFSCursorTable TABLE (MAHANG NVARCHAR(56), SOLUONG INT, NGAYGIAO SMALLDATETIME, GIOGIAO NVARCHAR(50));  
+    INSERT INTO @IFSCursorTable  
+    EXEC sp_executesql @SQL;  
+  
+    DECLARE IFSPGH CURSOR FOR  
+        SELECT MAHANG, SOLUONG, NGAYGIAO, GIOGIAO FROM @IFSCursorTable;  
+  
+    OPEN IFSPGH;  
+    FETCH NEXT FROM IFSPGH INTO @MAHANG, @SOLUONG, @NGAYGIAO, @GIOGIAO;  
+  
+    WHILE @@FETCH_STATUS = 0  
     BEGIN  
-        RAISERROR('Đang có máy khác chạy Ghép Lot, vui lòng thử lại sau ít phút.', 16, 1);  
-        RETURN;  
-    END  
+        SET @STT = @STT + 1;  
   
-    BEGIN TRY  
-        -- (b) Reset vùng nháp SLCONLAITMP cho đúng tập mã hàng của phiếu hiện tại  
-        SET @sql = N'UPDATE STOCKTP SET SLCONLAITMP = SLCONLAI ' +  
-                   N'WHERE PART IN (SELECT MAHANG FROM ' + @QIFSTABLE + N' GROUP BY MAHANG) AND SLCONLAI > 0';  
-        EXEC sp_executesql @sql;  
+        -- ★ SỬA LỖI 2 — QCDG phải > 0, nếu không có/không hợp lệ thì fallback = 1  
+        -- (thay cho -1 cũ, tránh CEILING(x / -1) ra số âm vô nghĩa).  
+        -- ⚠️ CẦN XÁC NHẬN: fallback = 1 có đúng nghiệp vụ khi mã hàng chưa  
+        -- khai báo MinCloseQty không, hay nên chặn hẳn (raise lỗi) để buộc  
+        -- khai báo QC đóng gói trước khi ghép lot?  
+        SELECT @QCDG = CASE WHEN ISNULL(CAST(MinCloseQty AS INT), 0) > 0  
+                            THEN CAST(MinCloseQty AS INT)  
+                            ELSE 1 END  
+        FROM B20Item WHERE Code = @MAHANG;  
   
-        -- (c) Đẩy danh sách mã hàng/số lượng cần ghép lot vào bảng tạm TĨNH —  
-        -- để cursor bên dưới KHÔNG cần dynamic SQL, tránh phải escape lại toàn  
-        -- bộ logic ghép lot phức tạp.  
-        IF OBJECT_ID('TempDb..#IFSPGH') IS NOT NULL DROP TABLE #IFSPGH;  
-        CREATE TABLE #IFSPGH (MAHANG NVARCHAR(56), SOLUONG INT, NGAYGIAO SMALLDATETIME, GIOGIAO NVARCHAR(50));  
-        SET @sql = N'INSERT INTO #IFSPGH (MAHANG, SOLUONG, NGAYGIAO, GIOGIAO) ' +  
-                   N'SELECT MAHANG, SUM(SOLUONG), NGAYGIAO, GIOGIAO FROM ' + @QIFSTABLE +  
-                   N' GROUP BY MAHANG, NGAYGIAO, GIOGIAO';  
-        EXEC sp_executesql @sql;  
+        IF @QCDG IS NULL SET @QCDG = 1;  
+        SELECT @EnforceFifo = ISNULL(EnforceFifo, 0) FROM FVN_ItemFifoConfig WHERE ItemCode = @MAHANG;
+        -- ★ SỬA LỖI 1 — bỏ điều kiện CUA/TRUYEN (luôn NULL, khiến UPDATE  
+        -- không bao giờ chạm dòng nào). Chỉ giữ điều kiện thật cần thiết.  
+        SET @SQL = N'  
+        UPDATE ' + QUOTENAME(@TMPTABLE) + N'  
+        SET STT = @p_stt, HOP = CEILING(CAST(@p_sl AS FLOAT) / @p_qcdg)  
+        WHERE MAHANG = @p_mahang AND SOLUONG = @p_sl AND GIOGIAO = @p_giogiao';  
   
-        DECLARE IFSPGH CURSOR LOCAL FOR  
-            SELECT MAHANG, SOLUONG, NGAYGIAO, GIOGIAO FROM #IFSPGH;  
+        EXEC sp_executesql @SQL,  
+            N'@p_stt INT, @p_sl INT, @p_qcdg INT, @p_mahang NVARCHAR(56), @p_giogiao NVARCHAR(50)',  
+            @STT, @SOLUONG, @QCDG, @MAHANG, @GIOGIAO;  
   
-        OPEN IFSPGH;  
-        FETCH NEXT FROM IFSPGH INTO @MAHANG, @SOLUONG, @NGAYGIAO, @GIOGIAO;  
+        -- ── Duyệt ghép LOT ────────────────────────────────────────────────  
+        DECLARE @LOTGHEP NVARCHAR(250) = '', @SLCANGHEP INT = 0, @SLGHEP INT = 0, @SLGIAO_CONLAI INT;  
+        SET @LOTGHEP = '';  
+  
+        -- ★ SỬA LỖI 3 — chuẩn hóa LOT nhất quán: lưu CẢ độ dài đã cắt vào  
+        -- biến riêng (@HT_LOT_LEN), dùng lại đúng độ dài đó khi UPDATE  
+        -- STOCKTP phía dưới — không còn giả định cứng "13 ký tự" cho mọi  
+        -- trường hợp (sai với khách 0100002/YMVN có LOT dài khác).  
+      DECLARE DHT CURSOR FOR
+    SELECT
+        CASE
+            WHEN LEN(b.LOT) > 19 THEN
+                CASE WHEN a.CustomerCode = '0100002'
+                    THEN SUBSTRING(b.LOT, 1, LEN(b.LOT) - 6)
+                    ELSE SUBSTRING(b.LOT, 1, 13)
+                END
+            WHEN LEN(b.LOT) = 16 THEN SUBSTRING(b.LOT, 1, 13)
+            ELSE b.LOT
+        END AS LotChuan,
+        b.SLCONLAITMP
+    FROM STOCKTP b
+    LEFT OUTER JOIN B20ItemQuyCach a ON a.ItemCode = b.PART
+    WHERE b.PART = @MAHANG AND b.SLCONLAI > 0
+    ORDER BY
+        CASE WHEN @EnforceFifo = 1
+            THEN b.NGAYNHAP          -- ★ FIFO thật: ngày nhập kho sớm nhất trước
+            ELSE NULL
+        END ASC,
+        CASE WHEN @EnforceFifo = 0
+            THEN b.SLCONLAI          -- ★ Không FIFO: xem lựa chọn bên dưới
+            ELSE NULL
+        END DESC; 
+  
+        OPEN DHT;          FETCH NEXT FROM DHT INTO @HT_LOT, @HT_SL;  
+  
         WHILE @@FETCH_STATUS = 0  
         BEGIN  
-            SET @STT = @STT + 1;  
-  
-            IF EXISTS (SELECT CAST(MinCloseQty AS INT) FROM B20Item WHERE Code = @MAHANG)  
-                SELECT @QCDG = CAST(MinCloseQty AS INT) FROM B20Item WHERE Code = @MAHANG;  
+            IF (@QCDG IS NULL)  
+                BREAK;  
             ELSE  
-                SET @QCDG = -1;  
-  
-            -- (d) Cập nhật STT/HOP đúng bảng TMP theo máy hiện tại.  
-            -- ⚠️ GIỮ NGUYÊN hành vi gốc: @CUA/@TRUYEN chưa từng được gán giá trị  
-            -- từ cursor IFSPGH (bản gốc cũng vậy — SELECT không có CUA/TRUYEN) —  
-            -- có vẻ là bug có sẵn từ trước khiến điều kiện này khó khớp, nhưng  
-            -- không phải phạm vi sửa hôm nay nên tôi không tự ý đổi.  
-            SET @sql = N'UPDATE ' + @QTENBAN + N' SET STT = @p_stt, HOP = CEILING(@p_sl / @p_qc) ' +  
-                       N'WHERE CUA = @p_cua AND TRUYEN = @p_truyen AND MAHANG = @p_mahang ' +  
-                       N'  AND SOLUONG = @p_sl AND GIOGIAO = @p_giogiao';  
-            EXEC sp_executesql @sql,  
-                N'@p_stt INT, @p_sl INT, @p_qc INT, @p_cua NVARCHAR(10), @p_truyen NVARCHAR(10), @p_mahang NVARCHAR(56), @p_giogiao NVARCHAR(50)',  
-                @p_stt = @STT, @p_sl = @SOLUONG, @p_qc = @QCDG, @p_cua = @CUA, @p_truyen = @TRUYEN,  
-                @p_mahang = @MAHANG, @p_giogiao = @GIOGIAO;  
-  
-            -- ────────────────────────────────────────────────────────────────  
-            -- TỪ ĐÂY TRỞ XUỐNG: giữ NGUYÊN VĂN 100% logic ghép lot gốc — chỉ  
-            -- đụng STOCKTP/#TMPGHEPLOT (không phân biệt theo máy), nên KHÔNG  
-            -- cần dynamic SQL, KHÔNG đổi bất kỳ dòng nào so với SP gốc.  
-            -- ────────────────────────────────────────────────────────────────  
-            DECLARE @LOTGHEP NVARCHAR(250) = '', @SLCANGHEP INT = 0, @SLGHEP INT = 0, @SLGIAO_CONLAI INT;  
-  
-            DECLARE DHT CURSOR LOCAL FOR  
-                SELECT  
-                    CASE WHEN LEN(lot) > 19 THEN  
-                        CASE WHEN a.CustomerCode = '0100002' AND LEN(LOT) > 19  
-                            THEN SUBSTRING(lot, 1, LEN(lot) - 6)  
-                            ELSE SUBSTRING(lot, 1, 13)  
-                        END  
-                    ELSE  
-                        CASE WHEN LEN(lot) = 16 THEN SUBSTRING(lot, 1, 13) ELSE lot END  
-                    END,  
-                    SLCONLAITMP  
-                FROM STOCKTP b LEFT OUTER JOIN B20ItemQuyCach a ON a.ItemCode = b.PART  
-                WHERE PART = @MAHANG AND SLCONLAI > 0  
-                ORDER BY ABS(LOT);  
-  
-            OPEN DHT;  
-            FETCH NEXT FROM DHT INTO @HT_LOT, @HT_SL;  
-            WHILE @@FETCH_STATUS = 0  
             BEGIN  
-                IF (@QCDG IS NULL)  
-                    BREAK;  
-                ELSE  
+                IF (@HT_SL < @SOLUONG)  
                 BEGIN  
-                    IF (@HT_SL < @SOLUONG)  
+                    IF (@SLCANGHEP > 0)  
                     BEGIN  
-                        IF (@SLCANGHEP > 0)  
+                        IF (@HT_SL < @SLCANGHEP)  
                         BEGIN  
-                            IF (@HT_SL < @SLCANGHEP)  
-                            BEGIN  
-                                SET @LOTGHEP = @LOTGHEP + ',' + @HT_LOT + '-' + CAST(@HT_SL AS NVARCHAR);  
-                                SET @SLCANGHEP = @SLCANGHEP - @HT_SL;  
-                                SET @SOLUONG = @SOLUONG - @HT_SL;  
-                                UPDATE STOCKTP SET SLCONLAITMP = 0 WHERE SUBSTRING(lot, 1, 13) = @HT_LOT;  
-                            END  
-                            ELSE  
-                            BEGIN  
-                           SET @LOTGHEP = @LOTGHEP + ',' + @HT_LOT + '-' + CAST(@SLCANGHEP AS NVARCHAR);  
-                                INSERT INTO #TMPGHEPLOT VALUES (@MAHANG, @GIOGIAO, @LOTGHEP);  
-                                SET @LOTGHEP = '';  
-                                SET @SLGHEP = (@HT_SL - @SLCANGHEP) % @QCDG;  
-                                IF (@SLGHEP = 0)  
-                                    SET @SLCANGHEP = 0;  
-                                ELSE  
-                                BEGIN  
-                                    SET @SLCANGHEP = @QCDG - @SLGHEP;  
-                                    SET @LOTGHEP = @HT_LOT + '-' + CAST(@SLGHEP AS NVARCHAR);  
-                                END  
-                                SET @SOLUONG = @SOLUONG - @HT_SL;  
-                                UPDATE STOCKTP SET SLCONLAITMP = 0 WHERE SUBSTRING(lot, 1, 13) = @HT_LOT;  
-                            END  
+                            SET @LOTGHEP = @LOTGHEP + ',' + @HT_LOT + '-' + CAST(@HT_SL AS NVARCHAR);  
+                            SET @SLCANGHEP = @SLCANGHEP - @HT_SL;  
+                            SET @SOLUONG = @SOLUONG - @HT_SL;  
+                            -- ★ SỬA LỖI 3 — so khớp bằng LOT đã chuẩn hóa từ cursor DHT  
+                            -- (@HT_LOT), KHÔNG còn giả định cắt cứng 13 ký tự ở đây.  
+                            UPDATE STOCKTP SET SLCONLAITMP = 0  
+                            WHERE PART = @MAHANG AND (  
+                                CASE WHEN LEN(LOT) > 19 THEN  
+                                    CASE WHEN EXISTS (SELECT 1 FROM B20ItemQuyCach q WHERE q.ItemCode = STOCKTP.PART AND q.CustomerCode = '0100002')  
+                                        THEN SUBSTRING(LOT, 1, LEN(LOT) - 6)  
+                                        ELSE SUBSTRING(LOT, 1, 13) END  
+                                WHEN LEN(LOT) = 16 THEN SUBSTRING(LOT, 1, 13)  
+                                ELSE LOT END  
+                            ) = @HT_LOT;  
                         END  
                         ELSE  
-                        BEGIN  
-                            SET @SLGHEP = @HT_SL % @QCDG;  
-                            IF (@SLGHEP = 0)  
-                                SET @SLCANGHEP = 0;  
-                            ELSE  
-                                SET @SLCANGHEP = @QCDG - @SLGHEP;  
-                            IF (@SLGHEP > 0)  
-                            BEGIN  
-                                IF @LOTGHEP = ''  
-                                BEGIN  
-                                    SET @LOTGHEP = @HT_LOT + '-' + CAST(@SLGHEP AS NVARCHAR);  
-                                    UPDATE STOCKTP SET SLCONLAITMP = 0 WHERE SUBSTRING(lot, 1, 13) = @HT_LOT;  
-                                    SET @SOLUONG = @SOLUONG - @HT_SL;  
-                                END  
-                                ELSE  
-                                BEGIN  
-                                    SET @LOTGHEP = @LOTGHEP + ',' + @HT_LOT + '-' + CAST(@SLGHEP AS NVARCHAR);  
-                                    UPDATE STOCKTP SET SLCONLAITMP = 0 WHERE SUBSTRING(lot, 1, 13) = @HT_LOT;  
-                                    SET @SLGIAO_CONLAI = @SOLUONG - @HT_SL;  
-                                END  
-                            END  
-                            ELSE  
-                            BEGIN  
-                                SET @SLCANGHEP = 0;  
-                                SET @SOLUONG = @SOLUONG - @HT_SL;  
-                            END  
-                        END  
-                    END  
-                    ELSE  
-                    BEGIN  
-                        IF (@SLCANGHEP > 0)  
                         BEGIN  
                             SET @LOTGHEP = @LOTGHEP + ',' + @HT_LOT + '-' + CAST(@SLCANGHEP AS NVARCHAR);  
                             INSERT INTO #TMPGHEPLOT VALUES (@MAHANG, @GIOGIAO, @LOTGHEP);  
                             SET @LOTGHEP = '';  
+                            SET @SLGHEP = (@HT_SL - @SLCANGHEP) % @QCDG;  
+                            IF (@SLGHEP = 0)  
+                                SET @SLCANGHEP = 0;  
+                            ELSE  
+                            BEGIN  
+                                SET @SLCANGHEP = @QCDG - @SLGHEP;  
+                                SET @LOTGHEP = @HT_LOT + '-' + CAST(@SLGHEP AS NVARCHAR);  
+                            END  
+                            SET @SOLUONG = @SOLUONG - @HT_SL;  
+                            UPDATE STOCKTP SET SLCONLAITMP = 0  
+                            WHERE PART = @MAHANG AND (  
+                                CASE WHEN LEN(LOT) > 19 THEN  
+                                    CASE WHEN EXISTS (SELECT 1 FROM B20ItemQuyCach q WHERE q.ItemCode = STOCKTP.PART AND q.CustomerCode = '0100002')  
+                                        THEN SUBSTRING(LOT, 1, LEN(LOT) - 6)  
+                                        ELSE SUBSTRING(LOT, 1, 13) END  
+                                WHEN LEN(LOT) = 16 THEN SUBSTRING(LOT, 1, 13)  
+                                ELSE LOT END  
+                            ) = @HT_LOT;  
+                        END  
+                    END  
+                    ELSE  
+                    BEGIN  
+                        SET @SLGHEP = @HT_SL % @QCDG;  
+                        IF (@SLGHEP = 0)  
                             SET @SLCANGHEP = 0;  
-                            UPDATE STOCKTP SET SLCONLAITMP = @HT_SL - @SOLUONG WHERE SUBSTRING(lot, 1, 13) = @HT_LOT;  
-                            SET @SOLUONG = 0;  
-                            BREAK;  
+                        ELSE  
+                            SET @SLCANGHEP = @QCDG - @SLGHEP;  
+  
+                        IF (@SLGHEP > 0)  
+                        BEGIN  
+                            IF @LOTGHEP = ''  
+                            BEGIN  
+                                SET @LOTGHEP = @HT_LOT + '-' + CAST(@SLGHEP AS NVARCHAR);  
+                                UPDATE STOCKTP SET SLCONLAITMP = 0  
+                                WHERE PART = @MAHANG AND (  
+                                    CASE WHEN LEN(LOT) > 19 THEN  
+                                        CASE WHEN EXISTS (SELECT 1 FROM B20ItemQuyCach q WHERE q.ItemCode = STOCKTP.PART AND q.CustomerCode = '0100002')  
+                                            THEN SUBSTRING(LOT, 1, LEN(LOT) - 6)  
+               ELSE SUBSTRING(LOT, 1, 13) END  
+                                    WHEN LEN(LOT) = 16 THEN SUBSTRING(LOT, 1, 13)  
+                                    ELSE LOT END  
+                                ) = @HT_LOT;  
+                                SET @SOLUONG = @SOLUONG - @HT_SL;  
+                            END  
+                            ELSE  
+                            BEGIN  
+                                SET @LOTGHEP = @LOTGHEP + ',' + @HT_LOT + '-' + CAST(@SLGHEP AS NVARCHAR);  
+                                UPDATE STOCKTP SET SLCONLAITMP = 0  
+                                WHERE PART = @MAHANG AND (  
+                                    CASE WHEN LEN(LOT) > 19 THEN  
+                                        CASE WHEN EXISTS (SELECT 1 FROM B20ItemQuyCach q WHERE q.ItemCode = STOCKTP.PART AND q.CustomerCode = '0100002')  
+                                            THEN SUBSTRING(LOT, 1, LEN(LOT) - 6)  
+                                            ELSE SUBSTRING(LOT, 1, 13) END  
+                                    WHEN LEN(LOT) = 16 THEN SUBSTRING(LOT, 1, 13)  
+                                    ELSE LOT END  
+                                ) = @HT_LOT;  
+                                SET @SLGIAO_CONLAI = @SOLUONG - @HT_SL;  
+                            END  
                         END  
                         ELSE  
                         BEGIN  
                             SET @SLCANGHEP = 0;  
-                            UPDATE STOCKTP SET SLCONLAITMP = @HT_SL - @SOLUONG WHERE SUBSTRING(lot, 1, 13) = @HT_LOT;  
-                            BREAK;  
+                            SET @SOLUONG = @SOLUONG - @HT_SL;  
                         END  
                     END  
                 END  
-                FETCH NEXT FROM DHT INTO @HT_LOT, @HT_SL;  
+                ELSE  
+                BEGIN  
+                    IF (@SLCANGHEP > 0)  
+                    BEGIN  
+                        SET @LOTGHEP = @LOTGHEP + ',' + @HT_LOT + '-' + CAST(@SLCANGHEP AS NVARCHAR);  
+                        INSERT INTO #TMPGHEPLOT VALUES (@MAHANG, @GIOGIAO, @LOTGHEP);  
+                        SET @LOTGHEP = '';  
+                        SET @SLCANGHEP = 0;  
+                        UPDATE STOCKTP SET SLCONLAITMP = @HT_SL - @SOLUONG  
+                        WHERE PART = @MAHANG AND (  
+                            CASE WHEN LEN(LOT) > 19 THEN  
+                                CASE WHEN EXISTS (SELECT 1 FROM B20ItemQuyCach q WHERE q.ItemCode = STOCKTP.PART AND q.CustomerCode = '0100002')  
+                                    THEN SUBSTRING(LOT, 1, LEN(LOT) - 6)  
+                                    ELSE SUBSTRING(LOT, 1, 13) END  
+                            WHEN LEN(LOT) = 16 THEN SUBSTRING(LOT, 1, 13)  
+                            ELSE LOT END  
+                        ) = @HT_LOT;  
+                        SET @SOLUONG = 0;  
+                        BREAK;  
+                    END  
+                    ELSE  
+                    BEGIN  
+                        SET @SLCANGHEP = 0;  
+                        UPDATE STOCKTP SET SLCONLAITMP = @HT_SL - @SOLUONG  
+                        WHERE PART = @MAHANG AND (  
+                            CASE WHEN LEN(LOT) > 19 THEN  
+                                CASE WHEN EXISTS (SELECT 1 FROM B20ItemQuyCach q WHERE q.ItemCode = STOCKTP.PART AND q.CustomerCode = '0100002')  
+                                    THEN SUBSTRING(LOT, 1, LEN(LOT) - 6)  
+                                    ELSE SUBSTRING(LOT, 1, 13) END  
+                            WHEN LEN(LOT) = 16 THEN SUBSTRING(LOT, 1, 13)  
+                            ELSE LOT END  
+                        ) = @HT_LOT;  
+                        BREAK;  
+                    END  
+                END  
             END  
-            CLOSE DHT;  
-            DEALLOCATE DHT;  
   
-            FETCH NEXT FROM IFSPGH INTO @MAHANG, @SOLUONG, @NGAYGIAO, @GIOGIAO;  
+            FETCH NEXT FROM DHT INTO @HT_LOT, @HT_SL;  
         END  
-        CLOSE IFSPGH;  
-        DEALLOCATE IFSPGH;  
   
-        EXEC sp_releaseapplock @Resource = 'GhepLot_STOCKTP_SLCONLAITMP', @LockOwner = 'Session';  
-    END TRY  
-    BEGIN CATCH  
-        IF CURSOR_STATUS('local', 'DHT') >= -1  
-        BEGIN  
-            CLOSE DHT;  
-            DEALLOCATE DHT;  
-       END  
-        IF CURSOR_STATUS('local', 'IFSPGH') >= -1  
-        BEGIN  
-            CLOSE IFSPGH;  
-            DEALLOCATE IFSPGH;  
-        END  
-        EXEC sp_releaseapplock @Resource = 'GhepLot_STOCKTP_SLCONLAITMP', @LockOwner = 'Session';  
-        THROW;  
-    END CATCH  
+        CLOSE DHT;  
+        DEALLOCATE DHT;  
   
-    -- Xuất KQ — chỉ trả dòng thực sự có ghép (nhiều LOT nối bằng dấu phẩy)  
+        FETCH NEXT FROM IFSPGH INTO @MAHANG, @SOLUONG, @NGAYGIAO, @GIOGIAO;  
+    END  
+  
+    CLOSE IFSPGH;  
+    DEALLOCATE IFSPGH;  
+  
     SELECT * FROM #TMPGHEPLOT WHERE CHARINDEX(',', LG, 1) > 0;  
 END
