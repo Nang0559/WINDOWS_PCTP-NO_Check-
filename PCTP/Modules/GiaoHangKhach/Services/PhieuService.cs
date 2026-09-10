@@ -366,95 +366,95 @@ namespace PCTP.Applications.Services
             _bus.Publish(new PhieuLoadedEvent(donHang, hangThieu, caption)); // ← sửa: hangThieu thay vì new DataTable()
         }
 
-        private DataTable LoadPhieuYMVNTuIFS(string ngayXuatIFS,
-                                      bool isLoaiSP,
-                                      List<string> checkedGios)
-        {
-            string dockFilter = isLoaiSP
-                ? $"AND DOCK_CODE = '{_cfg.DockCodeSP ?? "VSP1"}'"
-                : $"AND DOCK_CODE <> '{_cfg.DockCodeSP ?? "VSP1"}'";
+        //private DataTable LoadPhieuYMVNTuIFS(string ngayXuatIFS,
+        //                              bool isLoaiSP,
+        //                              List<string> checkedGios)
+        //{
+        //    string dockFilter = isLoaiSP
+        //        ? $"AND DOCK_CODE = '{_cfg.DockCodeSP ?? "VSP1"}'"
+        //        : $"AND DOCK_CODE <> '{_cfg.DockCodeSP ?? "VSP1"}'";
 
-            DataTable ifsData = _ifsRepo.GetCustomerOrderJoinYMVN(
-                ngayXuatIFS, _cfg.CustomerNo, dockFilter);
+        //    DataTable ifsData = _ifsRepo.GetCustomerOrderJoinYMVN(
+        //        ngayXuatIFS, _cfg.CustomerNo, dockFilter);
 
-            if (ifsData == null || ifsData.Rows.Count == 0)
-                return new DataTable();
+        //    if (ifsData == null || ifsData.Rows.Count == 0)
+        //        return new DataTable();
 
-            // ── Thêm cột nếu chưa có ────────────────────────────────────────
-            foreach (string col in new[] { "STT", "HOP", "XE", "LOT", "STATUS", "STATUSDOC" })
-                if (!ifsData.Columns.Contains(col))
-                    ifsData.Columns.Add(col, typeof(string));
+        //    // ── Thêm cột nếu chưa có ────────────────────────────────────────
+        //    foreach (string col in new[] { "STT", "HOP", "XE", "LOT", "STATUS", "STATUSDOC" })
+        //        if (!ifsData.Columns.Contains(col))
+        //            ifsData.Columns.Add(col, typeof(string));
 
-            // ── Batch query 1 lần thay vì N lần ─────────────────────────────
-            var maHangList = ifsData.Rows
-                .Cast<DataRow>()
-                .Select(r => r["MAHANG"]?.ToString()?.Trim() ?? "")
-                .Where(m => !string.IsNullOrEmpty(m))
-                .Distinct()
-                .ToList();
+        //    // ── Batch query 1 lần thay vì N lần ─────────────────────────────
+        //    var maHangList = ifsData.Rows
+        //        .Cast<DataRow>()
+        //        .Select(r => r["MAHANG"]?.ToString()?.Trim() ?? "")
+        //        .Where(m => !string.IsNullOrEmpty(m))
+        //        .Distinct()
+        //        .ToList();
 
-            Dictionary<string, int> qcMap = _phieuRepo.GetQcDongGoiBatch(maHangList);
+        //    Dictionary<string, int> qcMap = _phieuRepo.GetQcDongGoiBatch(maHangList);
 
-            // ── Tính STT / HOP / XE ─────────────────────────────────────────
-            int rowIdx = 1;
-            foreach (DataRow row in ifsData.Rows)
-            {
-                string pno = row["MAHANG"]?.ToString()?.Trim() ?? "";
-                int qty = SafeInt(row["SOLUONG"]);
+        //    // ── Tính STT / HOP / XE ─────────────────────────────────────────
+        //    int rowIdx = 1;
+        //    foreach (DataRow row in ifsData.Rows)
+        //    {
+        //        string pno = row["MAHANG"]?.ToString()?.Trim() ?? "";
+        //        int qty = SafeInt(row["SOLUONG"]);
 
-                // Lookup từ Dictionary — O(1), không gọi DB
-                qcMap.TryGetValue(pno, out int qcDg);
-                if (qcDg <= 0) qcDg = 1;
+        //        // Lookup từ Dictionary — O(1), không gọi DB
+        //        qcMap.TryGetValue(pno, out int qcDg);
+        //        if (qcDg <= 0) qcDg = 1;
 
-                int hop = qty / qcDg + (qty % qcDg > 0 ? 1 : 0);
-                int xe = hop / 10 + (hop % 10 > 0 ? 1 : 0);
+        //        int hop = qty / qcDg + (qty % qcDg > 0 ? 1 : 0);
+        //        int xe = hop / 10 + (hop % 10 > 0 ? 1 : 0);
 
-                row["STT"] = rowIdx++.ToString();
-                row["HOP"] = hop.ToString();
-                row["XE"] = xe.ToString();
-                row["LOT"] = "";
-                row["STATUS"] = "NG";
-                row["STATUSDOC"] = "NG";
-            }
+        //        row["STT"] = rowIdx++.ToString();
+        //        row["HOP"] = hop.ToString();
+        //        row["XE"] = xe.ToString();
+        //        row["LOT"] = "";
+        //        row["STATUS"] = "NG";
+        //        row["STATUSDOC"] = "NG";
+        //    }
 
-            return ifsData;
-        }
-        private void EnrichDockCodeDvFromIFS(DataTable donHang,
-                                      string ngayXuatIFS,
-                                      bool isLoaiSP)
-        {
-            if (donHang == null || donHang.Rows.Count == 0) return;
+        //    return ifsData;
+        //}
+        //private void EnrichDockCodeDvFromIFS(DataTable donHang,
+        //                              string ngayXuatIFS,
+        //                              bool isLoaiSP)
+        //{
+        //    if (donHang == null || donHang.Rows.Count == 0) return;
 
-            // Thêm cột nếu chưa có
-            if (!donHang.Columns.Contains("CUA"))
-                donHang.Columns.Add("CUA", typeof(string));
-            if (!donHang.Columns.Contains("DV"))
-                donHang.Columns.Add("DV", typeof(string));
+        //    // Thêm cột nếu chưa có
+        //    if (!donHang.Columns.Contains("CUA"))
+        //        donHang.Columns.Add("CUA", typeof(string));
+        //    if (!donHang.Columns.Contains("DV"))
+        //        donHang.Columns.Add("DV", typeof(string));
 
-            string dockFilter = isLoaiSP
-                ? "AND DOCK_CODE = 'VSP1'"
-                : "AND DOCK_CODE <> 'VSP1'";
+        //    string dockFilter = isLoaiSP
+        //        ? "AND DOCK_CODE = 'VSP1'"
+        //        : "AND DOCK_CODE <> 'VSP1'";
 
-            foreach (DataRow row in donHang.Rows)
-            {
-                string po = row["CUSTOMER_PO_NO"]?.ToString() ?? "";
-                string pno = row["MAHANG"]?.ToString() ?? "";
+        //    foreach (DataRow row in donHang.Rows)
+        //    {
+        //        string po = row["CUSTOMER_PO_NO"]?.ToString() ?? "";
+        //        string pno = row["MAHANG"]?.ToString() ?? "";
 
-                // Query IFS lấy DOCK_CODE + DV — giống form gốc
-                try
-                {
-                    DataTable ifsRow = _ifsRepo.GetDockCodeDv(
-                        po, pno, _cfg.CustomerNo, dockFilter);
+        //        // Query IFS lấy DOCK_CODE + DV — giống form gốc
+        //        try
+        //        {
+        //            DataTable ifsRow = _ifsRepo.GetDockCodeDv(
+        //                po, pno, _cfg.CustomerNo, dockFilter);
 
-                    if (ifsRow != null && ifsRow.Rows.Count > 0)
-                    {
-                        row["CUA"] = ifsRow.Rows[0]["CUA"]?.ToString() ?? "";
-                        row["DV"] = ifsRow.Rows[0]["DV"]?.ToString() ?? "";
-                    }
-                }
-                catch { /* bỏ qua nếu IFS lỗi */ }
-            }
-        }
+        //            if (ifsRow != null && ifsRow.Rows.Count > 0)
+        //            {
+        //                row["CUA"] = ifsRow.Rows[0]["CUA"]?.ToString() ?? "";
+        //                row["DV"] = ifsRow.Rows[0]["DV"]?.ToString() ?? "";
+        //            }
+        //        }
+        //        catch { /* bỏ qua nếu IFS lỗi */ }
+        //    }
+        //}
         // ════════════════════════════════════════════════════════════════════════
         // Sync IFS → TMP trước khi bắt đầu scan QR
         // ════════════════════════════════════════════════════════════════════════
@@ -526,12 +526,17 @@ namespace PCTP.Applications.Services
 
             string ifsTable = _isLoaiSP ? _cfg.IfsTableSP : _cfg.IfsTable;
 
-            // A. Đồng bộ: Oracle → SQL Server
-            DataTable ifsData = _ifsRepo.GetFullCustomerOrder(ngayXuatIFS, _cfg); // gộp DanhSachAddNm nếu có
-            _phieuRepo.SyncIfsSnapshot(ifsData, ifsTable, ngayXuatIFS);
+            // A. Oracle: cần đúng format 'ddMMyyyy' để khớp TO_CHAR(...,'ddmmyyyy')
+            DataTable ifsData = _ifsRepo.GetFullCustomerOrder(ngayXuatIFS, _cfg);
 
-            // B. So sánh: SQL Server (vừa đồng bộ) ↔ bảng riêng
-            return _phieuRepo.SoSanhLechIFS(donHangBangRieng, ifsTable);
+            // B. SQL Server: chuỗi 8 số liền không dấu bị hiểu nhầm thành yyyyMMdd
+            // → phải parse lại 'ddMMyyyy' rồi đổi sang 'yyyy-MM-dd' (ISO, không mơ hồ)
+            string ngaySqlServer = DateTime.ParseExact(ngayXuatIFS, "ddMMyyyy", null)
+                                            .ToString("yyyy-MM-dd");
+
+            _phieuRepo.SyncIfsSnapshot(ifsData, ifsTable, ngaySqlServer);
+
+            return _phieuRepo.SoSanhLechIFS(donHangBangRieng, ifsData);
         }
 
         // ════════════════════════════════════════════════════════════════════════

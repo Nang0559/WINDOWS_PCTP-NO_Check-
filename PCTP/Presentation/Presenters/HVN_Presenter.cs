@@ -146,7 +146,8 @@ namespace PCTP.Presentation.Presenters
                     _view.SetGridCaption(e.Caption);
                     if (_cfg.LoadTuBangRieng)
                     {
-                        DataTable lechDt = _phieuSvc.TinhLechIFS(e.DonHangTable);
+                        DataTable lechDt = _phieuSvc.TinhLechIFS(e.DonHangTable,
+                            _view.SelectedDate.ToString("ddMMyyyy"));
                         _view.BindLechIFS(lechDt);
                     }
                     // 2. Kiểm tra các điều kiện logic nghiệp vụ

@@ -55,7 +55,7 @@ namespace PCTP.VIEWSTOCK.Models
                     LoadTheoNgay = true,
                     RequirePoRelNo = false,
                     NhaMayCase =
-                      "NHA MAY 100003"  ,          // không cần CASE, trả thẳng
+                      "'NHA MAY 100003'"  ,          // không cần CASE, trả thẳng
                     OrderTable = "Purchase_Order_HTN",
                     NhaMayMatchPatterns = new[] { "100003", "HONDA TRADING" }
                 },
@@ -75,7 +75,7 @@ namespace PCTP.VIEWSTOCK.Models
 
                     CoNhieuNhaMay = false,
                     AddNmMacDinh = 1,
-                    TenNhaMay = "YAMAHA - VIET NAM",
+                    TenNhaMay = "'YAMAHA - VIET NAM'",
                     LoadTheoNgay = false,       // có chọn giờ theo Purchase_Order_YMVN
                     RequirePoRelNo = false,
 
@@ -85,7 +85,7 @@ namespace PCTP.VIEWSTOCK.Models
                     DockCodeSP = "VSP1",      // filter SP theo DOCK_CODE
                     CustomerNoIFS = "100002",
 
-                    NhaMayCase = "YAMAHA - VIET NAM",
+                    NhaMayCase = "'YAMAHA - VIET NAM'",
                     OrderTable = "Purchase_Order_YMVN",
                     NhaMayMatchPatterns = new[] { "YAMAHA" }
                 }
