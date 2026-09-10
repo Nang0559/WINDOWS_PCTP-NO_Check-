@@ -544,12 +544,8 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
 
             try
             {
-                ifsData =
-                    _ifsRepo.GetCustomerOrderJoinYMVN(
-                        DateTime.Parse(ngayGiao)
-                            .ToString("ddMMyyyy"),
-                        customerNoIFS,
-                        "");
+                ifsData = _ifsRepo.GetFullCustomerOrder(
+                   DateTime.Parse(ngayGiao).ToString("ddMMyyyy"), cfg);
             }
             catch (Exception ex)
             {

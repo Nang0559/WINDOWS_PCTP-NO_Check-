@@ -1,4 +1,5 @@
-﻿using System;
+﻿using PCTP.Shared.Enums;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -10,8 +11,8 @@ namespace PCTP.VIEWSTOCK.Models
     {
         public string CustomerNo { get; set; }
         public string DisplayName { get; set; }
-        public string TmpTable { get; set; } 
-        public string IfsTable { get; set; } 
+        public string TmpTable { get; set; }
+        public string IfsTable { get; set; }
         public string DocQRTable { get; set; }
         // ── Config riêng cho hàng SP ─────────────────────────────────────
         public string TmpTableSP { get; set; } = "";  // rỗng = không có SP
@@ -80,5 +81,11 @@ namespace PCTP.VIEWSTOCK.Models
         ///Thêm phần giao DB
         public string OrderTableGiaoDacBiet { get; set; }
         public bool CoGiaoDacBiet => !string.IsNullOrWhiteSpace(OrderTableGiaoDacBiet);
+
+        // thêm phần cấu hình để xem đơn hàng trên IFS
+        public IfsOrderQueryMode QueryMode { get; set; }
+        public string DockFilterExpr { get; set; }
+
+        public List<int> DanhSachAddNm { get; set; } = new List<int> { 1 };
     }
 }

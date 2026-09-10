@@ -113,13 +113,16 @@ namespace PCTP.Domain.Interfaces
                                        int addNm, int hinhThucIn,
                                        CustomerConfig cfg);
 
-        DataTable GetCustomerOrderJoinYMVN(string ngayXuat, string customerNo, string dockFilter);
+        //DataTable GetCustomerOrderJoinYMVN(string ngayXuat, string customerNo, string dockFilter);
         DataTable GetDockCodeDv(string po, string pno, string customerNo, string dockFilter);
 
         DataTable GetCustomerAddress(string customerNo);
 
         DataTable GetCustSchedLine(string customerNo, string shipAddrNo,
                                     string customerPartNo, string customerPoNo);
+
+
+        DataTable GetFullCustomerOrder(string ngayXuat, CustomerConfig cfg);
     }
    
 }

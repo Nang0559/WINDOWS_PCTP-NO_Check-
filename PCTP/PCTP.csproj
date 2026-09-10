@@ -405,6 +405,7 @@
     <Compile Include="Modules\XuLyHangLoi\Services\TraNoiBoService.cs" />
     <Compile Include="Modules\XuLyHangLoi\Services\XuLyHangLoiServiceBase.cs" />
     <Compile Include="Shared\Common\ItemFifoConfig.cs" />
+    <Compile Include="Shared\Enums\IfsOrderQueryMode.cs" />
     <Compile Include="Shared\Helpers\GioHelpper.cs" />
     <Compile Include="Shared\Models\HangChoGiao.cs" />
     <Compile Include="Modules\XuLyHangLoi\Models\PhieuGiaoUngVienInfo.cs" />

@@ -394,103 +394,123 @@ namespace PCTP.Infrastructure.Repositories
             return _ifs.ExecuteQuery(sql);
         }
 
-
-        // ================================================================
-        // YMVN
-        // ================================================================
-
-        public DataTable GetCustomerOrderJoinYMVN(
-            string ngayXuat,
-            string customerNo,
-            string dockFilter)
+        /// <summary>
+        /// Lấy TOÀN BỘ đơn hàng của khách trong ngày, gộp qua tất cả nhà máy khách đó có
+        /// (cfg.DanhSachAddNm). Khách 1 nhà máy → chạy đúng 1 lần, hành vi y hệt cũ.
+        /// hinhThucIn = 2: theo nhà máy, không lọc giờ — vì mục đích so lệch cần toàn bộ đơn trong ngày.
+        /// </summary>
+        public DataTable GetFullCustomerOrder(string ngayXuat, CustomerConfig cfg)
         {
-            string safeCustomerNo =
-                EscapeOracle(customerNo);
+            if (cfg == null) throw new ArgumentNullException(nameof(cfg));
 
-            /*
-             * dockFilter là SQL fragment.
-             *
-             * Ví dụ:
-             * AND SUB_DOCK_CODE = 'VSP1'
-             *
-             * Vì vậy KHÔNG EscapeOracle(dockFilter).
-             */
-            string safeDockFilter =
-                dockFilter ?? "";
+            DataTable merged = null;
+            foreach (int addNm in cfg.DanhSachAddNm)
+            {
+                DataTable part = GetCustomerOrderJoin(
+                    ngayXuat, gioXuat: null, gioXuatH: null, nhaMay: null,
+                    addNm: addNm, hinhThucIn: 2, cfg: cfg);
 
-
-            string sql =
-                "SELECT " +
-
-                "    '' AS STT, " +
-
-                "    TO_CHAR(" +
-                "        WANTED_DELIVERY_DATE," +
-                "        'HH24') AS GIOGIAO, " +
-
-                "    SUB_DOCK_CODE AS CUA, " +
-
-                "    DOCK_CODE AS TRUYEN, " +
-
-                "    CUSTOMER_PART_NO AS MAHANG, " +
-
-                "    CATALOG_DESC AS TENHANG, " +
-
-                "    BUY_QTY_DUE AS SOLUONG, " +
-
-                "    CUSTOMER_PART_UNIT_MEAS AS DV, " +
-
-                "    SHIP_ADDR_NO AS ADDNM, " +
-
-                "    CUSTOMER_PO_NO, " +
-
-                "    TO_CHAR(" +
-                "        WANTED_DELIVERY_DATE," +
-                "        'YYYY-MM-DD') AS NGAYGIAO, " +
-
-                "    '' AS HOP, " +
-                "    '' AS LOT, " +
-                "    '' AS Gear, " +
-                "    '' AS XE, " +
-
-                "    'NG' AS STATUS, " +
-                "    'NG' AS STATUSDOC, " +
-
-                "    '' AS TTPHIEU, " +
-                "    '' AS NOTE, " +
-                "    '' AS PO_NO, " +
-                "    '' AS PO_ITEM, " +
-                "    '' AS KGX, " +
-                "    '' AS DIA_CHI " +
-
-                "FROM CUSTOMER_ORDER_JOIN " +
-
-                $"WHERE CUSTOMER_NO = '{safeCustomerNo}' " +
-
-                "AND " +
-                "( " +
-                "    OBJSTATE <> " +
-                "    ( " +
-                "        SELECT " +
-                "            CUSTOMER_ORDER_LINE_API." +
-                "            FINITE_STATE_ENCODE__('Cancelled') " +
-                "        FROM dual " +
-                "    ) " +
-                ") " +
-
-                $"AND TO_CHAR(" +
-                $"    WANTED_DELIVERY_DATE," +
-                $"'ddmmyyyy') = '{EscapeOracle(ngayXuat)}' " +
-
-                safeDockFilter +
-
-                "ORDER BY " +
-                "    SUB_DOCK_CODE, " +
-                "    CUSTOMER_PART_NO";
-
-
-            return _ifs.ExecuteQuery(sql);
+                if (merged == null) merged = part.Clone();
+                merged.Merge(part);
+            }
+            return merged ?? new DataTable();
         }
+        //// ================================================================
+        //// YMVN
+        //// ================================================================
+
+        //public DataTable GetCustomerOrderJoinYMVN(
+        //    string ngayXuat,
+        //    string customerNo,
+        //    string dockFilter)
+        //{
+        //    string safeCustomerNo =
+        //        EscapeOracle(customerNo);
+
+        //    /*
+        //     * dockFilter là SQL fragment.
+        //     *
+        //     * Ví dụ:
+        //     * AND SUB_DOCK_CODE = 'VSP1'
+        //     *
+        //     * Vì vậy KHÔNG EscapeOracle(dockFilter).
+        //     */
+        //    string safeDockFilter =
+        //        dockFilter ?? "";
+
+
+        //    string sql =
+        //        "SELECT " +
+
+        //        "    '' AS STT, " +
+
+        //        "    TO_CHAR(" +
+        //        "        WANTED_DELIVERY_DATE," +
+        //        "        'HH24') AS GIOGIAO, " +
+
+        //        "    SUB_DOCK_CODE AS CUA, " +
+
+        //        "    DOCK_CODE AS TRUYEN, " +
+
+        //        "    CUSTOMER_PART_NO AS MAHANG, " +
+
+        //        "    CATALOG_DESC AS TENHANG, " +
+
+        //        "    BUY_QTY_DUE AS SOLUONG, " +
+
+        //        "    CUSTOMER_PART_UNIT_MEAS AS DV, " +
+
+        //        "    SHIP_ADDR_NO AS ADDNM, " +
+
+        //        "    CUSTOMER_PO_NO, " +
+
+        //        "    TO_CHAR(" +
+        //        "        WANTED_DELIVERY_DATE," +
+        //        "        'YYYY-MM-DD') AS NGAYGIAO, " +
+
+        //        "    '' AS HOP, " +
+        //        "    '' AS LOT, " +
+        //        "    '' AS Gear, " +
+        //        "    '' AS XE, " +
+
+        //        "    'NG' AS STATUS, " +
+        //        "    'NG' AS STATUSDOC, " +
+
+        //        "    '' AS TTPHIEU, " +
+        //        "    '' AS NOTE, " +
+        //        "    '' AS PO_NO, " +
+        //        "    '' AS PO_ITEM, " +
+        //        "    '' AS KGX, " +
+        //        "    '' AS DIA_CHI " +
+
+        //        "FROM CUSTOMER_ORDER_JOIN " +
+
+        //        $"WHERE CUSTOMER_NO = '{safeCustomerNo}' " +
+
+        //        "AND " +
+        //        "( " +
+        //        "    OBJSTATE <> " +
+        //        "    ( " +
+        //        "        SELECT " +
+        //        "            CUSTOMER_ORDER_LINE_API." +
+        //        "            FINITE_STATE_ENCODE__('Cancelled') " +
+        //        "        FROM dual " +
+        //        "    ) " +
+        //        ") " +
+
+        //        $"AND TO_CHAR(" +
+        //        $"    WANTED_DELIVERY_DATE," +
+        //        $"'ddmmyyyy') = '{EscapeOracle(ngayXuat)}' " +
+
+        //        safeDockFilter +
+
+        //        "ORDER BY " +
+        //        "    SUB_DOCK_CODE, " +
+        //        "    CUSTOMER_PART_NO";
+
+
+        //    return _ifs.ExecuteQuery(sql);
+        //}
 
 
         // ================================================================

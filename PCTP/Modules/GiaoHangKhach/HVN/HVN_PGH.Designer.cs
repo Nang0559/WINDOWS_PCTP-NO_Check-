@@ -1186,6 +1186,7 @@ namespace PCTP.QRCODE_HVN.PGH
             // 
             // gridCLECH
             // 
+            this.gridCLECH.Dock=System.Windows.Forms.DockStyle.Fill;
             this.gridCLECH.Location = new System.Drawing.Point(2, -1);
             this.gridCLECH.MainView = this.bandedGridViewLECH;
             this.gridCLECH.Name = "gridCLECH";

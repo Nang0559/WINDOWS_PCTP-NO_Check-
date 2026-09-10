@@ -494,6 +494,7 @@ namespace PCTP.QRCODE_HVN.PGH
             gridCtrSUASL.Visible = false;
             gridCTTGL.Visible = true;
             gridCTTGL.BringToFront();
+            gridCLECH.Visible = false;
 
             // Reset textbox sửa SL
             TXT_FCCTU.Text = "";
@@ -504,7 +505,13 @@ namespace PCTP.QRCODE_HVN.PGH
 
             UIButton.AllowGlyphSkinning = false;
             UIButton.Buttons.Clear();
-            var b1 = new WindowsUIButton { Caption = "Kiểm Tra Ghep Lot", Style = ButtonStyle.PushButton, Image = imageBT.Images[1] };
+            var b1 = new WindowsUIButton
+            {
+                Caption = _cfg.LoadTuBangRieng ? "Show Thông Tin Lệch IFS" : "Kiểm Tra Ghep Lot", // ← SỬA
+                Style = ButtonStyle.PushButton,
+                Image = imageBT.Images[1],
+                Tag = "BTN_GHEPLOT_TOGGLE"   // ← THÊM
+            };
             var b2 = new WindowsUIButton { Caption = "In Phiếu", Style = ButtonStyle.PushButton, ImageUri = "Print;Size16x16;Colored" };
             var b3 = new WindowsUIButton { Caption = "DOC QRCODE", Style = ButtonStyle.PushButton, ImageUri = "IndentIncrease;Size16x16;Colored" };
 

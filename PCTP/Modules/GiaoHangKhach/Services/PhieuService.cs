@@ -520,11 +520,18 @@ namespace PCTP.Applications.Services
 
         public bool CheckCoMaNG() => _phieuRepo.CheckCoMaNG(GetTenBan());
 
-        public DataTable TinhLechIFS(DataTable donHang)
+        public DataTable TinhLechIFS(DataTable donHangBangRieng, string ngayXuatIFS)
         {
             if (!_cfg.LoadTuBangRieng) return new DataTable();
-            string ifsTable = _cfg.GetIfsTable(_isLoaiSP);
-            return _phieuRepo.SoSanhLechIFS(donHang, ifsTable);
+
+            string ifsTable = _isLoaiSP ? _cfg.IfsTableSP : _cfg.IfsTable;
+
+            // A. Đồng bộ: Oracle → SQL Server
+            DataTable ifsData = _ifsRepo.GetFullCustomerOrder(ngayXuatIFS, _cfg); // gộp DanhSachAddNm nếu có
+            _phieuRepo.SyncIfsSnapshot(ifsData, ifsTable, ngayXuatIFS);
+
+            // B. So sánh: SQL Server (vừa đồng bộ) ↔ bảng riêng
+            return _phieuRepo.SoSanhLechIFS(donHangBangRieng, ifsTable);
         }
 
         // ════════════════════════════════════════════════════════════════════════

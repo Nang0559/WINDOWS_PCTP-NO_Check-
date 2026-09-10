@@ -464,7 +464,36 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
 
             return result;
         }
-        public DataTable SoSanhLechIFS(DataTable donHangBangRieng, string ifsTable)
+        public void SyncIfsSnapshot(DataTable ifsData, string ifsTable, string ngayGiao)
+        {
+            if (ifsData == null) throw new ArgumentNullException(nameof(ifsData));
+            Db.ValidateTableName(ifsTable);
+
+            string safeNgay = (ngayGiao ?? "").Replace("'", "''");
+
+            // Xoá đúng phạm vi ngày này trước khi ghi lại — tránh chồng dữ liệu ngày cũ,
+            // và tránh xoá sạch bảng khi có nhiều ngày dữ liệu đang tồn tại song song.
+            ExecuteNonQuery(
+                $"DELETE FROM [{ifsTable}] WHERE CAST(NGAYGIAO AS DATE) = '{safeNgay}'");
+
+            if (ifsData.Rows.Count == 0) return;
+
+            foreach (DataRow row in ifsData.Rows)
+            {
+                ExecuteNonQuery(
+                    $@"INSERT INTO [{ifsTable}]
+               (MAHANG, TENHANG, SOLUONG, GIOGIAO, NGAYGIAO, ORDER_NO, CUSTOMER_PO_NO)
+               VALUES (@MAHANG, @TENHANG, @SOLUONG, @GIOGIAO, @NGAYGIAO, @ORDER_NO, @CUSTOMER_PO_NO)",
+                    new SqlParameter("@MAHANG", row["MAHANG"]?.ToString() ?? ""),
+                    new SqlParameter("@TENHANG", row["TENHANG"]?.ToString() ?? ""),
+                    new SqlParameter("@SOLUONG", DbValueHelper.SafeInt(row["SOLUONG"])),
+                    new SqlParameter("@GIOGIAO", row["GIOGIAO"]?.ToString() ?? ""),
+                    new SqlParameter("@NGAYGIAO", row["NGAYGIAO"]?.ToString() ?? ""),
+                    new SqlParameter("@ORDER_NO", row["ORDER_NO"]?.ToString() ?? ""),
+                    new SqlParameter("@CUSTOMER_PO_NO", row["CUSTOMER_PO_NO"]?.ToString() ?? ""));
+            }
+        }
+        public DataTable SoSanhLechIFS(DataTable donHangBangRieng, DataTable ifsData)
         {
             var result = new DataTable();
             result.Columns.Add("MAHANG", typeof(string));
@@ -472,51 +501,33 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             result.Columns.Add("SOLUONG", typeof(int));
             result.Columns.Add("NGUON_LECH", typeof(string));
 
-            Db.ValidateTableName(ifsTable);
+            var maBangRieng = BuildMaMap(donHangBangRieng);
+            var maIfs = BuildMaMap(ifsData);
 
-            // ── 1. Mã hàng phía Bảng Riêng (donHang đang hiển thị trên phiếu) ──
-            var maBangRieng = new Dictionary<string, (string TenHang, int SoLuong)>(StringComparer.OrdinalIgnoreCase);
-            if (donHangBangRieng != null)
-            {
-                foreach (DataRow row in donHangBangRieng.Rows)
-                {
-                    string ma = row.Table.Columns.Contains("MAHANG")
-                        ? row["MAHANG"]?.ToString().Trim() ?? "" : "";
-                    if (string.IsNullOrEmpty(ma) || maBangRieng.ContainsKey(ma)) continue;
-
-                    string ten = row.Table.Columns.Contains("TENHANG")
-                        ? row["TENHANG"]?.ToString().Trim() ?? "" : "";
-                    int sl = row.Table.Columns.Contains("SOLUONG") && row["SOLUONG"] != DBNull.Value
-                        ? Convert.ToInt32(row["SOLUONG"]) : 0;
-
-                    maBangRieng[ma] = (ten, sl);
-                }
-            }
-
-            // ── 2. Mã hàng phía IFS (bảng đã upload cho phiên hiện tại) ──
-            DataTable ifsDt = LoadData($"SELECT MAHANG, TENHANG, SOLUONG FROM [{ifsTable}]");
-            var maIfs = new Dictionary<string, (string TenHang, int SoLuong)>(StringComparer.OrdinalIgnoreCase);
-            foreach (DataRow row in ifsDt.Rows)
-            {
-                string ma = row["MAHANG"]?.ToString().Trim() ?? "";
-                if (string.IsNullOrEmpty(ma) || maIfs.ContainsKey(ma)) continue;
-
-                string ten = row["TENHANG"]?.ToString().Trim() ?? "";
-                int sl = row["SOLUONG"] != DBNull.Value ? Convert.ToInt32(row["SOLUONG"]) : 0;
-                maIfs[ma] = (ten, sl);
-            }
-
-            // ── 3. Mã có ở Bảng Riêng nhưng KHÔNG có ở IFS ──
             foreach (var kv in maBangRieng)
                 if (!maIfs.ContainsKey(kv.Key))
                     result.Rows.Add(kv.Key, kv.Value.TenHang, kv.Value.SoLuong, "Chỉ có ở Bảng Riêng");
 
-            // ── 4. Mã có ở IFS nhưng KHÔNG có ở Bảng Riêng ──
             foreach (var kv in maIfs)
                 if (!maBangRieng.ContainsKey(kv.Key))
                     result.Rows.Add(kv.Key, kv.Value.TenHang, kv.Value.SoLuong, "Chỉ có ở IFS");
 
             return result;
+        }
+
+        private static Dictionary<string, (string TenHang, int SoLuong)> BuildMaMap(DataTable dt)
+        {
+            var map = new Dictionary<string, (string, int)>(StringComparer.OrdinalIgnoreCase);
+            if (dt == null) return map;
+            foreach (DataRow row in dt.Rows)
+            {
+                string ma = dt.Columns.Contains("MAHANG") ? row["MAHANG"]?.ToString().Trim() ?? "" : "";
+                if (string.IsNullOrEmpty(ma) || map.ContainsKey(ma)) continue;
+                string ten = dt.Columns.Contains("TENHANG") ? row["TENHANG"]?.ToString().Trim() ?? "" : "";
+                int sl = dt.Columns.Contains("SOLUONG") && row["SOLUONG"] != DBNull.Value ? Convert.ToInt32(row["SOLUONG"]) : 0;
+                map[ma] = (ten, sl);
+            }
+            return map;
         }
         #endregion
 
