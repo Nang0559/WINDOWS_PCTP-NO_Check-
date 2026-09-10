@@ -464,35 +464,35 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
 
             return result;
         }
-        public void SyncIfsSnapshot(DataTable ifsData, string ifsTable, string ngayGiao)
-        {
-            if (ifsData == null) throw new ArgumentNullException(nameof(ifsData));
-            Db.ValidateTableName(ifsTable);
+        //public void SyncIfsSnapshot(DataTable ifsData, string ifsTable, string ngayGiao)
+        //{
+        //    if (ifsData == null) throw new ArgumentNullException(nameof(ifsData));
+        //    Db.ValidateTableName(ifsTable);
 
-            string safeNgay = (ngayGiao ?? "").Replace("'", "''");
+        //    string safeNgay = (ngayGiao ?? "").Replace("'", "''");
 
-            // Xoá đúng phạm vi ngày này trước khi ghi lại — tránh chồng dữ liệu ngày cũ,
-            // và tránh xoá sạch bảng khi có nhiều ngày dữ liệu đang tồn tại song song.
-            ExecuteNonQuery(
-                $"DELETE FROM [{ifsTable}] WHERE CAST(NGAYGIAO AS DATE) = '{safeNgay}'");
+        //    // Xoá đúng phạm vi ngày này trước khi ghi lại — tránh chồng dữ liệu ngày cũ,
+        //    // và tránh xoá sạch bảng khi có nhiều ngày dữ liệu đang tồn tại song song.
+        //    ExecuteNonQuery(
+        //        $"DELETE FROM [{ifsTable}] WHERE CAST(NGAYGIAO AS DATE) = '{safeNgay}'");
 
-            if (ifsData.Rows.Count == 0) return;
+        //    if (ifsData.Rows.Count == 0) return;
 
-            foreach (DataRow row in ifsData.Rows)
-            {
-                ExecuteNonQuery(
-                    $@"INSERT INTO [{ifsTable}]
-               (MAHANG, TENHANG, SOLUONG, GIOGIAO, NGAYGIAO, ORDER_NO, CUSTOMER_PO_NO)
-               VALUES (@MAHANG, @TENHANG, @SOLUONG, @GIOGIAO, @NGAYGIAO, @ORDER_NO, @CUSTOMER_PO_NO)",
-                    new SqlParameter("@MAHANG", row["MAHANG"]?.ToString() ?? ""),
-                    new SqlParameter("@TENHANG", row["TENHANG"]?.ToString() ?? ""),
-                    new SqlParameter("@SOLUONG", DbValueHelper.SafeInt(row["SOLUONG"])),
-                    new SqlParameter("@GIOGIAO", row["GIOGIAO"]?.ToString() ?? ""),
-                    new SqlParameter("@NGAYGIAO", row["NGAYGIAO"]?.ToString() ?? ""),
-                    new SqlParameter("@ORDER_NO", row["ORDER_NO"]?.ToString() ?? ""),
-                    new SqlParameter("@CUSTOMER_PO_NO", row["CUSTOMER_PO_NO"]?.ToString() ?? ""));
-            }
-        }
+        //    foreach (DataRow row in ifsData.Rows)
+        //    {
+        //        ExecuteNonQuery(
+        //            $@"INSERT INTO [{ifsTable}]
+        //       (MAHANG, TENHANG, SOLUONG, GIOGIAO, NGAYGIAO, ORDER_NO, CUSTOMER_PO_NO)
+        //       VALUES (@MAHANG, @TENHANG, @SOLUONG, @GIOGIAO, @NGAYGIAO, @ORDER_NO, @CUSTOMER_PO_NO)",
+        //            new SqlParameter("@MAHANG", row["MAHANG"]?.ToString() ?? ""),
+        //            new SqlParameter("@TENHANG", row["TENHANG"]?.ToString() ?? ""),
+        //            new SqlParameter("@SOLUONG", DbValueHelper.SafeInt(row["SOLUONG"])),
+        //            new SqlParameter("@GIOGIAO", row["GIOGIAO"]?.ToString() ?? ""),
+        //            new SqlParameter("@NGAYGIAO", row["NGAYGIAO"]?.ToString() ?? ""),
+        //            new SqlParameter("@ORDER_NO", row["ORDER_NO"]?.ToString() ?? ""),
+        //            new SqlParameter("@CUSTOMER_PO_NO", row["CUSTOMER_PO_NO"]?.ToString() ?? ""));
+        //    }
+        //}
         public DataTable SoSanhLechIFS(DataTable donHangBangRieng, DataTable ifsData)
         {
             var result = new DataTable();
