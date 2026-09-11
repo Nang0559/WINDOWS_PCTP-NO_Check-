@@ -713,8 +713,22 @@ namespace PCTP.Applications.Services
                 "TMPPHIEUGIAOHANGDB_IFS");
 
         public DataTable LoadTmpPhieuGiaoDB()
-     => _giaoDbRepo.LoadTmpPhieuGiaoDB("TMPPHIEUGIAOHANGDB");
+         => _giaoDbRepo.LoadTmpPhieuGiaoDB("TMPPHIEUGIAOHANGDB");
+        public void XuLySauUploadGiaoDB()
+        {
+            // Build donHang đúng shape "IFS order" từ 2 bảng staging thô
+            DataTable donHang = _giaoDbRepo.BuildDonHangTuUpload();   // ★ cần thêm method này vào IPhieuGiaoDBRepository
 
+            if (donHang.Rows.Count == 0) return;
+
+            // Lấy gioFccMoTa/addNm mặc định cho GIAO DB (theo SP: luôn set @GIOFCC='(GIAO DB)')
+            _giaoDbRepo.LuuGiaoDB(
+                donHang, "(GIAO DB)", addNm: 1,
+                tmpTable: "TMPPHIEUGIAOHANGDB",
+                ifsTable: "TMPPHIEUGIAOHANGDB_IFS");
+        }
+
+       
         // ════════════════════════════════════════════════════════════════════════
         // TinhTongLot — truyền _cfg.DocQRTable xuống repo
         // ════════════════════════════════════════════════════════════════════════

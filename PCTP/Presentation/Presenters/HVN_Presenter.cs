@@ -1060,8 +1060,20 @@ namespace PCTP.Presentation.Presenters
             {
                 if (frm.ShowDialog() != DialogResult.OK) return;
             }
-            // ✅ Reload phiếu sau upload
-            LoadPhieuHienTai();
+
+            // ✅ THÊM — build donHang từ TMPPHIEUNHANDB + TMPPHIEUGIAOHANGDBCT,
+            // rồi đẩy qua pipeline SP chuẩn để sinh ra TMPPHIEUGIAOHANGDB (bảng grid đọc).
+            RunWithLoadingSync(() =>
+            {
+                _phieuSvc.XuLySauUploadGiaoDB();
+            }, "Đang xử lý đơn hàng GIAO DB...");
+
+            _uiContext.Post(_ =>
+            {
+                DataTable dt = _phieuSvc.LoadTmpPhieuGiaoDB();
+                _view.BindDonHang(dt);
+                _view.SwitchToPhieuDBView();
+            }, null);
         }
 
         private void OnLuuGiaoDB(object sender, EventArgs e)

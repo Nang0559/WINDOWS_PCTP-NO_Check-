@@ -12,6 +12,7 @@ namespace PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao
     {
         DataTable GetDanhSachMaHang();
         DataTable LoadTmpPhieuGiaoDB(string tenBan);
+        DataTable BuildDonHangTuUpload();
         void LuuGiaoDB(DataTable donHang, string gioFccMoTa, int addNm,
             string tmpTable, string ifsTable, string nhaMayOverride = "");
     }

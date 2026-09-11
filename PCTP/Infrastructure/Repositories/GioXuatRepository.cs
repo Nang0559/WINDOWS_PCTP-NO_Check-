@@ -1,6 +1,8 @@
 ﻿using PCTP.ClassSQL;
 using PCTP.Domain.Entities;
 using PCTP.Domain.Interfaces;
+using PCTP.Modules.GiaoHangKhach;
+using PCTP.Shared.Common;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -10,10 +12,11 @@ using System.Threading.Tasks;
 
 namespace PCTP.Infrastructure.Repositories
 {
-    public class GioXuatRepository : IGioXuatRepository
+    public class GioXuatRepository : SqlRepositoryBase, IGioXuatRepository
     {
-        private readonly SQLPROVIDER _sql;
-        public GioXuatRepository(SQLPROVIDER sql) => _sql = sql;
+      
+        public GioXuatRepository(PhieuSqlExecutor db,
+            IUnitOfWork uow):base(db, uow) { }
 
         public IReadOnlyList<GioXuat> GetDanhSachGioVP() => Load("GioFCCVP");
         public IReadOnlyList<GioXuat> GetDanhSachGioHN() => Load("GioFCCHN");
@@ -47,7 +50,7 @@ namespace PCTP.Infrastructure.Repositories
                 $") A " +
                 $"ORDER BY A.MinID";
 
-            DataTable dt = _sql.LoadData1(_sql.B7R2_FCCdb, sql);
+            DataTable dt = LoadData( sql);
             var list = new List<GioXuat>();
 
             foreach (DataRow row in dt.Rows)
@@ -72,7 +75,7 @@ namespace PCTP.Infrastructure.Repositories
                 $"RIGHT('0' + CAST(GIOHVN AS VARCHAR(2)), 2) AS GIOHVN " + // ← đảm bảo 2 chữ số
                 $"FROM QRCODE_CHANGETIME";
 
-            DataTable dt = _sql.LoadData1(_sql.B7R2_FCCdb, sql);
+            DataTable dt = LoadData( sql);
             var dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
             foreach (DataRow row in dt.Rows)
@@ -166,7 +169,7 @@ namespace PCTP.Infrastructure.Repositories
           AND GIO IS NOT NULL
         ORDER BY GIO";
 
-            DataTable dt = _sql.LoadData1(_sql.B7R2_FCCdb, sql);
+            DataTable dt =LoadData( sql);
             return dt.Rows.Cast<DataRow>()
                 .Select(r => r["GIO"].ToString().Trim())
                 .Where(g => !string.IsNullOrEmpty(g))

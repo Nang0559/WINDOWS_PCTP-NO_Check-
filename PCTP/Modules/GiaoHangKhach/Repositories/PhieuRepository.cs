@@ -65,7 +65,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             _validation = new PhieuValidationRepository(db, uow);   // ← dựng TRƯỚC
             _tmp = new PhieuTmpRepository(db,uow);
             _lot = new PhieuLotRepository(db, uow);
-            _giaoDB = new PhieuGiaoDBRepository(db);
+            _giaoDB = new PhieuGiaoDBRepository(db,uow);
             _luuTru = new PhieuLuuTruRepository(db,uow);
             _kho = new PhieuKhoRepository(
                               db, uow, bulkStockSlotRepo, historyRepo,
@@ -106,7 +106,9 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         public DataTable SoSanhLechIFS(DataTable donHang, DataTable ifsTable)
         => _validation.SoSanhLechIFS(donHang, ifsTable);
 
-     
+        #region Phieu Giao DB
+        public DataTable BuildDonHangTuUpload()=>_giaoDB.BuildDonHangTuUpload();
+        #endregion
 
         #endregion
 

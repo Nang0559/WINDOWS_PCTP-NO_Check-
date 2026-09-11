@@ -9,14 +9,13 @@ using System.Threading.Tasks;
 
 namespace PCTP.Modules.GiaoHangKhach.Repositories
 {
-    public sealed class PhieuGiaoDBRepository : IPhieuGiaoDBRepository
+    public sealed class PhieuGiaoDBRepository :SqlRepositoryBase, IPhieuGiaoDBRepository
     {
-        private readonly PhieuSqlExecutor _db;
+       
 
-        public PhieuGiaoDBRepository(PhieuSqlExecutor db)
-        {
-            _db = db ?? throw new ArgumentNullException(nameof(db));
-        }
+        public PhieuGiaoDBRepository(PhieuSqlExecutor db,
+            IUnitOfWork uow):base(db, uow) { }
+      
 
         // ============================================================
         // IPhieuGiaoDBRepository
@@ -37,12 +36,12 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                         Name
                     ORDER BY ID";
 
-            return _db.LoadData(sql);
+            return LoadData(sql);
         }
 
         public DataTable LoadTmpPhieuGiaoDB(string tenBan)
         {
-            _db.ValidateTableName(tenBan);
+            Db.ValidateTableName(tenBan);
 
             string sql = $@"
                 SELECT
@@ -68,7 +67,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                     ISNULL(PO_ITEM, '') AS PO_ITEM
                 FROM [{tenBan}]";
 
-            return _db.LoadData(sql);
+            return LoadData(sql);
         }
 
         public void LuuGiaoDB(
@@ -82,14 +81,14 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             if (donHang == null)
                 throw new ArgumentNullException(nameof(donHang));
 
-            _db.ValidateTableName(tmpTable);
-            _db.ValidateTableName(ifsTable);
+            Db.ValidateTableName(tmpTable);
+            Db.ValidateTableName(ifsTable);
 
             // ========================================================
             // 1. Tạo / reset bảng IFS
             // ========================================================
 
-            _db.DropCreate(
+            Db.DropCreate(
                 ifsTable,
                 donHang);
 
@@ -97,7 +96,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             // 2. Bulk insert đơn hàng vào bảng IFS
             // ========================================================
 
-            _db.BulkInsertDataTable(
+            Db.BulkInsertDataTable(
                 ifsTable,
                 donHang);
 
@@ -127,7 +126,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                 ifsTable,
                 "DOCQRCODE");
 
-            _db.CallPhieuSP(
+            Db.CallPhieuSP(
                 "Usp_Qrcode_LOAD_PHIEU_DOCQR2405",
                 DateTime.Now.ToString("yyyy-MM-dd"),
                 nhaMay,
@@ -158,7 +157,33 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                     AND D.STATUS = 'NG'
                     AND T.LOT <> ''";
 
-            _db.ExecuteNonQuery(sql);
+            Db.ExecuteNonQuery(sql);
+        }
+
+        public DataTable BuildDonHangTuUpload()
+        {
+            const string sql = @"
+            SELECT
+                ROW_NUMBER() OVER (PARTITION BY ct.IDP ORDER BY ct.ID) AS STT,
+                ct.CUA,
+                ct.TRUYEN,
+                ct.MAHANG,
+                ct.TENHANG,
+                ISNULL(ct.LOT, '') AS LOT,
+                ISNULL(ct.DV, '') AS DV,
+                ct.SOLUONG,
+                h.NgayLap AS NGAYGIAO,
+                ct.GIOGIAO,
+                ISNULL(ct.STATUS, 'NG') AS STATUS,
+                CAST(ct.IDP AS NVARCHAR(20)) + '-' + ct.MAHANG AS TTPHIEU,
+                ct.NHAMAY,
+                CASE WHEN ct.NHAMAY LIKE '%HA NAM%' THEN 2 ELSE 1 END AS ADDNM,
+                ISNULL(ct.HOP, 0) AS HOP,
+                ISNULL(ct.STATUSDOC, 'NG') AS STATUSDOC
+            FROM TMPPHIEUGIAOHANGDBCT ct
+            INNER JOIN TMPPHIEUNHANDB h ON h.IDP = ct.IDP
+            WHERE ISNULL(ct.STATUS, 'NG') = 'NG'";
+            return LoadData(sql);
         }
     }
 }

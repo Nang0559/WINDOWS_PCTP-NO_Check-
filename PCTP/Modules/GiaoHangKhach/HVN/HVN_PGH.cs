@@ -68,7 +68,8 @@ namespace PCTP.QRCODE_HVN.PGH
         public bool IsLoaiSP => _isLoaiSP;
         private Button _btnToggleLoaiPhieu;
         public event EventHandler LoaiPhieuChanged = delegate { };
-
+        private GioXuatRepository _gioRepo;
+        private SimpleButton _btnUploadGiaoDB;
         // ── Wait form (chuẩn) ────────────────────────────────────────────────
         private readonly IWaitFormService _waitForm;
         // ════════════════════════════════════════════════════════════════════
@@ -90,6 +91,28 @@ namespace PCTP.QRCODE_HVN.PGH
             gridVSUASL.FocusedRowChanged += gridVSUASL_FocusedRowChanged;
             _presenter = BuildPresenter();
         }
+
+        private void BuildUploadGiaoDBButton()
+        {
+            _btnUploadGiaoDB = new SimpleButton
+            {
+                Text = "⬆ Upload Đơn Hàng GIAO DB",
+                Width = 200,
+                Height = 32,
+                Visible = false   // ★ mặc định ẨN — chỉ hiện khi đang ở view GIAO DB
+            };
+            _btnUploadGiaoDB.Appearance.BackColor = Color.FromArgb(0, 120, 212);
+            _btnUploadGiaoDB.Appearance.ForeColor = Color.White;
+
+            // ★ Raise đúng event đã có sẵn trong IHVNView — Presenter đã lắng nghe
+            _btnUploadGiaoDB.Click += (s, e) => UploadGiaoDBClicked?.Invoke(this, EventArgs.Empty);
+
+            // Thêm vào panel toolbar hiện có của bạn — ĐỔI TÊN panel cho khớp thật
+            // (tôi không biết chính xác tên control toolbar trong Designer của bạn,
+            // ví dụ nếu bạn có panelToolbar/ribbonBar, thêm vào đó):
+            panelToolbar.Controls.Add(_btnUploadGiaoDB);   // ⚠️ đổi "panelToolbar" thành đúng tên control thật
+        }
+
         // ── Trong SetupNhaMayUI hoặc SwitchToDocQRView ───────────────────────────
         public void ShowReportWithGioHeader(DataTable reportData, string gioHeader)
         {
@@ -216,7 +239,7 @@ namespace PCTP.QRCODE_HVN.PGH
             var bulkStockSlotRepo = new BulkStockSlotRepository(phieuDb, phieuUow);
             var historyRepo = new StockHistoryRepository(phieuDb, phieuUow);
             var hangChoGiaoRepo = new HangChoGiaoRepository(phieuDb, phieuUow);
-            var phieugiaDBRepo = new PhieuGiaoDBRepository(phieuDb);
+            var phieugiaDBRepo = new PhieuGiaoDBRepository(phieuDb, phieuUow);
             var phieuRepo = new PhieuRepository(
                 phieuDb, phieuUow, _cfg,
                 bulkStockSlotRepo, historyRepo, hangChoGiaoRepo);
@@ -226,13 +249,13 @@ namespace PCTP.QRCODE_HVN.PGH
             var phieuTmpRepo = new PhieuTmpRepository(phieuDb, phieuUow);
             var tableOrderRepo = new TableOrderRepo(phieuDb, phieuTmpRepo);
 
-            var gioRepo = new GioXuatRepository(sql);
+            _gioRepo = new GioXuatRepository(phieuDb, phieuUow);
             var qrRepo = new DocQRRepository(sql, _cfg);
             var sqlRepo = new SqlRepository(phieuDb, phieuUow);
             var luuTruRepo = new PhieuLuuTruRepository(phieuDb, phieuUow);
 
-            var gioVP = gioRepo.GetDictGioVP();
-            var gioHN = gioRepo.GetDictGioHN();
+            var gioVP = _gioRepo.GetDictGioVP();
+            var gioHN = _gioRepo.GetDictGioHN();
             phieuRepo.EnsureTablesExist();
             var ifsRepo = IFSRepository.Create();
             // ── Tính isMayBanQR trước ────────────────────────────────────────────
@@ -248,7 +271,7 @@ namespace PCTP.QRCODE_HVN.PGH
             string tenBan = isMayBanQR
                  ? _cfg.TmpTable
                  : _cfg.GetTmpViewTable(Environment.MachineName);
-            var phieuSvc = new PhieuService(phieuRepo, ifsRepo, bus, gioRepo, tenBan, _cfg, isMayBanQR, tableOrderRepo, phieugiaDBRepo);
+            var phieuSvc = new PhieuService(phieuRepo, ifsRepo, bus, _gioRepo, tenBan, _cfg, isMayBanQR, tableOrderRepo, phieugiaDBRepo);
             var hangthieucangaySvc = new HangThieuCaNgayService(ifsRepo, luuTruRepo, phieuDb);
             var qrSvc = new DocQRService(qrRepo, bus, _cfg);
             var inPhieuSvc = new InPhieuService(ifsRepo, phieuRepo, sqlRepo, gioVP, gioHN, _cfg);
@@ -256,7 +279,7 @@ namespace PCTP.QRCODE_HVN.PGH
 
 
             return new HVN_Presenter(this, phieuSvc, qrSvc, inPhieuSvc,hangthieucangaySvc,
-                                      gioRepo, bus, isMayBanQR, tenBan, _cfg); // ← truyền vào
+                                      _gioRepo, bus, isMayBanQR, tenBan, _cfg); // ← truyền vào
         }
         private static string SanitizeMachineName(string name)
     => System.Text.RegularExpressions.Regex.Replace(
@@ -911,10 +934,10 @@ namespace PCTP.QRCODE_HVN.PGH
                                 .GetCustomerAddress(_cfg.CustomerNo)
                             ?? new DataTable();
             // ── 4. Bind radio giờ xuất ───────────────────────────────
-            var gioRepo = new GioXuatRepository(new SQLPROVIDER());
-            BindGioXuatVP(gioRepo.GetDanhSachGioVP());
+        
+            BindGioXuatVP(_gioRepo.GetDanhSachGioVP());
             if (_cfg.CoNhieuNhaMay)
-                BindGioXuatHN(gioRepo.GetDanhSachGioHN());
+                BindGioXuatHN(_gioRepo.GetDanhSachGioHN());
 
             // ── 4b. Setup grid cột theo customer ─────────────────────
             SetupGridDonHangYMVN(_cfg.LoadTuBangRieng);
