@@ -111,7 +111,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         #endregion
 
         #endregion
-
+        public DataTable LoadTmpPhieuGiaoDB(string tenbang,DateTime ngayGiao, int addNm) => _giaoDB.LoadTmpPhieuGiaoDB("TMPPHIEUGIAOHANGDB",ngayGiao, addNm);
         #region IPhieuTmpRepository — 100% delegate, KHÔNG chứa logic
 
         public DataTable LoadPhieuDocQR(string ngayGiao, string nhaMay, string gioFcc, int addNm, PhieuTableSet tables)
@@ -240,8 +240,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         public DataTable GetDanhSachMaHang()
             => _giaoDB.GetDanhSachMaHang();
 
-        public DataTable LoadTmpPhieuGiaoDB(string tenBan)
-            => _giaoDB.LoadTmpPhieuGiaoDB(tenBan);
+ 
 
         public void LuuGiaoDB(DataTable donHang, string gioFccMoTa, int addNm,
             string tmpTable, string ifsTable, string nhaMayOverride = "")

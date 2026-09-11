@@ -69,7 +69,7 @@ namespace PCTP.QRCODE_HVN.PGH
         private Button _btnToggleLoaiPhieu;
         public event EventHandler LoaiPhieuChanged = delegate { };
         private GioXuatRepository _gioRepo;
-        private SimpleButton _btnUploadGiaoDB;
+      
         // ── Wait form (chuẩn) ────────────────────────────────────────────────
         private readonly IWaitFormService _waitForm;
         // ════════════════════════════════════════════════════════════════════
@@ -92,26 +92,7 @@ namespace PCTP.QRCODE_HVN.PGH
             _presenter = BuildPresenter();
         }
 
-        private void BuildUploadGiaoDBButton()
-        {
-            _btnUploadGiaoDB = new SimpleButton
-            {
-                Text = "⬆ Upload Đơn Hàng GIAO DB",
-                Width = 200,
-                Height = 32,
-                Visible = false   // ★ mặc định ẨN — chỉ hiện khi đang ở view GIAO DB
-            };
-            _btnUploadGiaoDB.Appearance.BackColor = Color.FromArgb(0, 120, 212);
-            _btnUploadGiaoDB.Appearance.ForeColor = Color.White;
-
-            // ★ Raise đúng event đã có sẵn trong IHVNView — Presenter đã lắng nghe
-            _btnUploadGiaoDB.Click += (s, e) => UploadGiaoDBClicked?.Invoke(this, EventArgs.Empty);
-
-            // Thêm vào panel toolbar hiện có của bạn — ĐỔI TÊN panel cho khớp thật
-            // (tôi không biết chính xác tên control toolbar trong Designer của bạn,
-            // ví dụ nếu bạn có panelToolbar/ribbonBar, thêm vào đó):
-            panelToolbar.Controls.Add(_btnUploadGiaoDB);   // ⚠️ đổi "panelToolbar" thành đúng tên control thật
-        }
+       
 
         // ── Trong SetupNhaMayUI hoặc SwitchToDocQRView ───────────────────────────
         public void ShowReportWithGioHeader(DataTable reportData, string gioHeader)

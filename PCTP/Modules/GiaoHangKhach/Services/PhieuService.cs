@@ -712,12 +712,12 @@ namespace PCTP.Applications.Services
                 "TMPPHIEUGIAOHANGDB",
                 "TMPPHIEUGIAOHANGDB_IFS");
 
-        public DataTable LoadTmpPhieuGiaoDB()
-         => _giaoDbRepo.LoadTmpPhieuGiaoDB("TMPPHIEUGIAOHANGDB");
+        public DataTable LoadTmpPhieuGiaoDB(DateTime ngayGiao, int addNm)   // ← SỬA: thêm 2 tham số
+            => _phieuRepo.LoadTmpPhieuGiaoDB("TMPPHIEUGIAOHANGDB", ngayGiao, addNm);
         public void XuLySauUploadGiaoDB()
         {
             // Build donHang đúng shape "IFS order" từ 2 bảng staging thô
-            DataTable donHang = _giaoDbRepo.BuildDonHangTuUpload();   // ★ cần thêm method này vào IPhieuGiaoDBRepository
+            DataTable donHang = _phieuRepo.BuildDonHangTuUpload();   // ★ cần thêm method này vào IPhieuGiaoDBRepository
 
             if (donHang.Rows.Count == 0) return;
 

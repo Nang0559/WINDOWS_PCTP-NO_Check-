@@ -3,6 +3,7 @@ using PCTP.Shared.Common;
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Data.SqlClient;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -39,35 +40,39 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             return LoadData(sql);
         }
 
-        public DataTable LoadTmpPhieuGiaoDB(string tenBan)
+        public DataTable LoadTmpPhieuGiaoDB(string tenBan, DateTime ngayGiao, int addNm)
         {
             Db.ValidateTableName(tenBan);
 
             string sql = $@"
-                SELECT
-                    '' AS IDP,
-                    STT,
-                    CUA,
-                    TRUYEN,
-                    MAHANG,
-                    TENHANG,
-                    LOT,
-                    DV,
-                    SOLUONG,
-                    NGAYGIAO,
-                    GIOGIAO,
-                    STATUS,
-                    TTPHIEU,
-                    NHAMAY,
-                    ADDNM,
-                    HOP,
-                    STATUSDOC,
-                    Note,
-                    ISNULL(PO_NO, '')   AS PO_NO,
-                    ISNULL(PO_ITEM, '') AS PO_ITEM
-                FROM [{tenBan}]";
+        SELECT
+            '' AS IDP,
+            STT,
+            CUA,
+            TRUYEN,
+            MAHANG,
+            TENHANG,
+            LOT,
+            DV,
+            SOLUONG,
+            NGAYGIAO,
+            GIOGIAO,
+            STATUS,
+            TTPHIEU,
+            NHAMAY,
+            ADDNM,
+            HOP,
+            STATUSDOC,
+            ISNULL(Note, '') AS Note,
+            ISNULL(PO_NO, '')   AS PO_NO,
+            ISNULL(PO_ITEM, '') AS PO_ITEM
+        FROM [{tenBan}]
+        WHERE CAST(NGAYGIAO AS DATE) = @ngayGiao
+          AND ADDNM = @addNm";   // ← SỬA: thêm lọc nhà máy + ngày giao
 
-            return LoadData(sql);
+            return LoadData(sql,
+                new SqlParameter("@ngayGiao", ngayGiao.Date),
+                new SqlParameter("@addNm", addNm));
         }
 
         public void LuuGiaoDB(

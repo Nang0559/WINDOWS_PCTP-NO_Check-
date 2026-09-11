@@ -313,9 +313,8 @@ namespace PCTP.Presentation.Presenters
                     LoadGioXuatYMVN();
                 if (_gioXuatHienTai.Ma == "#")
                 {
-                    DataTable dt = _phieuSvc.LoadTmpPhieuGiaoDB();
-                    _view.BindDonHang(dt);
-                    _view.SwitchToPhieuDBView();
+                    LoadPhieuGiaoDB();
+                 
                     return;
                 }
                 LoadPhieuHienTai(); // Hàm này đã được refactor an toàn luồng
@@ -353,9 +352,7 @@ namespace PCTP.Presentation.Presenters
                 {
                     _uiContext.Post(_ =>
                     {
-                        DataTable dt = _phieuSvc.LoadTmpPhieuGiaoDB();
-                        _view.BindDonHang(dt);
-                        _view.SwitchToPhieuDBView();
+                        LoadPhieuGiaoDB();
                     }, null);
                     return;
                 }
@@ -764,9 +761,7 @@ namespace PCTP.Presentation.Presenters
 
             if (_gioXuatHienTai.Ma == "#")
             {
-                DataTable dt = _phieuSvc.LoadTmpPhieuGiaoDB();
-                _view.BindDonHang(dt);
-                _view.SwitchToPhieuDBView();
+                DataTable dt = LoadPhieuGiaoDB();
                 bool showLayLai = _phieuSvc.CheckCoLotChuaCNK(dt);
                 SetupPhieuButtonsDefault(showCapNhapKho: true, showLayLaiLot: showLayLai);
             }
@@ -1070,9 +1065,7 @@ namespace PCTP.Presentation.Presenters
 
             _uiContext.Post(_ =>
             {
-                DataTable dt = _phieuSvc.LoadTmpPhieuGiaoDB();
-                _view.BindDonHang(dt);
-                _view.SwitchToPhieuDBView();
+                LoadPhieuGiaoDB();
             }, null);
         }
 
@@ -1347,6 +1340,15 @@ namespace PCTP.Presentation.Presenters
                 showLayLaiLot: showLayLaiLot && _isMayBanQR && !_isBanQR,
                 showStop: showStop,
                 showHangThieuCaNgay: !_cfg.LoadTuBangRieng);
+        }
+
+        // ── GIAO DB: load + bind + switch view, lọc đúng nhà máy/ngày đang chọn ──
+        private DataTable LoadPhieuGiaoDB()   // ← SỬA: void → DataTable, để tái dùng được ở OnHoanThanh
+        {
+            DataTable dt = _phieuSvc.LoadTmpPhieuGiaoDB(_view.SelectedDate, _addNM);
+            _view.BindDonHang(dt);
+            _view.SwitchToPhieuDBView();
+            return dt;
         }
     }
 
