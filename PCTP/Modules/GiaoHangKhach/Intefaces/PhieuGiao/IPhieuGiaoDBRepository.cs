@@ -15,7 +15,9 @@ namespace PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao
         DataTable BuildDonHangTuUpload();
         void LuuGiaoDB(DataTable donHang, string gioFccMoTa, int addNm,
             string tmpTable, string ifsTable, string nhaMayOverride = "");
-        int SinhIDPMoi();
-        void UploadChiTietGiaoDB(DataTable chiTiet, bool xoaCuTruoc);
+        int TaoPhieuVaChiTietGiaoDB(
+            string ten, DateTime ngayLap, int nhaMay, string nhaMayName,
+            string note, DataTable chiTiet);
+        //void UploadChiTietGiaoDB(DataTable chiTiet, bool xoaCuTruoc);
     }
 }

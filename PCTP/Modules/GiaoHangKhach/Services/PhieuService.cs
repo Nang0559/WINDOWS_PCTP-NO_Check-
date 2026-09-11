@@ -705,10 +705,14 @@ namespace PCTP.Applications.Services
         // Giao DB
         // ════════════════════════════════════════════════════════════════════════
         public DataTable GetDanhSachMaHangGiaoDB() => _phieuRepo.GetDanhSachMaHang();
-        public int SinhIDPMoi() => _phieuRepo.SinhIDPMoi();
 
-        public void UploadChiTietGiaoDB(DataTable chiTiet, bool xoaCuTruoc) =>
-            _phieuRepo.UploadChiTietGiaoDB(chiTiet, xoaCuTruoc);
+
+        public int TaoPhieuVaChiTietGiaoDB(
+        string ten, DateTime ngayLap, int nhaMay, string nhaMayName,
+        string note, DataTable chiTiet) =>
+            _phieuRepo.TaoPhieuVaChiTietGiaoDB(
+         ten,  ngayLap,nhaMay,  nhaMayName,
+         note,  chiTiet);
         public void LuuGiaoDB(DataTable donHang, GioXuat gioXuat, int addNm)
          => _giaoDbRepo.LuuGiaoDB(
                 donHang, gioXuat.MoTa, addNm,

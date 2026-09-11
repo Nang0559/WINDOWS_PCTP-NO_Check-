@@ -206,14 +206,18 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
             lblSheet.Visible = laExcel; cboSheet.Visible = laExcel; lblHint.Visible = laExcel;
             btnXemTruoc.Visible = laExcel;
 
-            grpHeaderNhap.Visible = !laExcel;
+            // ✅ Header (Tên phiếu/Ngày lập/Nhà máy) áp dụng cho CẢ 2 chế độ —
+            // không còn lấy từ cột Excel nữa, luôn nhập qua UI 1 lần cho cả phiếu.
+            grpHeaderNhap.Visible = true;
+
             btnThemDong.Visible = !laExcel;
             btnXoaDong.Visible = !laExcel;
             gridViewPreview.OptionsBehavior.Editable = !laExcel;
 
             if (!laExcel)
             {
-                txtIDP.Text = _phieuSvc.SinhIDPMoi().ToString();
+                // ✅ Bỏ txtIDP/SinhIDPMoi — IDP do DB tự sinh (IDENTITY) khi Lưu,
+                // không tồn tại trước đó để hiển thị trước.
                 _previewDt = TaoBang();
                 gridPreview.DataSource = _previewDt;
                 ApplyColumnVisibility(laExcel: false);
@@ -378,44 +382,65 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
         private void BtnUpload_Click(object sender, EventArgs e)
         {
             bool laNhapTay = rdoCheDo.SelectedIndex == MODE_NHAPTAY;
+
+            if (_previewDt == null || _previewDt.Rows.Count == 0)
+            { ShowWarn("Chưa có dữ liệu. Bấm Xem Trước (hoặc Thêm Dòng) trước!"); return; }
+
             int soLoi = _previewDt.AsEnumerable()
-            .Count(r => !string.IsNullOrEmpty(r.GetColumnError("MaHang")));
+                .Count(r => !string.IsNullOrEmpty(r.GetColumnError("MaHang")));
             if (soLoi > 0)
             {
                 ShowWarn($"Có {soLoi} dòng mã hàng không hợp lệ (xem icon ⚠ đỏ ở đầu dòng).\n" +
                          "Vui lòng sửa hoặc xóa các dòng này trước khi Upload.");
                 return;
             }
-            if (laNhapTay)
-                DongBoHeaderVaoTatCaDong();
-
-            if (_previewDt == null || _previewDt.Rows.Count == 0)
-            { ShowWarn("Chưa có dữ liệu. Bấm Xem Trước (hoặc Thêm Dòng) trước!"); return; }
 
             if (laNhapTay)
             {
-                var thieuMaHang = _previewDt.AsEnumerable()
+                bool thieuMaHang = _previewDt.AsEnumerable()
                     .Any(r => string.IsNullOrWhiteSpace(r["MaHang"]?.ToString()));
-                if (thieuMaHang)
-                { ShowWarn("Có dòng chưa nhập Mã Hàng!"); return; }
+                if (thieuMaHang) { ShowWarn("Có dòng chưa nhập Mã Hàng!"); return; }
             }
 
+            // ✅ Validate header — bắt buộc cho cả 2 chế độ, vì header giờ luôn lấy
+            // từ control UI (grpHeaderNhap), không còn nằm trong dữ liệu Excel/tay nữa.
+            if (string.IsNullOrWhiteSpace(txtName.Text))
+            { ShowWarn("Vui lòng nhập Tên phiếu!"); return; }
+
+            if (cboNhaMay.SelectedIndex < 0)
+            { ShowWarn("Vui lòng chọn Nhà máy!"); return; }
+
             if (XtraMessageBox.Show(
-                    $"Upload {_previewDt.Rows.Count} dòng vào TMPPHIEUGIAOHANGDBCT?",
+                    $"Tạo phiếu GIAO DB với {_previewDt.Rows.Count} dòng?",
                     "Xác nhận", MessageBoxButtons.YesNo, MessageBoxIcon.Question)
                 != DialogResult.Yes) return;
 
             try
             {
                 Cursor = Cursors.WaitCursor;
-                _phieuSvc.UploadChiTietGiaoDB(_previewDt, chkXoaCu.Checked);
 
-                XtraMessageBox.Show($"✅ Upload thành công {_previewDt.Rows.Count} dòng!",
+                string nhaMayName = cboNhaMay.Text;
+                int nhaMay = nhaMayName.Contains("HA NAM") ? 2 : 1;
+
+                // ✅ THAY UploadChiTietGiaoDB (đã bỏ) bằng TaoPhieuVaChiTietGiaoDB —
+                // header tạo trước (IDENTITY tự sinh), detail gắn đúng IDP vừa sinh,
+                // cùng 1 transaction (đảm bảo không còn tình trạng detail mồ côi).
+                int idp = _phieuSvc.TaoPhieuVaChiTietGiaoDB(
+                    txtName.Text.Trim(),
+                    dateNgayLap.DateTime,
+                    nhaMay,
+                    nhaMayName,
+                    note: null,
+                    chiTiet: _previewDt);
+
+                XtraMessageBox.Show(
+                    $"✅ Tạo phiếu GIAO DB #{idp} thành công với {_previewDt.Rows.Count} dòng!",
                     "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
                 this.DialogResult = DialogResult.OK;
                 this.Close();
             }
-            catch (Exception ex) { ShowErr($"Lỗi Upload: {ex.Message}"); }
+            catch (Exception ex) { ShowErr($"Lỗi tạo phiếu: {ex.Message}"); }
             finally { Cursor = Cursors.Default; }
         }
 

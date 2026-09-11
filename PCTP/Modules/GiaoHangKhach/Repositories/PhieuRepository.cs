@@ -121,11 +121,10 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             string tmpTable, string ifsTable, string nhaMayOverride = "")
             => _giaoDB.LuuGiaoDB(donHang, gioFccMoTa, addNm, tmpTable, ifsTable, nhaMayOverride);
 
-        public int SinhIDPMoi()
-            => _giaoDB.SinhIDPMoi();
-
-        public void UploadChiTietGiaoDB(DataTable chiTiet, bool xoaCuTruoc)
-            => _giaoDB.UploadChiTietGiaoDB(chiTiet, xoaCuTruoc);
+        public int TaoPhieuVaChiTietGiaoDB(string ten, DateTime ngayLap, int nhaMay,
+                                 string nhaMayName, string note, DataTable chiTiet)
+            => _giaoDB.TaoPhieuVaChiTietGiaoDB(ten,  ngayLap, nhaMay,
+                                 nhaMayName,  note,  chiTiet);
 
         #endregion
 
