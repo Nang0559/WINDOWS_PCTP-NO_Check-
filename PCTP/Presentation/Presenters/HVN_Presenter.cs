@@ -1051,13 +1051,11 @@ namespace PCTP.Presentation.Presenters
 
         private void OnUploadGiaoDB(object sender, EventArgs e)
         {
-            using (var frm = new FRM_UploadGiaoDB(new SQLPROVIDER()))
+            using (var frm = new FRM_UploadGiaoDB(_phieuSvc))
             {
                 if (frm.ShowDialog() != DialogResult.OK) return;
             }
 
-            // ✅ THÊM — build donHang từ TMPPHIEUNHANDB + TMPPHIEUGIAOHANGDBCT,
-            // rồi đẩy qua pipeline SP chuẩn để sinh ra TMPPHIEUGIAOHANGDB (bảng grid đọc).
             RunWithLoadingSync(() =>
             {
                 _phieuSvc.XuLySauUploadGiaoDB();
@@ -1307,7 +1305,6 @@ namespace PCTP.Presentation.Presenters
             _view.SuaSoLuongTemClicked -= OnSuaSoLuongTem;
             _view.LayLaiLotNoClicked -= OnLayLaiLotNo;
 
-            _view.LuuGiaoDBClicked -= OnLuuGiaoDB;
             _view.CapNhapTTPHIEUClicked -= OnCapNhapTTPHIEU;
             _view.HoanThanhYMVNClicked -= OnHoanThanhYMVN;
             _view.UploadMilkrunSPClicked -= OnUploadMilkrunSP;

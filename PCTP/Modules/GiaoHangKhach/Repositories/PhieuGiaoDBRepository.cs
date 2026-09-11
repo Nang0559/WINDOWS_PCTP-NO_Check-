@@ -168,27 +168,126 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         public DataTable BuildDonHangTuUpload()
         {
             const string sql = @"
-            SELECT
-                ROW_NUMBER() OVER (PARTITION BY ct.IDP ORDER BY ct.ID) AS STT,
-                ct.CUA,
-                ct.TRUYEN,
-                ct.MAHANG,
-                ct.TENHANG,
-                ISNULL(ct.LOT, '') AS LOT,
-                ISNULL(ct.DV, '') AS DV,
-                ct.SOLUONG,
-                h.NgayLap AS NGAYGIAO,
-                ct.GIOGIAO,
-                ISNULL(ct.STATUS, 'NG') AS STATUS,
-                CAST(ct.IDP AS NVARCHAR(20)) + '-' + ct.MAHANG AS TTPHIEU,
-                ct.NHAMAY,
-                CASE WHEN ct.NHAMAY LIKE '%HA NAM%' THEN 2 ELSE 1 END AS ADDNM,
-                ISNULL(ct.HOP, 0) AS HOP,
-                ISNULL(ct.STATUSDOC, 'NG') AS STATUSDOC
-            FROM TMPPHIEUGIAOHANGDBCT ct
-            INNER JOIN TMPPHIEUNHANDB h ON h.IDP = ct.IDP
-            WHERE ISNULL(ct.STATUS, 'NG') = 'NG'";
-            return LoadData(sql);
+        SELECT
+            D.IDP,
+            H.NgayLap,
+            H.NHAMAY  AS ADDNM_HEADER,   -- TMPPHIEUNHANDB.NHAMAY đã lưu SẴN dạng mã 1/2
+            D.MaHang  AS MAHANG,
+            D.TenHang AS TENHANG,
+            D.SoLuong AS SOLUONG,
+            D.GioGiao AS GIOGIAO,
+            D.NhaMay  AS NHAMAY,          -- text hiển thị, lưu riêng ở bảng chi tiết
+            D.CUA,
+            D.TRUYEN
+        FROM TMPPHIEUGIAOHANGDBCT D
+        INNER JOIN TMPPHIEUNHANDB H ON H.IDP = D.IDP
+        WHERE D.STATUS = 'NG'";
+
+            DataTable raw = LoadData(sql);
+
+            var dt = new DataTable();
+            dt.Columns.Add("STT", typeof(string));
+            dt.Columns.Add("CUA", typeof(string));
+            dt.Columns.Add("TRUYEN", typeof(string));
+            dt.Columns.Add("MAHANG", typeof(string));
+            dt.Columns.Add("TENHANG", typeof(string));
+            dt.Columns.Add("LOT", typeof(string));
+            dt.Columns.Add("DV", typeof(string));
+            dt.Columns.Add("SOLUONG", typeof(int));
+            dt.Columns.Add("NGAYGIAO", typeof(DateTime));
+            dt.Columns.Add("GIOGIAO", typeof(string));
+            dt.Columns.Add("STATUS", typeof(string));
+            dt.Columns.Add("TTPHIEU", typeof(string));
+            dt.Columns.Add("NHAMAY", typeof(string));
+            dt.Columns.Add("ADDNM", typeof(int));
+            dt.Columns.Add("HOP", typeof(string));
+            dt.Columns.Add("STATUSDOC", typeof(string));
+            dt.Columns.Add("Note", typeof(string));
+            dt.Columns.Add("PO_NO", typeof(string));
+            dt.Columns.Add("PO_ITEM", typeof(string));
+
+            int stt = 1;
+            foreach (DataRow r in raw.Rows)
+            {
+                string idp = r["IDP"].ToString();
+
+                var row = dt.NewRow();
+                row["STT"] = (stt++).ToString();
+                row["CUA"] = r["CUA"]?.ToString() ?? "";
+                row["TRUYEN"] = r["TRUYEN"]?.ToString() ?? "";
+                row["MAHANG"] = r["MAHANG"]?.ToString() ?? "";
+                row["TENHANG"] = r["TENHANG"]?.ToString() ?? "";
+                row["LOT"] = "";
+                row["DV"] = "PCS";
+                row["SOLUONG"] = DbValueHelper.SafeInt(r["SOLUONG"]);
+                row["NGAYGIAO"] = r["NgayLap"] == DBNull.Value ? (object)DateTime.Now : r["NgayLap"];
+                row["GIOGIAO"] = r["GIOGIAO"]?.ToString() ?? "";
+                row["STATUS"] = "NG";
+                // Định dạng "PREFIX-IDP": SP dùng CHARINDEX('-', TTPHIEU)+1 để lấy IDP —
+                // prefix cố định "GIAODB" (không chứa dấu '-') để tránh parse sai nếu Name có gạch ngang.
+                row["TTPHIEU"] = $"GIAODB-{idp}";
+                row["NHAMAY"] = r["NHAMAY"]?.ToString() ?? "";
+                row["ADDNM"] = DbValueHelper.SafeInt(r["ADDNM_HEADER"]);
+                row["HOP"] = "";
+                row["STATUSDOC"] = "NG";
+                row["Note"] = "";
+                row["PO_NO"] = "";
+                row["PO_ITEM"] = "";
+                dt.Rows.Add(row);
+            }
+            return dt;
+        }
+
+      
+        public int SinhIDPMoi()
+        {
+            object kq = ExecuteScalar("SELECT ISNULL(MAX(IDP), 0) + 1 FROM TMPPHIEUNHANDB");
+            return kq == null || kq == DBNull.Value ? 1 : Convert.ToInt32(kq);
+        }
+
+        public void UploadChiTietGiaoDB(DataTable chiTiet, bool xoaCuTruoc)
+        {
+            if (chiTiet == null || chiTiet.Rows.Count == 0)
+                throw new ArgumentException("Không có dữ liệu để upload.", nameof(chiTiet));
+
+            if (xoaCuTruoc)
+                ExecuteNonQuery("DELETE FROM TMPPHIEUGIAOHANGDBCT");
+
+            foreach (DataRow row in chiTiet.Rows)
+            {
+                ExecuteNonQuery(
+                    "INSERT INTO TMPPHIEUGIAOHANGDBCT " +
+                    "(IDP, MaHang, TenHang, SoLuong, GioGiao, NhaMay, CUA, TRUYEN, Status, TTNHAN) " +
+                    "VALUES (@idp,@ma,@ten,@sl,@gio,@nm,@cua,@tr,'NG',1)",
+                    new SqlParameter("@idp", row["IDP"]),
+                    new SqlParameter("@ma", row["MaHang"]),
+                    new SqlParameter("@ten", row["TenHang"]),
+                    new SqlParameter("@sl", row["SoLuong"]),
+                    new SqlParameter("@gio", row["GioGiao"]),
+                    new SqlParameter("@nm", row["NhaMay"]),
+                    new SqlParameter("@cua", row["CUA"]),
+                    new SqlParameter("@tr", row["TRUYEN"]));
+            }
+
+            var idpGroups = chiTiet.AsEnumerable().GroupBy(r => r["IDP"].ToString());
+            foreach (var grp in idpGroups)
+            {
+                string idp = grp.Key;
+                var first = grp.First();
+                string name = first["Name"].ToString();
+                object ngayLap = first["NgayLap"];
+                string nhaMay = first["NhaMay"].ToString();
+                int addNM = nhaMay.Contains("HA NAM") ? 2 : 1;
+
+                ExecuteNonQuery(
+                    "IF NOT EXISTS (SELECT 1 FROM TMPPHIEUNHANDB WHERE IDP=@idp) " +
+                    "INSERT INTO TMPPHIEUNHANDB (IDP, Name, NgayLap, NHAMAY) " +
+                    "VALUES (@idp, @name, @ngay, @nm)",
+                    new SqlParameter("@idp", idp),
+                    new SqlParameter("@name", name),
+                    new SqlParameter("@ngay", ngayLap == DBNull.Value ? (object)DBNull.Value : ngayLap),
+                    new SqlParameter("@nm", addNM));
+            }
         }
     }
 }

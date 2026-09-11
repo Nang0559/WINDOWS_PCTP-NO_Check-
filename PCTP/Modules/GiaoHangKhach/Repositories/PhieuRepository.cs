@@ -105,13 +105,32 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
     => _validation.CheckFifoViolations(tenBangTmp);
         public DataTable SoSanhLechIFS(DataTable donHang, DataTable ifsTable)
         => _validation.SoSanhLechIFS(donHang, ifsTable);
-
+        #endregion
         #region Phieu Giao DB
-        public DataTable BuildDonHangTuUpload()=>_giaoDB.BuildDonHangTuUpload();
-        #endregion
+        // ── IPhieuGiaoDBRepository pass-through ─────────────────────────
+        public DataTable GetDanhSachMaHang()
+            => _giaoDB.GetDanhSachMaHang();
+
+        public DataTable LoadTmpPhieuGiaoDB(string tenBan, DateTime ngayGiao, int addNm)
+            => _giaoDB.LoadTmpPhieuGiaoDB(tenBan, ngayGiao, addNm);
+
+        public DataTable BuildDonHangTuUpload()
+            => _giaoDB.BuildDonHangTuUpload();
+
+        public void LuuGiaoDB(DataTable donHang, string gioFccMoTa, int addNm,
+            string tmpTable, string ifsTable, string nhaMayOverride = "")
+            => _giaoDB.LuuGiaoDB(donHang, gioFccMoTa, addNm, tmpTable, ifsTable, nhaMayOverride);
+
+        public int SinhIDPMoi()
+            => _giaoDB.SinhIDPMoi();
+
+        public void UploadChiTietGiaoDB(DataTable chiTiet, bool xoaCuTruoc)
+            => _giaoDB.UploadChiTietGiaoDB(chiTiet, xoaCuTruoc);
 
         #endregion
-        public DataTable LoadTmpPhieuGiaoDB(string tenbang,DateTime ngayGiao, int addNm) => _giaoDB.LoadTmpPhieuGiaoDB("TMPPHIEUGIAOHANGDB",ngayGiao, addNm);
+
+
+
         #region IPhieuTmpRepository — 100% delegate, KHÔNG chứa logic
 
         public DataTable LoadPhieuDocQR(string ngayGiao, string nhaMay, string gioFcc, int addNm, PhieuTableSet tables)
@@ -237,14 +256,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
 
         #region IPhieuGiaoDBRepository — 100% delegate, KHÔNG chứa logic
 
-        public DataTable GetDanhSachMaHang()
-            => _giaoDB.GetDanhSachMaHang();
-
- 
-
-        public void LuuGiaoDB(DataTable donHang, string gioFccMoTa, int addNm,
-            string tmpTable, string ifsTable, string nhaMayOverride = "")
-            => _giaoDB.LuuGiaoDB(donHang, gioFccMoTa, addNm, tmpTable, ifsTable, nhaMayOverride);
+       
         public DataTable LoadLuuPhieuCaNgay(string nhaMay, string ngayGiao)=>
 
             _luuTru.LoadLuuPhieuCaNgay(nhaMay,ngayGiao);

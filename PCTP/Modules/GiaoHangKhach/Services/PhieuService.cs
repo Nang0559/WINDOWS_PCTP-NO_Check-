@@ -705,7 +705,10 @@ namespace PCTP.Applications.Services
         // Giao DB
         // ════════════════════════════════════════════════════════════════════════
         public DataTable GetDanhSachMaHangGiaoDB() => _phieuRepo.GetDanhSachMaHang();
+        public int SinhIDPMoi() => _phieuRepo.SinhIDPMoi();
 
+        public void UploadChiTietGiaoDB(DataTable chiTiet, bool xoaCuTruoc) =>
+            _phieuRepo.UploadChiTietGiaoDB(chiTiet, xoaCuTruoc);
         public void LuuGiaoDB(DataTable donHang, GioXuat gioXuat, int addNm)
          => _giaoDbRepo.LuuGiaoDB(
                 donHang, gioXuat.MoTa, addNm,
@@ -716,19 +719,14 @@ namespace PCTP.Applications.Services
             => _phieuRepo.LoadTmpPhieuGiaoDB("TMPPHIEUGIAOHANGDB", ngayGiao, addNm);
         public void XuLySauUploadGiaoDB()
         {
-            // Build donHang đúng shape "IFS order" từ 2 bảng staging thô
-            DataTable donHang = _phieuRepo.BuildDonHangTuUpload();   // ★ cần thêm method này vào IPhieuGiaoDBRepository
+            DataTable donHang = _phieuRepo.BuildDonHangTuUpload();
+            if (donHang == null || donHang.Rows.Count == 0) return;
 
-            if (donHang.Rows.Count == 0) return;
-
-            // Lấy gioFccMoTa/addNm mặc định cho GIAO DB (theo SP: luôn set @GIOFCC='(GIAO DB)')
-            _giaoDbRepo.LuuGiaoDB(
-                donHang, "(GIAO DB)", addNm: 1,
-                tmpTable: "TMPPHIEUGIAOHANGDB",
-                ifsTable: "TMPPHIEUGIAOHANGDB_IFS");
+            _phieuRepo.LuuGiaoDB(donHang, "(GIAO DB)", addNm: 0,
+                tmpTable: _cfg.TmpTable, ifsTable: _cfg.IfsTable);
         }
 
-       
+
         // ════════════════════════════════════════════════════════════════════════
         // TinhTongLot — truyền _cfg.DocQRTable xuống repo
         // ════════════════════════════════════════════════════════════════════════

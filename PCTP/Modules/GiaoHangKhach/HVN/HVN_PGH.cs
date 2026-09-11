@@ -556,22 +556,13 @@ namespace PCTP.QRCODE_HVN.PGH
             UIButton.AllowGlyphSkinning = false;
             UIButton.Buttons.Clear();
             UIButton.Buttons.AddRange(new WindowsUIButton[]
-            {
-        new WindowsUIButton { Caption = "Upload Đơn Hàng",  // ✅ thêm
+    {
+        new WindowsUIButton { Caption = "Upload Đơn Hàng",
             Style = ButtonStyle.PushButton,
             ImageUri = "Import;Size16x16;Colored" },
         new WindowsUIButton { Caption = "DOC QRCODE",
             Style = ButtonStyle.PushButton,
             ImageUri = "IndentIncrease;Size16x16;Colored" },
-        new WindowsUIButton { Caption = "Thêm",
-            Style = ButtonStyle.PushButton,
-            ImageUri = "new;Size16x16;Colored" },
-        new WindowsUIButton { Caption = "Xóa",
-            Style = ButtonStyle.PushButton,
-            ImageUri = "Delete;Size16x16;Colored" },
-        new WindowsUIButton { Caption = "Lưu",
-            Style = ButtonStyle.PushButton,
-            ImageUri = "Save;Size16x16;Colored" },
         new WindowsUIButton { Caption = "In Phiếu",
             Style = ButtonStyle.PushButton,
             ImageUri = "Print;Size16x16;Colored" }
@@ -1446,9 +1437,7 @@ namespace PCTP.QRCODE_HVN.PGH
                 case "Upload Đơn Hàng":
                     UploadGiaoDBClicked.Invoke(this, EventArgs.Empty);
                     break;
-                case "Lưu":
-                    LuuGiaoDBClicked.Invoke(this, EventArgs.Empty);
-                    break;
+                
                 // Thêm ghi chú Phiếu SP 
                 case "Ghi Chú STOP":
                     {
