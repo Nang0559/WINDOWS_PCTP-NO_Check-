@@ -16,6 +16,8 @@ namespace PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao
         DataTable LoadTuTmpTable(string tmpTable);
         DataTable GetDonHangHienTai(string tenBan);
         DataTable LoadPhieuDocQR(string ngayGiao, string nhaMay, string gioFcc, int addNm, PhieuTableSet tables);
+
+        void PushIfsSnapshot(string ifsTable, DataTable donHang);
         DataTable LuuVaLoad(PhieuTableSet tables, string tenSP, DataTable donHang,
             string ngayGiao, string nhaMay, string gioFcc, int addNm);
         void XoaTmpPhieu(string tenBan);

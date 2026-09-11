@@ -216,7 +216,7 @@ namespace PCTP.QRCODE_HVN.PGH
             var bulkStockSlotRepo = new BulkStockSlotRepository(phieuDb, phieuUow);
             var historyRepo = new StockHistoryRepository(phieuDb, phieuUow);
             var hangChoGiaoRepo = new HangChoGiaoRepository(phieuDb, phieuUow);
-
+            var phieugiaDBRepo = new PhieuGiaoDBRepository(phieuDb);
             var phieuRepo = new PhieuRepository(
                 phieuDb, phieuUow, _cfg,
                 bulkStockSlotRepo, historyRepo, hangChoGiaoRepo);
@@ -248,7 +248,7 @@ namespace PCTP.QRCODE_HVN.PGH
             string tenBan = isMayBanQR
                  ? _cfg.TmpTable
                  : _cfg.GetTmpViewTable(Environment.MachineName);
-            var phieuSvc = new PhieuService(phieuRepo, ifsRepo, bus, gioRepo, tenBan, _cfg, isMayBanQR, tableOrderRepo);
+            var phieuSvc = new PhieuService(phieuRepo, ifsRepo, bus, gioRepo, tenBan, _cfg, isMayBanQR, tableOrderRepo, phieugiaDBRepo);
             var hangthieucangaySvc = new HangThieuCaNgayService(ifsRepo, luuTruRepo, phieuDb);
             var qrSvc = new DocQRService(qrRepo, bus, _cfg);
             var inPhieuSvc = new InPhieuService(ifsRepo, phieuRepo, sqlRepo, gioVP, gioHN, _cfg);

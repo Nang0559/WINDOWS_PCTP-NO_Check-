@@ -27,10 +27,12 @@ namespace PCTP.Applications.Services
         private readonly IPhieuRepository _phieuRepo;
         private readonly IIFSRepository _ifsRepo;
         private readonly IGioXuatRepository _gioXuatRepo;
+        private readonly IPhieuGiaoDBRepository _giaoDbRepo;
         private readonly IEventBus _bus;
         private readonly string _tenBan;
         private readonly bool _isMayBanQR;
         private readonly CustomerConfig _cfg;
+        private DataTable _ifsDataCache;
 
         // ✅ FIX: LoadPhieuTuBangRieng / GetDanhSachGioYMVN / UploadMilkrunSP /
         // InsertTmpYMVN nằm trong ITableOrderRepository — đã được tách riêng khỏi
@@ -51,8 +53,8 @@ namespace PCTP.Applications.Services
                             string tenBan,
                             CustomerConfig cfg,
                             bool isMayBanQR,
-                            ITableOrderRepository tableOrderRepo
-                            )
+                            ITableOrderRepository tableOrderRepo,
+                            IPhieuGiaoDBRepository giaoDbRepo)
         {
             _phieuRepo = phieuRepo;
             _ifsRepo = ifsRepo;
@@ -62,6 +64,7 @@ namespace PCTP.Applications.Services
             _cfg = cfg;
             _isMayBanQR = isMayBanQR;
             _tableOrderRepo = tableOrderRepo ?? throw new ArgumentNullException(nameof(tableOrderRepo));
+            _giaoDbRepo = giaoDbRepo ?? throw new ArgumentNullException(nameof(giaoDbRepo));
         }
         public void SetTrangThaiBan(bool isBanQR, bool isLoaiSP)
         {
@@ -272,33 +275,59 @@ namespace PCTP.Applications.Services
             }
         }
 
-        // ── Method riêng cho YMVN (thay LoadPhieuGH_GIO cũ) ─────────────────────
-        /// <summary>
-        /// Load phiếu từ bảng riêng (Purchase_Order_YMVN / Purchase_Order_HTN)
-        /// Dùng chung cho 100002 (YMVN - có CheckGX) và 100003 (HTN - load theo ngày)
-        /// </summary>
         public void LoadPhieuTuBangRieng_Internal(
-     string ngayGiao,
-     List<string> checkedGios,
-     bool isLoaiSP,
-     bool isMayBanQR,
-     bool isBanQR)
+    string ngayGiao,
+    List<string> checkedGios,
+    bool isLoaiSP,
+    bool isMayBanQR,
+    bool isBanQR)
         {
             if (!DateTime.TryParse(ngayGiao, out DateTime dt) || dt.Year < 2000)
             {
-                _bus.Publish(new PhieuLoadedEvent(
-                    new DataTable(), new DataTable(), ""));
-                return;
-            }
-
-            if (_cfg.CoGear && (checkedGios == null || checkedGios.Count == 0))
-            {
-                _bus.Publish(new PhieuLoadedEvent(
-                    new DataTable(), new DataTable(), ""));
+                _bus.Publish(new PhieuLoadedEvent(new DataTable(), new DataTable(), ""));
                 return;
             }
 
             string ngayGiaoSP = dt.ToString("yyyy-MM-dd");
+
+            // ════════════════════════════════════════════════════════════════
+            // TÁC VỤ 1 — Đẩy dữ liệu IFS (Oracle) vào IFSPHIEUGIAOHANG...
+            // LUÔN chạy, không phụ thuộc bảng riêng có giờ/dữ liệu hay không.
+            // ════════════════════════════════════════════════════════════════
+            try
+            {
+                string ifsTable = isLoaiSP ? _cfg.IfsTableSP : _cfg.IfsTable;
+                string ngayXuatIFS = dt.ToString("ddMMyyyy");
+
+                DataTable ifsData = _ifsRepo.GetFullCustomerOrder(ngayXuatIFS, _cfg);
+                _phieuRepo.PushIfsSnapshot(ifsTable, ifsData); // ghi SQL: luôn full (SP+MP, cả ngày)
+
+                DataTable ifsScoped = ifsData;
+
+                if (_cfg.CoGear)
+                    ifsScoped = FilterIfsDataByGio(ifsScoped, checkedGios);
+
+                if (_cfg.CoLoaiSP)
+                    ifsScoped = FilterIfsDataByDockCode(ifsScoped, isLoaiSP, _cfg.DockCodeSP);
+
+                _ifsDataCache = ifsScoped;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine(
+                    $"[LoadPhieuTuBangRieng_Internal] Lỗi đồng bộ IFS snapshot: {ex.Message}");
+                _ifsDataCache = null;
+            }
+
+            // ════════════════════════════════════════════════════════════════
+            // TÁC VỤ 2 — Load đơn hàng thật từ bảng riêng vào TMP/gridDH.
+            // ════════════════════════════════════════════════════════════════
+            if (_cfg.CoGear && (checkedGios == null || checkedGios.Count == 0))
+            {
+                _bus.Publish(new PhieuLoadedEvent(new DataTable(), new DataTable(), ""));
+                return;
+            }
+
             string gioFcc = "";
             string gioMoTa = "";
 
@@ -311,12 +340,16 @@ namespace PCTP.Applications.Services
                 gioMoTa = string.Join("+", checkedGios) + "H";
             }
 
-            string dockCodeSP = isLoaiSP ? _cfg.DockCodeSP : "";
+            // ✅ FIX: luôn truyền giá trị thật của DockCodeSP — để
+            // TableOrderRepo.LoadPhieuTuBangRieng tự quyết định = / <> theo isLoaiSP.
+            // Trước đây truyền "" khi isLoaiSP=false khiến "Xem MP" lọc sai
+            // (AND RTRIM(o.CUA) <> '' không loại được CUA='VSP1').
+            string dockCodeSP = _cfg.DockCodeSP;
+
             DataTable donHang;
 
             if (isMayBanQR)
             {
-                // ── Máy bắn QR ──────────────────────────────────────────────────
                 string docQRTable = isLoaiSP
                     ? (_cfg.DocQRTableSP ?? _cfg.DocQRTable)
                     : _cfg.DocQRTable;
@@ -325,7 +358,6 @@ namespace PCTP.Applications.Services
 
                 if (demQR > 0 && isBanQR)
                 {
-                    // ── Đang bắn dở → đọc từ TMP (đã có LOT/STATUS) ────────────
                     string tmpTable = isLoaiSP
                         ? (_cfg.TmpTableSP ?? _cfg.TmpTable)
                         : _cfg.TmpTable;
@@ -334,21 +366,16 @@ namespace PCTP.Applications.Services
                 }
                 else
                 {
-                    // ── Chưa bắn hoặc đã hoàn thành → query Purchase_Order ──────
-                    // Rồi merge LOT từ LUUPHIEUGIAOHANG
                     donHang = _tableOrderRepo.LoadPhieuTuBangRieng(
                         ngayGiaoSP, gioFcc, isLoaiSP, dockCodeSP, _cfg);
                 }
             }
             else
             {
-                // ── Máy view → luôn query Purchase_Order + merge LUUPHIEUGIAOHANG ─
                 donHang = _tableOrderRepo.LoadPhieuTuBangRieng(
                     ngayGiaoSP, gioFcc, isLoaiSP, dockCodeSP, _cfg);
             }
 
-            // ← SỬA: tính hàng thiếu từ donHang vừa load, thay vì bỏ trống —
-            // đồng nhất với nhánh "đang bắn QR dở" ở LoadPhieu() vốn đã gọi hàm này.
             DataTable hangThieu = _phieuRepo.TinhHangThieuTuDonHang(donHang);
 
             string caption;
@@ -363,8 +390,60 @@ namespace PCTP.Applications.Services
                 caption = $"ĐƠN HÀNG {_cfg.DisplayName}: {dt:dd/MM/yyyy}";
             }
 
-            _bus.Publish(new PhieuLoadedEvent(donHang, hangThieu, caption)); // ← sửa: hangThieu thay vì new DataTable()
+            _bus.Publish(new PhieuLoadedEvent(donHang, hangThieu, caption));
         }
+
+        // ════════════════════════════════════════════════════════════════════
+        // Lọc IFS theo giờ đang chọn — khớp phạm vi với donHang (đã lọc giờ).
+        // Cột GIOGIAO trong ifsData = TO_CHAR(WANTED_DELIVERY_DATE,'HH24') → chuỗi 2 số.
+        // ════════════════════════════════════════════════════════════════════
+        private DataTable FilterIfsDataByGio(DataTable ifsData, List<string> checkedGios)
+        {
+            if (ifsData == null) return new DataTable();
+            if (checkedGios == null || checkedGios.Count == 0) return ifsData;
+            if (!ifsData.Columns.Contains("GIOGIAO")) return ifsData;
+
+            var hourSet = checkedGios
+                .Select(g => g.Split(':')[0].PadLeft(2, '0'))
+                .Distinct()
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            DataTable result = ifsData.Clone();
+            foreach (DataRow row in ifsData.Rows)
+            {
+                string gioGiao = (row["GIOGIAO"]?.ToString() ?? "").Trim();
+                if (hourSet.Contains(gioGiao))
+                    result.ImportRow(row);
+            }
+            return result;
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        // Lọc IFS theo SP/MP — dùng đúng cùng logic với
+        // TableOrderRepo.LoadPhieuTuBangRieng (RTRIM(CUA) = / <> DockCodeSP).
+        // Cột CUA trong ifsData = col.SUB_DOCK_CODE (IFSRepository.GetCustomerOrderJoin).
+        // ════════════════════════════════════════════════════════════════════
+        private DataTable FilterIfsDataByDockCode(DataTable ifsData, bool isLoaiSP, string dockCodeSP)
+        {
+            if (ifsData == null) return new DataTable();
+            if (!ifsData.Columns.Contains("CUA")) return ifsData;
+
+            string safeDockCode = (dockCodeSP ?? "").Trim();
+
+            DataTable result = ifsData.Clone();
+            foreach (DataRow row in ifsData.Rows)
+            {
+                string cua = (row["CUA"]?.ToString() ?? "").Trim();
+                bool isRowSP = string.Equals(cua, safeDockCode, StringComparison.OrdinalIgnoreCase);
+
+                // isLoaiSP=true  → chỉ giữ dòng CUA = DockCodeSP (SP)
+                // isLoaiSP=false → chỉ giữ dòng CUA <> DockCodeSP (MP)
+                if (isLoaiSP == isRowSP)
+                    result.ImportRow(row);
+            }
+            return result;
+        }
+
 
         //private DataTable LoadPhieuYMVNTuIFS(string ngayXuatIFS,
         //                              bool isLoaiSP,
@@ -458,22 +537,63 @@ namespace PCTP.Applications.Services
         // ════════════════════════════════════════════════════════════════════════
         // Sync IFS → TMP trước khi bắt đầu scan QR
         // ════════════════════════════════════════════════════════════════════════
+        //public void SyncIfsPhieuChoDocQR(string ngayGiao, string nhaMay,
+        //                          string gioFcc, string gioFccMoTa,
+        //                          int addNm)
+        //{
+        //    if (!DateTime.TryParse(ngayGiao, out DateTime dt) || dt.Year < 2000) return;
+        //    bool isSP = _isLoaiSP;
+        //    string ngayXuat = dt.ToString("ddMMyyyy");
+        //    string ngayGiaoSP = dt.ToString("yyyy-MM-dd");
+
+        //    // ── Nếu LoadTheoNgay → bỏ filter giờ ────────────────────────────
+        //    string gioFccSP = _cfg.LoadTheoNgay ? "" : gioFcc;
+        //    string gioMoTaSP = _cfg.LoadTheoNgay ? "Tất cả ca" : gioFccMoTa;
+
+        //    DataTable ifs = _ifsRepo.GetCustomerOrderJoin(
+        //        ngayXuat, gioFccSP, gioMoTaSP, nhaMay, addNm, 1,
+        //        _cfg);
+
+        //    EnrichSttHop(ifs);
+
+        //    _phieuRepo.LuuVaLoad(
+        //        _cfg.GetIfsTable(isSP),
+        //        "Usp_Qrcode_LOAD_PHIEU_DOCQR2405",
+        //        ifs,
+        //        ngayGiaoSP, nhaMay, gioFccSP, addNm,
+        //        _cfg.GetTmpTable(isSP),                    // TMPPHIEUGIAOHANG_SP
+        //       _cfg.GetDocQRTable(isSP));                 // DOCQRCODE_SP
+        //}
         public void SyncIfsPhieuChoDocQR(string ngayGiao, string nhaMay,
-                                  string gioFcc, string gioFccMoTa,
-                                  int addNm)
+                          string gioFcc, string gioFccMoTa,
+                          int addNm)
         {
             if (!DateTime.TryParse(ngayGiao, out DateTime dt) || dt.Year < 2000) return;
             bool isSP = _isLoaiSP;
             string ngayXuat = dt.ToString("ddMMyyyy");
             string ngayGiaoSP = dt.ToString("yyyy-MM-dd");
 
-            // ── Nếu LoadTheoNgay → bỏ filter giờ ────────────────────────────
             string gioFccSP = _cfg.LoadTheoNgay ? "" : gioFcc;
             string gioMoTaSP = _cfg.LoadTheoNgay ? "Tất cả ca" : gioFccMoTa;
 
-            DataTable ifs = _ifsRepo.GetCustomerOrderJoin(
-                ngayXuat, gioFccSP, gioMoTaSP, nhaMay, addNm, 1,
-                _cfg);
+            DataTable ifs;
+
+            // Chỉ dùng GetFullCustomerOrder khi cfg có cấu hình bảng riêng
+            // (danh sách nhiều addNm cần gộp)
+            bool coBangRieng = _cfg.DanhSachAddNm != null
+                                && _cfg.DanhSachAddNm.Count > 1; // hoặc 1 cờ riêng, vd _cfg.SuDungBangRieng
+
+            if (coBangRieng)
+            {
+                // Lấy toàn bộ đơn hàng theo danh sách addNm cấu hình riêng cho khách hàng này
+                ifs = _ifsRepo.GetFullCustomerOrder(ngayXuat, _cfg);
+            }
+            else
+            {
+                // Luồng bình thường: 1 nhà máy, có lọc giờ
+                ifs = _ifsRepo.GetCustomerOrderJoin(
+                    ngayXuat, gioFccSP, gioMoTaSP, nhaMay, addNm, 1, _cfg);
+            }
 
             EnrichSttHop(ifs);
 
@@ -482,8 +602,8 @@ namespace PCTP.Applications.Services
                 "Usp_Qrcode_LOAD_PHIEU_DOCQR2405",
                 ifs,
                 ngayGiaoSP, nhaMay, gioFccSP, addNm,
-                _cfg.GetTmpTable(isSP),                    // TMPPHIEUGIAOHANG_SP
-               _cfg.GetDocQRTable(isSP));                 // DOCQRCODE_SP
+                _cfg.GetTmpTable(isSP),
+                _cfg.GetDocQRTable(isSP));
         }
 
         // ════════════════════════════════════════════════════════════════════════
@@ -523,20 +643,9 @@ namespace PCTP.Applications.Services
         public DataTable TinhLechIFS(DataTable donHangBangRieng, string ngayXuatIFS)
         {
             if (!_cfg.LoadTuBangRieng) return new DataTable();
+            if (_ifsDataCache == null) return new DataTable();
 
-            string ifsTable = _isLoaiSP ? _cfg.IfsTableSP : _cfg.IfsTable;
-
-            // A. Oracle: cần đúng format 'ddMMyyyy' để khớp TO_CHAR(...,'ddmmyyyy')
-            DataTable ifsData = _ifsRepo.GetFullCustomerOrder(ngayXuatIFS, _cfg);
-
-            // B. SQL Server: chuỗi 8 số liền không dấu bị hiểu nhầm thành yyyyMMdd
-            // → phải parse lại 'ddMMyyyy' rồi đổi sang 'yyyy-MM-dd' (ISO, không mơ hồ)
-            string ngaySqlServer = DateTime.ParseExact(ngayXuatIFS, "ddMMyyyy", null)
-                                            .ToString("yyyy-MM-dd");
-
-            _phieuRepo.SyncIfsSnapshot(ifsData, ifsTable, ngaySqlServer);
-
-            return _phieuRepo.SoSanhLechIFS(donHangBangRieng, ifsData);
+            return _phieuRepo.SoSanhLechIFS(donHangBangRieng, _ifsDataCache);
         }
 
         // ════════════════════════════════════════════════════════════════════════
@@ -573,12 +682,18 @@ namespace PCTP.Applications.Services
 
         public DataTable LoadGhepLot()
         {
-            // ✅ FIX Bug 1: trước đây gọi _phieuRepo.LoadGhepLot() không tham số
-            // → luôn rơi vào default "TMPPHIEUGIAOHANG"/"IFSPHIEUGIAOHANG" của
-            // IPhieuLotRepository, bất kể máy nào gọi — máy view luôn đọc SAI
-            // bảng (bảng của máy bắn QR chính) nên lưới luôn trống.
-            string ifsTable = _isMayBanQR ? _cfg.IfsTable : _cfg.GetIfsViewTable();
-            return _phieuRepo.LoadGhepLot(_tenBan, ifsTable);
+            string tenBan = GetTenBan(_isLoaiSP);
+
+            if (_cfg.LoadTuBangRieng)
+            {
+                return _phieuRepo.LoadGhepLot(tenBan, tenBan);
+            }
+
+            string ifsTable = _isMayBanQR
+                ? _cfg.GetIfsTable(_isLoaiSP)          // hoặc _isLoaiSP ? _cfg.IfsTableSP : _cfg.IfsTable, tuỳ CustomerConfig thật
+                : _cfg.GetIfsViewTable(_isLoaiSP);
+
+            return _phieuRepo.LoadGhepLot(tenBan, ifsTable);
         }
 
         public void LayLaiLotNo(int stt, bool isSP = false)
@@ -591,13 +706,14 @@ namespace PCTP.Applications.Services
         // ════════════════════════════════════════════════════════════════════════
         public DataTable GetDanhSachMaHangGiaoDB() => _phieuRepo.GetDanhSachMaHang();
 
-        public void LuuGiaoDB(DataTable donHang, GioXuat gioXuat, int addNm) =>
-            _phieuRepo.LuuGiaoDB(donHang, gioXuat.MoTa, addNm,
-                              _cfg.TmpTable,   // ← FIX
-                              _cfg.IfsTable);
+        public void LuuGiaoDB(DataTable donHang, GioXuat gioXuat, int addNm)
+         => _giaoDbRepo.LuuGiaoDB(
+                donHang, gioXuat.MoTa, addNm,
+                "TMPPHIEUGIAOHANGDB",
+                "TMPPHIEUGIAOHANGDB_IFS");
 
-        public DataTable LoadTmpPhieuGiaoDB() =>
-            _phieuRepo.LoadTmpPhieuGiaoDB(GetTenBan());
+        public DataTable LoadTmpPhieuGiaoDB()
+     => _giaoDbRepo.LoadTmpPhieuGiaoDB("TMPPHIEUGIAOHANGDB");
 
         // ════════════════════════════════════════════════════════════════════════
         // TinhTongLot — truyền _cfg.DocQRTable xuống repo

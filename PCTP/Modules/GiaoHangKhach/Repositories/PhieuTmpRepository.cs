@@ -61,9 +61,43 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         // ============================================================
         // LuuVaLoad
         // ============================================================
+        // ============================================================
+        // Nửa 1: CHỈ đẩy dữ liệu vào bảng nguồn (IFS) — dùng cho CẢ 2 nhánh.
+        // Đây là phần thay thế SyncIfsSnapshot đã xoá, nhưng dùng BulkInsert
+        // thay vì insert từng dòng.
+        // ============================================================
+        public void PushIfsSnapshot(string ifsTable, DataTable donHang)
+        {
+            if (donHang == null) throw new ArgumentNullException(nameof(donHang));
+            Db.ValidateTableName(ifsTable);
+            ConvertDateTimeColumns(donHang);
+
+            bool ownTransaction = !HasTransaction;
+            if (ownTransaction) Uow.Begin();
+            try
+            {
+                SWLog.Measure($"4b. DropCreate [{ifsTable}]",
+                    () => Db.DropCreate(Connection, Transaction, ifsTable, donHang));
+
+                SWLog.Measure($"4c. BulkInsert {donHang.Rows.Count} rows → [{ifsTable}]",
+                    () => Db.BulkInsert(Connection, Transaction, ifsTable, donHang));
+
+                if (ownTransaction) Uow.Commit();
+            }
+            catch
+            {
+                if (ownTransaction) Uow.Rollback();
+                throw;
+            }
+        }
+
+        // ============================================================
+        // Nửa 2: Đẩy vào IFS RỒI đồng bộ tiếp sang TMP — CHỈ dùng cho
+        // customer KHÔNG có bảng riêng (nhánh 1).
+        // ============================================================
         public DataTable LuuVaLoad(
-    PhieuTableSet tables, string tenSP, DataTable donHang,
-    string ngayGiao, string nhaMay, string gioFcc, int addNm)
+            PhieuTableSet tables, string tenSP, DataTable donHang,
+            string ngayGiao, string nhaMay, string gioFcc, int addNm)
         {
             if (tables == null) throw new ArgumentNullException(nameof(tables));
             if (donHang == null) throw new ArgumentNullException(nameof(donHang));
@@ -76,9 +110,6 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             if (ownTransaction) Uow.Begin();
             try
             {
-                // ✅ FIX: cả 3 bước giờ dùng CHUNG Connection/Transaction của Uow —
-                // không còn mở connection riêng, loại bỏ lock-wait/deadlock chéo
-                // connection từng khiến CallPhieuSP treo vô thời hạn không exception.
                 SWLog.Measure($"4b. DropCreate [{tables.SourceTable}]",
                     () => Db.DropCreate(Connection, Transaction, tables.SourceTable, donHang));
 

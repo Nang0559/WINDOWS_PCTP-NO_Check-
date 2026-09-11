@@ -311,7 +311,13 @@ namespace PCTP.Presentation.Presenters
             {
                 if (_cfg.CoGear)
                     LoadGioXuatYMVN();
-
+                if (_gioXuatHienTai.Ma == "#")
+                {
+                    DataTable dt = _phieuSvc.LoadTmpPhieuGiaoDB();
+                    _view.BindDonHang(dt);
+                    _view.SwitchToPhieuDBView();
+                    return;
+                }
                 LoadPhieuHienTai(); // Hàm này đã được refactor an toàn luồng
             }, "Đang chuyển ngày...");
         }
@@ -340,7 +346,19 @@ namespace PCTP.Presentation.Presenters
                     LoadPhieuHienTai();
                     return;
                 }
-
+                // ════════════════════════════════════════════════════════════
+                // ✅ GIAO DB — không load từ IFS, chuyển hẳn sang chế độ riêng
+                // ════════════════════════════════════════════════════════════
+                if (_gioXuatHienTai.Ma == "#")
+                {
+                    _uiContext.Post(_ =>
+                    {
+                        DataTable dt = _phieuSvc.LoadTmpPhieuGiaoDB();
+                        _view.BindDonHang(dt);
+                        _view.SwitchToPhieuDBView();
+                    }, null);
+                    return;
+                }
                 // Bắn sự kiện EventBus: Ép sự kiện này phải được xử lý trên UI Thread 
                 // để bảo vệ các hàm nhận sự kiện (Subscribers) không bị lỗi luồng.
                 _uiContext.Send(_ =>
@@ -562,18 +580,18 @@ namespace PCTP.Presentation.Presenters
         private void OnInTachLot(object sender, EventArgs e) => _view.ShowTachLot();
 
         private void OnKiemTraGhepLot(object sender, EventArgs e)
-    => RunWithLoading(() =>
-    {
-        // 1. Tải dữ liệu từ DB dưới luồng phụ (Async)
-        DataTable dt = _phieuSvc.LoadGhepLot();
-
-        // 2. Đồng bộ kết quả trả về luồng chính (UI Thread) để gán lên lưới
-        _uiContext.Post(_ =>
+        => RunWithLoading(() =>
         {
-            _view.BindGhepLot(dt);
-        }, null);
+            // 1. Tải dữ liệu từ DB dưới luồng phụ (Async)
+            DataTable dt = _phieuSvc.LoadGhepLot();
 
-    }, "Đang kiểm tra ghép LOT...");
+            // 2. Đồng bộ kết quả trả về luồng chính (UI Thread) để gán lên lưới
+            _uiContext.Post(_ =>
+            {
+                _view.BindGhepLot(dt);
+            }, null);
+
+        }, "Đang kiểm tra ghép LOT...");
 
         private void OnKiemTraMaNG(object sender, EventArgs e)
         {

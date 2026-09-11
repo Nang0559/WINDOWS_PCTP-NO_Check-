@@ -106,8 +106,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         public DataTable SoSanhLechIFS(DataTable donHang, DataTable ifsTable)
         => _validation.SoSanhLechIFS(donHang, ifsTable);
 
-        public void SyncIfsSnapshot(DataTable ifsData, string ifsTable, string ngayGiao)
-    => _validation.SyncIfsSnapshot(ifsData, ifsTable, ngayGiao);
+     
 
         #endregion
 
@@ -128,7 +127,8 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             string ngayGiao, string nhaMay, string gioFcc, int addNm,
             string tenBan, string docQRTable, string ifsView = "")
             => _tmp.LuuVaLoad(tenSPBang, tenSP, donHang, ngayGiao, nhaMay, gioFcc, addNm, tenBan, docQRTable, ifsView);
-
+        public void PushIfsSnapshot(string ifsTable, DataTable donHang)
+    => _tmp.PushIfsSnapshot(ifsTable, donHang);
         public DataTable LoadTuTmpTable(string tmpTable)
             => _tmp.LoadTuTmpTable(tmpTable);
 
