@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Linq;
 using System.Windows.Forms;
 using DevExpress.XtraBars.Navigation;
 using DevExpress.XtraEditors;
@@ -154,7 +155,9 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
         {
             var radioGroup2 = FindControl<RadioGroup>("radioGroup2");
             var RDO_GXHN = FindControl<RadioGroup>("RDO_GXHN");
-            if (radioGroup2 == null || RDO_GXHN == null)
+            var tabVP = FindControl<NavigationPage>("tabVP");
+            var tabHN = FindControl<NavigationPage>("tabHN");
+            if (radioGroup2 == null || RDO_GXHN == null || tabVP == null || tabHN == null)
                 return;
 
             foreach (RadioGroupItem item in radioGroup2.Properties.Items)
@@ -192,33 +195,7 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
             }
         }
 
-        private bool TrySelectRadio(RadioGroupItemCollection items,
-                                      HashSet<string> gioSet,
-                                      string gioFCC,
-                                      Action<int> setIndex)
-        {
-            for (int i = 0; i < items.Count; i++)
-            {
-                var item = (RadioGroupItem)items[i];
-                if (string.IsNullOrEmpty(item.AccessibleName)) continue;
 
-                // AccessibleName = "'17','18','19'" → tách ra so sánh Set
-                var itemSet = new HashSet<string>(
-                    item.AccessibleName.Split(',')
-                                       .Select(g => g.Trim().Trim('\'')),
-                    StringComparer.OrdinalIgnoreCase);
-
-                // Hai Set phải bằng nhau (không chỉ Contains)
-                if (itemSet.SetEquals(gioSet))
-                {
-                    setIndex(i);
-                    _presenter.UpdateGioXuat(
-                        new GioXuat(gioFCC, item.Description ?? gioFCC));
-                    return true;
-                }
-            }
-            return false;
-        }
 
         public void LockDatePicker()
         {

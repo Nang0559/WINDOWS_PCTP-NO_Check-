@@ -1057,6 +1057,56 @@ namespace PCTP.QRCODE_HVN.PGH
         //    }
         //}
 
+        private bool TrySelectRadio(RadioGroupItemCollection items,
+                                      HashSet<string> gioSet,
+                                      string gioFCC,
+                                      Action<int> setIndex)
+        {
+            for (int i = 0; i < items.Count; i++)
+            {
+                var item = (RadioGroupItem)items[i];
+                if (string.IsNullOrEmpty(item.AccessibleName)) continue;
+
+                var itemSet = new HashSet<string>(
+                    item.AccessibleName.Split(',')
+                                       .Select(g => g.Trim().Trim('\'')),
+                    StringComparer.OrdinalIgnoreCase);
+
+                if (itemSet.SetEquals(gioSet))
+                {
+                    setIndex(i);
+                    _presenter.UpdateGioXuat(
+                        new GioXuat(gioFCC, item.Description ?? gioFCC));
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private void LockRadioGroup(RadioGroupItemCollection items,
+                                      HashSet<string> gioSet,
+                                      Action<int> setIndex)
+        {
+            for (int i = 0; i < items.Count; i++)
+            {
+                var item = (RadioGroupItem)items[i];
+                var itemSet = new HashSet<string>(
+                    (item.AccessibleName ?? "").Split(',')
+                                               .Select(g => g.Trim().Trim('\'')),
+                    StringComparer.OrdinalIgnoreCase);
+
+                if (itemSet.SetEquals(gioSet))
+                {
+                    setIndex(i);
+                    item.Enabled = true;
+                }
+                else
+                {
+                    item.Enabled = false;
+                }
+            }
+        }
+
         public void UpdateGioXuatFromDB(string gioFCC)
         {
             // gioFCC = "'17','18','19'" → tách ra Set để compare
