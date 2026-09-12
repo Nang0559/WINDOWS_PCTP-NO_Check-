@@ -4,6 +4,7 @@ using DevExpress.XtraEditors.Repository;
 using DevExpress.XtraGrid;
 using DevExpress.XtraGrid.Views.Grid;
 using OfficeOpenXml;
+using OfficeOpenXml.Style;
 using PCTP.Applications.Services;
 using PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao;
 using System;
@@ -27,34 +28,41 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
         private const int MODE_EXCEL = 0;
         private const int MODE_NHAPTAY = 1;
 
+        // ── Thứ tự cột trong file Excel — dùng chung cho đọc file lẫn tạo file mẫu ──
+        private static readonly string[] ExcelHeaders =
+            { "Mã hàng", "Tên hàng", "Số lượng", "Giờ giao", "Cửa", "Truyền" };
+
         // Controls chung
         private LabelControl lblFile, lblSheet, lblHint, lblSoDong;
         private TextEdit txtDuongDan;
         private ComboBoxEdit cboSheet;
-        private CheckEdit chkXoaCu;
-        private SimpleButton btnChonFile, btnXemTruoc, btnUpload, btnDong;
+        private SimpleButton btnChonFile, btnTaiFileMau, btnXemTruoc, btnUpload, btnDong;
         private GridControl gridPreview;
         private GridView gridViewPreview;
         private DevExpress.XtraEditors.RadioGroup rdoCheDo;
 
-        // Controls chế độ nhập tay
+        // Controls header phiếu — dùng chung cho CẢ 2 chế độ
         private GroupControl grpHeaderNhap;
-        private LabelControl lblIDP, lblName, lblNgay, lblNhaMay;
-        private TextEdit txtIDP, txtName;
+        private LabelControl lblName, lblNgay, lblNhaMay, lblGhiChu;
+        private TextEdit txtName;
         private DateEdit dateNgayLap;
         private ComboBoxEdit cboNhaMay;
+        private MemoEdit txtGhiChu;
+
+        // Controls chế độ nhập tay
         private SimpleButton btnThemDong, btnXoaDong;
 
         public FRM_UploadGiaoDB(PhieuService phieuSvc)
         {
-             _phieuSvc = phieuSvc ?? throw new ArgumentNullException(nameof(phieuSvc));
+            _phieuSvc = phieuSvc ?? throw new ArgumentNullException(nameof(phieuSvc));
             ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
             _danhSachMaHang = _phieuSvc.GetDanhSachMaHangGiaoDB() ?? new DataTable();
             _maHangHopLe = new HashSet<string>(
-            _danhSachMaHang.AsEnumerable().Select(r => r["Code"]?.ToString().Trim() ?? ""),
-            StringComparer.OrdinalIgnoreCase);
+                _danhSachMaHang.AsEnumerable().Select(r => r["Code"]?.ToString().Trim() ?? ""),
+                StringComparer.OrdinalIgnoreCase);
             BuildUI();
         }
+
         private void SetupMaHangLookup()
         {
             if (gridViewPreview.Columns["MaHang"] == null) return;
@@ -74,6 +82,7 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
             gridPreview.RepositoryItems.Add(riLookup);
             gridViewPreview.Columns["MaHang"].ColumnEdit = riLookup;
         }
+
         private void BuildUI()
         {
             this.Text = "Upload Đơn Hàng GIAO DB";
@@ -94,15 +103,17 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
                 new DevExpress.XtraEditors.Controls.RadioGroupItem(MODE_EXCEL, "📂 Upload File Excel"),
                 new DevExpress.XtraEditors.Controls.RadioGroupItem(MODE_NHAPTAY, "✏ Nhập Trực Tiếp")
             });
-            rdoCheDo.SelectedIndex = MODE_EXCEL;
-            rdoCheDo.SelectedIndexChanged += RdoCheDo_SelectedIndexChanged;
+            rdoCheDo.SelectedIndex = MODE_EXCEL;                              // ✅ gán TRƯỚC — chưa wire nên không tự fire
+            rdoCheDo.SelectedIndexChanged += RdoCheDo_SelectedIndexChanged;   // ✅ wire SAU
             y += 40;
 
             lblFile = Lbl("File Excel:", 15, y + 3, 80);
-            txtDuongDan = new TextEdit { Location = new System.Drawing.Point(100, y), Size = new System.Drawing.Size(680, 28) };
+            txtDuongDan = new TextEdit { Location = new System.Drawing.Point(100, y), Size = new System.Drawing.Size(550, 28) };
             txtDuongDan.Properties.ReadOnly = true;
-            btnChonFile = Btn("📂 Chọn File", 790, y, 170, 28);
+            btnChonFile = Btn("📂 Chọn File", 660, y, 140, 28);
             btnChonFile.Click += BtnChonFile_Click;
+            btnTaiFileMau = Btn("📥 Tải File Mẫu", 810, y, 150, 28);
+            btnTaiFileMau.Click += BtnTaiFileMau_Click;
             y += 40;
 
             lblSheet = Lbl("Sheet:", 15, y + 3, 80);
@@ -111,71 +122,74 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
 
             lblHint = new LabelControl
             {
-                Text = "📋 Thứ tự cột: [1] IDP [2] Tên phiếu [3] Ngày lập " +
-                       "[4] Mã hàng [5] Tên hàng [6] Số lượng " +
-                       "[7] Giờ giao [8] Nhà máy [9] Cửa [10] Truyền",
-                Location = new System.Drawing.Point(15, y)
+                Text = "📋 Thứ tự cột file Excel: [1] Mã hàng  [2] Tên hàng  [3] Số lượng  " +
+                       "[4] Giờ giao  [5] Cửa  [6] Truyền.\n" +
+                       "Tên phiếu / Ngày lập / Nhà máy / Ghi chú nhập ở khung bên dưới — áp dụng chung cho toàn bộ file.",
+                Location = new System.Drawing.Point(15, y),
+                AutoSizeMode = LabelAutoSizeMode.None,
+                Size = new System.Drawing.Size(945, 34)
             };
             lblHint.Appearance.ForeColor = System.Drawing.Color.DarkBlue;
-            y += 30;
+            y += 44;
 
+            // ════════════════════════════════════════════════════════════
+            // Header phiếu — dùng chung cho CẢ 2 chế độ (Excel & nhập tay)
+            // ════════════════════════════════════════════════════════════
             grpHeaderNhap = new GroupControl
             {
-                Text = "Thông tin phiếu (nhập 1 lần, áp dụng cho mọi dòng chi tiết bên dưới)",
+                Text = "Thông tin phiếu (nhập 1 lần, áp dụng cho toàn bộ chi tiết bên dưới)",
                 Location = new System.Drawing.Point(15, y),
-                Size = new System.Drawing.Size(945, 70),
-                Visible = false
+                Size = new System.Drawing.Size(945, 100)
             };
-            lblIDP = Lbl("Số Phiếu (IDP):", 15, 30, 100);
-            txtIDP = new TextEdit { Location = new System.Drawing.Point(120, 27), Size = new System.Drawing.Size(80, 26) };
-            txtIDP.Properties.ReadOnly = true;
-            lblName = Lbl("Tên phiếu:", 215, 30, 70);
-            txtName = new TextEdit { Location = new System.Drawing.Point(290, 27), Size = new System.Drawing.Size(180, 26) };
-            lblNgay = Lbl("Ngày lập:", 485, 30, 70);
-            dateNgayLap = new DateEdit { Location = new System.Drawing.Point(555, 27), Size = new System.Drawing.Size(110, 26) };
+
+            lblName = Lbl("Tên phiếu:", 15, 30, 70);
+            txtName = new TextEdit { Location = new System.Drawing.Point(90, 27), Size = new System.Drawing.Size(230, 26) };
+
+            lblNgay = Lbl("Ngày lập:", 335, 30, 65);
+            dateNgayLap = new DateEdit { Location = new System.Drawing.Point(400, 27), Size = new System.Drawing.Size(110, 26) };
             dateNgayLap.EditValue = DateTime.Now;
-            lblNhaMay = Lbl("Nhà máy:", 680, 30, 65);
-            cboNhaMay = new ComboBoxEdit { Location = new System.Drawing.Point(750, 27), Size = new System.Drawing.Size(180, 26) };
+
+            lblNhaMay = Lbl("Nhà máy:", 525, 30, 65);
+            cboNhaMay = new ComboBoxEdit { Location = new System.Drawing.Point(595, 27), Size = new System.Drawing.Size(330, 26) };
             cboNhaMay.Properties.Items.AddRange(new[]
             {
                 "HON DA - VIET NAM(NHA MAY VP)",
                 "HON DA - VIET NAM(NHA MAY HA NAM)"
             });
             cboNhaMay.SelectedIndex = 0;
+
+            lblGhiChu = Lbl("Ghi chú:", 15, 65, 70);
+            txtGhiChu = new MemoEdit { Location = new System.Drawing.Point(90, 62), Size = new System.Drawing.Size(835, 28) };
+
             grpHeaderNhap.Controls.AddRange(new Control[]
-            { lblIDP, txtIDP, lblName, txtName, lblNgay, dateNgayLap, lblNhaMay, cboNhaMay });
-            y += 80;
-
-            chkXoaCu = new CheckEdit
             {
-                Text = "Xóa dữ liệu cũ trước khi upload",
-                Location = new System.Drawing.Point(15, y + 5),
-                Size = new System.Drawing.Size(280, 25)
-            };
-            chkXoaCu.Checked = true;
+                lblName, txtName, lblNgay, dateNgayLap, lblNhaMay, cboNhaMay,
+                lblGhiChu, txtGhiChu
+            });
+            y += 110;
 
-            btnXemTruoc = Btn("👁 Xem Trước", 300, y, 130, 32);
+            btnXemTruoc = Btn("👁 Xem Trước", 15, y, 130, 32);
             btnXemTruoc.Click += BtnXemTruoc_Click;
 
-            btnUpload = Btn("⬆ Upload DB", 440, y, 130, 32);
+            btnUpload = Btn("💾 Lưu Phiếu", 155, y, 130, 32);
             btnUpload.Appearance.BackColor = System.Drawing.Color.FromArgb(0, 120, 212);
             btnUpload.Appearance.ForeColor = System.Drawing.Color.White;
             btnUpload.Click += BtnUpload_Click;
 
-            btnThemDong = Btn("➕ Thêm Dòng", 580, y, 120, 32);
+            btnThemDong = Btn("➕ Thêm Dòng", 295, y, 120, 32);
             btnThemDong.Click += BtnThemDong_Click;
             btnThemDong.Visible = false;
 
-            btnXoaDong = Btn("➖ Xóa Dòng", 710, y, 110, 32);
+            btnXoaDong = Btn("➖ Xóa Dòng", 425, y, 110, 32);
             btnXoaDong.Click += BtnXoaDong_Click;
             btnXoaDong.Visible = false;
 
             btnDong = Btn("✕ Đóng", 830, y, 100, 32);
             btnDong.Click += (s, e) => this.Close();
 
-            lblSoDong = new LabelControl { Text = "", Location = new System.Drawing.Point(300, y + 40) };
+            lblSoDong = new LabelControl { Text = "", Location = new System.Drawing.Point(550, y + 8) };
             lblSoDong.Appearance.ForeColor = System.Drawing.Color.DarkGreen;
-            y += 75;
+            y += 45;
 
             gridViewPreview = new GridView();
             gridViewPreview.OptionsBehavior.Editable = false;
@@ -188,13 +202,19 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
             };
             gridViewPreview.GridControl = gridPreview;
             gridViewPreview.CellValueChanged += GridViewPreview_CellValueChanged;
+
             this.Controls.AddRange(new Control[]
             {
-                rdoCheDo, lblFile, txtDuongDan, btnChonFile,
+                rdoCheDo, lblFile, txtDuongDan, btnChonFile, btnTaiFileMau,
                 lblSheet, cboSheet, lblHint, grpHeaderNhap,
-                chkXoaCu, btnXemTruoc, btnUpload, btnThemDong, btnXoaDong,
+                btnXemTruoc, btnUpload, btnThemDong, btnXoaDong,
                 btnDong, lblSoDong, gridPreview
             });
+
+            // ✅ Đồng bộ trạng thái ban đầu — event wire trước SelectedIndex nên
+            // dòng dưới đây thực ra không bắt buộc nữa, giữ lại cho rõ ý & an toàn
+            // nếu sau này có ai đổi lại thứ tự wiring.
+            RdoCheDo_SelectedIndexChanged(this, EventArgs.Empty);
         }
 
         // ══════════════════ Chuyển chế độ ══════════════════
@@ -202,13 +222,10 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
         {
             bool laExcel = rdoCheDo.SelectedIndex == MODE_EXCEL;
 
-            lblFile.Visible = laExcel; txtDuongDan.Visible = laExcel; btnChonFile.Visible = laExcel;
+            lblFile.Visible = laExcel; txtDuongDan.Visible = laExcel;
+            btnChonFile.Visible = laExcel; btnTaiFileMau.Visible = laExcel;
             lblSheet.Visible = laExcel; cboSheet.Visible = laExcel; lblHint.Visible = laExcel;
             btnXemTruoc.Visible = laExcel;
-
-            // ✅ Header (Tên phiếu/Ngày lập/Nhà máy) áp dụng cho CẢ 2 chế độ —
-            // không còn lấy từ cột Excel nữa, luôn nhập qua UI 1 lần cho cả phiếu.
-            grpHeaderNhap.Visible = true;
 
             btnThemDong.Visible = !laExcel;
             btnXoaDong.Visible = !laExcel;
@@ -216,11 +233,8 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
 
             if (!laExcel)
             {
-                // ✅ Bỏ txtIDP/SinhIDPMoi — IDP do DB tự sinh (IDENTITY) khi Lưu,
-                // không tồn tại trước đó để hiển thị trước.
                 _previewDt = TaoBang();
                 gridPreview.DataSource = _previewDt;
-                ApplyColumnVisibility(laExcel: false);
                 SetupMaHangLookup();
                 lblSoDong.Text = "";
             }
@@ -231,8 +245,9 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
                 lblSoDong.Text = "";
             }
         }
+
         private void GridViewPreview_CellValueChanged(object sender,
-        DevExpress.XtraGrid.Views.Base.CellValueChangedEventArgs e)
+            DevExpress.XtraGrid.Views.Base.CellValueChangedEventArgs e)
         {
             if (e.Column.FieldName != "MaHang") return;
 
@@ -246,16 +261,66 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
             row["TenHang"] = found?["Name"]?.ToString() ?? "";
             ValidateRowMaHang(row);
         }
-        // Ẩn 4 cột IDP/Name/NgayLap/NhaMay khi nhập tay (đã có ở khối header,
-        // hiển thị lặp lại từng dòng gây rối) — vẫn hiện đủ khi xem trước Excel.
-        private void ApplyColumnVisibility(bool laExcel)
+
+        // ══════════════════ Tải file mẫu Excel ══════════════════
+        private void BtnTaiFileMau_Click(object sender, EventArgs e)
         {
-            foreach (string col in new[] { "IDP", "Name", "NgayLap", "NhaMay" })
-                if (gridViewPreview.Columns[col] != null)
-                    gridViewPreview.Columns[col].Visible = laExcel;
+            using (var dlg = new SaveFileDialog())
+            {
+                dlg.Title = "Lưu file mẫu GIAO DB";
+                dlg.Filter = "Excel|*.xlsx";
+                dlg.FileName = "MauUploadGiaoDB.xlsx";
+                if (dlg.ShowDialog() != DialogResult.OK) return;
+
+                try
+                {
+                    using (var pkg = new ExcelPackage())
+                    {
+                        var ws = pkg.Workbook.Worksheets.Add("GiaoDB");
+
+                        for (int c = 0; c < ExcelHeaders.Length; c++)
+                        {
+                            ws.Cells[1, c + 1].Value = ExcelHeaders[c];
+                            ws.Cells[1, c + 1].Style.Font.Bold = true;
+                            ws.Cells[1, c + 1].Style.Fill.PatternType = ExcelFillStyle.Solid;
+                            ws.Cells[1, c + 1].Style.Fill.BackgroundColor.SetColor(
+                                System.Drawing.Color.FromArgb(0, 120, 212));
+                            ws.Cells[1, c + 1].Style.Font.Color.SetColor(System.Drawing.Color.White);
+                        }
+
+                        // 1 dòng ví dụ minh họa
+                        var vd = _danhSachMaHang.Rows.Count > 0 ? _danhSachMaHang.Rows[0] : null;
+                        ws.Cells[2, 1].Value = vd?["Code"]?.ToString() ?? "VD00000001";
+                        ws.Cells[2, 2].Value = vd?["Name"]?.ToString() ?? "Tên hàng ví dụ";
+                        ws.Cells[2, 3].Value = 100;
+                        ws.Cells[2, 4].Value = "08";
+                        ws.Cells[2, 5].Value = "1";
+                        ws.Cells[2, 6].Value = "A";
+
+                        // ✅ Bỏ AutoFit() — EPPlus 7.x cần font measurer riêng
+                        // (SixLabors/GenericFontMetricsTextMeasurer) chưa được cấu hình
+                        // đủ trên môi trường .NET Framework hiện tại, ném lỗi
+                        // "does not have an implementation". Set độ rộng cố định thay thế.
+                        double[] widths = { 16, 30, 12, 12, 10, 10 };
+                        for (int c = 1; c <= ExcelHeaders.Length; c++)
+                            ws.Column(c).Width = widths[c - 1];
+
+                        pkg.SaveAs(new FileInfo(dlg.FileName));
+                    }
+
+                    if (XtraMessageBox.Show(
+                            "✅ Đã tạo file mẫu. Mở file ngay?",
+                            "Thành công", MessageBoxButtons.YesNo, MessageBoxIcon.Information)
+                        == DialogResult.Yes)
+                    {
+                        System.Diagnostics.Process.Start(dlg.FileName);
+                    }
+                }
+                catch (Exception ex) { ShowErr($"Lỗi tạo file mẫu: {ex.Message}"); }
+            }
         }
 
-        // ══════════════════ Chọn file / đọc Excel (giữ nguyên) ══════════════════
+        // ══════════════════ Chọn file / đọc Excel ══════════════════
         private void BtnChonFile_Click(object sender, EventArgs e)
         {
             using (var dlg = new OpenFileDialog())
@@ -295,7 +360,6 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
                 _previewDt = DocDuLieu();
                 if (_previewDt == null) return;
                 gridPreview.DataSource = _previewDt;
-                ApplyColumnVisibility(laExcel: true);
 
                 int soLoi = _previewDt.AsEnumerable()
                     .Count(r => !string.IsNullOrEmpty(r.GetColumnError("MaHang")));
@@ -318,22 +382,18 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
             var dt = TaoBang();
             int rEnd = ws.Dimension?.End.Row ?? 1;
 
-            for (int r = 2; r <= rEnd; r++)
+            for (int r = 2; r <= rEnd; r++)   // bỏ dòng header
             {
                 string G(int col) => ws.Cells[r, col].Text?.Trim() ?? "";
-                if (string.IsNullOrWhiteSpace(G(1)) && string.IsNullOrWhiteSpace(G(4))) continue;
+                if (string.IsNullOrWhiteSpace(G(1))) continue;   // dòng trống
 
                 var row = dt.NewRow();
-                row["IDP"] = Trunc(G(1), 20);
-                row["Name"] = Trunc(G(2), 100);
-                row["NgayLap"] = ParseDate(G(3));
-                row["MaHang"] = Trunc(G(4), 50);
-                row["TenHang"] = Trunc(G(5), 200);
-                row["SoLuong"] = ToInt(G(6));
-                row["GioGiao"] = Trunc(G(7), 10);
-                row["NhaMay"] = Trunc(G(8), 100);
-                row["CUA"] = Trunc(G(9), 20);
-                row["TRUYEN"] = Trunc(G(10), 20);
+                row["MaHang"] = Trunc(G(1), 50);    // cột 1
+                row["TenHang"] = Trunc(G(2), 200);   // cột 2
+                row["SoLuong"] = ToInt(G(3));         // cột 3
+                row["GioGiao"] = Trunc(G(4), 10);    // cột 4
+                row["CUA"] = Trunc(G(5), 20);    // cột 5
+                row["TRUYEN"] = Trunc(G(6), 20);    // cột 6
                 dt.Rows.Add(row);
                 ValidateRowMaHang(row);
             }
@@ -346,10 +406,6 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
             if (_previewDt == null) return;
 
             var row = _previewDt.NewRow();
-            row["IDP"] = txtIDP.Text;
-            row["Name"] = txtName.Text;
-            row["NgayLap"] = dateNgayLap.EditValue ?? DateTime.Now;
-            row["NhaMay"] = cboNhaMay.Text;
             row["MaHang"] = ""; row["TenHang"] = ""; row["SoLuong"] = 0;
             row["GioGiao"] = ""; row["CUA"] = ""; row["TRUYEN"] = "";
             _previewDt.Rows.Add(row);
@@ -364,21 +420,7 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
             lblSoDong.Text = $"✅ {_previewDt.Rows.Count} dòng";
         }
 
-        // Trước khi upload ở chế độ nhập tay: đồng bộ lại header (phòng khi
-        // người dùng đổi Name/Ngày/Nhà máy SAU khi đã thêm 1 vài dòng).
-        private void DongBoHeaderVaoTatCaDong()
-        {
-            if (_previewDt == null) return;
-            foreach (DataRow row in _previewDt.Rows)
-            {
-                row["IDP"] = txtIDP.Text;
-                row["Name"] = txtName.Text;
-                row["NgayLap"] = dateNgayLap.EditValue ?? DateTime.Now;
-                row["NhaMay"] = cboNhaMay.Text;
-            }
-        }
-
-        // ══════════════════ Upload — QUA REPOSITORY, không còn SQL trong form ══════════════════
+        // ══════════════════ Lưu — qua Repository, không còn SQL trong form ══════════════════
         private void BtnUpload_Click(object sender, EventArgs e)
         {
             bool laNhapTay = rdoCheDo.SelectedIndex == MODE_NHAPTAY;
@@ -391,7 +433,7 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
             if (soLoi > 0)
             {
                 ShowWarn($"Có {soLoi} dòng mã hàng không hợp lệ (xem icon ⚠ đỏ ở đầu dòng).\n" +
-                         "Vui lòng sửa hoặc xóa các dòng này trước khi Upload.");
+                         "Vui lòng sửa hoặc xóa các dòng này trước khi Lưu.");
                 return;
             }
 
@@ -402,8 +444,6 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
                 if (thieuMaHang) { ShowWarn("Có dòng chưa nhập Mã Hàng!"); return; }
             }
 
-            // ✅ Validate header — bắt buộc cho cả 2 chế độ, vì header giờ luôn lấy
-            // từ control UI (grpHeaderNhap), không còn nằm trong dữ liệu Excel/tay nữa.
             if (string.IsNullOrWhiteSpace(txtName.Text))
             { ShowWarn("Vui lòng nhập Tên phiếu!"); return; }
 
@@ -421,16 +461,14 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
 
                 string nhaMayName = cboNhaMay.Text;
                 int nhaMay = nhaMayName.Contains("HA NAM") ? 2 : 1;
+                string ghiChu = string.IsNullOrWhiteSpace(txtGhiChu.Text) ? null : txtGhiChu.Text.Trim();
 
-                // ✅ THAY UploadChiTietGiaoDB (đã bỏ) bằng TaoPhieuVaChiTietGiaoDB —
-                // header tạo trước (IDENTITY tự sinh), detail gắn đúng IDP vừa sinh,
-                // cùng 1 transaction (đảm bảo không còn tình trạng detail mồ côi).
                 int idp = _phieuSvc.TaoPhieuVaChiTietGiaoDB(
                     txtName.Text.Trim(),
                     dateNgayLap.DateTime,
                     nhaMay,
                     nhaMayName,
-                    note: null,
+                    note: ghiChu,
                     chiTiet: _previewDt);
 
                 XtraMessageBox.Show(
@@ -448,27 +486,13 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
         private static DataTable TaoBang()
         {
             var dt = new DataTable();
-            dt.Columns.Add("IDP", typeof(string));
-            dt.Columns.Add("Name", typeof(string));
-            dt.Columns.Add("NgayLap", typeof(DateTime));
             dt.Columns.Add("MaHang", typeof(string));
             dt.Columns.Add("TenHang", typeof(string));
             dt.Columns.Add("SoLuong", typeof(int));
             dt.Columns.Add("GioGiao", typeof(string));
-            dt.Columns.Add("NhaMay", typeof(string));
             dt.Columns.Add("CUA", typeof(string));
             dt.Columns.Add("TRUYEN", typeof(string));
             return dt;
-        }
-
-        private static object ParseDate(string s)
-        {
-            if (string.IsNullOrWhiteSpace(s)) return DBNull.Value;
-            string[] fmts = { "yyyy-MM-dd", "dd/MM/yyyy", "MM/dd/yyyy", "yyyyMMdd" };
-            return DateTime.TryParseExact(s, fmts,
-                System.Globalization.CultureInfo.InvariantCulture,
-                System.Globalization.DateTimeStyles.None, out DateTime d)
-                ? (object)d : DBNull.Value;
         }
 
         private static int ToInt(string s) =>
@@ -491,6 +515,7 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
             _excelPkg?.Dispose();
             base.OnFormClosed(e);
         }
+
         private void ValidateRowMaHang(DataRow row)
         {
             string ma = row["MaHang"]?.ToString().Trim() ?? "";

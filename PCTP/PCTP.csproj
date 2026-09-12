@@ -131,6 +131,9 @@
     <Reference Include="EPPlus, Version=7.5.2.0, Culture=neutral, PublicKeyToken=ea159fdaa78159a1, processorArchitecture=MSIL">
       <HintPath>..\packages\EPPlus.7.5.2\lib\net462\EPPlus.dll</HintPath>
     </Reference>
+    <Reference Include="EPPlus.Interfaces, Version=8.4.0.0, Culture=neutral, PublicKeyToken=a694d7f3b0907a61, processorArchitecture=MSIL">
+      <HintPath>..\packages\EPPlus.Interfaces.8.4.0\lib\net462\EPPlus.Interfaces.dll</HintPath>
+    </Reference>
     <Reference Include="EPPlus.System.Drawing, Version=7.5.0.0, Culture=neutral, PublicKeyToken=2308d35469c9bac0, processorArchitecture=MSIL">
       <HintPath>..\packages\EPPlus.System.Drawing.7.5.0\lib\net462\EPPlus.System.Drawing.dll</HintPath>
     </Reference>
@@ -532,11 +535,6 @@
     <Compile Include="Modules\GiaoHangKhach\NhanLaiNG\NhanLaiTP\frmNhanLaiTP.Designer.cs">
       <DependentUpon>frmNhanLaiTP.cs</DependentUpon>
     </Compile>
-    <Compile Include="Modules\GiaoHangKhach\NhanLaiNG\NHAN_HVN_NG.designer.cs">
-      <AutoGen>True</AutoGen>
-      <DesignTime>True</DesignTime>
-      <DependentUpon>NHAN_HVN_NG.dbml</DependentUpon>
-    </Compile>
     <Compile Include="Modules\GiaoHangKhach\NhanLaiNG\TACKMH.cs" />
     <Compile Include="Modules\GiaoHangKhach\HVN\Edit_DH.cs">
       <SubType>UserControl</SubType>
@@ -868,6 +866,7 @@
       <DependentUpon>YMVN_CHONGIAO.cs</DependentUpon>
     </Compile>
     <None Include="Workflow\Diagram\Dashboard.md" />
+    <None Include="Workflow\Diagram\GIAOHANGKHACH_REFACTOR_ROADMAP.md" />
     <None Include="Workflow\Diagram\WORKFLOW_GIAOHANGKHACH.md" />
     <None Include="Workflow\Diagram\WORKFLOW_NHAPKHO.md" />
     <None Include="Workflow\Diagram\ARCHITECTURE_DEPENDENCIES.md" />
@@ -1034,14 +1033,6 @@
       <DependentUpon>Settings.settings</DependentUpon>
       <DesignTimeSharedInput>True</DesignTimeSharedInput>
     </Compile>
-    <None Include="Modules\GiaoHangKhach\NhanLaiNG\NHAN_HVN_NG.dbml">
-      <Generator>MSLinqToSQLGenerator</Generator>
-      <LastGenOutput>NHAN_HVN_NG.designer.cs</LastGenOutput>
-      <SubType>Designer</SubType>
-    </None>
-    <None Include="Modules\GiaoHangKhach\NhanLaiNG\NHAN_HVN_NG.dbml.layout">
-      <DependentUpon>NHAN_HVN_NG.dbml</DependentUpon>
-    </None>
     <None Include="Workflow\Diagram\WORKFLOW_XUATKHO.md" />
     <None Include="Workflow\Diagram\WORKFLOW_KHOCORE.md" />
     <None Include="Workflow\Diagram\WORKFLOW_HANGLOI.md" />

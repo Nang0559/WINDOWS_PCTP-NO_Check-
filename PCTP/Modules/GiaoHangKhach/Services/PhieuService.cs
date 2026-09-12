@@ -5,6 +5,7 @@ using PCTP.Domain.Events;
 using PCTP.Domain.Interfaces;
 using PCTP.FuctionMain;
 using PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao;
+using PCTP.Shared.Common;
 using PCTP.VIEWSTOCK.Models;
 using PCTP.YMN;
 using System;
@@ -726,10 +727,22 @@ namespace PCTP.Applications.Services
             DataTable donHang = _phieuRepo.BuildDonHangTuUpload();
             if (donHang == null || donHang.Rows.Count == 0) return;
 
-            _phieuRepo.LuuGiaoDB(donHang, "(GIAO DB)", addNm: 0,
-                tmpTable: _cfg.TmpTable, ifsTable: _cfg.IfsTable);
-        }
+            // Nhóm theo từng ADDNM thật (nhà máy) có trong dữ liệu vừa upload,
+            // gọi LuuGiaoDB riêng cho từng nhóm — tránh hard-code addNm=0 làm
+            // lệch với addNm=1/2 mà LoadPhieuGiaoDB() dùng để lọc khi đọc lại.
+            var nhomTheoNhaMay = donHang.AsEnumerable()
+                .GroupBy(r => DbValueHelper.SafeInt(r["ADDNM"]));
 
+            foreach (var nhom in nhomTheoNhaMay)
+            {
+                DataTable phanNhom = donHang.Clone();
+                foreach (var r in nhom) phanNhom.ImportRow(r);
+
+                _phieuRepo.LuuGiaoDB(phanNhom, "(GIAO DB)", addNm: nhom.Key,
+                    tmpTable: "TMPPHIEUGIAOHANGDB",
+                    ifsTable: "TMPPHIEUGIAOHANGDB_IFS");
+            }
+        }
 
         // ════════════════════════════════════════════════════════════════════════
         // TinhTongLot — truyền _cfg.DocQRTable xuống repo
