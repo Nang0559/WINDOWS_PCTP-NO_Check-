@@ -7,7 +7,7 @@ namespace PCTP.Presentation.Views
     /// <summary>
     /// UI contract for the YMVN-specific delivery workflow.
     /// </summary>
-    public interface IYmvnView
+    public interface IYmvnView : IViewFeedback
     {
         void SetupGridDonHangYMVN(bool coGear);
         void LockCheckListYMVN();
@@ -18,7 +18,6 @@ namespace PCTP.Presentation.Views
         void BindGhepLotYMVN(DataTable dt);
         void ShowReportYMVN(DataTable reportData);
         void SetCheckedGiosYMVN(List<string> checkedGios);
-
         event EventHandler GioXuatCheckedChanged;
         event EventHandler CheckGX_ItemCheck;
         event EventHandler HoanThanhYMVNClicked;
