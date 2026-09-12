@@ -1,5 +1,9 @@
-﻿using System;
+using System;
 using System.Windows.Forms;
+using DevExpress.XtraGrid;
+using DevExpress.XtraGrid.Columns;
+using DevExpress.XtraGrid.Views.BandedGrid;
+using DevExpress.XtraGrid.Views.Grid;
 using PCTP.QRCODE_HVN.PGH.Controls;
 
 namespace PCTP.QRCODE_HVN.PGH
@@ -8,11 +12,26 @@ namespace PCTP.QRCODE_HVN.PGH
     {
         private PhieuGridControl _phieuGridControl;
         private DocQrControl _docQrControl;
-        /// <summary>
-        /// Phase 9E migration entry point.
-        /// Existing GridControl instances are re-parented intact so current
-        /// bindings, form-level event handlers and legacy state switching remain unchanged.
-        /// </summary>
+        private PhieuBottomStateControl _phieuBottomStateControl;
+
+        // Compatibility bridge: HVN_PGH business code keeps the legacy member
+        // names while the actual visual owner is PhieuBottomStateControl.
+        private GridControl gridCLECH { get { return _phieuBottomStateControl.LechGrid; } }
+        private GridControl gridCTTGL { get { return _phieuBottomStateControl.GhepLotGrid; } }
+        private GridControl gridCtrSUASL { get { return _phieuBottomStateControl.SuaSlGrid; } }
+        private GridView gridVSUASL { get { return _phieuBottomStateControl.SuaSlView; } }
+        private BandedGridView bandedGridViewLECH { get { return _phieuBottomStateControl.LechView; } }
+        private GridBand gridBandLECH { get { return _phieuBottomStateControl.LechBand; } }
+        private BandedGridColumn colLechMaHang { get { return _phieuBottomStateControl.LechMaHang; } }
+        private BandedGridColumn colLechTenHang { get { return _phieuBottomStateControl.LechTenHang; } }
+        private BandedGridColumn colLechSoLuong { get { return _phieuBottomStateControl.LechSoLuong; } }
+        private BandedGridColumn colLechNguon { get { return _phieuBottomStateControl.LechNguon; } }
+        private BandedGridView GridVTTGL { get { return _phieuBottomStateControl.GhepLotView; } }
+        private GridBand gridBand1 { get { return _phieuBottomStateControl.GhepLotBand; } }
+        private BandedGridColumn gridColumn4 { get { return _phieuBottomStateControl.GhepLotMaHang; } }
+        private BandedGridColumn gridColumn5 { get { return _phieuBottomStateControl.GhepLotGio; } }
+        private BandedGridColumn gridColumn6 { get { return _phieuBottomStateControl.GhepLotLot; } }
+
         protected override void OnLoad(EventArgs e)
         {
             base.OnLoad(e);
@@ -36,25 +55,17 @@ namespace PCTP.QRCODE_HVN.PGH
             _phieuGridControl = new PhieuGridControl();
 
             if (gridCtrDONHANG != null)
-            {
                 sidePanel2.Controls.Remove(gridCtrDONHANG);
-            }
 
             sidePanel2.Controls.Add(_phieuGridControl);
             sidePanel2.Controls.SetChildIndex(_phieuGridControl, childIndex);
 
             if (existingDataSource != null)
-            {
                 _phieuGridControl.OrderGrid.DataSource = existingDataSource;
-            }
 
-            // Compatibility bridge: existing HVN_PGH code keeps using the
-            // original field names while the visual owner is PhieuGridControl.
             gridCtrDONHANG = _phieuGridControl.OrderGrid;
             GridViewDONHANG = _phieuGridControl.OrderView;
             gridBandDH = _phieuGridControl.OrderBand;
-
-            // Keep the existing form-level row styling handler unchanged.
             _phieuGridControl.OrderView.RowCellStyle += GridViewDONHANG_RowCellStyle;
         }
 
@@ -74,27 +85,18 @@ namespace PCTP.QRCODE_HVN.PGH
             _docQrControl = new DocQrControl();
 
             if (gridCtrDOCQrCODE != null)
-            {
                 sidePanel2.Controls.Remove(gridCtrDOCQrCODE);
-            }
 
             sidePanel2.Controls.Add(_docQrControl);
             sidePanel2.Controls.SetChildIndex(_docQrControl, childIndex);
 
             if (existingDataSource != null)
-            {
                 _docQrControl.QrGrid.DataSource = existingDataSource;
-            }
 
-            // Compatibility bridge: existing HVN_PGH code keeps using the
-            // original QR grid/view field names while DocQrControl owns them.
             gridCtrDOCQrCODE = _docQrControl.QrGrid;
             gridVDOCQRCODE = _docQrControl.QrView;
-
-            // Preserve the existing form-level focused-row event subscription.
             gridVDOCQRCODE.FocusedRowChanged -= gridVDOCQRCODE_FocusedRowChanged;
             gridVDOCQRCODE.FocusedRowChanged += gridVDOCQRCODE_FocusedRowChanged;
         }
-
     }
 }
