@@ -14,6 +14,7 @@
     <Compile Include="Modules\GiaoHangKhach\HVN\Controls\YmvnControl.cs" />
     <Compile Include="Modules\GiaoHangKhach\HVN\Controls\PhieuBottomStateControl.cs" />
     <Compile Include="Modules\GiaoHangKhach\HVN\Controls\PhieuHeaderControl.cs" />
+    <Compile Include="Modules\GiaoHangKhach\HVN\Controls\HangThieuControl.cs" />
     <Compile Include="Modules\GiaoHangKhach\HVN\HVN_PGH.PhieuGridMigration.cs" />
   </ItemGroup>
 </Project>
