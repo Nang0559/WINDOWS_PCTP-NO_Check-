@@ -65,7 +65,6 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
             ((System.ComponentModel.ISupportInitialize)gridCLECH).BeginInit();
             ((System.ComponentModel.ISupportInitialize)bandedGridViewLECH).BeginInit();
             // gridCTTGL
-            // 
             gridCTTGL.Dock = System.Windows.Forms.DockStyle.Fill;
             gridCTTGL.EmbeddedNavigator.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             gridCTTGL.Location = new System.Drawing.Point(0, 0);
@@ -124,7 +123,6 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
             gridColumn6.Visible = true;
             gridColumn6.Width = 149;
             // gridCtrSUASL
-            // 
             gridCtrSUASL.Dock = System.Windows.Forms.DockStyle.Fill;
             gridCtrSUASL.EmbeddedNavigator.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             gridCtrSUASL.Location = new System.Drawing.Point(0, 0);
@@ -139,7 +137,6 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
             gridVSUASL.Name = "gridVSUASL";
             gridVSUASL.OptionsView.ShowGroupPanel = false;
             // gridCLECH
-            // 
             gridCLECH.Dock = System.Windows.Forms.DockStyle.Fill;
             gridCLECH.Location = new System.Drawing.Point(2, -1);
             gridCLECH.MainView = bandedGridViewLECH;
@@ -184,6 +181,14 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
             gridBandLECH.Name = "gridBandLECH";
             gridBandLECH.VisibleIndex = 0;
             gridBandLECH.Width = 420;
+
+            // Preserve the legacy initial state of sidePanel4:
+            // GhepLot is shown by default; Lech and SuaSoLuong are hidden.
+            gridCLECH.Visible = false;
+            gridCTTGL.Visible = true;
+            gridCtrSUASL.Visible = false;
+            gridCTTGL.BringToFront();
+
             Controls.Add(gridCLECH);
             Controls.Add(gridCTTGL);
             Controls.Add(gridCtrSUASL);
