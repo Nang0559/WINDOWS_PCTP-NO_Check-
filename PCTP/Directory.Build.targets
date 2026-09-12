@@ -16,5 +16,6 @@
     <Compile Include="Modules\GiaoHangKhach\HVN\Controls\PhieuHeaderControl.cs" />
     <Compile Include="Modules\GiaoHangKhach\HVN\Controls\HangThieuControl.cs" />
     <Compile Include="Modules\GiaoHangKhach\HVN\HVN_PGH.PhieuGridMigration.cs" />
+    <Compile Include="Modules\GiaoHangKhach\HVN\HVN_PGH.UiCompatibility.cs" />
   </ItemGroup>
 </Project>
