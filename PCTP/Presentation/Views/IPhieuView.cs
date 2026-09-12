@@ -10,10 +10,9 @@ namespace PCTP.Presentation.Views
     /// UI contract for the normal delivery-ticket (phiếu) workflow.
     /// Kept separate from QR, GiaoDB and YMVN concerns.
     /// </summary>
-    public interface IPhieuView
+    public interface IPhieuView : IViewFeedback
     {
         void SetupNhaMayUI(CustomerConfig cfg);
-
         void BindDonHang(DataTable dt);
         void BindHangThieu(DataTable dt);
         void BindGhepLot(DataTable dt);
@@ -21,14 +20,9 @@ namespace PCTP.Presentation.Views
         void RefreshLotRow(int stt, string lot);
         void ShowHangThieuCaNgay(DataTable dt);
         void BindLechIFS(DataTable dt);
-
         void SwitchToPhieuView();
         void SwitchToPhieuDBView();
-        void SetupPhieuButtons(bool showCapNhapKho, bool showKiemTraMaNG,
-            bool showGhepLot, bool showDocQRCode,
-            bool showLayLaiLot, bool showStop = false,
-            bool showHangThieuCaNgay = true);
-
+        void SetupPhieuButtons(bool showCapNhapKho, bool showKiemTraMaNG, bool showGhepLot, bool showDocQRCode, bool showLayLaiLot, bool showStop = false, bool showHangThieuCaNgay = true);
         void SetDate(DateTime date);
         void SetTab(int addNM);
         void LockRadioExcept(string gioFCC);
@@ -39,18 +33,14 @@ namespace PCTP.Presentation.Views
         void BindGioXuatHN(IReadOnlyList<GioXuat> danhSach);
         void SuspendGioXuatChanged();
         void ResumeGioXuatChanged();
-
         DateTime SelectedDate { get; }
         int SelectedTabAddNM { get; }
-
         DataTable GetDonHangTable();
         DataTable GetAddressTable();
         string GetFocusedDonHangMaHang();
         IEnumerable<GhepLotItem> GetSelectedGhepLotRows();
-
         bool CoLotDeLuuKho();
         bool CoHangChuaOK();
-
         int ShowChonSttTrungMa(ListView danhSachTrung);
         void ShowKiemTraMaNG(string maHang);
         void ShowTachLot();
@@ -59,7 +49,6 @@ namespace PCTP.Presentation.Views
         ChonLotResult ShowChonLotTuKho(int stt, string maHang, int soLuong, DataTable danhSachLot);
         void ShowReport(DataTable reportData);
         void ShowReportWithGioHeader(DataTable data, string gioHeader);
-
         event EventHandler FormLoaded;
         event EventHandler DateChanged;
         event EventHandler GioXuatChanged;
