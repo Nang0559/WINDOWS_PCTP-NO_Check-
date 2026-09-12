@@ -11,6 +11,8 @@ namespace PCTP.Modules.GiaoHangKhach.Models
     {
         public DataTable Orders { get; set; }
 
+        public DataTable HangThieu { get; set; }
+
         public bool HasMaNG { get; set; }
 
         public bool HasDifference { get; set; }
@@ -30,6 +32,7 @@ namespace PCTP.Modules.GiaoHangKhach.Models
             return new OrderLoadResult
             {
                 Orders = new DataTable(),
+                HangThieu = new DataTable(),
                 HasMaNG = false,
                 HasDifference = false,
                 Source = context != null ? context.Source : OrderSourceKind.IFS,
