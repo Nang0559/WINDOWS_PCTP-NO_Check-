@@ -34,7 +34,7 @@ IFS
 
 IFS có thể được sử dụng trực tiếp để tạo phiếu giao.
 
-### 2.2 MilkRun / LoadTuBangRieng
+### 2.2 OrderTable / LoadTuBangRieng
 
 `LoadTuBangRieng = YES` **không có nghĩa là bỏ IFS**.
 
@@ -48,7 +48,7 @@ IFS có thể được sử dụng trực tiếp để tạo phiếu giao.
                   │ baseline
                   ▼
           ┌───────────────┐
-          │   MilkRun     │
+          │   OrderTable  │
           │ actual order  │
           └───────┬───────┘
                   │
@@ -105,13 +105,13 @@ LOT / QR
 Cập nhật kho
 ```
 
-### 2.4 GiaoDB không phải MilkRun
+### 2.4 GiaoDB không phải OrderTable
 
 ```text
-MilkRun:
+OrderTable:
     IFS baseline
       +
-    actual MilkRun
+    actual OrderTable
       ↓
     comparison
 
@@ -143,7 +143,7 @@ public enum OrderSourceKind
 ```
 
 - `IFS`: đơn từ IFS.
-- `MilkRun`: actual order từ bảng riêng/MilkRun.
+- `OrderTable`: actual order từ bảng riêng/OrderTable.
 - `GiaoDB`: dữ liệu từ chứng từ GiaoDB.
 
 `GiaoDB` là source/document data, còn `GiaoDacBiet` là business scenario.
@@ -285,7 +285,7 @@ Document nghiệp vụ hiện tại, chưa refactor logic.
 | Scenario | IFS | Actual source | MP/SP | QR | Kho |
 |---|---|---|---|---|---|
 | Normal IFS | Có | IFS | Có | Có/không | Có |
-| MilkRun | Có | Bảng riêng | Có | Có/không | Có |
+| OrderTable | Có | Bảng riêng | Có | Có/không | Có |
 | Giao đặc biệt | Không nhất thiết | GiaoDB | Có | Có/không | Có |
 | YMVN | Có/bảng riêng | MilkRun | MP/SP | tùy flow | Có |
 
@@ -326,7 +326,7 @@ public enum OrderCategory
 public enum OrderSourceKind
 {
     IFS = 1,
-    MilkRun = 2,
+    OrderTable = 2,
     GiaoDB = 3
 }
 ```
@@ -336,29 +336,17 @@ public enum OrderSourceKind
 ```csharp
 public class OrderLoadContext
 {
-    public DateTime NgayGiao { get; set; }
-
-    public string NhaMay { get; set; }
-
-    public int AddNm { get; set; }
-
-    public string GioFcc { get; set; }
-
-    public string GioFccMoTa { get; set; }
-
-    public OrderCategory Category { get; set; }
-
-    public OrderSourceKind Source { get; set; }
-
-    public bool IsMayBanQR { get; set; }
-
-    public bool IsBanQR { get; set; }
-
-    public string DockCodeSP { get; set; }
-
-    public IList<string> CheckedGios { get; set; }
-
     public CustomerConfig Config { get; set; }
+    public DateTime NgayGiao { get; set; }
+    public string NhaMay { get; set; }
+    public int AddNm { get; set; }
+    public string GioFcc { get; set; }
+    public string GioFccMoTa { get; set; }
+    public OrderCategory Category { get; set; }
+    public OrderSourceKind Source { get; set; }
+    public MachineRole MachineRole { get; set; }
+    public bool IsBanQR { get; set; }
+    public IList<string> CheckedGios { get; set; }
 }
 ```
 
@@ -449,7 +437,7 @@ Implement:
 
 ```text
 IfsOrderSource
-MilkRunOrderSource
+TableOrderSource
 GiaoDbOrderSource
 ```
 
@@ -457,12 +445,12 @@ GiaoDbOrderSource
 
 Chỉ load IFS.
 
-## MilkRunOrderSource
+## TableOrderSource
 
 Load:
 
 1. IFS baseline.
-2. Actual MilkRun.
+2. Actual TableOrder.
 3. Difference.
 
 ## GiaoDbOrderSource
@@ -557,7 +545,7 @@ Resolve Source
      │
  ┌───┼───────────┐
  ▼   ▼           ▼
-IFS MilkRun     GiaoDB
+IFS TableOrder   GiaoDB
  │   │           │
  │   │           └── Manual/Upload
  │   │
@@ -660,7 +648,7 @@ Không để `PhieuService` tiếp tục chứa:
 - QR state
 - IFS filtering
 - GiaoDB business
-- YMVN business
+- YMVN business(TableOrder)
 
 Commit:
 
@@ -977,7 +965,7 @@ Working Delivery State
 
 ```text
 IFS
-MilkRun
+TableOrder
 GiaoDB
 ```
 
@@ -1014,7 +1002,7 @@ Giao
 Kho
 ```
 
-## MilkRun
+## TableOrder
 
 ```text
 IFS
@@ -1022,7 +1010,7 @@ IFS
 IFS baseline
                         → Compare
         /
-MilkRun actual
+TableOrder actual
  ↓
 Standard Order
  ↓
@@ -1208,7 +1196,7 @@ MP
 SP
 ```
 
-## MilkRun
+## TableOrder
 
 ```text
 IFS = actual
@@ -1298,7 +1286,7 @@ IFS
     ↓
 Source rõ ràng
 
-MilkRun
+TableOrder
     ↓
 IFS baseline + actual + comparison
 
