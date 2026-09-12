@@ -17,8 +17,8 @@ namespace PCTP.QRCODE_HVN.PGH
         /// </summary>
         protected override void OnLoad(EventArgs e)
         {
-            MigratePhieuOrderGridToUserControl();
             base.OnLoad(e);
+            MigratePhieuOrderGridToUserControl();
         }
 
         private void MigratePhieuOrderGridToUserControl()
