@@ -1,0 +1,32 @@
+name: phase10m-final-cleanup
+
+on:
+  push:
+    paths:
+      - '.phase10m-final-trigger'
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Remove temporary Phase 10M files
+        shell: bash
+        run: |
+          set -e
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          rm -f .phase10m-trigger .phase10m-trigger-v2 .phase10m-trigger-v3 .phase10m-trigger-v4 .phase10m-trigger-v5 .phase10m-trigger-v6 .phase10m-final-trigger
+          rm -f .github/workflows/phase10m-cleanup.yml
+          rm -f .github/workflows/phase10m-cleanup-v2.yml
+          rm -f .github/workflows/phase10m-cleanup-v3.yml
+          rm -f .github/workflows/phase10m-cleanup-v4.yml
+          rm -f .github/workflows/phase10m-cleanup-v5.yml
+          rm -f .github/workflows/phase10m-cleanup-v6.yml
+          rm -f .github/workflows/phase10m-final-cleanup.yml
+          git add -A .github/workflows .phase10m-trigger*
+          git diff --cached --check
+          git commit -m "Phase 10M: remove temporary cleanup workflows"
+          git push
