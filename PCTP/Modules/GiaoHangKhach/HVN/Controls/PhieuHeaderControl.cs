@@ -51,28 +51,26 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
         }
 
         /// <summary>
-        /// Applies only the customer-dependent presentation rules of the
-        /// existing header. Business decisions remain in the presenter/config.
+        /// Applies customer-dependent presentation rules to the controls
+        /// already adopted from the legacy header panel.
         /// </summary>
-        public void ConfigureCustomer(
-            CustomerConfig cfg,
-            Control tabPane,
-            Control tabVP,
-            Control tabHN,
-            Control radioGroup2,
-            Control rdoGxHn,
-            Control checkGx,
-            Button btnUploadMilkrun)
+        public void ConfigureCustomer(CustomerConfig cfg)
         {
-            if (cfg == null || cfg.Delivery == null)
+            if (cfg == null || cfg.Delivery == null || _content == null)
                 return;
 
-            var tabPaneControl = tabPane as DevExpress.XtraBars.Navigation.TabPane;
-            var tabVpPage = tabVP as DevExpress.XtraBars.Navigation.NavigationPage;
-            var tabHnPage = tabHN as DevExpress.XtraBars.Navigation.NavigationPage;
-            var radioVp = radioGroup2 as RadioGroup;
-            var radioHn = rdoGxHn as RadioGroup;
-            var checkList = checkGx as DevExpress.XtraEditors.CheckedListBoxControl;
+            var tabPaneControl = FindControl<TabPane>("tabPaneHVN");
+            var tabVpPage = FindControl<NavigationPage>("tabVP");
+            var tabHnPage = FindControl<NavigationPage>("tabHN");
+            var radioVp = FindControl<RadioGroup>("radioGroup2");
+            var radioHn = FindControl<RadioGroup>("RDO_GXHN");
+            var checkList = FindControl<CheckedListBoxControl>("CheckGX");
+            var btnUploadMilkrun = FindControl<SimpleButton>("btnUploadMilkrun");
+
+            if (tabPaneControl == null || tabVpPage == null || tabHnPage == null ||
+                radioVp == null || radioHn == null || checkList == null ||
+                btnUploadMilkrun == null)
+                return;
 
             if (cfg.Delivery.CoNhieuNhaMay)
             {
@@ -123,7 +121,33 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
             }
         }
 
-        private void ShowLoaiPhieuToggle(Button btnUploadMilkrun)
+        private T FindControl<T>(string name) where T : Control
+        {
+            if (_content == null)
+                return null;
+
+            return FindControlRecursive<T>(_content, name);
+        }
+
+        private static T FindControlRecursive<T>(Control parent, string name) where T : Control
+        {
+            if (parent == null)
+                return null;
+
+            foreach (Control child in parent.Controls)
+            {
+                if (child.Name == name)
+                    return child as T;
+
+                T nested = FindControlRecursive<T>(child, name);
+                if (nested != null)
+                    return nested;
+            }
+
+            return null;
+        }
+
+        private void ShowLoaiPhieuToggle(SimpleButton btnUploadMilkrun)
         {
             if (_btnToggleLoaiPhieu == null)
             {
