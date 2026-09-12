@@ -1,0 +1,82 @@
+name: Phase 11B Radio Ownership Fix
+
+on:
+  push:
+    paths:
+      - '.github/phase11b-fix.trigger'
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fix compatibility and header-only dependencies
+        shell: python
+        run: |
+          from pathlib import Path
+
+          hvn_path = Path('PCTP/Modules/GiaoHangKhach/HVN/HVN_PGH.cs')
+          header_path = Path('PCTP/Modules/GiaoHangKhach/HVN/Controls/PhieuHeaderControl.cs')
+          hvn = hvn_path.read_text(encoding='utf-8')
+          header = header_path.read_text(encoding='utf-8')
+
+          # Header owns radio UI, but TrySelectRadio still belongs to the form
+          # because UpdateGioXuatFromDB intentionally updates presenter state.
+          if 'private bool TrySelectRadio(RadioGroupItemCollection items,' not in hvn:
+              marker = '        public void UpdateGioXuatFromDB(string gioFCC)'
+              start = hvn.find(marker)
+              if start < 0:
+                  raise RuntimeError('UpdateGioXuatFromDB not found')
+              helper = '''        private bool TrySelectRadio(RadioGroupItemCollection items,\n                                      HashSet<string> gioSet,\n                                      string gioFCC,\n                                      Action<int> setIndex)\n        {\n            for (int i = 0; i < items.Count; i++)\n            {\n                var item = (RadioGroupItem)items[i];\n                if (string.IsNullOrEmpty(item.AccessibleName)) continue;\n\n                var itemSet = new HashSet<string>(\n                    item.AccessibleName.Split(',')\n                                       .Select(g => g.Trim().Trim('\\'')),\n                    StringComparer.OrdinalIgnoreCase);\n\n                if (itemSet.SetEquals(gioSet))\n                {\n                    setIndex(i);\n                    _presenter.UpdateGioXuat(\n                        new GioXuat(gioFCC, item.Description ?? gioFCC));\n                    return true;\n                }\n            }\n            return false;\n        }\n\n'''
+              hvn = hvn[:start] + helper + hvn[start:]
+
+          if 'private void LockRadioGroup(RadioGroupItemCollection items,' not in hvn:
+              marker = '        public void UpdateGioXuatFromDB(string gioFCC)'
+              start = hvn.find(marker)
+              helper = '''        private void LockRadioGroup(RadioGroupItemCollection items,\n                                      HashSet<string> gioSet,\n                                      Action<int> setIndex)\n        {\n            for (int i = 0; i < items.Count; i++)\n            {\n                var item = (RadioGroupItem)items[i];\n                var itemSet = new HashSet<string>(\n                    (item.AccessibleName ?? "").Split(',')\n                                               .Select(g => g.Trim().Trim('\\'')),\n                    StringComparer.OrdinalIgnoreCase);\n\n                if (itemSet.SetEquals(gioSet))\n                {\n                    setIndex(i);\n                    item.Enabled = true;\n                }\n                else\n                {\n                    item.Enabled = false;\n                }\n            }\n        }\n\n'''
+              hvn = hvn[:start] + helper + hvn[start:]
+
+          # Header no longer needs presenter-coupled TrySelectRadio.
+          sig = '        private bool TrySelectRadio(RadioGroupItemCollection items,'
+          start = header.find(sig)
+          if start >= 0:
+              brace = header.find('{', start)
+              depth = 0
+              end = None
+              for i in range(brace, len(header)):
+                  if header[i] == '{': depth += 1
+                  elif header[i] == '}':
+                      depth -= 1
+                      if depth == 0:
+                          end = i + 1
+                          break
+              if end is None:
+                  raise RuntimeError('Unbalanced TrySelectRadio in header')
+              header = header[:start] + header[end:]
+
+          # Header needs LINQ for the radio-set helpers.
+          if 'using System.Linq;' not in header:
+              header = header.replace('using System.Drawing;\n', 'using System.Drawing;\nusing System.Linq;\n', 1)
+
+          # UnlockAllRadio must preserve the legacy tab visibility side effect.
+          old = '''            var radioGroup2 = FindControl<RadioGroup>("radioGroup2");\n            var RDO_GXHN = FindControl<RadioGroup>("RDO_GXHN");\n            if (radioGroup2 == null || RDO_GXHN == null)\n                return;\n\n            foreach (RadioGroupItem item in radioGroup2.Properties.Items)'''
+          new = '''            var radioGroup2 = FindControl<RadioGroup>("radioGroup2");\n            var RDO_GXHN = FindControl<RadioGroup>("RDO_GXHN");\n            var tabVP = FindControl<NavigationPage>("tabVP");\n            var tabHN = FindControl<NavigationPage>("tabHN");\n            if (radioGroup2 == null || RDO_GXHN == null || tabVP == null || tabHN == null)\n                return;\n\n            foreach (RadioGroupItem item in radioGroup2.Properties.Items)'''
+          if old in header:
+              header = header.replace(old, new, 1)
+
+          hvn_path.write_text(hvn, encoding='utf-8')
+          header_path.write_text(header, encoding='utf-8')
+          print('Phase 11B compatibility fix applied.')
+
+      - name: Commit fix
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add PCTP/Modules/GiaoHangKhach/HVN/HVN_PGH.cs PCTP/Modules/GiaoHangKhach/HVN/Controls/PhieuHeaderControl.cs
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "Phase 11B: fix radio compatibility boundary"
+          git push
