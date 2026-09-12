@@ -17,6 +17,7 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
         private Control _content;
         private Button _btnToggleLoaiPhieu;
         private bool _isLoaiSP;
+        private bool _eventsWired;
 
         public PhieuHeaderControl()
         {
@@ -35,11 +36,17 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
         }
 
         public event EventHandler LoaiPhieuChanged = delegate { };
+        public event EventHandler DateChanged = delegate { };
+        public event EventHandler GioXuatChanged = delegate { };
+        public event EventHandler TabChanged = delegate { };
 
         public void Adopt(Control content)
         {
             if (content == null || ReferenceEquals(_content, content))
                 return;
+
+            if (_content != null)
+                UnwireHeaderEvents();
 
             if (_content != null)
                 Controls.Remove(_content);
@@ -48,6 +55,8 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
             Controls.Add(_content);
             _content.Dock = DockStyle.Fill;
             _content.Margin = new Padding(0);
+
+            WireHeaderEvents();
         }
 
         /// <summary>
@@ -136,6 +145,65 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
             Button btnUploadMilkrun)
         {
             ConfigureCustomer(cfg);
+        }
+
+        private void WireHeaderEvents()
+        {
+            if (_eventsWired || _content == null)
+                return;
+
+            var date = FindControl<DateEdit>("dateNX");
+            var tabPane = FindControl<TabPane>("tabPaneHVN");
+            var radioVp = FindControl<RadioGroup>("radioGroup2");
+            var radioHn = FindControl<RadioGroup>("RDO_GXHN");
+
+            if (date != null)
+                date.EditValueChanged += HeaderDateChanged;
+            if (tabPane != null)
+                tabPane.Click += HeaderTabChanged;
+            if (radioVp != null)
+                radioVp.SelectedIndexChanged += HeaderGioXuatChanged;
+            if (radioHn != null)
+                radioHn.SelectedIndexChanged += HeaderGioXuatChanged;
+
+            _eventsWired = true;
+        }
+
+        private void UnwireHeaderEvents()
+        {
+            if (!_eventsWired || _content == null)
+                return;
+
+            var date = FindControl<DateEdit>("dateNX");
+            var tabPane = FindControl<TabPane>("tabPaneHVN");
+            var radioVp = FindControl<RadioGroup>("radioGroup2");
+            var radioHn = FindControl<RadioGroup>("RDO_GXHN");
+
+            if (date != null)
+                date.EditValueChanged -= HeaderDateChanged;
+            if (tabPane != null)
+                tabPane.Click -= HeaderTabChanged;
+            if (radioVp != null)
+                radioVp.SelectedIndexChanged -= HeaderGioXuatChanged;
+            if (radioHn != null)
+                radioHn.SelectedIndexChanged -= HeaderGioXuatChanged;
+
+            _eventsWired = false;
+        }
+
+        private void HeaderDateChanged(object sender, EventArgs e)
+        {
+            DateChanged.Invoke(sender, e);
+        }
+
+        private void HeaderGioXuatChanged(object sender, EventArgs e)
+        {
+            GioXuatChanged.Invoke(sender, e);
+        }
+
+        private void HeaderTabChanged(object sender, EventArgs e)
+        {
+            TabChanged.Invoke(sender, e);
         }
 
         private T FindControl<T>(string name) where T : Control
