@@ -8,5 +8,9 @@
     <Compile Include="Presentation\Presenters\DocQrPresenter.cs" />
     <Compile Include="Presentation\Presenters\GiaoDbPresenter.cs" />
     <Compile Include="Presentation\Presenters\YmvnPresenter.cs" />
+    <Compile Include="Modules\GiaoHangKhach\HVN\Controls\PhieuGridControl.cs" />
+    <Compile Include="Modules\GiaoHangKhach\HVN\Controls\DocQrControl.cs" />
+    <Compile Include="Modules\GiaoHangKhach\HVN\Controls\GiaoDbControl.cs" />
+    <Compile Include="Modules\GiaoHangKhach\HVN\Controls\YmvnControl.cs" />
   </ItemGroup>
 </Project>
