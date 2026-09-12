@@ -671,17 +671,22 @@ namespace PCTP.Applications.Services
         // DOCQRCODE — dùng _cfg.DocQRTable
         // ════════════════════════════════════════════════════════════════════════
         public TrangThaiBan GetTrangThaiDangBan()
-        {
-            if (_cfg.Delivery.CoGear)
-                return _phieuRepo.GetTrangThaiDangBanYMVN(_cfg.Delivery.TmpTable, _cfg.Delivery.DocQRTable);
-            return _phieuRepo.GetTrangThaiDangBan(_cfg.Delivery.TmpTable, _cfg.Delivery.DocQRTable);
-        }
+        => _workingState.GetTrangThaiDangBan(new OrderLoadContext { Cfg = _cfg, Category = OrderCategory.MP });
         // PhieuRepository — thêm method riêng
 
-        public TrangThaiBan GetTrangThaiDangBanSP() =>
-        _cfg.Delivery.CoConfigSP
-        ? _phieuRepo.GetTrangThaiDangBan(_cfg.Delivery.TmpTableSP, _cfg.Delivery.DocQRTableSP)
-        : new TrangThaiBan { DangBan = false };
+        public TrangThaiBan GetTrangThaiDangBanSP()
+        {
+            if (!_cfg.Delivery.CoConfigSP)
+                return new TrangThaiBan { DangBan = false };
+
+            var spContext = new OrderLoadContext
+            {
+                Cfg = _cfg,
+                Category = OrderCategory.SP
+            };
+
+            return _workingState.GetTrangThaiDangBan(spContext);
+        }
         public bool XoaDocQRCode(bool isSP = false)
         {
             _phieuRepo.XoaDocQRCode(_cfg.Delivery.GetDocQRTable(isSP));

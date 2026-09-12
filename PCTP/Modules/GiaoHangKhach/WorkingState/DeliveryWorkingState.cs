@@ -112,6 +112,21 @@ namespace PCTP.Modules.GiaoHangKhach.OrderLoading.WorkingState
         // ════════════════════════════════════════════════════════════════
         // Helpers
         // ════════════════════════════════════════════════════════════════
+        /// <summary>
+        /// Guard dùng chung cho MỌI method public — trước đây chỉ BuildTables()
+        /// kiểm tra context/Cfg.Delivery null, khiến SaveFromSource gọi
+        /// ValidateContext(context) nhưng hàm này chưa từng được định nghĩa
+        /// (lỗi biên dịch). Tách riêng ra khỏi BuildTables để các method không
+        /// cần bảng (không gọi BuildTables) vẫn được validate context đầu vào.
+        /// </summary>
+        private static void ValidateContext(OrderLoadContext context)
+        {
+            if (context == null)
+                throw new ArgumentNullException(nameof(context));
+            if (context.Cfg?.Delivery == null)
+                throw new ArgumentException(
+                    "OrderLoadContext.Cfg.Delivery không được null.", nameof(context));
+        }
         private static PhieuTableSet BuildTables(OrderLoadContext context)
         {
             if (context == null) throw new ArgumentNullException(nameof(context));
