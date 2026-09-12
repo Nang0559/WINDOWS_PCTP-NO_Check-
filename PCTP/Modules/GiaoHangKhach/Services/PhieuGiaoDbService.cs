@@ -1,5 +1,7 @@
 using PCTP.Domain.Interfaces;
 using PCTP.Modules.GiaoHangKhach.OrderLoading;
+using PCTP.Shared.Common;
+using PCTP.Shared.Enums;
 using PCTP.Shared.Models;
 using System;
 using System.Data;
