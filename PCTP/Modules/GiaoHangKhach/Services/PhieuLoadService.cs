@@ -216,8 +216,9 @@ namespace PCTP.Applications.Services
         {
             bool isSP = context.Category == OrderCategory.SP;
 
-            // Giữ nguyên side-effect nghiệp vụ hiện tại: tính hàng thiếu sau khi load.
-            _phieuRepo.TinhHangThieuTuDonHang(donHang);
+            // Phase 6: tính đúng một lần trong load pipeline và đưa kết quả vào contract.
+            DataTable hangThieu = _phieuRepo.TinhHangThieuTuDonHang(donHang)
+                ?? new DataTable();
 
             string caption = _cfg.Delivery.CoGear
                 ? $"ĐƠN HÀNG {_cfg.DisplayName} ({(isSP ? "SP" : "MP")}): " +
@@ -227,6 +228,7 @@ namespace PCTP.Applications.Services
             return BuildResult(
                 context,
                 donHang,
+                hangThieu,
                 caption,
                 false,
                 hasDifference,
@@ -243,6 +245,7 @@ namespace PCTP.Applications.Services
             return BuildResult(
                 context,
                 sourceResult.Orders ?? new DataTable(),
+                new DataTable(),
                 string.Empty,
                 false,
                 HasRows(sourceResult.Difference),
@@ -253,6 +256,7 @@ namespace PCTP.Applications.Services
         private OrderLoadResult BuildResult(
             OrderLoadContext context,
             DataTable orders,
+            DataTable hangThieu,
             string caption,
             bool hasMaNG,
             bool hasDifference,
@@ -262,6 +266,7 @@ namespace PCTP.Applications.Services
             return new OrderLoadResult
             {
                 Orders = orders ?? new DataTable(),
+                HangThieu = hangThieu ?? new DataTable(),
                 HasMaNG = hasMaNG,
                 HasDifference = hasDifference,
                 Source = context.Source,
