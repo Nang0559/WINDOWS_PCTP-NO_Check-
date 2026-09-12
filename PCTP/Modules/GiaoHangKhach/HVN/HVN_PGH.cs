@@ -116,29 +116,8 @@ namespace PCTP.QRCODE_HVN.PGH
         }
         public void SetCheckedGiosYMVN(List<string> checkedGios)
         {
-            if (this.InvokeRequired)
-            {
-                this.Invoke(new Action(() => SetCheckedGiosYMVN(checkedGios)));
-                return;
-            }
-
-            CheckGX.ItemCheck -= CheckGX_OnItemCheck;
-            try
-            {
-                var gioSet = new HashSet<string>(
-                    checkedGios ?? new List<string>(),
-                    StringComparer.OrdinalIgnoreCase);
-
-                for (int i = 0; i < CheckGX.Items.Count; i++)
-                {
-                    string item = CheckGX.Items[i].ToString();
-                    CheckGX.SetItemChecked(i, gioSet.Contains(item));
-                }
-            }
-            finally
-            {
-                CheckGX.ItemCheck += CheckGX_OnItemCheck;
-            }
+            if (_phieuHeaderControl != null)
+                _phieuHeaderControl.SetCheckedGiosYMVN(checkedGios);
         }
         // ── Khởi tạo dependency graph ────────────────────────────────────────
         private HVN_Presenter BuildPresenter()
