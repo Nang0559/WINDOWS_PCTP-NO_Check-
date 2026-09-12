@@ -4,13 +4,13 @@ using DevExpress.XtraEditors;
 namespace PCTP.QRCODE_HVN.PGH.Controls
 {
     /// <summary>
-    /// UI boundary for the normal delivery/order area of HVN_PGH.
+    /// UI boundary for the normal Phiếu/Order grid area of HVN_PGH.
     ///
     /// Phase 9A:
-    /// - Owns the existing Phiếu/Order visual tree.
+    /// - Owns the existing Order grid control instance.
     /// - Does not move event handlers into the control.
     /// - Does not change DataSource/binding code.
-    /// - Existing controls are attached here first so rollback remains trivial.
+    /// - The existing GridControl/GridView are re-parented intact.
     /// </summary>
     public class PhieuGridControl : XtraUserControl
     {
@@ -20,9 +20,9 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
         }
 
         /// <summary>
-        /// Moves the existing Phiếu UI subtree into this UserControl without
-        /// recreating any child controls. This intentionally preserves the
-        /// existing control instances, event handlers and bindings.
+        /// Moves the existing Order GridControl into this UserControl without
+        /// recreating it. This preserves the existing GridView, columns,
+        /// row-style handlers and all current DataSource bindings.
         /// </summary>
         public void AttachExistingLayout(Control existingLayout)
         {
