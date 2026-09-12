@@ -72,6 +72,16 @@ namespace PCTP.QRCODE_HVN.PGH
             CheckGX_ItemCheck.Invoke(this, e);
         }
 
+        private void PhieuHeaderControl_GioXuatCheckedChanged(object sender, EventArgs e)
+        {
+            GioXuatCheckedChanged.Invoke(this, e);
+        }
+
+        private void PhieuHeaderControl_CheckGX_ItemCheck(object sender, EventArgs e)
+        {
+            CheckGX_ItemCheck.Invoke(this, e);
+        }
+
         private void PhieuHeaderControl_LoaiPhieuChanged(object sender, EventArgs e)
         {
             LoaiPhieuChanged.Invoke(this, e);
