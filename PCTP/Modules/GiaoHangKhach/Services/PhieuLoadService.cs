@@ -14,16 +14,14 @@ using System.Linq;
 namespace PCTP.Applications.Services
 {
     /// <summary>
-    /// Orchestration layer của pipeline load phiếu giao hàng.
-    /// Source chỉ lấy dữ liệu nguồn; WorkingState quản lý TMP/DOCQR.
-    /// Service này ghép các bước thành OrderLoadResult.
-    /// Không publish EventBus và không xử lý UI.
+    /// Phase 5/6: orchestration của pipeline load phiếu giao hàng.
+    /// Source lấy dữ liệu nguồn; WorkingState quản lý TMP/DOCQR.
+    /// Service trả về OrderLoadResult và không publish EventBus/UI.
     /// </summary>
     public sealed class PhieuLoadService : IPhieuLoadService
     {
         private readonly IPhieuRepository _phieuRepo;
         private readonly IIFSRepository _ifsRepo;
-        private readonly ITableOrderRepository _tableOrderRepo;
         private readonly IOrderSourceFactory _orderSourceFactory;
         private readonly IRowCategoryFilter _rowCategoryFilter;
         private readonly IDeliveryWorkingState _workingState;
@@ -33,7 +31,6 @@ namespace PCTP.Applications.Services
         public PhieuLoadService(
             IPhieuRepository phieuRepo,
             IIFSRepository ifsRepo,
-            ITableOrderRepository tableOrderRepo,
             IOrderSourceFactory orderSourceFactory,
             IRowCategoryFilter rowCategoryFilter,
             IDeliveryWorkingState workingState,
@@ -42,7 +39,6 @@ namespace PCTP.Applications.Services
         {
             _phieuRepo = phieuRepo ?? throw new ArgumentNullException(nameof(phieuRepo));
             _ifsRepo = ifsRepo ?? throw new ArgumentNullException(nameof(ifsRepo));
-            _tableOrderRepo = tableOrderRepo ?? throw new ArgumentNullException(nameof(tableOrderRepo));
             _orderSourceFactory = orderSourceFactory ?? throw new ArgumentNullException(nameof(orderSourceFactory));
             _rowCategoryFilter = rowCategoryFilter ?? throw new ArgumentNullException(nameof(rowCategoryFilter));
             _workingState = workingState ?? throw new ArgumentNullException(nameof(workingState));
@@ -58,13 +54,10 @@ namespace PCTP.Applications.Services
             {
                 case OrderSourceKind.IFS:
                     return LoadFromIfs(context);
-
                 case OrderSourceKind.TableOrder:
                     return LoadFromTableOrder(context);
-
                 case OrderSourceKind.GiaoDB:
                     return LoadFromGiaoDb(context);
-
                 default:
                     throw new ArgumentOutOfRangeException(nameof(context.Source));
             }
@@ -81,7 +74,6 @@ namespace PCTP.Applications.Services
 
             string tmpTable = _cfg.Delivery.GetTmpTable(isSP);
             string docQRTable = _cfg.Delivery.GetDocQRTable(isSP);
-
             string caption = _cfg.Delivery.LoadTheoNgay
                 ? $"ĐƠN HÀNG: {_cfg.DisplayName} - {context.NhaMay}"
                 : $"ĐƠN HÀNG: {_cfg.DisplayName} - {context.NhaMay}   GIỜ GIAO: {gioMoTaSP}";
@@ -101,17 +93,7 @@ namespace PCTP.Applications.Services
                     bool coMaNG = !_cfg.Delivery.CoGear
                         && _phieuRepo.CheckCoMaNG(tmpTable);
 
-                    return new OrderLoadResult
-                    {
-                        Orders = donHangQr,
-                        HasMaNG = coMaNG,
-                        HasDifference = false,
-                        Source = context.Source,
-                        Category = context.Category,
-                        Caption = caption,
-                        Warning = null,
-                        IsQr = true
-                    };
+                    return BuildResult(context, donHangQr, caption, coMaNG, false, null, true);
                 }
             }
 
@@ -137,17 +119,14 @@ namespace PCTP.Applications.Services
                 bool coMaNG = !_cfg.Delivery.CoGear
                     && _phieuRepo.CheckCoMaNG(tmpTable);
 
-                return new OrderLoadResult
-                {
-                    Orders = donHang,
-                    HasMaNG = coMaNG,
-                    HasDifference = HasRows(sourceResult.Difference),
-                    Source = context.Source,
-                    Category = context.Category,
-                    Caption = caption,
-                    Warning = sourceResult.Warning,
-                    IsQr = false
-                };
+                return BuildResult(
+                    context,
+                    donHang,
+                    caption,
+                    coMaNG,
+                    HasRows(sourceResult.Difference),
+                    sourceResult.Warning,
+                    false);
             }
 
             string ifsViewTable = _cfg.Delivery.GetIfsViewTable();
@@ -173,17 +152,14 @@ namespace PCTP.Applications.Services
             bool coMaNGView = !_cfg.Delivery.CoGear
                 && _phieuRepo.CheckCoMaNG(tenBanView);
 
-            return new OrderLoadResult
-            {
-                Orders = donHangView,
-                HasMaNG = coMaNGView,
-                HasDifference = HasRows(sourceResult.Difference),
-                Source = context.Source,
-                Category = context.Category,
-                Caption = caption,
-                Warning = sourceResult.Warning,
-                IsQr = false
-            };
+            return BuildResult(
+                context,
+                donHangView,
+                caption,
+                coMaNGView,
+                HasRows(sourceResult.Difference),
+                sourceResult.Warning,
+                false);
         }
 
         private OrderLoadResult LoadFromTableOrder(OrderLoadContext context)
@@ -196,18 +172,9 @@ namespace PCTP.Applications.Services
                 return OrderLoadResult.Empty(context);
             }
 
-            string gioFcc = "";
-            string gioMoTa = "";
-
+            string gioMoTa = string.Empty;
             if (context.CheckedGios != null && context.CheckedGios.Count > 0)
             {
-                var hours = context.CheckedGios
-                    .Select(g => g.Split(':')[0].PadLeft(2, '0'))
-                    .Distinct()
-                    .OrderBy(h => h)
-                    .ToList();
-
-                gioFcc = string.Join(",", hours.Select(h => $"'{h}'"));
                 gioMoTa = string.Join("+", context.CheckedGios) + "H";
             }
 
@@ -218,7 +185,6 @@ namespace PCTP.Applications.Services
             if (isQrMachine && context.IsBanQR)
             {
                 int demQR = _phieuRepo.CountDocQRCode(docQRTable);
-
                 if (demQR > 0)
                 {
                     string tmpTable = _cfg.Delivery.GetTmpTable(isSP);
@@ -249,24 +215,23 @@ namespace PCTP.Applications.Services
             string warning = null)
         {
             bool isSP = context.Category == OrderCategory.SP;
-            DataTable hangThieu = _phieuRepo.TinhHangThieuTuDonHang(donHang);
+
+            // Giữ nguyên side-effect nghiệp vụ hiện tại: tính hàng thiếu sau khi load.
+            _phieuRepo.TinhHangThieuTuDonHang(donHang);
 
             string caption = _cfg.Delivery.CoGear
                 ? $"ĐƠN HÀNG {_cfg.DisplayName} ({(isSP ? "SP" : "MP")}): " +
                   $"{context.NgayGiao:dd/MM/yyyy}   GIỜ: {gioMoTa}"
                 : $"ĐƠN HÀNG {_cfg.DisplayName}: {context.NgayGiao:dd/MM/yyyy}";
 
-            return new OrderLoadResult
-            {
-                Orders = donHang,
-                HasMaNG = false,
-                HasDifference = hasDifference,
-                Source = context.Source,
-                Category = context.Category,
-                Caption = caption,
-                Warning = warning ?? context.IfsLoadError,
-                IsQr = context.MachineRole == MachineRole.DuocBanQR && context.IsBanQR
-            };
+            return BuildResult(
+                context,
+                donHang,
+                caption,
+                false,
+                hasDifference,
+                warning ?? context.IfsLoadError,
+                context.MachineRole == MachineRole.DuocBanQR && context.IsBanQR);
         }
 
         private OrderLoadResult LoadFromGiaoDb(OrderLoadContext context)
@@ -275,16 +240,35 @@ namespace PCTP.Applications.Services
                 .GetSource(context)
                 .Load(context);
 
+            return BuildResult(
+                context,
+                sourceResult.Orders ?? new DataTable(),
+                string.Empty,
+                false,
+                HasRows(sourceResult.Difference),
+                sourceResult.Warning,
+                context.IsBanQR);
+        }
+
+        private OrderLoadResult BuildResult(
+            OrderLoadContext context,
+            DataTable orders,
+            string caption,
+            bool hasMaNG,
+            bool hasDifference,
+            string warning,
+            bool isQr)
+        {
             return new OrderLoadResult
             {
-                Orders = sourceResult.Orders ?? new DataTable(),
-                HasMaNG = false,
-                HasDifference = HasRows(sourceResult.Difference),
+                Orders = orders ?? new DataTable(),
+                HasMaNG = hasMaNG,
+                HasDifference = hasDifference,
                 Source = context.Source,
                 Category = context.Category,
-                Caption = string.Empty,
-                Warning = sourceResult.Warning,
-                IsQr = context.IsBanQR
+                Caption = caption ?? string.Empty,
+                Warning = warning,
+                IsQr = isQr
             };
         }
 
@@ -358,7 +342,6 @@ namespace PCTP.Applications.Services
                     int hop = slGiao / qcDg;
                     if (slGiao % qcDg > 0)
                         hop++;
-
                     row["HOP"] = hop.ToString();
                 }
             }
