@@ -13,6 +13,7 @@ namespace PCTP.QRCODE_HVN.PGH
         private PhieuGridControl _phieuGridControl;
         private DocQrControl _docQrControl;
         private PhieuBottomStateControl _phieuBottomStateControl;
+        private PhieuHeaderControl _phieuHeaderControl;
 
         // Compatibility bridge: HVN_PGH business code keeps the legacy member
         // names while the actual visual owner is PhieuBottomStateControl.
@@ -35,8 +36,29 @@ namespace PCTP.QRCODE_HVN.PGH
         protected override void OnLoad(EventArgs e)
         {
             base.OnLoad(e);
+            MigratePhieuHeaderToUserControl();
             MigratePhieuOrderGridToUserControl();
             MigrateDocQrGridToUserControl();
+        }
+
+        private void MigratePhieuHeaderToUserControl()
+        {
+            if (_phieuHeaderControl != null || PN_DOCQR_TOP == null || panelPhieu == null)
+                return;
+
+            Control parent = panelPhieu.Parent;
+            if (parent == null)
+                return;
+
+            int childIndex = parent.Controls.GetChildIndex(panelPhieu);
+
+            _phieuHeaderControl = new PhieuHeaderControl();
+
+            parent.Controls.Remove(panelPhieu);
+            parent.Controls.Add(_phieuHeaderControl);
+            parent.Controls.SetChildIndex(_phieuHeaderControl, childIndex);
+
+            _phieuHeaderControl.Adopt(panelPhieu);
         }
 
         private void MigratePhieuOrderGridToUserControl()
