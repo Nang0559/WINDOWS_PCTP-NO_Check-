@@ -47,6 +47,13 @@ namespace PCTP.QRCODE_HVN.PGH
                 _phieuGridControl.OrderGrid.DataSource = existingDataSource;
             }
 
+            // Compatibility bridge: all existing HVN_PGH code keeps using
+            // gridCtrDONHANG/GridViewDONHANG/gridBandDH, but those references
+            // now point to the controls owned by PhieuGridControl.
+            gridCtrDONHANG = _phieuGridControl.OrderGrid;
+            GridViewDONHANG = _phieuGridControl.OrderView;
+            gridBandDH = _phieuGridControl.OrderBand;
+
             // Keep the existing form-level row styling handler unchanged.
             _phieuGridControl.OrderView.RowCellStyle += GridViewDONHANG_RowCellStyle;
         }
