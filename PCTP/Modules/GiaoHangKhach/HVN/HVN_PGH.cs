@@ -1,4 +1,4 @@
-﻿using DevExpress.XtraBars.Docking2010;
+using DevExpress.XtraBars.Docking2010;
 using DevExpress.XtraEditors;
 using DevExpress.XtraEditors.Controls;
 using DevExpress.XtraEditors.Repository;
@@ -575,12 +575,11 @@ namespace PCTP.QRCODE_HVN.PGH
         // ════════════════════════════════════════════════════════════════════
         // III. ĐỌC GIÁ TRỊ TỪ UI
         // ════════════════════════════════════════════════════════════════════
-        public DateTime SelectedDate => dateNX.DateTime;
-        //public int SelectedTabAddNM => tabPaneHVN.SelectedPage == tabHN ? 2 : 1;
+        public DateTime SelectedDate =>
+            _phieuHeaderControl != null ? _phieuHeaderControl.SelectedDate : DateTime.MinValue;
+
         public int SelectedTabAddNM =>
-        _cfg.Delivery.CoNhieuNhaMay
-        ? (tabPaneHVN.SelectedPage == tabHN ? 2 : 1)
-        : _cfg.Delivery.AddNmMacDinh;  // ← cố định cho 10003
+            _phieuHeaderControl != null ? _phieuHeaderControl.SelectedTabAddNM : _cfg.Delivery.AddNmMacDinh;
         public string QRCodeInput => txt_DOCQRCODE.Text.Trim();
         public void ClearQRInput() => txt_DOCQRCODE.Text = "";
         public int SelectedHinhThucIn => _hinhThucIn;
@@ -1021,19 +1020,21 @@ namespace PCTP.QRCODE_HVN.PGH
         }
         public void SetTab(int addNM)
         {
-            if (addNM == 2)
-            {
-                tabPaneHVN.SelectedPage = tabHN;
-                tabVP.PageVisible = false;          // ẩn tab còn lại
-            }
-            else
-            {
-                tabPaneHVN.SelectedPage = tabVP;
-                tabHN.PageVisible = false;
-            }
+            if (_phieuHeaderControl != null)
+                _phieuHeaderControl.SetTab(addNM);
         }
-        public void LockDatePicker() => dateNX.Enabled = false;
-        public void UnlockDatePicker() => dateNX.Enabled = true;
+
+        public void LockDatePicker()
+        {
+            if (_phieuHeaderControl != null)
+                _phieuHeaderControl.LockDatePicker();
+        }
+
+        public void UnlockDatePicker()
+        {
+            if (_phieuHeaderControl != null)
+                _phieuHeaderControl.UnlockDatePicker();
+        }
 
         public void LockRadioExcept(string gioFCC)
         {

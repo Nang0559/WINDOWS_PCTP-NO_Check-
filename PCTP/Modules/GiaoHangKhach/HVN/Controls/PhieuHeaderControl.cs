@@ -50,6 +50,65 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
         public event EventHandler CheckGX_ItemCheck = delegate { };
         public event EventHandler TabChanged = delegate { };
 
+        public DateTime SelectedDate
+        {
+            get
+            {
+                var control = FindControl<DateEdit>("dateNX");
+                return control != null ? control.DateTime : DateTime.MinValue;
+            }
+        }
+
+        public int SelectedTabAddNM
+        {
+            get
+            {
+                if (_cfg == null || _cfg.Delivery == null)
+                    return 1;
+
+                if (!_cfg.Delivery.CoNhieuNhaMay)
+                    return _cfg.Delivery.AddNmMacDinh;
+
+                var tabPane = FindControl<TabPane>("tabPaneHVN");
+                var tabHn = FindControl<NavigationPage>("tabHN");
+                return tabPane != null && tabHn != null && tabPane.SelectedPage == tabHn ? 2 : 1;
+            }
+        }
+
+        public void SetTab(int addNM)
+        {
+            var tabPane = FindControl<TabPane>("tabPaneHVN");
+            var tabVp = FindControl<NavigationPage>("tabVP");
+            var tabHn = FindControl<NavigationPage>("tabHN");
+            if (tabPane == null || tabVp == null || tabHn == null)
+                return;
+
+            if (addNM == 2)
+            {
+                tabPane.SelectedPage = tabHn;
+                tabVp.PageVisible = false;
+            }
+            else
+            {
+                tabPane.SelectedPage = tabVp;
+                tabHn.PageVisible = false;
+            }
+        }
+
+        public void LockDatePicker()
+        {
+            var control = FindControl<DateEdit>("dateNX");
+            if (control != null)
+                control.Enabled = false;
+        }
+
+        public void UnlockDatePicker()
+        {
+            var control = FindControl<DateEdit>("dateNX");
+            if (control != null)
+                control.Enabled = true;
+        }
+
         public void SetDate(DateTime date)
         {
             var control = FindControl<DateEdit>("dateNX");
