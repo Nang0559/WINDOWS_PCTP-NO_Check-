@@ -1,4 +1,4 @@
-﻿using DevExpress.DataAccess.DataFederation;
+using DevExpress.DataAccess.DataFederation;
 using DevExpress.Office;
 using DevExpress.Pdf.Native;
 using PCTP.Domain.Entities;
@@ -164,10 +164,7 @@ namespace PCTP.Applications.Services
                 _ifsDataCache = context.IfsDataDaLoc;
                 _ifsLoadWarning = context.IfsLoadError;
 
-                DataTable donHang = result.Orders ?? new DataTable();
-                DataTable hangThieu = BuildHangThieuForEvent(result, donHang);
-
-                PublishPhieuLoaded(result, donHang, hangThieu);
+                PublishPhieuLoaded(result);
             }
             catch (Exception)
             {
@@ -176,28 +173,18 @@ namespace PCTP.Applications.Services
             }
         }
 
-        /// <summary>
-        /// PhieuLoadedEvent cũ yêu cầu DataTable hàng thiếu.
-        /// OrderLoadResult hiện chỉ mang trạng thái HasDifference nên phần này
-        /// chỉ tính lại hàng thiếu cho TableOrder, đúng nơi flow legacy yêu cầu.
-        /// IFS/GiaoDB vẫn giữ DataTable rỗng như hành vi cũ.
-        /// </summary>
-        private DataTable BuildHangThieuForEvent(
-            OrderLoadResult result,
-            DataTable donHang)
+        private void PublishPhieuLoaded(OrderLoadResult result)
         {
-            if (result == null || result.Source != OrderSourceKind.TableOrder)
-                return new DataTable();
+            if (result == null)
+                result = new OrderLoadResult
+                {
+                    Orders = new DataTable(),
+                    HangThieu = new DataTable(),
+                    Caption = string.Empty
+                };
 
-            return _phieuRepo.TinhHangThieuTuDonHang(donHang)
-                   ?? new DataTable();
-        }
-
-        private void PublishPhieuLoaded(
-            OrderLoadResult result,
-            DataTable donHang,
-            DataTable hangThieu)
-        {
+            DataTable donHang = result.Orders ?? new DataTable();
+            DataTable hangThieu = result.HangThieu ?? new DataTable();
             string caption = result.Caption ?? string.Empty;
 
             // Warning của TableOrder là warning đã được legacy flow đưa vào event.
