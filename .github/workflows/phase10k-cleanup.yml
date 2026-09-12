@@ -1,0 +1,53 @@
+name: phase10k-cleanup
+
+on:
+  push:
+    paths:
+      - '.github/phase10k.trigger'
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Clean legacy header event ownership
+        shell: python
+        run: |
+          from pathlib import Path
+
+          designer = Path('PCTP/Modules/GiaoHangKhach/HVN/HVN_PGH.Designer.cs')
+          text = designer.read_text(encoding='utf-8-sig')
+          text = text.replace('            this.tabPaneHVN.Click += new System.EventHandler(this.tabPaneHVN_Click);\n', '')
+          designer.write_text(text, encoding='utf-8-sig')
+
+          form = Path('PCTP/Modules/GiaoHangKhach/HVN/HVN_PGH.cs')
+          text = form.read_text(encoding='utf-8-sig')
+          for item in [
+              '            dateNX.EditValueChanged -= dateNX_EditValueChanged;\n',
+              '            tabPaneHVN.Click -= tabPaneHVN_Click;\n',
+              '            RDO_GXHN.SelectedIndexChanged -= RDO_GXHN_SelectedIndexChanged;\n',
+              '            radioGroup2.SelectedIndexChanged -= radioGroup2_SelectedIndexChanged;\n',
+          ]:
+              text = text.replace(item, '')
+          form.write_text(text, encoding='utf-8-sig')
+
+      - name: Verify cleanup
+        shell: bash
+        run: |
+          ! grep -F 'tabPaneHVN.Click += new System.EventHandler(this.tabPaneHVN_Click);' PCTP/Modules/GiaoHangKhach/HVN/HVN_PGH.Designer.cs
+          ! grep -F 'dateNX.EditValueChanged -= dateNX_EditValueChanged;' PCTP/Modules/GiaoHangKhach/HVN/HVN_PGH.cs
+          ! grep -F 'tabPaneHVN.Click -= tabPaneHVN_Click;' PCTP/Modules/GiaoHangKhach/HVN/HVN_PGH.cs
+          ! grep -F 'RDO_GXHN.SelectedIndexChanged -= RDO_GXHN_SelectedIndexChanged;' PCTP/Modules/GiaoHangKhach/HVN/HVN_PGH.cs
+          ! grep -F 'radioGroup2.SelectedIndexChanged -= radioGroup2_SelectedIndexChanged;' PCTP/Modules/GiaoHangKhach/HVN/HVN_PGH.cs
+
+      - name: Commit
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add PCTP/Modules/GiaoHangKhach/HVN/HVN_PGH.Designer.cs PCTP/Modules/GiaoHangKhach/HVN/HVN_PGH.cs
+          git commit -m 'Phase 10K: remove legacy header Designer event ownership'
+          git push
