@@ -269,7 +269,14 @@
     <Compile Include="Modules\GiaoHangKhach\FifoViolation.cs" />
     <Compile Include="Modules\GiaoHangKhach\Contracts\IItemFifoConfigRepository.cs" />
     <Compile Include="Modules\GiaoHangKhach\Contracts\IHangThieuCaNgayService.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Models\OrderSourceResult.cs" />
     <Compile Include="Modules\GiaoHangKhach\OrderLoading\GiaoDB\GiaoDbOrderLoadStrategy.cs" />
+    <Compile Include="Modules\GiaoHangKhach\OrderLoading\GiaoDB\GiaoDbOrderSource.cs" />
+    <Compile Include="Modules\GiaoHangKhach\OrderLoading\IFS\IfsOrderSource.cs" />
+    <Compile Include="Modules\GiaoHangKhach\OrderLoading\IOrderSource.cs" />
+    <Compile Include="Modules\GiaoHangKhach\OrderLoading\IOrderSourceFactory.cs" />
+    <Compile Include="Modules\GiaoHangKhach\OrderLoading\OrderSourceFactory.cs" />
+    <Compile Include="Modules\GiaoHangKhach\OrderLoading\TableOrder\TableOrderSource.cs" />
     <Compile Include="Modules\GiaoHangKhach\Repositories\ItemFifoConfigRepository.cs" />
     <Compile Include="Modules\GiaoHangKhach\Services\DocQRService.cs" />
     <Compile Include="Modules\GiaoHangKhach\Services\HangThieuCaNgayService.cs" />

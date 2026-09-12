@@ -5,6 +5,9 @@ using PCTP.Domain.Events;
 using PCTP.Domain.Interfaces;
 using PCTP.FuctionMain;
 using PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao;
+using PCTP.Modules.GiaoHangKhach.Mode;
+using PCTP.Modules.GiaoHangKhach.Models;
+using PCTP.Modules.GiaoHangKhach.OrderLoading;
 using PCTP.Shared.Common;
 using PCTP.Shared.Models;
 using PCTP.VIEWSTOCK.Models;
@@ -43,6 +46,7 @@ namespace PCTP.Applications.Services
         // cần"). PhieuRepository hiện KHÔNG còn implement các method này nữa, nên
         // PhieuService phải nhận riêng dependency này (implementation: TableOrderRepo).
         private readonly ITableOrderRepository _tableOrderRepo;
+        private readonly IOrderLoadStrategyFactory _orderLoadFactory;
 
         // ── Trạng thái hiện tại — được set từ Presenter ─────────────────────
         private bool _isBanQR = false;
@@ -56,7 +60,8 @@ namespace PCTP.Applications.Services
                             CustomerConfig cfg,
                             bool isMayBanQR,
                             ITableOrderRepository tableOrderRepo,
-                            IPhieuGiaoDBRepository giaoDbRepo)
+                            IPhieuGiaoDBRepository giaoDbRepo,
+                            IOrderLoadStrategyFactory orderLoadFactory)
         {
             _phieuRepo = phieuRepo;
             _ifsRepo = ifsRepo;
@@ -67,6 +72,7 @@ namespace PCTP.Applications.Services
             _isMayBanQR = isMayBanQR;
             _tableOrderRepo = tableOrderRepo ?? throw new ArgumentNullException(nameof(tableOrderRepo));
             _giaoDbRepo = giaoDbRepo ?? throw new ArgumentNullException(nameof(giaoDbRepo));
+            _orderLoadFactory = orderLoadFactory ?? throw new ArgumentNullException(nameof(orderLoadFactory));
         }
         public void SetTrangThaiBan(bool isBanQR, bool isLoaiSP)
         {
@@ -721,8 +727,20 @@ namespace PCTP.Applications.Services
                 "TMPPHIEUGIAOHANGDB",
                 "TMPPHIEUGIAOHANGDB_IFS");
 
-        public DataTable LoadTmpPhieuGiaoDB(DateTime ngayGiao, int addNm)   // ← SỬA: thêm 2 tham số
-            => _phieuRepo.LoadTmpPhieuGiaoDB("TMPPHIEUGIAOHANGDB", ngayGiao, addNm);
+        public DataTable LoadTmpPhieuGiaoDB(DateTime ngayGiao, int addNm)
+        {
+            var ctx = new OrderLoadContext
+            {
+                Cfg = _cfg,
+                NgayGiao = ngayGiao,
+                AddNm = addNm,
+                Source = OrderSourceKind.GiaoDB,
+                Category = _isLoaiSP ? OrderCategory.SP : OrderCategory.MP
+            };
+
+            var strategy = _orderLoadFactory.GetStrategy(ctx);
+            return strategy.LoadDonHangGoc(ctx);
+        }
         public void XuLySauUploadGiaoDB()
         {
             DataTable donHang = _phieuRepo.BuildDonHangTuUpload();

@@ -25,12 +25,16 @@ namespace PCTP.Modules.GiaoHangKhach.OrderLoading
     {
         private readonly IfsOrderLoadStrategy _ifsStrategy;
         private readonly OrderTableLoadStrategy _orderTableStrategy;
-        private GiaoDbOrderLoadStrategy _giaoDbStrategy;
+        private readonly GiaoDbOrderLoadStrategy _giaoDbStrategy;
 
-        public OrderLoadStrategyFactory(IfsOrderLoadStrategy ifs, OrderTableLoadStrategy orderTable)
+        public OrderLoadStrategyFactory(
+            IfsOrderLoadStrategy ifs,
+            OrderTableLoadStrategy orderTable,
+            GiaoDbOrderLoadStrategy giaoDb)
         {
             _ifsStrategy = ifs;
             _orderTableStrategy = orderTable;
+            _giaoDbStrategy = giaoDb;
         }
 
         public IOrderLoadStrategy GetStrategy(OrderLoadContext ctx)

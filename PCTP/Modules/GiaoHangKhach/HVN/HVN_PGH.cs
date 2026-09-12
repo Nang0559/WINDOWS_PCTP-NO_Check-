@@ -16,6 +16,9 @@ using PCTP.Infrastructure;
 using PCTP.Infrastructure.Repositories;
 using PCTP.Infrastructure.Repositories;
 using PCTP.Modules.GiaoHangKhach;
+using PCTP.Modules.GiaoHangKhach.OrderLoading;
+using PCTP.Modules.GiaoHangKhach.OrderLoading.GiaoDB;
+using PCTP.Modules.GiaoHangKhach.OrderLoading.IFS;
 using PCTP.Modules.GiaoHangKhach.Repositories;
 using PCTP.Modules.GiaoHangKhach.Services;
 using PCTP.Modules.GiaoHangKhach.SubForm;
@@ -237,6 +240,7 @@ namespace PCTP.QRCODE_HVN.PGH
             var sqlRepo = new SqlRepository(phieuDb, phieuUow);
             var luuTruRepo = new PhieuLuuTruRepository(phieuDb, phieuUow);
 
+      
             var gioVP = _gioRepo.GetDictGioVP();
             var gioHN = _gioRepo.GetDictGioHN();
             phieuRepo.EnsureTablesExist();
@@ -254,7 +258,15 @@ namespace PCTP.QRCODE_HVN.PGH
             string tenBan = isMayBanQR
                  ? _cfg.Delivery.TmpTable
                  : _cfg.Delivery.GetTmpViewTable(Environment.MachineName);
-            var phieuSvc = new PhieuService(phieuRepo, ifsRepo, bus, _gioRepo, tenBan, _cfg, isMayBanQR, tableOrderRepo, phieugiaDBRepo);
+
+            var ifsStrategy = new IfsOrderLoadStrategy(ifsRepo, luuTruRepo, phieuTmpRepo);
+            var tableOrderStrategy = new OrderTableLoadStrategy(tableOrderRepo, phieuTmpRepo);
+            var giaoDbStrategy = new GiaoDbOrderLoadStrategy(phieugiaDBRepo);
+            var orderLoadFactory = new OrderLoadStrategyFactory(ifsStrategy, tableOrderStrategy, giaoDbStrategy);
+
+            var phieuSvc = new PhieuService(phieuRepo, ifsRepo, bus, _gioRepo, tenBan, _cfg,
+                                             isMayBanQR, tableOrderRepo, phieugiaDBRepo,
+                                             orderLoadFactory);   // ← THÊM tham số cuối
             var hangthieucangaySvc = new HangThieuCaNgayService(ifsRepo, luuTruRepo, phieuDb);
             var qrSvc = new DocQRService(qrRepo, bus, _cfg);
             var inPhieuSvc = new InPhieuService(ifsRepo, phieuRepo, sqlRepo, gioVP, gioHN, _cfg);
