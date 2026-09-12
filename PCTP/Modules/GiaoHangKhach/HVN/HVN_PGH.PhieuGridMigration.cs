@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Windows.Forms;
 using PCTP.QRCODE_HVN.PGH.Controls;
 
@@ -8,8 +8,6 @@ namespace PCTP.QRCODE_HVN.PGH
     {
         private PhieuGridControl _phieuGridControl;
         private DocQrControl _docQrControl;
-        private PhieuBottomStateControl _phieuBottomStateControl;
-
         /// <summary>
         /// Phase 9E migration entry point.
         /// Existing GridControl instances are re-parented intact so current
@@ -20,7 +18,6 @@ namespace PCTP.QRCODE_HVN.PGH
             base.OnLoad(e);
             MigratePhieuOrderGridToUserControl();
             MigrateDocQrGridToUserControl();
-            MigrateSidePanel4ToUserControl();
         }
 
         private void MigratePhieuOrderGridToUserControl()
@@ -99,57 +96,5 @@ namespace PCTP.QRCODE_HVN.PGH
             gridVDOCQRCODE.FocusedRowChanged += gridVDOCQRCODE_FocusedRowChanged;
         }
 
-        /// <summary>
-        /// Replaces the legacy sidePanel4 visual container with a UserControl
-        /// boundary while deliberately keeping all three legacy grids under
-        /// the SAME immediate parent.
-        ///
-        /// This is the critical compatibility point: HVN_PGH already switches
-        /// between Lệch IFS / Ghép Lot / Sửa Số Lượng by setting Visible and
-        /// calling BringToFront() on the grid fields. Re-parenting all three
-        /// grids into one UserControl means those calls keep exactly the same
-        /// z-order semantics.
-        /// </summary>
-        private void MigrateSidePanel4ToUserControl()
-        {
-            if (_phieuBottomStateControl != null || sidePanel3 == null || sidePanel4 == null)
-                return;
-
-            int childIndex = sidePanel3.Controls.GetChildIndex(sidePanel4);
-            int width = sidePanel4.Width;
-
-            _phieuBottomStateControl = new PhieuBottomStateControl
-            {
-                Dock = DockStyle.Left,
-                Width = width,
-                Name = "phieuBottomStateControl",
-                Margin = sidePanel4.Margin
-            };
-
-            // Adopt the existing Designer-created controls instead of creating
-            // new grids. DataSource, GridView instances and event subscriptions
-            // therefore remain intact.
-            _phieuBottomStateControl.Adopt(
-                gridCLECH,
-                gridCTTGL,
-                gridCtrSUASL,
-                gridVSUASL);
-
-            // Replace the old sidePanel4 at the exact same position in sidePanel3.
-            sidePanel3.Controls.Remove(sidePanel4);
-            sidePanel3.Controls.Add(_phieuBottomStateControl);
-            sidePanel3.Controls.SetChildIndex(_phieuBottomStateControl, childIndex);
-
-            // Compatibility bridge: fields remain unchanged because the actual
-            // GridControl instances were only re-parented, not recreated.
-            gridCLECH = _phieuBottomStateControl.LechGrid;
-            gridCTTGL = _phieuBottomStateControl.GhepLotGrid;
-            gridCtrSUASL = _phieuBottomStateControl.SuaSlGrid;
-            gridVSUASL = _phieuBottomStateControl.SuaSlView;
-
-            // Keep the legacy container out of the visual tree. It remains owned
-            // by the Designer until Phase 9F removes the old declarations.
-            sidePanel4.Visible = false;
-        }
     }
 }
