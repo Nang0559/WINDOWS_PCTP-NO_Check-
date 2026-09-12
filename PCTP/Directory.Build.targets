@@ -3,5 +3,10 @@
     <Compile Include="Modules\GiaoHangKhach\Services\DocQRScanEngine.cs" />
     <Compile Include="Modules\GiaoHangKhach\Services\DocQRSessionState.cs" />
     <Compile Include="Modules\GiaoHangKhach\Services\DocQRTableResolver.cs" />
+    <Compile Include="Presentation\Presenters\HVNPresenterContext.cs" />
+    <Compile Include="Presentation\Presenters\PhieuPresenter.cs" />
+    <Compile Include="Presentation\Presenters\DocQrPresenter.cs" />
+    <Compile Include="Presentation\Presenters\GiaoDbPresenter.cs" />
+    <Compile Include="Presentation\Presenters\YmvnPresenter.cs" />
   </ItemGroup>
 </Project>
