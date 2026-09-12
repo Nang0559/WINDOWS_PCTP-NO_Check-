@@ -44,5 +44,8 @@ namespace PCTP.Modules.GiaoHangKhach.WorkingState
         /// Xóa dữ liệu DOCQRCODE của phiên hiện tại.
         /// </summary>
         void ClearDocQr(OrderLoadContext context);
+
+
+        bool HasQr(OrderLoadContext context);
     }
 }
