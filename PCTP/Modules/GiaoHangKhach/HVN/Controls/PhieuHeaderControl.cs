@@ -95,6 +95,131 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
             }
         }
 
+
+        public void BindGioXuatVP(IReadOnlyList<GioXuat> danhSach)
+        {
+            var radioGroup2 = FindControl<RadioGroup>("radioGroup2");
+            if (radioGroup2 == null)
+                return;
+
+            radioGroup2.Properties.Items.Clear();
+            for (int i = 0; i < danhSach.Count; i++)
+            {
+                var gio = danhSach[i];
+                var item = new RadioGroupItem(i, gio.MoTa, true, null, gio.Ma);
+                radioGroup2.Properties.Items.Add(item);
+            }
+            if (radioGroup2.Properties.Items.Count > 0)
+                radioGroup2.EditValue = 0;
+        
+        }
+
+        public void BindGioXuatHN(IReadOnlyList<GioXuat> danhSach)
+        {
+            var RDO_GXHN = FindControl<RadioGroup>("RDO_GXHN");
+            if (RDO_GXHN == null)
+                return;
+
+            RDO_GXHN.Properties.Items.Clear();
+            for (int i = 0; i < danhSach.Count; i++)
+            {
+                var gio = danhSach[i];
+                var item = new RadioGroupItem(i, gio.MoTa, true, null, gio.Ma);
+                RDO_GXHN.Properties.Items.Add(item);
+            }
+            if (RDO_GXHN.Properties.Items.Count > 0)
+                RDO_GXHN.EditValue = 0;
+        
+        }
+
+        public void LockRadioExcept(string gioFCC)
+        {
+            var gioSet = new HashSet<string>(
+                gioFCC.Split(',').Select(g => g.Trim().Trim('\'')),
+                StringComparer.OrdinalIgnoreCase);
+
+            var radioGroup2 = FindControl<RadioGroup>("radioGroup2");
+            var RDO_GXHN = FindControl<RadioGroup>("RDO_GXHN");
+            if (radioGroup2 == null || RDO_GXHN == null)
+                return;
+
+            LockRadioGroup(radioGroup2.Properties.Items, gioSet,
+                           i => radioGroup2.SelectedIndex = i);
+            LockRadioGroup(RDO_GXHN.Properties.Items, gioSet,
+                           i => RDO_GXHN.SelectedIndex = i);
+        
+        }
+
+        public void UnlockAllRadio()
+        {
+            var radioGroup2 = FindControl<RadioGroup>("radioGroup2");
+            var RDO_GXHN = FindControl<RadioGroup>("RDO_GXHN");
+            if (radioGroup2 == null || RDO_GXHN == null)
+                return;
+
+            foreach (RadioGroupItem item in radioGroup2.Properties.Items)
+                item.Enabled = true;
+
+            foreach (RadioGroupItem item in RDO_GXHN.Properties.Items)
+                item.Enabled = true;
+
+            tabVP.PageVisible = true;
+            tabHN.PageVisible = true;
+        
+        }
+
+        private void LockRadioGroup(RadioGroupItemCollection items,
+                                      HashSet<string> gioSet,
+                                      Action<int> setIndex)
+        {
+            for (int i = 0; i < items.Count; i++)
+            {
+                var item = (RadioGroupItem)items[i];
+                var itemSet = new HashSet<string>(
+                    (item.AccessibleName ?? "").Split(',')
+                                               .Select(g => g.Trim().Trim('\'')),
+                    StringComparer.OrdinalIgnoreCase);
+
+                if (itemSet.SetEquals(gioSet))
+                {
+                    setIndex(i);
+                    item.Enabled = true;
+                }
+                else
+                {
+                    item.Enabled = false;
+                }
+            }
+        }
+
+        private bool TrySelectRadio(RadioGroupItemCollection items,
+                                      HashSet<string> gioSet,
+                                      string gioFCC,
+                                      Action<int> setIndex)
+        {
+            for (int i = 0; i < items.Count; i++)
+            {
+                var item = (RadioGroupItem)items[i];
+                if (string.IsNullOrEmpty(item.AccessibleName)) continue;
+
+                // AccessibleName = "'17','18','19'" → tách ra so sánh Set
+                var itemSet = new HashSet<string>(
+                    item.AccessibleName.Split(',')
+                                       .Select(g => g.Trim().Trim('\'')),
+                    StringComparer.OrdinalIgnoreCase);
+
+                // Hai Set phải bằng nhau (không chỉ Contains)
+                if (itemSet.SetEquals(gioSet))
+                {
+                    setIndex(i);
+                    _presenter.UpdateGioXuat(
+                        new GioXuat(gioFCC, item.Description ?? gioFCC));
+                    return true;
+                }
+            }
+            return false;
+        }
+
         public void LockDatePicker()
         {
             var control = FindControl<DateEdit>("dateNX");
