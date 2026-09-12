@@ -1,0 +1,74 @@
+name: Phase 11C refactor
+
+on:
+  push:
+    paths:
+      - '.github/workflows/phase11c-refactor.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  refactor:
+    if: contains(github.event.head_commit.message, 'Phase 11C trigger')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Move GiaoDB gio-xuat interpretation to PhieuHeaderControl
+        shell: python
+        run: |
+          from pathlib import Path
+
+          header = Path('PCTP/Modules/GiaoHangKhach/HVN/Controls/PhieuHeaderControl.cs')
+          text = header.read_text(encoding='utf-8')
+
+          marker = '''        public void LockDatePicker()\n'''
+          if 'public bool UpdateGioXuatFromDB(string gioFCC)' not in text:
+              method = '''        public bool UpdateGioXuatFromDB(string gioFCC)\n        {\n            if (string.IsNullOrWhiteSpace(gioFCC))\n                return false;\n\n            var gioSet = new HashSet<string>(\n                gioFCC.Split(',').Select(g => g.Trim().Trim('\\'')),\n                StringComparer.OrdinalIgnoreCase);\n\n            var radioGroup2 = FindControl<RadioGroup>("radioGroup2");\n            var rdoGxHn = FindControl<RadioGroup>("RDO_GXHN");\n            if (radioGroup2 == null || rdoGxHn == null)\n                return false;\n\n            if (TrySelectRadioFromDb(\n                radioGroup2.Properties.Items,\n                gioSet,\n                gioFCC,\n                i => radioGroup2.SelectedIndex = i))\n                return true;\n\n            return TrySelectRadioFromDb(\n                rdoGxHn.Properties.Items,\n                gioSet,\n                gioFCC,\n                i => rdoGxHn.SelectedIndex = i);\n        }\n\n        private bool TrySelectRadioFromDb(\n            RadioGroupItemCollection items,\n            HashSet<string> gioSet,\n            string gioFCC,\n            Action<int> setIndex)\n        {\n            for (int i = 0; i < items.Count; i++)\n            {\n                var item = (RadioGroupItem)items[i];\n                if (string.IsNullOrEmpty(item.AccessibleName))\n                    continue;\n\n                var itemSet = new HashSet<string>(\n                    item.AccessibleName.Split(',')\n                                       .Select(g => g.Trim().Trim('\\'')),\n                    StringComparer.OrdinalIgnoreCase);\n\n                if (!itemSet.SetEquals(gioSet))\n                    continue;\n\n                _suspendGioXuatChanged = true;\n                try\n                {\n                    setIndex(i);\n                    CurrentGioXuat = new GioXuat(\n                        gioFCC,\n                        item.Description ?? gioFCC);\n                }\n                finally\n                {\n                    _suspendGioXuatChanged = false;\n                }\n\n                GioXuatChanged.Invoke(this, EventArgs.Empty);\n                return true;\n            }\n\n            return false;\n        }\n\n'''
+              if marker not in text:
+                  raise SystemExit('Header insertion marker not found')
+              text = text.replace(marker, method + marker, 1)
+              header.write_text(text, encoding='utf-8')
+
+          form = Path('PCTP/Modules/GiaoHangKhach/HVN/HVN_PGH.cs')
+          text = form.read_text(encoding='utf-8')
+
+          old = '''        private bool TrySelectRadio(RadioGroupItemCollection items,\n                                      HashSet<string> gioSet,\n                                      string gioFCC,\n                                      Action<int> setIndex)\n        {\n            for (int i = 0; i < items.Count; i++)\n            {\n                var item = (RadioGroupItem)items[i];\n                if (string.IsNullOrEmpty(item.AccessibleName)) continue;\n\n                var itemSet = new HashSet<string>(\n                    item.AccessibleName.Split(',')\n                                       .Select(g => g.Trim().Trim('\\'')),\n                    StringComparer.OrdinalIgnoreCase);\n\n                if (itemSet.SetEquals(gioSet))\n                {\n                    setIndex(i);\n                    _presenter.UpdateGioXuat(\n                        new GioXuat(gioFCC, item.Description ?? gioFCC));\n                    return true;\n                }\n            }\n            return false;\n        }\n\n'''
+          if old not in text:
+              raise SystemExit('Legacy TrySelectRadio block not found')
+          text = text.replace(old, '', 1)
+
+          old_update = '''        public void UpdateGioXuatFromDB(string gioFCC)\n        {\n            // gioFCC = "'17','18','19'" → tách ra Set để compare\n            var gioSet = new HashSet<string>(\n                gioFCC.Split(',')\n                      .Select(g => g.Trim().Trim('\\'')),   // "17","18","19"\n                StringComparer.OrdinalIgnoreCase);\n\n            if (TrySelectRadio(radioGroup2.Properties.Items, gioSet, gioFCC,\n                               i => radioGroup2.SelectedIndex = i)) return;\n\n            TrySelectRadio(RDO_GXHN.Properties.Items, gioSet, gioFCC,\n                           i => RDO_GXHN.SelectedIndex = i);\n        }\n'''
+          new_update = '''        public void UpdateGioXuatFromDB(string gioFCC)\n        {\n            if (_phieuHeaderControl != null)\n                _phieuHeaderControl.UpdateGioXuatFromDB(gioFCC);\n        }\n'''
+          if old_update not in text:
+              raise SystemExit('Legacy UpdateGioXuatFromDB block not found')
+          text = text.replace(old_update, new_update, 1)
+          form.write_text(text, encoding='utf-8')
+
+      - name: Verify 11C boundary
+        shell: bash
+        run: |
+          grep -q 'public bool UpdateGioXuatFromDB(string gioFCC)' PCTP/Modules/GiaoHangKhach/HVN/Controls/PhieuHeaderControl.cs
+          grep -q '_phieuHeaderControl.UpdateGioXuatFromDB(gioFCC)' PCTP/Modules/GiaoHangKhach/HVN/HVN_PGH.cs
+          if grep -q '_presenter.UpdateGioXuat' PCTP/Modules/GiaoHangKhach/HVN/HVN_PGH.cs; then
+            echo 'ERROR: HVN_PGH still owns GiaoDB gio-xuat presenter update'
+            exit 1
+          fi
+
+      - name: Commit 11C
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add PCTP/Modules/GiaoHangKhach/HVN/Controls/PhieuHeaderControl.cs PCTP/Modules/GiaoHangKhach/HVN/HVN_PGH.cs
+          git commit -m 'Phase 11C: move GiaoDB gio-xuat interpretation into header'
+          git push
+
+      - name: Remove temporary workflow
+        shell: bash
+        run: |
+          rm .github/workflows/phase11c-refactor.yml
+          git add .github/workflows/phase11c-refactor.yml
+          git commit -m 'Phase 11C: remove temporary refactor workflow'
+          git push
