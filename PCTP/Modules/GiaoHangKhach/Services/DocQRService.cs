@@ -4,6 +4,7 @@ using PCTP.Domain.Entities;
 using PCTP.Domain.Events;
 using PCTP.Domain.Interfaces;
 using PCTP.Shared.Helpers;
+using PCTP.Shared.Models;
 using PCTP.VIEWSTOCK.Fuction;
 using PCTP.VIEWSTOCK.Models;
 using System;
@@ -46,13 +47,13 @@ namespace PCTP.Applications.Services
         // ── Helper lấy bảng đúng theo chế độ ────────────────────────────────
         private string DocQRTable
             => _isBanSP
-                ? _cfg.GetDocQRTable(true)   // DOCQRCODE_SP
-                : _cfg.GetDocQRTable(false); // DOCQRCODE (MP + O TYPE dùng chung)
+                ? _cfg.Delivery.GetDocQRTable(true)   // DOCQRCODE_SP
+                : _cfg.Delivery.GetDocQRTable(false); // DOCQRCODE (MP + O TYPE dùng chung)
 
         private string TmpTable
             => _isBanSP
-                ? _cfg.GetTmpTable(true)
-                : _cfg.GetTmpTable(false);
+                ? _cfg.Delivery.GetTmpTable(true)
+                : _cfg.Delivery.GetTmpTable(false);
 
         public DocQRService(IDocQRRepository repo, IEventBus bus, CustomerConfig cfg)
         {
@@ -82,13 +83,13 @@ namespace PCTP.Applications.Services
             rawQr = rawQr.Trim().ToUpper();
             string[] parts = rawQr.Split(':');
 
-            if (parts.Length == 6 && !_cfg.CoNhieuNhaMay && !_cfg.CoGear)
+            if (parts.Length == 6 && !_cfg.Delivery.CoNhieuNhaMay && !_cfg.Delivery.CoGear)
                 return ScanFCC_TongTem(parts, kiemTraMaTrongPhieu, kiemTraSlDaBan);
 
-            if (parts.Length == 4 && _cfg.CoGear)
+            if (parts.Length == 4 && _cfg.Delivery.CoGear)
                 return ScanFCC_YMVN(parts, kiemTraMaTrongPhieu, kiemTraSlDaBan);
 
-            if (_cfg.CoGear)
+            if (_cfg.Delivery.CoGear)
                 return ScanYMVN(rawQr, kiemTraMaTrongPhieu, kiemTraSlDaBan);
 
             if (parts.Length == 4)
@@ -227,7 +228,7 @@ namespace PCTP.Applications.Services
                  ? _repo.GetGearName(parts[6].Trim())
                  : "";
 
-            string docQRTable = _cfg.GetDocQRTable(_isBanSP);
+            string docQRTable = _cfg.Delivery.GetDocQRTable(_isBanSP);
 
             // ── Kiểm tra trùng tem ───────────────────────────────────────────────
             bool trung = _repo.KiemTraTrungTemTong(lotFcc, soTT, docQRTable);
@@ -252,7 +253,7 @@ namespace PCTP.Applications.Services
                 return ScanResult.SlKhongKhop(item);  // ← dùng factory method đúng
 
             // ── Insert ───────────────────────────────────────────────────────────
-            _repo.InsertFCC(item, docQRTable, _cfg.CoGear);
+            _repo.InsertFCC(item, docQRTable, _cfg.Delivery.CoGear);
 
             // ── Publish — truyền đúng tham số ────────────────────────────────────
             _bus.Publish(new QRScannedEvent(item, _cfg.CustomerNo));
@@ -348,7 +349,7 @@ namespace PCTP.Applications.Services
                 Gio = ""
             };
 
-            _repo.InsertFCC(item, DocQRTable, _cfg.CoGear);
+            _repo.InsertFCC(item, DocQRTable, _cfg.Delivery.CoGear);
             _bus.Publish(new QRScannedEvent(item, "FCC_YMVN"));
             return ScanResult.OK(item);
         }
@@ -376,7 +377,7 @@ namespace PCTP.Applications.Services
             if (!kiemTraSl(partNo, slTem))
                 return ScanResult.Fail("Số lượng bắn vượt quá số lượng giao!");
 
-            int sttBan = _repo.GetMaxStt(_cfg.DocQRTable);
+            int sttBan = _repo.GetMaxStt(_cfg.Delivery.DocQRTable);
 
             var item = new DocQRCode
             {
@@ -387,7 +388,7 @@ namespace PCTP.Applications.Services
                 KetQua = "OK"
             };
 
-            _repo.UpdateHVN(item, _cfg.DocQRTable);
+            _repo.UpdateHVN(item, _cfg.Delivery.DocQRTable);
             _bus.Publish(new QRScannedEvent(item, "YMVN"));
             return ScanResult.OK(item);
         }
@@ -413,7 +414,7 @@ namespace PCTP.Applications.Services
             // HTN (100003): bỏ 7 ký tự cuối
             // Các customer khác: giữ nguyên (ScanFCC_TongTem chỉ dùng cho 100003
             //                    nhưng để an toàn vẫn check)
-            string lotFcc = (_cfg.LoadTuBangRieng && !_cfg.CoGear)
+            string lotFcc = (_cfg.Delivery.LoadTuBangRieng && !_cfg.Delivery.CoGear)
                 ? NormalizeLotFCC_HTN(lotRaw)
                 : lotRaw;
 
@@ -428,7 +429,7 @@ namespace PCTP.Applications.Services
                 return ScanResult.Fail(
                     "Tổng số lượng đã bắn vượt quá số lượng giao!");
 
-            int sttBan = _repo.GetMaxStt(_cfg.DocQRTable) + 1;
+            int sttBan = _repo.GetMaxStt(_cfg.Delivery.DocQRTable) + 1;
 
             var item = new DocQRCode
             {
@@ -444,8 +445,8 @@ namespace PCTP.Applications.Services
                 Gio = ""
             };
 
-            _repo.InsertFCC(item, _cfg.DocQRTable);
-            _repo.UpdateHVN(item, _cfg.DocQRTable);
+            _repo.InsertFCC(item, _cfg.Delivery.DocQRTable);
+            _repo.UpdateHVN(item, _cfg.Delivery.DocQRTable);
 
             _bus.Publish(new QRScannedEvent(item, "FCC_TONG"));
             return ScanResult.OK(item);
@@ -485,7 +486,7 @@ namespace PCTP.Applications.Services
         private bool KiemTraThuTuFCC()
         {
             // SP và O TYPE không cần thứ tự xen kẽ
-            if (!_cfg.CoNhieuNhaMay || _isBanSP || _isBanOType) return true;
+            if (!_cfg.Delivery.CoNhieuNhaMay || _isBanSP || _isBanOType) return true;
             var all = _repo.GetAll(DocQRTable);
             if (all.Count == 0) return true;
             foreach (var item in all)
@@ -511,7 +512,7 @@ namespace PCTP.Applications.Services
         }
 
         private bool KiemTraTrungTemTong(string lotFcc, string soPhieu)
-            => _repo.KiemTraTrungTemTong(lotFcc, soPhieu, _cfg.DocQRTable);
+            => _repo.KiemTraTrungTemTong(lotFcc, soPhieu, _cfg.Delivery.DocQRTable);
 
         // ════════════════════════════════════════════════════════════════════
         // Normalize LOT helpers — giữ nguyên

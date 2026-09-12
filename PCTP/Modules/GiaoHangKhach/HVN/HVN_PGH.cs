@@ -29,6 +29,8 @@ using PCTP.QRCODE_HVN;
 using PCTP.QRCODE_HVN.Report;
 using PCTP.Shared.Common;
 using PCTP.Shared.Helpers;
+using PCTP.Shared.Models;
+using PCTP.Shared.Models;
 using PCTP.VIEWSTOCK.Models;
 using System;
 using System.Collections.Generic;
@@ -104,7 +106,7 @@ namespace PCTP.QRCODE_HVN.PGH
         }
         public void SetupNhaMayUI(CustomerConfig cfg)
         {
-            if (cfg.CoNhieuNhaMay)
+            if (cfg.Delivery.CoNhieuNhaMay)
             {
                 // 100001
                 tabVP.PageVisible = true;
@@ -115,7 +117,7 @@ namespace PCTP.QRCODE_HVN.PGH
                 CheckGX.Visible = false;  // ← ẩn CheckList
                 btnUploadMilkrun.Visible = false;
             }
-            else if (cfg.CoGear)
+            else if (cfg.Delivery.CoGear)
             {
                 // 100002 YMVN: dùng CheckListBox thay radio
                 tabPaneHVN.Visible = false;
@@ -149,7 +151,7 @@ namespace PCTP.QRCODE_HVN.PGH
                 }
                 _btnToggleLoaiPhieu.Visible = true;
             }
-            else if (cfg.LoadTheoNgay)
+            else if (cfg.Delivery.LoadTheoNgay)
             {
                 if (_btnToggleLoaiPhieu != null)
                     _btnToggleLoaiPhieu.Visible = false;
@@ -250,8 +252,8 @@ namespace PCTP.QRCODE_HVN.PGH
             // ── Tính tenBan từ isMayBanQR — đây là nơi duy nhất biết cả hai ─────
 
             string tenBan = isMayBanQR
-                 ? _cfg.TmpTable
-                 : _cfg.GetTmpViewTable(Environment.MachineName);
+                 ? _cfg.Delivery.TmpTable
+                 : _cfg.Delivery.GetTmpViewTable(Environment.MachineName);
             var phieuSvc = new PhieuService(phieuRepo, ifsRepo, bus, _gioRepo, tenBan, _cfg, isMayBanQR, tableOrderRepo, phieugiaDBRepo);
             var hangthieucangaySvc = new HangThieuCaNgayService(ifsRepo, luuTruRepo, phieuDb);
             var qrSvc = new DocQRService(qrRepo, bus, _cfg);
@@ -450,7 +452,7 @@ namespace PCTP.QRCODE_HVN.PGH
             // Đảm bảo cập nhật trên UI Thread
             this.Invoke(new Action(() =>
             {
-                lblDocQrcode.Text = _cfg?.LabelDocQR ?? "Đọc QRCode theo thứ tự: FCC → HVN";
+                lblDocQrcode.Text = _cfg.Delivery?.LabelDocQR ?? "Đọc QRCode theo thứ tự: FCC → HVN";
             }));
             // ── Ban đầu ẩn SUASL, chờ user click dòng QR ────────────────────────
             gridCtrSUASL.Visible = false;
@@ -511,7 +513,7 @@ namespace PCTP.QRCODE_HVN.PGH
             UIButton.Buttons.Clear();
             var b1 = new WindowsUIButton
             {
-                Caption = _cfg.LoadTuBangRieng ? "Show Thông Tin Lệch IFS" : "Kiểm Tra Ghep Lot", // ← SỬA
+                Caption = _cfg.Delivery.LoadTuBangRieng ? "Show Thông Tin Lệch IFS" : "Kiểm Tra Ghep Lot", // ← SỬA
                 Style = ButtonStyle.PushButton,
                 Image = imageBT.Images[1],
                 Tag = "BTN_GHEPLOT_TOGGLE"   // ← THÊM
@@ -627,7 +629,7 @@ namespace PCTP.QRCODE_HVN.PGH
             if (showGhepLot)
                 UIButton.Buttons.Add(new WindowsUIButton
                 {
-                    Caption = _cfg.LoadTuBangRieng ? "Show Thông Tin Lệch IFS" : "Kiểm Tra Ghep Lot",
+                    Caption = _cfg.Delivery.LoadTuBangRieng ? "Show Thông Tin Lệch IFS" : "Kiểm Tra Ghep Lot",
                     Style = ButtonStyle.PushButton,
                     Image = imageBT.Images[1],
                     Tag = "BTN_GHEPLOT_TOGGLE"   // ← THÊM: định danh cố định, không phụ thuộc Caption
@@ -673,9 +675,9 @@ namespace PCTP.QRCODE_HVN.PGH
         public DateTime SelectedDate => dateNX.DateTime;
         //public int SelectedTabAddNM => tabPaneHVN.SelectedPage == tabHN ? 2 : 1;
         public int SelectedTabAddNM =>
-        _cfg.CoNhieuNhaMay
+        _cfg.Delivery.CoNhieuNhaMay
         ? (tabPaneHVN.SelectedPage == tabHN ? 2 : 1)
-        : _cfg.AddNmMacDinh;  // ← cố định cho 10003
+        : _cfg.Delivery.AddNmMacDinh;  // ← cố định cho 10003
         public string QRCodeInput => txt_DOCQRCODE.Text.Trim();
         public void ClearQRInput() => txt_DOCQRCODE.Text = "";
         public int SelectedHinhThucIn => _hinhThucIn;
@@ -908,11 +910,11 @@ namespace PCTP.QRCODE_HVN.PGH
             // ── 4. Bind radio giờ xuất ───────────────────────────────
         
             BindGioXuatVP(_gioRepo.GetDanhSachGioVP());
-            if (_cfg.CoNhieuNhaMay)
+            if (_cfg.Delivery.CoNhieuNhaMay)
                 BindGioXuatHN(_gioRepo.GetDanhSachGioHN());
 
             // ── 4b. Setup grid cột theo customer ─────────────────────
-            SetupGridDonHangYMVN(_cfg.LoadTuBangRieng);
+            SetupGridDonHangYMVN(_cfg.Delivery.LoadTuBangRieng);
 
             // ── 5. Gắn events ────────────────────────────────────────
             GridViewDONHANG.ShowingEditor += GridViewDONHANG_ShowingEditor_LOT;
@@ -920,18 +922,18 @@ namespace PCTP.QRCODE_HVN.PGH
                 dateNX.DateTime = DateTime.Now;
             dateNX.EditValueChanged += dateNX_EditValueChanged;
 
-            if (_cfg.CoNhieuNhaMay)
+            if (_cfg.Delivery.CoNhieuNhaMay)
                 tabPaneHVN.Click += tabPaneHVN_Click;
 
             RDO_GXHN.SelectedIndexChanged += RDO_GXHN_SelectedIndexChanged;
             radioGroup2.SelectedIndexChanged += radioGroup2_SelectedIndexChanged;
 
-            if (_cfg.CoGear)
+            if (_cfg.Delivery.CoGear)
             {
                 CheckGX.ItemCheck += CheckGX_OnItemCheck;
                 btnUploadMilkrun.Click += btnUploadMilkrun_Click;
             }
-            else if (_cfg.LoadTheoNgay)
+            else if (_cfg.Delivery.LoadTheoNgay)
             {
                 btnUploadMilkrun.Click += btnUploadMilkrun_Click;
             }
@@ -1132,7 +1134,7 @@ namespace PCTP.QRCODE_HVN.PGH
             string ma, moTa;
 
             // ── 10003: không có tab, chỉ dùng radio VP ───────────────────────
-            if (!_cfg.CoNhieuNhaMay)
+            if (!_cfg.Delivery.CoNhieuNhaMay)
             {
                 // Luôn đọc từ radioGroup2 bất kể tab nào
                 int idx = radioGroup2.SelectedIndex;
@@ -1357,7 +1359,7 @@ namespace PCTP.QRCODE_HVN.PGH
         {
             var btn = (WindowsUIButton)e.Button;
          
-            if (_cfg.LoadTuBangRieng && (btn.Tag as string) == "BTN_GHEPLOT_TOGGLE")
+            if (_cfg.Delivery.LoadTuBangRieng && (btn.Tag as string) == "BTN_GHEPLOT_TOGGLE")
             {
                 HandleGhepLotToggle(btn);
                 return;
@@ -1455,7 +1457,7 @@ namespace PCTP.QRCODE_HVN.PGH
                     }
                 // UIButton_ButtonClick — thêm case YMVN
                 case "Hoàn Thành":
-                    if (_cfg.CoHoanThanhYMVN)
+                    if (_cfg.Delivery.CoHoanThanhYMVN)
                         HoanThanhYMVNClicked.Invoke(this, EventArgs.Empty);
                     else
                         HoanThanhClicked.Invoke(this, EventArgs.Empty);
@@ -1720,14 +1722,14 @@ namespace PCTP.QRCODE_HVN.PGH
         // ════════════════════════════════════════════════════════════════════
         protected override void OnFormClosed(FormClosedEventArgs e)
         {
-            if (_cfg.CoGear)
+            if (_cfg.Delivery.CoGear)
             {
                 CheckGX.ItemCheck -= CheckGX_OnItemCheck;
                 btnUploadMilkrun.Click -= btnUploadMilkrun_Click;
                 if (_btnToggleLoaiPhieu != null)
                     _btnToggleLoaiPhieu.Click -= BtnToggleLoaiPhieu_Click;
             }
-            else if (_cfg.LoadTheoNgay)  // ← HTN
+            else if (_cfg.Delivery.LoadTheoNgay)  // ← HTN
             {
                 btnUploadMilkrun.Click -= btnUploadMilkrun_Click;
             }

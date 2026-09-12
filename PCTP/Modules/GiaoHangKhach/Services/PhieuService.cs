@@ -6,6 +6,7 @@ using PCTP.Domain.Interfaces;
 using PCTP.FuctionMain;
 using PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao;
 using PCTP.Shared.Common;
+using PCTP.Shared.Models;
 using PCTP.VIEWSTOCK.Models;
 using PCTP.YMN;
 using System;
@@ -78,7 +79,7 @@ namespace PCTP.Applications.Services
         private string GetTenBan(bool isSP)
         {
             if (_isMayBanQR)
-                return _cfg.GetTmpTable(isSP);
+                return _cfg.Delivery.GetTmpTable(isSP);
             else
                 return _tenBan;
         }
@@ -95,7 +96,7 @@ namespace PCTP.Applications.Services
             SetTrangThaiBan(isBanQR, isLoaiSP);
 
             // ── YMVN / HTN: load từ bảng riêng ──────────────────────────────────
-            if (_cfg.LoadTuBangRieng)
+            if (_cfg.Delivery.LoadTuBangRieng)
             {
                 if (!DateTime.TryParse(
                         ngayGiao.Length >= 10 ? ngayGiao.Substring(0, 10) : ngayGiao,
@@ -109,9 +110,9 @@ namespace PCTP.Applications.Services
                 string ngayGiaoSP = dt.ToString("yyyy-MM-dd");
                 // FIX: dùng _isLoaiSP thay vì isLoaiSP local
                 bool isSP = _isLoaiSP;
-                string tmpTable = _cfg.GetTmpTable(isSP);
-                string ifsTable = _cfg.GetIfsTable(isSP);
-                string docQRTable = _cfg.GetDocQRTable(isSP);
+                string tmpTable = _cfg.Delivery.GetTmpTable(isSP);
+                string ifsTable = _cfg.Delivery.GetIfsTable(isSP);
+                string docQRTable = _cfg.Delivery.GetDocQRTable(isSP);
 
                 if (isMayBanQR && isBanQR)
                 {
@@ -139,7 +140,7 @@ namespace PCTP.Applications.Services
                             () => _phieuRepo.TinhHangThieuTuDonHang(donHangTemp));
 
                         string captionQR = $"ĐƠN HÀNG {_cfg.DisplayName}: {dt:dd/MM/yyyy}";
-                        bool coMaNG2 = !_cfg.CoGear && _phieuRepo.CheckCoMaNG(tmpTable);
+                        bool coMaNG2 = !_cfg.Delivery.CoGear && _phieuRepo.CheckCoMaNG(tmpTable);
                         _bus.Publish(new PhieuLoadedEvent(
                             donHangTemp, hangThieuTemp, captionQR,coMaNG2));
                         return;
@@ -171,10 +172,10 @@ namespace PCTP.Applications.Services
             {
                 string ngayGiaoSP = dtHvn.ToString("yyyy-MM-dd");
                 string ngayXuat = dtHvn.ToString("ddMMyyyy");
-                string gioFccSP = _cfg.LoadTheoNgay ? "" : gioFcc;
-                string gioMoTaSP = _cfg.LoadTheoNgay ? "Tất cả ca" : gioFccMoTa;
+                string gioFccSP = _cfg.Delivery.LoadTheoNgay ? "" : gioFcc;
+                string gioMoTaSP = _cfg.Delivery.LoadTheoNgay ? "Tất cả ca" : gioFccMoTa;
 
-                if (!_cfg.LoadTheoNgay && isMayBanQR && isBanQR &&
+                if (!_cfg.Delivery.LoadTheoNgay && isMayBanQR && isBanQR &&
                     (string.IsNullOrWhiteSpace(gioFccMoTa) || !gioFccMoTa.Contains("H")))
                 {
                     var danhSachGio = (addNm == 1)
@@ -189,11 +190,11 @@ namespace PCTP.Applications.Services
 
                 // FIX: khai báo isSP từ _isLoaiSP — thay cho dòng comment cũ
                 bool isSP = _isLoaiSP;
-                string tmpTable = _cfg.GetTmpTable(isSP);
-                string ifsTable = _cfg.GetIfsTable(isSP);
-                string docQRTable = _cfg.GetDocQRTable(isSP);
+                string tmpTable = _cfg.Delivery.GetTmpTable(isSP);
+                string ifsTable = _cfg.Delivery.GetIfsTable(isSP);
+                string docQRTable = _cfg.Delivery.GetDocQRTable(isSP);
 
-                string caption = _cfg.LoadTheoNgay
+                string caption = _cfg.Delivery.LoadTheoNgay
                     ? $"ĐƠN HÀNG: {_cfg.DisplayName} - {nhaMay}"
                     : $"ĐƠN HÀNG: {_cfg.DisplayName} - {nhaMay}   GIỜ GIAO: {gioMoTaSP}";
 
@@ -213,7 +214,7 @@ namespace PCTP.Applications.Services
                             () => _phieuRepo.LoadPhieuDocQR(
                                       ngayGiaoSP, nhaMay, gioFccSP, addNm,
                                       tmpTable, ifsTable, docQRTable));
-                        bool coMaNG = !_cfg.CoGear && _phieuRepo.CheckCoMaNG(tmpTable);
+                        bool coMaNG = !_cfg.Delivery.CoGear && _phieuRepo.CheckCoMaNG(tmpTable);
 
                         _bus.Publish(new PhieuLoadedEvent(
                             donHangTemp, new DataTable(), caption,coMaNG));
@@ -236,13 +237,13 @@ namespace PCTP.Applications.Services
                                   ngayGiaoSP, nhaMay, gioFccSP, addNm,
                                   tmpTable, docQRTable));
 
-                    bool coMaNG3 = !_cfg.CoGear && _phieuRepo.CheckCoMaNG(tmpTable);
+                    bool coMaNG3 = !_cfg.Delivery.CoGear && _phieuRepo.CheckCoMaNG(tmpTable);
 
                     _bus.Publish(new PhieuLoadedEvent(donHang, new DataTable(), caption,coMaNG3));
                 }
                 else
                 {
-                    string ifsViewTable = _cfg.GetIfsViewTable();
+                    string ifsViewTable = _cfg.Delivery.GetIfsViewTable();
                     // FIX: dùng _isLoaiSP thay vì isSP local (nhất quán)
                     string tenBanView = GetTenBan(_isLoaiSP);
 
@@ -264,7 +265,7 @@ namespace PCTP.Applications.Services
                                   docQRTable,
                                   ifsViewTable));
 
-                    bool coMaNG4 = !_cfg.CoGear && _phieuRepo.CheckCoMaNG(tenBanView);
+                    bool coMaNG4 = !_cfg.Delivery.CoGear && _phieuRepo.CheckCoMaNG(tenBanView);
 
                     _bus.Publish(new PhieuLoadedEvent(donHang, new DataTable(), caption,coMaNG4));
                 }
@@ -297,7 +298,7 @@ namespace PCTP.Applications.Services
             // ════════════════════════════════════════════════════════════════
             try
             {
-                string ifsTable = isLoaiSP ? _cfg.IfsTableSP : _cfg.IfsTable;
+                string ifsTable = isLoaiSP ? _cfg.Delivery.IfsTableSP : _cfg.Delivery.IfsTable;
                 string ngayXuatIFS = dt.ToString("ddMMyyyy");
 
                 DataTable ifsData = _ifsRepo.GetFullCustomerOrder(ngayXuatIFS, _cfg);
@@ -305,11 +306,11 @@ namespace PCTP.Applications.Services
 
                 DataTable ifsScoped = ifsData;
 
-                if (_cfg.CoGear)
+                if (_cfg.Delivery.CoGear)
                     ifsScoped = FilterIfsDataByGio(ifsScoped, checkedGios);
 
-                if (_cfg.CoLoaiSP)
-                    ifsScoped = FilterIfsDataByDockCode(ifsScoped, isLoaiSP, _cfg.DockCodeSP);
+                if (_cfg.Delivery.CoLoaiSP)
+                    ifsScoped = FilterIfsDataByDockCode(ifsScoped, isLoaiSP, _cfg.Delivery.DockCodeSP);
 
                 _ifsDataCache = ifsScoped;
             }
@@ -323,7 +324,7 @@ namespace PCTP.Applications.Services
             // ════════════════════════════════════════════════════════════════
             // TÁC VỤ 2 — Load đơn hàng thật từ bảng riêng vào TMP/gridDH.
             // ════════════════════════════════════════════════════════════════
-            if (_cfg.CoGear && (checkedGios == null || checkedGios.Count == 0))
+            if (_cfg.Delivery.CoGear && (checkedGios == null || checkedGios.Count == 0))
             {
                 _bus.Publish(new PhieuLoadedEvent(new DataTable(), new DataTable(), ""));
                 return;
@@ -345,23 +346,23 @@ namespace PCTP.Applications.Services
             // TableOrderRepo.LoadPhieuTuBangRieng tự quyết định = / <> theo isLoaiSP.
             // Trước đây truyền "" khi isLoaiSP=false khiến "Xem MP" lọc sai
             // (AND RTRIM(o.CUA) <> '' không loại được CUA='VSP1').
-            string dockCodeSP = _cfg.DockCodeSP;
+            string dockCodeSP = _cfg.Delivery.DockCodeSP;
 
             DataTable donHang;
 
             if (isMayBanQR)
             {
                 string docQRTable = isLoaiSP
-                    ? (_cfg.DocQRTableSP ?? _cfg.DocQRTable)
-                    : _cfg.DocQRTable;
+                    ? (_cfg.Delivery.DocQRTableSP ?? _cfg.Delivery.DocQRTable)
+                    : _cfg.Delivery.DocQRTable;
 
                 int demQR = _phieuRepo.CountDocQRCode(docQRTable);
 
                 if (demQR > 0 && isBanQR)
                 {
                     string tmpTable = isLoaiSP
-                        ? (_cfg.TmpTableSP ?? _cfg.TmpTable)
-                        : _cfg.TmpTable;
+                        ? (_cfg.Delivery.TmpTableSP ?? _cfg.Delivery.TmpTable)
+                        : _cfg.Delivery.TmpTable;
 
                     donHang = _phieuRepo.LoadTuTmpTable(tmpTable);
                 }
@@ -380,7 +381,7 @@ namespace PCTP.Applications.Services
             DataTable hangThieu = _phieuRepo.TinhHangThieuTuDonHang(donHang);
 
             string caption;
-            if (_cfg.CoGear)
+            if (_cfg.Delivery.CoGear)
             {
                 string loai = isLoaiSP ? "SP" : "MP";
                 caption = $"ĐƠN HÀNG {_cfg.DisplayName} ({loai}): " +
@@ -574,15 +575,15 @@ namespace PCTP.Applications.Services
             string ngayXuat = dt.ToString("ddMMyyyy");
             string ngayGiaoSP = dt.ToString("yyyy-MM-dd");
 
-            string gioFccSP = _cfg.LoadTheoNgay ? "" : gioFcc;
-            string gioMoTaSP = _cfg.LoadTheoNgay ? "Tất cả ca" : gioFccMoTa;
+            string gioFccSP = _cfg.Delivery.LoadTheoNgay ? "" : gioFcc;
+            string gioMoTaSP = _cfg.Delivery.LoadTheoNgay ? "Tất cả ca" : gioFccMoTa;
 
             DataTable ifs;
 
             // Chỉ dùng GetFullCustomerOrder khi cfg có cấu hình bảng riêng
             // (danh sách nhiều addNm cần gộp)
-            bool coBangRieng = _cfg.DanhSachAddNm != null
-                                && _cfg.DanhSachAddNm.Count > 1; // hoặc 1 cờ riêng, vd _cfg.SuDungBangRieng
+            bool coBangRieng = _cfg.Delivery.DanhSachAddNm != null
+                                && _cfg.Delivery.DanhSachAddNm.Count > 1; // hoặc 1 cờ riêng, vd _cfg.SuDungBangRieng
 
             if (coBangRieng)
             {
@@ -599,12 +600,12 @@ namespace PCTP.Applications.Services
             EnrichSttHop(ifs);
 
             _phieuRepo.LuuVaLoad(
-                _cfg.GetIfsTable(isSP),
+                _cfg.Delivery.GetIfsTable(isSP),
                 "Usp_Qrcode_LOAD_PHIEU_DOCQR2405",
                 ifs,
                 ngayGiaoSP, nhaMay, gioFccSP, addNm,
-                _cfg.GetTmpTable(isSP),
-                _cfg.GetDocQRTable(isSP));
+                _cfg.Delivery.GetTmpTable(isSP),
+                _cfg.Delivery.GetDocQRTable(isSP));
         }
 
         // ════════════════════════════════════════════════════════════════════════
@@ -643,7 +644,7 @@ namespace PCTP.Applications.Services
 
         public DataTable TinhLechIFS(DataTable donHangBangRieng, string ngayXuatIFS)
         {
-            if (!_cfg.LoadTuBangRieng) return new DataTable();
+            if (!_cfg.Delivery.LoadTuBangRieng) return new DataTable();
             if (_ifsDataCache == null) return new DataTable();
 
             return _phieuRepo.SoSanhLechIFS(donHangBangRieng, _ifsDataCache);
@@ -654,19 +655,19 @@ namespace PCTP.Applications.Services
         // ════════════════════════════════════════════════════════════════════════
         public TrangThaiBan GetTrangThaiDangBan()
         {
-            if (_cfg.CoGear)
-                return _phieuRepo.GetTrangThaiDangBanYMVN(_cfg.TmpTable, _cfg.DocQRTable);
-            return _phieuRepo.GetTrangThaiDangBan(_cfg.TmpTable, _cfg.DocQRTable);
+            if (_cfg.Delivery.CoGear)
+                return _phieuRepo.GetTrangThaiDangBanYMVN(_cfg.Delivery.TmpTable, _cfg.Delivery.DocQRTable);
+            return _phieuRepo.GetTrangThaiDangBan(_cfg.Delivery.TmpTable, _cfg.Delivery.DocQRTable);
         }
         // PhieuRepository — thêm method riêng
 
         public TrangThaiBan GetTrangThaiDangBanSP() =>
-        _cfg.CoConfigSP
-        ? _phieuRepo.GetTrangThaiDangBan(_cfg.TmpTableSP, _cfg.DocQRTableSP)
+        _cfg.Delivery.CoConfigSP
+        ? _phieuRepo.GetTrangThaiDangBan(_cfg.Delivery.TmpTableSP, _cfg.Delivery.DocQRTableSP)
         : new TrangThaiBan { DangBan = false };
         public bool XoaDocQRCode(bool isSP = false)
         {
-            _phieuRepo.XoaDocQRCode(_cfg.GetDocQRTable(isSP));
+            _phieuRepo.XoaDocQRCode(_cfg.Delivery.GetDocQRTable(isSP));
             return true;
         }
         public DataTable GetDonHangHienTai(string tenbang)
@@ -678,28 +679,28 @@ namespace PCTP.Applications.Services
         // ════════════════════════════════════════════════════════════════════════
         public DataTable GetDonHangChuaLot(bool isSP = false)
         {
-            return _phieuRepo.GetDonHangChuaLot(GetTenBan(isSP), _cfg.GetDocQRTable(isSP));
+            return _phieuRepo.GetDonHangChuaLot(GetTenBan(isSP), _cfg.Delivery.GetDocQRTable(isSP));
         }
 
         public DataTable LoadGhepLot()
         {
             string tenBan = GetTenBan(_isLoaiSP);
 
-            if (_cfg.LoadTuBangRieng)
+            if (_cfg.Delivery.LoadTuBangRieng)
             {
                 return _phieuRepo.LoadGhepLot(tenBan, tenBan);
             }
 
             string ifsTable = _isMayBanQR
-                ? _cfg.GetIfsTable(_isLoaiSP)          // hoặc _isLoaiSP ? _cfg.IfsTableSP : _cfg.IfsTable, tuỳ CustomerConfig thật
-                : _cfg.GetIfsViewTable(_isLoaiSP);
+                ? _cfg.Delivery.GetIfsTable(_isLoaiSP)          // hoặc _isLoaiSP ? _cfg.IfsTableSP : _cfg.IfsTable, tuỳ CustomerConfig thật
+                : _cfg.Delivery.GetIfsViewTable(_isLoaiSP);
 
             return _phieuRepo.LoadGhepLot(tenBan, ifsTable);
         }
 
         public void LayLaiLotNo(int stt, bool isSP = false)
         {
-            _phieuRepo.LayLaiLotNo(stt, GetTenBan(isSP), _cfg.GetDocQRTable(isSP));
+            _phieuRepo.LayLaiLotNo(stt, GetTenBan(isSP), _cfg.Delivery.GetDocQRTable(isSP));
         }
 
         // ════════════════════════════════════════════════════════════════════════
@@ -754,8 +755,8 @@ namespace PCTP.Applications.Services
             bool isSP = false)
         {
             string tenBan = GetTenBan(isSP);              // ← THÊM
-            string docQRTable = _cfg.GetDocQRTable(isSP);
-            string tmpTable = _cfg.GetTmpTable(isSP);       // ← THÊM
+            string docQRTable = _cfg.Delivery.GetDocQRTable(isSP);
+            string tmpTable = _cfg.Delivery.GetTmpTable(isSP);       // ← THÊM
 
             var results = new List<(int, string)>();
 
@@ -827,12 +828,12 @@ namespace PCTP.Applications.Services
                 bool isSP = _isLoaiSP;
 
                 // ── HTN: LoadTuBangRieng → dùng SP riêng không cần gioGiaoFcc ───
-                if (_cfg.LoadTuBangRieng && !_cfg.CoGear)
+                if (_cfg.Delivery.LoadTuBangRieng && !_cfg.Delivery.CoGear)
                 {
                     soLot = _phieuRepo.CapNhapKhoHTN(
                         nhaMay,
-                        _cfg.GetTmpTable(isSP),
-                        _cfg.GetDocQRTable(isSP),
+                        _cfg.Delivery.GetTmpTable(isSP),
+                        _cfg.Delivery.GetDocQRTable(isSP),
                         out errors);
                 }
                 else
@@ -840,8 +841,8 @@ namespace PCTP.Applications.Services
                     // ── HVN / YMVN ────────────────────────────────────────────────
                     soLot = _phieuRepo.CapNhapKho(
                         gioGiaoFcc, nhaMay,
-                        _cfg.GetTmpTable(isSP),
-                        _cfg.GetDocQRTable(isSP),
+                        _cfg.Delivery.GetTmpTable(isSP),
+                        _cfg.Delivery.GetDocQRTable(isSP),
                         out errors);
                 }
 
@@ -962,11 +963,11 @@ namespace PCTP.Applications.Services
         public void HoanThanhYMVN(bool isLoaiSP = false)
         {
             System.Diagnostics.Debug.WriteLine(
-                $"[HoanThanhYMVN] TmpTable={_cfg.TmpTable}, DocQRTable={_cfg.DocQRTable}, isLoaiSP={isLoaiSP}");
+                $"[HoanThanhYMVN] TmpTable={_cfg.Delivery.TmpTable}, DocQRTable={_cfg.Delivery.DocQRTable}, isLoaiSP={isLoaiSP}");
 
             DataTable result = _phieuRepo.TakeLotYMVN(
-                _cfg.TmpTable,
-                _cfg.DocQRTable,
+                _cfg.Delivery.TmpTable,
+                _cfg.Delivery.DocQRTable,
                 isLoaiSP);
 
             if (result == null || result.Rows.Count == 0)
@@ -1010,7 +1011,7 @@ namespace PCTP.Applications.Services
         {
             if (donHang == null || donHang.Rows.Count == 0) return;
 
-            _phieuRepo.XoaTmpPhieu(_cfg.TmpTable);
+            _phieuRepo.XoaTmpPhieu(_cfg.Delivery.TmpTable);
 
             foreach (DataRow row in donHang.Rows)
             {
@@ -1062,7 +1063,7 @@ namespace PCTP.Applications.Services
                     ngayGiao: nxh,
                     gear: gear,
                     gioXuat: gioXuat,
-                    tmpTable: _cfg.TmpTable,
+                    tmpTable: _cfg.Delivery.TmpTable,
                     poNo: poNo,
                     cusPoNo: orderNo);
             }

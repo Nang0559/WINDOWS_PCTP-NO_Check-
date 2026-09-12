@@ -1,6 +1,6 @@
 ﻿using PCTP.Modules.GiaoHangKhach.Mode;
 using PCTP.Shared.Enums;
-using PCTP.VIEWSTOCK.Models;
+using PCTP.Shared.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;

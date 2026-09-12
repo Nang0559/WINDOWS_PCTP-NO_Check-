@@ -10,6 +10,7 @@ using PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao;
 using PCTP.Modules.GiaoHangKhach.SubForm;
 using PCTP.Presentation.Views;
 using PCTP.QRCODE_HVN.Report;
+using PCTP.Shared.Models;
 using PCTP.VIEWSTOCK.Models;
 using PCTP.YMN;
 using System;
@@ -144,7 +145,7 @@ namespace PCTP.Presentation.Presenters
                     _view.BindDonHang(e.DonHangTable);
                     _view.BindHangThieu(e.HangThieuTable);
                     _view.SetGridCaption(e.Caption);
-                    if (_cfg.LoadTuBangRieng)
+                    if (_cfg.Delivery.LoadTuBangRieng)
                     {
                         DataTable lechDt = _phieuSvc.TinhLechIFS(e.DonHangTable,
                             _view.SelectedDate.ToString("ddMMyyyy"));
@@ -163,7 +164,7 @@ namespace PCTP.Presentation.Presenters
                         showGhepLot: _isMayBanQR,
                         showDocQRCode: _isMayBanQR,  // YMVN không có DOC QRCODE
                         showLayLaiLot: showLayLai,
-                        showHangThieuCaNgay: !_cfg.LoadTuBangRieng);
+                        showHangThieuCaNgay: !_cfg.Delivery.LoadTuBangRieng);
 
                     // ✅ FIX: đây mới là điểm HOÀN TẤT thật sự của 1 lượt LoadPhieu —
                     // hết chờ, đóng WaitForm thật (không qua HideLoadingUnlessAwaitingPhieuLoad,
@@ -212,7 +213,7 @@ namespace PCTP.Presentation.Presenters
                 _qrSvc.SetCheDoBanSP(false);
                 _view.UnlockAllRadio();
                 _view.UnlockDatePicker(); // ← unlock sau CNK thành công
-                if (_cfg.CoGear)
+                if (_cfg.Delivery.CoGear)
                     _view.UnlockCheckListYMVN();
                 RunWithLoadingSync(() =>
                 {
@@ -244,15 +245,15 @@ namespace PCTP.Presentation.Presenters
             DataTable dtTmp = _phieuSvc.GetDonHangHienTai(_tenBan);
             bool showCNK = _phieuSvc.CheckCanCapNhapKho(dtTmp);
             bool showLayLai = _phieuSvc.CheckCoLotChuaCNK(dtTmp);
-            bool coMaNG = !_cfg.CoGear && _phieuSvc.CheckCoMaNG();
+            bool coMaNG = !_cfg.Delivery.CoGear && _phieuSvc.CheckCoMaNG();
 
             _view.SetupPhieuButtons(
                 showCapNhapKho: showCNK && _isMayBanQR,
                 showKiemTraMaNG: coMaNG && _isMayBanQR,
                 showGhepLot: _isMayBanQR,
-                showDocQRCode: _isMayBanQR && !_cfg.CoGear,
+                showDocQRCode: _isMayBanQR && !_cfg.Delivery.CoGear,
                 showLayLaiLot: showLayLai && _isMayBanQR,
-                showHangThieuCaNgay: !_cfg.LoadTuBangRieng);
+                showHangThieuCaNgay: !_cfg.Delivery.LoadTuBangRieng);
         }
         private void OnTinhTongCompleted(TinhTongCompletedEvent e)
         {
@@ -276,19 +277,19 @@ namespace PCTP.Presentation.Presenters
         // ════════════════════════════════════════════════════════════════════
         private void OnFormLoaded(object sender, EventArgs e)
         {
-            if (_cfg.CoGear)
+            if (_cfg.Delivery.CoGear)
             {
                 // YMVN: không dùng addNM tab
-                _addNM = _cfg.AddNmMacDinh;
+                _addNM = _cfg.Delivery.AddNmMacDinh;
                 // Load danh sách giờ từ Purchase_Order_YMVN
                 LoadGioXuatYMVN();
             }
             else
             {
-                if (_cfg.CoNhieuNhaMay)
+                if (_cfg.Delivery.CoNhieuNhaMay)
                     _addNM = _view.SelectedTabAddNM;
                 else
-                    _addNM = _cfg.AddNmMacDinh;
+                    _addNM = _cfg.Delivery.AddNmMacDinh;
             }
             XetTrangThai();
         }
@@ -309,7 +310,7 @@ namespace PCTP.Presentation.Presenters
             // Không có thuộc tính UI nào cần đọc trước, gọi trực tiếp wrapper rất chuẩn
             RunWithLoading(() =>
             {
-                if (_cfg.CoGear)
+                if (_cfg.Delivery.CoGear)
                     LoadGioXuatYMVN();
                 if (_gioXuatHienTai.Ma == "#")
                 {
@@ -323,7 +324,7 @@ namespace PCTP.Presentation.Presenters
 
         private void OnTabChanged(object sender, EventArgs e)
         {
-            if (!_cfg.CoNhieuNhaMay) return;
+            if (!_cfg.Delivery.CoNhieuNhaMay) return;
 
             // ── BƯỚC 1: Đọc giá trị UI từ luồng chính (UI Thread) trước ──
             int selectedTab = _view.SelectedTabAddNM;
@@ -340,7 +341,7 @@ namespace PCTP.Presentation.Presenters
         {
             RunWithLoading(() =>
             {
-                if (_cfg.CoGear)
+                if (_cfg.Delivery.CoGear)
                 {
                     LoadPhieuHienTai();
                     return;
@@ -371,14 +372,14 @@ namespace PCTP.Presentation.Presenters
             => RunWithLoadingSync(() =>
             {
                 // 1. Nhánh YMVN (Gọi hàm con, an toàn tuyệt đối trên UI Thread)
-                if (_cfg.CoGear)
+                if (_cfg.Delivery.CoGear)
                 {
                     OnCapNhapKhoYMVN();
                     return;
                 }
                 // ── HTN (LoadTuBangRieng + !CoGear) ──────────────────────────────
                 // Không có giờ xuất, không có loại SP — CNK theo ngày
-                if (_cfg.LoadTuBangRieng)
+                if (_cfg.Delivery.LoadTuBangRieng)
                 {
                     if (!_view.CoLotDeLuuKho())
                     {
@@ -467,8 +468,8 @@ namespace PCTP.Presentation.Presenters
             // ── BƯỚC 1: Hỏi hình thức in — chỉ HVN mới cần ─────────────────────
             int hinhThucIn = 0;
 
-            bool canHoiHinhThuc = !_cfg.CoGear              // không phải YMVN
-                               && !_cfg.LoadTuBangRieng      // không phải HTN
+            bool canHoiHinhThuc = !_cfg.Delivery.CoGear              // không phải YMVN
+                               && !_cfg.Delivery.LoadTuBangRieng      // không phải HTN
                                && _gioXuatHienTai.Ma != "#"; // không phải GIAO DB
 
             if (canHoiHinhThuc)
@@ -483,7 +484,7 @@ namespace PCTP.Presentation.Presenters
                 DataTable data;
 
                 // ── YMVN: report riêng ───────────────────────────────────────────
-                if (_cfg.CoGear)
+                if (_cfg.Delivery.CoGear)
                 {
                     data = _view.GetDonHangTable();
                     _view.ShowReportYMVN(data);
@@ -492,7 +493,7 @@ namespace PCTP.Presentation.Presenters
 
                 // ── HTN: load từ bảng riêng → dùng report giống YMVN hoặc report chung
                 // HTN không qua IFS nên không dùng BuildReportData
-                if (_cfg.LoadTuBangRieng)
+                if (_cfg.Delivery.LoadTuBangRieng)
                 {
                     string ngayXuatBR = _view.SelectedDate.ToString("ddMMyyyy");
                     DataTable donHangBR = _view.GetDonHangTable();
@@ -501,12 +502,12 @@ namespace PCTP.Presentation.Presenters
                     DataTable dataBR = _inPhieuSvc.BuildReportDataTuBangRieng(
                         donHangBR, dtAddrBR, ngayXuatBR);
 
-                    if (_cfg.CoGear)
+                    if (_cfg.Delivery.CoGear)
                         _view.ShowReportYMVN(dataBR);
                     else
                     {
                         _view.ShowReportWithGioHeader(dataBR,
-                        _cfg.LoadTheoNgay ? "PO No" : "Giờ");
+                        _cfg.Delivery.LoadTheoNgay ? "PO No" : "Giờ");
 
                     }
                     return;
@@ -615,21 +616,21 @@ namespace PCTP.Presentation.Presenters
             // YMVN : từ toggle button _view.IsLoaiSP
             // HTN  : từ toggle button _view.IsLoaiSP (nếu có SP/MP, không thì false)
             bool isSP;
-            if (_cfg.LoadTuBangRieng)
-                isSP = _cfg.CoLoaiSP && _view.IsLoaiSP;  // YMVN/HTN
+            if (_cfg.Delivery.LoadTuBangRieng)
+                isSP = _cfg.Delivery.CoLoaiSP && _view.IsLoaiSP;  // YMVN/HTN
             else
                 isSP = PhieuService.IsLoaiSP(_gioXuatHienTai.MoTa);  // HVN
 
             // ── SetCheDoBan — chỉ HVN mới có ý nghĩa theo giờ ───────────────────
             // YMVN/HTN không có radio giờ → truyền rỗng
-            string cheDoBan = _cfg.LoadTuBangRieng ? "" : _gioXuatHienTai.MoTa;
+            string cheDoBan = _cfg.Delivery.LoadTuBangRieng ? "" : _gioXuatHienTai.MoTa;
             _qrSvc.SetCheDoBan(cheDoBan);
             _qrSvc.SetCheDoBanSP(isSP);
 
             // ── Đọc UI trước khi vào background thread ───────────────────────────
-            DataTable dtPhieu = _cfg.LoadTuBangRieng ? _view.GetDonHangTable() : null;
+            DataTable dtPhieu = _cfg.Delivery.LoadTuBangRieng ? _view.GetDonHangTable() : null;
             string ngay = _view.SelectedDate.ToString("yyyy-MM-dd");
-            List<string> gios = _cfg.CoGear ? _view.GetCheckedGioXuat() : null;
+            List<string> gios = _cfg.Delivery.CoGear ? _view.GetCheckedGioXuat() : null;
 
             _isBanQR = true;
 
@@ -637,7 +638,7 @@ namespace PCTP.Presentation.Presenters
             {
                 try
                 {
-                    if (_cfg.LoadTuBangRieng)
+                    if (_cfg.Delivery.LoadTuBangRieng)
                     {
                         // ── YMVN + HTN: sync từ grid, không qua IFS Oracle ───────
                         // YMVN (CoGear=true): truyền checkedGios để filter giờ
@@ -676,7 +677,7 @@ namespace PCTP.Presentation.Presenters
         {
             PCTP.Shared.Helpers.ScanResult result;
 
-            if (_cfg.CoGear)
+            if (_cfg.Delivery.CoGear)
             {
                 // ── YMVN ─────────────────────────────────────────────────────────
                 result = _qrSvc.ProcessScanYMVN(
@@ -806,12 +807,12 @@ namespace PCTP.Presentation.Presenters
 
         private void OnUploadMilkrunSP(object sender, EventArgs e)
         {
-            if (_cfg.CoGear)            // YMVN 100002 — Upload Milkrun SP
+            if (_cfg.Delivery.CoGear)            // YMVN 100002 — Upload Milkrun SP
             {
                 using (var frm = new FRM_UploadMikrun(new SQLPROVIDER(), _cfg))
                     frm.ShowDialog();
             }
-            else if (_cfg.LoadTheoNgay) // HTN 100003 — Upload PO HTN
+            else if (_cfg.Delivery.LoadTheoNgay) // HTN 100003 — Upload PO HTN
             {
                 using (var frm = new FRM_UploadMikrun(
                     new SQLPROVIDER(), _cfg,
@@ -856,7 +857,7 @@ namespace PCTP.Presentation.Presenters
                 // GetTrangThaiDangBan() đã tự dùng _cfg.TmpTable/_cfg.DocQRTable
                 var tt = _phieuSvc.GetTrangThaiDangBan();
 
-                if (!tt.DangBan && _cfg.CoConfigSP)
+                if (!tt.DangBan && _cfg.Delivery.CoConfigSP)
                 {
                     var ttSP = _phieuSvc.GetTrangThaiDangBanSP();
                     if (ttSP.DangBan)
@@ -894,8 +895,8 @@ namespace PCTP.Presentation.Presenters
                 if (DateTime.TryParse(tt.NgayGiao, out DateTime ngay))
                     _view.SetDate(ngay);
 
-                _addNM = _cfg.CoNhieuNhaMay ? tt.AddNM : _cfg.AddNmMacDinh;
-                if (_cfg.CoNhieuNhaMay)
+                _addNM = _cfg.Delivery.CoNhieuNhaMay ? tt.AddNM : _cfg.Delivery.AddNmMacDinh;
+                if (_cfg.Delivery.CoNhieuNhaMay)
                     _view.SetTab(tt.AddNM);
 
                 _isBanQR = true;
@@ -904,7 +905,7 @@ namespace PCTP.Presentation.Presenters
                 _view.LockDatePicker();
 
                 // ── YMVN (CoGear): parse giờ từ GIOGIAOFCC ───────────────────────
-                if (_cfg.CoGear)
+                if (_cfg.Delivery.CoGear)
                 {
                     var checkedGios = ParseGioYMVN(tt.GioGiaoFCC);
                     bool isSP = PhieuService.IsLoaiSP(tt.GioGiaoFCC);
@@ -1123,10 +1124,10 @@ namespace PCTP.Presentation.Presenters
 
             Action readUiAction = () =>
             {
-                ngayGiao = _cfg.CoGear
+                ngayGiao = _cfg.Delivery.CoGear
                     ? _view.SelectedDate.ToString("MM/dd/yyyy")
                     : _view.SelectedDate.ToString("yyyy-MM-dd");
-                if (_cfg.CoGear)
+                if (_cfg.Delivery.CoGear)
                 {
                     checkedGios = _view.GetCheckedGioXuat();
                     isLoaiSP = _view.IsLoaiSP;
@@ -1150,11 +1151,11 @@ namespace PCTP.Presentation.Presenters
                 // đây chỉ publish PhieuLoadedEvent rồi return ngay, UI thật sự cập nhật sau.
                 _awaitingPhieuLoadedEvent = true;
 
-                if (_cfg.LoadTuBangRieng)
+                if (_cfg.Delivery.LoadTuBangRieng)
                 {
                     _phieuSvc.LoadPhieuTuBangRieng_Internal(
                         ngayGiao,
-                        _cfg.CoGear ? checkedGios : null,  // HTN: null = không filter giờ
+                        _cfg.Delivery.CoGear ? checkedGios : null,  // HTN: null = không filter giờ
                         isLoaiSP,
                         _isMayBanQR,
                         _isBanQR);
@@ -1182,8 +1183,8 @@ namespace PCTP.Presentation.Presenters
 
         private string GetNhaMay()
         {
-            if (!_cfg.CoNhieuNhaMay)
-                return _cfg.TenNhaMay;  // "NHA MAY 10003" cố định
+            if (!_cfg.Delivery.CoNhieuNhaMay)
+                return _cfg.Delivery.TenNhaMay;  // "NHA MAY 10003" cố định
 
             // 100001: theo tab đang chọn
             return _addNM == 1
@@ -1336,7 +1337,7 @@ namespace PCTP.Presentation.Presenters
                 // ✅ THỐNG NHẤT LOGIC: Ép thêm điều kiện thiết bị và trạng thái quét QR ở đây
                 showLayLaiLot: showLayLaiLot && _isMayBanQR && !_isBanQR,
                 showStop: showStop,
-                showHangThieuCaNgay: !_cfg.LoadTuBangRieng);
+                showHangThieuCaNgay: !_cfg.Delivery.LoadTuBangRieng);
         }
 
         // ── GIAO DB: load + bind + switch view, lọc đúng nhà máy/ngày đang chọn ──

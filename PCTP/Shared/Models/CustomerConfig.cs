@@ -1,4 +1,5 @@
-﻿using PCTP.Modules.GiaoHangKhach.Mode;
+﻿using PCTP.Modules.GiaoHangKhach.Configuration;
+using PCTP.Modules.GiaoHangKhach.Mode;
 using PCTP.Shared.Enums;
 using System;
 using System.Collections.Generic;
@@ -6,10 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace PCTP.Shared.Models
-{
-    // PCTP/Shared/Models/CustomerConfig.cs
-    using System;
+
 
     namespace PCTP.Shared.Models   // ★ SỬA — khớp đúng vị trí file, thay cho PCTP.VIEWSTOCK.Models sai
     {
@@ -39,4 +37,4 @@ namespace PCTP.Shared.Models
             public GiaoHangKhachCustomerOptions Delivery { get; set; }
         }
     }
-}
+

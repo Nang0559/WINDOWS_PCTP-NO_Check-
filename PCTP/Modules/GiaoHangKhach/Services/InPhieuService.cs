@@ -1,6 +1,7 @@
 ﻿using PCTP.Domain.Entities;
 using PCTP.Domain.Interfaces;
 using PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao;
+using PCTP.Shared.Models;
 using PCTP.VIEWSTOCK.Models;
 using System;
 using System.Collections.Generic;
@@ -175,13 +176,13 @@ namespace PCTP.Applications.Services
             EnsureColumn(dt, "LOT", typeof(string));
 
             // ── Lấy địa chỉ từ addressTable (đã load lúc form load) ─────────
-            string nhamay = _cfg.TenNhaMay;
+            string nhamay = _cfg.Delivery.TenNhaMay;
             string diaChi = "";
 
             if (addressTable != null && addressTable.Rows.Count > 0)
             {
                 // Dùng SHIP_ADDR_NO = AddNmMacDinh của customer
-                string shipNo = _cfg.AddNmMacDinh.ToString();
+                string shipNo = _cfg.Delivery.AddNmMacDinh.ToString();
                 DataRow addr = null;
 
                 foreach (DataRow a in addressTable.Rows)
@@ -201,7 +202,7 @@ namespace PCTP.Applications.Services
                     nhamay = !string.IsNullOrEmpty(SafeStr(addr["IDENTITY_NAME"]))
                               ? SafeStr(addr["IDENTITY_NAME"]) + " - " +
                                 SafeStr(addr["ADDRESS2"])
-                              : _cfg.TenNhaMay;
+                              : _cfg.Delivery.TenNhaMay;
                 }
             }
 
@@ -235,9 +236,9 @@ namespace PCTP.Applications.Services
                 // Lấy từ GIOGIAO nếu có trong dict, fallback rỗng
                 string gio = SafeStr(row.Table.Columns.Contains("GIO")
                     ? row["GIO"] : DBNull.Value);
-                var dict = _cfg.AddNmMacDinh == 1 ? _dictGioVP : _dictGioHN;
+                var dict = _cfg.Delivery.AddNmMacDinh == 1 ? _dictGioVP : _dictGioHN;
                 row["KGX"] = dict.TryGetValue(gio, out string kgx) ? kgx : "";
-                if (_cfg.LoadTheoNgay &&
+                if (_cfg.Delivery.LoadTheoNgay &&
                 row.Table.Columns.Contains("PO_NO") &&
                 row.Table.Columns.Contains("GIO"))
                 {

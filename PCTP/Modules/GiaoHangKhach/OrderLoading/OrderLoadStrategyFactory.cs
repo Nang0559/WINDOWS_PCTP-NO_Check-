@@ -1,9 +1,8 @@
 ﻿using PCTP.Domain.Interfaces;
-using PCTP.Modules.GiaoHangKhach.IFSORDER;
+
 using PCTP.Modules.GiaoHangKhach.Mode;
 using PCTP.Modules.GiaoHangKhach.Models;
 using PCTP.Modules.GiaoHangKhach.OrderLoading.IFS;
-using PCTP.Modules.GiaoHangKhach.TableOrderLoad;
 using PCTP.VIEWSTOCK.Models;
 using System;
 using System.Collections.Generic;
@@ -38,7 +37,7 @@ namespace PCTP.Modules.GiaoHangKhach.OrderLoading
             switch (ctx.Source)
             {
                 case OrderSourceKind.IFS: return _ifsStrategy;
-                case OrderSourceKind.MilkRun: return _orderTableStrategy;
+                case OrderSourceKind.TableOrder: return _orderTableStrategy;
                 case OrderSourceKind.GiaoDB: return _giaoDbStrategy;
                 default: throw new ArgumentOutOfRangeException(nameof(ctx.Source));
             }

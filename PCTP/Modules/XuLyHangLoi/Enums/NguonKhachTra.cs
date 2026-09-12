@@ -1,4 +1,6 @@
-﻿using PCTP.VIEWSTOCK.Models;
+﻿using PCTP.Shared.Models;
+using PCTP.Shared.Models;
+using PCTP.VIEWSTOCK.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;

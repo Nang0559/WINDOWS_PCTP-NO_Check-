@@ -1,6 +1,6 @@
 ﻿using PCTP.Domain.Entities;
 using PCTP.Domain.Events;
-using PCTP.VIEWSTOCK.Models;
+using PCTP.Shared.Models;
 using System;
 using System.Collections.Generic;
 using System.Data;

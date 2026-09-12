@@ -1,5 +1,5 @@
 ﻿using PCTP.Modules.GiaoHangKhach.Configuration;   // ★ THÊM
-using PCTP.Shared.Models.PCTP.Shared.Models;
+using PCTP.Shared.Models;
 using System;
 using System.Collections.Generic;
 
