@@ -20,6 +20,10 @@ namespace PCTP.Presentation.Presenters
     internal sealed class HVNPresenterContext
     {
         internal readonly IHVNView View;
+        internal readonly IPhieuView PhieuView;
+        internal readonly IDocQrView DocQrView;
+        internal readonly IGiaoDbView GiaoDbView;
+        internal readonly IYmvnView YmvnView;
         internal readonly PhieuService PhieuSvc;
         internal readonly DocQRService QrSvc;
         internal readonly InPhieuService InPhieuSvc;
@@ -40,7 +44,23 @@ namespace PCTP.Presentation.Presenters
 
         internal HVNPresenterContext(IHVNView view, PhieuService phieuSvc, DocQRService qrSvc, InPhieuService inPhieuSvc, IHangThieuCaNgayService hangThieuCaNgayService, IGioXuatRepository gioXuatRepo, IEventBus bus, bool isMayBanQR, string tenBan, CustomerConfig cfg, IOrderCategoryResolver categoryResolver)
         {
-            View = view ?? throw new ArgumentNullException(nameof(view)); PhieuSvc = phieuSvc ?? throw new ArgumentNullException(nameof(phieuSvc)); QrSvc = qrSvc ?? throw new ArgumentNullException(nameof(qrSvc)); InPhieuSvc = inPhieuSvc ?? throw new ArgumentNullException(nameof(inPhieuSvc)); HangThieuCaNgayService = hangThieuCaNgayService ?? throw new ArgumentNullException(nameof(hangThieuCaNgayService)); GioXuatRepo = gioXuatRepo ?? throw new ArgumentNullException(nameof(gioXuatRepo)); Bus = bus ?? throw new ArgumentNullException(nameof(bus)); Cfg = cfg ?? throw new ArgumentNullException(nameof(cfg)); CategoryResolver = categoryResolver ?? throw new ArgumentNullException(nameof(categoryResolver)); CustomerBehavior = new CustomerDeliveryBehavior(cfg); IsMayBanQR = isMayBanQR; TenBan = tenBan; UiContext = SynchronizationContext.Current ?? new WindowsFormsSynchronizationContext();
+            View = view ?? throw new ArgumentNullException(nameof(view));
+            PhieuView = View;
+            DocQrView = View;
+            GiaoDbView = View;
+            YmvnView = View;
+            PhieuSvc = phieuSvc ?? throw new ArgumentNullException(nameof(phieuSvc));
+            QrSvc = qrSvc ?? throw new ArgumentNullException(nameof(qrSvc));
+            InPhieuSvc = inPhieuSvc ?? throw new ArgumentNullException(nameof(inPhieuSvc));
+            HangThieuCaNgayService = hangThieuCaNgayService ?? throw new ArgumentNullException(nameof(hangThieuCaNgayService));
+            GioXuatRepo = gioXuatRepo ?? throw new ArgumentNullException(nameof(gioXuatRepo));
+            Bus = bus ?? throw new ArgumentNullException(nameof(bus));
+            Cfg = cfg ?? throw new ArgumentNullException(nameof(cfg));
+            CategoryResolver = categoryResolver ?? throw new ArgumentNullException(nameof(categoryResolver));
+            CustomerBehavior = new CustomerDeliveryBehavior(cfg);
+            IsMayBanQR = isMayBanQR;
+            TenBan = tenBan;
+            UiContext = SynchronizationContext.Current ?? new WindowsFormsSynchronizationContext();
         }
         internal void UpdateGioXuat(GioXuat gio) { GioXuatHienTai = gio; }
         internal string GetNhaMay() => !Cfg.Delivery.CoNhieuNhaMay ? Cfg.Delivery.TenNhaMay : (AddNM == 1 ? "HON DA - VIET NAM(NHA MAY VP)" : "HON DA - VIET NAM(NHA MAY HA NAM)");
