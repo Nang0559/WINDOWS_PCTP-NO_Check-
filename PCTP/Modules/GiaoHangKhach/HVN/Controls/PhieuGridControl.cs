@@ -90,6 +90,40 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
             get { return gridBandDH; }
         }
 
+        /// <summary>
+        /// Applies customer-specific presentation settings to the order grid.
+        /// This keeps DevExpress column manipulation inside the grid boundary;
+        /// customer/business decisions remain owned by the caller.
+        /// </summary>
+        public void SetupForCustomer(bool usePrivateOrderTable)
+        {
+            SetColumnVisible("GEAR", usePrivateOrderTable);
+            SetColumnVisible("PO_NO", usePrivateOrderTable);
+
+            if (!usePrivateOrderTable)
+                return;
+
+            SetColumnCaption("GEAR", "Gear Sử Dụng");
+            SetColumnCaption("CUA", "Cửa");
+            SetColumnCaption("TRUYEN", "Truyền");
+            SetColumnCaption("GIOGIAO", "Giờ");
+            SetColumnCaption("PO_NO", "Số PO");
+        }
+
+        private void SetColumnVisible(string fieldName, bool visible)
+        {
+            var column = GridViewDONHANG.Columns.ColumnByFieldName(fieldName);
+            if (column != null)
+                column.Visible = visible;
+        }
+
+        private void SetColumnCaption(string fieldName, string caption)
+        {
+            var column = GridViewDONHANG.Columns.ColumnByFieldName(fieldName);
+            if (column != null)
+                column.Caption = caption;
+        }
+
         private void ConfigureGrid()
         {
             gridCtrDONHANG.EmbeddedNavigator.Margin = new Padding(3, 2, 3, 2);
