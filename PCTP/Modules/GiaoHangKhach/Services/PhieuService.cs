@@ -353,30 +353,15 @@ namespace PCTP.Applications.Services
                         $"3. EnrichSttHop ({donHangIFS.Rows.Count})",
                         () => EnrichSttHop(donHangIFS));
 
-                    // ------------------------------------------------------------
-                    // Phase 4:
-                    // TODO tiếp theo:
-                    // _phieuRepo.LuuVaLoad(...)
-                    //        ->
-                    // _workingState.SaveFromSource(...)
-                    //
-                    // Nhưng CHƯA đổi đoạn này nếu chưa xác nhận chính xác
-                    // mapping PhieuTableSet của flow này.
-                    // ------------------------------------------------------------
-
+                    // Phase 4: Source chỉ load/enrich; WorkingState chịu trách nhiệm
+                    // đồng bộ IFS -> source table/TMP/DOCQR working state.
                     DataTable donHang =
                         SWLog.Measure(
-                            "4. LuuVaLoad [IFS→TMP]",
-                            () => _phieuRepo.LuuVaLoad(
-                                ifsTable,
-                                "Usp_Qrcode_LOAD_PHIEU_DOCQR2405",
+                            "4. SaveFromSource [IFS→TMP]",
+                            () => _workingState.SaveFromSource(
+                                context,
                                 donHangIFS,
-                                ngayGiaoSP,
-                                nhaMay,
-                                gioFccSP,
-                                addNm,
-                                tmpTable,
-                                docQRTable));
+                                "Usp_Qrcode_LOAD_PHIEU_DOCQR2405"));
 
                     bool coMaNG3 =
                         !_cfg.Delivery.CoGear
@@ -417,11 +402,8 @@ namespace PCTP.Applications.Services
                         $"3. EnrichSttHop ({donHangIFS.Rows.Count})",
                         () => EnrichSttHop(donHangIFS));
 
-                    // ------------------------------------------------------------
                     // Giữ nguyên flow View ở Phase 4.
                     // Không ép vào WorkingState khi mapping table chưa rõ.
-                    // ------------------------------------------------------------
-
                     DataTable donHang =
                         SWLog.Measure(
                             "4. LuuVaLoad [IFSView→TMPView]",
@@ -474,17 +456,13 @@ namespace PCTP.Applications.Services
 
             string ngayGiaoSP = dt.ToString("yyyy-MM-dd");
 
-            // ════════════════════════════════════════════════════════════════
-            // TÁC VỤ 1 — Đẩy dữ liệu IFS (Oracle) vào IFSPHIEUGIAOHANG...
-            // LUÔN chạy, không phụ thuộc bảng riêng có giờ/dữ liệu hay không.
-            // ════════════════════════════════════════════════════════════════
             try
             {
                 string ifsTable = isLoaiSP ? _cfg.Delivery.IfsTableSP : _cfg.Delivery.IfsTable;
                 string ngayXuatIFS = dt.ToString("ddMMyyyy");
 
                 DataTable ifsData = _ifsRepo.GetFullCustomerOrder(ngayXuatIFS, _cfg);
-                _phieuRepo.PushIfsSnapshot(ifsTable, ifsData); // ghi SQL: luôn full (SP+MP, cả ngày)
+                _phieuRepo.PushIfsSnapshot(ifsTable, ifsData);
 
                 DataTable ifsScoped = ifsData;
 
@@ -509,9 +487,6 @@ namespace PCTP.Applications.Services
                          $"Chi tiết: {ex.Message}";
             }
 
-            // ════════════════════════════════════════════════════════════════
-            // TÁC VỤ 2 — Load đơn hàng thật từ bảng riêng vào TMP/gridDH.
-            // ════════════════════════════════════════════════════════════════
             if (_cfg.Delivery.CoGear && (checkedGios == null || checkedGios.Count == 0))
             {
                 _bus.Publish(new PhieuLoadedEvent(new DataTable(), new DataTable(), ""));
@@ -530,10 +505,6 @@ namespace PCTP.Applications.Services
                 gioMoTa = string.Join("+", checkedGios) + "H";
             }
 
-            // ✅ FIX: luôn truyền giá trị thật của DockCodeSP — để
-            // TableOrderRepo.LoadPhieuTuBangRieng tự quyết định = / <> theo isLoaiSP.
-            // Trước đây truyền "" khi isLoaiSP=false khiến "Xem MP" lọc sai
-            // (AND RTRIM(o.CUA) <> '' không loại được CUA='VSP1').
             string dockCodeSP = _cfg.Delivery.DockCodeSP;
 
             DataTable donHang;
@@ -590,53 +561,47 @@ namespace PCTP.Applications.Services
             if (!DateTime.TryParse(ngayGiao, out DateTime dt) || dt.Year < 2000) return;
             bool isSP = _isLoaiSP;
             string ngayXuat = dt.ToString("ddMMyyyy");
-            string ngayGiaoSP = dt.ToString("yyyy-MM-dd");
-
             string gioFccSP = _cfg.Delivery.LoadTheoNgay ? "" : gioFcc;
             string gioMoTaSP = _cfg.Delivery.LoadTheoNgay ? "Tất cả ca" : gioFccMoTa;
 
             DataTable ifs;
-
-            // Chỉ dùng GetFullCustomerOrder khi cfg có cấu hình bảng riêng
-            // (danh sách nhiều addNm cần gộp)
             bool coBangRieng = _cfg.Delivery.DanhSachAddNm != null
-                                && _cfg.Delivery.DanhSachAddNm.Count > 1; // hoặc 1 cờ riêng, vd _cfg.SuDungBangRieng
+                                && _cfg.Delivery.DanhSachAddNm.Count > 1;
 
             if (coBangRieng)
             {
-                // Lấy toàn bộ đơn hàng theo danh sách addNm cấu hình riêng cho khách hàng này
                 ifs = _ifsRepo.GetFullCustomerOrder(ngayXuat, _cfg);
             }
             else
             {
-                // Luồng bình thường: 1 nhà máy, có lọc giờ
                 ifs = _ifsRepo.GetCustomerOrderJoin(
                     ngayXuat, gioFccSP, gioMoTaSP, nhaMay, addNm, 1, _cfg);
             }
 
             EnrichSttHop(ifs);
 
-            _phieuRepo.LuuVaLoad(
-                _cfg.Delivery.GetIfsTable(isSP),
-                "Usp_Qrcode_LOAD_PHIEU_DOCQR2405",
+            var context = CreateOrderLoadContext(
+                dt,
+                nhaMay,
+                gioFccSP,
+                gioMoTaSP,
+                addNm,
+                isMayBanQR: true,
+                isBanQR: true,
+                checkedGios: null,
+                isLoaiSP: isSP);
+
+            _workingState.SaveFromSource(
+                context,
                 ifs,
-                ngayGiaoSP, nhaMay, gioFccSP, addNm,
-                _cfg.Delivery.GetTmpTable(isSP),
-                _cfg.Delivery.GetDocQRTable(isSP));
+                "Usp_Qrcode_LOAD_PHIEU_DOCQR2405");
         }
 
-        // ════════════════════════════════════════════════════════════════════════
-        // Kiểm tra mã trong phiếu
-        // ════════════════════════════════════════════════════════════════════════
         public bool KiemTraMaTrongPhieu(string maHang)
         {
-
             return _phieuRepo.KiemTraMaTrongPhieu(maHang, GetTenBan());
         }
 
-        // ════════════════════════════════════════════════════════════════════════
-        // Kiểm tra trạng thái
-        // ════════════════════════════════════════════════════════════════════════
         public bool CheckCoLotChuaCNK(DataTable donHang)
         {
             foreach (DataRow row in donHang.Rows)
@@ -667,12 +632,8 @@ namespace PCTP.Applications.Services
             return _phieuRepo.SoSanhLechIFS(donHangBangRieng, _ifsDataCache);
         }
 
-        // ════════════════════════════════════════════════════════════════════════
-        // DOCQRCODE — dùng _cfg.DocQRTable
-        // ════════════════════════════════════════════════════════════════════════
         public TrangThaiBan GetTrangThaiDangBan()
         => _workingState.GetTrangThaiDangBan(new OrderLoadContext { Cfg = _cfg, Category = OrderCategory.MP });
-        // PhieuRepository — thêm method riêng
 
         public TrangThaiBan GetTrangThaiDangBanSP()
         {
@@ -696,9 +657,7 @@ namespace PCTP.Applications.Services
         {
             return _phieuRepo.GetDonHangHienTai(tenbang);
         }
-        // ════════════════════════════════════════════════════════════════════════
-        // Lot — dùng _cfg.DocQRTable
-        // ════════════════════════════════════════════════════════════════════════
+
         public DataTable GetDonHangChuaLot(bool isSP = false)
         {
             return _phieuRepo.GetDonHangChuaLot(GetTenBan(isSP), _cfg.Delivery.GetDocQRTable(isSP));
@@ -714,7 +673,7 @@ namespace PCTP.Applications.Services
             }
 
             string ifsTable = _isMayBanQR
-                ? _cfg.Delivery.GetIfsTable(_isLoaiSP)          // hoặc _isLoaiSP ? _cfg.IfsTableSP : _cfg.IfsTable, tuỳ CustomerConfig thật
+                ? _cfg.Delivery.GetIfsTable(_isLoaiSP)
                 : _cfg.Delivery.GetIfsViewTable(_isLoaiSP);
 
             return _phieuRepo.LoadGhepLot(tenBan, ifsTable);
@@ -725,11 +684,7 @@ namespace PCTP.Applications.Services
             _phieuRepo.LayLaiLotNo(stt, GetTenBan(isSP), _cfg.Delivery.GetDocQRTable(isSP));
         }
 
-        // ════════════════════════════════════════════════════════════════════════
-        // Giao DB
-        // ════════════════════════════════════════════════════════════════════════
         public DataTable GetDanhSachMaHangGiaoDB() => _phieuRepo.GetDanhSachMaHang();
-
 
         public int TaoPhieuVaChiTietGiaoDB(
         string ten, DateTime ngayLap, int nhaMay, string nhaMayName,
@@ -762,9 +717,6 @@ namespace PCTP.Applications.Services
             DataTable donHang = _phieuRepo.BuildDonHangTuUpload();
             if (donHang == null || donHang.Rows.Count == 0) return;
 
-            // Nhóm theo từng ADDNM thật (nhà máy) có trong dữ liệu vừa upload,
-            // gọi LuuGiaoDB riêng cho từng nhóm — tránh hard-code addNm=0 làm
-            // lệch với addNm=1/2 mà LoadPhieuGiaoDB() dùng để lọc khi đọc lại.
             var nhomTheoNhaMay = donHang.AsEnumerable()
                 .GroupBy(r => DbValueHelper.SafeInt(r["ADDNM"]));
 
@@ -779,18 +731,15 @@ namespace PCTP.Applications.Services
             }
         }
 
-        // ════════════════════════════════════════════════════════════════════════
-        // TinhTongLot — truyền _cfg.DocQRTable xuống repo
-        // ════════════════════════════════════════════════════════════════════════
         public List<(int Stt, string Lot)> TinhTongLot(
             DataTable bangTam,
             Func<ListView, int> chonSttKhiTrung,
             Action<int, string> capNhapGrid,
             bool isSP = false)
         {
-            string tenBan = GetTenBan(isSP);              // ← THÊM
+            string tenBan = GetTenBan(isSP);
             string docQRTable = _cfg.Delivery.GetDocQRTable(isSP);
-            string tmpTable = _cfg.Delivery.GetTmpTable(isSP);       // ← THÊM
+            string tmpTable = _cfg.Delivery.GetTmpTable(isSP);
 
             var results = new List<(int, string)>();
 
@@ -803,7 +752,7 @@ namespace PCTP.Applications.Services
                 if (stt <= 0 || sl <= 0) continue;
 
                 DataTable trungDt = _phieuRepo.GetDanhSachTrungMaSl(
-                    maHang, sl, tenBan, docQRTable);  // ← tenBan thay _tenBan
+                    maHang, sl, tenBan, docQRTable);
                 int dem = trungDt.Rows.Count;
 
                 if (dem == 0) continue;
@@ -818,12 +767,12 @@ namespace PCTP.Applications.Services
 
                 string lot = _phieuRepo.GetLotNo(
                     maHang, stt, dem, sl,
-                    docQRTable: docQRTable,  // ← dùng biến local
-                    tmpTable: tmpTable);   // ← dùng biến local
+                    docQRTable: docQRTable,
+                    tmpTable: tmpTable);
 
                 if (!string.IsNullOrWhiteSpace(lot))
                 {
-                    _phieuRepo.CapNhapLotTmpPhieu(stt, lot, tenBan);  // ← tenBan thay _tenBan
+                    _phieuRepo.CapNhapLotTmpPhieu(stt, lot, tenBan);
                     capNhapGrid(stt, lot);
                     results.Add((stt, lot));
                 }
@@ -833,15 +782,6 @@ namespace PCTP.Applications.Services
             return results;
         }
 
-        // ════════════════════════════════════════════════════════════════════════
-        // SP / Kho
-        // ════════════════════════════════════════════════════════════════════════
-       // public static bool IsLoaiSP(string gioMoTa)
-       // => !string.IsNullOrEmpty(gioMoTa)
-       //&& (gioMoTa.Contains("SP6") || gioMoTa.Contains("SP#"));
-       // public static bool IsLoaiOType(string gioMoTa)
-       // => !string.IsNullOrEmpty(gioMoTa)
-       //&& gioMoTa.Contains("O TYPE");
         public int LuuPhieuSP(string nhaMay, string ngayGiao,
                                string gioGiaoFcc, string loaiPhieu) =>
             _phieuRepo.LuuPhieuSP(nhaMay, ngayGiao, gioGiaoFcc, loaiPhieu);
@@ -850,9 +790,6 @@ namespace PCTP.Applications.Services
                                     string gioGiaoFcc, int stt, string ghiChu) =>
             _phieuRepo.CapNhapTTPHIEU(nhaMay, ngayGiao, gioGiaoFcc, stt, ghiChu);
 
-        // CapNhapKho trong PhieuService — không cần truyền table
-        // SP Usp_Qrcode_Update_Stock dùng LUUPHIEUGIAOHANG (bảng hệ thống)
-        // → không cần tmpTable/docQRTable
         public void CapNhapKho(string gioGiaoFcc, string nhaMay, string gioMa = "")
         {
             int soLot;
@@ -861,7 +798,6 @@ namespace PCTP.Applications.Services
             {
                 bool isSP = _isLoaiSP;
 
-                // ── HTN: LoadTuBangRieng → dùng SP riêng không cần gioGiaoFcc ───
                 if (_cfg.Delivery.LoadTuBangRieng && !_cfg.Delivery.CoGear)
                 {
                     soLot = _phieuRepo.CapNhapKhoHTN(
@@ -872,7 +808,6 @@ namespace PCTP.Applications.Services
                 }
                 else
                 {
-                    // ── HVN / YMVN ────────────────────────────────────────────────
                     soLot = _phieuRepo.CapNhapKho(
                         gioGiaoFcc, nhaMay,
                         _cfg.Delivery.GetTmpTable(isSP),
@@ -893,14 +828,12 @@ namespace PCTP.Applications.Services
             _bus.Publish(new KhoUpdatedEvent(soLot, errors));
         }
 
-        // CNK YMVN — loop từng dòng LOT, tự trừ kho (không dùng SP chung)
         public void CapNhapKhoYMVN(string ngayGiao, string gioXuat,
                               string nhaMay, DataTable donHang)
         {
             var errors = new List<DS_ERR_CNK>();
             var soLot = 0;
 
-            // Tính GIOGIAO từ gioXuat string "'06','07'"
             string giogiao = string.Join("+",
                 gioXuat.Split(',')
                        .Select(g => g.Trim().Trim('\'')
@@ -929,11 +862,8 @@ namespace PCTP.Applications.Services
         }
         public DataTable ThemDongGiaoDB() => _phieuRepo.GetDanhSachMaHang();
 
-        // ════════════════════════════════════════════════════════════════════════
-        // Helpers
-        // ════════════════════════════════════════════════════════════════════════
         private void EnrichSttHop(DataTable donHangIFS)
-        {// Batch 1 query lấy QcDongGoi cho tất cả mã — không query từng mã
+        {
             var maHangList = donHangIFS.AsEnumerable()
                 .Select(r => r["MAHANG"].ToString().Trim())
                 .Where(m => !string.IsNullOrEmpty(m))
@@ -959,7 +889,6 @@ namespace PCTP.Applications.Services
                 }
             }
         }
-
 
         public static int TinhSoHop(int soLuong, int qcDongGoi)
         {
@@ -989,11 +918,6 @@ namespace PCTP.Applications.Services
             return lv;
         }
 
-
-        ///////////////
-        // Hoàn thành YMVN — gọi SP Usp_Qrcode_Take_LotYMVN
-        ///////////////
-        // Hoàn thành YMVN — gọi SP Usp_Qrcode_Take_LotYMVN
         public void HoanThanhYMVN(bool isLoaiSP = false)
         {
             System.Diagnostics.Debug.WriteLine(
@@ -1020,28 +944,21 @@ namespace PCTP.Applications.Services
                     $"TONG_SLHVN={row["TONG_SLHVN"]}, SL_GIAO={row["SL_GIAO"]}, IsOK={row["IsOK"]}");
             }
 
-            // ── Đẩy kết quả ra ngoài qua EventBus — Presenter subscribe và bind lên View ──
             _bus.Publish(new HoanThanhYMVNCompletedEvent(result));
         }
 
-        // Lấy danh sách giờ từ Purchase_Order_YMVN
         public List<string> GetDanhSachGioYMVN(string ngayXuatMDY)
-    => _tableOrderRepo.GetDanhSachGioYMVN(ngayXuatMDY).ToList();
+            => _tableOrderRepo.GetDanhSachGioYMVN(ngayXuatMDY).ToList();
 
-
-        // Upload Milkrun SP — tương đương UploadMIKR()
         public void UploadMilkrunSP(DataTable donHang, string ngayGiao)
         {
             _tableOrderRepo.UploadMilkrunSP(donHang, ngayGiao);
         }
 
-
-        // PhieuService — thêm SyncPhieuYMVNChoDocQR (tương đương loadG_SQL)
-        // ── Gộp SyncPhieuYMVNChoDocQR + SyncPhieuTuBangRiengChoDocQR ────────────
         public void SyncPhieuTuBangRiengChoDocQR(
             DataTable donHang,
             string ngayGiao,
-            List<string> checkedGios = null)  // null = HTN (không filter giờ)
+            List<string> checkedGios = null)
         {
             if (donHang == null || donHang.Rows.Count == 0) return;
 
@@ -1052,14 +969,12 @@ namespace PCTP.Applications.Services
                 string status = row["STATUS"]?.ToString() ?? "";
                 if (status == "OK") continue;
 
-                // ── Lấy giờ từ NGAYGIAO ─────────────────────────────────────────
                 string gio = "";
                 if (row.Table.Columns.Contains("NGAYGIAO") &&
                     row["NGAYGIAO"] != DBNull.Value &&
                     DateTime.TryParse(row["NGAYGIAO"].ToString(), out DateTime dt))
                     gio = dt.ToString("HH:mm");
 
-                // ── Filter theo checkedGios — chỉ YMVN mới có ───────────────────
                 if (checkedGios != null && checkedGios.Any())
                 {
                     bool match = checkedGios.Any(g =>
@@ -1067,14 +982,12 @@ namespace PCTP.Applications.Services
                     if (!match) continue;
                 }
 
-                // ── Build ngayGiao đầy đủ ────────────────────────────────────────
                 string nxh = row.Table.Columns.Contains("NGAYGIAO") &&
                              row["NGAYGIAO"] != DBNull.Value &&
                              DateTime.TryParse(row["NGAYGIAO"].ToString(), out DateTime ngay)
                     ? ngay.ToString("yyyy-MM-dd HH:mm:ss")
                     : ngayGiao + " 00:00:00";
 
-                // ── Các cột tùy chọn ─────────────────────────────────────────────
                 string Get(string col) => row.Table.Columns.Contains(col)
                     ? row[col]?.ToString() ?? "" : "";
 
@@ -1119,13 +1032,11 @@ namespace PCTP.Applications.Services
         }
 
         public DataTable GetDanhSachLotTuKho(string maHang)
-        => _phieuRepo.GetDanhSachLotTuKho(maHang);
+            => _phieuRepo.GetDanhSachLotTuKho(maHang);
         public void NhapLotThuCong(int stt, string lotNo, string tenbang)
         {
-            // Ghi LOT vào TMP — giống CapNhapLotTmpPhieu
             _phieuRepo.CapNhapLotTmpPhieu(stt, lotNo, GetTenBan());
         }
-
 
         private OrderLoadContext CreateOrderLoadContext(
          DateTime ngayGiao,
@@ -1141,29 +1052,22 @@ namespace PCTP.Applications.Services
             return new OrderLoadContext
             {
                 Cfg = _cfg,
-
                 NgayGiao = ngayGiao,
                 NhaMay = nhaMay,
                 AddNm = addNm,
                 GioFcc = gioFcc,
                 GioFccMoTa = gioFccMoTa,
-
                 Category = isLoaiSP
                     ? OrderCategory.SP
                     : OrderCategory.MP,
-
                 Source = _cfg.Delivery.LoadTuBangRieng
                     ? OrderSourceKind.TableOrder
                     : OrderSourceKind.IFS,
-
                 MachineRole = isMayBanQR
                     ? MachineRole.DuocBanQR
                     : MachineRole.ChiXem,
-
                 IsBanQR = isBanQR,
-
                 CheckedGios = checkedGios ?? new List<string>(),
-
                 IfsDataDaLoc = null,
                 IfsLoadError = null
             };
