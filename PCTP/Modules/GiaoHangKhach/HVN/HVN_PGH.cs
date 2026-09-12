@@ -1,4 +1,4 @@
-﻿using DevExpress.XtraBars.Docking2010;
+using DevExpress.XtraBars.Docking2010;
 using DevExpress.XtraEditors;
 using DevExpress.XtraEditors.Controls;
 using DevExpress.XtraEditors.Repository;
@@ -981,33 +981,7 @@ namespace PCTP.QRCODE_HVN.PGH
         // ── Setup cột grid theo customer ─────────────────────────────────────────
         public void SetupGridDonHangYMVN(bool bangrieng)
         {
-            // ← Cột GEAR đã có sẵn trong Designer, chỉ cần ẩn/hiện
-            SetColumnVisible(GridViewDONHANG, "GEAR", bangrieng);
-            SetColumnVisible(GridViewDONHANG, "PO_NO", bangrieng);
-
-            if (bangrieng)
-            {
-                SetColumnCaption(GridViewDONHANG, "GEAR", "Gear Sử Dụng");
-                SetColumnCaption(GridViewDONHANG, "CUA", "Cửa");
-                SetColumnCaption(GridViewDONHANG, "TRUYEN", "Truyền");
-                SetColumnCaption(GridViewDONHANG, "GIOGIAO", "Giờ");
-                SetColumnCaption(GridViewDONHANG, "PO_NO", "Số PO");
-            }
-        }
-
-        private void SetColumnVisible(BandedGridView view,
-            string fieldName, bool visible)
-        {
-
-            var col = view.Columns.ColumnByFieldName(fieldName);
-            if (col != null) col.Visible = visible;
-        }
-
-        private void SetColumnCaption(BandedGridView view,
-            string fieldName, string caption)
-        {
-            var col = view.Columns.ColumnByFieldName(fieldName);
-            if (col != null) col.Caption = caption;
+            _phieuGridControl.SetupForCustomer(bangrieng);
         }
         // Implement BindGioXuatCheckList
         public void BindGioXuatCheckList(List<string> danhSachGio)
