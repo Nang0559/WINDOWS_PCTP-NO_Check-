@@ -1,5 +1,4 @@
 using System;
-using System.Windows.Forms;
 using PCTP.QRCODE_HVN.PGH.Controls;
 
 namespace PCTP.QRCODE_HVN.PGH
@@ -9,33 +8,33 @@ namespace PCTP.QRCODE_HVN.PGH
         private PhieuGridControl _phieuGridControl;
 
         /// <summary>
-        /// Phase 9A: move the existing Phiếu/Order visual subtree under
-        /// PhieuGridControl while keeping the original control instances.
+        /// Phase 9A: move the existing Phiếu/Order grid visual tree under
+        /// PhieuGridControl while keeping the original GridControl instance.
         ///
-        /// The original event handlers and binding code in HVN_PGH remain
-        /// untouched. A later step can remove the legacy Designer ownership
-        /// after the migration has been verified.
+        /// Existing event handlers and binding code in HVN_PGH remain untouched.
+        /// The legacy Designer fields are intentionally kept during this first
+        /// migration step so rollback is trivial.
         /// </summary>
         protected override void OnLoad(EventArgs e)
         {
-            MigratePhieuUiToUserControl();
+            MigratePhieuOrderGridToUserControl();
             base.OnLoad(e);
         }
 
-        private void MigratePhieuUiToUserControl()
+        private void MigratePhieuOrderGridToUserControl()
         {
-            if (_phieuGridControl != null || panelPhieu == null || PN_DOCQR_TOP == null)
+            if (_phieuGridControl != null || gridCtrDONHANG == null || sidePanel2 == null)
                 return;
 
-            int childIndex = PN_DOCQR_TOP.Controls.GetChildIndex(panelPhieu);
+            int childIndex = sidePanel2.Controls.GetChildIndex(gridCtrDONHANG);
 
             _phieuGridControl = new PhieuGridControl();
 
-            PN_DOCQR_TOP.Controls.Remove(panelPhieu);
-            PN_DOCQR_TOP.Controls.Add(_phieuGridControl);
-            PN_DOCQR_TOP.Controls.SetChildIndex(_phieuGridControl, childIndex);
+            sidePanel2.Controls.Remove(gridCtrDONHANG);
+            sidePanel2.Controls.Add(_phieuGridControl);
+            sidePanel2.Controls.SetChildIndex(_phieuGridControl, childIndex);
 
-            _phieuGridControl.AttachExistingLayout(panelPhieu);
+            _phieuGridControl.AttachExistingLayout(gridCtrDONHANG);
         }
     }
 }
