@@ -104,7 +104,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             // Ở NGUYÊN TẠI ĐÂY, giờ rút thành helper dùng chung cho cả 3 nhánh.
             HoanTatSauKhiTruKho(lotsDaXuatThanhCong, SYSTEM_PERFORMED_BY);
 
-            if (_cfg != null && _cfg.LoadTuBangRieng && !string.IsNullOrEmpty(_cfg.OrderTable) && stok.Rows.Count > 0)
+            if (_cfg != null && _cfg.Delivery.LoadTuBangRieng && !string.IsNullOrEmpty(_cfg.Delivery.OrderTable) && stok.Rows.Count > 0)
             {
                 foreach (DataRow row in stok.Rows)
                 {
@@ -213,8 +213,8 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             if (_cfg == null)
                 throw new InvalidOperationException("PhieuKhoRepository cần CustomerConfig để thực hiện CapNhapKhoYMVN.");
 
-            string tmpTable = _cfg.TmpTable;
-            string docQRTable = _cfg.DocQRTable;
+            string tmpTable = _cfg.Delivery.TmpTable;
+            string docQRTable = _cfg.Delivery.DocQRTable;
 
             Db.ValidateTableName(tmpTable);
             Db.ValidateTableName(docQRTable);
@@ -371,7 +371,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                 $"SELECT ISNULL(PO_NO,'') FROM [{tmpTable}] WHERE STT = @stt",
                 new SqlParameter("@stt", SqlDbType.Int) { Value = stt }))?.Trim() ?? "";
 
-            if (!string.IsNullOrEmpty(poNo) && !string.IsNullOrEmpty(_cfg.OrderTable))
+            if (!string.IsNullOrEmpty(poNo) && !string.IsNullOrEmpty(_cfg.Delivery.OrderTable))
                 DanhDauDaGiao(poNo, maHang, ngayGiao, _cfg);
 
             return true;
@@ -388,12 +388,12 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         public void DanhDauDaGiao(string poNo, string maHang, string ngayGiao, CustomerConfig cfg)
         {
             if (cfg == null) return;
-            if (string.IsNullOrEmpty(cfg.OrderTable)) return;
+            if (string.IsNullOrEmpty(cfg.Delivery.OrderTable)) return;
 
-            Db.ValidateTableName(cfg.OrderTable);
+            Db.ValidateTableName(cfg.Delivery.OrderTable);
 
             ExecuteNonQuery(
-                $"UPDATE [{cfg.OrderTable}] " +
+                $"UPDATE [{cfg.Delivery.OrderTable}] " +
                 "SET IsDelivered = 1, DeliveredDate = GETDATE() " +
                 "WHERE Oder_no = @po AND Part_no = @pno " +
                 "  AND CAST(NgayGiao AS DATE) = @ng AND IsDelivered = 0",

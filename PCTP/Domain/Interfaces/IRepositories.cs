@@ -1,5 +1,6 @@
 ﻿using DevExpress.XtraScheduler.Reporting;
 using PCTP.Domain.Entities;
+using PCTP.Shared.Models;
 using PCTP.VIEWSTOCK.Models;
 using PCTP.YMN;
 using System;

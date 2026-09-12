@@ -3,6 +3,7 @@ using PCTP.FuctionMain;
 using PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao;
 using PCTP.Shared.Common;
 using PCTP.Shared.Helpers;
+using PCTP.Shared.Models;
 using PCTP.VIEWSTOCK.Models;
 using System;
 using System.Collections.Generic;

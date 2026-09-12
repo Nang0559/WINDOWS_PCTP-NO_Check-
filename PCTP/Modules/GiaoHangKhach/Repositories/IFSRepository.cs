@@ -16,6 +16,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
+using PCTP.Shared.Models;
 
 namespace PCTP.Infrastructure.Repositories
 {
@@ -138,7 +139,7 @@ namespace PCTP.Infrastructure.Repositories
              * END
              */
             string nhaMayCase =
-                cfg.NhaMayCase;
+                cfg.Delivery.NhaMayCase;
 
 
             if (string.IsNullOrWhiteSpace(nhaMayCase))
@@ -303,7 +304,7 @@ namespace PCTP.Infrastructure.Repositories
             // Require PO Release
             // ============================================================
 
-            if (cfg.RequirePoRelNo)
+            if (cfg.Delivery.RequirePoRelNo)
             {
                 sql +=
                     "AND col.CUSTOMER_PO_REL_NO IS NOT NULL ";
@@ -404,7 +405,7 @@ namespace PCTP.Infrastructure.Repositories
             if (cfg == null) throw new ArgumentNullException(nameof(cfg));
 
             DataTable merged = null;
-            foreach (int addNm in cfg.DanhSachAddNm)
+            foreach (int addNm in cfg.Delivery.DanhSachAddNm)
             {
                 DataTable part = GetCustomerOrderJoin(
                     ngayXuat, gioXuat: null, gioXuatH: null, nhaMay: null,

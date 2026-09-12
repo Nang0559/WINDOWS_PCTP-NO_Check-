@@ -2,6 +2,7 @@
 using PCTP.Common;
 using PCTP.Domain.Entities;
 using PCTP.Domain.Interfaces;
+using PCTP.Shared.Models;
 using PCTP.VIEWSTOCK.Models;
 using System;
 using System.Collections.Generic;
@@ -68,19 +69,19 @@ namespace PCTP.Infrastructure.Repositories
             }
         }
         private string GetDocQRTable(bool isSP = false)
-            => isSP && !string.IsNullOrEmpty(_cfg.DocQRTableSP)
-                ? _cfg.DocQRTableSP
-                : _cfg.DocQRTable;
+            => isSP && !string.IsNullOrEmpty(_cfg.Delivery.DocQRTableSP)
+                ? _cfg.Delivery.DocQRTableSP
+                : _cfg.Delivery.DocQRTable;
 
         private string GetIfsTable(bool isSP = false)
-            => isSP && !string.IsNullOrEmpty(_cfg.IfsTableSP)
-                ? _cfg.IfsTableSP
-                : _cfg.IfsTable;
+            => isSP && !string.IsNullOrEmpty(_cfg.Delivery.IfsTableSP)
+                ? _cfg.Delivery.IfsTableSP
+                : _cfg.Delivery.IfsTable;
 
         private string GetTmpTable(bool isSP = false)
-            => isSP && !string.IsNullOrEmpty(_cfg.TmpTableSP)
-                ? _cfg.TmpTableSP
-                : _cfg.TmpTable;
+            => isSP && !string.IsNullOrEmpty(_cfg.Delivery.TmpTableSP)
+                ? _cfg.Delivery.TmpTableSP
+                : _cfg.Delivery.TmpTable;
         // ════════════════════════════════════════════════════════════════════
         // Overload không tham số — dùng config mặc định (isSP = false)
         // ════════════════════════════════════════════════════════════════════
@@ -89,7 +90,7 @@ namespace PCTP.Infrastructure.Repositories
         public int Count() => Count(GetDocQRTable());
         public int GetMaxStt() => GetMaxStt(GetDocQRTable());
         public int CountChuaDG() => CountChuaDG(GetDocQRTable());
-        public void InsertFCC(DocQRCode item) => InsertFCC(item, GetDocQRTable(), _cfg.CoGear);
+        public void InsertFCC(DocQRCode item) => InsertFCC(item, GetDocQRTable(), _cfg.Delivery.CoGear);
         public void UpdateHVN(DocQRCode item) => UpdateHVN(item, GetDocQRTable());
         public void UpdateSlHvn(int stt, int slMoi) => UpdateSlHvn(stt, slMoi, GetDocQRTable());
         public void Delete(int stt) => Delete(stt, GetDocQRTable());
@@ -104,7 +105,7 @@ namespace PCTP.Infrastructure.Repositories
         public int Count(bool isSP) => Count(GetDocQRTable(isSP));
         public int GetMaxStt(bool isSP) => GetMaxStt(GetDocQRTable(isSP));
         public int CountChuaDG(bool isSP) => CountChuaDG(GetDocQRTable(isSP));
-        public void InsertFCC(DocQRCode item, bool isSP) => InsertFCC(item, GetDocQRTable(isSP), _cfg.CoGear);
+        public void InsertFCC(DocQRCode item, bool isSP) => InsertFCC(item, GetDocQRTable(isSP), _cfg.Delivery.CoGear);
         public void UpdateHVN(DocQRCode item, bool isSP) => UpdateHVN(item, GetDocQRTable(isSP));
         public void UpdateSlHvn(int stt, int slMoi, bool isSP) => UpdateSlHvn(stt, slMoi, GetDocQRTable(isSP));
         public void Delete(int stt, bool isSP) => Delete(stt, GetDocQRTable(isSP));

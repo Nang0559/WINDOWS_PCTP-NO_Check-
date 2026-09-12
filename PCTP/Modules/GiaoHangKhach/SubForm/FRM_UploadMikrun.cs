@@ -4,6 +4,7 @@ using DevExpress.XtraGrid.Views.Grid;
 using OfficeOpenXml;
 using PCTP.ClassSQL;
 using PCTP.FuctionMain;
+using PCTP.Shared.Models;
 using PCTP.VIEWSTOCK.Models;
 using System;
 using System.Collections.Generic;
@@ -16,7 +17,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
-namespace PCTP.YMN
+namespace PCTP.Modules.GiaoHangKhach.SubForm
 {
     public class FRM_UploadMikrun : XtraForm
     {
@@ -41,8 +42,8 @@ namespace PCTP.YMN
         // ── Constructor YMVN (mặc định) ──────────────────────────────────────
         public FRM_UploadMikrun(SQLPROVIDER sql, CustomerConfig cfg)
             : this(sql, cfg,
-                   targetTable: cfg?.OrderTable ?? "Purchase_Order_YMVN",
-                   title: $"Upload Milkrun — {cfg?.OrderTable ?? "Purchase_Order_YMVN"}")
+                   targetTable: cfg.Delivery?.OrderTable ?? "Purchase_Order_YMVN",
+                   title: $"Upload Milkrun — {cfg.Delivery?.OrderTable ?? "Purchase_Order_YMVN"}")
         { }
 
         // ── Constructor dùng chung ────────────────────────────────────────────

@@ -2,6 +2,7 @@
 
 using PCTP.Modules.GiaoHangKhach.Mode;
 using PCTP.Modules.GiaoHangKhach.Models;
+using PCTP.Modules.GiaoHangKhach.OrderLoading.GiaoDB;
 using PCTP.Modules.GiaoHangKhach.OrderLoading.IFS;
 using PCTP.VIEWSTOCK.Models;
 using System;
@@ -24,7 +25,7 @@ namespace PCTP.Modules.GiaoHangKhach.OrderLoading
     {
         private readonly IfsOrderLoadStrategy _ifsStrategy;
         private readonly OrderTableLoadStrategy _orderTableStrategy;
-        private IOrderLoadStrategy _orderLoadStrategy;
+        private GiaoDbOrderLoadStrategy _giaoDbStrategy;
 
         public OrderLoadStrategyFactory(IfsOrderLoadStrategy ifs, OrderTableLoadStrategy orderTable)
         {

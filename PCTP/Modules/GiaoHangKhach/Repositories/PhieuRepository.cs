@@ -5,6 +5,7 @@ using PCTP.Modules.KhoCore.Repositories;
 using PCTP.Modules.KhoVatLy.Repositories;
 using PCTP.Modules.XuatKho.Interfaces;
 using PCTP.Shared.Common;
+using PCTP.Shared.Models;
 using PCTP.VIEWSTOCK.Models;
 using PCTP.YMN;
 using System;

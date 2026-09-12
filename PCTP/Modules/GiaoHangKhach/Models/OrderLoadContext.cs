@@ -11,7 +11,7 @@ namespace PCTP.Modules.GiaoHangKhach.Models
 {
     public class OrderLoadContext
     {
-        public CustomerConfig Config { get; set; }
+        public CustomerConfig Cfg { get; set; }
         public DateTime NgayGiao { get; set; }
         public string NhaMay { get; set; }
         public int AddNm { get; set; }

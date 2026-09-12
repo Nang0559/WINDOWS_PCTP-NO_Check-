@@ -270,7 +270,6 @@
     <Compile Include="Modules\GiaoHangKhach\Contracts\IItemFifoConfigRepository.cs" />
     <Compile Include="Modules\GiaoHangKhach\Contracts\IHangThieuCaNgayService.cs" />
     <Compile Include="Modules\GiaoHangKhach\OrderLoading\GiaoDB\GiaoDbOrderLoadStrategy.cs" />
-    <Compile Include="Modules\GiaoHangKhach\OrderLoading\MilkRun\MilkRunOrderLoadStrategy.cs" />
     <Compile Include="Modules\GiaoHangKhach\Repositories\ItemFifoConfigRepository.cs" />
     <Compile Include="Modules\GiaoHangKhach\Services\DocQRService.cs" />
     <Compile Include="Modules\GiaoHangKhach\Services\HangThieuCaNgayService.cs" />
@@ -344,7 +343,7 @@
     <Compile Include="Modules\GiaoHangKhach\SubForm\FRM_UploadGiaoDB.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="Modules\GiaoHangKhach\OrderLoading\OrderTableLoadStrategy.cs" />
+    <Compile Include="Modules\GiaoHangKhach\OrderLoading\TableOrder\OrderTableLoadStrategy.cs" />
     <Compile Include="Modules\KhoCore\Helpers\SlotParser.cs" />
     <Compile Include="Modules\KhoCore\Repositories\StockHistoryRepository.cs" />
     <Compile Include="Modules\KhoCore\Repositories\IStockHistoryRepository.cs" />
@@ -836,7 +835,7 @@
     <Compile Include="Modules\GiaoHangKhach\YMVN\ERR_CNK.Designer.cs">
       <DependentUpon>ERR_CNK.cs</DependentUpon>
     </Compile>
-    <Compile Include="Modules\GiaoHangKhach\YMVN\FRM_UploadMikrun.cs">
+    <Compile Include="Modules\GiaoHangKhach\SubForm\FRM_UploadMikrun.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="Modules\GiaoHangKhach\YMVN\GIAOHANGYMN.cs">

@@ -5,6 +5,7 @@ using PCTP.Infrastructure.Repositories;
 using PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao;
 using PCTP.Shared.Common;
 using PCTP.Shared.Helpers;
+using PCTP.Shared.Models;
 using PCTP.VIEWSTOCK.Models;
 using System;
 using System.CodeDom.Compiler;
@@ -68,7 +69,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             string tenBang =
                 !string.IsNullOrWhiteSpace(tenBangOverride)
                     ? tenBangOverride
-                    : cfg.OrderTable;
+                    : cfg.Delivery.OrderTable;
 
             _db.ValidateTableName(tenBang);
 
@@ -112,7 +113,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
 
             string whereSP = "";
 
-            if (cfg.CoLoaiSP)
+            if (cfg.Delivery.CoLoaiSP)
             {
                 string safeDockCode =
                     (dockCodeSP ?? "").Replace("'", "''");
@@ -179,7 +180,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             MergeLotTuBangRieng(
                 dt,
                 ngayGiao,
-                cfg.TenNhaMay);
+                cfg.Delivery.TenNhaMay);
 
             return dt;
         }
@@ -512,8 +513,8 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                 typeof(string));
 
             string customerNoIFS =
-                !string.IsNullOrEmpty(cfg.CustomerNoIFS)
-                    ? cfg.CustomerNoIFS
+                !string.IsNullOrEmpty(cfg.Delivery.CustomerNoIFS)
+                    ? cfg.Delivery.CustomerNoIFS
                     : cfg.CustomerNo;
 
             if (string.IsNullOrEmpty(customerNoIFS))

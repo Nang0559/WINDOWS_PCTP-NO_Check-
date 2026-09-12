@@ -1,21 +1,12 @@
 ﻿using PCTP.Domain.Interfaces;
 using PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao;
 using PCTP.Modules.GiaoHangKhach.Models;
-using PCTP.VIEWSTOCK.Repository;
 using System;
-using System.Collections.Generic;
 using System.Data;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace PCTP.Modules.GiaoHangKhach.OrderLoading.IFS
 {
-    /// <summary>
-    /// Customer dùng IFS Oracle (HVN 100001, và mọi customer không có OrderTable riêng).
-    /// Đơn hàng gốc load trực tiếp từ IFS qua linked server/OleDb — không có bảng
-    /// trung gian nào lưu đơn hàng, nên "load lại" luôn nghĩa là query lại IFS.
-    /// </summary>
     public class IfsOrderLoadStrategy : IOrderLoadStrategy
     {
         private readonly IIFSRepository _ifsRepo;
@@ -23,7 +14,7 @@ namespace PCTP.Modules.GiaoHangKhach.OrderLoading.IFS
         private readonly IPhieuTmpRepository _tmpRepo;
 
         public IfsOrderLoadStrategy(IIFSRepository ifsRepo, IPhieuLuuTruRepository luuTruRepo,
-        IPhieuTmpRepository tmpRepo)
+            IPhieuTmpRepository tmpRepo)
         {
             _ifsRepo = ifsRepo;
             _luuTruRepo = luuTruRepo;
@@ -35,12 +26,11 @@ namespace PCTP.Modules.GiaoHangKhach.OrderLoading.IFS
             return _ifsRepo.GetCustomerOrderJoin(
                 ctx.NgayGiao.ToString("ddMMyyyy"),
                 ctx.GioFcc, ctx.GioFccMoTa,
-                ctx.NhaMay, ctx.AddNm, ctx.Cfg);
+                ctx.NhaMay, ctx.AddNm, ctx.Cfg);   // ← SỬA: Cfg → Config
         }
 
         public void MergeLotDaLuu(DataTable donHang, OrderLoadContext ctx)
         {
-            // PhieuRepository đã có sẵn LoadLuuPhieu — dùng lại, không viết trùng.
             var daLuu = _luuTruRepo.LoadLuuPhieu(ctx.NhaMay,
                 ctx.NgayGiao.ToString("yyyy-MM-dd"), ctx.GioFccMoTa);
 
@@ -60,15 +50,16 @@ namespace PCTP.Modules.GiaoHangKhach.OrderLoading.IFS
 
         public void SyncChoDocQR(DataTable donHang, OrderLoadContext ctx)
         {
-            // Đây chính là LuuVaLoad hiện có — Drop/Create IFS table + BulkInsert + CallSP.
-            _tmpRepo.LuuVaLoad(ctx.Cfg.IfsTable, "Usp_Qrcode_LOAD_PHIEU_DOCQR2405",
+            bool isSP = ctx.Category == OrderCategory.SP;
+            var d = ctx.Cfg.Delivery;   // ← SỬA: Cfg → Config.Delivery
+
+            _tmpRepo.LuuVaLoad(d.GetIfsTable(isSP), "Usp_Qrcode_LOAD_PHIEU_DOCQR2405",
                 donHang, ctx.NgayGiao.ToString("yyyy-MM-dd"), ctx.NhaMay,
-                ctx.GioFccMoTa, ctx.AddNm, ctx.Cfg.TmpTable, ctx.Cfg.DocQRTable);
+                ctx.GioFccMoTa, ctx.AddNm, d.GetTmpTable(isSP), d.GetDocQRTable(isSP));
         }
 
         public DataTable SoSanhVoiIFS(DataTable donHang, OrderLoadContext ctx)
         {
-            // Nguồn ĐÃ LÀ IFS — không có gì để so sánh với chính nó.
             return new DataTable();
         }
     }
