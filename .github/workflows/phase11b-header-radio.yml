@@ -1,0 +1,104 @@
+name: Phase 11B Header Radio Ownership
+
+on:
+  push:
+    paths:
+      - '.github/phase11b.trigger'
+
+jobs:
+  refactor:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Refactor header radio ownership
+        shell: python
+        run: |
+          from pathlib import Path
+
+          hvn_path = Path('PCTP/Modules/GiaoHangKhach/HVN/HVN_PGH.cs')
+          header_path = Path('PCTP/Modules/GiaoHangKhach/HVN/Controls/PhieuHeaderControl.cs')
+
+          hvn = hvn_path.read_text(encoding='utf-8')
+          header = header_path.read_text(encoding='utf-8')
+
+          def extract_method(text, signature):
+              start = text.find(signature)
+              if start < 0:
+                  raise RuntimeError('Method not found: ' + signature)
+              brace = text.find('{', start)
+              if brace < 0:
+                  raise RuntimeError('Opening brace not found: ' + signature)
+              depth = 0
+              for i in range(brace, len(text)):
+                  if text[i] == '{':
+                      depth += 1
+                  elif text[i] == '}':
+                      depth -= 1
+                      if depth == 0:
+                          return text[start:i+1]
+              raise RuntimeError('Unbalanced braces: ' + signature)
+
+          def replace_method(text, signature, replacement):
+              old = extract_method(text, signature)
+              return text.replace(old, replacement, 1)
+
+          bind_vp = extract_method(hvn, 'public void BindGioXuatVP(IReadOnlyList<GioXuat> danhSach)')
+          bind_hn = extract_method(hvn, 'public void BindGioXuatHN(IReadOnlyList<GioXuat> danhSach)')
+          lock_radio = extract_method(hvn, 'public void LockRadioExcept(string gioFCC)')
+          unlock_radio = extract_method(hvn, 'public void UnlockAllRadio()')
+          lock_helper = extract_method(hvn, 'private void LockRadioGroup(RadioGroupItemCollection items,')
+          select_helper = extract_method(hvn, 'private bool TrySelectRadio(RadioGroupItemCollection items,')
+
+          # Build header-owned implementations while preserving the existing algorithms.
+          bind_vp_body = bind_vp[bind_vp.find('{')+1:-1]
+          bind_vp_body = bind_vp_body.replace(
+              '            radioGroup2.Properties.Items.Clear();',
+              '            var radioGroup2 = FindControl<RadioGroup>("radioGroup2");\n            if (radioGroup2 == null)\n                return;\n\n            radioGroup2.Properties.Items.Clear();')
+
+          bind_hn_body = bind_hn[bind_hn.find('{')+1:-1]
+          bind_hn_body = bind_hn_body.replace(
+              '            RDO_GXHN.Properties.Items.Clear();',
+              '            var RDO_GXHN = FindControl<RadioGroup>("RDO_GXHN");\n            if (RDO_GXHN == null)\n                return;\n\n            RDO_GXHN.Properties.Items.Clear();')
+
+          lock_body = lock_radio[lock_radio.find('{')+1:-1]
+          lock_body = lock_body.replace(
+              '            LockRadioGroup(radioGroup2.Properties.Items, gioSet,\n                           i => radioGroup2.SelectedIndex = i);',
+              '            var radioGroup2 = FindControl<RadioGroup>("radioGroup2");\n            var RDO_GXHN = FindControl<RadioGroup>("RDO_GXHN");\n            if (radioGroup2 == null || RDO_GXHN == null)\n                return;\n\n            LockRadioGroup(radioGroup2.Properties.Items, gioSet,\n                           i => radioGroup2.SelectedIndex = i);')
+
+          unlock_body = unlock_radio[unlock_radio.find('{')+1:-1]
+          unlock_body = unlock_body.replace(
+              '            foreach (RadioGroupItem item in radioGroup2.Properties.Items)',
+              '            var radioGroup2 = FindControl<RadioGroup>("radioGroup2");\n            var RDO_GXHN = FindControl<RadioGroup>("RDO_GXHN");\n            if (radioGroup2 == null || RDO_GXHN == null)\n                return;\n\n            foreach (RadioGroupItem item in radioGroup2.Properties.Items)', 1)
+
+          header_methods = '''\n        public void BindGioXuatVP(IReadOnlyList<GioXuat> danhSach)\n        {''' + bind_vp_body + '''\n        }\n\n        public void BindGioXuatHN(IReadOnlyList<GioXuat> danhSach)\n        {''' + bind_hn_body + '''\n        }\n\n        public void LockRadioExcept(string gioFCC)\n        {''' + lock_body + '''\n        }\n\n        public void UnlockAllRadio()\n        {''' + unlock_body + '''\n        }\n'''
+
+          # Helpers are copied unchanged because they operate only on supplied collections.
+          header_methods += '\n        ' + lock_helper.strip() + '\n\n        ' + select_helper.strip() + '\n'
+
+          marker = '        public void LockDatePicker()'
+          if marker not in header:
+              raise RuntimeError('Header insertion marker not found')
+          header = header.replace(marker, header_methods + '\n' + marker, 1)
+
+          hvn = replace_method(hvn,
+              'public void BindGioXuatVP(IReadOnlyList<GioXuat> danhSach)',
+              '''public void BindGioXuatVP(IReadOnlyList<GioXuat> danhSach)\n        {\n            if (_phieuHeaderControl != null)\n                _phieuHeaderControl.BindGioXuatVP(danhSach);\n        }''')
+          hvn = replace_method(hvn,
+              'public void BindGioXuatHN(IReadOnlyList<GioXuat> danhSach)',
+              '''public void BindGioXuatHN(IReadOnlyList<GioXuat> danhSach)\n        {\n            if (_phieuHeaderControl != null)\n                _phieuHeaderControl.BindGioXuatHN(danhSach);\n        }''')
+          hvn = replace_method(hvn,
+              'public void LockRadioExcept(string gioFCC)',
+              '''public void LockRadioExcept(string gioFCC)\n        {\n            if (_phieuHeaderControl != null)\n                _phieuHeaderControl.LockRadioExcept(gioFCC);\n        }''')
+          hvn = replace_method(hvn,
+              'public void UnlockAllRadio()',
+              '''public void UnlockAllRadio()\n        {\n            if (_phieuHeaderControl != null)\n                _phieuHeaderControl.UnlockAllRadio();\n        }''')
+          hvn = replace_method(hvn, 'private void LockRadioGroup(RadioGroupItemCollection items,', '')
+          hvn = replace_method(hvn, 'private bool TrySelectRadio(RadioGroupItemCollection items,', '')
+
+          hvn_path.write_text(hvn, encoding='utf-8')
+          header_path.write_text(header, encoding='utf-8')
+
+          print('Phase 11B radio ownership refactor applied.')
