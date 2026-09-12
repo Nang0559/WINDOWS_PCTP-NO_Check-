@@ -2,9 +2,12 @@
 
 ## Audit scope
 
-Audited on `master`:
+Audited and refactored on `master`:
 
 - `PCTP/Modules/GiaoHangKhach/Services/DocQRService.cs`
+- `PCTP/Modules/GiaoHangKhach/Services/DocQRScanEngine.cs`
+- `PCTP/Modules/GiaoHangKhach/Services/DocQRSessionState.cs`
+- `PCTP/Modules/GiaoHangKhach/Services/DocQRTableResolver.cs`
 - `PCTP/Presentation/Presenters/HVN_Presenter.cs`
 - `PCTP/Domain/Interfaces/IRepositories.cs`
 - `PCTP/Infrastructure/Repositories/DocQRRepository.cs`
@@ -13,74 +16,62 @@ Audited on `master`:
 - `PCTP/Domain/Events/DomainEvent.cs`
 - QR/TMP working-state contracts and implementations.
 
-## Findings
+## Result
 
-### 1. DocQRService was still the QR orchestration monolith
+`DocQRService` is now a thin facade. The previous QR parsing/business implementation has been moved to `DocQRScanEngine` with the existing routing, validation, LOT normalization, repository calls and event publication preserved.
 
-It owns all of the following responsibilities:
+### Facade responsibilities
 
-- QR mode state (`_isBanSP`, `_isBanOType`)
-- DOCQRCODE/TMP table selection
+`DocQRService` now owns only the public service boundary and session-mode coordination:
+
+- `SetCheDoBanSP`
+- `SetCheDoBan`
+- `IsBanSP` / `IsBanOType`
+- delegation of QR scan operations
+- delegation of DOCQRCODE CRUD helpers
+- delegation of quantity-mismatch confirmation
+
+The existing constructor and public method signatures are preserved for current callers.
+
+### Engine responsibilities
+
+`DocQRScanEngine` owns the QR behavior extracted from the former monolith:
+
 - QR route detection
 - FCC / SP / O TYPE / HVN / YMVN parsing
 - LOT normalization
 - duplicate validation
 - scan-order validation
 - quantity validation
-- DOCQRCODE persistence calls
+- DOCQRCODE repository calls
 - `QRScannedEvent` publication
-- confirmation of quantity mismatch
-- DOCQRCODE CRUD helpers used by the presenter
+- quantity-mismatch confirmation
+- quantity calculation against TMP
 
-It contains no WinForms/DevExpress UI dependency in its public workflow, which is good. The remaining problem is internal responsibility concentration, not UI coupling.
+No QR business rule was intentionally redesigned during this extraction.
 
-### 2. HVN_Presenter is already a caller/orchestrator, not a QR parser
+### Session/table boundary
 
-`HVN_Presenter` delegates scan processing to `DocQRService.ProcessScan` / `ProcessScanYMVN` and delegates DOCQRCODE persistence helpers (`LoadAll`, `XoaDong`, `XoaToanBo`, `CapNhapSlHvn`, `ConfirmSlKhacBiet`).
+`DocQRSessionState` owns the current MP/SP/O TYPE session state.
 
-The presenter still supplies two validation callbacks backed by `PhieuService`. This is an integration seam, not QR parsing logic. It should be removed only after the order/working-state validation contract is introduced, to avoid changing business behavior during this phase.
+`DocQRTableResolver` owns DOCQRCODE/TMP table selection from `CustomerConfig`.
 
-### 3. Repository boundary is already appropriate
+The distinction between current QR session state and machine QR capability remains intact; `_isMayBanQR` / `_isBanQR` are not merged.
 
-`IDocQRRepository` owns DOCQRCODE persistence and QR-specific database queries. `DocQRService` does not execute SQL directly.
+## Caller boundary
 
-### 4. QR state was still implicit inside DocQRService
+`HVN_Presenter` continues to call `DocQRService`; callers do not need to know about `DocQRScanEngine`.
 
-The service duplicated table selection logic in multiple places and kept category state in private booleans. This made the distinction between session state and persistence-table selection harder to audit.
+The presenter remains responsible for UI decisions and continues to provide the existing validation callbacks. Removing those callbacks is intentionally deferred until an explicit order/working-state validation contract exists, so this refactor does not alter behavior.
 
-## Phase 6.4–6.8 hardening implemented
+`IDocQRRepository` remains the persistence boundary. No SQL was moved into the facade or engine.
 
-### 6.4 – QR service audit / state boundary
+## Build note
 
-Added:
+The project is a legacy non-SDK `.csproj` with explicit `Compile` items. `PCTP/Directory.Build.targets` was added to include the three new QR refactor source files without rewriting the large legacy project file.
 
-- `DocQRSessionState`
-- `DocQRTableResolver`
+GitHub status for the final refactor commit returned `statuses: []`; there is no CI verification available. A local Visual Studio build of `WINDOWS_PCTP(NO_Check).sln` is still required before production deployment.
 
-The new state object explicitly represents MP/SP/O TYPE mode and derives the active DOCQRCODE/TMP table from configuration.
+## Non-goals
 
-### 6.5 – PhieuService / QR service boundary
-
-Existing architecture verified: `PhieuService` does not own QR scan parsing. `HVN_Presenter` calls `DocQRService` for scan and DOCQRCODE operations.
-
-No public API was broken.
-
-### 6.6 – Presenter boundary
-
-Presenter remains responsible for UI decisions/dialogs and delegates QR business operations to `DocQRService`. No QR SQL was found in the presenter.
-
-### 6.7 – DOCQRCODE/TMP working-state boundary
-
-`PhieuTmpRepository` / `IDeliveryWorkingState` remain the persistence/working-state owners. The new table resolver/state types make the QR session/table distinction explicit without moving persistence into the service.
-
-### 6.8 – Verification gate
-
-GitHub Actions/status checks were queried for the resulting `master` commit. No CI checks are configured/returned (`statuses: []`). Therefore this phase is **not compile-verified by CI**.
-
-A local Visual Studio build of `WINDOWS_PCTP(NO_Check).sln` is still required before declaring the refactor production-ready.
-
-## Important non-goals
-
-This phase intentionally does **not** rewrite the QR parsing algorithms or change LOT/quantity/duplicate rules. Those are behavior-sensitive and should be extracted only with tests or captured before/after examples.
-
-It also does not merge `_isMayBanQR` and `_isBanQR`; machine capability and current QR session remain separate concepts.
+This phase does not intentionally change QR parsing algorithms, LOT rules, duplicate rules, quantity rules, repository semantics, or event semantics.
