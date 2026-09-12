@@ -39,7 +39,38 @@ namespace PCTP.QRCODE_HVN.PGH
             parent.Controls.SetChildIndex(_phieuHeaderControl, childIndex);
 
             _phieuHeaderControl.Adopt(panelPhieu);
+            _phieuHeaderControl.DateChanged += PhieuHeaderControl_DateChanged;
+            _phieuHeaderControl.GioXuatChanged += PhieuHeaderControl_GioXuatChanged;
+            _phieuHeaderControl.TabChanged += PhieuHeaderControl_TabChanged;
             _phieuHeaderControl.LoaiPhieuChanged += PhieuHeaderControl_LoaiPhieuChanged;
+        }
+
+        private void PhieuHeaderControl_DateChanged(object sender, EventArgs e)
+        {
+            dateNX_EditValueChanged(sender, e);
+        }
+
+        private void PhieuHeaderControl_GioXuatChanged(object sender, EventArgs e)
+        {
+            if (ReferenceEquals(sender, RDO_GXHN))
+                RDO_GXHN_SelectedIndexChanged(sender, e);
+            else if (ReferenceEquals(sender, radioGroup2))
+                radioGroup2_SelectedIndexChanged(sender, e);
+            else
+            {
+                // The header control intentionally normalizes both radio groups
+                // into one event. Preserve the legacy handler routing by using
+                // the currently visible/active group.
+                if (RDO_GXHN != null && RDO_GXHN.Visible)
+                    RDO_GXHN_SelectedIndexChanged(RDO_GXHN, e);
+                else
+                    radioGroup2_SelectedIndexChanged(radioGroup2, e);
+            }
+        }
+
+        private void PhieuHeaderControl_TabChanged(object sender, EventArgs e)
+        {
+            tabPaneHVN_Click(sender, e);
         }
 
         private void PhieuHeaderControl_LoaiPhieuChanged(object sender, EventArgs e)
