@@ -10,7 +10,9 @@ using PCTP.Modules.GiaoHangKhach.Models;
 using PCTP.Modules.GiaoHangKhach.Models;
 using PCTP.Modules.GiaoHangKhach.OrderLoading;
 using PCTP.Modules.GiaoHangKhach.OrderLoading.Category;
+using PCTP.Modules.GiaoHangKhach.WorkingState;
 using PCTP.Shared.Common;
+using PCTP.Shared.Enums;
 using PCTP.Shared.Models;
 using PCTP.VIEWSTOCK.Models;
 using PCTP.YMN;
@@ -19,6 +21,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
 using System.Linq;
+using System.Runtime.Remoting.Contexts;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -35,6 +38,7 @@ namespace PCTP.Applications.Services
         private readonly IIFSRepository _ifsRepo;
         private readonly IGioXuatRepository _gioXuatRepo;
         private readonly IPhieuGiaoDBRepository _giaoDbRepo;
+        private readonly IDeliveryWorkingState _workingState;
         private readonly IEventBus _bus;
         private readonly string _tenBan;
         private readonly bool _isMayBanQR;
@@ -67,7 +71,8 @@ namespace PCTP.Applications.Services
                             ITableOrderRepository tableOrderRepo,
                             IPhieuGiaoDBRepository giaoDbRepo,
                             IOrderSourceFactory orderSourceFactory,
-                            IRowCategoryFilter rowCategoryFilter)
+                            IRowCategoryFilter rowCategoryFilter,
+                            IDeliveryWorkingState workingState)
         {
             _phieuRepo = phieuRepo;
             _ifsRepo = ifsRepo;
@@ -80,6 +85,7 @@ namespace PCTP.Applications.Services
             _giaoDbRepo = giaoDbRepo ?? throw new ArgumentNullException(nameof(giaoDbRepo));
             _orderSourceFactory = orderSourceFactory ?? throw new ArgumentNullException(nameof(orderSourceFactory));
             _rowCategoryFilter = rowCategoryFilter ?? throw new ArgumentNullException(nameof(rowCategoryFilter));
+            _workingState = workingState ?? throw new ArgumentNullException(nameof(workingState));
         }
         public void SetTrangThaiBan(bool isBanQR, bool isLoaiSP)
         {
@@ -99,11 +105,16 @@ namespace PCTP.Applications.Services
         // ════════════════════════════════════════════════════════════════════════
         // Load phiếu
         // ════════════════════════════════════════════════════════════════════════
-        public void LoadPhieu(string ngayGiao, string nhaMay,
-       string gioFcc, string gioFccMoTa,
-       int addNm, bool isMayBanQR, bool isBanQR,
-       List<string> checkedGios = null,
-       bool isLoaiSP = false)
+        public void LoadPhieu(
+     string ngayGiao,
+     string nhaMay,
+     string gioFcc,
+     string gioFccMoTa,
+     int addNm,
+     bool isMayBanQR,
+     bool isBanQR,
+     List<string> checkedGios = null,
+     bool isLoaiSP = false)
         {
             // FIX: gọi 1 lần duy nhất ở đầu method
             SetTrangThaiBan(isBanQR, isLoaiSP);
@@ -112,24 +123,46 @@ namespace PCTP.Applications.Services
             if (_cfg.Delivery.LoadTuBangRieng)
             {
                 if (!DateTime.TryParse(
-                        ngayGiao.Length >= 10 ? ngayGiao.Substring(0, 10) : ngayGiao,
-                        out DateTime dt) || dt.Year < 2000)
+                        ngayGiao.Length >= 10
+                            ? ngayGiao.Substring(0, 10)
+                            : ngayGiao,
+                        out DateTime dt)
+                    || dt.Year < 2000)
                 {
                     _bus.Publish(new PhieuLoadedEvent(
-                        new DataTable(), new DataTable(), ""));
+                        new DataTable(),
+                        new DataTable(),
+                        ""));
+
                     return;
                 }
 
                 string ngayGiaoSP = dt.ToString("yyyy-MM-dd");
+
+                // Phase 4:
+                // Tạo context cho DeliveryWorkingState.
+                var context = CreateOrderLoadContext(
+                    dt,
+                    nhaMay,
+                    gioFcc,
+                    gioFccMoTa,
+                    addNm,
+                    isMayBanQR,
+                    isBanQR,
+                    checkedGios,
+                    isLoaiSP);
+
                 // FIX: dùng _isLoaiSP thay vì isLoaiSP local
                 bool isSP = _isLoaiSP;
+
                 string tmpTable = _cfg.Delivery.GetTmpTable(isSP);
                 string ifsTable = _cfg.Delivery.GetIfsTable(isSP);
                 string docQRTable = _cfg.Delivery.GetDocQRTable(isSP);
 
                 if (isMayBanQR && isBanQR)
                 {
-                    int demQR = SWLog.Measure("1. CountDocQRCode",
+                    int demQR = SWLog.Measure(
+                        "1. CountDocQRCode",
                         () => _phieuRepo.CountDocQRCode(docQRTable));
 
                     if (demQR > 0)
@@ -137,25 +170,33 @@ namespace PCTP.Applications.Services
                         DataTable donHangTemp = null;
                         DataTable hangThieuTemp = null;
 
-                        // ✅ FIX: "Lỗi tải phiếu: There is already an open DataReader
-                        // associated with this Command which must be closed first."
-                        // Parallel.Invoke chạy 2 query CÙNG LÚC trên 2 thread, nhưng cả
-                        // LoadPhieuDocQR và LoadHangThieu đều dùng CHUNG 1 SqlConnection
-                        // (_phieuRepo._db — PhieuSqlExecutor dùng chung theo Uow, xem
-                        // HVN_PGH.BuildPresenter). SqlConnection/SqlCommand không thread-safe
-                        // và connection string không bật MultipleActiveResultSets — chạy song
-                        // song trên cùng connection sẽ đá nhau. Đổi lại tuần tự.
-                        donHangTemp = SWLog.Measure("2. LoadPhieuDocQR",
-                            () => _phieuRepo.LoadPhieuDocQR(
-                                      ngayGiaoSP, nhaMay, gioFcc, addNm,
-                                      tmpTable, ifsTable, docQRTable));
-                         hangThieuTemp = SWLog.Measure("2P. TinhHangThieuTuDonHang",
-                            () => _phieuRepo.TinhHangThieuTuDonHang(donHangTemp));
+                        // Phase 4:
+                        // QR/TMP Working State -> IDeliveryWorkingState
+                        //
+                        // Không dùng Parallel.Invoke ở đây vì các repository
+                        // đang dùng chung SqlConnection.
+                        donHangTemp = SWLog.Measure(
+                            "2. LoadPhieuDocQR",
+                            () => _workingState.LoadFromQr(context));
 
-                        string captionQR = $"ĐƠN HÀNG {_cfg.DisplayName}: {dt:dd/MM/yyyy}";
-                        bool coMaNG2 = !_cfg.Delivery.CoGear && _phieuRepo.CheckCoMaNG(tmpTable);
+                        hangThieuTemp = SWLog.Measure(
+                            "2P. TinhHangThieuTuDonHang",
+                            () => _phieuRepo.TinhHangThieuTuDonHang(
+                                donHangTemp));
+
+                        string captionQR =
+                            $"ĐƠN HÀNG {_cfg.DisplayName}: {dt:dd/MM/yyyy}";
+
+                        bool coMaNG2 =
+                            !_cfg.Delivery.CoGear
+                            && _phieuRepo.CheckCoMaNG(tmpTable);
+
                         _bus.Publish(new PhieuLoadedEvent(
-                            donHangTemp, hangThieuTemp, captionQR,coMaNG2));
+                            donHangTemp,
+                            hangThieuTemp,
+                            captionQR,
+                            coMaNG2));
+
                         return;
                     }
                 }
@@ -163,21 +204,31 @@ namespace PCTP.Applications.Services
                 LoadPhieuTuBangRieng_Internal(
                     ngayGiao,
                     checkedGios ?? new List<string>(),
-                    _isLoaiSP,      // FIX: dùng _isLoaiSP
+                    _isLoaiSP,
                     isMayBanQR,
                     isBanQR);
+
                 return;
             }
 
             // ── HVN và các customer dùng IFS Oracle ──────────────────────────────
-            // FIX: BỎ SetTrangThaiBan thứ 2 — đã gọi ở đầu method rồi
+            // FIX: BỎ SetTrangThaiBan thứ 2
+            // vì đã gọi ở đầu method.
 
             string ngayGiaoDate = ngayGiao.Length >= 10
-                ? ngayGiao.Substring(0, 10) : ngayGiao;
+                ? ngayGiao.Substring(0, 10)
+                : ngayGiao;
 
-            if (!DateTime.TryParse(ngayGiaoDate, out DateTime dtHvn) || dtHvn.Year < 2000)
+            if (!DateTime.TryParse(
+                    ngayGiaoDate,
+                    out DateTime dtHvn)
+                || dtHvn.Year < 2000)
             {
-                _bus.Publish(new PhieuLoadedEvent(new DataTable(), new DataTable(), ""));
+                _bus.Publish(new PhieuLoadedEvent(
+                    new DataTable(),
+                    new DataTable(),
+                    ""));
+
                 return;
             }
 
@@ -185,107 +236,225 @@ namespace PCTP.Applications.Services
             {
                 string ngayGiaoSP = dtHvn.ToString("yyyy-MM-dd");
                 string ngayXuat = dtHvn.ToString("ddMMyyyy");
-                string gioFccSP = _cfg.Delivery.LoadTheoNgay ? "" : gioFcc;
-                string gioMoTaSP = _cfg.Delivery.LoadTheoNgay ? "Tất cả ca" : gioFccMoTa;
 
-                if (!_cfg.Delivery.LoadTheoNgay && isMayBanQR && isBanQR &&
-                    (string.IsNullOrWhiteSpace(gioFccMoTa) || !gioFccMoTa.Contains("H")))
+                string gioFccSP =
+                    _cfg.Delivery.LoadTheoNgay
+                        ? ""
+                        : gioFcc;
+
+                string gioMoTaSP =
+                    _cfg.Delivery.LoadTheoNgay
+                        ? "Tất cả ca"
+                        : gioFccMoTa;
+
+                if (!_cfg.Delivery.LoadTheoNgay
+                    && isMayBanQR
+                    && isBanQR
+                    && (string.IsNullOrWhiteSpace(gioFccMoTa)
+                        || !gioFccMoTa.Contains("H")))
                 {
-                    var danhSachGio = (addNm == 1)
-                        ? _gioXuatRepo.GetDanhSachGioVP()
-                        : _gioXuatRepo.GetDanhSachGioHN();
+                    var danhSachGio =
+                        (addNm == 1)
+                            ? _gioXuatRepo.GetDanhSachGioVP()
+                            : _gioXuatRepo.GetDanhSachGioHN();
 
                     var trungKhop = danhSachGio.FirstOrDefault(
-                        g => g.Ma.Equals(gioFcc, StringComparison.OrdinalIgnoreCase));
+                        g => g.Ma.Equals(
+                            gioFcc,
+                            StringComparison.OrdinalIgnoreCase));
+
                     if (trungKhop != null)
+                    {
                         gioMoTaSP = trungKhop.MoTa;
+                    }
                 }
 
-                // FIX: khai báo isSP từ _isLoaiSP — thay cho dòng comment cũ
+                // FIX: khai báo isSP từ _isLoaiSP
                 bool isSP = _isLoaiSP;
-                string tmpTable = _cfg.Delivery.GetTmpTable(isSP);
-                string ifsTable = _cfg.Delivery.GetIfsTable(isSP);
-                string docQRTable = _cfg.Delivery.GetDocQRTable(isSP);
 
-                string caption = _cfg.Delivery.LoadTheoNgay
-                    ? $"ĐƠN HÀNG: {_cfg.DisplayName} - {nhaMay}"
-                    : $"ĐƠN HÀNG: {_cfg.DisplayName} - {nhaMay}   GIỜ GIAO: {gioMoTaSP}";
+                string tmpTable =
+                    _cfg.Delivery.GetTmpTable(isSP);
 
+                string ifsTable =
+                    _cfg.Delivery.GetIfsTable(isSP);
+
+                string docQRTable =
+                    _cfg.Delivery.GetDocQRTable(isSP);
+
+                string caption =
+                    _cfg.Delivery.LoadTheoNgay
+                        ? $"ĐƠN HÀNG: {_cfg.DisplayName} - {nhaMay}"
+                        : $"ĐƠN HÀNG: {_cfg.DisplayName} - {nhaMay}   GIỜ GIAO: {gioMoTaSP}";
+
+                // ================================================================
+                // Phase 4:
+                // Tạo OrderLoadContext cho Working State.
+                // ================================================================
+                var context = CreateOrderLoadContext(
+                    dtHvn,
+                    nhaMay,
+                    gioFcc,
+                    gioMoTaSP,
+                    addNm,
+                    isMayBanQR,
+                    isBanQR,
+                    checkedGios,
+                    isLoaiSP);
+
+                // ================================================================
+                // QR MODE
+                // ================================================================
                 if (isMayBanQR)
                 {
-                    int demQR = SWLog.Measure("1. CountDocQRCode",
+                    int demQR = SWLog.Measure(
+                        "1. CountDocQRCode",
                         () => _phieuRepo.CountDocQRCode(docQRTable));
 
                     if (demQR > 0 && isBanQR)
                     {
                         DataTable donHangTemp = null;
-                        DataTable hangThieuTemp = null;
 
-                        // ✅ FIX: cùng bug DataReader như nhánh trên — không chạy song
-                        // song 2 query trên cùng 1 SqlConnection dùng chung (_phieuRepo).
-                        donHangTemp = SWLog.Measure("2. LoadPhieuDocQR",
-                            () => _phieuRepo.LoadPhieuDocQR(
-                                      ngayGiaoSP, nhaMay, gioFccSP, addNm,
-                                      tmpTable, ifsTable, docQRTable));
-                        bool coMaNG = !_cfg.Delivery.CoGear && _phieuRepo.CheckCoMaNG(tmpTable);
+                        // Phase 4:
+                        // Load DOCQR/TMP thông qua Working State.
+                        donHangTemp = SWLog.Measure(
+                            "2. LoadPhieuDocQR",
+                            () => _workingState.LoadFromQr(context));
+
+                        bool coMaNG =
+                            !_cfg.Delivery.CoGear
+                            && _phieuRepo.CheckCoMaNG(tmpTable);
 
                         _bus.Publish(new PhieuLoadedEvent(
-                            donHangTemp, new DataTable(), caption,coMaNG));
+                            donHangTemp,
+                            new DataTable(),
+                            caption,
+                            coMaNG));
+
                         return;
                     }
 
-                    DataTable donHangIFS = SWLog.Measure("2. GetCustomerOrderJoin [IFS]",
-                        () => _ifsRepo.GetCustomerOrderJoin(
-                                  ngayXuat, gioFccSP, gioMoTaSP, nhaMay, addNm, 1,
-                                  _cfg));
+                    // ------------------------------------------------------------
+                    // IFS -> TMP
+                    // ------------------------------------------------------------
 
-                    SWLog.Measure($"3. EnrichSttHop ({donHangIFS.Rows.Count})",
+                    DataTable donHangIFS =
+                        SWLog.Measure(
+                            "2. GetCustomerOrderJoin [IFS]",
+                            () => _ifsRepo.GetCustomerOrderJoin(
+                                ngayXuat,
+                                gioFccSP,
+                                gioMoTaSP,
+                                nhaMay,
+                                addNm,
+                                1,
+                                _cfg));
+
+                    SWLog.Measure(
+                        $"3. EnrichSttHop ({donHangIFS.Rows.Count})",
                         () => EnrichSttHop(donHangIFS));
 
-                    DataTable donHang = SWLog.Measure("4. LuuVaLoad [IFS→TMP]",
-                        () => _phieuRepo.LuuVaLoad(
-                                  ifsTable,
-                                  "Usp_Qrcode_LOAD_PHIEU_DOCQR2405",
-                                  donHangIFS,
-                                  ngayGiaoSP, nhaMay, gioFccSP, addNm,
-                                  tmpTable, docQRTable));
+                    // ------------------------------------------------------------
+                    // Phase 4:
+                    // TODO tiếp theo:
+                    // _phieuRepo.LuuVaLoad(...)
+                    //        ->
+                    // _workingState.SaveFromSource(...)
+                    //
+                    // Nhưng CHƯA đổi đoạn này nếu chưa xác nhận chính xác
+                    // mapping PhieuTableSet của flow này.
+                    // ------------------------------------------------------------
 
-                    bool coMaNG3 = !_cfg.Delivery.CoGear && _phieuRepo.CheckCoMaNG(tmpTable);
+                    DataTable donHang =
+                        SWLog.Measure(
+                            "4. LuuVaLoad [IFS→TMP]",
+                            () => _phieuRepo.LuuVaLoad(
+                                ifsTable,
+                                "Usp_Qrcode_LOAD_PHIEU_DOCQR2405",
+                                donHangIFS,
+                                ngayGiaoSP,
+                                nhaMay,
+                                gioFccSP,
+                                addNm,
+                                tmpTable,
+                                docQRTable));
 
-                    _bus.Publish(new PhieuLoadedEvent(donHang, new DataTable(), caption,coMaNG3));
+                    bool coMaNG3 =
+                        !_cfg.Delivery.CoGear
+                        && _phieuRepo.CheckCoMaNG(tmpTable);
+
+                    _bus.Publish(new PhieuLoadedEvent(
+                        donHang,
+                        new DataTable(),
+                        caption,
+                        coMaNG3));
                 }
                 else
                 {
-                    string ifsViewTable = _cfg.Delivery.GetIfsViewTable();
-                    // FIX: dùng _isLoaiSP thay vì isSP local (nhất quán)
-                    string tenBanView = GetTenBan(_isLoaiSP);
+                    // ============================================================
+                    // NON QR
+                    // ============================================================
 
-                    DataTable donHangIFS = SWLog.Measure("2. GetCustomerOrderJoin [IFS - view]",
-                        () => _ifsRepo.GetCustomerOrderJoin(
-                                  ngayXuat, gioFccSP, gioMoTaSP, nhaMay, addNm, 1,
-                                  _cfg));
+                    string ifsViewTable =
+                        _cfg.Delivery.GetIfsViewTable();
 
-                    SWLog.Measure($"3. EnrichSttHop ({donHangIFS.Rows.Count})",
+                    // FIX: dùng _isLoaiSP nhất quán
+                    string tenBanView =
+                        GetTenBan(_isLoaiSP);
+
+                    DataTable donHangIFS =
+                        SWLog.Measure(
+                            "2. GetCustomerOrderJoin [IFS - view]",
+                            () => _ifsRepo.GetCustomerOrderJoin(
+                                ngayXuat,
+                                gioFccSP,
+                                gioMoTaSP,
+                                nhaMay,
+                                addNm,
+                                1,
+                                _cfg));
+
+                    SWLog.Measure(
+                        $"3. EnrichSttHop ({donHangIFS.Rows.Count})",
                         () => EnrichSttHop(donHangIFS));
 
-                    DataTable donHang = SWLog.Measure("4. LuuVaLoad [IFSView→TMPView]",
-                        () => _phieuRepo.LuuVaLoad(
-                                  ifsViewTable,
-                                  "Usp_Qrcode_LOAD_PHIEU_DOCQRView2405",
-                                  donHangIFS,
-                                  ngayGiaoSP, nhaMay, gioFccSP, addNm,
-                                  tenBanView,
-                                  docQRTable,
-                                  ifsViewTable));
+                    // ------------------------------------------------------------
+                    // Giữ nguyên flow View ở Phase 4.
+                    // Không ép vào WorkingState khi mapping table chưa rõ.
+                    // ------------------------------------------------------------
 
-                    bool coMaNG4 = !_cfg.Delivery.CoGear && _phieuRepo.CheckCoMaNG(tenBanView);
+                    DataTable donHang =
+                        SWLog.Measure(
+                            "4. LuuVaLoad [IFSView→TMPView]",
+                            () => _phieuRepo.LuuVaLoad(
+                                ifsViewTable,
+                                "Usp_Qrcode_LOAD_PHIEU_DOCQRView2405",
+                                donHangIFS,
+                                ngayGiaoSP,
+                                nhaMay,
+                                gioFccSP,
+                                addNm,
+                                tenBanView,
+                                docQRTable,
+                                ifsViewTable));
 
-                    _bus.Publish(new PhieuLoadedEvent(donHang, new DataTable(), caption,coMaNG4));
+                    bool coMaNG4 =
+                        !_cfg.Delivery.CoGear
+                        && _phieuRepo.CheckCoMaNG(tenBanView);
+
+                    _bus.Publish(new PhieuLoadedEvent(
+                        donHang,
+                        new DataTable(),
+                        caption,
+                        coMaNG4));
                 }
             }
             catch (Exception)
             {
-                _bus.Publish(new PhieuLoadedEvent(new DataTable(), new DataTable(), ""));
+                _bus.Publish(new PhieuLoadedEvent(
+                    new DataTable(),
+                    new DataTable(),
+                    ""));
+
                 throw;
             }
         }
@@ -950,6 +1119,49 @@ namespace PCTP.Applications.Services
         {
             // Ghi LOT vào TMP — giống CapNhapLotTmpPhieu
             _phieuRepo.CapNhapLotTmpPhieu(stt, lotNo, GetTenBan());
+        }
+
+
+        private OrderLoadContext CreateOrderLoadContext(
+         DateTime ngayGiao,
+         string nhaMay,
+         string gioFcc,
+         string gioFccMoTa,
+         int addNm,
+         bool isMayBanQR,
+         bool isBanQR,
+         List<string> checkedGios,
+         bool isLoaiSP)
+        {
+            return new OrderLoadContext
+            {
+                Cfg = _cfg,
+
+                NgayGiao = ngayGiao,
+                NhaMay = nhaMay,
+                AddNm = addNm,
+                GioFcc = gioFcc,
+                GioFccMoTa = gioFccMoTa,
+
+                Category = isLoaiSP
+                    ? OrderCategory.SP
+                    : OrderCategory.MP,
+
+                Source = _cfg.Delivery.LoadTuBangRieng
+                    ? OrderSourceKind.TableOrder
+                    : OrderSourceKind.IFS,
+
+                MachineRole = isMayBanQR
+                    ? MachineRole.DuocBanQR
+                    : MachineRole.ChiXem,
+
+                IsBanQR = isBanQR,
+
+                CheckedGios = checkedGios ?? new List<string>(),
+
+                IfsDataDaLoc = null,
+                IfsLoadError = null
+            };
         }
     }
 

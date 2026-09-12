@@ -300,6 +300,8 @@
     <Compile Include="Modules\GiaoHangKhach\SubForm\UF_TACHLOT.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="Modules\GiaoHangKhach\WorkingState\DeliveryWorkingState.cs" />
+    <Compile Include="Modules\GiaoHangKhach\WorkingState\IDeliveryWorkingState.cs" />
     <Compile Include="Modules\KhoCore\Interfaces\IInspectionConfigService.cs" />
     <Compile Include="Modules\KhoCore\Interfaces\IInspectionService.cs" />
     <Compile Include="Modules\KhoCore\Models\InspectionLogEntry.cs" />
@@ -1093,7 +1095,6 @@
     <Folder Include="Modules\GiaoHangKhach\Models\Delivery\" />
     <Folder Include="Modules\GiaoHangKhach\Models\Order\" />
     <Folder Include="Modules\GiaoHangKhach\Models\Phieu\" />
-    <Folder Include="Modules\GiaoHangKhach\WorkingState\" />
     <Folder Include="Modules\XuLyHangLoi\Legacy\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
