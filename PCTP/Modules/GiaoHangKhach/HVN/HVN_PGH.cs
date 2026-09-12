@@ -895,39 +895,23 @@ namespace PCTP.QRCODE_HVN.PGH
         // Implement BindGioXuatCheckList
         public void BindGioXuatCheckList(List<string> danhSachGio)
         {
-            if (this.InvokeRequired)
+            if (_phieuHeaderControl != null)
             {
-                this.Invoke(new Action(() => BindGioXuatCheckList(danhSachGio)));
+                _phieuHeaderControl.BindGioXuatCheckList(danhSachGio);
                 return;
             }
-
-            CheckGX.ItemCheck -= CheckGX_OnItemCheck;
-            CheckGX.Items.Clear();
-            foreach (var gio in danhSachGio)
-                CheckGX.Items.Add(gio, true);
-            CheckGX.ItemCheck += CheckGX_OnItemCheck;
-
-            // DEBUG — xem CheckGX đang ở đâu
-            System.Diagnostics.Debug.WriteLine(
-                $"[CheckGX] Visible={CheckGX.Visible}" +
-                $" | Location={CheckGX.Location}" +
-                $" | Size={CheckGX.Size}" +
-                $" | Parent={CheckGX.Parent?.Name}" +
-                $" | ParentVisible={CheckGX.Parent?.Visible}" +
-                $" | Items={CheckGX.Items.Count}" +
-                $" | BoundsInForm={CheckGX.RectangleToScreen(CheckGX.ClientRectangle)}");
         }
         // Handler double-click vào cột LOT
         public void LockCheckListYMVN()
         {
-            CheckGX.ItemCheck -= CheckGX_OnItemCheck; // ← tháo event tránh trigger
-            CheckGX.Enabled = false;
+            if (_phieuHeaderControl != null)
+                _phieuHeaderControl.LockCheckListYMVN();
         }
 
         public void UnlockCheckListYMVN()
         {
-            CheckGX.Enabled = true;
-            CheckGX.ItemCheck += CheckGX_OnItemCheck; // ← gắn lại event
+            if (_phieuHeaderControl != null)
+                _phieuHeaderControl.UnlockCheckListYMVN();
         }
         private void GridViewDONHANG_ShowingEditor_LOT(object sender, CancelEventArgs e)
         {
@@ -975,10 +959,9 @@ namespace PCTP.QRCODE_HVN.PGH
         }
         public List<string> GetCheckedGioXuat()
         {
-            var list = new List<string>();
-            foreach (object item in CheckGX.CheckedItems)
-                list.Add(item.ToString());
-            return list;
+            return _phieuHeaderControl != null
+                ? _phieuHeaderControl.GetCheckedGioXuat()
+                : new List<string>();
         }
 
         public void BindGhepLotYMVN(DataTable dt) => gridCTTGL.DataSource = dt;
@@ -1131,12 +1114,6 @@ namespace PCTP.QRCODE_HVN.PGH
                     item.Enabled = false;
                 }
             }
-        }
-        // Handler mới trong HVN_PGH:
-        private void CheckGX_OnItemCheck(object sender, DevExpress.XtraEditors.Controls.ItemCheckEventArgs e)
-        {
-            this.BeginInvoke(new Action(() =>
-                GioXuatCheckedChanged.Invoke(this, EventArgs.Empty)));
         }
 
         public void UnlockAllRadio()

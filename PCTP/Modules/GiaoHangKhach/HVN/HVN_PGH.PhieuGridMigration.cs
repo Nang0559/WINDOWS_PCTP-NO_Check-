@@ -42,6 +42,8 @@ namespace PCTP.QRCODE_HVN.PGH
             _phieuHeaderControl.DateChanged += PhieuHeaderControl_DateChanged;
             _phieuHeaderControl.GioXuatChanged += PhieuHeaderControl_GioXuatChanged;
             _phieuHeaderControl.TabChanged += PhieuHeaderControl_TabChanged;
+            _phieuHeaderControl.GioXuatCheckedChanged += PhieuHeaderControl_GioXuatCheckedChanged;
+            _phieuHeaderControl.CheckGX_ItemCheck += PhieuHeaderControl_CheckGX_ItemCheck;
             _phieuHeaderControl.LoaiPhieuChanged += PhieuHeaderControl_LoaiPhieuChanged;
         }
 
@@ -58,6 +60,16 @@ namespace PCTP.QRCODE_HVN.PGH
         private void PhieuHeaderControl_TabChanged(object sender, EventArgs e)
         {
             tabPaneHVN_Click(sender, e);
+        }
+
+        private void PhieuHeaderControl_GioXuatCheckedChanged(object sender, EventArgs e)
+        {
+            GioXuatCheckedChanged.Invoke(this, e);
+        }
+
+        private void PhieuHeaderControl_CheckGX_ItemCheck(object sender, EventArgs e)
+        {
+            CheckGX_ItemCheck.Invoke(this, e);
         }
 
         private void PhieuHeaderControl_LoaiPhieuChanged(object sender, EventArgs e)
