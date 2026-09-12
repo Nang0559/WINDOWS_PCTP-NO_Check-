@@ -34,12 +34,6 @@ namespace PCTP.QRCODE_HVN.PGH
         private BandedGridColumn gridColumn5 { get { return _phieuBottomStateControl.GhepLotGio; } }
         private BandedGridColumn gridColumn6 { get { return _phieuBottomStateControl.GhepLotLot; } }
 
-        // Compatibility bridge for the legacy Hàng thiếu grid.
-        private GridControl HangThieuGrid
-        {
-            get { return _hangThieuControl != null ? _hangThieuControl.Grid : GCT_HT; }
-        }
-
         protected override void OnLoad(EventArgs e)
         {
             base.OnLoad(e);
@@ -78,7 +72,6 @@ namespace PCTP.QRCODE_HVN.PGH
             if (parent == null)
                 return;
 
-            object existingDataSource = GCT_HT.DataSource;
             int childIndex = parent.Controls.GetChildIndex(GCT_HT);
 
             _hangThieuControl = new HangThieuControl();
@@ -87,8 +80,10 @@ namespace PCTP.QRCODE_HVN.PGH
             parent.Controls.Add(_hangThieuControl);
             parent.Controls.SetChildIndex(_hangThieuControl, childIndex);
 
-            if (existingDataSource != null)
-                _hangThieuControl.Grid.DataSource = existingDataSource;
+            // Adopt the existing Designer grid instead of rebuilding it.
+            // This preserves every column/view setting and keeps legacy code
+            // that still references GCT_HT valid during the transition.
+            _hangThieuControl.Adopt(GCT_HT);
         }
 
         private void MigratePhieuOrderGridToUserControl()
