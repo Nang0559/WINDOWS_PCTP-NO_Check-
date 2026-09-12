@@ -11,7 +11,7 @@ namespace PCTP.Modules.GiaoHangKhach.OrderLoading.GiaoDB
     /// Usp_Qrcode_LOAD_PHIEU_DOCQR2405 → TMPPHIEUGIAOHANGDB (bảng output đã có LOT/STATUS).
     /// Độc lập với TableOrder (mục 2.4): không có bước so sánh IFS baseline.
     /// </summary>
-    public class GiaoDbOrderLoadStrategy : IOrderLoadStrategy
+    public class GiaoDbOrderLoadStrategy 
     {
         private readonly IPhieuGiaoDBRepository _giaoDbRepo;
 

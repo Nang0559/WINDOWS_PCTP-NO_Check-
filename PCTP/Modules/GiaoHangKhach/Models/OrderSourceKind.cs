@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace PCTP.Modules.GiaoHangKhach.Mode
+namespace PCTP.Modules.GiaoHangKhach.Models
 {
     public enum OrderSourceKind
     {

@@ -1,4 +1,5 @@
-﻿using PCTP.VIEWSTOCK.Models;
+﻿using PCTP.Shared.Models;
+using PCTP.VIEWSTOCK.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -28,7 +29,7 @@ namespace PCTP.Common
     {
         /// <summary>100003 (HTN) dùng tem TỔNG 6 phần; 100001/100002 dùng tem 4 phần.</summary>
         public static bool ExpectsTemTong(CustomerConfig cfg)
-            => cfg.LoadTuBangRieng && !cfg.CoGear;
+            => cfg.Delivery.LoadTuBangRieng && !cfg.Delivery.CoGear;
 
         public static TemFccParseResult Parse(
             string rawQr,
@@ -74,7 +75,7 @@ namespace PCTP.Common
             string gear = "";
             string lotFcc;
 
-            if (cfg.CoGear)
+            if (cfg.Delivery.CoGear)
             {
                 // ── 100002 YMVN: giống DocQRService.NormalizeLotFCC_YMVN ────────
                 string gearRaw = LotCodeHelper.GetGearPart(lotSl);

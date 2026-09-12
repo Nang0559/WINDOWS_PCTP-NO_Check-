@@ -17,6 +17,7 @@ using PCTP.Infrastructure.Repositories;
 using PCTP.Infrastructure.Repositories;
 using PCTP.Modules.GiaoHangKhach;
 using PCTP.Modules.GiaoHangKhach.OrderLoading;
+using PCTP.Modules.GiaoHangKhach.OrderLoading.Category;
 using PCTP.Modules.GiaoHangKhach.OrderLoading.GiaoDB;
 using PCTP.Modules.GiaoHangKhach.OrderLoading.IFS;
 using PCTP.Modules.GiaoHangKhach.Repositories;
@@ -239,8 +240,8 @@ namespace PCTP.QRCODE_HVN.PGH
             var qrRepo = new DocQRRepository(sql, _cfg);
             var sqlRepo = new SqlRepository(phieuDb, phieuUow);
             var luuTruRepo = new PhieuLuuTruRepository(phieuDb, phieuUow);
+            var classifier = new DockCodeCategoryClassifier();
 
-      
             var gioVP = _gioRepo.GetDictGioVP();
             var gioHN = _gioRepo.GetDictGioHN();
             phieuRepo.EnsureTablesExist();
@@ -262,11 +263,14 @@ namespace PCTP.QRCODE_HVN.PGH
             var ifsStrategy = new IfsOrderLoadStrategy(ifsRepo, luuTruRepo, phieuTmpRepo);
             var tableOrderStrategy = new OrderTableLoadStrategy(tableOrderRepo, phieuTmpRepo);
             var giaoDbStrategy = new GiaoDbOrderLoadStrategy(phieugiaDBRepo);
-            var orderLoadFactory = new OrderLoadStrategyFactory(ifsStrategy, tableOrderStrategy, giaoDbStrategy);
+            var ifsSource = new IfsOrderSource(ifsStrategy);
+            var tableOrderSource = new TableOrderSource(tableOrderStrategy);
+            var giaoDbSource = new GiaoDbOrderSource(giaoDbStrategy);
+            var orderSourceFactory = new OrderSourceFactory(ifsSource, tableOrderSource, giaoDbSource);
 
             var phieuSvc = new PhieuService(phieuRepo, ifsRepo, bus, _gioRepo, tenBan, _cfg,
                                              isMayBanQR, tableOrderRepo, phieugiaDBRepo,
-                                             orderLoadFactory);   // ← THÊM tham số cuối
+                                             orderSourceFactory, classifier);   // ← THÊM tham số cuối
             var hangthieucangaySvc = new HangThieuCaNgayService(ifsRepo, luuTruRepo, phieuDb);
             var qrSvc = new DocQRService(qrRepo, bus, _cfg);
             var inPhieuSvc = new InPhieuService(ifsRepo, phieuRepo, sqlRepo, gioVP, gioHN, _cfg);

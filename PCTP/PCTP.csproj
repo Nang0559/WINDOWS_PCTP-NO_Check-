@@ -270,6 +270,10 @@
     <Compile Include="Modules\GiaoHangKhach\Contracts\IItemFifoConfigRepository.cs" />
     <Compile Include="Modules\GiaoHangKhach\Contracts\IHangThieuCaNgayService.cs" />
     <Compile Include="Modules\GiaoHangKhach\Models\OrderSourceResult.cs" />
+    <Compile Include="Modules\GiaoHangKhach\OrderLoading\Category\DockCodeRowCategoryFilter.cs" />
+    <Compile Include="Modules\GiaoHangKhach\OrderLoading\Category\GioMoTaCategoryResolver.cs" />
+    <Compile Include="Modules\GiaoHangKhach\OrderLoading\Category\IOrderCategoryResolver.cs" />
+    <Compile Include="Modules\GiaoHangKhach\OrderLoading\Category\IRowCategoryFilter.cs" />
     <Compile Include="Modules\GiaoHangKhach\OrderLoading\GiaoDB\GiaoDbOrderLoadStrategy.cs" />
     <Compile Include="Modules\GiaoHangKhach\OrderLoading\GiaoDB\GiaoDbOrderSource.cs" />
     <Compile Include="Modules\GiaoHangKhach\OrderLoading\IFS\IfsOrderSource.cs" />
@@ -283,7 +287,6 @@
     <Compile Include="Modules\GiaoHangKhach\Services\InPhieuService.cs" />
     <Compile Include="Modules\GiaoHangKhach\Services\PhieuService.cs" />
     <Compile Include="ClassFunction.cs" />
-    <Compile Include="Modules\GiaoHangKhach\OrderLoading\IOrderLoadStrategy.cs" />
     <Compile Include="Modules\GiaoHangKhach\SubForm\FormItemFifoConfig.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -344,9 +347,7 @@
     <Compile Include="Modules\GiaoHangKhach\Repositories\PhieuValidationRepository.cs" />
     <Compile Include="Modules\GiaoHangKhach\Repositories\TableOrderRepo.cs" />
     <Compile Include="Modules\GiaoHangKhach\Services\IMachinePermissionService.cs" />
-    <Compile Include="Modules\GiaoHangKhach\OrderLoading\IOrderLoadStrategyFactory.cs" />
     <Compile Include="Modules\GiaoHangKhach\Services\MachinePermissionService.cs" />
-    <Compile Include="Modules\GiaoHangKhach\OrderLoading\OrderLoadStrategyFactory.cs" />
     <Compile Include="Modules\GiaoHangKhach\SubForm\FRM_UploadGiaoDB.cs">
       <SubType>Form</SubType>
     </Compile>

@@ -1,4 +1,5 @@
-﻿using PCTP.VIEWSTOCK.Models;
+﻿using PCTP.Shared.Models;
+using PCTP.VIEWSTOCK.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -34,10 +35,10 @@ namespace PCTP.Shared.Common
         /// <summary>Tạo từ CustomerConfig — chọn đúng bộ bảng SP hay thường.</summary>
         public static PhieuTableSet FromConfig(CustomerConfig cfg, bool isSP, string tenBanView = null)
             => new PhieuTableSet(
-                cfg.GetTmpTable(isSP),
-                cfg.LoadTuBangRieng ? cfg.OrderTable : cfg.GetIfsTable(isSP),
-                cfg.GetDocQRTable(isSP),
+                cfg.Delivery.GetTmpTable(isSP),
+                cfg.Delivery.LoadTuBangRieng ? cfg.Delivery.OrderTable : cfg.Delivery.GetIfsTable(isSP),
+                cfg.Delivery.GetDocQRTable(isSP),
                 tenBanView,
-                cfg.GetIfsViewTable(isSP));
+                cfg.Delivery.GetIfsViewTable(isSP));
     }
 }

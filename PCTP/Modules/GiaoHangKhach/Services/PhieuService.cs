@@ -1,13 +1,15 @@
-﻿using DevExpress.Office;
+﻿using DevExpress.DataAccess.DataFederation;
+using DevExpress.Office;
 using DevExpress.Pdf.Native;
 using PCTP.Domain.Entities;
 using PCTP.Domain.Events;
 using PCTP.Domain.Interfaces;
 using PCTP.FuctionMain;
 using PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao;
-using PCTP.Modules.GiaoHangKhach.Mode;
+using PCTP.Modules.GiaoHangKhach.Models;
 using PCTP.Modules.GiaoHangKhach.Models;
 using PCTP.Modules.GiaoHangKhach.OrderLoading;
+using PCTP.Modules.GiaoHangKhach.OrderLoading.Category;
 using PCTP.Shared.Common;
 using PCTP.Shared.Models;
 using PCTP.VIEWSTOCK.Models;
@@ -46,7 +48,9 @@ namespace PCTP.Applications.Services
         // cần"). PhieuRepository hiện KHÔNG còn implement các method này nữa, nên
         // PhieuService phải nhận riêng dependency này (implementation: TableOrderRepo).
         private readonly ITableOrderRepository _tableOrderRepo;
-        private readonly IOrderLoadStrategyFactory _orderLoadFactory;
+        private readonly IOrderSourceFactory _orderSourceFactory;
+
+        private readonly IRowCategoryFilter _rowCategoryFilter;
 
         // ── Trạng thái hiện tại — được set từ Presenter ─────────────────────
         private bool _isBanQR = false;
@@ -61,7 +65,8 @@ namespace PCTP.Applications.Services
                             bool isMayBanQR,
                             ITableOrderRepository tableOrderRepo,
                             IPhieuGiaoDBRepository giaoDbRepo,
-                            IOrderLoadStrategyFactory orderLoadFactory)
+                            IOrderSourceFactory orderSourceFactory,
+                            IRowCategoryFilter rowCategoryFilter)
         {
             _phieuRepo = phieuRepo;
             _ifsRepo = ifsRepo;
@@ -72,7 +77,8 @@ namespace PCTP.Applications.Services
             _isMayBanQR = isMayBanQR;
             _tableOrderRepo = tableOrderRepo ?? throw new ArgumentNullException(nameof(tableOrderRepo));
             _giaoDbRepo = giaoDbRepo ?? throw new ArgumentNullException(nameof(giaoDbRepo));
-            _orderLoadFactory = orderLoadFactory ?? throw new ArgumentNullException(nameof(orderLoadFactory));
+            _orderSourceFactory = orderSourceFactory ?? throw new ArgumentNullException(nameof(orderSourceFactory));
+            _rowCategoryFilter = rowCategoryFilter ?? throw new ArgumentNullException(nameof(rowCategoryFilter));
         }
         public void SetTrangThaiBan(bool isBanQR, bool isLoaiSP)
         {
@@ -433,23 +439,8 @@ namespace PCTP.Applications.Services
         // ════════════════════════════════════════════════════════════════════
         private DataTable FilterIfsDataByDockCode(DataTable ifsData, bool isLoaiSP, string dockCodeSP)
         {
-            if (ifsData == null) return new DataTable();
-            if (!ifsData.Columns.Contains("CUA")) return ifsData;
-
-            string safeDockCode = (dockCodeSP ?? "").Trim();
-
-            DataTable result = ifsData.Clone();
-            foreach (DataRow row in ifsData.Rows)
-            {
-                string cua = (row["CUA"]?.ToString() ?? "").Trim();
-                bool isRowSP = string.Equals(cua, safeDockCode, StringComparison.OrdinalIgnoreCase);
-
-                // isLoaiSP=true  → chỉ giữ dòng CUA = DockCodeSP (SP)
-                // isLoaiSP=false → chỉ giữ dòng CUA <> DockCodeSP (MP)
-                if (isLoaiSP == isRowSP)
-                    result.ImportRow(row);
-            }
-            return result;
+            var wanted = isLoaiSP ? OrderCategory.SP : OrderCategory.MP;
+            return _rowCategoryFilter.Filter(ifsData, wanted, _cfg);
         }
 
 
@@ -738,8 +729,8 @@ namespace PCTP.Applications.Services
                 Category = _isLoaiSP ? OrderCategory.SP : OrderCategory.MP
             };
 
-            var strategy = _orderLoadFactory.GetStrategy(ctx);
-            return strategy.LoadDonHangGoc(ctx);
+            var source = _orderSourceFactory.GetSource(ctx);
+            return source.Load(ctx).Orders;
         }
         public void XuLySauUploadGiaoDB()
         {

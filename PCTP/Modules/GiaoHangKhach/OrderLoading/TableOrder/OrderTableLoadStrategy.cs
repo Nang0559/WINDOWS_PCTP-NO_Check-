@@ -14,7 +14,7 @@ namespace PCTP.Modules.GiaoHangKhach.OrderLoading
     /// đã tách sang <see cref="GiaoDB.GiaoDbOrderLoadStrategy"/> (roadmap mục 2.4:
     /// "GiaoDB không phải MilkRun").
     /// </summary>
-    public class OrderTableLoadStrategy : IOrderLoadStrategy
+    public class OrderTableLoadStrategy 
     {
         private readonly ITableOrderRepository _phieuRepo;
         private readonly IPhieuTmpRepository _phieuTmpRepo;

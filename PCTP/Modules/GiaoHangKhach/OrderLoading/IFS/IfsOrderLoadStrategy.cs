@@ -7,7 +7,7 @@ using System.Linq;
 
 namespace PCTP.Modules.GiaoHangKhach.OrderLoading.IFS
 {
-    public class IfsOrderLoadStrategy : IOrderLoadStrategy
+    public class IfsOrderLoadStrategy 
     {
         private readonly IIFSRepository _ifsRepo;
         private readonly IPhieuLuuTruRepository _luuTruRepo;

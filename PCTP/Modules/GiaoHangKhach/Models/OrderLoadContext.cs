@@ -1,4 +1,4 @@
-﻿using PCTP.Modules.GiaoHangKhach.Mode;
+﻿using PCTP.Modules.GiaoHangKhach.Models;
 using PCTP.Shared.Enums;
 using PCTP.Shared.Models;
 using System;
