@@ -1,0 +1,30 @@
+name: phase10j-finalize
+on:
+  push:
+    branches: [ master ]
+permissions:
+  contents: write
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Finalize checklist facade
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path('PCTP/Modules/GiaoHangKhach/HVN/HVN_PGH.cs')
+          s=p.read_text(encoding='utf-8')
+          s=re.sub(r'        public void SetCheckedGiosYMVN\(List<string> checkedGios\)\s*\{.*?\n        \}\n        // ── Khởi tạo dependency graph', '''        public void SetCheckedGiosYMVN(List<string> checkedGios)\n        {\n            if (_phieuHeaderControl != null)\n                _phieuHeaderControl.SetCheckedGiosYMVN(checkedGios);\n        }\n        // ── Khởi tạo dependency graph''', s, count=1, flags=re.S)
+          p.write_text(s,encoding='utf-8')
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add PCTP/Modules/GiaoHangKhach/HVN/HVN_PGH.cs
+          git commit -m "Phase 10J: delegate checked YMVN state to header control"
+          git push
+          rm -f .github/workflows/phase10j-finalize.yml
+          git add .github/workflows/phase10j-finalize.yml
+          git commit -m "Phase 10J: remove temporary finalize workflow"
+          git push
