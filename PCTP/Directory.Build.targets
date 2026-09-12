@@ -1,0 +1,7 @@
+<Project>
+  <ItemGroup>
+    <Compile Include="Modules\GiaoHangKhach\Services\DocQRScanEngine.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Services\DocQRSessionState.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Services\DocQRTableResolver.cs" />
+  </ItemGroup>
+</Project>
