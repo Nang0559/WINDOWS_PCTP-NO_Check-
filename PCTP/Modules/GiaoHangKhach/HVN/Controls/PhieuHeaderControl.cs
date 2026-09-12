@@ -1,8 +1,10 @@
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Windows.Forms;
 using DevExpress.XtraBars.Navigation;
 using DevExpress.XtraEditors;
+using DevExpress.XtraEditors.Controls;
 using PCTP.Shared.Models;
 
 namespace PCTP.QRCODE_HVN.PGH.Controls
@@ -18,6 +20,7 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
         private Button _btnToggleLoaiPhieu;
         private bool _isLoaiSP;
         private bool _eventsWired;
+        private bool _checkGxEventWired;
         private bool _suspendDateChanged;
         private bool _suspendGioXuatChanged;
         private CustomerConfig _cfg;
@@ -43,6 +46,8 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
         public event EventHandler LoaiPhieuChanged = delegate { };
         public event EventHandler DateChanged = delegate { };
         public event EventHandler GioXuatChanged = delegate { };
+        public event EventHandler GioXuatCheckedChanged = delegate { };
+        public event EventHandler CheckGX_ItemCheck = delegate { };
         public event EventHandler TabChanged = delegate { };
 
         public void SetDate(DateTime date)
@@ -175,6 +180,89 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
             ConfigureCustomer(cfg);
         }
 
+        public void BindGioXuatCheckList(List<string> danhSachGio)
+        {
+            var checkList = FindControl<CheckedListBoxControl>("CheckGX");
+            if (checkList == null)
+                return;
+
+            if (checkList.InvokeRequired)
+            {
+                checkList.Invoke(new Action(() => BindGioXuatCheckList(danhSachGio)));
+                return;
+            }
+
+            UnwireCheckGxEvent();
+            checkList.Items.Clear();
+
+            if (danhSachGio != null)
+            {
+                foreach (var gio in danhSachGio)
+                    checkList.Items.Add(gio, true);
+            }
+
+            WireCheckGxEvent();
+        }
+
+        public List<string> GetCheckedGioXuat()
+        {
+            var result = new List<string>();
+            var checkList = FindControl<CheckedListBoxControl>("CheckGX");
+            if (checkList == null)
+                return result;
+
+            foreach (object item in checkList.CheckedItems)
+                result.Add(item.ToString());
+
+            return result;
+        }
+
+        public void SetCheckedGiosYMVN(List<string> checkedGios)
+        {
+            var checkList = FindControl<CheckedListBoxControl>("CheckGX");
+            if (checkList == null)
+                return;
+
+            var selected = new HashSet<string>(
+                checkedGios ?? new List<string>(),
+                StringComparer.OrdinalIgnoreCase);
+
+            UnwireCheckGxEvent();
+            try
+            {
+                for (int i = 0; i < checkList.Items.Count; i++)
+                {
+                    object item = checkList.Items[i];
+                    bool isChecked = selected.Contains(item == null ? string.Empty : item.ToString());
+                    checkList.SetItemChecked(i, isChecked);
+                }
+            }
+            finally
+            {
+                WireCheckGxEvent();
+            }
+        }
+
+        public void LockCheckListYMVN()
+        {
+            var checkList = FindControl<CheckedListBoxControl>("CheckGX");
+            if (checkList == null)
+                return;
+
+            UnwireCheckGxEvent();
+            checkList.Enabled = false;
+        }
+
+        public void UnlockCheckListYMVN()
+        {
+            var checkList = FindControl<CheckedListBoxControl>("CheckGX");
+            if (checkList == null)
+                return;
+
+            checkList.Enabled = true;
+            WireCheckGxEvent();
+        }
+
         private void WireHeaderEvents()
         {
             if (_eventsWired || _content == null)
@@ -194,6 +282,7 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
             if (radioHn != null)
                 radioHn.SelectedIndexChanged += HeaderGioXuatChanged;
 
+            WireCheckGxEvent();
             _eventsWired = true;
         }
 
@@ -216,7 +305,56 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
             if (radioHn != null)
                 radioHn.SelectedIndexChanged -= HeaderGioXuatChanged;
 
+            UnwireCheckGxEvent();
             _eventsWired = false;
+        }
+
+        private void WireCheckGxEvent()
+        {
+            if (_checkGxEventWired)
+                return;
+
+            var checkList = FindControl<CheckedListBoxControl>("CheckGX");
+            if (checkList == null)
+                return;
+
+            checkList.ItemCheck += HeaderCheckGxItemCheck;
+            _checkGxEventWired = true;
+        }
+
+        private void UnwireCheckGxEvent()
+        {
+            if (!_checkGxEventWired)
+                return;
+
+            var checkList = FindControl<CheckedListBoxControl>("CheckGX");
+            if (checkList != null)
+                checkList.ItemCheck -= HeaderCheckGxItemCheck;
+
+            _checkGxEventWired = false;
+        }
+
+        private void HeaderCheckGxItemCheck(object sender, ItemCheckEventArgs e)
+        {
+            var checkList = sender as CheckedListBoxControl;
+            if (checkList != null && checkList.IsHandleCreated)
+            {
+                try
+                {
+                    checkList.BeginInvoke(new Action(() =>
+                        GioXuatCheckedChanged.Invoke(this, EventArgs.Empty)));
+                }
+                catch (InvalidOperationException)
+                {
+                    GioXuatCheckedChanged.Invoke(this, EventArgs.Empty);
+                }
+            }
+            else
+            {
+                GioXuatCheckedChanged.Invoke(this, EventArgs.Empty);
+            }
+
+            CheckGX_ItemCheck.Invoke(this, EventArgs.Empty);
         }
 
         private void HeaderDateChanged(object sender, EventArgs e)
