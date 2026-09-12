@@ -56,6 +56,7 @@ namespace PCTP.Presentation.Views
         void ShowTachLot();
         void ShowLoiCapNhapKho(DataTable loiData);
         int ShowChonHinhThucIn();
+        ChonLotResult ShowChonLotTuKho(int stt, string maHang, int soLuong, DataTable danhSachLot);
         void ShowReport(DataTable reportData);
         void ShowReportWithGioHeader(DataTable data, string gioHeader);
 
