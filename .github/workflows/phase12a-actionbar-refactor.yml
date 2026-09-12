@@ -1,0 +1,160 @@
+name: Phase 12A action bar refactor
+
+on:
+  push:
+    branches: [master]
+
+permissions:
+  contents: write
+
+jobs:
+  refactor:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Refactor HVN_PGH action bar ownership
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path('PCTP/Modules/GiaoHangKhach/HVN/HVN_PGH.cs')
+          text = path.read_text(encoding='utf-8-sig')
+
+          replacements = [
+          (
+'''            UIButton.AllowGlyphSkinning = false;
+            UIButton.Buttons.Clear();
+            UIButton.Buttons.AddRange(new WindowsUIButton[]
+            {
+        new WindowsUIButton { Caption = "Xóa Dòng Được Chọn", Style = ButtonStyle.PushButton, ImageUri = "Delete;Size16x16;Colored" },
+        new WindowsUIButton { Caption = "Xóa Toàn Bộ Dữ Liệu", Style = ButtonStyle.PushButton, ImageUri = "clear;Size16x16;Colored"  },
+        new WindowsUIButton { Caption = "Hoàn Thành",           Style = ButtonStyle.PushButton, ImageUri = "apply;Size16x16;Colored"  }
+            });
+            UIButton.Buttons.Insert(2, new WindowsUISeparator());
+''',
+'''            _phieuActionBarControl.ConfigureDocQr();
+'''),
+          (
+'''            UIButton.AllowGlyphSkinning = false;
+            UIButton.Buttons.Clear();
+            var b1 = new WindowsUIButton
+            {
+                Caption = _cfg.Delivery.LoadTuBangRieng ? "Show Thông Tin Lệch IFS" : "Kiểm Tra Ghep Lot", // ← SỬA
+                Style = ButtonStyle.PushButton,
+                Image = imageBT.Images[1],
+                Tag = "BTN_GHEPLOT_TOGGLE"   // ← THÊM
+            };
+            var b2 = new WindowsUIButton { Caption = "In Phiếu", Style = ButtonStyle.PushButton, ImageUri = "Print;Size16x16;Colored" };
+            var b3 = new WindowsUIButton { Caption = "DOC QRCODE", Style = ButtonStyle.PushButton, ImageUri = "IndentIncrease;Size16x16;Colored" };
+
+            UIButton.Buttons.AddRange(new WindowsUIButton[] { b3, b1, b2 });
+            UIButton.Buttons.Insert(1, new WindowsUISeparator());
+''',
+'''            _phieuActionBarControl.ConfigurePhieuView(
+                _cfg.Delivery.LoadTuBangRieng ? "Show Thông Tin Lệch IFS" : "Kiểm Tra Ghep Lot",
+                imageBT);
+'''),
+          (
+'''            UIButton.AllowGlyphSkinning = false;
+            UIButton.Buttons.Clear();
+            UIButton.Buttons.AddRange(new WindowsUIButton[]
+    {
+        new WindowsUIButton { Caption = "Upload Đơn Hàng",
+            Style = ButtonStyle.PushButton,
+            ImageUri = "Import;Size16x16;Colored" },
+        new WindowsUIButton { Caption = "DOC QRCODE",
+            Style = ButtonStyle.PushButton,
+            ImageUri = "IndentIncrease;Size16x16;Colored" },
+        new WindowsUIButton { Caption = "In Phiếu",
+            Style = ButtonStyle.PushButton,
+            ImageUri = "Print;Size16x16;Colored" }
+            });
+''',
+'''            _phieuActionBarControl.ConfigureGiaoDb();
+'''),
+          ]
+
+          for old, new in replacements:
+              if old not in text:
+                  raise SystemExit('Phase 12A replacement block not found')
+              text = text.replace(old, new, 1)
+
+          start = text.index('        public void SetupPhieuButtons(')
+          end = text.index('\n        // ════════════════════════════════════════════════════════════════════\n        // III. ĐỌC GIÁ TRỊ TỪ UI', start)
+          method = '''        public void SetupPhieuButtons(bool showCapNhapKho, bool showKiemTraMaNG,
+                                       bool showGhepLot, bool showDocQRCode,
+                                       bool showLayLaiLot = false,
+                                       bool showStop = false, bool showHangThieuCaNgay = true)
+        {
+            _phieuActionBarControl.ConfigureNormal(
+                _cfg.Delivery.LoadTuBangRieng
+                    ? "Show Thông Tin Lệch IFS"
+                    : "Kiểm Tra Ghep Lot",
+                showCapNhapKho,
+                showKiemTraMaNG,
+                showGhepLot,
+                showDocQRCode,
+                showLayLaiLot,
+                showStop,
+                showHangThieuCaNgay,
+                imageBT);
+        }
+'''
+          text = text[:start] + method + text[end:]
+
+          old = '''        public void SetupYMVNButtons()
+        {
+            UIButton.AllowGlyphSkinning = false;
+            UIButton.Buttons.Clear();
+
+            UIButton.Buttons.Add(new WindowsUIButton
+            {
+                Caption = "In Phiếu",
+                Style = ButtonStyle.PushButton,
+                ImageUri = "Print;Size16x16;Colored"
+            });
+
+            UIButton.Buttons.Add(new WindowsUIButton
+            {
+                Caption = _isLoaiSP ? "Đang xem: SP" : "Đang xem: MP",
+                Style = ButtonStyle.PushButton,
+                ImageUri = "Refresh;Size16x16;Colored"
+            });
+        }
+'''
+          new = '''        public void SetupYMVNButtons()
+        {
+            _phieuActionBarControl.ConfigureYmvN(_isLoaiSP);
+        }
+'''
+          if old not in text:
+              raise SystemExit('SetupYMVNButtons block not found')
+          text = text.replace(old, new, 1)
+
+          old = '''                    // Cập nhật caption button trong UIButton
+                    foreach (var b in UIButton.Buttons.OfType<WindowsUIButton>())
+                    {
+                        if (b.Caption == "Đang xem: MP" || b.Caption == "Đang xem: SP")
+                        {
+                            b.Caption = _isLoaiSP ? "Đang xem: SP" : "Đang xem: MP";
+                            break;
+                        }
+                    }
+'''
+          new = '''                    _phieuActionBarControl.UpdateLoaiPhieuCaption(_isLoaiSP);
+'''
+          if old not in text:
+              raise SystemExit('LoaiPhieu caption block not found')
+          text = text.replace(old, new, 1)
+
+          path.write_text(text, encoding='utf-8')
+      - name: Commit refactor
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add PCTP/Modules/GiaoHangKhach/HVN/HVN_PGH.cs .github/workflows/phase12a-actionbar-refactor.yml
+          git diff --cached --quiet && exit 0
+          git commit -m "refactor(giaohangkhach): move action bar configuration to control"
+          git push
