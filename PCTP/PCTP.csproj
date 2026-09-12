@@ -262,16 +262,22 @@
     </Compile>
     <Compile Include="ALLVAR.cs" />
     <Compile Include="Domain\Events\HoanThanhYMVNCompletedEvent.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Configuration\GiaoHangKhachConfiguration.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Models\OrderCategory.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Models\OrderLoadContext.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Models\OrderSourceKind.cs" />
     <Compile Include="Modules\GiaoHangKhach\FifoViolation.cs" />
-    <Compile Include="Modules\GiaoHangKhach\Intefaces\IItemFifoConfigRepository.cs" />
-    <Compile Include="Modules\GiaoHangKhach\Intefaces\IHangThieuCaNgayService.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Contracts\IItemFifoConfigRepository.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Contracts\IHangThieuCaNgayService.cs" />
+    <Compile Include="Modules\GiaoHangKhach\OrderLoading\GiaoDB\GiaoDbOrderLoadStrategy.cs" />
+    <Compile Include="Modules\GiaoHangKhach\OrderLoading\MilkRun\MilkRunOrderLoadStrategy.cs" />
     <Compile Include="Modules\GiaoHangKhach\Repositories\ItemFifoConfigRepository.cs" />
     <Compile Include="Modules\GiaoHangKhach\Services\DocQRService.cs" />
     <Compile Include="Modules\GiaoHangKhach\Services\HangThieuCaNgayService.cs" />
     <Compile Include="Modules\GiaoHangKhach\Services\InPhieuService.cs" />
     <Compile Include="Modules\GiaoHangKhach\Services\PhieuService.cs" />
     <Compile Include="ClassFunction.cs" />
-    <Compile Include="Domain\Interfaces\IOrderLoadStrategy.cs" />
+    <Compile Include="Modules\GiaoHangKhach\OrderLoading\IOrderLoadStrategy.cs" />
     <Compile Include="Modules\GiaoHangKhach\SubForm\FormItemFifoConfig.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -312,15 +318,15 @@
     <Compile Include="Infrastructure\Sql\DataAccessStatus.cs" />
     <Compile Include="Infrastructure\Sql\SQL.cs" />
     <Compile Include="ClsResize.cs" />
-    <Compile Include="Modules\GiaoHangKhach\IFSOrderLoad\IfsOrderLoadStrategy.cs" />
-    <Compile Include="Modules\GiaoHangKhach\Intefaces\PhieuGiao\IPhieuGiaoDBRepository.cs" />
-    <Compile Include="Modules\GiaoHangKhach\Intefaces\PhieuGiao\IPhieuKhoRepository.cs" />
-    <Compile Include="Modules\GiaoHangKhach\Intefaces\PhieuGiao\IPhieuLotRepository.cs" />
-    <Compile Include="Modules\GiaoHangKhach\Intefaces\PhieuGiao\IPhieuLuuTruRepository.cs" />
-    <Compile Include="Modules\GiaoHangKhach\Intefaces\PhieuGiao\IPhieuRepository.cs" />
-    <Compile Include="Modules\GiaoHangKhach\Intefaces\PhieuGiao\IPhieuTmpRepository.cs" />
-    <Compile Include="Modules\GiaoHangKhach\Intefaces\PhieuGiao\IPhieuValidationRepository.cs" />
-    <Compile Include="Modules\GiaoHangKhach\Intefaces\PhieuGiao\ITableOrderRepository.cs" />
+    <Compile Include="Modules\GiaoHangKhach\OrderLoading\IFS\IfsOrderLoadStrategy.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Contracts\PhieuGiao\IPhieuGiaoDBRepository.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Contracts\PhieuGiao\IPhieuKhoRepository.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Contracts\PhieuGiao\IPhieuLotRepository.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Contracts\PhieuGiao\IPhieuLuuTruRepository.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Contracts\PhieuGiao\IPhieuRepository.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Contracts\PhieuGiao\IPhieuTmpRepository.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Contracts\PhieuGiao\IPhieuValidationRepository.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Contracts\PhieuGiao\ITableOrderRepository.cs" />
     <Compile Include="Modules\GiaoHangKhach\PhieuSqlExecutor.cs" />
     <Compile Include="Modules\GiaoHangKhach\PhieuSqlHelper.cs" />
     <Compile Include="Modules\GiaoHangKhach\Repositories\PhieuGiaoDBRepository.cs" />
@@ -332,13 +338,13 @@
     <Compile Include="Modules\GiaoHangKhach\Repositories\PhieuValidationRepository.cs" />
     <Compile Include="Modules\GiaoHangKhach\Repositories\TableOrderRepo.cs" />
     <Compile Include="Modules\GiaoHangKhach\Services\IMachinePermissionService.cs" />
-    <Compile Include="Modules\GiaoHangKhach\Services\IOrderLoadStrategyFactory.cs" />
+    <Compile Include="Modules\GiaoHangKhach\OrderLoading\IOrderLoadStrategyFactory.cs" />
     <Compile Include="Modules\GiaoHangKhach\Services\MachinePermissionService.cs" />
-    <Compile Include="Modules\GiaoHangKhach\Services\OrderLoadStrategyFactory.cs" />
+    <Compile Include="Modules\GiaoHangKhach\OrderLoading\OrderLoadStrategyFactory.cs" />
     <Compile Include="Modules\GiaoHangKhach\SubForm\FRM_UploadGiaoDB.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="Modules\GiaoHangKhach\TableOrderLoad\OrderTableLoadStrategy.cs" />
+    <Compile Include="Modules\GiaoHangKhach\OrderLoading\OrderTableLoadStrategy.cs" />
     <Compile Include="Modules\KhoCore\Helpers\SlotParser.cs" />
     <Compile Include="Modules\KhoCore\Repositories\StockHistoryRepository.cs" />
     <Compile Include="Modules\KhoCore\Repositories\IStockHistoryRepository.cs" />
@@ -1072,7 +1078,14 @@
   </ItemGroup>
   <ItemGroup>
     <Folder Include="4wAutoWH\" />
+    <Folder Include="Modules\GiaoHangKhach\Contracts\Services\" />
+    <Folder Include="Modules\GiaoHangKhach\Contracts\Views\" />
     <Folder Include="Modules\GiaoHangKhach\HVN\FuctionQR\" />
+    <Folder Include="Modules\GiaoHangKhach\Models\Customer\" />
+    <Folder Include="Modules\GiaoHangKhach\Models\Delivery\" />
+    <Folder Include="Modules\GiaoHangKhach\Models\Order\" />
+    <Folder Include="Modules\GiaoHangKhach\Models\Phieu\" />
+    <Folder Include="Modules\GiaoHangKhach\WorkingState\" />
     <Folder Include="Modules\XuLyHangLoi\Legacy\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
