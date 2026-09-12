@@ -1057,32 +1057,6 @@ namespace PCTP.QRCODE_HVN.PGH
         //    }
         //}
 
-        private bool TrySelectRadio(RadioGroupItemCollection items,
-                                      HashSet<string> gioSet,
-                                      string gioFCC,
-                                      Action<int> setIndex)
-        {
-            for (int i = 0; i < items.Count; i++)
-            {
-                var item = (RadioGroupItem)items[i];
-                if (string.IsNullOrEmpty(item.AccessibleName)) continue;
-
-                var itemSet = new HashSet<string>(
-                    item.AccessibleName.Split(',')
-                                       .Select(g => g.Trim().Trim('\'')),
-                    StringComparer.OrdinalIgnoreCase);
-
-                if (itemSet.SetEquals(gioSet))
-                {
-                    setIndex(i);
-                    _presenter.UpdateGioXuat(
-                        new GioXuat(gioFCC, item.Description ?? gioFCC));
-                    return true;
-                }
-            }
-            return false;
-        }
-
         private void LockRadioGroup(RadioGroupItemCollection items,
                                       HashSet<string> gioSet,
                                       Action<int> setIndex)
@@ -1109,17 +1083,8 @@ namespace PCTP.QRCODE_HVN.PGH
 
         public void UpdateGioXuatFromDB(string gioFCC)
         {
-            // gioFCC = "'17','18','19'" → tách ra Set để compare
-            var gioSet = new HashSet<string>(
-                gioFCC.Split(',')
-                      .Select(g => g.Trim().Trim('\'')),   // "17","18","19"
-                StringComparer.OrdinalIgnoreCase);
-
-            if (TrySelectRadio(radioGroup2.Properties.Items, gioSet, gioFCC,
-                               i => radioGroup2.SelectedIndex = i)) return;
-
-            TrySelectRadio(RDO_GXHN.Properties.Items, gioSet, gioFCC,
-                           i => RDO_GXHN.SelectedIndex = i);
+            if (_phieuHeaderControl != null)
+                _phieuHeaderControl.UpdateGioXuatFromDB(gioFCC);
         }
 
         

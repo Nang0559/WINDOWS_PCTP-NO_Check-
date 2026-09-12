@@ -197,6 +197,74 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
 
 
 
+        public bool UpdateGioXuatFromDB(string gioFCC)
+        {
+            if (string.IsNullOrWhiteSpace(gioFCC))
+                return false;
+
+            var gioSet = new HashSet<string>(
+                gioFCC.Split(',').Select(g => g.Trim().Trim('\'')),
+                StringComparer.OrdinalIgnoreCase);
+
+            var radioGroup2 = FindControl<RadioGroup>("radioGroup2");
+            var rdoGxHn = FindControl<RadioGroup>("RDO_GXHN");
+            if (radioGroup2 == null || rdoGxHn == null)
+                return false;
+
+            if (TrySelectRadioFromDb(
+                radioGroup2.Properties.Items,
+                gioSet,
+                gioFCC,
+                i => radioGroup2.SelectedIndex = i))
+                return true;
+
+            return TrySelectRadioFromDb(
+                rdoGxHn.Properties.Items,
+                gioSet,
+                gioFCC,
+                i => rdoGxHn.SelectedIndex = i);
+        }
+
+        private bool TrySelectRadioFromDb(
+            RadioGroupItemCollection items,
+            HashSet<string> gioSet,
+            string gioFCC,
+            Action<int> setIndex)
+        {
+            for (int i = 0; i < items.Count; i++)
+            {
+                var item = (RadioGroupItem)items[i];
+                if (string.IsNullOrEmpty(item.AccessibleName))
+                    continue;
+
+                var itemSet = new HashSet<string>(
+                    item.AccessibleName.Split(',')
+                                       .Select(g => g.Trim().Trim('\'')),
+                    StringComparer.OrdinalIgnoreCase);
+
+                if (!itemSet.SetEquals(gioSet))
+                    continue;
+
+                _suspendGioXuatChanged = true;
+                try
+                {
+                    setIndex(i);
+                    CurrentGioXuat = new GioXuat(
+                        gioFCC,
+                        item.Description ?? gioFCC);
+                }
+                finally
+                {
+                    _suspendGioXuatChanged = false;
+                }
+
+                GioXuatChanged.Invoke(this, EventArgs.Empty);
+                return true;
+            }
+
+            return false;
+        }
+
         public void LockDatePicker()
         {
             var control = FindControl<DateEdit>("dateNX");
