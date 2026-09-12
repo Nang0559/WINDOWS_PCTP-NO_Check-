@@ -89,7 +89,7 @@ namespace PCTP.QRCODE_HVN.PGH
             _cfg = CustomerTableConfig.Get(customerNo);
             // Gỡ event tránh trigger khi form chưa ready
             gridVDOCQRCODE.FocusedRowChanged += gridVDOCQRCODE_FocusedRowChanged;
-            gridVSUASL.FocusedRowChanged += gridVSUASL_FocusedRowChanged;
+            _phieuBottomStateControl.SuaSlView.FocusedRowChanged += gridVSUASL_FocusedRowChanged;
             _presenter = BuildPresenter();
         }
 
@@ -197,7 +197,7 @@ namespace PCTP.QRCODE_HVN.PGH
         }
         public void BindHangThieu(DataTable dt) => GCT_HT.DataSource = dt;
 
-        public void BindLechIFS(DataTable dt) => gridCLECH.DataSource = dt;
+        public void BindLechIFS(DataTable dt) => _phieuBottomStateControl.LechGrid.DataSource = dt;
         public void BindDocQRCode(DataTable dt)
         {
             gridCtrDOCQrCODE.DataSource = dt;
@@ -221,7 +221,7 @@ namespace PCTP.QRCODE_HVN.PGH
             gridCtrDOCQrCODE.DataSource = dt;
             gridVDOCQRCODE.RefreshData();
         }
-        public void BindGhepLot(DataTable dt) => gridCTTGL.DataSource = dt;
+        public void BindGhepLot(DataTable dt) => _phieuBottomStateControl.GhepLotGrid.DataSource = dt;
 
         public void SetGridCaption(string caption) => gridBandDH.Caption = caption;
 
@@ -361,8 +361,8 @@ namespace PCTP.QRCODE_HVN.PGH
                 lblDocQrcode.Text = _cfg.Delivery?.LabelDocQR ?? "Đọc QRCode theo thứ tự: FCC → HVN";
             }));
             // ── Ban đầu ẩn SUASL, chờ user click dòng QR ────────────────────────
-            gridCtrSUASL.Visible = false;
-            gridCTTGL.Visible = false;  // cả 2 đều ẩn khi vào màn hình QR
+            _phieuBottomStateControl.SuaSlGrid.Visible = false;
+            _phieuBottomStateControl.GhepLotGrid.Visible = false;  // cả 2 đều ẩn khi vào màn hình QR
 
             UIButton.AllowGlyphSkinning = false;
             UIButton.Buttons.Clear();
@@ -401,10 +401,10 @@ namespace PCTP.QRCODE_HVN.PGH
             }
 
             // ── Phục hồi: ẩn SUASL, hiện GHEPLOT ────────────────────────────────
-            gridCtrSUASL.Visible = false;
-            gridCTTGL.Visible = true;
-            gridCTTGL.BringToFront();
-            gridCLECH.Visible = false;
+            _phieuBottomStateControl.SuaSlGrid.Visible = false;
+            _phieuBottomStateControl.GhepLotGrid.Visible = true;
+            _phieuBottomStateControl.GhepLotGrid.BringToFront();
+            _phieuBottomStateControl.LechGrid.Visible = false;
 
             // Reset textbox sửa SL
             TXT_FCCTU.Text = "";
@@ -575,13 +575,13 @@ namespace PCTP.QRCODE_HVN.PGH
         // ════════════════════════════════════════════════════════════════════
         public DataTable GetDonHangTable() => gridCtrDONHANG.DataSource as DataTable;
         public DataTable GetAddressTable() => _addressTable;
-        // Form gốc INGHEPLOT(): GridVTTGL.GetSelectedRows() → row[0]=MA, row[1]=GIO, row[2]=LOT
+        // Form gốc INGHEPLOT(): _phieuBottomStateControl.GhepLotView.GetSelectedRows() → row[0]=MA, row[1]=GIO, row[2]=LOT
         public IEnumerable<GhepLotItem> GetSelectedGhepLotRows()
         {
             var list = new List<GhepLotItem>();
-            foreach (int i in GridVTTGL.GetSelectedRows())
+            foreach (int i in _phieuBottomStateControl.GhepLotView.GetSelectedRows())
             {
-                DataRow row = GridVTTGL.GetDataRow(i);
+                DataRow row = _phieuBottomStateControl.GhepLotView.GetDataRow(i);
                 if (row == null) continue;
                 list.Add(new GhepLotItem
                 {
@@ -920,7 +920,7 @@ namespace PCTP.QRCODE_HVN.PGH
                 : new List<string>();
         }
 
-        public void BindGhepLotYMVN(DataTable dt) => gridCTTGL.DataSource = dt;
+        public void BindGhepLotYMVN(DataTable dt) => _phieuBottomStateControl.GhepLotGrid.DataSource = dt;
 
         public void ShowReportYMVN(DataTable reportData)
         {
@@ -1243,14 +1243,14 @@ namespace PCTP.QRCODE_HVN.PGH
 
         private void HandleGhepLotToggle(WindowsUIButton btn)
         {
-            bool dangHienLech = gridCLECH.Visible;
+            bool dangHienLech = _phieuBottomStateControl.LechGrid.Visible;
 
             if (dangHienLech)
             {
                 // Đang xem Lệch IFS → quay lại GhepLot: chuyển grid + chạy kiểm tra ghép lot như bình thường
-                gridCLECH.Visible = false;
-                gridCTTGL.Visible = true;
-                gridCTTGL.BringToFront();
+                _phieuBottomStateControl.LechGrid.Visible = false;
+                _phieuBottomStateControl.GhepLotGrid.Visible = true;
+                _phieuBottomStateControl.GhepLotGrid.BringToFront();
                 btn.Caption = "Show Thông Tin Lệch IFS";
 
                 KiemTraGhepLotClicked.Invoke(this, EventArgs.Empty);
@@ -1258,9 +1258,9 @@ namespace PCTP.QRCODE_HVN.PGH
             else
             {
                 // Đang xem GhepLot → chuyển sang xem Lệch IFS (data đã bind sẵn từ BindLechIFS, không cần gọi Presenter)
-                gridCTTGL.Visible = false;
-                gridCLECH.Visible = true;
-                gridCLECH.BringToFront();
+                _phieuBottomStateControl.GhepLotGrid.Visible = false;
+                _phieuBottomStateControl.LechGrid.Visible = true;
+                _phieuBottomStateControl.LechGrid.BringToFront();
                 btn.Caption = "GhepLot";
             }
         }
@@ -1271,22 +1271,22 @@ namespace PCTP.QRCODE_HVN.PGH
             int stt = GetFocusedDocQRStt();
             if (stt < 0)
             {
-                // Không có dòng hợp lệ → ẩn gridCtrSUASL, hiện gridCTTGL
-                gridCtrSUASL.Visible = false;
-                gridCTTGL.BringToFront();
+                // Không có dòng hợp lệ → ẩn _phieuBottomStateControl.SuaSlGrid, hiện _phieuBottomStateControl.GhepLotGrid
+                _phieuBottomStateControl.SuaSlGrid.Visible = false;
+                _phieuBottomStateControl.GhepLotGrid.BringToFront();
                 return;
             }
 
             var (lotFcc, slFcc, slHvn) = GetFocusedDocQRTemInfo();
             _sttSuaSl = stt;
 
-            // Load data vào gridCtrSUASL
-            gridCtrSUASL.DataSource = BuildSuaSlTable(stt, lotFcc, slFcc, slHvn);
+            // Load data vào _phieuBottomStateControl.SuaSlGrid
+            _phieuBottomStateControl.SuaSlGrid.DataSource = BuildSuaSlTable(stt, lotFcc, slFcc, slHvn);
 
-            // ── Hiện gridCtrSUASL, ẩn gridCTTGL ─────────────────────────────────
-            gridCTTGL.Visible = false;
-            gridCtrSUASL.Visible = true;
-            gridCtrSUASL.BringToFront();
+            // ── Hiện _phieuBottomStateControl.SuaSlGrid, ẩn _phieuBottomStateControl.GhepLotGrid ─────────────────────────────────
+            _phieuBottomStateControl.GhepLotGrid.Visible = false;
+            _phieuBottomStateControl.SuaSlGrid.Visible = true;
+            _phieuBottomStateControl.SuaSlGrid.BringToFront();
 
             // Reset textbox
             TXT_FCCTU.Text = "";

@@ -21,6 +21,18 @@ namespace PCTP.QRCODE_HVN.PGH
             MigrateDocQrGridToUserControl();
         }
 
+        private int ReplaceControl(Control existing, Control replacement, Control parent)
+        {
+            if (existing == null || replacement == null || parent == null)
+                return -1;
+
+            int childIndex = parent.Controls.GetChildIndex(existing);
+            parent.Controls.Remove(existing);
+            parent.Controls.Add(replacement);
+            parent.Controls.SetChildIndex(replacement, childIndex);
+            return childIndex;
+        }
+
         private void MigratePhieuHeaderToUserControl()
         {
             if (_phieuHeaderControl != null || PN_DOCQR_TOP == null || panelPhieu == null)
@@ -30,13 +42,8 @@ namespace PCTP.QRCODE_HVN.PGH
             if (parent == null)
                 return;
 
-            int childIndex = parent.Controls.GetChildIndex(panelPhieu);
-
             _phieuHeaderControl = new PhieuHeaderControl();
-
-            parent.Controls.Remove(panelPhieu);
-            parent.Controls.Add(_phieuHeaderControl);
-            parent.Controls.SetChildIndex(_phieuHeaderControl, childIndex);
+            ReplaceControl(panelPhieu, _phieuHeaderControl, parent);
 
             _phieuHeaderControl.Adopt(panelPhieu);
             _phieuHeaderControl.DateChanged += PhieuHeaderControl_DateChanged;
@@ -86,13 +93,8 @@ namespace PCTP.QRCODE_HVN.PGH
             if (parent == null)
                 return;
 
-            int childIndex = parent.Controls.GetChildIndex(GCT_HT);
-
             _hangThieuControl = new HangThieuControl();
-
-            parent.Controls.Remove(GCT_HT);
-            parent.Controls.Add(_hangThieuControl);
-            parent.Controls.SetChildIndex(_hangThieuControl, childIndex);
+            ReplaceControl(GCT_HT, _hangThieuControl, parent);
 
             _hangThieuControl.Adopt(GCT_HT);
         }
@@ -106,17 +108,12 @@ namespace PCTP.QRCODE_HVN.PGH
                 ? gridCtrDONHANG.DataSource
                 : null;
 
-            int childIndex = gridCtrDONHANG != null
-                ? sidePanel2.Controls.GetChildIndex(gridCtrDONHANG)
-                : sidePanel2.Controls.Count;
-
             _phieuGridControl = new PhieuGridControl();
 
             if (gridCtrDONHANG != null)
-                sidePanel2.Controls.Remove(gridCtrDONHANG);
-
-            sidePanel2.Controls.Add(_phieuGridControl);
-            sidePanel2.Controls.SetChildIndex(_phieuGridControl, childIndex);
+                ReplaceControl(gridCtrDONHANG, _phieuGridControl, sidePanel2);
+            else
+                sidePanel2.Controls.Add(_phieuGridControl);
 
             if (existingDataSource != null)
                 _phieuGridControl.OrderGrid.DataSource = existingDataSource;
@@ -136,17 +133,12 @@ namespace PCTP.QRCODE_HVN.PGH
                 ? gridCtrDOCQrCODE.DataSource
                 : null;
 
-            int childIndex = gridCtrDOCQrCODE != null
-                ? sidePanel2.Controls.GetChildIndex(gridCtrDOCQrCODE)
-                : sidePanel2.Controls.Count;
-
             _docQrControl = new DocQrControl();
 
             if (gridCtrDOCQrCODE != null)
-                sidePanel2.Controls.Remove(gridCtrDOCQrCODE);
-
-            sidePanel2.Controls.Add(_docQrControl);
-            sidePanel2.Controls.SetChildIndex(_docQrControl, childIndex);
+                ReplaceControl(gridCtrDOCQrCODE, _docQrControl, sidePanel2);
+            else
+                sidePanel2.Controls.Add(_docQrControl);
 
             if (existingDataSource != null)
                 _docQrControl.QrGrid.DataSource = existingDataSource;
