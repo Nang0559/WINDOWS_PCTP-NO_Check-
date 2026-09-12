@@ -7,21 +7,26 @@ on:
 
 jobs:
   refactor:
-    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, 'Phase 10F: automate header UI ownership refactor')
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v4
       - name: Refactor header UI ownership
-        shell: python
         run: |
+          python - <<'PY'
           from pathlib import Path
+
           p = Path('PCTP/Modules/GiaoHangKhach/HVN/HVN_PGH.cs')
           s = p.read_text(encoding='utf-8')
 
-          s = s.replace('        private bool _isLoaiSP = false;\n        public bool IsLoaiSP => _isLoaiSP;\n        private Button _btnToggleLoaiPhieu;\n        public event EventHandler LoaiPhieuChanged = delegate { };\n',
-                        '        public bool IsLoaiSP => _phieuHeaderControl != null && _phieuHeaderControl.IsLoaiSP;\n        public event EventHandler LoaiPhieuChanged = delegate { };\n')
+          s = s.replace(
+              '        private bool _isLoaiSP = false;\n'
+              '        public bool IsLoaiSP => _isLoaiSP;\n'
+              '        private Button _btnToggleLoaiPhieu;\n'
+              '        public event EventHandler LoaiPhieuChanged = delegate { };\n',
+              '        public bool IsLoaiSP => _phieuHeaderControl != null && _phieuHeaderControl.IsLoaiSP;\n'
+              '        public event EventHandler LoaiPhieuChanged = delegate { };\n')
 
           start = s.index('        private void BtnToggleLoaiPhieu_Click(')
           end = s.index('        public void BindHangThieu(', start)
@@ -31,22 +36,21 @@ jobs:
           end = s.index('        public void SetCheckedGiosYMVN(', start)
           replacement = '''        public void SetupNhaMayUI(CustomerConfig cfg)\n        {\n            if (_phieuHeaderControl == null)\n                return;\n\n            _phieuHeaderControl.ConfigureCustomer(\n                cfg,\n                tabPaneHVN,\n                tabVP,\n                tabHN,\n                radioGroup2,\n                RDO_GXHN,\n                CheckGX,\n                btnUploadMilkrun);\n        }\n'''
           s = s[:start] + replacement + s[end:]
-
           p.write_text(s, encoding='utf-8')
 
           p = Path('PCTP/Modules/GiaoHangKhach/HVN/HVN_PGH.PhieuGridMigration.cs')
           s = p.read_text(encoding='utf-8')
           old = '            _phieuHeaderControl.Adopt(panelPhieu);\n'
-          new = old + '            _phieuHeaderControl.LoaiPhieuChanged += PhieuHeaderControl_LoaiPhieuChanged;\n'
-          if new not in s:
-              s = s.replace(old, new, 1)
-              s += '''\n\n'''
+          hook = '            _phieuHeaderControl.LoaiPhieuChanged += PhieuHeaderControl_LoaiPhieuChanged;\n'
+          if hook not in s:
+              s = s.replace(old, old + hook, 1)
           marker = '        private void MigrateHangThieuToUserControl()'
-          if 'PhieuHeaderControl_LoaiPhieuChanged' not in s:
+          if 'private void PhieuHeaderControl_LoaiPhieuChanged(' not in s:
               idx = s.index(marker)
               handler = '''        private void PhieuHeaderControl_LoaiPhieuChanged(object sender, EventArgs e)\n        {\n            LoaiPhieuChanged.Invoke(this, e);\n        }\n\n'''
               s = s[:idx] + handler + s[idx:]
           p.write_text(s, encoding='utf-8')
+          PY
       - name: Commit refactor
         run: |
           git config user.name "github-actions[bot]"
