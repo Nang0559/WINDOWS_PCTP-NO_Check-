@@ -15,7 +15,11 @@ namespace PCTP.Presentation.Presenters
         private void OnUploadMilkrunSP(object sender, EventArgs e)
         {
             if (_c.Cfg.Delivery.CoGear) { using (var frm = new FRM_UploadMikrun(new SQLPROVIDER(), _c.Cfg)) frm.ShowDialog(); }
-            else if (_c.Cfg.Delivery.LoadTheoNgay) { using (var frm = new FRM_UploadMikrun(new SQLPROVIDER(), _c.Cfg, targetTable: "Purchase_Order_HTN", title: "Upload PO HTN")) frm.ShowDialog(); }
+            else if (_c.CustomerBehavior.UsesDateBasedOrderUpload)
+            {
+                using (var frm = new FRM_UploadMikrun(new SQLPROVIDER(), _c.Cfg, targetTable: _c.CustomerBehavior.GetOrderUploadTable(), title: _c.CustomerBehavior.GetOrderUploadTitle()))
+                    frm.ShowDialog();
+            }
             else return;
             _c.View.ShowLoading(true); try { _c.LoadPhieuHienTai(); } catch (Exception ex) { _c.View.ShowError("Lỗi reload sau upload: " + ex.Message); } finally { _c.HideLoadingUnlessAwaitingPhieuLoad(); }
         }
