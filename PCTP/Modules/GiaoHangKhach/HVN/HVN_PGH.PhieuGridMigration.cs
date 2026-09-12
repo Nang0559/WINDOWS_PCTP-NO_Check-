@@ -49,7 +49,7 @@ namespace PCTP.QRCODE_HVN.PGH
 
         private void PhieuHeaderControl_DateChanged(object sender, EventArgs e)
         {
-            dateNX_EditValueChanged(sender, e);
+            DateChanged.Invoke(this, EventArgs.Empty);
         }
 
         private void PhieuHeaderControl_GioXuatChanged(object sender, EventArgs e)
@@ -59,7 +59,7 @@ namespace PCTP.QRCODE_HVN.PGH
 
         private void PhieuHeaderControl_TabChanged(object sender, EventArgs e)
         {
-            tabPaneHVN_Click(sender, e);
+            TabChanged.Invoke(this, EventArgs.Empty);
         }
 
         private void PhieuHeaderControl_GioXuatCheckedChanged(object sender, EventArgs e)
