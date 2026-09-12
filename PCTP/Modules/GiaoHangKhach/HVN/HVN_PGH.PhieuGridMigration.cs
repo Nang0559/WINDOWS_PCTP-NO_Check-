@@ -11,6 +11,7 @@ namespace PCTP.QRCODE_HVN.PGH
         private PhieuBottomStateControl _phieuBottomStateControl;
         private PhieuHeaderControl _phieuHeaderControl;
         private HangThieuControl _hangThieuControl;
+        private PhieuActionBarControl _phieuActionBarControl;
 
         protected override void OnLoad(EventArgs e)
         {
@@ -19,6 +20,7 @@ namespace PCTP.QRCODE_HVN.PGH
             MigrateHangThieuToUserControl();
             MigratePhieuOrderGridToUserControl();
             MigrateDocQrGridToUserControl();
+            MigratePhieuActionBarToUserControl();
         }
 
         private int ReplaceControl(Control existing, Control replacement, Control parent)
@@ -147,6 +149,20 @@ namespace PCTP.QRCODE_HVN.PGH
             gridVDOCQRCODE = _docQrControl.QrView;
             gridVDOCQRCODE.FocusedRowChanged -= gridVDOCQRCODE_FocusedRowChanged;
             gridVDOCQRCODE.FocusedRowChanged += gridVDOCQRCODE_FocusedRowChanged;
+        }
+
+        private void MigratePhieuActionBarToUserControl()
+        {
+            if (_phieuActionBarControl != null || sidePanel3 == null || UIButton == null)
+                return;
+
+            Control parent = UIButton.Parent;
+            if (parent == null)
+                return;
+
+            _phieuActionBarControl = new PhieuActionBarControl();
+            ReplaceControl(UIButton, _phieuActionBarControl, parent);
+            _phieuActionBarControl.Adopt(UIButton);
         }
     }
 }
