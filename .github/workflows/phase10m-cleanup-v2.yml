@@ -1,0 +1,57 @@
+name: phase10m-cleanup-v2
+
+on:
+  push:
+    paths:
+      - '.phase10m-trigger-v2'
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Remove obsolete header handlers
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+
+          path = Path('PCTP/Modules/GiaoHangKhach/HVN/HVN_PGH.cs')
+          text = path.read_text(encoding='utf-8-sig')
+
+          patterns = [
+              r'\n\s*private void dateNX_EditValueChanged\(object sender, EventArgs e\)\s*=> DateChanged\.Invoke\(this, EventArgs\.Empty\);\s*',
+              r'\n\s*private void tabPaneHVN_Click\(object sender, EventArgs e\)\s*=> TabChanged\.Invoke\(this, EventArgs\.Empty\);\s*',
+              r'\n\s*private void RDO_GXHN_SelectedIndexChanged\(object sender, EventArgs e\)\s*\{\s*GioXuatChanged\.Invoke\(this, EventArgs\.Empty\);\s*\}\s*',
+              r'\n\s*private void radioGroup2_SelectedIndexChanged\(object sender, EventArgs e\)\s*\{\s*GioXuatChanged\.Invoke\(this, EventArgs\.Empty\);\s*\}\s*',
+          ]
+
+          names = [
+              'dateNX_EditValueChanged',
+              'tabPaneHVN_Click',
+              'RDO_GXHN_SelectedIndexChanged',
+              'radioGroup2_SelectedIndexChanged',
+          ]
+
+          for pattern, name in zip(patterns, names):
+              text, count = re.subn(pattern, '\n', text, count=1)
+              if count != 1:
+                  raise SystemExit(f'Expected one obsolete handler: {name}; matched {count}')
+
+          for name in names:
+              if re.search(r'\b' + re.escape(name) + r'\b', text):
+                  raise SystemExit(f'Legacy handler still present: {name}')
+
+          path.write_text(text, encoding='utf-8-sig')
+
+      - name: Verify and commit cleanup
+        shell: bash
+        run: |
+          git diff --check
+          if grep -nE 'dateNX_EditValueChanged|tabPaneHVN_Click|RDO_GXHN_SelectedIndexChanged|radioGroup2_SelectedIndexChanged' PCTP/Modules/GiaoHangKhach/HVN/HVN_PGH.cs; then exit 1; fi
+          git add PCTP/Modules/GiaoHangKhach/HVN/HVN_PGH.cs
+          git diff --cached --check
+          git commit -m "Phase 10M: remove obsolete header event handlers"
+          git push
