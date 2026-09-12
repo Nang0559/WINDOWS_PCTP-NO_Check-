@@ -15,9 +15,7 @@ namespace PCTP.Applications.Services
 {
     /// <summary>
     /// Orchestration layer của pipeline load phiếu giao hàng.
-    ///
-    /// Source chỉ lấy dữ liệu nguồn.
-    /// WorkingState quản lý TMP/DOCQR.
+    /// Source chỉ lấy dữ liệu nguồn; WorkingState quản lý TMP/DOCQR.
     /// Service này ghép các bước thành OrderLoadResult.
     /// Không publish EventBus và không xử lý UI.
     /// </summary>
@@ -30,6 +28,7 @@ namespace PCTP.Applications.Services
         private readonly IRowCategoryFilter _rowCategoryFilter;
         private readonly IDeliveryWorkingState _workingState;
         private readonly CustomerConfig _cfg;
+        private readonly string _tenBan;
 
         public PhieuLoadService(
             IPhieuRepository phieuRepo,
@@ -38,7 +37,8 @@ namespace PCTP.Applications.Services
             IOrderSourceFactory orderSourceFactory,
             IRowCategoryFilter rowCategoryFilter,
             IDeliveryWorkingState workingState,
-            CustomerConfig cfg)
+            CustomerConfig cfg,
+            string tenBan)
         {
             _phieuRepo = phieuRepo ?? throw new ArgumentNullException(nameof(phieuRepo));
             _ifsRepo = ifsRepo ?? throw new ArgumentNullException(nameof(ifsRepo));
@@ -47,6 +47,7 @@ namespace PCTP.Applications.Services
             _rowCategoryFilter = rowCategoryFilter ?? throw new ArgumentNullException(nameof(rowCategoryFilter));
             _workingState = workingState ?? throw new ArgumentNullException(nameof(workingState));
             _cfg = cfg ?? throw new ArgumentNullException(nameof(cfg));
+            _tenBan = tenBan;
         }
 
         public OrderLoadResult Load(OrderLoadContext context)
@@ -74,12 +75,12 @@ namespace PCTP.Applications.Services
             DateTime dt = context.NgayGiao;
             string ngayGiaoSP = dt.ToString("yyyy-MM-dd");
             string ngayXuat = dt.ToString("ddMMyyyy");
-
             string gioFccSP = _cfg.Delivery.LoadTheoNgay ? "" : context.GioFcc;
             string gioMoTaSP = _cfg.Delivery.LoadTheoNgay ? "Tất cả ca" : context.GioFccMoTa;
+            bool isSP = context.Category == OrderCategory.SP;
 
-            string tmpTable = _cfg.Delivery.GetTmpTable(context.Category == OrderCategory.SP);
-            string docQRTable = _cfg.Delivery.GetDocQRTable(context.Category == OrderCategory.SP);
+            string tmpTable = _cfg.Delivery.GetTmpTable(isSP);
+            string docQRTable = _cfg.Delivery.GetDocQRTable(isSP);
 
             string caption = _cfg.Delivery.LoadTheoNgay
                 ? $"ĐƠN HÀNG: {_cfg.DisplayName} - {context.NhaMay}"
@@ -150,7 +151,10 @@ namespace PCTP.Applications.Services
             }
 
             string ifsViewTable = _cfg.Delivery.GetIfsViewTable();
-            string tenBanView = _cfg.Delivery.GetTmpTable(context.Category == OrderCategory.SP);
+            string tenBanView =
+                context.MachineRole == MachineRole.DuocBanQR
+                    ? _cfg.Delivery.GetTmpTable(isSP)
+                    : _tenBan;
 
             DataTable donHangView = SWLog.Measure(
                 "4. LuuVaLoad [IFSView→TMPView]",
@@ -207,11 +211,8 @@ namespace PCTP.Applications.Services
                 gioMoTa = string.Join("+", context.CheckedGios) + "H";
             }
 
-            string dockCodeSP = _cfg.Delivery.DockCodeSP;
             bool isSP = context.Category == OrderCategory.SP;
             string docQRTable = _cfg.Delivery.GetDocQRTable(isSP);
-
-            DataTable donHang;
             bool isQrMachine = context.MachineRole == MachineRole.DuocBanQR;
 
             if (isQrMachine && context.IsBanQR)
@@ -221,18 +222,33 @@ namespace PCTP.Applications.Services
                 if (demQR > 0)
                 {
                     string tmpTable = _cfg.Delivery.GetTmpTable(isSP);
-                    donHang = _workingState.LoadCurrentOrder(context);
+                    DataTable current = _phieuRepo.LoadTuTmpTable(tmpTable);
+                    return BuildTableResult(context, current, gioMoTa, false);
                 }
-                else
-                {
-                    donHang = LoadTableOrder(context, gioFcc, isSP, dockCodeSP);
-                }
-            }
-            else
-            {
-                donHang = LoadTableOrder(context, gioFcc, isSP, dockCodeSP);
             }
 
+            OrderSourceResult sourceResult = _orderSourceFactory
+                .GetSource(context)
+                .Load(context);
+
+            DataTable donHang = sourceResult.Orders ?? new DataTable();
+
+            return BuildTableResult(
+                context,
+                donHang,
+                gioMoTa,
+                HasRows(sourceResult.Difference),
+                sourceResult.Warning);
+        }
+
+        private OrderLoadResult BuildTableResult(
+            OrderLoadContext context,
+            DataTable donHang,
+            string gioMoTa,
+            bool hasDifference,
+            string warning = null)
+        {
+            bool isSP = context.Category == OrderCategory.SP;
             DataTable hangThieu = _phieuRepo.TinhHangThieuTuDonHang(donHang);
 
             string caption = _cfg.Delivery.CoGear
@@ -244,12 +260,12 @@ namespace PCTP.Applications.Services
             {
                 Orders = donHang,
                 HasMaNG = false,
-                HasDifference = HasRows(LoadDifference(context)),
+                HasDifference = hasDifference,
                 Source = context.Source,
                 Category = context.Category,
                 Caption = caption,
-                Warning = context.IfsLoadError,
-                IsQr = isQrMachine && context.IsBanQR
+                Warning = warning ?? context.IfsLoadError,
+                IsQr = context.MachineRole == MachineRole.DuocBanQR && context.IsBanQR
             };
         }
 
@@ -272,25 +288,10 @@ namespace PCTP.Applications.Services
             };
         }
 
-        private DataTable LoadTableOrder(
-            OrderLoadContext context,
-            string gioFcc,
-            bool isSP,
-            string dockCodeSP)
-        {
-            return _tableOrderRepo.LoadPhieuTuBangRieng(
-                context.NgayGiao.ToString("yyyy-MM-dd"),
-                gioFcc,
-                isSP,
-                dockCodeSP,
-                _cfg);
-        }
-
         private void PrepareIfsBaseline(OrderLoadContext context)
         {
             string ifsTable = _cfg.Delivery.GetIfsTable(
                 context.Category == OrderCategory.SP);
-
             string ngayXuatIFS = context.NgayGiao.ToString("ddMMyyyy");
 
             try
@@ -327,22 +328,6 @@ namespace PCTP.Applications.Services
                     "⚠ Không kết nối được IFS để so sánh lệch " +
                     "(dữ liệu đơn hàng chính vẫn hiển thị bình thường). " +
                     $"Chi tiết: {ex.Message}";
-            }
-        }
-
-        private DataTable LoadDifference(OrderLoadContext context)
-        {
-            try
-            {
-                OrderSourceResult result = _orderSourceFactory
-                    .GetSource(context)
-                    .Load(context);
-
-                return result.Difference;
-            }
-            catch
-            {
-                return new DataTable();
             }
         }
 
@@ -390,10 +375,14 @@ namespace PCTP.Applications.Services
                 throw new ArgumentNullException(nameof(context));
 
             if (context.Cfg == null)
-                throw new ArgumentException("OrderLoadContext.Cfg không được null.", nameof(context));
+                throw new ArgumentException(
+                    "OrderLoadContext.Cfg không được null.",
+                    nameof(context));
 
             if (context.Cfg.Delivery == null)
-                throw new ArgumentException("OrderLoadContext.Cfg.Delivery không được null.", nameof(context));
+                throw new ArgumentException(
+                    "OrderLoadContext.Cfg.Delivery không được null.",
+                    nameof(context));
         }
     }
 }
