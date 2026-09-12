@@ -12,6 +12,7 @@
     <Compile Include="Modules\GiaoHangKhach\HVN\Controls\DocQrControl.cs" />
     <Compile Include="Modules\GiaoHangKhach\HVN\Controls\GiaoDbControl.cs" />
     <Compile Include="Modules\GiaoHangKhach\HVN\Controls\YmvnControl.cs" />
+    <Compile Include="Modules\GiaoHangKhach\HVN\Controls\PhieuBottomStateControl.cs" />
     <Compile Include="Modules\GiaoHangKhach\HVN\HVN_PGH.PhieuGridMigration.cs" />
   </ItemGroup>
 </Project>
