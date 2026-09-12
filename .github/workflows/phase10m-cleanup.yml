@@ -1,0 +1,52 @@
+name: phase10m-cleanup
+
+on:
+  push:
+    paths:
+      - '.phase10m-trigger'
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Remove obsolete header handlers
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+
+          path = Path('PCTP/Modules/GiaoHangKhach/HVN/HVN_PGH.cs')
+          text = path.read_text(encoding='utf-8-sig')
+
+          patterns = [
+              r'\n        // ═+\n        // DevExpress event handlers → bắn interface events\n        // ═+\n        private void dateNX_EditValueChanged\(object sender, EventArgs e\)\n            => DateChanged\.Invoke\(this, EventArgs\.Empty\);\n\n        private void tabPaneHVN_Click\(object sender, EventArgs e\)\n            => TabChanged\.Invoke\(this, EventArgs\.Empty\);\n\n        private void RDO_GXHN_SelectedIndexChanged\(object sender, EventArgs e\)\n        \{\n            GioXuatChanged\.Invoke\(this, EventArgs\.Empty\);\n        \}\n\n        private void radioGroup2_SelectedIndexChanged\(object sender, EventArgs e\)\n        \{\n            GioXuatChanged\.Invoke\(this, EventArgs\.Empty\);\n        \}\n',
+          ]
+
+          for pattern in patterns:
+              text, count = re.subn(pattern, '\n', text, count=1)
+              if count != 1:
+                  raise SystemExit(f'Expected exactly one legacy header handler block, found {count}')
+
+          for name in [
+              'dateNX_EditValueChanged',
+              'tabPaneHVN_Click',
+              'RDO_GXHN_SelectedIndexChanged',
+              'radioGroup2_SelectedIndexChanged',
+          ]:
+              if name in text:
+                  raise SystemExit(f'Legacy handler still present: {name}')
+
+          path.write_text(text, encoding='utf-8-sig')
+
+      - name: Commit cleanup
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add PCTP/Modules/GiaoHangKhach/HVN/HVN_PGH.cs
+          git diff --cached --check
+          git commit -m "Phase 10M: remove obsolete header event handlers"
+          git push
