@@ -29,7 +29,25 @@ namespace PCTP.Presentation.Presenters
         private void OnFormLoaded(object sender, EventArgs e) { if (_c.Cfg.Delivery.CoGear) { _c.AddNM = _c.Cfg.Delivery.AddNmMacDinh; _c.LoadGioXuatYMVN(); } else _c.AddNM = _c.Cfg.Delivery.CoNhieuNhaMay ? _v.SelectedTabAddNM : _c.Cfg.Delivery.AddNmMacDinh; XetTrangThai(); }
         private void OnDateChanged(object sender, EventArgs e) => _c.RunWithLoading(() => { if (_c.Cfg.Delivery.CoGear) _c.LoadGioXuatYMVN(); if (_c.GioXuatHienTai.Ma == "#") { _c.LoadPhieuGiaoDB(); return; } _c.LoadPhieuHienTai(); }, "Đang chuyển ngày...");
         private void OnTabChanged(object sender, EventArgs e) { if (!_c.Cfg.Delivery.CoNhieuNhaMay) return; int selectedTab = _v.SelectedTabAddNM; _c.RunWithLoading(() => { _c.AddNM = selectedTab; _c.LoadPhieuHienTai(); }, "Chuyển nhà máy..."); }
-        private void OnGioXuatChanged(object sender, EventArgs e) => _c.RunWithLoading(() => { if (_c.Cfg.Delivery.CoGear) { _c.LoadPhieuHienTai(); return; } if (_c.GioXuatHienTai.Ma == "#") { _c.UiContext.Post(_ => _c.LoadPhieuGiaoDB(), null); return; } _c.UiContext.Send(_ => _c.Bus.Publish(new GioXuatChangedEvent(_c.GioXuatHienTai, _c.AddNM)), null); _c.LoadPhieuHienTai(); }, "Chuyển giờ xuất...");
+        private void OnGioXuatChanged(object sender, EventArgs e)
+        {
+            _c.UpdateGioXuat(_v.CurrentGioXuat);
+            _c.RunWithLoading(() =>
+            {
+                if (_c.Cfg.Delivery.CoGear)
+                {
+                    _c.LoadPhieuHienTai();
+                    return;
+                }
+                if (_c.GioXuatHienTai.Ma == "#")
+                {
+                    _c.UiContext.Post(_ => _c.LoadPhieuGiaoDB(), null);
+                    return;
+                }
+                _c.UiContext.Send(_ => _c.Bus.Publish(new GioXuatChangedEvent(_c.GioXuatHienTai, _c.AddNM)), null);
+                _c.LoadPhieuHienTai();
+            }, "Chuyển giờ xuất...");
+        }
         private void OnCapNhapKho(object sender, EventArgs e) => _c.RunWithLoadingSync(() => { if (_c.Cfg.Delivery.CoGear) { var gs = _c.YmvnView.GetCheckedGioXuat(); if (!gs.Any()) { _v.ShowInfo("Bạn chưa chọn giờ xuất!"); return; } _c.PhieuSvc.CapNhapKhoYMVN(_v.SelectedDate.ToString("MM/dd/yyyy"), string.Join(",", gs.Select(g => $"'{g}'")), _c.GetNhaMay(), _v.GetDonHangTable()); return; } if (_c.Cfg.Delivery.LoadTuBangRieng) { if (!_v.CoLotDeLuuKho()) { _v.ShowInfo("Không có dữ liệu cho CNK !!!!!"); return; } _c.PhieuSvc.CapNhapKho("", _c.GetNhaMay()); return; } bool isLoaiSP = _c.CategoryResolver.Resolve(new OrderLoadContext { GioFccMoTa = _c.GioXuatHienTai.MoTa }) == OrderCategory.SP; if (!isLoaiSP && !_v.CoLotDeLuuKho()) { _v.ShowInfo("Không có dữ liệu cho CNK !!!!!"); return; } string nhaMay = _c.GetNhaMay(); string ngayGiao = _v.SelectedDate.ToString("yyyy-MM-dd"); if (isLoaiSP) _c.PhieuSvc.LuuPhieuSP(nhaMay, ngayGiao, _c.GioXuatHienTai.MoTa, _c.GioXuatHienTai.Ma); _c.PhieuSvc.CapNhapKho(_c.GioXuatHienTai.MoTa, nhaMay, _c.GioXuatHienTai.Ma); }, "Đang cập nhật kho...");
         private void OnCapNhapTTPHIEU(object sender, TTPHIEUEventArgs e) => _c.RunWithLoadingSync(() => { if (_c.CategoryResolver.Resolve(new OrderLoadContext { GioFccMoTa = _c.GioXuatHienTai.Ma }) != OrderCategory.SP) return; _c.PhieuSvc.CapNhapTTPHIEU(_c.GetNhaMay(), _v.SelectedDate.ToString("yyyy-MM-dd"), _c.GioXuatHienTai.MoTa, e.Stt, e.GhiChu); }, "Đang cập nhật thông tin phiếu...");
         private void OnInPhieu(object sender, EventArgs e)

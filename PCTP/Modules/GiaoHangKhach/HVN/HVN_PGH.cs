@@ -71,6 +71,7 @@ namespace PCTP.QRCODE_HVN.PGH
         private DocQRCode _pendingSlKhacBiet = null;
         private bool _isLoading = false;
         public bool IsLoaiSP => _phieuHeaderControl != null && _phieuHeaderControl.IsLoaiSP;
+        public GioXuat CurrentGioXuat => _phieuHeaderControl != null ? _phieuHeaderControl.CurrentGioXuat : null;
         public event EventHandler LoaiPhieuChanged = delegate { };
         private GioXuatRepository _gioRepo;
       
@@ -111,15 +112,7 @@ namespace PCTP.QRCODE_HVN.PGH
             if (_phieuHeaderControl == null)
                 return;
 
-            _phieuHeaderControl.ConfigureCustomer(
-                cfg,
-                tabPaneHVN,
-                tabVP,
-                tabHN,
-                radioGroup2,
-                RDO_GXHN,
-                CheckGX,
-                btnUploadMilkrun);
+            _phieuHeaderControl.ConfigureCustomer(cfg);
         }
         public void SetCheckedGiosYMVN(List<string> checkedGios)
         {
@@ -1032,51 +1025,12 @@ namespace PCTP.QRCODE_HVN.PGH
 
         private void RDO_GXHN_SelectedIndexChanged(object sender, EventArgs e)
         {
-            UpdateGioXuatFromRadio();
             GioXuatChanged.Invoke(this, EventArgs.Empty);
         }
 
         private void radioGroup2_SelectedIndexChanged(object sender, EventArgs e)
         {
-            UpdateGioXuatFromRadio();
             GioXuatChanged.Invoke(this, EventArgs.Empty);
-        }
-
-        private void UpdateGioXuatFromRadio()
-        {
-            string ma, moTa;
-
-            // ── 10003: không có tab, chỉ dùng radio VP ───────────────────────
-            if (!_cfg.Delivery.CoNhieuNhaMay)
-            {
-                // Luôn đọc từ radioGroup2 bất kể tab nào
-                int idx = radioGroup2.SelectedIndex;
-                if (idx < 0 || idx >= radioGroup2.Properties.Items.Count) return;
-                var item = radioGroup2.Properties.Items[idx];
-                ma = item.AccessibleName ?? "'06'";
-                moTa = item.Description ?? "(6H)";
-                _presenter.UpdateGioXuat(new GioXuat(ma, moTa));
-                return;
-            }
-
-            // ── 100001: đọc theo tab đang chọn ───────────────────────────────
-            if (tabPaneHVN.SelectedPage == tabHN)
-            {
-                int idx = RDO_GXHN.SelectedIndex;
-                if (idx < 0 || idx >= RDO_GXHN.Properties.Items.Count) return;
-                var item = RDO_GXHN.Properties.Items[idx];
-                ma = item.AccessibleName ?? "'06'";
-                moTa = item.Description ?? "(6H)";
-            }
-            else
-            {
-                int idx = radioGroup2.SelectedIndex;
-                if (idx < 0 || idx >= radioGroup2.Properties.Items.Count) return;
-                var item = radioGroup2.Properties.Items[idx];
-                ma = item.AccessibleName ?? "'06'";
-                moTa = item.Description ?? "(6H)";
-            }
-            _presenter.UpdateGioXuat(new GioXuat(ma, moTa));
         }
 
         // ── GIAO DB guard — chặn RadioGroup trước khi đổi sang "#" ──────────

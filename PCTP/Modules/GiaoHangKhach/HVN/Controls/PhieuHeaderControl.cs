@@ -18,6 +18,7 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
         private Button _btnToggleLoaiPhieu;
         private bool _isLoaiSP;
         private bool _eventsWired;
+        private CustomerConfig _cfg;
 
         public PhieuHeaderControl()
         {
@@ -34,6 +35,8 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
         {
             get { return _isLoaiSP; }
         }
+
+        public GioXuat CurrentGioXuat { get; private set; }
 
         public event EventHandler LoaiPhieuChanged = delegate { };
         public event EventHandler DateChanged = delegate { };
@@ -66,6 +69,8 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
         {
             if (cfg == null || cfg.Delivery == null || _content == null)
                 return;
+
+            _cfg = cfg;
 
             var tabPaneControl = FindControl<TabPane>("tabPaneHVN");
             var tabVpPage = FindControl<NavigationPage>("tabVP");
@@ -193,17 +198,54 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
 
         private void HeaderDateChanged(object sender, EventArgs e)
         {
-            DateChanged.Invoke(sender, e);
+            DateChanged.Invoke(this, EventArgs.Empty);
         }
 
         private void HeaderGioXuatChanged(object sender, EventArgs e)
         {
-            GioXuatChanged.Invoke(sender, e);
+            if (!TryUpdateCurrentGioXuat())
+                return;
+
+            GioXuatChanged.Invoke(this, EventArgs.Empty);
         }
 
         private void HeaderTabChanged(object sender, EventArgs e)
         {
-            TabChanged.Invoke(sender, e);
+            TabChanged.Invoke(this, EventArgs.Empty);
+        }
+
+        private bool TryUpdateCurrentGioXuat()
+        {
+            if (_cfg == null || _cfg.Delivery == null)
+                return false;
+
+            if (!_cfg.Delivery.CoNhieuNhaMay)
+                return TryReadGioXuat(FindControl<RadioGroup>("radioGroup2"));
+
+            var tabPane = FindControl<TabPane>("tabPaneHVN");
+            var tabHn = FindControl<NavigationPage>("tabHN");
+            return tabPane != null && tabHn != null && tabPane.SelectedPage == tabHn
+                ? TryReadGioXuat(FindControl<RadioGroup>("RDO_GXHN"))
+                : TryReadGioXuat(FindControl<RadioGroup>("radioGroup2"));
+        }
+
+        private bool TryReadGioXuat(RadioGroup radio)
+        {
+            if (radio == null)
+                return false;
+
+            int idx = radio.SelectedIndex;
+            if (idx < 0 || idx >= radio.Properties.Items.Count)
+                return false;
+
+            var item = radio.Properties.Items[idx] as RadioGroupItem;
+            if (item == null)
+                return false;
+
+            string ma = item.AccessibleName ?? "'06'";
+            string moTa = item.Description ?? "(6H)";
+            CurrentGioXuat = new GioXuat(ma, moTa);
+            return true;
         }
 
         private T FindControl<T>(string name) where T : Control

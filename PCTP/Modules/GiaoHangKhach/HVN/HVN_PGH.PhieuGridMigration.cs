@@ -52,20 +52,7 @@ namespace PCTP.QRCODE_HVN.PGH
 
         private void PhieuHeaderControl_GioXuatChanged(object sender, EventArgs e)
         {
-            if (ReferenceEquals(sender, RDO_GXHN))
-                RDO_GXHN_SelectedIndexChanged(sender, e);
-            else if (ReferenceEquals(sender, radioGroup2))
-                radioGroup2_SelectedIndexChanged(sender, e);
-            else
-            {
-                // The header control intentionally normalizes both radio groups
-                // into one event. Preserve the legacy handler routing by using
-                // the currently visible/active group.
-                if (RDO_GXHN != null && RDO_GXHN.Visible)
-                    RDO_GXHN_SelectedIndexChanged(RDO_GXHN, e);
-                else
-                    radioGroup2_SelectedIndexChanged(radioGroup2, e);
-            }
+            GioXuatChanged.Invoke(this, EventArgs.Empty);
         }
 
         private void PhieuHeaderControl_TabChanged(object sender, EventArgs e)

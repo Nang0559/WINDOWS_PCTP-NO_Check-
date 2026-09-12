@@ -35,6 +35,7 @@ namespace PCTP.Presentation.Views
         void ResumeGioXuatChanged();
         DateTime SelectedDate { get; }
         int SelectedTabAddNM { get; }
+        GioXuat CurrentGioXuat { get; }
         DataTable GetDonHangTable();
         DataTable GetAddressTable();
         string GetFocusedDonHangMaHang();
