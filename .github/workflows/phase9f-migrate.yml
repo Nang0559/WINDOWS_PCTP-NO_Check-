@@ -5,58 +5,36 @@ on:
 permissions:
   contents: write
 jobs:
-  migrate:
-    if: contains(github.event.head_commit.message, 'Phase 9F') == false && contains(github.event.head_commit.message, 'phase9f-migrate') == false
+  cleanup:
+    if: github.event.head_commit.message == 'fix 9F declarations'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Migrate
+      - name: Remove legacy Designer declarations
         shell: python
         run: |
           from pathlib import Path
           import re
-          root=Path('PCTP/Modules/GiaoHangKhach/HVN')
-          d=root/'HVN_PGH.Designer.cs'; c=root/'Controls'/'PhieuBottomStateControl.cs'; m=root/'HVN_PGH.PhieuGridMigration.cs'
-          text=d.read_text(encoding='utf-8-sig')
-          def take(a,b):
-              global text
-              i=text.index(a); j=text.index(b,i); x=text[i:j]; text=text[:i]+text[j:]; return x
-          cttgl=take('            // gridCTTGL\n','            // sidePanel3\n')
-          suasl=take('            // gridCtrSUASL\n','            // imageBT\n')
-          lech=take('            // gridCLECH\n','            // HVN_PGH\n')
+          p=Path('PCTP/Modules/GiaoHangKhach/HVN/HVN_PGH.Designer.cs')
+          s=p.read_text(encoding='utf-8-sig')
           names=['sidePanel4','gridCtrSUASL','gridVSUASL','gridCTTGL','GridVTTGL','gridBand1','gridColumn4','gridColumn5','gridColumn6','gridCLECH','bandedGridViewLECH','colLechMaHang','colLechTenHang','colLechSoLuong','colLechNguon','gridBandLECH']
           for n in names:
-              text=re.sub(r'^\s*this\.'+re.escape(n)+r'\s*=\s*new [^;]+;\s*\r?\n','',text,flags=re.M)
-              text=re.sub(r'^\s*\(\(System\.ComponentModel\.ISupportInitialize\)\(this\.'+re.escape(n)+r'\)\)\.(?:BeginInit|EndInit)\(\);\s*\r?\n','',text,flags=re.M)
-              text=re.sub(r'^\s*this\.'+re.escape(n)+r'\.(?:SuspendLayout|ResumeLayout)\([^\n]*\);\s*\r?\n','',text,flags=re.M)
-          text=re.sub(r'            // sidePanel4\n.*?(?=            // imageBT\n)','',text,flags=re.S)
-          text=text.replace('            this.sidePanel3.Controls.Add(this.sidePanel4);\n','            this.sidePanel3.Controls.Add(this._phieuBottomStateControl);\n')
-          text=text.replace('            this.components = new System.ComponentModel.Container();\n','            this.components = new System.ComponentModel.Container();\n            this._phieuBottomStateControl = new PCTP.QRCODE_HVN.PGH.Controls.PhieuBottomStateControl();\n',1)
-          b='''            //\n            // _phieuBottomStateControl\n            //\n            this._phieuBottomStateControl.Dock = System.Windows.Forms.DockStyle.Left;\n            this._phieuBottomStateControl.Location = new System.Drawing.Point(0, 1);\n            this._phieuBottomStateControl.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);\n            this._phieuBottomStateControl.Name = "phieuBottomStateControl";\n            this._phieuBottomStateControl.Size = new System.Drawing.Size(391, 133);\n            this._phieuBottomStateControl.TabIndex = 0;\n'''
-          text=text.replace('            // sidePanel3\n',b+'            // sidePanel3\n',1)
-          forbidden=['this.sidePanel4','this.gridCLECH','this.gridCTTGL','this.gridCtrSUASL','this.gridVSUASL','this.GridVTTGL','this.bandedGridViewLECH','this.colLechMaHang','this.colLechTenHang','this.colLechSoLuong','this.colLechNguon','this.gridBandLECH','this.gridBand1','this.gridColumn4','this.gridColumn5','this.gridColumn6']
-          if any(x in text for x in forbidden): raise SystemExit('old Designer ownership remains')
-          d.write_text(text,encoding='utf-8-sig')
-          mm=m.read_text(encoding='utf-8-sig')
-          mm=mm.replace('        private PhieuBottomStateControl _phieuBottomStateControl;\n\n','').replace('            MigrateSidePanel4ToUserControl();\n','')
-          s=mm.find('        /// <summary>\n        /// Replaces the legacy sidePanel4')
-          if s>=0:
-              e=mm.find('        }\n    }\n}',s)
-              if e<0: raise SystemExit('migration method end not found')
-              mm=mm[:s]+mm[e+10:]
-          m.write_text(mm,encoding='utf-8-sig')
-          skeleton='''using System.Windows.Forms;\nusing DevExpress.XtraEditors;\nusing DevExpress.XtraGrid;\nusing DevExpress.XtraGrid.Columns;\nusing DevExpress.XtraGrid.Views.BandedGrid;\nusing DevExpress.XtraGrid.Views.Grid;\n\nnamespace PCTP.QRCODE_HVN.PGH.Controls\n{\n    public sealed class PhieuBottomStateControl : XtraUserControl\n    {\n        private readonly GridControl gridCLECH;\n        private readonly BandedGridView bandedGridViewLECH;\n        private readonly BandedGridColumn colLechMaHang, colLechTenHang, colLechSoLuong, colLechNguon;\n        private readonly GridBand gridBandLECH;\n        private readonly GridControl gridCTTGL;\n        private readonly BandedGridView GridVTTGL;\n        private readonly GridBand gridBand1;\n        private readonly BandedGridColumn gridColumn4, gridColumn5, gridColumn6;\n        private readonly GridControl gridCtrSUASL;\n        private readonly GridView gridVSUASL;\n        public GridControl LechGrid { get { return gridCLECH; } }\n        public GridControl GhepLotGrid { get { return gridCTTGL; } }\n        public GridControl SuaSlGrid { get { return gridCtrSUASL; } }\n        public GridView SuaSlView { get { return gridVSUASL; } }\n        public PhieuBottomStateControl()\n        {\n            gridCLECH=new GridControl(); bandedGridViewLECH=new BandedGridView(); colLechMaHang=new BandedGridColumn(); colLechTenHang=new BandedGridColumn(); colLechSoLuong=new BandedGridColumn(); colLechNguon=new BandedGridColumn(); gridBandLECH=new GridBand();\n            gridCTTGL=new GridControl(); GridVTTGL=new BandedGridView(); gridBand1=new GridBand(); gridColumn4=new BandedGridColumn(); gridColumn5=new BandedGridColumn(); gridColumn6=new BandedGridColumn();\n            gridCtrSUASL=new GridControl(); gridVSUASL=new GridView(); InitializeComponent();\n        }\n        private void InitializeComponent()\n        {\n            ((System.ComponentModel.ISupportInitialize)gridCTTGL).BeginInit(); ((System.ComponentModel.ISupportInitialize)GridVTTGL).BeginInit(); ((System.ComponentModel.ISupportInitialize)gridCtrSUASL).BeginInit(); ((System.ComponentModel.ISupportInitialize)gridVSUASL).BeginInit(); ((System.ComponentModel.ISupportInitialize)gridCLECH).BeginInit(); ((System.ComponentModel.ISupportInitialize)bandedGridViewLECH).BeginInit();\n''' + cttgl.replace('this.','').replace('this.sidePanel3.Controls.Add(this.UIButton);','') + suasl.replace('this.','') + lech.replace('this.','') + '''            Controls.Add(gridCLECH); Controls.Add(gridCTTGL); Controls.Add(gridCtrSUASL);\n            ((System.ComponentModel.ISupportInitialize)gridCTTGL).EndInit(); ((System.ComponentModel.ISupportInitialize)GridVTTGL).EndInit(); ((System.ComponentModel.ISupportInitialize)gridCtrSUASL).EndInit(); ((System.ComponentModel.ISupportInitialize)gridVSUASL).EndInit(); ((System.ComponentModel.ISupportInitialize)gridCLECH).EndInit(); ((System.ComponentModel.ISupportInitialize)bandedGridViewLECH).EndInit();\n        }\n        public void ShowLech(){gridCLECH.Visible=true;gridCTTGL.Visible=false;gridCtrSUASL.Visible=false;gridCLECH.BringToFront();}\n        public void ShowGhepLot(){gridCLECH.Visible=false;gridCTTGL.Visible=true;gridCtrSUASL.Visible=false;gridCTTGL.BringToFront();}\n        public void ShowSuaSoLuong(){gridCLECH.Visible=false;gridCTTGL.Visible=false;gridCtrSUASL.Visible=true;gridCtrSUASL.BringToFront();}\n    }\n}\n'''
-          c.write_text(skeleton,encoding='utf-8')
+              s=re.sub(r'^\s*(?:public\s+)?(?:private|protected|internal)\s+[^;\n]+\s+'+re.escape(n)+r'\s*;\s*\r?\n','',s,flags=re.M)
+          p.write_text(s,encoding='utf-8-sig')
+          q=Path('PCTP/Modules/GiaoHangKhach/HVN/HVN_PGH.PhieuGridMigration.cs')
+          ms=q.read_text(encoding='utf-8-sig')
+          assert 'PhieuBottomStateControl _phieuBottomStateControl' not in ms
+          q.write_text(ms,encoding='utf-8-sig')
       - name: Validate
         shell: bash
         run: |
           set -e
-          ! grep -nE 'sidePanel4|gridCLECH|gridCTTGL|gridCtrSUASL|gridVSUASL' PCTP/Modules/GiaoHangKhach/HVN/HVN_PGH.Designer.cs
-          grep -q 'PhieuBottomStateControl' PCTP/Modules/GiaoHangKhach/HVN/HVN_PGH.Designer.cs
-      - name: Commit
+          ! grep -nE '^\s*(public\s+)?(private|protected|internal)\s+.*(sidePanel4|gridCtrSUASL|gridVSUASL|gridCTTGL|GridVTTGL|gridBand1|gridColumn4|gridColumn5|gridColumn6|gridCLECH|bandedGridViewLECH|colLechMaHang|colLechTenHang|colLechSoLuong|colLechNguon|gridBandLECH)\s*;' PCTP/Modules/GiaoHangKhach/HVN/HVN_PGH.Designer.cs
+      - name: Commit and cleanup
         run: |
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add PCTP/Modules/GiaoHangKhach/HVN/HVN_PGH.Designer.cs PCTP/Modules/GiaoHangKhach/HVN/HVN_PGH.PhieuGridMigration.cs PCTP/Modules/GiaoHangKhach/HVN/Controls/PhieuBottomStateControl.cs
-          git commit -m "Phase 9F: move bottom-state grid ownership out of Designer"
+          rm -f .github/phase9f-trigger.txt .github/workflows/phase9f-migrate.yml
+          git add -A
+          git commit -m "Phase 9F: remove legacy bottom-state Designer declarations"
           git push
