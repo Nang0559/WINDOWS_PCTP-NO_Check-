@@ -40,6 +40,7 @@ namespace PCTP.Applications.Services
         private readonly bool _isMayBanQR;
         private readonly CustomerConfig _cfg;
         private DataTable _ifsDataCache;
+        private string _ifsLoadWarning;
 
         // ✅ FIX: LoadPhieuTuBangRieng / GetDanhSachGioYMVN / UploadMilkrunSP /
         // InsertTmpYMVN nằm trong ITableOrderRepository — đã được tách riêng khỏi
@@ -290,11 +291,11 @@ namespace PCTP.Applications.Services
         }
 
         public void LoadPhieuTuBangRieng_Internal(
-    string ngayGiao,
-    List<string> checkedGios,
-    bool isLoaiSP,
-    bool isMayBanQR,
-    bool isBanQR)
+            string ngayGiao,
+            List<string> checkedGios,
+            bool isLoaiSP,
+            bool isMayBanQR,
+            bool isBanQR)
         {
             if (!DateTime.TryParse(ngayGiao, out DateTime dt) || dt.Year < 2000)
             {
@@ -319,18 +320,24 @@ namespace PCTP.Applications.Services
                 DataTable ifsScoped = ifsData;
 
                 if (_cfg.Delivery.CoGear)
-                    ifsScoped = FilterIfsDataByGio(ifsScoped, checkedGios);
+                    ifsScoped = GioRowFilter.Filter(ifsScoped, checkedGios);
 
                 if (_cfg.Delivery.CoLoaiSP)
-                    ifsScoped = FilterIfsDataByDockCode(ifsScoped, isLoaiSP, _cfg.Delivery.DockCodeSP);
+                {
+                    OrderCategory category = isLoaiSP ? OrderCategory.SP : OrderCategory.MP;
+                    ifsScoped = _rowCategoryFilter.Filter(ifsScoped, category, _cfg);
+                }
 
                 _ifsDataCache = ifsScoped;
+                _ifsLoadWarning = null;
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine(
                     $"[LoadPhieuTuBangRieng_Internal] Lỗi đồng bộ IFS snapshot: {ex.Message}");
                 _ifsDataCache = null;
+                _ifsLoadWarning = "⚠ Không kết nối được IFS để so sánh lệch (dữ liệu đơn hàng chính vẫn hiển thị bình thường). " +
+                         $"Chi tiết: {ex.Message}";
             }
 
             // ════════════════════════════════════════════════════════════════
@@ -404,165 +411,9 @@ namespace PCTP.Applications.Services
                 caption = $"ĐƠN HÀNG {_cfg.DisplayName}: {dt:dd/MM/yyyy}";
             }
 
-            _bus.Publish(new PhieuLoadedEvent(donHang, hangThieu, caption));
+            _bus.Publish(new PhieuLoadedEvent(donHang, hangThieu, caption, coMaNG: false, canhBao: _ifsLoadWarning));
         }
 
-        // ════════════════════════════════════════════════════════════════════
-        // Lọc IFS theo giờ đang chọn — khớp phạm vi với donHang (đã lọc giờ).
-        // Cột GIOGIAO trong ifsData = TO_CHAR(WANTED_DELIVERY_DATE,'HH24') → chuỗi 2 số.
-        // ════════════════════════════════════════════════════════════════════
-        private DataTable FilterIfsDataByGio(DataTable ifsData, List<string> checkedGios)
-        {
-            if (ifsData == null) return new DataTable();
-            if (checkedGios == null || checkedGios.Count == 0) return ifsData;
-            if (!ifsData.Columns.Contains("GIOGIAO")) return ifsData;
-
-            var hourSet = checkedGios
-                .Select(g => g.Split(':')[0].PadLeft(2, '0'))
-                .Distinct()
-                .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-            DataTable result = ifsData.Clone();
-            foreach (DataRow row in ifsData.Rows)
-            {
-                string gioGiao = (row["GIOGIAO"]?.ToString() ?? "").Trim();
-                if (hourSet.Contains(gioGiao))
-                    result.ImportRow(row);
-            }
-            return result;
-        }
-
-        // ════════════════════════════════════════════════════════════════════
-        // Lọc IFS theo SP/MP — dùng đúng cùng logic với
-        // TableOrderRepo.LoadPhieuTuBangRieng (RTRIM(CUA) = / <> DockCodeSP).
-        // Cột CUA trong ifsData = col.SUB_DOCK_CODE (IFSRepository.GetCustomerOrderJoin).
-        // ════════════════════════════════════════════════════════════════════
-        private DataTable FilterIfsDataByDockCode(DataTable ifsData, bool isLoaiSP, string dockCodeSP)
-        {
-            var wanted = isLoaiSP ? OrderCategory.SP : OrderCategory.MP;
-            return _rowCategoryFilter.Filter(ifsData, wanted, _cfg);
-        }
-
-
-        //private DataTable LoadPhieuYMVNTuIFS(string ngayXuatIFS,
-        //                              bool isLoaiSP,
-        //                              List<string> checkedGios)
-        //{
-        //    string dockFilter = isLoaiSP
-        //        ? $"AND DOCK_CODE = '{_cfg.DockCodeSP ?? "VSP1"}'"
-        //        : $"AND DOCK_CODE <> '{_cfg.DockCodeSP ?? "VSP1"}'";
-
-        //    DataTable ifsData = _ifsRepo.GetCustomerOrderJoinYMVN(
-        //        ngayXuatIFS, _cfg.CustomerNo, dockFilter);
-
-        //    if (ifsData == null || ifsData.Rows.Count == 0)
-        //        return new DataTable();
-
-        //    // ── Thêm cột nếu chưa có ────────────────────────────────────────
-        //    foreach (string col in new[] { "STT", "HOP", "XE", "LOT", "STATUS", "STATUSDOC" })
-        //        if (!ifsData.Columns.Contains(col))
-        //            ifsData.Columns.Add(col, typeof(string));
-
-        //    // ── Batch query 1 lần thay vì N lần ─────────────────────────────
-        //    var maHangList = ifsData.Rows
-        //        .Cast<DataRow>()
-        //        .Select(r => r["MAHANG"]?.ToString()?.Trim() ?? "")
-        //        .Where(m => !string.IsNullOrEmpty(m))
-        //        .Distinct()
-        //        .ToList();
-
-        //    Dictionary<string, int> qcMap = _phieuRepo.GetQcDongGoiBatch(maHangList);
-
-        //    // ── Tính STT / HOP / XE ─────────────────────────────────────────
-        //    int rowIdx = 1;
-        //    foreach (DataRow row in ifsData.Rows)
-        //    {
-        //        string pno = row["MAHANG"]?.ToString()?.Trim() ?? "";
-        //        int qty = SafeInt(row["SOLUONG"]);
-
-        //        // Lookup từ Dictionary — O(1), không gọi DB
-        //        qcMap.TryGetValue(pno, out int qcDg);
-        //        if (qcDg <= 0) qcDg = 1;
-
-        //        int hop = qty / qcDg + (qty % qcDg > 0 ? 1 : 0);
-        //        int xe = hop / 10 + (hop % 10 > 0 ? 1 : 0);
-
-        //        row["STT"] = rowIdx++.ToString();
-        //        row["HOP"] = hop.ToString();
-        //        row["XE"] = xe.ToString();
-        //        row["LOT"] = "";
-        //        row["STATUS"] = "NG";
-        //        row["STATUSDOC"] = "NG";
-        //    }
-
-        //    return ifsData;
-        //}
-        //private void EnrichDockCodeDvFromIFS(DataTable donHang,
-        //                              string ngayXuatIFS,
-        //                              bool isLoaiSP)
-        //{
-        //    if (donHang == null || donHang.Rows.Count == 0) return;
-
-        //    // Thêm cột nếu chưa có
-        //    if (!donHang.Columns.Contains("CUA"))
-        //        donHang.Columns.Add("CUA", typeof(string));
-        //    if (!donHang.Columns.Contains("DV"))
-        //        donHang.Columns.Add("DV", typeof(string));
-
-        //    string dockFilter = isLoaiSP
-        //        ? "AND DOCK_CODE = 'VSP1'"
-        //        : "AND DOCK_CODE <> 'VSP1'";
-
-        //    foreach (DataRow row in donHang.Rows)
-        //    {
-        //        string po = row["CUSTOMER_PO_NO"]?.ToString() ?? "";
-        //        string pno = row["MAHANG"]?.ToString() ?? "";
-
-        //        // Query IFS lấy DOCK_CODE + DV — giống form gốc
-        //        try
-        //        {
-        //            DataTable ifsRow = _ifsRepo.GetDockCodeDv(
-        //                po, pno, _cfg.CustomerNo, dockFilter);
-
-        //            if (ifsRow != null && ifsRow.Rows.Count > 0)
-        //            {
-        //                row["CUA"] = ifsRow.Rows[0]["CUA"]?.ToString() ?? "";
-        //                row["DV"] = ifsRow.Rows[0]["DV"]?.ToString() ?? "";
-        //            }
-        //        }
-        //        catch { /* bỏ qua nếu IFS lỗi */ }
-        //    }
-        //}
-        // ════════════════════════════════════════════════════════════════════════
-        // Sync IFS → TMP trước khi bắt đầu scan QR
-        // ════════════════════════════════════════════════════════════════════════
-        //public void SyncIfsPhieuChoDocQR(string ngayGiao, string nhaMay,
-        //                          string gioFcc, string gioFccMoTa,
-        //                          int addNm)
-        //{
-        //    if (!DateTime.TryParse(ngayGiao, out DateTime dt) || dt.Year < 2000) return;
-        //    bool isSP = _isLoaiSP;
-        //    string ngayXuat = dt.ToString("ddMMyyyy");
-        //    string ngayGiaoSP = dt.ToString("yyyy-MM-dd");
-
-        //    // ── Nếu LoadTheoNgay → bỏ filter giờ ────────────────────────────
-        //    string gioFccSP = _cfg.LoadTheoNgay ? "" : gioFcc;
-        //    string gioMoTaSP = _cfg.LoadTheoNgay ? "Tất cả ca" : gioFccMoTa;
-
-        //    DataTable ifs = _ifsRepo.GetCustomerOrderJoin(
-        //        ngayXuat, gioFccSP, gioMoTaSP, nhaMay, addNm, 1,
-        //        _cfg);
-
-        //    EnrichSttHop(ifs);
-
-        //    _phieuRepo.LuuVaLoad(
-        //        _cfg.GetIfsTable(isSP),
-        //        "Usp_Qrcode_LOAD_PHIEU_DOCQR2405",
-        //        ifs,
-        //        ngayGiaoSP, nhaMay, gioFccSP, addNm,
-        //        _cfg.GetTmpTable(isSP),                    // TMPPHIEUGIAOHANG_SP
-        //       _cfg.GetDocQRTable(isSP));                 // DOCQRCODE_SP
-        //}
         public void SyncIfsPhieuChoDocQR(string ngayGiao, string nhaMay,
                           string gioFcc, string gioFccMoTa,
                           int addNm)
@@ -811,12 +662,12 @@ namespace PCTP.Applications.Services
         // ════════════════════════════════════════════════════════════════════════
         // SP / Kho
         // ════════════════════════════════════════════════════════════════════════
-        public static bool IsLoaiSP(string gioMoTa)
-        => !string.IsNullOrEmpty(gioMoTa)
-       && (gioMoTa.Contains("SP6") || gioMoTa.Contains("SP#"));
-        public static bool IsLoaiOType(string gioMoTa)
-        => !string.IsNullOrEmpty(gioMoTa)
-       && gioMoTa.Contains("O TYPE");
+       // public static bool IsLoaiSP(string gioMoTa)
+       // => !string.IsNullOrEmpty(gioMoTa)
+       //&& (gioMoTa.Contains("SP6") || gioMoTa.Contains("SP#"));
+       // public static bool IsLoaiOType(string gioMoTa)
+       // => !string.IsNullOrEmpty(gioMoTa)
+       //&& gioMoTa.Contains("O TYPE");
         public int LuuPhieuSP(string nhaMay, string ngayGiao,
                                string gioGiaoFcc, string loaiPhieu) =>
             _phieuRepo.LuuPhieuSP(nhaMay, ngayGiao, gioGiaoFcc, loaiPhieu);

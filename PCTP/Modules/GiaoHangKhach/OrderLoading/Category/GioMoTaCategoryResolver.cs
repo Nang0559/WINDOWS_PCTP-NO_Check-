@@ -12,6 +12,17 @@ namespace PCTP.Modules.GiaoHangKhach.OrderLoading.Category
     public class GioMoTaCategoryResolver : IOrderCategoryResolver
     {
         public OrderCategory Resolve(OrderLoadContext ctx)
-            => PhieuService.IsLoaiSP(ctx.GioFccMoTa) ? OrderCategory.SP : OrderCategory.MP;
+        {
+            string gioMoTa = ctx?.GioFccMoTa;
+            bool isSP = !string.IsNullOrEmpty(gioMoTa)
+                        && (gioMoTa.Contains("SP6") || gioMoTa.Contains("SP#"));
+
+            return isSP ? OrderCategory.SP : OrderCategory.MP;
+        }
+
+        // O-Type không thuộc OrderCategory (MP/SP) — giữ độc lập, không qua
+        // IOrderCategoryResolver. Đặt cạnh đây vì cùng đọc chung 1 nhãn "giờ mô tả".
+        public static bool IsLoaiOType(string gioMoTa)
+            => !string.IsNullOrEmpty(gioMoTa) && gioMoTa.Contains("O TYPE");
     }
 }

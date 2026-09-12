@@ -3,6 +3,7 @@ using PCTP.Shared.Enums;
 using PCTP.Shared.Models;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -22,5 +23,8 @@ namespace PCTP.Modules.GiaoHangKhach.Models
         public MachineRole MachineRole { get; set; }
         public bool IsBanQR { get; set; }
         public IList<string> CheckedGios { get; set; }
+
+        public DataTable IfsDataDaLoc { get; set; }
+        public string IfsLoadError { get; set; }
     }
 }

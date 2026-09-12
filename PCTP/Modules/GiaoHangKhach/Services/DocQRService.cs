@@ -3,6 +3,8 @@ using PCTP.Common;
 using PCTP.Domain.Entities;
 using PCTP.Domain.Events;
 using PCTP.Domain.Interfaces;
+using PCTP.Modules.GiaoHangKhach.Models;
+using PCTP.Modules.GiaoHangKhach.OrderLoading.Category;
 using PCTP.Shared.Helpers;
 using PCTP.Shared.Models;
 using PCTP.VIEWSTOCK.Fuction;
@@ -24,6 +26,7 @@ namespace PCTP.Applications.Services
     {
         private readonly IDocQRRepository _repo;
         private readonly IEventBus _bus;
+        private readonly IOrderCategoryResolver _categoryResolver;
         private readonly CustomerConfig _cfg;
 
         // ── Trạng thái chế độ bắn ────────────────────────────────────────────
@@ -39,9 +42,8 @@ namespace PCTP.Applications.Services
         // ── FIX: Set chế độ từ gioMoTa — Presenter gọi thay SetCheDoBanSP ───
         public void SetCheDoBan(string gioMoTa)
         {
-            _isBanSP = PhieuService.IsLoaiSP(gioMoTa);
-            _isBanOType = PhieuService.IsLoaiOType(gioMoTa);
-            // MP = không phải SP và không phải O TYPE
+            _isBanSP = _categoryResolver.Resolve(new OrderLoadContext { GioFccMoTa = gioMoTa }) == OrderCategory.SP;
+            _isBanOType = GioMoTaCategoryResolver.IsLoaiOType(gioMoTa);   
         }
 
         // ── Helper lấy bảng đúng theo chế độ ────────────────────────────────
@@ -55,11 +57,12 @@ namespace PCTP.Applications.Services
                 ? _cfg.Delivery.GetTmpTable(true)
                 : _cfg.Delivery.GetTmpTable(false);
 
-        public DocQRService(IDocQRRepository repo, IEventBus bus, CustomerConfig cfg)
+        public DocQRService(IDocQRRepository repo, IEventBus bus, CustomerConfig cfg, IOrderCategoryResolver categoryResolver)
         {
             _repo = repo;
             _bus = bus;
             _cfg = cfg;
+            _categoryResolver = categoryResolver ?? throw new ArgumentNullException(nameof(categoryResolver));
         }
 
         // ════════════════════════════════════════════════════════════════════

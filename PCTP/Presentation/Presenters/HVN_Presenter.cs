@@ -7,6 +7,8 @@ using PCTP.Domain.Events;
 using PCTP.Domain.Interfaces;
 using PCTP.Infrastructure.Repositories;
 using PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao;
+using PCTP.Modules.GiaoHangKhach.Models;
+using PCTP.Modules.GiaoHangKhach.OrderLoading.Category;
 using PCTP.Modules.GiaoHangKhach.SubForm;
 using PCTP.Presentation.Views;
 using PCTP.QRCODE_HVN.Report;
@@ -40,6 +42,7 @@ namespace PCTP.Presentation.Presenters
         private readonly IGioXuatRepository _gioXuatRepo;
         private readonly IEventBus _bus;
         private readonly CustomerConfig _cfg;
+        private readonly IOrderCategoryResolver _categoryResolver;
         // ✅ Lưu trữ context của UI Thread ngay từ Constructor để tránh NullReferenceException
         private readonly SynchronizationContext _uiContext;
 
@@ -66,7 +69,8 @@ namespace PCTP.Presentation.Presenters
                              IEventBus bus,
                              bool isMayBanQR,
                              string tenBan,
-                             CustomerConfig cfg)
+                             CustomerConfig cfg,
+                             IOrderCategoryResolver categoryResolver)
         {
             _view = view;
             _phieuSvc = phieuSvc;
@@ -78,6 +82,7 @@ namespace PCTP.Presentation.Presenters
             _isMayBanQR = isMayBanQR;
             _tenBan = tenBan;
             _cfg = cfg;
+            _categoryResolver = categoryResolver ?? throw new ArgumentNullException(nameof(categoryResolver));
             _isBanQR = false;
 
             // ✅ Gán context của UI thread chủ động
@@ -178,6 +183,8 @@ namespace PCTP.Presentation.Presenters
                     _view.ShowLoading(false);
                     _view.ShowError($"Lỗi khi hiển thị dữ liệu phiếu: {ex.Message}");
                 }
+                if (!string.IsNullOrEmpty(e.CanhBao))
+                    _view.ShowWarning(e.CanhBao);
             }, null);
         }
         private void OnHoanThanhYMVNCompleted(HoanThanhYMVNCompletedEvent e)
@@ -392,7 +399,8 @@ namespace PCTP.Presentation.Presenters
                     return;
                 }
                 // 2. Kiểm tra điều kiện nghiệp vụ dựa trên UI
-                bool isLoaiSP = PhieuService.IsLoaiSP(_gioXuatHienTai.MoTa);
+                bool isLoaiSP = _categoryResolver.Resolve(
+                   new OrderLoadContext { GioFccMoTa = _gioXuatHienTai.MoTa }) == OrderCategory.SP;
 
                 if (!isLoaiSP && !_view.CoLotDeLuuKho())
                 {
@@ -446,7 +454,8 @@ namespace PCTP.Presentation.Presenters
     => RunWithLoadingSync(() =>
     {
         // 1. Kiểm tra điều kiện (Nếu không thỏa mãn thì ngắt sớm)
-        if (!PhieuService.IsLoaiSP(_gioXuatHienTai.Ma)) return;
+        if (_categoryResolver.Resolve(
+        new OrderLoadContext { GioFccMoTa = _gioXuatHienTai.Ma }) != OrderCategory.SP) return;
 
         // 2. Đọc dữ liệu từ UI một cách an toàn trên luồng chính
         string ngayGiao = _view.SelectedDate.ToString("yyyy-MM-dd");
@@ -619,7 +628,8 @@ namespace PCTP.Presentation.Presenters
             if (_cfg.Delivery.LoadTuBangRieng)
                 isSP = _cfg.Delivery.CoLoaiSP && _view.IsLoaiSP;  // YMVN/HTN
             else
-                isSP = PhieuService.IsLoaiSP(_gioXuatHienTai.MoTa);  // HVN
+                isSP = _categoryResolver.Resolve(
+                   new OrderLoadContext { GioFccMoTa = _gioXuatHienTai.MoTa }) == OrderCategory.SP;  // HVN
 
             // ── SetCheDoBan — chỉ HVN mới có ý nghĩa theo giờ ───────────────────
             // YMVN/HTN không có radio giờ → truyền rỗng
@@ -908,7 +918,8 @@ namespace PCTP.Presentation.Presenters
                 if (_cfg.Delivery.CoGear)
                 {
                     var checkedGios = ParseGioYMVN(tt.GioGiaoFCC);
-                    bool isSP = PhieuService.IsLoaiSP(tt.GioGiaoFCC);
+                    bool isSP = _categoryResolver.Resolve(
+                        new OrderLoadContext { GioFccMoTa = tt.GioGiaoFCC }) == OrderCategory.SP;
                     _qrSvc.SetCheDoBanSP(isSP);
 
                     _view.SuspendGioXuatChanged();
@@ -950,7 +961,8 @@ namespace PCTP.Presentation.Presenters
                     moTaKhung = gioDonTuDB + "H";
                 }
 
-                bool isSPHvn = PhieuService.IsLoaiSP(moTaKhung);
+                bool isSPHvn = _categoryResolver.Resolve(
+                   new OrderLoadContext { GioFccMoTa = moTaKhung }) == OrderCategory.SP;
                 _qrSvc.SetCheDoBanSP(isSPHvn);
 
                 _view.SuspendGioXuatChanged();

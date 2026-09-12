@@ -1,4 +1,4 @@
-﻿using PCTP.Modules.GiaoHangKhach.Mode;
+﻿
 using PCTP.Modules.GiaoHangKhach.Models;
 
 namespace PCTP.Modules.GiaoHangKhach.OrderLoading
@@ -22,7 +22,8 @@ namespace PCTP.Modules.GiaoHangKhach.OrderLoading
             {
                 Orders = donHang,
                 Difference = diff,
-                SourceKind = SourceKind
+                SourceKind = SourceKind,
+                Warning = context.IfsLoadError
             };
         }
     }

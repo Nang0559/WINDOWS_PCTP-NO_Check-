@@ -11,5 +11,6 @@ namespace PCTP.Modules.GiaoHangKhach.OrderLoading.Category
     public interface IOrderCategoryResolver
     {
         OrderCategory Resolve(OrderLoadContext ctx);
+
     }
 }

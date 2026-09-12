@@ -1,5 +1,5 @@
 ﻿using PCTP.Modules.GiaoHangKhach.Configuration;
-using PCTP.Modules.GiaoHangKhach.Mode;
+using PCTP.Modules.GiaoHangKhach.Models;
 using PCTP.Shared.Enums;
 using System;
 using System.Collections.Generic;

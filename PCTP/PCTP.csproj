@@ -272,6 +272,7 @@
     <Compile Include="Modules\GiaoHangKhach\Models\OrderSourceResult.cs" />
     <Compile Include="Modules\GiaoHangKhach\OrderLoading\Category\DockCodeRowCategoryFilter.cs" />
     <Compile Include="Modules\GiaoHangKhach\OrderLoading\Category\GioMoTaCategoryResolver.cs" />
+    <Compile Include="Modules\GiaoHangKhach\OrderLoading\Category\GioRowFilter.cs" />
     <Compile Include="Modules\GiaoHangKhach\OrderLoading\Category\IOrderCategoryResolver.cs" />
     <Compile Include="Modules\GiaoHangKhach\OrderLoading\Category\IRowCategoryFilter.cs" />
     <Compile Include="Modules\GiaoHangKhach\OrderLoading\GiaoDB\GiaoDbOrderLoadStrategy.cs" />

@@ -240,7 +240,8 @@ namespace PCTP.QRCODE_HVN.PGH
             var qrRepo = new DocQRRepository(sql, _cfg);
             var sqlRepo = new SqlRepository(phieuDb, phieuUow);
             var luuTruRepo = new PhieuLuuTruRepository(phieuDb, phieuUow);
-            var classifier = new DockCodeCategoryClassifier();
+            var rowCategoryFilter = new DockCodeRowCategoryFilter();   // ✅ cho PhieuService — lọc từng dòng theo CUA
+            var categoryResolver = new GioMoTaCategoryResolver();      // ✅ cho DocQRService/HVN_Presenter — quyết định cả phiên
 
             var gioVP = _gioRepo.GetDictGioVP();
             var gioHN = _gioRepo.GetDictGioHN();
@@ -261,7 +262,7 @@ namespace PCTP.QRCODE_HVN.PGH
                  : _cfg.Delivery.GetTmpViewTable(Environment.MachineName);
 
             var ifsStrategy = new IfsOrderLoadStrategy(ifsRepo, luuTruRepo, phieuTmpRepo);
-            var tableOrderStrategy = new OrderTableLoadStrategy(tableOrderRepo, phieuTmpRepo);
+            var tableOrderStrategy = new OrderTableLoadStrategy(tableOrderRepo, phieuTmpRepo, ifsRepo, rowCategoryFilter);
             var giaoDbStrategy = new GiaoDbOrderLoadStrategy(phieugiaDBRepo);
             var ifsSource = new IfsOrderSource(ifsStrategy);
             var tableOrderSource = new TableOrderSource(tableOrderStrategy);
@@ -270,15 +271,15 @@ namespace PCTP.QRCODE_HVN.PGH
 
             var phieuSvc = new PhieuService(phieuRepo, ifsRepo, bus, _gioRepo, tenBan, _cfg,
                                              isMayBanQR, tableOrderRepo, phieugiaDBRepo,
-                                             orderSourceFactory, classifier);   // ← THÊM tham số cuối
+                                             orderSourceFactory, rowCategoryFilter);   // ← THÊM tham số cuối
             var hangthieucangaySvc = new HangThieuCaNgayService(ifsRepo, luuTruRepo, phieuDb);
-            var qrSvc = new DocQRService(qrRepo, bus, _cfg);
+            var qrSvc = new DocQRService(qrRepo, bus, _cfg,categoryResolver);
             var inPhieuSvc = new InPhieuService(ifsRepo, phieuRepo, sqlRepo, gioVP, gioHN, _cfg);
 
 
 
             return new HVN_Presenter(this, phieuSvc, qrSvc, inPhieuSvc,hangthieucangaySvc,
-                                      _gioRepo, bus, isMayBanQR, tenBan, _cfg); // ← truyền vào
+                                      _gioRepo, bus, isMayBanQR, tenBan, _cfg, categoryResolver); // ← truyền vào
         }
         private static string SanitizeMachineName(string name)
     => System.Text.RegularExpressions.Regex.Replace(
@@ -416,7 +417,8 @@ namespace PCTP.QRCODE_HVN.PGH
 
         public void ShowInfo(string msg) =>
             XtraMessageBox.Show(msg, "Thông Báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
-
+        public void ShowWarning(string msg) =>
+            XtraMessageBox.Show(msg, "Cảnh Báo", MessageBoxButtons.OK, MessageBoxIcon.Warning);
         public bool Confirm(string msg) =>
             XtraMessageBox.Show(msg, "Xác nhận", MessageBoxButtons.YesNo, MessageBoxIcon.Question)
             == DialogResult.Yes;

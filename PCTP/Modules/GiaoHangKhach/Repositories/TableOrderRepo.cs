@@ -479,38 +479,21 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         // ============================================================
 
         public DataTable SoSanhDonHangVoiIFS(
-            DataTable donHangBangRieng,
-            string ngayGiao,
-            CustomerConfig cfg)
+     DataTable donHangBangRieng, DataTable ifsDataDaLoc,
+     CustomerConfig cfg)
         {
             if (donHangBangRieng == null)
-                throw new ArgumentNullException(
-                    nameof(donHangBangRieng));
+                throw new ArgumentNullException(nameof(donHangBangRieng));
 
             if (cfg == null)
                 throw new ArgumentNullException(nameof(cfg));
 
             var result = new DataTable();
-
-            result.Columns.Add(
-                "MAHANG",
-                typeof(string));
-
-            result.Columns.Add(
-                "SL_BANG_RIENG",
-                typeof(int));
-
-            result.Columns.Add(
-                "SL_IFS",
-                typeof(int));
-
-            result.Columns.Add(
-                "CHENH_LECH",
-                typeof(int));
-
-            result.Columns.Add(
-                "GHI_CHU",
-                typeof(string));
+            result.Columns.Add("MAHANG", typeof(string));
+            result.Columns.Add("SL_BANG_RIENG", typeof(int));
+            result.Columns.Add("SL_IFS", typeof(int));
+            result.Columns.Add("CHENH_LECH", typeof(int));
+            result.Columns.Add("GHI_CHU", typeof(string));
 
             string customerNoIFS =
                 !string.IsNullOrEmpty(cfg.Delivery.CustomerNoIFS)
@@ -520,117 +503,58 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             if (string.IsNullOrEmpty(customerNoIFS))
                 return result;
 
+            // ✅ Dùng thẳng dữ liệu ĐÃ LỌC (giờ + SP/MP) truyền từ ngoài vào —
+            // KHÔNG tự query Oracle nữa, tránh trùng lặp + mất 2 lớp lọc đã có
+            // ở PhieuService (FilterIfsDataByGio / _rowCategoryFilter.Filter).
+            DataTable ifsData = ifsDataDaLoc ?? new DataTable();
+
             // --------------------------------------------------------
             // Tổng số lượng bảng riêng
             // --------------------------------------------------------
-
             var slBangRieng =
                 donHangBangRieng
                     .AsEnumerable()
-                    .GroupBy(r =>
-                        r["MAHANG"]?.ToString()?.Trim() ?? "")
+                    .GroupBy(r => r["MAHANG"]?.ToString()?.Trim() ?? "")
                     .Where(g => !string.IsNullOrEmpty(g.Key))
                     .ToDictionary(
                         g => g.Key,
-                        g => g.Sum(r =>
-                            DbValueHelper.SafeInt(
-                                r["SOLUONG"])),
+                        g => g.Sum(r => DbValueHelper.SafeInt(r["SOLUONG"])),
                         StringComparer.OrdinalIgnoreCase);
 
             // --------------------------------------------------------
-            // Query IFS
+            // Tổng số lượng IFS (đã lọc từ ngoài)
             // --------------------------------------------------------
-
-            DataTable ifsData;
-
-            try
-            {
-                ifsData = _ifsRepo.GetFullCustomerOrder(
-                   DateTime.Parse(ngayGiao).ToString("ddMMyyyy"), cfg);
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine(
-                    $"[SoSanhDonHangVoiIFS] " +
-                    $"Lỗi truy vấn IFS: {ex.Message}");
-
-                return result;
-            }
-
-            // --------------------------------------------------------
-            // Tổng số lượng IFS
-            // --------------------------------------------------------
-
             var slIfs =
                 ifsData
                     .AsEnumerable()
-                    .GroupBy(r =>
-                        r["MAHANG"]?.ToString()?.Trim() ?? "")
+                    .GroupBy(r => r["MAHANG"]?.ToString()?.Trim() ?? "")
                     .Where(g => !string.IsNullOrEmpty(g.Key))
                     .ToDictionary(
                         g => g.Key,
-                        g => g.Sum(r =>
-                            DbValueHelper.SafeInt(
-                                r["SOLUONG"])),
+                        g => g.Sum(r => DbValueHelper.SafeInt(r["SOLUONG"])),
                         StringComparer.OrdinalIgnoreCase);
 
             // --------------------------------------------------------
             // Merge danh sách mã
             // --------------------------------------------------------
-
-            var tatCaMaHang =
-                slBangRieng.Keys
-                    .Union(
-                        slIfs.Keys,
-                        StringComparer.OrdinalIgnoreCase);
+            var tatCaMaHang = slBangRieng.Keys.Union(slIfs.Keys, StringComparer.OrdinalIgnoreCase);
 
             foreach (string ma in tatCaMaHang)
             {
-                int slBR =
-                    slBangRieng.TryGetValue(
-                        ma,
-                        out int a)
-                        ? a
-                        : 0;
-
-                int slIF =
-                    slIfs.TryGetValue(
-                        ma,
-                        out int b)
-                        ? b
-                        : 0;
-
-                int chenh =
-                    slBR - slIF;
+                int slBR = slBangRieng.TryGetValue(ma, out int a) ? a : 0;
+                int slIF = slIfs.TryGetValue(ma, out int b) ? b : 0;
+                int chenh = slBR - slIF;
 
                 string ghiChu = "";
-
                 if (slBR > 0 && slIF == 0)
-                {
-                    ghiChu =
-                        "THIẾU_IFS — không thấy PO trên IFS";
-                }
+                    ghiChu = "THIẾU_IFS — không thấy PO trên IFS";
                 else if (slBR == 0 && slIF > 0)
-                {
-                    ghiChu =
-                        "THIẾU_BANG_RIENG — " +
-                        "IFS có đơn nhưng chưa nhập bảng riêng";
-                }
+                    ghiChu = "THIẾU_BANG_RIENG — IFS có đơn nhưng chưa nhập bảng riêng";
                 else if (chenh != 0)
-                {
-                    ghiChu =
-                        $"CHÊNH SỐ LƯỢNG: {chenh:+0;-0}";
-                }
+                    ghiChu = $"CHÊNH SỐ LƯỢNG: {chenh:+0;-0}";
 
                 if (!string.IsNullOrEmpty(ghiChu))
-                {
-                    result.Rows.Add(
-                        ma,
-                        slBR,
-                        slIF,
-                        chenh,
-                        ghiChu);
-                }
+                    result.Rows.Add(ma, slBR, slIF, chenh, ghiChu);
             }
 
             return result;

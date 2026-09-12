@@ -1,5 +1,7 @@
-﻿using PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao;
+﻿using PCTP.Domain.Interfaces;
+using PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao;
 using PCTP.Modules.GiaoHangKhach.Models;
+using PCTP.Modules.GiaoHangKhach.OrderLoading.Category;
 using PCTP.Shared.Common;
 using System;
 using System.Collections.Generic;
@@ -18,13 +20,18 @@ namespace PCTP.Modules.GiaoHangKhach.OrderLoading
     {
         private readonly ITableOrderRepository _phieuRepo;
         private readonly IPhieuTmpRepository _phieuTmpRepo;
-
+        private readonly IIFSRepository _ifsRepo;                 // ✅ mới
+        private readonly IRowCategoryFilter _rowCategoryFilter;
         public OrderTableLoadStrategy(
             ITableOrderRepository phieuRepo,
-            IPhieuTmpRepository phieuTmpRepo)
+            IPhieuTmpRepository phieuTmpRepo,
+            IIFSRepository ifsRepo,
+            IRowCategoryFilter rowCategoryFilter)
         {
             _phieuRepo = phieuRepo ?? throw new ArgumentNullException(nameof(phieuRepo));
             _phieuTmpRepo = phieuTmpRepo ?? throw new ArgumentNullException(nameof(phieuTmpRepo));
+            _ifsRepo = ifsRepo ?? throw new ArgumentNullException(nameof(ifsRepo));
+            _rowCategoryFilter = rowCategoryFilter ?? throw new ArgumentNullException(nameof(rowCategoryFilter));
         }
 
         public DataTable LoadDonHangGoc(OrderLoadContext ctx)
@@ -32,13 +39,36 @@ namespace PCTP.Modules.GiaoHangKhach.OrderLoading
             var d = ctx.Cfg.Delivery;
             bool isSP = ctx.Category == OrderCategory.SP;
 
-            // LoadPhieuTuBangRieng tự MergeLotTuBangRieng nội bộ — MergeLotDaLuu bên dưới
-            // không cần làm gì thêm. Không truyền tenBangOverride — luôn dùng đúng
-            // d.OrderTable của customer, GiaoDacBiet đã tách sang strategy khác.
-            return _phieuRepo.LoadPhieuTuBangRieng(
+            var donHang = _phieuRepo.LoadPhieuTuBangRieng(
                 ctx.NgayGiao.ToString("yyyy-MM-dd"),
                 string.Join(",", ctx.CheckedGios ?? new List<string>()),
                 isSP, d.DockCodeSP, ctx.Cfg);
+
+            // ✅ MỚI — build sẵn ifsDataDaLoc ngay tại bước load, để SoSanhVoiIFS
+            // chỉ việc đọc lại, không tự query/lọc lần 2 (tránh trùng lặp + lệch
+            // quy tắc như bản SoSanhDonHangVoiIFS cũ đã gặp).
+            try
+            {
+                string ngayXuatIFS = ctx.NgayGiao.ToString("ddMMyyyy");
+                DataTable ifsData = _ifsRepo.GetFullCustomerOrder(ngayXuatIFS, ctx.Cfg);
+
+                if (d.CoGear)
+                    ifsData = GioRowFilter.Filter(ifsData, ctx.CheckedGios);
+
+                if (d.CoLoaiSP)
+                    ifsData = _rowCategoryFilter.Filter(ifsData, ctx.Category, ctx.Cfg);
+
+                ctx.IfsDataDaLoc = ifsData;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine(
+                    $"[OrderTableLoadStrategy.LoadDonHangGoc] Lỗi lấy IFS để so sánh: {ex.Message}");
+                ctx.IfsDataDaLoc = null;
+                ctx.IfsLoadError = "⚠ Không kết nối được IFS để so sánh lệch. " + ex.Message;
+            }
+
+            return donHang;
         }
 
         public void MergeLotDaLuu(DataTable donHang, OrderLoadContext ctx)
@@ -65,8 +95,7 @@ namespace PCTP.Modules.GiaoHangKhach.OrderLoading
         /// </summary>
         public DataTable SoSanhVoiIFS(DataTable donHang, OrderLoadContext ctx)
         {
-            return _phieuRepo.SoSanhDonHangVoiIFS(
-                donHang, ctx.NgayGiao.ToString("yyyy-MM-dd"), ctx.Cfg);
+            return _phieuRepo.SoSanhDonHangVoiIFS(donHang, ctx.IfsDataDaLoc, ctx.Cfg);
         }
     }
 }

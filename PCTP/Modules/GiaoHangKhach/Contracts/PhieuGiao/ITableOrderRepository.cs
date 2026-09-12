@@ -35,7 +35,9 @@ namespace PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao
             string tmpTable, string poNo = "", string cusPoNo = "");
 
         /// <summary>Đối chiếu bảng riêng với IFS thật — phát hiện lệch/thiếu PO giữa 2 nguồn.</summary>
-        DataTable SoSanhDonHangVoiIFS(DataTable donHangBangRieng, string ngayGiao, CustomerConfig cfg);
+        DataTable SoSanhDonHangVoiIFS(
+        DataTable donHangBangRieng, DataTable ifsDataDaLoc,
+        CustomerConfig cfg);
         Dictionary<string, int> GetQcDongGoiBatch(
         List<string> maHangList);
     }

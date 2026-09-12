@@ -23,13 +23,15 @@ namespace PCTP.Domain.Events
         public DataTable HangThieuTable { get; }
         public string Caption { get; }
         public bool CoMaNG { get; }
+        public string CanhBao { get; }
 
-        public PhieuLoadedEvent(DataTable donHang, DataTable hangThieu, string caption, bool coMaNG=false)
+        public PhieuLoadedEvent(DataTable donHang, DataTable hangThieu, string caption, bool coMaNG=false, string canhBao = null)
         {
             DonHangTable = donHang;
             HangThieuTable = hangThieu;
             Caption = caption;
             CoMaNG = coMaNG;
+            CanhBao = canhBao;
         }
     }
 

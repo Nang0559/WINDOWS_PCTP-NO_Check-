@@ -1,4 +1,4 @@
-﻿using PCTP.Modules.GiaoHangKhach.Mode;
+﻿
 using PCTP.Modules.GiaoHangKhach.Models;
 
 namespace PCTP.Modules.GiaoHangKhach.OrderLoading

@@ -1,4 +1,4 @@
-﻿using PCTP.Modules.GiaoHangKhach.Mode;
+﻿using PCTP.Modules.GiaoHangKhach.Models;
 using System.Data;
 
 namespace PCTP.Modules.GiaoHangKhach.Models
@@ -16,5 +16,6 @@ namespace PCTP.Modules.GiaoHangKhach.Models
         public DataTable Difference { get; set; }
 
         public OrderSourceKind SourceKind { get; set; }
+        public string Warning { get; set; }
     }
 }
