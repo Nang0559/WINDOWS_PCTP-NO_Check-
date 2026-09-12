@@ -14,6 +14,7 @@ namespace PCTP.QRCODE_HVN.PGH
         private DocQrControl _docQrControl;
         private PhieuBottomStateControl _phieuBottomStateControl;
         private PhieuHeaderControl _phieuHeaderControl;
+        private HangThieuControl _hangThieuControl;
 
         // Compatibility bridge: HVN_PGH business code keeps the legacy member
         // names while the actual visual owner is PhieuBottomStateControl.
@@ -33,10 +34,17 @@ namespace PCTP.QRCODE_HVN.PGH
         private BandedGridColumn gridColumn5 { get { return _phieuBottomStateControl.GhepLotGio; } }
         private BandedGridColumn gridColumn6 { get { return _phieuBottomStateControl.GhepLotLot; } }
 
+        // Compatibility bridge for the legacy Hàng thiếu grid.
+        private GridControl HangThieuGrid
+        {
+            get { return _hangThieuControl != null ? _hangThieuControl.Grid : GCT_HT; }
+        }
+
         protected override void OnLoad(EventArgs e)
         {
             base.OnLoad(e);
             MigratePhieuHeaderToUserControl();
+            MigrateHangThieuToUserControl();
             MigratePhieuOrderGridToUserControl();
             MigrateDocQrGridToUserControl();
         }
@@ -59,6 +67,28 @@ namespace PCTP.QRCODE_HVN.PGH
             parent.Controls.SetChildIndex(_phieuHeaderControl, childIndex);
 
             _phieuHeaderControl.Adopt(panelPhieu);
+        }
+
+        private void MigrateHangThieuToUserControl()
+        {
+            if (_hangThieuControl != null || GCT_HT == null)
+                return;
+
+            Control parent = GCT_HT.Parent;
+            if (parent == null)
+                return;
+
+            object existingDataSource = GCT_HT.DataSource;
+            int childIndex = parent.Controls.GetChildIndex(GCT_HT);
+
+            _hangThieuControl = new HangThieuControl();
+
+            parent.Controls.Remove(GCT_HT);
+            parent.Controls.Add(_hangThieuControl);
+            parent.Controls.SetChildIndex(_hangThieuControl, childIndex);
+
+            if (existingDataSource != null)
+                _hangThieuControl.Grid.DataSource = existingDataSource;
         }
 
         private void MigratePhieuOrderGridToUserControl()
