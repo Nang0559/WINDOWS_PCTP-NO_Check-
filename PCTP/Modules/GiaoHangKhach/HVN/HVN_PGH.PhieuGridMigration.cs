@@ -1,5 +1,4 @@
 using System;
-using System.Windows.Forms;
 using PCTP.QRCODE_HVN.PGH.Controls;
 
 namespace PCTP.QRCODE_HVN.PGH
@@ -50,21 +49,6 @@ namespace PCTP.QRCODE_HVN.PGH
 
             // Keep the existing form-level row styling handler unchanged.
             _phieuGridControl.OrderView.RowCellStyle += GridViewDONHANG_RowCellStyle;
-        }
-
-        private GridControlCompat GridControlDONHANG
-        {
-            get { return new GridControlCompat(_phieuGridControl != null ? _phieuGridControl.OrderGrid : null); }
-        }
-
-        private sealed class GridControlCompat
-        {
-            internal readonly DevExpress.XtraGrid.GridControl Grid;
-
-            internal GridControlCompat(DevExpress.XtraGrid.GridControl grid)
-            {
-                Grid = grid;
-            }
         }
     }
 }
