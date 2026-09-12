@@ -18,6 +18,8 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
         private Button _btnToggleLoaiPhieu;
         private bool _isLoaiSP;
         private bool _eventsWired;
+        private bool _suspendDateChanged;
+        private bool _suspendGioXuatChanged;
         private CustomerConfig _cfg;
 
         public PhieuHeaderControl()
@@ -42,6 +44,27 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
         public event EventHandler DateChanged = delegate { };
         public event EventHandler GioXuatChanged = delegate { };
         public event EventHandler TabChanged = delegate { };
+
+        public void SetDate(DateTime date)
+        {
+            var control = FindControl<DateEdit>("dateNX");
+            if (control == null)
+                return;
+
+            _suspendDateChanged = true;
+            try { control.DateTime = date; }
+            finally { _suspendDateChanged = false; }
+        }
+
+        public void SuspendGioXuatChanged()
+        {
+            _suspendGioXuatChanged = true;
+        }
+
+        public void ResumeGioXuatChanged()
+        {
+            _suspendGioXuatChanged = false;
+        }
 
         public void Adopt(Control content)
         {
@@ -198,11 +221,16 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
 
         private void HeaderDateChanged(object sender, EventArgs e)
         {
+            if (_suspendDateChanged)
+                return;
             DateChanged.Invoke(this, EventArgs.Empty);
         }
 
         private void HeaderGioXuatChanged(object sender, EventArgs e)
         {
+            if (_suspendGioXuatChanged)
+                return;
+
             if (!TryUpdateCurrentGioXuat())
                 return;
 

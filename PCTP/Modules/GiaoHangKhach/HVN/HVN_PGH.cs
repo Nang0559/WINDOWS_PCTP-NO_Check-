@@ -852,13 +852,8 @@ namespace PCTP.QRCODE_HVN.PGH
             GridViewDONHANG.ShowingEditor += GridViewDONHANG_ShowingEditor_LOT;
             if (dateNX.DateTime == DateTime.MinValue || dateNX.DateTime.Year < 2000)
                 dateNX.DateTime = DateTime.Now;
-            dateNX.EditValueChanged += dateNX_EditValueChanged;
 
-            if (_cfg.Delivery.CoNhieuNhaMay)
-                tabPaneHVN.Click += tabPaneHVN_Click;
 
-            RDO_GXHN.SelectedIndexChanged += RDO_GXHN_SelectedIndexChanged;
-            radioGroup2.SelectedIndexChanged += radioGroup2_SelectedIndexChanged;
 
             if (_cfg.Delivery.CoGear)
             {
@@ -1059,21 +1054,30 @@ namespace PCTP.QRCODE_HVN.PGH
 
         public void SetDate(DateTime date)
         {
-            // Gỡ event tránh trigger DateChanged khi set programmatically
-            dateNX.EditValueChanged -= dateNX_EditValueChanged;
+            if (_phieuHeaderControl != null)
+            {
+                _phieuHeaderControl.SetDate(date);
+                return;
+            }
+
             dateNX.DateTime = date;
-            dateNX.EditValueChanged += dateNX_EditValueChanged;
         }
         public void SuspendGioXuatChanged()
         {
-            radioGroup2.SelectedIndexChanged -= radioGroup2_SelectedIndexChanged;
-            RDO_GXHN.SelectedIndexChanged -= RDO_GXHN_SelectedIndexChanged;
+            if (_phieuHeaderControl != null)
+            {
+                _phieuHeaderControl.SuspendGioXuatChanged();
+                return;
+            }
         }
 
         public void ResumeGioXuatChanged()
         {
-            radioGroup2.SelectedIndexChanged += radioGroup2_SelectedIndexChanged;
-            RDO_GXHN.SelectedIndexChanged += RDO_GXHN_SelectedIndexChanged;
+            if (_phieuHeaderControl != null)
+            {
+                _phieuHeaderControl.ResumeGioXuatChanged();
+                return;
+            }
         }
         public void SetTab(int addNM)
         {
