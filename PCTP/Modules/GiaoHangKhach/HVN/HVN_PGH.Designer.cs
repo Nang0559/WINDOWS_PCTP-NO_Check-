@@ -1148,17 +1148,8 @@ namespace PCTP.QRCODE_HVN.PGH
         private DevExpress.XtraEditors.SimpleButton cmd_SuaSLHVN;
         private DevExpress.XtraEditors.SimpleButton simpleButton5;
         private DevExpress.XtraEditors.SimpleButton simpleButton6;
-        private DevExpress.XtraGrid.GridControl gridCTTGL;
-        private DevExpress.XtraGrid.Views.BandedGrid.BandedGridView GridVTTGL;
-        private DevExpress.XtraGrid.Views.BandedGrid.GridBand gridBand1;
-        private DevExpress.XtraGrid.Views.BandedGrid.BandedGridColumn gridColumn4;
-        private DevExpress.XtraGrid.Views.BandedGrid.BandedGridColumn gridColumn5;
-        private DevExpress.XtraGrid.Views.BandedGrid.BandedGridColumn gridColumn6;
         private DevExpress.XtraEditors.SidePanel sidePanel3;
         private DevExpress.XtraEditors.SidePanel sidePanel5;
-        private DevExpress.XtraEditors.SidePanel sidePanel4;
-        private DevExpress.XtraGrid.GridControl gridCtrSUASL;
-        private DevExpress.XtraGrid.Views.Grid.GridView gridVSUASL;
         private DevExpress.XtraBars.Docking2010.WindowsUIButtonPanel UIButtonHOME;
         private DevExpress.XtraEditors.SidePanel sidePanel2;
         private DevExpress.XtraGrid.Views.BandedGrid.BandedGridView GridViewDONHANG;
@@ -1198,12 +1189,5 @@ namespace PCTP.QRCODE_HVN.PGH
         private CheckedListBoxControl CheckGX;
         private DevExpress.XtraGrid.Views.BandedGrid.BandedGridColumn bandedGridColumn9;
         private DevExpress.XtraGrid.Views.BandedGrid.GridBand gridBandDH;
-        private DevExpress.XtraGrid.GridControl gridCLECH;
-        private DevExpress.XtraGrid.Views.BandedGrid.BandedGridView bandedGridViewLECH;
-        private DevExpress.XtraGrid.Views.BandedGrid.GridBand gridBandLECH;
-        private DevExpress.XtraGrid.Views.BandedGrid.BandedGridColumn colLechNguon;
-        private DevExpress.XtraGrid.Views.BandedGrid.BandedGridColumn colLechMaHang;
-        private DevExpress.XtraGrid.Views.BandedGrid.BandedGridColumn colLechTenHang;
-        private DevExpress.XtraGrid.Views.BandedGrid.BandedGridColumn colLechSoLuong;
     }
 }
