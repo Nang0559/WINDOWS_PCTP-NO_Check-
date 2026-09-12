@@ -14,7 +14,7 @@ namespace PCTP.Applications.Services
     /// Keeps the existing public API while delegating QR parsing/business rules
     /// to DocQRScanEngine.
     /// </summary>
-    public sealed class DocQRService
+    public class DocQRService
     {
         private readonly IOrderCategoryResolver _categoryResolver;
         private readonly DocQRSessionState _session;
@@ -33,13 +33,11 @@ namespace PCTP.Applications.Services
             _engine = new DocQRScanEngine(repo, bus, cfg, _session);
         }
 
-        // Backward compatible API.
         public void SetCheDoBanSP(bool isSP)
         {
             _session.SetCategory(isSP, _session.IsBanOType);
         }
 
-        // Existing presenter entry point: resolve SP/O TYPE from gioMoTa.
         public void SetCheDoBan(string gioMoTa)
         {
             bool isSp = _categoryResolver.Resolve(new OrderLoadContext { GioFccMoTa = gioMoTa }) == OrderCategory.SP;
