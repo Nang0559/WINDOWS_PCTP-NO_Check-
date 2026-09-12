@@ -1,4 +1,5 @@
-﻿using PCTP.Shared.Enums;
+﻿using PCTP.Modules.GiaoHangKhach.Models;
+using PCTP.Shared.Enums;
 using PCTP.VIEWSTOCK.Models;
 using System;
 using System.Collections.Generic;
@@ -7,7 +8,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace PCTP.Domain.Interfaces
+namespace PCTP.Modules.GiaoHangKhach.OrderLoading
 {
     /// <summary>
     /// Strategy pattern chọn NGUỒN đơn hàng gốc cho Giao Hàng Khách: từ IFS
@@ -40,23 +41,5 @@ namespace PCTP.Domain.Interfaces
         DataTable SoSanhVoiIFS(DataTable donHang, OrderLoadContext ctx);
     }
 
-    public class OrderLoadContext
-    {
-        public CustomerConfig Cfg { get; set; }
-        public DateTime NgayGiao { get; set; }
-        public string NhaMay { get; set; }
-        public int AddNm { get; set; }
-        public string GioFcc { get; set; }
-        public string GioFccMoTa { get; set; }
-        public List<string> CheckedGios { get; set; }       // YMVN
-        public bool IsLoaiSP { get; set; }
-        public MachineRole MachineRole { get; set; }         // ← THAY isMayBanQR bool bằng enum (mục 2)
-        public bool IsBanQR { get; set; }
-        /// <summary>
-        /// True khi người dùng chọn "giao đặc biệt" (upload PO ngoài lịch IFS
-        /// thường — trước đây là nhập tay trên grid, nay bắt buộc qua upload
-        /// giống pattern HTN/YMVN). Chỉ có ý nghĩa với Cfg.CoGiaoDacBiet == true.
-        /// </summary>
-        public bool CheDoGiaoDacBiet { get; set; }
-    }
+   
 }

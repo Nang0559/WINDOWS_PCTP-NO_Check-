@@ -4,9 +4,12 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace PCTP.Modules.GiaoHangKhach.Domain
+namespace PCTP.Modules.GiaoHangKhach.Mode
 {
-    internal class OrderSourceKind
+    public enum OrderSourceKind
     {
+        IFS = 1,
+        TableOrder = 2,
+        GiaoDB = 3
     }
 }

@@ -1,5 +1,6 @@
 ﻿using PCTP.Domain.Interfaces;
 using PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao;
+using PCTP.Modules.GiaoHangKhach.Models;
 using PCTP.Shared.Common;
 using PCTP.VIEWSTOCK.Repository;
 using System;
@@ -9,7 +10,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace PCTP.Modules.GiaoHangKhach.TableOrderLoad
+namespace PCTP.Modules.GiaoHangKhach.OrderLoading
 {
     /// <summary>
     /// Customer dùng bảng riêng (YMVN, HTN, GiaoDB, và mọi customer upload PO

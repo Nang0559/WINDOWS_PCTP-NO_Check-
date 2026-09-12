@@ -4,9 +4,11 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace PCTP.Modules.GiaoHangKhach.Domain
+namespace PCTP.Modules.GiaoHangKhach.Models
 {
-    internal class OrderCategory
+    public enum OrderCategory
     {
+        MP = 1,
+        SP = 2
     }
 }

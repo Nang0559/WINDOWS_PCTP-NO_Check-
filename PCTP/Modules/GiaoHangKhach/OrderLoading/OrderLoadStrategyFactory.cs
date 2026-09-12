@@ -1,5 +1,8 @@
 ﻿using PCTP.Domain.Interfaces;
 using PCTP.Modules.GiaoHangKhach.IFSORDER;
+using PCTP.Modules.GiaoHangKhach.Mode;
+using PCTP.Modules.GiaoHangKhach.Models;
+using PCTP.Modules.GiaoHangKhach.OrderLoading.IFS;
 using PCTP.Modules.GiaoHangKhach.TableOrderLoad;
 using PCTP.VIEWSTOCK.Models;
 using System;
@@ -8,7 +11,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace PCTP.Modules.GiaoHangKhach.Services
+namespace PCTP.Modules.GiaoHangKhach.OrderLoading
 {
     /// <summary>
     /// Chọn <see cref="IOrderLoadStrategy"/> phù hợp cho 1 lần load đơn hàng, dựa trên
@@ -22,6 +25,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
     {
         private readonly IfsOrderLoadStrategy _ifsStrategy;
         private readonly OrderTableLoadStrategy _orderTableStrategy;
+        private IOrderLoadStrategy _orderLoadStrategy;
 
         public OrderLoadStrategyFactory(IfsOrderLoadStrategy ifs, OrderTableLoadStrategy orderTable)
         {
@@ -31,19 +35,13 @@ namespace PCTP.Modules.GiaoHangKhach.Services
 
         public IOrderLoadStrategy GetStrategy(OrderLoadContext ctx)
         {
-            var cfg = ctx.Cfg;
-
-            // Trường hợp lai (HVN): mặc định IFS, TRỪ KHI đang ở chế độ giao đặc biệt
-            // và config có khai báo bảng giao đặc biệt.
-            if (ctx.CheDoGiaoDacBiet && cfg.CoGiaoDacBiet)
-                return _orderTableStrategy; // dùng OrderTableLoadStrategy nhưng trỏ tới OrderTableGiaoDacBiet
-
-            // Trường hợp thuần bảng riêng (YMVN/HTN)
-            if (cfg.LoadTuBangRieng)
-                return _orderTableStrategy;
-
-            // Mặc định: IFS (HVN luồng thường)
-            return _ifsStrategy;
+            switch (ctx.Source)
+            {
+                case OrderSourceKind.IFS: return _ifsStrategy;
+                case OrderSourceKind.MilkRun: return _orderTableStrategy;
+                case OrderSourceKind.GiaoDB: return _giaoDbStrategy;
+                default: throw new ArgumentOutOfRangeException(nameof(ctx.Source));
+            }
         }
     }
 }
