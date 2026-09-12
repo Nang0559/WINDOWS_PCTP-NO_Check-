@@ -1,4 +1,4 @@
-using DevExpress.XtraBars.Docking2010;
+﻿using DevExpress.XtraBars.Docking2010;
 using DevExpress.XtraEditors;
 using DevExpress.XtraEditors.Controls;
 using DevExpress.XtraEditors.Repository;
@@ -88,10 +88,6 @@ namespace PCTP.QRCODE_HVN.PGH
 
             _cfg = CustomerTableConfig.Get(customerNo);
             // Gỡ event tránh trigger khi form chưa ready
-            dateNX.EditValueChanged -= dateNX_EditValueChanged;
-            tabPaneHVN.Click -= tabPaneHVN_Click;
-            RDO_GXHN.SelectedIndexChanged -= RDO_GXHN_SelectedIndexChanged;
-            radioGroup2.SelectedIndexChanged -= radioGroup2_SelectedIndexChanged;
             gridVDOCQRCODE.FocusedRowChanged += gridVDOCQRCODE_FocusedRowChanged;
             gridVSUASL.FocusedRowChanged += gridVSUASL_FocusedRowChanged;
             _presenter = BuildPresenter();
@@ -338,7 +334,6 @@ namespace PCTP.QRCODE_HVN.PGH
         public void SwitchToDocQRView()
         {
 
-            tabPaneHVN.Click -= tabPaneHVN_Click;
 
             UIButtonHOME.Visible = true;
             panelPhieu.Visible = false;
@@ -386,7 +381,6 @@ namespace PCTP.QRCODE_HVN.PGH
         // ── Chuyển về màn hình phiếu thường ─────────────────────────────────
         public void SwitchToPhieuView()
         {
-            tabPaneHVN.Click -= tabPaneHVN_Click;
 
             UIButtonHOME.Visible = false;
             panelPhieu.Visible = true;
@@ -1043,7 +1037,6 @@ namespace PCTP.QRCODE_HVN.PGH
         }
         public void SetTab(int addNM)
         {
-            tabPaneHVN.Click -= tabPaneHVN_Click;
             if (addNM == 2)
             {
                 tabPaneHVN.SelectedPage = tabHN;

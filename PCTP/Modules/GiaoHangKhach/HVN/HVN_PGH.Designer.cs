@@ -268,7 +268,6 @@ namespace PCTP.QRCODE_HVN.PGH
             this.tabPaneHVN.Size = new System.Drawing.Size(1551, 131);
             this.tabPaneHVN.TabIndex = 19;
             this.tabPaneHVN.Text = "HNV HA NAM";
-            this.tabPaneHVN.Click += new System.EventHandler(this.tabPaneHVN_Click);
             // 
             // tabHN
             // 
