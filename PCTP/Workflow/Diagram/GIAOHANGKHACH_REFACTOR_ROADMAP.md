@@ -137,13 +137,13 @@ Không dùng một enum lớn để biểu diễn tất cả nghiệp vụ.
 public enum OrderSourceKind
 {
     IFS = 1,
-    MilkRun = 2,
+    TableOrder  = 2,
     GiaoDB = 3
 }
 ```
 
 - `IFS`: đơn từ IFS.
-- `OrderTable`: actual order từ bảng riêng/OrderTable.
+- `TableOrder`: actual order từ bảng riêng/OrderTable.
 - `GiaoDB`: dữ liệu từ chứng từ GiaoDB.
 
 `GiaoDB` là source/document data, còn `GiaoDacBiet` là business scenario.
@@ -885,7 +885,7 @@ có thể tiếp tục tồn tại trong migration.
 Sau này:
 
 ```text
-MilkRunOrderSource
+TableOrderSource
     ↓
 TableOrderRepository
 ```
