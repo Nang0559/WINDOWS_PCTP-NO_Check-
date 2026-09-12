@@ -64,22 +64,12 @@ namespace PCTP.QRCODE_HVN.PGH
 
         private void PhieuHeaderControl_GioXuatCheckedChanged(object sender, EventArgs e)
         {
-            GioXuatCheckedChanged.Invoke(this, e);
+            GioXuatCheckedChanged.Invoke(this, EventArgs.Empty);
         }
 
         private void PhieuHeaderControl_CheckGX_ItemCheck(object sender, EventArgs e)
         {
-            CheckGX_ItemCheck.Invoke(this, e);
-        }
-
-        private void PhieuHeaderControl_GioXuatCheckedChanged(object sender, EventArgs e)
-        {
-            GioXuatCheckedChanged.Invoke(this, e);
-        }
-
-        private void PhieuHeaderControl_CheckGX_ItemCheck(object sender, EventArgs e)
-        {
-            CheckGX_ItemCheck.Invoke(this, e);
+            CheckGX_ItemCheck.Invoke(this, EventArgs.Empty);
         }
 
         private void PhieuHeaderControl_LoaiPhieuChanged(object sender, EventArgs e)
@@ -104,9 +94,6 @@ namespace PCTP.QRCODE_HVN.PGH
             parent.Controls.Add(_hangThieuControl);
             parent.Controls.SetChildIndex(_hangThieuControl, childIndex);
 
-            // Adopt the existing Designer grid instead of rebuilding it.
-            // This preserves every column/view setting and keeps legacy code
-            // that still references GCT_HT valid during the transition.
             _hangThieuControl.Adopt(GCT_HT);
         }
 
