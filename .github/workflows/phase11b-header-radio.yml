@@ -52,7 +52,6 @@ jobs:
           lock_helper = extract_method(hvn, 'private void LockRadioGroup(RadioGroupItemCollection items,')
           select_helper = extract_method(hvn, 'private bool TrySelectRadio(RadioGroupItemCollection items,')
 
-          # Build header-owned implementations while preserving the existing algorithms.
           bind_vp_body = bind_vp[bind_vp.find('{')+1:-1]
           bind_vp_body = bind_vp_body.replace(
               '            radioGroup2.Properties.Items.Clear();',
@@ -75,7 +74,6 @@ jobs:
 
           header_methods = '''\n        public void BindGioXuatVP(IReadOnlyList<GioXuat> danhSach)\n        {''' + bind_vp_body + '''\n        }\n\n        public void BindGioXuatHN(IReadOnlyList<GioXuat> danhSach)\n        {''' + bind_hn_body + '''\n        }\n\n        public void LockRadioExcept(string gioFCC)\n        {''' + lock_body + '''\n        }\n\n        public void UnlockAllRadio()\n        {''' + unlock_body + '''\n        }\n'''
 
-          # Helpers are copied unchanged because they operate only on supplied collections.
           header_methods += '\n        ' + lock_helper.strip() + '\n\n        ' + select_helper.strip() + '\n'
 
           marker = '        public void LockDatePicker()'
@@ -83,22 +81,26 @@ jobs:
               raise RuntimeError('Header insertion marker not found')
           header = header.replace(marker, header_methods + '\n' + marker, 1)
 
-          hvn = replace_method(hvn,
-              'public void BindGioXuatVP(IReadOnlyList<GioXuat> danhSach)',
-              '''public void BindGioXuatVP(IReadOnlyList<GioXuat> danhSach)\n        {\n            if (_phieuHeaderControl != null)\n                _phieuHeaderControl.BindGioXuatVP(danhSach);\n        }''')
-          hvn = replace_method(hvn,
-              'public void BindGioXuatHN(IReadOnlyList<GioXuat> danhSach)',
-              '''public void BindGioXuatHN(IReadOnlyList<GioXuat> danhSach)\n        {\n            if (_phieuHeaderControl != null)\n                _phieuHeaderControl.BindGioXuatHN(danhSach);\n        }''')
-          hvn = replace_method(hvn,
-              'public void LockRadioExcept(string gioFCC)',
-              '''public void LockRadioExcept(string gioFCC)\n        {\n            if (_phieuHeaderControl != null)\n                _phieuHeaderControl.LockRadioExcept(gioFCC);\n        }''')
-          hvn = replace_method(hvn,
-              'public void UnlockAllRadio()',
-              '''public void UnlockAllRadio()\n        {\n            if (_phieuHeaderControl != null)\n                _phieuHeaderControl.UnlockAllRadio();\n        }''')
+          hvn = replace_method(hvn, 'public void BindGioXuatVP(IReadOnlyList<GioXuat> danhSach)', '''public void BindGioXuatVP(IReadOnlyList<GioXuat> danhSach)\n        {\n            if (_phieuHeaderControl != null)\n                _phieuHeaderControl.BindGioXuatVP(danhSach);\n        }''')
+          hvn = replace_method(hvn, 'public void BindGioXuatHN(IReadOnlyList<GioXuat> danhSach)', '''public void BindGioXuatHN(IReadOnlyList<GioXuat> danhSach)\n        {\n            if (_phieuHeaderControl != null)\n                _phieuHeaderControl.BindGioXuatHN(danhSach);\n        }''')
+          hvn = replace_method(hvn, 'public void LockRadioExcept(string gioFCC)', '''public void LockRadioExcept(string gioFCC)\n        {\n            if (_phieuHeaderControl != null)\n                _phieuHeaderControl.LockRadioExcept(gioFCC);\n        }''')
+          hvn = replace_method(hvn, 'public void UnlockAllRadio()', '''public void UnlockAllRadio()\n        {\n            if (_phieuHeaderControl != null)\n                _phieuHeaderControl.UnlockAllRadio();\n        }''')
           hvn = replace_method(hvn, 'private void LockRadioGroup(RadioGroupItemCollection items,', '')
           hvn = replace_method(hvn, 'private bool TrySelectRadio(RadioGroupItemCollection items,', '')
 
           hvn_path.write_text(hvn, encoding='utf-8')
           header_path.write_text(header, encoding='utf-8')
-
           print('Phase 11B radio ownership refactor applied.')
+
+      - name: Commit refactor
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add PCTP/Modules/GiaoHangKhach/HVN/HVN_PGH.cs PCTP/Modules/GiaoHangKhach/HVN/Controls/PhieuHeaderControl.cs
+          if git diff --cached --quiet; then
+            echo "No refactor changes to commit."
+            exit 0
+          fi
+          git commit -m "Phase 11B: move remaining radio UI ownership into PhieuHeaderControl"
+          git push
