@@ -186,11 +186,41 @@ GiaoDB
  └── SP
 ```
 
-IFS hiện tại sử dụng `CUA = SUB_DOCK_CODE` để phục vụ phân loại MP/SP.
+### 4.1 Ba cơ chế xác định Category hiện tại (đã kiểm chứng với code, không phải giả định)
 
-Table/MilkRun sử dụng dock code/config tương ứng.
+Có **3 cơ chế khác nhau**, không phải 1 cơ chế `CUA = SUB_DOCK_CODE` áp dụng chung như bản roadmap cũ ghi nhầm:
 
-GiaoDB sau khi chuyển thành Standard Order phải dùng common MP/SP classification.
+| Luồng | Cấp độ quyết định | Tín hiệu | Nơi xử lý |
+|---|---|---|---|
+| **IFS gốc** (HVN, `100001`) | Toàn phiên load (không phải từng dòng) | Nhãn "giờ xuất" người dùng chọn có chứa `SP6`/`SP#` | `GioXuatRepository.MapMaGio` (sinh nhãn từ `QRCODE_CHANGETIME`) + `PhieuService.IsLoaiSP(gioMoTa)` (đọc nhãn) |
+| **Bảng riêng / MilkRun** (`100003`, `CoLoaiSP = true`) | Từng dòng dữ liệu | Cột `CUA` so với `CustomerConfig.DockCodeSP` | SQL: `TableOrderRepo` (`RTRIM(o.CUA) = / <> DockCodeSP`) — C#: `PhieuService.FilterIfsDataByDockCode` (áp dụng cho snapshot IFS song song) |
+| **Toggle thủ công** | Toàn phiên (người dùng tự chọn) | Nút "Xem: MP/SP" | `_isLoaiSP` field, `HVN_PGH.BtnToggleLoaiPhieu_Click` — là input cho 2 cơ chế trên, không phải cơ chế phân loại riêng |
+
+**Không nên gộp 2 cơ chế đầu vào 1 interface duy nhất** vì khác hạt (granularity): IFS gốc quyết định *cả phiên* (không có "dòng" nào để soi — SQL WHERE theo giờ đã tự scope đúng), còn Bảng riêng/MilkRun cần soi *từng dòng* vì 1 bảng có thể lẫn cả MP và SP.
+
+### 4.2 Đích thiết kế — tách 2 trách nhiệm
+
+```csharp
+// 1. "Phiên này đang ở chế độ nào?" — quyết định 1 lần cho cả lần Load.
+//    IFS gốc: đọc nhãn giờ xuất. Bảng riêng/GiaoDB: đọc thẳng từ toggle UI
+//    (đã có sẵn trong OrderLoadContext.Category, không cần resolver riêng).
+public interface IOrderCategoryResolver
+{
+    OrderCategory Resolve(OrderLoadContext ctx);
+}
+
+// 2. "Trong dữ liệu đã load, dòng nào thuộc category đang xem?" — CHỈ áp dụng
+//    khi 1 bảng lẫn cả MP và SP cần lọc ra (Bảng riêng/MilkRun). IFS gốc
+//    KHÔNG cần cái này (SQL đã tự scope theo giờ, không còn gì để lọc thêm).
+public interface IRowCategoryFilter
+{
+    DataTable Filter(DataTable data, OrderCategory wanted, CustomerConfig cfg);
+}
+```
+
+`IRowCategoryFilter` implementation cho Bảng riêng/MilkRun (`DockCodeRowCategoryFilter`) thay thế `PhieuService.FilterIfsDataByDockCode` — logic giữ nguyên, chỉ tách ra dùng chung. Phần SQL trong `TableOrderRepo` **giữ nguyên, không ép qua interface** (lý do hiệu năng — lọc tại DB thay vì kéo hết dữ liệu về rồi lọc trong C#); chỉ cần ghi chú liên kết để 2 nơi không bị sửa lệch nhau khi đổi quy tắc.
+
+GiaoDB sau khi chuyển thành Standard Order phải dùng chung `OrderCategory` enum như 2 luồng trên, nhưng chưa cần `IRowCategoryFilter`/`IOrderCategoryResolver` riêng cho tới khi có nhu cầu thực tế (mục 23 — không tạo abstraction chỉ vì kiến trúc đẹp).
 
 ---
 
