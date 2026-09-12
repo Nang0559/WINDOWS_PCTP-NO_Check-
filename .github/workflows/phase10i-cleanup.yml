@@ -1,0 +1,50 @@
+name: phase10i-cleanup
+on:
+  push:
+jobs:
+  cleanup:
+    if: github.actor == 'Nang0559' || github.actor == 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Finish Phase 10I header ownership
+        shell: python
+        run: |
+          from pathlib import Path
+          import subprocess
+
+          def read(p): return Path(p).read_text(encoding='utf-8')
+          def write(p,s): Path(p).write_text(s, encoding='utf-8')
+
+          p='PCTP/Modules/GiaoHangKhach/HVN/Controls/PhieuHeaderControl.cs'
+          s=read(p)
+          s=s.replace('        private bool _eventsWired;\n        private CustomerConfig _cfg;', '        private bool _eventsWired;\n        private bool _suspendDateChanged;\n        private bool _suspendGioXuatChanged;\n        private CustomerConfig _cfg;', 1)
+          s=s.replace('        public event EventHandler TabChanged = delegate { };', '''        public event EventHandler TabChanged = delegate { };\n\n        public void SetDate(DateTime date)\n        {\n            var control = FindControl<DateEdit>("dateNX");\n            if (control == null)\n                return;\n\n            _suspendDateChanged = true;\n            try { control.DateTime = date; }\n            finally { _suspendDateChanged = false; }\n        }\n\n        public void SuspendGioXuatChanged()\n        {\n            _suspendGioXuatChanged = true;\n        }\n\n        public void ResumeGioXuatChanged()\n        {\n            _suspendGioXuatChanged = false;\n        }''', 1)
+          s=s.replace('        private void HeaderDateChanged(object sender, EventArgs e)\n        {\n            DateChanged.Invoke(this, EventArgs.Empty);\n        }', '        private void HeaderDateChanged(object sender, EventArgs e)\n        {\n            if (_suspendDateChanged)\n                return;\n            DateChanged.Invoke(this, EventArgs.Empty);\n        }', 1)
+          s=s.replace('        private void HeaderGioXuatChanged(object sender, EventArgs e)\n        {\n            if (!TryUpdateCurrentGioXuat())', '        private void HeaderGioXuatChanged(object sender, EventArgs e)\n        {\n            if (_suspendGioXuatChanged)\n                return;\n\n            if (!TryUpdateCurrentGioXuat())', 1)
+          write(p,s)
+
+          p='PCTP/Modules/GiaoHangKhach/HVN/HVN_PGH.cs'
+          s=read(p)
+          for line in [
+              '            dateNX.EditValueChanged += dateNX_EditValueChanged;\n',
+              '            if (_cfg.Delivery.CoNhieuNhaMay)\n                tabPaneHVN.Click += tabPaneHVN_Click;\n',
+              '            RDO_GXHN.SelectedIndexChanged += RDO_GXHN_SelectedIndexChanged;\n',
+              '            radioGroup2.SelectedIndexChanged += radioGroup2_SelectedIndexChanged;\n']:
+              s=s.replace(line,'',1)
+          s=s.replace('''            if (_cfg.Delivery.CoGear)\n            {\n                CheckGX.ItemCheck += CheckGX_OnItemCheck;\n                btnUploadMilkrun.Click += btnUploadMilkrun_Click;\n            }\n            else if (_cfg.Delivery.LoadTheoNgay)\n            {\n                btnUploadMilkrun.Click += btnUploadMilkrun_Click;\n            }''','''            if (_cfg.Delivery.CoGear)\n            {\n                CheckGX.ItemCheck += CheckGX_OnItemCheck;\n                btnUploadMilkrun.Click += btnUploadMilkrun_Click;\n            }\n            else if (_cfg.Delivery.LoadTheoNgay)\n            {\n                btnUploadMilkrun.Click += btnUploadMilkrun_Click;\n            }''',1)
+          old='''        public void SetDate(DateTime date)\n        {\n            // Gỡ event tránh trigger DateChanged khi set programmatically\n            dateNX.EditValueChanged -= dateNX_EditValueChanged;\n            dateNX.DateTime = date;\n            dateNX.EditValueChanged += dateNX_EditValueChanged;\n        }\n        public void SuspendGioXuatChanged()\n        {\n            radioGroup2.SelectedIndexChanged -= radioGroup2_SelectedIndexChanged;\n            RDO_GXHN.SelectedIndexChanged -= RDO_GXHN_SelectedIndexChanged;\n        }\n\n        public void ResumeGioXuatChanged()\n        {\n            radioGroup2.SelectedIndexChanged += radioGroup2_SelectedIndexChanged;\n            RDO_GXHN.SelectedIndexChanged += RDO_GXHN_SelectedIndexChanged;\n        }'''
+          new='''        public void SetDate(DateTime date)\n        {\n            if (_phieuHeaderControl != null)\n            {\n                _phieuHeaderControl.SetDate(date);\n                return;\n            }\n\n            dateNX.DateTime = date;\n        }\n        public void SuspendGioXuatChanged()\n        {\n            if (_phieuHeaderControl != null)\n            {\n                _phieuHeaderControl.SuspendGioXuatChanged();\n                return;\n            }\n        }\n\n        public void ResumeGioXuatChanged()\n        {\n            if (_phieuHeaderControl != null)\n            {\n                _phieuHeaderControl.ResumeGioXuatChanged();\n                return;\n            }\n        }'''
+          if old not in s: raise SystemExit('legacy date/radio helper block not found')
+          s=s.replace(old,new,1)
+          write(p,s)
+
+          Path('.phase10i-cleanup-trigger').unlink(missing_ok=True)
+          Path('.github/workflows/phase10i-cleanup.yml').unlink()
+          subprocess.run(['git','config','user.name','github-actions[bot]'],check=True)
+          subprocess.run(['git','config','user.email','41898282+github-actions[bot]@users.noreply.github.com'],check=True)
+          subprocess.run(['git','add','.'],check=True)
+          subprocess.run(['git','commit','-m','Phase 10I: complete header event ownership'],check=True)
+          subprocess.run(['git','push'],check=True)
