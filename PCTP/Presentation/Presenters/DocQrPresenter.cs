@@ -35,7 +35,7 @@ namespace PCTP.Presentation.Presenters
         }
         private void OnQRScanned(QRScannedEvent e) { _v.ClearQRInput(); _v.BindDocQRCode(_c.QrSvc.LoadAll()); }
         private void OnXoaDongQR(object sender, EventArgs e) { int stt = _v.GetFocusedDocQRStt(); _v.DeleteFocusedDocQRRow(); if (stt > 0) _c.QrSvc.XoaDong(stt); }
-        private void OnXoaToanBoQR(object sender, EventArgs e) { _c.QrSvc.XoaToanBo(); _v.ClearDocQRRows(); _c.IsBanQR = false; _c.QrSvc.SetCheDoBan(""); _v.UnlockAllRadio(); }
+        private void OnXoaToanBoQR(object sender, EventArgs e) { _c.QrSvc.XoaToanBo(); _v.ClearDocQRRows(); _c.IsBanQR = false; _c.QrSvc.SetCheDoBan(""); _c.PhieuView.UnlockAllRadio(); }
         private void OnSuaSoLuongTem(object sender, EventArgs e) { int stt = _v.SttDangSuaSl; if (stt <= 0) { _v.ShowError("Không xác định được dòng cần sửa!"); return; } int? slMoi = _v.GetSuaSoLuongResult(); if (!slMoi.HasValue) { _v.ShowError("Chưa nhập số lượng thay đổi!"); return; } if (slMoi.Value <= 0) { _v.ShowError("Số lượng phải lớn hơn 0!"); return; } _c.QrSvc.CapNhapSlHvn(stt, slMoi.Value); _v.BindDocQRCode(_c.QrSvc.LoadAll()); }
         public void Dispose() { var v = _v; v.DocQRCodeClicked -= OnDocQRCode; v.QRCodeSubmitted -= OnQRCodeSubmitted; v.XoaDongQRClicked -= OnXoaDongQR; v.XoaToanBoQRClicked -= OnXoaToanBoQR; v.SuaSoLuongTemClicked -= OnSuaSoLuongTem; _c.Bus.Unsubscribe<QRScannedEvent>(OnQRScanned); }
     }
