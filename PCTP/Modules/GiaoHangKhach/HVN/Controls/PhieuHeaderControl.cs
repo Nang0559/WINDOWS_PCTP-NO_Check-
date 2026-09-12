@@ -51,8 +51,7 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
         }
 
         /// <summary>
-        /// Applies customer-dependent presentation rules to the controls
-        /// already adopted from the legacy header panel.
+        /// New boundary API. The header owns discovery of its adopted controls.
         /// </summary>
         public void ConfigureCustomer(CustomerConfig cfg)
         {
@@ -119,6 +118,24 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
                 btnUploadMilkrun.Visible = false;
                 HideLoaiPhieuToggle();
             }
+        }
+
+        /// <summary>
+        /// Compatibility overload for HVN_PGH during the incremental migration.
+        /// The legacy parameters are intentionally ignored because this control
+        /// now resolves the adopted header controls itself.
+        /// </summary>
+        public void ConfigureCustomer(
+            CustomerConfig cfg,
+            Control tabPane,
+            Control tabVP,
+            Control tabHN,
+            Control radioGroup2,
+            Control rdoGxHn,
+            Control checkGx,
+            Button btnUploadMilkrun)
+        {
+            ConfigureCustomer(cfg);
         }
 
         private T FindControl<T>(string name) where T : Control
