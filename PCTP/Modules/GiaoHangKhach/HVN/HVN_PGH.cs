@@ -375,7 +375,6 @@ namespace PCTP.QRCODE_HVN.PGH
             UIButton.Buttons.Insert(2, new WindowsUISeparator());
 
             txt_DOCQRCODE.Focus();
-            tabPaneHVN.Click += tabPaneHVN_Click;
         }
 
         // ── Chuyển về màn hình phiếu thường ─────────────────────────────────
@@ -429,7 +428,6 @@ namespace PCTP.QRCODE_HVN.PGH
             UIButton.Buttons.AddRange(new WindowsUIButton[] { b3, b1, b2 });
             UIButton.Buttons.Insert(1, new WindowsUISeparator());
 
-            tabPaneHVN.Click += tabPaneHVN_Click;
         }
         // ── Bind radio từ DB — gọi TRƯỚC khi gắn event ──────────────────────────
         public void BindGioXuatVP(IReadOnlyList<GioXuat> danhSach)
@@ -968,21 +966,7 @@ namespace PCTP.QRCODE_HVN.PGH
         // ════════════════════════════════════════════════════════════════════
         // DevExpress event handlers → bắn interface events
         // ════════════════════════════════════════════════════════════════════
-        private void dateNX_EditValueChanged(object sender, EventArgs e)
-            => DateChanged.Invoke(this, EventArgs.Empty);
 
-        private void tabPaneHVN_Click(object sender, EventArgs e)
-            => TabChanged.Invoke(this, EventArgs.Empty);
-
-        private void RDO_GXHN_SelectedIndexChanged(object sender, EventArgs e)
-        {
-            GioXuatChanged.Invoke(this, EventArgs.Empty);
-        }
-
-        private void radioGroup2_SelectedIndexChanged(object sender, EventArgs e)
-        {
-            GioXuatChanged.Invoke(this, EventArgs.Empty);
-        }
 
         // ── GIAO DB guard — chặn RadioGroup trước khi đổi sang "#" ──────────
         public void XoaDongGiaoDB() => GridViewDONHANG.DeleteSelectedRows();
@@ -1047,7 +1031,6 @@ namespace PCTP.QRCODE_HVN.PGH
                 tabPaneHVN.SelectedPage = tabVP;
                 tabHN.PageVisible = false;
             }
-            tabPaneHVN.Click += tabPaneHVN_Click;
         }
         public void LockDatePicker() => dateNX.Enabled = false;
         public void UnlockDatePicker() => dateNX.Enabled = true;
