@@ -70,9 +70,7 @@ namespace PCTP.QRCODE_HVN.PGH
         // ── Pending QR khi SL không khớp (chờ user xác nhận) ────────────────
         private DocQRCode _pendingSlKhacBiet = null;
         private bool _isLoading = false;
-        private bool _isLoaiSP = false;
-        public bool IsLoaiSP => _isLoaiSP;
-        private Button _btnToggleLoaiPhieu;
+        public bool IsLoaiSP => _phieuHeaderControl != null && _phieuHeaderControl.IsLoaiSP;
         public event EventHandler LoaiPhieuChanged = delegate { };
         private GioXuatRepository _gioRepo;
       
@@ -110,81 +108,18 @@ namespace PCTP.QRCODE_HVN.PGH
         }
         public void SetupNhaMayUI(CustomerConfig cfg)
         {
-            if (cfg.Delivery.CoNhieuNhaMay)
-            {
-                // 100001
-                tabVP.PageVisible = true;
-                tabHN.PageVisible = true;
-                tabPaneHVN.Visible = true;
-                radioGroup2.Visible = true;
-                RDO_GXHN.Visible = true;
-                CheckGX.Visible = false;  // ← ẩn CheckList
-                btnUploadMilkrun.Visible = false;
-            }
-            else if (cfg.Delivery.CoGear)
-            {
-                // 100002 YMVN: dùng CheckListBox thay radio
-                tabPaneHVN.Visible = false;
-                tabVP.PageVisible = false;
-                tabHN.PageVisible = false;
-                radioGroup2.Visible = false;
-                RDO_GXHN.Visible = false;
-                CheckGX.Visible = true;   // ← hiện CheckList
-                CheckGX.BringToFront();
-                btnUploadMilkrun.Visible = true;  // ← nút Upload Milkrun SP
-                                                  // ── Thêm button Toggle MP/SP ─────────────────────────────────
-                if (_btnToggleLoaiPhieu == null)
-                {
-                    _btnToggleLoaiPhieu = new Button
-                    {
-                        Text = "Xem: MP",
-                        Width = 100,
-                        Height = btnUploadMilkrun.Height,
-                        Location = new System.Drawing.Point(
-                            btnUploadMilkrun.Right + 8,   // ← cạnh phải btnUploadMilkrun
-                            btnUploadMilkrun.Top),
-                        BackColor = System.Drawing.Color.SteelBlue,
-                        ForeColor = System.Drawing.Color.White,
-                        FlatStyle = FlatStyle.Flat,
-                        Font = new System.Drawing.Font("Arial", 9, System.Drawing.FontStyle.Bold)
-                    };
-                    _btnToggleLoaiPhieu.Click += BtnToggleLoaiPhieu_Click;
+            if (_phieuHeaderControl == null)
+                return;
 
-                    // Thêm vào cùng container với btnUploadMilkrun
-                    btnUploadMilkrun.Parent.Controls.Add(_btnToggleLoaiPhieu);
-                }
-                _btnToggleLoaiPhieu.Visible = true;
-            }
-            else if (cfg.Delivery.LoadTheoNgay)
-            {
-                if (_btnToggleLoaiPhieu != null)
-                    _btnToggleLoaiPhieu.Visible = false;
-                // 100003
-                tabPaneHVN.Visible = false;
-                tabVP.PageVisible = false;
-                tabHN.PageVisible = false;
-                radioGroup2.Visible = false;
-                RDO_GXHN.Visible = false;
-                CheckGX.Visible = false;
-                btnUploadMilkrun.Text = "Upload PO HTN";  // ← đổi text
-                btnUploadMilkrun.Visible = true;              // ← dùng lại nút
-                if (_btnToggleLoaiPhieu != null)
-                    _btnToggleLoaiPhieu.Visible = false;
-            }
-            else
-            {
-                // Customer khác: 1 nhà máy, có chọn giờ
-                tabVP.PageVisible = true;
-                tabHN.PageVisible = false;
-                tabPaneHVN.TabAlignment = Alignment.Far;
-                tabPaneHVN.Visible = true;
-                radioGroup2.Visible = true;
-                RDO_GXHN.Visible = false;
-                CheckGX.Visible = false;
-                btnUploadMilkrun.Visible = false;
-                if (_btnToggleLoaiPhieu != null)
-                    _btnToggleLoaiPhieu.Visible = false;
-            }
+            _phieuHeaderControl.ConfigureCustomer(
+                cfg,
+                tabPaneHVN,
+                tabVP,
+                tabHN,
+                radioGroup2,
+                RDO_GXHN,
+                CheckGX,
+                btnUploadMilkrun);
         }
         public void SetCheckedGiosYMVN(List<string> checkedGios)
         {
@@ -291,20 +226,6 @@ namespace PCTP.QRCODE_HVN.PGH
         {
             gridCtrDONHANG.DataSource = dt;
             GridViewDONHANG.BestFitColumns();
-        }
-        private void BtnToggleLoaiPhieu_Click(object sender, EventArgs e)
-        {
-            // Toggle trạng thái
-            _isLoaiSP = !_isLoaiSP;
-
-            // Cập nhật text button
-            _btnToggleLoaiPhieu.Text = _isLoaiSP ? "Xem: SP" : "Xem: MP";
-            _btnToggleLoaiPhieu.BackColor = _isLoaiSP
-                ? System.Drawing.Color.OrangeRed
-                : System.Drawing.Color.SteelBlue;
-
-            // Bắn event → Presenter sẽ lắng nghe và reload
-            LoaiPhieuChanged.Invoke(this, EventArgs.Empty);
         }
         public void BindHangThieu(DataTable dt) => GCT_HT.DataSource = dt;
 

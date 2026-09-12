@@ -39,6 +39,12 @@ namespace PCTP.QRCODE_HVN.PGH
             parent.Controls.SetChildIndex(_phieuHeaderControl, childIndex);
 
             _phieuHeaderControl.Adopt(panelPhieu);
+            _phieuHeaderControl.LoaiPhieuChanged += PhieuHeaderControl_LoaiPhieuChanged;
+        }
+
+        private void PhieuHeaderControl_LoaiPhieuChanged(object sender, EventArgs e)
+        {
+            LoaiPhieuChanged.Invoke(this, e);
         }
 
         private void MigrateHangThieuToUserControl()
