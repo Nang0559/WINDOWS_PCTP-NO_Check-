@@ -138,19 +138,5 @@ namespace PCTP.QRCODE_HVN.PGH
         {
             QRCodeSubmitted.Invoke(this, value);
         }
-
-        protected override void OnFormClosed(FormClosedEventArgs e)
-        {
-            if (_docQrInputControl != null)
-                _docQrInputControl.Submitted -= DocQrInputControl_Submitted;
-            if (_docQrControl != null)
-                _docQrControl.QrView.FocusedRowChanged -= gridVDOCQRCODE_FocusedRowChanged;
-            if (_phieuGridControl != null)
-                _phieuGridControl.OrderView.RowCellStyle -= GridViewDONHANG_RowCellStyle;
-            if (txt_DOCQRCODE != null)
-                txt_DOCQRCODE.KeyPress -= txt_DOCQRCODE_KeyPress;
-
-            base.OnFormClosed(e);
-        }
     }
 }
