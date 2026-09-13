@@ -12,6 +12,8 @@ namespace PCTP.QRCODE_HVN.PGH
         private PhieuHeaderControl _phieuHeaderControl;
         private HangThieuControl _hangThieuControl;
         private PhieuActionBarControl _phieuActionBarControl;
+        private PhieuDialogControl _phieuDialogControl;
+        private DocQrInputControl _docQrInputControl;
 
         protected override void OnLoad(EventArgs e)
         {
@@ -20,6 +22,8 @@ namespace PCTP.QRCODE_HVN.PGH
             MigratePhieuOrderGridToUserControl();
             MigrateDocQrGridToUserControl();
             MigratePhieuActionBarToUserControl();
+            MigratePhieuDialogToUserControl();
+            MigrateDocQrInputToUserControl();
             base.OnLoad(e);
         }
 
@@ -103,6 +107,31 @@ namespace PCTP.QRCODE_HVN.PGH
             ReplaceControl(UIButton, _phieuActionBarControl, parent);
             _phieuActionBarControl.Adopt(UIButton);
             _phieuActionBarControl.ActionClicked += PhieuActionBarControl_ActionClicked;
+        }
+
+        private void MigratePhieuDialogToUserControl()
+        {
+            if (_phieuDialogControl != null)
+                return;
+            _phieuDialogControl = new PhieuDialogControl();
+            _phieuDialogControl.Visible = false;
+            Controls.Add(_phieuDialogControl);
+        }
+
+        private void MigrateDocQrInputToUserControl()
+        {
+            if (_docQrInputControl != null || txt_DOCQRCODE == null)
+                return;
+            _docQrInputControl = new DocQrInputControl();
+            _docQrInputControl.Visible = false;
+            Controls.Add(_docQrInputControl);
+            _docQrInputControl.Adopt(txt_DOCQRCODE);
+            _docQrInputControl.Submitted += DocQrInputControl_Submitted;
+        }
+
+        private void DocQrInputControl_Submitted(object sender, string value)
+        {
+            QRCodeSubmitted.Invoke(this, value);
         }
     }
 }
