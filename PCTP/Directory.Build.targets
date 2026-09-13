@@ -18,6 +18,7 @@
     <Compile Include="Modules\GiaoHangKhach\HVN\HVN_PGH.PhieuGridMigration.cs" />
     <Compile Include="Modules\KhoCore\Application\Contracts\Stock\IStockBalanceRepository.cs" />
     <Compile Include="Modules\XuatKho\Application\Adapters\StockExportRepositoryAdapter.cs" />
+    <Compile Include="Modules\XuLyHangLoi\Application\Adapters\ReworkStockBalanceAdapter.cs" />
   </ItemGroup>
 
   <!--
