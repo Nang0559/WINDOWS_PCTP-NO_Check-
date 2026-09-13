@@ -78,8 +78,26 @@ namespace PCTP.Modules.KhoCore.Application.Services
                 if (string.IsNullOrWhiteSpace(itemCode))
                     return StockMovementResult.Fail("Không xác định được ItemCode của SlotLot nguồn.");
 
+                string lotNo = request.LotNo;
+                if (string.IsNullOrWhiteSpace(lotNo))
+                    lotNo = _slots.GetLotNo(request.SlotLotId.Value);
+
                 _slots.DecreaseLotQuantity(request.SlotLotId.Value, request.Quantity);
-                _slots.AddQuantity(request.TargetSlotId.Value, request.Quantity, itemCode);
+
+                if (!string.IsNullOrWhiteSpace(lotNo))
+                {
+                    _slots.AddLot(request.TargetSlotId.Value, new StockSlotLot
+                    {
+                        LotNo = lotNo,
+                        ItemCode = itemCode,
+                        Quantity = request.Quantity,
+                        ImportDate = request.OccurredAt ?? DateTime.Now
+                    });
+                }
+                else
+                {
+                    _slots.AddQuantity(request.TargetSlotId.Value, request.Quantity, itemCode);
+                }
 
                 return StockMovementResult.Ok("Đã di chuyển tồn kho.");
             }
@@ -166,10 +184,24 @@ namespace PCTP.Modules.KhoCore.Application.Services
                     }
                 }
 
-                _slots.AddQuantity(
-                    request.TargetSlotId.Value,
-                    request.Quantity,
-                    request.ItemCode);
+                if (!string.IsNullOrWhiteSpace(request.LotNo))
+                {
+                    _slots.AddLot(request.TargetSlotId.Value, new StockSlotLot
+                    {
+                        LotNo = request.LotNo,
+                        ItemCode = request.ItemCode,
+                        Quantity = request.Quantity,
+                        RawQr = null,
+                        ImportDate = request.ProductionDate ?? request.OccurredAt ?? DateTime.Now
+                    });
+                }
+                else
+                {
+                    _slots.AddQuantity(
+                        request.TargetSlotId.Value,
+                        request.Quantity,
+                        request.ItemCode);
+                }
 
                 if (adjustAvailable &&
                     !isQuarantineReceive &&
