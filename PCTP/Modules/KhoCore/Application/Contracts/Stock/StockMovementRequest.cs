@@ -8,6 +8,20 @@ namespace PCTP.Modules.KhoCore.Application.Contracts.Stock
     /// </summary>
     public sealed class StockMovementRequest
     {
+        public static class Types
+        {
+            public const string Receive = "RECEIVE";
+            public const string Reserve = "RESERVE";
+            public const string Pick = "PICK";
+            public const string Export = "EXPORT";
+            public const string Move = "MOVE";
+            public const string ReworkExport = "REWORK_EXPORT";
+            public const string ReworkOkReceive = "REWORK_OK_RECEIVE";
+            public const string ReworkNgReceive = "REWORK_NG_RECEIVE";
+            public const string ReworkCancelReturn = "REWORK_CANCEL_RETURN";
+            public const string Correct = "CORRECT";
+        }
+
         public string MovementType { get; set; }
 
         /// <summary>Physical source SlotId when the movement has a slot source.</summary>
