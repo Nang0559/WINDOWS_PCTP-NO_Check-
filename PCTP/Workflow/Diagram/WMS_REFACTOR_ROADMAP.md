@@ -130,12 +130,13 @@ Mỗi loại stock movement có đúng một write path.
 
 - [ ] Move business logic out of large Forms
 - [ ] Separate Abnormal/Rework/GiaoBù state from stock state
-- [ ] Rework OK -> StockMovement.ReturnFromRework
+- [x] Rework OK -> StockMovement.ReturnFromRework
 - [ ] GiaoBù -> StockMovement.Pick/Export according to actual physical flow
-- [ ] Remove direct Slot/STOCKTP writes
+- [x] Rework stock mutation path in `ReworkStockService` now routes through `IStockMovementService`
+- [ ] Remove remaining direct Slot/STOCKTP writes outside the migrated Rework service
 - [x] Add transitional Rework stock-balance adapter
 - [x] Add transitional Rework slot-mutation adapter
-- [ ] Migrate `ReworkStockService` mutation calls to `IStockMovementService`
+- [x] Migrate `ReworkStockService` mutation calls to `IStockMovementService`
 
 ## Phase 8 - Shared cleanup
 
