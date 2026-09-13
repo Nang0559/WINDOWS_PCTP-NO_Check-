@@ -18,7 +18,6 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
-using System.Windows.Forms;
 
 namespace PCTP.Applications.Services
 {
@@ -80,11 +79,6 @@ namespace PCTP.Applications.Services
             _orderSourceFactory = orderSourceFactory ?? throw new ArgumentNullException(nameof(orderSourceFactory));
             _rowCategoryFilter = rowCategoryFilter ?? throw new ArgumentNullException(nameof(rowCategoryFilter));
 
-            // Compatibility bridge for the existing HVN_PGH composition root.
-            // IPhieuRepository is the aggregate repository contract and already
-            // inherits both IPhieuTmpRepository and IPhieuValidationRepository.
-            // Therefore old callers can omit workingState while still using the
-            // Phase-4 WorkingState boundary internally.
             _workingState = workingState ?? new DeliveryWorkingState(
                 _phieuRepo,
                 _phieuRepo);
@@ -340,54 +334,6 @@ namespace PCTP.Applications.Services
         public void XuLySauUploadGiaoDB()
             => _giaoDbService.XuLySauUpload();
 
-        public List<(int Stt, string Lot)> TinhTongLot(
-            DataTable bangTam,
-            Func<ListView, int> chonSttKhiTrung,
-            Action<int, string> capNhapGrid,
-            bool isSP = false)
-        {
-            string tenBan = GetTenBan(isSP);
-            string docQRTable = _cfg.Delivery.GetDocQRTable(isSP);
-            string tmpTable = _cfg.Delivery.GetTmpTable(isSP);
-            var results = new List<(int, string)>();
-
-            foreach (DataRow row in bangTam.Rows)
-            {
-                string maHang = row["MAHANG"].ToString().Trim();
-                int sl = SafeInt(row["SOLUONG"]);
-                int stt = SafeInt(row["STT"]);
-                if (stt <= 0 || sl <= 0) continue;
-
-                DataTable trungDt = _phieuRepo.GetDanhSachTrungMaSl(
-                    maHang, sl, tenBan, docQRTable);
-                int dem = trungDt.Rows.Count;
-                if (dem == 0) continue;
-
-                if (dem > 1)
-                {
-                    ListView lv = BuildListViewTrungMaSl(trungDt);
-                    int sttChon = chonSttKhiTrung(lv);
-                    if (sttChon <= 0) continue;
-                    stt = sttChon;
-                }
-
-                string lot = _phieuRepo.GetLotNo(
-                    maHang, stt, dem, sl,
-                    docQRTable: docQRTable,
-                    tmpTable: tmpTable);
-
-                if (!string.IsNullOrWhiteSpace(lot))
-                {
-                    _phieuRepo.CapNhapLotTmpPhieu(stt, lot, tenBan);
-                    capNhapGrid(stt, lot);
-                    results.Add((stt, lot));
-                }
-            }
-
-            _bus.Publish(new TinhTongCompletedEvent(results));
-            return results;
-        }
-
         public int LuuPhieuSP(
             string nhaMay,
             string ngayGiao,
@@ -473,21 +419,6 @@ namespace PCTP.Applications.Services
             if (val == null || val == DBNull.Value) return 0;
             try { return Convert.ToInt32(val); }
             catch { return 0; }
-        }
-
-        private static ListView BuildListViewTrungMaSl(DataTable dt)
-        {
-            var lv = new ListView();
-            foreach (DataRow row in dt.Rows)
-            {
-                lv.Items.Add(new ListViewItem(new[]
-                {
-                    row["STT"].ToString(), row["GIOGIAO"].ToString(),
-                    row["MAHANG"].ToString(), row["TENHANG"].ToString(),
-                    row["SOLUONG"].ToString(), row["STATUS"].ToString()
-                }));
-            }
-            return lv;
         }
 
         public DataTable GetDanhSachLotTuKho(string maHang)
