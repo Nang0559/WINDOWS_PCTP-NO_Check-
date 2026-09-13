@@ -68,6 +68,8 @@ Chiều phụ thuộc được phép là **adapter legacy -> KhoCore contract**.
 
 `IStockSlotRepository.AddLot` là operation LOT-aware dùng chung cho RECEIVE/MOVE/ReturnFromRework. `IStockSlotRepository.TakeLot` encapsulate FIFO/split theo LOT để PICK không cần thao tác `GetLots/SaveLots` trực tiếp trong business service. `TakeLot` bắt buộc nhận cả `ItemCode`, vì LOT key tương đương không đủ để xác định đúng tồn khi một Slot chứa cùng LOT key cho nhiều item.
 
+`LegacyStockSlotRepositoryAdapter` hiện là implementation chuyển tiếp dùng chung nằm ngoài KhoCore. Các type adapter cũ của NhapKho/XuLyHangLoi chỉ còn là compatibility wrappers để không phá composition hiện tại; không còn giữ bản sao logic `TakeLot/AddLot`.
+
 Chưa coi Phase 3 hoàn tất cho đến khi `StockExportService`, `NhapKho` và `XuLyHangLoi` chuyển toàn bộ stock write path sang boundary này.
 
 ### Gate
@@ -115,6 +117,7 @@ Recent migration:
 - `StockMovementService.Receive/Move/ReturnFromRework` use the LOT-aware `IStockSlotRepository.AddLot` operation whenever `LotNo` is present.
 - `StockMovementService.Pick` supports the canonical `SlotId + LotNo + ItemCode + Quantity` physical-pick path through `IStockSlotRepository.TakeLot` and returns consumed LOT metadata to the workflow.
 - Both NhapKho and XuLyHangLoi transitional slot adapters implement item-aware `TakeLot`, so FIFO/split persistence cannot consume a LOT-equivalent record belonging to another item.
+- The duplicated `TakeLot/AddLot` implementations are now centralized in `PCTP/Infrastructure/Stock/LegacyStockSlotRepositoryAdapter.cs`; module-local adapters remain thin compatibility wrappers only.
 - `NhapTpReceivingService` now routes STOCKTP + Slot/SlotLot receiving mutation through `IStockMovementService.Receive`; receiving document/case/production state remains in NhapKho.
 
 The remaining migration work is primarily cleanup and verification: remove obsolete direct-write dependencies, migrate remaining non-Rework XuLyHangLoi stock writes, complete DI/composition wiring, then add idempotency and integration/concurrency tests.
