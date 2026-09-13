@@ -15,12 +15,8 @@ namespace PCTP.Modules.KhoCore.Application.Services
         private readonly IStockSlotRepository _slots;
         private readonly IStockReceivingRepository _receiving;
 
-        public StockMovementService(
-            IStockBalanceRepository balance,
-            IStockSlotRepository slots)
-            : this(balance, slots, null)
-        {
-        }
+        public StockMovementService(IStockBalanceRepository balance, IStockSlotRepository slots)
+            : this(balance, slots, null) { }
 
         public StockMovementService(
             IStockBalanceRepository balance,
@@ -54,8 +50,14 @@ namespace PCTP.Modules.KhoCore.Application.Services
 
                 try
                 {
-                    _slots.TakeLot(request.SlotId.Value, request.LotNo, request.Quantity);
-                    return StockMovementResult.Ok("Đã pick LOT khỏi Slot.");
+                    var take = _slots.TakeLot(
+                        request.SlotId.Value,
+                        request.LotNo,
+                        request.Quantity);
+
+                    return StockMovementResult.OkWithConsumedLots(
+                        take == null ? null : take.ExportLots,
+                        "Đã pick LOT khỏi Slot.");
                 }
                 catch (Exception ex)
                 {
@@ -93,7 +95,6 @@ namespace PCTP.Modules.KhoCore.Application.Services
                 string itemCode = request.ItemCode;
                 if (string.IsNullOrWhiteSpace(itemCode))
                     itemCode = _slots.GetItemCode(request.SlotLotId.Value);
-
                 if (string.IsNullOrWhiteSpace(itemCode))
                     return StockMovementResult.Fail("Không xác định được ItemCode của SlotLot nguồn.");
 
@@ -151,9 +152,7 @@ namespace PCTP.Modules.KhoCore.Application.Services
             }
         }
 
-        private StockMovementResult AddToSlot(
-            StockMovementRequest request,
-            bool adjustAvailable)
+        private StockMovementResult AddToSlot(StockMovementRequest request, bool adjustAvailable)
         {
             if (request == null)
                 return StockMovementResult.Fail("Stock movement request không được null.");
@@ -212,10 +211,7 @@ namespace PCTP.Modules.KhoCore.Application.Services
                 }
                 else
                 {
-                    _slots.AddQuantity(
-                        request.TargetSlotId.Value,
-                        request.Quantity,
-                        request.ItemCode);
+                    _slots.AddQuantity(request.TargetSlotId.Value, request.Quantity, request.ItemCode);
                 }
 
                 if (adjustAvailable &&
@@ -234,9 +230,7 @@ namespace PCTP.Modules.KhoCore.Application.Services
             }
         }
 
-        private StockMovementResult RemoveFromSlot(
-            StockMovementRequest request,
-            bool adjustAvailable)
+        private StockMovementResult RemoveFromSlot(StockMovementRequest request, bool adjustAvailable)
         {
             if (request == null)
                 return StockMovementResult.Fail("Stock movement request không được null.");
