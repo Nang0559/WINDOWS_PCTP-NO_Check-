@@ -21,6 +21,7 @@ namespace PCTP.QRCODE_HVN.PGH
             MigrateHangThieuToUserControl();
             MigratePhieuOrderGridToUserControl();
             MigrateDocQrGridToUserControl();
+            MigrateBottomStateGridEvents();
             MigratePhieuActionBarToUserControl();
             MigratePhieuDialogToUserControl();
             MigrateDocQrInputToUserControl();
@@ -94,6 +95,11 @@ namespace PCTP.QRCODE_HVN.PGH
             if (existingDataSource != null) _docQrControl.QrGrid.DataSource = existingDataSource;
             gridCtrDOCQrCODE = _docQrControl.QrGrid;
             gridVDOCQRCODE = _docQrControl.QrView;
+
+            // Constructor compatibility: the legacy form subscribed directly to
+            // the grid before the control boundary existed. Remove that handler
+            // through the control and keep only the boundary event.
+            _docQrControl.DetachLegacyFocusedRowChanged(gridVDOCQRCODE_FocusedRowChanged);
             _docQrControl.FocusedRowChanged -= DocQrControl_FocusedRowChanged;
             _docQrControl.FocusedRowChanged += DocQrControl_FocusedRowChanged;
         }
@@ -101,6 +107,25 @@ namespace PCTP.QRCODE_HVN.PGH
         private void DocQrControl_FocusedRowChanged(object sender, DevExpress.XtraGrid.Views.Base.FocusedRowChangedEventArgs e)
         {
             gridVDOCQRCODE_FocusedRowChanged(sender, e);
+        }
+
+        private void MigrateBottomStateGridEvents()
+        {
+            if (_phieuBottomStateControl == null)
+                return;
+
+            // Constructor compatibility: remove the legacy direct GridView
+            // subscription and route focus changes through the control boundary.
+            _phieuBottomStateControl.DetachLegacySuaSlFocusedRowChanged(gridVSUASL_FocusedRowChanged);
+            _phieuBottomStateControl.SuaSlFocusedRowChanged -= BottomStateControl_SuaSlFocusedRowChanged;
+            _phieuBottomStateControl.SuaSlFocusedRowChanged += BottomStateControl_SuaSlFocusedRowChanged;
+        }
+
+        private void BottomStateControl_SuaSlFocusedRowChanged(
+            object sender,
+            DevExpress.XtraGrid.Views.Base.FocusedRowChangedEventArgs e)
+        {
+            gridVSUASL_FocusedRowChanged(sender, e);
         }
 
         private void MigratePhieuActionBarToUserControl()
