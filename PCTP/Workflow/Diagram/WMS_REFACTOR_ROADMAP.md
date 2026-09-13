@@ -43,6 +43,7 @@ Build baseline hiện tại:
 - [x] Define clean stock-balance persistence port and legacy adapter boundary
 - [x] Define clean stock-slot mutation port and legacy adapter boundary
 - [x] Define exact LOT-aware slot insertion boundary (`IStockSlotRepository.AddLot`)
+- [x] Define exact LOT-aware physical pick boundary (`IStockSlotRepository.TakeLot`)
 - [x] Define clean receiving persistence port and transitional NhapKho adapter
 - [x] Remove DataTable/UI dependencies from new core application contracts
 - [ ] Migrate existing `SlotService` callers off the legacy contract
@@ -65,7 +66,7 @@ Chiều phụ thuộc được phép là **adapter legacy -> KhoCore contract**.
 
 `IStockMovementService` là boundary ghi mới. `IStockBalanceRepository` là port persistence tối thiểu cho STOCKTP; `IStockSlotRepository` là port mutation tối thiểu cho Slot/SlotLot; `IStockReceivingRepository` là port riêng cho luồng STOCKTP receiving vì receiving cần giữ semantics SLNHAP/SLCONLAI/SATUS. Các adapter hiện tại vẫn là transitional và sẽ bị xóa sau migration.
 
-`IStockSlotRepository.AddLot` hiện đã là operation LOT-aware dùng chung cho RECEIVE/MOVE/ReturnFromRework. Phần còn thiếu của Phase 2/3 là operation split/decrease theo LOT trong chính KhoCore để `PickToChoGiao` và `XuatTrucTiep` không còn phải tự thao tác `GetLots/SaveLots` qua legacy `ISlotService`.
+`IStockSlotRepository.AddLot` là operation LOT-aware dùng chung cho RECEIVE/MOVE/ReturnFromRework. `IStockSlotRepository.TakeLot` hiện encapsulate FIFO/split theo LOT để PICK không cần thao tác `GetLots/SaveLots` trực tiếp trong business service. Bước tiếp theo là chuyển các caller XuatKho sang `IStockMovementService.Pick`.
 
 Chưa coi Phase 3 hoàn tất cho đến khi `StockExportService`, `NhapKho` và `XuLyHangLoi` chuyển toàn bộ stock write path sang boundary này.
 
@@ -110,9 +111,11 @@ Recent migration:
 - `StockExportService.ExportFromSlot` now also uses the central export path when an item code is available; it fails loudly instead of silently returning success when STOCKTP export cannot be completed.
 - `StockMovementService.Export` supports a stock-only export when the physical SlotLot has already been removed into `HangChoGiao`.
 - `StockMovementRequest` carries receiving metadata required by the `STOCKTP` receiving port.
-- `StockMovementService.Receive/Move/ReturnFromRework` now use the LOT-aware `IStockSlotRepository.AddLot` operation whenever `LotNo` is present, so central receiving/move paths no longer collapse a LOT into slot-level quantity.
+- `StockMovementService.Receive/Move/ReturnFromRework` use the LOT-aware `IStockSlotRepository.AddLot` operation whenever `LotNo` is present.
+- `StockMovementService.Pick` now supports the canonical `SlotId + LotNo + Quantity` physical-pick path through `IStockSlotRepository.TakeLot`.
+- Both NhapKho and XuLyHangLoi transitional slot adapters implement `TakeLot`, keeping FIFO/split persistence inside the adapter rather than in the central business workflow.
 
-These changes are intentionally transitional: the physical Slot/SlotLot pick/split logic in `XuatKho` still uses the legacy Slot boundary because the central port does not yet own the complete LOT split/decrease operation required by the existing FIFO/split behavior.
+The remaining migration work is caller migration: `StockExportService.PickToChoGiao` and `XuatTrucTiep` still contain legacy orchestration around the physical split and must be switched to `IStockMovementService.Pick` without double-mutating SlotLot.
 
 `StockMovementService` owns stock mutation rules. The surrounding workflow still owns its transaction when it must include module-specific audit/state writes in the same UnitOfWork. This is an intermediate step; full transaction ownership moves to KhoCore after all participating persistence ports are migrated.
 
@@ -132,13 +135,16 @@ Current work:
 
 - [x] Define `IStockReceivingRepository` and legacy `StockReceivingRepositoryAdapter`.
 - [x] Define LOT-aware `IStockSlotRepository.AddLot` and a transitional NhapKho adapter.
+- [x] Prepare central `Receive` to write receiving metadata + exact LOT slot mutation.
 - [ ] Migrate `NhapTpReceivingService` to `IStockMovementService.Receive` using the exact LOT-aware slot boundary.
 
 ## Phase 5 - XuatKho
 
-- [ ] Separate Pick from Export explicitly
-- [~] Move stock mutation to StockMovement — final STOCKTP export paths migrated; physical pick/split remains legacy
+- [x] Define central physical PICK contract (`SlotId + LotNo + Quantity`).
+- [~] Move stock mutation to StockMovement — final STOCKTP export paths migrated; physical pick/split caller migration remains.
 - [x] Keep HangChoGiao ownership in XuatKho
+- [ ] Migrate `PickToChoGiao` physical mutation to `IStockMovementService.Pick`.
+- [ ] Migrate `XuatTrucTiep` physical mutation to `IStockMovementService.Pick` + central `Export`.
 
 ## Phase 6 - GiaoHangKhach
 
