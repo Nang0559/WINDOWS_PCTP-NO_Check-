@@ -162,7 +162,13 @@ namespace PCTP.QRCODE_HVN.PGH
 
             _phieuActionBarControl = new PhieuActionBarControl();
             ReplaceControl(UIButton, _phieuActionBarControl, parent);
+
+            // Designer vẫn còn wiring legacy ButtonClick trong giai đoạn migration.
+            // Detach nó tại boundary để mỗi click chỉ đi qua ActionBarControl một lần.
+            UIButton.ButtonClick -= UIButton_ButtonClick;
+
             _phieuActionBarControl.Adopt(UIButton);
+            _phieuActionBarControl.ActionClicked += PhieuActionBarControl_ActionClicked;
         }
     }
 }
