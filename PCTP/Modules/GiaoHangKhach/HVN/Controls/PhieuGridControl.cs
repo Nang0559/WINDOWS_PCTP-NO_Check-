@@ -128,6 +128,21 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
             return false;
         }
 
+        public void RefreshLotRow(int stt, string lot)
+        {
+            for (int i = 0; i < GridViewDONHANG.RowCount; i++)
+            {
+                string sttStr = GridViewDONHANG.GetRowCellDisplayText(i, "STT").Trim();
+                int rowStt;
+                if (!int.TryParse(sttStr, out rowStt) || rowStt != stt)
+                    continue;
+
+                GridViewDONHANG.SetRowCellValue(i, "LOT", lot);
+                GridViewDONHANG.RefreshRow(i);
+                return;
+            }
+        }
+
         public void SetupForCustomer(bool usePrivateOrderTable)
         {
             SetColumnVisible("GEAR", usePrivateOrderTable);

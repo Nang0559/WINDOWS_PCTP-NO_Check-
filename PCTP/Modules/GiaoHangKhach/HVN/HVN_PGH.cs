@@ -226,19 +226,7 @@ namespace PCTP.QRCODE_HVN.PGH
         public void SetGridCaption(string caption) => gridBandDH.Caption = caption;
 
         public void RefreshLotRow(int stt, string lot)
-        {
-            for (int i = 0; i < GridViewDONHANG.RowCount; i++)
-            {
-                string sttStr = GridViewDONHANG.GetRowCellDisplayText(i, "STT").Trim();
-                if (!int.TryParse(sttStr, out int rowStt) || rowStt != stt) continue;
-
-                GridViewDONHANG.SetRowCellValue(i, "LOT", lot);
-
-                // ── THÊM: refresh dòng ngay để màu green hiện lên ──
-                GridViewDONHANG.RefreshRow(i);
-                return;
-            }
-        }
+            => _phieuGridControl.RefreshLotRow(stt, lot);
 
         //public void RefreshDocQR() => gridCtrDOCQrCODE.RefreshDataSource();
 
@@ -502,19 +490,14 @@ namespace PCTP.QRCODE_HVN.PGH
 
         public void ClearDocQRRows() => gridCtrDOCQrCODE.DataSource = null;
 
-        public string GetFocusedDonHangMaHang() =>
-            GridViewDONHANG.GetFocusedRowCellDisplayText("MAHANG").Trim();
+        public string GetFocusedDonHangMaHang()
+            => _phieuGridControl.GetFocusedMaHang();
 
         // ════════════════════════════════════════════════════════════════════
         // V. KIỂM TRA TRẠNG THÁI GRID
         // ════════════════════════════════════════════════════════════════════
         public bool CoLotDeLuuKho()
-        {
-            for (int i = 0; i < GridViewDONHANG.RowCount; i++)
-                if (GridViewDONHANG.GetRowCellDisplayText(i, "LOT").Trim() != "")
-                    return true;
-            return false;
-        }
+            => _phieuGridControl.HasLotToSave();
         // Form gốc PBD_ThemMoi(): AddNewRow + RepositoryItemLookUpEdit + RepositoryItemComboBox
         public void ThemDongGiaoDB(DataTable danhSachMaHang)
         {
@@ -539,13 +522,7 @@ namespace PCTP.QRCODE_HVN.PGH
             GridViewDONHANG.Columns["GIOGIAO"].ColumnEdit = riCombo;
         }
         public bool CoHangChuaOK()
-        {
-            if (GridViewDONHANG.RowCount == 0) return false;
-            for (int i = 0; i < GridViewDONHANG.RowCount; i++)
-                if (GridViewDONHANG.GetRowCellDisplayText(i, "STATUS").Trim() != "OK")
-                    return true;
-            return false;
-        }
+            => _phieuGridControl.HasUnconfirmedRows();
 
         // ════════════════════════════════════════════════════════════════════
         // VI. DIALOG PHỨC TẠP
@@ -771,16 +748,14 @@ namespace PCTP.QRCODE_HVN.PGH
                 int stt = GetFocusedDonHangStt();
                 if (stt < 0) return;
 
-                string status = GridViewDONHANG
-                    .GetFocusedRowCellDisplayText("STATUS").Trim();
+                string status = _phieuGridControl.GetFocusedStatus();
                 if (status == "OK")
                 {
                     ShowInfo("Dòng này đã được Cập Nhập Kho!");
                     return;
                 }
 
-                string maHang = GridViewDONHANG
-                    .GetFocusedRowCellDisplayText("MAHANG").Trim();
+                string maHang = _phieuGridControl.GetFocusedMaHang();
                 int.TryParse(
                     GridViewDONHANG.GetFocusedRowCellDisplayText("SOLUONG"),
                     out int soLuong);
@@ -1055,14 +1030,14 @@ namespace PCTP.QRCODE_HVN.PGH
                             break;
                         }
                         // Kiểm tra dòng này có LOT không — nếu không có thì không cần reset
-                        string lot = GridViewDONHANG.GetFocusedRowCellDisplayText("LOT").Trim();
+                        string lot = _phieuGridControl.GetFocusedLot();
                         if (string.IsNullOrEmpty(lot))
                         {
                             ShowInfo("Dòng này chưa có LOT, không cần lấy lại!");
                             break;
                         }
                         // Kiểm tra chưa CNK — nếu đã CNK thì không cho reset
-                        string status = GridViewDONHANG.GetFocusedRowCellDisplayText("STATUS").Trim();
+                        string status = _phieuGridControl.GetFocusedStatus();
                         if (status == "OK")
                         {
                             ShowInfo("Dòng này đã được Cập Nhập Kho, không thể lấy lại LOT!");
@@ -1374,10 +1349,7 @@ namespace PCTP.QRCODE_HVN.PGH
         }
         //---------------Help 
         private int GetFocusedDonHangStt()
-        {
-            string s = GridViewDONHANG.GetFocusedRowCellDisplayText("STT");
-            return int.TryParse(s, out int v) ? v : -1;
-        }
+            => _phieuGridControl.GetFocusedStt();
 
         private void cmd_SuaSLHVN_Click(object sender, EventArgs e)
         {
