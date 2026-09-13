@@ -96,7 +96,7 @@ namespace PCTP.Modules.NhapKho.Application.Adapters
             _legacy.UpdateSlotHeaderFromLots(slotId, lots);
         }
 
-        public void TakeLot(int slotId, string lotNo, int quantity)
+        public StockSlotTakeResult TakeLot(int slotId, string lotNo, int quantity)
         {
             if (slotId <= 0)
                 throw new ArgumentOutOfRangeException(nameof(slotId));
@@ -118,13 +118,29 @@ namespace PCTP.Modules.NhapKho.Application.Adapters
                     string.Format("LOT [{0}] trong Slot {1} chỉ còn {2}, không đủ {3}.",
                         lotNo, slotId, available, quantity));
 
-            var remaining = LotNoHelper.SubtractLots(matched, quantity).RemainingLots;
-            var matchedIds = new HashSet<LotInfo>(matched);
-            var others = lots.Where(x => !matchedIds.Contains(x)).ToList();
+            var split = LotNoHelper.SubtractLots(matched, quantity);
+            var matchedSet = new HashSet<LotInfo>(matched);
+            var others = lots.Where(x => !matchedSet.Contains(x)).ToList();
 
-            var merged = others.Concat(remaining).ToList();
+            var merged = others.Concat(split.RemainingLots).ToList();
             _legacy.SaveLots(slotId, merged);
             _legacy.UpdateSlotHeaderFromLots(slotId, merged);
+
+            return new StockSlotTakeResult
+            {
+                Quantity = quantity,
+                ExportLots = split.ExportLots
+                    .Select(x => new StockSlotLot
+                    {
+                        LotNo = x.LotNo,
+                        ItemCode = x.ItemCode,
+                        Quantity = x.Quantity,
+                        TemCode = x.TemCode,
+                        RawQr = x.RawQr,
+                        ImportDate = x.ImportDate
+                    })
+                    .ToList()
+            };
         }
     }
 }
