@@ -15,12 +15,16 @@ namespace PCTP.QRCODE_HVN.PGH
 
         protected override void OnLoad(EventArgs e)
         {
-            base.OnLoad(e);
+            // IMPORTANT: migrate the UI boundaries before base.OnLoad() fires the
+            // WinForms Load event. This guarantees presenters/form Load handlers
+            // see the new UserControl owners instead of the legacy Designer controls.
             MigratePhieuHeaderToUserControl();
             MigrateHangThieuToUserControl();
             MigratePhieuOrderGridToUserControl();
             MigrateDocQrGridToUserControl();
             MigratePhieuActionBarToUserControl();
+
+            base.OnLoad(e);
         }
 
         private int ReplaceControl(Control existing, Control replacement, Control parent)
@@ -163,8 +167,8 @@ namespace PCTP.QRCODE_HVN.PGH
             _phieuActionBarControl = new PhieuActionBarControl();
             ReplaceControl(UIButton, _phieuActionBarControl, parent);
 
-            // Designer vẫn còn wiring legacy ButtonClick trong giai đoạn migration.
-            // Detach nó tại boundary để mỗi click chỉ đi qua ActionBarControl một lần.
+            // The Designer still declares the legacy ButtonClick subscription.
+            // Detach it BEFORE base.OnLoad() so no legacy ActionBar path can run.
             UIButton.ButtonClick -= UIButton_ButtonClick;
 
             _phieuActionBarControl.Adopt(UIButton);
