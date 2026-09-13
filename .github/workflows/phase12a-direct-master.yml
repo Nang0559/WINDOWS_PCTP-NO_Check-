@@ -42,10 +42,10 @@ jobs:
               if old in hvn:
                   hvn = hvn.replace(old, new, 1)
 
-          hvn = hvn.replace('GridViewDONHANG.GetFocusedRowCellDisplayText("LOT").Trim()', '_phieuGridControl.GetFocusedLot()', 1)
-          hvn = hvn.replace('GridViewDONHANG.GetFocusedRowCellDisplayText("STATUS").Trim()', '_phieuGridControl.GetFocusedStatus()', 1)
-          hvn = hvn.replace('''GridViewDONHANG\n                    .GetFocusedRowCellDisplayText("STATUS").Trim()''', '_phieuGridControl.GetFocusedStatus()', 1)
-          hvn = hvn.replace('''GridViewDONHANG\n                    .GetFocusedRowCellDisplayText("MAHANG").Trim()''', '_phieuGridControl.GetFocusedMaHang()', 1)
+          # The LOT/status reads used by action handling are already routed through the control;
+          # route the remaining editor reads without changing business behavior.
+          hvn = hvn.replace('''string status = GridViewDONHANG\n                    .GetFocusedRowCellDisplayText("STATUS").Trim();''', 'string status = _phieuGridControl.GetFocusedStatus();', 1)
+          hvn = hvn.replace('''string maHang = GridViewDONHANG\n                    .GetFocusedRowCellDisplayText("MAHANG").Trim();''', 'string maHang = _phieuGridControl.GetFocusedMaHang();', 1)
 
           hvn_path.write_text(hvn, encoding='utf-8')
           grid_path.write_text(grid, encoding='utf-8')
