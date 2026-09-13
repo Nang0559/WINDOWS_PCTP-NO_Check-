@@ -90,6 +90,21 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
             return int.TryParse(value, out stt) ? stt : -1;
         }
 
+        public string GetFocusedLot()
+        {
+            return GridViewDONHANG.GetFocusedRowCellDisplayText("LOT").Trim();
+        }
+
+        public string GetFocusedStatus()
+        {
+            return GridViewDONHANG.GetFocusedRowCellDisplayText("STATUS").Trim();
+        }
+
+        public bool IsFocusedRowConfirmed()
+        {
+            return string.Equals(GetFocusedStatus(), "OK", StringComparison.OrdinalIgnoreCase);
+        }
+
         public bool HasLotToSave()
         {
             for (int i = 0; i < GridViewDONHANG.RowCount; i++)
