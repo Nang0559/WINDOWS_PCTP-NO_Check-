@@ -1,7 +1,10 @@
+using System;
+using System.Data;
 using System.Windows.Forms;
 using DevExpress.XtraEditors;
 using DevExpress.XtraGrid;
 using DevExpress.XtraGrid.Columns;
+using DevExpress.XtraGrid.Views.Base;
 using DevExpress.XtraGrid.Views.BandedGrid;
 using DevExpress.XtraGrid.Views.Grid;
 
@@ -19,6 +22,8 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
         private readonly BandedGridColumn gridColumn4, gridColumn5, gridColumn6;
         private readonly GridControl gridCtrSUASL;
         private readonly GridView gridVSUASL;
+
+        public event EventHandler<FocusedRowChangedEventArgs> SuaSlFocusedRowChanged = delegate { };
 
         public GridControl LechGrid { get { return gridCLECH; } }
         public GridControl GhepLotGrid { get { return gridCTTGL; } }
@@ -54,6 +59,7 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
             gridCtrSUASL = new GridControl();
             gridVSUASL = new GridView();
             InitializeComponent();
+            gridVSUASL.FocusedRowChanged += gridVSUASL_FocusedRowChanged;
         }
 
         private void InitializeComponent()
@@ -64,7 +70,6 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
             ((System.ComponentModel.ISupportInitialize)gridVSUASL).BeginInit();
             ((System.ComponentModel.ISupportInitialize)gridCLECH).BeginInit();
             ((System.ComponentModel.ISupportInitialize)bandedGridViewLECH).BeginInit();
-            // gridCTTGL
             gridCTTGL.Dock = System.Windows.Forms.DockStyle.Fill;
             gridCTTGL.EmbeddedNavigator.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             gridCTTGL.Location = new System.Drawing.Point(0, 0);
@@ -122,7 +127,6 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
             gridColumn6.Name = "gridColumn6";
             gridColumn6.Visible = true;
             gridColumn6.Width = 149;
-            // gridCtrSUASL
             gridCtrSUASL.Dock = System.Windows.Forms.DockStyle.Fill;
             gridCtrSUASL.EmbeddedNavigator.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             gridCtrSUASL.Location = new System.Drawing.Point(0, 0);
@@ -136,7 +140,6 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
             gridVSUASL.GridControl = gridCtrSUASL;
             gridVSUASL.Name = "gridVSUASL";
             gridVSUASL.OptionsView.ShowGroupPanel = false;
-            // gridCLECH
             gridCLECH.Dock = System.Windows.Forms.DockStyle.Fill;
             gridCLECH.Location = new System.Drawing.Point(2, -1);
             gridCLECH.MainView = bandedGridViewLECH;
@@ -181,14 +184,10 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
             gridBandLECH.Name = "gridBandLECH";
             gridBandLECH.VisibleIndex = 0;
             gridBandLECH.Width = 420;
-
-            // Preserve the legacy initial state of sidePanel4:
-            // GhepLot is shown by default; Lech and SuaSoLuong are hidden.
             gridCLECH.Visible = false;
             gridCTTGL.Visible = true;
             gridCtrSUASL.Visible = false;
             gridCTTGL.BringToFront();
-
             Controls.Add(gridCLECH);
             Controls.Add(gridCTTGL);
             Controls.Add(gridCtrSUASL);
@@ -198,6 +197,34 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
             ((System.ComponentModel.ISupportInitialize)gridVSUASL).EndInit();
             ((System.ComponentModel.ISupportInitialize)gridCLECH).EndInit();
             ((System.ComponentModel.ISupportInitialize)bandedGridViewLECH).EndInit();
+        }
+
+        private void gridVSUASL_FocusedRowChanged(object sender, FocusedRowChangedEventArgs e)
+        {
+            SuaSlFocusedRowChanged.Invoke(this, e);
+        }
+
+        public void BindLech(DataTable data)
+        {
+            gridCLECH.DataSource = data;
+        }
+
+        public void BindGhepLot(DataTable data)
+        {
+            gridCTTGL.DataSource = data;
+        }
+
+        public DataRow[] GetSelectedGhepLotRows()
+        {
+            var selected = GridVTTGL.GetSelectedRows();
+            var rows = new System.Collections.Generic.List<DataRow>();
+            foreach (int handle in selected)
+            {
+                DataRow row = GridVTTGL.GetDataRow(handle);
+                if (row != null)
+                    rows.Add(row);
+            }
+            return rows.ToArray();
         }
 
         public void ShowLech()
@@ -214,6 +241,21 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
             gridCTTGL.Visible = true;
             gridCtrSUASL.Visible = false;
             gridCTTGL.BringToFront();
+        }
+
+        public void HideGhepLot()
+        {
+            gridCTTGL.Visible = false;
+        }
+
+        public void HideSuaSoLuong()
+        {
+            gridCtrSUASL.Visible = false;
+        }
+
+        public void HideLech()
+        {
+            gridCLECH.Visible = false;
         }
 
         public void ToggleLechGhepLot()
