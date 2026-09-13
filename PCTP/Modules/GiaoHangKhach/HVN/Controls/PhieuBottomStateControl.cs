@@ -220,6 +220,11 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
             gridCTTGL.DataSource = data;
         }
 
+        public void BindSuaSoLuong(DataTable data)
+        {
+            gridCtrSUASL.DataSource = data;
+        }
+
         public DataRow[] GetSelectedGhepLotRows()
         {
             var selected = GridVTTGL.GetSelectedRows();
