@@ -1,10 +1,14 @@
 using System;
+using System.Data;
 using System.Drawing;
 using System.Windows.Forms;
 using DevExpress.XtraEditors;
+using DevExpress.XtraEditors.Controls;
+using DevExpress.XtraEditors.Repository;
 using DevExpress.XtraGrid;
 using DevExpress.XtraGrid.Views.BandedGrid;
 using DevExpress.XtraGrid.Views.Base;
+using DevExpress.XtraGrid.Views.Grid;
 
 namespace PCTP.QRCODE_HVN.PGH.Controls
 {
@@ -77,6 +81,106 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
         public GridControl OrderGrid { get { return gridCtrDONHANG; } }
         public BandedGridView OrderView { get { return GridViewDONHANG; } }
         public GridBand OrderBand { get { return gridBandDH; } }
+
+        public void Bind(DataTable data)
+        {
+            gridCtrDONHANG.DataSource = data;
+            GridViewDONHANG.BestFitColumns();
+        }
+
+        public DataTable GetDataTable()
+        {
+            return gridCtrDONHANG.DataSource as DataTable;
+        }
+
+        public void SetCaption(string caption)
+        {
+            gridBandDH.Caption = caption ?? string.Empty;
+        }
+
+        public void BringToFrontGrid()
+        {
+            gridCtrDONHANG.BringToFront();
+        }
+
+        public void DeleteSelectedRows()
+        {
+            GridViewDONHANG.DeleteSelectedRows();
+        }
+
+        public bool IsFocusedLotColumn()
+        {
+            return GridViewDONHANG.FocusedColumn != null
+                && string.Equals(
+                    GridViewDONHANG.FocusedColumn.FieldName,
+                    "LOT",
+                    StringComparison.OrdinalIgnoreCase);
+        }
+
+        public int GetFocusedQuantity()
+        {
+            int value;
+            return int.TryParse(
+                GridViewDONHANG.GetFocusedRowCellDisplayText("SOLUONG"),
+                out value)
+                ? value
+                : 0;
+        }
+
+        public void ConfigureGiaoDbRow(DataTable danhSachMaHang)
+        {
+            GridViewDONHANG.AddNewRow();
+
+            var riLookup = new RepositoryItemLookUpEdit();
+            riLookup.DataSource = danhSachMaHang;
+            riLookup.ValueMember = "Code";
+            riLookup.DisplayMember = "Code";
+            riLookup.BestFitMode = BestFitMode.BestFitResizePopup;
+            riLookup.SearchMode = SearchMode.AutoSuggest;
+            gridCtrDONHANG.RepositoryItems.Add(riLookup);
+
+            var maHangColumn = GridViewDONHANG.Columns["MAHANG"];
+            if (maHangColumn != null)
+                maHangColumn.ColumnEdit = riLookup;
+
+            GridViewDONHANG.BestFitColumns();
+
+            var riCombo = new RepositoryItemComboBox();
+            for (int i = 0; i <= 24; i++)
+                riCombo.Items.Add(i.ToString("00"));
+            gridCtrDONHANG.RepositoryItems.Add(riCombo);
+
+            var gioGiaoColumn = GridViewDONHANG.Columns["GIOGIAO"];
+            if (gioGiaoColumn != null)
+                gioGiaoColumn.ColumnEdit = riCombo;
+        }
+
+        public void ApplyRowCellStyle(RowCellStyleEventArgs e)
+        {
+            var view = GridViewDONHANG;
+
+            void Apply(string val, string okVal)
+            {
+                bool ok = val.Trim() == okVal;
+                e.Appearance.BackColor = ok ? Color.Green : Color.Red;
+                e.Appearance.ForeColor = Color.Yellow;
+                if (ok)
+                    e.Appearance.Font = new Font("Arial", 9, FontStyle.Bold);
+            }
+
+            if (e.Column.FieldName == "LOT")
+            {
+                string lot = view.GetRowCellDisplayText(e.RowHandle, "LOT").Trim();
+                e.Appearance.BackColor = lot == "" ? Color.Red : Color.Green;
+                e.Appearance.ForeColor = Color.Yellow;
+                if (lot != "")
+                    e.Appearance.Font = new Font("Arial", 9, FontStyle.Bold);
+            }
+            else if (e.Column.FieldName == "STATUS")
+                Apply(view.GetRowCellDisplayText(e.RowHandle, "STATUS"), "OK");
+            else if (e.Column.FieldName == "STATUSDOC")
+                Apply(view.GetRowCellDisplayText(e.RowHandle, "STATUSDOC"), "OK");
+        }
 
         public string GetFocusedMaHang()
         {
