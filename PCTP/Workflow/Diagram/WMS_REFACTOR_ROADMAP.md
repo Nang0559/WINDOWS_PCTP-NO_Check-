@@ -110,6 +110,7 @@ Recent migration:
 - `StockExportService.XuatTrucTiep` now routes physical PICK through `IStockMovementService.Pick`, followed by central `Export` for STOCKTP.
 - `StockExportService.ConfirmGiaoHangTuChoGiao` routes the final STOCKTP decrement through `IStockMovementService.Export`.
 - `StockExportService.ExportFromSlot` now uses central PICK for every exported LOT and fails loudly when the required item code is missing.
+- `StockExportService.ExportFromSlot` now acquires the source-slot lock **before** reading and splitting LOTs, preventing a stale LOT split under concurrent writers.
 - `StockMovementRequest` carries receiving metadata required by the `STOCKTP` receiving port.
 - `StockMovementService.Receive/Move/ReturnFromRework` use the LOT-aware `IStockSlotRepository.AddLot` operation whenever `LotNo` is present.
 - `StockMovementService.Pick` supports the canonical `SlotId + LotNo + Quantity` physical-pick path through `IStockSlotRepository.TakeLot` and returns consumed LOT metadata to the workflow.
@@ -146,6 +147,7 @@ Current work:
 - [x] Keep HangChoGiao ownership in XuatKho
 - [x] Migrate `PickToChoGiao` physical mutation to `IStockMovementService.Pick`.
 - [x] Migrate `XuatTrucTiep` physical mutation to `IStockMovementService.Pick` + central `Export`.
+- [x] Fix `ExportFromSlot` concurrency window by locking before LOT calculation.
 - [ ] Remove obsolete direct stock repository dependencies after caller verification.
 
 ## Phase 6 - GiaoHangKhach
