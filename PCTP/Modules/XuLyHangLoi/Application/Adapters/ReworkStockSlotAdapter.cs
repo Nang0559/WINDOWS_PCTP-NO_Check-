@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using PCTP.Common;
 using PCTP.Modules.KhoCore.Application.Contracts.Stock;
 using PCTP.Modules.KhoVatLy.Application.Interfaces;
 using PCTP.Modules.KhoVatLy.Kho.Models;
@@ -105,7 +106,7 @@ namespace PCTP.Modules.XuLyHangLoi.Application.Adapters
             var lots = _legacy.GetLots(slotId) ?? new List<LotInfo>();
             var matched = lots
                 .Where(x => x.Quantity > 0)
-                .Where(x => string.Equals(x.LotNo, lotNo, StringComparison.OrdinalIgnoreCase))
+                .Where(x => LotCodeHelper.AreLotKeysEquivalent(x.LotNo, lotNo))
                 .OrderBy(x => x.ImportDate ?? DateTime.MaxValue)
                 .ToList();
 
