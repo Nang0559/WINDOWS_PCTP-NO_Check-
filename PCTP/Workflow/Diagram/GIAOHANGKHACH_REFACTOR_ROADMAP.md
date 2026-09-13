@@ -49,7 +49,7 @@ Không giữ song song new implementation + legacy implementation sau migration,
 | 9 | Split View contracts + UserControls | ✅ Hoàn thành |
 | 10 | UI ownership / header | ✅ Hoàn thành |
 | 11 | Final header/grid ownership cleanup | ✅ Hoàn thành |
-| 12A | ActionBar | 🟡 Đang hoàn thiện cleanup legacy source |
+| 12A | ActionBar | ✅ Hoàn thành |
 | 12B | Grid presentation/state | ✅ Hoàn thành |
 | 12C | DOC QR UI/actions | ✅ Hoàn thành |
 | 12D | GiaoDB UI/dialog | ✅ Hoàn thành |
@@ -58,7 +58,7 @@ Không giữ song song new implementation + legacy implementation sau migration,
 | 12G | Remaining UI helpers | ⬜ Chưa bắt đầu |
 | 12H | Final UI slimming | ⬜ Chưa bắt đầu |
 
-**12A chưa được đánh dấu DONE** vì `HVN_PGH.cs` vẫn còn source legacy `UIButton_ButtonClick()` và `SetupYMVNButtons()` trực tiếp thao tác `UIButton`. Runtime đã được chặn khỏi legacy path, nhưng Definition of Done yêu cầu xóa source legacy.
+Phase 12A đã hoàn tất cleanup legacy ActionBar source. `HVN_PGH.cs` không còn `UIButton_ButtonClick()`, `SetupYMVNButtons()` hoặc `HandleGhepLotToggle()`. Designer không còn hookup `UIButton.ButtonClick`; `UIButton` chỉ còn là migration source được `PhieuActionBarControl.Adopt()` tiếp quản.
 
 ---
 
@@ -359,7 +359,7 @@ HVN_PGH legacy implementation song song
 
 # 8. Phase 12A – ActionBar
 
-**Trạng thái: 🟡 Đang hoàn thiện cleanup legacy source**
+**Trạng thái: ✅ Hoàn thành**
 
 ## 8.1 Owner
 
@@ -401,34 +401,61 @@ PhieuActionBarEventArgs
 ActionClicked
 ```
 
-## 8.3 Runtime boundary đã hoàn tất
+## 8.3 Runtime boundary
 
-`HVN_PGH.PhieuGridMigration.cs` đã được sửa để migrate ActionBar **trước `base.OnLoad()`**. Điều này bảo đảm `HVN_PGH_Load`/Presenter không nhìn thấy một ActionBar owner cũ trong runtime.
+`HVN_PGH.PhieuGridMigration.cs` migrate ActionBar trước `base.OnLoad()`. `PhieuActionBarControl` tiếp quản `UIButton` qua `Adopt()` và đăng ký duy nhất `ActionClicked`.
 
-Legacy `UIButton.ButtonClick` cũng được detach tại migration boundary trước `base.OnLoad()`.
+Designer legacy `UIButton.ButtonClick` subscription đã được xóa. Không còn detach workaround trong migration boundary.
 
-Commit:
+## 8.4 Legacy cleanup đã hoàn tất
 
-```text
-98c5a134a19c349e8691f3c611ebc0a578f1dd2f
-refactor(giaohangkhach): finalize phase 12A actionbar migration boundary
-```
-
-## 8.4 Cleanup còn bắt buộc
-
-Cần xóa khỏi `HVN_PGH.cs`:
+Đã xóa khỏi `HVN_PGH.cs`:
 
 ```text
 SetupYMVNButtons()
 UIButton_ButtonClick()
 HandleGhepLotToggle()
 UIButton.Buttons.Clear/Add/Insert trong form
-legacy ActionBar using nếu không còn dùng
 ```
 
-Sau cleanup, `UIButton` chỉ được tồn tại như Designer migration source cho `Adopt()`.
+`using DevExpress.XtraBars.Docking2010` vẫn được giữ vì `UIButtonHOME_ButtonClick` còn dùng `ButtonEventArgs`/`WindowsUIButton`; đây không phải main ActionBar legacy path.
 
-## 8.5 Definition of Done
+`UIButton` trong Designer chỉ còn là migration source để `PhieuActionBarControl.Adopt()` tiếp quản.
+
+Commits:
+
+```text
+98c5a134a19c349e8691f3c611ebc0a578f1dd2f
+refactor(giaohangkhach): finalize phase 12A actionbar migration boundary
+
+e9815f309e25e12a6d1bb201e0caccbc4a50b451
+refactor(giaohangkhach): complete phase 12A legacy actionbar cleanup
+
+0d9153eb520b902fcf215c3ca9578516767ca4c1
+refactor(giaohangkhach): remove phase 12A legacy actionbar detach
+
+057a6a192e4872f5243416585f91452efb715a54
+refactor(giaohangkhach): remove legacy actionbar designer event hookup
+```
+
+## 8.5 Verification
+
+Code search trên `master` không còn:
+
+```text
+UIButton_ButtonClick
+SetupYMVNButtons
+HandleGhepLotToggle
+UIButton.Buttons.Clear
+```
+
+Designer cũng không còn:
+
+```text
+UIButton.ButtonClick += ... UIButton_ButtonClick
+```
+
+## 8.6 Definition of Done
 
 ```text
 PhieuActionBarControl
@@ -441,6 +468,8 @@ composition + event forwarding
 
 Không còn ActionBar implementation song song
 ```
+
+**12A DONE.**
 
 ---
 
