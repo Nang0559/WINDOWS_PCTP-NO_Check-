@@ -41,6 +41,7 @@ Build baseline hiện tại:
 - [x] Define clean Slot query contract and legacy adapter boundary
 - [x] Define clean stock movement contract boundary
 - [x] Define clean stock-balance persistence port and legacy adapter boundary
+- [x] Define clean stock-slot mutation port and legacy adapter boundary
 - [x] Remove DataTable/UI dependencies from new core application contracts
 - [ ] Migrate existing `SlotService` callers off the legacy contract
 - [ ] Normalize `ISlotRepository`/`SlotRepository` namespace to KhoCore
@@ -60,9 +61,9 @@ Chiều phụ thuộc được phép là **adapter legacy -> KhoCore contract**.
 
 `ISlotQueryService` là boundary đọc mới của KhoCore. `KhoCoreSlotQueryAdapter` nằm phía KhoVatLy để bọc implementation cũ. Adapter sẽ bị xóa sau khi toàn bộ caller được migrate.
 
-`IStockMovementService` là boundary ghi mới. `IStockBalanceRepository` hiện là port persistence tối thiểu cho STOCKTP; `StockExportRepositoryAdapter` đang bọc implementation legacy của XuatKho. Đây là bước trung gian để di chuyển write path mà không đưa `XuatKho` dependency vào KhoCore.
+`IStockMovementService` là boundary ghi mới. `IStockBalanceRepository` là port persistence tối thiểu cho STOCKTP; `IStockSlotRepository` là port mutation tối thiểu cho Slot/SlotLot. Các adapter hiện tại vẫn là transitional và sẽ bị xóa sau migration.
 
-Chưa coi Phase 3 hoàn tất cho đến khi implementation thực sự sở hữu transaction và `StockExportService`, `NhapKho`, `XuLyHangLoi` chuyển toàn bộ stock write path sang boundary này.
+Chưa coi Phase 3 hoàn tất cho đến khi `StockExportService`, `NhapKho` và `XuLyHangLoi` chuyển toàn bộ stock write path sang boundary này.
 
 ### Gate
 
@@ -85,18 +86,22 @@ IStockMovementService
 
 Every command must be transactional, auditable and idempotent.
 
-Current status: **contracts and migration ports exist; implementation/migration is active**.
+Current status: **central implementation exists; migration of existing workflows is active**.
 
 Current transitional path:
 
 ```text
-XuatKho
-    -> IStockMovementService / IStockBalanceRepository contracts
-    -> legacy adapter
-    -> existing XuatKho/Kho storage
+XuLyHangLoi / XuatKho / NhapKho
+    -> IStockMovementService
+    -> KhoCore.StockMovementService
+    -> IStockBalanceRepository + IStockSlotRepository
+    -> legacy adapters
+    -> existing storage
 ```
 
-The adapter is intentionally transitional. It does **not** claim that the single-writer rule is complete.
+`StockMovementService` owns stock mutation rules. The surrounding workflow still owns its transaction when it must include module-specific audit/state writes in the same UnitOfWork. This is an intermediate step; full transaction ownership moves to KhoCore after all participating persistence ports are migrated.
+
+The adapters are intentionally transitional. They do **not** claim that the single-writer rule is complete until all direct write callers are removed.
 
 ### Gate
 
@@ -128,6 +133,9 @@ Mỗi loại stock movement có đúng một write path.
 - [ ] Rework OK -> StockMovement.ReturnFromRework
 - [ ] GiaoBù -> StockMovement.Pick/Export according to actual physical flow
 - [ ] Remove direct Slot/STOCKTP writes
+- [x] Add transitional Rework stock-balance adapter
+- [x] Add transitional Rework slot-mutation adapter
+- [ ] Migrate `ReworkStockService` mutation calls to `IStockMovementService`
 
 ## Phase 8 - Shared cleanup
 
