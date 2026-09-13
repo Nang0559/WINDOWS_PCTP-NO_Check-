@@ -192,8 +192,7 @@ namespace PCTP.QRCODE_HVN.PGH
         // ════════════════════════════════════════════════════════════════════
         public void BindDonHang(DataTable dt)
         {
-            gridCtrDONHANG.DataSource = dt;
-            GridViewDONHANG.BestFitColumns();
+            _phieuGridControl.Bind(dt);
         }
         public void BindHangThieu(DataTable dt) => GCT_HT.DataSource = dt;
 
@@ -223,7 +222,7 @@ namespace PCTP.QRCODE_HVN.PGH
         }
         public void BindGhepLot(DataTable dt) => _phieuBottomStateControl.GhepLotGrid.DataSource = dt;
 
-        public void SetGridCaption(string caption) => gridBandDH.Caption = caption;
+        public void SetGridCaption(string caption) => _phieuGridControl.SetCaption(caption);
 
         public void RefreshLotRow(int stt, string lot)
             => _phieuGridControl.RefreshLotRow(stt, lot);
@@ -246,7 +245,6 @@ namespace PCTP.QRCODE_HVN.PGH
 
             if (show)
             {
-                // ── Reset timeout nếu đang loading — tránh đóng sớm ────────────
                 _loadingTimeout?.Dispose();
                 _loadingTimeout = null;
 
@@ -257,11 +255,9 @@ namespace PCTP.QRCODE_HVN.PGH
                 }
                 else
                 {
-                    // ── set caption vào WaitForm khi đã đang show ───────────────
                     _waitForm.SetCaption(caption);
                 }
 
-                // ── FIX 2: reset timeout mỗi lần gọi ShowLoading(true) ──────────
                 _loadingTimeout = new System.Threading.Timer(_ =>
                 {
                     try
@@ -278,7 +274,6 @@ namespace PCTP.QRCODE_HVN.PGH
             }
             else
             {
-                // ── Tắt timeout trước ───────────────────────────────────────────
                 _loadingTimeout?.Dispose();
                 _loadingTimeout = null;
 
@@ -318,21 +313,12 @@ namespace PCTP.QRCODE_HVN.PGH
             GCT_HT.Visible = true;
             GCT_HT.BringToFront();
         }
-        // ── Chuyển sang màn hình đọc QR ─────────────────────────────────────
         public void SwitchToDocQRView()
         {
-
-
             UIButtonHOME.Visible = true;
             panelPhieu.Visible = false;
             gridCtrDOCQrCODE.BringToFront();
 
-            // ✅ FIX: panel "sửa số lượng" (SL trên tem FCC/HVN) CHỈ hiện ở màn hình
-            // DocQR — trước đây chỉ BringToFront() (đổi z-order), không ẩn hẳn GCT_HT
-            // (hàng thiếu) nên có trường hợp panel này còn lộ ra ở màn hình Phiếu Giao
-            // Hàng nếu SwitchToPhieuView() không được gọi lại đúng lúc. Set Visible
-            // tường minh cho cả 2 để đảm bảo loại trừ lẫn nhau tuyệt đối. Bọc try/catch:
-            // đây là cosmetic, không được phép chặn phần còn lại của hàm bên dưới.
             try
             {
                 GCT_HT.Visible = false;
@@ -343,32 +329,24 @@ namespace PCTP.QRCODE_HVN.PGH
             {
                 System.Diagnostics.Debug.WriteLine($"[SwitchToDocQRView] Lỗi set Visible: {ex.Message}");
             }
-            // Đảm bảo cập nhật trên UI Thread
             this.Invoke(new Action(() =>
             {
                 lblDocQrcode.Text = _cfg.Delivery?.LabelDocQR ?? "Đọc QRCode theo thứ tự: FCC → HVN";
             }));
-            // ── Ban đầu ẩn SUASL, chờ user click dòng QR ────────────────────────
             _phieuBottomStateControl.SuaSlGrid.Visible = false;
-            _phieuBottomStateControl.GhepLotGrid.Visible = false;  // cả 2 đều ẩn khi vào màn hình QR
+            _phieuBottomStateControl.GhepLotGrid.Visible = false;
 
             _phieuActionBarControl.ConfigureDocQr();
 
             txt_DOCQRCODE.Focus();
         }
 
-        // ── Chuyển về màn hình phiếu thường ─────────────────────────────────
         public void SwitchToPhieuView()
         {
-
             UIButtonHOME.Visible = false;
             panelPhieu.Visible = true;
-            gridCtrDONHANG.BringToFront();
+            _phieuGridControl.BringToFrontGrid();
 
-            // ✅ FIX: GCT_HT (hàng thiếu) hiện ở màn hình Phiếu Giao Hàng, panel sửa
-            // số lượng (PN_DOCQR_SUASL1) chỉ dành cho màn hình DocQR — set Visible
-            // tường minh, xem ghi chú trong SwitchToDocQRView(). Bọc try/catch: không
-            // được phép chặn phần reset textbox/nút bấm phía dưới nếu lỗi.
             try
             {
                 PN_DOCQR_SUASL1.Visible = false;
@@ -380,13 +358,11 @@ namespace PCTP.QRCODE_HVN.PGH
                 System.Diagnostics.Debug.WriteLine($"[SwitchToPhieuView] Lỗi set Visible: {ex.Message}");
             }
 
-            // ── Phục hồi: ẩn SUASL, hiện GHEPLOT ────────────────────────────────
             _phieuBottomStateControl.SuaSlGrid.Visible = false;
             _phieuBottomStateControl.GhepLotGrid.Visible = true;
             _phieuBottomStateControl.GhepLotGrid.BringToFront();
             _phieuBottomStateControl.LechGrid.Visible = false;
 
-            // Reset textbox sửa SL
             TXT_FCCTU.Text = "";
             TXT_FCCTHANH.Text = "";
             TXT_HVNTU.Text = "";
@@ -398,7 +374,6 @@ namespace PCTP.QRCODE_HVN.PGH
                 imageBT.Images);
 
         }
-        // ── Bind radio từ DB — gọi TRƯỚC khi gắn event ──────────────────────────
         public void BindGioXuatVP(IReadOnlyList<GioXuat> danhSach)
         {
             if (_phieuHeaderControl != null)
@@ -410,16 +385,11 @@ namespace PCTP.QRCODE_HVN.PGH
             if (_phieuHeaderControl != null)
                 _phieuHeaderControl.BindGioXuatHN(danhSach);
         }
-        // ── Chuyển về màn hình phiếu GIAO DB ────────────────────────────────
         public void SwitchToPhieuDBView()
         {
             _phieuActionBarControl.ConfigureGiaoDb();
         }
 
-        // ── Cấu hình nút phiếu thường (có thể ẩn/hiện CNK và KiemTraMaNG) ──
-
-
-        // HVN_PGH
         public void SetupPhieuButtons(bool showCapNhapKho, bool showKiemTraMaNG,
                                        bool showGhepLot, bool showDocQRCode,
                                        bool showLayLaiLot = false,
@@ -452,9 +422,8 @@ namespace PCTP.QRCODE_HVN.PGH
         // ════════════════════════════════════════════════════════════════════
         // IV. ĐỌC DATA TỪ GRID
         // ════════════════════════════════════════════════════════════════════
-        public DataTable GetDonHangTable() => gridCtrDONHANG.DataSource as DataTable;
+        public DataTable GetDonHangTable() => _phieuGridControl.GetDataTable();
         public DataTable GetAddressTable() => _addressTable;
-        // Form gốc INGHEPLOT(): _phieuBottomStateControl.GhepLotView.GetSelectedRows() → row[0]=MA, row[1]=GIO, row[2]=LOT
         public IEnumerable<GhepLotItem> GetSelectedGhepLotRows()
         {
             var list = new List<GhepLotItem>();
@@ -500,53 +469,27 @@ namespace PCTP.QRCODE_HVN.PGH
         // ════════════════════════════════════════════════════════════════════
         public bool CoLotDeLuuKho()
             => _phieuGridControl.HasLotToSave();
-        // Form gốc PBD_ThemMoi(): AddNewRow + RepositoryItemLookUpEdit + RepositoryItemComboBox
+
         public void ThemDongGiaoDB(DataTable danhSachMaHang)
-        {
-            GridViewDONHANG.AddNewRow();
+            => _phieuGridControl.ConfigureGiaoDbRow(danhSachMaHang);
 
-            // Bind LookUp mã hàng
-            var riLookup = new RepositoryItemLookUpEdit();
-            riLookup.DataSource = danhSachMaHang;
-            riLookup.ValueMember = "Code";
-            riLookup.DisplayMember = "Code";
-            riLookup.BestFitMode = BestFitMode.BestFitResizePopup;
-            riLookup.SearchMode = SearchMode.AutoSuggest;
-            gridCtrDONHANG.RepositoryItems.Add(riLookup);
-            GridViewDONHANG.Columns["MAHANG"].ColumnEdit = riLookup;
-            GridViewDONHANG.BestFitColumns();
-
-            // Bind ComboBox giờ giao 00-24
-            var riCombo = new RepositoryItemComboBox();
-            for (int i = 0; i <= 24; i++)
-                riCombo.Items.Add(i.ToString("00"));
-            gridCtrDONHANG.RepositoryItems.Add(riCombo);
-            GridViewDONHANG.Columns["GIOGIAO"].ColumnEdit = riCombo;
-        }
         public bool CoHangChuaOK()
             => _phieuGridControl.HasUnconfirmedRows();
 
         // ════════════════════════════════════════════════════════════════════
         // VI. DIALOG PHỨC TẠP
         // ════════════════════════════════════════════════════════════════════
-
-
-        // View load phiếu GIAO DB đã lưu để hiển thị lại
         private void LoadDBOKView()
         {
-            // Gọi về Presenter nếu cần tải lại dữ liệu — hiện delegate lên event
-            // Presenter lắng nghe FormLoaded / DateChanged sẽ tự reload
         }
 
         public int ShowChonSttTrungMa(ListView danhSachTrung)
         {
-            // FRM_LISTRUNGMSL nhận ListView trực tiếp — không cần static field trung gian
             var frm = new FRM_LISTRUNGMSL(danhSachTrung);
             frm.ShowDialog();
 
-            // FRM_LISTRUNGMSL.STTPHIEU là static string set khi user chọn dòng
             if (string.IsNullOrWhiteSpace(FRM_LISTRUNGMSL.STTPHIEU))
-                return -1;   // user đóng dialog mà không chọn → Presenter sẽ bỏ qua dòng này
+                return -1;
 
             return int.TryParse(FRM_LISTRUNGMSL.STTPHIEU, out int stt) ? stt : -1;
         }
@@ -571,44 +514,29 @@ namespace PCTP.QRCODE_HVN.PGH
                 return;
             }
 
-            // 1. Khởi tạo Form lỗi (thay FormDanhSachLoi bằng tên class thật của bạn)
             var frmLoi = new frm_err_cnk(errors);
-
-            // 2. Thiết lập vị trí hiển thị ở giữa Form HVN_PGH
             frmLoi.StartPosition = FormStartPosition.CenterParent;
-
-            // 3. QUAN TRỌNG: Khóa cứng Form HVN_PGH lại, không cho người dùng click hay bấm nút nữa
             this.Enabled = false;
-
-            // 4. Bắt sự kiện khi Form lỗi bị đóng (người dùng bấm X hoặc nút Đóng trên form lỗi)
             frmLoi.FormClosed += (senderForm, args) =>
             {
-                // Mở khóa lại Form HVN_PGH để tiếp tục làm việc
                 this.Enabled = true;
-                this.Activate(); // Đưa Form HVN_PGH lên phía trước
-
-                // Giải phóng bộ nhớ của Form lỗi sau khi dùng xong
+                this.Activate();
                 frmLoi.Dispose();
             };
-
-            // 5. Hiển thị Form lỗi dưới dạng Modeless (Show thông thường) và gán Owner là Form này
-            // Gán Owner giúp Form lỗi luôn luôn nằm ĐÈ lên trên Form HVN_PGH, không bị chìm xuống dưới
             frmLoi.Show(this);
         }
 
         public int? ShowSuaSoLuongTem(int sttBan, string lotFcc, int slFcc, int slHvn)
         {
-            _sttSuaSl = sttBan;   // ← lưu STT, Presenter sẽ đọc qua SttDangSuaSl
+            _sttSuaSl = sttBan;
             LOTFCCVN.Text = lotFcc;
             TXT_FCCTU.Text = slFcc.ToString();
             TXT_HVNTU.Text = slHvn.ToString();
-            TXT_HVNTHANH.Text = "";     // ← xóa giá trị cũ mỗi lần mở mới
+            TXT_HVNTHANH.Text = "";
             return null;
         }
 
-        // Presenter gọi hàm này sau khi SuaSoLuongTemClicked để lấy giá trị user đã nhập
         private int _sttSuaSl = 0;
-
 
         public int ShowChonHinhThucIn()
         {
@@ -644,42 +572,29 @@ namespace PCTP.QRCODE_HVN.PGH
         public event EventHandler<LayLaiLotEventArgs> LayLaiLotNoClicked = delegate { };
         public event EventHandler UploadGiaoDBClicked = delegate { };
         public event EventHandler LuuGiaoDBClicked = delegate { };
-        public event EventHandler<TTPHIEUEventArgs> CapNhapTTPHIEUClicked
-        = delegate { };
-        public event EventHandler<ChonLotThuCongEventArgs> ChonLotThuCongClicked
-        = delegate { };
+        public event EventHandler<TTPHIEUEventArgs> CapNhapTTPHIEUClicked = delegate { };
+        public event EventHandler<ChonLotThuCongEventArgs> ChonLotThuCongClicked = delegate { };
         public event EventHandler HoanThanhYMVNClicked = delegate { };
         public event EventHandler UploadMilkrunSPClicked = delegate { };
         public event EventHandler XemHangThieuCaNgayClicked = delegate { };
 
-        // ════════════════════════════════════════════════════════════════════
-        // Form Load
-        // ════════════════════════════════════════════════════════════════════
         private void HVN_PGH_Load(object sender, EventArgs e)
         {
-            // ── 1. Setup UI theo config customer ─────────────────────
             SetupNhaMayUI(_cfg);
-            // ── 2. Cập nhật tiêu đề form ─────────────────────────────
             this.Text = $"Phiếu Giao Hàng — {_cfg.DisplayName}";
-            // ── 3. Load địa chỉ theo customer ────────────────────────
             _addressTable = IFSRepository.Create()
                                 .GetCustomerAddress(_cfg.CustomerNo)
                             ?? new DataTable();
-            // ── 4. Bind radio giờ xuất ───────────────────────────────
-        
+
             BindGioXuatVP(_gioRepo.GetDanhSachGioVP());
             if (_cfg.Delivery.CoNhieuNhaMay)
                 BindGioXuatHN(_gioRepo.GetDanhSachGioHN());
 
-            // ── 4b. Setup grid cột theo customer ─────────────────────
             SetupGridDonHangYMVN(_cfg.Delivery.LoadTuBangRieng);
 
-            // ── 5. Gắn events ────────────────────────────────────────
-            GridViewDONHANG.ShowingEditor += GridViewDONHANG_ShowingEditor_LOT;
+            _phieuGridControl.OrderView.ShowingEditor += GridViewDONHANG_ShowingEditor_LOT;
             if (dateNX.DateTime == DateTime.MinValue || dateNX.DateTime.Year < 2000)
                 dateNX.DateTime = DateTime.Now;
-
-
 
             if (_cfg.Delivery.CoGear)
             {
@@ -691,17 +606,8 @@ namespace PCTP.QRCODE_HVN.PGH
                 btnUploadMilkrun.Click += btnUploadMilkrun_Click;
             }
 
-          
-
-            // ── Load đơn hàng (qua Presenter.OnFormLoaded) TRƯỚC — không được để
-            // bất kỳ lỗi nào chặn dòng này, nếu không đơn hàng sẽ không load được.
             FormLoaded.Invoke(this, EventArgs.Empty);
 
-            // ✅ FIX: Designer không đặt sẵn Visible cho GCT_HT/PN_DOCQR_SUASL1 (2 control
-            // chồng khít nhau trong sidePanel5) — nếu không set tường minh, màn hình khởi
-            // động (Phiếu Giao Hàng) có thể lộ nhầm panel "sửa số lượng" của màn DocQR.
-            // Đặt SAU FormLoaded.Invoke + bọc try/catch: đây chỉ là cosmetic, tuyệt đối
-            // không được phép chặn việc load đơn hàng ở trên nếu DevExpress ném lỗi.
             try
             {
                 PN_DOCQR_SUASL1.Visible = false;
@@ -713,12 +619,10 @@ namespace PCTP.QRCODE_HVN.PGH
             }
         }
 
-        // ── Setup cột grid theo customer ─────────────────────────────────────────
         public void SetupGridDonHangYMVN(bool bangrieng)
         {
             _phieuGridControl.SetupForCustomer(bangrieng);
         }
-        // Implement BindGioXuatCheckList
         public void BindGioXuatCheckList(List<string> danhSachGio)
         {
             if (_phieuHeaderControl != null)
@@ -727,7 +631,6 @@ namespace PCTP.QRCODE_HVN.PGH
                 return;
             }
         }
-        // Handler double-click vào cột LOT
         public void LockCheckListYMVN()
         {
             if (_phieuHeaderControl != null)
@@ -741,12 +644,10 @@ namespace PCTP.QRCODE_HVN.PGH
         }
         private void GridViewDONHANG_ShowingEditor_LOT(object sender, CancelEventArgs e)
         {
-            // Chặn edit trực tiếp cột LOT — chỉ cho nhập qua dialog
-            if (GridViewDONHANG.FocusedColumn?.FieldName == "LOT")
+            if (_phieuGridControl.IsFocusedLotColumn())
             {
-                e.Cancel = true;  // hủy edit mode
+                e.Cancel = true;
 
-                // Lấy data và bắn event mở dialog
                 int stt = GetFocusedDonHangStt();
                 if (stt < 0) return;
 
@@ -758,9 +659,7 @@ namespace PCTP.QRCODE_HVN.PGH
                 }
 
                 string maHang = _phieuGridControl.GetFocusedMaHang();
-                int.TryParse(
-                    GridViewDONHANG.GetFocusedRowCellDisplayText("SOLUONG"),
-                    out int soLuong);
+                int soLuong = _phieuGridControl.GetFocusedQuantity();
 
                 ChonLotThuCongClicked.Invoke(this,
                     new ChonLotThuCongEventArgs(stt, maHang, soLuong));
@@ -820,30 +719,24 @@ namespace PCTP.QRCODE_HVN.PGH
         // DevExpress event handlers → bắn interface events
         // ════════════════════════════════════════════════════════════════════
 
-
-        // ── GIAO DB guard — chặn RadioGroup trước khi đổi sang "#" ──────────
-        public void XoaDongGiaoDB() => GridViewDONHANG.DeleteSelectedRows();
+        public void XoaDongGiaoDB() => _phieuGridControl.DeleteSelectedRows();
         private void radioGroup2_EditValueChanging(object sender, ChangingEventArgs e)
         {
-            if ((int)e.NewValue == 8)   // index của "(GIAO DB)" trong VP
+            if ((int)e.NewValue == 8)
                 e.Cancel = !_presenter.OnGiaoDBChanging(_presenter.AddNM);
         }
 
         private void RDO_GXHN_EditValueChanging(object sender, ChangingEventArgs e)
         {
-            if ((int)e.NewValue == 10)  // index của "(GIAO DB)" trong HN
+            if ((int)e.NewValue == 10)
                 e.Cancel = !_presenter.OnGiaoDBChanging(_presenter.AddNM);
         }
 
-        // ── QR Code input ────────────────────────────────────────────────────
         private void txt_DOCQRCODE_KeyPress(object sender, KeyPressEventArgs e)
         {
             if (e.KeyChar == (char)13)
                 QRCodeSubmitted.Invoke(this, txt_DOCQRCODE.Text);
         }
-        // ════════════════════════════════════════════════════════════════════════════
-        // FIX 4: HVN_PGH — implement các method mới
-        // ════════════════════════════════════════════════════════════════════════════
 
         public void SetDate(DateTime date)
         {
@@ -896,34 +789,11 @@ namespace PCTP.QRCODE_HVN.PGH
                 _phieuHeaderControl.LockRadioExcept(gioFCC);
         }
 
-        
-
         public void UnlockAllRadio()
         {
             if (_phieuHeaderControl != null)
                 _phieuHeaderControl.UnlockAllRadio();
         }
-
-        //public void LockRadioExcept(string gioFCC)
-        //{
-        //    for (int i = 0; i < radioGroup2.Properties.Items.Count; i++)
-        //    {
-        //        RadioGroupItem item = (RadioGroupItem)radioGroup2.Properties.Items[i];
-        //        if (item.AccessibleName != null && item.AccessibleName == gioFCC)
-        //            radioGroup2.SelectedIndex = i;
-        //        else
-        //            item.Enabled = false;
-        //    }
-
-        //    for (int i = 0; i < RDO_GXHN.Properties.Items.Count; i++)
-        //    {
-        //        RadioGroupItem item = (RadioGroupItem)RDO_GXHN.Properties.Items[i];
-        //        if (item.AccessibleName != null && item.AccessibleName == gioFCC)
-        //            RDO_GXHN.SelectedIndex = i;
-        //        else
-        //            item.Enabled = false;
-        //    }
-        //}
 
         private void LockRadioGroup(RadioGroupItemCollection items,
                                       HashSet<string> gioSet,
@@ -955,9 +825,6 @@ namespace PCTP.QRCODE_HVN.PGH
                 _phieuHeaderControl.UpdateGioXuatFromDB(gioFCC);
         }
 
-        
-
-
         public bool HoiXoaDocQR()
             => XtraMessageBox.Show(
                 "Dữ liệu không phù hợp:\n" +
@@ -980,11 +847,9 @@ namespace PCTP.QRCODE_HVN.PGH
             string cap = btn.Caption;
             switch (cap)
             {
-                // ── Phiếu thường ─────────────────────────────────────────────
                 case "DOC QRCODE":
                     DocQRCodeClicked.Invoke(this, EventArgs.Empty);
                     break;
-
                 case "Kiểm Tra Ghep Lot":
                     KiemTraGhepLotClicked.Invoke(this, EventArgs.Empty);
                     break;
@@ -1004,14 +869,10 @@ namespace PCTP.QRCODE_HVN.PGH
                 case "Kiểm tra mã NG":
                     KiemTraMaNGClicked.Invoke(this, EventArgs.Empty);
                     break;
-                case "Xem Hàng Thiếu Cả Ngày":               // ← thêm — caption phải khớp CHÍNH XÁC với Text của WindowsUIButton trên designer
-                    if (_isLoading) return;                   // giữ nhất quán với "Cập Nhập Kho" — chặn double-click khi đang loading
+                case "Xem Hàng Thiếu Cả Ngày":
+                    if (_isLoading) return;
                     XemHangThieuCaNgayClicked?.Invoke(this, EventArgs.Empty);
                     break;
-                // ── Màn hình đọc QR ───────────────────────────────────────────
-                //case "Hoàn Thành":
-                //    HoanThanhClicked.Invoke(this, EventArgs.Empty);
-                //    break;
                 case "Xóa Dòng Được Chọn":
                     if (Confirm("Xóa dòng đang chọn?"))
                         XoaDongQRClicked.Invoke(this, EventArgs.Empty);
@@ -1031,14 +892,12 @@ namespace PCTP.QRCODE_HVN.PGH
                             ShowInfo("Vui lòng chọn dòng cần lấy lại LOT trên danh sách đơn hàng!");
                             break;
                         }
-                        // Kiểm tra dòng này có LOT không — nếu không có thì không cần reset
                         string lot = _phieuGridControl.GetFocusedLot();
                         if (string.IsNullOrEmpty(lot))
                         {
                             ShowInfo("Dòng này chưa có LOT, không cần lấy lại!");
                             break;
                         }
-                        // Kiểm tra chưa CNK — nếu đã CNK thì không cho reset
                         string status = _phieuGridControl.GetFocusedStatus();
                         if (status == "OK")
                         {
@@ -1048,12 +907,9 @@ namespace PCTP.QRCODE_HVN.PGH
                         LayLaiLotNoClicked.Invoke(this, new LayLaiLotEventArgs(stt));
                         break;
                     }
-                // ── GIAO DB ───────────────────────────────────────────────────
                 case "Upload Đơn Hàng":
                     UploadGiaoDBClicked.Invoke(this, EventArgs.Empty);
                     break;
-                
-                // Thêm ghi chú Phiếu SP 
                 case "Ghi Chú STOP":
                     {
                         int stt = GetFocusedDonHangStt();
@@ -1068,21 +924,18 @@ namespace PCTP.QRCODE_HVN.PGH
                         CapNhapTTPHIEUClicked.Invoke(this, new TTPHIEUEventArgs(stt, ""));
                         break;
                     }
-                // UIButton_ButtonClick — thêm case YMVN
                 case "Hoàn Thành":
                     if (_cfg.Delivery.CoHoanThanhYMVN)
                         HoanThanhYMVNClicked.Invoke(this, EventArgs.Empty);
                     else
                         HoanThanhClicked.Invoke(this, EventArgs.Empty);
                     break;
-
                 case "Upload Milkrun SP":
                     UploadMilkrunSPClicked.Invoke(this, EventArgs.Empty);
                     break;
                 case "Đang xem: MP":
                 case "Đang xem: SP":
                     _isLoaiSP = !_isLoaiSP;
-                    // Cập nhật caption button trong UIButton
                     foreach (var b in UIButton.Buttons.OfType<WindowsUIButton>())
                     {
                         if (b.Caption == "Đang xem: MP" || b.Caption == "Đang xem: SP")
@@ -1096,7 +949,6 @@ namespace PCTP.QRCODE_HVN.PGH
             }
         }
 
-        // ── UIButtonHOME ─────────────────────────────────────────────────────
         private void UIButtonHOME_ButtonClick(object sender, ButtonEventArgs e)
         {
             switch (((WindowsUIButton)e.Button).Caption)
@@ -1104,10 +956,8 @@ namespace PCTP.QRCODE_HVN.PGH
                 case "HOME":
                     SwitchToPhieuView();
                     break;
-
             }
         }
-
 
         private void HandleGhepLotToggle(WindowsUIButton btn)
         {
@@ -1115,7 +965,6 @@ namespace PCTP.QRCODE_HVN.PGH
 
             if (dangHienLech)
             {
-                // Đang xem Lệch IFS → quay lại GhepLot: chuyển grid + chạy kiểm tra ghép lot như bình thường
                 _phieuBottomStateControl.LechGrid.Visible = false;
                 _phieuBottomStateControl.GhepLotGrid.Visible = true;
                 _phieuBottomStateControl.GhepLotGrid.BringToFront();
@@ -1125,21 +974,19 @@ namespace PCTP.QRCODE_HVN.PGH
             }
             else
             {
-                // Đang xem GhepLot → chuyển sang xem Lệch IFS (data đã bind sẵn từ BindLechIFS, không cần gọi Presenter)
                 _phieuBottomStateControl.GhepLotGrid.Visible = false;
                 _phieuBottomStateControl.LechGrid.Visible = true;
                 _phieuBottomStateControl.LechGrid.BringToFront();
                 btn.Caption = "GhepLot";
             }
         }
-        // ── Double click trên gridVDOCQRCODE → mở panel sửa SL tem ──────────
+
         private void gridVDOCQRCODE_FocusedRowChanged(object sender,
     DevExpress.XtraGrid.Views.Base.FocusedRowChangedEventArgs e)
         {
             int stt = GetFocusedDocQRStt();
             if (stt < 0)
             {
-                // Không có dòng hợp lệ → ẩn _phieuBottomStateControl.SuaSlGrid, hiện _phieuBottomStateControl.GhepLotGrid
                 _phieuBottomStateControl.SuaSlGrid.Visible = false;
                 _phieuBottomStateControl.GhepLotGrid.BringToFront();
                 return;
@@ -1147,16 +994,11 @@ namespace PCTP.QRCODE_HVN.PGH
 
             var (lotFcc, slFcc, slHvn) = GetFocusedDocQRTemInfo();
             _sttSuaSl = stt;
-
-            // Load data vào _phieuBottomStateControl.SuaSlGrid
             _phieuBottomStateControl.SuaSlGrid.DataSource = BuildSuaSlTable(stt, lotFcc, slFcc, slHvn);
-
-            // ── Hiện _phieuBottomStateControl.SuaSlGrid, ẩn _phieuBottomStateControl.GhepLotGrid ─────────────────────────────────
             _phieuBottomStateControl.GhepLotGrid.Visible = false;
             _phieuBottomStateControl.SuaSlGrid.Visible = true;
             _phieuBottomStateControl.SuaSlGrid.BringToFront();
 
-            // Reset textbox
             TXT_FCCTU.Text = "";
             TXT_FCCTHANH.Text = "";
             TXT_HVNTU.Text = "";
@@ -1167,12 +1009,11 @@ namespace PCTP.QRCODE_HVN.PGH
         {
             var tbl = new DataTable();
             tbl.Columns.Add("STT", typeof(int));
-            tbl.Columns.Add("LOAI", typeof(string));  // "FCC" hoặc "HVN"
+            tbl.Columns.Add("LOAI", typeof(string));
             tbl.Columns.Add("LOT", typeof(string));
-            tbl.Columns.Add("SLHIEN", typeof(int));     // SL hiện tại
-            tbl.Columns.Add("SLTHANH", typeof(int));     // SL muốn sửa
+            tbl.Columns.Add("SLHIEN", typeof(int));
+            tbl.Columns.Add("SLTHANH", typeof(int));
 
-            // Các tem FCC (có thể ghép nhiều)
             if (!string.IsNullOrEmpty(lotFcc))
             {
                 var parts = lotFcc.Split(',');
@@ -1192,13 +1033,12 @@ namespace PCTP.QRCODE_HVN.PGH
                 }
             }
 
-            // Tem HVN
             if (slHvn > 0)
             {
                 var row = tbl.NewRow();
                 row["STT"] = stt;
                 row["LOAI"] = "HVN";
-                row["LOT"] = "";       // HVN không có LOT riêng trong grid
+                row["LOT"] = "";
                 row["SLHIEN"] = slHvn;
                 row["SLTHANH"] = slHvn;
                 tbl.Rows.Add(row);
@@ -1219,16 +1059,14 @@ namespace PCTP.QRCODE_HVN.PGH
             if (loai == "FCC")
             {
                 TXT_FCCTU.Text = slHien;
-                TXT_FCCTHANH.Text = slHien;   // prefill để user chỉ sửa số
-                                              // Clear HVN
+                TXT_FCCTHANH.Text = slHien;
                 TXT_HVNTU.Text = "";
                 TXT_HVNTHANH.Text = "";
             }
             else if (loai == "HVN")
             {
                 TXT_HVNTU.Text = slHien;
-                TXT_HVNTHANH.Text = slHien;   // prefill
-                                              // Clear FCC
+                TXT_HVNTHANH.Text = slHien;
                 TXT_FCCTU.Text = "";
                 TXT_FCCTHANH.Text = "";
             }
@@ -1257,7 +1095,6 @@ namespace PCTP.QRCODE_HVN.PGH
             return tbl;
         }
 
-        // ── Nút cmd_SuaLTemFCC (Designer) ────────────────────────────────────
         private void cmd_SuaLTemFCC_Click(object sender, EventArgs e)
         {
             if (_sttSuaSl <= 0)
@@ -1270,12 +1107,10 @@ namespace PCTP.QRCODE_HVN.PGH
                 ShowInfo("Số lượng FCC không hợp lệ!");
                 return;
             }
-            // Bắn event để Presenter xử lý — truyền loại "FCC"
             SuaSoLuongTemClicked.Invoke(this, EventArgs.Empty);
         }
         public int? GetSuaSoLuongResult()
         {
-            // Ưu tiên HVN nếu có giá trị — vì HVN thường được sửa sau FCC
             if (!string.IsNullOrWhiteSpace(TXT_HVNTHANH.Text)
                 && int.TryParse(TXT_HVNTHANH.Text, out int slHvn)
                 && slHvn > 0)
@@ -1293,27 +1128,7 @@ namespace PCTP.QRCODE_HVN.PGH
         // ════════════════════════════════════════════════════════════════════
         private void GridViewDONHANG_RowCellStyle(object sender, RowCellStyleEventArgs e)
         {
-            var view = (GridView)sender;
-
-            void Apply(string val, string okVal)
-            {
-                bool ok = val.Trim() == okVal;
-                e.Appearance.BackColor = ok ? Color.Green : Color.Red;
-                e.Appearance.ForeColor = Color.Yellow;
-                if (ok) e.Appearance.Font = new Font("Arial", 9, FontStyle.Bold);
-            }
-
-            if (e.Column.FieldName == "LOT")
-            {
-                string lot = view.GetRowCellDisplayText(e.RowHandle, "LOT").Trim();
-                e.Appearance.BackColor = lot == "" ? Color.Red : Color.Green;
-                e.Appearance.ForeColor = Color.Yellow;
-                if (lot != "") e.Appearance.Font = new Font("Arial", 9, FontStyle.Bold);
-            }
-            else if (e.Column.FieldName == "STATUS")
-                Apply(view.GetRowCellDisplayText(e.RowHandle, "STATUS"), "OK");
-            else if (e.Column.FieldName == "STATUSDOC")
-                Apply(view.GetRowCellDisplayText(e.RowHandle, "STATUSDOC"), "OK");
+            _phieuGridControl.ApplyRowCellStyle(e);
         }
 
         // ════════════════════════════════════════════════════════════════════
@@ -1330,9 +1145,6 @@ namespace PCTP.QRCODE_HVN.PGH
         private void btnUploadMilkrun_Click(object sender, EventArgs e)
     => UploadMilkrunSPClicked.Invoke(this, EventArgs.Empty);
 
-        // ════════════════════════════════════════════════════════════════════
-        // Dispose
-        // ════════════════════════════════════════════════════════════════════
         protected override void OnFormClosed(FormClosedEventArgs e)
         {
             if (_cfg.Delivery.CoGear)
@@ -1342,14 +1154,13 @@ namespace PCTP.QRCODE_HVN.PGH
                 if (_btnToggleLoaiPhieu != null)
                     _btnToggleLoaiPhieu.Click -= BtnToggleLoaiPhieu_Click;
             }
-            else if (_cfg.Delivery.LoadTheoNgay)  // ← HTN
+            else if (_cfg.Delivery.LoadTheoNgay)
             {
                 btnUploadMilkrun.Click -= btnUploadMilkrun_Click;
             }
             _presenter.Dispose();
             base.OnFormClosed(e);
         }
-        //---------------Help 
         private int GetFocusedDonHangStt()
             => _phieuGridControl.GetFocusedStt();
 
@@ -1380,12 +1191,10 @@ namespace PCTP.QRCODE_HVN.PGH
                 ShowInfo("Số lượng FCC không hợp lệ!");
                 return;
             }
-            // Bắn event để Presenter xử lý — truyền loại "FCC"
             SuaSoLuongTemClicked.Invoke(this, EventArgs.Empty);
         }
     }
 
-    // ── Helper class giữ nguyên ──────────────────────────────────────────────────
     public class MyWindowsUIButtonPanel : WindowsUIButtonPanel
     {
         public WindowsUIButtonsPanel GetButtonsPanel()
