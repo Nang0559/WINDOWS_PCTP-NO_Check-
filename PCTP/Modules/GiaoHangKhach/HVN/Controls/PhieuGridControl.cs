@@ -11,11 +11,10 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
     /// <summary>
     /// UI boundary for the normal Phiếu/Order grid area of HVN_PGH.
     ///
-    /// Phase 9B:
+    /// Phase 12B:
     /// - Owns the Order GridControl and BandedGridView.
-    /// - Keeps the existing field names/column layout from HVN_PGH.Designer.cs.
+    /// - Keeps grid presentation and grid-state queries inside this boundary.
     /// - Does not own business logic or DataSource decisions.
-    /// - The parent form can continue to bind through OrderGrid/OrderView.
     /// </summary>
     public class PhieuGridControl : XtraUserControl
     {
@@ -75,26 +74,45 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
             Controls.Add(gridCtrDONHANG);
         }
 
-        public GridControl OrderGrid
+        public GridControl OrderGrid { get { return gridCtrDONHANG; } }
+        public BandedGridView OrderView { get { return GridViewDONHANG; } }
+        public GridBand OrderBand { get { return gridBandDH; } }
+
+        public string GetFocusedMaHang()
         {
-            get { return gridCtrDONHANG; }
+            return GridViewDONHANG.GetFocusedRowCellDisplayText("MAHANG").Trim();
         }
 
-        public BandedGridView OrderView
+        public int GetFocusedStt()
         {
-            get { return GridViewDONHANG; }
+            string value = GridViewDONHANG.GetFocusedRowCellDisplayText("STT");
+            int stt;
+            return int.TryParse(value, out stt) ? stt : -1;
         }
 
-        public GridBand OrderBand
+        public bool HasLotToSave()
         {
-            get { return gridBandDH; }
+            for (int i = 0; i < GridViewDONHANG.RowCount; i++)
+            {
+                if (GridViewDONHANG.GetRowCellDisplayText(i, "LOT").Trim() != "")
+                    return true;
+            }
+            return false;
         }
 
-        /// <summary>
-        /// Applies customer-specific presentation settings to the order grid.
-        /// This keeps DevExpress column manipulation inside the grid boundary;
-        /// customer/business decisions remain owned by the caller.
-        /// </summary>
+        public bool HasUnconfirmedRows()
+        {
+            if (GridViewDONHANG.RowCount == 0)
+                return false;
+
+            for (int i = 0; i < GridViewDONHANG.RowCount; i++)
+            {
+                if (GridViewDONHANG.GetRowCellDisplayText(i, "STATUS").Trim() != "OK")
+                    return true;
+            }
+            return false;
+        }
+
         public void SetupForCustomer(bool usePrivateOrderTable)
         {
             SetColumnVisible("GEAR", usePrivateOrderTable);
@@ -133,8 +151,7 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
             gridCtrDONHANG.TabIndex = 4;
             gridCtrDONHANG.ViewCollection.AddRange(new BaseView[] { GridViewDONHANG });
 
-            GridViewDONHANG.Appearance.ColumnFilterButton.Font =
-                new Font("Tahoma", 10.2F, FontStyle.Bold);
+            GridViewDONHANG.Appearance.ColumnFilterButton.Font = new Font("Tahoma", 10.2F, FontStyle.Bold);
             GridViewDONHANG.Appearance.ColumnFilterButton.Options.UseFont = true;
             GridViewDONHANG.Bands.AddRange(new[] { gridBandDH });
             GridViewDONHANG.Columns.AddRange(new[]
@@ -151,13 +168,11 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
             GridViewDONHANG.OptionsSelection.CheckBoxSelectorColumnWidth = 24;
             GridViewDONHANG.OptionsSelection.CheckBoxSelectorField = "CHON";
             GridViewDONHANG.OptionsSelection.MultiSelect = true;
-            GridViewDONHANG.OptionsSelection.ShowCheckBoxSelectorInColumnHeader =
-                DevExpress.Utils.DefaultBoolean.False;
+            GridViewDONHANG.OptionsSelection.ShowCheckBoxSelectorInColumnHeader = DevExpress.Utils.DefaultBoolean.False;
 
             gridBandDH.AppearanceHeader.BackColor = Color.FromArgb(128, 255, 255);
             gridBandDH.AppearanceHeader.BorderColor = Color.Red;
-            gridBandDH.AppearanceHeader.Font =
-                new Font("Times New Roman", 12F, FontStyle.Bold);
+            gridBandDH.AppearanceHeader.Font = new Font("Times New Roman", 12F, FontStyle.Bold);
             gridBandDH.AppearanceHeader.Options.UseBackColor = true;
             gridBandDH.AppearanceHeader.Options.UseBorderColor = true;
             gridBandDH.AppearanceHeader.Options.UseFont = true;
@@ -191,11 +206,9 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
 
             ConfigureColumn(STT, "GSTT", "STT", 34, 12);
             STT.DisplayFormat.FormatType = DevExpress.Utils.FormatType.Numeric;
-
             ConfigureColumn(GIO, "Giờ", "GIOGIAO", 90, 24);
             GIO.DisplayFormat.FormatString = "HH";
             GIO.DisplayFormat.FormatType = DevExpress.Utils.FormatType.DateTime;
-
             ConfigureColumn(cua, "Cửa", "CUA", 90, 24);
             ConfigureColumn(truyen, "Truyền", "TRUYEN", 90, 24);
             ConfigureColumn(mahang, "Mã hàng", "MAHANG", 90, 24);
@@ -203,38 +216,27 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
             ConfigureColumn(bandedGridColumn9, "Gear Sử Dụng", "GEAR", 94, 25);
             ConfigureColumn(LOT, "Số Lô", "LOT", 90, 24);
             ConfigureColumn(dovi, "Đơn Vị", "DV", 90, 24);
-
             ConfigureColumn(soluong, "Số Lượng", "SOLUONG", 90, 24);
             soluong.DisplayFormat.FormatType = DevExpress.Utils.FormatType.Numeric;
-
             ConfigureColumn(xe, "Xe", null, 79, 24);
-
             ConfigureColumn(Hop, "Hộp", "HOP", 89, 24);
             Hop.DisplayFormat.FormatString = "n";
             Hop.DisplayFormat.FormatType = DevExpress.Utils.FormatType.Numeric;
-
             ConfigureColumn(STATUSDOC, "Kết Quả Đọc QRcode", "STATUSDOC", 64, 24);
             STATUSDOC.AppearanceCell.Options.UseTextOptions = true;
             STATUSDOC.AppearanceCell.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
             STATUSDOC.AppearanceCell.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
-
             ConfigureColumn(STATUSCNK, "Trạng Thái Cập Nhập Kho", "STATUS", 117, 12);
             STATUSCNK.AppearanceCell.Options.UseTextOptions = true;
             STATUSCNK.AppearanceCell.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
             STATUSCNK.AppearanceCell.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
-
             ConfigureColumn(bandedGridColumn8, "TT Phiếu", "TTPHIEU", 94, 25);
             ConfigureColumn(bandedGridColumn6, "PO No", "PO_NO", 94, 25);
             ConfigureColumn(bandedGridColumn7, "PO_ITEM", "PO_ITEM", 94, 25);
             ConfigureColumn(bandedGridColumn4, "Ghi Chú", "Note", 70, 29);
         }
 
-        private static void ConfigureColumn(
-            BandedGridColumn column,
-            string caption,
-            string fieldName,
-            int width,
-            int minWidth)
+        private static void ConfigureColumn(BandedGridColumn column, string caption, string fieldName, int width, int minWidth)
         {
             column.Caption = caption;
             column.FieldName = fieldName;
