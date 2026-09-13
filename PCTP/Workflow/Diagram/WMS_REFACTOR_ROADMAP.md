@@ -100,6 +100,15 @@ XuLyHangLoi / XuatKho / NhapKho
     -> existing storage
 ```
 
+Recent migration:
+
+- `StockExportService.ConfirmGiaoHangTuChoGiao` now routes the final STOCKTP decrement through `IStockMovementService.Export`.
+- `StockExportService.XuatTrucTiep` now routes the final STOCKTP decrement through `IStockMovementService.Export`.
+- `StockMovementService.Export` supports a stock-only export when the physical SlotLot has already been removed into `HangChoGiao`.
+- `StockMovementRequest` carries receiving metadata required by the `STOCKTP` receiving port.
+
+These changes are intentionally transitional: the physical Slot/SlotLot pick/split logic in `XuatKho` still uses the legacy Slot boundary because the current `IStockSlotRepository` does not yet expose an exact LOT-aware split operation.
+
 `StockMovementService` owns stock mutation rules. The surrounding workflow still owns its transaction when it must include module-specific audit/state writes in the same UnitOfWork. This is an intermediate step; full transaction ownership moves to KhoCore after all participating persistence ports are migrated.
 
 The adapters are intentionally transitional. They do **not** claim that the single-writer rule is complete until all direct write callers are removed.
@@ -114,11 +123,16 @@ Mỗi loại stock movement có đúng một write path.
 - [ ] Keep receiving document state inside NhapKho
 - [ ] Remove direct stock/history writes
 
+Current work:
+
+- [x] Define `IStockReceivingRepository` and legacy `StockReceivingRepositoryAdapter`.
+- [ ] Migrate `NhapTpReceivingService` after the central Slot/SlotLot receiving contract exposes exact LOT-aware insertion/update semantics.
+
 ## Phase 5 - XuatKho
 
 - [ ] Separate Pick from Export explicitly
-- [ ] Move stock mutation to StockMovement
-- [ ] Keep HangChoGiao ownership in XuatKho
+- [~] Move stock mutation to StockMovement — final STOCKTP export paths migrated; physical pick/split remains legacy
+- [x] Keep HangChoGiao ownership in XuatKho
 
 ## Phase 6 - GiaoHangKhach
 
