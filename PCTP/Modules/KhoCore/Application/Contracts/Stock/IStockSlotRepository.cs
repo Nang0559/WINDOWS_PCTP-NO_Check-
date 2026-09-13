@@ -12,11 +12,12 @@ namespace PCTP.Modules.KhoCore.Application.Contracts.Stock
         int? GetSlotId(int slotLotId);
         void DecreaseLotQuantity(int slotLotId, int quantity);
         void AddQuantity(int slotId, int quantity, string itemCode);
+        void AddLot(int slotId, StockSlotLot lot);
 
         /// <summary>
-        /// Adds quantity to the exact LOT in a physical slot, creating the LOT when absent.
-        /// This is the canonical LOT-aware receiving/move operation.
+        /// Removes quantity from the requested LOT in a physical slot.
+        /// The adapter owns the legacy Slot/SlotLot split semantics (FIFO by ImportDate).
         /// </summary>
-        void AddLot(int slotId, StockSlotLot lot);
+        void TakeLot(int slotId, string lotNo, int quantity);
     }
 }
