@@ -139,8 +139,6 @@ namespace PCTP.Modules.KhoCore.Application.Services
                     StockMovementRequest.Types.Receive,
                     StringComparison.OrdinalIgnoreCase);
 
-                // Normal finished-goods receiving owns STOCKTP creation/update here.
-                // Rework receive paths intentionally use the balance adapter rules below.
                 if (isNormalReceive && _receiving != null)
                 {
                     if (string.IsNullOrWhiteSpace(request.LotNo))
@@ -149,10 +147,7 @@ namespace PCTP.Modules.KhoCore.Application.Services
                     int status = request.ReceivingStatus ?? 0;
                     if (_receiving.Exists(request.LotNo))
                     {
-                        _receiving.Update(
-                            request.LotNo,
-                            request.Quantity,
-                            status);
+                        _receiving.Update(request.LotNo, request.Quantity, status);
                     }
                     else
                     {
@@ -181,9 +176,7 @@ namespace PCTP.Modules.KhoCore.Application.Services
                     !(isNormalReceive && _receiving != null) &&
                     !string.IsNullOrWhiteSpace(request.LotNo))
                 {
-                    _balance.AdjustAvailableQuantity(
-                        request.LotNo,
-                        request.Quantity);
+                    _balance.AdjustAvailableQuantity(request.LotNo, request.Quantity);
                 }
 
                 return StockMovementResult.Ok("Đã nhập tồn kho.");
@@ -200,8 +193,6 @@ namespace PCTP.Modules.KhoCore.Application.Services
         {
             if (request == null)
                 return StockMovementResult.Fail("Stock movement request không được null.");
-            if (!request.SlotLotId.HasValue || request.SlotLotId.Value <= 0)
-                return StockMovementResult.Fail("SlotLotId không hợp lệ.");
             if (request.Quantity <= 0)
                 return StockMovementResult.Fail("Quantity phải lớn hơn 0.");
             if (string.IsNullOrWhiteSpace(request.LotNo))
@@ -209,6 +200,26 @@ namespace PCTP.Modules.KhoCore.Application.Services
 
             try
             {
+                // A stock-only export is used after the physical SlotLot was already
+                // picked into the staging queue. In that case there is intentionally
+                // no SlotLotId left to mutate; KhoCore still owns the STOCKTP change.
+                if (!request.SlotLotId.HasValue)
+                {
+                    if (!adjustAvailable)
+                        return StockMovementResult.Fail("Pick cần SlotLotId.");
+
+                    if (!_balance.TryDecreaseAvailableQuantity(request.LotNo, request.Quantity))
+                    {
+                        return StockMovementResult.Fail(
+                            string.Format("STOCKTP LOT [{0}] không đủ hoặc đã thay đổi.", request.LotNo));
+                    }
+
+                    return StockMovementResult.Ok("Đã xuất tồn STOCKTP.");
+                }
+
+                if (request.SlotLotId.Value <= 0)
+                    return StockMovementResult.Fail("SlotLotId không hợp lệ.");
+
                 int availableSlot = _slots.GetLotQuantity(request.SlotLotId.Value);
                 if (availableSlot < request.Quantity)
                     return StockMovementResult.Fail(
