@@ -1,4 +1,5 @@
-﻿using PCTP.Common;
+using PCTP.Common;
+using PCTP.Modules.KhoCore.Application.Contracts.Stock;
 using PCTP.Modules.KhoVatLy.Application.Interfaces;
 using PCTP.Modules.KhoVatLy.Kho.Models;
 using PCTP.Modules.KhoVatLy.Repositories;
@@ -12,19 +13,18 @@ using PCTP.VIEWSTOCK.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace PCTP.Modules.XuatKho.Services
 {
     public sealed class StockExportService : IStockExportService
     {
         private readonly IUnitOfWork _uow;
-        private readonly ISlotService _slotService;                 // module Kho
-        private readonly IStockExportRepository _stockTpRepo;       // đọc/trừ STOCKTP
-        private readonly IStockHistoryRepository _historyRepo;      // dùng chung bảng StockHistory (module Kho)
-        private readonly IHangChoGiaoRepository _choGiaoRepo;       // FVN_HangChoGiao
+        private readonly ISlotService _slotService;
+        private readonly IStockExportRepository _stockTpRepo;
+        private readonly IStockHistoryRepository _historyRepo;
+        private readonly IHangChoGiaoRepository _choGiaoRepo;
         private readonly IStockExportValidationService _validationService;
+        private readonly IStockMovementService _stockMovement;
 
         public StockExportService(
             IUnitOfWork uow,
@@ -32,7 +32,8 @@ namespace PCTP.Modules.XuatKho.Services
             IStockExportRepository stockTpRepo,
             IStockHistoryRepository historyRepo,
             IHangChoGiaoRepository choGiaoRepo,
-            IStockExportValidationService validationService)
+            IStockExportValidationService validationService,
+            IStockMovementService stockMovement = null)
         {
             _uow = uow ?? throw new ArgumentNullException(nameof(uow));
             _slotService = slotService ?? throw new ArgumentNullException(nameof(slotService));
@@ -40,6 +41,7 @@ namespace PCTP.Modules.XuatKho.Services
             _historyRepo = historyRepo ?? throw new ArgumentNullException(nameof(historyRepo));
             _choGiaoRepo = choGiaoRepo ?? throw new ArgumentNullException(nameof(choGiaoRepo));
             _validationService = validationService ?? throw new ArgumentNullException(nameof(validationService));
+            _stockMovement = stockMovement;
         }
 
         // ════════════════════════════════════════════════════════════════
@@ -54,8 +56,6 @@ namespace PCTP.Modules.XuatKho.Services
             _uow.Begin();
             try
             {
-                // slotId ở đây LUÔN là Slot.SlotId thật (vị trí vật lý) — request.SlotId
-                // do UI/nghiệp vụ chọn, KHÔNG phải SlotLotId.
                 int slotId = request.SlotId.Value;
 
                 _slotService.LockSlotForUpdate(slotId);
@@ -64,8 +64,6 @@ namespace PCTP.Modules.XuatKho.Services
                 var matched = allLots
                     .Where(l => l.Quantity > 0)
                     .Where(l => LotCodeHelper.AreLotKeysEquivalent(l.LotNo, request.LotNo))
-                    // ✅ dùng ImportDate cấp 1 của LotInfo — không còn phải đọc qua
-                    // QRInfo?.ImportDate (QRInfo có thể null khi Lot lấy từ GetLots).
                     .OrderBy(l => l.ImportDate ?? DateTime.MaxValue)
                     .ToList();
 
@@ -84,17 +82,15 @@ namespace PCTP.Modules.XuatKho.Services
                 var split = LotNoHelper.SubtractLots(matched, request.Quantity);
                 var remaining = others.Concat(split.RemainingLots).ToList();
 
-                // 1) Trừ Slot/SlotLot + cập nhật header
                 _slotService.SaveLots(slotId, remaining);
                 _slotService.UpdateSlotHeaderFromLots(slotId, remaining);
 
                 var firstExported = split.ExportLots.FirstOrDefault();
 
-                // 2) Tạo dòng chờ giao
                 var hangChoGiao = new HangChoGiao
                 {
                     LotGoc = request.LotNo,
-                    LotThung = firstExported?.TemCode,   // TemCode = tem QR thật, giữ đúng nghĩa gốc
+                    LotThung = firstExported?.TemCode,
                     MaHang = request.ItemCode,
                     SoLuong = request.Quantity,
                     SlotIdNguon = slotId,
@@ -109,12 +105,6 @@ namespace PCTP.Modules.XuatKho.Services
                 };
                 int choGiaoId = _choGiaoRepo.Insert(hangChoGiao);
 
-                // 3) History = CHO_GIAO — chưa đụng STOCKTP, chỉ ghi nhận đã rời Slot.
-                // ItemCode giờ set trực tiếp trên LotInfo (không cần lồng qua QRInfo).
-                // Reference (để truy vết/chống trùng) được nhét vào QRInfo.MaPhieu —
-                // ĐÚNG cột StockHistory.MaPhieu mà IStockHistoryRepository map từ
-                // QRInfo?.MaPhieu (kế thừa hành vi cũ của SlotHelper.SaveHistory).
-                // KHÔNG dùng TemCode cho việc này nữa vì TemCode nay là tem QR thật.
                 _historyRepo.SaveHistory(
                     StockHistoryActionType.ChoGiao,
                     request.ItemCode,
@@ -150,14 +140,17 @@ namespace PCTP.Modules.XuatKho.Services
         }
 
         // ════════════════════════════════════════════════════════════════
-        // TRƯỜNG HỢP 1 — BƯỚC 2: Giao thật → trừ STOCKTP
+        // TRƯỜNG HỢP 1 — BƯỚC 2: Giao thật → trừ STOCKTP qua KhoCore
         // ════════════════════════════════════════════════════════════════
         public StockExportResult ConfirmGiaoHangTuChoGiao(int hangChoGiaoId, string nguoiGiao)
         {
+            if (_stockMovement == null)
+                return StockExportResult.Fail("Chưa cấu hình IStockMovementService cho XuatKho.");
+
             _uow.Begin();
             try
             {
-                var item = _choGiaoRepo.GetForUpdate(hangChoGiaoId); // khoá dòng — chặn confirm trùng
+                var item = _choGiaoRepo.GetForUpdate(hangChoGiaoId);
                 if (item == null)
                 {
                     _uow.Rollback();
@@ -171,21 +164,27 @@ namespace PCTP.Modules.XuatKho.Services
                         $"HangChoGiao Id={hangChoGiaoId} đã ở trạng thái {item.TrangThai}, không thể xác nhận lại.");
                 }
 
-                int slConLai = _stockTpRepo.GetSlConLai(item.LotGoc);
-                if (slConLai < item.SoLuong)
+                var movement = _stockMovement.Export(new StockMovementRequest
+                {
+                    MovementType = StockMovementRequest.Types.Export,
+                    LotNo = item.LotGoc,
+                    ItemCode = item.MaHang,
+                    Quantity = item.SoLuong,
+                    ReferenceType = item.ReferenceType,
+                    ReferenceId = item.ReferenceId,
+                    PerformedBy = nguoiGiao,
+                    OccurredAt = DateTime.Now,
+                    Reason = "CONFIRM_GIAO_HANG_CHO_GIAO"
+                });
+
+                if (!movement.Success)
                 {
                     _uow.Rollback();
-                    return StockExportResult.InsufficientStock(
-                        $"STOCKTP LOT [{item.LotGoc}] chỉ còn {slConLai}, không đủ {item.SoLuong} để xác nhận giao.");
+                    return StockExportResult.InsufficientStock(movement.Message);
                 }
 
-                // 1) Trừ STOCKTP — KHÔNG đụng Slot (đã trừ ở bước 1)
-                _stockTpRepo.DecreaseStockTp(item.LotGoc, item.SoLuong);
-
-                // 2) Cập nhật trạng thái staging
                 _choGiaoRepo.UpdateStatus(hangChoGiaoId, HangChoGiaoStatus.DaGiao, nguoiGiao);
 
-                // 3) History = EXPORT — MaPhieu mã hoá reference để truy vết
                 string actionType = item.LoaiYeuCauGiao == HangChoGiaoLoai.GiaoBuNG
                     ? StockHistoryActionType.ChoGiao
                     : StockHistoryActionType.Export;
@@ -198,9 +197,6 @@ namespace PCTP.Modules.XuatKho.Services
                         ItemCode = item.MaHang,
                         LotNo = item.LotGoc,
                         Quantity = item.SoLuong,
-                        // fromSlotId dùng SlotIdNguon (vị trí vật lý gốc) — SlotVatLyId
-                        // của HangChoGiao không có ở đây vì hàng đã rời khỏi Slot rồi,
-                        // SlotIdNguon lưu lại chính là Slot.SlotId thật lúc pick.
                         QRInfo = new QRCodeInfo
                         {
                             MaPhieu = StockExportReferenceFormatter.Format(
@@ -274,14 +270,36 @@ namespace PCTP.Modules.XuatKho.Services
                 var split = LotNoHelper.SubtractLots(matched, request.Quantity);
                 var remaining = others.Concat(split.RemainingLots).ToList();
 
-                // 1) Trừ Slot/SlotLot
                 _slotService.SaveLots(slotId, remaining);
                 _slotService.UpdateSlotHeaderFromLots(slotId, remaining);
 
-                // 2) Trừ STOCKTP — cả A0-giao-thẳng lẫn Rework đều là xuất thật khỏi tồn kho
-                _stockTpRepo.DecreaseStockTp(request.LotNo, request.Quantity);
+                if (_stockMovement == null)
+                {
+                    _uow.Rollback();
+                    return StockExportResult.Fail("Chưa cấu hình IStockMovementService cho XuatKho.");
+                }
 
-                // 3) History — Rework dùng ActionType riêng để tách báo cáo
+                var movement = _stockMovement.Export(new StockMovementRequest
+                {
+                    MovementType = StockMovementRequest.Types.Export,
+                    LotNo = request.LotNo,
+                    ItemCode = request.ItemCode,
+                    Quantity = request.Quantity,
+                    ReferenceType = request.ReferenceType,
+                    ReferenceId = request.ReferenceId,
+                    PerformedBy = request.NguoiThucHien,
+                    OccurredAt = DateTime.Now,
+                    Reason = request.Purpose == StockTransactionType.XuatRework
+                        ? "XUAT_REWORK"
+                        : "XUAT_TRUC_TIEP"
+                });
+
+                if (!movement.Success)
+                {
+                    _uow.Rollback();
+                    return StockExportResult.InsufficientStock(movement.Message);
+                }
+
                 string actionType = request.Purpose == StockTransactionType.XuatRework
                     ? StockHistoryActionType.Rework
                     : StockHistoryActionType.Export;
@@ -322,7 +340,7 @@ namespace PCTP.Modules.XuatKho.Services
 
         private void SafeRollback()
         {
-            try { _uow.Rollback(); } catch { /* không che mất exception gốc */ }
+            try { _uow.Rollback(); } catch { }
         }
 
         private static StockExportResult MapFail(StockExportValidationResult v)
@@ -336,50 +354,50 @@ namespace PCTP.Modules.XuatKho.Services
         }
 
         public LotSplitResult ExportFromSlot(
-       int slotId,
-       int exportQty,
-       string itemCode = null,
-       string actionType = "EXPORT")
+            int slotId,
+            int exportQty,
+            string itemCode = null,
+            string actionType = "EXPORT")
         {
-            var currentLots =
-                _slotService.GetLots(slotId);
-
-            var result =
-                LotNoHelper.SubtractLots(
-                    currentLots,
-                    exportQty);
+            var currentLots = _slotService.GetLots(slotId);
+            var result = LotNoHelper.SubtractLots(currentLots, exportQty);
             _uow.Begin();
             try
             {
-                // 1. Ghi lại LOT còn tồn
-                _slotService.SaveLots(
-                slotId,
-                result.RemainingLots);
+                _slotService.SaveLots(slotId, result.RemainingLots);
+                _slotService.UpdateSlotHeaderFromLots(slotId, result.RemainingLots);
 
-                // 2. Đồng bộ Header Slot từ LOT còn tồn
-                _slotService.UpdateSlotHeaderFromLots(
-                    slotId,
-                    result.RemainingLots);
+                if (_stockMovement != null && !string.IsNullOrWhiteSpace(itemCode))
+                {
+                    foreach (var exported in result.ExportLots)
+                    {
+                        var movement = _stockMovement.Export(new StockMovementRequest
+                        {
+                            MovementType = StockMovementRequest.Types.Export,
+                            LotNo = exported.LotNo,
+                            ItemCode = itemCode,
+                            Quantity = exported.Quantity,
+                            PerformedBy = null,
+                            OccurredAt = DateTime.Now,
+                            Reason = actionType
+                        });
+
+                        if (!movement.Success)
+                        {
+                            _uow.Rollback();
+                            return LotSplitResult.Fail(movement.Message);
+                        }
+                    }
+                }
+
                 _uow.Commit();
+                return result;
             }
             catch
             {
-                _uow.Rollback();
+                SafeRollback();
                 throw;
             }
-            // 3. Ghi lịch sử
-            foreach (var exportedLot in result.ExportLots)
-            {
-                _historyRepo.SaveHistory(
-                    actionType,
-                    itemCode ?? exportedLot.QRInfo?.ItemCode,
-                    exportedLot,
-                    fromSlotId: slotId,
-                    toSlotId: null,
-                    performedBy: null);
-            }
-
-            return result;
         }
     }
 }
