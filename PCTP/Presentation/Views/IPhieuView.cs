@@ -3,6 +3,7 @@ using PCTP.Shared.Models;
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Windows.Forms;
 
 namespace PCTP.Presentation.Views
 {
@@ -43,6 +44,7 @@ namespace PCTP.Presentation.Views
         bool CoLotDeLuuKho();
         bool CoHangChuaOK();
         int ShowChonSttTrungMa(DataTable danhSachTrung);
+        int ShowChonSttTrungMa(ListView danhSachTrung);
         void ShowKiemTraMaNG(string maHang);
         void ShowTachLot();
         void ShowLoiCapNhapKho(DataTable loiData);
