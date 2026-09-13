@@ -1,3 +1,4 @@
+using System.Data;
 using System.Windows.Forms;
 using DevExpress.XtraGrid;
 using DevExpress.XtraGrid.Views.BandedGrid;
@@ -6,8 +7,7 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
 {
     /// <summary>
     /// UI boundary for the legacy "Hàng thiếu" grid.
-    /// The existing Designer grid is adopted so its configuration and
-    /// compatibility references remain unchanged during the migration.
+    /// Owns binding and presentation of the grid; business logic stays outside.
     /// </summary>
     public sealed class HangThieuControl : DevExpress.XtraEditors.XtraUserControl
     {
@@ -21,27 +21,27 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
 
         public void Adopt(GridControl grid)
         {
-            if (grid == null)
-                return;
-
+            if (grid == null) return;
             Control parent = grid.Parent;
-            if (parent != null)
-                parent.Controls.Remove(grid);
-
+            if (parent != null) parent.Controls.Remove(grid);
             Controls.Clear();
             Controls.Add(grid);
             grid.Dock = DockStyle.Fill;
             _grid = grid;
         }
 
-        public GridControl Grid
+        public GridControl Grid { get { return _grid; } }
+        public BandedGridView View { get { return _grid != null ? _grid.MainView as BandedGridView : null; } }
+
+        public void Bind(DataTable data)
         {
-            get { return _grid; }
+            if (_grid != null) _grid.DataSource = data;
         }
 
-        public BandedGridView View
+        public void ShowAndBringToFront()
         {
-            get { return _grid != null ? _grid.MainView as BandedGridView : null; }
+            Visible = true;
+            BringToFront();
         }
     }
 }
