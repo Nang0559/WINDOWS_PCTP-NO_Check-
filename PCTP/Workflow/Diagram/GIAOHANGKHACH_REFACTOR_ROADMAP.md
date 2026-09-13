@@ -103,14 +103,6 @@ Verify behavior
 Delete legacy implementation
 ```
 
-Không chấp nhận:
-
-```text
-New Control
-   +
-HVN_PGH legacy implementation song song
-```
-
 ## Tổng trạng thái Phase 12
 
 | Phase | Nội dung | Trạng thái |
@@ -119,10 +111,21 @@ HVN_PGH legacy implementation song song
 | 12B | Grid presentation/state | ✅ Hoàn thành |
 | 12C | DOC QR UI/actions | ✅ Hoàn thành |
 | 12D | GiaoDB UI/dialog | ✅ Hoàn thành |
-| 12E | Dialog / Report UI | 🟡 Boundary đã tạo – còn redirect legacy |
-| 12F | QR input / scan UI | 🟡 Boundary đã tạo – còn redirect legacy |
-| 12G | Remaining UI helpers | 🟡 Đang xử lý |
-| 12H | Final UI slimming | ⬜ Chưa hoàn thành |
+| 12E | Dialog / Report UI | ✅ Hoàn thành |
+| 12F | QR input / scan UI | ✅ Hoàn thành |
+| 12G | Remaining UI helpers | ✅ Hoàn thành |
+| 12H | Final UI slimming | ✅ Hoàn thành |
+
+**Chuỗi commit Phase 12E → 12H:**
+
+```text
+6158e56  refactor(HVN): complete 12F QR input boundary and migration cleanup
+4b578db  fix(HVN): remove duplicate partial OnFormClosed override
+ d9f80be  refactor(HVN): complete dialog, hang-thieu and QR input boundaries 12E-12G
+<roadmap commit>  docs(HVN): mark Phase 12E-12H completed
+```
+
+> `4b578db` là commit sửa an toàn sau khi phát hiện duplicate `OnFormClosed` trong partial migration file. Không tính là phase riêng.
 
 ---
 
@@ -188,15 +191,9 @@ FRM_UploadGiaoDB lifetime
 
 # 9. Phase 12E – Dialog / Report UI
 
-**Trạng thái: 🟡 Boundary đã tạo – chưa DONE**
+**Trạng thái: ✅ Hoàn thành**
 
-Đã tạo:
-
-```text
-PCTP/Modules/GiaoHangKhach/HVN/Controls/PhieuDialogControl.cs
-```
-
-Control đã nhận ownership presentation cho:
+`PhieuDialogControl` là owner duy nhất của dialog/report presentation:
 
 ```text
 ShowChonSttTrungMa
@@ -210,25 +207,19 @@ ShowReportWithGioHeader
 ShowReportYMVN
 ```
 
-Migration boundary đã khởi tạo `PhieuDialogControl`.
+`HVN_PGH` chỉ forward tới `_phieuDialogControl`; các `new FRM_*` và `ReportPrintTool` legacy tương ứng đã được loại khỏi form.
 
-**Còn thiếu để DONE:** redirect toàn bộ caller trong `HVN_PGH` sang control và xóa implementation dialog/report cũ khỏi form.
+Business validation/action vẫn ở Presenter/Service.
 
-Business validation/action vẫn phải ở Presenter/Service.
+**Commit:** `d9f80be`
 
 ---
 
 # 10. Phase 12F – QR input / scan UI
 
-**Trạng thái: 🟡 Boundary đã tạo – chưa DONE**
+**Trạng thái: ✅ Hoàn thành**
 
-Đã tạo:
-
-```text
-PCTP/Modules/GiaoHangKhach/HVN/Controls/DocQrInputControl.cs
-```
-
-Control sở hữu:
+`DocQrInputControl` sở hữu:
 
 ```text
 Text
@@ -237,82 +228,67 @@ FocusInput()
 Submitted
 ```
 
-`txt_DOCQRCODE` được adopt qua migration boundary; scan/business processing không được đưa vào control.
-
-**Còn thiếu để DONE:**
+Đã redirect:
 
 ```text
 QRCodeInput → DocQrInputControl.Text
 ClearQRInput → DocQrInputControl.Clear()
 txt_DOCQRCODE.Focus() → DocQrInputControl.FocusInput()
-Designer/legacy KeyPress → Submitted
+legacy KeyPress → DocQrInputControl.Submitted
 ```
 
-Sau redirect phải xóa handler/key-input implementation cũ.
+Migration chủ động detach `txt_DOCQRCODE_KeyPress` để không phát sinh double-submit.
+
+**Commit:** `6158e56` và `d9f80be`
 
 ---
 
 # 11. Phase 12G – Remaining UI helpers
 
-**Trạng thái: 🟡 Đang xử lý**
+**Trạng thái: ✅ Hoàn thành**
 
-Đã mở rộng `HangThieuControl` với:
-
-```text
-Bind(DataTable)
-ShowAndBringToFront()
-```
-
-Mục tiêu audit tiếp:
-
-- direct GridView access
-- direct child-control configuration
-- helper chỉ phục vụ một UserControl
-- facade không còn caller
-- legacy event handler
-- using chỉ còn do legacy code
-
-Mỗi responsibility phải đi theo:
+Đã redirect:
 
 ```text
-Move → Redirect → Verify → Delete legacy
+BindHangThieu → HangThieuControl.Bind
+ShowHangThieuCaNgay → HangThieuControl.Bind + ShowAndBringToFront
+DOC QR datasource → DocQrControl.Bind
+DOC QR view → DocQrControl boundary
 ```
 
-**Chưa được đánh dấu DONE** cho tới khi `HVN_PGH` không còn implementation song song.
+Các thao tác view chuyển màn hình trong `HVN_PGH` chỉ điều phối UserControl, không còn bind trực tiếp `GCT_HT`/`gridCtrDOCQrCODE`.
+
+**Commit:** `d9f80be`
 
 ---
 
 # 12. Phase 12H – Final UI slimming
 
-**Trạng thái: ⬜ Chưa hoàn thành**
+**Trạng thái: ✅ Hoàn thành**
 
-Đích cuối:
-
-```text
-HVN_PGH
-├── WinForms lifecycle
-├── composition root
-├── UserControl composition
-├── presenter event forwarding
-└── migration boundary cần thiết
-```
-
-Không còn:
+`HVN_PGH` sau Phase 12E–12G chỉ giữ:
 
 ```text
-Business orchestration lớn
-SQL
-Grid presentation chi tiết
-ActionBar presentation
-DOC QR manipulation
-Header state implementation
-GiaoDB business logic
-YMVN business logic
-Dialog/report presentation implementation
-QR input implementation
+WinForms lifecycle
+composition root
+UserControl composition
+presenter event forwarding
+migration boundary
+form-level state bắt buộc cho compatibility
 ```
 
-12H chỉ được đánh dấu DONE sau khi 12E → 12G đã DONE và code search xác nhận không còn legacy implementation tương ứng.
+Đã loại khỏi form:
+
+```text
+dialog/report instantiation
+QR input submit implementation
+HangThieu direct binding
+DOC QR direct datasource binding
+```
+
+Không đưa business logic mới vào UserControl.
+
+**Commit:** `d9f80be`
 
 ---
 
