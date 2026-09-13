@@ -18,52 +18,39 @@ jobs:
         run: |
           python3 <<'PY'
           from pathlib import Path
-          import re
 
           path = Path('PCTP/Modules/GiaoHangKhach/HVN/HVN_PGH.cs')
           text = path.read_text(encoding='utf-8')
 
-          def replace_once(pattern, replacement, label):
+          def replace_range(start_marker, start_offset, end_marker, replacement, label):
               global text
-              text2, count = re.subn(pattern, replacement, text, count=1, flags=re.S)
-              if count != 1:
-                  raise SystemExit(f'Phase 12A: {label}: expected 1 match, got {count}')
-              text = text2
+              start = text.index(start_marker) + start_offset
+              end = text.index(end_marker, start)
+              text = text[:start] + replacement + text[end:]
 
-          replace_once(
-              r'            UIButton\\.AllowGlyphSkinning = false;\\n'
-              r'            UIButton\\.Buttons\\.Clear\\(\\);\\n'
-              r'            UIButton\\.Buttons\\.AddRange\\(new WindowsUIButton\\[\\]\\n'
-              r'            \\{\\n'
-              r'        new WindowsUIButton \\{ Caption = "Xóa Dòng Được Chọn",.*?'
-              r'            \\}\\);\\n'
-              r'            UIButton\\.Buttons\\.Insert\\(2, new WindowsUISeparator\\(\\)\\);\\n\\n'
-              r'            txt_DOCQRCODE\\.Focus\\(\\);',
-              '            _phieuActionBarControl.ConfigureDocQr();\\n\\n            txt_DOCQRCODE.Focus();',
-              'SwitchToDocQRView action bar')
+          # SwitchToDocQRView: remove only the action-bar construction.
+          method = text.index('public void SwitchToDocQRView()')
+          a = text.index('            UIButton.AllowGlyphSkinning = false;', method)
+          b = text.index('            txt_DOCQRCODE.Focus();', a) + len('            txt_DOCQRCODE.Focus();')
+          text = text[:a] + '            _phieuActionBarControl.ConfigureDocQr();\n\n            txt_DOCQRCODE.Focus();' + text[b:]
 
-          replace_once(
-              r'            UIButton\\.AllowGlyphSkinning = false;\\n'
-              r'            UIButton\\.Buttons\\.Clear\\(\\);\\n'
-              r'            var b1 = new WindowsUIButton\\n'
-              r'            \\{.*?'
-              r'            UIButton\\.Buttons\\.Insert\\(1, new WindowsUISeparator\\(\\);',
-              '            _phieuActionBarControl.ConfigurePhieuView(\\n                _cfg.Delivery.LoadTuBangRieng ? "Show Thông Tin Lệch IFS" : "Kiểm Tra Ghep Lot",\\n                imageBT.Images);',
-              'SwitchToPhieuView action bar')
+          # SwitchToPhieuView: remove only the action-bar construction.
+          method = text.index('public void SwitchToPhieuView()')
+          a = text.index('            UIButton.AllowGlyphSkinning = false;', method)
+          b = text.index('            UIButton.Buttons.Insert(1, new WindowsUISeparator());', a) + len('            UIButton.Buttons.Insert(1, new WindowsUISeparator());')
+          text = text[:a] + '''            _phieuActionBarControl.ConfigurePhieuView(\n                _cfg.Delivery.LoadTuBangRieng ? "Show Thông Tin Lệch IFS" : "Kiểm Tra Ghep Lot",\n                imageBT.Images);''' + text[b:]
 
-          replace_once(
-              r'        public void SwitchToPhieuDBView\\(\\)\\n        \\{.*?\\n        \\}',
-              '        public void SwitchToPhieuDBView()\\n        {\\n            _phieuActionBarControl.ConfigureGiaoDb();\\n        }',
-              'SwitchToPhieuDBView')
+          # GiaoDB view.
+          method = text.index('public void SwitchToPhieuDBView()')
+          body_start = text.index('{', method) + 1
+          body_end = text.index('\n        }', body_start)
+          text = text[:body_start] + '''\n            _phieuActionBarControl.ConfigureGiaoDb();''' + text[body_end:]
 
-          replace_once(
-              r'        public void SetupPhieuButtons\\(bool showCapNhapKho, bool showKiemTraMaNG,\\n'
-              r'                                       bool showGhepLot, bool showDocQRCode,\\n'
-              r'                                       bool showLayLaiLot = false,\\n'
-              r'                                       bool showStop = false, bool showHangThieuCaNgay = true\\)\\n'
-              r'        \\{.*?\\n        \\}\\n\\n        // ═+\\n        // III\\.',
-              '        public void SetupPhieuButtons(bool showCapNhapKho, bool showKiemTraMaNG,\\n                                       bool showGhepLot, bool showDocQRCode,\\n                                       bool showLayLaiLot = false,\\n                                       bool showStop = false, bool showHangThieuCaNgay = true)\\n        {\\n            _phieuActionBarControl.ConfigureNormal(\\n                _cfg.Delivery.LoadTuBangRieng ? "Show Thông Tin Lệch IFS" : "Kiểm Tra Ghep Lot",\\n                showCapNhapKho,\\n                showKiemTraMaNG,\\n                showGhepLot,\\n                showDocQRCode,\\n                showLayLaiLot,\\n                showStop,\\n                showHangThieuCaNgay,\\n                imageBT.Images);\\n        }\\n\\n        // ═+\\n        // III.',
-              'SetupPhieuButtons')
+          # Normal ticket action-bar configuration.
+          method = text.index('public void SetupPhieuButtons(')
+          body_start = text.index('{', method) + 1
+          body_end = text.index('\n        }', body_start)
+          text = text[:body_start] + '''\n            _phieuActionBarControl.ConfigureNormal(\n                _cfg.Delivery.LoadTuBangRieng ? "Show Thông Tin Lệch IFS" : "Kiểm Tra Ghep Lot",\n                showCapNhapKho,\n                showKiemTraMaNG,\n                showGhepLot,\n                showDocQRCode,\n                showLayLaiLot,\n                showStop,\n                showHangThieuCaNgay,\n                imageBT.Images);''' + text[body_end:]
 
           path.write_text(text, encoding='utf-8')
           PY
