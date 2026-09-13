@@ -1,11 +1,12 @@
-﻿using PCTP.ClassSQL;
+using PCTP.ClassSQL;
 using PCTP.Common;
 using PCTP.Models;
+using PCTP.Modules.KhoCore.Application.Contracts.Stock;
+using PCTP.Modules.KhoCore.Application.Services;
 using PCTP.Modules.KhoVatLy.Application.Interfaces;
 using PCTP.Modules.KhoVatLy.Kho.Models;
 using PCTP.Modules.KhoVatLy.Repositories;
 using PCTP.Modules.NhapKho.Repository;
-using PCTP.Modules.NhapKho.Services;
 using PCTP.Shared.Common;
 using PCTP.Shared.Helpers;
 using PCTP.VIEWSTOCK.Fuction;
@@ -13,325 +14,263 @@ using PCTP.VIEWSTOCK.FunctionForm;
 using PCTP.VIEWSTOCK.Models;
 using System;
 using System.Collections.Generic;
-using System.Data.SqlClient;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace PCTP.VIEWSTOCK.Repository
 {
     /// <summary>
-    /// Nhập hàng TP vào Slot — thay thế hoàn toàn luồng NHAP_TP cũ.
-    /// Mỗi lần nhập = 1 transaction gồm:
-    ///   1) Ghi/Cộng dồn STOCKTP (nguồn sự thật cho tổng tồn kho)
-    ///   2) Tạo 1 "phiếu" mới (SlotLot, PhieuStatus=Active) tại Slot đã chọn
-    ///   3) Cập nhật tổng hợp Slot (Quantity/ItemCode/ImportDate/IsOccupied)
-    ///   4) Ghi StockHistory (ActionType = IMPORT hoặc BULK_IMPORT tuỳ Slot đích)
-    /// Không bao giờ được làm rời từng bước — nếu 1 bước lỗi, toàn bộ rollback.
+    /// Nhập thành phẩm vào Slot.
+    ///
+    /// NhapKho vẫn sở hữu phiếu nhập / case / production tracking.
+    /// Mọi mutation STOCKTP + Slot/SlotLot đi qua IStockMovementService.
     /// </summary>
-   
-        public sealed class NhapTpReceivingService : INhapTpReceivingService
+    public sealed class NhapTpReceivingService : INhapTpReceivingService
+    {
+        private readonly IUnitOfWork _uow;
+        private readonly IStockTpRepository _stockTpRepo;
+        private readonly IPhieuTrackingRepository _phieuRepo;
+        private readonly IStockTpCaseRepository _caseRepo;
+        private readonly IStockTpProductionRepository _productionRepo;
+        private readonly ISlotService _slotService;
+        private readonly IStockHistoryRepository _historyRepo;
+        private readonly IStockTpStatusRepository _stockTpStatus;
+        private readonly IStockMovementService _stockMovement;
+
+        public NhapTpReceivingService(
+            IUnitOfWork uow,
+            IStockTpRepository stockTpRepo,
+            IPhieuTrackingRepository phieuRepo,
+            IStockTpCaseRepository caseRepo,
+            IStockTpProductionRepository productionRepo,
+            ISlotService slotService,
+            IStockHistoryRepository historyRepo,
+            IStockTpStatusRepository stockTpStatus,
+            IStockMovementService stockMovement = null)
         {
-            private readonly IUnitOfWork _uow;
+            _uow = uow ?? throw new ArgumentNullException(nameof(uow));
+            _stockTpRepo = stockTpRepo ?? throw new ArgumentNullException(nameof(stockTpRepo));
+            _phieuRepo = phieuRepo ?? throw new ArgumentNullException(nameof(phieuRepo));
+            _caseRepo = caseRepo ?? throw new ArgumentNullException(nameof(caseRepo));
+            _productionRepo = productionRepo ?? throw new ArgumentNullException(nameof(productionRepo));
+            _slotService = slotService ?? throw new ArgumentNullException(nameof(slotService));
+            _historyRepo = historyRepo ?? throw new ArgumentNullException(nameof(historyRepo));
+            _stockTpStatus = stockTpStatus ?? throw new ArgumentNullException(nameof(stockTpStatus));
+            _stockMovement = stockMovement;
+        }
 
-            private readonly IStockTpRepository _stockTpRepo;
-            private readonly IPhieuTrackingRepository _phieuRepo;
-            private readonly IStockTpCaseRepository _caseRepo;
-            private readonly IStockTpProductionRepository _productionRepo;
-            private readonly ISlotService _slotService;
-            private readonly IStockHistoryRepository _historyRepo;
-            private readonly IStockTpStatusRepository _stockTpStatus;
+        public ScanResult KiemTraTruocKhiNhap(QRCodeInfo qr)
+        {
+            if (qr == null)
+                return ScanResult.Fail("Không đọc được dữ liệu QR.");
 
-            public NhapTpReceivingService(
-                IUnitOfWork uow,
-                IStockTpRepository stockTpRepo,
-                IPhieuTrackingRepository phieuRepo,
-                IStockTpCaseRepository caseRepo,
-                IStockTpProductionRepository productionRepo,
-                ISlotService slotService,
-                IStockHistoryRepository historyRepo,
-                IStockTpStatusRepository stockTpStatus)
+            if (!qr.IsTongPhieu)
+                return ScanResult.Fail("Vui lòng bắn tem TỔNG để nhập kho (không nhận tem thùng).");
+
+            if (qr.Quantity <= 0)
+                return ScanResult.Fail("Số lượng trên tem không hợp lệ.");
+
+            if (_phieuRepo.ExistsQrData(qr.RawQr))
+                return ScanResult.Trung("Tem này đã được nhập kho trước đó!");
+
+            return ScanResult.OK();
+        }
+
+        public ScanResult NhapTpVaoSlot(
+            QRCodeInfo qr,
+            int slotId,
+            PhieuNhapInfo matchedPhieu = null)
+        {
+            DateTime ngayNhapThucTe = DateTime.Now;
+
+            ScanResult check = KiemTraTruocKhiNhap(qr);
+            if (!check.IsOK)
+                return check;
+
+            if (_stockMovement == null)
+                return ScanResult.Fail("Chưa cấu hình IStockMovementService cho NhapKho.");
+
+            if (slotId <= 0)
+                return ScanResult.Fail("Slot đích không hợp lệ.");
+
+            int capacity = _slotService.GetCapacity(slotId);
+            if (capacity <= 0)
+                return ScanResult.Fail("Slot đích chưa cấu hình sức chứa.");
+
+            PhieuNhapInfo phieuLive = matchedPhieu;
+
+            if (matchedPhieu != null && !string.IsNullOrWhiteSpace(matchedPhieu.Find))
             {
-                _uow = uow
-                    ?? throw new ArgumentNullException(nameof(uow));
+                phieuLive = _productionRepo.GetPhieuByFind(matchedPhieu.Find);
 
-                _stockTpRepo = stockTpRepo
-                    ?? throw new ArgumentNullException(nameof(stockTpRepo));
-
-                _phieuRepo = phieuRepo
-                    ?? throw new ArgumentNullException(nameof(phieuRepo));
-
-                _caseRepo = caseRepo
-                    ?? throw new ArgumentNullException(nameof(caseRepo));
-
-                _productionRepo = productionRepo
-                    ?? throw new ArgumentNullException(nameof(productionRepo));
-
-                _slotService = slotService
-                    ?? throw new ArgumentNullException(nameof(slotService));
-
-                _historyRepo = historyRepo
-                    ?? throw new ArgumentNullException(nameof(historyRepo));
-
-                _stockTpStatus = stockTpStatus
-                    ?? throw new ArgumentNullException(nameof(stockTpStatus));
-            }
-
-
-            // ============================================================
-            // 1. KIỂM TRA TRƯỚC KHI NHẬP
-            // ============================================================
-
-            public ScanResult KiemTraTruocKhiNhap(QRCodeInfo qr)
-            {
-                if (qr == null)
-                    return ScanResult.Fail("Không đọc được dữ liệu QR.");
-
-                if (!qr.IsTongPhieu)
+                if (phieuLive == null)
                     return ScanResult.Fail(
-                        "Vui lòng bắn tem TỔNG để nhập kho (không nhận tem thùng).");
+                        "Không còn tìm thấy phiếu sản xuất [" + matchedPhieu.Find + "]. Vui lòng tải lại danh sách và quét lại tem.");
 
-                if (qr.Quantity <= 0)
-                    return ScanResult.Fail("Số lượng trên tem không hợp lệ.");
+                if (!string.Equals(phieuLive.LotNo, matchedPhieu.LotNo, StringComparison.OrdinalIgnoreCase))
+                    return ScanResult.Fail(
+                        "LOT của phiếu đã thay đổi (" + matchedPhieu.LotNo + " → " + phieuLive.LotNo + "). Dữ liệu trên màn hình đã cũ, vui lòng tải lại danh sách.");
 
-                if (_phieuRepo.ExistsQrData(qr.RawQr))
-                    return ScanResult.Trung("Tem này đã được nhập kho trước đó!");
+                if (!string.Equals(phieuLive.MaSP, qr.ItemCode, StringComparison.OrdinalIgnoreCase))
+                    return ScanResult.Fail(
+                        "Mã hàng của phiếu không khớp với tem quét (Phiếu: " + phieuLive.MaSP + " / Tem: " + qr.ItemCode + ").");
 
-                return ScanResult.OK();
+                bool vuaMoLai = _stockTpStatus.DongBoSLSXVaMoLaiNeuThayDoi(
+                    phieuLive.LotNo, phieuLive.Find, phieuLive.SlSanXuat);
+
+                if (vuaMoLai)
+                    phieuLive.KetThucLot = false;
             }
 
+            string lotNo = phieuLive != null
+                ? phieuLive.LotNo
+                : LotCodeHelper.StripCounterAndQty(qr.RawLotNo ?? qr.LotNo);
 
-            // ============================================================
-            // 2. NHẬP TP VÀO SLOT
-            // ============================================================
+            if (string.IsNullOrWhiteSpace(lotNo))
+                return ScanResult.Fail("Không xác định được LOT.");
 
-            public ScanResult NhapTpVaoSlot(
-                QRCodeInfo qr,
-                int slotId,
-                PhieuNhapInfo matchedPhieu = null)
+            string caseNo = !string.IsNullOrWhiteSpace(qr.SoPhieuTong)
+                ? qr.RawLotNo + qr.SoPhieuTong
+                : qr.RawLotNo + "4";
+
+            NhapKhoItem nhapItem = new NhapKhoItem
             {
-                DateTime ngayNhapThucTe = DateTime.Now;
+                Lot = lotNo,
+                Part = qr.ItemCode,
+                Name = phieuLive != null ? phieuLive.TenSP : qr.ItemCode,
+                NgaySX = phieuLive != null ? phieuLive.NgaySX : qr.ImportDate,
+                SlSanXuat = phieuLive != null ? phieuLive.SlSanXuat : qr.Quantity,
+                SlNhap = qr.Quantity
+            };
 
-                // 2.1 Kiểm tra QR
-                ScanResult check = KiemTraTruocKhiNhap(qr);
-                if (!check.IsOK)
-                    return check;
+            try
+            {
+                _uow.Begin();
 
-                // 2.2 Kiểm tra Slot
-                if (slotId <= 0)
-                    return ScanResult.Fail("Slot đích không hợp lệ.");
-
-                int capacity = _slotService.GetCapacity(slotId);
-                if (capacity <= 0)
-                    return ScanResult.Fail("Slot đích chưa cấu hình sức chứa.");
-
-                // 2.3 Lấy phiếu sản xuất live
-                PhieuNhapInfo phieuLive = matchedPhieu;
-
-                if (matchedPhieu != null && !string.IsNullOrWhiteSpace(matchedPhieu.Find))
+                if (_caseRepo.ExistsCaseHistory(caseNo))
                 {
-                    phieuLive = _productionRepo.GetPhieuByFind(matchedPhieu.Find);
-
-                    if (phieuLive == null)
-                        return ScanResult.Fail(
-                            "Không còn tìm thấy phiếu sản xuất [" + matchedPhieu.Find + "]. " +
-                            "Vui lòng tải lại danh sách và quét lại tem.");
-
-                    if (!string.Equals(phieuLive.LotNo, matchedPhieu.LotNo, StringComparison.OrdinalIgnoreCase))
-                        return ScanResult.Fail(
-                            "LOT của phiếu đã thay đổi (" + matchedPhieu.LotNo +
-                            " → " + phieuLive.LotNo + "). Dữ liệu trên màn hình đã cũ, vui lòng tải lại danh sách.");
-
-                    if (!string.Equals(phieuLive.MaSP, qr.ItemCode, StringComparison.OrdinalIgnoreCase))
-                        return ScanResult.Fail(
-                            "Mã hàng của phiếu không khớp với tem quét (Phiếu: " +
-                            phieuLive.MaSP + " / Tem: " + qr.ItemCode + ").");
-
-                    bool vuaMoLai = _stockTpStatus.DongBoSLSXVaMoLaiNeuThayDoi(
-                        phieuLive.LotNo, phieuLive.Find, phieuLive.SlSanXuat);
-
-                    if (vuaMoLai)
-                        phieuLive.KetThucLot = false;
+                    _uow.Rollback();
+                    return ScanResult.Trung("Case [" + caseNo + "] đã được nhập kho trước đó!");
                 }
 
-                // 2.4 Xác định LOT
-                string lotNo = phieuLive != null
-                    ? phieuLive.LotNo
-                    : LotCodeHelper.StripCounterAndQty(qr.RawLotNo ?? qr.LotNo);
+                int qtyHienTai = _slotService.GetQuantityWithLock(slotId);
+                int qtySauNhap = qtyHienTai + qr.Quantity;
 
-                if (string.IsNullOrWhiteSpace(lotNo))
-                    return ScanResult.Fail("Không xác định được LOT.");
-
-                // 2.5 Xác định Case
-                string caseNo = !string.IsNullOrWhiteSpace(qr.SoPhieuTong)
-                    ? qr.RawLotNo + qr.SoPhieuTong
-                    : qr.RawLotNo + "4";
-
-                // 2.6 Build item
-                NhapKhoItem nhapItem = new NhapKhoItem
+                if (qtySauNhap > capacity)
                 {
-                    Lot = lotNo,
-                    Part = qr.ItemCode,
-                    Name = phieuLive != null ? phieuLive.TenSP : qr.ItemCode,
-                    NgaySX = phieuLive != null ? phieuLive.NgaySX : qr.ImportDate,
-                    SlSanXuat = phieuLive != null ? phieuLive.SlSanXuat : qr.Quantity,
-                    SlNhap = qr.Quantity
-                };
+                    _uow.Rollback();
+                    return ScanResult.Fail(
+                        "Vượt sức chứa Slot (" + qtySauNhap + "/" + capacity + "). Chọn Slot khác.");
+                }
 
-                // ========================================================
-                // 3. TRANSACTION
-                // ========================================================
-                try
+                // Status vẫn được tính ở NhapKho vì đây là trạng thái của nghiệp vụ nhận hàng.
+                int slDaNhapTruoc = _stockTpRepo.ExistsStockTp(lotNo)
+                    ? _stockTpRepo.GetSlDaNhap(lotNo)
+                    : 0;
+                int tongSlSauKhiNhap = slDaNhapTruoc + qr.Quantity;
+                int slSanXuatThuc = phieuLive != null ? phieuLive.SlSanXuat : nhapItem.SlSanXuat;
+                int status = slSanXuatThuc > 0 && tongSlSauKhiNhap >= slSanXuatThuc ? 1 : 0;
+
+                var movement = _stockMovement.Receive(new StockMovementRequest
                 {
-                    _uow.Begin();
+                    MovementType = StockMovementRequest.Types.Receive,
+                    TargetSlotId = slotId,
+                    LotNo = lotNo,
+                    ItemCode = qr.ItemCode,
+                    ItemName = nhapItem.Name,
+                    Model = phieuLive != null ? phieuLive.Model : null,
+                    ProductionCase = caseNo,
+                    ProductionDate = nhapItem.NgaySX,
+                    ProductionQuantity = nhapItem.SlSanXuat,
+                    Quantity = qr.Quantity,
+                    ReceivingStatus = status,
+                    ReferenceType = "NHAP_TP",
+                    ReferenceId = qr.MaPhieu,
+                    PerformedBy = null,
+                    OccurredAt = ngayNhapThucTe,
+                    Reason = "NHAP_TP_VAO_SLOT"
+                });
 
-                    // 3.1 Case dedup
-                    if (_caseRepo.ExistsCaseHistory(caseNo))
-                    {
-                        _uow.Rollback();
-                        return ScanResult.Trung("Case [" + caseNo + "] đã được nhập kho trước đó!");
-                    }
+                if (!movement.Success)
+                {
+                    _uow.Rollback();
+                    return ScanResult.Fail(movement.Message);
+                }
 
-                    // 3.2 Lock + kiểm tra sức chứa
-                    int qtyHienTai = _slotService.GetQuantityWithLock(slotId);
-                    int qtySauNhap = qtyHienTai + qr.Quantity;
+                string maPhieuMoi = PhieuNoHelper.NewMaPhieuNhap(lotNo);
 
-                    if (qtySauNhap > capacity)
-                    {
-                        _uow.Rollback();
-                        return ScanResult.Fail(
-                            "Vượt sức chứa Slot (" + qtySauNhap + "/" + capacity + "). Chọn Slot khác.");
-                    }
+                _phieuRepo.InsertPhieuMoi(
+                    slotId, qr.ItemCode, lotNo, qr.Quantity, qr.MaPhieu, qr.RawQr,
+                    ngayNhapThucTe, qr.NgaySX, qr.SoPhieuTong, maPhieuMoi,
+                    null, PhieuStatus.Active);
 
-                    // 3.3 STOCKTP
-                    bool daTonTai = _stockTpRepo.ExistsStockTp(lotNo);
-                    int slDaNhapTruoc = daTonTai ? _stockTpRepo.GetSlDaNhap(lotNo) : 0;
-                    int tongSlSauKhiNhap = slDaNhapTruoc + qr.Quantity;
-                    int slSanXuatThuc = phieuLive != null ? phieuLive.SlSanXuat : nhapItem.SlSanXuat;
-                    int status = slSanXuatThuc > 0 && tongSlSauKhiNhap >= slSanXuatThuc ? 1 : 0;
+                _caseRepo.InsertCaseHistory(caseNo);
 
-                    if (daTonTai)
-                        _stockTpRepo.UpdateStockTp(lotNo, qr.Quantity, status);
-                    else
-                        _stockTpRepo.InsertStockTp(nhapItem, status);
+                _uow.Commit();
+            }
+            catch (Exception ex)
+            {
+                try { _uow.Rollback(); }
+                catch { }
 
-                    // 3.4 Phiếu tracking
-                    string maPhieuMoi = PhieuNoHelper.NewMaPhieuNhap(lotNo);
+                return ScanResult.Fail("Lỗi nhập kho: " + ex.Message);
+            }
 
-                    _phieuRepo.InsertPhieuMoi(
-                        slotId, qr.ItemCode, lotNo, qr.Quantity, qr.MaPhieu, qr.RawQr,
-                        ngayNhapThucTe, qr.NgaySX, qr.SoPhieuTong, maPhieuMoi,
-                        null, PhieuStatus.Active);
-
-                    // 3.5 SlotLot + Slot header
-                    List<LotInfo> existingLots = _slotService.GetLots(slotId);
-
-                    LotInfo newLot = new LotInfo
+            try
+            {
+                _historyRepo.SaveHistory(
+                    "IMPORT", qr.ItemCode,
+                    new LotInfo
                     {
                         LotNo = lotNo,
                         Quantity = qr.Quantity,
                         TemCode = qr.MaPhieu,
                         RawQr = qr.RawQr,
                         QRInfo = qr
-                    };
-
-                    List<LotInfo> mergedLots = LotNoHelper.MergeLotInfos(
-                        existingLots, new List<LotInfo> { newLot });
-
-                    _slotService.SaveLots(slotId, mergedLots);
-                    _slotService.UpdateSlotHeaderFromLots(slotId, mergedLots);
-
-                    // 3.6 Case history
-                    _caseRepo.InsertCaseHistory(caseNo);
-
-                    // 3.7 Commit
-                    _uow.Commit();
-                }
-                catch (Exception ex)
-                {
-                    try { _uow.Rollback(); }
-                    catch { /* không che exception gốc */ }
-
-                    return ScanResult.Fail("Lỗi nhập kho: " + ex.Message);
-                }
-
-                // ========================================================
-                // 4. AUDIT HISTORY — best-effort, không rollback nghiệp vụ chính
-                // ========================================================
-                try
-                {
-                    _historyRepo.SaveHistory(
-                        "IMPORT", qr.ItemCode,
-                        new LotInfo
-                        {
-                            LotNo = lotNo,
-                            Quantity = qr.Quantity,
-                            TemCode = qr.MaPhieu,
-                            RawQr = qr.RawQr,
-                            QRInfo = qr
-                        },
-                        fromSlotId: null,
-                        toSlotId: slotId,
-                        performedBy: null);
-                }
-                catch (Exception exHist)
-                {
-                    System.Diagnostics.Debug.WriteLine(
-                        "[NhapTpReceivingService] Nhập kho thành công nhưng ghi StockHistory lỗi: " +
-                        exHist.Message);
-                }
-
-                // ========================================================
-                // 5. SUCCESS
-                // ========================================================
-                return ScanResult.OKNhapKho(
-                    qr, nhapItem,
-                    "Đã nhập LOT " + lotNo + " (SL: " + qr.Quantity + ") vào Slot " + slotId + ".");
+                    },
+                    fromSlotId: null,
+                    toSlotId: slotId,
+                    performedBy: null);
             }
-
-
-            // ============================================================
-            // 6. MỞ LẠI LOT
-            // ============================================================
-
-            public void MoLaiLot(string lot, string find = null)
+            catch (Exception exHist)
             {
-                _stockTpStatus.MoLaiLot(lot, find);
+                System.Diagnostics.Debug.WriteLine(
+                    "[NhapTpReceivingService] Nhập kho thành công nhưng ghi StockHistory lỗi: " +
+                    exHist.Message);
             }
 
-
-            // ============================================================
-            // 7. ĐỐI CHIẾU TỒN KHO
-            // ============================================================
-
-            public bool KiemTraKhopTonKho(
-                string lotNo, out int slActive, out int slConLaiStockTp)
-            {
-                slActive = _phieuRepo.GetTongSlActiveTheoLot(lotNo);
-                slConLaiStockTp = _stockTpRepo.GetSlConLai(lotNo);
-                return slActive == slConLaiStockTp;
-            }
-
-
-            // ============================================================
-            // 8. TRA CỨU PHIẾU SẢN XUẤT — che IStockTpProductionRepository khỏi Form
-            // ============================================================
-
-            public List<PhieuNhapInfo> GetPhieuDangSanXuat(int soNgayGanDay = 30)
-            {
-                return _productionRepo.GetPhieuDangSanXuat(soNgayGanDay);
-            }
-
-            public PhieuNhapInfo GetPhieuByFind(string find)
-            {
-                if (string.IsNullOrWhiteSpace(find)) return null;
-                return _productionRepo.GetPhieuByFind(find);
-            }
-
-            public PhieuNhapInfo TimPhieuTheoLotQR(string rawLotNoSL, string maHang)
-            {
-                return _productionRepo.TimPhieuTheoLotQR(rawLotNoSL, maHang);
-            }
+            return ScanResult.OKNhapKho(
+                qr,
+                nhapItem,
+                "Đã nhập LOT " + lotNo + " (SL: " + qr.Quantity + ") vào Slot " + slotId + ".");
         }
-    
+
+        public void MoLaiLot(string lot, string find = null)
+        {
+            _stockTpStatus.MoLaiLot(lot, find);
+        }
+
+        public bool KiemTraKhopTonKho(
+            string lotNo, out int slActive, out int slConLaiStockTp)
+        {
+            slActive = _phieuRepo.GetTongSlActiveTheoLot(lotNo);
+            slConLaiStockTp = _stockTpRepo.GetSlConLai(lotNo);
+            return slActive == slConLaiStockTp;
+        }
+
+        public List<PhieuNhapInfo> GetPhieuDangSanXuat(int soNgayGanDay = 30)
+        {
+            return _productionRepo.GetPhieuDangSanXuat(soNgayGanDay);
+        }
+
+        public PhieuNhapInfo GetPhieuByFind(string find)
+        {
+            if (string.IsNullOrWhiteSpace(find)) return null;
+            return _productionRepo.GetPhieuByFind(find);
+        }
+
+        public PhieuNhapInfo TimPhieuTheoLotQR(string rawLotNoSL, string maHang)
+        {
+            return _productionRepo.TimPhieuTheoLotQR(rawLotNoSL, maHang);
+        }
+    }
 }
