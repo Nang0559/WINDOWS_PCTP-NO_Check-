@@ -66,7 +66,7 @@ Chiều phụ thuộc được phép là **adapter legacy -> KhoCore contract**.
 
 `IStockMovementService` là boundary ghi mới. `IStockBalanceRepository` là port persistence tối thiểu cho STOCKTP; `IStockSlotRepository` là port mutation tối thiểu cho Slot/SlotLot; `IStockReceivingRepository` là port riêng cho luồng STOCKTP receiving vì receiving cần giữ semantics SLNHAP/SLCONLAI/STATUS. Các adapter hiện tại vẫn là transitional và sẽ bị xóa sau migration.
 
-`IStockSlotRepository.AddLot` là operation LOT-aware dùng chung cho RECEIVE/MOVE/ReturnFromRework. `IStockSlotRepository.TakeLot` encapsulate FIFO/split theo LOT để PICK không cần thao tác `GetLots/SaveLots` trực tiếp trong business service.
+`IStockSlotRepository.AddLot` là operation LOT-aware dùng chung cho RECEIVE/MOVE/ReturnFromRework. `IStockSlotRepository.TakeLot` encapsulate FIFO/split theo LOT để PICK không cần thao tác `GetLots/SaveLots` trực tiếp trong business service. `TakeLot` bắt buộc nhận cả `ItemCode`, vì LOT key tương đương không đủ để xác định đúng tồn khi một Slot chứa cùng LOT key cho nhiều item.
 
 Chưa coi Phase 3 hoàn tất cho đến khi `StockExportService`, `NhapKho` và `XuLyHangLoi` chuyển toàn bộ stock write path sang boundary này.
 
@@ -113,8 +113,8 @@ Recent migration:
 - `StockExportService.ExportFromSlot` now acquires the source-slot lock **before** reading and splitting LOTs, preventing a stale LOT split under concurrent writers.
 - `StockMovementRequest` carries receiving metadata required by the `STOCKTP` receiving port.
 - `StockMovementService.Receive/Move/ReturnFromRework` use the LOT-aware `IStockSlotRepository.AddLot` operation whenever `LotNo` is present.
-- `StockMovementService.Pick` supports the canonical `SlotId + LotNo + Quantity` physical-pick path through `IStockSlotRepository.TakeLot` and returns consumed LOT metadata to the workflow.
-- Both NhapKho and XuLyHangLoi transitional slot adapters implement `TakeLot`, keeping FIFO/split persistence inside the adapter.
+- `StockMovementService.Pick` supports the canonical `SlotId + LotNo + ItemCode + Quantity` physical-pick path through `IStockSlotRepository.TakeLot` and returns consumed LOT metadata to the workflow.
+- Both NhapKho and XuLyHangLoi transitional slot adapters implement item-aware `TakeLot`, so FIFO/split persistence cannot consume a LOT-equivalent record belonging to another item.
 - `NhapTpReceivingService` now routes STOCKTP + Slot/SlotLot receiving mutation through `IStockMovementService.Receive`; receiving document/case/production state remains in NhapKho.
 
 The remaining migration work is primarily cleanup and verification: remove obsolete direct-write dependencies, migrate remaining non-Rework XuLyHangLoi stock writes, complete DI/composition wiring, then add idempotency and integration/concurrency tests.
