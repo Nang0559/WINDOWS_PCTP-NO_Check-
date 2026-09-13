@@ -42,6 +42,7 @@ Build baseline hiện tại:
 - [x] Define clean stock movement contract boundary
 - [x] Define clean stock-balance persistence port and legacy adapter boundary
 - [x] Define clean stock-slot mutation port and legacy adapter boundary
+- [x] Define clean receiving persistence port and transitional NhapKho adapter
 - [x] Remove DataTable/UI dependencies from new core application contracts
 - [ ] Migrate existing `SlotService` callers off the legacy contract
 - [ ] Normalize `ISlotRepository`/`SlotRepository` namespace to KhoCore
@@ -61,7 +62,7 @@ Chiều phụ thuộc được phép là **adapter legacy -> KhoCore contract**.
 
 `ISlotQueryService` là boundary đọc mới của KhoCore. `KhoCoreSlotQueryAdapter` nằm phía KhoVatLy để bọc implementation cũ. Adapter sẽ bị xóa sau khi toàn bộ caller được migrate.
 
-`IStockMovementService` là boundary ghi mới. `IStockBalanceRepository` là port persistence tối thiểu cho STOCKTP; `IStockSlotRepository` là port mutation tối thiểu cho Slot/SlotLot. Các adapter hiện tại vẫn là transitional và sẽ bị xóa sau migration.
+`IStockMovementService` là boundary ghi mới. `IStockBalanceRepository` là port persistence tối thiểu cho STOCKTP; `IStockSlotRepository` là port mutation tối thiểu cho Slot/SlotLot; `IStockReceivingRepository` là port riêng cho luồng STOCKTP receiving vì receiving cần giữ semantics SLNHAP/SLCONLAI/SATUS. Các adapter hiện tại vẫn là transitional và sẽ bị xóa sau migration.
 
 Chưa coi Phase 3 hoàn tất cho đến khi `StockExportService`, `NhapKho` và `XuLyHangLoi` chuyển toàn bộ stock write path sang boundary này.
 
@@ -94,7 +95,7 @@ Current transitional path:
 XuLyHangLoi / XuatKho / NhapKho
     -> IStockMovementService
     -> KhoCore.StockMovementService
-    -> IStockBalanceRepository + IStockSlotRepository
+    -> IStockBalanceRepository + IStockSlotRepository + receiving port
     -> legacy adapters
     -> existing storage
 ```
