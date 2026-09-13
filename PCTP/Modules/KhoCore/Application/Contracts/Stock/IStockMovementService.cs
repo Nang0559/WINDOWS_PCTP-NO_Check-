@@ -7,9 +7,11 @@ namespace PCTP.Modules.KhoCore.Application.Contracts.Stock
     public interface IStockMovementService
     {
         StockMovementResult Receive(StockMovementRequest request);
+        StockMovementResult Reserve(StockMovementRequest request);
         StockMovementResult Pick(StockMovementRequest request);
         StockMovementResult Export(StockMovementRequest request);
         StockMovementResult Move(StockMovementRequest request);
         StockMovementResult ReturnFromRework(StockMovementRequest request);
+        StockMovementResult Correct(StockMovementRequest request);
     }
 }
