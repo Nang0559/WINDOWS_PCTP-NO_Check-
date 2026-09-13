@@ -15,9 +15,9 @@ namespace PCTP.Modules.KhoCore.Application.Contracts.Stock
         void AddLot(int slotId, StockSlotLot lot);
 
         /// <summary>
-        /// Removes quantity from the requested LOT in a physical slot.
-        /// The adapter owns the legacy Slot/SlotLot split semantics (FIFO by ImportDate).
+        /// Removes quantity from the requested LOT in a physical slot and returns
+        /// the exact LOT portions consumed by the operation.
         /// </summary>
-        void TakeLot(int slotId, string lotNo, int quantity);
+        StockSlotTakeResult TakeLot(int slotId, string lotNo, int quantity);
     }
 }
