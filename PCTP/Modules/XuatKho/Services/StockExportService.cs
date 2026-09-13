@@ -359,12 +359,14 @@ namespace PCTP.Modules.XuatKho.Services
             if (string.IsNullOrWhiteSpace(itemCode))
                 throw new ArgumentException("itemCode là bắt buộc khi ExportFromSlot chuyển sang central stock movement.", nameof(itemCode));
 
-            var currentLots = _slotService.GetLots(slotId);
-            var result = LotNoHelper.SubtractLots(currentLots, exportQty);
             _uow.Begin();
             try
             {
+                // Lock BEFORE reading/splitting LOTs. Otherwise another transaction can
+                // change the source slot after GetLots(), making the calculated split stale.
                 _slotService.LockSlotForUpdate(slotId);
+                var currentLots = _slotService.GetLots(slotId);
+                var result = LotNoHelper.SubtractLots(currentLots, exportQty);
 
                 foreach (var exported in result.ExportLots)
                 {
