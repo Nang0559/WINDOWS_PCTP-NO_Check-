@@ -1,9 +1,5 @@
 namespace PCTP.Modules.KhoCore.Application.Contracts.Stock
 {
-    /// <summary>
-    /// Minimal physical-slot mutation port used by the central stock movement service.
-    /// Implementations may temporarily delegate to legacy SlotService during migration.
-    /// </summary>
     public interface IStockSlotRepository
     {
         int GetLotQuantity(int slotLotId);
@@ -15,9 +11,10 @@ namespace PCTP.Modules.KhoCore.Application.Contracts.Stock
         void AddLot(int slotId, StockSlotLot lot);
 
         /// <summary>
-        /// Removes quantity from the requested LOT in a physical slot and returns
-        /// the exact LOT portions consumed by the operation.
+        /// Atomically consumes quantity from LOT-equivalent records in a Slot.
+        /// ItemCode is part of the selection key so the same LOT key cannot
+        /// accidentally consume another item's stock.
         /// </summary>
-        StockSlotTakeResult TakeLot(int slotId, string lotNo, int quantity);
+        StockSlotTakeResult TakeLot(int slotId, string lotNo, string itemCode, int quantity);
     }
 }
