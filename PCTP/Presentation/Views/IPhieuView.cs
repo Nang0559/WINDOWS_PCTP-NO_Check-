@@ -42,7 +42,7 @@ namespace PCTP.Presentation.Views
         IEnumerable<GhepLotItem> GetSelectedGhepLotRows();
         bool CoLotDeLuuKho();
         bool CoHangChuaOK();
-        int ShowChonSttTrungMa(ListView danhSachTrung);
+        int ShowChonSttTrungMa(DataTable danhSachTrung);
         void ShowKiemTraMaNG(string maHang);
         void ShowTachLot();
         void ShowLoiCapNhapKho(DataTable loiData);
