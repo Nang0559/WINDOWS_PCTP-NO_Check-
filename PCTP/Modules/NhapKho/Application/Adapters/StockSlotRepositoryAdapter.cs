@@ -1,8 +1,10 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using PCTP.Modules.KhoCore.Application.Contracts.Stock;
 using PCTP.Modules.KhoVatLy.Application.Interfaces;
 using PCTP.Modules.KhoVatLy.Kho.Models;
+using PCTP.Shared.Helpers;
 
 namespace PCTP.Modules.NhapKho.Application.Adapters
 {
@@ -61,7 +63,7 @@ namespace PCTP.Modules.NhapKho.Application.Adapters
             if (lot.Quantity <= 0)
                 throw new ArgumentOutOfRangeException(nameof(lot.Quantity));
 
-            var lots = _legacy.GetLots(slotId) ?? new System.Collections.Generic.List<LotInfo>();
+            var lots = _legacy.GetLots(slotId) ?? new List<LotInfo>();
             var existing = lots.FirstOrDefault(x =>
                 string.Equals(x.LotNo, lot.LotNo, StringComparison.OrdinalIgnoreCase) &&
                 string.Equals(x.ItemCode, lot.ItemCode, StringComparison.OrdinalIgnoreCase));
@@ -71,6 +73,10 @@ namespace PCTP.Modules.NhapKho.Application.Adapters
                 existing.Quantity += lot.Quantity;
                 if (!existing.ImportDate.HasValue)
                     existing.ImportDate = lot.ImportDate;
+                if (string.IsNullOrWhiteSpace(existing.TemCode))
+                    existing.TemCode = lot.TemCode;
+                if (string.IsNullOrWhiteSpace(existing.RawQr))
+                    existing.RawQr = lot.RawQr;
             }
             else
             {
@@ -88,6 +94,37 @@ namespace PCTP.Modules.NhapKho.Application.Adapters
 
             _legacy.SaveLots(slotId, lots);
             _legacy.UpdateSlotHeaderFromLots(slotId, lots);
+        }
+
+        public void TakeLot(int slotId, string lotNo, int quantity)
+        {
+            if (slotId <= 0)
+                throw new ArgumentOutOfRangeException(nameof(slotId));
+            if (string.IsNullOrWhiteSpace(lotNo))
+                throw new ArgumentException("LotNo không được rỗng.", nameof(lotNo));
+            if (quantity <= 0)
+                throw new ArgumentOutOfRangeException(nameof(quantity));
+
+            var lots = _legacy.GetLots(slotId) ?? new List<LotInfo>();
+            var matched = lots
+                .Where(x => x.Quantity > 0)
+                .Where(x => LotCodeHelper.AreLotKeysEquivalent(x.LotNo, lotNo))
+                .OrderBy(x => x.ImportDate ?? DateTime.MaxValue)
+                .ToList();
+
+            var available = matched.Sum(x => x.Quantity);
+            if (available < quantity)
+                throw new InvalidOperationException(
+                    string.Format("LOT [{0}] trong Slot {1} chỉ còn {2}, không đủ {3}.",
+                        lotNo, slotId, available, quantity));
+
+            var remaining = LotNoHelper.SubtractLots(matched, quantity).RemainingLots;
+            var matchedIds = new HashSet<LotInfo>(matched);
+            var others = lots.Where(x => !matchedIds.Contains(x)).ToList();
+
+            var merged = others.Concat(remaining).ToList();
+            _legacy.SaveLots(slotId, merged);
+            _legacy.UpdateSlotHeaderFromLots(slotId, merged);
         }
     }
 }
