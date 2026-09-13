@@ -1,0 +1,24 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project>
+  <!--
+    PCTP build baseline.
+    The application is a legacy .NET Framework 4.7.2 WinForms application;
+    keep the compiler/runtime baseline explicit while the codebase is being
+    migrated toward the WMS module boundaries.
+  -->
+  <PropertyGroup>
+    <LangVersion>7.3</LangVersion>
+    <Deterministic>true</Deterministic>
+    <DebugType Condition="'$(Configuration)' == 'Debug'">full</DebugType>
+    <DebugType Condition="'$(Configuration)' == 'Release'">pdbonly</DebugType>
+    <WarningLevel>4</WarningLevel>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <Prefer32Bit>false</Prefer32Bit>
+  </PropertyGroup>
+
+  <!-- Keep generated/intermediate output predictable for the existing solution. -->
+  <PropertyGroup>
+    <BaseIntermediateOutputPath Condition="'$(BaseIntermediateOutputPath)' == ''">obj\</BaseIntermediateOutputPath>
+    <IntermediateOutputPath Condition="'$(IntermediateOutputPath)' == ''">$(BaseIntermediateOutputPath)$(Configuration)\</IntermediateOutputPath>
+  </PropertyGroup>
+</Project>
