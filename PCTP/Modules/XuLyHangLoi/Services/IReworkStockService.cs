@@ -1,32 +1,29 @@
-﻿using PCTP.Modules.KhoVatLy.Application.Interfaces;
 using PCTP.Modules.KhoVatLy.Kho.Models;
-using PCTP.Modules.XuatKho.Interfaces;
 using PCTP.Modules.XuLyHangLoi.Models;
-using PCTP.Modules.XuLyHangLoi.Repository;
-using PCTP.Shared.Common;
 using PCTP.Shared.Helpers;
-using PCTP.VIEWSTOCK.Models;
-using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace PCTP.Modules.XuLyHangLoi.Services
 {
-    
-        /// <summary>
-        /// Điều phối xuất kho đi rework / nhập lại sau rework / hoàn trả khi huỷ.
-        /// KHÔNG tự viết SQL đụng Slot/STOCKTP — tái dùng ISlotService (module Kho)
-        /// và IStockExportRepository.AdjustSlConLai (module XuatKho, chỉ đụng SLCONLAI).
-        /// Lịch sử ghi qua ITraHangQTChungRepository (đã có sẵn InsertXuat/InsertNhapNG).
-        /// </summary>
-        public interface IReworkStockService
-        {
-            List<LotInfo> GetLotsCanRework(string maHang, string lotNo);
-            List<LotInfo> GetLotsCanReworkByPhieuXuLy(int phieuXuLyId);
+    /// <summary>
+    /// Điều phối nghiệp vụ xuất kho đi rework / nhập lại sau rework / hoàn trả khi huỷ.
+    ///
+    /// Stock mutation không còn thuộc contract này: implementation phải route
+    /// Slot/SlotLot/STOCKTP mutation qua KhoCore.IStockMovementService.
+    /// Interface chỉ mô tả nghiệp vụ Rework; persistence details không được leak ra caller.
+    /// </summary>
+    public interface IReworkStockService
+    {
+        List<LotInfo> GetLotsCanRework(string maHang, string lotNo);
+        List<LotInfo> GetLotsCanReworkByPhieuXuLy(int phieuXuLyId);
 
-            ScanResult XuatKhoRework(int phieuXuLyId, int slotLotId, string lotNo, int soLuong, string nguoiXuat);
+        ScanResult XuatKhoRework(
+            int phieuXuLyId,
+            int slotLotId,
+            string lotNo,
+            int soLuong,
+            string nguoiXuat);
+
         ScanResult NhapLaiHangNG(
             int phieuXuLyId,
             string lotNo,
@@ -34,16 +31,16 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             int? slotIdOK,
             int? slotIdNG,
             string nguoiNhap);
-        // Cộng STOCKTP + Slot, ghi lịch sử "NHAP_LAI_SAU_REWORK"
+
         ScanResult NhapLaiHangOK(
             int phieuXuLyId,
             string lotNo,
             int soLuongOK,
             int slotIdOK,
             string nguoiNhap);
-        ScanResult HoanTraKhoKhiHuy(int phieuXuLyId, string nguoiThucHien);
-        }
 
-        
-    
+        ScanResult HoanTraKhoKhiHuy(
+            int phieuXuLyId,
+            string nguoiThucHien);
+    }
 }
