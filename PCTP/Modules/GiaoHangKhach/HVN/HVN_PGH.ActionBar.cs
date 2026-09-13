@@ -20,7 +20,8 @@ namespace PCTP.QRCODE_HVN.PGH
                         "ACTION:GhepLotToggle",
                         StringComparison.Ordinal))
                     {
-                        HandleGhepLotToggle(e.Button);
+                        _phieuBottomStateControl?.ToggleLechGhepLot();
+                        KiemTraGhepLotClicked.Invoke(this, EventArgs.Empty);
                     }
                     else
                     {
