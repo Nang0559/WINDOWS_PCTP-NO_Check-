@@ -50,10 +50,7 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
         private const string ActionTagPrefix = "ACTION:";
         private WindowsUIButtonPanel _panel;
 
-        public WindowsUIButtonPanel Panel
-        {
-            get { return _panel; }
-        }
+        public WindowsUIButtonPanel Panel { get { return _panel; } }
 
         public event EventHandler<PhieuActionBarEventArgs> ActionClicked = delegate { };
 
@@ -95,7 +92,6 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
                 return;
 
             Clear();
-
             Add("In Phiếu", "Print;Size16x16;Colored", PhieuActionBarAction.InPhieu);
             Add("In Ghép Lot", "Print;Size16x16;Colored", PhieuActionBarAction.InGhepLot);
             Add("In Tách Lot", "Print;Size16x16;Colored", PhieuActionBarAction.InTachLot);
@@ -115,10 +111,8 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
             {
                 var button = CreateButton(ghepLotCaption, null, PhieuActionBarAction.KiemTraGhepLot);
                 button.Tag = ActionTagPrefix + "GhepLotToggle";
-
                 if (imageCollection != null && imageCollection.Images.Count > 1)
                     button.Image = imageCollection.Images[1];
-
                 _panel.Buttons.Add(button);
             }
 
@@ -142,10 +136,8 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
                 return;
 
             Clear();
-
             var ghepLot = CreateButton(ghepLotCaption, null, PhieuActionBarAction.KiemTraGhepLot);
             ghepLot.Tag = ActionTagPrefix + "GhepLotToggle";
-
             if (imageCollection != null && imageCollection.Images.Count > 1)
                 ghepLot.Image = imageCollection.Images[1];
 
@@ -199,12 +191,9 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
                 if (windowsButton == null)
                     continue;
 
-                if (windowsButton.Tag as string == ActionTagPrefix + "ToggleLoaiPhieu"
-                    || windowsButton.Caption == "Đang xem: MP"
-                    || windowsButton.Caption == "Đang xem: SP")
+                if (windowsButton.Tag as string == ActionTagPrefix + "ToggleLoaiPhieu")
                 {
                     windowsButton.Caption = isLoaiSP ? "Đang xem: SP" : "Đang xem: MP";
-                    windowsButton.Tag = ActionTagPrefix + "ToggleLoaiPhieu";
                     break;
                 }
             }
@@ -246,45 +235,18 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
         private PhieuActionBarAction ResolveAction(WindowsUIButton button)
         {
             var tag = button.Tag as string;
-            if (!string.IsNullOrWhiteSpace(tag))
-            {
-                if (tag == ActionTagPrefix + "GhepLotToggle")
-                    return PhieuActionBarAction.KiemTraGhepLot;
+            if (string.IsNullOrWhiteSpace(tag) ||
+                !tag.StartsWith(ActionTagPrefix, StringComparison.Ordinal))
+                return PhieuActionBarAction.None;
 
-                if (tag.StartsWith(ActionTagPrefix, StringComparison.Ordinal))
-                {
-                    var value = tag.Substring(ActionTagPrefix.Length);
-                    PhieuActionBarAction action;
-                    if (Enum.TryParse(value, out action))
-                        return action;
-                }
-            }
+            var value = tag.Substring(ActionTagPrefix.Length);
+            if (value == "GhepLotToggle")
+                return PhieuActionBarAction.KiemTraGhepLot;
 
-            // Compatibility for buttons that may still be supplied by the
-            // Designer/legacy configuration while the migration is in progress.
-            switch (button.Caption)
-            {
-                case "DOC QRCODE": return PhieuActionBarAction.DocQRCode;
-                case "Kiểm Tra Ghep Lot": return PhieuActionBarAction.KiemTraGhepLot;
-                case "In Phiếu": return PhieuActionBarAction.InPhieu;
-                case "In Ghép Lot": return PhieuActionBarAction.InGhepLot;
-                case "In Tách Lot": return PhieuActionBarAction.InTachLot;
-                case "Cập Nhập Kho": return PhieuActionBarAction.CapNhapKho;
-                case "Kiểm tra mã NG": return PhieuActionBarAction.KiemTraMaNG;
-                case "Xem Hàng Thiếu Cả Ngày": return PhieuActionBarAction.XemHangThieuCaNgay;
-                case "Xóa Dòng Được Chọn": return PhieuActionBarAction.XoaDongQR;
-                case "Xóa Toàn Bộ Dữ Liệu": return PhieuActionBarAction.XoaToanBoQR;
-                case "Sửa Số Lượng Tem": return PhieuActionBarAction.SuaSoLuongTem;
-                case "Lấy Lại Lot": return PhieuActionBarAction.LayLaiLot;
-                case "Upload Đơn Hàng": return PhieuActionBarAction.UploadGiaoDB;
-                case "Ghi Chú STOP": return PhieuActionBarAction.GhiChuStop;
-                case "Xóa Ghi Chú STOP": return PhieuActionBarAction.XoaGhiChuStop;
-                case "Hoàn Thành": return PhieuActionBarAction.HoanThanh;
-                case "Upload Milkrun SP": return PhieuActionBarAction.UploadMilkrunSP;
-                case "Đang xem: MP":
-                case "Đang xem: SP": return PhieuActionBarAction.ToggleLoaiPhieu;
-                default: return PhieuActionBarAction.None;
-            }
+            PhieuActionBarAction action;
+            return Enum.TryParse(value, out action)
+                ? action
+                : PhieuActionBarAction.None;
         }
     }
 }
