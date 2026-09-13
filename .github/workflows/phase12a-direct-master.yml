@@ -1,0 +1,78 @@
+name: Phase 12A Direct Master
+
+on:
+  push:
+    branches: [master]
+
+permissions:
+  contents: write
+
+jobs:
+  extract-action-bar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Extract action bar ownership
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+          import re
+
+          path = Path('PCTP/Modules/GiaoHangKhach/HVN/HVN_PGH.cs')
+          text = path.read_text(encoding='utf-8')
+
+          def replace_once(pattern, replacement, label):
+              global text
+              text2, count = re.subn(pattern, replacement, text, count=1, flags=re.S)
+              if count != 1:
+                  raise SystemExit(f'Phase 12A: {label}: expected 1 match, got {count}')
+              text = text2
+
+          replace_once(
+              r'            UIButton\\.AllowGlyphSkinning = false;\\n'
+              r'            UIButton\\.Buttons\\.Clear\\(\\);\\n'
+              r'            UIButton\\.Buttons\\.AddRange\\(new WindowsUIButton\\[\\]\\n'
+              r'            \\{\\n'
+              r'        new WindowsUIButton \\{ Caption = "Xóa Dòng Được Chọn",.*?'
+              r'            \\}\\);\\n'
+              r'            UIButton\\.Buttons\\.Insert\\(2, new WindowsUISeparator\\(\\)\\);\\n\\n'
+              r'            txt_DOCQRCODE\\.Focus\\(\\);',
+              '            _phieuActionBarControl.ConfigureDocQr();\\n\\n            txt_DOCQRCODE.Focus();',
+              'SwitchToDocQRView action bar')
+
+          replace_once(
+              r'            UIButton\\.AllowGlyphSkinning = false;\\n'
+              r'            UIButton\\.Buttons\\.Clear\\(\\);\\n'
+              r'            var b1 = new WindowsUIButton\\n'
+              r'            \\{.*?'
+              r'            UIButton\\.Buttons\\.Insert\\(1, new WindowsUISeparator\\(\\);',
+              '            _phieuActionBarControl.ConfigurePhieuView(\\n                _cfg.Delivery.LoadTuBangRieng ? "Show Thông Tin Lệch IFS" : "Kiểm Tra Ghep Lot",\\n                imageBT.Images);',
+              'SwitchToPhieuView action bar')
+
+          replace_once(
+              r'        public void SwitchToPhieuDBView\\(\\)\\n        \\{.*?\\n        \\}',
+              '        public void SwitchToPhieuDBView()\\n        {\\n            _phieuActionBarControl.ConfigureGiaoDb();\\n        }',
+              'SwitchToPhieuDBView')
+
+          replace_once(
+              r'        public void SetupPhieuButtons\\(bool showCapNhapKho, bool showKiemTraMaNG,\\n'
+              r'                                       bool showGhepLot, bool showDocQRCode,\\n'
+              r'                                       bool showLayLaiLot = false,\\n'
+              r'                                       bool showStop = false, bool showHangThieuCaNgay = true\\)\\n'
+              r'        \\{.*?\\n        \\}\\n\\n        // ═+\\n        // III\\.',
+              '        public void SetupPhieuButtons(bool showCapNhapKho, bool showKiemTraMaNG,\\n                                       bool showGhepLot, bool showDocQRCode,\\n                                       bool showLayLaiLot = false,\\n                                       bool showStop = false, bool showHangThieuCaNgay = true)\\n        {\\n            _phieuActionBarControl.ConfigureNormal(\\n                _cfg.Delivery.LoadTuBangRieng ? "Show Thông Tin Lệch IFS" : "Kiểm Tra Ghep Lot",\\n                showCapNhapKho,\\n                showKiemTraMaNG,\\n                showGhepLot,\\n                showDocQRCode,\\n                showLayLaiLot,\\n                showStop,\\n                showHangThieuCaNgay,\\n                imageBT.Images);\\n        }\\n\\n        // ═+\\n        // III.',
+              'SetupPhieuButtons')
+
+          path.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Commit extracted code
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add PCTP/Modules/GiaoHangKhach/HVN/HVN_PGH.cs
+          git diff --cached --quiet && exit 0
+          git commit -m "Phase 12A: extract action bar"
+          git push
