@@ -42,6 +42,7 @@ Build baseline hiện tại:
 - [x] Define clean stock movement contract boundary
 - [x] Define clean stock-balance persistence port and legacy adapter boundary
 - [x] Define clean stock-slot mutation port and legacy adapter boundary
+- [x] Define exact LOT-aware slot insertion boundary (`IStockSlotRepository.AddLot`)
 - [x] Define clean receiving persistence port and transitional NhapKho adapter
 - [x] Remove DataTable/UI dependencies from new core application contracts
 - [ ] Migrate existing `SlotService` callers off the legacy contract
@@ -63,6 +64,8 @@ Chiều phụ thuộc được phép là **adapter legacy -> KhoCore contract**.
 `ISlotQueryService` là boundary đọc mới của KhoCore. `KhoCoreSlotQueryAdapter` nằm phía KhoVatLy để bọc implementation cũ. Adapter sẽ bị xóa sau khi toàn bộ caller được migrate.
 
 `IStockMovementService` là boundary ghi mới. `IStockBalanceRepository` là port persistence tối thiểu cho STOCKTP; `IStockSlotRepository` là port mutation tối thiểu cho Slot/SlotLot; `IStockReceivingRepository` là port riêng cho luồng STOCKTP receiving vì receiving cần giữ semantics SLNHAP/SLCONLAI/SATUS. Các adapter hiện tại vẫn là transitional và sẽ bị xóa sau migration.
+
+`IStockSlotRepository.AddLot` hiện đã là operation LOT-aware dùng chung cho RECEIVE/MOVE/ReturnFromRework. Phần còn thiếu của Phase 2/3 là operation split/decrease theo LOT trong chính KhoCore để `PickToChoGiao` và `XuatTrucTiep` không còn phải tự thao tác `GetLots/SaveLots` qua legacy `ISlotService`.
 
 Chưa coi Phase 3 hoàn tất cho đến khi `StockExportService`, `NhapKho` và `XuLyHangLoi` chuyển toàn bộ stock write path sang boundary này.
 
@@ -104,10 +107,12 @@ Recent migration:
 
 - `StockExportService.ConfirmGiaoHangTuChoGiao` now routes the final STOCKTP decrement through `IStockMovementService.Export`.
 - `StockExportService.XuatTrucTiep` now routes the final STOCKTP decrement through `IStockMovementService.Export`.
+- `StockExportService.ExportFromSlot` now also uses the central export path when an item code is available; it fails loudly instead of silently returning success when STOCKTP export cannot be completed.
 - `StockMovementService.Export` supports a stock-only export when the physical SlotLot has already been removed into `HangChoGiao`.
 - `StockMovementRequest` carries receiving metadata required by the `STOCKTP` receiving port.
+- `StockMovementService.Receive/Move/ReturnFromRework` now use the LOT-aware `IStockSlotRepository.AddLot` operation whenever `LotNo` is present, so central receiving/move paths no longer collapse a LOT into slot-level quantity.
 
-These changes are intentionally transitional: the physical Slot/SlotLot pick/split logic in `XuatKho` still uses the legacy Slot boundary because the current `IStockSlotRepository` does not yet expose an exact LOT-aware split operation.
+These changes are intentionally transitional: the physical Slot/SlotLot pick/split logic in `XuatKho` still uses the legacy Slot boundary because the central port does not yet own the complete LOT split/decrease operation required by the existing FIFO/split behavior.
 
 `StockMovementService` owns stock mutation rules. The surrounding workflow still owns its transaction when it must include module-specific audit/state writes in the same UnitOfWork. This is an intermediate step; full transaction ownership moves to KhoCore after all participating persistence ports are migrated.
 
@@ -126,7 +131,8 @@ Mỗi loại stock movement có đúng một write path.
 Current work:
 
 - [x] Define `IStockReceivingRepository` and legacy `StockReceivingRepositoryAdapter`.
-- [ ] Migrate `NhapTpReceivingService` after the central Slot/SlotLot receiving contract exposes exact LOT-aware insertion/update semantics.
+- [x] Define LOT-aware `IStockSlotRepository.AddLot` and a transitional NhapKho adapter.
+- [ ] Migrate `NhapTpReceivingService` to `IStockMovementService.Receive` using the exact LOT-aware slot boundary.
 
 ## Phase 5 - XuatKho
 
@@ -185,5 +191,3 @@ Build is no longer a blocking refactor gate; actual build execution remains with
 - [ ] Rework round-trip test
 - [ ] Pick -> Delivery -> Export test
 - [ ] Receiving -> Slot/Lot -> STOCKTP reconciliation test
-
-Runtime/integration evidence is still required before production release, but absence of connector-side build execution does not block architectural phases.
