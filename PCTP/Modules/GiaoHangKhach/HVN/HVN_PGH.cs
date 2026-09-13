@@ -106,10 +106,11 @@ namespace PCTP.QRCODE_HVN.PGH
             var giaoDbSource = new GiaoDbOrderSource(giaoDbStrategy);
             var orderSourceFactory = new OrderSourceFactory(ifsSource, tableOrderSource, giaoDbSource);
             var phieuSvc = new PhieuService(phieuRepo, ifsRepo, bus, _gioRepo, tenBan, _cfg, isMayBanQR, tableOrderRepo, phieugiaDBRepo, orderSourceFactory, rowCategoryFilter);
+            var lotSvc = new PhieuLotService(phieuRepo, phieuRepo, bus);
             var hangthieucangaySvc = new HangThieuCaNgayService(ifsRepo, luuTruRepo, phieuDb);
             var qrSvc = new DocQRService(qrRepo, bus, _cfg, categoryResolver);
             var inPhieuSvc = new InPhieuService(ifsRepo, phieuRepo, sqlRepo, gioVP, gioHN, _cfg);
-            return new HVN_Presenter(this, phieuSvc, qrSvc, inPhieuSvc, hangthieucangaySvc, _gioRepo, bus, isMayBanQR, tenBan, _cfg, categoryResolver);
+            return new HVN_Presenter(this, phieuSvc, lotSvc, qrSvc, inPhieuSvc, hangthieucangaySvc, _gioRepo, bus, isMayBanQR, tenBan, _cfg, categoryResolver);
         }
 
         private static string SanitizeMachineName(string name) => System.Text.RegularExpressions.Regex.Replace(name ?? "LOCAL", @"[^A-Za-z0-9_]", "_");
