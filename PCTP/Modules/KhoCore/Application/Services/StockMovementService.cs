@@ -47,12 +47,15 @@ namespace PCTP.Modules.KhoCore.Application.Services
             {
                 if (request.Quantity <= 0)
                     return StockMovementResult.Fail("Quantity phải lớn hơn 0.");
+                if (string.IsNullOrWhiteSpace(request.ItemCode))
+                    return StockMovementResult.Fail("ItemCode không được rỗng khi Pick theo Slot + LOT.");
 
                 try
                 {
                     var take = _slots.TakeLot(
                         request.SlotId.Value,
                         request.LotNo,
+                        request.ItemCode,
                         request.Quantity);
 
                     return StockMovementResult.OkWithConsumedLots(
