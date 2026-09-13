@@ -13,13 +13,23 @@ namespace PCTP.Modules.KhoCore.Application.Services
     {
         private readonly IStockBalanceRepository _balance;
         private readonly IStockSlotRepository _slots;
+        private readonly IStockReceivingRepository _receiving;
 
         public StockMovementService(
             IStockBalanceRepository balance,
             IStockSlotRepository slots)
+            : this(balance, slots, null)
+        {
+        }
+
+        public StockMovementService(
+            IStockBalanceRepository balance,
+            IStockSlotRepository slots,
+            IStockReceivingRepository receiving)
         {
             _balance = balance ?? throw new ArgumentNullException(nameof(balance));
             _slots = slots ?? throw new ArgumentNullException(nameof(slots));
+            _receiving = receiving;
         }
 
         public StockMovementResult Receive(StockMovementRequest request)
@@ -119,19 +129,56 @@ namespace PCTP.Modules.KhoCore.Application.Services
 
             try
             {
+                bool isQuarantineReceive = string.Equals(
+                    request.MovementType,
+                    StockMovementRequest.Types.ReworkNgReceive,
+                    StringComparison.OrdinalIgnoreCase);
+
+                bool isNormalReceive = string.Equals(
+                    request.MovementType,
+                    StockMovementRequest.Types.Receive,
+                    StringComparison.OrdinalIgnoreCase);
+
+                // Normal finished-goods receiving owns STOCKTP creation/update here.
+                // Rework receive paths intentionally use the balance adapter rules below.
+                if (isNormalReceive && _receiving != null)
+                {
+                    if (string.IsNullOrWhiteSpace(request.LotNo))
+                        return StockMovementResult.Fail("LotNo không được rỗng khi nhập thành phẩm.");
+
+                    int status = request.ReceivingStatus ?? 0;
+                    if (_receiving.Exists(request.LotNo))
+                    {
+                        _receiving.Update(
+                            request.LotNo,
+                            request.Quantity,
+                            status);
+                    }
+                    else
+                    {
+                        _receiving.Insert(new StockReceivingRecord
+                        {
+                            LotNo = request.LotNo,
+                            ItemCode = request.ItemCode,
+                            ItemName = request.ItemName,
+                            Model = request.Model,
+                            ProductionCase = request.ProductionCase,
+                            ProductionDate = request.ProductionDate,
+                            ProductionQuantity = request.ProductionQuantity,
+                            ReceivedQuantity = request.Quantity,
+                            Status = status
+                        });
+                    }
+                }
+
                 _slots.AddQuantity(
                     request.TargetSlotId.Value,
                     request.Quantity,
                     request.ItemCode);
 
-                bool isQuarantineReceive =
-                    string.Equals(
-                        request.MovementType,
-                        StockMovementRequest.Types.ReworkNgReceive,
-                        StringComparison.OrdinalIgnoreCase);
-
                 if (adjustAvailable &&
                     !isQuarantineReceive &&
+                    !(isNormalReceive && _receiving != null) &&
                     !string.IsNullOrWhiteSpace(request.LotNo))
                 {
                     _balance.AdjustAvailableQuantity(
