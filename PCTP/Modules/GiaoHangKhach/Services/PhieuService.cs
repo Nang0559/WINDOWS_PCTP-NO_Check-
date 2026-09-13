@@ -51,7 +51,6 @@ namespace PCTP.Applications.Services
         private bool _isBanQR;
         private bool _isLoaiSP;
 
-        // Legacy cache: TinhLechIFS vẫn đọc snapshot đã lọc sau lần load gần nhất.
         private DataTable _ifsDataCache;
         private string _ifsLoadWarning;
 
@@ -67,20 +66,28 @@ namespace PCTP.Applications.Services
             IPhieuGiaoDBRepository giaoDbRepo,
             IOrderSourceFactory orderSourceFactory,
             IRowCategoryFilter rowCategoryFilter,
-            IDeliveryWorkingState workingState,
+            IDeliveryWorkingState workingState = null,
             IPhieuLoadService loadService = null)
         {
-            _phieuRepo = phieuRepo;
-            _ifsRepo = ifsRepo;
-            _bus = bus;
-            _gioXuatRepo = gioXuatRepo;
+            _phieuRepo = phieuRepo ?? throw new ArgumentNullException(nameof(phieuRepo));
+            _ifsRepo = ifsRepo ?? throw new ArgumentNullException(nameof(ifsRepo));
+            _bus = bus ?? throw new ArgumentNullException(nameof(bus));
+            _gioXuatRepo = gioXuatRepo ?? throw new ArgumentNullException(nameof(gioXuatRepo));
             _tenBan = tenBan;
-            _cfg = cfg;
+            _cfg = cfg ?? throw new ArgumentNullException(nameof(cfg));
             _isMayBanQR = isMayBanQR;
             _tableOrderRepo = tableOrderRepo ?? throw new ArgumentNullException(nameof(tableOrderRepo));
             _orderSourceFactory = orderSourceFactory ?? throw new ArgumentNullException(nameof(orderSourceFactory));
             _rowCategoryFilter = rowCategoryFilter ?? throw new ArgumentNullException(nameof(rowCategoryFilter));
-            _workingState = workingState ?? throw new ArgumentNullException(nameof(workingState));
+
+            // Compatibility bridge for the existing HVN_PGH composition root.
+            // IPhieuRepository is the aggregate repository contract and already
+            // inherits both IPhieuTmpRepository and IPhieuValidationRepository.
+            // Therefore old callers can omit workingState while still using the
+            // Phase-4 WorkingState boundary internally.
+            _workingState = workingState ?? new DeliveryWorkingState(
+                _phieuRepo,
+                _phieuRepo);
 
             _loadService = loadService ?? new PhieuLoadService(
                 _phieuRepo,
@@ -91,8 +98,6 @@ namespace PCTP.Applications.Services
                 _cfg,
                 _tenBan);
 
-            // Phase 7: business services được assemble tại facade trong migration.
-            // Phase 11 sẽ chuyển phần composition này ra ModuleFactory.
             _khoService = new PhieuKhoService(_phieuRepo, _bus, _cfg);
             _giaoDbService = new PhieuGiaoDbService(
                 _phieuRepo,
@@ -123,9 +128,6 @@ namespace PCTP.Applications.Services
             return _tenBan;
         }
 
-        // ════════════════════════════════════════════════════════════════════════
-        // Phase 5/6 — Load facade
-        // ════════════════════════════════════════════════════════════════════════
         public void LoadPhieu(
             string ngayGiao,
             string nhaMay,
@@ -316,9 +318,6 @@ namespace PCTP.Applications.Services
                 stt, GetTenBan(isSP), _cfg.Delivery.GetDocQRTable(isSP));
         }
 
-        // ════════════════════════════════════════════════════════════════════════
-        // Phase 7 — GiaoDB facade delegation
-        // ════════════════════════════════════════════════════════════════════════
         public DataTable GetDanhSachMaHangGiaoDB()
             => _giaoDbService.GetDanhSachMaHang();
 
@@ -341,9 +340,6 @@ namespace PCTP.Applications.Services
         public void XuLySauUploadGiaoDB()
             => _giaoDbService.XuLySauUpload();
 
-        // ════════════════════════════════════════════════════════════════════════
-        // Legacy Lot operations — facade vẫn giữ API UI hiện tại
-        // ════════════════════════════════════════════════════════════════════════
         public List<(int Stt, string Lot)> TinhTongLot(
             DataTable bangTam,
             Func<ListView, int> chonSttKhiTrung,
@@ -408,15 +404,9 @@ namespace PCTP.Applications.Services
             => _phieuRepo.CapNhapTTPHIEU(
                 nhaMay, ngayGiao, gioGiaoFcc, stt, ghiChu);
 
-        // ════════════════════════════════════════════════════════════════════════
-        // Phase 7 — Kho facade delegation
-        // ════════════════════════════════════════════════════════════════════════
         public void CapNhapKho(string gioGiaoFcc, string nhaMay, string gioMa = "")
             => _khoService.CapNhapKho(gioGiaoFcc, nhaMay, gioMa, _isLoaiSP);
 
-        // ════════════════════════════════════════════════════════════════════════
-        // Phase 7 — YMVN facade delegation
-        // ════════════════════════════════════════════════════════════════════════
         public void CapNhapKhoYMVN(
             string ngayGiao,
             string gioXuat,
@@ -440,7 +430,6 @@ namespace PCTP.Applications.Services
             => _ymvnService.SyncPhieuTuBangRiengChoDocQR(
                 donHang, ngayGiao, checkedGios);
 
-        // Chỉ còn phục vụ SyncIfsPhieuChoDocQR.
         private void EnrichSttHop(DataTable donHangIFS)
         {
             if (donHangIFS == null || donHangIFS.Rows.Count == 0)
