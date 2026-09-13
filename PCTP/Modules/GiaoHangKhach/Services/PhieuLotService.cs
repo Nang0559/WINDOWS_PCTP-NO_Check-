@@ -8,16 +8,15 @@ namespace PCTP.Applications.Services
 {
     /// <summary>
     /// LOT business workflow. No WinForms dependency.
-    /// Duplicate-row selection is delegated to the presenter through DataTable.
     /// </summary>
     public sealed class PhieuLotService
     {
-        private readonly IPhieuRepository _phieuRepo;
+        private readonly PhieuService _phieuService;
         private readonly IEventBus _bus;
 
-        public PhieuLotService(IPhieuRepository phieuRepo, IEventBus bus)
+        public PhieuLotService(PhieuService phieuService, IEventBus bus)
         {
-            _phieuRepo = phieuRepo ?? throw new ArgumentNullException(nameof(phieuRepo));
+            _phieuService = phieuService ?? throw new ArgumentNullException(nameof(phieuService));
             _bus = bus ?? throw new ArgumentNullException(nameof(bus));
         }
 
@@ -43,7 +42,7 @@ namespace PCTP.Applications.Services
                 if (stt <= 0 || sl <= 0 || string.IsNullOrWhiteSpace(maHang))
                     continue;
 
-                DataTable trungDt = _phieuRepo.GetDanhSachTrungMaSl(maHang, sl, tenBan, docQRTable);
+                DataTable trungDt = _phieuService.GetDanhSachTrungMaSl(maHang, sl, tenBan, docQRTable);
                 int dem = trungDt == null ? 0 : trungDt.Rows.Count;
                 if (dem == 0)
                     continue;
@@ -58,11 +57,12 @@ namespace PCTP.Applications.Services
                     stt = sttChon;
                 }
 
-                string lot = _phieuRepo.GetLotNo(maHang, stt, dem, sl, docQRTable, tmpTable);
+                string lot = _phieuService.GetLotNo(
+                    maHang, stt, dem, sl, docQRTable, tmpTable);
                 if (string.IsNullOrWhiteSpace(lot))
                     continue;
 
-                _phieuRepo.CapNhapLotTmpPhieu(stt, lot, tenBan);
+                _phieuService.CapNhapLotTmpPhieu(stt, lot, tenBan);
                 results.Add((stt, lot));
             }
 
