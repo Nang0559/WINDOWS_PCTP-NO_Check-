@@ -89,6 +89,12 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
                 QrGrid.DataSource = null;
         }
 
+        public void DetachLegacyFocusedRowChanged(EventHandler<FocusedRowChangedEventArgs> handler)
+        {
+            if (QrView != null && handler != null)
+                QrView.FocusedRowChanged -= handler;
+        }
+
         public void AttachExistingLayout(Control existingLayout)
         {
             if (existingLayout == null)
