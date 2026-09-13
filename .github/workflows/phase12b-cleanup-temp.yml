@@ -1,0 +1,86 @@
+name: phase12b-cleanup-temp
+
+on:
+  push:
+    branches: [ master ]
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply Phase 12B cleanup
+        shell: python
+        run: |
+          from pathlib import Path
+
+          hvn_path = Path('PCTP/Modules/GiaoHangKhach/HVN/HVN_PGH.cs')
+          grid_path = Path('PCTP/Modules/GiaoHangKhach/HVN/Controls/PhieuGridControl.cs')
+
+          hvn = hvn_path.read_text(encoding='utf-8-sig')
+          grid = grid_path.read_text(encoding='utf-8-sig')
+
+          old_grid = '''        public bool HasUnconfirmedRows()\n        {\n            if (GridViewDONHANG.RowCount == 0)\n                return false;\n\n            for (int i = 0; i < GridViewDONHANG.RowCount; i++)\n            {\n                if (GridViewDONHANG.GetRowCellDisplayText(i, "STATUS").Trim() != "OK")\n                    return true;\n            }\n            return false;\n        }\n'''
+          new_grid = old_grid + '''\n        public void RefreshLotRow(int stt, string lot)\n        {\n            for (int i = 0; i < GridViewDONHANG.RowCount; i++)\n            {\n                string sttStr = GridViewDONHANG.GetRowCellDisplayText(i, "STT").Trim();\n                int rowStt;\n                if (!int.TryParse(sttStr, out rowStt) || rowStt != stt)\n                    continue;\n\n                GridViewDONHANG.SetRowCellValue(i, "LOT", lot);\n                GridViewDONHANG.RefreshRow(i);\n                return;\n            }\n        }\n'''
+          if old_grid not in grid:
+              raise SystemExit('Phase 12B: expected PhieuGridControl insertion point not found')
+          grid = grid.replace(old_grid, new_grid, 1)
+
+          replacements = [
+              ('''        public void RefreshLotRow(int stt, string lot)\n        {\n            for (int i = 0; i < GridViewDONHANG.RowCount; i++)\n            {\n                string sttStr = GridViewDONHANG.GetRowCellDisplayText(i, "STT").Trim();\n                if (!int.TryParse(sttStr, out int rowStt) || rowStt != stt) continue;\n\n                GridViewDONHANG.SetRowCellValue(i, "LOT", lot);\n\n                // ── THÊM: refresh dòng ngay để màu green hiện lên ──\n                GridViewDONHANG.RefreshRow(i);\n                return;\n            }\n        }\n''', '''        public void RefreshLotRow(int stt, string lot)\n            => _phieuGridControl.RefreshLotRow(stt, lot);\n'''),
+              ('''        public string GetFocusedDonHangMaHang() =>\n            GridViewDONHANG.GetFocusedRowCellDisplayText("MAHANG").Trim();\n''', '''        public string GetFocusedDonHangMaHang()\n            => _phieuGridControl.GetFocusedMaHang();\n'''),
+              ('''        public bool CoLotDeLuuKho()\n        {\n            for (int i = 0; i < GridViewDONHANG.RowCount; i++)\n                if (GridViewDONHANG.GetRowCellDisplayText(i, "LOT").Trim() != "")\n                    return true;\n            return false;\n        }\n''', '''        public bool CoLotDeLuuKho()\n            => _phieuGridControl.HasLotToSave();\n'''),
+              ('''        public bool CoHangChuaOK()\n        {\n            if (GridViewDONHANG.RowCount == 0) return false;\n            for (int i = 0; i < GridViewDONHANG.RowCount; i++)\n                if (GridViewDONHANG.GetRowCellDisplayText(i, "STATUS").Trim() != "OK")\n                    return true;\n            return false;\n        }\n''', '''        public bool CoHangChuaOK()\n            => _phieuGridControl.HasUnconfirmedRows();\n'''),
+              ('''        private int GetFocusedDonHangStt()\n        {\n            string s = GridViewDONHANG.GetFocusedRowCellDisplayText("STT");\n            return int.TryParse(s, out int v) ? v : -1;\n        }\n''', '''        private int GetFocusedDonHangStt()\n            => _phieuGridControl.GetFocusedStt();\n'''),
+          ]
+
+          for old, new in replacements:
+              if old not in hvn:
+                  raise SystemExit('Phase 12B: expected legacy block not found')
+              hvn = hvn.replace(old, new, 1)
+
+          old_handler = '''                string lot = GridViewDONHANG.GetFocusedRowCellDisplayText("LOT").Trim();\n                if (string.IsNullOrEmpty(lot))\n'''
+          new_handler = '''                string lot = _phieuGridControl.GetFocusedLot();\n                if (string.IsNullOrEmpty(lot))\n'''
+          if old_handler not in hvn:
+              raise SystemExit('Phase 12B: LOT read block not found')
+          hvn = hvn.replace(old_handler, new_handler, 1)
+
+          old_handler2 = '''                string status = GridViewDONHANG.GetFocusedRowCellDisplayText("STATUS").Trim();\n                if (status == "OK")\n'''
+          new_handler2 = '''                string status = _phieuGridControl.GetFocusedStatus();\n                if (status == "OK")\n'''
+          if old_handler2 not in hvn:
+              raise SystemExit('Phase 12B: STATUS read block not found')
+          hvn = hvn.replace(old_handler2, new_handler2, 1)
+
+          old_editor = '''                string status = GridViewDONHANG\n                    .GetFocusedRowCellDisplayText("STATUS").Trim();\n'''
+          new_editor = '''                string status = _phieuGridControl.GetFocusedStatus();\n'''
+          if old_editor not in hvn:
+              raise SystemExit('Phase 12B: LOT editor STATUS block not found')
+          hvn = hvn.replace(old_editor, new_editor, 1)
+
+          old_editor2 = '''                string maHang = GridViewDONHANG\n                    .GetFocusedRowCellDisplayText("MAHANG").Trim();\n                int.TryParse(\n                    GridViewDONHANG.GetFocusedRowCellDisplayText("SOLUONG"),\n                    out int soLuong);\n'''
+          new_editor2 = '''                string maHang = _phieuGridControl.GetFocusedMaHang();\n                int soLuong;\n                int.TryParse(_phieuGridControl.OrderView.GetFocusedRowCellDisplayText("SOLUONG"), out soLuong);\n'''
+          if old_editor2 not in hvn:
+              raise SystemExit('Phase 12B: LOT editor row-value block not found')
+          hvn = hvn.replace(old_editor2, new_editor2, 1)
+
+          hvn_path.write_text(hvn, encoding='utf-8')
+          grid_path.write_text(grid, encoding='utf-8')
+
+      - name: Commit Phase 12B cleanup
+        shell: bash
+        run: |
+          if git diff --quiet -- PCTP/Modules/GiaoHangKhach/HVN/HVN_PGH.cs PCTP/Modules/GiaoHangKhach/HVN/Controls/PhieuGridControl.cs; then
+            echo "No Phase 12B changes needed"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add PCTP/Modules/GiaoHangKhach/HVN/HVN_PGH.cs PCTP/Modules/GiaoHangKhach/HVN/Controls/PhieuGridControl.cs
+          git commit -m "refactor(giaohangkhach): complete phase 12B grid ownership cleanup"
+          git push origin HEAD:master
