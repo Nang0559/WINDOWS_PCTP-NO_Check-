@@ -473,22 +473,24 @@ namespace PCTP.QRCODE_HVN.PGH
         }
 
         public int GetFocusedDocQRStt()
-        {
-            string s = gridVDOCQRCODE.GetFocusedRowCellDisplayText("STT");
-            return int.TryParse(s, out int v) ? v : -1;
-        }
+            => _docQrControl != null ? _docQrControl.GetFocusedStt() : -1;
 
         public (string LotFcc, int SlFcc, int SlHvn) GetFocusedDocQRTemInfo()
+            => _docQrControl != null
+                ? _docQrControl.GetFocusedTemInfo()
+                : (string.Empty, 0, 0);
+
+        public void DeleteFocusedDocQRRow()
         {
-            string lot = gridVDOCQRCODE.GetFocusedRowCellDisplayText("LOTFCC");
-            int.TryParse(gridVDOCQRCODE.GetFocusedRowCellDisplayText("SLTEMFCC"), out int slFcc);
-            int.TryParse(gridVDOCQRCODE.GetFocusedRowCellDisplayText("SLTEMHVN"), out int slHvn);
-            return (lot, slFcc, slHvn);
+            if (_docQrControl != null)
+                _docQrControl.DeleteFocusedRow();
         }
 
-        public void DeleteFocusedDocQRRow() => gridVDOCQRCODE.DeleteSelectedRows();
-
-        public void ClearDocQRRows() => gridCtrDOCQrCODE.DataSource = null;
+        public void ClearDocQRRows()
+        {
+            if (_docQrControl != null)
+                _docQrControl.ClearRows();
+        }
 
         public string GetFocusedDonHangMaHang()
             => _phieuGridControl.GetFocusedMaHang();

@@ -77,7 +77,7 @@ Bridge chỉ được giữ khi nó là **migration boundary thật sự**, ví 
 | 11 | Final header/grid ownership cleanup | ✅ Hoàn thành |
 | 12A | ActionBar | 🟡 Đang hoàn thiện cleanup legacy source |
 | 12B | Grid presentation/state | 🟡 Đã chuyển ownership, đang hoàn tất facade legacy |
-| 12C | DOC QR UI/actions | ⬜ Chưa bắt đầu |
+| 12C | DOC QR UI/actions | ✅ Hoàn thành |
 | 12D | GiaoDB UI/dialog | ⬜ Chưa bắt đầu |
 | 12E | Dialog/Report UI | ⬜ Chưa bắt đầu |
 | 12F | QR input / scan UI | ⬜ Chưa bắt đầu |
@@ -1053,9 +1053,20 @@ owner của order-grid presentation/state
 
 # 23. PHASE 12C – DOC QR UI/actions
 
-**Trạng thái: ⬜ Chưa bắt đầu**
+**Trạng thái: ✅ Hoàn thành**
 
-Chuyển các thao tác UI DOC QR còn lại vào `DocQrControl`:
+Đã chuyển ownership của các thao tác UI DOC QR còn lại vào `DocQrControl`:
+
+```text
+GetFocusedStt
+GetFocusedTemInfo
+DeleteFocusedRow
+ClearRows
+```
+
+`HVN_PGH` chỉ còn facade gọi `DocQrControl`; không còn implementation trực tiếp đọc/xóa/xóa toàn bộ DOC QR grid trong form.
+
+Migration boundary vẫn giữ `gridCtrDOCQrCODE` / `gridVDOCQRCODE` để `Adopt()` tiếp quản control do Designer tạo.
 
 ```text
 GetFocusedDocQRStt
