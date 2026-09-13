@@ -204,6 +204,12 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
             SuaSlFocusedRowChanged.Invoke(this, e);
         }
 
+        public void DetachLegacySuaSlFocusedRowChanged(EventHandler<FocusedRowChangedEventArgs> handler)
+        {
+            if (handler != null)
+                gridVSUASL.FocusedRowChanged -= handler;
+        }
+
         public void BindLech(DataTable data)
         {
             gridCLECH.DataSource = data;
