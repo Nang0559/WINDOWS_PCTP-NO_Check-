@@ -25,6 +25,7 @@ namespace PCTP.Presentation.Presenters
         internal readonly IGiaoDbView GiaoDbView;
         internal readonly IYmvnView YmvnView;
         internal readonly PhieuService PhieuSvc;
+        internal readonly PhieuLotService LotSvc;
         internal readonly DocQRService QrSvc;
         internal readonly InPhieuService InPhieuSvc;
         internal readonly IHangThieuCaNgayService HangThieuCaNgayService;
@@ -42,7 +43,7 @@ namespace PCTP.Presentation.Presenters
         internal bool IsLoadingPhieu;
         internal bool AwaitingPhieuLoadedEvent;
 
-        internal HVNPresenterContext(IHVNView view, PhieuService phieuSvc, DocQRService qrSvc, InPhieuService inPhieuSvc, IHangThieuCaNgayService hangThieuCaNgayService, IGioXuatRepository gioXuatRepo, IEventBus bus, bool isMayBanQR, string tenBan, CustomerConfig cfg, IOrderCategoryResolver categoryResolver)
+        internal HVNPresenterContext(IHVNView view, PhieuService phieuSvc, PhieuLotService lotSvc, DocQRService qrSvc, InPhieuService inPhieuSvc, IHangThieuCaNgayService hangThieuCaNgayService, IGioXuatRepository gioXuatRepo, IEventBus bus, bool isMayBanQR, string tenBan, CustomerConfig cfg, IOrderCategoryResolver categoryResolver)
         {
             View = view ?? throw new ArgumentNullException(nameof(view));
             PhieuView = View;
@@ -50,6 +51,7 @@ namespace PCTP.Presentation.Presenters
             GiaoDbView = View;
             YmvnView = View;
             PhieuSvc = phieuSvc ?? throw new ArgumentNullException(nameof(phieuSvc));
+            LotSvc = lotSvc ?? throw new ArgumentNullException(nameof(lotSvc));
             QrSvc = qrSvc ?? throw new ArgumentNullException(nameof(qrSvc));
             InPhieuSvc = inPhieuSvc ?? throw new ArgumentNullException(nameof(inPhieuSvc));
             HangThieuCaNgayService = hangThieuCaNgayService ?? throw new ArgumentNullException(nameof(hangThieuCaNgayService));
