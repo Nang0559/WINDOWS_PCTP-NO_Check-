@@ -364,15 +364,7 @@ namespace PCTP.QRCODE_HVN.PGH
             _phieuBottomStateControl.SuaSlGrid.Visible = false;
             _phieuBottomStateControl.GhepLotGrid.Visible = false;  // cả 2 đều ẩn khi vào màn hình QR
 
-            UIButton.AllowGlyphSkinning = false;
-            UIButton.Buttons.Clear();
-            UIButton.Buttons.AddRange(new WindowsUIButton[]
-            {
-        new WindowsUIButton { Caption = "Xóa Dòng Được Chọn", Style = ButtonStyle.PushButton, ImageUri = "Delete;Size16x16;Colored" },
-        new WindowsUIButton { Caption = "Xóa Toàn Bộ Dữ Liệu", Style = ButtonStyle.PushButton, ImageUri = "clear;Size16x16;Colored"  },
-        new WindowsUIButton { Caption = "Hoàn Thành",           Style = ButtonStyle.PushButton, ImageUri = "apply;Size16x16;Colored"  }
-            });
-            UIButton.Buttons.Insert(2, new WindowsUISeparator());
+            _phieuActionBarControl.ConfigureDocQr();
 
             txt_DOCQRCODE.Focus();
         }
@@ -413,20 +405,9 @@ namespace PCTP.QRCODE_HVN.PGH
             TXT_HVNTHANH.Text = "";
             _sttSuaSl = 0;
 
-            UIButton.AllowGlyphSkinning = false;
-            UIButton.Buttons.Clear();
-            var b1 = new WindowsUIButton
-            {
-                Caption = _cfg.Delivery.LoadTuBangRieng ? "Show Thông Tin Lệch IFS" : "Kiểm Tra Ghep Lot", // ← SỬA
-                Style = ButtonStyle.PushButton,
-                Image = imageBT.Images[1],
-                Tag = "BTN_GHEPLOT_TOGGLE"   // ← THÊM
-            };
-            var b2 = new WindowsUIButton { Caption = "In Phiếu", Style = ButtonStyle.PushButton, ImageUri = "Print;Size16x16;Colored" };
-            var b3 = new WindowsUIButton { Caption = "DOC QRCODE", Style = ButtonStyle.PushButton, ImageUri = "IndentIncrease;Size16x16;Colored" };
-
-            UIButton.Buttons.AddRange(new WindowsUIButton[] { b3, b1, b2 });
-            UIButton.Buttons.Insert(1, new WindowsUISeparator());
+            _phieuActionBarControl.ConfigurePhieuView(
+                _cfg.Delivery.LoadTuBangRieng ? "Show Thông Tin Lệch IFS" : "Kiểm Tra Ghep Lot",
+                imageBT.Images);
 
         }
         // ── Bind radio từ DB — gọi TRƯỚC khi gắn event ──────────────────────────
@@ -444,20 +425,7 @@ namespace PCTP.QRCODE_HVN.PGH
         // ── Chuyển về màn hình phiếu GIAO DB ────────────────────────────────
         public void SwitchToPhieuDBView()
         {
-            UIButton.AllowGlyphSkinning = false;
-            UIButton.Buttons.Clear();
-            UIButton.Buttons.AddRange(new WindowsUIButton[]
-    {
-        new WindowsUIButton { Caption = "Upload Đơn Hàng",
-            Style = ButtonStyle.PushButton,
-            ImageUri = "Import;Size16x16;Colored" },
-        new WindowsUIButton { Caption = "DOC QRCODE",
-            Style = ButtonStyle.PushButton,
-            ImageUri = "IndentIncrease;Size16x16;Colored" },
-        new WindowsUIButton { Caption = "In Phiếu",
-            Style = ButtonStyle.PushButton,
-            ImageUri = "Print;Size16x16;Colored" }
-            });
+            _phieuActionBarControl.ConfigureGiaoDb();
         }
 
         // ── Cấu hình nút phiếu thường (có thể ẩn/hiện CNK và KiemTraMaNG) ──
@@ -469,93 +437,16 @@ namespace PCTP.QRCODE_HVN.PGH
                                        bool showLayLaiLot = false,
                                        bool showStop = false, bool showHangThieuCaNgay = true)
         {
-            UIButton.AllowGlyphSkinning = false;
-            UIButton.Buttons.Clear();
-
-            // Nút luôn có trên tất cả máy
-            UIButton.Buttons.Add(new WindowsUIButton
-            {
-                Caption = "In Phiếu",
-                Style = ButtonStyle.PushButton,
-                ImageUri = "Print;Size16x16;Colored"
-            });
-            UIButton.Buttons.Add(new WindowsUIButton
-            {
-                Caption = "In Ghép Lot",
-                Style = ButtonStyle.PushButton,
-                ImageUri = "Print;Size16x16;Colored"
-            });
-            UIButton.Buttons.Add(new WindowsUIButton
-            {
-                Caption = "In Tách Lot",
-                Style = ButtonStyle.PushButton,
-                ImageUri = "Print;Size16x16;Colored"
-            });
-            if (showHangThieuCaNgay)
-                UIButton.Buttons.Add(new WindowsUIButton
-                {
-                    Caption = "Xem Hàng Thiếu Cả Ngày",
-                    Style = ButtonStyle.PushButton,
-                    ImageUri = "Find;Size16x16;Colored"
-                });
-            UIButton.Buttons.Insert(0, new WindowsUISeparator());
-
-            // Nút chỉ máy bắn QR
-            if (showDocQRCode)
-                UIButton.Buttons.Insert(0, new WindowsUIButton
-                {
-                    Caption = "DOC QRCODE",
-                    Style = ButtonStyle.PushButton,
-                    ImageUri = "IndentIncrease;Size16x16;Colored"
-                });
-            if (showLayLaiLot)
-                UIButton.Buttons.Insert(0, new WindowsUIButton
-                {
-                    Caption = "Lấy Lại Lot",
-                    Style = ButtonStyle.PushButton,
-                    ImageUri = "IndentIncrease;Size16x16;Colored"
-                });
-            if (showGhepLot)
-                UIButton.Buttons.Add(new WindowsUIButton
-                {
-                    Caption = _cfg.Delivery.LoadTuBangRieng ? "Show Thông Tin Lệch IFS" : "Kiểm Tra Ghep Lot",
-                    Style = ButtonStyle.PushButton,
-                    Image = imageBT.Images[1],
-                    Tag = "BTN_GHEPLOT_TOGGLE"   // ← THÊM: định danh cố định, không phụ thuộc Caption
-                });
-
-            if (showCapNhapKho)
-                UIButton.Buttons.Add(new WindowsUIButton
-                {
-                    Caption = "Cập Nhập Kho",
-                    Style = ButtonStyle.PushButton,
-                    ImageUri = "Save;Size16x16;Colored"
-                });
-
-            if (showKiemTraMaNG)
-                UIButton.Buttons.Add(new WindowsUIButton
-                {
-                    Caption = "Kiểm tra mã NG",
-                    Style = ButtonStyle.PushButton,
-                    ImageUri = "SpellCheckAsYouType;Size16x16;Colored"
-                });
-
-            if (showStop)
-            {
-                UIButton.Buttons.Add(new WindowsUISeparator());
-                UIButton.Buttons.Add(new WindowsUIButton
-                {
-                    Caption = "Ghi Chú STOP",
-                    Style = ButtonStyle.PushButton,
-                    ImageUri = "Warning;Size16x16;Colored"
-                });
-                UIButton.Buttons.Add(new WindowsUIButton
-                {
-                    Caption = "Xóa Ghi Chú STOP",
-                    Style = ButtonStyle.PushButton,
-                    ImageUri = "Clear;Size16x16;Colored"
-                });
-            }
+            _phieuActionBarControl.ConfigureNormal(
+                _cfg.Delivery.LoadTuBangRieng ? "Show Thông Tin Lệch IFS" : "Kiểm Tra Ghep Lot",
+                showCapNhapKho,
+                showKiemTraMaNG,
+                showGhepLot,
+                showDocQRCode,
+                showLayLaiLot,
+                showStop,
+                showHangThieuCaNgay,
+                imageBT.Images);
         }
 
         // ════════════════════════════════════════════════════════════════════
