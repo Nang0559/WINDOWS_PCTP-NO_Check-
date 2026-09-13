@@ -1,3 +1,5 @@
+using System;
+
 namespace PCTP.Modules.KhoCore.Application.Contracts.Stock
 {
     /// <summary>
@@ -21,5 +23,7 @@ namespace PCTP.Modules.KhoCore.Application.Contracts.Stock
         public int Status { get; set; }
         public string Model { get; set; }
         public string ProductionCase { get; set; }
+        public DateTime? ProductionDate { get; set; }
+        public int ProductionQuantity { get; set; }
     }
 }
