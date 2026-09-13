@@ -94,8 +94,13 @@ namespace PCTP.QRCODE_HVN.PGH
             if (existingDataSource != null) _docQrControl.QrGrid.DataSource = existingDataSource;
             gridCtrDOCQrCODE = _docQrControl.QrGrid;
             gridVDOCQRCODE = _docQrControl.QrView;
-            gridVDOCQRCODE.FocusedRowChanged -= gridVDOCQRCODE_FocusedRowChanged;
-            gridVDOCQRCODE.FocusedRowChanged += gridVDOCQRCODE_FocusedRowChanged;
+            _docQrControl.FocusedRowChanged -= DocQrControl_FocusedRowChanged;
+            _docQrControl.FocusedRowChanged += DocQrControl_FocusedRowChanged;
+        }
+
+        private void DocQrControl_FocusedRowChanged(object sender, DevExpress.XtraGrid.Views.Base.FocusedRowChangedEventArgs e)
+        {
+            gridVDOCQRCODE_FocusedRowChanged(sender, e);
         }
 
         private void MigratePhieuActionBarToUserControl()
