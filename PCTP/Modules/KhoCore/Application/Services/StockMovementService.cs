@@ -11,6 +11,8 @@ namespace PCTP.Modules.KhoCore.Application.Services
     /// </summary>
     public sealed class StockMovementService : IStockMovementService
     {
+        private const string MovementReworkNgReceive = "REWORK_NG_RECEIVE";
+
         private readonly IStockBalanceRepository _balance;
         private readonly IStockSlotRepository _slots;
 
@@ -121,8 +123,22 @@ namespace PCTP.Modules.KhoCore.Application.Services
                     request.Quantity,
                     request.ItemCode);
 
-                if (adjustAvailable && !string.IsNullOrWhiteSpace(request.LotNo))
-                    _balance.AdjustAvailableQuantity(request.LotNo, request.Quantity);
+                // NG sau rework được giữ trong khu NG/quarantine và tuyệt đối
+                // không làm tăng STOCKTP khả dụng.
+                bool isQuarantineReceive =
+                    string.Equals(
+                        request.MovementType,
+                        MovementReworkNgReceive,
+                        StringComparison.OrdinalIgnoreCase);
+
+                if (adjustAvailable &&
+                    !isQuarantineReceive &&
+                    !string.IsNullOrWhiteSpace(request.LotNo))
+                {
+                    _balance.AdjustAvailableQuantity(
+                        request.LotNo,
+                        request.Quantity);
+                }
 
                 return StockMovementResult.Ok("Đã nhập tồn kho.");
             }
