@@ -38,8 +38,11 @@ Build baseline hiện tại:
 - [ ] KhoCore trở thành owner duy nhất của Slot/SlotLot/STOCKTP/StockHistory
 - [x] Stop creating new business dependencies on `Modules.KhoVatLy`
 - [ ] Migrate reusable physical warehouse infrastructure from KhoVatLy into KhoCore
-- [x] Split Slot query, stock command and UI adapters
+- [x] Define clean Slot query contract and legacy adapter boundary
+- [x] Define clean stock movement contract boundary
 - [x] Remove DataTable/UI dependencies from new core application contracts
+- [ ] Migrate existing `SlotService` callers off the legacy contract
+- [ ] Normalize `ISlotRepository`/`SlotRepository` namespace to KhoCore
 
 ### Phase 2 migration rule
 
@@ -56,9 +59,11 @@ Chiều phụ thuộc được phép là **adapter legacy -> KhoCore contract**.
 
 `ISlotQueryService` là boundary đọc mới của KhoCore. `KhoCoreSlotQueryAdapter` nằm phía KhoVatLy để bọc implementation cũ. Adapter sẽ bị xóa sau khi toàn bộ caller được migrate.
 
+`IStockMovementService` là boundary ghi mới. Chưa coi Phase 3 hoàn tất cho đến khi `StockExportService`, `NhapKho` và `XuLyHangLoi` thực sự chuyển write path sang boundary này.
+
 ### Gate
 
-Không chuyển sang Phase 3 nếu còn business module ghi trực tiếp `Slot`, `SlotLot` hoặc `STOCKTP`.
+Không chuyển sang Phase 3 hoàn tất nếu còn business module ghi trực tiếp `Slot`, `SlotLot` hoặc `STOCKTP`.
 
 ## Phase 3 - Central StockMovement
 
@@ -76,6 +81,8 @@ IStockMovementService
 ```
 
 Every command must be transactional, auditable and idempotent.
+
+Current status: **contract created; implementation/migration is next**.
 
 ### Gate
 
