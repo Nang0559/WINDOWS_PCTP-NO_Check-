@@ -40,6 +40,7 @@ Build baseline hiện tại:
 - [ ] Migrate reusable physical warehouse infrastructure from KhoVatLy into KhoCore
 - [x] Define clean Slot query contract and legacy adapter boundary
 - [x] Define clean stock movement contract boundary
+- [x] Define clean stock-balance persistence port and legacy adapter boundary
 - [x] Remove DataTable/UI dependencies from new core application contracts
 - [ ] Migrate existing `SlotService` callers off the legacy contract
 - [ ] Normalize `ISlotRepository`/`SlotRepository` namespace to KhoCore
@@ -52,14 +53,16 @@ Trong giai đoạn chuyển tiếp:
 Business module
     -> KhoCore.Application.Contracts
     -> legacy adapter (nếu chưa migrate xong)
-    -> KhoVatLy storage
+    -> legacy storage
 ```
 
 Chiều phụ thuộc được phép là **adapter legacy -> KhoCore contract**. Không được tạo chiều ngược lại `KhoCore -> KhoVatLy`.
 
 `ISlotQueryService` là boundary đọc mới của KhoCore. `KhoCoreSlotQueryAdapter` nằm phía KhoVatLy để bọc implementation cũ. Adapter sẽ bị xóa sau khi toàn bộ caller được migrate.
 
-`IStockMovementService` là boundary ghi mới. Chưa coi Phase 3 hoàn tất cho đến khi `StockExportService`, `NhapKho` và `XuLyHangLoi` thực sự chuyển write path sang boundary này.
+`IStockMovementService` là boundary ghi mới. `IStockBalanceRepository` hiện là port persistence tối thiểu cho STOCKTP; `StockExportRepositoryAdapter` đang bọc implementation legacy của XuatKho. Đây là bước trung gian để di chuyển write path mà không đưa `XuatKho` dependency vào KhoCore.
+
+Chưa coi Phase 3 hoàn tất cho đến khi implementation thực sự sở hữu transaction và `StockExportService`, `NhapKho`, `XuLyHangLoi` chuyển toàn bộ stock write path sang boundary này.
 
 ### Gate
 
@@ -82,7 +85,18 @@ IStockMovementService
 
 Every command must be transactional, auditable and idempotent.
 
-Current status: **contract created; implementation/migration is next**.
+Current status: **contracts and migration ports exist; implementation/migration is active**.
+
+Current transitional path:
+
+```text
+XuatKho
+    -> IStockMovementService / IStockBalanceRepository contracts
+    -> legacy adapter
+    -> existing XuatKho/Kho storage
+```
+
+The adapter is intentionally transitional. It does **not** claim that the single-writer rule is complete.
 
 ### Gate
 
