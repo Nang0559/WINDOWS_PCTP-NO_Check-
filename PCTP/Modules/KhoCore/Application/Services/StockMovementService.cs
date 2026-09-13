@@ -11,8 +11,6 @@ namespace PCTP.Modules.KhoCore.Application.Services
     /// </summary>
     public sealed class StockMovementService : IStockMovementService
     {
-        private const string MovementReworkNgReceive = "REWORK_NG_RECEIVE";
-
         private readonly IStockBalanceRepository _balance;
         private readonly IStockSlotRepository _slots;
 
@@ -66,6 +64,9 @@ namespace PCTP.Modules.KhoCore.Application.Services
                 string itemCode = request.ItemCode;
                 if (string.IsNullOrWhiteSpace(itemCode))
                     itemCode = _slots.GetItemCode(request.SlotLotId.Value);
+
+                if (string.IsNullOrWhiteSpace(itemCode))
+                    return StockMovementResult.Fail("Không xác định được ItemCode của SlotLot nguồn.");
 
                 _slots.DecreaseLotQuantity(request.SlotLotId.Value, request.Quantity);
                 _slots.AddQuantity(request.TargetSlotId.Value, request.Quantity, itemCode);
@@ -123,12 +124,10 @@ namespace PCTP.Modules.KhoCore.Application.Services
                     request.Quantity,
                     request.ItemCode);
 
-                // NG sau rework được giữ trong khu NG/quarantine và tuyệt đối
-                // không làm tăng STOCKTP khả dụng.
                 bool isQuarantineReceive =
                     string.Equals(
                         request.MovementType,
-                        MovementReworkNgReceive,
+                        StockMovementRequest.Types.ReworkNgReceive,
                         StringComparison.OrdinalIgnoreCase);
 
                 if (adjustAvailable &&
