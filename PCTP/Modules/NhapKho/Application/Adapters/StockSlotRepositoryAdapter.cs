@@ -94,12 +94,14 @@ namespace PCTP.Modules.NhapKho.Application.Adapters
             _legacy.UpdateSlotHeaderFromLots(slotId, lots);
         }
 
-        public StockSlotTakeResult TakeLot(int slotId, string lotNo, int quantity)
+        public StockSlotTakeResult TakeLot(int slotId, string lotNo, string itemCode, int quantity)
         {
             if (slotId <= 0)
                 throw new ArgumentOutOfRangeException(nameof(slotId));
             if (string.IsNullOrWhiteSpace(lotNo))
                 throw new ArgumentException("LotNo không được rỗng.", nameof(lotNo));
+            if (string.IsNullOrWhiteSpace(itemCode))
+                throw new ArgumentException("ItemCode không được rỗng.", nameof(itemCode));
             if (quantity <= 0)
                 throw new ArgumentOutOfRangeException(nameof(quantity));
 
@@ -107,13 +109,15 @@ namespace PCTP.Modules.NhapKho.Application.Adapters
             var matched = lots
                 .Where(x => x.Quantity > 0)
                 .Where(x => LotCodeHelper.AreLotKeysEquivalent(x.LotNo, lotNo))
+                .Where(x => string.Equals(x.ItemCode, itemCode, StringComparison.OrdinalIgnoreCase))
                 .OrderBy(x => x.ImportDate ?? DateTime.MaxValue)
                 .ToList();
 
             var available = matched.Sum(x => x.Quantity);
             if (available < quantity)
                 throw new InvalidOperationException(
-                    string.Format("LOT [{0}] trong Slot {1} chỉ còn {2}, không đủ {3}.", lotNo, slotId, available, quantity));
+                    string.Format("LOT [{0}] / Item [{1}] trong Slot {2} chỉ còn {3}, không đủ {4}.",
+                        lotNo, itemCode, slotId, available, quantity));
 
             var split = LotNoHelper.SubtractLots(matched, quantity);
             var matchedSet = new HashSet<LotInfo>(matched);
