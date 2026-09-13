@@ -122,16 +122,35 @@ namespace PCTP.QRCODE_HVN.PGH
         {
             if (_docQrInputControl != null || txt_DOCQRCODE == null)
                 return;
+
             _docQrInputControl = new DocQrInputControl();
             _docQrInputControl.Visible = false;
             Controls.Add(_docQrInputControl);
             _docQrInputControl.Adopt(txt_DOCQRCODE);
+
+            // 12F: the input boundary owns Enter/Submit. Do not let the legacy
+            // form handler publish a second QRCodeSubmitted event.
+            txt_DOCQRCODE.KeyPress -= txt_DOCQRCODE_KeyPress;
             _docQrInputControl.Submitted += DocQrInputControl_Submitted;
         }
 
         private void DocQrInputControl_Submitted(object sender, string value)
         {
             QRCodeSubmitted.Invoke(this, value);
+        }
+
+        protected override void OnFormClosed(FormClosedEventArgs e)
+        {
+            if (_docQrInputControl != null)
+                _docQrInputControl.Submitted -= DocQrInputControl_Submitted;
+            if (_docQrControl != null)
+                _docQrControl.QrView.FocusedRowChanged -= gridVDOCQRCODE_FocusedRowChanged;
+            if (_phieuGridControl != null)
+                _phieuGridControl.OrderView.RowCellStyle -= GridViewDONHANG_RowCellStyle;
+            if (txt_DOCQRCODE != null)
+                txt_DOCQRCODE.KeyPress -= txt_DOCQRCODE_KeyPress;
+
+            base.OnFormClosed(e);
         }
     }
 }
