@@ -187,8 +187,7 @@ namespace PCTP.Applications.Services
                 int demQR = _phieuRepo.CountDocQRCode(docQRTable);
                 if (demQR > 0)
                 {
-                    string tmpTable = _cfg.Delivery.GetTmpTable(isSP);
-                    DataTable current = _phieuRepo.LoadTuTmpTable(tmpTable);
+                    DataTable current = _workingState.LoadCurrentOrder(context);
                     return BuildTableResult(context, current, gioMoTa, false);
                 }
             }
@@ -216,7 +215,6 @@ namespace PCTP.Applications.Services
         {
             bool isSP = context.Category == OrderCategory.SP;
 
-            // Phase 6: tính đúng một lần trong load pipeline và đưa kết quả vào contract.
             DataTable hangThieu = _phieuRepo.TinhHangThieuTuDonHang(donHang)
                 ?? new DataTable();
 
