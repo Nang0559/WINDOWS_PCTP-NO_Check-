@@ -8,9 +8,6 @@ using PCTP.Shared.Helpers;
 
 namespace PCTP.Modules.NhapKho.Application.Adapters
 {
-    /// <summary>
-    /// Transitional NhapKho adapter for the central LOT-aware stock port.
-    /// </summary>
     public sealed class StockSlotRepositoryAdapter : IStockSlotRepository
     {
         private readonly ISlotService _legacy;
@@ -108,21 +105,20 @@ namespace PCTP.Modules.NhapKho.Application.Adapters
             var lots = _legacy.GetLots(slotId) ?? new List<LotInfo>();
             var matched = lots
                 .Where(x => x.Quantity > 0)
-                .Where(x => LotCodeHelper.AreLotKeysEquivalent(x.LotNo, lotNo))
+                .Where(x => string.Equals(x.LotNo, lotNo, StringComparison.OrdinalIgnoreCase))
                 .OrderBy(x => x.ImportDate ?? DateTime.MaxValue)
                 .ToList();
 
             var available = matched.Sum(x => x.Quantity);
             if (available < quantity)
                 throw new InvalidOperationException(
-                    string.Format("LOT [{0}] trong Slot {1} chỉ còn {2}, không đủ {3}.",
-                        lotNo, slotId, available, quantity));
+                    string.Format("LOT [{0}] trong Slot {1} chỉ còn {2}, không đủ {3}.", lotNo, slotId, available, quantity));
 
             var split = LotNoHelper.SubtractLots(matched, quantity);
             var matchedSet = new HashSet<LotInfo>(matched);
             var others = lots.Where(x => !matchedSet.Contains(x)).ToList();
-
             var merged = others.Concat(split.RemainingLots).ToList();
+
             _legacy.SaveLots(slotId, merged);
             _legacy.UpdateSlotHeaderFromLots(slotId, merged);
 
