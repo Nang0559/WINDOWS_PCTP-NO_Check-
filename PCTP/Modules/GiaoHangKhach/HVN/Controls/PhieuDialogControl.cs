@@ -23,6 +23,25 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
                 return owner == null ? form.ShowDialog() : form.ShowDialog(owner);
         }
 
+        public int ShowChonSttTrungMa(DataTable danhSachTrung)
+        {
+            if (danhSachTrung == null || danhSachTrung.Rows.Count == 0)
+                return -1;
+
+            var danhSach = new ListView();
+            foreach (DataRow row in danhSachTrung.Rows)
+            {
+                danhSach.Items.Add(new ListViewItem(new[]
+                {
+                    row["STT"].ToString(), row["GIOGIAO"].ToString(),
+                    row["MAHANG"].ToString(), row["TENHANG"].ToString(),
+                    row["SOLUONG"].ToString(), row["STATUS"].ToString()
+                }));
+            }
+
+            return ShowChonSttTrungMa(danhSach);
+        }
+
         public int ShowChonSttTrungMa(ListView danhSachTrung)
         {
             using (var form = new FRM_LISTRUNGMSL(danhSachTrung))
