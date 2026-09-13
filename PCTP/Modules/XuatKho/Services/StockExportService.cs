@@ -50,44 +50,41 @@ namespace PCTP.Modules.XuatKho.Services
             if (!validation.IsValid)
                 return MapFail(validation);
 
+            if (_stockMovement == null)
+                return StockExportResult.Fail("Chưa cấu hình IStockMovementService cho XuatKho.");
+
             _uow.Begin();
             try
             {
                 int slotId = request.SlotId.Value;
-
                 _slotService.LockSlotForUpdate(slotId);
 
-                var allLots = _slotService.GetLots(slotId);
-                var matched = allLots
-                    .Where(l => l.Quantity > 0)
-                    .Where(l => LotCodeHelper.AreLotKeysEquivalent(l.LotNo, request.LotNo))
-                    .OrderBy(l => l.ImportDate ?? DateTime.MaxValue)
-                    .ToList();
+                var movement = _stockMovement.Pick(new StockMovementRequest
+                {
+                    MovementType = StockMovementRequest.Types.Pick,
+                    SlotId = slotId,
+                    LotNo = request.LotNo,
+                    ItemCode = request.ItemCode,
+                    Quantity = request.Quantity,
+                    ReferenceType = request.ReferenceType,
+                    ReferenceId = request.ReferenceId,
+                    PerformedBy = request.NguoiThucHien,
+                    OccurredAt = DateTime.Now,
+                    Reason = "PICK_CHO_GIAO"
+                });
 
-                var others = allLots
-                    .Where(l => l.Quantity > 0 && !LotCodeHelper.AreLotKeysEquivalent(l.LotNo, request.LotNo))
-                    .ToList();
-
-                int tonThuc = matched.Sum(l => l.Quantity);
-                if (tonThuc < request.Quantity)
+                if (!movement.Success)
                 {
                     _uow.Rollback();
-                    return StockExportResult.InsufficientStock(
-                        $"LOT [{request.LotNo}] trong Slot chỉ còn {tonThuc}, không đủ {request.Quantity} để pick.");
+                    return StockExportResult.InsufficientStock(movement.Message);
                 }
 
-                var split = LotNoHelper.SubtractLots(matched, request.Quantity);
-                var remaining = others.Concat(split.RemainingLots).ToList();
-
-                _slotService.SaveLots(slotId, remaining);
-                _slotService.UpdateSlotHeaderFromLots(slotId, remaining);
-
-                var firstExported = split.ExportLots.FirstOrDefault();
+                var firstExported = movement.ConsumedLots.FirstOrDefault();
 
                 var hangChoGiao = new HangChoGiao
                 {
                     LotGoc = request.LotNo,
-                    LotThung = firstExported?.TemCode,
+                    LotThung = firstExported == null ? null : firstExported.TemCode,
                     MaHang = request.ItemCode,
                     SoLuong = request.Quantity,
                     SlotIdNguon = slotId,
@@ -122,8 +119,13 @@ namespace PCTP.Modules.XuatKho.Services
 
                 _uow.Commit();
 
-                var items = split.ExportLots
-                    .Select(l => new StockExportItem { LotNo = l.LotNo, SoLuong = l.Quantity, SlotId = slotId })
+                var items = movement.ConsumedLots
+                    .Select(l => new StockExportItem
+                    {
+                        LotNo = l.LotNo,
+                        SoLuong = l.Quantity,
+                        SlotId = slotId
+                    })
                     .ToList();
 
                 return StockExportResult.Ok(items,
@@ -204,7 +206,10 @@ namespace PCTP.Modules.XuatKho.Services
                 _uow.Commit();
 
                 return StockExportResult.Ok(
-                    new List<StockExportItem> { new StockExportItem { LotNo = item.LotGoc, SoLuong = item.SoLuong } },
+                    new List<StockExportItem>
+                    {
+                        new StockExportItem { LotNo = item.LotGoc, SoLuong = item.SoLuong }
+                    },
                     message: $"Đã xác nhận giao {item.SoLuong} SP LOT [{item.LotGoc}].");
             }
             catch (Exception ex)
@@ -219,6 +224,9 @@ namespace PCTP.Modules.XuatKho.Services
             var validation = _validationService.ValidateXuatTrucTiep(request);
             if (!validation.IsValid)
                 return MapFail(validation);
+
+            if (_stockMovement == null)
+                return StockExportResult.Fail("Chưa cấu hình IStockMovementService cho XuatKho.");
 
             _uow.Begin();
             try
@@ -239,35 +247,26 @@ namespace PCTP.Modules.XuatKho.Services
 
                 _slotService.LockSlotForUpdate(slotId);
 
-                var allLots = _slotService.GetLots(slotId);
-                var matched = allLots
-                    .Where(l => l.Quantity > 0)
-                    .Where(l => LotCodeHelper.AreLotKeysEquivalent(l.LotNo, request.LotNo))
-                    .OrderBy(l => l.ImportDate ?? DateTime.MaxValue)
-                    .ToList();
+                var pick = _stockMovement.Pick(new StockMovementRequest
+                {
+                    MovementType = StockMovementRequest.Types.Pick,
+                    SlotId = slotId,
+                    LotNo = request.LotNo,
+                    ItemCode = request.ItemCode,
+                    Quantity = request.Quantity,
+                    ReferenceType = request.ReferenceType,
+                    ReferenceId = request.ReferenceId,
+                    PerformedBy = request.NguoiThucHien,
+                    OccurredAt = DateTime.Now,
+                    Reason = request.Purpose == StockTransactionType.XuatRework
+                        ? "PICK_REWORK"
+                        : "PICK_XUAT_TRUC_TIEP"
+                });
 
-                var others = allLots
-                    .Where(l => l.Quantity > 0 && !LotCodeHelper.AreLotKeysEquivalent(l.LotNo, request.LotNo))
-                    .ToList();
-
-                int tonThuc = matched.Sum(l => l.Quantity);
-                if (tonThuc < request.Quantity)
+                if (!pick.Success)
                 {
                     _uow.Rollback();
-                    return StockExportResult.InsufficientStock(
-                        $"LOT [{request.LotNo}] trong Slot chỉ còn {tonThuc}, không đủ {request.Quantity}.");
-                }
-
-                var split = LotNoHelper.SubtractLots(matched, request.Quantity);
-                var remaining = others.Concat(split.RemainingLots).ToList();
-
-                _slotService.SaveLots(slotId, remaining);
-                _slotService.UpdateSlotHeaderFromLots(slotId, remaining);
-
-                if (_stockMovement == null)
-                {
-                    _uow.Rollback();
-                    return StockExportResult.Fail("Chưa cấu hình IStockMovementService cho XuatKho.");
+                    return StockExportResult.InsufficientStock(pick.Message);
                 }
 
                 var movement = _stockMovement.Export(new StockMovementRequest
@@ -315,8 +314,13 @@ namespace PCTP.Modules.XuatKho.Services
 
                 _uow.Commit();
 
-                var items = split.ExportLots
-                    .Select(l => new StockExportItem { LotNo = l.LotNo, SoLuong = l.Quantity, SlotId = slotId })
+                var items = pick.ConsumedLots
+                    .Select(l => new StockExportItem
+                    {
+                        LotNo = l.LotNo,
+                        SoLuong = l.Quantity,
+                        SlotId = slotId
+                    })
                     .ToList();
 
                 return StockExportResult.Ok(items,
@@ -350,36 +354,34 @@ namespace PCTP.Modules.XuatKho.Services
             string itemCode = null,
             string actionType = "EXPORT")
         {
+            if (_stockMovement == null)
+                throw new InvalidOperationException("Chưa cấu hình IStockMovementService cho XuatKho.");
+            if (string.IsNullOrWhiteSpace(itemCode))
+                throw new ArgumentException("itemCode là bắt buộc khi ExportFromSlot chuyển sang central stock movement.", nameof(itemCode));
+
             var currentLots = _slotService.GetLots(slotId);
             var result = LotNoHelper.SubtractLots(currentLots, exportQty);
             _uow.Begin();
             try
             {
-                _slotService.SaveLots(slotId, result.RemainingLots);
-                _slotService.UpdateSlotHeaderFromLots(slotId, result.RemainingLots);
+                _slotService.LockSlotForUpdate(slotId);
 
-                if (_stockMovement != null && !string.IsNullOrWhiteSpace(itemCode))
+                foreach (var exported in result.ExportLots)
                 {
-                    foreach (var exported in result.ExportLots)
+                    var movement = _stockMovement.Pick(new StockMovementRequest
                     {
-                        var movement = _stockMovement.Export(new StockMovementRequest
-                        {
-                            MovementType = StockMovementRequest.Types.Export,
-                            LotNo = exported.LotNo,
-                            ItemCode = itemCode,
-                            Quantity = exported.Quantity,
-                            PerformedBy = null,
-                            OccurredAt = DateTime.Now,
-                            Reason = actionType
-                        });
+                        MovementType = StockMovementRequest.Types.Pick,
+                        SlotId = slotId,
+                        LotNo = exported.LotNo,
+                        ItemCode = itemCode,
+                        Quantity = exported.Quantity,
+                        OccurredAt = DateTime.Now,
+                        Reason = actionType
+                    });
 
-                        if (!movement.Success)
-                        {
-                            _uow.Rollback();
-                            throw new InvalidOperationException(
-                                "Không thể trừ STOCKTP sau khi split LOT: " + movement.Message);
-                        }
-                    }
+                    if (!movement.Success)
+                        throw new InvalidOperationException(
+                            "Không thể pick LOT qua central stock movement: " + movement.Message);
                 }
 
                 _uow.Commit();
