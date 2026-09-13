@@ -112,21 +112,28 @@ namespace PCTP.QRCODE_HVN.PGH
 
         private void HandleLayLaiLotAction()
         {
-            int stt = GetFocusedDonHangStt();
+            int stt = _phieuGridControl != null
+                ? _phieuGridControl.GetFocusedStt()
+                : -1;
+
             if (stt < 0)
             {
                 ShowInfo("Vui lòng chọn dòng cần lấy lại LOT trên danh sách đơn hàng!");
                 return;
             }
 
-            string lot = GridViewDONHANG.GetFocusedRowCellDisplayText("LOT").Trim();
+            string lot = _phieuGridControl != null
+                ? _phieuGridControl.OrderView.GetFocusedRowCellDisplayText("LOT").Trim()
+                : string.Empty;
+
             if (string.IsNullOrEmpty(lot))
             {
                 ShowInfo("Dòng này chưa có LOT, không cần lấy lại!");
                 return;
             }
 
-            string status = GridViewDONHANG.GetFocusedRowCellDisplayText("STATUS").Trim();
+            string status = _phieuGridControl.OrderView
+                .GetFocusedRowCellDisplayText("STATUS").Trim();
             if (status == "OK")
             {
                 ShowInfo("Dòng này đã được Cập Nhập Kho, không thể lấy lại LOT!");
@@ -138,7 +145,9 @@ namespace PCTP.QRCODE_HVN.PGH
 
         private void HandleStopAction(string value)
         {
-            int stt = GetFocusedDonHangStt();
+            int stt = _phieuGridControl != null
+                ? _phieuGridControl.GetFocusedStt()
+                : -1;
             if (stt < 0)
                 return;
 
