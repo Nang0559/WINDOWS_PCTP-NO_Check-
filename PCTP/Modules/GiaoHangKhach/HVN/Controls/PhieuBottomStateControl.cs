@@ -216,6 +216,14 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
             gridCTTGL.BringToFront();
         }
 
+        public void ToggleLechGhepLot()
+        {
+            if (gridCLECH.Visible)
+                ShowGhepLot();
+            else
+                ShowLech();
+        }
+
         public void ShowSuaSoLuong()
         {
             gridCLECH.Visible = false;
