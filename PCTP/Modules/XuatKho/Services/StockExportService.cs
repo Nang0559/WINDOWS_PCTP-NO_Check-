@@ -44,9 +44,6 @@ namespace PCTP.Modules.XuatKho.Services
             _stockMovement = stockMovement;
         }
 
-        // ════════════════════════════════════════════════════════════════
-        // TRƯỜNG HỢP 1 — BƯỚC 1: Xuất khỏi Slot → chờ giao (KHÔNG trừ STOCKTP)
-        // ════════════════════════════════════════════════════════════════
         public StockExportResult PickToChoGiao(StockExportRequest request)
         {
             var validation = _validationService.ValidatePickToChoGiao(request);
@@ -139,9 +136,6 @@ namespace PCTP.Modules.XuatKho.Services
             }
         }
 
-        // ════════════════════════════════════════════════════════════════
-        // TRƯỜNG HỢP 1 — BƯỚC 2: Giao thật → trừ STOCKTP qua KhoCore
-        // ════════════════════════════════════════════════════════════════
         public StockExportResult ConfirmGiaoHangTuChoGiao(int hangChoGiaoId, string nguoiGiao)
         {
             if (_stockMovement == null)
@@ -220,9 +214,6 @@ namespace PCTP.Modules.XuatKho.Services
             }
         }
 
-        // ════════════════════════════════════════════════════════════════
-        // TRƯỜNG HỢP 2 (A0 giao thẳng) + TRƯỜNG HỢP 3 (NG → rework)
-        // ════════════════════════════════════════════════════════════════
         public StockExportResult XuatTrucTiep(StockExportRequest request)
         {
             var validation = _validationService.ValidateXuatTrucTiep(request);
@@ -385,7 +376,8 @@ namespace PCTP.Modules.XuatKho.Services
                         if (!movement.Success)
                         {
                             _uow.Rollback();
-                            return LotSplitResult.Fail(movement.Message);
+                            throw new InvalidOperationException(
+                                "Không thể trừ STOCKTP sau khi split LOT: " + movement.Message);
                         }
                     }
                 }
