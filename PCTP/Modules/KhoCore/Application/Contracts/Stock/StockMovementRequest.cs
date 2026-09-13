@@ -23,16 +23,9 @@ namespace PCTP.Modules.KhoCore.Application.Contracts.Stock
         }
 
         public string MovementType { get; set; }
-
-        /// <summary>Physical source SlotId when the movement has a slot source.</summary>
         public int? SlotId { get; set; }
-
-        /// <summary>Exact SlotLotId when the movement targets one physical lot row.</summary>
         public int? SlotLotId { get; set; }
-
-        /// <summary>Physical destination SlotId for Move/receiving flows.</summary>
         public int? TargetSlotId { get; set; }
-
         public string LotNo { get; set; }
         public string ItemCode { get; set; }
         public int Quantity { get; set; }
@@ -41,5 +34,14 @@ namespace PCTP.Modules.KhoCore.Application.Contracts.Stock
         public string PerformedBy { get; set; }
         public DateTime? OccurredAt { get; set; }
         public string Reason { get; set; }
+
+        // Receiving metadata. These fields are used only by the receiving
+        // storage adapter; other stock movements can leave them empty.
+        public string ItemName { get; set; }
+        public string Model { get; set; }
+        public string ProductionCase { get; set; }
+        public DateTime? ProductionDate { get; set; }
+        public int ProductionQuantity { get; set; }
+        public int? ReceivingStatus { get; set; }
     }
 }
