@@ -44,6 +44,25 @@ namespace PCTP.Modules.KhoCore.Application.Services
 
         public StockMovementResult Pick(StockMovementRequest request)
         {
+            if (request != null &&
+                request.SlotId.HasValue &&
+                request.SlotId.Value > 0 &&
+                !string.IsNullOrWhiteSpace(request.LotNo))
+            {
+                if (request.Quantity <= 0)
+                    return StockMovementResult.Fail("Quantity phải lớn hơn 0.");
+
+                try
+                {
+                    _slots.TakeLot(request.SlotId.Value, request.LotNo, request.Quantity);
+                    return StockMovementResult.Ok("Đã pick LOT khỏi Slot.");
+                }
+                catch (Exception ex)
+                {
+                    return StockMovementResult.Fail("Lỗi pick LOT khỏi Slot: " + ex.Message);
+                }
+            }
+
             return RemoveFromSlot(request, false);
         }
 
@@ -164,11 +183,8 @@ namespace PCTP.Modules.KhoCore.Application.Services
 
                     int status = request.ReceivingStatus ?? 0;
                     if (_receiving.Exists(request.LotNo))
-                    {
                         _receiving.Update(request.LotNo, request.Quantity, status);
-                    }
                     else
-                    {
                         _receiving.Insert(new StockReceivingRecord
                         {
                             LotNo = request.LotNo,
@@ -181,7 +197,6 @@ namespace PCTP.Modules.KhoCore.Application.Services
                             ReceivedQuantity = request.Quantity,
                             Status = status
                         });
-                    }
                 }
 
                 if (!string.IsNullOrWhiteSpace(request.LotNo))
@@ -232,19 +247,14 @@ namespace PCTP.Modules.KhoCore.Application.Services
 
             try
             {
-                // A stock-only export is used after the physical SlotLot was already
-                // picked into the staging queue. In that case there is intentionally
-                // no SlotLotId left to mutate; KhoCore still owns the STOCKTP change.
                 if (!request.SlotLotId.HasValue)
                 {
                     if (!adjustAvailable)
-                        return StockMovementResult.Fail("Pick cần SlotLotId.");
+                        return StockMovementResult.Fail("Pick cần SlotLotId hoặc SlotId + LotNo.");
 
                     if (!_balance.TryDecreaseAvailableQuantity(request.LotNo, request.Quantity))
-                    {
                         return StockMovementResult.Fail(
                             string.Format("STOCKTP LOT [{0}] không đủ hoặc đã thay đổi.", request.LotNo));
-                    }
 
                     return StockMovementResult.Ok("Đã xuất tồn STOCKTP.");
                 }
@@ -260,10 +270,8 @@ namespace PCTP.Modules.KhoCore.Application.Services
 
                 if (adjustAvailable &&
                     !_balance.TryDecreaseAvailableQuantity(request.LotNo, request.Quantity))
-                {
                     return StockMovementResult.Fail(
                         string.Format("STOCKTP LOT [{0}] không đủ hoặc đã thay đổi.", request.LotNo));
-                }
 
                 _slots.DecreaseLotQuantity(request.SlotLotId.Value, request.Quantity);
                 return StockMovementResult.Ok("Đã xuất tồn kho.");
