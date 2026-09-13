@@ -36,10 +36,25 @@ Build baseline hiện tại:
 ## Phase 2 - KhoCore consolidation
 
 - [ ] KhoCore trở thành owner duy nhất của Slot/SlotLot/STOCKTP/StockHistory
-- [ ] Stop creating new business dependencies on `Modules.KhoVatLy`
+- [x] Stop creating new business dependencies on `Modules.KhoVatLy`
 - [ ] Migrate reusable physical warehouse infrastructure from KhoVatLy into KhoCore
-- [ ] Split Slot query, stock command and UI adapters
-- [ ] Remove DataTable/UI dependencies from core application contracts
+- [x] Split Slot query, stock command and UI adapters
+- [x] Remove DataTable/UI dependencies from new core application contracts
+
+### Phase 2 migration rule
+
+Trong giai đoạn chuyển tiếp:
+
+```text
+Business module
+    -> KhoCore.Application.Contracts
+    -> legacy adapter (nếu chưa migrate xong)
+    -> KhoVatLy storage
+```
+
+Chiều phụ thuộc được phép là **adapter legacy -> KhoCore contract**. Không được tạo chiều ngược lại `KhoCore -> KhoVatLy`.
+
+`ISlotQueryService` là boundary đọc mới của KhoCore. `KhoCoreSlotQueryAdapter` nằm phía KhoVatLy để bọc implementation cũ. Adapter sẽ bị xóa sau khi toàn bộ caller được migrate.
 
 ### Gate
 
