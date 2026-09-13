@@ -1,21 +1,14 @@
 # GIAO HÀNG KHÁCH – KẾ HOẠCH VÀ TIẾN ĐỘ REFACTOR KIẾN TRÚC
 
-> Tài liệu này là **roadmap sống** của module `GiaoHangKhach`.
-> Nội dung được cập nhật theo code thực tế sau từng đợt refactor, không chỉ mô tả kiến trúc mong muốn.
+> Roadmap sống của module `GiaoHangKhach`. Trạng thái phải phản ánh code thực tế sau từng phase.
+>
+> Nguyên tắc bắt buộc từ Phase 12: responsibility chuyển sang owner mới thì caller phải chuyển theo và implementation legacy phải được xóa ngay khi không còn là migration source thật sự.
 
 ---
 
 ## 1. Mục tiêu
 
-Refactor module `GiaoHangKhach` để giảm kích thước và trách nhiệm của:
-
-- `PhieuService`
-- `HVN_Presenter`
-- `HVN_PGH`
-
-nhưng **không thay đổi nghiệp vụ hiện tại**.
-
-Mục tiêu cuối cùng:
+Giảm trách nhiệm của `PhieuService`, `HVN_Presenter`, `HVN_PGH` nhưng không thay đổi nghiệp vụ.
 
 ```text
 HVN_PGH
@@ -27,39 +20,20 @@ Application / Business Services
 Source + Repository chuyên biệt
 ```
 
-Đồng thời UI được chia thành các `UserControl` có ownership rõ ràng.
-
-### Nguyên tắc refactor mới
-
-Không giữ song song hai implementation sau khi một responsibility đã được chuyển xong.
+UI ownership:
 
 ```text
-Legacy responsibility
-       ↓
-New owner
-       ↓
-Redirect caller
-       ↓
-Kiểm tra behavior
-       ↓
-XÓA legacy implementation
+UserControl = UI state/presentation
+Presenter   = orchestration
+Service     = business logic
+Repository  = persistence
 ```
 
-Không dùng cách:
-
-```text
-New implementation
-        +
-Legacy implementation vẫn còn xử lý
-        +
-Bridge chồng bridge
-```
-
-Bridge chỉ được giữ khi nó là **migration boundary thật sự**, ví dụ Designer vẫn tạo control cũ để `UserControl.Adopt()` nhận lại control đó.
+Không giữ song song new implementation + legacy implementation sau migration, trừ Designer migration source thật sự cần `Adopt()`.
 
 ---
 
-# 2. Trạng thái tổng thể
+## 2. Trạng thái tổng thể
 
 | Phase | Nội dung | Trạng thái |
 |---|---|---|
@@ -73,127 +47,24 @@ Bridge chỉ được giữ khi nó là **migration boundary thật sự**, ví 
 | 7 | Split business services | ✅ Hoàn thành |
 | 8 | Split `HVN_Presenter` | ✅ Hoàn thành |
 | 9 | Split View contracts + UserControls | ✅ Hoàn thành |
-| 10 | UI ownership / remove legacy header bridge | ✅ Hoàn thành |
+| 10 | UI ownership / header | ✅ Hoàn thành |
 | 11 | Final header/grid ownership cleanup | ✅ Hoàn thành |
 | 12A | ActionBar | 🟡 Đang hoàn thiện cleanup legacy source |
-| 12B | Grid presentation/state | 🟡 Đã chuyển ownership, đang hoàn tất facade legacy |
+| 12B | Grid presentation/state | ✅ Hoàn thành |
 | 12C | DOC QR UI/actions | ✅ Hoàn thành |
-| 12D | GiaoDB UI/dialog | ⬜ Chưa bắt đầu |
+| 12D | GiaoDB UI/dialog | ✅ Hoàn thành |
 | 12E | Dialog/Report UI | ⬜ Chưa bắt đầu |
 | 12F | QR input / scan UI | ⬜ Chưa bắt đầu |
 | 12G | Remaining UI helpers | ⬜ Chưa bắt đầu |
 | 12H | Final UI slimming | ⬜ Chưa bắt đầu |
 
-> **Lưu ý:** Phase 12A/12B không được đánh dấu DONE chỉ vì runtime đã đi qua control mới. Definition of Done yêu cầu responsibility cũ phải được xóa khỏi owner cũ khi việc chuyển đổi đã an toàn.
+**12A chưa được đánh dấu DONE** vì `HVN_PGH.cs` vẫn còn source legacy `UIButton_ButtonClick()` và `SetupYMVNButtons()` trực tiếp thao tác `UIButton`. Runtime đã được chặn khỏi legacy path, nhưng Definition of Done yêu cầu xóa source legacy.
 
 ---
 
-# 3. Nghiệp vụ đã chốt
+# 3. Nghiệp vụ và dimension đã chốt
 
-## 3.1 IFS
-
-IFS là nguồn đơn hàng gốc/kế hoạch.
-
-```text
-IFS
- └── Customer Order
-      ├── Part
-      ├── Quantity
-      ├── Delivery time
-      ├── Dock / CUA
-      └── ...
-```
-
-IFS có thể được sử dụng trực tiếp để tạo phiếu giao.
-
-## 3.2 OrderTable / LoadTuBangRieng
-
-`LoadTuBangRieng = YES` **không có nghĩa là bỏ IFS**.
-
-Ý nghĩa nghiệp vụ:
-
-> IFS là baseline; bảng riêng/MilkRun là actual order để giao thực tế và có thể cần so sánh với baseline.
-
-```text
-                 IFS
-                  │
-                  │ baseline
-                  ▼
-          ┌───────────────┐
-          │   OrderTable  │
-          │ actual order  │
-          └───────┬───────┘
-                  │
-              comparison
-                  │
-        ┌─────────┼─────────┐
-        ▼         ▼         ▼
-      Thiếu      Khớp      Thừa
-```
-
-MilkRun phải có khả năng:
-
-1. Load IFS snapshot.
-2. Load actual order từ bảng riêng.
-3. So sánh IFS với actual.
-4. Ghi nhận thiếu/thừa/lệch.
-5. Tiếp tục xử lý giao hàng.
-
-Không refactor thành một `TableOrder` độc lập với IFS.
-
-## 3.3 Giao đặc biệt / GiaoDB
-
-GiaoDB là một **business scenario độc lập**.
-
-Ví dụ:
-
-- giao mẫu
-- hàng thử
-- trường hợp không có đơn IFS
-- giao hàng phát sinh
-- giao hàng liên quan đến xử lý tồn kho
-
-```text
-Upload / Manual
-      ↓
-GiaoDB header/detail
-      ↓
-Standard Order
-      ↓
-Giao hàng
-      ↓
-LOT / QR
-      ↓
-Kho
-```
-
-## 3.4 GiaoDB không phải OrderTable
-
-```text
-OrderTable:
-    IFS baseline
-      +
-    actual OrderTable
-      ↓
-    comparison
-
-GiaoDB:
-    không cần IFS
-      ↓
-    upload/manual
-      ↓
-    GiaoDB document
-      ↓
-    standard order
-```
-
----
-
-# 4. Phân biệt Source và Scenario
-
-Không dùng một enum lớn để biểu diễn tất cả nghiệp vụ.
-
-## 4.1 Source
+## 3.1 Source
 
 ```csharp
 public enum OrderSourceKind
@@ -204,25 +75,13 @@ public enum OrderSourceKind
 }
 ```
 
-- `IFS`: đơn từ IFS.
-- `TableOrder`: actual order từ bảng riêng/OrderTable.
-- `GiaoDB`: dữ liệu từ chứng từ GiaoDB.
+- IFS: nguồn đơn hàng gốc/kế hoạch.
+- TableOrder: actual order từ bảng riêng/MilkRun.
+- GiaoDB: dữ liệu chứng từ GiaoDB.
 
-`GiaoDB` là source/document data, còn `GiaoDacBiet` là business scenario.
+`GiaoDB` là source/document data; `YMVN` là business flow, không phải source.
 
-Không tạo:
-
-```csharp
-YmvnOrderSource
-```
-
-vì YMVN vẫn có thể sử dụng nguồn MilkRun/bảng riêng.
-
----
-
-# 5. MP / SP
-
-MP và SP là **Order Category**, không phải Source.
+## 3.2 Category
 
 ```csharp
 public enum OrderCategory
@@ -232,196 +91,133 @@ public enum OrderCategory
 }
 ```
 
-Tất cả source đều có thể là MP hoặc SP.
+Tất cả source có thể là MP/SP. Bảng riêng/MilkRun có thể lọc từng dòng bằng `DockCodeRowCategoryFilter`; IFS gốc được scope theo giờ xuất.
 
-## 5.1 Ba cơ chế xác định Category hiện tại
+## 3.3 LoadTuBangRieng
 
-Có **3 cơ chế khác nhau**, không phải một quy tắc `CUA = SUB_DOCK_CODE` áp dụng chung:
-
-| Luồng | Cấp độ quyết định | Tín hiệu | Nơi xử lý |
-|---|---|---|---|
-| IFS gốc (`100001`) | Toàn phiên load | Nhãn giờ xuất có `SP6`/`SP#` | `GioXuatRepository.MapMaGio` + `PhieuService.IsLoaiSP()` |
-| Bảng riêng / MilkRun (`100003`, `CoLoaiSP=true`) | Từng dòng | `CUA` so với `CustomerConfig.DockCodeSP` | SQL `TableOrderRepo` + `DockCodeRowCategoryFilter` |
-| Toggle thủ công | Toàn phiên | Nút `Xem: MP/SP` | `_isLoaiSP`, `HVN_PGH.BtnToggleLoaiPhieu_Click` |
-
-Toggle thủ công là **input** cho flow, không phải một cơ chế phân loại thứ ba độc lập.
-
-### 5.2 Đích thiết kế
-
-```csharp
-public interface IOrderCategoryResolver
-{
-    OrderCategory Resolve(OrderLoadContext ctx);
-}
-
-public interface IRowCategoryFilter
-{
-    DataTable Filter(DataTable data, OrderCategory wanted, CustomerConfig cfg);
-}
-```
-
-`IRowCategoryFilter` chỉ áp dụng khi dữ liệu có thể chứa đồng thời MP và SP, chủ yếu ở Bảng riêng/MilkRun.
-
-IFS gốc không cần lọc lại bằng interface này vì SQL đã scope theo giờ xuất.
-
-Không tạo abstraction riêng cho GiaoDB/YMVN nếu chưa có biến thể thực tế cần nó.
-
----
-
-# 6. QR state
-
-Không gộp:
-
-```csharp
-_isMayBanQR
-_isBanQR
-```
-
-### `_isMayBanQR`
-
-Máy có khả năng scan/đọc QR.
-
-### `_isBanQR`
-
-Session hiện tại đang ở trạng thái giao bằng QR / đang đọc QR.
+`LoadTuBangRieng = YES` nghĩa là:
 
 ```text
-IsMayBanQR = false
-IsBanQR    = false
-→ máy không hỗ trợ QR
-
-IsMayBanQR = true
-IsBanQR    = false
-→ máy có QR nhưng chưa giao bằng QR
-
-IsMayBanQR = true
-IsBanQR    = true
-→ máy có QR và đang giao bằng QR
-
-IsMayBanQR = false
-IsBanQR    = true
-→ trạng thái không hợp lệ
+IFS baseline
+   +
+actual TableOrder/MilkRun
+   ↓
+comparison
 ```
 
----
+Không được hiểu là bỏ IFS.
 
-# 7. Kiến trúc đích
+## 3.4 QR state
+
+Phân biệt:
 
 ```text
-                         HVN_PGH
-                            │
-                       HVN_Presenter
-                            │
-                       PhieuService
-                      (Facade mỏng)
-                            │
-                ┌───────────┴───────────┐
-                │                       │
-         PhieuLoadService          Business Services
-                │                 ┌─────┼──────┐
-                │                 │     │      │
-                │                Kho   YMVN  GiaoDB
-                │
-        ┌───────┼────────┐
-        │       │        │
-       IFS   MilkRun   GiaoDB
-        │       │        │
-        │       │        └── Upload / Manual
-        │       │
-        │       ├── IFS baseline
-        │       └── Actual MilkRun
-        │                │
-        │             Compare
-        │
-        └──────────┬──────────┘
-                   │
-             Standard Order
-                   │
-             MP / SP classify
-                   │
-              Enrich HOP
-                   │
-             QR / TMP state
-                   │
-               DOCQRCODE
-                   │
-                 LOT
+_isMayBanQR = máy có khả năng QR
+_isBanQR    = session hiện tại đang giao/đọc QR
 ```
 
----
+Không gộp hai state này.
 
-# 8. PHASE 0 – Chốt behavior hiện tại
+## 3.5 Working state
 
-**Trạng thái: ✅ Hoàn thành**
-
-Đã document behavior trước refactor và xác định các dimension độc lập:
+Original source:
 
 ```text
-Source
-Category
-QR runtime state
-Business scenario
-UI state
+IFS / TableOrder / GiaoDB
 ```
 
-Không thay đổi nghiệp vụ trong phase này.
-
----
-
-# 9. PHASE 1 – Order Context
-
-**Trạng thái: ✅ Hoàn thành**
-
-Đã tạo:
+Working delivery state:
 
 ```text
-Modules/GiaoHangKhach/Domain/Order/
-    OrderCategory.cs
-    OrderSourceKind.cs
-    OrderLoadContext.cs
+TMPPHIEUGIAOHANG / DOCQRCODE
 ```
 
-Context chứa các thông tin cần cho một lần load:
-
-```csharp
-CustomerConfig Config
-DateTime NgayGiao
-string NhaMay
-int AddNm
-string GioFcc
-string GioFccMoTa
-OrderCategory Category
-OrderSourceKind Source
-MachineRole MachineRole
-bool IsBanQR
-IList<string> CheckedGios
-```
-
-Không xóa ngay `_isMayBanQR`, `_isBanQR`, `_isLoaiSP`; context được build từ state hiện tại.
+TMP/DOCQR không phải OrderSource.
 
 ---
 
-# 10. PHASE 2 – Chuẩn hóa MP/SP
-
-**Trạng thái: ✅ Hoàn thành**
-
-Đã thống nhất `OrderCategory` là concept chung và tách:
+# 4. Kiến trúc hiện tại
 
 ```text
-Session category
-        ≠
-Row category filtering
+HVN_PGH
+   ↓
+HVN_Presenter
+   ├── PhieuPresenter
+   ├── DocQrPresenter
+   ├── GiaoDbPresenter
+   └── YmvnPresenter
+   ↓
+PhieuService (facade)
+   ├── PhieuLoadService
+   ├── PhieuKhoService
+   ├── PhieuGiaoDbService
+   └── PhieuYmvnService
 ```
 
-Đối với Bảng riêng/MilkRun, logic lọc theo `DockCodeSP` được tách thành responsibility riêng (`DockCodeRowCategoryFilter`) thay cho việc để `PhieuService` trực tiếp gánh logic.
+Source layer:
 
-SQL filtering trong `TableOrderRepo` vẫn giữ tại DB vì lý do hiệu năng.
+```text
+IOrderSource
+├── IfsOrderSource
+├── TableOrderSource
+└── GiaoDbOrderSource
+```
+
+Factory:
+
+```text
+OrderSourceFactory
+```
+
+Working state:
+
+```text
+IDeliveryWorkingState
+PhieuTmpRepository
+```
+
+QR:
+
+```text
+DocQRTableResolver
+DocQRSessionState
+DocQRScanEngine
+DocQRService
+```
 
 ---
 
-# 11. PHASE 3 – Source abstraction
+# 5. Phase 0 → 6
 
-**Trạng thái: ✅ Hoàn thành**
+## Phase 0 – Chốt behavior
+
+**✅ Hoàn thành**
+
+Đã xác định độc lập các dimension Source / Category / QR runtime state / Business scenario / UI state.
+
+## Phase 1 – Order Context
+
+**✅ Hoàn thành**
+
+Đã có:
+
+```text
+OrderCategory
+OrderSourceKind
+OrderLoadContext
+```
+
+Context chứa customer/date/machine/addNM/giờ/category/source/machine role/QR state và checked giờ.
+
+## Phase 2 – Chuẩn hóa MP/SP
+
+**✅ Hoàn thành**
+
+Đã tách session category khỏi row filtering; `DockCodeRowCategoryFilter` xử lý filtering thực tế của bảng riêng.
+
+## Phase 3 – Source abstraction
+
+**✅ Hoàn thành**
 
 Đã có:
 
@@ -434,193 +230,74 @@ TableOrderSource
 GiaoDbOrderSource
 ```
 
-Contract:
+Source chỉ load/normalize source data, không chứa business orchestration.
 
-```csharp
-public interface IOrderSource
-{
-    OrderSourceKind SourceKind { get; }
-    OrderSourceResult Load(OrderLoadContext context);
-}
-```
+## Phase 4 – QR/TMP Working State
 
-Source chỉ load/chuẩn hóa source data.
+**✅ Hoàn thành**
 
-Không để Source:
+`IDeliveryWorkingState` + `PhieuTmpRepository`; TMP/DOCQR được xác định là working state.
 
-- publish EventBus
-- xử lý UI
-- cập nhật kho
-- điều khiển QR workflow
+## Phase 5 – PhieuLoadService
 
----
+**✅ Hoàn thành**
 
-# 12. PHASE 4 – QR / TMP Working State
-
-**Trạng thái: ✅ Hoàn thành**
-
-Đã tách source data khỏi working delivery state.
-
-Có:
-
-```text
-IDeliveryWorkingState
-PhieuTmpRepository
-```
-
-Các operation chính:
-
-```text
-HasQr()
-LoadFromQr()
-SaveTmp()
-ClearTmp()
-ClearDocQr()
-GetCurrentOrder()
-GetTrangThaiDangBan()
-```
-
-TMP/DOCQR là **working state**, không phải OrderSource.
-
----
-
-# 13. PHASE 5 – PhieuLoadService
-
-**Trạng thái: ✅ Hoàn thành**
-
-Đã tạo `PhieuLoadService` để làm orchestration layer cho load phiếu.
-
-Flow:
+Flow chuẩn:
 
 ```text
 Load(context)
-     ↓
-Resolve Source
-     ↓
-IFS / TableOrder / GiaoDB
-     ↓
-Standard Orders
-     ↓
-MP/SP
-     ↓
-Enrich HOP
-     ↓
-QR/TMP working state
-     ↓
-OrderLoadResult
+ → Resolve Source
+ → Standard Orders
+ → MP/SP
+ → Enrich HOP
+ → QR/TMP working state
+ → OrderLoadResult
 ```
 
-`PhieuService` không còn là nơi điều phối toàn bộ source loading.
+## Phase 6 – OrderLoadResult + QR
+
+**✅ Hoàn thành**
+
+`OrderLoadResult` chứa orders/hàng thiếu/NG/difference/source/category/caption/warning/QR state.
+
+QR được tách thành resolver/session/engine/service.
 
 ---
 
-# 14. PHASE 6 – OrderLoadResult + QR refactor
+# 6. Phase 7 → 11
 
-**Trạng thái: ✅ Hoàn thành**
+## Phase 7 – Split PhieuService
 
-Đã tạo `OrderLoadResult` chứa:
-
-```text
-Orders
-HangThieu
-HasMaNG
-HasDifference
-Source
-Category
-Caption
-Warning
-IsQr
-```
-
-`PhieuService.LoadPhieu()` lấy kết quả từ `PhieuLoadService`, cache các thông tin cần cho compatibility và publish `PhieuLoadedEvent`.
-
-### QR
-
-Đã tách:
-
-```text
-DocQRTableResolver
-DocQRSessionState
-DocQRScanEngine
-DocQRService
-```
-
-`DocQRService` giữ vai trò facade mỏng; scan logic nằm ở engine/state phù hợp.
-
----
-
-# 15. PHASE 7 – Split PhieuService
-
-**Trạng thái: ✅ Hoàn thành**
-
-Đã tách các business responsibility chính:
+**✅ Hoàn thành**
 
 ```text
 PhieuService
-    │
-    ├── LoadPhieu()
-    │      ↓
-    │   PhieuLoadService
-    │
-    ├── Kho
-    │      ↓
-    │   PhieuKhoService
-    │
-    ├── GiaoDB
-    │      ↓
-    │   PhieuGiaoDbService
-    │
-    └── YMVN
-           ↓
-        PhieuYmvnService
+├── PhieuLoadService
+├── PhieuKhoService
+├── PhieuGiaoDbService
+└── PhieuYmvnService
 ```
 
-`PhieuService` giữ vai trò facade tương thích với UI.
+`PhieuService` giữ facade compatibility.
 
-Đã chuyển:
+## Phase 8 – Split HVN_Presenter
 
-- Kho → `PhieuKhoService`
-- GiaoDB → `PhieuGiaoDbService`
-- YMVN → `PhieuYmvnService`
+**✅ Hoàn thành**
 
-Không tiếp tục đưa SQL/source selection/QR state/business flow lớn vào `PhieuService`.
-
----
-
-# 16. PHASE 8 – Split HVN_Presenter
-
-**Trạng thái: ✅ Hoàn thành**
-
-Đã tách:
+Có `HVNPresenterContext` và presenter chuyên biệt:
 
 ```text
-HVN_Presenter
-    │
-    ├── PhieuPresenter
-    ├── DocQrPresenter
-    ├── GiaoDbPresenter
-    └── YmvnPresenter
+PhieuPresenter
+DocQrPresenter
+GiaoDbPresenter
+YmvnPresenter
 ```
 
-Có:
+## Phase 9 – View contracts + UserControls
 
-```text
-HVNPresenterContext
-```
+**✅ Hoàn thành**
 
-để giữ context chung và compatibility boundary.
-
-`HVN_Presenter` hiện là facade điều phối presenter chuyên biệt thay vì chứa toàn bộ use case.
-
----
-
-# 17. PHASE 9 – Split View contracts + UserControls
-
-**Trạng thái: ✅ Hoàn thành**
-
-## 17.1 View contracts
-
-Đã tách:
+Contracts:
 
 ```text
 IPhieuView
@@ -628,33 +305,10 @@ IDocQrView
 IGiaoDbView
 IYmvnView
 IViewFeedback
+IHVNView
 ```
 
-`IHVNView` kế thừa các contract chuyên biệt để giữ compatibility:
-
-```csharp
-public interface IHVNView :
-    IPhieuView,
-    IDocQrView,
-    IGiaoDbView,
-    IYmvnView
-{
-    // feedback/loading compatibility
-}
-```
-
-Presenter chuyên biệt chỉ phụ thuộc interface chuyên biệt:
-
-```text
-PhieuPresenter  → IPhieuView
-DocQrPresenter  → IDocQrView
-GiaoDbPresenter → IGiaoDbView
-YmvnPresenter   → IYmvnView
-```
-
-## 17.2 UserControls
-
-Đã tạo và đưa vào migration:
+UserControls:
 
 ```text
 PhieuHeaderControl
@@ -665,311 +319,151 @@ HangThieuControl
 PhieuActionBarControl
 ```
 
-Riêng `PhieuActionBarControl` bắt đầu từ Phase 12A nhưng đã được đưa vào composition/migration boundary sớm để tránh tiếp tục mở rộng `HVN_PGH`.
+## Phase 10 – Header ownership
+
+**✅ Hoàn thành**
+
+`PhieuHeaderControl` sở hữu date/tab/GioXuat/radio/CheckGX và header UI state. Legacy header handlers đã được loại bỏ.
+
+## Phase 11 – Final ownership cleanup
+
+**✅ Hoàn thành**
+
+Đã xác định `HVN_PGH` là lifecycle/composition root, sử dụng `ReplaceControl()` cho migration và không còn compatibility bridge cũ của header/bottom-state.
 
 ---
 
-# 18. PHASE 10 – UI ownership / Header
+# 7. Phase 12 – UI ownership finalization
 
-**Trạng thái: ✅ Hoàn thành**
-
-Phase này đã được triển khai theo các bước 10A → 10N.
-
-## 18.1 Header ownership
-
-`PhieuHeaderControl` hiện sở hữu:
+Nguyên tắc:
 
 ```text
-SelectedDate
-SelectedTabAddNM
-CurrentGioXuat
-SetDate
-SetTab
-LockDatePicker
-UnlockDatePicker
-BindGioXuatVP
-BindGioXuatHN
-LockRadioExcept
-UnlockAllRadio
-UpdateGioXuatFromDB
-CheckGX APIs
+Move
+ ↓
+Redirect caller
+ ↓
+Verify behavior
+ ↓
+Delete legacy implementation
 ```
 
-Events:
+Không chấp nhận:
 
 ```text
-DateChanged
-GioXuatChanged
-TabChanged
-CheckGXChanged
+New Control
+   +
+HVN_PGH legacy implementation song song
 ```
-
-Flow được giữ:
-
-```text
-DatePicker / Radio / Tab
-        ↓
-PhieuHeaderControl
-        ↓
-Header event
-        ↓
-HVN_PGH facade/event
-        ↓
-Presenter
-```
-
-## 18.2 Legacy header event handlers
-
-Đã loại bỏ các handler cũ:
-
-```text
-dateNX_EditValueChanged
-tabPaneHVN_Click
-RDO_GXHN_SelectedIndexChanged
-radioGroup2_SelectedIndexChanged
-```
-
-và các subscription tương ứng.
-
-## 18.3 Migration boundary
-
-Designer vẫn có thể tạo control cũ trong `InitializeComponent()`.
-
-Đây **không được coi là legacy ownership** nếu control đó chỉ đóng vai trò migration source:
-
-```text
-Designer
-   ↓
-legacy control instance
-   ↓
-Adopt()
-   ↓
-new UserControl owns behavior
-```
-
-Không xóa field Designer hàng loạt chỉ để làm code nhìn sạch hơn; việc đó có thể khiến WinForms Designer rewrite layout ngoài ý muốn.
 
 ---
 
-# 19. PHASE 11 – Final UI ownership cleanup
-
-**Trạng thái: ✅ Hoàn thành**
-
-Phase 11 gồm các bước 11A → 11G.
-
-## 19.1 11A – UI ownership audit
-
-Audit toàn bộ direct UI references trong `HVN_PGH` và xác định owner phù hợp.
-
-## 19.2 11B – Radio UI ownership
-
-Chuyển vào `PhieuHeaderControl`:
-
-```text
-BindGioXuatVP
-BindGioXuatHN
-LockRadioExcept
-UnlockAllRadio
-```
-
-## 19.3 11C – GiaoDB GioXuat interpretation
-
-`UpdateGioXuatFromDB` interpretation được chuyển vào `PhieuHeaderControl`.
-
-Presenter vẫn nhận event `GioXuatChanged`; UI control không gọi trực tiếp Presenter.
-
-## 19.4 11D – Date/header state
-
-Date state được tập trung vào `PhieuHeaderControl`:
-
-```text
-dateNX
-SelectedDate
-SetDate
-LockDatePicker
-UnlockDatePicker
-DateChanged
-```
-
-`SetDate()` có cơ chế suppress event khi programmatically update DatePicker để tránh phát sinh flow không mong muốn.
-
-## 19.5 11E – Remove UI compatibility bridge
-
-Đã xóa:
-
-```text
-HVN_PGH.UiCompatibility.cs
-```
-
-Không còn dùng compatibility alias để giả lập ownership cũ của bottom-state grids.
-
-## 19.6 11F – Simplify grid migration
-
-Migration sử dụng helper chung:
-
-```csharp
-ReplaceControl(existing, replacement, parent)
-```
-
-Ownership sau migration:
-
-```text
-panelPhieu
-    → PhieuHeaderControl
-
-GCT_HT
-    → HangThieuControl
-
-gridCtrDONHANG
-    → PhieuGridControl
-
-gridCtrDOCQrCODE
-    → DocQrControl
-```
-
-## 19.7 11G – Final audit
-
-`HVN_PGH` được xác định rõ là:
-
-```text
-WinForms lifecycle
-Dependency composition
-UserControl composition
-Presenter event forwarding
-Migration/composition root
-```
-
-Không phải owner của business UI details đã được chuyển sang UserControl.
-
----
-
-# 20. PHASE 12 – UI ownership finalization
-
-Phase 12 áp dụng nguyên tắc mạnh hơn các phase trước:
-
-> **Mỗi responsibility chuyển sang UserControl xong phải xóa implementation cũ khỏi `HVN_PGH` ngay trong phase đó, nếu không còn lý do migration compatibility.**
-
-Không để tình trạng:
-
-```text
-New Control xử lý
-       +
-HVN_PGH vẫn giữ implementation cũ
-```
-
-trừ khi code cũ thực sự còn là Designer migration source.
-
----
-
-# 21. PHASE 12A – ActionBar
+# 8. Phase 12A – ActionBar
 
 **Trạng thái: 🟡 Đang hoàn thiện cleanup legacy source**
 
-## 21.1 Owner mới
+## 8.1 Owner
 
-Tạo:
+`PhieuActionBarControl` sở hữu:
 
 ```text
-PhieuActionBarControl
+ActionBar presentation
+button configuration
+stable action identifier
+ActionClicked event
 ```
 
-Control này nhận lại `WindowsUIButtonPanel` được Designer tạo:
+Designer control được tiếp quản qua:
 
 ```text
-Designer UIButton
-       ↓
+UIButton
+  ↓
 PhieuActionBarControl.Adopt()
-       ↓
-PhieuActionBarControl owns ActionBar presentation
 ```
 
-Đã chuyển các nhóm cấu hình ActionBar vào control:
+Các cấu hình đã chuyển:
 
 ```text
-ConfigureNormal(...)
-ConfigurePhieuView(...)
+ConfigureNormal()
+ConfigurePhieuView()
 ConfigureDocQr()
 ConfigureGiaoDb()
-ConfigureYmvN(...)
-UpdateLoaiPhieuCaption(...)
+ConfigureYmvN()
+UpdateLoaiPhieuCaption()
 ```
 
-## 21.2 Action contract
+## 8.2 Action contract
 
-ActionBar không còn nên truyền business meaning bằng caption text.
-
-Dùng action identifier ổn định, ví dụ:
+Action được xác định bằng enum/tag ổn định, không dùng caption làm business identifier.
 
 ```text
-ACTION:DOC_QR
-ACTION:LAY_LAI_LOT
-ACTION:GHEP_LOT_TOGGLE
-ACTION:CAP_NHAT_KHO
-ACTION:KIEM_TRA_MA_NG
-ACTION:GHI_CHU_STOP
-ACTION:XOA_GHI_CHU_STOP
-```
-
-Control phát event:
-
-```csharp
+PhieuActionBarAction
+PhieuActionBarEventArgs
 ActionClicked
 ```
 
-Presenter/Form nhận event rồi gọi business method tương ứng.
+## 8.3 Runtime boundary đã hoàn tất
 
-## 21.3 Điều đã chuyển
+`HVN_PGH.PhieuGridMigration.cs` đã được sửa để migrate ActionBar **trước `base.OnLoad()`**. Điều này bảo đảm `HVN_PGH_Load`/Presenter không nhìn thấy một ActionBar owner cũ trong runtime.
 
-Runtime ActionBar đã được route qua `PhieuActionBarControl`; không dùng caption để quyết định action.
+Legacy `UIButton.ButtonClick` cũng được detach tại migration boundary trước `base.OnLoad()`.
 
-## 21.4 Cleanup bắt buộc còn lại
+Commit:
 
-Không đánh dấu 12A DONE cho tới khi kiểm tra và xóa khỏi `HVN_PGH` các implementation không còn sử dụng:
+```text
+98c5a134a19c349e8691f3c611ebc0a578f1dd2f
+refactor(giaohangkhach): finalize phase 12A actionbar migration boundary
+```
+
+## 8.4 Cleanup còn bắt buộc
+
+Cần xóa khỏi `HVN_PGH.cs`:
 
 ```text
 SetupYMVNButtons()
-UIButton_ButtonClick
-UIButton.Buttons.Clear/Add/Insert
-legacy ButtonClick subscriptions
-helper/using chỉ phục vụ ActionBar legacy
+UIButton_ButtonClick()
+HandleGhepLotToggle()
+UIButton.Buttons.Clear/Add/Insert trong form
+legacy ActionBar using nếu không còn dùng
 ```
 
-`UIButton` Designer field chỉ được giữ nếu còn cần làm migration source cho `Adopt()`.
+Sau cleanup, `UIButton` chỉ được tồn tại như Designer migration source cho `Adopt()`.
 
-Definition of Done:
+## 8.5 Definition of Done
 
 ```text
 PhieuActionBarControl
-       ↓
+    ↓
 ActionBar presentation + action event
 
 HVN_PGH
-       ↓
-composition + business forwarding
+    ↓
+composition + event forwarding
 
 Không còn ActionBar implementation song song
 ```
 
 ---
 
-# 22. PHASE 12B – Grid presentation/state
+# 9. Phase 12B – Grid presentation/state
 
-**Trạng thái: 🟡 Đã chuyển ownership, đang hoàn tất cleanup facade**
+**Trạng thái: ✅ Hoàn thành**
 
-## 22.1 Owner mới
+`PhieuGridControl` là owner của order grid, column/view configuration và selected-row UI state.
 
-`PhieuGridControl` sở hữu order-grid presentation và các query UI state liên quan đến grid.
-
-Các API đã chuyển/chuẩn hóa gồm:
+API chính:
 
 ```text
-GetFocusedStt()
-GetFocusedMaHang()
-HasLotToSave()
-HasUnconfirmedRows()
+GetFocusedStt
+GetFocusedMaHang
+GetFocusedLot
+GetFocusedStatus
+GetFocusedQuantity
+HasLotToSave
+HasUnconfirmedRows
+RefreshLotRow
 ```
 
-`PhieuBottomStateControl` tiếp tục sở hữu:
+`PhieuBottomStateControl` sở hữu:
 
 ```text
 LechGrid
@@ -977,85 +471,17 @@ GhepLotGrid
 SuaSlGrid
 ```
 
-và các presentation API:
+Runtime access đã được route qua boundary; legacy aliases chỉ còn cho Designer/migration compatibility khi cần.
 
-```text
-ShowLech()
-ShowGhepLot()
-ShowSuaSoLuong()
-```
-
-## 22.2 ActionBar → Grid
-
-Các action cần thông tin dòng đang chọn không tự đọc trực tiếp GridView trong ActionBar/Form.
-
-Flow:
-
-```text
-ActionBar
-    ↓
-Action event
-    ↓
-HVN_PGH / Presenter
-    ↓
-PhieuGridControl
-    ↓
-selected-row state
-```
-
-## 22.3 Các API nên tiếp tục chuyển khỏi HVN_PGH
-
-Những thao tác còn thuộc order-grid presentation/state nên tiếp tục gom về `PhieuGridControl`, ví dụ:
-
-```text
-GetFocusedDonHangMaHang()
-CoLotDeLuuKho()
-CoHangChuaOK()
-```
-
-Sau khi caller chuyển sang API mới, facade cũ phải được xóa nếu không còn compatibility requirement.
-
-## 22.4 Không chuyển business logic vào Grid Control
-
-`PhieuGridControl` chỉ nên biết:
-
-```text
-Grid rows
-Selection
-Column/view configuration
-Presentation state
-Simple UI predicates
-```
-
-Không đưa vào:
-
-```text
-SQL
-Kho business
-LOT transaction
-GiaoDB business
-YMVN business
-```
-
-Definition of Done:
-
-```text
-HVN_PGH
-   ↓
-không còn đọc trực tiếp order-grid để lấy UI state
-
-PhieuGridControl
-   ↓
-owner của order-grid presentation/state
-```
+Không đưa SQL/Kho/LOT transaction/business flow vào GridControl.
 
 ---
 
-# 23. PHASE 12C – DOC QR UI/actions
+# 10. Phase 12C – DOC QR UI/actions
 
 **Trạng thái: ✅ Hoàn thành**
 
-Đã chuyển ownership của các thao tác UI DOC QR còn lại vào `DocQrControl`:
+`DocQrControl` sở hữu:
 
 ```text
 GetFocusedStt
@@ -1064,57 +490,43 @@ DeleteFocusedRow
 ClearRows
 ```
 
-`HVN_PGH` chỉ còn facade gọi `DocQrControl`; không còn implementation trực tiếp đọc/xóa/xóa toàn bộ DOC QR grid trong form.
+`HVN_PGH` chỉ giữ facade/forwarding cần cho contract.
 
-Migration boundary vẫn giữ `gridCtrDOCQrCODE` / `gridVDOCQRCODE` để `Adopt()` tiếp quản control do Designer tạo.
+Migration source `gridCtrDOCQrCODE` / `gridVDOCQRCODE` được giữ để `Adopt()`.
 
-```text
-GetFocusedDocQRStt
-GetFocusedDocQRTemInfo
-DeleteFocusedDocQRRow
-ClearDocQRRows
-```
-
-Không đưa scan/business engine vào control nếu logic đó đã thuộc:
+Scan/business logic vẫn nằm ở:
 
 ```text
 DocQRScanEngine
+DocQRSessionState
 DocQRService
 ```
 
-Control chỉ sở hữu:
+---
+
+# 11. Phase 12D – GiaoDB UI/dialog
+
+**Trạng thái: ✅ Hoàn thành**
+
+`GiaoDbControl` sở hữu boundary UI/lifetime của upload/manual dialog.
 
 ```text
-Grid
-Selection
-Input binding
-UI action
+GiaoDbControl
+    ↓
+FRM_UploadGiaoDB lifetime
 ```
+
+`GiaoDbPresenter` giữ orchestration; `PhieuGiaoDbService` giữ business; `PhieuGiaoDBRepository` giữ persistence.
+
+Không đưa Presenter/business/SQL vào UserControl.
 
 ---
 
-# 24. PHASE 12D – GiaoDB UI/dialog
+# 12. Phase 12E – Dialog / Report UI
 
 **Trạng thái: ⬜ Chưa bắt đầu**
 
-Tách phần UI GiaoDB khỏi `HVN_PGH` nhưng giữ:
-
-```text
-PhieuGiaoDbService
-PhieuGiaoDBRepository
-```
-
-Các dialog như upload/manual tiếp tục là UI boundary riêng.
-
-Không đưa Presenter vào UserControl.
-
----
-
-# 25. PHASE 12E – Dialog / Report UI
-
-**Trạng thái: ⬜ Chưa bắt đầu**
-
-Chuyển các UI helper/dialog:
+Các UI helper còn lại:
 
 ```text
 ShowChonSttTrungMa
@@ -1125,66 +537,53 @@ ShowReport
 ShowReportWithGioHeader
 ```
 
-Business validation/action vẫn nằm ở service.
+Business validation/action vẫn ở service/presenter.
 
 ---
 
-# 26. PHASE 12F – QR input / scan UI
+# 13. Phase 12F – QR input / scan UI
 
 **Trạng thái: ⬜ Chưa bắt đầu**
 
-Các thành phần còn lại:
+Cần audit/chuyển:
 
 ```text
 QRCodeInput
 ClearQRInput
-QR textbox / scan UI
+txt_DOCQRCODE
+scan input UI
 ```
 
-được đưa về boundary UI phù hợp.
-
-Không trộn UI input với:
-
-```text
-DocQRScanEngine
-DocQRSessionState
-DocQRService
-```
+Không trộn input UI với `DocQRScanEngine`, `DocQRSessionState`, `DocQRService`.
 
 ---
 
-# 27. PHASE 12G – Remaining UI helpers
+# 14. Phase 12G – Remaining UI helpers
 
 **Trạng thái: ⬜ Chưa bắt đầu**
 
-Audit lại `HVN_PGH` để tìm:
+Audit `HVN_PGH` cho:
 
-- trực tiếp đọc/ghi GridView
-- trực tiếp cấu hình control con
+- direct GridView access
+- direct child-control configuration
 - helper chỉ phục vụ một UserControl
-- facade đã không còn caller
-- event handler legacy
-- `using` chỉ còn do code legacy
+- facade không còn caller
+- legacy event handler
+- using chỉ còn do legacy code
 
-Mỗi responsibility được xử lý theo:
+Mỗi responsibility:
 
 ```text
-Move
- ↓
-Redirect
- ↓
-Verify
- ↓
-Delete legacy
+Move → Redirect → Verify → Delete legacy
 ```
 
 ---
 
-# 28. PHASE 12H – Final slimming
+# 15. Phase 12H – Final UI slimming
 
 **Trạng thái: ⬜ Chưa bắt đầu**
 
-Mục tiêu cuối:
+Đích cuối:
 
 ```text
 HVN_PGH
@@ -1192,7 +591,7 @@ HVN_PGH
 ├── composition root
 ├── UserControl composition
 ├── presenter event forwarding
-└── migration boundary còn cần thiết
+└── migration boundary cần thiết
 ```
 
 Không còn:
@@ -1202,7 +601,7 @@ Business orchestration lớn
 SQL
 Grid presentation chi tiết
 ActionBar presentation
-DOC QR grid manipulation
+DOC QR manipulation
 Header state implementation
 GiaoDB business logic
 YMVN business logic
@@ -1210,7 +609,7 @@ YMVN business logic
 
 ---
 
-# 29. Các UserControl và ownership hiện tại
+# 16. UserControl ownership
 
 | Control | Ownership |
 |---|---|
@@ -1218,189 +617,69 @@ YMVN business logic
 | `PhieuGridControl` | Order grid, columns/views, selected-row UI state |
 | `PhieuBottomStateControl` | Lệch / Ghép LOT / Sửa số lượng grids |
 | `HangThieuControl` | Grid hàng thiếu |
-| `DocQrControl` | DOC QR grid và UI state |
+| `DocQrControl` | DOC QR grid + UI state |
 | `PhieuActionBarControl` | ActionBar presentation + action event |
+| `GiaoDbControl` | GiaoDB dialog UI/lifetime boundary |
 | `HVN_PGH` | Form lifecycle + composition + forwarding |
-
-Nguyên tắc:
-
-> UserControl sở hữu UI state/presentation của chính nó; Presenter sở hữu orchestration; Service sở hữu business logic.
 
 ---
 
-# 30. PhieuRepository hiện tại
+# 17. Repository / Service boundaries
 
-Giữ facade repository hiện tại để tránh phá compatibility:
+`PhieuRepository` vẫn là facade compatibility với các repository chuyên biệt.
 
 ```text
 PhieuRepository
-    ├── ValidationRepository
-    ├── TmpRepository
-    ├── LotRepository
-    ├── KhoRepository
-    ├── LuuTruRepository
-    └── GiaoDBRepository
+├── ValidationRepository
+├── TmpRepository
+├── LotRepository
+├── KhoRepository
+├── LuuTruRepository
+└── GiaoDBRepository
 ```
 
-Không undo facade.
+Business services:
 
-Service mới nên phụ thuộc repository chuyên biệt khi có thể.
+```text
+PhieuLoadService
+PhieuKhoService
+PhieuGiaoDbService
+PhieuYmvnService
+```
+
+GiaoDB:
+
+```text
+FRM_UploadGiaoDB = UI
+GiaoDbControl    = UI boundary
+GiaoDbPresenter  = orchestration
+PhieuGiaoDbService = business
+PhieuGiaoDBRepository = persistence
+```
 
 ---
 
-# 31. GiaoDB responsibility
+# 18. YMVN / MilkRun
 
-## PhieuGiaoDBRepository
+Không tạo `YmvnOrderSource`. YMVN là business flow.
 
-Persistence/data access:
-
-```text
-LoadTmpPhieuGiaoDB()
-LuuGiaoDB()
-BuildDonHangTuUpload()
-TaoPhieuVaChiTietGiaoDB()
-...
-```
-
-## PhieuGiaoDbService
-
-Business orchestration:
+Có thể dùng:
 
 ```text
-Upload
-Manual
-Validate
-Create GiaoDB document
-Load standard order
-Complete GiaoDB
-Kho integration
-```
-
-## FRM_UploadGiaoDB
-
-UI:
-
-```text
-Excel
-Manual entry
-Preview
-UI validation
-Submit
-```
-
-Không chứa business SQL.
-
----
-
-# 32. MilkRun responsibility
-
-Repository hiện tại:
-
-```text
-TableOrderRepo
-```
-
-vẫn có thể tồn tại trong migration.
-
-Đích:
-
-```text
-TableOrderSource
-      ↓
-TableOrderRepository
-```
-
-YMVN-specific methods không tách chỉ để làm kiến trúc đẹp; chỉ tách khi có boundary thực tế cần thiết.
-
----
-
-# 33. YMVN
-
-Không tạo:
-
-```csharp
-YmvnOrderSource
-```
-
-YMVN là business flow.
-
-Có thể sử dụng:
-
-```text
-MilkRun source
-    +
+TableOrder/MilkRun source
++
 YMVN business rules
 ```
 
-Đích:
+`PhieuYmvnService` sở hữu các operation YMVN như CapNhapKhoYMVN, HoanThanhYMVN, GetDanhSachGioYMVN, UploadMilkrunSP và business rules liên quan.
 
-```text
-PhieuYmvnService
-    ├── CapNhapKhoYMVN
-    ├── HoanThanhYMVN
-    ├── GetDanhSachGioYMVN
-    ├── UploadMilkrunSP
-    └── business rules YMVN
-```
+Không tạo abstraction chỉ để làm kiến trúc đẹp nếu chưa có biến thể thực tế.
 
 ---
 
-# 34. Enrichment
+# 19. Data flow chuẩn
 
-`EnrichSttHop()` trước mắt giữ đơn giản:
-
-```text
-Load
- ↓
-EnrichSttHop
- ↓
-Result
-```
-
-Chỉ tạo `IOrderEnricher` khi thực tế xuất hiện nhiều enrichment độc lập.
-
-Nguyên tắc:
-
-> Không tạo abstraction chỉ vì kiến trúc đẹp; chỉ tạo khi có biến thể thực tế.
-
----
-
-# 35. Working state
-
-Phân biệt:
-
-```text
-Original Source
-```
-
-với:
-
-```text
-Working Delivery State
-```
-
-## Original source
-
-```text
-IFS
-TableOrder
-GiaoDB
-```
-
-## Working state
-
-```text
-TMPPHIEUGIAOHANG
-DOCQRCODE
-```
-
-Không coi TMP/DOCQR là OrderSource.
-
----
-
-# 36. Data flow chuẩn
-
-## Normal IFS
+## IFS
 
 ```text
 IFS
@@ -1420,14 +699,12 @@ Giao
 Kho
 ```
 
-## TableOrder
+## TableOrder/MilkRun
 
 ```text
-IFS
- ↓
 IFS baseline
       ↘
-       Compare ← TableOrder actual
+       Compare ← actual TableOrder
           ↓
    Standard Order
           ↓
@@ -1447,8 +724,7 @@ IFS baseline
 ```text
 Upload / Manual
  ↓
-TMPPHIEUGIAODBHD
-TMPPHIEUGIAOHANGDBCT
+GiaoDB header/detail
  ↓
 GiaoDbOrderSource
  ↓
@@ -1458,7 +734,7 @@ MP/SP
  ↓
 HOP
  ↓
-QR/TMP nếu cần
+QR/TMP
  ↓
 Giao
  ↓
@@ -1467,209 +743,55 @@ Kho
 
 ---
 
-# 37. Những điều KHÔNG được làm
+# 20. Những điều không được làm
 
-## Không 1 – Không trộn các dimension
-
-Không tạo enum kiểu:
-
-```csharp
-OrderWorkflow
-{
-    Normal,
-    GiaoDacBiet,
-    YMVN
-}
-```
-
-để quyết định mọi thứ.
-
-Các dimension phải độc lập:
-
-```text
-Source       = IFS / TableOrder / GiaoDB
-Category     = MP / SP
-QR state     = machine/session runtime state
-Business     = Kho / YMVN / GiaoDB
-UI state     = Control ownership
-```
-
-## Không 2 – Không biến LoadTuBangRieng thành “không dùng IFS”
-
-Đúng:
-
-```text
-LoadTuBangRieng
-=
-IFS baseline
-+
-MilkRun actual
-+
-comparison
-```
-
-## Không 3 – Không đưa EventBus vào Source
-
-Source:
-
-```text
-Load data
-```
-
-Service:
-
-```text
-Business orchestration
-```
-
-Presenter:
-
-```text
-UI reaction
-```
-
-## Không 4 – Không đưa SQL vào Service
-
-Service gọi Repository.
-
-## Không 5 – Không để `HVN_PGH` assemble business dependency tùy tiện
-
-Composition boundary phải rõ ràng; về sau có thể tiếp tục đưa assembly vào module factory nếu cần.
-
-## Không 6 – Không giữ implementation legacy sau migration
-
-Trừ migration source thực sự cần thiết.
-
-```text
-New owner
-    ↓
-Caller migrated
-    ↓
-Legacy implementation deleted
-```
-
-Đây là nguyên tắc bắt buộc từ Phase 12 trở đi.
+1. Không trộn Source + Category + QR state + Business flow + UI state vào một enum/class/service.
+2. Không biến `LoadTuBangRieng` thành “không dùng IFS”.
+3. Không đưa EventBus vào Source.
+4. Không đưa SQL vào Service.
+5. Không để `HVN_PGH` tùy tiện assemble business dependency ngoài composition boundary.
+6. Không giữ implementation legacy sau migration nếu không còn là migration source.
+7. Không đưa business logic vào UserControl.
 
 ---
 
-# 38. Strategy hiện tại
+# 21. Test matrix
 
-Hiện tại đã có:
-
-```text
-OrderLoadStrategyFactory
-IfsOrderLoadStrategy
-OrderTableLoadStrategy
-```
-
-Không xóa hàng loạt chỉ vì đã có `IOrderSource`.
-
-Migration chỉ kết thúc khi caller đã chuyển hoàn toàn và behavior được xác nhận.
-
-Mục tiêu cuối:
+Sau phase có thay đổi boundary cần kiểm tra tối thiểu:
 
 ```text
-Source selection
-       ↓
-IOrderSource
-       ↓
-PhieuLoadService
-```
-
-Sau khi không còn caller của Strategy cũ mới xóa Strategy cũ.
-
----
-
-# 39. Test matrix
-
-Sau mỗi phase có thay đổi behavior boundary, tối thiểu kiểm tra:
-
-## IFS
-
-```text
-QR machine
-non-QR machine
-MP
-SP
-```
-
-## TableOrder
-
-```text
-IFS = actual
-IFS > actual
-IFS < actual
-MP
-SP
-QR
-non-QR
-```
-
-## GiaoDB
-
-```text
-Không có IFS
-Upload Excel
-Manual
-MP
-SP
-QR
-non-QR
-Có LOT
-Không LOT
-Cập nhật kho
-```
-
-## QR state
-
-```text
-false / false
-true  / false
-true  / true
-false / true -> invalid
-```
-
-## UI migration
-
-```text
-Date change
-Tab change
-GioXuat change
-MP/SP toggle
-CheckGX
-ActionBar actions
-Order row selection
-DOC QR selection
-Bottom-state tabs
+IFS: QR / non-QR / MP / SP
+TableOrder: equal / less / greater / MP / SP / QR / non-QR
+GiaoDB: upload / manual / MP / SP / QR / non-QR / LOT / no LOT / kho
+QR: false/false, true/false, true/true, false/true-invalid
+UI: Date, Tab, GioXuat, MP/SP, CheckGX, ActionBar, order selection, DOC QR, bottom-state
 ```
 
 ---
 
-# 40. Commit / phase strategy
+# 22. Commit / phase strategy
 
-Không dùng một commit lớn cho nhiều responsibility không liên quan.
-
-Mẫu:
+Mỗi phase nên có đường đi:
 
 ```text
 Move responsibility
  ↓
 Redirect caller
  ↓
-Build / run / test nếu môi trường cho phép
+Build / test nếu môi trường cho phép
+ ↓
+Delete legacy
+ ↓
+Update roadmap
  ↓
 Commit
- ↓
-Delete temporary workflow/bridge nếu không còn cần
 ```
 
-Các phase cũ đã được triển khai thành nhiều commit nhỏ; roadmap này mô tả **trách nhiệm và trạng thái**, không coi commit message cũ là source of truth duy nhất.
+Roadmap là source of truth về **responsibility và trạng thái**, không phải commit message duy nhất.
 
 ---
 
-# 41. Definition of Done cuối cùng
-
-Refactor hoàn thành khi:
+# 23. Definition of Done cuối cùng
 
 ```text
 PhieuService
@@ -1684,33 +806,21 @@ HVN_PGH
     ↓
 WinForms lifecycle + composition + forwarding
 
-IFS
+IFS / TableOrder / GiaoDB
     ↓
 Source rõ ràng
 
-TableOrder
-    ↓
-IFS baseline + actual + comparison
-
-GiaoDB
-    ↓
-Manual/Upload + GiaoDB document
-
-MP/SP
+MP / SP
     ↓
 Common category
 
-TMP/DOCQR
+TMP / DOCQR
     ↓
 Working state
 
-Kho
+Kho / YMVN / GiaoDB
     ↓
-Business service riêng
-
-YMVN
-    ↓
-Business service riêng
+Business services riêng
 
 Header
     ↓
@@ -1724,7 +834,7 @@ DOC QR Grid
     ↓
 DocQrControl
 
-Bottom State Grids
+Bottom State
     ↓
 PhieuBottomStateControl
 
@@ -1733,60 +843,25 @@ ActionBar
 PhieuActionBarControl
 ```
 
-Behavior của hệ thống hiện tại phải được giữ nguyên.
+Behavior hệ thống phải giữ nguyên.
 
 ---
 
-# 42. Nguyên tắc kiến trúc cốt lõi
+# 24. Nguyên tắc sau Phase 12
 
-Có 5 dimension phải giữ độc lập:
+Mọi thay đổi phải trả lời:
 
-```text
-                 ┌──────────────────┐
-                 │      SOURCE      │
-                 │ IFS/MilkRun/GDB  │
-                 └────────┬─────────┘
-                          │
-                 ┌────────▼─────────┐
-                 │     CATEGORY     │
-                 │      MP / SP     │
-                 └────────┬─────────┘
-                          │
-                 ┌────────▼─────────┐
-                 │ WORKING STATE    │
-                 │ TMP / DOCQR / QR │
-                 └────────┬─────────┘
-                          │
-                 ┌────────▼─────────┐
-                 │ BUSINESS FLOW    │
-                 │ Kho/YMVN/GiaoDB  │
-                 └────────┬─────────┘
-                          │
-                 ┌────────▼─────────┐
-                 │       UI         │
-                 │ Control/Presenter│
-                 └──────────────────┘
-```
+1. Ai là owner mới?
+2. Caller đã chuyển chưa?
+3. Legacy implementation đã xóa chưa?
+4. Có compatibility boundary thật sự cần giữ không?
 
-> **Không trộn Source + Category + Runtime State + Business Flow + UI vào một enum/class/service duy nhất.**
+Nếu caller đã chuyển và không còn compatibility requirement thì legacy implementation phải được xóa trong cùng phase.
 
----
-
-# 43. Nguyên tắc refactor sau Phase 12
-
-Từ đây về sau, mọi thay đổi phải trả lời được 4 câu hỏi:
-
-1. **Ai là owner mới của responsibility này?**
-2. **Caller đã chuyển sang owner mới chưa?**
-3. **Legacy implementation đã xóa chưa?**
-4. **Có còn compatibility boundary thực sự cần giữ không?**
-
-Nếu câu 2 đã `YES` và câu 4 là `NO` thì phải thực hiện câu 3 ngay trong cùng phase.
-
-Mục tiêu không phải là có thật nhiều class/control, mà là:
+Mục tiêu:
 
 ```text
-Mỗi responsibility
+Một responsibility
        ↓
 Một owner rõ ràng
        ↓
