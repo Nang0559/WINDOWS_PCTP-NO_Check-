@@ -1,4 +1,5 @@
 using System;
+using System.Data;
 using System.Windows.Forms;
 using DevExpress.XtraEditors;
 using DevExpress.XtraGrid;
@@ -8,11 +9,8 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
 {
     /// <summary>
     /// UI boundary for the DOCQRCODE / QR area of HVN_PGH.
-    ///
-    /// Phase 9D:
-    /// - Owns the existing DOCQRCODE GridControl instance.
-    /// - Keeps the existing GridView and columns intact.
-    /// - Does not move QR business logic or event handlers here yet.
+    /// Owns the existing GridControl instance and its presentation helpers.
+    /// QR business logic remains in DocQRScanEngine/DocQRSessionState/DocQRService.
     /// </summary>
     public class DocQrControl : XtraUserControl
     {
@@ -21,17 +19,23 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
             Dock = DockStyle.Fill;
         }
 
-        /// <summary>
-        /// The original DOCQRCODE GridControl after attachment.
-        /// </summary>
         public GridControl QrGrid { get; private set; }
 
-        /// <summary>
-        /// The original DOCQRCODE GridView after attachment.
-        /// </summary>
         public GridView QrView
         {
             get { return QrGrid != null ? QrGrid.MainView as GridView : null; }
+        }
+
+        public void Bind(DataTable data)
+        {
+            if (QrGrid != null)
+                QrGrid.DataSource = data;
+        }
+
+        public void ShowAndBringToFront()
+        {
+            Visible = true;
+            BringToFront();
         }
 
         public int GetFocusedStt()
@@ -56,24 +60,16 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
 
         public void DeleteFocusedRow()
         {
-            if (QrView == null)
-                return;
-
-            QrView.DeleteSelectedRows();
+            if (QrView != null)
+                QrView.DeleteSelectedRows();
         }
 
         public void ClearRows()
         {
-            if (QrGrid == null)
-                return;
-
-            QrGrid.DataSource = null;
+            if (QrGrid != null)
+                QrGrid.DataSource = null;
         }
 
-        /// <summary>
-        /// Moves the existing DOCQRCODE GridControl into this UserControl
-        /// without recreating the GridView or its columns.
-        /// </summary>
         public void AttachExistingLayout(Control existingLayout)
         {
             if (existingLayout == null)
