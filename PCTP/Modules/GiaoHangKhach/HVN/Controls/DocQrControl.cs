@@ -3,6 +3,7 @@ using System.Data;
 using System.Windows.Forms;
 using DevExpress.XtraEditors;
 using DevExpress.XtraGrid;
+using DevExpress.XtraGrid.Views.Base;
 using DevExpress.XtraGrid.Views.Grid;
 
 namespace PCTP.QRCODE_HVN.PGH.Controls
@@ -19,6 +20,8 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
             Dock = DockStyle.Fill;
         }
 
+        public event EventHandler<FocusedRowChangedEventArgs> FocusedRowChanged = delegate { };
+
         public GridControl QrGrid { get; private set; }
 
         public GridView QrView
@@ -30,6 +33,22 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
         {
             if (QrGrid != null)
                 QrGrid.DataSource = data;
+        }
+
+        public void MoveLastVisible()
+        {
+            if (QrView == null)
+                return;
+
+            int rowHandle = QrView.RowCount - 1;
+            if (rowHandle >= 0)
+                QrView.FocusedRowHandle = rowHandle;
+        }
+
+        public void RefreshData()
+        {
+            if (QrView != null)
+                QrView.RefreshData();
         }
 
         public void ShowAndBringToFront()
@@ -84,6 +103,7 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
             if (existingLayout.Parent == this)
             {
                 QrGrid = grid;
+                WireGridEvents();
                 return;
             }
 
@@ -91,6 +111,21 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
             existingLayout.Dock = DockStyle.Fill;
             Controls.Add(existingLayout);
             QrGrid = grid;
+            WireGridEvents();
+        }
+
+        private void WireGridEvents()
+        {
+            if (QrView == null)
+                return;
+
+            QrView.FocusedRowChanged -= QrView_FocusedRowChanged;
+            QrView.FocusedRowChanged += QrView_FocusedRowChanged;
+        }
+
+        private void QrView_FocusedRowChanged(object sender, FocusedRowChangedEventArgs e)
+        {
+            FocusedRowChanged.Invoke(this, e);
         }
     }
 }
