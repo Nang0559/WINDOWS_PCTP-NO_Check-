@@ -63,8 +63,6 @@ namespace PCTP.QRCODE_HVN.PGH
             InitializeComponent();
             _waitForm = new WaitFormService(this);
             _cfg = CustomerTableConfig.Get(customerNo);
-            gridVDOCQRCODE.FocusedRowChanged += gridVDOCQRCODE_FocusedRowChanged;
-            _phieuBottomStateControl.SuaSlView.FocusedRowChanged += gridVSUASL_FocusedRowChanged;
             _presenter = BuildPresenter();
         }
 
@@ -116,16 +114,16 @@ namespace PCTP.QRCODE_HVN.PGH
         private static string SanitizeMachineName(string name) => System.Text.RegularExpressions.Regex.Replace(name ?? "LOCAL", @"[^A-Za-z0-9_]", "_");
         public void BindDonHang(DataTable dt) => _phieuGridControl.Bind(dt);
         public void BindHangThieu(DataTable dt) => _hangThieuControl.Bind(dt);
-        public void BindLechIFS(DataTable dt) => _phieuBottomStateControl.LechGrid.DataSource = dt;
-        public void BindDocQRCode(DataTable dt) { _docQrControl.Bind(dt); gridVDOCQRCODE.MoveLastVisible(); }
+        public void BindLechIFS(DataTable dt) => _phieuBottomStateControl.BindLech(dt);
+        public void BindDocQRCode(DataTable dt) { _docQrControl.Bind(dt); _docQrControl.MoveLastVisible(); }
         public void BindHoanThanhYMVN(DataTable dt)
         {
             if (InvokeRequired) { Invoke(new Action(() => BindHoanThanhYMVN(dt))); return; }
             if (dt == null || dt.Rows.Count == 0) { ShowInfo("Không có dữ liệu Hoàn Thành YMVN để hiển thị."); return; }
             _docQrControl.Bind(dt);
-            gridVDOCQRCODE.RefreshData();
+            _docQrControl.RefreshData();
         }
-        public void BindGhepLot(DataTable dt) => _phieuBottomStateControl.GhepLotGrid.DataSource = dt;
+        public void BindGhepLot(DataTable dt) => _phieuBottomStateControl.BindGhepLot(dt);
         public void SetGridCaption(string caption) => _phieuGridControl.SetCaption(caption);
         public void RefreshLotRow(int stt, string lot) => _phieuGridControl.RefreshLotRow(stt, lot);
 
@@ -163,8 +161,8 @@ namespace PCTP.QRCODE_HVN.PGH
             try { _hangThieuControl.Visible = false; PN_DOCQR_SUASL1.Visible = true; PN_DOCQR_SUASL1.BringToFront(); }
             catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[SwitchToDocQRView] Lỗi set Visible: {ex.Message}"); }
             Invoke(new Action(() => { lblDocQrcode.Text = _cfg.Delivery?.LabelDocQR ?? "Đọc QRCode theo thứ tự: FCC → HVN"; }));
-            _phieuBottomStateControl.SuaSlGrid.Visible = false;
-            _phieuBottomStateControl.GhepLotGrid.Visible = false;
+            _phieuBottomStateControl.HideSuaSoLuong();
+            _phieuBottomStateControl.HideGhepLot();
             _phieuActionBarControl.ConfigureDocQr();
             _docQrInputControl.FocusInput();
         }
@@ -173,10 +171,9 @@ namespace PCTP.QRCODE_HVN.PGH
             UIButtonHOME.Visible = false; panelPhieu.Visible = true; _phieuGridControl.BringToFrontGrid();
             try { PN_DOCQR_SUASL1.Visible = false; _hangThieuControl.Visible = true; _hangThieuControl.BringToFront(); }
             catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[SwitchToPhieuView] Lỗi set Visible: {ex.Message}"); }
-            _phieuBottomStateControl.SuaSlGrid.Visible = false;
-            _phieuBottomStateControl.GhepLotGrid.Visible = true;
-            _phieuBottomStateControl.GhepLotGrid.BringToFront();
-            _phieuBottomStateControl.LechGrid.Visible = false;
+            _phieuBottomStateControl.HideSuaSoLuong();
+            _phieuBottomStateControl.ShowGhepLot();
+            _phieuBottomStateControl.HideLech();
             TXT_FCCTU.Text = ""; TXT_FCCTHANH.Text = ""; TXT_HVNTU.Text = ""; TXT_HVNTHANH.Text = ""; _sttSuaSl = 0;
             _phieuActionBarControl.ConfigurePhieuView(_cfg.Delivery.LoadTuBangRieng ? "Show Thông Tin Lệch IFS" : "Kiểm Tra Ghep Lot", imageBT.Images);
         }
@@ -196,14 +193,15 @@ namespace PCTP.QRCODE_HVN.PGH
         public DataTable GetAddressTable() => _addressTable;
         public IEnumerable<GhepLotItem> GetSelectedGhepLotRows()
         {
-            var list = new List<GhepLotItem>();
-            foreach (int i in _phieuBottomStateControl.GhepLotView.GetSelectedRows())
+            foreach (DataRow row in _phieuBottomStateControl.GetSelectedGhepLotRows())
             {
-                DataRow row = _phieuBottomStateControl.GhepLotView.GetDataRow(i);
-                if (row == null) continue;
-                list.Add(new GhepLotItem { MaHang = row[0].ToString(), GioXuat = int.TryParse(row[1].ToString(), out int gio) ? gio : 0, Lot = row[2].ToString() });
+                yield return new GhepLotItem
+                {
+                    MaHang = row[0].ToString(),
+                    GioXuat = int.TryParse(row[1].ToString(), out int gio) ? gio : 0,
+                    Lot = row[2].ToString()
+                };
             }
-            return list;
         }
         public int GetFocusedDocQRStt() => _docQrControl != null ? _docQrControl.GetFocusedStt() : -1;
         public (string LotFcc, int SlFcc, int SlHvn) GetFocusedDocQRTemInfo() => _docQrControl != null ? _docQrControl.GetFocusedTemInfo() : (string.Empty, 0, 0);
@@ -281,7 +279,7 @@ namespace PCTP.QRCODE_HVN.PGH
         }
         public ChonLotResult ShowChonLotTuKho(int stt, string maHang, int soLuong, DataTable danhSachLot) => _phieuDialogControl.ShowChonLotTuKho(maHang, soLuong, danhSachLot);
         public List<string> GetCheckedGioXuat() => _phieuHeaderControl != null ? _phieuHeaderControl.GetCheckedGioXuat() : new List<string>();
-        public void BindGhepLotYMVN(DataTable dt) => _phieuBottomStateControl.GhepLotGrid.DataSource = dt;
+        public void BindGhepLotYMVN(DataTable dt) => _phieuBottomStateControl.BindGhepLot(dt);
         public void ShowReportYMVN(DataTable reportData) => _phieuDialogControl.ShowReportYMVN(reportData);
         public void XoaDongGiaoDB() => _phieuGridControl.DeleteSelectedRows();
         private void radioGroup2_EditValueChanging(object sender, ChangingEventArgs e) { if ((int)e.NewValue == 8) e.Cancel = !_presenter.OnGiaoDBChanging(_presenter.AddNM); }
@@ -316,10 +314,16 @@ namespace PCTP.QRCODE_HVN.PGH
         private void gridVDOCQRCODE_FocusedRowChanged(object sender, DevExpress.XtraGrid.Views.Base.FocusedRowChangedEventArgs e)
         {
             int stt = GetFocusedDocQRStt();
-            if (stt < 0) { _phieuBottomStateControl.SuaSlGrid.Visible = false; _phieuBottomStateControl.GhepLotGrid.BringToFront(); return; }
+            if (stt < 0)
+            {
+                _phieuBottomStateControl.HideSuaSoLuong();
+                _phieuBottomStateControl.ShowGhepLot();
+                return;
+            }
             var (lotFcc, slFcc, slHvn) = GetFocusedDocQRTemInfo();
-            _sttSuaSl = stt; _phieuBottomStateControl.SuaSlGrid.DataSource = BuildSuaSlTable(stt, lotFcc, slFcc, slHvn);
-            _phieuBottomStateControl.GhepLotGrid.Visible = false; _phieuBottomStateControl.SuaSlGrid.Visible = true; _phieuBottomStateControl.SuaSlGrid.BringToFront();
+            _sttSuaSl = stt;
+            _phieuBottomStateControl.BindSuaSoLuong(BuildSuaSlTable(stt, lotFcc, slFcc, slHvn));
+            _phieuBottomStateControl.ShowSuaSoLuong();
             TXT_FCCTU.Text = ""; TXT_FCCTHANH.Text = ""; TXT_HVNTU.Text = ""; TXT_HVNTHANH.Text = ""; LOTFCCVN.Text = lotFcc;
         }
         private DataTable BuildSuaSlTable(int stt, string lotFcc, int slFcc, int slHvn)
