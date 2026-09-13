@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-
 namespace PCTP.Modules.KhoCore.Application.Contracts.Slot
 {
     /// <summary>
@@ -8,10 +6,8 @@ namespace PCTP.Modules.KhoCore.Application.Contracts.Slot
     /// </summary>
     public interface ISlotQueryService
     {
-        SlotLocation GetById(int slotId);
         SlotLocation GetByText(string slotText);
         int GetQuantity(int slotId);
         int GetCapacity(int slotId);
-        IReadOnlyList<SlotLocation> FindContainingLot(string lotNo);
     }
 }
