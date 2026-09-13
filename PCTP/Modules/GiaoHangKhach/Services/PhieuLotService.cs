@@ -1,5 +1,6 @@
 using PCTP.Domain.Events;
 using PCTP.Domain.Interfaces;
+using PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -7,16 +8,22 @@ using System.Data;
 namespace PCTP.Applications.Services
 {
     /// <summary>
-    /// LOT business workflow. No WinForms dependency.
+    /// LOT business workflow. No WinForms dependency; the presenter supplies
+    /// a selector only when duplicate MAHANG/SOLUONG requires user choice.
     /// </summary>
     public sealed class PhieuLotService
     {
-        private readonly PhieuService _phieuService;
+        private readonly IPhieuLotRepository _lotRepo;
+        private readonly IPhieuValidationRepository _validationRepo;
         private readonly IEventBus _bus;
 
-        public PhieuLotService(PhieuService phieuService, IEventBus bus)
+        public PhieuLotService(
+            IPhieuLotRepository lotRepo,
+            IPhieuValidationRepository validationRepo,
+            IEventBus bus)
         {
-            _phieuService = phieuService ?? throw new ArgumentNullException(nameof(phieuService));
+            _lotRepo = lotRepo ?? throw new ArgumentNullException(nameof(lotRepo));
+            _validationRepo = validationRepo ?? throw new ArgumentNullException(nameof(validationRepo));
             _bus = bus ?? throw new ArgumentNullException(nameof(bus));
         }
 
@@ -42,7 +49,7 @@ namespace PCTP.Applications.Services
                 if (stt <= 0 || sl <= 0 || string.IsNullOrWhiteSpace(maHang))
                     continue;
 
-                DataTable trungDt = _phieuService.GetDanhSachTrungMaSl(maHang, sl, tenBan, docQRTable);
+                DataTable trungDt = _validationRepo.GetDanhSachTrungMaSl(maHang, sl, tenBan, docQRTable);
                 int dem = trungDt == null ? 0 : trungDt.Rows.Count;
                 if (dem == 0)
                     continue;
@@ -57,12 +64,11 @@ namespace PCTP.Applications.Services
                     stt = sttChon;
                 }
 
-                string lot = _phieuService.GetLotNo(
-                    maHang, stt, dem, sl, docQRTable, tmpTable);
+                string lot = _lotRepo.GetLotNo(maHang, stt, dem, sl, docQRTable, tmpTable);
                 if (string.IsNullOrWhiteSpace(lot))
                     continue;
 
-                _phieuService.CapNhapLotTmpPhieu(stt, lot, tenBan);
+                _lotRepo.CapNhapLotTmpPhieu(stt, lot, tenBan);
                 results.Add((stt, lot));
             }
 
