@@ -5,7 +5,7 @@
 | Hạng mục | Trạng thái | Ghi chú |
 |---|---|---|
 | A. Main_APP / Shell integration | **DONE** | `WmsControlCenterBar` + `WmsWorklistBar` + `WarehouseDashboardBar` đã được host trong `Main_APP`; refresh được nối chung. |
-| B. WMS Help / contextual routing | **PARTIAL** | Help Service/Catalog/Context/Overlay/Guide đã có; routing giao hàng đã chuẩn hóa theo `HVN_PGH` + `CustomerTableConfig`; F1/contextual help theo từng module vẫn chưa hoàn tất. |
+| B. WMS Help / contextual routing | **MOSTLY DONE** | Help Service/Catalog/Context/Overlay/Guide đã có; routing giao hàng theo `HVN_PGH` + `CustomerTableConfig`; F1 đã được gắn ở overlay toàn ứng dụng. Chỉ còn rà caller/module-specific edge cases. |
 | C. Báo cáo / Tra cứu | **PARTIAL** | Stock/Current Stock/QC/Inspection đã có; Delivery Trace có master/detail nhưng QR/customer/timeline/parity schema vẫn chưa đủ để gọi là hoàn tất. |
 | D. Legacy report cleanup | **PARTIAL** | `FormStockHistory` và `FormInspectionHistory` đã move; caller-by-caller verification và các report/repository legacy còn lại chưa xong. |
 | E. Repository/read-side decomposition | **PARTIAL** | BaoCao query adapters đã tách cho các slice hiện có; `IPhieuTrackingRepository` chưa được phân rã hoàn toàn và `VIEWSTOCK` vẫn còn dependency. |
@@ -87,7 +87,7 @@
 - [x] Thêm Quick Search QR/LOT/Part ở Shell.
 - [x] Tách entry point Báo cáo/Tra cứu khỏi Shell bằng `BaoCaoNavigator`; Shell không còn tự new trực tiếp các form BaoCao.
 - [x] Thêm Worklist/Cảnh báo WMS sau khi xác định query source cho từng KPI.
-- [ ] Gắn contextual help/F1 trực tiếp vào từng module form sau khi caller/module names ổn định.
+- [x] Gắn F1 contextual help ở Shell overlay; routing topic dùng `WmsHelpContext`.
 
 ### Worklist / Dashboard implementation checkpoint
 
