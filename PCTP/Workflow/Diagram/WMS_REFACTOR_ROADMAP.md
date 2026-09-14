@@ -128,6 +128,14 @@ Recent migration:
 - `MainStockModuleFactory` now composes `StockMovementService` with the legacy balance/slot/receiving adapters and injects it into `StockExportService`.
 - `NhapTpModuleFactory` now composes the same central movement boundary for the receiving workflow instead of relying on the optional dependency being absent.
 
+### Static audit update
+
+- [x] Add schema/code-grounded static audit document: `WMS_STOCK_STATIC_AUDIT.md`.
+- [ ] Prove that every legacy `IStockTpRepository` mutation caller has migrated before removing `XuatKhoThat` / `DieuChinhSlConLai`.
+- [ ] Verify the actual XuLyHangLoi composition root and ensure `IStockMovementService` is composed there.
+- [ ] Add the source `SlotLotId -> LotNo/ItemCode` consistency invariant to central `Export/Move` before declaring the write boundary complete.
+- [ ] Implement idempotency only after a durable database business key is identified.
+
 The remaining migration work is primarily cleanup and verification: scan all stock-writing callers, complete DI/composition wiring for other workflows, then add idempotency and integration/concurrency tests.
 
 `StockMovementService` owns stock mutation rules. The surrounding workflow still owns its transaction when it must include module-specific audit/state writes in the same UnitOfWork. This is an intermediate step; full transaction ownership moves to KhoCore after all participating persistence ports are migrated.
