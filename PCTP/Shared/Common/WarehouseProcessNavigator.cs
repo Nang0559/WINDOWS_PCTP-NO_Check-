@@ -25,10 +25,6 @@ using System.Windows.Forms;
 
 namespace PCTP.Common
 {
-    /// <summary>
-    /// Điểm điều phối duy nhất để mở các form quy trình nghiệp vụ kho.
-    /// Navigator chỉ dựng composition graph và mở Form; mutation stock nằm ở module service.
-    /// </summary>
     public static class WarehouseProcessNavigator
     {
         private static IPhieuLotRepository CreatePhieuLoiRepo()
@@ -80,24 +76,16 @@ namespace PCTP.Common
             OpenQuanLyTienTrinhHangLoi(owner, preselectId);
         }
 
-        /// <summary>
-        /// Dựng GiaoBuNG trên cùng DB executor/UoW và cùng central stock movement
-        /// với XuLyHangLoi. Không được tạo UoW riêng cho workflow đang chạy.
-        /// </summary>
         private static IGiaoBuNGService CreateGiaoBuNGService(
             PhieuSqlExecutor sql,
             IUnitOfWork uow,
             ISlotService slotService,
             IStockMovementService stockMovement)
         {
-            if (sql == null)
-                throw new ArgumentNullException(nameof(sql));
-            if (uow == null)
-                throw new ArgumentNullException(nameof(uow));
-            if (slotService == null)
-                throw new ArgumentNullException(nameof(slotService));
-            if (stockMovement == null)
-                throw new ArgumentNullException(nameof(stockMovement));
+            if (sql == null) throw new ArgumentNullException(nameof(sql));
+            if (uow == null) throw new ArgumentNullException(nameof(uow));
+            if (slotService == null) throw new ArgumentNullException(nameof(slotService));
+            if (stockMovement == null) throw new ArgumentNullException(nameof(stockMovement));
 
             var coreHistoryRepo = new StockHistoryRepository(sql, uow);
             var stockExportRepo = new StockExportRepository(sql, uow);
@@ -118,7 +106,8 @@ namespace PCTP.Common
                 stockHistoryRepo,
                 choGiaoRepo,
                 validationService,
-                stockMovement);
+                stockMovement,
+                stockExportHistoryRepo);
 
             return new GiaoBuNGService(
                 stockExportService,
@@ -137,7 +126,6 @@ namespace PCTP.Common
         private static Modules.XuLyHangLoi.FormQuanLyTienTrinhHangLoi
             CreateFormQuanLyTienTrinhHangLoi(int? preselectPhieuXuLyId = null)
         {
-            // One DB executor + one UoW for the whole XuLyHangLoi graph.
             var provider = new SQLPROVIDER();
             var sql = new PhieuSqlExecutor(provider);
             var uow = new UnitOfWork(provider);
