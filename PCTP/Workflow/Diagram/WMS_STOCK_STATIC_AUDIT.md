@@ -2,9 +2,9 @@
 
 ## Scope
 
-Static audit of the WMS stock write boundary after commit `19f3c80d31dab34c6bb7d50feae9e387dab8d1cc`.
+Static audit of the WMS stock write boundary after the central movement migration.
 
-The audit is intentionally schema/code grounded. A GitHub code-search miss is **not** treated as proof that a caller does not exist.
+The audit is intentionally schema/code grounded. A GitHub code-search miss is **not** treated as proof that a caller does not exist; repository-tree inspection is used together with targeted source review.
 
 ## Confirmed central write boundary
 
@@ -42,7 +42,7 @@ Composition is explicitly wired by `NhapTpModuleFactory`.
 
 `StockExportService` routes physical PICK/EXPORT mutations through `IStockMovementService`.
 
-The legacy `IStockExportRepository` remains as a transitional storage adapter/read dependency; it is no longer the business service's stock-mutation boundary.
+The legacy `IStockExportRepository` remains only as transitional storage infrastructure behind the central movement adapter/read operations; it is no longer the business service's stock-mutation boundary.
 
 ### GiaoHangKhach
 
@@ -59,44 +59,44 @@ The legacy `IStockExportRepository` remains as a transitional storage adapter/re
 - Rework NG receive -> `Receive` with `REWORK_NG_RECEIVE`
 - Rework cancel return -> `ReturnFromRework`
 
-## Remaining legacy write surfaces requiring caller verification
+## Legacy STOCKTP writer cleanup
 
-### `IStockTpRepository`
+The following legacy business-facing write contracts have now been removed:
 
-`PCTP/Modules/NhapKho/Interfaces/IStockTpRepository.cs` still exposes these legacy mutation methods:
+- `IStockTpRepository.XuatKhoThat(...)`
+- `IStockTpRepository.DieuChinhSlConLai(...)`
+- `IStockTpLookupService.DieuChinhSlConLai(...)`
+
+Their SQL implementations were removed from `StockTpRepository` as well.
+
+The remaining `IStockTpRepository` mutation methods are deliberately limited to receiving semantics:
 
 - `InsertStockTp(...)`
 - `UpdateStockTp(...)`
-- `XuatKhoThat(...)`
-- `DieuChinhSlConLai(...)`
 
-`InsertStockTp` and `UpdateStockTp` are intentionally retained behind `IStockReceivingRepository` during the transition because STOCKTP receiving has its own `SLNHAP/SLCONLAI/STATUS` semantics.
+These remain behind `IStockReceivingRepository` because receiving has distinct `SLNHAP/SLCONLAI/STATUS` semantics.
 
-`XuatKhoThat` and `DieuChinhSlConLai` are higher-risk legacy escape hatches. They should not be deleted until all callers have been verified and migrated to `IStockMovementService.Export/Correct`.
-
-### `StockExportRepository`
-
-`StockExportRepository` still contains the physical SQL implementation for the transitional `IStockBalanceRepository` adapter:
+`StockExportRepository` still contains:
 
 - `DecreaseStockTp`
 - `AdjustSlConLai`
 - `TryDecreaseSlConLai`
 
-This is expected transitional infrastructure, not a business-module write path.
+These are transitional infrastructure behind `IStockBalanceRepository`; they are not exposed through the NhapKho business contract.
 
-## Important invariant identified for next code pass
+## Important source LOT invariant
 
-For a physical `Export` using `SlotLotId`, the central movement service must verify that the requested `LotNo` matches the actual LOT stored by the `SlotLotId` before decrementing STOCKTP.
+For a physical `Export` using `SlotLotId`, the central movement service verifies that the requested `LotNo` and `ItemCode` match the actual LOT identity stored by the `SlotLotId` before decrementing STOCKTP.
 
-Otherwise a caller supplying a valid `SlotLotId` together with a different valid `LotNo` could remove quantity from one physical LOT while decrementing another STOCKTP LOT.
+The same source LOT identity validation is applied to `Move` when the request supplies source LOT/item information.
 
-The same source LOT consistency check should be applied to `Move` when the request supplies `LotNo`.
+This prevents a caller from supplying one valid LOT together with another valid `SlotLotId` and corrupting STOCKTP versus physical SlotLot quantities.
 
 ## Composition root gate
 
-`ReworkStockService` now requires `IStockMovementService`, but the repository tree does not yet expose a dedicated XuLyHangLoi composition factory comparable to `MainStockModuleFactory` / `NhapTpModuleFactory`.
+`ReworkStockService` requires `IStockMovementService`, and the forms receive the service through their constructors. However, the repository tree does not yet expose a dedicated XuLyHangLoi composition factory comparable to `MainStockModuleFactory` / `NhapTpModuleFactory`.
 
-The remaining task is therefore to locate the actual form/service composition path and ensure the central movement service is constructed once per workflow transaction boundary rather than being instantiated ad hoc by presentation code.
+Therefore the XuLyHangLoi composition root remains a verification gate rather than being marked complete by assumption.
 
 ## Idempotency gate
 
@@ -107,6 +107,10 @@ Before implementing idempotency, verify the real database schema and choose one 
 1. an existing workflow transaction key that is already unique/durable, or
 2. a dedicated stock movement/idempotency table with a unique business key.
 
+## Test gate
+
+The central boundary and source LOT invariant are implemented, but integration/concurrency tests still need to be added and executed against the real .NET Framework 4.7.2 build environment.
+
 ## Audit status
 
 - Central movement boundary: **confirmed**
@@ -114,7 +118,8 @@ Before implementing idempotency, verify the real database schema and choose one 
 - NhapKho central receiving wiring: **confirmed**
 - XuatKho central movement wiring: **confirmed**
 - Rework movement calls: **confirmed**
-- All legacy stock callers: **NOT YET PROVEN CLEAN**
+- Legacy NhapKho export/correction writer contracts: **removed**
+- All legacy stock callers: **NOT YET PROVEN CLEAN** — source-tree/search coverage is improved, but Visual Studio compile remains the final caller gate
 - XuLyHangLoi composition root: **NOT YET VERIFIED**
 - Idempotency: **NOT YET IMPLEMENTED**
 - Integration/concurrency tests: **NOT YET IMPLEMENTED**
