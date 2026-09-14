@@ -21,10 +21,10 @@ namespace PCTP.Modules.KhoVatLy.Repositories
         /// </summary>
         void LockSlotForUpdate(int slotId);
 
+        /// <summary>
+        /// Chỉ đọc LOT hiện tại của Slot. Mọi mutation Slot/SlotLot phải đi qua
+        /// IStockMovementService; interface này không còn expose bulk write.
+        /// </summary>
         List<LotInfo> GetLots(int slotId);
-
-        void SaveLots(int slotId, List<LotInfo> lots);
-
-        void UpdateSlotHeaderFromLots(int slotId, List<LotInfo> lots);
     }
 }
