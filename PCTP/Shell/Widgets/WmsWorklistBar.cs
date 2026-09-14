@@ -36,7 +36,6 @@ namespace PCTP.Shell.Widgets
             Dock = DockStyle.Top;
             Height = 44;
             BuildUi();
-            RefreshWorklist();
         }
 
         private void BuildUi()
@@ -54,8 +53,8 @@ namespace PCTP.Shell.Widgets
                 FlowDirection = FlowDirection.LeftToRight,
                 WrapContents = false,
                 AutoScroll = true,
-                Margin = new Padding(0),
-                Padding = new Padding(0)
+                Margin = Padding.Empty,
+                Padding = Padding.Empty
             };
 
             LabelControl title = new LabelControl
@@ -90,6 +89,8 @@ namespace PCTP.Shell.Widgets
 
             panel.Controls.Add(flow);
             Controls.Add(panel);
+
+            RefreshWorklist();
         }
 
         private LabelControl MakeItem(string text)
