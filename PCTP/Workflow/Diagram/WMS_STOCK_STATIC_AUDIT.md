@@ -26,29 +26,23 @@ IStockMovementService
     -> IStockReceivingRepository
 ```
 
-The current implementation is at:
-
-`PCTP/Modules/KhoCore/Application/Services/StockMovementService.cs`
-
 ## Confirmed migrated workflows
 
 ### NhapKho
 
 `NhapTpReceivingService` uses `IStockMovementService.Receive` for the combined STOCKTP + Slot/SlotLot receiving mutation. Receiving document/case/production state remains in NhapKho.
 
-Composition is explicitly wired by `NhapTpModuleFactory`.
-
 ### XuatKho
 
 `StockExportService` routes physical PICK/EXPORT mutations through `IStockMovementService`.
 
-The legacy `IStockExportRepository` remains only as transitional storage infrastructure behind the central movement adapter/read operations; it is no longer the business service's stock-mutation boundary.
+The legacy `IStockExportRepository` remains transitional storage infrastructure behind central movement/read adapters; it is no longer the business service's stock-mutation boundary.
 
 ### GiaoHangKhach
 
 `BulkStockAdjustService` routes A0 LOT removal through `IStockMovementService.Pick`.
 
-`IBulkStockSlotRepository` is query/resolve/lock only. The former `SaveLots` and `UpdateSlotHeaderFromLots` mutation escape hatches have been removed.
+`IBulkStockSlotRepository` is resolve/lock/query only. The former `SaveLots` and `UpdateSlotHeaderFromLots` mutation escape hatches have been removed.
 
 ### XuLyHangLoi
 
@@ -61,7 +55,7 @@ The legacy `IStockExportRepository` remains only as transitional storage infrast
 
 ## Legacy STOCKTP writer cleanup
 
-The following legacy business-facing write contracts have now been removed:
+The following legacy business-facing write contracts have been removed:
 
 - `IStockTpRepository.XuatKhoThat(...)`
 - `IStockTpRepository.DieuChinhSlConLai(...)`
@@ -76,54 +70,55 @@ The remaining `IStockTpRepository` mutation methods are deliberately limited to 
 
 These remain behind `IStockReceivingRepository` because receiving has distinct `SLNHAP/SLCONLAI/STATUS` semantics.
 
-`StockExportRepository` still contains:
+`StockExportRepository` still contains `DecreaseStockTp`, `AdjustSlConLai`, and `TryDecreaseSlConLai` as transitional infrastructure behind `IStockBalanceRepository`.
 
-- `DecreaseStockTp`
-- `AdjustSlConLai`
-- `TryDecreaseSlConLai`
-
-These are transitional infrastructure behind `IStockBalanceRepository`; they are not exposed through the NhapKho business contract.
-
-## Important source LOT invariant
+## Source LOT invariant
 
 For a physical `Export` using `SlotLotId`, the central movement service verifies that the requested `LotNo` and `ItemCode` match the actual LOT identity stored by the `SlotLotId` before decrementing STOCKTP.
 
-The same source LOT identity validation is applied to `Move` when the request supplies source LOT/item information.
+The same source LOT identity validation is applied to `Move`.
 
-This prevents a caller from supplying one valid LOT together with another valid `SlotLotId` and corrupting STOCKTP versus physical SlotLot quantities.
+## XuLyHangLoi composition root
 
-## Composition root gate
+`XuLyHangLoiModuleFactory` is now the composition root for the stock graph. `WarehouseProcessNavigator.CreateFormQuanLyTienTrinhHangLoi(...)` creates one `PhieuSqlExecutor` + `UnitOfWork` and passes them into the factory. `GiaoBuNGService` and `StockExportService` reuse the same UoW and the same `IStockMovementService`.
 
-A dedicated `XuLyHangLoiModuleFactory` now exists at:
+The stale `StockExportService` construction path was corrected so it no longer creates a separate stock graph.
 
-`PCTP/Modules/XuLyHangLoi/Application/XuLyHangLoiModuleFactory.cs`
+## Export idempotency gate
 
-`WarehouseProcessNavigator.CreateFormQuanLyTienTrinhHangLoi(...)` now creates one `PhieuSqlExecutor` + `UnitOfWork` and passes that same graph into the factory. The resulting `ReworkStockService`, `QTChungService`, workflow repositories, and form therefore share the same UoW for the XuLyHangLoi workflow.
+A durable business key already exists for XuatKho history through `StockHistory.MaPhieu`:
 
-The factory owns construction of:
+- `PGH#{id}`
+- `CGB#{id}`
+- `XLBT#{id}`
+- `KTR#{id}`
 
-- `IStockMovementService`
-- `ReworkStockService`
-- `SlotService`
-- `IStockExportRepository` transitional adapter source
-- `StockHistoryRepository`
-- `PhieuXuLyBatThuongRepository`
-- `TraHangQTChungRepository`
+`IStockExportHistoryRepository.ExistsHistoryForReference(...)` queries `StockHistory` by `ActionType + MaPhieu`.
 
-The UI no longer constructs `ReworkStockService` directly in the navigator.
+`StockExportService` now checks this key before physical mutation for:
 
-## Idempotency gate
+- `PickToChoGiao`
+- `XuatTrucTiep`
 
-`StockMovementRequest` contains `ReferenceType` and `ReferenceId`, but the current `StockHistory` persistence contract does not persist/query those fields. Therefore idempotency must **not** be added by pretending those request fields are already durable keys.
+`StockExportReferenceKey` was also corrected to use the same formatter as persistence; the previous `1#123` vs `PGH#123` mismatch would have made the lookup ineffective.
 
-Before implementing idempotency, verify the real database schema and choose one of:
+`ConfirmGiaoHangTuChoGiao` already has a second idempotency/state guard through `HangChoGiao.TrangThai == ChoGiao` and `GetForUpdate`.
 
-1. an existing workflow transaction key that is already unique/durable, or
-2. a dedicated stock movement/idempotency table with a unique business key.
+This is **workflow-level idempotency for XuatKho**, not yet a universal `IStockMovementService` idempotency mechanism for every module.
+
+## Remaining idempotency limitation
+
+`StockMovementRequest.ReferenceType/ReferenceId` are still not persisted by the generic `IStockHistoryRepository`. Therefore generic central movement idempotency should not be claimed complete. If NhapKho/Rework/GiaoHangKhach require retry-safe central operations, they need their own verified durable business key or a dedicated movement/idempotency table.
 
 ## Test gate
 
-The central boundary and source LOT invariant are implemented, but integration/concurrency tests still need to be added and executed against the real .NET Framework 4.7.2 build environment.
+Integration/concurrency tests still need to be added and executed against the real .NET Framework 4.7.2 environment. In particular:
+
+- duplicate XuatKho reference does not mutate stock twice
+- SlotLotId identity mismatch does not mutate either side
+- concurrent Pick/Export respects row locks
+- Rework round-trip remains balanced
+- Receive -> Slot/Lot -> STOCKTP reconciliation remains consistent
 
 ## Audit status
 
@@ -133,7 +128,8 @@ The central boundary and source LOT invariant are implemented, but integration/c
 - XuatKho central movement wiring: **confirmed**
 - Rework movement calls: **confirmed**
 - Legacy NhapKho export/correction writer contracts: **removed**
-- XuLyHangLoi composition root: **wired through WarehouseProcessNavigator**
+- XuLyHangLoi composition root: **wired and shared-UoW graph confirmed by source review**
+- XuatKho workflow idempotency: **implemented**
+- Generic stock-movement idempotency: **NOT YET IMPLEMENTED**
 - All legacy stock callers: **NOT YET PROVEN CLEAN** — Visual Studio compile remains the final caller gate
-- Idempotency: **NOT YET IMPLEMENTED**
 - Integration/concurrency tests: **NOT YET IMPLEMENTED**
