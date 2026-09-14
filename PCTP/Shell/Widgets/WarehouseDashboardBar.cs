@@ -1,86 +1,92 @@
-﻿using DevExpress.XtraEditors;
-using PCTP.Common;
-using PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao;
-using PCTP.Modules.GiaoHangKhach.Repositories;
+using DevExpress.XtraEditors;
+using PCTP.Modules.NhapKho;
 using PCTP.Modules.XuLyHangLoi.Enums;
 using PCTP.Modules.XuLyHangLoi.Repository;
-using PCTP.VIEWSTOCK;
 using PCTP.VIEWSTOCK.Repository;
 using System;
-using System.Collections.Generic;
 using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace PCTP.Shell.Widgets
 {
-    public partial class WarehouseDashboardBar : XtraUserControl
+    /// <summary>
+    /// Real-time warehouse KPI bar. It only consumes existing read repositories
+    /// and delegates navigation to the Shell process navigator.
+    /// </summary>
+    public sealed class WarehouseDashboardBar : XtraUserControl
     {
-        
-        private readonly IPhieuXuLyBatThuongRepository _phieuXuLyRepo;   // ← thay cho IPhieuLoiRepository
+        private readonly IPhieuXuLyBatThuongRepository _phieuXuLyRepo;
         private readonly INhapKhoDashboardRepository _dashRepo;
-        private LabelControl _lblChoDinhHuong, _lblChoQC, _lblDaDuyetChuaTra, _lblLechA0;
         private readonly Action _openNhapKho;
+
+        private LabelControl _lblChoDinhHuong;
+        private LabelControl _lblChoQC;
+        private LabelControl _lblDaDuyetChuaTra;
+        private LabelControl _lblLechA0;
+
         public WarehouseDashboardBar(
             IPhieuXuLyBatThuongRepository phieuXuLyRepo,
             INhapKhoDashboardRepository dashRepo,
             Action openNhapKho)
         {
-           
-            _phieuXuLyRepo = phieuXuLyRepo ?? throw new ArgumentNullException(nameof(phieuXuLyRepo));
-            _dashRepo = dashRepo ?? throw new ArgumentNullException(nameof(dashRepo));
+            _phieuXuLyRepo = phieuXuLyRepo ?? throw new ArgumentNullException("phieuXuLyRepo");
+            _dashRepo = dashRepo ?? throw new ArgumentNullException("dashRepo");
+            _openNhapKho = openNhapKho ?? throw new ArgumentNullException("openNhapKho");
 
-            _openNhapKho = openNhapKho
-             ?? throw new ArgumentNullException(nameof(openNhapKho));
+            Dock = DockStyle.Top;
+            Height = 42;
             BuildUI();
-            Refresh_();
         }
 
-        public void BuildUI()
+        private void BuildUI()
         {
-            var pnl = new PanelControl { Dock = DockStyle.Top, Height = 42 };
-            var flow = new FlowLayoutPanel
+            PanelControl panel = new PanelControl
+            {
+                Dock = DockStyle.Fill,
+                BorderStyle = DevExpress.XtraEditors.Controls.BorderStyles.NoBorder
+            };
+
+            FlowLayoutPanel flow = new FlowLayoutPanel
             {
                 Dock = DockStyle.Fill,
                 FlowDirection = FlowDirection.LeftToRight,
-                Padding = new Padding(12, 8, 0, 0)
+                WrapContents = false,
+                AutoScroll = true,
+                Padding = new Padding(12, 8, 0, 0),
+                Margin = Padding.Empty
             };
 
-            // ── Mốc 3a: chờ QC định hướng ban đầu ────────────────────────────────
-            _lblChoDinhHuong = MakeAppDashLabel("QC chờ định hướng: --");
-            _lblChoDinhHuong.Click += (s, e) => WarehouseProcessNavigator.OpenQCDinhHuong(this);
-            _lblChoDinhHuong.Cursor = Cursors.Hand;
+            _lblChoDinhHuong = MakeLabel("🟡 QC chờ định hướng: --");
+            _lblChoDinhHuong.Click += delegate { WarehouseProcessNavigator.OpenQCDinhHuong(this); };
 
-            // ── Mốc 3b: chờ QC xác nhận lần cuối ─────────────────────────────────
-            _lblChoQC = MakeAppDashLabel("QC chờ duyệt cuối: --");
-            _lblChoQC.Click += (s, e) => WarehouseProcessNavigator.OpenQCXacNhanCuoi(this);
-            _lblChoQC.Cursor = Cursors.Hand;
+            _lblChoQC = MakeLabel("🔴 QC chờ duyệt cuối: --");
+            _lblChoQC.Click += delegate { WarehouseProcessNavigator.OpenQCXacNhanCuoi(this); };
 
-            // ── Mốc 4: đã duyệt, chờ trả về SX ───────────────────────────────────
-            _lblDaDuyetChuaTra = MakeAppDashLabel("Đã duyệt chờ trả SX: --");
-            // WarehouseDashboardBar.cs
-            _lblDaDuyetChuaTra.Click += (s, e) => WarehouseProcessNavigator.OpenQuanLyTienTrinhHangLoi(this);
-            _lblDaDuyetChuaTra.Cursor = Cursors.Hand;
+            _lblDaDuyetChuaTra = MakeLabel("🔄 Đã duyệt chờ trả SX: --");
+            _lblDaDuyetChuaTra.Click += delegate { WarehouseProcessNavigator.OpenQuanLyTienTrinhHangLoi(this); };
 
-            // ── Đối chiếu A0 ──────────────────────────────────────────────────────
-            _lblLechA0 = MakeAppDashLabel("Lệch đối chiếu A0: --");
-            _lblLechA0.Click += (s, e) => _openNhapKho();
-            _lblLechA0.Cursor = Cursors.Hand;
+            _lblLechA0 = MakeLabel("⚠ Lệch đối chiếu A0: --");
+            _lblLechA0.Click += delegate { _openNhapKho(); };
 
-            flow.Controls.AddRange(new Control[]
-            {
-        _lblChoDinhHuong, _lblChoQC, _lblDaDuyetChuaTra, _lblLechA0
-            });
-            pnl.Controls.Add(flow);
-            Controls.Add(pnl);
-            pnl.BringToFront();
+            flow.Controls.Add(_lblChoDinhHuong);
+            flow.Controls.Add(_lblChoQC);
+            flow.Controls.Add(_lblDaDuyetChuaTra);
+            flow.Controls.Add(_lblLechA0);
+            panel.Controls.Add(flow);
+            Controls.Add(panel);
 
-            Refresh_();
+            Refresh();
         }
-        private void Refresh_()
+
+        /// <summary>
+        /// Refreshes all dashboard KPIs from the injected read repositories.
+        /// Kept public so Main_APP and the Control Center can refresh the widget.
+        /// </summary>
+        public void Refresh()
         {
+            if (IsDisposed)
+                return;
+
             try
             {
                 int choDinhHuong = _phieuXuLyRepo.CountByStatus(QTChungStatus.DaTaoPhieuBatThuong);
@@ -88,30 +94,33 @@ namespace PCTP.Shell.Widgets
                 int daDuyetChuaTra = _phieuXuLyRepo.CountByStatus(QTChungStatus.DaQCXacNhanCuoi);
                 int lech = _dashRepo.DemLechDoiChieu();
 
-                _lblChoDinhHuong.Text = $"🟡 QC chờ định hướng: {choDinhHuong}";
-                _lblChoDinhHuong.Appearance.ForeColor = choDinhHuong > 0 ? Color.DarkOrange : Color.SeaGreen;
-
-                _lblChoQC.Text = $"🔴 QC chờ duyệt cuối: {choQCCuoi}";
-                _lblChoQC.Appearance.ForeColor = choQCCuoi > 0 ? Color.Crimson : Color.SeaGreen;
-
-                _lblDaDuyetChuaTra.Text = $"🔄 Đã duyệt chờ trả SX: {daDuyetChuaTra}";
-                _lblDaDuyetChuaTra.Appearance.ForeColor = daDuyetChuaTra > 0 ? Color.DarkOrange : Color.SeaGreen;
-
-                _lblLechA0.Text = lech > 0 ? $"⚠ Lệch đối chiếu A0: {lech}" : "✅ Không lệch đối chiếu A0";
-                _lblLechA0.Appearance.ForeColor = lech > 0 ? Color.Red : Color.SeaGreen;
+                SetItem(_lblChoDinhHuong, "🟡 QC chờ định hướng: " + choDinhHuong, choDinhHuong > 0 ? Color.DarkOrange : Color.SeaGreen);
+                SetItem(_lblChoQC, "🔴 QC chờ duyệt cuối: " + choQCCuoi, choQCCuoi > 0 ? Color.Crimson : Color.SeaGreen);
+                SetItem(_lblDaDuyetChuaTra, "🔄 Đã duyệt chờ trả SX: " + daDuyetChuaTra, daDuyetChuaTra > 0 ? Color.DarkOrange : Color.SeaGreen);
+                SetItem(_lblLechA0, lech > 0 ? "⚠ Lệch đối chiếu A0: " + lech : "✅ Không lệch đối chiếu A0", lech > 0 ? Color.Red : Color.SeaGreen);
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[WarehouseDashboardBar] Refresh_ lỗi: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine("[WarehouseDashboardBar] Refresh lỗi: " + ex.Message);
             }
         }
 
-        private LabelControl MakeAppDashLabel(string text) => new LabelControl
+        private static LabelControl MakeLabel(string text)
         {
-            Text = text,
-            AutoSize = true,
-            Margin = new Padding(0, 0, 30, 0),
-            Appearance = { Font = new Font("Tahoma", 9.5F, FontStyle.Bold) }
-        };
+            return new LabelControl
+            {
+                Text = text,
+                AutoSize = true,
+                Cursor = Cursors.Hand,
+                Margin = new Padding(0, 0, 30, 0),
+                Appearance = { Font = new Font("Tahoma", 9.5F, FontStyle.Bold) }
+            };
+        }
+
+        private static void SetItem(LabelControl label, string text, Color color)
+        {
+            label.Text = text;
+            label.Appearance.ForeColor = color;
+        }
     }
 }
