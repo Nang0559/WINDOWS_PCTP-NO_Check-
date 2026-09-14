@@ -119,11 +119,13 @@ Recent migration:
 - `StockMovementService.Pick` supports the canonical `SlotId + LotNo + ItemCode + Quantity` physical-pick path through `IStockSlotRepository.TakeLot` and returns consumed LOT metadata to the workflow.
 - Both NhapKho and XuLyHangLoi transitional slot adapters implement item-aware `TakeLot`, so FIFO/split persistence cannot consume a LOT-equivalent record belonging to another item.
 - The duplicated `TakeLot/AddLot` implementations are now centralized in `PCTP/Infrastructure/Stock/LegacyStockSlotRepositoryAdapter.cs`; module-local adapters remain thin compatibility wrappers only.
-- `PCTP/Directory.Build.targets` explicitly includes the centralized legacy Slot adapter so the old non-SDK project compiles the new infrastructure file.
+- `PCTP/Directory.Build.targets` explicitly includes the centralized legacy Slot adapter and `IStockMovementService` so the old non-SDK project compiles the new stock boundary files.
 - `NhapTpReceivingService` now routes STOCKTP + Slot/SlotLot receiving mutation through `IStockMovementService.Receive`; receiving document/case/production state remains in NhapKho.
 - `BulkStockAdjustService` no longer mutates A0 SlotLot directly; it resolves/locks the virtual slot and routes the physical LOT PICK through `IStockMovementService.Pick`, with StockHistory written in the same UnitOfWork.
+- `MainStockModuleFactory` now composes `StockMovementService` with the legacy balance/slot/receiving adapters and injects it into `StockExportService`.
+- `NhapTpModuleFactory` now composes the same central movement boundary for the receiving workflow instead of relying on the optional dependency being absent.
 
-The remaining migration work is primarily cleanup and verification: scan all stock-writing callers, complete DI/composition wiring, then add idempotency and integration/concurrency tests.
+The remaining migration work is primarily cleanup and verification: scan all stock-writing callers, complete DI/composition wiring for other workflows, then add idempotency and integration/concurrency tests.
 
 `StockMovementService` owns stock mutation rules. The surrounding workflow still owns its transaction when it must include module-specific audit/state writes in the same UnitOfWork. This is an intermediate step; full transaction ownership moves to KhoCore after all participating persistence ports are migrated.
 
@@ -145,6 +147,7 @@ Current work:
 - [x] Define LOT-aware `IStockSlotRepository.AddLot` and a transitional NhapKho adapter.
 - [x] Prepare central `Receive` to write receiving metadata + exact LOT slot mutation.
 - [x] Migrate `NhapTpReceivingService` to `IStockMovementService.Receive` using the exact LOT-aware slot boundary.
+- [x] Wire `NhapTpModuleFactory` to provide `IStockMovementService` explicitly.
 
 ## Phase 5 - XuatKho
 
@@ -155,6 +158,7 @@ Current work:
 - [x] Migrate `XuatTrucTiep` physical mutation to `IStockMovementService.Pick` + central `Export`.
 - [x] Fix `ExportFromSlot` concurrency window by locking before LOT calculation.
 - [x] Remove obsolete direct `IStockExportRepository` mutation dependency from `StockExportService`.
+- [x] Wire `MainStockModuleFactory` so `StockExportService` receives the central movement service.
 
 ## Phase 6 - GiaoHangKhach
 
