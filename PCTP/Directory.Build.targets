@@ -1,6 +1,5 @@
 <Project>
   <ItemGroup>
-    <!-- GiaoHangKhach UI/application sources must be part of the legacy PCTP build graph. -->
     <Compile Include="Modules\GiaoHangKhach\Services\DocQRScanEngine.cs" />
     <Compile Include="Modules\GiaoHangKhach\Services\DocQRSessionState.cs" />
     <Compile Include="Modules\GiaoHangKhach\Services\DocQRTableResolver.cs" />
@@ -21,7 +20,6 @@
     <Compile Include="Modules\GiaoHangKhach\HVN\Controls\HangThieuControl.cs" />
     <Compile Include="Modules\GiaoHangKhach\HVN\HVN_PGH.PhieuGridMigration.cs" />
 
-    <!-- Central stock boundary and transitional adapters. -->
     <Compile Include="Modules\KhoCore\Application\Contracts\Stock\IStockBalanceRepository.cs" />
     <Compile Include="Modules\KhoCore\Application\Contracts\Stock\IStockMovementService.cs" />
     <Compile Include="Modules\KhoCore\Application\Contracts\Stock\IStockSlotRepository.cs" />
@@ -34,7 +32,6 @@
     <Compile Include="Modules\XuLyHangLoi\Application\XuLyHangLoiModuleFactory.cs" />
     <Compile Include="Modules\NhapKho\Application\Adapters\StockReceivingRepositoryAdapter.cs" />
 
-    <!-- BaoCao read-only query layer. -->
     <Compile Include="Modules\BaoCao\Application\Contracts\HistorySearchCriteria.cs" />
     <Compile Include="Modules\BaoCao\Application\Contracts\Queries\IStockHistoryQuery.cs" />
     <Compile Include="Modules\BaoCao\Application\Contracts\Queries\ICurrentStockQuery.cs" />
@@ -57,7 +54,6 @@
     <Compile Include="Modules\BaoCao\UI\FormBaoCaoStockHistory.cs" />
     <Compile Include="Modules\BaoCao\UI\FormBaoCaoQualityHistory.cs" />
 
-    <!-- Main shell composition/dashboard/help boundaries. -->
     <Compile Include="Shell\Composition\MainAppDashboardFactory.cs" />
     <Compile Include="Shell\Services\QrMachineSwitchService.cs" />
     <Compile Include="Shell\Help\WmsHelpTopic.cs" />
@@ -66,8 +62,8 @@
     <Compile Include="Shell\Help\WmsHelpService.cs" />
     <Compile Include="Shell\Help\FormWmsHelp.cs" />
     <Compile Include="Shell\Widgets\MainAppDashboardController.cs" />
+    <Compile Include="Shell\Widgets\WmsControlCenterBar.cs" />
 
-    <!-- Removed legacy report UI after migration to BaoCao. -->
     <Compile Remove="Modules\KhoVatLy\FormStockHistory.cs" />
     <Compile Remove="Modules\KhoVatLy\FormStockHistory.Designer.cs" />
     <Compile Remove="Modules\KhoVatLy\FormInspectionHistory.cs" />
@@ -81,9 +77,7 @@
   </PropertyGroup>
 
   <Target Name="ValidatePctpBuildBaseline" BeforeTargets="CoreCompile">
-    <Error Condition="'$(TargetFrameworkVersion)' != 'v4.7.2'"
-           Text="PCTP build baseline violation: TargetFrameworkVersion must remain v4.7.2 during the current migration." />
-    <Error Condition="'$(LangVersion)' != '7.3'"
-           Text="PCTP build baseline violation: LangVersion must remain 7.3 during the current migration." />
+    <Error Condition="'$(TargetFrameworkVersion)' != 'v4.7.2'" Text="PCTP build baseline violation: TargetFrameworkVersion must remain v4.7.2 during the current migration." />
+    <Error Condition="'$(LangVersion)' != '7.3'" Text="PCTP build baseline violation: LangVersion must remain 7.3 during the current migration." />
   </Target>
 </Project>
