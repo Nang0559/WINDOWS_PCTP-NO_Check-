@@ -1,0 +1,77 @@
+name: Normalize PCTP project compile graph
+
+on:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: write
+
+jobs:
+  normalize:
+    if: github.event.head_commit.message != 'chore: normalize PCTP.csproj compile graph'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout master
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Normalize compile graph
+        shell: python
+        run: |
+          from pathlib import Path
+
+          csproj = Path('PCTP/PCTP.csproj')
+          text = csproj.read_text(encoding='utf-8-sig')
+          include = r'    <Compile Include="Modules\\GiaoHangKhach\\HVN\\Controls\\*.cs" />'
+
+          if include not in text:
+              marker = r'    <Compile Include="Modules\\GiaoHangKhach\\Configuration\\GiaoHangKhachConfiguration.cs" />'
+              if marker not in text:
+                  raise SystemExit('Cannot find stable insertion point in PCTP.csproj')
+              text = text.replace(marker, include + '\n' + marker, 1)
+
+          csproj.write_text(text, encoding='utf-8-sig', newline='')
+
+          targets = Path('PCTP/Directory.Build.targets')
+          t = targets.read_text(encoding='utf-8')
+          control_files = [
+              'PhieuGridControl.cs',
+              'DocQrControl.cs',
+              'DocQrInputControl.cs',
+              'GiaoDbControl.cs',
+              'YmvnControl.cs',
+              'PhieuActionBarControl.cs',
+              'PhieuBottomStateControl.cs',
+              'PhieuDialogControl.cs',
+              'PhieuHeaderControl.cs',
+              'HangThieuControl.cs',
+          ]
+          for name in control_files:
+              line = f'    <Compile Include="Modules\\GiaoHangKhach\\HVN\\Controls\\{name}" />\n'
+              t = t.replace(line, '', 1)
+          targets.write_text(t, encoding='utf-8', newline='')
+
+          # Validate exactly one wildcard ownership remains in PCTP.csproj.
+          if text.count(include) != 1:
+              raise SystemExit('PCTP.csproj wildcard compile entry is not unique')
+          for name in control_files:
+              if f'Modules\\GiaoHangKhach\\HVN\\Controls\\{name}' in t:
+                  raise SystemExit(f'Duplicate control compile entry remains: {name}')
+
+      - name: Verify diff
+        run: |
+          git diff --check
+          git diff -- PCTP/PCTP.csproj PCTP/Directory.Build.targets
+
+      - name: Commit normalized project graph
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add PCTP/PCTP.csproj PCTP/Directory.Build.targets
+          git rm .github/workflows/normalize-pctp-csproj.yml
+          git diff --cached --check
+          git commit -m "chore: normalize PCTP.csproj compile graph"
+          git push origin HEAD:master
