@@ -6,10 +6,6 @@ using System.Windows.Forms;
 
 namespace PCTP.Shell.Widgets
 {
-    /// <summary>
-    /// Lightweight WMS Control Center hosted by Main_APP.
-    /// It only coordinates navigation; query/business logic stays in modules.
-    /// </summary>
     internal sealed class WmsControlCenterBar : UserControl
     {
         private readonly WmsHelpService _help;
@@ -27,35 +23,33 @@ namespace PCTP.Shell.Widgets
             BackColor = Color.WhiteSmoke;
             BorderStyle = BorderStyle.FixedSingle;
 
-            Label title = new Label
+            Controls.Add(new Label
             {
                 Text = "WMS CONTROL CENTER",
                 AutoSize = true,
                 Location = new Point(10, 14),
                 Font = new Font("Tahoma", 9f, FontStyle.Bold)
-            };
-            Controls.Add(title);
+            });
 
             _quickSearch = new TextBox
             {
                 Width = 260,
                 Height = 24,
                 Location = new Point(170, 10),
-                Anchor = AnchorStyles.Left | AnchorStyles.Top,
-                ToolTipText = ""
+                Anchor = AnchorStyles.Left | AnchorStyles.Top
             };
             _quickSearch.KeyDown += QuickSearch_KeyDown;
             Controls.Add(_quickSearch);
 
-            Button search = CreateButton("Tra cứu", 80, 170);
+            Button search = CreateButton("Tra cứu", 80, 435);
             search.Click += delegate { OpenQuickSearch(); };
             Controls.Add(search);
 
-            Button guide = CreateButton("Hướng dẫn", 82, 255);
+            Button guide = CreateButton("Hướng dẫn", 82, 523);
             guide.Click += delegate { _help.Show(this, "Dashboard"); };
             Controls.Add(guide);
 
-            Button refresh = CreateButton("Làm mới", 72, 343);
+            Button refresh = CreateButton("Làm mới", 72, 613);
             refresh.Click += delegate { OnRefreshRequested(); };
             Controls.Add(refresh);
 
@@ -63,9 +57,8 @@ namespace PCTP.Shell.Widgets
             {
                 Text = "Sẵn sàng",
                 AutoSize = true,
-                Location = new Point(430, 14),
-                ForeColor = Color.DimGray,
-                Anchor = AnchorStyles.Left | AnchorStyles.Top
+                Location = new Point(700, 14),
+                ForeColor = Color.DimGray
             };
             Controls.Add(_status);
         }
@@ -113,8 +106,7 @@ namespace PCTP.Shell.Widgets
                 Text = text,
                 Width = width,
                 Height = 26,
-                Location = new Point(left, 9),
-                Anchor = AnchorStyles.Left | AnchorStyles.Top
+                Location = new Point(left, 9)
             };
         }
     }
