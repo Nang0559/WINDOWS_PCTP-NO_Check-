@@ -27,6 +27,8 @@ namespace PCTP.Modules.XuLyHangLoi.Application
             public ISlotService SlotService { get; internal set; }
             public IStockMovementService StockMovement { get; internal set; }
             public IReworkStockService ReworkStockService { get; internal set; }
+            public IStockExportRepository StockExportRepo { get; internal set; }
+            public IStockHistoryRepository StockHistoryRepo { get; internal set; }
             public IPhieuXuLyBatThuongRepository PhieuXuLyRepo { get; internal set; }
             public ITraHangQTChungRepository QTChungRepo { get; internal set; }
         }
@@ -76,6 +78,8 @@ namespace PCTP.Modules.XuLyHangLoi.Application
                 SlotService = slotService,
                 StockMovement = stockMovement,
                 ReworkStockService = reworkStockService,
+                StockExportRepo = stockTpRepo,
+                StockHistoryRepo = historyRepo,
                 PhieuXuLyRepo = phieuXuLyRepo,
                 QTChungRepo = qtChungRepo
             };
