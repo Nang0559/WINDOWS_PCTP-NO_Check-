@@ -6,7 +6,7 @@ using PCTP.Modules.KhoCore.Application.Services;
 using PCTP.Modules.KhoVatLy.Application.Interfaces;
 using PCTP.Modules.KhoVatLy.Kho.Models;
 using PCTP.Modules.KhoVatLy.Repositories;
-using PCTP.Modules.NhapKho.Repository;
+using PCTP.Modules.NhapKho.Interfaces;
 using PCTP.Shared.Common;
 using PCTP.Shared.Helpers;
 using PCTP.VIEWSTOCK.Fuction;
@@ -14,7 +14,7 @@ using PCTP.VIEWSTOCK.Models;
 using System;
 using System.Collections.Generic;
 
-namespace PCTP.VIEWSTOCK.Repository
+namespace PCTP.Modules.NhapKho.Services
 {
     /// <summary>
     /// Nhập thành phẩm vào Slot.
@@ -103,7 +103,7 @@ namespace PCTP.VIEWSTOCK.Repository
 
             string lotNo = phieuLive != null
                 ? phieuLive.LotNo
-                : LotCodeHelper.StripCounterAndQty(qr.RawLotNo ?? qr.LotNo);
+                : LotCodeHelper.StripCounterAndQty(qr.RawLotNoSL ?? qr.RawLotNo ?? qr.LotNo);
             if (string.IsNullOrWhiteSpace(lotNo))
                 return ScanResult.Fail("Không xác định được LOT.");
 
@@ -139,7 +139,6 @@ namespace PCTP.VIEWSTOCK.Repository
                     return ScanResult.Fail("Vượt sức chứa Slot (" + qtySauNhap + "/" + capacity + "). Chọn Slot khác.");
                 }
 
-                // Chỉ đọc STOCKTP để xác định status nghiệp vụ; mutation do KhoCore thực hiện.
                 int slDaNhapTruoc = _stockTpRepo.ExistsStockTp(lotNo)
                     ? _stockTpRepo.GetSlDaNhap(lotNo)
                     : 0;
