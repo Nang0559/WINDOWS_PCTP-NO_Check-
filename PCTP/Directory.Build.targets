@@ -40,13 +40,20 @@
     <Compile Include="Modules\BaoCao\Application\Contracts\Queries\ICurrentStockQuery.cs" />
     <Compile Include="Modules\BaoCao\Application\Contracts\Queries\ItemHistoryRow.cs" />
     <Compile Include="Modules\BaoCao\Application\Contracts\Queries\CurrentStockRow.cs" />
+    <Compile Include="Modules\BaoCao\Application\Contracts\Queries\IQualityHistoryQuery.cs" />
+    <Compile Include="Modules\BaoCao\Application\Contracts\Queries\QualityHistoryRow.cs" />
+    <Compile Include="Modules\BaoCao\Application\Contracts\Queries\QualityHistoryDetailRow.cs" />
     <Compile Include="Modules\BaoCao\Infrastructure\Queries\StockHistoryQueryService.cs" />
     <Compile Include="Modules\BaoCao\Infrastructure\Queries\CurrentStockQueryService.cs" />
+    <Compile Include="Modules\BaoCao\Infrastructure\Queries\QualityHistoryQueryService.cs" />
     <Compile Include="Modules\BaoCao\UI\FormBaoCaoStockHistory.cs" />
+    <Compile Include="Modules\BaoCao\UI\FormBaoCaoQualityHistory.cs" />
 
-    <!-- Remove the old stock-history form from the legacy explicit project graph. -->
+    <!-- Removed legacy report UI after migration to BaoCao. -->
     <Compile Remove="Modules\KhoVatLy\FormStockHistory.cs" />
     <Compile Remove="Modules\KhoVatLy\FormStockHistory.Designer.cs" />
+    <Compile Remove="Modules\KhoVatLy\FormInspectionHistory.cs" />
+    <Compile Remove="Modules\KhoVatLy\FormInspectionHistory.Designer.cs" />
   </ItemGroup>
 
   <PropertyGroup>
