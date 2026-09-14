@@ -8,6 +8,7 @@ using PCTP.Common;
 using PCTP.Modules.GiaoHangKhach.SubForm;
 using PCTP.QRCODE_HVN.ComaprePart;
 using PCTP.Shell.Composition;
+using PCTP.Shell.Services;
 using PCTP.Shell.Widgets;
 using PCTP.VIEWSTOCK;
 using System;
@@ -34,6 +35,7 @@ namespace PCTP
         public static string TM_BANQR = string.Empty;
 
         private readonly IWaitFormService _waitForm;
+        private readonly QrMachineSwitchService _qrMachineSwitch;
         private MainAppDashboardController _dashboard;
         private WarehouseDashboardBar _dashboardBar;
         private MainAppDashboardFactory _dashboardFactory;
@@ -42,6 +44,7 @@ namespace PCTP
         {
             InitializeComponent();
             _waitForm = new WaitFormService(this);
+            _qrMachineSwitch = new QrMachineSwitchService();
             accordionControl.SelectedElement = NHAccordionControlElement;
         }
 
@@ -192,18 +195,7 @@ namespace PCTP
             if (result != DialogResult.Yes)
                 return;
 
-            string history = string.Format("{0} --> {1} : {2}", TM_BANQR, hostname, DateTime.Now);
-            string safeHistory = history.Replace("'", "''");
-            string safeHostname = hostname.Replace("'", "''");
-
-            string updateSql =
-                "update tbl_QR_MAY_DOCQR set LichSu = '" + safeHistory + "', TT = 0 where TT = 1";
-            string insertSql =
-                "insert into tbl_QR_MAY_DOCQR(TenMay,LichSu,TT) values ('" + safeHostname + "','KO',1)";
-
-            ClassSQL.SQLPROVIDER sql = new ClassSQL.SQLPROVIDER();
-            sql.LoadData1(sql.B7R2_FCCdb, updateSql);
-            sql.LoadData1(sql.B7R2_FCCdb, insertSql);
+            _qrMachineSwitch.Switch(TM_BANQR, hostname);
             Application.Restart();
         }
 
