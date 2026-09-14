@@ -98,7 +98,7 @@ Current status: **central implementation exists; migration of existing workflows
 Current transitional path:
 
 ```text
-XuLyHangLoi / XuatKho / NhapKho
+XuLyHangLoi / XuatKho / NhapKho / GiaoHangKhach
     -> IStockMovementService
     -> KhoCore.StockMovementService
     -> IStockBalanceRepository + IStockSlotRepository + receiving port
@@ -113,14 +113,17 @@ Recent migration:
 - `StockExportService.ConfirmGiaoHangTuChoGiao` routes the final STOCKTP decrement through `IStockMovementService.Export`.
 - `StockExportService.ExportFromSlot` now uses central PICK for every exported LOT and fails loudly when the required item code is missing.
 - `StockExportService.ExportFromSlot` now acquires the source-slot lock **before** reading and splitting LOTs, preventing a stale LOT split under concurrent writers.
+- `StockExportService` no longer depends directly on `IStockExportRepository` for stock mutation; the legacy repository remains behind `StockExportRepositoryAdapter` for the central balance port and remaining read/query compatibility.
 - `StockMovementRequest` carries receiving metadata required by the `STOCKTP` receiving port.
 - `StockMovementService.Receive/Move/ReturnFromRework` use the LOT-aware `IStockSlotRepository.AddLot` operation whenever `LotNo` is present.
 - `StockMovementService.Pick` supports the canonical `SlotId + LotNo + ItemCode + Quantity` physical-pick path through `IStockSlotRepository.TakeLot` and returns consumed LOT metadata to the workflow.
 - Both NhapKho and XuLyHangLoi transitional slot adapters implement item-aware `TakeLot`, so FIFO/split persistence cannot consume a LOT-equivalent record belonging to another item.
 - The duplicated `TakeLot/AddLot` implementations are now centralized in `PCTP/Infrastructure/Stock/LegacyStockSlotRepositoryAdapter.cs`; module-local adapters remain thin compatibility wrappers only.
+- `PCTP/Directory.Build.targets` explicitly includes the centralized legacy Slot adapter so the old non-SDK project compiles the new infrastructure file.
 - `NhapTpReceivingService` now routes STOCKTP + Slot/SlotLot receiving mutation through `IStockMovementService.Receive`; receiving document/case/production state remains in NhapKho.
+- `BulkStockAdjustService` no longer mutates A0 SlotLot directly; it resolves/locks the virtual slot and routes the physical LOT PICK through `IStockMovementService.Pick`, with StockHistory written in the same UnitOfWork.
 
-The remaining migration work is primarily cleanup and verification: remove obsolete direct-write dependencies, migrate remaining non-Rework XuLyHangLoi stock writes, complete DI/composition wiring, then add idempotency and integration/concurrency tests.
+The remaining migration work is primarily cleanup and verification: scan all stock-writing callers, complete DI/composition wiring, then add idempotency and integration/concurrency tests.
 
 `StockMovementService` owns stock mutation rules. The surrounding workflow still owns its transaction when it must include module-specific audit/state writes in the same UnitOfWork. This is an intermediate step; full transaction ownership moves to KhoCore after all participating persistence ports are migrated.
 
@@ -151,21 +154,21 @@ Current work:
 - [x] Migrate `PickToChoGiao` physical mutation to `IStockMovementService.Pick`.
 - [x] Migrate `XuatTrucTiep` physical mutation to `IStockMovementService.Pick` + central `Export`.
 - [x] Fix `ExportFromSlot` concurrency window by locking before LOT calculation.
-- [ ] Remove obsolete direct stock repository dependencies after caller verification.
+- [x] Remove obsolete direct `IStockExportRepository` mutation dependency from `StockExportService`.
 
 ## Phase 6 - GiaoHangKhach
 
-- [ ] Keep QR/lot/delivery workflow in GiaoHangKhach
-- [ ] Treat it as outbound workflow under XuatKho boundary
-- [ ] Remove any remaining direct stock mutation
-- [ ] Preserve the completed 12A-12H presentation/application refactor
+- [x] Keep QR/lot/delivery workflow in GiaoHangKhach
+- [x] Treat stock mutation as an outbound workflow under the XuatKho/KhoCore boundary
+- [x] Remove the remaining identified direct A0 SlotLot mutation from `BulkStockAdjustService`
+- [x] Preserve the completed 12A-12H presentation/application refactor
 
 ## Phase 7 - XuLyHangLoi
 
 - [ ] Move business logic out of large Forms
 - [ ] Separate Abnormal/Rework/GiaoBù state from stock state
 - [x] Rework OK -> StockMovement.ReturnFromRework
-- [ ] GiaoBù -> StockMovement.Pick/Export according to actual physical flow
+- [x] GiaoBù physical pick -> StockExportService -> StockMovement.Pick/Export
 - [x] Rework stock mutation path in `ReworkStockService` now routes through `IStockMovementService`
 - [ ] Remove remaining direct Slot/STOCKTP writes outside the migrated Rework service
 - [x] Add transitional Rework stock-balance adapter
