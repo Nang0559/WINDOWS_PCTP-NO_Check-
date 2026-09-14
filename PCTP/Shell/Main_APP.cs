@@ -5,12 +5,11 @@ using DevExpress.XtraReports.UI;
 using DevExpress.XtraReports.UserDesigner;
 using PCTP.Acess_Image;
 using PCTP.Common;
-using PCTP.Modules.GiaoHangKhach;
 using PCTP.Modules.GiaoHangKhach.SubForm;
 using PCTP.QRCODE_HVN.ComaprePart;
+using PCTP.Shell.Composition;
 using PCTP.Shell.Widgets;
 using PCTP.VIEWSTOCK;
-using PCTP.VIEWSTOCK.Repository;
 using System;
 using System.Drawing.Design;
 using System.Windows.Forms;
@@ -27,6 +26,7 @@ namespace PCTP
     /// - keeping legacy Designer event handlers alive during migration.
     ///
     /// Reporting/query logic must live in Modules.BaoCao and must not be added here.
+    /// Database/repository composition is delegated to Shell.Composition.
     /// </summary>
     public partial class Main_APP : DevExpress.XtraBars.Ribbon.RibbonForm
     {
@@ -36,6 +36,7 @@ namespace PCTP
         private readonly IWaitFormService _waitForm;
         private MainAppDashboardController _dashboard;
         private WarehouseDashboardBar _dashboardBar;
+        private MainAppDashboardFactory _dashboardFactory;
 
         public Main_APP()
         {
@@ -47,8 +48,21 @@ namespace PCTP
         private void Main_APP_Load(object sender, EventArgs e)
         {
             DevExpress.LookAndFeel.UserLookAndFeel.Default.SetSkinStyle("Caramel");
-            BuildDashboardBar();
+            InitializeShellComposition();
+            InitializeDashboard();
+        }
 
+        private void InitializeShellComposition()
+        {
+            _dashboardFactory = new MainAppDashboardFactory();
+            _dashboardBar = _dashboardFactory.Create(OpenNhapKhoFromDashboard);
+
+            Controls.Add(_dashboardBar);
+            _dashboardBar.BringToFront();
+        }
+
+        private void InitializeDashboard()
+        {
             _dashboard = new MainAppDashboardController(
                 _waitForm,
                 CharHVN,
@@ -58,29 +72,6 @@ namespace PCTP
                 tgxem);
 
             _dashboard.Initialize();
-        }
-
-        private void BuildDashboardBar()
-        {
-            ClassSQL.SQLPROVIDER provider = new ClassSQL.SQLPROVIDER();
-            PhieuSqlExecutor sql = new PhieuSqlExecutor(provider);
-            UnitOfWork uow = new UnitOfWork(provider);
-
-            PhieuXuLyBatThuongRepository phieuXuLyRepository =
-                new PhieuXuLyBatThuongRepository(sql, uow);
-            NhapKhoDashboardRepository dashboardRepository =
-                new NhapKhoDashboardRepository(sql, uow);
-
-            _dashboardBar = new WarehouseDashboardBar(
-                phieuXuLyRepository,
-                dashboardRepository,
-                OpenNhapKhoFromDashboard)
-            {
-                Dock = DockStyle.Top
-            };
-
-            Controls.Add(_dashboardBar);
-            _dashboardBar.BringToFront();
         }
 
         private void OpenNhapKhoFromDashboard()
