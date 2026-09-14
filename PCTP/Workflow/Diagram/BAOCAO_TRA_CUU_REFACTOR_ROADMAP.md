@@ -71,7 +71,8 @@
 - [x] Nút `Hướng dẫn sử dụng` trên Main_APP mở WMS guide có topic + sơ đồ Mermaid.
 - [x] Chuẩn hóa tài liệu hướng dẫn theo flow: Mục đích → Điều kiện → Sơ đồ → Thao tác → Xác nhận → Lỗi → Cách xử lý.
 - [ ] Redirect từng entry point tra cứu legacy sang BaoCao.
-- [x] Thêm Quick Search QR/LOT/Part ở Shell; Document sẽ bổ sung khi query facade phù hợp được chốt.
+- [x] Thêm Quick Search QR/LOT/Part ở Shell.
+- [x] Tách entry point Báo cáo/Tra cứu khỏi Shell bằng `BaoCaoNavigator`; Shell không còn tự new trực tiếp các form BaoCao.
 - [ ] Thêm Worklist/Cảnh báo WMS sau khi xác định query source cho từng KPI.
 - [ ] Gắn contextual help/F1 trực tiếp vào từng module form sau khi caller/module names ổn định.
 
