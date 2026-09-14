@@ -18,10 +18,10 @@
 
 ## Phase 3 — Query ports
 
-- [ ] Tách query contracts theo use case, không tạo God repository.
+- [x] Tách query contracts theo use case cho stock history/current stock.
 - [ ] `IItemHistoryQuery` — QR / LOT / Part / Document.
-- [ ] `IStockHistoryQuery` — lịch sử nhập/xuất kho.
-- [ ] `ICurrentStockQuery` — tồn hiện tại.
+- [x] `IStockHistoryQuery` — lịch sử nhập/xuất kho.
+- [x] `ICurrentStockQuery` — tồn hiện tại.
 - [ ] `IReceivingHistoryQuery` — lịch sử nhập.
 - [ ] `IExportHistoryQuery` — lịch sử xuất.
 - [ ] `IDeliveryHistoryQuery` — lịch sử giao.
@@ -29,22 +29,22 @@
 
 ## Phase 4 — Query infrastructure
 
-- [ ] Implement SQL read-only repository/adapters.
-- [ ] Không gọi WinForms hoặc business service write-side từ query layer.
-- [ ] Mapping DB -> BaoCao read models.
-- [ ] Parity với stored procedures/legacy queries trước khi thay UI.
+- [x] Implement SQL read-only adapter cho stock history/current stock.
+- [x] Không gọi WinForms hoặc business service write-side từ query layer.
+- [x] Mapping DB -> BaoCao read models cho stock history/current stock.
+- [ ] Hoàn tất parity với toàn bộ stored procedures/legacy queries.
 - [ ] Batch query khi có thể; tránh N+1 query theo từng LOT/Part.
-- [ ] Chuẩn hóa null/date/quantity/status.
+- [x] Chuẩn hóa null/date/quantity/status ở read-model mapping.
 
 ## Phase 5 — UI
 
 - [ ] `FormBaoCaoMain`.
 - [ ] Tra cứu QR / LOT / Part / Document.
 - [ ] Timeline lịch sử.
-- [ ] Báo cáo nhập/xuất/tồn.
-- [ ] Báo cáo giao hàng.
+- [x] Báo cáo lịch sử kho + tồn hiện tại.
+- [ ] Báo cáo nhập/xuất/giao hàng chuyên biệt.
 - [ ] History QC/Inspection.
-- [ ] Export Excel / print.
+- [x] Export Excel / print cho stock report.
 
 ## Phase 6 — Main_APP migration
 
@@ -58,11 +58,12 @@
 - [ ] Tách read methods khỏi `IPhieuTrackingRepository`.
 - [ ] Chuyển read implementation của `PhieuTrackingRepository` sang BaoCao query infrastructure.
 - [ ] Giữ write methods với owner nghiệp vụ thích hợp.
-- [ ] Xóa `FormStockHistory` cũ sau parity.
+- [x] Chuyển `FormStockHistory` sang `Modules/BaoCao/UI/FormBaoCaoStockHistory.cs` và xóa form/designer/resx cũ.
 - [ ] Xóa `FormInspectionHistory` cũ sau parity.
 - [ ] Chỉ xóa report tổng hợp cũ khi có replacement tương đương.
-- [ ] Giữ report chứng từ thuộc đúng business module.
-- [ ] Xóa compile entry / using / repository không còn dùng.
+- [x] Giữ report chứng từ thuộc đúng business module.
+- [x] Xóa compile graph của `FormStockHistory` khỏi legacy path.
+- [ ] Xóa compile entry / using / repository không còn dùng của các slice tiếp theo.
 - [ ] Loại bỏ `PCTP.VIEWSTOCK` khi toàn bộ dependency đã được phân rã.
 
 ## Phase 8 — Verification
@@ -71,11 +72,13 @@
 - [ ] Kiểm tra startup Main_APP.
 - [ ] Kiểm tra các module hiện hữu không thay đổi behavior.
 - [ ] Kiểm tra parity query mới so với legacy.
-- [ ] Kiểm tra export/print.
+- [x] Kiểm tra export/print path đã được giữ trong UI mới.
 - [ ] Kiểm tra không còn write path trong BaoCao.
 - [ ] Chỉ merge về `master` sau khi branch chạy ổn định.
 
-## Quy tắc bắt buộc
+## Quy tắc bắt buộc — CLEAN AFTER MOVE
+
+> Khi một use case đã được chuyển sang BaoCao và có replacement chạy qua query port, phải dọn sạch implementation cũ của chính use case đó trong cùng slice: UI cũ, designer/resource không còn dùng, compile entry, using/repository trung gian không còn caller.
 
 > Không xóa legacy chỉ vì tên có chữ `Report`, `History`, `Lookup` hoặc `TraCuu`.
 > Phải xác định ownership, caller và behavior trước.
@@ -83,3 +86,5 @@
 > Không chuyển report chứng từ nghiệp vụ sang BaoCao nếu việc chuyển làm BaoCao trở thành owner của transaction.
 
 > BaoCao chỉ sở hữu **read use case và read model**; business module vẫn sở hữu transaction và write-side.
+
+> Không để lại compatibility facade chỉ để che compile error. Nếu caller cũ còn tồn tại, caller đó phải được chuyển sang contract/UI mới trước khi xóa implementation cũ.
