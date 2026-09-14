@@ -70,6 +70,8 @@ Chiều phụ thuộc được phép là **adapter legacy -> KhoCore contract**.
 
 `LegacyStockSlotRepositoryAdapter` hiện là implementation chuyển tiếp dùng chung nằm ngoài KhoCore. Các type adapter cũ của NhapKho/XuLyHangLoi chỉ còn là compatibility wrappers để không phá composition hiện tại; không còn giữ bản sao logic `TakeLot/AddLot`.
 
+`IBulkStockSlotRepository` hiện chỉ còn trách nhiệm resolve Slot A0, lock Slot và đọc LOT. Các mutation legacy `SaveLots`/`UpdateSlotHeaderFromLots` đã được loại khỏi contract và implementation sau khi `BulkStockAdjustService` chuyển sang `IStockMovementService.Pick`.
+
 Chưa coi Phase 3 hoàn tất cho đến khi `StockExportService`, `NhapKho` và `XuLyHangLoi` chuyển toàn bộ stock write path sang boundary này.
 
 ### Gate
@@ -122,6 +124,7 @@ Recent migration:
 - `PCTP/Directory.Build.targets` explicitly includes the centralized legacy Slot adapter and `IStockMovementService` so the old non-SDK project compiles the new stock boundary files.
 - `NhapTpReceivingService` now routes STOCKTP + Slot/SlotLot receiving mutation through `IStockMovementService.Receive`; receiving document/case/production state remains in NhapKho.
 - `BulkStockAdjustService` no longer mutates A0 SlotLot directly; it resolves/locks the virtual slot and routes the physical LOT PICK through `IStockMovementService.Pick`, with StockHistory written in the same UnitOfWork.
+- `IBulkStockSlotRepository` no longer exposes `SaveLots` or `UpdateSlotHeaderFromLots`; bulk business code therefore cannot bypass the central stock-movement write boundary through that legacy contract.
 - `MainStockModuleFactory` now composes `StockMovementService` with the legacy balance/slot/receiving adapters and injects it into `StockExportService`.
 - `NhapTpModuleFactory` now composes the same central movement boundary for the receiving workflow instead of relying on the optional dependency being absent.
 
@@ -165,6 +168,7 @@ Current work:
 - [x] Keep QR/lot/delivery workflow in GiaoHangKhach
 - [x] Treat stock mutation as an outbound workflow under the XuatKho/KhoCore boundary
 - [x] Remove the remaining identified direct A0 SlotLot mutation from `BulkStockAdjustService`
+- [x] Narrow `IBulkStockSlotRepository` to resolve/lock/query responsibilities only
 - [x] Preserve the completed 12A-12H presentation/application refactor
 
 ## Phase 7 - XuLyHangLoi
