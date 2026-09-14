@@ -1,6 +1,6 @@
 using System;
 using PCTP.Modules.KhoCore.Application.Contracts.Stock;
-using PCTP.Modules.NhapKho.Repository;
+using PCTP.Modules.NhapKho.Interfaces;
 using PCTP.VIEWSTOCK.Models;
 
 namespace PCTP.Modules.NhapKho.Application.Adapters
