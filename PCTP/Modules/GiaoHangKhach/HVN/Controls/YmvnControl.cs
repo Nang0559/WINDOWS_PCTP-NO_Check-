@@ -1,7 +1,7 @@
 using System.Windows.Forms;
 using DevExpress.XtraEditors;
 
-namespace PCTP.QRCODE_HVN.PGH.Controls
+namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
 {
     /// <summary>
     /// UI boundary for the YMVN / MilkRun area of HVN_PGH.
