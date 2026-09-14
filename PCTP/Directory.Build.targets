@@ -64,6 +64,7 @@
     <Compile Include="Shell\Help\FormWmsHelp.cs" />
     <Compile Include="Shell\Widgets\MainAppDashboardController.cs" />
     <Compile Include="Shell\Widgets\WmsControlCenterBar.cs" />
+    <Compile Include="Shell\Widgets\WmsWorklistBar.cs" />
 
     <Compile Remove="Modules\KhoVatLy\FormStockHistory.cs" />
     <Compile Remove="Modules\KhoVatLy\FormStockHistory.Designer.cs" />
