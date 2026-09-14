@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using PCTP.Modules.BaoCao.Application.Contracts;
 
 namespace PCTP.Modules.BaoCao.Application.Contracts.Queries
 {
