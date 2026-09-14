@@ -25,13 +25,15 @@
 - [ ] `IReceivingHistoryQuery` — lịch sử nhập.
 - [ ] `IExportHistoryQuery` — lịch sử xuất.
 - [ ] `IDeliveryHistoryQuery` — lịch sử giao.
-- [ ] `IQualityHistoryQuery` — QC / Inspection / NG / Rework history.
+- [x] `IQualityHistoryQuery` — QC / Inspection history.
 
 ## Phase 4 — Query infrastructure
 
 - [x] Implement SQL read-only adapter cho stock history/current stock.
+- [x] Implement SQL read-only adapter cho InspectionLog history.
 - [x] Không gọi WinForms hoặc business service write-side từ query layer.
 - [x] Mapping DB -> BaoCao read models cho stock history/current stock.
+- [x] Mapping DB -> BaoCao read models cho inspection master/detail.
 - [ ] Hoàn tất parity với toàn bộ stored procedures/legacy queries.
 - [ ] Batch query khi có thể; tránh N+1 query theo từng LOT/Part.
 - [x] Chuẩn hóa null/date/quantity/status ở read-model mapping.
@@ -43,8 +45,9 @@
 - [ ] Timeline lịch sử.
 - [x] Báo cáo lịch sử kho + tồn hiện tại.
 - [ ] Báo cáo nhập/xuất/giao hàng chuyên biệt.
-- [ ] History QC/Inspection.
+- [x] History QC/Inspection.
 - [x] Export Excel / print cho stock report.
+- [x] Export Excel cho inspection master.
 
 ## Phase 6 — Main_APP migration
 
@@ -59,10 +62,11 @@
 - [ ] Chuyển read implementation của `PhieuTrackingRepository` sang BaoCao query infrastructure.
 - [ ] Giữ write methods với owner nghiệp vụ thích hợp.
 - [x] Chuyển `FormStockHistory` sang `Modules/BaoCao/UI/FormBaoCaoStockHistory.cs` và xóa form/designer/resx cũ.
-- [ ] Xóa `FormInspectionHistory` cũ sau parity.
+- [x] Chuyển `FormInspectionHistory` sang `Modules/BaoCao/UI/FormBaoCaoQualityHistory.cs`.
+- [x] Xóa `FormInspectionHistory.cs` và `FormInspectionHistory.Designer.cs` cũ.
+- [x] Xóa compile graph của `FormInspectionHistory` khỏi legacy path.
 - [ ] Chỉ xóa report tổng hợp cũ khi có replacement tương đương.
 - [x] Giữ report chứng từ thuộc đúng business module.
-- [x] Xóa compile graph của `FormStockHistory` khỏi legacy path.
 - [ ] Xóa compile entry / using / repository không còn dùng của các slice tiếp theo.
 - [ ] Loại bỏ `PCTP.VIEWSTOCK` khi toàn bộ dependency đã được phân rã.
 
@@ -72,7 +76,8 @@
 - [ ] Kiểm tra startup Main_APP.
 - [ ] Kiểm tra các module hiện hữu không thay đổi behavior.
 - [ ] Kiểm tra parity query mới so với legacy.
-- [x] Kiểm tra export/print path đã được giữ trong UI mới.
+- [x] Kiểm tra export path đã được giữ cho stock/inspection report.
+- [x] Kiểm tra BaoCao query layer không tham chiếu `IInspectionLogRepository` hoặc `IWarehouseService`.
 - [ ] Kiểm tra không còn write path trong BaoCao.
 - [ ] Chỉ merge về `master` sau khi branch chạy ổn định.
 
