@@ -33,6 +33,12 @@
     <Compile Include="Modules\XuLyHangLoi\Application\Adapters\ReworkStockSlotAdapter.cs" />
     <Compile Include="Modules\XuLyHangLoi\Application\XuLyHangLoiModuleFactory.cs" />
     <Compile Include="Modules\NhapKho\Application\Adapters\StockReceivingRepositoryAdapter.cs" />
+
+    <!-- BaoCao is a read-only reporting/traceability module. -->
+    <Compile Include="Modules\BaoCao\Application\Contracts\IHistoryQueryService.cs" />
+    <Compile Include="Modules\BaoCao\Application\Contracts\HistorySearchCriteria.cs" />
+    <Compile Include="Modules\BaoCao\Application\Contracts\ItemHistoryRow.cs" />
+    <Compile Include="Modules\BaoCao\Application\Services\BaoCaoQueryService.cs" />
   </ItemGroup>
 
   <PropertyGroup>
