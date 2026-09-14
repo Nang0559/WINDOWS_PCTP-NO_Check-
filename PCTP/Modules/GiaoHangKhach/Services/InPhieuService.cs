@@ -1,6 +1,7 @@
 ﻿using PCTP.Domain.Entities;
 using PCTP.Domain.Interfaces;
 using PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao;
+using PCTP.Modules.GiaoHangKhach.Services;
 using PCTP.Shared.Models;
 using PCTP.VIEWSTOCK.Models;
 using System;
@@ -16,7 +17,7 @@ namespace PCTP.Applications.Services
     /// Chuẩn bị DataTable cho báo cáo — không biết gì về ReportPrintTool.
     /// Tương thích C# 7.3 (không dùng nullable reference types).
     /// </summary>
-    public class InPhieuService
+    public class InPhieuService: IInPhieuService
     {
         private readonly IIFSRepository _ifsRepo;
         private readonly IPhieuRepository _phieuRepo;

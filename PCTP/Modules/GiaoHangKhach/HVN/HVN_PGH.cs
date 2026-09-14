@@ -53,6 +53,7 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
         {
             InitializeComponent();
             _waitForm = new WaitFormService(this);
+            _customerNo = customerNo;
             _cfg = CustomerTableConfig.Get(customerNo);
             _presenter = BuildPresenter();
         }
@@ -63,43 +64,27 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
 
         private HVN_Presenter BuildPresenter()
         {
-            var sql = new SQLPROVIDER();
-            var bus = new InProcessEventBus();
-            var phieuDb = new PhieuSqlExecutor(sql);
-            var phieuUow = new UnitOfWork(sql);
-            var bulkStockSlotRepo = new BulkStockSlotRepository(phieuDb, phieuUow);
-            var historyRepo = new StockHistoryRepository(phieuDb, phieuUow);
-            var hangChoGiaoRepo = new HangChoGiaoRepository(phieuDb, phieuUow);
-            var phieugiaDBRepo = new PhieuGiaoDBRepository(phieuDb, phieuUow);
-            var phieuRepo = new PhieuRepository(phieuDb, phieuUow, _cfg, bulkStockSlotRepo, historyRepo, hangChoGiaoRepo);
-            var phieuTmpRepo = new PhieuTmpRepository(phieuDb, phieuUow);
-            var tableOrderRepo = new TableOrderRepo(phieuDb, phieuTmpRepo);
-            _gioRepo = new GioXuatRepository(phieuDb, phieuUow);
-            var qrRepo = new DocQRRepository(sql, _cfg);
-            var sqlRepo = new SqlRepository(phieuDb, phieuUow);
-            var luuTruRepo = new PhieuLuuTruRepository(phieuDb, phieuUow);
-            var rowCategoryFilter = new DockCodeRowCategoryFilter();
-            var categoryResolver = new GioMoTaCategoryResolver();
-            var gioVP = _gioRepo.GetDictGioVP();
-            var gioHN = _gioRepo.GetDictGioHN();
-            phieuRepo.EnsureTablesExist();
-            var ifsRepo = IFSRepository.Create();
-            string tenMayBanQR = sql.ExecuteReader(sql.B7R2_FCCdb, "SELECT TenMay FROM tbl_QR_MAY_DOCQR WHERE TT = 1");
-            bool isMayBanQR = string.Equals(Environment.MachineName, tenMayBanQR, StringComparison.OrdinalIgnoreCase);
-            string tenBan = isMayBanQR ? _cfg.Delivery.TmpTable : _cfg.Delivery.GetTmpViewTable(Environment.MachineName);
-            var ifsStrategy = new IfsOrderLoadStrategy(ifsRepo, luuTruRepo, phieuTmpRepo);
-            var tableOrderStrategy = new OrderTableLoadStrategy(tableOrderRepo, phieuTmpRepo, ifsRepo, rowCategoryFilter);
-            var giaoDbStrategy = new GiaoDbOrderLoadStrategy(phieugiaDBRepo);
-            var ifsSource = new IfsOrderSource(ifsStrategy);
-            var tableOrderSource = new TableOrderSource(tableOrderStrategy);
-            var giaoDbSource = new GiaoDbOrderSource(giaoDbStrategy);
-            var orderSourceFactory = new OrderSourceFactory(ifsSource, tableOrderSource, giaoDbSource);
-            var phieuSvc = new PhieuService(phieuRepo, ifsRepo, bus, _gioRepo, tenBan, _cfg, isMayBanQR, tableOrderRepo, phieugiaDBRepo, orderSourceFactory, rowCategoryFilter);
-            var lotSvc = new PhieuLotService(phieuRepo, phieuRepo, bus);
-            var hangthieucangaySvc = new HangThieuCaNgayService(ifsRepo, luuTruRepo, phieuDb);
-            var qrSvc = new DocQRService(qrRepo, bus, _cfg, categoryResolver);
-            var inPhieuSvc = new InPhieuService(ifsRepo, phieuRepo, sqlRepo, gioVP, gioHN, _cfg);
-            return new HVN_Presenter(this, phieuSvc, lotSvc, qrSvc, inPhieuSvc, hangthieucangaySvc, _gioRepo, bus, isMayBanQR, tenBan, _cfg, categoryResolver);
+            // ── Toàn bộ wiring (SQLPROVIDER, các Repository, Strategy, Source,
+            //    Service...) giờ được GiaoHangKhachModuleFactory dựng tập trung,
+            //    tránh lặp lại logic giữa HVN_PGH và các entry point khác. ──────
+            var module = GiaoHangKhachModuleFactory.Build(_customerNo);
+
+            _cfg = module.Cfg;
+            _gioRepo = (GioXuatRepository)module.GioXuatRepo;
+
+            return new HVN_Presenter(
+                this,
+                module.PhieuService,
+                module.PhieuLotService,
+                module.DocQRService,
+                module.InPhieuService,
+                module.HangThieuCaNgayService,
+                module.GioXuatRepo,
+                module.Bus,
+                module.IsMayBanQR,
+                module.TenBan,
+                module.Cfg,
+                module.CategoryResolver);
         }
 
         public void BindDonHang(DataTable dt) => _phieuGridControl.Bind(dt);
@@ -201,7 +186,7 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
         public bool CoLotDeLuuKho() => _phieuGridControl.HasLotToSave();
         public void ThemDongGiaoDB(DataTable danhSachMaHang) => _phieuGridControl.ConfigureGiaoDbRow(danhSachMaHang);
         public bool CoHangChuaOK() => _phieuGridControl.HasUnconfirmedRows();
-   
+
 
         public int ShowChonSttTrungMa(ListView danhSachTrung) => _phieuDialogControl.ShowChonSttTrungMa(danhSachTrung);
         public void ShowKiemTraMaNG(string maHang) => _phieuDialogControl.ShowKiemTraMaNG(maHang);
@@ -283,7 +268,7 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
         public void UnlockDatePicker() { if (_phieuHeaderControl != null) _phieuHeaderControl.UnlockDatePicker(); }
         public void LockRadioExcept(string gioFCC) { if (_phieuHeaderControl != null) _phieuHeaderControl.LockRadioExcept(gioFCC); }
         public void UnlockAllRadio() { if (_phieuHeaderControl != null) _phieuHeaderControl.UnlockAllRadio(); }
-     
+
         public void UpdateGioXuatFromDB(string gioFCC) { if (_phieuHeaderControl != null) _phieuHeaderControl.UpdateGioXuatFromDB(gioFCC); }
         public bool HoiXoaDocQR() => XtraMessageBox.Show("Dữ liệu không phù hợp:\n" + "Dữ liệu đọc QRCode không khớp với phiếu!\n" + "Bạn muốn xóa dữ liệu đọc?\n" + "(Nếu không xóa, phiếu giao hàng sẽ không được tải đúng)", "Thông Báo", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == System.Windows.Forms.DialogResult.Yes;
 
@@ -324,7 +309,7 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
             else if (loai == "HVN") { TXT_HVNTU.Text = slHien; TXT_HVNTHANH.Text = slHien; TXT_FCCTU.Text = ""; TXT_FCCTHANH.Text = ""; }
             LOTFCCVN.Text = lot;
         }
-      
+
         private void cmd_SuaLTemFCC_Click(object sender, EventArgs e)
         {
             if (_sttSuaSl <= 0) { ShowInfo("Vui lòng chọn dòng QR cần sửa!"); return; }

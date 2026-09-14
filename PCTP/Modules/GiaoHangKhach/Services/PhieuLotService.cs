@@ -11,7 +11,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
     /// LOT business workflow. No WinForms dependency; the presenter supplies
     /// a selector only when duplicate MAHANG/SOLUONG requires user choice.
     /// </summary>
-    public sealed class PhieuLotService
+    public sealed class PhieuLotService: IPhieuLotService
     {
         private readonly IPhieuLotRepository _lotRepo;
         private readonly IPhieuValidationRepository _validationRepo;

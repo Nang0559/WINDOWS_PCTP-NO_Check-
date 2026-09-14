@@ -27,7 +27,7 @@ namespace PCTP.Presentation.Presenters
         public bool IsBanQR => _context.IsBanQR;
         public GioXuat GioXuatHienTai => _context.GioXuatHienTai;
 
-        public HVN_Presenter(IHVNView view, PhieuService phieuSvc, PhieuLotService lotSvc, DocQRService qrSvc, InPhieuService inPhieuSvc, IHangThieuCaNgayService hangThieuCaNgayService, IGioXuatRepository gioXuatRepo, IEventBus bus, bool isMayBanQR, string tenBan, CustomerConfig cfg, IOrderCategoryResolver categoryResolver)
+        public HVN_Presenter(IHVNView view, IPhieuService phieuSvc, IPhieuLotService lotSvc, IDocQRService qrSvc, IInPhieuService inPhieuSvc, IHangThieuCaNgayService hangThieuCaNgayService, IGioXuatRepository gioXuatRepo, IEventBus bus, bool isMayBanQR, string tenBan, CustomerConfig cfg, IOrderCategoryResolver categoryResolver)
         {
             _context = new HVNPresenterContext(view, phieuSvc, lotSvc, qrSvc, inPhieuSvc, hangThieuCaNgayService, gioXuatRepo, bus, isMayBanQR, tenBan, cfg, categoryResolver);
             _phieuPresenter = new PhieuPresenter(_context);

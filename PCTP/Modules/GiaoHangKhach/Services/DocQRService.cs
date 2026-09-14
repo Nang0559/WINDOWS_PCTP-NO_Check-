@@ -14,7 +14,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
     /// Keeps the existing public API while delegating QR parsing/business rules
     /// to DocQRScanEngine.
     /// </summary>
-    public class DocQRService
+    public class DocQRService: IDocQRService
     {
         private readonly IOrderCategoryResolver _categoryResolver;
         private readonly DocQRSessionState _session;

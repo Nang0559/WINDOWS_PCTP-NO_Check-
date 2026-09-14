@@ -12,7 +12,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
     /// Phase 7: business service cho nghiệp vụ cập nhật kho của phiếu giao.
     /// Không chứa UI; persistence vẫn do IPhieuRepository đảm nhiệm.
     /// </summary>
-    public class PhieuKhoService
+    public class PhieuKhoService: IPhieuKhoService
     {
         private readonly IPhieuRepository _phieuRepo;
         private readonly IEventBus _bus;

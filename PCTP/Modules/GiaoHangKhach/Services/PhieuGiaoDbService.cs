@@ -14,7 +14,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
     /// Phase 7: business orchestration cho scenario GiaoDB.
     /// Repository chịu trách nhiệm persistence/data access; service điều phối nghiệp vụ.
     /// </summary>
-    public class PhieuGiaoDbService
+    public class PhieuGiaoDbService: IPhieuGiaoDbService
     {
         private readonly IPhieuRepository _phieuRepo;
         private readonly IPhieuGiaoDBRepository _giaoDbRepo;

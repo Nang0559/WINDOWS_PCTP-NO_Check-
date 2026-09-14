@@ -18,7 +18,7 @@ namespace PCTP.VIEWSTOCK.Services
     /// IBulkStockSlotRepository is retained only for virtual-slot resolution,
     /// locking and read/query responsibilities during the migration.
     /// </summary>
-    public sealed class BulkStockAdjustService
+    public sealed class BulkStockAdjustService: IBulkStockAdjustService
     {
         private readonly IBulkStockSlotRepository _bulkRepo;
         private readonly IStockHistoryRepository _historyRepo;

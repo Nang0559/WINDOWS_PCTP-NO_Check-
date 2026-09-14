@@ -281,6 +281,7 @@
     <Compile Include="ALLVAR.cs" />
     <Compile Include="Domain\Events\HoanThanhYMVNCompletedEvent.cs" />
     <Compile Include="Modules\GiaoHangKhach\Configuration\GiaoHangKhachConfiguration.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Services\GiaoHangKhachFactory.cs" />
     <Compile Include="Modules\GiaoHangKhach\Models\OrderCategory.cs" />
     <Compile Include="Modules\GiaoHangKhach\Models\OrderLoadContext.cs" />
     <Compile Include="Modules\GiaoHangKhach\Models\OrderLoadResult.cs" />
@@ -307,8 +308,16 @@
     <Compile Include="Modules\GiaoHangKhach\Services\DocQRSessionState.cs" />
     <Compile Include="Modules\GiaoHangKhach\Services\DocQRTableResolver.cs" />
     <Compile Include="Modules\GiaoHangKhach\Services\HangThieuCaNgayService.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Services\IBulkStockAdjustService.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Services\IDocQRService.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Services\IInPhieuService.cs" />
     <Compile Include="Modules\GiaoHangKhach\Services\InPhieuService.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Services\IPhieuGiaoDbService.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Services\IPhieuKhoService.cs" />
     <Compile Include="Modules\GiaoHangKhach\Services\IPhieuLoadService.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Services\IPhieuLotService.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Services\IPhieuService.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Services\IPhieuYmvnService.cs" />
     <Compile Include="Modules\GiaoHangKhach\Services\PhieuGiaoDbService.cs" />
     <Compile Include="Modules\GiaoHangKhach\Services\PhieuKhoService.cs" />
     <Compile Include="Modules\GiaoHangKhach\Services\PhieuLoadService.cs" />

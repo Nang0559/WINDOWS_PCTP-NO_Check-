@@ -29,7 +29,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
     /// Phase 7: các business flow Kho / GiaoDB / YMVN được chuyển sang service riêng;
     /// PhieuService chỉ giữ API tương thích với UI/Presenter hiện tại.
     /// </summary>
-    public class PhieuService
+    public class PhieuService: IPhieuService
     {
         private readonly IPhieuRepository _phieuRepo;
         private readonly IIFSRepository _ifsRepo;
@@ -44,9 +44,9 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         private readonly IDeliveryWorkingState _workingState;
         private readonly IPhieuLoadService _loadService;
 
-        private readonly PhieuKhoService _khoService;
-        private readonly PhieuGiaoDbService _giaoDbService;
-        private readonly PhieuYmvnService _ymvnService;
+        private readonly IPhieuKhoService _khoService;
+        private readonly IPhieuGiaoDbService _giaoDbService;
+        private readonly IPhieuYmvnService _ymvnService;
 
         private bool _isBanQR;
         private bool _isLoaiSP;
@@ -67,7 +67,10 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             IOrderSourceFactory orderSourceFactory,
             IRowCategoryFilter rowCategoryFilter,
             IDeliveryWorkingState workingState = null,
-            IPhieuLoadService loadService = null)
+            IPhieuLoadService loadService = null, 
+            IPhieuKhoService khoService = null,
+            IPhieuGiaoDbService giaoDbService = null,
+            IPhieuYmvnService ymvnService = null)
         {
             _phieuRepo = phieuRepo ?? throw new ArgumentNullException(nameof(phieuRepo));
             _ifsRepo = ifsRepo ?? throw new ArgumentNullException(nameof(ifsRepo));

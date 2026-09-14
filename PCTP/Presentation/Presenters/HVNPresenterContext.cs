@@ -26,10 +26,10 @@ namespace PCTP.Presentation.Presenters
         internal readonly IDocQrView DocQrView;
         internal readonly IGiaoDbView GiaoDbView;
         internal readonly IYmvnView YmvnView;
-        internal readonly PhieuService PhieuSvc;
-        internal readonly PhieuLotService LotSvc;
-        internal readonly DocQRService QrSvc;
-        internal readonly InPhieuService InPhieuSvc;
+        internal readonly IPhieuService PhieuSvc;
+        internal readonly IPhieuLotService LotSvc;
+        internal readonly IDocQRService QrSvc;
+        internal readonly IInPhieuService InPhieuSvc;
         internal readonly IHangThieuCaNgayService HangThieuCaNgayService;
         internal readonly IGioXuatRepository GioXuatRepo;
         internal readonly IEventBus Bus;
@@ -45,7 +45,7 @@ namespace PCTP.Presentation.Presenters
         internal bool IsLoadingPhieu;
         internal bool AwaitingPhieuLoadedEvent;
 
-        internal HVNPresenterContext(IHVNView view, PhieuService phieuSvc, PhieuLotService lotSvc, DocQRService qrSvc, InPhieuService inPhieuSvc, IHangThieuCaNgayService hangThieuCaNgayService, IGioXuatRepository gioXuatRepo, IEventBus bus, bool isMayBanQR, string tenBan, CustomerConfig cfg, IOrderCategoryResolver categoryResolver)
+        internal HVNPresenterContext(IHVNView view, IPhieuService phieuSvc, IPhieuLotService lotSvc, IDocQRService qrSvc, IInPhieuService inPhieuSvc, IHangThieuCaNgayService hangThieuCaNgayService, IGioXuatRepository gioXuatRepo, IEventBus bus, bool isMayBanQR, string tenBan, CustomerConfig cfg, IOrderCategoryResolver categoryResolver)
         {
             View = view ?? throw new ArgumentNullException(nameof(view));
             PhieuView = View;

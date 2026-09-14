@@ -14,7 +14,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
     /// Phase 7: business service cho flow YMVN/MilkRun.
     /// YMVN là business flow, không phải OrderSourceKind.
     /// </summary>
-    public class PhieuYmvnService
+    public class PhieuYmvnService: IPhieuYmvnService
     {
         private readonly IPhieuRepository _phieuRepo;
         private readonly ITableOrderRepository _tableOrderRepo;
