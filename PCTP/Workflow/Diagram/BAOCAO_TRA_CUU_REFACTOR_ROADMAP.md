@@ -29,7 +29,7 @@
 - [x] `ILotTraceQuery` — tra cứu lịch sử theo LOT.
 - [x] `ICustomerDeliveryQuery` — tra cứu lịch sử giao theo khách hàng.
 - [x] Xác định `DeliveryTraceRow` là master theo carton/QRCode và `DeliveryLotTraceRow` là detail theo LOT.
-- [x] Xác định parser riêng cho `LUUPHIEUGIAOHANG.LOT` dạng composite.
+- [x] Tái sử dụng `PCTP.Common.LotCodeHelper.ParseCompositeLot` cho `LUUPHIEUGIAOHANG.LOT` dạng composite; không tạo parser riêng trong BaoCao.
 
 ## Phase 4 — Query infrastructure
 
