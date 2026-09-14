@@ -1,5 +1,4 @@
 using DevExpress.XtraEditors;
-using PCTP.Modules.NhapKho;
 using PCTP.Modules.XuLyHangLoi.Enums;
 using PCTP.Modules.XuLyHangLoi.Repository;
 using PCTP.VIEWSTOCK.Repository;
@@ -17,6 +16,7 @@ namespace PCTP.Shell.Widgets
     {
         private readonly IPhieuXuLyBatThuongRepository _phieuXuLyRepo;
         private readonly INhapKhoDashboardRepository _nhapKhoRepo;
+        private readonly Action _openNhapKho;
 
         private LabelControl _lblChoDinhHuong;
         private LabelControl _lblChoQCCuoi;
@@ -26,10 +26,12 @@ namespace PCTP.Shell.Widgets
 
         public WmsWorklistBar(
             IPhieuXuLyBatThuongRepository phieuXuLyRepo,
-            INhapKhoDashboardRepository nhapKhoRepo)
+            INhapKhoDashboardRepository nhapKhoRepo,
+            Action openNhapKho)
         {
             _phieuXuLyRepo = phieuXuLyRepo ?? throw new ArgumentNullException("phieuXuLyRepo");
             _nhapKhoRepo = nhapKhoRepo ?? throw new ArgumentNullException("nhapKhoRepo");
+            _openNhapKho = openNhapKho ?? throw new ArgumentNullException("openNhapKho");
 
             Dock = DockStyle.Top;
             Height = 44;
@@ -74,10 +76,10 @@ namespace PCTP.Shell.Widgets
             _lblDaDuyetChuaTra.Click += delegate { WarehouseProcessNavigator.OpenQuanLyTienTrinhHangLoi(this); };
 
             _lblChoNhap = MakeItem("📥 Phiếu chờ nhập: --");
-            _lblChoNhap.Click += delegate { OpenNhapKho(); };
+            _lblChoNhap.Click += delegate { _openNhapKho(); };
 
             _lblLechA0 = MakeItem("⚠ Lệch đối chiếu A0: --");
-            _lblLechA0.Click += delegate { OpenNhapKho(); };
+            _lblLechA0.Click += delegate { _openNhapKho(); };
 
             flow.Controls.Add(title);
             flow.Controls.Add(_lblChoDinhHuong);
@@ -92,7 +94,7 @@ namespace PCTP.Shell.Widgets
 
         private LabelControl MakeItem(string text)
         {
-            LabelControl label = new LabelControl
+            return new LabelControl
             {
                 Text = text,
                 AutoSize = true,
@@ -100,7 +102,6 @@ namespace PCTP.Shell.Widgets
                 Margin = new Padding(0, 7, 22, 0),
                 Appearance = { Font = new Font("Tahoma", 9F, FontStyle.Bold) }
             };
-            return label;
         }
 
         public void RefreshWorklist()
@@ -132,23 +133,6 @@ namespace PCTP.Shell.Widgets
         {
             label.Text = text;
             label.Appearance.ForeColor = count > 0 ? Color.DarkOrange : Color.SeaGreen;
-        }
-
-        private void OpenNhapKho()
-        {
-            try
-            {
-                Form frm = FindForm();
-                if (frm == null)
-                    return;
-
-                // Worklist only owns navigation; actual screen remains the business module.
-                WarehouseProcessNavigator.OpenNhapKho(frm);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show(FindForm(), ex.Message, "WMS", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
         }
     }
 }
