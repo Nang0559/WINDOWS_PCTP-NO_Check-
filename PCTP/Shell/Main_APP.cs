@@ -8,6 +8,7 @@ using PCTP.Common;
 using PCTP.Modules.GiaoHangKhach.SubForm;
 using PCTP.QRCODE_HVN.ComaprePart;
 using PCTP.Shell.Composition;
+using PCTP.Shell.Help;
 using PCTP.Shell.Services;
 using PCTP.Shell.Widgets;
 using PCTP.VIEWSTOCK;
@@ -24,10 +25,12 @@ namespace PCTP
     /// - hosting the Designer-generated navigation UI;
     /// - wiring navigation commands to module navigators;
     /// - hosting the read-only dashboard controller;
+    /// - exposing the WMS user guide entry point;
     /// - keeping legacy Designer event handlers alive during migration.
     ///
     /// Reporting/query logic must live in Modules.BaoCao and must not be added here.
     /// Database/repository composition is delegated to Shell.Composition.
+    /// User-guide content is delegated to Shell.Help.
     /// </summary>
     public partial class Main_APP : DevExpress.XtraBars.Ribbon.RibbonForm
     {
@@ -36,6 +39,7 @@ namespace PCTP
 
         private readonly IWaitFormService _waitForm;
         private readonly QrMachineSwitchService _qrMachineSwitch;
+        private readonly WmsHelpService _wmsHelp;
         private MainAppDashboardController _dashboard;
         private WarehouseDashboardBar _dashboardBar;
         private MainAppDashboardFactory _dashboardFactory;
@@ -45,6 +49,7 @@ namespace PCTP
             InitializeComponent();
             _waitForm = new WaitFormService(this);
             _qrMachineSwitch = new QrMachineSwitchService();
+            _wmsHelp = new WmsHelpService();
             accordionControl.SelectedElement = NHAccordionControlElement;
         }
 
@@ -212,7 +217,9 @@ namespace PCTP
 
         private void btHelp_ItemClick(object sender, ItemClickEventArgs e)
         {
-            Help.ShowHelp(this, helpProvider1.HelpNamespace);
+            // The old HelpProvider only opened a local help file. The WMS guide is now
+            // structured by business process and can be extended without changing Main_APP.
+            _wmsHelp.Show(this, "Dashboard");
         }
 
         private void acrImageControl_Click(object sender, EventArgs e)
