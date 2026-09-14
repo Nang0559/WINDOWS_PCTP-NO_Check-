@@ -13,17 +13,10 @@ namespace PCTP.Modules.BaoCao.Infrastructure.Queries
 {
     /// <summary>
     /// Read-only adapter over LUUPHIEUGIAOHANG.
-    ///
-    /// DeliveryKey is the canonical identity of one historical delivery row:
-    /// NHAMAY + NGAYGIAO + GIOGIAO + PO_NO + STT.
-    ///
-    /// DOCQRCODE is a working scan table and is intentionally not joined here:
-    /// it has no confirmed persisted DeliveryKey relationship.
+    /// DeliveryKey = NHAMAY + NGAYGIAO + GIOGIAO + PO_NO + STT.
+    /// DOCQRCODE is not joined because it has no confirmed persisted DeliveryKey relationship.
     /// </summary>
-    public sealed class DeliveryTraceQueryService :
-        IQrTraceQuery,
-        ILotTraceQuery,
-        ICustomerDeliveryQuery
+    public sealed class DeliveryTraceQueryService : IQrTraceQuery, ILotTraceQuery, ICustomerDeliveryQuery
     {
         private readonly SQLPROVIDER _sql;
 
@@ -43,9 +36,7 @@ namespace PCTP.Modules.BaoCao.Infrastructure.Queries
             cancellationToken.ThrowIfCancellationRequested();
 
             HashSet<string> columns = LoadColumns();
-            bool hasQr = columns.Contains("QRCode")
-                         || columns.Contains("QR")
-                         || columns.Contains("QRData");
+            bool hasQr = columns.Contains("QRCode") || columns.Contains("QR") || columns.Contains("QRData");
             bool hasCustomerLabel = columns.Contains("CustomerLabelData")
                                     || columns.Contains("CustomerLabel")
                                     || columns.Contains("CustomerQR")
@@ -54,13 +45,11 @@ namespace PCTP.Modules.BaoCao.Infrastructure.Queries
             if ((!string.IsNullOrWhiteSpace(qrCode) && !hasQr)
                 || (!string.IsNullOrWhiteSpace(customerLabelData) && !hasCustomerLabel))
             {
-                return Task.FromResult<IReadOnlyList<DeliveryTraceRow>>(
-                    new List<DeliveryTraceRow>());
+                return Task.FromResult<IReadOnlyList<DeliveryTraceRow>>(new List<DeliveryTraceRow>());
             }
 
             var where = new List<string> { "1 = 1" };
             var parameters = new List<SqlParameter>();
-
             AddDateFilter(where, parameters, from, to);
             AddLikeFilter(where, parameters, "MAHANG", partNo, "@PartNo");
             AddFirstExistingLikeFilter(columns, new[] { "QRCode", "QR", "QRData" }, qrCode, where, parameters, "@QrCode");
@@ -68,7 +57,6 @@ namespace PCTP.Modules.BaoCao.Infrastructure.Queries
 
             DataTable table = Load(where, parameters, columns);
             var result = new List<DeliveryTraceRow>(table.Rows.Count);
-
             foreach (DataRow row in table.Rows)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -86,19 +74,12 @@ namespace PCTP.Modules.BaoCao.Infrastructure.Queries
             cancellationToken.ThrowIfCancellationRequested();
 
             if (string.IsNullOrWhiteSpace(deliveryKey))
-            {
-                return Task.FromResult<IReadOnlyList<DeliveryLotTraceRow>>(
-                    new List<DeliveryLotTraceRow>());
-            }
+                return Task.FromResult<IReadOnlyList<DeliveryLotTraceRow>>(new List<DeliveryLotTraceRow>());
 
             HashSet<string> columns = LoadColumns();
             bool hasQr = columns.Contains("QRCode") || columns.Contains("QR") || columns.Contains("QRData");
-
             if (!string.IsNullOrWhiteSpace(qrCode) && !hasQr)
-            {
-                return Task.FromResult<IReadOnlyList<DeliveryLotTraceRow>>(
-                    new List<DeliveryLotTraceRow>());
-            }
+                return Task.FromResult<IReadOnlyList<DeliveryLotTraceRow>>(new List<DeliveryLotTraceRow>());
 
             var where = new List<string> { "1 = 1" };
             var parameters = new List<SqlParameter>();
@@ -115,15 +96,33 @@ namespace PCTP.Modules.BaoCao.Infrastructure.Queries
                 if (!string.Equals(delivery.DeliveryKey, deliveryKey.Trim(), StringComparison.OrdinalIgnoreCase))
                     continue;
 
-                foreach (var lot in LotCodeHelper.ParseCompositeLot(delivery.LotNoRaw))
+                try
                 {
-                    result.Add(new DeliveryLotTraceRow
+                    foreach (var lot in LotCodeHelper.ParseCompositeLot(delivery.LotNoRaw))
                     {
-                        DeliveryKey = delivery.DeliveryKey,
-                        QRCode = delivery.QRCode,
-                        LotNo = lot.Key,
-                        Quantity = lot.Value
-                    });
+                        result.Add(new DeliveryLotTraceRow
+                        {
+                            DeliveryKey = delivery.DeliveryKey,
+                            QRCode = delivery.QRCode,
+                            LotNo = lot.Key,
+                            Quantity = lot.Value
+                        });
+                    }
+                }
+                catch (FormatException)
+                {
+                    // A legacy row may contain a plain LOT without "-quantity".
+                    // Keep the trace instead of dropping the historical delivery.
+                    if (!string.IsNullOrWhiteSpace(delivery.LotNoRaw))
+                    {
+                        result.Add(new DeliveryLotTraceRow
+                        {
+                            DeliveryKey = delivery.DeliveryKey,
+                            QRCode = delivery.QRCode,
+                            LotNo = delivery.LotNoRaw.Trim(),
+                            Quantity = delivery.Quantity ?? 0m
+                        });
+                    }
                 }
             }
 
@@ -154,15 +153,12 @@ namespace PCTP.Modules.BaoCao.Infrastructure.Queries
 
             DataTable table = Load(where, parameters, columns);
             var result = new List<DeliveryTraceRow>();
-
             foreach (DataRow row in table.Rows)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 DeliveryTraceRow mapped = Map(row);
-
                 if (!string.IsNullOrWhiteSpace(lotNo) && !ContainsLot(mapped.LotNoRaw, lotNo))
                     continue;
-
                 result.Add(mapped);
             }
 
@@ -190,7 +186,6 @@ namespace PCTP.Modules.BaoCao.Infrastructure.Queries
 
             DataTable table = Load(where, parameters, columns);
             var result = new List<DeliveryTraceRow>(table.Rows.Count);
-
             foreach (DataRow row in table.Rows)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -200,13 +195,9 @@ namespace PCTP.Modules.BaoCao.Infrastructure.Queries
             return result;
         }
 
-        private DataTable Load(
-            List<string> where,
-            List<SqlParameter> parameters,
-            HashSet<string> columns)
+        private DataTable Load(List<string> where, List<SqlParameter> parameters, HashSet<string> columns)
         {
             string optionalSelect = BuildOptionalSelect(columns);
-
             string sql = @"
 SELECT
     STT,
@@ -265,9 +256,7 @@ WHERE TABLE_SCHEMA = 'dbo'
                 .Select(c => ", [" + c + "] AS [" + c + "]")
                 .ToList();
 
-            return selected.Count == 0
-                ? string.Empty
-                : string.Concat(selected);
+            return selected.Count == 0 ? string.Empty : string.Concat(selected);
         }
 
         private static DeliveryTraceRow Map(DataRow row)
@@ -356,7 +345,6 @@ WHERE TABLE_SCHEMA = 'dbo'
                 if (row.Table.Columns.Contains(name) && row[name] != DBNull.Value)
                     return Convert.ToString(row[name]).Trim();
             }
-
             return null;
         }
 
