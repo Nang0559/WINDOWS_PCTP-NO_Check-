@@ -90,9 +90,7 @@ namespace PCTP
         public static string hostname = "";
         public static string TM_BANQR = "";
         // đang mở module nào, luôn hiển thị ngay khi vào app.
-        private LabelControl _lblAppChoQC, _lblAppChoDinhHuong, _lblAppDaDuyetChuaTra, _lblAppLechA0;
-        private readonly IPhieuXuLyBatThuongRepository _phieuXuLyRepo;
-        private readonly INhapKhoDashboardRepository _dashRepo;
+    
         private WarehouseDashboardBar _dashBar;
      
         // =====================================================================
@@ -254,7 +252,7 @@ namespace PCTP
             // --- Hostname ---
             IPHostEntry ip = new IPHostEntry();
             hostname = System.Net.Dns.GetHostName();
-            ip = System.Net.Dns.GetHostByName(hostname);
+            ip = System.Net.Dns.GetHostEntry(hostname);
             lblHostName.Text = "Tên của host này là: " + ip.HostName;
 
             string sqlqr = "select TenMay from tbl_QR_MAY_DOCQR where TT = 1";
@@ -410,7 +408,7 @@ namespace PCTP
         {
             chart.Series.Clear();
             chart.BackColor = Color.White;
-            chart.BorderOptions.Visible = false;
+            chart.BorderOptions.Visibility = DevExpress.Utils.DefaultBoolean.False;
             chart.Legend.Visibility = DevExpress.Utils.DefaultBoolean.True;
             chart.Legend.AlignmentHorizontal = LegendAlignmentHorizontal.Right;
             chart.Legend.AlignmentVertical = LegendAlignmentVertical.Top;
@@ -420,24 +418,24 @@ namespace PCTP
             var sDon = new Series("Tổng Đơn Hàng", ViewType.Bar);
             sDon.ArgumentDataMember = "CUSTOMER_PART_NO";
             sDon.ValueDataMembers.AddRange(new[] { "TTCS" });
-            sDon.Label.Visible = false;
+            sDon.LabelsVisibility = DevExpress.Utils.DefaultBoolean.False;
             sDon.ToolTipPointPattern = "Đơn hàng: {V:#,##0}";
             var vDon = (BarSeriesView)sDon.View;
             vDon.Color = Color.FromArgb(226, 75, 74);
             vDon.BarWidth = 0.35;
-            vDon.Border.Visible = false;
+            vDon.Border.Visibility = DevExpress.Utils.DefaultBoolean.False;
             chart.Series.Add(sDon);
 
             // -- Series 2: Tồn kho (trục Y phụ — scale riêng) --
             var sTon = new Series("Tồn Kho", ViewType.Bar);
             sTon.ArgumentDataMember = "CUSTOMER_PART_NO";
             sTon.ValueDataMembers.AddRange(new[] { "SLTONKHO" });
-            sTon.Label.Visible = false;
+            sTon.LabelsVisibility = DevExpress.Utils.DefaultBoolean.False;
             sTon.ToolTipPointPattern = "Tồn kho: {V:#,##0}";
             var vTon = (BarSeriesView)sTon.View;
             vTon.Color = Color.FromArgb(24, 95, 165);
             vTon.BarWidth = 0.35;
-            vTon.Border.Visible = false;
+            vTon.Border.Visibility = DevExpress.Utils.DefaultBoolean.False;
             chart.Series.Add(sTon);
 
             // Diagram
@@ -451,21 +449,19 @@ namespace PCTP
 
             // Trục Y chính = Đơn hàng
             diag.AxisY.Title.Text = "Đơn hàng";
-            diag.AxisY.Title.Visible = false;
+            diag.AxisY.Title.Visibility = DevExpress.Utils.DefaultBoolean.False;
             diag.AxisY.Label.Font = new Font("Tahoma", 7f);
             diag.AxisY.Label.TextColor = Color.FromArgb(226, 75, 74);
             diag.AxisY.GridLines.Color = Color.FromArgb(230, 230, 230);
             diag.AxisY.GridLines.Visible = true;
-            diag.AxisY.Label.NumericOptions.Format = DevExpress.XtraCharts.NumericFormat.Number;
-            diag.AxisY.Label.NumericOptions.Precision = 0;
+            diag.AxisY.Label.TextPattern = "{V:n0}";
 
             // Trục Y phụ = Tồn kho (scale độc lập)
             var axTon = new SecondaryAxisY("axTonKho");
             axTon.Label.Font = new Font("Tahoma", 7f);
             axTon.Label.TextColor = Color.FromArgb(24, 95, 165);
             axTon.GridLines.Visible = false;
-            axTon.Label.NumericOptions.Format = DevExpress.XtraCharts.NumericFormat.Number;
-            axTon.Label.NumericOptions.Precision = 0;
+            axTon.Label.TextPattern = "{V:n0}";
             diag.SecondaryAxesY.Add(axTon);
 
             // Gán series Tồn kho vào trục phụ
@@ -485,13 +481,13 @@ namespace PCTP
         {
             chart.Series.Clear();
             chart.BackColor = Color.White;
-            chart.BorderOptions.Visible = false;
+            chart.BorderOptions.Visibility = DevExpress.Utils.DefaultBoolean.False;
             chart.Legend.Visibility = DevExpress.Utils.DefaultBoolean.False;
 
             var sPct = new Series("% Đã Giao", ViewType.Bar);
             sPct.ArgumentDataMember = "CUSTOMER_PART_NO";
             sPct.ValueDataMembers.AddRange(new[] { "PCT_GIAO" });   // cột tính sẵn
-            sPct.Label.Visible = true;
+            sPct.LabelsVisibility = DevExpress.Utils.DefaultBoolean.True;
             sPct.Label.TextPattern = "{V:F0}%";
             sPct.Label.Font = new Font("Tahoma", 7f);
             sPct.ToolTipPointPattern = "Đã giao: {V:F1}%";
@@ -499,7 +495,7 @@ namespace PCTP
             var vPct = (BarSeriesView)sPct.View;
             vPct.Color = Color.FromArgb(99, 153, 34);
             vPct.BarWidth = 0.55;
-            vPct.Border.Visible = false;
+            vPct.Border.Visibility = DevExpress.Utils.DefaultBoolean.False;
             chart.Series.Add(sPct);
 
             var diag = (XYDiagram)chart.Diagram;
@@ -519,8 +515,7 @@ namespace PCTP
             diag.AxisY.VisualRange.MaxValue = 100;
             diag.AxisY.Label.Font = new Font("Tahoma", 7f);
             diag.AxisY.Label.TextColor = Color.DimGray;
-            diag.AxisY.Label.NumericOptions.Format = DevExpress.XtraCharts.NumericFormat.Percent;
-            diag.AxisY.Label.NumericOptions.Precision = 0;
+            diag.AxisY.Label.TextPattern = "{V:n0}%";   // ✅ giá trị đã ở thang 0-100, không dùng p0
             diag.AxisY.GridLines.Color = Color.FromArgb(230, 230, 230);
             diag.AxisY.GridLines.Visible = true;
 

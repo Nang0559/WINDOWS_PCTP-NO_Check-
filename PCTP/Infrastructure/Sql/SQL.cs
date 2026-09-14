@@ -3,7 +3,7 @@ using DevExpress.XtraEditors;
 using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Data.OracleClient;
+using Oracle.ManagedDataAccess.Client;
 using System.Data.SqlClient;
 using System.Linq;
 using System.Windows.Forms;
@@ -704,7 +704,7 @@ namespace PCTP.ClassSQL
                         {
                             if (item.Contains('@'))
                             {
-                                command.Parameters.Add(item, parameter[i]);
+                                command.Parameters.AddWithValue(item, parameter[i]);
                                 i++;
                             }
                         }
@@ -765,7 +765,7 @@ namespace PCTP.ClassSQL
                         {
                             if (item.Contains('@'))
                             {
-                                command.Parameters.Add(item, parameter[i]);
+                                command.Parameters.AddWithValue(item, parameter[i]);
                                 i++;
                             }
                         }
@@ -803,7 +803,7 @@ namespace PCTP.ClassSQL
                         {
                             if (item.Contains('@'))
                             {
-                                command.Parameters.Add(item, parameter[i]);
+                                command.Parameters.AddWithValue(item, parameter[i]);
                                 i++;
                             }
                         }
