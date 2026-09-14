@@ -16,12 +16,8 @@ namespace PCTP.Modules.XuLyHangLoi.Application
 {
     /// <summary>
     /// Composition root cho luồng XuLyHangLoi.
-    ///
-    /// Quy tắc:
-    /// - Một UnitOfWork duy nhất cho toàn bộ graph.
-    /// - IStockMovementService là boundary duy nhất cho mutation stock.
-    /// - Adapter legacy nằm ngoài KhoCore.
-    /// - UI nhận service đã dựng sẵn, không tự new repository/SQL.
+    /// Một UnitOfWork được truyền xuyên suốt graph khi composition root cấp trên đã có transaction.
+    /// IStockMovementService là boundary duy nhất cho mutation stock.
     /// </summary>
     public static class XuLyHangLoiModuleFactory
     {
@@ -39,13 +35,20 @@ namespace PCTP.Modules.XuLyHangLoi.Application
         {
             var dbExecutor = new PhieuSqlExecutor(new SQLPROVIDER());
             var uow = new UnitOfWork(dbExecutor.Sql);
+            return Build(dbExecutor, uow);
+        }
 
-            // Legacy storage adapters remain transitional infrastructure.
+        public static Module Build(PhieuSqlExecutor dbExecutor, IUnitOfWork uow)
+        {
+            if (dbExecutor == null)
+                throw new System.ArgumentNullException(nameof(dbExecutor));
+            if (uow == null)
+                throw new System.ArgumentNullException(nameof(uow));
+
             var slotRepo = new SlotRepository(dbExecutor, uow);
             var slotService = new SlotService(slotRepo);
             var stockTpRepo = new StockExportRepository(dbExecutor, uow);
             var historyRepo = new StockHistoryRepository(dbExecutor, uow);
-
             var phieuXuLyRepo = new PhieuXuLyBatThuongRepository(dbExecutor, uow);
             var qtChungRepo = new TraHangQTChungRepository(dbExecutor, uow);
 
@@ -56,8 +59,7 @@ namespace PCTP.Modules.XuLyHangLoi.Application
 
             var stockMovement = new StockMovementService(
                 stockBalance,
-                stockSlot,
-                null);
+                stockSlot);
 
             var reworkStockService = new ReworkStockService(
                 uow,
