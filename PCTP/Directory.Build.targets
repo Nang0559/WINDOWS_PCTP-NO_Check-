@@ -53,6 +53,7 @@
     <Compile Include="Modules\BaoCao\Infrastructure\Queries\QualityHistoryQueryService.cs" />
     <Compile Include="Modules\BaoCao\Infrastructure\Queries\DeliveryTraceQueryService.cs" />
     <Compile Include="Modules\BaoCao\UI\FormBaoCaoMain.cs" />
+    <Compile Include="Modules\BaoCao\UI\FormBaoCaoTraceability.cs" />
     <Compile Include="Modules\BaoCao\UI\FormBaoCaoStockHistory.cs" />
     <Compile Include="Modules\BaoCao\UI\FormBaoCaoQualityHistory.cs" />
 
