@@ -62,6 +62,7 @@
     <Compile Include="Shell\Help\WmsHelpCatalog.cs" />
     <Compile Include="Shell\Help\WmsHelpService.cs" />
     <Compile Include="Shell\Help\FormWmsHelp.cs" />
+    <Compile Include="Shell\Help\WmsHelpOverlay.cs" />
     <Compile Include="Shell\Widgets\MainAppDashboardController.cs" />
     <Compile Include="Shell\Widgets\WmsControlCenterBar.cs" />
     <Compile Include="Shell\Widgets\WmsWorklistBar.cs" />
