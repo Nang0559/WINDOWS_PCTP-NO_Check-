@@ -82,7 +82,7 @@ namespace PCTP.Shell.Widgets
         /// Refreshes all dashboard KPIs from the injected read repositories.
         /// Kept public so Main_APP and the Control Center can refresh the widget.
         /// </summary>
-        public void Refresh()
+        public new void Refresh()
         {
             if (IsDisposed)
                 return;
