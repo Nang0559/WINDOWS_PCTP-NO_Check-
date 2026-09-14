@@ -7,9 +7,6 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace PCTP.Modules.KhoVatLy.Repositories
 {
@@ -26,9 +23,6 @@ namespace PCTP.Modules.KhoVatLy.Repositories
                 throw new InvalidOperationException(
                     "GetOrCreateVirtualSlotId phải chạy trong transaction (Uow.Begin() trước).");
 
-            // ── Khoá tài nguyên logic để 2 transaction không cùng tạo trùng
-            // Warehouse/Rack/Slot ảo lần đầu tiên. LockOwner='Transaction' tự
-            // giải phóng khi Commit/Rollback — không cần tự gọi sp_releaseapplock.
             string resource = $"BULK_SLOT_{warehouseName}_{rackName}";
             object lockResult = ExecuteScalar(
                 @"DECLARE @res INT;
@@ -47,7 +41,6 @@ namespace PCTP.Modules.KhoVatLy.Repositories
                 throw new InvalidOperationException(
                     $"Không lấy được khoá tạo Slot ảo A0 (mã lỗi {lockCode}). Thử lại sau.");
 
-            // ── Sau khi có khoá, an toàn để check-then-create ──────────────────
             DataTable existing = LoadData(
                 @"SELECT TOP 1 s.SlotId, s.Capacity
               FROM Slot s
@@ -85,9 +78,6 @@ namespace PCTP.Modules.KhoVatLy.Repositories
                 throw new InvalidOperationException(
                     "LockSlotForUpdate phải chạy trong transaction (Uow.Begin() trước).");
 
-            // Bất kỳ transaction nào khác cũng SELECT ... WITH (UPDLOCK, ROWLOCK)
-            // trên cùng SlotId sẽ bị BLOCK ở đây cho tới khi transaction hiện
-            // tại Commit/Rollback -> serialize hoá đọc-sửa-ghi SlotLot.
             ExecuteScalar(
                 "SELECT SlotId FROM Slot WITH (UPDLOCK, ROWLOCK) WHERE SlotId = @SlotId",
                 new SqlParameter("@SlotId", slotId));
@@ -146,51 +136,6 @@ namespace PCTP.Modules.KhoVatLy.Repositories
             }
 
             return lots;
-        }
-
-        public void SaveLots(int slotId, List<LotInfo> lots)
-        {
-            lots = lots ?? new List<LotInfo>();
-
-            ExecuteNonQuery(
-                "DELETE FROM SlotLot WHERE SlotId = @SlotId",
-                new SqlParameter("@SlotId", slotId));
-
-            foreach (var lot in lots)
-            {
-                ExecuteNonQuery(
-                    @"INSERT INTO SlotLot
-                    (SlotId, ItemCode, LotNo, Quantity, TemCode, QrData, ImportDate, MaPhieu)
-                  VALUES
-                    (@SlotId, @ItemCode, @LotNo, @Quantity, @TemCode, @QrData, @ImportDate, @MaPhieu)",
-                    new SqlParameter("@SlotId", slotId),
-                    new SqlParameter("@ItemCode", (object)lot.QRInfo?.ItemCode ?? DBNull.Value),
-                    new SqlParameter("@LotNo", (object)lot.LotNo ?? DBNull.Value),
-                    new SqlParameter("@Quantity", lot.Quantity),
-                    new SqlParameter("@TemCode", (object)lot.TemCode ?? DBNull.Value),
-                    new SqlParameter("@QrData", (object)lot.QRInfo?.RawQr ?? DBNull.Value),
-                    new SqlParameter("@ImportDate", (object)lot.QRInfo?.ImportDate ?? DateTime.Now),
-                    new SqlParameter("@MaPhieu", (object)lot.QRInfo?.MaPhieu ?? DBNull.Value));
-            }
-        }
-
-        public void UpdateSlotHeaderFromLots(int slotId, List<LotInfo> lots)
-        {
-            // Tính lại Header trực tiếp từ SlotLot vừa ghi trong CÙNG transaction —
-            // không dựa vào tham số lots truyền vào để tránh lệch nếu caller quên cập nhật.
-            ExecuteNonQuery(
-                @"UPDATE s
-              SET
-                  Quantity = (SELECT ISNULL(SUM(sl.Quantity),0) FROM SlotLot sl WHERE sl.SlotId = s.SlotId),
-                  ItemCode = (SELECT TOP (1) sl.ItemCode FROM SlotLot sl WHERE sl.SlotId = s.SlotId
-                              ORDER BY sl.ImportDate DESC),
-                  ImportDate = (SELECT TOP (1) sl.ImportDate FROM SlotLot sl WHERE sl.SlotId = s.SlotId
-                              ORDER BY sl.ImportDate DESC),
-                  IsOccupied = CASE WHEN EXISTS (SELECT 1 FROM SlotLot sl WHERE sl.SlotId = s.SlotId)
-                              THEN 1 ELSE 0 END
-              FROM Slot s
-              WHERE s.SlotId = @SlotId",
-                new SqlParameter("@SlotId", slotId));
         }
     }
 }
