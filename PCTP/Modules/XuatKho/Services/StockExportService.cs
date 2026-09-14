@@ -2,7 +2,6 @@ using PCTP.Common;
 using PCTP.Modules.KhoCore.Application.Contracts.Stock;
 using PCTP.Modules.KhoVatLy.Application.Interfaces;
 using PCTP.Modules.KhoVatLy.Kho.Models;
-using PCTP.Modules.KhoVatLy.Repositories;
 using PCTP.Modules.XuatKho.Interfaces;
 using PCTP.Modules.XuatKho.Models;
 using PCTP.Modules.XuLyHangLoi.Models;
@@ -20,7 +19,6 @@ namespace PCTP.Modules.XuatKho.Services
     {
         private readonly IUnitOfWork _uow;
         private readonly ISlotService _slotService;
-        private readonly IStockExportRepository _stockTpRepo;
         private readonly IStockHistoryRepository _historyRepo;
         private readonly IHangChoGiaoRepository _choGiaoRepo;
         private readonly IStockExportValidationService _validationService;
@@ -29,7 +27,6 @@ namespace PCTP.Modules.XuatKho.Services
         public StockExportService(
             IUnitOfWork uow,
             ISlotService slotService,
-            IStockExportRepository stockTpRepo,
             IStockHistoryRepository historyRepo,
             IHangChoGiaoRepository choGiaoRepo,
             IStockExportValidationService validationService,
@@ -37,7 +34,6 @@ namespace PCTP.Modules.XuatKho.Services
         {
             _uow = uow ?? throw new ArgumentNullException(nameof(uow));
             _slotService = slotService ?? throw new ArgumentNullException(nameof(slotService));
-            _stockTpRepo = stockTpRepo ?? throw new ArgumentNullException(nameof(stockTpRepo));
             _historyRepo = historyRepo ?? throw new ArgumentNullException(nameof(historyRepo));
             _choGiaoRepo = choGiaoRepo ?? throw new ArgumentNullException(nameof(choGiaoRepo));
             _validationService = validationService ?? throw new ArgumentNullException(nameof(validationService));
