@@ -94,9 +94,23 @@ This prevents a caller from supplying one valid LOT together with another valid 
 
 ## Composition root gate
 
-`ReworkStockService` requires `IStockMovementService`, and the forms receive the service through their constructors. However, the repository tree does not yet expose a dedicated XuLyHangLoi composition factory comparable to `MainStockModuleFactory` / `NhapTpModuleFactory`.
+A dedicated `XuLyHangLoiModuleFactory` now exists at:
 
-Therefore the XuLyHangLoi composition root remains a verification gate rather than being marked complete by assumption.
+`PCTP/Modules/XuLyHangLoi/Application/XuLyHangLoiModuleFactory.cs`
+
+`WarehouseProcessNavigator.CreateFormQuanLyTienTrinhHangLoi(...)` now creates one `PhieuSqlExecutor` + `UnitOfWork` and passes that same graph into the factory. The resulting `ReworkStockService`, `QTChungService`, workflow repositories, and form therefore share the same UoW for the XuLyHangLoi workflow.
+
+The factory owns construction of:
+
+- `IStockMovementService`
+- `ReworkStockService`
+- `SlotService`
+- `IStockExportRepository` transitional adapter source
+- `StockHistoryRepository`
+- `PhieuXuLyBatThuongRepository`
+- `TraHangQTChungRepository`
+
+The UI no longer constructs `ReworkStockService` directly in the navigator.
 
 ## Idempotency gate
 
@@ -119,7 +133,7 @@ The central boundary and source LOT invariant are implemented, but integration/c
 - XuatKho central movement wiring: **confirmed**
 - Rework movement calls: **confirmed**
 - Legacy NhapKho export/correction writer contracts: **removed**
-- All legacy stock callers: **NOT YET PROVEN CLEAN** — source-tree/search coverage is improved, but Visual Studio compile remains the final caller gate
-- XuLyHangLoi composition root: **NOT YET VERIFIED**
+- XuLyHangLoi composition root: **wired through WarehouseProcessNavigator**
+- All legacy stock callers: **NOT YET PROVEN CLEAN** — Visual Studio compile remains the final caller gate
 - Idempotency: **NOT YET IMPLEMENTED**
 - Integration/concurrency tests: **NOT YET IMPLEMENTED**
