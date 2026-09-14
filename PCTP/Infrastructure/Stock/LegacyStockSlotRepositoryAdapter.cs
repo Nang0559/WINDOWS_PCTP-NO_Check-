@@ -6,6 +6,7 @@ using PCTP.Modules.KhoCore.Application.Contracts.Stock;
 using PCTP.Modules.KhoVatLy.Application.Interfaces;
 using PCTP.Modules.KhoVatLy.Kho.Models;
 using PCTP.Shared.Helpers;
+using PCTP.VIEWSTOCK.Fuction;
 
 namespace PCTP.Infrastructure.Stock
 {

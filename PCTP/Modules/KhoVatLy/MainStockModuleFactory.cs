@@ -10,7 +10,6 @@ using PCTP.Modules.KhoVatLy.Repositories;
 using PCTP.Modules.KhoVatLy.Repository;
 using PCTP.Modules.NhapKho.Application.Adapters;
 using PCTP.Modules.NhapKho.Interfaces;
-using PCTP.Modules.NhapKho.Repository;
 using PCTP.Modules.NhapKho.Services;
 using PCTP.Modules.XuatKho.Application.Adapters;
 using PCTP.Modules.XuatKho.Interfaces;
@@ -20,6 +19,7 @@ using PCTP.Shared.Common;
 using PCTP.Shared.Services;
 using PCTP.VIEWSTOCK.Repository;
 using PCTP.Infrastructure.Stock;
+using PCTP.Modules.KhoCore.Application.Services;
 
 namespace PCTP.Modules.KhoVatLy
 {
@@ -52,6 +52,7 @@ namespace PCTP.Modules.KhoVatLy
             var slotRepo = new SlotRepository(dbExecutor, uow);
             var warehouseRepo = new WarehouseRepository(dbExecutor, uow);
             var rackRepo = new RackRepository(dbExecutor, uow);
+            var rackService = new RackService(rackRepo);   // ★ THÊM — dòng này bị thiếu, gây lỗi "the name 'rackService' does not exist"
             var historyRepo = new StockHistoryRepository(dbExecutor, uow);
             var stockExportRepo = new StockExportRepository(dbExecutor, uow);
             var hangChoGiaoRepo = new HangChoGiaoRepository(dbExecutor, uow);

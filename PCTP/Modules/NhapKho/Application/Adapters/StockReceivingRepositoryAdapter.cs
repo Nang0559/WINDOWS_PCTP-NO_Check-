@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using PCTP.Modules.KhoCore.Application.Contracts.Stock;
 using PCTP.Modules.NhapKho.Interfaces;
 using PCTP.VIEWSTOCK.Models;
@@ -39,12 +39,15 @@ namespace PCTP.Modules.NhapKho.Application.Adapters
                 Part = record.ItemCode,
                 Name = record.ItemName,
                 Model = record.Model,
-                CaSX = record.ProductionCase,
+                CaSX = ParseCaSX(record.ProductionCase),   // ← sửa
                 NgaySX = record.ProductionDate,
                 SlSanXuat = record.ProductionQuantity,
                 SlNhap = record.ReceivedQuantity
             }, record.Status);
         }
+
+        private static int ParseCaSX(string productionCase)
+            => int.TryParse(productionCase, out int ca) ? ca : 0;
 
         public void Update(string lotNo, int receivedQuantityDelta, int status)
         {

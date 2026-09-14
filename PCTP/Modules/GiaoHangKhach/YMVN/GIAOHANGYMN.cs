@@ -8,6 +8,7 @@ using DevExpress.XtraReports.UI;
 using DevExpress.XtraReports.UserDesigner;
 using DevExpress.XtraWaitForm;
 using PCTP;
+using PCTP.Modules.GiaoHangKhach.HVN.SubForm;
 using PCTP.QRCODE_HVN.PGH;
 using PCTP.Shared.Helpers;
 using PCTP.YMN;
@@ -1731,7 +1732,7 @@ namespace PCTP.QRCODE_HVN.YMN
                     else
                     {  /// Kiem tra lai cap nhap kho
                         //MessageBox.Show("Kho cập nhập không thành công ! do thiếu tồn kho .");
-                        PGH.frm_err_cnk frm_Err = new frm_err_cnk(eRR_CNKs);
+                        frm_err_cnk frm_Err = new frm_err_cnk(eRR_CNKs);
                         frm_Err.ShowDialog();
                         eRR_CNKs.Clear();
                     }    

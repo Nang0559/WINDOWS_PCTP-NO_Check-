@@ -1,9 +1,11 @@
 ﻿using PCTP.ClassSQL;
 using PCTP.Modules.GiaoHangKhach;
+using PCTP.Modules.GiaoHangKhach.HVN;
 using PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao;
 using PCTP.Modules.GiaoHangKhach.Repositories;
 using PCTP.Modules.KhoCore.Application.Contracts.Stock;
 using PCTP.Modules.KhoVatLy;
+using PCTP.Modules.KhoVatLy.Application.Interfaces;
 using PCTP.Modules.KhoVatLy.Application.Services;
 using PCTP.Modules.KhoVatLy.Repositories;
 using PCTP.Modules.XuatKho.Repositories;

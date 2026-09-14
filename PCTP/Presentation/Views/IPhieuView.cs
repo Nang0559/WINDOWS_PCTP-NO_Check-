@@ -68,6 +68,7 @@ namespace PCTP.Presentation.Views
         event EventHandler KiemTraGhepLotClicked;
         event EventHandler KiemTraMaNGClicked;
         event EventHandler HoanThanhClicked;
+        event EventHandler LoaiPhieuChanged;
         event EventHandler<LayLaiLotEventArgs> LayLaiLotNoClicked;
         event EventHandler<TTPHIEUEventArgs> CapNhapTTPHIEUClicked;   
     }

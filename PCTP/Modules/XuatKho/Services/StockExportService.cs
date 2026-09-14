@@ -2,6 +2,7 @@ using PCTP.Common;
 using PCTP.Modules.KhoCore.Application.Contracts.Stock;
 using PCTP.Modules.KhoVatLy.Application.Interfaces;
 using PCTP.Modules.KhoVatLy.Kho.Models;
+using PCTP.Modules.KhoVatLy.Repositories;
 using PCTP.Modules.XuatKho.Interfaces;
 using PCTP.Modules.XuatKho.Models;
 using PCTP.Modules.XuLyHangLoi.Models;
@@ -72,8 +73,8 @@ namespace PCTP.Modules.XuatKho.Services
                     LotNo = request.LotNo,
                     ItemCode = request.ItemCode,
                     Quantity = request.Quantity,
-                    ReferenceType = request.ReferenceType,
-                    ReferenceId = request.ReferenceId,
+                    ReferenceType = request.ReferenceType?.ToString(),
+                    ReferenceId = request.ReferenceId?.ToString(),
                     PerformedBy = request.NguoiThucHien,
                     OccurredAt = DateTime.Now,
                     Reason = "PICK_CHO_GIAO"
@@ -172,8 +173,8 @@ namespace PCTP.Modules.XuatKho.Services
                     LotNo = item.LotGoc,
                     ItemCode = item.MaHang,
                     Quantity = item.SoLuong,
-                    ReferenceType = item.ReferenceType,
-                    ReferenceId = item.ReferenceId,
+                    ReferenceType = item.ReferenceType?.ToString(),
+                    ReferenceId = item.ReferenceId?.ToString(),
                     PerformedBy = nguoiGiao,
                     OccurredAt = DateTime.Now,
                     Reason = "CONFIRM_GIAO_HANG_CHO_GIAO"
@@ -271,8 +272,8 @@ namespace PCTP.Modules.XuatKho.Services
                     LotNo = request.LotNo,
                     ItemCode = request.ItemCode,
                     Quantity = request.Quantity,
-                    ReferenceType = request.ReferenceType,
-                    ReferenceId = request.ReferenceId,
+                    ReferenceType = request.ReferenceType?.ToString(),
+                    ReferenceId = request.ReferenceId?.ToString(),
                     PerformedBy = request.NguoiThucHien,
                     OccurredAt = DateTime.Now,
                     Reason = request.Purpose == StockTransactionType.XuatRework
@@ -292,8 +293,8 @@ namespace PCTP.Modules.XuatKho.Services
                     LotNo = request.LotNo,
                     ItemCode = request.ItemCode,
                     Quantity = request.Quantity,
-                    ReferenceType = request.ReferenceType,
-                    ReferenceId = request.ReferenceId,
+                    ReferenceType = request.ReferenceType?.ToString(),
+                    ReferenceId = request.ReferenceId?.ToString(),
                     PerformedBy = request.NguoiThucHien,
                     OccurredAt = DateTime.Now,
                     Reason = request.Purpose == StockTransactionType.XuatRework

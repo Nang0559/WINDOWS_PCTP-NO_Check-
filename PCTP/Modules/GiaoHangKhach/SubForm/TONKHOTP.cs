@@ -4,11 +4,18 @@ using DevExpress.XtraGrid.Columns;
 using DevExpress.XtraGrid.Views.Grid;
 using PCTP.ClassSQL;
 using PCTP.FuctionMain;
+using PCTP.Infrastructure.Stock;
+using PCTP.Modules.KhoCore.Application.Contracts.Stock;
+using PCTP.Modules.KhoCore.Application.Services;
 using PCTP.Modules.KhoCore.Services;
+using PCTP.Modules.KhoVatLy.Application.Services;
 using PCTP.Modules.KhoVatLy.Kho.Models;
 using PCTP.Modules.KhoVatLy.Repositories;
+using PCTP.Modules.NhapKho.Application.Adapters;
 using PCTP.Modules.NhapKho.Repository;
 using PCTP.Modules.NhapKho.Services;
+using PCTP.Modules.XuatKho.Application.Adapters;
+using PCTP.Modules.XuatKho.Repositories;
 using PCTP.Shared.Common;
 using PCTP.VIEWSTOCK.Repository;
 using System;
@@ -40,7 +47,8 @@ using System.Windows.Forms;
         {
             private readonly IStockTpLookupService _stockTpService;
             private readonly IStockHistoryService _historyService;
-            private readonly List<string> _lotList;
+        private readonly IStockMovementService _movementService;
+        private readonly List<string> _lotList;
             private readonly bool _isSingleLotEditMode;
 
             private GridControl _grid;
@@ -57,13 +65,14 @@ using System.Windows.Forms;
             public TONKHOTP(
                 IStockTpLookupService stockTpService,
                 IStockHistoryService historyService,
-                string lotFilter = "")
+                IStockMovementService movementService,
+        string lotFilter = "")
             {
                 InitializeComponent();
                 _stockTpService = stockTpService ?? throw new ArgumentNullException(nameof(stockTpService));
                 _historyService = historyService ?? throw new ArgumentNullException(nameof(historyService));
-
-                _lotList = ParseLotFilter(lotFilter);
+            _movementService = movementService ?? throw new ArgumentNullException(nameof(movementService));
+            _lotList = ParseLotFilter(lotFilter);
                 _isSingleLotEditMode = _lotList.Count == 1;
 
                 Text = _isSingleLotEditMode
@@ -94,8 +103,13 @@ using System.Windows.Forms;
             var historyRepo = new StockHistoryRepository(sql, uow);
             var historyService = new StockHistoryService(historyRepo);
 
-            using (var f = new TONKHOTP(stockTpService, historyService, lotFilter))
-                f.ShowDialog(owner);
+            // ShowForLot — thêm khởi tạo StockMovementService
+            var movementService = new StockMovementService(
+                new StockExportRepositoryAdapter(new StockExportRepository(sql, uow)),
+                new LegacyStockSlotRepositoryAdapter(new SlotService(new SlotRepository(sql, uow))),
+                new StockReceivingRepositoryAdapter(stockTpRepo));
+
+            using (var f = new TONKHOTP(stockTpService, historyService, movementService, lotFilter)) ;
         }
         // ════════════════════════════════════════════════════════════════
         // UI
@@ -286,19 +300,34 @@ using System.Windows.Forms;
 
                 try
                 {
-                    _stockTpService.DieuChinhSlConLai(lot, slConLaiMoi);
+                    var result = _movementService.Correct(new StockMovementRequest
+                    {
+                        MovementType = StockMovementRequest.Types.Correct,
+                        LotNo = lot,
+                        ItemCode = stock.Part,
+                        Quantity = slConLaiMoi - slConLaiCu,   // ← DELTA, không phải giá trị tuyệt đối
+                        Reason = lyDo,
+                        PerformedBy = Environment.UserName
+                    });
+
+                    if (!result.Success)
+                    {
+                        XtraMessageBox.Show("Lỗi khi cập nhật tồn kho:\n" + result.Message,
+                            "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        return;
+                    }
 
                     _historyService.SaveHistory(
-                        actionType: "DIEU_CHINH_TON_CNK_LOI",
-                        itemCode: stock.Part,
-                        lot: new LotInfo { LotNo = lot, Quantity = slConLaiMoi - slConLaiCu },
-                        fromSlotId: null,
-                        toSlotId: null,
-                        performedBy: $"{Environment.UserName} | {slConLaiCu}->{slConLaiMoi} | Lý do: {lyDo}");
+                            actionType: "DIEU_CHINH_TON_CNK_LOI",
+                            itemCode: stock.Part,
+                            lot: new LotInfo { LotNo = lot, Quantity = slConLaiMoi - slConLaiCu },
+                            fromSlotId: null,
+                            toSlotId: null,
+                            performedBy: $"{Environment.UserName} | {slConLaiCu}->{slConLaiMoi} | Lý do: {lyDo}");
 
-                    XtraMessageBox.Show("Đã cập nhật tồn kho thành công.",
-                        "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    LoadData();
+                        XtraMessageBox.Show("Đã cập nhật tồn kho thành công.",
+                            "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        LoadData();
                 }
                 catch (Exception ex)
                 {

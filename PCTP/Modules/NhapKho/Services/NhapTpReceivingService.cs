@@ -7,10 +7,12 @@ using PCTP.Modules.KhoVatLy.Application.Interfaces;
 using PCTP.Modules.KhoVatLy.Kho.Models;
 using PCTP.Modules.KhoVatLy.Repositories;
 using PCTP.Modules.NhapKho.Interfaces;
+using PCTP.Modules.NhapKho.Repository;
 using PCTP.Shared.Common;
 using PCTP.Shared.Helpers;
 using PCTP.VIEWSTOCK.Fuction;
 using PCTP.VIEWSTOCK.Models;
+using PCTP.VIEWSTOCK.Repository;
 using System;
 using System.Collections.Generic;
 

@@ -180,6 +180,7 @@
     <Reference Include="System.Core" />
     <Reference Include="System.Data.Entity" />
     <Reference Include="System.Data.Linq" />
+    <Reference Include="System.Data.OracleClient" />
     <Reference Include="System.Design" />
     <Reference Include="System.Drawing.Common, Version=8.0.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
       <HintPath>..\packages\System.Drawing.Common.8.0.4\lib\net462\System.Drawing.Common.dll</HintPath>
@@ -312,6 +313,17 @@
     </Compile>
     <Compile Include="Modules\GiaoHangKhach\WorkingState\DeliveryWorkingState.cs" />
     <Compile Include="Modules\GiaoHangKhach\WorkingState\IDeliveryWorkingState.cs" />
+    <Compile Include="Modules\KhoCore\Application\Contracts\Slot\ISlotQueryService.cs" />
+    <Compile Include="Modules\KhoCore\Application\Contracts\Slot\SlotLocation.cs" />
+    <Compile Include="Modules\KhoCore\Application\Contracts\Stock\IStockBalanceRepository.cs" />
+    <Compile Include="Modules\KhoCore\Application\Contracts\Stock\IStockMovementService.cs" />
+    <Compile Include="Modules\KhoCore\Application\Contracts\Stock\IStockReceivingRepository.cs" />
+    <Compile Include="Modules\KhoCore\Application\Contracts\Stock\IStockSlotRepository.cs" />
+    <Compile Include="Modules\KhoCore\Application\Contracts\Stock\StockMovementRequest.cs" />
+    <Compile Include="Modules\KhoCore\Application\Contracts\Stock\StockMovementResult.cs" />
+    <Compile Include="Modules\KhoCore\Application\Contracts\Stock\StockSlotLot.cs" />
+    <Compile Include="Modules\KhoCore\Application\Contracts\Stock\StockSlotTakeResult.cs" />
+    <Compile Include="Modules\KhoCore\Application\Services\StockMovementService.cs" />
     <Compile Include="Modules\KhoCore\Interfaces\IInspectionConfigService.cs" />
     <Compile Include="Modules\KhoCore\Interfaces\IInspectionService.cs" />
     <Compile Include="Modules\KhoCore\Models\InspectionLogEntry.cs" />
@@ -328,10 +340,13 @@
     <Compile Include="Modules\KhoCore\Services\InspectionService.cs" />
     <Compile Include="Modules\KhoCore\Services\IStockHistoryService.cs" />
     <Compile Include="Modules\KhoCore\Services\StockHistoryService.cs" />
+    <Compile Include="Modules\KhoVatLy\Application\Adapters\KhoCoreSlotQueryAdapter.cs" />
     <Compile Include="Modules\KhoVatLy\MainStockModuleFactory.cs" />
     <Compile Include="Modules\KhoVatLy\NhapTpModuleFactory.cs" />
     <Compile Include="Modules\KhoCore\Repositories\BulkStockSlotRepository.cs" />
     <Compile Include="Modules\KhoCore\Repositories\IBulkStockSlotRepository.cs" />
+    <Compile Include="Modules\NhapKho\Application\Adapters\StockReceivingRepositoryAdapter.cs" />
+    <Compile Include="Modules\NhapKho\Application\Adapters\StockSlotRepositoryAdapter.cs" />
     <Compile Include="Modules\NhapKho\Interfaces\IWarehouseDashboardService.cs" />
     <Compile Include="Modules\NhapKho\Models\StockImportPurpose.cs" />
     <Compile Include="Modules\NhapKho\Models\StockImportRequest.cs" />
@@ -415,6 +430,7 @@
     <Compile Include="Modules\NhapKho\Services\IStockTpLookupService.cs" />
     <Compile Include="Modules\NhapKho\Services\StockTpLookupService.cs" />
     <Compile Include="Modules\NhapKho\Services\WarehouseDashboardService.cs" />
+    <Compile Include="Modules\XuatKho\Application\Adapters\StockExportRepositoryAdapter.cs" />
     <Compile Include="Modules\XuatKho\Interfaces\IHangChoGiaoRepository.cs" />
     <Compile Include="Modules\XuatKho\Interfaces\IStockExportHistoryRepository.cs" />
     <Compile Include="Modules\XuatKho\Interfaces\IStockExportRepository.cs" />

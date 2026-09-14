@@ -1,5 +1,6 @@
 using PCTP.ClassSQL;
 using PCTP.Infrastructure.Stock;
+using PCTP.Modules.GiaoHangKhach;
 using PCTP.Modules.KhoCore.Application.Contracts.Stock;
 using PCTP.Modules.KhoCore.Application.Services;
 using PCTP.Modules.KhoVatLy.Application.Interfaces;

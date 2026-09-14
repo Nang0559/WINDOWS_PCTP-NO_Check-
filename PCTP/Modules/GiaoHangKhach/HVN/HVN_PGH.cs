@@ -102,7 +102,6 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
             return new HVN_Presenter(this, phieuSvc, lotSvc, qrSvc, inPhieuSvc, hangthieucangaySvc, _gioRepo, bus, isMayBanQR, tenBan, _cfg, categoryResolver);
         }
 
-        private static string SanitizeMachineName(string name) => System.Text.RegularExpressions.Regex.Replace(name ?? "LOCAL", @"[^A-Za-z0-9_]", "_");
         public void BindDonHang(DataTable dt) => _phieuGridControl.Bind(dt);
         public void BindHangThieu(DataTable dt) => _hangThieuControl.Bind(dt);
         public void BindLechIFS(DataTable dt) => _phieuBottomStateControl.BindLech(dt);
@@ -202,7 +201,7 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
         public bool CoLotDeLuuKho() => _phieuGridControl.HasLotToSave();
         public void ThemDongGiaoDB(DataTable danhSachMaHang) => _phieuGridControl.ConfigureGiaoDbRow(danhSachMaHang);
         public bool CoHangChuaOK() => _phieuGridControl.HasUnconfirmedRows();
-        private void LoadDBOKView() { }
+   
 
         public int ShowChonSttTrungMa(ListView danhSachTrung) => _phieuDialogControl.ShowChonSttTrungMa(danhSachTrung);
         public void ShowKiemTraMaNG(string maHang) => _phieuDialogControl.ShowKiemTraMaNG(maHang);
@@ -284,15 +283,7 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
         public void UnlockDatePicker() { if (_phieuHeaderControl != null) _phieuHeaderControl.UnlockDatePicker(); }
         public void LockRadioExcept(string gioFCC) { if (_phieuHeaderControl != null) _phieuHeaderControl.LockRadioExcept(gioFCC); }
         public void UnlockAllRadio() { if (_phieuHeaderControl != null) _phieuHeaderControl.UnlockAllRadio(); }
-        private void LockRadioGroup(RadioGroupItemCollection items, HashSet<string> gioSet, Action<int> setIndex)
-        {
-            for (int i = 0; i < items.Count; i++)
-            {
-                var item = (RadioGroupItem)items[i];
-                var itemSet = new HashSet<string>((item.AccessibleName ?? "").Split(',').Select(g => g.Trim().Trim('\'')), StringComparer.OrdinalIgnoreCase);
-                if (itemSet.SetEquals(gioSet)) { setIndex(i); item.Enabled = true; } else item.Enabled = false;
-            }
-        }
+     
         public void UpdateGioXuatFromDB(string gioFCC) { if (_phieuHeaderControl != null) _phieuHeaderControl.UpdateGioXuatFromDB(gioFCC); }
         public bool HoiXoaDocQR() => XtraMessageBox.Show("Dữ liệu không phù hợp:\n" + "Dữ liệu đọc QRCode không khớp với phiếu!\n" + "Bạn muốn xóa dữ liệu đọc?\n" + "(Nếu không xóa, phiếu giao hàng sẽ không được tải đúng)", "Thông Báo", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == System.Windows.Forms.DialogResult.Yes;
 
@@ -333,13 +324,7 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
             else if (loai == "HVN") { TXT_HVNTU.Text = slHien; TXT_HVNTHANH.Text = slHien; TXT_FCCTU.Text = ""; TXT_FCCTHANH.Text = ""; }
             LOTFCCVN.Text = lot;
         }
-        private DataTable BuildSuaSlTable(string lotFcc)
-        {
-            var tbl = new DataTable(); tbl.Columns.Add("STT", typeof(int)); tbl.Columns.Add("LOTFCC", typeof(string)); tbl.Columns.Add("SLTEMFCC", typeof(int)); tbl.Columns.Add("SUATHANH", typeof(int));
-            var parts = lotFcc.Split(',');
-            for (int i = 0; i < parts.Length; i++) { var ls = parts[i].Split('-'); var row = tbl.NewRow(); row["STT"] = i; row["LOTFCC"] = ls[0]; row["SLTEMFCC"] = int.TryParse(ls.Length > 1 ? ls[1] : "0", out int sl) ? sl : 0; row["SUATHANH"] = 0; tbl.Rows.Add(row); }
-            return tbl;
-        }
+      
         private void cmd_SuaLTemFCC_Click(object sender, EventArgs e)
         {
             if (_sttSuaSl <= 0) { ShowInfo("Vui lòng chọn dòng QR cần sửa!"); return; }

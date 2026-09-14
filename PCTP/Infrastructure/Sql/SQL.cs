@@ -1,10 +1,9 @@
 ﻿using DevExpress.CodeParser;
 using DevExpress.XtraEditors;
-using Oracle.ManagedDataAccess.Client;
-using PCTP.VIEWSTOCK.Models;
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Data.OracleClient;
 using System.Data.SqlClient;
 using System.Linq;
 using System.Text;
