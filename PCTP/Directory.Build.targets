@@ -57,7 +57,8 @@
     <Compile Include="Modules\BaoCao\UI\FormBaoCaoStockHistory.cs" />
     <Compile Include="Modules\BaoCao\UI\FormBaoCaoQualityHistory.cs" />
 
-    <!-- Main shell dashboard controller. -->
+    <!-- Main shell composition/dashboard boundaries. -->
+    <Compile Include="Shell\Composition\MainAppDashboardFactory.cs" />
     <Compile Include="Shell\Widgets\MainAppDashboardController.cs" />
 
     <!-- Removed legacy report UI after migration to BaoCao. -->
