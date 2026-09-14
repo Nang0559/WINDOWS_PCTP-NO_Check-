@@ -44,6 +44,7 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
         public PhieuBottomStateControl()
         {
             InitializeComponent();
+            Dock = DockStyle.Fill;
             gridVSUASL.FocusedRowChanged += gridVSUASL_FocusedRowChanged;
         }
 

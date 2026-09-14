@@ -1,6 +1,7 @@
-using System;
 using DevExpress.XtraBars.Docking2010;
 using DevExpress.XtraEditors;
+using System;
+using System.Windows.Forms;
 
 namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
 {
@@ -49,7 +50,10 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
     {
         private const string ActionTagPrefix = "ACTION:";
         private WindowsUIButtonPanel _panel;
-
+        public PhieuActionBarControl()
+        {
+            Dock = DockStyle.Fill;
+        }
         public WindowsUIButtonPanel Panel { get { return _panel; } }
 
         public event EventHandler<PhieuActionBarEventArgs> ActionClicked = delegate { };
