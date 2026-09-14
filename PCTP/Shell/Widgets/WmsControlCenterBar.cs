@@ -18,49 +18,71 @@ namespace PCTP.Shell.Widgets
                 throw new ArgumentNullException("help");
 
             _help = help;
-            Height = 46;
+            Height = 48;
             Dock = DockStyle.Top;
             BackColor = Color.WhiteSmoke;
             BorderStyle = BorderStyle.FixedSingle;
+            Padding = new Padding(6);
 
-            Controls.Add(new Label
+            TableLayoutPanel layout = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 6,
+                RowCount = 1,
+                Margin = Padding.Empty,
+                Padding = Padding.Empty
+            };
+
+            layout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 82f));
+            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 92f));
+            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 78f));
+            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 150f));
+
+            Label title = new Label
             {
                 Text = "WMS CONTROL CENTER",
                 AutoSize = true,
-                Location = new Point(10, 14),
-                Font = new Font("Tahoma", 9f, FontStyle.Bold)
-            });
+                Dock = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft,
+                Font = new Font("Tahoma", 9f, FontStyle.Bold),
+                Margin = new Padding(0, 0, 10, 0)
+            };
 
             _quickSearch = new TextBox
             {
-                Width = 260,
-                Height = 24,
-                Location = new Point(170, 10),
-                Anchor = AnchorStyles.Left | AnchorStyles.Top
+                Dock = DockStyle.Fill,
+                Margin = new Padding(0, 4, 6, 4)
             };
             _quickSearch.KeyDown += QuickSearch_KeyDown;
-            Controls.Add(_quickSearch);
 
-            Button search = CreateButton("Tra cứu", 80, 435);
+            Button search = CreateButton("Tra cứu");
             search.Click += delegate { OpenQuickSearch(); };
-            Controls.Add(search);
 
-            Button guide = CreateButton("Hướng dẫn", 82, 523);
+            Button guide = CreateButton("Hướng dẫn");
             guide.Click += delegate { _help.Show(this, "Dashboard"); };
-            Controls.Add(guide);
 
-            Button refresh = CreateButton("Làm mới", 72, 613);
+            Button refresh = CreateButton("Làm mới");
             refresh.Click += delegate { OnRefreshRequested(); };
-            Controls.Add(refresh);
 
             _status = new Label
             {
                 Text = "Sẵn sàng",
-                AutoSize = true,
-                Location = new Point(700, 14),
-                ForeColor = Color.DimGray
+                AutoSize = false,
+                Dock = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft,
+                ForeColor = Color.DimGray,
+                Margin = new Padding(8, 0, 0, 0)
             };
-            Controls.Add(_status);
+
+            layout.Controls.Add(title, 0, 0);
+            layout.Controls.Add(_quickSearch, 1, 0);
+            layout.Controls.Add(search, 2, 0);
+            layout.Controls.Add(guide, 3, 0);
+            layout.Controls.Add(refresh, 4, 0);
+            layout.Controls.Add(_status, 5, 0);
+            Controls.Add(layout);
         }
 
         internal event EventHandler RefreshRequested;
@@ -84,29 +106,53 @@ namespace PCTP.Shell.Widgets
         private void OpenQuickSearch()
         {
             string keyword = (_quickSearch.Text ?? string.Empty).Trim();
-            using (FormBaoCaoTraceability form = new FormBaoCaoTraceability(keyword))
+            if (keyword.Length == 0)
             {
-                form.ShowDialog(this.FindForm());
+                _status.Text = "Nhập QR, LOT hoặc PART để tra cứu.";
+                FocusQuickSearch(string.Empty);
+                return;
+            }
+
+            try
+            {
+                using (FormBaoCaoTraceability form = new FormBaoCaoTraceability(keyword))
+                {
+                    form.ShowDialog(this.FindForm());
+                }
+                _status.Text = "Đã mở tra cứu.";
+            }
+            catch (Exception ex)
+            {
+                _status.Text = "Không thể mở tra cứu.";
+                MessageBox.Show(this, ex.Message, "WMS", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
         private void OnRefreshRequested()
         {
             _status.Text = "Đang làm mới...";
-            EventHandler handler = RefreshRequested;
-            if (handler != null)
-                handler(this, EventArgs.Empty);
-            _status.Text = "Đã làm mới";
+            try
+            {
+                EventHandler handler = RefreshRequested;
+                if (handler != null)
+                    handler(this, EventArgs.Empty);
+                _status.Text = "Đã làm mới";
+            }
+            catch (Exception ex)
+            {
+                _status.Text = "Làm mới thất bại.";
+                MessageBox.Show(this, ex.Message, "WMS", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
-        private static Button CreateButton(string text, int width, int left)
+        private static Button CreateButton(string text)
         {
             return new Button
             {
                 Text = text,
-                Width = width,
-                Height = 26,
-                Location = new Point(left, 9)
+                Dock = DockStyle.Fill,
+                Height = 28,
+                Margin = new Padding(3, 2, 3, 2)
             };
         }
     }
