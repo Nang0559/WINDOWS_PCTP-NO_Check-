@@ -25,6 +25,11 @@
 - [ ] `IExportHistoryQuery` — lịch sử xuất.
 - [ ] `IDeliveryHistoryQuery` — lịch sử giao.
 - [x] `IQualityHistoryQuery` — QC / Inspection history.
+- [x] `IQrTraceQuery` — tra cứu theo QR/carton.
+- [x] `ILotTraceQuery` — tra cứu lịch sử theo LOT.
+- [x] `ICustomerDeliveryQuery` — tra cứu lịch sử giao theo khách hàng.
+- [x] Xác định `DeliveryTraceRow` là master theo carton/QRCode và `DeliveryLotTraceRow` là detail theo LOT.
+- [x] Xác định parser riêng cho `LUUPHIEUGIAOHANG.LOT` dạng composite.
 
 ## Phase 4 — Query infrastructure
 
@@ -33,6 +38,12 @@
 - [x] Không gọi WinForms hoặc business service write-side từ query layer.
 - [x] Mapping DB -> BaoCao read models cho stock history/current stock.
 - [x] Mapping DB -> BaoCao read models cho inspection master/detail.
+- [x] Kiểm kê schema đã xác nhận của `LUUPHIEUGIAOHANG`.
+- [ ] Xác nhận chính xác cột QRCode/carton.
+- [ ] Xác nhận chính xác cột dữ liệu tem khách hàng.
+- [ ] Xác nhận nguồn CustomerCode/CustomerName.
+- [ ] Xác nhận khóa liên kết LOT -> Production / Receiving / QC / NG-Rework.
+- [ ] Implement delivery trace SQL adapter sau khi schema nguồn được xác nhận.
 - [ ] Hoàn tất parity với toàn bộ stored procedures/legacy queries.
 - [ ] Batch query khi có thể; tránh N+1 query theo từng LOT/Part.
 - [x] Chuẩn hóa null/date/quantity/status ở read-model mapping.
@@ -41,7 +52,9 @@
 
 - [x] `FormBaoCaoMain` — navigation-only entry point.
 - [ ] Tra cứu QR / LOT / Part / Document.
-- [ ] Timeline lịch sử.
+- [ ] Tra cứu theo tên khách hàng.
+- [ ] Hiển thị master theo QR/carton và detail LOT + quantity.
+- [ ] Timeline: Production → QC → Nhập kho → Xuất → Giao → Customer.
 - [x] Báo cáo lịch sử kho + tồn hiện tại.
 - [ ] Báo cáo nhập/xuất/giao hàng chuyên biệt.
 - [x] History QC/Inspection.
