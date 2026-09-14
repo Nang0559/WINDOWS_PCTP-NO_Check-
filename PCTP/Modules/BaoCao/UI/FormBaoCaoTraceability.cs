@@ -10,15 +10,6 @@ using System.Windows.Forms;
 
 namespace PCTP.Modules.BaoCao.UI
 {
-    /// <summary>
-    /// Read-only delivery traceability screen.
-    ///
-    /// Search priority:
-    /// QR/customer-label -> QR query
-    /// LOT               -> LOT query
-    /// Customer          -> customer query
-    /// otherwise         -> delivery/part/date query through QR contract.
-    /// </summary>
     public sealed class FormBaoCaoTraceability : Form
     {
         private readonly IQrTraceQuery _qrQuery;
@@ -38,10 +29,7 @@ namespace PCTP.Modules.BaoCao.UI
 
         private List<DeliveryTraceRow> _currentRows = new List<DeliveryTraceRow>();
 
-        public FormBaoCaoTraceability()
-            : this(new DeliveryTraceQueryService())
-        {
-        }
+        public FormBaoCaoTraceability() : this(new DeliveryTraceQueryService()) { }
 
         public FormBaoCaoTraceability(DeliveryTraceQueryService query)
         {
@@ -65,7 +53,7 @@ namespace PCTP.Modules.BaoCao.UI
             var search = new TableLayoutPanel
             {
                 Dock = DockStyle.Top,
-                Height = 175,
+                Height = 165,
                 ColumnCount = 6,
                 RowCount = 4,
                 Padding = new Padding(8)
@@ -74,39 +62,39 @@ namespace PCTP.Modules.BaoCao.UI
             for (int i = 0; i < 6; i++)
                 search.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 16.6667f));
 
-            search.RowStyles.Add(new RowStyle(SizeType.Absolute, 35));
-            search.RowStyles.Add(new RowStyle(SizeType.Absolute, 35));
-            search.RowStyles.Add(new RowStyle(SizeType.Absolute, 35));
-            search.RowStyles.Add(new RowStyle(SizeType.Absolute, 45));
+            search.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));
+            search.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));
+            search.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
+            search.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
-            AddField(search, "QR / Carton", _txtQr, 0, 0);
-            AddField(search, "Customer label", _txtCustomerLabel, 1, 0);
-            AddField(search, "LOT", _txtLot, 2, 0);
-            AddField(search, "PartNo", _txtPart, 3, 0);
-            AddField(search, "Customer", _txtCustomer, 4, 0);
+            AddField(search, "QR / Carton", _txtQr, 0);
+            AddField(search, "Customer label", _txtCustomerLabel, 1);
+            AddField(search, "LOT", _txtLot, 2);
+            AddField(search, "PartNo", _txtPart, 3);
+            AddField(search, "Customer", _txtCustomer, 4);
 
             _from.Format = DateTimePickerFormat.Short;
             _to.Format = DateTimePickerFormat.Short;
             _from.Value = DateTime.Today.AddDays(-30);
             _to.Value = DateTime.Today;
 
-            search.Controls.Add(new Label { Text = "From", Dock = DockStyle.Fill, TextAlign = System.Drawing.ContentAlignment.MiddleLeft }, 0, 1);
-            search.Controls.Add(_from, 1, 1);
-            search.Controls.Add(new Label { Text = "To", Dock = DockStyle.Fill, TextAlign = System.Drawing.ContentAlignment.MiddleLeft }, 2, 1);
-            search.Controls.Add(_to, 3, 1);
+            search.Controls.Add(new Label { Text = "From", Dock = DockStyle.Fill, TextAlign = System.Drawing.ContentAlignment.MiddleLeft }, 0, 2);
+            search.Controls.Add(_from, 1, 2);
+            search.Controls.Add(new Label { Text = "To", Dock = DockStyle.Fill, TextAlign = System.Drawing.ContentAlignment.MiddleLeft }, 2, 2);
+            search.Controls.Add(_to, 3, 2);
 
             var searchButton = new Button { Text = "Tra cứu", Dock = DockStyle.Fill };
             searchButton.Click += SearchButton_Click;
-            search.Controls.Add(searchButton, 4, 1);
+            search.Controls.Add(searchButton, 4, 2);
 
             var clearButton = new Button { Text = "Xóa điều kiện", Dock = DockStyle.Fill };
             clearButton.Click += ClearButton_Click;
-            search.Controls.Add(clearButton, 5, 1);
+            search.Controls.Add(clearButton, 5, 2);
 
             _status.Text = "Sẵn sàng";
             _status.Dock = DockStyle.Fill;
             _status.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
-            search.Controls.Add(_status, 0, 2);
+            search.Controls.Add(_status, 0, 3);
             search.SetColumnSpan(_status, 6);
 
             Controls.Add(search);
@@ -120,35 +108,24 @@ namespace PCTP.Modules.BaoCao.UI
 
             ConfigureGrid(_grid);
             ConfigureGrid(_lotGrid);
-
             _grid.CellDoubleClick += DeliveryGrid_CellDoubleClick;
 
             split.Panel1.Controls.Add(_grid);
             split.Panel2.Controls.Add(_lotGrid);
             Controls.Add(split);
-
-            Controls.SetChildIndex(split, 0);
-            Controls.SetChildIndex(search, 1);
+            split.BringToFront();
         }
 
-        private static void AddField(
-            TableLayoutPanel panel,
-            string caption,
-            Control editor,
-            int column,
-            int row)
+        private static void AddField(TableLayoutPanel panel, string caption, Control editor, int column)
         {
-            panel.Controls.Add(
-                new Label
-                {
-                    Text = caption,
-                    Dock = DockStyle.Fill,
-                    TextAlign = System.Drawing.ContentAlignment.MiddleLeft
-                },
-                column,
-                row);
+            panel.Controls.Add(new Label
+            {
+                Text = caption,
+                Dock = DockStyle.Fill,
+                TextAlign = System.Drawing.ContentAlignment.MiddleLeft
+            }, column, 0);
 
-            panel.Controls.Add(editor, column, row + 1);
+            panel.Controls.Add(editor, column, 1);
         }
 
         private static void ConfigureGrid(DataGridView grid)
@@ -182,40 +159,20 @@ namespace PCTP.Modules.BaoCao.UI
 
                 if (!string.IsNullOrWhiteSpace(lot))
                 {
-                    rows = await _lotQuery.SearchAsync(
-                        lot,
-                        part,
-                        customer,
-                        from,
-                        to,
-                        CancellationToken.None);
+                    rows = await _lotQuery.SearchAsync(lot, part, customer, from, to, CancellationToken.None);
                 }
                 else if (!string.IsNullOrWhiteSpace(customer)
                          && string.IsNullOrWhiteSpace(qr)
                          && string.IsNullOrWhiteSpace(customerLabel))
                 {
-                    rows = await _customerQuery.SearchAsync(
-                        customer,
-                        part,
-                        from,
-                        to,
-                        CancellationToken.None);
+                    rows = await _customerQuery.SearchAsync(customer, part, from, to, CancellationToken.None);
                 }
                 else
                 {
-                    rows = await _qrQuery.SearchAsync(
-                        qr,
-                        customerLabel,
-                        part,
-                        from,
-                        to,
-                        CancellationToken.None);
+                    rows = await _qrQuery.SearchAsync(qr, customerLabel, part, from, to, CancellationToken.None);
                 }
 
-                _currentRows = rows == null
-                    ? new List<DeliveryTraceRow>()
-                    : rows.ToList();
-
+                _currentRows = rows == null ? new List<DeliveryTraceRow>() : rows.ToList();
                 _grid.DataSource = new BindingList<DeliveryTraceRow>(_currentRows);
                 _lotGrid.DataSource = null;
                 _status.Text = "Tìm thấy " + _currentRows.Count + " dòng.";
@@ -223,12 +180,7 @@ namespace PCTP.Modules.BaoCao.UI
             catch (Exception ex)
             {
                 _status.Text = "Lỗi tra cứu.";
-                MessageBox.Show(
-                    this,
-                    ex.Message,
-                    "BaoCao",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Error);
+                MessageBox.Show(this, ex.Message, "BaoCao", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
             finally
             {
@@ -246,26 +198,16 @@ namespace PCTP.Modules.BaoCao.UI
             try
             {
                 IReadOnlyList<DeliveryLotTraceRow> lots = await _qrQuery.GetLotsAsync(
-                    row.DeliveryKey,
-                    row.QRCode,
-                    CancellationToken.None);
+                    row.DeliveryKey, row.QRCode, CancellationToken.None);
 
                 _lotGrid.DataSource = new BindingList<DeliveryLotTraceRow>(
-                    lots == null
-                        ? new List<DeliveryLotTraceRow>()
-                        : lots.ToList());
+                    lots == null ? new List<DeliveryLotTraceRow>() : lots.ToList());
 
-                _status.Text = "DeliveryKey: " + row.DeliveryKey
-                               + " | " + (_lotGrid.Rows.Count) + " LOT.";
+                _status.Text = "DeliveryKey: " + row.DeliveryKey + " | " + _lotGrid.Rows.Count + " LOT.";
             }
             catch (Exception ex)
             {
-                MessageBox.Show(
-                    this,
-                    ex.Message,
-                    "BaoCao",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Error);
+                MessageBox.Show(this, ex.Message, "BaoCao", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
