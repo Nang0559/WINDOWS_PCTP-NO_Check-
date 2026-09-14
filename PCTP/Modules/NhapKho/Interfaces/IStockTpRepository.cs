@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Data;
 
-namespace PCTP.Modules.NhapKho.Repository
+namespace PCTP.Modules.NhapKho.Interfaces
 {
     public interface IStockTpRepository
     {
