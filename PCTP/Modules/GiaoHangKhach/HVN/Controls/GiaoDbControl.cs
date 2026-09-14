@@ -4,7 +4,7 @@ using DevExpress.XtraEditors;
 using PCTP.Applications.Services;
 using PCTP.Modules.GiaoHangKhach.SubForm;
 
-namespace PCTP.QRCODE_HVN.PGH.Controls
+namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
 {
     /// <summary>
     /// UI boundary for the special-delivery (GiaoDB) workflow.
