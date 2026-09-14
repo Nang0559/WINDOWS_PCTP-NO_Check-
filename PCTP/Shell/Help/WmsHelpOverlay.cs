@@ -60,6 +60,7 @@ namespace PCTP.Shell.Help
 
             if (HasExistingHelpEntry(form))
             {
+                AttachF1(form);
                 AttachedForms.Add(form);
                 return;
             }
@@ -79,9 +80,17 @@ namespace PCTP.Shell.Help
             form.Resize += Form_Resize;
             form.FormClosed += Form_FormClosed;
             form.ControlAdded += Form_ControlAdded;
+            AttachF1(form);
 
             AttachedForms.Add(form);
             PositionButton(form);
+        }
+
+        private static void AttachF1(Form form)
+        {
+            form.KeyPreview = true;
+            form.KeyDown -= Form_KeyDown;
+            form.KeyDown += Form_KeyDown;
         }
 
         private static bool HasExistingHelpEntry(Form form)
@@ -113,6 +122,20 @@ namespace PCTP.Shell.Help
             button.BringToFront();
         }
 
+        private static void Form_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode != Keys.F1 || e.Handled)
+                return;
+
+            Form form = sender as Form;
+            if (form == null || form.IsDisposed)
+                return;
+
+            e.Handled = true;
+            e.SuppressKeyPress = true;
+            ShowHelp(form);
+        }
+
         private static void Form_Resize(object sender, EventArgs e)
         {
             PositionButton(sender as Form);
@@ -137,6 +160,7 @@ namespace PCTP.Shell.Help
             form.Resize -= Form_Resize;
             form.FormClosed -= Form_FormClosed;
             form.ControlAdded -= Form_ControlAdded;
+            form.KeyDown -= Form_KeyDown;
         }
 
         private static void ShowHelp(Form owner)
