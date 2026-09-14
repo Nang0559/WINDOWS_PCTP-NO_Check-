@@ -91,7 +91,7 @@ namespace PCTP.Modules.NhapKho.Services
                 if (phieuLive == null)
                     return ScanResult.Fail("Không còn tìm thấy phiếu sản xuất [" + matchedPhieu.Find + "]. Vui lòng tải lại danh sách và quét lại tem.");
                 if (!string.Equals(phieuLive.LotNo, matchedPhieu.LotNo, StringComparison.OrdinalIgnoreCase))
-                    return ScanResult.Fail("LOT của phiếu đã thay đổi (" + matchedPhieu.LotNo + " → " + phieuLive.LotNo + "). Dữ liệu trên màn hình đã cũ, vui lòng tải lại danh sách.");
+                    return ScanResult.Fail("LOT của phiếu đã thay đổi (" + matchedPhieu.LotNo + " → " + phieuLive.LotNo + "). Dữ liệu trên màn hình đã cũ, vui lòng tải lại danh sách và quét lại tem.");
                 if (!string.Equals(phieuLive.MaSP, qr.ItemCode, StringComparison.OrdinalIgnoreCase))
                     return ScanResult.Fail("Mã hàng của phiếu không khớp với tem quét (Phiếu: " + phieuLive.MaSP + " / Tem: " + qr.ItemCode + ").");
 
@@ -103,7 +103,7 @@ namespace PCTP.Modules.NhapKho.Services
 
             string lotNo = phieuLive != null
                 ? phieuLive.LotNo
-                : LotCodeHelper.StripCounterAndQty(qr.RawLotNoSL ?? qr.RawLotNo ?? qr.LotNo);
+                : LotCodeHelper.StripCounterAndQty(qr.RawLotNo ?? qr.LotNo);
             if (string.IsNullOrWhiteSpace(lotNo))
                 return ScanResult.Fail("Không xác định được LOT.");
 
