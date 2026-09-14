@@ -27,18 +27,19 @@ namespace PCTP.Shell.Widgets
             TableLayoutPanel layout = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
-                ColumnCount = 6,
+                ColumnCount = 7,
                 RowCount = 1,
                 Margin = Padding.Empty,
                 Padding = Padding.Empty
             };
 
             layout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
-            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 82f));
-            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 92f));
-            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 78f));
-            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 150f));
+            layout.ColumnStyles.Add(new ColumnStyle.Percent, 100f);
+            layout.ColumnStyles.Add(new ColumnStyle.Absolute, 82f);
+            layout.ColumnStyles.Add(new ColumnStyle.Absolute, 92f);
+            layout.ColumnStyles.Add(new ColumnStyle.Absolute, 78f);
+            layout.ColumnStyles.Add(new ColumnStyle.Absolute, 78f);
+            layout.ColumnStyles.Add(new ColumnStyle.Absolute, 150f);
 
             Label title = new Label
             {
@@ -63,6 +64,9 @@ namespace PCTP.Shell.Widgets
             Button guide = CreateButton("Hướng dẫn");
             guide.Click += delegate { _help.Show(this, "Dashboard"); };
 
+            Button report = CreateButton("Báo cáo");
+            report.Click += delegate { OpenReports(); };
+
             Button refresh = CreateButton("Làm mới");
             refresh.Click += delegate { OnRefreshRequested(); };
 
@@ -80,8 +84,9 @@ namespace PCTP.Shell.Widgets
             layout.Controls.Add(_quickSearch, 1, 0);
             layout.Controls.Add(search, 2, 0);
             layout.Controls.Add(guide, 3, 0);
-            layout.Controls.Add(refresh, 4, 0);
-            layout.Controls.Add(_status, 5, 0);
+            layout.Controls.Add(report, 4, 0);
+            layout.Controls.Add(refresh, 5, 0);
+            layout.Controls.Add(_status, 6, 0);
             Controls.Add(layout);
         }
 
@@ -115,15 +120,26 @@ namespace PCTP.Shell.Widgets
 
             try
             {
-                using (FormBaoCaoTraceability form = new FormBaoCaoTraceability(keyword))
-                {
-                    form.ShowDialog(this.FindForm());
-                }
+                BaoCaoNavigator.OpenTraceability(this, keyword);
                 _status.Text = "Đã mở tra cứu.";
             }
             catch (Exception ex)
             {
                 _status.Text = "Không thể mở tra cứu.";
+                MessageBox.Show(this, ex.Message, "WMS", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void OpenReports()
+        {
+            try
+            {
+                BaoCaoNavigator.OpenMain(this);
+                _status.Text = "Đã mở báo cáo.";
+            }
+            catch (Exception ex)
+            {
+                _status.Text = "Không thể mở báo cáo.";
                 MessageBox.Show(this, ex.Message, "WMS", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
