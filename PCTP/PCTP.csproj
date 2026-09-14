@@ -137,6 +137,968 @@
     <Reference Include="EPPlus.System.Drawing, Version=7.5.0.0, Culture=neutral, PublicKeyToken=2308d35469c9bac0, processorArchitecture=MSIL">
       <HintPath>..\packages\EPPlus.System.Drawing.7.5.0\lib\net462\EPPlus.System.Drawing.dll</HintPath>
     </Reference>
-    <Reference Include="Microsoft.Bcl.AsyncInterfaces, Version=7.0.0.0, Culture=neutral, PublicKeyToken=cc7b4e..." />
+    <Reference Include="Microsoft.Bcl.AsyncInterfaces, Version=7.0.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.Bcl.AsyncInterfaces.7.0.0\lib\net462\Microsoft.Bcl.AsyncInterfaces.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Extensions.DependencyInjection, Version=7.0.0.0, Culture=neutral, PublicKeyToken=adb9793829ddae60, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.Extensions.DependencyInjection.7.0.0\lib\net462\Microsoft.Extensions.DependencyInjection.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Extensions.DependencyInjection.Abstractions, Version=7.0.0.0, Culture=neutral, PublicKeyToken=adb9793829ddae60, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.Extensions.DependencyInjection.Abstractions.7.0.0\lib\net462\Microsoft.Extensions.DependencyInjection.Abstractions.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Extensions.Options, Version=7.0.0.1, Culture=neutral, PublicKeyToken=adb9793829ddae60, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.Extensions.Options.7.0.1\lib\net462\Microsoft.Extensions.Options.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Extensions.Primitives, Version=7.0.0.0, Culture=neutral, PublicKeyToken=adb9793829ddae60, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.Extensions.Primitives.7.0.0\lib\net462\Microsoft.Extensions.Primitives.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.IO.RecyclableMemoryStream, Version=3.0.1.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.IO.RecyclableMemoryStream.3.0.1\lib\netstandard2.0\Microsoft.IO.RecyclableMemoryStream.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Web.Infrastructure, Version=1.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.Web.Infrastructure.1.0.0.0\lib\net40\Microsoft.Web.Infrastructure.dll</HintPath>
+    </Reference>
+    <Reference Include="Newtonsoft.Json, Version=13.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+      <HintPath>..\packages\Newtonsoft.Json.13.0.3\lib\net45\Newtonsoft.Json.dll</HintPath>
+    </Reference>
+    <Reference Include="Office, Version=15.0.0.0, Culture=neutral, PublicKeyToken=71e9bce111e9429c, processorArchitecture=MSIL">
+      <HintPath>..\packages\MicrosoftOfficeCore.15.0.0\lib\net35\Office.dll</HintPath>
+      <EmbedInteropTypes>True</EmbedInteropTypes>
+    </Reference>
+    <Reference Include="Oracle.ManagedDataAccess, Version=4.122.1.0, Culture=neutral, PublicKeyToken=89b483f429c47342, processorArchitecture=MSIL" />
+    <Reference Include="PresentationCore" />
+    <Reference Include="PresentationFramework" />
+    <Reference Include="System" />
+    <Reference Include="System.Buffers, Version=4.0.3.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Buffers.4.5.1\lib\net461\System.Buffers.dll</HintPath>
+    </Reference>
+    <Reference Include="System.ComponentModel.Annotations, Version=4.2.1.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.ComponentModel.Annotations.5.0.0\lib\net461\System.ComponentModel.Annotations.dll</HintPath>
+    </Reference>
+    <Reference Include="System.ComponentModel.DataAnnotations" />
+    <Reference Include="System.Configuration" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Data.Entity" />
+    <Reference Include="System.Data.Linq" />
+    <Reference Include="System.Design" />
+    <Reference Include="System.Drawing.Common, Version=8.0.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Drawing.Common.8.0.4\lib\net462\System.Drawing.Common.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Linq.Dynamic.Core, Version=1.7.3.0, Culture=neutral, PublicKeyToken=0f07ec44de6ac832, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Linq.Dynamic.Core.1.7.3\lib\net46\System.Linq.Dynamic.Core.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Memory, Version=4.0.1.2, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Memory.4.5.5\lib\net461\System.Memory.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Numerics" />
+    <Reference Include="System.Numerics.Vectors, Version=4.1.4.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Numerics.Vectors.4.5.0\lib\net46\System.Numerics.Vectors.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Runtime.CompilerServices.Unsafe, Version=6.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Runtime.CompilerServices.Unsafe.6.0.0\lib\net461\System.Runtime.CompilerServices.Unsafe.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Runtime.Remoting" />
+    <Reference Include="System.Runtime.Serialization" />
+    <Reference Include="System.Runtime.Serialization.Formatters.Soap" />
+    <Reference Include="System.Security" />
+    <Reference Include="System.Security.Cryptography.Xml, Version=8.0.0.3, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Security.Cryptography.Xml.8.0.3\lib\net462\System.Security.Cryptography.Xml.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Threading.Tasks" />
+    <Reference Include="System.Threading.Tasks.Extensions, Version=4.2.0.1, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Threading.Tasks.Extensions.4.5.4\lib\net461\System.Threading.Tasks.Extensions.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Transactions" />
+    <Reference Include="System.Web.DataVisualization.Design" />
+    <Reference Include="System.Web.Helpers, Version=3.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.AspNet.WebPages.3.2.7\lib\net45\System.Web.Helpers.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Web.Mvc, Version=5.2.7.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.AspNet.Mvc.5.2.7\lib\net45\System.Web.Mvc.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Web.Razor, Version=3.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.AspNet.Razor.3.2.7\lib\net45\System.Web.Razor.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Web.WebPages, Version=3.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.AspNet.WebPages.3.2.7\lib\net45\System.Web.WebPages.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Web.WebPages.Deployment, Version=3.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.AspNet.WebPages.3.2.7\lib\net45\System.Web.WebPages.Deployment.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Web.WebPages.Razor, Version=3.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.AspNet.WebPages.3.2.7\lib\net45\System.Web.WebPages.Razor.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Windows.Forms.DataVisualization" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Deployment" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Xml" />
+    <Reference Include="UIAutomationClient" />
+    <Reference Include="WindowsBase" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Acess Image\FrmImageControl.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Acess Image\FrmImageControl.Designer.cs">
+      <DependentUpon>FrmImageControl.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Acess Image\FRMSHOW.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Acess Image\FRMSHOW.Designer.cs">
+      <DependentUpon>FRMSHOW.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Acess Image\ImagesControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Acess Image\ImagesControl.designer.cs">
+      <DependentUpon>ImagesControl.cs</DependentUpon>
+    </Compile>
+    <Compile Include="ALLVAR.cs" />
+    <Compile Include="Domain\Events\HoanThanhYMVNCompletedEvent.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Configuration\GiaoHangKhachConfiguration.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Models\OrderCategory.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Models\OrderLoadContext.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Models\OrderSourceKind.cs" />
+    <Compile Include="Modules\GiaoHangKhach\FifoViolation.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Contracts\IItemFifoConfigRepository.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Contracts\IHangThieuCaNgayService.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Models\OrderSourceResult.cs" />
+    <Compile Include="Modules\GiaoHangKhach\OrderLoading\Category\DockCodeRowCategoryFilter.cs" />
+    <Compile Include="Modules\GiaoHangKhach\OrderLoading\Category\GioMoTaCategoryResolver.cs" />
+    <Compile Include="Modules\GiaoHangKhach\OrderLoading\Category\GioRowFilter.cs" />
+    <Compile Include="Modules\GiaoHangKhach\OrderLoading\Category\IOrderCategoryResolver.cs" />
+    <Compile Include="Modules\GiaoHangKhach\OrderLoading\Category\IRowCategoryFilter.cs" />
+    <Compile Include="Modules\GiaoHangKhach\OrderLoading\GiaoDB\GiaoDbOrderLoadStrategy.cs" />
+    <Compile Include="Modules\GiaoHangKhach\OrderLoading\GiaoDB\GiaoDbOrderSource.cs" />
+    <Compile Include="Modules\GiaoHangKhach\OrderLoading\IFS\IfsOrderSource.cs" />
+    <Compile Include="Modules\GiaoHangKhach\OrderLoading\IOrderSource.cs" />
+    <Compile Include="Modules\GiaoHangKhach\OrderLoading\IOrderSourceFactory.cs" />
+    <Compile Include="Modules\GiaoHangKhach\OrderLoading\OrderSourceFactory.cs" />
+    <Compile Include="Modules\GiaoHangKhach\OrderLoading\TableOrder\TableOrderSource.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Repositories\ItemFifoConfigRepository.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Services\DocQRService.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Services\HangThieuCaNgayService.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Services\InPhieuService.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Services\PhieuService.cs" />
+    <Compile Include="ClassFunction.cs" />
+    <Compile Include="Modules\GiaoHangKhach\SubForm\FormItemFifoConfig.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Modules\GiaoHangKhach\SubForm\TONKHOTP.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Modules\GiaoHangKhach\SubForm\TONKHOTP.Designer.cs">
+      <DependentUpon>TONKHOTP.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Modules\GiaoHangKhach\SubForm\UF_TACHLOT.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Modules\GiaoHangKhach\WorkingState\DeliveryWorkingState.cs" />
+    <Compile Include="Modules\GiaoHangKhach\WorkingState\IDeliveryWorkingState.cs" />
+    <Compile Include="Modules\KhoCore\Interfaces\IInspectionConfigService.cs" />
+    <Compile Include="Modules\KhoCore\Interfaces\IInspectionService.cs" />
+    <Compile Include="Modules\KhoCore\Models\InspectionLogEntry.cs" />
+    <Compile Include="Modules\KhoCore\Models\InspectionResult.cs" />
+    <Compile Include="Modules\KhoCore\Models\LotInfo.cs" />
+    <Compile Include="Modules\KhoCore\Models\SlotLotInfo.cs" />
+    <Compile Include="Modules\KhoCore\Models\SlotInfo.cs" />
+    <Compile Include="Modules\KhoCore\Models\SlotLotViewInfo.cs" />
+    <Compile Include="Modules\KhoCore\Repositories\IInspectionConfigRepository.cs" />
+    <Compile Include="Modules\KhoCore\Repositories\IInspectionLogRepository.cs" />
+    <Compile Include="Modules\KhoCore\Repositories\InspectionConfigRepository.cs" />
+    <Compile Include="Modules\KhoCore\Repositories\InspectionLogRepository.cs" />
+    <Compile Include="Modules\KhoCore\Services\InspectionConfigService.cs" />
+    <Compile Include="Modules\KhoCore\Services\InspectionService.cs" />
+    <Compile Include="Modules\KhoCore\Services\IStockHistoryService.cs" />
+    <Compile Include="Modules\KhoCore\Services\StockHistoryService.cs" />
+    <Compile Include="Modules\KhoVatLy\MainStockModuleFactory.cs" />
+    <Compile Include="Modules\KhoVatLy\NhapTpModuleFactory.cs" />
+    <Compile Include="Modules\KhoCore\Repositories\BulkStockSlotRepository.cs" />
+    <Compile Include="Modules\KhoCore\Repositories\IBulkStockSlotRepository.cs" />
+    <Compile Include="Modules\NhapKho\Interfaces\IWarehouseDashboardService.cs" />
+    <Compile Include="Modules\NhapKho\Models\StockImportPurpose.cs" />
+    <Compile Include="Modules\NhapKho\Models\StockImportRequest.cs" />
+    <Compile Include="Modules\NhapKho\Interfaces\IStockTpRepository.cs" />
+    <Compile Include="Infrastructure\Sql\DataAccessException.cs" />
+    <Compile Include="Infrastructure\Sql\DataAccessStatus.cs" />
+    <Compile Include="Infrastructure\Sql\SQL.cs" />
+    <Compile Include="ClsResize.cs" />
+    <Compile Include="Modules\GiaoHangKhach\OrderLoading\IFS\IfsOrderLoadStrategy.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Contracts\PhieuGiao\IPhieuGiaoDBRepository.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Contracts\PhieuGiao\IPhieuKhoRepository.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Contracts\PhieuGiao\IPhieuLotRepository.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Contracts\PhieuGiao\IPhieuLuuTruRepository.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Contracts\PhieuGiao\IPhieuRepository.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Contracts\PhieuGiao\IPhieuTmpRepository.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Contracts\PhieuGiao\IPhieuValidationRepository.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Contracts\PhieuGiao\ITableOrderRepository.cs" />
+    <Compile Include="Modules\GiaoHangKhach\PhieuSqlExecutor.cs" />
+    <Compile Include="Modules\GiaoHangKhach\PhieuSqlHelper.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Repositories\PhieuGiaoDBRepository.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Repositories\PhieuKhoRepository.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Repositories\PhieuLotRepository.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Repositories\PhieuLuuTruRepository.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Repositories\PhieuRepository.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Repositories\PhieuTmpRepository.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Repositories\PhieuValidationRepository.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Repositories\TableOrderRepo.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Services\IMachinePermissionService.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Services\MachinePermissionService.cs" />
+    <Compile Include="Modules\GiaoHangKhach\SubForm\FRM_UploadGiaoDB.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Modules\GiaoHangKhach\OrderLoading\TableOrder\OrderTableLoadStrategy.cs" />
+    <Compile Include="Modules\KhoCore\Helpers\SlotParser.cs" />
+    <Compile Include="Modules\KhoCore\Repositories\StockHistoryRepository.cs" />
+    <Compile Include="Modules\KhoCore\Repositories\IStockHistoryRepository.cs" />
+    <Compile Include="Modules\NhapKho\Interfaces\IStockTpCaseRepository.cs" />
+    <Compile Include="Modules\NhapKho\Interfaces\IStockTpProductionRepository.cs" />
+    <Compile Include="Modules\NhapKho\Interfaces\IStockTpStatusRepository.cs" />
+    <Compile Include="Modules\NhapKho\Repository\StockTpCaseRepository.cs" />
+    <Compile Include="Modules\NhapKho\Repository\StockTpProductionRepository.cs" />
+    <Compile Include="Modules\NhapKho\Repository\StockTpStatusRepository.cs" />
+    <Compile Include="Modules\NhapKho\Services\INhapTpReceivingService.cs" />
+    <Compile Include="Modules\NhapKho\Services\IStockTpLookupService.cs" />
+    <Compile Include="Modules\NhapKho\Services\StockTpLookupService.cs" />
+    <Compile Include="Modules\NhapKho\Services\WarehouseDashboardService.cs" />
+    <Compile Include="Modules\XuatKho\Interfaces\IHangChoGiaoRepository.cs" />
+    <Compile Include="Modules\XuatKho\Interfaces\IStockExportHistoryRepository.cs" />
+    <Compile Include="Modules\XuatKho\Interfaces\IStockExportRepository.cs" />
+    <Compile Include="Modules\XuatKho\Interfaces\IStockExportService.cs" />
+    <Compile Include="Modules\XuatKho\Interfaces\IStockExportValidationService.cs" />
+    <Compile Include="Modules\XuatKho\Models\StockExportItem.cs" />
+    <Compile Include="Modules\XuatKho\Models\StockExportReferenceFormatter.cs" />
+    <Compile Include="Modules\XuatKho\Models\StockExportReferenceKey.cs" />
+    <Compile Include="Modules\XuatKho\Models\StockExportReferenceType.cs" />
+    <Compile Include="Modules\XuatKho\Models\StockExportRequest.cs" />
+    <Compile Include="Modules\XuatKho\Models\StockExportResult.cs" />
+    <Compile Include="Modules\XuatKho\Models\StockExportSource.cs" />
+    <Compile Include="Modules\XuatKho\Models\StockExportStatus.cs" />
+    <Compile Include="Modules\XuatKho\Models\StockExportValidationResult.cs" />
+    <Compile Include="Modules\XuatKho\Models\StockHistoryActionType.cs" />
+    <Compile Include="Modules\XuatKho\Models\StockTpLotInfo.cs" />
+    <Compile Include="Modules\XuatKho\Repositories\HangChoGiaoRepository.cs" />
+    <Compile Include="Modules\XuatKho\Repositories\StockExportHistoryRepository.cs" />
+    <Compile Include="Modules\XuatKho\Repositories\StockExportRepository.cs" />
+    <Compile Include="Modules\XuatKho\Services\StockExportValidationService.cs" />
+    <Compile Include="Modules\XuatKho\Services\StockExportService.cs" />
+    <Compile Include="Modules\XuLyHangLoi\Enums\HuongXuLyBatThuong.cs" />
+    <Compile Include="Modules\XuLyHangLoi\Enums\NguonKhachTra.cs" />
+    <Compile Include="Modules\XuLyHangLoi\Enums\NguonXuLyBatThuongExtensions.cs" />
+    <Compile Include="Modules\XuLyHangLoi\Enums\QTChungStatus.cs" />
+    <Compile Include="Modules\XuLyHangLoi\FormNhapLaiHangNG.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Modules\XuLyHangLoi\FormNhapLaiHangNG.Designer.cs">
+      <DependentUpon>FormNhapLaiHangNG.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Modules\XuLyHangLoi\FormQCDinhHuong.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Modules\XuLyHangLoi\FormQCXacNhanCuoi.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Modules\XuLyHangLoi\FormReworkProcess.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Modules\XuLyHangLoi\FormTaoPhieuTraNoiBo.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Modules\XuLyHangLoi\FormTiepNhanPhieuKhachTra.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Modules\XuLyHangLoi\Services\GiaoBuNGService.cs" />
+    <Compile Include="Modules\XuLyHangLoi\Services\IQTChungService.cs" />
+    <Compile Include="Modules\XuLyHangLoi\Services\IReworkStockService.cs" />
+    <Compile Include="Modules\XuLyHangLoi\Services\IXuLyHangLoiService.cs" />
+    <Compile Include="Modules\XuLyHangLoi\Services\KhachTraHangService.cs" />
+    <Compile Include="Modules\XuLyHangLoi\Services\QTChungService.cs" />
+    <Compile Include="Modules\XuLyHangLoi\Services\ReworkStockService.cs" />
+    <Compile Include="Modules\XuLyHangLoi\Services\TraNoiBoService.cs" />
+    <Compile Include="Modules\XuLyHangLoi\Services\XuLyHangLoiServiceBase.cs" />
+    <Compile Include="Shared\Common\ItemFifoConfig.cs" />
+    <Compile Include="Shared\Enums\IfsOrderQueryMode.cs" />
+    <Compile Include="Shared\Helpers\GioHelpper.cs" />
+    <Compile Include="Shared\Models\HangChoGiao.cs" />
+    <Compile Include="Modules\XuLyHangLoi\Models\PhieuGiaoUngVienInfo.cs" />
+    <Compile Include="Modules\XuLyHangLoi\Models\PhieuTraHang.cs" />
+    <Compile Include="Modules\XuLyHangLoi\Models\PhieuTraHangCT.cs" />
+    <Compile Include="Modules\XuLyHangLoi\Enums\PhieuTraHangStatus.cs" />
+    <Compile Include="Modules\XuLyHangLoi\Models\PhieuXuLyBatThuong.cs" />
+    <Compile Include="Modules\XuLyHangLoi\Models\QTChungTimelineItem.cs" />
+    <Compile Include="Modules\XuLyHangLoi\Models\TraHangQTChungGiao.cs" />
+    <Compile Include="Modules\XuLyHangLoi\Models\TraHangQTChungNhapNG.cs" />
+    <Compile Include="Modules\XuLyHangLoi\Models\TraHangQTChungQC.cs" />
+    <Compile Include="Modules\XuLyHangLoi\Models\TraHangQTChungXuat.cs" />
+    <Compile Include="Modules\XuLyHangLoi\QTChungHoanTatEvent.cs" />
+    <Compile Include="Modules\XuLyHangLoi\Repository\IPhieuGiaoRepository.cs" />
+    <Compile Include="Modules\XuLyHangLoi\Repository\IPhieuTraHangRepository.cs" />
+    <Compile Include="Modules\XuLyHangLoi\Repository\IPhieuXuLyBatThuongRepository.cs" />
+    <Compile Include="Modules\XuLyHangLoi\Repository\ITraHangQTChungRepository.cs" />
+    <Compile Include="Modules\XuLyHangLoi\Repository\PhieuGiaoRepository.cs" />
+    <Compile Include="Modules\XuLyHangLoi\Repository\PhieuTraHangRepository.cs" />
+    <Compile Include="Modules\XuLyHangLoi\Repository\PhieuXuLyBatThuongRepository.cs" />
+    <Compile Include="Modules\XuLyHangLoi\Repository\TraHangQTChungRepository.cs" />
+    <Compile Include="Modules\XuLyHangLoi\Services\IGiaoBuNGService.cs" />
+    <Compile Include="Modules\XuLyHangLoi\Services\IKhachTraHangService.cs" />
+    <Compile Include="Modules\XuLyHangLoi\Services\ITraNoiBoService.cs" />
+    <Compile Include="Shared\Common\DbValueHelper.cs" />
+    <Compile Include="Modules\KhoCore\Interfaces\IRackService.cs" />
+    <Compile Include="Modules\KhoCore\Interfaces\ISlotService.cs" />
+    <Compile Include="Modules\KhoCore\Interfaces\IWarehouseService.cs" />
+    <Compile Include="Modules\KhoCore\Services\RackService.cs" />
+    <Compile Include="Modules\KhoCore\Services\SlotService.cs" />
+    <Compile Include="Modules\KhoCore\Services\WarehouseService.cs" />
+    <Compile Include="Modules\KhoCore\Repositories\IRackRepository.cs" />
+    <Compile Include="Modules\KhoCore\Repositories\ISlotRepository.cs" />
+    <Compile Include="Modules\KhoCore\Repositories\IWarehouseRepository.cs" />
+    <Compile Include="Modules\KhoCore\Repositories\RackRepository.cs" />
+    <Compile Include="Modules\KhoCore\Repositories\SlotRepository.cs" />
+    <Compile Include="Modules\KhoCore\Repositories\WarehouseRepository.cs" />
+    <Compile Include="Shared\Common\IUnitOfWork.cs" />
+    <Compile Include="Shared\Common\LotCodeHelper.cs" />
+    <Compile Include="Shared\Common\PhieuValueObject.cs" />
+    <Compile Include="Shared\Common\SqlRepositoryBase.cs" />
+    <Compile Include="Shared\Common\TemFccParseResult.cs" />
+    <Compile Include="Shared\Common\UnitOfWork.cs" />
+    <Compile Include="Shared\Common\WarehouseProcessNavigator.cs" />
+    <Compile Include="Domain\Entities\DocQRCode.cs" />
+    <Compile Include="Domain\Entities\DonHang.cs" />
+    <Compile Include="Domain\Entities\GhepLotItem.cs" />
+    <Compile Include="Domain\Entities\GioXuat.cs" />
+    <Compile Include="Domain\Entities\PhieuMeta.cs" />
+    <Compile Include="Domain\Entities\TrangThaiBan.cs" />
+    <Compile Include="Domain\Events\DomainEvent.cs" />
+    <Compile Include="Domain\Events\LayLaiLotEventArgs.cs" />
+    <Compile Include="Domain\Events\ChonLotThuCongEventArgs.cs" />
+    <Compile Include="Domain\Events\LotStatusResetEvent.cs" />
+    <Compile Include="Domain\Events\TTPHIEUEventArgs.cs" />
+    <Compile Include="Domain\Interfaces\IEventBus.cs" />
+    <Compile Include="Domain\Interfaces\IRepositories.cs" />
+    <Compile Include="Domain\Interfaces\ISqlRepository.cs" />
+    <Compile Include="Shared\Common\SqlHelper.cs" />
+    <Compile Include="Shared\Common\StopwatchLogger.cs" />
+    <Compile Include="Infrastructure\AppEventBus.cs" />
+    <Compile Include="Infrastructure\InProcessEventBus.cs" />
+    <Compile Include="Infrastructure\Repositories\DocQRRepository.cs" />
+    <Compile Include="Infrastructure\Repositories\GioXuatRepository.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Repositories\IFSRepository.cs" />
+    <Compile Include="Infrastructure\Repositories\SqlRepository.cs" />
+    <Compile Include="Shared\Enums\HangChoGiaoLoai.cs" />
+    <Compile Include="Shared\Enums\HangChoGiaoStatus.cs" />
+    <Compile Include="Modules\XuLyHangLoi\Enums\NguonXuLyBatThuong.cs" />
+    <Compile Include="Shared\Enums\MachineRole.cs" />
+    <Compile Include="Shared\Enums\StockTransactionType.cs" />
+    <Compile Include="Shared\Helpers\DinhDanhKeyHelper.cs" />
+    <Compile Include="Shared\Helpers\IWaitFormService.cs" />
+    <Compile Include="Shared\Helpers\WaitFormHelper.cs" />
+    <Compile Include="Shared\Models\LichSuGiaoHangInfo.cs" />
+    <Compile Include="Shared\Models\PhieuStatus.cs" />
+    <Compile Include="Shared\Models\QCDuyetInput.cs" />
+    <Compile Include="Shared\Models\QRCODE.cs" />
+    <Compile Include="Presentation\Presenters\HVN_Presenter.cs" />
+    <Compile Include="Presentation\Views\IHVNView.cs" />
+    <Compile Include="Modules\GiaoHangKhach\SubForm\FRM_CHON_LOT_KHO.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Modules\GiaoHangKhach\SubForm\FRM_CHON_LOT_KHO.Designer.cs">
+      <DependentUpon>FRM_CHON_LOT_KHO.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Domain\Data.cs" />
+    <Compile Include="GridViewSettings.cs" />
+    <Compile Include="LogIn.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="LogIn.Designer.cs">
+      <DependentUpon>LogIn.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Program.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Modules\GiaoHangKhach\SubForm\FRM_LISTRUNGMSL.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Modules\GiaoHangKhach\SubForm\FRM_LISTRUNGMSL.Designer.cs">
+      <DependentUpon>FRM_LISTRUNGMSL.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Modules\GiaoHangKhach\ComaprePart\ComaparePart.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Modules\GiaoHangKhach\ComaprePart\ComaparePart.Designer.cs">
+      <DependentUpon>ComaparePart.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Modules\GiaoHangKhach\SubForm\FRM_SUALOTHVN.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Modules\GiaoHangKhach\SubForm\FRM_SUALOTHVN.Designer.cs">
+      <DependentUpon>FRM_SUALOTHVN.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Modules\GiaoHangKhach\NhanLaiNG\ImPortPGHDB.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Modules\GiaoHangKhach\NhanLaiNG\ImPortPGHDB.Designer.cs">
+      <DependentUpon>ImPortPGHDB.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Modules\GiaoHangKhach\NhanLaiNG\NhanLaiTP\frmNhanLaiTP.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Modules\GiaoHangKhach\NhanLaiNG\NhanLaiTP\frmNhanLaiTP.Designer.cs">
+      <DependentUpon>frmNhanLaiTP.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Modules\GiaoHangKhach\NhanLaiNG\TACKMH.cs" />
+    <Compile Include="Modules\GiaoHangKhach\HVN\Edit_DH.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Modules\GiaoHangKhach\HVN\Edit_DH.Designer.cs">
+      <DependentUpon>Edit_DH.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Modules\GiaoHangKhach\SubForm\frm_err-cnk.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Modules\GiaoHangKhach\SubForm\frm_err-cnk.Designer.cs">
+      <DependentUpon>frm_err-cnk.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Modules\GiaoHangKhach\SubForm\FRM_HTIN.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Modules\GiaoHangKhach\SubForm\FRM_HTIN.Designer.cs">
+      <DependentUpon>FRM_HTIN.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Modules\GiaoHangKhach\HVN\HVN_PGH.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Modules\GiaoHangKhach\HVN\HVN_PGH.Designer.cs">
+      <DependentUpon>HVN_PGH.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Modules\GiaoHangKhach\HVN\LOT_EDIT.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Modules\GiaoHangKhach\HVN\LOT_EDIT.Designer.cs">
+      <DependentUpon>LOT_EDIT.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Modules\XuLyHangLoi\Reports\NG_DETAIL.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Modules\XuLyHangLoi\Reports\NG_DETAIL.Designer.cs">
+      <DependentUpon>NG_DETAIL.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Modules\GiaoHangKhach\Reports\GHEPLOT_YMVN.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Modules\GiaoHangKhach\Reports\GHEPLOT_YMVN.Designer.cs">
+      <DependentUpon>GHEPLOT_YMVN.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Modules\GiaoHangKhach\Reports\GHEPLOT.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Modules\GiaoHangKhach\Reports\GHEPLOT.Designer.cs">
+      <DependentUpon>GHEPLOT.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Modules\GiaoHangKhach\Reports\IN_GHP_LOT_YMVN.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Modules\GiaoHangKhach\Reports\IN_GHP_LOT_YMVN.Designer.cs">
+      <DependentUpon>IN_GHP_LOT_YMVN.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Modules\GiaoHangKhach\Reports\IN_GHP_LOT.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Modules\GiaoHangKhach\Reports\IN_GHP_LOT.Designer.cs">
+      <DependentUpon>IN_GHP_LOT.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Modules\GiaoHangKhach\Reports\PHIEUGIAOHANG_EXP.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Modules\GiaoHangKhach\Reports\PHIEUGIAOHANG_EXP.Designer.cs">
+      <DependentUpon>PHIEUGIAOHANG_EXP.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Modules\GiaoHangKhach\Reports\Report.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Modules\GiaoHangKhach\Reports\Report.designer.cs">
+      <DependentUpon>Report.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Modules\GiaoHangKhach\Reports\rpPhieuGiaoHang.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Modules\GiaoHangKhach\Reports\rpPhieuGiaoHang.designer.cs">
+      <DependentUpon>rpPhieuGiaoHang.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Modules\GiaoHangKhach\Reports\rpPhieuGiaoHangYAM.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Modules\GiaoHangKhach\Reports\rpPhieuGiaoHangYAM.designer.cs">
+      <DependentUpon>rpPhieuGiaoHangYAM.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Modules\GiaoHangKhach\Reports\temphieugh.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Modules\GiaoHangKhach\Reports\temphieugh.Designer.cs">
+      <DependentUpon>temphieugh.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Modules\GiaoHangKhach\Reports\YMVN.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Modules\GiaoHangKhach\Reports\YMVN.Designer.cs">
+      <DependentUpon>YMVN.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Modules\GiaoHangKhach\Reports\YMVN_PGH.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Modules\GiaoHangKhach\Reports\YMVN_PGH.Designer.cs">
+      <DependentUpon>YMVN_PGH.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Shared\Models\TachLotQrInfo.cs" />
+    <Compile Include="Shared\Services\IPrintService.cs" />
+    <Compile Include="Shared\Services\PrintService.cs" />
+    <Compile Include="Shared\UiMd\IWorkflowRepository.cs" />
+    <Compile Include="Shared\UiMd\IWorkflowTransitionService.cs" />
+    <Compile Include="Shared\UiMd\MermaidToDevExpressAdvancedParser.cs" />
+    <Compile Include="Shared\UiMd\WorkflowEngine.cs" />
+    <Compile Include="Shared\UiMd\WorkflowRepository.cs" />
+    <Compile Include="Shared\UiMd\WorkflowTransition.cs" />
+    <Compile Include="Shared\UiMd\WorkflowTransitionService.cs" />
+    <Compile Include="Shared\Validation\SumNotExceedRule.cs" />
+    <Compile Include="Shared\Validation\ValidatableXtraForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Shell\Main_APP.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Shell\Main_APP.Designer.cs">
+      <DependentUpon>Main_APP.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Shell\Widgets\WarehouseDashboardBar.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="SQLTABLECREATOR.cs" />
+    <Compile Include="UF_CHANGETIME.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="UF_CHANGETIME.Designer.cs">
+      <DependentUpon>UF_CHANGETIME.cs</DependentUpon>
+    </Compile>
+    <Compile Include="UserControls\TimelineStepButton.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="UserControls\UCSTOCK.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="UserControls\UCSTOCK.Designer.cs">
+      <DependentUpon>UCSTOCK.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Modules\KhoVatLy\CanVas\RackLayoutInfo.cs" />
+    <Compile Include="Modules\KhoVatLy\CanVas\SlotLayoutInfo.cs" />
+    <Compile Include="Modules\KhoVatLy\ExportFormSV.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Modules\KhoVatLy\ExportFormSV.Designer.cs">
+      <DependentUpon>ExportFormSV.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Modules\KhoVatLy\FormEnterItemSV.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Modules\KhoVatLy\FormEnterItemSV.Designer.cs">
+      <DependentUpon>FormEnterItemSV.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Modules\KhoVatLy\FormRegisterRack.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Modules\KhoVatLy\FormRegisterRack.Designer.cs">
+      <DependentUpon>FormRegisterRack.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Modules\KhoCore\Fuction\CheckInfor.cs" />
+    <Compile Include="Shared\Helpers\LotNoHelper.cs" />
+    <Compile Include="Shared\Helpers\PhieuNoHelper.cs" />
+    <Compile Include="Shared\Helpers\PrintHelper.cs" />
+    <Compile Include="Shared\Helpers\QRCodeBuilder.cs" />
+    <Compile Include="Shared\Helpers\QRCodeParser.cs" />
+    <Compile Include="Shared\Notifiers\StockChangedNotifier.cs" />
+    <Compile Include="Modules\KhoVatLy\CommonSlotFormUI.cs" />
+    <Compile Include="Shared\WaitFormExp.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Shared\WaitFormExp.Designer.cs">
+      <DependentUpon>WaitFormExp.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Shared\WaitFormRunner.cs" />
+    <Compile Include="Modules\KhoVatLy\MainStockSV.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Modules\KhoVatLy\MainStockSV.Designer.cs">
+      <DependentUpon>MainStockSV.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Modules\KhoCore\Models\BoxScanResult.cs" />
+    <Compile Include="Shared\Models\BulkImportConfig.cs" />
+    <Compile Include="Shared\Models\CustomerConfig.cs" />
+    <Compile Include="Shared\Models\CustomerTableConfig.cs" />
+    <Compile Include="Modules\KhoCore\Models\InspectionConfig.cs" />
+    <Compile Include="Modules\KhoCore\Models\LotSplitResult.cs" />
+    <Compile Include="Modules\KhoCore\Models\NGResult.cs" />
+    <Compile Include="Shared\Models\NhapKhoItem.cs" />
+    <Compile Include="Shared\Models\PhieuLocationInfo.cs" />
+    <Compile Include="Shared\Models\PhieuNhapInfo.cs" />
+    <Compile Include="Shared\Models\PrintLotResult.cs" />
+    <Compile Include="Shared\Models\PXuatINModel.cs" />
+    <Compile Include="Shared\Models\QRCodeInfo.cs" />
+    <Compile Include="Modules\KhoCore\Models\Rack.cs" />
+    <Compile Include="Shared\Models\RackDefinition.cs" />
+    <Compile Include="Shared\Models\RackRenderInfo.cs" />
+    <Compile Include="Shared\Helpers\ScanResult.cs" />
+    <Compile Include="Modules\KhoCore\Models\Slot.cs" />
+    <Compile Include="Shared\Models\SlotHeaderInfo.cs" />
+    <Compile Include="Shared\Models\SlotRenderInfo.cs" />
+    <Compile Include="Shared\Models\StockTraHangInfo.cs" />
+    <Compile Include="Modules\KhoCore\Models\Warehouse.cs" />
+    <Compile Include="Modules\NhapKho\INhapKhoDashboardRepository.cs" />
+    <Compile Include="Infrastructure\Repositories\IPhieuTrackingRepository.cs" />
+    <Compile Include="Modules\NhapKho\NhapKhoDashboardRepository.cs" />
+    <Compile Include="Modules\NhapKho\Services\NhapTpReceivingService.cs" />
+    <Compile Include="Infrastructure\Repositories\PhieuTrackingRepository.cs" />
+    <Compile Include="Modules\NhapKho\Repository\StockTPRepository.cs" />
+    <Compile Include="Modules\KhoVatLy\Report\RpInNhapKho.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Modules\KhoVatLy\Report\RpInNhapKho.Designer.cs">
+      <DependentUpon>RpInNhapKho.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Modules\XuLyHangLoi\Reports\RpPhieuXacNhanPhuTungLoi.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Modules\XuLyHangLoi\Reports\RpPhieuXuLyBatThuong.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Modules\GiaoHangKhach\Services\BulkStockAdjustService.cs" />
+    <Compile Include="Domain\Events\NhapKhoCompletedEvent.cs" />
+    <Compile Include="Shared\Models\StockItem.cs" />
+    <Compile Include="Modules\KhoVatLy\UCControls\FormBulkSlotView.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Modules\KhoVatLy\UCControls\FormBulkSlotView.Designer.cs">
+      <DependentUpon>FormBulkSlotView.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Modules\KhoVatLy\CanVas\RackSummaryPopup.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Modules\KhoVatLy\UCControls\SlotDetailPanel.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Modules\KhoVatLy\FormChonSlotNoiBo.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Modules\KhoVatLy\FormChonSlotNoiBo.Designer.cs">
+      <DependentUpon>FormChonSlotNoiBo.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Modules\KhoVatLy\FormInspection.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Modules\KhoVatLy\FormInspection.Designer.cs">
+      <DependentUpon>FormInspection.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Modules\KhoVatLy\FormInspectionConfig.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Modules\KhoVatLy\FormInspectionConfig.Designer.cs">
+      <DependentUpon>FormInspectionConfig.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Modules\KhoVatLy\FormInspectionHistory.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Modules\KhoVatLy\FormInspectionHistory.Designer.cs">
+      <DependentUpon>FormInspectionHistory.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Modules\NhapKho\FormNhapKhoTienTrinh.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Modules\NhapKho\FormNhapKhoTienTrinh.Designer.cs">
+      <DependentUpon>FormNhapKhoTienTrinh.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Modules\XuLyHangLoi\FormQuanLyTienTrinhHangLoi.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Modules\XuLyHangLoi\FormQuanLyTienTrinhHangLoi.Designer.cs">
+      <DependentUpon>FormQuanLyTienTrinhHangLoi.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Modules\KhoVatLy\FormStockHistory.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Modules\KhoVatLy\FormStockHistory.Designer.cs">
+      <DependentUpon>FormStockHistory.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Modules\XuLyHangLoi\FormGiaoBuNG.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Modules\XuLyHangLoi\FormGiaoBuNG.Designer.cs">
+      <DependentUpon>FormGiaoBuNG.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Presentation\Views\INhapKhoView.cs" />
+    <Compile Include="Modules\GiaoHangKhach\YMVN\ClsPGH.cs" />
+    <Compile Include="Modules\GiaoHangKhach\YMVN\DS_ERR_CNK.cs" />
+    <Compile Include="Modules\GiaoHangKhach\YMVN\ERR_CNK.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Modules\GiaoHangKhach\YMVN\ERR_CNK.Designer.cs">
+      <DependentUpon>ERR_CNK.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Modules\GiaoHangKhach\SubForm\FRM_UploadMikrun.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Modules\GiaoHangKhach\YMVN\GIAOHANGYMN.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Modules\GiaoHangKhach\YMVN\GIAOHANGYMN.Designer.cs">
+      <DependentUpon>GIAOHANGYMN.cs</DependentUpon>
+    </Compile>
+    <Compile Include="resize_form.cs" />
+    <Compile Include="SplashScreen1.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="SplashScreen1.Designer.cs">
+      <DependentUpon>SplashScreen1.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Modules\GiaoHangKhach\YMVN\IDS_CNK.cs" />
+    <Compile Include="Modules\GiaoHangKhach\YMVN\YAMAHAQRCDE_SP.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Modules\GiaoHangKhach\YMVN\YAMAHAQRCDE_SP.Designer.cs">
+      <DependentUpon>YAMAHAQRCDE_SP.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Modules\GiaoHangKhach\YMVN\YMVNDOCQRCODE.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Modules\GiaoHangKhach\YMVN\YMVNDOCQRCODE.Designer.cs">
+      <DependentUpon>YMVNDOCQRCODE.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Modules\GiaoHangKhach\YMVN\YMVN_CHONGIAO.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Modules\GiaoHangKhach\YMVN\YMVN_CHONGIAO.Designer.cs">
+      <DependentUpon>YMVN_CHONGIAO.cs</DependentUpon>
+    </Compile>
+    <None Include="Workflow\Diagram\Dashboard.md" />
+    <None Include="Workflow\Diagram\GIAOHANGKHACH_REFACTOR_ROADMAP.md" />
+    <None Include="Workflow\Diagram\WORKFLOW_GIAOHANGKHACH.md" />
+    <None Include="Workflow\Diagram\WORKFLOW_NHAPKHO.md" />
+    <None Include="Workflow\Diagram\ARCHITECTURE_DEPENDENCIES.md" />
+    <None Include="Workflow\Diagram\WORKFLOW_WMS.md" />
+    <Compile Include="Workflow\FRM_WORKFLOW_HANGLOI.cs" />
+    <Compile Include="Workflow\FRM_WORKFLOW_MAIN.cs" />
+    <Compile Include="Workflow\FRM_WORKFLOW_NHAPKHO.cs" />
+    <Compile Include="Workflow\FRM_WORKFLOW_XUATKHO.cs" />
+    <Compile Include="Workflow\Node\WorkflowConfig.cs" />
+    <Compile Include="Workflow\Node\WorkflowConnection.cs" />
+    <Compile Include="Workflow\Node\WorkflowNode.cs" />
+    <EmbeddedResource Include="Acess Image\FrmImageControl.resx">
+      <DependentUpon>FrmImageControl.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Acess Image\FRMSHOW.resx">
+      <DependentUpon>FRMSHOW.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Acess Image\ImagesControl.resx">
+      <DependentUpon>ImagesControl.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Modules\GiaoHangKhach\SubForm\FRM_CHON_LOT_KHO.resx">
+      <DependentUpon>FRM_CHON_LOT_KHO.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="LogIn.resx">
+      <DependentUpon>LogIn.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Shell\Main_APP.resx">
+      <DependentUpon>Main_APP.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Properties\licenses.licx" />
+    <EmbeddedResource Include="Properties\Resources.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <Compile Include="Properties\Resources.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Resources.resx</DependentUpon>
+      <DesignTime>True</DesignTime>
+    </Compile>
+    <EmbeddedResource Include="Modules\GiaoHangKhach\SubForm\FRM_LISTRUNGMSL.resx">
+      <DependentUpon>FRM_LISTRUNGMSL.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Modules\GiaoHangKhach\ComaprePart\ComaparePart.resx">
+      <DependentUpon>ComaparePart.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Modules\GiaoHangKhach\SubForm\FRM_SUALOTHVN.resx">
+      <DependentUpon>FRM_SUALOTHVN.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Modules\GiaoHangKhach\NhanLaiNG\ImPortPGHDB.resx">
+      <DependentUpon>ImPortPGHDB.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Modules\GiaoHangKhach\NhanLaiNG\NhanLaiTP\frmNhanLaiTP.resx">
+      <DependentUpon>frmNhanLaiTP.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Modules\GiaoHangKhach\HVN\Edit_DH.resx">
+      <DependentUpon>Edit_DH.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Modules\GiaoHangKhach\SubForm\frm_err-cnk.resx">
+      <DependentUpon>frm_err-cnk.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Modules\GiaoHangKhach\SubForm\FRM_HTIN.resx">
+      <DependentUpon>FRM_HTIN.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Modules\GiaoHangKhach\HVN\HVN_PGH.resx">
+      <DependentUpon>HVN_PGH.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Modules\GiaoHangKhach\HVN\LOT_EDIT.resx">
+      <DependentUpon>LOT_EDIT.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Modules\XuLyHangLoi\Reports\NG_DETAIL.resx">
+      <DependentUpon>NG_DETAIL.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Modules\GiaoHangKhach\Reports\GHEPLOT_YMVN.resx">
+      <DependentUpon>GHEPLOT_YMVN.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Modules\GiaoHangKhach\Reports\GHEPLOT.resx">
+      <DependentUpon>GHEPLOT.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Modules\GiaoHangKhach\Reports\IN_GHP_LOT_YMVN.resx">
+      <DependentUpon>IN_GHP_LOT_YMVN.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Modules\GiaoHangKhach\Reports\IN_GHP_LOT.resx">
+      <DependentUpon>IN_GHP_LOT.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Modules\GiaoHangKhach\Reports\PHIEUGIAOHANG_EXP.resx">
+      <DependentUpon>PHIEUGIAOHANG_EXP.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Modules\GiaoHangKhach\Reports\Report.resx">
+      <DependentUpon>Report.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Modules\GiaoHangKhach\Reports\rpPhieuGiaoHang.resx">
+      <DependentUpon>rpPhieuGiaoHang.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Modules\GiaoHangKhach\Reports\rpPhieuGiaoHangYAM.resx">
+      <DependentUpon>rpPhieuGiaoHangYAM.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Modules\GiaoHangKhach\Reports\temphieugh.resx">
+      <DependentUpon>temphieugh.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Modules\GiaoHangKhach\Reports\YMVN.resx">
+      <DependentUpon>YMVN.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Modules\GiaoHangKhach\Reports\YMVN_PGH.resx">
+      <DependentUpon>YMVN_PGH.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="UF_CHANGETIME.resx">
+      <DependentUpon>UF_CHANGETIME.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="UserControls\UCSTOCK.resx">
+      <DependentUpon>UCSTOCK.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Modules\KhoVatLy\ExportFormSV.resx">
+      <DependentUpon>ExportFormSV.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Modules\KhoVatLy\FormEnterItemSV.resx">
+      <DependentUpon>FormEnterItemSV.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Modules\KhoVatLy\FormRegisterRack.resx">
+      <DependentUpon>FormRegisterRack.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Shared\WaitFormExp.resx">
+      <DependentUpon>WaitFormExp.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Modules\KhoVatLy\MainStockSV.resx">
+      <DependentUpon>MainStockSV.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Modules\KhoVatLy\Report\RpInNhapKho.resx">
+      <DependentUpon>RpInNhapKho.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Modules\XuLyHangLoi\Reports\RpPhieuXuLyBatThuong.resx">
+      <DependentUpon>RpPhieuXuLyBatThuong.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Modules\KhoVatLy\FormStockHistory.resx">
+      <DependentUpon>FormStockHistory.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Modules\GiaoHangKhach\YMVN\ERR_CNK.resx">
+      <DependentUpon>ERR_CNK.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Modules\GiaoHangKhach\YMVN\GIAOHANGYMN.resx">
+      <DependentUpon>GIAOHANGYMN.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="SplashScreen1.resx">
+      <DependentUpon>SplashScreen1.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Modules\GiaoHangKhach\YMVN\YAMAHAQRCDE_SP.resx">
+      <DependentUpon>YAMAHAQRCDE_SP.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Modules\GiaoHangKhach\YMVN\YMVNDOCQRCODE.resx">
+      <DependentUpon>YMVNDOCQRCODE.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Modules\GiaoHangKhach\YMVN\YMVN_CHONGIAO.resx">
+      <DependentUpon>YMVN_CHONGIAO.cs</DependentUpon>
+    </EmbeddedResource>
+    <None Include="FVN.IT Nang.pfx" />
+    <None Include="packages.config" />
+    <None Include="PCIT.pfx" />
+    <None Include="Properties\Settings.settings">
+      <Generator>SettingsSingleFileGenerator</Generator>
+      <LastGenOutput>Settings.Designer.cs</LastGenOutput>
+    </None>
+    <Compile Include="Properties\Settings.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Settings.settings</DependentUpon>
+      <DesignTimeSharedInput>True</DesignTimeSharedInput>
+    </Compile>
+    <None Include="Workflow\Diagram\WORKFLOW_XUATKHO.md" />
+    <None Include="Workflow\Diagram\WORKFLOW_KHOCORE.md" />
+    <None Include="Workflow\Diagram\WORKFLOW_HANGLOI.md" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="App.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <Service Include="{3259AA49-8AA1-44D3-9025-A0B520596A8C}" />
+    <Service Include="{508349B6-6B84-4DF5-91F0-309BEEBAD82D}" />
+    <Service Include="{C0C07587-41A7-46C8-8FBD-3F9C8EBE2DDC}" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\edit_16x16.png" />
+    <None Include="Resources\delete_16x16.png" />
+    <None Include="Resources\edit_16x161.png" />
+    <None Include="Resources\delete_16x161.png" />
+    <None Include="Resources\untitled.png" />
+    <None Include="Resources\yamaha-1-282215.png" />
+    <None Include="Resources\806067.png" />
+    <None Include="Resources\fcc.png" />
+    <None Include="Resources\logo.png" />
+    <None Include="Resources\hondatrading.jpg" />
+    <Content Include="_123034.ico" />
+  </ItemGroup>
+  <ItemGroup>
+    <BootstrapperPackage Include=".NETFramework,Version=v4.7.2">
+      <Visible>False</Visible>
+      <ProductName>Microsoft .NET Framework 4.7.2 %28x86 and x64%29</ProductName>
+      <Install>true</Install>
+    </BootstrapperPackage>
+    <BootstrapperPackage Include="Microsoft.Net.Framework.3.5.SP1">
+      <Visible>False</Visible>
+      <ProductName>.NET Framework 3.5 SP1</ProductName>
+      <Install>false</Install>
+    </BootstrapperPackage>
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="4wAutoWH\" />
+    <Folder Include="Modules\GiaoHangKhach\Contracts\Services\" />
+    <Folder Include="Modules\GiaoHangKhach\Contracts\Views\" />
+    <Folder Include="Modules\GiaoHangKhach\HVN\FuctionQR\" />
+    <Folder Include="Modules\GiaoHangKhach\Models\Customer\" />
+    <Folder Include="Modules\GiaoHangKhach\Models\Delivery\" />
+    <Folder Include="Modules\GiaoHangKhach\Models\Order\" />
+    <Folder Include="Modules\GiaoHangKhach\Models\Phieu\" />
+    <Folder Include="Modules\XuLyHangLoi\Legacy\" />
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <ItemGroup>
+    <Analyzer Include="C:\Program Files\DevExpress 25.2\Components\Offline Packages\devexpress.data\25.2.4\analyzers\dotnet\DevExpress.Generator.dll" Visible="false" Condition="Exists('C:\Program Files\DevExpress 25.2\Components\Offline Packages\devexpress.data\25.2.4\analyzers\dotnet\DevExpress.Generator.dll')" />
   </ItemGroup>
 </Project>
