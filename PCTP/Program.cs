@@ -1,5 +1,4 @@
-﻿
-using PCTP.QRCODE_HVN.YMN;
+﻿using PCTP.QRCODE_HVN.YMN;
 using PCTP.YMN;
 using PCTP.FuctionPrint;
 using System;
@@ -10,6 +9,7 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using PCTP.QRCODE_HVN.Report;
 using PCTP.VIEWSTOCK;
+using PCTP.Shell.Help;
 
 namespace PCTP
 {
@@ -24,13 +24,18 @@ namespace PCTP
             //OfficeOpenXml.ExcelPackage.License.SetNonCommercialPersonal("YMVN_APP");
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
+
+            // Contextual help is attached centrally so operational forms do not
+            // need to duplicate the same button/event wiring.
+            WmsHelpOverlay.Start();
+
             //Application.Run(new UF_TACHLOT());
             //Application.Run(new YAMAHAQRCDE_SP());
             //Application.Run(new FrmTEST());
             //Application.Run(new GIAOHANGYMN());
             //Application.Run(new MENU_AUTO_QRCODE());
             //Application.Run(new PGH_XK());
-          //  Application.Run(new MainStock());
+            //Application.Run(new MainStock());
             Application.Run(new Main_APP());
             // Application.Run(new UF_QRCodeERR());
             //Application.Run(new QRCODE_HVN.ComaprePart.ComaparePart());
