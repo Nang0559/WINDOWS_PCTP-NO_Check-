@@ -253,7 +253,85 @@ Khi không tìm được QR, thử đối chiếu bằng LOT hoặc Part. Không
 
 ---
 
-## 11. Chuyển máy bắn QR
+## 11. Thiết lập và kiểm soát FIFO
+
+FIFO (**First In – First Out**) là nguyên tắc quan trọng trong quản lý tồn kho: hàng vào trước phải được ưu tiên xuất trước, trừ trường hợp nghiệp vụ/khách hàng có quy định khác.
+
+```mermaid
+flowchart TD
+    A[Hàng nhập kho] --> B[Ghi nhận LOT + thời điểm nhập]
+    B --> C[Tồn theo LOT / Slot]
+    C --> D[Sắp xếp theo thứ tự FIFO]
+    D --> E[Đề xuất LOT cũ hơn]
+    E --> F{Đủ điều kiện xuất?}
+    F -- Có --> G[Xuất / giao]
+    F -- Không --> H[Chuyển LOT kế tiếp hoặc xử lý cảnh báo]
+```
+
+### Khi thiết lập FIFO
+
+- Xác định **tiêu chí tuổi tồn** được hệ thống sử dụng, ưu tiên theo thời điểm nhập kho thực tế hoặc tiêu chí đã được nghiệp vụ thống nhất.
+- Đảm bảo mỗi LOT có thông tin đủ để xác định thứ tự trước/sau.
+- Không dùng ngày tạo phiếu thay cho ngày nhập kho nếu hai mốc có thể khác nhau.
+- Kiểm tra FIFO theo **Part + LOT + vị trí tồn**; không trộn các Part khác nhau.
+- Nếu khách hàng hoặc nghiệp vụ có quy tắc xuất đặc biệt, phải xác định rõ ngoại lệ trước khi xuất.
+
+### Checklist vận hành FIFO
+
+1. Kiểm tra LOT đang được đề xuất xuất.
+2. So sánh thời điểm nhập với các LOT cùng Part còn tồn.
+3. Nếu LOT cũ hơn vẫn còn tồn nhưng hệ thống đề xuất LOT mới hơn, **không tự bỏ qua**; phải kiểm tra cấu hình hoặc nguyên nhân nghiệp vụ.
+4. Sau khi xuất, làm mới tồn và kiểm tra lại thứ tự LOT.
+5. Khi phát hiện sai FIFO, lưu Part, LOT, Slot, thời điểm và phiếu liên quan để IT kiểm tra.
+
+> **Lưu ý:** tài liệu này quy định nguyên tắc vận hành FIFO. Không tự thay đổi SQL/DB để ép thứ tự FIFO nếu chưa xác định chính xác cơ chế FIFO đang được triển khai trong module nghiệp vụ.
+
+---
+
+## 12. Cấu hình mã yêu cầu kiểm tra trùng khớp giữa thùng và hộp
+
+Đây là cấu hình kiểm soát quan trọng khi hệ thống phải xác nhận **mã yêu cầu kiểm tra** giữa **thùng (carton)** và **hộp (box)** trước khi cho phép tiếp tục nghiệp vụ.
+
+```mermaid
+flowchart TD
+    A[Cấu hình mã yêu cầu kiểm tra] --> B[Xác định mã áp dụng]
+    B --> C[Quy định phạm vi Part / nghiệp vụ]
+    C --> D[Quét mã thùng]
+    D --> E[Quét mã hộp]
+    E --> F{Mã yêu cầu có khớp?}
+    F -- Có --> G[Cho phép tiếp tục]
+    F -- Không --> H[Chặn thao tác + cảnh báo]
+```
+
+### Nguyên tắc cấu hình
+
+- Mã yêu cầu kiểm tra phải được quản lý tập trung, có **mã rõ ràng và trạng thái hiệu lực**.
+- Xác định chính xác mã áp dụng cho từng **Part / loại hàng / nghiệp vụ** nếu hệ thống có phân loại.
+- Không dùng một mã chung cho tất cả trường hợp nếu yêu cầu kiểm tra thực tế khác nhau.
+- Khi thay đổi mã, phải xác định thời điểm hiệu lực và người chịu trách nhiệm thay đổi.
+- Không xóa hoặc sửa lịch sử cấu hình đang được sử dụng để truy vết.
+
+### Quy trình kiểm tra thùng ↔ hộp
+
+1. Quét mã **thùng**.
+2. Đọc mã yêu cầu kiểm tra tương ứng từ dữ liệu cấu hình/nguồn nghiệp vụ.
+3. Quét mã **hộp**.
+4. Hệ thống đối chiếu mã yêu cầu của thùng và hộp.
+5. **Khớp** → cho phép tiếp tục.
+6. **Không khớp** → chặn thao tác, hiển thị cảnh báo và yêu cầu kiểm tra lại.
+
+### Khi cấu hình hoặc kiểm tra không đúng
+
+- Không tự sửa mã trên tem để làm cho hai mã giống nhau.
+- Kiểm tra lại Part, mã thùng, mã hộp và mã yêu cầu đang có hiệu lực.
+- Kiểm tra xem mã đã được cấu hình đúng phạm vi và thời điểm hiệu lực chưa.
+- Nếu dữ liệu cấu hình đúng nhưng hệ thống vẫn báo không khớp, ghi lại mã thùng + mã hộp + Part + thời gian để IT kiểm tra.
+
+> **Lưu ý:** đây là quy tắc vận hành và kiểm soát. Tên bảng, tên cột và màn hình cấu hình cụ thể phải được đối chiếu với implementation thực tế trước khi hướng dẫn người dùng nhập một giá trị cấu hình cụ thể.
+
+---
+
+## 13. Chuyển máy bắn QR
 
 ```mermaid
 flowchart TD
@@ -269,7 +347,7 @@ Chỉ thực hiện khi xác định chính xác hostname máy đích.
 
 ---
 
-## 12. Xử lý lỗi chuẩn
+## 14. Xử lý lỗi chuẩn
 
 ```mermaid
 flowchart TD
@@ -297,7 +375,7 @@ Không tự sửa DB hoặc dùng chức năng khác để bypass kiểm soát.
 
 ---
 
-## 13. Hướng dẫn trong ứng dụng
+## 15. Hướng dẫn trong ứng dụng
 
 Main_APP có nút **Hướng dẫn sử dụng**. Từ đây người dùng có thể chọn topic theo nghiệp vụ.
 
@@ -319,7 +397,7 @@ Nội dung hướng dẫn **không nằm trực tiếp trong Main_APP**. Khi th�
 
 ---
 
-## 14. Chuẩn thiết kế một hướng dẫn mới
+## 16. Chuẩn thiết kế một hướng dẫn mới
 
 Mọi chức năng WMS mới phải có tối thiểu 7 phần:
 
