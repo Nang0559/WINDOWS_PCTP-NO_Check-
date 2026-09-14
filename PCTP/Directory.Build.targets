@@ -43,9 +43,15 @@
     <Compile Include="Modules\BaoCao\Application\Contracts\Queries\IQualityHistoryQuery.cs" />
     <Compile Include="Modules\BaoCao\Application\Contracts\Queries\QualityHistoryRow.cs" />
     <Compile Include="Modules\BaoCao\Application\Contracts\Queries\QualityHistoryDetailRow.cs" />
+    <Compile Include="Modules\BaoCao\Application\Contracts\Queries\DeliveryTraceRow.cs" />
+    <Compile Include="Modules\BaoCao\Application\Contracts\Queries\DeliveryLotTraceRow.cs" />
+    <Compile Include="Modules\BaoCao\Application\Contracts\Queries\IQrTraceQuery.cs" />
+    <Compile Include="Modules\BaoCao\Application\Contracts\Queries\ILotTraceQuery.cs" />
+    <Compile Include="Modules\BaoCao\Application\Contracts\Queries\ICustomerDeliveryQuery.cs" />
     <Compile Include="Modules\BaoCao\Infrastructure\Queries\StockHistoryQueryService.cs" />
     <Compile Include="Modules\BaoCao\Infrastructure\Queries\CurrentStockQueryService.cs" />
     <Compile Include="Modules\BaoCao\Infrastructure\Queries\QualityHistoryQueryService.cs" />
+    <Compile Include="Modules\BaoCao\Infrastructure\Traceability\DeliveryLotStringParser.cs" />
     <Compile Include="Modules\BaoCao\UI\FormBaoCaoMain.cs" />
     <Compile Include="Modules\BaoCao\UI\FormBaoCaoStockHistory.cs" />
     <Compile Include="Modules\BaoCao\UI\FormBaoCaoQualityHistory.cs" />
