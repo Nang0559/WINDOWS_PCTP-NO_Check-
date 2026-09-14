@@ -147,7 +147,7 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
         }
         public void SwitchToDocQRView()
         {
-            UIButtonHOME.Visible = true; panelPhieu.Visible = false; _docQrControl.BringToFront();
+            UIButtonHOME.Visible = true; _phieuHeaderControl.Visible = false; _docQrControl.BringToFront();
             try { _hangThieuControl.Visible = false; PN_DOCQR_SUASL1.Visible = true; PN_DOCQR_SUASL1.BringToFront(); }
             catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[SwitchToDocQRView] Lỗi set Visible: {ex.Message}"); }
             Invoke(new Action(() => { lblDocQrcode.Text = _cfg.Delivery?.LabelDocQR ?? "Đọc QRCode theo thứ tự: FCC → HVN"; }));
@@ -158,7 +158,7 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
         }
         public void SwitchToPhieuView()
         {
-            UIButtonHOME.Visible = false; panelPhieu.Visible = true; _phieuGridControl.BringToFrontGrid();
+            UIButtonHOME.Visible = false; _phieuHeaderControl.Visible = true; _phieuGridControl.BringToFrontGrid();
             try { PN_DOCQR_SUASL1.Visible = false; _hangThieuControl.Visible = true; _hangThieuControl.BringToFront(); }
             catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[SwitchToPhieuView] Lỗi set Visible: {ex.Message}"); }
             _phieuBottomStateControl.HideSuaSoLuong();

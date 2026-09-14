@@ -35,7 +35,35 @@ namespace PCTP.Presentation.Presenters
             List<string> gios = _c.Cfg.Delivery.CoGear ? _c.YmvnView.GetCheckedGioXuat() : null;
             _c.IsBanQR = true;
 
-            _c.RunWithLoading(() => { /* phần còn lại giữ nguyên, không đổi gì */ }, "Đang chuẩn bị dữ liệu QR...");
+            _c.RunWithLoading(() =>
+            {
+                try
+                {
+                    if (_c.Cfg.Delivery.LoadTuBangRieng)
+                    {
+                        if (_c.QrSvc.CountChuaDG() == 0 && !_c.QrSvc.CoDocQRNao())
+                            _c.PhieuSvc.SyncPhieuTuBangRiengChoDocQR(dtPhieu, ngay, gios);
+                    }
+                    else
+                    {
+                        if (_c.QrSvc.CountChuaDG() == 0 && !_c.QrSvc.CoDocQRNao())
+                            _c.PhieuSvc.SyncIfsPhieuChoDocQR(
+                                ngay, _c.GetNhaMay(), _c.GioXuatHienTai.Ma, _c.GioXuatHienTai.MoTa, _c.AddNM);
+                    }
+
+                    DataTable qrData = _c.QrSvc.LoadAll();
+                    _c.UiContext.Post(_ =>
+                    {
+                        _v.BindDocQRCode(qrData);
+                        _v.SwitchToDocQRView();
+                    }, null);
+                }
+                catch (Exception ex)
+                {
+                    _c.IsBanQR = false;
+                    _v.ShowError($"Lỗi chuẩn bị dữ liệu QR: {ex.Message}");
+                }
+            }, "Đang chuẩn bị dữ liệu QR...");
         }
         private void OnQRCodeSubmitted(object sender, string rawQr)
         {

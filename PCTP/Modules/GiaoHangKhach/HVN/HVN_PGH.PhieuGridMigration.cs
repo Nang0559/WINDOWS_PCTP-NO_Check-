@@ -1,4 +1,4 @@
-using PCTP.Modules.GiaoHangKhach.HVN.Controls;
+﻿using PCTP.Modules.GiaoHangKhach.HVN.Controls;
 using System;
 using System.Windows.Forms;
 
@@ -88,18 +88,19 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
 
         private void MigrateDocQrGridToUserControl()
         {
-            if (_docQrControl != null || sidePanel2 == null) return;
-            object existingDataSource = gridCtrDOCQrCODE != null ? gridCtrDOCQrCODE.DataSource : null;
+            if (_docQrControl != null || sidePanel2 == null || gridCtrDOCQrCODE == null) return;
+
+            object existingDataSource = gridCtrDOCQrCODE.DataSource;
+            var legacyGrid = gridCtrDOCQrCODE;
+
             _docQrControl = new DocQrControl();
-            if (gridCtrDOCQrCODE != null) ReplaceControl(gridCtrDOCQrCODE, _docQrControl, sidePanel2);
-            else sidePanel2.Controls.Add(_docQrControl);
+            ReplaceControl(legacyGrid, _docQrControl, sidePanel2);
+            _docQrControl.AttachExistingLayout(legacyGrid);   // ← THÊM dòng này
+
             if (existingDataSource != null) _docQrControl.QrGrid.DataSource = existingDataSource;
             gridCtrDOCQrCODE = _docQrControl.QrGrid;
             gridVDOCQRCODE = _docQrControl.QrView;
 
-            // Constructor compatibility: the legacy form subscribed directly to
-            // the grid before the control boundary existed. Remove that handler
-            // through the control and keep only the boundary event.
             _docQrControl.DetachLegacyFocusedRowChanged(gridVDOCQRCODE_FocusedRowChanged);
             _docQrControl.FocusedRowChanged -= DocQrControl_FocusedRowChanged;
             _docQrControl.FocusedRowChanged += DocQrControl_FocusedRowChanged;
