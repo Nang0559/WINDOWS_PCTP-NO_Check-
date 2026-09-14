@@ -1,4 +1,4 @@
-﻿<Project>
+<Project>
   <ItemGroup>
     <!-- GiaoHangKhach UI/application sources must be part of the legacy PCTP build graph. -->
     <Compile Include="Modules\GiaoHangKhach\Services\DocQRScanEngine.cs" />
@@ -34,11 +34,19 @@
     <Compile Include="Modules\XuLyHangLoi\Application\XuLyHangLoiModuleFactory.cs" />
     <Compile Include="Modules\NhapKho\Application\Adapters\StockReceivingRepositoryAdapter.cs" />
 
-    <!-- BaoCao is a read-only reporting/traceability module. -->
-    <Compile Include="Modules\BaoCao\Application\Contracts\IHistoryQueryService.cs" />
+    <!-- BaoCao read-only query layer. -->
     <Compile Include="Modules\BaoCao\Application\Contracts\HistorySearchCriteria.cs" />
-    <Compile Include="Modules\BaoCao\Application\Contracts\ItemHistoryRow.cs" />
-    <Compile Include="Modules\BaoCao\Application\Services\BaoCaoQueryService.cs" />
+    <Compile Include="Modules\BaoCao\Application\Contracts\Queries\IStockHistoryQuery.cs" />
+    <Compile Include="Modules\BaoCao\Application\Contracts\Queries\ICurrentStockQuery.cs" />
+    <Compile Include="Modules\BaoCao\Application\Contracts\Queries\ItemHistoryRow.cs" />
+    <Compile Include="Modules\BaoCao\Application\Contracts\Queries\CurrentStockRow.cs" />
+    <Compile Include="Modules\BaoCao\Infrastructure\Queries\StockHistoryQueryService.cs" />
+    <Compile Include="Modules\BaoCao\Infrastructure\Queries\CurrentStockQueryService.cs" />
+    <Compile Include="Modules\BaoCao\UI\FormBaoCaoStockHistory.cs" />
+
+    <!-- Remove the old stock-history form from the legacy explicit project graph. -->
+    <Compile Remove="Modules\KhoVatLy\FormStockHistory.cs" />
+    <Compile Remove="Modules\KhoVatLy\FormStockHistory.Designer.cs" />
   </ItemGroup>
 
   <PropertyGroup>
