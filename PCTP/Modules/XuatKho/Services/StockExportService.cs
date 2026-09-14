@@ -23,6 +23,7 @@ namespace PCTP.Modules.XuatKho.Services
         private readonly IHangChoGiaoRepository _choGiaoRepo;
         private readonly IStockExportValidationService _validationService;
         private readonly IStockMovementService _stockMovement;
+        private readonly IStockExportHistoryRepository _exportHistoryRepo;
 
         public StockExportService(
             IUnitOfWork uow,
@@ -30,7 +31,8 @@ namespace PCTP.Modules.XuatKho.Services
             IStockHistoryRepository historyRepo,
             IHangChoGiaoRepository choGiaoRepo,
             IStockExportValidationService validationService,
-            IStockMovementService stockMovement = null)
+            IStockMovementService stockMovement = null,
+            IStockExportHistoryRepository exportHistoryRepo = null)
         {
             _uow = uow ?? throw new ArgumentNullException(nameof(uow));
             _slotService = slotService ?? throw new ArgumentNullException(nameof(slotService));
@@ -38,6 +40,7 @@ namespace PCTP.Modules.XuatKho.Services
             _choGiaoRepo = choGiaoRepo ?? throw new ArgumentNullException(nameof(choGiaoRepo));
             _validationService = validationService ?? throw new ArgumentNullException(nameof(validationService));
             _stockMovement = stockMovement;
+            _exportHistoryRepo = exportHistoryRepo;
         }
 
         public StockExportResult PickToChoGiao(StockExportRequest request)
@@ -52,6 +55,13 @@ namespace PCTP.Modules.XuatKho.Services
             _uow.Begin();
             try
             {
+                if (HasReferenceHistory(StockHistoryActionType.ChoGiao, request.ReferenceType, request.ReferenceId))
+                {
+                    _uow.Rollback();
+                    return StockExportResult.Duplicate(
+                        "Chứng từ đã được xử lý PICK vào chờ giao trước đó; không thực hiện lại.");
+                }
+
                 int slotId = request.SlotId.Value;
                 _slotService.LockSlotForUpdate(slotId);
 
@@ -227,6 +237,17 @@ namespace PCTP.Modules.XuatKho.Services
             _uow.Begin();
             try
             {
+                string actionType = request.Purpose == StockTransactionType.XuatRework
+                    ? StockHistoryActionType.Rework
+                    : StockHistoryActionType.Export;
+
+                if (HasReferenceHistory(actionType, request.ReferenceType, request.ReferenceId))
+                {
+                    _uow.Rollback();
+                    return StockExportResult.Duplicate(
+                        "Chứng từ đã được xuất kho trước đó; không thực hiện lại.");
+                }
+
                 int slotId = request.Source == StockExportSource.Slot
                     ? request.SlotId.Value
                     : _slotService.GetSlotIdFromString(
@@ -286,10 +307,6 @@ namespace PCTP.Modules.XuatKho.Services
                     return StockExportResult.InsufficientStock(movement.Message);
                 }
 
-                string actionType = request.Purpose == StockTransactionType.XuatRework
-                    ? StockHistoryActionType.Rework
-                    : StockHistoryActionType.Export;
-
                 _historyRepo.SaveHistory(
                     actionType,
                     request.ItemCode,
@@ -329,21 +346,6 @@ namespace PCTP.Modules.XuatKho.Services
             }
         }
 
-        private void SafeRollback()
-        {
-            try { _uow.Rollback(); } catch { }
-        }
-
-        private static StockExportResult MapFail(StockExportValidationResult v)
-        {
-            switch (v.FailureStatus)
-            {
-                case StockExportStatus.Duplicate: return StockExportResult.Duplicate(v.Message);
-                case StockExportStatus.InsufficientStock: return StockExportResult.InsufficientStock(v.Message);
-                default: return StockExportResult.Fail(v.Message);
-            }
-        }
-
         public LotSplitResult ExportFromSlot(
             int slotId,
             int exportQty,
@@ -358,8 +360,6 @@ namespace PCTP.Modules.XuatKho.Services
             _uow.Begin();
             try
             {
-                // Lock BEFORE reading/splitting LOTs. Otherwise another transaction can
-                // change the source slot after GetLots(), making the calculated split stale.
                 _slotService.LockSlotForUpdate(slotId);
                 var currentLots = _slotService.GetLots(slotId);
                 var result = LotNoHelper.SubtractLots(currentLots, exportQty);
@@ -389,6 +389,35 @@ namespace PCTP.Modules.XuatKho.Services
             {
                 SafeRollback();
                 throw;
+            }
+        }
+
+        private bool HasReferenceHistory(
+            string actionType,
+            StockExportReferenceType? referenceType,
+            int? referenceId)
+        {
+            if (_exportHistoryRepo == null || !referenceType.HasValue || !referenceId.HasValue)
+                return false;
+
+            return _exportHistoryRepo.ExistsHistoryForReference(
+                actionType,
+                referenceType.Value,
+                referenceId.Value);
+        }
+
+        private void SafeRollback()
+        {
+            try { _uow.Rollback(); } catch { }
+        }
+
+        private static StockExportResult MapFail(StockExportValidationResult v)
+        {
+            switch (v.FailureStatus)
+            {
+                case StockExportStatus.Duplicate: return StockExportResult.Duplicate(v.Message);
+                case StockExportStatus.InsufficientStock: return StockExportResult.InsufficientStock(v.Message);
+                default: return StockExportResult.Fail(v.Message);
             }
         }
     }
