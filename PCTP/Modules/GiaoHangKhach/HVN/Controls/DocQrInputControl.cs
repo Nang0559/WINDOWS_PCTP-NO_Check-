@@ -2,7 +2,7 @@ using System;
 using System.Windows.Forms;
 using DevExpress.XtraEditors;
 
-namespace PCTP.QRCODE_HVN.PGH.Controls
+namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
 {
     /// <summary>
     /// Owns DOC QR scan input presentation only. Scan/business processing stays outside this control.
