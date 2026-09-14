@@ -1,5 +1,18 @@
 # BAOCAO / TRA CỨU — REFACTOR ROADMAP
 
+## Progress snapshot — 2026-09-15
+
+| Hạng mục | Trạng thái | Ghi chú |
+|---|---|---|
+| A. Main_APP / Shell integration | **DONE** | `WmsControlCenterBar` + `WmsWorklistBar` + `WarehouseDashboardBar` đã được host trong `Main_APP`; refresh được nối chung. |
+| B. WMS Help / contextual routing | **PARTIAL** | Help Service/Catalog/Context/Overlay/Guide đã có; routing giao hàng đã chuẩn hóa theo `HVN_PGH` + `CustomerTableConfig`; F1/contextual help theo từng module vẫn chưa hoàn tất. |
+| C. Báo cáo / Tra cứu | **PARTIAL** | Stock/Current Stock/QC/Inspection đã có; Delivery Trace có master/detail nhưng QR/customer/timeline/parity schema vẫn chưa đủ để gọi là hoàn tất. |
+| D. Legacy report cleanup | **PARTIAL** | `FormStockHistory` và `FormInspectionHistory` đã move; caller-by-caller verification và các report/repository legacy còn lại chưa xong. |
+| E. Repository/read-side decomposition | **PARTIAL** | BaoCao query adapters đã tách cho các slice hiện có; `IPhieuTrackingRepository` chưa được phân rã hoàn toàn và `VIEWSTOCK` vẫn còn dependency. |
+| F. Verification / Build / Regression | **NOT DONE** | Chưa có bằng chứng build Debug net472/C# 7.3 thực tế trên môi trường phát triển; startup/regression/parity chưa được sign-off. |
+
+> **Không đánh dấu Phase 8 hoàn thành chỉ vì code đã cập nhật.** Build Debug net472/C# 7.3 và regression thực tế vẫn là gate cuối.
+
 ## Phase 1 — Boundary
 
 - [x] Tạo branch riêng từ `master`.
@@ -73,8 +86,19 @@
 - [ ] Redirect từng entry point tra cứu legacy sang BaoCao.
 - [x] Thêm Quick Search QR/LOT/Part ở Shell.
 - [x] Tách entry point Báo cáo/Tra cứu khỏi Shell bằng `BaoCaoNavigator`; Shell không còn tự new trực tiếp các form BaoCao.
-- [ ] Thêm Worklist/Cảnh báo WMS sau khi xác định query source cho từng KPI.
+- [x] Thêm Worklist/Cảnh báo WMS sau khi xác định query source cho từng KPI.
 - [ ] Gắn contextual help/F1 trực tiếp vào từng module form sau khi caller/module names ổn định.
+
+### Worklist / Dashboard implementation checkpoint
+
+- [x] `WmsControlCenterBar` được host bởi `Main_APP`.
+- [x] `WmsWorklistBar` được host bởi `Main_APP`.
+- [x] `WarehouseDashboardBar` được host bởi `Main_APP`.
+- [x] Control Center `Làm mới` refresh dashboard legacy + dashboard KPI + worklist.
+- [x] Dashboard và Worklist dùng chung repository instances từ `MainAppDashboardFactory`.
+- [x] Worklist chỉ dùng nguồn số liệu thực: QC status, `DemPhieuChoNhap()`, `DemLechDoiChieu()`.
+- [ ] Chưa thêm KPI giao hàng mới khi chưa xác minh source dữ liệu thực.
+- [ ] Navigation `Lệch A0` vẫn đang dùng entry point Nhập kho hiện hữu; cần dedicated navigator nếu repo xác nhận có màn hình chuyên biệt.
 
 ## Phase 7 — Legacy removal
 
