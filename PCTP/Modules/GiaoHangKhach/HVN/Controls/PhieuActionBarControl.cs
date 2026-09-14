@@ -2,7 +2,7 @@ using System;
 using DevExpress.XtraBars.Docking2010;
 using DevExpress.XtraEditors;
 
-namespace PCTP.QRCODE_HVN.PGH.Controls
+namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
 {
     public enum PhieuActionBarAction
     {
@@ -77,36 +77,22 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
             _panel.Buttons.Clear();
         }
 
-        public void ConfigureNormal(
-            string ghepLotCaption,
-            bool showCapNhapKho,
-            bool showKiemTraMaNG,
-            bool showGhepLot,
-            bool showDocQRCode,
-            bool showLayLaiLot,
-            bool showStop,
-            bool showHangThieuCaNgay,
-            DevExpress.Utils.ImageCollection imageCollection)
+        public void ConfigureNormal(string ghepLotCaption, bool showCapNhapKho, bool showKiemTraMaNG,
+            bool showGhepLot, bool showDocQRCode, bool showLayLaiLot, bool showStop,
+            bool showHangThieuCaNgay, DevExpress.Utils.ImageCollection imageCollection)
         {
-            if (_panel == null)
-                return;
-
+            if (_panel == null) return;
             Clear();
             Add("In Phiếu", "Print;Size16x16;Colored", PhieuActionBarAction.InPhieu);
             Add("In Ghép Lot", "Print;Size16x16;Colored", PhieuActionBarAction.InGhepLot);
             Add("In Tách Lot", "Print;Size16x16;Colored", PhieuActionBarAction.InTachLot);
-
             if (showHangThieuCaNgay)
                 Add("Xem Hàng Thiếu Cả Ngày", "Find;Size16x16;Colored", PhieuActionBarAction.XemHangThieuCaNgay);
-
             _panel.Buttons.Insert(0, new WindowsUISeparator());
-
             if (showDocQRCode)
                 _panel.Buttons.Insert(0, CreateButton("DOC QRCODE", "IndentIncrease;Size16x16;Colored", PhieuActionBarAction.DocQRCode));
-
             if (showLayLaiLot)
                 _panel.Buttons.Insert(0, CreateButton("Lấy Lại Lot", "IndentIncrease;Size16x16;Colored", PhieuActionBarAction.LayLaiLot));
-
             if (showGhepLot)
             {
                 var button = CreateButton(ghepLotCaption, null, PhieuActionBarAction.KiemTraGhepLot);
@@ -115,13 +101,10 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
                     button.Image = imageCollection.Images[1];
                 _panel.Buttons.Add(button);
             }
-
             if (showCapNhapKho)
                 Add("Cập Nhập Kho", "Save;Size16x16;Colored", PhieuActionBarAction.CapNhapKho);
-
             if (showKiemTraMaNG)
                 Add("Kiểm tra mã NG", "SpellCheckAsYouType;Size16x16;Colored", PhieuActionBarAction.KiemTraMaNG);
-
             if (showStop)
             {
                 _panel.Buttons.Add(new WindowsUISeparator());
@@ -132,15 +115,12 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
 
         public void ConfigurePhieuView(string ghepLotCaption, DevExpress.Utils.ImageCollection imageCollection)
         {
-            if (_panel == null)
-                return;
-
+            if (_panel == null) return;
             Clear();
             var ghepLot = CreateButton(ghepLotCaption, null, PhieuActionBarAction.KiemTraGhepLot);
             ghepLot.Tag = ActionTagPrefix + "GhepLotToggle";
             if (imageCollection != null && imageCollection.Images.Count > 1)
                 ghepLot.Image = imageCollection.Images[1];
-
             _panel.Buttons.Add(CreateButton("DOC QRCODE", "IndentIncrease;Size16x16;Colored", PhieuActionBarAction.DocQRCode));
             _panel.Buttons.Insert(1, new WindowsUISeparator());
             _panel.Buttons.Add(ghepLot);
@@ -149,9 +129,7 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
 
         public void ConfigureDocQr()
         {
-            if (_panel == null)
-                return;
-
+            if (_panel == null) return;
             Clear();
             Add("Xóa Dòng Được Chọn", "Delete;Size16x16;Colored", PhieuActionBarAction.XoaDongQR);
             Add("Xóa Toàn Bộ Dữ Liệu", "clear;Size16x16;Colored", PhieuActionBarAction.XoaToanBoQR);
@@ -161,9 +139,7 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
 
         public void ConfigureGiaoDb()
         {
-            if (_panel == null)
-                return;
-
+            if (_panel == null) return;
             Clear();
             Add("Upload Đơn Hàng", "Import;Size16x16;Colored", PhieuActionBarAction.UploadGiaoDB);
             Add("DOC QRCODE", "IndentIncrease;Size16x16;Colored", PhieuActionBarAction.DocQRCode);
@@ -172,9 +148,7 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
 
         public void ConfigureYmvN(bool isLoaiSP)
         {
-            if (_panel == null)
-                return;
-
+            if (_panel == null) return;
             Clear();
             Add("In Phiếu", "Print;Size16x16;Colored", PhieuActionBarAction.InPhieu);
             Add(isLoaiSP ? "Đang xem: SP" : "Đang xem: MP", "Refresh;Size16x16;Colored", PhieuActionBarAction.ToggleLoaiPhieu);
@@ -182,15 +156,11 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
 
         public void UpdateLoaiPhieuCaption(bool isLoaiSP)
         {
-            if (_panel == null)
-                return;
-
+            if (_panel == null) return;
             foreach (var button in _panel.Buttons)
             {
                 var windowsButton = button as WindowsUIButton;
-                if (windowsButton == null)
-                    continue;
-
+                if (windowsButton == null) continue;
                 if (windowsButton.Tag as string == ActionTagPrefix + "ToggleLoaiPhieu")
                 {
                     windowsButton.Caption = isLoaiSP ? "Đang xem: SP" : "Đang xem: MP";
@@ -207,10 +177,7 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
                 Style = ButtonStyle.PushButton,
                 Tag = ActionTagPrefix + action.ToString()
             };
-
-            if (!string.IsNullOrWhiteSpace(imageUri))
-                button.ImageUri = imageUri;
-
+            if (!string.IsNullOrWhiteSpace(imageUri)) button.ImageUri = imageUri;
             return button;
         }
 
@@ -222,31 +189,21 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
         private void Panel_ButtonClick(object sender, ButtonEventArgs e)
         {
             var button = e.Button as WindowsUIButton;
-            if (button == null)
-                return;
-
+            if (button == null) return;
             var action = ResolveAction(button);
-            if (action == PhieuActionBarAction.None)
-                return;
-
+            if (action == PhieuActionBarAction.None) return;
             ActionClicked.Invoke(this, new PhieuActionBarEventArgs(action, button));
         }
 
         private PhieuActionBarAction ResolveAction(WindowsUIButton button)
         {
             var tag = button.Tag as string;
-            if (string.IsNullOrWhiteSpace(tag) ||
-                !tag.StartsWith(ActionTagPrefix, StringComparison.Ordinal))
+            if (string.IsNullOrWhiteSpace(tag) || !tag.StartsWith(ActionTagPrefix, StringComparison.Ordinal))
                 return PhieuActionBarAction.None;
-
             var value = tag.Substring(ActionTagPrefix.Length);
-            if (value == "GhepLotToggle")
-                return PhieuActionBarAction.KiemTraGhepLot;
-
+            if (value == "GhepLotToggle") return PhieuActionBarAction.KiemTraGhepLot;
             PhieuActionBarAction action;
-            return Enum.TryParse(value, out action)
-                ? action
-                : PhieuActionBarAction.None;
+            return Enum.TryParse(value, out action) ? action : PhieuActionBarAction.None;
         }
     }
 }
