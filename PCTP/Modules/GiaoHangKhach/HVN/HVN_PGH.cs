@@ -2,24 +2,14 @@ using DevExpress.XtraBars.Docking2010;
 using DevExpress.XtraEditors;
 using DevExpress.XtraEditors.Controls;
 using DevExpress.XtraGrid.Views.Grid;
-using PCTP.Applications.Services;
-using PCTP.ClassSQL;
 using PCTP.Domain.Entities;
 using PCTP.Domain.Events;
-using PCTP.Infrastructure;
+
 using PCTP.Infrastructure.Repositories;
 
-using PCTP.Modules.GiaoHangKhach.OrderLoading;
-using PCTP.Modules.GiaoHangKhach.OrderLoading.Category;
-using PCTP.Modules.GiaoHangKhach.OrderLoading.GiaoDB;
-using PCTP.Modules.GiaoHangKhach.OrderLoading.IFS;
-using PCTP.Modules.GiaoHangKhach.Repositories;
 using PCTP.Modules.GiaoHangKhach.Services;
-using PCTP.Modules.KhoVatLy.Repositories;
-using PCTP.Modules.XuatKho.Repositories;
 using PCTP.Presentation.Presenters;
 using PCTP.Presentation.Views;
-using PCTP.Shared.Common;
 using PCTP.Shared.Helpers;
 using PCTP.Shared.Models;
 using System;

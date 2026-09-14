@@ -59,32 +59,83 @@ namespace PCTP.Presentation.Presenters
         private void OnInTachLot(object sender, EventArgs e) => _v.ShowTachLot();
         private void OnKiemTraGhepLot(object sender, EventArgs e) => _c.RunWithLoading(() => { DataTable dt = _c.PhieuSvc.LoadGhepLot(); _c.UiContext.Post(_ => _v.BindGhepLot(dt), null); }, "Đang kiểm tra ghép LOT...");
         private void OnKiemTraMaNG(object sender, EventArgs e) { string ma = _v.GetFocusedDonHangMaHang(); if (!string.IsNullOrWhiteSpace(ma)) _v.ShowKiemTraMaNG(ma); }
-        private void OnHoanThanh(object sender, EventArgs e) => _c.RunWithLoadingSync(() => { int n = _c.QrSvc.CountChuaDG(); if (n > 0) { DataTable t = _c.PhieuSvc.GetDonHangChuaLot(_c.QrSvc.IsBanSP); if (t != null && t.Rows.Count > 0) _c.LotSvc.TinhTongLot(t, _c.TenBan, _c.Cfg.Delivery.GetDocQRTable(_c.QrSvc.IsBanSP), _c.Cfg.Delivery.GetTmpTable(_c.QrSvc.IsBanSP), rows => _v.ShowChonSttTrungMa(rows)); if (_c.QrSvc.CountChuaDG() == 0) { _c.IsBanQR = false; _v.UnlockAllRadio(); } _v.SwitchToPhieuView(); DataTable latest = _c.PhieuSvc.GetDonHangHienTai(_c.TenBan); _c.SetupPhieuButtonsDefault(true, false, _c.PhieuSvc.CheckCoLotChuaCNK(latest)); return; } _c.IsBanQR = false; _c.QrSvc.SetCheDoBan(""); _v.UnlockAllRadio(); if (_c.GioXuatHienTai.Ma == "#") { DataTable d = _c.LoadPhieuGiaoDB(); _c.SetupPhieuButtonsDefault(true, false, _c.PhieuSvc.CheckCoLotChuaCNK(d)); } else { _v.SwitchToPhieuView(); _c.LoadPhieuHienTai(); } }, "Đang tổng hợp dữ liệu hoàn thành...");
+        private void OnHoanThanh(object sender, EventArgs e) => _c.RunWithLoadingSync(() =>
+        {
+            int n = _c.QrSvc.CountChuaDG();
+            if (n > 0)
+            {
+                DataTable t = _c.PhieuSvc.GetDonHangChuaLot(_c.QrSvc.IsBanSP);
+                if (t != null && t.Rows.Count > 0) _c.LotSvc.TinhTongLot(t, _c.TenBan, _c.Cfg.Delivery.GetDocQRTable(_c.QrSvc.IsBanSP), _c.Cfg.Delivery.GetTmpTable(_c.QrSvc.IsBanSP), rows => _v.ShowChonSttTrungMa(rows));
+                if (_c.QrSvc.CountChuaDG() == 0) { _c.IsBanQR = false; _v.UnlockAllRadio(); }
+                _v.SwitchToPhieuView();
+                DataTable latest = _c.PhieuSvc.GetDonHangHienTai(_c.TenBan);
+                // ✅ FIX: trước đây lấy `latest` chỉ để tính CheckCoLotChuaCNK rồi bỏ,
+                // không bao giờ bind lên grid -> quay về màn hình Phiếu bị trống trắng.
+                _v.BindDonHang(latest);
+                _c.SetupPhieuButtonsDefault(true, false, _c.PhieuSvc.CheckCoLotChuaCNK(latest));
+                return;
+            }
+            _c.IsBanQR = false;
+            _c.QrSvc.SetCheDoBan("");
+            _v.UnlockAllRadio();
+            if (_c.GioXuatHienTai.Ma == "#")
+            {
+                DataTable d = _c.LoadPhieuGiaoDB();
+                _c.SetupPhieuButtonsDefault(true, false, _c.PhieuSvc.CheckCoLotChuaCNK(d));
+            }
+            else
+            {
+                _v.SwitchToPhieuView();
+                _c.LoadPhieuHienTai();
+            }
+        }, "Đang tổng hợp dữ liệu hoàn thành...");
         private void OnLoaiPhieuChanged(object sender, EventArgs e) => _c.LoadPhieuHienTai();
         private void OnChonLotThuCong(object sender, ChonLotThuCongEventArgs e) { if (!_c.IsMayBanQR) return; DataTable lots = _c.PhieuSvc.GetDanhSachLotTuKho(e.MaHang); ChonLotResult r = _v.ShowChonLotTuKho(e.Stt, e.MaHang, e.SoLuong, lots); if (!r.Confirmed || string.IsNullOrWhiteSpace(r.LotGhep)) return; _c.PhieuSvc.NhapLotThuCong(e.Stt, r.LotGhep, _c.TenBan); _v.RefreshLotRow(e.Stt, r.LotGhep); _c.IsBanQR = true; _v.LockRadioExcept(_c.GioXuatHienTai.Ma); DataTable dt = _c.PhieuSvc.GetDonHangHienTai(_c.TenBan); _c.SetupPhieuButtonsDefault(_c.PhieuSvc.CheckCanCapNhapKho(dt), false, _c.PhieuSvc.CheckCoLotChuaCNK(dt)); }
         private void OnLayLaiLotNo(object sender, LayLaiLotEventArgs e) { if (!_v.Confirm($"Bạn có chắc chắn muốn reset dữ liệu LOT của dòng có STT {e.Stt} không?")) return; _c.RunWithLoadingSync(() => { _c.PhieuSvc.LayLaiLotNo(e.Stt, _c.QrSvc.IsBanSP); _c.LoadPhieuHienTai(); }, "Đang xử lý lấy lại số LOT..."); }
         private void OnXemHangThieuCaNgay(object sender, EventArgs e) => _c.RunWithLoading(() => { DataTable dt = _c.HangThieuCaNgayService.TinhHangThieuCaNgay(_v.SelectedDate, _c.GetNhaMay(), _c.AddNM, _c.Cfg); _c.UiContext.Post(_ => _v.ShowHangThieuCaNgay(dt), null); }, "Đang tính hàng thiếu cả ngày...");
         private void XetTrangThai()
         {
-            _c.RunWithLoadingSync(() => { if (!_c.IsMayBanQR) { _c.IsBanQR = false; _v.UnlockAllRadio(); _v.UnlockDatePicker(); 
-                    _c.LoadPhieuHienTai(); return; } 
+            _c.RunWithLoadingSync(() => {
+                if (!_c.IsMayBanQR)
+                {
+                    _c.IsBanQR = false; _v.UnlockAllRadio(); _v.UnlockDatePicker();
+                    _c.LoadPhieuHienTai(); return;
+                }
                 var tt = _c.PhieuSvc.GetTrangThaiDangBan();
                 if (!tt.DangBan && _c.Cfg.Delivery.CoConfigSP)
-                { var sp = _c.PhieuSvc.GetTrangThaiDangBanSP(); 
-                    if (sp.DangBan) { tt = sp;
-                        _c.PhieuSvc.SetTrangThaiBan(true, true); 
-                        _c.QrSvc.SetCheDoBanSP(true); } } 
-                if (!tt.DangBan) { _c.IsBanQR = false; _c.QrSvc.SetCheDoBanSP(false); _v.UnlockAllRadio(); _v.UnlockDatePicker();
-                    _c.LoadPhieuHienTai(); return; } if (tt.DataKhongKhop) { if (_c.DocQrView.HoiXoaDocQR()) _c.PhieuSvc.XoaDocQRCode(); _c.IsBanQR = false;
-                    _c.QrSvc.SetCheDoBanSP(false); _v.UnlockAllRadio(); _v.UnlockDatePicker(); _c.LoadPhieuHienTai(); return; } 
-                if (DateTime.TryParse(tt.NgayGiao, out DateTime ngay)) _v.SetDate(ngay); 
-                _c.AddNM = _c.Cfg.Delivery.CoNhieuNhaMay ? tt.AddNM : _c.Cfg.Delivery.AddNmMacDinh; 
-                if (_c.Cfg.Delivery.CoNhieuNhaMay) _v.SetTab(tt.AddNM); _c.IsBanQR = true; 
-                _v.LockDatePicker(); 
-                if (_c.Cfg.Delivery.CoGear) { 
+                {
+                    var sp = _c.PhieuSvc.GetTrangThaiDangBanSP();
+                    if (sp.DangBan)
+                    {
+                        tt = sp;
+                        _c.PhieuSvc.SetTrangThaiBan(true, true);
+                        _c.QrSvc.SetCheDoBanSP(true);
+                    }
+                }
+                if (!tt.DangBan)
+                {
+                    _c.IsBanQR = false; _c.QrSvc.SetCheDoBanSP(false); _v.UnlockAllRadio(); _v.UnlockDatePicker();
+                    _c.LoadPhieuHienTai(); return;
+                }
+                if (tt.DataKhongKhop)
+                {
+                    if (_c.DocQrView.HoiXoaDocQR()) _c.PhieuSvc.XoaDocQRCode(); _c.IsBanQR = false;
+                    _c.QrSvc.SetCheDoBanSP(false); _v.UnlockAllRadio(); _v.UnlockDatePicker(); _c.LoadPhieuHienTai(); return;
+                }
+                if (DateTime.TryParse(tt.NgayGiao, out DateTime ngay)) _v.SetDate(ngay);
+                _c.AddNM = _c.Cfg.Delivery.CoNhieuNhaMay ? tt.AddNM : _c.Cfg.Delivery.AddNmMacDinh;
+                if (_c.Cfg.Delivery.CoNhieuNhaMay) _v.SetTab(tt.AddNM); _c.IsBanQR = true;
+                _v.LockDatePicker();
+                if (_c.Cfg.Delivery.CoGear)
+                {
                     var gs = _c.ParseGioYMVN(tt.GioGiaoFCC); bool sp = _c.CategoryResolver.Resolve(new OrderLoadContext { GioFccMoTa = tt.GioGiaoFCC }) == OrderCategory.SP; _c.QrSvc.SetCheDoBanSP(sp); _v.SuspendGioXuatChanged(); try { _c.YmvnView.SetCheckedGiosYMVN(gs); _c.YmvnView.LockCheckListYMVN(); } finally { _v.ResumeGioXuatChanged(); }
-                    _c.LoadPhieuHienTai(); return; } 
-                string gio = tt.GioGiaoFCC, ma = "", mota = ""; var ds = _c.AddNM == 1 ? _c.GioXuatRepo.GetDanhSachGioVP() : _c.GioXuatRepo.GetDanhSachGioHN(); foreach (var g in ds) { string mb = GioXuatRepository.ParseGioThuong(g.MoTa); if (mb.Contains($"'{gio}'")) { ma = g.Ma; mota = g.MoTa; break; } } if (string.IsNullOrEmpty(ma)) { ma = $"'{gio}'"; mota = gio + "H"; } _c.QrSvc.SetCheDoBanSP(_c.CategoryResolver.Resolve(new OrderLoadContext { GioFccMoTa = mota }) == OrderCategory.SP); _v.SuspendGioXuatChanged(); try { _c.GioXuatHienTai = new GioXuat(ma, mota); _c.GiaoDbView.UpdateGioXuatFromDB(ma); _v.LockRadioExcept(ma); } finally { _v.ResumeGioXuatChanged(); } _c.LoadPhieuHienTai(); }, "Đang kiểm tra trạng thái phiên làm việc cũ...");
+                    _c.LoadPhieuHienTai(); return;
+                }
+                string gio = tt.GioGiaoFCC, ma = "", mota = ""; var ds = _c.AddNM == 1 ? _c.GioXuatRepo.GetDanhSachGioVP() : _c.GioXuatRepo.GetDanhSachGioHN(); foreach (var g in ds) { string mb = GioXuatRepository.ParseGioThuong(g.MoTa); if (mb.Contains($"'{gio}'")) { ma = g.Ma; mota = g.MoTa; break; } }
+                if (string.IsNullOrEmpty(ma)) { ma = $"'{gio}'"; mota = gio + "H"; }
+                _c.QrSvc.SetCheDoBanSP(_c.CategoryResolver.Resolve(new OrderLoadContext { GioFccMoTa = mota }) == OrderCategory.SP); _v.SuspendGioXuatChanged(); try { _c.GioXuatHienTai = new GioXuat(ma, mota); _c.GiaoDbView.UpdateGioXuatFromDB(ma); _v.LockRadioExcept(ma); } finally { _v.ResumeGioXuatChanged(); }
+                _c.LoadPhieuHienTai();
+            }, "Đang kiểm tra trạng thái phiên làm việc cũ...");
         }
         private void OnPhieuLoaded(PhieuLoadedEvent e)
         {
