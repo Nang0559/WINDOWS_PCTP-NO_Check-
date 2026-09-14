@@ -1,5 +1,6 @@
 ﻿<Project>
   <ItemGroup>
+    <!-- GiaoHangKhach UI/application sources must be part of the legacy PCTP build graph. -->
     <Compile Include="Modules\GiaoHangKhach\Services\DocQRScanEngine.cs" />
     <Compile Include="Modules\GiaoHangKhach\Services\DocQRSessionState.cs" />
     <Compile Include="Modules\GiaoHangKhach\Services\DocQRTableResolver.cs" />
@@ -10,12 +11,17 @@
     <Compile Include="Presentation\Presenters\YmvnPresenter.cs" />
     <Compile Include="Modules\GiaoHangKhach\HVN\Controls\PhieuGridControl.cs" />
     <Compile Include="Modules\GiaoHangKhach\HVN\Controls\DocQrControl.cs" />
+    <Compile Include="Modules\GiaoHangKhach\HVN\Controls\DocQrInputControl.cs" />
     <Compile Include="Modules\GiaoHangKhach\HVN\Controls\GiaoDbControl.cs" />
     <Compile Include="Modules\GiaoHangKhach\HVN\Controls\YmvnControl.cs" />
+    <Compile Include="Modules\GiaoHangKhach\HVN\Controls\PhieuActionBarControl.cs" />
     <Compile Include="Modules\GiaoHangKhach\HVN\Controls\PhieuBottomStateControl.cs" />
+    <Compile Include="Modules\GiaoHangKhach\HVN\Controls\PhieuDialogControl.cs" />
     <Compile Include="Modules\GiaoHangKhach\HVN\Controls\PhieuHeaderControl.cs" />
     <Compile Include="Modules\GiaoHangKhach\HVN\Controls\HangThieuControl.cs" />
     <Compile Include="Modules\GiaoHangKhach\HVN\HVN_PGH.PhieuGridMigration.cs" />
+
+    <!-- Central stock boundary and transitional adapters. -->
     <Compile Include="Modules\KhoCore\Application\Contracts\Stock\IStockBalanceRepository.cs" />
     <Compile Include="Modules\KhoCore\Application\Contracts\Stock\IStockMovementService.cs" />
     <Compile Include="Modules\KhoCore\Application\Contracts\Stock\IStockSlotRepository.cs" />
@@ -29,10 +35,6 @@
     <Compile Include="Modules\NhapKho\Application\Adapters\StockReceivingRepositoryAdapter.cs" />
   </ItemGroup>
 
-  <!--
-    Final build normalization for the legacy PCTP project.
-    This target intentionally does not execute tests, database checks, or deployment.
-  -->
   <PropertyGroup>
     <WarningLevel>4</WarningLevel>
     <LangVersion>7.3</LangVersion>
