@@ -1,35 +1,35 @@
-﻿using DevExpress.XtraReports.Design;
-using PCTP.Common;
-using PCTP.Modules.KhoVatLy.Application.Interfaces;
-using PCTP.Modules.KhoVatLy.Application.Services;
+﻿using PCTP.Common;
+using PCTP.Modules.KhoCore.Application.Contracts.Stock;
 using PCTP.Modules.KhoVatLy.Kho.Models;
 using PCTP.Modules.KhoVatLy.Repositories;
 using PCTP.Shared.Common;
-using PCTP.VIEWSTOCK.Fuction;
-using PCTP.VIEWSTOCK.FunctionForm;
 using PCTP.VIEWSTOCK.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace PCTP.VIEWSTOCK.Services
 {
     /// <summary>
-    /// Điều chỉnh kho ảo A0 (BulkImportConfig) khi hàng đã nhập vào A0 sau đó được
-    /// Cập Nhập Kho (CNK) xuất đi qua luồng HVN/YMVN/HTN thông thường — A0 phải tự
-    /// trừ theo đúng LOT + số lượng đã xuất, KHÔNG chờ người dùng thao tác thủ công.
+    /// Điều chỉnh kho ảo A0 khi hàng đã nhập vào A0 sau đó được xuất đi qua
+    /// luồng CNK thông thường.
+    ///
+    /// Physical stock mutation MUST go through IStockMovementService.
+    /// IBulkStockSlotRepository is retained only for virtual-slot resolution,
+    /// locking and read/query responsibilities during the migration.
     /// </summary>
     public sealed class BulkStockAdjustService
     {
         private readonly IBulkStockSlotRepository _bulkRepo;
         private readonly IStockHistoryRepository _historyRepo;
         private readonly IUnitOfWork _uow;
+        private readonly IStockMovementService _stockMovement;
+
         public BulkStockAdjustService(
-        IBulkStockSlotRepository bulkRepo,
-       IStockHistoryRepository historyRepo,
-        IUnitOfWork uow)
+            IBulkStockSlotRepository bulkRepo,
+            IStockHistoryRepository historyRepo,
+            IUnitOfWork uow,
+            IStockMovementService stockMovement = null)
         {
             _bulkRepo = bulkRepo
                 ?? throw new ArgumentNullException(nameof(bulkRepo));
@@ -39,28 +39,29 @@ namespace PCTP.VIEWSTOCK.Services
 
             _uow = uow
                 ?? throw new ArgumentNullException(nameof(uow));
+
+            _stockMovement = stockMovement;
         }
 
         /// <summary>
         /// Tự động trừ số lượng xuất khỏi Slot ảo A0 theo LOT.
         ///
-        /// - Đọc LOT trực tiếp từ SlotService.
-        /// - So khớp LOT bằng LotCodeHelper.AreLotKeysEquivalent().
-        /// - Trừ theo FIFO dựa trên ImportDate.
-        /// - Lưu lại SlotLot.
-        /// - Đồng bộ Header Slot từ danh sách LOT còn lại.
-        /// - Ghi StockHistory.
-        ///
-        /// Không phụ thuộc StockService.
+        /// - Resolve + lock Slot A0 locally.
+        /// - Read candidate LOTs only for validation/item resolution.
+        /// - Mutate Slot/SlotLot through central IStockMovementService.Pick().
+        /// - Record StockHistory in the same transaction.
         /// </summary>
         public bool TruKhoAoTheoLot(string lotNo, int slXuat)
         {
-            if (slXuat <= 0 || string.IsNullOrWhiteSpace(lotNo)) return false;
+            if (slXuat <= 0 || string.IsNullOrWhiteSpace(lotNo))
+                return false;
+
+            if (_stockMovement == null)
+                throw new InvalidOperationException(
+                    "Chưa cấu hình IStockMovementService cho BulkStockAdjustService.");
 
             int slotId;
             List<LotInfo> candidates;
-            List<LotInfo> remaining;
-            int conLai = slXuat;
 
             _uow.Begin();
             try
@@ -72,7 +73,7 @@ namespace PCTP.VIEWSTOCK.Services
 
                 _bulkRepo.LockSlotForUpdate(slotId);
 
-                var lots = _bulkRepo.GetLots(slotId);
+                var lots = _bulkRepo.GetLots(slotId) ?? new List<LotInfo>();
                 candidates = lots
                     .Where(l => l.Quantity > 0)
                     .Where(l => LotCodeHelper.AreLotKeysEquivalent(l.LotNo, lotNo))
@@ -85,48 +86,78 @@ namespace PCTP.VIEWSTOCK.Services
                     return false;
                 }
 
-                foreach (var lot in candidates)
+                var itemCode = candidates
+                    .Select(x => x.ItemCode)
+                    .FirstOrDefault(x => !string.IsNullOrWhiteSpace(x));
+
+                if (string.IsNullOrWhiteSpace(itemCode))
                 {
-                    if (conLai <= 0) break;
-                    int tru = Math.Min(conLai, lot.Quantity);
-                    lot.Quantity -= tru;
-                    conLai -= tru;
-                    if (lot.QRInfo != null) lot.QRInfo.Quantity = lot.Quantity;
+                    _uow.Rollback();
+                    return false;
                 }
 
-                remaining = lots.Where(l => l.Quantity > 0).ToList();
-                _bulkRepo.SaveLots(slotId, remaining);
-                _bulkRepo.UpdateSlotHeaderFromLots(slotId, remaining);
+                int available = candidates.Sum(x => x.Quantity);
+                int quantity = Math.Min(slXuat, available);
 
-                _uow.Commit(); // ← transaction kết thúc TẠI ĐÂY
+                if (quantity <= 0)
+                {
+                    _uow.Rollback();
+                    return false;
+                }
+
+                var movement = _stockMovement.Pick(new StockMovementRequest
+                {
+                    MovementType = StockMovementRequest.Types.Pick,
+                    SlotId = slotId,
+                    LotNo = lotNo,
+                    ItemCode = itemCode,
+                    Quantity = quantity,
+                    OccurredAt = DateTime.Now,
+                    PerformedBy = "SYSTEM_HVN_CNK",
+                    Reason = "EXPORT_AUTO_HVN"
+                });
+
+                if (!movement.Success)
+                {
+                    _uow.Rollback();
+                    return false;
+                }
+
+                int slThucTeDaTru = movement.ConsumedLots == null
+                    ? quantity
+                    : movement.ConsumedLots.Sum(x => x.Quantity);
+
+                _historyRepo.SaveHistory(
+                    "EXPORT_AUTO_HVN",
+                    itemCode,
+                    new LotInfo
+                    {
+                        ItemCode = itemCode,
+                        LotNo = lotNo,
+                        Quantity = slThucTeDaTru
+                    },
+                    slotId,
+                    null,
+                    "SYSTEM_HVN_CNK");
+
+                _uow.Commit();
+
+                if (quantity < slXuat)
+                {
+                    System.Diagnostics.Debug.WriteLine(
+                        string.Format(
+                            "[BulkStockAdjust] A0 thiếu {0} cho LOT {1}.",
+                            slXuat - quantity,
+                            lotNo));
+                }
+
+                return true;
             }
             catch
             {
-                _uow.Rollback();
+                try { _uow.Rollback(); } catch { }
                 throw;
             }
-
-            // ── Side-effect KHÔNG thuộc transaction chính — lỗi ở đây không được
-            // phép làm caller nghĩ là thao tác trừ kho thất bại ──────────────────
-            int slThucTeDaTru = slXuat - Math.Max(conLai, 0);
-            try
-            {
-                _historyRepo.SaveHistory("EXPORT_AUTO_HVN", candidates[0].QRInfo?.ItemCode,
-                    new LotInfo { LotNo = lotNo, Quantity = slThucTeDaTru },
-                    slotId, null, "SYSTEM_HVN_CNK");
-            }
-            catch (Exception ex)
-            {
-                // Không throw — trừ kho đã commit thành công, chỉ log ghi sử thất bại
-                System.Diagnostics.Debug.WriteLine(
-                    $"[BulkStockAdjust] Trừ kho OK nhưng ghi StockHistory lỗi cho LOT {lotNo}: {ex.Message}");
-            }
-
-            if (conLai > 0)
-                System.Diagnostics.Debug.WriteLine(
-                    $"[BulkStockAdjust] CẢNH BÁO: A0 thiếu {conLai} cho LOT {lotNo}.");
-
-            return true;
         }
     }
 }
