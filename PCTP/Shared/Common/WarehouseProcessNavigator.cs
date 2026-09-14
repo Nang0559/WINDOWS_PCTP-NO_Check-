@@ -2,6 +2,7 @@
 using PCTP.Modules.GiaoHangKhach;
 using PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao;
 using PCTP.Modules.GiaoHangKhach.Repositories;
+using PCTP.Modules.KhoCore.Application.Contracts.Stock;
 using PCTP.Modules.KhoVatLy;
 using PCTP.Modules.KhoVatLy.Application.Services;
 using PCTP.Modules.KhoVatLy.Repositories;
@@ -20,10 +21,6 @@ using PCTP.VIEWSTOCK.Repository;
 using PCTP.VIEWSTOCK.ViewForm;
 using PCTP.YMN;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace PCTP.Common
@@ -83,18 +80,32 @@ namespace PCTP.Common
             OpenQuanLyTienTrinhHangLoi(owner, preselectId);
         }
 
-        private static IGiaoBuNGService CreateGiaoBuNGService()
+        /// <summary>
+        /// Dựng GiaoBuNG trên cùng DB executor/UoW và cùng central stock movement
+        /// với XuLyHangLoi. Không được tạo UoW riêng cho workflow đang chạy.
+        /// </summary>
+        private static IGiaoBuNGService CreateGiaoBuNGService(
+            PhieuSqlExecutor sql,
+            IUnitOfWork uow,
+            ISlotService slotService,
+            IStockMovementService stockMovement)
         {
-            var provider = new SQLPROVIDER();
-            var sql = new PhieuSqlExecutor(provider);
-            var uow = new UnitOfWork(provider);
+            if (sql == null)
+                throw new ArgumentNullException(nameof(sql));
+            if (uow == null)
+                throw new ArgumentNullException(nameof(uow));
+            if (slotService == null)
+                throw new ArgumentNullException(nameof(slotService));
+            if (stockMovement == null)
+                throw new ArgumentNullException(nameof(stockMovement));
 
-            var slotRepo = new SlotRepository(sql, uow);
-            var slotService = new SlotService(slotRepo);
             var coreHistoryRepo = new StockHistoryRepository(sql, uow);
             var stockExportRepo = new StockExportRepository(sql, uow);
             var stockHistoryRepo = new StockHistoryRepository(sql, uow);
-            var stockExportHistoryRepo = new StockExportHistoryRepository(sql, uow, coreHistoryRepo);
+            var stockExportHistoryRepo = new StockExportHistoryRepository(
+                sql,
+                uow,
+                coreHistoryRepo);
             var choGiaoRepo = new HangChoGiaoRepository(sql, uow);
 
             var validationService = new StockExportValidationService(
@@ -104,12 +115,15 @@ namespace PCTP.Common
             var stockExportService = new StockExportService(
                 uow,
                 slotService,
-                stockExportRepo,
                 stockHistoryRepo,
                 choGiaoRepo,
-                validationService);
+                validationService,
+                stockMovement);
 
-            return new GiaoBuNGService(stockExportService, choGiaoRepo, slotService);
+            return new GiaoBuNGService(
+                stockExportService,
+                choGiaoRepo,
+                slotService);
         }
 
         public static void OpenQuanLyTienTrinhHangLoi(
@@ -141,7 +155,11 @@ namespace PCTP.Common
             var slotService = module.SlotService;
             var reworkStockService = module.ReworkStockService;
 
-            var giaoBuNGService = CreateGiaoBuNGService();
+            var giaoBuNGService = CreateGiaoBuNGService(
+                sql,
+                uow,
+                slotService,
+                module.StockMovement);
 
             var qtChungService = new QTChungService(
                 phieuXuLyRepo,
