@@ -45,6 +45,20 @@ namespace PCTP.Presentation.Presenters
         internal bool IsLoadingPhieu;
         internal bool AwaitingPhieuLoadedEvent;
 
+        // ── Chặn chồng lệnh (reentrancy guard) ──────────────────────────────
+        // Dùng chung cho RunWithLoading và RunWithLoadingSync. Trước đây
+        // RunWithLoadingSync gọi Application.DoEvents() ngay trước khi chạy
+        // action() — việc này bơm message queue và cho phép một dialog modal
+        // bên trong action() (vd HoiXoaDocQR() dùng XtraMessageBox.Show, bản
+        // thân dialog modal cũng tự bơm message loop) hoặc timer khác gọi
+        // ngược lại RunWithLoading/RunWithLoadingSync trong lúc lệnh trước
+        // chưa xong, khiến 2 câu lệnh SQL cùng logic chạy chồng lên nhau và
+        // gây "There is already an open DataReader..." khi 1 trong 2 connection
+        // bị timeout/nhiễm rồi trả về pool. Cờ này đảm bảo tại một thời điểm
+        // chỉ có tối đa 1 action() đang thực sự chạy; lệnh gọi chồng sẽ bị bỏ
+        // qua thay vì chạy song song.
+        private int _busy;
+
         internal HVNPresenterContext(IHVNView view, IPhieuService phieuSvc, IPhieuLotService lotSvc, IDocQRService qrSvc, IInPhieuService inPhieuSvc, IHangThieuCaNgayService hangThieuCaNgayService, IGioXuatRepository gioXuatRepo, IEventBus bus, bool isMayBanQR, string tenBan, CustomerConfig cfg, IOrderCategoryResolver categoryResolver)
         {
             View = view ?? throw new ArgumentNullException(nameof(view));
@@ -70,13 +84,33 @@ namespace PCTP.Presentation.Presenters
         internal string GetNhaMay() => !Cfg.Delivery.CoNhieuNhaMay ? Cfg.Delivery.TenNhaMay : (AddNM == 1 ? "HON DA - VIET NAM(NHA MAY VP)" : "HON DA - VIET NAM(NHA MAY HA NAM)");
         internal void RunWithLoading(Action action, string caption = "Đang xử lý...")
         {
-            View.ShowLoading(true, caption); Task.Run(() => { try { action(); } catch (Exception ex) { UiContext.Post(_ => View.ShowError("Lỗi hệ thống: " + ex.Message), null); } finally { UiContext.Post(_ => View.ShowLoading(false), null); } });
+            if (Interlocked.CompareExchange(ref _busy, 1, 0) != 0)
+                return; // đang có thao tác khác chạy dở -> bỏ qua để tránh chồng lệnh SQL
+
+            View.ShowLoading(true, caption);
+            Task.Run(() =>
+            {
+                try { action(); }
+                catch (Exception ex) { UiContext.Post(_ => View.ShowError("Lỗi hệ thống: " + ex.Message), null); }
+                finally
+                {
+                    Interlocked.Exchange(ref _busy, 0);
+                    UiContext.Post(_ => View.ShowLoading(false), null);
+                }
+            });
         }
         internal void RunWithLoadingSync(Action action, string caption = "Đang xử lý...")
         {
-            try { View.ShowLoading(true, caption); Application.DoEvents(); action(); }
+            if (Interlocked.CompareExchange(ref _busy, 1, 0) != 0)
+                return; // đang có thao tác khác chạy dở -> bỏ qua để tránh chồng lệnh SQL
+
+            try { View.ShowLoading(true, caption); action(); }
             catch (Exception ex) { View.ShowError("Lỗi: " + ex.Message); }
-            finally { HideLoadingUnlessAwaitingPhieuLoad(); }
+            finally
+            {
+                Interlocked.Exchange(ref _busy, 0);
+                HideLoadingUnlessAwaitingPhieuLoad();
+            }
         }
         internal void HideLoadingUnlessAwaitingPhieuLoad() { if (!AwaitingPhieuLoadedEvent) View.ShowLoading(false); }
         internal void LoadGioXuatYMVN()

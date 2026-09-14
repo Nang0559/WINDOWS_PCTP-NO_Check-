@@ -16,7 +16,7 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
     /// </summary>
     public sealed class GiaoDbControl : XtraUserControl
     {
-        private PhieuService _phieuService;
+        private IPhieuService _phieuService;
 
         public GiaoDbControl()
         {
@@ -27,7 +27,7 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
         /// Supplies the application service required by the legacy GiaoDB
         /// upload/manual dialog. The control does not execute the workflow.
         /// </summary>
-        public void Configure(PhieuService phieuService)
+        public void Configure(IPhieuService phieuService)
         {
             _phieuService = phieuService ?? throw new ArgumentNullException(nameof(phieuService));
         }

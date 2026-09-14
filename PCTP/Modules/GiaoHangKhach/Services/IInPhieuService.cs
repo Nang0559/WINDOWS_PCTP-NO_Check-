@@ -15,6 +15,6 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             string nhaMay, int addNm, int hinhThucIn, DataTable addressTable);
         DataTable BuildReportDataYMVN(DataTable donHang);
         DataTable BuildReportDataTuBangRieng(DataTable donHang, DataTable addressTable, string ngayXuat);
-        DataTable InGhepLot(IEnumerable<GhepLotItem> selectedRows = null);
+        DataTable InGhepLot(IEnumerable<GhepLotItem> selectedRows, string machineName);
     }
 }

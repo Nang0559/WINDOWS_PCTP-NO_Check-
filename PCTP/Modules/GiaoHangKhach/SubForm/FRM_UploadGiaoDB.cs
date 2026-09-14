@@ -19,7 +19,7 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
 {
     public class FRM_UploadGiaoDB : XtraForm
     {
-        private readonly PhieuService _phieuSvc;
+        private readonly IPhieuService _phieuSvc;
         private readonly DataTable _danhSachMaHang;
 
         private readonly HashSet<string> _maHangHopLe;
@@ -53,7 +53,7 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
         // Controls chế độ nhập tay
         private SimpleButton btnThemDong, btnXoaDong;
 
-        public FRM_UploadGiaoDB(PhieuService phieuSvc)
+        public FRM_UploadGiaoDB(IPhieuService phieuSvc)
         {
             _phieuSvc = phieuSvc ?? throw new ArgumentNullException(nameof(phieuSvc));
             ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
