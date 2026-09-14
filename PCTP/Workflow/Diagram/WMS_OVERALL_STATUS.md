@@ -1,6 +1,6 @@
 # WMS OVERALL STATUS
 
-> Snapshot at commit `61d1064910bc1dd3b1a4cfcdceaf7311ebe2164b`.
+> Snapshot at commit `8b17d32ae6f4436e8209e83bedfe08991f20be38`.
 
 ## 1. Tổng quan kiến trúc hiện tại
 
@@ -27,17 +27,63 @@ XuLyHangLoi ───────────┤
 | Phase | Status | Ghi chú |
 |---|---|---|
 | Phase 1 - Architecture contract | 🟡 90% | Contract/rules/ownership/state-machine đã có; còn dọn tài liệu legacy mâu thuẫn. |
-| Phase 2 - KhoCore consolidation | 🟡 70% | Contract mới và adapter boundary đã có; Slot/SlotLot/STOCKTP/History chưa hoàn toàn về KhoCore. |
-| Phase 3 - Central StockMovement | 🟡 80% | Central write boundary đã hoạt động; còn legacy caller proof, XuLyHangLoi composition, idempotency và tests. |
-| Phase 4 - NhapKho | 🟢 90% | Receiving mutation đã qua StockMovement; còn audit/direct-write cleanup. |
-| Phase 5 - XuatKho | 🟢 95% | PICK/EXPORT chính đã qua StockMovement; còn legacy adapter/read cleanup. |
-| Phase 6 - GiaoHangKhach | 🟢 100% | 12A-12H hoàn tất; BulkStockAdjust đã bỏ direct A0 SlotLot mutation. |
-| Phase 7 - XuLyHangLoi | 🟡 75% | Rework stock mutation đã qua StockMovement; composition root và remaining direct writes cần chứng minh sạch. |
-| Phase 8 - Shared cleanup | 🔴 Chưa đóng | Chưa phải ưu tiên trước khi stock write boundary sạch. |
-| Phase 9 - Legacy cleanup | 🔴 Chưa đóng | Chỉ xóa sau khi caller/reference verification hoàn tất. |
-| Phase 10 - Verification | 🟡 25% | Build là developer-run gate; static scan/integration/concurrency/reconciliation tests còn thiếu. |
+| Phase 2 - KhoCore consolidation | 🟡 70% | Contract mới và adapter boundary đã có; physical ownership chưa hoàn toàn về KhoCore. |
+| Phase 3 - Central StockMovement | 🟡 85% | Central boundary + source LOT invariant + legacy NhapKho writer cleanup đã làm; còn composition, idempotency và tests. |
+| Phase 4 - NhapKho | 🟢 95% | Receiving mutation qua StockMovement; legacy export/correction escape hatches đã loại khỏi NhapKho contract. |
+| Phase 5 - XuatKho | 🟢 95% | PICK/EXPORT chính qua StockMovement; còn transitional adapter/read cleanup. |
+| Phase 6 - GiaoHangKhach | 🟢 100% | 12A-12H hoàn tất; BulkStockAdjust không còn direct A0 SlotLot mutation. |
+| Phase 7 - XuLyHangLoi | 🟡 75% | Rework mutation qua StockMovement; composition root cần chứng minh. |
+| Phase 8 - Shared cleanup | 🔴 Chưa đóng | Chưa ưu tiên trước khi verification gate sạch. |
+| Phase 9 - Legacy cleanup | 🟡 30% | Một nhóm legacy writer đã được loại; transitional adapters vẫn còn. |
+| Phase 10 - Verification | 🟡 30% | Static source review đã tiến thêm; build/integration/concurrency tests còn thiếu. |
 
-## 3. Những phần đã hoàn thành quan trọng
+## 3. Bốn việc lớn — trạng thái thực tế
+
+### 1. Legacy caller verification / writer cleanup — 🟢 ĐÃ XỬ LÝ PHẦN CODE
+
+Đã loại khỏi business-facing NhapKho contracts:
+
+- `IStockTpRepository.XuatKhoThat(...)`
+- `IStockTpRepository.DieuChinhSlConLai(...)`
+- `IStockTpLookupService.DieuChinhSlConLai(...)`
+
+SQL implementation tương ứng cũng đã bị xóa khỏi `StockTpRepository`.
+
+`InsertStockTp` / `UpdateStockTp` vẫn giữ vì đây là receiving semantics và đang được central movement gọi qua `IStockReceivingRepository`.
+
+**Gate còn lại:** chạy Visual Studio build để chứng minh không còn caller compile-time nào bên ngoài source review.
+
+### 2. XuLyHangLoi composition root — 🟡 ĐANG XỬ LÝ / CHƯA ĐÓNG
+
+`ReworkStockService` bắt buộc nhận `IStockMovementService`.
+
+Form layer cũng nhận `IReworkStockService` qua constructor, không tự tạo movement service.
+
+Tuy nhiên chưa xác định được một composition factory riêng trong repository tree để chứng minh toàn bộ workflow đang dùng cùng dependency graph/UoW.
+
+**Gate:** xác định đúng điểm tạo `ReworkStockService` và kiểm tra wiring thực tế.
+
+### 3. Idempotency — 🔴 CHƯA IMPLEMENT
+
+`StockMovementRequest` có `ReferenceType/ReferenceId`, nhưng `StockHistory` hiện chưa có durable/queryable business-key contract tương ứng.
+
+Không dùng hai field này như idempotency key cho tới khi xác minh DB schema.
+
+**Gate:** xác định business key thật trong DB hoặc thêm bảng movement/idempotency có unique key.
+
+### 4. Tests / verification — 🟡 CHƯA ĐÓNG
+
+Cần chạy/viết:
+
+- build .NET Framework 4.7.2 / C# 7.3
+- stock transaction integration tests
+- concurrency/locking tests
+- Rework round-trip
+- Pick -> Delivery -> Export
+- Receive -> Slot/Lot -> STOCKTP reconciliation
+- static dependency scan
+
+## 4. Những phần đã hoàn thành quan trọng
 
 - `IStockMovementService` + `StockMovementService` là write boundary trung tâm.
 - `Receive`, `Pick`, `Export`, `Move`, `ReturnFromRework`, `Correct` đã có contract.
@@ -45,76 +91,48 @@ XuLyHangLoi ───────────┤
 - XuatKho physical PICK/EXPORT chính đã chuyển sang central movement.
 - GiaoHangKhach `BulkStockAdjustService` không còn `SaveLots`/`UpdateSlotHeaderFromLots`.
 - XuLyHangLoi `ReworkStockService` đã chuyển mutation sang central movement.
-- `IStockSlotRepository.TakeLot` bắt buộc `ItemCode` để tránh lấy nhầm LOT tương đương của item khác.
-- `StockMovementService` đã kiểm tra `SlotLotId -> LotNo/ItemCode` trước khi `Export/Move`, ngăn lỗi decrement STOCKTP LOT A nhưng giảm SlotLot LOT B.
-- Legacy Slot mutation logic đã được gom vào `LegacyStockSlotRepositoryAdapter`.
-- `IBulkStockSlotRepository` hiện chỉ resolve/lock/query.
+- `IStockSlotRepository.TakeLot` bắt buộc `ItemCode`.
+- `StockMovementService` kiểm tra `SlotLotId -> LotNo/ItemCode` trước `Export/Move`.
+- Legacy Slot mutation logic đã gom vào `LegacyStockSlotRepositoryAdapter`.
+- `IBulkStockSlotRepository` chỉ resolve/lock/query.
+- Legacy NhapKho export/correction writer contracts đã được loại bỏ.
 
-## 4. Các điểm CHƯA được coi là hoàn thành
-
-### A. Legacy stock caller verification — BLOCKER
-
-Chưa có bằng chứng đủ mạnh rằng toàn bộ caller của:
-
-- `IStockTpRepository.XuatKhoThat`
-- `IStockTpRepository.DieuChinhSlConLai`
-
-đã biến mất. GitHub code-search hiện không trả kết quả, nhưng code-search miss không được coi là proof.
-
-### B. XuLyHangLoi composition root — BLOCKER
-
-`ReworkStockService` yêu cầu `IStockMovementService`, nhưng chưa xác định được một composition factory riêng trong tree. Cần tìm đúng điểm khởi tạo service và bảo đảm movement service được compose một lần, không `new` ad-hoc trong Form.
-
-### C. Idempotency — CHƯA LÀM
-
-`StockMovementRequest` có `ReferenceType/ReferenceId`, nhưng `StockHistory` hiện chưa có durable/queryable business-key contract tương ứng. Không được giả lập idempotency bằng field chưa được persist.
-
-### D. KhoCore ownership — CHƯA ĐÓNG
-
-KhoCore chưa phải physical sole owner của toàn bộ Slot/SlotLot/STOCKTP/StockHistory. Hiện vẫn dùng transitional adapters vào KhoVatLy/NhapKho/XuatKho.
-
-### E. Verification tests — CHƯA ĐÓNG
-
-Còn cần:
-
-- stock transaction integration tests
-- concurrency/locking tests
-- Rework round-trip
-- Pick -> Delivery -> Export
-- Receiving -> Slot/Lot -> STOCKTP reconciliation
-- static dependency scan
-
-## 5. Bước tiếp theo theo đúng thứ tự
+## 5. Thứ tự tiếp theo
 
 ```text
-1. Xác minh caller legacy thực tế
-       |
-       +--> XuatKhoThat
-       +--> DieuChinhSlConLai
-       |
-2. Xác minh composition XuLyHangLoi
-       |
-3. Nếu còn direct writer -> migrate
-       |
-4. Nếu không còn caller -> thu hẹp/xóa legacy mutation API
-       |
-5. Xác minh DB business key
-       |
-6. Thiết kế idempotency durable
-       |
-7. Integration + concurrency tests
-       |
-8. Static dependency scan
-       |
-9. KhoCore physical ownership migration
-       |
-10. Legacy cleanup / Phase 9
+[ĐÃ LÀM]
+Legacy writer cleanup
+        |
+        v
+[TIẾP]
+XuLyHangLoi composition root
+        |
+        v
+DB business-key verification
+        |
+        v
+Durable idempotency
+        |
+        v
+Build + integration + concurrency tests
+        |
+        v
+Static dependency scan
+        |
+        v
+KhoCore physical ownership
+        |
+        v
+Legacy cleanup / Phase 9
+        |
+        v
+Phase 10 closeout
 ```
 
 ## 6. Kết luận hiện tại
 
-**Chưa thể đánh dấu toàn bộ WMS refactor là hoàn thành.**
+**WMS refactor chưa hoàn thành toàn bộ.**
 
-Điểm đã đạt được là kiến trúc stock write đã chuyển từ nhiều đường ghi trực tiếp sang một central movement boundary. Phần còn lại hiện chủ yếu là **proof/verification + loại bỏ legacy escape hatches + tests**, sau đó mới chuyển sang physical ownership và legacy cleanup.
+Central stock-write architecture đã ở trạng thái khá ổn và nhóm legacy writer nguy hiểm của NhapKho đã được loại bỏ. Phần còn lại là các gate xác minh quan trọng: composition root của XuLyHangLoi, durable idempotency, build/test/concurrency và sau đó mới chuyển sang physical ownership/legacy cleanup.
 
-Build thực tế vẫn là developer-run gate theo roadmap; repository hiện không cung cấp CI status đủ để kết luận build pass.
+Repository hiện không có CI status cho commit `8b17d32ae6f4436e8209e83bedfe08991f20be38`, vì vậy chưa được phép kết luận build pass.
