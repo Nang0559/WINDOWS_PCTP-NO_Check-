@@ -1,4 +1,4 @@
-﻿using DevExpress.CodeParser;
+﻿
 using DevExpress.XtraEditors;
 using System;
 using System.Collections.Generic;
@@ -6,10 +6,9 @@ using System.Data;
 using System.Data.OracleClient;
 using System.Data.SqlClient;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+
 using System.Windows.Forms;
-using static System.Runtime.CompilerServices.RuntimeHelpers;
+
 
 namespace PCTP.ClassSQL
 {
@@ -725,24 +724,7 @@ namespace PCTP.ClassSQL
 
     //}
   
-        /// <summary>
-        /// Lớp truy cập dữ liệu chuẩn cho toàn hệ thống PCTP.
-        ///
-        /// QUY ƯỚC BẮT BUỘC khi gọi hoặc thêm method:
-        ///   1. Đang ở trong 1 transaction (đã BeginTransaction) → LUÔN dùng bản
-        ///      nhận (SqlConnection conn, SqlTransaction tran). Các bản này KHÔNG
-        ///      tự Open()/Close() connection — vòng đời thuộc về caller.
-        ///   2. Không cần transaction, chỉ 1 câu lệnh độc lập → dùng bản
-        ///      standalone (connectionSTR string), tự mở/đóng connection riêng.
-        ///   3. Muốn chạy Stored Procedure → dùng đúng hàm có "Procedure" trong
-        ///      tên (LoadData / ExecuteProcedureReturnDataSet).
-        ///   4. Muốn chạy câu lệnh Text (SELECT/UPDATE/INSERT/DELETE thường, có
-        ///      tham số) → dùng LoadData1 / ExecuteQuery / ExecuteScalar /
-        ///      ExecuteNonQuery. KHÔNG có hàm nào trong file này còn bug ép
-        ///      nhầm CommandType — nếu code cũ gọi 1 hàm không còn tồn tại ở
-        ///      đây, đó là dấu hiệu code cũ đang dùng cách sai, cần sửa lại
-        ///      cách gọi theo đúng 1 trong các hàm bên dưới.
-        /// </summary>
+      
         public class SQLPROVIDER
         {
             public static List<string> c_Ns = new List<string>();
