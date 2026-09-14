@@ -61,12 +61,19 @@
 - [x] Export Excel / print cho stock report.
 - [x] Export Excel cho inspection master.
 
-## Phase 6 — Main_APP migration
+## Phase 6 — Main_APP / WMS Control Center
 
-- [ ] Main_APP chỉ giữ navigation/dashboard.
-- [ ] Redirect các entry point tra cứu sang `BaoCao`.
-- [ ] Xóa SQL tra cứu khỏi Main_APP theo từng use case.
-- [ ] Xóa dependency tới namespace legacy sau khi caller verification.
+- [x] Main_APP tiếp tục giữ vai trò Shell/Navigation/Dashboard thay vì chứa query logic.
+- [x] Tách composition dashboard khỏi Main_APP.
+- [x] Tách QR machine switch khỏi Main_APP.
+- [x] Thêm WMS Help Service/Catalog/Context dưới `Shell/Help`.
+- [x] Thêm màn hình hướng dẫn sử dụng theo nghiệp vụ.
+- [x] Nút `Hướng dẫn sử dụng` trên Main_APP mở WMS guide có topic + sơ đồ Mermaid.
+- [x] Chuẩn hóa tài liệu hướng dẫn theo flow: Mục đích → Điều kiện → Sơ đồ → Thao tác → Xác nhận → Lỗi → Cách xử lý.
+- [ ] Redirect từng entry point tra cứu legacy sang BaoCao.
+- [ ] Thêm Quick Search QR/LOT/Part/Document ở Shell sau khi query facade phù hợp được chốt.
+- [ ] Thêm Worklist/Cảnh báo WMS sau khi xác định query source cho từng KPI.
+- [ ] Gắn contextual help/F1 trực tiếp vào từng module form sau khi caller/module names ổn định.
 
 ## Phase 7 — Legacy removal
 
@@ -92,6 +99,26 @@
 - [x] Kiểm tra BaoCao query layer không tham chiếu `IInspectionLogRepository` hoặc `IWarehouseService`.
 - [x] Kiểm tra không có write path trong delivery trace adapter/UI.
 - [ ] Chỉ merge về `master` sau khi branch chạy ổn định.
+
+## Phase 9 — User Guide / Training Documentation
+
+Tài liệu vận hành chuẩn đã được bổ sung tại:
+
+`PCTP/Workflow/Diagram/WMS_USER_GUIDE.md`
+
+- [x] Sơ đồ Mermaid tổng thể WMS.
+- [x] Sơ đồ luồng nghiệp vụ hàng → QC → nhập → tồn → xuất → giao.
+- [x] Hướng dẫn Dashboard / Control Center.
+- [x] Hướng dẫn Nhập kho QR.
+- [x] Hướng dẫn Nhập kho không QR.
+- [x] Hướng dẫn Xử lý hàng lỗi.
+- [x] Hướng dẫn Giao hàng HVN / YMVN.
+- [x] Hướng dẫn Báo cáo & Traceability.
+- [x] Hướng dẫn Tra cứu LOT.
+- [x] Hướng dẫn Tra cứu QR.
+- [x] Hướng dẫn chuyển máy bắn QR.
+- [x] Quy trình xử lý lỗi và chuẩn thông tin báo IT.
+- [x] Quy định chuẩn để tạo một hướng dẫn nghiệp vụ mới.
 
 ## Quy tắc bắt buộc — CLEAN AFTER MOVE
 
