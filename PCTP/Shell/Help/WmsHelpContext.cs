@@ -13,34 +13,31 @@ namespace PCTP.Shell.Help
                 string name = current.Name ?? string.Empty;
                 string type = current.GetType().Name ?? string.Empty;
 
-                // Exact operational forms first. These are more reliable than
-                // broad module-name matching because several legacy forms live
-                // under PCTP.QRCODE_HVN namespaces.
-                if (IsAny(name, type, "FormBaoCaoTraceability"))
+                // BaoCao: read-only query/report screens.
+                if (IsAny(name, type, "FormBaoCaoTraceability") ||
+                    IsAny(name, type, "FormBaoCaoStockHistory") ||
+                    IsAny(name, type, "FormBaoCaoQualityHistory"))
+                {
                     return "BaoCao.TraCuu";
-                if (IsAny(name, type, "FormBaoCaoStockHistory"))
-                    return "BaoCao.TraCuu";
-                if (IsAny(name, type, "FormBaoCaoQualityHistory"))
-                    return "BaoCao.TraCuu";
+                }
 
-                if (IsAny(name, type, "GIAOHANGYMN"))
-                    return "GiaoHang.YMVN";
-                if (IsAny(name, type, "YAMAHAQRCDE_SP"))
-                    return "GiaoHang.YMVN";
+                // GiaoHangKhach uses one operational form for all customers:
+                // HVN_PGH. Customer-specific behavior/table mapping is resolved
+                // inside that form through CustomerConfig -> Delivery
+                // (GiaoHangKhachCustomerOptions). Help routing therefore must
+                // NOT branch on legacy customer-specific forms or table names.
+                if (IsAny(name, type, "HVN_PGH") ||
+                    IsAny(name, type, "Edit_DH"))
+                {
+                    return "GiaoHang.HVN";
+                }
 
-                if (IsAny(name, type, "HVN_PGH"))
-                    return "GiaoHang.HVN";
-                if (IsAny(name, type, "Edit_DH"))
-                    return "GiaoHang.HVN";
+                if (IsAny(name, type, "NhapKho"))
+                    return "NhapKho.QR";
 
                 if (IsAny(name, type, "BaoCao"))
                     return "BaoCao.TraCuu";
-                if (IsAny(name, type, "NhapKho"))
-                    return "NhapKho.QR";
-                if (IsAny(name, type, "GiaoHangHVN") || IsAny(name, type, "HVN"))
-                    return "GiaoHang.HVN";
-                if (IsAny(name, type, "GiaoHangYMVN") || IsAny(name, type, "YMVN"))
-                    return "GiaoHang.YMVN";
+
                 if (IsAny(name, type, "HangLoi"))
                     return "XuLyHangLoi";
 
