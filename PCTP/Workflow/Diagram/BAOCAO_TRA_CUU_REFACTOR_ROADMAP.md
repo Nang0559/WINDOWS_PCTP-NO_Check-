@@ -18,7 +18,6 @@
 
 ## Phase 3 — Query ports
 
-- [x] Tách query contracts theo use case cho stock history/current stock.
 - [ ] `IItemHistoryQuery` — QR / LOT / Part / Document.
 - [x] `IStockHistoryQuery` — lịch sử nhập/xuất kho.
 - [x] `ICurrentStockQuery` — tồn hiện tại.
@@ -40,7 +39,7 @@
 
 ## Phase 5 — UI
 
-- [ ] `FormBaoCaoMain`.
+- [x] `FormBaoCaoMain` — navigation-only entry point.
 - [ ] Tra cứu QR / LOT / Part / Document.
 - [ ] Timeline lịch sử.
 - [x] Báo cáo lịch sử kho + tồn hiện tại.
