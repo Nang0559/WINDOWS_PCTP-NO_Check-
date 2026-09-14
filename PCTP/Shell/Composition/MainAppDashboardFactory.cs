@@ -2,25 +2,30 @@ using PCTP.Modules.GiaoHangKhach;
 using PCTP.Modules.NhapKho;
 using PCTP.Modules.XuLyHangLoi.Repository;
 using PCTP.Shell.Widgets;
+using PCTP.VIEWSTOCK.Repository;
 using System;
 using System.Windows.Forms;
 
 namespace PCTP.Shell.Composition
 {
     /// <summary>
-    /// Composition root for the legacy dashboard hosted by Main_APP.
-    ///
-    /// Main_APP must not know how dashboard repositories are constructed.
-    /// This factory is the temporary migration boundary until the dashboard
-    /// data source is fully moved behind application contracts.
+    /// Composition root for the WMS Shell dashboard/worklist data sources.
+    /// Repository instances are shared so both widgets read through the same
+    /// provider/unit-of-work boundary instead of creating duplicate data sources.
     /// </summary>
     internal sealed class MainAppDashboardFactory
     {
-        private readonly ClassSQL.SQLPROVIDER _provider;
+        private readonly IPhieuXuLyBatThuongRepository _phieuXuLyRepository;
+        private readonly INhapKhoDashboardRepository _dashboardRepository;
 
         internal MainAppDashboardFactory()
         {
-            _provider = new ClassSQL.SQLPROVIDER();
+            ClassSQL.SQLPROVIDER provider = new ClassSQL.SQLPROVIDER();
+            PhieuSqlExecutor sql = new PhieuSqlExecutor(provider);
+            UnitOfWork uow = new UnitOfWork(provider);
+
+            _phieuXuLyRepository = new PhieuXuLyBatThuongRepository(sql, uow);
+            _dashboardRepository = new NhapKhoDashboardRepository(sql, uow);
         }
 
         internal WarehouseDashboardBar Create(Action openNhapKho)
@@ -28,22 +33,21 @@ namespace PCTP.Shell.Composition
             if (openNhapKho == null)
                 throw new ArgumentNullException("openNhapKho");
 
-            PhieuSqlExecutor sql = new PhieuSqlExecutor(_provider);
-            UnitOfWork uow = new UnitOfWork(_provider);
-
-            IPhieuXuLyBatThuongRepository phieuXuLyRepository =
-                new PhieuXuLyBatThuongRepository(sql, uow);
-
-            INhapKhoDashboardRepository dashboardRepository =
-                new NhapKhoDashboardRepository(sql, uow);
-
             return new WarehouseDashboardBar(
-                phieuXuLyRepository,
-                dashboardRepository,
-                openNhapKho)
-            {
-                Dock = DockStyle.Top
-            };
+                _phieuXuLyRepository,
+                _dashboardRepository,
+                openNhapKho);
+        }
+
+        internal WmsWorklistBar CreateWorklist(Action openNhapKho)
+        {
+            if (openNhapKho == null)
+                throw new ArgumentNullException("openNhapKho");
+
+            return new WmsWorklistBar(
+                _phieuXuLyRepository,
+                _dashboardRepository,
+                openNhapKho);
         }
     }
 }
