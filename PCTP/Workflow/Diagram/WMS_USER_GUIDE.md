@@ -69,23 +69,37 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-    A[Dashboard] --> B{Việc cần xử lý?}
-    B -- Nhập kho --> C[Nhập kho]
-    B -- Hàng lỗi --> D[Xử lý hàng lỗi]
-    B -- Giao hàng --> E[Giao hàng]
-    B -- Tra cứu --> F[Báo cáo]
-    A --> G[Cảnh báo]
-    G --> H[LOT bất thường]
-    G --> I[Phiếu giao trễ]
-    G --> J[QR cần xác nhận]
+    A[WMS Control Center] --> B[Dashboard]
+    A --> C[Tra cứu nhanh]
+    A --> D[Hướng dẫn]
+    A --> E[Làm mới]
+    B --> F{Việc cần xử lý?}
+    F -- Nhập kho --> G[Nhập kho]
+    F -- Hàng lỗi --> H[Xử lý hàng lỗi]
+    F -- Giao hàng --> I[Giao hàng]
+    F -- Tra cứu --> C
+    B --> J[Cảnh báo / trạng thái]
 ```
+
+### Tra cứu nhanh từ Main_APP
+
+Thanh **WMS CONTROL CENTER** là điểm vào nhanh cho người vận hành. Có thể nhập:
+
+- `QR:xxxx` — tìm theo QR/carton.
+- `LOT:xxxx` — tìm theo LOT.
+- `PART:xxxx` — tìm theo PartNo.
+- Không có tiền tố — mặc định xem là QR/carton.
+
+Sau khi nhấn **Tra cứu**, Main_APP chỉ điều hướng sang module `BaoCao`; SQL/query không đặt trong Shell. Màn hình tra cứu là **read-only**.
 
 ### Người dùng nên làm gì trên Dashboard
 
 1. Xem số lượng việc cần xử lý.
 2. Ưu tiên cảnh báo ảnh hưởng trực tiếp đến giao hàng/tồn kho.
-3. Mở đúng module bằng vùng chức năng tương ứng.
-4. Sau khi xử lý, làm mới Dashboard để kiểm tra lại.
+3. Dùng **Tra cứu nhanh** khi cần kiểm tra QR/LOT/Part.
+4. Mở đúng module bằng vùng chức năng tương ứng.
+5. Sau khi xử lý, nhấn **Làm mới** để kiểm tra lại.
+6. Nhấn **Hướng dẫn** khi cần xem sơ đồ và checklist của nghiệp vụ.
 
 ---
 
