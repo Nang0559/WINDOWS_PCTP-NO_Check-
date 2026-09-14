@@ -28,6 +28,7 @@ namespace PCTP
         private readonly WmsHelpService _wmsHelp;
         private MainAppDashboardController _dashboard;
         private WarehouseDashboardBar _dashboardBar;
+        private WmsWorklistBar _worklistBar;
         private MainAppDashboardFactory _dashboardFactory;
         private WmsControlCenterBar _controlCenter;
 
@@ -51,12 +52,18 @@ namespace PCTP
         {
             _dashboardFactory = new MainAppDashboardFactory();
             _dashboardBar = _dashboardFactory.Create(OpenNhapKhoFromDashboard);
+            _worklistBar = _dashboardFactory.CreateWorklist(OpenNhapKhoFromDashboard);
             _controlCenter = new WmsControlCenterBar(_wmsHelp);
             _controlCenter.RefreshRequested += ControlCenter_RefreshRequested;
 
+            // Add in reverse visual order because WinForms DockStyle.Top stacks
+            // newly added controls above the existing control collection.
             Controls.Add(_dashboardBar);
+            Controls.Add(_worklistBar);
             Controls.Add(_controlCenter);
+
             _dashboardBar.BringToFront();
+            _worklistBar.BringToFront();
             _controlCenter.BringToFront();
         }
 
@@ -90,6 +97,8 @@ namespace PCTP
                 _dashboard.Refresh();
             if (_dashboardBar != null)
                 _dashboardBar.Refresh();
+            if (_worklistBar != null)
+                _worklistBar.RefreshWorklist();
         }
 
         private void accordionControl_SelectedElementChanged(object sender, SelectedElementChangedEventArgs e) { }
