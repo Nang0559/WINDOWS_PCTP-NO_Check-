@@ -1,6 +1,6 @@
 using PCTP.Modules.GiaoHangKhach.Models;
 
-namespace PCTP.Applications.Services
+namespace PCTP.Modules.GiaoHangKhach.Services
 {
     /// <summary>
     /// Orchestrates the delivery-order loading pipeline.

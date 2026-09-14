@@ -1,14 +1,15 @@
+﻿using DevExpress.XtraBars.Navigation;
+using DevExpress.XtraEditors;
+using DevExpress.XtraEditors.Controls;
+using PCTP.Domain.Entities;
+using PCTP.Shared.Models;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
-using DevExpress.XtraBars.Navigation;
-using DevExpress.XtraEditors;
-using DevExpress.XtraEditors.Controls;
-using PCTP.Shared.Models;
 
-namespace PCTP.QRCODE_HVN.PGH.Controls
+namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
 {
     /// <summary>
     /// Visual and customer-specific UI boundary for the delivery-form header.
@@ -71,7 +72,8 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
                     return _cfg.Delivery.AddNmMacDinh;
 
                 var tabPane = FindControl<TabPane>("tabPaneHVN");
-                var tabHn = FindControl<NavigationPage>("tabHN");
+                var tabHn = FindControl<TabNavigationPage>("tabHN");
+
                 return tabPane != null && tabHn != null && tabPane.SelectedPage == tabHn ? 2 : 1;
             }
         }
@@ -79,8 +81,9 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
         public void SetTab(int addNM)
         {
             var tabPane = FindControl<TabPane>("tabPaneHVN");
-            var tabVp = FindControl<NavigationPage>("tabVP");
-            var tabHn = FindControl<NavigationPage>("tabHN");
+            var tabVp = FindControl<TabNavigationPage>("tabVP");
+            var tabHn = FindControl<TabNavigationPage>("tabHN");
+
             if (tabPane == null || tabVp == null || tabHn == null)
                 return;
 
@@ -96,7 +99,6 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
             }
         }
 
-
         public void BindGioXuatVP(IReadOnlyList<GioXuat> danhSach)
         {
             var radioGroup2 = FindControl<RadioGroup>("radioGroup2");
@@ -110,9 +112,9 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
                 var item = new RadioGroupItem(i, gio.MoTa, true, null, gio.Ma);
                 radioGroup2.Properties.Items.Add(item);
             }
+
             if (radioGroup2.Properties.Items.Count > 0)
                 radioGroup2.EditValue = 0;
-        
         }
 
         public void BindGioXuatHN(IReadOnlyList<GioXuat> danhSach)
@@ -128,9 +130,9 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
                 var item = new RadioGroupItem(i, gio.MoTa, true, null, gio.Ma);
                 RDO_GXHN.Properties.Items.Add(item);
             }
+
             if (RDO_GXHN.Properties.Items.Count > 0)
                 RDO_GXHN.EditValue = 0;
-        
         }
 
         public void LockRadioExcept(string gioFCC)
@@ -145,18 +147,19 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
                 return;
 
             LockRadioGroup(radioGroup2.Properties.Items, gioSet,
-                           i => radioGroup2.SelectedIndex = i);
+                i => radioGroup2.SelectedIndex = i);
+
             LockRadioGroup(RDO_GXHN.Properties.Items, gioSet,
-                           i => RDO_GXHN.SelectedIndex = i);
-        
+                i => RDO_GXHN.SelectedIndex = i);
         }
 
         public void UnlockAllRadio()
         {
             var radioGroup2 = FindControl<RadioGroup>("radioGroup2");
             var RDO_GXHN = FindControl<RadioGroup>("RDO_GXHN");
-            var tabVP = FindControl<NavigationPage>("tabVP");
-            var tabHN = FindControl<NavigationPage>("tabHN");
+            var tabVP = FindControl<TabNavigationPage>("tabVP");
+            var tabHN = FindControl<TabNavigationPage>("tabHN");
+
             if (radioGroup2 == null || RDO_GXHN == null || tabVP == null || tabHN == null)
                 return;
 
@@ -168,19 +171,18 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
 
             tabVP.PageVisible = true;
             tabHN.PageVisible = true;
-        
         }
 
         private void LockRadioGroup(RadioGroupItemCollection items,
-                                      HashSet<string> gioSet,
-                                      Action<int> setIndex)
+            HashSet<string> gioSet,
+            Action<int> setIndex)
         {
             for (int i = 0; i < items.Count; i++)
             {
                 var item = (RadioGroupItem)items[i];
                 var itemSet = new HashSet<string>(
                     (item.AccessibleName ?? "").Split(',')
-                                               .Select(g => g.Trim().Trim('\'')),
+                        .Select(g => g.Trim().Trim('\'')),
                     StringComparer.OrdinalIgnoreCase);
 
                 if (itemSet.SetEquals(gioSet))
@@ -194,8 +196,6 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
                 }
             }
         }
-
-
 
         public bool UpdateGioXuatFromDB(string gioFCC)
         {
@@ -239,7 +239,7 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
 
                 var itemSet = new HashSet<string>(
                     item.AccessibleName.Split(',')
-                                       .Select(g => g.Trim().Trim('\'')),
+                        .Select(g => g.Trim().Trim('\'')),
                     StringComparer.OrdinalIgnoreCase);
 
                 if (!itemSet.SetEquals(gioSet))
@@ -330,8 +330,8 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
             _cfg = cfg;
 
             var tabPaneControl = FindControl<TabPane>("tabPaneHVN");
-            var tabVpPage = FindControl<NavigationPage>("tabVP");
-            var tabHnPage = FindControl<NavigationPage>("tabHN");
+            var tabVpPage = FindControl<TabNavigationPage>("tabVP");
+            var tabHnPage = FindControl<TabNavigationPage>("tabHN");
             var radioVp = FindControl<RadioGroup>("radioGroup2");
             var radioHn = FindControl<RadioGroup>("RDO_GXHN");
             var checkList = FindControl<CheckedListBoxControl>("CheckGX");
@@ -423,7 +423,6 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
 
             UnwireCheckGxEvent();
             checkList.Items.Clear();
-
             if (danhSachGio != null)
             {
                 foreach (var gio in danhSachGio)
@@ -512,6 +511,7 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
                 radioHn.SelectedIndexChanged += HeaderGioXuatChanged;
 
             WireCheckGxEvent();
+
             _eventsWired = true;
         }
 
@@ -535,6 +535,7 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
                 radioHn.SelectedIndexChanged -= HeaderGioXuatChanged;
 
             UnwireCheckGxEvent();
+
             _eventsWired = false;
         }
 
@@ -563,7 +564,7 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
             _checkGxEventWired = false;
         }
 
-        private void HeaderCheckGxItemCheck(object sender, ItemCheckEventArgs e)
+        private void HeaderCheckGxItemCheck(object sender, DevExpress.XtraEditors.Controls.ItemCheckEventArgs e)
         {
             var checkList = sender as CheckedListBoxControl;
             if (checkList != null && checkList.IsHandleCreated)
@@ -590,6 +591,7 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
         {
             if (_suspendDateChanged)
                 return;
+
             DateChanged.Invoke(this, EventArgs.Empty);
         }
 
@@ -618,7 +620,8 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
                 return TryReadGioXuat(FindControl<RadioGroup>("radioGroup2"));
 
             var tabPane = FindControl<TabPane>("tabPaneHVN");
-            var tabHn = FindControl<NavigationPage>("tabHN");
+            var tabHn = FindControl<TabNavigationPage>("tabHN");
+
             return tabPane != null && tabHn != null && tabPane.SelectedPage == tabHn
                 ? TryReadGioXuat(FindControl<RadioGroup>("RDO_GXHN"))
                 : TryReadGioXuat(FindControl<RadioGroup>("radioGroup2"));
@@ -697,14 +700,24 @@ namespace PCTP.QRCODE_HVN.PGH.Controls
                 _btnToggleLoaiPhieu.Visible = false;
         }
 
-        private void BtnToggleLoaiPhieu_Click(object sender, EventArgs e)
+        public void ToggleLoaiPhieu()
         {
             _isLoaiSP = !_isLoaiSP;
-            _btnToggleLoaiPhieu.Text = _isLoaiSP ? "Xem: SP" : "Xem: MP";
-            _btnToggleLoaiPhieu.BackColor = _isLoaiSP
-                ? Color.OrangeRed
-                : Color.SteelBlue;
+
+            // _btnToggleLoaiPhieu chỉ tồn tại khi ShowLoaiPhieuToggle() đã được gọi
+            // (nhánh CoGear trong ConfigureCustomer) — customer khác gọi ToggleLoaiPhieu()
+            // từ action bar sẽ không có nút vật lý này, nên phải check null.
+            if (_btnToggleLoaiPhieu != null)
+            {
+                _btnToggleLoaiPhieu.Text = _isLoaiSP ? "Xem: SP" : "Xem: MP";
+                _btnToggleLoaiPhieu.BackColor = _isLoaiSP
+                    ? Color.OrangeRed
+                    : Color.SteelBlue;
+            }
+
             LoaiPhieuChanged.Invoke(this, EventArgs.Empty);
         }
+
+        private void BtnToggleLoaiPhieu_Click(object sender, EventArgs e) => ToggleLoaiPhieu();
     }
 }

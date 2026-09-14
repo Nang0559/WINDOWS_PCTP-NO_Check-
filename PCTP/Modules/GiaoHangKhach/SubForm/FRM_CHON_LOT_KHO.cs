@@ -11,7 +11,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
-namespace PCTP.QRCODE_HVN.PGH
+namespace PCTP.Modules.GiaoHangKhach.HVN.SubForm
 {
     public partial class FRM_CHON_LOT_KHO : XtraForm
     {

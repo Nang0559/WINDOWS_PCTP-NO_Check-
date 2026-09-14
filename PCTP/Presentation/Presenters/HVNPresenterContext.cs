@@ -5,6 +5,8 @@ using PCTP.Domain.Interfaces;
 using PCTP.Infrastructure.Repositories;
 using PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao;
 using PCTP.Modules.GiaoHangKhach.Models;
+using PCTP.Modules.GiaoHangKhach.OrderLoading.Category;
+using PCTP.Modules.GiaoHangKhach.Services;
 using PCTP.Presentation.Views;
 using PCTP.Shared.Models;
 using System;
@@ -93,17 +95,87 @@ namespace PCTP.Presentation.Presenters
         }
         internal void LoadPhieuHienTai()
         {
-            if (IsLoadingPhieu) return; IsLoadingPhieu = true;
-            string ngayGiao = "", nhaMay = ""; List<string> checkedGios = null; bool isLoaiSP = false; string gioMa = GioXuatHienTai.Ma, gioMoTa = GioXuatHienTai.MoTa;
-            Action readUiAction = () => { ngayGiao = Cfg.Delivery.CoGear ? View.SelectedDate.ToString("MM/dd/yyyy") : View.SelectedDate.ToString("yyyy-MM-dd"); if (Cfg.Delivery.CoGear) { checkedGios = View.GetCheckedGioXuat(); isLoaiSP = View.IsLoaiSP; } else nhaMay = GetNhaMay(); };
-            if (UiContext == SynchronizationContext.Current) readUiAction(); else UiContext.Send(_ => readUiAction(), null);
-            try { AwaitingPhieuLoadedEvent = true; if (Cfg.Delivery.LoadTuBangRieng) PhieuSvc.LoadPhieuTuBangRieng_Internal(ngayGiao, Cfg.Delivery.CoGear ? checkedGios : null, isLoaiSP, IsMayBanQR, IsBanQR); else PhieuSvc.LoadPhieu(ngayGiao, nhaMay, gioMa, gioMoTa, AddNM, IsMayBanQR, IsBanQR); }
-            catch (Exception ex) { AwaitingPhieuLoadedEvent = false; IsLoadingPhieu = false; UiContext.Post(_ => { View.ShowLoading(false); View.ShowError($"Lỗi tải phiếu: {ex.Message}"); }, null); }
+            if (IsLoadingPhieu)
+                return;
+
+            IsLoadingPhieu = true;
+
+            string ngayGiao = "";
+            string nhaMay = "";
+            List<string> checkedGios = null;
+
+            bool isLoaiSP = false;
+
+            string gioMa = GioXuatHienTai.Ma;
+            string gioMoTa = GioXuatHienTai.MoTa;
+
+            Action readUiAction = () =>
+            {
+                ngayGiao = Cfg.Delivery.CoGear
+                    ? View.SelectedDate.ToString("MM/dd/yyyy")
+                    : View.SelectedDate.ToString("yyyy-MM-dd");
+
+                if (Cfg.Delivery.CoGear)
+                {
+                    checkedGios = View.GetCheckedGioXuat();
+                    isLoaiSP = View.IsLoaiSP;
+                }
+                else
+                {
+                    nhaMay = GetNhaMay();
+                }
+            };
+
+            if (UiContext == SynchronizationContext.Current)
+                readUiAction();
+            else
+                UiContext.Send(_ => readUiAction(), null);
+
+            try
+            {
+                AwaitingPhieuLoadedEvent = true;
+
+                // Chỉ gọi 1 API duy nhất.
+                // PhieuService sẽ tự quyết định IFS / TableOrder / GiaoDB
+                // thông qua OrderLoadContext + IPhieuLoadService.
+                PhieuSvc.LoadPhieu(
+                    ngayGiao,
+                    nhaMay,
+                    gioMa,
+                    gioMoTa,
+                    AddNM,
+                    IsMayBanQR,
+                    IsBanQR,
+                    checkedGios,
+                    isLoaiSP);
+            }
+            catch (Exception ex)
+            {
+                AwaitingPhieuLoadedEvent = false;
+                IsLoadingPhieu = false;
+
+                UiContext.Post(_ =>
+                {
+                    View.ShowLoading(false);
+                    View.ShowError($"Lỗi tải phiếu: {ex.Message}");
+                }, null);
+            }
         }
         internal void SetupPhieuButtonsDefault(bool showCapNhapKho = false, bool showKiemTraMaNG = false, bool showLayLaiLot = false, bool showStop = false)
         {
             bool coMaNG = showKiemTraMaNG || PhieuSvc.CheckCoMaNG(); View.SetupPhieuButtons(showCapNhapKho && IsMayBanQR, coMaNG && IsMayBanQR, IsMayBanQR, IsMayBanQR, showLayLaiLot && IsMayBanQR && !IsBanQR, showStop, !Cfg.Delivery.LoadTuBangRieng);
         }
-        internal DataTable LoadPhieuGiaoDB() { DataTable dt = PhieuSvc.LoadTmpPhieuGiaoDB(View.SelectedDate, AddNM); View.BindDonHang(dt); View.SwitchToPhieuDBView(); return dt; }
+        internal DataTable LoadPhieuGiaoDB()
+        {
+            DataTable dt = PhieuSvc.LoadTmpPhieuGiaoDB(
+                View.SelectedDate,
+                AddNM);
+
+            View.BindDonHang(dt);
+
+            GiaoDbView.SwitchToPhieuDBView();
+
+            return dt;
+        }
     }
 }

@@ -1,4 +1,4 @@
-﻿namespace PCTP.QRCODE_HVN.PGH
+﻿namespace PCTP.Modules.GiaoHangKhach.HVN.SubForm
 {
     partial class FRM_HTIN
     {

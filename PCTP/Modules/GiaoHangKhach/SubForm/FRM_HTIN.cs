@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using DevExpress.XtraEditors;
 
-namespace PCTP.QRCODE_HVN.PGH
+namespace PCTP.Modules.GiaoHangKhach.HVN.SubForm
 {
     public partial class FRM_HTIN : DevExpress.XtraEditors.XtraForm
     {

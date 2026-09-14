@@ -10,10 +10,6 @@ namespace PCTP.Presentation.Views
     /// </summary>
     public interface IHVNView : IPhieuView, IDocQrView, IGiaoDbView, IYmvnView
     {
-        void ShowLoading(bool show, string caption = "Đang xử lý...");
-        void ShowError(string message);
-        void ShowInfo(string message);
-        void ShowWarning(string message);
-        bool Confirm(string message);
+      
     }
 }

@@ -5,7 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 
-namespace PCTP.Applications.Services
+namespace PCTP.Modules.GiaoHangKhach.Services
 {
     /// <summary>
     /// LOT business workflow. No WinForms dependency; the presenter supplies

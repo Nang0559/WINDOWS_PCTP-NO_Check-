@@ -1,8 +1,9 @@
 ﻿using System;
 using DevExpress.XtraEditors;
+using PCTP.Modules.GiaoHangKhach.HVN.Controls;
 using PCTP.QRCODE_HVN;
 
-namespace PCTP.QRCODE_HVN.PGH
+namespace PCTP.Modules.GiaoHangKhach.HVN
 {
     partial class HVN_PGH
     {
@@ -16,7 +17,7 @@ namespace PCTP.QRCODE_HVN.PGH
         private void InitializeComponent()
         {
             this.components = new System.ComponentModel.Container();
-            this._phieuBottomStateControl = new PCTP.QRCODE_HVN.PGH.Controls.PhieuBottomStateControl();
+            this._phieuBottomStateControl = new PhieuBottomStateControl();
             DevExpress.XtraBars.Docking2010.WindowsUIButtonImageOptions windowsUIButtonImageOptions2 = new DevExpress.XtraBars.Docking2010.WindowsUIButtonImageOptions();
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(HVN_PGH));
             this.PN_MAIN_TOP = new DevExpress.XtraEditors.PanelControl();
@@ -90,7 +91,7 @@ namespace PCTP.QRCODE_HVN.PGH
             this.simpleButton5 = new DevExpress.XtraEditors.SimpleButton();
             this.simpleButton6 = new DevExpress.XtraEditors.SimpleButton();
             this.sidePanel3 = new DevExpress.XtraEditors.SidePanel();
-            this.UIButton = new PCTP.QRCODE_HVN.PGH.MyWindowsUIButtonPanel();
+            this.UIButton = new MyWindowsUIButtonPanel();
             this.sidePanel5 = new DevExpress.XtraEditors.SidePanel();
             this.imageBT = new DevExpress.Utils.ImageCollection(this.components);
             this.sidePanel2 = new DevExpress.XtraEditors.SidePanel();
@@ -114,7 +115,7 @@ namespace PCTP.QRCODE_HVN.PGH
             this.UIButtonHOME.Buttons.AddRange(new DevExpress.XtraEditors.ButtonPanel.IBaseButton[] { new DevExpress.XtraBars.Docking2010.WindowsUIButton("HOME", true, windowsUIButtonImageOptions2, DevExpress.XtraBars.Docking2010.ButtonStyle.PushButton, "", -1, true, null, true, false, true, null, -1, false)}); this.UIButtonHOME.Dock = System.Windows.Forms.DockStyle.Left; this.UIButtonHOME.Location = new System.Drawing.Point(0, 0); this.UIButtonHOME.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5); this.UIButtonHOME.Name = "UIButtonHOME"; this.UIButtonHOME.Size = new System.Drawing.Size(212, 168); this.UIButtonHOME.TabIndex = 18; this.UIButtonHOME.Text = "windowsUIButtonPanel1";
             this.lblDocQrcode.AutoSize = true; this.lblDocQrcode.BackColor = System.Drawing.Color.FromArgb(255, 255, 128); this.lblDocQrcode.Font = new System.Drawing.Font("Times New Roman", 16.2F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0))); this.lblDocQrcode.ForeColor = System.Drawing.Color.Red; this.lblDocQrcode.Location = new System.Drawing.Point(616, 14); this.lblDocQrcode.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0); this.lblDocQrcode.Name = "lblDocQrcode"; this.lblDocQrcode.Size = new System.Drawing.Size(547, 32); this.lblDocQrcode.TabIndex = 16; this.lblDocQrcode.Text = "(Đọc QRCODE Theo Thứ Tự FCC --> HVN)";
             this.label5.AutoSize = true; this.label5.Font = new System.Drawing.Font("Tahoma", 13.8F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0))); this.label5.Location = new System.Drawing.Point(230, 80); this.label5.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0); this.label5.Name = "label5"; this.label5.Size = new System.Drawing.Size(169, 28); this.label5.TabIndex = 13; this.label5.Text = "ĐỌC QRCODE";
-            this.txt_DOCQRCODE.BackColor = System.Drawing.Color.FromArgb(255, 192, 192); this.txt_DOCQRCODE.Font = new System.Drawing.Font("Times New Roman", 18F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0))); this.txt_DOCQRCODE.Location = new System.Drawing.Point(560, 71); this.txt_DOCQRCODE.Margin = new System.Windows.Forms.Padding(4, 2, 4, 2); this.txt_DOCQRCODE.Name = "txt_DOCQRCODE"; this.txt_DOCQRCODE.Size = new System.Drawing.Size(876, 42); this.txt_DOCQRCODE.TabIndex = 2; this.txt_DOCQRCODE.KeyPress += new System.Windows.Forms.KeyPressEventHandler(this.txt_DOCQRCODE_KeyPress);
+            this.txt_DOCQRCODE.BackColor = System.Drawing.Color.FromArgb(255, 192, 192); this.txt_DOCQRCODE.Font = new System.Drawing.Font("Times New Roman", 18F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0))); this.txt_DOCQRCODE.Location = new System.Drawing.Point(560, 71); this.txt_DOCQRCODE.Margin = new System.Windows.Forms.Padding(4, 2, 4, 2); this.txt_DOCQRCODE.Name = "txt_DOCQRCODE"; this.txt_DOCQRCODE.Size = new System.Drawing.Size(876, 42); this.txt_DOCQRCODE.TabIndex = 2; 
             this.GCT_HT.Dock = System.Windows.Forms.DockStyle.Fill; this.GCT_HT.EmbeddedNavigator.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2); this.GCT_HT.Location = new System.Drawing.Point(1, 0); this.GCT_HT.MainView = this.bandedGridView1; this.GCT_HT.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2); this.GCT_HT.Name = "GCT_HT"; this.GCT_HT.Size = new System.Drawing.Size(487, 133); this.GCT_HT.TabIndex = 7; this.GCT_HT.ViewCollection.AddRange(new DevExpress.XtraGrid.Views.Base.BaseView[] { this.bandedGridView1});
             this.bandedGridView1.ActiveFilterEnabled = false; this.bandedGridView1.Bands.AddRange(new DevExpress.XtraGrid.Views.BandedGrid.GridBand[] { this.gridBand2}); this.bandedGridView1.Columns.AddRange(new DevExpress.XtraGrid.Views.BandedGrid.BandedGridColumn[] { this.bandedGridColumn1, this.bandedGridColumn2, this.bandedGridColumn3, this.bandedGridColumn5}); this.bandedGridView1.GridControl = this.GCT_HT; this.bandedGridView1.GroupCount = 1; this.bandedGridView1.Name = "bandedGridView1"; this.bandedGridView1.OptionsSelection.MultiSelect = true; this.bandedGridView1.SortInfo.AddRange(new DevExpress.XtraGrid.Columns.GridColumnSortInfo[] { new DevExpress.XtraGrid.Columns.GridColumnSortInfo(this.bandedGridColumn1, DevExpress.Data.ColumnSortOrder.Ascending)});
             this.gridBand2.AppearanceHeader.BackColor = System.Drawing.Color.Red; this.gridBand2.AppearanceHeader.BorderColor = System.Drawing.Color.Yellow; this.gridBand2.AppearanceHeader.Font = new System.Drawing.Font("Times New Roman", 10.8F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0))); this.gridBand2.AppearanceHeader.Options.UseBackColor = true; this.gridBand2.AppearanceHeader.Options.UseBorderColor = true; this.gridBand2.AppearanceHeader.Options.UseFont = true; this.gridBand2.AppearanceHeader.Options.UseTextOptions = true; this.gridBand2.AppearanceHeader.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center; this.gridBand2.AppearanceHeader.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center; this.gridBand2.Caption = "THÔNG TIN HÀNG THIẾU"; this.gridBand2.Columns.Add(this.bandedGridColumn1); this.gridBand2.Columns.Add(this.bandedGridColumn2); this.gridBand2.Columns.Add(this.bandedGridColumn3); this.gridBand2.Columns.Add(this.bandedGridColumn5); this.gridBand2.MinWidth = 26; this.gridBand2.Name = "gridBand2"; this.gridBand2.VisibleIndex = 0; this.gridBand2.Width = 1066;

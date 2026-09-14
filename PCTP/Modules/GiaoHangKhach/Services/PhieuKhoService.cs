@@ -1,11 +1,12 @@
 using PCTP.Domain.Entities;
 using PCTP.Domain.Events;
 using PCTP.Domain.Interfaces;
+using PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao;
 using PCTP.Shared.Models;
 using System;
 using System.Data;
 
-namespace PCTP.Applications.Services
+namespace PCTP.Modules.GiaoHangKhach.Services
 {
     /// <summary>
     /// Phase 7: business service cho nghiệp vụ cập nhật kho của phiếu giao.

@@ -7,8 +7,10 @@ using DevExpress.XtraReports.UI;
 using PCTP.QRCODE_HVN.Report;
 using PCTP.Modules.GiaoHangKhach.SubForm;
 using PCTP.QRCODE_HVN;
+using PCTP.Modules.GiaoHangKhach.HVN.SubForm;
+using PCTP.Domain.Events;
 
-namespace PCTP.QRCODE_HVN.PGH.Controls
+namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
 {
     /// <summary>
     /// Owns transient dialog/report presentation for the delivery-phieu screen.

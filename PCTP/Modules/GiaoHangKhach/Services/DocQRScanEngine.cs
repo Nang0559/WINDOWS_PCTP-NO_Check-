@@ -14,7 +14,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 
-namespace PCTP.Applications.Services
+namespace PCTP.Modules.GiaoHangKhach.Services
 {
     /// <summary>
     /// Core QR parsing and scan business rules.

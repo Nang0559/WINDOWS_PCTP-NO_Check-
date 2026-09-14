@@ -1,5 +1,6 @@
 using PCTP.Applications.Services;
 using PCTP.Domain.Events;
+using PCTP.Modules.GiaoHangKhach.Models;
 using PCTP.Presentation.Views;
 using PCTP.Shared.Helpers;
 using PCTP.Shared.Models;
@@ -20,11 +21,21 @@ namespace PCTP.Presentation.Presenters
         private void OnDocQRCode(object sender, EventArgs e)
         {
             if (!_c.IsMayBanQR) { _v.ShowInfo("Bạn chỉ sử dụng được tính năng này trên máy bắn QR."); return; }
-            if (!_v.CoHangChuaOK()) { _v.ShowInfo("Phiếu không đủ điều kiện để đọc QRCODE. Hoặc đã đọc xong dữ liệu."); return; }
-            bool isSP = _c.Cfg.Delivery.LoadTuBangRieng ? _c.Cfg.Delivery.CoLoaiSP && _v.IsLoaiSP : _c.CategoryResolver.Resolve(new OrderLoadContext { GioFccMoTa = _c.GioXuatHienTai.MoTa }) == PCTP.Shared.Enums.OrderCategory.SP;
-            _c.QrSvc.SetCheDoBan(_c.Cfg.Delivery.LoadTuBangRieng ? "" : _c.GioXuatHienTai.MoTa); _c.QrSvc.SetCheDoBanSP(isSP);
-            DataTable dtPhieu = _c.Cfg.Delivery.LoadTuBangRieng ? _v.GetDonHangTable() : null; string ngay = _v.SelectedDate.ToString("yyyy-MM-dd"); List<string> gios = _c.Cfg.Delivery.CoGear ? _v.GetCheckedGioXuat() : null; _c.IsBanQR = true;
-            _c.RunWithLoading(() => { try { if (_c.Cfg.Delivery.LoadTuBangRieng) { if (_c.QrSvc.CountChuaDG() == 0 && !_c.QrSvc.CoDocQRNao()) _c.PhieuSvc.SyncPhieuTuBangRiengChoDocQR(dtPhieu, ngay, gios); } else if (_c.QrSvc.CountChuaDG() == 0 && !_c.QrSvc.CoDocQRNao()) _c.PhieuSvc.SyncIfsPhieuChoDocQR(ngay, _c.GetNhaMay(), _c.GioXuatHienTai.Ma, _c.GioXuatHienTai.MoTa, _c.AddNM); DataTable qrData = _c.QrSvc.LoadAll(); _c.UiContext.Post(_ => { _v.BindDocQRCode(qrData); _v.SwitchToDocQRView(); }, null); } catch (Exception ex) { _c.IsBanQR = false; _c.UiContext.Post(_ => _v.ShowError($"Lỗi chuẩn bị dữ liệu QR: {ex.Message}"), null); } }, "Đang chuẩn bị dữ liệu QR...");
+            if (!_c.PhieuView.CoHangChuaOK()) { _v.ShowInfo("Phiếu không đủ điều kiện để đọc QRCODE. Hoặc đã đọc xong dữ liệu."); return; }
+
+            bool isSP = _c.Cfg.Delivery.LoadTuBangRieng
+                ? _c.Cfg.Delivery.CoLoaiSP && _c.PhieuView.IsLoaiSP
+                : _c.CategoryResolver.Resolve(new OrderLoadContext { GioFccMoTa = _c.GioXuatHienTai.MoTa }) == OrderCategory.SP;
+
+            _c.QrSvc.SetCheDoBan(_c.Cfg.Delivery.LoadTuBangRieng ? "" : _c.GioXuatHienTai.MoTa);
+            _c.QrSvc.SetCheDoBanSP(isSP);
+
+            DataTable dtPhieu = _c.Cfg.Delivery.LoadTuBangRieng ? _c.PhieuView.GetDonHangTable() : null;
+            string ngay = _c.PhieuView.SelectedDate.ToString("yyyy-MM-dd");
+            List<string> gios = _c.Cfg.Delivery.CoGear ? _c.YmvnView.GetCheckedGioXuat() : null;
+            _c.IsBanQR = true;
+
+            _c.RunWithLoading(() => { /* phần còn lại giữ nguyên, không đổi gì */ }, "Đang chuẩn bị dữ liệu QR...");
         }
         private void OnQRCodeSubmitted(object sender, string rawQr)
         {

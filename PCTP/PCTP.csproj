@@ -265,6 +265,7 @@
     <Compile Include="Modules\GiaoHangKhach\Configuration\GiaoHangKhachConfiguration.cs" />
     <Compile Include="Modules\GiaoHangKhach\Models\OrderCategory.cs" />
     <Compile Include="Modules\GiaoHangKhach\Models\OrderLoadContext.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Models\OrderLoadResult.cs" />
     <Compile Include="Modules\GiaoHangKhach\Models\OrderSourceKind.cs" />
     <Compile Include="Modules\GiaoHangKhach\FifoViolation.cs" />
     <Compile Include="Modules\GiaoHangKhach\Contracts\IItemFifoConfigRepository.cs" />
@@ -283,11 +284,20 @@
     <Compile Include="Modules\GiaoHangKhach\OrderLoading\OrderSourceFactory.cs" />
     <Compile Include="Modules\GiaoHangKhach\OrderLoading\TableOrder\TableOrderSource.cs" />
     <Compile Include="Modules\GiaoHangKhach\Repositories\ItemFifoConfigRepository.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Services\DocQRScanEngine.cs" />
     <Compile Include="Modules\GiaoHangKhach\Services\DocQRService.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Services\DocQRSessionState.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Services\DocQRTableResolver.cs" />
     <Compile Include="Modules\GiaoHangKhach\Services\HangThieuCaNgayService.cs" />
     <Compile Include="Modules\GiaoHangKhach\Services\InPhieuService.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Services\IPhieuLoadService.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Services\PhieuGiaoDbService.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Services\PhieuKhoService.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Services\PhieuLoadService.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Services\PhieuLotService.cs" />
     <Compile Include="Modules\GiaoHangKhach\Services\PhieuService.cs" />
     <Compile Include="ClassFunction.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Services\PhieuYmvnService.cs" />
     <Compile Include="Modules\GiaoHangKhach\SubForm\FormItemFifoConfig.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -354,7 +364,44 @@
     <Compile Include="Modules\GiaoHangKhach\SubForm\FRM_UploadGiaoDB.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="Modules\GiaoHangKhach\HVN\Controls\DocQrControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Modules\GiaoHangKhach\HVN\Controls\DocQrInputControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Modules\GiaoHangKhach\HVN\Controls\GiaoDbControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Modules\GiaoHangKhach\HVN\Controls\HangThieuControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Modules\GiaoHangKhach\HVN\Controls\PhieuActionBarControl.cs" />
+    <Compile Include="Modules\GiaoHangKhach\HVN\Controls\PhieuBottomStateControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Modules\GiaoHangKhach\HVN\Controls\PhieuDialogControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Modules\GiaoHangKhach\HVN\Controls\PhieuGridControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Modules\GiaoHangKhach\HVN\Controls\PhieuHeaderControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Modules\GiaoHangKhach\HVN\Controls\YmvnControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
     <Compile Include="Modules\GiaoHangKhach\OrderLoading\TableOrder\OrderTableLoadStrategy.cs" />
+    <Compile Include="Modules\GiaoHangKhach\HVN\HVN_PGH.ActionBar.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Modules\GiaoHangKhach\HVN\HVN_PGH.LotDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Modules\GiaoHangKhach\HVN\HVN_PGH.PhieuGridMigration.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="Modules\KhoCore\Helpers\SlotParser.cs" />
     <Compile Include="Modules\KhoCore\Repositories\StockHistoryRepository.cs" />
     <Compile Include="Modules\KhoCore\Repositories\IStockHistoryRepository.cs" />
@@ -423,6 +470,17 @@
     <Compile Include="Modules\XuLyHangLoi\Services\ReworkStockService.cs" />
     <Compile Include="Modules\XuLyHangLoi\Services\TraNoiBoService.cs" />
     <Compile Include="Modules\XuLyHangLoi\Services\XuLyHangLoiServiceBase.cs" />
+    <Compile Include="Presentation\Presenters\CustomerDeliveryBehavior.cs" />
+    <Compile Include="Presentation\Presenters\DocQrPresenter.cs" />
+    <Compile Include="Presentation\Presenters\GiaoDbPresenter.cs" />
+    <Compile Include="Presentation\Presenters\HVNPresenterContext.cs" />
+    <Compile Include="Presentation\Presenters\PhieuPresenter.cs" />
+    <Compile Include="Presentation\Presenters\YmvnPresenter.cs" />
+    <Compile Include="Presentation\Views\IDocQrView.cs" />
+    <Compile Include="Presentation\Views\IGiaoDbView.cs" />
+    <Compile Include="Presentation\Views\IPhieuView.cs" />
+    <Compile Include="Presentation\Views\IViewFeedback.cs" />
+    <Compile Include="Presentation\Views\IYmvnView.cs" />
     <Compile Include="Shared\Common\ItemFifoConfig.cs" />
     <Compile Include="Shared\Enums\IfsOrderQueryMode.cs" />
     <Compile Include="Shared\Helpers\GioHelpper.cs" />
@@ -903,6 +961,9 @@
     <EmbeddedResource Include="Acess Image\ImagesControl.resx">
       <DependentUpon>ImagesControl.cs</DependentUpon>
     </EmbeddedResource>
+    <EmbeddedResource Include="Modules\GiaoHangKhach\HVN\Controls\PhieuBottomStateControl.resx">
+      <DependentUpon>PhieuBottomStateControl.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="Modules\GiaoHangKhach\SubForm\FRM_CHON_LOT_KHO.resx">
       <DependentUpon>FRM_CHON_LOT_KHO.cs</DependentUpon>
     </EmbeddedResource>
@@ -1091,10 +1152,6 @@
     <Folder Include="Modules\GiaoHangKhach\Contracts\Services\" />
     <Folder Include="Modules\GiaoHangKhach\Contracts\Views\" />
     <Folder Include="Modules\GiaoHangKhach\HVN\FuctionQR\" />
-    <Folder Include="Modules\GiaoHangKhach\Models\Customer\" />
-    <Folder Include="Modules\GiaoHangKhach\Models\Delivery\" />
-    <Folder Include="Modules\GiaoHangKhach\Models\Order\" />
-    <Folder Include="Modules\GiaoHangKhach\Models\Phieu\" />
     <Folder Include="Modules\XuLyHangLoi\Legacy\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

@@ -9,6 +9,7 @@ using PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao;
 using PCTP.Modules.GiaoHangKhach.Models;
 using PCTP.Modules.GiaoHangKhach.OrderLoading;
 using PCTP.Modules.GiaoHangKhach.OrderLoading.Category;
+using PCTP.Modules.GiaoHangKhach.OrderLoading.WorkingState;
 using PCTP.Modules.GiaoHangKhach.WorkingState;
 using PCTP.Shared.Common;
 using PCTP.Shared.Enums;
@@ -414,12 +415,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             return hop;
         }
 
-        private static int SafeInt(object val)
-        {
-            if (val == null || val == DBNull.Value) return 0;
-            try { return Convert.ToInt32(val); }
-            catch { return 0; }
-        }
+ 
 
         public DataTable GetDanhSachLotTuKho(string maHang)
             => _phieuRepo.GetDanhSachLotTuKho(maHang);

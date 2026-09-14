@@ -7,6 +7,7 @@ using OfficeOpenXml;
 using OfficeOpenXml.Style;
 using PCTP.Applications.Services;
 using PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao;
+using PCTP.Modules.GiaoHangKhach.Services;
 using System;
 using System.Collections.Generic;
 using System.Data;

@@ -1,5 +1,6 @@
 using PCTP.Domain.Interfaces;
 using PCTP.FuctionMain;
+using PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao;
 using PCTP.Modules.GiaoHangKhach.Models;
 using PCTP.Modules.GiaoHangKhach.OrderLoading;
 using PCTP.Modules.GiaoHangKhach.OrderLoading.Category;
@@ -70,7 +71,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
                 {
                     DataTable donHangQr = SWLog.Measure("2. LoadPhieuDocQR", () => _workingState.LoadFromQr(context));
                     bool coMaNG = !_cfg.Delivery.CoGear && _phieuRepo.CheckCoMaNG(tmpTable);
-                    return BuildResult(context, donHangQr, caption, coMaNG, false, null, true);
+                    return BuildResult(context, donHangQr, new DataTable(), caption, coMaNG, false, null, true);   // ← thêm new DataTable()
                 }
             }
 
@@ -82,14 +83,14 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             {
                 DataTable donHang = SWLog.Measure("4. SaveFromSource [IFS→TMP]", () => _workingState.SaveFromSource(context, donHangIFS, "Usp_Qrcode_LOAD_PHIEU_DOCQR2405"));
                 bool coMaNG = !_cfg.Delivery.CoGear && _phieuRepo.CheckCoMaNG(tmpTable);
-                return BuildResult(context, donHang, caption, coMaNG, HasRows(sourceResult.Difference), sourceResult.Warning, false);
+                return BuildResult(context, donHang, new DataTable(), caption, coMaNG, HasRows(sourceResult.Difference), sourceResult.Warning, false);   // ← thêm new DataTable()
             }
 
             string ifsViewTable = _cfg.Delivery.GetIfsViewTable();
             string tenBanView = context.MachineRole == MachineRole.DuocBanQR ? _cfg.Delivery.GetTmpTable(isSP) : _tenBan;
             DataTable donHangView = SWLog.Measure("4. LuuVaLoad [IFSView→TMPView]", () => _phieuRepo.LuuVaLoad(ifsViewTable, "Usp_Qrcode_LOAD_PHIEU_DOCQRView2405", donHangIFS, ngayGiaoSP, context.NhaMay, gioFccSP, context.AddNm, tenBanView, docQRTable, ifsViewTable));
             bool coMaNGView = !_cfg.Delivery.CoGear && _phieuRepo.CheckCoMaNG(tenBanView);
-            return BuildResult(context, donHangView, caption, coMaNGView, HasRows(sourceResult.Difference), sourceResult.Warning, false);
+            return BuildResult(context, donHangView, new DataTable(), caption, coMaNGView, HasRows(sourceResult.Difference), sourceResult.Warning, false);   // ← thêm new DataTable()
         }
 
         private OrderLoadResult LoadFromTableOrder(OrderLoadContext context)

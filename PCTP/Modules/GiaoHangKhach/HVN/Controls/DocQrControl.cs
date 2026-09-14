@@ -20,7 +20,7 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
             Dock = DockStyle.Fill;
         }
 
-        public event EventHandler<FocusedRowChangedEventArgs> FocusedRowChanged = delegate { };
+        public event FocusedRowChangedEventHandler FocusedRowChanged = delegate { };
 
         public GridControl QrGrid { get; private set; }
 
@@ -89,7 +89,7 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
                 QrGrid.DataSource = null;
         }
 
-        public void DetachLegacyFocusedRowChanged(EventHandler<FocusedRowChangedEventArgs> handler)
+        public void DetachLegacyFocusedRowChanged(FocusedRowChangedEventHandler handler)
         {
             if (QrView != null && handler != null)
                 QrView.FocusedRowChanged -= handler;

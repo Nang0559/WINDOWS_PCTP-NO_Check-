@@ -1,5 +1,6 @@
 using PCTP.Domain.Events;
 using PCTP.Domain.Interfaces;
+using PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao;
 using PCTP.Shared.Models;
 using PCTP.YMN;
 using System;
@@ -7,7 +8,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Linq;
 
-namespace PCTP.Applications.Services
+namespace PCTP.Modules.GiaoHangKhach.Services
 {
     /// <summary>
     /// Phase 7: business service cho flow YMVN/MilkRun.

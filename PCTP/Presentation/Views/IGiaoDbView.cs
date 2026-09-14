@@ -12,7 +12,6 @@ namespace PCTP.Presentation.Views
         void XoaDongGiaoDB();
         void ThemDongGiaoDB(DataTable danhSachMaHang);
         void UpdateGioXuatFromDB(string gioFCC);
-        bool IsLoaiSP { get; }
         event EventHandler UploadGiaoDBClicked;
         event EventHandler LuuGiaoDBClicked;
     }

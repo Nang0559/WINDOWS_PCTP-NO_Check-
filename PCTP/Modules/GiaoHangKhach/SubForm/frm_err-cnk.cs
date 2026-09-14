@@ -12,7 +12,7 @@ using DevExpress.XtraGrid.Views.Grid;
 using PCTP.YMN;
 using PCTP.Modules.GiaoHangKhach.SubForm;
 
-namespace PCTP.QRCODE_HVN.PGH
+namespace PCTP.Modules.GiaoHangKhach.HVN.SubForm
 {
     public partial class frm_err_cnk : DevExpress.XtraEditors.XtraForm
     {

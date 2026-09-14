@@ -1,6 +1,6 @@
 using System.Data;
 
-namespace PCTP.QRCODE_HVN.PGH
+namespace PCTP.Modules.GiaoHangKhach.HVN
 {
     public partial class HVN_PGH
     {

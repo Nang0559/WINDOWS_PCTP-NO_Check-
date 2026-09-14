@@ -1,8 +1,9 @@
+using PCTP.Modules.GiaoHangKhach.HVN.Controls;
 using System;
 using System.Windows.Forms;
-using PCTP.QRCODE_HVN.PGH.Controls;
 
-namespace PCTP.QRCODE_HVN.PGH
+
+namespace PCTP.Modules.GiaoHangKhach.HVN
 {
     partial class HVN_PGH
     {
@@ -160,7 +161,7 @@ namespace PCTP.QRCODE_HVN.PGH
 
             // 12F: the input boundary owns Enter/Submit. Do not let the legacy
             // form handler publish a second QRCodeSubmitted event.
-            txt_DOCQRCODE.KeyPress -= txt_DOCQRCODE_KeyPress;
+          
             _docQrInputControl.Submitted += DocQrInputControl_Submitted;
         }
 

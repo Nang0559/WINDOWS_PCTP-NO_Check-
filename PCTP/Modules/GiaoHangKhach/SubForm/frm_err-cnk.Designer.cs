@@ -1,4 +1,4 @@
-﻿namespace PCTP.QRCODE_HVN.PGH
+﻿namespace PCTP.Modules.GiaoHangKhach.HVN.SubForm
 {
     partial class frm_err_cnk
     {

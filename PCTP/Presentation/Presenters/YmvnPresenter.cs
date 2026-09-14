@@ -1,4 +1,4 @@
-using PCTP.Applications.Services;
+
 using PCTP.ClassSQL;
 using PCTP.Domain.Events;
 using PCTP.Modules.GiaoHangKhach.SubForm;
@@ -13,7 +13,7 @@ namespace PCTP.Presentation.Presenters
         private readonly IYmvnView _v;
         internal YmvnPresenter(HVNPresenterContext context) { _c = context; _v = _c.YmvnView; _v.HoanThanhYMVNClicked += OnHoanThanhYMVN; _v.UploadMilkrunSPClicked += OnUploadMilkrunSP; _v.GioXuatCheckedChanged += OnGioXuatCheckedChanged; _c.Bus.Subscribe<HoanThanhYMVNCompletedEvent>(OnHoanThanhYMVNCompleted); }
         private void OnGioXuatCheckedChanged(object sender, EventArgs e) { var list = _v.GetCheckedGioXuat(); if (list.Count == 0) return; _c.UpdateGioXuatFromCheckList(list); _c.LoadPhieuHienTai(); }
-        private void OnHoanThanhYMVN(object sender, EventArgs e) => _c.RunWithLoading(() => { _c.PhieuSvc.HoanThanhYMVN(_v.IsLoaiSP); _c.UiContext.Post(_ => { _c.QrSvc.SetCheDoBanSP(false); _c.PhieuView.UnlockAllRadio(); _c.PhieuView.SwitchToPhieuView(); _c.LoadPhieuHienTai(); }, null); }, "Đang xử lý hoàn thành...");
+        private void OnHoanThanhYMVN(object sender, EventArgs e) => _c.RunWithLoading(() => { _c.PhieuSvc.HoanThanhYMVN(_c.PhieuView.IsLoaiSP); _c.UiContext.Post(_ => { _c.QrSvc.SetCheDoBanSP(false); _c.PhieuView.UnlockAllRadio(); _c.PhieuView.SwitchToPhieuView(); _c.LoadPhieuHienTai(); }, null); }, "Đang xử lý hoàn thành...");
         private void OnUploadMilkrunSP(object sender, EventArgs e)
         {
             if (_c.Cfg.Delivery.CoGear) { using (var frm = new FRM_UploadMikrun(new SQLPROVIDER(), _c.Cfg)) frm.ShowDialog(); }

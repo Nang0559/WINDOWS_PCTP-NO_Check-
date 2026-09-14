@@ -2,12 +2,12 @@
 using PCTP.Domain.Interfaces;
 using PCTP.Modules.GiaoHangKhach.Models;
 using PCTP.Modules.GiaoHangKhach.OrderLoading.Category;
-using PCTP.Modules.GiaoHangKhach.Services;
+using PCTP.Shared.Helpers;
 using PCTP.Shared.Models;
 using System;
 using System.Data;
 
-namespace PCTP.Applications.Services
+namespace PCTP.Modules.GiaoHangKhach.Services
 {
     /// <summary>
     /// Thin facade for QR delivery operations.

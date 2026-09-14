@@ -1,13 +1,14 @@
-using PCTP.Domain.Interfaces;
+using PCTP.Domain.Entities;
+using PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao;
+using PCTP.Modules.GiaoHangKhach.Models;
 using PCTP.Modules.GiaoHangKhach.OrderLoading;
 using PCTP.Shared.Common;
-using PCTP.Shared.Enums;
 using PCTP.Shared.Models;
 using System;
 using System.Data;
 using System.Linq;
 
-namespace PCTP.Applications.Services
+namespace PCTP.Modules.GiaoHangKhach.Services
 {
     /// <summary>
     /// Phase 7: business orchestration cho scenario GiaoDB.

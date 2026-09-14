@@ -2,6 +2,7 @@ using System;
 using System.Windows.Forms;
 using DevExpress.XtraEditors;
 using PCTP.Applications.Services;
+using PCTP.Modules.GiaoHangKhach.Services;
 using PCTP.Modules.GiaoHangKhach.SubForm;
 
 namespace PCTP.Modules.GiaoHangKhach.HVN.Controls

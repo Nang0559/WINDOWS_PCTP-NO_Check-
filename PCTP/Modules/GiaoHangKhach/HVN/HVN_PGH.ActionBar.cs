@@ -1,7 +1,9 @@
 using System;
-using PCTP.QRCODE_HVN.PGH.Controls;
+using PCTP.Domain.Events;
+using PCTP.Modules.GiaoHangKhach.HVN.Controls;
 
-namespace PCTP.QRCODE_HVN.PGH
+
+namespace PCTP.Modules.GiaoHangKhach.HVN
 {
     partial class HVN_PGH
     {
@@ -101,10 +103,10 @@ namespace PCTP.QRCODE_HVN.PGH
                     break;
 
                 case PhieuActionBarAction.ToggleLoaiPhieu:
-                    if (_phieuActionBarControl != null)
+                    if (_phieuHeaderControl != null)
                     {
-                        _isLoaiSP = !_isLoaiSP;
-                        _phieuActionBarControl.UpdateLoaiPhieuCaption(_isLoaiSP);
+                        _phieuHeaderControl.ToggleLoaiPhieu();
+                        _phieuActionBarControl.UpdateLoaiPhieuCaption(_phieuHeaderControl.IsLoaiSP);
                     }
                     LoaiPhieuChanged.Invoke(this, EventArgs.Empty);
                     break;
@@ -153,5 +155,6 @@ namespace PCTP.QRCODE_HVN.PGH
 
             CapNhapTTPHIEUClicked.Invoke(this, new TTPHIEUEventArgs(stt, value));
         }
+        
     }
 }

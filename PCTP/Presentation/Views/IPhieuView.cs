@@ -1,4 +1,5 @@
 using PCTP.Domain.Entities;
+using PCTP.Domain.Events;
 using PCTP.Shared.Models;
 using System;
 using System.Collections.Generic;
@@ -37,6 +38,7 @@ namespace PCTP.Presentation.Views
         DateTime SelectedDate { get; }
         int SelectedTabAddNM { get; }
         GioXuat CurrentGioXuat { get; }
+        bool IsLoaiSP { get; }
         DataTable GetDonHangTable();
         DataTable GetAddressTable();
         string GetFocusedDonHangMaHang();
@@ -67,6 +69,6 @@ namespace PCTP.Presentation.Views
         event EventHandler KiemTraMaNGClicked;
         event EventHandler HoanThanhClicked;
         event EventHandler<LayLaiLotEventArgs> LayLaiLotNoClicked;
-        event EventHandler CapNhapTTPHIEUClicked;
+        event EventHandler<TTPHIEUEventArgs> CapNhapTTPHIEUClicked;   
     }
 }

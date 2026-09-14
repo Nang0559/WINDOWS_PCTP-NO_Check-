@@ -10,7 +10,7 @@ using DevExpress.XtraGrid.Views.BandedGrid;
 using DevExpress.XtraGrid.Views.Base;
 using DevExpress.XtraGrid.Views.Grid;
 
-namespace PCTP.QRCODE_HVN.PGH.Controls
+namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
 {
     /// <summary>
     /// UI boundary for the normal Phiếu/Order grid area of HVN_PGH.

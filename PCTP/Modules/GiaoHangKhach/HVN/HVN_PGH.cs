@@ -1,44 +1,35 @@
 using DevExpress.XtraBars.Docking2010;
 using DevExpress.XtraEditors;
 using DevExpress.XtraEditors.Controls;
-using DevExpress.XtraEditors.Repository;
-using DevExpress.XtraGrid.Views.BandedGrid;
 using DevExpress.XtraGrid.Views.Grid;
-using DevExpress.XtraReports.UI;
 using PCTP.Applications.Services;
 using PCTP.ClassSQL;
 using PCTP.Domain.Entities;
 using PCTP.Domain.Events;
-using PCTP.Domain.Interfaces;
 using PCTP.Infrastructure;
 using PCTP.Infrastructure.Repositories;
-using PCTP.Modules.GiaoHangKhach;
+
 using PCTP.Modules.GiaoHangKhach.OrderLoading;
 using PCTP.Modules.GiaoHangKhach.OrderLoading.Category;
 using PCTP.Modules.GiaoHangKhach.OrderLoading.GiaoDB;
 using PCTP.Modules.GiaoHangKhach.OrderLoading.IFS;
 using PCTP.Modules.GiaoHangKhach.Repositories;
 using PCTP.Modules.GiaoHangKhach.Services;
-using PCTP.Modules.GiaoHangKhach.SubForm;
 using PCTP.Modules.KhoVatLy.Repositories;
 using PCTP.Modules.XuatKho.Repositories;
 using PCTP.Presentation.Presenters;
 using PCTP.Presentation.Views;
-using PCTP.QRCODE_HVN;
-using PCTP.QRCODE_HVN.Report;
 using PCTP.Shared.Common;
 using PCTP.Shared.Helpers;
 using PCTP.Shared.Models;
-using PCTP.VIEWSTOCK.Models;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
-using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
 
-namespace PCTP.QRCODE_HVN.PGH
+namespace PCTP.Modules.GiaoHangKhach.HVN
 {
     public partial class HVN_PGH : XtraForm, IHVNView
     {
@@ -147,7 +138,7 @@ namespace PCTP.QRCODE_HVN.PGH
         public void ShowError(string msg) => XtraMessageBox.Show(msg, "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
         public void ShowInfo(string msg) => XtraMessageBox.Show(msg, "Thông Báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
         public void ShowWarning(string msg) => XtraMessageBox.Show(msg, "Cảnh Báo", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-        public bool Confirm(string msg) => XtraMessageBox.Show(msg, "Xác nhận", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes;
+        public bool Confirm(string msg) => XtraMessageBox.Show(msg, "Xác nhận", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == System.Windows.Forms.DialogResult.Yes;
         public void ShowReport(DataTable reportData) => _phieuDialogControl.ShowReport(reportData);
         public void ShowHangThieuCaNgay(DataTable dt)
         {
@@ -175,14 +166,14 @@ namespace PCTP.QRCODE_HVN.PGH
             _phieuBottomStateControl.ShowGhepLot();
             _phieuBottomStateControl.HideLech();
             TXT_FCCTU.Text = ""; TXT_FCCTHANH.Text = ""; TXT_HVNTU.Text = ""; TXT_HVNTHANH.Text = ""; _sttSuaSl = 0;
-            _phieuActionBarControl.ConfigurePhieuView(_cfg.Delivery.LoadTuBangRieng ? "Show Thông Tin Lệch IFS" : "Kiểm Tra Ghep Lot", imageBT.Images);
+            _phieuActionBarControl.ConfigurePhieuView(_cfg.Delivery.LoadTuBangRieng ? "Show Thông Tin Lệch IFS" : "Kiểm Tra Ghep Lot", imageBT);
         }
         public void BindGioXuatVP(IReadOnlyList<GioXuat> danhSach) { if (_phieuHeaderControl != null) _phieuHeaderControl.BindGioXuatVP(danhSach); }
         public void BindGioXuatHN(IReadOnlyList<GioXuat> danhSach) { if (_phieuHeaderControl != null) _phieuHeaderControl.BindGioXuatHN(danhSach); }
         public void SwitchToPhieuDBView() => _phieuActionBarControl.ConfigureGiaoDb();
         public void SetupPhieuButtons(bool showCapNhapKho, bool showKiemTraMaNG, bool showGhepLot, bool showDocQRCode, bool showLayLaiLot = false, bool showStop = false, bool showHangThieuCaNgay = true)
         {
-            _phieuActionBarControl.ConfigureNormal(_cfg.Delivery.LoadTuBangRieng ? "Show Thông Tin Lệch IFS" : "Kiểm Tra Ghep Lot", showCapNhapKho, showKiemTraMaNG, showGhepLot, showDocQRCode, showLayLaiLot, showStop, showHangThieuCaNgay, imageBT.Images);
+            _phieuActionBarControl.ConfigureNormal(_cfg.Delivery.LoadTuBangRieng ? "Show Thông Tin Lệch IFS" : "Kiểm Tra Ghep Lot", showCapNhapKho, showKiemTraMaNG, showGhepLot, showDocQRCode, showLayLaiLot, showStop, showHangThieuCaNgay, imageBT);
         }
         public DateTime SelectedDate => _phieuHeaderControl != null ? _phieuHeaderControl.SelectedDate : DateTime.MinValue;
         public int SelectedTabAddNM => _phieuHeaderControl != null ? _phieuHeaderControl.SelectedTabAddNM : _cfg.Delivery.AddNmMacDinh;
@@ -259,7 +250,8 @@ namespace PCTP.QRCODE_HVN.PGH
             SetupGridDonHangYMVN(_cfg.Delivery.LoadTuBangRieng);
             _phieuGridControl.OrderView.ShowingEditor += GridViewDONHANG_ShowingEditor_LOT;
             if (dateNX.DateTime == DateTime.MinValue || dateNX.DateTime.Year < 2000) dateNX.DateTime = DateTime.Now;
-            if (_cfg.Delivery.CoGear) { CheckGX.ItemCheck += CheckGX_OnItemCheck; btnUploadMilkrun.Click += btnUploadMilkrun_Click; }
+            // HVN_PGH_Load — xoá "CheckGX.ItemCheck += CheckGX_OnItemCheck;"
+            if (_cfg.Delivery.CoGear) { btnUploadMilkrun.Click += btnUploadMilkrun_Click; }
             else if (_cfg.Delivery.LoadTheoNgay) btnUploadMilkrun.Click += btnUploadMilkrun_Click;
             FormLoaded.Invoke(this, EventArgs.Empty);
             try { PN_DOCQR_SUASL1.Visible = false; _hangThieuControl.Visible = true; }
@@ -302,7 +294,7 @@ namespace PCTP.QRCODE_HVN.PGH
             }
         }
         public void UpdateGioXuatFromDB(string gioFCC) { if (_phieuHeaderControl != null) _phieuHeaderControl.UpdateGioXuatFromDB(gioFCC); }
-        public bool HoiXoaDocQR() => XtraMessageBox.Show("Dữ liệu không phù hợp:\n" + "Dữ liệu đọc QRCode không khớp với phiếu!\n" + "Bạn muốn xóa dữ liệu đọc?\n" + "(Nếu không xóa, phiếu giao hàng sẽ không được tải đúng)", "Thông Báo", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes;
+        public bool HoiXoaDocQR() => XtraMessageBox.Show("Dữ liệu không phù hợp:\n" + "Dữ liệu đọc QRCode không khớp với phiếu!\n" + "Bạn muốn xóa dữ liệu đọc?\n" + "(Nếu không xóa, phiếu giao hàng sẽ không được tải đúng)", "Thông Báo", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == System.Windows.Forms.DialogResult.Yes;
 
         private void UIButtonHOME_ButtonClick(object sender, ButtonEventArgs e)
         {
@@ -371,11 +363,13 @@ namespace PCTP.QRCODE_HVN.PGH
         private void HVN_PGH_ContextMenuStripChanged(object sender, EventArgs e) { }
         private void btnUploadMilkrun_Click(object sender, EventArgs e) => UploadMilkrunSPClicked.Invoke(this, EventArgs.Empty);
 
+        // OnFormClosed — xoá cả phần unwire CheckGX và _btnToggleLoaiPhieu
         protected override void OnFormClosed(FormClosedEventArgs e)
         {
-            if (_cfg.Delivery.CoGear) { CheckGX.ItemCheck -= CheckGX_OnItemCheck; btnUploadMilkrun.Click -= btnUploadMilkrun_Click; if (_btnToggleLoaiPhieu != null) _btnToggleLoaiPhieu.Click -= BtnToggleLoaiPhieu_Click; }
+            if (_cfg.Delivery.CoGear) { btnUploadMilkrun.Click -= btnUploadMilkrun_Click; }
             else if (_cfg.Delivery.LoadTheoNgay) btnUploadMilkrun.Click -= btnUploadMilkrun_Click;
-            _presenter.Dispose(); base.OnFormClosed(e);
+            _presenter.Dispose();
+            base.OnFormClosed(e);
         }
         private int GetFocusedDonHangStt() => _phieuGridControl.GetFocusedStt();
         private void cmd_SuaSLHVN_Click(object sender, EventArgs e)

@@ -13,7 +13,7 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
 
         public event EventHandler<string> Submitted = delegate { };
 
-        public string Text => _input == null ? string.Empty : _input.Text;
+        public string InputText => _input == null ? string.Empty : _input.Text;
 
         public void Adopt(TextBox input)
         {
@@ -32,7 +32,7 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
         {
             if (e.KeyChar != (char)Keys.Enter) return;
             e.Handled = true;
-            Submitted.Invoke(this, Text);
+            Submitted.Invoke(this, InputText);
         }
 
         protected override void Dispose(bool disposing)
