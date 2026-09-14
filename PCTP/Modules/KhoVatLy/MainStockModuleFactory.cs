@@ -1,5 +1,6 @@
 ﻿using PCTP.ClassSQL;
 using PCTP.Modules.GiaoHangKhach;
+using PCTP.Modules.KhoCore.Application.Contracts.Stock;
 using PCTP.Modules.KhoCore.Interfaces;
 using PCTP.Modules.KhoCore.Repositories;
 using PCTP.Modules.KhoCore.Services;
@@ -7,15 +8,18 @@ using PCTP.Modules.KhoVatLy.Application.Interfaces;
 using PCTP.Modules.KhoVatLy.Application.Services;
 using PCTP.Modules.KhoVatLy.Repositories;
 using PCTP.Modules.KhoVatLy.Repository;
+using PCTP.Modules.NhapKho.Application.Adapters;
 using PCTP.Modules.NhapKho.Interfaces;
 using PCTP.Modules.NhapKho.Repository;
 using PCTP.Modules.NhapKho.Services;
+using PCTP.Modules.XuatKho.Application.Adapters;
 using PCTP.Modules.XuatKho.Interfaces;
 using PCTP.Modules.XuatKho.Repositories;
 using PCTP.Modules.XuatKho.Services;
 using PCTP.Shared.Common;
 using PCTP.Shared.Services;
 using PCTP.VIEWSTOCK.Repository;
+using PCTP.Infrastructure.Stock;
 
 namespace PCTP.Modules.KhoVatLy
 {
@@ -37,7 +41,6 @@ namespace PCTP.Modules.KhoVatLy
             public IWarehouseDashboardService DashboardService { get; set; }
             public IInspectionConfigService InspectionConfigService { get; set; }
             public IInspectionLogRepository InspectionLogRepo { get; set; }
-
             public IStockTpLookupService StockTpLookupService { get; set; }
         }
 
@@ -58,15 +61,35 @@ namespace PCTP.Modules.KhoVatLy
             var inspectionLogRepo = new InspectionLogRepository(dbExecutor, uow);
             var stockTpRepo = new StockTpRepository(dbExecutor, uow);
             var stockTpLookupService = new StockTpLookupService(stockTpRepo);
+
             var slotService = new SlotService(slotRepo);
             var warehouseService = new WarehouseService(warehouseRepo, rackRepo, uow);
-            var rackService = new RackService(rackRepo);
             var exportValidationService = new StockExportValidationService(stockExportRepo, exportHistoryRepo);
-            var exportService = new StockExportService(
-                uow, slotService, stockExportRepo, historyRepo, hangChoGiaoRepo, exportValidationService);
             var printService = new PrintService(slotService, warehouseService);
             var dashboardService = new WarehouseDashboardService(dashRepo);
             var inspectionConfigService = new InspectionConfigService(inspectionConfigRepo);
+
+            // Central stock mutation boundary.
+            // Adapters remain outside KhoCore so KhoCore never depends on legacy storage modules.
+            IStockSlotRepository stockSlotRepository =
+                new LegacyStockSlotRepositoryAdapter(slotService);
+            IStockBalanceRepository stockBalanceRepository =
+                new StockExportRepositoryAdapter(stockExportRepo);
+            IStockReceivingRepository stockReceivingRepository =
+                new StockReceivingRepositoryAdapter(stockTpRepo);
+
+            var stockMovement = new StockMovementService(
+                stockBalanceRepository,
+                stockSlotRepository,
+                stockReceivingRepository);
+
+            var exportService = new StockExportService(
+                uow,
+                slotService,
+                historyRepo,
+                hangChoGiaoRepo,
+                exportValidationService,
+                stockMovement);
 
             return new Module
             {
