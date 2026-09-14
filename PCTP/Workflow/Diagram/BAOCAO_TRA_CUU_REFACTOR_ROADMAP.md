@@ -43,7 +43,7 @@
 - [ ] Xác nhận chính xác cột dữ liệu tem khách hàng.
 - [ ] Xác nhận nguồn CustomerCode/CustomerName.
 - [ ] Xác nhận khóa liên kết LOT -> Production / Receiving / QC / NG-Rework.
-- [ ] Implement delivery trace SQL adapter sau khi schema nguồn được xác nhận.
+- [x] Implement `DeliveryTraceQueryService` theo `DeliveryKey`, chỉ đọc `LUUPHIEUGIAOHANG`, không join `DOCQRCODE` khi chưa có khóa lịch sử xác nhận.
 - [ ] Hoàn tất parity với toàn bộ stored procedures/legacy queries.
 - [ ] Batch query khi có thể; tránh N+1 query theo từng LOT/Part.
 - [x] Chuẩn hóa null/date/quantity/status ở read-model mapping.
@@ -51,9 +51,9 @@
 ## Phase 5 — UI
 
 - [x] `FormBaoCaoMain` — navigation-only entry point.
-- [ ] Tra cứu QR / LOT / Part / Document.
-- [ ] Tra cứu theo tên khách hàng.
-- [ ] Hiển thị master theo QR/carton và detail LOT + quantity.
+- [x] `FormBaoCaoTraceability` — tra cứu Delivery/QR/LOT/Part/Customer và master/detail LOT.
+- [ ] Hoàn tất tra cứu QR/carton lịch sử sau khi cột QR persisted được xác nhận.
+- [ ] Hoàn tất tra cứu tên khách hàng sau khi source CustomerCode/CustomerName được xác nhận.
 - [ ] Timeline: Production → QC → Nhập kho → Xuất → Giao → Customer.
 - [x] Báo cáo lịch sử kho + tồn hiện tại.
 - [ ] Báo cáo nhập/xuất/giao hàng chuyên biệt.
@@ -90,7 +90,7 @@
 - [ ] Kiểm tra parity query mới so với legacy.
 - [x] Kiểm tra export path đã được giữ cho stock/inspection report.
 - [x] Kiểm tra BaoCao query layer không tham chiếu `IInspectionLogRepository` hoặc `IWarehouseService`.
-- [ ] Kiểm tra không còn write path trong BaoCao.
+- [x] Kiểm tra không có write path trong delivery trace adapter/UI.
 - [ ] Chỉ merge về `master` sau khi branch chạy ổn định.
 
 ## Quy tắc bắt buộc — CLEAN AFTER MOVE
