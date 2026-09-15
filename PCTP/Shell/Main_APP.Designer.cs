@@ -149,6 +149,7 @@ namespace PCTP
             this.SuspendLayout();
 
             this.ribbonControl.CaptionBarItemLinks.Add(this.btHelp);
+            this.ribbonControl.EmptyAreaImageOptions.ImagePadding = new System.Windows.Forms.Padding(34, 30, 34, 30);
             this.ribbonControl.ExpandCollapseItem.Id = 0;
             this.ribbonControl.Items.AddRange(new DevExpress.XtraBars.BarItem[] {
                 this.btHelp,
@@ -157,11 +158,15 @@ namespace PCTP
                 this.NHBarButtonItem,
                 this.XHBarButtonItem});
             this.ribbonControl.Location = new System.Drawing.Point(0, 0);
+            this.ribbonControl.Margin = new System.Windows.Forms.Padding(24, 30, 24, 30);
+            this.ribbonControl.MaxItemId = 55;
+            this.ribbonControl.MdiMergeStyle = DevExpress.XtraBars.Ribbon.RibbonMdiMergeStyle.Always;
             this.ribbonControl.Name = "ribbonControl";
-            this.ribbonControl.Pages.AddRange(new DevExpress.XtraBars.Ribbon.RibbonPage[] { this.ribbonPage });
+            this.ribbonControl.Pages.AddRange(new DevExpress.XtraBars.Ribbon.RibbonPage[] {
+            this.ribbonPage});
             this.ribbonControl.RibbonStyle = DevExpress.XtraBars.Ribbon.RibbonControlStyle.Office2013;
             this.ribbonControl.ShowApplicationButton = DevExpress.Utils.DefaultBoolean.False;
-            this.ribbonControl.Size = new System.Drawing.Size(1473, 140);
+            this.ribbonControl.Size = new System.Drawing.Size(1473, 193);
             this.ribbonControl.StatusBar = this.ribbonStatusBar;
             this.ribbonControl.ToolbarLocation = DevExpress.XtraBars.Ribbon.RibbonQuickAccessToolbarLocation.Hidden;
 
@@ -191,12 +196,107 @@ namespace PCTP
             this.ribbonPageGroupNavigation.ItemLinks.Add(this.barSubItemNavigation);
             this.ribbonPageGroupNavigation.Name = "ribbonPageGroupNavigation";
             this.ribbonPageGroupNavigation.Text = "Module";
-
-            this.ribbonStatusBar.Location = new System.Drawing.Point(0, 742);
+            // 
+            // ribbonPageGroup
+            // 
+            this.ribbonPageGroup.AllowTextClipping = false;
+            this.ribbonPageGroup.CaptionButtonVisible = DevExpress.Utils.DefaultBoolean.False;
+            this.ribbonPageGroup.ItemLinks.Add(this.skinDropDownButtonItem);
+            this.ribbonPageGroup.ItemLinks.Add(this.skinPaletteRibbonGalleryBarItem);
+            this.ribbonPageGroup.Name = "ribbonPageGroup";
+            this.ribbonPageGroup.Text = "Appearance";
+            // 
+            // ribbonPageGroup2
+            // 
+            this.ribbonPageGroup2.ImageOptions.SvgImage = ((DevExpress.Utils.Svg.SvgImage)(resources.GetObject("ribbonPageGroup2.ImageOptions.SvgImage")));
+            this.ribbonPageGroup2.ItemLinks.Add(this.barButtonItem1);
+            this.ribbonPageGroup2.Name = "ribbonPageGroup2";
+            this.ribbonPageGroup2.Text = "Request Part CKD";
+            // 
+            // ribbonPageGroup3
+            // 
+            this.ribbonPageGroup3.ImageOptions.Image = ((System.Drawing.Image)(resources.GetObject("ribbonPageGroup3.ImageOptions.Image")));
+            this.ribbonPageGroup3.ItemLinks.Add(this.barButtonItem2);
+            this.ribbonPageGroup3.Name = "ribbonPageGroup3";
+            this.ribbonPageGroup3.Text = "Giao Hang Xuất Khẩu";
+            // 
+            // ribbonStatusBar
+            // 
+            this.ribbonStatusBar.Location = new System.Drawing.Point(0, 766);
+            this.ribbonStatusBar.Margin = new System.Windows.Forms.Padding(24, 30, 24, 30);
             this.ribbonStatusBar.Name = "ribbonStatusBar";
             this.ribbonStatusBar.Ribbon = this.ribbonControl;
             this.ribbonStatusBar.Size = new System.Drawing.Size(1473, 28);
-
+            // 
+            // accordionControlElement1
+            // 
+            this.accordionControlElement1.ImageOptions.Image = ((System.Drawing.Image)(resources.GetObject("accordionControlElement1.ImageOptions.Image")));
+            this.accordionControlElement1.Name = "accordionControlElement1";
+            this.accordionControlElement1.Text = "Thống Kê Báo Cáo";
+            // 
+            // accordionControlElement14
+            // 
+            this.accordionControlElement14.Elements.AddRange(new DevExpress.XtraBars.Navigation.AccordionControlElement[] {
+            this.accordionControlElement15});
+            this.accordionControlElement14.Expanded = true;
+            this.accordionControlElement14.ImageOptions.Image = ((System.Drawing.Image)(resources.GetObject("accordionControlElement14.ImageOptions.Image")));
+            this.accordionControlElement14.Name = "accordionControlElement14";
+            this.accordionControlElement14.Text = "TK & BC";
+            // 
+            // accordionControlElement15
+            // 
+            this.accordionControlElement15.ImageOptions.Image = ((System.Drawing.Image)(resources.GetObject("accordionControlElement15.ImageOptions.Image")));
+            this.accordionControlElement15.Name = "accordionControlElement15";
+            this.accordionControlElement15.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item;
+            this.accordionControlElement15.Text = "Lịch sử nhập xuất hàng";
+            // 
+            // accordionControlElement16
+            // 
+            this.accordionControlElement16.Elements.AddRange(new DevExpress.XtraBars.Navigation.AccordionControlElement[] {
+            this.accordionControlElement17});
+            this.accordionControlElement16.Expanded = true;
+            this.accordionControlElement16.ImageOptions.Image = ((System.Drawing.Image)(resources.GetObject("accordionControlElement16.ImageOptions.Image")));
+            this.accordionControlElement16.Name = "accordionControlElement16";
+            this.accordionControlElement16.Text = "TK & BC";
+            // 
+            // accordionControlElement17
+            // 
+            this.accordionControlElement17.ImageOptions.Image = ((System.Drawing.Image)(resources.GetObject("accordionControlElement17.ImageOptions.Image")));
+            this.accordionControlElement17.Name = "accordionControlElement17";
+            this.accordionControlElement17.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item;
+            this.accordionControlElement17.Text = "Lịch sử nhập xuất hàng";
+            // 
+            // accordionControlSeparator2
+            // 
+            this.accordionControlSeparator2.Name = "accordionControlSeparator2";
+            // 
+            // ribbonPageCategory1
+            // 
+            this.ribbonPageCategory1.Name = "ribbonPageCategory1";
+            this.ribbonPageCategory1.Text = "ribbonPageCategory1";
+            // 
+            // ribbonPageGroup1
+            // 
+            this.ribbonPageGroup1.Name = "ribbonPageGroup1";
+            this.ribbonPageGroup1.Text = "ribbonPageGroup1";
+            // 
+            // ribbonPage1
+            // 
+            this.ribbonPage1.Groups.AddRange(new DevExpress.XtraBars.Ribbon.RibbonPageGroup[] {
+            this.ribbonPageGroup1});
+            this.ribbonPage1.Name = "ribbonPage1";
+            this.ribbonPage1.Text = "ribbonPage1";
+            // 
+            // dockPanel_Container
+            // 
+            this.dockPanel_Container.Location = new System.Drawing.Point(4, 56);
+            this.dockPanel_Container.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
+            this.dockPanel_Container.Name = "dockPanel_Container";
+            this.dockPanel_Container.Size = new System.Drawing.Size(190, 514);
+            this.dockPanel_Container.TabIndex = 0;
+            // 
+            // accordionControl
+            // 
             this.accordionControl.AllowItemSelection = true;
             this.accordionControl.Dock = System.Windows.Forms.DockStyle.Left;
             this.accordionControl.Location = new System.Drawing.Point(0, 140);
@@ -204,131 +304,709 @@ namespace PCTP
             this.accordionControl.Size = new System.Drawing.Size(270, 602);
             this.accordionControl.TabIndex = 1;
             this.accordionControl.SelectedElementChanged += new DevExpress.XtraBars.Navigation.SelectedElementChangedEventHandler(this.accordionControl_SelectedElementChanged);
-
-            this.mainAccordionGroup.Elements.AddRange(new DevExpress.XtraBars.Navigation.AccordionControlElement[] {
-                this.NHAccordionControlElement,
-                this.accordionControlElement20,
-                this.accordionControlElement22,
-                this.accordionControlElement25,
-                this.accordionControlElement28});
+            // 
+            // accordionControlElement12
+            // 
+            this.accordionControlElement12.Name = "accordionControlElement12";
+            // 
+            // accordionControlElement11
+            // 
+            this.accordionControlElement11.Name = "accordionControlElement11";
+            // 
+            // XHAccordionControlElement
+            // 
+            this.XHAccordionControlElement.Name = "XHAccordionControlElement";
+            // 
+            // accordionControlSeparator3
+            // 
+            this.accordionControlSeparator3.Name = "accordionControlSeparator3";
+            // 
+            // accordionControlElement4
+            // 
+            this.accordionControlElement4.Name = "accordionControlElement4";
+            // 
+            // accordionControlElement8
+            // 
+            this.accordionControlElement8.Name = "accordionControlElement8";
+            // 
+            // accordionControlElement7
+            // 
+            this.accordionControlElement7.Name = "accordionControlElement7";
+            // 
+            // accordionControlElement3
+            // 
+            this.accordionControlElement3.Name = "accordionControlElement3";
+            // 
+            // accordionControlElement6
+            // 
+            this.accordionControlElement6.Name = "accordionControlElement6";
+            // 
+            // accordionControlElement5
+            // 
+            this.accordionControlElement5.Name = "accordionControlElement5";
+            // 
+            // mainAccordionGroup
+            // 
             this.mainAccordionGroup.Expanded = true;
             this.mainAccordionGroup.HeaderVisible = false;
             this.mainAccordionGroup.Name = "mainAccordionGroup";
-            this.mainAccordionGroup.Text = "WMS";
-
-            this.NHAccordionControlElement.Elements.AddRange(new DevExpress.XtraBars.Navigation.AccordionControlElement[] {
-                this.E_NhapTP,
-                this.E_NhapTP_0QR,
-                this.E_Trahang,
-                this.trahangngPD,
-                this.trahangndHVN,
-                this.accordionControlElement_QCDinhHuong,
-                this.accordionControlElement_QCXacNhanCuoi});
+            this.mainAccordionGroup.Text = "mainGroup";
+            // 
+            // accordionControlSeparator1
+            // 
+            this.accordionControlSeparator1.Name = "accordionControlSeparator1";
+            // 
+            // NHAccordionControlElement
+            // 
             this.NHAccordionControlElement.Expanded = true;
             this.NHAccordionControlElement.Name = "NHAccordionControlElement";
-            this.NHAccordionControlElement.Text = "Nhập Kho & QC";
-
-            this.E_NhapTP.Name = "E_NhapTP"; this.E_NhapTP.Text = "Nhập thành phẩm"; this.E_NhapTP.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item; this.E_NhapTP.Click += new System.EventHandler(this.E_NhapTP_Click);
-            this.E_NhapTP_0QR.Name = "E_NhapTP_0QR"; this.E_NhapTP_0QR.Text = "Nhập thành phẩm không QR"; this.E_NhapTP_0QR.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item; this.E_NhapTP_0QR.Click += new System.EventHandler(this.E_NhapTP_0QR_Click);
-            this.E_Trahang.Name = "E_Trahang"; this.E_Trahang.Text = "Quản lý tiến trình hàng lỗi"; this.E_Trahang.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item; this.E_Trahang.Click += new System.EventHandler(this.E_Trahang_Click);
-            this.trahangngPD.Name = "trahangngPD"; this.trahangngPD.Text = "Trả hàng NG - PD"; this.trahangngPD.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item;
-            this.trahangndHVN.Name = "trahangndHVN"; this.trahangndHVN.Text = "Trả hàng NG - HVN"; this.trahangndHVN.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item;
-            this.accordionControlElement_QCDinhHuong.Name = "accordionControlElement_QCDinhHuong"; this.accordionControlElement_QCDinhHuong.Text = "QC chờ định hướng"; this.accordionControlElement_QCDinhHuong.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item; this.accordionControlElement_QCDinhHuong.Click += new System.EventHandler(this.accordionControlElement_QCDinhHuong_Click);
-            this.accordionControlElement_QCXacNhanCuoi.Name = "accordionControlElement_QCXacNhanCuoi"; this.accordionControlElement_QCXacNhanCuoi.Text = "QC xác nhận cuối"; this.accordionControlElement_QCXacNhanCuoi.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item; this.accordionControlElement_QCXacNhanCuoi.Click += new System.EventHandler(this.accordionControlElement_QCXacNhanCuoi_Click);
-
+            this.NHAccordionControlElement.Text = "Nhập Kho";
+            // 
+            // accordionControlElement10
+            // 
+            this.accordionControlElement10.Name = "accordionControlElement10";
+            // 
+            // accordionControlElement9
+            // 
+            this.accordionControlElement9.Name = "accordionControlElement9";
+            // 
+            // accordionControlElement2
+            // 
+            this.accordionControlElement2.Name = "accordionControlElement2";
+            // 
+            // dockManager
+            // 
+            this.dockManager.Form = this;
+            this.dockManager.TopZIndexControls.AddRange(new string[] {
+            "DevExpress.XtraBars.BarDockControl",
+            "DevExpress.XtraBars.StandaloneBarDockControl",
+            "System.Windows.Forms.StatusBar",
+            "System.Windows.Forms.MenuStrip",
+            "System.Windows.Forms.StatusStrip",
+            "DevExpress.XtraBars.Ribbon.RibbonStatusBar",
+            "DevExpress.XtraBars.Ribbon.RibbonControl",
+            "DevExpress.XtraBars.Navigation.OfficeNavigationBar",
+            "DevExpress.XtraBars.Navigation.TileNavPane"});
+            // 
+            // accordionControl1
+            // 
+            this.accordionControl1.Appearance.AccordionControl.BackColor = System.Drawing.Color.Wheat;
+            this.accordionControl1.Appearance.AccordionControl.BackColor2 = System.Drawing.Color.FromArgb(((int)(((byte)(128)))), ((int)(((byte)(64)))), ((int)(((byte)(0)))));
+            this.accordionControl1.Appearance.AccordionControl.BorderColor = System.Drawing.Color.Black;
+            this.accordionControl1.Appearance.AccordionControl.Options.UseBackColor = true;
+            this.accordionControl1.Appearance.AccordionControl.Options.UseBorderColor = true;
+            this.accordionControl1.Dock = System.Windows.Forms.DockStyle.Left;
+            this.accordionControl1.Elements.AddRange(new DevExpress.XtraBars.Navigation.AccordionControlElement[] {
+            this.accordionControlElement13,
+            this.accordionControlSeparator4,
+            this.accordionControlElement20,
+            this.accordionControlElement18,
+            this.accordionControlElement22,
+            this.accordionControlSeparator6,
+            this.accordionControlElement25,
+            this.accordionControlSeparator7,
+            this.accordionControlElement28,
+            this.accordionControlSeparator5});
+            this.accordionControl1.Location = new System.Drawing.Point(0, 193);
+            this.accordionControl1.Margin = new System.Windows.Forms.Padding(24, 25, 24, 25);
+            this.accordionControl1.Name = "accordionControl1";
+            this.accordionControl1.ShowFilterControl = DevExpress.XtraBars.Navigation.ShowFilterControl.Auto;
+            this.accordionControl1.Size = new System.Drawing.Size(488, 573);
+            this.accordionControl1.TabIndex = 3;
+            // 
+            // accordionControlElement13
+            // 
+            this.accordionControlElement13.Expanded = true;
+            this.accordionControlElement13.ImageOptions.Image = ((System.Drawing.Image)(resources.GetObject("accordionControlElement13.ImageOptions.Image")));
+            this.accordionControlElement13.ImageOptions.ImageLayoutMode = DevExpress.XtraBars.Navigation.ImageLayoutMode.Stretch;
+            this.accordionControlElement13.Name = "accordionControlElement13";
+            this.accordionControlElement13.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item;
+            this.accordionControlElement13.Text = "QRCDE Control";
+            // 
+            // accordionControlSeparator4
+            // 
+            this.accordionControlSeparator4.Name = "accordionControlSeparator4";
+            // 
+            // accordionControlElement20
+            // 
             this.accordionControlElement20.Elements.AddRange(new DevExpress.XtraBars.Navigation.AccordionControlElement[] {
-                this.E_In_Le, this.InGhepLot, this.accordionControlElement21, this.accordionControlElement19,
-                this.accordionControlElement24, this.accordionControlElement29, this.acrImageControl,
-                this.cmdRackControl, this.accordionControlElement38, this.accordionControlElement30,
-                this.accordionControlElement23, this.accordionControlElement27});
-            this.accordionControlElement20.Expanded = true; this.accordionControlElement20.Name = "accordionControlElement20"; this.accordionControlElement20.Text = "Công Cụ";
-            this.E_In_Le.Name = "E_In_Le"; this.E_In_Le.Text = "In Tem Tách Lot"; this.E_In_Le.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item; this.E_In_Le.Click += new System.EventHandler(this.E_In_Le_Click);
-            this.InGhepLot.Name = "InGhepLot"; this.InGhepLot.Text = "In Tem Ghép Lot"; this.InGhepLot.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item; this.InGhepLot.Click += new System.EventHandler(this.InGhepLot_Click);
-            this.accordionControlElement21.Name = "accordionControlElement21"; this.accordionControlElement21.Text = "Thay Đổi Khung Giờ"; this.accordionControlElement21.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item; this.accordionControlElement21.Click += new System.EventHandler(this.accordionControlElement21_Click);
-            this.accordionControlElement19.Name = "accordionControlElement19"; this.accordionControlElement19.Text = "Chỉnh Mẫu Tem"; this.accordionControlElement19.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item; this.accordionControlElement19.Click += new System.EventHandler(this.accordionControlElement19_Click);
-            this.accordionControlElement24.Name = "accordionControlElement24"; this.accordionControlElement24.Text = "Chuyển Máy Bắn QRCode"; this.accordionControlElement24.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item; this.accordionControlElement24.Click += new System.EventHandler(this.accordionControlElement24_Click);
-            this.accordionControlElement29.Name = "accordionControlElement29"; this.accordionControlElement29.Text = "Thiết Lập Mã FCC-HVN"; this.accordionControlElement29.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item; this.accordionControlElement29.Click += new System.EventHandler(this.accordionControlElement29_Click);
-            this.acrImageControl.Name = "acrImageControl"; this.acrImageControl.Text = "Quản lý hình ảnh"; this.acrImageControl.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item; this.acrImageControl.Click += new System.EventHandler(this.acrImageControl_Click);
-            this.cmdRackControl.Name = "cmdRackControl"; this.cmdRackControl.Text = "Bản Đồ Kho"; this.cmdRackControl.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item; this.cmdRackControl.Click += new System.EventHandler(this.cmdRackControl_Click);
-            this.accordionControlElement38.Name = "accordionControlElement38"; this.accordionControlElement38.Text = "Cấu hình FIFO Item"; this.accordionControlElement38.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item; this.accordionControlElement38.Click += new System.EventHandler(this.accordionControlElement38_Click);
-            this.accordionControlElement30.Name = "accordionControlElement30"; this.accordionControlElement30.Text = "Quản lý tiến trình"; this.accordionControlElement30.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item; this.accordionControlElement30.Click += new System.EventHandler(this.accordionControlElement30_Click_1);
-            this.accordionControlElement23.Name = "accordionControlElement23"; this.accordionControlElement23.Text = "Công cụ khác"; this.accordionControlElement23.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item; this.accordionControlElement23.Click += new System.EventHandler(this.accordionControlElement23_Click);
-            this.accordionControlElement27.Name = "accordionControlElement27"; this.accordionControlElement27.Text = "Thiết lập khác"; this.accordionControlElement27.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item; this.accordionControlElement27.Click += new System.EventHandler(this.accordionControlElement27_Click);
-
-            this.accordionControlElement22.Elements.AddRange(new DevExpress.XtraBars.Navigation.AccordionControlElement[] { this.E_GHHVN_MP, this.E_GHHVN_SP, this.HTDelever, this.accordionControlElement36, this.accordionControlElement37 });
-            this.accordionControlElement22.Expanded = true; this.accordionControlElement22.Name = "accordionControlElement22"; this.accordionControlElement22.Text = "Giao Hàng HVN";
-            this.E_GHHVN_MP.Name = "E_GHHVN_MP"; this.E_GHHVN_MP.Text = "HVN - MP"; this.E_GHHVN_MP.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item; this.E_GHHVN_MP.Click += new System.EventHandler(this.E_GHHVN_MP_Click);
-            this.E_GHHVN_SP.Name = "E_GHHVN_SP"; this.E_GHHVN_SP.Text = "HVN - SP"; this.E_GHHVN_SP.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item; this.E_GHHVN_SP.Click += new System.EventHandler(this.E_GHHVN_SP_Click);
-            this.HTDelever.Name = "HTDelever"; this.HTDelever.Text = "HVN - Customer 100003"; this.HTDelever.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item; this.HTDelever.Click += new System.EventHandler(this.HTDelever_Click);
-            this.accordionControlElement36.Name = "accordionControlElement36"; this.accordionControlElement36.Text = "Bản Đồ Kho"; this.accordionControlElement36.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item; this.accordionControlElement36.Click += new System.EventHandler(this.accordionControlElement36_Click);
-            this.accordionControlElement37.Name = "accordionControlElement37"; this.accordionControlElement37.Text = "Quản lý tiến trình hàng lỗi"; this.accordionControlElement37.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item; this.accordionControlElement37.Click += new System.EventHandler(this.accordionControlElement37_Click);
-
-            this.accordionControlElement25.Elements.AddRange(new DevExpress.XtraBars.Navigation.AccordionControlElement[] { this.E_GHYMVN_MP, this.E_GHYMVN_SP });
-            this.accordionControlElement25.Expanded = true; this.accordionControlElement25.Name = "accordionControlElement25"; this.accordionControlElement25.Text = "Giao Hàng YMVN";
-            this.E_GHYMVN_MP.Name = "E_GHYMVN_MP"; this.E_GHYMVN_MP.Text = "YMVN - MP"; this.E_GHYMVN_MP.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item; this.E_GHYMVN_MP.Click += new System.EventHandler(this.E_GHYMVN_MP_Click);
-            this.E_GHYMVN_SP.Name = "E_GHYMVN_SP"; this.E_GHYMVN_SP.Text = "YMVN - SP"; this.E_GHYMVN_SP.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item; this.E_GHYMVN_SP.Click += new System.EventHandler(this.E_GHYMVN_SP_Click);
-
-            this.accordionControlElement28.Elements.AddRange(new DevExpress.XtraBars.Navigation.AccordionControlElement[] { this.E_Tracuulotno, this.E_TKTK });
-            this.accordionControlElement28.Expanded = true; this.accordionControlElement28.Name = "accordionControlElement28"; this.accordionControlElement28.Text = "Tra Cứu & Báo Cáo";
-            this.E_Tracuulotno.Name = "E_Tracuulotno"; this.E_Tracuulotno.Text = "Tra cứu LOT"; this.E_Tracuulotno.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item; this.E_Tracuulotno.Click += new System.EventHandler(this.E_Tracuulotno_Click);
-            this.E_TKTK.Name = "E_TKTK"; this.E_TKTK.Text = "Thống kê"; this.E_TKTK.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item; this.E_TKTK.Click += new System.EventHandler(this.E_TKTK_Click);
-
-            this.panel2.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.panel2.Location = new System.Drawing.Point(270, 140);
-            this.panel2.Name = "panel2";
-            this.panel2.Padding = new System.Windows.Forms.Padding(12);
-            this.panel2.Size = new System.Drawing.Size(1203, 602);
-            this.panel2.TabIndex = 2;
-            this.panel2.Controls.Add(this.tabPane1);
-            this.panel2.Controls.Add(this.lblMayBan);
-            this.panel2.Controls.Add(this.lblHostName);
-            this.panel2.Controls.Add(this.tgxem);
-
-            this.tabPane1.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.tabPane1.Location = new System.Drawing.Point(12, 12);
-            this.tabPane1.Name = "tabPane1";
-            this.tabPane1.Pages.AddRange(new DevExpress.XtraBars.Navigation.NavigationPageBase[] { this.TabHVN, this.TabYMVN });
-            this.tabPane1.SelectedPage = this.TabHVN;
-            this.tabPane1.Size = new System.Drawing.Size(1179, 578);
-            this.TabHVN.Caption = "HVN";
-            this.TabHVN.Name = "TabHVN";
-            this.TabHVN.Size = new System.Drawing.Size(1177, 545);
-            this.TabHVN.Controls.Add(this.CharHVN);
-            this.CharHVN.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.CharHVN.Name = "CharHVN";
-            this.CharHVN.Size = new System.Drawing.Size(1177, 545);
-            this.TabYMVN.Caption = "YMVN";
-            this.TabYMVN.Name = "TabYMVN";
-            this.TabYMVN.Size = new System.Drawing.Size(1177, 545);
-            this.TabYMVN.Controls.Add(this.CharYMVN);
-            this.CharYMVN.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.CharYMVN.Name = "CharYMVN";
-            this.CharYMVN.Size = new System.Drawing.Size(1177, 545);
-
+            this.E_In_Le,
+            this.InGhepLot,
+            this.accordionControlElement21,
+            this.accordionControlElement19,
+            this.accordionControlElement24,
+            this.accordionControlElement29,
+            this.accordionControlSeparator11,
+            this.acrImageControl,
+            this.cmdRackControl,
+            this.accordionControlElement38});
+            this.accordionControlElement20.Expanded = true;
+            this.accordionControlElement20.Name = "accordionControlElement20";
+            this.accordionControlElement20.Text = "Công Cụ";
+            // 
+            // E_In_Le
+            // 
+            this.E_In_Le.ImageOptions.SvgImage = ((DevExpress.Utils.Svg.SvgImage)(resources.GetObject("E_In_Le.ImageOptions.SvgImage")));
+            this.E_In_Le.Name = "E_In_Le";
+            this.E_In_Le.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item;
+            this.E_In_Le.Text = "In Tem Tách Lot";
+            this.E_In_Le.Click += new System.EventHandler(this.E_In_Le_Click);
+            // 
+            // InGhepLot
+            // 
+            this.InGhepLot.ImageOptions.SvgImage = ((DevExpress.Utils.Svg.SvgImage)(resources.GetObject("InGhepLot.ImageOptions.SvgImage")));
+            this.InGhepLot.Name = "InGhepLot";
+            this.InGhepLot.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item;
+            this.InGhepLot.Text = "In Tem Ghep Lot";
+            this.InGhepLot.Click += new System.EventHandler(this.InGhepLot_Click);
+            // 
+            // accordionControlElement21
+            // 
+            this.accordionControlElement21.ImageOptions.Image = ((System.Drawing.Image)(resources.GetObject("accordionControlElement21.ImageOptions.Image")));
+            this.accordionControlElement21.Name = "accordionControlElement21";
+            this.accordionControlElement21.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item;
+            this.accordionControlElement21.Text = "Thay Đổi Khung Giờ";
+            this.accordionControlElement21.Click += new System.EventHandler(this.accordionControlElement21_Click);
+            // 
+            // accordionControlElement19
+            // 
+            this.accordionControlElement19.ImageOptions.Image = ((System.Drawing.Image)(resources.GetObject("accordionControlElement19.ImageOptions.Image")));
+            this.accordionControlElement19.Name = "accordionControlElement19";
+            this.accordionControlElement19.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item;
+            this.accordionControlElement19.Text = "Chỉnh Mẫu Tem";
+            this.accordionControlElement19.Click += new System.EventHandler(this.accordionControlElement19_Click);
+            // 
+            // accordionControlElement24
+            // 
+            this.accordionControlElement24.ImageOptions.Image = ((System.Drawing.Image)(resources.GetObject("accordionControlElement24.ImageOptions.Image")));
+            this.accordionControlElement24.Name = "accordionControlElement24";
+            this.accordionControlElement24.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item;
+            this.accordionControlElement24.Text = "Chuyển Máy Bắn QRCode";
+            this.accordionControlElement24.Click += new System.EventHandler(this.accordionControlElement24_Click);
+            // 
+            // accordionControlElement29
+            // 
+            this.accordionControlElement29.ImageOptions.Image = ((System.Drawing.Image)(resources.GetObject("accordionControlElement29.ImageOptions.Image")));
+            this.accordionControlElement29.Name = "accordionControlElement29";
+            this.accordionControlElement29.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item;
+            this.accordionControlElement29.Text = "Thiết Lập Mã FCC-HVN";
+            this.accordionControlElement29.Click += new System.EventHandler(this.accordionControlElement29_Click);
+            // 
+            // accordionControlSeparator11
+            // 
+            this.accordionControlSeparator11.Name = "accordionControlSeparator11";
+            // 
+            // acrImageControl
+            // 
+            this.acrImageControl.ImageOptions.Image = ((System.Drawing.Image)(resources.GetObject("acrImageControl.ImageOptions.Image")));
+            this.acrImageControl.Name = "acrImageControl";
+            this.acrImageControl.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item;
+            this.acrImageControl.Text = "Ảnh Sản Phẩm";
+            this.acrImageControl.Click += new System.EventHandler(this.acrImageControl_Click);
+            // 
+            // cmdRackControl
+            // 
+            this.cmdRackControl.ImageOptions.Image = ((System.Drawing.Image)(resources.GetObject("cmdRackControl.ImageOptions.Image")));
+            this.cmdRackControl.Name = "cmdRackControl";
+            this.cmdRackControl.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item;
+            this.cmdRackControl.Text = "QUẢN LÝ RACK";
+            this.cmdRackControl.Click += new System.EventHandler(this.cmdRackControl_Click);
+            // 
+            // accordionControlElement38
+            // 
+            this.accordionControlElement38.HeaderTemplate.AddRange(new DevExpress.XtraBars.Navigation.HeaderElementInfo[] {
+            new DevExpress.XtraBars.Navigation.HeaderElementInfo(DevExpress.XtraBars.Navigation.HeaderElementType.HeaderControl, DevExpress.XtraBars.Navigation.HeaderElementAlignment.Left),
+            new DevExpress.XtraBars.Navigation.HeaderElementInfo(DevExpress.XtraBars.Navigation.HeaderElementType.Image),
+            new DevExpress.XtraBars.Navigation.HeaderElementInfo(DevExpress.XtraBars.Navigation.HeaderElementType.Text),
+            new DevExpress.XtraBars.Navigation.HeaderElementInfo(DevExpress.XtraBars.Navigation.HeaderElementType.ContextButtons)});
+            this.accordionControlElement38.Name = "accordionControlElement38";
+            this.accordionControlElement38.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item;
+            this.accordionControlElement38.Text = "Cấu hình FIFO";
+            this.accordionControlElement38.Click += new System.EventHandler(this.accordionControlElement38_Click);
+            // 
+            // accordionControlElement18
+            // 
+            this.accordionControlElement18.Elements.AddRange(new DevExpress.XtraBars.Navigation.AccordionControlElement[] {
+            this.E_NhapTP,
+            this.E_NhapTP_0QR,
+            this.E_Trahang,
+            this.accordionControlElement23,
+            this.accordionControlSeparator10,
+            this.accordionControlElement26});
+            this.accordionControlElement18.Expanded = true;
+            this.accordionControlElement18.ImageOptions.Image = ((System.Drawing.Image)(resources.GetObject("accordionControlElement18.ImageOptions.Image")));
+            this.accordionControlElement18.Name = "accordionControlElement18";
+            this.accordionControlElement18.Text = "Nhập TP";
+            // 
+            // E_NhapTP
+            // 
+            this.E_NhapTP.ImageOptions.Image = ((System.Drawing.Image)(resources.GetObject("E_NhapTP.ImageOptions.Image")));
+            this.E_NhapTP.Name = "E_NhapTP";
+            this.E_NhapTP.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item;
+            this.E_NhapTP.Text = "Nhập TP Qrcode";
+            this.E_NhapTP.Click += new System.EventHandler(this.E_NhapTP_Click);
+            // 
+            // E_NhapTP_0QR
+            // 
+            this.E_NhapTP_0QR.ImageOptions.Image = ((System.Drawing.Image)(resources.GetObject("E_NhapTP_0QR.ImageOptions.Image")));
+            this.E_NhapTP_0QR.Name = "E_NhapTP_0QR";
+            this.E_NhapTP_0QR.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item;
+            this.E_NhapTP_0QR.Text = "Nhập TP Ko Qrcode";
+            this.E_NhapTP_0QR.Click += new System.EventHandler(this.E_NhapTP_0QR_Click);
+            // 
+            // E_Trahang
+            // 
+            this.E_Trahang.Elements.AddRange(new DevExpress.XtraBars.Navigation.AccordionControlElement[] {
+            this.trahangngPD,
+            this.trahangndHVN,
+            this.accordionControlElement_QCDinhHuong,
+            this.accordionControlElement_QCXacNhanCuoi,
+            this.accordionControlElement30});
+            this.E_Trahang.Expanded = true;
+            this.E_Trahang.ImageOptions.Image = ((System.Drawing.Image)(resources.GetObject("E_Trahang.ImageOptions.Image")));
+            this.E_Trahang.Name = "E_Trahang";
+            this.E_Trahang.Text = "Trả Hàng";
+            this.E_Trahang.Click += new System.EventHandler(this.E_Trahang_Click);
+            // 
+            // trahangngPD
+            // 
+            this.trahangngPD.Name = "trahangngPD";
+            // 
+            // trahangndHVN
+            // 
+            this.trahangndHVN.ImageOptions.ImageLayoutMode = DevExpress.XtraBars.Navigation.ImageLayoutMode.Squeeze;
+            this.trahangndHVN.Name = "trahangndHVN";
+            this.trahangndHVN.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item;
+            this.trahangndHVN.Text = "HVN Trả";
+            this.trahangndHVN.Click += new System.EventHandler(this.accordionControlElement27_Click);
+            // 
+            // accordionControlElement_QCDinhHuong
+            // 
+            this.accordionControlElement_QCDinhHuong.Name = "accordionControlElement_QCDinhHuong";
+            this.accordionControlElement_QCDinhHuong.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item;
+            this.accordionControlElement_QCDinhHuong.Text = "QC Định Hướng";
+            this.accordionControlElement_QCDinhHuong.Click += new System.EventHandler(this.accordionControlElement_QCDinhHuong_Click);
+            // 
+            // accordionControlElement_QCXacNhanCuoi
+            // 
+            this.accordionControlElement_QCXacNhanCuoi.Name = "accordionControlElement_QCXacNhanCuoi";
+            this.accordionControlElement_QCXacNhanCuoi.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item;
+            this.accordionControlElement_QCXacNhanCuoi.Text = "QC Xác Nhận Cuối";
+            this.accordionControlElement_QCXacNhanCuoi.Click += new System.EventHandler(this.accordionControlElement_QCXacNhanCuoi_Click);
+            // 
+            // accordionControlElement30
+            // 
+            this.accordionControlElement30.Name = "accordionControlElement30";
+            this.accordionControlElement30.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item;
+            this.accordionControlElement30.Text = "Trả Hàng NG";
+            this.accordionControlElement30.Click += new System.EventHandler(this.accordionControlElement30_Click_1);
+            // 
+            // accordionControlElement23
+            // 
+            this.accordionControlElement23.ImageOptions.Image = ((System.Drawing.Image)(resources.GetObject("accordionControlElement23.ImageOptions.Image")));
+            this.accordionControlElement23.Name = "accordionControlElement23";
+            this.accordionControlElement23.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item;
+            this.accordionControlElement23.Text = "Cập Nhập Lot NO";
+            this.accordionControlElement23.Click += new System.EventHandler(this.accordionControlElement23_Click);
+            // 
+            // accordionControlSeparator10
+            // 
+            this.accordionControlSeparator10.Name = "accordionControlSeparator10";
+            // 
+            // accordionControlElement26
+            // 
+            this.accordionControlElement26.Elements.AddRange(new DevExpress.XtraBars.Navigation.AccordionControlElement[] {
+            this.accordionControlElement27});
+            this.accordionControlElement26.Expanded = true;
+            this.accordionControlElement26.Name = "accordionControlElement26";
+            this.accordionControlElement26.Text = "Tra Hàng Do Thay Đổi Kế Hoạch";
+            // 
+            // accordionControlElement27
+            // 
+            this.accordionControlElement27.Name = "accordionControlElement27";
+            this.accordionControlElement27.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item;
+            this.accordionControlElement27.Text = "HVN Trả";
+            // 
+            // accordionControlElement22
+            // 
+            this.accordionControlElement22.Elements.AddRange(new DevExpress.XtraBars.Navigation.AccordionControlElement[] {
+            this.E_GHHVN_MP,
+            this.E_GHHVN_SP,
+            this.HTDelever,
+            this.accordionControlElement36});
+            this.accordionControlElement22.Expanded = true;
+            this.accordionControlElement22.ImageOptions.Image = ((System.Drawing.Image)(resources.GetObject("accordionControlElement22.ImageOptions.Image")));
+            this.accordionControlElement22.ImageOptions.ImageLayoutMode = DevExpress.XtraBars.Navigation.ImageLayoutMode.Squeeze;
+            this.accordionControlElement22.Name = "accordionControlElement22";
+            this.accordionControlElement22.Text = "Giao Hàng HVN";
+            // 
+            // E_GHHVN_MP
+            // 
+            this.E_GHHVN_MP.ImageOptions.Image = ((System.Drawing.Image)(resources.GetObject("E_GHHVN_MP.ImageOptions.Image")));
+            this.E_GHHVN_MP.Name = "E_GHHVN_MP";
+            this.E_GHHVN_MP.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item;
+            this.E_GHHVN_MP.Text = "HVN MP";
+            this.E_GHHVN_MP.Click += new System.EventHandler(this.E_GHHVN_MP_Click);
+            // 
+            // E_GHHVN_SP
+            // 
+            this.E_GHHVN_SP.ImageOptions.Image = ((System.Drawing.Image)(resources.GetObject("E_GHHVN_SP.ImageOptions.Image")));
+            this.E_GHHVN_SP.Name = "E_GHHVN_SP";
+            this.E_GHHVN_SP.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item;
+            this.E_GHHVN_SP.Text = "YMVN";
+            this.E_GHHVN_SP.Click += new System.EventHandler(this.E_GHHVN_SP_Click);
+            // 
+            // HTDelever
+            // 
+            this.HTDelever.ImageOptions.Image = ((System.Drawing.Image)(resources.GetObject("HTDelever.ImageOptions.Image")));
+            this.HTDelever.Name = "HTDelever";
+            this.HTDelever.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item;
+            this.HTDelever.Text = "HTV";
+            this.HTDelever.Click += new System.EventHandler(this.HTDelever_Click);
+            // 
+            // accordionControlElement36
+            // 
+            this.accordionControlElement36.Elements.AddRange(new DevExpress.XtraBars.Navigation.AccordionControlElement[] {
+            this.accordionControlElement37});
+            this.accordionControlElement36.Expanded = true;
+            this.accordionControlElement36.Name = "accordionControlElement36";
+            this.accordionControlElement36.Text = "GIAO BÙ NG";
+            // 
+            // accordionControlElement37
+            // 
+            this.accordionControlElement37.Name = "accordionControlElement37";
+            this.accordionControlElement37.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item;
+            this.accordionControlElement37.Text = "GIAO BÙ HÀNG";
+            this.accordionControlElement37.Click += new System.EventHandler(this.accordionControlElement37_Click);
+            // 
+            // accordionControlSeparator6
+            // 
+            this.accordionControlSeparator6.Name = "accordionControlSeparator6";
+            // 
+            // accordionControlElement25
+            // 
+            this.accordionControlElement25.Elements.AddRange(new DevExpress.XtraBars.Navigation.AccordionControlElement[] {
+            this.E_GHYMVN_MP,
+            this.E_GHYMVN_SP});
+            this.accordionControlElement25.Expanded = true;
+            this.accordionControlElement25.ImageOptions.Image = ((System.Drawing.Image)(resources.GetObject("accordionControlElement25.ImageOptions.Image")));
+            this.accordionControlElement25.ImageOptions.ImageLayoutMode = DevExpress.XtraBars.Navigation.ImageLayoutMode.Squeeze;
+            this.accordionControlElement25.Name = "accordionControlElement25";
+            this.accordionControlElement25.Text = "Giao Hàng YMVN";
+            // 
+            // E_GHYMVN_MP
+            // 
+            this.E_GHYMVN_MP.ImageOptions.SvgImage = ((DevExpress.Utils.Svg.SvgImage)(resources.GetObject("E_GHYMVN_MP.ImageOptions.SvgImage")));
+            this.E_GHYMVN_MP.Name = "E_GHYMVN_MP";
+            this.E_GHYMVN_MP.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item;
+            this.E_GHYMVN_MP.Text = "YMVN MP";
+            this.E_GHYMVN_MP.Click += new System.EventHandler(this.E_GHYMVN_MP_Click);
+            // 
+            // E_GHYMVN_SP
+            // 
+            this.E_GHYMVN_SP.ImageOptions.SvgImage = ((DevExpress.Utils.Svg.SvgImage)(resources.GetObject("E_GHYMVN_SP.ImageOptions.SvgImage")));
+            this.E_GHYMVN_SP.Name = "E_GHYMVN_SP";
+            this.E_GHYMVN_SP.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item;
+            this.E_GHYMVN_SP.Text = "YMVN SP";
+            this.E_GHYMVN_SP.Click += new System.EventHandler(this.E_GHYMVN_SP_Click);
+            // 
+            // accordionControlSeparator7
+            // 
+            this.accordionControlSeparator7.Name = "accordionControlSeparator7";
+            // 
+            // accordionControlElement28
+            // 
+            this.accordionControlElement28.Elements.AddRange(new DevExpress.XtraBars.Navigation.AccordionControlElement[] {
+            this.E_Tracuulotno,
+            this.E_TKTK,
+            this.accordionControlElement31,
+            this.accordionControlSeparator9,
+            this.accordionControlSeparator8});
+            this.accordionControlElement28.Expanded = true;
+            this.accordionControlElement28.ImageOptions.SvgImage = ((DevExpress.Utils.Svg.SvgImage)(resources.GetObject("accordionControlElement28.ImageOptions.SvgImage")));
+            this.accordionControlElement28.Name = "accordionControlElement28";
+            this.accordionControlElement28.Text = "TK & BC";
+            // 
+            // E_Tracuulotno
+            // 
+            this.E_Tracuulotno.ImageOptions.SvgImage = ((DevExpress.Utils.Svg.SvgImage)(resources.GetObject("E_Tracuulotno.ImageOptions.SvgImage")));
+            this.E_Tracuulotno.Name = "E_Tracuulotno";
+            this.E_Tracuulotno.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item;
+            this.E_Tracuulotno.Text = "Lịch sử giao hàng";
+            this.E_Tracuulotno.Click += new System.EventHandler(this.E_Tracuulotno_Click);
+            // 
+            // E_TKTK
+            // 
+            this.E_TKTK.ImageOptions.SvgImage = ((DevExpress.Utils.Svg.SvgImage)(resources.GetObject("E_TKTK.ImageOptions.SvgImage")));
+            this.E_TKTK.Name = "E_TKTK";
+            this.E_TKTK.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item;
+            this.E_TKTK.Text = "Tk Tồn Kho";
+            this.E_TKTK.Click += new System.EventHandler(this.E_TKTK_Click);
+            // 
+            // accordionControlElement31
+            // 
+            this.accordionControlElement31.Elements.AddRange(new DevExpress.XtraBars.Navigation.AccordionControlElement[] {
+            this.accordionControlElement32,
+            this.accordionControlElement33,
+            this.accordionControlElement34,
+            this.accordionControlElement35});
+            this.accordionControlElement31.ImageOptions.SvgImage = ((DevExpress.Utils.Svg.SvgImage)(resources.GetObject("accordionControlElement31.ImageOptions.SvgImage")));
+            this.accordionControlElement31.Name = "accordionControlElement31";
+            this.accordionControlElement31.Text = "TK Đơn Hàng";
+            // 
+            // accordionControlElement32
+            // 
+            this.accordionControlElement32.ImageOptions.Image = ((System.Drawing.Image)(resources.GetObject("accordionControlElement32.ImageOptions.Image")));
+            this.accordionControlElement32.Name = "accordionControlElement32";
+            this.accordionControlElement32.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item;
+            this.accordionControlElement32.Text = "Theo Tháng";
+            // 
+            // accordionControlElement33
+            // 
+            this.accordionControlElement33.ImageOptions.SvgImage = ((DevExpress.Utils.Svg.SvgImage)(resources.GetObject("accordionControlElement33.ImageOptions.SvgImage")));
+            this.accordionControlElement33.Name = "accordionControlElement33";
+            this.accordionControlElement33.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item;
+            this.accordionControlElement33.Text = "Theo Ngày";
+            // 
+            // accordionControlElement34
+            // 
+            this.accordionControlElement34.ImageOptions.Image = ((System.Drawing.Image)(resources.GetObject("accordionControlElement34.ImageOptions.Image")));
+            this.accordionControlElement34.Name = "accordionControlElement34";
+            this.accordionControlElement34.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item;
+            this.accordionControlElement34.Text = "Theo Giờ";
+            // 
+            // accordionControlElement35
+            // 
+            this.accordionControlElement35.ImageOptions.SvgImage = ((DevExpress.Utils.Svg.SvgImage)(resources.GetObject("accordionControlElement35.ImageOptions.SvgImage")));
+            this.accordionControlElement35.Name = "accordionControlElement35";
+            this.accordionControlElement35.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item;
+            this.accordionControlElement35.Text = "Theo Mã Hàng";
+            // 
+            // accordionControlSeparator9
+            // 
+            this.accordionControlSeparator9.Name = "accordionControlSeparator9";
+            // 
+            // accordionControlSeparator8
+            // 
+            this.accordionControlSeparator8.Name = "accordionControlSeparator8";
+            // 
+            // accordionControlSeparator5
+            // 
+            this.accordionControlSeparator5.Name = "accordionControlSeparator5";
+            // 
+            // panel1
+            // 
+            this.panel1.BackColor = System.Drawing.Color.MistyRose;
+            this.panel1.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
+            this.panel1.Controls.Add(this.tgxem);
+            this.panel1.Dock = System.Windows.Forms.DockStyle.Top;
+            this.panel1.Location = new System.Drawing.Point(488, 193);
+            this.panel1.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
+            this.panel1.Name = "panel1";
+            this.panel1.Size = new System.Drawing.Size(985, 28);
+            this.panel1.TabIndex = 10;
+            // 
+            // tgxem
+            // 
             this.tgxem.AutoSize = true;
-            this.tgxem.Location = new System.Drawing.Point(24, 34);
+            this.tgxem.Font = new System.Drawing.Font("Times New Roman", 10.8F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.tgxem.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(0)))), ((int)(((byte)(0)))), ((int)(((byte)(192)))));
+            this.tgxem.Location = new System.Drawing.Point(-5, -1);
             this.tgxem.Name = "tgxem";
-            this.tgxem.Size = new System.Drawing.Size(0, 13);
-            this.tgxem.Text = "";
-            this.tgxem.Visible = false;
+            this.tgxem.Size = new System.Drawing.Size(315, 20);
+            this.tgxem.TabIndex = 0;
+            this.tgxem.Text = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx";
+            this.tgxem.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // panel2
+            // 
+            this.panel2.Controls.Add(this.tabPane1);
+            this.panel2.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.panel2.Location = new System.Drawing.Point(488, 221);
+            this.panel2.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
+            this.panel2.Name = "panel2";
+            this.panel2.Size = new System.Drawing.Size(985, 545);
+            this.panel2.TabIndex = 11;
+            // 
+            // tabPane1
+            // 
+            this.tabPane1.Controls.Add(this.TabHVN);
+            this.tabPane1.Controls.Add(this.TabYMVN);
+            this.tabPane1.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.tabPane1.Location = new System.Drawing.Point(0, 0);
+            this.tabPane1.Margin = new System.Windows.Forms.Padding(6);
+            this.tabPane1.Name = "tabPane1";
+            this.tabPane1.Pages.AddRange(new DevExpress.XtraBars.Navigation.NavigationPageBase[] {
+            this.TabHVN,
+            this.TabYMVN});
+            this.tabPane1.RegularSize = new System.Drawing.Size(985, 545);
+            this.tabPane1.SelectedPage = this.TabHVN;
+            this.tabPane1.Size = new System.Drawing.Size(985, 545);
+            this.tabPane1.TabIndex = 8;
+            this.tabPane1.Text = "tabPane1";
+            // 
+            // TabHVN
+            // 
+            this.TabHVN.Caption = "Thông Tin Kho,Đơn Hàng,Thực Tế Giao HVN";
+            this.TabHVN.Controls.Add(this.CharHVN);
+            this.TabHVN.ImageOptions.SvgImage = ((DevExpress.Utils.Svg.SvgImage)(resources.GetObject("TabHVN.ImageOptions.SvgImage")));
+            this.TabHVN.ImageOptions.SvgImageColorizationMode = DevExpress.Utils.SvgImageColorizationMode.None;
+            this.TabHVN.ItemShowMode = DevExpress.XtraBars.Navigation.ItemShowMode.ImageAndText;
+            this.TabHVN.Margin = new System.Windows.Forms.Padding(6);
+            this.TabHVN.Name = "TabHVN";
+            this.TabHVN.Properties.ShowMode = DevExpress.XtraBars.Navigation.ItemShowMode.ImageAndText;
+            this.TabHVN.Size = new System.Drawing.Size(985, 475);
+            // 
+            // CharHVN
+            // 
+            this.CharHVN.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(0)))), ((int)(((byte)(0)))), ((int)(((byte)(0)))));
+            xyDiagram1.AxisX.Color = System.Drawing.Color.FromArgb(((int)(((byte)(0)))), ((int)(((byte)(0)))), ((int)(((byte)(0)))));
+            xyDiagram1.AxisX.Label.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(0)))), ((int)(((byte)(0)))), ((int)(((byte)(0)))));
+            xyDiagram1.AxisX.Label.Border.Color = System.Drawing.Color.FromArgb(((int)(((byte)(255)))), ((int)(((byte)(255)))), ((int)(((byte)(0)))));
+            xyDiagram1.AxisX.Label.DXFont = new DevExpress.Drawing.DXFont("Times New Roman", 7.2F, DevExpress.Drawing.DXFontStyle.Bold, DevExpress.Drawing.DXGraphicsUnit.Point, new DevExpress.Drawing.DXFontAdditionalProperty[] {
+            new DevExpress.Drawing.DXFontAdditionalProperty("GdiCharSet", ((byte)(0)))});
+            xyDiagram1.AxisX.Label.ResolveOverlappingOptions.AllowHide = false;
+            xyDiagram1.AxisX.Label.ResolveOverlappingOptions.AllowRotate = false;
+            xyDiagram1.AxisX.Label.ResolveOverlappingOptions.MinIndent = 10;
+            xyDiagram1.AxisX.Label.TextColor = System.Drawing.Color.FromArgb(((int)(((byte)(255)))), ((int)(((byte)(255)))), ((int)(((byte)(255)))));
+            xyDiagram1.AxisX.LabelVisibilityMode = DevExpress.XtraCharts.AxisLabelVisibilityMode.AutoGeneratedAndCustom;
+            xyDiagram1.AxisX.NumericScaleOptions.AutoGrid = false;
+            xyDiagram1.AxisX.NumericScaleOptions.GridSpacing = 0.5D;
+            xyDiagram1.AxisX.VisibleInPanesSerializable = "-1";
+            xyDiagram1.AxisY.Interlaced = true;
+            xyDiagram1.AxisY.MinorCount = 4;
+            xyDiagram1.AxisY.VisibleInPanesSerializable = "-1";
+            xyDiagram1.EnableAxisXScrolling = true;
+            xyDiagram1.EnableAxisXZooming = true;
+            xyDiagram1.EnableAxisYScrolling = true;
+            xyDiagram1.EnableAxisYZooming = true;
+            xyDiagram1.Rotated = true;
+            this.CharHVN.Diagram = xyDiagram1;
+            this.CharHVN.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.CharHVN.Legend.Name = "Default Legend";
+            this.CharHVN.Location = new System.Drawing.Point(0, 0);
+            this.CharHVN.Margin = new System.Windows.Forms.Padding(6);
+            this.CharHVN.Name = "CharHVN";
+            series1.ArgumentDataMember = "CUSTOMER_PART_NO";
+            series1.LabelsVisibility = DevExpress.Utils.DefaultBoolean.True;
+            series1.Name = "TỒN KHO";
+            series1.SeriesID = 0;
+            series1.ValueDataMembersSerializable = "SLTONKHO";
+            series2.ArgumentDataMember = "CUSTOMER_PART_NO";
+            series2.LabelsVisibility = DevExpress.Utils.DefaultBoolean.True;
+            series2.Name = "TỔNG ĐƠN HÀNG";
+            series2.SeriesID = 1;
+            series2.ValueDataMembersSerializable = "TTCS";
+            pointSeriesView1.PointMarkerOptions.Size = 10;
+            series2.View = pointSeriesView1;
+            series3.ArgumentDataMember = "CUSTOMER_PART_NO";
+            series3.Name = "SL Đã Giao";
+            series3.SeriesID = 2;
+            series3.ValueDataMembersSerializable = "SLDAGIAO";
+            series3.View = stackedBarSeriesView1;
+            this.CharHVN.SeriesSerializable = new DevExpress.XtraCharts.Series[] {
+        series1,
+        series2,
+        series3};
+            this.CharHVN.Size = new System.Drawing.Size(1231, 594);
+            this.CharHVN.SmallChartText.TextColor = System.Drawing.Color.FromArgb(((int)(((byte)(255)))), ((int)(((byte)(255)))), ((int)(((byte)(255)))));
+            this.CharHVN.TabIndex = 5;
+            // 
+            // TabYMVN
+            // 
+            this.TabYMVN.Caption = "Thông Tin Kho,Đơn Hàng,Thực Tế Giao YMVN";
+            this.TabYMVN.Controls.Add(this.CharYMVN);
+            this.TabYMVN.ImageOptions.SvgImage = ((DevExpress.Utils.Svg.SvgImage)(resources.GetObject("TabYMVN.ImageOptions.SvgImage")));
+            this.TabYMVN.ImageOptions.SvgImageColorizationMode = DevExpress.Utils.SvgImageColorizationMode.CommonPalette;
+            this.TabYMVN.ItemShowMode = DevExpress.XtraBars.Navigation.ItemShowMode.Text;
+            this.TabYMVN.Margin = new System.Windows.Forms.Padding(6);
+            this.TabYMVN.Name = "TabYMVN";
+            this.TabYMVN.Properties.ShowMode = DevExpress.XtraBars.Navigation.ItemShowMode.Text;
+            this.TabYMVN.Size = new System.Drawing.Size(1381, 718);
+            // 
+            // CharYMVN
+            // 
+            this.CharYMVN.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(0)))), ((int)(((byte)(0)))), ((int)(((byte)(0)))));
+            xyDiagram2.AxisX.Color = System.Drawing.Color.FromArgb(((int)(((byte)(0)))), ((int)(((byte)(0)))), ((int)(((byte)(0)))));
+            xyDiagram2.AxisX.Label.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(0)))), ((int)(((byte)(0)))), ((int)(((byte)(0)))));
+            xyDiagram2.AxisX.Label.Border.Color = System.Drawing.Color.FromArgb(((int)(((byte)(255)))), ((int)(((byte)(255)))), ((int)(((byte)(0)))));
+            xyDiagram2.AxisX.Label.DXFont = new DevExpress.Drawing.DXFont("Times New Roman", 7.8F, DevExpress.Drawing.DXFontStyle.Bold, DevExpress.Drawing.DXGraphicsUnit.Point, new DevExpress.Drawing.DXFontAdditionalProperty[] {
+            new DevExpress.Drawing.DXFontAdditionalProperty("GdiCharSet", ((byte)(0)))});
+            xyDiagram2.AxisX.Label.ResolveOverlappingOptions.AllowHide = false;
+            xyDiagram2.AxisX.Label.ResolveOverlappingOptions.AllowRotate = false;
+            xyDiagram2.AxisX.Label.TextColor = System.Drawing.Color.FromArgb(((int)(((byte)(255)))), ((int)(((byte)(255)))), ((int)(((byte)(255)))));
+            xyDiagram2.AxisX.LabelVisibilityMode = DevExpress.XtraCharts.AxisLabelVisibilityMode.AutoGeneratedAndCustom;
+            xyDiagram2.AxisX.NumericScaleOptions.AutoGrid = false;
+            xyDiagram2.AxisX.NumericScaleOptions.GridSpacing = 0.5D;
+            xyDiagram2.AxisX.VisibleInPanesSerializable = "-1";
+            xyDiagram2.AxisY.Interlaced = true;
+            xyDiagram2.AxisY.MinorCount = 4;
+            xyDiagram2.AxisY.VisibleInPanesSerializable = "-1";
+            xyDiagram2.EnableAxisXScrolling = true;
+            xyDiagram2.EnableAxisXZooming = true;
+            xyDiagram2.EnableAxisYScrolling = true;
+            xyDiagram2.EnableAxisYZooming = true;
+            xyDiagram2.Rotated = true;
+            this.CharYMVN.Diagram = xyDiagram2;
+            this.CharYMVN.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.CharYMVN.Legend.Name = "Default Legend";
+            this.CharYMVN.Location = new System.Drawing.Point(0, 0);
+            this.CharYMVN.Margin = new System.Windows.Forms.Padding(6);
+            this.CharYMVN.Name = "CharYMVN";
+            series4.ArgumentDataMember = "CUSTOMER_PART_NO";
+            series4.LabelsVisibility = DevExpress.Utils.DefaultBoolean.True;
+            series4.Name = "TỒN KHO";
+            series4.SeriesID = 0;
+            series4.ValueDataMembersSerializable = "SLTONKHO";
+            series5.ArgumentDataMember = "CUSTOMER_PART_NO";
+            series5.LabelsVisibility = DevExpress.Utils.DefaultBoolean.True;
+            series5.Name = "TỔNG ĐƠN HÀNG";
+            series5.SeriesID = 1;
+            series5.ValueDataMembersSerializable = "TTCS";
+            pointSeriesView2.PointMarkerOptions.Size = 10;
+            series5.View = pointSeriesView2;
+            series6.ArgumentDataMember = "CUSTOMER_PART_NO";
+            series6.Name = "SL Đã Giao";
+            series6.SeriesID = 2;
+            series6.ValueDataMembersSerializable = "SLDAGIAO";
+            series6.View = stackedBarSeriesView2;
+            this.CharYMVN.SeriesSerializable = new DevExpress.XtraCharts.Series[] {
+        series4,
+        series5,
+        series6};
+            this.CharYMVN.Size = new System.Drawing.Size(1726, 898);
+            this.CharYMVN.SmallChartText.TextColor = System.Drawing.Color.FromArgb(((int)(((byte)(255)))), ((int)(((byte)(255)))), ((int)(((byte)(255)))));
+            this.CharYMVN.TabIndex = 6;
+            // 
+            // timer1
+            // 
+            this.timer1.Enabled = true;
+            this.timer1.Tick += new System.EventHandler(this.timer1_Tick_1);
+            // 
+            // lblHostName
+            // 
             this.lblHostName.AutoSize = true;
-            this.lblHostName.Location = new System.Drawing.Point(24, 52);
+            this.lblHostName.Location = new System.Drawing.Point(850, 116);
             this.lblHostName.Name = "lblHostName";
             this.lblHostName.Size = new System.Drawing.Size(0, 13);
             this.lblHostName.Text = "";
             this.lblMayBan.AutoSize = true;
-            this.lblMayBan.Location = new System.Drawing.Point(24, 70);
+            this.lblMayBan.Location = new System.Drawing.Point(1073, 116);
             this.lblMayBan.Name = "lblMayBan";
-            this.lblMayBan.Size = new System.Drawing.Size(0, 13);
-            this.lblMayBan.Text = "";
-
-            this.timer1.Interval = 1000;
-            this.timer1.Tick += new System.EventHandler(this.timer1_Tick_1);
-            this.helpProvider1.HelpNamespace = "";
-
+            this.lblMayBan.Size = new System.Drawing.Size(0, 16);
+            this.lblMayBan.TabIndex = 14;
+            // 
+            // helpProvider1
+            // 
+            this.helpProvider1.HelpNamespace = "\\\\192.168.200.1\\fcc\\003.DEPLOY\\009.QRCODE\\HDSB.chm";
+            // 
+            // Main_APP
+            // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 16F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(1473, 770);
+            this.ClientSize = new System.Drawing.Size(1473, 794);
+            this.Controls.Add(this.lblMayBan);
+            this.Controls.Add(this.lblHostName);
             this.Controls.Add(this.panel2);
             this.Controls.Add(this.accordionControl);
             this.Controls.Add(this.ribbonControl);
