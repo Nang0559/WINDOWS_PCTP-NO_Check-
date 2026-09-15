@@ -1,3 +1,4 @@
+using DevExpress.XtraEditors;
 using PCTP.Modules.BaoCao.Application.Contracts.Queries;
 using PCTP.Modules.BaoCao.Infrastructure.Queries;
 using System;
@@ -10,6 +11,7 @@ using System.Windows.Forms;
 
 namespace PCTP.Modules.BaoCao.UI
 {
+    [DesignerCategory("Code")]
     public sealed class FormBaoCaoTraceability : Form
     {
         private readonly IQrTraceQuery _qrQuery;
@@ -18,8 +20,8 @@ namespace PCTP.Modules.BaoCao.UI
         private readonly TextBox _txtQr = new TextBox();
         private readonly TextBox _txtCustomerLabel = new TextBox();
         private readonly TextBox _txtLot = new TextBox();
-        private readonly TextBox _txtPart = new TextBox();
-        private readonly TextBox _txtCustomer = new TextBox();
+        private readonly LookUpEdit _txtPart = new LookUpEdit();
+        private readonly LookUpEdit _txtCustomer = new LookUpEdit();
         private readonly DateTimePicker _from = new DateTimePicker();
         private readonly DateTimePicker _to = new DateTimePicker();
         private readonly DataGridView _grid = new DataGridView();
@@ -45,6 +47,7 @@ namespace PCTP.Modules.BaoCao.UI
             Height = 720;
             StartPosition = FormStartPosition.CenterParent;
             BuildUi();
+            Shown += async (s, e) => await LoadLookupsAsync();
         }
 
         private void ApplyQuickSearch(string value)
@@ -59,6 +62,43 @@ namespace PCTP.Modules.BaoCao.UI
                 _txtPart.Text = keyword.Substring(5).Trim();
             else
                 _txtQr.Text = keyword;
+        }
+
+        private async Task LoadLookupsAsync()
+        {
+            try
+            {
+                ToggleSearch(false);
+                _status.Text = "Đang tải danh sách mã hàng/khách hàng...";
+
+                Task<IReadOnlyList<string>> itemTask = _customerQuery.GetItemCodesAsync(CancellationToken.None);
+                Task<IReadOnlyList<string>> customerTask = _customerQuery.GetCustomersAsync(CancellationToken.None);
+                await Task.WhenAll(itemTask, customerTask);
+
+                ConfigureLookup(_txtPart, itemTask.Result, "Mã hàng");
+                ConfigureLookup(_txtCustomer, customerTask.Result, "Khách hàng");
+                _status.Text = "Sẵn sàng";
+            }
+            catch (Exception ex)
+            {
+                _status.Text = "Không tải được danh sách mã hàng/khách hàng.";
+                MessageBox.Show(this, ex.Message, "BaoCao", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                ToggleSearch(true);
+            }
+        }
+
+        private static void ConfigureLookup(LookUpEdit lookup, IReadOnlyList<string> values, string nullText)
+        {
+            lookup.Properties.NullText = nullText;
+            lookup.Properties.DataSource = values == null ? new List<string>() : values.ToList();
+            lookup.Properties.DisplayMember = string.Empty;
+            lookup.Properties.ValueMember = string.Empty;
+            lookup.Properties.ShowHeader = false;
+            lookup.Properties.TextEditStyle = DevExpress.XtraEditors.Controls.TextEditStyles.Standard;
+            lookup.Properties.AutoHeight = false;
         }
 
         private void BuildUi()
@@ -88,7 +128,7 @@ namespace PCTP.Modules.BaoCao.UI
             var clearButton = new Button { Text = "Xóa điều kiện", Dock = DockStyle.Fill };
             clearButton.Click += ClearButton_Click;
             search.Controls.Add(clearButton, 5, 2);
-            _status.Text = "Sẵn sàng";
+            _status.Text = "Đang chuẩn bị...";
             _status.Dock = DockStyle.Fill;
             _status.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             search.Controls.Add(_status, 0, 3);
@@ -134,8 +174,8 @@ namespace PCTP.Modules.BaoCao.UI
                 string qr = _txtQr.Text.Trim();
                 string customerLabel = _txtCustomerLabel.Text.Trim();
                 string lot = _txtLot.Text.Trim();
-                string part = _txtPart.Text.Trim();
-                string customer = _txtCustomer.Text.Trim();
+                string part = GetLookupText(_txtPart);
+                string customer = GetLookupText(_txtCustomer);
                 IReadOnlyList<DeliveryTraceRow> rows;
                 if (!string.IsNullOrWhiteSpace(lot))
                     rows = await _lotQuery.SearchAsync(lot, part, customer, from, to, CancellationToken.None);
@@ -156,6 +196,14 @@ namespace PCTP.Modules.BaoCao.UI
             finally { ToggleSearch(true); }
         }
 
+        private static string GetLookupText(LookUpEdit lookup)
+        {
+            object value = lookup.EditValue;
+            if (value != null && value != DBNull.Value)
+                return Convert.ToString(value).Trim();
+            return (lookup.Text ?? string.Empty).Trim();
+        }
+
         private async void DeliveryGrid_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
         {
             if (e.RowIndex < 0 || e.RowIndex >= _currentRows.Count) return;
@@ -171,7 +219,9 @@ namespace PCTP.Modules.BaoCao.UI
 
         private void ClearButton_Click(object sender, EventArgs e)
         {
-            _txtQr.Clear(); _txtCustomerLabel.Clear(); _txtLot.Clear(); _txtPart.Clear(); _txtCustomer.Clear();
+            _txtQr.Clear(); _txtCustomerLabel.Clear(); _txtLot.Clear();
+            _txtPart.EditValue = null; _txtPart.Text = string.Empty;
+            _txtCustomer.EditValue = null; _txtCustomer.Text = string.Empty;
             _from.Value = DateTime.Today.AddDays(-30); _to.Value = DateTime.Today;
             _grid.DataSource = null; _lotGrid.DataSource = null; _currentRows.Clear(); _status.Text = "Sẵn sàng";
         }
