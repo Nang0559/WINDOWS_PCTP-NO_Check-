@@ -1,4 +1,3 @@
-
 using PCTP.Common;
 using PCTP.Infrastructure.Repositories;
 using PCTP.Models;
@@ -177,16 +176,10 @@ namespace PCTP.Modules.NhapKho.Services
                     null, PhieuStatus.Active);
 
                 _caseRepo.InsertCaseHistory(caseNo);
-                _uow.Commit();
-            }
-            catch (Exception ex)
-            {
-                try { _uow.Rollback(); } catch { }
-                return ScanResult.Fail("Lỗi nhập kho: " + ex.Message);
-            }
 
-            try
-            {
+                // Stock movement + SlotLot + case + StockHistory phải cùng transaction.
+                // Nếu history lỗi, rollback toàn bộ mutation thay vì để tồn kho đã commit
+                // nhưng lịch sử bị mất.
                 _historyRepo.SaveHistory(
                     "IMPORT", qr.ItemCode,
                     new LotInfo
@@ -200,10 +193,13 @@ namespace PCTP.Modules.NhapKho.Services
                     fromSlotId: null,
                     toSlotId: slotId,
                     performedBy: null);
+
+                _uow.Commit();
             }
-            catch (Exception exHist)
+            catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine("[NhapTpReceivingService] Nhập kho thành công nhưng ghi StockHistory lỗi: " + exHist.Message);
+                try { _uow.Rollback(); } catch { }
+                return ScanResult.Fail("Lỗi nhập kho: " + ex.Message);
             }
 
             return ScanResult.OKNhapKho(
