@@ -1,32 +1,32 @@
 using PCTP.ClassSQL;
 using PCTP.Common;
-using PCTP.Modules.BaoCao.Application.Contracts.Models;
 using PCTP.Modules.BaoCao.Application.Contracts.Queries;
 using PCTP.Modules.BaoCao.Application.Contracts.Repositories;
-using PCTP.Modules.GiaoHangKhach;
 using PCTP.Shared.Common;
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace PCTP.Modules.BaoCao.Infrastructure.Repositories
 {
     /// <summary>
-    /// SQL Server persistence adapter for delivery traceability.
+    /// Read-only delivery trace adapter.
     ///
-    /// Actual source tables:
-    ///   dbo.LUUPHIEUGIAOHANG  - delivery header/detail evidence
-    ///   dbo.LUUDOCQRCODE      - FCC/HVN document-QR mapping
+    /// Source of truth:
+    ///   dbo.LUUPHIEUGIAOHANG
+    ///   dbo.LUUDOCQRCODE
     ///
-    /// Customer information is intentionally NOT fabricated here because neither
-    /// of the supplied tables contains CustomerCode/CustomerName columns.
+    /// STT is intentionally NOT used as the QR business join key.
     /// </summary>
     public sealed class DeliveryTraceRepository : SqlRepositoryBase, IDeliveryTraceRepository
     {
+        private const string HondaVp = "HON DA - VIET NAM(NHA MAY VP)";
+        private const string HondaHn = "HON DA - VIET NAM(NHA MAY HN)";
+        private const string Yamaha = "YAMAHA - VIET NAM";
+
         public DeliveryTraceRepository()
             : this(new SQLPROVIDER())
         {
@@ -44,10 +44,10 @@ namespace PCTP.Modules.BaoCao.Infrastructure.Repositories
             cancellationToken.ThrowIfCancellationRequested();
 
             const string sql = @"
-            SELECT DISTINCT P.MAHANG
-            FROM dbo.LUUPHIEUGIAOHANG P
-            WHERE NULLIF(LTRIM(RTRIM(P.MAHANG)), '') IS NOT NULL
-            ORDER BY P.MAHANG";
+SELECT DISTINCT P.MAHANG
+FROM dbo.LUUPHIEUGIAOHANG P
+WHERE NULLIF(LTRIM(RTRIM(P.MAHANG)), '') IS NOT NULL
+ORDER BY P.MAHANG";
 
             return Task.FromResult<IReadOnlyList<string>>(
                 LoadStringList(sql, cancellationToken));
@@ -57,10 +57,13 @@ namespace PCTP.Modules.BaoCao.Infrastructure.Repositories
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            // LUUPHIEUGIAOHANG and LUUDOCQRCODE do not contain customer code/name.
-            // Do not invent a customer column or run INFORMATION_SCHEMA discovery.
-            return Task.FromResult<IReadOnlyList<string>>(
-                new List<string>());
+            IReadOnlyList<string> result = new List<string>
+            {
+                "HON DA - VIET NAM",
+                Yamaha
+            };
+
+            return Task.FromResult(result);
         }
 
         public Task<IReadOnlyList<DeliveryTraceRow>> SearchQrAsync(
@@ -72,16 +75,6 @@ namespace PCTP.Modules.BaoCao.Infrastructure.Repositories
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-
-            // The real QR/document table has no QRCode/QRData column.
-            // MAFCC is the FCC document/QR identifier; LOTHVN/MAHANGHVN are
-            // the customer-side lot/item mapping available in LUUDOCQRCODE.
-            if (string.IsNullOrWhiteSpace(qrCode) &&
-                string.IsNullOrWhiteSpace(customerLabelData) &&
-                string.IsNullOrWhiteSpace(partNo))
-            {
-                // Still allow date-only traceability search.
-            }
 
             var where = new List<string> { "1 = 1" };
             var parameters = new List<SqlParameter>();
@@ -107,9 +100,8 @@ namespace PCTP.Modules.BaoCao.Infrastructure.Repositories
                     "%" + customerLabelData.Trim() + "%"));
             }
 
-            DataTable table = Load(where, parameters);
             return Task.FromResult<IReadOnlyList<DeliveryTraceRow>>(
-                MapRows(table, cancellationToken));
+                MapRows(Load(where, parameters), cancellationToken));
         }
 
         public Task<IReadOnlyList<DeliveryTraceRow>> SearchLotAsync(
@@ -122,39 +114,32 @@ namespace PCTP.Modules.BaoCao.Infrastructure.Repositories
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            // There is no customer column in the two actual source tables.
-            // A customer filter cannot be truthfully applied at this persistence boundary.
-            if (!string.IsNullOrWhiteSpace(customerName))
-            {
-                return Task.FromResult<IReadOnlyList<DeliveryTraceRow>>(
-                    new List<DeliveryTraceRow>());
-            }
-
             var where = new List<string> { "1 = 1" };
             var parameters = new List<SqlParameter>();
 
             AddDateFilter(where, parameters, from, to);
             AddLikeFilter(where, parameters, "P.MAHANG", partNo, "@PartNo");
             AddLikeFilter(where, parameters, "P.LOT", lotNo, "@LotNo");
+            AddCustomerFilter(where, parameters, customerName);
 
             DataTable table = Load(where, parameters);
-            var rows = new List<DeliveryTraceRow>();
+            var result = new List<DeliveryTraceRow>(table.Rows.Count);
 
             foreach (DataRow row in table.Rows)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-
                 DeliveryTraceRow mapped = Map(row);
+
                 if (!string.IsNullOrWhiteSpace(lotNo) &&
                     !ContainsLot(mapped.LotNoRaw, lotNo))
                 {
                     continue;
                 }
 
-                rows.Add(mapped);
+                result.Add(mapped);
             }
 
-            return Task.FromResult<IReadOnlyList<DeliveryTraceRow>>(rows);
+            return Task.FromResult<IReadOnlyList<DeliveryTraceRow>>(result);
         }
 
         public Task<IReadOnlyList<DeliveryTraceRow>> SearchCustomerAsync(
@@ -166,23 +151,15 @@ namespace PCTP.Modules.BaoCao.Infrastructure.Repositories
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            // No customer field exists in either actual table. Returning no rows is
-            // safer than silently returning all customers for a requested customer.
-            if (!string.IsNullOrWhiteSpace(customerName))
-            {
-                return Task.FromResult<IReadOnlyList<DeliveryTraceRow>>(
-                    new List<DeliveryTraceRow>());
-            }
-
             var where = new List<string> { "1 = 1" };
             var parameters = new List<SqlParameter>();
 
             AddDateFilter(where, parameters, from, to);
             AddLikeFilter(where, parameters, "P.MAHANG", partNo, "@PartNo");
+            AddCustomerFilter(where, parameters, customerName);
 
-            DataTable table = Load(where, parameters);
             return Task.FromResult<IReadOnlyList<DeliveryTraceRow>>(
-                MapRows(table, cancellationToken));
+                MapRows(Load(where, parameters), cancellationToken));
         }
 
         public Task<IReadOnlyList<DeliveryTraceRow>> FindByQrAsync(
@@ -192,10 +169,8 @@ namespace PCTP.Modules.BaoCao.Infrastructure.Repositories
             cancellationToken.ThrowIfCancellationRequested();
 
             if (string.IsNullOrWhiteSpace(qrCode))
-            {
                 return Task.FromResult<IReadOnlyList<DeliveryTraceRow>>(
                     new List<DeliveryTraceRow>());
-            }
 
             var where = new List<string>
             {
@@ -206,40 +181,14 @@ namespace PCTP.Modules.BaoCao.Infrastructure.Repositories
                 new SqlParameter("@QrCode", "%" + qrCode.Trim() + "%")
             };
 
-            DataTable table = Load(where, parameters);
             return Task.FromResult<IReadOnlyList<DeliveryTraceRow>>(
-                MapRows(table, cancellationToken));
-        }
-
-        private List<string> LoadStringList(
-            string sql,
-            CancellationToken cancellationToken)
-        {
-            DataTable table = LoadData(sql);
-            var result = new List<string>(table.Rows.Count);
-
-            foreach (DataRow row in table.Rows)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                if (row[0] == DBNull.Value)
-                    continue;
-
-                string value = Convert.ToString(row[0]).Trim();
-                if (!string.IsNullOrWhiteSpace(value))
-                    result.Add(value);
-            }
-
-            return result;
+                MapRows(Load(where, parameters), cancellationToken));
         }
 
         private DataTable Load(
             List<string> where,
             List<SqlParameter> parameters)
         {
-            // LUUDOCQRCODE is joined to the delivery row using the fields that
-            // exist in BOTH real tables. The date is compared at DATE precision
-            // because both NGAYXUAT and NGAYGIAO are smalldatetime values.
             const string sqlPrefix = @"
 SELECT
     P.STT,
@@ -277,10 +226,22 @@ SELECT
     D.STATUS AS DOC_STATUS
 FROM dbo.LUUPHIEUGIAOHANG P
 LEFT JOIN dbo.LUUDOCQRCODE D
-    ON D.STT = P.STT
-   AND ISNULL(LTRIM(RTRIM(D.NHAMAY)), '') = ISNULL(LTRIM(RTRIM(P.NHAMAY)), '')
-   AND ISNULL(LTRIM(RTRIM(D.GIOGIAO)), '') = ISNULL(LTRIM(RTRIM(P.GIOGIAO)), '')
+    ON ISNULL(LTRIM(RTRIM(D.NHAMAY)), '') = ISNULL(LTRIM(RTRIM(P.NHAMAY)), '')
+   AND ISNULL(LTRIM(RTRIM(D.MAHANGFCC)), '') = ISNULL(LTRIM(RTRIM(P.MAHANG)), '')
    AND CONVERT(date, D.NGAYXUAT) = CONVERT(date, P.NGAYGIAO)
+   AND (
+        (
+            ISNULL(LTRIM(RTRIM(P.NHAMAY)), '') = 'YAMAHA - VIET NAM'
+            AND ISNULL(LTRIM(RTRIM(D.GIOGIAO)), '') =
+                ISNULL(LTRIM(RTRIM(P.CUA)), '')
+        )
+        OR
+        (
+            ISNULL(LTRIM(RTRIM(P.NHAMAY)), '') <> 'YAMAHA - VIET NAM'
+            AND ISNULL(LTRIM(RTRIM(D.GIOXUAT)), '') =
+                ISNULL(LTRIM(RTRIM(P.GIOGIAOFCC)), '')
+        )
+   )
 WHERE ";
 
             string sql = sqlPrefix +
@@ -291,12 +252,32 @@ ORDER BY P.NGAYGIAO DESC, P.STT DESC, D.STT DESC";
             return LoadData(sql, parameters.ToArray());
         }
 
+        private List<string> LoadStringList(
+            string sql,
+            CancellationToken cancellationToken)
+        {
+            DataTable table = LoadData(sql);
+            var result = new List<string>(table.Rows.Count);
+
+            foreach (DataRow row in table.Rows)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (row[0] == DBNull.Value)
+                    continue;
+
+                string value = Convert.ToString(row[0]).Trim();
+                if (!string.IsNullOrWhiteSpace(value))
+                    result.Add(value);
+            }
+
+            return result;
+        }
+
         private static List<DeliveryTraceRow> MapRows(
             DataTable table,
             CancellationToken cancellationToken)
         {
             var result = new List<DeliveryTraceRow>(table.Rows.Count);
-
             foreach (DataRow row in table.Rows)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -313,41 +294,22 @@ ORDER BY P.NGAYGIAO DESC, P.STT DESC, D.STT DESC";
             string gioGiao = DbValueHelper.GetString(row, "GIOGIAO");
             string poNo = DbValueHelper.GetString(row, "PO_NO");
             int stt = DbValueHelper.GetInt(row, "STT");
-
-            string maFcc = DbValueHelper.GetString(row, "MAFCC");
-            string lotHvn = DbValueHelper.GetString(row, "LOTHVN");
             string lotFcc = DbValueHelper.GetString(row, "LOTFCC");
 
             return new DeliveryTraceRow
             {
-                DeliveryKey = BuildDeliveryKey(
-                    nhaMay,
-                    ngayGiao,
-                    gioGiao,
-                    poNo,
-                    stt),
+                DeliveryKey = BuildDeliveryKey(nhaMay, ngayGiao, gioGiao, poNo, stt),
                 DocumentNo = poNo,
                 DeliveryDate = ngayGiao,
-
-                // These columns do not exist in the two supplied tables.
-                CustomerCode = null,
-                CustomerName = null,
-
+                CustomerCode = GetCustomerCode(nhaMay),
+                CustomerName = GetCustomerName(nhaMay),
                 PartNo = DbValueHelper.GetString(row, "MAHANG"),
                 PartName = DbValueHelper.GetString(row, "TENHANG"),
-
-                // Actual document QR/FCC identifier available in LUUDOCQRCODE.
-                QRCode = maFcc,
-
-                // Customer-side trace evidence available from LUUDOCQRCODE.
-                CustomerLabelData = lotHvn,
-
-                // Preserve the original delivery LOT and enrich the projection
-                // with FCC/HVN document information through the existing DTO fields.
+                QRCode = DbValueHelper.GetString(row, "MAFCC"),
+                CustomerLabelData = DbValueHelper.GetString(row, "LOTHVN"),
                 LotNoRaw = string.IsNullOrWhiteSpace(lotFcc)
                     ? DbValueHelper.GetString(row, "LOT")
                     : lotFcc,
-
                 Quantity = DbValueHelper.ToDecimal(row["SOLUONG"]),
                 Unit = DbValueHelper.GetString(row, "DV"),
                 Factory = nhaMay,
@@ -355,25 +317,58 @@ ORDER BY P.NGAYGIAO DESC, P.STT DESC, D.STT DESC";
             };
         }
 
-        private static string BuildDeliveryKey(
-            string nhaMay,
-            DateTime? ngayGiao,
-            string gioGiao,
-            string poNo,
-            int stt)
+        private static string GetCustomerCode(string nhaMay)
         {
-            return string.Join(
-                "|",
-                NormalizeKeyPart(nhaMay),
-                ngayGiao.HasValue ? ngayGiao.Value.ToString("yyyyMMdd") : "",
-                NormalizeKeyPart(gioGiao),
-                NormalizeKeyPart(poNo),
-                stt.ToString());
+            if (string.Equals(nhaMay, Yamaha, StringComparison.OrdinalIgnoreCase))
+                return "100002";
+
+            if (string.Equals(nhaMay, HondaVp, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(nhaMay, HondaHn, StringComparison.OrdinalIgnoreCase))
+                return "100001";
+
+            return null;
         }
 
-        private static string NormalizeKeyPart(string value)
+        private static string GetCustomerName(string nhaMay)
         {
-            return (value ?? string.Empty).Trim().ToUpperInvariant();
+            if (string.Equals(nhaMay, Yamaha, StringComparison.OrdinalIgnoreCase))
+                return Yamaha;
+
+            if (string.Equals(nhaMay, HondaVp, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(nhaMay, HondaHn, StringComparison.OrdinalIgnoreCase))
+                return "HON DA - VIET NAM";
+
+            return nhaMay;
+        }
+
+        private static void AddCustomerFilter(
+            List<string> where,
+            List<SqlParameter> parameters,
+            string customerName)
+        {
+            if (string.IsNullOrWhiteSpace(customerName))
+                return;
+
+            string customer = customerName.Trim();
+
+            if (string.Equals(customer, "100001", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(customer, "HON DA - VIET NAM", StringComparison.OrdinalIgnoreCase))
+            {
+                where.Add("P.NHAMAY IN (@HondaVp, @HondaHn)");
+                parameters.Add(new SqlParameter("@HondaVp", HondaVp));
+                parameters.Add(new SqlParameter("@HondaHn", HondaHn));
+                return;
+            }
+
+            if (string.Equals(customer, "100002", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(customer, Yamaha, StringComparison.OrdinalIgnoreCase))
+            {
+                where.Add("P.NHAMAY = @Yamaha");
+                parameters.Add(new SqlParameter("@Yamaha", Yamaha));
+                return;
+            }
+
+            where.Add("1 = 0");
         }
 
         private static void AddDateFilter(
@@ -391,9 +386,7 @@ ORDER BY P.NGAYGIAO DESC, P.STT DESC, D.STT DESC";
             if (to.HasValue)
             {
                 where.Add("P.NGAYGIAO < @ToDateExclusive");
-                parameters.Add(new SqlParameter(
-                    "@ToDateExclusive",
-                    to.Value.Date.AddDays(1)));
+                parameters.Add(new SqlParameter("@ToDateExclusive", to.Value.Date.AddDays(1)));
             }
         }
 
@@ -408,77 +401,49 @@ ORDER BY P.NGAYGIAO DESC, P.STT DESC, D.STT DESC";
                 return;
 
             where.Add("ISNULL(" + column + ", '') LIKE " + parameterName);
-            parameters.Add(new SqlParameter(
-                parameterName,
-                "%" + value.Trim() + "%"));
+            parameters.Add(new SqlParameter(parameterName, "%" + value.Trim() + "%"));
         }
 
         private static bool ContainsLot(string rawLot, string requestedLot)
         {
-            if (string.IsNullOrWhiteSpace(rawLot) ||
-                string.IsNullOrWhiteSpace(requestedLot))
-            {
+            if (string.IsNullOrWhiteSpace(rawLot) || string.IsNullOrWhiteSpace(requestedLot))
                 return false;
-            }
 
             try
             {
                 foreach (var item in LotCodeHelper.ParseCompositeLot(rawLot))
                 {
-                    if (LotCodeHelper.AreLotKeysEquivalent(
-                        item.Key,
-                        requestedLot.Trim()))
-                    {
+                    if (LotCodeHelper.AreLotKeysEquivalent(item.Key, requestedLot.Trim()))
                         return true;
-                    }
                 }
             }
             catch (FormatException)
             {
             }
 
-            return string.Equals(
-                       rawLot.Trim(),
-                       requestedLot.Trim(),
-                       StringComparison.OrdinalIgnoreCase) ||
-                   rawLot.IndexOf(
-                       requestedLot.Trim(),
-                       StringComparison.OrdinalIgnoreCase) >= 0;
+            return string.Equals(rawLot.Trim(), requestedLot.Trim(), StringComparison.OrdinalIgnoreCase) ||
+                   rawLot.IndexOf(requestedLot.Trim(), StringComparison.OrdinalIgnoreCase) >= 0;
         }
-        private static SlotMovementRow MapSlotMovement(DataRow row) => new SlotMovementRow
+
+        private static string BuildDeliveryKey(
+            string nhaMay,
+            DateTime? ngayGiao,
+            string gioGiao,
+            string poNo,
+            int stt)
         {
-            ActionType = DbValueHelper.GetString(row, "ActionType"),
-            ItemCode = DbValueHelper.GetString(row, "ItemCode"),
-            LotNo = DbValueHelper.GetString(row, "LotNo"),
-            Quantity = DbValueHelper.GetInt(row, "Quantity"),
-            Date = DbValueHelper.GetNullableDateTime(row, "Date") ?? default,
+            return string.Join(
+                "|",
+                NormalizeKeyPart(nhaMay),
+                ngayGiao.HasValue ? ngayGiao.Value.ToString("yyyyMMdd") : string.Empty,
+                NormalizeKeyPart(gioGiao),
+                NormalizeKeyPart(poNo),
+                stt.ToString());
+        }
 
-            FromSlotId = row["FromSlotId"] == DBNull.Value ? (int?)null : Convert.ToInt32(row["FromSlotId"]),
-            FromWarehouse = DbValueHelper.GetString(row, "FromWarehouse"),
-            FromRack = DbValueHelper.GetString(row, "FromRack"),
-            FromSlotNumber = row["FromSlotNumber"] == DBNull.Value ? (int?)null : Convert.ToInt32(row["FromSlotNumber"]),
-
-            ToSlotId = row["ToSlotId"] == DBNull.Value ? (int?)null : Convert.ToInt32(row["ToSlotId"]),
-            ToWarehouse = DbValueHelper.GetString(row, "ToWarehouse"),
-            ToRack = DbValueHelper.GetString(row, "ToRack"),
-            ToSlotNumber = row["ToSlotNumber"] == DBNull.Value ? (int?)null : Convert.ToInt32(row["ToSlotNumber"]),
-
-            PerformedBy = DbValueHelper.GetString(row, "PerformedBy")
-        };
-
-        private static HangChoGiaoRow MapHangChoGiao(DataRow row) => new HangChoGiaoRow
+        private static string NormalizeKeyPart(string value)
         {
-            Id = DbValueHelper.GetInt(row, "Id"),
-            MaHang = DbValueHelper.GetString(row, "MaHang"),
-            LotThung = DbValueHelper.GetString(row, "LotThung"),
-            LotGoc = DbValueHelper.GetString(row, "LotGoc"),
-            SoLuong = DbValueHelper.GetInt(row, "SoLuong"),
-            SlotIdNguon = row["SlotIdNguon"] == DBNull.Value ? (int?)null : Convert.ToInt32(row["SlotIdNguon"]),
-            TrangThai = DbValueHelper.GetString(row, "TrangThai"),
-            NgayXuatKho = DbValueHelper.GetNullableDateTime(row, "NgayXuatKho") ?? default,
-            NguoiXuatKho = DbValueHelper.GetString(row, "NguoiXuatKho"),
-            NgayGiao = DbValueHelper.GetNullableDateTime(row, "NgayGiao"),
-            NguoiGiao = DbValueHelper.GetString(row, "NguoiGiao")
-        };
+            return (value ?? string.Empty).Trim().ToUpperInvariant();
+        }
     }
 }
