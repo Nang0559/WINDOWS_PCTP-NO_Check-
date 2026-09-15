@@ -175,13 +175,17 @@ ORDER BY P.MAHANG";
                 return Task.FromResult<IReadOnlyList<DeliveryTraceRow>>(
                     new List<DeliveryTraceRow>());
 
+            // This is an exact lookup used to resolve a scanned QR to its
+            // delivery row. Do NOT use LIKE here: a QR is an identifier, not
+            // a free-text search term, and partial matching can reopen/trace
+            // the wrong delivery when codes share a prefix or suffix.
             var where = new List<string>
             {
-                "ISNULL(D.MAFCC, '') LIKE @QrCode"
+                "ISNULL(LTRIM(RTRIM(D.MAFCC)), '') = @QrCode"
             };
             var parameters = new List<SqlParameter>
             {
-                new SqlParameter("@QrCode", "%" + qrCode.Trim() + "%")
+                new SqlParameter("@QrCode", qrCode.Trim())
             };
 
             return Task.FromResult<IReadOnlyList<DeliveryTraceRow>>(
@@ -467,12 +471,16 @@ ORDER BY P.NGAYGIAO DESC, P.STT DESC, D.STT DESC";
                         return true;
                 }
             }
-            catch (FormatException)
+            catch (Exception)
             {
+                // Keep the read path fail-safe: a malformed composite LOT
+                // must not make the whole trace screen fail.
             }
 
-            return string.Equals(rawLot.Trim(), requestedLot.Trim(), StringComparison.OrdinalIgnoreCase) ||
-                   rawLot.IndexOf(requestedLot.Trim(), StringComparison.OrdinalIgnoreCase) >= 0;
+            return string.Equals(
+                rawLot.Trim(),
+                requestedLot.Trim(),
+                StringComparison.OrdinalIgnoreCase);
         }
 
         private static string BuildDeliveryKey(
@@ -484,16 +492,11 @@ ORDER BY P.NGAYGIAO DESC, P.STT DESC, D.STT DESC";
         {
             return string.Join(
                 "|",
-                NormalizeKeyPart(nhaMay),
-                ngayGiao.HasValue ? ngayGiao.Value.ToString("yyyyMMdd") : string.Empty,
-                NormalizeKeyPart(gioGiao),
-                NormalizeKeyPart(poNo),
+                nhaMay ?? string.Empty,
+                ngayGiao.HasValue ? ngayGiao.Value.ToString("yyyy-MM-dd") : string.Empty,
+                gioGiao ?? string.Empty,
+                poNo ?? string.Empty,
                 stt.ToString());
-        }
-
-        private static string NormalizeKeyPart(string value)
-        {
-            return (value ?? string.Empty).Trim().ToUpperInvariant();
         }
     }
 }
