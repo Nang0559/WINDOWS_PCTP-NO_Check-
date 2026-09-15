@@ -5,7 +5,6 @@ using System.Drawing;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
-using System.Windows.Forms.VisualStyles;
 
 namespace PCTP.Shell.Help
 {
@@ -110,7 +109,7 @@ namespace PCTP.Shell.Help
             WmsHelpNativeWindow nativeWindow;
             if (NativeWindows.TryGetValue(form, out nativeWindow))
             {
-                nativeWindow.Dispose();
+                nativeWindow.Detach();
                 NativeWindows.Remove(form);
             }
 
@@ -165,6 +164,12 @@ namespace PCTP.Shell.Help
 
                 AssignHandle(_owner.Handle);
                 RedrawCaptionButton();
+            }
+
+            internal void Detach()
+            {
+                if (Handle != IntPtr.Zero)
+                    ReleaseHandle();
             }
 
             protected override void WndProc(ref Message m)
@@ -266,31 +271,18 @@ namespace PCTP.Shell.Help
 
             private static void DrawCaptionHelpButton(Graphics graphics, Rectangle bounds)
             {
-                try
+                // Do not use VisualStyleElement.Window.CaptionButton.Help:
+                // it is not available in the .NET Framework target used by PCTP.
+                // Draw a lightweight native-looking caption button instead.
+                using (SolidBrush background = new SolidBrush(SystemColors.ActiveCaption))
+                using (SolidBrush foreground = new SolidBrush(SystemColors.ActiveCaptionText))
+                using (Font font = new Font("Segoe UI", 9f, FontStyle.Bold))
+                using (StringFormat format = new StringFormat())
                 {
-                    VisualStyleElement element = VisualStyleElement.Window.CaptionButton.Help;
-                    if (VisualStyleRenderer.IsElementDefined(element))
-                    {
-                        VisualStyleRenderer renderer = new VisualStyleRenderer(element);
-                        renderer.DrawBackground(graphics, bounds);
-                        return;
-                    }
-                }
-                catch
-                {
-                    // Fall through to the lightweight fallback glyph.
-                }
-
-                using (SolidBrush brush = new SolidBrush(SystemColors.ActiveCaptionText))
-                using (Font font = new Font("Segoe UI", 10f, FontStyle.Bold))
-                {
-                    StringFormat format = new StringFormat
-                    {
-                        Alignment = StringAlignment.Center,
-                        LineAlignment = StringAlignment.Center
-                    };
-
-                    graphics.DrawString("?", font, brush, bounds, format);
+                    graphics.FillRectangle(background, bounds);
+                    format.Alignment = StringAlignment.Center;
+                    format.LineAlignment = StringAlignment.Center;
+                    graphics.DrawString("?", font, foreground, bounds, format);
                 }
             }
 
