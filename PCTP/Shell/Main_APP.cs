@@ -124,8 +124,6 @@ namespace PCTP
         private void E_NhapTP_0QR_Click(object sender, EventArgs e) { }
         private void E_GHHVN_MP_Click(object sender, EventArgs e) { WarehouseProcessNavigator.OpenGiaoHangHVN("100001"); }
         private void E_GHHVN_SP_Click(object sender, EventArgs e) { WarehouseProcessNavigator.OpenGiaoHangHVN("100002"); }
-        private void E_GHYMVN_MP_Click(object sender, EventArgs e) { WarehouseProcessNavigator.OpenGiaoHangYMVN("MP"); }
-        private void E_GHYMVN_SP_Click(object sender, EventArgs e) { WarehouseProcessNavigator.OpenGiaoHangYMVN("SP"); }
         private void HTDelever_Click(object sender, EventArgs e) { WarehouseProcessNavigator.OpenGiaoHangHVN("100003"); }
         private void E_Tracuulotno_Click(object sender, EventArgs e) { }
         private void E_In_Le_Click(object sender, EventArgs e) { }
@@ -171,7 +169,6 @@ namespace PCTP
         }
 
         private void cmdRackControl_Click(object sender, EventArgs e) { WarehouseProcessNavigator.OpenBanDoKho(this); }
-  
 
         private void accordionControlElement19_Click(object sender, EventArgs e)
         {
@@ -200,7 +197,6 @@ namespace PCTP
             if (tgxem.Left >= 100) timer1.Enabled = false;
         }
 
-      
         private void accordionControlElement36_Click(object sender, EventArgs e) { WarehouseProcessNavigator.OpenBanDoKho(this); }
         private void accordionControlElement30_Click_1(object sender, EventArgs e) { WarehouseProcessNavigator.OpenQuanLyTienTrinhHangLoi(this); }
 
@@ -213,8 +209,6 @@ namespace PCTP
         private void accordionControlElement37_Click(object sender, EventArgs e) { WarehouseProcessNavigator.OpenQuanLyTienTrinhHangLoi(this); }
         private void accordionControlElement_QCDinhHuong_Click(object sender, EventArgs e) { WarehouseProcessNavigator.OpenQCDinhHuong(this); }
         private void accordionControlElement_QCXacNhanCuoi_Click(object sender, EventArgs e) { WarehouseProcessNavigator.OpenQCXacNhanCuoi(this); }
-
-      
     }
 
     public static class HTMLHelpClass
