@@ -25,6 +25,8 @@
     <Compile Include="Modules\KhoCore\Application\Contracts\Stock\IStockSlotRepository.cs" />
     <Compile Include="Modules\KhoCore\Application\Contracts\Stock\IStockReceivingRepository.cs" />
     <Compile Include="Modules\KhoCore\Application\Services\StockMovementService.cs" />
+    <Compile Include="Modules\KhoCore\Application\Contracts\Tracking\IPhieuTrackingReadRepository.cs" />
+    <Compile Include="Modules\KhoCore\Infrastructure\Tracking\PhieuTrackingReadRepository.cs" />
     <Compile Include="Infrastructure\Stock\LegacyStockSlotRepositoryAdapter.cs" />
     <Compile Include="Modules\XuatKho\Application\Adapters\StockExportRepositoryAdapter.cs" />
     <Compile Include="Modules\XuLyHangLoi\Application\Adapters\ReworkStockBalanceAdapter.cs" />
