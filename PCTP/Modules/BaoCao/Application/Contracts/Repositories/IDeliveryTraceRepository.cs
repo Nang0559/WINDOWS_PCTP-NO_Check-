@@ -2,14 +2,13 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using PCTP.Modules.BaoCao.Application.Contracts.Models;
 using PCTP.Modules.BaoCao.Application.Contracts.Queries;
 
 namespace PCTP.Modules.BaoCao.Application.Contracts.Repositories
 {
     /// <summary>
-    /// Persistence boundary for delivery traceability queries.
-    /// The application layer depends on this contract and never knows SQL/DataTable details.
+    /// Read-only persistence boundary for delivery traceability.
+    /// SQL/DataTable details stay in Infrastructure.
     /// </summary>
     public interface IDeliveryTraceRepository
     {
@@ -43,10 +42,5 @@ namespace PCTP.Modules.BaoCao.Application.Contracts.Repositories
         Task<IReadOnlyList<DeliveryTraceRow>> FindByQrAsync(
             string qrCode,
             CancellationToken cancellationToken);
-        Task<IReadOnlyList<SlotMovementRow>> GetSlotHistoryByLotAsync(
-       string lotNo, CancellationToken cancellationToken);
-
-        Task<IReadOnlyList<HangChoGiaoRow>> GetChoGiaoByPhieuAsync(
-            int stt, CancellationToken cancellationToken);
     }
 }
