@@ -211,7 +211,7 @@ namespace PCTP.Modules.BaoCao.UI
                 else if (!string.IsNullOrWhiteSpace(customer) && string.IsNullOrWhiteSpace(qr) && string.IsNullOrWhiteSpace(customerLabel))
                     rows = await _customerQuery.SearchAsync(customer, part, from, to, CancellationToken.None);
                 else
-                    rows = await _qrQuery.SearchAsync(qr, customerLabel, part, from, to, CancellationToken.None);
+                    rows = await _qrQuery.SearchAsync(qr, customerLabel, part, customer, from, to, CancellationToken.None);
 
                 _currentRows = rows == null ? new List<DeliveryTraceRow>() : rows.ToList();
                 _grid.DataSource = new BindingList<DeliveryTraceRow>(_currentRows);
