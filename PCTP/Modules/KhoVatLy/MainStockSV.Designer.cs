@@ -1,4 +1,4 @@
-﻿namespace PCTP.Modules.KhoVatLy
+namespace PCTP.Modules.KhoVatLy
 {
     partial class MainStockSV
     {
