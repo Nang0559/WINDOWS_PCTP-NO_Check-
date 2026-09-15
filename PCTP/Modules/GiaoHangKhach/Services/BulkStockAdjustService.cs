@@ -10,14 +10,6 @@ using System.Linq;
 
 namespace PCTP.Modules.GiaoHangKhach.Services
 {
-    /// <summary>
-    /// Điều chỉnh kho ảo A0 khi hàng đã nhập vào A0 sau đó được xuất đi qua
-    /// luồng CNK thông thường.
-    ///
-    /// Physical stock mutation MUST go through IStockMovementService.
-    /// IBulkStockSlotRepository is retained only for virtual-slot resolution,
-    /// locking and read/query responsibilities during the migration.
-    /// </summary>
     public sealed class BulkStockAdjustService : IBulkStockAdjustService
     {
         private readonly IBulkStockSlotRepository _bulkRepo;
@@ -31,44 +23,32 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             IUnitOfWork uow,
             IStockMovementService stockMovement = null)
         {
-            _bulkRepo = bulkRepo
-                ?? throw new ArgumentNullException(nameof(bulkRepo));
-
-            _historyRepo = historyRepo
-                ?? throw new ArgumentNullException(nameof(historyRepo));
-
-            _uow = uow
-                ?? throw new ArgumentNullException(nameof(uow));
-
+            _bulkRepo = bulkRepo ?? throw new ArgumentNullException(nameof(bulkRepo));
+            _historyRepo = historyRepo ?? throw new ArgumentNullException(nameof(historyRepo));
+            _uow = uow ?? throw new ArgumentNullException(nameof(uow));
             _stockMovement = stockMovement;
         }
 
         /// <summary>
-        /// Tự động trừ số lượng xuất khỏi Slot ảo A0 theo LOT.
-        ///
-        /// manageTransaction=true: service tự quản transaction (luồng sau SP).
-        /// manageTransaction=false: caller đang giữ transaction lớn hơn và
-        /// toàn bộ Slot/SlotLot + audit phải tham gia cùng transaction đó.
+        /// A0 mutation through the central stock-movement boundary.
+        /// manageTransaction=false is used only when the caller already owns
+        /// the larger delivery transaction.
         /// </summary>
         public bool TruKhoAoTheoLot(string lotNo, int slXuat, bool manageTransaction = true)
         {
             if (slXuat <= 0 || string.IsNullOrWhiteSpace(lotNo))
                 return false;
-
             if (_stockMovement == null)
-                throw new InvalidOperationException(
-                    "Chưa cấu hình IStockMovementService cho BulkStockAdjustService.");
+                throw new InvalidOperationException("Chưa cấu hình IStockMovementService cho BulkStockAdjustService.");
 
             try
             {
-                if (manageTransaction)
-                    _uow.Begin();
+                if (manageTransaction) _uow.Begin();
 
                 int slotId = _bulkRepo.GetOrCreateVirtualSlotId(
                     BulkImportConfig.WarehouseName,
                     BulkImportConfig.RackName,
                     BulkImportConfig.Capacity);
-
                 _bulkRepo.LockSlotForUpdate(slotId);
 
                 var lots = _bulkRepo.GetLots(slotId) ?? new List<LotInfo>();
@@ -87,7 +67,6 @@ namespace PCTP.Modules.GiaoHangKhach.Services
                 var itemCode = candidates
                     .Select(x => x.ItemCode)
                     .FirstOrDefault(x => !string.IsNullOrWhiteSpace(x));
-
                 if (string.IsNullOrWhiteSpace(itemCode))
                 {
                     if (manageTransaction) _uow.Rollback();
@@ -96,7 +75,6 @@ namespace PCTP.Modules.GiaoHangKhach.Services
 
                 int available = candidates.Sum(x => x.Quantity);
                 int quantity = Math.Min(slXuat, available);
-
                 if (quantity <= 0)
                 {
                     if (manageTransaction) _uow.Rollback();
@@ -116,10 +94,8 @@ namespace PCTP.Modules.GiaoHangKhach.Services
                 });
 
                 if (!movement.Success)
-                {
-                    if (manageTransaction) _uow.Rollback();
-                    return false;
-                }
+                    throw new InvalidOperationException(
+                        "Không thể trừ tồn A0: " + (movement.ErrorMessage ?? "Stock movement thất bại."));
 
                 int slThucTeDaTru = movement.ConsumedLots == null
                     ? quantity
@@ -138,17 +114,11 @@ namespace PCTP.Modules.GiaoHangKhach.Services
                     null,
                     "SYSTEM_HVN_CNK");
 
-                if (manageTransaction)
-                    _uow.Commit();
+                if (manageTransaction) _uow.Commit();
 
                 if (quantity < slXuat)
-                {
                     System.Diagnostics.Debug.WriteLine(
-                        string.Format(
-                            "[BulkStockAdjust] A0 thiếu {0} cho LOT {1}.",
-                            slXuat - quantity,
-                            lotNo));
-                }
+                        string.Format("[BulkStockAdjust] A0 thiếu {0} cho LOT {1}.", slXuat - quantity, lotNo));
 
                 return true;
             }
