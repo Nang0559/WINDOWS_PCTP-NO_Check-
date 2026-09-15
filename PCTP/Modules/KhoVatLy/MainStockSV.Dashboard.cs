@@ -11,7 +11,12 @@ namespace PCTP.Modules.KhoVatLy
         private void BuildDashboardBar()
         {
             var pnl = new PanelControl { Dock = DockStyle.Top, Height = 40 };
-            var flow = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight, Padding = new Padding(10, 8, 0, 0) };
+            var flow = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                FlowDirection = FlowDirection.LeftToRight,
+                Padding = new Padding(10, 8, 0, 0)
+            };
 
             _lblDashTongStockTp = MakeDashLabel("Tổng tồn STOCKTP: --");
             _lblDashTongRack = MakeDashLabel("Tổng trong Rack thật: --");
@@ -23,7 +28,11 @@ namespace PCTP.Modules.KhoVatLy
             flow.Controls.AddRange(new Control[] { _lblDashTongStockTp, _lblDashTongRack, _lblDashTongA0, _lblDashLech });
             pnl.Controls.Add(flow);
             Controls.Add(pnl);
-            pnl.BringToFront();
+
+            // Dashboard là thanh thông tin phụ, không được phép phủ lên toolbar.
+            // BuildDashboardBar() chạy sau InitializeComponent(), vì vậy control mới
+            // sẽ nằm phía trên panelTop nếu không đưa panelTop lên lại.
+            panelTop.BringToFront();
         }
 
         private LabelControl MakeDashLabel(string text) => new LabelControl
