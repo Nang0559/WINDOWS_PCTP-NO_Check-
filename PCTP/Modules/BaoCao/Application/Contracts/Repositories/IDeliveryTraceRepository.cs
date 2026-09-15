@@ -20,6 +20,7 @@ namespace PCTP.Modules.BaoCao.Application.Contracts.Repositories
             string qrCode,
             string customerLabelData,
             string partNo,
+            string customerName,
             DateTime? from,
             DateTime? to,
             CancellationToken cancellationToken);
@@ -41,6 +42,10 @@ namespace PCTP.Modules.BaoCao.Application.Contracts.Repositories
 
         Task<IReadOnlyList<DeliveryTraceRow>> FindByQrAsync(
             string qrCode,
+            CancellationToken cancellationToken);
+
+        Task<IReadOnlyList<DeliveryTraceRow>> FindByDeliveryKeyAsync(
+            string deliveryKey,
             CancellationToken cancellationToken);
     }
 }
