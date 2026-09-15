@@ -1,6 +1,7 @@
 using DevExpress.XtraCharts;
 using DevExpress.XtraEditors;
 using PCTP.Common;
+using PCTP.Shared.Helpers;
 using System;
 using System.Data;
 using System.Drawing;

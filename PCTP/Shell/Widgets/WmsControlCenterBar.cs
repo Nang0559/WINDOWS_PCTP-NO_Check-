@@ -34,12 +34,13 @@ namespace PCTP.Shell.Widgets
             };
 
             layout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-            layout.ColumnStyles.Add(new ColumnStyle.Percent, 100f);
-            layout.ColumnStyles.Add(new ColumnStyle.Absolute, 82f);
-            layout.ColumnStyles.Add(new ColumnStyle.Absolute, 92f);
-            layout.ColumnStyles.Add(new ColumnStyle.Absolute, 78f);
-            layout.ColumnStyles.Add(new ColumnStyle.Absolute, 78f);
-            layout.ColumnStyles.Add(new ColumnStyle.Absolute, 150f);
+            layout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 82f));
+            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 92f));
+            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 78f));
+            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 78f));
+            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 150f));
 
             Label title = new Label
             {

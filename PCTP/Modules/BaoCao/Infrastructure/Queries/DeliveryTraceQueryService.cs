@@ -1,4 +1,5 @@
 using PCTP.ClassSQL;
+using PCTP.Common;
 using PCTP.Modules.BaoCao.Application.Contracts.Queries;
 using PCTP.Shared.Common;
 using System;

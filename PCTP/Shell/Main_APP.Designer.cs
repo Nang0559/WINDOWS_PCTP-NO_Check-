@@ -177,6 +177,7 @@
             // ribbonControl
             // 
             this.ribbonControl.CaptionBarItemLinks.Add(this.btHelp);
+            this.ribbonControl.EmptyAreaImageOptions.ImagePadding = new System.Windows.Forms.Padding(34, 30, 34, 30);
             this.ribbonControl.ExpandCollapseItem.Id = 0;
             this.ribbonControl.Items.AddRange(new DevExpress.XtraBars.BarItem[] {
             this.btHelp,
@@ -191,15 +192,16 @@
             this.barButtonItem1,
             this.barButtonItem2});
             this.ribbonControl.Location = new System.Drawing.Point(0, 0);
-            this.ribbonControl.Margin = new System.Windows.Forms.Padding(24, 30, 24, 30);
+            this.ribbonControl.Margin = new System.Windows.Forms.Padding(27, 30, 27, 30);
             this.ribbonControl.MaxItemId = 55;
             this.ribbonControl.MdiMergeStyle = DevExpress.XtraBars.Ribbon.RibbonMdiMergeStyle.Always;
             this.ribbonControl.Name = "ribbonControl";
+            this.ribbonControl.OptionsMenuMinWidth = 377;
             this.ribbonControl.Pages.AddRange(new DevExpress.XtraBars.Ribbon.RibbonPage[] {
             this.ribbonPage});
             this.ribbonControl.RibbonStyle = DevExpress.XtraBars.Ribbon.RibbonControlStyle.Office2013;
             this.ribbonControl.ShowApplicationButton = DevExpress.Utils.DefaultBoolean.False;
-            this.ribbonControl.Size = new System.Drawing.Size(1473, 193);
+            this.ribbonControl.Size = new System.Drawing.Size(1683, 194);
             this.ribbonControl.StatusBar = this.ribbonStatusBar;
             this.ribbonControl.ToolbarLocation = DevExpress.XtraBars.Ribbon.RibbonQuickAccessToolbarLocation.Hidden;
             // 
@@ -317,10 +319,10 @@
             // ribbonStatusBar
             // 
             this.ribbonStatusBar.Location = new System.Drawing.Point(0, 766);
-            this.ribbonStatusBar.Margin = new System.Windows.Forms.Padding(24, 30, 24, 30);
+            this.ribbonStatusBar.Margin = new System.Windows.Forms.Padding(27, 30, 27, 30);
             this.ribbonStatusBar.Name = "ribbonStatusBar";
             this.ribbonStatusBar.Ribbon = this.ribbonControl;
-            this.ribbonStatusBar.Size = new System.Drawing.Size(1473, 28);
+            this.ribbonStatusBar.Size = new System.Drawing.Size(1683, 28);
             // 
             // accordionControlElement1
             // 
@@ -502,11 +504,11 @@
             this.accordionControlSeparator7,
             this.accordionControlElement28,
             this.accordionControlSeparator5});
-            this.accordionControl1.Location = new System.Drawing.Point(0, 193);
-            this.accordionControl1.Margin = new System.Windows.Forms.Padding(24, 25, 24, 25);
+            this.accordionControl1.Location = new System.Drawing.Point(0, 194);
+            this.accordionControl1.Margin = new System.Windows.Forms.Padding(27, 25, 27, 25);
             this.accordionControl1.Name = "accordionControl1";
             this.accordionControl1.ShowFilterControl = DevExpress.XtraBars.Navigation.ShowFilterControl.Auto;
-            this.accordionControl1.Size = new System.Drawing.Size(488, 573);
+            this.accordionControl1.Size = new System.Drawing.Size(558, 572);
             this.accordionControl1.TabIndex = 3;
             // 
             // accordionControlElement13
@@ -895,10 +897,10 @@
             this.panel1.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
             this.panel1.Controls.Add(this.tgxem);
             this.panel1.Dock = System.Windows.Forms.DockStyle.Top;
-            this.panel1.Location = new System.Drawing.Point(488, 193);
+            this.panel1.Location = new System.Drawing.Point(558, 194);
             this.panel1.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.panel1.Name = "panel1";
-            this.panel1.Size = new System.Drawing.Size(985, 28);
+            this.panel1.Size = new System.Drawing.Size(1125, 28);
             this.panel1.TabIndex = 10;
             // 
             // tgxem
@@ -906,7 +908,7 @@
             this.tgxem.AutoSize = true;
             this.tgxem.Font = new System.Drawing.Font("Times New Roman", 10.8F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.tgxem.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(0)))), ((int)(((byte)(0)))), ((int)(((byte)(192)))));
-            this.tgxem.Location = new System.Drawing.Point(-5, -1);
+            this.tgxem.Location = new System.Drawing.Point(-6, -1);
             this.tgxem.Name = "tgxem";
             this.tgxem.Size = new System.Drawing.Size(315, 20);
             this.tgxem.TabIndex = 0;
@@ -917,10 +919,10 @@
             // 
             this.panel2.Controls.Add(this.tabPane1);
             this.panel2.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.panel2.Location = new System.Drawing.Point(488, 221);
+            this.panel2.Location = new System.Drawing.Point(558, 222);
             this.panel2.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.panel2.Name = "panel2";
-            this.panel2.Size = new System.Drawing.Size(985, 545);
+            this.panel2.Size = new System.Drawing.Size(1125, 544);
             this.panel2.TabIndex = 11;
             // 
             // tabPane1
@@ -929,14 +931,14 @@
             this.tabPane1.Controls.Add(this.TabYMVN);
             this.tabPane1.Dock = System.Windows.Forms.DockStyle.Fill;
             this.tabPane1.Location = new System.Drawing.Point(0, 0);
-            this.tabPane1.Margin = new System.Windows.Forms.Padding(6);
+            this.tabPane1.Margin = new System.Windows.Forms.Padding(7, 6, 7, 6);
             this.tabPane1.Name = "tabPane1";
             this.tabPane1.Pages.AddRange(new DevExpress.XtraBars.Navigation.NavigationPageBase[] {
             this.TabHVN,
             this.TabYMVN});
-            this.tabPane1.RegularSize = new System.Drawing.Size(985, 545);
+            this.tabPane1.RegularSize = new System.Drawing.Size(1125, 544);
             this.tabPane1.SelectedPage = this.TabHVN;
-            this.tabPane1.Size = new System.Drawing.Size(985, 545);
+            this.tabPane1.Size = new System.Drawing.Size(1125, 544);
             this.tabPane1.TabIndex = 8;
             this.tabPane1.Text = "tabPane1";
             // 
@@ -947,10 +949,10 @@
             this.TabHVN.ImageOptions.SvgImage = ((DevExpress.Utils.Svg.SvgImage)(resources.GetObject("TabHVN.ImageOptions.SvgImage")));
             this.TabHVN.ImageOptions.SvgImageColorizationMode = DevExpress.Utils.SvgImageColorizationMode.None;
             this.TabHVN.ItemShowMode = DevExpress.XtraBars.Navigation.ItemShowMode.ImageAndText;
-            this.TabHVN.Margin = new System.Windows.Forms.Padding(6);
+            this.TabHVN.Margin = new System.Windows.Forms.Padding(7, 6, 7, 6);
             this.TabHVN.Name = "TabHVN";
             this.TabHVN.Properties.ShowMode = DevExpress.XtraBars.Navigation.ItemShowMode.ImageAndText;
-            this.TabHVN.Size = new System.Drawing.Size(985, 475);
+            this.TabHVN.Size = new System.Drawing.Size(1125, 474);
             // 
             // CharHVN
             // 
@@ -980,7 +982,7 @@
             this.CharHVN.Dock = System.Windows.Forms.DockStyle.Fill;
             this.CharHVN.Legend.Name = "Default Legend";
             this.CharHVN.Location = new System.Drawing.Point(0, 0);
-            this.CharHVN.Margin = new System.Windows.Forms.Padding(6);
+            this.CharHVN.Margin = new System.Windows.Forms.Padding(7, 6, 7, 6);
             this.CharHVN.Name = "CharHVN";
             series1.ArgumentDataMember = "CUSTOMER_PART_NO";
             series1.LabelsVisibility = DevExpress.Utils.DefaultBoolean.True;
@@ -1003,7 +1005,7 @@
         series1,
         series2,
         series3};
-            this.CharHVN.Size = new System.Drawing.Size(1231, 594);
+            this.CharHVN.Size = new System.Drawing.Size(1406, 593);
             this.CharHVN.SmallChartText.TextColor = System.Drawing.Color.FromArgb(((int)(((byte)(255)))), ((int)(((byte)(255)))), ((int)(((byte)(255)))));
             this.CharHVN.TabIndex = 5;
             // 
@@ -1014,10 +1016,10 @@
             this.TabYMVN.ImageOptions.SvgImage = ((DevExpress.Utils.Svg.SvgImage)(resources.GetObject("TabYMVN.ImageOptions.SvgImage")));
             this.TabYMVN.ImageOptions.SvgImageColorizationMode = DevExpress.Utils.SvgImageColorizationMode.CommonPalette;
             this.TabYMVN.ItemShowMode = DevExpress.XtraBars.Navigation.ItemShowMode.Text;
-            this.TabYMVN.Margin = new System.Windows.Forms.Padding(6);
+            this.TabYMVN.Margin = new System.Windows.Forms.Padding(7, 6, 7, 6);
             this.TabYMVN.Name = "TabYMVN";
             this.TabYMVN.Properties.ShowMode = DevExpress.XtraBars.Navigation.ItemShowMode.Text;
-            this.TabYMVN.Size = new System.Drawing.Size(1381, 718);
+            this.TabYMVN.Size = new System.Drawing.Size(1578, 718);
             // 
             // CharYMVN
             // 
@@ -1046,7 +1048,7 @@
             this.CharYMVN.Dock = System.Windows.Forms.DockStyle.Fill;
             this.CharYMVN.Legend.Name = "Default Legend";
             this.CharYMVN.Location = new System.Drawing.Point(0, 0);
-            this.CharYMVN.Margin = new System.Windows.Forms.Padding(6);
+            this.CharYMVN.Margin = new System.Windows.Forms.Padding(7, 6, 7, 6);
             this.CharYMVN.Name = "CharYMVN";
             series4.ArgumentDataMember = "CUSTOMER_PART_NO";
             series4.LabelsVisibility = DevExpress.Utils.DefaultBoolean.True;
@@ -1069,7 +1071,7 @@
         series4,
         series5,
         series6};
-            this.CharYMVN.Size = new System.Drawing.Size(1726, 898);
+            this.CharYMVN.Size = new System.Drawing.Size(1973, 898);
             this.CharYMVN.SmallChartText.TextColor = System.Drawing.Color.FromArgb(((int)(((byte)(255)))), ((int)(((byte)(255)))), ((int)(((byte)(255)))));
             this.CharYMVN.TabIndex = 6;
             // 
@@ -1081,7 +1083,7 @@
             // lblHostName
             // 
             this.lblHostName.AutoSize = true;
-            this.lblHostName.Location = new System.Drawing.Point(850, 116);
+            this.lblHostName.Location = new System.Drawing.Point(971, 116);
             this.lblHostName.Name = "lblHostName";
             this.lblHostName.Size = new System.Drawing.Size(0, 16);
             this.lblHostName.TabIndex = 14;
@@ -1089,7 +1091,7 @@
             // lblMayBan
             // 
             this.lblMayBan.AutoSize = true;
-            this.lblMayBan.Location = new System.Drawing.Point(1073, 116);
+            this.lblMayBan.Location = new System.Drawing.Point(1226, 116);
             this.lblMayBan.Name = "lblMayBan";
             this.lblMayBan.Size = new System.Drawing.Size(0, 16);
             this.lblMayBan.TabIndex = 14;
@@ -1100,9 +1102,9 @@
             // 
             // Main_APP
             // 
-            this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 16F);
+            this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(1473, 794);
+            this.ClientSize = new System.Drawing.Size(1683, 794);
             this.Controls.Add(this.lblMayBan);
             this.Controls.Add(this.lblHostName);
             this.Controls.Add(this.panel2);

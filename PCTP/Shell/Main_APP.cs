@@ -7,6 +7,7 @@ using PCTP.Acess_Image;
 using PCTP.Common;
 using PCTP.Modules.GiaoHangKhach.SubForm;
 using PCTP.QRCODE_HVN.ComaprePart;
+using PCTP.Shared.Helpers;
 using PCTP.Shell.Composition;
 using PCTP.Shell.Help;
 using PCTP.Shell.Services;

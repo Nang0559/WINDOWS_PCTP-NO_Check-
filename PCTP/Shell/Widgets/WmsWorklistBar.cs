@@ -1,4 +1,5 @@
 using DevExpress.XtraEditors;
+using PCTP.Common;
 using PCTP.Modules.XuLyHangLoi.Enums;
 using PCTP.Modules.XuLyHangLoi.Repository;
 using PCTP.VIEWSTOCK.Repository;

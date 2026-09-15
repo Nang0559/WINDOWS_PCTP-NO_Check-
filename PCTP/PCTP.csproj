@@ -1,5 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="..\packages\EntityFramework.6.6.0-preview1-final\build\EntityFramework.props" Condition="Exists('..\packages\EntityFramework.6.6.0-preview1-final\build\EntityFramework.props')" />
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
@@ -36,6 +37,8 @@
     <CreateDesktopShortcut>true</CreateDesktopShortcut>
     <PublishWizardCompleted>true</PublishWizardCompleted>
     <BootstrapperEnabled>true</BootstrapperEnabled>
+    <NuGetPackageImportStamp>
+    </NuGetPackageImportStamp>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
@@ -122,41 +125,47 @@
     <Reference Include="DevExpress.XtraSpreadsheet.v25.2, Version=25.2.4.0, Culture=neutral, PublicKeyToken=b88d1754d700e49a, processorArchitecture=MSIL" />
     <Reference Include="DevExpress.XtraTreeList.v25.2, Version=25.2.4.0, Culture=neutral, PublicKeyToken=b88d1754d700e49a, processorArchitecture=MSIL" />
     <Reference Include="DevExpress.XtraVerticalGrid.v25.2, Version=25.2.4.0, Culture=neutral, PublicKeyToken=b88d1754d700e49a" />
-    <Reference Include="EntityFramework, Version=5.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089, processorArchitecture=MSIL">
-      <HintPath>..\packages\EntityFramework.5.0.0\lib\net45\EntityFramework.dll</HintPath>
+    <Reference Include="EntityFramework, Version=6.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089, processorArchitecture=MSIL">
+      <HintPath>..\packages\EntityFramework.6.6.0-preview1-final\lib\net45\EntityFramework.dll</HintPath>
     </Reference>
-    <Reference Include="EPPlus, Version=7.5.2.0, Culture=neutral, PublicKeyToken=ea159fdaa78159a1, processorArchitecture=MSIL">
-      <HintPath>..\packages\EPPlus.7.5.2\lib\net462\EPPlus.dll</HintPath>
+    <Reference Include="EntityFramework.SqlServer, Version=6.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089, processorArchitecture=MSIL">
+      <HintPath>..\packages\EntityFramework.6.6.0-preview1-final\lib\net45\EntityFramework.SqlServer.dll</HintPath>
     </Reference>
-    <Reference Include="EPPlus.Interfaces, Version=8.4.0.0, Culture=neutral, PublicKeyToken=a694d7f3b0907a61, processorArchitecture=MSIL">
-      <HintPath>..\packages\EPPlus.Interfaces.8.4.0\lib\net462\EPPlus.Interfaces.dll</HintPath>
+    <Reference Include="EPPlus, Version=8.7.0.0, Culture=neutral, PublicKeyToken=ea159fdaa78159a1, processorArchitecture=MSIL">
+      <HintPath>..\packages\EPPlus.8.7.0\lib\net462\EPPlus.dll</HintPath>
     </Reference>
-    <Reference Include="EPPlus.System.Drawing, Version=7.5.0.0, Culture=neutral, PublicKeyToken=2308d35469c9bac0, processorArchitecture=MSIL">
-      <HintPath>..\packages\EPPlus.System.Drawing.7.5.0\lib\net462\EPPlus.System.Drawing.dll</HintPath>
+    <Reference Include="EPPlus.Interfaces, Version=8.6.2.0, Culture=neutral, PublicKeyToken=a694d7f3b0907a61, processorArchitecture=MSIL">
+      <HintPath>..\packages\EPPlus.Interfaces.8.6.2\lib\net462\EPPlus.Interfaces.dll</HintPath>
     </Reference>
-    <Reference Include="Microsoft.Bcl.AsyncInterfaces, Version=8.0.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
-      <HintPath>..\packages\Microsoft.Bcl.AsyncInterfaces.8.0.0\lib\net462\Microsoft.Bcl.AsyncInterfaces.dll</HintPath>
+    <Reference Include="EPPlus.System.Drawing, Version=8.6.2.0, Culture=neutral, PublicKeyToken=2308d35469c9bac0, processorArchitecture=MSIL">
+      <HintPath>..\packages\EPPlus.System.Drawing.8.6.2\lib\net462\EPPlus.System.Drawing.dll</HintPath>
     </Reference>
-    <Reference Include="Microsoft.Extensions.DependencyInjection, Version=7.0.0.0, Culture=neutral, PublicKeyToken=adb9793829ddae60, processorArchitecture=MSIL">
-      <HintPath>..\packages\Microsoft.Extensions.DependencyInjection.7.0.0\lib\net462\Microsoft.Extensions.DependencyInjection.dll</HintPath>
+    <Reference Include="Microsoft.Bcl.AsyncInterfaces, Version=11.0.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.Bcl.AsyncInterfaces.11.0.0-rc.1.26425.128\lib\net462\Microsoft.Bcl.AsyncInterfaces.dll</HintPath>
     </Reference>
-    <Reference Include="Microsoft.Extensions.DependencyInjection.Abstractions, Version=7.0.0.0, Culture=neutral, PublicKeyToken=adb9793829ddae60, processorArchitecture=MSIL">
-      <HintPath>..\packages\Microsoft.Extensions.DependencyInjection.Abstractions.7.0.0\lib\net462\Microsoft.Extensions.DependencyInjection.Abstractions.dll</HintPath>
+    <Reference Include="Microsoft.Bcl.Cryptography, Version=11.0.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.Bcl.Cryptography.11.0.0-rc.1.26425.128\lib\net462\Microsoft.Bcl.Cryptography.dll</HintPath>
     </Reference>
-    <Reference Include="Microsoft.Extensions.Options, Version=7.0.0.1, Culture=neutral, PublicKeyToken=adb9793829ddae60, processorArchitecture=MSIL">
-      <HintPath>..\packages\Microsoft.Extensions.Options.7.0.1\lib\net462\Microsoft.Extensions.Options.dll</HintPath>
+    <Reference Include="Microsoft.Extensions.DependencyInjection, Version=11.0.0.0, Culture=neutral, PublicKeyToken=adb9793829ddae60, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.Extensions.DependencyInjection.11.0.0-rc.1.26425.128\lib\net462\Microsoft.Extensions.DependencyInjection.dll</HintPath>
     </Reference>
-    <Reference Include="Microsoft.Extensions.Primitives, Version=7.0.0.0, Culture=neutral, PublicKeyToken=adb9793829ddae60, processorArchitecture=MSIL">
-      <HintPath>..\packages\Microsoft.Extensions.Primitives.7.0.0\lib\net462\Microsoft.Extensions.Primitives.dll</HintPath>
+    <Reference Include="Microsoft.Extensions.DependencyInjection.Abstractions, Version=11.0.0.0, Culture=neutral, PublicKeyToken=adb9793829ddae60, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.Extensions.DependencyInjection.Abstractions.11.0.0-rc.1.26425.128\lib\net462\Microsoft.Extensions.DependencyInjection.Abstractions.dll</HintPath>
     </Reference>
-    <Reference Include="Microsoft.IO.RecyclableMemoryStream, Version=3.0.1.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
-      <HintPath>..\packages\Microsoft.IO.RecyclableMemoryStream.3.0.1\lib\netstandard2.0\Microsoft.IO.RecyclableMemoryStream.dll</HintPath>
+    <Reference Include="Microsoft.Extensions.Options, Version=11.0.0.0, Culture=neutral, PublicKeyToken=adb9793829ddae60, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.Extensions.Options.11.0.0-rc.1.26425.128\lib\net462\Microsoft.Extensions.Options.dll</HintPath>
     </Reference>
-    <Reference Include="Microsoft.Web.Infrastructure, Version=1.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
-      <HintPath>..\packages\Microsoft.Web.Infrastructure.1.0.0.0\lib\net40\Microsoft.Web.Infrastructure.dll</HintPath>
+    <Reference Include="Microsoft.Extensions.Primitives, Version=11.0.0.0, Culture=neutral, PublicKeyToken=adb9793829ddae60, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.Extensions.Primitives.11.0.0-rc.1.26425.128\lib\net462\Microsoft.Extensions.Primitives.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.IO.RecyclableMemoryStream, Version=4.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.IO.RecyclableMemoryStream.4.0.1-preview\lib\netstandard2.0\Microsoft.IO.RecyclableMemoryStream.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Web.Infrastructure, Version=2.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.Web.Infrastructure.2.0.0\lib\net40\Microsoft.Web.Infrastructure.dll</HintPath>
     </Reference>
     <Reference Include="Newtonsoft.Json, Version=13.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
-      <HintPath>..\packages\Newtonsoft.Json.13.0.3\lib\net45\Newtonsoft.Json.dll</HintPath>
+      <HintPath>..\packages\Newtonsoft.Json.13.0.5-beta1\lib\net45\Newtonsoft.Json.dll</HintPath>
     </Reference>
     <Reference Include="Office, Version=15.0.0.0, Culture=neutral, PublicKeyToken=71e9bce111e9429c, processorArchitecture=MSIL">
       <HintPath>..\packages\MicrosoftOfficeCore.15.0.0\lib\net35\Office.dll</HintPath>
@@ -171,8 +180,8 @@
     <Reference Include="System.Buffers, Version=4.0.5.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
       <HintPath>..\packages\System.Buffers.4.6.1\lib\net462\System.Buffers.dll</HintPath>
     </Reference>
-    <Reference Include="System.Collections.Immutable, Version=10.0.0.3, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
-      <HintPath>..\packages\System.Collections.Immutable.10.0.3\lib\net462\System.Collections.Immutable.dll</HintPath>
+    <Reference Include="System.Collections.Immutable, Version=11.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Collections.Immutable.11.0.0-rc.1.26425.128\lib\net462\System.Collections.Immutable.dll</HintPath>
     </Reference>
     <Reference Include="System.ComponentModel.Annotations, Version=4.2.1.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
       <HintPath>..\packages\System.ComponentModel.Annotations.5.0.0\lib\net461\System.ComponentModel.Annotations.dll</HintPath>
@@ -184,17 +193,20 @@
     <Reference Include="System.Data.Linq" />
     <Reference Include="System.Data.OracleClient" />
     <Reference Include="System.Design" />
-    <Reference Include="System.Diagnostics.DiagnosticSource, Version=6.0.0.2, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
-      <HintPath>..\packages\System.Diagnostics.DiagnosticSource.6.0.2\lib\net461\System.Diagnostics.DiagnosticSource.dll</HintPath>
+    <Reference Include="System.Diagnostics.DiagnosticSource, Version=11.0.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Diagnostics.DiagnosticSource.11.0.0-rc.1.26425.128\lib\net462\System.Diagnostics.DiagnosticSource.dll</HintPath>
     </Reference>
-    <Reference Include="System.Drawing.Common, Version=8.0.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
-      <HintPath>..\packages\System.Drawing.Common.8.0.4\lib\net462\System.Drawing.Common.dll</HintPath>
+    <Reference Include="System.Drawing.Common, Version=11.0.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Drawing.Common.11.0.0-rc.1.26425.128\lib\net462\System.Drawing.Common.dll</HintPath>
     </Reference>
-    <Reference Include="System.Formats.Asn1, Version=8.0.0.1, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
-      <HintPath>..\packages\System.Formats.Asn1.8.0.1\lib\net462\System.Formats.Asn1.dll</HintPath>
+    <Reference Include="System.Formats.Asn1, Version=11.0.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Formats.Asn1.11.0.0-rc.1.26425.128\lib\net462\System.Formats.Asn1.dll</HintPath>
     </Reference>
-    <Reference Include="System.Linq.Dynamic.Core, Version=1.7.3.0, Culture=neutral, PublicKeyToken=0f07ec44de6ac832, processorArchitecture=MSIL">
-      <HintPath>..\packages\System.Linq.Dynamic.Core.1.7.3\lib\net46\System.Linq.Dynamic.Core.dll</HintPath>
+    <Reference Include="System.IO.Pipelines, Version=11.0.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.IO.Pipelines.11.0.0-rc.1.26425.128\lib\net462\System.IO.Pipelines.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Linq.Dynamic.Core, Version=1.7.4.0, Culture=neutral, PublicKeyToken=0f07ec44de6ac832, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Linq.Dynamic.Core.1.7.4\lib\net46\System.Linq.Dynamic.Core.dll</HintPath>
     </Reference>
     <Reference Include="System.Memory, Version=4.0.5.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
       <HintPath>..\packages\System.Memory.4.6.3\lib\net462\System.Memory.dll</HintPath>
@@ -210,41 +222,39 @@
     <Reference Include="System.Runtime.Serialization" />
     <Reference Include="System.Runtime.Serialization.Formatters.Soap" />
     <Reference Include="System.Security" />
-    <Reference Include="System.Security.Cryptography.Xml, Version=8.0.0.4, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
-      <HintPath>..\packages\System.Security.Cryptography.Xml.8.0.4\lib\net462\System.Security.Cryptography.Xml.dll</HintPath>
+    <Reference Include="System.Security.Cryptography.Xml, Version=11.0.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Security.Cryptography.Xml.11.0.0-rc.1.26425.128\lib\net462\System.Security.Cryptography.Xml.dll</HintPath>
     </Reference>
-    <Reference Include="System.Text.Encodings.Web, Version=8.0.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
-      <HintPath>..\packages\System.Text.Encodings.Web.8.0.0\lib\net462\System.Text.Encodings.Web.dll</HintPath>
+    <Reference Include="System.Text.Encodings.Web, Version=11.0.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Text.Encodings.Web.11.0.0-rc.1.26425.128\lib\net462\System.Text.Encodings.Web.dll</HintPath>
     </Reference>
-    <Reference Include="System.Text.Json, Version=8.0.0.5, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
-      <HintPath>..\packages\System.Text.Json.8.0.5\lib\net462\System.Text.Json.dll</HintPath>
+    <Reference Include="System.Text.Json, Version=11.0.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Text.Json.11.0.0-rc.1.26425.128\lib\net462\System.Text.Json.dll</HintPath>
     </Reference>
     <Reference Include="System.Threading.Tasks" />
-    <Reference Include="System.Threading.Tasks.Extensions, Version=4.2.1.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
-      <HintPath>..\packages\System.Threading.Tasks.Extensions.4.6.0\lib\net462\System.Threading.Tasks.Extensions.dll</HintPath>
+    <Reference Include="System.Threading.Tasks.Extensions, Version=4.2.4.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Threading.Tasks.Extensions.4.6.3\lib\net462\System.Threading.Tasks.Extensions.dll</HintPath>
     </Reference>
     <Reference Include="System.Transactions" />
-    <Reference Include="System.ValueTuple, Version=4.0.3.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
-      <HintPath>..\packages\System.ValueTuple.4.5.0\lib\net47\System.ValueTuple.dll</HintPath>
-    </Reference>
+    <Reference Include="System.ValueTuple" />
     <Reference Include="System.Web.DataVisualization.Design" />
     <Reference Include="System.Web.Helpers, Version=3.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
-      <HintPath>..\packages\Microsoft.AspNet.WebPages.3.2.7\lib\net45\System.Web.Helpers.dll</HintPath>
+      <HintPath>..\packages\Microsoft.AspNet.WebPages.3.3.0\lib\net45\System.Web.Helpers.dll</HintPath>
     </Reference>
-    <Reference Include="System.Web.Mvc, Version=5.2.7.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
-      <HintPath>..\packages\Microsoft.AspNet.Mvc.5.2.7\lib\net45\System.Web.Mvc.dll</HintPath>
+    <Reference Include="System.Web.Mvc, Version=5.3.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.AspNet.Mvc.5.3.0\lib\net45\System.Web.Mvc.dll</HintPath>
     </Reference>
     <Reference Include="System.Web.Razor, Version=3.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
-      <HintPath>..\packages\Microsoft.AspNet.Razor.3.2.7\lib\net45\System.Web.Razor.dll</HintPath>
+      <HintPath>..\packages\Microsoft.AspNet.Razor.3.3.0\lib\net45\System.Web.Razor.dll</HintPath>
     </Reference>
     <Reference Include="System.Web.WebPages, Version=3.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
-      <HintPath>..\packages\Microsoft.AspNet.WebPages.3.2.7\lib\net45\System.Web.WebPages.dll</HintPath>
+      <HintPath>..\packages\Microsoft.AspNet.WebPages.3.3.0\lib\net45\System.Web.WebPages.dll</HintPath>
     </Reference>
     <Reference Include="System.Web.WebPages.Deployment, Version=3.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
-      <HintPath>..\packages\Microsoft.AspNet.WebPages.3.2.7\lib\net45\System.Web.WebPages.Deployment.dll</HintPath>
+      <HintPath>..\packages\Microsoft.AspNet.WebPages.3.3.0\lib\net45\System.Web.WebPages.Deployment.dll</HintPath>
     </Reference>
     <Reference Include="System.Web.WebPages.Razor, Version=3.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
-      <HintPath>..\packages\Microsoft.AspNet.WebPages.3.2.7\lib\net45\System.Web.WebPages.Razor.dll</HintPath>
+      <HintPath>..\packages\Microsoft.AspNet.WebPages.3.3.0\lib\net45\System.Web.WebPages.Razor.dll</HintPath>
     </Reference>
     <Reference Include="System.Windows.Forms.DataVisualization" />
     <Reference Include="System.Xml.Linq" />
@@ -280,6 +290,37 @@
     </Compile>
     <Compile Include="ALLVAR.cs" />
     <Compile Include="Domain\Events\HoanThanhYMVNCompletedEvent.cs" />
+    <Compile Include="Infrastructure\Stock\LegacyStockSlotRepositoryAdapter.cs" />
+    <Compile Include="Modules\BaoCao\Application\Contracts\HistorySearchCriteria.cs" />
+    <Compile Include="Modules\BaoCao\Application\Contracts\Queries\CurrentStockRow.cs" />
+    <Compile Include="Modules\BaoCao\Application\Contracts\Queries\DeliveryLotTraceRow.cs" />
+    <Compile Include="Modules\BaoCao\Application\Contracts\Queries\DeliveryTraceRow.cs" />
+    <Compile Include="Modules\BaoCao\Application\Contracts\Queries\ICurrentStockQuery.cs" />
+    <Compile Include="Modules\BaoCao\Application\Contracts\Queries\ICustomerDeliveryQuery.cs" />
+    <Compile Include="Modules\BaoCao\Application\Contracts\Queries\ILotTraceQuery.cs" />
+    <Compile Include="Modules\BaoCao\Application\Contracts\Queries\IQrTraceQuery.cs" />
+    <Compile Include="Modules\BaoCao\Application\Contracts\Queries\IQualityHistoryQuery.cs" />
+    <Compile Include="Modules\BaoCao\Application\Contracts\Queries\IStockHistoryQuery.cs" />
+    <Compile Include="Modules\BaoCao\Application\Contracts\Queries\ItemHistoryRow.cs" />
+    <Compile Include="Modules\BaoCao\Application\Contracts\Queries\QualityHistoryDetailRow.cs" />
+    <Compile Include="Modules\BaoCao\Application\Contracts\Queries\QualityHistoryRow.cs" />
+    <Compile Include="Modules\BaoCao\Infrastructure\Queries\CurrentStockQueryService.cs" />
+    <Compile Include="Modules\BaoCao\Infrastructure\Queries\DeliveryTraceQueryService.cs" />
+    <Compile Include="Modules\BaoCao\Infrastructure\Queries\QualityHistoryQueryService.cs" />
+    <Compile Include="Modules\BaoCao\Infrastructure\Queries\StockHistoryQueryService.cs" />
+    <Compile Include="Modules\BaoCao\UI\BaoCaoNavigator.cs" />
+    <Compile Include="Modules\BaoCao\UI\FormBaoCaoMain.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Modules\BaoCao\UI\FormBaoCaoQualityHistory.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Modules\BaoCao\UI\FormBaoCaoStockHistory.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Modules\BaoCao\UI\FormBaoCaoTraceability.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="Modules\GiaoHangKhach\Configuration\GiaoHangKhachConfiguration.cs" />
     <Compile Include="Modules\GiaoHangKhach\Services\GiaoHangKhachFactory.cs" />
     <Compile Include="Modules\GiaoHangKhach\Models\OrderCategory.cs" />
@@ -478,6 +519,9 @@
     <Compile Include="Modules\XuatKho\Repositories\StockExportRepository.cs" />
     <Compile Include="Modules\XuatKho\Services\StockExportValidationService.cs" />
     <Compile Include="Modules\XuatKho\Services\StockExportService.cs" />
+    <Compile Include="Modules\XuLyHangLoi\Application\Adapters\ReworkStockBalanceAdapter.cs" />
+    <Compile Include="Modules\XuLyHangLoi\Application\Adapters\ReworkStockSlotAdapter.cs" />
+    <Compile Include="Modules\XuLyHangLoi\Application\XuLyHangLoiModuleFactory.cs" />
     <Compile Include="Modules\XuLyHangLoi\Enums\HuongXuLyBatThuong.cs" />
     <Compile Include="Modules\XuLyHangLoi\Enums\NguonKhachTra.cs" />
     <Compile Include="Modules\XuLyHangLoi\Enums\NguonXuLyBatThuongExtensions.cs" />
@@ -768,13 +812,30 @@
     <Compile Include="Shared\Validation\ValidatableXtraForm.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="Shell\Composition\MainAppDashboardFactory.cs" />
+    <Compile Include="Shell\Help\FormWmsHelp.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Shell\Help\WmsHelpCatalog.cs" />
+    <Compile Include="Shell\Help\WmsHelpContext.cs" />
+    <Compile Include="Shell\Help\WmsHelpOverlay.cs" />
+    <Compile Include="Shell\Help\WmsHelpService.cs" />
+    <Compile Include="Shell\Help\WmsHelpTopic.cs" />
     <Compile Include="Shell\Main_APP.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="Shell\Main_APP.Designer.cs">
       <DependentUpon>Main_APP.cs</DependentUpon>
     </Compile>
+    <Compile Include="Shell\Services\QrMachineSwitchService.cs" />
+    <Compile Include="Shell\Widgets\MainAppDashboardController.cs" />
     <Compile Include="Shell\Widgets\WarehouseDashboardBar.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Shell\Widgets\WmsControlCenterBar.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Shell\Widgets\WmsWorklistBar.cs">
       <SubType>UserControl</SubType>
     </Compile>
     <Compile Include="SQLTABLECREATOR.cs" />
@@ -907,12 +968,6 @@
     <Compile Include="Modules\KhoVatLy\FormInspectionConfig.Designer.cs">
       <DependentUpon>FormInspectionConfig.cs</DependentUpon>
     </Compile>
-    <Compile Include="Modules\KhoVatLy\FormInspectionHistory.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Modules\KhoVatLy\FormInspectionHistory.Designer.cs">
-      <DependentUpon>FormInspectionHistory.cs</DependentUpon>
-    </Compile>
     <Compile Include="Modules\NhapKho\FormNhapKhoTienTrinh.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -924,12 +979,6 @@
     </Compile>
     <Compile Include="Modules\XuLyHangLoi\FormQuanLyTienTrinhHangLoi.Designer.cs">
       <DependentUpon>FormQuanLyTienTrinhHangLoi.cs</DependentUpon>
-    </Compile>
-    <Compile Include="Modules\KhoVatLy\FormStockHistory.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Modules\KhoVatLy\FormStockHistory.Designer.cs">
-      <DependentUpon>FormStockHistory.cs</DependentUpon>
     </Compile>
     <Compile Include="Modules\XuLyHangLoi\FormGiaoBuNG.cs">
       <SubType>Form</SubType>
@@ -1125,9 +1174,6 @@
     <EmbeddedResource Include="Modules\XuLyHangLoi\Reports\RpPhieuXuLyBatThuong.resx">
       <DependentUpon>RpPhieuXuLyBatThuong.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="Modules\KhoVatLy\FormStockHistory.resx">
-      <DependentUpon>FormStockHistory.cs</DependentUpon>
-    </EmbeddedResource>
     <EmbeddedResource Include="Modules\GiaoHangKhach\YMVN\ERR_CNK.resx">
       <DependentUpon>ERR_CNK.cs</DependentUpon>
     </EmbeddedResource>
@@ -1206,4 +1252,14 @@
   <ItemGroup>
     <Analyzer Include="C:\Program Files\DevExpress 25.2\Components\Offline Packages\devexpress.data\25.2.4\analyzers\dotnet\DevExpress.Generator.dll" Visible="false" Condition="Exists('C:\Program Files\DevExpress 25.2\Components\Offline Packages\devexpress.data\25.2.4\analyzers\dotnet\DevExpress.Generator.dll')" />
   </ItemGroup>
+  <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
+    <PropertyGroup>
+      <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
+    </PropertyGroup>
+    <Error Condition="!Exists('..\packages\EntityFramework.6.6.0-preview1-final\build\EntityFramework.props')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\EntityFramework.6.6.0-preview1-final\build\EntityFramework.props'))" />
+    <Error Condition="!Exists('..\packages\EntityFramework.6.6.0-preview1-final\build\EntityFramework.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\EntityFramework.6.6.0-preview1-final\build\EntityFramework.targets'))" />
+    <Error Condition="!Exists('..\packages\System.ValueTuple.4.6.2\build\net471\System.ValueTuple.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\System.ValueTuple.4.6.2\build\net471\System.ValueTuple.targets'))" />
+  </Target>
+  <Import Project="..\packages\EntityFramework.6.6.0-preview1-final\build\EntityFramework.targets" Condition="Exists('..\packages\EntityFramework.6.6.0-preview1-final\build\EntityFramework.targets')" />
+  <Import Project="..\packages\System.ValueTuple.4.6.2\build\net471\System.ValueTuple.targets" Condition="Exists('..\packages\System.ValueTuple.4.6.2\build\net471\System.ValueTuple.targets')" />
 </Project>
