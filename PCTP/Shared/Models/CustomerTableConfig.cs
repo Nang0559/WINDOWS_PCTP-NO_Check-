@@ -11,12 +11,18 @@ namespace PCTP.Shared.Models
     /// </summary>
     public static class CustomerTableConfig
     {
+        // CustomerNo là business key dùng xuyên suốt Shell -> Delivery boundary.
+        // Không để Main_APP / Form tự rải literal customer number.
+        public const string HondaVietnam = "100001";
+        public const string YamahaVietnam = "100002";
+        public const string Customer100003 = "100003";
+
         private static readonly Dictionary<string, CustomerConfig> _configs =
             new Dictionary<string, CustomerConfig>
             {
-                ["100001"] = new CustomerConfig
+                [HondaVietnam] = new CustomerConfig
                 {
-                    CustomerNo = "100001",
+                    CustomerNo = HondaVietnam,
                     DisplayName = "HVN (100001)",
                     NhaMayMatchPatterns = new[] { "HON DA" },
                     Delivery = new GiaoHangKhachCustomerOptions
@@ -42,9 +48,9 @@ namespace PCTP.Shared.Models
                     },
                 },
 
-                ["100003"] = new CustomerConfig
+                [Customer100003] = new CustomerConfig
                 {
-                    CustomerNo = "100003",
+                    CustomerNo = Customer100003,
                     DisplayName = "Customer 100003",
                     NhaMayMatchPatterns = new[] { "100003", "HONDA TRADING" },
                     Delivery = new GiaoHangKhachCustomerOptions
@@ -66,9 +72,9 @@ namespace PCTP.Shared.Models
                     },
                 },
 
-                ["100002"] = new CustomerConfig
+                [YamahaVietnam] = new CustomerConfig
                 {
-                    CustomerNo = "100002",
+                    CustomerNo = YamahaVietnam,
                     DisplayName = "YMVN (100002)",
                     NhaMayMatchPatterns = new[] { "YAMAHA" },
                     Delivery = new GiaoHangKhachCustomerOptions
@@ -89,7 +95,7 @@ namespace PCTP.Shared.Models
                         CoGear = true,
                         CoLoaiSP = true,
                         DockCodeSP = "VSP1",
-                        CustomerNoIFS = "100002",
+                        CustomerNoIFS = YamahaVietnam,
                         NhaMayCase = "'YAMAHA - VIET NAM'",
                         OrderTable = "Purchase_Order_YMVN",
                     },
@@ -130,7 +136,31 @@ namespace PCTP.Shared.Models
                 throw new InvalidOperationException(
                     $"Customer {config.CustomerNo} chưa được cấu hình Delivery cho GiaoHangKhach.");
 
+            ValidateDeliveryConfig(config);
             return config;
+        }
+
+        private static void ValidateDeliveryConfig(CustomerConfig config)
+        {
+            var delivery = config.Delivery;
+
+            if (string.IsNullOrWhiteSpace(delivery.TmpTable))
+                throw new InvalidOperationException($"Customer {config.CustomerNo} thiếu Delivery.TmpTable.");
+
+            if (string.IsNullOrWhiteSpace(delivery.IfsTable))
+                throw new InvalidOperationException($"Customer {config.CustomerNo} thiếu Delivery.IfsTable.");
+
+            if (string.IsNullOrWhiteSpace(delivery.DocQRTable))
+                throw new InvalidOperationException($"Customer {config.CustomerNo} thiếu Delivery.DocQRTable.");
+
+            if (string.IsNullOrWhiteSpace(delivery.ViewTablePrefix))
+                throw new InvalidOperationException($"Customer {config.CustomerNo} thiếu Delivery.ViewTablePrefix.");
+
+            if (delivery.AddNmMacDinh < 0)
+                throw new InvalidOperationException($"Customer {config.CustomerNo} có AddNmMacDinh không hợp lệ.");
+
+            if (string.IsNullOrWhiteSpace(config.CustomerNo))
+                throw new InvalidOperationException("Delivery config không có CustomerNo.");
         }
 
         public static IEnumerable<CustomerConfig> All => _configs.Values;
