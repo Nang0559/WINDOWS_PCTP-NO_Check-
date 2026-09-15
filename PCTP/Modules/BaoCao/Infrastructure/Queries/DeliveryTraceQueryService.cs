@@ -4,7 +4,6 @@ using PCTP.Modules.BaoCao.Application.Contracts.Repositories;
 using PCTP.Modules.BaoCao.Infrastructure.Repositories;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
