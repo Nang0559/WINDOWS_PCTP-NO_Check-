@@ -1,13 +1,12 @@
 ﻿using PCTP.Modules.KhoCore.Interfaces;
 using PCTP.Modules.KhoCore.Models;
 using PCTP.Modules.KhoCore.Repositories;
-using PCTP.VIEWSTOCK.Fuction;
-using PCTP.VIEWSTOCK.Models;
+using PCTP.Shared.Helpers;
+using PCTP.Shared.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+
 
 namespace PCTP.Modules.KhoCore.Services
 {

@@ -1,13 +1,9 @@
-﻿using PCTP.ClassSQL;
-using PCTP.Common;
-using PCTP.Domain.Events;
-using PCTP.Infrastructure;
+﻿
 using PCTP.Modules.GiaoHangKhach;
 using PCTP.Modules.NhapKho.Interfaces;
-using PCTP.Modules.NhapKho.Repository;
 using PCTP.Shared.Common;
-using PCTP.VIEWSTOCK.Fuction;
-using PCTP.VIEWSTOCK.Models;
+using PCTP.Shared.Models;
+
 using System;
 using System.Collections.Generic;
 using System.Data;

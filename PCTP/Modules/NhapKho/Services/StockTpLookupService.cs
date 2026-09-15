@@ -1,6 +1,5 @@
 ﻿using PCTP.Modules.NhapKho.Interfaces;
-using PCTP.Modules.NhapKho.Repository;
-using PCTP.VIEWSTOCK.Models;
+using PCTP.Shared.Models;
 using System;
 using System.Collections.Generic;
 using System.Data;

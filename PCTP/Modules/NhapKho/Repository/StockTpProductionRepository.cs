@@ -1,7 +1,7 @@
 ﻿using PCTP.Common;
 using PCTP.Modules.GiaoHangKhach;
 using PCTP.Shared.Common;
-using PCTP.VIEWSTOCK.Models;
+using PCTP.Shared.Models;
 using System;
 using System.Collections.Generic;
 using System.Data;

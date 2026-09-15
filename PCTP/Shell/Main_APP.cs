@@ -6,6 +6,7 @@ using DevExpress.XtraReports.UserDesigner;
 using PCTP.Acess_Image;
 using PCTP.Common;
 using PCTP.Modules.GiaoHangKhach.SubForm;
+using PCTP.Modules.KhoVatLy;
 using PCTP.QRCODE_HVN.ComaprePart;
 using PCTP.Shared.Helpers;
 using PCTP.Shell.Composition;

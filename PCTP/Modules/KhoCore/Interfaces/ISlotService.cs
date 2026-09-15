@@ -1,8 +1,6 @@
 ﻿
 using PCTP.Modules.KhoCore.Models;
 using PCTP.Modules.KhoVatLy.Kho.Models;
-using PCTP.Modules.KhoVatLy.Models;
-using PCTP.VIEWSTOCK.Models;
 using System;
 using System.Collections.Generic;
 using System.Data;

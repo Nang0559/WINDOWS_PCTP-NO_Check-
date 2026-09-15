@@ -2,18 +2,14 @@
 using PCTP.Modules.KhoVatLy.Application.Helpers;
 using PCTP.Modules.KhoVatLy.Application.Interfaces;
 using PCTP.Modules.KhoVatLy.Kho.Models;
-using PCTP.Modules.KhoVatLy.Models;
 using PCTP.Modules.KhoVatLy.Repositories;
-using PCTP.VIEWSTOCK.Fuction;
-using PCTP.VIEWSTOCK.Models;
+using PCTP.Shared.Helpers;
 using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Data.SqlClient;
+
 using System.Linq;
-using System.Text;
-using System.Text.RegularExpressions;
-using System.Threading.Tasks;
+
 
 namespace PCTP.Modules.KhoVatLy.Application.Services
 {

@@ -2,20 +2,17 @@
 using DevExpress.XtraGrid;
 using DevExpress.XtraGrid.Views.Grid;
 using PCTP.ClassSQL;
+using PCTP.Modules.KhoVatLy;
 using PCTP.Modules.NhapKho.Interfaces;
 using PCTP.UserControls;
-using PCTP.VIEWSTOCK.Repository;
+
 using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
+
 using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+
 using System.Windows.Forms;
 
-namespace PCTP.VIEWSTOCK.ViewForm
+namespace PCTP.Modules.NhapKho
 {
     // PCTP/VIEWSTOCK/ViewForm/FormNhapKhoTienTrinh.cs
     public partial class FormNhapKhoTienTrinh : XtraForm

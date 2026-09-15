@@ -1,10 +1,7 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
-namespace PCTP.VIEWSTOCK.Fuction
+
+namespace PCTP.Shared.Notifiers
 {
     /// <summary>
     /// Cầu nối thông báo thay đổi kho ảo A0 giữa các form độc lập

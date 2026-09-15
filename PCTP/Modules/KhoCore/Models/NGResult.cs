@@ -1,10 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿
 
-namespace PCTP.VIEWSTOCK.Models
+namespace PCTP.Shared.Models
 {
     public class NGResult
     {

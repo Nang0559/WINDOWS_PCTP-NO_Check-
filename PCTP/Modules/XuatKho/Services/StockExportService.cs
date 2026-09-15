@@ -1,5 +1,6 @@
-using PCTP.Common;
+
 using PCTP.Modules.KhoCore.Application.Contracts.Stock;
+using PCTP.Modules.KhoCore.Models;
 using PCTP.Modules.KhoVatLy.Application.Interfaces;
 using PCTP.Modules.KhoVatLy.Kho.Models;
 using PCTP.Modules.KhoVatLy.Repositories;
@@ -8,8 +9,8 @@ using PCTP.Modules.XuatKho.Models;
 using PCTP.Modules.XuLyHangLoi.Models;
 using PCTP.Shared.Common;
 using PCTP.Shared.Enums;
-using PCTP.VIEWSTOCK.Fuction;
-using PCTP.VIEWSTOCK.Models;
+using PCTP.Shared.Helpers;
+using PCTP.Shared.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;

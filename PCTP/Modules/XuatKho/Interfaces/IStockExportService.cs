@@ -1,10 +1,6 @@
-﻿using PCTP.Modules.XuatKho.Models;
-using PCTP.VIEWSTOCK.Models;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using PCTP.Modules.KhoCore.Models;
+using PCTP.Modules.XuatKho.Models;
+
 
 namespace PCTP.Modules.XuatKho.Interfaces
 {

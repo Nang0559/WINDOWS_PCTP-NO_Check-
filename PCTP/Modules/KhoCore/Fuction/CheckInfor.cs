@@ -2,15 +2,13 @@
 using System.Collections.Generic;
 using System.Data.SqlClient;
 using System.Data;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 using PCTP.ClassSQL;
 using DevExpress.XtraEditors;
-using PCTP.VIEWSTOCK.Models;
+using PCTP.Modules.KhoCore.Models;
+using PCTP.Shared.Models;
 
-namespace PCTP.VIEWSTOCK.Fuction
+namespace PCTP.Modules.KhoCore.Fuction
 {
     public class CheckInfor
     {
@@ -165,7 +163,7 @@ namespace PCTP.VIEWSTOCK.Fuction
                 {
                     cmd.Parameters.AddWithValue("@ItemCode", itemCode);
                     cmd.Parameters.AddWithValue("@SoLuongNhap", soLuongNhap);
-                    cmd.Parameters.AddWithValue("@BulkWh", PCTP.VIEWSTOCK.Models.BulkImportConfig.WarehouseName);
+                    cmd.Parameters.AddWithValue("@BulkWh", BulkImportConfig.WarehouseName);
                     using (SqlDataReader reader = cmd.ExecuteReader())
                     {
                         while (reader.Read())

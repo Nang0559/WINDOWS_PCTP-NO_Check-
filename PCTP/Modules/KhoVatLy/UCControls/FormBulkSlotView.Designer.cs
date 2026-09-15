@@ -1,4 +1,4 @@
-﻿namespace PCTP.VIEWSTOCK.UCControls
+﻿namespace PCTP.Modules.KhoVatLy.UCControls
 {
     partial class FormBulkSlotView
     {

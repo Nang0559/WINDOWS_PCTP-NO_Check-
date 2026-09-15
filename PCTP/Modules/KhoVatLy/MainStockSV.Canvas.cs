@@ -1,36 +1,10 @@
-using DevExpress.Utils.Extensions;
+
 using DevExpress.XtraEditors;
-using DevExpress.XtraEditors.Controls;
-using DevExpress.XtraEditors.Repository;
-using DevExpress.XtraGrid.Views.Grid;
-using DevExpress.XtraSplashScreen;
-using DevExpress.XtraVerticalGrid;
-using PCTP.ClassSQL;
-using PCTP.Common;
-using PCTP.Modules.GiaoHangKhach;
-using PCTP.Modules.KhoCore.Interfaces;
-using PCTP.Modules.KhoCore.Repositories;
-using PCTP.Modules.KhoCore.Services;
-using PCTP.Modules.KhoVatLy.Application.Interfaces;
-using PCTP.Modules.KhoVatLy.Application.Services;
-using PCTP.Modules.KhoVatLy.Kho.Models;
-using PCTP.Modules.KhoVatLy.Repositories;
-using PCTP.Modules.KhoVatLy.Repository;
-using PCTP.Modules.NhapKho.Interfaces;
-using PCTP.Modules.NhapKho.Repository;
-using PCTP.Modules.NhapKho.Services;
-using PCTP.Modules.XuatKho.Interfaces;
-using PCTP.Modules.XuatKho.Repositories;
-using PCTP.Modules.XuatKho.Services;
-using PCTP.Shared.Common;
-using PCTP.Shared.Services;
-using PCTP.VIEWSTOCK.CanVas;
-using PCTP.VIEWSTOCK.Fuction;
-using PCTP.VIEWSTOCK.FunctionForm;
-using PCTP.VIEWSTOCK.Models;
-using PCTP.VIEWSTOCK.Repository;
-using PCTP.VIEWSTOCK.UCControls;
-using PCTP.VIEWSTOCK.ViewForm;
+using PCTP.Modules.KhoCore.Models;
+using PCTP.Modules.KhoVatLy.CanVas;
+using PCTP.Modules.KhoVatLy.UCControls;
+using PCTP.Shared.Helpers;
+using PCTP.Shared.Models;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -43,6 +17,7 @@ namespace PCTP.Modules.KhoVatLy
 {
     public partial class MainStockSV
     {
+
         private void OnSlotClicked(Slot slot)
         {
             if (slot == null) return;
@@ -58,7 +33,7 @@ namespace PCTP.Modules.KhoVatLy
             {
                 if (slot.IsOccupied)
                 {
-                    var exportForm = new ExportFormSV(slot, slot.RackName, slot.whname, this, _slotService, _exportService, _printService);
+                    var exportForm = new ExportFormSV(slot, slot.RackName, slot.whname, this, _slotService, _exportService, _printService, _waitForm);
                     exportForm.ShowDialog(this);
                 }
                 else
@@ -76,6 +51,7 @@ namespace PCTP.Modules.KhoVatLy
         private void InitCanvasSettings()
         {
             SetDoubleBuffered(pnlMain);
+          
             pnlMain.AutoScroll = true;
             pnlMain.VerticalScroll.Enabled = true;
             pnlMain.VerticalScroll.Visible = true;
@@ -362,7 +338,7 @@ namespace PCTP.Modules.KhoVatLy
         {
             try
             {
-                var exportForm = new ExportFormSV(slotData, slotData.RackName, slotData.whname, this, _slotService, _exportService, _printService);
+                var exportForm = new ExportFormSV(slotData, slotData.RackName, slotData.whname, this, _slotService, _exportService, _printService,_waitForm);
                 exportForm.ShowDialog(this);
             }
             catch (Exception ex)

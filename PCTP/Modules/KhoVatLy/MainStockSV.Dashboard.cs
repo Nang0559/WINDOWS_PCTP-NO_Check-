@@ -1,6 +1,6 @@
 using DevExpress.XtraEditors;
-using PCTP.Modules.KhoVatLy.Kho.Models;
-using PCTP.VIEWSTOCK.CanVas;
+using PCTP.Common;
+using PCTP.Modules.KhoVatLy.UCControls;
 using System.Drawing;
 using System.Windows.Forms;
 

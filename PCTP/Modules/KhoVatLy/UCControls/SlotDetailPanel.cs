@@ -1,21 +1,18 @@
 ﻿using DevExpress.XtraEditors;
 using DevExpress.XtraGrid;
 using DevExpress.XtraGrid.Views.Grid;
-using PCTP.Modules.NhapKho.Repository;
+using PCTP.Modules.KhoCore.Models;
 using PCTP.Modules.NhapKho.Services;
-using PCTP.VIEWSTOCK.Models;
-using PCTP.VIEWSTOCK.Repository;
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Drawing;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+
 using System.Windows.Forms;
 
 
-namespace PCTP.VIEWSTOCK.UCControls
+namespace PCTP.Modules.KhoVatLy.UCControls
 {
     // PCTP/VIEWSTOCK/UCControls/SlotDetailPanel.cs
     public class SlotDetailPanel : PanelControl

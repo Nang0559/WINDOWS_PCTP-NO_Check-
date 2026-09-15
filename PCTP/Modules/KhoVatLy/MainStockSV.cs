@@ -1,16 +1,24 @@
-using DevExpress.XtraEditors;
-using PCTP.Modules.GiaoHangKhach;
+
+
 using PCTP.Modules.KhoCore.Interfaces;
-using PCTP.Modules.KhoCore.Services;
+using PCTP.Modules.KhoCore.Models;
+using PCTP.Modules.KhoCore.Repositories;
+
 using PCTP.Modules.KhoVatLy.Application.Interfaces;
-using PCTP.Modules.KhoVatLy.Kho.Models;
+using PCTP.Modules.KhoVatLy.CanVas;
+using PCTP.Modules.KhoVatLy.UCControls;
+using PCTP.Modules.NhapKho.Interfaces;
+using PCTP.Modules.NhapKho.Services;
+using PCTP.Modules.XuatKho.Interfaces;
+using PCTP.Shared.Helpers;
+using PCTP.Shared.Models;
+using PCTP.Shared.Notifiers;
 using PCTP.Shared.Services;
-using PCTP.VIEWSTOCK.CanVas;
-using PCTP.VIEWSTOCK.UCControls;
+
 using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Windows.Forms;
+
 
 namespace PCTP.Modules.KhoVatLy
 {
@@ -43,7 +51,7 @@ namespace PCTP.Modules.KhoVatLy
         private readonly IInspectionConfigService _inspectionConfigService;
         private readonly IInspectionLogRepository _inspectionLogRepo;
         private readonly IStockTpLookupService _stockTpLookupService;
-
+        private readonly IWaitFormService _waitForm;
         private List<RackRenderInfo> LoadRackRenderInfosSync() => _rackService.GetRackRenderInfos();
 
         public MainStockSV()

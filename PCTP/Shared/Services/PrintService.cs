@@ -1,12 +1,12 @@
 ﻿using PCTP.Modules.KhoVatLy.Application.Interfaces;
 using PCTP.Modules.KhoVatLy.Kho.Models;
+using PCTP.Shared.Helpers;
+using PCTP.Shared.Models;
 using PCTP.VIEWSTOCK.Fuction;
 using PCTP.VIEWSTOCK.Models;
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+
 
 namespace PCTP.Shared.Services
 {

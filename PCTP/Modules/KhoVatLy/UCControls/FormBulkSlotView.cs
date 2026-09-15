@@ -2,20 +2,16 @@
 using DevExpress.XtraGrid;
 using DevExpress.XtraGrid.Columns;
 using DevExpress.XtraGrid.Views.Grid;
+using PCTP.Modules.KhoCore.Models;
 using PCTP.Modules.KhoVatLy.Application.Interfaces;
-using PCTP.VIEWSTOCK.FunctionForm;
-using PCTP.VIEWSTOCK.Models;
 using System;
-using System.Collections.Generic;
-using System.ComponentModel;
 using System.Data;
 using System.Drawing;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+
 using System.Windows.Forms;
 
-namespace PCTP.VIEWSTOCK.UCControls
+namespace PCTP.Modules.KhoVatLy.UCControls
 {
     /// <summary>
     /// Form chỉ XEM danh sách hàng đang tồn trong kho ảo A0 (BulkImportConfig).

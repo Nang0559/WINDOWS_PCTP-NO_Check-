@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace PCTP.VIEWSTOCK.Models
+namespace PCTP.Shared.Models
 {
     public class StockItem
     {
