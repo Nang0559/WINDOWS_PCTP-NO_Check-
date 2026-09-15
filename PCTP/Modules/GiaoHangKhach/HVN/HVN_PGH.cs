@@ -4,9 +4,7 @@ using DevExpress.XtraEditors.Controls;
 using DevExpress.XtraGrid.Views.Grid;
 using PCTP.Domain.Entities;
 using PCTP.Domain.Events;
-
 using PCTP.Infrastructure.Repositories;
-
 using PCTP.Modules.GiaoHangKhach.Services;
 using PCTP.Presentation.Presenters;
 using PCTP.Presentation.Views;
@@ -43,10 +41,6 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
         {
             InitializeComponent();
             _waitForm = new WaitFormService(this);
-
-            // Normalize once at the UI/module boundary. The actual Delivery config
-            // is resolved by GiaoHangKhachModuleFactory so there is only one owner
-            // for customer validation and module composition.
             _customerNo = CustomerTableConfig.NormalizeCustomerNo(customerNo);
             _presenter = BuildPresenter();
         }
@@ -57,11 +51,7 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
 
         private HVN_Presenter BuildPresenter()
         {
-            // ── Toàn bộ wiring (SQLPROVIDER, các Repository, Strategy, Source,
-            //    Service...) giờ được GiaoHangKhachModuleFactory dựng tập trung,
-            //    tránh lặp lại logic giữa HVN_PGH và các entry point khác. ──────
             var module = GiaoHangKhachModuleFactory.Build(_customerNo);
-
             _cfg = module.Cfg;
             _gioRepo = (GioXuatRepository)module.GioXuatRepo;
 
@@ -163,12 +153,7 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
         {
             foreach (DataRow row in _phieuBottomStateControl.GetSelectedGhepLotRows())
             {
-                yield return new GhepLotItem
-                {
-                    MaHang = row[0].ToString(),
-                    GioXuat = int.TryParse(row[1].ToString(), out int gio) ? gio : 0,
-                    Lot = row[2].ToString()
-                };
+                yield return new GhepLotItem { MaHang = row[0].ToString(), GioXuat = int.TryParse(row[1].ToString(), out int gio) ? gio : 0, Lot = row[2].ToString() };
             }
         }
         public int GetFocusedDocQRStt() => _docQrControl != null ? _docQrControl.GetFocusedStt() : -1;
@@ -179,3 +164,131 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
         public bool CoLotDeLuuKho() => _phieuGridControl.HasLotToSave();
         public void ThemDongGiaoDB(DataTable danhSachMaHang) => _phieuGridControl.ConfigureGiaoDbRow(danhSachMaHang);
         public bool CoHangChuaOK() => _phieuGridControl.HasUnconfirmedRows();
+        public int ShowChonSttTrungMa(ListView danhSachTrung) => _phieuDialogControl.ShowChonSttTrungMa(danhSachTrung);
+        public void ShowKiemTraMaNG(string maHang) => _phieuDialogControl.ShowKiemTraMaNG(maHang);
+        public void ShowTachLot() => _phieuDialogControl.ShowTachLot();
+        public void ShowLoiCapNhapKho(DataTable errors) => _phieuDialogControl.ShowLoiCapNhapKho(errors, () => Enabled = false);
+        public int? ShowSuaSoLuongTem(int sttBan, string lotFcc, int slFcc, int slHvn) { _sttSuaSl = sttBan; LOTFCCVN.Text = lotFcc; TXT_FCCTU.Text = slFcc.ToString(); TXT_HVNTU.Text = slHvn.ToString(); TXT_HVNTHANH.Text = ""; return null; }
+        private int _sttSuaSl = 0;
+        public int ShowChonHinhThucIn() { _hinhThucIn = _phieuDialogControl.ShowChonHinhThucIn(); return _hinhThucIn; }
+        public event EventHandler FormLoaded = delegate { };
+        public event EventHandler DateChanged = delegate { };
+        public event EventHandler GioXuatChanged = delegate { };
+        public event EventHandler GioXuatCheckedChanged = delegate { };
+        public event EventHandler CheckGX_ItemCheck = delegate { };
+        public event EventHandler TabChanged = delegate { };
+        public event EventHandler CapNhapKhoClicked = delegate { };
+        public event EventHandler InPhieuClicked = delegate { };
+        public event EventHandler InGhepLotClicked = delegate { };
+        public event EventHandler InTachLotClicked = delegate { };
+        public event EventHandler DocQRCodeClicked = delegate { };
+        public event EventHandler KiemTraGhepLotClicked = delegate { };
+        public event EventHandler KiemTraMaNGClicked = delegate { };
+        public event EventHandler<string> QRCodeSubmitted = delegate { };
+        public event EventHandler HoanThanhClicked = delegate { };
+        public event EventHandler XoaDongQRClicked = delegate { };
+        public event EventHandler XoaToanBoQRClicked = delegate { };
+        public event EventHandler SuaSoLuongTemClicked = delegate { };
+        public event EventHandler<LayLaiLotEventArgs> LayLaiLotNoClicked = delegate { };
+        public event EventHandler UploadGiaoDBClicked = delegate { };
+        public event EventHandler LuuGiaoDBClicked = delegate { };
+        public event EventHandler<TTPHIEUEventArgs> CapNhapTTPHIEUClicked = delegate { };
+        public event EventHandler<ChonLotThuCongEventArgs> ChonLotThuCongClicked = delegate { };
+        public event EventHandler HoanThanhYMVNClicked = delegate { };
+        public event EventHandler UploadMilkrunSPClicked = delegate { };
+        public event EventHandler XemHangThieuCaNgayClicked = delegate { };
+
+        private void HVN_PGH_Load(object sender, EventArgs e)
+        {
+            SetupNhaMayUI(_cfg); Text = $"Phiếu Giao Hàng — {_cfg.DisplayName}";
+            _addressTable = IFSRepository.Create().GetCustomerAddress(_cfg.CustomerNo) ?? new DataTable();
+            BindGioXuatVP(_gioRepo.GetDanhSachGioVP()); if (_cfg.Delivery.CoNhieuNhaMay) BindGioXuatHN(_gioRepo.GetDanhSachGioHN());
+            SetupGridDonHangYMVN(_cfg.Delivery.LoadTuBangRieng);
+            _phieuGridControl.OrderView.ShowingEditor += GridViewDONHANG_ShowingEditor_LOT;
+            if (dateNX.DateTime == DateTime.MinValue || dateNX.DateTime.Year < 2000) dateNX.DateTime = DateTime.Now;
+            if (_cfg.Delivery.CoGear) btnUploadMilkrun.Click += btnUploadMilkrun_Click;
+            else if (_cfg.Delivery.LoadTheoNgay) btnUploadMilkrun.Click += btnUploadMilkrun_Click;
+            FormLoaded.Invoke(this, EventArgs.Empty);
+            try { PN_DOCQR_SUASL1.Visible = false; _hangThieuControl.Visible = true; } catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[HVN_PGH_Load] Lỗi set Visible GCT_HT/PN_DOCQR_SUASL1: {ex.Message}"); }
+        }
+        public void SetupGridDonHangYMVN(bool bangrieng) => _phieuGridControl.SetupForCustomer(bangrieng);
+        public void BindGioXuatCheckList(List<string> danhSachGio) { if (_phieuHeaderControl != null) _phieuHeaderControl.BindGioXuatCheckList(danhSachGio); }
+        public void LockCheckListYMVN() { if (_phieuHeaderControl != null) _phieuHeaderControl.LockCheckListYMVN(); }
+        public void UnlockCheckListYMVN() { if (_phieuHeaderControl != null) _phieuHeaderControl.UnlockCheckListYMVN(); }
+        private void GridViewDONHANG_ShowingEditor_LOT(object sender, CancelEventArgs e)
+        {
+            if (!_phieuGridControl.IsFocusedLotColumn()) return;
+            e.Cancel = true; int stt = GetFocusedDonHangStt(); if (stt < 0) return;
+            string status = _phieuGridControl.GetFocusedStatus(); if (status == "OK") { ShowInfo("Dòng này đã được Cập Nhập Kho!"); return; }
+            string maHang = _phieuGridControl.GetFocusedMaHang(); int soLuong = _phieuGridControl.GetFocusedQuantity();
+            ChonLotThuCongClicked.Invoke(this, new ChonLotThuCongEventArgs(stt, maHang, soLuong));
+        }
+        public ChonLotResult ShowChonLotTuKho(int stt, string maHang, int soLuong, DataTable danhSachLot) => _phieuDialogControl.ShowChonLotTuKho(maHang, soLuong, danhSachLot);
+        public List<string> GetCheckedGioXuat() => _phieuHeaderControl != null ? _phieuHeaderControl.GetCheckedGioXuat() : new List<string>();
+        public void BindGhepLotYMVN(DataTable dt) => _phieuBottomStateControl.BindGhepLot(dt);
+        public void ShowReportYMVN(DataTable reportData) => _phieuDialogControl.ShowReportYMVN(reportData);
+        public void XoaDongGiaoDB() => _phieuGridControl.DeleteSelectedRows();
+        private void radioGroup2_EditValueChanging(object sender, ChangingEventArgs e) { if ((int)e.NewValue == 8) e.Cancel = !_presenter.OnGiaoDBChanging(_presenter.AddNM); }
+        private void RDO_GXHN_EditValueChanging(object sender, ChangingEventArgs e) { if ((int)e.NewValue == 10) e.Cancel = !_presenter.OnGiaoDBChanging(_presenter.AddNM); }
+        public void SetDate(DateTime date) { if (_phieuHeaderControl != null) { _phieuHeaderControl.SetDate(date); return; } dateNX.DateTime = date; }
+        public void SuspendGioXuatChanged() { if (_phieuHeaderControl != null) _phieuHeaderControl.SuspendGioXuatChanged(); }
+        public void ResumeGioXuatChanged() { if (_phieuHeaderControl != null) _phieuHeaderControl.ResumeGioXuatChanged(); }
+        public void SetTab(int addNM) { if (_phieuHeaderControl != null) _phieuHeaderControl.SetTab(addNM); }
+        public void LockDatePicker() { if (_phieuHeaderControl != null) _phieuHeaderControl.LockDatePicker(); }
+        public void UnlockDatePicker() { if (_phieuHeaderControl != null) _phieuHeaderControl.UnlockDatePicker(); }
+        public void LockRadioExcept(string gioFCC) { if (_phieuHeaderControl != null) _phieuHeaderControl.LockRadioExcept(gioFCC); }
+        public void UnlockAllRadio() { if (_phieuHeaderControl != null) _phieuHeaderControl.UnlockAllRadio(); }
+        public void UpdateGioXuatFromDB(string gioFCC) { if (_phieuHeaderControl != null) _phieuHeaderControl.UpdateGioXuatFromDB(gioFCC); }
+        public bool HoiXoaDocQR() => XtraMessageBox.Show("Dữ liệu không phù hợp:\nDữ liệu đọc QRCode không khớp với phiếu!\nBạn muốn xóa dữ liệu đọc?\n(Nếu không xóa, phiếu giao hàng sẽ không được tải đúng)", "Thông Báo", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == System.Windows.Forms.DialogResult.Yes;
+        private void UIButtonHOME_ButtonClick(object sender, ButtonEventArgs e) { switch (((WindowsUIButton)e.Button).Caption) { case "HOME": SwitchToPhieuView(); break; } }
+        private void gridVDOCQRCODE_FocusedRowChanged(object sender, DevExpress.XtraGrid.Views.Base.FocusedRowChangedEventArgs e)
+        {
+            int stt = GetFocusedDocQRStt();
+            if (stt < 0) { _phieuBottomStateControl.HideSuaSoLuong(); _phieuBottomStateControl.ShowGhepLot(); return; }
+            var (lotFcc, slFcc, slHvn) = GetFocusedDocQRTemInfo(); _sttSuaSl = stt;
+            _phieuBottomStateControl.BindSuaSoLuong(BuildSuaSlTable(stt, lotFcc, slFcc, slHvn)); _phieuBottomStateControl.ShowSuaSoLuong();
+            TXT_FCCTU.Text = ""; TXT_FCCTHANH.Text = ""; TXT_HVNTU.Text = ""; TXT_HVNTHANH.Text = ""; LOTFCCVN.Text = lotFcc;
+        }
+        private DataTable BuildSuaSlTable(int stt, string lotFcc, int slFcc, int slHvn)
+        {
+            var tbl = new DataTable(); tbl.Columns.Add("STT", typeof(int)); tbl.Columns.Add("LOAI", typeof(string)); tbl.Columns.Add("LOT", typeof(string)); tbl.Columns.Add("SLHIEN", typeof(int)); tbl.Columns.Add("SLTHANH", typeof(int));
+            if (!string.IsNullOrEmpty(lotFcc)) foreach (var part in lotFcc.Split(',')) { var ls = part.Trim().Split('-'); string lot = ls[0].Trim(); int sl = ls.Length > 1 && int.TryParse(ls[1], out int v) ? v : slFcc; var row = tbl.NewRow(); row["STT"] = stt; row["LOAI"] = "FCC"; row["LOT"] = lot; row["SLHIEN"] = sl; row["SLTHANH"] = sl; tbl.Rows.Add(row); }
+            if (slHvn > 0) { var row = tbl.NewRow(); row["STT"] = stt; row["LOAI"] = "HVN"; row["LOT"] = ""; row["SLHIEN"] = slHvn; row["SLTHANH"] = slHvn; tbl.Rows.Add(row); }
+            return tbl;
+        }
+        private void gridVSUASL_FocusedRowChanged(object sender, DevExpress.XtraGrid.Views.Base.FocusedRowChangedEventArgs e)
+        {
+            var view = sender as DevExpress.XtraGrid.Views.Grid.GridView; if (view == null || view.FocusedRowHandle < 0) return;
+            string loai = view.GetFocusedRowCellDisplayText("LOAI").Trim(); string lot = view.GetFocusedRowCellDisplayText("LOT").Trim(); string slHien = view.GetFocusedRowCellDisplayText("SLHIEN").Trim();
+            if (loai == "FCC") { TXT_FCCTU.Text = slHien; TXT_FCCTHANH.Text = slHien; TXT_HVNTU.Text = ""; TXT_HVNTHANH.Text = ""; }
+            else if (loai == "HVN") { TXT_HVNTU.Text = slHien; TXT_HVNTHANH.Text = slHien; TXT_FCCTU.Text = ""; TXT_FCCTHANH.Text = ""; }
+            LOTFCCVN.Text = lot;
+        }
+        private void cmd_SuaLTemFCC_Click(object sender, EventArgs e) { if (_sttSuaSl <= 0) { ShowInfo("Vui lòng chọn dòng QR cần sửa!"); return; } if (!int.TryParse(TXT_FCCTHANH.Text, out int slMoi) || slMoi <= 0) { ShowInfo("Số lượng FCC không hợp lệ!"); return; } SuaSoLuongTemClicked.Invoke(this, EventArgs.Empty); }
+        public int? GetSuaSoLuongResult() { if (!string.IsNullOrWhiteSpace(TXT_HVNTHANH.Text) && int.TryParse(TXT_HVNTHANH.Text, out int slHvn) && slHvn > 0) return slHvn; if (!string.IsNullOrWhiteSpace(TXT_FCCTHANH.Text) && int.TryParse(TXT_FCCTHANH.Text, out int slFcc) && slFcc > 0) return slFcc; return null; }
+        private void GridViewDONHANG_RowCellStyle(object sender, RowCellStyleEventArgs e) => _phieuGridControl.ApplyRowCellStyle(e);
+        private void GridViewDONHANG_CellValueChanged(object sender, DevExpress.XtraGrid.Views.Base.CellValueChangedEventArgs e) { }
+        private void GridViewDONHANG_CellValueChanging(object sender, DevExpress.XtraGrid.Views.Base.CellValueChangedEventArgs e) { }
+        private void GridViewDONHANG_ClipboardRowCopying(object sender, DevExpress.XtraGrid.Views.Grid.ClipboardRowCopyingEventArgs e) { }
+        private void GridViewDONHANG_PopupMenuShowing(object sender, DevExpress.XtraGrid.Views.Grid.PopupMenuShowingEventArgs e) { }
+        private void GridViewDONHANG_RowUpdated(object sender, DevExpress.XtraGrid.Views.Base.RowObjectEventArgs e) { }
+        private void GridViewDONHANG_ValidateRow(object sender, DevExpress.XtraGrid.Views.Base.ValidateRowEventArgs e) { }
+        private void GridViewDONHANG_ValidatingEditor(object sender, DevExpress.XtraEditors.Controls.BaseContainerValidateEditorEventArgs e) { }
+        private void HVN_PGH_ContextMenuStripChanged(object sender, EventArgs e) { }
+        private void btnUploadMilkrun_Click(object sender, EventArgs e) => UploadMilkrunSPClicked.Invoke(this, EventArgs.Empty);
+        protected override void OnFormClosed(FormClosedEventArgs e)
+        {
+            if (_cfg.Delivery.CoGear) { btnUploadMilkrun.Click -= btnUploadMilkrun_Click; }
+            else if (_cfg.Delivery.LoadTheoNgay) btnUploadMilkrun.Click -= btnUploadMilkrun_Click;
+            _presenter.Dispose(); base.OnFormClosed(e);
+        }
+        private int GetFocusedDonHangStt() => _phieuGridControl.GetFocusedStt();
+        private void cmd_SuaSLHVN_Click(object sender, EventArgs e) { if (_sttSuaSl <= 0) { ShowInfo("Vui lòng chọn dòng QR cần sửa!"); return; } if (!int.TryParse(TXT_HVNTHANH.Text, out int slMoi) || slMoi <= 0) { ShowInfo("Số lượng HVN không hợp lệ!"); return; } SuaSoLuongTemClicked.Invoke(this, EventArgs.Empty); }
+        private void cmd_SuaLTemFCC_Click_1(object sender, EventArgs e) { if (_sttSuaSl <= 0) { ShowInfo("Vui lòng chọn dòng QR cần sửa!"); return; } if (!int.TryParse(TXT_FCCTHANH.Text, out int slMoi) || slMoi <= 0) { ShowInfo("Số lượng FCC không hợp lệ!"); return; } SuaSoLuongTemClicked.Invoke(this, EventArgs.Empty); }
+    }
+
+    public class MyWindowsUIButtonPanel : WindowsUIButtonPanel
+    {
+        public WindowsUIButtonsPanel GetButtonsPanel() { return ButtonsPanel; }
+    }
+}
