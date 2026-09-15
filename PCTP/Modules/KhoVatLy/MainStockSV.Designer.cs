@@ -71,17 +71,7 @@ namespace PCTP.Modules.KhoVatLy
             this.btnDKMa.TabIndex = 6;
             this.btnDKMa.Text = "ĐK Mã (KT Nhập)";
             this.btnDKMa.Click += new System.EventHandler(this.btnDKMa_Click);
-            // 
-            // simpleButton1
-            // 
-            this.simpleButton1.Dock = System.Windows.Forms.DockStyle.Left;
-          
-            this.simpleButton1.Location = new System.Drawing.Point(238, 0);
-            this.simpleButton1.Name = "simpleButton1";
-            this.simpleButton1.Size = new System.Drawing.Size(169, 50);
-            this.simpleButton1.TabIndex = 5;
-            this.simpleButton1.Text = "Báo cáo Nhập Xuất";
-            this.simpleButton1.Click += new System.EventHandler(this.simpleButton1_Click);
+            
             // 
             // sidePanel1
             // 
@@ -159,17 +149,7 @@ namespace PCTP.Modules.KhoVatLy
             this.pnlMain.Size = new System.Drawing.Size(1291, 562);
             this.pnlMain.TabIndex = 1;
             this.pnlMain.WrapContents = false;
-            // 
-            // btnHisCheck
-            // 
-            this.btnHisCheck.Dock = System.Windows.Forms.DockStyle.Left;
-     
-            this.btnHisCheck.Location = new System.Drawing.Point(526, 0);
-            this.btnHisCheck.Name = "btnHisCheck";
-            this.btnHisCheck.Size = new System.Drawing.Size(119, 50);
-            this.btnHisCheck.TabIndex = 7;
-            this.btnHisCheck.Text = "LS Kiểm Tra";
-            this.btnHisCheck.Click += new System.EventHandler(this.btnHisCheck_Click);
+           
             // 
             // MainStock
             // 

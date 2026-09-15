@@ -1,8 +1,8 @@
 using DevExpress.XtraEditors;
 using PCTP.Common;
+using PCTP.Modules.NhapKho;
 using PCTP.Modules.XuLyHangLoi.Enums;
 using PCTP.Modules.XuLyHangLoi.Repository;
-using PCTP.VIEWSTOCK.Repository;
 using System;
 using System.Drawing;
 using System.Windows.Forms;

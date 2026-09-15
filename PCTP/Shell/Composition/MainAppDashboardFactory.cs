@@ -3,7 +3,6 @@ using PCTP.Modules.NhapKho;
 using PCTP.Modules.XuLyHangLoi.Repository;
 using PCTP.Shared.Common;
 using PCTP.Shell.Widgets;
-using PCTP.VIEWSTOCK.Repository;
 using System;
 using System.Windows.Forms;
 

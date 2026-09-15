@@ -1,28 +1,8 @@
-﻿using DevExpress.XtraEditors;
-using DevExpress.XtraGrid;
-using DevExpress.XtraGrid.Columns;
-using DevExpress.XtraGrid.Views.Grid;
-using DevExpress.XtraTab;
-using PCTP.ClassSQL;
-using PCTP.Common;
-using PCTP.Domain.Entities;
-using PCTP.Models;
+﻿
 using PCTP.Shared.Helpers;
-using PCTP.VIEWSTOCK.Fuction;
-using PCTP.VIEWSTOCK.FunctionForm;
-using PCTP.VIEWSTOCK.Models;
-using PCTP.VIEWSTOCK.Repository;
-using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows.Forms;
 
-namespace PCTP.VIEWSTOCK.ViewForm
+
+namespace PCTP.Modules.XuLyHangLoi
 {
     using DevExpress.XtraEditors;
     using DevExpress.XtraGrid;

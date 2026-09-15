@@ -1,4 +1,5 @@
 ﻿using PCTP.ClassSQL;
+using PCTP.Infrastructure.Repositories;
 using PCTP.Infrastructure.Stock;
 using PCTP.Modules.GiaoHangKhach;
 using PCTP.Modules.KhoCore.Application.Contracts.Stock;
@@ -14,9 +15,8 @@ using PCTP.Modules.NhapKho.Application.Adapters;
 using PCTP.Modules.NhapKho.Repository;
 using PCTP.Modules.NhapKho.Services;
 using PCTP.Modules.XuatKho.Application.Adapters;
-using PCTP.Modules.XuatKho.Repositories;
 using PCTP.Shared.Common;
-using PCTP.VIEWSTOCK.Repository;
+
 using System;
 
 namespace PCTP.Modules.KhoVatLy

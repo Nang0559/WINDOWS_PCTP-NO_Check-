@@ -1,4 +1,4 @@
-﻿namespace PCTP.VIEWSTOCK.Services
+﻿namespace PCTP.Modules.GiaoHangKhach.Services
 {
     /// <summary>
     /// Điều chỉnh kho ảo A0 khi hàng đã nhập vào A0 sau đó được xuất đi qua

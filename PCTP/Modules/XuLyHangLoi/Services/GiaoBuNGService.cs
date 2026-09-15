@@ -4,13 +4,11 @@ using PCTP.Modules.XuatKho.Models;
 using PCTP.Modules.XuLyHangLoi.Models;
 using PCTP.Shared.Enums;
 using PCTP.Shared.Helpers;
-using PCTP.VIEWSTOCK.Fuction;
-using PCTP.VIEWSTOCK.Models;
+using PCTP.Shared.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+
 
 namespace PCTP.Modules.XuLyHangLoi.Services
 {

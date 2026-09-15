@@ -1,7 +1,7 @@
 ﻿using System;
 using PCTP.Modules.KhoCore.Application.Contracts.Stock;
 using PCTP.Modules.NhapKho.Interfaces;
-using PCTP.VIEWSTOCK.Models;
+using PCTP.Shared.Models;
 
 namespace PCTP.Modules.NhapKho.Application.Adapters
 {

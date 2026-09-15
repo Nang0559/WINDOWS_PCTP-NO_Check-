@@ -3,12 +3,12 @@ using PCTP.Modules.KhoCore.Application.Contracts.Stock;
 using PCTP.Modules.KhoVatLy.Kho.Models;
 using PCTP.Modules.KhoVatLy.Repositories;
 using PCTP.Shared.Common;
-using PCTP.VIEWSTOCK.Models;
+using PCTP.Shared.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace PCTP.VIEWSTOCK.Services
+namespace PCTP.Modules.GiaoHangKhach.Services
 {
     /// <summary>
     /// Điều chỉnh kho ảo A0 khi hàng đã nhập vào A0 sau đó được xuất đi qua

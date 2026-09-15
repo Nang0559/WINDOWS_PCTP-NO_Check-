@@ -1,19 +1,16 @@
 ﻿using PCTP.Common;
 using PCTP.FuctionMain;
-using PCTP.Models;
 using PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao;
 using PCTP.Modules.GiaoHangKhach.Services;
-using PCTP.Modules.KhoCore.Repositories;
+
 using PCTP.Modules.KhoVatLy.Kho.Models;
 using PCTP.Modules.KhoVatLy.Repositories;
 using PCTP.Modules.XuatKho.Interfaces;
 using PCTP.Modules.XuLyHangLoi.Models;
 using PCTP.Shared.Common;
 using PCTP.Shared.Models;
-using PCTP.VIEWSTOCK.Fuction;
-using PCTP.VIEWSTOCK.Models;
-using PCTP.VIEWSTOCK.Repository;
-using PCTP.VIEWSTOCK.Services;
+using PCTP.Shared.Notifiers;
+
 using PCTP.YMN;
 using System;
 using System.Collections.Generic;

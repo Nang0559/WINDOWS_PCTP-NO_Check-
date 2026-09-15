@@ -1,16 +1,13 @@
-﻿using PCTP.ClassSQL;
+﻿
 using PCTP.Modules.GiaoHangKhach;
 using PCTP.Shared.Common;
-using PCTP.VIEWSTOCK.Models;
-using System;
-using System.Collections.Generic;
+using PCTP.Shared.Models;
+
 using System.Data;
 using System.Data.SqlClient;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
-namespace PCTP.VIEWSTOCK.Repository
+
+namespace PCTP.Modules.NhapKho
 {
     public sealed class NhapKhoDashboardRepository
          : SqlRepositoryBase,

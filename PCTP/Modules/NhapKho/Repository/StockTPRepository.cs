@@ -10,7 +10,7 @@ using System.Data;
 using System.Data.SqlClient;
 using System.Linq;
 
-namespace PCTP.VIEWSTOCK.Repository
+namespace PCTP.Modules.NhapKho.Repository
 {
     public sealed class StockTpRepository : SqlRepositoryBase, IStockTpRepository
     {

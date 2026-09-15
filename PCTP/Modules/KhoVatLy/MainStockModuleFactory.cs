@@ -17,9 +17,10 @@ using PCTP.Modules.XuatKho.Repositories;
 using PCTP.Modules.XuatKho.Services;
 using PCTP.Shared.Common;
 using PCTP.Shared.Services;
-using PCTP.VIEWSTOCK.Repository;
 using PCTP.Infrastructure.Stock;
 using PCTP.Modules.KhoCore.Application.Services;
+using PCTP.Modules.NhapKho;
+using PCTP.Modules.NhapKho.Repository;
 
 namespace PCTP.Modules.KhoVatLy
 {

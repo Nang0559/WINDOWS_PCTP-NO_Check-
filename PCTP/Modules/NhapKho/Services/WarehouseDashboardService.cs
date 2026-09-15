@@ -1,11 +1,7 @@
 ﻿using PCTP.Modules.NhapKho.Interfaces;
-using PCTP.VIEWSTOCK.Repository;
 using System;
-using System.Collections.Generic;
 using System.Data;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+
 
 namespace PCTP.Modules.NhapKho.Services
 {

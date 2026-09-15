@@ -3,7 +3,6 @@ using DevExpress.XtraGrid;
 using DevExpress.XtraGrid.Columns;
 using DevExpress.XtraGrid.Views.Grid;
 using PCTP.ClassSQL;
-using PCTP.FuctionMain;
 using PCTP.Infrastructure.Stock;
 using PCTP.Modules.KhoCore.Application.Contracts.Stock;
 using PCTP.Modules.KhoCore.Application.Services;
@@ -17,14 +16,11 @@ using PCTP.Modules.NhapKho.Services;
 using PCTP.Modules.XuatKho.Application.Adapters;
 using PCTP.Modules.XuatKho.Repositories;
 using PCTP.Shared.Common;
-using PCTP.VIEWSTOCK.Repository;
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+
 using System.Windows.Forms;
 
 

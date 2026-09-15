@@ -2,6 +2,7 @@
 using DevExpress.XtraEditors.DXErrorProvider;
 using DevExpress.XtraReports.UI;
 using PCTP.ClassSQL;
+using PCTP.Shared.Helpers;
 using PCTP.Shared.Validation;
 using PCTP.VIEWSTOCK.Fuction;
 using System;

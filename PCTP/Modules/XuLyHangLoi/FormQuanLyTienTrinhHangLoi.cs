@@ -1,29 +1,23 @@
-﻿using DevExpress.XtraCharts.Native;
+﻿
 using DevExpress.XtraEditors;
 using DevExpress.XtraGrid;
 using DevExpress.XtraGrid.Columns;
 using DevExpress.XtraGrid.Views.Grid;
-using PCTP.ClassSQL;
-using PCTP.Domain.Entities;
+
+using PCTP.Modules.KhoVatLy;
 using PCTP.Modules.KhoVatLy.Application.Interfaces;
-using PCTP.Modules.XuLyHangLoi;
 using PCTP.Modules.XuLyHangLoi.Enums;
 using PCTP.Modules.XuLyHangLoi.Models;
 using PCTP.Modules.XuLyHangLoi.Repository;
 using PCTP.Modules.XuLyHangLoi.Services;
 using PCTP.Shared.Helpers;
 using PCTP.UserControls;
-using PCTP.VIEWSTOCK.FunctionForm;
-using PCTP.VIEWSTOCK.Repository;
-using PCTP.VIEWSTOCK.ViewForm;
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Data;
 using System.Drawing;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+
 using System.Windows.Forms;
 
 namespace PCTP.Modules.XuLyHangLoi
