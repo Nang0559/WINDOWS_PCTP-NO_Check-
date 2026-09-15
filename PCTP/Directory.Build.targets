@@ -48,6 +48,7 @@
     <Compile Include="Modules\BaoCao\Application\Contracts\Queries\IQrTraceQuery.cs" />
     <Compile Include="Modules\BaoCao\Application\Contracts\Queries\ILotTraceQuery.cs" />
     <Compile Include="Modules\BaoCao\Application\Contracts\Queries\ICustomerDeliveryQuery.cs" />
+    <Compile Include="Modules\BaoCao\Application\Contracts\Queries\ILotLocationQuery.cs" />
     <Compile Include="Modules\BaoCao\Application\Contracts\Repositories\IDeliveryTraceRepository.cs" />
     <Compile Include="Modules\BaoCao\Application\Contracts\Repositories\ILotLocationRepository.cs" />
     <Compile Include="Modules\BaoCao\Application\Contracts\Repositories\IStockHistoryRepository.cs" />
@@ -57,6 +58,7 @@
     <Compile Include="Modules\BaoCao\Infrastructure\Queries\CurrentStockQueryService.cs" />
     <Compile Include="Modules\BaoCao\Infrastructure\Queries\QualityHistoryQueryService.cs" />
     <Compile Include="Modules\BaoCao\Infrastructure\Queries\DeliveryTraceReadService.cs" />
+    <Compile Include="Modules\BaoCao\Infrastructure\Queries\LotLocationQueryService.cs" />
     <Compile Include="Modules\BaoCao\Infrastructure\Repositories\DeliveryTraceRepository.cs" />
     <Compile Include="Modules\BaoCao\Infrastructure\Repositories\LotLocationRepository.cs" />
     <Compile Include="Modules\BaoCao\Infrastructure\Repositories\StockHistoryRepository.cs" />
