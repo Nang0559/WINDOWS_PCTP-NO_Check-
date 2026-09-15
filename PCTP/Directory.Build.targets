@@ -52,7 +52,8 @@
     <Compile Include="Modules\BaoCao\Infrastructure\Queries\StockHistoryQueryService.cs" />
     <Compile Include="Modules\BaoCao\Infrastructure\Queries\CurrentStockQueryService.cs" />
     <Compile Include="Modules\BaoCao\Infrastructure\Queries\QualityHistoryQueryService.cs" />
-    <Compile Include="Modules\BaoCao\Infrastructure\Queries\DeliveryTraceQueryService.cs" />
+    <Compile Remove="Modules\BaoCao\Infrastructure\Queries\DeliveryTraceQueryService.cs" />
+    <Compile Include="Modules\BaoCao\Infrastructure\Queries\DeliveryTraceReadService.cs" />
     <Compile Include="Modules\BaoCao\Infrastructure\Repositories\DeliveryTraceRepository.cs" />
     <Compile Include="Modules\BaoCao\Infrastructure\Repositories\StockHistoryRepository.cs" />
     <Compile Include="Modules\BaoCao\Infrastructure\Repositories\CurrentStockRepository.cs" />
