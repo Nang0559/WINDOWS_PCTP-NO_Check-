@@ -42,7 +42,10 @@ namespace PCTP.Modules.GiaoHangKhach.Services
 
         public static Module Build(string customerNo)
         {
-            var cfg = CustomerTableConfig.Get(customerNo);
+            // CustomerNo is normalized and validated at the delivery boundary.
+            // The factory must never silently fall back to another customer.
+            var cfg = CustomerTableConfig.GetForDelivery(customerNo);
+
             var sql = new SQLPROVIDER();
             var bus = new InProcessEventBus();
             var phieuDb = new PhieuSqlExecutor(sql);
@@ -86,9 +89,6 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             var giaoDbSource = new GiaoDbOrderSource(giaoDbStrategy);
             var orderSourceFactory = new OrderSourceFactory(ifsSource, tableOrderSource, giaoDbSource);
 
-            // Rebuild PhieuRepository after IFS is available only if future code
-            // needs to pass it; the current constructor keeps ifsRepo optional.
-            // (The repository itself does not consume IFS directly.)
             var phieuSvc = new PhieuService(
                 phieuRepo, ifsRepo, bus, gioRepo, tenBan, cfg, isMayBanQR,
                 tableOrderRepo, phieugiaDBRepo, orderSourceFactory, rowCategoryFilter);
