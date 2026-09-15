@@ -1,10 +1,14 @@
-﻿using PCTP.Modules.GiaoHangKhach.Configuration;   // ★ THÊM
-using PCTP.Shared.Models;
+﻿using PCTP.Modules.GiaoHangKhach.Configuration;
 using System;
 using System.Collections.Generic;
 
-namespace PCTP.Shared.Models   // ★ SỬA — namespace đúng vị trí file
+namespace PCTP.Shared.Models
 {
+    /// <summary>
+    /// Registry/resolve boundary cho CustomerConfig.
+    /// Mọi entry-point của GiaoHangKhach phải đi qua class này để tránh
+    /// customerNo rải rác và để bảo đảm customer thực sự có Delivery config.
+    /// </summary>
     public static class CustomerTableConfig
     {
         private static readonly Dictionary<string, CustomerConfig> _configs =
@@ -22,15 +26,13 @@ namespace PCTP.Shared.Models   // ★ SỬA — namespace đúng vị trí file
                         ViewTablePrefix = "TMPPHIEUGIAOHANGView",
                         LabelDocQR = "Đọc QRCode theo thứ tự: FCC → HVN",
                         DocQRTable = "DOCQRCODE",
-                        // ── bảng riêng cho hàng SP ────────────────────────
                         TmpTableSP = "TMPPHIEUGIAOHANG_SP",
                         IfsTableSP = "IFSPHIEUGIAOHANG_SP",
                         DocQRTableSP = "DOCQRCODE_SP",
-                        //--------------------------------------------------
-                        CoNhieuNhaMay = true,          // ← có tab VP / HN
+                        CoNhieuNhaMay = true,
                         AddNmMacDinh = 1,
                         TenNhaMay = "",
-                        LoadTheoNgay = false,          // không dùng
+                        LoadTheoNgay = false,
                         RequirePoRelNo = true,
                         NhaMayCase =
                             "CASE WHEN col.SHIP_ADDR_NO = 1 " +
@@ -54,12 +56,12 @@ namespace PCTP.Shared.Models   // ★ SỬA — namespace đúng vị trí file
                         LabelDocQR = "Đọc QRCode theo thứ tự: FCC → HTN",
                         ViewTablePrefix = "TMPPHIEUGIAOHANGView_100003",
                         DocQRTable = "DOCQRCODE_100003",
-                        CoNhieuNhaMay = false,          // ← chỉ 1 nhà máy, ẩn tab
-                        AddNmMacDinh = 1,               // SHIP_ADDR_NO cố định
+                        CoNhieuNhaMay = false,
+                        AddNmMacDinh = 1,
                         TenNhaMay = "Honda Trading 100003",
                         LoadTheoNgay = true,
                         RequirePoRelNo = false,
-                        NhaMayCase = "'NHA MAY 100003'", // không cần CASE, trả thẳng
+                        NhaMayCase = "'NHA MAY 100003'",
                         OrderTable = "Purchase_Order_HTN",
                     },
                 },
@@ -77,31 +79,59 @@ namespace PCTP.Shared.Models   // ★ SỬA — namespace đúng vị trí file
                         ViewTablePrefix = "TMPPHIEUGIAOHANGView_100002",
                         DocQRTable = "YMVN_DOCQRCODE",
                         CoHoanThanhYMVN = true,
-                        // ── SP riêng ──────────────────────────────────────
                         TmpTableSP = "SP_TMPPHIEUGIAOHANG",
                         DocQRTableSP = "SP_DOCQRCODE",
-
                         CoNhieuNhaMay = false,
                         AddNmMacDinh = 1,
                         TenNhaMay = "'YAMAHA - VIET NAM'",
-                        LoadTheoNgay = false,       // có chọn giờ theo Purchase_Order_YMVN
+                        LoadTheoNgay = false,
                         RequirePoRelNo = false,
-
-                        // ── Đặc thù 100002 ────────────────────────────────
                         CoGear = true,
-                        CoLoaiSP = true,            // có phân biệt MP/SP
-                        DockCodeSP = "VSP1",        // filter SP theo DOCK_CODE
+                        CoLoaiSP = true,
+                        DockCodeSP = "VSP1",
                         CustomerNoIFS = "100002",
-
                         NhaMayCase = "'YAMAHA - VIET NAM'",
                         OrderTable = "Purchase_Order_YMVN",
                     },
                 }
             };
 
-        public static CustomerConfig Get(string customerNo) =>
-            _configs.TryGetValue(customerNo, out var c) ? c
-            : throw new KeyNotFoundException($"Chưa cấu hình customer: {customerNo}");
+        /// <summary>
+        /// Chuẩn hoá customerNo ngay tại boundary của module.
+        /// Không tự động fallback sang customer khác vì fallback có thể giao nhầm dữ liệu.
+        /// </summary>
+        public static string NormalizeCustomerNo(string customerNo)
+        {
+            if (string.IsNullOrWhiteSpace(customerNo))
+                throw new ArgumentException("CustomerNo không được để trống.", nameof(customerNo));
+
+            return customerNo.Trim();
+        }
+
+        public static CustomerConfig Get(string customerNo)
+        {
+            var normalized = NormalizeCustomerNo(customerNo);
+
+            if (!_configs.TryGetValue(normalized, out var config))
+                throw new KeyNotFoundException($"Chưa cấu hình customer: {normalized}");
+
+            return config;
+        }
+
+        /// <summary>
+        /// Entry-point dành riêng cho GiaoHangKhach.
+        /// Chặn customer hợp lệ nhưng chưa có Delivery config.
+        /// </summary>
+        public static CustomerConfig GetForDelivery(string customerNo)
+        {
+            var config = Get(customerNo);
+
+            if (config.Delivery == null)
+                throw new InvalidOperationException(
+                    $"Customer {config.CustomerNo} chưa được cấu hình Delivery cho GiaoHangKhach.");
+
+            return config;
+        }
 
         public static IEnumerable<CustomerConfig> All => _configs.Values;
 
@@ -109,14 +139,16 @@ namespace PCTP.Shared.Models   // ★ SỬA — namespace đúng vị trí file
         {
             if (string.IsNullOrWhiteSpace(nhaMay)) return null;
 
-            foreach (var cfg in _configs.Values)
+            foreach (var config in _configs.Values)
             {
-                foreach (var pattern in cfg.NhaMayMatchPatterns)
+                foreach (var pattern in config.NhaMayMatchPatterns ?? Array.Empty<string>())
                 {
-                    if (nhaMay.IndexOf(pattern, StringComparison.OrdinalIgnoreCase) >= 0)
-                        return cfg;
+                    if (!string.IsNullOrWhiteSpace(pattern) &&
+                        nhaMay.IndexOf(pattern, StringComparison.OrdinalIgnoreCase) >= 0)
+                        return config;
                 }
             }
+
             return null;
         }
     }
