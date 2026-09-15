@@ -93,16 +93,11 @@ namespace PCTP.Modules.NhapKho.Services
                     return ScanResult.Fail("LOT của phiếu đã thay đổi (" + matchedPhieu.LotNo + " → " + phieuLive.LotNo + "). Dữ liệu trên màn hình đã cũ, vui lòng tải lại danh sách và quét lại tem.");
                 if (!string.Equals(phieuLive.MaSP, qr.ItemCode, StringComparison.OrdinalIgnoreCase))
                     return ScanResult.Fail("Mã hàng của phiếu không khớp với tem quét (Phiếu: " + phieuLive.MaSP + " / Tem: " + qr.ItemCode + ").");
-
-                bool vuaMoLai = _stockTpStatus.DongBoSLSXVaMoLaiNeuThayDoi(
-                    phieuLive.LotNo, phieuLive.Find, phieuLive.SlSanXuat);
-                if (vuaMoLai)
-                    phieuLive.KetThucLot = false;
             }
 
             string lotNo = phieuLive != null
                 ? phieuLive.LotNo
-                : LotCodeHelper.StripCounterAndQty(qr.RawLotNo ?? qr.LotNo);
+                : LotCodeHelper.StripCounterAndQty(qr.RawLotNoSL ?? qr.RawLotNo ?? qr.LotNo);
             if (string.IsNullOrWhiteSpace(lotNo))
                 return ScanResult.Fail("Không xác định được LOT.");
 
@@ -123,6 +118,17 @@ namespace PCTP.Modules.NhapKho.Services
             try
             {
                 _uow.Begin();
+
+                // Nếu MES thay đổi SLSX làm LOT đang LOCK phải mở lại,
+                // mutation này phải nằm trong cùng transaction với Receive/History.
+                // Nếu bất kỳ bước nào phía sau lỗi thì cả việc mở lại LOT cũng rollback.
+                if (phieuLive != null && matchedPhieu != null && !string.IsNullOrWhiteSpace(matchedPhieu.Find))
+                {
+                    bool vuaMoLai = _stockTpStatus.DongBoSLSXVaMoLaiNeuThayDoi(
+                        phieuLive.LotNo, phieuLive.Find, phieuLive.SlSanXuat);
+                    if (vuaMoLai)
+                        phieuLive.KetThucLot = false;
+                }
 
                 if (_caseRepo.ExistsCaseHistory(caseNo))
                 {
@@ -177,9 +183,6 @@ namespace PCTP.Modules.NhapKho.Services
 
                 _caseRepo.InsertCaseHistory(caseNo);
 
-                // Stock movement + SlotLot + case + StockHistory phải cùng transaction.
-                // Nếu history lỗi, rollback toàn bộ mutation thay vì để tồn kho đã commit
-                // nhưng lịch sử bị mất.
                 _historyRepo.SaveHistory(
                     "IMPORT", qr.ItemCode,
                     new LotInfo
