@@ -30,14 +30,14 @@ namespace PCTP.Modules.BaoCao.UI
         private readonly Label _status = new Label();
         private List<DeliveryTraceRow> _currentRows = new List<DeliveryTraceRow>();
 
-        public FormBaoCaoTraceability() : this(new DeliveryTraceQueryService()) { }
+        public FormBaoCaoTraceability() : this(new DeliveryTraceReadService()) { }
 
-        public FormBaoCaoTraceability(string quickSearch) : this(new DeliveryTraceQueryService())
+        public FormBaoCaoTraceability(string quickSearch) : this(new DeliveryTraceReadService())
         {
             ApplyQuickSearch(quickSearch);
         }
 
-        public FormBaoCaoTraceability(DeliveryTraceQueryService query)
+        public FormBaoCaoTraceability(DeliveryTraceReadService query)
         {
             if (query == null) throw new ArgumentNullException("query");
             _qrQuery = query;
@@ -292,9 +292,8 @@ namespace PCTP.Modules.BaoCao.UI
         protected override void Dispose(bool disposing)
         {
             if (disposing)
-            {
                 _grid.CellDoubleClick -= DeliveryGrid_CellDoubleClick;
-            }
+
             base.Dispose(disposing);
         }
     }
