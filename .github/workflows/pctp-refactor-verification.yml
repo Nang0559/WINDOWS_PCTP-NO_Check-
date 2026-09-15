@@ -1,0 +1,77 @@
+name: PCTP Refactor Verification
+
+on:
+  push:
+    branches:
+      - feature/baocao-deliverytrace-refactor
+  pull_request:
+    branches:
+      - master
+      - feature/baocao-deliverytrace-refactor
+
+jobs:
+  build-and-architecture-check:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Setup NuGet
+        uses: NuGet/setup-nuget@v2
+
+      - name: Restore packages
+        shell: pwsh
+        run: nuget restore PCTP.sln
+
+      - name: Build PCTP
+        shell: pwsh
+        run: msbuild PCTP.sln /m /p:Configuration=Release /p:Platform="Any CPU" /p:RestorePackages=false
+
+      - name: Verify delivery architecture boundaries
+        shell: pwsh
+        run: |
+          $root = Join-Path $env:GITHUB_WORKSPACE 'PCTP'
+          $newAreas = @(
+            (Join-Path $root 'Shell'),
+            (Join-Path $root 'Modules\BaoCao'),
+            (Join-Path $root 'Modules\GiaoHangKhach')
+          )
+
+          $forbidden = @(
+            'GIAOHANGYMN',
+            'YAMAHAQRCDE_SP'
+          )
+
+          $files = foreach ($area in $newAreas) {
+            if (Test-Path $area) {
+              Get-ChildItem $area -Recurse -File -Include *.cs,*.csproj,*.md
+            }
+          }
+
+          foreach ($file in $files) {
+            $text = Get-Content $file.FullName -Raw
+            foreach ($token in $forbidden) {
+              if ($text -match [regex]::Escape($token)) {
+                throw "Legacy delivery dependency '$token' found in new architecture area: $($file.FullName)"
+              }
+            }
+          }
+
+      - name: Verify DeliveryTrace contracts
+        shell: pwsh
+        run: |
+          $required = @(
+            'PCTP\Modules\BaoCao\Application\Contracts\Repositories\IDeliveryTraceRepository.cs',
+            'PCTP\Modules\BaoCao\Infrastructure\Repositories\DeliveryTraceRepository.cs',
+            'PCTP\Modules\BaoCao\Application\Services\DeliveryTraceReadService.cs'
+          )
+
+          foreach ($path in $required) {
+            if (-not (Test-Path (Join-Path $env:GITHUB_WORKSPACE $path))) {
+              throw "Required DeliveryTrace contract/file is missing: $path"
+            }
+          }
