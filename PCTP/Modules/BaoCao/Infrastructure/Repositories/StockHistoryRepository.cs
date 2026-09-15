@@ -74,7 +74,7 @@ ORDER BY ItemCode";
                 new SqlParameter("@ItemCode", string.IsNullOrWhiteSpace(criteria.PartNo) ? (object)DBNull.Value : criteria.PartNo)
             };
 
-            var table = LoadData("sp_GetStockHistory", parameters);
+            var table = ExecuteStoredProcedure("sp_GetStockHistory", parameters);
             var rows = table.AsEnumerable().Select(Map).ToList();
             return Task.FromResult<IReadOnlyList<ItemHistoryRow>>(rows);
         }
