@@ -45,10 +45,12 @@
     <Compile Include="Modules\BaoCao\Application\Contracts\Queries\IQrTraceQuery.cs" />
     <Compile Include="Modules\BaoCao\Application\Contracts\Queries\ILotTraceQuery.cs" />
     <Compile Include="Modules\BaoCao\Application\Contracts\Queries\ICustomerDeliveryQuery.cs" />
+    <Compile Include="Modules\BaoCao\Application\Contracts\Repositories\IDeliveryTraceRepository.cs" />
     <Compile Include="Modules\BaoCao\Infrastructure\Queries\StockHistoryQueryService.cs" />
     <Compile Include="Modules\BaoCao\Infrastructure\Queries\CurrentStockQueryService.cs" />
     <Compile Include="Modules\BaoCao\Infrastructure\Queries\QualityHistoryQueryService.cs" />
     <Compile Include="Modules\BaoCao\Infrastructure\Queries\DeliveryTraceQueryService.cs" />
+    <Compile Include="Modules\BaoCao\Infrastructure\Repositories\DeliveryTraceRepository.cs" />
     <Compile Include="Modules\BaoCao\UI\FormBaoCaoMain.cs" />
     <Compile Include="Modules\BaoCao\UI\BaoCaoNavigator.cs" />
     <Compile Include="Modules\BaoCao\UI\FormBaoCaoTraceability.cs" />
