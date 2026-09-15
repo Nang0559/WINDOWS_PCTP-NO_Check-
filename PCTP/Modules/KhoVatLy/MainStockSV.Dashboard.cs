@@ -38,7 +38,22 @@ namespace PCTP.Modules.KhoVatLy
         {
             _slotDetailPanel = new SlotDetailPanel();
             Controls.Add(_slotDetailPanel);
+
+            // Detail panel không chiếm chỗ màn hình khi mở MainStockSV.
+            // Khi click Slot, SlotDetailPanel.ShowSlot() sẽ tự mở panel;
+            // VisibleChanged sẽ trigger LoadAllWarehouses() để canvas tính lại chiều rộng.
+            _slotDetailPanel.Visible = false;
+            _slotDetailPanel.VisibleChanged += SlotDetailPanel_VisibleChanged;
             _slotDetailPanel.BringToFront();
+        }
+
+        private void SlotDetailPanel_VisibleChanged(object sender, System.EventArgs e)
+        {
+            if (!isFirstShown || IsDisposed) return;
+
+            // Dock layout cần được cập nhật trước khi tính lại kích thước Slot.
+            PerformLayout();
+            _ = LoadAllWarehouses();
         }
 
         private void RefreshDashboardBar()
