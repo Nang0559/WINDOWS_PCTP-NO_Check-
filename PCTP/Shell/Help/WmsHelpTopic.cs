@@ -29,14 +29,16 @@ namespace PCTP.Shell.Help
             Mermaid = mermaid ?? string.Empty;
         }
 
-        internal string Key { get; private set; }
-        internal string Title { get; private set; }
-        internal string Purpose { get; private set; }
-        internal string Preconditions { get; private set; }
-        internal string Steps { get; private set; }
-        internal string Confirmation { get; private set; }
-        internal string CommonErrors { get; private set; }
-        internal string Troubleshooting { get; private set; }
-        internal string Mermaid { get; private set; }
+        // Public properties are intentional: WinForms ListBox.DisplayMember
+        // resolves properties through reflection and cannot bind to internal-only properties.
+        public string Key { get; private set; }
+        public string Title { get; private set; }
+        public string Purpose { get; private set; }
+        public string Preconditions { get; private set; }
+        public string Steps { get; private set; }
+        public string Confirmation { get; private set; }
+        public string CommonErrors { get; private set; }
+        public string Troubleshooting { get; private set; }
+        public string Mermaid { get; private set; }
     }
 }
