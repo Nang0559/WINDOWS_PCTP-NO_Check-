@@ -18,7 +18,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
     /// IBulkStockSlotRepository is retained only for virtual-slot resolution,
     /// locking and read/query responsibilities during the migration.
     /// </summary>
-    public sealed class BulkStockAdjustService: IBulkStockAdjustService
+    public sealed class BulkStockAdjustService : IBulkStockAdjustService
     {
         private readonly IBulkStockSlotRepository _bulkRepo;
         private readonly IStockHistoryRepository _historyRepo;
@@ -46,12 +46,11 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         /// <summary>
         /// Tự động trừ số lượng xuất khỏi Slot ảo A0 theo LOT.
         ///
-        /// - Resolve + lock Slot A0 locally.
-        /// - Read candidate LOTs only for validation/item resolution.
-        /// - Mutate Slot/SlotLot through central IStockMovementService.Pick().
-        /// - Record StockHistory in the same transaction.
+        /// manageTransaction=true: service tự quản transaction (luồng sau SP).
+        /// manageTransaction=false: caller đang giữ transaction lớn hơn và
+        /// toàn bộ Slot/SlotLot + audit phải tham gia cùng transaction đó.
         /// </summary>
-        public bool TruKhoAoTheoLot(string lotNo, int slXuat)
+        public bool TruKhoAoTheoLot(string lotNo, int slXuat, bool manageTransaction = true)
         {
             if (slXuat <= 0 || string.IsNullOrWhiteSpace(lotNo))
                 return false;
@@ -60,13 +59,12 @@ namespace PCTP.Modules.GiaoHangKhach.Services
                 throw new InvalidOperationException(
                     "Chưa cấu hình IStockMovementService cho BulkStockAdjustService.");
 
-            int slotId;
-            List<LotInfo> candidates;
-
-            _uow.Begin();
             try
             {
-                slotId = _bulkRepo.GetOrCreateVirtualSlotId(
+                if (manageTransaction)
+                    _uow.Begin();
+
+                int slotId = _bulkRepo.GetOrCreateVirtualSlotId(
                     BulkImportConfig.WarehouseName,
                     BulkImportConfig.RackName,
                     BulkImportConfig.Capacity);
@@ -74,7 +72,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
                 _bulkRepo.LockSlotForUpdate(slotId);
 
                 var lots = _bulkRepo.GetLots(slotId) ?? new List<LotInfo>();
-                candidates = lots
+                var candidates = lots
                     .Where(l => l.Quantity > 0)
                     .Where(l => LotCodeHelper.AreLotKeysEquivalent(l.LotNo, lotNo))
                     .OrderBy(l => l.QRInfo?.ImportDate ?? DateTime.MaxValue)
@@ -82,7 +80,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
 
                 if (candidates.Count == 0)
                 {
-                    _uow.Rollback();
+                    if (manageTransaction) _uow.Rollback();
                     return false;
                 }
 
@@ -92,7 +90,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
 
                 if (string.IsNullOrWhiteSpace(itemCode))
                 {
-                    _uow.Rollback();
+                    if (manageTransaction) _uow.Rollback();
                     return false;
                 }
 
@@ -101,7 +99,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
 
                 if (quantity <= 0)
                 {
-                    _uow.Rollback();
+                    if (manageTransaction) _uow.Rollback();
                     return false;
                 }
 
@@ -119,7 +117,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
 
                 if (!movement.Success)
                 {
-                    _uow.Rollback();
+                    if (manageTransaction) _uow.Rollback();
                     return false;
                 }
 
@@ -140,7 +138,8 @@ namespace PCTP.Modules.GiaoHangKhach.Services
                     null,
                     "SYSTEM_HVN_CNK");
 
-                _uow.Commit();
+                if (manageTransaction)
+                    _uow.Commit();
 
                 if (quantity < slXuat)
                 {
@@ -155,7 +154,10 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             }
             catch
             {
-                try { _uow.Rollback(); } catch { }
+                if (manageTransaction)
+                {
+                    try { _uow.Rollback(); } catch { }
+                }
                 throw;
             }
         }
