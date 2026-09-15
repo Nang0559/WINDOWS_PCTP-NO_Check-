@@ -44,7 +44,35 @@ namespace PCTP.Modules.BaoCao.Infrastructure.Queries
         {
             cancellationToken.ThrowIfCancellationRequested();
             ValidateDateRange(from, to);
-            return _repository.SearchQrAsync(qrCode, customerLabelData, partNo, from, to, cancellationToken);
+            return _repository.SearchQrAsync(
+                qrCode,
+                customerLabelData,
+                partNo,
+                null,
+                from,
+                to,
+                cancellationToken);
+        }
+
+        public Task<IReadOnlyList<DeliveryTraceRow>> SearchAsync(
+            string qrCode,
+            string customerLabelData,
+            string partNo,
+            string customerName,
+            DateTime? from,
+            DateTime? to,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            ValidateDateRange(from, to);
+            return _repository.SearchQrAsync(
+                qrCode,
+                customerLabelData,
+                partNo,
+                customerName,
+                from,
+                to,
+                cancellationToken);
         }
 
         public async Task<IReadOnlyList<DeliveryLotTraceRow>> GetLotsAsync(
@@ -56,14 +84,33 @@ namespace PCTP.Modules.BaoCao.Infrastructure.Queries
             if (string.IsNullOrWhiteSpace(deliveryKey))
                 return new List<DeliveryLotTraceRow>();
 
-            IReadOnlyList<DeliveryTraceRow> rows = await _repository.FindByQrAsync(qrCode, cancellationToken);
+            IReadOnlyList<DeliveryTraceRow> rows;
+            if (string.IsNullOrWhiteSpace(qrCode))
+            {
+                rows = await _repository.FindByDeliveryKeyAsync(
+                    deliveryKey,
+                    cancellationToken);
+            }
+            else
+            {
+                rows = await _repository.FindByQrAsync(
+                    qrCode,
+                    cancellationToken);
+            }
+
             var result = new List<DeliveryLotTraceRow>();
+            string requestedDeliveryKey = deliveryKey.Trim();
 
             foreach (DeliveryTraceRow delivery in rows)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                if (!string.Equals(delivery.DeliveryKey, deliveryKey.Trim(), StringComparison.OrdinalIgnoreCase))
+                if (!string.Equals(
+                    delivery.DeliveryKey,
+                    requestedDeliveryKey,
+                    StringComparison.OrdinalIgnoreCase))
+                {
                     continue;
+                }
 
                 try
                 {
@@ -106,7 +153,13 @@ namespace PCTP.Modules.BaoCao.Infrastructure.Queries
         {
             cancellationToken.ThrowIfCancellationRequested();
             ValidateDateRange(from, to);
-            return _repository.SearchLotAsync(lotNo, partNo, customerName, from, to, cancellationToken);
+            return _repository.SearchLotAsync(
+                lotNo,
+                partNo,
+                customerName,
+                from,
+                to,
+                cancellationToken);
         }
 
         Task<IReadOnlyList<DeliveryTraceRow>> ICustomerDeliveryQuery.SearchAsync(
@@ -118,7 +171,12 @@ namespace PCTP.Modules.BaoCao.Infrastructure.Queries
         {
             cancellationToken.ThrowIfCancellationRequested();
             ValidateDateRange(from, to);
-            return _repository.SearchCustomerAsync(customerName, partNo, from, to, cancellationToken);
+            return _repository.SearchCustomerAsync(
+                customerName,
+                partNo,
+                from,
+                to,
+                cancellationToken);
         }
 
         private static void ValidateDateRange(DateTime? from, DateTime? to)
