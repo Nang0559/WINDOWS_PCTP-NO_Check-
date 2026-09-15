@@ -57,7 +57,7 @@ namespace PCTP.Modules.KhoVatLy
         public MainStockSV()
         {
             InitializeComponent();
-
+            _waitForm = new WaitFormService(this);
             var module = MainStockModuleFactory.Build();
             _slotService = module.SlotService;
             _warehouseService = module.WarehouseService;

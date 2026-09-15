@@ -214,6 +214,8 @@ namespace PCTP
         private void accordionControlElement37_Click(object sender, EventArgs e) { WarehouseProcessNavigator.OpenQuanLyTienTrinhHangLoi(this); }
         private void accordionControlElement_QCDinhHuong_Click(object sender, EventArgs e) { WarehouseProcessNavigator.OpenQCDinhHuong(this); }
         private void accordionControlElement_QCXacNhanCuoi_Click(object sender, EventArgs e) { WarehouseProcessNavigator.OpenQCXacNhanCuoi(this); }
+
+      
     }
 
     public static class HTMLHelpClass

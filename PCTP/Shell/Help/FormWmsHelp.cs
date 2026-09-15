@@ -24,7 +24,7 @@ namespace PCTP.Shell.Help
 
             SplitContainer split = new SplitContainer();
             split.Dock = DockStyle.Fill;
-            split.SplitterDistance = 285;
+            split.SplitterDistance = 220;
 
             _topics = new ListBox();
             _topics.Dock = DockStyle.Fill;
