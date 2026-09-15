@@ -201,21 +201,15 @@ namespace PCTP.Shell.Help
 
             private Rectangle GetHelpButtonRectangle()
             {
-                Rectangle window = _owner.RectangleToScreen(_owner.ClientRectangle);
-                Point windowOrigin = _owner.PointToScreen(Point.Empty);
-
-                int windowLeft = windowOrigin.X;
-                int windowTop = windowOrigin.Y;
-                int windowRight = windowLeft + _owner.Width;
-
+                RECT window = GetWindowRectangle(_owner.Handle);
                 int buttonWidth = Math.Max(30, SystemInformation.CaptionButtonSize.Width);
                 int buttonHeight = Math.Max(20, SystemInformation.CaptionHeight);
                 int standardButtonCount = GetStandardCaptionButtonCount();
 
-                int right = windowRight - (buttonWidth * standardButtonCount);
+                int right = window.Right - (buttonWidth * standardButtonCount);
                 return new Rectangle(
                     right - buttonWidth,
-                    windowTop,
+                    window.Top,
                     buttonWidth,
                     buttonHeight);
             }
@@ -247,11 +241,11 @@ namespace PCTP.Shell.Help
 
                 try
                 {
+                    RECT window = GetWindowRectangle(_owner.Handle);
                     Rectangle screenRect = GetHelpButtonRectangle();
-                    Rectangle windowRect = _owner.RectangleToScreen(_owner.ClientRectangle);
                     Rectangle drawRect = new Rectangle(
-                        screenRect.Left - windowRect.Left,
-                        screenRect.Top - windowRect.Top,
+                        screenRect.Left - window.Left,
+                        screenRect.Top - window.Top,
                         screenRect.Width,
                         screenRect.Height);
 
@@ -310,11 +304,33 @@ namespace PCTP.Shell.Help
                 return (short)(((long)value >> 16) & 0xFFFF);
             }
 
+            private static RECT GetWindowRectangle(IntPtr hWnd)
+            {
+                RECT rect;
+                if (!GetWindowRect(hWnd, out rect))
+                    return new RECT();
+
+                return rect;
+            }
+
+            [StructLayout(LayoutKind.Sequential)]
+            private struct RECT
+            {
+                public int Left;
+                public int Top;
+                public int Right;
+                public int Bottom;
+            }
+
             [DllImport("user32.dll")]
             private static extern IntPtr GetWindowDC(IntPtr hWnd);
 
             [DllImport("user32.dll")]
             private static extern int ReleaseDC(IntPtr hWnd, IntPtr hDC);
+
+            [DllImport("user32.dll")]
+            [return: MarshalAs(UnmanagedType.Bool)]
+            private static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
         }
     }
 }
