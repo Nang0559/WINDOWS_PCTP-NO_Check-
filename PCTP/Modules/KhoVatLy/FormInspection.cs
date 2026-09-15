@@ -2,22 +2,17 @@
 using DevExpress.XtraGrid;
 using DevExpress.XtraGrid.Columns;
 using DevExpress.XtraGrid.Views.Grid;
-using PCTP.ClassSQL;
 using PCTP.Modules.KhoCore.Interfaces;
-using PCTP.VIEWSTOCK.Fuction;
-using PCTP.VIEWSTOCK.Models;
+using PCTP.Modules.KhoCore.Models;
+using PCTP.Shared.Helpers;
+using PCTP.Shared.Models;
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Data.SqlClient;
 using System.Drawing;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 
-namespace PCTP.VIEWSTOCK.ViewForm
+namespace PCTP.Modules.KhoVatLy
 {
     public partial class FormInspection : DevExpress.XtraEditors.XtraForm
     {

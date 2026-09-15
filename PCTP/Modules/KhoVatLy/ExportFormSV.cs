@@ -1,36 +1,18 @@
-﻿using DevExpress.Utils.Extensions;
-using DevExpress.XtraCharts.Native;
-using DevExpress.XtraEditors;
+﻿using DevExpress.XtraEditors;
 using DevExpress.XtraReports.UI;
 using DevExpress.XtraSplashScreen;
-using PCTP.ClassSQL;
+using PCTP.Modules.KhoCore.Models;
 using PCTP.Modules.KhoVatLy.Application.Interfaces;
-using PCTP.Modules.KhoVatLy.Kho.Models;
+using PCTP.Modules.KhoVatLy.Report;
 using PCTP.Modules.XuatKho.Interfaces;
 using PCTP.Modules.XuatKho.Models;
-using PCTP.QRCODE_HVN.Report;
+using PCTP.Shared.Helpers;
 using PCTP.Shared.Services;
-using PCTP.VIEWSTOCK.Fuction;
-using PCTP.VIEWSTOCK.FunctionForm;
-using PCTP.VIEWSTOCK.Models;
-using PCTP.VIEWSTOCK.Repository;
-using PCTP.VIEWSTOCK.RpIn;
 using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Data.SqlClient;
 using System.Drawing;
-using System.Drawing.Printing;
-using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 using System.Windows.Forms;
-using static System.Runtime.CompilerServices.RuntimeHelpers;
-
-namespace PCTP.VIEWSTOCK
+namespace PCTP.Modules.KhoVatLy
 {
     // <summary>
     /// Form xuất kho: chọn số lượng xuất từ 1 Slot, hoặc để nguyên phần dư tại chỗ,
@@ -70,19 +52,20 @@ namespace PCTP.VIEWSTOCK
         private readonly ISlotService _slotService;
         private readonly IStockExportService _exportService;
         private readonly IPrintService _printService;
-        
+        private readonly IWaitFormService _waitForm;
         private readonly string _phieuGiaoId;
         public ExportFormSV(Slot slot, string rackname, string whName, MainStockSV mainStockForm,
-            ISlotService slotService, IStockExportService exportService, IPrintService printService,
+            ISlotService slotService, IStockExportService exportService, IPrintService printService, IWaitFormService waitForm,
             string phieuGiaoId = null)
         {
             this.whname = whName;
             this.rackName = rackname;
             this.slot = slot;
             this._phieuGiaoId = phieuGiaoId;
-            _slotService = slotService;
-            _exportService = exportService;
-            _printService = printService;
+            _slotService = slotService ?? throw new ArgumentNullException(nameof(slotService));
+            _exportService = exportService ?? throw new ArgumentNullException(nameof(exportService));
+            _printService = printService ?? throw new ArgumentNullException(nameof(printService));
+            _waitForm = waitForm ?? throw new ArgumentNullException(nameof(waitForm));
             this.Text = "XUẤT KHO - FVN";
             this.Size = new Size(450, 420);
             this.StartPosition = FormStartPosition.CenterParent;
@@ -326,12 +309,9 @@ namespace PCTP.VIEWSTOCK
 
             if (exportSuccess)
             {
-                SplashScreenManager.ShowForm(this, typeof(WaitFormExp), true, true, false);
-                SplashScreenManager.Default.SetWaitFormCaption("Đang cập nhật thông tin kho...");
-
-                _mainStockForm?.OnSlotUpdated();
-
-                SplashScreenManager.CloseForm();
+                _waitForm.Run(
+                    () => _mainStockForm?.OnSlotUpdated(),
+                    "Đang cập nhật thông tin kho...");
 
                 XtraMessageBox.Show(
                     "Đã pick hàng khỏi kệ — hàng đang ở trạng thái CHỜ GIAO.\n" +

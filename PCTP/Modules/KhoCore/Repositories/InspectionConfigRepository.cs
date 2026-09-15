@@ -1,13 +1,11 @@
 ﻿using PCTP.Modules.GiaoHangKhach;
+using PCTP.Modules.KhoCore.Models;
 using PCTP.Shared.Common;
-using PCTP.VIEWSTOCK.Models;
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+
 
 namespace PCTP.Modules.KhoCore.Repositories
 {

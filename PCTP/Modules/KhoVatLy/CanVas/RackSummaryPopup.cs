@@ -11,7 +11,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
-    namespace PCTP.VIEWSTOCK.CanVas
+    namespace PCTP.Modules.KhoVatLy.CanVas
     {
         /// <summary>
         /// Popup nhỏ không viền hiển thị bảng tổng hợp mã hàng của 1 Rack,

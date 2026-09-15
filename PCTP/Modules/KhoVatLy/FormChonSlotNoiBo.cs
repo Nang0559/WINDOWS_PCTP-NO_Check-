@@ -2,26 +2,23 @@
 using DevExpress.XtraGrid;
 using DevExpress.XtraGrid.Columns;
 using DevExpress.XtraGrid.Views.Grid;
-using PCTP.ClassSQL;
-using PCTP.Domain.Entities;
 using PCTP.Modules.KhoCore.Models;
 using PCTP.Modules.KhoVatLy.Application.Interfaces;
 using PCTP.Modules.XuLyHangLoi.Models;
 using PCTP.Modules.XuLyHangLoi.Repository;
 using PCTP.Modules.XuLyHangLoi.Services;
 using PCTP.Shared.Enums;
-using PCTP.VIEWSTOCK.Repository;
+
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
+
 using System.Data;
 using System.Drawing;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+
 using System.Windows.Forms;
 
-namespace PCTP.VIEWSTOCK.ViewForm
+namespace PCTP.Modules.KhoVatLy
 {
     /// <summary>
     /// Chọn 1 Slot đang chứa hàng (và 1 LOT cụ thể trong Slot đó, vì 1 Slot có thể

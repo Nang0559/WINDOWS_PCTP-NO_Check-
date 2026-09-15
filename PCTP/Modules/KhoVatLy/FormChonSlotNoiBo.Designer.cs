@@ -1,4 +1,4 @@
-﻿namespace PCTP.VIEWSTOCK.ViewForm
+﻿namespace PCTP.Modules.KhoVatLy
 {
     partial class FormChonSlotNoiBo
     {

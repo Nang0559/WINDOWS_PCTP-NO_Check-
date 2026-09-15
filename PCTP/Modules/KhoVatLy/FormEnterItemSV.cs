@@ -3,39 +3,22 @@ using DevExpress.XtraEditors;
 using DevExpress.XtraGrid;
 using DevExpress.XtraGrid.Columns;
 using DevExpress.XtraGrid.Views.Grid;
-using DevExpress.XtraLayout;
-using DevExpress.XtraSplashScreen;
-using PCTP.ClassSQL;
 using PCTP.Domain.Events;
 using PCTP.Infrastructure;
-using PCTP.Modules.GiaoHangKhach;
 using PCTP.Modules.KhoCore.Interfaces;
-using PCTP.Modules.KhoVatLy;
 using PCTP.Modules.KhoVatLy.Application.Interfaces;
-using PCTP.Modules.KhoVatLy.Application.Services;
-using PCTP.Modules.KhoVatLy.Repositories;
-using PCTP.Modules.NhapKho.Repository;
 using PCTP.Modules.NhapKho.Services;
-using PCTP.Shared.Common;
-using PCTP.VIEWSTOCK.Fuction;
-using PCTP.VIEWSTOCK.FunctionForm;
-using PCTP.VIEWSTOCK.Models;
-using PCTP.VIEWSTOCK.Repository;
-using PCTP.VIEWSTOCK.ViewForm;
+using PCTP.Shared.Helpers;
+using PCTP.Shared.Models;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
-using System.Data.SqlClient;
 using System.Drawing;
 using System.Linq;
-using System.Text;
-using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 using System.Windows.Forms;
-using static System.Runtime.CompilerServices.RuntimeHelpers;
 
-namespace PCTP.VIEWSTOCK
+namespace PCTP.Modules.KhoVatLy
 {
 
     /// <summary>

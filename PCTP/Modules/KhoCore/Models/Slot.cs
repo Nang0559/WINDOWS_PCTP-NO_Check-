@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace PCTP.VIEWSTOCK.Models
+namespace PCTP.Modules.KhoCore.Models
 {
     public class Slot
     {

@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace PCTP.Modules.KhoVatLy.Kho.Models
+namespace PCTP.Modules.KhoCore.Models
 {
     /// <summary>
     /// Đại diện 1 dòng SlotLot cụ thể (theo SlotLotId) — dùng cho các nghiệp vụ

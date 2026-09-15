@@ -1,11 +1,8 @@
 ﻿using PCTP.Models;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
-namespace PCTP.VIEWSTOCK.Models
+
+namespace PCTP.Shared.Models
 {
     /// <summary>
     /// 1 dòng "phiếu" đang tồn tại vật lý trong kho — dùng để đối chiếu

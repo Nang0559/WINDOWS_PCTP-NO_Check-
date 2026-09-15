@@ -1,4 +1,4 @@
-﻿namespace PCTP.VIEWSTOCK.RpIn
+﻿namespace PCTP.Modules.KhoVatLy.Report
 {
     partial class RpInNhapKho
     {

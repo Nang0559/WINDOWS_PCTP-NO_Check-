@@ -1,17 +1,16 @@
-﻿using PCTP.ClassSQL;
+﻿
+using PCTP.Infrastructure.Repositories;
 using PCTP.Models;
 using PCTP.Modules.GiaoHangKhach;
 using PCTP.Shared.Common;
-using PCTP.VIEWSTOCK.Models;
+using PCTP.Shared.Models;
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
-namespace PCTP.VIEWSTOCK.Repository
+
+namespace PCTP.Infrastructure.Repositories
 {
     public sealed class PhieuTrackingRepository
     : SqlRepositoryBase,

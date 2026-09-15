@@ -1,15 +1,14 @@
 ﻿using PCTP.Common;
+using PCTP.Modules.KhoCore.Models;
 using PCTP.Modules.KhoVatLy.Kho.Models;
-using PCTP.VIEWSTOCK.Models;
-
+using PCTP.Shared.Models;
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
-namespace PCTP.VIEWSTOCK.Fuction
+
+namespace PCTP.Shared.Helpers
 {
 
     public static class LotNoHelper

@@ -1,12 +1,9 @@
 ﻿using PCTP.VIEWSTOCK.Models;
-using System;
-using System.Collections.Generic;
-using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
-namespace PCTP.VIEWSTOCK.CanVas
+using System.Drawing;
+
+
+namespace PCTP.Modules.KhoVatLy.CanVas
 {
     public class SlotLayoutInfo
     {

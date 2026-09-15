@@ -1,11 +1,9 @@
 ﻿using DevExpress.XtraPrinting.BarCode;
 using DevExpress.XtraReports.UI;
-using System;
-using System.Collections;
-using System.ComponentModel;
+
 using System.Drawing;
 
-namespace PCTP.VIEWSTOCK.RpIn
+namespace PCTP.Modules.KhoVatLy.Report
 {
     public partial class RpInNhapKho : DevExpress.XtraReports.UI.XtraReport
     {

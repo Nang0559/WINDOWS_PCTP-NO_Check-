@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace PCTP.Modules.KhoVatLy.Models
+namespace PCTP.Modules.KhoCore.Models
 {
     public sealed class SlotInfo
     {

@@ -1,4 +1,4 @@
-﻿namespace PCTP.VIEWSTOCK
+﻿namespace PCTP.Modules.KhoVatLy
 {
     partial class FormRegisterRack
     {

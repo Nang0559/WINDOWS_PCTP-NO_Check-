@@ -1,8 +1,8 @@
-using PCTP.ClassSQL;
+
 using PCTP.Common;
+using PCTP.Infrastructure.Repositories;
 using PCTP.Models;
 using PCTP.Modules.KhoCore.Application.Contracts.Stock;
-using PCTP.Modules.KhoCore.Application.Services;
 using PCTP.Modules.KhoVatLy.Application.Interfaces;
 using PCTP.Modules.KhoVatLy.Kho.Models;
 using PCTP.Modules.KhoVatLy.Repositories;
@@ -10,9 +10,7 @@ using PCTP.Modules.NhapKho.Interfaces;
 using PCTP.Modules.NhapKho.Repository;
 using PCTP.Shared.Common;
 using PCTP.Shared.Helpers;
-using PCTP.VIEWSTOCK.Fuction;
-using PCTP.VIEWSTOCK.Models;
-using PCTP.VIEWSTOCK.Repository;
+using PCTP.Shared.Models;
 using System;
 using System.Collections.Generic;
 

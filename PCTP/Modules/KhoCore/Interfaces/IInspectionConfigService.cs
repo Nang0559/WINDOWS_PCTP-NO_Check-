@@ -1,9 +1,6 @@
-﻿using PCTP.VIEWSTOCK.Models;
-using System;
+﻿using PCTP.Modules.KhoCore.Models;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+
 
 namespace PCTP.Modules.KhoCore.Interfaces
 {

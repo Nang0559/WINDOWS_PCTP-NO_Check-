@@ -1,10 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using PCTP.Modules.KhoCore.Models;
+using System;
 
-namespace PCTP.VIEWSTOCK.Models
+
+namespace PCTP.Shared.Models
 {
     public static class BulkImportConfig
     {

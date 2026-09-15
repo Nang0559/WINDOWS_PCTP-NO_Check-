@@ -9,11 +9,13 @@ using PCTP.ClassSQL;
 using PCTP.Common;
 using PCTP.Modules.GiaoHangKhach;
 using PCTP.Modules.KhoCore.Interfaces;
+using PCTP.Modules.KhoCore.Models;
 using PCTP.Modules.KhoCore.Repositories;
 using PCTP.Modules.KhoCore.Services;
 using PCTP.Modules.KhoVatLy;
 using PCTP.Modules.KhoVatLy.Application.Interfaces;
 using PCTP.Modules.KhoVatLy.Application.Services;
+using PCTP.Modules.KhoVatLy.CanVas;
 using PCTP.Modules.KhoVatLy.Kho.Models;
 using PCTP.Modules.KhoVatLy.Repositories;
 using PCTP.Modules.KhoVatLy.Repository;
@@ -24,14 +26,8 @@ using PCTP.Modules.XuatKho.Interfaces;
 using PCTP.Modules.XuatKho.Repositories;
 using PCTP.Modules.XuatKho.Services;
 using PCTP.Shared.Common;
+using PCTP.Shared.Helpers;
 using PCTP.Shared.Services;
-using PCTP.VIEWSTOCK.CanVas;
-using PCTP.VIEWSTOCK.Fuction;
-using PCTP.VIEWSTOCK.FunctionForm;
-using PCTP.VIEWSTOCK.Models;
-using PCTP.VIEWSTOCK.Repository;
-using PCTP.VIEWSTOCK.UCControls;
-using PCTP.VIEWSTOCK.ViewForm;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -45,7 +41,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
-namespace PCTP.VIEWSTOCK
+namespace PCTP.Modules.KhoVatLy
 {
 
     public partial class MainStockSV : DevExpress.XtraEditors.XtraForm
@@ -79,7 +75,7 @@ namespace PCTP.VIEWSTOCK
         private readonly IInspectionConfigService _inspectionConfigService;
         private readonly IInspectionLogRepository _inspectionLogRepo;
         private readonly IStockTpLookupService _stockTpLookupService;
-
+        private readonly IWaitFormService _waitForm;
         private List<RackRenderInfo> LoadRackRenderInfosSync() => _rackService.GetRackRenderInfos();
 
         public MainStockSV()

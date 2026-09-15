@@ -1,12 +1,10 @@
-﻿using PCTP.VIEWSTOCK.Models;
-using System;
+﻿
+using PCTP.Shared.Models;
 using System.Collections.Generic;
 using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
-namespace PCTP.VIEWSTOCK.CanVas
+
+namespace PCTP.Modules.KhoVatLy.CanVas
 {
     public class RackLayoutInfo
     {

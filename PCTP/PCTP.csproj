@@ -409,6 +409,24 @@
     <Compile Include="Modules\KhoCore\Services\StockHistoryService.cs" />
     <Compile Include="Modules\KhoVatLy\Application\Adapters\KhoCoreSlotQueryAdapter.cs" />
     <Compile Include="Modules\KhoVatLy\MainStockModuleFactory.cs" />
+    <Compile Include="Modules\KhoVatLy\MainStockSV.Canvas.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Modules\KhoVatLy\MainStockSV.Dashboard.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Modules\KhoVatLy\MainStockSV.Inspection.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Modules\KhoVatLy\MainStockSV.Lifecycle.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Modules\KhoVatLy\MainStockSV.Navigation.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Modules\KhoVatLy\MainStockSV.Search.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="Modules\KhoVatLy\NhapTpModuleFactory.cs" />
     <Compile Include="Modules\KhoCore\Repositories\BulkStockSlotRepository.cs" />
     <Compile Include="Modules\KhoCore\Repositories\IBulkStockSlotRepository.cs" />
