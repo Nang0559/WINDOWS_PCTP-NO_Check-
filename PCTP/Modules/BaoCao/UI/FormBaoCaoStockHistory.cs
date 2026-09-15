@@ -5,6 +5,7 @@ using PCTP.Modules.BaoCao.Application.Contracts;
 using PCTP.Modules.BaoCao.Application.Contracts.Queries;
 using PCTP.Modules.BaoCao.Infrastructure.Queries;
 using System;
+using System.ComponentModel;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -15,6 +16,7 @@ namespace PCTP.Modules.BaoCao.UI
     /// Stock history/current-stock reporting UI.
     /// The form contains presentation only; all SQL access is behind query ports.
     /// </summary>
+
     public sealed class FormBaoCaoStockHistory : XtraForm
     {
         private readonly IStockHistoryQuery _historyQuery;
@@ -47,12 +49,12 @@ namespace PCTP.Modules.BaoCao.UI
             _historyQuery = historyQuery;
             _currentStockQuery = currentStockQuery;
 
-            InitializeComponent();
+            BuildUi();
             Shown += async (s, e) => await LoadItemCodesAsync();
             FormClosed += (s, e) => _lifetime.Cancel();
         }
 
-        private void InitializeComponent()
+        private void BuildUi()
         {
             Text = "Báo cáo - Lịch sử kho";
             ClientSize = new System.Drawing.Size(1184, 672);

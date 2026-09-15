@@ -34,17 +34,12 @@ namespace PCTP
         private DevExpress.XtraBars.Navigation.AccordionControlElement cmdRackControl;
         private DevExpress.XtraBars.Navigation.AccordionControlElement accordionControlElement38;
         private DevExpress.XtraBars.Navigation.AccordionControlElement accordionControlElement30;
-        private DevExpress.XtraBars.Navigation.AccordionControlElement accordionControlElement23;
-        private DevExpress.XtraBars.Navigation.AccordionControlElement accordionControlElement27;
         private DevExpress.XtraBars.Navigation.AccordionControlElement accordionControlElement22;
         private DevExpress.XtraBars.Navigation.AccordionControlElement E_GHHVN_MP;
         private DevExpress.XtraBars.Navigation.AccordionControlElement E_GHHVN_SP;
         private DevExpress.XtraBars.Navigation.AccordionControlElement HTDelever;
         private DevExpress.XtraBars.Navigation.AccordionControlElement accordionControlElement36;
         private DevExpress.XtraBars.Navigation.AccordionControlElement accordionControlElement37;
-        private DevExpress.XtraBars.Navigation.AccordionControlElement accordionControlElement25;
-        private DevExpress.XtraBars.Navigation.AccordionControlElement E_GHYMVN_MP;
-        private DevExpress.XtraBars.Navigation.AccordionControlElement E_GHYMVN_SP;
         private DevExpress.XtraBars.Navigation.AccordionControlElement accordionControlElement28;
         private DevExpress.XtraBars.Navigation.AccordionControlElement E_Tracuulotno;
         private DevExpress.XtraBars.Navigation.AccordionControlElement E_TKTK;
@@ -101,17 +96,12 @@ namespace PCTP
             this.cmdRackControl = new DevExpress.XtraBars.Navigation.AccordionControlElement();
             this.accordionControlElement38 = new DevExpress.XtraBars.Navigation.AccordionControlElement();
             this.accordionControlElement30 = new DevExpress.XtraBars.Navigation.AccordionControlElement();
-            this.accordionControlElement23 = new DevExpress.XtraBars.Navigation.AccordionControlElement();
-            this.accordionControlElement27 = new DevExpress.XtraBars.Navigation.AccordionControlElement();
             this.accordionControlElement22 = new DevExpress.XtraBars.Navigation.AccordionControlElement();
             this.E_GHHVN_MP = new DevExpress.XtraBars.Navigation.AccordionControlElement();
             this.E_GHHVN_SP = new DevExpress.XtraBars.Navigation.AccordionControlElement();
             this.HTDelever = new DevExpress.XtraBars.Navigation.AccordionControlElement();
             this.accordionControlElement36 = new DevExpress.XtraBars.Navigation.AccordionControlElement();
             this.accordionControlElement37 = new DevExpress.XtraBars.Navigation.AccordionControlElement();
-            this.accordionControlElement25 = new DevExpress.XtraBars.Navigation.AccordionControlElement();
-            this.E_GHYMVN_MP = new DevExpress.XtraBars.Navigation.AccordionControlElement();
-            this.E_GHYMVN_SP = new DevExpress.XtraBars.Navigation.AccordionControlElement();
             this.accordionControlElement28 = new DevExpress.XtraBars.Navigation.AccordionControlElement();
             this.E_Tracuulotno = new DevExpress.XtraBars.Navigation.AccordionControlElement();
             this.E_TKTK = new DevExpress.XtraBars.Navigation.AccordionControlElement();
@@ -227,7 +217,6 @@ namespace PCTP
             this.E_Trahang,
             this.accordionControlElement20,
             this.accordionControlElement22,
-            this.accordionControlElement25,
             this.accordionControlElement28});
             this.mainAccordionGroup.Expanded = true;
             this.mainAccordionGroup.Name = "mainAccordionGroup";
@@ -312,9 +301,7 @@ namespace PCTP
             this.acrImageControl,
             this.cmdRackControl,
             this.accordionControlElement38,
-            this.accordionControlElement30,
-            this.accordionControlElement23,
-            this.accordionControlElement27});
+            this.accordionControlElement30});
             this.accordionControlElement20.Expanded = true;
             this.accordionControlElement20.ImageOptions.Image = ((System.Drawing.Image)(resources.GetObject("accordionControlElement20.ImageOptions.Image")));
             this.accordionControlElement20.Name = "accordionControlElement20";
@@ -333,7 +320,7 @@ namespace PCTP
             this.accordionControlElement19.ImageOptions.Image = ((System.Drawing.Image)(resources.GetObject("accordionControlElement19.ImageOptions.Image")));
             this.accordionControlElement19.Name = "accordionControlElement19";
             this.accordionControlElement19.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item;
-            this.accordionControlElement19.Text = "Ghép LOT";
+            this.accordionControlElement19.Text = "LAYOUT Ghép LOT";
             this.accordionControlElement19.Click += new System.EventHandler(this.accordionControlElement19_Click);
             // 
             // accordionControlElement24
@@ -384,22 +371,6 @@ namespace PCTP
             this.accordionControlElement30.Text = "Tiến trình hàng lỗi";
             this.accordionControlElement30.Click += new System.EventHandler(this.accordionControlElement30_Click_1);
             // 
-            // accordionControlElement23
-            // 
-            this.accordionControlElement23.ImageOptions.Image = ((System.Drawing.Image)(resources.GetObject("accordionControlElement23.ImageOptions.Image")));
-            this.accordionControlElement23.Name = "accordionControlElement23";
-            this.accordionControlElement23.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item;
-            this.accordionControlElement23.Text = "Công cụ khác";
-            this.accordionControlElement23.Click += new System.EventHandler(this.accordionControlElement23_Click);
-            // 
-            // accordionControlElement27
-            // 
-            this.accordionControlElement27.ImageOptions.Image = ((System.Drawing.Image)(resources.GetObject("accordionControlElement27.ImageOptions.Image")));
-            this.accordionControlElement27.Name = "accordionControlElement27";
-            this.accordionControlElement27.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item;
-            this.accordionControlElement27.Text = "Thiết lập khác";
-            this.accordionControlElement27.Click += new System.EventHandler(this.accordionControlElement27_Click);
-            // 
             // accordionControlElement22
             // 
             this.accordionControlElement22.Elements.AddRange(new DevExpress.XtraBars.Navigation.AccordionControlElement[] {
@@ -411,7 +382,7 @@ namespace PCTP
             this.accordionControlElement22.Expanded = true;
             this.accordionControlElement22.ImageOptions.SvgImage = ((DevExpress.Utils.Svg.SvgImage)(resources.GetObject("accordionControlElement22.ImageOptions.SvgImage")));
             this.accordionControlElement22.Name = "accordionControlElement22";
-            this.accordionControlElement22.Text = "Giao Hàng HVN";
+            this.accordionControlElement22.Text = "Giao Hàng";
             // 
             // E_GHHVN_MP
             // 
@@ -423,16 +394,18 @@ namespace PCTP
             // 
             // E_GHHVN_SP
             // 
+            this.E_GHHVN_SP.ImageOptions.SvgImage = ((DevExpress.Utils.Svg.SvgImage)(resources.GetObject("E_GHHVN_SP.ImageOptions.SvgImage")));
             this.E_GHHVN_SP.Name = "E_GHHVN_SP";
             this.E_GHHVN_SP.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item;
-            this.E_GHHVN_SP.Text = "HVN - SP";
+            this.E_GHHVN_SP.Text = "YMVN";
             this.E_GHHVN_SP.Click += new System.EventHandler(this.E_GHHVN_SP_Click);
             // 
             // HTDelever
             // 
+            this.HTDelever.ImageOptions.SvgImage = ((DevExpress.Utils.Svg.SvgImage)(resources.GetObject("HTDelever.ImageOptions.SvgImage")));
             this.HTDelever.Name = "HTDelever";
             this.HTDelever.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item;
-            this.HTDelever.Text = "HVN - Đặc biệt";
+            this.HTDelever.Text = "HTN";
             this.HTDelever.Click += new System.EventHandler(this.HTDelever_Click);
             // 
             // accordionControlElement36
@@ -448,30 +421,6 @@ namespace PCTP
             this.accordionControlElement37.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item;
             this.accordionControlElement37.Text = "Quản lý tiến trình";
             this.accordionControlElement37.Click += new System.EventHandler(this.accordionControlElement37_Click);
-            // 
-            // accordionControlElement25
-            // 
-            this.accordionControlElement25.Elements.AddRange(new DevExpress.XtraBars.Navigation.AccordionControlElement[] {
-            this.E_GHYMVN_MP,
-            this.E_GHYMVN_SP});
-            this.accordionControlElement25.Expanded = true;
-            this.accordionControlElement25.ImageOptions.SvgImage = ((DevExpress.Utils.Svg.SvgImage)(resources.GetObject("accordionControlElement25.ImageOptions.SvgImage")));
-            this.accordionControlElement25.Name = "accordionControlElement25";
-            this.accordionControlElement25.Text = "Giao Hàng YMVN";
-            // 
-            // E_GHYMVN_MP
-            // 
-            this.E_GHYMVN_MP.Name = "E_GHYMVN_MP";
-            this.E_GHYMVN_MP.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item;
-            this.E_GHYMVN_MP.Text = "YMVN - MP";
-            this.E_GHYMVN_MP.Click += new System.EventHandler(this.E_GHYMVN_MP_Click);
-            // 
-            // E_GHYMVN_SP
-            // 
-            this.E_GHYMVN_SP.Name = "E_GHYMVN_SP";
-            this.E_GHYMVN_SP.Style = DevExpress.XtraBars.Navigation.ElementStyle.Item;
-            this.E_GHYMVN_SP.Text = "YMVN - SP";
-            this.E_GHYMVN_SP.Click += new System.EventHandler(this.E_GHYMVN_SP_Click);
             // 
             // accordionControlElement28
             // 

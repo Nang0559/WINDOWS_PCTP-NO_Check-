@@ -171,8 +171,7 @@ namespace PCTP
         }
 
         private void cmdRackControl_Click(object sender, EventArgs e) { WarehouseProcessNavigator.OpenBanDoKho(this); }
-        private void barButtonItem1_ItemClick(object sender, ItemClickEventArgs e) { }
-        private void barButtonItem2_ItemClick(object sender, ItemClickEventArgs e) { }
+  
 
         private void accordionControlElement19_Click(object sender, EventArgs e)
         {
@@ -201,7 +200,7 @@ namespace PCTP
             if (tgxem.Left >= 100) timer1.Enabled = false;
         }
 
-        private void accordionControlElement30_Click(object sender, EventArgs e) { }
+      
         private void accordionControlElement36_Click(object sender, EventArgs e) { WarehouseProcessNavigator.OpenBanDoKho(this); }
         private void accordionControlElement30_Click_1(object sender, EventArgs e) { WarehouseProcessNavigator.OpenQuanLyTienTrinhHangLoi(this); }
 

@@ -23,7 +23,7 @@ namespace PCTP.Modules.KhoVatLy
             flow.Controls.AddRange(new Control[] { _lblDashTongStockTp, _lblDashTongRack, _lblDashTongA0, _lblDashLech });
             pnl.Controls.Add(flow);
             Controls.Add(pnl);
-            pnl.BringToFront();
+            panelTop.BringToFront();
         }
 
         private LabelControl MakeDashLabel(string text) => new LabelControl

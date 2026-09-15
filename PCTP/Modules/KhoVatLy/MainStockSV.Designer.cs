@@ -28,10 +28,8 @@ namespace PCTP.Modules.KhoVatLy
         /// </summary>
         private void InitializeComponent()
         {
-           
             this.panelTop = new DevExpress.XtraEditors.SidePanel();
             this.btnDKMa = new DevExpress.XtraEditors.SimpleButton();
-            this.simpleButton1 = new DevExpress.XtraEditors.SimpleButton();
             this.sidePanel1 = new DevExpress.XtraEditors.SidePanel();
             this.PEditInput = new DevExpress.XtraEditors.GridLookUpEdit();
             this.gridLookUpEdit1View = new DevExpress.XtraGrid.Views.Grid.GridView();
@@ -39,7 +37,6 @@ namespace PCTP.Modules.KhoVatLy
             this.btnEnterItem = new DevExpress.XtraEditors.SimpleButton();
             this.btnRegisterRack = new DevExpress.XtraEditors.SimpleButton();
             this.pnlMain = new System.Windows.Forms.FlowLayoutPanel();
-            this.btnHisCheck = new DevExpress.XtraEditors.SimpleButton();
             this.panelTop.SuspendLayout();
             this.sidePanel1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.PEditInput.Properties)).BeginInit();
@@ -48,9 +45,7 @@ namespace PCTP.Modules.KhoVatLy
             // 
             // panelTop
             // 
-            this.panelTop.Controls.Add(this.btnHisCheck);
             this.panelTop.Controls.Add(this.btnDKMa);
-            this.panelTop.Controls.Add(this.simpleButton1);
             this.panelTop.Controls.Add(this.sidePanel1);
             this.panelTop.Controls.Add(this.btnReset);
             this.panelTop.Controls.Add(this.btnEnterItem);
@@ -58,28 +53,27 @@ namespace PCTP.Modules.KhoVatLy
             this.panelTop.Dock = System.Windows.Forms.DockStyle.Top;
             this.panelTop.Location = new System.Drawing.Point(0, 0);
             this.panelTop.Name = "panelTop";
-            this.panelTop.Size = new System.Drawing.Size(1291, 51);
+            this.panelTop.Size = new System.Drawing.Size(1475, 51);
             this.panelTop.TabIndex = 0;
             this.panelTop.Text = "sidePanel1";
             // 
             // btnDKMa
             // 
             this.btnDKMa.Dock = System.Windows.Forms.DockStyle.Left;
-            this.btnDKMa.Location = new System.Drawing.Point(407, 0);
+            this.btnDKMa.Location = new System.Drawing.Point(272, 0);
             this.btnDKMa.Name = "btnDKMa";
-            this.btnDKMa.Size = new System.Drawing.Size(119, 50);
+            this.btnDKMa.Size = new System.Drawing.Size(136, 50);
             this.btnDKMa.TabIndex = 6;
             this.btnDKMa.Text = "ĐK Mã (KT Nhập)";
             this.btnDKMa.Click += new System.EventHandler(this.btnDKMa_Click);
-            
             // 
             // sidePanel1
             // 
             this.sidePanel1.Controls.Add(this.PEditInput);
             this.sidePanel1.Dock = System.Windows.Forms.DockStyle.Right;
-            this.sidePanel1.Location = new System.Drawing.Point(529, 0);
+            this.sidePanel1.Location = new System.Drawing.Point(604, 0);
             this.sidePanel1.Name = "sidePanel1";
-            this.sidePanel1.Size = new System.Drawing.Size(636, 50);
+            this.sidePanel1.Size = new System.Drawing.Size(727, 50);
             this.sidePanel1.TabIndex = 4;
             this.sidePanel1.Text = "sidePanel1";
             // 
@@ -95,7 +89,7 @@ namespace PCTP.Modules.KhoVatLy
             new DevExpress.XtraEditors.Controls.EditorButton(DevExpress.XtraEditors.Controls.ButtonPredefines.Combo)});
             this.PEditInput.Properties.NullText = "Nhập Mã Hàng Tìm Kiếm / Bắn Tem Đã Nhập Kho";
             this.PEditInput.Properties.PopupView = this.gridLookUpEdit1View;
-            this.PEditInput.Size = new System.Drawing.Size(635, 50);
+            this.PEditInput.Size = new System.Drawing.Size(726, 50);
             this.PEditInput.TabIndex = 2;
             this.PEditInput.MouseClick += new System.Windows.Forms.MouseEventHandler(this.PEditInput_MouseClick);
             // 
@@ -103,16 +97,16 @@ namespace PCTP.Modules.KhoVatLy
             // 
             this.gridLookUpEdit1View.FocusRectStyle = DevExpress.XtraGrid.Views.Grid.DrawFocusRectStyle.RowFocus;
             this.gridLookUpEdit1View.Name = "gridLookUpEdit1View";
+            this.gridLookUpEdit1View.OptionsEditForm.PopupEditFormWidth = 914;
             this.gridLookUpEdit1View.OptionsSelection.EnableAppearanceFocusedCell = false;
             this.gridLookUpEdit1View.OptionsView.ShowGroupPanel = false;
             // 
             // btnReset
             // 
             this.btnReset.Dock = System.Windows.Forms.DockStyle.Right;
-           
-            this.btnReset.Location = new System.Drawing.Point(1165, 0);
+            this.btnReset.Location = new System.Drawing.Point(1331, 0);
             this.btnReset.Name = "btnReset";
-            this.btnReset.Size = new System.Drawing.Size(126, 50);
+            this.btnReset.Size = new System.Drawing.Size(144, 50);
             this.btnReset.TabIndex = 3;
             this.btnReset.Text = "ResetSlotDisplay";
             this.btnReset.Click += new System.EventHandler(this.btnReset_Click);
@@ -120,10 +114,9 @@ namespace PCTP.Modules.KhoVatLy
             // btnEnterItem
             // 
             this.btnEnterItem.Dock = System.Windows.Forms.DockStyle.Left;
-           
-            this.btnEnterItem.Location = new System.Drawing.Point(119, 0);
+            this.btnEnterItem.Location = new System.Drawing.Point(136, 0);
             this.btnEnterItem.Name = "btnEnterItem";
-            this.btnEnterItem.Size = new System.Drawing.Size(119, 50);
+            this.btnEnterItem.Size = new System.Drawing.Size(136, 50);
             this.btnEnterItem.TabIndex = 1;
             this.btnEnterItem.Text = "Nhập Kho";
             this.btnEnterItem.Click += new System.EventHandler(this.btnEnterItem_Click);
@@ -131,10 +124,9 @@ namespace PCTP.Modules.KhoVatLy
             // btnRegisterRack
             // 
             this.btnRegisterRack.Dock = System.Windows.Forms.DockStyle.Left;
-       
             this.btnRegisterRack.Location = new System.Drawing.Point(0, 0);
             this.btnRegisterRack.Name = "btnRegisterRack";
-            this.btnRegisterRack.Size = new System.Drawing.Size(119, 50);
+            this.btnRegisterRack.Size = new System.Drawing.Size(136, 50);
             this.btnRegisterRack.TabIndex = 0;
             this.btnRegisterRack.Text = "Đăng ký Rack";
             this.btnRegisterRack.Click += new System.EventHandler(this.btnRegisterRack_Click);
@@ -146,19 +138,18 @@ namespace PCTP.Modules.KhoVatLy
             this.pnlMain.FlowDirection = System.Windows.Forms.FlowDirection.TopDown;
             this.pnlMain.Location = new System.Drawing.Point(0, 51);
             this.pnlMain.Name = "pnlMain";
-            this.pnlMain.Size = new System.Drawing.Size(1291, 562);
+            this.pnlMain.Size = new System.Drawing.Size(1475, 562);
             this.pnlMain.TabIndex = 1;
             this.pnlMain.WrapContents = false;
-           
             // 
-            // MainStock
+            // MainStockSV
             // 
-            this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 16F);
+            this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(1291, 613);
+            this.ClientSize = new System.Drawing.Size(1475, 613);
             this.Controls.Add(this.pnlMain);
             this.Controls.Add(this.panelTop);
-            this.Name = "MainStock";
+            this.Name = "MainStockSV";
             this.Text = "MainStock";
             this.Load += new System.EventHandler(this.MainStock_Load);
             this.Shown += new System.EventHandler(this.MainStock_Shown);
@@ -181,9 +172,7 @@ namespace PCTP.Modules.KhoVatLy
         private DevExpress.XtraGrid.Views.Grid.GridView gridLookUpEdit1View;
         private DevExpress.XtraEditors.SimpleButton btnReset;
         private DevExpress.XtraEditors.SidePanel sidePanel1;
-        private DevExpress.XtraEditors.SimpleButton simpleButton1;
         private System.Windows.Forms.FlowLayoutPanel pnlMain;
         private DevExpress.XtraEditors.SimpleButton btnDKMa;
-        private DevExpress.XtraEditors.SimpleButton btnHisCheck;
     }
 }
