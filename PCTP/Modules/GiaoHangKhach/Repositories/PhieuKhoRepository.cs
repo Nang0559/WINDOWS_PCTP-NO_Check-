@@ -2,7 +2,7 @@
 using PCTP.FuctionMain;
 using PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao;
 using PCTP.Modules.GiaoHangKhach.Services;
-
+using PCTP.Modules.KhoCore.Application.Contracts.Stock;
 using PCTP.Modules.KhoVatLy.Kho.Models;
 using PCTP.Modules.KhoVatLy.Repositories;
 using PCTP.Modules.XuatKho.Interfaces;
@@ -10,7 +10,6 @@ using PCTP.Modules.XuLyHangLoi.Models;
 using PCTP.Shared.Common;
 using PCTP.Shared.Models;
 using PCTP.Shared.Notifiers;
-
 using PCTP.YMN;
 using System;
 using System.Collections.Generic;
@@ -27,6 +26,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         private readonly IBulkStockSlotRepository _bulkStockSlotRepo;
         private readonly IStockHistoryRepository _historyRepo;
         private readonly IPhieuValidationRepository _validationRepo;
+        private readonly IStockMovementService _stockMovement;
         private const string SYSTEM_PERFORMED_BY = "SYSTEM_GIAOHANG_CNK";
         public PhieuKhoRepository(
             PhieuSqlExecutor db,
@@ -35,7 +35,8 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             IStockHistoryRepository historyRepo,
             IPhieuValidationRepository validationRepo,
             CustomerConfig cfg = null,
-            IHangChoGiaoRepository hangChoGiaoRepo = null)
+            IHangChoGiaoRepository hangChoGiaoRepo = null,
+            IStockMovementService stockMovement = null)
             : base(db, uow)
         {
             _bulkStockSlotRepo = bulkStockSlotRepo ?? throw new ArgumentNullException(nameof(bulkStockSlotRepo));
@@ -43,10 +44,11 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             _validationRepo = validationRepo ?? throw new ArgumentNullException(nameof(validationRepo));
             _cfg = cfg;
             _hangChoGiaoRepo = hangChoGiaoRepo;
+            _stockMovement = stockMovement;
         }
 
         private BulkStockAdjustService CreateBulkService()
-            => new BulkStockAdjustService(_bulkStockSlotRepo, _historyRepo, Uow);
+            => new BulkStockAdjustService(_bulkStockSlotRepo, _historyRepo, Uow, _stockMovement);
 
         // ================================================================
         // CapNhapKho — nhánh HVN chính (SP atomic, có FIFO check, có ChoGiao)
@@ -67,11 +69,6 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             Db.ValidateTableName(tmpTable);
             Db.ValidateTableName(docQRTable);
 
-            // ══════════════════════════════════════════════════════════
-            // BƯỚC 3 (FIFO): chặn cứng TRƯỚC khi chạm STOCKTP/Slot.
-            // Áp dụng ở đây vì operator TỰ CHỌN Lot qua quét QR → có khả năng
-            // chọn sai Lot so với thứ tự nhập kho.
-            // ══════════════════════════════════════════════════════════
             var fifoViolations = _validationRepo.CheckFifoViolations(tmpTable);
             if (fifoViolations.Count > 0)
             {
@@ -79,7 +76,6 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                 return 0;
             }
 
-            // SP trả DataSet đa bảng (stok + errors) — atomic ở tầng DB, gọi thẳng Db.
             DataSet ds = Db.ExecuteStoredProcedureDataSet(
                 "Usp_Qrcode_Update_Stock2405",
                 new SqlParameter("@GIOGIAOFCC", SqlDbType.NVarChar, 200) { Value = (object)(gioGiaoFcc ?? "") },
@@ -92,13 +88,10 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             DataTable stok = ds != null && ds.Tables.Count > 0 ? ds.Tables[0] : new DataTable();
             errors = ds != null && ds.Tables.Count > 1 ? ds.Tables[1] : new DataTable();
 
-            // ✅ FIX (nhỏ): dùng chung helper thay vì lặp code trừ A0 ở 3 nhánh
             bool coAnhHuongA0 = TruKhoAoTuKetQuaSP(stok, out List<string> lotsDaXuatThanhCong);
             if (coAnhHuongA0)
                 StockChangedNotifier.RaiseStockChanged();
 
-            // ✅ FIX (nghiêm trọng #2): trước đây logic đóng ChoGiao + audit nằm
-            // Ở NGUYÊN TẠI ĐÂY, giờ rút thành helper dùng chung cho cả 3 nhánh.
             HoanTatSauKhiTruKho(lotsDaXuatThanhCong, SYSTEM_PERFORMED_BY);
 
             if (_cfg != null && _cfg.Delivery.LoadTuBangRieng && !string.IsNullOrEmpty(_cfg.Delivery.OrderTable) && stok.Rows.Count > 0)
@@ -106,11 +99,9 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                 foreach (DataRow row in stok.Rows)
                 {
                     string maHang = row["MH"]?.ToString() ?? "";
-
                     int stt = 0;
                     if (row.Table.Columns.Contains("STT") && row["STT"] != DBNull.Value)
                         int.TryParse(row["STT"].ToString(), out stt);
-
                     if (string.IsNullOrEmpty(maHang))
                         continue;
 
@@ -120,7 +111,6 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
 
                     string ngayGiao = Convert.ToString(ExecuteScalar(
                         $"SELECT CONVERT(varchar, NGAYGIAO, 23) FROM [{tmpTable}] WHERE {whereClause}"))?.Trim() ?? "";
-
                     string poNo = Convert.ToString(ExecuteScalar(
                         $"SELECT ISNULL(PO_NO,'') FROM [{tmpTable}] WHERE {whereClause}"))?.Trim() ?? "";
 
@@ -134,17 +124,12 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
 
         #endregion
 
-        // ================================================================
-        // CapNhapKhoHTN — chỉ forward sang CapNhapKho, tự động thừa hưởng mọi fix
-        // ================================================================
-
         #region CapNhapKhoHTN
 
         public int CapNhapKhoHTN(string nhaMay, PhieuTableSet tables, out DataTable errors)
         {
             if (tables == null)
                 throw new ArgumentNullException(nameof(tables));
-
             return CapNhapKho("", nhaMay, tables.TmpTable, tables.DocQRTable, out errors);
         }
 
@@ -152,12 +137,6 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             => CapNhapKho("", nhaMay, tmpTable, docQRTable, out errors);
 
         #endregion
-
-        // ================================================================
-        // CapNhapKhoSP — SP đã tự chọn Lot FIFO + tự trừ STOCKTP.
-        // KHÔNG check FIFO ở đây (operator không chọn Lot, không có khả năng
-        // chọn sai). NHƯNG giờ có đóng ChoGiao + audit (trước đây thiếu).
-        // ================================================================
 
         #region CapNhapKhoSP
 
@@ -176,23 +155,11 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             if (coAnhHuongA0)
                 StockChangedNotifier.RaiseStockChanged();
 
-            // ✅ FIX (nghiêm trọng #2): trước đây HOÀN TOÀN THIẾU — ChoGiao bị treo
-            // vĩnh viễn nếu nhánh SP cũng đi qua Pick→ChoGiao giống HVN.
-            // ⚠️ Nếu xác nhận nhánh SP KHÔNG BAO GIỜ đi qua Pick→ChoGiao (luồng xuất
-            // thẳng, không qua Slot), dòng dưới vẫn AN TOÀN (không có gì để đóng),
-            // chỉ dư 1 lệnh query rỗng — không cần xoá.
             HoanTatSauKhiTruKho(lotsDaXuatThanhCong, SYSTEM_PERFORMED_BY);
-
             return stok.Rows.Count;
         }
 
         #endregion
-
-        // ================================================================
-        // CapNhapKhoYMVN — FIX nghiêm trọng #1 (transaction) + #3 (UPDATE TOP 1)
-        // + có FIFO check (operator chọn Lot qua quét QR, giống HVN)
-        // + có ChoGiao/audit (FIX #2)
-        // ================================================================
 
         #region CapNhapKhoYMVN
 
@@ -212,14 +179,12 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
 
             string tmpTable = _cfg.Delivery.TmpTable;
             string docQRTable = _cfg.Delivery.DocQRTable;
-
             Db.ValidateTableName(tmpTable);
             Db.ValidateTableName(docQRTable);
 
             if (string.IsNullOrWhiteSpace(lotSl))
                 return false;
 
-            // ── BƯỚC 3 (FIFO): chặn TRƯỚC transaction — operator tự chọn Lot ──
             var fifoViolations = _validationRepo.CheckFifoViolations(tmpTable);
             if (fifoViolations.Count > 0)
             {
@@ -237,31 +202,22 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                 }
             }
 
-            // ── Kiểm tra đủ tồn TRƯỚC KHI mở transaction (fail fast, không giữ lock lâu) ──
             var lotsToProcess = new List<(string LotKey, int SoLuong)>();
             string[] lotParts = lotSl.Split(',');
-
             foreach (string part in lotParts)
             {
                 if (string.IsNullOrWhiteSpace(part))
                     continue;
-
                 string[] tach = part.Trim().Split('-');
                 if (tach.Length < 2)
                     continue;
-
                 string lot = LotCodeHelper.TrimTo(tach[0], LotCodeHelper.LEN_HEAD_FIXED);
-
                 if (!int.TryParse(tach[1], out int sl) || sl <= 0)
                     continue;
 
                 string matchCondition = LotCodeHelper.BuildLotMatchSql("LOT", $"'{SqlHelper.Esc(lot)}'");
-
-                // ✅ FIX #3: SUM thay vì đọc 1 dòng — matchCondition (dựa theo prefix)
-                // có thể khớp NHIỀU dòng STOCKTP cùng lúc, đọc 1 dòng sẽ ra tồn sai.
                 object slConlaiRaw = ExecuteScalar($"SELECT ISNULL(SUM(SLCONLAI),0) FROM STOCKTP WHERE {matchCondition}");
                 int slConlai = slConlaiRaw == null || slConlaiRaw == DBNull.Value ? 0 : Convert.ToInt32(slConlaiRaw);
-
                 if (slConlai < sl)
                 {
                     error = new DS_ERR_CNK
@@ -275,17 +231,9 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                     };
                     return false;
                 }
-
                 lotsToProcess.Add((lot, sl));
             }
 
-            // ══════════════════════════════════════════════════════════
-            // FIX #1 (nghiêm trọng): TOÀN BỘ thao tác ghi bên dưới trước đây là
-            // các ExecuteNonQuery rời rạc KHÔNG transaction — nếu lỗi giữa chừng
-            // (vd. mất kết nối sau khi trừ STOCKTP nhưng trước khi ghi
-            // LUUPHIEUGIAOHANG), dữ liệu rơi vào trạng thái nửa vời không thể
-            // phục hồi. Giờ gói toàn bộ trong Uow.Begin()/Commit()/Rollback().
-            // ══════════════════════════════════════════════════════════
             var bulkService = CreateBulkService();
             bool coAnhHuongA0 = false;
             var lotsDaXuatThanhCong = new List<string>();
@@ -297,14 +245,13 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                 {
                     string matchCondition = LotCodeHelper.BuildLotMatchSql("LOT", $"'{SqlHelper.Esc(lotKey)}'");
 
-                    // ✅ FIX #3: trừ tuần tự theo FIFO (NGAYNHAP ASC) qua TỪNG dòng
-                    // khớp, thay vì "UPDATE TOP 1" chọn 1 dòng không xác định thứ tự
-                    // khi matchCondition khớp nhiều dòng STOCKTP cùng lúc.
                     if (!TruStockTpFifo(matchCondition, sl))
                         throw new InvalidOperationException(
                             $"Tồn kho Lot [{lotKey}] đã thay đổi trong lúc xử lý — vui lòng thử lại.");
 
-                    if (bulkService.TruKhoAoTheoLot(lotKey, sl))
+                    // Quan trọng: YMVN đang giữ transaction bên ngoài. Không được
+                    // để BulkStockAdjustService Begin/Commit transaction lồng nhau.
+                    if (bulkService.TruKhoAoTheoLot(lotKey, sl, manageTransaction: false))
                         coAnhHuongA0 = true;
 
                     lotsDaXuatThanhCong.Add(lotKey);
@@ -356,9 +303,6 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                 throw;
             }
 
-            // ✅ FIX (nghiêm trọng #2): trước đây HOÀN TOÀN THIẾU ở nhánh YMVN.
-            // Chạy SAU KHI transaction chính đã commit — là 1 transaction riêng,
-            // không lồng vào transaction trên.
             HoanTatSauKhiTruKho(lotsDaXuatThanhCong, SYSTEM_PERFORMED_BY);
 
             if (coAnhHuongA0)
@@ -376,19 +320,12 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
 
         #endregion
 
-        // ================================================================
-        // DanhDauDaGiao
-        // ================================================================
-
         #region DanhDauDaGiao
 
         public void DanhDauDaGiao(string poNo, string maHang, string ngayGiao, CustomerConfig cfg)
         {
-            if (cfg == null) return;
-            if (string.IsNullOrEmpty(cfg.Delivery.OrderTable)) return;
-
+            if (cfg == null || string.IsNullOrEmpty(cfg.Delivery.OrderTable)) return;
             Db.ValidateTableName(cfg.Delivery.OrderTable);
-
             ExecuteNonQuery(
                 $"UPDATE [{cfg.Delivery.OrderTable}] " +
                 "SET IsDelivered = 1, DeliveredDate = GETDATE() " +
@@ -405,20 +342,11 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         {
             if (isMayBanQR)
                 return ExecuteStoredProcedure("Usp_Qrcode_LOAD_HANGTHIEU");
-
             if (string.IsNullOrWhiteSpace(tenBan))
                 throw new ArgumentException("Tên bảng không được rỗng.", nameof(tenBan));
-
             Db.ValidateTableName(tenBan);
-
-            return ExecuteStoredProcedure(
-                "Usp_Qrcode_LOAD_HANGTHIEUView",
-                new SqlParameter("@TENBAN", tenBan));
+            return ExecuteStoredProcedure("Usp_Qrcode_LOAD_HANGTHIEUView", new SqlParameter("@TENBAN", tenBan));
         }
-
-        // ================================================================
-        // PRIVATE HELPERS
-        // ================================================================
 
         #region Private Helpers
 
@@ -428,19 +356,12 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             dt.Columns.Add("MH", typeof(string));
             dt.Columns.Add("LOT", typeof(string));
             dt.Columns.Add("Ms", typeof(string));
-
             foreach (var v in violations)
                 dt.Rows.Add(v.MaHang, v.LotDaChon,
                     $"Vi phạm FIFO — phải xuất Lot {v.LotDungRaPhaiChon} (Slot {v.SlotIdDungRaPhaiChon}) trước.");
-
             return dt;
         }
 
-        /// <summary>
-        /// FIX (nhỏ): rút gọn khối "loop stok.Rows → TrimTo → TruKhoAoTheoLot →
-        /// cờ ảnh hưởng A0" — trước đây lặp lại y hệt ở CapNhapKho và CapNhapKhoSP.
-        /// Trả về danh sách Lot đã trừ thành công để HoanTatSauKhiTruKho dùng tiếp.
-        /// </summary>
         private bool TruKhoAoTuKetQuaSP(DataTable stok, out List<string> lotsDaXuatThanhCong)
         {
             lotsDaXuatThanhCong = new List<string>();
@@ -451,7 +372,6 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                 return false;
 
             var bulkService = CreateBulkService();
-
             foreach (DataRow row in stok.Rows)
             {
                 string lot = LotCodeHelper.TrimTo(row["LOT"]?.ToString(), LotCodeHelper.LEN_HEAD_FIXED);
@@ -460,19 +380,11 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
 
                 if (bulkService.TruKhoAoTheoLot(lot, sl))
                     coAnhHuongA0 = true;
-
                 lotsDaXuatThanhCong.Add(lot);
             }
-
             return coAnhHuongA0;
         }
 
-        /// <summary>
-        /// FIX (nghiêm trọng #3): trừ STOCKTP theo FIFO qua TỪNG dòng khớp
-        /// matchCondition (thay vì "UPDATE TOP 1" chọn 1 dòng không xác định thứ
-        /// tự khi có nhiều dòng cùng khớp — do matchCondition so theo khoá rút gọn,
-        /// không phải khớp tuyệt đối 1-1 với PK LOT thật).
-        /// </summary>
         private bool TruStockTpFifo(string matchCondition, int slCan)
         {
             DataTable rows = LoadData(
@@ -482,7 +394,6 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             foreach (DataRow row in rows.Rows)
             {
                 if (conLaiCanTru <= 0) break;
-
                 string lotThat = row["LOT"].ToString();
                 int slDongNay = Convert.ToInt32(row["SLCONLAI"]);
                 int slTruDongNay = Math.Min(slDongNay, conLaiCanTru);
@@ -492,23 +403,14 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                     "WHERE LOT = @lot",
                     new SqlParameter("@sl", slTruDongNay),
                     new SqlParameter("@lot", lotThat));
-
                 conLaiCanTru -= slTruDongNay;
             }
-
             return conLaiCanTru == 0;
         }
 
         /// <summary>
-        /// FIX (nghiêm trọng #2): bước hoàn tất DÙNG CHUNG sau khi đã trừ STOCKTP
-        /// (bất kể qua SP hay qua vòng lặp C#) — đóng các dòng FVN_HangChoGiao
-        /// tương ứng và ghi StockHistory audit. Trước đây CHỈ tồn tại (inline)
-        /// trong CapNhapKho — CapNhapKhoSP/CapNhapKhoYMVN thiếu hoàn toàn, khiến
-        /// FVN_HangChoGiao có thể treo "chờ giao" vĩnh viễn dù hàng đã CNK xong.
-        ///
-        /// An toàn khi gọi cho nhánh KHÔNG đi qua Pick→ChoGiao: nếu không có dòng
-        /// FVN_HangChoGiao nào khớp Lot, CloseChoGiaoTheoLotAndReturn trả về danh
-        /// sách rỗng — không có tác dụng phụ ngoài ý muốn.
+        /// Đóng ChoGiao và ghi audit trong CÙNG transaction.
+        /// Không còn trạng thái "đã đóng chờ giao nhưng history chưa ghi".
         /// </summary>
         private void HoanTatSauKhiTruKho(List<string> lotsDaXuatThanhCong, string performedBy)
         {
@@ -517,38 +419,37 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
 
             try
             {
-                List<HangChoGiao> closedItems;
-
                 Uow.Begin();
                 try
                 {
-                    closedItems = _hangChoGiaoRepo.CloseChoGiaoTheoLotAndReturn(
+                    List<HangChoGiao> closedItems = _hangChoGiaoRepo.CloseChoGiaoTheoLotAndReturn(
                         Connection, Transaction, lotsDaXuatThanhCong, performedBy);
+
+                    if (closedItems != null)
+                    {
+                        foreach (var it in closedItems.Where(x => x.SlotIdNguon.HasValue))
+                        {
+                            _historyRepo.SaveHistory(
+                                "EXPORT_CONFIRMED_HVN",
+                                it.MaHang,
+                                new LotInfo
+                                {
+                                    LotNo = it.LotGoc,
+                                    Quantity = it.SoLuong,
+                                    TemCode = it.LotThung
+                                },
+                                fromSlotId: it.SlotIdNguon,
+                                toSlotId: null,
+                                performedBy: performedBy);
+                        }
+                    }
+
                     Uow.Commit();
                 }
                 catch
                 {
                     Uow.Rollback();
                     throw;
-                }
-
-                if (closedItems != null)
-                {
-                    foreach (var it in closedItems.Where(x => x.SlotIdNguon.HasValue))
-                    {
-                        _historyRepo.SaveHistory(
-                            "EXPORT_CONFIRMED_HVN",
-                            it.MaHang,
-                            new LotInfo
-                            {
-                                LotNo = it.LotGoc,
-                                Quantity = it.SoLuong,
-                                TemCode = it.LotThung
-                            },
-                            fromSlotId: it.SlotIdNguon,
-                            toSlotId: null,
-                            performedBy: performedBy);
-                    }
                 }
             }
             catch (Exception ex)
