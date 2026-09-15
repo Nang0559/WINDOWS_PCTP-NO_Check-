@@ -6,9 +6,9 @@
 |---|---|---|
 | A. Main_APP / Shell integration | **DONE** | `WmsControlCenterBar` + `WmsWorklistBar` + `WarehouseDashboardBar` đã được host trong `Main_APP`; refresh dùng chung. |
 | B. WMS Help / contextual routing | **MOSTLY DONE** | Help Service/Catalog/Context/Overlay/Guide đã có; routing giao hàng đi qua `HVN_PGH` + `CustomerTableConfig`; không dùng legacy customer form để routing. |
-| C. Báo cáo / Tra cứu | **IN PROGRESS — DELIVERY TRACE REFACTORED** | Stock/Current Stock/QC/Inspection đã có. Delivery Trace đã sửa boundary, customer mapping và QR join; UI dùng read service mới. |
+| C. Báo cáo / Tra cứu | **IN PROGRESS — DELIVERY TRACE REFACTORED** | Stock/Current Stock/QC/Inspection đã có. Delivery Trace đã hoàn tất slice UI → read service → repository → compile graph; verification runtime vẫn là gate cuối. |
 | D. Legacy report cleanup | **PARTIAL** | `FormStockHistory` và `FormInspectionHistory` đã move; caller-by-caller verification và các report/repository legacy còn lại chưa xong. |
-| E. Repository/read-side decomposition | **DELIVERY TRACE SLICE DONE** | Delivery Trace contract/repository/read service đã được làm gọn; không còn nhồi slot-history/pending-delivery vào delivery trace repository. Các slice khác vẫn tiếp tục phân rã. |
+| E. Repository/read-side decomposition | **DELIVERY TRACE SLICE DONE** | Delivery Trace contract/repository/read service đã được làm gọn; slot-history/pending-delivery không còn nằm trong delivery trace repository. Adapter query cũ đã được xóa khỏi branch. |
 | F. Verification / Build / Regression | **NOT SIGNED OFF** | Chưa có build Debug net472/C# 7.3 và SQL runtime test trên môi trường DB thực tế trong phiên này. Đây vẫn là gate cuối. |
 
 > **Lưu ý:** trạng thái code đã refactor không đồng nghĩa với “đã verified”. Build Debug net472/C# 7.3 và regression thực tế vẫn phải được chạy trước khi merge về `master`.
@@ -64,6 +64,7 @@
 - [x] `100002` = `YAMAHA - VIET NAM`.
 - [x] `100002` lọc `P.NHAMAY = 'YAMAHA - VIET NAM'`.
 - [x] Không chỉ stamp `CustomerNo` vào output rồi trả dữ liệu của maker khác.
+- [x] Customer filter được áp dụng cả khi tìm QR/Customer Label kết hợp với Customer.
 
 ### 4.3 QR / delivery join
 
@@ -77,6 +78,7 @@
 - [x] Yamaha normalization xử lý leading zero: `01`, `001`, `0001` → `1`; `0J0663` → `J0663`.
 - [x] Dùng `LEFT JOIN` để không làm mất delivery row khi QR evidence chưa match.
 - [x] Không dùng `TOP 1` tùy tiện để giải quyết duplicate delivery rows.
+- [x] Khi mở detail của delivery không có QR, service chuyển sang tìm theo `DeliveryKey` thay vì trả rỗng.
 
 ### 4.4 Repository / service boundary
 
@@ -85,7 +87,8 @@
 - [x] Loại bỏ các method slot-history / pending-delivery khỏi delivery trace repository boundary khi chưa có source contract xác nhận.
 - [x] `DeliveryTraceReadService` chỉ orchestration/delegation, không chứa SQL.
 - [x] `FormBaoCaoTraceability` chuyển sang `DeliveryTraceReadService`.
-- [x] `Directory.Build.targets` chuyển compile graph sang read service mới và exclude adapter cũ khỏi build graph.
+- [x] `Directory.Build.targets` compile graph chỉ include read service/repository mới; không còn `Compile Remove` cho adapter đã xóa.
+- [x] Xóa `DeliveryTraceQueryService.cs` cũ khỏi branch.
 - [ ] Tách tiếp thành các repository/query slice riêng khi source SQL của timeline/slot/pending đã được xác nhận đầy đủ.
 
 ## Phase 5 — UI
@@ -93,6 +96,7 @@
 - [x] `FormBaoCaoMain` — navigation-only entry point.
 - [x] `FormBaoCaoTraceability` — QR / LOT / Part / Customer search và master/detail LOT.
 - [x] Customer lookup hiển thị tên nghiệp vụ ổn định, không phụ thuộc dữ liệu giả trong source table.
+- [x] Customer được truyền xuyên suốt UI → `IQrTraceQuery` → read service → repository khi kết hợp QR/Customer Label.
 - [x] Delivery Trace UI không tự truy cập SQL.
 - [ ] Timeline: Production → QC → Nhập kho → Xuất → Giao → Customer.
 - [x] Báo cáo lịch sử kho + tồn hiện tại.
@@ -106,7 +110,7 @@
 - [x] Main_APP giữ vai trò Shell/Navigation/Dashboard thay vì chứa query logic.
 - [x] Tách composition dashboard khỏi Main_APP.
 - [x] Tách QR machine switch khỏi Main_APP.
-- [x] Thêm WMS Help Service/Catalog/Context dưới `Shell/Help`.
+- [x] Thêm WMS Help Service/Catalog/Context/Overlay dưới `Shell/Help`.
 - [x] Thêm màn hình hướng dẫn sử dụng theo nghiệp vụ.
 - [x] Nút `Hướng dẫn sử dụng` mở WMS guide có topic + sơ đồ Mermaid.
 - [x] Chuẩn hóa tài liệu hướng dẫn theo flow: Mục đích → Điều kiện → Sơ đồ → Thao tác → Xác nhận → Lỗi → Cách xử lý.
@@ -150,10 +154,12 @@
 - [ ] Regression QR có match và QR không match.
 - [ ] Regression duplicate delivery rows.
 - [ ] Regression `GIOGIAO`: `01`, `001`, `0001`, `J0663`, `0J0663`.
+- [ ] Regression QR-less delivery detail theo `DeliveryKey`.
 - [ ] Parity query mới so với legacy.
 - [x] Kiểm tra export path đã được giữ cho stock/inspection report.
 - [x] Kiểm tra BaoCao query layer không tham chiếu write-side service.
 - [x] Kiểm tra Delivery Trace adapter không có write path.
+- [x] Kiểm tra compile graph không còn tham chiếu `DeliveryTraceQueryService.cs`.
 - [ ] Chỉ merge về `master` sau khi branch chạy ổn định.
 
 > **Verification note:** code đã được cập nhật trực tiếp trên branch `feature/baocao-deliverytrace-refactor`, nhưng phiên làm việc này không có SQL Server/Visual Studio build runtime để ký xác nhận Debug net472 hoặc SQL execution. Không coi các checkbox verification chưa chạy là DONE.
