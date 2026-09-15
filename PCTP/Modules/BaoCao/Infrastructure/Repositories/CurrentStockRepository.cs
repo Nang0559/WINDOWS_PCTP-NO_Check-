@@ -5,7 +5,6 @@ using PCTP.Modules.BaoCao.Application.Contracts.Repositories;
 using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Data.SqlClient;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -32,9 +31,7 @@ namespace PCTP.Modules.BaoCao.Infrastructure.Repositories
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var table = LoadData(
-                "sp_GetCurrentStockStatus",
-                new SqlParameter[0]);
+            var table = ExecuteStoredProcedure("sp_GetCurrentStockStatus");
 
             var rows = new List<CurrentStockRow>(table.Rows.Count);
             foreach (DataRow row in table.Rows)
