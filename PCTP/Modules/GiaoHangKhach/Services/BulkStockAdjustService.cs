@@ -17,11 +17,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         private readonly IUnitOfWork _uow;
         private readonly IStockMovementService _stockMovement;
 
-        public BulkStockAdjustService(
-            IBulkStockSlotRepository bulkRepo,
-            IStockHistoryRepository historyRepo,
-            IUnitOfWork uow,
-            IStockMovementService stockMovement = null)
+        public BulkStockAdjustService(IBulkStockSlotRepository bulkRepo, IStockHistoryRepository historyRepo, IUnitOfWork uow, IStockMovementService stockMovement = null)
         {
             _bulkRepo = bulkRepo ?? throw new ArgumentNullException(nameof(bulkRepo));
             _historyRepo = historyRepo ?? throw new ArgumentNullException(nameof(historyRepo));
@@ -29,15 +25,9 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             _stockMovement = stockMovement;
         }
 
-        /// <summary>
-        /// A0 mutation through the central stock-movement boundary.
-        /// manageTransaction=false is used only when the caller already owns
-        /// the larger delivery transaction.
-        /// </summary>
         public bool TruKhoAoTheoLot(string lotNo, int slXuat, bool manageTransaction = true)
         {
-            if (slXuat <= 0 || string.IsNullOrWhiteSpace(lotNo))
-                return false;
+            if (slXuat <= 0 || string.IsNullOrWhiteSpace(lotNo)) return false;
             if (_stockMovement == null)
                 throw new InvalidOperationException("Chưa cấu hình IStockMovementService cho BulkStockAdjustService.");
 
@@ -45,10 +35,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             {
                 if (manageTransaction) _uow.Begin();
 
-                int slotId = _bulkRepo.GetOrCreateVirtualSlotId(
-                    BulkImportConfig.WarehouseName,
-                    BulkImportConfig.RackName,
-                    BulkImportConfig.Capacity);
+                int slotId = _bulkRepo.GetOrCreateVirtualSlotId(BulkImportConfig.WarehouseName, BulkImportConfig.RackName, BulkImportConfig.Capacity);
                 _bulkRepo.LockSlotForUpdate(slotId);
 
                 var lots = _bulkRepo.GetLots(slotId) ?? new List<LotInfo>();
@@ -64,17 +51,14 @@ namespace PCTP.Modules.GiaoHangKhach.Services
                     return false;
                 }
 
-                var itemCode = candidates
-                    .Select(x => x.ItemCode)
-                    .FirstOrDefault(x => !string.IsNullOrWhiteSpace(x));
+                string itemCode = candidates.Select(x => x.ItemCode).FirstOrDefault(x => !string.IsNullOrWhiteSpace(x));
                 if (string.IsNullOrWhiteSpace(itemCode))
                 {
                     if (manageTransaction) _uow.Rollback();
                     return false;
                 }
 
-                int available = candidates.Sum(x => x.Quantity);
-                int quantity = Math.Min(slXuat, available);
+                int quantity = Math.Min(slXuat, candidates.Sum(x => x.Quantity));
                 if (quantity <= 0)
                 {
                     if (manageTransaction) _uow.Rollback();
@@ -94,22 +78,13 @@ namespace PCTP.Modules.GiaoHangKhach.Services
                 });
 
                 if (!movement.Success)
-                    throw new InvalidOperationException(
-                        "Không thể trừ tồn A0: " + (movement.ErrorMessage ?? "Stock movement thất bại."));
+                    throw new InvalidOperationException("Không thể trừ tồn A0: " + (movement.Message ?? "Stock movement thất bại."));
 
-                int slThucTeDaTru = movement.ConsumedLots == null
-                    ? quantity
-                    : movement.ConsumedLots.Sum(x => x.Quantity);
-
+                int slThucTeDaTru = movement.ConsumedLots == null ? quantity : movement.ConsumedLots.Sum(x => x.Quantity);
                 _historyRepo.SaveHistory(
                     "EXPORT_AUTO_HVN",
                     itemCode,
-                    new LotInfo
-                    {
-                        ItemCode = itemCode,
-                        LotNo = lotNo,
-                        Quantity = slThucTeDaTru
-                    },
+                    new LotInfo { ItemCode = itemCode, LotNo = lotNo, Quantity = slThucTeDaTru },
                     slotId,
                     null,
                     "SYSTEM_HVN_CNK");
@@ -117,8 +92,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
                 if (manageTransaction) _uow.Commit();
 
                 if (quantity < slXuat)
-                    System.Diagnostics.Debug.WriteLine(
-                        string.Format("[BulkStockAdjust] A0 thiếu {0} cho LOT {1}.", slXuat - quantity, lotNo));
+                    System.Diagnostics.Debug.WriteLine(string.Format("[BulkStockAdjust] A0 thiếu {0} cho LOT {1}.", slXuat - quantity, lotNo));
 
                 return true;
             }
