@@ -38,26 +38,6 @@ namespace PCTP.Modules.BaoCao.Infrastructure.Queries
             string qrCode,
             string customerLabelData,
             string partNo,
-            DateTime? from,
-            DateTime? to,
-            CancellationToken cancellationToken)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            ValidateDateRange(from, to);
-            return _repository.SearchQrAsync(
-                qrCode,
-                customerLabelData,
-                partNo,
-                null,
-                from,
-                to,
-                cancellationToken);
-        }
-
-        public Task<IReadOnlyList<DeliveryTraceRow>> SearchAsync(
-            string qrCode,
-            string customerLabelData,
-            string partNo,
             string customerName,
             DateTime? from,
             DateTime? to,
@@ -84,19 +64,9 @@ namespace PCTP.Modules.BaoCao.Infrastructure.Queries
             if (string.IsNullOrWhiteSpace(deliveryKey))
                 return new List<DeliveryLotTraceRow>();
 
-            IReadOnlyList<DeliveryTraceRow> rows;
-            if (string.IsNullOrWhiteSpace(qrCode))
-            {
-                rows = await _repository.FindByDeliveryKeyAsync(
-                    deliveryKey,
-                    cancellationToken);
-            }
-            else
-            {
-                rows = await _repository.FindByQrAsync(
-                    qrCode,
-                    cancellationToken);
-            }
+            IReadOnlyList<DeliveryTraceRow> rows = string.IsNullOrWhiteSpace(qrCode)
+                ? await _repository.FindByDeliveryKeyAsync(deliveryKey, cancellationToken)
+                : await _repository.FindByQrAsync(qrCode, cancellationToken);
 
             var result = new List<DeliveryLotTraceRow>();
             string requestedDeliveryKey = deliveryKey.Trim();
