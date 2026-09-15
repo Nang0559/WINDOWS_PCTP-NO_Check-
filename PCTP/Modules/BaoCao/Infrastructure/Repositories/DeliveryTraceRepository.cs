@@ -20,6 +20,7 @@ namespace PCTP.Modules.BaoCao.Infrastructure.Repositories
     ///   dbo.LUUDOCQRCODE
     ///
     /// STT is intentionally NOT used as the QR business join key.
+    /// It is only used to reopen the exact delivery row represented by DeliveryKey.
     /// </summary>
     public sealed class DeliveryTraceRepository : SqlRepositoryBase, IDeliveryTraceRepository
     {
@@ -70,6 +71,7 @@ ORDER BY P.MAHANG";
             string qrCode,
             string customerLabelData,
             string partNo,
+            string customerName,
             DateTime? from,
             DateTime? to,
             CancellationToken cancellationToken)
@@ -81,6 +83,7 @@ ORDER BY P.MAHANG";
 
             AddDateFilter(where, parameters, from, to);
             AddLikeFilter(where, parameters, "P.MAHANG", partNo, "@PartNo");
+            AddCustomerFilter(where, parameters, customerName);
 
             if (!string.IsNullOrWhiteSpace(qrCode))
             {
@@ -180,6 +183,39 @@ ORDER BY P.MAHANG";
             {
                 new SqlParameter("@QrCode", "%" + qrCode.Trim() + "%")
             };
+
+            return Task.FromResult<IReadOnlyList<DeliveryTraceRow>>(
+                MapRows(Load(where, parameters), cancellationToken));
+        }
+
+        public Task<IReadOnlyList<DeliveryTraceRow>> FindByDeliveryKeyAsync(
+            string deliveryKey,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (string.IsNullOrWhiteSpace(deliveryKey))
+                return Task.FromResult<IReadOnlyList<DeliveryTraceRow>>(
+                    new List<DeliveryTraceRow>());
+
+            string[] parts = deliveryKey.Trim().Split('|');
+            if (parts.Length != 5 || !int.TryParse(parts[4], out int stt))
+            {
+                return Task.FromResult<IReadOnlyList<DeliveryTraceRow>>(
+                    new List<DeliveryTraceRow>());
+            }
+
+            var where = new List<string> { "P.STT = @DeliveryStt" };
+            var parameters = new List<SqlParameter>
+            {
+                new SqlParameter("@DeliveryStt", stt)
+            };
+
+            if (!string.IsNullOrWhiteSpace(parts[0]))
+            {
+                where.Add("UPPER(LTRIM(RTRIM(P.NHAMAY))) = @DeliveryFactory");
+                parameters.Add(new SqlParameter("@DeliveryFactory", parts[0]));
+            }
 
             return Task.FromResult<IReadOnlyList<DeliveryTraceRow>>(
                 MapRows(Load(where, parameters), cancellationToken));
