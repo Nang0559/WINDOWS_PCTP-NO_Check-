@@ -1,6 +1,9 @@
 using System;
+using System.Collections.Generic;
 using System.Drawing;
+using System.Text.RegularExpressions;
 using System.Windows.Forms;
+using DevExpress.Diagram.Core;
 using DevExpress.XtraDiagram;
 
 namespace PCTP.Shell.Help
@@ -14,6 +17,28 @@ namespace PCTP.Shell.Help
         private readonly GroupBox _diagramGroup;
         private readonly DiagramControl _diagram;
         private readonly Label _diagramStatus;
+
+        private sealed class MermaidNode
+        {
+            internal string Id;
+            internal string Label;
+            internal ShapeDescription Shape;
+        }
+
+        private sealed class MermaidEdge
+        {
+            internal string From;
+            internal string To;
+            internal string Label;
+        }
+
+        private static readonly Regex MermaidNodeRegex = new Regex(
+            @"(?<id>[A-Za-z_][A-Za-z0-9_-]*)\s*(?<shape>\[[^\]]*\]|\([^\)]*\)|\{[^\}]*\})",
+            RegexOptions.Compiled);
+
+        private static readonly Regex MermaidEdgeRegex = new Regex(
+            @"(?<from>[A-Za-z_][A-Za-z0-9_-]*)\s*(?:-->|==>|-\.->|---)\s*(?:\|(?<label>[^|]+)\|\s*)?(?<to>[A-Za-z_][A-Za-z0-9_-]*)",
+            RegexOptions.Compiled);
 
         internal FormWmsHelp(WmsHelpTopic topic, WmsHelpService service)
         {
@@ -83,7 +108,6 @@ namespace PCTP.Shell.Help
             _diagramStatus.ForeColor = Color.DimGray;
             _diagramStatus.BackColor = Color.White;
             _diagramGroup.Controls.Add(_diagramStatus);
-            _diagram.BringToFront();
 
             _content = new RichTextBox();
             _content.Dock = DockStyle.Fill;
@@ -143,10 +167,176 @@ namespace PCTP.Shell.Help
             _content.SelectionLength = 0;
 
             string error;
-            bool rendered = WmsMermaidDiagramRenderer.Render(topic.Mermaid, _diagram, out error);
+            bool rendered = RenderMermaid(topic.Mermaid, out error);
             _diagramStatus.Text = rendered
                 ? "Sơ đồ được dựng trực tiếp từ Mermaid. Có thể zoom/pan trên canvas."
                 : "Không thể dựng sơ đồ Mermaid: " + error;
+        }
+
+        private bool RenderMermaid(string mermaid, out string error)
+        {
+            error = null;
+
+            try
+            {
+                _diagram.BeginUpdate();
+                _diagram.Items.Clear();
+
+                List<MermaidNode> nodes = new List<MermaidNode>();
+                List<MermaidEdge> edges = new List<MermaidEdge>();
+                Dictionary<string, MermaidNode> nodeMap = new Dictionary<string, MermaidNode>(StringComparer.OrdinalIgnoreCase);
+
+                ParseMermaid(mermaid, nodeMap, edges);
+                nodes.AddRange(nodeMap.Values);
+
+                if (nodes.Count == 0)
+                {
+                    error = "Không tìm thấy node Mermaid.";
+                    return false;
+                }
+
+                Dictionary<string, DiagramShape> shapes = new Dictionary<string, DiagramShape>(StringComparer.OrdinalIgnoreCase);
+
+                foreach (MermaidNode node in nodes)
+                {
+                    DiagramShape shape = new DiagramShape();
+                    shape.Shape = node.Shape;
+                    shape.Content = node.Label;
+                    shape.Size = new SizeF(190F, 58F);
+                    shape.CanEdit = false;
+                    shape.CanMove = false;
+                    shape.CanResize = false;
+                    shape.CanDelete = false;
+                    shape.CanCopy = false;
+                    shapes[node.Id] = shape;
+                    _diagram.Items.Add(shape);
+                }
+
+                foreach (MermaidEdge edge in edges)
+                {
+                    DiagramShape from;
+                    DiagramShape to;
+                    if (!shapes.TryGetValue(edge.From, out from) || !shapes.TryGetValue(edge.To, out to))
+                        continue;
+
+                    DiagramConnector connector = new DiagramConnector(from, to);
+                    connector.EndArrow = ArrowDescriptions.Filled90;
+                    connector.Content = edge.Label ?? string.Empty;
+                    connector.CanEdit = false;
+                    connector.CanMove = false;
+                    connector.CanDelete = false;
+                    _diagram.Items.Add(connector);
+                }
+
+                try
+                {
+                    _diagram.ApplySugiyamaLayout(Direction.Down, _diagram.Items);
+                }
+                catch
+                {
+                    _diagram.ApplyTreeLayout(Direction.Down, _diagram.Items);
+                }
+
+                _diagram.AlignPage(null, null);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                error = ex.Message;
+                return false;
+            }
+            finally
+            {
+                _diagram.EndUpdate();
+            }
+        }
+
+        private static void ParseMermaid(
+            string mermaid,
+            Dictionary<string, MermaidNode> nodeMap,
+            List<MermaidEdge> edges)
+        {
+            if (string.IsNullOrWhiteSpace(mermaid))
+                return;
+
+            string[] lines = mermaid.Replace("\r", string.Empty).Split('\n');
+            foreach (string rawLine in lines)
+            {
+                string line = rawLine.Trim();
+                if (line.Length == 0 || line.StartsWith("%%", StringComparison.Ordinal))
+                    continue;
+                if (line.StartsWith("flowchart ", StringComparison.OrdinalIgnoreCase) ||
+                    line.StartsWith("graph ", StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                foreach (Match match in MermaidNodeRegex.Matches(line))
+                {
+                    string id = match.Groups["id"].Value;
+                    string token = match.Groups["shape"].Value;
+                    MermaidNode node;
+                    if (!nodeMap.TryGetValue(id, out node))
+                    {
+                        node = new MermaidNode { Id = id };
+                        nodeMap.Add(id, node);
+                    }
+
+                    node.Label = CleanMermaidLabel(token);
+                    node.Shape = ResolveMermaidShape(token);
+                }
+
+                foreach (Match match in MermaidEdgeRegex.Matches(line))
+                {
+                    string from = match.Groups["from"].Value;
+                    string to = match.Groups["to"].Value;
+                    string label = match.Groups["label"].Success
+                        ? CleanMermaidLabel("[" + match.Groups["label"].Value + "]")
+                        : string.Empty;
+
+                    EnsureMermaidNode(nodeMap, from);
+                    EnsureMermaidNode(nodeMap, to);
+                    edges.Add(new MermaidEdge { From = from, To = to, Label = label });
+                }
+            }
+        }
+
+        private static void EnsureMermaidNode(Dictionary<string, MermaidNode> nodeMap, string id)
+        {
+            if (nodeMap.ContainsKey(id))
+                return;
+
+            nodeMap.Add(id, new MermaidNode
+            {
+                Id = id,
+                Label = id,
+                Shape = BasicFlowchartShapes.Process
+            });
+        }
+
+        private static string CleanMermaidLabel(string token)
+        {
+            if (string.IsNullOrEmpty(token))
+                return string.Empty;
+
+            string value = token.Length >= 2
+                ? token.Substring(1, token.Length - 2)
+                : token;
+
+            return value
+                .Replace("<br/>", " ")
+                .Replace("<br>", " ")
+                .Replace("<br />", " ")
+                .Trim();
+        }
+
+        private static ShapeDescription ResolveMermaidShape(string token)
+        {
+            if (string.IsNullOrEmpty(token))
+                return BasicFlowchartShapes.Process;
+            if (token[0] == '{')
+                return BasicFlowchartShapes.Decision;
+            if (token[0] == '(')
+                return BasicFlowchartShapes.StartEnd;
+            return BasicFlowchartShapes.Process;
         }
 
         private void AppendHeading(string heading, string body)
