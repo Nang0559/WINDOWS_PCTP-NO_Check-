@@ -38,7 +38,18 @@ namespace PCTP
             _waitForm = new WaitFormService(this);
             _qrMachineSwitch = new QrMachineSwitchService();
             _wmsHelp = new WmsHelpService();
+            EnsureShellNavigation();
             accordionControl.SelectedElement = NHAccordionControlElement;
+        }
+
+        private void EnsureShellNavigation()
+        {
+            if (accordionControl.Elements.Count == 0)
+                accordionControl.Elements.Add(mainAccordionGroup);
+
+            accordionControl.Dock = DockStyle.Left;
+            ribbonControl.Dock = DockStyle.Top;
+            ribbonStatusBar.Dock = DockStyle.Bottom;
         }
 
         private void Main_APP_Load(object sender, EventArgs e)
@@ -56,8 +67,6 @@ namespace PCTP
             _controlCenter = new WmsControlCenterBar(_wmsHelp);
             _controlCenter.RefreshRequested += ControlCenter_RefreshRequested;
 
-            // Add in reverse visual order because WinForms DockStyle.Top stacks
-            // newly added controls above the existing control collection.
             Controls.Add(_dashboardBar);
             Controls.Add(_worklistBar);
             Controls.Add(_controlCenter);
@@ -127,7 +136,6 @@ namespace PCTP
         }
 
         private void accordionControlElement23_Click(object sender, EventArgs e) { }
-
         private void accordionControlElement27_Click(object sender, EventArgs e) { }
 
         private void accordionControlElement24_Click(object sender, EventArgs e)
