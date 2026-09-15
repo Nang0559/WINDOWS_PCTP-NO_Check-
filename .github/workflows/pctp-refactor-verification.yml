@@ -67,7 +67,7 @@ jobs:
           $required = @(
             'PCTP\Modules\BaoCao\Application\Contracts\Repositories\IDeliveryTraceRepository.cs',
             'PCTP\Modules\BaoCao\Infrastructure\Repositories\DeliveryTraceRepository.cs',
-            'PCTP\Modules\BaoCao\Application\Services\DeliveryTraceReadService.cs'
+            'PCTP\Modules\BaoCao\Infrastructure\Queries\DeliveryTraceReadService.cs'
           )
 
           foreach ($path in $required) {
