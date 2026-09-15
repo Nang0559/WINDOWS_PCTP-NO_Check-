@@ -232,8 +232,22 @@ LEFT JOIN dbo.LUUDOCQRCODE D
    AND (
         (
             ISNULL(LTRIM(RTRIM(P.NHAMAY)), '') = 'YAMAHA - VIET NAM'
-            AND ISNULL(LTRIM(RTRIM(D.GIOGIAO)), '') =
-                ISNULL(LTRIM(RTRIM(P.CUA)), '')
+            AND COALESCE(
+                NULLIF(
+                    SUBSTRING(
+                        LTRIM(RTRIM(D.GIOGIAO)),
+                        PATINDEX('%[^0]%', LTRIM(RTRIM(D.GIOGIAO)) + 'x'),
+                        50),
+                    ''),
+                '0') =
+                COALESCE(
+                    NULLIF(
+                        SUBSTRING(
+                            LTRIM(RTRIM(P.CUA)),
+                            PATINDEX('%[^0]%', LTRIM(RTRIM(P.CUA)) + 'x'),
+                            50),
+                        ''),
+                    '0')
         )
         OR
         (
