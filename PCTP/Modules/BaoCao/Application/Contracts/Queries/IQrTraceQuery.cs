@@ -10,6 +10,7 @@ namespace PCTP.Modules.BaoCao.Application.Contracts.Queries
             string qrCode,
             string customerLabelData,
             string partNo,
+            string customerName,
             System.DateTime? from,
             System.DateTime? to,
             CancellationToken cancellationToken);
