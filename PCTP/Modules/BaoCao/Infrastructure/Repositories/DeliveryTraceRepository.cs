@@ -2,6 +2,7 @@ using PCTP.ClassSQL;
 using PCTP.Common;
 using PCTP.Modules.BaoCao.Application.Contracts.Queries;
 using PCTP.Modules.BaoCao.Application.Contracts.Repositories;
+using PCTP.Modules.GiaoHangKhach;
 using PCTP.Shared.Common;
 using System;
 using System.Collections.Generic;
@@ -42,10 +43,10 @@ namespace PCTP.Modules.BaoCao.Infrastructure.Repositories
             cancellationToken.ThrowIfCancellationRequested();
 
             const string sql = @"
-SELECT DISTINCT P.MAHANG
-FROM dbo.LUUPHIEUGIAOHANG P
-WHERE NULLIF(LTRIM(RTRIM(P.MAHANG)), '') IS NOT NULL
-ORDER BY P.MAHANG";
+            SELECT DISTINCT P.MAHANG
+            FROM dbo.LUUPHIEUGIAOHANG P
+            WHERE NULLIF(LTRIM(RTRIM(P.MAHANG)), '') IS NOT NULL
+            ORDER BY P.MAHANG";
 
             return Task.FromResult<IReadOnlyList<string>>(
                 LoadStringList(sql, cancellationToken));

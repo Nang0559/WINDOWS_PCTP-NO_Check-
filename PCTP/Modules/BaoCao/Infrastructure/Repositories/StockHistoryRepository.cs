@@ -3,6 +3,8 @@ using PCTP.Common;
 using PCTP.Modules.BaoCao.Application.Contracts;
 using PCTP.Modules.BaoCao.Application.Contracts.Queries;
 using PCTP.Modules.BaoCao.Application.Contracts.Repositories;
+using PCTP.Modules.GiaoHangKhach;
+using PCTP.Shared.Common;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -36,10 +38,10 @@ namespace PCTP.Modules.BaoCao.Infrastructure.Repositories
             cancellationToken.ThrowIfCancellationRequested();
 
             const string sql = @"
-SELECT DISTINCT ItemCode
-FROM StockHistory
-WHERE ItemCode IS NOT NULL
-ORDER BY ItemCode";
+            SELECT DISTINCT ItemCode
+            FROM StockHistory
+            WHERE ItemCode IS NOT NULL
+            ORDER BY ItemCode";
 
             var table = LoadData(sql);
             var result = new List<string>(table.Rows.Count);
