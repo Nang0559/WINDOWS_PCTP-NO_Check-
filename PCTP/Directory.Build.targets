@@ -33,6 +33,9 @@
     <Compile Include="Modules\NhapKho\Application\Adapters\StockReceivingRepositoryAdapter.cs" />
 
     <Compile Include="Modules\BaoCao\Application\Contracts\HistorySearchCriteria.cs" />
+    <Compile Include="Modules\BaoCao\Application\Contracts\Models\HangChoGiaoRow.cs" />
+    <Compile Include="Modules\BaoCao\Application\Contracts\Models\SlotMovementRow.cs" />
+    <Compile Include="Modules\BaoCao\Application\Contracts\Models\LotLocationRow.cs" />
     <Compile Include="Modules\BaoCao\Application\Contracts\Queries\IStockHistoryQuery.cs" />
     <Compile Include="Modules\BaoCao\Application\Contracts\Queries\ICurrentStockQuery.cs" />
     <Compile Include="Modules\BaoCao\Application\Contracts\Queries\ItemHistoryRow.cs" />
@@ -46,6 +49,7 @@
     <Compile Include="Modules\BaoCao\Application\Contracts\Queries\ILotTraceQuery.cs" />
     <Compile Include="Modules\BaoCao\Application\Contracts\Queries\ICustomerDeliveryQuery.cs" />
     <Compile Include="Modules\BaoCao\Application\Contracts\Repositories\IDeliveryTraceRepository.cs" />
+    <Compile Include="Modules\BaoCao\Application\Contracts\Repositories\ILotLocationRepository.cs" />
     <Compile Include="Modules\BaoCao\Application\Contracts\Repositories\IStockHistoryRepository.cs" />
     <Compile Include="Modules\BaoCao\Application\Contracts\Repositories\ICurrentStockRepository.cs" />
     <Compile Include="Modules\BaoCao\Application\Contracts\Repositories\IQualityHistoryRepository.cs" />
@@ -54,6 +58,7 @@
     <Compile Include="Modules\BaoCao\Infrastructure\Queries\QualityHistoryQueryService.cs" />
     <Compile Include="Modules\BaoCao\Infrastructure\Queries\DeliveryTraceReadService.cs" />
     <Compile Include="Modules\BaoCao\Infrastructure\Repositories\DeliveryTraceRepository.cs" />
+    <Compile Include="Modules\BaoCao\Infrastructure\Repositories\LotLocationRepository.cs" />
     <Compile Include="Modules\BaoCao\Infrastructure\Repositories\StockHistoryRepository.cs" />
     <Compile Include="Modules\BaoCao\Infrastructure\Repositories\CurrentStockRepository.cs" />
     <Compile Include="Modules\BaoCao\Infrastructure\Repositories\QualityHistoryRepository.cs" />
