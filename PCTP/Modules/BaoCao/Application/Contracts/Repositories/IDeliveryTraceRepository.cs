@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using PCTP.Modules.BaoCao.Application.Contracts.Models;
 using PCTP.Modules.BaoCao.Application.Contracts.Queries;
 
 namespace PCTP.Modules.BaoCao.Application.Contracts.Repositories
@@ -42,5 +43,10 @@ namespace PCTP.Modules.BaoCao.Application.Contracts.Repositories
         Task<IReadOnlyList<DeliveryTraceRow>> FindByQrAsync(
             string qrCode,
             CancellationToken cancellationToken);
+        Task<IReadOnlyList<SlotMovementRow>> GetSlotHistoryByLotAsync(
+       string lotNo, CancellationToken cancellationToken);
+
+        Task<IReadOnlyList<HangChoGiaoRow>> GetChoGiaoByPhieuAsync(
+            int stt, CancellationToken cancellationToken);
     }
 }

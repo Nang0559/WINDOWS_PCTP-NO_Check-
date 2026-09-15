@@ -1,7 +1,10 @@
 using PCTP.Common;
+using PCTP.Modules.BaoCao.Application.Contracts.Models;
 using PCTP.Modules.BaoCao.Application.Contracts.Queries;
 using PCTP.Modules.BaoCao.Application.Contracts.Repositories;
 using PCTP.Modules.BaoCao.Infrastructure.Repositories;
+using PCTP.Modules.XuatKho.Models;
+using PCTP.Modules.XuLyHangLoi.Models;
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -13,7 +16,8 @@ namespace PCTP.Modules.BaoCao.Infrastructure.Queries
     /// Application-facing query adapter for delivery traceability.
     /// Database access is delegated entirely to IDeliveryTraceRepository.
     /// </summary>
-    public sealed class DeliveryTraceQueryService : IQrTraceQuery, ILotTraceQuery, ICustomerDeliveryQuery
+    public sealed class DeliveryTraceQueryService
+     : IQrTraceQuery, ILotTraceQuery, ICustomerDeliveryQuery,IDeliveryDetailQuery
     {
         private readonly IDeliveryTraceRepository _repository;
 
@@ -164,6 +168,19 @@ namespace PCTP.Modules.BaoCao.Infrastructure.Queries
                 throw new ArgumentException(
                     "Ngày bắt đầu không được lớn hơn ngày kết thúc.");
             }
+        }
+        public Task<IReadOnlyList<SlotMovementRow>> GetSlotHistoryAsync(
+     string lotNo, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return _repository.GetSlotHistoryByLotAsync(lotNo, cancellationToken);   // chỉ delegate, không SQL
+        }
+
+        public Task<IReadOnlyList<HangChoGiaoRow>> GetChoGiaoAsync(
+            int stt, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return _repository.GetChoGiaoByPhieuAsync(stt, cancellationToken);      // chỉ delegate, không SQL
         }
     }
 }

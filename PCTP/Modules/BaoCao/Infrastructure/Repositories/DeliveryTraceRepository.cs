@@ -1,5 +1,6 @@
 using PCTP.ClassSQL;
 using PCTP.Common;
+using PCTP.Modules.BaoCao.Application.Contracts.Models;
 using PCTP.Modules.BaoCao.Application.Contracts.Queries;
 using PCTP.Modules.BaoCao.Application.Contracts.Repositories;
 using PCTP.Modules.GiaoHangKhach;
@@ -444,5 +445,40 @@ ORDER BY P.NGAYGIAO DESC, P.STT DESC, D.STT DESC";
                        requestedLot.Trim(),
                        StringComparison.OrdinalIgnoreCase) >= 0;
         }
+        private static SlotMovementRow MapSlotMovement(DataRow row) => new SlotMovementRow
+        {
+            ActionType = DbValueHelper.GetString(row, "ActionType"),
+            ItemCode = DbValueHelper.GetString(row, "ItemCode"),
+            LotNo = DbValueHelper.GetString(row, "LotNo"),
+            Quantity = DbValueHelper.GetInt(row, "Quantity"),
+            Date = DbValueHelper.GetNullableDateTime(row, "Date") ?? default,
+
+            FromSlotId = row["FromSlotId"] == DBNull.Value ? (int?)null : Convert.ToInt32(row["FromSlotId"]),
+            FromWarehouse = DbValueHelper.GetString(row, "FromWarehouse"),
+            FromRack = DbValueHelper.GetString(row, "FromRack"),
+            FromSlotNumber = row["FromSlotNumber"] == DBNull.Value ? (int?)null : Convert.ToInt32(row["FromSlotNumber"]),
+
+            ToSlotId = row["ToSlotId"] == DBNull.Value ? (int?)null : Convert.ToInt32(row["ToSlotId"]),
+            ToWarehouse = DbValueHelper.GetString(row, "ToWarehouse"),
+            ToRack = DbValueHelper.GetString(row, "ToRack"),
+            ToSlotNumber = row["ToSlotNumber"] == DBNull.Value ? (int?)null : Convert.ToInt32(row["ToSlotNumber"]),
+
+            PerformedBy = DbValueHelper.GetString(row, "PerformedBy")
+        };
+
+        private static HangChoGiaoRow MapHangChoGiao(DataRow row) => new HangChoGiaoRow
+        {
+            Id = DbValueHelper.GetInt(row, "Id"),
+            MaHang = DbValueHelper.GetString(row, "MaHang"),
+            LotThung = DbValueHelper.GetString(row, "LotThung"),
+            LotGoc = DbValueHelper.GetString(row, "LotGoc"),
+            SoLuong = DbValueHelper.GetInt(row, "SoLuong"),
+            SlotIdNguon = row["SlotIdNguon"] == DBNull.Value ? (int?)null : Convert.ToInt32(row["SlotIdNguon"]),
+            TrangThai = DbValueHelper.GetString(row, "TrangThai"),
+            NgayXuatKho = DbValueHelper.GetNullableDateTime(row, "NgayXuatKho") ?? default,
+            NguoiXuatKho = DbValueHelper.GetString(row, "NguoiXuatKho"),
+            NgayGiao = DbValueHelper.GetNullableDateTime(row, "NgayGiao"),
+            NguoiGiao = DbValueHelper.GetString(row, "NguoiGiao")
+        };
     }
 }

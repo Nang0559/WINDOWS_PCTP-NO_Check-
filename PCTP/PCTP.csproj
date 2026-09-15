@@ -301,6 +301,8 @@
     <Compile Include="Domain\Events\HoanThanhYMVNCompletedEvent.cs" />
     <Compile Include="Infrastructure\Stock\LegacyStockSlotRepositoryAdapter.cs" />
     <Compile Include="Modules\BaoCao\Application\Contracts\HistorySearchCriteria.cs" />
+    <Compile Include="Modules\BaoCao\Application\Contracts\Models\HangChoGiaoRow.cs" />
+    <Compile Include="Modules\BaoCao\Application\Contracts\Models\SlotMovementRow.cs" />
     <Compile Include="Modules\BaoCao\Application\Contracts\Queries\CurrentStockRow.cs" />
     <Compile Include="Modules\BaoCao\Application\Contracts\Queries\DeliveryLotTraceRow.cs" />
     <Compile Include="Modules\BaoCao\Application\Contracts\Queries\DeliveryTraceRow.cs" />
@@ -314,6 +316,7 @@
     <Compile Include="Modules\BaoCao\Application\Contracts\Queries\QualityHistoryDetailRow.cs" />
     <Compile Include="Modules\BaoCao\Application\Contracts\Queries\QualityHistoryRow.cs" />
     <Compile Include="Modules\BaoCao\Application\Contracts\Repositories\ICurrentStockRepository.cs" />
+    <Compile Include="Modules\BaoCao\Application\Contracts\Repositories\IDeliveryDetailQuery.cs" />
     <Compile Include="Modules\BaoCao\Application\Contracts\Repositories\IDeliveryTraceRepository.cs" />
     <Compile Include="Modules\BaoCao\Application\Contracts\Repositories\IQualityHistoryRepository.cs" />
     <Compile Include="Modules\BaoCao\Application\Contracts\Repositories\IStockHistoryRepository.cs" />
