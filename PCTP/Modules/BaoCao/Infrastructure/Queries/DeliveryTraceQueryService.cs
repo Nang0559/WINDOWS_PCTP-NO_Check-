@@ -23,6 +23,45 @@ namespace PCTP.Modules.BaoCao.Infrastructure.Queries
             _sql = new SQLPROVIDER();
         }
 
+        public Task<IReadOnlyList<string>> GetItemCodesAsync(CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            const string sql = @"SELECT DISTINCT MAHANG
+FROM dbo.LUUPHIEUGIAOHANG
+WHERE NULLIF(LTRIM(RTRIM(MAHANG)), '') IS NOT NULL
+ORDER BY MAHANG";
+            return Task.FromResult<IReadOnlyList<string>>(LoadStringList(sql, cancellationToken));
+        }
+
+        public Task<IReadOnlyList<string>> GetCustomersAsync(CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            HashSet<string> columns = GetColumns();
+            string customerColumn = new[] { "CustomerName", "CustomerCode" }.FirstOrDefault(columns.Contains);
+            if (string.IsNullOrWhiteSpace(customerColumn))
+                return Task.FromResult<IReadOnlyList<string>>(new List<string>());
+
+            string sql = @"SELECT DISTINCT [" + customerColumn + @"]
+FROM dbo.LUUPHIEUGIAOHANG
+WHERE NULLIF(LTRIM(RTRIM([" + customerColumn + @"])), '') IS NOT NULL
+ORDER BY [" + customerColumn + "]";
+            return Task.FromResult<IReadOnlyList<string>>(LoadStringList(sql, cancellationToken));
+        }
+
+        private List<string> LoadStringList(string sql, CancellationToken cancellationToken)
+        {
+            DataTable table = _sql.LoadData(_sql.B7R2_FCCdbb, sql);
+            var result = new List<string>(table.Rows.Count);
+            foreach (DataRow row in table.Rows)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (row[0] == DBNull.Value) continue;
+                string value = Convert.ToString(row[0]).Trim();
+                if (!string.IsNullOrWhiteSpace(value)) result.Add(value);
+            }
+            return result;
+        }
+
         public Task<IReadOnlyList<DeliveryTraceRow>> SearchAsync(string qrCode, string customerLabelData, string partNo, DateTime? from, DateTime? to, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -163,13 +202,11 @@ ORDER BY NGAYGIAO DESC, STT DESC";
         }
 
         private static bool HasAny(HashSet<string> columns, params string[] names) { return names.Any(columns.Contains); }
-
         private static string BuildOptionalSelect(HashSet<string> columns)
         {
             string[] candidates = { "QRCode", "QR", "QRData", "CustomerLabelData", "CustomerLabel", "CustomerQR", "QRKhachHang", "CustomerCode", "CustomerName" };
             return string.Concat(candidates.Where(columns.Contains).Distinct(StringComparer.OrdinalIgnoreCase).Select(c => ", [" + c + "] AS [" + c + "]"));
         }
-
         private static DeliveryTraceRow Map(DataRow row)
         {
             string nhaMay = DbValueHelper.GetString(row, "NHAMAY");
@@ -190,12 +227,10 @@ ORDER BY NGAYGIAO DESC, STT DESC";
                 Unit = DbValueHelper.GetString(row, "DV"), Factory = nhaMay, Status = DbValueHelper.GetString(row, "STATUS")
             };
         }
-
         private static string BuildDeliveryKey(string nhaMay, DateTime? ngayGiao, string gioGiao, string poNo, int stt)
         {
             return string.Join("|", NormalizeKeyPart(nhaMay), ngayGiao.HasValue ? ngayGiao.Value.ToString("yyyyMMdd") : "", NormalizeKeyPart(gioGiao), NormalizeKeyPart(poNo), stt.ToString());
         }
-
         private static string NormalizeKeyPart(string value) { return (value ?? "").Trim().ToUpperInvariant(); }
         private static void ValidateDateRange(DateTime? from, DateTime? to)
         {
