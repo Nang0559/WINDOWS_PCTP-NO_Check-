@@ -2,8 +2,8 @@ using PCTP.Shell.Help;
 using System;
 using System.Drawing;
 using System.Runtime.InteropServices;
-using System.Windows.Forms;
 using DevExpress.XtraEditors;
+using System.Windows.Forms;
 
 namespace PCTP.Shell.UI
 {
@@ -179,10 +179,10 @@ namespace PCTP.Shell.UI
                 _iconLabel.Text = "";
                 return;
             }
+
             _iconLabel.ImageOptions.Image = Icon.ToBitmap();
             _iconLabel.ImageOptions.SvgImage = null;
-            _iconLabel.ImageOptions.Alignment = DevExpress.Utils.HorzAlignment.Center;
-            _iconLabel.ImageOptions.ImageToTextAlignment = DevExpress.XtraEditors.ImageAlignToText.None;
+            _iconLabel.ImageOptions.Alignment = ContentAlignment.MiddleCenter;
         }
 
         private void UpdateMaximizeGlyph()
