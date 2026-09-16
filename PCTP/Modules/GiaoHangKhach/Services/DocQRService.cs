@@ -81,24 +81,15 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         public void CapNhapSlHvn(int stt, int slMoi)
         {
             EnsureFifoInitialized();
-
             DataTable current = _engine.LoadAll();
             DataRow row = null;
             foreach (DataRow item in current.Rows)
             {
                 if (!item.Table.Columns.Contains("STT")) continue;
-                if (int.TryParse(item["STT"]?.ToString(), out int currentStt) && currentStt == stt)
-                {
-                    row = item;
-                    break;
-                }
+                if (int.TryParse(item["STT"]?.ToString(), out int currentStt) && currentStt == stt) { row = item; break; }
             }
 
-            if (row == null)
-            {
-                _engine.CapNhapSlHvn(stt, slMoi);
-                return;
-            }
+            if (row == null) { _engine.CapNhapSlHvn(stt, slMoi); return; }
 
             string maHang = GetFirstValue(row, "MAHANGFCC", "MAHANGHVN");
             string lot = GetFirstValue(row, "LOTFCC", "LOTHVN");
@@ -108,15 +99,11 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             string message;
             if (!_fifoState.TryConsume(stt, maHang, lot, slMoi, out message))
             {
-                // Restore the previous reservation because the edit was rejected.
                 _fifoState.TryConsume(stt, maHang, lot, oldQty, out message);
                 throw new InvalidOperationException(message);
             }
 
-            try
-            {
-                _engine.CapNhapSlHvn(stt, slMoi);
-            }
+            try { _engine.CapNhapSlHvn(stt, slMoi); }
             catch
             {
                 _fifoState.Release(stt);
@@ -152,8 +139,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
 
         private ScanResult ApplyRamFifo(ScanResult result)
         {
-            if (result == null || !result.IsOK || result.Pending == null)
-                return result;
+            if (result == null || !result.IsOK || result.Pending == null) return result;
 
             DocQRCode item = result.Pending;
             string maHang = !string.IsNullOrWhiteSpace(item.MaHangFCC) ? item.MaHangFCC : item.MaHangHVN;
@@ -161,19 +147,18 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             int quantity = item.SlTemFCC > 0 ? item.SlTemFCC : item.SlTemHVN;
 
             string message;
-            if (_fifoState.TryConsume(item.STT, maHang, lot, quantity, out message))
-                return result;
+            if (_fifoState.TryConsume(item.STT, maHang, lot, quantity, out message)) return result;
 
             _engine.XoaDong(item.STT);
+            // Refresh the current QR grid after the rejected row has been removed.
+            _bus.Publish(new QRScannedEvent(item, "FIFO_REJECTED"));
             return ScanResult.FifoFail(item, message);
         }
 
         private static string GetFirstValue(DataRow row, string first, string second)
         {
-            if (row.Table.Columns.Contains(first) && row[first] != DBNull.Value && !string.IsNullOrWhiteSpace(row[first].ToString()))
-                return row[first].ToString().Trim();
-            if (row.Table.Columns.Contains(second) && row[second] != DBNull.Value)
-                return row[second].ToString().Trim();
+            if (row.Table.Columns.Contains(first) && row[first] != DBNull.Value && !string.IsNullOrWhiteSpace(row[first].ToString())) return row[first].ToString().Trim();
+            if (row.Table.Columns.Contains(second) && row[second] != DBNull.Value) return row[second].ToString().Trim();
             return string.Empty;
         }
 
@@ -184,7 +169,6 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         }
 
         private void OnKhoUpdated(KhoUpdatedEvent e) => ResetFifo();
-
         public bool KiemTraSlDaBan(string maHang, int slBan) => _engine.KiemTraSlDaBan(maHang, slBan);
     }
 }
