@@ -4,6 +4,7 @@ using DevExpress.XtraGrid.Columns;
 using DevExpress.XtraGrid.Views.Grid;
 using PCTP.Modules.BaoCao.Application.Contracts.Queries;
 using PCTP.Modules.BaoCao.Infrastructure.Queries;
+using PCTP.Shell.UI;
 using System;
 using System.ComponentModel;
 using System.Drawing;
@@ -14,7 +15,8 @@ using System.Windows.Forms;
 
 namespace PCTP.Modules.BaoCao.UI
 {
-    public sealed class FormBaoCaoQualityHistory : XtraForm
+    [DesignerCategory("Code")]
+    public sealed class FormBaoCaoQualityHistory : WmsTitleBarForm
     {
         private readonly IQualityHistoryQuery _query;
         private DateEdit _from;
@@ -37,10 +39,7 @@ namespace PCTP.Modules.BaoCao.UI
             LoadAsync();
         }
 
-        public FormBaoCaoQualityHistory()
-            : this(new QualityHistoryQueryService())
-        {
-        }
+        public FormBaoCaoQualityHistory() : this(new QualityHistoryQueryService()) { }
 
         private void BuildUi()
         {
@@ -72,17 +71,14 @@ namespace PCTP.Modules.BaoCao.UI
             _from.Properties.DisplayFormat.FormatString = "dd/MM/yyyy";
             _from.Properties.EditFormat.FormatString = "dd/MM/yyyy";
             filter.Controls.Add(_from);
-
             filter.Controls.Add(new LabelControl { Text = "Đến ngày:", Padding = new Padding(12, 7, 4, 0) });
             _to = new DateEdit { Width = 105 };
             _to.Properties.DisplayFormat.FormatString = "dd/MM/yyyy";
             _to.Properties.EditFormat.FormatString = "dd/MM/yyyy";
             filter.Controls.Add(_to);
-
             filter.Controls.Add(new LabelControl { Text = "Mã hàng:", Padding = new Padding(12, 7, 4, 0) });
             _itemCode = new TextEdit { Width = 150 };
             filter.Controls.Add(_itemCode);
-
             filter.Controls.Add(new LabelControl { Text = "Kết quả:", Padding = new Padding(12, 7, 4, 0) });
             _result = new ComboBoxEdit { Width = 90 };
             _result.Properties.Items.AddRange(new[] { "Tất cả", "PASS", "FAIL" });
@@ -92,11 +88,9 @@ namespace PCTP.Modules.BaoCao.UI
             var search = new SimpleButton { Text = "Tìm", Width = 75 };
             search.Click += async (s, e) => await LoadAsync();
             filter.Controls.Add(search);
-
             var export = new SimpleButton { Text = "Excel", Width = 75 };
             export.Click += ExportClick;
             filter.Controls.Add(export);
-
             root.Controls.Add(filter, 0, 0);
 
             _summary = new LabelControl { Dock = DockStyle.Fill, Padding = new Padding(4, 5, 0, 0) };
@@ -135,30 +129,17 @@ namespace PCTP.Modules.BaoCao.UI
             AddDetailColumn("CheckedAt", "Thời gian", 140);
             detailGroup.Controls.Add(_detailGrid);
             root.Controls.Add(detailGroup, 0, 3);
-
             Controls.Add(root);
         }
 
         private void AddColumn(string field, string caption, int width)
         {
-            _masterView.Columns.Add(new GridColumn
-            {
-                FieldName = field,
-                Caption = caption,
-                Width = width,
-                Visible = true
-            });
+            _masterView.Columns.Add(new GridColumn { FieldName = field, Caption = caption, Width = width, Visible = true });
         }
 
         private void AddDetailColumn(string field, string caption, int width)
         {
-            _detailView.Columns.Add(new GridColumn
-            {
-                FieldName = field,
-                Caption = caption,
-                Width = width,
-                Visible = true
-            });
+            _detailView.Columns.Add(new GridColumn { FieldName = field, Caption = caption, Width = width, Visible = true });
         }
 
         private async Task LoadAsync()
@@ -183,7 +164,6 @@ namespace PCTP.Modules.BaoCao.UI
 
                 _masterGrid.DataSource = rows.ToList();
                 _detailGrid.DataSource = null;
-
                 var pass = rows.Count(r => string.Equals(r.FinalResult, "PASS", StringComparison.OrdinalIgnoreCase));
                 var fail = rows.Count(r => string.Equals(r.FinalResult, "FAIL", StringComparison.OrdinalIgnoreCase));
                 _summary.Text = string.Format("Tổng phiên: {0} | PASS: {1} | FAIL: {2}", rows.Count, pass, fail);
@@ -225,7 +205,6 @@ namespace PCTP.Modules.BaoCao.UI
                 dialog.Filter = "Excel|*.xlsx";
                 dialog.FileName = "LichSuKiemTra_" + DateTime.Now.ToString("yyyyMMdd") + ".xlsx";
                 if (dialog.ShowDialog() != DialogResult.OK) return;
-
                 try
                 {
                     _masterGrid.ExportToXlsx(dialog.FileName);
