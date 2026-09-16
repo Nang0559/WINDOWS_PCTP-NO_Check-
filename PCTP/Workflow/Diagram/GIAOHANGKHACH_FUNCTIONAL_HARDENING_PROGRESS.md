@@ -9,12 +9,31 @@ Mục tiêu: xử lý từng phase nghiệp vụ sau refactor kiến trúc, comm
 | Phase | Phạm vi | Trạng thái | Commit |
 |---|---|---|---|
 | A | YMVN load order + delivery-hour selection | 🟡 Đã rà soát, còn kiểm tra restore `LuuPhieuGiaoHang` | — |
-| **B** | **YMVN QR: Gear + quantity validation** | **🟢 Đã xử lý logic scan + completion** | `99767beda97fc0c8425e85eaeb8da3dbeca1cab3`, `785110de3b9d7e81de56a954fef2e52c3cac931a`, `65351702399003a95356d5113e57bdea48bce28e` |
-| C | Restore delivered hours từ `LuuPhieuGiaoHang` | ⬜ Chưa xử lý | — |
+| **B** | **YMVN QR: Gear + quantity validation** | **🟢 Đã xử lý logic scan + completion** | `99767beda97fc0c8425e85ea8ebda3dbeca1cab3`, `785110de3b9d7e81de56a954fef2e52c3cac931a`, `65351702399003a95356d5113e57bdea48bce28e` |
+| **C** | **Restore delivered hours từ `LuuPhieuGiaoHang`** | **🟡 Đã xử lý phần đọc lịch sử + restore YMVN checklist; chưa build/runtime verify** | `92f6fdfc02e2b7b913a5d229531d65f1d9721c11`, `e2a0611451387e42b6a21a458964e07119e1a47f` |
 | D | Delivery-hour locking: 100001 radio + 100002 checklist | 🟢 Đã xử lý phần lock checklist trong QR session | `bb27b3965f3dada7965978e8f2fdbad2e55e420d` |
 | E | Hoàn Thành + unlock/reload state | 🟢 Đã xử lý unlock checklist khi hoàn thành/cancel | `bb27b3965f3dada7965978e8f2fdbad2e55e420d` |
 | F | FIFO regression/unit tests | ⬜ Chưa xử lý | — |
 | G | Build/runtime verification + final cleanup | ⬜ Chưa xử lý | — |
+
+## Phase C – Restore delivered hours
+
+### Đã xử lý
+
+- `PhieuService.GetGioDaGiao(...)` đọc lịch sử từ `LUUPHIEUGIAOHANG` qua `LoadLuuPhieuCaNgay`.
+- Chuẩn hóa `GIOGIAO` về mã giờ `00..23`, hỗ trợ chuỗi `HH:mm`, `HHH`, nhiều giờ phân tách bằng `,` hoặc `+`.
+- YMVN load giờ giao hiện:
+  1. lấy toàn bộ giờ từ Order/YMVN;
+  2. đọc các giờ đã giao trong `LuuPhieuGiaoHang`;
+  3. restore các giờ đã giao vào checklist;
+  4. chỉ dùng giờ chưa giao để tạo `GioXuatHienTai` cho flow tiếp theo.
+- Khi không còn giờ chưa giao, `GioXuatHienTai` được đặt rỗng để tránh vô tình load lại giờ đã hoàn thành.
+
+### Chưa coi Phase C hoàn tất
+
+- Chưa build trên máy/runtime với DB thực tế.
+- Chưa xác nhận chính xác `GIOGIAO` thực tế trong `LUUPHIEUGIAOHANG` của YMVN có đúng format mà parser đang hỗ trợ.
+- 100001 radio chưa được nâng cấp thành trạng thái `Delivered = checked + disabled`; phần này sẽ được rà lại cùng Phase D.
 
 ## Phase B – YMVN Gear + quantity
 
@@ -23,7 +42,7 @@ Mục tiêu: xử lý từng phase nghiệp vụ sau refactor kiến trúc, comm
 - Gear nghiệp vụ được xác định từ **ký tự thứ 13 của LOT FCC**.
 - Mapping hiện tại: `1 -> A`, `2 -> B`, `3 -> D`.
 - Nếu QR có trường Gear riêng thì trường đó phải khớp Gear suy ra từ LOT.
-- Order được aggregate theo `PART + GEAR`.
+- Order được aggregate theo **PART + GEAR**.
 - Số lượng nghiệp vụ dùng **SL FCC**.
 - Khi scan: `đã bắn + SL FCC hiện tại <= số lượng Order của PART + GEAR`.
 - Tổng quantity đúng nhưng Gear sai **không được pass**.
@@ -60,7 +79,7 @@ và QR có Gear tương ứng từ ký tự thứ 13 của LOT.
 
 ### Chưa coi Phase D/E là hoàn tất toàn bộ
 
-Phần restore trạng thái đã giao từ `LuuPhieuGiaoHang` vẫn phải xử lý ở Phase C. Khi Phase C hoàn thành, Phase D sẽ được rà lại để bảo đảm:
+Phần restore trạng thái đã giao từ `LuuPhieuGiaoHang` vừa được bổ sung ở Phase C. Phase D vẫn phải rà lại để bảo đảm:
 
 ```text
 Delivered  -> checked + disabled
