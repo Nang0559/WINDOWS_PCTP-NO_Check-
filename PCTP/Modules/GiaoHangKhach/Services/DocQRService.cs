@@ -1,4 +1,5 @@
 using PCTP.Domain.Entities;
+using PCTP.Domain.Events;
 using PCTP.Modules.GiaoHangKhach.Models;
 using PCTP.Modules.GiaoHangKhach.OrderLoading.Category;
 using PCTP.Shared.Helpers;
@@ -15,6 +16,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         private readonly DocQRScanEngine _engine;
         private readonly FifoSessionService _fifoService;
         private readonly FifoSessionState _fifoState;
+        private readonly IEventBus _bus;
         private bool _fifoInitialized;
 
         public bool IsBanSP => _session.IsBanSP;
@@ -32,9 +34,11 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             if (cfg == null) throw new ArgumentNullException(nameof(cfg));
             _categoryResolver = categoryResolver ?? throw new ArgumentNullException(nameof(categoryResolver));
             _fifoService = fifoService ?? throw new ArgumentNullException(nameof(fifoService));
+            _bus = bus;
             _session = new DocQRSessionState(cfg);
             _fifoState = new FifoSessionState();
             _engine = new DocQRScanEngine(repo, bus, cfg, _session);
+            _bus.Subscribe<KhoUpdatedEvent>(OnKhoUpdated);
         }
 
         public void SetCheDoBanSP(bool isSP)
@@ -128,6 +132,11 @@ namespace PCTP.Modules.GiaoHangKhach.Services
 
             _engine.XoaDong(item.STT);
             return ScanResult.FifoFail(item, message);
+        }
+
+        private void OnKhoUpdated(KhoUpdatedEvent e)
+        {
+            ResetFifo();
         }
 
         public bool KiemTraSlDaBan(string maHang, int slBan)
