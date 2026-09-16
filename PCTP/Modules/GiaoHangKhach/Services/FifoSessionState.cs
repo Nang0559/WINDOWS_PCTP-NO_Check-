@@ -64,16 +64,29 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             FifoLotState allowedLot = state.Lots.FirstOrDefault(x => string.Equals(x.LotKey, lotKey, StringComparison.OrdinalIgnoreCase));
             if (allowedLot == null || allowedLot.RemainingAllowedQty < quantity)
             {
-                string requiredLot = state.Lots
+                FifoLotState required = state.Lots
                     .Where(x => x.RemainingAllowedQty > 0)
                     .OrderBy(x => x.FifoRank)
-                    .Select(x => x.DisplayLot)
                     .FirstOrDefault();
 
-                if (string.IsNullOrEmpty(requiredLot))
-                    requiredLot = state.Lots.Count == 0 ? "(không còn LOT FIFO hợp lệ)" : state.Lots.Last().DisplayLot;
+                string requiredLot = required != null
+                    ? required.DisplayLot
+                    : (state.Lots.Count == 0 ? "(không còn LOT FIFO hợp lệ)" : state.Lots.Last().DisplayLot);
+                int allowedQty = required != null ? required.RemainingAllowedQty : 0;
 
-                message = $"FIFO: mã hàng {part} phải xuất LOT {requiredLot} trước. LOT đang chọn: {lotKey}, số lượng: {quantity}.";
+                message = string.Format(
+                    "CẢNH BÁO FIFO\n\n" +
+                    "Mã hàng: {0}\n" +
+                    "LOT đang quét: {1}\n" +
+                    "Số lượng: {2}\n" +
+                    "LOT FIFO hiện tại: {3}\n" +
+                    "Số lượng còn được phép: {4}\n\n" +
+                    "Không thể xuất LOT này vì chưa đúng thứ tự FIFO.",
+                    part,
+                    lotKey,
+                    quantity,
+                    requiredLot,
+                    allowedQty);
                 return false;
             }
 
