@@ -74,7 +74,10 @@ namespace PCTP.Modules.XuLyHangLoi.Application
             var affectedLotTraceService = new AffectedLotTraceService(
                 reworkStockService,
                 productionProvider: null,
-                customerReturnProvider: customerReturnProvider);
+                customerReturnProvider: customerReturnProvider,
+                phieuRepository: phieuXuLyRepo,
+                db: dbExecutor,
+                uow: uow);
 
             return new Module
             {
