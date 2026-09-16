@@ -35,12 +35,8 @@ namespace PCTP.Presentation.Presenters
             List<string> gios = _c.Cfg.Delivery.CoGear ? _c.YmvnView.GetCheckedGioXuat() : null;
             _c.IsBanQR = true;
 
-            // ============================================================
-            // UI STATE - khi đã bước vào phiên đọc QR thì giờ xuất phải
-            // bị khóa ngay. Trước đây chỉ XetTrangThai() của phiên cũ khóa
-            // radio, còn phiên mới bấm "Đọc QRCode" lại không khóa.
-            // Không khóa YMVN radio tại đây vì YMVN dùng CheckedList riêng.
-            // ============================================================
+            // Khi bắt đầu phiên đọc QR, khóa ngay giờ xuất đang được sử dụng.
+            // IDocQrView không sở hữu trạng thái radio; trạng thái này thuộc PhieuView.
             if (!_c.Cfg.Delivery.CoGear && !_c.Cfg.Delivery.LoadTuBangRieng)
                 _c.PhieuView.LockRadioExcept(_c.GioXuatHienTai.Ma);
 
@@ -70,7 +66,7 @@ namespace PCTP.Presentation.Presenters
                 catch (Exception ex)
                 {
                     _c.IsBanQR = false;
-                    _v.UnlockAllRadio();
+                    _c.PhieuView.UnlockAllRadio();
                     _v.ShowError($"Lỗi chuẩn bị dữ liệu QR: {ex.Message}");
                 }
             }, "Đang chuẩn bị dữ liệu QR...");
