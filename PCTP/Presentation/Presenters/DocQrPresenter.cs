@@ -35,8 +35,6 @@ namespace PCTP.Presentation.Presenters
             List<string> gios = _c.Cfg.Delivery.CoGear ? _c.YmvnView.GetCheckedGioXuat() : null;
             _c.IsBanQR = true;
 
-            // Khi bắt đầu phiên đọc QR, khóa ngay giờ xuất đang được sử dụng.
-            // IDocQrView không sở hữu trạng thái radio; trạng thái này thuộc PhieuView.
             if (!_c.Cfg.Delivery.CoGear && !_c.Cfg.Delivery.LoadTuBangRieng)
                 _c.PhieuView.LockRadioExcept(_c.GioXuatHienTai.Ma);
 
@@ -76,6 +74,12 @@ namespace PCTP.Presentation.Presenters
             ScanResult result = _c.Cfg.Delivery.CoGear ? _c.QrSvc.ProcessScanYMVN(rawQr, ma => _c.PhieuSvc.KiemTraMaTrongPhieu(ma), (ma, sl) => _c.QrSvc.KiemTraSlDaBan(ma, sl)) : _c.QrSvc.ProcessScan(rawQr, ma => _c.PhieuSvc.KiemTraMaTrongPhieu(ma), (ma, sl) => _c.QrSvc.KiemTraSlDaBan(ma, sl));
             if (result.IsOK) return;
             if (result.IsSlKhongKhop) { _c.RunWithLoadingSync(() => { if (!_v.Confirm("Số lượng TEM không khớp với phiếu giao!\nBạn có muốn nhập với số lượng này không?")) return; var confirmed = _c.QrSvc.ConfirmSlKhacBiet(result.Pending); if (!confirmed.IsOK) _v.ShowError(confirmed.Message); }, "Đang xác nhận..."); return; }
+            if (!string.IsNullOrWhiteSpace(result.Message) && result.Message.StartsWith("CẢNH BÁO FIFO", StringComparison.OrdinalIgnoreCase))
+            {
+                _v.ShowWarning(result.Message);
+                _v.BindDocQRCode(_c.QrSvc.LoadAll());
+                return;
+            }
             _v.ShowError(result.Message);
         }
         private void OnQRScanned(QRScannedEvent e) { _v.ClearQRInput(); _v.BindDocQRCode(_c.QrSvc.LoadAll()); }
