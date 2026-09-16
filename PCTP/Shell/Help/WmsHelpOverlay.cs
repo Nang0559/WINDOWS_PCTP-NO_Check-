@@ -1,3 +1,4 @@
+using PCTP.Shell.UI;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -8,24 +9,16 @@ using System.Windows.Forms;
 
 namespace PCTP.Shell.Help
 {
-    /// <summary>
-    /// Provides contextual WMS help without placing controls over the form client area.
-    /// A small Help button is rendered in the non-client title bar, immediately before
-    /// the standard Minimize/Maximize/Close caption buttons. F1 remains supported.
-    /// </summary>
     internal static class WmsHelpOverlay
     {
         private static readonly HashSet<Form> AttachedForms = new HashSet<Form>();
-        private static readonly Dictionary<Form, WmsHelpNativeWindow> NativeWindows =
-            new Dictionary<Form, WmsHelpNativeWindow>();
+        private static readonly Dictionary<Form, WmsHelpNativeWindow> NativeWindows = new Dictionary<Form, WmsHelpNativeWindow>();
         private static readonly WmsHelpService HelpService = new WmsHelpService();
         private static bool _started;
 
         internal static void Start()
         {
-            if (_started)
-                return;
-
+            if (_started) return;
             _started = true;
             Application.Idle += Application_Idle;
         }
@@ -35,16 +28,12 @@ namespace PCTP.Shell.Help
             try
             {
                 Form[] forms = Application.OpenForms.Cast<Form>().ToArray();
-
-                foreach (Form form in forms)
-                    EnsureAttached(form);
+                foreach (Form form in forms) EnsureAttached(form);
 
                 Form[] staleForms = AttachedForms
                     .Where(form => form == null || form.IsDisposed || !forms.Contains(form))
                     .ToArray();
-
-                foreach (Form form in staleForms)
-                    Detach(form);
+                foreach (Form form in staleForms) Detach(form);
             }
             catch (Exception ex)
             {
@@ -54,21 +43,18 @@ namespace PCTP.Shell.Help
 
         private static void EnsureAttached(Form form)
         {
-            if (form == null || form.IsDisposed || form.Disposing)
-                return;
+            if (form == null || form.IsDisposed || form.Disposing) return;
 
-            if (form is FormWmsHelp)
-                return;
-
-            if (!form.IsHandleCreated)
-                return;
+            // Custom title-bar forms own their ? button and must not receive
+            // the legacy non-client overlay as well.
+            if (form is FormWmsHelp || form is WmsTitleBarForm) return;
+            if (!form.IsHandleCreated) return;
 
             if (!AttachedForms.Contains(form))
             {
                 WmsHelpNativeWindow nativeWindow = new WmsHelpNativeWindow(form, ShowHelp);
                 nativeWindow.Attach();
                 NativeWindows[form] = nativeWindow;
-
                 form.FormClosed += Form_FormClosed;
                 AttachF1(form);
                 AttachedForms.Add(form);
@@ -84,13 +70,9 @@ namespace PCTP.Shell.Help
 
         private static void Form_KeyDown(object sender, KeyEventArgs e)
         {
-            if (e.KeyCode != Keys.F1 || e.Handled)
-                return;
-
+            if (e.KeyCode != Keys.F1 || e.Handled) return;
             Form form = sender as Form;
-            if (form == null || form.IsDisposed)
-                return;
-
+            if (form == null || form.IsDisposed) return;
             e.Handled = true;
             e.SuppressKeyPress = true;
             ShowHelp(form);
@@ -103,16 +85,13 @@ namespace PCTP.Shell.Help
 
         private static void Detach(Form form)
         {
-            if (form == null)
-                return;
-
+            if (form == null) return;
             WmsHelpNativeWindow nativeWindow;
             if (NativeWindows.TryGetValue(form, out nativeWindow))
             {
                 nativeWindow.Detach();
                 NativeWindows.Remove(form);
             }
-
             form.FormClosed -= Form_FormClosed;
             form.KeyDown -= Form_KeyDown;
             AttachedForms.Remove(form);
@@ -122,16 +101,13 @@ namespace PCTP.Shell.Help
         {
             try
             {
-                if (owner == null || owner.IsDisposed)
-                    return;
-
+                if (owner == null || owner.IsDisposed) return;
                 HelpService.ShowCurrent(owner);
             }
             catch (Exception ex)
             {
                 Debug.WriteLine("WmsHelpOverlay.ShowHelp: " + ex);
-                MessageBox.Show(
-                    owner,
+                MessageBox.Show(owner,
                     "Không thể mở hướng dẫn cho màn hình hiện tại.\r\n" + ex.Message,
                     "WMS - Hướng dẫn",
                     MessageBoxButtons.OK,
@@ -147,7 +123,6 @@ namespace PCTP.Shell.Help
             private const int WM_NCACTIVATE = 0x0086;
             private const int WM_SIZE = 0x0005;
             private const int HTHELP = 21;
-
             private readonly Form _owner;
             private readonly Action<Form> _showHelp;
 
@@ -159,40 +134,29 @@ namespace PCTP.Shell.Help
 
             internal void Attach()
             {
-                if (_owner == null || !_owner.IsHandleCreated)
-                    return;
-
+                if (_owner == null || !_owner.IsHandleCreated) return;
                 AssignHandle(_owner.Handle);
                 RedrawCaptionButton();
             }
 
             internal void Detach()
             {
-                if (Handle != IntPtr.Zero)
-                    ReleaseHandle();
+                if (Handle != IntPtr.Zero) ReleaseHandle();
             }
 
             protected override void WndProc(ref Message m)
             {
-                if (m.Msg == WM_NCHITTEST)
+                if (m.Msg == WM_NCHITTEST && IsHelpButtonPoint(m.LParam))
                 {
-                    if (IsHelpButtonPoint(m.LParam))
-                    {
-                        m.Result = (IntPtr)HTHELP;
-                        return;
-                    }
+                    m.Result = (IntPtr)HTHELP;
+                    return;
                 }
-                else if (m.Msg == WM_NCLBUTTONDOWN)
+                if (m.Msg == WM_NCLBUTTONDOWN && m.WParam.ToInt32() == HTHELP)
                 {
-                    if (m.WParam.ToInt32() == HTHELP)
-                    {
-                        _showHelp(_owner);
-                        return;
-                    }
+                    _showHelp(_owner);
+                    return;
                 }
-
                 base.WndProc(ref m);
-
                 if (m.Msg == WM_NCPAINT || m.Msg == WM_NCACTIVATE || m.Msg == WM_SIZE)
                     RedrawCaptionButton();
             }
@@ -210,54 +174,31 @@ namespace PCTP.Shell.Help
                 int buttonWidth = Math.Max(30, SystemInformation.CaptionButtonSize.Width);
                 int buttonHeight = Math.Max(20, SystemInformation.CaptionHeight);
                 int standardButtonCount = GetStandardCaptionButtonCount();
-
                 int right = window.Right - (buttonWidth * standardButtonCount);
-                return new Rectangle(
-                    right - buttonWidth,
-                    window.Top,
-                    buttonWidth,
-                    buttonHeight);
+                return new Rectangle(right - buttonWidth, window.Top, buttonWidth, buttonHeight);
             }
 
             private int GetStandardCaptionButtonCount()
             {
                 int count = 0;
-
-                if (_owner.ControlBox)
-                    count++;
-
-                if (_owner.MaximizeBox && _owner.FormBorderStyle != FormBorderStyle.FixedDialog)
-                    count++;
-
-                if (_owner.MinimizeBox && _owner.FormBorderStyle != FormBorderStyle.FixedDialog)
-                    count++;
-
+                if (_owner.ControlBox) count++;
+                if (_owner.MaximizeBox && _owner.FormBorderStyle != FormBorderStyle.FixedDialog) count++;
+                if (_owner.MinimizeBox && _owner.FormBorderStyle != FormBorderStyle.FixedDialog) count++;
                 return Math.Max(1, count);
             }
 
             private void RedrawCaptionButton()
             {
-                if (_owner == null || _owner.IsDisposed || !_owner.IsHandleCreated)
-                    return;
-
+                if (_owner == null || _owner.IsDisposed || !_owner.IsHandleCreated) return;
                 IntPtr hdc = GetWindowDC(_owner.Handle);
-                if (hdc == IntPtr.Zero)
-                    return;
-
+                if (hdc == IntPtr.Zero) return;
                 try
                 {
                     RECT window = GetWindowRectangle(_owner.Handle);
                     Rectangle screenRect = GetHelpButtonRectangle();
-                    Rectangle drawRect = new Rectangle(
-                        screenRect.Left - window.Left,
-                        screenRect.Top - window.Top,
-                        screenRect.Width,
-                        screenRect.Height);
-
+                    Rectangle drawRect = new Rectangle(screenRect.Left - window.Left, screenRect.Top - window.Top, screenRect.Width, screenRect.Height);
                     using (Graphics graphics = Graphics.FromHdc(hdc))
-                    {
                         DrawCaptionHelpButton(graphics, drawRect);
-                    }
                 }
                 catch (Exception ex)
                 {
@@ -271,9 +212,6 @@ namespace PCTP.Shell.Help
 
             private static void DrawCaptionHelpButton(Graphics graphics, Rectangle bounds)
             {
-                // Do not use VisualStyleElement.Window.CaptionButton.Help:
-                // it is not available in the .NET Framework target used by PCTP.
-                // Draw a lightweight native-looking caption button instead.
                 using (SolidBrush background = new SolidBrush(SystemColors.ActiveCaption))
                 using (SolidBrush foreground = new SolidBrush(SystemColors.ActiveCaptionText))
                 using (Font font = new Font("Segoe UI", 9f, FontStyle.Bold))
@@ -286,22 +224,13 @@ namespace PCTP.Shell.Help
                 }
             }
 
-            private static int GetSignedLowWord(IntPtr value)
-            {
-                return (short)((long)value & 0xFFFF);
-            }
-
-            private static int GetSignedHighWord(IntPtr value)
-            {
-                return (short)(((long)value >> 16) & 0xFFFF);
-            }
+            private static int GetSignedLowWord(IntPtr value) { return (short)((long)value & 0xFFFF); }
+            private static int GetSignedHighWord(IntPtr value) { return (short)(((long)value >> 16) & 0xFFFF); }
 
             private static RECT GetWindowRectangle(IntPtr hWnd)
             {
                 RECT rect;
-                if (!GetWindowRect(hWnd, out rect))
-                    return new RECT();
-
+                if (!GetWindowRect(hWnd, out rect)) return new RECT();
                 return rect;
             }
 
@@ -316,10 +245,8 @@ namespace PCTP.Shell.Help
 
             [DllImport("user32.dll")]
             private static extern IntPtr GetWindowDC(IntPtr hWnd);
-
             [DllImport("user32.dll")]
             private static extern int ReleaseDC(IntPtr hWnd, IntPtr hDC);
-
             [DllImport("user32.dll")]
             [return: MarshalAs(UnmanagedType.Bool)]
             private static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
