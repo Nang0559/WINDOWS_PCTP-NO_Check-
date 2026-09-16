@@ -11,8 +11,8 @@ Mục tiêu: xử lý từng phase nghiệp vụ sau refactor kiến trúc, comm
 | A | YMVN load order + delivery-hour selection | 🟡 Đã rà soát, còn kiểm tra restore `LuuPhieuGiaoHang` | — |
 | **B** | **YMVN QR: Gear + quantity validation** | **🟢 Đã xử lý logic scan + completion** | `99767beda97fc0c8425e85ea8ebda3dbeca1cab3`, `785110de3b9d7e81de56a954fef2e52c3cac931a`, `65351702399003a95356d5113e57bdea48bce28e` |
 | **C** | **Restore delivered hours từ `LuuPhieuGiaoHang`** | **🟡 Đã xử lý phần đọc lịch sử + restore YMVN checklist; chưa build/runtime verify** | `92f6fdfc02e2b7b913a5d229531d65f1d9721c11`, `e2a0611451387e42b6a21a458964e07119e1a47f` |
-| D | Delivery-hour locking: 100001 radio + 100002 checklist | 🟢 Đã xử lý phần lock checklist trong QR session | `bb27b3965f3dada7965978e8f2fdbad2e55e420d` |
-| E | Hoàn Thành + unlock/reload state | 🟢 Đã xử lý unlock checklist khi hoàn thành/cancel | `bb27b3965f3dada7965978e8f2fdbad2e55e420d` |
+| **D** | **Delivery-hour state: 100001 radio + 100002 checklist** | **🟡 Đã xử lý QR-session lock; per-item Delivered/Undelivered state còn tiếp** | `bb27b3965f3dada7965978e8f2fdbad2e55e420d`, `c2b3281468776810bbd363f5d47d6dde5684584a` |
+| **E** | **Hoàn Thành + unlock/reload state** | **🟡 Reload sau hoàn thành đã chuyển lên trước unlock; cần hoàn tất per-item state** | `c2b3281468776810bbd363f5d47d6dde5684584a` |
 | F | FIFO regression/unit tests | ⬜ Chưa xử lý | — |
 | G | Build/runtime verification + final cleanup | ⬜ Chưa xử lý | — |
 
@@ -33,7 +33,7 @@ Mục tiêu: xử lý từng phase nghiệp vụ sau refactor kiến trúc, comm
 
 - Chưa build trên máy/runtime với DB thực tế.
 - Chưa xác nhận chính xác `GIOGIAO` thực tế trong `LUUPHIEUGIAOHANG` của YMVN có đúng format mà parser đang hỗ trợ.
-- 100001 radio chưa được nâng cấp thành trạng thái `Delivered = checked + disabled`; phần này sẽ được rà lại cùng Phase D.
+- Trạng thái UI `Delivered = checked + disabled` sẽ được hoàn thiện trong Phase D.
 
 ## Phase B – YMVN Gear + quantity
 
@@ -67,19 +67,19 @@ PART D = 30
 
 và QR có Gear tương ứng từ ký tự thứ 13 của LOT.
 
-## Phase D/E – chi tiết commit hiện tại
+## Phase D – Delivery-hour state
 
-`YmvnPresenter` hiện:
+### Đã xử lý
 
-1. Khóa checklist giờ giao khi bắt đầu flow đọc QR YMVN.
-2. Không xử lý thay đổi checklist trong lúc QR session đang bị khóa.
-3. Mở lại checklist khi xóa toàn bộ QR/session bị hủy.
-4. Mở lại checklist sau Hoàn Thành YMVN.
-5. Giữ việc reload phiếu sau khi hoàn thành.
+- Khi bắt đầu QR YMVN: checklist bị khóa.
+- Trong QR session: thay đổi checklist không được xử lý.
+- Khi xóa toàn bộ QR/session bị hủy: checklist được mở lại.
+- 100001 hiện tiếp tục khóa các radio không phải giờ hiện tại bằng `LockRadioExcept(...)`.
+- Sau Hoàn Thành YMVN, reload phiếu được thực hiện **trước** khi unlock checklist để lịch sử `LuuPhieuGiaoHang` có cơ hội restore trạng thái mới nhất trước khi người dùng thao tác tiếp.
 
-### Chưa coi Phase D/E là hoàn tất toàn bộ
+### Còn phải sửa
 
-Phần restore trạng thái đã giao từ `LuuPhieuGiaoHang` vừa được bổ sung ở Phase C. Phase D vẫn phải rà lại để bảo đảm:
+Mục tiêu state cuối cùng:
 
 ```text
 Delivered  -> checked + disabled
@@ -88,3 +88,11 @@ InProgress  -> controls locked
 Completed   -> Delivered + controls locked
 Cancelled   -> Undelivered + controls enabled
 ```
+
+Phần còn thiếu là state **theo từng item** của `CheckedListBoxControl` 100002. Hiện code mới khóa/mở toàn control trong QR session; chưa được coi là hoàn tất cho tới khi item đã giao thực sự disabled còn item chưa giao vẫn enabled.
+
+## Phase E – Completion / cancellation
+
+- Completion flow đã đổi thứ tự thành: `HoanThanhYMVN` -> `LoadPhieuHienTai()` -> `UnlockQrSession()`.
+- Cancellation/clear vẫn gọi `UnlockQrSession()`.
+- Chưa đánh dấu xanh vì state item-level của 100002 chưa hoàn tất.
