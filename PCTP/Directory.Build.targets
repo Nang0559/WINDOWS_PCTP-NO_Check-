@@ -1,90 +1,10 @@
 <Project>
   <ItemGroup>
-    <Compile Include="Modules\GiaoHangKhach\Services\DocQRScanEngine.cs" />
-    <Compile Include="Modules\GiaoHangKhach\Services\DocQRSessionState.cs" />
-    <Compile Include="Modules\GiaoHangKhach\Services\DocQRTableResolver.cs" />
-    <Compile Include="Presentation\Presenters\HVNPresenterContext.cs" />
-    <Compile Include="Presentation\Presenters\PhieuPresenter.cs" />
-    <Compile Include="Presentation\Presenters\DocQrPresenter.cs" />
-    <Compile Include="Presentation\Presenters\GiaoDbPresenter.cs" />
-    <Compile Include="Presentation\Presenters\YmvnPresenter.cs" />
-    <Compile Include="Modules\GiaoHangKhach\HVN\Controls\PhieuGridControl.cs" />
-    <Compile Include="Modules\GiaoHangKhach\HVN\Controls\DocQrControl.cs" />
-    <Compile Include="Modules\GiaoHangKhach\HVN\Controls\DocQrInputControl.cs" />
-    <Compile Include="Modules\GiaoHangKhach\HVN\Controls\GiaoDbControl.cs" />
-    <Compile Include="Modules\GiaoHangKhach\HVN\Controls\YmvnControl.cs" />
-    <Compile Include="Modules\GiaoHangKhach\HVN\Controls\PhieuActionBarControl.cs" />
-    <Compile Include="Modules\GiaoHangKhach\HVN\Controls\PhieuBottomStateControl.cs" />
-    <Compile Include="Modules\GiaoHangKhach\HVN\Controls\PhieuDialogControl.cs" />
-    <Compile Include="Modules\GiaoHangKhach\HVN\Controls\PhieuHeaderControl.cs" />
-    <Compile Include="Modules\GiaoHangKhach\HVN\Controls\HangThieuControl.cs" />
-    <Compile Include="Modules\GiaoHangKhach\HVN\HVN_PGH.PhieuGridMigration.cs" />
-
-    <Compile Include="Modules\KhoCore\Application\Contracts\Stock\IStockBalanceRepository.cs" />
-    <Compile Include="Modules\KhoCore\Application\Contracts\Stock\IStockMovementService.cs" />
-    <Compile Include="Modules\KhoCore\Application\Contracts\Stock\IStockSlotRepository.cs" />
-    <Compile Include="Modules\KhoCore\Application\Contracts\Stock\IStockReceivingRepository.cs" />
-    <Compile Include="Modules\KhoCore\Application\Services\StockMovementService.cs" />
-    <Compile Include="Modules\KhoCore\Application\Contracts\Tracking\IPhieuTrackingReadRepository.cs" />
-    <Compile Include="Modules\KhoCore\Infrastructure\Tracking\PhieuTrackingReadRepository.cs" />
-    <Compile Include="Infrastructure\Stock\LegacyStockSlotRepositoryAdapter.cs" />
-    <Compile Include="Modules\XuatKho\Application\Adapters\StockExportRepositoryAdapter.cs" />
-    <Compile Include="Modules\XuLyHangLoi\Application\Adapters\ReworkStockBalanceAdapter.cs" />
-    <Compile Include="Modules\XuLyHangLoi\Application\Adapters\ReworkStockSlotAdapter.cs" />
-    <Compile Include="Modules\XuLyHangLoi\Application\XuLyHangLoiModuleFactory.cs" />
-    <Compile Include="Modules\NhapKho\Application\Adapters\StockReceivingRepositoryAdapter.cs" />
-
-    <Compile Include="Modules\BaoCao\Application\Contracts\HistorySearchCriteria.cs" />
-    <Compile Include="Modules\BaoCao\Application\Contracts\Models\HangChoGiaoRow.cs" />
-    <Compile Include="Modules\BaoCao\Application\Contracts\Models\SlotMovementRow.cs" />
-    <Compile Include="Modules\BaoCao\Application\Contracts\Models\LotLocationRow.cs" />
-    <Compile Include="Modules\BaoCao\Application\Contracts\Queries\IStockHistoryQuery.cs" />
-    <Compile Include="Modules\BaoCao\Application\Contracts\Queries\ICurrentStockQuery.cs" />
-    <Compile Include="Modules\BaoCao\Application\Contracts\Queries\ItemHistoryRow.cs" />
-    <Compile Include="Modules\BaoCao\Application\Contracts\Queries\CurrentStockRow.cs" />
-    <Compile Include="Modules\BaoCao\Application\Contracts\Queries\IQualityHistoryQuery.cs" />
-    <Compile Include="Modules\BaoCao\Application\Contracts\Queries\QualityHistoryRow.cs" />
-    <Compile Include="Modules\BaoCao\Application\Contracts\Queries\QualityHistoryDetailRow.cs" />
-    <Compile Include="Modules\BaoCao\Application\Contracts\Queries\DeliveryTraceRow.cs" />
-    <Compile Include="Modules\BaoCao\Application\Contracts\Queries\DeliveryLotTraceRow.cs" />
-    <Compile Include="Modules\BaoCao\Application\Contracts\Queries\IQrTraceQuery.cs" />
-    <Compile Include="Modules\BaoCao\Application\Contracts\Queries\ILotTraceQuery.cs" />
-    <Compile Include="Modules\BaoCao\Application\Contracts\Queries\ICustomerDeliveryQuery.cs" />
-    <Compile Include="Modules\BaoCao\Application\Contracts\Queries\ILotLocationQuery.cs" />
-    <Compile Include="Modules\BaoCao\Application\Contracts\Repositories\IDeliveryTraceRepository.cs" />
-    <Compile Include="Modules\BaoCao\Application\Contracts\Repositories\ILotLocationRepository.cs" />
-    <Compile Include="Modules\BaoCao\Application\Contracts\Repositories\IStockHistoryRepository.cs" />
-    <Compile Include="Modules\BaoCao\Application\Contracts\Repositories\ICurrentStockRepository.cs" />
-    <Compile Include="Modules\BaoCao\Application\Contracts\Repositories\IQualityHistoryRepository.cs" />
-    <Compile Include="Modules\BaoCao\Infrastructure\Queries\StockHistoryQueryService.cs" />
-    <Compile Include="Modules\BaoCao\Infrastructure\Queries\CurrentStockQueryService.cs" />
-    <Compile Include="Modules\BaoCao\Infrastructure\Queries\QualityHistoryQueryService.cs" />
-    <Compile Include="Modules\BaoCao\Infrastructure\Queries\DeliveryTraceReadService.cs" />
-    <Compile Include="Modules\BaoCao\Infrastructure\Queries\LotLocationQueryService.cs" />
-    <Compile Include="Modules\BaoCao\Infrastructure\Repositories\DeliveryTraceRepository.cs" />
-    <Compile Include="Modules\BaoCao\Infrastructure\Repositories\LotLocationRepository.cs" />
-    <Compile Include="Modules\BaoCao\Infrastructure\Repositories\StockHistoryRepository.cs" />
-    <Compile Include="Modules\BaoCao\Infrastructure\Repositories\CurrentStockRepository.cs" />
-    <Compile Include="Modules\BaoCao\Infrastructure\Repositories\QualityHistoryRepository.cs" />
-    <Compile Include="Modules\BaoCao\UI\FormBaoCaoMain.cs" />
-    <Compile Include="Modules\BaoCao\UI\BaoCaoNavigator.cs" />
-    <Compile Include="Modules\BaoCao\UI\FormBaoCaoTraceability.cs" />
-    <Compile Include="Modules\BaoCao\UI\FormBaoCaoStockHistory.cs" />
-    <Compile Include="Modules\BaoCao\UI\FormBaoCaoQualityHistory.cs" />
-
-    <Compile Include="Shell\UI\WmsTitleBarForm.cs" />
-    <Compile Include="Shell\Composition\MainAppDashboardFactory.cs" />
-    <Compile Include="Shell\Services\QrMachineSwitchService.cs" />
-    <Compile Include="Shell\Help\WmsHelpTopic.cs" />
-    <Compile Include="Shell\Help\WmsHelpContext.cs" />
-    <Compile Include="Shell\Help\WmsHelpCatalog.cs" />
-    <Compile Include="Shell\Help\WmsHelpService.cs" />
-    <Compile Include="Shell\Help\FormWmsHelp.cs" />
-    <Compile Include="Shell\Help\WmsHelpOverlay.cs" />
-    <Compile Include="Shell\Widgets\MainAppDashboardController.cs" />
-    <Compile Include="Shell\Widgets\WmsControlCenterBar.cs" />
-    <Compile Include="Shell\Widgets\WmsWorklistBar.cs" />
-
+    <!--
+      Source-file inclusion is owned by the legacy PCTP.csproj.
+      Do not add <Compile Include="..." /> entries here, otherwise the
+      same .cs files can be evaluated more than once by MSBuild.
+    -->
     <Compile Remove="Modules\KhoVatLy\FormStockHistory.cs" />
     <Compile Remove="Modules\KhoVatLy\FormStockHistory.Designer.cs" />
     <Compile Remove="Modules\KhoVatLy\FormInspectionHistory.cs" />
