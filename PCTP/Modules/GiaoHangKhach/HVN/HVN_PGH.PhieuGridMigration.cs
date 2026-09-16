@@ -27,6 +27,74 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
             MigratePhieuDialogToUserControl();
             MigrateDocQrInputToUserControl();
             base.OnLoad(e);
+
+            // ============================================================
+            // UI FIX - Hoàn thành DocQR phải quay về GridView Đơn hàng.
+            //
+            // Không tạo thêm OnLoad ở partial khác vì HVN_PGH chỉ được
+            // override OnLoad đúng một lần. Đăng ký sau base.OnLoad() để
+            // handler này đứng sau các handler HoanThanhClicked đã được
+            // presenter đăng ký trong quá trình Load.
+            // ============================================================
+            HoanThanhClicked -= OnHoanThanhResetPhieuView;
+            HoanThanhClicked += OnHoanThanhResetPhieuView;
+        }
+
+        /// <summary>
+        /// Chỉ xử lý trạng thái hiển thị UI, không xử lý nghiệp vụ/data.
+        /// Nghiệp vụ Hoàn thành vẫn nằm ở PhieuPresenter.
+        /// </summary>
+        private void OnHoanThanhResetPhieuView(object sender, EventArgs e)
+        {
+            if (IsDisposed || !IsHandleCreated)
+                return;
+
+            BeginInvoke(new Action(() =>
+            {
+                if (IsDisposed || !IsHandleCreated)
+                    return;
+
+                // ========================================================
+                // Bước 1: đóng hoàn toàn vùng DocQR.
+                // Chỉ BringToFront Grid đơn hàng là chưa đủ vì DocQR
+                // vẫn có thể còn Visible và nằm trên một container khác.
+                // ========================================================
+                if (_docQrControl != null)
+                    _docQrControl.Visible = false;
+
+                if (PN_DOCQR_SUASL1 != null)
+                    PN_DOCQR_SUASL1.Visible = false;
+
+                // ========================================================
+                // Bước 2: bật lại vùng Phiếu + GridView Đơn hàng.
+                // ========================================================
+                if (_phieuHeaderControl != null)
+                    _phieuHeaderControl.Visible = true;
+
+                if (_phieuGridControl != null)
+                {
+                    _phieuGridControl.Visible = true;
+                    _phieuGridControl.BringToFrontGrid();
+                }
+
+                // ========================================================
+                // Bước 3: bảo đảm control phụ của màn hình Phiếu không
+                // bị vùng DocQR cũ che lên.
+                // ========================================================
+                try
+                {
+                    if (_hangThieuControl != null)
+                    {
+                        _hangThieuControl.Visible = true;
+                        _hangThieuControl.BringToFront();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine(
+                        "[OnHoanThanhResetPhieuView] Không thể đưa HangThieu lên trước: " + ex.Message);
+                }
+            }));
         }
 
         private int ReplaceControl(Control existing, Control replacement, Control parent)
@@ -95,7 +163,7 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
 
             _docQrControl = new DocQrControl();
             ReplaceControl(legacyGrid, _docQrControl, sidePanel2);
-            _docQrControl.AttachExistingLayout(legacyGrid);   // ← THÊM dòng này
+            _docQrControl.AttachExistingLayout(legacyGrid);
 
             if (existingDataSource != null) _docQrControl.QrGrid.DataSource = existingDataSource;
             gridCtrDOCQrCODE = _docQrControl.QrGrid;
@@ -162,7 +230,6 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
 
             // 12F: the input boundary owns Enter/Submit. Do not let the legacy
             // form handler publish a second QRCodeSubmitted event.
-          
             _docQrInputControl.Submitted += DocQrInputControl_Submitted;
         }
 
