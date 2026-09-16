@@ -1,21 +1,12 @@
-﻿using DevExpress.CodeParser;
-using DevExpress.Utils.Gesture;
-using DevExpress.XtraRichEdit.Import.Html;
-using PCTP.Applications.Services;
+﻿
 using PCTP.ClassSQL;
 using PCTP.Domain.Interfaces;
-using PCTP.VIEWSTOCK.Models;
-using System;
-using System.Collections.Generic;
-using System.Data;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 using System;
-using System.Collections.Generic;
+
 using System.Data;
 using System.Linq;
+
 using PCTP.Shared.Models;
 
 namespace PCTP.Infrastructure.Repositories

@@ -14,8 +14,8 @@ using PCTP.Modules.XuLyHangLoi;
 using PCTP.Modules.XuLyHangLoi.Application;
 using PCTP.Modules.XuLyHangLoi.Repository;
 using PCTP.Modules.XuLyHangLoi.Services;
-using PCTP.QRCODE_HVN.YMN;
 using PCTP.Shared.Common;
+using PCTP.Shared.Models;
 using PCTP.Shared.UiMd;
 
 using PCTP.YMN;
@@ -187,15 +187,18 @@ namespace PCTP.Common
 
         public static void OpenGiaoHangHVN(string customerNo)
         {
+            if (string.IsNullOrWhiteSpace(customerNo))
+                throw new ArgumentException(
+                    "CustomerNo không được để trống.",
+                    nameof(customerNo));
+
+            // Validate customer configuration trước khi mở form
+            CustomerTableConfig.GetForDelivery(customerNo);
+
             var frm = new HVN_PGH(customerNo);
             frm.Show();
         }
 
-        public static void OpenGiaoHangYMVN(string mpSp)
-        {
-            YMVN_CHONGIAO.MP_SP = mpSp;
-            var frm = new GIAOHANGYMN();
-            frm.Show();
-        }
+       
     }
 }

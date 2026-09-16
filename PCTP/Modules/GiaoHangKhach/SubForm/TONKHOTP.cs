@@ -105,7 +105,10 @@ using System.Windows.Forms;
                 new LegacyStockSlotRepositoryAdapter(new SlotService(new SlotRepository(sql, uow))),
                 new StockReceivingRepositoryAdapter(stockTpRepo));
 
-            using (var f = new TONKHOTP(stockTpService, historyService, movementService, lotFilter)) ;
+            using (var f = new TONKHOTP(stockTpService, historyService, movementService, lotFilter))
+            {
+                f.ShowDialog(owner);   // ✅ bỏ dấu ';' thừa, gọi ShowDialog trong thân using
+            }
         }
         // ════════════════════════════════════════════════════════════════
         // UI

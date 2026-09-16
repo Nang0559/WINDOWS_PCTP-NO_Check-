@@ -200,7 +200,6 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
         private DevExpress.XtraGrid.Columns.GridColumn CL_SUALOTHVN;
         private DevExpress.XtraGrid.Columns.GridColumn CL_KETQUA;
         private DevExpress.XtraGrid.GridControl gridCtrDONHANG;
-        private DevExpress.XtraSplashScreen.SplashScreenManager splashScreenManager1;
         private DevExpress.XtraEditors.PanelControl PN_DOCQR_SUASL1;
         private DevExpress.XtraEditors.SimpleButton cmd_SuaLTemFCC;
         private System.Windows.Forms.TextBox TXT_FCCTU;

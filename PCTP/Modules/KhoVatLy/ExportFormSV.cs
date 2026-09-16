@@ -42,9 +42,9 @@ namespace PCTP.Modules.KhoVatLy
         private LabelControl lblTemCode, lblItemCode, lblLotNo, lblQty, lblrackName, lblSlotNumber, lblwhName;
         private SpinEdit spinExportQty;
         private SimpleButton btnExport, btnPrint, btnCancel;
-        private Panel panelSlotList;
+  
         private ListBoxControl listBoxSlots;
-        private string selectedSlotText;
+
         private TableLayoutPanel contentPanel;
         private MainStockSV _mainStockForm;
 

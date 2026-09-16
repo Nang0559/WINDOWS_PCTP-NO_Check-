@@ -1,5 +1,5 @@
 ﻿using PCTP;
-using PCTP.QRCODE_HVN.YMN;
+
 
 namespace PCTP.QRCODE_HVN.Report
 {

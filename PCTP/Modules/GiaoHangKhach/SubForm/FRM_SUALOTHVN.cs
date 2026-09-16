@@ -2,14 +2,10 @@
 using PCTP.ClassSQL;
 using PCTP.Shared.Validation;
 using System;
-using System.Collections.Generic;
-using System.ComponentModel;
+
 using System.Data;
 using System.Data.SqlClient;
-using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+
 using System.Windows.Forms;
 
 namespace PCTP.QRCODE_HVN
@@ -18,7 +14,7 @@ namespace PCTP.QRCODE_HVN
     {
         private readonly SQLPROVIDER sqlBRV = new SQLPROVIDER();
         public string _MH;
-        private string STTDAU;
+     
         public FRM_SUALOTHVN()
         {
             InitializeComponent();

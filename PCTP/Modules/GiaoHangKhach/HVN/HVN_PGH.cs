@@ -25,12 +25,9 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
         private readonly HVN_Presenter _presenter;
         private DataTable _addressTable = new DataTable();
         private int _hinhThucIn = 1;
-        private string _tenpdb = "";
-        private string _ggfccpdb = "";
         private CustomerConfig _cfg;
         private readonly string _customerNo;
         private CustomerAddressService _customerAddressService;
-        private DocQRCode _pendingSlKhacBiet = null;
         private bool _isLoading = false;
         public bool IsLoaiSP => _phieuHeaderControl != null && _phieuHeaderControl.IsLoaiSP;
         public GioXuat CurrentGioXuat => _phieuHeaderControl != null ? _phieuHeaderControl.CurrentGioXuat : null;

@@ -41,7 +41,7 @@ namespace PCTP.Modules.KhoVatLy
     {
         // ==== Controls (giữ theo đúng những gì bạn đã có; phần còn lại do Designer sinh) ====
 
-        private Panel panelSlotList;
+    
         private ListBoxControl listBoxSlots;
         private SimpleButton btnOK;
         private SimpleButton btnCancel;

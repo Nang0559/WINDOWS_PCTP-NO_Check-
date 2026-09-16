@@ -1,14 +1,7 @@
-﻿using PCTP.QRCODE_HVN.YMN;
-using PCTP.YMN;
-using PCTP.FuctionPrint;
+﻿
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-
 using System.Windows.Forms;
-using PCTP.QRCODE_HVN.Report;
-using PCTP.VIEWSTOCK;
+
 using PCTP.Shell.Help;
 
 namespace PCTP

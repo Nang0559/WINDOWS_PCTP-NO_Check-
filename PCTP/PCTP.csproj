@@ -383,7 +383,6 @@
     <Compile Include="Modules\GiaoHangKhach\Services\PhieuLoadService.cs" />
     <Compile Include="Modules\GiaoHangKhach\Services\PhieuLotService.cs" />
     <Compile Include="Modules\GiaoHangKhach\Services\PhieuService.cs" />
-    <Compile Include="ClassFunction.cs" />
     <Compile Include="Modules\GiaoHangKhach\Services\PhieuYmvnService.cs" />
     <Compile Include="Modules\GiaoHangKhach\SubForm\FormItemFifoConfig.cs">
       <SubType>Form</SubType>
@@ -728,12 +727,6 @@
     <Compile Include="Modules\GiaoHangKhach\NhanLaiNG\ImPortPGHDB.Designer.cs">
       <DependentUpon>ImPortPGHDB.cs</DependentUpon>
     </Compile>
-    <Compile Include="Modules\GiaoHangKhach\NhanLaiNG\NhanLaiTP\frmNhanLaiTP.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Modules\GiaoHangKhach\NhanLaiNG\NhanLaiTP\frmNhanLaiTP.Designer.cs">
-      <DependentUpon>frmNhanLaiTP.cs</DependentUpon>
-    </Compile>
     <Compile Include="Modules\GiaoHangKhach\NhanLaiNG\TACKMH.cs" />
     <Compile Include="Modules\GiaoHangKhach\HVN\Edit_DH.cs">
       <SubType>UserControl</SubType>
@@ -782,12 +775,6 @@
     </Compile>
     <Compile Include="Modules\GiaoHangKhach\Reports\GHEPLOT.Designer.cs">
       <DependentUpon>GHEPLOT.cs</DependentUpon>
-    </Compile>
-    <Compile Include="Modules\GiaoHangKhach\Reports\IN_GHP_LOT_YMVN.cs">
-      <SubType>Component</SubType>
-    </Compile>
-    <Compile Include="Modules\GiaoHangKhach\Reports\IN_GHP_LOT_YMVN.Designer.cs">
-      <DependentUpon>IN_GHP_LOT_YMVN.cs</DependentUpon>
     </Compile>
     <Compile Include="Modules\GiaoHangKhach\Reports\IN_GHP_LOT.cs">
       <SubType>Component</SubType>
@@ -1029,12 +1016,6 @@
     <Compile Include="Presentation\Views\INhapKhoView.cs" />
     <Compile Include="Modules\GiaoHangKhach\YMVN\ClsPGH.cs" />
     <Compile Include="Modules\GiaoHangKhach\YMVN\DS_ERR_CNK.cs" />
-    <Compile Include="Modules\GiaoHangKhach\YMVN\ERR_CNK.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Modules\GiaoHangKhach\YMVN\ERR_CNK.Designer.cs">
-      <DependentUpon>ERR_CNK.cs</DependentUpon>
-    </Compile>
     <Compile Include="Modules\GiaoHangKhach\SubForm\FRM_UploadMikrun.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -1109,9 +1090,6 @@
     <EmbeddedResource Include="Modules\GiaoHangKhach\NhanLaiNG\ImPortPGHDB.resx">
       <DependentUpon>ImPortPGHDB.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="Modules\GiaoHangKhach\NhanLaiNG\NhanLaiTP\frmNhanLaiTP.resx">
-      <DependentUpon>frmNhanLaiTP.cs</DependentUpon>
-    </EmbeddedResource>
     <EmbeddedResource Include="Modules\GiaoHangKhach\HVN\Edit_DH.resx">
       <DependentUpon>Edit_DH.cs</DependentUpon>
     </EmbeddedResource>
@@ -1135,9 +1113,6 @@
     </EmbeddedResource>
     <EmbeddedResource Include="Modules\GiaoHangKhach\Reports\GHEPLOT.resx">
       <DependentUpon>GHEPLOT.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Modules\GiaoHangKhach\Reports\IN_GHP_LOT_YMVN.resx">
-      <DependentUpon>IN_GHP_LOT_YMVN.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Modules\GiaoHangKhach\Reports\IN_GHP_LOT.resx">
       <DependentUpon>IN_GHP_LOT.cs</DependentUpon>
@@ -1189,9 +1164,6 @@
     </EmbeddedResource>
     <EmbeddedResource Include="Modules\XuLyHangLoi\Reports\RpPhieuXuLyBatThuong.resx">
       <DependentUpon>RpPhieuXuLyBatThuong.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Modules\GiaoHangKhach\YMVN\ERR_CNK.resx">
-      <DependentUpon>ERR_CNK.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="SplashScreen1.resx">
       <DependentUpon>SplashScreen1.cs</DependentUpon>
@@ -1250,6 +1222,7 @@
     <Folder Include="Modules\GiaoHangKhach\Contracts\Services\" />
     <Folder Include="Modules\GiaoHangKhach\Contracts\Views\" />
     <Folder Include="Modules\GiaoHangKhach\HVN\FuctionQR\" />
+    <Folder Include="Modules\GiaoHangKhach\NhanLaiNG\NhanLaiTP\" />
     <Folder Include="Modules\XuLyHangLoi\Legacy\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
