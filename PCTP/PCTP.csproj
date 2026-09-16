@@ -340,6 +340,9 @@
     <Compile Include="Modules\BaoCao\UI\FormBaoCaoStockHistory.cs" />
     <Compile Include="Modules\BaoCao\UI\FormBaoCaoTraceability.cs" />
     <Compile Include="Modules\GiaoHangKhach\Configuration\GiaoHangKhachConfiguration.cs" />
+    <Compile Include="Modules\GiaoHangKhach\HVN\HVN_PGH.DocQrNavigation.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="Modules\GiaoHangKhach\Services\CustomerAddressService.cs" />
     <Compile Include="Modules\GiaoHangKhach\Services\GiaoHangKhachFactory.cs" />
     <Compile Include="Modules\GiaoHangKhach\Models\OrderCategory.cs" />
