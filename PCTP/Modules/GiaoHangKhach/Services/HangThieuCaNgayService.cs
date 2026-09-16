@@ -1,9 +1,11 @@
 ﻿using PCTP.Domain.Interfaces;
 using PCTP.FuctionMain;
 using PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao;
+using PCTP.Modules.GiaoHangKhach.Models;
 using PCTP.Modules.GiaoHangKhach.OrderLoading;
 using PCTP.Modules.GiaoHangKhach.OrderLoading.Category;
 using PCTP.Shared.Common;
+using PCTP.Shared.Enums;
 using PCTP.Shared.Helpers;
 using PCTP.Shared.Models;
 using PCTP.VIEWSTOCK.Models;

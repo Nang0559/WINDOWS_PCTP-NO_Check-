@@ -13,6 +13,6 @@
         /// Tự động trừ số lượng xuất khỏi Slot ảo A0 theo LOT.
         /// Trả về false nếu không tìm được Lot khớp hoặc số lượng &lt;= 0.
         /// </summary>
-        bool TruKhoAoTheoLot(string lotNo, int slXuat);
+        bool TruKhoAoTheoLot(string lotNo, int slXuat, bool manageTransaction = true);
     }
 }

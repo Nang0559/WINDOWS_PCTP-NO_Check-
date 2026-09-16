@@ -299,15 +299,18 @@
     </Compile>
     <Compile Include="ALLVAR.cs" />
     <Compile Include="Domain\Events\HoanThanhYMVNCompletedEvent.cs" />
+    <Compile Include="Infrastructure\Stock\LegacyStockBalanceRepositoryAdapter.cs" />
     <Compile Include="Infrastructure\Stock\LegacyStockSlotRepositoryAdapter.cs" />
     <Compile Include="Modules\BaoCao\Application\Contracts\HistorySearchCriteria.cs" />
     <Compile Include="Modules\BaoCao\Application\Contracts\Models\HangChoGiaoRow.cs" />
+    <Compile Include="Modules\BaoCao\Application\Contracts\Models\LotLocationRow.cs" />
     <Compile Include="Modules\BaoCao\Application\Contracts\Models\SlotMovementRow.cs" />
     <Compile Include="Modules\BaoCao\Application\Contracts\Queries\CurrentStockRow.cs" />
     <Compile Include="Modules\BaoCao\Application\Contracts\Queries\DeliveryLotTraceRow.cs" />
     <Compile Include="Modules\BaoCao\Application\Contracts\Queries\DeliveryTraceRow.cs" />
     <Compile Include="Modules\BaoCao\Application\Contracts\Queries\ICurrentStockQuery.cs" />
     <Compile Include="Modules\BaoCao\Application\Contracts\Queries\ICustomerDeliveryQuery.cs" />
+    <Compile Include="Modules\BaoCao\Application\Contracts\Queries\ILotLocationQuery.cs" />
     <Compile Include="Modules\BaoCao\Application\Contracts\Queries\ILotTraceQuery.cs" />
     <Compile Include="Modules\BaoCao\Application\Contracts\Queries\IQrTraceQuery.cs" />
     <Compile Include="Modules\BaoCao\Application\Contracts\Queries\IQualityHistoryQuery.cs" />
@@ -318,14 +321,17 @@
     <Compile Include="Modules\BaoCao\Application\Contracts\Repositories\ICurrentStockRepository.cs" />
     <Compile Include="Modules\BaoCao\Application\Contracts\Repositories\IDeliveryDetailQuery.cs" />
     <Compile Include="Modules\BaoCao\Application\Contracts\Repositories\IDeliveryTraceRepository.cs" />
+    <Compile Include="Modules\BaoCao\Application\Contracts\Repositories\ILotLocationRepository.cs" />
     <Compile Include="Modules\BaoCao\Application\Contracts\Repositories\IQualityHistoryRepository.cs" />
     <Compile Include="Modules\BaoCao\Application\Contracts\Repositories\IStockHistoryRepository.cs" />
     <Compile Include="Modules\BaoCao\Infrastructure\Queries\CurrentStockQueryService.cs" />
-    <Compile Include="Modules\BaoCao\Infrastructure\Queries\DeliveryTraceQueryService.cs" />
+    <Compile Include="Modules\BaoCao\Infrastructure\Queries\DeliveryTraceReadService.cs" />
+    <Compile Include="Modules\BaoCao\Infrastructure\Queries\LotLocationQueryService.cs" />
     <Compile Include="Modules\BaoCao\Infrastructure\Queries\QualityHistoryQueryService.cs" />
     <Compile Include="Modules\BaoCao\Infrastructure\Queries\StockHistoryQueryService.cs" />
     <Compile Include="Modules\BaoCao\Infrastructure\Repositories\CurrentStockRepository.cs" />
     <Compile Include="Modules\BaoCao\Infrastructure\Repositories\DeliveryTraceRepository.cs" />
+    <Compile Include="Modules\BaoCao\Infrastructure\Repositories\LotLocationRepository.cs" />
     <Compile Include="Modules\BaoCao\Infrastructure\Repositories\QualityHistoryRepository.cs" />
     <Compile Include="Modules\BaoCao\Infrastructure\Repositories\StockHistoryRepository.cs" />
     <Compile Include="Modules\BaoCao\UI\BaoCaoNavigator.cs" />
@@ -338,6 +344,7 @@
     <Compile Include="Modules\BaoCao\UI\FormBaoCaoStockHistory.cs" />
     <Compile Include="Modules\BaoCao\UI\FormBaoCaoTraceability.cs" />
     <Compile Include="Modules\GiaoHangKhach\Configuration\GiaoHangKhachConfiguration.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Services\CustomerAddressService.cs" />
     <Compile Include="Modules\GiaoHangKhach\Services\GiaoHangKhachFactory.cs" />
     <Compile Include="Modules\GiaoHangKhach\Models\OrderCategory.cs" />
     <Compile Include="Modules\GiaoHangKhach\Models\OrderLoadContext.cs" />
@@ -406,7 +413,9 @@
     <Compile Include="Modules\KhoCore\Application\Contracts\Stock\StockMovementResult.cs" />
     <Compile Include="Modules\KhoCore\Application\Contracts\Stock\StockSlotLot.cs" />
     <Compile Include="Modules\KhoCore\Application\Contracts\Stock\StockSlotTakeResult.cs" />
+    <Compile Include="Modules\KhoCore\Application\Contracts\Tracking\IPhieuTrackingReadRepository.cs" />
     <Compile Include="Modules\KhoCore\Application\Services\StockMovementService.cs" />
+    <Compile Include="Modules\KhoCore\Infrastructure\Tracking\PhieuTrackingReadRepository.cs" />
     <Compile Include="Modules\KhoCore\Interfaces\IInspectionConfigService.cs" />
     <Compile Include="Modules\KhoCore\Interfaces\IInspectionService.cs" />
     <Compile Include="Modules\KhoCore\Models\InspectionLogEntry.cs" />

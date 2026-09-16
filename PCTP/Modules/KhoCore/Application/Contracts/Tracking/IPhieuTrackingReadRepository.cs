@@ -1,4 +1,5 @@
 using PCTP.Models;
+using PCTP.Shared.Models;
 using System.Collections.Generic;
 
 namespace PCTP.Modules.KhoCore.Application.Contracts.Tracking
