@@ -25,37 +25,57 @@ namespace PCTP.Modules.GiaoHangKhach.Services
 
         public void CapNhapKho(string gioGiaoFcc, string nhaMay, string gioMa, bool isSP)
         {
-            int soLot;
-            DataTable errors;
-
             string tmpTable = _cfg.Delivery.GetTmpTable(isSP);
             string docQrTable = _cfg.Delivery.GetDocQRTable(isSP);
 
-            // Final authoritative DB FIFO check/recovery immediately before CNK.
-            // Invalid QR rows are released (LOT = '' + QR released) and are not
-            // allowed to enter Usp_Qrcode_Update_Stock2405. The repository below
-            // performs the same FIFO check once more as the final safety gate.
-            _phieuRepo.ReleaseFifoViolations(tmpTable, docQrTable);
+            int soLot = 0;
+            DataTable errors = new DataTable();
 
-            if (_cfg.Delivery.LoadTuBangRieng && !_cfg.Delivery.CoGear)
+            // DB is the authoritative final gate. If STOCKTP changed between
+            // the first re-check and the repository's final re-check, release
+            // the newly invalid rows and retry once with the remaining valid QR.
+            for (int attempt = 0; attempt < 2; attempt++)
             {
-                soLot = _phieuRepo.CapNhapKhoHTN(
-                    nhaMay,
-                    tmpTable,
-                    docQrTable,
-                    out errors);
-            }
-            else
-            {
-                soLot = _phieuRepo.CapNhapKho(
-                    gioGiaoFcc,
-                    nhaMay,
-                    tmpTable,
-                    docQrTable,
-                    out errors);
+                _phieuRepo.ReleaseFifoViolations(tmpTable, docQrTable);
+
+                if (_cfg.Delivery.LoadTuBangRieng && !_cfg.Delivery.CoGear)
+                {
+                    soLot = _phieuRepo.CapNhapKhoHTN(
+                        nhaMay,
+                        tmpTable,
+                        docQrTable,
+                        out errors);
+                }
+                else
+                {
+                    soLot = _phieuRepo.CapNhapKho(
+                        gioGiaoFcc,
+                        nhaMay,
+                        tmpTable,
+                        docQrTable,
+                        out errors);
+                }
+
+                if (!ContainsFifoError(errors))
+                    break;
             }
 
             _bus.Publish(new KhoUpdatedEvent(soLot, errors));
+        }
+
+        private static bool ContainsFifoError(DataTable errors)
+        {
+            if (errors == null || !errors.Columns.Contains("STATUS"))
+                return false;
+
+            foreach (DataRow row in errors.Rows)
+            {
+                string status = row["STATUS"]?.ToString() ?? string.Empty;
+                if (status.IndexOf("FIFO:", StringComparison.OrdinalIgnoreCase) >= 0)
+                    return true;
+            }
+
+            return false;
         }
     }
 }
