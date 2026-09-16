@@ -1,4 +1,4 @@
-﻿using PCTP.Applications.Services;
+using PCTP.Applications.Services;
 using PCTP.ClassSQL;
 using PCTP.Domain.Interfaces;
 using PCTP.Infrastructure;
@@ -43,8 +43,6 @@ namespace PCTP.Modules.GiaoHangKhach.Services
 
         public static Module Build(string customerNo)
         {
-            // CustomerNo is normalized and validated at the delivery boundary.
-            // The factory must never silently fall back to another customer.
             var cfg = CustomerTableConfig.GetForDelivery(customerNo);
 
             var sql = new SQLPROVIDER();
@@ -57,8 +55,6 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             var hangChoGiaoRepo = new HangChoGiaoRepository(phieuDb, phieuUow);
             var phieugiaDBRepo = new PhieuGiaoDBRepository(phieuDb, phieuUow);
 
-            // KhoCore mutation boundary: STOCKTP balance + Slot/SlotLot share the
-            // same PhieuSqlExecutor/UnitOfWork transaction as the delivery workflow.
             var stockBalanceRepo = new LegacyStockBalanceRepositoryAdapter(phieuDb, phieuUow);
             var stockMovement = new StockMovementService(stockBalanceRepo, bulkStockSlotRepo);
 
@@ -91,13 +87,19 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             var giaoDbSource = new GiaoDbOrderSource(giaoDbStrategy);
             var orderSourceFactory = new OrderSourceFactory(ifsSource, tableOrderSource, giaoDbSource);
 
+            // FIFO RAM session uses the same LOT repository/FIFO ordering as the
+            // manual LOT picker, while EnforceFifo is read per item from config.
+            var fifoConfigRepo = new ItemFifoConfigRepository(phieuDb, phieuUow);
+            var fifoLotRepo = new PhieuLotRepository(phieuDb, phieuUow);
+            var fifoSessionService = new FifoSessionService(fifoConfigRepo, fifoLotRepo);
+            var qrSvc = new DocQRService(qrRepo, bus, cfg, categoryResolver, fifoSessionService);
+
             var phieuSvc = new PhieuService(
                 phieuRepo, ifsRepo, bus, gioRepo, tenBan, cfg, isMayBanQR,
                 tableOrderRepo, phieugiaDBRepo, orderSourceFactory, rowCategoryFilter);
 
             var lotSvc = new PhieuLotService(phieuRepo, phieuRepo, bus);
             var hangThieuCaNgaySvc = new HangThieuCaNgayService(ifsRepo, luuTruRepo, phieuDb, orderSourceFactory);
-            var qrSvc = new DocQRService(qrRepo, bus, cfg, categoryResolver);
             var gioVP = gioRepo.GetDictGioVP();
             var gioHN = gioRepo.GetDictGioHN();
             var inPhieuSvc = new InPhieuService(ifsRepo, phieuRepo, sqlRepo, gioVP, gioHN, cfg);
