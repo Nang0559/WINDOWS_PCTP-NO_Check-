@@ -1,5 +1,6 @@
 using PCTP.ClassSQL;
 using PCTP.Domain.Events;
+using PCTP.Modules.GiaoHangKhach.Services;
 using PCTP.Modules.GiaoHangKhach.SubForm;
 using PCTP.Presentation.Views;
 using System;
@@ -29,8 +30,6 @@ namespace PCTP.Presentation.Presenters
             if (!_c.Cfg.Delivery.CoGear || _qrSessionLocked)
                 return;
 
-            // YMVN dùng checklist giờ giao thay cho radio giờ xuất.
-            // Sau khi vào phiên đọc QR, không được đổi tập giờ đang giao.
             _v.LockCheckListYMVN();
             _qrSessionLocked = true;
         }
@@ -55,6 +54,22 @@ namespace PCTP.Presentation.Presenters
         {
             _c.RunWithLoading(() =>
             {
+                if (!_c.Cfg.Delivery.CoGear)
+                {
+                    _c.PhieuSvc.HoanThanhYMVN(_c.PhieuView.IsLoaiSP);
+                    return;
+                }
+
+                string validationError;
+                if (!YmvnGearQuantityValidator.ValidateCompletion(
+                    _c.PhieuView.GetDonHangTable(),
+                    _c.QrSvc.LoadAll(),
+                    out validationError))
+                {
+                    _c.UiContext.Post(_ => _v.ShowError(validationError), null);
+                    return;
+                }
+
                 _c.PhieuSvc.HoanThanhYMVN(_c.PhieuView.IsLoaiSP);
                 _c.UiContext.Post(_ =>
                 {
