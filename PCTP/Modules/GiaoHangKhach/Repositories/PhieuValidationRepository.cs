@@ -11,112 +11,189 @@ using System.Threading.Tasks;
 
 namespace PCTP.Modules.GiaoHangKhach.Repositories
 {
-    public sealed class PhieuValidationRepository
-    : SqlRepositoryBase, IPhieuValidationRepository
+    public sealed class PhieuValidationRepository : SqlRepositoryBase, IPhieuValidationRepository
     {
         public PhieuValidationRepository(PhieuSqlExecutor db, IUnitOfWork uow) : base(db, uow) { }
 
-        // ============================================================
-        // FIFO - STOCKTP is the authoritative stock source.
-        //
-        // IMPORTANT ARCHITECTURE RULE:
-        // - FVN_ItemFifoConfig is the single source of FIFO policy.
-        // - EnforceFifo = 0 -> do not block by FIFO.
-        // - EnforceFifo = 1 -> selected LOT KEY must be the oldest available
-        //   LOT KEY in STOCKTP for that item.
-        // - LOT identity for FIFO is LEFT(LOT, 13). Characters after 13 are
-        //   physical/suffix information and must not change FIFO identity.
-        // - Only STOCKTP.SLCONLAI > 0 is eligible for FIFO ordering.
-        // - SlotLot is NOT used to decide FIFO. SlotLot represents physical
-        //   Rack/Slot placement; one STOCKTP LOT may exist in many slots.
-        // - A FIFO violation is a hard gate: callers must not call stock SPs.
-        // ============================================================
+        // FIFO is enforced from STOCKTP itself.  Do not depend on
+        // FVN_ItemFifoConfig: that table is not present in every production
+        // database and the previous fallback silently disabled FIFO.
+        // LOT FIFO identity is LEFT(LOT, 13); suffixes after the key do not
+        // change FIFO identity. STOCKTP.SLCONLAI > 0 is the only eligible stock.
         public List<FifoViolation> CheckFifoViolations(string tmpTable)
         {
             Db.ValidateTableName(tmpTable);
 
-            if (!FvnItemFifoConfigTableExists())
-            {
-                System.Diagnostics.Debug.WriteLine(
-                    "[CheckFifoViolations] FVN_ItemFifoConfig chưa tồn tại. Bỏ qua FIFO để không chặn nhầm xuất kho.");
-                return new List<FifoViolation>();
-            }
-
             const int keyLen = PCTP.Common.LotCodeHelper.LEN_LEGACY_KEY;
-
             string sql = $@"
-                ;WITH StockLotKey AS
-                (
-                    SELECT
-                        s.PART AS ItemCode,
-                        LEFT(s.LOT, {keyLen}) AS LotKey,
-                        SUM(ISNULL(s.SLCONLAI, 0)) AS TongTon
-                    FROM STOCKTP s
-                    WHERE ISNULL(s.SLCONLAI, 0) > 0
-                      AND LEN(ISNULL(s.LOT, '')) >= {keyLen}
-                    GROUP BY
-                        s.PART,
-                        LEFT(s.LOT, {keyLen})
-                ),
-                LotDungFifo AS
-                (
-                    SELECT
-                        ItemCode,
-                        LotKey,
-                        ROW_NUMBER() OVER
-                        (
-                            PARTITION BY ItemCode
-                            ORDER BY
-                                LEFT(LotKey, 6) ASC,
-                                CASE SUBSTRING(LotKey, 12, 1)
-                                    WHEN '0' THEN 0
-                                    WHEN '1' THEN 1
-                                    WHEN '2' THEN 2
-                                    WHEN '3' THEN 3
-                                    ELSE 9
-                                END ASC,
-                                LotKey ASC
-                        ) AS Rn
-                    FROM StockLotKey
-                    WHERE TongTon > 0
-                )
-                SELECT DISTINCT
-                    tmp.MAHANG AS MaHang,
-                    tmp.LOT AS LotDaChon,
-                    fifo.LotKey AS LotDungRaPhaiChon,
-                    0 AS SlotIdDungRaPhaiChon
-                FROM [{tmpTable}] tmp
-                INNER JOIN FVN_ItemFifoConfig cfg
-                    ON cfg.ItemCode = tmp.MAHANG
-                   AND cfg.EnforceFifo = 1
-                INNER JOIN LotDungFifo fifo
-                    ON fifo.ItemCode = tmp.MAHANG
-                   AND fifo.Rn = 1
-                WHERE ISNULL(tmp.STATUS, '') <> 'NG'
-                  AND LEFT(ISNULL(tmp.LOT, ''), {keyLen}) <> fifo.LotKey;";
+;WITH StockLot AS
+(
+    SELECT
+        PART AS ItemCode,
+        LEFT(LOT, {keyLen}) AS LotKey,
+        SUM(ISNULL(SLCONLAI, 0)) AS TongTon
+    FROM STOCKTP
+    WHERE ISNULL(SLCONLAI, 0) > 0
+      AND LEN(ISNULL(LOT, '')) >= {keyLen}
+    GROUP BY PART, LEFT(LOT, {keyLen})
+),
+Fifo AS
+(
+    SELECT
+        ItemCode,
+        LotKey,
+        TongTon,
+        ROW_NUMBER() OVER
+        (
+            PARTITION BY ItemCode
+            ORDER BY
+                LEFT(LotKey, 6) ASC,
+                CASE SUBSTRING(LotKey, 12, 1)
+                    WHEN '0' THEN 0
+                    WHEN '1' THEN 1
+                    WHEN '2' THEN 2
+                    WHEN '3' THEN 3
+                    ELSE 9
+                END ASC,
+                LotKey ASC
+        ) AS Rn
+    FROM StockLot
+)
+SELECT
+    tmp.MAHANG AS MaHang,
+    tmp.LOT AS LotDaChon,
+    fifo.LotKey AS LotDungRaPhaiChon,
+    fifo.TongTon AS TonLotDungRaPhaiChon
+FROM [{tmpTable}] tmp
+INNER JOIN Fifo fifo
+    ON fifo.ItemCode = tmp.MAHANG
+   AND fifo.Rn = 1
+WHERE ISNULL(tmp.STATUS, '') <> 'NG'
+  AND ISNULL(tmp.LOT, '') <> '';";
 
-            DataTable dt = LoadData(sql);
+            DataTable tmpRows = LoadData(sql);
             var result = new List<FifoViolation>();
 
-            foreach (DataRow row in dt.Rows)
+            foreach (DataRow row in tmpRows.Rows)
             {
-                result.Add(new FifoViolation
+                string maHang = row["MaHang"]?.ToString()?.Trim() ?? "";
+                string selectedLotText = row["LotDaChon"]?.ToString()?.Trim() ?? "";
+                string fifoLot = row["LotDungRaPhaiChon"]?.ToString()?.Trim() ?? "";
+
+                if (string.IsNullOrEmpty(maHang) || string.IsNullOrEmpty(selectedLotText) || string.IsNullOrEmpty(fifoLot))
+                    continue;
+
+                var selected = ParseLotSelections(selectedLotText);
+                if (selected.Count == 0)
+                    continue;
+
+                // The first required FIFO lot is allowed until its available
+                // quantity is exhausted. A later lot is legal only after all
+                // earlier FIFO stock has been consumed.
+                DataTable fifoRows = LoadData($@"
+SELECT
+    LEFT(LOT, {keyLen}) AS LOTKEY,
+    MIN(LOT) AS LOTDISPLAY,
+    SUM(ISNULL(SLCONLAI, 0)) AS SLCONLAI
+FROM STOCKTP
+WHERE PART = @ma
+  AND ISNULL(SLCONLAI, 0) > 0
+  AND LEN(ISNULL(LOT, '')) >= {keyLen}
+GROUP BY LEFT(LOT, {keyLen})
+ORDER BY
+    LEFT(LEFT(LOT, {keyLen}), 6),
+    CASE SUBSTRING(LEFT(LOT, {keyLen}), 12, 1)
+        WHEN '0' THEN 0
+        WHEN '1' THEN 1
+        WHEN '2' THEN 2
+        WHEN '3' THEN 3
+        ELSE 9
+    END,
+    LEFT(LOT, {keyLen});",
+                    new SqlParameter("@ma", maHang));
+
+                var fifo = fifoRows.AsEnumerable()
+                    .Select(r => new
+                    {
+                        Key = r["LOTKEY"].ToString().Trim(),
+                        Display = r["LOTDISPLAY"].ToString().Trim(),
+                        Stock = r["SLCONLAI"] == DBNull.Value ? 0 : Convert.ToInt32(r["SLCONLAI"])
+                    })
+                    .ToList();
+
+                int fifoIndex = 0;
+                int remainingNeed = selected.Sum(x => x.Quantity);
+                var selectedMap = selected
+                    .GroupBy(x => x.LotKey, StringComparer.OrdinalIgnoreCase)
+                    .ToDictionary(g => g.Key, g => g.Sum(x => x.Quantity), StringComparer.OrdinalIgnoreCase);
+
+                foreach (var fifoLotRow in fifo)
                 {
-                    MaHang = row["MaHang"]?.ToString(),
-                    LotDaChon = row["LotDaChon"]?.ToString(),
-                    LotDungRaPhaiChon = row["LotDungRaPhaiChon"]?.ToString(),
-                    SlotIdDungRaPhaiChon = 0
-                });
+                    if (remainingNeed <= 0) break;
+
+                    selectedMap.TryGetValue(fifoLotRow.Key, out int selectedQty);
+                    int requiredFromLot = Math.Min(remainingNeed, Math.Max(fifoLotRow.Stock, 0));
+
+                    if (selectedQty < requiredFromLot)
+                    {
+                        result.Add(new FifoViolation
+                        {
+                            MaHang = maHang,
+                            LotDaChon = selectedLotText,
+                            LotDungRaPhaiChon = fifoLotRow.Display,
+                            SlotIdDungRaPhaiChon = 0
+                        });
+                        break;
+                    }
+
+                    remainingNeed -= requiredFromLot;
+                    fifoIndex++;
+                }
+
+                if (remainingNeed > 0 && fifo.Count > 0 && !result.Any(x => x.MaHang == maHang && x.LotDaChon == selectedLotText))
+                {
+                    result.Add(new FifoViolation
+                    {
+                        MaHang = maHang,
+                        LotDaChon = selectedLotText,
+                        LotDungRaPhaiChon = fifo[Math.Min(fifoIndex, fifo.Count - 1)].Display,
+                        SlotIdDungRaPhaiChon = 0
+                    });
+                }
+            }
+
+            return result
+                .GroupBy(x => new { x.MaHang, x.LotDaChon, x.LotDungRaPhaiChon })
+                .Select(g => g.First())
+                .ToList();
+        }
+
+        private static List<LotSelection> ParseLotSelections(string value)
+        {
+            var result = new List<LotSelection>();
+            if (string.IsNullOrWhiteSpace(value)) return result;
+
+            foreach (string token in value.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                string part = token.Trim();
+                int separator = part.LastIndexOf('-');
+                if (separator <= 0 || separator >= part.Length - 1) continue;
+
+                string lot = part.Substring(0, separator).Trim();
+                if (!int.TryParse(part.Substring(separator + 1).Trim(), out int quantity) || quantity <= 0) continue;
+
+                string key = lot.Length <= 13 ? lot : lot.Substring(0, 13);
+                result.Add(new LotSelection { LotKey = key, Lot = lot, Quantity = quantity });
             }
 
             return result;
         }
 
-        private bool FvnItemFifoConfigTableExists()
+        private sealed class LotSelection
         {
-            object raw = ExecuteScalar(
-                "SELECT COUNT(*) FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[FVN_ItemFifoConfig]') AND type = 'U'");
-            return DbValueHelper.SafeInt(raw) == 1;
+            public string LotKey { get; set; }
+            public string Lot { get; set; }
+            public int Quantity { get; set; }
         }
 
         #region IPhieuValidationRepository
@@ -138,9 +215,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         public bool KiemTraMaTrongPhieu(string maHang, string tenBan)
         {
             Db.ValidateTableName(tenBan);
-            object raw = Db.ExecuteScalar(
-                $"SELECT COUNT(*) FROM [{tenBan}] WHERE MAHANG = @ma",
-                new SqlParameter("@ma", maHang ?? (object)DBNull.Value));
+            object raw = Db.ExecuteScalar($"SELECT COUNT(*) FROM [{tenBan}] WHERE MAHANG = @ma", new SqlParameter("@ma", maHang ?? (object)DBNull.Value));
             return DbValueHelper.SafeInt(raw) > 0;
         }
 
@@ -154,13 +229,12 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         {
             Db.ValidateTableName(tenBan);
             Db.ValidateTableName(docQRTable);
-            string sql =
-                "SELECT STT, MAHANG, TENHANG, GIOGIAO, SOLUONG, " +
-                "CASE WHEN STATUS IS NULL OR STATUS = '' THEN N'Chưa Bắn QRCODE' " +
-                "WHEN STATUS = '0' THEN N'Đang Bắn QRCODE' " +
-                "WHEN STATUS = '1' THEN N'Đã Bắn QRCODE' ELSE STATUS END AS STATUS " +
-                $"FROM [{tenBan}] WHERE MAHANG = @ma AND SOLUONG = @sl " +
-                $"AND (LOT = '' OR LOT IS NULL) AND MAHANG IN (SELECT MAHANGFCC FROM [{docQRTable}] WHERE ISNULL(KETQUA,'') <> 'DG' GROUP BY MAHANGFCC)";
+            string sql = "SELECT STT, MAHANG, TENHANG, GIOGIAO, SOLUONG, " +
+                         "CASE WHEN STATUS IS NULL OR STATUS = '' THEN N'Chưa Bắn QRCODE' " +
+                         "WHEN STATUS = '0' THEN N'Đang Bắn QRCODE' " +
+                         "WHEN STATUS = '1' THEN N'Đã Bắn QRCODE' ELSE STATUS END AS STATUS " +
+                         $"FROM [{tenBan}] WHERE MAHANG = @ma AND SOLUONG = @sl " +
+                         $"AND (LOT = '' OR LOT IS NULL) AND MAHANG IN (SELECT MAHANGFCC FROM [{docQRTable}] WHERE ISNULL(KETQUA,'') <> 'DG' GROUP BY MAHANGFCC)";
             return Db.LoadData(sql, new SqlParameter("@ma", maHang ?? ""), new SqlParameter("@sl", sl));
         }
 
@@ -174,10 +248,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         {
             Db.ValidateTableName(tenBan);
             Db.ValidateTableName(docQRTable);
-            object raw = Db.ExecuteScalar(
-                $"SELECT COUNT(*) FROM [{tenBan}] WHERE MAHANG = @ma AND SOLUONG = @sl " +
-                $"AND (LOT = '' OR LOT IS NULL) AND MAHANG IN (SELECT MAHANGFCC FROM [{docQRTable}] WHERE KETQUA <> 'DG' GROUP BY MAHANGFCC)",
-                new SqlParameter("@ma", maHang ?? ""), new SqlParameter("@sl", sl));
+            object raw = Db.ExecuteScalar($"SELECT COUNT(*) FROM [{tenBan}] WHERE MAHANG = @ma AND SOLUONG = @sl AND (LOT = '' OR LOT IS NULL) AND MAHANG IN (SELECT MAHANGFCC FROM [{docQRTable}] WHERE KETQUA <> 'DG' GROUP BY MAHANGFCC)", new SqlParameter("@ma", maHang ?? ""), new SqlParameter("@sl", sl));
             return DbValueHelper.SafeInt(raw);
         }
 
@@ -191,9 +262,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         {
             Db.ValidateTableName(tenBan);
             Db.ValidateTableName(docQRTable);
-            string sql =
-                $"SELECT STT, MAHANG, LOT, SOLUONG FROM [{tenBan}] " +
-                $"WHERE (LOT = '' OR LOT IS NULL) AND MAHANG IN (SELECT MAHANGFCC FROM [{docQRTable}] WHERE ISNULL(KETQUA,'') <> 'DG' GROUP BY MAHANGFCC) ORDER BY STT";
+            string sql = $"SELECT STT, MAHANG, LOT, SOLUONG FROM [{tenBan}] WHERE (LOT = '' OR LOT IS NULL) AND MAHANG IN (SELECT MAHANGFCC FROM [{docQRTable}] WHERE ISNULL(KETQUA,'') <> 'DG' GROUP BY MAHANGFCC) ORDER BY STT";
             return Db.LoadData(sql);
         }
 
@@ -278,6 +347,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             }
             return map;
         }
+
         #endregion
     }
 }
