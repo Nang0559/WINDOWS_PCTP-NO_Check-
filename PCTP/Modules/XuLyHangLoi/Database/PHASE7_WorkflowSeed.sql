@@ -13,6 +13,9 @@ IF NOT EXISTS(SELECT 1 FROM dbo.sys_WorkflowTransitions WHERE ProcessCode='QT_CH
 IF NOT EXISTS(SELECT 1 FROM dbo.sys_WorkflowTransitions WHERE ProcessCode='QT_CHUNG' AND FromStatus=20 AND ToStatus=40 AND IsActive=1)
     INSERT INTO dbo.sys_WorkflowTransitions(ProcessCode,FromStatus,ToStatus,ActionName,Description,IsActive)
     VALUES('QT_CHUNG',20,40,'BAT_DAU_REWORK','Initial QC đã phân bổ Rework',1);
+IF NOT EXISTS(SELECT 1 FROM dbo.sys_WorkflowTransitions WHERE ProcessCode='QT_CHUNG' AND FromStatus=25 AND ToStatus=100 AND IsActive=1)
+    INSERT INTO dbo.sys_WorkflowTransitions(ProcessCode,FromStatus,ToStatus,ActionName,Description,IsActive)
+    VALUES('QT_CHUNG',25,100,'HOAN_TAT','Khiếu nại không có căn cứ, kết thúc không giao bù',1);
 
 /* Compensation */
 IF NOT EXISTS(SELECT 1 FROM dbo.sys_WorkflowTransitions WHERE ProcessCode='QT_CHUNG' AND FromStatus=30 AND ToStatus=35 AND IsActive=1)
@@ -23,6 +26,9 @@ IF NOT EXISTS(SELECT 1 FROM dbo.sys_WorkflowTransitions WHERE ProcessCode='QT_CH
     VALUES('QT_CHUNG',35,100,'HOAN_TAT','Hoàn tất nhánh giao bù',1);
 
 /* Rework */
+IF NOT EXISTS(SELECT 1 FROM dbo.sys_WorkflowTransitions WHERE ProcessCode='QT_CHUNG' AND FromStatus=20 AND ToStatus=40 AND IsActive=1)
+    INSERT INTO dbo.sys_WorkflowTransitions(ProcessCode,FromStatus,ToStatus,ActionName,Description,IsActive)
+    VALUES('QT_CHUNG',20,40,'BAT_DAU_REWORK','Initial QC đã phân bổ Rework',1);
 IF NOT EXISTS(SELECT 1 FROM dbo.sys_WorkflowTransitions WHERE ProcessCode='QT_CHUNG' AND FromStatus=40 AND ToStatus=50 AND IsActive=1)
     INSERT INTO dbo.sys_WorkflowTransitions(ProcessCode,FromStatus,ToStatus,ActionName,Description,IsActive)
     VALUES('QT_CHUNG',40,50,'GIAO_SAN_XUAT','Đã xuất đủ Rework và giao sản xuất',1);
