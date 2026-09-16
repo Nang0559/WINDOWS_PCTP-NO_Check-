@@ -338,9 +338,7 @@
     <Compile Include="Modules\BaoCao\UI\FormBaoCaoMain.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="Modules\BaoCao\UI\FormBaoCaoQualityHistory.cs">
-      <SubType>Form</SubType>
-    </Compile>
+    <Compile Include="Modules\BaoCao\UI\FormBaoCaoQualityHistory.cs" />
     <Compile Include="Modules\BaoCao\UI\FormBaoCaoStockHistory.cs" />
     <Compile Include="Modules\BaoCao\UI\FormBaoCaoTraceability.cs" />
     <Compile Include="Modules\GiaoHangKhach\Configuration\GiaoHangKhachConfiguration.cs" />
