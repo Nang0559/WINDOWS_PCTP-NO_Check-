@@ -28,6 +28,7 @@ namespace PCTP.Modules.XuLyHangLoi.Application
             public IStockHistoryRepository StockHistoryRepo { get; internal set; }
             public IPhieuXuLyBatThuongRepository PhieuXuLyRepo { get; internal set; }
             public ITraHangQTChungRepository QTChungRepo { get; internal set; }
+            public IPhieuTraHangRepository PhieuTraHangRepo { get; internal set; }
         }
 
         public static Module Build()
@@ -49,6 +50,7 @@ namespace PCTP.Modules.XuLyHangLoi.Application
             var stockTpRepo = new StockExportRepository(dbExecutor, uow);
             var historyRepo = new StockHistoryRepository(dbExecutor, uow);
             var phieuXuLyRepo = new PhieuXuLyBatThuongRepository(dbExecutor, uow);
+            var phieuTraHangRepo = new PhieuTraHangRepository(dbExecutor, uow);
             var qtChungRepo = new TraHangQTChungRepository(dbExecutor, uow);
 
             IStockBalanceRepository stockBalance = new ReworkStockBalanceAdapter(stockTpRepo);
@@ -65,7 +67,14 @@ namespace PCTP.Modules.XuLyHangLoi.Application
                 qtChungRepo,
                 phieuXuLyRepo);
 
-            var affectedLotTraceService = new AffectedLotTraceService(reworkStockService);
+            // Phase 2: customer-return source is available from the existing
+            // PhieuTraHang/PhieuTraHangCT read model. WIP remains an explicit
+            // provider boundary until the production module exposes a LOT trace contract.
+            var customerReturnProvider = new CustomerReturnLotTraceProvider(phieuTraHangRepo);
+            var affectedLotTraceService = new AffectedLotTraceService(
+                reworkStockService,
+                productionProvider: null,
+                customerReturnProvider: customerReturnProvider);
 
             return new Module
             {
@@ -77,7 +86,8 @@ namespace PCTP.Modules.XuLyHangLoi.Application
                 StockExportRepo = stockTpRepo,
                 StockHistoryRepo = historyRepo,
                 PhieuXuLyRepo = phieuXuLyRepo,
-                QTChungRepo = qtChungRepo
+                QTChungRepo = qtChungRepo,
+                PhieuTraHangRepo = phieuTraHangRepo
             };
         }
     }
