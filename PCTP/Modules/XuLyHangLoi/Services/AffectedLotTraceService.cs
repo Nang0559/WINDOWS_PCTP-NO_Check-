@@ -1,4 +1,4 @@
-using PCTP.ClassSQL;
+using PCTP.Modules.GiaoHangKhach;
 using PCTP.Modules.XuLyHangLoi.Enums;
 using PCTP.Modules.XuLyHangLoi.Models;
 using PCTP.Modules.XuLyHangLoi.Repository;
@@ -11,10 +11,6 @@ using System.Linq;
 
 namespace PCTP.Modules.XuLyHangLoi.Services
 {
-    /// <summary>
-    /// Phase 2: hợp nhất nguồn LOT và snapshot bất biến tại thời điểm truy vết.
-    /// Không được coi riêng tồn kho là toàn bộ LOT bị ảnh hưởng.
-    /// </summary>
     public sealed class AffectedLotTraceService : SqlRepositoryBase, IAffectedLotTraceService
     {
         private readonly IReworkStockService _stockService;
@@ -37,26 +33,15 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             _phieuRepository = phieuRepository ?? throw new ArgumentNullException(nameof(phieuRepository));
         }
 
-        public AffectedLotTraceResult TraceForPhieu(
-            PhieuXuLyBatThuong phieu,
-            string nguoiThucHien)
+        public AffectedLotTraceResult TraceForPhieu(PhieuXuLyBatThuong phieu, string nguoiThucHien)
         {
-            if (phieu == null)
-                throw new ArgumentNullException(nameof(phieu));
-
+            if (phieu == null) throw new ArgumentNullException(nameof(phieu));
             return Trace(phieu.MaSanPham, phieu.SoLoLoi, nguoiThucHien);
         }
 
-        /// <summary>
-        /// Truy vết theo phiếu, kiểm tra đủ nguồn, snapshot AffectedLots trong một transaction.
-        /// Đây là entry point chính của Phase 2.
-        /// </summary>
-        public AffectedLotTraceResult TruyVetLOT(
-            int phieuXuLyId,
-            string nguoiThucHien)
+        public AffectedLotTraceResult TruyVetLOT(int phieuXuLyId, string nguoiThucHien)
         {
-            if (phieuXuLyId <= 0)
-                throw new ArgumentOutOfRangeException(nameof(phieuXuLyId));
+            if (phieuXuLyId <= 0) throw new ArgumentOutOfRangeException(nameof(phieuXuLyId));
             if (string.IsNullOrWhiteSpace(nguoiThucHien))
                 throw new ArgumentException("NguoiThucHien không được rỗng.", nameof(nguoiThucHien));
 
@@ -66,13 +51,10 @@ namespace PCTP.Modules.XuLyHangLoi.Services
 
             var result = TraceForPhieu(phieu, nguoiThucHien);
 
-            // Fail closed: không được snapshot thiếu nguồn rồi để QC coi đó là tổng ảnh hưởng.
             if (!result.IsComplete)
-            {
                 throw new InvalidOperationException(
                     "Không thể hoàn tất truy vết LOT vì còn thiếu nguồn dữ liệu: " +
                     string.Join(" | ", result.Warnings));
-            }
 
             if (result.TotalAffectedQuantity <= 0)
                 throw new InvalidOperationException("Truy vết LOT không tìm thấy số lượng bị ảnh hưởng.");
@@ -98,41 +80,14 @@ namespace PCTP.Modules.XuLyHangLoi.Services
                 {
                     ExecuteNonQuery(
                         @"INSERT INTO FVN_PhieuXuLyBatThuongAffectedLot
-                          (
-                              PhieuXuLyBatThuongId,
-                              SourceType,
-                              SourceReference,
-                              SlotId,
-                              LotNo,
-                              MaSanPham,
-                              Model,
-                              SoLuongAnhHuong,
-                              SoLuongDaKiemTra,
-                              SoLuongOK,
-                              SoLuongNG,
-                              SoLuongRework,
-                              SoLuongLoaiBo,
-                              SnapshotAt,
-                              SnapshotBy
-                          )
+                          (PhieuXuLyBatThuongId, SourceType, SourceReference, SlotId,
+                           LotNo, MaSanPham, Model, SoLuongAnhHuong, SoLuongDaKiemTra,
+                           SoLuongOK, SoLuongNG, SoLuongRework, SoLuongLoaiBo,
+                           SnapshotAt, SnapshotBy)
                           VALUES
-                          (
-                              @PhieuXuLyBatThuongId,
-                              @SourceType,
-                              @SourceReference,
-                              @SlotId,
-                              @LotNo,
-                              @MaSanPham,
-                              @Model,
-                              @SoLuongAnhHuong,
-                              0,
-                              0,
-                              0,
-                              0,
-                              0,
-                              @SnapshotAt,
-                              @SnapshotBy
-                          );",
+                          (@PhieuXuLyBatThuongId, @SourceType, @SourceReference, @SlotId,
+                           @LotNo, @MaSanPham, @Model, @SoLuongAnhHuong, 0,
+                           0, 0, 0, 0, @SnapshotAt, @SnapshotBy);",
                         new SqlParameter("@PhieuXuLyBatThuongId", item.PhieuXuLyBatThuongId),
                         new SqlParameter("@SourceType", (int)item.SourceType),
                         new SqlParameter("@SourceReference", DbValueHelper.DbValue(item.SourceReference)),
@@ -157,27 +112,13 @@ namespace PCTP.Modules.XuLyHangLoi.Services
 
         public IReadOnlyList<PhieuXuLyBatThuongAffectedLot> GetSnapshot(int phieuXuLyId)
         {
-            if (phieuXuLyId <= 0)
-                throw new ArgumentOutOfRangeException(nameof(phieuXuLyId));
+            if (phieuXuLyId <= 0) throw new ArgumentOutOfRangeException(nameof(phieuXuLyId));
 
             var table = LoadData(
-                @"SELECT
-                      Id,
-                      PhieuXuLyBatThuongId,
-                      SourceType,
-                      SourceReference,
-                      SlotId,
-                      LotNo,
-                      MaSanPham,
-                      Model,
-                      SoLuongAnhHuong,
-                      SoLuongDaKiemTra,
-                      SoLuongOK,
-                      SoLuongNG,
-                      SoLuongRework,
-                      SoLuongLoaiBo,
-                      SnapshotAt,
-                      SnapshotBy
+                @"SELECT Id, PhieuXuLyBatThuongId, SourceType, SourceReference, SlotId,
+                         LotNo, MaSanPham, Model, SoLuongAnhHuong, SoLuongDaKiemTra,
+                         SoLuongOK, SoLuongNG, SoLuongRework, SoLuongLoaiBo,
+                         SnapshotAt, SnapshotBy
                   FROM FVN_PhieuXuLyBatThuongAffectedLot
                   WHERE PhieuXuLyBatThuongId = @PhieuXuLyBatThuongId
                   ORDER BY SourceType, Id;",
@@ -206,21 +147,14 @@ namespace PCTP.Modules.XuLyHangLoi.Services
                     SnapshotBy = DbValueHelper.ToString(row["SnapshotBy"])
                 });
             }
-
             return result;
         }
 
-        public AffectedLotTraceResult Trace(
-            string maSanPham,
-            string lotNo,
-            string nguoiThucHien)
+        public AffectedLotTraceResult Trace(string maSanPham, string lotNo, string nguoiThucHien)
         {
-            if (string.IsNullOrWhiteSpace(maSanPham))
-                throw new ArgumentException("MaSanPham không được rỗng.", nameof(maSanPham));
-            if (string.IsNullOrWhiteSpace(lotNo))
-                throw new ArgumentException("LotNo không được rỗng.", nameof(lotNo));
-            if (string.IsNullOrWhiteSpace(nguoiThucHien))
-                throw new ArgumentException("NguoiThucHien không được rỗng.", nameof(nguoiThucHien));
+            if (string.IsNullOrWhiteSpace(maSanPham)) throw new ArgumentException("MaSanPham không được rỗng.", nameof(maSanPham));
+            if (string.IsNullOrWhiteSpace(lotNo)) throw new ArgumentException("LotNo không được rỗng.", nameof(lotNo));
+            if (string.IsNullOrWhiteSpace(nguoiThucHien)) throw new ArgumentException("NguoiThucHien không được rỗng.", nameof(nguoiThucHien));
 
             var result = new AffectedLotTraceResult
             {
@@ -234,9 +168,7 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             {
                 foreach (var lot in stockLots)
                 {
-                    if (lot == null || lot.Quantity <= 0)
-                        continue;
-
+                    if (lot == null || lot.Quantity <= 0) continue;
                     result.Items.Add(new PhieuXuLyBatThuongAffectedLot
                     {
                         SourceType = AffectedLotSourceType.Kho,
@@ -252,10 +184,7 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             }
 
             if (_productionProvider != null)
-            {
-                var rows = _productionProvider.Trace(result.MaSanPham, result.LotNo);
-                AddRows(result, rows, AffectedLotSourceType.SanXuat, nguoiThucHien);
-            }
+                AddRows(result, _productionProvider.Trace(result.MaSanPham, result.LotNo), AffectedLotSourceType.SanXuat, nguoiThucHien);
             else
             {
                 result.IsComplete = false;
@@ -263,10 +192,7 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             }
 
             if (_customerReturnProvider != null)
-            {
-                var rows = _customerReturnProvider.Trace(result.MaSanPham, result.LotNo);
-                AddRows(result, rows, AffectedLotSourceType.KhachTra, nguoiThucHien);
-            }
+                AddRows(result, _customerReturnProvider.Trace(result.MaSanPham, result.LotNo), AffectedLotSourceType.KhachTra, nguoiThucHien);
             else
             {
                 result.IsComplete = false;
@@ -295,54 +221,33 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             return result;
         }
 
-        private static void AddRows(
-            AffectedLotTraceResult result,
-            IEnumerable<PhieuXuLyBatThuongAffectedLot> rows,
-            AffectedLotSourceType sourceType,
-            string nguoiThucHien)
+        private static void AddRows(AffectedLotTraceResult result, IEnumerable<PhieuXuLyBatThuongAffectedLot> rows, AffectedLotSourceType sourceType, string nguoiThucHien)
         {
-            if (rows == null)
-                return;
-
+            if (rows == null) return;
             foreach (var row in rows)
             {
-                if (row == null || row.SoLuongAnhHuong <= 0)
-                    continue;
-
+                if (row == null || row.SoLuongAnhHuong <= 0) continue;
                 row.SourceType = sourceType;
-                row.MaSanPham = string.IsNullOrWhiteSpace(row.MaSanPham)
-                    ? result.MaSanPham
-                    : row.MaSanPham.Trim();
+                row.MaSanPham = string.IsNullOrWhiteSpace(row.MaSanPham) ? result.MaSanPham : row.MaSanPham.Trim();
                 row.LotNo = NormalizeLot(row.LotNo ?? result.LotNo);
-                row.SnapshotAt = row.SnapshotAt == default(DateTime)
-                    ? DateTime.Now
-                    : row.SnapshotAt;
-                row.SnapshotBy = string.IsNullOrWhiteSpace(row.SnapshotBy)
-                    ? nguoiThucHien.Trim()
-                    : row.SnapshotBy;
+                row.SnapshotAt = row.SnapshotAt == default(DateTime) ? DateTime.Now : row.SnapshotAt;
+                row.SnapshotBy = string.IsNullOrWhiteSpace(row.SnapshotBy) ? nguoiThucHien.Trim() : row.SnapshotBy;
                 result.Items.Add(row);
             }
         }
 
         private static string NormalizeLot(string lotNo)
         {
-            return string.IsNullOrWhiteSpace(lotNo)
-                ? string.Empty
-                : lotNo.Trim().ToUpperInvariant();
+            return string.IsNullOrWhiteSpace(lotNo) ? string.Empty : lotNo.Trim().ToUpperInvariant();
         }
 
         private static int? ToNullableInt(object value)
         {
-            if (value == null || value == DBNull.Value)
-                return null;
+            if (value == null || value == DBNull.Value) return null;
             return DbValueHelper.ToInt(value);
         }
     }
 
-    /// <summary>
-    /// Truy vết các dòng hàng Khách trả có cùng Mã hàng + LOT.
-    /// Chỉ đọc dữ liệu từ PhieuTraHang/PhieuTraHangCT, không mutate stock.
-    /// </summary>
     public sealed class CustomerReturnLotTraceProvider : ICustomerReturnLotTraceProvider
     {
         private readonly IPhieuTraHangRepository _repository;
@@ -354,33 +259,24 @@ namespace PCTP.Modules.XuLyHangLoi.Services
 
         public IEnumerable<PhieuXuLyBatThuongAffectedLot> Trace(string maSanPham, string lotNo)
         {
-            if (string.IsNullOrWhiteSpace(maSanPham) || string.IsNullOrWhiteSpace(lotNo))
-                yield break;
+            if (string.IsNullOrWhiteSpace(maSanPham) || string.IsNullOrWhiteSpace(lotNo)) yield break;
 
             var maHang = maSanPham.Trim();
             var lot = NormalizeLot(lotNo);
             var headers = _repository.GetByNguon(NguonXuLyBatThuong.KhachTra);
-
-            if (headers == null)
-                yield break;
+            if (headers == null) yield break;
 
             foreach (var header in headers)
             {
-                if (header == null || header.Id <= 0)
-                    continue;
-
+                if (header == null || header.Id <= 0) continue;
                 var items = _repository.GetItems(header.Id);
-                if (items == null)
-                    continue;
+                if (items == null) continue;
 
                 foreach (var item in items)
                 {
-                    if (item == null || item.SoLuong <= 0)
-                        continue;
-                    if (!string.Equals(item.MaHang == null ? null : item.MaHang.Trim(), maHang, StringComparison.OrdinalIgnoreCase))
-                        continue;
-                    if (!string.Equals(NormalizeLot(item.LotNo), lot, StringComparison.OrdinalIgnoreCase))
-                        continue;
+                    if (item == null || item.SoLuong <= 0) continue;
+                    if (!string.Equals(item.MaHang == null ? null : item.MaHang.Trim(), maHang, StringComparison.OrdinalIgnoreCase)) continue;
+                    if (!string.Equals(NormalizeLot(item.LotNo), lot, StringComparison.OrdinalIgnoreCase)) continue;
 
                     yield return new PhieuXuLyBatThuongAffectedLot
                     {
@@ -398,9 +294,7 @@ namespace PCTP.Modules.XuLyHangLoi.Services
 
         private static string NormalizeLot(string value)
         {
-            return string.IsNullOrWhiteSpace(value)
-                ? string.Empty
-                : value.Trim().ToUpperInvariant();
+            return string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim().ToUpperInvariant();
         }
     }
 }
