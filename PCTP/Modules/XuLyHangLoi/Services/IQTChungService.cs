@@ -11,8 +11,6 @@ namespace PCTP.Modules.XuLyHangLoi.Services
         int TaoPhieuXuLyBatThuong(int phieuTraHangCTId, string model, string phanLoaiXuLy, string boPhanPhatHanh, string nguoiThucHien);
         ScanResult QCDinhHuong(int phieuXuLyId, HuongXuLyBatThuong huong, string nguoiThucHien);
         AffectedLotTraceResult TruyVetLOT(int phieuXuLyId, string nguoiThucHien);
-        InitialQCResult QCInitialConfirm(int phieuXuLyId, IReadOnlyList<InitialQCLotResult> lotResults, string noiDungKiemTra, string ketLuan, string nguoiQC);
-        InitialQCResult GetInitialQC(int phieuXuLyId);
         List<LotInfo> GetLotsCanRework(int phieuXuLyId);
         ScanResult XuatKhoRework(int phieuXuLyId, int slotId, string lotNo, int soLuong, string nguoiXuat);
         ScanResult GiaoHangRework(int phieuXuLyId, List<LotInfo> lots, string ngayGiao, string nguoiNhan, string boPhanNhan);
