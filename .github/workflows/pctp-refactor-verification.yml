@@ -61,6 +61,14 @@ jobs:
             }
           }
 
+          $hvnForm = Join-Path $root 'Modules\GiaoHangKhach\HVN\HVN_PGH.cs'
+          if (Test-Path $hvnForm) {
+            $hvnText = Get-Content $hvnForm -Raw
+            if ($hvnText -match 'IFSRepository\s*\.\s*Create\s*\(') {
+              throw "HVN_PGH must not create IFSRepository directly; use the customer delivery module boundary."
+            }
+          }
+
       - name: Verify DeliveryTrace contracts
         shell: pwsh
         run: |
