@@ -32,6 +32,12 @@ namespace PCTP.Modules.NhapKho.Services
         private readonly IStockTpStatusRepository _stockTpStatus;
         private readonly IStockMovementService _stockMovement;
 
+        // UI vẫn có thể gọi MoLaiLot() sau khi người dùng xác nhận,
+        // nhưng việc mở LOT thực tế phải chờ đến NhapTpVaoSlot() để nằm
+        // trong cùng transaction với STOCKTP + Slot + phiếu + case + history.
+        private readonly HashSet<string> _reopenApprovedLots =
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
         public NhapTpReceivingService(
             IUnitOfWork uow,
             IStockTpRepository stockTpRepo,
@@ -115,13 +121,34 @@ namespace PCTP.Modules.NhapKho.Services
                 SlNhap = qr.Quantity
             };
 
+            bool reopenApproved = _reopenApprovedLots.Contains(lotNo);
+
             try
             {
                 _uow.Begin();
 
+                // Idempotency phải được kiểm tra lại trong transaction; pre-check ở UI
+                // chỉ là feedback sớm và không chống được race condition.
+                if (_phieuRepo.ExistsQrData(qr.RawQr))
+                {
+                    _uow.Rollback();
+                    _reopenApprovedLots.Remove(lotNo);
+                    return ScanResult.Trung("Tem này đã được nhập kho trước đó!");
+                }
+
+                // Nếu người dùng đã xác nhận MỞ LẠI LOT, mutation chỉ xảy ra tại đây.
+                // Vì vậy mọi lỗi phía sau đều rollback cả việc mở LOT.
+                if (reopenApproved && phieuLive != null && phieuLive.KetThucLot)
+                {
+                    if (_stockTpRepo.ExistsStockTp(lotNo))
+                    {
+                        _stockTpStatus.MoLaiLot(lotNo, phieuLive.Find);
+                        phieuLive.KetThucLot = false;
+                    }
+                }
+
                 // Nếu MES thay đổi SLSX làm LOT đang LOCK phải mở lại,
-                // mutation này phải nằm trong cùng transaction với Receive/History.
-                // Nếu bất kỳ bước nào phía sau lỗi thì cả việc mở lại LOT cũng rollback.
+                // mutation này cũng nằm trong cùng transaction với Receive/History.
                 if (phieuLive != null && matchedPhieu != null && !string.IsNullOrWhiteSpace(matchedPhieu.Find))
                 {
                     bool vuaMoLai = _stockTpStatus.DongBoSLSXVaMoLaiNeuThayDoi(
@@ -133,6 +160,7 @@ namespace PCTP.Modules.NhapKho.Services
                 if (_caseRepo.ExistsCaseHistory(caseNo))
                 {
                     _uow.Rollback();
+                    _reopenApprovedLots.Remove(lotNo);
                     return ScanResult.Trung("Case [" + caseNo + "] đã được nhập kho trước đó!");
                 }
 
@@ -198,6 +226,7 @@ namespace PCTP.Modules.NhapKho.Services
                     performedBy: null);
 
                 _uow.Commit();
+                _reopenApprovedLots.Remove(lotNo);
             }
             catch (Exception ex)
             {
@@ -213,7 +242,12 @@ namespace PCTP.Modules.NhapKho.Services
 
         public void MoLaiLot(string lot, string find = null)
         {
-            _stockTpStatus.MoLaiLot(lot, find);
+            if (string.IsNullOrWhiteSpace(lot))
+                throw new ArgumentException("LOT không được rỗng.", nameof(lot));
+
+            // Không UPDATE STOCKTP tại đây.
+            // Đây chỉ là approval từ UI; mutation thật nằm trong NhapTpVaoSlot().
+            _reopenApprovedLots.Add(lot.Trim());
         }
 
         public bool KiemTraKhopTonKho(string lotNo, out int slActive, out int slConLaiStockTp)
