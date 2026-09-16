@@ -33,6 +33,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             public IHangThieuCaNgayService HangThieuCaNgayService { get; set; }
             public IGioXuatRepository GioXuatRepo { get; set; }
             public IIFSRepository IfsRepo { get; set; }
+            public CustomerAddressService CustomerAddressService { get; set; }
             public IMachinePermissionService MachinePermissionService { get; set; }
             public IOrderCategoryResolver CategoryResolver { get; set; }
             public IEventBus Bus { get; set; }
@@ -79,6 +80,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
                 : cfg.Delivery.GetTmpViewTable(Environment.MachineName);
 
             var ifsRepo = IFSRepository.Create();
+            var customerAddressService = new CustomerAddressService(ifsRepo);
             var rowCategoryFilter = new DockCodeRowCategoryFilter();
             var categoryResolver = new GioMoTaCategoryResolver();
             var ifsStrategy = new IfsOrderLoadStrategy(ifsRepo, luuTruRepo, phieuTmpRepo);
@@ -110,6 +112,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
                 HangThieuCaNgayService = hangThieuCaNgaySvc,
                 GioXuatRepo = gioRepo,
                 IfsRepo = ifsRepo,
+                CustomerAddressService = customerAddressService,
                 MachinePermissionService = machinePermissionService,
                 CategoryResolver = categoryResolver,
                 Bus = bus,
