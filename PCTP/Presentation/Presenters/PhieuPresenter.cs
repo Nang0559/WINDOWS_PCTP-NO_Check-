@@ -179,11 +179,46 @@ namespace PCTP.Presentation.Presenters
             {
                 if (e != null && e.Errors != null && e.Errors.Rows.Count > 0)
                 {
+                    bool onlyFifo = true;
+                    foreach (DataRow row in e.Errors.Rows)
+                    {
+                        string status = row.Table.Columns.Contains("STATUS") ? row["STATUS"]?.ToString() ?? string.Empty : string.Empty;
+                        if (status.IndexOf("FIFO:", StringComparison.OrdinalIgnoreCase) < 0)
+                        {
+                            onlyFifo = false;
+                            break;
+                        }
+                    }
+
+                    if (onlyFifo)
+                    {
+                        _v.ShowWarning(BuildFifoWarning(e.Errors));
+                        _c.LoadPhieuHienTai();
+                        return;
+                    }
+
                     _v.ShowLoiCapNhapKho(e.Errors);
                     return;
                 }
                 _c.LoadPhieuHienTai();
             }, null);
+        }
+
+        private static string BuildFifoWarning(DataTable errors)
+        {
+            var lines = new List<string>();
+            foreach (DataRow row in errors.Rows)
+            {
+                string stt = row.Table.Columns.Contains("STT") ? row["STT"]?.ToString() ?? "" : "";
+                string mh = row.Table.Columns.Contains("MH") ? row["MH"]?.ToString() ?? "" : "";
+                string lot = row.Table.Columns.Contains("LOT") ? row["LOT"]?.ToString() ?? "" : "";
+                string status = row.Table.Columns.Contains("STATUS") ? row["STATUS"]?.ToString() ?? "" : "";
+                lines.Add(string.Format("STT: {0}\nMã hàng: {1}\nLOT đã chọn: {2}\n{3}", stt, mh, lot, status));
+            }
+
+            return "CẢNH BÁO FIFO – TỒN KHO ĐÃ THAY ĐỔI\n\n" +
+                   string.Join("\n\n--------------------\n\n", lines) +
+                   "\n\nCác dòng FIFO không hợp lệ đã được lấy lại LOT và không được đưa vào lần cập nhật kho này. Vui lòng quét/chọn lại LOT FIFO hiện tại.";
         }
         private void OnTinhTongCompleted(TinhTongCompletedEvent e)
         {
