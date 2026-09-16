@@ -93,7 +93,7 @@ namespace PCTP.Presentation.Presenters
         private void OnQRCodeSubmitted(object sender, string rawQr)
         {
             // Máy đọc QR có thể tiếp tục phát dữ liệu khi hộp cảnh báo đang mở.
-            // Tuyệt đối không xử lý/queue QR tiếp theo cho đến khi người thao tác
+            // Tuyệt đối không xử lý QR tiếp theo cho đến khi người thao tác
             // trực tiếp chọn Đồng ý hoặc Không.
             if (_awaitingSlMismatchConfirmation)
             {
@@ -110,6 +110,14 @@ namespace PCTP.Presentation.Presenters
             if (result.IsSlKhongKhop)
             {
                 _v.ClearQRInput();
+
+                var temInfo = _v.GetFocusedDocQRTemInfo();
+                if (temInfo.SlFcc <= 0)
+                {
+                    _v.ShowError("Không xác định được số lượng tem FCC để xác nhận chênh lệch. QR chưa được ghi nhận.");
+                    return;
+                }
+
                 _awaitingSlMismatchConfirmation = true;
                 _v.SetDocQrScanInputEnabled(false);
 
@@ -117,7 +125,7 @@ namespace PCTP.Presentation.Presenters
                 {
                     bool accepted = _v.Confirm(
                         $"Số lượng tem khách hàng không khớp số lượng tem FCC.\n\n" +
-                        $"Số lượng FCC: {result.Pending.SlTemFCC}\n" +
+                        $"Số lượng FCC: {temInfo.SlFcc}\n" +
                         $"Số lượng khách hàng: {result.Pending.SlTemHVN}\n\n" +
                         "Đồng ý để ghi nhận QR này và tiếp tục scan dòng tiếp theo?\n" +
                         "Lưu ý: số lượng nghiệp vụ luôn lấy theo tem FCC.");
