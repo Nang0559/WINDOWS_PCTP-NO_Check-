@@ -26,6 +26,8 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
         private bool _suspendDateChanged;
         private bool _suspendGioXuatChanged;
         private CustomerConfig _cfg;
+        private HashSet<string> _deliveredYmvnHours = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        private bool _ymvnChecklistLocked;
 
         public PhieuHeaderControl()
         {
@@ -33,18 +35,9 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
             Name = "phieuHeaderControl";
         }
 
-        public Control ContentControl
-        {
-            get { return _content; }
-        }
-
-        public bool IsLoaiSP
-        {
-            get { return _isLoaiSP; }
-        }
-
+        public Control ContentControl { get { return _content; } }
+        public bool IsLoaiSP { get { return _isLoaiSP; } }
         public GioXuat CurrentGioXuat { get; private set; }
-
         public event EventHandler LoaiPhieuChanged = delegate { };
         public event EventHandler DateChanged = delegate { };
         public event EventHandler GioXuatChanged = delegate { };
@@ -65,15 +58,10 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
         {
             get
             {
-                if (_cfg == null || _cfg.Delivery == null)
-                    return 1;
-
-                if (!_cfg.Delivery.CoNhieuNhaMay)
-                    return _cfg.Delivery.AddNmMacDinh;
-
+                if (_cfg == null || _cfg.Delivery == null) return 1;
+                if (!_cfg.Delivery.CoNhieuNhaMay) return _cfg.Delivery.AddNmMacDinh;
                 var tabPane = FindControl<TabPane>("tabPaneHVN");
                 var tabHn = FindControl<TabNavigationPage>("tabHN");
-
                 return tabPane != null && tabHn != null && tabPane.SelectedPage == tabHn ? 2 : 1;
             }
         }
@@ -83,74 +71,45 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
             var tabPane = FindControl<TabPane>("tabPaneHVN");
             var tabVp = FindControl<TabNavigationPage>("tabVP");
             var tabHn = FindControl<TabNavigationPage>("tabHN");
-
-            if (tabPane == null || tabVp == null || tabHn == null)
-                return;
-
-            if (addNM == 2)
-            {
-                tabPane.SelectedPage = tabHn;
-                tabVp.PageVisible = false;
-            }
-            else
-            {
-                tabPane.SelectedPage = tabVp;
-                tabHn.PageVisible = false;
-            }
+            if (tabPane == null || tabVp == null || tabHn == null) return;
+            if (addNM == 2) { tabPane.SelectedPage = tabHn; tabVp.PageVisible = false; }
+            else { tabPane.SelectedPage = tabVp; tabHn.PageVisible = false; }
         }
 
         public void BindGioXuatVP(IReadOnlyList<GioXuat> danhSach)
         {
             var radioGroup2 = FindControl<RadioGroup>("radioGroup2");
-            if (radioGroup2 == null)
-                return;
-
+            if (radioGroup2 == null) return;
             radioGroup2.Properties.Items.Clear();
             for (int i = 0; i < danhSach.Count; i++)
             {
                 var gio = danhSach[i];
-                var item = new RadioGroupItem(i, gio.MoTa, true, null, gio.Ma);
-                radioGroup2.Properties.Items.Add(item);
+                radioGroup2.Properties.Items.Add(new RadioGroupItem(i, gio.MoTa, true, null, gio.Ma));
             }
-
-            if (radioGroup2.Properties.Items.Count > 0)
-                radioGroup2.EditValue = 0;
+            if (radioGroup2.Properties.Items.Count > 0) radioGroup2.EditValue = 0;
         }
 
         public void BindGioXuatHN(IReadOnlyList<GioXuat> danhSach)
         {
             var RDO_GXHN = FindControl<RadioGroup>("RDO_GXHN");
-            if (RDO_GXHN == null)
-                return;
-
+            if (RDO_GXHN == null) return;
             RDO_GXHN.Properties.Items.Clear();
             for (int i = 0; i < danhSach.Count; i++)
             {
                 var gio = danhSach[i];
-                var item = new RadioGroupItem(i, gio.MoTa, true, null, gio.Ma);
-                RDO_GXHN.Properties.Items.Add(item);
+                RDO_GXHN.Properties.Items.Add(new RadioGroupItem(i, gio.MoTa, true, null, gio.Ma));
             }
-
-            if (RDO_GXHN.Properties.Items.Count > 0)
-                RDO_GXHN.EditValue = 0;
+            if (RDO_GXHN.Properties.Items.Count > 0) RDO_GXHN.EditValue = 0;
         }
 
         public void LockRadioExcept(string gioFCC)
         {
-            var gioSet = new HashSet<string>(
-                gioFCC.Split(',').Select(g => g.Trim().Trim('\'')),
-                StringComparer.OrdinalIgnoreCase);
-
+            var gioSet = new HashSet<string>(gioFCC.Split(',').Select(g => g.Trim().Trim('\'')), StringComparer.OrdinalIgnoreCase);
             var radioGroup2 = FindControl<RadioGroup>("radioGroup2");
             var RDO_GXHN = FindControl<RadioGroup>("RDO_GXHN");
-            if (radioGroup2 == null || RDO_GXHN == null)
-                return;
-
-            LockRadioGroup(radioGroup2.Properties.Items, gioSet,
-                i => radioGroup2.SelectedIndex = i);
-
-            LockRadioGroup(RDO_GXHN.Properties.Items, gioSet,
-                i => RDO_GXHN.SelectedIndex = i);
+            if (radioGroup2 == null || RDO_GXHN == null) return;
+            LockRadioGroup(radioGroup2.Properties.Items, gioSet, i => radioGroup2.SelectedIndex = i);
+            LockRadioGroup(RDO_GXHN.Properties.Items, gioSet, i => RDO_GXHN.SelectedIndex = i);
         }
 
         public void UnlockAllRadio()
@@ -159,176 +118,74 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
             var RDO_GXHN = FindControl<RadioGroup>("RDO_GXHN");
             var tabVP = FindControl<TabNavigationPage>("tabVP");
             var tabHN = FindControl<TabNavigationPage>("tabHN");
-
-            if (radioGroup2 == null || RDO_GXHN == null || tabVP == null || tabHN == null)
-                return;
-
-            foreach (RadioGroupItem item in radioGroup2.Properties.Items)
-                item.Enabled = true;
-
-            foreach (RadioGroupItem item in RDO_GXHN.Properties.Items)
-                item.Enabled = true;
-
+            if (radioGroup2 == null || RDO_GXHN == null || tabVP == null || tabHN == null) return;
+            foreach (RadioGroupItem item in radioGroup2.Properties.Items) item.Enabled = true;
+            foreach (RadioGroupItem item in RDO_GXHN.Properties.Items) item.Enabled = true;
             tabVP.PageVisible = true;
             tabHN.PageVisible = true;
         }
 
-        private void LockRadioGroup(RadioGroupItemCollection items,
-            HashSet<string> gioSet,
-            Action<int> setIndex)
+        private void LockRadioGroup(RadioGroupItemCollection items, HashSet<string> gioSet, Action<int> setIndex)
         {
             for (int i = 0; i < items.Count; i++)
             {
                 var item = (RadioGroupItem)items[i];
-                var itemSet = new HashSet<string>(
-                    (item.AccessibleName ?? "").Split(',')
-                        .Select(g => g.Trim().Trim('\'')),
-                    StringComparer.OrdinalIgnoreCase);
-
-                if (itemSet.SetEquals(gioSet))
-                {
-                    setIndex(i);
-                    item.Enabled = true;
-                }
-                else
-                {
-                    item.Enabled = false;
-                }
+                var itemSet = new HashSet<string>((item.AccessibleName ?? "").Split(',').Select(g => g.Trim().Trim('\'')), StringComparer.OrdinalIgnoreCase);
+                if (itemSet.SetEquals(gioSet)) { setIndex(i); item.Enabled = true; }
+                else item.Enabled = false;
             }
         }
 
         public bool UpdateGioXuatFromDB(string gioFCC)
         {
-            if (string.IsNullOrWhiteSpace(gioFCC))
-                return false;
-
-            var gioSet = new HashSet<string>(
-                gioFCC.Split(',').Select(g => g.Trim().Trim('\'')),
-                StringComparer.OrdinalIgnoreCase);
-
+            if (string.IsNullOrWhiteSpace(gioFCC)) return false;
+            var gioSet = new HashSet<string>(gioFCC.Split(',').Select(g => g.Trim().Trim('\'')), StringComparer.OrdinalIgnoreCase);
             var radioGroup2 = FindControl<RadioGroup>("radioGroup2");
             var rdoGxHn = FindControl<RadioGroup>("RDO_GXHN");
-            if (radioGroup2 == null || rdoGxHn == null)
-                return false;
-
-            if (TrySelectRadioFromDb(
-                radioGroup2.Properties.Items,
-                gioSet,
-                gioFCC,
-                i => radioGroup2.SelectedIndex = i))
-                return true;
-
-            return TrySelectRadioFromDb(
-                rdoGxHn.Properties.Items,
-                gioSet,
-                gioFCC,
-                i => rdoGxHn.SelectedIndex = i);
+            if (radioGroup2 == null || rdoGxHn == null) return false;
+            if (TrySelectRadioFromDb(radioGroup2.Properties.Items, gioSet, gioFCC, i => radioGroup2.SelectedIndex = i)) return true;
+            return TrySelectRadioFromDb(rdoGxHn.Properties.Items, gioSet, gioFCC, i => rdoGxHn.SelectedIndex = i);
         }
 
-        private bool TrySelectRadioFromDb(
-            RadioGroupItemCollection items,
-            HashSet<string> gioSet,
-            string gioFCC,
-            Action<int> setIndex)
+        private bool TrySelectRadioFromDb(RadioGroupItemCollection items, HashSet<string> gioSet, string gioFCC, Action<int> setIndex)
         {
             for (int i = 0; i < items.Count; i++)
             {
                 var item = (RadioGroupItem)items[i];
-                if (string.IsNullOrEmpty(item.AccessibleName))
-                    continue;
-
-                var itemSet = new HashSet<string>(
-                    item.AccessibleName.Split(',')
-                        .Select(g => g.Trim().Trim('\'')),
-                    StringComparer.OrdinalIgnoreCase);
-
-                if (!itemSet.SetEquals(gioSet))
-                    continue;
-
+                if (string.IsNullOrEmpty(item.AccessibleName)) continue;
+                var itemSet = new HashSet<string>(item.AccessibleName.Split(',').Select(g => g.Trim().Trim('\'')), StringComparer.OrdinalIgnoreCase);
+                if (!itemSet.SetEquals(gioSet)) continue;
                 _suspendGioXuatChanged = true;
-                try
-                {
-                    setIndex(i);
-                    CurrentGioXuat = new GioXuat(
-                        gioFCC,
-                        item.Description ?? gioFCC);
-                }
-                finally
-                {
-                    _suspendGioXuatChanged = false;
-                }
-
+                try { setIndex(i); CurrentGioXuat = new GioXuat(gioFCC, item.Description ?? gioFCC); }
+                finally { _suspendGioXuatChanged = false; }
                 GioXuatChanged.Invoke(this, EventArgs.Empty);
                 return true;
             }
-
             return false;
         }
 
-        public void LockDatePicker()
-        {
-            var control = FindControl<DateEdit>("dateNX");
-            if (control != null)
-                control.Enabled = false;
-        }
-
-        public void UnlockDatePicker()
-        {
-            var control = FindControl<DateEdit>("dateNX");
-            if (control != null)
-                control.Enabled = true;
-        }
-
-        public void SetDate(DateTime date)
-        {
-            var control = FindControl<DateEdit>("dateNX");
-            if (control == null)
-                return;
-
-            _suspendDateChanged = true;
-            try { control.DateTime = date; }
-            finally { _suspendDateChanged = false; }
-        }
-
-        public void SuspendGioXuatChanged()
-        {
-            _suspendGioXuatChanged = true;
-        }
-
-        public void ResumeGioXuatChanged()
-        {
-            _suspendGioXuatChanged = false;
-        }
+        public void LockDatePicker() { var control = FindControl<DateEdit>("dateNX"); if (control != null) control.Enabled = false; }
+        public void UnlockDatePicker() { var control = FindControl<DateEdit>("dateNX"); if (control != null) control.Enabled = true; }
+        public void SetDate(DateTime date) { var control = FindControl<DateEdit>("dateNX"); if (control == null) return; _suspendDateChanged = true; try { control.DateTime = date; } finally { _suspendDateChanged = false; } }
+        public void SuspendGioXuatChanged() { _suspendGioXuatChanged = true; }
+        public void ResumeGioXuatChanged() { _suspendGioXuatChanged = false; }
 
         public void Adopt(Control content)
         {
-            if (content == null || ReferenceEquals(_content, content))
-                return;
-
-            if (_content != null)
-                UnwireHeaderEvents();
-
-            if (_content != null)
-                Controls.Remove(_content);
-
+            if (content == null || ReferenceEquals(_content, content)) return;
+            if (_content != null) UnwireHeaderEvents();
+            if (_content != null) Controls.Remove(_content);
             _content = content;
             Controls.Add(_content);
             _content.Dock = DockStyle.Fill;
             _content.Margin = new Padding(0);
-
             WireHeaderEvents();
         }
 
-        /// <summary>
-        /// New boundary API. The header owns discovery of its adopted controls.
-        /// </summary>
         public void ConfigureCustomer(CustomerConfig cfg)
         {
-            if (cfg == null || cfg.Delivery == null || _content == null)
-                return;
-
+            if (cfg == null || cfg.Delivery == null || _content == null) return;
             _cfg = cfg;
-
             var tabPaneControl = FindControl<TabPane>("tabPaneHVN");
             var tabVpPage = FindControl<TabNavigationPage>("tabVP");
             var tabHnPage = FindControl<TabNavigationPage>("tabHN");
@@ -336,99 +193,36 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
             var radioHn = FindControl<RadioGroup>("RDO_GXHN");
             var checkList = FindControl<CheckedListBoxControl>("CheckGX");
             var btnUploadMilkrun = FindControl<SimpleButton>("btnUploadMilkrun");
-
-            if (tabPaneControl == null || tabVpPage == null || tabHnPage == null ||
-                radioVp == null || radioHn == null || checkList == null ||
-                btnUploadMilkrun == null)
-                return;
-
+            if (tabPaneControl == null || tabVpPage == null || tabHnPage == null || radioVp == null || radioHn == null || checkList == null || btnUploadMilkrun == null) return;
             if (cfg.Delivery.CoNhieuNhaMay)
             {
-                tabVpPage.PageVisible = true;
-                tabHnPage.PageVisible = true;
-                tabPaneControl.Visible = true;
-                radioVp.Visible = true;
-                radioHn.Visible = true;
-                checkList.Visible = false;
-                btnUploadMilkrun.Visible = false;
-                HideLoaiPhieuToggle();
+                tabVpPage.PageVisible = true; tabHnPage.PageVisible = true; tabPaneControl.Visible = true; radioVp.Visible = true; radioHn.Visible = true; checkList.Visible = false; btnUploadMilkrun.Visible = false; HideLoaiPhieuToggle();
             }
             else if (cfg.Delivery.CoGear)
             {
-                tabPaneControl.Visible = false;
-                tabVpPage.PageVisible = false;
-                tabHnPage.PageVisible = false;
-                radioVp.Visible = false;
-                radioHn.Visible = false;
-                checkList.Visible = true;
-                checkList.BringToFront();
-                btnUploadMilkrun.Visible = true;
-                ShowLoaiPhieuToggle(btnUploadMilkrun);
+                tabPaneControl.Visible = false; tabVpPage.PageVisible = false; tabHnPage.PageVisible = false; radioVp.Visible = false; radioHn.Visible = false; checkList.Visible = true; checkList.BringToFront(); btnUploadMilkrun.Visible = true; ShowLoaiPhieuToggle(btnUploadMilkrun);
             }
             else if (cfg.Delivery.LoadTheoNgay)
             {
-                tabPaneControl.Visible = false;
-                tabVpPage.PageVisible = false;
-                tabHnPage.PageVisible = false;
-                radioVp.Visible = false;
-                radioHn.Visible = false;
-                checkList.Visible = false;
-                btnUploadMilkrun.Text = "Upload PO HTN";
-                btnUploadMilkrun.Visible = true;
-                HideLoaiPhieuToggle();
+                tabPaneControl.Visible = false; tabVpPage.PageVisible = false; tabHnPage.PageVisible = false; radioVp.Visible = false; radioHn.Visible = false; checkList.Visible = false; btnUploadMilkrun.Text = "Upload PO HTN"; btnUploadMilkrun.Visible = true; HideLoaiPhieuToggle();
             }
             else
             {
-                tabVpPage.PageVisible = true;
-                tabHnPage.PageVisible = false;
-                tabPaneControl.TabAlignment = Alignment.Far;
-                tabPaneControl.Visible = true;
-                radioVp.Visible = true;
-                radioHn.Visible = false;
-                checkList.Visible = false;
-                btnUploadMilkrun.Visible = false;
-                HideLoaiPhieuToggle();
+                tabVpPage.PageVisible = true; tabHnPage.PageVisible = false; tabPaneControl.TabAlignment = Alignment.Far; tabPaneControl.Visible = true; radioVp.Visible = true; radioHn.Visible = false; checkList.Visible = false; btnUploadMilkrun.Visible = false; HideLoaiPhieuToggle();
             }
         }
 
-        /// <summary>
-        /// Compatibility overload for HVN_PGH during the incremental migration.
-        /// The legacy parameters are intentionally ignored because this control
-        /// now resolves the adopted header controls itself.
-        /// </summary>
-        public void ConfigureCustomer(
-            CustomerConfig cfg,
-            Control tabPane,
-            Control tabVP,
-            Control tabHN,
-            Control radioGroup2,
-            Control rdoGxHn,
-            Control checkGx,
-            Button btnUploadMilkrun)
-        {
-            ConfigureCustomer(cfg);
-        }
+        public void ConfigureCustomer(CustomerConfig cfg, Control tabPane, Control tabVP, Control tabHN, Control radioGroup2, Control rdoGxHn, Control checkGx, Button btnUploadMilkrun) { ConfigureCustomer(cfg); }
 
         public void BindGioXuatCheckList(List<string> danhSachGio)
         {
             var checkList = FindControl<CheckedListBoxControl>("CheckGX");
-            if (checkList == null)
-                return;
-
-            if (checkList.InvokeRequired)
-            {
-                checkList.Invoke(new Action(() => BindGioXuatCheckList(danhSachGio)));
-                return;
-            }
-
+            if (checkList == null) return;
+            if (checkList.InvokeRequired) { checkList.Invoke(new Action(() => BindGioXuatCheckList(danhSachGio))); return; }
             UnwireCheckGxEvent();
             checkList.Items.Clear();
-            if (danhSachGio != null)
-            {
-                foreach (var gio in danhSachGio)
-                    checkList.Items.Add(gio, true);
-            }
-
+            if (danhSachGio != null) foreach (var gio in danhSachGio) checkList.Items.Add(gio, true);
+            _deliveredYmvnHours.Clear();
             WireCheckGxEvent();
         }
 
@@ -436,47 +230,56 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
         {
             var result = new List<string>();
             var checkList = FindControl<CheckedListBoxControl>("CheckGX");
-            if (checkList == null)
-                return result;
-
-            foreach (object item in checkList.CheckedItems)
-                result.Add(item.ToString());
-
+            if (checkList == null) return result;
+            foreach (object item in checkList.CheckedItems) result.Add(item.ToString());
             return result;
         }
 
         public void SetCheckedGiosYMVN(List<string> checkedGios)
         {
             var checkList = FindControl<CheckedListBoxControl>("CheckGX");
-            if (checkList == null)
-                return;
-
-            var selected = new HashSet<string>(
-                checkedGios ?? new List<string>(),
-                StringComparer.OrdinalIgnoreCase);
-
+            if (checkList == null) return;
+            var selected = new HashSet<string>(checkedGios ?? new List<string>(), StringComparer.OrdinalIgnoreCase);
+            _deliveredYmvnHours = selected;
             UnwireCheckGxEvent();
             try
             {
                 for (int i = 0; i < checkList.Items.Count; i++)
                 {
-                    object item = checkList.Items[i];
-                    bool isChecked = selected.Contains(item == null ? string.Empty : item.ToString());
-                    checkList.SetItemChecked(i, isChecked);
+                    string gio = checkList.Items[i] == null ? string.Empty : checkList.Items[i].ToString();
+                    bool delivered = selected.Contains(gio);
+                    checkList.SetItemChecked(i, delivered);
+                    SetCheckListItemEnabled(checkList, i, !delivered && !_ymvnChecklistLocked);
                 }
             }
-            finally
+            finally { WireCheckGxEvent(); }
+        }
+
+        public void MarkYmvnHoursDelivered(List<string> deliveredHours)
+        {
+            var checkList = FindControl<CheckedListBoxControl>("CheckGX");
+            if (checkList == null) return;
+            var delivered = new HashSet<string>(deliveredHours ?? new List<string>(), StringComparer.OrdinalIgnoreCase);
+            _deliveredYmvnHours = delivered;
+            UnwireCheckGxEvent();
+            try
             {
-                WireCheckGxEvent();
+                for (int i = 0; i < checkList.Items.Count; i++)
+                {
+                    string gio = checkList.Items[i] == null ? string.Empty : checkList.Items[i].ToString();
+                    bool isDelivered = delivered.Contains(gio);
+                    checkList.SetItemChecked(i, isDelivered);
+                    SetCheckListItemEnabled(checkList, i, !isDelivered && !_ymvnChecklistLocked);
+                }
             }
+            finally { WireCheckGxEvent(); }
         }
 
         public void LockCheckListYMVN()
         {
             var checkList = FindControl<CheckedListBoxControl>("CheckGX");
-            if (checkList == null)
-                return;
-
+            if (checkList == null) return;
+            _ymvnChecklistLocked = true;
             UnwireCheckGxEvent();
             checkList.Enabled = false;
         }
@@ -484,240 +287,42 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
         public void UnlockCheckListYMVN()
         {
             var checkList = FindControl<CheckedListBoxControl>("CheckGX");
-            if (checkList == null)
-                return;
-
+            if (checkList == null) return;
+            _ymvnChecklistLocked = false;
             checkList.Enabled = true;
-            WireCheckGxEvent();
-        }
-
-        private void WireHeaderEvents()
-        {
-            if (_eventsWired || _content == null)
-                return;
-
-            var date = FindControl<DateEdit>("dateNX");
-            var tabPane = FindControl<TabPane>("tabPaneHVN");
-            var radioVp = FindControl<RadioGroup>("radioGroup2");
-            var radioHn = FindControl<RadioGroup>("RDO_GXHN");
-
-            if (date != null)
-                date.EditValueChanged += HeaderDateChanged;
-            if (tabPane != null)
-                tabPane.Click += HeaderTabChanged;
-            if (radioVp != null)
-                radioVp.SelectedIndexChanged += HeaderGioXuatChanged;
-            if (radioHn != null)
-                radioHn.SelectedIndexChanged += HeaderGioXuatChanged;
-
-            WireCheckGxEvent();
-
-            _eventsWired = true;
-        }
-
-        private void UnwireHeaderEvents()
-        {
-            if (!_eventsWired || _content == null)
-                return;
-
-            var date = FindControl<DateEdit>("dateNX");
-            var tabPane = FindControl<TabPane>("tabPaneHVN");
-            var radioVp = FindControl<RadioGroup>("radioGroup2");
-            var radioHn = FindControl<RadioGroup>("RDO_GXHN");
-
-            if (date != null)
-                date.EditValueChanged -= HeaderDateChanged;
-            if (tabPane != null)
-                tabPane.Click -= HeaderTabChanged;
-            if (radioVp != null)
-                radioVp.SelectedIndexChanged -= HeaderGioXuatChanged;
-            if (radioHn != null)
-                radioHn.SelectedIndexChanged -= HeaderGioXuatChanged;
-
             UnwireCheckGxEvent();
-
-            _eventsWired = false;
-        }
-
-        private void WireCheckGxEvent()
-        {
-            if (_checkGxEventWired)
-                return;
-
-            var checkList = FindControl<CheckedListBoxControl>("CheckGX");
-            if (checkList == null)
-                return;
-
-            checkList.ItemCheck += HeaderCheckGxItemCheck;
-            _checkGxEventWired = true;
-        }
-
-        private void UnwireCheckGxEvent()
-        {
-            if (!_checkGxEventWired)
-                return;
-
-            var checkList = FindControl<CheckedListBoxControl>("CheckGX");
-            if (checkList != null)
-                checkList.ItemCheck -= HeaderCheckGxItemCheck;
-
-            _checkGxEventWired = false;
-        }
-
-        private void HeaderCheckGxItemCheck(object sender, DevExpress.XtraEditors.Controls.ItemCheckEventArgs e)
-        {
-            var checkList = sender as CheckedListBoxControl;
-            if (checkList != null && checkList.IsHandleCreated)
+            try
             {
-                try
+                for (int i = 0; i < checkList.Items.Count; i++)
                 {
-                    checkList.BeginInvoke(new Action(() =>
-                        GioXuatCheckedChanged.Invoke(this, EventArgs.Empty)));
-                }
-                catch (InvalidOperationException)
-                {
-                    GioXuatCheckedChanged.Invoke(this, EventArgs.Empty);
+                    string gio = checkList.Items[i] == null ? string.Empty : checkList.Items[i].ToString();
+                    bool delivered = _deliveredYmvnHours.Contains(gio);
+                    checkList.SetItemChecked(i, delivered);
+                    SetCheckListItemEnabled(checkList, i, !delivered);
                 }
             }
-            else
-            {
-                GioXuatCheckedChanged.Invoke(this, EventArgs.Empty);
-            }
-
-            CheckGX_ItemCheck.Invoke(this, EventArgs.Empty);
+            finally { WireCheckGxEvent(); }
         }
 
-        private void HeaderDateChanged(object sender, EventArgs e)
+        private static void SetCheckListItemEnabled(CheckedListBoxControl checkList, int index, bool enabled)
         {
-            if (_suspendDateChanged)
-                return;
-
-            DateChanged.Invoke(this, EventArgs.Empty);
+            if (checkList == null || index < 0 || index >= checkList.Items.Count) return;
+            checkList.SetItemEnabled(index, enabled);
         }
 
-        private void HeaderGioXuatChanged(object sender, EventArgs e)
-        {
-            if (_suspendGioXuatChanged)
-                return;
+        private void WireHeaderEvents() { if (_eventsWired || _content == null) return; var date = FindControl<DateEdit>("dateNX"); var tabPane = FindControl<TabPane>("tabPaneHVN"); if (date != null) date.DateTimeChanged += Date_DateTimeChanged; if (tabPane != null) tabPane.SelectedPageChanged += TabPane_SelectedPageChanged; _eventsWired = true; WireCheckGxEvent(); }
+        private void UnwireHeaderEvents() { var date = FindControl<DateEdit>("dateNX"); var tabPane = FindControl<TabPane>("tabPaneHVN"); if (date != null) date.DateTimeChanged -= Date_DateTimeChanged; if (tabPane != null) tabPane.SelectedPageChanged -= TabPane_SelectedPageChanged; _eventsWired = false; UnwireCheckGxEvent(); }
+        private void WireCheckGxEvent() { if (_checkGxEventWired) return; var checkList = FindControl<CheckedListBoxControl>("CheckGX"); if (checkList == null) return; checkList.ItemCheck += CheckList_ItemCheck; _checkGxEventWired = true; }
+        private void UnwireCheckGxEvent() { if (!_checkGxEventWired) return; var checkList = FindControl<CheckedListBoxControl>("CheckGX"); if (checkList != null) checkList.ItemCheck -= CheckList_ItemCheck; _checkGxEventWired = false; }
+        private void CheckList_ItemCheck(object sender, DevExpress.XtraEditors.Controls.ItemCheckEventArgs e) { if (_ymvnChecklistLocked) return; GioXuatCheckedChanged.Invoke(this, EventArgs.Empty); CheckGX_ItemCheck.Invoke(this, EventArgs.Empty); }
+        private void Date_DateTimeChanged(object sender, EventArgs e) { if (!_suspendDateChanged) DateChanged.Invoke(this, EventArgs.Empty); }
+        private void TabPane_SelectedPageChanged(object sender, SelectedPageChangedEventArgs e) { TabChanged.Invoke(this, EventArgs.Empty); }
+        private void HideLoaiPhieuToggle() { if (_btnToggleLoaiPhieu != null) _btnToggleLoaiPhieu.Visible = false; }
+        private void ShowLoaiPhieuToggle(SimpleButton anchor) { if (_btnToggleLoaiPhieu == null) { _btnToggleLoaiPhieu = new Button { AutoSize = true, Text = "SP", FlatStyle = FlatStyle.System, Name = "btnLoaiPhieuToggle" }; _btnToggleLoaiPhieu.Click += BtnToggleLoaiPhieu_Click; if (anchor != null && anchor.Parent != null) anchor.Parent.Controls.Add(_btnToggleLoaiPhieu); } _btnToggleLoaiPhieu.Visible = true; _btnToggleLoaiPhieu.BringToFront(); }
+        private void ToggleLoaiPhieu() { _isLoaiSP = !_isLoaiSP; LoaiPhieuChanged.Invoke(this, EventArgs.Empty); }
+        private void BtnToggleLoaiPhieu_Click(object sender, EventArgs e) { ToggleLoaiPhieu(); }
 
-            if (!TryUpdateCurrentGioXuat())
-                return;
-
-            GioXuatChanged.Invoke(this, EventArgs.Empty);
-        }
-
-        private void HeaderTabChanged(object sender, EventArgs e)
-        {
-            TabChanged.Invoke(this, EventArgs.Empty);
-        }
-
-        private bool TryUpdateCurrentGioXuat()
-        {
-            if (_cfg == null || _cfg.Delivery == null)
-                return false;
-
-            if (!_cfg.Delivery.CoNhieuNhaMay)
-                return TryReadGioXuat(FindControl<RadioGroup>("radioGroup2"));
-
-            var tabPane = FindControl<TabPane>("tabPaneHVN");
-            var tabHn = FindControl<TabNavigationPage>("tabHN");
-
-            return tabPane != null && tabHn != null && tabPane.SelectedPage == tabHn
-                ? TryReadGioXuat(FindControl<RadioGroup>("RDO_GXHN"))
-                : TryReadGioXuat(FindControl<RadioGroup>("radioGroup2"));
-        }
-
-        private bool TryReadGioXuat(RadioGroup radio)
-        {
-            if (radio == null)
-                return false;
-
-            int idx = radio.SelectedIndex;
-            if (idx < 0 || idx >= radio.Properties.Items.Count)
-                return false;
-
-            var item = radio.Properties.Items[idx] as RadioGroupItem;
-            if (item == null)
-                return false;
-
-            string ma = item.AccessibleName ?? "'06'";
-            string moTa = item.Description ?? "(6H)";
-            CurrentGioXuat = new GioXuat(ma, moTa);
-            return true;
-        }
-
-        private T FindControl<T>(string name) where T : Control
-        {
-            if (_content == null)
-                return null;
-
-            return FindControlRecursive<T>(_content, name);
-        }
-
-        private static T FindControlRecursive<T>(Control parent, string name) where T : Control
-        {
-            if (parent == null)
-                return null;
-
-            foreach (Control child in parent.Controls)
-            {
-                if (child.Name == name)
-                    return child as T;
-
-                T nested = FindControlRecursive<T>(child, name);
-                if (nested != null)
-                    return nested;
-            }
-
-            return null;
-        }
-
-        private void ShowLoaiPhieuToggle(SimpleButton btnUploadMilkrun)
-        {
-            if (_btnToggleLoaiPhieu == null)
-            {
-                _btnToggleLoaiPhieu = new Button
-                {
-                    Text = "Xem: MP",
-                    Width = 100,
-                    Height = btnUploadMilkrun.Height,
-                    Location = new Point(btnUploadMilkrun.Right + 8, btnUploadMilkrun.Top),
-                    BackColor = Color.SteelBlue,
-                    ForeColor = Color.White,
-                    FlatStyle = FlatStyle.Flat,
-                    Font = new Font("Arial", 9, FontStyle.Bold)
-                };
-                _btnToggleLoaiPhieu.Click += BtnToggleLoaiPhieu_Click;
-                btnUploadMilkrun.Parent.Controls.Add(_btnToggleLoaiPhieu);
-            }
-
-            _btnToggleLoaiPhieu.Visible = true;
-        }
-
-        private void HideLoaiPhieuToggle()
-        {
-            if (_btnToggleLoaiPhieu != null)
-                _btnToggleLoaiPhieu.Visible = false;
-        }
-
-        public void ToggleLoaiPhieu()
-        {
-            _isLoaiSP = !_isLoaiSP;
-
-            // _btnToggleLoaiPhieu chỉ tồn tại khi ShowLoaiPhieuToggle() đã được gọi
-            // (nhánh CoGear trong ConfigureCustomer) — customer khác gọi ToggleLoaiPhieu()
-            // từ action bar sẽ không có nút vật lý này, nên phải check null.
-            if (_btnToggleLoaiPhieu != null)
-            {
-                _btnToggleLoaiPhieu.Text = _isLoaiSP ? "Xem: SP" : "Xem: MP";
-                _btnToggleLoaiPhieu.BackColor = _isLoaiSP
-                    ? Color.OrangeRed
-                    : Color.SteelBlue;
-            }
-
-            LoaiPhieuChanged.Invoke(this, EventArgs.Empty);
-        }
-
-        private void BtnToggleLoaiPhieu_Click(object sender, EventArgs e) => ToggleLoaiPhieu();
+        private T FindControl<T>(string name) where T : Control { return FindControlRecursive<T>(_content, name); }
+        private static T FindControlRecursive<T>(Control root, string name) where T : Control { if (root == null) return null; foreach (Control child in root.Controls) { if (child.Name == name && child is T) return (T)child; var nested = FindControlRecursive<T>(child, name); if (nested != null) return nested; } return null; }
     }
 }
