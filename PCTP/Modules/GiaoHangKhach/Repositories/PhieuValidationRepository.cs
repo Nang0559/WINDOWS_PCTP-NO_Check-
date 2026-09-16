@@ -17,28 +17,24 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         public PhieuValidationRepository(PhieuSqlExecutor db, IUnitOfWork uow) : base(db, uow) { }
 
         // ============================================================
-        // FIFO - FVN_ItemFifoConfig is the single source of truth.
+        // FIFO - STOCKTP is the authoritative stock source.
         //
         // IMPORTANT ARCHITECTURE RULE:
-        // - This method is the ONLY FIFO business-rule gate before stock update.
-        // - EnforceFifo = 0 -> this item is not blocked by FIFO.
-        // - EnforceFifo = 1 -> the selected LOT KEY must be the current FIFO LOT KEY.
-        // - If this method returns violations, the caller MUST NOT call any stock SP.
-        // - Usp_Qrcode_Update_Stock2405 / Usp_Qrcode_Update_Stock_SP must NOT duplicate
-        //   FIFO business logic; they only process stock that has already passed this gate.
-        //
-        // FIFO calculation rules:
-        // - LOT KEY = LEFT(LOT, 13).
-        // - Only SlotLot.Quantity > 0 is considered available stock.
-        // - Multiple SlotLot rows with the same ItemCode + LOT KEY are aggregated first.
-        // - FIFO order = YYMMDD -> ShiftCode -> LOT KEY.
+        // - FVN_ItemFifoConfig is the single source of FIFO policy.
+        // - EnforceFifo = 0 -> do not block by FIFO.
+        // - EnforceFifo = 1 -> selected LOT KEY must be the oldest available
+        //   LOT KEY in STOCKTP for that item.
+        // - LOT identity for FIFO is LEFT(LOT, 13). Characters after 13 are
+        //   physical/suffix information and must not change FIFO identity.
+        // - Only STOCKTP.SLCONLAI > 0 is eligible for FIFO ordering.
+        // - SlotLot is NOT used to decide FIFO. SlotLot represents physical
+        //   Rack/Slot placement; one STOCKTP LOT may exist in many slots.
+        // - A FIFO violation is a hard gate: callers must not call stock SPs.
         // ============================================================
         public List<FifoViolation> CheckFifoViolations(string tmpTable)
         {
             Db.ValidateTableName(tmpTable);
 
-            // FIFO is optional by deployment/database version.
-            // If the authoritative config table is not installed, do not block legacy stock flow.
             if (!FvnItemFifoConfigTableExists())
             {
                 System.Diagnostics.Debug.WriteLine(
@@ -49,36 +45,24 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             const int keyLen = PCTP.Common.LotCodeHelper.LEN_LEGACY_KEY;
 
             string sql = $@"
-                ;WITH SlotLotKey AS
+                ;WITH StockLotKey AS
                 (
                     SELECT
-                        sl.ItemCode,
-                        LEFT(sl.LotNo, {keyLen}) AS LotKey,
-                        sl.SlotId,
-                        sl.Quantity
-                    FROM SlotLot sl
-                    WHERE sl.PhieuStatus = 0
-                      AND sl.Quantity > 0
-                      AND LEN(ISNULL(sl.LotNo, '')) >= {keyLen}
-                ),
-                LotKeyTon AS
-                (
-                    -- IMPORTANT: aggregate all physical SlotLot rows sharing one LOT KEY
-                    -- before calculating FIFO. FIFO is decided at LOT KEY level, not SlotId level.
-                    SELECT
-                        ItemCode,
-                        LotKey,
-                        SUM(Quantity) AS TongTon,
-                        MIN(SlotId) AS SlotIdDaiDien
-                    FROM SlotLotKey
-                    GROUP BY ItemCode, LotKey
+                        s.PART AS ItemCode,
+                        LEFT(s.LOT, {keyLen}) AS LotKey,
+                        SUM(ISNULL(s.SLCONLAI, 0)) AS TongTon
+                    FROM STOCKTP s
+                    WHERE ISNULL(s.SLCONLAI, 0) > 0
+                      AND LEN(ISNULL(s.LOT, '')) >= {keyLen}
+                    GROUP BY
+                        s.PART,
+                        LEFT(s.LOT, {keyLen})
                 ),
                 LotDungFifo AS
                 (
                     SELECT
                         ItemCode,
                         LotKey,
-                        SlotIdDaiDien,
                         ROW_NUMBER() OVER
                         (
                             PARTITION BY ItemCode
@@ -93,14 +77,14 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                                 END ASC,
                                 LotKey ASC
                         ) AS Rn
-                    FROM LotKeyTon
+                    FROM StockLotKey
                     WHERE TongTon > 0
                 )
-                SELECT
+                SELECT DISTINCT
                     tmp.MAHANG AS MaHang,
                     tmp.LOT AS LotDaChon,
                     fifo.LotKey AS LotDungRaPhaiChon,
-                    fifo.SlotIdDaiDien AS SlotIdDungRaPhaiChon
+                    0 AS SlotIdDungRaPhaiChon
                 FROM [{tmpTable}] tmp
                 INNER JOIN FVN_ItemFifoConfig cfg
                     ON cfg.ItemCode = tmp.MAHANG
@@ -111,8 +95,6 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                 WHERE ISNULL(tmp.STATUS, '') <> 'NG'
                   AND LEFT(ISNULL(tmp.LOT, ''), {keyLen}) <> fifo.LotKey;";
 
-            // NOTE: This query only validates the business rule.
-            // It does NOT change STOCKTP/SlotLot and does NOT call the stock SP.
             DataTable dt = LoadData(sql);
             var result = new List<FifoViolation>();
 
@@ -123,7 +105,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                     MaHang = row["MaHang"]?.ToString(),
                     LotDaChon = row["LotDaChon"]?.ToString(),
                     LotDungRaPhaiChon = row["LotDungRaPhaiChon"]?.ToString(),
-                    SlotIdDungRaPhaiChon = Convert.ToInt32(row["SlotIdDungRaPhaiChon"])
+                    SlotIdDungRaPhaiChon = 0
                 });
             }
 
