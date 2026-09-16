@@ -3,6 +3,7 @@ using PCTP.Domain.Events;
 using PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao;
 using PCTP.Shared.Models;
 using System;
+using System.Collections.Generic;
 using System.Data;
 
 namespace PCTP.Modules.GiaoHangKhach.Services
@@ -30,13 +31,17 @@ namespace PCTP.Modules.GiaoHangKhach.Services
 
             int soLot = 0;
             DataTable errors = new DataTable();
+            var releasedFifoWarnings = new List<FifoViolation>();
 
-            // DB is the authoritative final gate. If STOCKTP changed between
-            // the first re-check and the repository's final re-check, release
-            // the newly invalid rows and retry once with the remaining valid QR.
+            // DB is the authoritative final gate. Before each stock update attempt,
+            // release QR rows that no longer satisfy the actual STOCKTP FIFO state.
+            // Their LOT becomes empty, so Usp_Qrcode_Update_Stock2405 cannot process
+            // those rows. Valid rows remain eligible for the same stock update.
             for (int attempt = 0; attempt < 2; attempt++)
             {
-                _phieuRepo.ReleaseFifoViolations(tmpTable, docQrTable);
+                List<FifoViolation> released = _phieuRepo.ReleaseFifoViolations(tmpTable, docQrTable);
+                if (released != null && released.Count > 0)
+                    releasedFifoWarnings.AddRange(released);
 
                 if (_cfg.Delivery.LoadTuBangRieng && !_cfg.Delivery.CoGear)
                 {
@@ -60,6 +65,9 @@ namespace PCTP.Modules.GiaoHangKhach.Services
                     break;
             }
 
+            if (releasedFifoWarnings.Count > 0)
+                errors = MergeErrors(releasedFifoWarnings.ToErrorTable(), errors);
+
             _bus.Publish(new KhoUpdatedEvent(soLot, errors));
         }
 
@@ -76,6 +84,31 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             }
 
             return false;
+        }
+
+        private static DataTable MergeErrors(DataTable fifoWarnings, DataTable errors)
+        {
+            if (fifoWarnings == null || fifoWarnings.Rows.Count == 0)
+                return errors ?? new DataTable();
+            if (errors == null || errors.Rows.Count == 0)
+                return fifoWarnings;
+
+            foreach (DataColumn column in fifoWarnings.Columns)
+                if (!errors.Columns.Contains(column.ColumnName))
+                    errors.Columns.Add(column.ColumnName, column.DataType);
+
+            foreach (DataRow source in fifoWarnings.Rows)
+            {
+                DataRow target = errors.NewRow();
+                foreach (DataColumn column in errors.Columns)
+                {
+                    if (source.Table.Columns.Contains(column.ColumnName))
+                        target[column.ColumnName] = source[column.ColumnName];
+                }
+                errors.Rows.Add(target);
+            }
+
+            return errors;
         }
     }
 }
