@@ -1,4 +1,5 @@
 using DevExpress.XtraEditors;
+using PCTP.Shell.UI;
 using System;
 using System.Drawing;
 using System.Windows.Forms;
@@ -9,7 +10,7 @@ namespace PCTP.Modules.BaoCao.UI
     /// Entry point for read-only reports and traceability queries.
     /// Business transactions remain in their owning modules.
     /// </summary>
-    public sealed class FormBaoCaoMain : XtraForm
+    public sealed class FormBaoCaoMain : WmsTitleBarForm
     {
         public FormBaoCaoMain()
         {
