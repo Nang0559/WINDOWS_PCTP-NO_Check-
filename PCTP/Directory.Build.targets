@@ -72,6 +72,7 @@
     <Compile Include="Modules\BaoCao\UI\FormBaoCaoStockHistory.cs" />
     <Compile Include="Modules\BaoCao\UI\FormBaoCaoQualityHistory.cs" />
 
+    <Compile Include="Shell\UI\WmsTitleBarForm.cs" />
     <Compile Include="Shell\Composition\MainAppDashboardFactory.cs" />
     <Compile Include="Shell\Services\QrMachineSwitchService.cs" />
     <Compile Include="Shell\Help\WmsHelpTopic.cs" />
