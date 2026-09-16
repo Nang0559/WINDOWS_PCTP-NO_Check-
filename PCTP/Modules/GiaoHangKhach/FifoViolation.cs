@@ -14,13 +14,12 @@ namespace PCTP.Modules.GiaoHangKhach
         public string LotDungRaPhaiChon { get; set; }
         public int SlotIdDungRaPhaiChon { get; set; }
     }
+
     public static class FifoViolationExtensions
     {
         /// <summary>
-        /// Build DataTable "errors" đúng shape cột (MH, LOT, SLC, SLTK, SLT, STATUS) mà
-        /// SP Usp_Qrcode_Update_Stock2405 trả về — để CapNhapKho có thể trả violation FIFO
-        /// ra ngoài qua CÙNG 1 kênh "out DataTable errors" mà UI đang xử lý sẵn, mà không
-        /// cần đụng vào STOCKTP/Slot (chặn TRƯỚC khi gọi SP — xem WORKFLOW_GIAOHANGKHACH.md).
+        /// Chuyển lỗi FIFO về đúng shape DataTable mà flow cập nhật kho hiện tại
+        /// đang dùng. Đây là hard-stop: repository trả lỗi trước khi gọi SP trừ kho.
         /// </summary>
         public static DataTable ToErrorTable(this List<FifoViolation> violations)
         {
@@ -34,13 +33,8 @@ namespace PCTP.Modules.GiaoHangKhach
 
             foreach (var v in violations ?? new List<FifoViolation>())
             {
-                dt.Rows.Add(
-                    v.MaHang,
-                    v.LotDaChon,
-                    0,
-                    0,
-                    0,
-                    $"FIFO: phải xuất LOT {v.LotDungRaPhaiChon} (Slot {v.SlotIdDungRaPhaiChon}) trước — không phải {v.LotDaChon}");
+                string message = $"FIFO: mã hàng {v.MaHang} phải xuất LOT {v.LotDungRaPhaiChon} trước. LOT đang chọn: {v.LotDaChon}.";
+                dt.Rows.Add(v.MaHang, v.LotDaChon, 0, 0, 0, message);
             }
 
             return dt;
