@@ -12,6 +12,7 @@ using PCTP.Modules.XuLyHangLoi.Application.Adapters;
 using PCTP.Modules.XuLyHangLoi.Repository;
 using PCTP.Modules.XuLyHangLoi.Services;
 using PCTP.Shared.Common;
+using PCTP.Shared.UiMd;
 
 namespace PCTP.Modules.XuLyHangLoi.Application
 {
@@ -27,6 +28,8 @@ namespace PCTP.Modules.XuLyHangLoi.Application
             public IAffectedLotTraceService AffectedLotTraceService { get; internal set; }
             public IProductionLotTraceProvider ProductionLotTraceProvider { get; internal set; }
             public IInitialQCService InitialQCService { get; internal set; }
+            public IHangLoiPhase5To9Service Phase5To9Service { get; internal set; }
+            public IWorkflowTransitionService Workflow { get; internal set; }
             public IStockExportRepository StockExportRepo { get; internal set; }
             public IStockHistoryRepository StockHistoryRepo { get; internal set; }
             public IPhieuXuLyBatThuongRepository PhieuXuLyRepo { get; internal set; }
@@ -43,10 +46,8 @@ namespace PCTP.Modules.XuLyHangLoi.Application
 
         public static Module Build(PhieuSqlExecutor dbExecutor, IUnitOfWork uow)
         {
-            if (dbExecutor == null)
-                throw new System.ArgumentNullException(nameof(dbExecutor));
-            if (uow == null)
-                throw new System.ArgumentNullException(nameof(uow));
+            if (dbExecutor == null) throw new System.ArgumentNullException(nameof(dbExecutor));
+            if (uow == null) throw new System.ArgumentNullException(nameof(uow));
 
             var slotRepo = new SlotRepository(dbExecutor, uow);
             var slotService = new SlotService(slotRepo);
@@ -58,44 +59,28 @@ namespace PCTP.Modules.XuLyHangLoi.Application
 
             IStockBalanceRepository stockBalance = new ReworkStockBalanceAdapter(stockTpRepo);
             IStockSlotRepository stockSlot = new ReworkStockSlotAdapter(slotService);
-
             var stockMovement = new StockMovementService(stockBalance, stockSlot);
 
             var reworkStockService = new ReworkStockService(
-                uow,
-                slotService,
-                stockTpRepo,
-                stockMovement,
-                historyRepo,
-                qtChungRepo,
-                phieuXuLyRepo);
+                uow, slotService, stockTpRepo, stockMovement, historyRepo, qtChungRepo, phieuXuLyRepo);
 
-            // Phase 2: cả 3 nguồn trace đều phải có contract thật.
-            // Production/WIP dùng trực tiếp view vNhapTP hiện đang là nguồn của
-            // StockTpProductionRepository; không giả định WIP = 0.
             var productionProvider = new ProductionLotTraceProvider(dbExecutor, uow);
             var customerReturnProvider = new CustomerReturnLotTraceProvider(phieuTraHangRepo);
-
             var affectedLotTraceService = new AffectedLotTraceService(
-                reworkStockService,
-                productionProvider,
-                customerReturnProvider,
-                phieuXuLyRepo,
-                dbExecutor,
-                uow);
+                reworkStockService, productionProvider, customerReturnProvider,
+                phieuXuLyRepo, dbExecutor, uow);
 
-            // Phase 3: QC ban đầu sử dụng snapshot Phase 2 làm source-of-truth.
             var initialQcService = new InitialQCService(
-                dbExecutor,
-                uow,
-                phieuXuLyRepo,
-                affectedLotTraceService);
+                dbExecutor, uow, phieuXuLyRepo, affectedLotTraceService);
 
-            // Phase 4: toàn bộ kế hoạch Rework lấy từ Initial QC; không suy ra từ NG.
             var reworkPhase4Service = new ReworkPhase4Service(
-                phieuXuLyRepo,
-                qtChungRepo,
-                initialQcService);
+                phieuXuLyRepo, qtChungRepo, initialQcService);
+
+            var workflowRepository = new WorkflowRepository(dbExecutor, uow);
+            var workflowService = new WorkflowTransitionService(workflowRepository);
+            var phase5To9Service = new HangLoiPhase5To9Service(
+                dbExecutor, uow, phieuXuLyRepo, initialQcService,
+                reworkPhase4Service, workflowService);
 
             return new Module
             {
@@ -107,6 +92,8 @@ namespace PCTP.Modules.XuLyHangLoi.Application
                 AffectedLotTraceService = affectedLotTraceService,
                 ProductionLotTraceProvider = productionProvider,
                 InitialQCService = initialQcService,
+                Phase5To9Service = phase5To9Service,
+                Workflow = workflowService,
                 StockExportRepo = stockTpRepo,
                 StockHistoryRepo = historyRepo,
                 PhieuXuLyRepo = phieuXuLyRepo,
