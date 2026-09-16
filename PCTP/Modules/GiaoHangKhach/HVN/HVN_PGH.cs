@@ -29,6 +29,7 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
         private string _ggfccpdb = "";
         private CustomerConfig _cfg;
         private readonly string _customerNo;
+        private CustomerAddressService _customerAddressService;
         private DocQRCode _pendingSlKhacBiet = null;
         private bool _isLoading = false;
         public bool IsLoaiSP => _phieuHeaderControl != null && _phieuHeaderControl.IsLoaiSP;
@@ -53,6 +54,7 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
         {
             var module = GiaoHangKhachModuleFactory.Build(_customerNo);
             _cfg = module.Cfg;
+            _customerAddressService = module.CustomerAddressService;
             _gioRepo = (GioXuatRepository)module.GioXuatRepo;
 
             return new HVN_Presenter(
@@ -201,7 +203,7 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
         private void HVN_PGH_Load(object sender, EventArgs e)
         {
             SetupNhaMayUI(_cfg); Text = $"Phiếu Giao Hàng — {_cfg.DisplayName}";
-            _addressTable = IFSRepository.Create().GetCustomerAddress(_cfg.CustomerNo) ?? new DataTable();
+            _addressTable = _customerAddressService.GetAddress(_cfg.CustomerNo);
             BindGioXuatVP(_gioRepo.GetDanhSachGioVP()); if (_cfg.Delivery.CoNhieuNhaMay) BindGioXuatHN(_gioRepo.GetDanhSachGioHN());
             SetupGridDonHangYMVN(_cfg.Delivery.LoadTuBangRieng);
             _phieuGridControl.OrderView.ShowingEditor += GridViewDONHANG_ShowingEditor_LOT;
