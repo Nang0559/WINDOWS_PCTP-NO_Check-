@@ -7,16 +7,10 @@ using DevExpress.XtraEditors;
 
 namespace PCTP.Shell.UI
 {
-    /// <summary>
-    /// PCTP custom title bar base form.
-    /// Native ControlBox/caption buttons are disabled and replaced by:
-    /// [Icon] [Title] [ ? ][ _ ][ □ ][ X ]
-    /// </summary>
     [System.ComponentModel.DesignerCategory("Code")]
     public abstract class WmsTitleBarForm : XtraForm
     {
         private const int WM_NCHITTEST = 0x0084;
-        private const int HTCLIENT = 1;
         private const int HTCAPTION = 2;
         private const int HTLEFT = 10;
         private const int HTRIGHT = 11;
@@ -36,7 +30,6 @@ namespace PCTP.Shell.UI
         private readonly SimpleButton _closeButton;
         private readonly PanelControl _contentHost;
         private bool _layoutBuilt;
-        private bool _normalStateWasMaximized;
         private Rectangle _restoreBounds;
 
         protected WmsTitleBarForm()
@@ -120,10 +113,7 @@ namespace PCTP.Shell.UI
         protected override void OnLoad(EventArgs e)
         {
             base.OnLoad(e);
-
-            if (_layoutBuilt)
-                return;
-
+            if (_layoutBuilt) return;
             _layoutBuilt = true;
             BuildContentHost();
             _titleLabel.Text = Text;
@@ -141,23 +131,19 @@ namespace PCTP.Shell.UI
         protected override void OnResize(EventArgs e)
         {
             base.OnResize(e);
-            if (_layoutBuilt)
-                UpdateMaximizeGlyph();
+            if (_layoutBuilt) UpdateMaximizeGlyph();
         }
 
         private void BuildContentHost()
         {
             Control[] existing = new Control[Controls.Count];
             Controls.CopyTo(existing, 0);
-
             foreach (Control control in existing)
             {
-                if (control == _titleBar || control == _contentHost)
-                    continue;
+                if (control == _titleBar || control == _contentHost) continue;
                 Controls.Remove(control);
                 _contentHost.Controls.Add(control);
             }
-
             Controls.Add(_contentHost);
             Controls.Add(_titleBar);
             _titleBar.BringToFront();
@@ -173,7 +159,6 @@ namespace PCTP.Shell.UI
                 Dock = DockStyle.Right,
                 AllowFocus = false,
                 ShowFocusRectangle = false,
-                ButtonStyle = DevExpress.XtraEditors.Controls.BorderStyles.NoBorder,
                 LookAndFeel = { UseDefaultLookAndFeel = false }
             };
             button.Appearance.BackColor = Color.FromArgb(45, 45, 48);
@@ -194,7 +179,6 @@ namespace PCTP.Shell.UI
                 _iconLabel.Text = "";
                 return;
             }
-
             _iconLabel.ImageOptions.Image = Icon.ToBitmap();
             _iconLabel.ImageOptions.SvgImage = null;
             _iconLabel.ImageOptions.Location = DevExpress.XtraEditors.ImageLocation.MiddleCenter;
@@ -210,13 +194,11 @@ namespace PCTP.Shell.UI
             if (WindowState == FormWindowState.Maximized)
             {
                 WindowState = FormWindowState.Normal;
-                if (_restoreBounds.Width > 0 && _restoreBounds.Height > 0)
-                    Bounds = _restoreBounds;
+                if (_restoreBounds.Width > 0 && _restoreBounds.Height > 0) Bounds = _restoreBounds;
             }
             else
             {
                 _restoreBounds = Bounds;
-                _normalStateWasMaximized = true;
                 WindowState = FormWindowState.Maximized;
             }
             UpdateMaximizeGlyph();
@@ -240,9 +222,7 @@ namespace PCTP.Shell.UI
 
         private void WmsTitleBarForm_KeyDown(object sender, KeyEventArgs e)
         {
-            if (e.KeyCode != Keys.F1 || e.Handled)
-                return;
-
+            if (e.KeyCode != Keys.F1 || e.Handled) return;
             e.Handled = true;
             e.SuppressKeyPress = true;
             ShowHelp();
@@ -250,9 +230,7 @@ namespace PCTP.Shell.UI
 
         private void TitleBar_MouseDown(object sender, MouseEventArgs e)
         {
-            if (e.Button != MouseButtons.Left)
-                return;
-
+            if (e.Button != MouseButtons.Left) return;
             ReleaseCapture();
             SendMessage(Handle, 0xA1, new IntPtr(HTCAPTION), IntPtr.Zero);
         }
@@ -265,39 +243,26 @@ namespace PCTP.Shell.UI
                 int y = GetSignedHighWord(m.LParam);
                 Point point = PointToClient(new Point(x, y));
                 int grip = 6;
-
                 if (point.Y < grip)
                 {
                     if (point.X < grip) { m.Result = (IntPtr)HTTOPLEFT; return; }
                     if (point.X >= Width - grip) { m.Result = (IntPtr)HTTOPRIGHT; return; }
-                    m.Result = (IntPtr)HTTOP;
-                    return;
+                    m.Result = (IntPtr)HTTOP; return;
                 }
-
                 if (point.Y >= Height - grip)
                 {
                     if (point.X < grip) { m.Result = (IntPtr)HTBOTTOMLEFT; return; }
                     if (point.X >= Width - grip) { m.Result = (IntPtr)HTBOTTOMRIGHT; return; }
-                    m.Result = (IntPtr)HTBOTTOM;
-                    return;
+                    m.Result = (IntPtr)HTBOTTOM; return;
                 }
-
                 if (point.X < grip) { m.Result = (IntPtr)HTLEFT; return; }
                 if (point.X >= Width - grip) { m.Result = (IntPtr)HTRIGHT; return; }
             }
-
             base.WndProc(ref m);
         }
 
-        private static int GetSignedLowWord(IntPtr value)
-        {
-            return (short)((long)value & 0xFFFF);
-        }
-
-        private static int GetSignedHighWord(IntPtr value)
-        {
-            return (short)(((long)value >> 16) & 0xFFFF);
-        }
+        private static int GetSignedLowWord(IntPtr value) { return (short)((long)value & 0xFFFF); }
+        private static int GetSignedHighWord(IntPtr value) { return (short)(((long)value >> 16) & 0xFFFF); }
 
         [DllImport("user32.dll")]
         private static extern bool ReleaseCapture();
