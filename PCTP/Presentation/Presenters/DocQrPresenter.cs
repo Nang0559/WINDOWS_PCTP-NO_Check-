@@ -1,6 +1,7 @@
 using PCTP.Applications.Services;
 using PCTP.Domain.Events;
 using PCTP.Modules.GiaoHangKhach.Models;
+using PCTP.Modules.GiaoHangKhach.Services;
 using PCTP.Presentation.Views;
 using PCTP.Shared.Helpers;
 using PCTP.Shared.Models;
@@ -95,12 +96,22 @@ namespace PCTP.Presentation.Presenters
 
         private void OnQRCodeSubmitted(object sender, string rawQr)
         {
-            // Keyboard-wedge scanner có thể phát Enter/dữ liệu trong lúc dialog đang mở.
-            // Không được cho phép bất kỳ scan nào đi xuyên qua confirmation/blocking gate.
             if (_awaitingSlMismatchConfirmation || _scanBlocking)
             {
                 _v.ClearQRInput();
                 return;
+            }
+
+            if (_c.Cfg.Delivery.CoGear)
+            {
+                DataTable orderRows = _c.PhieuView.GetDonHangTable();
+                DataTable scannedRows = _c.QrSvc.LoadAll();
+                string ymvnError;
+                if (!YmvnGearQuantityValidator.ValidateScan(rawQr, orderRows, scannedRows, out ymvnError))
+                {
+                    ShowBlockingScanError(ymvnError);
+                    return;
+                }
             }
 
             ScanResult result = _c.Cfg.Delivery.CoGear
@@ -173,7 +184,6 @@ namespace PCTP.Presentation.Presenters
         private bool IsBlockingScanError(string message)
         {
             if (string.IsNullOrWhiteSpace(message)) return false;
-
             string normalized = message.Trim();
             return normalized.Equals("Sai Thứ tự bắn!", StringComparison.OrdinalIgnoreCase)
                 || normalized.Equals("Mã Hàng HVN không khớp với FCC!", StringComparison.OrdinalIgnoreCase);
@@ -186,12 +196,8 @@ namespace PCTP.Presentation.Presenters
             _scanBlocking = true;
             _v.SetDocQrScanInputEnabled(false);
             _v.ClearQRInput();
-
             try
             {
-                // Đây là lỗi chặn workflow, không phải warning thông thường.
-                // Dialog modal khóa toàn bộ form cha. Enter/Escape/Alt+F4/Tab
-                // không thể đóng dialog; chỉ click trực tiếp nút OK mới tiếp tục.
                 DirectClickBlockingAlertDialog.Show(message);
             }
             finally
@@ -242,10 +248,6 @@ namespace PCTP.Presentation.Presenters
         }
     }
 
-    /// <summary>
-    /// Confirmation dialog dành cho keyboard-wedge scanner.
-    /// Không dùng AcceptButton/CancelButton và chỉ pointer click trực tiếp mới được xác nhận.
-    /// </summary>
     internal sealed class DirectClickConfirmDialog : Form
     {
         private readonly Button _btnAgree;
@@ -267,37 +269,18 @@ namespace PCTP.Presentation.Presenters
             AcceptButton = null;
             CancelButton = null;
 
-            var lbl = new Label
-            {
-                AutoSize = false,
-                Dock = DockStyle.Fill,
-                Text = message,
-                TextAlign = ContentAlignment.MiddleLeft,
-                Padding = new Padding(18, 12, 18, 8)
-            };
-
-            var buttons = new FlowLayoutPanel
-            {
-                Dock = DockStyle.Bottom,
-                Height = 62,
-                FlowDirection = FlowDirection.RightToLeft,
-                Padding = new Padding(10),
-                WrapContents = false
-            };
-
+            var lbl = new Label { AutoSize = false, Dock = DockStyle.Fill, Text = message, TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(18, 12, 18, 8) };
+            var buttons = new FlowLayoutPanel { Dock = DockStyle.Bottom, Height = 62, FlowDirection = FlowDirection.RightToLeft, Padding = new Padding(10), WrapContents = false };
             _btnAgree = new Button { Text = "Đồng ý", Width = 120, Height = 36, TabStop = false };
             _btnNo = new Button { Text = "Không", Width = 120, Height = 36, TabStop = false };
-
             _btnAgree.MouseDown += BtnAgree_MouseDown;
             _btnAgree.MouseUp += BtnAgree_MouseUp;
             _btnNo.MouseDown += BtnNo_MouseDown;
             _btnNo.MouseUp += BtnNo_MouseUp;
-
             buttons.Controls.Add(_btnAgree);
             buttons.Controls.Add(_btnNo);
             Controls.Add(lbl);
             Controls.Add(buttons);
-
             Shown += delegate { ActiveControl = null; };
             KeyDown += DirectClickConfirmDialog_KeyDown;
             FormClosing += DirectClickConfirmDialog_FormClosing;
@@ -312,53 +295,31 @@ namespace PCTP.Presentation.Presenters
             }
         }
 
-        private void DirectClickConfirmDialog_KeyDown(object sender, KeyEventArgs e)
-        {
-            e.Handled = true;
-            e.SuppressKeyPress = true;
-        }
-
-        private void BtnAgree_MouseDown(object sender, MouseEventArgs e)
-        {
-            _agreePointerDown = e.Button == MouseButtons.Left;
-        }
-
+        private void DirectClickConfirmDialog_KeyDown(object sender, KeyEventArgs e) { e.Handled = true; e.SuppressKeyPress = true; }
+        private void BtnAgree_MouseDown(object sender, MouseEventArgs e) { _agreePointerDown = e.Button == MouseButtons.Left; }
         private void BtnAgree_MouseUp(object sender, MouseEventArgs e)
         {
             bool directClick = _agreePointerDown && e.Button == MouseButtons.Left;
             _agreePointerDown = false;
             if (!directClick) return;
-
             DialogResult = DialogResult.Yes;
             Close();
         }
-
-        private void BtnNo_MouseDown(object sender, MouseEventArgs e)
-        {
-            _noPointerDown = e.Button == MouseButtons.Left;
-        }
-
+        private void BtnNo_MouseDown(object sender, MouseEventArgs e) { _noPointerDown = e.Button == MouseButtons.Left; }
         private void BtnNo_MouseUp(object sender, MouseEventArgs e)
         {
             bool directClick = _noPointerDown && e.Button == MouseButtons.Left;
             _noPointerDown = false;
             if (!directClick) return;
-
             DialogResult = DialogResult.No;
             Close();
         }
-
         private void DirectClickConfirmDialog_FormClosing(object sender, FormClosingEventArgs e)
         {
-            if (DialogResult == DialogResult.None)
-                DialogResult = DialogResult.No;
+            if (DialogResult == DialogResult.None) DialogResult = DialogResult.No;
         }
     }
 
-    /// <summary>
-    /// One-button blocking alert dành cho các lỗi sai thứ tự / sai mã hàng.
-    /// Chỉ click chuột trực tiếp vào OK mới được phép tiếp tục.
-    /// </summary>
     internal sealed class DirectClickBlockingAlertDialog : Form
     {
         private readonly Button _btnOk;
@@ -380,32 +341,14 @@ namespace PCTP.Presentation.Presenters
             AcceptButton = null;
             CancelButton = null;
 
-            var lbl = new Label
-            {
-                AutoSize = false,
-                Dock = DockStyle.Fill,
-                Text = message + "\r\n\r\nVui lòng nhấn OK để tiếp tục bắn lại tem đúng.",
-                TextAlign = ContentAlignment.MiddleLeft,
-                Padding = new Padding(18, 12, 18, 8)
-            };
-
-            var buttons = new FlowLayoutPanel
-            {
-                Dock = DockStyle.Bottom,
-                Height = 62,
-                FlowDirection = FlowDirection.RightToLeft,
-                Padding = new Padding(10),
-                WrapContents = false
-            };
-
+            var lbl = new Label { AutoSize = false, Dock = DockStyle.Fill, Text = message + "\r\n\r\nVui lòng nhấn OK để tiếp tục bắn lại tem đúng.", TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(18, 12, 18, 8) };
+            var buttons = new FlowLayoutPanel { Dock = DockStyle.Bottom, Height = 62, FlowDirection = FlowDirection.RightToLeft, Padding = new Padding(10), WrapContents = false };
             _btnOk = new Button { Text = "OK", Width = 120, Height = 36, TabStop = false };
             _btnOk.MouseDown += BtnOk_MouseDown;
             _btnOk.MouseUp += BtnOk_MouseUp;
-
             buttons.Controls.Add(_btnOk);
             Controls.Add(lbl);
             Controls.Add(buttons);
-
             Shown += delegate { ActiveControl = null; };
             KeyDown += DirectClickBlockingAlertDialog_KeyDown;
             FormClosing += DirectClickBlockingAlertDialog_FormClosing;
@@ -413,39 +356,22 @@ namespace PCTP.Presentation.Presenters
 
         public static void Show(string message)
         {
-            using (var dialog = new DirectClickBlockingAlertDialog(message))
-            {
-                dialog.ShowDialog();
-            }
+            using (var dialog = new DirectClickBlockingAlertDialog(message)) dialog.ShowDialog();
         }
-
-        private void DirectClickBlockingAlertDialog_KeyDown(object sender, KeyEventArgs e)
-        {
-            e.Handled = true;
-            e.SuppressKeyPress = true;
-        }
-
-        private void BtnOk_MouseDown(object sender, MouseEventArgs e)
-        {
-            _okPointerDown = e.Button == MouseButtons.Left;
-        }
-
+        private void DirectClickBlockingAlertDialog_KeyDown(object sender, KeyEventArgs e) { e.Handled = true; e.SuppressKeyPress = true; }
+        private void BtnOk_MouseDown(object sender, MouseEventArgs e) { _okPointerDown = e.Button == MouseButtons.Left; }
         private void BtnOk_MouseUp(object sender, MouseEventArgs e)
         {
             bool directClick = _okPointerDown && e.Button == MouseButtons.Left;
             _okPointerDown = false;
             if (!directClick) return;
-
             _accepted = true;
             DialogResult = DialogResult.OK;
             Close();
         }
-
         private void DirectClickBlockingAlertDialog_FormClosing(object sender, FormClosingEventArgs e)
         {
-            // Không cho X / Alt+F4 thoát. Workflow chỉ được mở lại sau click OK.
-            if (!_accepted)
-                e.Cancel = true;
+            if (!_accepted) e.Cancel = true;
         }
     }
 }
