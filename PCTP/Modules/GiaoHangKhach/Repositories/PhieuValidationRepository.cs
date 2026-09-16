@@ -18,11 +18,27 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
 
         // ============================================================
         // FIFO - FVN_ItemFifoConfig is the single source of truth.
+        //
+        // IMPORTANT ARCHITECTURE RULE:
+        // - This method is the ONLY FIFO business-rule gate before stock update.
+        // - EnforceFifo = 0 -> this item is not blocked by FIFO.
+        // - EnforceFifo = 1 -> the selected LOT KEY must be the current FIFO LOT KEY.
+        // - If this method returns violations, the caller MUST NOT call any stock SP.
+        // - Usp_Qrcode_Update_Stock2405 / Usp_Qrcode_Update_Stock_SP must NOT duplicate
+        //   FIFO business logic; they only process stock that has already passed this gate.
+        //
+        // FIFO calculation rules:
+        // - LOT KEY = LEFT(LOT, 13).
+        // - Only SlotLot.Quantity > 0 is considered available stock.
+        // - Multiple SlotLot rows with the same ItemCode + LOT KEY are aggregated first.
+        // - FIFO order = YYMMDD -> ShiftCode -> LOT KEY.
         // ============================================================
         public List<FifoViolation> CheckFifoViolations(string tmpTable)
         {
             Db.ValidateTableName(tmpTable);
 
+            // FIFO is optional by deployment/database version.
+            // If the authoritative config table is not installed, do not block legacy stock flow.
             if (!FvnItemFifoConfigTableExists())
             {
                 System.Diagnostics.Debug.WriteLine(
@@ -47,6 +63,8 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                 ),
                 LotKeyTon AS
                 (
+                    -- IMPORTANT: aggregate all physical SlotLot rows sharing one LOT KEY
+                    -- before calculating FIFO. FIFO is decided at LOT KEY level, not SlotId level.
                     SELECT
                         ItemCode,
                         LotKey,
@@ -93,6 +111,8 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                 WHERE ISNULL(tmp.STATUS, '') <> 'NG'
                   AND LEFT(ISNULL(tmp.LOT, ''), {keyLen}) <> fifo.LotKey;";
 
+            // NOTE: This query only validates the business rule.
+            // It does NOT change STOCKTP/SlotLot and does NOT call the stock SP.
             DataTable dt = LoadData(sql);
             var result = new List<FifoViolation>();
 
