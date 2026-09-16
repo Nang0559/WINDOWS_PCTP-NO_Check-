@@ -14,6 +14,10 @@ namespace PCTP.Presentation.Presenters
     {
         private readonly HVNPresenterContext _c;
         private readonly IDocQrView _v;
+        private int _pendingSlFcc;
+        private int _pendingSlStt;
+        private string _pendingLotFcc;
+
         internal DocQrPresenter(HVNPresenterContext context)
         {
             _c = context; _v = _c.DocQrView; var v = _v; v.DocQRCodeClicked += OnDocQRCode; v.QRCodeSubmitted += OnQRCodeSubmitted; v.XoaDongQRClicked += OnXoaDongQR; v.XoaToanBoQRClicked += OnXoaToanBoQR; v.SuaSoLuongTemClicked += OnSuaSoLuongTem; _c.Bus.Subscribe<QRScannedEvent>(OnQRScanned);
@@ -84,8 +88,12 @@ namespace PCTP.Presentation.Presenters
                 // FCC là số lượng chuẩn; người dùng phải sửa số lượng tem khách hàng
                 // cho đúng FCC rồi mới được pass.
                 var temInfo = _v.GetFocusedDocQRTemInfo();
-                _v.ShowWarning($"Số lượng tem khách hàng không khớp số lượng tem FCC.\n\nSố lượng FCC: {temInfo.SlFcc}\nSố lượng khách hàng: {result.Pending.SlTemHVN}\n\nVui lòng sửa số lượng tem khách hàng bằng số lượng FCC để tiếp tục.");
-                _v.ShowSuaSoLuongTem(result.Pending.STT, temInfo.LotFcc, temInfo.SlFcc, result.Pending.SlTemHVN);
+                _pendingSlStt = result.Pending.STT;
+                _pendingSlFcc = temInfo.SlFcc;
+                _pendingLotFcc = temInfo.LotFcc;
+
+                _v.ShowWarning($"Số lượng tem khách hàng không khớp số lượng tem FCC.\n\nSố lượng FCC: {_pendingSlFcc}\nSố lượng khách hàng: {result.Pending.SlTemHVN}\n\nVui lòng sửa số lượng tem khách hàng bằng số lượng FCC để tiếp tục.");
+                _v.ShowSuaSoLuongTem(result.Pending.STT, _pendingLotFcc, _pendingSlFcc, result.Pending.SlTemHVN);
                 return;
             }
 
@@ -99,7 +107,7 @@ namespace PCTP.Presentation.Presenters
         }
         private void OnQRScanned(QRScannedEvent e) { _v.ClearQRInput(); _v.BindDocQRCode(_c.QrSvc.LoadAll()); }
         private void OnXoaDongQR(object sender, EventArgs e) { int stt = _v.GetFocusedDocQRStt(); _v.DeleteFocusedDocQRRow(); if (stt > 0) _c.QrSvc.XoaDong(stt); }
-        private void OnXoaToanBoQR(object sender, EventArgs e) { _c.QrSvc.XoaToanBo(); _v.ClearDocQRRows(); _c.IsBanQR = false; _c.QrSvc.SetCheDoBan(""); _c.PhieuView.UnlockAllRadio(); }
+        private void OnXoaToanBoQR(object sender, EventArgs e) { _c.QrSvc.XoaToanBo(); _v.ClearDocQRRows(); _c.IsBanQR = false; _c.QrSvc.SetCheDoBan(""); _c.PhieuView.UnlockAllRadio(); ClearPendingQuantityFix(); }
         private void OnSuaSoLuongTem(object sender, EventArgs e)
         {
             int stt = _v.SttDangSuaSl;
@@ -108,24 +116,32 @@ namespace PCTP.Presentation.Presenters
             if (!slMoi.HasValue) { _v.ShowError("Chưa nhập số lượng thay đổi!"); return; }
             if (slMoi.Value <= 0) { _v.ShowError("Số lượng phải lớn hơn 0!"); return; }
 
-            var temInfo = _v.GetFocusedDocQRTemInfo();
-            if (temInfo.SlFcc <= 0)
+            int slFcc = stt == _pendingSlStt && _pendingSlFcc > 0 ? _pendingSlFcc : _v.GetFocusedDocQRTemInfo().SlFcc;
+            string lotFcc = stt == _pendingSlStt ? _pendingLotFcc : _v.GetFocusedDocQRTemInfo().LotFcc;
+            if (slFcc <= 0)
             {
                 _v.ShowError("Không xác định được số lượng tem FCC để đối chiếu.");
                 return;
             }
 
             // Chỉ cập nhật khi số lượng khách hàng khớp chính xác FCC.
-            if (slMoi.Value != temInfo.SlFcc)
+            if (slMoi.Value != slFcc)
             {
-                _v.ShowWarning($"Số lượng tem khách hàng ({slMoi.Value}) vẫn không khớp số lượng tem FCC ({temInfo.SlFcc}).\n\nVui lòng nhập đúng {temInfo.SlFcc} để tiếp tục.");
-                _v.ShowSuaSoLuongTem(stt, temInfo.LotFcc, temInfo.SlFcc, slMoi.Value);
+                _v.ShowWarning($"Số lượng tem khách hàng ({slMoi.Value}) vẫn không khớp số lượng tem FCC ({slFcc}).\n\nVui lòng nhập đúng {slFcc} để tiếp tục.");
+                _v.ShowSuaSoLuongTem(stt, lotFcc, slFcc, slMoi.Value);
                 return;
             }
 
             _c.QrSvc.CapNhapSlHvn(stt, slMoi.Value);
             _v.BindDocQRCode(_c.QrSvc.LoadAll());
             _v.ShowInfo($"Đã cập nhật số lượng tem khách hàng = {slMoi.Value}. Số lượng đã khớp tem FCC.");
+            ClearPendingQuantityFix();
+        }
+        private void ClearPendingQuantityFix()
+        {
+            _pendingSlStt = 0;
+            _pendingSlFcc = 0;
+            _pendingLotFcc = null;
         }
         public void Dispose() { var v = _v; v.DocQRCodeClicked -= OnDocQRCode; v.QRCodeSubmitted -= OnQRCodeSubmitted; v.XoaDongQRClicked -= OnXoaDongQR; v.XoaToanBoQRClicked -= OnXoaToanBoQR; v.SuaSoLuongTemClicked -= OnSuaSoLuongTem; _c.Bus.Unsubscribe<QRScannedEvent>(OnQRScanned); }
     }
