@@ -1,4 +1,4 @@
-﻿using PCTP.Domain.Entities;
+using PCTP.Domain.Entities;
 using PCTP.Domain.Interfaces;
 using PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao;
 using PCTP.Modules.KhoCore.Application.Contracts.Stock;
@@ -12,8 +12,6 @@ using PCTP.YMN;
 using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Data.SqlClient;
-using System.Linq;
 
 namespace PCTP.Modules.GiaoHangKhach.Repositories
 {
@@ -43,9 +41,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             _lot = new PhieuLotRepository(db, uow);
             _giaoDB = new PhieuGiaoDBRepository(db, uow);
             _luuTru = new PhieuLuuTruRepository(db, uow);
-            _kho = new PhieuKhoRepository(
-                db, uow, bulkStockSlotRepo, historyRepo,
-                _validation, cfg, hangChoGiaoRepo, stockMovement);
+            _kho = new PhieuKhoRepository(db, uow, bulkStockSlotRepo, historyRepo, _validation, cfg, hangChoGiaoRepo, stockMovement);
         }
 
         public int CountDocQRCode(string docQRTable) => _validation.CountDocQRCode(docQRTable);
@@ -58,15 +54,29 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         public DataTable GetDonHangChuaLot(PhieuTableSet tables) => _validation.GetDonHangChuaLot(tables);
         public DataTable GetDonHangChuaLot(string tenBan, string docQRTable) => _validation.GetDonHangChuaLot(tenBan, docQRTable);
         public List<FifoViolation> CheckFifoViolations(string tenBangTmp) => _validation.CheckFifoViolations(tenBangTmp);
+
+        public List<FifoViolation> ReleaseFifoViolations(string tmpTable, string docQRTable)
+        {
+            Db.ValidateTableName(tmpTable);
+            Db.ValidateTableName(docQRTable);
+
+            var violations = _validation.CheckFifoViolations(tmpTable);
+            foreach (FifoViolation violation in violations)
+            {
+                if (violation == null || violation.Stt <= 0) continue;
+                _lot.LayLaiLotNo(violation.Stt, tmpTable, docQRTable);
+            }
+
+            return violations;
+        }
+
         public DataTable SoSanhLechIFS(DataTable donHang, DataTable ifsTable) => _validation.SoSanhLechIFS(donHang, ifsTable);
 
         public DataTable GetDanhSachMaHang() => _giaoDB.GetDanhSachMaHang();
         public DataTable LoadTmpPhieuGiaoDB(string tenBan, DateTime ngayGiao, int addNm) => _giaoDB.LoadTmpPhieuGiaoDB(tenBan, ngayGiao, addNm);
         public DataTable BuildDonHangTuUpload() => _giaoDB.BuildDonHangTuUpload();
-        public void LuuGiaoDB(DataTable donHang, string gioFccMoTa, int addNm, string tmpTable, string ifsTable, string nhaMayOverride = "")
-            => _giaoDB.LuuGiaoDB(donHang, gioFccMoTa, addNm, tmpTable, ifsTable, nhaMayOverride);
-        public int TaoPhieuVaChiTietGiaoDB(string ten, DateTime ngayLap, int nhaMay, string nhaMayName, string note, DataTable chiTiet)
-            => _giaoDB.TaoPhieuVaChiTietGiaoDB(ten, ngayLap, nhaMay, nhaMayName, note, chiTiet);
+        public void LuuGiaoDB(DataTable donHang, string gioFccMoTa, int addNm, string tmpTable, string ifsTable, string nhaMayOverride = "") => _giaoDB.LuuGiaoDB(donHang, gioFccMoTa, addNm, tmpTable, ifsTable, nhaMayOverride);
+        public int TaoPhieuVaChiTietGiaoDB(string ten, DateTime ngayLap, int nhaMay, string nhaMayName, string note, DataTable chiTiet) => _giaoDB.TaoPhieuVaChiTietGiaoDB(ten, ngayLap, nhaMay, nhaMayName, note, chiTiet);
 
         public DataTable LoadPhieuDocQR(string ngayGiao, string nhaMay, string gioFcc, int addNm, PhieuTableSet tables) => _tmp.LoadPhieuDocQR(ngayGiao, nhaMay, gioFcc, addNm, tables);
         public DataTable LoadPhieuDocQR(string ngayGiao, string nhaMay, string gioFcc, int addNm, string tmpTable, string ifsTable, string docQRTable) => _tmp.LoadPhieuDocQR(ngayGiao, nhaMay, gioFcc, addNm, tmpTable, ifsTable, docQRTable);
@@ -82,8 +92,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         public TrangThaiBan GetTrangThaiDangBanYMVN(PhieuTableSet tables) => _tmp.GetTrangThaiDangBanYMVN(tables);
         public TrangThaiBan GetTrangThaiDangBanYMVN(string tmpTable, string docQRTable) => _tmp.GetTrangThaiDangBanYMVN(tmpTable, docQRTable);
         public void EnsureTablesExist() => _tmp.EnsureTablesExist();
-        public void InsertTmpRow(string tmpTable, string stt, string cua, string truyen, string maHang, string tenHang, string lot, string dv, int slXuat, string ngayGiao, string gear, string gioXuat, string poNo = "", string cusPoNo = "")
-            => _tmp.InsertTmpRow(tmpTable, stt, cua, truyen, maHang, tenHang, lot, dv, slXuat, ngayGiao, gear, gioXuat, poNo, cusPoNo);
+        public void InsertTmpRow(string tmpTable, string stt, string cua, string truyen, string maHang, string tenHang, string lot, string dv, int slXuat, string ngayGiao, string gear, string gioXuat, string poNo = "", string cusPoNo = "") => _tmp.InsertTmpRow(tmpTable, stt, cua, truyen, maHang, tenHang, lot, dv, slXuat, ngayGiao, gear, gioXuat, poNo, cusPoNo);
 
         public string GetLotNo(string maHang, int stt, int dem, int slGiao, PhieuTableSet tables) => _lot.GetLotNo(maHang, stt, dem, slGiao, tables);
         public string GetLotNo(string maHang, int stt, int dem, int slGiao, string docQRTable = "DOCQRCODE", string tmpTable = "TMPPHIEUGIAOHANG") => _lot.GetLotNo(maHang, stt, dem, slGiao, docQRTable, tmpTable);
