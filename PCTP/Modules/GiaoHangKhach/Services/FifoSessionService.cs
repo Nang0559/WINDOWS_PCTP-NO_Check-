@@ -33,8 +33,8 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             var grouped = orderRows.AsEnumerable()
                 .Select(row => new
                 {
-                    ItemCode = row.Table.Columns.Contains("MAHANG") ? row["MAHANG"]?.ToString().Trim() ?? string.Empty : string.Empty,
-                    Quantity = row.Table.Columns.Contains("SOLUONG") && row["SOLUONG"] != DBNull.Value ? Convert.ToInt32(row["SOLUONG"]) : 0
+                    ItemCode = GetString(row, "MAHANG", "MAHANGFCC", "MAHANGHVN"),
+                    Quantity = GetInt(row, "SOLUONG", "SLGIAO", "SLXUAT", "SL")
                 })
                 .Where(x => !string.IsNullOrEmpty(x.ItemCode) && x.Quantity > 0)
                 .GroupBy(x => x.ItemCode, StringComparer.OrdinalIgnoreCase)
@@ -134,6 +134,28 @@ GROUP BY MAHANGFCC");
 
                 state.Initialize(item.ItemCode, item.NeedQty, stock);
             }
+        }
+
+        private static string GetString(DataRow row, params string[] columns)
+        {
+            foreach (string column in columns)
+            {
+                if (!row.Table.Columns.Contains(column) || row[column] == DBNull.Value) continue;
+                string value = row[column]?.ToString()?.Trim() ?? string.Empty;
+                if (!string.IsNullOrEmpty(value)) return value;
+            }
+            return string.Empty;
+        }
+
+        private static int GetInt(DataRow row, params string[] columns)
+        {
+            foreach (string column in columns)
+            {
+                if (!row.Table.Columns.Contains(column) || row[column] == DBNull.Value) continue;
+                int value;
+                if (int.TryParse(row[column].ToString(), out value)) return value;
+            }
+            return 0;
         }
 
         private sealed class FifoOrderLine
