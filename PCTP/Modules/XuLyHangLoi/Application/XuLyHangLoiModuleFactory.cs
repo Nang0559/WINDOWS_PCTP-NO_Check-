@@ -24,6 +24,7 @@ namespace PCTP.Modules.XuLyHangLoi.Application
             public IStockMovementService StockMovement { get; internal set; }
             public IReworkStockService ReworkStockService { get; internal set; }
             public IAffectedLotTraceService AffectedLotTraceService { get; internal set; }
+            public IProductionLotTraceProvider ProductionLotTraceProvider { get; internal set; }
             public IStockExportRepository StockExportRepo { get; internal set; }
             public IStockHistoryRepository StockHistoryRepo { get; internal set; }
             public IPhieuXuLyBatThuongRepository PhieuXuLyRepo { get; internal set; }
@@ -67,17 +68,19 @@ namespace PCTP.Modules.XuLyHangLoi.Application
                 qtChungRepo,
                 phieuXuLyRepo);
 
-            // Phase 2: customer-return source is available from the existing
-            // PhieuTraHang/PhieuTraHangCT read model. WIP remains an explicit
-            // provider boundary until the production module exposes a LOT trace contract.
+            // Phase 2: cả 3 nguồn trace đều phải có contract thật.
+            // Production/WIP dùng trực tiếp view vNhapTP hiện đang là nguồn của
+            // StockTpProductionRepository; không giả định WIP = 0.
+            var productionProvider = new ProductionLotTraceProvider(dbExecutor, uow);
             var customerReturnProvider = new CustomerReturnLotTraceProvider(phieuTraHangRepo);
+
             var affectedLotTraceService = new AffectedLotTraceService(
                 reworkStockService,
-                productionProvider: null,
-                customerReturnProvider: customerReturnProvider,
-                phieuRepository: phieuXuLyRepo,
-                db: dbExecutor,
-                uow: uow);
+                productionProvider,
+                customerReturnProvider,
+                phieuXuLyRepo,
+                dbExecutor,
+                uow);
 
             return new Module
             {
@@ -86,6 +89,7 @@ namespace PCTP.Modules.XuLyHangLoi.Application
                 StockMovement = stockMovement,
                 ReworkStockService = reworkStockService,
                 AffectedLotTraceService = affectedLotTraceService,
+                ProductionLotTraceProvider = productionProvider,
                 StockExportRepo = stockTpRepo,
                 StockHistoryRepo = historyRepo,
                 PhieuXuLyRepo = phieuXuLyRepo,
