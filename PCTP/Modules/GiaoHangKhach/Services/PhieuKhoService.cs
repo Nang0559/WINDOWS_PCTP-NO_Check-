@@ -10,7 +10,9 @@ namespace PCTP.Modules.GiaoHangKhach.Services
 {
     /// <summary>
     /// Business service cho nghiệp vụ cập nhật kho của phiếu giao.
-    /// FIFO được enforce tại repository boundary trước khi gọi stored procedure.
+    ///
+    /// FIFO là business validation và được kiểm tra ở repository boundary
+    /// trước khi đi vào stored procedure cập nhật tồn kho.
     /// </summary>
     public class PhieuKhoService : IPhieuKhoService
     {
@@ -33,6 +35,13 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             int soLot;
             DataTable errors;
 
+            // ============================================================
+            // FIFO GATE - chỉ chọn flow cập nhật kho ở đây.
+            //
+            // PhieuKhoService KHÔNG tự tính FIFO và KHÔNG gọi SP trực tiếp.
+            // PhieuKhoRepository sẽ chạy CheckFifoViolations() ngay trước
+            // khi gọi stock SP. Nếu có lỗi FIFO -> return 0 và không trừ kho.
+            // ============================================================
             if (_cfg.Delivery.LoadTuBangRieng && !_cfg.Delivery.CoGear)
             {
                 soLot = _phieuRepo.CapNhapKhoHTN(
@@ -51,6 +60,10 @@ namespace PCTP.Modules.GiaoHangKhach.Services
                     out errors);
             }
 
+            // ============================================================
+            // Sau khi repository đã pass FIFO gate và SP xử lý thành công,
+            // mới publish kết quả cập nhật kho cho UI/Presenter.
+            // ============================================================
             _bus.Publish(new KhoUpdatedEvent(soLot, errors));
         }
     }
