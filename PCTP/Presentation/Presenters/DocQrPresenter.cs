@@ -50,16 +50,11 @@ namespace PCTP.Presentation.Presenters
                     else
                     {
                         if (_c.QrSvc.CountChuaDG() == 0 && !_c.QrSvc.CoDocQRNao())
-                            _c.PhieuSvc.SyncIfsPhieuChoDocQR(
-                                ngay, _c.GetNhaMay(), _c.GioXuatHienTai.Ma, _c.GioXuatHienTai.MoTa, _c.AddNM);
+                            _c.PhieuSvc.SyncIfsPhieuChoDocQR(ngay, _c.GetNhaMay(), _c.GioXuatHienTai.Ma, _c.GioXuatHienTai.MoTa, _c.AddNM);
                     }
 
-                    // FIFO need must come from the order grid (PART + required quantity),
-                    // not from GetDonHangHienTai/TMP because that projection does not carry
-                    // SOLUONG after synchronization.
                     DataTable fifoOrderRows = _c.PhieuView.GetDonHangTable();
                     _c.QrSvc.InitializeFifo(fifoOrderRows);
-
                     DataTable qrData = _c.QrSvc.LoadAll();
                     _c.UiContext.Post(_ =>
                     {
@@ -77,9 +72,23 @@ namespace PCTP.Presentation.Presenters
         }
         private void OnQRCodeSubmitted(object sender, string rawQr)
         {
-            ScanResult result = _c.Cfg.Delivery.CoGear ? _c.QrSvc.ProcessScanYMVN(rawQr, ma => _c.PhieuSvc.KiemTraMaTrongPhieu(ma), (ma, sl) => _c.QrSvc.KiemTraSlDaBan(ma, sl)) : _c.QrSvc.ProcessScan(rawQr, ma => _c.PhieuSvc.KiemTraMaTrongPhieu(ma), (ma, sl) => _c.QrSvc.KiemTraSlDaBan(ma, sl));
+            ScanResult result = _c.Cfg.Delivery.CoGear
+                ? _c.QrSvc.ProcessScanYMVN(rawQr, ma => _c.PhieuSvc.KiemTraMaTrongPhieu(ma), (ma, sl) => _c.QrSvc.KiemTraSlDaBan(ma, sl))
+                : _c.QrSvc.ProcessScan(rawQr, ma => _c.PhieuSvc.KiemTraMaTrongPhieu(ma), (ma, sl) => _c.QrSvc.KiemTraSlDaBan(ma, sl));
+
             if (result.IsOK) return;
-            if (result.IsSlKhongKhop) { _c.RunWithLoadingSync(() => { if (!_v.Confirm("Số lượng TEM không khớp với phiếu giao!\nBạn có muốn nhập với số lượng này không?")) return; var confirmed = _c.QrSvc.ConfirmSlKhacBiet(result.Pending); if (!confirmed.IsOK) _v.ShowError(confirmed.Message); }, "Đang xác nhận..."); return; }
+
+            if (result.IsSlKhongKhop)
+            {
+                // Không bypass mismatch bằng "KHAC SLTEM".
+                // FCC là số lượng chuẩn; người dùng phải sửa số lượng tem khách hàng
+                // cho đúng FCC rồi mới được pass.
+                var temInfo = _v.GetFocusedDocQRTemInfo();
+                _v.ShowWarning($"Số lượng tem khách hàng không khớp số lượng tem FCC.\n\nSố lượng FCC: {temInfo.SlFcc}\nSố lượng khách hàng: {result.Pending.SlTemHVN}\n\nVui lòng sửa số lượng tem khách hàng bằng số lượng FCC để tiếp tục.");
+                _v.ShowSuaSoLuongTem(result.Pending.STT, temInfo.LotFcc, temInfo.SlFcc, result.Pending.SlTemHVN);
+                return;
+            }
+
             if (!string.IsNullOrWhiteSpace(result.Message) && result.Message.StartsWith("CẢNH BÁO FIFO", StringComparison.OrdinalIgnoreCase))
             {
                 _v.ShowWarning(result.Message);
@@ -91,7 +100,33 @@ namespace PCTP.Presentation.Presenters
         private void OnQRScanned(QRScannedEvent e) { _v.ClearQRInput(); _v.BindDocQRCode(_c.QrSvc.LoadAll()); }
         private void OnXoaDongQR(object sender, EventArgs e) { int stt = _v.GetFocusedDocQRStt(); _v.DeleteFocusedDocQRRow(); if (stt > 0) _c.QrSvc.XoaDong(stt); }
         private void OnXoaToanBoQR(object sender, EventArgs e) { _c.QrSvc.XoaToanBo(); _v.ClearDocQRRows(); _c.IsBanQR = false; _c.QrSvc.SetCheDoBan(""); _c.PhieuView.UnlockAllRadio(); }
-        private void OnSuaSoLuongTem(object sender, EventArgs e) { int stt = _v.SttDangSuaSl; if (stt <= 0) { _v.ShowError("Không xác định được dòng cần sửa!"); return; } int? slMoi = _v.GetSuaSoLuongResult(); if (!slMoi.HasValue) { _v.ShowError("Chưa nhập số lượng thay đổi!"); return; } if (slMoi.Value <= 0) { _v.ShowError("Số lượng phải lớn hơn 0!"); return; } _c.QrSvc.CapNhapSlHvn(stt, slMoi.Value); _v.BindDocQRCode(_c.QrSvc.LoadAll()); }
+        private void OnSuaSoLuongTem(object sender, EventArgs e)
+        {
+            int stt = _v.SttDangSuaSl;
+            if (stt <= 0) { _v.ShowError("Không xác định được dòng cần sửa!"); return; }
+            int? slMoi = _v.GetSuaSoLuongResult();
+            if (!slMoi.HasValue) { _v.ShowError("Chưa nhập số lượng thay đổi!"); return; }
+            if (slMoi.Value <= 0) { _v.ShowError("Số lượng phải lớn hơn 0!"); return; }
+
+            var temInfo = _v.GetFocusedDocQRTemInfo();
+            if (temInfo.SlFcc <= 0)
+            {
+                _v.ShowError("Không xác định được số lượng tem FCC để đối chiếu.");
+                return;
+            }
+
+            // Chỉ cập nhật khi số lượng khách hàng khớp chính xác FCC.
+            if (slMoi.Value != temInfo.SlFcc)
+            {
+                _v.ShowWarning($"Số lượng tem khách hàng ({slMoi.Value}) vẫn không khớp số lượng tem FCC ({temInfo.SlFcc}).\n\nVui lòng nhập đúng {temInfo.SlFcc} để tiếp tục.");
+                _v.ShowSuaSoLuongTem(stt, temInfo.LotFcc, temInfo.SlFcc, slMoi.Value);
+                return;
+            }
+
+            _c.QrSvc.CapNhapSlHvn(stt, slMoi.Value);
+            _v.BindDocQRCode(_c.QrSvc.LoadAll());
+            _v.ShowInfo($"Đã cập nhật số lượng tem khách hàng = {slMoi.Value}. Số lượng đã khớp tem FCC.");
+        }
         public void Dispose() { var v = _v; v.DocQRCodeClicked -= OnDocQRCode; v.QRCodeSubmitted -= OnQRCodeSubmitted; v.XoaDongQRClicked -= OnXoaDongQR; v.XoaToanBoQRClicked -= OnXoaToanBoQR; v.SuaSoLuongTemClicked -= OnSuaSoLuongTem; _c.Bus.Unsubscribe<QRScannedEvent>(OnQRScanned); }
     }
 }
