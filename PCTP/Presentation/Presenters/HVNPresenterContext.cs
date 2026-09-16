@@ -73,11 +73,14 @@ namespace PCTP.Presentation.Presenters
             View.BindGioXuatCheckList(danhSachGio);
 
             var delivered = PhieuSvc.GetGioDaGiao(GetNhaMay(), View.SelectedDate.ToString("yyyy-MM-dd"));
-            View.SetCheckedGiosYMVN(delivered);
-
             var deliveredSet = new HashSet<string>(delivered ?? new List<string>(), StringComparer.OrdinalIgnoreCase);
+            var deliveredDisplay = danhSachGio
+                .Where(g => deliveredSet.Contains(NormalizeHour(g)))
+                .ToList();
+            View.SetCheckedGiosYMVN(deliveredDisplay);
+
             var selectable = danhSachGio
-                .Where(g => !deliveredSet.Contains(g.Split(':')[0].PadLeft(2, '0')))
+                .Where(g => !deliveredSet.Contains(NormalizeHour(g)))
                 .ToList();
 
             if (selectable.Count > 0)
@@ -87,13 +90,19 @@ namespace PCTP.Presentation.Presenters
         }
         internal void UpdateGioXuatFromCheckList(List<string> danhSachGio)
         {
-            var hours = danhSachGio.Select(g => g.Split(':')[0].PadLeft(2, '0')).Distinct().OrderBy(h => h).ToList();
+            var hours = danhSachGio.Select(g => NormalizeHour(g)).Where(h => !string.IsNullOrEmpty(h)).Distinct().OrderBy(h => h).ToList();
             GioXuatHienTai = new GioXuat(string.Join(",", hours.Select(h => $"'{h}'")), string.Join("+", danhSachGio) + "H");
         }
         internal List<string> ParseGioYMVN(string gioDonTuDB)
         {
             if (string.IsNullOrWhiteSpace(gioDonTuDB)) return new List<string>();
             return gioDonTuDB.Replace("H", "").Split(new[] { ',', '+' }, StringSplitOptions.RemoveEmptyEntries).Select(g => g.Trim()).Where(g => !string.IsNullOrEmpty(g)).ToList();
+        }
+        private static string NormalizeHour(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return "";
+            string s = value.Replace("H", "").Trim(); int colon = s.IndexOf(':'); if (colon >= 0) s = s.Substring(0, colon);
+            int hour; return int.TryParse(s, out hour) ? hour.ToString("00") : "";
         }
         internal void LoadPhieuHienTai()
         {
