@@ -22,12 +22,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         public bool IsBanSP => _session.IsBanSP;
         public bool IsBanOType => _session.IsBanOType;
 
-        public DocQRService(
-            IDocQRRepository repo,
-            IEventBus bus,
-            CustomerConfig cfg,
-            IOrderCategoryResolver categoryResolver,
-            FifoSessionService fifoService)
+        public DocQRService(IDocQRRepository repo, IEventBus bus, CustomerConfig cfg, IOrderCategoryResolver categoryResolver, FifoSessionService fifoService)
         {
             if (repo == null) throw new ArgumentNullException(nameof(repo));
             if (bus == null) throw new ArgumentNullException(nameof(bus));
@@ -41,10 +36,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             _bus.Subscribe<KhoUpdatedEvent>(OnKhoUpdated);
         }
 
-        public void SetCheDoBanSP(bool isSP)
-        {
-            _session.SetCategory(isSP, _session.IsBanOType);
-        }
+        public void SetCheDoBanSP(bool isSP) => _session.SetCategory(isSP, _session.IsBanOType);
 
         public void SetCheDoBan(string gioMoTa)
         {
@@ -74,7 +66,11 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             _fifoInitialized = false;
         }
 
-        public void XoaDong(int stt) => _engine.XoaDong(stt);
+        public void XoaDong(int stt)
+        {
+            _fifoState.Release(stt);
+            _engine.XoaDong(stt);
+        }
 
         public void XoaToanBo()
         {
@@ -83,21 +79,59 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         }
 
         public void CapNhapSlHvn(int stt, int slMoi)
-            => _engine.CapNhapSlHvn(stt, slMoi);
+        {
+            EnsureFifoInitialized();
 
-        public ScanResult ProcessScan(
-            string rawQr,
-            Func<string, bool> kiemTraMaTrongPhieu,
-            Func<string, int, bool> kiemTraSlDaBan)
+            DataTable current = _engine.LoadAll();
+            DataRow row = null;
+            foreach (DataRow item in current.Rows)
+            {
+                if (!item.Table.Columns.Contains("STT")) continue;
+                if (int.TryParse(item["STT"]?.ToString(), out int currentStt) && currentStt == stt)
+                {
+                    row = item;
+                    break;
+                }
+            }
+
+            if (row == null)
+            {
+                _engine.CapNhapSlHvn(stt, slMoi);
+                return;
+            }
+
+            string maHang = GetFirstValue(row, "MAHANGFCC", "MAHANGHVN");
+            string lot = GetFirstValue(row, "LOTFCC", "LOTHVN");
+            int oldQty = GetInt(row, "SLTEMFCC", GetInt(row, "SLTEMHVN", 0));
+
+            _fifoState.Release(stt);
+            string message;
+            if (!_fifoState.TryConsume(stt, maHang, lot, slMoi, out message))
+            {
+                // Restore the previous reservation because the edit was rejected.
+                _fifoState.TryConsume(stt, maHang, lot, oldQty, out message);
+                throw new InvalidOperationException(message);
+            }
+
+            try
+            {
+                _engine.CapNhapSlHvn(stt, slMoi);
+            }
+            catch
+            {
+                _fifoState.Release(stt);
+                _fifoState.TryConsume(stt, maHang, lot, oldQty, out message);
+                throw;
+            }
+        }
+
+        public ScanResult ProcessScan(string rawQr, Func<string, bool> kiemTraMaTrongPhieu, Func<string, int, bool> kiemTraSlDaBan)
         {
             EnsureFifoInitialized();
             return ApplyRamFifo(_engine.ProcessScan(rawQr, kiemTraMaTrongPhieu, kiemTraSlDaBan));
         }
 
-        public ScanResult ProcessScanYMVN(
-            string rawQr,
-            Func<string, bool> kiemTraMaTrongPhieu,
-            Func<string, int, bool> kiemTraSlDaBan)
+        public ScanResult ProcessScanYMVN(string rawQr, Func<string, bool> kiemTraMaTrongPhieu, Func<string, int, bool> kiemTraSlDaBan)
         {
             EnsureFifoInitialized();
             return ApplyRamFifo(_engine.ProcessScanYMVN(rawQr, kiemTraMaTrongPhieu, kiemTraSlDaBan));
@@ -127,19 +161,30 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             int quantity = item.SlTemFCC > 0 ? item.SlTemFCC : item.SlTemHVN;
 
             string message;
-            if (_fifoState.TryConsume(maHang, lot, quantity, out message))
+            if (_fifoState.TryConsume(item.STT, maHang, lot, quantity, out message))
                 return result;
 
             _engine.XoaDong(item.STT);
             return ScanResult.FifoFail(item, message);
         }
 
-        private void OnKhoUpdated(KhoUpdatedEvent e)
+        private static string GetFirstValue(DataRow row, string first, string second)
         {
-            ResetFifo();
+            if (row.Table.Columns.Contains(first) && row[first] != DBNull.Value && !string.IsNullOrWhiteSpace(row[first].ToString()))
+                return row[first].ToString().Trim();
+            if (row.Table.Columns.Contains(second) && row[second] != DBNull.Value)
+                return row[second].ToString().Trim();
+            return string.Empty;
         }
 
-        public bool KiemTraSlDaBan(string maHang, int slBan)
-            => _engine.KiemTraSlDaBan(maHang, slBan);
+        private static int GetInt(DataRow row, string column, int fallback)
+        {
+            if (!row.Table.Columns.Contains(column) || row[column] == DBNull.Value) return fallback;
+            return int.TryParse(row[column].ToString(), out int value) ? value : fallback;
+        }
+
+        private void OnKhoUpdated(KhoUpdatedEvent e) => ResetFifo();
+
+        public bool KiemTraSlDaBan(string maHang, int slBan) => _engine.KiemTraSlDaBan(maHang, slBan);
     }
 }
