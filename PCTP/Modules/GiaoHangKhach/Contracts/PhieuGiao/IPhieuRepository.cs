@@ -1,5 +1,3 @@
-﻿
-
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
@@ -14,5 +12,6 @@ namespace PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao
      IPhieuLuuTruRepository,
      IPhieuGiaoDBRepository
     {
+        List<FifoViolation> ReleaseFifoViolations(string tmpTable, string docQRTable);
     }
 }
