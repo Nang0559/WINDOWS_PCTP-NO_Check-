@@ -53,50 +53,98 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         {
             message = string.Empty;
             string part = Normalize(maHang);
-            string lotKey = NormalizeLot(lot);
-            if (string.IsNullOrEmpty(part) || string.IsNullOrEmpty(lotKey) || quantity <= 0)
+            if (string.IsNullOrEmpty(part) || string.IsNullOrWhiteSpace(lot) || quantity <= 0)
                 return true;
 
             FifoPartState state;
             if (!_parts.TryGetValue(part, out state))
                 return true;
 
-            FifoLotState allowedLot = state.Lots.FirstOrDefault(x => string.Equals(x.LotKey, lotKey, StringComparison.OrdinalIgnoreCase));
-            if (allowedLot == null || allowedLot.RemainingAllowedQty < quantity)
+            List<LotSelection> selections = ParseLotSelections(lot);
+            if (selections.Count == 0)
             {
-                FifoLotState required = state.Lots
-                    .Where(x => x.RemainingAllowedQty > 0)
-                    .OrderBy(x => x.FifoRank)
-                    .FirstOrDefault();
+                selections.Add(new LotSelection
+                {
+                    LotKey = NormalizeLot(lot),
+                    Lot = lot.Trim(),
+                    Quantity = quantity
+                });
+            }
 
-                string requiredLot = required != null
-                    ? required.DisplayLot
-                    : (state.Lots.Count == 0 ? "(không còn LOT FIFO hợp lệ)" : state.Lots.Last().DisplayLot);
-                int allowedQty = required != null ? required.RemainingAllowedQty : 0;
-
+            int parsedQuantity = selections.Sum(x => x.Quantity);
+            if (parsedQuantity != quantity)
+            {
                 message = string.Format(
-                    "CẢNH BÁO FIFO\n\n" +
-                    "Mã hàng: {0}\n" +
-                    "LOT đang quét: {1}\n" +
-                    "Số lượng: {2}\n" +
-                    "LOT FIFO hiện tại: {3}\n" +
-                    "Số lượng còn được phép: {4}\n\n" +
-                    "Không thể xuất LOT này vì chưa đúng thứ tự FIFO.",
-                    part,
-                    lotKey,
-                    quantity,
-                    requiredLot,
-                    allowedQty);
+                    "CẢNH BÁO FIFO\n\nMã hàng: {0}\nLOT đang quét: {1}\nSố lượng: {2}\n" +
+                    "Tổng số lượng trong LOT ghép: {3}\n\nDữ liệu LOT ghép không khớp số lượng QR.",
+                    part, lot.Trim(), quantity, parsedQuantity);
                 return false;
             }
 
-            allowedLot.RemainingAllowedQty -= quantity;
+            // Validate the complete compound LOT against the current RAM allocation first.
+            // Nothing is consumed until every LOT component passes.
+            var trial = state.Lots.ToDictionary(x => x.LotKey, x => x.RemainingAllowedQty, StringComparer.OrdinalIgnoreCase);
+            var consumed = new List<FifoReservationLine>();
+
+            foreach (LotSelection selection in selections)
+            {
+                FifoLotState allowedLot = state.Lots.FirstOrDefault(x =>
+                    string.Equals(x.LotKey, selection.LotKey, StringComparison.OrdinalIgnoreCase));
+
+                int remaining;
+                if (allowedLot == null || !trial.TryGetValue(selection.LotKey, out remaining) || remaining < selection.Quantity)
+                {
+                    FifoLotState required = state.Lots
+                        .Where(x => trial.ContainsKey(x.LotKey) && trial[x.LotKey] > 0)
+                        .OrderBy(x => x.FifoRank)
+                        .FirstOrDefault();
+
+                    string requiredLot = required != null
+                        ? required.DisplayLot
+                        : (state.Lots.Count == 0 ? "(không còn LOT FIFO hợp lệ)" : state.Lots[0].DisplayLot);
+                    int allowedQty = required != null && trial.ContainsKey(required.LotKey)
+                        ? trial[required.LotKey]
+                        : 0;
+
+                    message = string.Format(
+                        "CẢNH BÁO FIFO\n\n" +
+                        "Mã hàng: {0}\n" +
+                        "LOT đang quét: {1}\n" +
+                        "LOT thành phần sai FIFO: {2}\n" +
+                        "Số lượng LOT thành phần: {3}\n" +
+                        "LOT FIFO hiện tại: {4}\n" +
+                        "Số lượng còn được phép: {5}\n\n" +
+                        "Không thể xuất LOT ghép này vì chưa đúng thứ tự FIFO.",
+                        part,
+                        lot.Trim(),
+                        selection.Lot,
+                        selection.Quantity,
+                        requiredLot,
+                        allowedQty);
+                    return false;
+                }
+
+                trial[selection.LotKey] = remaining - selection.Quantity;
+                consumed.Add(new FifoReservationLine
+                {
+                    LotKey = selection.LotKey,
+                    Quantity = selection.Quantity
+                });
+            }
+
+            // Commit the whole compound LOT atomically to RAM.
+            foreach (FifoReservationLine line in consumed)
+            {
+                FifoLotState row = state.Lots.First(x =>
+                    string.Equals(x.LotKey, line.LotKey, StringComparison.OrdinalIgnoreCase));
+                row.RemainingAllowedQty -= line.Quantity;
+            }
+
             _reservations[stt] = new FifoReservation
             {
                 Stt = stt,
                 ItemCode = part,
-                LotKey = lotKey,
-                Quantity = quantity
+                Lines = consumed
             };
             return true;
         }
@@ -106,7 +154,9 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             FifoReservation reservation;
             if (!_reservations.TryGetValue(stt, out reservation)) return;
 
-            Release(reservation.ItemCode, reservation.LotKey, reservation.Quantity);
+            foreach (FifoReservationLine line in reservation.Lines)
+                Release(reservation.ItemCode, line.LotKey, line.Quantity);
+
             _reservations.Remove(stt);
         }
 
@@ -122,6 +172,33 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             if (row == null) return;
 
             row.RemainingAllowedQty = Math.Min(row.OriginalAvailableQty, row.RemainingAllowedQty + quantity);
+        }
+
+        private static List<LotSelection> ParseLotSelections(string value)
+        {
+            var result = new List<LotSelection>();
+            if (string.IsNullOrWhiteSpace(value)) return result;
+
+            foreach (string token in value.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                string part = token.Trim();
+                int separator = part.LastIndexOf('-');
+                if (separator <= 0 || separator >= part.Length - 1) return new List<LotSelection>();
+
+                string lot = part.Substring(0, separator).Trim();
+                int quantity;
+                if (!int.TryParse(part.Substring(separator + 1).Trim(), out quantity) || quantity <= 0)
+                    return new List<LotSelection>();
+
+                result.Add(new LotSelection
+                {
+                    LotKey = NormalizeLot(lot),
+                    Lot = lot,
+                    Quantity = quantity
+                });
+            }
+
+            return result;
         }
 
         private static string Normalize(string value)
@@ -151,10 +228,22 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             public int FifoRank { get; set; }
         }
 
+        private sealed class LotSelection
+        {
+            public string LotKey { get; set; }
+            public string Lot { get; set; }
+            public int Quantity { get; set; }
+        }
+
         private sealed class FifoReservation
         {
             public int Stt { get; set; }
             public string ItemCode { get; set; }
+            public List<FifoReservationLine> Lines { get; set; }
+        }
+
+        private sealed class FifoReservationLine
+        {
             public string LotKey { get; set; }
             public int Quantity { get; set; }
         }
