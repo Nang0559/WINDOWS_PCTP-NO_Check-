@@ -52,8 +52,18 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.SubForm
         }
 
         private bool IsFifoEnabled()
-            => _danhSachLot.Columns.Contains("FIFO_RANK")
-               && _danhSachLot.Columns.Contains("FIFO_REQUIRED");
+        {
+            if (!_danhSachLot.Columns.Contains("FIFO_RANK") ||
+                !_danhSachLot.Columns.Contains("FIFO_REQUIRED") ||
+                !_danhSachLot.Columns.Contains("LOT") ||
+                !_danhSachLot.Columns.Contains("SLCONLAI"))
+                return false;
+
+            return _danhSachLot.AsEnumerable().Any(r =>
+                r["FIFO_RANK"] != DBNull.Value &&
+                int.TryParse(Convert.ToString(r["FIFO_RANK"]), out int rank) &&
+                rank > 0);
+        }
 
         private static string LotKey(string lot)
         {
@@ -65,37 +75,64 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.SubForm
         private bool ValidateFifoSelection(List<Tuple<string, int>> selected, out string message)
         {
             message = null;
-            if (!IsFifoEnabled() || selected == null || selected.Count == 0)
-                return true;
+
+            // Fail closed. If the picker cannot prove the FIFO order, it must
+            // never allow the operator to bypass FIFO by selecting a newer LOT.
+            if (!IsFifoEnabled())
+            {
+                message = $"Không xác định được thứ tự FIFO cho mã hàng {_maHang}.\n\n" +
+                          "Không thể tiếp tục chọn LOT. Hãy tải lại danh sách LOT từ kho rồi thử lại.";
+                return false;
+            }
+
+            if (selected == null || selected.Count == 0)
+            {
+                message = "Chưa có LOT được chọn.";
+                return false;
+            }
 
             var selectedMap = selected
                 .GroupBy(x => LotKey(x.Item1), StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(g => g.Key, g => g.Sum(x => x.Item2), StringComparer.OrdinalIgnoreCase);
 
             var fifoRows = _danhSachLot.AsEnumerable()
-                .Where(r => r["FIFO_RANK"] != DBNull.Value && Convert.ToInt32(r["FIFO_RANK"]) > 0)
+                .Where(r => r["FIFO_RANK"] != DBNull.Value &&
+                            int.TryParse(Convert.ToString(r["FIFO_RANK"]), out int rank) &&
+                            rank > 0)
                 .OrderBy(r => Convert.ToInt32(r["FIFO_RANK"]))
                 .ToList();
+
+            if (fifoRows.Count == 0)
+            {
+                message = $"Không có dữ liệu FIFO hợp lệ cho mã hàng {_maHang}.";
+                return false;
+            }
 
             int remainingSelected = selectedMap.Values.Sum();
             var consumedKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             foreach (DataRow fifoRow in fifoRows)
             {
-                string fifoKey = LotKey(fifoRow["LOT"]?.ToString());
+                if (remainingSelected <= 0) break;
+
+                string fifoKey = LotKey(Convert.ToString(fifoRow["LOT"]));
                 if (string.IsNullOrEmpty(fifoKey)) continue;
 
-                int stock = fifoRow["SLCONLAI"] == DBNull.Value ? 0 : Math.Max(0, Convert.ToInt32(fifoRow["SLCONLAI"]));
-                int expected = Math.Min(remainingSelected, stock);
-                selectedMap.TryGetValue(fifoKey, out int selectedQty);
+                int stock = fifoRow["SLCONLAI"] == DBNull.Value
+                    ? 0
+                    : Math.Max(0, Convert.ToInt32(fifoRow["SLCONLAI"]));
+                if (stock <= 0) continue;
 
-                if (expected == 0)
-                    break;
+                selectedMap.TryGetValue(fifoKey, out int selectedQty);
+                int expected = Math.Min(remainingSelected, stock);
 
                 if (selectedQty != expected)
                 {
-                    string wrongLot = selected.FirstOrDefault(x => !string.Equals(LotKey(x.Item1), fifoKey, StringComparison.OrdinalIgnoreCase))?.Item1;
-                    message = $"Vi phạm FIFO.\n\nMã hàng: {_maHang}\n" +
+                    string wrongLot = selected
+                        .FirstOrDefault(x => !string.Equals(LotKey(x.Item1), fifoKey, StringComparison.OrdinalIgnoreCase))?.Item1;
+
+                    message = "Vi phạm FIFO.\n\n" +
+                              $"Mã hàng: {_maHang}\n" +
                               $"LOT {wrongLot ?? selected.First().Item1} chưa được phép xuất.\n" +
                               $"Phải xuất LOT {fifoRow["LOT"]} trước.";
                     return false;
@@ -103,7 +140,6 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.SubForm
 
                 consumedKeys.Add(fifoKey);
                 remainingSelected -= expected;
-                if (remainingSelected <= 0) break;
             }
 
             if (remainingSelected > 0)
@@ -116,9 +152,14 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.SubForm
             {
                 if (consumedKeys.Contains(selectedKey)) continue;
 
-                DataRow next = fifoRows.FirstOrDefault(r => !consumedKeys.Contains(LotKey(r["LOT"]?.ToString())));
-                string required = next == null ? "LOT FIFO kế tiếp" : next["LOT"].ToString();
-                message = $"Vi phạm FIFO.\n\nMã hàng: {_maHang}\n" +
+                DataRow next = fifoRows.FirstOrDefault(r =>
+                    !consumedKeys.Contains(LotKey(Convert.ToString(r["LOT"]))) &&
+                    r["SLCONLAI"] != DBNull.Value &&
+                    Convert.ToInt32(r["SLCONLAI"]) > 0);
+
+                string required = next == null ? "LOT FIFO kế tiếp" : Convert.ToString(next["LOT"]);
+                message = "Vi phạm FIFO.\n\n" +
+                          $"Mã hàng: {_maHang}\n" +
                           $"LOT {selectedKey} chưa được phép xuất.\n" +
                           $"Phải xuất LOT {required} trước.";
                 return false;
