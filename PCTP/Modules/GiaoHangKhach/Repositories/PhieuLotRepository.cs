@@ -99,12 +99,12 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         public DataTable GetDanhSachLotTuKho(string maHang)
         {
             const int keyLen = PCTP.Common.LotCodeHelper.LEN_LEGACY_KEY;
-            const string sql = @"
+            string sql = $@"
 ;WITH StockLot AS
 (
     SELECT
         PART,
-        LEFT(LOT, 13) AS LOTKEY,
+        LEFT(LOT, {keyLen}) AS LOTKEY,
         MIN(LOT) AS LOTDISPLAY,
         SUM(ISNULL(SLCONLAI, 0)) AS SLCONLAI,
         SUM(ISNULL(SLXUAT, 0)) AS SLXUAT,
@@ -112,8 +112,8 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
     FROM STOCKTP
     WHERE PART = @ma
       AND ISNULL(SLCONLAI, 0) > 0
-      AND LEN(ISNULL(LOT, '')) >= 13
-    GROUP BY PART, LEFT(LOT, 13)
+      AND LEN(ISNULL(LOT, '')) >= {keyLen}
+    GROUP BY PART, LEFT(LOT, {keyLen})
 ),
 Fifo AS
 (
