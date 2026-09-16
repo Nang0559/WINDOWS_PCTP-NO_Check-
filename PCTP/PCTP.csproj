@@ -335,9 +335,7 @@
     <Compile Include="Modules\BaoCao\Infrastructure\Repositories\QualityHistoryRepository.cs" />
     <Compile Include="Modules\BaoCao\Infrastructure\Repositories\StockHistoryRepository.cs" />
     <Compile Include="Modules\BaoCao\UI\BaoCaoNavigator.cs" />
-    <Compile Include="Modules\BaoCao\UI\FormBaoCaoMain.cs">
-      <SubType>Form</SubType>
-    </Compile>
+    <Compile Include="Modules\BaoCao\UI\FormBaoCaoMain.cs" />
     <Compile Include="Modules\BaoCao\UI\FormBaoCaoQualityHistory.cs" />
     <Compile Include="Modules\BaoCao\UI\FormBaoCaoStockHistory.cs" />
     <Compile Include="Modules\BaoCao\UI\FormBaoCaoTraceability.cs" />
@@ -869,6 +867,7 @@
       <DependentUpon>Main_APP.cs</DependentUpon>
     </Compile>
     <Compile Include="Shell\Services\QrMachineSwitchService.cs" />
+    <Compile Include="Shell\UI\WmsTitleBarForm.cs" />
     <Compile Include="Shell\Widgets\MainAppDashboardController.cs" />
     <Compile Include="Shell\Widgets\WarehouseDashboardBar.cs">
       <SubType>UserControl</SubType>
