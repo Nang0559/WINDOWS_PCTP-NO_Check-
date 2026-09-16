@@ -1,4 +1,4 @@
-﻿using PCTP.Domain.Entities;
+using PCTP.Domain.Entities;
 using PCTP.Shared.Models;
 using System.Collections.Generic;
 
@@ -6,54 +6,21 @@ namespace PCTP.Shared.Helpers
 {
     public class ScanResult
     {
-        // ============================================================
-        // TRẠNG THÁI CHUNG
-        // ============================================================
-
         public bool IsOK { get; private set; }
-
         public bool IsSlKhongKhop { get; private set; }
-
         public bool IsTrung { get; private set; }
-
         public bool IsLoi { get; private set; }
-
         public bool CanhBaoVuotSanLuong { get; private set; }
-
+        public bool IsFifoViolation { get; private set; }
         public string Message { get; private set; }
 
-
-        // ============================================================
-        // PAYLOAD - GIAO HÀNG
-        // ============================================================
-
         public DocQRCode Pending { get; private set; }
-
         public string CaseNo { get; private set; }
-
-
-        // ============================================================
-        // PAYLOAD - NHẬP KHO
-        // ============================================================
-
         public QRCodeInfo QRInfo { get; private set; }
-
         public NhapKhoItem NhapKhoItem { get; private set; }
-
-
-        // ============================================================
-        // PAYLOAD - TRẢ HÀNG / NG
-        // ============================================================
-
         public List<StockTraHangInfo> NgList { get; private set; }
 
-
-        // ============================================================
-        // SUCCESS CHUNG
-        // ============================================================
-
-        public static ScanResult OK(
-            string message = null)
+        public static ScanResult OK(string message = null)
         {
             return new ScanResult
             {
@@ -62,18 +29,12 @@ namespace PCTP.Shared.Helpers
                 IsTrung = false,
                 IsSlKhongKhop = false,
                 CanhBaoVuotSanLuong = false,
+                IsFifoViolation = false,
                 Message = message ?? string.Empty
             };
         }
 
-
-        // ============================================================
-        // SUCCESS - GIAO HÀNG
-        // ============================================================
-
-        public static ScanResult OK(
-            DocQRCode item,
-            string message = null)
+        public static ScanResult OK(DocQRCode item, string message = null)
         {
             return new ScanResult
             {
@@ -83,19 +44,12 @@ namespace PCTP.Shared.Helpers
                 IsTrung = false,
                 IsSlKhongKhop = false,
                 CanhBaoVuotSanLuong = false,
+                IsFifoViolation = false,
                 Message = message ?? string.Empty
             };
         }
 
-
-        // ============================================================
-        // SUCCESS - NHẬP KHO
-        // ============================================================
-
-        public static ScanResult OKNhapKho(
-            QRCodeInfo qr,
-            NhapKhoItem nhapItem = null,
-            string message = null)
+        public static ScanResult OKNhapKho(QRCodeInfo qr, NhapKhoItem nhapItem = null, string message = null)
         {
             return new ScanResult
             {
@@ -106,18 +60,12 @@ namespace PCTP.Shared.Helpers
                 IsTrung = false,
                 IsSlKhongKhop = false,
                 CanhBaoVuotSanLuong = false,
+                IsFifoViolation = false,
                 Message = message ?? string.Empty
             };
         }
 
-
-        // ============================================================
-        // SUCCESS - NG / TRẢ HÀNG
-        // ============================================================
-
-        public static ScanResult OKNgList(
-            List<StockTraHangInfo> list,
-            string message = null)
+        public static ScanResult OKNgList(List<StockTraHangInfo> list, string message = null)
         {
             return new ScanResult
             {
@@ -127,17 +75,12 @@ namespace PCTP.Shared.Helpers
                 IsTrung = false,
                 IsSlKhongKhop = false,
                 CanhBaoVuotSanLuong = false,
+                IsFifoViolation = false,
                 Message = message ?? string.Empty
             };
         }
 
-
-        // ============================================================
-        // FAIL - LỖI NGHIỆP VỤ
-        // ============================================================
-
-        public static ScanResult Fail(
-            string message)
+        public static ScanResult Fail(string message)
         {
             return new ScanResult
             {
@@ -146,17 +89,27 @@ namespace PCTP.Shared.Helpers
                 IsTrung = false,
                 IsSlKhongKhop = false,
                 CanhBaoVuotSanLuong = false,
+                IsFifoViolation = false,
                 Message = message ?? string.Empty
             };
         }
 
+        public static ScanResult FifoFail(DocQRCode pending, string message)
+        {
+            return new ScanResult
+            {
+                IsOK = false,
+                Pending = pending,
+                IsLoi = true,
+                IsTrung = false,
+                IsSlKhongKhop = false,
+                CanhBaoVuotSanLuong = false,
+                IsFifoViolation = true,
+                Message = message ?? string.Empty
+            };
+        }
 
-        // ============================================================
-        // FAIL - TRÙNG
-        // ============================================================
-
-        public static ScanResult Trung(
-            string message)
+        public static ScanResult Trung(string message)
         {
             return new ScanResult
             {
@@ -165,17 +118,12 @@ namespace PCTP.Shared.Helpers
                 IsTrung = true,
                 IsSlKhongKhop = false,
                 CanhBaoVuotSanLuong = false,
+                IsFifoViolation = false,
                 Message = message ?? "Dữ liệu đã tồn tại."
             };
         }
 
-
-        // ============================================================
-        // FAIL - SL KHÔNG KHỚP
-        // ============================================================
-
-        public static ScanResult SlKhongKhop(
-            DocQRCode pending)
+        public static ScanResult SlKhongKhop(DocQRCode pending)
         {
             return new ScanResult
             {
@@ -184,18 +132,13 @@ namespace PCTP.Shared.Helpers
                 IsTrung = false,
                 IsSlKhongKhop = true,
                 CanhBaoVuotSanLuong = false,
+                IsFifoViolation = false,
                 Pending = pending,
                 Message = "Số lượng tem HVN khác FCC — cần xác nhận."
             };
         }
 
-
-        // ============================================================
-        // CẢNH BÁO VƯỢT SẢN LƯỢNG
-        // ============================================================
-
-        public static ScanResult CanhBao(
-            string message)
+        public static ScanResult CanhBao(string message)
         {
             return new ScanResult
             {
@@ -204,18 +147,12 @@ namespace PCTP.Shared.Helpers
                 IsTrung = false,
                 IsSlKhongKhop = false,
                 CanhBaoVuotSanLuong = true,
+                IsFifoViolation = false,
                 Message = message ?? string.Empty
             };
         }
 
-
-        // ============================================================
-        // CẢNH BÁO + PAYLOAD
-        // ============================================================
-
-        public static ScanResult CanhBaoVuot(
-            string message,
-            DocQRCode pending)
+        public static ScanResult CanhBaoVuot(string message, DocQRCode pending)
         {
             return new ScanResult
             {
@@ -224,6 +161,7 @@ namespace PCTP.Shared.Helpers
                 IsTrung = false,
                 IsSlKhongKhop = false,
                 CanhBaoVuotSanLuong = true,
+                IsFifoViolation = false,
                 Pending = pending,
                 Message = message ?? string.Empty
             };
