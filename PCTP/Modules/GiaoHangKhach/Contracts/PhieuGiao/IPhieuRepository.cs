@@ -1,6 +1,5 @@
+using PCTP.Modules.GiaoHangKhach;
 using System.Collections.Generic;
-using System.Data;
-using System.Data.SqlClient;
 
 namespace PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao
 {
