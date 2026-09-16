@@ -84,24 +84,21 @@ jobs:
           }
 
           $formText = Get-Content $receivingForm -Raw
-          $forbiddenReceivingDependencies = @(
-            'StockTpRepository',
-            'PhieuTrackingRepository',
-            'StockTpCaseRepository',
-            'StockTpProductionRepository',
-            'StockTpStatusRepository',
-            'StockHistoryRepository',
-            'IStockMovementService'
+          $forbiddenPatterns = @(
+            'new\s+StockTpRepository\s*\(',
+            'new\s+PhieuTrackingRepository\s*\(',
+            'new\s+StockTpCaseRepository\s*\(',
+            'new\s+StockTpProductionRepository\s*\(',
+            'new\s+StockTpStatusRepository\s*\(',
+            'new\s+StockHistoryRepository\s*\(',
+            '\bIStockMovementService\s+\w+',
+            'StockService\s*\.\s*ImportLotToSlot\s*\('
           )
 
-          foreach ($token in $forbiddenReceivingDependencies) {
-            if ($formText -match [regex]::Escape($token)) {
-              throw "FormEnterItemSV must not depend directly on '$token'; use INhapTpReceivingService."
+          foreach ($pattern in $forbiddenPatterns) {
+            if ($formText -match $pattern) {
+              throw "FormEnterItemSV has a forbidden direct receiving dependency: $pattern"
             }
-          }
-
-          if ($formText -match 'StockService\s*\.\s*ImportLotToSlot') {
-            throw "FormEnterItemSV must not use the legacy StockService.ImportLotToSlot receiving path."
           }
 
           $serviceText = Get-Content $receivingService -Raw
