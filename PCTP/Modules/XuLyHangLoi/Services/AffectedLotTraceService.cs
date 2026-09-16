@@ -1,15 +1,18 @@
+using PCTP.ClassSQL;
 using PCTP.Modules.XuLyHangLoi.Enums;
 using PCTP.Modules.XuLyHangLoi.Models;
 using PCTP.Modules.XuLyHangLoi.Repository;
+using PCTP.Shared.Common;
 using System;
 using System.Collections.Generic;
+using System.Data;
+using System.Data.SqlClient;
 using System.Linq;
 
 namespace PCTP.Modules.XuLyHangLoi.Services
 {
     /// <summary>
-    /// Phase 2: hợp nhất snapshot LOT từ Kho + Sản xuất/WIP + Khách trả.
-    /// Service này chỉ đọc; việc lưu snapshot xuống DB sẽ được nối ở repository phase kế tiếp.
+    /// Phase 2: hợp nhất nguồn LOT và snapshot bất biến tại thời điểm truy vết.
     /// Không được coi riêng tồn kho là toàn bộ LOT bị ảnh hưởng.
     /// </summary>
     public sealed class AffectedLotTraceService : IAffectedLotTraceService
@@ -17,15 +20,24 @@ namespace PCTP.Modules.XuLyHangLoi.Services
         private readonly IReworkStockService _stockService;
         private readonly IProductionLotTraceProvider _productionProvider;
         private readonly ICustomerReturnLotTraceProvider _customerReturnProvider;
+        private readonly IPhieuXuLyBatThuongRepository _phieuRepository;
+        private readonly PhieuSqlExecutor _db;
+        private readonly IUnitOfWork _uow;
 
         public AffectedLotTraceService(
             IReworkStockService stockService,
             IProductionLotTraceProvider productionProvider = null,
-            ICustomerReturnLotTraceProvider customerReturnProvider = null)
+            ICustomerReturnLotTraceProvider customerReturnProvider = null,
+            IPhieuXuLyBatThuongRepository phieuRepository = null,
+            PhieuSqlExecutor db = null,
+            IUnitOfWork uow = null)
         {
             _stockService = stockService ?? throw new ArgumentNullException(nameof(stockService));
             _productionProvider = productionProvider;
             _customerReturnProvider = customerReturnProvider;
+            _phieuRepository = phieuRepository;
+            _db = db;
+            _uow = uow;
         }
 
         public AffectedLotTraceResult TraceForPhieu(
@@ -36,6 +48,177 @@ namespace PCTP.Modules.XuLyHangLoi.Services
                 throw new ArgumentNullException(nameof(phieu));
 
             return Trace(phieu.MaSanPham, phieu.SoLoLoi, nguoiThucHien);
+        }
+
+        /// <summary>
+        /// Truy vết + snapshot xuống FVN_PhieuXuLyBatThuongAffectedLot.
+        /// Đây là entry point chính của Phase 2.
+        /// </summary>
+        public AffectedLotTraceResult TruyVetLOT(
+            int phieuXuLyId,
+            string nguoiThucHien)
+        {
+            if (phieuXuLyId <= 0)
+                throw new ArgumentOutOfRangeException(nameof(phieuXuLyId));
+            if (string.IsNullOrWhiteSpace(nguoiThucHien))
+                throw new ArgumentException("NguoiThucHien không được rỗng.", nameof(nguoiThucHien));
+            if (_phieuRepository == null || _db == null || _uow == null)
+                throw new InvalidOperationException("AffectedLotTraceService chưa được wiring persistence dependencies.");
+
+            var phieu = _phieuRepository.GetById(phieuXuLyId);
+            if (phieu == null)
+                throw new InvalidOperationException("Không tìm thấy PhieuXuLyBatThuong Id=" + phieuXuLyId + ".");
+
+            var result = TraceForPhieu(phieu, nguoiThucHien);
+
+            // Fail closed: không được snapshot thiếu nguồn rồi để QC coi đó là tổng ảnh hưởng.
+            if (!result.IsComplete)
+            {
+                throw new InvalidOperationException(
+                    "Không thể hoàn tất truy vết LOT vì còn thiếu nguồn dữ liệu: " +
+                    string.Join(" | ", result.Warnings));
+            }
+
+            if (result.TotalAffectedQuantity <= 0)
+            {
+                throw new InvalidOperationException(
+                    "Truy vết LOT không tìm thấy số lượng bị ảnh hưởng.");
+            }
+
+            var snapshotAt = DateTime.Now;
+            foreach (var item in result.Items)
+            {
+                item.PhieuXuLyBatThuongId = phieuXuLyId;
+                item.SnapshotAt = snapshotAt;
+                item.SnapshotBy = nguoiThucHien.Trim();
+            }
+
+            try
+            {
+                _uow.Begin();
+
+                // Snapshot của một lần truy vết phải là một tập nhất quán.
+                ExecuteNonQuery(
+                    @"DELETE FROM FVN_PhieuXuLyBatThuongAffectedLot
+                      WHERE PhieuXuLyBatThuongId = @PhieuXuLyBatThuongId;",
+                    new SqlParameter("@PhieuXuLyBatThuongId", phieuXuLyId));
+
+                foreach (var item in result.Items)
+                {
+                    ExecuteNonQuery(
+                        @"INSERT INTO FVN_PhieuXuLyBatThuongAffectedLot
+                          (
+                              PhieuXuLyBatThuongId,
+                              SourceType,
+                              SourceReference,
+                              SlotId,
+                              LotNo,
+                              MaSanPham,
+                              Model,
+                              SoLuongAnhHuong,
+                              SoLuongDaKiemTra,
+                              SoLuongOK,
+                              SoLuongNG,
+                              SoLuongRework,
+                              SoLuongLoaiBo,
+                              SnapshotAt,
+                              SnapshotBy
+                          )
+                          VALUES
+                          (
+                              @PhieuXuLyBatThuongId,
+                              @SourceType,
+                              @SourceReference,
+                              @SlotId,
+                              @LotNo,
+                              @MaSanPham,
+                              @Model,
+                              @SoLuongAnhHuong,
+                              0,
+                              0,
+                              0,
+                              0,
+                              0,
+                              @SnapshotAt,
+                              @SnapshotBy
+                          );",
+                        new SqlParameter("@PhieuXuLyBatThuongId", item.PhieuXuLyBatThuongId),
+                        new SqlParameter("@SourceType", (int)item.SourceType),
+                        new SqlParameter("@SourceReference", DbValueHelper.DbValue(item.SourceReference)),
+                        new SqlParameter("@SlotId", DbValueHelper.DbValue(item.SlotId)),
+                        new SqlParameter("@LotNo", DbValueHelper.DbValue(item.LotNo)),
+                        new SqlParameter("@MaSanPham", DbValueHelper.DbValue(item.MaSanPham)),
+                        new SqlParameter("@Model", DbValueHelper.DbValue(item.Model)),
+                        new SqlParameter("@SoLuongAnhHuong", item.SoLuongAnhHuong),
+                        new SqlParameter("@SnapshotAt", item.SnapshotAt),
+                        new SqlParameter("@SnapshotBy", DbValueHelper.DbValue(item.SnapshotBy)));
+                }
+
+                _uow.Commit();
+                return result;
+            }
+            catch
+            {
+                try { _uow.Rollback(); } catch { }
+                throw;
+            }
+        }
+
+        public IReadOnlyList<PhieuXuLyBatThuongAffectedLot> GetSnapshot(int phieuXuLyId)
+        {
+            if (phieuXuLyId <= 0)
+                throw new ArgumentOutOfRangeException(nameof(phieuXuLyId));
+            if (_db == null)
+                throw new InvalidOperationException("AffectedLotTraceService chưa được wiring database dependency.");
+
+            var table = LoadData(
+                @"SELECT
+                      Id,
+                      PhieuXuLyBatThuongId,
+                      SourceType,
+                      SourceReference,
+                      SlotId,
+                      LotNo,
+                      MaSanPham,
+                      Model,
+                      SoLuongAnhHuong,
+                      SoLuongDaKiemTra,
+                      SoLuongOK,
+                      SoLuongNG,
+                      SoLuongRework,
+                      SoLuongLoaiBo,
+                      SnapshotAt,
+                      SnapshotBy
+                  FROM FVN_PhieuXuLyBatThuongAffectedLot
+                  WHERE PhieuXuLyBatThuongId = @PhieuXuLyBatThuongId
+                  ORDER BY SourceType, Id;",
+                new SqlParameter("@PhieuXuLyBatThuongId", phieuXuLyId));
+
+            var result = new List<PhieuXuLyBatThuongAffectedLot>();
+            foreach (DataRow row in table.Rows)
+            {
+                result.Add(new PhieuXuLyBatThuongAffectedLot
+                {
+                    Id = DbValueHelper.ToInt(row["Id"]),
+                    PhieuXuLyBatThuongId = DbValueHelper.ToInt(row["PhieuXuLyBatThuongId"]),
+                    SourceType = (AffectedLotSourceType)DbValueHelper.ToInt(row["SourceType"]),
+                    SourceReference = DbValueHelper.ToString(row["SourceReference"]),
+                    SlotId = ToNullableInt(row["SlotId"]),
+                    LotNo = DbValueHelper.ToString(row["LotNo"]),
+                    MaSanPham = DbValueHelper.ToString(row["MaSanPham"]),
+                    Model = DbValueHelper.ToString(row["Model"]),
+                    SoLuongAnhHuong = DbValueHelper.ToInt(row["SoLuongAnhHuong"]),
+                    SoLuongDaKiemTra = DbValueHelper.ToInt(row["SoLuongDaKiemTra"]),
+                    SoLuongOK = DbValueHelper.ToInt(row["SoLuongOK"]),
+                    SoLuongNG = DbValueHelper.ToInt(row["SoLuongNG"]),
+                    SoLuongRework = DbValueHelper.ToInt(row["SoLuongRework"]),
+                    SoLuongLoaiBo = DbValueHelper.ToInt(row["SoLuongLoaiBo"]),
+                    SnapshotAt = DbValueHelper.ToDateTime(row["SnapshotAt"]) ?? DateTime.MinValue,
+                    SnapshotBy = DbValueHelper.ToString(row["SnapshotBy"])
+                });
+            }
+
+            return result;
         }
 
         public AffectedLotTraceResult Trace(
@@ -121,6 +304,23 @@ namespace PCTP.Modules.XuLyHangLoi.Services
                 .ToList();
 
             return result;
+        }
+
+        private void ExecuteNonQuery(string sql, params SqlParameter[] parameters)
+        {
+            _db.ExecuteNonQuery(sql, parameters);
+        }
+
+        private DataTable LoadData(string sql, params SqlParameter[] parameters)
+        {
+            return _db.ExecuteQuery(sql, parameters);
+        }
+
+        private static int? ToNullableInt(object value)
+        {
+            if (value == null || value == DBNull.Value)
+                return null;
+            return DbValueHelper.ToInt(value);
         }
 
         private static void AddRows(
