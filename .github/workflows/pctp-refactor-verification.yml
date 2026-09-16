@@ -69,6 +69,63 @@ jobs:
             }
           }
 
+      - name: Verify unified receiving boundary
+        shell: pwsh
+        run: |
+          $root = Join-Path $env:GITHUB_WORKSPACE 'PCTP'
+          $receivingForm = Join-Path $root 'Modules\KhoVatLy\FormEnterItemSV.cs'
+          $receivingService = Join-Path $root 'Modules\NhapKho\Services\NhapTpReceivingService.cs'
+
+          if (-not (Test-Path $receivingForm)) {
+            throw "Unified receiving UI is missing: $receivingForm"
+          }
+          if (-not (Test-Path $receivingService)) {
+            throw "Unified receiving service is missing: $receivingService"
+          }
+
+          $formText = Get-Content $receivingForm -Raw
+          $forbiddenReceivingDependencies = @(
+            'StockTpRepository',
+            'PhieuTrackingRepository',
+            'StockTpCaseRepository',
+            'StockTpProductionRepository',
+            'StockTpStatusRepository',
+            'StockHistoryRepository',
+            'IStockMovementService'
+          )
+
+          foreach ($token in $forbiddenReceivingDependencies) {
+            if ($formText -match [regex]::Escape($token)) {
+              throw "FormEnterItemSV must not depend directly on '$token'; use INhapTpReceivingService."
+            }
+          }
+
+          if ($formText -match 'StockService\s*\.\s*ImportLotToSlot') {
+            throw "FormEnterItemSV must not use the legacy StockService.ImportLotToSlot receiving path."
+          }
+
+          $serviceText = Get-Content $receivingService -Raw
+          if ($serviceText -notmatch '_uow\.Begin\(\)') {
+            throw "NhapTpReceivingService must own the receiving transaction boundary."
+          }
+          if ($serviceText -notmatch '_stockMovement\.Receive\(') {
+            throw "NhapTpReceivingService must route stock mutation through IStockMovementService.Receive."
+          }
+          if ($serviceText -notmatch '_phieuRepo\.InsertPhieuMoi\(') {
+            throw "NhapTpReceivingService must persist the receiving tracking record."
+          }
+          if ($serviceText -notmatch '_caseRepo\.InsertCaseHistory\(') {
+            throw "NhapTpReceivingService must persist the production case history."
+          }
+          if ($serviceText -notmatch '_historyRepo\.SaveHistory\(') {
+            throw "NhapTpReceivingService must persist stock history in the same workflow."
+          }
+
+          # LOT reopen must be deferred until inside the receiving transaction.
+          if ($serviceText -match 'public void MoLaiLot[\s\S]{0,800}_stockTpStatus\.MoLaiLot\(') {
+            throw "MoLaiLot must not mutate STOCKTP directly before receiving; defer the mutation to NhapTpVaoSlot."
+          }
+
       - name: Verify DeliveryTrace contracts
         shell: pwsh
         run: |
