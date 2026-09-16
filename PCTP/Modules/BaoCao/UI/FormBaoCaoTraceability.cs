@@ -1,6 +1,7 @@
 using DevExpress.XtraEditors;
 using PCTP.Modules.BaoCao.Application.Contracts.Queries;
 using PCTP.Modules.BaoCao.Infrastructure.Queries;
+using PCTP.Shell.UI;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -13,7 +14,7 @@ using System.Windows.Forms;
 namespace PCTP.Modules.BaoCao.UI
 {
     [DesignerCategory("Code")]
-    public sealed class FormBaoCaoTraceability : XtraForm
+    public sealed class FormBaoCaoTraceability : WmsTitleBarForm
     {
         private readonly IQrTraceQuery _qrQuery;
         private readonly ILotTraceQuery _lotQuery;
@@ -293,7 +294,6 @@ namespace PCTP.Modules.BaoCao.UI
         {
             if (disposing)
                 _grid.CellDoubleClick -= DeliveryGrid_CellDoubleClick;
-
             base.Dispose(disposing);
         }
     }
