@@ -13,17 +13,14 @@ namespace PCTP.Presentation.Views
         bool HoiXoaDocQR();
         void ClearQRInput();
         string QRCodeInput { get; }
-        int SttDangSuaSl { get; }
         int GetFocusedDocQRStt();
-        (string LotFcc, int SlFcc, int SlHvn) GetFocusedDocQRTemInfo();
         void DeleteFocusedDocQRRow();
         void ClearDocQRRows();
-        int? ShowSuaSoLuongTem(int sttBan, string lotFcc, int slFcc, int slHvn);
-        int? GetSuaSoLuongResult();
+        void SetDocQrScanInputEnabled(bool enabled);
+        void HideDocQrQuantityEditPanel();
         event EventHandler DocQRCodeClicked;
         event EventHandler<string> QRCodeSubmitted;
         event EventHandler XoaDongQRClicked;
         event EventHandler XoaToanBoQRClicked;
-        event EventHandler SuaSoLuongTemClicked;
     }
 }
