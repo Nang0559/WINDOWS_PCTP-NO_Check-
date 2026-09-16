@@ -25,6 +25,7 @@ namespace PCTP.Modules.XuLyHangLoi.Application
             public IReworkStockService ReworkStockService { get; internal set; }
             public IAffectedLotTraceService AffectedLotTraceService { get; internal set; }
             public IProductionLotTraceProvider ProductionLotTraceProvider { get; internal set; }
+            public IInitialQCService InitialQCService { get; internal set; }
             public IStockExportRepository StockExportRepo { get; internal set; }
             public IStockHistoryRepository StockHistoryRepo { get; internal set; }
             public IPhieuXuLyBatThuongRepository PhieuXuLyRepo { get; internal set; }
@@ -82,6 +83,13 @@ namespace PCTP.Modules.XuLyHangLoi.Application
                 dbExecutor,
                 uow);
 
+            // Phase 3: QC ban đầu sử dụng snapshot Phase 2 làm source-of-truth.
+            var initialQcService = new InitialQCService(
+                dbExecutor,
+                uow,
+                phieuXuLyRepo,
+                affectedLotTraceService);
+
             return new Module
             {
                 UnitOfWork = uow,
@@ -90,6 +98,7 @@ namespace PCTP.Modules.XuLyHangLoi.Application
                 ReworkStockService = reworkStockService,
                 AffectedLotTraceService = affectedLotTraceService,
                 ProductionLotTraceProvider = productionProvider,
+                InitialQCService = initialQcService,
                 StockExportRepo = stockTpRepo,
                 StockHistoryRepo = historyRepo,
                 PhieuXuLyRepo = phieuXuLyRepo,
