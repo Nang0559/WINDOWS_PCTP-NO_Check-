@@ -15,11 +15,6 @@ using PCTP.Shared.Common;
 
 namespace PCTP.Modules.XuLyHangLoi.Application
 {
-    /// <summary>
-    /// Composition root cho luồng XuLyHangLoi.
-    /// Một UnitOfWork được truyền xuyên suốt graph khi composition root cấp trên đã có transaction.
-    /// IStockMovementService là boundary duy nhất cho mutation stock.
-    /// </summary>
     public static class XuLyHangLoiModuleFactory
     {
         public sealed class Module
@@ -28,6 +23,7 @@ namespace PCTP.Modules.XuLyHangLoi.Application
             public ISlotService SlotService { get; internal set; }
             public IStockMovementService StockMovement { get; internal set; }
             public IReworkStockService ReworkStockService { get; internal set; }
+            public IAffectedLotTraceService AffectedLotTraceService { get; internal set; }
             public IStockExportRepository StockExportRepo { get; internal set; }
             public IStockHistoryRepository StockHistoryRepo { get; internal set; }
             public IPhieuXuLyBatThuongRepository PhieuXuLyRepo { get; internal set; }
@@ -55,14 +51,10 @@ namespace PCTP.Modules.XuLyHangLoi.Application
             var phieuXuLyRepo = new PhieuXuLyBatThuongRepository(dbExecutor, uow);
             var qtChungRepo = new TraHangQTChungRepository(dbExecutor, uow);
 
-            IStockBalanceRepository stockBalance =
-                new ReworkStockBalanceAdapter(stockTpRepo);
-            IStockSlotRepository stockSlot =
-                new ReworkStockSlotAdapter(slotService);
+            IStockBalanceRepository stockBalance = new ReworkStockBalanceAdapter(stockTpRepo);
+            IStockSlotRepository stockSlot = new ReworkStockSlotAdapter(slotService);
 
-            var stockMovement = new StockMovementService(
-                stockBalance,
-                stockSlot);
+            var stockMovement = new StockMovementService(stockBalance, stockSlot);
 
             var reworkStockService = new ReworkStockService(
                 uow,
@@ -73,12 +65,15 @@ namespace PCTP.Modules.XuLyHangLoi.Application
                 qtChungRepo,
                 phieuXuLyRepo);
 
+            var affectedLotTraceService = new AffectedLotTraceService(reworkStockService);
+
             return new Module
             {
                 UnitOfWork = uow,
                 SlotService = slotService,
                 StockMovement = stockMovement,
                 ReworkStockService = reworkStockService,
+                AffectedLotTraceService = affectedLotTraceService,
                 StockExportRepo = stockTpRepo,
                 StockHistoryRepo = historyRepo,
                 PhieuXuLyRepo = phieuXuLyRepo,
