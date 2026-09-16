@@ -6,8 +6,6 @@ using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace PCTP.Modules.GiaoHangKhach.Repositories
 {
@@ -15,81 +13,40 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
     {
         public PhieuValidationRepository(PhieuSqlExecutor db, IUnitOfWork uow) : base(db, uow) { }
 
-        // FIFO is enforced from STOCKTP itself.  Do not depend on
-        // FVN_ItemFifoConfig: that table is not present in every production
-        // database and the previous fallback silently disabled FIFO.
-        // LOT FIFO identity is LEFT(LOT, 13); suffixes after the key do not
-        // change FIFO identity. STOCKTP.SLCONLAI > 0 is the only eligible stock.
+        /// <summary>
+        /// Authoritative FIFO re-check immediately before CNK.
+        ///
+        /// Only items configured with FVN_ItemFifoConfig.EnforceFifo = 1 are checked.
+        /// FIFO source is STOCKTP, SLCONLAI > 0, grouped by PART + LEFT(LOT,13).
+        /// The complete TMP batch for one PART is evaluated together so rows can
+        /// consume the same FIFO allocation across multiple QR scans.
+        /// </summary>
         public List<FifoViolation> CheckFifoViolations(string tmpTable)
         {
             Db.ValidateTableName(tmpTable);
 
             const int keyLen = PCTP.Common.LotCodeHelper.LEN_LEGACY_KEY;
-            string sql = $@"
-;WITH StockLot AS
-(
-    SELECT
-        PART AS ItemCode,
-        LEFT(LOT, {keyLen}) AS LotKey,
-        SUM(ISNULL(SLCONLAI, 0)) AS TongTon
-    FROM STOCKTP
-    WHERE ISNULL(SLCONLAI, 0) > 0
-      AND LEN(ISNULL(LOT, '')) >= {keyLen}
-    GROUP BY PART, LEFT(LOT, {keyLen})
-),
-Fifo AS
-(
-    SELECT
-        ItemCode,
-        LotKey,
-        TongTon,
-        ROW_NUMBER() OVER
-        (
-            PARTITION BY ItemCode
-            ORDER BY
-                LEFT(LotKey, 6) ASC,
-                CASE SUBSTRING(LotKey, 12, 1)
-                    WHEN '0' THEN 0
-                    WHEN '1' THEN 1
-                    WHEN '2' THEN 2
-                    WHEN '3' THEN 3
-                    ELSE 9
-                END ASC,
-                LotKey ASC
-        ) AS Rn
-    FROM StockLot
-)
-SELECT
-    tmp.MAHANG AS MaHang,
-    tmp.LOT AS LotDaChon,
-    fifo.LotKey AS LotDungRaPhaiChon,
-    fifo.TongTon AS TonLotDungRaPhaiChon
-FROM [{tmpTable}] tmp
-INNER JOIN Fifo fifo
-    ON fifo.ItemCode = tmp.MAHANG
-   AND fifo.Rn = 1
-WHERE ISNULL(tmp.STATUS, '') <> 'NG'
-  AND ISNULL(tmp.LOT, '') <> '';";
-
-            DataTable tmpRows = LoadData(sql);
             var result = new List<FifoViolation>();
 
-            foreach (DataRow row in tmpRows.Rows)
+            DataTable selectedRows = LoadData($@"
+SELECT
+    tmp.STT,
+    tmp.MAHANG AS MaHang,
+    tmp.LOT AS LotDaChon
+FROM [{tmpTable}] tmp
+INNER JOIN FVN_ItemFifoConfig cfg
+    ON cfg.ItemCode = tmp.MAHANG
+   AND ISNULL(cfg.EnforceFifo, 0) = 1
+WHERE ISNULL(tmp.STATUS, '') <> 'NG'
+  AND ISNULL(tmp.LOT, '') <> ''
+ORDER BY tmp.MAHANG, tmp.STT;");
+
+            foreach (var partGroup in selectedRows.AsEnumerable()
+                .GroupBy(r => r["MaHang"]?.ToString()?.Trim() ?? string.Empty, StringComparer.OrdinalIgnoreCase))
             {
-                string maHang = row["MaHang"]?.ToString()?.Trim() ?? "";
-                string selectedLotText = row["LotDaChon"]?.ToString()?.Trim() ?? "";
-                string fifoLot = row["LotDungRaPhaiChon"]?.ToString()?.Trim() ?? "";
+                string maHang = partGroup.Key;
+                if (string.IsNullOrEmpty(maHang)) continue;
 
-                if (string.IsNullOrEmpty(maHang) || string.IsNullOrEmpty(selectedLotText) || string.IsNullOrEmpty(fifoLot))
-                    continue;
-
-                var selected = ParseLotSelections(selectedLotText);
-                if (selected.Count == 0)
-                    continue;
-
-                // The first required FIFO lot is allowed until its available
-                // quantity is exhausted. A later lot is legal only after all
-                // earlier FIFO stock has been consumed.
                 DataTable fifoRows = LoadData($@"
 SELECT
     LEFT(LOT, {keyLen}) AS LOTKEY,
@@ -99,7 +56,7 @@ FROM STOCKTP
 WHERE PART = @ma
   AND ISNULL(SLCONLAI, 0) > 0
   AND LEN(ISNULL(LOT, '')) >= {keyLen}
-GROUP BY LEFT(LOT, {keyLen})
+GROUP BY PART, LEFT(LOT, {keyLen})
 ORDER BY
     LEFT(LEFT(LOT, {keyLen}), 6),
     CASE SUBSTRING(LEFT(LOT, {keyLen}), 12, 1)
@@ -113,59 +70,131 @@ ORDER BY
                     new SqlParameter("@ma", maHang));
 
                 var fifo = fifoRows.AsEnumerable()
-                    .Select(r => new
+                    .Select(r => new FifoStockLineInternal
                     {
-                        Key = r["LOTKEY"].ToString().Trim(),
-                        Display = r["LOTDISPLAY"].ToString().Trim(),
+                        Key = r["LOTKEY"]?.ToString()?.Trim() ?? string.Empty,
+                        Display = r["LOTDISPLAY"]?.ToString()?.Trim() ?? string.Empty,
                         Stock = r["SLCONLAI"] == DBNull.Value ? 0 : Convert.ToInt32(r["SLCONLAI"])
                     })
+                    .Where(x => !string.IsNullOrEmpty(x.Key) && x.Stock > 0)
                     .ToList();
 
-                int fifoIndex = 0;
-                int remainingNeed = selected.Sum(x => x.Quantity);
-                var selectedMap = selected
-                    .GroupBy(x => x.LotKey, StringComparer.OrdinalIgnoreCase)
-                    .ToDictionary(g => g.Key, g => g.Sum(x => x.Quantity), StringComparer.OrdinalIgnoreCase);
-
-                foreach (var fifoLotRow in fifo)
+                if (fifo.Count == 0)
                 {
-                    if (remainingNeed <= 0) break;
-
-                    selectedMap.TryGetValue(fifoLotRow.Key, out int selectedQty);
-                    int requiredFromLot = Math.Min(remainingNeed, Math.Max(fifoLotRow.Stock, 0));
-
-                    if (selectedQty < requiredFromLot)
+                    foreach (DataRow row in partGroup)
                     {
                         result.Add(new FifoViolation
                         {
+                            Stt = SafeInt(row["STT"]),
                             MaHang = maHang,
-                            LotDaChon = selectedLotText,
-                            LotDungRaPhaiChon = fifoLotRow.Display,
+                            LotDaChon = row["LotDaChon"]?.ToString()?.Trim() ?? string.Empty,
+                            LotDungRaPhaiChon = string.Empty,
                             SlotIdDungRaPhaiChon = 0
                         });
-                        break;
                     }
-
-                    remainingNeed -= requiredFromLot;
-                    fifoIndex++;
+                    continue;
                 }
 
-                if (remainingNeed > 0 && fifo.Count > 0 && !result.Any(x => x.MaHang == maHang && x.LotDaChon == selectedLotText))
-                {
-                    result.Add(new FifoViolation
+                // The complete selected quantity of this PART defines how much
+                // of each FIFO lot is allowed in the current batch.
+                var selectionsByRow = partGroup
+                    .Select(row => new RowSelection
                     {
-                        MaHang = maHang,
-                        LotDaChon = selectedLotText,
-                        LotDungRaPhaiChon = fifo[Math.Min(fifoIndex, fifo.Count - 1)].Display,
-                        SlotIdDungRaPhaiChon = 0
-                    });
+                        Stt = SafeInt(row["STT"]),
+                        LotText = row["LotDaChon"]?.ToString()?.Trim() ?? string.Empty,
+                        Selections = ParseLotSelections(row["LotDaChon"]?.ToString())
+                    })
+                    .Where(x => x.Selections.Count > 0)
+                    .OrderBy(x => x.Stt)
+                    .ToList();
+
+                int totalSelectedQty = selectionsByRow.Sum(x => x.Selections.Sum(s => s.Quantity));
+                var allowedByLot = BuildAllowedAllocation(fifo, totalSelectedQty, keyLen);
+
+                // Consume the allowed allocation in STT order. A row that would
+                // exceed its LOT allocation is the QR row to release; its quantity
+                // is deliberately NOT consumed from the remaining allocation.
+                foreach (RowSelection row in selectionsByRow)
+                {
+                    var trial = new Dictionary<string, int>(allowedByLot, StringComparer.OrdinalIgnoreCase);
+                    string requiredLot = string.Empty;
+                    bool rowValid = true;
+
+                    foreach (LotSelection selection in row.Selections)
+                    {
+                        int remaining;
+                        if (!trial.TryGetValue(selection.LotKey, out remaining) || remaining < selection.Quantity)
+                        {
+                            rowValid = false;
+                            requiredLot = FindRequiredLot(fifo, trial);
+                            break;
+                        }
+
+                        trial[selection.LotKey] = remaining - selection.Quantity;
+                    }
+
+                    if (!rowValid)
+                    {
+                        result.Add(new FifoViolation
+                        {
+                            Stt = row.Stt,
+                            MaHang = maHang,
+                            LotDaChon = row.LotText,
+                            LotDungRaPhaiChon = requiredLot,
+                            SlotIdDungRaPhaiChon = 0
+                        });
+                        continue;
+                    }
+
+                    allowedByLot = trial;
                 }
             }
 
             return result
-                .GroupBy(x => new { x.MaHang, x.LotDaChon, x.LotDungRaPhaiChon })
+                .GroupBy(x => new { x.Stt, x.MaHang, x.LotDaChon })
                 .Select(g => g.First())
                 .ToList();
+        }
+
+        private static Dictionary<string, int> BuildAllowedAllocation(
+            List<FifoStockLineInternal> fifo,
+            int requiredQty,
+            int keyLen)
+        {
+            var result = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            int remaining = Math.Max(requiredQty, 0);
+
+            foreach (FifoStockLineInternal row in fifo)
+            {
+                if (remaining <= 0) break;
+                int allowed = Math.Min(remaining, row.Stock);
+                if (allowed <= 0) continue;
+                result[row.Key] = allowed;
+                remaining -= allowed;
+            }
+
+            return result;
+        }
+
+        private static string FindRequiredLot(
+            List<FifoStockLineInternal> fifo,
+            Dictionary<string, int> remainingAllowed)
+        {
+            foreach (FifoStockLineInternal row in fifo)
+            {
+                int remaining;
+                if (remainingAllowed.TryGetValue(row.Key, out remaining) && remaining > 0)
+                    return row.Display;
+            }
+
+            return fifo.Count == 0 ? string.Empty : fifo[0].Display;
+        }
+
+        private static int SafeInt(object value)
+        {
+            if (value == null || value == DBNull.Value) return 0;
+            int.TryParse(value.ToString(), out int result);
+            return result;
         }
 
         private static List<LotSelection> ParseLotSelections(string value)
@@ -180,7 +209,9 @@ ORDER BY
                 if (separator <= 0 || separator >= part.Length - 1) continue;
 
                 string lot = part.Substring(0, separator).Trim();
-                if (!int.TryParse(part.Substring(separator + 1).Trim(), out int quantity) || quantity <= 0) continue;
+                int quantity;
+                if (!int.TryParse(part.Substring(separator + 1).Trim(), out quantity) || quantity <= 0)
+                    continue;
 
                 string key = lot.Length <= 13 ? lot : lot.Substring(0, 13);
                 result.Add(new LotSelection { LotKey = key, Lot = lot, Quantity = quantity });
@@ -194,6 +225,20 @@ ORDER BY
             public string LotKey { get; set; }
             public string Lot { get; set; }
             public int Quantity { get; set; }
+        }
+
+        private sealed class RowSelection
+        {
+            public int Stt { get; set; }
+            public string LotText { get; set; }
+            public List<LotSelection> Selections { get; set; }
+        }
+
+        private sealed class FifoStockLineInternal
+        {
+            public string Key { get; set; }
+            public string Display { get; set; }
+            public int Stock { get; set; }
         }
 
         #region IPhieuValidationRepository
