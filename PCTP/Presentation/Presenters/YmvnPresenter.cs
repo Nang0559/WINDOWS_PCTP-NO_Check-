@@ -73,11 +73,14 @@ namespace PCTP.Presentation.Presenters
                 _c.PhieuSvc.HoanThanhYMVN(_c.PhieuView.IsLoaiSP);
                 _c.UiContext.Post(_ =>
                 {
+                    // Reload history while the QR session is still locked. This lets
+                    // SetCheckedGiosYMVN restore the newly delivered hours before the
+                    // checklist becomes interactive again.
+                    _c.LoadPhieuHienTai();
                     UnlockQrSession();
                     _c.QrSvc.SetCheDoBanSP(false);
                     _c.PhieuView.UnlockAllRadio();
                     _c.PhieuView.SwitchToPhieuView();
-                    _c.LoadPhieuHienTai();
                 }, null);
             }, "Đang xử lý hoàn thành...");
         }
@@ -86,12 +89,12 @@ namespace PCTP.Presentation.Presenters
         {
             if (_c.Cfg.Delivery.CoGear)
             {
-                using (var frm = new FRM_UploadMikrun(new SQLPROVIDER(), _c.Cfg))
+                using (var frm = new FRM_UploadMikrunSP(new SQLPROVIDER(), _c.Cfg))
                     frm.ShowDialog();
             }
             else if (_c.CustomerBehavior.UsesDateBasedOrderUpload)
             {
-                using (var frm = new FRM_UploadMikrun(
+                using (var frm = new FRM_UploadMikrunSP(
                     new SQLPROVIDER(),
                     _c.Cfg,
                     targetTable: _c.CustomerBehavior.GetOrderUploadTable(),
