@@ -1,6 +1,7 @@
 using PCTP.Applications.Services;
 using PCTP.Domain.Events;
 using PCTP.Modules.GiaoHangKhach.Models;
+using PCTP.Presentation.Dialogs;
 using PCTP.Presentation.Views;
 using PCTP.Shared.Helpers;
 using PCTP.Shared.Models;
@@ -92,9 +93,8 @@ namespace PCTP.Presentation.Presenters
 
         private void OnQRCodeSubmitted(object sender, string rawQr)
         {
-            // Máy đọc QR có thể tiếp tục phát dữ liệu khi hộp cảnh báo đang mở.
-            // Tuyệt đối không xử lý QR tiếp theo cho đến khi người thao tác
-            // trực tiếp chọn Đồng ý hoặc Không.
+            // Keyboard-wedge scanner có thể phát Enter/dữ liệu trong lúc dialog đang mở.
+            // Không được cho phép bất kỳ scan nào đi xuyên qua confirmation gate.
             if (_awaitingSlMismatchConfirmation)
             {
                 _v.ClearQRInput();
@@ -123,11 +123,14 @@ namespace PCTP.Presentation.Presenters
 
                 try
                 {
-                    bool accepted = _v.Confirm(
-                        $"Số lượng tem khách hàng không khớp số lượng tem FCC.\n\n" +
-                        $"Số lượng FCC: {temInfo.SlFcc}\n" +
-                        $"Số lượng khách hàng: {result.Pending.SlTemHVN}\n\n" +
-                        "Đồng ý để ghi nhận QR này và tiếp tục scan dòng tiếp theo?\n" +
+                    // Không dùng XtraMessageBox/MessageBox YesNo ở đây.
+                    // Scanner gửi Enter như bàn phím; Enter không bao giờ được phép
+                    // kích hoạt Đồng ý. Chỉ pointer click trực tiếp mới xác nhận.
+                    bool accepted = DirectClickConfirmDialog.Show(
+                        $"Số lượng tem khách hàng không khớp số lượng tem FCC.\r\n\r\n" +
+                        $"Số lượng FCC: {temInfo.SlFcc}\r\n" +
+                        $"Số lượng khách hàng: {result.Pending.SlTemHVN}\r\n\r\n" +
+                        "Đồng ý để ghi nhận QR này và tiếp tục scan dòng tiếp theo?\r\n" +
                         "Lưu ý: số lượng nghiệp vụ luôn lấy theo tem FCC.");
 
                     if (!accepted)
