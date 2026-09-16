@@ -4,24 +4,18 @@ using System.Linq;
 
 namespace PCTP.Modules.GiaoHangKhach.Services
 {
-    /// <summary>
-    /// FIFO state for one QR-delivery session.
-    /// It is an optimistic fast gate; STOCKTP is revalidated before stock update.
-    /// </summary>
     public sealed class FifoSessionState
     {
-        private readonly Dictionary<string, FifoPartState> _parts =
-            new Dictionary<string, FifoPartState>(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, FifoPartState> _parts = new Dictionary<string, FifoPartState>(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<int, FifoReservation> _reservations = new Dictionary<int, FifoReservation>();
 
         public void Reset()
         {
             _parts.Clear();
+            _reservations.Clear();
         }
 
-        public void Initialize(
-            string maHang,
-            int soLuongCanGiao,
-            IEnumerable<FifoStockLine> fifoStock)
+        public void Initialize(string maHang, int soLuongCanGiao, IEnumerable<FifoStockLine> fifoStock)
         {
             string part = Normalize(maHang);
             if (string.IsNullOrEmpty(part)) return;
@@ -32,17 +26,12 @@ namespace PCTP.Modules.GiaoHangKhach.Services
                 .ThenBy(x => x.LotKey, StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
-            var state = new FifoPartState
-            {
-                ItemCode = part,
-                NeedQty = Math.Max(soLuongCanGiao, 0)
-            };
-
+            var state = new FifoPartState { ItemCode = part, NeedQty = Math.Max(soLuongCanGiao, 0) };
             int remainingNeed = state.NeedQty;
+
             foreach (FifoStockLine row in stock)
             {
                 if (remainingNeed <= 0) break;
-
                 int allowed = Math.Min(remainingNeed, row.AvailableQty);
                 if (allowed <= 0) continue;
 
@@ -54,26 +43,15 @@ namespace PCTP.Modules.GiaoHangKhach.Services
                     RemainingAllowedQty = allowed,
                     FifoRank = row.FifoRank
                 });
-
                 remainingNeed -= allowed;
             }
 
             _parts[part] = state;
         }
 
-        public bool IsEnforced(string maHang)
-        {
-            return _parts.ContainsKey(Normalize(maHang));
-        }
-
-        public bool TryConsume(
-            string maHang,
-            string lot,
-            int quantity,
-            out string message)
+        public bool TryConsume(int stt, string maHang, string lot, int quantity, out string message)
         {
             message = string.Empty;
-
             string part = Normalize(maHang);
             string lotKey = NormalizeLot(lot);
             if (string.IsNullOrEmpty(part) || string.IsNullOrEmpty(lotKey) || quantity <= 0)
@@ -81,11 +59,9 @@ namespace PCTP.Modules.GiaoHangKhach.Services
 
             FifoPartState state;
             if (!_parts.TryGetValue(part, out state))
-                return true; // EnforceFifo = 0 / item not configured.
+                return true;
 
-            FifoLotState allowedLot = state.Lots
-                .FirstOrDefault(x => string.Equals(x.LotKey, lotKey, StringComparison.OrdinalIgnoreCase));
-
+            FifoLotState allowedLot = state.Lots.FirstOrDefault(x => string.Equals(x.LotKey, lotKey, StringComparison.OrdinalIgnoreCase));
             if (allowedLot == null || allowedLot.RemainingAllowedQty < quantity)
             {
                 string requiredLot = state.Lots
@@ -102,7 +78,23 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             }
 
             allowedLot.RemainingAllowedQty -= quantity;
+            _reservations[stt] = new FifoReservation
+            {
+                Stt = stt,
+                ItemCode = part,
+                LotKey = lotKey,
+                Quantity = quantity
+            };
             return true;
+        }
+
+        public void Release(int stt)
+        {
+            FifoReservation reservation;
+            if (!_reservations.TryGetValue(stt, out reservation)) return;
+
+            Release(reservation.ItemCode, reservation.LotKey, reservation.Quantity);
+            _reservations.Remove(stt);
         }
 
         public void Release(string maHang, string lot, int quantity)
@@ -113,13 +105,10 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             if (!_parts.TryGetValue(Normalize(maHang), out state)) return;
 
             string lotKey = NormalizeLot(lot);
-            FifoLotState row = state.Lots
-                .FirstOrDefault(x => string.Equals(x.LotKey, lotKey, StringComparison.OrdinalIgnoreCase));
-
+            FifoLotState row = state.Lots.FirstOrDefault(x => string.Equals(x.LotKey, lotKey, StringComparison.OrdinalIgnoreCase));
             if (row == null) return;
-            row.RemainingAllowedQty = Math.Min(
-                row.OriginalAvailableQty,
-                row.RemainingAllowedQty + quantity);
+
+            row.RemainingAllowedQty = Math.Min(row.OriginalAvailableQty, row.RemainingAllowedQty + quantity);
         }
 
         private static string Normalize(string value)
@@ -130,8 +119,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         public static string NormalizeLot(string value)
         {
             string lot = (value ?? string.Empty).Trim();
-            if (lot.Length <= 13) return lot;
-            return lot.Substring(0, 13);
+            return lot.Length <= 13 ? lot : lot.Substring(0, 13);
         }
 
         private sealed class FifoPartState
@@ -148,6 +136,14 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             public int OriginalAvailableQty { get; set; }
             public int RemainingAllowedQty { get; set; }
             public int FifoRank { get; set; }
+        }
+
+        private sealed class FifoReservation
+        {
+            public int Stt { get; set; }
+            public string ItemCode { get; set; }
+            public string LotKey { get; set; }
+            public int Quantity { get; set; }
         }
     }
 
