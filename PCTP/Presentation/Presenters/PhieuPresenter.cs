@@ -69,7 +69,6 @@ namespace PCTP.Presentation.Presenters
                 if (t != null && t.Rows.Count > 0) _c.LotSvc.TinhTongLot(t, _c.TenBan, _c.Cfg.Delivery.GetDocQRTable(_c.QrSvc.IsBanSP), _c.Cfg.Delivery.GetTmpTable(_c.QrSvc.IsBanSP), rows => _v.ShowChonSttTrungMa(rows));
                 if (_c.QrSvc.CountChuaDG() == 0) { _c.IsBanQR = false; _v.UnlockAllRadio(); }
                 _v.SwitchToPhieuView();
-
                 DataTable current = _v.GetDonHangTable();
                 DataTable latest = _c.PhieuSvc.GetDonHangHienTai(_c.TenBan);
                 MergeDocQrResultIntoOrderTable(current, latest);
@@ -96,19 +95,12 @@ namespace PCTP.Presentation.Presenters
         {
             if (current == null || latest == null || current.Rows.Count == 0 || latest.Rows.Count == 0)
                 return;
-
             foreach (DataRow source in latest.Rows)
             {
                 string stt = source.Table.Columns.Contains("STT") ? source["STT"]?.ToString().Trim() : "";
-                if (string.IsNullOrEmpty(stt))
-                    continue;
-
-                DataRow target = current.AsEnumerable()
-                    .FirstOrDefault(r => r.Table.Columns.Contains("STT") &&
-                                         string.Equals(r["STT"]?.ToString().Trim(), stt, StringComparison.OrdinalIgnoreCase));
-                if (target == null)
-                    continue;
-
+                if (string.IsNullOrEmpty(stt)) continue;
+                DataRow target = current.AsEnumerable().FirstOrDefault(r => r.Table.Columns.Contains("STT") && string.Equals(r["STT"]?.ToString().Trim(), stt, StringComparison.OrdinalIgnoreCase));
+                if (target == null) continue;
                 CopyIfBothColumnsExist(source, target, "LOT");
                 CopyIfBothColumnsExist(source, target, "STATUS");
                 CopyIfBothColumnsExist(source, target, "STATUSDOC");
@@ -117,12 +109,8 @@ namespace PCTP.Presentation.Presenters
 
         private static void CopyIfBothColumnsExist(DataRow source, DataRow target, string columnName)
         {
-            if (!source.Table.Columns.Contains(columnName) || !target.Table.Columns.Contains(columnName))
-                return;
-
-            target[columnName] = source[columnName] == DBNull.Value
-                ? (object)DBNull.Value
-                : source[columnName];
+            if (!source.Table.Columns.Contains(columnName) || !target.Table.Columns.Contains(columnName)) return;
+            target[columnName] = source[columnName] == DBNull.Value ? (object)DBNull.Value : source[columnName];
         }
 
         private void OnLoaiPhieuChanged(object sender, EventArgs e) => _c.LoadPhieuHienTai();
@@ -185,7 +173,18 @@ namespace PCTP.Presentation.Presenters
                 _c.HideLoadingUnlessAwaitingPhieuLoad();
             }, null);
         }
-        private void OnKhoUpdated(KhoUpdatedEvent e) => _c.UiContext.Post(_ => { _c.LoadPhieuHienTai(); }, null);
+        private void OnKhoUpdated(KhoUpdatedEvent e)
+        {
+            _c.UiContext.Post(_ =>
+            {
+                if (e != null && e.Errors != null && e.Errors.Rows.Count > 0)
+                {
+                    _v.ShowLoiCapNhapKho(e.Errors);
+                    return;
+                }
+                _c.LoadPhieuHienTai();
+            }, null);
+        }
         private void OnTinhTongCompleted(TinhTongCompletedEvent e)
         {
             var results = e?.Results;
@@ -200,15 +199,11 @@ namespace PCTP.Presentation.Presenters
 
         private static void ApplyTinhTongResults(DataTable table, IReadOnlyList<(int Stt, string Lot)> results)
         {
-            if (table == null || results == null || results.Count == 0 || !table.Columns.Contains("STT") || !table.Columns.Contains("LOT"))
-                return;
-
+            if (table == null || results == null || results.Count == 0 || !table.Columns.Contains("STT") || !table.Columns.Contains("LOT")) return;
             foreach (var result in results)
             {
-                DataRow target = table.AsEnumerable()
-                    .FirstOrDefault(r => string.Equals(r["STT"]?.ToString().Trim(), result.Stt.ToString(), StringComparison.OrdinalIgnoreCase));
-                if (target != null)
-                    target["LOT"] = result.Lot ?? string.Empty;
+                DataRow target = table.AsEnumerable().FirstOrDefault(r => string.Equals(r["STT"]?.ToString().Trim(), result.Stt.ToString(), StringComparison.OrdinalIgnoreCase));
+                if (target != null) target["LOT"] = result.Lot ?? string.Empty;
             }
         }
 
