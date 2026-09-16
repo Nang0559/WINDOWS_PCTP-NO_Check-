@@ -15,29 +15,26 @@ namespace PCTP.Modules.XuLyHangLoi.Services
     /// Phase 2: hợp nhất nguồn LOT và snapshot bất biến tại thời điểm truy vết.
     /// Không được coi riêng tồn kho là toàn bộ LOT bị ảnh hưởng.
     /// </summary>
-    public sealed class AffectedLotTraceService : IAffectedLotTraceService
+    public sealed class AffectedLotTraceService : SqlRepositoryBase, IAffectedLotTraceService
     {
         private readonly IReworkStockService _stockService;
         private readonly IProductionLotTraceProvider _productionProvider;
         private readonly ICustomerReturnLotTraceProvider _customerReturnProvider;
         private readonly IPhieuXuLyBatThuongRepository _phieuRepository;
-        private readonly PhieuSqlExecutor _db;
-        private readonly IUnitOfWork _uow;
 
         public AffectedLotTraceService(
             IReworkStockService stockService,
-            IProductionLotTraceProvider productionProvider = null,
-            ICustomerReturnLotTraceProvider customerReturnProvider = null,
-            IPhieuXuLyBatThuongRepository phieuRepository = null,
-            PhieuSqlExecutor db = null,
-            IUnitOfWork uow = null)
+            IProductionLotTraceProvider productionProvider,
+            ICustomerReturnLotTraceProvider customerReturnProvider,
+            IPhieuXuLyBatThuongRepository phieuRepository,
+            PhieuSqlExecutor db,
+            IUnitOfWork uow)
+            : base(db, uow)
         {
             _stockService = stockService ?? throw new ArgumentNullException(nameof(stockService));
             _productionProvider = productionProvider;
             _customerReturnProvider = customerReturnProvider;
-            _phieuRepository = phieuRepository;
-            _db = db;
-            _uow = uow;
+            _phieuRepository = phieuRepository ?? throw new ArgumentNullException(nameof(phieuRepository));
         }
 
         public AffectedLotTraceResult TraceForPhieu(
@@ -51,7 +48,7 @@ namespace PCTP.Modules.XuLyHangLoi.Services
         }
 
         /// <summary>
-        /// Truy vết + snapshot xuống FVN_PhieuXuLyBatThuongAffectedLot.
+        /// Truy vết theo phiếu, kiểm tra đủ nguồn, snapshot AffectedLots trong một transaction.
         /// Đây là entry point chính của Phase 2.
         /// </summary>
         public AffectedLotTraceResult TruyVetLOT(
@@ -62,8 +59,6 @@ namespace PCTP.Modules.XuLyHangLoi.Services
                 throw new ArgumentOutOfRangeException(nameof(phieuXuLyId));
             if (string.IsNullOrWhiteSpace(nguoiThucHien))
                 throw new ArgumentException("NguoiThucHien không được rỗng.", nameof(nguoiThucHien));
-            if (_phieuRepository == null || _db == null || _uow == null)
-                throw new InvalidOperationException("AffectedLotTraceService chưa được wiring persistence dependencies.");
 
             var phieu = _phieuRepository.GetById(phieuXuLyId);
             if (phieu == null)
@@ -80,10 +75,7 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             }
 
             if (result.TotalAffectedQuantity <= 0)
-            {
-                throw new InvalidOperationException(
-                    "Truy vết LOT không tìm thấy số lượng bị ảnh hưởng.");
-            }
+                throw new InvalidOperationException("Truy vết LOT không tìm thấy số lượng bị ảnh hưởng.");
 
             var snapshotAt = DateTime.Now;
             foreach (var item in result.Items)
@@ -95,9 +87,8 @@ namespace PCTP.Modules.XuLyHangLoi.Services
 
             try
             {
-                _uow.Begin();
+                Uow.Begin();
 
-                // Snapshot của một lần truy vết phải là một tập nhất quán.
                 ExecuteNonQuery(
                     @"DELETE FROM FVN_PhieuXuLyBatThuongAffectedLot
                       WHERE PhieuXuLyBatThuongId = @PhieuXuLyBatThuongId;",
@@ -154,12 +145,12 @@ namespace PCTP.Modules.XuLyHangLoi.Services
                         new SqlParameter("@SnapshotBy", DbValueHelper.DbValue(item.SnapshotBy)));
                 }
 
-                _uow.Commit();
+                Uow.Commit();
                 return result;
             }
             catch
             {
-                try { _uow.Rollback(); } catch { }
+                try { Uow.Rollback(); } catch { }
                 throw;
             }
         }
@@ -168,8 +159,6 @@ namespace PCTP.Modules.XuLyHangLoi.Services
         {
             if (phieuXuLyId <= 0)
                 throw new ArgumentOutOfRangeException(nameof(phieuXuLyId));
-            if (_db == null)
-                throw new InvalidOperationException("AffectedLotTraceService chưa được wiring database dependency.");
 
             var table = LoadData(
                 @"SELECT
@@ -306,23 +295,6 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             return result;
         }
 
-        private void ExecuteNonQuery(string sql, params SqlParameter[] parameters)
-        {
-            _db.ExecuteNonQuery(sql, parameters);
-        }
-
-        private DataTable LoadData(string sql, params SqlParameter[] parameters)
-        {
-            return _db.ExecuteQuery(sql, parameters);
-        }
-
-        private static int? ToNullableInt(object value)
-        {
-            if (value == null || value == DBNull.Value)
-                return null;
-            return DbValueHelper.ToInt(value);
-        }
-
         private static void AddRows(
             AffectedLotTraceResult result,
             IEnumerable<PhieuXuLyBatThuongAffectedLot> rows,
@@ -357,6 +329,13 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             return string.IsNullOrWhiteSpace(lotNo)
                 ? string.Empty
                 : lotNo.Trim().ToUpperInvariant();
+        }
+
+        private static int? ToNullableInt(object value)
+        {
+            if (value == null || value == DBNull.Value)
+                return null;
+            return DbValueHelper.ToInt(value);
         }
     }
 
