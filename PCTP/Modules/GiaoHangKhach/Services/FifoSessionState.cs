@@ -60,15 +60,22 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             if (!_parts.TryGetValue(part, out state))
                 return true;
 
-            List<LotSelection> selections = ParseLotSelections(lot);
-            if (selections.Count == 0)
+            List<LotSelection> selections;
+            string parseError;
+            if (!TryParseLotSelections(lot, out selections, out parseError))
             {
-                selections.Add(new LotSelection
-                {
-                    LotKey = NormalizeLot(lot),
-                    Lot = lot.Trim(),
-                    Quantity = quantity
-                });
+                message = string.Format(
+                    "CẢNH BÁO FIFO\n\n" +
+                    "Mã hàng: {0}\n" +
+                    "LOT đang quét: {1}\n" +
+                    "Số lượng: {2}\n\n" +
+                    "LOT ghép không hợp lệ: {3}\n\n" +
+                    "Không thể xuất LOT này vì dữ liệu LOT ghép không hợp lệ.",
+                    part,
+                    lot.Trim(),
+                    quantity,
+                    parseError);
+                return false;
             }
 
             int parsedQuantity = selections.Sum(x => x.Quantity);
@@ -81,8 +88,6 @@ namespace PCTP.Modules.GiaoHangKhach.Services
                 return false;
             }
 
-            // Validate the complete compound LOT against the current RAM allocation first.
-            // Nothing is consumed until every LOT component passes.
             var trial = state.Lots.ToDictionary(x => x.LotKey, x => x.RemainingAllowedQty, StringComparer.OrdinalIgnoreCase);
             var consumed = new List<FifoReservationLine>();
 
@@ -132,7 +137,6 @@ namespace PCTP.Modules.GiaoHangKhach.Services
                 });
             }
 
-            // Commit the whole compound LOT atomically to RAM.
             foreach (FifoReservationLine line in consumed)
             {
                 FifoLotState row = state.Lots.First(x =>
@@ -174,21 +178,48 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             row.RemainingAllowedQty = Math.Min(row.OriginalAvailableQty, row.RemainingAllowedQty + quantity);
         }
 
-        private static List<LotSelection> ParseLotSelections(string value)
+        private static bool TryParseLotSelections(string value, out List<LotSelection> result, out string error)
         {
-            var result = new List<LotSelection>();
-            if (string.IsNullOrWhiteSpace(value)) return result;
+            result = new List<LotSelection>();
+            error = string.Empty;
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                error = "LOT rỗng.";
+                return false;
+            }
 
-            foreach (string token in value.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries))
+            string[] tokens = value.Split(new[] { ',' }, StringSplitOptions.None);
+            bool isCompound = tokens.Length > 1;
+
+            foreach (string token in tokens)
             {
                 string part = token.Trim();
+                if (string.IsNullOrEmpty(part))
+                {
+                    error = "LOT ghép chứa thành phần rỗng.";
+                    return false;
+                }
+
                 int separator = part.LastIndexOf('-');
-                if (separator <= 0 || separator >= part.Length - 1) return new List<LotSelection>();
+                if (separator <= 0 || separator >= part.Length - 1)
+                {
+                    error = string.Format("Thành phần '{0}' phải có định dạng LOT-SỐ_LƯỢNG.", part);
+                    return false;
+                }
 
                 string lot = part.Substring(0, separator).Trim();
                 int quantity;
+                if (string.IsNullOrEmpty(lot))
+                {
+                    error = string.Format("Thành phần '{0}' không có mã LOT.", part);
+                    return false;
+                }
+
                 if (!int.TryParse(part.Substring(separator + 1).Trim(), out quantity) || quantity <= 0)
-                    return new List<LotSelection>();
+                {
+                    error = string.Format("Số lượng của thành phần '{0}' không hợp lệ.", part);
+                    return false;
+                }
 
                 result.Add(new LotSelection
                 {
@@ -198,7 +229,15 @@ namespace PCTP.Modules.GiaoHangKhach.Services
                 });
             }
 
-            return result;
+            if (result.Count == 0)
+            {
+                error = "Không có thành phần LOT hợp lệ.";
+                return false;
+            }
+
+            // A single LOT is also represented as LOT-quantity by the QR LOT payload.
+            // If there is a comma, every component above must be valid; there is no fallback.
+            return true;
         }
 
         private static string Normalize(string value)
