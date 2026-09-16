@@ -23,6 +23,7 @@ namespace PCTP.Modules.XuLyHangLoi.Application
             public ISlotService SlotService { get; internal set; }
             public IStockMovementService StockMovement { get; internal set; }
             public IReworkStockService ReworkStockService { get; internal set; }
+            public IReworkPhase4Service ReworkPhase4Service { get; internal set; }
             public IAffectedLotTraceService AffectedLotTraceService { get; internal set; }
             public IProductionLotTraceProvider ProductionLotTraceProvider { get; internal set; }
             public IInitialQCService InitialQCService { get; internal set; }
@@ -90,12 +91,19 @@ namespace PCTP.Modules.XuLyHangLoi.Application
                 phieuXuLyRepo,
                 affectedLotTraceService);
 
+            // Phase 4: toàn bộ kế hoạch Rework lấy từ Initial QC; không suy ra từ NG.
+            var reworkPhase4Service = new ReworkPhase4Service(
+                phieuXuLyRepo,
+                qtChungRepo,
+                initialQcService);
+
             return new Module
             {
                 UnitOfWork = uow,
                 SlotService = slotService,
                 StockMovement = stockMovement,
                 ReworkStockService = reworkStockService,
+                ReworkPhase4Service = reworkPhase4Service,
                 AffectedLotTraceService = affectedLotTraceService,
                 ProductionLotTraceProvider = productionProvider,
                 InitialQCService = initialQcService,
