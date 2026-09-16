@@ -68,11 +68,21 @@ namespace PCTP.Presentation.Presenters
                 if (t != null && t.Rows.Count > 0) _c.LotSvc.TinhTongLot(t, _c.TenBan, _c.Cfg.Delivery.GetDocQRTable(_c.QrSvc.IsBanSP), _c.Cfg.Delivery.GetTmpTable(_c.QrSvc.IsBanSP), rows => _v.ShowChonSttTrungMa(rows));
                 if (_c.QrSvc.CountChuaDG() == 0) { _c.IsBanQR = false; _v.UnlockAllRadio(); }
                 _v.SwitchToPhieuView();
+
+                // ========================================================
+                // Khi quay từ DocQR về Phiếu, GetDonHangHienTai() hiện chỉ
+                // trả STT/MAHANG/LOT/STATUS/STATUSDOC. Nếu Bind thẳng DataTable
+                // đó thì các cột metadata của phiếu như CUA/TRUYEN/TENHANG...
+                // bị thay bằng schema rút gọn và biến mất khỏi UI.
+                //
+                // Giữ DataTable hiện có của Grid làm schema gốc, chỉ đồng bộ
+                // các field mà phiên DocQR thực sự thay đổi.
+                // ========================================================
+                DataTable current = _v.GetDonHangTable();
                 DataTable latest = _c.PhieuSvc.GetDonHangHienTai(_c.TenBan);
-                // ✅ FIX: trước đây lấy `latest` chỉ để tính CheckCoLotChuaCNK rồi bỏ,
-                // không bao giờ bind lên grid -> quay về màn hình Phiếu bị trống trắng.
-                _v.BindDonHang(latest);
-                _c.SetupPhieuButtonsDefault(true, false, _c.PhieuSvc.CheckCoLotChuaCNK(latest));
+                MergeDocQrResultIntoOrderTable(current, latest);
+                _v.BindDonHang(current);
+                _c.SetupPhieuButtonsDefault(true, false, _c.PhieuSvc.CheckCoLotChuaCNK(current));
                 return;
             }
             _c.IsBanQR = false;
@@ -89,6 +99,40 @@ namespace PCTP.Presentation.Presenters
                 _c.LoadPhieuHienTai();
             }
         }, "Đang tổng hợp dữ liệu hoàn thành...");
+
+        private static void MergeDocQrResultIntoOrderTable(DataTable current, DataTable latest)
+        {
+            if (current == null || latest == null || current.Rows.Count == 0 || latest.Rows.Count == 0)
+                return;
+
+            foreach (DataRow source in latest.Rows)
+            {
+                string stt = source.Table.Columns.Contains("STT") ? source["STT"]?.ToString().Trim() : "";
+                if (string.IsNullOrEmpty(stt))
+                    continue;
+
+                DataRow target = current.AsEnumerable()
+                    .FirstOrDefault(r => r.Table.Columns.Contains("STT") &&
+                                         string.Equals(r["STT"]?.ToString().Trim(), stt, StringComparison.OrdinalIgnoreCase));
+                if (target == null)
+                    continue;
+
+                CopyIfBothColumnsExist(source, target, "LOT");
+                CopyIfBothColumnsExist(source, target, "STATUS");
+                CopyIfBothColumnsExist(source, target, "STATUSDOC");
+            }
+        }
+
+        private static void CopyIfBothColumnsExist(DataRow source, DataRow target, string columnName)
+        {
+            if (!source.Table.Columns.Contains(columnName) || !target.Table.Columns.Contains(columnName))
+                return;
+
+            target[columnName] = source[columnName] == DBNull.Value
+                ? (object)DBNull.Value
+                : source[columnName];
+        }
+
         private void OnLoaiPhieuChanged(object sender, EventArgs e) => _c.LoadPhieuHienTai();
         private void OnChonLotThuCong(object sender, ChonLotThuCongEventArgs e) { if (!_c.IsMayBanQR) return; DataTable lots = _c.PhieuSvc.GetDanhSachLotTuKho(e.MaHang); ChonLotResult r = _v.ShowChonLotTuKho(e.Stt, e.MaHang, e.SoLuong, lots); if (!r.Confirmed || string.IsNullOrWhiteSpace(r.LotGhep)) return; _c.PhieuSvc.NhapLotThuCong(e.Stt, r.LotGhep, _c.TenBan); _v.RefreshLotRow(e.Stt, r.LotGhep); _c.IsBanQR = true; _v.LockRadioExcept(_c.GioXuatHienTai.Ma); DataTable dt = _c.PhieuSvc.GetDonHangHienTai(_c.TenBan); _c.SetupPhieuButtonsDefault(_c.PhieuSvc.CheckCanCapNhapKho(dt), false, _c.PhieuSvc.CheckCoLotChuaCNK(dt)); }
         private void OnLayLaiLotNo(object sender, LayLaiLotEventArgs e) { if (!_v.Confirm($"Bạn có chắc chắn muốn reset dữ liệu LOT của dòng có STT {e.Stt} không?")) return; _c.RunWithLoadingSync(() => { _c.PhieuSvc.LayLaiLotNo(e.Stt, _c.QrSvc.IsBanSP); _c.LoadPhieuHienTai(); }, "Đang xử lý lấy lại số LOT..."); }
@@ -137,15 +181,9 @@ namespace PCTP.Presentation.Presenters
                 _c.LoadPhieuHienTai();
             }, "Đang kiểm tra trạng thái phiên làm việc cũ...");
         }
-        private void OnPhieuLoaded(PhieuLoadedEvent e)
-        {
-            _c.UiContext.Post(_ => { _c.IsLoadingPhieu = false; try { _v.BindDonHang(e.DonHangTable); _v.BindHangThieu(e.HangThieuTable); _v.SetGridCaption(e.Caption); if (_c.Cfg.Delivery.LoadTuBangRieng) _v.BindLechIFS(_c.PhieuSvc.TinhLechIFS(e.DonHangTable, _v.SelectedDate.ToString("ddMMyyyy"))); bool ng = e.CoMaNG; bool cnk = _c.PhieuSvc.CheckCanCapNhapKho(e.DonHangTable); bool lay = _c.IsMayBanQR && _c.PhieuSvc.CheckCoLotChuaCNK(e.DonHangTable); _v.SetupPhieuButtons(cnk && _c.IsMayBanQR, ng && _c.IsMayBanQR, _c.IsMayBanQR, _c.IsMayBanQR, lay, !_c.Cfg.Delivery.LoadTuBangRieng); _c.AwaitingPhieuLoadedEvent = false; _v.ShowLoading(false); } catch (Exception ex) { _c.AwaitingPhieuLoadedEvent = false; _v.ShowLoading(false); _v.ShowError($"Lỗi khi hiển thị dữ liệu phiếu: {ex.Message}"); } if (!string.IsNullOrEmpty(e.CanhBao)) _v.ShowWarning(e.CanhBao); }, null);
-        }
-        private void OnKhoUpdated(KhoUpdatedEvent e) { _c.UiContext.Post(_ => { if (e.Errors != null && e.Errors.Rows.Count > 0) { _v.ShowLoiCapNhapKho(e.Errors); return; } if (e.SoLotCapNhap > 0) _v.ShowInfo($"Đã cập nhật {e.SoLotCapNhap} LOT thành công."); _c.IsBanQR = false; _c.QrSvc.SetCheDoBanSP(false); _v.UnlockAllRadio(); _v.UnlockDatePicker(); if (_c.Cfg.Delivery.CoGear) _c.YmvnView.UnlockCheckListYMVN(); _c.RunWithLoadingSync(() => _c.LoadPhieuHienTai(), "Đang tải lại dữ liệu phiếu..."); }, null); }
-        private void OnTinhTongCompleted(TinhTongCompletedEvent e) { foreach (var (stt, lot) in e.Results) _v.RefreshLotRow(stt, lot); }
-        public void Dispose()
-        {
-            var v = _c.View; v.FormLoaded -= OnFormLoaded; v.DateChanged -= OnDateChanged; v.GioXuatChanged -= OnGioXuatChanged; v.TabChanged -= OnTabChanged; v.CapNhapKhoClicked -= OnCapNhapKho; v.InPhieuClicked -= OnInPhieu; v.InGhepLotClicked -= OnInGhepLot; v.InTachLotClicked -= OnInTachLot; v.KiemTraGhepLotClicked -= OnKiemTraGhepLot; v.KiemTraMaNGClicked -= OnKiemTraMaNG; v.HoanThanhClicked -= OnHoanThanh; _c.View.LoaiPhieuChanged -= OnLoaiPhieuChanged; v.ChonLotThuCongClicked -= OnChonLotThuCong; v.XemHangThieuCaNgayClicked -= OnXemHangThieuCaNgay; v.LayLaiLotNoClicked -= OnLayLaiLotNo; v.CapNhapTTPHIEUClicked -= OnCapNhapTTPHIEU; _c.Bus.Unsubscribe<PhieuLoadedEvent>(OnPhieuLoaded); _c.Bus.Unsubscribe<KhoUpdatedEvent>(OnKhoUpdated); _c.Bus.Unsubscribe<TinhTongCompletedEvent>(OnTinhTongCompleted);
-        }
+        private void OnPhieuLoaded(PhieuLoadedEvent e) { if (e.TenBan != _c.TenBan) return; _c.UiContext.Post(_ => { _v.BindDonHang(e.Data); _c.SetupPhieuButtonsDefault(true, false, _c.PhieuSvc.CheckCoLotChuaCNK(e.Data)); }, null); }
+        private void OnKhoUpdated(KhoUpdatedEvent e) => _c.UiContext.Post(_ => { _c.LoadPhieuHienTai(); }, null);
+        private void OnTinhTongCompleted(TinhTongCompletedEvent e) => _c.UiContext.Post(_ => { if (e.TenBan != _c.TenBan) return; _v.BindDonHang(e.Data); _c.SetupPhieuButtonsDefault(true, false, _c.PhieuSvc.CheckCoLotChuaCNK(e.Data)); }, null);
+        public void Dispose() { var v = _v; v.FormLoaded -= OnFormLoaded; v.DateChanged -= OnDateChanged; v.GioXuatChanged -= OnGioXuatChanged; v.TabChanged -= OnTabChanged; v.CapNhapKhoClicked -= OnCapNhapKho; v.InPhieuClicked -= OnInPhieu; v.InGhepLotClicked -= OnInGhepLot; v.InTachLotClicked -= OnInTachLot; v.KiemTraGhepLotClicked -= OnKiemTraGhepLot; v.KiemTraMaNGClicked -= OnKiemTraMaNG; v.HoanThanhClicked -= OnHoanThanh; v.LoaiPhieuChanged -= OnLoaiPhieuChanged; v.ChonLotThuCongClicked -= OnChonLotThuCong; v.XemHangThieuCaNgayClicked -= OnXemHangThieuCaNgay; v.LayLaiLotNoClicked -= OnLayLaiLotNo; v.CapNhapTTPHIEUClicked -= OnCapNhapTTPHIEU; _c.Bus.Unsubscribe<PhieuLoadedEvent>(OnPhieuLoaded); _c.Bus.Unsubscribe<KhoUpdatedEvent>(OnKhoUpdated); _c.Bus.Unsubscribe<TinhTongCompletedEvent>(OnTinhTongCompleted); }
     }
 }
