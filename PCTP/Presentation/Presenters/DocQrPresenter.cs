@@ -45,7 +45,7 @@ namespace PCTP.Presentation.Presenters
                 ? _c.Cfg.Delivery.CoLoaiSP && _c.PhieuView.IsLoaiSP
                 : _c.CategoryResolver.Resolve(new OrderLoadContext { GioFccMoTa = _c.GioXuatHienTai.MoTa }) == OrderCategory.SP;
 
-            _c.QrSvc.SetCheDoBan(_c.Cfg.Delivery.LoadTuBangRieng ? "" : _c.GioXuatHienTai.Ma);
+            _c.QrSvc.SetCheDoBan(_c.Cfg.Delivery.LoadTuBangRieng ? "" : _c.GioXuatHienTai.MoTa);
             _c.QrSvc.SetCheDoBanSP(isSP);
 
             DataTable dtPhieu = _c.Cfg.Delivery.LoadTuBangRieng ? _c.PhieuView.GetDonHangTable() : null;
