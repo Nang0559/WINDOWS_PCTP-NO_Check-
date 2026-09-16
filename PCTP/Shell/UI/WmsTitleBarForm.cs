@@ -158,7 +158,7 @@ namespace PCTP.Shell.UI
                 Height = 38,
                 Dock = DockStyle.Right,
                 AllowFocus = false,
-                ShowFocusRectangle = false,
+                ShowFocusRectangle = DevExpress.Utils.DefaultBoolean.False,
                 LookAndFeel = { UseDefaultLookAndFeel = false }
             };
             button.Appearance.BackColor = Color.FromArgb(45, 45, 48);
@@ -181,7 +181,8 @@ namespace PCTP.Shell.UI
             }
             _iconLabel.ImageOptions.Image = Icon.ToBitmap();
             _iconLabel.ImageOptions.SvgImage = null;
-            _iconLabel.ImageOptions.Location = DevExpress.XtraEditors.ImageLocation.MiddleCenter;
+            _iconLabel.ImageOptions.Alignment = DevExpress.Utils.HorzAlignment.Center;
+            _iconLabel.ImageOptions.ImageToTextAlignment = DevExpress.XtraEditors.ImageAlignToText.None;
         }
 
         private void UpdateMaximizeGlyph()
