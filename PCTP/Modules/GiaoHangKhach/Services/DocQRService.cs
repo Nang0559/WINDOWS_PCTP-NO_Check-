@@ -1,5 +1,5 @@
-﻿using PCTP.Domain.Entities;
-using PCTP.Domain.Interfaces;
+using PCTP.Domain.Entities;
+using PCTP.Domain.Events;
 using PCTP.Modules.GiaoHangKhach.Models;
 using PCTP.Modules.GiaoHangKhach.OrderLoading.Category;
 using PCTP.Shared.Helpers;
@@ -9,27 +9,31 @@ using System.Data;
 
 namespace PCTP.Modules.GiaoHangKhach.Services
 {
-    /// <summary>
-    /// Thin facade for QR delivery operations.
-    /// Keeps the existing public API while delegating QR parsing/business rules
-    /// to DocQRScanEngine.
-    /// </summary>
-    public class DocQRService: IDocQRService
+    public class DocQRService : IDocQRService
     {
         private readonly IOrderCategoryResolver _categoryResolver;
         private readonly DocQRSessionState _session;
         private readonly DocQRScanEngine _engine;
+        private readonly FifoSessionService _fifoService;
+        private readonly FifoSessionState _fifoState;
 
         public bool IsBanSP => _session.IsBanSP;
         public bool IsBanOType => _session.IsBanOType;
 
-        public DocQRService(IDocQRRepository repo, IEventBus bus, CustomerConfig cfg, IOrderCategoryResolver categoryResolver)
+        public DocQRService(
+            IDocQRRepository repo,
+            IEventBus bus,
+            CustomerConfig cfg,
+            IOrderCategoryResolver categoryResolver,
+            FifoSessionService fifoService)
         {
             if (repo == null) throw new ArgumentNullException(nameof(repo));
             if (bus == null) throw new ArgumentNullException(nameof(bus));
             if (cfg == null) throw new ArgumentNullException(nameof(cfg));
             _categoryResolver = categoryResolver ?? throw new ArgumentNullException(nameof(categoryResolver));
+            _fifoService = fifoService ?? throw new ArgumentNullException(nameof(fifoService));
             _session = new DocQRSessionState(cfg);
+            _fifoState = new FifoSessionState();
             _engine = new DocQRScanEngine(repo, bus, cfg, _session);
         }
 
@@ -48,18 +52,72 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         public int CountChuaDG() => _engine.CountChuaDG();
         public bool CoDocQRNao() => _engine.CoDocQRNao();
         public DataTable LoadAll() => _engine.LoadAll();
+
+        public void InitializeFifo(DataTable orderRows)
+        {
+            _fifoService.Initialize(_fifoState, orderRows);
+        }
+
+        public void ResetFifo()
+        {
+            _fifoState.Reset();
+        }
+
         public void XoaDong(int stt) => _engine.XoaDong(stt);
-        public void XoaToanBo() => _engine.XoaToanBo();
-        public void CapNhapSlHvn(int stt, int slMoi) => _engine.CapNhapSlHvn(stt, slMoi);
 
-        public ScanResult ProcessScan(string rawQr, Func<string, bool> kiemTraMaTrongPhieu, Func<string, int, bool> kiemTraSlDaBan)
-            => _engine.ProcessScan(rawQr, kiemTraMaTrongPhieu, kiemTraSlDaBan);
+        public void XoaToanBo()
+        {
+            _engine.XoaToanBo();
+            _fifoState.Reset();
+        }
 
-        public ScanResult ProcessScanYMVN(string rawQr, Func<string, bool> kiemTraMaTrongPhieu, Func<string, int, bool> kiemTraSlDaBan)
-            => _engine.ProcessScanYMVN(rawQr, kiemTraMaTrongPhieu, kiemTraSlDaBan);
+        public void CapNhapSlHvn(int stt, int slMoi)
+            => _engine.CapNhapSlHvn(stt, slMoi);
+
+        public ScanResult ProcessScan(
+            string rawQr,
+            Func<string, bool> kiemTraMaTrongPhieu,
+            Func<string, int, bool> kiemTraSlDaBan)
+        {
+            return ApplyRamFifo(_engine.ProcessScan(rawQr, kiemTraMaTrongPhieu, kiemTraSlDaBan));
+        }
+
+        public ScanResult ProcessScanYMVN(
+            string rawQr,
+            Func<string, bool> kiemTraMaTrongPhieu,
+            Func<string, int, bool> kiemTraSlDaBan)
+        {
+            return ApplyRamFifo(_engine.ProcessScanYMVN(rawQr, kiemTraMaTrongPhieu, kiemTraSlDaBan));
+        }
 
         public ScanResult ConfirmSlKhacBiet(DocQRCode pending)
-            => _engine.ConfirmSlKhacBiet(pending);
+        {
+            return ApplyRamFifo(_engine.ConfirmSlKhacBiet(pending));
+        }
+
+        private ScanResult ApplyRamFifo(ScanResult result)
+        {
+            if (result == null || !result.IsOK || result.Pending == null)
+                return result;
+
+            DocQRCode item = result.Pending;
+            string maHang = !string.IsNullOrWhiteSpace(item.MaHangFCC)
+                ? item.MaHangFCC
+                : item.MaHangHVN;
+            string lot = !string.IsNullOrWhiteSpace(item.LotFCC)
+                ? item.LotFCC
+                : item.LotHVN;
+            int quantity = item.SlTemFCC > 0 ? item.SlTemFCC : item.SlTemHVN;
+
+            string message;
+            if (_fifoState.TryConsume(maHang, lot, quantity, out message))
+                return result;
+
+            // The scan engine has already persisted the QR row. Remove it
+            // immediately so a FIFO-failed QR can never reach CNK/SP processing.
+            _engine.XoaDong(item.STT);
+            return ScanResult.FifoFail(item, message);
+        }
 
         public bool KiemTraSlDaBan(string maHang, int slBan)
             => _engine.KiemTraSlDaBan(maHang, slBan);
