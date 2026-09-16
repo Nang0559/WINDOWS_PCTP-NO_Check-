@@ -1,13 +1,14 @@
 using PCTP.Applications.Services;
 using PCTP.Domain.Events;
 using PCTP.Modules.GiaoHangKhach.Models;
-using PCTP.Presentation.Dialogs;
 using PCTP.Presentation.Views;
 using PCTP.Shared.Helpers;
 using PCTP.Shared.Models;
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Drawing;
+using System.Windows.Forms;
 
 namespace PCTP.Presentation.Presenters
 {
@@ -201,6 +202,123 @@ namespace PCTP.Presentation.Presenters
             v.XoaDongQRClicked -= OnXoaDongQR;
             v.XoaToanBoQRClicked -= OnXoaToanBoQR;
             _c.Bus.Unsubscribe<QRScannedEvent>(OnQRScanned);
+        }
+    }
+
+    /// <summary>
+    /// Confirmation dialog dành cho keyboard-wedge scanner.
+    /// Không dùng AcceptButton/CancelButton và chỉ pointer click trực tiếp mới được xác nhận.
+    /// </summary>
+    internal sealed class DirectClickConfirmDialog : Form
+    {
+        private readonly Button _btnAgree;
+        private readonly Button _btnNo;
+        private bool _agreePointerDown;
+        private bool _noPointerDown;
+
+        private DirectClickConfirmDialog(string message)
+        {
+            Text = "Xác nhận chênh lệch số lượng";
+            StartPosition = FormStartPosition.CenterScreen;
+            FormBorderStyle = FormBorderStyle.FixedDialog;
+            MinimizeBox = false;
+            MaximizeBox = false;
+            ShowInTaskbar = false;
+            KeyPreview = true;
+            Width = 560;
+            Height = 280;
+            AcceptButton = null;
+            CancelButton = null;
+
+            var lbl = new Label
+            {
+                AutoSize = false,
+                Dock = DockStyle.Fill,
+                Text = message,
+                TextAlign = ContentAlignment.MiddleLeft,
+                Padding = new Padding(18, 12, 18, 8)
+            };
+
+            var buttons = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Bottom,
+                Height = 62,
+                FlowDirection = FlowDirection.RightToLeft,
+                Padding = new Padding(10),
+                WrapContents = false
+            };
+
+            _btnAgree = new Button { Text = "Đồng ý", Width = 120, Height = 36, TabStop = false };
+            _btnNo = new Button { Text = "Không", Width = 120, Height = 36, TabStop = false };
+
+            // Không dùng Click: Button.Click có thể phát sinh từ keyboard.
+            _btnAgree.MouseDown += BtnAgree_MouseDown;
+            _btnAgree.MouseUp += BtnAgree_MouseUp;
+            _btnNo.MouseDown += BtnNo_MouseDown;
+            _btnNo.MouseUp += BtnNo_MouseUp;
+
+            buttons.Controls.Add(_btnAgree);
+            buttons.Controls.Add(_btnNo);
+            Controls.Add(lbl);
+            Controls.Add(buttons);
+
+            Shown += delegate { ActiveControl = null; };
+            KeyDown += DirectClickConfirmDialog_KeyDown;
+            FormClosing += DirectClickConfirmDialog_FormClosing;
+        }
+
+        public static bool Show(string message)
+        {
+            using (var dialog = new DirectClickConfirmDialog(message))
+            {
+                dialog.ShowDialog();
+                return dialog.DialogResult == DialogResult.Yes;
+            }
+        }
+
+        private void DirectClickConfirmDialog_KeyDown(object sender, KeyEventArgs e)
+        {
+            // Nuốt toàn bộ keyboard input khi dialog đang mở.
+            // Vì vậy Enter từ scanner không thể activate Đồng ý.
+            e.Handled = true;
+            e.SuppressKeyPress = true;
+        }
+
+        private void BtnAgree_MouseDown(object sender, MouseEventArgs e)
+        {
+            _agreePointerDown = e.Button == MouseButtons.Left;
+        }
+
+        private void BtnAgree_MouseUp(object sender, MouseEventArgs e)
+        {
+            bool directClick = _agreePointerDown && e.Button == MouseButtons.Left;
+            _agreePointerDown = false;
+            if (!directClick) return;
+
+            DialogResult = DialogResult.Yes;
+            Close();
+        }
+
+        private void BtnNo_MouseDown(object sender, MouseEventArgs e)
+        {
+            _noPointerDown = e.Button == MouseButtons.Left;
+        }
+
+        private void BtnNo_MouseUp(object sender, MouseEventArgs e)
+        {
+            bool directClick = _noPointerDown && e.Button == MouseButtons.Left;
+            _noPointerDown = false;
+            if (!directClick) return;
+
+            DialogResult = DialogResult.No;
+            Close();
+        }
+
+        private void DirectClickConfirmDialog_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            // X/Alt+F4 được xem là Không, không bao giờ là Đồng ý.
+            if (DialogResult == DialogResult.None)
+                DialogResult = DialogResult.No;
         }
     }
 }
