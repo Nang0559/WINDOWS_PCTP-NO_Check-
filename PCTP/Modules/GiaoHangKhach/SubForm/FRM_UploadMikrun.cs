@@ -55,8 +55,7 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
             _targetTable = targetTable;
             _title = title;
 
-            OfficeOpenXml.ExcelPackage.LicenseContext =
-                OfficeOpenXml.LicenseContext.NonCommercial;
+       
 
             BuildUI();
         }

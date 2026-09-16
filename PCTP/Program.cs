@@ -21,7 +21,7 @@ namespace PCTP
         [STAThread]
         static void Main()
         {
-            //OfficeOpenXml.ExcelPackage.License.SetNonCommercialPersonal("YMVN_APP");
+            OfficeOpenXml.ExcelPackage.License.SetNonCommercialOrganization("YMVN_APP");
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 

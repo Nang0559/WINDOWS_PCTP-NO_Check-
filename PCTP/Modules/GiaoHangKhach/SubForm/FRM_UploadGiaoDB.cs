@@ -56,7 +56,7 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
         public FRM_UploadGiaoDB(IPhieuService phieuSvc)
         {
             _phieuSvc = phieuSvc ?? throw new ArgumentNullException(nameof(phieuSvc));
-            ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+         
             _danhSachMaHang = _phieuSvc.GetDanhSachMaHangGiaoDB() ?? new DataTable();
             _maHangHopLe = new HashSet<string>(
                 _danhSachMaHang.AsEnumerable().Select(r => r["Code"]?.ToString().Trim() ?? ""),

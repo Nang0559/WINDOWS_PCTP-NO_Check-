@@ -1038,12 +1038,6 @@
     <Compile Include="Modules\GiaoHangKhach\SubForm\FRM_UploadMikrun.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="Modules\GiaoHangKhach\YMVN\GIAOHANGYMN.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Modules\GiaoHangKhach\YMVN\GIAOHANGYMN.Designer.cs">
-      <DependentUpon>GIAOHANGYMN.cs</DependentUpon>
-    </Compile>
     <Compile Include="resize_form.cs" />
     <Compile Include="SplashScreen1.cs">
       <SubType>Form</SubType>
@@ -1052,24 +1046,6 @@
       <DependentUpon>SplashScreen1.cs</DependentUpon>
     </Compile>
     <Compile Include="Modules\GiaoHangKhach\YMVN\IDS_CNK.cs" />
-    <Compile Include="Modules\GiaoHangKhach\YMVN\YAMAHAQRCDE_SP.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Modules\GiaoHangKhach\YMVN\YAMAHAQRCDE_SP.Designer.cs">
-      <DependentUpon>YAMAHAQRCDE_SP.cs</DependentUpon>
-    </Compile>
-    <Compile Include="Modules\GiaoHangKhach\YMVN\YMVNDOCQRCODE.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Modules\GiaoHangKhach\YMVN\YMVNDOCQRCODE.Designer.cs">
-      <DependentUpon>YMVNDOCQRCODE.cs</DependentUpon>
-    </Compile>
-    <Compile Include="Modules\GiaoHangKhach\YMVN\YMVN_CHONGIAO.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Modules\GiaoHangKhach\YMVN\YMVN_CHONGIAO.Designer.cs">
-      <DependentUpon>YMVN_CHONGIAO.cs</DependentUpon>
-    </Compile>
     <None Include="Oracle.DataAccess.Common.Configuration.Section.xsd">
       <SubType>Designer</SubType>
     </None>
@@ -1217,20 +1193,8 @@
     <EmbeddedResource Include="Modules\GiaoHangKhach\YMVN\ERR_CNK.resx">
       <DependentUpon>ERR_CNK.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="Modules\GiaoHangKhach\YMVN\GIAOHANGYMN.resx">
-      <DependentUpon>GIAOHANGYMN.cs</DependentUpon>
-    </EmbeddedResource>
     <EmbeddedResource Include="SplashScreen1.resx">
       <DependentUpon>SplashScreen1.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Modules\GiaoHangKhach\YMVN\YAMAHAQRCDE_SP.resx">
-      <DependentUpon>YAMAHAQRCDE_SP.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Modules\GiaoHangKhach\YMVN\YMVNDOCQRCODE.resx">
-      <DependentUpon>YMVNDOCQRCODE.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Modules\GiaoHangKhach\YMVN\YMVN_CHONGIAO.resx">
-      <DependentUpon>YMVN_CHONGIAO.cs</DependentUpon>
     </EmbeddedResource>
     <None Include="FVN.IT Nang.pfx" />
     <None Include="packages.config" />

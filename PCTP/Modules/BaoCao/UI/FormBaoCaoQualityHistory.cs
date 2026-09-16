@@ -36,7 +36,7 @@ namespace PCTP.Modules.BaoCao.UI
             BuildUi();
             _from.DateTime = DateTime.Today.AddDays(-7);
             _to.DateTime = DateTime.Today;
-            LoadAsync();
+            _ = LoadAsync();   // ✅ fire-and-forget tường minh — constructor không await được
         }
 
         public FormBaoCaoQualityHistory() : this(new QualityHistoryQueryService()) { }
