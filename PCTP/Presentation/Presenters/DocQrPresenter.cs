@@ -54,6 +54,13 @@ namespace PCTP.Presentation.Presenters
                                 ngay, _c.GetNhaMay(), _c.GioXuatHienTai.Ma, _c.GioXuatHienTai.MoTa, _c.AddNM);
                     }
 
+                    // FIFO RAM must be built from the order grid (PART + required quantity)
+                    // before the first QR is accepted. This keeps scan-time FIFO independent
+                    // from the temporary QR table and allows the RAM reservation to be
+                    // consumed across multiple boxes.
+                    DataTable fifoOrderRows = _c.PhieuSvc.GetDonHangHienTai(_c.TenBan);
+                    _c.QrSvc.InitializeFifo(fifoOrderRows);
+
                     DataTable qrData = _c.QrSvc.LoadAll();
                     _c.UiContext.Post(_ =>
                     {
