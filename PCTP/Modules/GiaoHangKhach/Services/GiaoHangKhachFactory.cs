@@ -44,7 +44,6 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         public static Module Build(string customerNo)
         {
             var cfg = CustomerTableConfig.GetForDelivery(customerNo);
-
             var sql = new SQLPROVIDER();
             var bus = new InProcessEventBus();
             var phieuDb = new PhieuSqlExecutor(sql);
@@ -54,7 +53,6 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             var historyRepo = new StockHistoryRepository(phieuDb, phieuUow);
             var hangChoGiaoRepo = new HangChoGiaoRepository(phieuDb, phieuUow);
             var phieugiaDBRepo = new PhieuGiaoDBRepository(phieuDb, phieuUow);
-
             var stockBalanceRepo = new LegacyStockBalanceRepositoryAdapter(phieuDb, phieuUow);
             var stockMovement = new StockMovementService(stockBalanceRepo, bulkStockSlotRepo);
 
@@ -71,9 +69,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
 
             var machinePermissionService = new MachinePermissionService(sql);
             bool isMayBanQR = machinePermissionService.GetCurrentRole() == MachineRole.DuocBanQR;
-            string tenBan = isMayBanQR
-                ? cfg.Delivery.TmpTable
-                : cfg.Delivery.GetTmpViewTable(Environment.MachineName);
+            string tenBan = isMayBanQR ? cfg.Delivery.TmpTable : cfg.Delivery.GetTmpViewTable(Environment.MachineName);
 
             var ifsRepo = IFSRepository.Create();
             var customerAddressService = new CustomerAddressService(ifsRepo);
@@ -87,11 +83,9 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             var giaoDbSource = new GiaoDbOrderSource(giaoDbStrategy);
             var orderSourceFactory = new OrderSourceFactory(ifsSource, tableOrderSource, giaoDbSource);
 
-            // FIFO RAM session uses the same LOT repository/FIFO ordering as the
-            // manual LOT picker, while EnforceFifo is read per item from config.
             var fifoConfigRepo = new ItemFifoConfigRepository(phieuDb, phieuUow);
             var fifoLotRepo = new PhieuLotRepository(phieuDb, phieuUow);
-            var fifoSessionService = new FifoSessionService(fifoConfigRepo, fifoLotRepo);
+            var fifoSessionService = new FifoSessionService(fifoConfigRepo, fifoLotRepo, phieuDb);
             var qrSvc = new DocQRService(qrRepo, bus, cfg, categoryResolver, fifoSessionService);
 
             var phieuSvc = new PhieuService(
