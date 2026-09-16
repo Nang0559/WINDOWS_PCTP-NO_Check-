@@ -5,12 +5,23 @@ namespace PCTP.Modules.XuLyHangLoi.Services
 {
     /// <summary>
     /// Truy vết toàn bộ nguồn hàng có cùng LOT bị ảnh hưởng.
-    /// Phase 2 chỉ đọc dữ liệu; không mutate stock.
+    /// Phase 2: đọc -> kiểm tra completeness -> snapshot bền vững.
     /// </summary>
     public interface IAffectedLotTraceService
     {
         AffectedLotTraceResult Trace(string maSanPham, string lotNo, string nguoiThucHien);
         AffectedLotTraceResult TraceForPhieu(PhieuXuLyBatThuong phieu, string nguoiThucHien);
+
+        /// <summary>
+        /// Truy vết theo phiếu, snapshot AffectedLots và trả về tổng số lượng ảnh hưởng.
+        /// Không cho snapshot một kết quả chưa complete để tránh QC kết luận thiếu nguồn.
+        /// </summary>
+        AffectedLotTraceResult TruyVetLOT(int phieuXuLyId, string nguoiThucHien);
+
+        /// <summary>
+        /// Đọc snapshot đã lưu của một phiếu.
+        /// </summary>
+        IReadOnlyList<PhieuXuLyBatThuongAffectedLot> GetSnapshot(int phieuXuLyId);
     }
 
     public sealed class AffectedLotTraceResult
