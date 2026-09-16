@@ -19,7 +19,6 @@ namespace PCTP.Modules.XuLyHangLoi.Models
         public int? PhieuTraHangId { get; set; }
         public int PhieuTraHangCTId { get; set; }
         public string SoPhieuTraHangGoc { get; set; }
-
         public int? PhieuKhachTraId { get; set; }
 
         public int? SlotIdNguon { get; set; }
@@ -74,6 +73,79 @@ namespace PCTP.Modules.XuLyHangLoi.Models
         public string NguoiHuy { get; set; }
 
         /// <summary>
+        /// Kiểm tra các invariant đã có đủ dữ liệu để kết luận.
+        /// Method không thay đổi state và không truy cập DB.
+        /// </summary>
+        public void ValidateDomainInvariants()
+        {
+            ValidateNonNegativeQuantities();
+
+            if (QCInspection != null)
+            {
+                if (QCInspection.SoLuongDaKiemTra > QCInspection.SoLuongAnhHuong)
+                    throw new InvalidOperationException("QC inspection vượt quá số lượng bị ảnh hưởng.");
+
+                if (QCInspection.SoLuongDaKiemTra !=
+                    QCInspection.SoLuongOK + QCInspection.SoLuongNG)
+                    throw new InvalidOperationException("QC inspection phải bằng OK + NG.");
+
+                if (QCInspection.SoLuongRework + QCInspection.SoLuongLoaiBoBanDau !=
+                    QCInspection.SoLuongNG)
+                    throw new InvalidOperationException("NG phải bằng Rework + Loại bỏ ban đầu.");
+            }
+
+            if (Rework != null && QCInspection != null)
+            {
+                if (Rework.SoLuongRework != QCInspection.SoLuongRework)
+                    throw new InvalidOperationException("Kết quả Rework không khớp số lượng Rework đã được QC duyệt.");
+
+                if (Rework.SoLuongOK + Rework.SoLuongNG != Rework.SoLuongRework)
+                    throw new InvalidOperationException("Kết quả Rework phải bằng OK + NG.");
+            }
+
+            if (Disposition != null)
+            {
+                if (QCInspection != null &&
+                    Disposition.SoLuongLoaiBoBanDau != QCInspection.SoLuongLoaiBoBanDau)
+                    throw new InvalidOperationException("Disposition không khớp loại bỏ ban đầu.");
+
+                var expectedFinalScrap = Disposition.SoLuongLoaiBoBanDau +
+                                         Disposition.SoLuongReworkNG;
+                if (Disposition.SoLuongLoaiBoCuoi != expectedFinalScrap)
+                    throw new InvalidOperationException("Loại bỏ cuối cùng phải bằng Loại bỏ ban đầu + NG sau Rework.");
+
+                if (Rework != null && Disposition.SoLuongReworkNG != Rework.SoLuongNG)
+                    throw new InvalidOperationException("Disposition không khớp NG sau Rework.");
+            }
+
+            // Compensation hoàn toàn độc lập với NG/Rework/Scrap.
+            // Không được tự suy ra SoLuongCanGiaoBu từ các quantity QC.
+            if (Compensation != null &&
+                Compensation.SoLuongDaGiaoBu > Compensation.SoLuongCanGiaoBu)
+                throw new InvalidOperationException("Số lượng đã giao bù vượt số lượng cần giao bù.");
+        }
+
+        private void ValidateNonNegativeQuantities()
+        {
+            if (SoLuongLoi < 0)
+                throw new InvalidOperationException("SoLuongLoi không được âm.");
+
+            if (AffectedLots == null)
+                return;
+
+            foreach (var lot in AffectedLots)
+            {
+                if (lot == null)
+                    continue;
+
+                if (lot.SoLuongAnhHuong < 0 || lot.SoLuongDaKiemTra < 0 ||
+                    lot.SoLuongOK < 0 || lot.SoLuongNG < 0 ||
+                    lot.SoLuongRework < 0 || lot.SoLuongLoaiBo < 0)
+                    throw new InvalidOperationException("Số lượng LOT bị ảnh hưởng không được âm.");
+            }
+        }
+
+        /// <summary>
         /// Workflow transition phải được validate ở Service trước khi gọi method này.
         /// </summary>
         public void ChangeStatus(QTChungStatus newStatus, string updatedBy)
@@ -92,9 +164,7 @@ namespace PCTP.Modules.XuLyHangLoi.Models
         KhachTra = 3
     }
 
-    /// <summary>
-    /// Snapshot nguồn hàng bị ảnh hưởng tại thời điểm truy vết LOT.
-    /// </summary>
+    /// <summary>Snapshot nguồn hàng bị ảnh hưởng tại thời điểm truy vết LOT.</summary>
     public class PhieuXuLyBatThuongAffectedLot
     {
         public int Id { get; set; }
