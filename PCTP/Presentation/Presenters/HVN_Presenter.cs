@@ -13,11 +13,6 @@ using System.Text;
 
 namespace PCTP.Presentation.Presenters
 {
-    /// <summary>
-    /// Facade tương thích ngược cho màn hình Giao Hàng Khách.
-    /// Use-case UI đã được tách thành PhieuPresenter, DocQrPresenter,
-    /// GiaoDbPresenter và YmvnPresenter.
-    /// </summary>
     public sealed class HVN_Presenter : IDisposable
     {
         private readonly HVNPresenterContext _context;
@@ -36,7 +31,6 @@ namespace PCTP.Presentation.Presenters
             _docQrPresenter = new DocQrPresenter(_context);
             _giaoDbPresenter = new GiaoDbPresenter(_context);
             _ymvnPresenter = new YmvnPresenter(_context);
-
             _context.Bus.Subscribe<FifoReleaseConfirmationRequestedEvent>(OnFifoReleaseConfirmationRequested);
         }
 
@@ -47,7 +41,7 @@ namespace PCTP.Presentation.Presenters
         {
             if (e == null || e.Violations == null || e.Violations.Count == 0)
             {
-                if (e != null) e.Confirmed = true;
+                e?.Cancel();
                 return;
             }
 
@@ -65,20 +59,17 @@ namespace PCTP.Presentation.Presenters
             foreach (FifoViolation v in e.Violations)
             {
                 if (v == null) continue;
-                sb.AppendLine(string.Format(
-                    "{0} | {1} | {2} | {3} | {4}",
-                    v.Stt,
-                    v.MaHang ?? string.Empty,
-                    v.LotDaChon ?? string.Empty,
-                    v.SoLuong,
-                    v.LotDungRaPhaiChon ?? string.Empty));
+                sb.AppendLine(string.Format("{0} | {1} | {2} | {3} | {4}", v.Stt, v.MaHang ?? string.Empty, v.LotDaChon ?? string.Empty, v.SoLuong, v.LotDungRaPhaiChon ?? string.Empty));
             }
 
             sb.AppendLine();
             sb.AppendLine("OK: lấy lại LOT các dòng trên và tiếp tục CNK các QR hợp lệ còn lại.");
             sb.AppendLine("CANCEL: giữ nguyên LOT, không loại dòng và không thực hiện CNK.");
 
-            e.Confirmed = _context.PhieuView.Confirm(sb.ToString());
+            if (_context.PhieuView.Confirm(sb.ToString()))
+                e.Confirm();
+            else
+                e.Cancel();
         }
 
         public void Dispose()
