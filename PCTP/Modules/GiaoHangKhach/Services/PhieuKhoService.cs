@@ -15,10 +15,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         private readonly IEventBus _bus;
         private readonly CustomerConfig _cfg;
 
-        public PhieuKhoService(
-            IPhieuRepository phieuRepo,
-            IEventBus bus,
-            CustomerConfig cfg)
+        public PhieuKhoService(IPhieuRepository phieuRepo, IEventBus bus, CustomerConfig cfg)
         {
             _phieuRepo = phieuRepo ?? throw new ArgumentNullException(nameof(phieuRepo));
             _bus = bus ?? throw new ArgumentNullException(nameof(bus));
@@ -30,14 +27,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             string tmpTable = _cfg.Delivery.GetTmpTable(isSP);
             string docQrTable = _cfg.Delivery.GetDocQRTable(isSP);
 
-            // ================================================================
-            // FIFO IS THE FIRST-CLASS GATE
-            // ================================================================
-            // Evaluate first. This operation MUST NOT modify LOT/TMP/DOCQR.
-            // If FIFO is wrong, stock validation is deliberately not executed.
-            // The UI receives the complete affected-row list and decides whether
-            // the invalid rows may be released.
-            // ================================================================
+            // FIFO is the first-class gate. Evaluation is read-only.
             List<FifoViolation> fifoViolations =
                 _phieuRepo.EvaluateFifoViolations(tmpTable, docQrTable)
                 ?? new List<FifoViolation>();
@@ -47,14 +37,12 @@ namespace PCTP.Modules.GiaoHangKhach.Services
                 var confirmation = new FifoReleaseConfirmationRequestedEvent(fifoViolations);
                 _bus.Publish(confirmation);
 
-                // CANCEL (or no UI confirmation handler) means absolutely no
-                // LOT reset and no CNK/stock stored procedure.
-                if (!confirmation.Confirmed)
+                // CANCEL means no LOT reset and no CNK/stock update.
+                if (!confirmation.WaitForDecision())
                     return;
 
-                // The repository re-checks FIFO immediately before releasing.
-                // Only after explicit OK are invalid rows reset so they are no
-                // longer candidates for the stock update.
+                // Re-check and release only after explicit OK. Invalid FIFO rows
+                // are removed from the stock-update candidates by the repository.
                 _phieuRepo.ReleaseFifoViolations(tmpTable, docQrTable);
             }
 
@@ -63,25 +51,15 @@ namespace PCTP.Modules.GiaoHangKhach.Services
 
             if (_cfg.Delivery.LoadTuBangRieng && !_cfg.Delivery.CoGear)
             {
-                soLot = _phieuRepo.CapNhapKhoHTN(
-                    nhaMay,
-                    tmpTable,
-                    docQrTable,
-                    out errors);
+                soLot = _phieuRepo.CapNhapKhoHTN(nhaMay, tmpTable, docQrTable, out errors);
             }
             else
             {
-                soLot = _phieuRepo.CapNhapKho(
-                    gioGiaoFcc,
-                    nhaMay,
-                    tmpTable,
-                    docQrTable,
-                    out errors);
+                soLot = _phieuRepo.CapNhapKho(gioGiaoFcc, nhaMay, tmpTable, docQrTable, out errors);
             }
 
-            // FIFO has already been resolved before this point. Therefore any
-            // stock shortage returned now belongs to the remaining valid rows
-            // and must NOT be suppressed.
+            // FIFO has already been resolved. Any stock shortage here belongs to
+            // the remaining valid rows and must not be suppressed.
             _bus.Publish(new KhoUpdatedEvent(soLot, errors));
         }
     }
