@@ -24,9 +24,17 @@ namespace PCTP.Modules.GiaoHangKhach.OrderLoading.IFS
         public DataTable LoadDonHangGoc(OrderLoadContext ctx)
         {
             // SP của khách 100001 được xác định bằng DOCK_CODE = HVN,
-            // không phải bằng giờ giao. Vì vậy SP phải lấy toàn bộ đơn trong ngày
-            // theo nhà máy rồi mới lọc category ở tầng IRowCategoryFilter.
+            // không phải bằng giờ giao. Chuẩn hóa context ngay tại source
+            // để toàn bộ pipeline phía sau (SaveFromSource/LuuVaLoad/QR)
+            // cũng không còn mang giờ MP cũ vào truy vấn SP.
+            if (ctx.Category == OrderCategory.SP)
+            {
+                ctx.GioFcc = string.Empty;
+                ctx.GioFccMoTa = "Tất cả ca";
+            }
+
             // MP vẫn giữ nguyên luồng cũ: nhà máy + giờ giao.
+            // SP: nhà máy + toàn bộ giờ trong ngày, sau đó mới lọc DOCK_CODE = HVN.
             int hinhThucIn = ctx.Category == OrderCategory.SP ? 2 : 1;
 
             return _ifsRepo.GetCustomerOrderJoin(
