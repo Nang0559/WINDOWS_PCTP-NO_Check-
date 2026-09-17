@@ -167,7 +167,15 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
             this.simpleButton5.Location = new System.Drawing.Point(120, 73); this.simpleButton5.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2); this.simpleButton5.Name = "simpleButton5"; this.simpleButton5.Size = new System.Drawing.Size(16, 27); this.simpleButton5.TabIndex = 6; this.simpleButton5.Text = "==>";
             this.simpleButton6.Location = new System.Drawing.Point(318, 70); this.simpleButton6.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2); this.simpleButton6.Name = "simpleButton6"; this.simpleButton6.Size = new System.Drawing.Size(16, 27); this.simpleButton6.TabIndex = 5; this.simpleButton6.Text = "==>";
             this._phieuBottomStateControl.Dock = System.Windows.Forms.DockStyle.Left; this._phieuBottomStateControl.Location = new System.Drawing.Point(0, 1); this._phieuBottomStateControl.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4); this._phieuBottomStateControl.Name = "phieuBottomStateControl"; this._phieuBottomStateControl.Size = new System.Drawing.Size(391, 133); this._phieuBottomStateControl.TabIndex = 0;
-            this.sidePanel3.Controls.Add(this.UIButton); this.sidePanel3.Controls.Add(this.sidePanel5); this.sidePanel3.Controls.Add(this._phieuBottomStateControl); this.sidePanel3.Dock = System.Windows.Forms.DockStyle.Bottom; this.sidePanel3.Location = new System.Drawing.Point(0, 586); this.sidePanel3.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4); this.sidePanel3.Name = "sidePanel3"; this.sidePanel3.Size = new System.Drawing.Size(1771, 134); this.sidePanel3.TabIndex = 3; this.sidePanel3.Text = "sidePanel3";
+            this.sidePanel3.Controls.Add(this.UIButton); 
+            this.sidePanel3.Controls.Add(this.sidePanel5); 
+            this.sidePanel3.Controls.Add(this._phieuBottomStateControl);
+            this.sidePanel3.Dock = System.Windows.Forms.DockStyle.Bottom; 
+            this.sidePanel3.Location = new System.Drawing.Point(0, 586); 
+            this.sidePanel3.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4); 
+            this.sidePanel3.Name = "sidePanel3"; 
+            this.sidePanel3.Size = new System.Drawing.Size(1771, 134); 
+            this.sidePanel3.TabIndex = 3; this.sidePanel3.Text = "sidePanel3";
             this.UIButton.AllowGlyphSkinning = false; this.UIButton.Buttons.AddRange(new DevExpress.XtraEditors.ButtonPanel.IBaseButton[] { new DevExpress.XtraBars.Docking2010.WindowsUIButton(), new DevExpress.XtraBars.Docking2010.WindowsUIButton()}); this.UIButton.Dock = System.Windows.Forms.DockStyle.Fill; this.UIButton.Location = new System.Drawing.Point(391, 1); this.UIButton.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4); this.UIButton.Name = "UIButton"; this.UIButton.Size = new System.Drawing.Size(892, 133); this.UIButton.TabIndex = 2; this.UIButton.Text = "myWindowsUIButtonPanel1";
             this.sidePanel5.Controls.Add(this.PN_DOCQR_SUASL1); this.sidePanel5.Controls.Add(this.GCT_HT); this.sidePanel5.Dock = System.Windows.Forms.DockStyle.Right; this.sidePanel5.Location = new System.Drawing.Point(1283, 1); this.sidePanel5.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4); this.sidePanel5.Name = "sidePanel5"; this.sidePanel5.Size = new System.Drawing.Size(488, 133); this.sidePanel5.TabIndex = 1; this.sidePanel5.Text = "sidePanel5";
             this.imageBT.ImageStream = ((DevExpress.Utils.ImageCollectionStreamer)(resources.GetObject("imageBT.ImageStream"))); this.imageBT.Images.SetKeyName(0, "addfile_16x16.png"); this.imageBT.Images.SetKeyName(1, "show_16x16.png"); this.imageBT.Images.SetKeyName(2, "defaultprinter_16x16.png"); this.imageBT.Images.SetKeyName(3, "printdialog_16x16.png"); this.imageBT.Images.SetKeyName(4, "printer_16x16.png"); this.imageBT.Images.SetKeyName(5, "showworktimeonly_16x16.png"); this.imageBT.Images.SetKeyName(6, "addnewdatasource_16x16.png"); this.imageBT.Images.SetKeyName(7, "deletedatasource2_16x16.png"); this.imageBT.Images.SetKeyName(8, "editdatasource_16x16.png"); this.imageBT.Images.SetKeyName(9, "exportmodeldifferences_16x16.png"); this.imageBT.Images.SetKeyName(10, "apply_16x16.png"); this.imageBT.Images.SetKeyName(11, "clear_16x16.png"); this.imageBT.Images.SetKeyName(12, "editname_16x16.png");
@@ -251,5 +259,6 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
         private CheckedListBoxControl CheckGX;
         private DevExpress.XtraGrid.Views.BandedGrid.BandedGridColumn bandedGridColumn9;
         private DevExpress.XtraGrid.Views.BandedGrid.GridBand gridBandDH;
+        
     }
 }
