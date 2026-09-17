@@ -37,8 +37,9 @@ namespace PCTP.Modules.GiaoHangKhach.Services
                 var confirmation = new FifoReleaseConfirmationRequestedEvent(fifoViolations);
                 _bus.Publish(confirmation);
 
-                // CANCEL means no LOT reset and no CNK/stock update.
-                if (!confirmation.WaitForDecision())
+                // The current event bus is synchronous. If no UI handler completed
+                // the request, fail closed: no LOT reset and no CNK/stock update.
+                if (!confirmation.IsCompleted || !confirmation.WaitForDecision())
                     return;
 
                 // Re-check and release only after explicit OK. Invalid FIFO rows
