@@ -1,10 +1,19 @@
-# Hướng dẫn sử dụng — XuLyHangLoi / QT Chung
+# Hướng dẫn sử dụng — Xử lý Hàng lỗi / QT Chung và liên hệ FIFO Giao Hàng Khách
 
 ## 1. Mục đích
 
-Dùng module để xử lý một phiếu hàng lỗi/bất thường từ lúc tiếp nhận đến khi hoàn tất xử lý, gồm truy vết LOT, QC, Rework, Disposition và/hoặc Giao bù.
+Module dùng để xử lý một phiếu hàng lỗi/bất thường từ lúc tiếp nhận đến khi hoàn tất xử lý, gồm truy vết LOT, QC, Rework, Disposition và/hoặc Giao bù.
 
-## 2. Quy trình chuẩn
+Khi hàng lỗi phát sinh từ hoặc ảnh hưởng đến **Giao Hàng Khách**, người dùng phải phân biệt rõ:
+
+- QR giao hàng đang hợp lệ hay đã bị FIFO reject;
+- LOT nào đang nằm trong phạm vi FIFO của đơn hàng;
+- hàng lỗi nào cần truy vết LOT thực tế trong kho/sản xuất/khách trả;
+- không được dùng kết quả FIFO RAM của phiên giao hàng làm bằng chứng tồn kho cuối cùng.
+
+---
+
+## 2. Quy trình xử lý hàng lỗi
 
 ```text
 Tạo phiếu
@@ -14,212 +23,238 @@ Truy vết LOT
 QC định hướng
   ↓
 Initial QC
-  ├── TuChoiGiaoBu
-  ├── GiaoBu
+  ├── Từ chối giao bù
+  ├── Giao bù
   └── Rework
           ↓
-      Xuất Rework
+      Xác nhận kết quả
           ↓
-      Giao sản xuất
-          ↓
-      QC Rework
-          ↓
-      Disposition nếu có NG
-
-GiaoBu là nhánh độc lập và không được suy ra tự động từ NG.
+       Đóng xử lý
 ```
 
-## 3. Tạo phiếu
+Nếu hàng lỗi liên quan đến một LOT đang/đã giao cho khách, phải giữ nguyên LOT thực tế để truy vết. Không tự thay LOT chỉ vì FIFO của một đơn hàng khác.
 
-1. Mở màn hình **Xử lý hàng lỗi / QT Chung**.
-2. Chọn tạo phiếu.
-3. Chọn nguồn phát sinh:
-   - Khách trả.
-   - Trả nội bộ.
-4. Nhập/kiểm tra mã sản phẩm, Model, LOT, số lượng và nội dung bất thường.
-5. Lưu phiếu.
+---
 
-## 4. Truy vết LOT
+## 3. FIFO trong Giao Hàng Khách
 
-1. Mở phiếu vừa tạo.
-2. Chọn **Truy vết LOT**.
-3. Hệ thống tìm dữ liệu từ kho thành phẩm, WIP/sản xuất và hàng khách trả.
-4. Kiểm tra từng dòng nguồn, LOT, slot và số lượng.
-5. Chỉ tiếp tục khi trace hoàn chỉnh và tổng số lượng ảnh hưởng lớn hơn 0.
+FIFO được áp dụng khi mã hàng có `EnforceFifo = 1`.
 
-Sau khi trace, dữ liệu được snapshot để QC làm việc ổn định ngay cả khi tồn kho thay đổi.
-
-## 5. QC định hướng
-
-Chọn hướng xử lý phù hợp:
-
-### TuChoiGiaoBu
-Dùng khi QC xác định không phát sinh nghĩa vụ xử lý hàng/giao bù.
-
-### ChiGiaoBu
-Dùng khi phát sinh nghĩa vụ thay thế/giao bù nhưng không cần Rework.
-
-### CanRework
-Dùng khi một phần NG có thể được sửa chữa.
-
-## 6. Initial QC
-
-Nhập kết quả theo từng LOT đã snapshot.
-
-Các cột chính:
-
-- `DaKiemTra` — số lượng đã kiểm tra.
-- `OK` — đạt.
-- `NG` — không đạt.
-- `Rework` — phần NG được phép sửa.
-- `LoaiBoBanDau` — phần NG loại bỏ ngay.
-
-Kiểm tra trước khi bấm xác nhận:
+Khi bấm **Đọc QR**:
 
 ```text
-DaKiemTra = OK + NG
-NG = Rework + LoaiBoBanDau
+GridView
+  ├── PART
+  └── SL cần giao
+       ↓
+RAM FIFO
+       ↓
+Quét QR
 ```
 
-Tổng `DaKiemTra` phải bằng tổng số lượng ảnh hưởng của snapshot.
+RAM FIFO được tạo từ FIFO stock với các điều kiện chính:
 
-## 7. Thực hiện Rework
+- `SLCONLAI > 0`;
+- FIFO được sắp theo `FIFO_RANK`;
+- key LOT dùng `LEFT(LOT,13)`;
+- chỉ nạp lượng LOT cần thiết cho số lượng còn phải giao.
 
-Chỉ thực hiện nếu Initial QC có `Rework > 0` và hướng xử lý là `CanRework`.
+---
 
-### 7.1. Xuất kho Rework
+## 4. Khi quét QR
 
-1. Chọn phiếu.
-2. Chọn LOT cần xuất.
-3. Scan/chọn hàng và slot.
-4. Nhập số lượng.
-5. Xác nhận xuất.
-
-Hệ thống không cho tổng số đã xuất vượt `InitialQC.SoLuongRework`.
-
-Có thể xuất nhiều lần nếu mỗi lần hợp lệ và tổng lũy kế không vượt kế hoạch.
-
-### 7.2. Giao sản xuất
-
-Sau khi đã xuất đủ Rework:
-
-1. Chọn **Giao Rework**.
-2. Nhập LOT và số lượng giao.
-3. Ghi nhận người/bộ phận nhận.
-4. Xác nhận.
-
-Không thể giao vượt kế hoạch và không thể hoàn thành QC Rework khi chưa giao đủ.
-
-## 8. QC sau Rework
-
-Sau khi toàn bộ Rework đã được giao sản xuất:
-
-1. Mở **QC xác nhận cuối/Rework QC**.
-2. Nhập OK và NG.
-3. Xác nhận.
-
-Bắt buộc:
+### 4.1. QR hợp lệ
 
 ```text
-OK + NG = tổng Rework đã được duyệt
+QR
+ ↓
+PART đúng
+ ↓
+SL đúng
+ ↓
+FIFO PASS
+ ↓
+TMP
 ```
 
-Chỉ có một kết quả QC Rework cuối cho một phiếu.
+QR hợp lệ được giữ trong phiên để CNK xử lý.
 
-## 9. Disposition
-
-Nếu QC Rework có NG, thực hiện disposition theo quy định của nhà máy.
-
-Số lượng loại bỏ cuối được theo dõi theo:
+### 4.2. QR sai FIFO
 
 ```text
-Loại bỏ cuối = Loại bỏ ban đầu + NG sau Rework
+QR
+ ↓
+FIFO FAIL
+ ↓
+Cảnh báo FIFO
+ ↓
+Xóa QR vừa quét
+ ↓
+Không giữ QR lỗi trong TMP hợp lệ
 ```
 
-Không tự tạo Rework mới từ NG sau Rework trong cùng phiếu.
+Không tiếp tục dùng QR bị reject để thực hiện CNK.
 
-## 10. Giao bù
+---
 
-Giao bù là nghĩa vụ độc lập.
+## 5. LOT ghép
 
-1. Tạo/xác nhận nghĩa vụ giao bù.
-2. Hệ thống xác định sản phẩm và số lượng phải thay thế.
-3. Scan QR hàng thay thế.
-4. Hệ thống kiểm tra mã hàng, LOT, slot và số lượng.
-5. Xuất/giao hàng theo tồn kho/FIFO.
-6. Có thể giao nhiều lần.
-7. Không được giao vượt `CompensationRemaining`.
+LOT ghép phải có dạng:
 
-**Không nhập số lượng giao bù bằng cách lấy số NG nếu nghiệp vụ khách hàng không quy định như vậy.**
+```text
+LOT_A-50,LOT_B-10
+```
 
-## 11. Theo dõi trạng thái
+Điều kiện bắt buộc:
 
-Các trạng thái chính:
+```text
+50 + 10 = SL của QR
+```
 
-| Trạng thái | Ý nghĩa |
+Từng LOT thành phần đều phải pass FIFO.
+
+Nếu chỉ một thành phần sai:
+
+```text
+LOT_A-50,LOT_X-10
+            ↑
+         sai FIFO
+```
+
+thì **toàn bộ QR bị reject**, không consume một phần LOT_A.
+
+---
+
+## 6. CNK và final FIFO
+
+FIFO RAM chỉ là kiểm tra sớm. Trước khi cập nhật tồn kho, DB phải kiểm tra lại FIFO thực tế.
+
+```text
+TMP
+ ↓
+DB FIFO Check
+ ↓
+PASS ───────────────→ Usp_Qrcode_Update_Stock2405
+
+FAIL
+ ↓
+LayLaiLotNo()
+ ↓
+LOT = ''
+ ↓
+QR lỗi không được update stock
+```
+
+Điều này cần thiết vì tồn kho có thể thay đổi sau khi người dùng đã đọc QR.
+
+---
+
+## 7. Xử lý hàng lỗi sau khi QR/LOT bị reject
+
+Nếu QR bị FIFO reject, người dùng phải xác định nguyên nhân thực tế trước khi xử lý hàng lỗi:
+
+1. kiểm tra `PART`;
+2. kiểm tra LOT trên QR/tem;
+3. kiểm tra số lượng;
+4. kiểm tra LOT FIFO hiện tại;
+5. nếu là hàng NG, truy vết LOT thực tế trong các nguồn liên quan;
+6. ghi nhận kết quả QC/Disposition theo quy trình hàng lỗi.
+
+Không sửa dữ liệu FIFO RAM thủ công để biến một QR sai thành QR hợp lệ.
+
+---
+
+## 8. Truy vết LOT hàng NG
+
+Khi khách hàng hoặc nội bộ phát hiện hàng NG, trình tự nghiệp vụ phải là:
+
+```text
+Phát hiện NG
+   ↓
+Xác định PART + LOT
+   ↓
+Tra cứu toàn bộ phạm vi LOT
+   ├── Kho
+   ├── Sản xuất
+   ├── Đã giao
+   └── Khách trả (nếu có)
+   ↓
+Xác định phạm vi ảnh hưởng
+   ↓
+QC / Disposition
+   ↓
+Rework / Giao bù / Từ chối
+```
+
+FIFO của Giao Hàng Khách chỉ trả lời câu hỏi **LOT nào được phép xuất trước theo tồn kho tại thời điểm giao**. Nó không thay thế nghiệp vụ truy vết hàng lỗi.
+
+---
+
+## 9. Cảnh báo người dùng
+
+### Không được làm
+
+- Không bỏ qua cảnh báo FIFO để tiếp tục giao.
+- Không nhập LOT khác vào QR chỉ để vượt FIFO.
+- Không chỉnh `LOT` trong TMP để làm mất cảnh báo.
+- Không cập nhật stock thủ công cho QR đã bị FIFO reject.
+- Không coi RAM FIFO là tồn kho cuối cùng.
+
+### Được phép
+
+- Quét lại QR hợp lệ sau khi QR sai đã bị loại.
+- Sửa số lượng theo chức năng nghiệp vụ; hệ thống phải release reservation cũ trước khi consume lại.
+- Kiểm tra RAM FIFO bằng `GetRamSnapshot()` khi cần hỗ trợ kỹ thuật.
+
+---
+
+## 10. Hướng dẫn kỹ thuật khi cần debug
+
+Đặt breakpoint theo thứ tự:
+
+```text
+DocQRService.InitializeFifo()
+        ↓
+FifoSessionService.Initialize()
+        ↓
+FifoSessionState.Initialize()
+        ↓
+DocQRService.ApplyRamFifo()
+        ↓
+FifoSessionState.TryConsume()
+        ↓
+PhieuKhoService.CapNhapKho()
+        ↓
+ReleaseFifoViolations()
+```
+
+Snapshot RAM gồm:
+
+```text
+ItemCode
+NeedQty
+LotKey
+DisplayLot
+OriginalAvailableQty
+RemainingAllowedQty
+FifoRank
+```
+
+Nếu RAM có LOT đúng nhưng scan vẫn PASS với LOT sai, phải kiểm tra `ApplyRamFifo()` và `TryConsume()`.
+
+Nếu scan đã FAIL nhưng CNK vẫn update QR đó, phải kiểm tra `ReleaseFifoViolations()` và `Usp_Qrcode_Update_Stock2405`.
+
+---
+
+## 11. Checklist người vận hành
+
+| Kiểm tra | Yêu cầu |
 |---|---|
-| `Moi` | Phiếu mới |
-| `DaTaoPhieuBatThuong` | Đã tạo phiếu |
-| `DaDinhHuong` | Đã có hướng xử lý |
-| `TuChoiGiaoBu` | Kết luận không giao bù |
-| `ChoGiaoBu` | Đang chờ giao bù |
-| `DaGiaoBu` | Đã giao đủ giao bù |
-| `DaXuatKhoRework` | Đã xuất Rework |
-| `DaGiaoSanXuat` | Đã giao sản xuất |
-| `DaQCXacNhanCuoi` | Đã QC sau Rework |
-| `DaNhapLaiKho` | Đã xử lý nhập lại/NG |
-| `HoanTat` | Hoàn tất |
-| `Huy` | Phiếu bị hủy |
-
-## 12. Khi hệ thống báo lỗi
-
-### "Chưa có snapshot LOT"
-Quay lại bước Truy vết LOT và hoàn thành trace.
-
-### "Số lượng QC không đủ/không khớp"
-Kiểm tra:
-
-```text
-DaKiemTra = OK + NG
-NG = Rework + LoaiBoBanDau
-```
-
-### "Xuất Rework vượt kế hoạch"
-Kiểm tra tổng số đã xuất và `InitialQC.SoLuongRework`.
-
-### "Chưa thể giao Rework"
-Phải xuất đủ số lượng Rework trước.
-
-### "Chưa thể QC Rework"
-Phải giao đủ toàn bộ Rework cho sản xuất trước khi QC.
-
-### "Giao bù vượt số lượng còn thiếu"
-Kiểm tra `Required - Delivered`. Không được giao vượt nghĩa vụ.
-
-### "Không thể chuyển trạng thái"
-Thao tác hiện tại không có transition hợp lệ trong workflow `QT_CHUNG`.
-
-## 13. Quy tắc người dùng phải nhớ
-
-1. Trace trước, QC sau.
-2. QC theo LOT snapshot, không tự sửa số lượng ảnh hưởng.
-3. Initial QC quyết định phần nào OK, NG, Rework và loại bỏ ban đầu.
-4. Rework lấy từ Initial QC.
-5. Không xuất Rework vượt kế hoạch.
-6. Không giao Rework trước khi xuất đủ.
-7. Không QC Rework trước khi giao đủ.
-8. NG sau Rework đi vào Disposition.
-9. Giao bù là nghĩa vụ riêng, không tự suy ra từ NG.
-10. Không sửa tồn kho trực tiếp trên màn hình QT Chung.
-
-## 14. Checklist trước khi hoàn tất phiếu
-
-- [ ] LOT đã được trace đầy đủ.
-- [ ] Initial QC đã xác nhận đủ số lượng.
-- [ ] Nếu có Rework: đã xuất đủ.
-- [ ] Nếu có Rework: đã giao sản xuất đủ.
-- [ ] Nếu có Rework: đã QC đủ.
-- [ ] NG sau Rework đã được Disposition.
-- [ ] Nếu có giao bù: đã giao đủ nghĩa vụ.
-- [ ] Workflow đã ở `HoanTat`.
-- [ ] Có thể truy ngược báo cáo từ phiếu xuống LOT/lịch sử.
+| PART | Có trong phiếu |
+| Số lượng | Không vượt SL cần giao |
+| LOT | Đúng QR/tem |
+| FIFO | PASS nếu mã được cấu hình FIFO |
+| LOT ghép | Tổng thành phần = SL QR |
+| QR FIFO fail | Không tiếp tục dùng QR đó |
+| CNK | Chờ final DB FIFO |
+| Hàng NG | Truy vết LOT thực tế, không sửa FIFO để né cảnh báo |
