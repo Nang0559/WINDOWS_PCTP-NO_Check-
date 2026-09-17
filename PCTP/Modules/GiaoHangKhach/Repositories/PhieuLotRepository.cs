@@ -78,22 +78,23 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             Db.ValidateTableName(tenBan);
             Db.ValidateTableName(docQRTable);
 
-            // The rejected delivery row must become an explicit NG candidate so
-            // the FIFO checker and the CNK stored procedure cannot pick it again.
-            // STATUSDOC keeps the document-level reason for UI/history.
+            // This method is called only after the user explicitly confirmed
+            // the FIFO violations. Do not add STATUS guards here: a confirmed
+            // violation must be released deterministically for this STT.
             Db.ExecuteNonQuery(
                 $"UPDATE [{tenBan}] " +
                 "SET LOT = '', STATUS = 'NG', STATUSDOC = 'NG', TTPHIEU = NULL " +
-                "WHERE STT = @stt AND ISNULL(STATUS, '') <> 'OK'",
+                "WHERE STT = @stt",
                 new SqlParameter("@stt", stt));
 
-            // A FIFO-rejected QR must no longer be a delivery candidate. Keep the
-            // scan row for traceability, but clear its delivery linkage and mark it
-            // NG instead of the previous 'OK' state, which could let CNK consume it.
+            // Keep the physical QR scan for traceability, but detach it from the
+            // delivery row and mark it NG. This makes it ineligible for the next
+            // CNK and prevents Usp_Qrcode_Update_Stock2405 from consuming it as a
+            // valid delivery QR.
             Db.ExecuteNonQuery(
                 $"UPDATE [{docQRTable}] " +
                 "SET GIO = NULL, KETQUA = 'NG', STTBAN = NULL " +
-                "WHERE ISNULL(STTBAN, 0) = @stt AND KETQUA = 'DG'",
+                "WHERE ISNULL(STTBAN, 0) = @stt",
                 new SqlParameter("@stt", stt));
         }
 
