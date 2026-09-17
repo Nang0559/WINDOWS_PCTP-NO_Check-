@@ -59,7 +59,32 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         {
             _db.ValidateTableName(tmpTable);
             _db.ValidateTableName(docQRTable);
-            return _validation.CheckFifoViolations(tmpTable) ?? new List<FifoViolation>();
+
+            List<FifoViolation> evaluated =
+                _validation.CheckFifoViolations(tmpTable)
+                ?? new List<FifoViolation>();
+
+            if (evaluated.Count == 0)
+                return evaluated;
+
+            // FIFO CNK is only about QR rows belonging to the current delivery row.
+            // STT is the authoritative identity. Never infer the target row from
+            // the focused GridView row, MAHANG, or MAHANG + SOLUONG.
+            var currentQrStt = new HashSet<int>();
+            DataTable qrRows = _db.LoadData(
+                $@"SELECT DISTINCT STTBAN
+                   FROM [{docQRTable}]
+                   WHERE ISNULL(STTBAN, 0) > 0");
+
+            foreach (DataRow row in qrRows.Rows)
+            {
+                if (row["STTBAN"] == DBNull.Value) continue;
+                if (int.TryParse(row["STTBAN"].ToString(), out int stt) && stt > 0)
+                    currentQrStt.Add(stt);
+            }
+
+            return evaluated
+                .FindAll(v => v != null && v.Stt > 0 && currentQrStt.Contains(v.Stt));
         }
 
         public void ReleaseFifoViolations(string tmpTable, string docQRTable, IReadOnlyList<FifoViolation> violations)
@@ -71,15 +96,17 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                 return;
 
             // Do not re-run FIFO here. The user confirmed this exact snapshot.
-            // Re-evaluating can produce a different set after any intermediate
-            // state change and is the reason previously confirmed rows could be
-            // left untouched.
+            // Release is keyed strictly by FifoViolation.Stt, never by the focused
+            // GridView row or by MAHANG/SOLUONG.
             var affected = new HashSet<int>();
             foreach (FifoViolation violation in violations)
             {
                 if (violation == null || violation.Stt <= 0) continue;
                 if (!affected.Add(violation.Stt)) continue;
 
+                // LayLaiLotNo itself also verifies that this STT still owns a
+                // current DOCQR row. This makes the mutation safe against a stale
+                // confirmation or an unrelated focused GridView row.
                 _lot.LayLaiLotNo(violation.Stt, tmpTable, docQRTable);
             }
         }
