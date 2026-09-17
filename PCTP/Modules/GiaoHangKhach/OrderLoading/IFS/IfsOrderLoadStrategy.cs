@@ -7,7 +7,7 @@ using System.Linq;
 
 namespace PCTP.Modules.GiaoHangKhach.OrderLoading.IFS
 {
-    public class IfsOrderLoadStrategy 
+    public class IfsOrderLoadStrategy
     {
         private readonly IIFSRepository _ifsRepo;
         private readonly IPhieuLuuTruRepository _luuTruRepo;
@@ -23,10 +23,20 @@ namespace PCTP.Modules.GiaoHangKhach.OrderLoading.IFS
 
         public DataTable LoadDonHangGoc(OrderLoadContext ctx)
         {
+            // SP của khách 100001 được xác định bằng DOCK_CODE = HVN,
+            // không phải bằng giờ giao. Vì vậy SP phải lấy toàn bộ đơn trong ngày
+            // theo nhà máy rồi mới lọc category ở tầng IRowCategoryFilter.
+            // MP vẫn giữ nguyên luồng cũ: nhà máy + giờ giao.
+            int hinhThucIn = ctx.Category == OrderCategory.SP ? 2 : 1;
+
             return _ifsRepo.GetCustomerOrderJoin(
                 ctx.NgayGiao.ToString("ddMMyyyy"),
-                ctx.GioFcc, ctx.GioFccMoTa,
-                ctx.NhaMay, ctx.AddNm, ctx.Cfg);   // ← SỬA: Cfg → Config
+                ctx.GioFcc,
+                ctx.GioFccMoTa,
+                ctx.NhaMay,
+                ctx.AddNm,
+                hinhThucIn,
+                ctx.Cfg);
         }
 
         public void MergeLotDaLuu(DataTable donHang, OrderLoadContext ctx)
@@ -51,7 +61,7 @@ namespace PCTP.Modules.GiaoHangKhach.OrderLoading.IFS
         public void SyncChoDocQR(DataTable donHang, OrderLoadContext ctx)
         {
             bool isSP = ctx.Category == OrderCategory.SP;
-            var d = ctx.Cfg.Delivery;   // ← SỬA: Cfg → Config.Delivery
+            var d = ctx.Cfg.Delivery;
 
             _tmpRepo.LuuVaLoad(d.GetIfsTable(isSP), "Usp_Qrcode_LOAD_PHIEU_DOCQR2405",
                 donHang, ctx.NgayGiao.ToString("yyyy-MM-dd"), ctx.NhaMay,
