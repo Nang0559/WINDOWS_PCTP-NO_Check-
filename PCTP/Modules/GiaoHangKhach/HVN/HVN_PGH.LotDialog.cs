@@ -41,16 +41,25 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
 
         private void ApplySpModeUi(bool isSP)
         {
-            if (sidePanel1 != null)
+            // SP chỉ bỏ phần chọn KHUNG GIỜ.
+            // Không ẩn sidePanel1/tabPaneHVN vì tab HÀ NAM/VĨNH PHÚC
+            // vẫn phải dùng để chọn nhà máy của khách hàng 100001.
+            if (groupControl1 != null)
             {
-                sidePanel1.Visible = !isSP;
-                sidePanel1.Enabled = !isSP;
+                groupControl1.Visible = !isSP;
+                groupControl1.Enabled = !isSP;
             }
 
-            if (tabPaneHVN != null)
+            if (groupControl2 != null)
             {
-                tabPaneHVN.Visible = !isSP;
-                tabPaneHVN.Enabled = !isSP;
+                groupControl2.Visible = !isSP;
+                groupControl2.Enabled = !isSP;
+            }
+
+            if (RDO_GXHN != null)
+            {
+                RDO_GXHN.Visible = !isSP;
+                RDO_GXHN.Enabled = !isSP;
             }
 
             if (radioGroup2 != null)
@@ -59,10 +68,17 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
                 radioGroup2.Enabled = !isSP;
             }
 
-            if (RDO_GXHN != null)
+            // Giữ nguyên tab chọn nhà máy.
+            if (sidePanel1 != null)
             {
-                RDO_GXHN.Visible = !isSP;
-                RDO_GXHN.Enabled = !isSP;
+                sidePanel1.Visible = true;
+                sidePanel1.Enabled = true;
+            }
+
+            if (tabPaneHVN != null)
+            {
+                tabPaneHVN.Visible = true;
+                tabPaneHVN.Enabled = true;
             }
         }
 
