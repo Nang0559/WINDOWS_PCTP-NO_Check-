@@ -63,14 +63,9 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             Db.ValidateTableName(tmpTable);
             Db.ValidateTableName(docQRTable);
 
-            var fifoViolations = _validationRepo.CheckFifoViolations(tmpTable);
-            if (fifoViolations != null && fifoViolations.Count > 0)
-            {
-                // FIFO violation is a hard business validation: do NOT call stock SP.
-                errors = fifoViolations.ToErrorTable();
-                return 0;
-            }
-
+            // FIFO is the authoritative gate in PhieuKhoService/PhieuRepository.ReleaseFifoViolations.
+            // Do NOT call CheckFifoViolations here: doing so would recreate the old hard-stop path
+            // and would prevent valid QR rows from being exported when another row violates FIFO.
             DataSet ds = Db.ExecuteStoredProcedureDataSet(
                 "Usp_Qrcode_Update_Stock2405",
                 new SqlParameter("@GIOGIAOFCC", SqlDbType.NVarChar, 200) { Value = (object)(gioGiaoFcc ?? "") },
@@ -126,14 +121,8 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             Db.ValidateTableName(tmpTable);
             Db.ValidateTableName(docQRTable);
 
-            var fifoViolations = _validationRepo.CheckFifoViolations(tmpTable);
-            if (fifoViolations != null && fifoViolations.Count > 0)
-            {
-                // SP path must have the same FIFO gate as the normal path.
-                errors = fifoViolations.ToErrorTable();
-                return 0;
-            }
-
+            // The same DB FIFO gate is executed by PhieuKhoService before this repository call.
+            // This method must only execute the stock SP with the already-released TMP rows.
             DataSet ds = Db.ExecuteStoredProcedureDataSet(
                 "Usp_Qrcode_Update_Stock_SP",
                 new SqlParameter("@GIOGIAOFCC", SqlDbType.NVarChar, 200) { Value = (object)(gioGiaoFcc ?? "") },
@@ -160,22 +149,8 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             Db.ValidateTableName(docQRTable);
             if (string.IsNullOrWhiteSpace(lotSl)) return false;
 
-            var fifoViolations = _validationRepo.CheckFifoViolations(tmpTable);
-            if (fifoViolations != null && fifoViolations.Count > 0)
-            {
-                var v = fifoViolations.FirstOrDefault(x => string.Equals(x.MaHang, maHang, StringComparison.OrdinalIgnoreCase));
-                if (v != null)
-                {
-                    error = new DS_ERR_CNK
-                    {
-                        MH = v.MaHang,
-                        LOT = v.LotDaChon,
-                        Ms = $"Vi phạm FIFO — phải xuất Lot {v.LotDungRaPhaiChon} (Slot {v.SlotIdDungRaPhaiChon}) trước."
-                    };
-                    return false;
-                }
-            }
-
+            // CapNhapKhoYMVN is a direct/manual stock path. Keep the same final FIFO rule:
+            // the caller must release invalid TMP rows before invoking this method.
             var lotsToProcess = new List<(string LotKey, int SoLuong)>();
             foreach (string part in lotSl.Split(','))
             {
