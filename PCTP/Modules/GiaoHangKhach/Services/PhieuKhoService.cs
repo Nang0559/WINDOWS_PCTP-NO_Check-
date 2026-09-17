@@ -30,31 +30,36 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             string tmpTable = _cfg.Delivery.GetTmpTable(isSP);
             string docQrTable = _cfg.Delivery.GetDocQRTable(isSP);
 
-            int soLot;
-            DataTable errors;
-
             // ================================================================
             // FIFO IS THE FIRST-CLASS GATE
             // ================================================================
-            // For FIFO-enabled parts, an invalid FIFO selection is a hard
-            // business condition. ReleaseFifoViolations() clears LOT on the
-            // invalid TMP rows so they cannot enter the stock update SP.
-            //
-            // IMPORTANT:
-            // Do not run/retry the old CheckFifoViolations hard-stop here.
-            // The new flow is exactly:
-            //     FIFO release -> stock update -> stock validation
-            //
-            // A FIFO-blocked part is NOT allowed to produce a secondary
-            // "insufficient stock" message. Otherwise the user can interpret
-            // the problem as merely a stock shortage and miss the real gate:
-            // the LOT selection is not FIFO-compliant.
+            // Evaluate first. This operation MUST NOT modify LOT/TMP/DOCQR.
+            // If FIFO is wrong, stock validation is deliberately not executed.
+            // The UI receives the complete affected-row list and decides whether
+            // the invalid rows may be released.
             // ================================================================
             List<FifoViolation> fifoViolations =
-                _phieuRepo.ReleaseFifoViolations(tmpTable, docQrTable)
+                _phieuRepo.EvaluateFifoViolations(tmpTable, docQrTable)
                 ?? new List<FifoViolation>();
 
-            HashSet<string> fifoBlockedParts = BuildFifoBlockedParts(fifoViolations);
+            if (fifoViolations.Count > 0)
+            {
+                var confirmation = new FifoReleaseConfirmationRequestedEvent(fifoViolations);
+                _bus.Publish(confirmation);
+
+                // CANCEL (or no UI confirmation handler) means absolutely no
+                // LOT reset and no CNK/stock stored procedure.
+                if (!confirmation.Confirmed)
+                    return;
+
+                // The repository re-checks FIFO immediately before releasing.
+                // Only after explicit OK are invalid rows reset so they are no
+                // longer candidates for the stock update.
+                _phieuRepo.ReleaseFifoViolations(tmpTable, docQrTable);
+            }
+
+            int soLot;
+            DataTable errors;
 
             if (_cfg.Delivery.LoadTuBangRieng && !_cfg.Delivery.CoGear)
             {
@@ -74,132 +79,10 @@ namespace PCTP.Modules.GiaoHangKhach.Services
                     out errors);
             }
 
-            // FIFO has priority over inventory validation for FIFO-enabled
-            // parts. Keep stock errors for non-FIFO parts, but suppress only
-            // inventory-shortage errors belonging to a part that was blocked
-            // by FIFO in this CNK operation.
-            errors = SuppressStockErrorsForFifoBlockedParts(
-                errors,
-                fifoBlockedParts);
-
-            // FIFO errors are appended last so the UI presents the real root
-            // cause after any stock rows have been filtered.
-            if (fifoViolations.Count > 0)
-                errors = MergeErrors(fifoViolations.ToErrorTable(), errors);
-
+            // FIFO has already been resolved before this point. Therefore any
+            // stock shortage returned now belongs to the remaining valid rows
+            // and must NOT be suppressed.
             _bus.Publish(new KhoUpdatedEvent(soLot, errors));
-        }
-
-        private static HashSet<string> BuildFifoBlockedParts(
-            IEnumerable<FifoViolation> violations)
-        {
-            var result = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            if (violations == null) return result;
-
-            foreach (FifoViolation violation in violations)
-            {
-                string maHang = violation?.MaHang?.Trim();
-                if (!string.IsNullOrEmpty(maHang))
-                    result.Add(maHang);
-            }
-
-            return result;
-        }
-
-        private static DataTable SuppressStockErrorsForFifoBlockedParts(
-            DataTable errors,
-            HashSet<string> fifoBlockedParts)
-        {
-            if (errors == null || errors.Rows.Count == 0 ||
-                fifoBlockedParts == null || fifoBlockedParts.Count == 0)
-                return errors ?? new DataTable();
-
-            string partColumn = FindColumn(
-                errors,
-                "MAHANG",
-                "MH",
-                "Mã Hàng",
-                "MaHang");
-
-            string errorColumn = FindColumn(
-                errors,
-                "STATUS",
-                "Lỗi",
-                "LOI",
-                "ERROR",
-                "Ms");
-
-            if (string.IsNullOrEmpty(partColumn) || string.IsNullOrEmpty(errorColumn))
-                return errors;
-
-            var remove = new List<DataRow>();
-            foreach (DataRow row in errors.Rows)
-            {
-                string maHang = row[partColumn]?.ToString()?.Trim() ?? string.Empty;
-                if (!fifoBlockedParts.Contains(maHang))
-                    continue;
-
-                string message = row[errorColumn]?.ToString()?.Trim() ?? string.Empty;
-                if (IsInventoryShortageError(message))
-                    remove.Add(row);
-            }
-
-            foreach (DataRow row in remove)
-                errors.Rows.Remove(row);
-
-            return errors;
-        }
-
-        private static bool IsInventoryShortageError(string message)
-        {
-            if (string.IsNullOrWhiteSpace(message)) return false;
-
-            return message.IndexOf("tồn kho", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                   message.IndexOf("ton kho", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                   message.IndexOf("thiếu tồn", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                   message.IndexOf("thieu ton", StringComparison.OrdinalIgnoreCase) >= 0;
-        }
-
-        private static string FindColumn(DataTable table, params string[] candidates)
-        {
-            foreach (string candidate in candidates)
-            {
-                foreach (DataColumn column in table.Columns)
-                {
-                    if (string.Equals(
-                        column.ColumnName,
-                        candidate,
-                        StringComparison.OrdinalIgnoreCase))
-                        return column.ColumnName;
-                }
-            }
-
-            return string.Empty;
-        }
-
-        private static DataTable MergeErrors(DataTable fifoErrors, DataTable errors)
-        {
-            if (fifoErrors == null || fifoErrors.Rows.Count == 0)
-                return errors ?? new DataTable();
-            if (errors == null || errors.Rows.Count == 0)
-                return fifoErrors;
-
-            foreach (DataColumn column in fifoErrors.Columns)
-                if (!errors.Columns.Contains(column.ColumnName))
-                    errors.Columns.Add(column.ColumnName, column.DataType);
-
-            foreach (DataRow source in fifoErrors.Rows)
-            {
-                DataRow target = errors.NewRow();
-                foreach (DataColumn column in errors.Columns)
-                {
-                    if (source.Table.Columns.Contains(column.ColumnName))
-                        target[column.ColumnName] = source[column.ColumnName];
-                }
-                errors.Rows.Add(target);
-            }
-
-            return errors;
         }
     }
 }
