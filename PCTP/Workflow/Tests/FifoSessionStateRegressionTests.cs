@@ -11,7 +11,6 @@ namespace PCTP.Workflow.Tests
         {
             if (!condition)
                 throw new InvalidOperationException("FAILED: " + name);
-
             _passed++;
         }
 
@@ -34,7 +33,6 @@ namespace PCTP.Workflow.Tests
         {
             FifoSessionState state = CreateState(15);
             string message;
-
             AssertTrue(state.TryConsume(1, "PART01", "PART01A-5", 5, out message), "A must pass");
             AssertTrue(state.TryConsume(2, "PART01", "PART01B-5", 5, out message), "B must pass after A");
             AssertTrue(state.TryConsume(3, "PART01", "PART01C-5", 5, out message), "C must pass after B");
@@ -44,7 +42,6 @@ namespace PCTP.Workflow.Tests
         {
             FifoSessionState state = CreateState(5);
             string message;
-
             AssertTrue(state.TryConsume(1, "PART01", "PART01A", 5, out message), "single LOT must use QR quantity");
             AssertTrue(!state.TryConsume(2, "PART01", "PART01A", 1, out message), "consumed single LOT must no longer be available");
         }
@@ -53,7 +50,6 @@ namespace PCTP.Workflow.Tests
         {
             FifoSessionState state = CreateState(10);
             string message;
-
             AssertTrue(!state.TryConsume(1, "PART01", "PART01B-5", 5, out message), "B before A must fail");
             AssertTrue(!string.IsNullOrEmpty(message), "FIFO failure must explain the reason");
             AssertTrue(state.TryConsume(2, "PART01", "PART01A-5", 5, out message), "A must still be available after rejected B");
@@ -64,16 +60,22 @@ namespace PCTP.Workflow.Tests
         {
             FifoSessionState state = CreateState(10);
             string message;
+            AssertTrue(state.TryConsume(1, "PART01", "PART01A-5,PART01B-2", 7, out message), "compound LOT must pass after exhausting the oldest LOT");
+            AssertTrue(state.TryConsume(2, "PART01", "PART01B-3", 3, out message), "remaining B must pass after A is exhausted");
+        }
 
-            AssertTrue(state.TryConsume(1, "PART01", "PART01A-3,PART01B-2", 5, out message), "valid compound LOT must pass");
-            AssertTrue(state.TryConsume(2, "PART01", "PART01B-3,PART01C-2", 5, out message), "compound LOT must continue FIFO across components");
+        private static void CompoundLotCannotSkipRemainingOlderLot()
+        {
+            FifoSessionState state = CreateState(10);
+            string message;
+            AssertTrue(!state.TryConsume(1, "PART01", "PART01A-3,PART01B-2", 5, out message), "compound LOT must not skip remaining older LOT");
+            AssertTrue(state.TryConsume(2, "PART01", "PART01A-5", 5, out message), "A must remain untouched after rejected compound LOT");
         }
 
         private static void MalformedCompoundLotIsRejectedStrictly()
         {
             FifoSessionState state = CreateState(10);
             string message;
-
             AssertTrue(!state.TryConsume(1, "PART01", "PART01A-3,,PART01B-2", 5, out message), "empty compound component must fail");
             AssertTrue(!state.TryConsume(2, "PART01", "PART01A-X,PART01B-2", 5, out message), "non-numeric compound quantity must fail");
             AssertTrue(!state.TryConsume(3, "PART01", "PART01A-0,PART01B-5", 5, out message), "zero compound quantity must fail");
@@ -84,7 +86,6 @@ namespace PCTP.Workflow.Tests
         {
             FifoSessionState state = CreateState(5);
             string message;
-
             AssertTrue(!state.TryConsume(1, "PART01", "PART01B-5", 5, out message), "wrong lot must fail");
             AssertTrue(state.TryConsume(2, "PART01", "PART01A-5", 5, out message), "rejected scan must not consume FIFO budget");
         }
@@ -93,7 +94,6 @@ namespace PCTP.Workflow.Tests
         {
             FifoSessionState state = CreateState(5);
             string message;
-
             AssertTrue(state.TryConsume(1, "PART01", "PART01A-3", 3, out message), "first scan must pass");
             AssertTrue(state.TryConsume(1, "PART01", "PART01A-5", 5, out message), "same STT must release previous reservation before re-evaluation");
         }
@@ -102,7 +102,6 @@ namespace PCTP.Workflow.Tests
         {
             FifoSessionState state = CreateState(5);
             string message;
-
             AssertTrue(state.TryConsume(1, "PART01", "PART01A-5", 5, out message), "initial reservation must pass");
             state.Release(1);
             AssertTrue(state.TryConsume(2, "PART01", "PART01A-5", 5, out message), "released reservation must be reusable");
@@ -115,6 +114,7 @@ namespace PCTP.Workflow.Tests
             SingleLotUsesQrQuantity();
             WrongOrderIsRejectedWithoutConsumption();
             ValidCompoundLotIsAccepted();
+            CompoundLotCannotSkipRemainingOlderLot();
             MalformedCompoundLotIsRejectedStrictly();
             RejectedScanDoesNotConsumeStockBudget();
             RescanSameSttIsAtomic();
