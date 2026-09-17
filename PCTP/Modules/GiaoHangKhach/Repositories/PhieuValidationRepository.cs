@@ -257,7 +257,7 @@ ORDER BY
         public bool KiemTraMaTrongPhieu(string maHang, string tenBan)
         {
             Db.ValidateTableName(tenBan);
-            object raw = Db.ExecuteScalar("SELECT COUNT(*) FROM [" + tenBan + "] WHERE MAHANG = @ma", new SqlParameter("@ma", maHang ?? (object)DBNull.Value));
+            object raw = Db.ExecuteScalar($"SELECT COUNT(*) FROM [{tenBan}] WHERE MAHANG = @ma", new SqlParameter("@ma", maHang ?? (object)DBNull.Value));
             return DbValueHelper.SafeInt(raw) > 0;
         }
 
@@ -275,8 +275,8 @@ ORDER BY
                          "CASE WHEN STATUS IS NULL OR STATUS = '' THEN N'Chưa Bắn QRCODE' " +
                          "WHEN STATUS = '0' THEN N'Đang Bắn QRCODE' " +
                          "WHEN STATUS = '1' THEN N'Đã Bắn QRCODE' ELSE STATUS END AS STATUS " +
-                         "FROM [" + tenBan + "] WHERE MAHANG = @ma AND SOLUONG = @sl " +
-                         "AND (LOT = '' OR LOT IS NULL) AND MAHANG IN (SELECT MAHANGFCC FROM [" + docQRTable + "] WHERE ISNULL(KETQUA,'') <> 'DG' GROUP BY MAHANGFCC)";
+                         $"FROM [{tenBan}] WHERE MAHANG = @ma AND SOLUONG = @sl " +
+                         $"AND (LOT = '' OR LOT IS NULL) AND MAHANG IN (SELECT MAHANGFCC FROM [{docQRTable}] WHERE ISNULL(KETQUA,'') <> 'DG' GROUP BY MAHANGFCC)";
             return Db.LoadData(sql, new SqlParameter("@ma", maHang ?? ""), new SqlParameter("@sl", sl));
         }
 
@@ -290,7 +290,7 @@ ORDER BY
         {
             Db.ValidateTableName(tenBan);
             Db.ValidateTableName(docQRTable);
-            object raw = Db.ExecuteScalar("SELECT COUNT(*) FROM [" + tenBan + "] WHERE MAHANG = @ma AND SOLUONG = @sl AND (LOT = '' OR LOT IS NULL) AND MAHANG IN (SELECT MAHANGFCC FROM [" + docQRTable + "] WHERE KETQUA <> 'DG' GROUP BY MAHANGFCC)", new SqlParameter("@ma", maHang ?? ""), new SqlParameter("@sl", sl));
+            object raw = Db.ExecuteScalar($"SELECT COUNT(*) FROM [{tenBan}] WHERE MAHANG = @ma AND SOLUONG = @sl AND (LOT = '' OR LOT IS NULL) AND MAHANG IN (SELECT MAHANGFCC FROM [{docQRTable}] WHERE KETQUA <> 'DG' GROUP BY MAHANGFCC)", new SqlParameter("@ma", maHang ?? ""), new SqlParameter("@sl", sl));
             return DbValueHelper.SafeInt(raw);
         }
 
@@ -304,7 +304,7 @@ ORDER BY
         {
             Db.ValidateTableName(tenBan);
             Db.ValidateTableName(docQRTable);
-            string sql = "SELECT STT, MAHANG, LOT, SOLUONG FROM [" + tenBan + "] WHERE (LOT = '' OR LOT IS NULL) AND MAHANG IN (SELECT MAHANGFCC FROM [" + docQRTable + "] WHERE ISNULL(KETQUA,'') <> 'DG' GROUP BY MAHANGFCC) ORDER BY STT";
+            string sql = $"SELECT STT, MAHANG, LOT, SOLUONG FROM [{tenBan}] WHERE (LOT = '' OR LOT IS NULL) AND MAHANG IN (SELECT MAHANGFCC FROM [{docQRTable}] WHERE ISNULL(KETQUA,'') <> 'DG' GROUP BY MAHANGFCC) ORDER BY STT";
             return Db.LoadData(sql);
         }
 
@@ -354,20 +354,54 @@ ORDER BY
                 {
                     int slDuocCap = Math.Min(gio.SlGiao, Math.Max(tonConLai, 0));
                     int slThieu = gio.SlGiao - slDuocCap;
-                    result.Rows.Add(maHangGroup.Key, gio.GioGiao, gio.SlGiao, slThieu);
                     tonConLai -= slDuocCap;
+                    if (slThieu > 0) result.Rows.Add(gio.MaHang, gio.GioGiao, gio.SlGiao, slThieu);
                 }
             }
             return result;
         }
 
-        public DataTable SoSanhLechIFS(DataTable donHang, DataTable ifsTable)
+        public DataTable SoSanhLechIFS(DataTable donHangBangRieng, DataTable ifsData)
         {
             var result = new DataTable();
-            if (donHang == null || ifsTable == null) return result;
-            foreach (DataColumn column in donHang.Columns)
-                result.Columns.Add(column.ColumnName, column.DataType);
+            result.Columns.Add("MAHANG", typeof(string));
+            result.Columns.Add("TENHANG", typeof(string));
+            result.Columns.Add("SOLUONG", typeof(int));
+            result.Columns.Add("NGUON_LECH", typeof(string));
+
+            var maBangRieng = BuildMaMap(donHangBangRieng);
+            var maIfs = BuildMaMap(ifsData);
+
+            foreach (var kv in maBangRieng)
+                if (!maIfs.ContainsKey(kv.Key))
+                    result.Rows.Add(kv.Key, kv.Value.TenHang, kv.Value.SoLuong, "Chỉ có ở Bảng Riêng");
+
+            foreach (var kv in maIfs)
+                if (!maBangRieng.ContainsKey(kv.Key))
+                    result.Rows.Add(kv.Key, kv.Value.TenHang, kv.Value.SoLuong, "Chỉ có ở IFS");
+
             return result;
+        }
+
+        private static Dictionary<string, (string TenHang, int SoLuong)> BuildMaMap(DataTable dt)
+        {
+            var map = new Dictionary<string, (string, int)>(StringComparer.OrdinalIgnoreCase);
+            if (dt == null) return map;
+
+            foreach (DataRow row in dt.Rows)
+            {
+                string ma = dt.Columns.Contains("MAHANG") ? row["MAHANG"]?.ToString().Trim() ?? "" : "";
+                if (string.IsNullOrEmpty(ma) || map.ContainsKey(ma)) continue;
+
+                string ten = dt.Columns.Contains("TENHANG") ? row["TENHANG"]?.ToString().Trim() ?? "" : "";
+                int sl = dt.Columns.Contains("SOLUONG") && row["SOLUONG"] != DBNull.Value
+                    ? Convert.ToInt32(row["SOLUONG"])
+                    : 0;
+
+                map[ma] = (ten, sl);
+            }
+
+            return map;
         }
 
         #endregion
