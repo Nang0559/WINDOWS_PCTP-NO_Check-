@@ -3,6 +3,7 @@ using PCTP.Domain.Entities;
 using PCTP.Domain.Events;
 using PCTP.Domain.Interfaces;
 using PCTP.Infrastructure.Repositories;
+using PCTP.Modules.GiaoHangKhach;
 using PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao;
 using PCTP.Modules.GiaoHangKhach.OrderLoading.Category;
 using PCTP.Modules.GiaoHangKhach.Services;
@@ -63,7 +64,7 @@ namespace PCTP.Presentation.Presenters
             }
 
             sb.AppendLine();
-            sb.AppendLine("OK: lấy lại LOT các dòng trên và tiếp tục CNK các QR hợp lệ còn lại.");
+            sb.AppendLine("Yes: lấy lại LOT các dòng trên và tiếp tục CNK các QR hợp lệ còn lại.");
             sb.AppendLine("CANCEL: giữ nguyên LOT, không loại dòng và không thực hiện CNK.");
 
             if (_context.PhieuView.Confirm(sb.ToString()))

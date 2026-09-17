@@ -298,6 +298,7 @@
       <DependentUpon>ImagesControl.cs</DependentUpon>
     </Compile>
     <Compile Include="ALLVAR.cs" />
+    <Compile Include="Domain\Events\FifoReleaseConfirmationRequestedEvent.cs" />
     <Compile Include="Domain\Events\HoanThanhYMVNCompletedEvent.cs" />
     <Compile Include="Infrastructure\Stock\LegacyStockBalanceRepositoryAdapter.cs" />
     <Compile Include="Infrastructure\Stock\LegacyStockSlotRepositoryAdapter.cs" />
