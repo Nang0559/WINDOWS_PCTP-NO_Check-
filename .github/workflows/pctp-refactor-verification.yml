@@ -25,11 +25,11 @@ jobs:
 
       - name: Restore packages
         shell: pwsh
-        run: nuget restore PCTP.sln
+        run: nuget restore "WINDOWS_PCTP(NO_Check).sln"
 
       - name: Build PCTP
         shell: pwsh
-        run: msbuild PCTP.sln /m /p:Configuration=Release /p:Platform="Any CPU" /p:RestorePackages=false
+        run: msbuild "WINDOWS_PCTP(NO_Check).sln" /m /p:Configuration=Release /p:Platform="Any CPU" /p:RestorePackages=false
 
       - name: Run FIFO regression tests
         shell: pwsh
