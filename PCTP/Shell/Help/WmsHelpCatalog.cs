@@ -43,14 +43,69 @@ namespace PCTP.Shell.Help
 
                 Topic(
                     "XuLyHangLoi",
-                    "Xử lý hàng lỗi / bất thường",
-                    "Tạo và theo dõi tiến trình xử lý NG, rework, OK/NG và các bước xác nhận.",
-                    "Có mã hàng/LOT/phiếu và nguyên nhân bất thường rõ ràng.",
-                    "1. Mở danh sách phiếu xử lý.\n2. Chọn hoặc tạo phiếu.\n3. Kiểm tra số lượng và nguyên nhân.\n4. Thực hiện bước xử lý theo workflow.\n5. Ghi nhận kết quả OK/NG.\n6. Theo dõi trạng thái đến khi kết thúc.",
-                    "Mỗi bước phải đúng trạng thái trước đó và đúng người thực hiện theo phân quyền.",
-                    "Sai trạng thái; thiếu số lượng; không có công đoạn tiếp theo; phiếu đã kết thúc.",
-                    "Không ép trạng thái bằng thao tác ngoài workflow. Tra cứu lịch sử phiếu để xác định bước đang thiếu.",
-                    "flowchart TD\nA[Phiếu bất thường] --> B[Kiểm tra nguyên nhân/SL]\nB --> C[Xử lý/Rework]\nC --> D{Kết quả}\nD -- OK --> E[Hoàn tất]\nD -- NG --> F[Chuyển bước tiếp theo]\nF --> C"),
+                    "Xử lý hàng lỗi / bất thường - Hướng dẫn đầy đủ",
+                    "Quản lý trọn quy trình từ tạo phiếu, truy vết LOT, QC định hướng, Initial QC, Rework, QC sau Rework, Disposition và Giao bù.",
+                    "Có mã hàng/Part, LOT hoặc thông tin truy vết tương ứng; xác định được nguyên nhân bất thường và người thực hiện có quyền.",
+                    "1. Tạo phiếu xử lý hàng lỗi/bất thường.\n2. Truy vết LOT từ kho thành phẩm, WIP/sản xuất và hàng khách trả; kiểm tra tổng số lượng ảnh hưởng.\n3. QC định hướng và xác nhận phạm vi xử lý.\n4. Initial QC phải kiểm tra đủ số lượng ảnh hưởng: DaKiemTra = OK + NG.\n5. Phân loại NG: NG = Rework + LoaiBoBanDau.\n6. Nếu có Rework: xuất rework không vượt số lượng Rework của Initial QC; giao sản xuất đủ số lượng đã xuất.\n7. QC sau Rework: OK + NG = tổng số lượng Rework đã giao.\n8. NG sau Rework được cộng vào Disposition; tổng loại bỏ cuối = LoaiBoBanDau + NG sau Rework.\n9. Nếu có Giao bù, xử lý theo nghĩa vụ giao bù độc lập và kiểm soát QR/tồn kho/FIFO; không tự suy ra Giao bù từ NG/Rework.\n10. Theo dõi workflow đến Hoàn tất hoặc Hủy.",
+                    "Không bỏ qua bước workflow. Số lượng phải bảo toàn ở từng công đoạn; không được nhập lại/ xuất lại một lượng đã ghi nhận. Giao bù là nghĩa vụ độc lập, không phải phần NG còn lại sau Rework.",
+                    "LOT không truy được hoặc snapshot không đầy đủ; Initial QC sai tổng; NG khác Rework + loại bỏ; xuất Rework vượt kế hoạch; giao sản xuất khi chưa xuất đủ; QC sau Rework không khớp; Disposition sai; giao bù vượt nghĩa vụ hoặc vượt tồn/FIFO; thao tác sai trạng thái.",
+                    "Dừng thao tác và kiểm tra snapshot/phiếu, trạng thái workflow và số lượng lũy kế. Không sửa DB để vượt kiểm soát. Khi báo IT cung cấp mã phiếu, LOT, bước workflow, số lượng và thời điểm lỗi.",
+                    "flowchart TD\nA[Tạo phiếu] --> B[Truy vết LOT]\nB --> C[QC định hướng]\nC --> D[Initial QC]\nD --> E{Có Rework?}\nE -- Không --> F[Disposition nếu có NG loại bỏ]\nE -- Có --> G[Xuất Rework]\nG --> H[Giao sản xuất]\nH --> I[QC sau Rework]\nI --> J[Disposition NG sau Rework]\nF --> K{Có Giao bù?}\nJ --> K\nK -- Có --> L[Giao bù theo nghĩa vụ độc lập + FIFO]\nK -- Không --> M[Hoàn tất theo workflow]\nL --> M"),
+
+                Topic(
+                    "XuLyHangLoi.TraceLOT",
+                    "Xử lý hàng lỗi - Truy vết LOT",
+                    "Xác định đầy đủ các nguồn hàng bị ảnh hưởng trước khi QC: kho thành phẩm, WIP/sản xuất và hàng khách trả.",
+                    "Có MaSanPham và LotNo hoặc phiếu đã xác định thông tin truy vết.",
+                    "1. Mở phiếu và chọn Truy vết LOT.\n2. Kiểm tra tồn kho thành phẩm theo LOT.\n3. Kiểm tra số lượng WIP/sản xuất liên quan.\n4. Kiểm tra hàng khách trả.\n5. Đối chiếu Part/Model/LOT và nguồn.\n6. Xác nhận snapshot truy vết trước khi QC.",
+                    "Snapshot là phạm vi làm việc của phiếu; không tự thay đổi số lượng ảnh hưởng sau khi QC nếu chưa thực hiện lại nghiệp vụ được quy định.",
+                    "Không tìm thấy LOT; nguồn truy vết không đầy đủ; Part/LOT không khớp; tổng ảnh hưởng bằng 0.",
+                    "Kiểm tra lại MaSanPham, LotNo và nguồn dữ liệu. Nếu một nguồn không truy được, không coi snapshot là đầy đủ để tiếp tục QC.",
+                    "flowchart TD\nA[Part + LOT] --> B[Kho TP]\nA --> C[WIP/Sản xuất]\nA --> D[Khách trả]\nB --> E[Đối chiếu]\nC --> E\nD --> E\nE --> F[Snapshot ảnh hưởng]"),
+
+                Topic(
+                    "XuLyHangLoi.InitialQC",
+                    "Xử lý hàng lỗi - Initial QC",
+                    "Xác nhận kết quả kiểm tra ban đầu và phân tách OK, Rework, loại bỏ ban đầu một cách bảo toàn số lượng.",
+                    "Phiếu đã QC định hướng và có snapshot LOT đầy đủ.",
+                    "1. Nhập kết quả theo từng LOT.\n2. Nhập số lượng đã kiểm tra.\n3. Phân loại OK và NG.\n4. Trong NG, phân tách Rework và LoaiBoBanDau.\n5. Kiểm tra DaKiemTra = OK + NG.\n6. Kiểm tra NG = Rework + LoaiBoBanDau.\n7. Xác nhận Initial QC.",
+                    "Tổng số lượng đã kiểm tra phải bằng tổng số lượng ảnh hưởng của snapshot. Mỗi LOT không được âm hoặc vượt số lượng ảnh hưởng.",
+                    "Thiếu LOT; kiểm tra chưa đủ; OK/NG không khớp; Rework + loại bỏ không bằng NG; hướng xử lý không cho phép Rework nhưng lại nhập Rework.",
+                    "Không xác nhận khi phương trình số lượng chưa cân bằng. Kiểm tra lại từng LOT trước khi xác nhận toàn phiếu.",
+                    "flowchart TD\nA[Snapshot LOT] --> B[Kiểm tra từng LOT]\nB --> C[OK + NG]\nC --> D[NG = Rework + Loại bỏ ban đầu]\nD --> E[Confirm Initial QC]"),
+
+                Topic(
+                    "XuLyHangLoi.Rework",
+                    "Xử lý hàng lỗi - Rework",
+                    "Thực hiện xuất hàng Rework, giao sản xuất và QC kết quả Rework theo kế hoạch Initial QC.",
+                    "Initial QC đã xác nhận và HuongXuLy cho phép Rework.",
+                    "1. Xem kế hoạch Rework từ Initial QC.\n2. Xuất Rework theo tồn kho và kế hoạch.\n3. Không xuất lũy kế vượt SoLuongRework của Initial QC.\n4. Chỉ giao sản xuất sau khi đã xuất đủ kế hoạch.\n5. Theo dõi trạng thái DaXuatKhoRework và DaGiaoSanXuat.\n6. QC sau Rework với OK + NG đúng bằng số lượng Rework đã giao.",
+                    "Rework là phương thức xử lý NG; không làm thay đổi nghĩa vụ Giao bù. Không tự tăng kế hoạch Rework từ số lượng tồn còn lại.",
+                    "Chưa có Initial QC; không phải hướng Rework; xuất vượt kế hoạch; giao khi chưa xuất đủ; QC cuối không khớp số lượng đã giao.",
+                    "Kiểm tra plan, số lượng đã xuất và đã giao theo phiếu. Nếu lệch, dừng và kiểm tra giao dịch Rework trước khi thao tác tiếp.",
+                    "flowchart TD\nA[Initial QC Rework Plan] --> B[Xuất Rework]\nB --> C{Đã xuất đủ?}\nC -- Không --> B\nC -- Có --> D[Giao sản xuất]\nD --> E[QC sau Rework]\nE --> F[OK + NG = Rework]"),
+
+                Topic(
+                    "XuLyHangLoi.Disposition",
+                    "Xử lý hàng lỗi - Disposition",
+                    "Quản lý số lượng không thể phục hồi và kết quả NG sau Rework để xác định số lượng loại bỏ cuối cùng.",
+                    "Initial QC hoặc QC sau Rework đã xác định số lượng NG không thể tiếp tục xử lý.",
+                    "1. Lấy LoaiBoBanDau từ Initial QC.\n2. Lấy NG từ QC sau Rework nếu có Rework.\n3. Tính loại bỏ cuối = LoaiBoBanDau + NG sau Rework.\n4. Ghi nhận Disposition theo quy định nghiệp vụ.\n5. Kiểm tra tổng số lượng trước khi hoàn tất.",
+                    "NG sau Rework là phần bổ sung vào loại bỏ; không được ghi đè hoặc thay thế LoaiBoBanDau.",
+                    "Disposition thiếu phần NG sau Rework; tính trùng; số lượng loại bỏ vượt nguồn QC.",
+                    "Đối chiếu Initial QC và QC sau Rework. Không nhập một số lượng loại bỏ tổng nếu không truy được nguồn cấu thành.",
+                    "flowchart TD\nA[Initial QC] --> B[Loại bỏ ban đầu]\nC[QC sau Rework] --> D[NG sau Rework]\nB --> E[Disposition cuối]\nD --> E\nE --> F[Hoàn tất]"),
+
+                Topic(
+                    "XuLyHangLoi.GiaoBu",
+                    "Xử lý hàng lỗi - Giao bù",
+                    "Thực hiện nghĩa vụ giao bù độc lập với kết quả NG/Rework/Disposition và kiểm soát xuất hàng theo QR/FIFO.",
+                    "Có nghĩa vụ giao bù được xác định từ đơn hàng/giao hàng hoặc nghiệp vụ khách hàng; tồn kho đủ điều kiện xuất.",
+                    "1. Xác định số lượng phải giao bù từ nghĩa vụ giao hàng, không suy ra tự động từ NG.\n2. Chọn danh sách hàng đủ điều kiện.\n3. Quét QR từng thùng/lot.\n4. Kiểm tra Part, LOT, số lượng và trạng thái.\n5. Áp dụng FIFO theo cấu hình tồn kho.\n6. Cộng dồn số lượng đã giao bù.\n7. Không cho phép vượt nghĩa vụ giao bù hoặc vượt tồn kho hợp lệ.\n8. Hoàn tất giao bù theo workflow.",
+                    "Giao bù độc lập với Rework. Một phiếu có thể có Giao bù mà không có Rework, hoặc có cả hai nếu nghiệp vụ yêu cầu.",
+                    "QR không hợp lệ; LOT không đúng FIFO; thiếu tồn; quét trùng; giao vượt nghĩa vụ; giao sai Part.",
+                    "Kiểm tra kế hoạch giao bù, FIFO candidate và lịch sử QR đã giao. Không sửa số lượng để vượt giới hạn.",
+                    "flowchart TD\nA[Nghĩa vụ giao bù] --> B[Lập kế hoạch]\nB --> C[FIFO tồn kho]\nC --> D[Quét QR/thùng]\nD --> E{Hợp lệ?}\nE -- Không --> F[Từ chối scan]\nE -- Có --> G[Cộng dồn giao bù]\nG --> H{Đủ nghĩa vụ?}\nH -- Không --> D\nH -- Có --> I[Hoàn tất giao bù]"),
 
                 Topic(
                     "GiaoHang.HVN",
