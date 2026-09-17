@@ -27,28 +27,42 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             string tmpTable = _cfg.Delivery.GetTmpTable(isSP);
             string docQrTable = _cfg.Delivery.GetDocQRTable(isSP);
 
-            // Phase 1: read-only authoritative FIFO evaluation.
+            // PHASE 1: FIFO is a hard business gate. Nothing that can update stock
+            // is allowed to execute before this phase has completed successfully.
             List<FifoViolation> fifoViolations =
                 _phieuRepo.EvaluateFifoViolations(tmpTable, docQrTable)
                 ?? new List<FifoViolation>();
 
             if (fifoViolations.Count > 0)
             {
-                // IMPORTANT: normal Publish() is asynchronous in InProcessEventBus.
-                // FIFO confirmation is a blocking business gate, so it must wait until
-                // the UI handler has actually returned OK/Cancel.
+                // Publish() is asynchronous. FIFO confirmation is a blocking gate,
+                // therefore the confirmation event MUST be synchronous here.
                 var confirmation = new FifoReleaseConfirmationRequestedEvent(fifoViolations);
                 _bus.PublishSynchronous(confirmation);
 
-                // Fail closed if no UI handler exists or the user cancelled.
+                // Fail closed: Cancel, missing UI handler, or incomplete confirmation
+                // means NO stock validation and NO stock update.
                 if (!confirmation.IsCompleted || !confirmation.WaitForDecision())
                     return;
 
-                // Phase 2: mutate only the exact rows shown and confirmed by the user.
+                // Release only the exact STT values returned by FIFO evaluation.
+                // This clears the invalid QR rows from the current CNK candidate set.
                 _phieuRepo.ReleaseFifoViolations(tmpTable, docQrTable, fifoViolations);
+
+                // PHASE 2: rebuild the candidate set after release.
+                // This is intentionally re-evaluated immediately before stock update.
+                // If any FIFO violation remains, fail closed and DO NOT call the stock SP.
+                List<FifoViolation> remainingViolations =
+                    _phieuRepo.EvaluateFifoViolations(tmpTable, docQrTable)
+                    ?? new List<FifoViolation>();
+
+                if (remainingViolations.Count > 0)
+                    return;
             }
 
-            // Phase 3: CNK sees only the remaining valid rows.
+            // PHASE 3: only now is stock update allowed.
+            // Usp_Qrcode_Update_Stock2405 (inside CapNhapKho/CapNhapKhoHTN)
+            // is therefore downstream of the FIFO gate.
             int soLot;
             DataTable errors;
 
