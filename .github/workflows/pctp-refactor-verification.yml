@@ -31,6 +31,10 @@ jobs:
         shell: pwsh
         run: msbuild PCTP.sln /m /p:Configuration=Release /p:Platform="Any CPU" /p:RestorePackages=false
 
+      - name: Run FIFO regression tests
+        shell: pwsh
+        run: dotnet run --project PCTP/Workflow/Tests/FifoSessionStateRegressionTests.csproj --configuration Release
+
       - name: Verify delivery architecture boundaries
         shell: pwsh
         run: |
