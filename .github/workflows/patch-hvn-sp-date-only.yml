@@ -1,0 +1,107 @@
+name: patch-hvn-sp-date-only
+
+on:
+  push:
+    paths:
+      - '.github/workflows/patch-hvn-sp-date-only.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/baocao-deliverytrace-refactor
+          fetch-depth: 0
+
+      - name: Apply patch
+        shell: python
+        run: |
+          from pathlib import Path
+
+          def replace(path, old, new):
+              p = Path(path)
+              s = p.read_text(encoding='utf-8-sig')
+              if old not in s:
+                  raise SystemExit(f'Pattern not found: {path}: {old[:120]}')
+              p.write_text(s.replace(old, new, 1), encoding='utf-8-sig')
+
+          replace(
+              'PCTP/Modules/GiaoHangKhach/Configuration/GiaoHangKhachConfiguration.cs',
+              '        public bool LoadTheoNgay { get; set; } = false;\n',
+              '        public bool LoadTheoNgay { get; set; } = false;\n        public bool LoadSPTheoNgay { get; set; } = false;\n'
+          )
+
+          replace(
+              'PCTP/Shared/Models/CustomerTableConfig.cs',
+              '                        CoLoaiSP = true,\n                        DockCodeSP = "HVN",',
+              '                        CoLoaiSP = true,\n                        LoadSPTheoNgay = true,\n                        DockCodeSP = "HVN",'
+          )
+
+          replace(
+              'PCTP/Modules/GiaoHangKhach/HVN/Controls/PhieuHeaderControl.cs',
+              '            if (cfg.Delivery.CoNhieuNhaMay)\n            {\n                tabVpPage.PageVisible = true; tabHnPage.PageVisible = true; tabPaneControl.Visible = true; radioVp.Visible = true; radioHn.Visible = true; checkList.Visible = false; btnUploadMilkrun.Visible = false;\n                if (cfg.Delivery.CoLoaiSP) ShowLoaiPhieuToggle(btnUploadMilkrun); else HideLoaiPhieuToggle();\n            }',
+              '            if (cfg.Delivery.CoNhieuNhaMay)\n            {\n                tabVpPage.PageVisible = true; tabHnPage.PageVisible = true; tabPaneControl.Visible = true;\n                bool spDateOnly = _isLoaiSP && cfg.Delivery.LoadSPTheoNgay;\n                radioVp.Visible = !spDateOnly; radioHn.Visible = !spDateOnly;\n                checkList.Visible = false; btnUploadMilkrun.Visible = false;\n                if (cfg.Delivery.CoLoaiSP) ShowLoaiPhieuToggle(btnUploadMilkrun); else HideLoaiPhieuToggle();\n            }'
+          )
+
+          replace(
+              'PCTP/Modules/GiaoHangKhach/HVN/Controls/PhieuHeaderControl.cs',
+              '        private void ShowLoaiPhieuToggle(Button anchor)\n',
+              '        private void ShowLoaiPhieuToggle(Button anchor)\n'
+          )
+
+          replace(
+              'PCTP/Modules/GiaoHangKhach/HVN/Controls/PhieuHeaderControl.cs',
+              '        private void OnLoaiPhieuToggle(object sender, EventArgs e)\n        {\n            _isLoaiSP = !_isLoaiSP;\n            UpdateLoaiPhieuToggleText();\n            LoaiPhieuChanged.Invoke(this, EventArgs.Empty);\n        }',
+              '        private void OnLoaiPhieuToggle(object sender, EventArgs e)\n        {\n            _isLoaiSP = !_isLoaiSP;\n            ApplyLoaiPhieuVisibility();\n            UpdateLoaiPhieuToggleText();\n            LoaiPhieuChanged.Invoke(this, EventArgs.Empty);\n        }'
+          )
+
+          # Insert helper immediately before ShowLoaiPhieuToggle.
+          p = Path('PCTP/Modules/GiaoHangKhach/HVN/Controls/PhieuHeaderControl.cs')
+          s = p.read_text(encoding='utf-8-sig')
+          marker = '        private void ShowLoaiPhieuToggle(Button anchor)\n'
+          helper = '''        private void ApplyLoaiPhieuVisibility()\n        {\n            if (_cfg == null || _cfg.Delivery == null || !_cfg.Delivery.CoNhieuNhaMay) return;\n\n            var radioVp = FindControl<RadioGroup>("radioGroup2");\n            var radioHn = FindControl<RadioGroup>("RDO_GXHN");\n            if (radioVp == null || radioHn == null) return;\n\n            bool spDateOnly = _isLoaiSP && _cfg.Delivery.LoadSPTheoNgay;\n            radioVp.Visible = !spDateOnly;\n            radioHn.Visible = !spDateOnly;\n        }\n\n'''
+          if helper.strip() not in s:
+              if marker not in s:
+                  raise SystemExit('Header helper marker not found')
+              s = s.replace(marker, helper + marker, 1)
+              p.write_text(s, encoding='utf-8-sig')
+
+          replace(
+              'PCTP/Presentation/Presenters/HVNPresenterContext.cs',
+              '            string gioMa = GioXuatHienTai.Ma; string gioMoTa = GioXuatHienTai.MoTa;\n',
+              '            bool isSpDateOnly = Cfg.Delivery.CoLoaiSP && Cfg.Delivery.LoadSPTheoNgay && View.IsLoaiSP;\n            string gioMa = isSpDateOnly ? "" : GioXuatHienTai.Ma; string gioMoTa = isSpDateOnly ? "Tất cả ca" : GioXuatHienTai.MoTa;\n'
+          )
+
+          replace(
+              'PCTP/Modules/GiaoHangKhach/Services/PhieuLoadService.cs',
+              '            string gioFccSP = _cfg.Delivery.LoadTheoNgay ? "" : context.GioFcc;\n            string gioMoTaSP = _cfg.Delivery.LoadTheoNgay ? "Tất cả ca" : context.GioFccMoTa;\n            bool isSP = context.Category == OrderCategory.SP;',
+              '            bool isSP = context.Category == OrderCategory.SP;\n            bool loadTheoNgay = _cfg.Delivery.LoadTheoNgay || (isSP && _cfg.Delivery.LoadSPTheoNgay);\n            string gioFccSP = loadTheoNgay ? "" : context.GioFcc;\n            string gioMoTaSP = loadTheoNgay ? "Tất cả ca" : context.GioFccMoTa;'
+          )
+
+          replace(
+              'PCTP/Modules/GiaoHangKhach/Services/PhieuLoadService.cs',
+              '            string caption = _cfg.Delivery.LoadTheoNgay ? $"ĐƠN HÀNG: {_cfg.DisplayName} - {context.NhaMay}" : $"ĐƠN HÀNG: {_cfg.DisplayName} - {context.NhaMay}   GIỜ GIAO: {gioMoTaSP}";',
+              '            string caption = loadTheoNgay ? $"ĐƠN HÀNG: {_cfg.DisplayName} - {context.NhaMay}" : $"ĐƠN HÀNG: {_cfg.DisplayName} - {context.NhaMay}   GIỜ GIAO: {gioMoTaSP}";'
+          )
+
+          replace(
+              'PCTP/Modules/GiaoHangKhach/Services/PhieuService.cs',
+              '            string ngayXuat = dt.ToString("ddMMyyyy");\n            string gioFccSP = _cfg.Delivery.LoadTheoNgay ? "" : gioFcc;\n            string gioMoTaSP = _cfg.Delivery.LoadTheoNgay ? "Tất cả ca" : gioFccMoTa;\n            DataTable ifs;',
+              '            string ngayXuat = dt.ToString("ddMMyyyy");\n            bool loadTheoNgay = _cfg.Delivery.LoadTheoNgay || (isSP && _cfg.Delivery.LoadSPTheoNgay);\n            string gioFccSP = loadTheoNgay ? "" : gioFcc;\n            string gioMoTaSP = loadTheoNgay ? "Tất cả ca" : gioFccMoTa;\n            DataTable ifs;'
+          )
+
+          Path('.github/workflows/patch-hvn-sp-date-only.yml').unlink()
+          print('PATCH_OK')
+
+      - name: Commit patch and remove workflow
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add PCTP/Modules/GiaoHangKhach/Configuration/GiaoHangKhachConfiguration.cs PCTP/Shared/Models/CustomerTableConfig.cs PCTP/Modules/GiaoHangKhach/HVN/Controls/PhieuHeaderControl.cs PCTP/Presentation/Presenters/HVNPresenterContext.cs PCTP/Modules/GiaoHangKhach/Services/PhieuLoadService.cs PCTP/Modules/GiaoHangKhach/Services/PhieuService.cs .github/workflows/patch-hvn-sp-date-only.yml
+          git diff --cached --quiet && exit 0
+          git commit -m 'fix(giaohangkhach): make HVN SP date-only'
+          git push origin HEAD:feature/baocao-deliverytrace-refactor
