@@ -17,8 +17,8 @@ namespace PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao
         List<FifoViolation> EvaluateFifoViolations(string tmpTable, string docQRTable);
 
         /// <summary>
-        /// Applies the FIFO release after the caller has explicitly confirmed it.
+        /// Applies the FIFO release only to the rows explicitly confirmed by the user.
         /// </summary>
-        List<FifoViolation> ReleaseFifoViolations(string tmpTable, string docQRTable);
+        void ReleaseFifoViolations(string tmpTable, string docQRTable, IReadOnlyList<FifoViolation> violations);
     }
 }
