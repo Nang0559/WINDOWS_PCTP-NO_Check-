@@ -45,11 +45,12 @@ namespace PCTP.Presentation.Presenters
                 return;
             }
 
-            bool isSP = _c.Cfg.Delivery.LoadTuBangRieng
-                ? _c.Cfg.Delivery.CoLoaiSP && _c.PhieuView.IsLoaiSP
-                : _c.CategoryResolver.Resolve(new OrderLoadContext { GioFccMoTa = _c.GioXuatHienTai.MoTa }) == OrderCategory.SP;
+            // Category của phiếu hiện tại là source of truth.
+            // Không suy diễn SP từ giờ xuất hiện tại vì SP không phải luồng theo giờ.
+            bool isSP = _c.Cfg.Delivery.CoLoaiSP && _c.PhieuView.IsLoaiSP;
 
-            _c.QrSvc.SetCheDoBan(_c.Cfg.Delivery.LoadTuBangRieng ? "" : _c.GioXuatHienTai.MoTa);
+            // SP dùng phạm vi ngày + nhà máy + dock, không dùng giờ hiện tại.
+            _c.QrSvc.SetCheDoBan(isSP || _c.Cfg.Delivery.LoadTuBangRieng ? "" : _c.GioXuatHienTai.MoTa);
             _c.QrSvc.SetCheDoBanSP(isSP);
 
             DataTable dtPhieu = _c.Cfg.Delivery.LoadTuBangRieng ? _c.PhieuView.GetDonHangTable() : null;
@@ -57,7 +58,8 @@ namespace PCTP.Presentation.Presenters
             List<string> gios = _c.Cfg.Delivery.CoGear ? _c.YmvnView.GetCheckedGioXuat() : null;
             _c.IsBanQR = true;
 
-            if (!_c.Cfg.Delivery.CoGear && !_c.Cfg.Delivery.LoadTuBangRieng)
+            // SP không khóa radio theo giờ vì bản chất nghiệp vụ là day + plant + dock.
+            if (!isSP && !_c.Cfg.Delivery.CoGear && !_c.Cfg.Delivery.LoadTuBangRieng)
                 _c.PhieuView.LockRadioExcept(_c.GioXuatHienTai.Ma);
 
             _c.RunWithLoading(() =>
