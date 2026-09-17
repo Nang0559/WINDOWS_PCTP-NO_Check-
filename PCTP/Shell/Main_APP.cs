@@ -52,6 +52,39 @@ namespace PCTP
             accordionControl.Dock = DockStyle.Left;
             ribbonControl.Dock = DockStyle.Top;
             ribbonStatusBar.Dock = DockStyle.Bottom;
+
+            // Main_APP is only the Shell.  Keep the HangLoi workflow entry points
+            // together and let WarehouseProcessNavigator own the composition.
+            NormalizeHangLoiNavigation();
+        }
+
+        private void NormalizeHangLoiNavigation()
+        {
+            // The designer historically placed the QC entries under "Nhập Kho & QC".
+            // They belong to the HangLoi workflow and must live under one business area.
+            NHAccordionControlElement.Elements.Remove(accordionControlElement_QCDinhHuong);
+            NHAccordionControlElement.Elements.Remove(accordionControlElement_QCXacNhanCuoi);
+
+            if (!E_Trahang.Elements.Contains(accordionControlElement_QCDinhHuong))
+                E_Trahang.Elements.Add(accordionControlElement_QCDinhHuong);
+            if (!E_Trahang.Elements.Contains(accordionControlElement_QCXacNhanCuoi))
+                E_Trahang.Elements.Add(accordionControlElement_QCXacNhanCuoi);
+
+            // E_Trahang is a group, not an action. The old designer handler opened
+            // the workflow when the group itself was clicked, which is ambiguous.
+            E_Trahang.Click -= E_Trahang_Click;
+
+            // Both legacy child entries now route through the single workflow screen.
+            // The workflow screen itself determines the active step from the ticket state.
+            trahangngPD.Click -= trahangngPD_Click;
+            trahangngPD.Click += trahangngPD_Click;
+            trahangndHVN.Click -= trahangndHVN_Click;
+            trahangndHVN.Click += trahangndHVN_Click;
+
+            // Remove duplicate legacy entry points.  Keep the controls in the
+            // designer for backward compatibility, but do not expose them twice.
+            accordionControlElement30.Visible = false;
+            accordionControlElement37.Visible = false;
         }
 
         private void Main_APP_Load(object sender, EventArgs e)
@@ -120,6 +153,8 @@ namespace PCTP
         }
 
         private void E_Trahang_Click(object sender, EventArgs e) { WarehouseProcessNavigator.OpenQuanLyTienTrinhHangLoi(this); }
+        private void trahangngPD_Click(object sender, EventArgs e) { WarehouseProcessNavigator.OpenQuanLyTienTrinhHangLoi(this); }
+        private void trahangndHVN_Click(object sender, EventArgs e) { WarehouseProcessNavigator.OpenQuanLyTienTrinhHangLoi(this); }
         private void E_NhapTP_Click(object sender, EventArgs e) { }
         private void E_NhapTP_0QR_Click(object sender, EventArgs e) { }
         private void E_GHHVN_MP_Click(object sender, EventArgs e) { WarehouseProcessNavigator.OpenGiaoHangHVN("100001"); }
