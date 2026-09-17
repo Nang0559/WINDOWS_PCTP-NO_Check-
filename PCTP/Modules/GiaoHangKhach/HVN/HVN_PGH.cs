@@ -228,7 +228,7 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
         public event EventHandler DocQRCodeClicked = delegate { };
         public event EventHandler KiemTraGhepLotClicked = delegate { };
         public event EventHandler KiemTraMaNGClicked = delegate { };
-        public event EventHandler QRCodeSubmitted = delegate { };
+        public event EventHandler<string> QRCodeSubmitted = delegate { };
         public event EventHandler HoanThanhClicked = delegate { };
         public event EventHandler XoaDongQRClicked = delegate { };
         public event EventHandler XoaToanBoQRClicked = delegate { };
