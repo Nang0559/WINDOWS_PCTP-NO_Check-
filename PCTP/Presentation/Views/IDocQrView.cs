@@ -14,6 +14,7 @@ namespace PCTP.Presentation.Views
         void ClearQRInput();
         string QRCodeInput { get; }
         int GetFocusedDocQRStt();
+        (string LotFcc, int SlFcc, int SlHvn) GetFocusedDocQRTemInfo();
         void DeleteFocusedDocQRRow();
         void ClearDocQRRows();
         void SetDocQrScanInputEnabled(bool enabled);
