@@ -116,17 +116,11 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
         {
             UIButtonHOME.Visible = true;
             _phieuHeaderControl.Visible = false;
-
-            // The legacy designer keeps both GridControls as siblings in sidePanel2.
-            // Do not rely only on the wrapper control's BringToFront(): explicitly
-            // switch the actual grids so the visible surface is deterministic.
             gridCtrDONHANG.Visible = false;
             gridCtrDOCQrCODE.Visible = true;
             gridCtrDOCQrCODE.BringToFront();
-
             _docQrControl.Visible = true;
             _docQrControl.BringToFront();
-
             try { _hangThieuControl.Visible = false; PN_DOCQR_SUASL1.Visible = true; PN_DOCQR_SUASL1.BringToFront(); }
             catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[SwitchToDocQRView] Lỗi set Visible: {ex.Message}"); }
             if (!IsDisposed && IsHandleCreated)
@@ -140,16 +134,12 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
         {
             UIButtonHOME.Visible = false;
             _phieuHeaderControl.Visible = true;
-
-            // Restore the normal order-grid surface explicitly.
             gridCtrDOCQrCODE.Visible = false;
             gridCtrDONHANG.Visible = true;
             gridCtrDONHANG.BringToFront();
-
             _docQrControl.Visible = false;
             _phieuGridControl.Visible = true;
             _phieuGridControl.BringToFrontGrid();
-
             try { PN_DOCQR_SUASL1.Visible = false; _hangThieuControl.Visible = true; _hangThieuControl.BringToFront(); }
             catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[SwitchToPhieuView] Lỗi set Visible: {ex.Message}"); }
             _phieuBottomStateControl.HideSuaSoLuong();
@@ -223,7 +213,12 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
 
         private void HVN_PGH_Load(object sender, EventArgs e)
         {
-            SetupNhaMayUI(_cfg); Text = $"Phiếu Giao Hàng — {_cfg.DisplayName}";
+            SetupNhaMayUI(_cfg);
+            // The SP toggle is owned by PhieuHeaderControl. Wire it after the
+            // header has been adopted/configured so the initial state and every
+            // subsequent XEM SP/XEM MP click update the real legacy panel.
+            WireSpModeUi();
+            Text = $"Phiếu Giao Hàng — {_cfg.DisplayName}";
             _addressTable = _customerAddressService.GetAddress(_cfg.CustomerNo);
             BindGioXuatVP(_gioRepo.GetDanhSachGioVP()); if (_cfg.Delivery.CoNhieuNhaMay) BindGioXuatHN(_gioRepo.GetDanhSachGioHN());
             SetupGridDonHangYMVN(_cfg.Delivery.LoadTuBangRieng);
@@ -234,7 +229,6 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
             FormLoaded.Invoke(this, EventArgs.Empty);
             try
             {
-                // Initial state is always the normal order grid.
                 gridCtrDOCQrCODE.Visible = false;
                 gridCtrDONHANG.Visible = true;
                 gridCtrDONHANG.BringToFront();
@@ -244,83 +238,5 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
             catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[HVN_PGH_Load] Lỗi set trạng thái grid: {ex.Message}"); }
         }
         public void SetupGridDonHangYMVN(bool bangrieng) => _phieuGridControl.SetupForCustomer(bangrieng);
-        public void BindGioXuatCheckList(List<string> danhSachGio) { if (_phieuHeaderControl != null) _phieuHeaderControl.BindGioXuatCheckList(danhSachGio); }
-        public void LockCheckListYMVN() { if (_phieuHeaderControl != null) _phieuHeaderControl.LockCheckListYMVN(); }
-        public void UnlockCheckListYMVN() { if (_phieuHeaderControl != null) _phieuHeaderControl.UnlockCheckListYMVN(); }
-        private void GridViewDONHANG_ShowingEditor_LOT(object sender, CancelEventArgs e)
-        {
-            if (!_phieuGridControl.IsFocusedLotColumn()) return;
-            e.Cancel = true; int stt = GetFocusedDonHangStt(); if (stt < 0) return;
-            string status = _phieuGridControl.GetFocusedStatus(); if (status == "OK") { ShowInfo("Dòng này đã được Cập Nhập Kho!"); return; }
-            string maHang = _phieuGridControl.GetFocusedMaHang(); int soLuong = _phieuGridControl.GetFocusedQuantity();
-            ChonLotThuCongClicked.Invoke(this, new ChonLotThuCongEventArgs(stt, maHang, soLuong));
-        }
-        public ChonLotResult ShowChonLotTuKho(int stt, string maHang, int soLuong, DataTable danhSachLot) => _phieuDialogControl.ShowChonLotTuKho(maHang, soLuong, danhSachLot);
-        public List<string> GetCheckedGioXuat() => _phieuHeaderControl != null ? _phieuHeaderControl.GetCheckedGioXuat() : new List<string>();
-        public void BindGhepLotYMVN(DataTable dt) => _phieuBottomStateControl.BindGhepLot(dt);
-        public void ShowReportYMVN(DataTable reportData) => _phieuDialogControl.ShowReportYMVN(reportData);
-        public void XoaDongGiaoDB() => _phieuGridControl.DeleteSelectedRows();
-        private void radioGroup2_EditValueChanging(object sender, ChangingEventArgs e) { if ((int)e.NewValue == 8) e.Cancel = !_presenter.OnGiaoDBChanging(_presenter.AddNM); }
-        private void RDO_GXHN_EditValueChanging(object sender, ChangingEventArgs e) { if ((int)e.NewValue == 10) e.Cancel = !_presenter.OnGiaoDBChanging(_presenter.AddNM); }
-        public void SetDate(DateTime date) { if (_phieuHeaderControl != null) { _phieuHeaderControl.SetDate(date); return; } dateNX.DateTime = date; }
-        public void SuspendGioXuatChanged() { if (_phieuHeaderControl != null) _phieuHeaderControl.SuspendGioXuatChanged(); }
-        public void ResumeGioXuatChanged() { if (_phieuHeaderControl != null) _phieuHeaderControl.ResumeGioXuatChanged(); }
-        public void SetTab(int addNM) { if (_phieuHeaderControl != null) _phieuHeaderControl.SetTab(addNM); }
-        public void LockDatePicker() { if (_phieuHeaderControl != null) _phieuHeaderControl.LockDatePicker(); }
-        public void UnlockDatePicker() { if (_phieuHeaderControl != null) _phieuHeaderControl.UnlockDatePicker(); }
-        public void LockRadioExcept(string gioFCC) { if (_phieuHeaderControl != null) _phieuHeaderControl.LockRadioExcept(gioFCC); }
-        public void UnlockAllRadio() { if (_phieuHeaderControl != null) _phieuHeaderControl.UnlockAllRadio(); }
-        public void UpdateGioXuatFromDB(string gioFCC) { if (_phieuHeaderControl != null) _phieuHeaderControl.UpdateGioXuatFromDB(gioFCC); }
-        public bool HoiXoaDocQR() => XtraMessageBox.Show("Dữ liệu không phù hợp:\nDữ liệu đọc QRCode không khớp với phiếu!\nBạn muốn xóa dữ liệu đọc?\n(Nếu không xóa, phiếu giao hàng sẽ không được tải đúng)", "Thông Báo", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == System.Windows.Forms.DialogResult.Yes;
-        private void UIButtonHOME_ButtonClick(object sender, ButtonEventArgs e) { switch (((WindowsUIButton)e.Button).Caption) { case "HOME": SwitchToPhieuView(); break; } }
-        private void gridVDOCQRCODE_FocusedRowChanged(object sender, DevExpress.XtraGrid.Views.Base.FocusedRowChangedEventArgs e)
-        {
-            int stt = GetFocusedDocQRStt();
-            if (stt < 0) { _phieuBottomStateControl.HideSuaSoLuong(); _phieuBottomStateControl.ShowGhepLot(); return; }
-            var (lotFcc, slFcc, slHvn) = GetFocusedDocQRTemInfo(); _sttSuaSl = stt;
-            _phieuBottomStateControl.BindSuaSoLuong(BuildSuaSlTable(stt, lotFcc, slFcc, slHvn)); _phieuBottomStateControl.ShowSuaSoLuong();
-            TXT_FCCTU.Text = ""; TXT_FCCTHANH.Text = ""; TXT_HVNTU.Text = ""; TXT_HVNTHANH.Text = ""; LOTFCCVN.Text = lotFcc;
-        }
-        private DataTable BuildSuaSlTable(int stt, string lotFcc, int slFcc, int slHvn)
-        {
-            var tbl = new DataTable(); tbl.Columns.Add("STT", typeof(int)); tbl.Columns.Add("LOAI", typeof(string)); tbl.Columns.Add("LOT", typeof(string)); tbl.Columns.Add("SLHIEN", typeof(int)); tbl.Columns.Add("SLTHANH", typeof(int));
-            if (!string.IsNullOrEmpty(lotFcc)) foreach (var part in lotFcc.Split(',')) { var ls = part.Trim().Split('-'); string lot = ls[0].Trim(); int sl = ls.Length > 1 && int.TryParse(ls[1], out int v) ? v : slFcc; var row = tbl.NewRow(); row["STT"] = stt; row["LOAI"] = "FCC"; row["LOT"] = lot; row["SLHIEN"] = sl; row["SLTHANH"] = sl; tbl.Rows.Add(row); }
-            if (slHvn > 0) { var row = tbl.NewRow(); row["STT"] = stt; row["LOAI"] = "HVN"; row["LOT"] = ""; row["SLHIEN"] = slHvn; row["SLTHANH"] = slHvn; tbl.Rows.Add(row); }
-            return tbl;
-        }
-        private void gridVSUASL_FocusedRowChanged(object sender, DevExpress.XtraGrid.Views.Base.FocusedRowChangedEventArgs e)
-        {
-            var view = sender as DevExpress.XtraGrid.Views.Grid.GridView; if (view == null || view.FocusedRowHandle < 0) return;
-            string loai = view.GetFocusedRowCellDisplayText("LOAI").Trim(); string lot = view.GetFocusedRowCellDisplayText("LOT").Trim(); string slHien = view.GetFocusedRowCellDisplayText("SLHIEN").Trim();
-            if (loai == "FCC") { TXT_FCCTU.Text = slHien; TXT_FCCTHANH.Text = slHien; TXT_HVNTU.Text = ""; TXT_HVNTHANH.Text = ""; }
-            else if (loai == "HVN") { TXT_HVNTU.Text = slHien; TXT_HVNTHANH.Text = slHien; TXT_FCCTU.Text = ""; TXT_FCCTHANH.Text = ""; }
-            LOTFCCVN.Text = lot;
-        }
-        private void cmd_SuaLTemFCC_Click(object sender, EventArgs e) { if (_sttSuaSl <= 0) { ShowInfo("Vui lòng chọn dòng QR cần sửa!"); return; } if (!int.TryParse(TXT_FCCTHANH.Text, out int slMoi) || slMoi <= 0) { ShowInfo("Số lượng FCC không hợp lệ!"); return; } SuaSoLuongTemClicked.Invoke(this, EventArgs.Empty); }
-        public int? GetSuaSoLuongResult() { if (!string.IsNullOrWhiteSpace(TXT_HVNTHANH.Text) && int.TryParse(TXT_HVNTHANH.Text, out int slHvn) && slHvn > 0) return slHvn; if (!string.IsNullOrWhiteSpace(TXT_FCCTHANH.Text) && int.TryParse(TXT_FCCTHANH.Text, out int slFcc) && slFcc > 0) return slFcc; return null; }
-        private void GridViewDONHANG_RowCellStyle(object sender, RowCellStyleEventArgs e) => _phieuGridControl.ApplyRowCellStyle(e);
-        private void GridViewDONHANG_CellValueChanged(object sender, DevExpress.XtraGrid.Views.Base.CellValueChangedEventArgs e) { }
-        private void GridViewDONHANG_CellValueChanging(object sender, DevExpress.XtraGrid.Views.Base.CellValueChangedEventArgs e) { }
-        private void GridViewDONHANG_ClipboardRowCopying(object sender, DevExpress.XtraGrid.Views.Grid.ClipboardRowCopyingEventArgs e) { }
-        private void GridViewDONHANG_PopupMenuShowing(object sender, DevExpress.XtraGrid.Views.Grid.PopupMenuShowingEventArgs e) { }
-        private void GridViewDONHANG_RowUpdated(object sender, DevExpress.XtraGrid.Views.Base.RowObjectEventArgs e) { }
-        private void GridViewDONHANG_ValidateRow(object sender, DevExpress.XtraGrid.Views.Base.ValidateRowEventArgs e) { }
-        private void GridViewDONHANG_ValidatingEditor(object sender, DevExpress.XtraEditors.Controls.BaseContainerValidateEditorEventArgs e) { }
-        private void HVN_PGH_ContextMenuStripChanged(object sender, EventArgs e) { }
-        private void btnUploadMilkrun_Click(object sender, EventArgs e) => UploadMilkrunSPClicked.Invoke(this, EventArgs.Empty);
-        protected override void OnFormClosed(FormClosedEventArgs e)
-        {
-            if (_cfg.Delivery.CoGear) { btnUploadMilkrun.Click -= btnUploadMilkrun_Click; }
-            else if (_cfg.Delivery.LoadTheoNgay) btnUploadMilkrun.Click -= btnUploadMilkrun_Click;
-            _presenter.Dispose(); base.OnFormClosed(e);
-        }
-        private int GetFocusedDonHangStt() => _phieuGridControl.GetFocusedStt();
-        private void cmd_SuaSLHVN_Click(object sender, EventArgs e) { if (_sttSuaSl <= 0) { ShowInfo("Vui lòng chọn dòng QR cần sửa!"); return; } if (!int.TryParse(TXT_HVNTHANH.Text, out int slMoi) || slMoi <= 0) { ShowInfo("Số lượng HVN không hợp lệ!"); return; } SuaSoLuongTemClicked.Invoke(this, EventArgs.Empty); }
-        private void cmd_SuaLTemFCC_Click_1(object sender, EventArgs e) { if (_sttSuaSl <= 0) { ShowInfo("Vui lòng chọn dòng QR cần sửa!"); return; } if (!int.TryParse(TXT_FCCTHANH.Text, out int slMoi) || slMoi <= 0) { ShowInfo("Số lượng FCC không hợp lệ!"); return; } SuaSoLuongTemClicked.Invoke(this, EventArgs.Empty); }
-    }
-
-    public class MyWindowsUIButtonPanel : WindowsUIButtonPanel
-    {
-        public WindowsUIButtonsPanel GetButtonsPanel() { return ButtonsPanel; }
     }
 }
