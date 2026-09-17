@@ -87,7 +87,6 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
             if (_phieuGridControl != null)
             {
                 _phieuGridControl.SetCaption(caption);
-                _phieuGridControl.OrderView.LayoutChanged();
             }
             else if (gridBandDH != null)
             {
