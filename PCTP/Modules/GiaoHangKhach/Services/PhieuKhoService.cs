@@ -27,26 +27,29 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             string tmpTable = _cfg.Delivery.GetTmpTable(isSP);
             string docQrTable = _cfg.Delivery.GetDocQRTable(isSP);
 
-            // FIFO is the first-class gate. Evaluation is read-only.
+            // Phase 1: read-only authoritative FIFO evaluation.
             List<FifoViolation> fifoViolations =
                 _phieuRepo.EvaluateFifoViolations(tmpTable, docQrTable)
                 ?? new List<FifoViolation>();
 
             if (fifoViolations.Count > 0)
             {
+                // The dialog receives the exact violation snapshot that was evaluated.
+                // OK/Cancel is therefore deterministic and cannot silently release a
+                // different set of rows because FIFO was re-evaluated afterwards.
                 var confirmation = new FifoReleaseConfirmationRequestedEvent(fifoViolations);
                 _bus.Publish(confirmation);
 
-                // The current event bus is synchronous. If no UI handler completed
-                // the request, fail closed: no LOT reset and no CNK/stock update.
+                // Fail closed if the UI did not answer. Never continue to CNK in this state.
                 if (!confirmation.IsCompleted || !confirmation.WaitForDecision())
                     return;
 
-                // Re-check and release only after explicit OK. Invalid FIFO rows
-                // are removed from the stock-update candidates by the repository.
-                _phieuRepo.ReleaseFifoViolations(tmpTable, docQrTable);
+                // Phase 2: mutate only the rows the user actually confirmed.
+                _phieuRepo.ReleaseFifoViolations(tmpTable, docQrTable, fifoViolations);
             }
 
+            // Phase 3: CNK sees only the remaining valid rows. FIFO-invalid rows are
+            // explicitly marked NG/detached from DOCQR by ReleaseFifoViolations.
             int soLot;
             DataTable errors;
 
@@ -59,8 +62,8 @@ namespace PCTP.Modules.GiaoHangKhach.Services
                 soLot = _phieuRepo.CapNhapKho(gioGiaoFcc, nhaMay, tmpTable, docQrTable, out errors);
             }
 
-            // FIFO has already been resolved. Any stock shortage here belongs to
-            // the remaining valid rows and must not be suppressed.
+            // Any shortage reported here belongs to the remaining valid candidates;
+            // FIFO-invalid rows are no longer part of the CNK candidate set.
             _bus.Publish(new KhoUpdatedEvent(soLot, errors));
         }
     }

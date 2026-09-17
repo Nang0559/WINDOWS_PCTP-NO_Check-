@@ -62,19 +62,26 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             return _validation.CheckFifoViolations(tmpTable) ?? new List<FifoViolation>();
         }
 
-        public List<FifoViolation> ReleaseFifoViolations(string tmpTable, string docQRTable)
+        public void ReleaseFifoViolations(string tmpTable, string docQRTable, IReadOnlyList<FifoViolation> violations)
         {
             _db.ValidateTableName(tmpTable);
             _db.ValidateTableName(docQRTable);
 
-            var violations = _validation.CheckFifoViolations(tmpTable) ?? new List<FifoViolation>();
+            if (violations == null || violations.Count == 0)
+                return;
+
+            // Do not re-run FIFO here. The user confirmed this exact snapshot.
+            // Re-evaluating can produce a different set after any intermediate
+            // state change and is the reason previously confirmed rows could be
+            // left untouched.
+            var affected = new HashSet<int>();
             foreach (FifoViolation violation in violations)
             {
                 if (violation == null || violation.Stt <= 0) continue;
+                if (!affected.Add(violation.Stt)) continue;
+
                 _lot.LayLaiLotNo(violation.Stt, tmpTable, docQRTable);
             }
-
-            return violations;
         }
 
         public DataTable SoSanhLechIFS(DataTable donHang, DataTable ifsTable) => _validation.SoSanhLechIFS(donHang, ifsTable);

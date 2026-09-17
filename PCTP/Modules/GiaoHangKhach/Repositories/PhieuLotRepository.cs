@@ -78,12 +78,23 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             Db.ValidateTableName(tenBan);
             Db.ValidateTableName(docQRTable);
 
+            // This method is called only after the user explicitly confirmed
+            // the FIFO violations. Do not add STATUS guards here: a confirmed
+            // violation must be released deterministically for this STT.
             Db.ExecuteNonQuery(
-                $"UPDATE [{tenBan}] SET LOT = '', STATUSDOC = 'NG', TTPHIEU = NULL WHERE STT = @stt AND ISNULL(STATUS, '') <> 'OK'",
+                $"UPDATE [{tenBan}] " +
+                "SET LOT = '', STATUS = 'NG', STATUSDOC = 'NG', TTPHIEU = NULL " +
+                "WHERE STT = @stt",
                 new SqlParameter("@stt", stt));
 
+            // Keep the physical QR scan for traceability, but detach it from the
+            // delivery row and mark it NG. This makes it ineligible for the next
+            // CNK and prevents Usp_Qrcode_Update_Stock2405 from consuming it as a
+            // valid delivery QR.
             Db.ExecuteNonQuery(
-                $"UPDATE [{docQRTable}] SET GIO = NULL, KETQUA = 'OK', STTBAN = NULL WHERE ISNULL(STTBAN, 0) = @stt AND KETQUA = 'DG'",
+                $"UPDATE [{docQRTable}] " +
+                "SET GIO = NULL, KETQUA = 'NG', STTBAN = NULL " +
+                "WHERE ISNULL(STTBAN, 0) = @stt",
                 new SqlParameter("@stt", stt));
         }
 
@@ -160,7 +171,7 @@ ORDER BY FIFO_RANK;";
                 "Usp_Qrcode_Take_LotYMVN2405",
                 new SqlParameter("@TMPTABLE", tmpTable),
                 new SqlParameter("@DOCQRTABLE", docQRTable),
-                new SqlParameter("@ISLOAISP", isLoaiSP ? 1 : 0));
+                new SqlParameter("@ISLOAIASP", isLoaiSP ? 1 : 0));
             return ds.Tables.Count > 0 ? ds.Tables[0] : new DataTable();
         }
     }
