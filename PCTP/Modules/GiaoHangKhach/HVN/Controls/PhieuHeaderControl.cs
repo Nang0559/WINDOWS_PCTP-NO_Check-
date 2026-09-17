@@ -78,7 +78,12 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
             if (radioGroup2 == null) return;
             radioGroup2.Properties.Items.Clear();
             for (int i = 0; i < danhSach.Count; i++) { var gio = danhSach[i]; radioGroup2.Properties.Items.Add(new RadioGroupItem(i, gio.MoTa, true, null, gio.Ma)); }
-            if (radioGroup2.Properties.Items.Count > 0) radioGroup2.EditValue = 0;
+            if (radioGroup2.Properties.Items.Count > 0)
+            {
+                radioGroup2.EditValue = 0;
+                if (CurrentGioXuat == null)
+                    CurrentGioXuat = danhSach[0];
+            }
         }
 
         public void BindGioXuatHN(IReadOnlyList<GioXuat> danhSach)
@@ -87,7 +92,8 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
             if (radio == null) return;
             radio.Properties.Items.Clear();
             for (int i = 0; i < danhSach.Count; i++) { var gio = danhSach[i]; radio.Properties.Items.Add(new RadioGroupItem(i, gio.MoTa, true, null, gio.Ma)); }
-            if (radio.Properties.Items.Count > 0) radio.EditValue = 0;
+            if (radio.Properties.Items.Count > 0 && CurrentGioXuat == null)
+                CurrentGioXuat = danhSach[0];
         }
 
         public void LockRadioExcept(string gioFCC)
