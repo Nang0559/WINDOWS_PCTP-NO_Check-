@@ -53,9 +53,8 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
             {
                 SetDocQrDisplayContext(IsLoaiSP, nhaMay, gioMoTa, label);
 
-                // This method is called after BindDocQRCode + SwitchToDocQRView,
-                // therefore the QR session has actually been initialized.
-                // Lock exactly the context used by that session.
+                // Called after BindDocQRCode + SwitchToDocQRView.
+                // At this point the QR session context is fixed.
                 LockDocQrDeliveryContext(
                     IsLoaiSP,
                     IsLoaiSP || CurrentGioXuat == null ? string.Empty : CurrentGioXuat.Ma);
@@ -76,15 +75,15 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
 
             _docQrDeliveryContextLocked = true;
 
+            // Delivery date is part of both MP and SP QR session identity.
             if (dateNX != null)
                 dateNX.Enabled = false;
 
-            // MP/SP is also part of the session identity. Do not allow switching
-            // from MP to SP (or vice versa) while QR rows exist.
+            // MP/SP is part of the session identity too.
             SetLoaiPhieuToggleEnabled(false);
 
-            // Plant is part of both MP and SP identity. Keep only the selected
-            // plant visible so the user cannot switch the QR session to another plant.
+            // Plant is part of both MP and SP identity. Only the selected plant
+            // remains visible while the QR session is active.
             if (tabPaneHVN != null && tabPaneHVN.SelectedPage != null && tabVP != null && tabHN != null)
             {
                 if (!_docQrLockedTabVisibilityCaptured)
@@ -99,8 +98,7 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
                 tabHN.PageVisible = !vpSelected;
             }
 
-            // SP has no hour context. Disable all hour choices.
-            // MP keeps only the exact hour used to create the QR session.
+            // SP has no hour context. MP keeps only the exact hour used by the QR session.
             LockDocQrHourGroups(isSP ? string.Empty : gioFCC);
         }
 
@@ -229,13 +227,25 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
             LoaiPhieuChanged -= GridCaptionContextChanged;
             LoaiPhieuChanged += GridCaptionContextChanged;
 
-            // Unlock when the QR session is explicitly cleared or completed.
             XoaToanBoQRClicked -= UnlockDocQrContextOnEvent;
             XoaToanBoQRClicked += UnlockDocQrContextOnEvent;
-            HoanThanhClicked -= UnlockDocQrContextOnEvent;
-            HoanThanhClicked += UnlockDocQrContextOnEvent;
+
+            // HoanThanhClicked is intentionally NOT used to unlock because the
+            // presenter may reject the completion while QR data is still pending.
+            // The actual QR grid visibility change is the completion boundary.
+            if (gridCtrDOCQrCODE != null)
+            {
+                gridCtrDOCQrCODE.VisibleChanged -= DocQrGridVisibilityChanged;
+                gridCtrDOCQrCODE.VisibleChanged += DocQrGridVisibilityChanged;
+            }
 
             BeginInvoke(new Action(UpdateGridCaptionFromCurrentState));
+        }
+
+        private void DocQrGridVisibilityChanged(object sender, EventArgs e)
+        {
+            if (gridCtrDOCQrCODE != null && !gridCtrDOCQrCODE.Visible)
+                UnlockDocQrDeliveryContext();
         }
 
         private void UnlockDocQrContextOnEvent(object sender, EventArgs e)
@@ -245,8 +255,6 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
 
         private void GridCaptionContextChanged(object sender, EventArgs e)
         {
-            // Once QR rows exist, the session context is immutable. Do not
-            // allow a header event to rewrite the QR session context.
             if (_docQrDeliveryContextLocked)
                 return;
 
