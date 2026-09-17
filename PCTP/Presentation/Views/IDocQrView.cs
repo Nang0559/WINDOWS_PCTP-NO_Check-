@@ -19,7 +19,6 @@ namespace PCTP.Presentation.Views
         void ClearDocQRRows();
         void SetDocQrScanInputEnabled(bool enabled);
         void HideDocQrQuantityEditPanel();
-        void SetDocQrDisplayContext(bool isSP, string nhaMay, string gioMoTa, string configuredLabel);
         event EventHandler DocQRCodeClicked;
         event EventHandler<string> QRCodeSubmitted;
         event EventHandler XoaDongQRClicked;
