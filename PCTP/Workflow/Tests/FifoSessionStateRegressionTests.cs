@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using PCTP.Modules.GiaoHangKhach.Services;
 
 namespace PCTP.Workflow.Tests
@@ -39,6 +38,15 @@ namespace PCTP.Workflow.Tests
             AssertTrue(state.TryConsume(1, "PART01", "PART01A-5", 5, out message), "A must pass");
             AssertTrue(state.TryConsume(2, "PART01", "PART01B-5", 5, out message), "B must pass after A");
             AssertTrue(state.TryConsume(3, "PART01", "PART01C-5", 5, out message), "C must pass after B");
+        }
+
+        private static void SingleLotUsesQrQuantity()
+        {
+            FifoSessionState state = CreateState(5);
+            string message;
+
+            AssertTrue(state.TryConsume(1, "PART01", "PART01A", 5, out message), "single LOT must use QR quantity");
+            AssertTrue(!state.TryConsume(2, "PART01", "PART01A", 1, out message), "consumed single LOT must no longer be available");
         }
 
         private static void WrongOrderIsRejectedWithoutConsumption()
@@ -81,6 +89,15 @@ namespace PCTP.Workflow.Tests
             AssertTrue(state.TryConsume(2, "PART01", "PART01A-5", 5, out message), "rejected scan must not consume FIFO budget");
         }
 
+        private static void RescanSameSttIsAtomic()
+        {
+            FifoSessionState state = CreateState(5);
+            string message;
+
+            AssertTrue(state.TryConsume(1, "PART01", "PART01A-3", 3, out message), "first scan must pass");
+            AssertTrue(state.TryConsume(1, "PART01", "PART01A-5", 5, out message), "same STT must release previous reservation before re-evaluation");
+        }
+
         private static void ReleaseRestoresReservation()
         {
             FifoSessionState state = CreateState(5);
@@ -95,10 +112,12 @@ namespace PCTP.Workflow.Tests
         {
             _passed = 0;
             CorrectOrderConsumesAllLots();
+            SingleLotUsesQrQuantity();
             WrongOrderIsRejectedWithoutConsumption();
             ValidCompoundLotIsAccepted();
             MalformedCompoundLotIsRejectedStrictly();
             RejectedScanDoesNotConsumeStockBudget();
+            RescanSameSttIsAtomic();
             ReleaseRestoresReservation();
             return _passed;
         }
