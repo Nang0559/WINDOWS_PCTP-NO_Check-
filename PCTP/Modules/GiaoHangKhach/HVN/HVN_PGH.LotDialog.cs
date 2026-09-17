@@ -1,4 +1,5 @@
 using DevExpress.XtraBars.Docking2010;
+using DevExpress.XtraEditors;
 using DevExpress.XtraEditors.Controls;
 using DevExpress.XtraGrid.Views.Base;
 using DevExpress.XtraGrid.Views.Grid;
@@ -38,8 +39,6 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
 
         private void ApplySpModeUi(bool isSP)
         {
-            // The legacy hour selector is the sidePanel1/tabPaneHVN surface.
-            // SP is day + plant + dock, so the entire hour-selection surface is hidden.
             if (sidePanel1 != null)
             {
                 sidePanel1.Visible = !isSP;
@@ -64,8 +63,6 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
                 RDO_GXHN.Enabled = !isSP;
             }
         }
-
-        // ---- Restored legacy view contract / designer event handlers ----
 
         public void BindGioXuatCheckList(List<string> danhSachGio)
         {
