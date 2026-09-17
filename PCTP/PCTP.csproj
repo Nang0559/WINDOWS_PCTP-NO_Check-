@@ -344,6 +344,7 @@
     <Compile Include="Modules\GiaoHangKhach\HVN\HVN_PGH.DocQrUi.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="Modules\GiaoHangKhach\Repositories\PhieuCurrentQrFifoValidationRepository.cs" />
     <Compile Include="Modules\GiaoHangKhach\Services\CustomerAddressService.cs" />
     <Compile Include="Modules\GiaoHangKhach\Services\FifoSessionService.cs" />
     <Compile Include="Modules\GiaoHangKhach\Services\FifoSessionState.cs" />
@@ -617,7 +618,6 @@
     <Compile Include="Shared\Common\ItemFifoConfig.cs" />
     <Compile Include="Shared\Enums\IfsOrderQueryMode.cs" />
     <Compile Include="Shared\Helpers\GioHelpper.cs" />
-    <Compile Include="Shared\Models\ChonLotResult.cs" />
     <Compile Include="Shared\Models\HangChoGiao.cs" />
     <Compile Include="Modules\XuLyHangLoi\Models\PhieuGiaoUngVienInfo.cs" />
     <Compile Include="Modules\XuLyHangLoi\Models\PhieuTraHang.cs" />
