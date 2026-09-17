@@ -9,15 +9,9 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
     {
         private bool _spModeUiWired;
 
-        /// <summary>
-        /// View-bound duplicate LOT selection. ListView construction is owned by
-        /// PhieuDialogControl, not by the presenter/service.
-        /// </summary>
         public int ShowChonSttTrungMa(DataTable danhSachTrung)
             => _phieuDialogControl.ShowChonSttTrungMa(danhSachTrung);
 
-        // This partial file is already part of the legacy csproj, so the SP-mode
-        // UI behavior stays inside the existing compile surface.
         private void WireSpModeUi()
         {
             if (_spModeUiWired || _phieuHeaderControl == null)
@@ -38,60 +32,32 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
 
         private void ApplySpModeUi(bool isSP)
         {
-            var content = _phieuHeaderControl.ContentControl;
-            if (content == null)
-                return;
-
-            // The legacy layout puts both hour RadioGroups inside tabPaneHVN:
-            //   sidePanel1 -> tabPaneHVN -> tabVP/groupControl2/radioGroup2
-            //                         -> tabHN/groupControl1/RDO_GXHN
-            // For SP the form is day + plant + dock, therefore the whole
-            // hour-selection TabPane must disappear, not only the RadioGroup.
-            var hourPane = FindSpModeControl<Control>(content, "tabPaneHVN");
-            if (hourPane != null)
+            // Hide the real legacy layout container. The RadioGroups are nested
+            // inside tabPaneHVN -> tabVP/tabHN -> groupControl, so hiding only
+            // the RadioGroup leaves the hour panel/header area visible.
+            if (sidePanel1 != null)
             {
-                hourPane.Visible = !isSP;
-                hourPane.Enabled = !isSP;
+                sidePanel1.Visible = !isSP;
+                sidePanel1.Enabled = !isSP;
             }
 
-            // Keep the individual controls synchronized as well. This protects
-            // against a designer/layout change where the RadioGroups are hosted
-            // outside the TabPane.
-            var radioVp = FindSpModeControl<Control>(content, "radioGroup2");
-            var radioHn = FindSpModeControl<Control>(content, "RDO_GXHN");
-
-            if (radioVp != null)
+            if (tabPaneHVN != null)
             {
-                radioVp.Visible = !isSP;
-                radioVp.Enabled = !isSP;
+                tabPaneHVN.Visible = !isSP;
+                tabPaneHVN.Enabled = !isSP;
             }
 
-            if (radioHn != null)
+            if (radioGroup2 != null)
             {
-                radioHn.Visible = !isSP;
-                radioHn.Enabled = !isSP;
-            }
-        }
-
-        private static T FindSpModeControl<T>(Control parent, string name) where T : Control
-        {
-            if (parent == null)
-                return null;
-
-            if (string.Equals(parent.Name, name, StringComparison.OrdinalIgnoreCase))
-                return parent as T;
-
-            foreach (Control child in parent.Controls)
-            {
-                if (string.Equals(child.Name, name, StringComparison.OrdinalIgnoreCase))
-                    return child as T;
-
-                var nested = FindSpModeControl<T>(child, name);
-                if (nested != null)
-                    return nested;
+                radioGroup2.Visible = !isSP;
+                radioGroup2.Enabled = !isSP;
             }
 
-            return null;
+            if (RDO_GXHN != null)
+            {
+                RDO_GXHN.Visible = !isSP;
+                RDO_GXHN.Enabled = !isSP;
+            }
         }
     }
 }
