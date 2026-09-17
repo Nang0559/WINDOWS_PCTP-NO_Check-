@@ -78,12 +78,22 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             Db.ValidateTableName(tenBan);
             Db.ValidateTableName(docQRTable);
 
+            // The rejected delivery row must become an explicit NG candidate so
+            // the FIFO checker and the CNK stored procedure cannot pick it again.
+            // STATUSDOC keeps the document-level reason for UI/history.
             Db.ExecuteNonQuery(
-                $"UPDATE [{tenBan}] SET LOT = '', STATUSDOC = 'NG', TTPHIEU = NULL WHERE STT = @stt AND ISNULL(STATUS, '') <> 'OK'",
+                $"UPDATE [{tenBan}] " +
+                "SET LOT = '', STATUS = 'NG', STATUSDOC = 'NG', TTPHIEU = NULL " +
+                "WHERE STT = @stt AND ISNULL(STATUS, '') <> 'OK'",
                 new SqlParameter("@stt", stt));
 
+            // A FIFO-rejected QR must no longer be a delivery candidate. Keep the
+            // scan row for traceability, but clear its delivery linkage and mark it
+            // NG instead of the previous 'OK' state, which could let CNK consume it.
             Db.ExecuteNonQuery(
-                $"UPDATE [{docQRTable}] SET GIO = NULL, KETQUA = 'OK', STTBAN = NULL WHERE ISNULL(STTBAN, 0) = @stt AND KETQUA = 'DG'",
+                $"UPDATE [{docQRTable}] " +
+                "SET GIO = NULL, KETQUA = 'NG', STTBAN = NULL " +
+                "WHERE ISNULL(STTBAN, 0) = @stt AND KETQUA = 'DG'",
                 new SqlParameter("@stt", stt));
         }
 
@@ -160,7 +170,7 @@ ORDER BY FIFO_RANK;";
                 "Usp_Qrcode_Take_LotYMVN2405",
                 new SqlParameter("@TMPTABLE", tmpTable),
                 new SqlParameter("@DOCQRTABLE", docQRTable),
-                new SqlParameter("@ISLOAISP", isLoaiSP ? 1 : 0));
+                new SqlParameter("@ISLOAIASP", isLoaiSP ? 1 : 0));
             return ds.Tables.Count > 0 ? ds.Tables[0] : new DataTable();
         }
     }
