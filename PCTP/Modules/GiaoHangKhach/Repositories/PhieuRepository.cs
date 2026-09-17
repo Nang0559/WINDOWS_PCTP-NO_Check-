@@ -55,12 +55,19 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         public DataTable GetDonHangChuaLot(string tenBan, string docQRTable) => _validation.GetDonHangChuaLot(tenBan, docQRTable);
         public List<FifoViolation> CheckFifoViolations(string tenBangTmp) => _validation.CheckFifoViolations(tenBangTmp);
 
+        public List<FifoViolation> EvaluateFifoViolations(string tmpTable, string docQRTable)
+        {
+            _db.ValidateTableName(tmpTable);
+            _db.ValidateTableName(docQRTable);
+            return _validation.CheckFifoViolations(tmpTable) ?? new List<FifoViolation>();
+        }
+
         public List<FifoViolation> ReleaseFifoViolations(string tmpTable, string docQRTable)
         {
             _db.ValidateTableName(tmpTable);
             _db.ValidateTableName(docQRTable);
 
-            var violations = _validation.CheckFifoViolations(tmpTable);
+            var violations = _validation.CheckFifoViolations(tmpTable) ?? new List<FifoViolation>();
             foreach (FifoViolation violation in violations)
             {
                 if (violation == null || violation.Stt <= 0) continue;
