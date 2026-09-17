@@ -22,7 +22,7 @@ using System.Linq;
 
 namespace PCTP.Modules.GiaoHangKhach.Services
 {
-    public class PhieuService: IPhieuService
+    public class PhieuService : IPhieuService
     {
         private readonly IPhieuRepository _phieuRepo;
         private readonly IIFSRepository _ifsRepo;
@@ -103,8 +103,11 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             if (!DateTime.TryParse(ngayGiao, out DateTime dt) || dt.Year < 2000) return;
             bool isSP = _isLoaiSP;
             string ngayXuat = dt.ToString("ddMMyyyy");
-            string gioFccSP = _cfg.Delivery.LoadTheoNgay ? "" : gioFcc;
-            string gioMoTaSP = _cfg.Delivery.LoadTheoNgay ? "Tất cả ca" : gioFccMoTa;
+
+            // SP là luồng ngày + nhà máy + dock, không phụ thuộc giờ đang chọn trên UI.
+            string gioFccSP = isSP || _cfg.Delivery.LoadTheoNgay ? "" : gioFcc;
+            string gioMoTaSP = isSP || _cfg.Delivery.LoadTheoNgay ? "Tất cả ca" : gioFccMoTa;
+
             DataTable ifs;
             bool coBangRieng = _cfg.Delivery.DanhSachAddNm != null && _cfg.Delivery.DanhSachAddNm.Count > 1;
             if (coBangRieng) ifs = _ifsRepo.GetFullCustomerOrder(ngayXuat, _cfg);
