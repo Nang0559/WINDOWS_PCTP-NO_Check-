@@ -89,12 +89,12 @@ namespace PCTP.Presentation.Presenters
         {
             if (_c.Cfg.Delivery.CoGear)
             {
-                using (var frm = new FRM_UploadMikrunSP(new SQLPROVIDER(), _c.Cfg))
+                using (var frm = new FRM_UploadMikrun(new SQLPROVIDER(), _c.Cfg))
                     frm.ShowDialog();
             }
             else if (_c.CustomerBehavior.UsesDateBasedOrderUpload)
             {
-                using (var frm = new FRM_UploadMikrunSP(
+                using (var frm = new FRM_UploadMikrun(
                     new SQLPROVIDER(),
                     _c.Cfg,
                     targetTable: _c.CustomerBehavior.GetOrderUploadTable(),

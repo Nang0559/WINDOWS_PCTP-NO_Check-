@@ -57,8 +57,8 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
 
         public List<FifoViolation> ReleaseFifoViolations(string tmpTable, string docQRTable)
         {
-            Db.ValidateTableName(tmpTable);
-            Db.ValidateTableName(docQRTable);
+            _db.ValidateTableName(tmpTable);
+            _db.ValidateTableName(docQRTable);
 
             var violations = _validation.CheckFifoViolations(tmpTable);
             foreach (FifoViolation violation in violations)

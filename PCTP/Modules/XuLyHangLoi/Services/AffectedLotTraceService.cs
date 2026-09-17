@@ -3,6 +3,7 @@ using PCTP.Modules.XuLyHangLoi.Enums;
 using PCTP.Modules.XuLyHangLoi.Models;
 using PCTP.Modules.XuLyHangLoi.Repository;
 using PCTP.Shared.Common;
+using PCTP.Shared.Enums;
 using System;
 using System.Collections.Generic;
 using System.Data;
