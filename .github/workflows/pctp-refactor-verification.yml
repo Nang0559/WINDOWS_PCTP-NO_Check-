@@ -10,134 +10,66 @@ on:
       - feature/baocao-deliverytrace-refactor
 
 jobs:
-  build-and-architecture-check:
+  fifo-regression:
     runs-on: windows-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Setup MSBuild
-        uses: microsoft/setup-msbuild@v2
-
-      - name: Setup NuGet
-        uses: NuGet/setup-nuget@v2
-
-      - name: Restore packages
-        shell: pwsh
-        run: nuget restore "WINDOWS_PCTP(NO_Check).sln"
-
-      - name: Build PCTP
-        shell: pwsh
-        run: msbuild "WINDOWS_PCTP(NO_Check).sln" /m /p:Configuration=Release /p:Platform="Any CPU" /p:RestorePackages=false
-
       - name: Run FIFO regression tests
         shell: pwsh
         run: dotnet run --project PCTP/Workflow/Tests/FifoSessionStateRegressionTests.csproj --configuration Release
 
+  build-and-architecture-check:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+      - name: Setup NuGet
+        uses: NuGet/setup-nuget@v2
+      - name: Restore packages
+        shell: pwsh
+        run: nuget restore "WINDOWS_PCTP(NO_Check).sln"
+      - name: Build PCTP
+        shell: pwsh
+        run: msbuild "WINDOWS_PCTP(NO_Check).sln" /m /p:Configuration=Release /p:Platform="Any CPU" /p:RestorePackages=false
       - name: Verify delivery architecture boundaries
         shell: pwsh
         run: |
           $root = Join-Path $env:GITHUB_WORKSPACE 'PCTP'
-          $newAreas = @(
-            (Join-Path $root 'Shell'),
-            (Join-Path $root 'Modules\BaoCao'),
-            (Join-Path $root 'Modules\GiaoHangKhach')
-          )
-
-          $forbidden = @(
-            'GIAOHANGYMN',
-            'YAMAHAQRCDE_SP'
-          )
-
-          $files = foreach ($area in $newAreas) {
-            if (Test-Path $area) {
-              Get-ChildItem $area -Recurse -File -Include *.cs,*.csproj,*.md
-            }
-          }
-
+          $newAreas = @((Join-Path $root 'Shell'),(Join-Path $root 'Modules\BaoCao'),(Join-Path $root 'Modules\GiaoHangKhach'))
+          $forbidden = @('GIAOHANGYMN','YAMAHAQRCDE_SP')
+          $files = foreach ($area in $newAreas) { if (Test-Path $area) { Get-ChildItem $area -Recurse -File -Include *.cs,*.csproj,*.md } }
           foreach ($file in $files) {
             $text = Get-Content $file.FullName -Raw
-            foreach ($token in $forbidden) {
-              if ($text -match [regex]::Escape($token)) {
-                throw "Legacy delivery dependency '$token' found in new architecture area: $($file.FullName)"
-              }
-            }
+            foreach ($token in $forbidden) { if ($text -match [regex]::Escape($token)) { throw "Legacy delivery dependency '$token' found in $($file.FullName)" } }
           }
-
           $hvnForm = Join-Path $root 'Modules\GiaoHangKhach\HVN\HVN_PGH.cs'
           if (Test-Path $hvnForm) {
             $hvnText = Get-Content $hvnForm -Raw
-            if ($hvnText -match 'IFSRepository\s*\.\s*Create\s*\(') {
-              throw "HVN_PGH must not create IFSRepository directly; use the customer delivery module boundary."
-            }
+            if ($hvnText -match 'IFSRepository\s*\.\s*Create\s*\(') { throw 'HVN_PGH must not create IFSRepository directly.' }
           }
-
       - name: Verify unified receiving boundary
         shell: pwsh
         run: |
           $root = Join-Path $env:GITHUB_WORKSPACE 'PCTP'
           $receivingForm = Join-Path $root 'Modules\KhoVatLy\FormEnterItemSV.cs'
           $receivingService = Join-Path $root 'Modules\NhapKho\Services\NhapTpReceivingService.cs'
-
-          if (-not (Test-Path $receivingForm)) {
-            throw "Unified receiving UI is missing: $receivingForm"
-          }
-          if (-not (Test-Path $receivingService)) {
-            throw "Unified receiving service is missing: $receivingService"
-          }
-
+          if (-not (Test-Path $receivingForm)) { throw "Unified receiving UI is missing: $receivingForm" }
+          if (-not (Test-Path $receivingService)) { throw "Unified receiving service is missing: $receivingService" }
           $formText = Get-Content $receivingForm -Raw
-          $forbiddenPatterns = @(
-            'new\s+StockTpRepository\s*\(',
-            'new\s+PhieuTrackingRepository\s*\(',
-            'new\s+StockTpCaseRepository\s*\(',
-            'new\s+StockTpProductionRepository\s*\(',
-            'new\s+StockTpStatusRepository\s*\(',
-            'new\s+StockHistoryRepository\s*\(',
-            '\bIStockMovementService\s+\w+',
-            'StockService\s*\.\s*ImportLotToSlot\s*\('
-          )
-
-          foreach ($pattern in $forbiddenPatterns) {
-            if ($formText -match $pattern) {
-              throw "FormEnterItemSV has a forbidden direct receiving dependency: $pattern"
-            }
-          }
-
+          $forbiddenPatterns = @('new\s+StockTpRepository\s*\(','new\s+PhieuTrackingRepository\s*\(','new\s+StockTpCaseRepository\s*\(','new\s+StockTpProductionRepository\s*\(','new\s+StockTpStatusRepository\s*\(','new\s+StockHistoryRepository\s*\(','\bIStockMovementService\s+\w+','StockService\s*\.\s*ImportLotToSlot\s*\(')
+          foreach ($pattern in $forbiddenPatterns) { if ($formText -match $pattern) { throw "FormEnterItemSV has a forbidden direct receiving dependency: $pattern" } }
           $serviceText = Get-Content $receivingService -Raw
-          if ($serviceText -notmatch '_uow\.Begin\(\)') {
-            throw "NhapTpReceivingService must own the receiving transaction boundary."
-          }
-          if ($serviceText -notmatch '_stockMovement\.Receive\(') {
-            throw "NhapTpReceivingService must route stock mutation through IStockMovementService.Receive."
-          }
-          if ($serviceText -notmatch '_phieuRepo\.InsertPhieuMoi\(') {
-            throw "NhapTpReceivingService must persist the receiving tracking record."
-          }
-          if ($serviceText -notmatch '_caseRepo\.InsertCaseHistory\(') {
-            throw "NhapTpReceivingService must persist the production case history."
-          }
-          if ($serviceText -notmatch '_historyRepo\.SaveHistory\(') {
-            throw "NhapTpReceivingService must persist stock history in the same workflow."
-          }
-
-          # LOT reopen must be deferred until inside the receiving transaction.
-          if ($serviceText -match 'public void MoLaiLot[\s\S]{0,800}_stockTpStatus\.MoLaiLot\(') {
-            throw "MoLaiLot must not mutate STOCKTP directly before receiving; defer the mutation to NhapTpVaoSlot."
-          }
-
+          if ($serviceText -notmatch '_uow\.Begin\(\)') { throw 'NhapTpReceivingService must own the receiving transaction boundary.' }
+          if ($serviceText -notmatch '_stockMovement\.Receive\(') { throw 'NhapTpReceivingService must route stock mutation through IStockMovementService.Receive.' }
+          if ($serviceText -notmatch '_phieuRepo\.InsertPhieuMoi\(') { throw 'NhapTpReceivingService must persist the receiving tracking record.' }
+          if ($serviceText -notmatch '_caseRepo\.InsertCaseHistory\(') { throw 'NhapTpReceivingService must persist the production case history.' }
+          if ($serviceText -notmatch '_historyRepo\.SaveHistory\(') { throw 'NhapTpReceivingService must persist stock history.' }
+          if ($serviceText -match 'public void MoLaiLot[\s\S]{0,800}_stockTpStatus\.MoLaiLot\(') { throw 'MoLaiLot must defer mutation to NhapTpVaoSlot.' }
       - name: Verify DeliveryTrace contracts
         shell: pwsh
         run: |
-          $required = @(
-            'PCTP\Modules\BaoCao\Application\Contracts\Repositories\IDeliveryTraceRepository.cs',
-            'PCTP\Modules\BaoCao\Infrastructure\Repositories\DeliveryTraceRepository.cs',
-            'PCTP\Modules\BaoCao\Infrastructure\Queries\DeliveryTraceReadService.cs'
-          )
-
-          foreach ($path in $required) {
-            if (-not (Test-Path (Join-Path $env:GITHUB_WORKSPACE $path))) {
-              throw "Required DeliveryTrace contract/file is missing: $path"
-            }
-          }
+          $required = @('PCTP\Modules\BaoCao\Application\Contracts\Repositories\IDeliveryTraceRepository.cs','PCTP\Modules\BaoCao\Infrastructure\Repositories\DeliveryTraceRepository.cs','PCTP\Modules\BaoCao\Infrastructure\Queries\DeliveryTraceReadService.cs')
+          foreach ($path in $required) { if (-not (Test-Path (Join-Path $env:GITHUB_WORKSPACE $path))) { throw "Required DeliveryTrace contract/file is missing: $path" } }
