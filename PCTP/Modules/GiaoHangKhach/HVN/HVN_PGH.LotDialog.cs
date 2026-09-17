@@ -110,16 +110,5 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
 
             return null;
         }
-
-        /// <summary>
-        /// Wire the SP UI after the normal form Load handlers have initialized
-        /// the header control. This avoids a field initializer invoking an
-        /// instance method before the constructor has run.
-        /// </summary>
-        protected override void OnLoad(EventArgs e)
-        {
-            base.OnLoad(e);
-            WireSpModeUi();
-        }
     }
 }
