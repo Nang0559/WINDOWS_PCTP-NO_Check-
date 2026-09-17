@@ -24,6 +24,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         private readonly IPhieuLuuTruRepository _luuTru;
         private readonly IPhieuGiaoDBRepository _giaoDB;
         private readonly PhieuSqlExecutor _db;
+        private readonly PhieuCurrentQrFifoValidationRepository _currentQrFifo;
 
         public PhieuRepository(
             PhieuSqlExecutor db,
@@ -37,6 +38,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         {
             _db = db ?? throw new ArgumentNullException(nameof(db));
             _validation = new PhieuValidationRepository(db, uow);
+            _currentQrFifo = new PhieuCurrentQrFifoValidationRepository(db, uow);
             _tmp = new PhieuTmpRepository(db, uow);
             _lot = new PhieuLotRepository(db, uow);
             _giaoDB = new PhieuGiaoDBRepository(db, uow);
@@ -60,31 +62,12 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             _db.ValidateTableName(tmpTable);
             _db.ValidateTableName(docQRTable);
 
-            List<FifoViolation> evaluated =
-                _validation.CheckFifoViolations(tmpTable)
+            // CNK must validate FIFO against the exact QR-linked delivery rows.
+            // This is intentionally separate from the legacy validation API so
+            // rows without current QR linkage cannot consume FIFO allocation or
+            // create a false FIFO/stock interaction.
+            return _currentQrFifo.Check(tmpTable, docQRTable)
                 ?? new List<FifoViolation>();
-
-            if (evaluated.Count == 0)
-                return evaluated;
-
-            // FIFO CNK is only about QR rows belonging to the current delivery row.
-            // STT is the authoritative identity. Never infer the target row from
-            // the focused GridView row, MAHANG, or MAHANG + SOLUONG.
-            var currentQrStt = new HashSet<int>();
-            DataTable qrRows = _db.LoadData(
-                $@"SELECT DISTINCT STTBAN
-                   FROM [{docQRTable}]
-                   WHERE ISNULL(STTBAN, 0) > 0");
-
-            foreach (DataRow row in qrRows.Rows)
-            {
-                if (row["STTBAN"] == DBNull.Value) continue;
-                if (int.TryParse(row["STTBAN"].ToString(), out int stt) && stt > 0)
-                    currentQrStt.Add(stt);
-            }
-
-            return evaluated
-                .FindAll(v => v != null && v.Stt > 0 && currentQrStt.Contains(v.Stt));
         }
 
         public void ReleaseFifoViolations(string tmpTable, string docQRTable, IReadOnlyList<FifoViolation> violations)
@@ -104,9 +87,6 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                 if (violation == null || violation.Stt <= 0) continue;
                 if (!affected.Add(violation.Stt)) continue;
 
-                // LayLaiLotNo itself also verifies that this STT still owns a
-                // current DOCQR row. This makes the mutation safe against a stale
-                // confirmation or an unrelated focused GridView row.
                 _lot.LayLaiLotNo(violation.Stt, tmpTable, docQRTable);
             }
         }
