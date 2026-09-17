@@ -9,8 +9,7 @@ namespace PCTP.Domain.Events
     /// authoritative FIFO release at CNK.
     ///
     /// This request does not mutate database state. The UI completes it through
-    /// Confirm() or Cancel(); the CNK service then continues only after a
-    /// positive decision.
+    /// Confirm() or Cancel().
     ///
     /// The type remains under Domain.Events only because the current IEventBus
     /// transports DomainEvent instances. It is not a business-state domain event.
@@ -21,6 +20,7 @@ namespace PCTP.Domain.Events
             new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
         public IReadOnlyList<FifoViolation> Violations { get; }
+        public bool IsCompleted => _decision.Task.IsCompleted;
 
         public FifoReleaseConfirmationRequestedEvent(IReadOnlyList<FifoViolation> violations)
         {
