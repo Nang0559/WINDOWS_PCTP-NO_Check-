@@ -55,8 +55,8 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
         }
 
         /// <summary>
-        /// Updates GridBand3 and the QR instruction according to the current plant,
-        /// selected hour and order category.
+        /// Updates the actual order-grid band and the QR instruction according to
+        /// the current plant, selected hour and order category.
         ///
         /// MP: plant + selected hour; FCC -> customer label.
         /// SP: plant + all-day; FCC only, customer label is not required.
@@ -77,12 +77,22 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
                 ? "Tất cả ca"
                 : gioMoTa.Trim();
 
-            // gridBandDH is GridBand3 in the current designer.
-            if (gridBandDH != null)
+            string caption = isSP
+                ? string.Format("{0} - SP (Tất cả ca)", plant)
+                : string.Format("{0} - {1}", plant, gio);
+
+            // The order grid was migrated into PhieuGridControl. The control owns
+            // the real GridBand instance shown on screen, so update it through its
+            // boundary instead of relying only on the legacy parent-field reference.
+            if (_phieuGridControl != null)
             {
-                gridBandDH.Caption = isSP
-                    ? string.Format("{0} - SP (Tất cả ca)", plant)
-                    : string.Format("{0} - {1}", plant, gio);
+                _phieuGridControl.SetCaption(caption);
+                _phieuGridControl.OrderView.LayoutChanged();
+            }
+            else if (gridBandDH != null)
+            {
+                // Fallback for the short period before the grid migration is ready.
+                gridBandDH.Caption = caption;
             }
 
             if (lblDocQrcode != null)
