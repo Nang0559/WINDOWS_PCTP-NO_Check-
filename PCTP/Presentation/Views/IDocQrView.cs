@@ -22,7 +22,7 @@ namespace PCTP.Presentation.Views
         void LockDocQrDeliveryContext(bool isSP, string gioFCC);
         void UnlockDocQrDeliveryContext();
         event EventHandler DocQRCodeClicked;
-        event EventHandler<string> QRCodeSubmitted;
+        event EventHandler QRCodeSubmitted;
         event EventHandler XoaDongQRClicked;
         event EventHandler XoaToanBoQRClicked;
     }
