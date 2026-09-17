@@ -47,11 +47,58 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
                 ? _cfg.Delivery.LabelDocQR
                 : "";
 
-            // SwitchToDocQRView() currently uses BeginInvoke to restore the view.
-            // Reapply this context after that UI transition so the old designer caption
-            // and old QR instruction cannot overwrite the current SP/MP context.
             BeginInvoke(new Action(() =>
                 SetDocQrDisplayContext(IsLoaiSP, nhaMay, gioMoTa, label)));
+        }
+
+        /// <summary>
+        /// Hooks the real header state-change events once the form is shown.
+        /// GridBand3 must be correct immediately when the Phiếu screen opens and
+        /// must change again when the user changes hour, plant or MP/SP.
+        /// </summary>
+        protected override void OnShown(EventArgs e)
+        {
+            base.OnShown(e);
+
+            GioXuatChanged -= GridCaptionContextChanged;
+            GioXuatChanged += GridCaptionContextChanged;
+
+            TabChanged -= GridCaptionContextChanged;
+            TabChanged += GridCaptionContextChanged;
+
+            LoaiPhieuChanged -= GridCaptionContextChanged;
+            LoaiPhieuChanged += GridCaptionContextChanged;
+
+            BeginInvoke(new Action(UpdateGridCaptionFromCurrentState));
+        }
+
+        private void GridCaptionContextChanged(object sender, EventArgs e)
+        {
+            UpdateGridCaptionFromCurrentState();
+        }
+
+        private void UpdateGridCaptionFromCurrentState()
+        {
+            if (IsDisposed || _phieuGridControl == null)
+                return;
+
+            string nhaMay = tabPaneHVN != null && tabPaneHVN.SelectedPage != null
+                ? tabPaneHVN.SelectedPage.Caption
+                : "Nhà máy";
+
+            string gioMoTa = CurrentGioXuat != null
+                ? CurrentGioXuat.MoTa
+                : "Tất cả ca";
+
+            string configuredLabel = _cfg != null && _cfg.Delivery != null
+                ? _cfg.Delivery.LabelDocQR
+                : "";
+
+            SetDocQrDisplayContext(
+                IsLoaiSP,
+                nhaMay,
+                gioMoTa,
+                configuredLabel);
         }
 
         /// <summary>
@@ -81,16 +128,12 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
                 ? string.Format("{0} - SP (Tất cả ca)", plant)
                 : string.Format("{0} - {1}", plant, gio);
 
-            // The order grid was migrated into PhieuGridControl. The control owns
-            // the real GridBand instance shown on screen, so update it through its
-            // boundary instead of relying only on the legacy parent-field reference.
             if (_phieuGridControl != null)
             {
                 _phieuGridControl.SetCaption(caption);
             }
             else if (gridBandDH != null)
             {
-                // Fallback for the short period before the grid migration is ready.
                 gridBandDH.Caption = caption;
             }
 
