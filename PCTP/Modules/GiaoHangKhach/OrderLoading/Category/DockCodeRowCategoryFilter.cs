@@ -7,9 +7,10 @@ namespace PCTP.Modules.GiaoHangKhach.OrderLoading.Category
 {
     /// <summary>
     /// Lọc MP/SP theo DockCode cấu hình.
-    /// IFS có thể trả cột DOCKCODE; một số luồng/table cũ dùng CUA.
-    /// Ưu tiên DOCKCODE để phản ánh đúng điều kiện nghiệp vụ dockcode = DockCodeSP,
-    /// fallback CUA để giữ tương thích dữ liệu hiện hữu của TableOrder/IFS legacy.
+    /// IFS hiện tại trả DOCK_CODE dưới alias TRUYEN; một số luồng/table
+    /// có thể trả DOCKCODE hoặc DOCK_CODE trực tiếp, dữ liệu legacy dùng CUA.
+    /// Ưu tiên cột phản ánh DOCK_CODE thật để điều kiện SP của 100001
+    /// thực hiện đúng: DOCK_CODE = cfg.Delivery.DockCodeSP (HVN).
     /// </summary>
     public class DockCodeRowCategoryFilter : IRowCategoryFilter
     {
@@ -37,8 +38,12 @@ namespace PCTP.Modules.GiaoHangKhach.OrderLoading.Category
 
         private static string ResolveDockColumn(DataTable data)
         {
+            // IFSRepository.GetCustomerOrderJoin currently aliases col.DOCK_CODE as TRUYEN.
             if (data.Columns.Contains("DOCKCODE")) return "DOCKCODE";
             if (data.Columns.Contains("DOCK_CODE")) return "DOCK_CODE";
+            if (data.Columns.Contains("TRUYEN")) return "TRUYEN";
+            // Legacy/table-order fallback. CUA is SUB_DOCK_CODE, not the IFS DOCK_CODE,
+            // but is retained only for old datasets that do not expose DOCK_CODE.
             if (data.Columns.Contains("CUA")) return "CUA";
             return null;
         }
