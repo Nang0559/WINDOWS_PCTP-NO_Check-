@@ -34,22 +34,21 @@ namespace PCTP.Modules.GiaoHangKhach.Services
 
             if (fifoViolations.Count > 0)
             {
-                // The dialog receives the exact violation snapshot that was evaluated.
-                // OK/Cancel is therefore deterministic and cannot silently release a
-                // different set of rows because FIFO was re-evaluated afterwards.
+                // IMPORTANT: normal Publish() is asynchronous in InProcessEventBus.
+                // FIFO confirmation is a blocking business gate, so it must wait until
+                // the UI handler has actually returned OK/Cancel.
                 var confirmation = new FifoReleaseConfirmationRequestedEvent(fifoViolations);
-                _bus.Publish(confirmation);
+                _bus.PublishSynchronous(confirmation);
 
-                // Fail closed if the UI did not answer. Never continue to CNK in this state.
+                // Fail closed if no UI handler exists or the user cancelled.
                 if (!confirmation.IsCompleted || !confirmation.WaitForDecision())
                     return;
 
-                // Phase 2: mutate only the rows the user actually confirmed.
+                // Phase 2: mutate only the exact rows shown and confirmed by the user.
                 _phieuRepo.ReleaseFifoViolations(tmpTable, docQrTable, fifoViolations);
             }
 
-            // Phase 3: CNK sees only the remaining valid rows. FIFO-invalid rows are
-            // explicitly marked NG/detached from DOCQR by ReleaseFifoViolations.
+            // Phase 3: CNK sees only the remaining valid rows.
             int soLot;
             DataTable errors;
 
@@ -62,8 +61,6 @@ namespace PCTP.Modules.GiaoHangKhach.Services
                 soLot = _phieuRepo.CapNhapKho(gioGiaoFcc, nhaMay, tmpTable, docQrTable, out errors);
             }
 
-            // Any shortage reported here belongs to the remaining valid candidates;
-            // FIFO-invalid rows are no longer part of the CNK candidate set.
             _bus.Publish(new KhoUpdatedEvent(soLot, errors));
         }
     }
