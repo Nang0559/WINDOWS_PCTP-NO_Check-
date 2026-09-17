@@ -17,7 +17,6 @@ using PCTP.Modules.XuLyHangLoi.Services;
 using PCTP.Shared.Common;
 using PCTP.Shared.Models;
 using PCTP.Shared.UiMd;
-
 using PCTP.YMN;
 using System;
 using System.Windows.Forms;
@@ -48,21 +47,12 @@ namespace PCTP.Common
             f.Show();
         }
 
-        public static void OpenNhapKhoTienTrinh(
-            IWin32Window owner,
-            MainStockSV mainStock)
+        public static void OpenNhapKhoTienTrinh(IWin32Window owner, MainStockSV mainStock)
         {
-            if (mainStock == null)
-                throw new ArgumentNullException(nameof(mainStock));
-
+            if (mainStock == null) throw new ArgumentNullException(nameof(mainStock));
             var module = MainStockModuleFactory.Build();
-
-            using (var f = new FormNhapKhoTienTrinh(
-                mainStock,
-                module.DashboardService))
-            {
+            using (var f = new FormNhapKhoTienTrinh(mainStock, module.DashboardService))
                 f.ShowDialog(owner);
-            }
         }
 
         public static void OpenQCDinhHuong(IWin32Window owner, int? preselectId = null)
@@ -89,16 +79,9 @@ namespace PCTP.Common
             var coreHistoryRepo = new StockHistoryRepository(sql, uow);
             var stockExportRepo = new StockExportRepository(sql, uow);
             var stockHistoryRepo = new StockHistoryRepository(sql, uow);
-            var stockExportHistoryRepo = new StockExportHistoryRepository(
-                sql,
-                uow,
-                coreHistoryRepo);
+            var stockExportHistoryRepo = new StockExportHistoryRepository(sql, uow, coreHistoryRepo);
             var choGiaoRepo = new HangChoGiaoRepository(sql, uow);
-
-            var validationService = new StockExportValidationService(
-                stockExportRepo,
-                stockExportHistoryRepo);
-
+            var validationService = new StockExportValidationService(stockExportRepo, stockExportHistoryRepo);
             var stockExportService = new StockExportService(
                 uow,
                 slotService,
@@ -108,22 +91,16 @@ namespace PCTP.Common
                 stockMovement,
                 stockExportHistoryRepo);
 
-            return new GiaoBuNGService(
-                stockExportService,
-                choGiaoRepo,
-                slotService);
+            return new GiaoBuNGService(stockExportService, choGiaoRepo, slotService);
         }
 
-        public static void OpenQuanLyTienTrinhHangLoi(
-            IWin32Window owner,
-            int? preselectPhieuXuLyId = null)
+        public static void OpenQuanLyTienTrinhHangLoi(IWin32Window owner, int? preselectPhieuXuLyId = null)
         {
             using (var f = CreateFormQuanLyTienTrinhHangLoi(preselectPhieuXuLyId))
                 f.ShowDialog(owner);
         }
 
-        private static Modules.XuLyHangLoi.FormQuanLyTienTrinhHangLoi
-            CreateFormQuanLyTienTrinhHangLoi(int? preselectPhieuXuLyId = null)
+        private static Modules.XuLyHangLoi.FormQuanLyTienTrinhHangLoi CreateFormQuanLyTienTrinhHangLoi(int? preselectPhieuXuLyId = null)
         {
             var provider = new SQLPROVIDER();
             var sql = new PhieuSqlExecutor(provider);
@@ -131,7 +108,6 @@ namespace PCTP.Common
 
             var phieuTraHangRepo = new PhieuTraHangRepository(sql, uow);
             var phieuGiaoRepo = new PhieuGiaoRepository(sql, uow);
-
             var workflowRepo = new WorkflowRepository(sql, uow);
             var workflow = new WorkflowTransitionService(workflowRepo);
             var workflowEngine = new WorkflowEngine(workflowRepo);
@@ -142,11 +118,7 @@ namespace PCTP.Common
             var slotService = module.SlotService;
             var reworkStockService = module.ReworkStockService;
 
-            var giaoBuNGService = CreateGiaoBuNGService(
-                sql,
-                uow,
-                slotService,
-                module.StockMovement);
+            var giaoBuNGService = CreateGiaoBuNGService(sql, uow, slotService, module.StockMovement);
 
             var qtChungService = new QTChungService(
                 phieuXuLyRepo,
@@ -155,7 +127,8 @@ namespace PCTP.Common
                 giaoBuNGService,
                 uow,
                 qtChungRepo,
-                workflow);
+                workflow,
+                module.AffectedLotTraceService);
 
             var khachTraHangService = new KhachTraHangService(
                 qtChungService,
@@ -182,23 +155,19 @@ namespace PCTP.Common
                 qtChungRepo,
                 phieuGiaoRepo,
                 slotService,
-                preselectPhieuXuLyId);
+                preselectPhieuXuLyId,
+                module.AffectedLotTraceService,
+                module.InitialQCService);
         }
 
         public static void OpenGiaoHangHVN(string customerNo)
         {
             if (string.IsNullOrWhiteSpace(customerNo))
-                throw new ArgumentException(
-                    "CustomerNo không được để trống.",
-                    nameof(customerNo));
+                throw new ArgumentException("CustomerNo không được để trống.", nameof(customerNo));
 
-            // Validate customer configuration trước khi mở form
             CustomerTableConfig.GetForDelivery(customerNo);
-
             var frm = new HVN_PGH(customerNo);
             frm.Show();
         }
-
-       
     }
 }
