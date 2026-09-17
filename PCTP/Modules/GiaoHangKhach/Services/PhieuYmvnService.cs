@@ -1,3 +1,4 @@
+using PCTP.Domain.Entities;
 using PCTP.Domain.Events;
 using PCTP.Domain.Interfaces;
 using PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao;
@@ -14,7 +15,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
     /// Phase 7: business service cho flow YMVN/MilkRun.
     /// YMVN là business flow, không phải OrderSourceKind.
     /// </summary>
-    public class PhieuYmvnService: IPhieuYmvnService
+    public class PhieuYmvnService : IPhieuYmvnService
     {
         private readonly IPhieuRepository _phieuRepo;
         private readonly ITableOrderRepository _tableOrderRepo;
@@ -39,6 +40,45 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             string nhaMay,
             DataTable donHang)
         {
+            if (donHang == null || donHang.Rows.Count == 0)
+                return;
+
+            // FIFO is a hard gate for YMVN as well. It must complete before any
+            // direct stock mutation is allowed. Invalid rows are released only
+            // after explicit user confirmation and are then excluded by STT.
+            string tmpTable = _cfg.Delivery.TmpTable;
+            string docQrTable = _cfg.Delivery.DocQRTable;
+            List<FifoViolation> fifoViolations =
+                _phieuRepo.EvaluateFifoViolations(tmpTable, docQrTable)
+                ?? new List<FifoViolation>();
+
+            var releasedStt = new HashSet<int>();
+            if (fifoViolations.Count > 0)
+            {
+                var confirmation = new FifoReleaseConfirmationRequestedEvent(fifoViolations);
+                _bus.PublishSynchronous(confirmation);
+
+                // Fail closed: Cancel/no handler means no YMVN stock update.
+                if (!confirmation.IsCompleted || !confirmation.WaitForDecision())
+                    return;
+
+                foreach (FifoViolation violation in fifoViolations)
+                {
+                    if (violation != null && violation.Stt > 0)
+                        releasedStt.Add(violation.Stt);
+                }
+
+                _phieuRepo.ReleaseFifoViolations(tmpTable, docQrTable, fifoViolations);
+
+                // Re-check after release. Never continue to stock mutation while
+                // an unresolved FIFO violation remains.
+                List<FifoViolation> remainingViolations =
+                    _phieuRepo.EvaluateFifoViolations(tmpTable, docQrTable)
+                    ?? new List<FifoViolation>();
+                if (remainingViolations.Count > 0)
+                    return;
+            }
+
             var errors = new List<DS_ERR_CNK>();
             int soLot = 0;
 
@@ -48,9 +88,15 @@ namespace PCTP.Modules.GiaoHangKhach.Services
 
             foreach (DataRow row in donHang.Rows)
             {
+                int stt = SafeInt(row["STT"]);
+
+                // The UI DataTable is an earlier snapshot. Do not trust its LOT/
+                // STATUS after FIFO release; the authoritative identity is STT.
+                if (releasedStt.Contains(stt))
+                    continue;
+
                 string lot = row["LOT"]?.ToString().Trim() ?? "";
                 string status = row["STATUS"]?.ToString().Trim() ?? "";
-                int stt = SafeInt(row["STT"]);
                 string maHang = row["MAHANG"]?.ToString().Trim() ?? "";
 
                 if (lot == "" || status == "OK")
