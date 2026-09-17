@@ -1,0 +1,96 @@
+name: implement-100001-sp
+on:
+  push:
+    branches: [feature/baocao-deliverytrace-refactor]
+permissions:
+  contents: write
+jobs:
+  implement:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Implement 100001 SP
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace(path, old, new):
+              p = Path(path)
+              s = p.read_text(encoding='utf-8-sig')
+              if old not in s:
+                  raise SystemExit(f'Missing expected text in {path}: {old[:120]!r}')
+              p.write_text(s.replace(old, new, 1), encoding='utf-8')
+
+          # 1) Customer 100001: enable MP/SP and define the SP dock code.
+          replace(
+              'PCTP/Shared/Models/CustomerTableConfig.cs',
+              '                        LoadTheoNgay = false,\n                        RequirePoRelNo = true,',
+              '                        LoadTheoNgay = false,\n                        CoLoaiSP = true,\n                        DockCodeSP = "HVN",\n                        RequirePoRelNo = true,'
+          )
+
+          # 2) Header: 100001 is multi-factory, so the MP/SP toggle must be added\n          #    in the CoNhieuNhaMay branch rather than only in the CoGear branch.
+          replace(
+              'PCTP/Modules/GiaoHangKhach/HVN/Controls/PhieuHeaderControl.cs',
+              '                tabVpPage.PageVisible = true; tabHnPage.PageVisible = true; tabPaneControl.Visible = true; radioVp.Visible = true; radioHn.Visible = true; checkList.Visible = false; btnUploadMilkrun.Visible = false; HideLoaiPhieuToggle();',
+              '                tabVpPage.PageVisible = true; tabHnPage.PageVisible = true; tabPaneControl.Visible = true; radioVp.Visible = true; radioHn.Visible = true; checkList.Visible = false; btnUploadMilkrun.Visible = false;\n                if (cfg.Delivery.CoLoaiSP) ShowLoaiPhieuToggle(btnUploadMilkrun); else HideLoaiPhieuToggle();'
+          )
+          replace(
+              'PCTP/Modules/GiaoHangKhach/HVN/Controls/PhieuHeaderControl.cs',
+              '                _btnToggleLoaiPhieu = new Button { Text = "Xem: MP", Width = 100, Height = btnUploadMilkrun.Height, Location = new Point(btnUploadMilkrun.Right + 8, btnUploadMilkrun.Top), BackColor = Color.SteelBlue, ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = new Font("Arial", 9, FontStyle.Bold) };',
+              '                _btnToggleLoaiPhieu = new Button { Text = "XEM MP", Width = 100, Height = btnUploadMilkrun.Height, Location = new Point(btnUploadMilkrun.Right + 8, btnUploadMilkrun.Top), BackColor = Color.SteelBlue, ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = new Font("Arial", 9, FontStyle.Bold) };'
+          )
+          replace(
+              'PCTP/Modules/GiaoHangKhach/HVN/Controls/PhieuHeaderControl.cs',
+              '_btnToggleLoaiPhieu.Text = _isLoaiSP ? "Xem: SP" : "Xem: MP";',
+              '_btnToggleLoaiPhieu.Text = _isLoaiSP ? "XEM SP" : "XEM MP";'
+          )
+
+          # 3) Presenter context: read MP/SP state for 100001 as well as YMVN.
+          replace(
+              'PCTP/Presentation/Presenters/HVNPresenterContext.cs',
+              '                if (Cfg.Delivery.CoGear) { checkedGios = View.GetCheckedGioXuat(); isLoaiSP = View.IsLoaiSP; } else nhaMay = GetNhaMay();',
+              '                if (Cfg.Delivery.CoGear) { checkedGios = View.GetCheckedGioXuat(); } else nhaMay = GetNhaMay();\n                if (Cfg.Delivery.CoGear || Cfg.Delivery.CoLoaiSP) isLoaiSP = View.IsLoaiSP;'
+          )
+
+          # 4) IFS load: apply the existing row-category boundary after the IFS source\n          #    has loaded. For 100001 SP this means CUA/DOCKCODE == configured "HVN".\n          replace(
+              'PCTP/Modules/GiaoHangKhach/Services/PhieuLoadService.cs',
+              '            DataTable donHangIFS = sourceResult.Orders ?? new DataTable();\n            SWLog.Measure($"3. EnrichSttHop ({donHangIFS.Rows.Count})", () => EnrichSttHop(donHangIFS));',
+              '            DataTable donHangIFS = sourceResult.Orders ?? new DataTable();\n            if (_cfg.Delivery.CoLoaiSP)\n                donHangIFS = _rowCategoryFilter.Filter(donHangIFS, context.Category, _cfg);\n            SWLog.Measure($"3. EnrichSttHop ({donHangIFS.Rows.Count})", () => EnrichSttHop(donHangIFS));'
+          )
+
+          # 5) DOC QR baseline sync for IFS must use the same MP/SP scope.
+          replace(
+              'PCTP/Modules/GiaoHangKhach/Services/PhieuService.cs',
+              '            else ifs = _ifsRepo.GetCustomerOrderJoin(ngayXuat, gioFccSP, gioMoTaSP, nhaMay, addNm, 1, _cfg);\n            EnrichSttHop(ifs);',
+              '            else ifs = _ifsRepo.GetCustomerOrderJoin(ngayXuat, gioFccSP, gioMoTaSP, nhaMay, addNm, 1, _cfg);\n            if (_cfg.Delivery.CoLoaiSP)\n                ifs = _rowCategoryFilter.Filter(ifs, isSP ? OrderCategory.SP : OrderCategory.MP, _cfg);\n            EnrichSttHop(ifs);'
+          )
+
+          print('100001 SP changes applied.')
+          PY
+
+          echo '--- Verification: 100001 config ---'
+          grep -n -C 10 'CoLoaiSP = true' PCTP/Shared/Models/CustomerTableConfig.cs
+          echo '--- Verification: IFS category filter ---'
+          grep -n -C 4 '_rowCategoryFilter.Filter' PCTP/Modules/GiaoHangKhach/Services/PhieuLoadService.cs PCTP/Modules/GiaoHangKhach/Services/PhieuService.cs
+          echo '--- Verification: toggle ---'
+          grep -n -C 2 'XEM MP\|XEM SP\|CoLoaiSP' PCTP/Modules/GiaoHangKhach/HVN/Controls/PhieuHeaderControl.cs | head -n 80
+      - name: Commit feature changes
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add PCTP/Shared/Models/CustomerTableConfig.cs PCTP/Modules/GiaoHangKhach/HVN/Controls/PhieuHeaderControl.cs PCTP/Presentation/Presenters/HVNPresenterContext.cs PCTP/Modules/GiaoHangKhach/Services/PhieuLoadService.cs PCTP/Modules/GiaoHangKhach/Services/PhieuService.cs
+          git commit -m 'feat(giaohangkhach): add 100001 SP IFS delivery scope'
+          git push
+      - name: Cleanup workflow
+        if: always()
+        shell: bash
+        run: |
+          rm -f .github/workflows/implement-100001-sp.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add .github/workflows/implement-100001-sp.yml
+          git diff --cached --quiet || git commit -m 'chore(giaohangkhach): remove temporary implementation workflow'
+          git push
