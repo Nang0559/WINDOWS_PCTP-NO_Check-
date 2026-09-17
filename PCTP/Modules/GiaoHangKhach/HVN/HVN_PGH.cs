@@ -114,10 +114,23 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
         }
         public void SwitchToDocQRView()
         {
-            UIButtonHOME.Visible = true; _phieuHeaderControl.Visible = false; _docQrControl.BringToFront();
+            UIButtonHOME.Visible = true;
+            _phieuHeaderControl.Visible = false;
+
+            // The legacy designer keeps both GridControls as siblings in sidePanel2.
+            // Do not rely only on the wrapper control's BringToFront(): explicitly
+            // switch the actual grids so the visible surface is deterministic.
+            gridCtrDONHANG.Visible = false;
+            gridCtrDOCQrCODE.Visible = true;
+            gridCtrDOCQrCODE.BringToFront();
+
+            _docQrControl.Visible = true;
+            _docQrControl.BringToFront();
+
             try { _hangThieuControl.Visible = false; PN_DOCQR_SUASL1.Visible = true; PN_DOCQR_SUASL1.BringToFront(); }
             catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[SwitchToDocQRView] Lỗi set Visible: {ex.Message}"); }
-            Invoke(new Action(() => { lblDocQrcode.Text = _cfg.Delivery?.LabelDocQR ?? "Đọc QRCode theo thứ tự: FCC → HVN"; }));
+            if (!IsDisposed && IsHandleCreated)
+                BeginInvoke(new Action(() => { lblDocQrcode.Text = _cfg.Delivery?.LabelDocQR ?? "Đọc QRCode theo thứ tự: FCC → HVN"; }));
             _phieuBottomStateControl.HideSuaSoLuong();
             _phieuBottomStateControl.HideGhepLot();
             _phieuActionBarControl.ConfigureDocQr();
@@ -125,7 +138,18 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
         }
         public void SwitchToPhieuView()
         {
-            UIButtonHOME.Visible = false; _phieuHeaderControl.Visible = true; _phieuGridControl.BringToFrontGrid();
+            UIButtonHOME.Visible = false;
+            _phieuHeaderControl.Visible = true;
+
+            // Restore the normal order-grid surface explicitly.
+            gridCtrDOCQrCODE.Visible = false;
+            gridCtrDONHANG.Visible = true;
+            gridCtrDONHANG.BringToFront();
+
+            _docQrControl.Visible = false;
+            _phieuGridControl.Visible = true;
+            _phieuGridControl.BringToFrontGrid();
+
             try { PN_DOCQR_SUASL1.Visible = false; _hangThieuControl.Visible = true; _hangThieuControl.BringToFront(); }
             catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[SwitchToPhieuView] Lỗi set Visible: {ex.Message}"); }
             _phieuBottomStateControl.HideSuaSoLuong();
@@ -208,7 +232,16 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
             if (_cfg.Delivery.CoGear) btnUploadMilkrun.Click += btnUploadMilkrun_Click;
             else if (_cfg.Delivery.LoadTheoNgay) btnUploadMilkrun.Click += btnUploadMilkrun_Click;
             FormLoaded.Invoke(this, EventArgs.Empty);
-            try { PN_DOCQR_SUASL1.Visible = false; _hangThieuControl.Visible = true; } catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[HVN_PGH_Load] Lỗi set Visible GCT_HT/PN_DOCQR_SUASL1: {ex.Message}"); }
+            try
+            {
+                // Initial state is always the normal order grid.
+                gridCtrDOCQrCODE.Visible = false;
+                gridCtrDONHANG.Visible = true;
+                gridCtrDONHANG.BringToFront();
+                PN_DOCQR_SUASL1.Visible = false;
+                _hangThieuControl.Visible = true;
+            }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[HVN_PGH_Load] Lỗi set trạng thái grid: {ex.Message}"); }
         }
         public void SetupGridDonHangYMVN(bool bangrieng) => _phieuGridControl.SetupForCustomer(bangrieng);
         public void BindGioXuatCheckList(List<string> danhSachGio) { if (_phieuHeaderControl != null) _phieuHeaderControl.BindGioXuatCheckList(danhSachGio); }
