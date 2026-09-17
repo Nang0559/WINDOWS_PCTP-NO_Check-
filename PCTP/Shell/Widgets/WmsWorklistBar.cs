@@ -10,8 +10,8 @@ using System.Windows.Forms;
 namespace PCTP.Shell.Widgets
 {
     /// <summary>
-    /// WMS worklist based only on existing transactional/query sources.
-    /// This control intentionally does not own business logic or invent KPI data.
+    /// WMS worklist for actionable workflow states.
+    /// MainApp only exposes navigation; business validation remains in module services.
     /// </summary>
     public sealed class WmsWorklistBar : XtraUserControl
     {
@@ -21,7 +21,10 @@ namespace PCTP.Shell.Widgets
 
         private LabelControl _lblChoDinhHuong;
         private LabelControl _lblChoQCCuoi;
-        private LabelControl _lblDaDuyetChuaTra;
+        private LabelControl _lblChoRework;
+        private LabelControl _lblChoQCRework;
+        private LabelControl _lblChoGiaoBu;
+        private LabelControl _lblChoNhapLai;
         private LabelControl _lblChoNhap;
         private LabelControl _lblLechA0;
 
@@ -35,7 +38,7 @@ namespace PCTP.Shell.Widgets
             _openNhapKho = openNhapKho ?? throw new ArgumentNullException("openNhapKho");
 
             Dock = DockStyle.Top;
-            Height = 44;
+            Height = 64;
             BuildUi();
         }
 
@@ -72,8 +75,17 @@ namespace PCTP.Shell.Widgets
             _lblChoQCCuoi = MakeItem("🔴 QC chờ duyệt cuối: --");
             _lblChoQCCuoi.Click += delegate { WarehouseProcessNavigator.OpenQCXacNhanCuoi(this); };
 
-            _lblDaDuyetChuaTra = MakeItem("🔄 Đã duyệt chờ trả SX: --");
-            _lblDaDuyetChuaTra.Click += delegate { WarehouseProcessNavigator.OpenQuanLyTienTrinhHangLoi(this); };
+            _lblChoRework = MakeItem("🛠 Chờ xuất Rework: --");
+            _lblChoRework.Click += delegate { WarehouseProcessNavigator.OpenQuanLyTienTrinhHangLoi(this); };
+
+            _lblChoQCRework = MakeItem("🔎 Chờ QC Rework: --");
+            _lblChoQCRework.Click += delegate { WarehouseProcessNavigator.OpenQCXacNhanCuoi(this); };
+
+            _lblChoGiaoBu = MakeItem("🚚 Chờ giao bù: --");
+            _lblChoGiaoBu.Click += delegate { WarehouseProcessNavigator.OpenQuanLyTienTrinhHangLoi(this); };
+
+            _lblChoNhapLai = MakeItem("📦 Chờ nhập lại kho: --");
+            _lblChoNhapLai.Click += delegate { _openNhapKho(); };
 
             _lblChoNhap = MakeItem("📥 Phiếu chờ nhập: --");
             _lblChoNhap.Click += delegate { _openNhapKho(); };
@@ -84,13 +96,15 @@ namespace PCTP.Shell.Widgets
             flow.Controls.Add(title);
             flow.Controls.Add(_lblChoDinhHuong);
             flow.Controls.Add(_lblChoQCCuoi);
-            flow.Controls.Add(_lblDaDuyetChuaTra);
+            flow.Controls.Add(_lblChoRework);
+            flow.Controls.Add(_lblChoQCRework);
+            flow.Controls.Add(_lblChoGiaoBu);
+            flow.Controls.Add(_lblChoNhapLai);
             flow.Controls.Add(_lblChoNhap);
             flow.Controls.Add(_lblLechA0);
 
             panel.Controls.Add(flow);
             Controls.Add(panel);
-
             RefreshWorklist();
         }
 
@@ -115,13 +129,19 @@ namespace PCTP.Shell.Widgets
             {
                 int choDinhHuong = _phieuXuLyRepo.CountByStatus(QTChungStatus.DaTaoPhieuBatThuong);
                 int choQCCuoi = _phieuXuLyRepo.CountByStatus(QTChungStatus.DaGiaoSanXuat);
-                int daDuyetChuaTra = _phieuXuLyRepo.CountByStatus(QTChungStatus.DaQCXacNhanCuoi);
+                int choRework = _phieuXuLyRepo.CountByStatus(QTChungStatus.DaDinhHuong);
+                int choQCRework = _phieuXuLyRepo.CountByStatus(QTChungStatus.DaGiaoSanXuat);
+                int choGiaoBu = _phieuXuLyRepo.CountByStatus(QTChungStatus.ChoGiaoBu);
+                int choNhapLai = _phieuXuLyRepo.CountByStatus(QTChungStatus.DaQCXacNhanCuoi);
                 int choNhap = _nhapKhoRepo.DemPhieuChoNhap();
                 int lechA0 = _nhapKhoRepo.DemLechDoiChieu();
 
                 SetItem(_lblChoDinhHuong, "🟡 QC chờ định hướng: " + choDinhHuong, choDinhHuong);
                 SetItem(_lblChoQCCuoi, "🔴 QC chờ duyệt cuối: " + choQCCuoi, choQCCuoi);
-                SetItem(_lblDaDuyetChuaTra, "🔄 Đã duyệt chờ trả SX: " + daDuyetChuaTra, daDuyetChuaTra);
+                SetItem(_lblChoRework, "🛠 Chờ xuất Rework: " + choRework, choRework);
+                SetItem(_lblChoQCRework, "🔎 Chờ QC Rework: " + choQCRework, choQCRework);
+                SetItem(_lblChoGiaoBu, "🚚 Chờ giao bù: " + choGiaoBu, choGiaoBu);
+                SetItem(_lblChoNhapLai, "📦 Chờ nhập lại kho: " + choNhapLai, choNhapLai);
                 SetItem(_lblChoNhap, "📥 Phiếu chờ nhập: " + choNhap, choNhap);
                 SetItem(_lblLechA0, lechA0 > 0 ? "⚠ Lệch đối chiếu A0: " + lechA0 : "✅ Không lệch đối chiếu A0", lechA0);
             }
