@@ -111,28 +111,15 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
             return null;
         }
 
-        // The existing HVN_PGH_Load is kept untouched; this handler is attached
-        // during construction through the form's Load event.
-        private void EnsureSpModeUiHook()
+        /// <summary>
+        /// Wire the SP UI after the normal form Load handlers have initialized
+        /// the header control. This avoids a field initializer invoking an
+        /// instance method before the constructor has run.
+        /// </summary>
+        protected override void OnLoad(EventArgs e)
         {
-            Load -= HvNSpModeLoad;
-            Load += HvNSpModeLoad;
-        }
-
-        private void HvNSpModeLoad(object sender, EventArgs e)
-        {
+            base.OnLoad(e);
             WireSpModeUi();
-            Load -= HvNSpModeLoad;
-        }
-
-        // Field initializers execute before the constructor body and therefore
-        // register the Load hook without changing the legacy designer file.
-        private readonly object _spModeLoadHook = RegisterSpModeLoadHook();
-
-        private object RegisterSpModeLoadHook()
-        {
-            EnsureSpModeUiHook();
-            return null;
         }
     }
 }
