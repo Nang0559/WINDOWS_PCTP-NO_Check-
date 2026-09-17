@@ -42,14 +42,15 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
             PN_DOCQR_SUASL1.Visible = false;
 
             // Presenter gọi hàm này ngay sau SwitchToDocQRView().
-            // Tại đây form đã có đầy đủ state UI thực tế: loại phiếu + nhà máy + giờ.
+            // Chạy lại sau BeginInvoke trong SwitchToDocQRView để không bị label cũ ghi đè.
             string nhaMay = tabPaneHVN != null && tabPaneHVN.SelectedPage != null
                 ? tabPaneHVN.SelectedPage.Caption
                 : "Nhà máy";
             string gioMoTa = CurrentGioXuat != null ? CurrentGioXuat.MoTa : "";
             string label = _cfg != null && _cfg.Delivery != null ? _cfg.Delivery.LabelDocQR : "";
 
-            SetDocQrDisplayContext(IsLoaiSP, nhaMay, gioMoTa, label);
+            BeginInvoke(new Action(() =>
+                SetDocQrDisplayContext(IsLoaiSP, nhaMay, gioMoTa, label)));
         }
 
         /// <summary>
