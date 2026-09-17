@@ -8,7 +8,7 @@ namespace PCTP.Domain.Events
     /// The UI decides whether the invalid QR rows may be released.
     /// No database mutation is performed by this event itself.
     /// </summary>
-    public sealed class FifoReleaseConfirmationRequestedEvent
+    public sealed class FifoReleaseConfirmationRequestedEvent : DomainEvent
     {
         public IReadOnlyList<FifoViolation> Violations { get; }
         public bool Confirmed { get; set; }
