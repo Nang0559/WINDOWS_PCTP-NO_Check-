@@ -340,7 +340,15 @@
     <Compile Include="Modules\BaoCao\UI\FormBaoCaoStockHistory.cs" />
     <Compile Include="Modules\BaoCao\UI\FormBaoCaoTraceability.cs" />
     <Compile Include="Modules\GiaoHangKhach\Configuration\GiaoHangKhachConfiguration.cs" />
+    <Compile Include="Modules\GiaoHangKhach\NhanLaiNG\NhanLaiTP\frmNhanLaiTP.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Modules\GiaoHangKhach\NhanLaiNG\NhanLaiTP\frmNhanLaiTP.Designer.cs">
+      <DependentUpon>frmNhanLaiTP.cs</DependentUpon>
+    </Compile>
     <Compile Include="Modules\GiaoHangKhach\Services\CustomerAddressService.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Services\FifoSessionService.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Services\FifoSessionState.cs" />
     <Compile Include="Modules\GiaoHangKhach\Services\GiaoHangKhachFactory.cs" />
     <Compile Include="Modules\GiaoHangKhach\Models\OrderCategory.cs" />
     <Compile Include="Modules\GiaoHangKhach\Models\OrderLoadContext.cs" />
@@ -384,6 +392,7 @@
     <Compile Include="Modules\GiaoHangKhach\Services\PhieuLotService.cs" />
     <Compile Include="Modules\GiaoHangKhach\Services\PhieuService.cs" />
     <Compile Include="Modules\GiaoHangKhach\Services\PhieuYmvnService.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Services\YmvnGearQuantityValidator.cs" />
     <Compile Include="Modules\GiaoHangKhach\SubForm\FormItemFifoConfig.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -585,7 +594,9 @@
     <Compile Include="Modules\XuLyHangLoi\FormTiepNhanPhieuKhachTra.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="Modules\XuLyHangLoi\Services\AffectedLotTraceService.cs" />
     <Compile Include="Modules\XuLyHangLoi\Services\GiaoBuNGService.cs" />
+    <Compile Include="Modules\XuLyHangLoi\Services\IAffectedLotTraceService.cs" />
     <Compile Include="Modules\XuLyHangLoi\Services\IQTChungService.cs" />
     <Compile Include="Modules\XuLyHangLoi\Services\IReworkStockService.cs" />
     <Compile Include="Modules\XuLyHangLoi\Services\IXuLyHangLoiService.cs" />
@@ -1058,6 +1069,9 @@
     <EmbeddedResource Include="Modules\GiaoHangKhach\HVN\Controls\PhieuBottomStateControl.resx">
       <DependentUpon>PhieuBottomStateControl.cs</DependentUpon>
     </EmbeddedResource>
+    <EmbeddedResource Include="Modules\GiaoHangKhach\NhanLaiNG\NhanLaiTP\frmNhanLaiTP.resx">
+      <DependentUpon>frmNhanLaiTP.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="Modules\GiaoHangKhach\SubForm\FRM_CHON_LOT_KHO.resx">
       <DependentUpon>FRM_CHON_LOT_KHO.cs</DependentUpon>
     </EmbeddedResource>
@@ -1222,7 +1236,6 @@
     <Folder Include="Modules\GiaoHangKhach\Contracts\Services\" />
     <Folder Include="Modules\GiaoHangKhach\Contracts\Views\" />
     <Folder Include="Modules\GiaoHangKhach\HVN\FuctionQR\" />
-    <Folder Include="Modules\GiaoHangKhach\NhanLaiNG\NhanLaiTP\" />
     <Folder Include="Modules\XuLyHangLoi\Legacy\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

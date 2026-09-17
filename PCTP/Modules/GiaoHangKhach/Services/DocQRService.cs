@@ -1,5 +1,6 @@
 using PCTP.Domain.Entities;
 using PCTP.Domain.Events;
+using PCTP.Domain.Interfaces;
 using PCTP.Modules.GiaoHangKhach.Models;
 using PCTP.Modules.GiaoHangKhach.OrderLoading.Category;
 using PCTP.Shared.Helpers;

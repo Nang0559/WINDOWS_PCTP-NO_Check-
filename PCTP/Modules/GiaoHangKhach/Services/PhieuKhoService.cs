@@ -1,5 +1,6 @@
 using PCTP.Domain.Entities;
 using PCTP.Domain.Events;
+using PCTP.Domain.Interfaces;
 using PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao;
 using PCTP.Shared.Models;
 using System;
