@@ -14,9 +14,6 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
         private bool _docQrLockedTabVpVisible;
         private bool _docQrLockedTabHnVisible;
 
-        /// <summary>
-        /// Disables/enables the physical QR input while the presenter controls scan processing.
-        /// </summary>
         public void SetDocQrScanInputEnabled(bool enabled)
         {
             if (_docQrInputControl == null)
@@ -28,11 +25,6 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
                 _docQrInputControl.FocusInput();
         }
 
-        /// <summary>
-        /// Quantity correction is not part of the QR workflow.
-        /// Keep the legacy quantity-edit panel hidden.
-        /// Also reapplies the QR display context after SwitchToDocQRView().
-        /// </summary>
         public void HideDocQrQuantityEditPanel()
         {
             try
@@ -58,11 +50,19 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
                 : "";
 
             BeginInvoke(new Action(() =>
-                SetDocQrDisplayContext(IsLoaiSP, nhaMay, gioMoTa, label)));
+            {
+                SetDocQrDisplayContext(IsLoaiSP, nhaMay, gioMoTa, label);
+
+                // This method is called after BindDocQRCode + SwitchToDocQRView,
+                // therefore the QR session has actually been initialized.
+                // Lock exactly the context used by that session.
+                LockDocQrDeliveryContext(
+                    IsLoaiSP,
+                    IsLoaiSP || CurrentGioXuat == null ? string.Empty : CurrentGioXuat.Ma);
+            }));
         }
 
         /// <summary>
-        /// Locks the exact delivery context used to create the QR session.
         /// MP = plant + delivery date + delivery hour.
         /// SP = plant + delivery date; hour is not a business key.
         /// </summary>
@@ -76,39 +76,34 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
 
             _docQrDeliveryContextLocked = true;
 
-            // The delivery date is part of both MP and SP QR session identity.
             if (dateNX != null)
                 dateNX.Enabled = false;
 
-            // The MP/SP mode itself is part of the QR session identity.
+            // MP/SP is also part of the session identity. Do not allow switching
+            // from MP to SP (or vice versa) while QR rows exist.
             SetLoaiPhieuToggleEnabled(false);
 
-            // Plant is part of both MP and SP identity. Keep the selected plant,
-            // but make the other plant unavailable while QR data is being read.
-            if (tabPaneHVN != null && tabPaneHVN.SelectedPage != null)
+            // Plant is part of both MP and SP identity. Keep only the selected
+            // plant visible so the user cannot switch the QR session to another plant.
+            if (tabPaneHVN != null && tabPaneHVN.SelectedPage != null && tabVP != null && tabHN != null)
             {
                 if (!_docQrLockedTabVisibilityCaptured)
                 {
-                    _docQrLockedTabVpVisible = tabVP != null && tabVP.PageVisible;
-                    _docQrLockedTabHnVisible = tabHN != null && tabHN.PageVisible;
+                    _docQrLockedTabVpVisible = tabVP.PageVisible;
+                    _docQrLockedTabHnVisible = tabHN.PageVisible;
                     _docQrLockedTabVisibilityCaptured = true;
                 }
 
-                if (tabVP != null && tabHN != null)
-                {
-                    bool vpSelected = tabPaneHVN.SelectedPage == tabVP;
-                    tabVP.PageVisible = vpSelected;
-                    tabHN.PageVisible = !vpSelected;
-                }
+                bool vpSelected = tabPaneHVN.SelectedPage == tabVP;
+                tabVP.PageVisible = vpSelected;
+                tabHN.PageVisible = !vpSelected;
             }
 
-            // Hour is a key only for MP. SP has no selectable hour.
+            // SP has no hour context. Disable all hour choices.
+            // MP keeps only the exact hour used to create the QR session.
             LockDocQrHourGroups(isSP ? string.Empty : gioFCC);
         }
 
-        /// <summary>
-        /// Releases the QR session context lock after QR data is cleared/completed.
-        /// </summary>
         public void UnlockDocQrDeliveryContext()
         {
             if (InvokeRequired)
@@ -116,6 +111,9 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
                 BeginInvoke(new Action(UnlockDocQrDeliveryContext));
                 return;
             }
+
+            if (!_docQrDeliveryContextLocked && !_docQrLockedTabVisibilityCaptured)
+                return;
 
             _docQrDeliveryContextLocked = false;
 
@@ -135,15 +133,12 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
 
         private void LockDocQrHourGroups(string gioFCC)
         {
-            var gioSet = new HashSet<string>(
-                (gioFCC ?? string.Empty).Split(','),
-                StringComparer.OrdinalIgnoreCase);
-
-            foreach (string gio in new List<string>(gioSet))
+            var gioSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (string gio in (gioFCC ?? string.Empty).Split(','))
             {
-                // Normalize the same representation used by RadioGroupItem.AccessibleName.
-                gioSet.Remove(gio);
-                gioSet.Add(gio.Trim().Trim('\''));
+                string normalized = (gio ?? string.Empty).Trim().Trim('\'');
+                if (!string.IsNullOrWhiteSpace(normalized))
+                    gioSet.Add(normalized);
             }
 
             LockDocQrRadioGroup(radioGroup2, gioSet);
@@ -161,20 +156,17 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
                 if (item == null)
                     continue;
 
-                var itemSet = new HashSet<string>(
-                    (item.AccessibleName ?? string.Empty).Split(','),
-                    StringComparer.OrdinalIgnoreCase);
-
                 var normalized = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                foreach (string value in itemSet)
-                    normalized.Add((value ?? string.Empty).Trim().Trim('\''));
+                foreach (string value in (item.AccessibleName ?? string.Empty).Split(','))
+                {
+                    string v = (value ?? string.Empty).Trim().Trim('\'');
+                    if (!string.IsNullOrWhiteSpace(v))
+                        normalized.Add(v);
+                }
 
-                bool selected = !string.IsNullOrWhiteSpace(string.Join(",", gioSet))
-                    && normalized.SetEquals(gioSet);
-
-                // SP: gioSet is empty, therefore all hour choices are disabled.
-                // MP: only the session's hour remains enabled.
-                item.Enabled = selected;
+                // SP: empty gioSet => all hour choices disabled.
+                // MP: only the exact session hour remains enabled.
+                item.Enabled = gioSet.Count > 0 && normalized.SetEquals(gioSet);
             }
         }
 
@@ -224,11 +216,6 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
             }
         }
 
-        /// <summary>
-        /// Hooks the real header state-change events once the form is shown.
-        /// GridBand3 must be correct immediately when the Phiếu screen opens and
-        /// must change again when the user changes hour, plant or MP/SP.
-        /// </summary>
         protected override void OnShown(EventArgs e)
         {
             base.OnShown(e);
@@ -242,11 +229,27 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
             LoaiPhieuChanged -= GridCaptionContextChanged;
             LoaiPhieuChanged += GridCaptionContextChanged;
 
+            // Unlock when the QR session is explicitly cleared or completed.
+            XoaToanBoQRClicked -= UnlockDocQrContextOnEvent;
+            XoaToanBoQRClicked += UnlockDocQrContextOnEvent;
+            HoanThanhClicked -= UnlockDocQrContextOnEvent;
+            HoanThanhClicked += UnlockDocQrContextOnEvent;
+
             BeginInvoke(new Action(UpdateGridCaptionFromCurrentState));
+        }
+
+        private void UnlockDocQrContextOnEvent(object sender, EventArgs e)
+        {
+            UnlockDocQrDeliveryContext();
         }
 
         private void GridCaptionContextChanged(object sender, EventArgs e)
         {
+            // Once QR rows exist, the session context is immutable. Do not
+            // allow a header event to rewrite the QR session context.
+            if (_docQrDeliveryContextLocked)
+                return;
+
             UpdateGridCaptionFromCurrentState();
         }
 
@@ -274,13 +277,6 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
                 configuredLabel);
         }
 
-        /// <summary>
-        /// Updates the actual order-grid band and the QR instruction according to
-        /// the current plant, selected hour and order category.
-        ///
-        /// MP: plant + selected hour; FCC -> customer label.
-        /// SP: plant + all-day; FCC only, customer label is not required.
-        /// </summary>
         public void SetDocQrDisplayContext(bool isSP, string nhaMay, string gioMoTa, string configuredLabel)
         {
             if (InvokeRequired)
@@ -302,13 +298,9 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
                 : string.Format("{0} - {1}", plant, gio);
 
             if (_phieuGridControl != null)
-            {
                 _phieuGridControl.SetCaption(caption);
-            }
             else if (gridBandDH != null)
-            {
                 gridBandDH.Caption = caption;
-            }
 
             if (lblDocQrcode != null)
             {
