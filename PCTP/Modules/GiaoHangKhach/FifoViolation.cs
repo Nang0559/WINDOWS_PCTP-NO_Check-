@@ -11,6 +11,7 @@ namespace PCTP.Modules.GiaoHangKhach
         public string LotDaChon { get; set; }
         public string LotDungRaPhaiChon { get; set; }
         public int SlotIdDungRaPhaiChon { get; set; }
+        public int SoLuong { get; set; }
     }
 
     public static class FifoViolationExtensions
@@ -29,7 +30,7 @@ namespace PCTP.Modules.GiaoHangKhach
             foreach (var v in violations ?? new List<FifoViolation>())
             {
                 string message = $"FIFO: mã hàng {v.MaHang} phải xuất LOT {v.LotDungRaPhaiChon} trước. LOT đang chọn: {v.LotDaChon}.";
-                dt.Rows.Add(v.Stt, v.MaHang, v.LotDaChon, 0, 0, 0, message);
+                dt.Rows.Add(v.Stt, v.MaHang, v.LotDaChon, v.SoLuong, 0, 0, message);
             }
 
             return dt;
