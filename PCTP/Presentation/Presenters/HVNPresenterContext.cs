@@ -113,7 +113,8 @@ namespace PCTP.Presentation.Presenters
             Action readUiAction = () =>
             {
                 ngayGiao = Cfg.Delivery.CoGear ? View.SelectedDate.ToString("MM/dd/yyyy") : View.SelectedDate.ToString("yyyy-MM-dd");
-                if (Cfg.Delivery.CoGear) { checkedGios = View.GetCheckedGioXuat(); isLoaiSP = View.IsLoaiSP; } else nhaMay = GetNhaMay();
+                if (Cfg.Delivery.CoGear) { checkedGios = View.GetCheckedGioXuat(); } else nhaMay = GetNhaMay();
+                if (Cfg.Delivery.CoGear || Cfg.Delivery.CoLoaiSP) isLoaiSP = View.IsLoaiSP;
             };
             if (UiContext == SynchronizationContext.Current) readUiAction(); else UiContext.Send(_ => readUiAction(), null);
             try

@@ -1,4 +1,4 @@
-﻿using PCTP.Modules.GiaoHangKhach.Configuration;
+using PCTP.Modules.GiaoHangKhach.Configuration;
 using System;
 using System.Collections.Generic;
 
@@ -39,6 +39,8 @@ namespace PCTP.Shared.Models
                         AddNmMacDinh = 1,
                         TenNhaMay = "",
                         LoadTheoNgay = false,
+                        CoLoaiSP = true,
+                        DockCodeSP = "HVN",
                         RequirePoRelNo = true,
                         NhaMayCase =
                             "CASE WHEN col.SHIP_ADDR_NO = 1 " +

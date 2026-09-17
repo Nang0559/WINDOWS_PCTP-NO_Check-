@@ -77,6 +77,8 @@ namespace PCTP.Modules.GiaoHangKhach.Services
 
             OrderSourceResult sourceResult = _orderSourceFactory.GetSource(context).Load(context);
             DataTable donHangIFS = sourceResult.Orders ?? new DataTable();
+            if (_cfg.Delivery.CoLoaiSP)
+                donHangIFS = _rowCategoryFilter.Filter(donHangIFS, context.Category, _cfg);
             SWLog.Measure($"3. EnrichSttHop ({donHangIFS.Rows.Count})", () => EnrichSttHop(donHangIFS));
 
             if (context.MachineRole == MachineRole.DuocBanQR)

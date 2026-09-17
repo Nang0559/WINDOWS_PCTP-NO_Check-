@@ -1,4 +1,4 @@
-﻿using DevExpress.XtraBars.Navigation;
+using DevExpress.XtraBars.Navigation;
 using DevExpress.XtraEditors;
 using DevExpress.XtraEditors.Controls;
 using PCTP.Domain.Entities;
@@ -183,7 +183,8 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
             if (tabPaneControl == null || tabVpPage == null || tabHnPage == null || radioVp == null || radioHn == null || checkList == null || btnUploadMilkrun == null) return;
             if (cfg.Delivery.CoNhieuNhaMay)
             {
-                tabVpPage.PageVisible = true; tabHnPage.PageVisible = true; tabPaneControl.Visible = true; radioVp.Visible = true; radioHn.Visible = true; checkList.Visible = false; btnUploadMilkrun.Visible = false; HideLoaiPhieuToggle();
+                tabVpPage.PageVisible = true; tabHnPage.PageVisible = true; tabPaneControl.Visible = true; radioVp.Visible = true; radioHn.Visible = true; checkList.Visible = false; btnUploadMilkrun.Visible = false;
+                if (cfg.Delivery.CoLoaiSP) ShowLoaiPhieuToggle(btnUploadMilkrun); else HideLoaiPhieuToggle();
             }
             else if (cfg.Delivery.CoGear)
             {
@@ -384,7 +385,7 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
         {
             if (_btnToggleLoaiPhieu == null)
             {
-                _btnToggleLoaiPhieu = new Button { Text = "Xem: MP", Width = 100, Height = btnUploadMilkrun.Height, Location = new Point(btnUploadMilkrun.Right + 8, btnUploadMilkrun.Top), BackColor = Color.SteelBlue, ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = new Font("Arial", 9, FontStyle.Bold) };
+                _btnToggleLoaiPhieu = new Button { Text = "XEM MP", Width = 100, Height = btnUploadMilkrun.Height, Location = new Point(btnUploadMilkrun.Right + 8, btnUploadMilkrun.Top), BackColor = Color.SteelBlue, ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = new Font("Arial", 9, FontStyle.Bold) };
                 _btnToggleLoaiPhieu.Click += BtnToggleLoaiPhieu_Click;
                 btnUploadMilkrun.Parent.Controls.Add(_btnToggleLoaiPhieu);
             }
@@ -398,7 +399,7 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
             _isLoaiSP = !_isLoaiSP;
             if (_btnToggleLoaiPhieu != null)
             {
-                _btnToggleLoaiPhieu.Text = _isLoaiSP ? "Xem: SP" : "Xem: MP";
+                _btnToggleLoaiPhieu.Text = _isLoaiSP ? "XEM SP" : "XEM MP";
                 _btnToggleLoaiPhieu.BackColor = _isLoaiSP ? Color.OrangeRed : Color.SteelBlue;
             }
             LoaiPhieuChanged.Invoke(this, EventArgs.Empty);

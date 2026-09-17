@@ -109,6 +109,8 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             bool coBangRieng = _cfg.Delivery.DanhSachAddNm != null && _cfg.Delivery.DanhSachAddNm.Count > 1;
             if (coBangRieng) ifs = _ifsRepo.GetFullCustomerOrder(ngayXuat, _cfg);
             else ifs = _ifsRepo.GetCustomerOrderJoin(ngayXuat, gioFccSP, gioMoTaSP, nhaMay, addNm, 1, _cfg);
+            if (_cfg.Delivery.CoLoaiSP)
+                ifs = _rowCategoryFilter.Filter(ifs, isSP ? OrderCategory.SP : OrderCategory.MP, _cfg);
             EnrichSttHop(ifs);
             var context = CreateOrderLoadContext(dt, nhaMay, gioFccSP, gioMoTaSP, addNm, true, true, null, isSP);
             _workingState.SaveFromSource(context, ifs, "Usp_Qrcode_LOAD_PHIEU_DOCQR2405");
