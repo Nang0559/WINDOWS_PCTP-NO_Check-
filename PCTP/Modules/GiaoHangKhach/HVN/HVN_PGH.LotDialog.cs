@@ -42,61 +42,44 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
             if (content == null)
                 return;
 
+            // The legacy layout puts both hour RadioGroups inside tabPaneHVN:
+            //   sidePanel1 -> tabPaneHVN -> tabVP/groupControl2/radioGroup2
+            //                         -> tabHN/groupControl1/RDO_GXHN
+            // For SP the form is day + plant + dock, therefore the whole
+            // hour-selection TabPane must disappear, not only the RadioGroup.
+            var hourPane = FindSpModeControl<Control>(content, "tabPaneHVN");
+            if (hourPane != null)
+            {
+                hourPane.Visible = !isSP;
+                hourPane.Enabled = !isSP;
+            }
+
+            // Keep the individual controls synchronized as well. This protects
+            // against a designer/layout change where the RadioGroups are hosted
+            // outside the TabPane.
             var radioVp = FindSpModeControl<Control>(content, "radioGroup2");
             var radioHn = FindSpModeControl<Control>(content, "RDO_GXHN");
 
             if (radioVp != null)
-                radioVp.Visible = !isSP;
-            if (radioHn != null)
-                radioHn.Visible = !isSP;
-
-            HideDedicatedHourContainer(radioVp, isSP);
-            HideDedicatedHourContainer(radioHn, isSP);
-        }
-
-        private static void HideDedicatedHourContainer(Control radio, bool visible)
-        {
-            if (radio == null || !IsDedicatedHourContainer(radio.Parent))
-                return;
-
-            radio.Parent.Visible = visible;
-        }
-
-        private static bool IsDedicatedHourContainer(Control parent)
-        {
-            if (parent == null)
-                return false;
-
-            string typeName = parent.GetType().Name ?? string.Empty;
-            if (typeName.IndexOf("TabNavigationPage", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                typeName.IndexOf("TabPane", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                typeName.IndexOf("TabControl", StringComparison.OrdinalIgnoreCase) >= 0)
-                return false;
-
-            // Do not collapse large layout containers; the hour selector panel is
-            // a small container around a RadioGroup and its caption controls.
-            if (parent.Controls.Count > 6)
-                return false;
-
-            foreach (Control child in parent.Controls)
             {
-                string name = child.Name ?? string.Empty;
-                string childType = child.GetType().Name ?? string.Empty;
-                bool allowed = name.Equals("radioGroup2", StringComparison.OrdinalIgnoreCase) ||
-                               name.Equals("RDO_GXHN", StringComparison.OrdinalIgnoreCase) ||
-                               childType.IndexOf("Label", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                               childType.IndexOf("RadioGroup", StringComparison.OrdinalIgnoreCase) >= 0;
-                if (!allowed)
-                    return false;
+                radioVp.Visible = !isSP;
+                radioVp.Enabled = !isSP;
             }
 
-            return true;
+            if (radioHn != null)
+            {
+                radioHn.Visible = !isSP;
+                radioHn.Enabled = !isSP;
+            }
         }
 
         private static T FindSpModeControl<T>(Control parent, string name) where T : Control
         {
             if (parent == null)
                 return null;
+
+            if (string.Equals(parent.Name, name, StringComparison.OrdinalIgnoreCase))
+                return parent as T;
 
             foreach (Control child in parent.Controls)
             {
