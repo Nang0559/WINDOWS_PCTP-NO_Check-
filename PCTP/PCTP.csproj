@@ -343,12 +343,6 @@
     <Compile Include="Modules\GiaoHangKhach\HVN\HVN_PGH.DocQrUi.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="Modules\GiaoHangKhach\NhanLaiNG\NhanLaiTP\frmNhanLaiTP.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Modules\GiaoHangKhach\NhanLaiNG\NhanLaiTP\frmNhanLaiTP.Designer.cs">
-      <DependentUpon>frmNhanLaiTP.cs</DependentUpon>
-    </Compile>
     <Compile Include="Modules\GiaoHangKhach\Services\CustomerAddressService.cs" />
     <Compile Include="Modules\GiaoHangKhach\Services\FifoSessionService.cs" />
     <Compile Include="Modules\GiaoHangKhach\Services\FifoSessionState.cs" />
@@ -735,13 +729,6 @@
     <Compile Include="Modules\GiaoHangKhach\SubForm\FRM_SUALOTHVN.Designer.cs">
       <DependentUpon>FRM_SUALOTHVN.cs</DependentUpon>
     </Compile>
-    <Compile Include="Modules\GiaoHangKhach\NhanLaiNG\ImPortPGHDB.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Modules\GiaoHangKhach\NhanLaiNG\ImPortPGHDB.Designer.cs">
-      <DependentUpon>ImPortPGHDB.cs</DependentUpon>
-    </Compile>
-    <Compile Include="Modules\GiaoHangKhach\NhanLaiNG\TACKMH.cs" />
     <Compile Include="Modules\GiaoHangKhach\HVN\Edit_DH.cs">
       <SubType>UserControl</SubType>
     </Compile>
@@ -1072,9 +1059,6 @@
     <EmbeddedResource Include="Modules\GiaoHangKhach\HVN\Controls\PhieuBottomStateControl.resx">
       <DependentUpon>PhieuBottomStateControl.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="Modules\GiaoHangKhach\NhanLaiNG\NhanLaiTP\frmNhanLaiTP.resx">
-      <DependentUpon>frmNhanLaiTP.cs</DependentUpon>
-    </EmbeddedResource>
     <EmbeddedResource Include="Modules\GiaoHangKhach\SubForm\FRM_CHON_LOT_KHO.resx">
       <DependentUpon>FRM_CHON_LOT_KHO.cs</DependentUpon>
     </EmbeddedResource>
@@ -1103,9 +1087,6 @@
     </EmbeddedResource>
     <EmbeddedResource Include="Modules\GiaoHangKhach\SubForm\FRM_SUALOTHVN.resx">
       <DependentUpon>FRM_SUALOTHVN.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Modules\GiaoHangKhach\NhanLaiNG\ImPortPGHDB.resx">
-      <DependentUpon>ImPortPGHDB.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Modules\GiaoHangKhach\HVN\Edit_DH.resx">
       <DependentUpon>Edit_DH.cs</DependentUpon>
