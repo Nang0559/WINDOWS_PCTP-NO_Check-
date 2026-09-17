@@ -9,6 +9,7 @@ using PCTP.Modules.GiaoHangKhach.SubForm;
 using PCTP.QRCODE_HVN;
 using PCTP.Modules.GiaoHangKhach.HVN.SubForm;
 using PCTP.Domain.Events;
+using PCTP.Shared.Models;
 
 namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
 {

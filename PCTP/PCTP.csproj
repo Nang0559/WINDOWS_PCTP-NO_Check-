@@ -617,6 +617,7 @@
     <Compile Include="Shared\Common\ItemFifoConfig.cs" />
     <Compile Include="Shared\Enums\IfsOrderQueryMode.cs" />
     <Compile Include="Shared\Helpers\GioHelpper.cs" />
+    <Compile Include="Shared\Models\ChonLotResult.cs" />
     <Compile Include="Shared\Models\HangChoGiao.cs" />
     <Compile Include="Modules\XuLyHangLoi\Models\PhieuGiaoUngVienInfo.cs" />
     <Compile Include="Modules\XuLyHangLoi\Models\PhieuTraHang.cs" />

@@ -9,6 +9,7 @@ using PCTP.Modules.GiaoHangKhach.OrderLoading.Category;
 using PCTP.Modules.GiaoHangKhach.SubForm;
 using PCTP.Presentation.Views;
 using PCTP.QRCODE_HVN.Report;
+using PCTP.Shared.Models;
 using System;
 using System.Collections.Generic;
 using System.Data;
