@@ -112,6 +112,27 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
             _hangThieuControl.Bind(dt);
             _hangThieuControl.ShowAndBringToFront();
         }
+
+        /// <summary>
+        /// Locks hour selection while the QR-reading workflow owns the current
+        /// plant/hour context. The plant tabs remain enabled; only the hour
+        /// RadioGroup inside the selected plant is disabled.
+        /// </summary>
+        private void SetGioXuatSelectionEnabled(bool enabled)
+        {
+            try
+            {
+                if (RDO_GXHN != null)
+                    RDO_GXHN.Enabled = enabled;
+                if (radioGroup2 != null)
+                    radioGroup2.Enabled = enabled;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("[SetGioXuatSelectionEnabled] " + ex.Message);
+            }
+        }
+
         public void SwitchToDocQRView()
         {
             UIButtonHOME.Visible = true;
@@ -121,6 +142,12 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
             gridCtrDOCQrCODE.BringToFront();
             _docQrControl.Visible = true;
             _docQrControl.BringToFront();
+
+            // QR mode must keep the plant/hour context fixed for the rows
+            // already loaded into the QR session. Do not allow the user to
+            // switch hour while scanning/processing QR data.
+            SetGioXuatSelectionEnabled(false);
+
             try { _hangThieuControl.Visible = false; PN_DOCQR_SUASL1.Visible = true; PN_DOCQR_SUASL1.BringToFront(); }
             catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[SwitchToDocQRView] Lỗi set Visible: {ex.Message}"); }
             if (!IsDisposed && IsHandleCreated)
@@ -132,6 +159,9 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
         }
         public void SwitchToPhieuView()
         {
+            // Leaving QR mode releases the hour selector again.
+            SetGioXuatSelectionEnabled(true);
+
             UIButtonHOME.Visible = false;
             _phieuHeaderControl.Visible = true;
             gridCtrDOCQrCODE.Visible = false;
@@ -194,10 +224,11 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
         public event EventHandler InPhieuClicked = delegate { };
         public event EventHandler InGhepLotClicked = delegate { };
         public event EventHandler InTachLotClicked = delegate { };
+        public event EventHandler InPhieuClicked2 = delegate { };
         public event EventHandler DocQRCodeClicked = delegate { };
         public event EventHandler KiemTraGhepLotClicked = delegate { };
         public event EventHandler KiemTraMaNGClicked = delegate { };
-        public event EventHandler<string> QRCodeSubmitted = delegate { };
+        public event EventHandler QRCodeSubmitted = delegate { };
         public event EventHandler HoanThanhClicked = delegate { };
         public event EventHandler XoaDongQRClicked = delegate { };
         public event EventHandler XoaToanBoQRClicked = delegate { };
@@ -214,9 +245,6 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
         private void HVN_PGH_Load(object sender, EventArgs e)
         {
             SetupNhaMayUI(_cfg);
-            // The SP toggle is owned by PhieuHeaderControl. Wire it after the
-            // header has been adopted/configured so the initial state and every
-            // subsequent XEM SP/XEM MP click update the real legacy panel.
             WireSpModeUi();
             Text = $"Phiếu Giao Hàng — {_cfg.DisplayName}";
             _addressTable = _customerAddressService.GetAddress(_cfg.CustomerNo);
