@@ -44,11 +44,6 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             InitializeParts(state, grouped.Select(x => new FifoOrderLine { ItemCode = x.ItemCode, NeedQty = x.NeedQty }));
         }
 
-        /// <summary>
-        /// Reads the actual temporary delivery order and subtracts QR quantities
-        /// already scanned in this session. This is used lazily from LoadAll()
-        /// after the order synchronization has completed.
-        /// </summary>
         public void InitializeFromTables(FifoSessionState state, string tmpTable, string docQrTable)
         {
             if (state == null) throw new ArgumentNullException(nameof(state));
@@ -97,6 +92,12 @@ GROUP BY MAHANGFCC");
 
             state.Reset();
             InitializeParts(state, orderLines);
+        }
+
+        public IReadOnlyList<FifoRamEntry> GetRamSnapshot(FifoSessionState state)
+        {
+            if (state == null) throw new ArgumentNullException(nameof(state));
+            return state.GetRamSnapshot();
         }
 
         private void InitializeParts(FifoSessionState state, IEnumerable<FifoOrderLine> orderLines)
