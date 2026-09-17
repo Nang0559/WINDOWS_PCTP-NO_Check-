@@ -35,7 +35,7 @@ FROM [{tmpTable}] tmp
 INNER JOIN FVN_ItemFifoConfig cfg
     ON cfg.ItemCode = tmp.MAHANG
    AND ISNULL(cfg.EnforceFifo, 0) = 1
-WHERE ISNULL(tmp.STATUS, '') <> 'NG'
+WHERE ISNULL(tmp.STATUS, '') NOT IN ('NG', 'OK')
   AND ISNULL(tmp.LOT, '') <> ''
 ORDER BY tmp.MAHANG, tmp.STT;");
 
@@ -100,7 +100,9 @@ ORDER BY
                         Stt = SafeInt(row["STT"]),
                         LotText = row["LotDaChon"]?.ToString()?.Trim() ?? string.Empty,
                         SoLuong = SafeInt(row["SoLuong"]),
-                        Selections = ParseLotSelections(row["LotDaChon"]?.ToString())
+                        Selections = ParseLotSelections(
+                            row["LotDaChon"]?.ToString(),
+                            SafeInt(row["SoLuong"]))
                     })
                     .Where(x => x.Selections.Count > 0)
                     .OrderBy(x => x.Stt)
@@ -193,7 +195,7 @@ ORDER BY
             return result;
         }
 
-        private static List<LotSelection> ParseLotSelections(string value)
+        private static List<LotSelection> ParseLotSelections(string value, int defaultQuantity)
         {
             var result = new List<LotSelection>();
             if (string.IsNullOrWhiteSpace(value)) return result;
@@ -201,16 +203,50 @@ ORDER BY
             foreach (string token in value.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries))
             {
                 string part = token.Trim();
+                if (string.IsNullOrWhiteSpace(part)) continue;
+
                 int separator = part.LastIndexOf('-');
-                if (separator <= 0 || separator >= part.Length - 1) continue;
 
-                string lot = part.Substring(0, separator).Trim();
-                int quantity;
-                if (!int.TryParse(part.Substring(separator + 1).Trim(), out quantity) || quantity <= 0)
+                // Single LOT: quantity comes from the delivery row.
+                if (separator <= 0 || separator >= part.Length - 1)
+                {
+                    if (defaultQuantity <= 0) continue;
+                    string lot = part;
+                    string key = lot.Length <= 13 ? lot : lot.Substring(0, 13);
+                    result.Add(new LotSelection
+                    {
+                        LotKey = key,
+                        Lot = lot,
+                        Quantity = defaultQuantity
+                    });
                     continue;
+                }
 
-                string key = lot.Length <= 13 ? lot : lot.Substring(0, 13);
-                result.Add(new LotSelection { LotKey = key, Lot = lot, Quantity = quantity });
+                string lotPart = part.Substring(0, separator).Trim();
+                string qtyPart = part.Substring(separator + 1).Trim();
+
+                int quantity;
+                if (!int.TryParse(qtyPart, out quantity) || quantity <= 0)
+                {
+                    // If suffix isn't numeric, treat the entire token as LOT.
+                    if (defaultQuantity <= 0) continue;
+                    string key = part.Length <= 13 ? part : part.Substring(0, 13);
+                    result.Add(new LotSelection
+                    {
+                        LotKey = key,
+                        Lot = part,
+                        Quantity = defaultQuantity
+                    });
+                    continue;
+                }
+
+                string lotKey = lotPart.Length <= 13 ? lotPart : lotPart.Substring(0, 13);
+                result.Add(new LotSelection
+                {
+                    LotKey = lotKey,
+                    Lot = lotPart,
+                    Quantity = quantity
+                });
             }
 
             return result;
