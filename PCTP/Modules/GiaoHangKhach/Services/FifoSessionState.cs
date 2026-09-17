@@ -84,10 +84,18 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             {
                 FifoLotState allowedLot = state.Lots.FirstOrDefault(x => string.Equals(x.LotKey, selection.LotKey, StringComparison.OrdinalIgnoreCase));
                 int remaining;
-                if (allowedLot == null || !trial.TryGetValue(selection.LotKey, out remaining) || remaining < selection.Quantity)
+                FifoLotState required = state.Lots
+                    .Where(x => trial.ContainsKey(x.LotKey) && trial[x.LotKey] > 0)
+                    .OrderBy(x => x.FifoRank)
+                    .ThenBy(x => x.LotKey, StringComparer.OrdinalIgnoreCase)
+                    .FirstOrDefault();
+
+                if (allowedLot == null || !trial.TryGetValue(selection.LotKey, out remaining) || remaining < selection.Quantity ||
+                    required == null || !string.Equals(required.LotKey, selection.LotKey, StringComparison.OrdinalIgnoreCase))
                 {
-                    FifoLotState required = state.Lots.Where(x => trial.ContainsKey(x.LotKey) && trial[x.LotKey] > 0).OrderBy(x => x.FifoRank).FirstOrDefault();
-                    string requiredLot = required != null ? required.DisplayLot : (state.Lots.Count == 0 ? "(không còn LOT FIFO hợp lệ)" : state.Lots[0].DisplayLot);
+                    string requiredLot = required != null
+                        ? required.DisplayLot
+                        : (state.Lots.Count == 0 ? "(không còn LOT FIFO hợp lệ)" : state.Lots[0].DisplayLot);
                     int allowedQty = required != null && trial.ContainsKey(required.LotKey) ? trial[required.LotKey] : 0;
                     message = string.Format("CẢNH BÁO FIFO\n\nMã hàng: {0}\nLOT đang quét: {1}\nLOT thành phần sai FIFO: {2}\nSố lượng LOT thành phần: {3}\nLOT FIFO hiện tại: {4}\nSố lượng còn được phép: {5}\n\nKhông thể xuất LOT này vì chưa đúng thứ tự FIFO.", part, lot.Trim(), selection.Lot, selection.Quantity, requiredLot, allowedQty);
                     return false;
