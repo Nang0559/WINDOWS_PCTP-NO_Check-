@@ -344,9 +344,6 @@
     <Compile Include="Modules\GiaoHangKhach\HVN\HVN_PGH.DocQrUi.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="Modules\GiaoHangKhach\HVN\HVN_PGH.DocQrView.cs">
-      <SubType>Form</SubType>
-    </Compile>
     <Compile Include="Modules\GiaoHangKhach\Services\CustomerAddressService.cs" />
     <Compile Include="Modules\GiaoHangKhach\Services\FifoSessionService.cs" />
     <Compile Include="Modules\GiaoHangKhach\Services\FifoSessionState.cs" />
