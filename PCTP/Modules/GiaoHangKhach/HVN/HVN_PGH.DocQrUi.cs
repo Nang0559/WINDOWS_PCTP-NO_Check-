@@ -10,6 +10,9 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
     public partial class HVN_PGH
     {
         private bool _docQrDeliveryContextLocked;
+        private bool _docQrLockedIsSP;
+        private string _docQrLockedNhaMay = string.Empty;
+        private string _docQrLockedGioMoTa = string.Empty;
 
         public void SetDocQrScanInputEnabled(bool enabled)
         {
@@ -80,6 +83,16 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
 
             _docQrDeliveryContextLocked = true;
 
+            // Snapshot session context at the exact moment QR starts/restores.
+            // From this point the caption must not be recomputed from mutable
+            // UI controls, because those controls may still receive internal
+            // WinForms/DevExpress events.
+            _docQrLockedIsSP = isSP;
+            _docQrLockedNhaMay = ResolveCurrentPlantCaption();
+            _docQrLockedGioMoTa = isSP
+                ? "Tất cả ca"
+                : (CurrentGioXuat != null ? CurrentGioXuat.MoTa : string.Empty);
+
             // Delivery date is part of both MP and SP QR session identity.
             if (dateNX != null)
                 dateNX.Enabled = false;
@@ -115,6 +128,9 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
                 return;
 
             _docQrDeliveryContextLocked = false;
+            _docQrLockedIsSP = false;
+            _docQrLockedNhaMay = string.Empty;
+            _docQrLockedGioMoTa = string.Empty;
 
             if (dateNX != null)
                 dateNX.Enabled = true;
@@ -285,38 +301,64 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
             if (IsDisposed || _phieuGridControl == null)
                 return;
 
-            // Customer LoadTheoNgay (ví dụ 100003) không có plant/hour selector.
-            // Không được lấy Caption của tab ẩn hoặc giờ còn sót từ customer khác.
+            // Khi QR đang chạy: chỉ dùng snapshot của session.
+            // Khi chưa chạy QR: đọc lại đúng tab + RadioGroup hiện tại.
+            // Tuyệt đối không dùng CurrentGioXuat cũ của tab khác làm nguồn
+            // cho caption.
+            bool isSP = IsLoaiSP;
             string nhaMay;
-            if (_cfg != null && _cfg.Delivery != null && _cfg.Delivery.LoadTheoNgay)
+            string gioMoTa;
+
+            if (_docQrDeliveryContextLocked)
             {
-                nhaMay = _cfg.DisplayName;
-            }
-            else if (_cfg != null && _cfg.Delivery != null && _cfg.Delivery.CoNhieuNhaMay
-                     && tabPaneHVN != null && tabPaneHVN.SelectedPage != null)
-            {
-                nhaMay = tabPaneHVN.SelectedPage.Caption;
+                isSP = _docQrLockedIsSP;
+                nhaMay = _docQrLockedNhaMay;
+                gioMoTa = _docQrLockedGioMoTa;
             }
             else
             {
-                nhaMay = _cfg != null && !string.IsNullOrWhiteSpace(_cfg.DisplayName)
-                    ? _cfg.DisplayName
-                    : "Nhà máy";
-            }
+                nhaMay = ResolveCurrentPlantCaption();
 
-            string gioMoTa = CurrentGioXuat != null
-                ? CurrentGioXuat.MoTa
-                : "Tất cả ca";
+                if (_cfg != null && _cfg.Delivery != null && _cfg.Delivery.LoadTheoNgay)
+                {
+                    gioMoTa = string.Empty;
+                }
+                else
+                {
+                    // Đồng bộ CurrentGioXuat từ radio của tab đang chọn trước
+                    // khi lấy MoTa. Đây là chốt chống lại lỗi VP -> HÀ NAM.
+                    if (_phieuHeaderControl != null)
+                        _phieuHeaderControl.SyncCurrentGioXuatWithSelectedTab();
+
+                    gioMoTa = CurrentGioXuat != null
+                        ? CurrentGioXuat.MoTa
+                        : "Tất cả ca";
+                }
+            }
 
             string configuredLabel = _cfg != null && _cfg.Delivery != null
                 ? _cfg.Delivery.LabelDocQR
                 : "";
 
             SetDocQrDisplayContext(
-                IsLoaiSP,
+                isSP,
                 nhaMay,
                 gioMoTa,
                 configuredLabel);
+        }
+
+        private string ResolveCurrentPlantCaption()
+        {
+            if (_cfg != null && _cfg.Delivery != null && _cfg.Delivery.LoadTheoNgay)
+                return _cfg.DisplayName;
+
+            if (_cfg != null && _cfg.Delivery != null && _cfg.Delivery.CoNhieuNhaMay
+                && tabPaneHVN != null && tabPaneHVN.SelectedPage != null)
+                return tabPaneHVN.SelectedPage.Caption;
+
+            return _cfg != null && !string.IsNullOrWhiteSpace(_cfg.DisplayName)
+                ? _cfg.DisplayName
+                : "Nhà máy";
         }
 
         public void SetDocQrDisplayContext(bool isSP, string nhaMay, string gioMoTa, string configuredLabel)
