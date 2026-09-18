@@ -62,7 +62,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             bool isSP = context.Category == OrderCategory.SP;
             string tmpTable = _cfg.Delivery.GetTmpTable(isSP);
             string docQRTable = _cfg.Delivery.GetDocQRTable(isSP);
-            string caption = _cfg.Delivery.LoadTheoNgay ? $"ĐƠN HÀNG: {_cfg.DisplayName} - {context.NhaMay}" : $"ĐƠN HÀNG: {_cfg.DisplayName} - {context.NhaMay}   GIỜ GIAO: {gioMoTaSP}";
+            string caption = BuildOrderCaption(context, gioMoTaSP);
 
             if (context.MachineRole == MachineRole.DuocBanQR && context.IsBanQR)
             {
@@ -116,7 +116,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         {
             bool isSP = context.Category == OrderCategory.SP;
             DataTable hangThieu = _phieuRepo.TinhHangThieuTuDonHang(donHang) ?? new DataTable();
-            string caption = _cfg.Delivery.CoGear ? $"ĐƠN HÀNG {_cfg.DisplayName} ({(isSP ? "SP" : "MP")}): {context.NgayGiao:dd/MM/yyyy}   GIỜ: {gioMoTa}" : $"ĐƠN HÀNG {_cfg.DisplayName}: {context.NgayGiao:dd/MM/yyyy}";
+            string caption = BuildOrderCaption(context, gioMoTa);
             return BuildResult(context, donHang, hangThieu, caption, false, hasDifference, warning ?? context.IfsLoadError, context.MachineRole == MachineRole.DuocBanQR && context.IsBanQR);
         }
 
