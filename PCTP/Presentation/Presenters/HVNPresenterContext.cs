@@ -90,10 +90,64 @@ namespace PCTP.Presentation.Presenters
             View.ShowLoading(true, caption);
             Task.Run(() => { try { action(); } catch (Exception ex) { UiContext.Post(_ => View.ShowError("Lỗi hệ thống: " + ex.Message), null); } finally { Interlocked.Exchange(ref _busy, 0); UiContext.Post(_ => View.ShowLoading(false), null); } });
         }
+        //internal void RunWithLoadingSync(Action action, string caption = "Đang xử lý...")
+        //{
+        //    if (Interlocked.CompareExchange(ref _busy, 1, 0) != 0) return;
+        //    try { View.ShowLoading(true, caption); action(); } catch (Exception ex) { View.ShowError("Lỗi: " + ex.Message); } finally { Interlocked.Exchange(ref _busy, 0); HideLoadingUnlessAwaitingPhieuLoad(); }
+        //}
         internal void RunWithLoadingSync(Action action, string caption = "Đang xử lý...")
         {
-            if (Interlocked.CompareExchange(ref _busy, 1, 0) != 0) return;
-            try { View.ShowLoading(true, caption); action(); } catch (Exception ex) { View.ShowError("Lỗi: " + ex.Message); } finally { Interlocked.Exchange(ref _busy, 0); HideLoadingUnlessAwaitingPhieuLoad(); }
+            int oldBusy = Interlocked.CompareExchange(ref _busy, 1, 0);
+
+            System.Diagnostics.Debug.WriteLine(
+                $"[RunWithLoadingSync] ENTER " +
+                $"oldBusy={oldBusy}, " +
+                $"currentBusy={_busy}, " +
+                $"Thread={System.Threading.Thread.CurrentThread.ManagedThreadId}, " +
+                $"Caption='{caption}'");
+
+            if (oldBusy != 0)
+            {
+                System.Diagnostics.Debug.WriteLine(
+                    $"[RunWithLoadingSync] BLOCKED " +
+                    $"Caption='{caption}'");
+
+                return;
+            }
+
+            try
+            {
+                System.Diagnostics.Debug.WriteLine(
+                    $"[RunWithLoadingSync] ACTION BEGIN " +
+                    $"Caption='{caption}'");
+
+                View.ShowLoading(true, caption);
+
+                action();
+
+                System.Diagnostics.Debug.WriteLine(
+                    $"[RunWithLoadingSync] ACTION END " +
+                    $"Caption='{caption}'");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine(
+                    $"[RunWithLoadingSync] ERROR " +
+                    $"Caption='{caption}' " +
+                    $"Exception={ex}");
+
+                View.ShowError("Lỗi: " + ex.Message);
+            }
+            finally
+            {
+                Interlocked.Exchange(ref _busy, 0);
+
+                System.Diagnostics.Debug.WriteLine(
+                    $"[RunWithLoadingSync] RESET busy=0 " +
+                    $"Caption='{caption}'");
+
+                HideLoadingUnlessAwaitingPhieuLoad();
+            }
         }
         internal void HideLoadingUnlessAwaitingPhieuLoad() { if (!AwaitingPhieuLoadedEvent) View.ShowLoading(false); }
 

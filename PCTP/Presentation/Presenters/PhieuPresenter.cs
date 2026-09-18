@@ -192,7 +192,11 @@ namespace PCTP.Presentation.Presenters
         private void OnXemHangThieuCaNgay(object sender, EventArgs e) => _c.RunWithLoading(() => { DataTable dt = _c.HangThieuCaNgayService.TinhHangThieuCaNgay(_v.SelectedDate, _c.GetNhaMay(), _c.AddNM, _c.Cfg); _c.UiContext.Post(_ => _v.ShowHangThieuCaNgay(dt), null); }, "Đang tính hàng thiếu cả ngày...");
         private void XetTrangThai()
         {
+            System.Diagnostics.Debug.WriteLine(
+             $"[XetTrangThai] ENTER Thread={System.Threading.Thread.CurrentThread.ManagedThreadId}");
             _c.RunWithLoadingSync(() => {
+                System.Diagnostics.Debug.WriteLine(
+            $"[XetTrangThai] INSIDE RunWithLoadingSync Thread={System.Threading.Thread.CurrentThread.ManagedThreadId}");
                 if (!_c.IsMayBanQR)
                 {
                     _c.IsBanQR = false; _v.UnlockAllRadio(); _v.UnlockDatePicker();
@@ -249,6 +253,17 @@ namespace PCTP.Presentation.Presenters
                 if (_c.Cfg.Delivery.CoNhieuNhaMay)
                     _v.SetTab(_qrRestoreAddNM);
                 _v.SetDate(_qrRestoreDate);
+
+                // DIAGNOSTIC #1: đọc ngược lại control thật ngay sau khi gán.
+                // Nếu dòng này in ra -> DevExpress không "nhận" giá trị gán
+                // (rất có thể do control chưa HandleCreated lúc Form_Load chạy).
+                if (_v.SelectedTabAddNM != _qrRestoreAddNM || _v.SelectedDate.Date != _qrRestoreDate.Date)
+                {
+                    System.Diagnostics.Debug.WriteLine(
+                        $"[XetTrangThai] Header did not accept restore: " +
+                        $"expected ADDNM={_qrRestoreAddNM}/Date={_qrRestoreDate:yyyy-MM-dd}, " +
+                        $"but control now shows ADDNM={_v.SelectedTabAddNM}/Date={_v.SelectedDate:yyyy-MM-dd}.");
+                }
 
                 if (_c.Cfg.Delivery.CoGear)
                 {
@@ -316,11 +331,22 @@ namespace PCTP.Presentation.Presenters
                     // ('15','16'). The header resolves the containing item and
                     // becomes the single source of truth for the visible UI.
                     bool radioRestored = _v.SelectGioXuatByConcreteHour(gio);
+                    System.Diagnostics.Debug.WriteLine(
+                    $"[XetTrangThai] AFTER SelectGioXuatByConcreteHour " +
+                    $"gio={gio}, " +
+                    $"radioRestored={radioRestored}, " +
+                    $"AddNM={_c.AddNM}, " +
+                    $"Time={DateTime.Now:HH:mm:ss.fff}");
+                    // FIX: luôn đồng bộ GioXuatHienTai, không chỉ khi restore thất bại.
+                    _c.GioXuatHienTai = new GioXuat(ma, mota);
+
                     if (!radioRestored)
                     {
-                        // Keep non-standard/special hours usable when the
-                        // repository has no corresponding Radio item.
-                        _c.GioXuatHienTai = new GioXuat(ma, mota);
+                        // DIAGNOSTIC #2: đây chính là dấu hiệu Radio bị "kẹt" ở item
+                        // mặc định (ví dụ 6H) thay vì giờ thật từ TMP.
+                        System.Diagnostics.Debug.WriteLine(
+                            $"[XetTrangThai] SelectGioXuatByConcreteHour('{gio}') FAILED " +
+                            $"for ADDNM={_c.AddNM} — Radio still shows its default item.");
                     }
                 }
                 finally { _v.ResumeGioXuatChanged(); }
@@ -358,7 +384,13 @@ namespace PCTP.Presentation.Presenters
 
                 if (!_qrRestoreIsSP && !string.IsNullOrWhiteSpace(_qrRestoreConcreteHour))
                 {
-                    _v.SelectGioXuatByConcreteHour(_qrRestoreConcreteHour);
+                    bool radioRestored = _v.SelectGioXuatByConcreteHour(_qrRestoreConcreteHour);
+                    if (!radioRestored)
+                    {
+                        System.Diagnostics.Debug.WriteLine(
+                            $"[RestoreQrHeaderFromSnapshot] SelectGioXuatByConcreteHour('{_qrRestoreConcreteHour}') " +
+                            $"FAILED for ADDNM={_qrRestoreAddNM}, Date={_qrRestoreDate:yyyy-MM-dd}.");
+                    }
                 }
             }
             finally
