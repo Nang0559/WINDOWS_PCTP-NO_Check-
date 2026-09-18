@@ -266,9 +266,24 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
             if (IsDisposed || _phieuGridControl == null)
                 return;
 
-            string nhaMay = tabPaneHVN != null && tabPaneHVN.SelectedPage != null
-                ? tabPaneHVN.SelectedPage.Caption
-                : "Nhà máy";
+            // Customer LoadTheoNgay (ví dụ 100003) không có plant/hour selector.
+            // Không được lấy Caption của tab ẩn hoặc giờ còn sót từ customer khác.
+            string nhaMay;
+            if (_cfg != null && _cfg.Delivery != null && _cfg.Delivery.LoadTheoNgay)
+            {
+                nhaMay = _cfg.DisplayName;
+            }
+            else if (_cfg != null && _cfg.Delivery != null && _cfg.Delivery.CoNhieuNhaMay
+                     && tabPaneHVN != null && tabPaneHVN.SelectedPage != null)
+            {
+                nhaMay = tabPaneHVN.SelectedPage.Caption;
+            }
+            else
+            {
+                nhaMay = _cfg != null && !string.IsNullOrWhiteSpace(_cfg.DisplayName)
+                    ? _cfg.DisplayName
+                    : "Nhà máy";
+            }
 
             string gioMoTa = CurrentGioXuat != null
                 ? CurrentGioXuat.MoTa
@@ -301,9 +316,18 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
                 ? "Tất cả ca"
                 : gioMoTa.Trim();
 
-            string caption = isSP
-                ? string.Format("{0} - SP (Tất cả ca)", plant)
-                : string.Format("{0} - {1}", plant, gio);
+            string caption;
+            if (_cfg != null && _cfg.Delivery != null && _cfg.Delivery.LoadTheoNgay)
+            {
+                // Day-based customer: DisplayName is the only valid grid identity.
+                caption = plant;
+            }
+            else
+            {
+                caption = isSP
+                    ? string.Format("{0} - SP (Tất cả ca)", plant)
+                    : string.Format("{0} - {1}", plant, gio);
+            }
 
             if (_phieuGridControl != null)
                 _phieuGridControl.SetCaption(caption);
