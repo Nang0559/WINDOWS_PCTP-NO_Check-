@@ -24,5 +24,6 @@ namespace PCTP.Modules.GiaoHangKhach.Models
 
         public DataTable IfsDataDaLoc { get; set; }
         public string IfsLoadError { get; set; }
+        public long LoadRequestId { get; set; }
     }
 }
