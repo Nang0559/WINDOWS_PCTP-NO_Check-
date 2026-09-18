@@ -85,13 +85,9 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
             if (_phieuHeaderControl != null)
                 _phieuHeaderControl.SetQrDeliveryContextLocked(true);
 
-            // Hard UI boundary: panelPhieu contains Date, factory Tab,
-            // hour RadioGroups and the MP/SP toggle. Disabling the container
-            // prevents DevExpress child controls from becoming clickable again
-            // after a layout/rebind, even when an individual Enabled flag is
-            // internally reset.
-            if (panelPhieu != null)
-                panelPhieu.Enabled = false;
+            // Do NOT disable panelPhieu as a whole. The panel also contains
+            // the MP/SP view-mode toggle. MP/SP is intentionally switchable
+            // during a QR session; only Date/Plant/Hour are immutable.
 
             // Snapshot session context at the exact moment QR starts/restores.
             // From this point the caption must not be recomputed from mutable
