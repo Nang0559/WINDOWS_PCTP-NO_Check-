@@ -29,10 +29,40 @@ namespace PCTP.Presentation.Presenters
             _c.Bus.Subscribe<PhieuLoadedEvent>(OnPhieuLoaded); _c.Bus.Subscribe<KhoUpdatedEvent>(OnKhoUpdated); _c.Bus.Subscribe<TinhTongCompletedEvent>(OnTinhTongCompleted);
         }
         private void OnFormLoaded(object sender, EventArgs e) { if (_c.Cfg.Delivery.CoGear) { _c.AddNM = _c.Cfg.Delivery.AddNmMacDinh; _c.LoadGioXuatYMVN(); } else _c.AddNM = _c.Cfg.Delivery.CoNhieuNhaMay ? _v.SelectedTabAddNM : _c.Cfg.Delivery.AddNmMacDinh; XetTrangThai(); }
-        private void OnDateChanged(object sender, EventArgs e) => _c.RunWithLoading(() => { if (_c.Cfg.Delivery.CoGear) _c.LoadGioXuatYMVN(); if (_c.GioXuatHienTai.Ma == "#") { _c.LoadPhieuGiaoDB(); return; } _c.LoadPhieuHienTai(); }, "Đang chuyển ngày...");
-        private void OnTabChanged(object sender, EventArgs e) { if (!_c.Cfg.Delivery.CoNhieuNhaMay) return; int selectedTab = _v.SelectedTabAddNM; _c.RunWithLoading(() => { _c.AddNM = selectedTab; _c.LoadPhieuHienTai(); }, "Chuyển nhà máy..."); }
+        private void OnDateChanged(object sender, EventArgs e)
+        {
+            // QR session identity = ngày + nhà máy + giờ. Không được reload TMP
+            // bằng một context mới khi đang có DOCQRCODE.
+            if (_c.IsBanQR) return;
+
+            _c.RunWithLoading(() =>
+            {
+                if (_c.Cfg.Delivery.CoGear) _c.LoadGioXuatYMVN();
+                if (_c.GioXuatHienTai.Ma == "#")
+                {
+                    _c.LoadPhieuGiaoDB();
+                    return;
+                }
+                _c.LoadPhieuHienTai();
+            }, "Đang chuyển ngày...");
+        }
+        private void OnTabChanged(object sender, EventArgs e)
+        {
+            // Khi đã có DOCQRCODE, nhà máy là một phần của session identity.
+            if (_c.IsBanQR || !_c.Cfg.Delivery.CoNhieuNhaMay) return;
+
+            int selectedTab = _v.SelectedTabAddNM;
+            _c.RunWithLoading(() =>
+            {
+                _c.AddNM = selectedTab;
+                _c.LoadPhieuHienTai();
+            }, "Chuyển nhà máy...");
+        }
         private void OnGioXuatChanged(object sender, EventArgs e)
         {
+            // Không cho thay đổi hour context trong một QR session đang mở.
+            if (_c.IsBanQR) return;
+
             _c.UpdateGioXuat(_v.CurrentGioXuat);
             _c.RunWithLoading(() =>
             {
@@ -114,7 +144,11 @@ namespace PCTP.Presentation.Presenters
             target[columnName] = source[columnName] == DBNull.Value ? (object)DBNull.Value : source[columnName];
         }
 
-        private void OnLoaiPhieuChanged(object sender, EventArgs e) => _c.LoadPhieuHienTai();
+        private void OnLoaiPhieuChanged(object sender, EventArgs e)
+        {
+            if (_c.IsBanQR) return;
+            _c.LoadPhieuHienTai();
+        }
         private void OnChonLotThuCong(object sender, ChonLotThuCongEventArgs e) { if (!_c.IsMayBanQR) return; DataTable lots = _c.PhieuSvc.GetDanhSachLotTuKho(e.MaHang); ChonLotResult r = _v.ShowChonLotTuKho(e.Stt, e.MaHang, e.SoLuong, lots); if (!r.Confirmed || string.IsNullOrWhiteSpace(r.LotGhep)) return; _c.PhieuSvc.NhapLotThuCong(e.Stt, r.LotGhep, _c.TenBan); _v.RefreshLotRow(e.Stt, r.LotGhep); _c.IsBanQR = true; _v.LockRadioExcept(_c.GioXuatHienTai.Ma); DataTable dt = _c.PhieuSvc.GetDonHangHienTai(_c.TenBan); _c.SetupPhieuButtonsDefault(_c.PhieuSvc.CheckCanCapNhapKho(dt), false, _c.PhieuSvc.CheckCoLotChuaCNK(dt)); }
         private void OnLayLaiLotNo(object sender, LayLaiLotEventArgs e) { if (!_v.Confirm($"Bạn có chắc chắn muốn reset dữ liệu LOT của dòng có STT {e.Stt} không?")) return; _c.RunWithLoadingSync(() => { _c.PhieuSvc.LayLaiLotNo(e.Stt, _c.QrSvc.IsBanSP); _c.LoadPhieuHienTai(); }, "Đang xử lý lấy lại số LOT..."); }
         private void OnXemHangThieuCaNgay(object sender, EventArgs e) => _c.RunWithLoading(() => { DataTable dt = _c.HangThieuCaNgayService.TinhHangThieuCaNgay(_v.SelectedDate, _c.GetNhaMay(), _c.AddNM, _c.Cfg); _c.UiContext.Post(_ => _v.ShowHangThieuCaNgay(dt), null); }, "Đang tính hàng thiếu cả ngày...");
@@ -149,16 +183,50 @@ namespace PCTP.Presentation.Presenters
                 }
                 if (DateTime.TryParse(tt.NgayGiao, out DateTime ngay)) _v.SetDate(ngay);
                 _c.AddNM = _c.Cfg.Delivery.CoNhieuNhaMay ? tt.AddNM : _c.Cfg.Delivery.AddNmMacDinh;
-                if (_c.Cfg.Delivery.CoNhieuNhaMay) _v.SetTab(tt.AddNM); _c.IsBanQR = true;
-                _v.LockDatePicker();
+                if (_c.Cfg.Delivery.CoNhieuNhaMay) _v.SetTab(tt.AddNM);
+                _c.IsBanQR = true;
+
                 if (_c.Cfg.Delivery.CoGear)
                 {
-                    var gs = _c.ParseGioYMVN(tt.GioGiaoFCC); bool sp = _c.CategoryResolver.Resolve(new OrderLoadContext { GioFccMoTa = tt.GioGiaoFCC }) == OrderCategory.SP; _c.QrSvc.SetCheDoBanSP(sp); _v.SuspendGioXuatChanged(); try { _c.YmvnView.SetCheckedGiosYMVN(gs); _c.YmvnView.LockCheckListYMVN(); } finally { _v.ResumeGioXuatChanged(); }
-                    _c.LoadPhieuHienTai(); return;
+                    var gs = _c.ParseGioYMVN(tt.GioGiaoFCC);
+                    bool sp = _c.CategoryResolver.Resolve(new OrderLoadContext { GioFccMoTa = tt.GioGiaoFCC }) == OrderCategory.SP;
+                    _c.QrSvc.SetCheDoBanSP(sp);
+                    _v.SuspendGioXuatChanged();
+                    try
+                    {
+                        _c.YmvnView.SetCheckedGiosYMVN(gs);
+                        _c.YmvnView.LockCheckListYMVN();
+                    }
+                    finally { _v.ResumeGioXuatChanged(); }
+
+                    // Khoá ngay ngày + loại phiếu + toàn bộ hour selector của session.
+                    _c.DocQrView.LockDocQrDeliveryContext(sp, sp ? string.Empty : tt.GioGiaoFCC);
+                    _c.LoadPhieuHienTai();
+                    return;
                 }
-                string gio = tt.GioGiaoFCC, ma = "", mota = ""; var ds = _c.AddNM == 1 ? _c.GioXuatRepo.GetDanhSachGioVP() : _c.GioXuatRepo.GetDanhSachGioHN(); foreach (var g in ds) { string mb = GioXuatRepository.ParseGioThuong(g.MoTa); if (mb.Contains($"'{gio}'")) { ma = g.Ma; mota = g.MoTa; break; } }
+
+                string gio = tt.GioGiaoFCC, ma = "", mota = "";
+                var ds = _c.AddNM == 1 ? _c.GioXuatRepo.GetDanhSachGioVP() : _c.GioXuatRepo.GetDanhSachGioHN();
+                foreach (var g in ds)
+                {
+                    string mb = GioXuatRepository.ParseGioThuong(g.MoTa);
+                    if (mb.Contains($"'{gio}'")) { ma = g.Ma; mota = g.MoTa; break; }
+                }
                 if (string.IsNullOrEmpty(ma)) { ma = $"'{gio}'"; mota = gio + "H"; }
-                _c.QrSvc.SetCheDoBanSP(_c.CategoryResolver.Resolve(new OrderLoadContext { GioFccMoTa = mota }) == OrderCategory.SP); _v.SuspendGioXuatChanged(); try { _c.GioXuatHienTai = new GioXuat(ma, mota); _c.GiaoDbView.UpdateGioXuatFromDB(ma); _v.LockRadioExcept(ma); } finally { _v.ResumeGioXuatChanged(); }
+
+                bool isSpSession = _c.CategoryResolver.Resolve(new OrderLoadContext { GioFccMoTa = mota }) == OrderCategory.SP;
+                _c.QrSvc.SetCheDoBanSP(isSpSession);
+                _v.SuspendGioXuatChanged();
+                try
+                {
+                    _c.GioXuatHienTai = new GioXuat(ma, mota);
+                    _c.GiaoDbView.UpdateGioXuatFromDB(ma);
+                }
+                finally { _v.ResumeGioXuatChanged(); }
+
+                // Đây là điểm khôi phục session từ DB: QR + TMP metadata đã xác định
+                // chính xác nhà máy/ngày/giờ, không cho UI chọn lại context khác.
+                _c.DocQrView.LockDocQrDeliveryContext(isSpSession, isSpSession ? string.Empty : ma);
                 _c.LoadPhieuHienTai();
             }, "Đang kiểm tra trạng thái phiên làm việc cũ...");
         }
