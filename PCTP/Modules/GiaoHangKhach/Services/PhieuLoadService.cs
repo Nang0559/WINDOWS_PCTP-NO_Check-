@@ -173,6 +173,37 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             }
         }
 
+        /// <summary>
+        /// Chuẩn hoá caption đơn hàng tại một điểm duy nhất.
+        /// CustomerConfig.DisplayName là tên khách hàng chuẩn; không dùng
+        /// tên nhà máy/giờ ẩn làm fallback cho customer name.
+        /// </summary>
+        private string BuildOrderCaption(OrderLoadContext context, string gioMoTa)
+        {
+            if (_cfg.Delivery.LoadTheoNgay)
+                return $"ĐƠN HÀNG: {_cfg.DisplayName}";
+
+            if (_cfg.Delivery.CoGear)
+            {
+                bool isSP = context.Category == OrderCategory.SP;
+                string category = isSP ? "SP" : "MP";
+                string gio = string.IsNullOrWhiteSpace(gioMoTa)
+                    ? string.Empty
+                    : $"   GIỜ: {gioMoTa}";
+
+                return $"ĐƠN HÀNG {_cfg.DisplayName} ({category}): {context.NgayGiao:dd/MM/yyyy}{gio}";
+            }
+
+            string factory = string.IsNullOrWhiteSpace(context.NhaMay)
+                ? string.Empty
+                : $" - {context.NhaMay}";
+            string gioGiao = string.IsNullOrWhiteSpace(gioMoTa)
+                ? string.Empty
+                : $"   GIỜ GIAO: {gioMoTa}";
+
+            return $"ĐƠN HÀNG: {_cfg.DisplayName}{factory}{gioGiao}";
+        }
+
         private static bool HasRows(DataTable table) => table != null && table.Rows.Count > 0;
 
         private static void ValidateContext(OrderLoadContext context)
