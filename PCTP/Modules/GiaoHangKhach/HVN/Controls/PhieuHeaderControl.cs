@@ -63,8 +63,11 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
             if (radioHn != null)
                 radioHn.Enabled = !locked;
 
+            // MP/SP is a view mode, not part of the immutable delivery
+            // session identity. It must remain switchable while Date/Plant/Hour
+            // are locked.
             if (_btnToggleLoaiPhieu != null)
-                _btnToggleLoaiPhieu.Enabled = !locked;
+                _btnToggleLoaiPhieu.Enabled = true;
 
             if (locked)
             {
