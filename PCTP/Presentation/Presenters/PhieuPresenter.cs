@@ -98,7 +98,15 @@ namespace PCTP.Presentation.Presenters
             {
                 DataTable t = _c.PhieuSvc.GetDonHangChuaLot(_c.QrSvc.IsBanSP);
                 if (t != null && t.Rows.Count > 0) _c.LotSvc.TinhTongLot(t, _c.TenBan, _c.Cfg.Delivery.GetDocQRTable(_c.QrSvc.IsBanSP), _c.Cfg.Delivery.GetTmpTable(_c.QrSvc.IsBanSP), rows => _v.ShowChonSttTrungMa(rows));
-                if (_c.QrSvc.CountChuaDG() == 0) { _c.IsBanQR = false; _v.UnlockAllRadio(); }
+                if (_c.QrSvc.CountChuaDG() > 0)
+                    return;
+
+                _c.IsBanQR = false;
+                _c.QrSvc.SetCheDoBan("");
+                _c.ClearDeliverySession();
+                _v.UnlockDocQrDeliveryContext();
+                _v.UnlockAllRadio();
+                _v.UnlockDatePicker();
                 _v.SwitchToPhieuView();
                 DataTable current = _v.GetDonHangTable();
                 DataTable latest = _c.PhieuSvc.GetDonHangHienTai(_c.TenBan);
@@ -109,7 +117,10 @@ namespace PCTP.Presentation.Presenters
             }
             _c.IsBanQR = false;
             _c.QrSvc.SetCheDoBan("");
+            _c.ClearDeliverySession();
+            _v.UnlockDocQrDeliveryContext();
             _v.UnlockAllRadio();
+            _v.UnlockDatePicker();
             if (_c.GioXuatHienTai.Ma == "#")
             {
                 DataTable d = _c.LoadPhieuGiaoDB();
@@ -184,6 +195,16 @@ namespace PCTP.Presentation.Presenters
                 if (DateTime.TryParse(tt.NgayGiao, out DateTime ngay)) _v.SetDate(ngay);
                 _c.AddNM = _c.Cfg.Delivery.CoNhieuNhaMay ? tt.AddNM : _c.Cfg.Delivery.AddNmMacDinh;
                 if (_c.Cfg.Delivery.CoNhieuNhaMay) _v.SetTab(tt.AddNM);
+
+                // DOCQRCODE + TMP metadata define one immutable delivery session.
+                // Create the guard before any reload is allowed.
+                _c.BeginDeliverySession(
+                    ngay.Date,
+                    _c.AddNM,
+                    tt.GioGiaoFCC,
+                    _c.GetNhaMay(),
+                    false);
+
                 _c.IsBanQR = true;
 
                 if (_c.Cfg.Delivery.CoGear)
@@ -191,6 +212,12 @@ namespace PCTP.Presentation.Presenters
                     var gs = _c.ParseGioYMVN(tt.GioGiaoFCC);
                     bool sp = _c.CategoryResolver.Resolve(new OrderLoadContext { GioFccMoTa = tt.GioGiaoFCC }) == OrderCategory.SP;
                     _c.QrSvc.SetCheDoBanSP(sp);
+                    _c.BeginDeliverySession(
+                        ngay.Date,
+                        _c.AddNM,
+                        tt.GioGiaoFCC,
+                        _c.GetNhaMay(),
+                        sp);
                     _v.SuspendGioXuatChanged();
                     try
                     {
@@ -216,6 +243,12 @@ namespace PCTP.Presentation.Presenters
 
                 bool isSpSession = _c.CategoryResolver.Resolve(new OrderLoadContext { GioFccMoTa = mota }) == OrderCategory.SP;
                 _c.QrSvc.SetCheDoBanSP(isSpSession);
+                _c.BeginDeliverySession(
+                    ngay.Date,
+                    _c.AddNM,
+                    ma,
+                    _c.GetNhaMay(),
+                    isSpSession);
                 _v.SuspendGioXuatChanged();
                 try
                 {
