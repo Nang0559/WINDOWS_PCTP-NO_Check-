@@ -104,7 +104,7 @@ namespace PCTP.Presentation.Presenters
                 _c.IsBanQR = false;
                 _c.QrSvc.SetCheDoBan("");
                 _c.ClearDeliverySession();
-                _v.UnlockDocQrDeliveryContext();
+                _c.DocQrView.UnlockDocQrDeliveryContext();
                 if (_c.Cfg.Delivery.CoGear)
                     _c.YmvnView.UnlockCheckListYMVN();
                 _v.UnlockAllRadio();
@@ -120,12 +120,12 @@ namespace PCTP.Presentation.Presenters
             _c.IsBanQR = false;
             _c.QrSvc.SetCheDoBan("");
             _c.ClearDeliverySession();
-            _v.UnlockDocQrDeliveryContext();
+            _c.DocQrView.UnlockDocQrDeliveryContext();
             if (_c.Cfg.Delivery.CoGear)
                 _c.YmvnView.UnlockCheckListYMVN();
             _v.UnlockAllRadio();
             _v.UnlockDatePicker();
-            if (_c.GioXuatHienTai.Ma == "#"
+            if (_c.GioXuatHienTai.Ma == "#")
             {
                 DataTable d = _c.LoadPhieuGiaoDB();
                 _c.SetupPhieuButtonsDefault(true, false, _c.PhieuSvc.CheckCoLotChuaCNK(d));
