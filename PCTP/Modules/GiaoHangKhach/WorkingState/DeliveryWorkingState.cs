@@ -42,6 +42,9 @@ namespace PCTP.Modules.GiaoHangKhach.OrderLoading.WorkingState
             ValidateContext(context);
             var tables = BuildTables(context);
 
+            if (context.Category == OrderCategory.SP && context.Cfg.Delivery.CoConfigSP)
+                return _tmpRepo.GetTrangThaiDangBanSP(tables);
+
             return context.Cfg.Delivery.CoGear
                 ? _tmpRepo.GetTrangThaiDangBanYMVN(tables.TmpTable, tables.DocQRTable)
                 : _tmpRepo.GetTrangThaiDangBan(tables.TmpTable, tables.DocQRTable);
