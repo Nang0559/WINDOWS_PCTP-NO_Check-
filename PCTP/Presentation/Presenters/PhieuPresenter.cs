@@ -374,17 +374,17 @@ namespace PCTP.Presentation.Presenters
 
             _c.UiContext.Post(_ =>
             {
-                // Reapply the immutable TMP/DOCQRCODE header identity after
-                // the data load. This is deliberately AFTER BindDonHang:
-                // any load/bind side effect is therefore unable to leave
-                // dateNX or RDO_GXHN on the previous context.
-                RestoreQrHeaderFromSnapshot();
-
                 // The caption is part of the same OrderLoadContext as the
                 // DataTable. Do not leave the previous plant/hour caption on
                 // the grid when a restored QR session is loaded.
                 _v.SetGridCaption(caption);
                 _v.BindDonHang(data ?? new DataTable());
+
+                // Reapply AFTER the grid/data binding. Any load/bind side effect
+                // is therefore unable to leave dateNX or RDO_GXHN on the old
+                // context. TMP/DOCQRCODE remains the immutable source of truth.
+                RestoreQrHeaderFromSnapshot();
+
                 _c.SetupPhieuButtonsDefault(
                     true,
                     e != null && e.CoMaNG,
