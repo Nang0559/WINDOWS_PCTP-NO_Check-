@@ -103,8 +103,8 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
             if (dateNX != null)
                 dateNX.Enabled = false;
 
-            // MP/SP is part of the session identity too.
-            SetLoaiPhieuToggleEnabled(false);
+            // MP/SP is a view mode only and remains switchable during QR lock.
+            SetLoaiPhieuToggleEnabled(true);
 
             // Plant is part of both MP and SP identity.
             // Keep both pages visible but disable the TabPane itself so the
