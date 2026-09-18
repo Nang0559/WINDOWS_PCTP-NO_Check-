@@ -257,8 +257,7 @@ FROM
     SELECT DISTINCT
            ISNULL(ADDNM, 1) AS ADDNM,
            CONVERT(VARCHAR(10), NGAYGIAO, 120) AS NGAYGIAO,
-           ISNULL(GIOGIAO, '') AS GIOGIAO,
-           ISNULL(NHAMAY, '') AS NHAMAY
+           ISNULL(GIOGIAO, '') AS GIOGIAO
     FROM [{tmpTable}]
 ) S"));
 
@@ -269,7 +268,7 @@ FROM
                 return result;
             }
 
-            DataTable dt = LoadData($"SELECT TOP 1 ADDNM, NGAYGIAO, GIOGIAO, NHAMAY FROM [{tmpTable}]");
+            DataTable dt = LoadData($"SELECT TOP 1 ADDNM, NGAYGIAO, GIOGIAO FROM [{tmpTable}]");
             if (dt.Rows.Count == 0)
             {
                 result.DangBan = true;
@@ -281,7 +280,7 @@ FROM
             result.DangBan = true;
             result.DataKhongKhop = false;
             result.AddNM = row["ADDNM"] == DBNull.Value ? 1 : Convert.ToInt32(row["ADDNM"]);
-            result.NhaMay = row["NHAMAY"] == DBNull.Value ? "" : row["NHAMAY"].ToString().Trim();
+            // NHAMAY is deliberately not part of the session identity. The factory is ADDNM.
             result.NgayGiao = row["NGAYGIAO"] == DBNull.Value ? "" : Convert.ToDateTime(row["NGAYGIAO"]).ToString("yyyy-MM-dd");
 
             string gioDon = row["GIOGIAO"] == DBNull.Value ? "" : row["GIOGIAO"].ToString().Trim();
