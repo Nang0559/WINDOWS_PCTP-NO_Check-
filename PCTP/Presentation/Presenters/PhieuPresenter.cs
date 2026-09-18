@@ -212,7 +212,19 @@ namespace PCTP.Presentation.Presenters
 
         private void OnLoaiPhieuChanged(object sender, EventArgs e)
         {
-            if (!_formLoaded || _initializing || _c.IsBanQR) return;
+            if (!_formLoaded || _initializing)
+                return;
+
+            // MP/SP is a display/load mode only. During an active QR session
+            // Date + Plant + Hour remain immutable, but the user may switch
+            // between the MP and SP order tables.
+            if (_c.IsBanQR)
+            {
+                _c.QrSvc.SetCheDoBanSP(_v.IsLoaiSP);
+                _c.LoadPhieuHienTai();
+                return;
+            }
+
             _c.LoadPhieuHienTai();
         }
         private void OnChonLotThuCong(object sender, ChonLotThuCongEventArgs e) { if (!_c.IsMayBanQR) return; DataTable lots = _c.PhieuSvc.GetDanhSachLotTuKho(e.MaHang); ChonLotResult r = _v.ShowChonLotTuKho(e.Stt, e.MaHang, e.SoLuong, lots); if (!r.Confirmed || string.IsNullOrWhiteSpace(r.LotGhep)) return; _c.PhieuSvc.NhapLotThuCong(e.Stt, r.LotGhep, _c.TenBan);
