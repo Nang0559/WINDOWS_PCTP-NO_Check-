@@ -44,6 +44,9 @@ namespace PCTP.Presentation.Presenters
         internal bool IsBanQR;
         internal bool IsLoadingPhieu;
         internal bool AwaitingPhieuLoadedEvent;
+        private long _loadRequestSequence;
+        internal long BeginLoadRequest() => Interlocked.Increment(ref _loadRequestSequence);
+        internal long CurrentLoadRequestId => Interlocked.Read(ref _loadRequestSequence);
         internal DeliverySessionIdentity DeliverySession { get; private set; }
         private int _busy;
 
@@ -203,6 +206,7 @@ namespace PCTP.Presentation.Presenters
             IsLoadingPhieu = true;
             string ngayGiao = ""; string nhaMay = ""; List<string> checkedGios = null; bool isLoaiSP = false;
             string gioMa = GioXuatHienTai.Ma; string gioMoTa = GioXuatHienTai.MoTa;
+            long loadRequestId = BeginLoadRequest();
             Action readUiAction = () =>
             {
                 ngayGiao = Cfg.Delivery.CoGear ? View.SelectedDate.ToString("MM/dd/yyyy") : View.SelectedDate.ToString("yyyy-MM-dd");
@@ -213,7 +217,7 @@ namespace PCTP.Presentation.Presenters
             try
             {
                 AwaitingPhieuLoadedEvent = true;
-                PhieuSvc.LoadPhieu(ngayGiao, nhaMay, gioMa, gioMoTa, AddNM, IsMayBanQR, IsBanQR, checkedGios, isLoaiSP);
+                PhieuSvc.LoadPhieu(ngayGiao, nhaMay, gioMa, gioMoTa, AddNM, IsMayBanQR, IsBanQR, checkedGios, isLoaiSP, loadRequestId);
             }
             catch (Exception ex)
             {
