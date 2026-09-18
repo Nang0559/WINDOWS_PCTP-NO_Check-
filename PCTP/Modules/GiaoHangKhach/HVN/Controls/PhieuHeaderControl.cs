@@ -598,7 +598,7 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
                 btnUploadMilkrun.Parent.Controls.Add(_btnToggleLoaiPhieu);
             }
             _btnToggleLoaiPhieu.Visible = true;
-            _btnToggleLoaiPhieu.Enabled = !_qrDeliveryContextLocked;
+            // MP/SP is intentionally switchable during an active QR session.\n            _btnToggleLoaiPhieu.Enabled = true;
         }
 
         private void HideLoaiPhieuToggle() { if (_btnToggleLoaiPhieu != null) _btnToggleLoaiPhieu.Visible = false; }
