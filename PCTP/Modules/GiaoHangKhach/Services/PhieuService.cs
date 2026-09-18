@@ -94,7 +94,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
                 _bus.Publish(new PhieuLoadedEvent(donHang, hangThieu, caption, result.HasMaNG, result.Warning, result.Category == OrderCategory.SP, result.LoadRequestId));
                 return;
             }
-            _bus.Publish(new PhieuLoadedEvent(donHang, hangThieu, caption, result.HasMaNG, null, result.Category == OrderCategory.SP));
+            _bus.Publish(new PhieuLoadedEvent(donHang, hangThieu, caption, result.HasMaNG, null, result.Category == OrderCategory.SP, result.LoadRequestId));
         }
         private void PublishEmptyPhieuLoaded() => _bus.Publish(new PhieuLoadedEvent(new DataTable(), new DataTable(), "", false, null, _isLoaiSP, 0));
 
@@ -115,7 +115,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             if (_cfg.Delivery.CoLoaiSP)
                 ifs = _rowCategoryFilter.Filter(ifs, isSP ? OrderCategory.SP : OrderCategory.MP, _cfg);
             EnrichSttHop(ifs);
-            var context = CreateOrderLoadContext(dt, nhaMay, gioFccSP, gioMoTaSP, addNm, true, true, null, isSP);
+            var context = CreateOrderLoadContext(dt, nhaMay, gioFccSP, gioMoTaSP, addNm, true, true, null, isSP, 0);
             _workingState.SaveFromSource(context, ifs, "Usp_Qrcode_LOAD_PHIEU_DOCQR2405");
         }
 
