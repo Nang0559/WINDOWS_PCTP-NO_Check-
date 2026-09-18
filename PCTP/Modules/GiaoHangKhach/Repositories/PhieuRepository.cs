@@ -100,6 +100,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         public void XoaTmpPhieu(string tenBan) => _tmp.XoaTmpPhieu(tenBan);
         public void XoaDocQRCode(string docQRTable) => _tmp.XoaDocQRCode(docQRTable);
         public TrangThaiBan GetTrangThaiDangBan(PhieuTableSet tables) => _tmp.GetTrangThaiDangBan(tables);
+        public TrangThaiBan GetTrangThaiDangBanSP(PhieuTableSet tables) => _tmp.GetTrangThaiDangBanSP(tables);
         public TrangThaiBan GetTrangThaiDangBan(string tmpTable, string docQRTable) => _tmp.GetTrangThaiDangBan(tmpTable, docQRTable);
         public TrangThaiBan GetTrangThaiDangBanYMVN(PhieuTableSet tables) => _tmp.GetTrangThaiDangBanYMVN(tables);
         public TrangThaiBan GetTrangThaiDangBanYMVN(string tmpTable, string docQRTable) => _tmp.GetTrangThaiDangBanYMVN(tmpTable, docQRTable);
