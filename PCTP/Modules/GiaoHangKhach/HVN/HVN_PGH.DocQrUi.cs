@@ -275,9 +275,8 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
 
         private void GridCaptionContextChanged(object sender, EventArgs e)
         {
-            if (_docQrDeliveryContextLocked)
-                return;
-
+            // Khi QR session bị khoá, context không được phép thay đổi;
+            // caption vẫn phải phản ánh đúng context đã khoá.
             UpdateGridCaptionFromCurrentState();
         }
 
