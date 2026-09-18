@@ -105,6 +105,8 @@ namespace PCTP.Presentation.Presenters
                     _c.IsBanQR = false;
                     _c.ClearDeliverySession();
                     _v.UnlockDocQrDeliveryContext();
+                    if (_c.Cfg.Delivery.CoGear)
+                        _c.YmvnView.UnlockCheckListYMVN();
                     _c.PhieuView.UnlockAllRadio();
                     _c.PhieuView.UnlockDatePicker();
                     _v.ShowError($"Lỗi chuẩn bị dữ liệu QR: {ex.Message}");
@@ -254,6 +256,8 @@ namespace PCTP.Presentation.Presenters
             _c.QrSvc.SetCheDoBan("");
             _c.ClearDeliverySession();
             _v.UnlockDocQrDeliveryContext();
+            if (_c.Cfg.Delivery.CoGear)
+                _c.YmvnView.UnlockCheckListYMVN();
             _c.PhieuView.UnlockAllRadio();
             _c.PhieuView.UnlockDatePicker();
         }
