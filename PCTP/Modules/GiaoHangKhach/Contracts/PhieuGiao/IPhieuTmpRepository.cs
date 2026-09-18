@@ -23,6 +23,7 @@ namespace PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao
         void XoaTmpPhieu(string tenBan);
         void XoaDocQRCode(string docQRTable);
         TrangThaiBan GetTrangThaiDangBan(PhieuTableSet tables);
+        TrangThaiBan GetTrangThaiDangBanSP(PhieuTableSet tables);
         TrangThaiBan GetTrangThaiDangBanYMVN(PhieuTableSet tables);
         void EnsureTablesExist();
 
