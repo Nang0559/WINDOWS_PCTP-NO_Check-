@@ -44,6 +44,7 @@ namespace PCTP.Presentation.Presenters
         internal bool IsBanQR;
         internal bool IsLoadingPhieu;
         internal bool AwaitingPhieuLoadedEvent;
+        internal DeliverySessionIdentity DeliverySession { get; private set; }
         private int _busy;
 
         internal HVNPresenterContext(IHVNView view, IPhieuService phieuSvc, IPhieuLotService lotSvc, IDocQRService qrSvc, IInPhieuService inPhieuSvc, IHangThieuCaNgayService hangThieuCaNgayService, IGioXuatRepository gioXuatRepo, IEventBus bus, bool isMayBanQR, string tenBan, CustomerConfig cfg, IOrderCategoryResolver categoryResolver)
@@ -52,7 +53,36 @@ namespace PCTP.Presentation.Presenters
             PhieuSvc = phieuSvc ?? throw new ArgumentNullException(nameof(phieuSvc)); LotSvc = lotSvc ?? throw new ArgumentNullException(nameof(lotSvc)); QrSvc = qrSvc ?? throw new ArgumentNullException(nameof(qrSvc)); InPhieuSvc = inPhieuSvc ?? throw new ArgumentNullException(nameof(inPhieuSvc)); HangThieuCaNgayService = hangThieuCaNgayService ?? throw new ArgumentNullException(nameof(hangThieuCaNgayService)); GioXuatRepo = gioXuatRepo ?? throw new ArgumentNullException(nameof(gioXuatRepo)); Bus = bus ?? throw new ArgumentNullException(nameof(bus)); Cfg = cfg ?? throw new ArgumentNullException(nameof(cfg)); CategoryResolver = categoryResolver ?? throw new ArgumentNullException(nameof(categoryResolver));
             CustomerBehavior = new CustomerDeliveryBehavior(cfg); IsMayBanQR = isMayBanQR; TenBan = tenBan; UiContext = SynchronizationContext.Current ?? new WindowsFormsSynchronizationContext();
         }
-        internal void UpdateGioXuat(GioXuat gio) { GioXuatHienTai = gio; }
+        internal void UpdateGioXuat(GioXuat gio)
+        {
+            GioXuatHienTai = gio;
+        }
+
+        internal void BeginDeliverySession(DateTime ngayGiao, int addNM, string gioGiao, string nhaMay, bool isSP)
+        {
+            DeliverySession = new DeliverySessionIdentity(addNM, ngayGiao, gioGiao, nhaMay, isSP);
+        }
+
+        internal void ClearDeliverySession()
+        {
+            DeliverySession = null;
+        }
+
+        internal bool IsCurrentDeliverySessionValid()
+        {
+            if (!IsBanQR)
+                return true;
+
+            if (DeliverySession == null)
+                return false;
+
+            return DeliverySession.Matches(
+                View.SelectedDate,
+                AddNM,
+                GioXuatHienTai != null ? GioXuatHienTai.Ma : string.Empty,
+                GetNhaMay(),
+                Cfg.Delivery.CoGear || Cfg.Delivery.CoLoaiSP && PhieuView.IsLoaiSP);
+        }
         internal string GetNhaMay() => !Cfg.Delivery.CoNhieuNhaMay ? Cfg.Delivery.TenNhaMay : (AddNM == 1 ? "HON DA - VIET NAM(NHA MAY VP)" : "HON DA - VIET NAM(NHA MAY HA NAM)");
         internal void RunWithLoading(Action action, string caption = "Đang xử lý...")
         {
@@ -106,6 +136,15 @@ namespace PCTP.Presentation.Presenters
         }
         internal void LoadPhieuHienTai()
         {
+            // QR mode owns an immutable session context. Never reload TMP/DOCQR
+            // if the UI has drifted to another date/plant/hour/category.
+            if (IsBanQR && !IsCurrentDeliverySessionValid())
+            {
+                System.Diagnostics.Debug.WriteLine(
+                    "[LoadPhieuHienTai] BLOCKED: UI context does not match active QR delivery session.");
+                return;
+            }
+
             if (IsLoadingPhieu) return;
             IsLoadingPhieu = true;
             string ngayGiao = ""; string nhaMay = ""; List<string> checkedGios = null; bool isLoaiSP = false;
