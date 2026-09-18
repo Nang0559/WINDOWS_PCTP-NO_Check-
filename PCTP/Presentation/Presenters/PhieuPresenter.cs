@@ -284,7 +284,7 @@ namespace PCTP.Presentation.Presenters
                 }
                 if (tt.DataKhongKhop)
                 {
-                    if (_c.DocQrView.HoiXoaDocQR()) _c.PhieuSvc.XoaDocQRCode(); _c.IsBanQR = false;
+                    if (_c.DocQrView.HoiXoaDocQR()) _c.PhieuSvc.XoaDocQRCode(selectedIsSP); _c.IsBanQR = false;
                     _c.QrSvc.SetCheDoBanSP(false); _v.UnlockAllRadio(); _v.UnlockDatePicker(); _c.LoadPhieuHienTai(); return;
                 }
                 if (!DateTime.TryParse(tt.NgayGiao, out DateTime ngay))
@@ -294,6 +294,7 @@ namespace PCTP.Presentation.Presenters
                     _c.QrSvc.SetCheDoBanSP(false);
                     _v.UnlockAllRadio();
                     _v.UnlockDatePicker();
+                    _c.DocQrView.UnlockDocQrDeliveryContext();
                     _c.LoadPhieuHienTai();
                     return;
                 }
