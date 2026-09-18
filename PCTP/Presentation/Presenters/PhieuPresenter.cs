@@ -105,6 +105,8 @@ namespace PCTP.Presentation.Presenters
                 _c.QrSvc.SetCheDoBan("");
                 _c.ClearDeliverySession();
                 _v.UnlockDocQrDeliveryContext();
+                if (_c.Cfg.Delivery.CoGear)
+                    _c.YmvnView.UnlockCheckListYMVN();
                 _v.UnlockAllRadio();
                 _v.UnlockDatePicker();
                 _v.SwitchToPhieuView();
@@ -119,9 +121,11 @@ namespace PCTP.Presentation.Presenters
             _c.QrSvc.SetCheDoBan("");
             _c.ClearDeliverySession();
             _v.UnlockDocQrDeliveryContext();
+            if (_c.Cfg.Delivery.CoGear)
+                _c.YmvnView.UnlockCheckListYMVN();
             _v.UnlockAllRadio();
             _v.UnlockDatePicker();
-            if (_c.GioXuatHienTai.Ma == "#")
+            if (_c.GioXuatHienTai.Ma == "#"
             {
                 DataTable d = _c.LoadPhieuGiaoDB();
                 _c.SetupPhieuButtonsDefault(true, false, _c.PhieuSvc.CheckCoLotChuaCNK(d));
@@ -199,7 +203,7 @@ namespace PCTP.Presentation.Presenters
                 }
                 if (!tt.DangBan)
                 {
-                    _c.IsBanQR = false; _c.QrSvc.SetCheDoBanSP(false); _v.UnlockAllRadio(); _v.UnlockDatePicker();
+                    _c.IsBanQR = false; _c.ClearDeliverySession(); _c.QrSvc.SetCheDoBanSP(false); _v.UnlockAllRadio(); _v.UnlockDatePicker();
                     _c.LoadPhieuHienTai(); return;
                 }
                 if (tt.DataKhongKhop)
