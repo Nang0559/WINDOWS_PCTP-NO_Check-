@@ -466,54 +466,37 @@ namespace PCTP.Presentation.Presenters
 
         private void OnPhieuLoaded(PhieuLoadedEvent e)
         {
-            // A load is synchronous in PhieuService but UI binding is posted to
-            // SynchronizationContext. Therefore an MP load started before an
-            // MP -> SP toggle can arrive after the SP load has already been
-            // requested. Never let a queued result from the other category
-            // overwrite the currently selected view.
             if (e == null)
                 return;
 
-            bool currentIsSP = _v.IsLoaiSP && _c.Cfg.Delivery.CoConfigSP;
-            if (e.IsSP != currentIsSP)
-            {
-                System.Diagnostics.Debug.WriteLine(
-                    $"[OnPhieuLoaded] IGNORE STALE CATEGORY: eventIsSP={e.IsSP}, currentIsSP={currentIsSP}, caption='{e.Caption}'");
-                return;
-            }
-
-            DataTable data = e.DonHangTable;
-            string caption = e.Caption ?? string.Empty;
-
+            // EventBus may publish from a worker thread. Validate and bind only
+            // on the WinForms UI thread, against the latest load request.
             _c.UiContext.Post(_ =>
             {
-                // The caption is part of the same OrderLoadContext as the
-                // DataTable. Do not leave the previous plant/hour caption on
-                // the grid when a restored QR session is loaded.
-                _v.SetGridCaption(caption);
+                bool currentIsSP = _v.IsLoaiSP && _c.Cfg.Delivery.CoConfigSP;
+                long currentRequestId = _c.CurrentLoadRequestId;
+
+                // Category alone is insufficient for MP -> SP -> MP. The request
+                // sequence makes every older result stale, even if its category
+                // happens to match the current one again.
+                if (e.LoadRequestId != currentRequestId || e.IsSP != currentIsSP)
+                {
+                    System.Diagnostics.Debug.WriteLine(
+                        $"[OnPhieuLoaded] IGNORE STALE: eventId={e.LoadRequestId}, currentId={currentRequestId}, eventSP={e.IsSP}, currentSP={currentIsSP}, caption='{e.Caption}'");
+                    return;
+                }
+
+                DataTable data = e.DonHangTable;
+                _v.SetGridCaption(e.Caption ?? string.Empty);
                 _v.BindDonHang(data ?? new DataTable());
-
-                _c.SetupPhieuButtonsDefault(
-                    true,
-                    e != null && e.CoMaNG,
-                    _c.PhieuSvc.CheckCoLotChuaCNK(data));
-
+                _c.SetupPhieuButtonsDefault(true, e.CoMaNG, _c.PhieuSvc.CheckCoLotChuaCNK(data));
                 _c.IsLoadingPhieu = false;
                 _c.AwaitingPhieuLoadedEvent = false;
                 _c.HideLoadingUnlessAwaitingPhieuLoad();
-
-                // IMPORTANT: this must be the LAST synchronous UI operation
-                // in the load callback. Some legacy button/grid setup code can
-                // touch the header indirectly. TMP/DOCQRCODE remains the
-                // immutable source of truth for the active QR session.
                 RestoreQrHeaderFromSnapshot();
 
-                // Also queue one final restore behind any BeginInvoke work
-                // already posted by DevExpress/legacy controls during binding.
                 if (_c.IsBanQR)
-                {
                     _c.UiContext.Post(__ => RestoreQrHeaderFromSnapshot(), null);
-                }
             }, null);
         }
         private void OnKhoUpdated(KhoUpdatedEvent e)
