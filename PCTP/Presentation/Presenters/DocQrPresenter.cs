@@ -39,6 +39,16 @@ namespace PCTP.Presentation.Presenters
                 _v.ShowInfo("Bạn chỉ sử dụng được tính năng này trên máy bắn QR.");
                 return;
             }
+
+            // DOCQRCODE/TMP luôn là source of truth khi đã có phiên QR.
+            // Không được lấy ngày/nhà máy/giờ hiện tại trên UI để mở lại một
+            // phiên đang tồn tại. Trường hợp điển hình: TMP/DOCQRCODE đang là
+            // 15H nhưng người dùng đang đứng ở radio 6H; trước đây code bên
+            // dưới vẫn BeginDeliverySession(6H) rồi LoadAll(), làm dữ liệu
+            // 15H hiển thị dưới header 6H và toàn bộ lock bị sai ngữ cảnh.
+            if (TryRestoreExistingQrSession())
+                return;
+
             if (!_c.PhieuView.CoHangChuaOK())
             {
                 _v.ShowInfo("Phiếu không đủ điều kiện để đọc QRCODE. Hoặc đã đọc xong dữ liệu.");
@@ -112,6 +122,129 @@ namespace PCTP.Presentation.Presenters
                     _v.ShowError($"Lỗi chuẩn bị dữ liệu QR: {ex.Message}");
                 }
             }, "Đang chuẩn bị dữ liệu QR...");
+        }
+
+        /// <summary>
+        /// Nếu DOCQRCODE/TMP đã có dữ liệu thì khôi phục đúng session từ DB
+        /// và chuyển thẳng sang QR view. Tuyệt đối không dùng context hiện tại
+        /// trên header làm identity cho dữ liệu QR đã tồn tại.
+        /// </summary>
+        private bool TryRestoreExistingQrSession()
+        {
+            var tt = _c.PhieuSvc.GetTrangThaiDangBan();
+            bool isSP = false;
+
+            if (!tt.DangBan && _c.Cfg.Delivery.CoConfigSP)
+            {
+                var sp = _c.PhieuSvc.GetTrangThaiDangBanSP();
+                if (sp.DangBan)
+                {
+                    tt = sp;
+                    isSP = true;
+                }
+            }
+
+            if (!tt.DangBan)
+                return false;
+
+            if (tt.DataKhongKhop)
+            {
+                _v.ShowError(
+                    "DOCQRCODE/TMP đang có dữ liệu nhưng session không hợp lệ. " +
+                    "Không thể mở một session mới trên context khác.");
+                return true;
+            }
+
+            if (!DateTime.TryParse(tt.NgayGiao, out DateTime ngay))
+            {
+                _v.ShowError("Không xác định được Ngày Xuất Hàng của phiên DOCQRCODE đang tồn tại.");
+                return true;
+            }
+
+            _c.IsBanQR = true;
+            _c.AddNM = _c.Cfg.Delivery.CoNhieuNhaMay
+                ? tt.AddNM
+                : _c.Cfg.Delivery.AddNmMacDinh;
+
+            _v.SetDate(ngay.Date);
+            if (_c.Cfg.Delivery.CoNhieuNhaMay)
+                _v.SetTab(_c.AddNM);
+
+            if (_c.Cfg.Delivery.CoGear)
+            {
+                bool gearSp = _c.CategoryResolver.Resolve(
+                    new OrderLoadContext { GioFccMoTa = tt.GioGiaoFCC }) == OrderCategory.SP;
+                isSP = gearSp;
+            }
+
+            string ma = string.Empty;
+            string mota = string.Empty;
+
+            if (!isSP && !_c.Cfg.Delivery.LoadTuBangRieng)
+            {
+                string gio = tt.GioGiaoFCC ?? string.Empty;
+                var ds = _c.AddNM == 1
+                    ? _c.GioXuatRepo.GetDanhSachGioVP()
+                    : _c.GioXuatRepo.GetDanhSachGioHN();
+
+                foreach (var g in ds)
+                {
+                    string mb = GioXuatRepository.ParseGioThuong(g.MoTa);
+                    if (mb.Contains($"'{gio}'"))
+                    {
+                        ma = g.Ma;
+                        mota = g.MoTa;
+                        break;
+                    }
+                }
+
+                if (string.IsNullOrEmpty(ma))
+                {
+                    ma = $"'{gio}'";
+                    mota = gio + "H";
+                }
+
+                _c.SuspendGioXuatChanged();
+                try
+                {
+                    _c.GioXuatHienTai = new GioXuat(ma, mota);
+                    _c.GiaoDbView.UpdateGioXuatFromDB(ma);
+                }
+                finally
+                {
+                    _c.ResumeGioXuatChanged();
+                }
+
+                _c.QrSvc.SetCheDoBan(mota);
+                _c.QrSvc.SetCheDoBanSP(false);
+            }
+            else
+            {
+                _c.QrSvc.SetCheDoBan(string.Empty);
+                _c.QrSvc.SetCheDoBanSP(isSP);
+            }
+
+            _c.BeginDeliverySession(
+                ngay.Date,
+                _c.AddNM,
+                isSP || _c.Cfg.Delivery.CoGear || _c.Cfg.Delivery.LoadTuBangRieng
+                    ? string.Empty
+                    : ma,
+                _c.GetNhaMay(),
+                isSP);
+
+            _c.DocQrView.LockDocQrDeliveryContext(
+                isSP,
+                isSP || _c.Cfg.Delivery.CoGear || _c.Cfg.Delivery.LoadTuBangRieng
+                    ? string.Empty
+                    : ma);
+
+            DataTable qrData = _c.QrSvc.LoadAll();
+            _v.BindDocQRCode(qrData);
+            _v.SwitchToDocQRView();
+            _v.HideDocQrQuantityEditPanel();
+
+            return true;
         }
 
         private void OnQRCodeSubmitted(object sender, string rawQr)
