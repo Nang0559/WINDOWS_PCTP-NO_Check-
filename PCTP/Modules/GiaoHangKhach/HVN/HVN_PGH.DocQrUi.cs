@@ -10,9 +10,6 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
     public partial class HVN_PGH
     {
         private bool _docQrDeliveryContextLocked;
-        private bool _docQrLockedTabVisibilityCaptured;
-        private bool _docQrLockedTabVpVisible;
-        private bool _docQrLockedTabHnVisible;
 
         public void SetDocQrScanInputEnabled(bool enabled)
         {
@@ -114,7 +111,7 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
                 return;
             }
 
-            if (!_docQrDeliveryContextLocked && !_docQrLockedTabVisibilityCaptured)
+            if (!_docQrDeliveryContextLocked)
                 return;
 
             _docQrDeliveryContextLocked = false;
@@ -149,7 +146,7 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
                 }
             }
 
-            _docQrLockedTabVisibilityCaptured = false;
+
         }
 
         private void LockDocQrHourGroups(string gioFCC)
