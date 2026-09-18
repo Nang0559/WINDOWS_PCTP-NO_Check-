@@ -53,7 +53,7 @@ namespace PCTP.Shared.Models
                 [Customer100003] = new CustomerConfig
                 {
                     CustomerNo = Customer100003,
-                    DisplayName = "Customer 100003",
+                    DisplayName = "Nhà Máy HONDA TRADING",
                     NhaMayMatchPatterns = new[] { "100003", "HONDA TRADING" },
                     Delivery = new GiaoHangKhachCustomerOptions
                     {
