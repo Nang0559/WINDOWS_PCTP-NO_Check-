@@ -466,8 +466,24 @@ namespace PCTP.Presentation.Presenters
 
         private void OnPhieuLoaded(PhieuLoadedEvent e)
         {
-            DataTable data = e?.DonHangTable;
-            string caption = e?.Caption ?? string.Empty;
+            // A load is synchronous in PhieuService but UI binding is posted to
+            // SynchronizationContext. Therefore an MP load started before an
+            // MP -> SP toggle can arrive after the SP load has already been
+            // requested. Never let a queued result from the other category
+            // overwrite the currently selected view.
+            if (e == null)
+                return;
+
+            bool currentIsSP = _v.IsLoaiSP && _c.Cfg.Delivery.CoConfigSP;
+            if (e.IsSP != currentIsSP)
+            {
+                System.Diagnostics.Debug.WriteLine(
+                    $"[OnPhieuLoaded] IGNORE STALE CATEGORY: eventIsSP={e.IsSP}, currentIsSP={currentIsSP}, caption='{e.Caption}'");
+                return;
+            }
+
+            DataTable data = e.DonHangTable;
+            string caption = e.Caption ?? string.Empty;
 
             _c.UiContext.Post(_ =>
             {
