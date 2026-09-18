@@ -128,7 +128,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
 
         private OrderLoadResult BuildResult(OrderLoadContext context, DataTable orders, DataTable hangThieu, string caption, bool hasMaNG, bool hasDifference, string warning, bool isQr)
         {
-            return new OrderLoadResult { Orders = orders ?? new DataTable(), HangThieu = hangThieu ?? new DataTable(), HasMaNG = hasMaNG, HasDifference = hasDifference, Source = context.Source, Category = context.Category, Caption = caption ?? string.Empty, Warning = warning, IsQr = isQr };
+            return new OrderLoadResult { Orders = orders ?? new DataTable(), HangThieu = hangThieu ?? new DataTable(), HasMaNG = hasMaNG, HasDifference = hasDifference, Source = context.Source, Category = context.Category, Caption = caption ?? string.Empty, Warning = warning, IsQr = isQr, LoadRequestId = context.LoadRequestId };
         }
 
         private void PrepareIfsBaseline(OrderLoadContext context)
