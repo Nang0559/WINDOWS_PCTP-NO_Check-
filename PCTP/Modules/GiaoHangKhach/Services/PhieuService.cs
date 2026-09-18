@@ -67,14 +67,14 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         private string GetTenBan() => GetTenBan(_isLoaiSP);
         private string GetTenBan(bool isSP) => _isMayBanQR ? _cfg.Delivery.GetTmpTable(isSP) : _tenBan;
 
-        public void LoadPhieu(string ngayGiao, string nhaMay, string gioFcc, string gioFccMoTa, int addNm, bool isMayBanQR, bool isBanQR, List<string> checkedGios = null, bool isLoaiSP = false)
+        public void LoadPhieu(string ngayGiao, string nhaMay, string gioFcc, string gioFccMoTa, int addNm, bool isMayBanQR, bool isBanQR, List<string> checkedGios = null, bool isLoaiSP = false, long loadRequestId = 0)
         {
             SetTrangThaiBan(isBanQR, isLoaiSP);
             string ngayGiaoDate = string.IsNullOrEmpty(ngayGiao) ? string.Empty : (ngayGiao.Length >= 10 ? ngayGiao.Substring(0, 10) : ngayGiao);
             if (!DateTime.TryParse(ngayGiaoDate, out DateTime dt) || dt.Year < 2000) { PublishEmptyPhieuLoaded(); return; }
             try
             {
-                var context = CreateOrderLoadContext(dt, nhaMay, gioFcc, gioFccMoTa, addNm, isMayBanQR, isBanQR, checkedGios, isLoaiSP);
+                var context = CreateOrderLoadContext(dt, nhaMay, gioFcc, gioFccMoTa, addNm, isMayBanQR, isBanQR, checkedGios, isLoaiSP, loadRequestId);
                 OrderLoadResult result = _loadService.Load(context) ?? OrderLoadResult.Empty(context);
                 _ifsDataCache = context.IfsDataDaLoc;
                 _ifsLoadWarning = context.IfsLoadError;
@@ -91,12 +91,12 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             string caption = result.Caption ?? string.Empty;
             if (result.Source == OrderSourceKind.TableOrder && !string.IsNullOrWhiteSpace(result.Warning))
             {
-                _bus.Publish(new PhieuLoadedEvent(donHang, hangThieu, caption, result.HasMaNG, result.Warning, result.Category == OrderCategory.SP));
+                _bus.Publish(new PhieuLoadedEvent(donHang, hangThieu, caption, result.HasMaNG, result.Warning, result.Category == OrderCategory.SP, result.LoadRequestId));
                 return;
             }
             _bus.Publish(new PhieuLoadedEvent(donHang, hangThieu, caption, result.HasMaNG, null, result.Category == OrderCategory.SP));
         }
-        private void PublishEmptyPhieuLoaded() => _bus.Publish(new PhieuLoadedEvent(new DataTable(), new DataTable(), "", false, null, _isLoaiSP));
+        private void PublishEmptyPhieuLoaded() => _bus.Publish(new PhieuLoadedEvent(new DataTable(), new DataTable(), "", false, null, _isLoaiSP, 0));
 
         public void SyncIfsPhieuChoDocQR(string ngayGiao, string nhaMay, string gioFcc, string gioFccMoTa, int addNm)
         {
@@ -202,7 +202,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         public DataTable GetDanhSachLotTuKho(string maHang) => _phieuRepo.GetDanhSachLotTuKho(maHang);
         public void NhapLotThuCong(int stt, string lotNo, string tenbang) => _phieuRepo.CapNhapLotTmpPhieu(stt, lotNo, GetTenBan());
 
-        private OrderLoadContext CreateOrderLoadContext(DateTime ngayGiao, string nhaMay, string gioFcc, string gioFccMoTa, int addNm, bool isMayBanQR, bool isBanQR, List<string> checkedGios, bool isLoaiSP)
+        private OrderLoadContext CreateOrderLoadContext(DateTime ngayGiao, string nhaMay, string gioFcc, string gioFccMoTa, int addNm, bool isMayBanQR, bool isBanQR, List<string> checkedGios, bool isLoaiSP, long loadRequestId)
         {
             return new OrderLoadContext
             {
@@ -218,7 +218,8 @@ namespace PCTP.Modules.GiaoHangKhach.Services
                 IsBanQR = isBanQR,
                 CheckedGios = checkedGios ?? new List<string>(),
                 IfsDataDaLoc = null,
-                IfsLoadError = null
+                IfsLoadError = null,
+                LoadRequestId = loadRequestId
             };
         }
     }
