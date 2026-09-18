@@ -27,6 +27,8 @@ namespace PCTP.Modules.GiaoHangKhach.Models
 
         public bool IsQr { get; set; }
 
+        public long LoadRequestId { get; set; }
+
         public static OrderLoadResult Empty(OrderLoadContext context)
         {
             return new OrderLoadResult
@@ -39,7 +41,8 @@ namespace PCTP.Modules.GiaoHangKhach.Models
                 Category = context != null ? context.Category : OrderCategory.MP,
                 Caption = string.Empty,
                 Warning = null,
-                IsQr = context != null && context.IsBanQR
+                IsQr = context != null && context.IsBanQR,
+                LoadRequestId = context != null ? context.LoadRequestId : 0
             };
         }
     }
