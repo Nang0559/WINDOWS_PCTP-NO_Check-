@@ -130,7 +130,11 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
 
         public void SetTab(int addNM)
         {
-            if (_qrDeliveryContextLocked) return;
+            // Programmatic restoration is still allowed while the QR session
+            // is locked. The actual TabPane is disabled by
+            // SetQrDeliveryContextLocked(), so the user cannot change it.
+            // Blocking SetTab() here also blocked RestoreQrHeaderFromSnapshot()
+            // because that restore intentionally runs after the lock is applied.
             var tabPane = FindControl<TabPane>("tabPaneHVN");
             var tabVp = FindControl<TabNavigationPage>("tabVP");
             var tabHn = FindControl<TabNavigationPage>("tabHN");
