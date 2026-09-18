@@ -43,8 +43,13 @@ namespace PCTP.Modules.GiaoHangKhach.Models
             var sessionHours = ParseHours(GioGiao);
             var uiHours = ParseHours(gioXuatMa);
 
-            if (sessionHours.Count == 0 || uiHours.Count == 0)
-                return string.Equals(GioGiao, NormalizeHours(gioXuatMa), StringComparison.OrdinalIgnoreCase);
+            // Sessions without a radio hour (SP/YMVN/table-order flows) are
+            // intentionally date + plant + category scoped only.
+            if (sessionHours.Count == 0)
+                return true;
+
+            if (uiHours.Count == 0)
+                return false;
 
             // Normal case after restoring TMP: concrete TMP hour "15"
             // must be contained by the selected Radio group "'15','16'".
