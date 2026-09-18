@@ -58,9 +58,14 @@ namespace PCTP.Presentation.Presenters
             List<string> gios = _c.Cfg.Delivery.CoGear ? _c.YmvnView.GetCheckedGioXuat() : null;
             _c.IsBanQR = true;
 
-            // SP không khóa radio theo giờ vì bản chất nghiệp vụ là day + plant + dock.
-            if (!isSP && !_c.Cfg.Delivery.CoGear && !_c.Cfg.Delivery.LoadTuBangRieng)
-                _c.PhieuView.LockRadioExcept(_c.GioXuatHienTai.Ma);
+            // Khoá session context NGAY + NHÀ MÁY + GIỜ ngay trước khi chạy
+            // đồng bộ bất đồng bộ. Không để người dùng đổi selector trong
+            // khoảng thời gian TMP đang được chuẩn bị cho DOCQRCODE.
+            _v.LockDocQrDeliveryContext(
+                isSP,
+                isSP || _c.Cfg.Delivery.CoGear || _c.Cfg.Delivery.LoadTuBangRieng
+                    ? string.Empty
+                    : _c.GioXuatHienTai.Ma);
 
             _c.RunWithLoading(() =>
             {
@@ -90,7 +95,9 @@ namespace PCTP.Presentation.Presenters
                 catch (Exception ex)
                 {
                     _c.IsBanQR = false;
+                    _v.UnlockDocQrDeliveryContext();
                     _c.PhieuView.UnlockAllRadio();
+                    _c.PhieuView.UnlockDatePicker();
                     _v.ShowError($"Lỗi chuẩn bị dữ liệu QR: {ex.Message}");
                 }
             }, "Đang chuẩn bị dữ liệu QR...");
@@ -236,7 +243,9 @@ namespace PCTP.Presentation.Presenters
             _v.ClearDocQRRows();
             _c.IsBanQR = false;
             _c.QrSvc.SetCheDoBan("");
+            _v.UnlockDocQrDeliveryContext();
             _c.PhieuView.UnlockAllRadio();
+            _c.PhieuView.UnlockDatePicker();
         }
 
         public void Dispose()
