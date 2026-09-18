@@ -34,6 +34,10 @@ namespace PCTP.Presentation.Presenters
         // Those events must not acquire _busy before the persisted QR session
         // has been restored.
         private bool _initializing;
+        // Ignore header events raised before FormLoaded. DevExpress can raise
+        // Date/Tab/GioXuat/LoaiPhieuChanged while controls are being created,
+        // before OnFormLoaded has a chance to establish the QR session.
+        private bool _formLoaded;
         internal PhieuPresenter(HVNPresenterContext context)
         {
             _c = context; _v = _c.PhieuView; var v = _v;
@@ -65,11 +69,14 @@ namespace PCTP.Presentation.Presenters
                 _initializing = false;
             }
 
+            // From this point header events are real user/UI changes. Events
+            // raised before this point are only control initialization noise.
+            _formLoaded = true;
             XetTrangThai();
         }
         private void OnDateChanged(object sender, EventArgs e)
         {
-            if (_initializing) return;
+            if (!_formLoaded || _initializing) return;
 
             // QR session identity = ngày + nhà máy + giờ. Không được reload TMP
             // bằng một context mới khi đang có DOCQRCODE.
@@ -88,7 +95,7 @@ namespace PCTP.Presentation.Presenters
         }
         private void OnTabChanged(object sender, EventArgs e)
         {
-            if (_initializing) return;
+            if (!_formLoaded || _initializing) return;
 
             // Khi đã có DOCQRCODE, nhà máy là một phần của session identity.
             if (_c.IsBanQR || !_c.Cfg.Delivery.CoNhieuNhaMay) return;
@@ -102,7 +109,7 @@ namespace PCTP.Presentation.Presenters
         }
         private void OnGioXuatChanged(object sender, EventArgs e)
         {
-            if (_initializing) return;
+            if (!_formLoaded || _initializing) return;
 
             // Không cho thay đổi hour context trong một QR session đang mở.
             if (_c.IsBanQR) return;
@@ -205,7 +212,7 @@ namespace PCTP.Presentation.Presenters
 
         private void OnLoaiPhieuChanged(object sender, EventArgs e)
         {
-            if (_initializing || _c.IsBanQR) return;
+            if (!_formLoaded || _initializing || _c.IsBanQR) return;
             _c.LoadPhieuHienTai();
         }
         private void OnChonLotThuCong(object sender, ChonLotThuCongEventArgs e) { if (!_c.IsMayBanQR) return; DataTable lots = _c.PhieuSvc.GetDanhSachLotTuKho(e.MaHang); ChonLotResult r = _v.ShowChonLotTuKho(e.Stt, e.MaHang, e.SoLuong, lots); if (!r.Confirmed || string.IsNullOrWhiteSpace(r.LotGhep)) return; _c.PhieuSvc.NhapLotThuCong(e.Stt, r.LotGhep, _c.TenBan);
