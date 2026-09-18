@@ -605,13 +605,20 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
 
         public void ToggleLoaiPhieu()
         {
-            if (_qrDeliveryContextLocked) return;
+            // MP/SP is a view mode, not part of the immutable QR delivery
+            // session identity. The QR lock protects Date/Plant/Hour only,
+            // so the user must still be able to switch MP <-> SP while a
+            // delivery session is active.
             _isLoaiSP = !_isLoaiSP;
+
             if (_btnToggleLoaiPhieu != null)
             {
                 _btnToggleLoaiPhieu.Text = _isLoaiSP ? "XEM SP" : "XEM MP";
-                _btnToggleLoaiPhieu.BackColor = _isLoaiSP ? Color.OrangeRed : Color.SteelBlue;
+                _btnToggleLoaiPhieu.BackColor =
+                    _isLoaiSP ? Color.OrangeRed : Color.SteelBlue;
+                _btnToggleLoaiPhieu.Enabled = true;
             }
+
             LoaiPhieuChanged.Invoke(this, EventArgs.Empty);
         }
 
