@@ -27,6 +27,7 @@ namespace PCTP.Presentation.Views
         void SetupPhieuButtons(bool showCapNhapKho, bool showKiemTraMaNG, bool showGhepLot, bool showDocQRCode, bool showLayLaiLot, bool showStop = false, bool showHangThieuCaNgay = true);
         void SetDate(DateTime date);
         void SetTab(int addNM);
+        bool SelectGioXuatByConcreteHour(string gioGiao);
         void LockRadioExcept(string gioFCC);
         void UnlockAllRadio();
         void LockDatePicker();
