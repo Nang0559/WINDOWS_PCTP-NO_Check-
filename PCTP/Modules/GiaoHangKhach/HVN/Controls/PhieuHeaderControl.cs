@@ -136,16 +136,13 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
             var tabHn = FindControl<TabNavigationPage>("tabHN");
             if (tabPane == null || tabVp == null || tabHn == null) return;
 
-            if (addNM == 2)
-            {
-                tabPane.SelectedPage = tabHn;
-                tabVp.PageVisible = false;
-            }
-            else
-            {
-                tabPane.SelectedPage = tabVp;
-                tabHn.PageVisible = false;
-            }
+            // Never hide the other plant page here. SetTab is also used
+            // during QR-session restore and DevExpress can automatically move
+            // SelectedPage when the current page is hidden. That was allowing
+            // the UI to fall back to VP even though ADDNM=2.
+            tabVp.PageVisible = true;
+            tabHn.PageVisible = true;
+            tabPane.SelectedPage = addNM == 2 ? tabHn : tabVp;
 
             // SetTab() được gọi khi khôi phục session từ TMP/DOCQRCODE.
             // SelectedPage đã thay đổi nhưng event Click của TabPane không
