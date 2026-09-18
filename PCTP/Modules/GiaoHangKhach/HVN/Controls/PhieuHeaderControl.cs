@@ -152,12 +152,44 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
         public bool UpdateGioXuatFromDB(string gioFCC)
         {
             if (string.IsNullOrWhiteSpace(gioFCC)) return false;
-            var gioSet = new HashSet<string>(gioFCC.Split(',').Select(g => g.Trim().Trim('\'')), StringComparer.OrdinalIgnoreCase);
-            var radioGroup2 = FindControl<RadioGroup>("radioGroup2");
-            var rdoGxHn = FindControl<RadioGroup>("RDO_GXHN");
-            if (radioGroup2 == null || rdoGxHn == null) return false;
-            if (TrySelectRadioFromDb(radioGroup2.Properties.Items, gioSet, gioFCC, i => radioGroup2.SelectedIndex = i)) return true;
-            return TrySelectRadioFromDb(rdoGxHn.Properties.Items, gioSet, gioFCC, i => rdoGxHn.SelectedIndex = i);
+
+            var gioSet = new HashSet<string>(
+                gioFCC
+                    .Split(',')
+                    .Select(g => g.Trim().Trim('\'')),
+                StringComparer.OrdinalIgnoreCase);
+
+            // The DB session identity is already resolved to ADDNM by
+            // XetTrangThai(). Never search VP first and then HN: the same
+            // hour group can exist in both factories. Selecting the first
+            // matching group would silently move the UI hour to the wrong
+            // plant and the next LoadPhieuHienTai() would use that context.
+            RadioGroup selectedRadio = ResolveSelectedPlantRadioGroup();
+            if (selectedRadio == null)
+                return false;
+
+            return TrySelectRadioFromDb(
+                selectedRadio.Properties.Items,
+                gioSet,
+                gioFCC,
+                i => selectedRadio.SelectedIndex = i);
+        }
+
+        private RadioGroup ResolveSelectedPlantRadioGroup()
+        {
+            if (_cfg == null || _cfg.Delivery == null)
+                return FindControl<RadioGroup>("radioGroup2");
+
+            if (!_cfg.Delivery.CoNhieuNhaMay)
+                return FindControl<RadioGroup>("radioGroup2");
+
+            var tabPane = FindControl<TabPane>("tabPaneHVN");
+            var tabHn = FindControl<TabNavigationPage>("tabHN");
+
+            if (tabPane != null && tabHn != null && tabPane.SelectedPage == tabHn)
+                return FindControl<RadioGroup>("RDO_GXHN");
+
+            return FindControl<RadioGroup>("radioGroup2");
         }
 
         private bool TrySelectRadioFromDb(RadioGroupItemCollection items, HashSet<string> gioSet, string gioFCC, Action<int> setIndex)
