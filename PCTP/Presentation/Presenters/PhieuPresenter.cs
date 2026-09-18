@@ -233,10 +233,20 @@ namespace PCTP.Presentation.Presenters
         private void OnPhieuLoaded(PhieuLoadedEvent e)
         {
             DataTable data = e?.DonHangTable;
+            string caption = e?.Caption ?? string.Empty;
+
             _c.UiContext.Post(_ =>
             {
+                // The caption is part of the same OrderLoadContext as the
+                // DataTable. Do not leave the previous plant/hour caption on
+                // the grid when a restored QR session is loaded.
+                _v.SetGridCaption(caption);
                 _v.BindDonHang(data ?? new DataTable());
-                _c.SetupPhieuButtonsDefault(true, e != null && e.CoMaNG, _c.PhieuSvc.CheckCoLotChuaCNK(data));
+                _c.SetupPhieuButtonsDefault(
+                    true,
+                    e != null && e.CoMaNG,
+                    _c.PhieuSvc.CheckCoLotChuaCNK(data));
+
                 _c.IsLoadingPhieu = false;
                 _c.AwaitingPhieuLoadedEvent = false;
                 _c.HideLoadingUnlessAwaitingPhieuLoad();
