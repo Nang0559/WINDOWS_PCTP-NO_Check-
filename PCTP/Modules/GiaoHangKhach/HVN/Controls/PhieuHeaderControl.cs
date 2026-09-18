@@ -286,7 +286,7 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
             if (string.IsNullOrWhiteSpace(value))
                 return string.Empty;
 
-            string s = value.Trim().Trim('\\'');
+            string s = value.Trim().Trim('\'');
             int hour;
             return int.TryParse(s, out hour) ? hour.ToString("00") : string.Empty;
         }
