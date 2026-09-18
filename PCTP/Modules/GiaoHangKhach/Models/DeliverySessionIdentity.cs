@@ -30,7 +30,7 @@ namespace PCTP.Modules.GiaoHangKhach.Models
             return AddNM == addNM
                 && NgayGiao == ngayGiao.Date
                 && IsSP == isSP
-                && string.Equals(GioGiao, NormalizeHours(gioGiao), StringComparison.OrdinalIgnoreCase)
+                && (IsSP || string.Equals(GioGiao, NormalizeHours(gioGiao), StringComparison.OrdinalIgnoreCase))
                 && string.Equals(NhaMay, (nhaMay ?? string.Empty).Trim(), StringComparison.OrdinalIgnoreCase);
         }
 
