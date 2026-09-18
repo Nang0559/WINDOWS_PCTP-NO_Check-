@@ -30,15 +30,47 @@ namespace PCTP.Presentation.Presenters
         private int _qrRestoreAddNM;
         private string _qrRestoreConcreteHour = string.Empty;
         private bool _qrRestoreIsSP;
+        // Initial control binding can synchronously raise context-change events.
+        // Those events must not acquire _busy before the persisted QR session
+        // has been restored.
+        private bool _initializing;
         internal PhieuPresenter(HVNPresenterContext context)
         {
             _c = context; _v = _c.PhieuView; var v = _v;
             v.FormLoaded += OnFormLoaded; v.DateChanged += OnDateChanged; v.GioXuatChanged += OnGioXuatChanged; v.TabChanged += OnTabChanged; v.CapNhapKhoClicked += OnCapNhapKho; v.InPhieuClicked += OnInPhieu; v.InGhepLotClicked += OnInGhepLot; v.InTachLotClicked += OnInTachLot; v.KiemTraGhepLotClicked += OnKiemTraGhepLot; v.KiemTraMaNGClicked += OnKiemTraMaNG; v.HoanThanhClicked += OnHoanThanh; v.LoaiPhieuChanged += OnLoaiPhieuChanged; v.ChonLotThuCongClicked += OnChonLotThuCong; v.XemHangThieuCaNgayClicked += OnXemHangThieuCaNgay; v.LayLaiLotNoClicked += OnLayLaiLotNo; v.CapNhapTTPHIEUClicked += OnCapNhapTTPHIEU;
             _c.Bus.Subscribe<PhieuLoadedEvent>(OnPhieuLoaded); _c.Bus.Subscribe<KhoUpdatedEvent>(OnKhoUpdated); _c.Bus.Subscribe<TinhTongCompletedEvent>(OnTinhTongCompleted);
         }
-        private void OnFormLoaded(object sender, EventArgs e) { if (_c.Cfg.Delivery.CoGear) { _c.AddNM = _c.Cfg.Delivery.AddNmMacDinh; _c.LoadGioXuatYMVN(); } else _c.AddNM = _c.Cfg.Delivery.CoNhieuNhaMay ? _v.SelectedTabAddNM : _c.Cfg.Delivery.AddNmMacDinh; XetTrangThai(); }
+        private void OnFormLoaded(object sender, EventArgs e)
+        {
+            // DevExpress binding may synchronously raise Date/Tab/GioXuat/
+            // LoaiPhieuChanged while the form is being initialized. These are
+            // not user changes and must not start a competing async load.
+            _initializing = true;
+            try
+            {
+                if (_c.Cfg.Delivery.CoGear)
+                {
+                    _c.AddNM = _c.Cfg.Delivery.AddNmMacDinh;
+                    _c.LoadGioXuatYMVN();
+                }
+                else
+                {
+                    _c.AddNM = _c.Cfg.Delivery.CoNhieuNhaMay
+                        ? _v.SelectedTabAddNM
+                        : _c.Cfg.Delivery.AddNmMacDinh;
+                }
+            }
+            finally
+            {
+                _initializing = false;
+            }
+
+            XetTrangThai();
+        }
         private void OnDateChanged(object sender, EventArgs e)
         {
+            if (_initializing) return;
+
             // QR session identity = ngày + nhà máy + giờ. Không được reload TMP
             // bằng một context mới khi đang có DOCQRCODE.
             if (_c.IsBanQR) return;
@@ -56,6 +88,8 @@ namespace PCTP.Presentation.Presenters
         }
         private void OnTabChanged(object sender, EventArgs e)
         {
+            if (_initializing) return;
+
             // Khi đã có DOCQRCODE, nhà máy là một phần của session identity.
             if (_c.IsBanQR || !_c.Cfg.Delivery.CoNhieuNhaMay) return;
 
@@ -68,6 +102,8 @@ namespace PCTP.Presentation.Presenters
         }
         private void OnGioXuatChanged(object sender, EventArgs e)
         {
+            if (_initializing) return;
+
             // Không cho thay đổi hour context trong một QR session đang mở.
             if (_c.IsBanQR) return;
 
@@ -169,7 +205,7 @@ namespace PCTP.Presentation.Presenters
 
         private void OnLoaiPhieuChanged(object sender, EventArgs e)
         {
-            if (_c.IsBanQR) return;
+            if (_initializing || _c.IsBanQR) return;
             _c.LoadPhieuHienTai();
         }
         private void OnChonLotThuCong(object sender, ChonLotThuCongEventArgs e) { if (!_c.IsMayBanQR) return; DataTable lots = _c.PhieuSvc.GetDanhSachLotTuKho(e.MaHang); ChonLotResult r = _v.ShowChonLotTuKho(e.Stt, e.MaHang, e.SoLuong, lots); if (!r.Confirmed || string.IsNullOrWhiteSpace(r.LotGhep)) return; _c.PhieuSvc.NhapLotThuCong(e.Stt, r.LotGhep, _c.TenBan);
