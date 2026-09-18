@@ -41,9 +41,17 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
             if (_phieuBottomStateControl != null)
                 _phieuBottomStateControl.HideSuaSoLuong();
 
-            string nhaMay = tabPaneHVN != null && tabPaneHVN.SelectedPage != null
-                ? tabPaneHVN.SelectedPage.Caption
-                : "Nhà máy";
+            string nhaMay;
+            if (_cfg != null && _cfg.Delivery != null && _cfg.Delivery.LoadTheoNgay)
+                nhaMay = _cfg.DisplayName;
+            else if (_cfg != null && _cfg.Delivery != null && _cfg.Delivery.CoNhieuNhaMay
+                     && tabPaneHVN != null && tabPaneHVN.SelectedPage != null)
+                nhaMay = tabPaneHVN.SelectedPage.Caption;
+            else
+                nhaMay = _cfg != null && !string.IsNullOrWhiteSpace(_cfg.DisplayName)
+                    ? _cfg.DisplayName
+                    : "Nhà máy";
+
             string gioMoTa = CurrentGioXuat != null ? CurrentGioXuat.MoTa : "";
             string label = _cfg != null && _cfg.Delivery != null
                 ? _cfg.Delivery.LabelDocQR
