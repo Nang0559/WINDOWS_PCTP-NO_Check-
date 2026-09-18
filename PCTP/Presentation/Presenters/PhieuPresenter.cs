@@ -293,9 +293,18 @@ namespace PCTP.Presentation.Presenters
                 _v.SuspendGioXuatChanged();
                 try
                 {
-                    // UI state is restored from the resolved Radio item.
-                    _c.GioXuatHienTai = new GioXuat(ma, mota);
-                    _c.GiaoDbView.UpdateGioXuatFromDB(ma);
+                    // IMPORTANT: update the real DevExpress RadioGroup selection,
+                    // not only HVNPresenterContext.GioXuatHienTai. TMP stores a
+                    // concrete hour (15), while the Radio item can be a group
+                    // ('15','16'). The header resolves the containing item and
+                    // becomes the single source of truth for the visible UI.
+                    bool radioRestored = _v.SelectGioXuatByConcreteHour(gio);
+                    if (!radioRestored)
+                    {
+                        // Keep non-standard/special hours usable when the
+                        // repository has no corresponding Radio item.
+                        _c.GioXuatHienTai = new GioXuat(ma, mota);
+                    }
                 }
                 finally { _v.ResumeGioXuatChanged(); }
 
