@@ -330,17 +330,54 @@ namespace PCTP.Presentation.Presenters
                         $"but control now shows ADDNM={_v.SelectedTabAddNM}/Date={_v.SelectedDate:yyyy-MM-dd}.");
                 }
 
+                // SP has its own DOCQR/TMP session. Do not infer the
+                // category from the currently selected MP/SP radio description:
+                // the selected DOCQR table is the authoritative category.
+                // SP TMP can contain multiple/blank GIOGIAO values, so its
+                // immutable identity is Date + ADDNM only.
+                if (selectedIsSP)
+                {
+                    _qrRestoreIsSP = true;
+                    _c.QrSvc.SetCheDoBanSP(true);
+
+                    // Some legacy SP sessions still have a single concrete
+                    // GIOGIAO. Restore it when it maps to a real radio item,
+                    // but never require an hour for an SP session.
+                    if (!_c.Cfg.Delivery.CoGear && !string.IsNullOrWhiteSpace(tt.GioGiaoFCC))
+                    {
+                        _v.SuspendGioXuatChanged();
+                        try
+                        {
+                            _v.SelectGioXuatByConcreteHour(tt.GioGiaoFCC);
+                        }
+                        finally
+                        {
+                            _v.ResumeGioXuatChanged();
+                        }
+                    }
+
+                    _c.BeginDeliverySession(
+                        ngay.Date,
+                        _c.AddNM,
+                        string.Empty,
+                        _c.GetNhaMay(),
+                        true);
+
+                    _c.DocQrView.LockDocQrDeliveryContext(true, string.Empty);
+                    _c.LoadPhieuHienTai();
+                    return;
+                }
+
                 if (_c.Cfg.Delivery.CoGear)
                 {
                     var gs = _c.ParseGioYMVN(tt.GioGiaoFCC);
-                    bool sp = _c.CategoryResolver.Resolve(new OrderLoadContext { GioFccMoTa = tt.GioGiaoFCC }) == OrderCategory.SP;
-                    _c.QrSvc.SetCheDoBanSP(sp);
+                    _c.QrSvc.SetCheDoBanSP(false);
                     _c.BeginDeliverySession(
                         ngay.Date,
                         _c.AddNM,
                         tt.GioGiaoFCC,
                         _c.GetNhaMay(),
-                        sp);
+                        false);
                     _v.SuspendGioXuatChanged();
                     try
                     {
@@ -349,8 +386,7 @@ namespace PCTP.Presentation.Presenters
                     }
                     finally { _v.ResumeGioXuatChanged(); }
 
-                    // Khoá ngay ngày + loại phiếu + toàn bộ hour selector của session.
-                    _c.DocQrView.LockDocQrDeliveryContext(sp, sp ? string.Empty : tt.GioGiaoFCC);
+                    _c.DocQrView.LockDocQrDeliveryContext(false, tt.GioGiaoFCC);
                     _c.LoadPhieuHienTai();
                     return;
                 }
