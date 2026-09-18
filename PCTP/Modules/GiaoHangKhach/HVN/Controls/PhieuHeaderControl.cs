@@ -68,8 +68,26 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
             var tabVp = FindControl<TabNavigationPage>("tabVP");
             var tabHn = FindControl<TabNavigationPage>("tabHN");
             if (tabPane == null || tabVp == null || tabHn == null) return;
-            if (addNM == 2) { tabPane.SelectedPage = tabHn; tabVp.PageVisible = false; }
-            else { tabPane.SelectedPage = tabVp; tabHn.PageVisible = false; }
+
+            if (addNM == 2)
+            {
+                tabPane.SelectedPage = tabHn;
+                tabVp.PageVisible = false;
+            }
+            else
+            {
+                tabPane.SelectedPage = tabVp;
+                tabHn.PageVisible = false;
+            }
+        }
+
+        /// <summary>
+        /// Đồng bộ giờ hiện tại theo đúng nhà máy đang được chọn.
+        /// Không lấy CurrentGioXuat của tab trước làm fallback.
+        /// </summary>
+        public void SyncCurrentGioXuatWithSelectedTab()
+        {
+            TryUpdateCurrentGioXuat();
         }
 
         public void BindGioXuatVP(IReadOnlyList<GioXuat> danhSach)
@@ -79,11 +97,7 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
             radioGroup2.Properties.Items.Clear();
             for (int i = 0; i < danhSach.Count; i++) { var gio = danhSach[i]; radioGroup2.Properties.Items.Add(new RadioGroupItem(i, gio.MoTa, true, null, gio.Ma)); }
             if (radioGroup2.Properties.Items.Count > 0)
-            {
                 radioGroup2.EditValue = 0;
-                if (CurrentGioXuat == null)
-                    CurrentGioXuat = danhSach[0];
-            }
         }
 
         public void BindGioXuatHN(IReadOnlyList<GioXuat> danhSach)
@@ -92,8 +106,8 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
             if (radio == null) return;
             radio.Properties.Items.Clear();
             for (int i = 0; i < danhSach.Count; i++) { var gio = danhSach[i]; radio.Properties.Items.Add(new RadioGroupItem(i, gio.MoTa, true, null, gio.Ma)); }
-            if (radio.Properties.Items.Count > 0 && CurrentGioXuat == null)
-                CurrentGioXuat = danhSach[0];
+            if (radio.Properties.Items.Count > 0)
+                radio.EditValue = 0;
         }
 
         public void LockRadioExcept(string gioFCC)
@@ -355,7 +369,15 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
             GioXuatChanged.Invoke(this, EventArgs.Empty);
         }
 
-        private void HeaderTabChanged(object sender, EventArgs e) { TabChanged.Invoke(this, EventArgs.Empty); }
+        private void HeaderTabChanged(object sender, EventArgs e)
+        {
+            // Khi đổi nhà máy, giờ phải được lấy từ RadioGroup của chính tab đó.
+            // Nếu không, CurrentGioXuat có thể vẫn giữ giờ của tab trước.
+            if (!TryUpdateCurrentGioXuat())
+                return;
+
+            TabChanged.Invoke(this, EventArgs.Empty);
+        }
 
         private bool TryUpdateCurrentGioXuat()
         {
