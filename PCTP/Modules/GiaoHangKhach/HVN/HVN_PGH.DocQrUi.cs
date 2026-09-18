@@ -90,20 +90,16 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
             // MP/SP is part of the session identity too.
             SetLoaiPhieuToggleEnabled(false);
 
-            // Plant is part of both MP and SP identity. Only the selected plant
-            // remains visible while the QR session is active.
-            if (tabPaneHVN != null && tabPaneHVN.SelectedPage != null && tabVP != null && tabHN != null)
+            // Plant is part of both MP and SP identity.
+            // Keep both pages visible but disable the TabPane itself so the
+            // selected plant cannot be changed during the QR session.
+            // This also avoids restoring a stale "hidden page" state after
+            // the QR session finishes.
+            if (tabPaneHVN != null && tabVP != null && tabHN != null)
             {
-                if (!_docQrLockedTabVisibilityCaptured)
-                {
-                    _docQrLockedTabVpVisible = tabVP.PageVisible;
-                    _docQrLockedTabHnVisible = tabHN.PageVisible;
-                    _docQrLockedTabVisibilityCaptured = true;
-                }
-
-                bool vpSelected = tabPaneHVN.SelectedPage == tabVP;
-                tabVP.PageVisible = vpSelected;
-                tabHN.PageVisible = !vpSelected;
+                tabVP.PageVisible = true;
+                tabHN.PageVisible = true;
+                tabPaneHVN.Enabled = false;
             }
 
             // SP has no hour context. MP keeps only the exact hour used by the QR session.
@@ -129,12 +125,16 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
             SetLoaiPhieuToggleEnabled(true);
             UnlockDocQrHourGroups();
 
-            if (_docQrLockedTabVisibilityCaptured)
-            {
-                if (tabVP != null) tabVP.PageVisible = _docQrLockedTabVpVisible;
-                if (tabHN != null) tabHN.PageVisible = _docQrLockedTabHnVisible;
-                _docQrLockedTabVisibilityCaptured = false;
-            }
+            if (tabPaneHVN != null)
+                tabPaneHVN.Enabled = true;
+
+            if (tabVP != null)
+                tabVP.PageVisible = true;
+
+            if (tabHN != null)
+                tabHN.PageVisible = true;
+
+            _docQrLockedTabVisibilityCaptured = false;
         }
 
         private void LockDocQrHourGroups(string gioFCC)
