@@ -1,4 +1,5 @@
 using PCTP.Applications.Services;
+using PCTP.Domain.Entities;
 using PCTP.Domain.Events;
 using PCTP.Infrastructure.Repositories;
 using PCTP.Modules.GiaoHangKhach.Models;
@@ -167,9 +168,9 @@ namespace PCTP.Presentation.Presenters
                 ? tt.AddNM
                 : _c.Cfg.Delivery.AddNmMacDinh;
 
-            _v.SetDate(ngay.Date);
+            _c.PhieuView.SetDate(ngay.Date);
             if (_c.Cfg.Delivery.CoNhieuNhaMay)
-                _v.SetTab(_c.AddNM);
+                _c.PhieuView.SetTab(_c.AddNM);
 
             if (_c.Cfg.Delivery.CoGear)
             {
@@ -205,7 +206,7 @@ namespace PCTP.Presentation.Presenters
                     mota = gio + "H";
                 }
 
-                _c.SuspendGioXuatChanged();
+                _c.PhieuView.SuspendGioXuatChanged();
                 try
                 {
                     _c.GioXuatHienTai = new GioXuat(ma, mota);
@@ -213,7 +214,7 @@ namespace PCTP.Presentation.Presenters
                 }
                 finally
                 {
-                    _c.ResumeGioXuatChanged();
+                    _c.PhieuView.ResumeGioXuatChanged();
                 }
 
                 _c.QrSvc.SetCheDoBan(mota);
