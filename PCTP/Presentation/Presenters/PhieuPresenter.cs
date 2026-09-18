@@ -211,11 +211,28 @@ namespace PCTP.Presentation.Presenters
                     if (_c.DocQrView.HoiXoaDocQR()) _c.PhieuSvc.XoaDocQRCode(); _c.IsBanQR = false;
                     _c.QrSvc.SetCheDoBanSP(false); _v.UnlockAllRadio(); _v.UnlockDatePicker(); _c.LoadPhieuHienTai(); return;
                 }
-                if (DateTime.TryParse(tt.NgayGiao, out DateTime ngay)) _v.SetDate(ngay);
-                _c.AddNM = _c.Cfg.Delivery.CoNhieuNhaMay ? tt.AddNM : _c.Cfg.Delivery.AddNmMacDinh;
-                if (_c.Cfg.Delivery.CoNhieuNhaMay) _v.SetTab(tt.AddNM);
+                if (!DateTime.TryParse(tt.NgayGiao, out DateTime ngay))
+                {
+                    _c.IsBanQR = false;
+                    _c.ClearDeliverySession();
+                    _c.QrSvc.SetCheDoBanSP(false);
+                    _v.UnlockAllRadio();
+                    _v.UnlockDatePicker();
+                    _c.LoadPhieuHienTai();
+                    return;
+                }
 
+                // IMPORTANT:
+                // Mark QR mode BEFORE touching Date/Tab. SetDate/SetTab can
+                // raise their events synchronously. If IsBanQR is still false,
+                // those handlers start a normal IFS load and race the restore,
+                // which can reset the context immediately after we lock it.
+                _c.AddNM = _c.Cfg.Delivery.CoNhieuNhaMay ? tt.AddNM : _c.Cfg.Delivery.AddNmMacDinh;
                 _c.IsBanQR = true;
+
+                if (_c.Cfg.Delivery.CoNhieuNhaMay)
+                    _v.SetTab(tt.AddNM);
+                _v.SetDate(ngay);
 
                 if (_c.Cfg.Delivery.CoGear)
                 {
