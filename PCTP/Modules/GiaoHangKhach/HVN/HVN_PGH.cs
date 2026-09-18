@@ -179,6 +179,7 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
             _phieuActionBarControl.ConfigurePhieuView(_cfg.Delivery.LoadTuBangRieng ? "Show Thông Tin Lệch IFS" : "Kiểm Tra Ghep Lot", imageBT);
         }
         public void BindGioXuatVP(IReadOnlyList<GioXuat> danhSach) { if (_phieuHeaderControl != null) _phieuHeaderControl.BindGioXuatVP(danhSach); }
+        public bool SelectGioXuatByConcreteHour(string gioGiao) => _phieuHeaderControl != null && _phieuHeaderControl.SelectGioXuatByConcreteHour(gioGiao);
         public void BindGioXuatHN(IReadOnlyList<GioXuat> danhSach) { if (_phieuHeaderControl != null) _phieuHeaderControl.BindGioXuatHN(danhSach); }
         public void SwitchToPhieuDBView() => _phieuActionBarControl.ConfigureGiaoDb();
         public void SetupPhieuButtons(bool showCapNhapKho, bool showKiemTraMaNG, bool showGhepLot, bool showDocQRCode, bool showLayLaiLot = false, bool showStop = false, bool showHangThieuCaNgay = true)
