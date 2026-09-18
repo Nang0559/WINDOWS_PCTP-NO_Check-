@@ -213,9 +213,11 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
                         normalized.Add(v);
                 }
 
-                // SP: empty gioSet => all hour choices disabled.
-                // MP: only the exact session hour remains enabled.
-                item.Enabled = gioSet.Count > 0 && normalized.SetEquals(gioSet);
+                // The selected item is identified only for diagnostics/restore.
+                // Once the session is active, ALL hour choices are disabled.
+                // Keeping the matching item enabled would allow a second
+                // click and violate the session identity invariant.
+                item.Enabled = false;
             }
         }
 
