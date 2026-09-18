@@ -145,7 +145,12 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
             {
                 var item = (RadioGroupItem)items[i];
                 var itemSet = new HashSet<string>((item.AccessibleName ?? "").Split(',').Select(g => g.Trim().Trim('\'')), StringComparer.OrdinalIgnoreCase);
-                if (itemSet.SetEquals(gioSet)) { setIndex(i); item.Enabled = true; } else item.Enabled = false;
+                if (itemSet.SetEquals(gioSet))
+                    setIndex(i);
+
+                // Lock the whole selector. The matching item is only selected
+                // for visual restore; it must not remain clickable.
+                item.Enabled = false;
             }
         }
 
