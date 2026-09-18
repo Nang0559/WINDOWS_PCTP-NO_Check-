@@ -114,6 +114,13 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
 
             // SP has no hour context. MP keeps only the exact hour used by the QR session.
             LockDocQrHourGroups(isSP ? string.Empty : gioFCC);
+
+            // SwitchToDocQRView() also disables the whole RadioGroup. Keep
+            // that state explicit here so the lock has a single owner.
+            if (radioGroup2 != null)
+                radioGroup2.Enabled = false;
+            if (RDO_GXHN != null)
+                RDO_GXHN.Enabled = false;
         }
 
         public void UnlockDocQrDeliveryContext()
@@ -137,6 +144,14 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
 
             SetLoaiPhieuToggleEnabled(true);
             UnlockDocQrHourGroups();
+
+            // Must also re-enable the RadioGroup itself. Otherwise
+            // Xoá toàn bộ QR while still in DocQR view leaves hour selection
+            // disabled even though the QR session has already ended.
+            if (radioGroup2 != null)
+                radioGroup2.Enabled = true;
+            if (RDO_GXHN != null)
+                RDO_GXHN.Enabled = true;
 
             if (tabPaneHVN != null)
                 tabPaneHVN.Enabled = true;
