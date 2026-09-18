@@ -215,15 +215,6 @@ namespace PCTP.Presentation.Presenters
                 _c.AddNM = _c.Cfg.Delivery.CoNhieuNhaMay ? tt.AddNM : _c.Cfg.Delivery.AddNmMacDinh;
                 if (_c.Cfg.Delivery.CoNhieuNhaMay) _v.SetTab(tt.AddNM);
 
-                // DOCQRCODE + TMP metadata define one immutable delivery session.
-                // Create the guard before any reload is allowed.
-                _c.BeginDeliverySession(
-                    ngay.Date,
-                    _c.AddNM,
-                    tt.GioGiaoFCC,
-                    _c.GetNhaMay(),
-                    false);
-
                 _c.IsBanQR = true;
 
                 if (_c.Cfg.Delivery.CoGear)
@@ -251,34 +242,60 @@ namespace PCTP.Presentation.Presenters
                     return;
                 }
 
+                // TMP.GIOGIAO is a concrete delivery hour (for example "15").
+                // The Radio may represent a group (for example "'15','16'").
+                // Resolve the Radio by its Ma/hour-set, never by parsing MoTa.
                 string gio = tt.GioGiaoFCC, ma = "", mota = "";
-                var ds = _c.AddNM == 1 ? _c.GioXuatRepo.GetDanhSachGioVP() : _c.GioXuatRepo.GetDanhSachGioHN();
+                var ds = _c.AddNM == 1
+                    ? _c.GioXuatRepo.GetDanhSachGioVP()
+                    : _c.GioXuatRepo.GetDanhSachGioHN();
+
                 foreach (var g in ds)
                 {
-                    string mb = GioXuatRepository.ParseGioThuong(g.MoTa);
-                    if (mb.Contains($"'{gio}'")) { ma = g.Ma; mota = g.MoTa; break; }
+                    if (DeliverySessionIdentity.ContainsHour(g.Ma, gio))
+                    {
+                        ma = g.Ma;
+                        mota = g.MoTa;
+                        break;
+                    }
                 }
-                if (string.IsNullOrEmpty(ma)) { ma = $"'{gio}'"; mota = gio + "H"; }
 
-                bool isSpSession = _c.CategoryResolver.Resolve(new OrderLoadContext { GioFccMoTa = mota }) == OrderCategory.SP;
+                if (string.IsNullOrWhiteSpace(ma))
+                {
+                    // Preserve special/non-standard hours, but do not invent a
+                    // grouped radio identity when the repository has no match.
+                    ma = $"'{gio.Trim().Trim('\'')}'";
+                    mota = gio + "H";
+                }
+
+                bool isSpSession = _c.CategoryResolver.Resolve(
+                    new OrderLoadContext { GioFccMoTa = mota }) == OrderCategory.SP;
+
                 _c.QrSvc.SetCheDoBanSP(isSpSession);
-                _c.BeginDeliverySession(
-                    ngay.Date,
-                    _c.AddNM,
-                    ma,
-                    _c.GetNhaMay(),
-                    isSpSession);
+
                 _v.SuspendGioXuatChanged();
                 try
                 {
+                    // UI state is restored from the resolved Radio item.
                     _c.GioXuatHienTai = new GioXuat(ma, mota);
                     _c.GiaoDbView.UpdateGioXuatFromDB(ma);
                 }
                 finally { _v.ResumeGioXuatChanged(); }
 
-                // Đây là điểm khôi phục session từ DB: QR + TMP metadata đã xác định
-                // chính xác nhà máy/ngày/giờ, không cho UI chọn lại context khác.
-                _c.DocQrView.LockDocQrDeliveryContext(isSpSession, isSpSession ? string.Empty : ma);
+                // The immutable session keeps the concrete TMP hour. Validation
+                // accepts the selected Radio only when that hour belongs to its
+                // hour-set.
+                _c.BeginDeliverySession(
+                    ngay.Date,
+                    _c.AddNM,
+                    gio,
+                    _c.GetNhaMay(),
+                    isSpSession);
+
+                // QR + TMP metadata now define the exact date/factory/hour.
+                _c.DocQrView.LockDocQrDeliveryContext(
+                    isSpSession,
+                    isSpSession ? string.Empty : ma);
                 _c.LoadPhieuHienTai();
             }, "Đang kiểm tra trạng thái phiên làm việc cũ...");
         }
