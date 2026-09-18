@@ -226,6 +226,17 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
         /// TMP.GIOGIAO is one hour (for example 15), while RadioGroupItem.AccessibleName
         /// can represent a group (for example "'15','16'").
         /// </summary>
+        /// <summary>
+        /// Compatibility entry point for legacy callers that restore the hour
+        /// from DB/TMP. The actual UI selection is resolved from the concrete
+        /// delivery hour, so grouped Radio items such as '15','16' are handled
+        /// correctly.
+        /// </summary>
+        public bool UpdateGioXuatFromDB(string gioFCC)
+        {
+            return SelectGioXuatByConcreteHour(gioFCC);
+        }
+
         public bool SelectGioXuatByConcreteHour(string gioGiao)
         {
             if (string.IsNullOrWhiteSpace(gioGiao))
