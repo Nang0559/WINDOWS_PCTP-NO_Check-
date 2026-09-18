@@ -295,8 +295,9 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
 
         private void DocQrGridVisibilityChanged(object sender, EventArgs e)
         {
-            if (gridCtrDOCQrCODE != null && !gridCtrDOCQrCODE.Visible)
-                UnlockDocQrDeliveryContext();
+            // Visibility is only a presentation concern. It is NOT the
+            // completion boundary of a QR session. The presenter unlocks only
+            // after DOCQRCODE reports zero pending rows / successful delivery.
         }
 
         private void UnlockDocQrContextOnEvent(object sender, EventArgs e)
