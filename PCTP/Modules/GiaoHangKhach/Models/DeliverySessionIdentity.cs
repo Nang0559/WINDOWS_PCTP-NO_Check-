@@ -100,7 +100,7 @@ namespace PCTP.Modules.GiaoHangKhach.Models
 
         private static string NormalizeHour(string value)
         {
-            string s = (value ?? string.Empty).Trim().Trim(''');
+            string s = (value ?? string.Empty).Trim().Trim('\'');
             int h;
             return int.TryParse(s, out h) ? h.ToString("00") : s;
         }
