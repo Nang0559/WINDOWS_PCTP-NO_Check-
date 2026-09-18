@@ -215,17 +215,18 @@ namespace PCTP.Presentation.Presenters
             if (!_formLoaded || _initializing)
                 return;
 
-            // MP/SP is a display/load mode only. During an active QR session
-            // Date + Plant + Hour remain immutable, but the user may switch
-            // between the MP and SP order tables.
-            if (_c.IsBanQR)
-            {
-                _c.QrSvc.SetCheDoBanSP(_v.IsLoaiSP);
-                _c.LoadPhieuHienTai();
-                return;
-            }
-
-            _c.LoadPhieuHienTai();
+            // MP/SP is a view mode, but each mode has its own DOCQR/TMP
+            // session. Re-run the same persisted-session detection whenever
+            // the user switches the view:
+            //
+            //   MP -> check DOCQRCODE + TMPPHIEUGIAOHANG
+            //   SP -> check DOCQRCODE_SP + TMPPHIEUGIAOHANG_SP
+            //
+            // If the selected mode has no DOCQR data, that mode is NOT in a
+            // QR session: unlock Date/Plant/Hour and load its normal orders.
+            // If DOCQR exists, restore its TMP context and lock exactly as
+            // during FormLoaded.
+            XetTrangThai();
         }
         private void OnChonLotThuCong(object sender, ChonLotThuCongEventArgs e) { if (!_c.IsMayBanQR) return; DataTable lots = _c.PhieuSvc.GetDanhSachLotTuKho(e.MaHang); ChonLotResult r = _v.ShowChonLotTuKho(e.Stt, e.MaHang, e.SoLuong, lots); if (!r.Confirmed || string.IsNullOrWhiteSpace(r.LotGhep)) return; _c.PhieuSvc.NhapLotThuCong(e.Stt, r.LotGhep, _c.TenBan);
             _v.RefreshLotRow(e.Stt, r.LotGhep);
@@ -257,21 +258,29 @@ namespace PCTP.Presentation.Presenters
                     _c.IsBanQR = false; _v.UnlockAllRadio(); _v.UnlockDatePicker();
                     _c.LoadPhieuHienTai(); return;
                 }
-                var tt = _c.PhieuSvc.GetTrangThaiDangBan();
-                if (!tt.DangBan && _c.Cfg.Delivery.CoConfigSP)
-                {
-                    var sp = _c.PhieuSvc.GetTrangThaiDangBanSP();
-                    if (sp.DangBan)
-                    {
-                        tt = sp;
-                        _c.PhieuSvc.SetTrangThaiBan(true, true);
-                        _c.QrSvc.SetCheDoBanSP(true);
-                    }
-                }
+                // The selected MP/SP view owns its own DOCQR table.
+                // Never fall back from one category to the other here:
+                // switching MP -> SP must re-evaluate DOCQRCODE_SP, and
+                // switching SP -> MP must re-evaluate DOCQRCODE.
+                bool selectedIsSP = _v.IsLoaiSP && _c.Cfg.Delivery.CoConfigSP;
+                var tt = selectedIsSP
+                    ? _c.PhieuSvc.GetTrangThaiDangBanSP()
+                    : _c.PhieuSvc.GetTrangThaiDangBan();
+
                 if (!tt.DangBan)
                 {
-                    _c.IsBanQR = false; _c.ClearDeliverySession(); _c.QrSvc.SetCheDoBanSP(false); _v.UnlockAllRadio(); _v.UnlockDatePicker();
-                    _c.LoadPhieuHienTai(); return;
+                    // No DOCQR in the currently selected mode means there is
+                    // no immutable QR context for THIS view. Do not delete the
+                    // other mode's DOCQR/TMP session. Just unlock the header
+                    // and load the selected mode normally.
+                    _c.IsBanQR = false;
+                    _c.ClearDeliverySession();
+                    _c.QrSvc.SetCheDoBanSP(selectedIsSP);
+                    _v.UnlockAllRadio();
+                    _v.UnlockDatePicker();
+                    _c.DocQrView.UnlockDocQrDeliveryContext();
+                    _c.LoadPhieuHienTai();
+                    return;
                 }
                 if (tt.DataKhongKhop)
                 {
