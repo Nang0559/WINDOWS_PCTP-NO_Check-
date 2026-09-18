@@ -91,12 +91,12 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             string caption = result.Caption ?? string.Empty;
             if (result.Source == OrderSourceKind.TableOrder && !string.IsNullOrWhiteSpace(result.Warning))
             {
-                _bus.Publish(new PhieuLoadedEvent(donHang, hangThieu, caption, result.HasMaNG, result.Warning));
+                _bus.Publish(new PhieuLoadedEvent(donHang, hangThieu, caption, result.HasMaNG, result.Warning, result.Category == OrderCategory.SP));
                 return;
             }
-            _bus.Publish(new PhieuLoadedEvent(donHang, hangThieu, caption, result.HasMaNG));
+            _bus.Publish(new PhieuLoadedEvent(donHang, hangThieu, caption, result.HasMaNG, null, result.Category == OrderCategory.SP));
         }
-        private void PublishEmptyPhieuLoaded() => _bus.Publish(new PhieuLoadedEvent(new DataTable(), new DataTable(), ""));
+        private void PublishEmptyPhieuLoaded() => _bus.Publish(new PhieuLoadedEvent(new DataTable(), new DataTable(), "", false, null, _isLoaiSP));
 
         public void SyncIfsPhieuChoDocQR(string ngayGiao, string nhaMay, string gioFcc, string gioFccMoTa, int addNm)
         {
