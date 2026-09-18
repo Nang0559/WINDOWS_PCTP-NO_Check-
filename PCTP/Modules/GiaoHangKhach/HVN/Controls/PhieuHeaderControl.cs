@@ -28,6 +28,7 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
         private CustomerConfig _cfg;
         private HashSet<string> _deliveredYmvnHours = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         private bool _ymvnChecklistLocked;
+        private bool _qrDeliveryContextLocked;
 
         public PhieuHeaderControl()
         {
@@ -37,6 +38,12 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
 
         public Control ContentControl { get { return _content; } }
         public bool IsLoaiSP { get { return _isLoaiSP; } }
+        public bool IsQrDeliveryContextLocked { get { return _qrDeliveryContextLocked; } }
+
+        public void SetQrDeliveryContextLocked(bool locked)
+        {
+            _qrDeliveryContextLocked = locked;
+        }
         public GioXuat CurrentGioXuat { get; private set; }
         public event EventHandler LoaiPhieuChanged = delegate { };
         public event EventHandler DateChanged = delegate { };
@@ -64,6 +71,7 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
 
         public void SetTab(int addNM)
         {
+            if (_qrDeliveryContextLocked) return;
             var tabPane = FindControl<TabPane>("tabPaneHVN");
             var tabVp = FindControl<TabNavigationPage>("tabVP");
             var tabHn = FindControl<TabNavigationPage>("tabHN");
@@ -401,19 +409,20 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
 
         private void HeaderDateChanged(object sender, EventArgs e)
         {
-            if (_suspendDateChanged) return;
+            if (_suspendDateChanged || _qrDeliveryContextLocked) return;
             DateChanged.Invoke(this, EventArgs.Empty);
         }
 
         private void HeaderGioXuatChanged(object sender, EventArgs e)
         {
-            if (_suspendGioXuatChanged) return;
+            if (_suspendGioXuatChanged || _qrDeliveryContextLocked) return;
             if (!TryUpdateCurrentGioXuat()) return;
             GioXuatChanged.Invoke(this, EventArgs.Empty);
         }
 
         private void HeaderTabChanged(object sender, EventArgs e)
         {
+            if (_qrDeliveryContextLocked) return;
             // TabPane.Click có thể chạy trước khi SelectedPage được cập nhật.
             // Đọc giờ ngay trong Click sẽ dễ lấy lại giờ của tab cũ (VP -> HN).
             // Đẩy xử lý sang message queue để SelectedPage đã là tab mới.
@@ -477,6 +486,7 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
 
         public void ToggleLoaiPhieu()
         {
+            if (_qrDeliveryContextLocked) return;
             _isLoaiSP = !_isLoaiSP;
             if (_btnToggleLoaiPhieu != null)
             {
