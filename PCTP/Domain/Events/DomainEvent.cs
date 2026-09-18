@@ -27,8 +27,9 @@ namespace PCTP.Domain.Events
         // Category is part of the load result. It lets the UI discard a stale
         // MP event that was queued before the user switched to SP (and vice versa).
         public bool IsSP { get; }
+        public long LoadRequestId { get; }
 
-        public PhieuLoadedEvent(DataTable donHang, DataTable hangThieu, string caption, bool coMaNG=false, string canhBao = null, bool isSP = false)
+        public PhieuLoadedEvent(DataTable donHang, DataTable hangThieu, string caption, bool coMaNG=false, string canhBao = null, bool isSP = false, long loadRequestId = 0)
         {
             DonHangTable = donHang;
             HangThieuTable = hangThieu;
@@ -36,6 +37,7 @@ namespace PCTP.Domain.Events
             CoMaNG = coMaNG;
             CanhBao = canhBao;
             IsSP = isSP;
+            LoadRequestId = loadRequestId;
         }
     }
 
