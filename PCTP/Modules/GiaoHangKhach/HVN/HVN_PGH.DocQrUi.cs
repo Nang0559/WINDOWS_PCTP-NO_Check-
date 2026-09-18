@@ -82,6 +82,8 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
             }
 
             _docQrDeliveryContextLocked = true;
+            if (_phieuHeaderControl != null)
+                _phieuHeaderControl.SetQrDeliveryContextLocked(true);
 
             // Snapshot session context at the exact moment QR starts/restores.
             // From this point the caption must not be recomputed from mutable
@@ -135,6 +137,8 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
                 return;
 
             _docQrDeliveryContextLocked = false;
+            if (_phieuHeaderControl != null)
+                _phieuHeaderControl.SetQrDeliveryContextLocked(false);
             _docQrLockedIsSP = false;
             _docQrLockedNhaMay = string.Empty;
             _docQrLockedGioMoTa = string.Empty;
