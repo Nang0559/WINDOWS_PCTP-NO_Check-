@@ -8,7 +8,10 @@ namespace PCTP.Modules.GiaoHangKhach.Models
     /// Identity bất biến của một phiên đọc QR.
     ///
     /// Business identity:
-    ///   ADDNM + NGAYGIAO + concrete GIOGIAO + loại phiếu.
+    ///   ADDNM + NGAYGIAO + concrete GIOGIAO.
+    ///
+    /// MP/SP is a display/load mode and is intentionally NOT part of the
+    /// immutable delivery-session identity.
     ///
     /// GIOGIAO trong TMP là một giờ cụ thể (ví dụ "15"), trong khi
     /// GioXuat.Ma của Radio có thể là một nhóm giờ (ví dụ "'15','16'").
@@ -34,7 +37,9 @@ namespace PCTP.Modules.GiaoHangKhach.Models
 
         public bool Matches(DateTime ngayGiao, int addNM, string gioXuatMa, string nhaMay, bool isSP)
         {
-            if (AddNM != addNM || NgayGiao != ngayGiao.Date || IsSP != isSP)
+            // MP/SP is deliberately excluded: the user may switch the
+            // displayed order table without changing the delivery context.
+            if (AddNM != addNM || NgayGiao != ngayGiao.Date)
                 return false;
 
             if (IsSP)
