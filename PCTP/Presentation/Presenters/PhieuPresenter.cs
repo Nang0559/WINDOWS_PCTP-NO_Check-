@@ -380,11 +380,6 @@ namespace PCTP.Presentation.Presenters
                 _v.SetGridCaption(caption);
                 _v.BindDonHang(data ?? new DataTable());
 
-                // Reapply AFTER the grid/data binding. Any load/bind side effect
-                // is therefore unable to leave dateNX or RDO_GXHN on the old
-                // context. TMP/DOCQRCODE remains the immutable source of truth.
-                RestoreQrHeaderFromSnapshot();
-
                 _c.SetupPhieuButtonsDefault(
                     true,
                     e != null && e.CoMaNG,
@@ -393,6 +388,19 @@ namespace PCTP.Presentation.Presenters
                 _c.IsLoadingPhieu = false;
                 _c.AwaitingPhieuLoadedEvent = false;
                 _c.HideLoadingUnlessAwaitingPhieuLoad();
+
+                // IMPORTANT: this must be the LAST synchronous UI operation
+                // in the load callback. Some legacy button/grid setup code can
+                // touch the header indirectly. TMP/DOCQRCODE remains the
+                // immutable source of truth for the active QR session.
+                RestoreQrHeaderFromSnapshot();
+
+                // Also queue one final restore behind any BeginInvoke work
+                // already posted by DevExpress/legacy controls during binding.
+                if (_c.IsBanQR)
+                {
+                    _c.UiContext.Post(__ => RestoreQrHeaderFromSnapshot(), null);
+                }
             }, null);
         }
         private void OnKhoUpdated(KhoUpdatedEvent e)
