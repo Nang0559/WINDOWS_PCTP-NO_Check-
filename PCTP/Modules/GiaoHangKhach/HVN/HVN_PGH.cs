@@ -248,7 +248,15 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
             WireSpModeUi();
             Text = $"Phiếu Giao Hàng — {_cfg.DisplayName}";
             _addressTable = _customerAddressService.GetAddress(_cfg.CustomerNo);
-            BindGioXuatVP(_gioRepo.GetDanhSachGioVP()); if (_cfg.Delivery.CoNhieuNhaMay) BindGioXuatHN(_gioRepo.GetDanhSachGioHN());
+            BindGioXuatVP(_gioRepo.GetDanhSachGioVP());
+            if (_cfg.Delivery.CoNhieuNhaMay)
+                BindGioXuatHN(_gioRepo.GetDanhSachGioHN());
+
+            // CurrentGioXuat phải phụ thuộc tab nhà máy đang thực sự được chọn.
+            // Trước đây Bind VP đặt CurrentGioXuat = VP[0], sau đó Bind HN
+            // không thay thế nên HN có thể hiển thị giờ của VP (ví dụ 6+7+8+9H).
+            _phieuHeaderControl.SyncCurrentGioXuatWithSelectedTab();
+
             SetupGridDonHangYMVN(_cfg.Delivery.LoadTuBangRieng);
             _phieuGridControl.OrderView.ShowingEditor += GridViewDONHANG_ShowingEditor_LOT;
             if (dateNX.DateTime == DateTime.MinValue || dateNX.DateTime.Year < 2000) dateNX.DateTime = DateTime.Now;
