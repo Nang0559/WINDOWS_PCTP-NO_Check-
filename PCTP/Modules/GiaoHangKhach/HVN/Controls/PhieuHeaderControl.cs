@@ -221,30 +221,74 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
             }
         }
 
-        public bool UpdateGioXuatFromDB(string gioFCC)
+        /// <summary>
+        /// Select the RadioGroup item that contains the concrete TMP delivery hour.
+        /// TMP.GIOGIAO is one hour (for example 15), while RadioGroupItem.AccessibleName
+        /// can represent a group (for example "'15','16'").
+        /// </summary>
+        public bool SelectGioXuatByConcreteHour(string gioGiao)
         {
-            if (string.IsNullOrWhiteSpace(gioFCC)) return false;
+            if (string.IsNullOrWhiteSpace(gioGiao))
+                return false;
 
-            var gioSet = new HashSet<string>(
-                gioFCC
-                    .Split(',')
-                    .Select(g => g.Trim().Trim('\'')),
-                StringComparer.OrdinalIgnoreCase);
-
-            // The DB session identity is already resolved to ADDNM by
-            // XetTrangThai(). Never search VP first and then HN: the same
-            // hour group can exist in both factories. Selecting the first
-            // matching group would silently move the UI hour to the wrong
-            // plant and the next LoadPhieuHienTai() would use that context.
             RadioGroup selectedRadio = ResolveSelectedPlantRadioGroup();
             if (selectedRadio == null)
                 return false;
 
-            return TrySelectRadioFromDb(
-                selectedRadio.Properties.Items,
-                gioSet,
-                gioFCC,
-                i => selectedRadio.SelectedIndex = i);
+            string target = NormalizeHour(gioGiao);
+            if (string.IsNullOrWhiteSpace(target))
+                return false;
+
+            _suspendGioXuatChanged = true;
+            try
+            {
+                for (int i = 0; i < selectedRadio.Properties.Items.Count; i++)
+                {
+                    var item = selectedRadio.Properties.Items[i] as RadioGroupItem;
+                    if (item == null)
+                        continue;
+
+                    if (!RadioItemContainsHour(item, target))
+                        continue;
+
+                    selectedRadio.SelectedIndex = i;
+                    CurrentGioXuat = new GioXuat(
+                        item.AccessibleName ?? string.Empty,
+                        item.Description ?? target + "H");
+                    return true;
+                }
+            }
+            finally
+            {
+                _suspendGioXuatChanged = false;
+            }
+
+            return false;
+        }
+
+        private static bool RadioItemContainsHour(RadioGroupItem item, string concreteHour)
+        {
+            if (item == null || string.IsNullOrWhiteSpace(item.AccessibleName))
+                return false;
+
+            foreach (string token in item.AccessibleName.Split(new[] { ',', '+', 'H', 'h' }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                string normalized = NormalizeHour(token);
+                if (string.Equals(normalized, concreteHour, StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+
+            return false;
+        }
+
+        private static string NormalizeHour(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                return string.Empty;
+
+            string s = value.Trim().Trim('\\'');
+            int hour;
+            return int.TryParse(s, out hour) ? hour.ToString("00") : string.Empty;
         }
 
         private RadioGroup ResolveSelectedPlantRadioGroup()
