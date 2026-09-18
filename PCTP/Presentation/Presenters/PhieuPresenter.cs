@@ -160,7 +160,22 @@ namespace PCTP.Presentation.Presenters
             if (_c.IsBanQR) return;
             _c.LoadPhieuHienTai();
         }
-        private void OnChonLotThuCong(object sender, ChonLotThuCongEventArgs e) { if (!_c.IsMayBanQR) return; DataTable lots = _c.PhieuSvc.GetDanhSachLotTuKho(e.MaHang); ChonLotResult r = _v.ShowChonLotTuKho(e.Stt, e.MaHang, e.SoLuong, lots); if (!r.Confirmed || string.IsNullOrWhiteSpace(r.LotGhep)) return; _c.PhieuSvc.NhapLotThuCong(e.Stt, r.LotGhep, _c.TenBan); _v.RefreshLotRow(e.Stt, r.LotGhep); _c.IsBanQR = true; _v.LockRadioExcept(_c.GioXuatHienTai.Ma); DataTable dt = _c.PhieuSvc.GetDonHangHienTai(_c.TenBan); _c.SetupPhieuButtonsDefault(_c.PhieuSvc.CheckCanCapNhapKho(dt), false, _c.PhieuSvc.CheckCoLotChuaCNK(dt)); }
+        private void OnChonLotThuCong(object sender, ChonLotThuCongEventArgs e) { if (!_c.IsMayBanQR) return; DataTable lots = _c.PhieuSvc.GetDanhSachLotTuKho(e.MaHang); ChonLotResult r = _v.ShowChonLotTuKho(e.Stt, e.MaHang, e.SoLuong, lots); if (!r.Confirmed || string.IsNullOrWhiteSpace(r.LotGhep)) return; _c.PhieuSvc.NhapLotThuCong(e.Stt, r.LotGhep, _c.TenBan);
+            _v.RefreshLotRow(e.Stt, r.LotGhep);
+            _c.IsBanQR = true;
+            bool isSpSession = _c.Cfg.Delivery.CoLoaiSP && _v.IsLoaiSP;
+            _c.BeginDeliverySession(
+                _v.SelectedDate,
+                _c.AddNM,
+                isSpSession ? string.Empty : _c.GioXuatHienTai.Ma,
+                _c.GetNhaMay(),
+                isSpSession);
+            _v.LockRadioExcept(_c.GioXuatHienTai.Ma);
+            _v.LockDatePicker();
+            _c.DocQrView.LockDocQrDeliveryContext(
+                isSpSession,
+                isSpSession ? string.Empty : _c.GioXuatHienTai.Ma);
+            DataTable dt = _c.PhieuSvc.GetDonHangHienTai(_c.TenBan); _c.SetupPhieuButtonsDefault(_c.PhieuSvc.CheckCanCapNhapKho(dt), false, _c.PhieuSvc.CheckCoLotChuaCNK(dt)); }
         private void OnLayLaiLotNo(object sender, LayLaiLotEventArgs e) { if (!_v.Confirm($"Bạn có chắc chắn muốn reset dữ liệu LOT của dòng có STT {e.Stt} không?")) return; _c.RunWithLoadingSync(() => { _c.PhieuSvc.LayLaiLotNo(e.Stt, _c.QrSvc.IsBanSP); _c.LoadPhieuHienTai(); }, "Đang xử lý lấy lại số LOT..."); }
         private void OnXemHangThieuCaNgay(object sender, EventArgs e) => _c.RunWithLoading(() => { DataTable dt = _c.HangThieuCaNgayService.TinhHangThieuCaNgay(_v.SelectedDate, _c.GetNhaMay(), _c.AddNM, _c.Cfg); _c.UiContext.Post(_ => _v.ShowHangThieuCaNgay(dt), null); }, "Đang tính hàng thiếu cả ngày...");
         private void XetTrangThai()
