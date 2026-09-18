@@ -57,6 +57,14 @@ namespace PCTP.Presentation.Presenters
             string ngay = _c.PhieuView.SelectedDate.ToString("yyyy-MM-dd");
             List<string> gios = _c.Cfg.Delivery.CoGear ? _c.YmvnView.GetCheckedGioXuat() : null;
             _c.IsBanQR = true;
+            _c.BeginDeliverySession(
+                _c.PhieuView.SelectedDate,
+                _c.AddNM,
+                isSP || _c.Cfg.Delivery.CoGear || _c.Cfg.Delivery.LoadTuBangRieng
+                    ? string.Empty
+                    : _c.GioXuatHienTai.Ma,
+                _c.GetNhaMay(),
+                isSP);
 
             // Khoá session context NGAY + NHÀ MÁY + GIỜ ngay trước khi chạy
             // đồng bộ bất đồng bộ. Không để người dùng đổi selector trong
@@ -95,6 +103,7 @@ namespace PCTP.Presentation.Presenters
                 catch (Exception ex)
                 {
                     _c.IsBanQR = false;
+                    _c.ClearDeliverySession();
                     _v.UnlockDocQrDeliveryContext();
                     _c.PhieuView.UnlockAllRadio();
                     _c.PhieuView.UnlockDatePicker();
@@ -243,6 +252,7 @@ namespace PCTP.Presentation.Presenters
             _v.ClearDocQRRows();
             _c.IsBanQR = false;
             _c.QrSvc.SetCheDoBan("");
+            _c.ClearDeliverySession();
             _v.UnlockDocQrDeliveryContext();
             _c.PhieuView.UnlockAllRadio();
             _c.PhieuView.UnlockDatePicker();
