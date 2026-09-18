@@ -291,6 +291,78 @@ FROM
         }
 
         // ============================================================
+        // GetTrangThaiDangBanSP
+        // ============================================================
+        /// <summary>
+        /// SP là phiên theo ngày + nhà máy. TMP_SP có thể chứa nhiều
+        /// GIOGIAO nên không được dùng GIOGIAO để xác định DataKhongKhop.
+        /// </summary>
+        public TrangThaiBan GetTrangThaiDangBanSP(PhieuTableSet tables)
+        {
+            if (tables == null) throw new ArgumentNullException(nameof(tables));
+            Db.ValidateTableName(tables.TmpTable);
+            Db.ValidateTableName(tables.DocQRTable);
+
+            var result = new TrangThaiBan();
+
+            int demQR = DbValueHelper.ToInt(
+                ExecuteScalar($"SELECT COUNT(*) FROM [{tables.DocQRTable}]"));
+            if (demQR == 0)
+            {
+                result.DangBan = false;
+                return result;
+            }
+
+            int demPhieu = DbValueHelper.ToInt(
+                ExecuteScalar($"SELECT COUNT(*) FROM [{tables.TmpTable}]"));
+            if (demPhieu == 0)
+            {
+                result.DangBan = true;
+                result.DataKhongKhop = true;
+                return result;
+            }
+
+            int demContext = DbValueHelper.ToInt(ExecuteScalar($@"
+SELECT COUNT(*)
+FROM
+(
+    SELECT DISTINCT
+           ISNULL(ADDNM, 1) AS ADDNM,
+           CONVERT(VARCHAR(10), NGAYGIAO, 120) AS NGAYGIAO
+    FROM [{tables.TmpTable}]
+) S"));
+
+            if (demContext != 1)
+            {
+                result.DangBan = true;
+                result.DataKhongKhop = true;
+                return result;
+            }
+
+            DataTable dt = LoadData($@"
+SELECT TOP 1 ADDNM, NGAYGIAO
+FROM [{tables.TmpTable}]
+ORDER BY STT");
+
+            if (dt.Rows.Count == 0)
+            {
+                result.DangBan = true;
+                result.DataKhongKhop = true;
+                return result;
+            }
+
+            DataRow row = dt.Rows[0];
+            result.DangBan = true;
+            result.DataKhongKhop = false;
+            result.AddNM = row["ADDNM"] == DBNull.Value ? 1 : Convert.ToInt32(row["ADDNM"]);
+            result.NgayGiao = row["NGAYGIAO"] == DBNull.Value
+                ? ""
+                : Convert.ToDateTime(row["NGAYGIAO"]).ToString("yyyy-MM-dd");
+            result.GioGiaoFCC = "";
+            return result;
+        }
+
+        // ============================================================
         // GetTrangThaiDangBanYMVN
         // ============================================================
         public TrangThaiBan GetTrangThaiDangBanYMVN(PhieuTableSet tables)
