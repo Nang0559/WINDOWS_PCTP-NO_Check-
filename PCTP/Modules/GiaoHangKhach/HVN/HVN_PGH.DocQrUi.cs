@@ -128,11 +128,26 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
             if (tabPaneHVN != null)
                 tabPaneHVN.Enabled = true;
 
-            if (tabVP != null)
-                tabVP.PageVisible = true;
-
-            if (tabHN != null)
-                tabHN.PageVisible = true;
+            // Restore the visibility required by the customer configuration,
+            // not blindly "both visible" (100003/LoadTheoNgay has no plant tabs).
+            if (_cfg != null && _cfg.Delivery != null)
+            {
+                if (_cfg.Delivery.CoNhieuNhaMay)
+                {
+                    if (tabVP != null) tabVP.PageVisible = true;
+                    if (tabHN != null) tabHN.PageVisible = true;
+                }
+                else if (_cfg.Delivery.CoGear || _cfg.Delivery.LoadTheoNgay)
+                {
+                    if (tabVP != null) tabVP.PageVisible = false;
+                    if (tabHN != null) tabHN.PageVisible = false;
+                }
+                else
+                {
+                    if (tabVP != null) tabVP.PageVisible = true;
+                    if (tabHN != null) tabHN.PageVisible = false;
+                }
+            }
 
             _docQrLockedTabVisibilityCaptured = false;
         }
