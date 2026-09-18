@@ -79,6 +79,12 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
                 tabPane.SelectedPage = tabVp;
                 tabHn.PageVisible = false;
             }
+
+            // SetTab() được gọi khi khôi phục session từ TMP/DOCQRCODE.
+            // SelectedPage đã thay đổi nhưng event Click của TabPane không
+            // nhất thiết chạy theo cùng thứ tự. Phải đồng bộ giờ ngay tại đây
+            // để CurrentGioXuat không còn giữ giờ của tab trước.
+            TryUpdateCurrentGioXuat();
         }
 
         /// <summary>
