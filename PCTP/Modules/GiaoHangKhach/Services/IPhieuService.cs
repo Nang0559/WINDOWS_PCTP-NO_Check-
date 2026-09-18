@@ -14,7 +14,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
     public interface IPhieuService
     {
         void SetTrangThaiBan(bool isBanQR, bool isLoaiSP);
-        void LoadPhieu(string ngayGiao, string nhaMay, string gioFcc, string gioFccMoTa, int addNm, bool isMayBanQR, bool isBanQR, List<string> checkedGios = null, bool isLoaiSP = false);
+        void LoadPhieu(string ngayGiao, string nhaMay, string gioFcc, string gioFccMoTa, int addNm, bool isMayBanQR, bool isBanQR, List<string> checkedGios = null, bool isLoaiSP = false, long loadRequestId = 0);
         void SyncIfsPhieuChoDocQR(string ngayGiao, string nhaMay, string gioFcc, string gioFccMoTa, int addNm);
         bool KiemTraMaTrongPhieu(string maHang);
         bool CheckCoLotChuaCNK(DataTable donHang);
