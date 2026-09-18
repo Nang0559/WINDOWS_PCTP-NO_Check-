@@ -22,6 +22,14 @@ namespace PCTP.Presentation.Presenters
     {
         private readonly HVNPresenterContext _c;
         private readonly IPhieuView _v;
+
+        // Immutable UI restore snapshot for an active DOCQRCODE session.
+        // TMP/DOCQRCODE is the source of truth; normal UI loads must never
+        // replace this header context with the previous screen selection.
+        private DateTime _qrRestoreDate = DateTime.MinValue;
+        private int _qrRestoreAddNM;
+        private string _qrRestoreConcreteHour = string.Empty;
+        private bool _qrRestoreIsSP;
         internal PhieuPresenter(HVNPresenterContext context)
         {
             _c = context; _v = _c.PhieuView; var v = _v;
@@ -230,9 +238,17 @@ namespace PCTP.Presentation.Presenters
                 _c.AddNM = _c.Cfg.Delivery.CoNhieuNhaMay ? tt.AddNM : _c.Cfg.Delivery.AddNmMacDinh;
                 _c.IsBanQR = true;
 
+                // Snapshot the TMP identity before touching any UI control.
+                // This snapshot is reapplied after every PhieuLoadedEvent so a
+                // later grid/header refresh cannot revert date/tab/hour to the
+                // previous user context.
+                _qrRestoreDate = ngay.Date;
+                _qrRestoreAddNM = _c.AddNM;
+                _qrRestoreConcreteHour = tt.GioGiaoFCC ?? string.Empty;
+
                 if (_c.Cfg.Delivery.CoNhieuNhaMay)
-                    _v.SetTab(tt.AddNM);
-                _v.SetDate(ngay);
+                    _v.SetTab(_qrRestoreAddNM);
+                _v.SetDate(_qrRestoreDate);
 
                 if (_c.Cfg.Delivery.CoGear)
                 {
@@ -287,6 +303,7 @@ namespace PCTP.Presentation.Presenters
 
                 bool isSpSession = _c.CategoryResolver.Resolve(
                     new OrderLoadContext { GioFccMoTa = mota }) == OrderCategory.SP;
+                _qrRestoreIsSP = isSpSession;
 
                 _c.QrSvc.SetCheDoBanSP(isSpSession);
 
@@ -325,6 +342,31 @@ namespace PCTP.Presentation.Presenters
                 _c.LoadPhieuHienTai();
             }, "Đang kiểm tra trạng thái phiên làm việc cũ...");
         }
+
+        private void RestoreQrHeaderFromSnapshot()
+        {
+            if (!_c.IsBanQR || _qrRestoreDate == DateTime.MinValue)
+                return;
+
+            _v.SuspendGioXuatChanged();
+            try
+            {
+                if (_c.Cfg.Delivery.CoNhieuNhaMay)
+                    _v.SetTab(_qrRestoreAddNM);
+
+                _v.SetDate(_qrRestoreDate);
+
+                if (!_qrRestoreIsSP && !string.IsNullOrWhiteSpace(_qrRestoreConcreteHour))
+                {
+                    _v.SelectGioXuatByConcreteHour(_qrRestoreConcreteHour);
+                }
+            }
+            finally
+            {
+                _v.ResumeGioXuatChanged();
+            }
+        }
+
         private void OnPhieuLoaded(PhieuLoadedEvent e)
         {
             DataTable data = e?.DonHangTable;
@@ -332,6 +374,12 @@ namespace PCTP.Presentation.Presenters
 
             _c.UiContext.Post(_ =>
             {
+                // Reapply the immutable TMP/DOCQRCODE header identity after
+                // the data load. This is deliberately AFTER BindDonHang:
+                // any load/bind side effect is therefore unable to leave
+                // dateNX or RDO_GXHN on the previous context.
+                RestoreQrHeaderFromSnapshot();
+
                 // The caption is part of the same OrderLoadContext as the
                 // DataTable. Do not leave the previous plant/hour caption on
                 // the grid when a restored QR session is loaded.
