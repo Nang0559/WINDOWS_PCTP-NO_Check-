@@ -202,7 +202,8 @@ namespace PCTP.Presentation.Presenters
                 return;
             }
 
-            if (IsLoadingPhieu) return;
+            // Do not block a new load because an older result is still queued
+            // for UI binding. LoadRequestId makes the newest request authoritative.
             IsLoadingPhieu = true;
             string ngayGiao = ""; string nhaMay = ""; List<string> checkedGios = null; bool isLoaiSP = false;
             string gioMa = GioXuatHienTai.Ma; string gioMoTa = GioXuatHienTai.MoTa;
