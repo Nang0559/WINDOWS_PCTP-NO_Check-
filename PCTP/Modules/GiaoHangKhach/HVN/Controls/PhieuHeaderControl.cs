@@ -43,6 +43,65 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
         public void SetQrDeliveryContextLocked(bool locked)
         {
             _qrDeliveryContextLocked = locked;
+
+            // The QR session lock is a business-state lock, not only a visual
+            // lock. Apply it directly to every header selector so a later
+            // DevExpress layout refresh cannot silently re-enable one control.
+            var date = FindControl<DateEdit>("dateNX");
+            if (date != null)
+                date.Enabled = !locked;
+
+            var tabPane = FindControl<TabPane>("tabPaneHVN");
+            if (tabPane != null)
+                tabPane.Enabled = !locked;
+
+            var radioVp = FindControl<RadioGroup>("radioGroup2");
+            if (radioVp != null)
+                radioVp.Enabled = !locked;
+
+            var radioHn = FindControl<RadioGroup>("RDO_GXHN");
+            if (radioHn != null)
+                radioHn.Enabled = !locked;
+
+            if (_btnToggleLoaiPhieu != null)
+                _btnToggleLoaiPhieu.Enabled = !locked;
+
+            if (locked)
+            {
+                LockAllRadioItems();
+            }
+            else
+            {
+                UnlockAllRadioItems();
+            }
+        }
+
+        private void LockAllRadioItems()
+        {
+            var radioVp = FindControl<RadioGroup>("radioGroup2");
+            var radioHn = FindControl<RadioGroup>("RDO_GXHN");
+
+            if (radioVp != null)
+                foreach (RadioGroupItem item in radioVp.Properties.Items)
+                    item.Enabled = false;
+
+            if (radioHn != null)
+                foreach (RadioGroupItem item in radioHn.Properties.Items)
+                    item.Enabled = false;
+        }
+
+        private void UnlockAllRadioItems()
+        {
+            var radioVp = FindControl<RadioGroup>("radioGroup2");
+            var radioHn = FindControl<RadioGroup>("RDO_GXHN");
+
+            if (radioVp != null)
+                foreach (RadioGroupItem item in radioVp.Properties.Items)
+                    item.Enabled = true;
+
+            if (radioHn != null)
+                foreach (RadioGroupItem item in radioHn.Properties.Items)
+                    item.Enabled = true;
         }
         public GioXuat CurrentGioXuat { get; private set; }
         public event EventHandler LoaiPhieuChanged = delegate { };
@@ -480,6 +539,7 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
                 btnUploadMilkrun.Parent.Controls.Add(_btnToggleLoaiPhieu);
             }
             _btnToggleLoaiPhieu.Visible = true;
+            _btnToggleLoaiPhieu.Enabled = !_qrDeliveryContextLocked;
         }
 
         private void HideLoaiPhieuToggle() { if (_btnToggleLoaiPhieu != null) _btnToggleLoaiPhieu.Visible = false; }
