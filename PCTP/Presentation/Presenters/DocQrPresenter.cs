@@ -191,8 +191,7 @@ namespace PCTP.Presentation.Presenters
 
                 foreach (var g in ds)
                 {
-                    string mb = GioXuatRepository.ParseGioThuong(g.MoTa);
-                    if (mb.Contains($"'{gio}'"))
+                    if (DeliverySessionIdentity.ContainsHour(g.Ma, gio))
                     {
                         ma = g.Ma;
                         mota = g.MoTa;
@@ -231,7 +230,7 @@ namespace PCTP.Presentation.Presenters
                 _c.AddNM,
                 isSP || _c.Cfg.Delivery.CoGear || _c.Cfg.Delivery.LoadTuBangRieng
                     ? string.Empty
-                    : ma,
+                    : tt.GioGiaoFCC,
                 _c.GetNhaMay(),
                 isSP);
 
