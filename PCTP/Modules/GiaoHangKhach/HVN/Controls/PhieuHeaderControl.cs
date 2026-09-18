@@ -377,12 +377,22 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
 
         private void HeaderTabChanged(object sender, EventArgs e)
         {
-            // Khi đổi nhà máy, giờ phải được lấy từ RadioGroup của chính tab đó.
-            // Nếu không, CurrentGioXuat có thể vẫn giữ giờ của tab trước.
-            if (!TryUpdateCurrentGioXuat())
+            // TabPane.Click có thể chạy trước khi SelectedPage được cập nhật.
+            // Đọc giờ ngay trong Click sẽ dễ lấy lại giờ của tab cũ (VP -> HN).
+            // Đẩy xử lý sang message queue để SelectedPage đã là tab mới.
+            if (!IsHandleCreated || IsDisposed)
                 return;
 
-            TabChanged.Invoke(this, EventArgs.Empty);
+            BeginInvoke(new Action(() =>
+            {
+                if (IsDisposed)
+                    return;
+
+                if (!TryUpdateCurrentGioXuat())
+                    return;
+
+                TabChanged.Invoke(this, EventArgs.Empty);
+            }));
         }
 
         private bool TryUpdateCurrentGioXuat()
