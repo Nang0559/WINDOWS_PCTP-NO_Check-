@@ -564,10 +564,32 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
         private bool TryUpdateCurrentGioXuat()
         {
             if (_cfg == null || _cfg.Delivery == null) return false;
-            if (!_cfg.Delivery.CoNhieuNhaMay) return TryReadGioXuat(FindControl<RadioGroup>("radioGroup2"));
+
+            // SP does not have a delivery-hour context. The plant tab is still
+            // meaningful for SP, but there is no radio group to read.
+            if (_isLoaiSP)
+            {
+                CurrentGioXuat = new GioXuat(string.Empty, string.Empty);
+                return true;
+            }
+
+            // With multiple plants, read the radio group belonging to the
+            // currently selected plant. Do not return the VP group simply
+            // because CoNhieuNhaMay is true.
+            if (!_cfg.Delivery.CoNhieuNhaMay)
+                return TryReadGioXuat(FindControl<RadioGroup>("radioGroup2"));
+
             var tabPane = FindControl<TabPane>("tabPaneHVN");
             var tabHn = FindControl<TabNavigationPage>("tabHN");
-            return tabPane != null && tabHn != null && tabPane.SelectedPage == tabHn ? TryReadGioXuat(FindControl<RadioGroup>("RDO_GXHN")) : TryReadGioXuat(FindControl<RadioGroup>("radioGroup2"));
+
+            if (tabPane == null)
+                return false;
+
+            var radio = tabHn != null && tabPane.SelectedPage == tabHn
+                ? FindControl<RadioGroup>("RDO_GXHN")
+                : FindControl<RadioGroup>("radioGroup2");
+
+            return TryReadGioXuat(radio);
         }
 
         private bool TryReadGioXuat(RadioGroup radio)
