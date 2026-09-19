@@ -57,9 +57,12 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             DateTime dt = context.NgayGiao;
             string ngayGiaoSP = dt.ToString("yyyy-MM-dd");
             string ngayXuat = dt.ToString("ddMMyyyy");
-            string gioFccSP = _cfg.Delivery.LoadTheoNgay ? "" : context.GioFcc;
-            string gioMoTaSP = _cfg.Delivery.LoadTheoNgay ? "Tất cả ca" : context.GioFccMoTa;
             bool isSP = context.Category == OrderCategory.SP;
+
+            // SP for 100001 is loaded by date only. MP's selected hour must
+            // never be reused for the SP query.
+            string gioFccSP = isSP ? "" : (_cfg.Delivery.LoadTheoNgay ? "" : context.GioFcc);
+            string gioMoTaSP = isSP ? "Tất cả ca" : (_cfg.Delivery.LoadTheoNgay ? "Tất cả ca" : context.GioFccMoTa);
             string tmpTable = _cfg.Delivery.GetTmpTable(isSP);
             string docQRTable = _cfg.Delivery.GetDocQRTable(isSP);
             string caption = BuildOrderCaption(context, gioMoTaSP);
