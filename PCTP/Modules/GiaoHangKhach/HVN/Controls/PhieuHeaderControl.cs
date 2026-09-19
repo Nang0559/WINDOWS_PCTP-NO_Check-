@@ -598,25 +598,46 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
                 btnUploadMilkrun.Parent.Controls.Add(_btnToggleLoaiPhieu);
             }
             _btnToggleLoaiPhieu.Visible = true;
-            // MP/SP is intentionally switchable during an active QR session.\n            _btnToggleLoaiPhieu.Enabled = true;
+            _btnToggleLoaiPhieu.Enabled = !_qrDeliveryContextLocked;
         }
 
         private void HideLoaiPhieuToggle() { if (_btnToggleLoaiPhieu != null) _btnToggleLoaiPhieu.Visible = false; }
 
+        private void ApplyLoaiPhieuHourVisibility()
+        {
+            var radioVp = FindControl<RadioGroup>("radioGroup2");
+            var radioHn = FindControl<RadioGroup>("RDO_GXHN");
+
+            // 100001 SP is date-only. The MP hour controls remain in the
+            // same header/tab area, but are hidden while SP is selected.
+            bool showHour = !_isLoaiSP;
+
+            if (radioVp != null)
+                radioVp.Visible = showHour;
+            if (radioHn != null)
+                radioHn.Visible = showHour;
+        }
+
         public void ToggleLoaiPhieu()
         {
-            // MP/SP is a view mode, not part of the immutable QR delivery
-            // session identity. The QR lock protects Date/Plant/Hour only,
-            // so the user must still be able to switch MP <-> SP while a
-            // delivery session is active.
+            if (_qrDeliveryContextLocked)
+                return;
+
             _isLoaiSP = !_isLoaiSP;
+
+            // SP does not own an hour. Clear the in-memory hour immediately;
+            // otherwise the previous MP hour (14H/15H) remains in the context.
+            if (_isLoaiSP)
+                CurrentGioXuat = new GioXuat(string.Empty, string.Empty);
+
+            ApplyLoaiPhieuHourVisibility();
 
             if (_btnToggleLoaiPhieu != null)
             {
-                _btnToggleLoaiPhieu.Text = _isLoaiSP ? "XEM SP" : "XEM MP";
+                _btnToggleLoaiPhieu.Text = _isLoaiSP ? "XEM MP" : "XEM SP";
                 _btnToggleLoaiPhieu.BackColor =
                     _isLoaiSP ? Color.OrangeRed : Color.SteelBlue;
-                _btnToggleLoaiPhieu.Enabled = true;
+                _btnToggleLoaiPhieu.Enabled = !_qrDeliveryContextLocked;
             }
 
             LoaiPhieuChanged.Invoke(this, EventArgs.Empty);
