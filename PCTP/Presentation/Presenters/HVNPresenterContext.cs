@@ -206,13 +206,33 @@ namespace PCTP.Presentation.Presenters
             // for UI binding. LoadRequestId makes the newest request authoritative.
             IsLoadingPhieu = true;
             string ngayGiao = ""; string nhaMay = ""; List<string> checkedGios = null; bool isLoaiSP = false;
-            string gioMa = GioXuatHienTai.Ma; string gioMoTa = GioXuatHienTai.MoTa;
+            string gioMa = GioXuatHienTai.Ma;
+            string gioMoTa = GioXuatHienTai.MoTa;
             long loadRequestId = BeginLoadRequest();
             Action readUiAction = () =>
             {
                 ngayGiao = Cfg.Delivery.CoGear ? View.SelectedDate.ToString("MM/dd/yyyy") : View.SelectedDate.ToString("yyyy-MM-dd");
-                if (Cfg.Delivery.CoGear) { checkedGios = View.GetCheckedGioXuat(); } else nhaMay = GetNhaMay();
-                if (Cfg.Delivery.CoGear || Cfg.Delivery.CoLoaiSP) isLoaiSP = View.IsLoaiSP;
+                if (Cfg.Delivery.CoGear)
+                {
+                    checkedGios = View.GetCheckedGioXuat();
+                }
+                else
+                {
+                    nhaMay = GetNhaMay();
+                }
+
+                if (Cfg.Delivery.CoGear || Cfg.Delivery.CoLoaiSP)
+                    isLoaiSP = View.IsLoaiSP;
+
+                // 100001 SP is date-only. The MP hour shown in the shared
+                // radio group (for example 14H/15H) must not leak into the
+                // SP OrderLoadContext.
+                if (Cfg.Delivery.CoLoaiSP && isLoaiSP)
+                {
+                    gioMa = string.Empty;
+                    gioMoTa = string.Empty;
+                    GioXuatHienTai = new GioXuat(string.Empty, string.Empty);
+                }
             };
             if (UiContext == SynchronizationContext.Current) readUiAction(); else UiContext.Send(_ => readUiAction(), null);
             try
