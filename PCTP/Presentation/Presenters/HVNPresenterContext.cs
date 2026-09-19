@@ -219,8 +219,14 @@ namespace PCTP.Presentation.Presenters
             string nhaMay = "";
             List<string> checkedGios = null;
             bool isLoaiSP = false;
-            string gioMa = GioXuatHienTai.Ma;
-            string gioMoTa = GioXuatHienTai.MoTa;
+
+            // Do NOT snapshot GioXuatHienTai before reading the category.
+            // For customer 100001, MP owns the hour (e.g. 14H/15H), while
+            // SP is date-only. When the user clicks XEM SP, CurrentGioXuat
+            // must be removed from this load context before PhieuService
+            // creates OrderLoadContext.
+            string gioMa = string.Empty;
+            string gioMoTa = string.Empty;
             long loadRequestId = BeginLoadRequest();
 
             Action readUiAction = () =>
@@ -236,6 +242,24 @@ namespace PCTP.Presentation.Presenters
 
                 if (Cfg.Delivery.CoGear || Cfg.Delivery.CoLoaiSP)
                     isLoaiSP = View.IsLoaiSP;
+
+                if (Cfg.Delivery.CoLoaiSP && isLoaiSP)
+                {
+                    // SP has no delivery-hour identity.
+                    gioMa = string.Empty;
+                    gioMoTa = string.Empty;
+                    GioXuatHienTai = new GioXuat(string.Empty, string.Empty);
+                }
+                else
+                {
+                    gioMa = GioXuatHienTai != null ? GioXuatHienTai.Ma : string.Empty;
+                    gioMoTa = GioXuatHienTai != null ? GioXuatHienTai.MoTa : string.Empty;
+                }
+
+                System.Diagnostics.Debug.WriteLine(
+                    $"[LoadPhieuHienTai] category={(isLoaiSP ? "SP" : "MP")}, " +
+                    $"gioMa='{gioMa}', gioMoTa='{gioMoTa}', " +
+                    $"ngay='{ngayGiao}', nhaMay='{nhaMay}', addNM={AddNM}");
             };
 
             if (UiContext == SynchronizationContext.Current)
