@@ -46,7 +46,7 @@ namespace PCTP.Presentation.Presenters
         internal bool AwaitingPhieuLoadedEvent;
         private long _loadRequestSequence;
         internal long BeginLoadRequest() => Interlocked.Increment(ref _loadRequestSequence);
-        internal long CurrentLoadRequestId => Interlocked.Read(ref _loadRequestSequence);
+        internal long LatestLoadRequestId => Interlocked.Read(ref _loadRequestSequence);
         internal DeliverySessionIdentity DeliverySession { get; private set; }
         private int _busy;
 
