@@ -510,15 +510,20 @@ namespace PCTP.Presentation.Presenters
             _c.UiContext.Post(_ =>
             {
                 bool currentIsSP = _v.IsLoaiSP && _c.Cfg.Delivery.CoConfigSP;
-                long currentRequestId = _c.CurrentLoadRequestId;
+                long latestLoadRequestId = _c.LatestLoadRequestId;
 
                 // Category alone is insufficient for MP -> SP -> MP. The request
-                // sequence makes every older result stale, even if its category
-                // happens to match the current one again.
-                if (e.LoadRequestId != currentRequestId || e.IsSP != currentIsSP)
+                // sequence makes every older non-zero result stale, even if its
+                // category happens to match the current one again.
+                //
+                // LoadRequestId == 0 is intentionally treated as a legacy/untracked
+                // event so existing PublishEmptyPhieuLoaded/other callers remain
+                // backward-compatible. Such an event is still protected by IsSP.
+                if ((e.LoadRequestId != 0 && e.LoadRequestId != latestLoadRequestId) ||
+                    e.IsSP != currentIsSP)
                 {
                     System.Diagnostics.Debug.WriteLine(
-                        $"[OnPhieuLoaded] IGNORE STALE: eventId={e.LoadRequestId}, currentId={currentRequestId}, eventSP={e.IsSP}, currentSP={currentIsSP}, caption='{e.Caption}'");
+                        $"[OnPhieuLoaded] IGNORE STALE: eventId={e.LoadRequestId}, latestId={latestLoadRequestId}, eventSP={e.IsSP}, currentSP={currentIsSP}, caption='{e.Caption}'");
                     return;
                 }
 
