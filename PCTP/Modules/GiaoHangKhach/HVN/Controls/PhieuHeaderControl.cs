@@ -29,6 +29,7 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
         private HashSet<string> _deliveredYmvnHours = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         private bool _ymvnChecklistLocked;
         private bool _qrDeliveryContextLocked;
+        private bool _qrDeliveryPlantLocked;
 
         public PhieuHeaderControl()
         {
@@ -40,9 +41,10 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
         public bool IsLoaiSP { get { return _isLoaiSP; } }
         public bool IsQrDeliveryContextLocked { get { return _qrDeliveryContextLocked; } }
 
-        public void SetQrDeliveryContextLocked(bool locked)
+        public void SetQrDeliveryContextLocked(bool locked, bool lockPlant = true)
         {
             _qrDeliveryContextLocked = locked;
+            _qrDeliveryPlantLocked = locked && lockPlant;
 
             // The QR session lock is a business-state lock, not only a visual
             // lock. Apply it directly to every header selector so a later
@@ -53,7 +55,7 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
 
             var tabPane = FindControl<TabPane>("tabPaneHVN");
             if (tabPane != null)
-                tabPane.Enabled = !locked;
+                tabPane.Enabled = !_qrDeliveryPlantLocked;
 
             var radioVp = FindControl<RadioGroup>("radioGroup2");
             if (radioVp != null)
