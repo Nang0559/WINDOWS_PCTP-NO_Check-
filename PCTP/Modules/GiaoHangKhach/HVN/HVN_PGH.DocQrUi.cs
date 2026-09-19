@@ -83,7 +83,7 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
 
             _docQrDeliveryContextLocked = true;
             if (_phieuHeaderControl != null)
-                _phieuHeaderControl.SetQrDeliveryContextLocked(true);
+                _phieuHeaderControl.SetQrDeliveryContextLocked(true, !isSP);
 
             // Do NOT disable panelPhieu as a whole. The panel also contains
             // the MP/SP view-mode toggle. MP/SP is intentionally switchable
