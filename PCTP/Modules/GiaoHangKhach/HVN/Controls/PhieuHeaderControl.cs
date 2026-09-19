@@ -620,9 +620,9 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
 
         public void ToggleLoaiPhieu()
         {
-            if (_qrDeliveryContextLocked)
-                return;
-
+            // MP/SP is a separate view/category context. It is intentionally
+            // switchable while a QR session is active. The QR lock protects
+            // the shared Date + Plant and the MP hour, not this toggle.
             _isLoaiSP = !_isLoaiSP;
 
             // SP does not own an hour. Clear the in-memory hour immediately;
@@ -637,7 +637,7 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
                 _btnToggleLoaiPhieu.Text = _isLoaiSP ? "XEM MP" : "XEM SP";
                 _btnToggleLoaiPhieu.BackColor =
                     _isLoaiSP ? Color.OrangeRed : Color.SteelBlue;
-                _btnToggleLoaiPhieu.Enabled = !_qrDeliveryContextLocked;
+                _btnToggleLoaiPhieu.Enabled = true;
             }
 
             LoaiPhieuChanged.Invoke(this, EventArgs.Empty);
