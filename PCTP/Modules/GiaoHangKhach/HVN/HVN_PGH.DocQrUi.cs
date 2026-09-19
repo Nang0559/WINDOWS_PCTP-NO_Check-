@@ -106,16 +106,17 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
             // MP/SP is a view mode only and remains switchable during QR lock.
             SetLoaiPhieuToggleEnabled(true);
 
-            // Plant is part of both MP and SP identity.
-            // Keep both pages visible but disable the TabPane itself so the
-            // selected plant cannot be changed during the QR session.
-            // This also avoids restoring a stale "hidden page" state after
-            // the QR session finishes.
+            // MP: plant is part of the immutable QR session, so the
+            // TabPane must not receive mouse input.
+            //
+            // SP: plant is shared by MP/SP but remains selectable. The
+            // TabPane must stay enabled so its Click event can reach
+            // HeaderTabChanged and reload the SP context for the new plant.
             if (tabPaneHVN != null && tabVP != null && tabHN != null)
             {
                 tabVP.PageVisible = true;
                 tabHN.PageVisible = true;
-                tabPaneHVN.Enabled = false;
+                tabPaneHVN.Enabled = isSP;
             }
 
             // SP has no hour context. MP keeps only the exact hour used by the QR session.
