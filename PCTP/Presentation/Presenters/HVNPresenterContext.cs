@@ -44,18 +44,49 @@ namespace PCTP.Presentation.Presenters
         internal bool IsBanQR;
         internal bool IsLoadingPhieu;
         internal bool AwaitingPhieuLoadedEvent;
+
+        // ── LoadRequestId: "trọng tài" duy nhất chọn kết quả tải phiếu nào
+        // được áp dụng lên UI. LoadPhieuHienTai() KHÔNG chặn lệnh gọi chồng
+        // (không còn early-return khi IsLoadingPhieu=true) — mọi lệnh gọi đều
+        // được phép bắn PhieuSvc.LoadPhieu(...), và OnPhieuLoaded (bên
+        // PhieuPresenter) chỉ bind lên UI kết quả có LoadRequestId khớp với
+        // LatestLoadRequestId tại thời điểm event đến; kết quả trễ của yêu cầu
+        // cũ bị bỏ qua. Đánh đổi: 2 (hoặc hơn) lệnh SQL có thể chạy THẬT SỰ
+        // song song trên cùng 1 PhieuService/SQLPROVIDER — nếu SQLPROVIDER
+        // không thread-safe, đây là đường mở lại nguy cơ "already open
+        // DataReader" khi 2 connection cùng lúc đụng pool. Cân nhắc thêm hàng
+        // đợi tuần tự (channel/queue) ở tầng PhieuService nếu vẫn còn gặp lỗi
+        // connection sau khi đã xác nhận LoadRequestId hoạt động đúng.
         private long _loadRequestSequence;
         internal long BeginLoadRequest() => Interlocked.Increment(ref _loadRequestSequence);
         internal long LatestLoadRequestId => Interlocked.Read(ref _loadRequestSequence);
+
         internal DeliverySessionIdentity DeliverySession { get; private set; }
+
         private int _busy;
 
         internal HVNPresenterContext(IHVNView view, IPhieuService phieuSvc, IPhieuLotService lotSvc, IDocQRService qrSvc, IInPhieuService inPhieuSvc, IHangThieuCaNgayService hangThieuCaNgayService, IGioXuatRepository gioXuatRepo, IEventBus bus, bool isMayBanQR, string tenBan, CustomerConfig cfg, IOrderCategoryResolver categoryResolver)
         {
-            View = view ?? throw new ArgumentNullException(nameof(view)); PhieuView = View; DocQrView = View; GiaoDbView = View; YmvnView = View;
-            PhieuSvc = phieuSvc ?? throw new ArgumentNullException(nameof(phieuSvc)); LotSvc = lotSvc ?? throw new ArgumentNullException(nameof(lotSvc)); QrSvc = qrSvc ?? throw new ArgumentNullException(nameof(qrSvc)); InPhieuSvc = inPhieuSvc ?? throw new ArgumentNullException(nameof(inPhieuSvc)); HangThieuCaNgayService = hangThieuCaNgayService ?? throw new ArgumentNullException(nameof(hangThieuCaNgayService)); GioXuatRepo = gioXuatRepo ?? throw new ArgumentNullException(nameof(gioXuatRepo)); Bus = bus ?? throw new ArgumentNullException(nameof(bus)); Cfg = cfg ?? throw new ArgumentNullException(nameof(cfg)); CategoryResolver = categoryResolver ?? throw new ArgumentNullException(nameof(categoryResolver));
-            CustomerBehavior = new CustomerDeliveryBehavior(cfg); IsMayBanQR = isMayBanQR; TenBan = tenBan; UiContext = SynchronizationContext.Current ?? new WindowsFormsSynchronizationContext();
+            View = view ?? throw new ArgumentNullException(nameof(view));
+            PhieuView = View;
+            DocQrView = View;
+            GiaoDbView = View;
+            YmvnView = View;
+            PhieuSvc = phieuSvc ?? throw new ArgumentNullException(nameof(phieuSvc));
+            LotSvc = lotSvc ?? throw new ArgumentNullException(nameof(lotSvc));
+            QrSvc = qrSvc ?? throw new ArgumentNullException(nameof(qrSvc));
+            InPhieuSvc = inPhieuSvc ?? throw new ArgumentNullException(nameof(inPhieuSvc));
+            HangThieuCaNgayService = hangThieuCaNgayService ?? throw new ArgumentNullException(nameof(hangThieuCaNgayService));
+            GioXuatRepo = gioXuatRepo ?? throw new ArgumentNullException(nameof(gioXuatRepo));
+            Bus = bus ?? throw new ArgumentNullException(nameof(bus));
+            Cfg = cfg ?? throw new ArgumentNullException(nameof(cfg));
+            CategoryResolver = categoryResolver ?? throw new ArgumentNullException(nameof(categoryResolver));
+            CustomerBehavior = new CustomerDeliveryBehavior(cfg);
+            IsMayBanQR = isMayBanQR;
+            TenBan = tenBan;
+            UiContext = SynchronizationContext.Current ?? new WindowsFormsSynchronizationContext();
         }
+
         internal void UpdateGioXuat(GioXuat gio)
         {
             GioXuatHienTai = gio;
@@ -86,72 +117,45 @@ namespace PCTP.Presentation.Presenters
                 GetNhaMay(),
                 Cfg.Delivery.CoGear || Cfg.Delivery.CoLoaiSP && PhieuView.IsLoaiSP);
         }
+
         internal string GetNhaMay() => !Cfg.Delivery.CoNhieuNhaMay ? Cfg.Delivery.TenNhaMay : (AddNM == 1 ? "HON DA - VIET NAM(NHA MAY VP)" : "HON DA - VIET NAM(NHA MAY HA NAM)");
+
         internal void RunWithLoading(Action action, string caption = "Đang xử lý...")
         {
-            if (Interlocked.CompareExchange(ref _busy, 1, 0) != 0) return;
+            if (Interlocked.CompareExchange(ref _busy, 1, 0) != 0)
+                return;
+
             View.ShowLoading(true, caption);
-            Task.Run(() => { try { action(); } catch (Exception ex) { UiContext.Post(_ => View.ShowError("Lỗi hệ thống: " + ex.Message), null); } finally { Interlocked.Exchange(ref _busy, 0); UiContext.Post(_ => View.ShowLoading(false), null); } });
+            Task.Run(() =>
+            {
+                try { action(); }
+                catch (Exception ex) { UiContext.Post(_ => View.ShowError("Lỗi hệ thống: " + ex.Message), null); }
+                finally
+                {
+                    Interlocked.Exchange(ref _busy, 0);
+                    UiContext.Post(_ => View.ShowLoading(false), null);
+                }
+            });
         }
-        //internal void RunWithLoadingSync(Action action, string caption = "Đang xử lý...")
-        //{
-        //    if (Interlocked.CompareExchange(ref _busy, 1, 0) != 0) return;
-        //    try { View.ShowLoading(true, caption); action(); } catch (Exception ex) { View.ShowError("Lỗi: " + ex.Message); } finally { Interlocked.Exchange(ref _busy, 0); HideLoadingUnlessAwaitingPhieuLoad(); }
-        //}
+
         internal void RunWithLoadingSync(Action action, string caption = "Đang xử lý...")
         {
-            int oldBusy = Interlocked.CompareExchange(ref _busy, 1, 0);
-
-            System.Diagnostics.Debug.WriteLine(
-                $"[RunWithLoadingSync] ENTER " +
-                $"oldBusy={oldBusy}, " +
-                $"currentBusy={_busy}, " +
-                $"Thread={System.Threading.Thread.CurrentThread.ManagedThreadId}, " +
-                $"Caption='{caption}'");
-
-            if (oldBusy != 0)
-            {
-                System.Diagnostics.Debug.WriteLine(
-                    $"[RunWithLoadingSync] BLOCKED " +
-                    $"Caption='{caption}'");
-
-                return;
-            }
+            if (Interlocked.CompareExchange(ref _busy, 1, 0) != 0)
+                return; // đang có thao tác khác chạy dở -> bỏ qua để tránh chồng lệnh SQL
 
             try
             {
-                System.Diagnostics.Debug.WriteLine(
-                    $"[RunWithLoadingSync] ACTION BEGIN " +
-                    $"Caption='{caption}'");
-
                 View.ShowLoading(true, caption);
-
                 action();
-
-                System.Diagnostics.Debug.WriteLine(
-                    $"[RunWithLoadingSync] ACTION END " +
-                    $"Caption='{caption}'");
             }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine(
-                    $"[RunWithLoadingSync] ERROR " +
-                    $"Caption='{caption}' " +
-                    $"Exception={ex}");
-
-                View.ShowError("Lỗi: " + ex.Message);
-            }
+            catch (Exception ex) { View.ShowError("Lỗi: " + ex.Message); }
             finally
             {
                 Interlocked.Exchange(ref _busy, 0);
-
-                System.Diagnostics.Debug.WriteLine(
-                    $"[RunWithLoadingSync] RESET busy=0 " +
-                    $"Caption='{caption}'");
-
                 HideLoadingUnlessAwaitingPhieuLoad();
             }
         }
+
         internal void HideLoadingUnlessAwaitingPhieuLoad() { if (!AwaitingPhieuLoadedEvent) View.ShowLoading(false); }
 
         internal void LoadGioXuatYMVN()
@@ -175,26 +179,31 @@ namespace PCTP.Presentation.Presenters
             else
                 GioXuatHienTai = new GioXuat("", "");
         }
+
         internal void UpdateGioXuatFromCheckList(List<string> danhSachGio)
         {
             var hours = danhSachGio.Select(g => NormalizeHour(g)).Where(h => !string.IsNullOrEmpty(h)).Distinct().OrderBy(h => h).ToList();
             GioXuatHienTai = new GioXuat(string.Join(",", hours.Select(h => $"'{h}'")), string.Join("+", danhSachGio) + "H");
         }
+
         internal List<string> ParseGioYMVN(string gioDonTuDB)
         {
             if (string.IsNullOrWhiteSpace(gioDonTuDB)) return new List<string>();
             return gioDonTuDB.Replace("H", "").Split(new[] { ',', '+' }, StringSplitOptions.RemoveEmptyEntries).Select(g => g.Trim()).Where(g => !string.IsNullOrEmpty(g)).ToList();
         }
+
         private static string NormalizeHour(string value)
         {
             if (string.IsNullOrWhiteSpace(value)) return "";
             string s = value.Replace("H", "").Trim(); int colon = s.IndexOf(':'); if (colon >= 0) s = s.Substring(0, colon);
             int hour; return int.TryParse(s, out hour) ? hour.ToString("00") : "";
         }
+
         internal void LoadPhieuHienTai()
         {
-            // QR mode owns an immutable session context. Never reload TMP/DOCQR
-            // if the UI has drifted to another date/plant/hour/category.
+            // Chế độ QR sở hữu 1 "phiên giao hàng" bất biến. Không được tải
+            // lại TMP/DOCQR nếu UI đã trôi sang ngày/nhà máy/giờ/loại khác so
+            // với phiên đang khoá.
             if (IsBanQR && !IsCurrentDeliverySessionValid())
             {
                 System.Diagnostics.Debug.WriteLine(
@@ -202,37 +211,77 @@ namespace PCTP.Presentation.Presenters
                 return;
             }
 
-            // Do not block a new load because an older result is still queued
-            // for UI binding. LoadRequestId makes the newest request authoritative.
+            // Không chặn lệnh gọi mới chỉ vì còn 1 kết quả cũ đang chờ bind lên
+            // UI — LoadRequestId sẽ quyết định kết quả nào là "chính thức".
             IsLoadingPhieu = true;
-            string ngayGiao = ""; string nhaMay = ""; List<string> checkedGios = null; bool isLoaiSP = false;
-            string gioMa = GioXuatHienTai.Ma; string gioMoTa = GioXuatHienTai.MoTa;
+
+            string ngayGiao = "";
+            string nhaMay = "";
+            List<string> checkedGios = null;
+            bool isLoaiSP = false;
+            string gioMa = GioXuatHienTai.Ma;
+            string gioMoTa = GioXuatHienTai.MoTa;
             long loadRequestId = BeginLoadRequest();
+
             Action readUiAction = () =>
             {
-                ngayGiao = Cfg.Delivery.CoGear ? View.SelectedDate.ToString("MM/dd/yyyy") : View.SelectedDate.ToString("yyyy-MM-dd");
-                if (Cfg.Delivery.CoGear) { checkedGios = View.GetCheckedGioXuat(); } else nhaMay = GetNhaMay();
-                if (Cfg.Delivery.CoGear || Cfg.Delivery.CoLoaiSP) isLoaiSP = View.IsLoaiSP;
+                ngayGiao = Cfg.Delivery.CoGear
+                    ? View.SelectedDate.ToString("MM/dd/yyyy")
+                    : View.SelectedDate.ToString("yyyy-MM-dd");
+
+                if (Cfg.Delivery.CoGear)
+                    checkedGios = View.GetCheckedGioXuat();
+                else
+                    nhaMay = GetNhaMay();
+
+                if (Cfg.Delivery.CoGear || Cfg.Delivery.CoLoaiSP)
+                    isLoaiSP = View.IsLoaiSP;
             };
-            if (UiContext == SynchronizationContext.Current) readUiAction(); else UiContext.Send(_ => readUiAction(), null);
+
+            if (UiContext == SynchronizationContext.Current)
+                readUiAction();
+            else
+                UiContext.Send(_ => readUiAction(), null);
+
             try
             {
                 AwaitingPhieuLoadedEvent = true;
-                PhieuSvc.LoadPhieu(ngayGiao, nhaMay, gioMa, gioMoTa, AddNM, IsMayBanQR, IsBanQR, checkedGios, isLoaiSP, loadRequestId);
+                PhieuSvc.LoadPhieu(
+                    ngayGiao,
+                    nhaMay,
+                    gioMa,
+                    gioMoTa,
+                    AddNM,
+                    IsMayBanQR,
+                    IsBanQR,
+                    checkedGios,
+                    isLoaiSP,
+                    loadRequestId);
             }
             catch (Exception ex)
             {
-                AwaitingPhieuLoadedEvent = false; IsLoadingPhieu = false;
-                UiContext.Post(_ => { View.ShowLoading(false); View.ShowError($"Lỗi tải phiếu: {ex.Message}"); }, null);
+                AwaitingPhieuLoadedEvent = false;
+                IsLoadingPhieu = false;
+
+                UiContext.Post(_ =>
+                {
+                    View.ShowLoading(false);
+                    View.ShowError($"Lỗi tải phiếu: {ex.Message}");
+                }, null);
             }
         }
+
         internal void SetupPhieuButtonsDefault(bool showCapNhapKho = false, bool showKiemTraMaNG = false, bool showLayLaiLot = false, bool showStop = false)
         {
             bool coMaNG = showKiemTraMaNG || PhieuSvc.CheckCoMaNG(); View.SetupPhieuButtons(showCapNhapKho && IsMayBanQR, coMaNG && IsMayBanQR, IsMayBanQR, IsMayBanQR, showLayLaiLot && IsMayBanQR && !IsBanQR, showStop, !Cfg.Delivery.LoadTuBangRieng);
         }
+
         internal DataTable LoadPhieuGiaoDB()
         {
-            DataTable dt = PhieuSvc.LoadTmpPhieuGiaoDB(View.SelectedDate, AddNM); View.BindDonHang(dt); GiaoDbView.SwitchToPhieuDBView(); return dt;
+            DataTable dt = PhieuSvc.LoadTmpPhieuGiaoDB(View.SelectedDate, AddNM);
+            View.BindDonHang(dt);
+            GiaoDbView.SwitchToPhieuDBView();
+            return dt;
         }
     }
 }
