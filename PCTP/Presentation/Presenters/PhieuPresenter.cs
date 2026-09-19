@@ -97,13 +97,28 @@ namespace PCTP.Presentation.Presenters
         {
             if (!_formLoaded || _initializing) return;
 
-            // Khi đã có DOCQRCODE, nhà máy là một phần của session identity.
-            if (_c.IsBanQR || !_c.Cfg.Delivery.CoNhieuNhaMay) return;
+            // MP: nhà máy là một phần của QR session identity -> không đổi tab.
+            // SP: nhà máy dùng chung với MP nhưng KHÔNG thuộc hour context.
+            // Cho phép chuyển HN <-> VP khi đang ở màn hình SP; phiên MP/QR
+            // trước đó không được ép UI quay lại tab cũ.
+            if (_c.IsBanQR && !_v.IsLoaiSP) return;
+            if (!_c.Cfg.Delivery.CoNhieuNhaMay) return;
 
             int selectedTab = _v.SelectedTabAddNM;
             _c.RunWithLoading(() =>
             {
                 _c.AddNM = selectedTab;
+
+                if (_c.IsBanQR && _v.IsLoaiSP)
+                {
+                    // Rời QR session hiện tại để nạp lại SP theo nhà máy mới.
+                    // Không xóa DOCQRCODE/TMP của session cũ.
+                    _c.IsBanQR = false;
+                    _c.ClearDeliverySession();
+                    _c.DocQrView.UnlockDocQrDeliveryContext();
+                    _c.QrSvc.SetCheDoBanSP(true);
+                }
+
                 _c.LoadPhieuHienTai();
             }, "Chuyển nhà máy...");
         }
