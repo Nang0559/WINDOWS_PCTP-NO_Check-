@@ -458,7 +458,22 @@ namespace PCTP.Modules.XuLyHangLoi
 
         private void TaoPhieuTuSlot()
         {
-            using (var f = new FormChonSlotNoiBo(_traNoiBoService, _phieuTraHangRepo, _qtChungService, _slotService)) if (f.ShowDialog(this) == DialogResult.OK) RefreshAfterAction();
+            if (_noiBoLookupRepo == null) { ShowWarning("MainApp chưa inject INoiBoLookupRepository."); return; }
+
+            // Bước tắt: chọn nhanh Slot/LOT → mở ĐÚNG form "Tạo phiếu trả nội bộ" với các dòng đã điền sẵn.
+            // Header (Phòng ban, BP phát hiện lỗi, Lý do, Số phiếu) và việc lưu do FormTaoPhieuTraNoiBo xử lý.
+            List<SlotNguonChon> chon;
+            using (var pick = new FormChonSlotNoiBo(_slotService))
+            {
+                if (pick.ShowDialog(this) != DialogResult.OK) return;
+                chon = pick.KetQua;
+            }
+
+            using (var f = new FormTaoPhieuTraNoiBo(_traNoiBoService, _noiBoLookupRepo, _slotService))
+            {
+                f.ThemDongTuSlot(chon);
+                if (f.ShowDialog(this) == DialogResult.OK) RefreshAfterAction();
+            }
         }
 
         private void TaoPhieuXuLyBatThuong()

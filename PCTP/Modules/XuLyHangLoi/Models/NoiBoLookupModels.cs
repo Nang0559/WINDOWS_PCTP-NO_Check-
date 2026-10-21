@@ -42,4 +42,16 @@ namespace PCTP.Modules.XuLyHangLoi.Models
         public int Quantity { get; set; }
         public string TemCode { get; set; }
     }
+
+    /// <summary>
+    /// Kết quả "chọn nhanh từ Slot" (FormChonSlotNoiBo) trả về cho form tạo phiếu:
+    /// chỉ gồm khóa SlotLot + số lượng + lý do NG. Mọi thông tin còn lại (Slot, mã hàng,
+    /// tên hàng, LOT) do form tạo phiếu tự lấy từ lookup của nó để luôn cùng định dạng.
+    /// </summary>
+    public sealed class SlotNguonChon
+    {
+        public int SlotLotId { get; set; }
+        public int SoLuong { get; set; }
+        public string LyDoNg { get; set; }
+    }
 }

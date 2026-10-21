@@ -9,6 +9,7 @@ namespace PCTP.Modules.XuLyHangLoi
     using DevExpress.XtraEditors;
     using DevExpress.XtraEditors.Repository;
     using DevExpress.XtraGrid.Views.Base;
+    using PCTP.Modules.KhoVatLy;
     using PCTP.Modules.KhoVatLy.Application.Interfaces;
     using PCTP.Modules.XuLyHangLoi.Repository;
     using PCTP.Modules.XuLyHangLoi.Enums;
@@ -50,6 +51,7 @@ namespace PCTP.Modules.XuLyHangLoi
         private LabelControl _lblQrStatus;
         private LabelControl _lblQr;
         private SimpleButton _btnXoaPhieu;
+        private SimpleButton _btnChonSlot;
 
         // ============================================================
         // HEADER
@@ -463,6 +465,12 @@ namespace PCTP.Modules.XuLyHangLoi
                 Width = 110
             };
 
+            _btnChonSlot = new SimpleButton
+            {
+                Text = "📦 Chọn từ Slot",
+                Width = 130
+            };
+
             _btnHuy.Click += (s, e) =>
             {
                 DialogResult = DialogResult.Cancel;
@@ -475,6 +483,8 @@ namespace PCTP.Modules.XuLyHangLoi
 
             _btnThem.Click += (s, e) => ThemDong();
 
+            _btnChonSlot.Click += (s, e) => MoChonSlot();
+
             _btnXoa.Click += (s, e) => XoaDong();
 
             buttons.Controls.Add(_btnHuy);
@@ -482,6 +492,7 @@ namespace PCTP.Modules.XuLyHangLoi
             buttons.Controls.Add(_btnXoaPhieu);
             buttons.Controls.Add(_btnXoa);
             buttons.Controls.Add(_btnThem);
+            buttons.Controls.Add(_btnChonSlot);
 
             main.Controls.Add(buttons, 0, 3);
 
@@ -1090,6 +1101,7 @@ namespace PCTP.Modules.XuLyHangLoi
             _txtQr.Enabled = suaChiTiet;
             _btnThem.Visible = suaChiTiet;
             _btnXoa.Visible = suaChiTiet;
+            _btnChonSlot.Visible = suaChiTiet;
 
             // Đã mở lại phiếu → không còn chức năng "Tạo phiếu".
             _btnLuu.Text = "💾 Lưu thay đổi";
@@ -1177,22 +1189,103 @@ namespace PCTP.Modules.XuLyHangLoi
                 return;
             }
 
-            data.Add(new PhieuTraHangCT
-            {
-                SlotLotIdNguon = slot.SlotLotId,
-                SlotIdNguon = slot.SlotId,
-                MaHang = slot.ItemCode,
-                TenHang = slot.TenHang,
-                LotNo = slot.LotNo,
-                SoLuong = Math.Min(info.Quantity, slot.Quantity),
-                LyDoNg = string.Empty
-            });
+            // Dùng chung 1 hàm dựng dòng với "Chọn từ Slot" → cùng định dạng dòng.
+            ThemDongTuSlotItem(slot, Math.Min(info.Quantity, slot.Quantity), string.Empty);
 
             _grid.RefreshDataSource();
 
             BaoQr(
                 $"Đã thêm {slot.ItemCode} / Lot {slot.LotNo} / SL {Math.Min(info.Quantity, slot.Quantity)} ({slot.ViTri}).",
                 true);
+        }
+
+        // ============================================================
+        // CHỌN NHANH TỪ SLOT → THÊM DÒNG
+        // (FormChonSlotNoiBo chỉ là lối tắt để add dòng vào phiếu này)
+        // ============================================================
+
+        /// <summary>Dựng 1 dòng chi tiết từ Slot/LOT — dùng chung cho QR, chọn từ Slot...</summary>
+        private PhieuTraHangCT ThemDongTuSlotItem(SlotNguonLookupItem slot, int soLuong, string lyDoNg)
+        {
+            var data = _grid.DataSource as List<PhieuTraHangCT>;
+
+            if (data == null)
+            {
+                data = new List<PhieuTraHangCT>();
+                _grid.DataSource = data;
+            }
+
+            var dong = new PhieuTraHangCT
+            {
+                SlotLotIdNguon = slot.SlotLotId,
+                SlotIdNguon = slot.SlotId,
+                MaHang = slot.ItemCode,
+                TenHang = slot.TenHang,
+                LotNo = slot.LotNo,
+                SoLuong = soLuong,
+                LyDoNg = lyDoNg ?? string.Empty
+            };
+
+            data.Add(dong);
+            return dong;
+        }
+
+        /// <summary>
+        /// Thêm các dòng đã chọn nhanh từ Slot vào lưới. Bỏ qua SlotLot đã có trong phiếu;
+        /// trả về số dòng thực sự được thêm.
+        /// </summary>
+        public int ThemDongTuSlot(IEnumerable<SlotNguonChon> chon)
+        {
+            if (chon == null) return 0;
+
+            if (_mode == FormMode.ReadOnly || !_choSuaChiTiet)
+                return 0;
+
+            var data = _grid.DataSource as List<PhieuTraHangCT>;
+            int added = 0;
+
+            foreach (var c in chon)
+            {
+                var slot = TimSlotItem(c.SlotLotId);
+                if (slot == null || slot.SlotLotId <= 0)
+                    continue;
+
+                data = _grid.DataSource as List<PhieuTraHangCT>;
+                if (data != null && data.Any(d => d.SlotLotIdNguon == slot.SlotLotId))
+                    continue;
+
+                int sl = Math.Max(1, Math.Min(c.SoLuong, slot.Quantity));
+                ThemDongTuSlotItem(slot, sl, c.LyDoNg);
+                added++;
+            }
+
+            _grid.RefreshDataSource();
+            return added;
+        }
+
+        private void MoChonSlot()
+        {
+            _gridView.CloseEditor();
+            _gridView.UpdateCurrentRow();
+
+            var daCo = ((_grid.DataSource as List<PhieuTraHangCT>) ?? new List<PhieuTraHangCT>())
+                .Where(x => x.SlotLotIdNguon.HasValue)
+                .Select(x => x.SlotLotIdNguon.Value)
+                .ToList();
+
+            using (var f = new FormChonSlotNoiBo(_slotService, daCo))
+            {
+                if (f.ShowDialog(this) != DialogResult.OK)
+                    return;
+
+                int added = ThemDongTuSlot(f.KetQua);
+
+                BaoQr(
+                    added > 0
+                        ? $"Đã thêm {added} dòng từ Slot."
+                        : "Không có dòng nào được thêm (Slot/LOT đã có trong phiếu).",
+                    added > 0);
+            }
         }
 
         // ============================================================

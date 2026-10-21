@@ -1,67 +1,54 @@
 ﻿using DevExpress.XtraEditors;
+using DevExpress.XtraEditors.Repository;
 using DevExpress.XtraGrid;
 using DevExpress.XtraGrid.Columns;
 using DevExpress.XtraGrid.Views.Grid;
 using PCTP.Modules.KhoCore.Models;
 using PCTP.Modules.KhoVatLy.Application.Interfaces;
 using PCTP.Modules.XuLyHangLoi.Models;
-using PCTP.Modules.XuLyHangLoi.Repository;
-using PCTP.Modules.XuLyHangLoi.Services;
-using PCTP.Shared.Enums;
 
 using System;
 using System.Collections.Generic;
-
 using System.Data;
 using System.Drawing;
 using System.Linq;
-
 using System.Windows.Forms;
 
 namespace PCTP.Modules.KhoVatLy
 {
     /// <summary>
-    /// Chọn 1 Slot đang chứa hàng (và 1 LOT cụ thể trong Slot đó, vì 1 Slot có thể
-    /// chứa nhiều LOT — đặc biệt Slot ảo A0) để tạo Phiếu Xử Lý Bất Thường NGUỒN NỘI BỘ
-    /// (Nguon = NoiBo), KHÔNG đi qua chứng từ khách trả (Mốc 1/2).
+    /// Chọn nhanh 1 hoặc nhiều Slot/LOT đang chứa hàng để THÊM DÒNG vào form tạo phiếu
+    /// (FormTaoPhieuTraNoiBo). Form này KHÔNG tự tạo phiếu / phiếu xử lý nữa — chỉ là bước
+    /// tắt thay cho việc chọn từng dòng trong lookup; mọi nhập liệu header (Phòng ban,
+    /// BP phát hiện lỗi, Lý do, Số phiếu...), kiểm tra hợp lệ và lưu đều do form tạo phiếu làm,
+    /// nên phiếu tạo từ Slot luôn cùng định dạng với phiếu tạo thủ công.
     ///
-    /// Sau khi tạo thành công, phiếu rơi thẳng vào TrangThai = ChoQC (Mốc 3 — QC định hướng),
-    /// y hệt phiếu sinh từ nhánh khách trả — dùng chung toàn bộ luồng QC/SX phía sau.
+    /// Kết quả: <see cref="KetQua"/> (SlotLotId + Số lượng + Lý do NG) khi DialogResult = OK.
     /// </summary>
     public partial class FormChonSlotNoiBo : XtraForm
     {
         private readonly ISlotService _slotSvc;
-        private readonly ITraNoiBoService _traNoiBoSvc;
-        private readonly IPhieuTraHangRepository _phieuTraHangRepo;
-        private readonly IQTChungService _qtChungSvc;
+        private readonly HashSet<int> _daCo;
 
         private GridControl _grid;
         private GridView _gridView;
         private TextEdit _txtSearch;
-        private LabelControl _lblSelected;
-
-        private TextEdit _txtModel;
-        private TextEdit _txtMaSanPham;
-        private TextEdit _txtSoLo;
-        private SpinEdit _spinSoLuongLoi;
-        private MemoEdit _txtNoiDung;
-        private TextEdit _txtNguoiPhatHien;
-
-        private SimpleButton _btnTaoPhieu;
+        private LabelControl _lblInfo;
+        private SimpleButton _btnThem;
         private SimpleButton _btnRefresh;
         private SimpleButton _btnCancel;
+        private RepositoryItemSpinEdit _repoSoLuong;
 
-        private DataRow _selectedRow;
+        /// <summary>Các dòng đã chọn (hợp lệ) — chỉ có giá trị khi DialogResult = OK.</summary>
+        public List<SlotNguonChon> KetQua { get; private set; } = new List<SlotNguonChon>();
 
-        public FormChonSlotNoiBo(ITraNoiBoService traNoiBoSvc,
-        IPhieuTraHangRepository phieuTraHangRepo,
-        IQTChungService qtChungSvc,
-        ISlotService slotSvc)
+        /// <param name="slotSvc">Nguồn dữ liệu Slot/LOT (cùng nguồn với lookup của form tạo phiếu).</param>
+        /// <param name="slotLotIdDaCo">SlotLotId đã có trong phiếu — ẩn khỏi danh sách để không chọn trùng.</param>
+        public FormChonSlotNoiBo(ISlotService slotSvc, IEnumerable<int> slotLotIdDaCo = null)
         {
-            _traNoiBoSvc = traNoiBoSvc ?? throw new ArgumentNullException(nameof(traNoiBoSvc));
-            _phieuTraHangRepo = phieuTraHangRepo ?? throw new ArgumentNullException(nameof(phieuTraHangRepo));
-            _qtChungSvc = qtChungSvc ?? throw new ArgumentNullException(nameof(qtChungSvc));
             _slotSvc = slotSvc ?? throw new ArgumentNullException(nameof(slotSvc));
+            _daCo = new HashSet<int>(slotLotIdDaCo ?? Enumerable.Empty<int>());
+
             InitializeComponent();
             BuildUI();
             LoadData();
@@ -72,14 +59,14 @@ namespace PCTP.Modules.KhoVatLy
         // ════════════════════════════════════════════════════════════════
         private void BuildUI()
         {
-            Text = "Tạo phiếu xử lý bất thường — Nguồn nội bộ (từ Slot)";
-            Size = new Size(1050, 700);
+            Text = "Chọn nhanh từ Slot — thêm dòng vào phiếu";
+            Size = new Size(1050, 600);
             StartPosition = FormStartPosition.CenterParent;
 
             var main = new TableLayoutPanel { Dock = DockStyle.Fill, RowCount = 4, ColumnCount = 1, Padding = new Padding(10) };
             main.RowStyles.Add(new RowStyle(SizeType.Absolute, 38));   // search
-            main.RowStyles.Add(new RowStyle(SizeType.Percent, 55));    // grid slot/lot
-            main.RowStyles.Add(new RowStyle(SizeType.Percent, 45));    // panel nhập liệu
+            main.RowStyles.Add(new RowStyle(SizeType.Percent, 100));   // grid
+            main.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));   // info
             main.RowStyles.Add(new RowStyle(SizeType.Absolute, 50));   // buttons
 
             // ── Row 0: Search ──────────────────────────────────────────
@@ -101,81 +88,58 @@ namespace PCTP.Modules.KhoVatLy
 
             main.Controls.Add(searchPanel, 0, 0);
 
-            // ── Row 1: Grid Slot/Lot ─────────────────────────────────────
+            // ── Row 1: Grid Slot/Lot (tick chọn nhiều dòng, sửa SL + Lý do NG ngay trên lưới) ──
             _grid = new GridControl { Dock = DockStyle.Fill };
             _gridView = new GridView(_grid);
             _grid.MainView = _gridView;
-            _gridView.OptionsBehavior.Editable = false;
-            _gridView.OptionsView.ShowGroupPanel = false;
-            _gridView.OptionsSelection.EnableAppearanceFocusedCell = false;
-            _gridView.FocusedRowChanged += GridView_FocusedRowChanged;
-            _gridView.DoubleClick += (s, e) => { if (_selectedRow != null) _spinSoLuongLoi.Focus(); };
+            _grid.ViewCollection.Add(_gridView);
 
-            _gridView.Columns.Add(new GridColumn { FieldName = "WarehouseName", Caption = "Kho", Width = 110, VisibleIndex = 0 });
-            _gridView.Columns.Add(new GridColumn { FieldName = "RackName", Caption = "Rack", Width = 100, VisibleIndex = 1 });
-            _gridView.Columns.Add(new GridColumn { FieldName = "SlotNumber", Caption = "Slot", Width = 60, VisibleIndex = 2 });
-            _gridView.Columns.Add(new GridColumn { FieldName = "ItemCode", Caption = "Mã hàng", Width = 130, VisibleIndex = 3 });
-            _gridView.Columns.Add(new GridColumn { FieldName = "LotNo", Caption = "LotNo", Width = 220, VisibleIndex = 4 });
-            var colQty = new GridColumn { FieldName = "Quantity", Caption = "SL tồn", Width = 80, VisibleIndex = 5 };
+            _gridView.OptionsBehavior.Editable = true;
+            _gridView.OptionsView.ShowGroupPanel = false;
+            _gridView.OptionsSelection.MultiSelect = true;
+            _gridView.OptionsSelection.MultiSelectMode = GridMultiSelectMode.CheckBoxRowSelect;
+            _gridView.OptionsSelection.CheckBoxSelectorColumnWidth = 30;
+            _gridView.SelectionChanged += (s, e) => CapNhatThongTin();
+            _gridView.ShownEditor += GridView_ShownEditor;
+            _gridView.CellValueChanged += GridView_CellValueChanged;
+            _gridView.DoubleClick += GridView_DoubleClick;
+
+            _repoSoLuong = new RepositoryItemSpinEdit { IsFloatValue = false, MinValue = 1, MaxValue = int.MaxValue };
+            _grid.RepositoryItems.Add(_repoSoLuong);
+
+            GridColumn Cot(string field, string caption, int width, int index, bool edit = false)
+            {
+                var c = new GridColumn { FieldName = field, Caption = caption, Width = width, VisibleIndex = index };
+                c.OptionsColumn.AllowEdit = edit;
+                _gridView.Columns.Add(c);
+                return c;
+            }
+
+            Cot("WarehouseName", "Kho", 110, 0);
+            Cot("RackName", "Rack", 100, 1);
+            Cot("SlotNumber", "Slot", 55, 2);
+            Cot("ItemCode", "Mã hàng", 130, 3);
+            Cot("LotNo", "LotNo", 200, 4);
+            var colQty = Cot("Quantity", "SL tồn", 75, 5);
             colQty.DisplayFormat.FormatType = DevExpress.Utils.FormatType.Numeric;
             colQty.DisplayFormat.FormatString = "n0";
-            _gridView.Columns.Add(colQty);
-            _gridView.Columns.Add(new GridColumn { FieldName = "TemCode", Caption = "TemCode", Width = 130, VisibleIndex = 6 });
+            Cot("TemCode", "TemCode", 130, 6);
+
+            var colSl = Cot("SoLuongLoi", "SL lỗi", 80, 7, edit: true);
+            colSl.ColumnEdit = _repoSoLuong;
+            Cot("LyDoNg", "Lý do NG", 200, 8, edit: true);
 
             main.Controls.Add(_grid, 0, 1);
 
-            // ── Row 2: Panel nhập liệu ────────────────────────────────────
-            var grpInput = new GroupControl { Text = "Thông tin phiếu xử lý bất thường (Nội bộ)", Dock = DockStyle.Fill };
-
-            var inputLayout = new TableLayoutPanel
-            {
-                Dock = DockStyle.Fill,
-                ColumnCount = 2,
-                Padding = new Padding(8)
-            };
-            inputLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 140));
-            inputLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-
-            _lblSelected = new LabelControl
+            // ── Row 2: Info ────────────────────────────────────────────
+            _lblInfo = new LabelControl
             {
                 Dock = DockStyle.Fill,
                 AutoSizeMode = LabelAutoSizeMode.None,
-                Text = "Chưa chọn Slot/LOT nào.",
+                Text = "Tick các dòng Slot/LOT cần đưa vào phiếu (sửa SL lỗi / Lý do NG ngay trên lưới).",
                 Appearance = { Font = new Font("Tahoma", 9, FontStyle.Bold), ForeColor = Color.DarkSlateGray }
             };
-            inputLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 26));
-            inputLayout.Controls.Add(_lblSelected, 0, 0);
-            inputLayout.SetColumnSpan(_lblSelected, 2);
-
-            int r = 1;
-            void AddRow(string label, Control ctrl, int height = 28)
-            {
-                inputLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, height));
-                inputLayout.Controls.Add(new LabelControl { Text = label, Dock = DockStyle.Fill }, 0, r);
-                inputLayout.Controls.Add(ctrl, 1, r);
-                r++;
-            }
-
-            _txtModel = new TextEdit { Dock = DockStyle.Fill };
-            AddRow("Model:", _txtModel);
-
-            _txtMaSanPham = new TextEdit { Dock = DockStyle.Fill, Properties = { ReadOnly = true } };
-            AddRow("Mã sản phẩm:", _txtMaSanPham);
-
-            _txtSoLo = new TextEdit { Dock = DockStyle.Fill, Properties = { ReadOnly = true } };
-            AddRow("Số lô (LOT):", _txtSoLo);
-
-            _spinSoLuongLoi = new SpinEdit { Dock = DockStyle.Fill, Properties = { MinValue = 1, IsFloatValue = false } };
-            AddRow("Số lượng lỗi:", _spinSoLuongLoi);
-
-            _txtNoiDung = new MemoEdit { Dock = DockStyle.Fill };
-            AddRow("Nội dung bất thường:", _txtNoiDung, 70);
-
-            _txtNguoiPhatHien = new TextEdit { Dock = DockStyle.Fill, Text = Environment.UserName };
-            AddRow("Người phát hiện:", _txtNguoiPhatHien);
-
-            grpInput.Controls.Add(inputLayout);
-            main.Controls.Add(grpInput, 0, 2);
+            main.Controls.Add(_lblInfo, 0, 2);
 
             // ── Row 3: Buttons ─────────────────────────────────────────
             var btnPanel = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.RightToLeft, Padding = new Padding(5) };
@@ -183,20 +147,20 @@ namespace PCTP.Modules.KhoVatLy
             _btnCancel = new SimpleButton { Text = "Hủy", Width = 100, Height = 36 };
             _btnCancel.Click += (s, e) => { DialogResult = DialogResult.Cancel; Close(); };
 
-            _btnTaoPhieu = new SimpleButton
+            _btnThem = new SimpleButton
             {
-                Text = "📋 Tạo phiếu xử lý bất thường",
-                Width = 220,
+                Text = "➕ Thêm vào phiếu",
+                Width = 200,
                 Height = 36,
                 Enabled = false
             };
-            _btnTaoPhieu.Appearance.BackColor = Color.SeaGreen;
-            _btnTaoPhieu.Appearance.ForeColor = Color.White;
-            _btnTaoPhieu.Appearance.Font = new Font("Tahoma", 9.5F, FontStyle.Bold);
-            _btnTaoPhieu.Click += BtnTaoPhieu_Click;
+            _btnThem.Appearance.BackColor = Color.SeaGreen;
+            _btnThem.Appearance.ForeColor = Color.White;
+            _btnThem.Appearance.Font = new Font("Tahoma", 9.5F, FontStyle.Bold);
+            _btnThem.Click += BtnThem_Click;
 
             btnPanel.Controls.Add(_btnCancel);
-            btnPanel.Controls.Add(_btnTaoPhieu);
+            btnPanel.Controls.Add(_btnThem);
             main.Controls.Add(btnPanel, 0, 3);
 
             Controls.Add(main);
@@ -207,15 +171,16 @@ namespace PCTP.Modules.KhoVatLy
         // ════════════════════════════════════════════════════════════════
         private void LoadData()
         {
-            // ✅ Không còn raw SQL — gọi Kho Core qua ISlotService
-            var list = _slotSvc.GetAllActiveSlotLots();
+            // Cùng tiêu chí với lookup của FormTaoPhieuTraNoiBo: chỉ Slot/LOT còn tồn (> 0),
+            // và bỏ những SlotLot đã có trong phiếu.
+            var list = (_slotSvc.GetAllActiveSlotLots() ?? new List<SlotLotViewInfo>())
+                .Where(x => x.Quantity > 0 && !_daCo.Contains(x.SlotLotId))
+                .ToList();
 
-            var dt = ToDataTable(list); // helper convert List<SlotLotViewInfo> -> DataTable cho GridControl
-            _grid.DataSource = dt;
+            _grid.DataSource = ToDataTable(list);
+            _gridView.ClearSelection();
             _gridView.BestFitColumns();
-
-            _selectedRow = null;
-            ClearInputPanel();
+            CapNhatThongTin();
         }
 
         private void ApplyFilter()
@@ -228,124 +193,94 @@ namespace PCTP.Modules.KhoVatLy
         }
 
         // ════════════════════════════════════════════════════════════════
-        // Chọn dòng
+        // Grid events
         // ════════════════════════════════════════════════════════════════
-        private void GridView_FocusedRowChanged(object sender, DevExpress.XtraGrid.Views.Base.FocusedRowChangedEventArgs e)
+        // Giới hạn SL lỗi theo tồn của đúng dòng đang sửa (giống FormTaoPhieuTraNoiBo).
+        private void GridView_ShownEditor(object sender, EventArgs e)
         {
-            _selectedRow = _gridView.GetFocusedDataRow();
-            if (_selectedRow == null)
-            {
-                ClearInputPanel();
-                return;
-            }
+            if (_gridView.FocusedColumn?.FieldName != "SoLuongLoi") return;
+            var row = _gridView.GetFocusedDataRow();
+            if (row == null) return;
 
-            string itemCode = _selectedRow["ItemCode"]?.ToString() ?? "";
-            string lotNo = _selectedRow["LotNo"]?.ToString() ?? "";
-            int qty = _selectedRow["Quantity"] == DBNull.Value ? 0 : Convert.ToInt32(_selectedRow["Quantity"]);
-            string wh = _selectedRow["WarehouseName"]?.ToString() ?? "";
-            string rack = _selectedRow["RackName"]?.ToString() ?? "";
-            int slotNo = _selectedRow["SlotNumber"] == DBNull.Value ? 0 : Convert.ToInt32(_selectedRow["SlotNumber"]);
-
-            _lblSelected.Text = $"Đã chọn: {wh} / {rack} / Slot {slotNo}  —  Mã hàng: {itemCode}  —  LOT: {lotNo}  (tồn {qty})";
-
-            _txtMaSanPham.Text = itemCode;
-            _txtSoLo.Text = lotNo;
-            _spinSoLuongLoi.Properties.MaxValue = qty;
-            _spinSoLuongLoi.Value = Math.Min(1, qty);
-
-            _btnTaoPhieu.Enabled = true;
+            if (_gridView.ActiveEditor is SpinEdit spin)
+                spin.Properties.MaxValue = Convert.ToInt32(row["Quantity"]);
         }
 
-        private void ClearInputPanel()
+        // Sửa SL / Lý do trên 1 dòng → tự tick dòng đó để khỏi quên.
+        private void GridView_CellValueChanged(object sender, DevExpress.XtraGrid.Views.Base.CellValueChangedEventArgs e)
         {
-            _lblSelected.Text = "Chưa chọn Slot/LOT nào.";
-            _txtMaSanPham.Text = "";
-            _txtSoLo.Text = "";
-            _spinSoLuongLoi.Properties.MaxValue = 999999;
-            _spinSoLuongLoi.Value = 1;
-            _btnTaoPhieu.Enabled = false;
+            if (e.Column.FieldName != "SoLuongLoi" && e.Column.FieldName != "LyDoNg") return;
+            if (!_gridView.IsRowSelected(e.RowHandle))
+                _gridView.SelectRow(e.RowHandle);
+        }
+
+        // Double-click vào cột thông tin → tick / bỏ tick dòng.
+        private void GridView_DoubleClick(object sender, EventArgs e)
+        {
+            var pt = _grid.PointToClient(Control.MousePosition);
+            var hit = _gridView.CalcHitInfo(pt);
+            if (!hit.InRow) return;
+            if (hit.InRowCell && hit.Column != null && hit.Column.OptionsColumn.AllowEdit) return;
+
+            if (_gridView.IsRowSelected(hit.RowHandle)) _gridView.UnselectRow(hit.RowHandle);
+            else _gridView.SelectRow(hit.RowHandle);
+        }
+
+        private void CapNhatThongTin()
+        {
+            int n = _gridView.GetSelectedRows().Count(h => h >= 0);
+            _btnThem.Enabled = n > 0;
+            _lblInfo.Text = n == 0
+                ? "Tick các dòng Slot/LOT cần đưa vào phiếu (sửa SL lỗi / Lý do NG ngay trên lưới)."
+                : $"Đã chọn {n} dòng.";
         }
 
         // ════════════════════════════════════════════════════════════════
-        // Tạo phiếu
+        // Thêm vào phiếu
         // ════════════════════════════════════════════════════════════════
-        private void BtnTaoPhieu_Click(object sender, EventArgs e)
+        private void BtnThem_Click(object sender, EventArgs e)
         {
-            if (_selectedRow == null)
+            _gridView.CloseEditor();
+            _gridView.UpdateCurrentRow();
+
+            var chon = new List<SlotNguonChon>();
+
+            foreach (int handle in _gridView.GetSelectedRows().Where(h => h >= 0))
             {
-                XtraMessageBox.Show("Vui lòng chọn 1 dòng Slot/LOT trước.", "Thông báo",
-                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
+                var row = _gridView.GetDataRow(handle);
+                if (row == null) continue;
 
-            int soLuongLoi = Convert.ToInt32(_spinSoLuongLoi.Value);
-            int slTonKho = _selectedRow["Quantity"] == DBNull.Value ? 0 : Convert.ToInt32(_selectedRow["Quantity"]);
+                int ton = Convert.ToInt32(row["Quantity"]);
+                int sl = row["SoLuongLoi"] == DBNull.Value ? 0 : Convert.ToInt32(row["SoLuongLoi"]);
+                string desc = $"{row["ItemCode"]} / LOT {row["LotNo"]}";
 
-            if (soLuongLoi <= 0 || soLuongLoi > slTonKho)
-            {
-                XtraMessageBox.Show($"Số lượng lỗi phải trong khoảng 1 - {slTonKho}.", "Thông báo",
-                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
-
-            if (string.IsNullOrWhiteSpace(_txtNoiDung.Text))
-            {
-                XtraMessageBox.Show("Vui lòng nhập nội dung bất thường.", "Thông báo",
-                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                _txtNoiDung.Focus();
-                return;
-            }
-
-            if (XtraMessageBox.Show(
-                $"Tạo phiếu xử lý bất thường NỘI BỘ cho LOT [{_txtSoLo.Text}] — SL lỗi: {soLuongLoi}?",
-                "Xác nhận", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
-                return;
-
-            try
-            {
-                int slotId = Convert.ToInt32(_selectedRow["SlotId"]);
-                string nguoiThucHien = _txtNguoiPhatHien.Text.Trim();
-
-                // Bước 1: tạo Header + Detail (PhieuTraHang / PhieuTraHangCT)
-                var phieuTraHang = new PhieuTraHang
+                if (sl <= 0 || sl > ton)
                 {
-                    Nguon = NguonXuLyBatThuong.TraNoiBo,
-                    LyDo = _txtNoiDung.Text.Trim(),
-                    CreatedBy = nguoiThucHien,
-                    ChiTiet = new List<PhieuTraHangCT>
-        {
-            new PhieuTraHangCT
+                    XtraMessageBox.Show($"{desc}: SL lỗi phải trong khoảng 1 - {ton}.", "Thông báo",
+                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    _gridView.FocusedRowHandle = handle;
+                    _gridView.FocusedColumn = _gridView.Columns["SoLuongLoi"];
+                    return;
+                }
+
+                chon.Add(new SlotNguonChon
+                {
+                    SlotLotId = Convert.ToInt32(row["SlotLotId"]),
+                    SoLuong = sl,
+                    LyDoNg = (row["LyDoNg"] as string ?? string.Empty).Trim()
+                });
+            }
+
+            if (chon.Count == 0)
             {
-                SlotIdNguon = slotId,
-                MaHang = _txtMaSanPham.Text.Trim(),
-                LotNo = _txtSoLo.Text.Trim(),
-                SoLuong = soLuongLoi
+                XtraMessageBox.Show("Vui lòng tick ít nhất 1 dòng Slot/LOT.", "Thông báo",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
             }
-        }
-                };
 
-                int phieuTraHangId = _traNoiBoSvc.TaoPhieuTraNoiBo(phieuTraHang);
-
-                // Bước 2: lấy lại Id dòng chi tiết vừa tạo
-                var items = _phieuTraHangRepo.GetItems(phieuTraHangId);
-                int phieuTraHangCTId = items.First().Id;
-
-                // Bước 3: tạo PhieuXuLyBatThuong từ dòng chi tiết đó
-                int phieuXuLyId = _qtChungSvc.TaoPhieuXuLyBatThuong(
-                    phieuTraHangCTId,
-                    _txtModel.Text.Trim(),
-                    "Hàng lỗi nội bộ (chưa xuất)",
-                    nguoiThucHien,
-                    nguoiThucHien);
-
-                DialogResult = DialogResult.OK;
-                Close();
-            }
-            catch (Exception ex)
-            {
-                XtraMessageBox.Show($"Lỗi tạo phiếu:\n{ex.Message}", "Lỗi",
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
+            KetQua = chon;
+            DialogResult = DialogResult.OK;
+            Close();
         }
 
         private static DataTable ToDataTable(List<SlotLotViewInfo> list)
@@ -360,10 +295,13 @@ namespace PCTP.Modules.KhoVatLy
             dt.Columns.Add("LotNo", typeof(string));
             dt.Columns.Add("Quantity", typeof(int));
             dt.Columns.Add("TemCode", typeof(string));
+            dt.Columns.Add("SoLuongLoi", typeof(int));
+            dt.Columns.Add("LyDoNg", typeof(string));
 
             foreach (var x in list)
                 dt.Rows.Add(x.SlotId, x.SlotLotId, x.WarehouseName, x.RackName,
-                            x.SlotNumber, x.ItemCode, x.LotNo, x.Quantity, x.TemCode);
+                            x.SlotNumber, x.ItemCode, x.LotNo, x.Quantity, x.TemCode,
+                            x.Quantity, string.Empty); // mặc định SL lỗi = toàn bộ tồn (giống chọn Slot trong lookup)
             return dt;
         }
     }
