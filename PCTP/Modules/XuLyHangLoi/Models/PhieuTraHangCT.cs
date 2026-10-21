@@ -29,6 +29,13 @@ namespace PCTP.Modules.XuLyHangLoi.Models
         /// </summary>
         public int? SlotIdNguon { get; set; }
 
+        /// <summary>
+        /// CHỈ DÙNG TRÊN UI (FormTaoPhieuTraNoiBo): dòng SlotLot được chọn làm nguồn.
+        /// Một Slot có thể chứa nhiều LOT nên cần khóa riêng để chọn đúng LOT.
+        /// Không được lưu xuống DB.
+        /// </summary>
+        public int? SlotLotIdNguon { get; set; }
+
         // ============================================================
         // THÔNG TIN HÀNG
         // ============================================================

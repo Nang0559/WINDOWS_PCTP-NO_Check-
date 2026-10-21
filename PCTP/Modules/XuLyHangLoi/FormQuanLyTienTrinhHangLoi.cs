@@ -31,6 +31,7 @@ namespace PCTP.Modules.XuLyHangLoi
         private readonly IPhieuGiaoRepository _phieuGiaoRepo;
         private readonly IAffectedLotTraceService _affectedLotTraceService;
         private readonly IInitialQCService _initialQCService;
+        private readonly INoiBoLookupRepository _noiBoLookupRepo;
         private readonly Button[] _stepButtons = new Button[8];
         private int _activeStep = 1;
         private GridControl _grid;
@@ -55,7 +56,8 @@ namespace PCTP.Modules.XuLyHangLoi
             ISlotService slotService,
             int? preselectPhieuXuLyId,
             IAffectedLotTraceService affectedLotTraceService = null,
-            IInitialQCService initialQCService = null)
+            IInitialQCService initialQCService = null,
+            INoiBoLookupRepository noiBoLookupRepo = null)
         {
             _khachTraHangService = khachTraHangService ?? throw new ArgumentNullException(nameof(khachTraHangService));
             _traNoiBoService = traNoiBoService ?? throw new ArgumentNullException(nameof(traNoiBoService));
@@ -70,6 +72,7 @@ namespace PCTP.Modules.XuLyHangLoi
             _preselectPhieuXuLyId = preselectPhieuXuLyId;
             _affectedLotTraceService = affectedLotTraceService;
             _initialQCService = initialQCService;
+            _noiBoLookupRepo = noiBoLookupRepo;
             BuildUI();
             RefreshAll();
             SetActiveStep(ResolveInitialStep());
@@ -323,7 +326,8 @@ namespace PCTP.Modules.XuLyHangLoi
 
         private void TaoPhieuNoiBo()
         {
-            using (var f = new FormTaoPhieuTraNoiBo(_traNoiBoService)) if (f.ShowDialog(this) == DialogResult.OK) RefreshAfterAction();
+            if (_noiBoLookupRepo == null) { ShowWarning("MainApp chưa inject INoiBoLookupRepository."); return; }
+            using (var f = new FormTaoPhieuTraNoiBo(_traNoiBoService, _noiBoLookupRepo, _slotService)) if (f.ShowDialog(this) == DialogResult.OK) RefreshAfterAction();
         }
 
         private void TaoPhieuTuSlot()

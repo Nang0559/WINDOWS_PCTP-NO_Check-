@@ -632,6 +632,9 @@
     <Compile Include="Modules\XuLyHangLoi\Models\TraHangQTChungXuat.cs" />
     <Compile Include="Modules\XuLyHangLoi\QTChungHoanTatEvent.cs" />
     <Compile Include="Modules\XuLyHangLoi\Repository\IPhieuGiaoRepository.cs" />
+    <Compile Include="Modules\XuLyHangLoi\Repository\INoiBoLookupRepository.cs" />
+    <Compile Include="Modules\XuLyHangLoi\Repository\NoiBoLookupRepository.cs" />
+    <Compile Include="Modules\XuLyHangLoi\Models\NoiBoLookupModels.cs" />
     <Compile Include="Modules\XuLyHangLoi\Repository\IPhieuTraHangRepository.cs" />
     <Compile Include="Modules\XuLyHangLoi\Repository\IPhieuXuLyBatThuongRepository.cs" />
     <Compile Include="Modules\XuLyHangLoi\Repository\ITraHangQTChungRepository.cs" />

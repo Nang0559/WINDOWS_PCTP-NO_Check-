@@ -144,6 +144,8 @@ namespace PCTP.Common
                 uow,
                 workflow);
 
+            var noiBoLookupRepo = new NoiBoLookupRepository(sql, uow);
+
             return new FormQuanLyTienTrinhHangLoi(
                 khachTraHangService,
                 traNoiBoService,
@@ -157,7 +159,8 @@ namespace PCTP.Common
                 slotService,
                 preselectPhieuXuLyId,
                 module.AffectedLotTraceService,
-                module.InitialQCService);
+                module.InitialQCService,
+                noiBoLookupRepo);
         }
 
         public static void OpenGiaoHangHVN(string customerNo)

@@ -7,6 +7,10 @@ using System.Threading.Tasks;
 namespace PCTP.Modules.XuLyHangLoi
 {
     using DevExpress.XtraEditors;
+    using DevExpress.XtraEditors.Repository;
+    using DevExpress.XtraGrid.Views.Base;
+    using PCTP.Modules.KhoVatLy.Application.Interfaces;
+    using PCTP.Modules.XuLyHangLoi.Repository;
     using PCTP.Modules.XuLyHangLoi.Enums;
     using PCTP.Modules.XuLyHangLoi.Models;
     using PCTP.Modules.XuLyHangLoi.Services;
@@ -19,14 +23,22 @@ namespace PCTP.Modules.XuLyHangLoi
     public partial class FormTaoPhieuTraNoiBo : XtraForm
     {
         private readonly ITraNoiBoService _traNoiBoService;
+        private readonly INoiBoLookupRepository _lookupRepo;
+        private readonly ISlotService _slotService;
+
+        // Dữ liệu lookup (load 1 lần khi mở form)
+        private List<DeptLookupItem> _depts = new List<DeptLookupItem>();
+        private List<ItemLookupItem> _items = new List<ItemLookupItem>();
+        private List<SlotNguonLookupItem> _slotItems = new List<SlotNguonLookupItem>();
+        private bool _updatingRow;
 
         // ============================================================
         // HEADER
         // ============================================================
 
         private TextEdit _txtSoPhieu;
-        private TextEdit _txtPhongBan;
-        private TextEdit _txtBoPhanPhatHienLoi;
+        private SearchLookUpEdit _lookPhongBan;
+        private SearchLookUpEdit _lookBoPhanPhatHienLoi;
         private TextEdit _txtLyDo;
         private TextEdit _txtNguoiTao;
 
@@ -37,18 +49,144 @@ namespace PCTP.Modules.XuLyHangLoi
         private DevExpress.XtraGrid.GridControl _grid;
         private DevExpress.XtraGrid.Views.Grid.GridView _gridView;
 
+        private RepositoryItemSearchLookUpEdit _repoSlot;
+        private RepositoryItemSearchLookUpEdit _repoMaHang;
+
         private DevExpress.XtraEditors.SimpleButton _btnThem;
         private DevExpress.XtraEditors.SimpleButton _btnXoa;
         private DevExpress.XtraEditors.SimpleButton _btnLuu;
         private DevExpress.XtraEditors.SimpleButton _btnHuy;
 
         public FormTaoPhieuTraNoiBo(
-            ITraNoiBoService traNoiBoService)
+            ITraNoiBoService traNoiBoService,
+            INoiBoLookupRepository lookupRepo,
+            ISlotService slotService)
         {
             _traNoiBoService = traNoiBoService
                 ?? throw new ArgumentNullException(nameof(traNoiBoService));
 
+            _lookupRepo = lookupRepo
+                ?? throw new ArgumentNullException(nameof(lookupRepo));
+
+            _slotService = slotService
+                ?? throw new ArgumentNullException(nameof(slotService));
+
             BuiUI();
+            LoadLookups();
+        }
+
+        // ============================================================
+        // LOAD LOOKUP: B20Dept (bộ phận) + Slot đang chứa hàng
+        // ============================================================
+
+        private void LoadLookups()
+        {
+            try
+            {
+                _depts = _lookupRepo.GetActiveDepartments()
+                    ?? new List<DeptLookupItem>();
+
+                _items = _lookupRepo.GetItemsInSlots()
+                    ?? new List<ItemLookupItem>();
+
+                var nameByCode = _items
+                    .GroupBy(x => x.ItemCode ?? string.Empty,
+                        StringComparer.OrdinalIgnoreCase)
+                    .ToDictionary(g => g.Key, g => g.First().ItemName,
+                        StringComparer.OrdinalIgnoreCase);
+
+                _slotItems = (_slotService.GetAllActiveSlotLots()
+                        ?? new List<PCTP.Modules.KhoCore.Models.SlotLotViewInfo>())
+                    .Where(x => x.Quantity > 0)
+                    .Select(x => new SlotNguonLookupItem
+                    {
+                        SlotLotId = x.SlotLotId,
+                        SlotId = x.SlotId,
+                        ViTri = $"{x.WarehouseName} / {x.RackName} / Slot {x.SlotNumber}",
+                        ItemCode = x.ItemCode,
+                        TenHang = x.ItemCode != null
+                                  && nameByCode.TryGetValue(x.ItemCode.Trim(), out var n)
+                            ? n
+                            : string.Empty,
+                        LotNo = x.LotNo,
+                        Quantity = x.Quantity,
+                        TemCode = x.TemCode
+                    })
+                    .ToList();
+
+                BindDeptLookup(_lookPhongBan);
+                BindDeptLookup(_lookBoPhanPhatHienLoi);
+
+                _repoSlot.DataSource = _slotItems;
+                _repoSlot.PopulateViewColumns();
+                CauHinhCotSlotLookup();
+
+                _repoMaHang.DataSource = _items;
+                _repoMaHang.PopulateViewColumns();
+                CauHinhCotMaHangLookup();
+            }
+            catch (Exception ex)
+            {
+                XtraMessageBox.Show(
+                    $"Không tải được danh sách bộ phận / slot.\r\n\r\n{ex.Message}",
+                    "Lỗi",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+            }
+        }
+
+        private void BindDeptLookup(SearchLookUpEdit look)
+        {
+            look.Properties.DataSource = _depts;
+            look.Properties.DisplayMember = nameof(DeptLookupItem.Display);
+            look.Properties.ValueMember = nameof(DeptLookupItem.Code);
+            look.Properties.PopulateViewColumns();
+
+            var view = look.Properties.View;
+
+            if (view.Columns[nameof(DeptLookupItem.Display)] != null)
+                view.Columns[nameof(DeptLookupItem.Display)].Visible = false;
+
+            var colCode = view.Columns[nameof(DeptLookupItem.Code)];
+            if (colCode != null)
+            {
+                colCode.Caption = "Mã bộ phận";
+                colCode.Width = 110;
+            }
+
+            var colName = view.Columns[nameof(DeptLookupItem.Name)];
+            if (colName != null)
+            {
+                colName.Caption = "Tên bộ phận";
+                colName.Width = 320;
+            }
+        }
+
+        private static SearchLookUpEdit TaoDeptLookup()
+        {
+            var look = new SearchLookUpEdit { Dock = DockStyle.Fill };
+            look.Properties.NullText = "";
+            look.Properties.ShowClearButton = true;
+            look.Properties.ImmediatePopup = true;
+            look.Properties.PopupFormSize = new System.Drawing.Size(520, 360);
+            look.Properties.View.OptionsView.ShowAutoFilterRow = false;
+            // Ô tìm kiếm tìm trên cả Code và Name (các cột đang hiển thị).
+            look.Properties.View.OptionsFind.AlwaysVisible = true;
+            look.Properties.View.OptionsFind.FindNullPrompt = "Tìm theo mã hoặc tên...";
+            look.Properties.View.OptionsFind.ShowCloseButton = false;
+            return look;
+        }
+
+        private static string GetDeptName(SearchLookUpEdit look, List<DeptLookupItem> depts)
+        {
+            var code = look.EditValue as string;
+            if (string.IsNullOrWhiteSpace(code)) return string.Empty;
+
+            var dept = depts.FirstOrDefault(d =>
+                string.Equals(d.Code, code, StringComparison.OrdinalIgnoreCase));
+
+            if (dept == null) return code;
+            return string.IsNullOrWhiteSpace(dept.Name) ? dept.Code : dept.Name;
         }
 
         // ============================================================
@@ -111,15 +249,9 @@ namespace PCTP.Modules.XuLyHangLoi
                 Dock = DockStyle.Fill
             };
 
-            _txtPhongBan = new TextEdit
-            {
-                Dock = DockStyle.Fill
-            };
+            _lookPhongBan = TaoDeptLookup();
 
-            _txtBoPhanPhatHienLoi = new TextEdit
-            {
-                Dock = DockStyle.Fill
-            };
+            _lookBoPhanPhatHienLoi = TaoDeptLookup();
 
             _txtLyDo = new TextEdit
             {
@@ -136,10 +268,10 @@ namespace PCTP.Modules.XuLyHangLoi
             header.Controls.Add(_txtSoPhieu, 1, 0);
 
             AddLabel(header, "Phòng ban", 2, 0);
-            header.Controls.Add(_txtPhongBan, 3, 0);
+            header.Controls.Add(_lookPhongBan, 3, 0);
 
             AddLabel(header, "BP phát hiện lỗi", 0, 1);
-            header.Controls.Add(_txtBoPhanPhatHienLoi, 1, 1);
+            header.Controls.Add(_lookBoPhanPhatHienLoi, 1, 1);
 
             AddLabel(header, "Người tạo", 2, 1);
             header.Controls.Add(_txtNguoiTao, 3, 1);
@@ -170,6 +302,9 @@ namespace PCTP.Modules.XuLyHangLoi
                 DevExpress.XtraGrid.Views.Grid.NewItemRowPosition.None;
 
             TaoCotGrid();
+
+            _gridView.ShownEditor += GridView_ShownEditor;
+            _gridView.CellValueChanged += GridView_CellValueChanged;
 
             main.Controls.Add(_grid, 0, 1);
 
@@ -254,30 +389,81 @@ namespace PCTP.Modules.XuLyHangLoi
         {
             _gridView.Columns.Clear();
 
-            var colSlot = _gridView.Columns.AddField(nameof(PhieuTraHangCT.SlotIdNguon));
+            // ---- Repository: Slot nguồn (Slot đang chứa hàng) ----
+            _repoSlot = new RepositoryItemSearchLookUpEdit
+            {
+                NullText = "",
+                ValueMember = nameof(SlotNguonLookupItem.SlotLotId),
+                DisplayMember = nameof(SlotNguonLookupItem.ViTri),
+                ImmediatePopup = true,
+                PopupFormSize = new System.Drawing.Size(820, 380)
+            };
+            _repoSlot.DataSource = _slotItems;
+            _repoSlot.PopulateViewColumns();
+            _repoSlot.View.OptionsFind.AlwaysVisible = true;
+            _repoSlot.View.OptionsFind.FindNullPrompt = "Tìm theo vị trí, mã hàng, lot...";
+            _repoSlot.View.OptionsFind.ShowCloseButton = false;
+            CauHinhCotSlotLookup();
+
+            // ---- Repository: Mã hàng (mã hàng có trong Slot) ----
+            _repoMaHang = new RepositoryItemSearchLookUpEdit
+            {
+                NullText = "",
+                ValueMember = nameof(ItemLookupItem.ItemCode),
+                DisplayMember = nameof(ItemLookupItem.ItemCode),
+                ImmediatePopup = true,
+                PopupFormSize = new System.Drawing.Size(560, 360)
+            };
+            _repoMaHang.DataSource = _items;
+            _repoMaHang.PopulateViewColumns();
+            _repoMaHang.View.OptionsFind.AlwaysVisible = true;
+            _repoMaHang.View.OptionsFind.FindNullPrompt = "Tìm theo mã hoặc tên hàng...";
+            _repoMaHang.View.OptionsFind.ShowCloseButton = false;
+            CauHinhCotMaHangLookup();
+
+            var repoSoLuong = new RepositoryItemSpinEdit
+            {
+                IsFloatValue = false,
+                MinValue = 0,
+                MaxValue = int.MaxValue
+            };
+
+            _grid.RepositoryItems.AddRange(
+                new RepositoryItem[] { _repoSlot, _repoMaHang, repoSoLuong });
+
+            var colSlot = _gridView.Columns.AddField(nameof(PhieuTraHangCT.SlotLotIdNguon));
             colSlot.Caption = "Slot nguồn";
             colSlot.Visible = true;
-            colSlot.Width = 100;
+            colSlot.Width = 230;
+            colSlot.ColumnEdit = _repoSlot;
+
+            var colSlotId = _gridView.Columns.AddField(nameof(PhieuTraHangCT.SlotIdNguon));
+            colSlotId.Caption = "SlotId";
+            colSlotId.Visible = false;
 
             var colMaHang = _gridView.Columns.AddField(nameof(PhieuTraHangCT.MaHang));
             colMaHang.Caption = "Mã hàng";
             colMaHang.Visible = true;
             colMaHang.Width = 140;
+            colMaHang.ColumnEdit = _repoMaHang;
 
             var colTenHang = _gridView.Columns.AddField(nameof(PhieuTraHangCT.TenHang));
             colTenHang.Caption = "Tên hàng";
             colTenHang.Visible = true;
             colTenHang.Width = 180;
+            colTenHang.OptionsColumn.AllowEdit = false;
 
             var colLot = _gridView.Columns.AddField(nameof(PhieuTraHangCT.LotNo));
             colLot.Caption = "Lot No";
             colLot.Visible = true;
             colLot.Width = 130;
+            colLot.OptionsColumn.AllowEdit = false;
 
             var colSoLuong = _gridView.Columns.AddField(nameof(PhieuTraHangCT.SoLuong));
             colSoLuong.Caption = "Số lượng";
             colSoLuong.Visible = true;
             colSoLuong.Width = 90;
+            colSoLuong.ColumnEdit = repoSoLuong;
 
             var colLyDo = _gridView.Columns.AddField(nameof(PhieuTraHangCT.LyDoNg));
             colLyDo.Caption = "Lý do NG";
@@ -310,6 +496,138 @@ namespace PCTP.Modules.XuLyHangLoi
             colNhaMay.Visible = false;
         }
 
+        private void CauHinhCotSlotLookup()
+        {
+            var v = _repoSlot.View;
+
+            void Cot(string field, string caption, int width, bool visible = true)
+            {
+                var c = v.Columns[field];
+                if (c == null) return;
+                c.Caption = caption;
+                c.Width = width;
+                c.Visible = visible;
+            }
+
+            Cot(nameof(SlotNguonLookupItem.SlotLotId), "SlotLotId", 0, false);
+            Cot(nameof(SlotNguonLookupItem.SlotId), "SlotId", 0, false);
+            Cot(nameof(SlotNguonLookupItem.TemCode), "Tem", 0, false);
+            Cot(nameof(SlotNguonLookupItem.ViTri), "Vị trí", 230);
+            Cot(nameof(SlotNguonLookupItem.ItemCode), "Mã hàng", 120);
+            Cot(nameof(SlotNguonLookupItem.TenHang), "Tên hàng", 180);
+            Cot(nameof(SlotNguonLookupItem.LotNo), "Lot No", 120);
+            Cot(nameof(SlotNguonLookupItem.Quantity), "Tồn", 70);
+        }
+
+        private void CauHinhCotMaHangLookup()
+        {
+            var v = _repoMaHang.View;
+
+            var c1 = v.Columns[nameof(ItemLookupItem.ItemCode)];
+            if (c1 != null) { c1.Caption = "Mã hàng"; c1.Width = 140; }
+
+            var c2 = v.Columns[nameof(ItemLookupItem.ItemName)];
+            if (c2 != null) { c2.Caption = "Tên hàng"; c2.Width = 360; }
+        }
+
+        // Khi mở editor: lọc Slot theo Mã hàng của dòng, giới hạn Số lượng theo tồn.
+        private void GridView_ShownEditor(object sender, EventArgs e)
+        {
+            var row = _gridView.GetFocusedRow() as PhieuTraHangCT;
+            var field = _gridView.FocusedColumn?.FieldName;
+
+            if (row == null || field == null)
+                return;
+
+            if (field == nameof(PhieuTraHangCT.SlotLotIdNguon)
+                && _gridView.ActiveEditor is SearchLookUpEdit slotEdit)
+            {
+                slotEdit.Properties.DataSource =
+                    string.IsNullOrWhiteSpace(row.MaHang)
+                        ? _slotItems
+                        : _slotItems
+                            .Where(x => string.Equals(
+                                x.ItemCode?.Trim(), row.MaHang.Trim(),
+                                StringComparison.OrdinalIgnoreCase))
+                            .ToList();
+            }
+            else if (field == nameof(PhieuTraHangCT.SoLuong)
+                && _gridView.ActiveEditor is SpinEdit spin)
+            {
+                var slot = TimSlotItem(row.SlotLotIdNguon);
+                spin.Properties.MaxValue = slot != null ? slot.Quantity : int.MaxValue;
+            }
+        }
+
+        private void GridView_CellValueChanged(object sender, CellValueChangedEventArgs e)
+        {
+            if (_updatingRow)
+                return;
+
+            var row = _gridView.GetRow(e.RowHandle) as PhieuTraHangCT;
+            if (row == null)
+                return;
+
+            _updatingRow = true;
+
+            try
+            {
+                if (e.Column.FieldName == nameof(PhieuTraHangCT.SlotLotIdNguon))
+                {
+                    var slot = TimSlotItem(row.SlotLotIdNguon);
+
+                    if (slot == null)
+                    {
+                        row.SlotLotIdNguon = null;
+                        row.SlotIdNguon = null;
+                        row.LotNo = string.Empty;
+                        row.SoLuong = 0;
+                    }
+                    else
+                    {
+                        row.SlotIdNguon = slot.SlotId;
+                        row.MaHang = slot.ItemCode;
+                        row.TenHang = slot.TenHang;
+                        row.LotNo = slot.LotNo;
+                        row.SoLuong = slot.Quantity;
+                    }
+                }
+                else if (e.Column.FieldName == nameof(PhieuTraHangCT.MaHang))
+                {
+                    var item = _items.FirstOrDefault(x => string.Equals(
+                        x.ItemCode, row.MaHang, StringComparison.OrdinalIgnoreCase));
+
+                    row.TenHang = item?.ItemName ?? string.Empty;
+
+                    // Đổi mã hàng → Slot đã chọn trước đó không còn khớp thì bỏ.
+                    var slot = TimSlotItem(row.SlotLotIdNguon);
+                    if (slot != null && !string.Equals(
+                            slot.ItemCode?.Trim(), row.MaHang?.Trim(),
+                            StringComparison.OrdinalIgnoreCase))
+                    {
+                        row.SlotLotIdNguon = null;
+                        row.SlotIdNguon = null;
+                        row.LotNo = string.Empty;
+                        row.SoLuong = 0;
+                    }
+                }
+            }
+            finally
+            {
+                _updatingRow = false;
+            }
+
+            _gridView.RefreshRow(e.RowHandle);
+        }
+
+        private SlotNguonLookupItem TimSlotItem(int? slotLotId)
+        {
+            if (!slotLotId.HasValue)
+                return null;
+
+            return _slotItems.FirstOrDefault(x => x.SlotLotId == slotLotId.Value);
+        }
+
         // ============================================================
         // THÊM DÒNG
         // ============================================================
@@ -323,7 +641,8 @@ namespace PCTP.Modules.XuLyHangLoi
                 LotNo = "",
                 SoLuong = 0,
                 LyDoNg = "",
-                SlotIdNguon = null
+                SlotIdNguon = null,
+                SlotLotIdNguon = null
             };
 
             var data = _grid.DataSource as List<PhieuTraHangCT>;
@@ -380,27 +699,27 @@ namespace PCTP.Modules.XuLyHangLoi
         private bool ValidateForm(
             List<PhieuTraHangCT> items)
         {
-            if (string.IsNullOrWhiteSpace(_txtPhongBan.Text))
+            if (string.IsNullOrWhiteSpace(_lookPhongBan.EditValue as string))
             {
                 XtraMessageBox.Show(
-                    "Vui lòng nhập Phòng ban.",
+                    "Vui lòng chọn Phòng ban.",
                     "Thiếu thông tin",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Warning);
 
-                _txtPhongBan.Focus();
+                _lookPhongBan.Focus();
                 return false;
             }
 
-            if (string.IsNullOrWhiteSpace(_txtBoPhanPhatHienLoi.Text))
+            if (string.IsNullOrWhiteSpace(_lookBoPhanPhatHienLoi.EditValue as string))
             {
                 XtraMessageBox.Show(
-                    "Vui lòng nhập Bộ phận phát hiện lỗi.",
+                    "Vui lòng chọn Bộ phận phát hiện lỗi.",
                     "Thiếu thông tin",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Warning);
 
-                _txtBoPhanPhatHienLoi.Focus();
+                _lookBoPhanPhatHienLoi.Focus();
                 return false;
             }
 
@@ -455,8 +774,32 @@ namespace PCTP.Modules.XuLyHangLoi
                 if (item.SlotIdNguon == null)
                 {
                     XtraMessageBox.Show(
-                        $"Dòng {i + 1}: chưa xác định Slot nguồn.",
+                        $"Dòng {i + 1}: chưa chọn Slot nguồn.",
                         "Thiếu dữ liệu",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+
+                    return false;
+                }
+
+                var slot = TimSlotItem(item.SlotLotIdNguon);
+
+                if (slot != null && item.SoLuong > slot.Quantity)
+                {
+                    XtraMessageBox.Show(
+                        $"Dòng {i + 1}: Số lượng ({item.SoLuong}) vượt quá tồn trong Slot ({slot.Quantity}).",
+                        "Dữ liệu không hợp lệ",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+
+                    return false;
+                }
+
+                if (items.Take(i).Any(x => x.SlotLotIdNguon == item.SlotLotIdNguon))
+                {
+                    XtraMessageBox.Show(
+                        $"Dòng {i + 1}: Slot/LOT này đã được chọn ở dòng khác.",
+                        "Dữ liệu trùng",
                         MessageBoxButtons.OK,
                         MessageBoxIcon.Warning);
 
@@ -516,12 +859,12 @@ namespace PCTP.Modules.XuLyHangLoi
                     TenKhachHang = null,
 
                     // Dùng cho nội bộ
-                    PhongBan = _txtPhongBan.Text.Trim(),
+                    PhongBan = GetDeptName(_lookPhongBan, _depts),
 
                     LyDo = _txtLyDo.Text.Trim(),
 
                     BoPhanPhatHienLoi =
-                        _txtBoPhanPhatHienLoi.Text.Trim(),
+                        GetDeptName(_lookBoPhanPhatHienLoi, _depts),
 
                     XacNhanBPPhatHienLoi = null,
                     XacNhanQCKhach = null,
