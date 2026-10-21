@@ -388,6 +388,69 @@ WHERE SlotId = @SlotId;";
             }
         }
 
+        public void AppendLot(
+            int slotId,
+            string itemCode,
+            string lotNo,
+            int quantity,
+            string temCode,
+            string qrData,
+            DateTime importDate)
+        {
+            if (slotId <= 0)
+                throw new ArgumentException("SlotId không hợp lệ.", nameof(slotId));
+            if (string.IsNullOrWhiteSpace(itemCode))
+                throw new ArgumentException("ItemCode không được rỗng (SlotLot.ItemCode là NOT NULL).", nameof(itemCode));
+            if (string.IsNullOrWhiteSpace(lotNo))
+                throw new ArgumentException("LotNo không được rỗng.", nameof(lotNo));
+            if (quantity <= 0)
+                throw new ArgumentOutOfRangeException(nameof(quantity), "Quantity phải lớn hơn 0.");
+
+            const string sql = @"
+INSERT INTO SlotLot
+    (SlotId, ItemCode, LotNo, Quantity, TemCode, QrData, ImportDate, CreatedDate, PhieuStatus)
+VALUES
+    (@SlotId, @ItemCode, @LotNo, @Quantity, @TemCode, @QrData, @ImportDate, GETDATE(), 0);";
+
+            ExecuteNonQuery(sql,
+                new SqlParameter("@SlotId", SqlDbType.Int) { Value = slotId },
+                new SqlParameter("@ItemCode", SqlDbType.NVarChar, 100) { Value = itemCode.Trim() },
+                new SqlParameter("@LotNo", SqlDbType.NVarChar, 200) { Value = lotNo.Trim() },
+                new SqlParameter("@Quantity", SqlDbType.Int) { Value = quantity },
+                new SqlParameter("@TemCode", SqlDbType.NVarChar, 100) { Value = (object)temCode ?? DBNull.Value },
+                new SqlParameter("@QrData", SqlDbType.NVarChar, -1) { Value = (object)qrData ?? DBNull.Value },
+                new SqlParameter("@ImportDate", SqlDbType.DateTime) { Value = importDate });
+        }
+
+        public void RefreshSlotHeader(int slotId)
+        {
+            if (slotId <= 0)
+                throw new ArgumentException("SlotId không hợp lệ.", nameof(slotId));
+
+            const string sql = @"
+UPDATE s
+SET s.Quantity   = ISNULL(x.TotalQty, 0),
+    s.IsOccupied = CASE WHEN ISNULL(x.TotalQty, 0) > 0 THEN 1 ELSE 0 END,
+    s.ItemCode   = CASE WHEN ISNULL(x.TotalQty, 0) > 0 THEN l.ItemCode ELSE NULL END,
+    s.ImportDate = CASE WHEN ISNULL(x.TotalQty, 0) > 0 THEN x.MaxImportDate ELSE NULL END
+FROM Slot s
+OUTER APPLY (
+    SELECT SUM(Quantity) AS TotalQty, MAX(ImportDate) AS MaxImportDate
+    FROM SlotLot
+    WHERE SlotId = s.SlotId AND PhieuStatus = 0
+) x
+OUTER APPLY (
+    SELECT TOP 1 ItemCode
+    FROM SlotLot
+    WHERE SlotId = s.SlotId AND PhieuStatus = 0 AND Quantity > 0
+    ORDER BY ImportDate DESC, SlotLotId DESC
+) l
+WHERE s.SlotId = @SlotId;";
+
+            ExecuteNonQuery(sql,
+                new SqlParameter("@SlotId", SqlDbType.Int) { Value = slotId });
+        }
+
         public bool ExistsLot(int slotId, string lotNo)
         {
             if (slotId <= 0 || string.IsNullOrWhiteSpace(lotNo)) return false;
@@ -618,6 +681,12 @@ ORDER BY w.Name, r.RackName, s.SlotNumber;";
 
             return Convert.ToInt32(dt.Rows[0]["SlotId"]);
         }
+        /// <summary>
+        /// Dời toàn bộ các dòng SlotLot đang hoạt động của 1 LOT sang Slot đích bằng đúng 1 câu UPDATE SlotId.
+        /// Giữ nguyên SlotLotId + QrData + MaPhieu + TemCode + NgaySX của từng dòng; KHÔNG đọc/ghi lại các
+        /// LOT khác trong cả 2 Slot (trước đây GetLots + SaveLots làm mất dữ liệu A0 và còn xoá mất các
+        /// dòng thứ 2 trở đi của cùng LOT).
+        /// </summary>
         public void MoveLot(int fromSlotId, int toSlotId, string lotNo)
         {
             if (fromSlotId <= 0)
@@ -635,38 +704,24 @@ ORDER BY w.Name, r.RackName, s.SlotNumber;";
             if (ownTransaction) Uow.Begin();
             try
             {
-                // Khoá cả 2 Slot trước khi đọc — tránh race condition khi 2 luồng
-                // cùng thao tác trên 1 trong 2 Slot này song song.
-                LockSlotForUpdate(fromSlotId);
-                LockSlotForUpdate(toSlotId);
+                // Khoá 2 Slot theo THỨ TỰ SlotId tăng dần — 2 luồng dời ngược chiều không còn deadlock.
+                LockSlotForUpdate(Math.Min(fromSlotId, toSlotId));
+                LockSlotForUpdate(Math.Max(fromSlotId, toSlotId));
 
-                var sourceLots = GetLots(fromSlotId);
-                var moving = sourceLots.FirstOrDefault(x =>
-                    string.Equals(x.LotNo, lotNo, StringComparison.OrdinalIgnoreCase));
+                int moved = ExecuteNonQuery(
+                    @"UPDATE SlotLot
+                      SET SlotId = @To
+                      WHERE SlotId = @From AND PhieuStatus = 0 AND LotNo = @LotNo;",
+                    new SqlParameter("@To", SqlDbType.Int) { Value = toSlotId },
+                    new SqlParameter("@From", SqlDbType.Int) { Value = fromSlotId },
+                    new SqlParameter("@LotNo", SqlDbType.NVarChar, 200) { Value = lotNo.Trim() });
 
-                if (moving == null)
+                if (moved <= 0)
                     throw new InvalidOperationException(
                         $"Không tìm thấy LOT [{lotNo}] trong Slot nguồn [{fromSlotId}].");
 
-                // ── Ghi lại Slot nguồn (bỏ LOT vừa dời) ──────────────────────────
-                var remaining = sourceLots
-                    .Where(x => !string.Equals(x.LotNo, lotNo, StringComparison.OrdinalIgnoreCase))
-                    .ToList();
-                SaveLots(fromSlotId, remaining);
-                RecomputeHeader(fromSlotId, remaining);
-
-                // ── Ghi lại Slot đích (merge nếu đích đã có cùng LotNo) ──────────
-                var destLots = GetLots(toSlotId);
-                var existing = destLots.FirstOrDefault(x =>
-                    string.Equals(x.LotNo, lotNo, StringComparison.OrdinalIgnoreCase));
-
-                if (existing != null)
-                    existing.Quantity += moving.Quantity;
-                else
-                    destLots.Add(moving);
-
-                SaveLots(toSlotId, destLots);
-                RecomputeHeader(toSlotId, destLots);
+                RefreshSlotHeader(fromSlotId);
+                RefreshSlotHeader(toSlotId);
 
                 if (ownTransaction) Uow.Commit();
             }
@@ -677,20 +732,159 @@ ORDER BY w.Name, r.RackName, s.SlotNumber;";
             }
         }
 
-        /// <summary>Tính lại header (Quantity/ItemCode/ImportDate) từ danh sách LOT hiện có
-        /// rồi ghi bằng UpdateHeader — dùng nội bộ cho MoveLot để đồng bộ cả 2 Slot.</summary>
-        private void RecomputeHeader(int slotId, List<LotInfo> lots)
-        {
-            int quantity = lots.Sum(x => x.Quantity);
-            var latest = lots.Where(x => x.ImportDate.HasValue)
-                              .OrderByDescending(x => x.ImportDate)
-                              .FirstOrDefault();
+        // ============================================================
+        // TAKE LOT — FIFO, cập nhật TỪNG DÒNG (không SaveLots)
+        // ============================================================
 
-            UpdateHeader(
-                slotId,
-                latest?.ItemCode,
-                quantity > 0 ? latest?.ImportDate : null,
-                quantity);
+        private sealed class TakeCandidate
+        {
+            public int SlotLotId;
+            public LotInfo Lot;
+        }
+
+        public List<LotInfo> TakeLotFifo(int slotId, string lotNo, string itemCode, int quantity)
+        {
+            if (slotId <= 0)
+                throw new ArgumentOutOfRangeException(nameof(slotId));
+            if (string.IsNullOrWhiteSpace(lotNo))
+                throw new ArgumentException("LotNo không được rỗng.", nameof(lotNo));
+            if (string.IsNullOrWhiteSpace(itemCode))
+                throw new ArgumentException("ItemCode không được rỗng.", nameof(itemCode));
+            if (quantity <= 0)
+                throw new ArgumentOutOfRangeException(nameof(quantity));
+
+            bool ownTransaction = !HasTransaction;
+            if (ownTransaction) Uow.Begin();
+            try
+            {
+                // Khoá các dòng ứng viên (cùng Slot + ItemCode) để 2 luồng không cùng lấy 1 dòng.
+                DataTable dt = LoadData(
+                    @"SELECT SlotLotId, ItemCode, LotNo, Quantity, TemCode, QrData, MaPhieu, ImportDate
+                      FROM SlotLot WITH (UPDLOCK, ROWLOCK)
+                      WHERE SlotId = @SlotId AND PhieuStatus = 0 AND Quantity > 0 AND ItemCode = @ItemCode;",
+                    new SqlParameter("@SlotId", SqlDbType.Int) { Value = slotId },
+                    new SqlParameter("@ItemCode", SqlDbType.NVarChar, 100) { Value = itemCode.Trim() });
+
+                // So khớp LOT theo khoá tương đương 13/20 ký tự (giữ đúng logic cũ), FIFO theo ImportDate.
+                var matched = new List<TakeCandidate>();
+                foreach (DataRow row in dt.Rows)
+                {
+                    var lot = MapLotRow(row, slotId);
+                    if (!LotCodeHelper.AreLotKeysEquivalent(lot.LotNo, lotNo)) continue;
+                    matched.Add(new TakeCandidate { SlotLotId = Convert.ToInt32(row["SlotLotId"]), Lot = lot });
+                }
+
+                matched = matched
+                    .OrderBy(x => x.Lot.ImportDate ?? DateTime.MaxValue)
+                    .ThenBy(x => x.SlotLotId)
+                    .ToList();
+
+                int available = matched.Sum(x => x.Lot.Quantity);
+                if (available < quantity)
+                    throw new InvalidOperationException(
+                        $"LOT [{lotNo}] / Item [{itemCode}] trong Slot {slotId} chỉ còn {available}, không đủ {quantity}.");
+
+                // Phần đã lấy (tách QR theo số lượng nếu lấy một phần) — cùng thuật toán cũ.
+                var split = LotNoHelper.SubtractLots(matched.Select(x => x.Lot).ToList(), quantity);
+
+                int remain = quantity;
+                int consumedIndex = 0;
+                foreach (var cand in matched)
+                {
+                    if (remain <= 0) break;
+
+                    int take = Math.Min(remain, cand.Lot.Quantity);
+                    int affected;
+
+                    if (take == cand.Lot.Quantity)
+                    {
+                        affected = ExecuteNonQuery(
+                            "DELETE FROM SlotLot WHERE SlotLotId = @Id AND Quantity = @Q;",
+                            new SqlParameter("@Id", SqlDbType.Int) { Value = cand.SlotLotId },
+                            new SqlParameter("@Q", SqlDbType.Int) { Value = take });
+                    }
+                    else
+                    {
+                        affected = ExecuteNonQuery(
+                            "UPDATE SlotLot SET Quantity = Quantity - @Q WHERE SlotLotId = @Id AND Quantity >= @Q;",
+                            new SqlParameter("@Id", SqlDbType.Int) { Value = cand.SlotLotId },
+                            new SqlParameter("@Q", SqlDbType.Int) { Value = take });
+                    }
+
+                    if (affected != 1)
+                        throw new InvalidOperationException(
+                            $"SlotLot {cand.SlotLotId} đã thay đổi trong lúc lấy hàng. Vui lòng thử lại.");
+
+                    // SubtractLots không copy ItemCode/ImportDate — bổ sung từ dòng gốc.
+                    if (consumedIndex < split.ExportLots.Count)
+                    {
+                        var exported = split.ExportLots[consumedIndex];
+                        exported.ItemCode = cand.Lot.ItemCode;
+                        exported.ImportDate = cand.Lot.ImportDate;
+                        exported.SlotVatLyId = slotId;
+                    }
+                    consumedIndex++;
+                    remain -= take;
+                }
+
+                RefreshSlotHeader(slotId);
+
+                if (ownTransaction) Uow.Commit();
+                return split.ExportLots;
+            }
+            catch
+            {
+                if (ownTransaction) Uow.Rollback();
+                throw;
+            }
+        }
+
+        /// <summary>Map 1 dòng SlotLot → LotInfo (QRInfo parse từ QrData, fallback dựng từ cột) — cùng quy ước GetLots.</summary>
+        private static LotInfo MapLotRow(DataRow row, int slotId)
+        {
+            string lotNo = row["LotNo"] == DBNull.Value ? "" : row["LotNo"].ToString();
+            string itemCode = row["ItemCode"] == DBNull.Value ? null : row["ItemCode"].ToString();
+            int quantity = Convert.ToInt32(row["Quantity"]);
+            string temCode = row["TemCode"] == DBNull.Value ? "" : row["TemCode"].ToString();
+            string qrData = row["QrData"] == DBNull.Value ? "" : row["QrData"].ToString();
+            DateTime? importDate = row["ImportDate"] == DBNull.Value ? (DateTime?)null : Convert.ToDateTime(row["ImportDate"]);
+
+            QRCodeInfo qrInfo = null;
+            if (!string.IsNullOrWhiteSpace(qrData))
+            {
+                try { qrInfo = QRCodeParser.ParseQRCode(qrData); }
+                catch (FormatException) { qrInfo = null; }
+            }
+
+            if (qrInfo == null)
+            {
+                qrInfo = new QRCodeInfo
+                {
+                    LotNo = lotNo,
+                    ItemCode = itemCode ?? "",
+                    Quantity = quantity,
+                    MaPhieu = row["MaPhieu"] == DBNull.Value ? "" : row["MaPhieu"].ToString(),
+                    ImportDate = importDate,
+                    RawQr = qrData
+                };
+            }
+            else
+            {
+                qrInfo.Quantity = quantity;
+                qrInfo.ImportDate = importDate;
+            }
+
+            return new LotInfo
+            {
+                SlotVatLyId = slotId,
+                ItemCode = itemCode,
+                LotNo = lotNo,
+                Quantity = quantity,
+                TemCode = temCode,
+                RawQr = qrData,
+                QRInfo = qrInfo,
+                ImportDate = importDate
+            };
         }
 
         public DataTable GetOccupiedSlotsForLookup() => LoadData(@"

@@ -213,7 +213,7 @@ namespace PCTP.Modules.KhoCore.Application.Services
                         });
                 }
 
-                if (!string.IsNullOrWhiteSpace(request.LotNo))
+                if (!string.IsNullOrWhiteSpace(request.LotNo) && !request.SlotLotWrittenByCaller)
                 {
                     _slots.AddLot(request.TargetSlotId.Value, new StockSlotLot
                     {

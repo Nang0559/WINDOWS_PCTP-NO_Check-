@@ -191,6 +191,9 @@ namespace PCTP.Modules.NhapKho.Services
                     ProductionQuantity = nhapItem.SlSanXuat,
                     Quantity = qr.Quantity,
                     ReceivingStatus = status,
+                    // Dòng SlotLot của tem này do _phieuRepo.InsertPhieuMoi bên dưới tạo (có QrData/MaPhieu).
+                    // Receive chỉ được cộng tồn header Slot, không tạo thêm dòng SlotLot thứ hai.
+                    SlotLotWrittenByCaller = true,
                     ReferenceType = "NHAP_TP",
                     ReferenceId = qr.MaPhieu,
                     OccurredAt = ngayNhapThucTe,

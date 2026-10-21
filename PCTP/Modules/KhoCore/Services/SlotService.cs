@@ -214,6 +214,33 @@ namespace PCTP.Modules.KhoVatLy.Application.Services
 
             _repository.LockSlotForUpdate(slotId);
         }
+        public void AppendLot(
+            int slotId,
+            string itemCode,
+            string lotNo,
+            int quantity,
+            string temCode,
+            string qrData,
+            DateTime? importDate)
+        {
+            if (slotId <= 0)
+                throw new ArgumentException("SlotId không hợp lệ.", nameof(slotId));
+
+            _repository.AppendLot(
+                slotId, itemCode, lotNo, quantity, temCode, qrData,
+                importDate ?? DateTime.Now);
+
+            _repository.RefreshSlotHeader(slotId);
+        }
+
+        public List<LotInfo> TakeLotFifo(int slotId, string lotNo, string itemCode, int quantity)
+        {
+            if (slotId <= 0)
+                throw new ArgumentException("SlotId không hợp lệ.", nameof(slotId));
+
+            return _repository.TakeLotFifo(slotId, lotNo, itemCode, quantity);
+        }
+
         public void SaveLots(
          int slotId,
          List<LotInfo> lots)

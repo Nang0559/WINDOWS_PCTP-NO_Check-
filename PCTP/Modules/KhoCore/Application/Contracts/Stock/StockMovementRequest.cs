@@ -43,5 +43,13 @@ namespace PCTP.Modules.KhoCore.Application.Contracts.Stock
         public DateTime? ProductionDate { get; set; }
         public int ProductionQuantity { get; set; }
         public int? ReceivingStatus { get; set; }
+
+        /// <summary>
+        /// true = caller TỰ ghi dòng SlotLot (vd. nhập TP: PhieuTrackingRepository.InsertPhieuMoi tạo dòng
+        /// có MaPhieu/QrData/TemCode — là dòng mà ExistsQrData và đối chiếu tồn dựa vào).
+        /// Khi đó StockMovementService chỉ cộng tồn header Slot, KHÔNG thêm dòng SlotLot thứ hai
+        /// (tránh 1 tem thành 2 dòng → tồn SlotLot bị đếm gấp đôi).
+        /// </summary>
+        public bool SlotLotWrittenByCaller { get; set; }
     }
 }

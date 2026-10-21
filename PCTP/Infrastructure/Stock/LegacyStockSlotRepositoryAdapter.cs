@@ -61,48 +61,37 @@ namespace PCTP.Infrastructure.Stock
             _legacy.AddQuantity(slotId, quantity, itemCode, DateTime.Now);
         }
 
+        /// <summary>
+        /// INSERT-ONLY. Trước đây method này đọc TOÀN BỘ lot của Slot rồi SaveLots (xoá hết + ghi lại)
+        /// → với Slot ảo A0 chứa rất nhiều LOT sẽ làm mất QrData/MaPhieu/NgaySX của các tem đã nhập,
+        /// rất chậm, và ghi NULL vào SlotLot.ItemCode. Giờ chỉ thêm đúng 1 dòng mới.
+        /// </summary>
         public void AddLot(int slotId, StockSlotLot lot)
         {
             if (lot == null)
                 throw new ArgumentNullException(nameof(lot));
             if (string.IsNullOrWhiteSpace(lot.LotNo))
                 throw new ArgumentException("LotNo không được rỗng.", nameof(lot));
+            if (string.IsNullOrWhiteSpace(lot.ItemCode))
+                throw new ArgumentException("ItemCode không được rỗng.", nameof(lot));
             if (lot.Quantity <= 0)
                 throw new ArgumentOutOfRangeException(nameof(lot.Quantity));
 
-            var lots = _legacy.GetLots(slotId) ?? new List<LotInfo>();
-            var existing = lots.FirstOrDefault(x =>
-                string.Equals(x.LotNo, lot.LotNo, StringComparison.OrdinalIgnoreCase) &&
-                string.Equals(x.ItemCode, lot.ItemCode, StringComparison.OrdinalIgnoreCase));
-
-            if (existing != null)
-            {
-                existing.Quantity += lot.Quantity;
-                if (!existing.ImportDate.HasValue)
-                    existing.ImportDate = lot.ImportDate;
-                if (string.IsNullOrWhiteSpace(existing.TemCode))
-                    existing.TemCode = lot.TemCode;
-                if (string.IsNullOrWhiteSpace(existing.RawQr))
-                    existing.RawQr = lot.RawQr;
-            }
-            else
-            {
-                lots.Add(new LotInfo
-                {
-                    SlotVatLyId = slotId,
-                    ItemCode = lot.ItemCode,
-                    LotNo = lot.LotNo,
-                    Quantity = lot.Quantity,
-                    TemCode = lot.TemCode,
-                    RawQr = lot.RawQr,
-                    ImportDate = lot.ImportDate ?? DateTime.Now
-                });
-            }
-
-            _legacy.SaveLots(slotId, lots);
-            _legacy.UpdateSlotHeaderFromLots(slotId, lots);
+            _legacy.AppendLot(
+                slotId,
+                lot.ItemCode,
+                lot.LotNo,
+                lot.Quantity,
+                lot.TemCode,
+                lot.RawQr,
+                lot.ImportDate);
         }
 
+        /// <summary>
+        /// FIFO, cập nhật TỪNG DÒNG qua ISlotService.TakeLotFifo. Trước đây method này GetLots → SaveLots
+        /// (xoá + ghi lại cả Slot → mất QrData/MaPhieu của mọi LOT còn lại) và so ItemCode với giá trị
+        /// GetLots không bao giờ điền nên luôn báo "không đủ".
+        /// </summary>
         public StockSlotTakeResult TakeLot(int slotId, string lotNo, string itemCode, int quantity)
         {
             if (slotId <= 0)
@@ -114,32 +103,12 @@ namespace PCTP.Infrastructure.Stock
             if (quantity <= 0)
                 throw new ArgumentOutOfRangeException(nameof(quantity));
 
-            var lots = _legacy.GetLots(slotId) ?? new List<LotInfo>();
-            var matched = lots
-                .Where(x => x.Quantity > 0)
-                .Where(x => LotCodeHelper.AreLotKeysEquivalent(x.LotNo, lotNo))
-                .Where(x => string.Equals(x.ItemCode, itemCode, StringComparison.OrdinalIgnoreCase))
-                .OrderBy(x => x.ImportDate ?? DateTime.MaxValue)
-                .ToList();
-
-            var available = matched.Sum(x => x.Quantity);
-            if (available < quantity)
-                throw new InvalidOperationException(
-                    string.Format("LOT [{0}] / Item [{1}] trong Slot {2} chỉ còn {3}, không đủ {4}.",
-                        lotNo, itemCode, slotId, available, quantity));
-
-            var split = LotNoHelper.SubtractLots(matched, quantity);
-            var matchedSet = new HashSet<LotInfo>(matched);
-            var others = lots.Where(x => !matchedSet.Contains(x)).ToList();
-            var merged = others.Concat(split.RemainingLots).ToList();
-
-            _legacy.SaveLots(slotId, merged);
-            _legacy.UpdateSlotHeaderFromLots(slotId, merged);
+            var taken = _legacy.TakeLotFifo(slotId, lotNo, itemCode, quantity) ?? new List<LotInfo>();
 
             return new StockSlotTakeResult
             {
                 Quantity = quantity,
-                ExportLots = split.ExportLots
+                ExportLots = taken
                     .Select(x => new StockSlotLot
                     {
                         LotNo = x.LotNo,

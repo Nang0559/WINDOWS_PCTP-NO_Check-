@@ -53,11 +53,34 @@ namespace PCTP.Modules.KhoVatLy.Application.Interfaces
         void DecreaseSlotLotQuantity(int slotLotId, int qty);
         // sử dụng chung
         void LockSlotForUpdate(int slotId);
+        /// <summary>
+        /// ⚠ NGUY HIỂM với Slot nhiều LOT (đặc biệt Slot ảo A0): xoá toàn bộ SlotLot của Slot rồi ghi lại.
+        /// KHÔNG dùng cho nhập/xuất/dời hàng — dùng AppendLot / TakeLotFifo / MoveLot.
+        /// </summary>
         void SaveLots(
             int slotId,
             List<LotInfo> lots);
 
         List<LotInfo> GetLots(int slotId);
+
+        /// <summary>
+        /// Thêm 1 dòng SlotLot (INSERT-ONLY) rồi tính lại header Slot. Không xoá / ghi đè
+        /// các LOT đang có trong Slot → dùng cho mọi thao tác "nhập thêm", đặc biệt Slot ảo A0.
+        /// </summary>
+        void AppendLot(
+            int slotId,
+            string itemCode,
+            string lotNo,
+            int quantity,
+            string temCode,
+            string qrData,
+            DateTime? importDate);
+
+        /// <summary>
+        /// Lấy hàng FIFO theo LOT + ItemCode, chỉ UPDATE/DELETE đúng các dòng SlotLot bị lấy,
+        /// không đụng các LOT khác trong Slot. Trả về các phần đã lấy.
+        /// </summary>
+        List<LotInfo> TakeLotFifo(int slotId, string lotNo, string itemCode, int quantity);
 
         bool ExistsLot(
             int slotId,

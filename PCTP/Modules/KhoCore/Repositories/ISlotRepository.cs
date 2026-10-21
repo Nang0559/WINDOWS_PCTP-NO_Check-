@@ -50,6 +50,11 @@ namespace PCTP.Modules.KhoVatLy.Repositories
 
         List<LotInfo> GetLots(int slotId);
 
+        /// <summary>
+        /// ⚠ NGUY HIỂM với Slot nhiều LOT (đặc biệt Slot ảo A0): DELETE toàn bộ SlotLot của Slot rồi
+        /// INSERT lại từ danh sách → mất QrData/MaPhieu/NgaySX/SoPhieuTong, đổi SlotLotId, rất chậm.
+        /// KHÔNG dùng cho nhập/xuất/dời hàng. Dùng <see cref="AppendLot"/> / <see cref="TakeLotFifo"/> / <see cref="MoveLot"/>.
+        /// </summary>
         void SaveLots(
             int slotId,
             List<LotInfo> lots);
@@ -57,6 +62,34 @@ namespace PCTP.Modules.KhoVatLy.Repositories
         bool ExistsLot(
             int slotId,
             string lotNo);
+
+        /// <summary>
+        /// INSERT-ONLY: thêm đúng 1 dòng SlotLot (PhieuStatus = 0). KHÔNG đọc lại, KHÔNG xoá,
+        /// KHÔNG ghi đè bất kỳ dòng nào khác của Slot — an toàn cho Slot ảo A0 chứa rất nhiều LOT.
+        /// Không tự cập nhật header Slot: gọi <see cref="RefreshSlotHeader"/> sau đó.
+        /// </summary>
+        void AppendLot(
+            int slotId,
+            string itemCode,
+            string lotNo,
+            int quantity,
+            string temCode,
+            string qrData,
+            DateTime importDate);
+
+        /// <summary>
+        /// Tính lại header Slot (Quantity/IsOccupied/ItemCode/ImportDate) bằng 1 câu UPDATE
+        /// tổng hợp từ SlotLot đang hoạt động — không phải nạp danh sách LOT lên client.
+        /// </summary>
+        void RefreshSlotHeader(int slotId);
+
+        /// <summary>
+        /// Lấy hàng theo FIFO (ImportDate cũ nhất trước) CHỈ bằng UPDATE/DELETE đúng các dòng bị lấy —
+        /// các dòng SlotLot khác của Slot không bị đụng tới. Dòng lấy hết thì xoá, lấy một phần thì trừ Quantity
+        /// (giữ nguyên QrData/MaPhieu gốc). Trả về các phần đã lấy (đã tách QR theo số lượng nếu lấy một phần).
+        /// Ném InvalidOperationException nếu tồn không đủ. Tự cập nhật header Slot.
+        /// </summary>
+        List<LotInfo> TakeLotFifo(int slotId, string lotNo, string itemCode, int quantity);
 
         // ============================================================
         // SLOT CHƯA CÓ LOT
