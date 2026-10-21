@@ -251,6 +251,16 @@ namespace PCTP.Modules.XuLyHangLoi.Repository
             DateTime? ngayGiao,
             string nhaMay);
 
-        bool ConChoXuLy(int phieuTraHangId); // true nếu còn ≥1 PhieuXuLyBatThuong con chưa HoanTat/Huy
+        bool ConChoXuLy(int phieuTraHangId);
+
+        /// <summary>true nếu đã có ít nhất 1 PhieuXuLyBatThuong tạo từ dòng của phiếu này
+        /// (khi đó không được sửa/xóa dòng chi tiết).</summary>
+        bool CoPhieuXuLy(int phieuTraHangId);
+
+        /// <summary>Xóa toàn bộ dòng chi tiết của phiếu.</summary>
+        void DeleteItems(int phieuTraHangId);
+
+        /// <summary>Xóa header (gọi sau DeleteItems, trong transaction).</summary>
+        void Delete(int id); // true nếu còn ≥1 PhieuXuLyBatThuong con chưa HoanTat/Huy
     }
 }

@@ -616,6 +616,35 @@ VALUES
         }
 
 
+        public bool CoPhieuXuLy(int phieuTraHangId)
+        {
+            const string sql = @"
+SELECT COUNT(1)
+FROM FVN_PhieuXuLyBatThuong p
+JOIN FVN_PhieuTraHangCT ct ON ct.Id = p.PhieuTraHangCTId
+WHERE ct.PhieuTraHangId = @PhieuTraHangId;";
+
+            object r = _sql.ExecuteScalar(
+                sql,
+                new SqlParameter("@PhieuTraHangId", phieuTraHangId));
+
+            return r != null && r != DBNull.Value && Convert.ToInt32(r) > 0;
+        }
+
+        public void DeleteItems(int phieuTraHangId)
+        {
+            _sql.ExecuteNonQuery(
+                "DELETE FROM FVN_PhieuTraHangCT WHERE PhieuTraHangId = @PhieuTraHangId;",
+                new SqlParameter("@PhieuTraHangId", phieuTraHangId));
+        }
+
+        public void Delete(int id)
+        {
+            _sql.ExecuteNonQuery(
+                "DELETE FROM FVN_PhieuTraHang WHERE Id = @Id;",
+                new SqlParameter("@Id", id));
+        }
+
         public void InsertItems(
             int phieuTraHangId,
             IEnumerable<PhieuTraHangCT> items)

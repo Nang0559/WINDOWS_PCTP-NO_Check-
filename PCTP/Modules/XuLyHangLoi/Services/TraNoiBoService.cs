@@ -46,6 +46,25 @@ namespace PCTP.Modules.XuLyHangLoi.Services
         //     - Status = ChoTaoPhieuBatThuong
         //     - Insert Header + Detail trong transaction
         // ============================================================
+        // Số phiếu dạng Code(PB)-Code(BP)-ddMMyy có thể trùng trong cùng ngày:
+        // nếu đã tồn tại thì thêm hậu tố -2, -3, ...
+        private string DamBaoSoPhieuDuyNhat(string soPhieu)
+        {
+            if (Repo.GetBySoPhieu(soPhieu) == null)
+                return soPhieu;
+
+            for (int i = 2; i < 1000; i++)
+            {
+                string candidate = soPhieu + "-" + i;
+
+                if (Repo.GetBySoPhieu(candidate) == null)
+                    return candidate;
+            }
+
+            throw new InvalidOperationException(
+                "Không sinh được Số phiếu duy nhất: " + soPhieu);
+        }
+
         public int TaoPhieuTraNoiBo(PhieuTraHang phieu)
         {
             if (phieu == null)
@@ -105,6 +124,8 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             // ------------------------------------------------------------
             if (string.IsNullOrWhiteSpace(phieu.SoPhieu))
                 phieu.SoPhieu = GenerateSoPhieuTraNoiBo();
+            else
+                phieu.SoPhieu = DamBaoSoPhieuDuyNhat(phieu.SoPhieu.Trim());
 
             // ------------------------------------------------------------
             // InsertPhieu() của Base sẽ:

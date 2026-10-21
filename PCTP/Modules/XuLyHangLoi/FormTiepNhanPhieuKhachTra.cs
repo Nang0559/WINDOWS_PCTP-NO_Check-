@@ -8,6 +8,7 @@ namespace PCTP.Modules.XuLyHangLoi
     using DevExpress.XtraGrid.Views.Grid;
     using PCTP.Modules.XuLyHangLoi.Enums;
     using PCTP.Modules.XuLyHangLoi.Models;
+    using PCTP.Modules.XuLyHangLoi.Repository;
     using PCTP.Modules.XuLyHangLoi.Services;
     using PCTP.Shared.Enums;
     using System;
@@ -49,22 +50,79 @@ namespace PCTP.Modules.XuLyHangLoi
         private SimpleButton _btnXoa;
         private SimpleButton _btnLuu;
         private SimpleButton _btnHuy;
+        private SimpleButton _btnXoaPhieu;
+
+        // ============================================================
+        // MỞ LẠI PHIẾU / QR
+        // ============================================================
+
+        private enum FormMode { Create, Edit, ReadOnly }
+
+        private readonly FormMode _mode = FormMode.Create;
+        private readonly IPhieuTraHangRepository _phieuRepo;
+        private readonly INoiBoLookupRepository _lookupRepo;
+        private readonly int _phieuId;
+        private PhieuTraHang _editPhieu;
+
+        // Đã có PhieuXuLyBatThuong → chỉ sửa thông tin chung.
+        private bool _choSuaChiTiet = true;
+
+        private TextEdit _txtQr;
+        private LabelControl _lblQrStatus;
 
         // ============================================================
         // CONSTRUCTOR
         // ============================================================
 
         public FormTiepNhanPhieuKhachTra(
-            IKhachTraHangService khachTraHangService)
+            IKhachTraHangService khachTraHangService,
+            INoiBoLookupRepository lookupRepo = null)
         {
             _khachTraHangService =
                 khachTraHangService
                 ?? throw new ArgumentNullException(
                     nameof(khachTraHangService));
 
+            _lookupRepo = lookupRepo;
+
             BuidIU();
 
             KhoiTaoDuLieuBanDau();
+        }
+
+        /// <summary>
+        /// Mở lại phiếu khách trả đã tiếp nhận: chưa đóng → Lưu thay đổi / Xóa;
+        /// đã đóng → chỉ xem.
+        /// </summary>
+        public FormTiepNhanPhieuKhachTra(
+            IKhachTraHangService khachTraHangService,
+            IPhieuTraHangRepository phieuRepo,
+            int phieuTraHangId,
+            INoiBoLookupRepository lookupRepo = null)
+        {
+            _khachTraHangService =
+                khachTraHangService
+                ?? throw new ArgumentNullException(
+                    nameof(khachTraHangService));
+
+            _phieuRepo = phieuRepo
+                ?? throw new ArgumentNullException(nameof(phieuRepo));
+
+            _lookupRepo = lookupRepo;
+            _phieuId = phieuTraHangId;
+
+            _editPhieu = _khachTraHangService.GetById(phieuTraHangId)
+                ?? throw new InvalidOperationException(
+                    $"Không tìm thấy phiếu khách trả Id={phieuTraHangId}.");
+
+            _mode = _khachTraHangService.LaPhieuDaDong(_editPhieu)
+                ? FormMode.ReadOnly
+                : FormMode.Edit;
+
+            BuidIU();
+
+            NapPhieuDaTao();
+            ApDungCheDo();
         }
 
         // ============================================================
@@ -89,7 +147,7 @@ namespace PCTP.Modules.XuLyHangLoi
             {
                 Dock = DockStyle.Fill,
                 ColumnCount = 1,
-                RowCount = 3,
+                RowCount = 4,
                 Padding = new Padding(8)
             };
 
@@ -97,6 +155,11 @@ namespace PCTP.Modules.XuLyHangLoi
                 new RowStyle(
                     SizeType.Absolute,
                     205));
+
+            mainLayout.RowStyles.Add(
+                new RowStyle(
+                    SizeType.Absolute,
+                    40));
 
             mainLayout.RowStyles.Add(
                 new RowStyle(
@@ -114,10 +177,17 @@ namespace PCTP.Modules.XuLyHangLoi
 
             var header = TaoHeader();
 
+            CanGiuaOCuaHeader(header);
+
             mainLayout.Controls.Add(
                 header,
                 0,
                 0);
+
+            mainLayout.Controls.Add(
+                TaoQrPanel(),
+                0,
+                1);
 
             // ========================================================
             // DETAIL GRID
@@ -142,7 +212,7 @@ namespace PCTP.Modules.XuLyHangLoi
             mainLayout.Controls.Add(
                 _grid,
                 0,
-                1);
+                2);
 
             // ========================================================
             // BUTTON BAR
@@ -169,6 +239,15 @@ namespace PCTP.Modules.XuLyHangLoi
                 Text = "💾 Tiếp nhận phiếu",
                 Width = 150
             };
+
+            _btnXoaPhieu = new SimpleButton
+            {
+                Text = "❌ Xóa phiếu",
+                Width = 110
+            };
+
+            _btnXoaPhieu.Click +=
+                (s, e) => XoaPhieu();
 
             _btnXoa = new SimpleButton
             {
@@ -202,13 +281,14 @@ namespace PCTP.Modules.XuLyHangLoi
 
             buttonPanel.Controls.Add(_btnHuy);
             buttonPanel.Controls.Add(_btnLuu);
+            buttonPanel.Controls.Add(_btnXoaPhieu);
             buttonPanel.Controls.Add(_btnXoa);
             buttonPanel.Controls.Add(_btnThem);
 
             mainLayout.Controls.Add(
                 buttonPanel,
                 0,
-                2);
+                3);
 
             Controls.Add(mainLayout);
         }
@@ -512,8 +592,12 @@ namespace PCTP.Modules.XuLyHangLoi
                     AutoSizeMode =
                         LabelAutoSizeMode.None,
                     Padding =
-                        new Padding(5, 8, 0, 0)
+                        new Padding(5, 0, 0, 0)
                 };
+
+            // Căn giữa theo chiều dọc để thẳng hàng với ô nhập.
+            label.Appearance.TextOptions.VAlignment =
+                DevExpress.Utils.VertAlignment.Center;
 
             panel.Controls.Add(
                 label,
@@ -679,6 +763,258 @@ namespace PCTP.Modules.XuLyHangLoi
                 "Nhà máy";
 
             colNhaMay.Visible = false;
+        }
+
+        // Ô nhập căn giữa theo chiều dọc ô (thay Dock Fill) để thẳng hàng với nhãn.
+        private static void CanGiuaOCuaHeader(TableLayoutPanel header)
+        {
+            foreach (Control c in header.Controls)
+            {
+                if (c is LabelControl)
+                    continue;
+
+                c.Dock = DockStyle.None;
+                c.Anchor = AnchorStyles.Left | AnchorStyles.Right;
+                c.Margin = new Padding(3, 3, 8, 3);
+            }
+        }
+
+        private TableLayoutPanel TaoQrPanel()
+        {
+            var qrPanel = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 3,
+                RowCount = 1
+            };
+
+            qrPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 145));
+            qrPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+            qrPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+
+            var lbl = new LabelControl
+            {
+                Text = "Quét QR thêm dòng",
+                Dock = DockStyle.Fill,
+                AutoSizeMode = LabelAutoSizeMode.None,
+                Padding = new Padding(5, 0, 0, 0)
+            };
+            lbl.Appearance.TextOptions.VAlignment =
+                DevExpress.Utils.VertAlignment.Center;
+
+            _txtQr = new TextEdit
+            {
+                Anchor = AnchorStyles.Left | AnchorStyles.Right,
+                Margin = new Padding(3, 3, 8, 3)
+            };
+            _txtQr.Properties.NullValuePrompt =
+                "Quét tem QR (Lot:Mã hàng:Ngày:SL:...) rồi Enter";
+            _txtQr.KeyDown += TxtQr_KeyDown;
+
+            _lblQrStatus = new LabelControl
+            {
+                Dock = DockStyle.Fill,
+                AutoSizeMode = LabelAutoSizeMode.None
+            };
+            _lblQrStatus.Appearance.TextOptions.VAlignment =
+                DevExpress.Utils.VertAlignment.Center;
+
+            qrPanel.Controls.Add(lbl, 0, 0);
+            qrPanel.Controls.Add(_txtQr, 1, 0);
+            qrPanel.Controls.Add(_lblQrStatus, 2, 0);
+
+            return qrPanel;
+        }
+
+        private void TxtQr_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode != Keys.Enter)
+                return;
+
+            e.Handled = true;
+            e.SuppressKeyPress = true;
+
+            string raw = _txtQr.Text;
+            _txtQr.Text = string.Empty;
+
+            XuLyQr(raw);
+
+            _txtQr.Focus();
+        }
+
+        private void BaoQr(string text, bool ok)
+        {
+            _lblQrStatus.Text = text;
+            _lblQrStatus.Appearance.ForeColor =
+                ok ? System.Drawing.Color.ForestGreen : System.Drawing.Color.Firebrick;
+        }
+
+        private void XuLyQr(string raw)
+        {
+            if (string.IsNullOrWhiteSpace(raw))
+                return;
+
+            QrItemInfo info;
+            string error;
+
+            if (!QrItemParser.TryParse(raw, out info, out error))
+            {
+                BaoQr(error, false);
+                return;
+            }
+
+            // Mã hàng phải có trong danh mục hàng (vB20Item).
+            string tenHang = string.Empty;
+
+            if (_lookupRepo != null)
+            {
+                tenHang = _lookupRepo.GetItemName(info.ItemCode);
+
+                if (tenHang == null)
+                {
+                    BaoQr($"Mã hàng {info.ItemCode} không có trong danh mục.", false);
+                    return;
+                }
+            }
+
+            var data = _grid.DataSource as List<PhieuTraHangCT>;
+
+            if (data == null)
+            {
+                data = new List<PhieuTraHangCT>();
+                _grid.DataSource = data;
+            }
+
+            // Cùng Mã hàng + Lot (quét nhiều tem) → cộng dồn số lượng.
+            var exist = data.FirstOrDefault(d =>
+                string.Equals(d.MaHang?.Trim(), info.ItemCode, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(d.LotNo?.Trim(), info.Lot, StringComparison.OrdinalIgnoreCase));
+
+            if (exist != null)
+            {
+                exist.SoLuong += info.Quantity;
+            }
+            else
+            {
+                data.Add(new PhieuTraHangCT
+                {
+                    SlotIdNguon = null,
+                    MaHang = info.ItemCode,
+                    TenHang = tenHang,
+                    LotNo = info.Lot,
+                    SoLuong = info.Quantity,
+                    LyDoNg = string.Empty
+                });
+            }
+
+            _grid.RefreshDataSource();
+
+            BaoQr($"Đã thêm {info.ItemCode} / Lot {info.Lot} / SL {info.Quantity}.", true);
+        }
+
+        // ============================================================
+        // MỞ LẠI PHIẾU: nạp dữ liệu + chế độ
+        // ============================================================
+
+        private void NapPhieuDaTao()
+        {
+            _txtSoPhieu.Text = _editPhieu.SoPhieu;
+            _txtSoPhieuKhach.Text = _editPhieu.SoPhieuKhach;
+            _dtNgayPhatHanh.EditValue = _editPhieu.NgayPhatHanh;
+            _txtSlipNo.Text = _editPhieu.SlipNo;
+            _txtCa.Text = _editPhieu.Ca;
+            _txtTenKhachHang.Text = _editPhieu.TenKhachHang;
+            _txtLyDo.Text = _editPhieu.LyDo;
+            _txtBoPhanPhatHienLoi.Text = _editPhieu.BoPhanPhatHienLoi;
+            _txtNguoiTao.Text = _editPhieu.CreatedBy;
+
+            if (_editPhieu.NguonKhachTra.HasValue)
+                _cboNguonKhachTra.EditValue = _editPhieu.NguonKhachTra.Value;
+
+            _grid.DataSource =
+                _phieuRepo.GetItems(_phieuId) ?? new List<PhieuTraHangCT>();
+
+            _choSuaChiTiet = !_khachTraHangService.CoPhieuXuLy(_phieuId);
+        }
+
+        private void ApDungCheDo()
+        {
+            if (_mode == FormMode.Create)
+                return;
+
+            bool daDong = _mode == FormMode.ReadOnly;
+            bool suaHeader = !daDong;
+            bool suaChiTiet = !daDong && _choSuaChiTiet;
+
+            Text = daDong
+                ? $"Phiếu khách trả {_editPhieu.SoPhieu} (đã đóng - chỉ xem)"
+                : $"Phiếu khách trả {_editPhieu.SoPhieu}";
+
+            _txtSoPhieu.Properties.ReadOnly = true;
+            _cboNguonKhachTra.Properties.ReadOnly = !suaHeader;
+            _txtSoPhieuKhach.Properties.ReadOnly = !suaHeader;
+            _dtNgayPhatHanh.Properties.ReadOnly = !suaHeader;
+            _txtSlipNo.Properties.ReadOnly = !suaHeader;
+            _txtCa.Properties.ReadOnly = !suaHeader;
+            _txtTenKhachHang.Properties.ReadOnly = !suaHeader;
+            _txtLyDo.Properties.ReadOnly = !suaHeader;
+            _txtBoPhanPhatHienLoi.Properties.ReadOnly = !suaHeader;
+            _txtNguoiTao.Properties.ReadOnly = true;
+
+            _gridView.OptionsBehavior.Editable = suaChiTiet;
+
+            _txtQr.Enabled = suaChiTiet;
+            _btnThem.Visible = suaChiTiet;
+            _btnXoa.Visible = suaChiTiet;
+
+            // Đã mở lại phiếu → không còn "Tiếp nhận phiếu", chỉ Lưu thay đổi / Xóa.
+            _btnLuu.Text = "💾 Lưu thay đổi";
+            _btnLuu.Visible = suaHeader;
+            _btnXoaPhieu.Visible = suaChiTiet;
+            _btnHuy.Text = "Đóng";
+
+            if (!daDong && !_choSuaChiTiet)
+            {
+                _lblQrStatus.Text =
+                    "Đã có Phiếu xử lý bất thường: chỉ sửa được thông tin chung.";
+                _lblQrStatus.Appearance.ForeColor = System.Drawing.Color.DarkOrange;
+            }
+            else if (daDong)
+            {
+                _lblQrStatus.Text = "Phiếu đã đóng - chỉ xem.";
+                _lblQrStatus.Appearance.ForeColor = System.Drawing.Color.DimGray;
+            }
+        }
+
+        private void XoaPhieu()
+        {
+            if (_mode != FormMode.Edit)
+                return;
+
+            var confirm = XtraMessageBox.Show(
+                $"Xóa phiếu {_editPhieu.SoPhieu}?\r\nThao tác này không thể hoàn tác.",
+                "Xác nhận xóa",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Warning);
+
+            if (confirm != DialogResult.Yes)
+                return;
+
+            try
+            {
+                _khachTraHangService.XoaPhieu(_phieuId, Environment.UserName);
+
+                DialogResult = DialogResult.OK;
+                Close();
+            }
+            catch (Exception ex)
+            {
+                XtraMessageBox.Show(
+                    "Không thể xóa phiếu.\r\n\r\n" + ex.Message,
+                    "Lỗi",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+            }
         }
 
         // ============================================================
@@ -1074,6 +1410,41 @@ namespace PCTP.Modules.XuLyHangLoi
             return phieu;
         }
 
+        private void LuuThayDoi(List<PhieuTraHangCT> items)
+        {
+            _editPhieu.NguonKhachTra = (NguonKhachTra)_cboNguonKhachTra.EditValue;
+            _editPhieu.SoPhieuKhach = _txtSoPhieuKhach.Text.Trim();
+            _editPhieu.NgayPhatHanh = _dtNgayPhatHanh.EditValue as DateTime?;
+            _editPhieu.SlipNo = _txtSlipNo.Text.Trim();
+            _editPhieu.Ca = _txtCa.Text.Trim();
+            _editPhieu.TenKhachHang = _txtTenKhachHang.Text.Trim();
+            _editPhieu.LyDo = _txtLyDo.Text.Trim();
+            _editPhieu.BoPhanPhatHienLoi = _txtBoPhanPhatHienLoi.Text.Trim();
+
+            if (_choSuaChiTiet)
+            {
+                foreach (var item in items)
+                    item.PhieuTraHangId = _phieuId;
+
+                _editPhieu.ChiTiet = items;
+            }
+            else
+            {
+                _editPhieu.ChiTiet = null; // chỉ cập nhật header
+            }
+
+            _khachTraHangService.CapNhatPhieu(_editPhieu, Environment.UserName);
+
+            XtraMessageBox.Show(
+                "Đã lưu thay đổi phiếu.",
+                "Thành công",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Information);
+
+            DialogResult = DialogResult.OK;
+            Close();
+        }
+
         // ============================================================
         // LƯU
         // ============================================================
@@ -1098,6 +1469,12 @@ namespace PCTP.Modules.XuLyHangLoi
 
                 if (!ValidateForm(items))
                     return;
+
+                if (_mode == FormMode.Edit)
+                {
+                    LuuThayDoi(items);
+                    return;
+                }
 
                 var phieu =
                     BuildPhieu(items);

@@ -1,4 +1,4 @@
-using PCTP.Modules.GiaoHangKhach;
+﻿using PCTP.Modules.GiaoHangKhach;
 using PCTP.Modules.XuLyHangLoi.Models;
 using PCTP.Shared.Common;
 using System;
@@ -37,6 +37,31 @@ ORDER BY Code;";
             }
 
             return list;
+        }
+
+        public string GetItemName(string itemCode)
+        {
+            if (string.IsNullOrWhiteSpace(itemCode))
+                return null;
+
+            const string sql = @"
+SELECT TOP (1) Name
+FROM B7R2_FCC.dbo.vB20Item
+WHERE Code = @ItemCode;";
+
+            DataTable dt = LoadData(
+                sql,
+                new System.Data.SqlClient.SqlParameter("@ItemCode", SqlDbType.NVarChar, 100)
+                {
+                    Value = itemCode.Trim()
+                });
+
+            if (dt.Rows.Count == 0)
+                return null;
+
+            return dt.Rows[0]["Name"] == DBNull.Value
+                ? string.Empty
+                : Convert.ToString(dt.Rows[0]["Name"]);
         }
 
         public List<ItemLookupItem> GetItemsInSlots()

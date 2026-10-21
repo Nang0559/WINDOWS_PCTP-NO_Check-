@@ -634,6 +634,7 @@
     <Compile Include="Modules\XuLyHangLoi\Repository\IPhieuGiaoRepository.cs" />
     <Compile Include="Modules\XuLyHangLoi\Repository\INoiBoLookupRepository.cs" />
     <Compile Include="Modules\XuLyHangLoi\Repository\NoiBoLookupRepository.cs" />
+    <Compile Include="Modules\XuLyHangLoi\Services\QrItemParser.cs" />
     <Compile Include="Modules\XuLyHangLoi\Models\NoiBoLookupModels.cs" />
     <Compile Include="Modules\XuLyHangLoi\Repository\IPhieuTraHangRepository.cs" />
     <Compile Include="Modules\XuLyHangLoi\Repository\IPhieuXuLyBatThuongRepository.cs" />

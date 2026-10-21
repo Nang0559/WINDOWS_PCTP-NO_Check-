@@ -286,6 +286,119 @@ namespace PCTP.Modules.XuLyHangLoi.Services
 
 
         // ============================================================
+        // MỞ LẠI PHIẾU: SỬA / XÓA
+        // ============================================================
+
+        public bool LaPhieuDaDong(PhieuTraHang phieu)
+        {
+            return phieu != null && phieu.Status == PhieuTraHangStatus.HoanTat;
+        }
+
+        public bool CoPhieuXuLy(int phieuTraHangId)
+        {
+            return phieuTraHangId > 0 && Repo.CoPhieuXuLy(phieuTraHangId);
+        }
+
+        public void CapNhatPhieu(PhieuTraHang phieu, string nguoiThucHien)
+        {
+            if (phieu == null)
+                throw new ArgumentNullException(nameof(phieu));
+
+            var current = GetById(phieu.Id);
+
+            if (current == null)
+                throw new InvalidOperationException(
+                    $"Không tìm thấy phiếu Id={phieu.Id}, Nguon={Nguon}.");
+
+            if (LaPhieuDaDong(current))
+                throw new InvalidOperationException(
+                    "Phiếu đã đóng (hoàn tất), không thể sửa.");
+
+            if (string.IsNullOrWhiteSpace(nguoiThucHien))
+                nguoiThucHien = Environment.UserName;
+
+            bool thayChiTiet =
+                phieu.ChiTiet != null && !Repo.CoPhieuXuLy(phieu.Id);
+
+            if (thayChiTiet && phieu.ChiTiet.Count == 0)
+                throw new ArgumentException(
+                    "Phiếu phải có ít nhất một dòng chi tiết.",
+                    nameof(phieu));
+
+            // Giữ nguyên các trường nghiệp vụ không nằm trên form.
+            phieu.Nguon = current.Nguon;
+            phieu.Status = current.Status;
+            phieu.SoPhieu = current.SoPhieu;
+            phieu.CreatedAt = current.CreatedAt;
+            phieu.CreatedBy = current.CreatedBy;
+            phieu.UpdatedBy = nguoiThucHien;
+
+            if (thayChiTiet)
+                phieu.TongSoLuongNhan = phieu.ChiTiet.Sum(x => x.SoLuong);
+            else
+                phieu.TongSoLuongNhan = current.TongSoLuongNhan;
+
+            try
+            {
+                Uow.Begin();
+
+                Repo.Update(phieu);
+
+                if (thayChiTiet)
+                {
+                    Repo.DeleteItems(phieu.Id);
+
+                    foreach (var ct in phieu.ChiTiet)
+                    {
+                        ct.Id = 0;
+                        ct.PhieuTraHangId = phieu.Id;
+                    }
+
+                    Repo.InsertItems(phieu.Id, phieu.ChiTiet);
+                }
+
+                Uow.Commit();
+            }
+            catch
+            {
+                SafeRollback();
+                throw;
+            }
+        }
+
+        public void XoaPhieu(int id, string nguoiThucHien)
+        {
+            var current = GetById(id);
+
+            if (current == null)
+                throw new InvalidOperationException(
+                    $"Không tìm thấy phiếu Id={id}, Nguon={Nguon}.");
+
+            if (LaPhieuDaDong(current))
+                throw new InvalidOperationException(
+                    "Phiếu đã đóng (hoàn tất), không thể xóa.");
+
+            if (Repo.CoPhieuXuLy(id))
+                throw new InvalidOperationException(
+                    "Phiếu đã phát sinh Phiếu xử lý bất thường, không thể xóa.");
+
+            try
+            {
+                Uow.Begin();
+
+                Repo.DeleteItems(id);
+                Repo.Delete(id);
+
+                Uow.Commit();
+            }
+            catch
+            {
+                SafeRollback();
+                throw;
+            }
+        }
+
+        // ============================================================
         // SAFE ROLLBACK
         // ============================================================
 

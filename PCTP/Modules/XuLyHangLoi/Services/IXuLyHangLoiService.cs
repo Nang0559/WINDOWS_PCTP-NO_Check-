@@ -51,5 +51,30 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             int id,
             PhieuTraHangStatus status,
             string nguoiThucHien);
+
+        /// <summary>
+        /// true nếu phiếu đã đóng (HoanTat) → form chỉ được xem.
+        /// </summary>
+        bool LaPhieuDaDong(PhieuTraHang phieu);
+
+        /// <summary>
+        /// true nếu đã có PhieuXuLyBatThuong sinh từ phiếu này
+        /// → chỉ được sửa header, không sửa/xóa dòng chi tiết và không xóa phiếu.
+        /// </summary>
+        bool CoPhieuXuLy(int phieuTraHangId);
+
+        /// <summary>
+        /// Lưu thay đổi phiếu đã tạo. Header luôn được cập nhật;
+        /// ChiTiet chỉ được thay thế khi phieu.ChiTiet != null
+        /// và phiếu chưa có PhieuXuLyBatThuong.
+        /// Ném lỗi nếu phiếu đã đóng.
+        /// </summary>
+        void CapNhatPhieu(PhieuTraHang phieu, string nguoiThucHien);
+
+        /// <summary>
+        /// Xóa phiếu (header + chi tiết). Ném lỗi nếu phiếu đã đóng
+        /// hoặc đã có PhieuXuLyBatThuong.
+        /// </summary>
+        void XoaPhieu(int id, string nguoiThucHien);
     }
 }

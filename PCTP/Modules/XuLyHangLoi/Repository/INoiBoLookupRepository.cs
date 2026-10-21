@@ -1,4 +1,4 @@
-using PCTP.Modules.XuLyHangLoi.Models;
+﻿using PCTP.Modules.XuLyHangLoi.Models;
 using System.Collections.Generic;
 
 namespace PCTP.Modules.XuLyHangLoi.Repository
@@ -11,5 +11,8 @@ namespace PCTP.Modules.XuLyHangLoi.Repository
 
         /// <summary>Mã hàng (kèm tên) đang có hàng trong Slot.</summary>
         List<ItemLookupItem> GetItemsInSlots();
+
+        /// <summary>Tên hàng theo mã (vB20Item). Null nếu mã không có trong danh mục.</summary>
+        string GetItemName(string itemCode);
     }
 }

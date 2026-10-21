@@ -32,6 +32,25 @@ namespace PCTP.Modules.XuLyHangLoi
         private List<SlotNguonLookupItem> _slotItems = new List<SlotNguonLookupItem>();
         private bool _updatingRow;
 
+        private enum FormMode { Create, Edit, ReadOnly }
+
+        private readonly FormMode _mode = FormMode.Create;
+        private readonly IPhieuTraHangRepository _phieuRepo;
+        private readonly int _phieuId;
+        private PhieuTraHang _editPhieu;
+
+        // Edit: đã có PhieuXuLyBatThuong → chỉ được sửa thông tin chung.
+        private bool _choSuaChiTiet = true;
+
+        // Số lượng gốc của dòng đã lưu (cho phép giữ nguyên dù tồn Slot đã đổi).
+        private readonly Dictionary<PhieuTraHangCT, int> _soLuongGoc =
+            new Dictionary<PhieuTraHangCT, int>();
+
+        private TextEdit _txtQr;
+        private LabelControl _lblQrStatus;
+        private LabelControl _lblQr;
+        private SimpleButton _btnXoaPhieu;
+
         // ============================================================
         // HEADER
         // ============================================================
@@ -73,6 +92,47 @@ namespace PCTP.Modules.XuLyHangLoi
 
             BuiUI();
             LoadLookups();
+            CapNhatSoPhieuTuSinh();
+            ApDungCheDo();
+        }
+
+        /// <summary>
+        /// Mở lại phiếu đã tạo: chưa đóng → Lưu thay đổi / Xóa;
+        /// đã đóng → chỉ xem.
+        /// </summary>
+        public FormTaoPhieuTraNoiBo(
+            ITraNoiBoService traNoiBoService,
+            INoiBoLookupRepository lookupRepo,
+            ISlotService slotService,
+            IPhieuTraHangRepository phieuRepo,
+            int phieuTraHangId)
+        {
+            _traNoiBoService = traNoiBoService
+                ?? throw new ArgumentNullException(nameof(traNoiBoService));
+
+            _lookupRepo = lookupRepo
+                ?? throw new ArgumentNullException(nameof(lookupRepo));
+
+            _slotService = slotService
+                ?? throw new ArgumentNullException(nameof(slotService));
+
+            _phieuRepo = phieuRepo
+                ?? throw new ArgumentNullException(nameof(phieuRepo));
+
+            _phieuId = phieuTraHangId;
+
+            _editPhieu = _traNoiBoService.GetById(phieuTraHangId)
+                ?? throw new InvalidOperationException(
+                    $"Không tìm thấy phiếu trả nội bộ Id={phieuTraHangId}.");
+
+            _mode = _traNoiBoService.LaPhieuDaDong(_editPhieu)
+                ? FormMode.ReadOnly
+                : FormMode.Edit;
+
+            BuiUI();
+            LoadLookups();
+            NapPhieuDaTao();
+            ApDungCheDo();
         }
 
         // ============================================================
@@ -204,18 +264,14 @@ namespace PCTP.Modules.XuLyHangLoi
             {
                 Dock = DockStyle.Fill,
                 ColumnCount = 1,
-                RowCount = 3,
+                RowCount = 4,
                 Padding = new Padding(8)
             };
 
-            main.RowStyles.Add(
-                new RowStyle(SizeType.Absolute, 150));
-
-            main.RowStyles.Add(
-                new RowStyle(SizeType.Percent, 100));
-
-            main.RowStyles.Add(
-                new RowStyle(SizeType.Absolute, 45));
+            main.RowStyles.Add(new RowStyle(SizeType.Absolute, 150)); // header
+            main.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));  // QR
+            main.RowStyles.Add(new RowStyle(SizeType.Percent, 100));  // grid
+            main.RowStyles.Add(new RowStyle(SizeType.Absolute, 45));  // buttons
 
             // ========================================================
             // HEADER
@@ -244,25 +300,36 @@ namespace PCTP.Modules.XuLyHangLoi
                     new RowStyle(SizeType.Percent, 33.33f));
             }
 
+            // Ô nhập căn giữa theo chiều dọc ô (Anchor trái-phải, không Dock Fill)
+            // để thẳng hàng với nhãn.
             _txtSoPhieu = new TextEdit
             {
-                Dock = DockStyle.Fill
+                Anchor = AnchorStyles.Left | AnchorStyles.Right,
+                Margin = new Padding(3, 3, 8, 3)
             };
+            _txtSoPhieu.Properties.ReadOnly = true;
+            _txtSoPhieu.Properties.NullValuePrompt =
+                "Tự sinh khi chọn Phòng ban + BP phát hiện lỗi";
 
             _lookPhongBan = TaoDeptLookup();
-
             _lookBoPhanPhatHienLoi = TaoDeptLookup();
+
+            _lookPhongBan.EditValueChanged += (s, e) => CapNhatSoPhieuTuSinh();
+            _lookBoPhanPhatHienLoi.EditValueChanged += (s, e) => CapNhatSoPhieuTuSinh();
 
             _txtLyDo = new TextEdit
             {
-                Dock = DockStyle.Fill
+                Anchor = AnchorStyles.Left | AnchorStyles.Right,
+                Margin = new Padding(3, 3, 8, 3)
             };
 
             _txtNguoiTao = new TextEdit
             {
-                Dock = DockStyle.Fill,
+                Anchor = AnchorStyles.Left | AnchorStyles.Right,
+                Margin = new Padding(3, 3, 8, 3),
                 Text = Environment.UserName
             };
+            _txtNguoiTao.Properties.ReadOnly = true;
 
             AddLabel(header, "Số phiếu", 0, 0);
             header.Controls.Add(_txtSoPhieu, 1, 0);
@@ -281,6 +348,54 @@ namespace PCTP.Modules.XuLyHangLoi
             header.SetColumnSpan(_txtLyDo, 3);
 
             main.Controls.Add(header, 0, 0);
+
+            // ========================================================
+            // QR: quét tem để thêm dòng nhanh
+            // ========================================================
+
+            var qrPanel = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 3,
+                RowCount = 1
+            };
+
+            qrPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 140));
+            qrPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+            qrPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+
+            _lblQr = new LabelControl
+            {
+                Text = "Quét QR thêm dòng",
+                Dock = DockStyle.Fill,
+                AutoSizeMode = LabelAutoSizeMode.None
+            };
+            _lblQr.Appearance.TextOptions.VAlignment =
+                DevExpress.Utils.VertAlignment.Center;
+            _lblQr.Padding = new Padding(5, 0, 0, 0);
+
+            _txtQr = new TextEdit
+            {
+                Anchor = AnchorStyles.Left | AnchorStyles.Right,
+                Margin = new Padding(3, 3, 8, 3)
+            };
+            _txtQr.Properties.NullValuePrompt =
+                "Quét tem QR (Lot:Mã hàng:Ngày:SL:...) rồi Enter";
+            _txtQr.KeyDown += TxtQr_KeyDown;
+
+            _lblQrStatus = new LabelControl
+            {
+                Dock = DockStyle.Fill,
+                AutoSizeMode = LabelAutoSizeMode.None
+            };
+            _lblQrStatus.Appearance.TextOptions.VAlignment =
+                DevExpress.Utils.VertAlignment.Center;
+
+            qrPanel.Controls.Add(_lblQr, 0, 0);
+            qrPanel.Controls.Add(_txtQr, 1, 0);
+            qrPanel.Controls.Add(_lblQrStatus, 2, 0);
+
+            main.Controls.Add(qrPanel, 0, 1);
 
             // ========================================================
             // GRID CHI TIET
@@ -306,7 +421,7 @@ namespace PCTP.Modules.XuLyHangLoi
             _gridView.ShownEditor += GridView_ShownEditor;
             _gridView.CellValueChanged += GridView_CellValueChanged;
 
-            main.Controls.Add(_grid, 0, 1);
+            main.Controls.Add(_grid, 0, 2);
 
             // ========================================================
             // BUTTON
@@ -330,6 +445,12 @@ namespace PCTP.Modules.XuLyHangLoi
                 Width = 130
             };
 
+            _btnXoaPhieu = new SimpleButton
+            {
+                Text = "❌ Xóa phiếu",
+                Width = 110
+            };
+
             _btnXoa = new SimpleButton
             {
                 Text = "🗑 Xóa dòng",
@@ -350,16 +471,19 @@ namespace PCTP.Modules.XuLyHangLoi
 
             _btnLuu.Click += (s, e) => LuuPhieu();
 
+            _btnXoaPhieu.Click += (s, e) => XoaPhieu();
+
             _btnThem.Click += (s, e) => ThemDong();
 
             _btnXoa.Click += (s, e) => XoaDong();
 
             buttons.Controls.Add(_btnHuy);
             buttons.Controls.Add(_btnLuu);
+            buttons.Controls.Add(_btnXoaPhieu);
             buttons.Controls.Add(_btnXoa);
             buttons.Controls.Add(_btnThem);
 
-            main.Controls.Add(buttons, 0, 2);
+            main.Controls.Add(buttons, 0, 3);
 
             Controls.Add(main);
         }
@@ -375,8 +499,12 @@ namespace PCTP.Modules.XuLyHangLoi
                 Text = text,
                 Dock = DockStyle.Fill,
                 AutoSizeMode = LabelAutoSizeMode.None,
-                Padding = new Padding(5, 8, 0, 0)
+                Padding = new Padding(5, 0, 0, 0)
             };
+
+            // Căn giữa theo chiều dọc để thẳng hàng với ô nhập.
+            label.Appearance.TextOptions.VAlignment =
+                DevExpress.Utils.VertAlignment.Center;
 
             panel.Controls.Add(label, column, row);
         }
@@ -555,7 +683,7 @@ namespace PCTP.Modules.XuLyHangLoi
                 && _gridView.ActiveEditor is SpinEdit spin)
             {
                 var slot = TimSlotItem(row.SlotLotIdNguon);
-                spin.Properties.MaxValue = slot != null ? slot.Quantity : int.MaxValue;
+                spin.Properties.MaxValue = slot != null ? GetMaxQty(row, slot) : int.MaxValue;
             }
         }
 
@@ -723,6 +851,10 @@ namespace PCTP.Modules.XuLyHangLoi
                 return false;
             }
 
+            // Phiếu đã có phiếu xử lý: chỉ sửa thông tin chung, không kiểm dòng.
+            if (!_choSuaChiTiet)
+                return true;
+
             if (items == null || items.Count == 0)
             {
                 XtraMessageBox.Show(
@@ -784,10 +916,10 @@ namespace PCTP.Modules.XuLyHangLoi
 
                 var slot = TimSlotItem(item.SlotLotIdNguon);
 
-                if (slot != null && item.SoLuong > slot.Quantity)
+                if (slot != null && item.SoLuong > GetMaxQty(item, slot))
                 {
                     XtraMessageBox.Show(
-                        $"Dòng {i + 1}: Số lượng ({item.SoLuong}) vượt quá tồn trong Slot ({slot.Quantity}).",
+                        $"Dòng {i + 1}: Số lượng ({item.SoLuong}) vượt quá tồn trong Slot ({GetMaxQty(item, slot)}).",
                         "Dữ liệu không hợp lệ",
                         MessageBoxButtons.OK,
                         MessageBoxIcon.Warning);
@@ -811,6 +943,294 @@ namespace PCTP.Modules.XuLyHangLoi
         }
 
         // ============================================================
+        // SỐ PHIẾU TỰ SINH: Code(Phòng ban)-Code(BP phát hiện lỗi)-ddMMyy
+        // ============================================================
+
+        private void CapNhatSoPhieuTuSinh()
+        {
+            // Chỉ sinh khi tạo mới; phiếu đã lưu giữ nguyên số phiếu.
+            if (_mode != FormMode.Create)
+                return;
+
+            string pb = _lookPhongBan.EditValue as string;
+            string bp = _lookBoPhanPhatHienLoi.EditValue as string;
+
+            _txtSoPhieu.Text =
+                string.IsNullOrWhiteSpace(pb) || string.IsNullOrWhiteSpace(bp)
+                    ? string.Empty
+                    : $"{pb.Trim()}-{bp.Trim()}-{DateTime.Now:ddMMyy}";
+        }
+
+        // ============================================================
+        // MỞ LẠI PHIẾU ĐÃ TẠO
+        // ============================================================
+
+        private void NapPhieuDaTao()
+        {
+            _txtSoPhieu.Text = _editPhieu.SoPhieu;
+            _txtLyDo.Text = _editPhieu.LyDo;
+            _txtNguoiTao.Text = _editPhieu.CreatedBy;
+
+            _lookPhongBan.EditValue = TimMaBoPhan(_editPhieu.PhongBan);
+            _lookBoPhanPhatHienLoi.EditValue = TimMaBoPhan(_editPhieu.BoPhanPhatHienLoi);
+
+            var items = _phieuRepo.GetItems(_phieuId) ?? new List<PhieuTraHangCT>();
+
+            foreach (var it in items)
+            {
+                var slot = _slotItems.FirstOrDefault(x =>
+                    it.SlotIdNguon.HasValue
+                    && x.SlotId == it.SlotIdNguon.Value
+                    && string.Equals(x.LotNo?.Trim(), it.LotNo?.Trim(), StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(x.ItemCode?.Trim(), it.MaHang?.Trim(), StringComparison.OrdinalIgnoreCase));
+
+                if (slot == null)
+                {
+                    // Slot/LOT không còn tồn: giữ lại dòng bằng mục tổng hợp để vẫn hiển thị.
+                    slot = new SlotNguonLookupItem
+                    {
+                        SlotLotId = -(_slotItems.Count + 1),
+                        SlotId = it.SlotIdNguon ?? 0,
+                        ViTri = $"Slot #{it.SlotIdNguon} (không còn tồn)",
+                        ItemCode = it.MaHang,
+                        TenHang = it.TenHang,
+                        LotNo = it.LotNo,
+                        Quantity = it.SoLuong
+                    };
+
+                    _slotItems.Add(slot);
+                }
+
+                it.SlotLotIdNguon = slot.SlotLotId;
+                _soLuongGoc[it] = it.SoLuong;
+            }
+
+            _repoSlot.DataSource = _slotItems;
+            _repoSlot.PopulateViewColumns();
+            CauHinhCotSlotLookup();
+
+            // Mã hàng của dòng cũ có thể không còn trong Slot → bổ sung để hiển thị.
+            foreach (var it in items)
+            {
+                if (!string.IsNullOrWhiteSpace(it.MaHang)
+                    && !_items.Any(x => string.Equals(x.ItemCode, it.MaHang, StringComparison.OrdinalIgnoreCase)))
+                {
+                    _items.Add(new ItemLookupItem { ItemCode = it.MaHang, ItemName = it.TenHang });
+                }
+            }
+
+            _repoMaHang.DataSource = _items;
+            _repoMaHang.PopulateViewColumns();
+            CauHinhCotMaHangLookup();
+
+            _grid.DataSource = items;
+
+            _choSuaChiTiet = !_traNoiBoService.CoPhieuXuLy(_phieuId);
+        }
+
+        private string TimMaBoPhan(string stored)
+        {
+            if (string.IsNullOrWhiteSpace(stored))
+                return null;
+
+            stored = stored.Trim();
+
+            var dept = _depts.FirstOrDefault(d =>
+                string.Equals(d.Name?.Trim(), stored, StringComparison.OrdinalIgnoreCase))
+                ?? _depts.FirstOrDefault(d =>
+                string.Equals(d.Code?.Trim(), stored, StringComparison.OrdinalIgnoreCase));
+
+            if (dept == null)
+            {
+                // Bộ phận đã ngừng dùng / không có trong B20Dept: thêm mục để hiển thị.
+                dept = new DeptLookupItem { Code = stored, Name = stored };
+                _depts.Add(dept);
+
+                _lookPhongBan.Properties.DataSource = _depts;
+                _lookBoPhanPhatHienLoi.Properties.DataSource = _depts;
+            }
+
+            return dept.Code;
+        }
+
+        private int GetMaxQty(PhieuTraHangCT row, SlotNguonLookupItem slot)
+        {
+            int goc;
+            return _soLuongGoc.TryGetValue(row, out goc)
+                ? Math.Max(slot.Quantity, goc)
+                : slot.Quantity;
+        }
+
+        // ============================================================
+        // CHẾ ĐỘ: Tạo / Sửa / Chỉ xem
+        // ============================================================
+
+        private void ApDungCheDo()
+        {
+            if (_mode == FormMode.Create)
+            {
+                _grid.DataSource = new List<PhieuTraHangCT>();
+                return;
+            }
+
+            bool daDong = _mode == FormMode.ReadOnly;
+            bool suaHeader = !daDong;
+            bool suaChiTiet = !daDong && _choSuaChiTiet;
+
+            Text = daDong
+                ? $"Phiếu trả nội bộ {_editPhieu.SoPhieu} (đã đóng - chỉ xem)"
+                : $"Phiếu trả nội bộ {_editPhieu.SoPhieu}";
+
+            _lookPhongBan.Properties.ReadOnly = !suaHeader;
+            _lookBoPhanPhatHienLoi.Properties.ReadOnly = !suaHeader;
+            _txtLyDo.Properties.ReadOnly = !suaHeader;
+
+            _gridView.OptionsBehavior.Editable = suaChiTiet;
+
+            _txtQr.Enabled = suaChiTiet;
+            _btnThem.Visible = suaChiTiet;
+            _btnXoa.Visible = suaChiTiet;
+
+            // Đã mở lại phiếu → không còn chức năng "Tạo phiếu".
+            _btnLuu.Text = "💾 Lưu thay đổi";
+            _btnLuu.Visible = suaHeader;
+            _btnXoaPhieu.Visible = suaChiTiet; // xóa phiếu chỉ khi chưa có phiếu xử lý
+            _btnHuy.Text = "Đóng";
+
+            if (!daDong && !_choSuaChiTiet)
+            {
+                _lblQrStatus.Text =
+                    "Đã có Phiếu xử lý bất thường: chỉ sửa được thông tin chung.";
+                _lblQrStatus.Appearance.ForeColor = System.Drawing.Color.DarkOrange;
+            }
+            else if (daDong)
+            {
+                _lblQrStatus.Text = "Phiếu đã đóng - chỉ xem.";
+                _lblQrStatus.Appearance.ForeColor = System.Drawing.Color.DimGray;
+            }
+        }
+
+        // ============================================================
+        // QUÉT QR → THÊM DÒNG NHANH
+        // ============================================================
+
+        private void TxtQr_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode != Keys.Enter)
+                return;
+
+            e.Handled = true;
+            e.SuppressKeyPress = true;
+
+            string raw = _txtQr.Text;
+            _txtQr.Text = string.Empty;
+
+            XuLyQr(raw);
+
+            _txtQr.Focus();
+        }
+
+        private void BaoQr(string text, bool ok)
+        {
+            _lblQrStatus.Text = text;
+            _lblQrStatus.Appearance.ForeColor =
+                ok ? System.Drawing.Color.ForestGreen : System.Drawing.Color.Firebrick;
+        }
+
+        private void XuLyQr(string raw)
+        {
+            if (string.IsNullOrWhiteSpace(raw))
+                return;
+
+            QrItemInfo info;
+            string error;
+
+            if (!QrItemParser.TryParse(raw, out info, out error))
+            {
+                BaoQr(error, false);
+                return;
+            }
+
+            // Item phải khớp với Slot đang chứa hàng (lookup của grid).
+            var matches = QrItemParser.TimSlotKhop(_slotItems.Where(x => x.SlotLotId > 0), info);
+
+            if (matches.Count == 0)
+            {
+                BaoQr($"Không có Slot nào đang chứa {info.ItemCode} / Lot {info.Lot}.", false);
+                return;
+            }
+
+            var data = _grid.DataSource as List<PhieuTraHangCT>;
+
+            if (data == null)
+            {
+                data = new List<PhieuTraHangCT>();
+                _grid.DataSource = data;
+            }
+
+            var slot = matches.FirstOrDefault(m =>
+                !data.Any(d => d.SlotLotIdNguon == m.SlotLotId));
+
+            if (slot == null)
+            {
+                BaoQr($"Slot/LOT của {info.ItemCode} đã có trong phiếu.", false);
+                return;
+            }
+
+            data.Add(new PhieuTraHangCT
+            {
+                SlotLotIdNguon = slot.SlotLotId,
+                SlotIdNguon = slot.SlotId,
+                MaHang = slot.ItemCode,
+                TenHang = slot.TenHang,
+                LotNo = slot.LotNo,
+                SoLuong = Math.Min(info.Quantity, slot.Quantity),
+                LyDoNg = string.Empty
+            });
+
+            _grid.RefreshDataSource();
+
+            BaoQr(
+                $"Đã thêm {slot.ItemCode} / Lot {slot.LotNo} / SL {Math.Min(info.Quantity, slot.Quantity)} ({slot.ViTri}).",
+                true);
+        }
+
+        // ============================================================
+        // XÓA PHIẾU
+        // ============================================================
+
+        private void XoaPhieu()
+        {
+            if (_mode != FormMode.Edit)
+                return;
+
+            var confirm = XtraMessageBox.Show(
+                $"Xóa phiếu {_editPhieu.SoPhieu}?\r\nThao tác này không thể hoàn tác.",
+                "Xác nhận xóa",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Warning);
+
+            if (confirm != DialogResult.Yes)
+                return;
+
+            try
+            {
+                _traNoiBoService.XoaPhieu(_phieuId, Environment.UserName);
+
+                DialogResult = DialogResult.OK;
+                Close();
+            }
+            catch (Exception ex)
+            {
+                XtraMessageBox.Show(
+                    $"Không thể xóa phiếu.\r\n\r\n{ex.Message}",
+                    "Lỗi",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+            }
+        }
+
+        // ============================================================
         // LƯU
         // ============================================================
 
@@ -827,30 +1247,26 @@ namespace PCTP.Modules.XuLyHangLoi
                 if (!ValidateForm(items))
                     return;
 
-                string soPhieu = _txtSoPhieu.Text.Trim();
-
-                if (string.IsNullOrWhiteSpace(soPhieu))
+                if (_mode == FormMode.Edit)
                 {
-                    soPhieu =
-                        $"TNBI-{DateTime.Now:yyyyMMddHHmmss}";
+                    LuuThayDoi(items);
+                    return;
                 }
+
+                string soPhieu = _txtSoPhieu.Text.Trim();
 
                 string nguoiTao = _txtNguoiTao.Text.Trim();
 
                 if (string.IsNullOrWhiteSpace(nguoiTao))
                     nguoiTao = Environment.UserName;
 
-                // ========================================================
-                // HEADER
-                // ========================================================
-
                 var phieu = new PhieuTraHang
                 {
                     Nguon = NguonXuLyBatThuong.TraNoiBo,
 
+                    // Tự sinh: Code(PB)-Code(BP)-ddMMyy (service tự thêm hậu tố nếu trùng).
                     SoPhieu = soPhieu,
 
-                    // TraNoiBo không dùng:
                     NguonKhachTra = null,
                     SoPhieuKhach = null,
                     NgayPhatHanh = null,
@@ -858,7 +1274,6 @@ namespace PCTP.Modules.XuLyHangLoi
                     Ca = null,
                     TenKhachHang = null,
 
-                    // Dùng cho nội bộ
                     PhongBan = GetDeptName(_lookPhongBan, _depts),
 
                     LyDo = _txtLyDo.Text.Trim(),
@@ -872,10 +1287,8 @@ namespace PCTP.Modules.XuLyHangLoi
 
                     NgayNhanKho = null,
 
-                    TongSoLuongNhan =
-                        items.Sum(x => x.SoLuong),
+                    TongSoLuongNhan = items.Sum(x => x.SoLuong),
 
-                    // Service sẽ xử lý state ban đầu.
                     Status = PhieuTraHangStatus.Moi,
 
                     BoPhanNhanLai = null,
@@ -894,30 +1307,18 @@ namespace PCTP.Modules.XuLyHangLoi
                     ChiTiet = items
                 };
 
-                // ========================================================
-                // DETAIL
-                // ========================================================
-
                 foreach (var item in phieu.ChiTiet)
                 {
                     item.Id = 0;
                     item.PhieuTraHangId = 0;
 
-                    // TraNoiBo dùng Slot nguồn.
-                    // Các thông tin đối chiếu phiếu giao
-                    // ban đầu chưa có.
                     item.DinhDanhPhieuGiao = null;
                     item.PoNo = null;
                     item.NgayGiao = null;
                     item.NhaMay = null;
                 }
 
-                // ========================================================
-                // SERVICE
-                // ========================================================
-
-                int id =
-                    _traNoiBoService.TaoPhieuTraNoiBo(phieu);
+                int id = _traNoiBoService.TaoPhieuTraNoiBo(phieu);
 
                 XtraMessageBox.Show(
                     $"Đã tạo phiếu trả nội bộ thành công.\r\n\r\n" +
@@ -935,11 +1336,43 @@ namespace PCTP.Modules.XuLyHangLoi
             catch (Exception ex)
             {
                 XtraMessageBox.Show(
-                    $"Không thể tạo phiếu trả nội bộ.\r\n\r\n{ex.Message}",
+                    $"Không thể lưu phiếu trả nội bộ.\r\n\r\n{ex.Message}",
                     "Lỗi",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Error);
             }
+        }
+
+        private void LuuThayDoi(List<PhieuTraHangCT> items)
+        {
+            _editPhieu.PhongBan = GetDeptName(_lookPhongBan, _depts);
+            _editPhieu.BoPhanPhatHienLoi = GetDeptName(_lookBoPhanPhatHienLoi, _depts);
+            _editPhieu.LyDo = _txtLyDo.Text.Trim();
+
+            if (_choSuaChiTiet)
+            {
+                foreach (var item in items)
+                {
+                    item.PhieuTraHangId = _phieuId;
+                }
+
+                _editPhieu.ChiTiet = items;
+            }
+            else
+            {
+                _editPhieu.ChiTiet = null; // chỉ cập nhật header
+            }
+
+            _traNoiBoService.CapNhatPhieu(_editPhieu, Environment.UserName);
+
+            XtraMessageBox.Show(
+                "Đã lưu thay đổi phiếu.",
+                "Thành công",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Information);
+
+            DialogResult = DialogResult.OK;
+            Close();
         }
     }
 }
