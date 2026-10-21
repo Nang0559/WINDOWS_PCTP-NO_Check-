@@ -15,6 +15,9 @@ namespace PCTP.Modules.NhapKho.Repository
         List<PhieuNhapInfo> GetPhieuDangSanXuat(
             int soNgayGanDay = 30);
 
+        /// <summary>Phiếu CHỜ NHẬP: chưa kết thúc LOT và SL đã nhập < SL sản xuất (cùng điều kiện với dashboard).</summary>
+        List<PhieuNhapInfo> GetPhieuChoNhap();
+
         // ── Tìm phiếu từ QR ─────────────────────────────────────
 
         PhieuNhapInfo TimPhieuTheoLotQR(

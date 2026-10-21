@@ -4,6 +4,7 @@ using DevExpress.XtraGrid.Views.Grid;
 using PCTP.ClassSQL;
 using PCTP.Modules.KhoVatLy;
 using PCTP.Modules.NhapKho.Interfaces;
+using PCTP.Shared.Models;
 using PCTP.UserControls;
 
 using System;
@@ -29,6 +30,9 @@ namespace PCTP.Modules.NhapKho
         private SimpleButton _btnAction;
         private SimpleButton _btnScanAction; // Nút mở màn hình quét nhập riêng biệt
 
+        // ★ Danh sách chờ nhập: nạp 1 LẦN ở đây, truyền nguyên instance sang FormEnterItemSV.
+        private readonly ReceivingWorklist _worklist;
+
         public FormNhapKhoTienTrinh(MainStockSV mainStockForm, IWarehouseDashboardService dashboardService)
         {
             _mainStockForm = mainStockForm
@@ -36,6 +40,10 @@ namespace PCTP.Modules.NhapKho
 
             _dashboardService = dashboardService
        ?? throw new ArgumentNullException(nameof(dashboardService));
+
+            // Service nhập TP dùng riêng để nạp worklist (cùng điều kiện lọc với badge/grid bước 1).
+            var nhapTpService = NhapTpModuleFactory.Build().NhapTpService;
+            _worklist = new ReceivingWorklist(() => nhapTpService.GetPhieuChoNhap());
 
             BuildUI();
             RefreshBadges();
@@ -103,7 +111,7 @@ namespace PCTP.Modules.NhapKho
             _btnAction.Location = new Point(toolbarPanel.Width - 125, 6);
             _btnAction.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             _btnAction.Appearance.Font = new Font("Tahoma", 9F);
-            _btnAction.Click += (s, e) => RefreshDataByActiveStep();
+            _btnAction.Click += (s, e) => RefreshDataByActiveStep(true);
 
             _btnScanAction = new SimpleButton { Text = "📷 Quét nhập", Width = 160, Height = 33 };
             _btnScanAction.Location = new Point(toolbarPanel.Width - 295, 6);
@@ -144,12 +152,16 @@ namespace PCTP.Modules.NhapKho
             RefreshDataByActiveStep();
         }
 
-        private void RefreshDataByActiveStep()
+        private void RefreshDataByActiveStep(bool forceReload = false)
         {
             switch (_activeStep)
             {
                 case 1:
-                    _grid.DataSource = _dashboardService.GetGridChoNhap();
+                    // Làm mới = nạp lại worklist (grid bind sẵn nên tự cập nhật).
+                    // Chỉ nạp khi chưa có dữ liệu hoặc người dùng chủ động bấm Làm mới.
+                    if (forceReload || _worklist.Items.Count == 0)
+                        _worklist.Reload();
+                    _grid.DataSource = _worklist.Items;
                     _btnAction.Text = "🔄 Làm mới (Chờ)";
                     break;
 
@@ -165,16 +177,46 @@ namespace PCTP.Modules.NhapKho
             }
 
             _gridView.PopulateColumns();
+            if (_activeStep == 1) ConfigureWorklistColumns();
             _gridView.BestFitColumns();
+        }
+
+        /// <summary>Grid bước 1 bind PhieuNhapInfo (không còn là DataTable) → đặt lại tiêu đề, ẩn cột kỹ thuật.</summary>
+        private void ConfigureWorklistColumns()
+        {
+            void Cap(string field, string caption, int idx)
+            {
+                var c = _gridView.Columns[field];
+                if (c == null) return;
+                c.Caption = caption;
+                c.VisibleIndex = idx;
+            }
+
+            foreach (DevExpress.XtraGrid.Columns.GridColumn c in _gridView.Columns)
+                c.Visible = false;
+
+            Cap(nameof(PhieuNhapInfo.Find), "FIND", 0);
+            Cap(nameof(PhieuNhapInfo.LotNo), "LOT", 1);
+            Cap(nameof(PhieuNhapInfo.Model), "Model", 2);
+            Cap(nameof(PhieuNhapInfo.TenSP), "Tên sản phẩm", 3);
+            Cap(nameof(PhieuNhapInfo.MaSP), "Mã SP", 4);
+            Cap(nameof(PhieuNhapInfo.CaSX), "Ca SX", 5);
+            Cap(nameof(PhieuNhapInfo.NgaySX), "Ngày SX", 6);
+            Cap(nameof(PhieuNhapInfo.SlSanXuat), "SL sản xuất", 7);
+            Cap(nameof(PhieuNhapInfo.SlDaNhap), "SL đã nhập", 8);
+            Cap(nameof(PhieuNhapInfo.SlConThieu), "SL còn thiếu", 9);
         }
 
         private void MoFormScanNhap()
         {
-            using (var f = new FormEnterItemSV(_mainStockForm))
+            // Truyền CHÍNH worklist đang hiển thị: form quét chỉ cho nhập các dòng có trong grid này
+            // và cập nhật SL ngay trên grid này — không nạp lại dữ liệu lần 2.
+            using (var f = new FormEnterItemSV(_mainStockForm, _worklist))
                 f.ShowDialog(this);
 
             RefreshBadges();
-            RefreshDataByActiveStep(); // Cập nhật lại dữ liệu grid sau khi quét xong
+            // Quét xong: nạp lại từ DB để dòng đã nhập đủ biến mất khỏi danh sách chờ.
+            RefreshDataByActiveStep(true);
         }
     }
 }

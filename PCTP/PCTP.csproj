@@ -949,6 +949,7 @@
     <Compile Include="Shared\Models\StockTraHangInfo.cs" />
     <Compile Include="Modules\KhoCore\Models\Warehouse.cs" />
     <Compile Include="Modules\NhapKho\INhapKhoDashboardRepository.cs" />
+    <Compile Include="Modules\NhapKho\ReceivingWorklist.cs" />
     <Compile Include="Infrastructure\Repositories\IPhieuTrackingRepository.cs" />
     <Compile Include="Modules\NhapKho\NhapKhoDashboardRepository.cs" />
     <Compile Include="Modules\NhapKho\Services\NhapTpReceivingService.cs" />

@@ -163,6 +163,33 @@ ORDER BY
 
 
         // ============================================================
+        // PHIẾU CHỜ NHẬP (nguồn chung cho FormNhapKhoTienTrinh + FormEnterItemSV)
+        // Điều kiện lọc PHẢI giống NhapKhoDashboardRepository.DemPhieuChoNhap /
+        // GetGridChoNhap để số trên badge = số dòng trên grid.
+        // ============================================================
+
+        public List<PhieuNhapInfo> GetPhieuChoNhap()
+        {
+            const string sql = @"
+SELECT
+    STT, FIND, LOT_NO, MODEL, TEN_SAN_PHAM, MA_SAN_PHAM, CA_SAN_XUAT,
+    NGAY_SAN_XUAT, SL_DA_SAN_XUAT, SL_DA_NHAP, SL_DA_TRA, LY_DO_TRA,
+    TON_KHO_TP, KET_THUC_LOT
+FROM vNhapTP
+WHERE ISNULL(KET_THUC_LOT,0) = 0
+  AND ISNULL(SL_DA_NHAP,0) < ISNULL(SL_DA_SAN_XUAT,0)
+ORDER BY NGAY_SAN_XUAT DESC, STT DESC;";
+
+            DataTable dt = LoadData(sql);
+
+            if (dt == null || dt.Rows.Count == 0)
+                return new List<PhieuNhapInfo>();
+
+            return dt.Rows.Cast<DataRow>().Select(MapPhieu).ToList();
+        }
+
+
+        // ============================================================
         // TÌM PHIẾU TỪ QR
         // ============================================================
 

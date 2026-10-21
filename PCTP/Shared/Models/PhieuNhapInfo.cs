@@ -21,5 +21,8 @@ namespace PCTP.Shared.Models
         public int TonKhoTP { get; set; }   // TON_KHO_TP
         public int SlSeNhap { get; set; }   // SL_SE_NHAP (user nhập)
         public bool KetThucLot { get; set; }  // KET_THUC_LOT
+
+        /// <summary>SL còn thiếu = SX - đã nhập (chỉ để hiển thị trên grid).</summary>
+        public int SlConThieu => SlSanXuat - SlDaNhap;
     }
 }

@@ -7,6 +7,7 @@ using PCTP.Domain.Events;
 using PCTP.Infrastructure;
 using PCTP.Modules.KhoCore.Interfaces;
 using PCTP.Modules.KhoVatLy.Application.Interfaces;
+using PCTP.Modules.NhapKho;
 using PCTP.Modules.NhapKho.Services;
 using PCTP.Shared.Helpers;
 using PCTP.Shared.Models;
@@ -71,14 +72,24 @@ namespace PCTP.Modules.KhoVatLy
         // Thêm fields trong class FormEnterItemSV
         private GridControl _gridPhieu;
         private GridView _gridViewPhieu;
-        private BindingList<PhieuNhapInfo> _dsPhieu;
-        private HashSet<string> _sessionTouchedFinds = new HashSet<string>(); // Find đã bắn trong phiên này
-                                                                              // Thêm field lblBulkStatus (đã đề cập ở câu trả lời trước)
+        // ★ Nguồn dữ liệu DUY NHẤT của grid — dùng chung với FormNhapKhoTienTrinh (không tự query lại).
+        private readonly ReceivingWorklist _worklist;
+        private readonly bool _ownsWorklist;
+        // LOT đã được người dùng xác nhận "mở lại" nhưng CHƯA lưu — chỉ áp dụng ngay trước khi lưu.
+        private PhieuNhapInfo _pendingReopen;
         private LabelControl lblBulkStatus;
-        private Dictionary<string, PhieuNhapInfo> _dsPhieuIndex;
-        public FormEnterItemSV(MainStockSV mainStockForm)
+
+        /// <summary>Mở độc lập (từ MainStockSV): tự tạo + nạp worklist riêng.</summary>
+        public FormEnterItemSV(MainStockSV mainStockForm) : this(mainStockForm, null) { }
+
+        /// <summary>
+        /// Mở từ FormNhapKhoTienTrinh: nhận worklist ĐÃ NẠP của form cha, không nạp lại.
+        /// </summary>
+        public FormEnterItemSV(MainStockSV mainStockForm, ReceivingWorklist worklist)
         {
             InitializeComponent();
+            _ownsWorklist = worklist == null;
+            _worklist = worklist;
           
             _mainStockForm = mainStockForm;
 
@@ -88,6 +99,8 @@ namespace PCTP.Modules.KhoVatLy
             _slotService = module.SlotService;
             _warehouseService = module.WarehouseService;
             _inspectionService = module.InspectionService;
+            if (_worklist == null)
+                _worklist = new ReceivingWorklist(() => _nhapTpService.GetPhieuChoNhap());
             InitializeForm();
             AppEventBus.Instance.Subscribe<LotStatusResetEvent>(OnLotStatusReset);
         }
@@ -171,25 +184,21 @@ namespace PCTP.Modules.KhoVatLy
         private void OnLotStatusReset(LotStatusResetEvent e)
         {
             if (string.IsNullOrEmpty(e.Lot)) return;
-            if (_dsPhieuIndex == null) return;
+
+            // Sự kiện có thể bắn từ thread khác — grid chỉ được đụng ở UI thread.
+            if (InvokeRequired) { BeginInvoke(new Action(() => OnLotStatusReset(e))); return; }
 
             PhieuNhapInfo target = null;
             if (!string.IsNullOrEmpty(e.Find))
-                _dsPhieuIndex.TryGetValue(e.Find, out target);
-
+                _worklist.TryGet(e.Find, out target);
             if (target == null)
-                target = _dsPhieuIndex.Values
-                    .FirstOrDefault(x => string.Equals(x.LotNo, e.Lot, StringComparison.OrdinalIgnoreCase));
-
+                target = _worklist.FindByLot(e.Lot);
             if (target == null) return;
 
-            // ★ đổi từ _productionRepo.GetPhieuByFind sang _nhapTpService
             var latest = _nhapTpService.GetPhieuByFind(target.Find);
             if (latest == null) return;
 
-            target.KetThucLot = latest.KetThucLot;
-            target.SlDaNhap = latest.SlDaNhap;
-            target.SlSanXuat = latest.SlSanXuat;
+            _worklist.Sync(latest);
 
             if (_matchedPhieu != null &&
                 string.Equals(_matchedPhieu.Find, target.Find, StringComparison.OrdinalIgnoreCase))
@@ -198,8 +207,6 @@ namespace PCTP.Modules.KhoVatLy
                 _matchedPhieu.SlDaNhap = latest.SlDaNhap;
                 _matchedPhieu.SlSanXuat = latest.SlSanXuat;
             }
-
-            _gridViewPhieu.RefreshData();
         }
 
 
@@ -219,7 +226,7 @@ namespace PCTP.Modules.KhoVatLy
                 // Đã nhập đủ hoặc vượt sản lượng
                 e.Appearance.BackColor = Color.FromArgb(200, 255, 200); // xanh nhạt
             }
-            else if (_sessionTouchedFinds.Contains(row.Find))
+            else if (_worklist.IsTouched(row.Find))
             {
                 // Vừa bắn trong phiên làm việc này — tô nổi bật để dễ theo dõi
                 e.Appearance.BackColor = Color.FromArgb(255, 230, 150); // cam nhạt
@@ -228,24 +235,13 @@ namespace PCTP.Modules.KhoVatLy
             // else: giữ màu mặc định — chưa động tới
         }
         /// <summary>
-        /// Định vị dòng trong grid theo Find, focus + đánh dấu đã chạm trong phiên.
-        /// Gọi ngay sau khi TimPhieuTheoLotQR trả về kết quả khớp — không phân biệt
-        /// bulk hay thường, vì cả 2 đều cần feedback trực quan trên grid.
+        /// Định vị + focus dòng trong grid theo Find (feedback tức thì khi bắn tem).
+        /// KHÔNG đánh dấu "đã nhập" ở đây — việc đó chỉ làm sau khi lưu thành công
+        /// (<see cref="ReceivingWorklist.MarkReceived"/>), tránh tô nhầm khi tem bị từ chối.
         /// </summary>
-        private void HighlightMatchedRow(PhieuNhapInfo phieu)
+        private void FocusRow(PhieuNhapInfo phieu)
         {
             if (phieu == null || string.IsNullOrEmpty(phieu.Find)) return;
-
-            _sessionTouchedFinds.Add(phieu.Find);
-
-            // Nếu phieu không nằm trong danh sách đã tải (VD: nằm ngoài khoảng 30 ngày
-            // do lọc GetPhieuDangSanXuat), thêm bổ sung vào _dsPhieu để vẫn thấy được
-            // trên grid thay vì bị "mất tích" dù nhập thành công.
-            if (_dsPhieuIndex != null && !_dsPhieuIndex.ContainsKey(phieu.Find))
-            {
-                _dsPhieu.Add(phieu);
-                _dsPhieuIndex[phieu.Find] = phieu;
-            }
 
             int rowHandle = _gridViewPhieu.LocateByValue("Find", phieu.Find);
             if (rowHandle >= 0)
@@ -253,55 +249,36 @@ namespace PCTP.Modules.KhoVatLy
                 _gridViewPhieu.FocusedRowHandle = rowHandle;
                 _gridViewPhieu.MakeRowVisible(rowHandle);
             }
+        }
 
-            _gridViewPhieu.RefreshData();
+        /// <summary>Sau khi lưu thành công: cộng SL + đánh dấu dòng trong worklist dùng chung.</summary>
+        private void UpdateSlDaNhapInGrid(string find, int slVuaNhap)
+        {
+            _worklist.MarkReceived(find, slVuaNhap);
+            FocusRow(new PhieuNhapInfo { Find = find });
         }
 
         /// <summary>
-        /// Sau khi lưu thành công (bulk hoặc thường), cập nhật SL đã nhập của đúng dòng
-        /// trong _dsPhieu để grid phản ánh đúng tiến độ mà không cần query lại toàn bộ.
+        /// Grid chỉ BIND vào worklist. Chỉ nạp DB khi worklist chưa có dữ liệu
+        /// (mở độc lập); khi được form cha truyền sang thì dùng nguyên dữ liệu đã nạp.
         /// </summary>
-        private void UpdateSlDaNhapInGrid(string find, int slVuaNhap)
-        {
-            if (_dsPhieuIndex == null || string.IsNullOrEmpty(find)) return;
-
-            if (_dsPhieuIndex.TryGetValue(find, out var item))
-            {
-                item.SlDaNhap += slVuaNhap;
-                // ✅ Đồng bộ KetThucLot ngay trên grid, khớp logic Satus vừa tính trong service
-                item.KetThucLot = item.SlSanXuat > 0 && item.SlDaNhap >= item.SlSanXuat;
-                _gridViewPhieu.RefreshData();
-            }
-        }
         private void LoadDanhSachPhieu()
         {
             try
             {
                 this.Cursor = Cursors.WaitCursor;
-
-                // ★ đổi từ _productionRepo.GetPhieuDangSanXuat sang _nhapTpService
-                var list = _nhapTpService.GetPhieuDangSanXuat(soNgayGanDay: 30);
-
-                _dsPhieu = new BindingList<PhieuNhapInfo>(list);
-                _gridPhieu.DataSource = _dsPhieu;
-
-                _dsPhieuIndex = list
-                    .Where(x => !string.IsNullOrEmpty(x.Find))
-                    .GroupBy(x => x.Find)
-                    .ToDictionary(g => g.Key, g => g.First());
+                if (_ownsWorklist)
+                    _worklist.Reload();
             }
             catch (Exception ex)
             {
                 XtraMessageBox.Show(
                     $"Không tải được danh sách phiếu sản xuất!\n{ex.Message}",
                     "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
-
-                _dsPhieu = new BindingList<PhieuNhapInfo>();
-                _dsPhieuIndex = new Dictionary<string, PhieuNhapInfo>();
-                _gridPhieu.DataSource = _dsPhieu;
             }
             finally
             {
+                _gridPhieu.DataSource = _worklist.Items;
                 this.Cursor = Cursors.Default;
             }
         }
@@ -353,8 +330,24 @@ namespace PCTP.Modules.KhoVatLy
                 return;
             }
 
-            HighlightMatchedRow(phieu);
+            // ★ RULE: tem phải thuộc danh sách chờ nhập đang hiển thị trên grid.
+            // Không tự thêm dòng ngoài danh sách (hành vi cũ) — chỉ cho nhập dòng có sẵn.
+            if (!_worklist.TryGet(phieu.Find, out _))
+            {
+                XtraMessageBox.Show(
+                    $"LOT [{phieu.LotNo}] không nằm trong danh sách phiếu CHỜ NHẬP.\n" +
+                    "Có thể LOT đã kết thúc / đã nhập đủ, hoặc danh sách chưa cập nhật.\n" +
+                    "Hãy bấm Làm mới ở màn hình tiến trình rồi quét lại.",
+                    "Không có trong danh sách chờ nhập",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
 
+            // Đưa số liệu mới nhất từ DB vào dòng grid (tránh cảnh báo vượt SL dựa trên số cũ).
+            _worklist.Sync(phieu);
+            FocusRow(phieu);
+
+            _pendingReopen = null;
             if (phieu.KetThucLot)
             {
                 var confirmMoLai = XtraMessageBox.Show(
@@ -365,8 +358,9 @@ namespace PCTP.Modules.KhoVatLy
 
                 if (confirmMoLai != DialogResult.Yes) return;
 
-                // ★ đổi từ _stocTpStatus.MoLaiLot sang _nhapTpService.MoLaiLot
-                _nhapTpService.MoLaiLot(phieu.LotNo, phieu.Find);
+                // CHỈ ghi nhận ý định mở lại; MoLaiLot() thật sự gọi ngay trước khi lưu
+                // (nếu gọi ở đây mà các bước sau bị huỷ thì approval bị "treo" trong service).
+                _pendingReopen = phieu;
             }
 
             if (!string.Equals(phieu.MaSP, parsed.ItemCode, StringComparison.OrdinalIgnoreCase))
@@ -407,6 +401,7 @@ namespace PCTP.Modules.KhoVatLy
 
             if (chkNhapHangLoat.Checked)
             {
+                ApplyPendingReopen();
                 SaveScanImmediately(parsed, phieu);
                 return;
             }
@@ -453,6 +448,13 @@ namespace PCTP.Modules.KhoVatLy
 
             _mainStockForm?.OnSlotUpdated();
             txtQRCode.Focus();
+        }
+
+        private void ApplyPendingReopen()
+        {
+            if (_pendingReopen == null) return;
+            _nhapTpService.MoLaiLot(_pendingReopen.LotNo, _pendingReopen.Find);
+            _pendingReopen = null;
         }
 
         private bool ValidateQRCode(string qrCode)
@@ -761,6 +763,7 @@ namespace PCTP.Modules.KhoVatLy
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
+            ApplyPendingReopen();
             var result = _nhapTpService.NhapTpVaoSlot(codeInfo, slotId, _matchedPhieu);
 
             if (!result.IsOK)
@@ -782,6 +785,7 @@ namespace PCTP.Modules.KhoVatLy
 
         private void BtnCancel_Click(object sender, EventArgs e)
         {
+            _pendingReopen = null;
             if (mainLayout != null)
             {
                 Controls.Remove(mainLayout);

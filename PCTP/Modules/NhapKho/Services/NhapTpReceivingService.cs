@@ -262,6 +262,11 @@ namespace PCTP.Modules.NhapKho.Services
             return _productionRepo.GetPhieuDangSanXuat(soNgayGanDay);
         }
 
+        public List<PhieuNhapInfo> GetPhieuChoNhap()
+        {
+            return _productionRepo.GetPhieuChoNhap();
+        }
+
         public PhieuNhapInfo GetPhieuByFind(string find)
         {
             if (string.IsNullOrWhiteSpace(find)) return null;

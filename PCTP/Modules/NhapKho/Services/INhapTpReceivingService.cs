@@ -32,6 +32,9 @@ namespace PCTP.Modules.NhapKho.Services
         /// <summary>Danh sách phiếu đang sản xuất trong N ngày gần đây — dùng bind grid.</summary>
         List<PhieuNhapInfo> GetPhieuDangSanXuat(int soNgayGanDay = 30);
 
+        /// <summary>Phiếu chờ nhập (chưa kết thúc LOT, SL nhập < SL SX) — nguồn của ReceivingWorklist.</summary>
+        List<PhieuNhapInfo> GetPhieuChoNhap();
+
         /// <summary>Lấy lại 1 phiếu theo Find — dùng để refresh dòng grid sau khi có sự kiện đổi trạng thái.</summary>
         PhieuNhapInfo GetPhieuByFind(string find);
 
