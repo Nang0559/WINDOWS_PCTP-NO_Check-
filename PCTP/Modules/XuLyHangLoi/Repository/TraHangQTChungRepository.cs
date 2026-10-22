@@ -28,14 +28,6 @@ namespace PCTP.Modules.XuLyHangLoi.Repository
         // XUẤT KHO REWORK
         // ============================================================
 
-        // SQL Server datetime không lưu được DateTime.MinValue (0001) → dùng giờ hiện tại.
-        private static DateTime SqlSafeDate(DateTime value)
-        {
-            return value < System.Data.SqlTypes.SqlDateTime.MinValue.Value
-                ? DateTime.Now
-                : value;
-        }
-
         public int InsertXuat(TraHangQTChungXuat entity)
         {
             if (entity == null)
@@ -272,7 +264,7 @@ VALUES
 
                     new SqlParameter(
                         "@ThoiGian",
-                        SqlSafeDate(entity.ThoiGian)),
+                        entity.ThoiGian),
 
                     new SqlParameter(
                         "@NgayGiao",
@@ -469,7 +461,7 @@ VALUES
 
                     new SqlParameter(
                         "@ThoiGian",
-                        SqlSafeDate(entity.ThoiGian)),
+                        entity.ThoiGian),
 
                     new SqlParameter(
                         "@NguoiQC",
@@ -596,7 +588,7 @@ VALUES
 
                     new SqlParameter(
                         "@NgayNhap",
-                        SqlSafeDate(entity.NgayNhap)),
+                        entity.NgayNhap),
 
                     new SqlParameter(
                         "@NguoiNhap",
