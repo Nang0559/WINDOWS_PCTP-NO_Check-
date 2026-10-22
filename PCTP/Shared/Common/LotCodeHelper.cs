@@ -41,9 +41,17 @@ namespace PCTP.Common
 
         public static string StripCounterAndQty(string fullLot)
         {
-            if (string.IsNullOrEmpty(fullLot)) return fullLot;
-            if (fullLot.Length <= LEN_TAIL_FIXED) return fullLot;
-            return fullLot.Substring(0, fullLot.Length - LEN_TAIL_FIXED);
+            if (string.IsNullOrWhiteSpace(fullLot)) return fullLot;
+
+            // STOCKTP.LOT uses the 20-character base key (Date + Item + Shift +
+            // Gear + Line + Machine). The UI and return-detail tables often pass
+            // this key directly. Only strip Counter+Qty from a full printed LOT
+            // that is longer than the base key; stripping every value longer than
+            // 8 chars corrupts a valid 20-char key (e.g. 26080700748100851600)
+            // into a 12-char value and makes stock searches return no rows.
+            string lot = fullLot.Trim();
+            if (lot.Length <= LEN_HEAD_FIXED) return lot;
+            return lot.Substring(0, lot.Length - LEN_TAIL_FIXED);
         }
 
         public static string GetCounterPart(string fullLot)
