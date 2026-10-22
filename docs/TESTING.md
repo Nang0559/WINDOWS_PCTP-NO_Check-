@@ -23,6 +23,7 @@ The production application remains .NET Framework 4.7.2 / WinForms. The test har
 |---|---|---|
 | Customer delivery FIFO | ordering, compound LOT, quantity consistency, rejected scan atomicity, rescan, release, reset | Unit/regression |
 | YMVN delivery validation | LOT character 13 → Gear, order quantity limit, missing Gear, completion totals, unexpected Gear, empty order | Unit/regression |
+| Stock movement (KhoCore) | normal receiving, NG quarantine status, successful/blocked export, quantity guards, LOT identity, full/partial move QR rules, restore-picked, correction transaction guard | Unit/regression |
 | Environment safety | local test database allow-list; production/remote rejection | Unit/security |
 
 ## Full module acceptance matrix
