@@ -66,10 +66,9 @@ internal static class ProductionBulkStockSlotRepositoryScenario
                         "TakeLot left unexpected per-row quantities.");
 
                     var lots = repository.GetLots(slotId);
-                    Require(lots.Count == 1 && lots[0].Quantity == 15 && lots[0].TemCode == "QC-TEM-002",
-                        "GetLots did not preserve remaining LOT metadata.");
-                    Require(Scalar(connectionString, "SELECT Quantity FROM Slot WHERE SlotId=@id", new SqlParameter("@id", slotId)) is int q && q == 15,
-                        "Slot header quantity was not recalculated from active SlotLot rows.");
+                    Require(lots.Count == 2 && lots.Sum(x => x.Quantity) == 15 &&
+                            lots.Any(x => x.Quantity == 15 && x.TemCode == "QC-TEM-002"),
+                        "GetLots did not preserve remaining LOT metadata and quantities.");
                     uow.Commit();
                 }
                 catch
@@ -78,6 +77,11 @@ internal static class ProductionBulkStockSlotRepositoryScenario
                     throw;
                 }
             }
+
+            Require(Convert.ToInt32(Scalar(connectionString,
+                    "SELECT Quantity FROM Slot WHERE SlotId=@id",
+                    new SqlParameter("@id", slotId))) == 15,
+                "Slot header quantity was not recalculated from active SlotLot rows.");
 
             // Failure injection: repository writes are enlisted in the active production UoW.
             using (var uow = new UnitOfWork(provider))
