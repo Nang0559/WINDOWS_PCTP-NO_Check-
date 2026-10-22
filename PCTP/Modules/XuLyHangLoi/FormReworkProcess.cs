@@ -470,6 +470,42 @@ namespace PCTP.Modules.XuLyHangLoi
             }
         }
 
+        private List<LotInfo> GetLotsDaXuatChuaGiao()
+        {
+            if (_qtChungRepo == null)
+                throw new InvalidOperationException("Chưa cấu hình repository lịch sử xuất Rework.");
+
+            var exports = (_qtChungRepo.GetXuat(_phieuXuLyId) ?? new List<TraHangQTChungXuat>())
+                .Where(x => x != null &&
+                    string.Equals(x.LoaiXuat, "Rework", StringComparison.OrdinalIgnoreCase) &&
+                    !string.IsNullOrWhiteSpace(x.LotXuat) && x.SoLuongXuat > 0)
+                .GroupBy(x => x.LotXuat.Trim(), StringComparer.OrdinalIgnoreCase)
+                .Select(g => new
+                {
+                    Lot = g.Key,
+                    ItemCode = g.Select(x => x.MaHang).FirstOrDefault(x => !string.IsNullOrWhiteSpace(x)) ?? _txtMaHang.Text.Trim(),
+                    Exported = g.Sum(x => x.SoLuongXuat)
+                })
+                .ToList();
+
+            var delivered = (_qtChungRepo.GetGiao(_phieuXuLyId) ?? new List<TraHangQTChungGiao>())
+                .Where(x => x != null && !string.IsNullOrWhiteSpace(x.LotGiao))
+                .GroupBy(x => x.LotGiao.Trim(), StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.Sum(x => Math.Max(0, x.SoLuongGiao)), StringComparer.OrdinalIgnoreCase);
+
+            return exports.Select(x =>
+            {
+                int alreadyDelivered;
+                delivered.TryGetValue(x.Lot, out alreadyDelivered);
+                return new LotInfo
+                {
+                    ItemCode = x.ItemCode,
+                    LotNo = x.Lot,
+                    Quantity = Math.Max(0, x.Exported - alreadyDelivered)
+                };
+            }).Where(x => x.Quantity > 0).ToList();
+        }
+
         // ============================================================
         // GRID
         // ============================================================
@@ -655,7 +691,7 @@ namespace PCTP.Modules.XuLyHangLoi
         {
             try
             {
-                var lots = _reworkStockService.GetLotsCanReworkByPhieuXuLy(_phieuXuLyId);
+                var lots = GetLotsDaXuatChuaGiao();
                 if (lots == null || lots.Count == 0)
                 {
                     ShowWarning("Không có LOT để giao cho sản xuất.");
