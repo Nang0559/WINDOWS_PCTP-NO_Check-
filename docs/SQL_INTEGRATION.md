@@ -10,7 +10,7 @@ It is a **database-engine/transaction contract test**, not yet an end-to-end tes
 
 The runner reads only the `PCTP_QC_SQL_CONNECTION` environment variable. It refuses to run unless `TestEnvironmentPolicy` accepts exactly one local server alias and exactly one database named `TEST_*`, `*_TEST`, or `*_TESTING`.
 
-Never place production credentials in this variable. Do not use remote SQL hosts. The harness creates one uniquely named table in the selected test database and drops it in a `finally` block. The table contains synthetic rows only. The production `UnitOfWork.cs` and `IUnitOfWork.cs` are compiled directly into this harness; a test-only `SQLPROVIDER` stand-in supplies the safe connection string so production connection defaults are never loaded.
+Never place production credentials in this variable. Do not use remote SQL hosts. The guard also rejects attached MDF files, failover partners, SQL user-instance mode, context connections, malformed strings, and duplicate server/database aliases. It parses the connection string with `Microsoft.Data.SqlClient.SqlConnectionStringBuilder` and fails closed on ambiguity. The harness creates one uniquely named table in the selected test database and drops it in a `finally` block. The table contains synthetic rows only. The production `UnitOfWork.cs` and `IUnitOfWork.cs` are compiled directly into this harness; a test-only `SQLPROVIDER` stand-in supplies the safe connection string so production connection defaults are never loaded.
 
 ## Run locally
 
