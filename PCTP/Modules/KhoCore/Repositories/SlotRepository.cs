@@ -293,6 +293,7 @@ WHERE SlotId = @SlotId;";
             JOIN Rack r      ON r.RackId = s.RackId
             JOIN Warehouse w ON w.WarehouseId = r.WarehouseId
             WHERE sl.Quantity > 0
+              AND sl.PhieuStatus = 0
             ORDER BY w.Name, r.RackName, s.SlotNumber, sl.LotNo";
 
             DataTable dt = LoadData(sql);
