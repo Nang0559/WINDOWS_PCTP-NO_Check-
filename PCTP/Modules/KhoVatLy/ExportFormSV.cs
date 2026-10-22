@@ -300,16 +300,16 @@ namespace PCTP.Modules.KhoVatLy
                 string selectedSlot = listBoxSlots.SelectedItem.ToString();
                 if (IsSameSlotSelected(selectedSlot))
                 {
-                    exportSuccess = ExportToSameSlot(soLuongXuat);
+                    exportSuccess = ExportToSameSlot(soLuongXuat, lotNo);
                 }
                 else
                 {
-                    exportSuccess = ExportToOtherSlot(soLuongXuat);
+                    exportSuccess = ExportToOtherSlot(soLuongXuat, lotNo);
                 }
             }
             else
             {
-                exportSuccess = ExportToSameSlot(soLuongXuat);
+                exportSuccess = ExportToSameSlot(soLuongXuat, lotNo);
             }
 
             if (exportSuccess)
@@ -378,7 +378,7 @@ namespace PCTP.Modules.KhoVatLy
             return selected;
         }
 
-        private bool ExportToSameSlot(int qty)
+        private bool ExportToSameSlot(int qty, string lotNo)
         {
             var result = _exportService.PickToChoGiao(new StockExportRequest
             {
@@ -398,14 +398,14 @@ namespace PCTP.Modules.KhoVatLy
             return true;
         }
 
-        private bool ExportToOtherSlot(int qty)
+        private bool ExportToOtherSlot(int qty, string lotNo)
         {
             if (listBoxSlots.SelectedItem == null) { MessageBox.Show("Vui lòng chọn vị trí."); return false; }
 
             var pickResult = _exportService.PickToChoGiao(new StockExportRequest
             {
                 SlotId = slot.SlotId,
-                LotNo = ResolveLotNoForPick(),
+                LotNo = lotNo,
                 Quantity = qty,
                 ItemCode = slot.ItemCode,
                 PhieuGiaoId = _phieuGiaoId
