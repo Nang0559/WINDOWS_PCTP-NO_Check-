@@ -22,6 +22,12 @@ namespace PCTP.Modules.XuLyHangLoi.Repository
         : SqlRepositoryBase,
           IPhieuTraHangRepository
     {
+        // LƯU Ý: KHÔNG gọi _sql.LoadData/ExecuteScalar/ExecuteNonQuery trực tiếp — các hàm đó luôn mở
+        // SqlConnection MỚI, nằm NGOÀI transaction của UnitOfWork. Khi QT Chung đang giữ lock (vd. vừa
+        // UPDATE phiếu xử lý → HoanTat) rồi gọi ConChoXuLy()/GetById() qua connection khác, câu SELECT bị
+        // chính transaction đó chặn → "Execution Timeout Expired". Dùng LoadData/ExecuteScalar/
+        // ExecuteNonQuery của SqlRepositoryBase: có transaction thì dùng chung connection+transaction,
+        // không có thì hành vi y hệt _sql.
         private readonly PhieuSqlExecutor _sql;
 
 
@@ -110,7 +116,7 @@ VALUES
     @CreatedBy
 );";
 
-            object id = _sql.ExecuteScalar(
+            object id = ExecuteScalar(
                 sql,
 
                 new SqlParameter(
@@ -216,7 +222,7 @@ SELECT *
 FROM FVN_PhieuTraHang
 WHERE Id = @Id;";
 
-            DataTable table = _sql.LoadData(
+            DataTable table = LoadData(
                 sql,
                 new SqlParameter("@Id", id));
 
@@ -234,7 +240,7 @@ SELECT *
 FROM FVN_PhieuTraHang
 WHERE SoPhieu = @SoPhieu;";
 
-            DataTable table = _sql.LoadData(
+            DataTable table = LoadData(
                 sql,
                 new SqlParameter(
                     "@SoPhieu",
@@ -256,7 +262,7 @@ FROM FVN_PhieuTraHang
 WHERE Nguon = @Nguon
 ORDER BY CreatedAt DESC, Id DESC;";
 
-            DataTable table = _sql.LoadData(
+            DataTable table = LoadData(
                 sql,
                 new SqlParameter(
                     "@Nguon",
@@ -281,7 +287,7 @@ ORDER BY CreatedAt DESC, Id DESC;";
             WHERE Status <> @HoanTat
             ORDER BY CreatedAt DESC, Id DESC;";
 
-            DataTable table = _sql.LoadData(
+            DataTable table = LoadData(
                 sql,
                 new SqlParameter(
                     "@HoanTat",
@@ -308,7 +314,7 @@ WHERE Nguon = @Nguon
   AND Status <> @HoanTat
 ORDER BY CreatedAt DESC, Id DESC;";
 
-            DataTable table = _sql.LoadData(
+            DataTable table = LoadData(
                 sql,
                 new SqlParameter(
                     "@Nguon",
@@ -360,7 +366,7 @@ SET
     UpdatedBy = @UpdatedBy
 WHERE Id = @Id;";
 
-            _sql.ExecuteNonQuery(
+            ExecuteNonQuery(
                 sql,
 
                 new SqlParameter(
@@ -466,7 +472,7 @@ SET
     UpdatedBy = @UpdatedBy
 WHERE Id = @Id;";
 
-            int affected = _sql.ExecuteNonQuery(
+            int affected = ExecuteNonQuery(
                 sql,
 
                 new SqlParameter(
@@ -503,7 +509,7 @@ SET
     UpdatedBy = @UpdatedBy
 WHERE Id = @Id;";
 
-            _sql.ExecuteNonQuery(
+            ExecuteNonQuery(
                 sql,
 
                 new SqlParameter(
@@ -561,7 +567,7 @@ VALUES
     @NhaMay
 );";
 
-            object id = _sql.ExecuteScalar(
+            object id = ExecuteScalar(
                 sql,
 
                 new SqlParameter(
@@ -619,7 +625,7 @@ SELECT COUNT(1)
 FROM FVN_PhieuXuLyBatThuong
 WHERE PhieuTraHangId = @PhieuTraHangId;";
 
-            object r = _sql.ExecuteScalar(
+            object r = ExecuteScalar(
                 sql,
                 new SqlParameter("@PhieuTraHangId", phieuTraHangId));
 
@@ -642,7 +648,7 @@ WHERE ct.PhieuTraHangId = @PhieuTraHangId
   )
 ORDER BY ct.Id;";
 
-            DataTable dt = _sql.LoadData(
+            DataTable dt = LoadData(
                 sql,
                 new SqlParameter("@PhieuTraHangId", phieuTraHangId));
 
@@ -656,14 +662,14 @@ ORDER BY ct.Id;";
 
         public void DeleteItems(int phieuTraHangId)
         {
-            _sql.ExecuteNonQuery(
+            ExecuteNonQuery(
                 "DELETE FROM FVN_PhieuTraHangCT WHERE PhieuTraHangId = @PhieuTraHangId;",
                 new SqlParameter("@PhieuTraHangId", phieuTraHangId));
         }
 
         public void Delete(int id)
         {
-            _sql.ExecuteNonQuery(
+            ExecuteNonQuery(
                 "DELETE FROM FVN_PhieuTraHang WHERE Id = @Id;",
                 new SqlParameter("@Id", id));
         }
@@ -695,7 +701,7 @@ FROM FVN_PhieuTraHangCT
 WHERE PhieuTraHangId = @PhieuTraHangId
 ORDER BY Id;";
 
-            DataTable table = _sql.LoadData(
+            DataTable table = LoadData(
                 sql,
 
                 new SqlParameter(
@@ -721,7 +727,7 @@ SELECT *
 FROM FVN_PhieuTraHangCT
 WHERE Id = @Id;";
 
-            DataTable table = _sql.LoadData(
+            DataTable table = LoadData(
                 sql,
                 new SqlParameter("@Id", itemId));
 
@@ -754,7 +760,7 @@ SET
     UpdatedBy = @UpdatedBy
 WHERE Id = @Id;";
 
-            int affected = _sql.ExecuteNonQuery(
+            int affected = ExecuteNonQuery(
                 sql,
 
                 new SqlParameter(
@@ -808,7 +814,7 @@ WHERE PhieuTraHangId = @PhieuTraHangId
   )
 ORDER BY Id;";
 
-            DataTable table = _sql.LoadData(
+            DataTable table = LoadData(
                 sql,
 
                 new SqlParameter(
@@ -842,7 +848,7 @@ SET
     NhaMay = @NhaMay
 WHERE Id = @Id;";
 
-            _sql.ExecuteNonQuery(
+            ExecuteNonQuery(
                 sql,
 
                 new SqlParameter(
@@ -884,7 +890,7 @@ WHERE PhieuTraHangId = @PhieuTraHangId
       @Huy
   );";
 
-            object value = _sql.ExecuteScalar(
+            object value = ExecuteScalar(
                 sql,
 
                 new SqlParameter(
