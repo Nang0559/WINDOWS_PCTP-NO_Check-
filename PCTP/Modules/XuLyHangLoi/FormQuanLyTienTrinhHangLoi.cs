@@ -194,7 +194,7 @@ namespace PCTP.Modules.XuLyHangLoi
                 case 3: _btnSecondary.Visible = false; _btnPrimary.Text = "Truy vết LOT"; _lblHint.Text = "Bước 3: truy vết kho thành phẩm, WIP/sản xuất và khách trả; snapshot trước khi QC."; break;
                 case 4: _btnSecondary.Visible = false; _btnPrimary.Text = "QC định hướng"; _lblHint.Text = "Bước 4: QC chọn Từ chối giao bù / Chỉ giao bù / Có Rework."; break;
                 case 5: _btnSecondary.Visible = false; _btnPrimary.Text = "Initial QC"; _lblHint.Text = "Bước 5: kiểm đủ snapshot. DaKiemTra = OK + NG; NG = Rework + LoaiBoBanDau."; break;
-                case 6: _btnSecondary.Visible = false; _btnPrimary.Text = "Xuất / Giao Rework"; _lblHint.Text = "Bước 6: chỉ nhánh CanRework; xuất không vượt Initial QC Rework, sau đó giao sản xuất."; break;
+                case 6: _btnSecondary.Visible = false; _btnPrimary.Text = "Xuất / Giao Rework"; _lblHint.Text = "Bước 6: chỉ nhánh CanRework; xuất không vượt Initial QC Rework, giao sản xuất. 'Ghi nhận tiến độ Rework' chỉ ghi chú, không xác nhận sửa xong. Sửa xong thì đóng form Rework và chọn bước 7."; break;
                 case 7: _btnSecondary.Visible = false; _btnPrimary.Text = "QC Rework / Disposition"; _lblHint.Text = "Bước 7: QC Rework OK + NG = lượng Rework; NG Rework cộng vào loại bỏ cuối."; break;
                 case 8: _btnSecondary.Visible = false; _btnPrimary.Text = "Giao bù / Hoàn tất"; _lblHint.Text = "Bước 8: Giao bù là nghĩa vụ độc lập; không suy ra từ NG/Rework."; break;
             }

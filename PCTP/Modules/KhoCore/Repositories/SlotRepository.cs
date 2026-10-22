@@ -318,7 +318,7 @@ WHERE SlotId = @SlotId;";
         public SlotLotInfo GetSlotLotById(int slotLotId)
         {
             DataTable dt = LoadData(
-                "SELECT SlotLotId, SlotId, LotNo, ItemCode, Quantity, TemCode " +
+                "SELECT SlotLotId, SlotId, LotNo, ItemCode, Quantity, TemCode, PhieuStatus " +
                 "FROM SlotLot WHERE SlotLotId = @id",
                 new SqlParameter("@id", slotLotId));
 
@@ -332,7 +332,8 @@ WHERE SlotId = @SlotId;";
                 LotNo = r["LotNo"] as string,
                 ItemCode = r["ItemCode"] as string,
                 Quantity = Convert.ToInt32(r["Quantity"]),
-                TemCode = r["TemCode"] as string
+                TemCode = r["TemCode"] as string,
+                PhieuStatus = r["PhieuStatus"] == DBNull.Value ? (byte)0 : Convert.ToByte(r["PhieuStatus"])
             };
         }
 
@@ -396,7 +397,8 @@ WHERE SlotId = @SlotId;";
             int quantity,
             string temCode,
             string qrData,
-            DateTime importDate)
+            DateTime importDate,
+            byte phieuStatus = 0)
         {
             if (slotId <= 0)
                 throw new ArgumentException("SlotId không hợp lệ.", nameof(slotId));
@@ -411,9 +413,10 @@ WHERE SlotId = @SlotId;";
 INSERT INTO SlotLot
     (SlotId, ItemCode, LotNo, Quantity, TemCode, QrData, ImportDate, CreatedDate, PhieuStatus)
 VALUES
-    (@SlotId, @ItemCode, @LotNo, @Quantity, @TemCode, @QrData, @ImportDate, GETDATE(), 0);";
+    (@SlotId, @ItemCode, @LotNo, @Quantity, @TemCode, @QrData, @ImportDate, GETDATE(), @PhieuStatus);";
 
             ExecuteNonQuery(sql,
+                new SqlParameter("@PhieuStatus", SqlDbType.TinyInt) { Value = phieuStatus },
                 new SqlParameter("@SlotId", SqlDbType.Int) { Value = slotId },
                 new SqlParameter("@ItemCode", SqlDbType.NVarChar, 100) { Value = itemCode.Trim() },
                 new SqlParameter("@LotNo", SqlDbType.NVarChar, 200) { Value = lotNo.Trim() },

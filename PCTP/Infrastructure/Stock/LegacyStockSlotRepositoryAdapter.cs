@@ -84,7 +84,8 @@ namespace PCTP.Infrastructure.Stock
                 lot.Quantity,
                 lot.TemCode,
                 lot.RawQr,
-                lot.ImportDate);
+                lot.ImportDate,
+                lot.PhieuStatus);
         }
 
         /// <summary>

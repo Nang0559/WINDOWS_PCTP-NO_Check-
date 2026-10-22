@@ -79,7 +79,7 @@ namespace PCTP.Shell.Help
                     "Xử lý hàng lỗi - Rework",
                     "Thực hiện xuất hàng Rework, giao sản xuất và QC kết quả Rework theo kế hoạch Initial QC.",
                     "Initial QC đã xác nhận và HuongXuLy cho phép Rework.",
-                    "1. Xem kế hoạch Rework từ Initial QC.\n2. Xuất Rework theo tồn kho và kế hoạch.\n3. Không xuất lũy kế vượt SoLuongRework của Initial QC.\n4. Chỉ giao sản xuất sau khi đã xuất đủ kế hoạch.\n5. Theo dõi trạng thái DaXuatKhoRework và DaGiaoSanXuat.\n6. QC sau Rework với OK + NG đúng bằng số lượng Rework đã giao.",
+                    "1. Xem kế hoạch Rework từ Initial QC.\n2. Xuất Rework theo tồn kho và kế hoạch.\n3. Không xuất lũy kế vượt SoLuongRework của Initial QC.\n4. Chỉ giao sản xuất sau khi đã xuất đủ kế hoạch.\n5. Theo dõi trạng thái DaXuatKhoRework và DaGiaoSanXuat.\n6. Bước 6 - Rework: dùng 'Ghi nhận tiến độ Rework' để ghi chú quá trình sửa hàng. Nút này KHÔNG xác nhận hoàn tất sửa hàng.\n7. Khi sửa hàng xong: đóng form Rework, chọn '7. QC Rework / Disposition' trên màn hình quản lý tiến trình để QC xác nhận kết quả OK/NG.\n8. Sau QC: nhập số lượng OK/NG; OK nhập lại kho (cộng STOCKTP và SlotLot), NG nhập vào slot NG ở trạng thái cách ly (không tính STOCKTP, không dùng được). OK + NG đúng bằng số lượng Rework đã giao.",
                     "Rework là phương thức xử lý NG; không làm thay đổi nghĩa vụ Giao bù. Không tự tăng kế hoạch Rework từ số lượng tồn còn lại.",
                     "Chưa có Initial QC; không phải hướng Rework; xuất vượt kế hoạch; giao khi chưa xuất đủ; QC cuối không khớp số lượng đã giao.",
                     "Kiểm tra plan, số lượng đã xuất và đã giao theo phiếu. Nếu lệch, dừng và kiểm tra giao dịch Rework trước khi thao tác tiếp.",

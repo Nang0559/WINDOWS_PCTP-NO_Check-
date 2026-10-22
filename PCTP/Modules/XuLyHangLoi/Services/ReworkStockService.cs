@@ -1,4 +1,5 @@
 using PCTP.Common;
+using PCTP.Models;
 using PCTP.Modules.KhoCore.Application.Contracts.Stock;
 using PCTP.Modules.KhoVatLy.Application.Interfaces;
 using PCTP.Modules.KhoVatLy.Kho.Models;
@@ -179,6 +180,14 @@ namespace PCTP.Modules.XuLyHangLoi.Services
                     return FailAndRollback(
                         string.Format("Không tìm thấy SlotLot Id={0}.", slotLotId));
 
+                // Dòng NG cách ly (PhieuStatus = 3) không thuộc STOCKTP -> không được rework lại,
+                // nếu không STOCKTP bị trừ cho hàng chưa từng được cộng vào.
+                if (slotLot.PhieuStatus != (byte)PhieuStatus.Active)
+                    return FailAndRollback(
+                        string.Format("SlotLot {0} không ở trạng thái dùng được (PhieuStatus={1}); " +
+                                      "hàng NG cách ly không thể xuất Rework.",
+                            slotLotId, slotLot.PhieuStatus));
+
                 if (!LotCodeHelper.AreLotKeysEquivalent(slotLot.LotNo, lotChuan))
                     return FailAndRollback(
                         string.Format("SlotLot {0} chứa LOT [{1}], không khớp [{2}].",
@@ -292,44 +301,14 @@ namespace PCTP.Modules.XuLyHangLoi.Services
                     return FailAndRollback(
                         string.Format("Không tìm thấy phiếu xử lý bất thường Id={0}.", phieuXuLyId));
 
+                // OK chỉ được nhập qua NhapLaiHangOK (QTChungService.QCXacNhanCuoi gọi trước).
+                // Trước đây hàm này nhập OK thêm lần nữa khi QC đã có SoLuongOK -> OK bị cộng đôi
+                // (STOCKTP và SlotLot). Chỉ ghi nhận số OK để hiển thị kết quả.
                 var qc = _qtChungRepo.GetQC(phieuXuLyId);
                 int soLuongOK = qc == null ? 0 : qc.SoLuongOK;
 
-                if (slotIdOK.HasValue && soLuongOK > 0)
-                {
-                    var okMovement = _stockMovement.ReturnFromRework(new StockMovementRequest
-                    {
-                        MovementType = "REWORK_OK_RECEIVE",
-                        TargetSlotId = slotIdOK.Value,
-                        LotNo = lotChuan,
-                        ItemCode = phieu.MaSanPham,
-                        Quantity = soLuongOK,
-                        ReferenceType = "PHIEU_XU_LY_BAT_THUONG",
-                        ReferenceId = phieuXuLyId.ToString(),
-                        PerformedBy = nguoiNhap,
-                        Reason = "Nhập lại hàng OK sau rework"
-                    });
-
-                    if (!okMovement.Success)
-                        return FailAndRollback(okMovement.Message);
-
-                    _historyRepo.SaveHistory(
-                        actionType: "NHAP_LAI_SAU_REWORK",
-                        itemCode: phieu.MaSanPham,
-                        lot: new LotInfo
-                        {
-                            LotNo = lotChuan,
-                            Quantity = soLuongOK,
-                            TemCode = StockExportReferenceFormatter.Format(
-                                StockExportReferenceType.PhieuXuLyBatThuong,
-                                phieuXuLyId)
-                        },
-                        fromSlotId: null,
-                        toSlotId: slotIdOK.Value,
-                        performedBy: nguoiNhap);
-                }
-
-                // NG được nhập vào quarantine/NG slot nhưng KHÔNG tăng STOCKTP.
+                // NG được nhập vào slot NG dưới dạng dòng SlotLot PhieuStatus = 3 (cách ly):
+                // KHÔNG tăng STOCKTP và bị mọi bộ lọc PhieuStatus = 0 loại khỏi tồn/đối chiếu/Rework.
                 var ngMovement = _stockMovement.Receive(new StockMovementRequest
                 {
                     MovementType = MovementReworkNgReceive,
@@ -505,14 +484,26 @@ namespace PCTP.Modules.XuLyHangLoi.Services
 
                 var ketQua = new List<string>();
 
+                // OK đã nhập lại kho (QCXacNhanCuoi -> NhapLaiHangOK) cũng đã rời khỏi phần "treo".
+                // Trước đây chỉ trừ NG nên huỷ sau bước QC hoàn trả trùng phần OK.
+                var qcDaCo = _qtChungRepo.GetQC(phieuXuLyId);
+                int okConPhanBo = qcDaCo == null ? 0 : qcDaCo.SoLuongOK;
+
                 foreach (var nhom in tongXuat)
                 {
                     string lotChuan = LotNoHelper.GetStockTpKey(nhom.LotNo);
                     int daNhapNG = 0;
-                    if (!string.IsNullOrWhiteSpace(nhom.LotNo))
-                        tongNhapNG.TryGetValue(nhom.LotNo, out daNhapNG);
+                    if (!string.IsNullOrWhiteSpace(lotChuan))
+                        tongNhapNG.TryGetValue(lotChuan, out daNhapNG);
 
                     int conTreo = nhom.TongXuat - daNhapNG;
+                    if (conTreo > 0 && okConPhanBo > 0)
+                    {
+                        int okTrenLot = Math.Min(okConPhanBo, conTreo);
+                        conTreo -= okTrenLot;
+                        okConPhanBo -= okTrenLot;
+                    }
+
                     if (conTreo <= 0)
                         continue;
 

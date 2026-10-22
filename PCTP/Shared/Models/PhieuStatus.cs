@@ -10,6 +10,8 @@ namespace PCTP.Models
     {
         Active = 0,     // đang tồn tại trong kho, dùng được
         Split = 1,      // đã bị tách (1 phần xuất, 1 phần dư) -> không dùng nữa, chỉ để trace lịch sử
-        ExportedOut = 2 // đã xuất hẳn ra khỏi hệ thống kho nội bộ (giao hàng / tiêu thụ)
+        ExportedOut = 2, // đã xuất hẳn ra khỏi hệ thống kho nội bộ (giao hàng / tiêu thụ)
+        NgQuarantine = 3 // hàng NG sau Rework: còn nằm vật lý ở slot NG nhưng KHÔNG thuộc STOCKTP,
+                         // không dùng được, bị mọi bộ lọc PhieuStatus = 0 tự loại khỏi tồn/đối chiếu/Rework
     }
 }

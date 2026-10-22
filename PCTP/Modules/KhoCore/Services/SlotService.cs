@@ -221,14 +221,15 @@ namespace PCTP.Modules.KhoVatLy.Application.Services
             int quantity,
             string temCode,
             string qrData,
-            DateTime? importDate)
+            DateTime? importDate,
+            byte phieuStatus = 0)
         {
             if (slotId <= 0)
                 throw new ArgumentException("SlotId không hợp lệ.", nameof(slotId));
 
             _repository.AppendLot(
                 slotId, itemCode, lotNo, quantity, temCode, qrData,
-                importDate ?? DateTime.Now);
+                importDate ?? DateTime.Now, phieuStatus);
 
             _repository.RefreshSlotHeader(slotId);
         }

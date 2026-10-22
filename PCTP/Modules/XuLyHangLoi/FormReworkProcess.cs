@@ -929,7 +929,7 @@ namespace PCTP.Modules.XuLyHangLoi
                     Environment.UserName);
 
                 XtraMessageBox.Show(
-                    "Đã lưu ghi chú tiến độ Rework. Khi sửa hàng hoàn tất, chuyển sang bước 7 QC Rework / Disposition để QC xác nhận số lượng OK/NG.",
+                    "Đã lưu ghi chú tiến độ Rework (chưa xác nhận hoàn tất sửa hàng). Khi sửa xong: đóng form Rework, chọn \"7. QC Rework / Disposition\" trên màn hình quản lý tiến trình để QC xác nhận OK/NG, sau đó nhập số lượng OK/NG vào kho.",
                     "Thành công",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Information);

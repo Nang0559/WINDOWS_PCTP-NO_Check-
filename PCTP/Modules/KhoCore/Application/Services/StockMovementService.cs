@@ -221,7 +221,9 @@ namespace PCTP.Modules.KhoCore.Application.Services
                         ItemCode = request.ItemCode,
                         Quantity = request.Quantity,
                         RawQr = null,
-                        ImportDate = request.ProductionDate ?? request.OccurredAt ?? DateTime.Now
+                        ImportDate = request.ProductionDate ?? request.OccurredAt ?? DateTime.Now,
+                        // NG cách ly: dòng SlotLot riêng (PhieuStatus = 3), KHÔNG cộng STOCKTP.
+                        PhieuStatus = isQuarantineReceive ? (byte)3 : (byte)0
                     });
                 }
                 else

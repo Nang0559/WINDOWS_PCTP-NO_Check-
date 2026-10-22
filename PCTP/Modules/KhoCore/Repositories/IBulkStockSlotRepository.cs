@@ -26,5 +26,19 @@ namespace PCTP.Modules.KhoVatLy.Repositories
         /// IStockMovementService; interface này không còn expose bulk write.
         /// </summary>
         List<LotInfo> GetLots(int slotId);
+
+        /// <summary>
+        /// Tìm các vị trí THẬT (mọi Slot, trừ excludeSlotId) đang giữ LOT (PhieuStatus = 0, Quantity > 0),
+        /// gộp theo Slot + ItemCode, FIFO theo ImportDate. Khoá dòng (UPDLOCK) — phải chạy trong transaction.
+        /// Dùng khi giao hàng khách trừ STOCKTP mà LOT không nằm (đủ) ở Slot ảo A0.
+        /// </summary>
+        List<BulkSlotLotLocation> FindSlotLotsByLot(string lotNo, int excludeSlotId);
+    }
+
+    public sealed class BulkSlotLotLocation
+    {
+        public int SlotId { get; set; }
+        public string ItemCode { get; set; }
+        public int Quantity { get; set; }
     }
 }
