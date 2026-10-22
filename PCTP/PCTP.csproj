@@ -570,7 +570,6 @@
     <Compile Include="Modules\XuLyHangLoi\Application\Adapters\ReworkStockSlotAdapter.cs" />
     <Compile Include="Modules\XuLyHangLoi\Application\XuLyHangLoiModuleFactory.cs" />
     <Compile Include="Modules\XuLyHangLoi\Enums\HuongXuLyBatThuong.cs" />
-    <Compile Include="Modules\XuLyHangLoi\Enums\NguonKhachTra.cs" />
     <Compile Include="Modules\XuLyHangLoi\Enums\NguonXuLyBatThuongExtensions.cs" />
     <Compile Include="Modules\XuLyHangLoi\Enums\QTChungStatus.cs" />
     <Compile Include="Modules\XuLyHangLoi\FormNhapLaiHangNG.cs">

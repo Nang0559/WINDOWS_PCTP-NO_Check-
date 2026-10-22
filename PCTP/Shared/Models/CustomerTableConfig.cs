@@ -24,6 +24,7 @@ namespace PCTP.Shared.Models
                 {
                     CustomerNo = HondaVietnam,
                     DisplayName = "HVN (100001)",
+                    CustomerName = "Honda Việt Nam",
                     NhaMayMatchPatterns = new[] { "HON DA" },
                     Delivery = new GiaoHangKhachCustomerOptions
                     {
@@ -54,6 +55,7 @@ namespace PCTP.Shared.Models
                 {
                     CustomerNo = Customer100003,
                     DisplayName = "Nhà Máy HONDA TRADING",
+                    CustomerName = "Honda Trading",
                     NhaMayMatchPatterns = new[] { "100003", "HONDA TRADING" },
                     Delivery = new GiaoHangKhachCustomerOptions
                     {
@@ -78,6 +80,7 @@ namespace PCTP.Shared.Models
                 {
                     CustomerNo = YamahaVietnam,
                     DisplayName = "YMVN (100002)",
+                    CustomerName = "Yamaha Việt Nam",
                     NhaMayMatchPatterns = new[] { "YAMAHA" },
                     Delivery = new GiaoHangKhachCustomerOptions
                     {

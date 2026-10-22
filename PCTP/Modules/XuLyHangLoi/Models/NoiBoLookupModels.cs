@@ -54,4 +54,22 @@ namespace PCTP.Modules.XuLyHangLoi.Models
         public int SoLuong { get; set; }
         public string LyDoNg { get; set; }
     }
+
+    /// <summary>
+    /// Một dòng lookup "Khách hàng trả": Mã + Tên lấy từ CustomerTableConfig
+    /// (nguồn duy nhất, không nhân bản dữ liệu khách hàng).
+    /// </summary>
+    public sealed class KhachHangLookupItem
+    {
+        /// <summary>CustomerNo trong CustomerTableConfig (100001...).</summary>
+        public string CustomerNo { get; set; }
+
+        public string TenKhachHang { get; set; }
+
+        /// <summary>Text hiển thị trên ô đã chọn: "100001 - Honda Việt Nam".</summary>
+        public string Display
+        {
+            get { return string.IsNullOrWhiteSpace(TenKhachHang) ? CustomerNo : CustomerNo + " - " + TenKhachHang; }
+        }
+    }
 }

@@ -24,10 +24,10 @@ namespace PCTP.Modules.XuLyHangLoi.Models
         public string SoPhieu { get; set; }
 
         /// <summary>
-        /// Khách hàng trả hàng.
-        /// Chỉ có giá trị khi Nguon = KhachTra.
+        /// CustomerNo của khách hàng trả hàng (khoá trong CustomerTableConfig, VD "100001").
+        /// Chỉ có giá trị khi Nguon = KhachTra. Mã/tên hiển thị lấy từ CustomerTableConfig.
         /// </summary>
-        public NguonKhachTra? NguonKhachTra { get; set; }
+        public string CustomerNo { get; set; }
 
         /// <summary>
         /// Số phiếu/chứng từ do khách cung cấp.

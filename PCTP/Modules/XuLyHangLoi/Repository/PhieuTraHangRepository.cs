@@ -58,7 +58,7 @@ INSERT INTO FVN_PhieuTraHang
 (
     Nguon,
     SoPhieu,
-    NguonKhachTra,
+    CustomerNo,
     SoPhieuKhach,
     NgayPhatHanh,
     SlipNo,
@@ -86,7 +86,7 @@ VALUES
 (
     @Nguon,
     @SoPhieu,
-    @NguonKhachTra,
+    @CustomerNo,
     @SoPhieuKhach,
     @NgayPhatHanh,
     @SlipNo,
@@ -122,10 +122,8 @@ VALUES
                     DbValueHelper.DbValue(e.SoPhieu)),
 
                 new SqlParameter(
-                    "@NguonKhachTra",
-                    e.NguonKhachTra.HasValue
-                        ? (object)(int)e.NguonKhachTra.Value
-                        : DBNull.Value),
+                    "@CustomerNo",
+                    DbValueHelper.DbValue(e.CustomerNo)),
 
                 new SqlParameter(
                     "@SoPhieuKhach",
@@ -339,7 +337,7 @@ ORDER BY CreatedAt DESC, Id DESC;";
             const string sql = @"
 UPDATE FVN_PhieuTraHang
 SET
-    NguonKhachTra = @NguonKhachTra,
+    CustomerNo = @CustomerNo,
     SoPhieuKhach = @SoPhieuKhach,
     NgayPhatHanh = @NgayPhatHanh,
     SlipNo = @SlipNo,
@@ -370,10 +368,8 @@ WHERE Id = @Id;";
                     e.Id),
 
                 new SqlParameter(
-                    "@NguonKhachTra",
-                    e.NguonKhachTra.HasValue
-                        ? (object)(int)e.NguonKhachTra.Value
-                        : DBNull.Value),
+                    "@CustomerNo",
+                    DbValueHelper.DbValue(e.CustomerNo)),
 
                 new SqlParameter(
                     "@SoPhieuKhach",
@@ -902,10 +898,9 @@ WHERE PhieuTraHangId = @PhieuTraHangId
                     row,
                     "SoPhieu"),
 
-                NguonKhachTra =
-                    DbValueHelper.GetNullableEnum<NguonKhachTra>(
-                        row,
-                        "NguonKhachTra"),
+                CustomerNo = DbValueHelper.GetString(
+                    row,
+                    "CustomerNo"),
 
                 SoPhieuKhach = DbValueHelper.GetString(
                     row,

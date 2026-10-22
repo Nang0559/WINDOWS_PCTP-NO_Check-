@@ -21,6 +21,12 @@ namespace PCTP.Shared.Models
         public string DisplayName { get; set; }
 
         /// <summary>
+        /// Tên khách hàng đầy đủ để hiển thị / điền vào chứng từ (VD: phiếu khách trả).
+        /// Nguồn duy nhất — các form không tự gõ lại tên khách.
+        /// </summary>
+        public string CustomerName { get; set; }
+
+        /// <summary>
         /// Các chuỗi con (không phân biệt hoa/thường) từng xuất hiện trong cột
         /// LUUPHIEUGIAOHANG.NHAMAY / vWDinhDanhPhieuGiao.NHAMAY khi khách hàng này
         /// giao hàng — dùng để resolve ngược từ dữ liệu view về đúng CustomerConfig

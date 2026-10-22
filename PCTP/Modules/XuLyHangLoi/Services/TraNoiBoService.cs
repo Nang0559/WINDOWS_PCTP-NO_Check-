@@ -98,7 +98,7 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             // ------------------------------------------------------------
             // Tra nội bộ không có chứng từ khách
             // ------------------------------------------------------------
-            phieu.NguonKhachTra = null;
+            phieu.CustomerNo = null;
             phieu.SoPhieuKhach = null;
 
             // ------------------------------------------------------------

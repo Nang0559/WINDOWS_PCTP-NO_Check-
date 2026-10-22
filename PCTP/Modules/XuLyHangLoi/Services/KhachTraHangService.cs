@@ -3,6 +3,7 @@ using PCTP.Modules.XuLyHangLoi.Models;
 using PCTP.Modules.XuLyHangLoi.Repository;
 using PCTP.Shared.Common;
 using PCTP.Shared.Enums;
+using PCTP.Shared.Models;
 using PCTP.Shared.UiMd;
 using System;
 using System.Collections.Generic;
@@ -93,11 +94,13 @@ namespace PCTP.Modules.XuLyHangLoi.Services
                         "SoLuong phải lớn hơn 0.");
             }
 
-            // Khách trả bắt buộc phải xác định nguồn:
-            // HVN / YMVN
-            if (phieu.NguonKhachTra == null)
+            // Khách trả bắt buộc phải xác định khách hàng (CustomerNo hợp lệ trong CustomerTableConfig).
+            if (string.IsNullOrWhiteSpace(phieu.CustomerNo))
                 throw new ArgumentException(
-                    "Phải xác định nguồn khách trả hàng (HVN/YMVN).");
+                    "Phải xác định khách hàng trả hàng (CustomerNo).");
+
+            // Chuẩn hoá + chặn khách chưa cấu hình (ném KeyNotFoundException).
+            phieu.CustomerNo = CustomerTableConfig.Get(phieu.CustomerNo).CustomerNo;
 
             phieu.TongSoLuongNhan =
                 phieu.ChiTiet.Sum(x => x.SoLuong);

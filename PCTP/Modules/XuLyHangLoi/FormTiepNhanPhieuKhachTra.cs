@@ -13,6 +13,7 @@ namespace PCTP.Modules.XuLyHangLoi
     using PCTP.Modules.XuLyHangLoi.Repository;
     using PCTP.Modules.XuLyHangLoi.Services;
     using PCTP.Shared.Enums;
+    using PCTP.Shared.Models;
     using System;
     using System.Collections.Generic;
     using System.Linq;
@@ -31,7 +32,9 @@ namespace PCTP.Modules.XuLyHangLoi
         // ============================================================
 
         private TextEdit _txtSoPhieu;
-        private ComboBoxEdit _cboNguonKhachTra;
+        private LookUpEdit _cboNguonKhachTra;
+        private List<KhachHangLookupItem> _khachHangs = new List<KhachHangLookupItem>();
+        private bool _dangNapDuLieu; // true khi nạp phiếu cũ: không tự ghi đè Tên khách hàng đã lưu
         private TextEdit _txtSoPhieuKhach;
         private DateEdit _dtNgayPhatHanh;
         private TextEdit _txtSlipNo;
@@ -379,20 +382,33 @@ namespace PCTP.Modules.XuLyHangLoi
             // NGUỒN KHÁCH TRẢ
             // ========================================================
 
+            // Lookup Mã + Tên, dữ liệu lấy từ CustomerTableConfig (nguồn duy nhất).
+            _khachHangs = BuildKhachHangLookup();
+
             _cboNguonKhachTra =
-                new ComboBoxEdit
+                new LookUpEdit
                 {
                     Dock = DockStyle.Fill
                 };
 
             _cboNguonKhachTra.Properties.TextEditStyle =
                 DevExpress.XtraEditors.Controls.TextEditStyles.DisableTextEditor;
+            _cboNguonKhachTra.Properties.NullText = string.Empty;
+            _cboNguonKhachTra.Properties.DataSource = _khachHangs;
+            _cboNguonKhachTra.Properties.ValueMember = nameof(KhachHangLookupItem.CustomerNo);
+            _cboNguonKhachTra.Properties.DisplayMember = nameof(KhachHangLookupItem.Display);
+            _cboNguonKhachTra.Properties.PopupWidth = 420;
+            _cboNguonKhachTra.Properties.Columns.Clear();
+            _cboNguonKhachTra.Properties.Columns.Add(
+                new DevExpress.XtraEditors.Controls.LookUpColumnInfo(
+                    nameof(KhachHangLookupItem.CustomerNo), "Mã KH", 90));
+            _cboNguonKhachTra.Properties.Columns.Add(
+                new DevExpress.XtraEditors.Controls.LookUpColumnInfo(
+                    nameof(KhachHangLookupItem.TenKhachHang), "Tên khách hàng", 260));
 
-            foreach (NguonKhachTra value
-                     in Enum.GetValues(typeof(NguonKhachTra)))
-            {
-                _cboNguonKhachTra.Properties.Items.Add(value);
-            }
+            // Chọn khách → tự điền Tên khách hàng.
+            _cboNguonKhachTra.EditValueChanged +=
+                (s, e) => CapNhatTenKhachHangTuNguon();
 
             AddLabel(
                 header,
@@ -942,13 +958,35 @@ namespace PCTP.Modules.XuLyHangLoi
             _dtNgayPhatHanh.EditValue = _editPhieu.NgayPhatHanh;
             _txtSlipNo.Text = _editPhieu.SlipNo;
             _txtCa.Text = _editPhieu.Ca;
-            _txtTenKhachHang.Text = _editPhieu.TenKhachHang;
             _txtLyDo.Text = _editPhieu.LyDo;
             _txtBoPhanPhatHienLoi.Text = _editPhieu.BoPhanPhatHienLoi;
             _txtNguoiTao.Text = _editPhieu.CreatedBy;
 
-            if (_editPhieu.NguonKhachTra.HasValue)
-                _cboNguonKhachTra.EditValue = _editPhieu.NguonKhachTra.Value;
+            // Nạp nguồn khách rồi mới nạp Tên đã lưu (không để lookup ghi đè).
+            _dangNapDuLieu = true;
+            try
+            {
+                if (!string.IsNullOrWhiteSpace(_editPhieu.CustomerNo))
+                {
+                    string no = _editPhieu.CustomerNo.Trim();
+
+                    // Khách đã bị gỡ khỏi CustomerTableConfig → vẫn hiển thị để xem phiếu cũ.
+                    if (!_khachHangs.Any(x => x.CustomerNo == no))
+                    {
+                        _khachHangs.Add(new KhachHangLookupItem { CustomerNo = no, TenKhachHang = _editPhieu.TenKhachHang });
+                        _cboNguonKhachTra.Properties.DataSource = null;
+                        _cboNguonKhachTra.Properties.DataSource = _khachHangs;
+                    }
+
+                    _cboNguonKhachTra.EditValue = no;
+                }
+
+                _txtTenKhachHang.Text = _editPhieu.TenKhachHang;
+            }
+            finally
+            {
+                _dangNapDuLieu = false;
+            }
 
             _grid.DataSource =
                 _phieuRepo.GetItems(_phieuId) ?? new List<PhieuTraHangCT>();
@@ -1037,6 +1075,44 @@ namespace PCTP.Modules.XuLyHangLoi
         }
 
         // ============================================================
+        // LOOKUP NGUỒN KHÁCH TRẢ  ←  CustomerTableConfig
+        // ============================================================
+
+        private static List<KhachHangLookupItem> BuildKhachHangLookup()
+        {
+            var list = new List<KhachHangLookupItem>();
+
+            foreach (var cfg in CustomerTableConfig.All)
+            {
+                list.Add(new KhachHangLookupItem
+                {
+                    CustomerNo = cfg.CustomerNo,
+                    TenKhachHang = string.IsNullOrWhiteSpace(cfg.CustomerName)
+                        ? cfg.DisplayName
+                        : cfg.CustomerName
+                });
+            }
+
+            return list.OrderBy(x => x.CustomerNo, StringComparer.Ordinal).ToList();
+        }
+
+        private void CapNhatTenKhachHangTuNguon()
+        {
+            if (_dangNapDuLieu)
+                return;
+
+            var no = _cboNguonKhachTra.EditValue as string;
+
+            if (string.IsNullOrWhiteSpace(no))
+                return;
+
+            var item = _khachHangs.FirstOrDefault(x => x.CustomerNo == no);
+
+            if (item != null)
+                _txtTenKhachHang.Text = item.TenKhachHang;
+        }
+
+        // ============================================================
         // DEFAULT DATA
         // ============================================================
 
@@ -1048,12 +1124,10 @@ namespace PCTP.Modules.XuLyHangLoi
             _dtNgayPhatHanh.EditValue =
                 DateTime.Today;
 
-            var values =
-                Enum.GetValues(typeof(NguonKhachTra));
-
-            if (values.Length > 0)
+            if (_khachHangs.Count > 0)
             {
-                _cboNguonKhachTra.SelectedIndex = 0;
+                // Kích hoạt EditValueChanged → tự điền Tên khách hàng mặc định.
+                _cboNguonKhachTra.EditValue = _khachHangs[0].CustomerNo;
             }
 
             _grid.DataSource =
@@ -1213,10 +1287,10 @@ namespace PCTP.Modules.XuLyHangLoi
             // Nguồn khách trả
             // --------------------------------------------------------
 
-            if (_cboNguonKhachTra.EditValue == null)
+            if (string.IsNullOrWhiteSpace(_cboNguonKhachTra.EditValue as string))
             {
                 XtraMessageBox.Show(
-                    "Vui lòng chọn nguồn khách trả.",
+                    "Vui lòng chọn khách hàng trả.",
                     "Thiếu thông tin",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Warning);
@@ -1348,9 +1422,8 @@ namespace PCTP.Modules.XuLyHangLoi
         private PhieuTraHang BuildPhieu(
             List<PhieuTraHangCT> items)
         {
-            var nguon =
-                (NguonKhachTra)
-                _cboNguonKhachTra.EditValue;
+            string customerNo =
+                (_cboNguonKhachTra.EditValue as string ?? string.Empty).Trim();
 
             string nguoiTao =
                 _txtNguoiTao.Text.Trim();
@@ -1372,8 +1445,8 @@ namespace PCTP.Modules.XuLyHangLoi
                     Nguon =
                         NguonXuLyBatThuong.KhachTra,
 
-                    NguonKhachTra =
-                        nguon,
+                    CustomerNo =
+                        customerNo,
 
                     // =================================================
                     // CHỨNG TỪ KHÁCH
@@ -1480,7 +1553,7 @@ namespace PCTP.Modules.XuLyHangLoi
 
         private void LuuThayDoi(List<PhieuTraHangCT> items)
         {
-            _editPhieu.NguonKhachTra = (NguonKhachTra)_cboNguonKhachTra.EditValue;
+            _editPhieu.CustomerNo = (_cboNguonKhachTra.EditValue as string ?? string.Empty).Trim();
             _editPhieu.SoPhieuKhach = _txtSoPhieuKhach.Text.Trim();
             _editPhieu.NgayPhatHanh = _dtNgayPhatHanh.EditValue as DateTime?;
             _editPhieu.SlipNo = _txtSlipNo.Text.Trim();

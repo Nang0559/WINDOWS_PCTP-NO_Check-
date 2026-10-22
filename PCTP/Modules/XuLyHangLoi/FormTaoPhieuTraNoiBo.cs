@@ -1360,7 +1360,7 @@ namespace PCTP.Modules.XuLyHangLoi
                     // Tự sinh: Code(PB)-Code(BP)-ddMMyy (service tự thêm hậu tố nếu trùng).
                     SoPhieu = soPhieu,
 
-                    NguonKhachTra = null,
+                    CustomerNo = null,
                     SoPhieuKhach = null,
                     NgayPhatHanh = null,
                     SlipNo = null,
