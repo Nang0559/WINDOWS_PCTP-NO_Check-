@@ -171,3 +171,41 @@ IF OBJECT_ID('dbo.Warehouse','U') IS NOT NULL DROP TABLE dbo.Warehouse;";
         if (!condition) throw new InvalidOperationException(message);
     }
 }
+
+namespace PCTP.Modules.KhoVatLy.Kho.Models
+{
+    public sealed class LotInfo
+    {
+        public string LotNo { get; set; }
+        public string ItemCode { get; set; }
+        public int Quantity { get; set; }
+        public string TemCode { get; set; }
+        public string RawQr { get; set; }
+        public PCTP.Shared.Models.QRCodeInfo QRInfo { get; set; }
+        public DateTime? ImportDate { get; set; }
+    }
+}
+
+namespace PCTP.Shared.Models
+{
+    public sealed class QRCodeInfo
+    {
+        public string LotNo { get; set; }
+        public string ItemCode { get; set; }
+        public int Quantity { get; set; }
+        public string MaPhieu { get; set; }
+        public DateTime? ImportDate { get; set; }
+        public string RawQr { get; set; }
+    }
+}
+
+namespace PCTP.Shared.Helpers
+{
+    public static class QRCodeParser
+    {
+        public static PCTP.Shared.Models.QRCodeInfo ParseQRCode(string value)
+            => throw new FormatException("Synthetic fixture QR is intentionally not a production QR payload.");
+    }
+}
+
+namespace PCTP.VIEWSTOCK.Models { }
