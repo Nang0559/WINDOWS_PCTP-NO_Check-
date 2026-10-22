@@ -293,14 +293,25 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             var phieu = GetRequired(phieuXuLyId);
             if (phieu.HuongXuLy != HuongXuLyBatThuong.CanRework)
                 return ScanResult.Fail("Chỉ phiếu có hướng CanRework mới được xuất kho rework.");
-            ValidateTransition(phieu, QTChungStatus.DaXuatKhoRework);
+            if (phieu.Status != QTChungStatus.DaDinhHuong &&
+                phieu.Status != QTChungStatus.DaXuatKhoRework)
+                return ScanResult.Fail($"Chỉ được xuất rework khi phiếu ở trạng thái DaDinhHuong hoặc DaXuatKhoRework. Hiện tại: {phieu.Status}.");
 
             try
             {
                 _uow.Begin();
                 var result = _reworkStockService.XuatKhoRework(phieuXuLyId, slotId, lotNo, soLuong, nguoiXuat);
                 if (!result.IsOK) { SafeRollback(); return result; }
-                _repo.UpdateStatus(phieuXuLyId, QTChungStatus.DaXuatKhoRework, nguoiXuat);
+
+                // Chỉ chuyển trạng thái ở lần xuất đầu tiên; cho phép nhiều lần xuất
+                // trong cùng trạng thái DaXuatKhoRework cho đến khi đủ kế hoạch.
+                if (phieu.Status == QTChungStatus.DaDinhHuong &&
+                    !_repo.UpdateStatusIfCurrentIs(phieuXuLyId, QTChungStatus.DaDinhHuong, QTChungStatus.DaXuatKhoRework, nguoiXuat))
+                {
+                    SafeRollback();
+                    return ScanResult.Fail("Trạng thái phiếu đã thay đổi trong lúc xuất rework. Vui lòng tải lại.");
+                }
+
                 _uow.Commit();
                 return result;
             }
@@ -359,6 +370,12 @@ namespace PCTP.Modules.XuLyHangLoi.Services
 
             if (lotGiaoHopLe.Count == 0)
                 return ScanResult.Fail("Không có LOT hợp lệ để giao sản xuất.");
+
+            int tongXuatRework = xuat.Sum(x => Math.Max(0, x.SoLuongXuat));
+            int tongDaGiaoTruoc = giaoHienTai.Sum(x => Math.Max(0, x.SoLuongGiao));
+            int tongYeuCauGiao = lotGiaoHopLe.Sum(x => x.Quantity);
+            if (tongDaGiaoTruoc + tongYeuCauGiao != tongXuatRework)
+                return ScanResult.Fail($"Chỉ được chuyển sang giao sản xuất khi giao đủ số lượng đã xuất rework. Đã xuất={tongXuatRework:n0}, đã giao={tongDaGiaoTruoc:n0}, yêu cầu lần này={tongYeuCauGiao:n0}.");
 
             try
             {
