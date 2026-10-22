@@ -110,6 +110,45 @@ namespace PCTP.QC.Tests
         }
 
         [Fact]
+        public void DeliveryPick_PartialMovement_ManagedTransactionRecordsActualShortfall()
+        {
+            var slots = new FakeBulkSlots
+            {
+                VirtualLots = new List<LotInfo> { new LotInfo { LotNo = Lot, ItemCode = "PART-01", Quantity = 2 } }
+            };
+            var history = new FakeHistory();
+            var uow = new FakeUnitOfWork();
+            var movement = new FakeMovement { ConsumedQuantityOverride = 1 };
+            var service = new BulkStockAdjustService(slots, history, uow, movement);
+
+            Assert.True(service.TruKhoAoTheoLot(Lot, 2, manageTransaction: true));
+
+            Assert.Contains(history.Entries, x => x.Action == "EXPORT_AUTO_HVN" && x.Quantity == 1);
+            Assert.Contains(history.Entries, x => x.Action == "EXPORT_SHORTFALL" && x.Quantity == 1);
+            Assert.Equal(1, uow.CommitCount);
+            Assert.Equal(0, uow.RollbackCount);
+        }
+
+        [Fact]
+        public void DeliveryPick_PartialMovement_SharedTransactionThrowsForCallerRollback()
+        {
+            var slots = new FakeBulkSlots
+            {
+                VirtualLots = new List<LotInfo> { new LotInfo { LotNo = Lot, ItemCode = "PART-01", Quantity = 2 } }
+            };
+            var movement = new FakeMovement { ConsumedQuantityOverride = 1 };
+            var uow = new FakeUnitOfWork();
+            var service = new BulkStockAdjustService(slots, new FakeHistory(), uow, movement);
+
+            Assert.Throws<InvalidOperationException>(() =>
+                service.TruKhoAoTheoLot(Lot, 2, manageTransaction: false));
+
+            Assert.Equal(0, uow.BeginCount);
+            Assert.Equal(0, uow.CommitCount);
+            Assert.Equal(0, uow.RollbackCount);
+        }
+
+        [Fact]
         public void DeliveryPick_InvalidRequestDoesNotOpenTransaction()
         {
             var uow = new FakeUnitOfWork();
@@ -152,6 +191,7 @@ namespace PCTP.QC.Tests
         {
             public List<StockMovementRequest> Picks { get; } = new List<StockMovementRequest>();
             public int? FailSlotId { get; set; }
+            public int? ConsumedQuantityOverride { get; set; }
             public StockMovementResult Receive(StockMovementRequest request) => StockMovementResult.Fail("unused");
             public StockMovementResult Reserve(StockMovementRequest request) => StockMovementResult.Fail("unused");
             public StockMovementResult Export(StockMovementRequest request) => StockMovementResult.Fail("unused");
@@ -166,7 +206,7 @@ namespace PCTP.QC.Tests
                     return StockMovementResult.Fail("injected pick failure");
                 return StockMovementResult.OkWithConsumedLots(new List<StockSlotLot>
                 {
-                    new StockSlotLot { LotNo = request.LotNo, ItemCode = request.ItemCode, Quantity = request.Quantity }
+                    new StockSlotLot { LotNo = request.LotNo, ItemCode = request.ItemCode, Quantity = ConsumedQuantityOverride ?? request.Quantity }
                 });
             }
         }
