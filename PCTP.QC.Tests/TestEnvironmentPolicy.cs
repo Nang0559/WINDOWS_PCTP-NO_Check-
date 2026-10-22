@@ -1,32 +1,40 @@
 using System;
+using System.Collections.Generic;
 using System.Text.RegularExpressions;
 
 namespace PCTP.QC.Tests;
 
 /// <summary>
 /// Fail-closed guard for any future SQL integration/performance fixture.
-/// Tests are not permitted to connect to production or ambiguous databases.
+/// Accepts exactly one local server alias and one explicitly test-named database.
+/// Ambiguous/duplicate aliases are rejected to prevent connection-string parser differentials.
 /// </summary>
 public static class TestEnvironmentPolicy
 {
+    private static readonly string[] ServerAliases =
+        { "Data Source", "Server", "Address", "Addr", "Network Address" };
+    private static readonly string[] DatabaseAliases =
+        { "Initial Catalog", "Database" };
+
     public static bool IsSafeSqlTestTarget(string connectionString)
     {
         if (string.IsNullOrWhiteSpace(connectionString)) return false;
 
-        var dataSource = ReadValue(connectionString, "Data Source")
-            ?? ReadValue(connectionString, "Server");
-        var database = ReadValue(connectionString, "Initial Catalog")
-            ?? ReadValue(connectionString, "Database");
+        var servers = ReadValues(connectionString, ServerAliases);
+        var databases = ReadValues(connectionString, DatabaseAliases);
 
-        if (string.IsNullOrWhiteSpace(dataSource) || string.IsNullOrWhiteSpace(database))
-            return false;
+        // Do not guess which duplicate/synonym a provider will honor.
+        if (servers.Count != 1 || databases.Count != 1) return false;
 
-        var server = dataSource.Trim().ToLowerInvariant();
+        var server = servers[0].Trim().ToLowerInvariant();
         var isLocal = server == "." || server == "(local)" || server == "localhost"
-            || server == "127.0.0.1" || server.StartsWith(".\\", StringComparison.Ordinal)
+            || server == "127.0.0.1" || server == "::1"
+            || server.StartsWith(".\\", StringComparison.Ordinal)
             || server.StartsWith("localhost\\", StringComparison.Ordinal)
-            || server.StartsWith("(local)\\", StringComparison.Ordinal);
-        var db = database.Trim();
+            || server.StartsWith("(local)\\", StringComparison.Ordinal)
+            || server.StartsWith("(localdb)\\", StringComparison.Ordinal);
+
+        var db = databases[0].Trim();
         var isTestDatabase = db.StartsWith("TEST_", StringComparison.OrdinalIgnoreCase)
             || db.EndsWith("_TEST", StringComparison.OrdinalIgnoreCase)
             || db.EndsWith("_TESTING", StringComparison.OrdinalIgnoreCase);
@@ -38,17 +46,23 @@ public static class TestEnvironmentPolicy
     {
         if (!IsSafeSqlTestTarget(connectionString))
             throw new InvalidOperationException(
-                "SQL integration tests are blocked. Only a local database named TEST_* / *_TEST / *_TESTING is allowed. Production and remote servers are never accepted.");
+                "SQL integration tests are blocked. Exactly one local server and one TEST_* / *_TEST / *_TESTING database must be specified. Production, remote, and ambiguous targets are rejected.");
     }
 
-    private static string ReadValue(string connectionString, string key)
+    private static List<string> ReadValues(string connectionString, string[] aliases)
     {
-        var match = Regex.Match(connectionString,
-            @"(?:^|;)\s*" + Regex.Escape(key) + @"\s*=\s*(?:""(?<quoted>[^""]*)""|(?<plain>[^;]*))",
-            RegexOptions.IgnoreCase);
-        if (!match.Success) return null;
-        return match.Groups["quoted"].Success
-            ? match.Groups["quoted"].Value.Trim()
-            : match.Groups["plain"].Value.Trim();
+        var values = new List<string>();
+        foreach (var alias in aliases)
+        {
+            var pattern = @"(?:^|;)\\s*" + Regex.Escape(alias) +
+                @"\\s*=\\s*(?:""(?<quoted>[^""]*)""|(?<plain>[^;]*))";
+            foreach (Match match in Regex.Matches(connectionString, pattern, RegexOptions.IgnoreCase))
+            {
+                values.Add(match.Groups["quoted"].Success
+                    ? match.Groups["quoted"].Value.Trim()
+                    : match.Groups["plain"].Value.Trim());
+            }
+        }
+        return values;
     }
 }
