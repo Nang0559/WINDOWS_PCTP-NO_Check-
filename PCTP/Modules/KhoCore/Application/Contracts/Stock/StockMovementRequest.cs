@@ -34,6 +34,8 @@ namespace PCTP.Modules.KhoCore.Application.Contracts.Stock
         public string PerformedBy { get; set; }
         public DateTime? OccurredAt { get; set; }
         public string Reason { get; set; }
+        public string TemCode { get; set; }
+        public string QrData { get; set; }
 
         // Receiving metadata. These fields are used only by the receiving
         // storage adapter; other stock movements can leave them empty.
