@@ -160,6 +160,34 @@
       "scenario": "Receive/export/delivery/rework high-value journeys",
       "expected": "Visible state and persisted state agree",
       "status": "planned"
+    },
+    {
+      "id": "RWK-004",
+      "module": "XuLyHangLoi",
+      "scenario": "QC initial inspection quantity reconciliation",
+      "expected": "Inspected = OK + NG; NG = Rework + initial scrap",
+      "status": "implemented"
+    },
+    {
+      "id": "RWK-005",
+      "module": "XuLyHangLoi",
+      "scenario": "Final QC and disposition reconciliation",
+      "expected": "Rework OK + NG = approved rework; final scrap = initial scrap + rework NG",
+      "status": "implemented"
+    },
+    {
+      "id": "RWK-006",
+      "module": "XuLyHangLoi",
+      "scenario": "Customer compensation independence",
+      "expected": "Compensation obligation remains independent; delivered quantity cannot exceed obligation",
+      "status": "implemented"
+    },
+    {
+      "id": "RWK-007",
+      "module": "XuLyHangLoi",
+      "scenario": "Affected LOT quantity validation",
+      "expected": "Negative affected/inspected/OK/NG/rework/scrap quantity rejected",
+      "status": "implemented"
     }
   ]
 }
