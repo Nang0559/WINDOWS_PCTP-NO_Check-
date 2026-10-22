@@ -22,6 +22,7 @@ The production application remains .NET Framework 4.7.2 / WinForms. The test har
 | Area | Current tests | Type |
 |---|---|---|
 | Customer delivery FIFO | in-memory ordering, compound LOT quantity matching, rejected scan state, rescan, release, reset | Unit/regression only; not persisted delivery |
+| Customer delivery bulk adjustment | A0-first then physical-slot fallback, shortfall handling, caller-owned transaction failure, owned transaction commit/rollback | Unit tests with repository/movement fakes; SQL workflow still pending |
 | QC Final domain rules | initial QC OK/NG reconciliation, rework OK/NG reconciliation, final scrap disposition, compensation separation, affected LOT non-negative quantities | Unit/domain |
 | YMVN delivery validation | LOT character 13 → Gear, order quantity limit, missing Gear, completion totals, unexpected Gear, empty order | Unit/regression |
 | Stock movement (KhoCore) | normal receiving, NG quarantine status, successful/blocked export, quantity guards, LOT identity, full/partial move QR rules, restore-picked, correction transaction guard | Unit/regression |
@@ -35,7 +36,7 @@ The evidence check proves the matrix is traceable to test code; it does not conv
 
 ## SQL Server integration harness
 
-See [SQL_INTEGRATION.md](SQL_INTEGRATION.md) for the opt-in SQL Server harness. It exercises real SQL rollback, concurrent conditional decrement, command timeout, and the production `StockTpRepository` and `BulkStockSlotRepository` against isolated fixtures. CI only builds the harness; it does not connect to SQL or claim these scenarios passed. The current customer-delivery unit tests cover FIFO session state and YMVN Gear mapping only; they do not execute the delivery persistence workflow or verify its shared transaction. That work is tracked as `DEL-003`/`DEL-004`/`DEL-005` and remains pending. Repository SQL scenarios `STK-003`/`STK-004` also remain pending until executed against a disposable local SQL Server.
+See [SQL_INTEGRATION.md](SQL_INTEGRATION.md) for the opt-in SQL Server harness. It exercises real SQL rollback, concurrent conditional decrement, command timeout, and the production `StockTpRepository` and `BulkStockSlotRepository` against isolated fixtures. CI only builds the harness; it does not connect to SQL or claim these scenarios passed. The current customer-delivery unit tests cover FIFO session state and YMVN Gear mapping only; they do not execute the delivery persistence workflow or verify its shared transaction. That work is tracked as `DEL-003`/`DEL-004`/`DEL-005`/`DEL-007` and remains pending. `DEL-006` adds direct unit coverage for the production `BulkStockAdjustService`, but its repository and movement dependencies are fakes; it is not a SQL rollback proof. Repository SQL scenarios `STK-003`/`STK-004` also remain pending until executed against a disposable local SQL Server.
 
 ## Transaction boundary audit
 
