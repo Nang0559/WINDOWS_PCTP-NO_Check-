@@ -126,6 +126,8 @@ namespace PCTP.Modules.KhoCore.Application.Services
                         LotNo = lotNo,
                         ItemCode = itemCode,
                         Quantity = request.Quantity,
+                        TemCode = request.TemCode,
+                        RawQr = request.QrData,
                         ImportDate = request.OccurredAt ?? DateTime.Now
                     });
                 }
@@ -220,7 +222,8 @@ namespace PCTP.Modules.KhoCore.Application.Services
                         LotNo = request.LotNo,
                         ItemCode = request.ItemCode,
                         Quantity = request.Quantity,
-                        RawQr = null,
+                        TemCode = request.TemCode,
+                        RawQr = request.QrData,
                         ImportDate = request.ProductionDate ?? request.OccurredAt ?? DateTime.Now
                     });
                 }
