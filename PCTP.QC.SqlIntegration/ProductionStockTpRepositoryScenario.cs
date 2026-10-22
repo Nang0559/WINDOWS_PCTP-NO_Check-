@@ -83,6 +83,24 @@ CREATE TABLE #STOCKTP
                     Convert.ToInt32(current.Rows[0]["SLCONLAI"]) == 55,
                 "GetTonKhoHienTai did not return the active fixture row.");
 
+            var remainingLots = repository.GetDanhSachLotConTon();
+            Require(remainingLots.Count == 1 &&
+                    remainingLots[0].Lot == "QC-REPO-LOT-0001" &&
+                    remainingLots[0].SlConLai == 55,
+                "GetDanhSachLotConTon returned an unexpected result.");
+
+            var selectedLots = repository.GetTonKhoTheoLot(new List<string> { "QC-REPO-LOT-0001" });
+            Require(selectedLots.Rows.Count == 1,
+                "GetTonKhoTheoLot did not return the requested LOT.");
+            Require(repository.GetTonKhoTheoLot(null).Rows.Count == 0,
+                "GetTonKhoTheoLot(null) should return an empty table.");
+
+            bool missingLotRejected = false;
+            try { repository.UpdateStockTp("QC-REPO-MISSING", 1, 0); }
+            catch (InvalidOperationException) { missingLotRejected = true; }
+            Require(missingLotRejected,
+                "UpdateStockTp must reject a LOT that does not exist.");
+
             uow.Commit();
             Console.WriteLine("PASS: production StockTpRepository CRUD/read/batch methods executed against isolated #STOCKTP.");
         }
