@@ -183,7 +183,7 @@ namespace PCTP.Modules.KhoCore.Application.Services
                         LotNo = request.LotNo.Trim(),
                         ItemCode = request.ItemCode.Trim(),
                         Quantity = request.Quantity,
-                        TemCode = request.TemCode,
+                        TemCode = null, // dòng điều chỉnh không được tái sử dụng TemCode/QrData của tem khác
                         RawQr = null,
                         ImportDate = request.OccurredAt ?? DateTime.Now,
                         PhieuStatus = 0
