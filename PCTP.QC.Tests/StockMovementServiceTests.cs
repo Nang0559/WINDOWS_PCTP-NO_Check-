@@ -96,13 +96,15 @@ public sealed class StockMovementServiceTests
     [Fact]
     public void Export_WhenBalanceReservationFails_DoesNotDecreaseSlotLot()
     {
-        var slots = new FakeSlots { Status = 0, LotQuantity = 10, LotNo = "LOT-00000001", ItemCode = "PART-01" };
+        // Use a production-shaped 20-character LOT key so the identity guard
+        // passes and the test reaches the STOCKTP reservation failure branch.
+        var slots = new FakeSlots { Status = 0, LotQuantity = 10, LotNo = "26080700748100851600", ItemCode = "PART-01" };
         var balance = new FakeBalance { AllowDecrease = false };
         var service = Create(slots, balance);
 
         var result = service.Export(new StockMovementRequest
         {
-            SlotLotId = 11, LotNo = "LOT-00000001", ItemCode = "PART-01", Quantity = 2
+            SlotLotId = 11, LotNo = "26080700748100851600", ItemCode = "PART-01", Quantity = 2
         });
 
         Assert.False(result.Success);
