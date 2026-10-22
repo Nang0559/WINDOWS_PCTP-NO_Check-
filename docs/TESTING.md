@@ -59,6 +59,6 @@ Run the desktop app on Windows after building it. The runner must be launched fr
 
 1. Add SQL integration coverage for customer delivery through the actual delivery service/repository graph: stock deduction, SlotLot FIFO, stock history, pending-delivery state and rollback through shared `phieuUow`.
 2. Add duplicate/replayed delivery-confirmation protection and insufficient-stock/shortfall behavior tests (`DEL-004`/`DEL-005`).
-3. Add direct production `SlotRepository` coverage and a cross-repository STOCKTP + SlotLot rollback test (`STK-003`/`STK-004`).
+3. Execute the new cross-repository STOCKTP + SlotLot rollback scenario on a disposable SQL Server, then add direct production `SlotRepository` coverage (`DEL-008`, `STK-003`/`STK-004`).
 4. Add SQL timeout, retry, cancellation, deadlock, and concurrent LOT scenarios with deterministic fixtures.
 5. Add WinAppDriver/FlaUI smoke tests for high-value WinForms journeys and expand the matrix with executable evidence.
