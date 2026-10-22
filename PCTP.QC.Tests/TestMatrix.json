@@ -77,6 +77,13 @@
       "status": "planned"
     },
     {
+      "id": "STK-004",
+      "module": "KhoCore",
+      "scenario": "Execute production BulkStockSlotRepository add/FIFO-take/header refresh and rollback",
+      "expected": "SlotLot and Slot header reconcile; FIFO preserves remaining metadata; failed UnitOfWork rolls back both",
+      "status": "planned"
+    },
+    {
       "id": "PHY-001",
       "module": "KhoVatLy",
       "scenario": "Register rack and slot; locate LOT",
