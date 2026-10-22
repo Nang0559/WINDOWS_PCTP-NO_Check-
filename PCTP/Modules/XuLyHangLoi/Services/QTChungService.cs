@@ -359,9 +359,11 @@ namespace PCTP.Modules.XuLyHangLoi.Services
                     return ScanResult.Fail($"Mã hàng của LOT [{lot.LotNo}] không khớp phiếu xử lý.");
 
                 string key = lot.LotNo.Trim();
-                if (!daXuatTheoLot.TryGetValue(key, out int tongDaXuat))
+                int tongDaXuat;
+                if (!daXuatTheoLot.TryGetValue(key, out tongDaXuat))
                     return ScanResult.Fail($"LOT [{key}] chưa được xuất kho cho phiếu rework này.");
-                daGiaoTheoLot.TryGetValue(key, out int tongDaGiao);
+                int tongDaGiao;
+                daGiaoTheoLot.TryGetValue(key, out tongDaGiao);
                 int soLuongYeuCauTruocDo = lotGiaoHopLe.Where(x => string.Equals(x.LotNo.Trim(), key, StringComparison.OrdinalIgnoreCase)).Sum(x => x.Quantity);
                 if (tongDaGiao + soLuongYeuCauTruocDo + lot.Quantity > tongDaXuat)
                     return ScanResult.Fail($"Giao LOT [{key}] vượt số lượng đã xuất. Đã xuất={tongDaXuat:n0}, đã giao={tongDaGiao:n0}, yêu cầu thêm={soLuongYeuCauTruocDo + lot.Quantity:n0}.");
