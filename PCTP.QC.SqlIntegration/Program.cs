@@ -26,10 +26,9 @@ internal static class Program
             await using var connection = new SqlConnection(connectionString);
             await connection.OpenAsync();
             var table = "dbo.[__PCTP_QC_" + Guid.NewGuid().ToString("N") + "]";
-            await CreateFixtureAsync(connection, table);
-
             try
             {
+                await CreateFixtureAsync(connection, table);
                 await RunRollbackAtomicityAsync(connection, table);
                 await RunConcurrentConditionalDecrementAsync(connectionString, table);
                 await RunCommandTimeoutRollbackAsync(connection, table);
