@@ -365,7 +365,6 @@ using System.Windows.Forms;
                         ItemCode = stock.Part,
                         Quantity = slConLaiMoi - slConLaiCu,   // delta, không phải giá trị tuyệt đối
                         SlotId = selectedLocation.SlotId,
-                        TemCode = selectedLocation.TemCode,
                         OccurredAt = DateTime.Now,
                         Reason = lyDo,
                         PerformedBy = Environment.UserName
