@@ -27,7 +27,6 @@ namespace PCTP.Modules.KhoCore.Application.Contracts.Stock
         public int? SlotLotId { get; set; }
         public int? TargetSlotId { get; set; }
         public string LotNo { get; set; }
-        public string TemCode { get; set; }
         public string ItemCode { get; set; }
         public int Quantity { get; set; }
         public string ReferenceType { get; set; }
