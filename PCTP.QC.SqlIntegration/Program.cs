@@ -65,6 +65,7 @@ INSERT INTO {table}(Id, Lot, StockQty, SlotQty) VALUES (1, 'QC-LOT-ROLLBACK', 10
     private static async Task RunRollbackAtomicityAsync(SqlConnection connection, string table)
     {
         await using var transaction = (SqlTransaction)await connection.BeginTransactionAsync(IsolationLevel.ReadCommitted);
+        var injectedFailureObserved = false;
         try
         {
             await ExecuteAsync(connection, transaction,
@@ -74,10 +75,14 @@ INSERT INTO {table}(Id, Lot, StockQty, SlotQty) VALUES (1, 'QC-LOT-ROLLBACK', 10
             await transaction.CommitAsync();
             throw new InvalidOperationException("Expected the deliberate SQL failure was not raised.");
         }
-        catch (SqlException)
+        catch (SqlException ex) when (ex.Number == 51000)
         {
+            injectedFailureObserved = true;
             await transaction.RollbackAsync();
         }
+
+        if (!injectedFailureObserved)
+            throw new InvalidOperationException("The expected post-write failure was not observed.");
 
         var row = await ReadRowAsync(connection, table, 1);
         if (row.StockQty != 100 || row.SlotQty != 100)
