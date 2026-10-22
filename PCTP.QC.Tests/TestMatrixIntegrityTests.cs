@@ -35,6 +35,22 @@ public sealed class TestMatrixIntegrityTests
     }
 
     [Fact]
+    public void ScenarioIdsMustBeUniqueAndStatusesMustBeRecognized()
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, "TestMatrix.json");
+        using var document = JsonDocument.Parse(File.ReadAllText(path));
+        var modules = document.RootElement.GetProperty("modules").EnumerateArray().ToArray();
+        var ids = modules.Select(x => x.GetProperty("id").GetString()).ToArray();
+
+        Assert.Equal(ids.Length, ids.Distinct(StringComparer.OrdinalIgnoreCase).Count());
+        foreach (var scenario in modules)
+        {
+            var status = scenario.GetProperty("status").GetString();
+            Assert.Contains(status, new[] { "implemented", "planned", "blocked" });
+        }
+    }
+
+    [Fact]
     public void SafetyPolicyMustKeepProductionDatabaseAndMutationDisabled()
     {
         var path = Path.Combine(AppContext.BaseDirectory, "TestMatrix.json");
