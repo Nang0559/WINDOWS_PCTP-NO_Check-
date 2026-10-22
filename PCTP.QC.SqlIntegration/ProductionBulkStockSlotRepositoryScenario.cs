@@ -205,26 +205,18 @@ WHERE LOT = @lot AND SLCONLAI >= 5;";
             var take = bulk.TakeLot(slotId, "26080700748100851600", "QC-PART", 5);
             Require(take.Quantity == 5, "Production BulkStockSlotRepository did not pick the expected delivery quantity.");
 
-            // Model the remaining delivery-finalization writes in the same UoW.
-            // These columns are isolated fixture counters, not production tables;
-            // this proves transaction enlistment only, not production repository SQL.
+            // Synthetic delivery-history and pending-delivery writes deliberately
+            // enlist in the same production UoW. They are fixture tables, not the
+            // production repositories; this validates the shared transaction boundary.
             using (var finalize = uow.Connection.CreateCommand())
             {
                 finalize.Transaction = uow.Transaction;
                 finalize.CommandText = @"
-UPDATE #STOCKTP SET SLCONLAI = SLCONLAI
-WHERE LOT = @lot;
-UPDATE dbo.Slot SET Quantity = Quantity
-WHERE SlotId = @slotId;";
-                var lotParameter = finalize.CreateParameter();
-                lotParameter.ParameterName = "@lot";
-                lotParameter.Value = "QC-DELIVERY-ATOMIC-LOT";
-                finalize.Parameters.Add(lotParameter);
-                var slotParameter = finalize.CreateParameter();
-                slotParameter.ParameterName = "@slotId";
-                slotParameter.Value = slotId;
-                finalize.Parameters.Add(slotParameter);
-                finalize.ExecuteNonQuery();
+UPDATE dbo.__PCTP_QC_DeliveryState
+SET HistoryCount = HistoryCount + 1, PendingClosed = 1
+WHERE Id = 1;";
+                if (finalize.ExecuteNonQuery() != 1)
+                    throw new InvalidOperationException("Synthetic delivery finalization fixture row was not updated.");
             }
 
             throw new InvalidOperationException("QC injected cross-repository delivery failure.");
@@ -246,7 +238,10 @@ WHERE SlotId = @slotId;";
             "SlotLot rows were not restored by the shared delivery rollback.");
         Require(bulk.GetLots(slotId).Sum(x => x.Quantity) == 15,
             "Slot header/active SlotLot quantity changed after cross-repository rollback.");
-        Console.WriteLine("PASS: production UnitOfWork rolled back STOCKTP and production BulkStockSlotRepository.TakeLot as one delivery unit.");
+        Require(Convert.ToInt32(Scalar(cs, "SELECT HistoryCount FROM dbo.__PCTP_QC_DeliveryState WHERE Id=1")) == 0 &&
+                Convert.ToInt32(Scalar(cs, "SELECT PendingClosed FROM dbo.__PCTP_QC_DeliveryState WHERE Id=1")) == 0,
+            "Synthetic delivery history/pending finalization did not roll back with STOCKTP and SlotLot.");
+        Console.WriteLine("PASS: production UnitOfWork rolled back STOCKTP and production BulkStockSlotRepository.TakeLot plus synthetic history/pending-finalization writes as one delivery unit.");
     }
 
     private static void EnsureFixtureNamesAreUnused(string cs)
@@ -254,7 +249,7 @@ WHERE SlotId = @slotId;";
         using var connection = new SqlConnection(cs);
         connection.Open();
         using var command = connection.CreateCommand();
-        command.CommandText = "SELECT name FROM sys.tables WHERE schema_id = SCHEMA_ID('dbo') AND name IN ('Warehouse','Rack','Slot','SlotLot')";
+        command.CommandText = "SELECT name FROM sys.tables WHERE schema_id = SCHEMA_ID('dbo') AND name IN ('Warehouse','Rack','Slot','SlotLot','__PCTP_QC_DeliveryState')";
         using var reader = command.ExecuteReader();
         if (reader.Read())
             throw new InvalidOperationException("Bulk repository fixture requires an empty TEST database: dbo.Warehouse/dbo.Rack/dbo.Slot/dbo.SlotLot already exists. Use a dedicated disposable database; existing tables will never be modified.");
@@ -272,6 +267,8 @@ BEGIN TRY
     CREATE TABLE dbo.Rack (RackId int IDENTITY(1,1) NOT NULL PRIMARY KEY, WarehouseId int NOT NULL, RackName nvarchar(100) NOT NULL);
     CREATE TABLE dbo.Slot (SlotId int IDENTITY(1,1) NOT NULL PRIMARY KEY, RackId int NOT NULL, SlotNumber int NOT NULL, IsOccupied bit NOT NULL DEFAULT(0), Capacity int NOT NULL, Quantity int NOT NULL DEFAULT(0), ItemCode nvarchar(100) NULL, ImportDate datetime NULL);
     CREATE TABLE dbo.SlotLot (SlotLotId int IDENTITY(1,1) NOT NULL PRIMARY KEY, SlotId int NOT NULL, ItemCode nvarchar(100) NULL, LotNo nvarchar(100) NOT NULL, Quantity int NOT NULL, TemCode nvarchar(100) NULL, QrData nvarchar(500) NULL, MaPhieu nvarchar(100) NULL, ImportDate datetime NULL, PhieuStatus tinyint NOT NULL);
+    CREATE TABLE dbo.__PCTP_QC_DeliveryState (Id int NOT NULL PRIMARY KEY, HistoryCount int NOT NULL, PendingClosed bit NOT NULL);
+    INSERT INTO dbo.__PCTP_QC_DeliveryState(Id, HistoryCount, PendingClosed) VALUES (1, 0, 0);
     COMMIT TRANSACTION;
 END TRY
 BEGIN CATCH
@@ -287,6 +284,7 @@ END CATCH;";
         connection.Open();
         using var command = connection.CreateCommand();
         command.CommandText = @"
+IF OBJECT_ID('dbo.__PCTP_QC_DeliveryState','U') IS NOT NULL DROP TABLE dbo.__PCTP_QC_DeliveryState;
 IF OBJECT_ID('dbo.SlotLot','U') IS NOT NULL DROP TABLE dbo.SlotLot;
 IF OBJECT_ID('dbo.Slot','U') IS NOT NULL DROP TABLE dbo.Slot;
 IF OBJECT_ID('dbo.Rack','U') IS NOT NULL DROP TABLE dbo.Rack;
