@@ -60,3 +60,4 @@ The harness now exercises the production `StockTpRepository` and `BulkStockSlotR
 ## Cleanup and safety
 
 The runner never runs against a database that fails the fail-closed policy. It never executes production migrations or scripts. It does not delete databases or pre-existing tables; the bulk scenario checks that its four fixed names are absent before creation and drops only the tables it created, while the engine scenarios drop only their own uniquely named fixture table.
+
