@@ -24,10 +24,19 @@ Remove-Item Env:PCTP_QC_SQL_CONNECTION
 
 Use an existing local test database. The harness does not create/drop databases and does not execute migrations.
 
+To inspect whether a disposable copy of the production schema has the required columns, run the read-only preflight:
+
+```powershell
+dotnet run --project PCTP.QC.SqlIntegration/PCTP.QC.SqlIntegration.csproj --configuration Release -- --check-production-schema
+```
+
+This checks the `dbo.STOCKTP`, `dbo.SlotLot`, `dbo.Slot`, `dbo.Rack`, and `dbo.Warehouse` column contracts used by the production stock/slot repositories. It does not read business rows, modify data, create objects, or run migrations. It is a schema compatibility check only; it does not claim to execute those repositories.
+
 Exit codes:
-- `0`: all SQL scenarios passed
+- `0`: all SQL scenarios passed, or read-only schema preflight passed
 - `1`: connection, SQL, or assertion failure
 - `2`: missing or unsafe connection configuration
+- `3`: production schema preflight found missing columns
 
 ## Scenarios
 
