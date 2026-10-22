@@ -339,15 +339,32 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         {
             lotsDaXuatThanhCong = new List<string>();
             bool coAnhHuongA0 = false;
-            if (stok == null || stok.Rows.Count == 0 || !stok.Columns.Contains("LOT") || !stok.Columns.Contains("SOLUONG")) return false;
+            if (stok == null || stok.Rows.Count == 0) return false;
+            if (!stok.Columns.Contains("LOT") || !stok.Columns.Contains("SOLUONG"))
+                throw new InvalidOperationException(
+                    "Stored procedure trả về dữ liệu xuất kho nhưng thiếu cột LOT/SOLUONG; huỷ giao dịch để tránh lệch STOCKTP và SlotLot.");
 
             var bulkService = CreateBulkService();
             foreach (DataRow row in stok.Rows)
             {
                 string lot = LotCodeHelper.TrimTo(row["LOT"]?.ToString(), LotCodeHelper.LEN_HEAD_FIXED);
-                int sl = row["SOLUONG"] == DBNull.Value ? 0 : Convert.ToInt32(row["SOLUONG"]);
-                if (string.IsNullOrWhiteSpace(lot) || sl <= 0) continue;
-                if (bulkService.TruKhoAoTheoLot(lot, sl, manageTransaction: false)) coAnhHuongA0 = true;
+                int sl;
+                try
+                {
+                    sl = row["SOLUONG"] == DBNull.Value ? 0 : Convert.ToInt32(row["SOLUONG"]);
+                }
+                catch (Exception ex)
+                {
+                    throw new InvalidOperationException(
+                        "Stored procedure trả về SOLUONG không hợp lệ; huỷ giao dịch xuất kho.", ex);
+                }
+
+                if (string.IsNullOrWhiteSpace(lot) || sl <= 0)
+                    throw new InvalidOperationException(
+                        $"Stored procedure trả về LOT/SOLUONG không hợp lệ (LOT='{lot}', SOLUONG={sl}); huỷ giao dịch xuất kho.");
+
+                if (bulkService.TruKhoAoTheoLot(lot, sl, manageTransaction: false))
+                    coAnhHuongA0 = true;
                 lotsDaXuatThanhCong.Add(lot);
             }
             return coAnhHuongA0;
