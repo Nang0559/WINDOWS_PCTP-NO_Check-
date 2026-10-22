@@ -8,8 +8,11 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.SqlClient" Version="6.1.3" />
+    <PackageReference Include="System.Data.SqlClient" Version="4.8.6" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="../PCTP.QC.Tests/TestEnvironmentPolicy.cs" Link="Safety/TestEnvironmentPolicy.cs" />
+    <Compile Include="../PCTP/Shared/Common/IUnitOfWork.cs" Link="Production/IUnitOfWork.cs" />
+    <Compile Include="../PCTP/Shared/Common/UnitOfWork.cs" Link="Production/UnitOfWork.cs" />
   </ItemGroup>
 </Project>
