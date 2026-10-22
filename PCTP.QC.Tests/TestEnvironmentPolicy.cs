@@ -54,8 +54,8 @@ public static class TestEnvironmentPolicy
         var values = new List<string>();
         foreach (var alias in aliases)
         {
-            var pattern = @"(?:^|;)\\s*" + Regex.Escape(alias) +
-                @"\\s*=\\s*(?:""(?<quoted>[^""]*)""|(?<plain>[^;]*))";
+            var pattern = @"(?:^|;)\s*" + Regex.Escape(alias) +
+                @"\s*=\s*(?:""(?<quoted>[^""]*)""|(?<plain>[^;]*))";
             foreach (Match match in Regex.Matches(connectionString, pattern, RegexOptions.IgnoreCase))
             {
                 values.Add(match.Groups["quoted"].Success
