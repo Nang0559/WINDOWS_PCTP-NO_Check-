@@ -21,7 +21,7 @@ The production application remains .NET Framework 4.7.2 / WinForms. The test har
 
 | Area | Current tests | Type |
 |---|---|---|
-| Customer delivery FIFO | ordering, compound LOT, quantity consistency, rejected scan atomicity, rescan, release, reset | Unit/regression |
+| Customer delivery FIFO | in-memory ordering, compound LOT quantity matching, rejected scan state, rescan, release, reset | Unit/regression only; not persisted delivery |
 | QC Final domain rules | initial QC OK/NG reconciliation, rework OK/NG reconciliation, final scrap disposition, compensation separation, affected LOT non-negative quantities | Unit/domain |
 | YMVN delivery validation | LOT character 13 → Gear, order quantity limit, missing Gear, completion totals, unexpected Gear, empty order | Unit/regression |
 | Stock movement (KhoCore) | normal receiving, NG quarantine status, successful/blocked export, quantity guards, LOT identity, full/partial move QR rules, restore-picked, correction transaction guard | Unit/regression |
@@ -35,7 +35,7 @@ The evidence check proves the matrix is traceable to test code; it does not conv
 
 ## SQL Server integration harness
 
-See [SQL_INTEGRATION.md](SQL_INTEGRATION.md) for the opt-in SQL Server harness. It exercises real SQL rollback, concurrent conditional decrement, command timeout, and the production `StockTpRepository` against an isolated connection-local `#STOCKTP` fixture. CI only builds the harness; it does not connect to SQL or claim these scenarios passed. The repository SQL scenarios are tracked as pending in `STK-003` and `STK-004` until they have executed against a disposable local SQL Server.
+See [SQL_INTEGRATION.md](SQL_INTEGRATION.md) for the opt-in SQL Server harness. It exercises real SQL rollback, concurrent conditional decrement, command timeout, and the production `StockTpRepository` and `BulkStockSlotRepository` against isolated fixtures. CI only builds the harness; it does not connect to SQL or claim these scenarios passed. The current customer-delivery unit tests cover FIFO session state and YMVN Gear mapping only; they do not execute the delivery persistence workflow or verify its shared transaction. That work is tracked as `DEL-003`/`DEL-004`/`DEL-005` and remains pending. Repository SQL scenarios `STK-003`/`STK-004` also remain pending until executed against a disposable local SQL Server.
 
 ## Transaction boundary audit
 
@@ -56,8 +56,8 @@ Run the desktop app on Windows after building it. The runner must be launched fr
 
 ## Next implementation slices
 
-1. Add unit tests for stock movement invariants using repository fakes.
-2. Add receiving/export/rework workflow integration tests against a disposable local SQL Server database.
-3. Add SQL timeout, retry, cancellation, deadlock, and concurrent LOT scenarios with deterministic fixtures.
-4. Add WinAppDriver/ FlaUI smoke tests for high-value WinForms journeys.
-5. Expand regression matrix until each critical business rule has an executable test and evidence.
+1. Add SQL integration coverage for customer delivery through the actual delivery service/repository graph: stock deduction, SlotLot FIFO, stock history, pending-delivery state and rollback through shared `phieuUow`.
+2. Add duplicate/replayed delivery-confirmation protection and insufficient-stock/shortfall behavior tests (`DEL-004`/`DEL-005`).
+3. Add direct production `SlotRepository` coverage and a cross-repository STOCKTP + SlotLot rollback test (`STK-003`/`STK-004`).
+4. Add SQL timeout, retry, cancellation, deadlock, and concurrent LOT scenarios with deterministic fixtures.
+5. Add WinAppDriver/FlaUI smoke tests for high-value WinForms journeys and expand the matrix with executable evidence.
