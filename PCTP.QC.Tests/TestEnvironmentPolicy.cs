@@ -20,6 +20,12 @@ public static class TestEnvironmentPolicy
     {
         if (string.IsNullOrWhiteSpace(connectionString)) return false;
 
+        // Local server + TEST database is not sufficient when the connection string
+        // can attach an arbitrary MDF or fail over to a remote production host.
+        if (Regex.IsMatch(connectionString,
+            @"(?:^|;)\\s*(?:AttachDbFilename|Attach Database Filename|Failover Partner|FailoverPartner)\\s*=",
+            RegexOptions.IgnoreCase)) return false;
+
         var servers = ReadValues(connectionString, ServerAliases);
         var databases = ReadValues(connectionString, DatabaseAliases);
 
