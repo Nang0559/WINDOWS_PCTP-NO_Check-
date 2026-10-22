@@ -6,7 +6,7 @@ using PCTP.Shared.Common;
 
 internal static class Program
 {
-    private static async Task<int> Main()
+    private static async Task<int> Main(string[] args)
     {
         var connectionString = Environment.GetEnvironmentVariable("PCTP_QC_SQL_CONNECTION");
         if (string.IsNullOrWhiteSpace(connectionString))
