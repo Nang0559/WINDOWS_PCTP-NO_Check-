@@ -21,5 +21,7 @@ namespace PCTP.Modules.KhoCore.Models
         public int Quantity { get; set; }
         public string TemCode { get; set; }
         public byte PhieuStatus { get; set; }   // 0 = Active, 3 = NG cách ly
+        public string RawQr { get; set; }
+        public DateTime? ImportDate { get; set; }
     }
 }

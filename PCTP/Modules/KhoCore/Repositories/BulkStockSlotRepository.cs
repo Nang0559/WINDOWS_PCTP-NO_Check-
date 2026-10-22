@@ -76,7 +76,7 @@ namespace PCTP.Modules.KhoVatLy.Repositories
         {
             DataTable dt = LoadData(
                 @"SELECT ItemCode, LotNo, Quantity, TemCode, QrData, MaPhieu, ImportDate
-              FROM SlotLot WHERE SlotId = @SlotId ORDER BY LotNo",
+              FROM SlotLot WHERE SlotId = @SlotId AND PhieuStatus = 0 ORDER BY LotNo",
                 new SqlParameter("@SlotId", slotId));
 
             var lots = new List<LotInfo>();
@@ -156,6 +156,31 @@ namespace PCTP.Modules.KhoVatLy.Repositories
 
         public int GetLotQuantity(int slotLotId)
             => Convert.ToInt32(ExecuteScalar("SELECT ISNULL(Quantity,0) FROM SlotLot WHERE SlotLotId=@id", new SqlParameter("@id", slotLotId)) ?? 0);
+
+        public byte GetPhieuStatus(int slotLotId)
+        {
+            object value = ExecuteScalar("SELECT PhieuStatus FROM SlotLot WHERE SlotLotId=@id", new SqlParameter("@id", slotLotId));
+            return value == null || value == DBNull.Value ? (byte)255 : Convert.ToByte(value);
+        }
+
+        public StockSlotLot GetLotDetails(int slotLotId)
+        {
+            DataTable dt = LoadData(
+                @"SELECT LotNo, ItemCode, Quantity, TemCode, QrData, ImportDate, PhieuStatus FROM SlotLot WHERE SlotLotId=@id",
+                new SqlParameter("@id", slotLotId));
+            if (dt.Rows.Count == 0) return null;
+            DataRow r = dt.Rows[0];
+            return new StockSlotLot
+            {
+                LotNo = Convert.ToString(r["LotNo"]),
+                ItemCode = Convert.ToString(r["ItemCode"]),
+                Quantity = Convert.ToInt32(r["Quantity"]),
+                TemCode = r["TemCode"] == DBNull.Value ? null : Convert.ToString(r["TemCode"]),
+                RawQr = r["QrData"] == DBNull.Value ? null : Convert.ToString(r["QrData"]),
+                ImportDate = r["ImportDate"] == DBNull.Value ? (DateTime?)null : Convert.ToDateTime(r["ImportDate"]),
+                PhieuStatus = r["PhieuStatus"] == DBNull.Value ? (byte)255 : Convert.ToByte(r["PhieuStatus"])
+            };
+        }
 
         public string GetLotNo(int slotLotId)
             => Convert.ToString(ExecuteScalar("SELECT LotNo FROM SlotLot WHERE SlotLotId=@id", new SqlParameter("@id", slotLotId)));

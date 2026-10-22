@@ -318,7 +318,7 @@ WHERE SlotId = @SlotId;";
         public SlotLotInfo GetSlotLotById(int slotLotId)
         {
             DataTable dt = LoadData(
-                "SELECT SlotLotId, SlotId, LotNo, ItemCode, Quantity, TemCode, PhieuStatus " +
+                "SELECT SlotLotId, SlotId, LotNo, ItemCode, Quantity, TemCode, QrData, ImportDate, PhieuStatus " +
                 "FROM SlotLot WHERE SlotLotId = @id",
                 new SqlParameter("@id", slotLotId));
 
@@ -333,6 +333,8 @@ WHERE SlotId = @SlotId;";
                 ItemCode = r["ItemCode"] as string,
                 Quantity = Convert.ToInt32(r["Quantity"]),
                 TemCode = r["TemCode"] as string,
+                RawQr = r["QrData"] == DBNull.Value ? null : r["QrData"].ToString(),
+                ImportDate = r["ImportDate"] == DBNull.Value ? (DateTime?)null : Convert.ToDateTime(r["ImportDate"]),
                 PhieuStatus = r["PhieuStatus"] == DBNull.Value ? (byte)0 : Convert.ToByte(r["PhieuStatus"])
             };
         }

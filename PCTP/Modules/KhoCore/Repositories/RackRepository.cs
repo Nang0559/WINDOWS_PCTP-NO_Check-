@@ -394,7 +394,7 @@ namespace PCTP.Modules.KhoVatLy.Repositories
         FROM Warehouse w
         INNER JOIN Rack r ON r.WarehouseId = w.WarehouseId
         LEFT JOIN Slot s ON s.RackId = r.RackId
-        LEFT JOIN SlotLot sl ON sl.SlotId = s.SlotId
+        LEFT JOIN SlotLot sl ON sl.SlotId = s.SlotId AND sl.PhieuStatus = 0
         ORDER BY w.Name, r.RackName, s.SlotNumber, sl.LotNo";
 
             DataTable dt = LoadData(sql);
