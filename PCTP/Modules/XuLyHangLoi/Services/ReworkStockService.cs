@@ -223,6 +223,7 @@ namespace PCTP.Modules.XuLyHangLoi.Services
                     SoLuongXuat = soLuong,
                     TonTruoc = tonTruocStockTp,
                     TonSau = tonSauStockTp,
+                    NgayXuat = DateTime.Now,
                     NguoiXuat = nguoiXuat,
                     LyDo = "Xuất kho đi rework"
                 });
