@@ -51,10 +51,11 @@ internal static class Program
                 await RunProductionUnitOfWorkNestedCommitAsync(connectionString, table);
                 await RunProductionUnitOfWorkDisposeRollbackAsync(connectionString, table);
                 await RunProductionSqlRepositoryBaseRollbackAsync(connectionString, table);
+                PCTP.QC.SqlIntegration.ProductionStockTpRepositoryScenario.Run(connectionString);
                 await RunRollbackAtomicityAsync(connection, table);
                 await RunConcurrentConditionalDecrementAsync(connectionString, table);
                 await RunCommandTimeoutRollbackAsync(connection, table);
-                Console.WriteLine("PASS: 7 SQL Server integration scenarios completed (3 production UnitOfWork + 1 production SqlRepositoryBase + 3 SQL engine contracts).");
+                Console.WriteLine("PASS: 8 SQL Server integration scenarios completed (3 production UnitOfWork + 1 production SqlRepositoryBase + 1 production StockTpRepository + 3 SQL engine contracts).");
                 return 0;
             }
             finally
