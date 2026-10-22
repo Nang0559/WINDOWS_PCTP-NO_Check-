@@ -18,6 +18,7 @@ internal static class Program
         try
         {
             TestEnvironmentPolicy.EnsureSafeSqlTestTarget(connectionString);
+            var schemaPreflightOnly = args.Any(x => string.Equals(x, "--check-production-schema", StringComparison.OrdinalIgnoreCase));
             var builder = new SqlConnectionStringBuilder(connectionString)
             {
                 ConnectTimeout = Math.Min(new SqlConnectionStringBuilder(connectionString).ConnectTimeout, 5),
@@ -27,6 +28,21 @@ internal static class Program
 
             await using var connection = new SqlConnection(connectionString);
             await connection.OpenAsync();
+
+            if (schemaPreflightOnly)
+            {
+                var missing = await FindMissingProductionSchemaAsync(connection);
+                if (missing.Count > 0)
+                {
+                    Console.Error.WriteLine("SCHEMA PREFLIGHT FAILED. Missing production columns:");
+                    foreach (var item in missing) Console.Error.WriteLine(" - " + item);
+                    return 3;
+                }
+
+                Console.WriteLine("PASS: production STOCKTP/SlotLot/Slot/Rack/Warehouse schema preflight (read-only).");
+                return 0;
+            }
+
             var table = "dbo.[__PCTP_QC_" + Guid.NewGuid().ToString("N") + "]";
             try
             {
@@ -50,6 +66,44 @@ internal static class Program
             Console.Error.WriteLine("FAIL: " + ex);
             return 1;
         }
+    }
+
+    private static async Task<List<string>> FindMissingProductionSchemaAsync(SqlConnection connection)
+    {
+        // Read-only schema inspection. It does not create objects, run migrations,
+        // or read business rows. Required columns are derived from the production
+        // StockTpRepository, SlotRepository and BulkStockSlotRepository queries.
+        var required = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["STOCKTP"] = new[] { "LOT", "PART", "NAME", "MODEL", "SLNHAP", "SLCONLAI", "SLXUAT", "SATUS", "CASX", "NGAYSX", "NGAYNHAP" },
+            ["SlotLot"] = new[] { "SlotLotId", "SlotId", "LotNo", "ItemCode", "Quantity", "TemCode", "QrData", "MaPhieu", "ImportDate", "PhieuStatus" },
+            ["Slot"] = new[] { "SlotId", "RackId", "SlotNumber", "Capacity", "Quantity", "IsOccupied", "ItemCode", "ImportDate" },
+            ["Rack"] = new[] { "RackId", "WarehouseId", "RackName" },
+            ["Warehouse"] = new[] { "WarehouseId", "Name" }
+        };
+
+        const string sql = @"
+SELECT t.name AS TableName, c.name AS ColumnName
+FROM sys.tables t
+JOIN sys.schemas s ON s.schema_id = t.schema_id
+JOIN sys.columns c ON c.object_id = t.object_id
+WHERE s.name = N'dbo'
+  AND t.name IN (N'STOCKTP', N'SlotLot', N'Slot', N'Rack', N'Warehouse');";
+
+        var found = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        await using (var command = new SqlCommand(sql, connection) { CommandTimeout = 5 })
+        await using (var reader = await command.ExecuteReaderAsync())
+        {
+            while (await reader.ReadAsync())
+                found.Add(reader.GetString(0) + "." + reader.GetString(1));
+        }
+
+        var missing = new List<string>();
+        foreach (var table in required)
+        foreach (var column in table.Value)
+            if (!found.Contains(table.Key + "." + column))
+                missing.Add("dbo." + table.Key + "." + column);
+        return missing;
     }
 
     private static async Task CreateFixtureAsync(SqlConnection connection, string table)
