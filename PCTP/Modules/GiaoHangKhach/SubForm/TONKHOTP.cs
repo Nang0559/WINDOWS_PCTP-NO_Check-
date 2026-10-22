@@ -3,6 +3,7 @@ using DevExpress.XtraGrid;
 using DevExpress.XtraGrid.Columns;
 using DevExpress.XtraGrid.Views.Grid;
 using PCTP.ClassSQL;
+using PCTP.Common;
 using PCTP.Infrastructure.Stock;
 using PCTP.Modules.KhoCore.Application.Contracts.Stock;
 using PCTP.Modules.KhoCore.Application.Services;
@@ -44,6 +45,8 @@ using System.Windows.Forms;
             private readonly IStockTpLookupService _stockTpService;
             private readonly IStockHistoryService _historyService;
         private readonly IStockMovementService _movementService;
+        private readonly SlotRepository _slotRepository;
+        private readonly List<SlotLotViewInfo> _lotLocations = new List<SlotLotViewInfo>();
         private readonly List<string> _lotList;
             private readonly bool _isSingleLotEditMode;
 
@@ -54,6 +57,7 @@ using System.Windows.Forms;
             private GroupControl _grpDieuChinh;
             private LabelControl _lblPart, _lblName, _lblNgaySX, _lblSlSX, _lblSlNhap, _lblSlXuat;
             private SpinEdit _spinSlConLaiMoi;
+            private ComboBoxEdit _cmbSlotLot;
             private TextEdit _txtLyDo;
             private SimpleButton _btnCapNhat;
 
@@ -62,12 +66,14 @@ using System.Windows.Forms;
                 IStockTpLookupService stockTpService,
                 IStockHistoryService historyService,
                 IStockMovementService movementService,
-        string lotFilter = "")
+        string lotFilter = "",
+        SlotRepository slotRepository = null)
             {
                 InitializeComponent();
                 _stockTpService = stockTpService ?? throw new ArgumentNullException(nameof(stockTpService));
                 _historyService = historyService ?? throw new ArgumentNullException(nameof(historyService));
             _movementService = movementService ?? throw new ArgumentNullException(nameof(movementService));
+            _slotRepository = slotRepository;
             _lotList = ParseLotFilter(lotFilter);
                 _isSingleLotEditMode = _lotList.Count == 1;
 
@@ -100,12 +106,14 @@ using System.Windows.Forms;
             var historyService = new StockHistoryService(historyRepo);
 
             // ShowForLot — thêm khởi tạo StockMovementService
+            var slotRepository = new SlotRepository(sql, uow);
             var movementService = new StockMovementService(
                 new StockExportRepositoryAdapter(new StockExportRepository(sql, uow)),
-                new LegacyStockSlotRepositoryAdapter(new SlotService(new SlotRepository(sql, uow))),
-                new StockReceivingRepositoryAdapter(stockTpRepo));
+                new LegacyStockSlotRepositoryAdapter(new SlotService(slotRepository)),
+                new StockReceivingRepositoryAdapter(stockTpRepo),
+                uow);
 
-            using (var f = new TONKHOTP(stockTpService, historyService, movementService, lotFilter))
+            using (var f = new TONKHOTP(stockTpService, historyService, movementService, lotFilter, slotRepository))
             {
                 f.ShowDialog(owner);   // ✅ bỏ dấu ';' thừa, gọi ShowDialog trong thân using
             }
@@ -159,16 +167,16 @@ using System.Windows.Forms;
             {
                 _grpDieuChinh = new GroupControl
                 {
-                    Text = "Điều chỉnh tồn kho — dùng khi Cập Nhật Kho báo lệch dữ liệu",
+                    Text = "Điều chỉnh tồn kho — cập nhật STOCKTP và SlotLot cùng transaction",
                     Dock = DockStyle.Top,
-                    Height = 175
+                    Height = 215
                 };
 
                 var layout = new TableLayoutPanel
                 {
                     Dock = DockStyle.Fill,
                     ColumnCount = 4,
-                    RowCount = 4,
+                    RowCount = 5,
                     Padding = new Padding(8)
                 };
                 for (int i = 0; i < 4; i++)
@@ -199,6 +207,12 @@ using System.Windows.Forms;
                 layout.Controls.Add(new LabelControl { Text = "Lý do điều chỉnh (*):" }, 2, 3);
                 _txtLyDo = new TextEdit { Dock = DockStyle.Fill };
                 layout.Controls.Add(_txtLyDo, 3, 3);
+
+                layout.Controls.Add(new LabelControl { Text = "Vị trí LOT (*):" }, 0, 4);
+                _cmbSlotLot = new ComboBoxEdit { Dock = DockStyle.Fill };
+                _cmbSlotLot.Properties.TextEditStyle = DevExpress.XtraEditors.Controls.TextEditStyles.DisableTextEditor;
+                layout.Controls.Add(_cmbSlotLot, 1, 4);
+                layout.SetColumnSpan(_cmbSlotLot, 3);
 
                 _btnCapNhat = new SimpleButton
                 {
@@ -242,6 +256,41 @@ using System.Windows.Forms;
                 }
 
                 FillEditPanel(dt.Rows[0]);
+                LoadLotLocations(_lotList[0]);
+            }
+
+            private void LoadLotLocations(string lot)
+            {
+                _lotLocations.Clear();
+                _cmbSlotLot.Properties.Items.Clear();
+
+                if (_slotRepository == null)
+                {
+                    _grpDieuChinh.Enabled = false;
+                    XtraMessageBox.Show("Chưa cấu hình tra cứu vị trí SlotLot. Để tránh lệch tồn, chức năng điều chỉnh đã bị khóa.",
+                        "Thiếu cấu hình", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                var all = _slotRepository.GetAllActiveSlotLots() ?? new List<SlotLotViewInfo>();
+                _lotLocations.AddRange(all.Where(x => x != null && x.Quantity > 0 &&
+                    LotCodeHelper.AreLotKeysEquivalent(x.LotNo, lot)));
+
+                foreach (var location in _lotLocations)
+                {
+                    _cmbSlotLot.Properties.Items.Add(
+                        $"{location.WarehouseName} / {location.RackName} / Slot {location.SlotNumber} " +
+                        $"— SL {location.Quantity} — SlotLotId {location.SlotLotId}");
+                }
+
+                if (_cmbSlotLot.Properties.Items.Count > 0)
+                    _cmbSlotLot.SelectedIndex = 0;
+                else
+                {
+                    _grpDieuChinh.Enabled = false;
+                    XtraMessageBox.Show($"LOT [{lot}] không có SlotLot Active để làm vị trí đối ứng. Không thể chỉnh riêng STOCKTP.",
+                        "Không có vị trí tồn", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
             }
 
             private void FillEditPanel(DataRow row)
@@ -282,6 +331,15 @@ using System.Windows.Forms;
                 }
 
                 int slConLaiCu = stock.SlConLai ?? 0;
+                if (_cmbSlotLot == null || _cmbSlotLot.SelectedIndex < 0 ||
+                    _cmbSlotLot.SelectedIndex >= _lotLocations.Count)
+                {
+                    XtraMessageBox.Show("Vui lòng chọn vị trí SlotLot để đồng bộ tồn.", "Thiếu vị trí",
+                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+                var selectedLocation = _lotLocations[_cmbSlotLot.SelectedIndex];
+
                 if (slConLaiMoi == slConLaiCu)
                 {
                     XtraMessageBox.Show("Số lượng không thay đổi so với hiện tại.",
@@ -293,7 +351,7 @@ using System.Windows.Forms;
                 if (XtraMessageBox.Show(
                     $"Xác nhận điều chỉnh tồn kho LOT [{lot}]:\n" +
                     $"SLCONLAI: {slConLaiCu} → {slConLaiMoi} ({dau}{slConLaiMoi - slConLaiCu})\n" +
-                    $"Lý do: {lyDo}",
+                    $"Vị trí: {selectedLocation.WarehouseName}/{selectedLocation.RackName}/Slot {selectedLocation.SlotNumber} (SlotLotId {selectedLocation.SlotLotId})\\n" +\n                    $"Lý do: {lyDo}",
                     "Xác nhận điều chỉnh", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
                     return;
 
@@ -304,7 +362,10 @@ using System.Windows.Forms;
                         MovementType = StockMovementRequest.Types.Correct,
                         LotNo = lot,
                         ItemCode = stock.Part,
-                        Quantity = slConLaiMoi - slConLaiCu,   // ← DELTA, không phải giá trị tuyệt đối
+                        Quantity = slConLaiMoi - slConLaiCu,   // delta, không phải giá trị tuyệt đối
+                        SlotId = selectedLocation.SlotId,
+                        TemCode = selectedLocation.TemCode,
+                        OccurredAt = DateTime.Now,
                         Reason = lyDo,
                         PerformedBy = Environment.UserName
                     });
@@ -320,8 +381,8 @@ using System.Windows.Forms;
                             actionType: "DIEU_CHINH_TON_CNK_LOI",
                             itemCode: stock.Part,
                             lot: new LotInfo { LotNo = lot, Quantity = slConLaiMoi - slConLaiCu },
-                            fromSlotId: null,
-                            toSlotId: null,
+                            fromSlotId: selectedLocation.SlotId,
+                            toSlotId: selectedLocation.SlotId,
                             performedBy: $"{Environment.UserName} | {slConLaiCu}->{slConLaiMoi} | Lý do: {lyDo}");
 
                         XtraMessageBox.Show("Đã cập nhật tồn kho thành công.",
