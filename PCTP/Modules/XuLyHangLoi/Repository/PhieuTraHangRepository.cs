@@ -629,8 +629,8 @@ WHERE PhieuTraHangId = @PhieuTraHangId;";
         public List<int> GetItemIdsChuaCoPhieuXuLy(int phieuTraHangId)
         {
             const string sql = @"
--- Dòng chưa có phiếu xử lý = chưa có FVN_PhieuXuLyBatThuong cùng phiếu trả,
--- cùng mã hàng + LOT (+ Slot nguồn nếu có). Không phụ thuộc cột liên kết trên CT.
+-- Liên kết theo đúng khóa dòng, không dùng mã hàng/LOT vì cùng một phiếu
+-- có thể có nhiều dòng trùng mã hàng và LOT nhưng là các dòng nghiệp vụ riêng.
 SELECT ct.Id
 FROM FVN_PhieuTraHangCT ct
 WHERE ct.PhieuTraHangId = @PhieuTraHangId
@@ -638,12 +638,7 @@ WHERE ct.PhieuTraHangId = @PhieuTraHangId
   (
       SELECT 1
       FROM FVN_PhieuXuLyBatThuong p
-      WHERE p.PhieuTraHangId = ct.PhieuTraHangId
-        AND p.MaSanPham = ct.MaHang
-        AND ISNULL(p.SoLo, '') = ISNULL(ct.LotNo, '')
-        AND (p.SlotIdNguon IS NULL
-             OR ct.SlotIdNguon IS NULL
-             OR p.SlotIdNguon = ct.SlotIdNguon)
+      WHERE p.PhieuTraHangCTId = ct.Id
   )
 ORDER BY ct.Id;";
 
