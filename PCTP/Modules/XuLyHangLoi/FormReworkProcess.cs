@@ -426,14 +426,18 @@ namespace PCTP.Modules.XuLyHangLoi
 
                 if (lots == null || lots.Count == 0)
                 {
-                    string ma = string.IsNullOrWhiteSpace(_txtMaHang.Text) ? "(chưa có mã hàng)" : _txtMaHang.Text.Trim();
-                    string lot = string.IsNullOrWhiteSpace(_txtLotNo.Text) ? "(chưa có LOT)" : _txtLotNo.Text.Trim();
-                    _lblTrangThai.Text = "Trạng thái: Không có LOT tồn khả dụng";
+                    string lot = string.IsNullOrWhiteSpace(_txtLotNo.Text)
+                        ? "(chưa có LOT)"
+                        : _txtLotNo.Text.Trim();
+
+                    // Giữ nguyên hướng xử lý; không tự thay bằng LOT khác
+                    // khi LOT nguồn không có tồn khả dụng.
+                    var phieu = _qtChungService.GetById(_phieuXuLyId);
+                    _lblTrangThai.Text = "Trạng thái: " +
+                        (phieu == null ? "Không xác định" : phieu.Status.ToString()) +
+                        " | Không có tồn khả dụng";
                     _lblTrangThai.Appearance.ForeColor = Color.DarkOrange;
-                    // Không tự chọn LOT khác vì có thể xuất nhầm lô không liên quan
-                    // đến phiếu lỗi; người dùng có thể xóa bộ lọc LOT để tra cứu,
-                    // nhưng chỉ xuất nếu đúng LOT/nguồn đã được xác nhận.
-                    _lblHuongXuLy.Text = "Mã: " + ma + " | LOT: " + lot;
+                    _lblHuongXuLy.Text = "Hướng: CanRework | LOT nguồn: " + lot;
                 }
             }
             catch (Exception ex)
