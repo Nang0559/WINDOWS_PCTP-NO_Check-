@@ -35,7 +35,7 @@ The evidence check proves the matrix is traceable to test code; it does not conv
 
 ## SQL Server integration harness
 
-See [SQL_INTEGRATION.md](SQL_INTEGRATION.md) for the opt-in SQL Server harness. It exercises real SQL rollback, concurrent conditional decrement, command timeout, and the production `StockTpRepository` against an isolated connection-local `#STOCKTP` fixture. CI only builds the harness; it does not connect to SQL or claim these scenarios passed. The repository SQL scenario is tracked as pending in `STK-003` until it has executed against a disposable local SQL Server.
+See [SQL_INTEGRATION.md](SQL_INTEGRATION.md) for the opt-in SQL Server harness. It exercises real SQL rollback, concurrent conditional decrement, command timeout, and the production `StockTpRepository` against an isolated connection-local `#STOCKTP` fixture. CI only builds the harness; it does not connect to SQL or claim these scenarios passed. The repository SQL scenarios are tracked as pending in `STK-003` and `STK-004` until they have executed against a disposable local SQL Server.
 
 ## Transaction boundary audit
 
