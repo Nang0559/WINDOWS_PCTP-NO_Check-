@@ -188,7 +188,7 @@ namespace PCTP.Modules.XuLyHangLoi
 
             var lblHuongDan = new LabelControl
             {
-                Text = "Chỉ các LOT hợp lệ cho hướng xử lý CanRework mới được phép xuất kho.",
+                Text = "Rework / không Rework được QC quyết định tại bước 4. Bước 6 chỉ thao tác với phiếu đã có hướng CanRework; chỉ xuất đúng LOT tồn khả dụng.",
                 Dock = DockStyle.Fill,
                 Appearance =
                 {
@@ -366,8 +366,17 @@ namespace PCTP.Modules.XuLyHangLoi
                 var huong = phieu.HuongXuLy;
                 _lblHuongXuLy.Text = $"Hướng: {huong}";
 
+                // Nạp thông tin từ đúng phiếu đang mở. Trước đây hai ô tìm kiếm
+                // luôn để trống nên người dùng không biết form đang xử lý mã hàng/
+                // LOT nào; danh sách LOT cũng không được lọc theo phiếu.
+                _txtMaHang.Text = (phieu.MaSanPham ?? string.Empty).Trim();
+                _txtLotNo.Text = (phieu.SoLoLoi ?? phieu.SoLo ?? string.Empty).Trim();
+
                 // ----------------------------------------------------
-                // REWORK CHỈ ĐƯỢC PHÉP CHO CanRework
+                // REWORK CHỈ ĐƯỢC PHÉP CHO CanRework.
+                // Quyết định "Rework / không Rework" thuộc bước 4 - QC định hướng.
+                // Form này chỉ thực hiện xuất kho/giao SX/ghi nhận Rework sau khi
+                // QC đã chọn CanRework; không tự đổi hướng xử lý tại bước 6.
                 // ----------------------------------------------------
                 if (huong != HuongXuLyBatThuong.CanRework)
                 {
@@ -414,6 +423,18 @@ namespace PCTP.Modules.XuLyHangLoi
                 _grid.DataSource = lots;
                 BuildLotColumns();
                 UpdateActionState();
+
+                if (lots == null || lots.Count == 0)
+                {
+                    string ma = string.IsNullOrWhiteSpace(_txtMaHang.Text) ? "(chưa có mã hàng)" : _txtMaHang.Text.Trim();
+                    string lot = string.IsNullOrWhiteSpace(_txtLotNo.Text) ? "(chưa có LOT)" : _txtLotNo.Text.Trim();
+                    _lblTrangThai.Text = "Trạng thái: Không có LOT tồn khả dụng";
+                    _lblTrangThai.Appearance.ForeColor = Color.DarkOrange;
+                    // Không tự chọn LOT khác vì có thể xuất nhầm lô không liên quan
+                    // đến phiếu lỗi; người dùng có thể xóa bộ lọc LOT để tra cứu,
+                    // nhưng chỉ xuất nếu đúng LOT/nguồn đã được xác nhận.
+                    _lblHuongXuLy.Text = "Mã: " + ma + " | LOT: " + lot;
+                }
             }
             catch (Exception ex)
             {
