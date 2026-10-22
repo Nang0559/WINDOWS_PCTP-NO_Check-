@@ -7,8 +7,8 @@ using PCTP.Modules.KhoCore.Application.Contracts.Stock;
 using PCTP.Modules.KhoVatLy.Repositories;
 using PCTP.Shared.Common;
 
-namespace PCTP.QC.SqlIntegration;
-
+namespace PCTP.QC.SqlIntegration
+{
 internal static class ProductionBulkStockSlotRepositoryScenario
 {
     private static readonly string[] FixtureTables = { "Warehouse", "Rack", "Slot", "SlotLot" };
@@ -178,6 +178,8 @@ IF OBJECT_ID('dbo.Warehouse','U') IS NOT NULL DROP TABLE dbo.Warehouse;";
     {
         if (!condition) throw new InvalidOperationException(message);
     }
+}
+
 }
 
 namespace PCTP.Modules.KhoVatLy.Kho.Models
