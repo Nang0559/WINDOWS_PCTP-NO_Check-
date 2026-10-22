@@ -86,7 +86,7 @@ internal static class ProductionBulkStockSlotRepositoryScenario
                     new SqlParameter("@id", slotId))) == 15,
                 "Slot header quantity was not recalculated from active SlotLot rows.");
 
-            // Cross-repository delivery rollback: a STOCKTP decrement and the actual
+            // Cross-repository delivery rollback (including synthetic finalization-state rollback): a STOCKTP decrement and the actual
             // BulkStockSlotRepository.TakeLot must enlist in the same production UoW.
             RunSharedStockTpAndSlotRollback(connectionString, slotId);
 
