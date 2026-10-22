@@ -76,7 +76,7 @@ internal static class Program
         // StockTpRepository, SlotRepository and BulkStockSlotRepository queries.
         var required = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
         {
-            ["STOCKTP"] = new[] { "LOT", "PART", "NAME", "MODEL", "SLNHAP", "SLCONLAI", "SLXUAT", "SATUS", "CASX", "NGAYSX", "NGAYNHAP" },
+            ["STOCKTP"] = new[] { "LOT", "PART", "NAME", "MODEL", "SLNHAP", "SLCONLAI", "SLXUAT", "SATUS", "CASX", "NGAYSX", "NGAYNHAP", "SLSX", "NGAYXUAT" },
             ["SlotLot"] = new[] { "SlotLotId", "SlotId", "LotNo", "ItemCode", "Quantity", "TemCode", "QrData", "MaPhieu", "ImportDate", "PhieuStatus" },
             ["Slot"] = new[] { "SlotId", "RackId", "SlotNumber", "Capacity", "Quantity", "IsOccupied", "ItemCode", "ImportDate" },
             ["Rack"] = new[] { "RackId", "WarehouseId", "RackName" },
@@ -149,8 +149,8 @@ INSERT INTO {table}(Id, Lot, StockQty, SlotQty) VALUES (1, 'QC-LOT-ROLLBACK', 10
 
         await using var verifyConnection = await OpenAsync(connectionString);
         var row = await ReadRowAsync(verifyConnection, table, 4);
-        if (row.StockQty != 100)
-            throw new InvalidOperationException($"Production SqlRepositoryBase did not roll back. Stock={row.StockQty}.");
+        if (row.StockQty != 90)
+            throw new InvalidOperationException($"Production SqlRepositoryBase did not roll back. Expected the pre-scenario balance 90; actual Stock={row.StockQty}.");
         Console.WriteLine("PASS: production SqlRepositoryBase command enlisted in the production UnitOfWork and rolled back.");
     }
 
