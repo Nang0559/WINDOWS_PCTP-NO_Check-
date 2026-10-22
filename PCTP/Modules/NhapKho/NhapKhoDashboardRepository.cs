@@ -1,5 +1,4 @@
-﻿
-using PCTP.Modules.GiaoHangKhach;
+﻿using PCTP.Modules.GiaoHangKhach;
 using PCTP.Shared.Common;
 using PCTP.Shared.Models;
 
@@ -34,7 +33,9 @@ namespace PCTP.Modules.NhapKho
 
         private string LotKeyPending => string.Format(NORMALIZE_LOT_EXPR, "h.LotGoc");
 
-        private string BuildSqlLech() => $@"
+        private string BuildSqlLech(string selectClause)
+        {
+            return $@"
             WITH Stock AS
             (
                 SELECT {LotKeyStockTp} AS LotKey,
@@ -76,22 +77,29 @@ namespace PCTP.Modules.NhapKho
                 UNION
                 SELECT LotKey FROM Pending
             )
+            {selectClause}
+            FROM AllLotKeys k
+            LEFT JOIN Stock s ON s.LotKey = k.LotKey
+            LEFT JOIN ActiveSlot a ON a.LotKey = k.LotKey
+            LEFT JOIN Pending p ON p.LotKey = k.LotKey
+            WHERE ISNULL(s.Qty,0) <> ISNULL(a.Qty,0) + ISNULL(p.Qty,0)";
+        }
+
+        private string BuildSqlLech() => BuildSqlLech(@"
             SELECT
                 COALESCE(s.LotNo, a.LotNo, p.LotNo) AS LOT,
                 COALESCE(s.ItemCode, a.ItemCode, p.ItemCode) AS PART,
                 s.ItemName AS NAME,
                 ISNULL(s.Qty,0) AS SL_STOCKTP,
                 ISNULL(a.Qty,0) + ISNULL(p.Qty,0) AS SL_SLOT,
-                ISNULL(s.Qty,0) - (ISNULL(a.Qty,0) + ISNULL(p.Qty,0)) AS ChenhLech
-            FROM AllLotKeys k
-            LEFT JOIN Stock s ON s.LotKey = k.LotKey
-            LEFT JOIN ActiveSlot a ON a.LotKey = k.LotKey
-            LEFT JOIN Pending p ON p.LotKey = k.LotKey
-            WHERE ISNULL(s.Qty,0) <> ISNULL(a.Qty,0) + ISNULL(p.Qty,0)";
+                ISNULL(s.Qty,0) - (ISNULL(a.Qty,0) + ISNULL(p.Qty,0)) AS ChenhLech");
 
         public int DemLechDoiChieu()
         {
-            object kq = ExecuteScalar($"SELECT COUNT(*) FROM ({BuildSqlLech()}) t");
+            // BuildSqlLech() bắt đầu bằng WITH (CTE). Không được nhúng CTE vào
+            // derived table "FROM ( ... )" vì SQL Server yêu cầu WITH ở cấp statement.
+            // Dùng cùng CTE nhưng đổi projection thành COUNT(*) để giữ đúng semantics.
+            object kq = ExecuteScalar(BuildSqlLech("SELECT COUNT(*)"));
             return int.TryParse(kq?.ToString(), out int v) ? v : 0;
         }
 
