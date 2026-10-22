@@ -8,8 +8,8 @@ using PCTP.Modules.NhapKho.Repository;
 using PCTP.Shared.Common;
 using PCTP.Shared.Models;
 
-namespace PCTP.QC.SqlIntegration;
-
+namespace PCTP.QC.SqlIntegration
+{
 internal static class ProductionStockTpRepositoryScenario
 {
     public static void Run(string connectionString)
@@ -99,6 +99,8 @@ CREATE TABLE #STOCKTP
     }
 }
 
+}
+
 // Minimal compile-time DTOs isolate the production repository from unrelated
 // desktop/UI model dependencies. SQL behavior and repository implementation are production code.
 namespace PCTP.Shared.Models
@@ -133,6 +135,7 @@ namespace PCTP.Shared.Models
 
 namespace PCTP.Modules.NhapKho.Interfaces
 {
+    using PCTP.Shared.Models;
     public interface IStockTpRepository
     {
         bool ExistsStockTp(string lot);
