@@ -351,7 +351,8 @@ using System.Windows.Forms;
                 if (XtraMessageBox.Show(
                     $"Xác nhận điều chỉnh tồn kho LOT [{lot}]:\n" +
                     $"SLCONLAI: {slConLaiCu} → {slConLaiMoi} ({dau}{slConLaiMoi - slConLaiCu})\n" +
-                    $"Vị trí: {selectedLocation.WarehouseName}/{selectedLocation.RackName}/Slot {selectedLocation.SlotNumber} (SlotLotId {selectedLocation.SlotLotId})\\n" +\n                    $"Lý do: {lyDo}",
+                    $"Vị trí: {selectedLocation.WarehouseName}/{selectedLocation.RackName}/Slot {selectedLocation.SlotNumber} (SlotLotId {selectedLocation.SlotLotId})\\n" +
+                    $"Lý do: {lyDo}",
                     "Xác nhận điều chỉnh", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
                     return;
 
