@@ -163,6 +163,8 @@ namespace PCTP.Modules.KhoCore.Application.Services
                 return StockMovementResult.Fail("Stock movement request không được null.");
             if (string.IsNullOrWhiteSpace(request.LotNo))
                 return StockMovementResult.Fail("LotNo không được rỗng.");
+            if (string.IsNullOrWhiteSpace(request.ItemCode))
+                return StockMovementResult.Fail("ItemCode không được rỗng khi điều chỉnh tồn.");
             if (request.Quantity == 0)
                 return StockMovementResult.Fail("Quantity không được bằng 0.");
 
