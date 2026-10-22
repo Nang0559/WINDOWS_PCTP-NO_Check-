@@ -30,6 +30,7 @@ namespace PCTP.Modules.XuLyHangLoi
         private readonly IReworkStockService _reworkStockService;
         private readonly int _phieuXuLyId;
         private readonly INoiBoLookupRepository _noiBoLookupRepo;
+        private readonly ITraHangQTChungRepository _qtChungRepo;
 
         // ============================================================
         // UI
@@ -64,7 +65,8 @@ namespace PCTP.Modules.XuLyHangLoi
             IQTChungService qtChungService,
             IReworkStockService reworkStockService,
             int phieuXuLyId,
-            INoiBoLookupRepository noiBoLookupRepo = null)
+            INoiBoLookupRepository noiBoLookupRepo = null,
+            ITraHangQTChungRepository qtChungRepo = null)
         {
             _qtChungService = qtChungService
                 ?? throw new ArgumentNullException(nameof(qtChungService));
@@ -72,6 +74,7 @@ namespace PCTP.Modules.XuLyHangLoi
                 ?? throw new ArgumentNullException(nameof(reworkStockService));
             _phieuXuLyId = phieuXuLyId;
             _noiBoLookupRepo = noiBoLookupRepo;
+            _qtChungRepo = qtChungRepo;
 
             BuildUI();
             LoadPhieu();
@@ -411,6 +414,22 @@ namespace PCTP.Modules.XuLyHangLoi
         {
             try
             {
+                var phieuHienTai = _qtChungService.GetById(_phieuXuLyId);
+                if (phieuHienTai != null && phieuHienTai.Status == QTChungStatus.DaGiaoSanXuat)
+                {
+                    if (_qtChungRepo == null)
+                        throw new InvalidOperationException("Chưa cấu hình repository để tải lịch sử giao Rework.");
+
+                    var deliveries = _qtChungRepo.GetGiao(_phieuXuLyId) ?? new List<TraHangQTChungGiao>();
+                    _grid.DataSource = deliveries;
+                    BuildDeliveryColumns();
+                    _lblTrangThai.Text = $"Trạng thái: {phieuHienTai.Status} | Đã giao {deliveries.Sum(x => x.SoLuongGiao):n0} sản phẩm";
+                    _lblTrangThai.Appearance.ForeColor = Color.DarkGreen;
+                    _lblHuongXuLy.Text = $"Hướng: {phieuHienTai.HuongXuLy}";
+                    UpdateActionState();
+                    return;
+                }
+
                 string maHang = _txtMaHang.Text.Trim();
                 string lotNo = _txtLotNo.Text.Trim();
 
@@ -476,6 +495,30 @@ namespace PCTP.Modules.XuLyHangLoi
             if (property == null)
                 return;
 
+            var col = _gridView.Columns.AddField(fieldName);
+            col.Caption = caption;
+            col.Width = width;
+            col.Visible = true;
+        }
+
+        // Khi phiếu đã giao SX, GridView phải đọc lịch sử giao đã lưu,
+        // không tiếp tục hiển thị các Slot tồn kho khả dụng.
+        private void BuildDeliveryColumns()
+        {
+            _gridView.Columns.Clear();
+            AddDeliveryColumn(nameof(TraHangQTChungGiao.MaHang), "Mã hàng", 130);
+            AddDeliveryColumn(nameof(TraHangQTChungGiao.LotGiao), "LOT đã giao", 180);
+            AddDeliveryColumn(nameof(TraHangQTChungGiao.SoLuongGiao), "SL đã giao", 90);
+            AddDeliveryColumn(nameof(TraHangQTChungGiao.BoPhanNhan), "Bộ phận nhận", 180);
+            AddDeliveryColumn(nameof(TraHangQTChungGiao.NguoiNhan), "Người nhận", 140);
+            AddDeliveryColumn(nameof(TraHangQTChungGiao.NgayGiao), "Ngày giao", 150);
+            AddDeliveryColumn(nameof(TraHangQTChungGiao.ThoiGian), "Thời điểm ghi nhận", 160);
+            AddDeliveryColumn(nameof(TraHangQTChungGiao.Note), "Ghi chú", 180);
+            _gridView.BestFitColumns();
+        }
+
+        private void AddDeliveryColumn(string fieldName, string caption, int width)
+        {
             var col = _gridView.Columns.AddField(fieldName);
             col.Caption = caption;
             col.Width = width;
@@ -662,20 +705,30 @@ namespace PCTP.Modules.XuLyHangLoi
                 // → lời gọi dưới đây LUÔN ném exception cho tới khi backend
                 // implement xong repository giao hàng rework. Đây KHÔNG
                 // phải lỗi ở Form — Form gọi đúng API theo interface.
-                _qtChungService.GiaoHangRework(
+                var result = _qtChungService.GiaoHangRework(
                     _phieuXuLyId,
                     lots,
                     ngayGiao,
                     nguoiNhan,
                     boPhanNhan);
 
+                if (result == null || !result.IsOK)
+                {
+                    ShowWarning(result?.Message ?? "Giao hàng Rework không thành công.");
+                    LoadPhieu();
+                    return;
+                }
+
                 XtraMessageBox.Show(
-                    "Đã giao hàng Rework cho sản xuất.",
+                    result.Message ?? "Đã giao hàng Rework cho sản xuất.",
                     "Thành công",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Information);
 
+                // Nạp lại phiếu và grid từ bảng lịch sử giao; không lấy lại
+                // các dòng tồn kho Slot như trước khi giao.
                 LoadPhieu();
+                LoadLots();
                 UpdateActionState();
             }
             catch (Exception ex)
