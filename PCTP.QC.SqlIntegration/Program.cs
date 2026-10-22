@@ -37,7 +37,7 @@ internal static class Program
                 await RunRollbackAtomicityAsync(connection, table);
                 await RunConcurrentConditionalDecrementAsync(connectionString, table);
                 await RunCommandTimeoutRollbackAsync(connection, table);
-                Console.WriteLine("PASS: 3 SQL Server integration scenarios completed.");
+                Console.WriteLine("PASS: 6 SQL Server integration scenarios completed (3 production UnitOfWork + 3 SQL engine contracts).");
                 return 0;
             }
             finally
@@ -86,7 +86,8 @@ INSERT INTO {table}(Id, Lot, StockQty, SlotQty) VALUES (1, 'QC-LOT-ROLLBACK', 10
                 throw new InvalidOperationException("Production UnitOfWork did not reject outer commit after nested rollback.");
         }
 
-        var row = await ReadRowAsync(await OpenAsync(connectionString), table, 4);
+        await using var verifyConnection = await OpenAsync(connectionString);
+        var row = await ReadRowAsync(verifyConnection, table, 4);
         if (row.StockQty != 100 || row.SlotQty != 100)
             throw new InvalidOperationException($"Production UnitOfWork nested rollback failed. Stock={row.StockQty}, Slot={row.SlotQty}.");
         Console.WriteLine("PASS: production UnitOfWork nested rollback-only reverted all writes.");
