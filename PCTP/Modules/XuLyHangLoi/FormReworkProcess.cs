@@ -224,7 +224,7 @@ namespace PCTP.Modules.XuLyHangLoi
 
             _btnXuatKho = new SimpleButton { Text = "📦 Xuất kho Rework", Dock = DockStyle.Fill };
             _btnGiaoSX = new SimpleButton { Text = "🚚 Giao cho SX", Dock = DockStyle.Fill };
-            _btnDangRework = new SimpleButton { Text = "⚙ Đang Rework", Dock = DockStyle.Fill };
+            _btnDangRework = new SimpleButton { Text = "Ghi nhận tiến độ Rework", Dock = DockStyle.Fill };
 
             var lblAction = new LabelControl
             {
