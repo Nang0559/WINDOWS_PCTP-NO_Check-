@@ -178,15 +178,57 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             // CapNhapKhoYMVN is a direct/manual stock path. Keep the same final FIFO rule:
             // the caller must release invalid TMP rows before invoking this method.
             var lotsToProcess = new List<(string LotKey, int SoLuong)>();
-            foreach (string part in lotSl.Split(','))
+            foreach (string rawPart in lotSl.Split(','))
             {
-                if (string.IsNullOrWhiteSpace(part)) continue;
-                string[] tach = part.Trim().Split('-');
-                if (tach.Length < 2) continue;
-                string lot = LotCodeHelper.TrimTo(tach[0], LotCodeHelper.LEN_HEAD_FIXED);
-                if (!int.TryParse(tach[1], out int sl) || sl <= 0) continue;
+                if (string.IsNullOrWhiteSpace(rawPart)) continue;
+
+                string part = rawPart.Trim();
+                int separator = part.LastIndexOf('-');
+                if (separator <= 0 || separator >= part.Length - 1 ||
+                    !int.TryParse(part.Substring(separator + 1).Trim(), out int sl) || sl <= 0)
+                {
+                    error = new DS_ERR_CNK
+                    {
+                        MH = maHang,
+                        LOT = part,
+                        SLC = 0,
+                        SLTK = 0,
+                        SLT = 0,
+                        Ms = "Định dạng LOT-số lượng không hợp lệ"
+                    };
+                    return false;
+                }
+
+                string lot = LotCodeHelper.TrimTo(part.Substring(0, separator).Trim(), LotCodeHelper.LEN_HEAD_FIXED);
+                if (string.IsNullOrWhiteSpace(lot))
+                {
+                    error = new DS_ERR_CNK
+                    {
+                        MH = maHang,
+                        LOT = part,
+                        SLC = sl,
+                        SLTK = 0,
+                        SLT = sl,
+                        Ms = "LOT không hợp lệ"
+                    };
+                    return false;
+                }
 
                 lotsToProcess.Add((lot, sl));
+            }
+
+            if (lotsToProcess.Count == 0)
+            {
+                error = new DS_ERR_CNK
+                {
+                    MH = maHang,
+                    LOT = lotSl,
+                    SLC = 0,
+                    SLTK = 0,
+                    SLT = 0,
+                    Ms = "Không có LOT hợp lệ để xuất kho"
+                };
+                return false;
             }
 
             var bulkService = CreateBulkService();
