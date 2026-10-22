@@ -27,6 +27,12 @@ The production application remains .NET Framework 4.7.2 / WinForms. The test har
 | Stock movement (KhoCore) | normal receiving, NG quarantine status, successful/blocked export, quantity guards, LOT identity, full/partial move QR rules, restore-picked, correction transaction guard | Unit/regression |
 | Environment safety | local test database allow-list; production/remote rejection | Unit/security |
 
+## Coverage evidence integrity
+
+Every scenario marked `implemented` in `TestMatrix.json` must include a non-empty `testEvidence` entry naming its executable xUnit class/test. `TestMatrixIntegrityTests` enforces this rule and verifies that production database access, production data mutation, and automatic SQL script execution remain disabled. A scenario without executable evidence must remain `planned`.
+
+The evidence check proves the matrix is traceable to test code; it does not convert unit tests into SQL integration or UI end-to-end tests. Those require separate disposable-environment evidence.
+
 ## Full module acceptance matrix
 
 See [TEST_MATRIX.json](../PCTP.QC.Tests/TestMatrix.json). It tracks receiving, exporting, physical warehouse, customer delivery, rework/quarantine, reports, SQL reliability, concurrency, timeout, and UI workflows. Items marked planned are explicitly not represented as passing tests.
