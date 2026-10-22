@@ -89,6 +89,11 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             if (header == null)
                 throw new InvalidOperationException($"Không tìm thấy phiếu trả hàng Id={ct.PhieuTraHangId}.");
 
+            var itemIdsChuaXuLy = new HashSet<int>(
+                _phieuTraHangRepo.GetItemIdsChuaCoPhieuXuLy(header.Id) ?? new List<int>());
+            if (!itemIdsChuaXuLy.Contains(ct.Id))
+                throw new InvalidOperationException($"Dòng phiếu trả Id={ct.Id} đã có phiếu xử lý bất thường hoặc không còn ở trạng thái chờ xử lý.");
+
             try
             {
                 _uow.Begin();
