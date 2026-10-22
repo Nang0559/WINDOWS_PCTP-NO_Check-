@@ -30,7 +30,7 @@ public sealed class StockMovementServiceTests
         var result = service.Receive(new StockMovementRequest
         {
             MovementType = StockMovementRequest.Types.Receive,
-            TargetSlotId = 7, LotNo = "LOT-01", ItemCode = "PART-01", Quantity = 12
+            TargetSlotId = 7, LotNo = "LOT-00000001", ItemCode = "PART-01", Quantity = 12
         });
 
         Assert.True(result.Success);
@@ -50,7 +50,7 @@ public sealed class StockMovementServiceTests
         var result = service.Receive(new StockMovementRequest
         {
             MovementType = StockMovementRequest.Types.ReworkNgReceive,
-            TargetSlotId = 3, LotNo = "LOT-NG", ItemCode = "PART-01", Quantity = 4
+            TargetSlotId = 3, LotNo = "LOT-NG-00000001", ItemCode = "PART-01", Quantity = 4
         });
 
         Assert.True(result.Success);
@@ -62,13 +62,13 @@ public sealed class StockMovementServiceTests
     [Fact]
     public void Export_RejectsQuarantinedLotWithoutChangingAnyQuantity()
     {
-        var slots = new FakeSlots { Status = 3, LotQuantity = 10, LotNo = "LOT-01", ItemCode = "PART-01" };
+        var slots = new FakeSlots { Status = 3, LotQuantity = 10, LotNo = "LOT-00000001", ItemCode = "PART-01" };
         var balance = new FakeBalance();
         var service = Create(slots, balance);
 
         var result = service.Export(new StockMovementRequest
         {
-            SlotLotId = 11, LotNo = "LOT-01", ItemCode = "PART-01", Quantity = 2
+            SlotLotId = 11, LotNo = "LOT-00000001", ItemCode = "PART-01", Quantity = 2
         });
 
         Assert.False(result.Success);
@@ -79,13 +79,13 @@ public sealed class StockMovementServiceTests
     [Fact]
     public void Export_InsufficientSlotQuantity_DoesNotDecreaseAvailableBalance()
     {
-        var slots = new FakeSlots { Status = 0, LotQuantity = 2, LotNo = "LOT-01", ItemCode = "PART-01" };
+        var slots = new FakeSlots { Status = 0, LotQuantity = 2, LotNo = "LOT-00000001", ItemCode = "PART-01" };
         var balance = new FakeBalance();
         var service = Create(slots, balance);
 
         var result = service.Export(new StockMovementRequest
         {
-            SlotLotId = 11, LotNo = "LOT-01", ItemCode = "PART-01", Quantity = 3
+            SlotLotId = 11, LotNo = "LOT-00000001", ItemCode = "PART-01", Quantity = 3
         });
 
         Assert.False(result.Success);
@@ -96,13 +96,13 @@ public sealed class StockMovementServiceTests
     [Fact]
     public void Export_WhenBalanceReservationFails_DoesNotDecreaseSlotLot()
     {
-        var slots = new FakeSlots { Status = 0, LotQuantity = 10, LotNo = "LOT-01", ItemCode = "PART-01" };
+        var slots = new FakeSlots { Status = 0, LotQuantity = 10, LotNo = "LOT-00000001", ItemCode = "PART-01" };
         var balance = new FakeBalance { AllowDecrease = false };
         var service = Create(slots, balance);
 
         var result = service.Export(new StockMovementRequest
         {
-            SlotLotId = 11, LotNo = "LOT-01", ItemCode = "PART-01", Quantity = 2
+            SlotLotId = 11, LotNo = "LOT-00000001", ItemCode = "PART-01", Quantity = 2
         });
 
         Assert.False(result.Success);
@@ -133,7 +133,7 @@ public sealed class StockMovementServiceTests
         var slots = new FakeSlots
         {
             Status = 0, LotQuantity = 10,
-            Details = new StockSlotLot { LotNo = "LOT-01", ItemCode = "PART-01", Quantity = 10, TemCode = "TEM-01", RawQr = "QR-01" }
+            Details = new StockSlotLot { LotNo = "LOT-00000001", ItemCode = "PART-01", Quantity = 10, TemCode = "TEM-01", RawQr = "QR-01" }
         };
         var service = Create(slots);
 
@@ -152,7 +152,7 @@ public sealed class StockMovementServiceTests
         var slots = new FakeSlots
         {
             Status = 0, LotQuantity = 10,
-            Details = new StockSlotLot { LotNo = "LOT-01", ItemCode = "PART-01", Quantity = 10, TemCode = "TEM-01", RawQr = "QR-01" }
+            Details = new StockSlotLot { LotNo = "LOT-00000001", ItemCode = "PART-01", Quantity = 10, TemCode = "TEM-01", RawQr = "QR-01" }
         };
         var service = Create(slots);
 
@@ -185,7 +185,7 @@ public sealed class StockMovementServiceTests
 
         var result = service.RestorePicked(9, new StockSlotLot
         {
-            LotNo = "LOT-01", ItemCode = "PART-01", Quantity = 3, TemCode = "TEM-01", RawQr = "QR-01"
+            LotNo = "LOT-00000001", ItemCode = "PART-01", Quantity = 3, TemCode = "TEM-01", RawQr = "QR-01"
         });
 
         Assert.True(result.Success);
@@ -202,7 +202,7 @@ public sealed class StockMovementServiceTests
 
         var result = service.Correct(new StockMovementRequest
         {
-            SlotId = 1, LotNo = "LOT-01", ItemCode = "PART-01", Quantity = 2
+            SlotId = 1, LotNo = "LOT-00000001", ItemCode = "PART-01", Quantity = 2
         });
 
         Assert.False(result.Success);
