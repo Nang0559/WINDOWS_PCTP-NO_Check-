@@ -365,14 +365,14 @@ WHERE SlotId = @SlotId;";
             lots = lots ?? new List<LotInfo>();
 
             ExecuteNonQuery(
-                "DELETE FROM SlotLot WHERE SlotId = @SlotId;",
+                "DELETE FROM SlotLot WHERE SlotId = @SlotId AND PhieuStatus = 0;",
                 new SqlParameter("@SlotId", SqlDbType.Int) { Value = slotId });
 
             const string insertSql = @"
             INSERT INTO SlotLot
-                (SlotId, ItemCode, LotNo, Quantity, TemCode, QrData, ImportDate, MaPhieu)
+                (SlotId, ItemCode, LotNo, Quantity, TemCode, QrData, ImportDate, MaPhieu, PhieuStatus)
             VALUES
-             (@SlotId, @ItemCode, @LotNo, @Quantity, @TemCode, @QrData, @ImportDate, @MaPhieu);";
+             (@SlotId, @ItemCode, @LotNo, @Quantity, @TemCode, @QrData, @ImportDate, @MaPhieu, 0);";
 
             foreach (var lot in lots)
             {
