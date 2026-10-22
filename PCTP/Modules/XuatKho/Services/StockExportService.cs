@@ -107,6 +107,11 @@ namespace PCTP.Modules.XuatKho.Services
                 };
                 int choGiaoId = _choGiaoRepo.Insert(hangChoGiao);
 
+                var pickDetails = movement.ConsumedLots ?? new List<StockSlotLot>();
+                if (pickDetails.Count == 0 || pickDetails.Sum(x => x.Quantity) != request.Quantity)
+                    throw new InvalidOperationException("Chi tiết LOT đã pick không khớp số lượng yêu cầu; đã huỷ transaction.");
+                _choGiaoRepo.InsertPickDetails(choGiaoId, slotId, pickDetails);
+
                 _historyRepo.SaveHistory(
                     StockHistoryActionType.ChoGiao,
                     request.ItemCode,
@@ -143,6 +148,80 @@ namespace PCTP.Modules.XuatKho.Services
             {
                 SafeRollback();
                 return StockExportResult.Fail("Lỗi pick hàng chờ giao: " + ex.Message);
+            }
+        }
+
+        public List<HangChoGiao> GetPendingChoGiao()
+        {
+            return _choGiaoRepo.GetPending();
+        }
+
+        public StockExportResult CancelChoGiao(int hangChoGiaoId, string nguoiThucHien)
+        {
+            if (_stockMovement == null)
+                return StockExportResult.Fail("Chưa cấu hình IStockMovementService cho XuatKho.");
+
+            _uow.Begin();
+            try
+            {
+                var item = _choGiaoRepo.GetForUpdate(hangChoGiaoId);
+                if (item == null)
+                {
+                    _uow.Rollback();
+                    return StockExportResult.Fail($"Không tìm thấy HangChoGiao Id={hangChoGiaoId}.");
+                }
+                if (item.TrangThai != HangChoGiaoStatus.ChoGiao)
+                {
+                    _uow.Rollback();
+                    return StockExportResult.Duplicate($"Chỉ được huỷ hàng ở trạng thái ChoGiao; hiện tại là {item.TrangThai}.");
+                }
+                if (!item.SlotIdNguon.HasValue || item.SlotIdNguon.Value <= 0)
+                {
+                    _uow.Rollback();
+                    return StockExportResult.Fail("Dòng chờ giao không có Slot nguồn; không thể hoàn kho an toàn.");
+                }
+
+                var details = _choGiaoRepo.GetPickDetails(hangChoGiaoId);
+                if (details == null || details.Count == 0 || details.Sum(x => x.Quantity) != item.SoLuong)
+                {
+                    _uow.Rollback();
+                    return StockExportResult.Fail("Không có chi tiết pick đầy đủ để hoàn đúng LOT/tem. Chạy migration PHASE15 và chỉ huỷ các phiếu pick mới sau migration.");
+                }
+
+                foreach (var detail in details)
+                {
+                    var restored = _stockMovement.RestorePicked(item.SlotIdNguon.Value, detail);
+                    if (!restored.Success)
+                        throw new InvalidOperationException(restored.Message);
+                }
+
+                _choGiaoRepo.UpdateStatus(hangChoGiaoId, HangChoGiaoStatus.Huy);
+                _historyRepo.SaveHistory(
+                    "CANCEL_CHO_GIAO",
+                    item.MaHang,
+                    new LotInfo
+                    {
+                        ItemCode = item.MaHang,
+                        LotNo = item.LotGoc,
+                        Quantity = item.SoLuong,
+                        QRInfo = new QRCodeInfo
+                        {
+                            MaPhieu = StockExportReferenceFormatter.Format(item.ReferenceType, item.ReferenceId)
+                        }
+                    },
+                    fromSlotId: null,
+                    toSlotId: item.SlotIdNguon,
+                    performedBy: nguoiThucHien);
+
+                _uow.Commit();
+                return StockExportResult.Ok(
+                    new List<StockExportItem> { new StockExportItem { LotNo = item.LotGoc, SoLuong = item.SoLuong, SlotId = item.SlotIdNguon } },
+                    message: $"Đã huỷ chờ giao Id={hangChoGiaoId}, hoàn {item.SoLuong} sản phẩm về Slot {item.SlotIdNguon}.");
+            }
+            catch (Exception ex)
+            {
+                SafeRollback();
+                return StockExportResult.Fail("Lỗi huỷ chờ giao: " + ex.Message);
             }
         }
 
