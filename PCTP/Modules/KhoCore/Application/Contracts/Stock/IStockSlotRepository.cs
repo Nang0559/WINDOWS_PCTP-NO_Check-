@@ -4,6 +4,7 @@ namespace PCTP.Modules.KhoCore.Application.Contracts.Stock
     {
         int GetLotQuantity(int slotLotId);
         byte GetPhieuStatus(int slotLotId);
+        StockSlotLot GetLotDetails(int slotLotId);
         string GetLotNo(int slotLotId);
         string GetItemCode(int slotLotId);
         int? GetSlotId(int slotLotId);
