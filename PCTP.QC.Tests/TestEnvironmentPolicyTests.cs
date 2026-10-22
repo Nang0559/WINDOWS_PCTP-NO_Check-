@@ -16,6 +16,10 @@ public sealed class TestEnvironmentPolicyTests
     [InlineData("Server=localhost;Database=PCTP;Trusted_Connection=True", false)]
     [InlineData("Server=localhost;Database=TEST_PCTP;AttachDbFilename=C:\\\\Data\\\\prod.mdf", false)]
     [InlineData("Server=localhost;Database=TEST_PCTP;Failover Partner=prod-sql", false)]
+    [InlineData("Server=localhost;Database=TEST_PCTP;User Instance=True", false)]
+    [InlineData("Server=localhost;Database=TEST_PCTP;Context Connection=True", false)]
+    [InlineData("Server=localhost;Database=TEST_PCTP;Attach DB Filename=C:\\\\Data\\\\prod.mdf", false)]
+    [InlineData("Server=localhost;Database=TEST_PCTP;not-a-valid-option=x", false)]
     [InlineData("Server=prod-sql;Database=PCTP_PROD;User Id=x;Password=y", false)]
     [InlineData("", false)]
     public void SqlTargetMustBeLocalAndExplicitlyTestNamed(string connectionString, bool expected)
