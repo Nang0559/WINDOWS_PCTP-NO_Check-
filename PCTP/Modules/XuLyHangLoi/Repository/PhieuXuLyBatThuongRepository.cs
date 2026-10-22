@@ -803,7 +803,7 @@ WHERE Id = @Id
         {
             const string sql = @"
 SELECT
-    Id, SoPhieu, Nguon, PhieuTraHangId, SoPhieuTraHangGoc, PhieuKhachTraId,
+    Id, SoPhieu, Nguon, PhieuTraHangCTId, PhieuTraHangId, SoPhieuTraHangGoc, PhieuKhachTraId,
     SlotIdNguon, LotNguon, Model, MaSanPham, SoLo, SoLoLoi, SoLuongLoi,
     NoiDungBatThuong, PhanLoaiXuLy, BoPhanPhatHanh, Status, HuongXuLy,
     NgayDinhHuong, NguoiDinhHuong, LyDoHuy, NgayHuy, NguoiHuy,
