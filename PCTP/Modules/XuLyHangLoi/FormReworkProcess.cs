@@ -453,14 +453,14 @@ namespace PCTP.Modules.XuLyHangLoi
         {
             _gridView.Columns.Clear();
 
-            AddColumn("MaHang", "Mã hàng", 130);
-            AddColumn("LotNo", "LOT", 150);
-            AddColumn("SoLuong", "Số lượng", 90);
-            AddColumn("SlotId", "Slot", 80);
-
-            // Nếu LotInfo có các field này thì sẽ tự hiển thị.
-            AddColumnIfExists("TenHang", "Tên hàng", 180);
-            AddColumnIfExists("ViTri", "Vị trí", 120);
+            // SlotId là SlotLotId phục vụ xuất kho; vị trí vật lý nằm ở các field riêng.
+            AddColumn("ItemCode", "Mã hàng", 130);
+            AddColumn("LotNo", "LOT", 180);
+            AddColumn("Quantity", "SL tại Slot", 90);
+            AddColumn("WarehouseName", "Kho", 110);
+            AddColumn("RackName", "Rack", 110);
+            AddColumn("SlotNumber", "Vị trí Slot", 90);
+            AddColumn("SlotId", "SlotLot ID", 85);
 
             _gridView.BestFitColumns();
         }
@@ -504,7 +504,7 @@ namespace PCTP.Modules.XuLyHangLoi
 
             string lotNo = GetPropertyString(lot, "LotNo");
             int slotId = GetPropertyInt(lot, "SlotId");
-            int soLuongKho = GetPropertyInt(lot, "SoLuong");
+            int soLuongKho = GetPropertyInt(lot, "Quantity");
 
             if (string.IsNullOrWhiteSpace(lotNo))
             {
@@ -546,7 +546,8 @@ namespace PCTP.Modules.XuLyHangLoi
             if (XtraMessageBox.Show(
                     $"Xác nhận xuất {soLuong} cái\r\n" +
                     $"LOT: {lotNo}\r\n" +
-                    $"Slot: {slotId}\r\n" +
+                    $"Vị trí: {lot.WarehouseName} / {lot.RackName} / Slot {lot.SlotNumber}\r\n" +
+                    $"SlotLot ID: {slotId}\r\n" +
                     $"Phiếu xử lý: {_phieuXuLyId}",
                     "Xác nhận xuất kho Rework",
                     MessageBoxButtons.YesNo,
