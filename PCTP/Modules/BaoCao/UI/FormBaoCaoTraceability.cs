@@ -107,18 +107,22 @@ namespace PCTP.Modules.BaoCao.UI
             var search = new TableLayoutPanel
             {
                 Dock = DockStyle.Top,
-                Height = 165,
+                Height = 172,
                 ColumnCount = 6,
                 RowCount = 4,
-                Padding = new Padding(8)
+                Padding = new Padding(8),
+                BackColor = SystemColors.Control,
+                ForeColor = Color.FromArgb(35, 35, 35),
+                GrowStyle = TableLayoutPanelGrowStyle.FixedSize
             };
 
             for (int i = 0; i < 6; i++)
                 search.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 16.6667f));
 
-            search.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));
-            search.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));
-            search.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
+            // Keep captions and editors on separate, predictable rows inside WmsTitleBarForm.
+            search.RowStyles.Add(new RowStyle(SizeType.Absolute, 24));
+            search.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));
+            search.RowStyles.Add(new RowStyle(SizeType.Absolute, 38));
             search.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
             AddField(search, "QR / Carton", _txtQr, 0);
@@ -132,9 +136,13 @@ namespace PCTP.Modules.BaoCao.UI
             _from.Value = DateTime.Today.AddDays(-30);
             _to.Value = DateTime.Today;
 
-            search.Controls.Add(new Label { Text = "From", Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft }, 0, 2);
+            search.Controls.Add(new Label { Text = "From", Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, ForeColor = Color.FromArgb(35, 35, 35), BackColor = Color.Transparent, Margin = new Padding(3, 0, 3, 0) }, 0, 2);
+            _from.Dock = DockStyle.Fill;
+            _from.Margin = new Padding(3, 2, 3, 2);
             search.Controls.Add(_from, 1, 2);
-            search.Controls.Add(new Label { Text = "To", Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft }, 2, 2);
+            search.Controls.Add(new Label { Text = "To", Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft, ForeColor = Color.FromArgb(35, 35, 35), BackColor = Color.Transparent, Margin = new Padding(3, 0, 3, 0) }, 2, 2);
+            _to.Dock = DockStyle.Fill;
+            _to.Margin = new Padding(3, 2, 3, 2);
             search.Controls.Add(_to, 3, 2);
 
             var searchButton = new SimpleButton { Text = "Tra cứu", Dock = DockStyle.Fill };
@@ -148,6 +156,8 @@ namespace PCTP.Modules.BaoCao.UI
             _status.Text = "Đang chuẩn bị...";
             _status.Dock = DockStyle.Fill;
             _status.TextAlign = ContentAlignment.MiddleLeft;
+            _status.ForeColor = Color.FromArgb(35, 35, 35);
+            _status.BackColor = Color.Transparent;
             search.Controls.Add(_status, 0, 3);
             search.SetColumnSpan(_status, 6);
             Controls.Add(search);
@@ -170,18 +180,39 @@ namespace PCTP.Modules.BaoCao.UI
 
         private static void AddField(TableLayoutPanel panel, string caption, Control editor, int column)
         {
-            panel.Controls.Add(new Label
+            var label = new Label
             {
                 Text = caption,
                 Dock = DockStyle.Fill,
-                TextAlign = ContentAlignment.MiddleLeft
-            }, column, 0);
+                TextAlign = ContentAlignment.MiddleLeft,
+                ForeColor = Color.FromArgb(35, 35, 35),
+                BackColor = Color.Transparent,
+                Font = new Font("Segoe UI", 9F, FontStyle.Regular),
+                AutoEllipsis = true,
+                Margin = new Padding(3, 0, 3, 0)
+            };
+
+            editor.Dock = DockStyle.Fill;
+            editor.Margin = new Padding(3, 2, 3, 3);
+            panel.Controls.Add(label, column, 0);
             panel.Controls.Add(editor, column, 1);
         }
 
         private static void ConfigureGrid(DataGridView grid)
         {
             grid.Dock = DockStyle.Fill;
+            grid.BackgroundColor = Color.White;
+            grid.ForeColor = Color.FromArgb(35, 35, 35);
+            grid.GridColor = Color.FromArgb(220, 220, 220);
+            grid.BorderStyle = BorderStyle.FixedSingle;
+            grid.EnableHeadersVisualStyles = false;
+            grid.ColumnHeadersVisible = true;
+            grid.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(235, 230, 216);
+            grid.ColumnHeadersDefaultCellStyle.ForeColor = Color.FromArgb(35, 35, 35);
+            grid.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            grid.DefaultCellStyle.BackColor = Color.White;
+            grid.DefaultCellStyle.ForeColor = Color.FromArgb(35, 35, 35);
+            grid.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(248, 248, 248);
             grid.ReadOnly = true;
             grid.AllowUserToAddRows = false;
             grid.AllowUserToDeleteRows = false;
