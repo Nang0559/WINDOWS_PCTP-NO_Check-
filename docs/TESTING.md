@@ -57,8 +57,11 @@ Run the desktop app on Windows after building it. The runner must be launched fr
 
 ## Next implementation slices
 
-1. Add SQL integration coverage for customer delivery through the actual delivery service/repository graph: stock deduction, SlotLot FIFO, stock history, pending-delivery state and rollback through shared `phieuUow`.
-2. Add duplicate/replayed delivery-confirmation protection and insufficient-stock/shortfall behavior tests (`DEL-004`/`DEL-005`).
-3. Execute the new cross-repository STOCKTP + SlotLot rollback scenario on a disposable SQL Server, then add direct production `SlotRepository` coverage (`DEL-008`, `STK-003`/`STK-004`).
-4. Add SQL timeout, retry, cancellation, deadlock, and concurrent LOT scenarios with deterministic fixtures.
-5. Add WinAppDriver/FlaUI smoke tests for high-value WinForms journeys and expand the matrix with executable evidence.
+1. **Production transaction correction (separate production-code change; not part of this test-only branch):** change `CapNhapKho`/`CapNhapKhoSP` to execute the stock stored procedure through the transaction-aware repository helper on the shared `phieuUow`; include every LOT's SlotLot adjustment in that same transaction rather than committing one LOT at a time. Confirm the stored procedures do not independently commit, use another connection, or perform non-transactional side effects before relying on this design.
+2. **Make finalization observable and recoverable:** stop swallowing `HoanTatSauKhiTruKho` failures. Either include pending-delivery closure/history and order-table delivery marking in the same transaction, or persist a durable finalization/outbox state with retry, idempotency, and operator-visible diagnostics. A post-commit notification should be emitted only after the corresponding transaction succeeds.
+3. Add SQL integration coverage for customer delivery through the actual delivery service/repository graph: stock deduction, SlotLot FIFO, stock history, pending-delivery state and rollback through shared `phieuUow`.
+4. Add duplicate/replayed delivery-confirmation protection and insufficient-stock/shortfall behavior tests (`DEL-004`/`DEL-005`).
+5. Execute the cross-repository STOCKTP + SlotLot rollback scenario on a disposable SQL Server, then add direct production `SlotRepository` coverage (`DEL-008`, `STK-003`/`STK-004`).
+6. Execute stored-procedure and finalization failure-injection scenarios on a disposable SQL Server after the production transaction correction (`DEL-003`/`DEL-007`).
+7. Add SQL timeout, retry, cancellation, deadlock, and concurrent LOT scenarios with deterministic fixtures.
+8. Add WinAppDriver/FlaUI smoke tests for high-value WinForms journeys and expand the matrix with executable evidence.
