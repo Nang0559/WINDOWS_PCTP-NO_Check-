@@ -173,7 +173,9 @@ namespace PCTP.Modules.XuLyHangLoi
                 var initial = _initialQCService == null ? null : _initialQCService.Get(p.Id);
                 return initial == null ? 5 : (p.HuongXuLy == HuongXuLyBatThuong.CanRework && initial.SoLuongRework > 0 ? 6 : 8);
             }
-            if (status == QTChungStatus.DaXuatKhoRework || status == QTChungStatus.DaGiaoSanXuat) return 6;
+            if (status == QTChungStatus.DaXuatKhoRework) return 6;
+            // Sau khi đã giao Rework cho SX, phiếu phải xuất hiện ở bước 7 để QC xác nhận kết quả.
+            if (status == QTChungStatus.DaGiaoSanXuat) return p.HuongXuLy == HuongXuLyBatThuong.CanRework ? 7 : 6;
             if (status == QTChungStatus.DaQCXacNhanCuoi)
             {
                 var qc = _qtChungRepo.GetQC(p.Id);
