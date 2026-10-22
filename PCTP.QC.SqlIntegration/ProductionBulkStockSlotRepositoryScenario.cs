@@ -205,6 +205,28 @@ WHERE LOT = @lot AND SLCONLAI >= 5;";
             var take = bulk.TakeLot(slotId, "26080700748100851600", "QC-PART", 5);
             Require(take.Quantity == 5, "Production BulkStockSlotRepository did not pick the expected delivery quantity.");
 
+            // Model the remaining delivery-finalization writes in the same UoW.
+            // These columns are isolated fixture counters, not production tables;
+            // this proves transaction enlistment only, not production repository SQL.
+            using (var finalize = uow.Connection.CreateCommand())
+            {
+                finalize.Transaction = uow.Transaction;
+                finalize.CommandText = @"
+UPDATE #STOCKTP SET SLCONLAI = SLCONLAI
+WHERE LOT = @lot;
+UPDATE dbo.Slot SET Quantity = Quantity
+WHERE SlotId = @slotId;";
+                var lotParameter = finalize.CreateParameter();
+                lotParameter.ParameterName = "@lot";
+                lotParameter.Value = "QC-DELIVERY-ATOMIC-LOT";
+                finalize.Parameters.Add(lotParameter);
+                var slotParameter = finalize.CreateParameter();
+                slotParameter.ParameterName = "@slotId";
+                slotParameter.Value = slotId;
+                finalize.Parameters.Add(slotParameter);
+                finalize.ExecuteNonQuery();
+            }
+
             throw new InvalidOperationException("QC injected cross-repository delivery failure.");
         }
         catch (InvalidOperationException ex) when (ex.Message == "QC injected cross-repository delivery failure.")
