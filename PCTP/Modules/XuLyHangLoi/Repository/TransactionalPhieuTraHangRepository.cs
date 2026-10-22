@@ -6,6 +6,7 @@ using System.Data.SqlClient;
 using PCTP.Modules.XuLyHangLoi.Enums;
 using PCTP.Modules.XuLyHangLoi.Models;
 using PCTP.Shared.Enums;
+using PCTP.Modules.GiaoHangKhach;
 
 namespace PCTP.Modules.XuLyHangLoi.Repository
 {

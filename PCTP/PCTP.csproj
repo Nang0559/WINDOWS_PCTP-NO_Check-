@@ -572,6 +572,7 @@
     <Compile Include="Modules\XuLyHangLoi\Enums\HuongXuLyBatThuong.cs" />
     <Compile Include="Modules\XuLyHangLoi\Enums\NguonXuLyBatThuongExtensions.cs" />
     <Compile Include="Modules\XuLyHangLoi\Enums\QTChungStatus.cs" />
+    <Compile Include="Modules\XuLyHangLoi\Repository\TransactionalPhieuTraHangRepository.cs" />
     <Compile Include="Modules\XuLyHangLoi\SlotDichLookup.cs" />
     <Compile Include="Modules\XuLyHangLoi\FormNhapLaiHangNG.cs">
       <SubType>Form</SubType>
