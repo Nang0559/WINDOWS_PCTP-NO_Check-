@@ -33,6 +33,10 @@ Every scenario marked `implemented` in `TestMatrix.json` must include a non-empt
 
 The evidence check proves the matrix is traceable to test code; it does not convert unit tests into SQL integration or UI end-to-end tests. Those require separate disposable-environment evidence.
 
+## SQL Server integration harness
+
+See [SQL_INTEGRATION.md](SQL_INTEGRATION.md) for the opt-in SQL Server harness. It exercises real SQL rollback, concurrent conditional decrement, and command timeout against an explicitly local test database. CI only builds the harness; it does not connect to SQL or claim these scenarios passed.
+
 ## Transaction boundary audit
 
 See [TRANSACTION_BOUNDARIES.md](TRANSACTION_BOUNDARIES.md) for the source-verified UnitOfWork composition and transaction ownership across receiving, exporting, rework, physical warehouse, and delivery workflows. It also records why unit tests do not prove SQL rollback and defines the required failure-injection scenario for future SQL integration coverage.
