@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "safety": {
+    "productionDatabaseAccess": false,
+    "mutatingProductionData": false,
+    "sqlScriptsExecutedByDefault": false,
+    "integrationDatabasePolicy": "Local SQL Server only; database name must start TEST_ or end _TEST/_TESTING"
+  },
+  "modules": [
+    {"id":"IN-001","module":"NhapKho","scenario":"Receive valid LOT and quantity","expected":"Stock balance and receiving history are consistent","status":"planned"},
+    {"id":"IN-002","module":"NhapKho","scenario":"Reject duplicate QR/tem","expected":"No duplicate SlotLot or double-counted balance","status":"planned"},
+    {"id":"IN-003","module":"NhapKho","scenario":"Reject zero/negative quantity and missing item","expected":"No persistence","status":"planned"},
+    {"id":"OUT-001","module":"XuatKho","scenario":"Export within available stock","expected":"Balance decreases exactly once","status":"planned"},
+    {"id":"OUT-002","module":"XuatKho","scenario":"Export greater than available stock","expected":"InsufficientStock and no partial mutation","status":"planned"},
+    {"id":"OUT-003","module":"XuatKho","scenario":"Repeat same reference","expected":"Idempotent duplicate protection","status":"planned"},
+    {"id":"STK-001","module":"KhoCore","scenario":"Move full and partial SlotLot","expected":"Source and target quantities reconcile; QR/tem not duplicated","status":"planned"},
+    {"id":"STK-002","module":"KhoCore","scenario":"Move quarantined LOT","expected":"Rejected without stock mutation","status":"planned"},
+    {"id":"PHY-001","module":"KhoVatLy","scenario":"Register rack and slot; locate LOT","expected":"Unique location and traceable movement","status":"planned"},
+    {"id":"DEL-001","module":"GiaoHangKhach","scenario":"FIFO order and compound LOT","expected":"Oldest LOT first and quantities match","status":"implemented"},
+    {"id":"DEL-002","module":"GiaoHangKhach","scenario":"YMVN Gear mapping and completion","expected":"Part+Gear totals exactly match order","status":"implemented"},
+    {"id":"RWK-001","module":"XuLyHangLoi","scenario":"QC final OK/NG split","expected":"OK+NG equals rejected quantity; required destination slots exist","status":"planned"},
+    {"id":"RWK-002","module":"XuLyHangLoi","scenario":"Quarantine and release","expected":"Quarantined LOT cannot be exported/moved until authorized release","status":"planned"},
+    {"id":"RWK-003","module":"XuLyHangLoi","scenario":"Rework workflow transaction failure","expected":"No partial workflow/stock state","status":"planned"},
+    {"id":"REP-001","module":"BaoCao","scenario":"Reconcile opening+in-out=closing stock","expected":"Report equals stock ledger","status":"planned"},
+    {"id":"REP-002","module":"BaoCao","scenario":"LOT traceability","expected":"Trace includes source, movements, destination and status","status":"planned"},
+    {"id":"SQL-001","module":"Reliability","scenario":"SQL command timeout","expected":"Bounded failure with diagnostic and no partial commit","status":"planned"},
+    {"id":"SQL-002","module":"Reliability","scenario":"Transient connection loss and retry","expected":"Safe retry; no duplicate transaction","status":"planned"},
+    {"id":"SQL-003","module":"Reliability","scenario":"Deadlock and cancellation","expected":"Controlled rollback and recoverable state","status":"planned"},
+    {"id":"PERF-001","module":"Performance","scenario":"QC Final small/medium/large synthetic workload","expected":"Baseline latency and bounded execution","status":"planned"},
+    {"id":"PERF-002","module":"Performance","scenario":"Repeated QC Final and concurrent LOT requests","expected":"No double processing, leaks or unbounded queue growth","status":"planned"},
+    {"id":"UI-001","module":"UI Automation","scenario":"Receive/export/delivery/rework high-value journeys","expected":"Visible state and persisted state agree","status":"planned"}
+  ]
+}
