@@ -94,6 +94,24 @@ public sealed class StockMovementServiceTests
     }
 
     [Fact]
+    public void Export_WhenBothBalancesAreAvailable_DecreasesStockTpAndSlotLotOnce()
+    {
+        var lotNo = "26080700748100851600";
+        var slots = new FakeSlots { Status = 0, LotQuantity = 10, LotNo = lotNo, ItemCode = "PART-01" };
+        var balance = new FakeBalance();
+        var service = Create(slots, balance);
+
+        var result = service.Export(new StockMovementRequest
+        {
+            SlotLotId = 11, LotNo = lotNo, ItemCode = "PART-01", Quantity = 2
+        });
+
+        Assert.True(result.Success);
+        Assert.Equal(1, balance.TryDecreaseCalls);
+        Assert.Equal(1, slots.DecreaseCalls);
+    }
+
+    [Fact]
     public void Export_WhenBalanceReservationFails_DoesNotDecreaseSlotLot()
     {
         // Use a production-shaped 20-character LOT key so the identity guard
