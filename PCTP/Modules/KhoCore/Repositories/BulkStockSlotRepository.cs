@@ -186,7 +186,7 @@ namespace PCTP.Modules.KhoVatLy.Repositories
                 @"SELECT SlotLotId, LotNo, ItemCode, Quantity, TemCode, QrData, ImportDate
                   FROM SlotLot WITH (UPDLOCK, ROWLOCK)
                   WHERE SlotId=@slot AND PhieuStatus=0 AND Quantity>0
-                    AND LEFT(LotNo,13)=LEFT(@lot,13) AND ItemCode=@item
+                    AND LTRIM(RTRIM(LotNo))=LTRIM(RTRIM(@lot)) AND ItemCode=@item
                   ORDER BY ImportDate ASC, SlotLotId ASC",
                 new SqlParameter("@slot", slotId),
                 new SqlParameter("@lot", lotNo),
