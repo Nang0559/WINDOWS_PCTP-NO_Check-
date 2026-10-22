@@ -162,8 +162,9 @@ namespace PCTP.Modules.BaoCao.UI
                 BackColor = Color.Transparent,
                 Margin = new Padding(3, 0, 3, 0)
             }, 0, 2);
-            _from.Dock = DockStyle.Fill;
-            _from.Margin = new Padding(3, 2, 3, 2);
+            _from.Dock = DockStyle.None;
+            _from.Anchor = AnchorStyles.Left | AnchorStyles.Right;
+            _from.Margin = new Padding(3, 0, 3, 0);
             search.Controls.Add(_from, 1, 2);
 
             search.Controls.Add(new Label
@@ -175,8 +176,9 @@ namespace PCTP.Modules.BaoCao.UI
                 BackColor = Color.Transparent,
                 Margin = new Padding(3, 0, 3, 0)
             }, 2, 2);
-            _to.Dock = DockStyle.Fill;
-            _to.Margin = new Padding(3, 2, 3, 2);
+            _to.Dock = DockStyle.None;
+            _to.Anchor = AnchorStyles.Left | AnchorStyles.Right;
+            _to.Margin = new Padding(3, 0, 3, 0);
             search.Controls.Add(_to, 3, 2);
 
             var searchButton = new SimpleButton { Text = "Tra cứu", Dock = DockStyle.Fill, Margin = new Padding(3, 2, 3, 2) };
@@ -230,8 +232,11 @@ namespace PCTP.Modules.BaoCao.UI
                 Margin = new Padding(3, 0, 3, 0)
             };
 
-            editor.Dock = DockStyle.Fill;
-            editor.Margin = new Padding(3, 2, 3, 3);
+            // Anchor Left|Right (no Top/Bottom) => TableLayoutPanel centers the editor
+            // vertically in its cell, so it lines up with the caption/label of the same row.
+            editor.Dock = DockStyle.None;
+            editor.Anchor = AnchorStyles.Left | AnchorStyles.Right;
+            editor.Margin = new Padding(3, 0, 3, 0);
             panel.Controls.Add(label, column, 0);
             panel.Controls.Add(editor, column, 1);
         }

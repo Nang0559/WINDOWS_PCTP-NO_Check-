@@ -136,17 +136,37 @@ namespace PCTP.Shell.UI
 
         private void BuildContentHost()
         {
-            Control[] existing = new Control[Controls.Count];
-            Controls.CopyTo(existing, 0);
-            foreach (Control control in existing)
+            SuspendLayout();
+            try
             {
-                if (control == _titleBar || control == _contentHost) continue;
-                Controls.Remove(control);
-                _contentHost.Controls.Add(control);
+                Control[] existing = new Control[Controls.Count];
+                Controls.CopyTo(existing, 0);
+
+                _contentHost.SuspendLayout();
+                foreach (Control control in existing)
+                {
+                    if (control == _titleBar || control == _contentHost) continue;
+                    Controls.Remove(control);
+                    _contentHost.Controls.Add(control);
+                }
+                _contentHost.ResumeLayout(false);
+
+                Controls.Add(_contentHost);
+                Controls.Add(_titleBar);
+
+                // WinForms applies docking from the back of the z-order to the front.
+                // The Dock=Top title bar must be docked FIRST (send to back) so the
+                // Dock=Fill content host only gets the remaining area below it.
+                // Previously the title bar was brought to front, so it was docked last and
+                // the content host filled the whole form, hiding its first ~38px
+                // (labels / first row of every form) under the title bar.
+                _contentHost.BringToFront();
+                _titleBar.SendToBack();
             }
-            Controls.Add(_contentHost);
-            Controls.Add(_titleBar);
-            _titleBar.BringToFront();
+            finally
+            {
+                ResumeLayout(true);
+            }
         }
 
         private SimpleButton CreateCaptionButton(string text, bool isClose)
