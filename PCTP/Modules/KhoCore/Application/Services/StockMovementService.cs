@@ -100,6 +100,10 @@ namespace PCTP.Modules.KhoCore.Application.Services
 
             try
             {
+                byte sourceStatus = _slots.GetPhieuStatus(request.SlotLotId.Value);
+                if (sourceStatus != 0)
+                    return StockMovementResult.Fail($"Không thể di chuyển SlotLot {request.SlotLotId.Value}: trạng thái {sourceStatus} không phải Active; hàng NG cách ly không được xuất hoặc di chuyển như tồn khả dụng.");
+
                 string sourceLotNo = _slots.GetLotNo(request.SlotLotId.Value);
                 string sourceItemCode = _slots.GetItemCode(request.SlotLotId.Value);
 
@@ -337,6 +341,10 @@ namespace PCTP.Modules.KhoCore.Application.Services
 
                 if (request.SlotLotId.Value <= 0)
                     return StockMovementResult.Fail("SlotLotId không hợp lệ.");
+
+                byte sourceStatus = _slots.GetPhieuStatus(request.SlotLotId.Value);
+                if (sourceStatus != 0)
+                    return StockMovementResult.Fail($"Không thể xuất/pick SlotLot {request.SlotLotId.Value}: trạng thái {sourceStatus} không phải Active; hàng NG cách ly không được tính là tồn khả dụng.");
 
                 string sourceLotNo = _slots.GetLotNo(request.SlotLotId.Value);
                 string sourceItemCode = _slots.GetItemCode(request.SlotLotId.Value);
