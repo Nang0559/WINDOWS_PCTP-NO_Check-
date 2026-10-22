@@ -102,9 +102,13 @@ VALUES
                         "@TonSau",
                         entity.TonSau),
 
+                    // SQL Server datetime cannot store DateTime.MinValue (year 0001).
+                    // Normalize omitted legacy timestamps at the persistence boundary.
                     new SqlParameter(
                         "@NgayXuat",
-                        entity.NgayXuat),
+                        entity.NgayXuat < System.Data.SqlTypes.SqlDateTime.MinValue.Value
+                            ? DateTime.Now
+                            : entity.NgayXuat),
 
                     new SqlParameter(
                         "@NguoiXuat",
