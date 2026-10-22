@@ -186,7 +186,6 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                 string lot = LotCodeHelper.TrimTo(tach[0], LotCodeHelper.LEN_HEAD_FIXED);
                 if (!int.TryParse(tach[1], out int sl) || sl <= 0) continue;
 
-                string matchCondition = LotCodeHelper.BuildLotMatchSql("LOT", $"'{SqlHelper.Esc(lot)}'");
                 lotsToProcess.Add((lot, sl));
             }
 
@@ -250,7 +249,6 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                     throw new InvalidOperationException($"Không thể xác nhận phiếu giao STT={stt}: trạng thái đã thay đổi hoặc không còn tồn tại.");
                 ExecuteNonQuery($"DELETE FROM [{docQRTable}] WHERE MAHANGFCC = @maHang AND KETQUA = 'DG'", new SqlParameter("@maHang", SqlDbType.NVarChar, 100) { Value = maHang ?? "" });
 
-                List<HangChoGiao> unused = null;
                 HoanTatSauKhiTruKho(lotsDaXuatThanhCong, SYSTEM_PERFORMED_BY);
 
                 string poNoInTransaction = Convert.ToString(ExecuteScalar(
