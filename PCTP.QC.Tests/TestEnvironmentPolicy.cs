@@ -22,11 +22,21 @@ public static class TestEnvironmentPolicy
         if (string.IsNullOrWhiteSpace(connectionString)) return false;
 
         // Parse with the same SQL client family used by the integration harness.
-        // This normalizes aliases and rejects malformed connection strings instead
-        // of relying only on regex parsing.
+        // Provider versions can reject special keywords with either ArgumentException
+        // or InvalidOperationException. Both must fail closed, never escape the guard.
         SqlConnectionStringBuilder builder;
-        try { builder = new SqlConnectionStringBuilder(connectionString); }
-        catch (ArgumentException) { return false; }
+        try
+        {
+            builder = new SqlConnectionStringBuilder(connectionString);
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
+        catch (InvalidOperationException)
+        {
+            return false;
+        }
 
         // A local TEST catalog is still unsafe if the provider can attach an
         // arbitrary MDF, redirect to a failover partner, or enter a user/context DB.
@@ -48,10 +58,10 @@ public static class TestEnvironmentPolicy
         var server = builder.DataSource.Trim().ToLowerInvariant();
         var isLocal = server == "." || server == "(local)" || server == "localhost"
             || server == "127.0.0.1" || server == "::1"
-            || server.StartsWith(".\\", StringComparison.Ordinal)
-            || server.StartsWith("localhost\\", StringComparison.Ordinal)
-            || server.StartsWith("(local)\\", StringComparison.Ordinal)
-            || server.StartsWith("(localdb)\\", StringComparison.Ordinal);
+            || server.StartsWith(".\\\\", StringComparison.Ordinal)
+            || server.StartsWith("localhost\\\\", StringComparison.Ordinal)
+            || server.StartsWith("(local)\\\\", StringComparison.Ordinal)
+            || server.StartsWith("(localdb)\\\\", StringComparison.Ordinal);
 
         var db = builder.InitialCatalog.Trim();
         var isTestDatabase = db.StartsWith("TEST_", StringComparison.OrdinalIgnoreCase)
@@ -73,8 +83,8 @@ public static class TestEnvironmentPolicy
         var values = new List<string>();
         foreach (var alias in aliases)
         {
-            var pattern = @"(?:^|;)\s*" + Regex.Escape(alias) +
-                @"\s*=\s*(?:""(?<quoted>[^""]*)""|(?<plain>[^;]*))";
+            var pattern = @"(?:^|;)\\s*" + Regex.Escape(alias) +
+                @"\\s*=\\s*(?:""(?<quoted>[^""]*)""|(?<plain>[^;]*))";
             foreach (Match match in Regex.Matches(connectionString, pattern, RegexOptions.IgnoreCase))
             {
                 values.Add(match.Groups["quoted"].Success
