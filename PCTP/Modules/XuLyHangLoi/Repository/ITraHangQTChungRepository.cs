@@ -98,6 +98,11 @@ namespace PCTP.Modules.XuLyHangLoi.Repository
             int phieuXuLyId);
 
         /// <summary>
+        /// Ghi nhận tiến độ rework vào ghi chú của lần giao sản xuất gần nhất.
+        /// </summary>
+        void UpdateLatestGiaoNote(int phieuXuLyId, string ghiChu, string nguoiThucHien);
+
+        /// <summary>
         /// Lấy một bản ghi giao cho sản xuất theo Id.
         /// </summary>
         /// <param name="id">
