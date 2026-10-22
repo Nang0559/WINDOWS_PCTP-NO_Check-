@@ -288,6 +288,10 @@ namespace PCTP.Modules.KhoVatLy
                 return;
             }
 
+            // Pick phải chỉ rõ LOT; không được để service tự đoán LOT khi một Slot chứa nhiều LOT.
+            string lotNo = ResolveLotNoForPick();
+            if (string.IsNullOrWhiteSpace(lotNo)) return;
+
             bool exportSuccess;
 
             if (groupSlotList.Visible && listBoxSlots.SelectedItem != null)
@@ -337,11 +341,48 @@ namespace PCTP.Modules.KhoVatLy
             return false;
         }
 
+        private string ResolveLotNoForPick()
+        {
+            var activeLots = (slot?.Lots ?? new System.Collections.Generic.List<LotInfo>())
+                .Where(x => x != null && x.Quantity > 0 && !string.IsNullOrWhiteSpace(x.LotNo))
+                .GroupBy(x => x.LotNo.Trim(), StringComparer.OrdinalIgnoreCase)
+                .Select(g => g.Key)
+                .ToList();
+
+            if (activeLots.Count == 0)
+            {
+                XtraMessageBox.Show("Slot không có LOT tồn khả dụng để pick.", "Không có LOT",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return null;
+            }
+
+            if (activeLots.Count == 1) return activeLots[0];
+
+            string allowed = string.Join(Environment.NewLine, activeLots.Select(x => "• " + x));
+            string entered = XtraInputBox.Show(
+                "Slot có nhiều LOT. Nhập chính xác LOT cần pick:\r\n" + allowed,
+                "Chọn LOT xuất kho",
+                lblLotNo.Text);
+
+            if (string.IsNullOrWhiteSpace(entered)) return null;
+            entered = entered.Trim();
+            string selected = activeLots.FirstOrDefault(x => string.Equals(x, entered, StringComparison.OrdinalIgnoreCase));
+            if (selected == null)
+            {
+                XtraMessageBox.Show("LOT đã nhập không nằm trong Slot đang chọn. Vui lòng chọn đúng LOT trong danh sách.",
+                    "LOT không hợp lệ", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return null;
+            }
+
+            return selected;
+        }
+
         private bool ExportToSameSlot(int qty)
         {
             var result = _exportService.PickToChoGiao(new StockExportRequest
             {
                 SlotId = slot.SlotId,
+                LotNo = lotNo,
                 Quantity = qty,
                 ItemCode = slot.ItemCode,
                 PhieuGiaoId = _phieuGiaoId
@@ -363,6 +404,7 @@ namespace PCTP.Modules.KhoVatLy
             var pickResult = _exportService.PickToChoGiao(new StockExportRequest
             {
                 SlotId = slot.SlotId,
+                LotNo = ResolveLotNoForPick(),
                 Quantity = qty,
                 ItemCode = slot.ItemCode,
                 PhieuGiaoId = _phieuGiaoId
