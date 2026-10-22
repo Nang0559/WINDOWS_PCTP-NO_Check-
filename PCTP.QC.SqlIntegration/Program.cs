@@ -71,7 +71,7 @@ INSERT INTO {table}(Id, Lot, StockQty, SlotQty) VALUES (1, 'QC-LOT-ROLLBACK', 10
             await ExecuteAsync(connection, transaction,
                 $"UPDATE {table} SET StockQty = StockQty - 10 WHERE Id = 1; UPDATE {table} SET SlotQty = SlotQty - 10 WHERE Id = 1;");
             // Deliberately fail after both writes to verify rollback of the complete unit.
-            await ExecuteAsync(connection, transaction, "SELECT * FROM dbo.__PCTP_QC_TABLE_THAT_DOES_NOT_EXIST;");
+            await ExecuteAsync(connection, transaction, "THROW 51000, 'Injected failure after stock writes for rollback verification.', 1;");
             await transaction.CommitAsync();
             throw new InvalidOperationException("Expected the deliberate SQL failure was not raised.");
         }
@@ -114,13 +114,14 @@ INSERT INTO {table}(Id, Lot, StockQty, SlotQty) VALUES (1, 'QC-LOT-ROLLBACK', 10
             }
         }
 
-        var first = TryDecreaseAsync();
-        var second = TryDecreaseAsync();
+        var first = Task.Run(TryDecreaseAsync);
+        var second = Task.Run(TryDecreaseAsync);
         if (!ready.Wait(TimeSpan.FromSeconds(10)))
             throw new TimeoutException("Both SQL sessions did not reach the concurrency barrier.");
         start.Set();
         var affected = await Task.WhenAll(first, second);
-        var row = await ReadRowAsync(await OpenAsync(connectionString), table, 2);
+        await using var verifyConnection = await OpenAsync(connectionString);
+        var row = await ReadRowAsync(verifyConnection, table, 2);
         if (affected.Sum() != 1 || row.StockQty != 3)
             throw new InvalidOperationException(
                 $"Conditional decrement was not serialized. Rows={string.Join(",", affected)}, final stock={row.StockQty}.");
