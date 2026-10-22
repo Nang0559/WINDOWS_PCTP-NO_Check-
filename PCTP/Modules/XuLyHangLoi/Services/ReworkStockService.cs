@@ -61,22 +61,59 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             if (string.IsNullOrWhiteSpace(maHang))
                 throw new ArgumentException("MaHang không được rỗng.", nameof(maHang));
 
+            string maHangChuan = maHang.Trim();
             string lotChuan = null;
             if (!string.IsNullOrWhiteSpace(lotNo))
                 lotChuan = LotNoHelper.GetStockTpKey(lotNo);
 
-            var rows = _stockTpRepo.FindLotsWithStock(maHang, lotChuan);
-            if (rows == null)
+            // STOCKTP chỉ là sổ tồn tổng hợp, không chứa vị trí vật lý/SlotLotId.
+            // Trước đây map trực tiếp STOCKTP thành LotInfo làm SlotId mặc định = 0,
+            // nên người dùng thấy LOT nhưng không thể chọn đúng Slot để xuất Rework.
+            var stockRows = _stockTpRepo.FindLotsWithStock(maHangChuan, lotChuan);
+            if (stockRows == null || stockRows.Count == 0)
                 return new List<LotInfo>();
 
-            return rows
-                .Where(x => x.SlConLai > 0)
+            var stockByLot = stockRows
+                .Where(x => x != null && x.SlConLai > 0 && !string.IsNullOrWhiteSpace(x.LotNo))
+                .GroupBy(x => LotNoHelper.GetStockTpKey(x.LotNo), StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.Sum(x => x.SlConLai), StringComparer.OrdinalIgnoreCase);
+
+            if (stockByLot.Count == 0)
+                return new List<LotInfo>();
+
+            // Đọc SlotLot đang hoạt động để lấy đúng SlotLotId (LotInfo.SlotId),
+            // Slot vật lý, vị trí kho và số lượng nằm tại vị trí đó.
+            var slotRows = _slotService.GetAllActiveSlotLots();
+            if (slotRows == null || slotRows.Count == 0)
+                return new List<LotInfo>();
+
+            return slotRows
+                .Where(x =>
+                    x != null &&
+                    x.SlotLotId > 0 &&
+                    x.SlotId > 0 &&
+                    x.Quantity > 0 &&
+                    string.Equals((x.ItemCode ?? string.Empty).Trim(), maHangChuan,
+                        StringComparison.OrdinalIgnoreCase) &&
+                    !string.IsNullOrWhiteSpace(x.LotNo) &&
+                    stockByLot.Keys.Any(stockLot => LotCodeHelper.AreLotKeysEquivalent(stockLot, x.LotNo)))
                 .Select(x => new LotInfo
                 {
-                    LotNo = x.LotNo,
-                    Quantity = x.SlConLai,
-                    ItemCode = x.ItemCode
+                    // Contract cũ: LotInfo.SlotId thực tế là SlotLotId.
+                    SlotId = x.SlotLotId,
+                    SlotVatLyId = x.SlotId,
+                    LotNo = x.LotNo.Trim(),
+                    Quantity = x.Quantity,
+                    ItemCode = x.ItemCode,
+                    TemCode = x.TemCode,
+                    WarehouseName = x.WarehouseName,
+                    RackName = x.RackName,
+                    SlotNumber = x.SlotNumber
                 })
+                .OrderBy(x => x.WarehouseName)
+                .ThenBy(x => x.RackName)
+                .ThenBy(x => x.SlotNumber)
+                .ThenBy(x => x.LotNo)
                 .ToList();
         }
 
