@@ -199,3 +199,8 @@ namespace PCTP.VIEWSTOCK.Models
 {
     public sealed class TestNamespaceMarker { }
 }
+
+namespace PCTP.Common
+{
+    public sealed class TestNamespaceMarker { }
+}
