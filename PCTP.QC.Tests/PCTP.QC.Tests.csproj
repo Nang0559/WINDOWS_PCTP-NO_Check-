@@ -32,6 +32,10 @@
     <Compile Include="../PCTP/Modules/KhoCore/Application/Contracts/Stock/StockSlotLot.cs" Link="Sut/StockSlotLot.cs" />
     <Compile Include="../PCTP/Modules/KhoCore/Application/Contracts/Stock/StockSlotTakeResult.cs" Link="Sut/StockSlotTakeResult.cs" />
     <Compile Include="../PCTP/Shared/Common/LotCodeHelper.cs" Link="Sut/LotCodeHelper.cs" />
+    <Compile Include="../PCTP/Modules/GiaoHangKhach/Services/BulkStockAdjustService.cs" Link="Sut/BulkStockAdjustService.cs" />
+    <Compile Include="../PCTP/Modules/GiaoHangKhach/Services/IBulkStockAdjustService.cs" Link="Sut/IBulkStockAdjustService.cs" />
+    <Compile Include="../PCTP/Modules/KhoCore/Repositories/IBulkStockSlotRepository.cs" Link="Sut/IBulkStockSlotRepository.cs" />
+    <Compile Include="../PCTP/Modules/KhoCore/Repositories/IStockHistoryRepository.cs" Link="Sut/IStockHistoryRepository.cs" />
     <Compile Include="../PCTP/Modules/XuLyHangLoi/Models/PhieuXuLyBatThuong.cs" Link="Sut/PhieuXuLyBatThuong.cs" />
     <Compile Include="../PCTP/Modules/XuLyHangLoi/Enums/HuongXuLyBatThuong.cs" Link="Sut/HuongXuLyBatThuong.cs" />
     <Compile Include="../PCTP/Modules/XuLyHangLoi/Enums/NguonXuLyBatThuong.cs" Link="Sut/NguonXuLyBatThuong.cs" />
