@@ -644,7 +644,7 @@ namespace PCTP.Modules.XuLyHangLoi
 
                 if (XtraMessageBox.Show(
                         $"Xác nhận giao Rework cho:\r\n" +
-                        $"Bộ phận: {boPhanNhan}\r\n" +
+                        $"Bộ phận: {boPhan.Display}\r\n" +
                         $"Người nhận: {nguoiNhan}\r\n" +
                         $"Số LOT: {lots.Count}",
                         "Xác nhận giao sản xuất",
