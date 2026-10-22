@@ -618,7 +618,7 @@ namespace PCTP.Modules.XuLyHangLoi
             if (p == null) { ShowWarning("Không tìm thấy phiếu xử lý."); return; }
             if (p.HuongXuLy != HuongXuLyBatThuong.CanRework) { ShowWarning("Phiếu không thuộc nhánh Rework."); return; }
             if (_initialQCService == null || _initialQCService.Get(p.Id) == null) { ShowWarning("Chưa xác nhận Initial QC."); return; }
-            using (var f = new FormReworkProcess(_qtChungService, _reworkStockService, row.PhieuXuLyId.Value, _noiBoLookupRepo)) if (f.ShowDialog(this) == DialogResult.OK) RefreshAfterAction();
+            using (var f = new FormReworkProcess(_qtChungService, _reworkStockService, row.PhieuXuLyId.Value, _noiBoLookupRepo, _qtChungRepo)) if (f.ShowDialog(this) == DialogResult.OK) RefreshAfterAction();
         }
 
         private void QCReworkDisposition()
