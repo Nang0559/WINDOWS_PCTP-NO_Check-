@@ -33,6 +33,12 @@ namespace PCTP.Infrastructure.Stock
             return lot == null ? 0 : lot.Quantity;
         }
 
+        public byte GetPhieuStatus(int slotLotId)
+        {
+            var lot = _legacy.GetLotsBySlotLotId(slotLotId);
+            return lot == null ? (byte)255 : lot.PhieuStatus;
+        }
+
         public string GetLotNo(int slotLotId)
         {
             var lot = _legacy.GetLotsBySlotLotId(slotLotId);
