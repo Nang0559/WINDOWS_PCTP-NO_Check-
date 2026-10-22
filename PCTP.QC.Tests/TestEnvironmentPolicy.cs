@@ -33,7 +33,10 @@ public static class TestEnvironmentPolicy
         if (!string.IsNullOrWhiteSpace(builder.AttachDBFilename)
             || !string.IsNullOrWhiteSpace(builder.FailoverPartner)
             || builder.UserInstance
-            || builder.ContextConnection)
+            // Microsoft.Data.SqlClient does not expose ContextConnection on
+            // SqlConnectionStringBuilder. Reject the keyword explicitly before
+            // connecting so a context connection can never pass this policy.
+            || ReadValues(connectionString, new[] { "Context Connection" }).Count > 0)
             return false;
 
         var servers = ReadValues(connectionString, ServerAliases);
