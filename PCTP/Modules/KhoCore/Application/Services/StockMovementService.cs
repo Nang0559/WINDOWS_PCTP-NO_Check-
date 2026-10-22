@@ -203,6 +203,33 @@ namespace PCTP.Modules.KhoCore.Application.Services
             }
         }
 
+        public StockMovementResult RestorePicked(int slotId, StockSlotLot lot)
+        {
+            if (slotId <= 0) return StockMovementResult.Fail("SlotId không hợp lệ khi hoàn hàng chờ giao.");
+            if (lot == null || lot.Quantity <= 0 || string.IsNullOrWhiteSpace(lot.LotNo) || string.IsNullOrWhiteSpace(lot.ItemCode))
+                return StockMovementResult.Fail("Chi tiết LOT hoàn trả không hợp lệ.");
+
+            try
+            {
+                _slots.AddLot(slotId, new StockSlotLot
+                {
+                    LotNo = lot.LotNo,
+                    ItemCode = lot.ItemCode,
+                    Quantity = lot.Quantity,
+                    TemCode = lot.TemCode,
+                    RawQr = lot.RawQr,
+                    ImportDate = lot.ImportDate,
+                    PhieuStatus = lot.PhieuStatus
+                });
+                // Hàng chờ giao chưa bị trừ STOCKTP; huỷ pick chỉ hoàn SlotLot, không cộng STOCKTP.
+                return StockMovementResult.Ok("Đã hoàn chi tiết pick về Slot.");
+            }
+            catch (Exception ex)
+            {
+                return StockMovementResult.Fail("Lỗi hoàn chi tiết pick: " + ex.Message);
+            }
+        }
+
         private StockMovementResult AddToSlot(StockMovementRequest request, bool adjustAvailable)
         {
             if (request == null)
