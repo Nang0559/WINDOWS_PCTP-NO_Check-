@@ -208,6 +208,13 @@ VALUES
                         OR PhieuXuLyBatThuongId = @PhieuXuLyBatThuongId
                       );";
 
+            // DB chưa chạy script thêm cột liên kết → bỏ qua, không làm hỏng việc tạo phiếu.
+            object colLen = ExecuteScalar(
+                "SELECT COL_LENGTH('dbo.FVN_PhieuTraHangCT', 'PhieuXuLyBatThuongId');");
+
+            if (colLen == null || colLen == DBNull.Value)
+                return phieuXuLyId;
+
             int affected = ExecuteNonQuery(
                 updateItemSql,
 

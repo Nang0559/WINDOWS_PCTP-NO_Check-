@@ -616,9 +616,8 @@ VALUES
         {
             const string sql = @"
 SELECT COUNT(1)
-FROM FVN_PhieuXuLyBatThuong p
-JOIN FVN_PhieuTraHangCT ct ON ct.Id = p.PhieuTraHangCTId
-WHERE ct.PhieuTraHangId = @PhieuTraHangId;";
+FROM FVN_PhieuXuLyBatThuong
+WHERE PhieuTraHangId = @PhieuTraHangId;";
 
             object r = _sql.ExecuteScalar(
                 sql,
@@ -630,11 +629,23 @@ WHERE ct.PhieuTraHangId = @PhieuTraHangId;";
         public List<int> GetItemIdsChuaCoPhieuXuLy(int phieuTraHangId)
         {
             const string sql = @"
-SELECT Id
-FROM FVN_PhieuTraHangCT
-WHERE PhieuTraHangId = @PhieuTraHangId
-  AND PhieuXuLyBatThuongId IS NULL
-ORDER BY Id;";
+-- Dòng chưa có phiếu xử lý = chưa có FVN_PhieuXuLyBatThuong cùng phiếu trả,
+-- cùng mã hàng + LOT (+ Slot nguồn nếu có). Không phụ thuộc cột liên kết trên CT.
+SELECT ct.Id
+FROM FVN_PhieuTraHangCT ct
+WHERE ct.PhieuTraHangId = @PhieuTraHangId
+  AND NOT EXISTS
+  (
+      SELECT 1
+      FROM FVN_PhieuXuLyBatThuong p
+      WHERE p.PhieuTraHangId = ct.PhieuTraHangId
+        AND p.MaSanPham = ct.MaHang
+        AND ISNULL(p.SoLo, '') = ISNULL(ct.LotNo, '')
+        AND (p.SlotIdNguon IS NULL
+             OR ct.SlotIdNguon IS NULL
+             OR p.SlotIdNguon = ct.SlotIdNguon)
+  )
+ORDER BY ct.Id;";
 
             DataTable dt = _sql.LoadData(
                 sql,
