@@ -33,6 +33,10 @@ Every scenario marked `implemented` in `TestMatrix.json` must include a non-empt
 
 The evidence check proves the matrix is traceable to test code; it does not convert unit tests into SQL integration or UI end-to-end tests. Those require separate disposable-environment evidence.
 
+## Transaction boundary audit
+
+See [TRANSACTION_BOUNDARIES.md](TRANSACTION_BOUNDARIES.md) for the source-verified UnitOfWork composition and transaction ownership across receiving, exporting, rework, physical warehouse, and delivery workflows. It also records why unit tests do not prove SQL rollback and defines the required failure-injection scenario for future SQL integration coverage.
+
 ## Full module acceptance matrix
 
 See [TEST_MATRIX.json](../PCTP.QC.Tests/TestMatrix.json). It tracks receiving, exporting, physical warehouse, customer delivery, rework/quarantine, reports, SQL reliability, concurrency, timeout, and UI workflows. Items marked planned are explicitly not represented as passing tests.
