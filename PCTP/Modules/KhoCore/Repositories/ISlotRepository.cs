@@ -103,6 +103,12 @@ namespace PCTP.Modules.KhoVatLy.Repositories
         // KHOCORE/Repositories/ISlotRepository.cs — thêm
         List<SlotLotViewInfo> GetAllActiveSlotLots();
 
+        /// <summary>Slot có tồn tại trong bảng Slot không (tránh vi phạm FK FK_SlotLot_Slot khi nhập tồn).</summary>
+        bool SlotExists(int slotId);
+
+        /// <summary>Toàn bộ Slot (kho / rack / số slot) — dùng cho danh sách chọn Slot đích khi nhập lại hàng.</summary>
+        List<Slot> GetAllSlots();
+
         /// <summary>Ghi đè Quantity của đúng 1 dòng SlotLot. Không tự xoá khi = 0,
         /// không tự cập nhật header Slot — đó là việc của tầng Service.</summary>
         void UpdateSlotLotQuantity(int slotLotId, int newQuantity);

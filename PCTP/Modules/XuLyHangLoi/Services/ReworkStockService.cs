@@ -264,6 +264,17 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             }
         }
 
+        /// <summary>null = Slot hợp lệ; ngược lại trả ScanResult.Fail với thông báo rõ ràng.</summary>
+        private ScanResult KiemTraSlotTonTai(int slotId, string tenSlot)
+        {
+            if (_slotService.SlotExists(slotId))
+                return null;
+
+            return ScanResult.Fail(string.Format(
+                "{0} (Id={1}) không tồn tại trong kho. Vui lòng chọn Slot hợp lệ từ danh sách.",
+                tenSlot, slotId));
+        }
+
         public ScanResult NhapLaiHangNG(
             int phieuXuLyId,
             string lotNo,
@@ -282,6 +293,17 @@ namespace PCTP.Modules.XuLyHangLoi.Services
                 return ScanResult.Fail("Chưa chọn Slot NG để nhập hàng.");
             if (string.IsNullOrWhiteSpace(nguoiNhap))
                 return ScanResult.Fail("Chưa xác định người nhập.");
+
+            // Slot phải có thật trong kho — nếu không, INSERT SlotLot sẽ vi phạm FK_SlotLot_Slot.
+            var slotNgLoi = KiemTraSlotTonTai(slotIdNG.Value, "Slot NG");
+            if (slotNgLoi != null)
+                return slotNgLoi;
+            if (slotIdOK.HasValue)
+            {
+                var slotOkLoi = KiemTraSlotTonTai(slotIdOK.Value, "Slot OK");
+                if (slotOkLoi != null)
+                    return slotOkLoi;
+            }
 
             string lotChuan;
             try
@@ -383,6 +405,11 @@ namespace PCTP.Modules.XuLyHangLoi.Services
                 return ScanResult.Fail("LotNo không được rỗng.");
             if (string.IsNullOrWhiteSpace(nguoiNhap))
                 return ScanResult.Fail("Chưa xác định người nhập.");
+
+            // Slot phải có thật trong kho — nếu không, INSERT SlotLot sẽ vi phạm FK_SlotLot_Slot.
+            var slotLoi = KiemTraSlotTonTai(slotIdOK, "Slot OK");
+            if (slotLoi != null)
+                return slotLoi;
 
             string lotChuan;
             try

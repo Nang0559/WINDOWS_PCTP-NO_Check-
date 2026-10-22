@@ -315,6 +315,44 @@ WHERE SlotId = @SlotId;";
             }
             return list;
         }
+        public bool SlotExists(int slotId)
+        {
+            if (slotId <= 0) return false;
+
+            object result = ExecuteScalar(
+                "SELECT COUNT(1) FROM Slot WHERE SlotId = @SlotId;",
+                new SqlParameter("@SlotId", SqlDbType.Int) { Value = slotId });
+
+            return DbValueHelper.ToInt(result) > 0;
+        }
+
+        public List<Slot> GetAllSlots()
+        {
+            const string sql = @"
+            SELECT s.SlotId, w.Name AS WarehouseName, r.RackName, s.SlotNumber,
+                   s.ItemCode, ISNULL(s.Quantity, 0) AS Quantity
+            FROM Slot s
+            JOIN Rack r      ON r.RackId = s.RackId
+            JOIN Warehouse w ON w.WarehouseId = r.WarehouseId
+            ORDER BY w.Name, r.RackName, s.SlotNumber";
+
+            DataTable dt = LoadData(sql);
+            var list = new List<Slot>(dt.Rows.Count);
+            foreach (DataRow row in dt.Rows)
+            {
+                list.Add(new Slot
+                {
+                    SlotId = Convert.ToInt32(row["SlotId"]),
+                    whname = row["WarehouseName"] as string,
+                    RackName = row["RackName"] as string,
+                    SlotNumber = Convert.ToInt32(row["SlotNumber"]),
+                    ItemCode = row["ItemCode"] as string,
+                    Quantity = Convert.ToInt32(row["Quantity"])
+                });
+            }
+            return list;
+        }
+
         public SlotLotInfo GetSlotLotById(int slotLotId)
         {
             DataTable dt = LoadData(

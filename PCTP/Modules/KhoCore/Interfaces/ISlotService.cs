@@ -88,6 +88,12 @@ namespace PCTP.Modules.KhoVatLy.Application.Interfaces
             string lotNo);
         List<SlotLotViewInfo> GetAllActiveSlotLots();
 
+        /// <summary>Slot có tồn tại không — kiểm tra trước khi nhập tồn để không vi phạm FK.</summary>
+        bool SlotExists(int slotId);
+
+        /// <summary>Toàn bộ Slot (kho / rack / số slot) cho danh sách chọn Slot đích.</summary>
+        List<Slot> GetAllSlots();
+
         // ============================================================
         // NHẬP / CỘNG TỒN
         // ============================================================

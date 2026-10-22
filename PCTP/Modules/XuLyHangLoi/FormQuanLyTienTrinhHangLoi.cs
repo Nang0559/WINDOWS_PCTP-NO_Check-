@@ -632,12 +632,12 @@ namespace PCTP.Modules.XuLyHangLoi
             var qc = _qtChungRepo.GetQC(p.Id);
             if (qc == null)
             {
-                using (var f = new FormQCXacNhanCuoi(_qtChungService, p.Id)) if (f.ShowDialog(this) == DialogResult.OK) RefreshAfterAction();
+                using (var f = new FormQCXacNhanCuoi(_qtChungService, p.Id, _slotService)) if (f.ShowDialog(this) == DialogResult.OK) RefreshAfterAction();
                 return;
             }
             if (qc.SoLuongNG > 0)
             {
-                using (var f = new FormNhapLaiHangNG(_reworkStockService, p.Id, qc.SoLuongNG)) if (f.ShowDialog(this) == DialogResult.OK) RefreshAfterAction();
+                using (var f = new FormNhapLaiHangNG(_reworkStockService, p.Id, qc.SoLuongNG, _slotService)) if (f.ShowDialog(this) == DialogResult.OK) RefreshAfterAction();
                 return;
             }
             var result = _qtChungService.HoanTat(p.Id, Environment.UserName);
@@ -663,7 +663,7 @@ namespace PCTP.Modules.XuLyHangLoi
                     var qc = _qtChungRepo.GetQC(p.Id);
                     if (qc != null && qc.SoLuongNG > 0)
                     {
-                        using (var f = new FormNhapLaiHangNG(_reworkStockService, p.Id, qc.SoLuongNG)) if (f.ShowDialog(this) == DialogResult.OK) RefreshAfterAction();
+                        using (var f = new FormNhapLaiHangNG(_reworkStockService, p.Id, qc.SoLuongNG, _slotService)) if (f.ShowDialog(this) == DialogResult.OK) RefreshAfterAction();
                     }
                     else
                     {

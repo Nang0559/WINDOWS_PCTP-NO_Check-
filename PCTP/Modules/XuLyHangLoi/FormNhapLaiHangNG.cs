@@ -3,8 +3,10 @@
 namespace PCTP.Modules.XuLyHangLoi
 {
     using DevExpress.XtraEditors;
+    using PCTP.Modules.KhoVatLy.Application.Interfaces;
     using PCTP.Modules.XuLyHangLoi.Services;
     using System;
+    using System.Collections.Generic;
     using System.Drawing;
     using System.Windows.Forms;
 
@@ -20,8 +22,9 @@ namespace PCTP.Modules.XuLyHangLoi
 
         private TextEdit _txtLotNo;
         private SpinEdit _spnSoLuong;
-        private SpinEdit _spnSlotOK;
-        private SpinEdit _spnSlotNG;
+        private SearchLookUpEdit _lkSlotOK;
+        private SearchLookUpEdit _lkSlotNG;
+        private readonly List<SlotDichLookupItem> _slotItems;
 
         private SimpleButton _btnNhap;
         private SimpleButton _btnHuy;
@@ -36,7 +39,8 @@ namespace PCTP.Modules.XuLyHangLoi
         public FormNhapLaiHangNG(
             IReworkStockService reworkStockService,
             int phieuXuLyId,
-            int soLuongNG)
+            int soLuongNG,
+            ISlotService slotService)
         {
             _reworkStockService = reworkStockService
                 ?? throw new ArgumentNullException(nameof(reworkStockService));
@@ -53,6 +57,9 @@ namespace PCTP.Modules.XuLyHangLoi
 
             _phieuXuLyId = phieuXuLyId;
             _soLuongNGToiDa = soLuongNG;
+
+            // Slot đích chọn từ danh sách Slot thật — không cho gõ số SlotId tự do.
+            _slotItems = SlotDichLookup.Build(slotService);
 
             BuildUI();
         }
@@ -210,17 +217,9 @@ namespace PCTP.Modules.XuLyHangLoi
                 },
                 0, 4);
 
-            _spnSlotOK = new SpinEdit
-            {
-                Dock = DockStyle.Fill
-            };
+            _lkSlotOK = SlotDichLookup.Create(_slotItems);
 
-            _spnSlotOK.Properties.IsFloatValue = false;
-            _spnSlotOK.Properties.MinValue = 0;
-            _spnSlotOK.Properties.MaxValue = int.MaxValue;
-            _spnSlotOK.EditValue = 0;
-
-            root.Controls.Add(_spnSlotOK, 1, 4);
+            root.Controls.Add(_lkSlotOK, 1, 4);
 
             // --------------------------------------------------------
             // Slot NG
@@ -234,17 +233,9 @@ namespace PCTP.Modules.XuLyHangLoi
                 },
                 0, 5);
 
-            _spnSlotNG = new SpinEdit
-            {
-                Dock = DockStyle.Fill
-            };
+            _lkSlotNG = SlotDichLookup.Create(_slotItems);
 
-            _spnSlotNG.Properties.IsFloatValue = false;
-            _spnSlotNG.Properties.MinValue = 0;
-            _spnSlotNG.Properties.MaxValue = int.MaxValue;
-            _spnSlotNG.EditValue = 0;
-
-            root.Controls.Add(_spnSlotNG, 1, 5);
+            root.Controls.Add(_lkSlotNG, 1, 5);
 
             // --------------------------------------------------------
             // Buttons
@@ -345,8 +336,21 @@ namespace PCTP.Modules.XuLyHangLoi
                     return;
                 }
 
-                int? slotIdOK = GetNullableSlotId(_spnSlotOK);
-                int? slotIdNG = GetNullableSlotId(_spnSlotNG);
+                int? slotIdOK = SlotDichLookup.GetSlotId(_lkSlotOK);
+                int? slotIdNG = SlotDichLookup.GetSlotId(_lkSlotNG);
+
+                if (!slotIdNG.HasValue)
+                {
+                    XtraMessageBox.Show(
+                        this,
+                        "Vui lòng chọn Slot NG để nhập hàng.",
+                        "Thiếu thông tin",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+
+                    _lkSlotNG.Focus();
+                    return;
+                }
 
                 string nguoiNhap = Environment.UserName;
 
@@ -407,12 +411,5 @@ namespace PCTP.Modules.XuLyHangLoi
         // SLOT
         // ============================================================
 
-        private int? GetNullableSlotId(SpinEdit editor)
-        {
-            int value = Convert.ToInt32(
-                editor.EditValue ?? 0);
-
-            return value > 0 ? value : (int?)null;
-        }
     }
 }

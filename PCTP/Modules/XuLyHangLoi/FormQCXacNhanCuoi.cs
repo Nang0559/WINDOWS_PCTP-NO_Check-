@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 namespace PCTP.Modules.XuLyHangLoi
 {
     using DevExpress.XtraEditors;
+    using PCTP.Modules.KhoVatLy.Application.Interfaces;
     using PCTP.Modules.XuLyHangLoi.Enums;
     using PCTP.Modules.XuLyHangLoi.Services;
     using PCTP.Shared.Helpers;
@@ -38,8 +39,12 @@ namespace PCTP.Modules.XuLyHangLoi
         // và SlotIdOK/SlotIdNG tương ứng khi OK/NG > 0 — form gốc thiếu
         // hoàn toàn các input này nên mọi lần xác nhận đều bị Fail.
         private TextEdit _txtLotNhapLai;
-        private SpinEdit _spSlotIdOK;
-        private SpinEdit _spSlotIdNG;
+        private SearchLookUpEdit _lkSlotOK;
+        private SearchLookUpEdit _lkSlotNG;
+        private readonly List<SlotDichLookupItem> _slotItems;
+
+        // Slot gợi ý mặc định cho hàng OK = Slot nguồn của phiếu (hàng quay về chỗ cũ).
+        private int? _slotMacDinhOK;
 
         private TextEdit _txtNguoiQC;
         private MemoEdit _txtGhiChu;
@@ -52,7 +57,8 @@ namespace PCTP.Modules.XuLyHangLoi
         // ============================================================
         public FormQCXacNhanCuoi(
             IQTChungService qtChungService,
-            int phieuXuLyId)
+            int phieuXuLyId,
+            ISlotService slotService)
         {
             _qtChungService = qtChungService
                 ?? throw new ArgumentNullException(nameof(qtChungService));
@@ -63,6 +69,9 @@ namespace PCTP.Modules.XuLyHangLoi
                     nameof(phieuXuLyId));
 
             _phieuXuLyId = phieuXuLyId;
+
+            // Slot đích chọn từ danh sách Slot thật — không cho gõ số SlotId tự do.
+            _slotItems = SlotDichLookup.Build(slotService);
 
             BuildUI();
             LoadData();
@@ -210,12 +219,9 @@ namespace PCTP.Modules.XuLyHangLoi
             var lblSlotOK = CreateCaptionLabel("Slot nhập OK:");
             main.Controls.Add(lblSlotOK, 0, 11);
 
-            _spSlotIdOK = new SpinEdit { Dock = DockStyle.Fill };
-            _spSlotIdOK.Properties.IsFloatValue = false;
-            _spSlotIdOK.Properties.MinValue = 0;
-            _spSlotIdOK.Properties.MaxValue = 999999999;
-            _spSlotIdOK.Enabled = false;
-            main.Controls.Add(_spSlotIdOK, 1, 11);
+            _lkSlotOK = SlotDichLookup.Create(_slotItems);
+            _lkSlotOK.Enabled = false;
+            main.Controls.Add(_lkSlotOK, 1, 11);
 
             // ========================================================
             // SLOT NG — MỚI
@@ -224,12 +230,9 @@ namespace PCTP.Modules.XuLyHangLoi
             var lblSlotNG = CreateCaptionLabel("Slot nhập NG:");
             main.Controls.Add(lblSlotNG, 0, 12);
 
-            _spSlotIdNG = new SpinEdit { Dock = DockStyle.Fill };
-            _spSlotIdNG.Properties.IsFloatValue = false;
-            _spSlotIdNG.Properties.MinValue = 0;
-            _spSlotIdNG.Properties.MaxValue = 999999999;
-            _spSlotIdNG.Enabled = false;
-            main.Controls.Add(_spSlotIdNG, 1, 12);
+            _lkSlotNG = SlotDichLookup.Create(_slotItems);
+            _lkSlotNG.Enabled = false;
+            main.Controls.Add(_lkSlotNG, 1, 12);
 
             // ========================================================
             // GHI CHÚ
@@ -405,6 +408,11 @@ namespace PCTP.Modules.XuLyHangLoi
                 // Mặc định Lot nhập lại = Lot gốc của phiếu — người dùng
                 // có thể sửa nếu QC muốn đặt lot mới cho phần nhập lại.
                 _txtLotNhapLai.Text = p.SoLo ?? "";
+
+                // Gợi ý Slot OK = Slot nguồn của phiếu (nếu còn tồn tại trong danh sách Slot).
+                if (p.SlotIdNguon.HasValue &&
+                    _slotItems.Any(x => x.SlotId == p.SlotIdNguon.Value))
+                    _slotMacDinhOK = p.SlotIdNguon.Value;
             }
             catch (Exception ex)
             {
@@ -442,11 +450,14 @@ namespace PCTP.Modules.XuLyHangLoi
             ok = Convert.ToInt32(_spSoLuongOK.EditValue ?? 0);
             ng = Convert.ToInt32(_spSoLuongNG.EditValue ?? 0);
 
-            _spSlotIdOK.Enabled = ok > 0;
-            if (ok == 0) _spSlotIdOK.EditValue = 0;
+            _lkSlotOK.Enabled = ok > 0;
+            if (ok == 0)
+                _lkSlotOK.EditValue = null;
+            else if (SlotDichLookup.GetSlotId(_lkSlotOK) == null && _slotMacDinhOK.HasValue)
+                _lkSlotOK.EditValue = _slotMacDinhOK.Value;
 
-            _spSlotIdNG.Enabled = ng > 0;
-            if (ng == 0) _spSlotIdNG.EditValue = 0;
+            _lkSlotNG.Enabled = ng > 0;
+            if (ng == 0) _lkSlotNG.EditValue = null;
         }
 
         private int GetSoLuongLoi()
@@ -486,8 +497,8 @@ namespace PCTP.Modules.XuLyHangLoi
             // Validate trước ở UI cho đỡ tốn 1 round-trip service, nhưng
             // vẫn khớp đúng các điều kiện thật trong QTChungService.QCXacNhanCuoi.
             string lotNhapLai = _txtLotNhapLai.Text.Trim();
-            int slotIdOKValue = Convert.ToInt32(_spSlotIdOK.EditValue ?? 0);
-            int slotIdNGValue = Convert.ToInt32(_spSlotIdNG.EditValue ?? 0);
+            int slotIdOKValue = SlotDichLookup.GetSlotId(_lkSlotOK) ?? 0;
+            int slotIdNGValue = SlotDichLookup.GetSlotId(_lkSlotNG) ?? 0;
 
             if ((soLuongOK > 0 || soLuongNG > 0) &&
                 string.IsNullOrWhiteSpace(lotNhapLai))
@@ -504,22 +515,22 @@ namespace PCTP.Modules.XuLyHangLoi
             if (soLuongOK > 0 && slotIdOKValue <= 0)
             {
                 XtraMessageBox.Show(
-                    "Vui lòng nhập Slot nhập OK (có hàng OK cần nhập lại kho).",
+                    "Vui lòng chọn Slot nhập OK (có hàng OK cần nhập lại kho).",
                     "Thông báo",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Warning);
-                _spSlotIdOK.Focus();
+                _lkSlotOK.Focus();
                 return;
             }
 
             if (soLuongNG > 0 && slotIdNGValue <= 0)
             {
                 XtraMessageBox.Show(
-                    "Vui lòng nhập Slot nhập NG (có hàng NG cần định tuyến riêng).",
+                    "Vui lòng chọn Slot nhập NG (có hàng NG cần định tuyến riêng).",
                     "Thông báo",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Warning);
-                _spSlotIdNG.Focus();
+                _lkSlotNG.Focus();
                 return;
             }
 
@@ -553,9 +564,9 @@ namespace PCTP.Modules.XuLyHangLoi
                 $"Lot: {_lblLot.Text}\r\n" +
                 $"Lot nhập lại: {lotNhapLai}\r\n\r\n" +
                 $"OK: {soLuongOK:n0}" +
-                (soLuongOK > 0 ? $" (Slot {slotIdOKValue})" : "") + "\r\n" +
+                (soLuongOK > 0 ? $" (Slot {_lkSlotOK.Text})" : "") + "\r\n" +
                 $"NG: {soLuongNG:n0}" +
-                (soLuongNG > 0 ? $" (Slot {slotIdNGValue})" : "") + "\r\n" +
+                (soLuongNG > 0 ? $" (Slot {_lkSlotNG.Text})" : "") + "\r\n" +
                 $"Kết luận: {ketLuan}\r\n\r\n" +
                 $"Người QC: {nguoiQC}",
                 "Xác nhận QC cuối",

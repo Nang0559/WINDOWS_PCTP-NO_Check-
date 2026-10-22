@@ -313,6 +313,12 @@ namespace PCTP.Modules.KhoVatLy.Application.Services
         }
         public List<SlotLotViewInfo> GetAllActiveSlotLots()
        => _repository.GetAllActiveSlotLots();
+
+        public bool SlotExists(int slotId)
+            => slotId > 0 && _repository.SlotExists(slotId);
+
+        public List<Slot> GetAllSlots()
+            => _repository.GetAllSlots();
         public void ClearSlot(int slotId)
         {
             if (slotId <= 0)
