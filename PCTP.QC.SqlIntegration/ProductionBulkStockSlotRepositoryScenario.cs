@@ -4,6 +4,9 @@ using System.Data;
 using System.Data.SqlClient;
 using PCTP.Modules.GiaoHangKhach;
 using PCTP.Modules.KhoCore.Application.Contracts.Stock;
+using PCTP.Modules.NhapKho.Interfaces;
+using PCTP.Modules.NhapKho.Repository;
+using PCTP.Shared.Models;
 using PCTP.Modules.KhoVatLy.Repositories;
 using PCTP.Shared.Common;
 
@@ -83,6 +86,10 @@ internal static class ProductionBulkStockSlotRepositoryScenario
                     new SqlParameter("@id", slotId))) == 15,
                 "Slot header quantity was not recalculated from active SlotLot rows.");
 
+            // Cross-repository delivery rollback: a STOCKTP decrement and the actual
+            // BulkStockSlotRepository.TakeLot must enlist in the same production UoW.
+            RunSharedStockTpAndSlotRollback(connectionString, slotId);
+
             // Failure injection: repository writes are enlisted in the active production UoW.
             using (var uow = new UnitOfWork(provider))
             {
@@ -122,6 +129,102 @@ internal static class ProductionBulkStockSlotRepositoryScenario
         {
             DropFixture(connectionString);
         }
+    }
+
+    private static void RunSharedStockTpAndSlotRollback(string cs, int slotId)
+    {
+        var provider = new PCTP.ClassSQL.SQLPROVIDER { B7R2_FCCdb = cs };
+        using var uow = new UnitOfWork(provider);
+        var bulk = new BulkStockSlotRepository(new PhieuSqlExecutor(), uow);
+        IStockTpRepository stock = new StockTpRepository(new PhieuSqlExecutor(), uow);
+
+        // A connection-local STOCKTP fixture avoids touching any production table.
+        uow.Begin();
+        try
+        {
+            using (var command = uow.Connection.CreateCommand())
+            {
+                command.Transaction = uow.Transaction;
+                command.CommandText = @"
+CREATE TABLE #STOCKTP
+(
+    LOT nvarchar(50) NOT NULL PRIMARY KEY,
+    PART nvarchar(50) NULL,
+    NAME nvarchar(100) NULL,
+    MODEL nvarchar(30) NULL,
+    SLNHAP int NULL,
+    SLCONLAI int NULL,
+    SLXUAT int NULL,
+    SATUS smallint NULL,
+    CASX smallint NULL,
+    NGAYSX datetime NULL,
+    NGAYNHAP datetime NULL,
+    SLSX int NULL,
+    NGAYXUAT datetime NULL
+);";
+                command.ExecuteNonQuery();
+            }
+
+            stock.InsertStockTp(new NhapKhoItem
+            {
+                Lot = "QC-DELIVERY-ATOMIC-LOT",
+                Part = "QC-PART",
+                Name = "QC delivery atomicity",
+                Model = "QC",
+                CaSX = 1,
+                SlSanXuat = 60,
+                SlNhap = 60,
+                NgaySX = new DateTime(2026, 10, 22)
+            }, 0);
+            uow.Commit();
+        }
+        catch
+        {
+            try { uow.Rollback(); } catch { }
+            throw;
+        }
+
+        uow.Begin();
+        try
+        {
+            using (var command = uow.Connection.CreateCommand())
+            {
+                command.Transaction = uow.Transaction;
+                command.CommandText = @"
+UPDATE #STOCKTP
+SET SLCONLAI = SLCONLAI - 5, SLXUAT = ISNULL(SLXUAT, 0) + 5
+WHERE LOT = @lot AND SLCONLAI >= 5;";
+                var parameter = command.CreateParameter();
+                parameter.ParameterName = "@lot";
+                parameter.Value = "QC-DELIVERY-ATOMIC-LOT";
+                command.Parameters.Add(parameter);
+                if (command.ExecuteNonQuery() != 1)
+                    throw new InvalidOperationException("Could not apply the synthetic STOCKTP delivery decrement.");
+            }
+
+            var take = bulk.TakeLot(slotId, "26080700748100851600", "QC-PART", 5);
+            Require(take.Quantity == 5, "Production BulkStockSlotRepository did not pick the expected delivery quantity.");
+
+            throw new InvalidOperationException("QC injected cross-repository delivery failure.");
+        }
+        catch (InvalidOperationException ex) when (ex.Message == "QC injected cross-repository delivery failure.")
+        {
+            uow.Rollback();
+        }
+        catch
+        {
+            try { uow.Rollback(); } catch { }
+            throw;
+        }
+
+        var stockAfterRollback = stock.GetByLot("QC-DELIVERY-ATOMIC-LOT");
+        Require(stockAfterRollback != null && stockAfterRollback.SlConLai == 60,
+            "STOCKTP decrement was not rolled back with the SlotLot movement.");
+        Require(bulk.GetLotQuantity(1) == 0 && bulk.GetLotQuantity(2) == 15,
+            "SlotLot rows were not restored by the shared delivery rollback.");
+        Require(bulk.GetLots(slotId).Sum(x => x.Quantity) == 15,
+            "Slot header/active SlotLot quantity changed after cross-repository rollback.");
+        Console.WriteLine("PASS: production UnitOfWork rolled back STOCKTP and production BulkStockSlotRepository.TakeLot as one delivery unit.");
     }
 
     private static void EnsureFixtureNamesAreUnused(string cs)
