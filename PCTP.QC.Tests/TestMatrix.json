@@ -136,6 +136,13 @@
       "testEvidence": "BulkStockAdjustServiceTests"
     },
     {
+      "id": "DEL-008",
+      "module": "GiaoHangKhach",
+      "scenario": "Inject failure after STOCKTP decrement and production BulkStockSlotRepository.TakeLot in one production UnitOfWork",
+      "expected": "Both STOCKTP and SlotLot/header quantities are restored; synthetic #STOCKTP fixture only",
+      "status": "planned"
+    },
+    {
       "id": "DEL-007",
       "module": "GiaoHangKhach",
       "scenario": "Verify transaction boundary for stored-procedure delivery routes and post-delivery finalization",
