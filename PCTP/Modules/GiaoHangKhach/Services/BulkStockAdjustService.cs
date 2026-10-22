@@ -139,6 +139,13 @@ namespace PCTP.Modules.GiaoHangKhach.Services
                 throw new InvalidOperationException("Không thể trừ tồn Slot " + slotId + ": " + (movement.Message ?? "Stock movement thất bại."));
 
             int daTru = movement.ConsumedLots == null ? quantity : movement.ConsumedLots.Sum(x => x.Quantity);
+            // The repository has already changed stock inside the caller's UnitOfWork.
+            // Treat an impossible movement result as a hard failure so that the
+            // surrounding transaction rolls the stock mutation back.
+            if (daTru <= 0 || daTru > quantity)
+                throw new InvalidOperationException(
+                    $"Stock movement returned invalid consumed quantity {daTru} for requested quantity {quantity}.");
+
             _historyRepo.SaveHistory(
                 "EXPORT_AUTO_HVN",
                 itemCode,
