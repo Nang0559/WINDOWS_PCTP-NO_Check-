@@ -3,6 +3,7 @@ namespace PCTP.Modules.KhoCore.Application.Contracts.Stock
     public interface IStockSlotRepository
     {
         int GetLotQuantity(int slotLotId);
+        byte GetPhieuStatus(int slotLotId);
         string GetLotNo(int slotLotId);
         string GetItemCode(int slotLotId);
         int? GetSlotId(int slotLotId);
