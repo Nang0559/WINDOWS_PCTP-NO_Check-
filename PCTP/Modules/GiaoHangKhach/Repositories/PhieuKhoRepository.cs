@@ -66,38 +66,51 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             // FIFO is the authoritative gate in PhieuKhoService/PhieuRepository.ReleaseFifoViolations.
             // Do NOT call CheckFifoViolations here: doing so would recreate the old hard-stop path
             // and would prevent valid QR rows from being exported when another row violates FIFO.
-            DataSet ds = Db.ExecuteStoredProcedureDataSet(
-                "Usp_Qrcode_Update_Stock2405",
-                new SqlParameter("@GIOGIAOFCC", SqlDbType.NVarChar, 200) { Value = (object)(gioGiaoFcc ?? "") },
-                new SqlParameter("@NHAMAY", SqlDbType.NVarChar, 200) { Value = (object)(nhaMay ?? "") },
-                new SqlParameter("@TMPTABLE", SqlDbType.NVarChar, 128) { Value = tmpTable },
-                new SqlParameter("@DOCQRTABLE", SqlDbType.NVarChar, 128) { Value = docQRTable }
-            );
-
-            DataTable stok = ds != null && ds.Tables.Count > 0 ? ds.Tables[0] : new DataTable();
-            errors = ds != null && ds.Tables.Count > 1 ? ds.Tables[1] : new DataTable();
-
-            bool coAnhHuongA0 = TruKhoAoTuKetQuaSP(stok, out List<string> lotsDaXuatThanhCong);
-            if (coAnhHuongA0) StockChangedNotifier.RaiseStockChanged();
-            HoanTatSauKhiTruKho(lotsDaXuatThanhCong, SYSTEM_PERFORMED_BY);
-
-            if (_cfg != null && _cfg.Delivery.LoadTuBangRieng && !string.IsNullOrEmpty(_cfg.Delivery.OrderTable) && stok.Rows.Count > 0)
+            DataTable stok;
+            bool coAnhHuongA0 = false;
+            Uow.Begin();
+            try
             {
-                foreach (DataRow row in stok.Rows)
-                {
-                    string maHang = row["MH"]?.ToString() ?? "";
-                    int stt = 0;
-                    if (row.Table.Columns.Contains("STT") && row["STT"] != DBNull.Value)
-                        int.TryParse(row["STT"].ToString(), out stt);
-                    if (string.IsNullOrEmpty(maHang)) continue;
+                DataSet ds = ExecuteStoredProcedureDataSet(
+                    "Usp_Qrcode_Update_Stock2405",
+                    new SqlParameter("@GIOGIAOFCC", SqlDbType.NVarChar, 200) { Value = (object)(gioGiaoFcc ?? "") },
+                    new SqlParameter("@NHAMAY", SqlDbType.NVarChar, 200) { Value = (object)(nhaMay ?? "") },
+                    new SqlParameter("@TMPTABLE", SqlDbType.NVarChar, 128) { Value = tmpTable },
+                    new SqlParameter("@DOCQRTABLE", SqlDbType.NVarChar, 128) { Value = docQRTable }
+                );
 
-                    string whereClause = stt > 0 ? $"STT={stt}" : $"MAHANG='{SqlHelper.Esc(maHang)}' AND STATUS='OK'";
-                    string ngayGiao = Convert.ToString(ExecuteScalar($"SELECT CONVERT(varchar, NGAYGIAO, 23) FROM [{tmpTable}] WHERE {whereClause}"))?.Trim() ?? "";
-                    string poNo = Convert.ToString(ExecuteScalar($"SELECT ISNULL(PO_NO,'') FROM [{tmpTable}] WHERE {whereClause}"))?.Trim() ?? "";
-                    if (!string.IsNullOrEmpty(poNo) && !string.IsNullOrEmpty(ngayGiao))
-                        DanhDauDaGiao(poNo, maHang, ngayGiao, _cfg);
+                stok = ds != null && ds.Tables.Count > 0 ? ds.Tables[0] : new DataTable();
+                errors = ds != null && ds.Tables.Count > 1 ? ds.Tables[1] : new DataTable();
+                coAnhHuongA0 = TruKhoAoTuKetQuaSP(stok, out List<string> lotsDaXuatThanhCong);
+                HoanTatSauKhiTruKho(lotsDaXuatThanhCong, SYSTEM_PERFORMED_BY);
+
+                if (_cfg != null && _cfg.Delivery.LoadTuBangRieng &&
+                    !string.IsNullOrEmpty(_cfg.Delivery.OrderTable) && stok.Rows.Count > 0)
+                {
+                    foreach (DataRow row in stok.Rows)
+                    {
+                        string maHang = row["MH"]?.ToString() ?? "";
+                        int stt = 0;
+                        if (row.Table.Columns.Contains("STT") && row["STT"] != DBNull.Value)
+                            int.TryParse(row["STT"].ToString(), out stt);
+                        if (string.IsNullOrEmpty(maHang)) continue;
+
+                        string whereClause = stt > 0 ? $"STT={stt}" : $"MAHANG='{SqlHelper.Esc(maHang)}' AND STATUS='OK'";
+                        string ngayGiao = Convert.ToString(ExecuteScalar($"SELECT CONVERT(varchar, NGAYGIAO, 23) FROM [{tmpTable}] WHERE {whereClause}"))?.Trim() ?? "";
+                        string poNo = Convert.ToString(ExecuteScalar($"SELECT ISNULL(PO_NO,'') FROM [{tmpTable}] WHERE {whereClause}"))?.Trim() ?? "";
+                        if (!string.IsNullOrEmpty(poNo) && !string.IsNullOrEmpty(ngayGiao))
+                            DanhDauDaGiao(poNo, maHang, ngayGiao, _cfg);
+                    }
                 }
+                Uow.Commit();
             }
+            catch
+            {
+                Uow.Rollback();
+                throw;
+            }
+
+            if (coAnhHuongA0) StockChangedNotifier.RaiseStockChanged();
             return stok.Rows.Count;
         }
         #endregion
@@ -123,16 +136,29 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
 
             // The same DB FIFO gate is executed by PhieuKhoService before this repository call.
             // This method must only execute the stock SP with the already-released TMP rows.
-            DataSet ds = Db.ExecuteStoredProcedureDataSet(
-                "Usp_Qrcode_Update_Stock_SP",
-                new SqlParameter("@GIOGIAOFCC", SqlDbType.NVarChar, 200) { Value = (object)(gioGiaoFcc ?? "") },
-                new SqlParameter("@NHAMAY", SqlDbType.NVarChar, 200) { Value = (object)(nhaMay ?? "") }
-            );
-            DataTable stok = ds != null && ds.Tables.Count > 0 ? ds.Tables[0] : new DataTable();
-            errors = ds != null && ds.Tables.Count > 1 ? ds.Tables[1] : new DataTable();
-            bool coAnhHuongA0 = TruKhoAoTuKetQuaSP(stok, out List<string> lotsDaXuatThanhCong);
+            DataTable stok;
+            bool coAnhHuongA0 = false;
+            Uow.Begin();
+            try
+            {
+                DataSet ds = ExecuteStoredProcedureDataSet(
+                    "Usp_Qrcode_Update_Stock_SP",
+                    new SqlParameter("@GIOGIAOFCC", SqlDbType.NVarChar, 200) { Value = (object)(gioGiaoFcc ?? "") },
+                    new SqlParameter("@NHAMAY", SqlDbType.NVarChar, 200) { Value = (object)(nhaMay ?? "") }
+                );
+                stok = ds != null && ds.Tables.Count > 0 ? ds.Tables[0] : new DataTable();
+                errors = ds != null && ds.Tables.Count > 1 ? ds.Tables[1] : new DataTable();
+                coAnhHuongA0 = TruKhoAoTuKetQuaSP(stok, out List<string> lotsDaXuatThanhCong);
+                HoanTatSauKhiTruKho(lotsDaXuatThanhCong, SYSTEM_PERFORMED_BY);
+                Uow.Commit();
+            }
+            catch
+            {
+                Uow.Rollback();
+                throw;
+            }
+
             if (coAnhHuongA0) StockChangedNotifier.RaiseStockChanged();
-            HoanTatSauKhiTruKho(lotsDaXuatThanhCong, SYSTEM_PERFORMED_BY);
             return stok.Rows.Count;
         }
         #endregion
@@ -161,13 +187,6 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                 if (!int.TryParse(tach[1], out int sl) || sl <= 0) continue;
 
                 string matchCondition = LotCodeHelper.BuildLotMatchSql("LOT", $"'{SqlHelper.Esc(lot)}'");
-                object slConlaiRaw = ExecuteScalar($"SELECT ISNULL(SUM(SLCONLAI),0) FROM STOCKTP WHERE {matchCondition}");
-                int slConlai = slConlaiRaw == null || slConlaiRaw == DBNull.Value ? 0 : Convert.ToInt32(slConlaiRaw);
-                if (slConlai < sl)
-                {
-                    error = new DS_ERR_CNK { MH = maHang, LOT = lot, SLC = sl, SLTK = slConlai, SLT = sl - slConlai, Ms = "Không đủ tồn kho" };
-                    return false;
-                }
                 lotsToProcess.Add((lot, sl));
             }
 
@@ -183,6 +202,15 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                     string lotKey = item.LotKey;
                     int sl = item.SoLuong;
                     string matchCondition = LotCodeHelper.BuildLotMatchSql("LOT", $"'{SqlHelper.Esc(lotKey)}'");
+                    object slConlaiRaw = ExecuteScalar(
+                        $"SELECT ISNULL(SUM(SLCONLAI),0) FROM STOCKTP WITH (UPDLOCK, HOLDLOCK) WHERE {matchCondition}");
+                    int slConlai = slConlaiRaw == null || slConlaiRaw == DBNull.Value ? 0 : Convert.ToInt32(slConlaiRaw);
+                    if (slConlai < sl)
+                    {
+                        error = new DS_ERR_CNK { MH = maHang, LOT = lotKey, SLC = sl, SLTK = slConlai, SLT = sl - slConlai, Ms = "Không đủ tồn kho" };
+                        Uow.Rollback();
+                        return false;
+                    }
                     if (!TruStockTpFifo(matchCondition, sl))
                         throw new InvalidOperationException($"Tồn kho Lot [{lotKey}] đã thay đổi trong lúc xử lý — vui lòng thử lại.");
 
@@ -217,8 +245,20 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                     new SqlParameter("@nhaMay", SqlDbType.NVarChar, 200) { Value = nhaMay ?? "" },
                     new SqlParameter("@stt", SqlDbType.Int) { Value = stt });
 
-                ExecuteNonQuery($"UPDATE [{tmpTable}] SET STATUS = 'OK' WHERE STT = @stt", new SqlParameter("@stt", SqlDbType.Int) { Value = stt });
+                int updatedTmp = ExecuteNonQuery($"UPDATE [{tmpTable}] SET STATUS = 'OK' WHERE STT = @stt AND STATUS = 'NG'", new SqlParameter("@stt", SqlDbType.Int) { Value = stt });
+                if (updatedTmp != 1)
+                    throw new InvalidOperationException($"Không thể xác nhận phiếu giao STT={stt}: trạng thái đã thay đổi hoặc không còn tồn tại.");
                 ExecuteNonQuery($"DELETE FROM [{docQRTable}] WHERE MAHANGFCC = @maHang AND KETQUA = 'DG'", new SqlParameter("@maHang", SqlDbType.NVarChar, 100) { Value = maHang ?? "" });
+
+                List<HangChoGiao> unused = null;
+                HoanTatSauKhiTruKho(lotsDaXuatThanhCong, SYSTEM_PERFORMED_BY);
+
+                string poNoInTransaction = Convert.ToString(ExecuteScalar(
+                    $"SELECT ISNULL(PO_NO,'') FROM [{tmpTable}] WHERE STT = @stt",
+                    new SqlParameter("@stt", SqlDbType.Int) { Value = stt }))?.Trim() ?? "";
+                if (!string.IsNullOrEmpty(poNoInTransaction) && !string.IsNullOrEmpty(_cfg.Delivery.OrderTable))
+                    DanhDauDaGiao(poNoInTransaction, maHang, ngayGiao, _cfg);
+
                 Uow.Commit();
             }
             catch
@@ -227,14 +267,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                 throw;
             }
 
-            HoanTatSauKhiTruKho(lotsDaXuatThanhCong, SYSTEM_PERFORMED_BY);
             if (coAnhHuongA0) StockChangedNotifier.RaiseStockChanged();
-
-            string poNo = Convert.ToString(ExecuteScalar(
-                $"SELECT ISNULL(PO_NO,'') FROM [{tmpTable}] WHERE STT = @stt",
-                new SqlParameter("@stt", SqlDbType.Int) { Value = stt }))?.Trim() ?? "";
-            if (!string.IsNullOrEmpty(poNo) && !string.IsNullOrEmpty(_cfg.Delivery.OrderTable))
-                DanhDauDaGiao(poNo, maHang, ngayGiao, _cfg);
             return true;
         }
         #endregion
@@ -274,7 +307,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                 string lot = LotCodeHelper.TrimTo(row["LOT"]?.ToString(), LotCodeHelper.LEN_HEAD_FIXED);
                 int sl = row["SOLUONG"] == DBNull.Value ? 0 : Convert.ToInt32(row["SOLUONG"]);
                 if (string.IsNullOrWhiteSpace(lot) || sl <= 0) continue;
-                if (bulkService.TruKhoAoTheoLot(lot, sl)) coAnhHuongA0 = true;
+                if (bulkService.TruKhoAoTheoLot(lot, sl, manageTransaction: false)) coAnhHuongA0 = true;
                 lotsDaXuatThanhCong.Add(lot);
             }
             return coAnhHuongA0;
@@ -282,7 +315,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
 
         private bool TruStockTpFifo(string matchCondition, int slCan)
         {
-            DataTable rows = LoadData($"SELECT LOT, SLCONLAI FROM STOCKTP WHERE {matchCondition} AND SLCONLAI > 0 ORDER BY NGAYNHAP ASC");
+            DataTable rows = LoadData($"SELECT LOT, SLCONLAI FROM STOCKTP WITH (UPDLOCK, HOLDLOCK) WHERE {matchCondition} AND SLCONLAI > 0 ORDER BY NGAYNHAP ASC");
             int conLaiCanTru = slCan;
             foreach (DataRow row in rows.Rows)
             {
@@ -290,9 +323,10 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                 string lotThat = row["LOT"].ToString();
                 int slDongNay = Convert.ToInt32(row["SLCONLAI"]);
                 int slTruDongNay = Math.Min(slDongNay, conLaiCanTru);
-                ExecuteNonQuery(
-                    "UPDATE STOCKTP SET SLXUAT = ISNULL(SLXUAT,0) + @sl, SLCONLAI = SLCONLAI - @sl, NGAYXUAT = GETDATE() WHERE LOT = @lot",
+                int affected = ExecuteNonQuery(
+                    "UPDATE STOCKTP SET SLXUAT = ISNULL(SLXUAT,0) + @sl, SLCONLAI = SLCONLAI - @sl, NGAYXUAT = GETDATE() WHERE LOT = @lot AND SLCONLAI >= @sl",
                     new SqlParameter("@sl", slTruDongNay), new SqlParameter("@lot", lotThat));
+                if (affected != 1) return false;
                 conLaiCanTru -= slTruDongNay;
             }
             return conLaiCanTru == 0;
@@ -300,34 +334,22 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
 
         private void HoanTatSauKhiTruKho(List<string> lotsDaXuatThanhCong, string performedBy)
         {
-            if (lotsDaXuatThanhCong == null || lotsDaXuatThanhCong.Count == 0 || _hangChoGiaoRepo == null) return;
-            try
+            if (lotsDaXuatThanhCong == null || lotsDaXuatThanhCong.Count == 0) return;
+            if (!Uow.IsInTransaction)
+                throw new InvalidOperationException("HoanTatSauKhiTruKho phải tham gia transaction giao hàng hiện tại.");
+            if (_hangChoGiaoRepo == null)
+                throw new InvalidOperationException("Chưa cấu hình IHangChoGiaoRepository; không thể hoàn tất hàng chờ giao một cách an toàn.");
+
+            List<HangChoGiao> closedItems = _hangChoGiaoRepo.CloseChoGiaoTheoLotAndReturn(
+                Connection, Transaction, lotsDaXuatThanhCong, performedBy);
+            if (closedItems == null) return;
+
+            foreach (var it in closedItems.Where(x => x.SlotIdNguon.HasValue))
             {
-                Uow.Begin();
-                try
-                {
-                    List<HangChoGiao> closedItems = _hangChoGiaoRepo.CloseChoGiaoTheoLotAndReturn(Connection, Transaction, lotsDaXuatThanhCong, performedBy);
-                    if (closedItems != null)
-                    {
-                        foreach (var it in closedItems.Where(x => x.SlotIdNguon.HasValue))
-                        {
-                            _historyRepo.SaveHistory(
-                                "EXPORT_CONFIRMED_HVN", it.MaHang,
-                                new LotInfo { LotNo = it.LotGoc, Quantity = it.SoLuong, TemCode = it.LotThung },
-                                fromSlotId: it.SlotIdNguon, toSlotId: null, performedBy: performedBy);
-                        }
-                    }
-                    Uow.Commit();
-                }
-                catch
-                {
-                    Uow.Rollback();
-                    throw;
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"[HoanTatSauKhiTruKho] Không đóng được TMPCHOGIAO: {ex.Message}");
+                _historyRepo.SaveHistory(
+                    "EXPORT_CONFIRMED_HVN", it.MaHang,
+                    new LotInfo { LotNo = it.LotGoc, Quantity = it.SoLuong, TemCode = it.LotThung },
+                    fromSlotId: it.SlotIdNguon, toSlotId: null, performedBy: performedBy);
             }
         }
         #endregion
