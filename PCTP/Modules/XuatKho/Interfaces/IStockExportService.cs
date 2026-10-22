@@ -1,5 +1,7 @@
 ﻿using PCTP.Modules.KhoCore.Models;
 using PCTP.Modules.XuatKho.Models;
+using PCTP.Modules.XuLyHangLoi.Models;
+using System.Collections.Generic;
 
 
 namespace PCTP.Modules.XuatKho.Interfaces
@@ -12,6 +14,8 @@ namespace PCTP.Modules.XuatKho.Interfaces
         /// KHÔNG đụng STOCKTP.
         /// </summary>
         StockExportResult PickToChoGiao(StockExportRequest request);
+        List<HangChoGiao> GetPendingChoGiao();
+        StockExportResult CancelChoGiao(int hangChoGiaoId, string nguoiThucHien);
 
         /// <summary>
         /// TRƯỜNG HỢP 1 — BƯỚC 2: xác nhận hàng đã thực sự giao (gọi từ
