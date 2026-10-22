@@ -37,11 +37,8 @@ namespace PCTP.Infrastructure.Stock
             if (string.IsNullOrWhiteSpace(lotNo) || quantity <= 0)
                 return false;
 
-            // QC cuối chạy trong transaction dài hơn một câu UPDATE đơn lẻ.
-            // Sau khi có IX_STOCKTP_LOT_QC_FINAL, ROWLOCK giữ phạm vi lock ở các
-            // dòng LOT thực sự bị cập nhật, tránh lock escalation khi STOCKTP lớn.
             int affected = ExecuteNonQuery(
-                @"UPDATE STOCKTP WITH (ROWLOCK)
+                @"UPDATE STOCKTP
                   SET SLCONLAI = SLCONLAI - @q,
                       SLXUAT = ISNULL(SLXUAT,0) + @q,
                       NGAYXUAT = GETDATE()
@@ -64,7 +61,7 @@ namespace PCTP.Infrastructure.Stock
             }
 
             int affected = ExecuteNonQuery(
-                "UPDATE STOCKTP WITH (ROWLOCK) SET SLCONLAI = ISNULL(SLCONLAI,0) + @q WHERE LOT=@lot",
+                "UPDATE STOCKTP SET SLCONLAI = ISNULL(SLCONLAI,0) + @q WHERE LOT=@lot",
                 new SqlParameter("@lot", lotNo),
                 new SqlParameter("@q", delta));
 
