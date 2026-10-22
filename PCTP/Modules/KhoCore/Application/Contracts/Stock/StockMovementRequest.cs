@@ -35,6 +35,10 @@ namespace PCTP.Modules.KhoCore.Application.Contracts.Stock
         public DateTime? OccurredAt { get; set; }
         public string Reason { get; set; }
 
+        // Optional label/QR metadata that must survive stock-slot movements.
+        public string TemCode { get; set; }
+        public string QrData { get; set; }
+
         // Receiving metadata. These fields are used only by the receiving
         // storage adapter; other stock movements can leave them empty.
         public string ItemName { get; set; }
