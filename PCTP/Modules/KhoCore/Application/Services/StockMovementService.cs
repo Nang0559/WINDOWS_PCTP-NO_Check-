@@ -1,5 +1,6 @@
 using System;
 using PCTP.Common;
+using PCTP.Shared.Common;
 using PCTP.Modules.KhoCore.Application.Contracts.Stock;
 
 namespace PCTP.Modules.KhoCore.Application.Services
@@ -15,18 +16,27 @@ namespace PCTP.Modules.KhoCore.Application.Services
         private readonly IStockBalanceRepository _balance;
         private readonly IStockSlotRepository _slots;
         private readonly IStockReceivingRepository _receiving;
+        private readonly IUnitOfWork _uow;
 
         public StockMovementService(IStockBalanceRepository balance, IStockSlotRepository slots)
-            : this(balance, slots, null) { }
+            : this(balance, slots, null, null) { }
 
         public StockMovementService(
             IStockBalanceRepository balance,
             IStockSlotRepository slots,
             IStockReceivingRepository receiving)
+            : this(balance, slots, receiving, null) { }
+
+        public StockMovementService(
+            IStockBalanceRepository balance,
+            IStockSlotRepository slots,
+            IStockReceivingRepository receiving,
+            IUnitOfWork uow)
         {
             _balance = balance ?? throw new ArgumentNullException(nameof(balance));
             _slots = slots ?? throw new ArgumentNullException(nameof(slots));
             _receiving = receiving;
+            _uow = uow;
         }
 
         public StockMovementResult Receive(StockMovementRequest request)
@@ -156,14 +166,40 @@ namespace PCTP.Modules.KhoCore.Application.Services
             if (request.Quantity == 0)
                 return StockMovementResult.Fail("Quantity không được bằng 0.");
 
+            if (!request.SlotId.HasValue || request.SlotId.Value <= 0)
+                return StockMovementResult.Fail("Điều chỉnh tồn phải chỉ định Slot đích/nguồn để đồng bộ SlotLot.");
+            if (_uow == null)
+                return StockMovementResult.Fail("Chưa cấu hình UnitOfWork; từ chối chỉnh riêng STOCKTP để tránh lệch tồn.");
+
             try
             {
+                _uow.Begin();
+                if (request.Quantity > 0)
+                {
+                    _slots.AddLot(request.SlotId.Value, new StockSlotLot
+                    {
+                        LotNo = request.LotNo.Trim(),
+                        ItemCode = request.ItemCode.Trim(),
+                        Quantity = request.Quantity,
+                        TemCode = request.TemCode,
+                        RawQr = null,
+                        ImportDate = request.OccurredAt ?? DateTime.Now,
+                        PhieuStatus = 0
+                    });
+                }
+                else
+                {
+                    _slots.TakeLot(request.SlotId.Value, request.LotNo, request.ItemCode, Math.Abs(request.Quantity));
+                }
+
                 _balance.AdjustAvailableQuantity(request.LotNo, request.Quantity);
-                return StockMovementResult.Ok("Đã điều chỉnh tồn STOCKTP.");
+                _uow.Commit();
+                return StockMovementResult.Ok("Đã điều chỉnh đồng bộ STOCKTP và SlotLot trong cùng transaction.");
             }
             catch (Exception ex)
             {
-                return StockMovementResult.Fail("Lỗi điều chỉnh tồn: " + ex.Message);
+                try { _uow.Rollback(); } catch { }
+                return StockMovementResult.Fail("Lỗi điều chỉnh tồn đồng bộ: " + ex.Message);
             }
         }
 
