@@ -107,6 +107,27 @@
       "testEvidence": "YmvnGearQuantityValidatorTests"
     },
     {
+      "id": "DEL-003",
+      "module": "GiaoHangKhach",
+      "scenario": "Execute production customer-delivery stock deduction across STOCKTP, SlotLot, stock history and pending-delivery records",
+      "expected": "All repository writes enlist in the same phieuUow; any injected failure rolls back every stock/history/delivery mutation",
+      "status": "planned"
+    },
+    {
+      "id": "DEL-004",
+      "module": "GiaoHangKhach",
+      "scenario": "Repeat delivery confirmation or replay the same delivery reference",
+      "expected": "Idempotent result; STOCKTP, SlotLot, history and delivered quantity are not deducted or recorded twice",
+      "status": "planned"
+    },
+    {
+      "id": "DEL-005",
+      "module": "GiaoHangKhach",
+      "scenario": "Reject delivery when the requested quantity exceeds available stock across virtual and physical slots",
+      "expected": "No partial stock deduction; shortage is explicit and consistent with the selected transaction mode",
+      "status": "planned"
+    },
+    {
       "id": "RWK-001",
       "module": "XuLyHangLoi",
       "scenario": "QC final OK/NG split",
