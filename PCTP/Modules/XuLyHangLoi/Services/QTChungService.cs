@@ -296,6 +296,9 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             if (phieu.Status != QTChungStatus.DaDinhHuong &&
                 phieu.Status != QTChungStatus.DaXuatKhoRework)
                 return ScanResult.Fail($"Chỉ được xuất rework khi phiếu ở trạng thái DaDinhHuong hoặc DaXuatKhoRework. Hiện tại: {phieu.Status}.");
+            if (phieu.Status == QTChungStatus.DaDinhHuong &&
+                !_workflow.CanTransition(ProcessCodeQTChung, (int)phieu.Status, (int)QTChungStatus.DaXuatKhoRework))
+                return ScanResult.Fail($"Workflow không cho phép chuyển {phieu.Status} → {QTChungStatus.DaXuatKhoRework}.");
 
             try
             {
