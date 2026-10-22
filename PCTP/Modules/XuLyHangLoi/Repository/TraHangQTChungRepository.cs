@@ -325,6 +325,41 @@ ORDER BY ThoiGian, Id;";
             return result;
         }
 
+        public void UpdateLatestGiaoNote(int phieuXuLyId, string ghiChu, string nguoiThucHien)
+        {
+            if (phieuXuLyId <= 0)
+                throw new ArgumentOutOfRangeException(nameof(phieuXuLyId));
+            if (string.IsNullOrWhiteSpace(ghiChu))
+                throw new ArgumentException("Ghi chú rework không được rỗng.", nameof(ghiChu));
+            if (string.IsNullOrWhiteSpace(nguoiThucHien))
+                throw new ArgumentException("Người thực hiện không được rỗng.", nameof(nguoiThucHien));
+
+            const string sql = @"
+;WITH LatestGiao AS
+(
+    SELECT TOP (1) *
+    FROM FVN_TraHangQTChungGiao
+    WHERE PhieuXuLyBatThuongId = @PhieuXuLyBatThuongId
+    ORDER BY ThoiGian DESC, Id DESC
+)
+UPDATE LatestGiao
+SET Note =
+    ISNULL(NULLIF(Note, N'') + CHAR(10), N'')
+    + N'[ĐANG REWORK] ' + @GhiChu
+    + N' | ' + @NguoiThucHien
+    + N' | ' + CONVERT(NVARCHAR(19), GETDATE(), 120);";
+
+            int affected = ExecuteNonQuery(
+                sql,
+                new SqlParameter("@PhieuXuLyBatThuongId", phieuXuLyId),
+                new SqlParameter("@GhiChu", ghiChu.Trim()),
+                new SqlParameter("@NguoiThucHien", nguoiThucHien.Trim()));
+
+            if (affected == 0)
+                throw new InvalidOperationException(
+                    $"Không tìm thấy lần giao sản xuất của phiếu xử lý Id={phieuXuLyId} để ghi nhận tiến độ rework.");
+        }
+
         public TraHangQTChungGiao GetGiaoById(
             int id)
         {
