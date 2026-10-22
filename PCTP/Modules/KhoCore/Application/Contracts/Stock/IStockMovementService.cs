@@ -13,5 +13,6 @@ namespace PCTP.Modules.KhoCore.Application.Contracts.Stock
         StockMovementResult Move(StockMovementRequest request);
         StockMovementResult ReturnFromRework(StockMovementRequest request);
         StockMovementResult Correct(StockMovementRequest request);
+        StockMovementResult RestorePicked(int slotId, StockSlotLot lot);
     }
 }
