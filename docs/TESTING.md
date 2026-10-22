@@ -39,7 +39,7 @@ See [TRANSACTION_BOUNDARIES.md](TRANSACTION_BOUNDARIES.md) for the source-verifi
 
 ## Full module acceptance matrix
 
-See [TEST_MATRIX.json](../PCTP.QC.Tests/TestMatrix.json). It tracks receiving, exporting, physical warehouse, customer delivery, rework/quarantine, reports, SQL reliability, concurrency, timeout, and UI workflows. Items marked planned are explicitly not represented as passing tests.
+See [TestMatrix.json](../PCTP.QC.Tests/TestMatrix.json). It tracks receiving, exporting, physical warehouse, customer delivery, rework/quarantine, reports, SQL reliability, concurrency, timeout, and UI workflows. Items marked planned are explicitly not represented as passing tests.
 
 ## Local execution
 
