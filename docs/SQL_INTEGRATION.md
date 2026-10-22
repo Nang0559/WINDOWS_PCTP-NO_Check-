@@ -40,12 +40,13 @@ Exit codes:
 
 ## Scenarios
 
-1. **Production SqlRepositoryBase enlistment:** compiles the production `SqlRepositoryBase.cs`, verifies it uses the active production `UnitOfWork.Connection` and `.Transaction`, executes an update through the protected repository method, and confirms rollback. A test-only executor throws if the base class incorrectly bypasses the active transaction.\n2. **Production UnitOfWork nested rollback:** executes the actual production `UnitOfWork` implementation, marks an outer transaction rollback-only through a nested rollback, verifies outer commit is rejected, and checks that both writes were reverted.
+1. **Production SqlRepositoryBase enlistment:** compiles the production `SqlRepositoryBase.cs`, verifies it uses the active production `UnitOfWork.Connection` and `.Transaction`, executes an update through the protected repository method, and confirms rollback. A test-only executor throws if the base class incorrectly bypasses the active transaction.
+2. **Production UnitOfWork nested rollback:** marks an outer transaction rollback-only through a nested rollback, verifies outer commit is rejected, and checks that both writes were reverted.
 3. **Production UnitOfWork nested commit:** verifies a nested commit does not commit early and that the outer commit persists both mutations.
 4. **Production UnitOfWork dispose rollback:** verifies disposing an active, uncommitted production UnitOfWork rolls back its write.
-4. **SQL engine atomic rollback:** performs two writes in one transaction, deliberately raises a SQL error, rolls back, and verifies both values are unchanged.
+5. **SQL engine atomic rollback:** performs two writes in one transaction, deliberately raises a SQL error, rolls back, and verifies both values are unchanged.
 6. **Concurrent conditional decrement:** two independent SQL connections race to decrement a quantity of 10 by 7. Exactly one update must affect a row; final quantity must be 3.
-6. **Command timeout:** updates a synthetic row, runs a command that exceeds a one-second timeout, rolls back, and verifies the original quantity.
+7. **Command timeout:** updates a synthetic row, runs a command that exceeds a one-second timeout, rolls back, and verifies the original quantity.
 
 ## CI behavior and limitations
 
