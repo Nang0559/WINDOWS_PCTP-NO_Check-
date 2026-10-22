@@ -167,9 +167,13 @@ VALUES
                         DbValueHelper.DbValue(p.BoPhanPhatHanh)),
 
                     // Phiếu mới luôn bắt đầu ở Moi.
-                    new SqlParameter(
-                        "@Status",
-                        (int)QTChungStatus.Moi),
+                    // LƯU Ý: không dùng new SqlParameter("@Status", (int)QTChungStatus.Moi):
+                    // (int)Moi là hằng số 0 → C# chọn overload (string, SqlDbType) và
+                    // tham số bị tạo KHÔNG có giá trị ("expects the parameter '@Status'").
+                    new SqlParameter("@Status", SqlDbType.Int)
+                    {
+                        Value = (int)QTChungStatus.Moi
+                    },
 
                     // HuongXuLy hiện là enum, không còn là string.
                     new SqlParameter(

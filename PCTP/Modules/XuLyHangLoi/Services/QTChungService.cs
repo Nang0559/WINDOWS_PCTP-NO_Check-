@@ -92,7 +92,8 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             try
             {
                 _uow.Begin();
-                var id = TaoPhieuXuLyCore(header, ct, model, phanLoaiXuLy, boPhanPhatHanh, nguoiThucHien);
+                int stt = (_repo.GetAllByPhieuTraHangId(header.Id) ?? new List<PhieuXuLyBatThuong>()).Count + 1;
+                var id = TaoPhieuXuLyCore(header, ct, stt, model, phanLoaiXuLy, boPhanPhatHanh, nguoiThucHien);
                 NangTrangThaiHeader(header.Id, PhieuTraHangStatus.DaTaoPhieuBatThuong, nguoiThucHien);
                 _uow.Commit();
                 return id;
@@ -123,8 +124,10 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             {
                 _uow.Begin();
 
+                int stt = (_repo.GetAllByPhieuTraHangId(header.Id) ?? new List<PhieuXuLyBatThuong>()).Count;
+
                 foreach (var ct in items)
-                    ids.Add(TaoPhieuXuLyCore(header, ct, model, phanLoaiXuLy, null, nguoiThucHien));
+                    ids.Add(TaoPhieuXuLyCore(header, ct, ++stt, model, phanLoaiXuLy, null, nguoiThucHien));
 
                 NangTrangThaiHeader(header.Id, PhieuTraHangStatus.DaTaoPhieuBatThuong, nguoiThucHien);
                 _uow.Commit();
@@ -134,7 +137,7 @@ namespace PCTP.Modules.XuLyHangLoi.Services
         }
 
         // Không tự mở transaction: gọi trong _uow.Begin()/Commit() của hàm public.
-        private int TaoPhieuXuLyCore(PhieuTraHang header, PhieuTraHangCT ct, string model, string phanLoaiXuLy, string boPhanPhatHanh, string nguoiThucHien)
+        private int TaoPhieuXuLyCore(PhieuTraHang header, PhieuTraHangCT ct, int stt, string model, string phanLoaiXuLy, string boPhanPhatHanh, string nguoiThucHien)
         {
             if (string.IsNullOrWhiteSpace(ct.MaHang))
                 throw new InvalidOperationException($"Dòng phiếu trả Id={ct.Id} thiếu Mã hàng.");
@@ -166,7 +169,8 @@ namespace PCTP.Modules.XuLyHangLoi.Services
 
             var p = new PhieuXuLyBatThuong
             {
-                SoPhieu = $"XL-{header.SoPhieu}-{ct.Id}",
+                // Ngắn gọn để không vượt độ dài cột: {SoPhieu phiếu trả}-{số thứ tự}
+                SoPhieu = $"{header.SoPhieu}-{stt}",
                 Nguon = header.Nguon,
                 PhieuTraHangId = header.Id,
                 SoPhieuTraHangGoc = header.SoPhieu,
