@@ -73,6 +73,7 @@ FROM (
     SELECT DISTINCT LTRIM(RTRIM(sl.ItemCode)) AS ItemCode
     FROM SlotLot sl
     WHERE sl.Quantity > 0
+      AND sl.PhieuStatus = 0          -- loại hàng NG cách ly (PhieuStatus = 3)
       AND sl.ItemCode IS NOT NULL
       AND LTRIM(RTRIM(sl.ItemCode)) <> ''
 ) x
