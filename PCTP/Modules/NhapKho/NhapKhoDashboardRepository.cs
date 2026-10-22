@@ -121,7 +121,7 @@ namespace PCTP.Modules.NhapKho
         public int DemDaNhapHomNay()
         {
             object kq = ExecuteScalar(
-                "SELECT COUNT(*) FROM SlotLot WHERE CAST(CreatedDate AS DATE) = CAST(GETDATE() AS DATE)");
+                "SELECT COUNT(*) FROM SlotLot WHERE PhieuStatus = 0 AND CAST(CreatedDate AS DATE) = CAST(GETDATE() AS DATE)");
             return int.TryParse(kq?.ToString(), out int v) ? v : 0;
         }
 
@@ -132,7 +132,7 @@ namespace PCTP.Modules.NhapKho
             JOIN Slot s ON s.SlotId = sl.SlotId
             JOIN Rack r ON r.RackId = s.RackId
             JOIN Warehouse w ON w.WarehouseId = r.WarehouseId
-            WHERE CAST(sl.CreatedDate AS DATE) = CAST(GETDATE() AS DATE)
+            WHERE sl.PhieuStatus = 0 AND CAST(sl.CreatedDate AS DATE) = CAST(GETDATE() AS DATE)
             ORDER BY sl.CreatedDate DESC");
 
         public int GetTongTonStockTp()
