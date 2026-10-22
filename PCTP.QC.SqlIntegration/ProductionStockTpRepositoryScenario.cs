@@ -133,20 +133,3 @@ namespace PCTP.Shared.Models
     }
 }
 
-namespace PCTP.Modules.NhapKho.Interfaces
-{
-    using PCTP.Shared.Models;
-    public interface IStockTpRepository
-    {
-        bool ExistsStockTp(string lot);
-        StockItem GetByLot(string lot);
-        int GetSlConLai(string lot);
-        int GetSlDaNhap(string lot);
-        void InsertStockTp(NhapKhoItem item, int status);
-        void UpdateStockTp(string lot, int slSeNhap, int status);
-        List<(string Lot, int SlConLai)> GetDanhSachLotConTon();
-        Dictionary<string, int> GetSlConLaiBatch(IEnumerable<string> lots);
-        DataTable GetTonKhoHienTai();
-        DataTable GetTonKhoTheoLot(List<string> lots);
-    }
-}
