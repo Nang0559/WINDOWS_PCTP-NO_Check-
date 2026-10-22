@@ -7,6 +7,7 @@ using PCTP.Common;
 using PCTP.Infrastructure.Stock;
 using PCTP.Modules.KhoCore.Application.Contracts.Stock;
 using PCTP.Modules.KhoCore.Application.Services;
+using PCTP.Modules.KhoCore.Models;
 using PCTP.Modules.KhoCore.Services;
 using PCTP.Modules.KhoVatLy.Application.Services;
 using PCTP.Modules.KhoVatLy.Kho.Models;
@@ -21,7 +22,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Drawing;
-
+using System.Linq;
 using System.Windows.Forms;
 
 
