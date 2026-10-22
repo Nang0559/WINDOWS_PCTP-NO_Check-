@@ -16,7 +16,7 @@
     </PackageReference>
   </ItemGroup>
   <ItemGroup>
-    <None Include="TestMatrix.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="TestMatrix.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="../PCTP/Modules/GiaoHangKhach/Services/FifoSessionState.cs" Link="Sut/FifoSessionState.cs" />
