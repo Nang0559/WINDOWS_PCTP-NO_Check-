@@ -16,6 +16,9 @@
     </PackageReference>
   </ItemGroup>
   <ItemGroup>
+    <None Include="TestMatrix.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
     <Compile Include="../PCTP/Modules/GiaoHangKhach/Services/FifoSessionState.cs" Link="Sut/FifoSessionState.cs" />
     <Compile Include="../PCTP/Modules/GiaoHangKhach/Services/YmvnGearQuantityValidator.cs" Link="Sut/YmvnGearQuantityValidator.cs" />
     <Compile Include="../PCTP/Modules/KhoCore/Application/Services/StockMovementService.cs" Link="Sut/StockMovementService.cs" />
