@@ -148,6 +148,47 @@ namespace PCTP.QC.Tests
             Assert.Equal(0, uow.RollbackCount);
         }
 
+        [Theory]
+        [InlineData(0)]
+        [InlineData(-1)]
+        [InlineData(3)]
+        public void DeliveryPick_InvalidConsumedQuantityRollsBackOwnedTransaction(int consumedQuantity)
+        {
+            var slots = new FakeBulkSlots
+            {
+                VirtualLots = new List<LotInfo> { new LotInfo { LotNo = Lot, ItemCode = "PART-01", Quantity = 2 } }
+            };
+            var uow = new FakeUnitOfWork();
+            var movement = new FakeMovement { ConsumedQuantityOverride = consumedQuantity };
+            var service = new BulkStockAdjustService(slots, new FakeHistory(), uow, movement);
+
+            var error = Assert.Throws<InvalidOperationException>(() => service.TruKhoAoTheoLot(Lot, 2));
+
+            Assert.Contains("invalid consumed quantity", error.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Single(movement.Picks);
+            Assert.Equal(1, uow.BeginCount);
+            Assert.Equal(0, uow.CommitCount);
+            Assert.Equal(1, uow.RollbackCount);
+        }
+
+        [Fact]
+        public void DeliveryPick_HistoryFailureRollsBackOwnedTransaction()
+        {
+            var slots = new FakeBulkSlots
+            {
+                VirtualLots = new List<LotInfo> { new LotInfo { LotNo = Lot, ItemCode = "PART-01", Quantity = 2 } }
+            };
+            var uow = new FakeUnitOfWork();
+            var history = new FakeHistory { ThrowOnSave = true };
+            var service = new BulkStockAdjustService(slots, history, uow, new FakeMovement());
+
+            Assert.Throws<InvalidOperationException>(() => service.TruKhoAoTheoLot(Lot, 2));
+
+            Assert.Equal(1, uow.BeginCount);
+            Assert.Equal(0, uow.CommitCount);
+            Assert.Equal(1, uow.RollbackCount);
+        }
+
         [Fact]
         public void DeliveryPick_InvalidRequestDoesNotOpenTransaction()
         {
@@ -172,8 +213,12 @@ namespace PCTP.QC.Tests
         private sealed class FakeHistory : IStockHistoryRepository
         {
             public List<(string Action, int Quantity)> Entries { get; } = new List<(string, int)>();
+            public bool ThrowOnSave { get; set; }
             public void SaveHistory(string actionType, string itemCode, LotInfo lot, int? fromSlotId, int? toSlotId, string performedBy)
-                => Entries.Add((actionType, lot?.Quantity ?? 0));
+            {
+                if (ThrowOnSave) throw new InvalidOperationException("injected history failure");
+                Entries.Add((actionType, lot?.Quantity ?? 0));
+            }
         }
 
         private sealed class FakeUnitOfWork : IUnitOfWork
