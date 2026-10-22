@@ -128,6 +128,21 @@
       "status": "planned"
     },
     {
+      "id": "DEL-006",
+      "module": "GiaoHangKhach",
+      "scenario": "BulkStockAdjustService consumes A0 before physical slots, records movement history, reports shortfall and rolls back an owned transaction on failure",
+      "expected": "Correct slot priority and quantities; shared-transaction shortfall throws for caller rollback; owned transaction commits or rolls back deterministically",
+      "status": "implemented",
+      "testEvidence": "BulkStockAdjustServiceTests"
+    },
+    {
+      "id": "DEL-007",
+      "module": "GiaoHangKhach",
+      "scenario": "Verify transaction boundary for stored-procedure delivery routes and post-delivery finalization",
+      "expected": "STOCKTP deduction, SlotLot deduction, pending-delivery closure and history either commit atomically or expose an explicit recoverable state",
+      "status": "planned"
+    },
+    {
       "id": "RWK-001",
       "module": "XuLyHangLoi",
       "scenario": "QC final OK/NG split",
