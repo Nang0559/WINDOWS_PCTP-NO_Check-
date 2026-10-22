@@ -53,7 +53,7 @@ Exit codes:
 
 The default GitHub Actions workflow builds this project but does not execute it because CI does not provision a disposable SQL Server instance. A green build is not a SQL integration pass.
 
-The next stage for full application integration coverage is a disposable SQL Server database fixture that exercises the real production `SlotRepository` and `BulkStockSlotRepository` with their complete production dependencies, followed by workflow-level rollback tests. The current `StockTpRepository` scenario proves repository SQL behavior only against a temp table shaped for its exercised methods; it does not prove the deployed schema or slot/stock cross-table atomicity. Keep SQL-001/002/003 pending until those scenarios run against a disposable production-compatible schema.
+The current harness now exercises the production `StockTpRepository` and `BulkStockSlotRepository`; it still does not exercise `SlotRepository`, full production schema compatibility, or a workflow that mutates STOCKTP and SlotLot together. The bulk repository fixture is deliberately minimal and test-only DTO/QR shims are used to isolate UI dependencies. Keep SQL-001/002/003 and `STK-003`/`STK-004` pending until the scenarios execute successfully on a disposable SQL Server database and schema compatibility is separately confirmed.
 
 ## Cleanup and safety
 
