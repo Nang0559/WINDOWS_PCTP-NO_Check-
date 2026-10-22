@@ -54,7 +54,17 @@ namespace PCTP.Modules.XuLyHangLoi.Application
             var stockTpRepo = new StockExportRepository(dbExecutor, uow);
             var historyRepo = new StockHistoryRepository(dbExecutor, uow);
             var phieuXuLyRepo = new PhieuXuLyBatThuongRepository(dbExecutor, uow);
-            var phieuTraHangRepo = new PhieuTraHangRepository(dbExecutor, uow);
+
+            // Keep the legacy repository for all non-transactional operations,
+            // but route transaction-sensitive header reads/writes through the
+            // active UnitOfWork connection/transaction.
+            var legacyPhieuTraHangRepo = new PhieuTraHangRepository(dbExecutor, uow);
+            IPhieuTraHangRepository phieuTraHangRepo =
+                new TransactionalPhieuTraHangRepository(
+                    dbExecutor,
+                    uow,
+                    legacyPhieuTraHangRepo);
+
             var qtChungRepo = new TraHangQTChungRepository(dbExecutor, uow);
 
             IStockBalanceRepository stockBalance = new ReworkStockBalanceAdapter(stockTpRepo);
