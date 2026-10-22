@@ -3,6 +3,7 @@ using DevExpress.XtraReports.UI;
 using DevExpress.XtraSplashScreen;
 using PCTP.Modules.KhoCore.Models;
 using PCTP.Modules.KhoVatLy.Application.Interfaces;
+using PCTP.Modules.KhoVatLy.Kho.Models;
 using PCTP.Modules.KhoVatLy.Report;
 using PCTP.Modules.XuatKho.Interfaces;
 using PCTP.Modules.XuatKho.Models;
