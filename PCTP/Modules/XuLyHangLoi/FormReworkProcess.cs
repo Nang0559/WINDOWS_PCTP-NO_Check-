@@ -725,7 +725,8 @@ namespace PCTP.Modules.XuLyHangLoi
                         $"Xác nhận giao Rework cho:\r\n" +
                         $"Bộ phận: {boPhan.Display}\r\n" +
                         $"Người nhận: {nguoiNhan}\r\n" +
-                        $"Số LOT: {lots.Count}",
+                        $"Số LOT: {lots.Count}\r\n" +
+                        $"Tổng số lượng giao: {lots.Sum(x => x.Quantity):n0}",
                         "Xác nhận giao sản xuất",
                         MessageBoxButtons.YesNo,
                         MessageBoxIcon.Question)
