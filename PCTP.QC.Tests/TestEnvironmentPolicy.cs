@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
+using Microsoft.Data.SqlClient;
 
 namespace PCTP.QC.Tests;
 
@@ -20,11 +21,20 @@ public static class TestEnvironmentPolicy
     {
         if (string.IsNullOrWhiteSpace(connectionString)) return false;
 
-        // Local server + TEST database is not sufficient when the connection string
-        // can attach an arbitrary MDF or fail over to a remote production host.
-        if (Regex.IsMatch(connectionString,
-            @"(?:^|;)\s*(?:AttachDbFilename|Attach Database Filename|Failover Partner|FailoverPartner)\s*=",
-            RegexOptions.IgnoreCase)) return false;
+        // Parse with the same SQL client family used by the integration harness.
+        // This normalizes aliases and rejects malformed connection strings instead
+        // of relying only on regex parsing.
+        SqlConnectionStringBuilder builder;
+        try { builder = new SqlConnectionStringBuilder(connectionString); }
+        catch (ArgumentException) { return false; }
+
+        // A local TEST catalog is still unsafe if the provider can attach an
+        // arbitrary MDF, redirect to a failover partner, or enter a user/context DB.
+        if (!string.IsNullOrWhiteSpace(builder.AttachDBFilename)
+            || !string.IsNullOrWhiteSpace(builder.FailoverPartner)
+            || builder.UserInstance
+            || builder.ContextConnection)
+            return false;
 
         var servers = ReadValues(connectionString, ServerAliases);
         var databases = ReadValues(connectionString, DatabaseAliases);
@@ -32,7 +42,7 @@ public static class TestEnvironmentPolicy
         // Do not guess which duplicate/synonym a provider will honor.
         if (servers.Count != 1 || databases.Count != 1) return false;
 
-        var server = servers[0].Trim().ToLowerInvariant();
+        var server = builder.DataSource.Trim().ToLowerInvariant();
         var isLocal = server == "." || server == "(local)" || server == "localhost"
             || server == "127.0.0.1" || server == "::1"
             || server.StartsWith(".\\", StringComparison.Ordinal)
@@ -40,7 +50,7 @@ public static class TestEnvironmentPolicy
             || server.StartsWith("(local)\\", StringComparison.Ordinal)
             || server.StartsWith("(localdb)\\", StringComparison.Ordinal);
 
-        var db = databases[0].Trim();
+        var db = builder.InitialCatalog.Trim();
         var isTestDatabase = db.StartsWith("TEST_", StringComparison.OrdinalIgnoreCase)
             || db.EndsWith("_TEST", StringComparison.OrdinalIgnoreCase)
             || db.EndsWith("_TESTING", StringComparison.OrdinalIgnoreCase);
