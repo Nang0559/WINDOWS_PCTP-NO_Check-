@@ -160,6 +160,9 @@ namespace PCTP.Modules.XuLyHangLoi
         private int ResolveStep(PhieuXuLyBatThuong p)
         {
             var status = _phieuXuLyRepo.GetStatus(p.Id) ?? p.Status;
+
+            // Phiếu đã hủy không còn nằm trong hàng đợi của bất kỳ bước xử lý nào.
+            if (status == QTChungStatus.Huy) return 0;
             if (status == QTChungStatus.DaTaoPhieuBatThuong)
             {
                 var snapshot = _affectedLotTraceService == null ? null : _affectedLotTraceService.GetSnapshot(p.Id);
@@ -195,7 +198,7 @@ namespace PCTP.Modules.XuLyHangLoi
                 case 7: _btnSecondary.Visible = false; _btnPrimary.Text = "QC Rework / Disposition"; _lblHint.Text = "Bước 7: QC Rework OK + NG = lượng Rework; NG Rework cộng vào loại bỏ cuối."; break;
                 case 8: _btnSecondary.Visible = false; _btnPrimary.Text = "Giao bù / Hoàn tất"; _lblHint.Text = "Bước 8: Giao bù là nghĩa vụ độc lập; không suy ra từ NG/Rework."; break;
             }
-            _btnCreateXuLy.Visible = _activeStep == 1;
+            _btnCreateXuLy.Visible = _activeStep == 1 || _activeStep == 2;
             LoadCurrentStep();
         }
 
@@ -203,10 +206,14 @@ namespace PCTP.Modules.XuLyHangLoi
 
         private List<PhieuTraHang> GetHeaders()
         {
+            // Tiến trình phải đọc đủ phiếu trả, không chỉ các header còn nằm trong
+            // hàng đợi "chờ xử lý" của hai service. Nếu service đổi trạng thái header
+            // sau khi tạo phiếu bất thường, chỉ đọc GetChoXuLy() sẽ làm mất phiếu
+            // cha khỏi dashboard trong khi các phiếu con vẫn tồn tại.
             var list = new List<PhieuTraHang>();
-            list.AddRange(_khachTraHangService.GetChoXuLy() ?? new List<PhieuTraHang>());
-            list.AddRange(_traNoiBoService.GetChoXuLy() ?? new List<PhieuTraHang>());
-            return list.GroupBy(x => x.Id).Select(g => g.First()).ToList();
+            list.AddRange(_phieuTraHangRepo.GetByNguon(NguonXuLyBatThuong.KhachTra) ?? new List<PhieuTraHang>());
+            list.AddRange(_phieuTraHangRepo.GetByNguon(NguonXuLyBatThuong.TraNoiBo) ?? new List<PhieuTraHang>());
+            return list.Where(x => x != null).GroupBy(x => x.Id).Select(g => g.First()).ToList();
         }
 
         private void RefreshBadges()
@@ -261,10 +268,11 @@ namespace PCTP.Modules.XuLyHangLoi
         }
 
         /// <summary>
-        /// Một phiếu trả hàng sinh các dòng tiến trình theo CÙNG một quy tắc cho mọi nguồn:
-        ///  - mỗi PhieuXuLyBatThuong là một dòng, nằm ở bước theo QTChungStatus (3..8);
-        ///  - còn dòng PhieuTraHangCT chưa có phiếu xử lý → một dòng cấp phiếu trả:
-        ///      chưa có phiếu xử lý nào = Bước 1 (Tiếp nhận), đã tạo một phần = Bước 2.
+        /// Đơn vị đếm được quy định rõ:
+        ///  - Bước 1: một phiếu trả hàng (header) chưa có phiếu xử lý con nào.
+        ///  - Bước 2: một dòng PhieuTraHangCT chưa có phiếu xử lý; tạo phiếu chỉ cho dòng được chọn.
+        ///  - Bước 3..8: mỗi PhieuXuLyBatThuong là một công việc độc lập.
+        /// Nhờ vậy tạo một phần không làm các dòng còn lại bị gộp/đếm sai.
         /// </summary>
         private List<WorkflowRow> BuildRows(PhieuTraHang header, List<PhieuTraHangCT> items)
         {
@@ -284,6 +292,7 @@ namespace PCTP.Modules.XuLyHangLoi
                 row.SoLuongLoi = p.SoLuongLoi;
                 row.MaSanPham = p.MaSanPham;
                 row.SoLo = p.SoLo;
+                row.SoPhieuXuLy = p.SoPhieu;
                 if (_initialQCService != null)
                 {
                     var initial = _initialQCService.Get(p.Id);
@@ -295,14 +304,32 @@ namespace PCTP.Modules.XuLyHangLoi
             var chuaIds = new HashSet<int>(_phieuTraHangRepo.GetItemIdsChuaCoPhieuXuLy(header.Id) ?? new List<int>());
             var chua = items.Where(i => chuaIds.Contains(i.Id)).ToList();
 
-            if (chua.Count > 0)
+            if (chua.Count > 0 && xuLyList.Count == 0)
             {
+                // Bước 1 đếm theo phiếu tiếp nhận, không đếm từng dòng hàng.
                 var row = NewRow(header);
-                row.HeaderStep = xuLyList.Count == 0 ? 1 : 2;
+                row.HeaderStep = 1;
                 row.MaSanPham = string.Join(", ", chua.Select(i => i.MaHang).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct());
                 row.SoLo = string.Join(", ", chua.Select(i => i.LotNo).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct());
                 row.SoLuongLoi = chua.Sum(i => i.SoLuong);
+                row.SoDongChuaXuLy = chua.Count;
                 rows.Add(row);
+            }
+            else if (chua.Count > 0)
+            {
+                // Bước 2 đếm theo từng dòng còn thiếu phiếu xử lý; giữ CT.Id để tạo đúng dòng.
+                foreach (var item in chua)
+                {
+                    var row = NewRow(header);
+                    row.HeaderStep = 2;
+                    row.PhieuTraHangCTId = item.Id;
+                    row.MaSanPham = item.MaHang;
+                    row.SoLo = item.LotNo;
+                    row.SoLuongLoi = item.SoLuong;
+                    row.Model = item.Model;
+                    row.SoDongChuaXuLy = 1;
+                    rows.Add(row);
+                }
             }
 
             return rows;
@@ -539,8 +566,19 @@ namespace PCTP.Modules.XuLyHangLoi
 
             try
             {
-                var ids = _qtChungService.TaoPhieuXuLyTuPhieuTra(row.PhieuTraHangId, model, "Hàng lỗi", Environment.UserName);
-                XtraMessageBox.Show(this, $"Đã tạo {ids.Count} phiếu xử lý bất thường cho phiếu {row.SoPhieu}.", "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                if (row.HeaderStep == 2)
+                {
+                    if (!row.PhieuTraHangCTId.HasValue)
+                        throw new InvalidOperationException("Dòng bước 2 không có PhieuTraHangCTId; hãy tải lại danh sách.");
+                    int id = _qtChungService.TaoPhieuXuLyBatThuong(
+                        row.PhieuTraHangCTId.Value, model, "Hàng lỗi", null, Environment.UserName);
+                    XtraMessageBox.Show(this, $"Đã tạo 1 phiếu xử lý bất thường (Id={id}) cho dòng hàng của phiếu {row.SoPhieu}.", "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+                else
+                {
+                    var ids = _qtChungService.TaoPhieuXuLyTuPhieuTra(row.PhieuTraHangId, model, "Hàng lỗi", Environment.UserName);
+                    XtraMessageBox.Show(this, $"Đã tạo {ids.Count} phiếu xử lý bất thường cho phiếu {row.SoPhieu}.", "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
                 RefreshAfterAction();
             }
             catch (Exception ex) { ShowWarning("Không thể tạo phiếu xử lý bất thường.\r\n\r\n" + ex.Message); }
@@ -684,8 +722,11 @@ namespace PCTP.Modules.XuLyHangLoi
         private sealed class WorkflowRow
         {
             public int PhieuTraHangId { get; set; }
+            public int? PhieuTraHangCTId { get; set; }
             public int? PhieuXuLyId { get; set; }
             public string SoPhieu { get; set; }
+            public string SoPhieuXuLy { get; set; }
+            public int SoDongChuaXuLy { get; set; }
             public string Nguon { get; set; }
             public string Model { get; set; }
             public string MaSanPham { get; set; }
