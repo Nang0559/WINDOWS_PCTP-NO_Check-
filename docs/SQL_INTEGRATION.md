@@ -4,7 +4,7 @@
 
 `PCTP.QC.SqlIntegration` is an opt-in SQL Server integration harness. Unlike repository fakes, it opens a real SQL Server session and exercises transaction rollback, concurrent conditional updates, and command timeout behavior.
 
-It is a **database-engine/transaction contract test** with direct coverage of the production `StockTpRepository`. It is not yet an end-to-end test of the production `StockMovementService` adapters, `SlotRepository`, or `BulkStockSlotRepository`.
+It is a **database-engine/transaction contract test** with direct coverage of the production `StockTpRepository` and `BulkStockSlotRepository`. It is not yet an end-to-end test of the customer-delivery workflow, the production `StockMovementService` adapters, or `SlotRepository`.
 
 ## Safety gate
 
@@ -54,7 +54,7 @@ Exit codes:
 
 The default GitHub Actions workflow builds this project but does not execute it because CI does not provision a disposable SQL Server instance. A green build is not a SQL integration pass.
 
-The current harness now exercises the production `StockTpRepository` and `BulkStockSlotRepository`; it still does not exercise `SlotRepository`, full production schema compatibility, or a workflow that mutates STOCKTP and SlotLot together. The bulk repository fixture is deliberately minimal and test-only DTO/QR shims are used to isolate UI dependencies. Keep SQL-001/002/003 and `STK-003`/`STK-004` pending until the scenarios execute successfully on a disposable SQL Server database and schema compatibility is separately confirmed.
+The current harness exercises the production `StockTpRepository` and `BulkStockSlotRepository`; it still does not exercise `SlotRepository`, full production schema compatibility, a workflow that mutates STOCKTP and SlotLot together, or the customer-delivery orchestration. The existing delivery unit tests (`FifoSessionStateTests` and `YmvnGearQuantityValidatorTests`) cover in-memory FIFO reservation/scan state and YMVN Gear mapping only. They do **not** invoke `GiaoHangKhachModuleFactory`, `PhieuRepository`, `BulkStockAdjustService`, `HangChoGiaoRepository`, or the shared `phieuUow`; they therefore do not prove persisted delivery, duplicate-confirmation protection, or rollback across stock/history/pending-delivery tables. These gaps are explicitly tracked as `DEL-003`/`DEL-004`/`DEL-005` and must remain pending until production repositories/services execute against an isolated SQL Server fixture. The bulk repository fixture is deliberately minimal and test-only DTO/QR shims are used to isolate UI dependencies. Keep SQL-001/002/003 and `STK-003`/`STK-004` pending until the scenarios execute successfully on a disposable SQL Server database and schema compatibility is separately confirmed.
 
 ## Cleanup and safety
 
