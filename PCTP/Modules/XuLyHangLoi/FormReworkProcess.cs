@@ -12,6 +12,8 @@ namespace PCTP.Modules.XuLyHangLoi
     using PCTP.Modules.KhoVatLy.Kho.Models;
     using PCTP.Modules.XuLyHangLoi.Enums;
     using PCTP.Modules.XuLyHangLoi.Services;
+    using PCTP.Modules.XuLyHangLoi.Repository;
+    using PCTP.Modules.XuLyHangLoi.Models;
     using PCTP.Shared.Helpers;
     using System;
     using System.Collections.Generic;
@@ -27,6 +29,7 @@ namespace PCTP.Modules.XuLyHangLoi
         private readonly IQTChungService _qtChungService;
         private readonly IReworkStockService _reworkStockService;
         private readonly int _phieuXuLyId;
+        private readonly INoiBoLookupRepository _noiBoLookupRepo;
 
         // ============================================================
         // UI
@@ -60,13 +63,15 @@ namespace PCTP.Modules.XuLyHangLoi
         public FormReworkProcess(
             IQTChungService qtChungService,
             IReworkStockService reworkStockService,
-            int phieuXuLyId)
+            int phieuXuLyId,
+            INoiBoLookupRepository noiBoLookupRepo = null)
         {
             _qtChungService = qtChungService
                 ?? throw new ArgumentNullException(nameof(qtChungService));
             _reworkStockService = reworkStockService
                 ?? throw new ArgumentNullException(nameof(reworkStockService));
             _phieuXuLyId = phieuXuLyId;
+            _noiBoLookupRepo = noiBoLookupRepo;
 
             BuildUI();
             LoadPhieu();
@@ -628,15 +633,12 @@ namespace PCTP.Modules.XuLyHangLoi
                     return;
                 }
 
-                string boPhanNhan = XtraInputBox.Show(
-                    "Nhập bộ phận nhận:",
-                    "Giao hàng Rework",
-                    "SX");
-                if (boPhanNhan == null) return;
-                boPhanNhan = boPhanNhan.Trim();
+                var boPhan = ChonBoPhanNhan();
+                if (boPhan == null) return;
+                string boPhanNhan = (boPhan.Code ?? string.Empty).Trim();
                 if (string.IsNullOrWhiteSpace(boPhanNhan))
                 {
-                    ShowWarning("Chưa nhập bộ phận nhận.");
+                    ShowWarning("Vui lòng chọn bộ phận nhận.");
                     return;
                 }
 
@@ -679,6 +681,133 @@ namespace PCTP.Modules.XuLyHangLoi
             catch (Exception ex)
             {
                 ShowError("Không thể giao hàng Rework cho sản xuất.", ex);
+            }
+        }
+
+        // ============================================================
+        // CHỌN BỘ PHẬN NHẬN TỪ DANH MỤC B20Dept
+        // Dùng chung INoiBoLookupRepository với FormTaoPhieuTraNoiBo.
+        // Giá trị lưu xuống nghiệp vụ là Code; người dùng tìm/chọn theo mã hoặc tên.
+        // ============================================================
+        private DeptLookupItem ChonBoPhanNhan()
+        {
+            if (_noiBoLookupRepo == null)
+            {
+                ShowWarning("Chưa khởi tạo danh mục bộ phận. Vui lòng mở form qua màn hình Quản lý tiến trình để nạp INoiBoLookupRepository.");
+                return null;
+            }
+
+            try
+            {
+                var depts = _noiBoLookupRepo.GetActiveDepartments() ?? new List<DeptLookupItem>();
+                if (depts.Count == 0)
+                {
+                    ShowWarning("Danh mục B20Dept không có bộ phận đang hoạt động.");
+                    return null;
+                }
+
+                using (var dialog = new XtraForm())
+                {
+                    dialog.Text = "Chọn bộ phận nhận";
+                    dialog.StartPosition = FormStartPosition.CenterParent;
+                    dialog.FormBorderStyle = FormBorderStyle.FixedDialog;
+                    dialog.MinimizeBox = false;
+                    dialog.MaximizeBox = false;
+                    dialog.ShowInTaskbar = false;
+                    dialog.ClientSize = new Size(560, 145);
+
+                    var root = new TableLayoutPanel
+                    {
+                        Dock = DockStyle.Fill,
+                        Padding = new Padding(12),
+                        ColumnCount = 1,
+                        RowCount = 3
+                    };
+                    root.RowStyles.Add(new RowStyle(SizeType.Absolute, 26));
+                    root.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
+                    root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+
+                    var label = new LabelControl
+                    {
+                        Text = "Bộ phận nhận:",
+                        Dock = DockStyle.Fill
+                    };
+                    label.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
+
+                    var lookup = new SearchLookUpEdit { Dock = DockStyle.Fill };
+                    lookup.Properties.DataSource = depts;
+                    lookup.Properties.DisplayMember = nameof(DeptLookupItem.Display);
+                    lookup.Properties.ValueMember = nameof(DeptLookupItem.Code);
+                    lookup.Properties.NullText = "Chọn bộ phận...";
+                    lookup.Properties.ShowClearButton = true;
+                    lookup.Properties.ImmediatePopup = true;
+                    lookup.Properties.PopupFormSize = new Size(520, 320);
+                    lookup.Properties.View.OptionsView.ShowAutoFilterRow = false;
+                    lookup.Properties.View.OptionsFind.AlwaysVisible = true;
+                    lookup.Properties.View.OptionsFind.FindNullPrompt = "Tìm theo mã hoặc tên bộ phận...";
+                    lookup.Properties.View.OptionsFind.ShowCloseButton = false;
+                    lookup.Properties.PopulateViewColumns();
+
+                    var view = lookup.Properties.View;
+                    if (view.Columns[nameof(DeptLookupItem.Display)] != null)
+                        view.Columns[nameof(DeptLookupItem.Display)].Visible = false;
+                    var codeColumn = view.Columns[nameof(DeptLookupItem.Code)];
+                    if (codeColumn != null)
+                    {
+                        codeColumn.Caption = "Mã bộ phận";
+                        codeColumn.Width = 120;
+                    }
+                    var nameColumn = view.Columns[nameof(DeptLookupItem.Name)];
+                    if (nameColumn != null)
+                    {
+                        nameColumn.Caption = "Tên bộ phận";
+                        nameColumn.Width = 340;
+                    }
+
+                    var buttons = new FlowLayoutPanel
+                    {
+                        Dock = DockStyle.Fill,
+                        FlowDirection = FlowDirection.RightToLeft,
+                        WrapContents = false
+                    };
+                    var ok = new SimpleButton { Text = "OK", Width = 95 };
+                    var cancel = new SimpleButton { Text = "Hủy", Width = 95 };
+                    ok.Click += (s, e) =>
+                    {
+                        if (lookup.EditValue == null || string.IsNullOrWhiteSpace(Convert.ToString(lookup.EditValue)))
+                        {
+                            XtraMessageBox.Show(dialog, "Vui lòng chọn bộ phận nhận.", "Thông báo",
+                                MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                            return;
+                        }
+                        dialog.DialogResult = DialogResult.OK;
+                        dialog.Close();
+                    };
+                    cancel.Click += (s, e) =>
+                    {
+                        dialog.DialogResult = DialogResult.Cancel;
+                        dialog.Close();
+                    };
+
+                    buttons.Controls.Add(cancel);
+                    buttons.Controls.Add(ok);
+                    root.Controls.Add(label, 0, 0);
+                    root.Controls.Add(lookup, 0, 1);
+                    root.Controls.Add(buttons, 0, 2);
+                    dialog.Controls.Add(root);
+
+                    if (dialog.ShowDialog(this) != DialogResult.OK)
+                        return null;
+
+                    string code = Convert.ToString(lookup.EditValue);
+                    return depts.FirstOrDefault(d =>
+                        string.Equals(d.Code, code, StringComparison.OrdinalIgnoreCase));
+                }
+            }
+            catch (Exception ex)
+            {
+                ShowError("Không tải được danh sách bộ phận nhận.", ex);
+                return null;
             }
         }
 
