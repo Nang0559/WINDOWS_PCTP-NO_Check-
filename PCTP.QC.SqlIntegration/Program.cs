@@ -50,10 +50,11 @@ internal static class Program
                 await RunProductionUnitOfWorkNestedRollbackAsync(connectionString, table);
                 await RunProductionUnitOfWorkNestedCommitAsync(connectionString, table);
                 await RunProductionUnitOfWorkDisposeRollbackAsync(connectionString, table);
+                await RunProductionSqlRepositoryBaseRollbackAsync(connectionString, table);
                 await RunRollbackAtomicityAsync(connection, table);
                 await RunConcurrentConditionalDecrementAsync(connectionString, table);
                 await RunCommandTimeoutRollbackAsync(connection, table);
-                Console.WriteLine("PASS: 6 SQL Server integration scenarios completed (3 production UnitOfWork + 3 SQL engine contracts).");
+                Console.WriteLine("PASS: 7 SQL Server integration scenarios completed (3 production UnitOfWork + 1 production SqlRepositoryBase + 3 SQL engine contracts).");
                 return 0;
             }
             finally
@@ -124,6 +125,35 @@ INSERT INTO {table}(Id, Lot, StockQty, SlotQty) VALUES (1, 'QC-LOT-ROLLBACK', 10
     // These scenarios compile and execute the actual production UnitOfWork.cs
     // and IUnitOfWork.cs. Only SQLPROVIDER is replaced by a test-only holder so
     // the production connection-string defaults/credentials are never loaded.
+    // Executes the actual production SqlRepositoryBase together with the actual
+    // production UnitOfWork. The test-only executor throws if the base class
+    // accidentally opens an independent connection while a UoW is active.
+    private static async Task RunProductionSqlRepositoryBaseRollbackAsync(string connectionString, string table)
+    {
+        var provider = new SQLPROVIDER { B7R2_FCCdb = connectionString };
+        using (var uow = new UnitOfWork(provider))
+        {
+            var repository = new PCTP.QC.SqlIntegration.SqlRepositoryTransactionProbe(
+                new PCTP.Modules.GiaoHangKhach.PhieuSqlExecutor(), uow);
+
+            uow.Begin();
+            if (!repository.IsUsingUnitOfWorkTransaction)
+                throw new InvalidOperationException("SqlRepositoryBase is not bound to the active UnitOfWork connection/transaction.");
+
+            var affected = repository.ExecuteUpdate($"UPDATE {table} SET StockQty = StockQty - 13 WHERE Id = 4;");
+            if (affected != 1)
+                throw new InvalidOperationException($"Expected one repository update, got {affected}.");
+
+            uow.Rollback();
+        }
+
+        await using var verifyConnection = await OpenAsync(connectionString);
+        var row = await ReadRowAsync(verifyConnection, table, 4);
+        if (row.StockQty != 100)
+            throw new InvalidOperationException($"Production SqlRepositoryBase did not roll back. Stock={row.StockQty}.");
+        Console.WriteLine("PASS: production SqlRepositoryBase command enlisted in the production UnitOfWork and rolled back.");
+    }
+
     private static async Task RunProductionUnitOfWorkNestedRollbackAsync(string connectionString, string table)
     {
         var provider = new SQLPROVIDER { B7R2_FCCdb = connectionString };
