@@ -382,7 +382,7 @@ namespace PCTP.Modules.XuLyHangLoi
                 }
                 else
                 {
-                    using (var f = new FormTiepNhanPhieuKhachTra(_khachTraHangService, _phieuTraHangRepo, header.Id, _noiBoLookupRepo))
+                    using (var f = new FormTiepNhanPhieuKhachTra(_khachTraHangService, _phieuTraHangRepo, header.Id, _noiBoLookupRepo, _slotService))
                         if (f.ShowDialog(this) == DialogResult.OK) RefreshAfterAction();
                 }
             }
@@ -447,7 +447,7 @@ namespace PCTP.Modules.XuLyHangLoi
 
         private void TiepNhanKhach()
         {
-            using (var f = new FormTiepNhanPhieuKhachTra(_khachTraHangService, _noiBoLookupRepo)) if (f.ShowDialog(this) == DialogResult.OK) RefreshAfterAction();
+            using (var f = new FormTiepNhanPhieuKhachTra(_khachTraHangService, _noiBoLookupRepo, _slotService)) if (f.ShowDialog(this) == DialogResult.OK) RefreshAfterAction();
         }
 
         private void TaoPhieuNoiBo()

@@ -91,7 +91,7 @@ namespace PCTP.Modules.XuLyHangLoi.Services
                 .ToList();
         }
 
-        private static bool LotKhop(string slotLot, string qrLot)
+        public static bool LotKhop(string slotLot, string qrLot)
         {
             if (string.IsNullOrWhiteSpace(slotLot) || string.IsNullOrWhiteSpace(qrLot))
                 return false;

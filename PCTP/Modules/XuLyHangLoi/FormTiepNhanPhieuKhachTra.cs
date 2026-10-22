@@ -6,6 +6,8 @@ namespace PCTP.Modules.XuLyHangLoi
     using DevExpress.XtraGrid;
     using DevExpress.XtraGrid.Columns;
     using DevExpress.XtraGrid.Views.Grid;
+    using PCTP.Modules.KhoVatLy;
+    using PCTP.Modules.KhoVatLy.Application.Interfaces;
     using PCTP.Modules.XuLyHangLoi.Enums;
     using PCTP.Modules.XuLyHangLoi.Models;
     using PCTP.Modules.XuLyHangLoi.Repository;
@@ -51,6 +53,7 @@ namespace PCTP.Modules.XuLyHangLoi
         private SimpleButton _btnLuu;
         private SimpleButton _btnHuy;
         private SimpleButton _btnXoaPhieu;
+        private SimpleButton _btnTraSlot;
 
         // ============================================================
         // MỞ LẠI PHIẾU / QR
@@ -61,6 +64,7 @@ namespace PCTP.Modules.XuLyHangLoi
         private readonly FormMode _mode = FormMode.Create;
         private readonly IPhieuTraHangRepository _phieuRepo;
         private readonly INoiBoLookupRepository _lookupRepo;
+        private readonly ISlotService _slotService; // null → ẩn nút tra cứu Slot
         private readonly int _phieuId;
         private PhieuTraHang _editPhieu;
 
@@ -76,7 +80,8 @@ namespace PCTP.Modules.XuLyHangLoi
 
         public FormTiepNhanPhieuKhachTra(
             IKhachTraHangService khachTraHangService,
-            INoiBoLookupRepository lookupRepo = null)
+            INoiBoLookupRepository lookupRepo = null,
+            ISlotService slotService = null)
         {
             _khachTraHangService =
                 khachTraHangService
@@ -84,6 +89,7 @@ namespace PCTP.Modules.XuLyHangLoi
                     nameof(khachTraHangService));
 
             _lookupRepo = lookupRepo;
+            _slotService = slotService;
 
             BuidIU();
 
@@ -98,7 +104,8 @@ namespace PCTP.Modules.XuLyHangLoi
             IKhachTraHangService khachTraHangService,
             IPhieuTraHangRepository phieuRepo,
             int phieuTraHangId,
-            INoiBoLookupRepository lookupRepo = null)
+            INoiBoLookupRepository lookupRepo = null,
+            ISlotService slotService = null)
         {
             _khachTraHangService =
                 khachTraHangService
@@ -109,6 +116,7 @@ namespace PCTP.Modules.XuLyHangLoi
                 ?? throw new ArgumentNullException(nameof(phieuRepo));
 
             _lookupRepo = lookupRepo;
+            _slotService = slotService;
             _phieuId = phieuTraHangId;
 
             _editPhieu = _khachTraHangService.GetById(phieuTraHangId)
@@ -261,6 +269,16 @@ namespace PCTP.Modules.XuLyHangLoi
                 Width = 110
             };
 
+            _btnTraSlot = new SimpleButton
+            {
+                Text = "📦 Tra Slot theo LOT",
+                Width = 160,
+                Visible = _slotService != null
+            };
+
+            _btnTraSlot.Click +=
+                (s, e) => TraSlotTheoLot();
+
             _btnHuy.Click +=
                 (s, e) =>
                 {
@@ -284,6 +302,7 @@ namespace PCTP.Modules.XuLyHangLoi
             buttonPanel.Controls.Add(_btnXoaPhieu);
             buttonPanel.Controls.Add(_btnXoa);
             buttonPanel.Controls.Add(_btnThem);
+            buttonPanel.Controls.Add(_btnTraSlot);
 
             mainLayout.Controls.Add(
                 buttonPanel,
@@ -1100,6 +1119,55 @@ namespace PCTP.Modules.XuLyHangLoi
                     rowHandle;
 
                 _gridView.ShowEditor();
+            }
+        }
+
+        // ============================================================
+        // TRA SLOT THEO LOT (hàng khách trả còn tồn ở đâu trong nhà máy)
+        //
+        // Khách báo lỗi 1 mã hàng thì luôn kèm LotNo lỗi → liệt kê mọi Slot còn tồn
+        // đúng Mã hàng + LOT đó để có hướng xử lý. CHỈ TRA CỨU: không thêm dòng vào phiếu
+        // (dòng khách trả là hàng khách gửi về, không có Slot nguồn).
+        // ============================================================
+
+        private void TraSlotTheoLot()
+        {
+            if (_slotService == null)
+                return;
+
+            _gridView.CloseEditor();
+            _gridView.UpdateCurrentRow();
+
+            var data = _grid.DataSource as List<PhieuTraHangCT>;
+
+            var keys = (data ?? new List<PhieuTraHangCT>())
+                .Where(x => !string.IsNullOrWhiteSpace(x.LotNo))
+                .Select(x => new KeyValuePair<string, string>(x.MaHang, x.LotNo))
+                .ToList();
+
+            if (keys.Count == 0)
+            {
+                XtraMessageBox.Show(
+                    "Chưa có dòng nào có Lot No để tra cứu.\r\nHãy nhập / quét Lot No ở các dòng hàng trước.",
+                    "Thiếu dữ liệu",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+
+                return;
+            }
+
+            try
+            {
+                using (var f = FormChonSlotNoiBo.TraCuuTheoLot(_slotService, keys))
+                    f.ShowDialog(this);
+            }
+            catch (Exception ex)
+            {
+                XtraMessageBox.Show(
+                    $"Không thể tra cứu Slot.\r\n\r\n{ex.Message}",
+                    "Lỗi",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
             }
         }
 

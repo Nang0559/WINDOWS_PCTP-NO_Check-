@@ -6,6 +6,7 @@ using DevExpress.XtraGrid.Views.Grid;
 using PCTP.Modules.KhoCore.Models;
 using PCTP.Modules.KhoVatLy.Application.Interfaces;
 using PCTP.Modules.XuLyHangLoi.Models;
+using PCTP.Modules.XuLyHangLoi.Services;
 
 using System;
 using System.Collections.Generic;
@@ -24,11 +25,22 @@ namespace PCTP.Modules.KhoVatLy
     /// nên phiếu tạo từ Slot luôn cùng định dạng với phiếu tạo thủ công.
     ///
     /// Kết quả: <see cref="KetQua"/> (SlotLotId + Số lượng + Lý do NG) khi DialogResult = OK.
+    ///
+    /// Chế độ TRA CỨU (<see cref="TraCuuTheoLot"/>): dùng cho phiếu KHÁCH TRẢ — khách báo lỗi
+    /// 1 mã hàng thì luôn kèm LotNo lỗi; form liệt kê toàn bộ Slot trong nhà máy còn tồn đúng
+    /// mã hàng + LOT đó để có hướng xử lý. Chỉ xem, không thêm dòng vào phiếu.
     /// </summary>
     public partial class FormChonSlotNoiBo : XtraForm
     {
         private readonly ISlotService _slotSvc;
         private readonly HashSet<int> _daCo;
+
+        // Chế độ tra cứu theo LOT (phiếu khách trả): danh sách (Mã hàng, LotNo) cần tìm trong Slot.
+        private readonly bool _chiXem;
+        private readonly List<KeyValuePair<string, string>> _keys;
+        private string _tomTat = string.Empty;
+        private GridColumn _colSlLoi;
+        private GridColumn _colLyDo;
 
         private GridControl _grid;
         private GridView _gridView;
@@ -54,12 +66,41 @@ namespace PCTP.Modules.KhoVatLy
             LoadData();
         }
 
+        private FormChonSlotNoiBo(ISlotService slotSvc, List<KeyValuePair<string, string>> keys)
+        {
+            _slotSvc = slotSvc ?? throw new ArgumentNullException(nameof(slotSvc));
+            _daCo = new HashSet<int>();
+            _chiXem = true;
+            _keys = keys ?? new List<KeyValuePair<string, string>>();
+
+            InitializeComponent();
+            BuildUI();
+            LoadData();
+        }
+
+        /// <summary>
+        /// Tra cứu (chỉ xem): liệt kê mọi Slot còn tồn khớp (Mã hàng, LotNo) — dùng cho phiếu khách trả.
+        /// </summary>
+        public static FormChonSlotNoiBo TraCuuTheoLot(ISlotService slotSvc,
+            IEnumerable<KeyValuePair<string, string>> keys)
+        {
+            var list = (keys ?? Enumerable.Empty<KeyValuePair<string, string>>())
+                .Where(k => !string.IsNullOrWhiteSpace(k.Value))
+                .GroupBy(k => ((k.Key ?? "").Trim() + "|" + k.Value.Trim()).ToUpperInvariant())
+                .Select(g => new KeyValuePair<string, string>((g.First().Key ?? "").Trim(), g.First().Value.Trim()))
+                .ToList();
+
+            return new FormChonSlotNoiBo(slotSvc, list);
+        }
+
         // ════════════════════════════════════════════════════════════════
         // UI
         // ════════════════════════════════════════════════════════════════
         private void BuildUI()
         {
-            Text = "Chọn nhanh từ Slot — thêm dòng vào phiếu";
+            Text = _chiXem
+                ? "Tra cứu tồn theo LOT trong Slot (phiếu khách trả)"
+                : "Chọn nhanh từ Slot — thêm dòng vào phiếu";
             Size = new Size(1050, 600);
             StartPosition = FormStartPosition.CenterParent;
 
@@ -94,11 +135,14 @@ namespace PCTP.Modules.KhoVatLy
             _grid.MainView = _gridView;
             _grid.ViewCollection.Add(_gridView);
 
-            _gridView.OptionsBehavior.Editable = true;
+            _gridView.OptionsBehavior.Editable = !_chiXem;
             _gridView.OptionsView.ShowGroupPanel = false;
-            _gridView.OptionsSelection.MultiSelect = true;
-            _gridView.OptionsSelection.MultiSelectMode = GridMultiSelectMode.CheckBoxRowSelect;
-            _gridView.OptionsSelection.CheckBoxSelectorColumnWidth = 30;
+            if (!_chiXem)
+            {
+                _gridView.OptionsSelection.MultiSelect = true;
+                _gridView.OptionsSelection.MultiSelectMode = GridMultiSelectMode.CheckBoxRowSelect;
+                _gridView.OptionsSelection.CheckBoxSelectorColumnWidth = 30;
+            }
             _gridView.SelectionChanged += (s, e) => CapNhatThongTin();
             _gridView.ShownEditor += GridView_ShownEditor;
             _gridView.CellValueChanged += GridView_CellValueChanged;
@@ -127,7 +171,10 @@ namespace PCTP.Modules.KhoVatLy
 
             var colSl = Cot("SoLuongLoi", "SL lỗi", 80, 7, edit: true);
             colSl.ColumnEdit = _repoSoLuong;
-            Cot("LyDoNg", "Lý do NG", 200, 8, edit: true);
+            var colLy = Cot("LyDoNg", "Lý do NG", 200, 8, edit: true);
+            _colSlLoi = colSl;
+            _colLyDo = colLy;
+            if (_chiXem) { colSl.Visible = false; colLy.Visible = false; }
 
             main.Controls.Add(_grid, 0, 1);
 
@@ -144,7 +191,7 @@ namespace PCTP.Modules.KhoVatLy
             // ── Row 3: Buttons ─────────────────────────────────────────
             var btnPanel = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.RightToLeft, Padding = new Padding(5) };
 
-            _btnCancel = new SimpleButton { Text = "Hủy", Width = 100, Height = 36 };
+            _btnCancel = new SimpleButton { Text = _chiXem ? "Đóng" : "Hủy", Width = 100, Height = 36 };
             _btnCancel.Click += (s, e) => { DialogResult = DialogResult.Cancel; Close(); };
 
             _btnThem = new SimpleButton
@@ -160,7 +207,7 @@ namespace PCTP.Modules.KhoVatLy
             _btnThem.Click += BtnThem_Click;
 
             btnPanel.Controls.Add(_btnCancel);
-            btnPanel.Controls.Add(_btnThem);
+            if (!_chiXem) btnPanel.Controls.Add(_btnThem);
             main.Controls.Add(btnPanel, 0, 3);
 
             Controls.Add(main);
@@ -177,10 +224,46 @@ namespace PCTP.Modules.KhoVatLy
                 .Where(x => x.Quantity > 0 && !_daCo.Contains(x.SlotLotId))
                 .ToList();
 
+            if (_chiXem)
+                list = LocTheoLot(list);
+
             _grid.DataSource = ToDataTable(list);
             _gridView.ClearSelection();
             _gridView.BestFitColumns();
             CapNhatThongTin();
+        }
+
+        // Tra cứu: giữ Slot/LOT khớp (Mã hàng + LotNo) với từng dòng phiếu; báo LOT không còn tồn.
+        private List<SlotLotViewInfo> LocTheoLot(List<SlotLotViewInfo> all)
+        {
+            var kq = new List<SlotLotViewInfo>();
+            var khongCon = new List<string>();
+
+            foreach (var k in _keys)
+            {
+                var hit = all.Where(x =>
+                        (string.IsNullOrWhiteSpace(k.Key)
+                            || string.Equals(x.ItemCode?.Trim(), k.Key, StringComparison.OrdinalIgnoreCase))
+                        && QrItemParser.LotKhop(x.LotNo, k.Value))
+                    .ToList();
+
+                if (hit.Count == 0) khongCon.Add($"{k.Key} / {k.Value}");
+                kq.AddRange(hit);
+            }
+
+            kq = kq.GroupBy(x => x.SlotLotId).Select(g => g.First())
+                   .OrderBy(x => x.ItemCode).ThenBy(x => x.LotNo)
+                   .ThenBy(x => x.WarehouseName).ThenBy(x => x.RackName).ThenBy(x => x.SlotNumber)
+                   .ToList();
+
+            int slots = kq.Select(x => x.SlotId).Distinct().Count();
+            _tomTat = kq.Count == 0
+                ? "Không còn tồn trong Slot nào."
+                : $"Còn {kq.Sum(x => x.Quantity):n0} tại {slots} slot ({kq.Count} dòng).";
+            if (khongCon.Count > 0)
+                _tomTat += "  Hết hàng: " + string.Join("; ", khongCon);
+
+            return kq;
         }
 
         private void ApplyFilter()
@@ -228,6 +311,8 @@ namespace PCTP.Modules.KhoVatLy
 
         private void CapNhatThongTin()
         {
+            if (_chiXem) { _lblInfo.Text = _tomTat; return; }
+
             int n = _gridView.GetSelectedRows().Count(h => h >= 0);
             _btnThem.Enabled = n > 0;
             _lblInfo.Text = n == 0
