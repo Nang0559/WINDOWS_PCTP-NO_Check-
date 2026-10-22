@@ -326,7 +326,7 @@ namespace PCTP.Modules.XuLyHangLoi
                     row.MaSanPham = item.MaHang;
                     row.SoLo = item.LotNo;
                     row.SoLuongLoi = item.SoLuong;
-                    row.Model = item.Model;
+                    row.Model = item.MaHang;
                     row.SoDongChuaXuLy = 1;
                     rows.Add(row);
                 }
