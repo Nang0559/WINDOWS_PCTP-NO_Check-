@@ -70,6 +70,13 @@
       "testEvidence": "StockMovementServiceTests.Move_RejectsQuarantinedLotBeforeMutation"
     },
     {
+      "id": "STK-003",
+      "module": "NhapKho",
+      "scenario": "Execute production StockTpRepository insert/update/lookup/batch SQL methods",
+      "expected": "Repository SQL maps quantities correctly and rejects updates for missing LOTs; isolated SQL fixture only",
+      "status": "planned"
+    },
+    {
       "id": "PHY-001",
       "module": "KhoVatLy",
       "scenario": "Register rack and slot; locate LOT",
