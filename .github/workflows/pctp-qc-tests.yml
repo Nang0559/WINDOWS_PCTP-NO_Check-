@@ -48,3 +48,5 @@ jobs:
           dotnet-version: 8.0.x
       - name: Build Windows desktop TestRunner
         run: dotnet build PCTP.QC.TestRunner/PCTP.QC.TestRunner.csproj --configuration Release
+      - name: Build opt-in SQL integration harness (does not connect to SQL)
+        run: dotnet build PCTP.QC.SqlIntegration/PCTP.QC.SqlIntegration.csproj --configuration Release
