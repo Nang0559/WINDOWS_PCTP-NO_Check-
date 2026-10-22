@@ -42,7 +42,7 @@ namespace PCTP.Modules.KhoVatLy
 
             var stockTpRepo = new StockTpRepository(dbExecutor, uow);
             var phieuTrackRepo = new PhieuTrackingRepository(dbExecutor, uow);
-            var caseRepo = new StockTpCaseRepository(dbExecutor, uow);
+            var importGuardRepo = new StockTpImportGuardRepository(dbExecutor, uow);
             var productionRepo = new StockTpProductionRepository(dbExecutor, uow);
             var slotRepo = new SlotRepository(dbExecutor, uow);
             var statusRepo = new StockTpStatusRepository(dbExecutor, uow);
@@ -73,7 +73,7 @@ namespace PCTP.Modules.KhoVatLy
                 uow,
                 stockTpRepo,
                 phieuTrackRepo,
-                caseRepo,
+                importGuardRepo,
                 productionRepo,
                 slotService,
                 historyRepo,

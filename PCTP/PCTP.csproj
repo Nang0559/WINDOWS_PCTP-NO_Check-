@@ -534,10 +534,10 @@
     <Compile Include="Modules\KhoCore\Helpers\SlotParser.cs" />
     <Compile Include="Modules\KhoCore\Repositories\StockHistoryRepository.cs" />
     <Compile Include="Modules\KhoCore\Repositories\IStockHistoryRepository.cs" />
-    <Compile Include="Modules\NhapKho\Interfaces\IStockTpCaseRepository.cs" />
+    <Compile Include="Modules\NhapKho\Interfaces\IStockTpImportGuardRepository.cs" />
     <Compile Include="Modules\NhapKho\Interfaces\IStockTpProductionRepository.cs" />
     <Compile Include="Modules\NhapKho\Interfaces\IStockTpStatusRepository.cs" />
-    <Compile Include="Modules\NhapKho\Repository\StockTpCaseRepository.cs" />
+    <Compile Include="Modules\NhapKho\Repository\StockTpImportGuardRepository.cs" />
     <Compile Include="Modules\NhapKho\Repository\StockTpProductionRepository.cs" />
     <Compile Include="Modules\NhapKho\Repository\StockTpStatusRepository.cs" />
     <Compile Include="Modules\NhapKho\Services\INhapTpReceivingService.cs" />
