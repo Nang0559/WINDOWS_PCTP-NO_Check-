@@ -460,7 +460,9 @@ namespace PCTP.Modules.XuLyHangLoi.Services
                     SoLuongOK = soLuongOK,
                     SoLuongNG = soLuongNG,
                     DaKiemTraTem = false,
-                    NguoiQC = nguoiQC
+                    NguoiQC = nguoiQC,
+                    // Model.ThoiGian mặc định DateTime.MinValue (năm 0001) → SQL datetime overflow.
+                    ThoiGian = DateTime.Now
                 });
                 _repo.UpdateStatus(phieuXuLyId, QTChungStatus.DaQCXacNhanCuoi, nguoiQC);
 
