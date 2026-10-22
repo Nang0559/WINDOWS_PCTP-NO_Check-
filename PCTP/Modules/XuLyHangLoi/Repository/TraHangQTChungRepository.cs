@@ -34,7 +34,7 @@ namespace PCTP.Modules.XuLyHangLoi.Repository
                 throw new ArgumentNullException(nameof(entity));
 
             const string sql = @"
-INSERT INTO FVN_TraHangQTChungXuat
+INSERT INTO dbo.FVN_TraHangQTChungXuat
 (
     PhieuXuLyBatThuongId,
     SlotIdNguon,
@@ -146,7 +146,7 @@ SELECT
     NguoiXuat,
     LyDo,
     Note
-FROM FVN_TraHangQTChungXuat
+FROM dbo.FVN_TraHangQTChungXuat
 WHERE PhieuXuLyBatThuongId = @PhieuXuLyBatThuongId
 ORDER BY NgayXuat, Id;";
 
@@ -189,7 +189,7 @@ SELECT
     NguoiXuat,
     LyDo,
     Note
-FROM FVN_TraHangQTChungXuat
+FROM dbo.FVN_TraHangQTChungXuat
 WHERE Id = @Id;";
 
             DataTable table = LoadData(
@@ -214,7 +214,7 @@ WHERE Id = @Id;";
                 throw new ArgumentNullException(nameof(entity));
 
             const string sql = @"
-INSERT INTO FVN_TraHangQTChungGiao
+INSERT INTO dbo.FVN_TraHangQTChungGiao
 (
     PhieuXuLyBatThuongId,
     LotGiao,
@@ -308,7 +308,7 @@ SELECT
     BoPhanNhan,
     SoPhieuGiaoNhan,
     Note
-FROM FVN_TraHangQTChungGiao
+FROM dbo.FVN_TraHangQTChungGiao
 WHERE PhieuXuLyBatThuongId = @PhieuXuLyBatThuongId
 ORDER BY ThoiGian, Id;";
 
@@ -342,7 +342,7 @@ ORDER BY ThoiGian, Id;";
 ;WITH LatestGiao AS
 (
     SELECT TOP (1) *
-    FROM FVN_TraHangQTChungGiao
+    FROM dbo.FVN_TraHangQTChungGiao
     WHERE PhieuXuLyBatThuongId = @PhieuXuLyBatThuongId
     ORDER BY ThoiGian DESC, Id DESC
 )
@@ -384,7 +384,7 @@ SELECT
     BoPhanNhan,
     SoPhieuGiaoNhan,
     Note
-FROM FVN_TraHangQTChungGiao
+FROM dbo.FVN_TraHangQTChungGiao
 WHERE Id = @Id;";
 
             DataTable table = LoadData(
@@ -409,7 +409,7 @@ WHERE Id = @Id;";
                 throw new ArgumentNullException(nameof(entity));
 
             const string sql = @"
-INSERT INTO FVN_TraHangQTChungQC
+INSERT INTO dbo.FVN_TraHangQTChungQC
 (
     PhieuXuLyBatThuongId,
     SoLuongDaRework,
@@ -496,7 +496,7 @@ SELECT TOP 1
     NguoiQC,
     KetLuan,
     Note
-FROM FVN_TraHangQTChungQC
+FROM dbo.FVN_TraHangQTChungQC
 WHERE PhieuXuLyBatThuongId = @PhieuXuLyBatThuongId
 ORDER BY ThoiGian DESC, Id DESC;";
 
@@ -524,7 +524,7 @@ ORDER BY ThoiGian DESC, Id DESC;";
                 throw new ArgumentNullException(nameof(entity));
 
             const string sql = @"
-INSERT INTO FVN_TraHangQTChungNhapNG
+INSERT INTO dbo.FVN_TraHangQTChungNhapNG
 (
     PhieuXuLyBatThuongId,
     SlotIdOK,
@@ -625,7 +625,7 @@ SELECT
     NguoiNhap,
     LyDo,
     Note
-FROM FVN_TraHangQTChungNhapNG
+FROM dbo.FVN_TraHangQTChungNhapNG
 WHERE PhieuXuLyBatThuongId = @PhieuXuLyBatThuongId
 ORDER BY NgayNhap, Id;";
 
@@ -667,7 +667,7 @@ SELECT
     NguoiNhap,
     LyDo,
     Note
-FROM FVN_TraHangQTChungNhapNG
+FROM dbo.FVN_TraHangQTChungNhapNG
 WHERE Id = @Id;";
 
             DataTable table = LoadData(
@@ -727,7 +727,7 @@ FROM
         NguoiXuat AS NguoiThucHien,
         LyDo AS NoiDung,
         Note
-    FROM FVN_TraHangQTChungXuat
+    FROM dbo.FVN_TraHangQTChungXuat
 
     UNION ALL
 
@@ -742,7 +742,7 @@ FROM
         NguoiNhan,
         BoPhanNhan,
         Note
-    FROM FVN_TraHangQTChungGiao
+    FROM dbo.FVN_TraHangQTChungGiao
 
     UNION ALL
 
@@ -757,7 +757,7 @@ FROM
         NguoiQC,
         KetLuan,
         Note
-    FROM FVN_TraHangQTChungQC
+    FROM dbo.FVN_TraHangQTChungQC
 
     UNION ALL
 
@@ -772,7 +772,7 @@ FROM
         NguoiNhap,
         LyDo,
         Note
-    FROM FVN_TraHangQTChungNhapNG
+    FROM dbo.FVN_TraHangQTChungNhapNG
 ) X
 WHERE PhieuXuLyId = @PhieuXuLyBatThuongId
 ORDER BY ThoiGian, RefId;";
@@ -850,7 +850,7 @@ ORDER BY ThoiGian, RefId;";
         {
             return Exists(
                 @"SELECT TOP 1 1
-              FROM FVN_TraHangQTChungXuat
+              FROM dbo.FVN_TraHangQTChungXuat
               WHERE PhieuXuLyBatThuongId = @Id",
                 phieuXuLyId);
         }
@@ -860,7 +860,7 @@ ORDER BY ThoiGian, RefId;";
         {
             return Exists(
                 @"SELECT TOP 1 1
-              FROM FVN_TraHangQTChungGiao
+              FROM dbo.FVN_TraHangQTChungGiao
               WHERE PhieuXuLyBatThuongId = @Id",
                 phieuXuLyId);
         }
@@ -870,7 +870,7 @@ ORDER BY ThoiGian, RefId;";
         {
             return Exists(
                 @"SELECT TOP 1 1
-              FROM FVN_TraHangQTChungQC
+              FROM dbo.FVN_TraHangQTChungQC
               WHERE PhieuXuLyBatThuongId = @Id",
                 phieuXuLyId);
         }
@@ -880,7 +880,7 @@ ORDER BY ThoiGian, RefId;";
         {
             return Exists(
                 @"SELECT TOP 1 1
-              FROM FVN_TraHangQTChungNhapNG
+              FROM dbo.FVN_TraHangQTChungNhapNG
               WHERE PhieuXuLyBatThuongId = @Id",
                 phieuXuLyId);
         }
@@ -899,7 +899,7 @@ ORDER BY ThoiGian, RefId;";
                     nameof(qcId));
 
             const string sql = @"
-UPDATE FVN_TraHangQTChungQC
+UPDATE dbo.FVN_TraHangQTChungQC
 SET
     DaKiemTraTem = @DaKiemTraTem
 WHERE Id = @Id;";
@@ -930,7 +930,7 @@ WHERE Id = @Id;";
         {
             return GetTotal(
                 @"SELECT ISNULL(SUM(SoLuongXuat), 0)
-              FROM FVN_TraHangQTChungXuat
+              FROM dbo.FVN_TraHangQTChungXuat
               WHERE PhieuXuLyBatThuongId = @Id",
                 phieuXuLyId);
         }
@@ -940,7 +940,7 @@ WHERE Id = @Id;";
         {
             return GetTotal(
                 @"SELECT ISNULL(SUM(SoLuongGiao), 0)
-              FROM FVN_TraHangQTChungGiao
+              FROM dbo.FVN_TraHangQTChungGiao
               WHERE PhieuXuLyBatThuongId = @Id",
                 phieuXuLyId);
         }
@@ -950,7 +950,7 @@ WHERE Id = @Id;";
         {
             return GetTotal(
                 @"SELECT ISNULL(SoLuongOK, 0)
-              FROM FVN_TraHangQTChungQC
+              FROM dbo.FVN_TraHangQTChungQC
               WHERE PhieuXuLyBatThuongId = @Id",
                 phieuXuLyId);
         }
@@ -960,7 +960,7 @@ WHERE Id = @Id;";
         {
             return GetTotal(
                 @"SELECT ISNULL(SoLuongNG, 0)
-              FROM FVN_TraHangQTChungQC
+              FROM dbo.FVN_TraHangQTChungQC
               WHERE PhieuXuLyBatThuongId = @Id",
                 phieuXuLyId);
         }
@@ -970,7 +970,7 @@ WHERE Id = @Id;";
         {
             return GetTotal(
                 @"SELECT ISNULL(SUM(SoLuongNG), 0)
-              FROM FVN_TraHangQTChungNhapNG
+              FROM dbo.FVN_TraHangQTChungNhapNG
               WHERE PhieuXuLyBatThuongId = @Id",
                 phieuXuLyId);
         }
