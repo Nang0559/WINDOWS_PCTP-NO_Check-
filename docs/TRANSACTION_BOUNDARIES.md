@@ -24,15 +24,15 @@ The stock-slot adapter delegates to the workflow's `SlotService`; the balance ad
 
 ## Customer-delivery transaction findings
 
-The delivery paths are not equivalent. Factory-level shared-UoW wiring is not proof of end-to-end atomicity.
+The production path is composed through `GiaoHangKhachModuleFactory.Build()`: it creates one `phieuUow`, passes that same instance to `BulkStockSlotRepository`, `StockHistoryRepository`, `HangChoGiaoRepository`, and `PhieuRepository`; `PhieuRepository` delegates stock confirmation to `PhieuKhoRepository`. The changes below are in the repository actually reached by `PhieuKhoService`.
 
-- **YMVN direct/manual path (`CapNhapKhoYMVN`)**: the method calls `Uow.Begin()` before the direct `STOCKTP` FIFO decrement and calls `BulkStockAdjustService.TruKhoAoTheoLot(..., manageTransaction: false)`. Both stock mutations therefore use the same active UoW. The method commits before `HoanTatSauKhiTruKho`, the order-table `DanhDauDaGiao` update, and the stock-changed notification. A failure in those post-commit operations cannot roll back the stock deduction. In particular, pending-delivery closure/history is a second transaction.
-- **Stored-procedure paths (`CapNhapKho` / `CapNhapKhoSP`)**: both call `Db.ExecuteStoredProcedureDataSet(...)` directly. This bypasses the transaction-aware `SqlRepositoryBase.ExecuteStoredProcedureDataSet` helper, which would enlist a stored procedure in `Uow.Connection/Uow.Transaction` when a transaction is active. The current call therefore runs through `PhieuSqlExecutor` outside the workflow UoW. The returned rows are then processed by `TruKhoAoTuKetQuaSP`; each `TruKhoAoTheoLot` uses its default `manageTransaction: true`, opening and committing a separate UoW transaction per returned LOT. Consequently:
-  - the SP's STOCKTP mutation cannot be rolled back if a later SlotLot adjustment fails;
-  - if several LOT rows are returned, an error on a later row can leave earlier SlotLot rows committed;
-  - the operation has no single atomic boundary spanning SP stock deduction and all SlotLot adjustments.
-- **Post-delivery finalization (`HoanTatSauKhiTruKho`)**: this helper starts another transaction for pending-delivery closure and history. Its outer catch only writes `Debug.WriteLine` and suppresses the exception. The caller therefore receives no failure signal and may report delivery success even though pending-delivery rows/history were not finalized. `DanhDauDaGiao` is also invoked outside the stock transaction and its affected-row count is not checked.
-- **Implication**: there are two distinct consistency risks: (1) stored-procedure routes split STOCKTP from SlotLot and commit SlotLot per LOT; (2) both direct and stored-procedure routes can commit stock while finalization remains incomplete or silently failed. Do not mark `DEL-003` or `DEL-007` complete until production code uses one transaction across all required mutations, or a durable outbox/reconciliation state is implemented with retry/idempotency and failure-recovery tests. This audit does not change production code.
+- **Stored-procedure paths (`CapNhapKho` / `CapNhapKhoSP`)**: begin `phieuUow` before executing the stock stored procedure and call the transaction-aware `SqlRepositoryBase.ExecuteStoredProcedureDataSet` helper. SlotLot deductions use `manageTransaction: false`, so the SP, every LOT adjustment, pending-delivery closure, and history writes share the same connection/transaction. The stock-changed notification is raised only after commit.
+- **YMVN direct/manual path (`CapNhapKhoYMVN`)**: the available-stock check is performed inside the transaction with `UPDLOCK, HOLDLOCK`; FIFO deduction uses guarded updates (`SLCONLAI >= @sl`) and verifies exactly one affected row. SlotLot deduction, QR/history persistence, TMP status update, pending-delivery closure/history, and the configured order-table update execute before the same transaction commits. The stock-changed notification is raised only after commit.
+- **Pending-delivery finalization (`HoanTatSauKhiTruKho`)**: no longer opens a nested transaction or suppresses exceptions. It requires the caller's active UoW and a configured `IHangChoGiaoRepository`; closure and associated history are executed through the active connection/transaction. Failure now propagates to the caller and triggers rollback.
+- **Stored-procedure result validation**: when a stored procedure returns rows, the result must include valid `LOT` and positive `SOLUONG` values. Missing columns or malformed rows throw rather than silently skipping SlotLot adjustment.
+- **YMVN LOT parsing**: malformed LOT/quantity tokens and an empty parsed list are rejected before any stock mutation; invalid tokens are no longer silently ignored.
+
+These are source-level changes and transaction-composition checks. They are not yet proof of SQL rollback under injected failures, concurrent delivery, stored-procedure behavior, or duplicate/replayed delivery confirmation.
 
 ## Important limitations and follow-up
 
@@ -46,4 +46,4 @@ The delivery paths are not equivalent. Factory-level shared-UoW wiring is not pr
 
 ## Safety
 
-This audit only reads source code. It does not open a database, execute SQL, alter production data, or change production source files.
+This audit reads source code and records production source changes on the test branch. It does not open a database, execute SQL, or alter production data.
