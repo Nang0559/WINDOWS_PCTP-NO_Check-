@@ -627,6 +627,27 @@ WHERE ct.PhieuTraHangId = @PhieuTraHangId;";
             return r != null && r != DBNull.Value && Convert.ToInt32(r) > 0;
         }
 
+        public List<int> GetItemIdsChuaCoPhieuXuLy(int phieuTraHangId)
+        {
+            const string sql = @"
+SELECT Id
+FROM FVN_PhieuTraHangCT
+WHERE PhieuTraHangId = @PhieuTraHangId
+  AND PhieuXuLyBatThuongId IS NULL
+ORDER BY Id;";
+
+            DataTable dt = _sql.LoadData(
+                sql,
+                new SqlParameter("@PhieuTraHangId", phieuTraHangId));
+
+            var ids = new List<int>(dt.Rows.Count);
+
+            foreach (DataRow row in dt.Rows)
+                ids.Add(Convert.ToInt32(row["Id"]));
+
+            return ids;
+        }
+
         public void DeleteItems(int phieuTraHangId)
         {
             _sql.ExecuteNonQuery(

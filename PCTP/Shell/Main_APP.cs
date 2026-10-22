@@ -56,6 +56,9 @@ namespace PCTP
             // Main_APP is only the Shell.  Keep the HangLoi workflow entry points
             // together and let WarehouseProcessNavigator own the composition.
             NormalizeHangLoiNavigation();
+
+            // Menu chuẩn: Nhập Kho → Kho → Giao Hàng → Xử lý hàng lỗi → Tra cứu & Báo cáo → Công cụ.
+            BuildStandardMenus();
         }
 
         private void NormalizeHangLoiNavigation()
@@ -155,14 +158,14 @@ namespace PCTP
         private void E_Trahang_Click(object sender, EventArgs e) { WarehouseProcessNavigator.OpenQuanLyTienTrinhHangLoi(this); }
         private void trahangngPD_Click(object sender, EventArgs e) { WarehouseProcessNavigator.OpenQuanLyTienTrinhHangLoi(this); }
         private void trahangndHVN_Click(object sender, EventArgs e) { WarehouseProcessNavigator.OpenQuanLyTienTrinhHangLoi(this); }
-        private void E_NhapTP_Click(object sender, EventArgs e) { }
+        private void E_NhapTP_Click(object sender, EventArgs e) { OpenNhapThanhPhamQr(); }
         private void E_NhapTP_0QR_Click(object sender, EventArgs e) { }
         private void E_GHHVN_MP_Click(object sender, EventArgs e) { WarehouseProcessNavigator.OpenGiaoHangHVN("100001"); }
         private void E_GHHVN_SP_Click(object sender, EventArgs e) { WarehouseProcessNavigator.OpenGiaoHangHVN("100002"); }
         private void HTDelever_Click(object sender, EventArgs e) { WarehouseProcessNavigator.OpenGiaoHangHVN("100003"); }
-        private void E_Tracuulotno_Click(object sender, EventArgs e) { }
+        private void E_Tracuulotno_Click(object sender, EventArgs e) { OpenTraCuuLot(); }
         private void E_In_Le_Click(object sender, EventArgs e) { }
-        private void E_TKTK_Click(object sender, EventArgs e) { }
+        private void E_TKTK_Click(object sender, EventArgs e) { OpenBaoCaoTongHop(); }
 
         private void accordionControlElement21_Click(object sender, EventArgs e)
         {

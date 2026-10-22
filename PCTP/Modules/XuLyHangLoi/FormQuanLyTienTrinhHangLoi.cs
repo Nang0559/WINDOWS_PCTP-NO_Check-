@@ -40,6 +40,7 @@ namespace PCTP.Modules.XuLyHangLoi
         private TextEdit _txtSearch;
         private SimpleButton _btnSecondary;
         private SimpleButton _btnPrimary;
+        private SimpleButton _btnCreateXuLy;
         private SimpleButton _btnExport;
         private LabelControl _lblHint;
         private List<WorkflowRow> _rows = new List<WorkflowRow>();
@@ -99,7 +100,7 @@ namespace PCTP.Modules.XuLyHangLoi
             {
                 int step = i + 1;
                 var button = new Button { Width = 160, Height = 80, Text = labels[i] + "\r\n(0)", Tag = step, FlatStyle = FlatStyle.Flat, Margin = new Padding(3), Font = new Font("Tahoma", 9F, FontStyle.Bold), BackColor = Color.White };
-                button.Click += (s, e) => { _searchMode = false; SetActiveStep((int)((Button)s).Tag); };
+                button.Click += (s, e) => { _searchMode = false; _txtSearch.Text = string.Empty; SetActiveStep((int)((Button)s).Tag); };
                 _stepButtons[i] = button;
                 timeline.Controls.Add(button);
                 if (i < labels.Length - 1)
@@ -107,11 +108,12 @@ namespace PCTP.Modules.XuLyHangLoi
             }
             root.Controls.Add(timeline, 0, 0);
 
-            var toolbar = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 5, Padding = new Padding(3) };
+            var toolbar = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 6, Padding = new Padding(3) };
             toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
             toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 170));
             toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 170));
             toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 210));
+            toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 170));
             toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 130));
             _txtSearch = new TextEdit { Dock = DockStyle.Fill };
             _txtSearch.Properties.NullValuePrompt = "Tìm số phiếu, model, mã hàng, LOT...";
@@ -127,9 +129,12 @@ namespace PCTP.Modules.XuLyHangLoi
             _btnPrimary.Appearance.Font = new Font("Tahoma", 9F, FontStyle.Bold);
             _btnPrimary.Click += BtnActionPrimary_Click;
             toolbar.Controls.Add(_btnPrimary, 3, 0);
+            _btnCreateXuLy = new SimpleButton { Text = "Tạo phiếu bất thường", Dock = DockStyle.Fill };
+            _btnCreateXuLy.Click += (s, e) => TaoPhieuXuLyBatThuong();
+            toolbar.Controls.Add(_btnCreateXuLy, 4, 0);
             _btnExport = new SimpleButton { Text = "Xuất Excel", Dock = DockStyle.Fill };
             _btnExport.Click += (s, e) => _gridView.ExportToXlsx($"HangLoi_Buoc{_activeStep}_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx");
-            toolbar.Controls.Add(_btnExport, 4, 0);
+            toolbar.Controls.Add(_btnExport, 5, 0);
             root.Controls.Add(toolbar, 0, 1);
 
             _grid = new GridControl { Dock = DockStyle.Fill };
@@ -138,7 +143,7 @@ namespace PCTP.Modules.XuLyHangLoi
             _gridView.OptionsBehavior.Editable = false;
             _gridView.OptionsView.ShowGroupPanel = false;
             _gridView.OptionsView.RowAutoHeight = true;
-            _gridView.DoubleClick += (s, e) => { if (_searchMode) MoPhieuDaTao(); else ExecuteActionByStep(_activeStep); };
+            _gridView.DoubleClick += (s, e) => OnGridDoubleClick();
             root.Controls.Add(_grid, 0, 2);
             _lblHint = new LabelControl { Dock = DockStyle.Fill, Padding = new Padding(10, 5, 0, 0), Appearance = { Font = new Font("Tahoma", 9F, FontStyle.Italic), ForeColor = Color.DimGray } };
             root.Controls.Add(_lblHint, 0, 3);
@@ -181,8 +186,8 @@ namespace PCTP.Modules.XuLyHangLoi
             for (int i = 0; i < _stepButtons.Length; i++) _stepButtons[i].BackColor = i + 1 == _activeStep ? Color.LightSteelBlue : Color.White;
             switch (_activeStep)
             {
-                case 1: _btnSecondary.Visible = true; _btnPrimary.Text = "Tiếp nhận phiếu khách"; _lblHint.Text = "Bước 1: tiếp nhận nguồn hàng trả/khách trả."; break;
-                case 2: _btnSecondary.Visible = true; _btnPrimary.Text = "Tạo phiếu bất thường"; _lblHint.Text = "Bước 2: tạo PhieuXuLyBatThuong từ phiếu trả."; break;
+                case 1: _btnSecondary.Visible = true; _btnPrimary.Text = "Tiếp nhận phiếu khách"; _lblHint.Text = "Bước 1: danh sách phiếu đã tiếp nhận (khách trả / nội bộ) chưa tạo phiếu bất thường. Bấm đúp để mở phiếu; chọn dòng rồi 'Tạo phiếu bất thường' để sang bước 2."; break;
+                case 2: _btnSecondary.Visible = true; _btnPrimary.Text = "Tạo phiếu bất thường"; _lblHint.Text = "Bước 2: phiếu trả còn dòng chưa tạo PhieuXuLyBatThuong (đã tạo một phần). Chọn dòng rồi 'Tạo phiếu bất thường'."; break;
                 case 3: _btnSecondary.Visible = false; _btnPrimary.Text = "Truy vết LOT"; _lblHint.Text = "Bước 3: truy vết kho thành phẩm, WIP/sản xuất và khách trả; snapshot trước khi QC."; break;
                 case 4: _btnSecondary.Visible = false; _btnPrimary.Text = "QC định hướng"; _lblHint.Text = "Bước 4: QC chọn Từ chối giao bù / Chỉ giao bù / Có Rework."; break;
                 case 5: _btnSecondary.Visible = false; _btnPrimary.Text = "Initial QC"; _lblHint.Text = "Bước 5: kiểm đủ snapshot. DaKiemTra = OK + NG; NG = Rework + LoaiBoBanDau."; break;
@@ -190,6 +195,7 @@ namespace PCTP.Modules.XuLyHangLoi
                 case 7: _btnSecondary.Visible = false; _btnPrimary.Text = "QC Rework / Disposition"; _lblHint.Text = "Bước 7: QC Rework OK + NG = lượng Rework; NG Rework cộng vào loại bỏ cuối."; break;
                 case 8: _btnSecondary.Visible = false; _btnPrimary.Text = "Giao bù / Hoàn tất"; _lblHint.Text = "Bước 8: Giao bù là nghĩa vụ độc lập; không suy ra từ NG/Rework."; break;
             }
+            _btnCreateXuLy.Visible = _activeStep == 1;
             LoadCurrentStep();
         }
 
@@ -221,7 +227,7 @@ namespace PCTP.Modules.XuLyHangLoi
 
         private int ResolveRowStep(WorkflowRow row)
         {
-            if (!row.PhieuXuLyId.HasValue) return row.PhieuTraHangStatus == PhieuTraHangStatus.Moi ? 1 : 2;
+            if (!row.PhieuXuLyId.HasValue) return row.HeaderStep;
             var p = _qtChungService.GetById(row.PhieuXuLyId.Value);
             return p == null ? 2 : ResolveStep(p);
         }
@@ -250,16 +256,26 @@ namespace PCTP.Modules.XuLyHangLoi
         {
             var result = new List<WorkflowRow>();
             foreach (var header in GetHeaders())
-                result.Add(BuildRow(header, null));
+                result.AddRange(BuildRows(header, null));
             return result;
         }
 
-        private WorkflowRow BuildRow(PhieuTraHang header, List<PhieuTraHangCT> items)
+        /// <summary>
+        /// Một phiếu trả hàng sinh các dòng tiến trình theo CÙNG một quy tắc cho mọi nguồn:
+        ///  - mỗi PhieuXuLyBatThuong là một dòng, nằm ở bước theo QTChungStatus (3..8);
+        ///  - còn dòng PhieuTraHangCT chưa có phiếu xử lý → một dòng cấp phiếu trả:
+        ///      chưa có phiếu xử lý nào = Bước 1 (Tiếp nhận), đã tạo một phần = Bước 2.
+        /// </summary>
+        private List<WorkflowRow> BuildRows(PhieuTraHang header, List<PhieuTraHangCT> items)
         {
-            var row = new WorkflowRow { PhieuTraHangId = header.Id, SoPhieu = header.SoPhieu, PhieuTraHangStatus = header.Status, Nguon = header.Nguon.ToString(), BoPhanPhatHienLoi = header.BoPhanPhatHienLoi };
-            var p = _phieuXuLyRepo.GetByPhieuTraHangId(header.Id);
-            if (p != null)
+            var rows = new List<WorkflowRow>();
+            if (items == null) items = _phieuTraHangRepo.GetItems(header.Id) ?? new List<PhieuTraHangCT>();
+
+            var xuLyList = _phieuXuLyRepo.GetAllByPhieuTraHangId(header.Id) ?? new List<PhieuXuLyBatThuong>();
+
+            foreach (var p in xuLyList)
             {
+                var row = NewRow(header);
                 row.PhieuXuLyId = p.Id;
                 row.Model = p.Model;
                 row.PhanLoaiXuLy = p.PhanLoaiXuLy;
@@ -273,15 +289,40 @@ namespace PCTP.Modules.XuLyHangLoi
                     var initial = _initialQCService.Get(p.Id);
                     if (initial != null) row.InitialQC = $"QC {initial.SoLuongDaKiemTra:n0}/{initial.SoLuongAnhHuong:n0} | OK {initial.SoLuongOK:n0} | NG {initial.SoLuongNG:n0} | RW {initial.SoLuongRework:n0} | Loại bỏ {initial.SoLuongLoaiBoBanDau:n0}";
                 }
+                rows.Add(row);
             }
-            else if (items != null && items.Count > 0)
+
+            var chuaIds = new HashSet<int>(_phieuTraHangRepo.GetItemIdsChuaCoPhieuXuLy(header.Id) ?? new List<int>());
+            var chua = items.Where(i => chuaIds.Contains(i.Id)).ToList();
+
+            if (chua.Count > 0)
             {
-                // Chưa có PhieuXuLyBatThuong: lấy mã hàng / lot từ dòng phiếu trả.
-                row.MaSanPham = string.Join(", ", items.Select(i => i.MaHang).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct());
-                row.SoLo = string.Join(", ", items.Select(i => i.LotNo).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct());
-                row.SoLuongLoi = items.Sum(i => i.SoLuong);
+                var row = NewRow(header);
+                row.HeaderStep = xuLyList.Count == 0 ? 1 : 2;
+                row.MaSanPham = string.Join(", ", chua.Select(i => i.MaHang).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct());
+                row.SoLo = string.Join(", ", chua.Select(i => i.LotNo).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct());
+                row.SoLuongLoi = chua.Sum(i => i.SoLuong);
+                rows.Add(row);
             }
-            return row;
+
+            return rows;
+        }
+
+        private static WorkflowRow NewRow(PhieuTraHang header)
+        {
+            return new WorkflowRow { PhieuTraHangId = header.Id, SoPhieu = header.SoPhieu, PhieuTraHangStatus = header.Status, Nguon = header.Nguon.ToString(), BoPhanPhatHienLoi = header.BoPhanPhatHienLoi };
+        }
+
+        private void OnGridDoubleClick()
+        {
+            var handle = _gridView.FocusedRowHandle;
+            var row = handle < 0 ? null : _gridView.GetRow(handle) as WorkflowRow;
+
+            // Kết quả tìm kiếm, hoặc dòng cấp phiếu trả (Bước 1/2) → mở chính phiếu đã tạo.
+            if (_searchMode || (row != null && !row.PhieuXuLyId.HasValue))
+                MoPhieuDaTao();
+            else
+                ExecuteActionByStep(_activeStep);
         }
 
         // ============================================================
@@ -339,14 +380,14 @@ namespace PCTP.Modules.XuLyHangLoi
                 foreach (var header in headers.GroupBy(x => x.Id).Select(g => g.First()))
                 {
                     var items = _phieuTraHangRepo.GetItems(header.Id) ?? new List<PhieuTraHangCT>();
-                    var row = BuildRow(header, items);
+                    var rowsOfHeader = BuildRows(header, items);
 
                     bool match = tokens.Any(t =>
-                        Khop(t, header.SoPhieu) || Khop(t, row.Model) ||
-                        Khop(t, row.MaSanPham) || Khop(t, row.SoLo) ||
-                        items.Any(i => Khop(t, i.MaHang) || Khop(t, i.LotNo)));
+                        Khop(t, header.SoPhieu) ||
+                        items.Any(i => Khop(t, i.MaHang) || Khop(t, i.LotNo)) ||
+                        rowsOfHeader.Any(r => Khop(t, r.Model) || Khop(t, r.MaSanPham) || Khop(t, r.SoLo)));
 
-                    if (match) found.Add(row);
+                    if (match) found.AddRange(rowsOfHeader);
                 }
 
                 _rows = found;
@@ -447,13 +488,13 @@ namespace PCTP.Modules.XuLyHangLoi
 
         private void TiepNhanKhach()
         {
-            using (var f = new FormTiepNhanPhieuKhachTra(_khachTraHangService, _noiBoLookupRepo, _slotService)) if (f.ShowDialog(this) == DialogResult.OK) RefreshAfterAction();
+            using (var f = new FormTiepNhanPhieuKhachTra(_khachTraHangService, _noiBoLookupRepo, _slotService)) if (f.ShowDialog(this) == DialogResult.OK) RefreshAfterIntake();
         }
 
         private void TaoPhieuNoiBo()
         {
             if (_noiBoLookupRepo == null) { ShowWarning("MainApp chưa inject INoiBoLookupRepository."); return; }
-            using (var f = new FormTaoPhieuTraNoiBo(_traNoiBoService, _noiBoLookupRepo, _slotService)) if (f.ShowDialog(this) == DialogResult.OK) RefreshAfterAction();
+            using (var f = new FormTaoPhieuTraNoiBo(_traNoiBoService, _noiBoLookupRepo, _slotService)) if (f.ShowDialog(this) == DialogResult.OK) RefreshAfterIntake();
         }
 
         private void TaoPhieuTuSlot()
@@ -472,7 +513,7 @@ namespace PCTP.Modules.XuLyHangLoi
             using (var f = new FormTaoPhieuTraNoiBo(_traNoiBoService, _noiBoLookupRepo, _slotService))
             {
                 f.ThemDongTuSlot(chon);
-                if (f.ShowDialog(this) == DialogResult.OK) RefreshAfterAction();
+                if (f.ShowDialog(this) == DialogResult.OK) RefreshAfterIntake();
             }
         }
 
@@ -480,16 +521,29 @@ namespace PCTP.Modules.XuLyHangLoi
         {
             var row = GetFocusedRow();
             if (row == null) return;
-            var items = _phieuTraHangRepo.GetItems(row.PhieuTraHangId);
-            if (items == null || items.Count == 0) { ShowWarning("Phiếu trả hàng chưa có dòng chi tiết."); return; }
-            int created = 0;
-            foreach (var item in items)
+
+            if (row.PhieuXuLyId.HasValue)
             {
-                if (_phieuXuLyRepo.GetByPhieuTraHangId(row.PhieuTraHangId) != null) break;
-                _qtChungService.TaoPhieuXuLyBatThuong(item.Id, row.Model, row.PhanLoaiXuLy ?? "Hàng lỗi", Environment.UserName, Environment.UserName);
-                created++;
+                ShowWarning("Dòng này đã là phiếu xử lý bất thường. Hãy chọn dòng phiếu trả còn ở Bước 1/2.");
+                return;
             }
-            if (created > 0) RefreshAfterAction(); else ShowWarning("Phiếu này đã có PhieuXuLyBatThuong.");
+
+            // Model KHÔNG bắt buộc: mặc định theo mã hàng; có thể nhập Model thực tế.
+            string defaultModel = (row.MaSanPham ?? string.Empty).Split(',')[0].Trim();
+            string model = XtraInputBox.Show(
+                "Model của hàng lỗi (để trống = dùng mã hàng):",
+                $"Tạo phiếu bất thường - {row.SoPhieu}",
+                defaultModel);
+
+            if (model == null) return; // người dùng bấm Cancel
+
+            try
+            {
+                var ids = _qtChungService.TaoPhieuXuLyTuPhieuTra(row.PhieuTraHangId, model, "Hàng lỗi", Environment.UserName);
+                XtraMessageBox.Show(this, $"Đã tạo {ids.Count} phiếu xử lý bất thường cho phiếu {row.SoPhieu}.", "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                RefreshAfterAction();
+            }
+            catch (Exception ex) { ShowWarning("Không thể tạo phiếu xử lý bất thường.\r\n\r\n" + ex.Message); }
         }
 
         private void TruyVetLOT()
@@ -589,6 +643,15 @@ namespace PCTP.Modules.XuLyHangLoi
             using (var f = new FormGiaoBuNG(_giaoBuNGService, phieu.Id, phieu.SoPhieu)) if (f.ShowDialog(this) == DialogResult.OK) RefreshAfterAction();
         }
 
+        // Phiếu mới tiếp nhận (khách trả / nội bộ / từ Slot) → về Bước 1 và hiện đầy đủ danh sách.
+        private void RefreshAfterIntake()
+        {
+            _searchMode = false;
+            _txtSearch.Text = string.Empty;
+            RefreshBadges();
+            SetActiveStep(1);
+        }
+
         private void RefreshAfterAction()
         {
             int? selected = null;
@@ -634,6 +697,8 @@ namespace PCTP.Modules.XuLyHangLoi
             public string InitialQC { get; set; }
             public PhieuTraHangStatus PhieuTraHangStatus { get; set; }
             public QTChungStatus QTStatus { get; set; }
+            // Dòng cấp phiếu trả (chưa có PhieuXuLyId): 1 = Tiếp nhận, 2 = đã tạo một phần.
+            public int HeaderStep { get; set; } = 1;
         }
     }
 

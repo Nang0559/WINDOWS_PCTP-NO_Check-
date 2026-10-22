@@ -1,4 +1,4 @@
-using PCTP.ClassSQL;
+﻿using PCTP.ClassSQL;
 using PCTP.Modules.GiaoHangKhach;
 using PCTP.Modules.KhoVatLy.Kho.Models;
 using PCTP.Modules.XuLyHangLoi.Enums;
@@ -16,7 +16,18 @@ namespace PCTP.Modules.XuLyHangLoi.Services
 {
     public interface IQTChungService
     {
+        /// <summary>
+        /// Tạo phiếu xử lý bất thường cho MỘT dòng phiếu trả (mọi nguồn).
+        /// Nguon/Slot/Lot/Mã hàng/Số lượng/Bộ phận được lấy từ dòng + header phiếu trả.
+        /// model, phanLoaiXuLy, boPhanPhatHanh là tùy chọn (null/rỗng → tự suy ra).
+        /// </summary>
         int TaoPhieuXuLyBatThuong(int phieuTraHangCTId, string model, string phanLoaiXuLy, string boPhanPhatHanh, string nguoiThucHien);
+
+        /// <summary>
+        /// Tạo phiếu xử lý bất thường cho TẤT CẢ dòng chưa xử lý của một phiếu trả hàng,
+        /// trong một transaction. Trả về danh sách Id phiếu xử lý vừa tạo.
+        /// </summary>
+        List<int> TaoPhieuXuLyTuPhieuTra(int phieuTraHangId, string model, string phanLoaiXuLy, string nguoiThucHien);
         ScanResult QCDinhHuong(int phieuXuLyId, HuongXuLyBatThuong huong, string nguoiThucHien);
         AffectedLotTraceResult TruyVetLOT(int phieuXuLyId, string nguoiThucHien);
         List<LotInfo> GetLotsCanRework(int phieuXuLyId);

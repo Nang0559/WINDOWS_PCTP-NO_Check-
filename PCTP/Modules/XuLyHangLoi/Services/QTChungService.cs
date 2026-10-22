@@ -79,29 +79,126 @@ namespace PCTP.Modules.XuLyHangLoi.Services
         public int TaoPhieuXuLyBatThuong(int phieuTraHangCTId, string model, string phanLoaiXuLy, string boPhanPhatHanh, string nguoiThucHien)
         {
             if (phieuTraHangCTId <= 0) throw new ArgumentException("phieuTraHangCTId không hợp lệ.", nameof(phieuTraHangCTId));
-            if (string.IsNullOrWhiteSpace(model)) throw new ArgumentException("Model không được rỗng.", nameof(model));
-            if (string.IsNullOrWhiteSpace(phanLoaiXuLy)) throw new ArgumentException("PhanLoaiXuLy không được rỗng.", nameof(phanLoaiXuLy));
-            if (string.IsNullOrWhiteSpace(boPhanPhatHanh)) throw new ArgumentException("BoPhanPhatHanh không được rỗng.", nameof(boPhanPhatHanh));
             ValidateNguoiThucHien(nguoiThucHien);
 
-            var p = new PhieuXuLyBatThuong
-            {
-                Model = model.Trim(),
-                PhanLoaiXuLy = phanLoaiXuLy.Trim(),
-                BoPhanPhatHanh = boPhanPhatHanh.Trim(),
-                Status = QTChungStatus.Moi,
-                CreatedBy = nguoiThucHien.Trim()
-            };
+            var ct = _phieuTraHangRepo.GetItemById(phieuTraHangCTId);
+            if (ct == null)
+                throw new InvalidOperationException($"Không tìm thấy dòng phiếu trả PhieuTraHangCT Id={phieuTraHangCTId}.");
+
+            var header = _phieuTraHangRepo.GetById(ct.PhieuTraHangId);
+            if (header == null)
+                throw new InvalidOperationException($"Không tìm thấy phiếu trả hàng Id={ct.PhieuTraHangId}.");
 
             try
             {
                 _uow.Begin();
-                var id = _repo.Insert(phieuTraHangCTId, p);
-                _repo.UpdateStatus(id, QTChungStatus.DaTaoPhieuBatThuong, nguoiThucHien);
+                var id = TaoPhieuXuLyCore(header, ct, model, phanLoaiXuLy, boPhanPhatHanh, nguoiThucHien);
+                NangTrangThaiHeader(header.Id, PhieuTraHangStatus.DaTaoPhieuBatThuong, nguoiThucHien);
                 _uow.Commit();
                 return id;
             }
             catch { SafeRollback(); throw; }
+        }
+
+        public List<int> TaoPhieuXuLyTuPhieuTra(int phieuTraHangId, string model, string phanLoaiXuLy, string nguoiThucHien)
+        {
+            if (phieuTraHangId <= 0) throw new ArgumentException("phieuTraHangId không hợp lệ.", nameof(phieuTraHangId));
+            ValidateNguoiThucHien(nguoiThucHien);
+
+            var header = _phieuTraHangRepo.GetById(phieuTraHangId);
+            if (header == null)
+                throw new InvalidOperationException($"Không tìm thấy phiếu trả hàng Id={phieuTraHangId}.");
+
+            var chuaXuLy = new HashSet<int>(_phieuTraHangRepo.GetItemIdsChuaCoPhieuXuLy(phieuTraHangId));
+            var items = (_phieuTraHangRepo.GetItems(phieuTraHangId) ?? new List<PhieuTraHangCT>())
+                .Where(x => chuaXuLy.Contains(x.Id))
+                .ToList();
+
+            if (items.Count == 0)
+                throw new InvalidOperationException("Phiếu này không còn dòng nào chưa tạo phiếu xử lý bất thường.");
+
+            var ids = new List<int>();
+
+            try
+            {
+                _uow.Begin();
+
+                foreach (var ct in items)
+                    ids.Add(TaoPhieuXuLyCore(header, ct, model, phanLoaiXuLy, null, nguoiThucHien));
+
+                NangTrangThaiHeader(header.Id, PhieuTraHangStatus.DaTaoPhieuBatThuong, nguoiThucHien);
+                _uow.Commit();
+                return ids;
+            }
+            catch { SafeRollback(); throw; }
+        }
+
+        // Không tự mở transaction: gọi trong _uow.Begin()/Commit() của hàm public.
+        private int TaoPhieuXuLyCore(PhieuTraHang header, PhieuTraHangCT ct, string model, string phanLoaiXuLy, string boPhanPhatHanh, string nguoiThucHien)
+        {
+            if (string.IsNullOrWhiteSpace(ct.MaHang))
+                throw new InvalidOperationException($"Dòng phiếu trả Id={ct.Id} thiếu Mã hàng.");
+            if (ct.SoLuong <= 0)
+                throw new InvalidOperationException($"Dòng phiếu trả Id={ct.Id} ({ct.MaHang}) có số lượng không hợp lệ.");
+
+            if (header.Nguon == NguonXuLyBatThuong.TraNoiBo)
+            {
+                if (!ct.SlotIdNguon.HasValue || ct.SlotIdNguon.Value <= 0)
+                    throw new InvalidOperationException($"Dòng {ct.MaHang} của phiếu nội bộ chưa có Slot nguồn.");
+                if (string.IsNullOrWhiteSpace(ct.LotNo))
+                    throw new InvalidOperationException($"Dòng {ct.MaHang} của phiếu nội bộ chưa có LOT.");
+            }
+
+            // Model không bắt buộc nhập: mặc định theo mã hàng của dòng.
+            string modelValue = string.IsNullOrWhiteSpace(model) ? ct.MaHang.Trim() : model.Trim();
+
+            string phanLoai = string.IsNullOrWhiteSpace(phanLoaiXuLy) ? "Hàng lỗi" : phanLoaiXuLy.Trim();
+
+            // Bộ phận phát hành: lấy từ phiếu trả (BP phát hiện lỗi → Phòng ban) khi không truyền.
+            string boPhan = !string.IsNullOrWhiteSpace(boPhanPhatHanh) ? boPhanPhatHanh.Trim()
+                : !string.IsNullOrWhiteSpace(header.BoPhanPhatHienLoi) ? header.BoPhanPhatHienLoi.Trim()
+                : !string.IsNullOrWhiteSpace(header.PhongBan) ? header.PhongBan.Trim()
+                : "Chưa xác định";
+
+            string noiDung = header.LyDo;
+            if (!string.IsNullOrWhiteSpace(ct.LyDoNg))
+                noiDung = string.IsNullOrWhiteSpace(noiDung) ? ct.LyDoNg : noiDung + " | " + ct.LyDoNg;
+
+            var p = new PhieuXuLyBatThuong
+            {
+                SoPhieu = $"XL-{header.SoPhieu}-{ct.Id}",
+                Nguon = header.Nguon,
+                PhieuTraHangId = header.Id,
+                SoPhieuTraHangGoc = header.SoPhieu,
+                // Phiếu khách trả: header phiếu trả chính là chứng từ khách trả.
+                PhieuKhachTraId = header.Nguon == NguonXuLyBatThuong.KhachTra ? (int?)header.Id : null,
+                SlotIdNguon = header.Nguon == NguonXuLyBatThuong.TraNoiBo ? ct.SlotIdNguon : null,
+                LotNguon = header.Nguon == NguonXuLyBatThuong.TraNoiBo ? ct.LotNo : null,
+                Model = modelValue,
+                MaSanPham = ct.MaHang.Trim(),
+                SoLo = ct.LotNo,
+                SoLoLoi = ct.LotNo,
+                SoLuongLoi = ct.SoLuong,
+                NoiDungBatThuong = noiDung,
+                PhanLoaiXuLy = phanLoai,
+                BoPhanPhatHanh = boPhan,
+                Status = QTChungStatus.Moi,
+                CreatedBy = nguoiThucHien.Trim()
+            };
+
+            var id = _repo.Insert(ct.Id, p);
+            _repo.UpdateStatus(id, QTChungStatus.DaTaoPhieuBatThuong, nguoiThucHien);
+            return id;
+        }
+
+        // Roll-up trạng thái header: chỉ tiến lên và chỉ khi workflow (DB) cho phép.
+        private void NangTrangThaiHeader(int phieuTraHangId, PhieuTraHangStatus target, string nguoiThucHien)
+        {
+            var header = _phieuTraHangRepo.GetById(phieuTraHangId);
+            if (header == null) return;
+            if ((int)header.Status >= (int)target) return;
+            if (!_workflow.CanTransition(ProcessCodePhieuTraHang, (int)header.Status, (int)target)) return;
+            _phieuTraHangRepo.UpdateStatus(header.Id, target, nguoiThucHien);
         }
 
         /// <summary>
@@ -158,6 +255,9 @@ namespace PCTP.Modules.XuLyHangLoi.Services
                 _uow.Begin();
                 _repo.UpdateDinhHuong(phieuXuLyId, huong, nguoiThucHien);
                 _repo.UpdateStatus(phieuXuLyId, QTChungStatus.DaDinhHuong, nguoiThucHien);
+                // Header bắt đầu "đang xử lý QT Chung" → cho phép đóng phiếu khi xử lý xong.
+                if (phieu.PhieuTraHangId.HasValue)
+                    NangTrangThaiHeader(phieu.PhieuTraHangId.Value, PhieuTraHangStatus.DangXuLyQTChung, nguoiThucHien);
                 _uow.Commit();
 
                 return ScanResult.OK($"Đã định hướng {huong}. TotalAffectedQuantity={trace.TotalAffectedQuantity:n0}.");

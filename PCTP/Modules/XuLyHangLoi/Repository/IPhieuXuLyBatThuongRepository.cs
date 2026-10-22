@@ -137,6 +137,14 @@ namespace PCTP.Modules.XuLyHangLoi.Repository
         PhieuXuLyBatThuong GetByPhieuTraHangId(
             int phieuTraHangId);
 
+        /// <summary>
+        /// Tất cả phiếu xử lý bất thường của một phiếu trả hàng
+        /// (mỗi dòng PhieuTraHangCT có một phiếu xử lý riêng).
+        /// Trả về danh sách rỗng nếu chưa có.
+        /// </summary>
+        List<PhieuXuLyBatThuong> GetAllByPhieuTraHangId(
+            int phieuTraHangId);
+
 
         // ============================================================
         // STATE — QT CHUNG

@@ -257,6 +257,9 @@ namespace PCTP.Modules.XuLyHangLoi.Repository
         /// (khi đó không được sửa/xóa dòng chi tiết).</summary>
         bool CoPhieuXuLy(int phieuTraHangId);
 
+        /// <summary>Id các dòng PhieuTraHangCT chưa gắn PhieuXuLyBatThuong.</summary>
+        List<int> GetItemIdsChuaCoPhieuXuLy(int phieuTraHangId);
+
         /// <summary>Xóa toàn bộ dòng chi tiết của phiếu.</summary>
         void DeleteItems(int phieuTraHangId);
 

@@ -382,6 +382,57 @@ ORDER BY CreatedAt DESC, Id DESC;";
         }
 
 
+        public List<PhieuXuLyBatThuong> GetAllByPhieuTraHangId(
+            int phieuTraHangId)
+        {
+            var result = new List<PhieuXuLyBatThuong>();
+
+            if (phieuTraHangId <= 0)
+                return result;
+
+            const string sql = @"
+SELECT
+    Id,
+    SoPhieu,
+    Nguon,
+    PhieuTraHangId,
+    SoPhieuTraHangGoc,
+    PhieuKhachTraId,
+    SlotIdNguon,
+    LotNguon,
+    Model,
+    MaSanPham,
+    SoLo,
+    SoLoLoi,
+    SoLuongLoi,
+    NoiDungBatThuong,
+    PhanLoaiXuLy,
+    BoPhanPhatHanh,
+    Status,
+    HuongXuLy,
+    NgayDinhHuong,
+    NguoiDinhHuong,
+ LyDoHuy, NgayHuy, NguoiHuy, 
+    CreatedAt,
+    CreatedBy,
+    UpdatedAt,
+    UpdatedBy
+FROM FVN_PhieuXuLyBatThuong
+WHERE PhieuTraHangId = @PhieuTraHangId
+ORDER BY Id;";
+
+            DataTable table = LoadData(
+                sql,
+                new SqlParameter(
+                    "@PhieuTraHangId",
+                    phieuTraHangId));
+
+            foreach (DataRow row in table.Rows)
+                result.Add(Map(row));
+
+            return result;
+        }
+
         // ============================================================
         // STATUS — QT CHUNG
         // ============================================================

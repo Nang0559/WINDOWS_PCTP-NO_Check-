@@ -857,6 +857,10 @@
     <Compile Include="Shell\Main_APP.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="Shell\Main_APP.Menu.cs">
+      <DependentUpon>Main_APP.cs</DependentUpon>
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="Shell\Main_APP.Designer.cs">
       <DependentUpon>Main_APP.cs</DependentUpon>
     </Compile>
