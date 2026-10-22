@@ -1,6 +1,8 @@
 using System.Data;
 using Microsoft.Data.SqlClient;
 using PCTP.QC.Tests;
+using PCTP.ClassSQL;
+using PCTP.Shared.Common;
 
 internal static class Program
 {
@@ -29,6 +31,9 @@ internal static class Program
             try
             {
                 await CreateFixtureAsync(connection, table);
+                await RunProductionUnitOfWorkNestedRollbackAsync(connectionString, table);
+                await RunProductionUnitOfWorkNestedCommitAsync(connectionString, table);
+                await RunProductionUnitOfWorkDisposeRollbackAsync(connectionString, table);
                 await RunRollbackAtomicityAsync(connection, table);
                 await RunConcurrentConditionalDecrementAsync(connectionString, table);
                 await RunCommandTimeoutRollbackAsync(connection, table);
@@ -56,10 +61,94 @@ internal static class Program
     StockQty int NOT NULL,
     SlotQty int NOT NULL
 );
-INSERT INTO {table}(Id, Lot, StockQty, SlotQty) VALUES (1, 'QC-LOT-ROLLBACK', 100, 100), (2, 'QC-LOT-CONCURRENT', 10, 10), (3, 'QC-LOT-TIMEOUT', 50, 50);";
+INSERT INTO {table}(Id, Lot, StockQty, SlotQty) VALUES (1, 'QC-LOT-ROLLBACK', 100, 100), (2, 'QC-LOT-CONCURRENT', 10, 10), (3, 'QC-LOT-TIMEOUT', 50, 50), (4, 'QC-LOT-UOW', 100, 100);";
         await using var command = new SqlCommand(sql, connection) { CommandTimeout = 5 };
         await command.ExecuteNonQueryAsync();
         Console.WriteLine("PASS: isolated SQL fixture created.");
+    }
+
+    // These scenarios compile and execute the actual production UnitOfWork.cs
+    // and IUnitOfWork.cs. Only SQLPROVIDER is replaced by a test-only holder so
+    // the production connection-string defaults/credentials are never loaded.
+    private static async Task RunProductionUnitOfWorkNestedRollbackAsync(string connectionString, string table)
+    {
+        var provider = new SQLPROVIDER { B7R2_FCCdb = connectionString };
+        using (var uow = new UnitOfWork(provider))
+        {
+            uow.Begin();
+            ExecuteUnitOfWorkCommand(uow, $"UPDATE {table} SET StockQty = StockQty - 10 WHERE Id = 4;");
+            uow.Begin();
+            ExecuteUnitOfWorkCommand(uow, $"UPDATE {table} SET SlotQty = SlotQty - 10 WHERE Id = 4;");
+            uow.Rollback(); // Nested rollback marks the outer transaction rollback-only.
+
+            var error = AssertRollbackOnlyCommit(uow);
+            if (!error)
+                throw new InvalidOperationException("Production UnitOfWork did not reject outer commit after nested rollback.");
+        }
+
+        var row = await ReadRowAsync(await OpenAsync(connectionString), table, 4);
+        if (row.StockQty != 100 || row.SlotQty != 100)
+            throw new InvalidOperationException($"Production UnitOfWork nested rollback failed. Stock={row.StockQty}, Slot={row.SlotQty}.");
+        Console.WriteLine("PASS: production UnitOfWork nested rollback-only reverted all writes.");
+    }
+
+    private static bool AssertRollbackOnlyCommit(IUnitOfWork uow)
+    {
+        try
+        {
+            uow.Commit();
+            return false;
+        }
+        catch (InvalidOperationException ex) when (ex.Message.Contains("rollback-only", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+    }
+
+    private static async Task RunProductionUnitOfWorkNestedCommitAsync(string connectionString, string table)
+    {
+        var provider = new SQLPROVIDER { B7R2_FCCdb = connectionString };
+        using (var uow = new UnitOfWork(provider))
+        {
+            uow.Begin();
+            ExecuteUnitOfWorkCommand(uow, $"UPDATE {table} SET StockQty = StockQty - 10 WHERE Id = 4;");
+            uow.Begin();
+            ExecuteUnitOfWorkCommand(uow, $"UPDATE {table} SET SlotQty = SlotQty - 10 WHERE Id = 4;");
+            uow.Commit();
+            uow.Commit();
+        }
+
+        await using var verifyConnection = await OpenAsync(connectionString);
+        var row = await ReadRowAsync(verifyConnection, table, 4);
+        if (row.StockQty != 90 || row.SlotQty != 90)
+            throw new InvalidOperationException($"Production UnitOfWork nested commit failed. Stock={row.StockQty}, Slot={row.SlotQty}.");
+        Console.WriteLine("PASS: production UnitOfWork nested commit persisted the complete unit.");
+    }
+
+    private static async Task RunProductionUnitOfWorkDisposeRollbackAsync(string connectionString, string table)
+    {
+        var provider = new SQLPROVIDER { B7R2_FCCdb = connectionString };
+        using (var uow = new UnitOfWork(provider))
+        {
+            uow.Begin();
+            ExecuteUnitOfWorkCommand(uow, $"UPDATE {table} SET StockQty = StockQty - 1 WHERE Id = 4;");
+            // Dispose without Commit must roll back the active production transaction.
+        }
+
+        await using var verifyConnection = await OpenAsync(connectionString);
+        var row = await ReadRowAsync(verifyConnection, table, 4);
+        if (row.StockQty != 90 || row.SlotQty != 90)
+            throw new InvalidOperationException($"Production UnitOfWork dispose rollback failed. Stock={row.StockQty}, Slot={row.SlotQty}.");
+        Console.WriteLine("PASS: production UnitOfWork dispose rolled back an uncommitted write.");
+    }
+
+    private static void ExecuteUnitOfWorkCommand(IUnitOfWork uow, string sql)
+    {
+        using var command = new System.Data.SqlClient.SqlCommand(sql, uow.Connection, uow.Transaction)
+        {
+            CommandTimeout = 5
+        };
+        command.ExecuteNonQuery();
     }
 
     private static async Task RunRollbackAtomicityAsync(SqlConnection connection, string table)
