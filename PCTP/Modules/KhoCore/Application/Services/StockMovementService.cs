@@ -104,8 +104,11 @@ namespace PCTP.Modules.KhoCore.Application.Services
                 if (sourceStatus != 0)
                     return StockMovementResult.Fail($"Không thể di chuyển SlotLot {request.SlotLotId.Value}: trạng thái {sourceStatus} không phải Active; hàng NG cách ly không được xuất hoặc di chuyển như tồn khả dụng.");
 
-                string sourceLotNo = _slots.GetLotNo(request.SlotLotId.Value);
-                string sourceItemCode = _slots.GetItemCode(request.SlotLotId.Value);
+                var sourceDetails = _slots.GetLotDetails(request.SlotLotId.Value);
+                if (sourceDetails == null)
+                    return StockMovementResult.Fail($"Không tìm thấy SlotLot nguồn {request.SlotLotId.Value}.");
+                string sourceLotNo = sourceDetails.LotNo;
+                string sourceItemCode = sourceDetails.ItemCode;
 
                 var sourceValidation = ValidateSourceLotIdentity(
                     request,
@@ -140,7 +143,11 @@ namespace PCTP.Modules.KhoCore.Application.Services
                         LotNo = lotNo,
                         ItemCode = itemCode,
                         Quantity = request.Quantity,
-                        ImportDate = request.OccurredAt ?? DateTime.Now
+                        // Giữ QR/tem chỉ khi chuyển toàn bộ dòng; chuyển một phần không được nhân bản tem.
+                        TemCode = request.Quantity == available ? sourceDetails.TemCode : null,
+                        RawQr = request.Quantity == available ? sourceDetails.RawQr : null,
+                        ImportDate = sourceDetails.ImportDate ?? request.OccurredAt ?? DateTime.Now,
+                        PhieuStatus = 0
                     });
                 }
                 else
