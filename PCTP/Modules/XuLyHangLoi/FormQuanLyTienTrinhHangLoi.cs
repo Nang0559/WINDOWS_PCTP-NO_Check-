@@ -182,8 +182,21 @@ namespace PCTP.Modules.XuLyHangLoi
                 return qc != null && qc.SoLuongNG > 0 ? 7 : 8;
             }
             if (status == QTChungStatus.DaNhapLaiKho || status == QTChungStatus.ChoGiaoBu || status == QTChungStatus.DaGiaoBu || status == QTChungStatus.TuChoiGiaoBu) return 8;
+
+            // Phiếu đã HoanTat: trước đây rơi xuống 'return 2' nên biến mất khỏi bước 7 rồi hiện nhầm ở
+            // bước 2 ('Tạo phiếu'), còn bước 8 luôn trống. Giờ phiếu hoàn tất nằm ở bước 8 (chỉ xem) trong
+            // SoNgayHienThiPhieuHoanTat ngày gần nhất; cũ hơn thì ẩn khỏi hàng đợi (vẫn tìm được bằng ô tìm kiếm).
+            if (status == QTChungStatus.HoanTat)
+            {
+                var hoanTatLuc = p.UpdatedAt ?? p.CreatedAt;
+                return (DateTime.Now - hoanTatLuc).TotalDays <= SoNgayHienThiPhieuHoanTat ? 8 : 0;
+            }
+
+            // Chỉ còn trạng thái Moi (chưa hoàn tất bước tạo phiếu).
             return 2;
         }
+
+        private const int SoNgayHienThiPhieuHoanTat = 30;
 
         private void SetActiveStep(int step)
         {
@@ -198,7 +211,7 @@ namespace PCTP.Modules.XuLyHangLoi
                 case 5: _btnSecondary.Visible = false; _btnPrimary.Text = "Initial QC"; _lblHint.Text = "Bước 5: kiểm đủ snapshot. DaKiemTra = OK + NG; NG = Rework + LoaiBoBanDau."; break;
                 case 6: _btnSecondary.Visible = false; _btnPrimary.Text = "Xuất / Giao Rework"; _lblHint.Text = "Bước 6: chỉ nhánh CanRework; xuất không vượt Initial QC Rework, giao sản xuất. 'Ghi nhận tiến độ Rework' chỉ ghi chú, không xác nhận sửa xong. Sửa xong thì đóng form Rework và chọn bước 7."; break;
                 case 7: _btnSecondary.Visible = false; _btnPrimary.Text = "QC Rework / Disposition"; _lblHint.Text = "Bước 7: QC Rework OK + NG = lượng Rework; NG Rework cộng vào loại bỏ cuối."; break;
-                case 8: _btnSecondary.Visible = false; _btnPrimary.Text = "Giao bù / Hoàn tất"; _lblHint.Text = "Bước 8: Giao bù là nghĩa vụ độc lập; không suy ra từ NG/Rework."; break;
+                case 8: _btnSecondary.Visible = false; _btnPrimary.Text = "Giao bù / Hoàn tất"; _lblHint.Text = "Bước 8: phiếu còn chờ giao bù / hoàn tất nằm trên; phiếu ĐÃ HOÀN TẤT (" + SoNgayHienThiPhieuHoanTat + " ngày gần nhất) nằm dưới, chọn dòng và bấm nút để xem kết quả. Giao bù là nghĩa vụ độc lập; không suy ra từ NG/Rework."; break;
             }
             _btnCreateXuLy.Visible = _activeStep == 1 || _activeStep == 2;
             LoadCurrentStep();
@@ -223,13 +236,18 @@ namespace PCTP.Modules.XuLyHangLoi
             try
             {
                 var counts = new int[8];
+                int hoanTat8 = 0;
                 foreach (var row in BuildWorkflowRows())
                 {
                     var step = ResolveRowStep(row);
+                    if (step == 8 && row.DaHoanTat) { hoanTat8++; continue; }
                     if (step >= 1 && step <= 8) counts[step - 1]++;
                 }
                 var labels = new[] { "1. Tiếp nhận", "2. Tạo phiếu", "3. Truy vết LOT", "4. QC định hướng", "5. Initial QC", "6. Rework", "7. QC Rework / Disposition", "8. Giao bù / Hoàn tất" };
-                for (int i = 0; i < 8; i++) _stepButtons[i].Text = labels[i] + "\r\n(" + counts[i] + ")";
+                for (int i = 0; i < 8; i++)
+                    _stepButtons[i].Text = i == 7
+                        ? labels[i] + "\r\n(chờ " + counts[i] + " | xong " + hoanTat8 + ")"
+                        : labels[i] + "\r\n(" + counts[i] + ")";
             }
             catch (Exception ex) { ShowWarning("Không thể cập nhật tiến trình.\r\n\r\n" + ex.Message); }
         }
@@ -254,6 +272,11 @@ namespace PCTP.Modules.XuLyHangLoi
             try
             {
                 _rows = BuildWorkflowRows().Where(x => ResolveRowStep(x) == _activeStep).ToList();
+                // Bước 8: phiếu còn việc phải làm lên trước, phiếu đã hoàn tất (mới nhất trước) xếp sau.
+                if (_activeStep == 8)
+                    _rows = _rows.OrderBy(x => x.DaHoanTat ? 1 : 0)
+                                 .ThenByDescending(x => x.HoanTatLuc ?? DateTime.MinValue)
+                                 .ToList();
                 _grid.DataSource = _rows;
                 ConfigureGrid();
                 ApplyFilter();
@@ -295,6 +318,11 @@ namespace PCTP.Modules.XuLyHangLoi
                 row.MaSanPham = p.MaSanPham;
                 row.SoLo = p.SoLo;
                 row.SoPhieuXuLy = p.SoPhieu;
+                if (row.QTStatus == QTChungStatus.DaQCXacNhanCuoi || row.QTStatus == QTChungStatus.DaNhapLaiKho || row.QTStatus == QTChungStatus.HoanTat)
+                {
+                    row.KetQuaCuoi = BuildKetQuaCuoi(p);
+                    if (row.QTStatus == QTChungStatus.HoanTat) row.HoanTatLuc = p.UpdatedAt;
+                }
                 if (_initialQCService != null)
                 {
                     var initial = _initialQCService.Get(p.Id);
@@ -474,7 +502,15 @@ namespace PCTP.Modules.XuLyHangLoi
             AddColumn("HuongXuLy", "Hướng xử lý", true, 130);
             AddColumn("QTStatus", "Workflow", true, 150);
             AddColumn("InitialQC", "Initial QC", true, 320);
+            AddColumn("KetQuaCuoi", "Kết quả cuối", true, 260);
+            AddColumn("HoanTatLuc", "Hoàn tất lúc", true, 120);
             AddColumn("BoPhanPhatHienLoi", "Bộ phận phát hiện", true, 150);
+            var colHoanTat = _gridView.Columns["HoanTatLuc"];
+            if (colHoanTat != null)
+            {
+                colHoanTat.DisplayFormat.FormatType = DevExpress.Utils.FormatType.DateTime;
+                colHoanTat.DisplayFormat.FormatString = "dd/MM/yyyy HH:mm";
+            }
             _gridView.BestFitColumns();
         }
 
@@ -645,12 +681,69 @@ namespace PCTP.Modules.XuLyHangLoi
             RefreshAfterAction();
         }
 
+        /// <summary>Tóm tắt kết quả QC cuối + nhập lại NG cho cột 'Kết quả cuối' (chỉ để hiển thị, không ném lỗi).</summary>
+        private string BuildKetQuaCuoi(PhieuXuLyBatThuong p)
+        {
+            try
+            {
+                var parts = new List<string>();
+
+                var qc = _qtChungRepo.GetQC(p.Id);
+                if (qc != null)
+                    parts.Add($"QC cuối: OK {qc.SoLuongOK:n0} | NG {qc.SoLuongNG:n0}");
+
+                var nhapNg = _qtChungRepo.GetNhapNG(p.Id);
+                if (nhapNg != null && nhapNg.Count > 0)
+                    parts.Add($"Nhập lại NG {nhapNg.Sum(x => x.SoLuongNG):n0}");
+
+                if (parts.Count == 0)
+                {
+                    if (p.HuongXuLy == HuongXuLyBatThuong.TuChoiGiaoBu) parts.Add("Từ chối giao bù");
+                    else if (p.HuongXuLy == HuongXuLyBatThuong.ChiGiaoBu) parts.Add("Giao bù");
+                }
+
+                return string.Join(" | ", parts);
+            }
+            catch (Exception ex)
+            {
+                // Cột chỉ để xem: lỗi đọc không được làm hỏng cả dashboard.
+                return "(không đọc được kết quả: " + ex.Message + ")";
+            }
+        }
+
+        private void ShowKetQuaPhieuHoanTat(WorkflowRow row, PhieuXuLyBatThuong p)
+        {
+            var lines = new List<string>
+            {
+                "Số phiếu xử lý: " + p.SoPhieu,
+                "Nguồn: " + row.Nguon + " | Hướng xử lý: " + p.HuongXuLy,
+                "Mã sản phẩm: " + p.MaSanPham + " | LOT: " + p.SoLo + " | SL lỗi: " + p.SoLuongLoi.ToString("n0")
+            };
+
+            if (!string.IsNullOrWhiteSpace(row.InitialQC)) lines.Add("Initial QC: " + row.InitialQC);
+            if (!string.IsNullOrWhiteSpace(row.KetQuaCuoi)) lines.Add("Kết quả cuối: " + row.KetQuaCuoi);
+
+            lines.Add("Hoàn tất lúc: " + (p.UpdatedAt.HasValue ? p.UpdatedAt.Value.ToString("dd/MM/yyyy HH:mm") : "-")
+                      + (string.IsNullOrWhiteSpace(p.UpdatedBy) ? "" : " | Người thực hiện: " + p.UpdatedBy));
+
+            XtraMessageBox.Show(this, string.Join("\r\n", lines), "Phiếu đã hoàn tất", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
         private void XuLyBuocCuoi()
         {
             var row = GetFocusedRow();
             if (row == null || !row.PhieuXuLyId.HasValue) return;
             var p = _qtChungService.GetById(row.PhieuXuLyId.Value);
             if (p == null) return;
+
+            // Phiếu đã hoàn tất: không còn thao tác nào — chỉ cho xem kết quả cuối
+            // (trước đây gọi HoanTat lần nữa sẽ báo lỗi 'không thể chuyển HoanTat → HoanTat').
+            if (p.Status == QTChungStatus.HoanTat)
+            {
+                ShowKetQuaPhieuHoanTat(row, p);
+                return;
+            }
+
             switch (p.HuongXuLy)
             {
                 case HuongXuLyBatThuong.ChiGiaoBu: XuLyGiaoBu(row); break;
@@ -701,7 +794,11 @@ namespace PCTP.Modules.XuLyHangLoi
             if (selected.HasValue)
             {
                 var p = _qtChungService.GetById(selected.Value);
-                if (p != null) _activeStep = ResolveStep(p);
+                if (p != null)
+                {
+                    int step = ResolveStep(p);
+                    if (step >= 1 && step <= 8) _activeStep = step;   // 0 = phiếu đã hủy/ẩn → giữ bước hiện tại
+                }
             }
             LoadCurrentStep();
             for (int i = 0; i < _stepButtons.Length; i++) _stepButtons[i].BackColor = i + 1 == _activeStep ? Color.LightSteelBlue : Color.White;
@@ -740,6 +837,10 @@ namespace PCTP.Modules.XuLyHangLoi
             public string InitialQC { get; set; }
             public PhieuTraHangStatus PhieuTraHangStatus { get; set; }
             public QTChungStatus QTStatus { get; set; }
+            /// <summary>Tóm tắt kết quả QC cuối / nhập lại NG (chỉ có khi đã QC cuối hoặc đã hoàn tất).</summary>
+            public string KetQuaCuoi { get; set; }
+            public DateTime? HoanTatLuc { get; set; }
+            public bool DaHoanTat { get { return PhieuXuLyId.HasValue && QTStatus == QTChungStatus.HoanTat; } }
             // Dòng cấp phiếu trả (chưa có PhieuXuLyId): 1 = Tiếp nhận, 2 = đã tạo một phần.
             public int HeaderStep { get; set; } = 1;
         }
