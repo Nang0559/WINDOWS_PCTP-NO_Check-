@@ -64,7 +64,7 @@ namespace PCTP.Modules.KhoVatLy.Repositories
             string lotNo);
 
         /// <summary>
-        /// INSERT-ONLY: thêm đúng 1 dòng SlotLot (PhieuStatus = 0). KHÔNG đọc lại, KHÔNG xoá,
+        /// INSERT-ONLY: thêm đúng 1 dòng SlotLot (PhieuStatus mặc định 0; 3 = NG cách ly). KHÔNG đọc lại, KHÔNG xoá,
         /// KHÔNG ghi đè bất kỳ dòng nào khác của Slot — an toàn cho Slot ảo A0 chứa rất nhiều LOT.
         /// Không tự cập nhật header Slot: gọi <see cref="RefreshSlotHeader"/> sau đó.
         /// </summary>
@@ -75,7 +75,8 @@ namespace PCTP.Modules.KhoVatLy.Repositories
             int quantity,
             string temCode,
             string qrData,
-            DateTime importDate);
+            DateTime importDate,
+            byte phieuStatus = 0);
 
         /// <summary>
         /// Tính lại header Slot (Quantity/IsOccupied/ItemCode/ImportDate) bằng 1 câu UPDATE

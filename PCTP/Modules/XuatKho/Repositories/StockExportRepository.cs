@@ -77,20 +77,34 @@ namespace PCTP.Modules.XuatKho.Repositories
         // Thêm vào IStockExportRepository / StockExportRepository
         public List<StockTpLotInfo> FindLotsWithStock(string maHang, string lotNo)
         {
+            // STOCKTP có dữ liệu cũ chứa khoảng trắng ở đầu/cuối PART/LOT.
+            // So sánh sau trim để truy vấn không bỏ sót tồn hợp lệ; vẫn yêu cầu
+            // đúng mã hàng và đúng LOT, không nới điều kiện sang mặt hàng khác.
             string sql = string.IsNullOrWhiteSpace(lotNo)
-                ? "SELECT LOT, PART, SLCONLAI FROM STOCKTP WHERE PART = @ma AND SLCONLAI > 0 ORDER BY LOT"
-                : "SELECT LOT, PART, SLCONLAI FROM STOCKTP WHERE PART = @ma AND LOT = @lot AND SLCONLAI > 0";
+                ? @"SELECT LOT, PART, SLCONLAI
+                    FROM STOCKTP
+                    WHERE UPPER(LTRIM(RTRIM(PART))) = UPPER(LTRIM(RTRIM(@ma)))
+                      AND ISNULL(SLCONLAI, 0) > 0
+                    ORDER BY LOT"
+                : @"SELECT LOT, PART, SLCONLAI
+                    FROM STOCKTP
+                    WHERE UPPER(LTRIM(RTRIM(PART))) = UPPER(LTRIM(RTRIM(@ma)))
+                      AND LTRIM(RTRIM(LOT)) = LTRIM(RTRIM(@lot))
+                      AND ISNULL(SLCONLAI, 0) > 0";
 
             var pars = string.IsNullOrWhiteSpace(lotNo)
-                ? new[] { new SqlParameter("@ma", maHang) }
-                : new[] { new SqlParameter("@ma", maHang), new SqlParameter("@lot", lotNo) };
+                ? new[] { new SqlParameter("@ma", (maHang ?? string.Empty).Trim()) }
+                : new[] {
+                    new SqlParameter("@ma", (maHang ?? string.Empty).Trim()),
+                    new SqlParameter("@lot", (lotNo ?? string.Empty).Trim())
+                };
 
             DataTable dt = LoadData(sql, pars);
             return dt.Rows.Cast<DataRow>().Select(r => new StockTpLotInfo
             {
-                LotNo = r["LOT"].ToString().Trim(),
-                ItemCode = r["PART"] as string,
-                SlConLai = Convert.ToInt32(r["SLCONLAI"])
+                LotNo = Convert.ToString(r["LOT"]).Trim(),
+                ItemCode = Convert.ToString(r["PART"]).Trim(),
+                SlConLai = r["SLCONLAI"] == DBNull.Value ? 0 : Convert.ToInt32(r["SLCONLAI"])
             }).ToList();
         }
     }

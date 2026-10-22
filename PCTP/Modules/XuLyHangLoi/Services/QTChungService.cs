@@ -89,6 +89,11 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             if (header == null)
                 throw new InvalidOperationException($"Không tìm thấy phiếu trả hàng Id={ct.PhieuTraHangId}.");
 
+            var itemIdsChuaXuLy = new HashSet<int>(
+                _phieuTraHangRepo.GetItemIdsChuaCoPhieuXuLy(header.Id) ?? new List<int>());
+            if (!itemIdsChuaXuLy.Contains(ct.Id))
+                throw new InvalidOperationException($"Dòng phiếu trả Id={ct.Id} đã có phiếu xử lý bất thường hoặc không còn ở trạng thái chờ xử lý.");
+
             try
             {
                 _uow.Begin();
@@ -278,7 +283,9 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             var phieu = GetRequired(phieuXuLyId);
             if (phieu.HuongXuLy != HuongXuLyBatThuong.CanRework)
                 throw new InvalidOperationException("Chỉ phiếu có hướng CanRework mới được tra cứu Lot rework.");
-            throw new NotImplementedException("Cần repository Lot/Stock để lấy danh sách Lot rework.");
+
+            return _reworkStockService.GetLotsCanReworkByPhieuXuLy(phieuXuLyId)
+                ?? new List<LotInfo>();
         }
 
         public ScanResult XuatKhoRework(int phieuXuLyId, int slotId, string lotNo, int soLuong, string nguoiXuat)
@@ -291,14 +298,28 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             var phieu = GetRequired(phieuXuLyId);
             if (phieu.HuongXuLy != HuongXuLyBatThuong.CanRework)
                 return ScanResult.Fail("Chỉ phiếu có hướng CanRework mới được xuất kho rework.");
-            ValidateTransition(phieu, QTChungStatus.DaXuatKhoRework);
+            if (phieu.Status != QTChungStatus.DaDinhHuong &&
+                phieu.Status != QTChungStatus.DaXuatKhoRework)
+                return ScanResult.Fail($"Chỉ được xuất rework khi phiếu ở trạng thái DaDinhHuong hoặc DaXuatKhoRework. Hiện tại: {phieu.Status}.");
+            if (phieu.Status == QTChungStatus.DaDinhHuong &&
+                !_workflow.CanTransition(ProcessCodeQTChung, (int)phieu.Status, (int)QTChungStatus.DaXuatKhoRework))
+                return ScanResult.Fail($"Workflow không cho phép chuyển {phieu.Status} → {QTChungStatus.DaXuatKhoRework}.");
 
             try
             {
                 _uow.Begin();
                 var result = _reworkStockService.XuatKhoRework(phieuXuLyId, slotId, lotNo, soLuong, nguoiXuat);
                 if (!result.IsOK) { SafeRollback(); return result; }
-                _repo.UpdateStatus(phieuXuLyId, QTChungStatus.DaXuatKhoRework, nguoiXuat);
+
+                // Chỉ chuyển trạng thái ở lần xuất đầu tiên; cho phép nhiều lần xuất
+                // trong cùng trạng thái DaXuatKhoRework cho đến khi đủ kế hoạch.
+                if (phieu.Status == QTChungStatus.DaDinhHuong &&
+                    !_repo.UpdateStatusIfCurrentIs(phieuXuLyId, QTChungStatus.DaDinhHuong, QTChungStatus.DaXuatKhoRework, nguoiXuat))
+                {
+                    SafeRollback();
+                    return ScanResult.Fail("Trạng thái phiếu đã thay đổi trong lúc xuất rework. Vui lòng tải lại.");
+                }
+
                 _uow.Commit();
                 return result;
             }
@@ -315,7 +336,90 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             if (phieu.HuongXuLy != HuongXuLyBatThuong.CanRework) return ScanResult.Fail("Chỉ phiếu CanRework mới được giao sản xuất.");
             if (!_workflow.CanTransition(ProcessCodeQTChung, (int)phieu.Status, (int)QTChungStatus.DaGiaoSanXuat))
                 return ScanResult.Fail($"Không thể chuyển {phieu.Status} → {QTChungStatus.DaGiaoSanXuat}.");
-            throw new NotImplementedException("Cần repository giao hàng/rework hiện tại.");
+
+            DateTime ngayGiaoParsed;
+            if (!DateTime.TryParse(ngayGiao.Trim(), out ngayGiaoParsed))
+                return ScanResult.Fail("NgayGiao không đúng định dạng ngày.");
+
+            var xuat = (_traHangQTChungRepository.GetXuat(phieuXuLyId) ?? new List<TraHangQTChungXuat>())
+                .Where(x => x != null && string.Equals(x.LoaiXuat, "Rework", StringComparison.OrdinalIgnoreCase))
+                .ToList();
+            var giaoHienTai = _traHangQTChungRepository.GetGiao(phieuXuLyId) ?? new List<TraHangQTChungGiao>();
+            if (xuat.Count == 0)
+                return ScanResult.Fail("Chưa có lần xuất kho rework nào cho phiếu này.");
+
+            var daXuatTheoLot = xuat
+                .Where(x => !string.IsNullOrWhiteSpace(x.LotXuat))
+                .GroupBy(x => x.LotXuat.Trim(), StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.Sum(x => Math.Max(0, x.SoLuongXuat)), StringComparer.OrdinalIgnoreCase);
+            var daGiaoTheoLot = giaoHienTai
+                .Where(x => !string.IsNullOrWhiteSpace(x.LotGiao))
+                .GroupBy(x => x.LotGiao.Trim(), StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.Sum(x => Math.Max(0, x.SoLuongGiao)), StringComparer.OrdinalIgnoreCase);
+
+            var lotGiaoHopLe = new List<LotInfo>();
+            foreach (var lot in lots)
+            {
+                if (lot == null || string.IsNullOrWhiteSpace(lot.LotNo) || lot.Quantity <= 0)
+                    return ScanResult.Fail("Mỗi dòng giao rework phải có LOT và số lượng lớn hơn 0.");
+                if (!string.IsNullOrWhiteSpace(lot.ItemCode) &&
+                    !string.Equals(lot.ItemCode.Trim(), (phieu.MaSanPham ?? string.Empty).Trim(), StringComparison.OrdinalIgnoreCase))
+                    return ScanResult.Fail($"Mã hàng của LOT [{lot.LotNo}] không khớp phiếu xử lý.");
+
+                string key = lot.LotNo.Trim();
+                int tongDaXuat;
+                if (!daXuatTheoLot.TryGetValue(key, out tongDaXuat))
+                    return ScanResult.Fail($"LOT [{key}] chưa được xuất kho cho phiếu rework này.");
+                int tongDaGiao;
+                daGiaoTheoLot.TryGetValue(key, out tongDaGiao);
+                int soLuongYeuCauTruocDo = lotGiaoHopLe.Where(x => string.Equals(x.LotNo.Trim(), key, StringComparison.OrdinalIgnoreCase)).Sum(x => x.Quantity);
+                if (tongDaGiao + soLuongYeuCauTruocDo + lot.Quantity > tongDaXuat)
+                    return ScanResult.Fail($"Giao LOT [{key}] vượt số lượng đã xuất. Đã xuất={tongDaXuat:n0}, đã giao={tongDaGiao:n0}, yêu cầu thêm={soLuongYeuCauTruocDo + lot.Quantity:n0}.");
+                lotGiaoHopLe.Add(lot);
+            }
+
+            if (lotGiaoHopLe.Count == 0)
+                return ScanResult.Fail("Không có LOT hợp lệ để giao sản xuất.");
+
+            int tongXuatRework = xuat.Sum(x => Math.Max(0, x.SoLuongXuat));
+            int tongDaGiaoTruoc = giaoHienTai.Sum(x => Math.Max(0, x.SoLuongGiao));
+            int tongYeuCauGiao = lotGiaoHopLe.Sum(x => x.Quantity);
+            if (tongDaGiaoTruoc + tongYeuCauGiao != tongXuatRework)
+                return ScanResult.Fail($"Chỉ được chuyển sang giao sản xuất khi giao đủ số lượng đã xuất rework. Đã xuất={tongXuatRework:n0}, đã giao={tongDaGiaoTruoc:n0}, yêu cầu lần này={tongYeuCauGiao:n0}.");
+
+            try
+            {
+                _uow.Begin();
+                foreach (var lot in lotGiaoHopLe)
+                {
+                    _traHangQTChungRepository.InsertGiao(new TraHangQTChungGiao
+                    {
+                        PhieuXuLyBatThuongId = phieuXuLyId,
+                        LotGiao = lot.LotNo.Trim(),
+                        MaHang = string.IsNullOrWhiteSpace(lot.ItemCode) ? phieu.MaSanPham : lot.ItemCode.Trim(),
+                        SoLuongGiao = lot.Quantity,
+                        ThoiGian = DateTime.Now,
+                        NgayGiao = ngayGiao.Trim(),
+                        NguoiNhan = nguoiNhan.Trim(),
+                        BoPhanNhan = boPhanNhan.Trim(),
+                        Note = "Giao rework"
+                    });
+                }
+
+                if (!_repo.UpdateStatusIfCurrentIs(phieuXuLyId, phieu.Status, QTChungStatus.DaGiaoSanXuat, nguoiNhan))
+                {
+                    SafeRollback();
+                    return ScanResult.Fail("Trạng thái phiếu đã thay đổi trong lúc ghi nhận giao rework. Vui lòng tải lại.");
+                }
+
+                _uow.Commit();
+                return ScanResult.OK($"Đã ghi nhận giao rework {lotGiaoHopLe.Sum(x => x.Quantity):n0} sản phẩm cho bộ phận {boPhanNhan.Trim()}.");
+            }
+            catch (Exception ex)
+            {
+                SafeRollback();
+                return ScanResult.Fail("Lỗi ghi nhận giao rework: " + ex.Message);
+            }
         }
 
         public void GhiNhanDangRework(int phieuXuLyId, string ghiChu, string nguoiThucHien)
@@ -326,7 +430,10 @@ namespace PCTP.Modules.XuLyHangLoi.Services
                 throw new InvalidOperationException("Chỉ phiếu CanRework mới được ghi nhận rework.");
             if (phieu.Status != QTChungStatus.DaGiaoSanXuat)
                 throw new InvalidOperationException($"Không thể ghi nhận đang rework khi QT Chung đang {phieu.Status}.");
-            throw new NotImplementedException("Cần repository ghi nhận thông tin rework.");
+            if (string.IsNullOrWhiteSpace(ghiChu))
+                throw new ArgumentException("Ghi chú rework không được rỗng.", nameof(ghiChu));
+
+            _traHangQTChungRepository.UpdateLatestGiaoNote(phieuXuLyId, ghiChu.Trim(), nguoiThucHien.Trim());
         }
 
         public ScanResult QCXacNhanCuoi(int phieuXuLyId, int soLuongOK, int soLuongNG, string nguoiQC, int? slotIdOK = null, int? slotIdNG = null, string lotNo = null)
@@ -385,7 +492,7 @@ namespace PCTP.Modules.XuLyHangLoi.Services
         public void GhiNhanKiemTraTem(int qcId, bool daKiemTra)
         {
             if (qcId <= 0) throw new ArgumentException("qcId không hợp lệ.", nameof(qcId));
-            throw new NotImplementedException("Cần repository QC/FormInspection hiện tại.");
+            _traHangQTChungRepository.UpdateDaKiemTraTem(qcId, daKiemTra);
         }
 
         public ScanResult XacNhanChoGiaoBu(int phieuXuLyId, string nguoiThucHien)
@@ -542,7 +649,7 @@ namespace PCTP.Modules.XuLyHangLoi.Services
         public List<QTChungTimelineItem> GetTimeline(int phieuXuLyId)
         {
             GetRequired(phieuXuLyId);
-            throw new NotImplementedException("IPhieuXuLyBatThuongRepository hiện tại chưa cung cấp GetTimeline().");
+            return _traHangQTChungRepository.GetTimeline(phieuXuLyId) ?? new List<QTChungTimelineItem>();
         }
 
         private void TryHoanTatHeader(int? phieuTraHangId, string nguoiThucHien)

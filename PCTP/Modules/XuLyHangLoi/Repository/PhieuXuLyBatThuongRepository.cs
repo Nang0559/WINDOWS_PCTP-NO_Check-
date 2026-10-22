@@ -56,6 +56,7 @@ INSERT INTO FVN_PhieuXuLyBatThuong
 (
     SoPhieu,
     Nguon,
+    PhieuTraHangCTId,
     PhieuTraHangId,
     SoPhieuTraHangGoc,
     PhieuKhachTraId,
@@ -81,6 +82,7 @@ VALUES
 (
     @SoPhieu,
     @Nguon,
+    @PhieuTraHangCTId,
     @PhieuTraHangId,
     @SoPhieuTraHangGoc,
     @PhieuKhachTraId,
@@ -113,6 +115,10 @@ VALUES
                     new SqlParameter(
                         "@Nguon",
                         (int)p.Nguon),
+
+                    new SqlParameter(
+                        "@PhieuTraHangCTId",
+                        phieuTraHangCTId),
 
                     new SqlParameter(
                         "@PhieuTraHangId",
@@ -255,6 +261,7 @@ SELECT
     Id,
     SoPhieu,
     Nguon,
+    PhieuTraHangCTId,
     PhieuTraHangId,
     SoPhieuTraHangGoc,
     PhieuKhachTraId,
@@ -299,6 +306,7 @@ SELECT
     Id,
     SoPhieu,
     Nguon,
+    PhieuTraHangCTId,
     PhieuTraHangId,
     SoPhieuTraHangGoc,
     PhieuKhachTraId,
@@ -354,6 +362,7 @@ SELECT TOP 1
     Id,
     SoPhieu,
     Nguon,
+    PhieuTraHangCTId,
     PhieuTraHangId,
     SoPhieuTraHangGoc,
     PhieuKhachTraId,
@@ -406,6 +415,7 @@ SELECT
     Id,
     SoPhieu,
     Nguon,
+    PhieuTraHangCTId,
     PhieuTraHangId,
     SoPhieuTraHangGoc,
     PhieuKhachTraId,
@@ -638,6 +648,9 @@ WHERE Id = @Id;";
                     DbValueHelper.ToInt(
                         row["Nguon"]),
 
+                PhieuTraHangCTId =
+                    DbValueHelper.ToInt(row["PhieuTraHangCTId"]),
+
                 PhieuTraHangId =
                     ToNullableInt(
                         row["PhieuTraHangId"]),
@@ -803,7 +816,7 @@ WHERE Id = @Id
         {
             const string sql = @"
 SELECT
-    Id, SoPhieu, Nguon, PhieuTraHangId, SoPhieuTraHangGoc, PhieuKhachTraId,
+    Id, SoPhieu, Nguon, PhieuTraHangCTId, PhieuTraHangId, SoPhieuTraHangGoc, PhieuKhachTraId,
     SlotIdNguon, LotNguon, Model, MaSanPham, SoLo, SoLoLoi, SoLuongLoi,
     NoiDungBatThuong, PhanLoaiXuLy, BoPhanPhatHanh, Status, HuongXuLy,
     NgayDinhHuong, NguoiDinhHuong, LyDoHuy, NgayHuy, NguoiHuy,

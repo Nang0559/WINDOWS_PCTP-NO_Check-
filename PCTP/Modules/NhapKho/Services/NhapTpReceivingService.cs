@@ -25,7 +25,7 @@ namespace PCTP.Modules.NhapKho.Services
         private readonly IUnitOfWork _uow;
         private readonly IStockTpRepository _stockTpRepo;
         private readonly IPhieuTrackingRepository _phieuRepo;
-        private readonly IStockTpCaseRepository _caseRepo;
+        private readonly IStockTpImportGuardRepository _importGuard;
         private readonly IStockTpProductionRepository _productionRepo;
         private readonly ISlotService _slotService;
         private readonly IStockHistoryRepository _historyRepo;
@@ -42,7 +42,7 @@ namespace PCTP.Modules.NhapKho.Services
             IUnitOfWork uow,
             IStockTpRepository stockTpRepo,
             IPhieuTrackingRepository phieuRepo,
-            IStockTpCaseRepository caseRepo,
+            IStockTpImportGuardRepository importGuard,
             IStockTpProductionRepository productionRepo,
             ISlotService slotService,
             IStockHistoryRepository historyRepo,
@@ -52,7 +52,7 @@ namespace PCTP.Modules.NhapKho.Services
             _uow = uow ?? throw new ArgumentNullException(nameof(uow));
             _stockTpRepo = stockTpRepo ?? throw new ArgumentNullException(nameof(stockTpRepo));
             _phieuRepo = phieuRepo ?? throw new ArgumentNullException(nameof(phieuRepo));
-            _caseRepo = caseRepo ?? throw new ArgumentNullException(nameof(caseRepo));
+            _importGuard = importGuard ?? throw new ArgumentNullException(nameof(importGuard));
             _productionRepo = productionRepo ?? throw new ArgumentNullException(nameof(productionRepo));
             _slotService = slotService ?? throw new ArgumentNullException(nameof(slotService));
             _historyRepo = historyRepo ?? throw new ArgumentNullException(nameof(historyRepo));
@@ -68,9 +68,20 @@ namespace PCTP.Modules.NhapKho.Services
                 return ScanResult.Fail("Vui lòng bắn tem TỔNG để nhập kho (không nhận tem thùng).");
             if (qr.Quantity <= 0)
                 return ScanResult.Fail("Số lượng trên tem không hợp lệ.");
-            if (_phieuRepo.ExistsQrData(qr.RawQr))
+            if (DaNhapTruocDo(qr))
                 return ScanResult.Trung("Tem này đã được nhập kho trước đó!");
             return ScanResult.OK();
+        }
+
+        /// <summary>
+        /// Một tem tổng được coi là đã nhập khi QR còn trong SlotLot (tồn hiện tại)
+        /// HOẶC đã có dòng IMPORT trong StockHistory (hàng đã xuất hết nên SlotLot không còn dòng).
+        /// Thay thế kiểm tra Case cũ trên NHAP_TP_HIS.
+        /// </summary>
+        private bool DaNhapTruocDo(QRCodeInfo qr)
+        {
+            return _phieuRepo.ExistsQrData(qr.RawQr)
+                || _importGuard.ExistsImportedInHistory(qr.ItemCode, qr.RawQr);
         }
 
         public ScanResult NhapTpVaoSlot(QRCodeInfo qr, int slotId, PhieuNhapInfo matchedPhieu = null)
@@ -129,7 +140,10 @@ namespace PCTP.Modules.NhapKho.Services
 
                 // Idempotency phải được kiểm tra lại trong transaction; pre-check ở UI
                 // chỉ là feedback sớm và không chống được race condition.
-                if (_phieuRepo.ExistsQrData(qr.RawQr))
+                // Khoá theo QR trước để 2 máy quét cùng tem bị xếp hàng (SlotLot.QrData không có
+                // unique index), rồi mới kiểm tra trùng.
+                _importGuard.AcquireImportLock(qr.RawQr);
+                if (DaNhapTruocDo(qr))
                 {
                     _uow.Rollback();
                     _reopenApprovedLots.Remove(lotNo);
@@ -155,13 +169,6 @@ namespace PCTP.Modules.NhapKho.Services
                         phieuLive.LotNo, phieuLive.Find, phieuLive.SlSanXuat);
                     if (vuaMoLai)
                         phieuLive.KetThucLot = false;
-                }
-
-                if (_caseRepo.ExistsCaseHistory(caseNo))
-                {
-                    _uow.Rollback();
-                    _reopenApprovedLots.Remove(lotNo);
-                    return ScanResult.Trung("Case [" + caseNo + "] đã được nhập kho trước đó!");
                 }
 
                 int qtyHienTai = _slotService.GetQuantityWithLock(slotId);
@@ -211,8 +218,6 @@ namespace PCTP.Modules.NhapKho.Services
                     slotId, qr.ItemCode, lotNo, qr.Quantity, qr.MaPhieu, qr.RawQr,
                     ngayNhapThucTe, qr.NgaySX, qr.SoPhieuTong, maPhieuMoi,
                     null, PhieuStatus.Active);
-
-                _caseRepo.InsertCaseHistory(caseNo);
 
                 _historyRepo.SaveHistory(
                     "IMPORT", qr.ItemCode,

@@ -1,6 +1,7 @@
 ﻿using PCTP.Modules.GiaoHangKhach;
 using PCTP.Modules.KhoCore.Application.Contracts.Stock;
 using PCTP.Modules.KhoVatLy.Kho.Models;
+using PCTP.Common;
 using PCTP.Shared.Common;
 using PCTP.Shared.Helpers;
 using PCTP.Shared.Models;
@@ -75,7 +76,7 @@ namespace PCTP.Modules.KhoVatLy.Repositories
         {
             DataTable dt = LoadData(
                 @"SELECT ItemCode, LotNo, Quantity, TemCode, QrData, MaPhieu, ImportDate
-              FROM SlotLot WHERE SlotId = @SlotId ORDER BY LotNo",
+              FROM SlotLot WHERE SlotId = @SlotId AND PhieuStatus = 0 ORDER BY LotNo",
                 new SqlParameter("@SlotId", slotId));
 
             var lots = new List<LotInfo>();
@@ -118,12 +119,68 @@ namespace PCTP.Modules.KhoVatLy.Repositories
             return lots;
         }
 
+        public List<BulkSlotLotLocation> FindSlotLotsByLot(string lotNo, int excludeSlotId)
+        {
+            if (string.IsNullOrWhiteSpace(lotNo)) return new List<BulkSlotLotLocation>();
+            if (!HasTransaction)
+                throw new InvalidOperationException("FindSlotLotsByLot phải chạy trong transaction.");
+
+            DataTable dt = LoadData(
+                @"SELECT SlotId, ItemCode, SUM(Quantity) AS Qty, MIN(ImportDate) AS FirstImport
+                  FROM SlotLot WITH (UPDLOCK, ROWLOCK)
+                  WHERE PhieuStatus = 0 AND Quantity > 0 AND SlotId <> @ex
+                    AND " + LotCodeHelper.BuildLotMatchSql("LotNo", "@lot") + @"
+                  GROUP BY SlotId, ItemCode
+                  ORDER BY MIN(ImportDate) ASC, SlotId ASC",
+                new SqlParameter("@ex", excludeSlotId),
+                new SqlParameter("@lot", lotNo.Trim()));
+
+            var list = new List<BulkSlotLotLocation>();
+            foreach (DataRow r in dt.Rows)
+            {
+                string item = r["ItemCode"] == DBNull.Value ? null : r["ItemCode"].ToString();
+                if (string.IsNullOrWhiteSpace(item)) continue;
+                list.Add(new BulkSlotLotLocation
+                {
+                    SlotId = Convert.ToInt32(r["SlotId"]),
+                    ItemCode = item.Trim(),
+                    Quantity = Convert.ToInt32(r["Qty"])
+                });
+            }
+            return list;
+        }
+
         // ================================================================
         // IStockSlotRepository — central KhoCore mutation boundary
         // ================================================================
 
         public int GetLotQuantity(int slotLotId)
             => Convert.ToInt32(ExecuteScalar("SELECT ISNULL(Quantity,0) FROM SlotLot WHERE SlotLotId=@id", new SqlParameter("@id", slotLotId)) ?? 0);
+
+        public byte GetPhieuStatus(int slotLotId)
+        {
+            object value = ExecuteScalar("SELECT PhieuStatus FROM SlotLot WHERE SlotLotId=@id", new SqlParameter("@id", slotLotId));
+            return value == null || value == DBNull.Value ? (byte)255 : Convert.ToByte(value);
+        }
+
+        public StockSlotLot GetLotDetails(int slotLotId)
+        {
+            DataTable dt = LoadData(
+                @"SELECT LotNo, ItemCode, Quantity, TemCode, QrData, ImportDate, PhieuStatus FROM SlotLot WHERE SlotLotId=@id",
+                new SqlParameter("@id", slotLotId));
+            if (dt.Rows.Count == 0) return null;
+            DataRow r = dt.Rows[0];
+            return new StockSlotLot
+            {
+                LotNo = Convert.ToString(r["LotNo"]),
+                ItemCode = Convert.ToString(r["ItemCode"]),
+                Quantity = Convert.ToInt32(r["Quantity"]),
+                TemCode = r["TemCode"] == DBNull.Value ? null : Convert.ToString(r["TemCode"]),
+                RawQr = r["QrData"] == DBNull.Value ? null : Convert.ToString(r["QrData"]),
+                ImportDate = r["ImportDate"] == DBNull.Value ? (DateTime?)null : Convert.ToDateTime(r["ImportDate"]),
+                PhieuStatus = r["PhieuStatus"] == DBNull.Value ? (byte)255 : Convert.ToByte(r["PhieuStatus"])
+            };
+        }
 
         public string GetLotNo(int slotLotId)
             => Convert.ToString(ExecuteScalar("SELECT LotNo FROM SlotLot WHERE SlotLotId=@id", new SqlParameter("@id", slotLotId)));
@@ -163,14 +220,15 @@ namespace PCTP.Modules.KhoVatLy.Repositories
 
             ExecuteNonQuery(
                 @"INSERT INTO SlotLot (SlotId, ItemCode, LotNo, Quantity, TemCode, QrData, ImportDate, PhieuStatus)
-                  VALUES (@slot,@item,@lot,@q,@tem,@qr,@date,0)",
+                  VALUES (@slot,@item,@lot,@q,@tem,@qr,@date,@status)",
                 new SqlParameter("@slot", slotId),
                 new SqlParameter("@item", (object)lot.ItemCode ?? DBNull.Value),
                 new SqlParameter("@lot", lot.LotNo),
                 new SqlParameter("@q", lot.Quantity),
                 new SqlParameter("@tem", (object)lot.TemCode ?? DBNull.Value),
                 new SqlParameter("@qr", (object)lot.RawQr ?? DBNull.Value),
-                new SqlParameter("@date", (object)(lot.ImportDate ?? DateTime.Now)));
+                new SqlParameter("@date", (object)(lot.ImportDate ?? DateTime.Now)),
+                new SqlParameter("@status", SqlDbType.TinyInt) { Value = lot.PhieuStatus });
             UpdateSlotHeaderBySlotId(slotId);
         }
 
@@ -186,7 +244,7 @@ namespace PCTP.Modules.KhoVatLy.Repositories
                 @"SELECT SlotLotId, LotNo, ItemCode, Quantity, TemCode, QrData, ImportDate
                   FROM SlotLot WITH (UPDLOCK, ROWLOCK)
                   WHERE SlotId=@slot AND PhieuStatus=0 AND Quantity>0
-                    AND LEFT(LotNo,13)=LEFT(@lot,13) AND ItemCode=@item
+                    AND " + LotCodeHelper.BuildLotMatchSql("LotNo", "@lot") + @" AND ItemCode=@item
                   ORDER BY ImportDate ASC, SlotLotId ASC",
                 new SqlParameter("@slot", slotId),
                 new SqlParameter("@lot", lotNo),
@@ -240,7 +298,7 @@ namespace PCTP.Modules.KhoVatLy.Repositories
                   SET s.Quantity = ISNULL(x.TotalQty,0),
                       s.IsOccupied = CASE WHEN ISNULL(x.TotalQty,0) > 0 THEN 1 ELSE 0 END
                   FROM Slot s
-                  OUTER APPLY (SELECT SUM(Quantity) AS TotalQty FROM SlotLot WHERE SlotId=@slot) x
+                  OUTER APPLY (SELECT SUM(Quantity) AS TotalQty FROM SlotLot WHERE SlotId=@slot AND PhieuStatus=0) x
                   WHERE s.SlotId=@slot",
                 new SqlParameter("@slot", slotId));
         }

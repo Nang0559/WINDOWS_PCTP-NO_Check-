@@ -12,7 +12,7 @@ Tài liệu này mô tả chi tiết luồng vận hành và kiến trúc xử l
    * **Hàng mới từ sản xuất:** Đi trực tiếp vào chuỗi kiểm tra.
    * **Rework OK nhập lại:** Thuộc luồng xử lý hàng lỗi (chuyển hướng từ mục xử lý hàng lỗi qua `NhapLaiHangNG`).
 3. **Kiểm Tra Trùng Lặp (Validation Service):**
-   * Sử dụng `INhapTpReceivingService.KiemTraTruocKhiNhap` để kiểm tra xem mã QR đã được nhập chưa và kiểm tra trường hợp trùng Case dựa trên lịch sử `NHAP_TP_HIS`.
+   * Sử dụng `INhapTpReceivingService.KiemTraTruocKhiNhap` để kiểm tra xem mã QR đã được nhập chưa: đối chiếu `SlotLot.QrData` (tồn hiện tại) và nhật ký `StockHistory` (`ActionType = IMPORT`, còn nguyên khi hàng đã xuất hết). Bảng `NHAP_TP_HIS` không còn được sử dụng.
    * *Nếu trùng:* Trả về kết quả `ScanResult.Trung` $\rightarrow$ Từ chối giao dịch, không thực hiện transaction.
    * *Nếu hợp lệ:* Chuyển sang bước phân định hình thức nhập.
      **3b. Kiểm Tra Tem Thùng (nếu có InspectionConfig):**
@@ -26,7 +26,7 @@ Tài liệu này mô tả chi tiết luồng vận hành và kiến trúc xử l
 5. **Thực Hiện Nhập Vào Slot (Unit of Work):**
    * Tất cả các luồng sau khi định vị vị trí đều gọi chung `INhapTpReceivingService.NhapTpVaoSlot` chạy trong **một `IUnitOfWork` duy nhất**.
 6. **Bốn Nhánh Transaction Song Song:**
-   * *Nhánh 1:* `IStockTpCaseRepository` — Kiểm tra và insert Case dedup.
+   * *Nhánh 1:* `IStockTpImportGuardRepository` — Khoá theo QR (`sp_getapplock`) và kiểm tra trùng trong transaction.
    * *Nhánh 2:* `IStockTpRepository` — Insert hoặc update cộng dồn tồn kho tổng `STOCKTP`.
    * *Nhánh 3:* `IPhieuTrackingRepository` — Insert phiếu mới theo dõi Slot-Lot tracking.
    * *Nhánh 4:* `ISlotService` — Lưu chi tiết `SaveLots` và cộng số lượng `AddQuantity` vào Kho Core.
@@ -49,7 +49,7 @@ graph TD
     SelectType -->|2. Rework OK nhập lại| ReworkOK["Thuộc luồng Xử lý Hàng Lỗi<br/>— xem mục 4.4<br/>NhapLaiHangNG"]
 
     %% SERVICE KIỂM TRA TRÙNG TRƯỚC KHI NHẬP
-    NewGoods --> CheckService["INhapTpReceivingService.Ki<br/>emTraTruocKhiNhap<br/>- Check QR đã nhập chưa<br/>- Check Case trùng<br/>(NHAP_TP_HIS)"]
+    NewGoods --> CheckService["INhapTpReceivingService.Ki<br/>emTraTruocKhiNhap<br/>- Check QR đã nhập chưa<br/>(SlotLot.QrData +<br/>StockHistory IMPORT)"]
     ReworkOK --> CheckService
 
     CheckService -->|Trùng| ScanTrung["ScanResult.Trung<br/>— Từ chối, không<br/>transaction"]
@@ -73,7 +73,7 @@ graph TD
     SelectSlot --> NhapVaoSlot
 
     %% 4 NHÁNH TRANSACTION SONG SONG
-    NhapVaoSlot --> Tr1["1. IStockTpCaseRepository<br/>— check/insert Case dedup"]
+    NhapVaoSlot --> Tr1["1. IStockTpImportGuardRepository<br/>— applock theo QR + check trùng"]
     NhapVaoSlot --> Tr2["2. IStockTpRepository —<br/>insert/update STOCKTP<br/>(cộng)"]
     NhapVaoSlot --> Tr3["3. IPhieuTrackingRepository<br/>— insertPhieuMoi (SlotLot<br/>tracking)"]
     NhapVaoSlot --> Tr4["4. ISlotService — SaveLots +<br/>AddQuantity (Kho Core)"]

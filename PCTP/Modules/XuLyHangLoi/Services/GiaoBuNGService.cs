@@ -210,10 +210,14 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             // NguoiThucHien
             // ========================================================
 
+            // Chuẩn hoá về khoá STOCKTP (20 ký tự). Truyền LOT thô 27 ký tự làm
+            // STOCKTP.LOT = @lot không khớp dòng nào -> Confirm thất bại, hàng kẹt ở "chờ giao".
+            string lotStockTp = LotNoHelper.GetStockTpKey(qr.LotNo);
+
             var request =
                 new StockExportRequest
                 {
-                    LotNo = qr.LotNo,
+                    LotNo = lotStockTp,
 
                     ItemCode = qr.ItemCode,
 

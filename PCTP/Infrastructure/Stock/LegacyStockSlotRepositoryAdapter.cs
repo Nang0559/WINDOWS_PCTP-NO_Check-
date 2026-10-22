@@ -33,6 +33,28 @@ namespace PCTP.Infrastructure.Stock
             return lot == null ? 0 : lot.Quantity;
         }
 
+        public byte GetPhieuStatus(int slotLotId)
+        {
+            var lot = _legacy.GetLotsBySlotLotId(slotLotId);
+            return lot == null ? (byte)255 : (byte)lot.PhieuStatus;
+        }
+
+        public StockSlotLot GetLotDetails(int slotLotId)
+        {
+            var lot = _legacy.GetLotsBySlotLotId(slotLotId);
+            if (lot == null) return null;
+            return new StockSlotLot
+            {
+                LotNo = lot.LotNo,
+                ItemCode = lot.ItemCode,
+                Quantity = lot.Quantity,
+                TemCode = lot.TemCode,
+                RawQr = lot.RawQr,
+                ImportDate = lot.ImportDate,
+                PhieuStatus = (byte)lot.PhieuStatus
+            };
+        }
+
         public string GetLotNo(int slotLotId)
         {
             var lot = _legacy.GetLotsBySlotLotId(slotLotId);
@@ -84,7 +106,8 @@ namespace PCTP.Infrastructure.Stock
                 lot.Quantity,
                 lot.TemCode,
                 lot.RawQr,
-                lot.ImportDate);
+                lot.ImportDate,
+                lot.PhieuStatus);
         }
 
         /// <summary>

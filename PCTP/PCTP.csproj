@@ -14,7 +14,9 @@
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <Deterministic>true</Deterministic>
     <IsWebBootstrapper>false</IsWebBootstrapper>
-    <PublishUrl>\\192.168.200.1\fcc\003.DEPLOY\002.QRCODE\</PublishUrl>
+    <NuGetPackageImportStamp>
+    </NuGetPackageImportStamp>
+    <PublishUrl>\\192.168.200.1\fcc\004.DyTesst\PCTP\</PublishUrl>
     <Install>true</Install>
     <InstallFrom>Unc</InstallFrom>
     <UpdateEnabled>true</UpdateEnabled>
@@ -31,14 +33,12 @@
     <MinimumRequiredVersion>1.0.1.274</MinimumRequiredVersion>
     <CreateWebPageOnPublish>true</CreateWebPageOnPublish>
     <WebPage>publish.htm</WebPage>
-    <ApplicationRevision>209</ApplicationRevision>
+    <ApplicationRevision>210</ApplicationRevision>
     <ApplicationVersion>2.0.0.%2a</ApplicationVersion>
     <UseApplicationTrust>false</UseApplicationTrust>
     <CreateDesktopShortcut>true</CreateDesktopShortcut>
     <PublishWizardCompleted>true</PublishWizardCompleted>
     <BootstrapperEnabled>true</BootstrapperEnabled>
-    <NuGetPackageImportStamp>
-    </NuGetPackageImportStamp>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
@@ -534,10 +534,10 @@
     <Compile Include="Modules\KhoCore\Helpers\SlotParser.cs" />
     <Compile Include="Modules\KhoCore\Repositories\StockHistoryRepository.cs" />
     <Compile Include="Modules\KhoCore\Repositories\IStockHistoryRepository.cs" />
-    <Compile Include="Modules\NhapKho\Interfaces\IStockTpCaseRepository.cs" />
+    <Compile Include="Modules\NhapKho\Interfaces\IStockTpImportGuardRepository.cs" />
     <Compile Include="Modules\NhapKho\Interfaces\IStockTpProductionRepository.cs" />
     <Compile Include="Modules\NhapKho\Interfaces\IStockTpStatusRepository.cs" />
-    <Compile Include="Modules\NhapKho\Repository\StockTpCaseRepository.cs" />
+    <Compile Include="Modules\NhapKho\Repository\StockTpImportGuardRepository.cs" />
     <Compile Include="Modules\NhapKho\Repository\StockTpProductionRepository.cs" />
     <Compile Include="Modules\NhapKho\Repository\StockTpStatusRepository.cs" />
     <Compile Include="Modules\NhapKho\Services\INhapTpReceivingService.cs" />

@@ -74,7 +74,8 @@ namespace PCTP.Modules.KhoVatLy.Application.Interfaces
             int quantity,
             string temCode,
             string qrData,
-            DateTime? importDate);
+            DateTime? importDate,
+            byte phieuStatus = 0);
 
         /// <summary>
         /// Lấy hàng FIFO theo LOT + ItemCode, chỉ UPDATE/DELETE đúng các dòng SlotLot bị lấy,

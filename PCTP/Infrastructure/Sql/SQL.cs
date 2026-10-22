@@ -25,6 +25,10 @@ namespace PCTP.ClassSQL
         public string B7R2_FCCdb = @"Data Source=192.168.200.57;Initial Catalog=B7R2_FCC;User ID=sa;Password=fccbrv";
         public string B7R2_FCCdbb = @"Data Source=192.168.200.57;Initial Catalog=B7R2_FCC;User ID=sa;Password=fccbrv";
 
+        // Product
+        //public string B7R2_FCCdb = @"Data Source=192.168.200.14\BRAVO;Initial Catalog=B7R2_FCC;User ID=sa;Password=fccbrv";
+        //public string B7R2_FCCdbb = @"Data Source=192.168.200.14\BRAVO;Initial Catalog=B7R2_FCC;User ID=sa;Password=fccbrv";
+
         #region ══ TRANSACTION LIFECYCLE ══════════════════════════════════════
 
         /// <summary>

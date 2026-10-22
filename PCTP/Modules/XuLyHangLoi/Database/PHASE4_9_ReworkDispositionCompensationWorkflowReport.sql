@@ -172,7 +172,9 @@ IF NOT EXISTS(SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID(N'dbo.FVN_PXLB
     CREATE INDEX IX_FVN_PXLB_WorkflowAudit_Phieu ON dbo.FVN_PXLB_WorkflowAudit(PhieuXuLyBatThuongId, OccurredAt, Id);
 GO
 
-/* Reporting view: 1 dòng / phiếu, không suy diễn Compensation từ NG. */
+/* Reporting view: đọc dữ liệu vận hành thật của QT Chung.
+   FVN_PXLB_ReworkQC/Disposition là workflow phụ, không phải nguồn dữ liệu
+   mà Form QT Chung đang ghi. Vì vậy Rework/QC/Disposition lấy từ TraHangQTChung*. */
 IF OBJECT_ID(N'dbo.vFVN_PXLB_ProcessReport', N'V') IS NOT NULL
     DROP VIEW dbo.vFVN_PXLB_ProcessReport;
 GO
@@ -185,23 +187,47 @@ SELECT
     p.MaSanPham,
     p.Status,
     p.HuongXuLy,
-    qc.SoLuongAnhHuong,
-    qc.SoLuongOK AS InitialOK,
-    qc.SoLuongNG AS InitialNG,
-    qc.SoLuongRework,
-    qc.SoLuongLoaiBoBanDau,
-    rp.SoLuongDaXuat AS ReworkDaXuat,
-    rp.SoLuongDaGiao AS ReworkDaGiao,
-    rq.SoLuongOK AS ReworkOK,
-    rq.SoLuongNG AS ReworkNG,
-    d.SoLuongLoaiBoCuoi,
-    c.SoLuongYeuCau AS CompensationRequired,
-    c.SoLuongDaGiao AS CompensationDelivered,
-    CASE WHEN c.Id IS NULL THEN 0 ELSE c.SoLuongYeuCau - c.SoLuongDaGiao END AS CompensationRemaining
+    initialQc.SoLuongAnhHuong,
+    initialQc.SoLuongOK AS InitialOK,
+    initialQc.SoLuongNG AS InitialNG,
+    initialQc.SoLuongRework,
+    initialQc.SoLuongLoaiBoBanDau,
+    ISNULL(xuat.ReworkDaXuat, 0) AS ReworkDaXuat,
+    ISNULL(giao.ReworkDaGiao, 0) AS ReworkDaGiao,
+    reworkQc.SoLuongOK AS ReworkOK,
+    reworkQc.SoLuongNG AS ReworkNG,
+    ISNULL(initialQc.SoLuongLoaiBoBanDau, 0) + ISNULL(nhapNg.TongNGNhapLai, 0) AS SoLuongLoaiBoCuoi,
+    comp.SoLuongYeuCau AS CompensationRequired,
+    comp.SoLuongDaGiao AS CompensationDelivered,
+    CASE WHEN comp.Id IS NULL THEN 0 ELSE comp.SoLuongYeuCau - comp.SoLuongDaGiao END AS CompensationRemaining
 FROM dbo.FVN_PhieuXuLyBatThuong p
-LEFT JOIN dbo.FVN_PhieuXuLyBatThuongQCInitial qc ON qc.PhieuXuLyBatThuongId=p.Id
-LEFT JOIN dbo.FVN_PXLB_ReworkPlan rp ON rp.PhieuXuLyBatThuongId=p.Id
-LEFT JOIN dbo.FVN_PXLB_ReworkQC rq ON rq.PhieuXuLyBatThuongId=p.Id
-LEFT JOIN dbo.FVN_PXLB_Disposition d ON d.PhieuXuLyBatThuongId=p.Id
-LEFT JOIN dbo.FVN_PXLB_Compensation c ON c.PhieuXuLyBatThuongId=p.Id;
+LEFT JOIN dbo.FVN_PhieuXuLyBatThuongQCInitial initialQc
+    ON initialQc.PhieuXuLyBatThuongId = p.Id
+OUTER APPLY
+(
+    SELECT SUM(x.SoLuongXuat) AS ReworkDaXuat
+    FROM dbo.FVN_TraHangQTChungXuat x
+    WHERE x.PhieuXuLyBatThuongId = p.Id
+) xuat
+OUTER APPLY
+(
+    SELECT SUM(g.SoLuongGiao) AS ReworkDaGiao
+    FROM dbo.FVN_TraHangQTChungGiao g
+    WHERE g.PhieuXuLyBatThuongId = p.Id
+) giao
+OUTER APPLY
+(
+    SELECT TOP (1) q.SoLuongDaRework, q.SoLuongOK, q.SoLuongNG
+    FROM dbo.FVN_TraHangQTChungQC q
+    WHERE q.PhieuXuLyBatThuongId = p.Id
+    ORDER BY q.ThoiGian DESC, q.Id DESC
+) reworkQc
+OUTER APPLY
+(
+    SELECT SUM(n.SoLuongNG) AS TongNGNhapLai
+    FROM dbo.FVN_TraHangQTChungNhapNG n
+    WHERE n.PhieuXuLyBatThuongId = p.Id
+) nhapNg
+LEFT JOIN dbo.FVN_PXLB_Compensation comp
+    ON comp.PhieuXuLyBatThuongId = p.Id;
 GO

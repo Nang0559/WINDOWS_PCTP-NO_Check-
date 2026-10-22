@@ -15,6 +15,10 @@ namespace PCTP.Modules.XuatKho.Interfaces
     {
         int Insert(HangChoGiao item);
 
+        void InsertPickDetails(int hangChoGiaoId, int slotId, IList<PCTP.Modules.KhoCore.Application.Contracts.Stock.StockSlotLot> lots);
+        IList<PCTP.Modules.KhoCore.Application.Contracts.Stock.StockSlotLot> GetPickDetails(int hangChoGiaoId);
+        List<HangChoGiao> GetPending();
+
         /// <summary>Đọc kèm khoá dòng (SELECT ... WITH (UPDLOCK, ROWLOCK)) — PHẢI gọi trong transaction.</summary>
         HangChoGiao GetForUpdate(int id);
 

@@ -32,21 +32,62 @@ namespace PCTP.Modules.NhapKho
         private string LotKeyStockTp => string.Format(NORMALIZE_LOT_EXPR, "s.LOT");
         private string LotKeySlotLot => string.Format(NORMALIZE_LOT_EXPR, "sl.LotNo");
 
+        private string LotKeyPending => string.Format(NORMALIZE_LOT_EXPR, "h.LotGoc");
+
         private string BuildSqlLech() => $@"
-            SELECT
-                s.LOT, s.PART, s.NAME,
-                ISNULL(s.SLCONLAI,0) AS SL_STOCKTP,
-                ISNULL(x.TongActive,0) AS SL_SLOT,
-                (ISNULL(s.SLCONLAI,0) - ISNULL(x.TongActive,0)) AS ChenhLech
-            FROM STOCKTP s
-            LEFT JOIN (
-                SELECT {LotKeySlotLot} AS LotKey, SUM(sl.Quantity) AS TongActive
+            WITH Stock AS
+            (
+                SELECT {LotKeyStockTp} AS LotKey,
+                       MAX(s.LOT) AS LotNo,
+                       MAX(s.PART) AS ItemCode,
+                       MAX(s.NAME) AS ItemName,
+                       SUM(ISNULL(s.SLCONLAI,0)) AS Qty
+                FROM STOCKTP s
+                GROUP BY {LotKeyStockTp}
+            ),
+            ActiveSlot AS
+            (
+                SELECT {LotKeySlotLot} AS LotKey,
+                       MAX(sl.LotNo) AS LotNo,
+                       MAX(sl.ItemCode) AS ItemCode,
+                       SUM(ISNULL(sl.Quantity,0)) AS Qty
                 FROM SlotLot sl
                 WHERE sl.PhieuStatus = 0
                 GROUP BY {LotKeySlotLot}
-            ) x ON {LotKeyStockTp} = x.LotKey
-            WHERE ISNULL(s.SLCONLAI,0) > 0
-              AND ISNULL(s.SLCONLAI,0) <> ISNULL(x.TongActive,0)";
+            ),
+            Pending AS
+            (
+                -- Hàng đã pick nhưng chưa xác nhận giao vẫn thuộc tồn STOCKTP theo quy tắc nghiệp vụ.
+                SELECT {LotKeyPending} AS LotKey,
+                       MAX(h.LotGoc) AS LotNo,
+                       MAX(h.MaHang) AS ItemCode,
+                       SUM(ISNULL(h.SoLuong,0)) AS Qty
+                FROM FVN_HangChoGiao h
+                WHERE h.TrangThai = 'ChoGiao'
+                  AND ISNULL(h.SoLuong,0) > 0
+                  AND NULLIF(LTRIM(RTRIM(h.LotGoc)), '') IS NOT NULL
+                GROUP BY {LotKeyPending}
+            ),
+            AllLotKeys AS
+            (
+                SELECT LotKey FROM Stock
+                UNION
+                SELECT LotKey FROM ActiveSlot
+                UNION
+                SELECT LotKey FROM Pending
+            )
+            SELECT
+                COALESCE(s.LotNo, a.LotNo, p.LotNo) AS LOT,
+                COALESCE(s.ItemCode, a.ItemCode, p.ItemCode) AS PART,
+                s.ItemName AS NAME,
+                ISNULL(s.Qty,0) AS SL_STOCKTP,
+                ISNULL(a.Qty,0) + ISNULL(p.Qty,0) AS SL_SLOT,
+                ISNULL(s.Qty,0) - (ISNULL(a.Qty,0) + ISNULL(p.Qty,0)) AS ChenhLech
+            FROM AllLotKeys k
+            LEFT JOIN Stock s ON s.LotKey = k.LotKey
+            LEFT JOIN ActiveSlot a ON a.LotKey = k.LotKey
+            LEFT JOIN Pending p ON p.LotKey = k.LotKey
+            WHERE ISNULL(s.Qty,0) <> ISNULL(a.Qty,0) + ISNULL(p.Qty,0)";
 
         public int DemLechDoiChieu()
         {
@@ -80,7 +121,7 @@ namespace PCTP.Modules.NhapKho
         public int DemDaNhapHomNay()
         {
             object kq = ExecuteScalar(
-                "SELECT COUNT(*) FROM SlotLot WHERE CAST(CreatedDate AS DATE) = CAST(GETDATE() AS DATE)");
+                "SELECT COUNT(*) FROM SlotLot WHERE PhieuStatus = 0 AND CAST(CreatedDate AS DATE) = CAST(GETDATE() AS DATE)");
             return int.TryParse(kq?.ToString(), out int v) ? v : 0;
         }
 
@@ -91,7 +132,7 @@ namespace PCTP.Modules.NhapKho
             JOIN Slot s ON s.SlotId = sl.SlotId
             JOIN Rack r ON r.RackId = s.RackId
             JOIN Warehouse w ON w.WarehouseId = r.WarehouseId
-            WHERE CAST(sl.CreatedDate AS DATE) = CAST(GETDATE() AS DATE)
+            WHERE sl.PhieuStatus = 0 AND CAST(sl.CreatedDate AS DATE) = CAST(GETDATE() AS DATE)
             ORDER BY sl.CreatedDate DESC");
 
         public int GetTongTonStockTp()

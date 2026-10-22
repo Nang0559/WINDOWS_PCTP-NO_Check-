@@ -452,7 +452,7 @@ và hiển thị kết quả.
 ---
 13. Bảng Ánh Xạ Nguồn Dữ Liệu Badge
 Phân Khu	Tên Badge / Chỉ Số	Nguồn Số Liệu	Điều Kiện Lọc / Trạng Thái
-Nhập Kho	Chờ nhập	`INhapTpReceivingService` / `NHAP_TP_HIS`	Các bản ghi chưa xử lý / chưa hoàn tất
+Nhập Kho	Chờ nhập	`INhapTpReceivingService` / `vNhapTP`	Các bản ghi chưa xử lý / chưa hoàn tất
 Xuất Kho	Chờ giao	`IHangChoGiaoRepository`	`FVN_HANGCHOGIAO` có trạng thái `WAIT` / `ChoGiao`
 Xuất Kho	Chờ xác nhận	`IHangChoGiaoRepository` / `IStockExportService`	Các lệnh đã Pick vào chờ giao nhưng chưa Confirm chốt xuất
 Xử Lý Lỗi	Chờ QC định hướng	`IPhieuXuLyBatThuongRepository`	`QTChungStatus.ChoQCDinhHuong`

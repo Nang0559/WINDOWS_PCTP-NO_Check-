@@ -1,5 +1,6 @@
 using System;
 using PCTP.Common;
+using PCTP.Shared.Common;
 using PCTP.Modules.KhoCore.Application.Contracts.Stock;
 
 namespace PCTP.Modules.KhoCore.Application.Services
@@ -15,18 +16,27 @@ namespace PCTP.Modules.KhoCore.Application.Services
         private readonly IStockBalanceRepository _balance;
         private readonly IStockSlotRepository _slots;
         private readonly IStockReceivingRepository _receiving;
+        private readonly IUnitOfWork _uow;
 
         public StockMovementService(IStockBalanceRepository balance, IStockSlotRepository slots)
-            : this(balance, slots, null) { }
+            : this(balance, slots, null, null) { }
 
         public StockMovementService(
             IStockBalanceRepository balance,
             IStockSlotRepository slots,
             IStockReceivingRepository receiving)
+            : this(balance, slots, receiving, null) { }
+
+        public StockMovementService(
+            IStockBalanceRepository balance,
+            IStockSlotRepository slots,
+            IStockReceivingRepository receiving,
+            IUnitOfWork uow)
         {
             _balance = balance ?? throw new ArgumentNullException(nameof(balance));
             _slots = slots ?? throw new ArgumentNullException(nameof(slots));
             _receiving = receiving;
+            _uow = uow;
         }
 
         public StockMovementResult Receive(StockMovementRequest request)
@@ -90,8 +100,15 @@ namespace PCTP.Modules.KhoCore.Application.Services
 
             try
             {
-                string sourceLotNo = _slots.GetLotNo(request.SlotLotId.Value);
-                string sourceItemCode = _slots.GetItemCode(request.SlotLotId.Value);
+                byte sourceStatus = _slots.GetPhieuStatus(request.SlotLotId.Value);
+                if (sourceStatus != 0)
+                    return StockMovementResult.Fail($"Không thể di chuyển SlotLot {request.SlotLotId.Value}: trạng thái {sourceStatus} không phải Active; hàng NG cách ly không được xuất hoặc di chuyển như tồn khả dụng.");
+
+                var sourceDetails = _slots.GetLotDetails(request.SlotLotId.Value);
+                if (sourceDetails == null)
+                    return StockMovementResult.Fail($"Không tìm thấy SlotLot nguồn {request.SlotLotId.Value}.");
+                string sourceLotNo = sourceDetails.LotNo;
+                string sourceItemCode = sourceDetails.ItemCode;
 
                 var sourceValidation = ValidateSourceLotIdentity(
                     request,
@@ -126,7 +143,11 @@ namespace PCTP.Modules.KhoCore.Application.Services
                         LotNo = lotNo,
                         ItemCode = itemCode,
                         Quantity = request.Quantity,
-                        ImportDate = request.OccurredAt ?? DateTime.Now
+                        // Giữ QR/tem chỉ khi chuyển toàn bộ dòng; chuyển một phần không được nhân bản tem.
+                        TemCode = request.Quantity == available ? sourceDetails.TemCode : null,
+                        RawQr = request.Quantity == available ? sourceDetails.RawQr : null,
+                        ImportDate = sourceDetails.ImportDate ?? request.OccurredAt ?? DateTime.Now,
+                        PhieuStatus = 0
                     });
                 }
                 else
@@ -153,17 +174,72 @@ namespace PCTP.Modules.KhoCore.Application.Services
                 return StockMovementResult.Fail("Stock movement request không được null.");
             if (string.IsNullOrWhiteSpace(request.LotNo))
                 return StockMovementResult.Fail("LotNo không được rỗng.");
+            if (string.IsNullOrWhiteSpace(request.ItemCode))
+                return StockMovementResult.Fail("ItemCode không được rỗng khi điều chỉnh tồn.");
             if (request.Quantity == 0)
                 return StockMovementResult.Fail("Quantity không được bằng 0.");
 
+            if (!request.SlotId.HasValue || request.SlotId.Value <= 0)
+                return StockMovementResult.Fail("Điều chỉnh tồn phải chỉ định Slot đích/nguồn để đồng bộ SlotLot.");
+            if (_uow == null)
+                return StockMovementResult.Fail("Chưa cấu hình UnitOfWork; từ chối chỉnh riêng STOCKTP để tránh lệch tồn.");
+
             try
             {
+                _uow.Begin();
+                if (request.Quantity > 0)
+                {
+                    _slots.AddLot(request.SlotId.Value, new StockSlotLot
+                    {
+                        LotNo = request.LotNo.Trim(),
+                        ItemCode = request.ItemCode.Trim(),
+                        Quantity = request.Quantity,
+                        TemCode = null, // dòng điều chỉnh không được tái sử dụng TemCode/QrData của tem khác
+                        RawQr = null,
+                        ImportDate = request.OccurredAt ?? DateTime.Now,
+                        PhieuStatus = 0
+                    });
+                }
+                else
+                {
+                    _slots.TakeLot(request.SlotId.Value, request.LotNo, request.ItemCode, Math.Abs(request.Quantity));
+                }
+
                 _balance.AdjustAvailableQuantity(request.LotNo, request.Quantity);
-                return StockMovementResult.Ok("Đã điều chỉnh tồn STOCKTP.");
+                _uow.Commit();
+                return StockMovementResult.Ok("Đã điều chỉnh đồng bộ STOCKTP và SlotLot trong cùng transaction.");
             }
             catch (Exception ex)
             {
-                return StockMovementResult.Fail("Lỗi điều chỉnh tồn: " + ex.Message);
+                try { _uow.Rollback(); } catch { }
+                return StockMovementResult.Fail("Lỗi điều chỉnh tồn đồng bộ: " + ex.Message);
+            }
+        }
+
+        public StockMovementResult RestorePicked(int slotId, StockSlotLot lot)
+        {
+            if (slotId <= 0) return StockMovementResult.Fail("SlotId không hợp lệ khi hoàn hàng chờ giao.");
+            if (lot == null || lot.Quantity <= 0 || string.IsNullOrWhiteSpace(lot.LotNo) || string.IsNullOrWhiteSpace(lot.ItemCode))
+                return StockMovementResult.Fail("Chi tiết LOT hoàn trả không hợp lệ.");
+
+            try
+            {
+                _slots.AddLot(slotId, new StockSlotLot
+                {
+                    LotNo = lot.LotNo,
+                    ItemCode = lot.ItemCode,
+                    Quantity = lot.Quantity,
+                    TemCode = lot.TemCode,
+                    RawQr = lot.RawQr,
+                    ImportDate = lot.ImportDate,
+                    PhieuStatus = lot.PhieuStatus
+                });
+                // Hàng chờ giao chưa bị trừ STOCKTP; huỷ pick chỉ hoàn SlotLot, không cộng STOCKTP.
+                return StockMovementResult.Ok("Đã hoàn chi tiết pick về Slot.");
+            }
+            catch (Exception ex)
+            {
+                return StockMovementResult.Fail("Lỗi hoàn chi tiết pick: " + ex.Message);
             }
         }
 
@@ -221,7 +297,9 @@ namespace PCTP.Modules.KhoCore.Application.Services
                         ItemCode = request.ItemCode,
                         Quantity = request.Quantity,
                         RawQr = null,
-                        ImportDate = request.ProductionDate ?? request.OccurredAt ?? DateTime.Now
+                        ImportDate = request.ProductionDate ?? request.OccurredAt ?? DateTime.Now,
+                        // NG cách ly: dòng SlotLot riêng (PhieuStatus = 3), KHÔNG cộng STOCKTP.
+                        PhieuStatus = isQuarantineReceive ? (byte)3 : (byte)0
                     });
                 }
                 else
@@ -270,6 +348,10 @@ namespace PCTP.Modules.KhoCore.Application.Services
 
                 if (request.SlotLotId.Value <= 0)
                     return StockMovementResult.Fail("SlotLotId không hợp lệ.");
+
+                byte sourceStatus = _slots.GetPhieuStatus(request.SlotLotId.Value);
+                if (sourceStatus != 0)
+                    return StockMovementResult.Fail($"Không thể xuất/pick SlotLot {request.SlotLotId.Value}: trạng thái {sourceStatus} không phải Active; hàng NG cách ly không được tính là tồn khả dụng.");
 
                 string sourceLotNo = _slots.GetLotNo(request.SlotLotId.Value);
                 string sourceItemCode = _slots.GetItemCode(request.SlotLotId.Value);

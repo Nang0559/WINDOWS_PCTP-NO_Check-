@@ -3,13 +3,16 @@ using DevExpress.XtraReports.UI;
 using DevExpress.XtraSplashScreen;
 using PCTP.Modules.KhoCore.Models;
 using PCTP.Modules.KhoVatLy.Application.Interfaces;
+using PCTP.Modules.KhoVatLy.Kho.Models;
 using PCTP.Modules.KhoVatLy.Report;
 using PCTP.Modules.XuatKho.Interfaces;
 using PCTP.Modules.XuatKho.Models;
+using PCTP.Modules.XuLyHangLoi.Models;
 using PCTP.Shared.Helpers;
 using PCTP.Shared.Services;
 using System;
 using System.Drawing;
+using System.Linq;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
 namespace PCTP.Modules.KhoVatLy
@@ -41,7 +44,7 @@ namespace PCTP.Modules.KhoVatLy
         private GroupControl groupInfo, groupSlotList;
         private LabelControl lblTemCode, lblItemCode, lblLotNo, lblQty, lblrackName, lblSlotNumber, lblwhName;
         private SpinEdit spinExportQty;
-        private SimpleButton btnExport, btnPrint, btnCancel;
+        private SimpleButton btnExport, btnPrint, btnCancel, btnCancelPending;
   
         private ListBoxControl listBoxSlots;
 
@@ -160,6 +163,8 @@ namespace PCTP.Modules.KhoVatLy
             btnPrint.Click += BtnPrint_Click;
             btnCancel = new SimpleButton { Text = "Hủy", Width = 100, Margin = new Padding(5) };
             btnCancel.Click += (s, e) => { this.Close(); };
+            btnCancelPending = new SimpleButton { Text = "Huỷ chờ giao", Width = 120, Margin = new Padding(5) };
+            btnCancelPending.Click += BtnCancelPending_Click;
 
             var bottomPanel = new FlowLayoutPanel
             {
@@ -171,6 +176,7 @@ namespace PCTP.Modules.KhoVatLy
             bottomPanel.Controls.Add(btnCancel);
             bottomPanel.Controls.Add(btnExport);
             bottomPanel.Controls.Add(btnPrint);
+            bottomPanel.Controls.Add(btnCancelPending);
 
             // ==== Tổng Layout ====
             contentPanel.Controls.Add(groupInfo, 0, 0);
@@ -288,6 +294,10 @@ namespace PCTP.Modules.KhoVatLy
                 return;
             }
 
+            // Pick phải chỉ rõ LOT; không được để service tự đoán LOT khi một Slot chứa nhiều LOT.
+            string lotNo = ResolveLotNoForPick();
+            if (string.IsNullOrWhiteSpace(lotNo)) return;
+
             bool exportSuccess;
 
             if (groupSlotList.Visible && listBoxSlots.SelectedItem != null)
@@ -295,16 +305,16 @@ namespace PCTP.Modules.KhoVatLy
                 string selectedSlot = listBoxSlots.SelectedItem.ToString();
                 if (IsSameSlotSelected(selectedSlot))
                 {
-                    exportSuccess = ExportToSameSlot(soLuongXuat);
+                    exportSuccess = ExportToSameSlot(soLuongXuat, lotNo);
                 }
                 else
                 {
-                    exportSuccess = ExportToOtherSlot(soLuongXuat);
+                    exportSuccess = ExportToOtherSlot(soLuongXuat, lotNo);
                 }
             }
             else
             {
-                exportSuccess = ExportToSameSlot(soLuongXuat);
+                exportSuccess = ExportToSameSlot(soLuongXuat, lotNo);
             }
 
             if (exportSuccess)
@@ -337,11 +347,48 @@ namespace PCTP.Modules.KhoVatLy
             return false;
         }
 
-        private bool ExportToSameSlot(int qty)
+        private string ResolveLotNoForPick()
+        {
+            var activeLots = (slot?.Lots ?? new System.Collections.Generic.List<LotInfo>())
+                .Where(x => x != null && x.Quantity > 0 && !string.IsNullOrWhiteSpace(x.LotNo))
+                .GroupBy(x => x.LotNo.Trim(), StringComparer.OrdinalIgnoreCase)
+                .Select(g => g.Key)
+                .ToList();
+
+            if (activeLots.Count == 0)
+            {
+                XtraMessageBox.Show("Slot không có LOT tồn khả dụng để pick.", "Không có LOT",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return null;
+            }
+
+            if (activeLots.Count == 1) return activeLots[0];
+
+            string allowed = string.Join(Environment.NewLine, activeLots.Select(x => "• " + x));
+            string entered = XtraInputBox.Show(
+                "Slot có nhiều LOT. Nhập chính xác LOT cần pick:\r\n" + allowed,
+                "Chọn LOT xuất kho",
+                lblLotNo.Text);
+
+            if (string.IsNullOrWhiteSpace(entered)) return null;
+            entered = entered.Trim();
+            string selected = activeLots.FirstOrDefault(x => string.Equals(x, entered, StringComparison.OrdinalIgnoreCase));
+            if (selected == null)
+            {
+                XtraMessageBox.Show("LOT đã nhập không nằm trong Slot đang chọn. Vui lòng chọn đúng LOT trong danh sách.",
+                    "LOT không hợp lệ", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return null;
+            }
+
+            return selected;
+        }
+
+        private bool ExportToSameSlot(int qty, string lotNo)
         {
             var result = _exportService.PickToChoGiao(new StockExportRequest
             {
                 SlotId = slot.SlotId,
+                LotNo = lotNo,
                 Quantity = qty,
                 ItemCode = slot.ItemCode,
                 PhieuGiaoId = _phieuGiaoId
@@ -356,13 +403,14 @@ namespace PCTP.Modules.KhoVatLy
             return true;
         }
 
-        private bool ExportToOtherSlot(int qty)
+        private bool ExportToOtherSlot(int qty, string lotNo)
         {
             if (listBoxSlots.SelectedItem == null) { MessageBox.Show("Vui lòng chọn vị trí."); return false; }
 
             var pickResult = _exportService.PickToChoGiao(new StockExportRequest
             {
                 SlotId = slot.SlotId,
+                LotNo = lotNo,
                 Quantity = qty,
                 ItemCode = slot.ItemCode,
                 PhieuGiaoId = _phieuGiaoId
@@ -378,6 +426,95 @@ namespace PCTP.Modules.KhoVatLy
 
             _slotService.ClearSlotTemporarily(slot);
             return true;
+        }
+
+        private void BtnCancelPending_Click(object sender, EventArgs e)
+        {
+            using (var dialog = new Form
+            {
+                Text = "Huỷ hàng chờ giao",
+                StartPosition = FormStartPosition.CenterParent,
+                Size = new Size(900, 480),
+                MinimizeBox = false,
+                MaximizeBox = true
+            })
+            {
+                var grid = new DataGridView
+                {
+                    Dock = DockStyle.Fill,
+                    ReadOnly = true,
+                    AllowUserToAddRows = false,
+                    AllowUserToDeleteRows = false,
+                    SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+                    MultiSelect = false,
+                    AutoGenerateColumns = false,
+                    AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill
+                };
+                grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "Id", DataPropertyName = "Id", HeaderText = "ID chờ giao", FillWeight = 60 });
+                grid.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "MaHang", HeaderText = "Mã hàng", FillWeight = 100 });
+                grid.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "LotGoc", HeaderText = "LOT", FillWeight = 150 });
+                grid.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "SoLuong", HeaderText = "Số lượng", FillWeight = 60 });
+                grid.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "SlotIdNguon", HeaderText = "Slot nguồn", FillWeight = 60 });
+                grid.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "NgayXuatKho", HeaderText = "Ngày pick", FillWeight = 100 });
+                grid.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = "NguoiXuatKho", HeaderText = "Người pick", FillWeight = 100 });
+
+                var btnReload = new SimpleButton { Text = "Làm mới", Width = 100 };
+                var btnCancelPick = new SimpleButton { Text = "Huỷ dòng đã chọn", Width = 150 };
+                var btnClose = new SimpleButton { Text = "Đóng", Width = 100 };
+                var footer = new FlowLayoutPanel
+                {
+                    Dock = DockStyle.Bottom,
+                    Height = 48,
+                    FlowDirection = FlowDirection.RightToLeft,
+                    Padding = new Padding(8)
+                };
+                footer.Controls.Add(btnClose);
+                footer.Controls.Add(btnCancelPick);
+                footer.Controls.Add(btnReload);
+                dialog.Controls.Add(grid);
+                dialog.Controls.Add(footer);
+
+                Action reload = () =>
+                {
+                    try
+                    {
+                        grid.DataSource = null;
+                        grid.DataSource = _exportService.GetPendingChoGiao();
+                    }
+                    catch (Exception ex)
+                    {
+                        XtraMessageBox.Show(dialog, "Không tải được danh sách chờ giao: " + ex.Message,
+                            "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+                };
+                btnReload.Click += (s, args) => reload();
+                btnClose.Click += (s, args) => dialog.Close();
+                btnCancelPick.Click += (s, args) =>
+                {
+                    if (grid.CurrentRow == null || grid.CurrentRow.Cells["Id"].Value == null)
+                    {
+                        XtraMessageBox.Show(dialog, "Vui lòng chọn một dòng chờ giao.", "Thông báo",
+                            MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        return;
+                    }
+
+                    int id = Convert.ToInt32(grid.CurrentRow.Cells["Id"].Value);
+                    if (XtraMessageBox.Show(dialog,
+                        $"Huỷ chờ giao Id={id}? Hàng sẽ được hoàn về đúng Slot/LOT nguồn; STOCKTP không thay đổi.",
+                        "Xác nhận huỷ", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
+                        return;
+
+                    var result = _exportService.CancelChoGiao(id, Environment.UserName);
+                    XtraMessageBox.Show(dialog, result.Message,
+                        result.IsOK ? "Thành công" : "Không thể huỷ",
+                        MessageBoxButtons.OK,
+                        result.IsOK ? MessageBoxIcon.Information : MessageBoxIcon.Warning);
+                    if (result.IsOK) reload();
+                };
+
+                reload();
+                dialog.ShowDialog(this);
+            }
         }
 
         private void BtnPrint_Click(object sender, EventArgs e)

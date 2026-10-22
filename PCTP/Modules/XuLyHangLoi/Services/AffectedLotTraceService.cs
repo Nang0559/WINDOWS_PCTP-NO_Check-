@@ -37,7 +37,58 @@ namespace PCTP.Modules.XuLyHangLoi.Services
         public AffectedLotTraceResult TraceForPhieu(PhieuXuLyBatThuong phieu, string nguoiThucHien)
         {
             if (phieu == null) throw new ArgumentNullException(nameof(phieu));
-            return Trace(phieu.MaSanPham, phieu.SoLoLoi, nguoiThucHien);
+
+            // Ưu tiên truy vết qua các nguồn kho/WIP/khách trả như bình thường.
+            // Với phiếu được sinh từ một dòng trả hàng cụ thể, nếu các nguồn này
+            // không trả về số lượng (ví dụ hàng chưa có trong tồn kho rework hoặc
+            // chưa có dữ liệu WIP), dùng đúng dòng nguồn PhieuTraHangCTId làm
+            // fallback có kiểm chứng; không dùng số lượng của dòng khác cùng mã/LOT.
+            var result = Trace(phieu.MaSanPham, phieu.SoLoLoi, nguoiThucHien);
+            if (result.TotalAffectedQuantity > 0 || phieu.PhieuTraHangCTId <= 0)
+                return result;
+
+            var source = LoadData(
+                @"SELECT TOP (1) Id, PhieuTraHangId, SlotIdNguon, MaHang, LotNo, SoLuong
+                  FROM FVN_PhieuTraHangCT
+                  WHERE Id = @PhieuTraHangCTId;",
+                new SqlParameter("@PhieuTraHangCTId", phieu.PhieuTraHangCTId));
+
+            if (source == null || source.Rows.Count == 0)
+            {
+                result.Warnings.Add("Không tìm thấy dòng phiếu trả nguồn (PhieuTraHangCTId=" + phieu.PhieuTraHangCTId + ").");
+                return result;
+            }
+
+            var row = source.Rows[0];
+            var maHangNguon = DbValueHelper.ToString(row["MaHang"]);
+            var lotNguon = DbValueHelper.ToString(row["LotNo"]);
+            var soLuongNguon = DbValueHelper.ToInt(row["SoLuong"]);
+
+            // Chỉ chấp nhận dòng nguồn nếu mã hàng/LOT vẫn khớp với phiếu xử lý.
+            if (!string.Equals((maHangNguon ?? string.Empty).Trim(), (phieu.MaSanPham ?? string.Empty).Trim(), StringComparison.OrdinalIgnoreCase) ||
+                !string.Equals(NormalizeLot(lotNguon), NormalizeLot(phieu.SoLoLoi), StringComparison.OrdinalIgnoreCase) ||
+                soLuongNguon <= 0)
+            {
+                result.Warnings.Add("Dòng trả hàng nguồn không khớp mã hàng/LOT hoặc có số lượng không hợp lệ (PhieuTraHangCTId=" + phieu.PhieuTraHangCTId + ").");
+                return result;
+            }
+
+            result.Items.Add(new PhieuXuLyBatThuongAffectedLot
+            {
+                SourceType = phieu.Nguon == NguonXuLyBatThuong.TraNoiBo
+                    ? AffectedLotSourceType.Kho
+                    : AffectedLotSourceType.KhachTra,
+                SourceReference = "PHIEU_TRA_HANG:" + DbValueHelper.ToInt(row["PhieuTraHangId"]) + "/CT:" + phieu.PhieuTraHangCTId,
+                SlotId = ToNullableInt(row["SlotIdNguon"]),
+                LotNo = lotNguon,
+                MaSanPham = maHangNguon,
+                Model = phieu.Model,
+                SoLuongAnhHuong = soLuongNguon,
+                SnapshotAt = DateTime.Now,
+                SnapshotBy = nguoiThucHien.Trim()
+            });
+
+            return result;
         }
 
         public AffectedLotTraceResult TruyVetLOT(int phieuXuLyId, string nguoiThucHien)

@@ -12,6 +12,8 @@ namespace PCTP.Modules.XuLyHangLoi
     using PCTP.Modules.KhoVatLy.Kho.Models;
     using PCTP.Modules.XuLyHangLoi.Enums;
     using PCTP.Modules.XuLyHangLoi.Services;
+    using PCTP.Modules.XuLyHangLoi.Repository;
+    using PCTP.Modules.XuLyHangLoi.Models;
     using PCTP.Shared.Helpers;
     using System;
     using System.Collections.Generic;
@@ -27,6 +29,8 @@ namespace PCTP.Modules.XuLyHangLoi
         private readonly IQTChungService _qtChungService;
         private readonly IReworkStockService _reworkStockService;
         private readonly int _phieuXuLyId;
+        private readonly INoiBoLookupRepository _noiBoLookupRepo;
+        private readonly ITraHangQTChungRepository _qtChungRepo;
 
         // ============================================================
         // UI
@@ -60,13 +64,17 @@ namespace PCTP.Modules.XuLyHangLoi
         public FormReworkProcess(
             IQTChungService qtChungService,
             IReworkStockService reworkStockService,
-            int phieuXuLyId)
+            int phieuXuLyId,
+            INoiBoLookupRepository noiBoLookupRepo = null,
+            ITraHangQTChungRepository qtChungRepo = null)
         {
             _qtChungService = qtChungService
                 ?? throw new ArgumentNullException(nameof(qtChungService));
             _reworkStockService = reworkStockService
                 ?? throw new ArgumentNullException(nameof(reworkStockService));
             _phieuXuLyId = phieuXuLyId;
+            _noiBoLookupRepo = noiBoLookupRepo;
+            _qtChungRepo = qtChungRepo;
 
             BuildUI();
             LoadPhieu();
@@ -188,7 +196,7 @@ namespace PCTP.Modules.XuLyHangLoi
 
             var lblHuongDan = new LabelControl
             {
-                Text = "Chỉ các LOT hợp lệ cho hướng xử lý CanRework mới được phép xuất kho.",
+                Text = "Rework / không Rework được QC quyết định tại bước 4. Bước 6 chỉ thao tác với phiếu đã có hướng CanRework; chỉ xuất đúng LOT tồn khả dụng.",
                 Dock = DockStyle.Fill,
                 Appearance =
                 {
@@ -216,7 +224,7 @@ namespace PCTP.Modules.XuLyHangLoi
 
             _btnXuatKho = new SimpleButton { Text = "📦 Xuất kho Rework", Dock = DockStyle.Fill };
             _btnGiaoSX = new SimpleButton { Text = "🚚 Giao cho SX", Dock = DockStyle.Fill };
-            _btnDangRework = new SimpleButton { Text = "⚙ Đang Rework", Dock = DockStyle.Fill };
+            _btnDangRework = new SimpleButton { Text = "Ghi nhận tiến độ Rework", Dock = DockStyle.Fill };
 
             var lblAction = new LabelControl
             {
@@ -366,8 +374,17 @@ namespace PCTP.Modules.XuLyHangLoi
                 var huong = phieu.HuongXuLy;
                 _lblHuongXuLy.Text = $"Hướng: {huong}";
 
+                // Nạp thông tin từ đúng phiếu đang mở. Trước đây hai ô tìm kiếm
+                // luôn để trống nên người dùng không biết form đang xử lý mã hàng/
+                // LOT nào; danh sách LOT cũng không được lọc theo phiếu.
+                _txtMaHang.Text = (phieu.MaSanPham ?? string.Empty).Trim();
+                _txtLotNo.Text = (phieu.SoLoLoi ?? phieu.SoLo ?? string.Empty).Trim();
+
                 // ----------------------------------------------------
-                // REWORK CHỈ ĐƯỢC PHÉP CHO CanRework
+                // REWORK CHỈ ĐƯỢC PHÉP CHO CanRework.
+                // Quyết định "Rework / không Rework" thuộc bước 4 - QC định hướng.
+                // Form này chỉ thực hiện xuất kho/giao SX/ghi nhận Rework sau khi
+                // QC đã chọn CanRework; không tự đổi hướng xử lý tại bước 6.
                 // ----------------------------------------------------
                 if (huong != HuongXuLyBatThuong.CanRework)
                 {
@@ -397,6 +414,22 @@ namespace PCTP.Modules.XuLyHangLoi
         {
             try
             {
+                var phieuHienTai = _qtChungService.GetById(_phieuXuLyId);
+                if (phieuHienTai != null && phieuHienTai.Status == QTChungStatus.DaGiaoSanXuat)
+                {
+                    if (_qtChungRepo == null)
+                        throw new InvalidOperationException("Chưa cấu hình repository để tải lịch sử giao Rework.");
+
+                    var deliveries = _qtChungRepo.GetGiao(_phieuXuLyId) ?? new List<TraHangQTChungGiao>();
+                    _grid.DataSource = deliveries;
+                    BuildDeliveryColumns();
+                    _lblTrangThai.Text = $"Trạng thái: {phieuHienTai.Status} | Đã giao {deliveries.Sum(x => x.SoLuongGiao):n0} sản phẩm";
+                    _lblTrangThai.Appearance.ForeColor = Color.DarkGreen;
+                    _lblHuongXuLy.Text = $"Hướng: {phieuHienTai.HuongXuLy}";
+                    UpdateActionState();
+                    return;
+                }
+
                 string maHang = _txtMaHang.Text.Trim();
                 string lotNo = _txtLotNo.Text.Trim();
 
@@ -414,11 +447,63 @@ namespace PCTP.Modules.XuLyHangLoi
                 _grid.DataSource = lots;
                 BuildLotColumns();
                 UpdateActionState();
+
+                if (lots == null || lots.Count == 0)
+                {
+                    string lot = string.IsNullOrWhiteSpace(_txtLotNo.Text)
+                        ? "(chưa có LOT)"
+                        : _txtLotNo.Text.Trim();
+
+                    // Giữ nguyên hướng xử lý; không tự thay bằng LOT khác
+                    // khi LOT nguồn không có tồn khả dụng.
+                    var phieu = _qtChungService.GetById(_phieuXuLyId);
+                    _lblTrangThai.Text = "Trạng thái: " +
+                        (phieu == null ? "Không xác định" : phieu.Status.ToString()) +
+                        " | Không có tồn khả dụng";
+                    _lblTrangThai.Appearance.ForeColor = Color.DarkOrange;
+                    _lblHuongXuLy.Text = "Hướng: CanRework | LOT nguồn: " + lot;
+                }
             }
             catch (Exception ex)
             {
                 ShowError("Không thể lấy danh sách LOT có thể Rework.", ex);
             }
+        }
+
+        private List<LotInfo> GetLotsDaXuatChuaGiao()
+        {
+            if (_qtChungRepo == null)
+                throw new InvalidOperationException("Chưa cấu hình repository lịch sử xuất Rework.");
+
+            var exports = (_qtChungRepo.GetXuat(_phieuXuLyId) ?? new List<TraHangQTChungXuat>())
+                .Where(x => x != null &&
+                    string.Equals(x.LoaiXuat, "Rework", StringComparison.OrdinalIgnoreCase) &&
+                    !string.IsNullOrWhiteSpace(x.LotXuat) && x.SoLuongXuat > 0)
+                .GroupBy(x => x.LotXuat.Trim(), StringComparer.OrdinalIgnoreCase)
+                .Select(g => new
+                {
+                    Lot = g.Key,
+                    ItemCode = g.Select(x => x.MaHang).FirstOrDefault(x => !string.IsNullOrWhiteSpace(x)) ?? _txtMaHang.Text.Trim(),
+                    Exported = g.Sum(x => x.SoLuongXuat)
+                })
+                .ToList();
+
+            var delivered = (_qtChungRepo.GetGiao(_phieuXuLyId) ?? new List<TraHangQTChungGiao>())
+                .Where(x => x != null && !string.IsNullOrWhiteSpace(x.LotGiao))
+                .GroupBy(x => x.LotGiao.Trim(), StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.Sum(x => Math.Max(0, x.SoLuongGiao)), StringComparer.OrdinalIgnoreCase);
+
+            return exports.Select(x =>
+            {
+                int alreadyDelivered;
+                delivered.TryGetValue(x.Lot, out alreadyDelivered);
+                return new LotInfo
+                {
+                    ItemCode = x.ItemCode,
+                    LotNo = x.Lot,
+                    Quantity = Math.Max(0, x.Exported - alreadyDelivered)
+                };
+            }).Where(x => x.Quantity > 0).ToList();
         }
 
         // ============================================================
@@ -428,14 +513,14 @@ namespace PCTP.Modules.XuLyHangLoi
         {
             _gridView.Columns.Clear();
 
-            AddColumn("MaHang", "Mã hàng", 130);
-            AddColumn("LotNo", "LOT", 150);
-            AddColumn("SoLuong", "Số lượng", 90);
-            AddColumn("SlotId", "Slot", 80);
-
-            // Nếu LotInfo có các field này thì sẽ tự hiển thị.
-            AddColumnIfExists("TenHang", "Tên hàng", 180);
-            AddColumnIfExists("ViTri", "Vị trí", 120);
+            // SlotId là SlotLotId phục vụ xuất kho; vị trí vật lý nằm ở các field riêng.
+            AddColumn("ItemCode", "Mã hàng", 130);
+            AddColumn("LotNo", "LOT", 180);
+            AddColumn("Quantity", "SL tại Slot", 90);
+            AddColumn("WarehouseName", "Kho", 110);
+            AddColumn("RackName", "Rack", 110);
+            AddColumn("SlotNumber", "Vị trí Slot", 90);
+            AddColumn("SlotId", "SlotLot ID", 85);
 
             _gridView.BestFitColumns();
         }
@@ -446,6 +531,30 @@ namespace PCTP.Modules.XuLyHangLoi
             if (property == null)
                 return;
 
+            var col = _gridView.Columns.AddField(fieldName);
+            col.Caption = caption;
+            col.Width = width;
+            col.Visible = true;
+        }
+
+        // Khi phiếu đã giao SX, GridView phải đọc lịch sử giao đã lưu,
+        // không tiếp tục hiển thị các Slot tồn kho khả dụng.
+        private void BuildDeliveryColumns()
+        {
+            _gridView.Columns.Clear();
+            AddDeliveryColumn(nameof(TraHangQTChungGiao.MaHang), "Mã hàng", 130);
+            AddDeliveryColumn(nameof(TraHangQTChungGiao.LotGiao), "LOT đã giao", 180);
+            AddDeliveryColumn(nameof(TraHangQTChungGiao.SoLuongGiao), "SL đã giao", 90);
+            AddDeliveryColumn(nameof(TraHangQTChungGiao.BoPhanNhan), "Bộ phận nhận", 180);
+            AddDeliveryColumn(nameof(TraHangQTChungGiao.NguoiNhan), "Người nhận", 140);
+            AddDeliveryColumn(nameof(TraHangQTChungGiao.NgayGiao), "Ngày giao", 150);
+            AddDeliveryColumn(nameof(TraHangQTChungGiao.ThoiGian), "Thời điểm ghi nhận", 160);
+            AddDeliveryColumn(nameof(TraHangQTChungGiao.Note), "Ghi chú", 180);
+            _gridView.BestFitColumns();
+        }
+
+        private void AddDeliveryColumn(string fieldName, string caption, int width)
+        {
             var col = _gridView.Columns.AddField(fieldName);
             col.Caption = caption;
             col.Width = width;
@@ -479,7 +588,7 @@ namespace PCTP.Modules.XuLyHangLoi
 
             string lotNo = GetPropertyString(lot, "LotNo");
             int slotId = GetPropertyInt(lot, "SlotId");
-            int soLuongKho = GetPropertyInt(lot, "SoLuong");
+            int soLuongKho = GetPropertyInt(lot, "Quantity");
 
             if (string.IsNullOrWhiteSpace(lotNo))
             {
@@ -521,7 +630,8 @@ namespace PCTP.Modules.XuLyHangLoi
             if (XtraMessageBox.Show(
                     $"Xác nhận xuất {soLuong} cái\r\n" +
                     $"LOT: {lotNo}\r\n" +
-                    $"Slot: {slotId}\r\n" +
+                    $"Vị trí: {lot.WarehouseName} / {lot.RackName} / Slot {lot.SlotNumber}\r\n" +
+                    $"SlotLot ID: {slotId}\r\n" +
                     $"Phiếu xử lý: {_phieuXuLyId}",
                     "Xác nhận xuất kho Rework",
                     MessageBoxButtons.YesNo,
@@ -581,7 +691,7 @@ namespace PCTP.Modules.XuLyHangLoi
         {
             try
             {
-                var lots = _reworkStockService.GetLotsCanReworkByPhieuXuLy(_phieuXuLyId);
+                var lots = GetLotsDaXuatChuaGiao();
                 if (lots == null || lots.Count == 0)
                 {
                     ShowWarning("Không có LOT để giao cho sản xuất.");
@@ -602,23 +712,21 @@ namespace PCTP.Modules.XuLyHangLoi
                     return;
                 }
 
-                string boPhanNhan = XtraInputBox.Show(
-                    "Nhập bộ phận nhận:",
-                    "Giao hàng Rework",
-                    "SX");
-                if (boPhanNhan == null) return;
-                boPhanNhan = boPhanNhan.Trim();
+                var boPhan = ChonBoPhanNhan();
+                if (boPhan == null) return;
+                string boPhanNhan = (boPhan.Code ?? string.Empty).Trim();
                 if (string.IsNullOrWhiteSpace(boPhanNhan))
                 {
-                    ShowWarning("Chưa nhập bộ phận nhận.");
+                    ShowWarning("Vui lòng chọn bộ phận nhận.");
                     return;
                 }
 
                 if (XtraMessageBox.Show(
                         $"Xác nhận giao Rework cho:\r\n" +
-                        $"Bộ phận: {boPhanNhan}\r\n" +
+                        $"Bộ phận: {boPhan.Display}\r\n" +
                         $"Người nhận: {nguoiNhan}\r\n" +
-                        $"Số LOT: {lots.Count}",
+                        $"Số LOT: {lots.Count}\r\n" +
+                        $"Tổng số lượng giao: {lots.Sum(x => x.Quantity):n0}",
                         "Xác nhận giao sản xuất",
                         MessageBoxButtons.YesNo,
                         MessageBoxIcon.Question)
@@ -634,25 +742,162 @@ namespace PCTP.Modules.XuLyHangLoi
                 // → lời gọi dưới đây LUÔN ném exception cho tới khi backend
                 // implement xong repository giao hàng rework. Đây KHÔNG
                 // phải lỗi ở Form — Form gọi đúng API theo interface.
-                _qtChungService.GiaoHangRework(
+                var result = _qtChungService.GiaoHangRework(
                     _phieuXuLyId,
                     lots,
                     ngayGiao,
                     nguoiNhan,
                     boPhanNhan);
 
+                if (result == null || !result.IsOK)
+                {
+                    ShowWarning(result?.Message ?? "Giao hàng Rework không thành công.");
+                    LoadPhieu();
+                    return;
+                }
+
                 XtraMessageBox.Show(
-                    "Đã giao hàng Rework cho sản xuất.",
+                    result.Message ?? "Đã giao hàng Rework cho sản xuất.",
                     "Thành công",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Information);
 
+                // Nạp lại phiếu và grid từ bảng lịch sử giao; không lấy lại
+                // các dòng tồn kho Slot như trước khi giao.
                 LoadPhieu();
+                LoadLots();
                 UpdateActionState();
             }
             catch (Exception ex)
             {
                 ShowError("Không thể giao hàng Rework cho sản xuất.", ex);
+            }
+        }
+
+        // ============================================================
+        // CHỌN BỘ PHẬN NHẬN TỪ DANH MỤC B20Dept
+        // Dùng chung INoiBoLookupRepository với FormTaoPhieuTraNoiBo.
+        // Giá trị lưu xuống nghiệp vụ là Code; người dùng tìm/chọn theo mã hoặc tên.
+        // ============================================================
+        private DeptLookupItem ChonBoPhanNhan()
+        {
+            if (_noiBoLookupRepo == null)
+            {
+                ShowWarning("Chưa khởi tạo danh mục bộ phận. Vui lòng mở form qua màn hình Quản lý tiến trình để nạp INoiBoLookupRepository.");
+                return null;
+            }
+
+            try
+            {
+                var depts = _noiBoLookupRepo.GetActiveDepartments() ?? new List<DeptLookupItem>();
+                if (depts.Count == 0)
+                {
+                    ShowWarning("Danh mục B20Dept không có bộ phận đang hoạt động.");
+                    return null;
+                }
+
+                using (var dialog = new XtraForm())
+                {
+                    dialog.Text = "Chọn bộ phận nhận";
+                    dialog.StartPosition = FormStartPosition.CenterParent;
+                    dialog.FormBorderStyle = FormBorderStyle.FixedDialog;
+                    dialog.MinimizeBox = false;
+                    dialog.MaximizeBox = false;
+                    dialog.ShowInTaskbar = false;
+                    dialog.ClientSize = new Size(560, 145);
+
+                    var root = new TableLayoutPanel
+                    {
+                        Dock = DockStyle.Fill,
+                        Padding = new Padding(12),
+                        ColumnCount = 1,
+                        RowCount = 3
+                    };
+                    root.RowStyles.Add(new RowStyle(SizeType.Absolute, 26));
+                    root.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
+                    root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+
+                    var label = new LabelControl
+                    {
+                        Text = "Bộ phận nhận:",
+                        Dock = DockStyle.Fill
+                    };
+                    label.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
+
+                    var lookup = new SearchLookUpEdit { Dock = DockStyle.Fill };
+                    lookup.Properties.DataSource = depts;
+                    lookup.Properties.DisplayMember = nameof(DeptLookupItem.Display);
+                    lookup.Properties.ValueMember = nameof(DeptLookupItem.Code);
+                    lookup.Properties.NullText = "Chọn bộ phận...";
+                    lookup.Properties.ShowClearButton = true;
+                    lookup.Properties.ImmediatePopup = true;
+                    lookup.Properties.PopupFormSize = new Size(520, 320);
+                    lookup.Properties.View.OptionsView.ShowAutoFilterRow = false;
+                    lookup.Properties.View.OptionsFind.AlwaysVisible = true;
+                    lookup.Properties.View.OptionsFind.FindNullPrompt = "Tìm theo mã hoặc tên bộ phận...";
+                    lookup.Properties.View.OptionsFind.ShowCloseButton = false;
+                    lookup.Properties.PopulateViewColumns();
+
+                    var view = lookup.Properties.View;
+                    if (view.Columns[nameof(DeptLookupItem.Display)] != null)
+                        view.Columns[nameof(DeptLookupItem.Display)].Visible = false;
+                    var codeColumn = view.Columns[nameof(DeptLookupItem.Code)];
+                    if (codeColumn != null)
+                    {
+                        codeColumn.Caption = "Mã bộ phận";
+                        codeColumn.Width = 120;
+                    }
+                    var nameColumn = view.Columns[nameof(DeptLookupItem.Name)];
+                    if (nameColumn != null)
+                    {
+                        nameColumn.Caption = "Tên bộ phận";
+                        nameColumn.Width = 340;
+                    }
+
+                    var buttons = new FlowLayoutPanel
+                    {
+                        Dock = DockStyle.Fill,
+                        FlowDirection = FlowDirection.RightToLeft,
+                        WrapContents = false
+                    };
+                    var ok = new SimpleButton { Text = "OK", Width = 95 };
+                    var cancel = new SimpleButton { Text = "Hủy", Width = 95 };
+                    ok.Click += (s, e) =>
+                    {
+                        if (lookup.EditValue == null || string.IsNullOrWhiteSpace(Convert.ToString(lookup.EditValue)))
+                        {
+                            XtraMessageBox.Show(dialog, "Vui lòng chọn bộ phận nhận.", "Thông báo",
+                                MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                            return;
+                        }
+                        dialog.DialogResult = DialogResult.OK;
+                        dialog.Close();
+                    };
+                    cancel.Click += (s, e) =>
+                    {
+                        dialog.DialogResult = DialogResult.Cancel;
+                        dialog.Close();
+                    };
+
+                    buttons.Controls.Add(cancel);
+                    buttons.Controls.Add(ok);
+                    root.Controls.Add(label, 0, 0);
+                    root.Controls.Add(lookup, 0, 1);
+                    root.Controls.Add(buttons, 0, 2);
+                    dialog.Controls.Add(root);
+
+                    if (dialog.ShowDialog(this) != DialogResult.OK)
+                        return null;
+
+                    string code = Convert.ToString(lookup.EditValue);
+                    return depts.FirstOrDefault(d =>
+                        string.Equals(d.Code, code, StringComparison.OrdinalIgnoreCase));
+                }
+            }
+            catch (Exception ex)
+            {
+                ShowError("Không tải được danh sách bộ phận nhận.", ex);
+                return null;
             }
         }
 
@@ -684,7 +929,7 @@ namespace PCTP.Modules.XuLyHangLoi
                     Environment.UserName);
 
                 XtraMessageBox.Show(
-                    "Đã ghi nhận quá trình đang Rework.",
+                    "Đã lưu ghi chú tiến độ Rework (chưa xác nhận hoàn tất sửa hàng). Khi sửa xong: đóng form Rework, chọn \"7. QC Rework / Disposition\" trên màn hình quản lý tiến trình để QC xác nhận OK/NG, sau đó nhập số lượng OK/NG vào kho.",
                     "Thành công",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Information);

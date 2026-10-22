@@ -1,4 +1,5 @@
 ﻿using PCTP.Modules.GiaoHangKhach;
+using PCTP.Modules.KhoCore.Application.Contracts.Stock;
 using PCTP.Modules.XuatKho.Interfaces;
 using PCTP.Modules.XuatKho.Models;
 using PCTP.Modules.XuLyHangLoi.Models;
@@ -86,6 +87,76 @@ namespace PCTP.Modules.XuatKho.Repositories
                 new SqlParameter("@note", (object)item.Note ?? DBNull.Value));
 
             return Convert.ToInt32(id);
+        }
+
+        public void InsertPickDetails(int hangChoGiaoId, int slotId, IList<StockSlotLot> lots)
+        {
+            if (!HasTransaction)
+                throw new InvalidOperationException("InsertPickDetails phải chạy trong transaction.");
+            if (hangChoGiaoId <= 0 || slotId <= 0)
+                throw new ArgumentOutOfRangeException("ID phiếu chờ giao hoặc Slot không hợp lệ.");
+            if (lots == null || lots.Count == 0)
+                throw new InvalidOperationException("Không có chi tiết LOT để lưu cho phép huỷ chờ giao.");
+
+            int total = 0;
+            foreach (var lot in lots)
+            {
+                if (lot == null || lot.Quantity <= 0 || string.IsNullOrWhiteSpace(lot.LotNo) ||
+                    string.IsNullOrWhiteSpace(lot.ItemCode))
+                    throw new InvalidOperationException("Chi tiết pick có LOT/mã hàng/số lượng không hợp lệ.");
+
+                ExecuteNonQuery(
+                    @"INSERT INTO FVN_HangChoGiaoPickDetail
+                      (HangChoGiaoId, SlotIdNguon, ItemCode, LotNo, Quantity, TemCode, QrData, ImportDate, PhieuStatus)
+                      VALUES (@id, @slot, @item, @lot, @qty, @tem, @qr, @date, @status)",
+                    new SqlParameter("@id", hangChoGiaoId),
+                    new SqlParameter("@slot", slotId),
+                    new SqlParameter("@item", lot.ItemCode),
+                    new SqlParameter("@lot", lot.LotNo),
+                    new SqlParameter("@qty", lot.Quantity),
+                    new SqlParameter("@tem", (object)lot.TemCode ?? DBNull.Value),
+                    new SqlParameter("@qr", (object)lot.RawQr ?? DBNull.Value),
+                    new SqlParameter("@date", (object)lot.ImportDate ?? DBNull.Value),
+                    new SqlParameter("@status", lot.PhieuStatus));
+                total += lot.Quantity;
+            }
+
+            if (total <= 0)
+                throw new InvalidOperationException("Tổng chi tiết pick phải lớn hơn 0.");
+        }
+
+        public IList<StockSlotLot> GetPickDetails(int hangChoGiaoId)
+        {
+            DataTable dt = LoadData(
+                @"SELECT ItemCode, LotNo, Quantity, TemCode, QrData, ImportDate, PhieuStatus
+                  FROM FVN_HangChoGiaoPickDetail
+                  WHERE HangChoGiaoId = @id
+                  ORDER BY Id",
+                new SqlParameter("@id", hangChoGiaoId));
+
+            return dt.Rows.Cast<DataRow>().Select(r => new StockSlotLot
+            {
+                ItemCode = Convert.ToString(r["ItemCode"]),
+                LotNo = Convert.ToString(r["LotNo"]),
+                Quantity = Convert.ToInt32(r["Quantity"]),
+                TemCode = r["TemCode"] == DBNull.Value ? null : Convert.ToString(r["TemCode"]),
+                RawQr = r["QrData"] == DBNull.Value ? null : Convert.ToString(r["QrData"]),
+                ImportDate = r["ImportDate"] == DBNull.Value ? (DateTime?)null : Convert.ToDateTime(r["ImportDate"]),
+                PhieuStatus = r["PhieuStatus"] == DBNull.Value ? (byte)0 : Convert.ToByte(r["PhieuStatus"])
+            }).ToList();
+        }
+
+        public List<HangChoGiao> GetPending()
+        {
+            DataTable dt = LoadData(
+                @"SELECT Id, MaHang, LotThung, LotGoc, SoLuong, SlotIdNguon, LoaiYeuCauGiao,
+                         PhieuKhachTraId, PhieuXuLyBatThuongId, DinhDanhPhieuGiao,
+                         TrangThai, NgayXuatKho, NguoiXuatKho, NgayGiao, NguoiGiao, Note
+                  FROM FVN_HangChoGiao
+                  WHERE TrangThai = @status
+                  ORDER BY NgayXuatKho, Id",
+                new SqlParameter("@status", HangChoGiaoStatus.ChoGiao.ToString()));
+            return dt.Rows.Cast<DataRow>().Select(Map).ToList();
         }
 
         // ============================================================
