@@ -4,7 +4,7 @@
     "productionDatabaseAccess": false,
     "mutatingProductionData": false,
     "sqlScriptsExecutedByDefault": false,
-    "integrationDatabasePolicy": "Local SQL Server only; database name must start TEST_ or end _TEST/_TESTING"
+    "integrationDatabasePolicy": "SQL engine fixtures use session-local # tables or a uniquely named tempdb ## table on the fixed test endpoint 192.168.200.57/B7R2_FCC; production repository scenarios must use rollback transactions and never target 192.168.200.14\\\\BRAVO."
   },
   "modules": [
     {
@@ -347,6 +347,46 @@
       "expected": "Negative affected/inspected/OK/NG/rework/scrap quantity rejected",
       "status": "implemented",
       "testEvidence": "QcFinalDomainInvariantTests.AffectedLot_RejectsNegativeQuantities"
+    },
+    {
+      "id": "PHY-002",
+      "module": "KhoVatLy/SqlEngineFixture",
+      "scenario": "Resolve LOT to warehouse/rack/slot using isolated SQL fixture tables",
+      "expected": "LOT location query returns the exact warehouse, rack and slot without creating or changing dbo business tables",
+      "status": "implemented",
+      "testEvidence": "SqlEngineWorkflowScenario.VerifyPhysicalLocationQuarantineAndLedgerAsync; isolated session-local #Warehouse/#Rack/#Slot/#SlotLot fixture only"
+    },
+    {
+      "id": "DEL-014",
+      "module": "GiaoHangKhach/SqlEngineFixture",
+      "scenario": "Replay the same delivery reference twice in an isolated SQL fixture",
+      "expected": "Unique delivery reference produces one delivery row and one stock-movement row",
+      "status": "implemented",
+      "testEvidence": "SqlEngineWorkflowScenario.VerifyPhysicalLocationQuarantineAndLedgerAsync; engine-level fixture only, not production delivery orchestration"
+    },
+    {
+      "id": "REP-003",
+      "module": "BaoCao/SqlEngineFixture",
+      "scenario": "Reconcile opening + received - issued = closing for a LOT",
+      "expected": "Ledger arithmetic equals physical closing quantity; rollback restores quantity and movement history",
+      "status": "implemented",
+      "testEvidence": "SqlEngineWorkflowScenario.VerifyPhysicalLocationQuarantineAndLedgerAsync; isolated SQL ledger and injected rollback"
+    },
+    {
+      "id": "SQL-006",
+      "module": "Reliability/SqlEngineFixture",
+      "scenario": "Exercise quarantine export guard, authorized release, duplicate reference and multi-write rollback",
+      "expected": "Quarantined LOT cannot be exported; release changes status; duplicate reference is idempotent; injected error restores all transaction writes",
+      "status": "implemented",
+      "testEvidence": "SqlEngineWorkflowScenario.VerifyPhysicalLocationQuarantineAndLedgerAsync; SQL Server engine-level temporary fixture only"
+    },
+    {
+      "id": "PERF-003",
+      "module": "Performance/ConcurrentLotReservation",
+      "scenario": "Two independent SQL sessions reserve 10 units concurrently from a LOT with 15 units",
+      "expected": "Exactly one reservation succeeds and 5 units remain; no oversell",
+      "status": "implemented",
+      "testEvidence": "SqlEngineWorkflowScenario.VerifyConcurrentLotReservationAsync; two independent connections against a uniquely named tempdb global temporary table"
     }
   ]
 }
