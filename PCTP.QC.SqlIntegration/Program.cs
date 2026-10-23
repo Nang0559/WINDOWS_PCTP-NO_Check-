@@ -52,8 +52,12 @@ internal static class Program
             // Never invoke the dbo-table bulk/concurrency scenarios against shared SQL 57.
             Console.WriteLine("INFO: running production StockTpRepository CRUD/read/batch checks against isolated #STOCKTP...");
             ProductionStockTpRepositoryScenario.Run(connectionString);
-            Console.WriteLine("PASS: repository integration checks completed; only the session-local #STOCKTP fixture was written.");
-            Console.WriteLine("INFO: bulk Slot/Rack/Warehouse writes, delivery scenarios, and concurrency tests remain disabled on shared dbo data.");
+            Console.WriteLine("PASS: production StockTpRepository integration checks completed using session-local #STOCKTP.");
+
+            Console.WriteLine("INFO: running isolated SQL transaction rollback/commit smoke checks...");
+            await RunIsolatedEngineReliabilityAsync(connection);
+            Console.WriteLine("PASS: SQL transaction rollback/commit smoke checks completed using a session-local temporary table.");
+            Console.WriteLine("INFO: bulk Slot/Rack/Warehouse writes, delivery scenarios, and production concurrency tests remain disabled on shared dbo data.");
             return 0;
         }
         catch (Exception ex)
