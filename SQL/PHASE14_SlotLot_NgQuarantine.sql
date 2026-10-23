@@ -1,13 +1,21 @@
 /* ============================================================================
    PHASE14 - SlotLot.PhieuStatus = 3 (NG cách ly) cho hàng NG sau Rework
    ----------------------------------------------------------------------------
-   Quy tắc: STOCKTP.SLCONLAI đối chiếu tổng lượng vật lý SlotLot theo LOT đầy đủ, loại trừ duy nhất PhieuStatus = 3 (quarantine/NG).
-   Slot.Quantity = SUM(SlotLot.Quantity) trong ô, loại trừ duy nhất PhieuStatus = 3 (quarantine/NG).
-   Hàng NG sau Rework nằm vật lý ở slot NG nhưng KHÔNG thuộc STOCKTP -> PhieuStatus = 3.
-   Trước bản vá, NG được ghi PhieuStatus = 0 cùng LotNo -> lệch đối chiếu, bị liệt kê để Rework lại.
+   Quy tắc tồn kho chuẩn:
+     PhieuStatus = 0 : tồn vật lý/current stock
+     PhieuStatus = 1 : Split, chỉ trace lịch sử
+     PhieuStatus = 2 : ExportedOut, đã xuất khỏi kho
+     PhieuStatus = 3 : NG/quarantine
 
-   CÁCH DÙNG: NÊN BACKUP bảng SlotLot. Chạy 1 (kiểm tra ràng buộc) -> 2 (xem dòng NG cũ)
-   -> 3 (chuyển, mặc định ROLLBACK; đổi thành COMMIT khi đã kiểm tra).
+   Vì vậy STOCKTP.SLCONLAI và Slot.Quantity chỉ đối chiếu SlotLot có
+   PhieuStatus = 0. Không dùng <> 3 vì status 1/2 không còn là tồn vật lý.
+
+   Hàng NG sau Rework nằm vật lý ở slot NG nhưng KHÔNG thuộc STOCKTP ->
+   PhieuStatus = 3.
+
+   CÁCH DÙNG: NÊN BACKUP bảng SlotLot. Chạy 1 (kiểm tra ràng buộc) ->
+   2 (xem dòng NG cũ) -> 3 (chuyển, mặc định ROLLBACK; đổi thành COMMIT
+   khi đã kiểm tra).
    ============================================================================ */
 
 /* ---- 1. Có CHECK constraint nào chặn PhieuStatus = 3 không? ---------------- */
@@ -45,14 +53,21 @@ JOIN dbo.FVN_TraHangQTChungNhapNG n
  AND sl.CreatedDate BETWEEN DATEADD(MINUTE, -2, n.NgayNhap) AND DATEADD(MINUTE, 2, n.NgayNhap);
 PRINT CONCAT(N'Đã chuyển ', @@ROWCOUNT, N' dòng SlotLot sang PhieuStatus = 3.');
 
--- Tính lại header Slot: tính tất cả trạng thái ngoại trừ quarantine/NG (PhieuStatus = 3).
+/* Tính lại header Slot: chỉ current stock PhieuStatus = 0. */
 UPDATE s
 SET s.Quantity   = ISNULL(x.TotalQty, 0),
     s.IsOccupied = CASE WHEN ISNULL(x.TotalQty, 0) > 0 THEN 1 ELSE 0 END
 FROM dbo.Slot s
-OUTER APPLY (SELECT SUM(Quantity) AS TotalQty FROM dbo.SlotLot
-             WHERE SlotId = s.SlotId AND PhieuStatus <> 3) x
-WHERE s.SlotId IN (SELECT DISTINCT SlotIdNG FROM dbo.FVN_TraHangQTChungNhapNG WHERE SlotIdNG IS NOT NULL);
+OUTER APPLY (
+    SELECT SUM(Quantity) AS TotalQty
+    FROM dbo.SlotLot
+    WHERE SlotId = s.SlotId AND PhieuStatus = 0
+) x
+WHERE s.SlotId IN (
+    SELECT DISTINCT SlotIdNG
+    FROM dbo.FVN_TraHangQTChungNhapNG
+    WHERE SlotIdNG IS NOT NULL
+);
 
 ROLLBACK TRANSACTION;   -- đổi thành COMMIT TRANSACTION khi đã kiểm tra
 GO
