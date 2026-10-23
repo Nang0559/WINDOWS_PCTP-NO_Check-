@@ -3,9 +3,37 @@
   "purpose": "Read-only navigation smoke: open the real receiving workflow screen from the PCTP menu.",
   "dataMutation": false,
   "steps": [
-    { "id": "expand-receive-menu", "action": "expand", "automationId": "NHAccordionControlElement" },
-    { "id": "open-receive-workflow", "action": "click", "automationId": "E_NhapTP", "waitAfterMs": 1200 },
-    { "id": "receiving-screen-visible", "action": "wait-for-window", "value": "Quản lý tiến trình Nhập kho", "timeoutSeconds": 45 },
-    { "id": "verify-receiving-title", "action": "assert-window-title", "value": "Quản lý tiến trình Nhập kho" }
+    {
+      "id": "expand-receive-menu",
+      "action": "expand",
+      "automationId": "NHAccordionControlElement"
+    },
+    {
+      "id": "open-receive-workflow",
+      "action": "click",
+      "automationId": "E_NhapTP",
+      "waitAfterMs": 1200
+    },
+    {
+      "id": "receiving-screen-visible",
+      "action": "wait-for-window",
+      "value": "Quản lý tiến trình Nhập kho",
+      "timeoutSeconds": 45
+    },
+    {
+      "id": "verify-receiving-title",
+      "action": "assert-window-title",
+      "value": "Quản lý tiến trình Nhập kho"
+    },
+    {
+      "id": "receiving-scan-control-exposed",
+      "action": "assert-exists",
+      "automationId": "receive_btnScan"
+    },
+    {
+      "id": "receiving-worklist-grid-exposed",
+      "action": "assert-exists",
+      "automationId": "receive_worklistGrid"
+    }
   ]
 }
