@@ -13,33 +13,14 @@ BEGIN
         QUY ƯỚC LOT  
         ================================================================  
   
-        LOT KEY nghiệp vụ = LEFT(LOT, 13)  
-  
-        Ví dụ:  
-  
-            LOT đầy đủ trong STOCKTP:  
-            26091001014100861700  
-  
-            LOT KEY:  
-            2609100101410  
-  
-        Các ký tự từ vị trí 14 trở đi KHÔNG tham gia xác định LOT KEY.  
-  
-        Quy tắc:  
-  
-            LEFT(STOCKTP.LOT, 13)  
-                =  
-            LEFT(@LOT, 13)  
-  
-        Tuy nhiên khi UPDATE STOCKTP:  
-            - Không UPDATE theo LEFT(LOT,13)  
-            - Phải tìm đúng LOT vật lý đầy đủ  
-            - Sau đó UPDATE WHERE LOT = @LotThuc  
-  
-        Mục đích:  
-            1. Tìm tồn theo LOT KEY 13 ký tự.  
-            2. Không bị lỗi khi input chỉ có 13 ký tự.  
-            3. Không UPDATE nhầm nhiều dòng STOCKTP cùng LOT KEY.  
+        STOCKTP.LOT đầy đủ là định danh chính xác của LOT vật lý.
+
+        - Nếu đầu vào dài hơn 13 ký tự: chỉ khớp RTRIM(STOCKTP.LOT) = RTRIM(@LOT).
+        - Nếu đầu vào chỉ có mã gốc 13 ký tự: chỉ chấp nhận khi mã gốc ánh xạ tới
+          đúng một LOT vật lý; nếu có nhiều LOT vật lý thì ghi lỗi và dừng trước
+          mọi cập nhật tồn.
+        - Tuyệt đối không cộng tồn của nhiều LOT vật lý theo tiền tố rồi trừ một
+          LOT bất kỳ. Kiểm tra khả dụng và bước trừ kho phải dùng cùng quy tắc.
     */  
   
     --------------------------------------------------------------------  
@@ -471,15 +452,21 @@ BEGIN
                             END;  
   
                             ------------------------------------------------  
-                            -- 6.6. KIỂM TRA LOT TỒN TẠI  
-                            ------------------------------------------------  
-   IF EXISTS  
-                            (  
-                                SELECT 1  
-                                FROM STOCKTP  
-                                WHERE LEFT(LOT, 13) =  
-                                      LEFT(@_LOTOK, 13)  
-                            )  
+                            -- 6.6. KIỂM TRA LOT TỒN TẠI. Skip duplicate diagnostics if root is ambiguous.
+                            IF NOT EXISTS
+                            (
+                                SELECT 1 FROM #STNG
+                                WHERE RTRIM(MH) = RTRIM(@MH)
+                                  AND RTRIM(LOT) = RTRIM(@_LOTOK)
+                                  AND STATUS = N'Mã LOT gốc ánh xạ nhiều LOT vật lý; vui lòng cung cấp LOT đầy đủ'
+                            )
+                            AND EXISTS
+                            (
+                                SELECT 1
+                                FROM STOCKTP
+                                WHERE (LEN(RTRIM(@_LOTOK)) > 13 AND RTRIM(LOT) = RTRIM(@_LOTOK))
+                                   OR (LEN(RTRIM(@_LOTOK)) <= 13 AND LEFT(RTRIM(LOT), 13) = LEFT(RTRIM(@_LOTOK), 13))
+                            )
                             BEGIN  
   
                                 ------------------------------------------------  
@@ -614,14 +601,17 @@ BEGIN
                 LOT,  
                 SUM(SOLUONG) AS TONG_CAN_XUAT  
             INTO #GomNhomCheck  
-            FROM #TMPUPDATE  
-            WHERE STT NOT IN  
-            (  
-                SELECT DISTINCT STT  
-                FROM #STNG  
-            )  
-            GROUP BY  
-                MH,  
+            FROM #TMPUPDATE T
+            WHERE T.STATUS = 'OK'
+              AND NOT EXISTS
+              (
+                  SELECT 1
+                  FROM #STNG E
+                  WHERE RTRIM(E.MH) = RTRIM(T.MH)
+                    AND RTRIM(E.LOT) = RTRIM(T.LOT)
+              )
+            GROUP BY
+                MH,
                 LOT;  
   
             ------------------------------------------------------------  
@@ -656,7 +646,11 @@ BEGIN
                 GROUP BY RTRIM(LOT), LEFT(RTRIM(LOT), 13)
             ) S
                 ON ((LEN(RTRIM(G.LOT)) > 13 AND S.PhysicalLot = RTRIM(G.LOT))
-                 OR (LEN(RTRIM(G.LOT)) <= 13 AND S.LotKey = LEFT(RTRIM(G.LOT), 13)))  
+                 OR (LEN(RTRIM(G.LOT)) <= 13
+                     AND S.LotKey = LEFT(RTRIM(G.LOT), 13)
+                     AND (SELECT COUNT(DISTINCT RTRIM(S2.LOT))
+                          FROM STOCKTP S2
+                          WHERE LEFT(RTRIM(S2.LOT), 13) = LEFT(RTRIM(G.LOT), 13)) = 1))  
             WHERE  
                 ISNULL(S.SLCONLAI, 0) -  
                 G.TONG_CAN_XUAT < 0;  
