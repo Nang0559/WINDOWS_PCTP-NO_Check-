@@ -172,7 +172,8 @@
       "module": "GiaoHangKhach",
       "scenario": "Execute production customer-delivery stock deduction across STOCKTP, SlotLot, stock history and pending-delivery records",
       "expected": "All repository writes enlist in the same phieuUow; any injected failure rolls back every stock/history/delivery mutation",
-      "status": "planned"
+      "status": "planned",
+      "testEvidence": "Still a required gap: current ProductionBulkStockSlotRepositoryScenario exercises production repositories plus synthetic delivery state, not PhieuKhoRepository + the exact Usp_Qrcode_Update_Stock2405 against an isolated copy of the full business schema."
     },
     {
       "id": "DEL-004",
@@ -211,7 +212,8 @@
       "module": "GiaoHangKhach",
       "scenario": "Verify transaction boundary for stored-procedure delivery routes and post-delivery finalization",
       "expected": "STOCKTP deduction, SlotLot deduction, pending-delivery closure and history either commit atomically or expose an explicit recoverable state",
-      "status": "planned"
+      "status": "planned",
+      "testEvidence": "Still a required gap: transaction-boundary contract and synthetic SQL-engine rollback exist, but full stored-procedure + repository post-delivery finalization against an isolated copy of the business schema has not been executed."
     },
     {
       "id": "DEL-009",
@@ -271,9 +273,9 @@
       "id": "REP-001",
       "module": "BaoCao",
       "scenario": "Reconcile opening+in-out=closing stock",
-      "expected": "Report equals stock ledger",
+      "expected": "Reconcile opening + in - out = closing stock; STOCKTP current balance equals non-quarantined/non-NG SlotLot quantities by exact physical LOT; Slot.Quantity equals the sum of SlotLot quantities in that slot excluding PhieuStatus=3.",
       "status": "implemented",
-      "testEvidence": "ProductionBulkStockSlotRepositoryScenario.Run checks production STOCKTP SLNHAP - SLXUAT = SLCONLAI and equality with active SlotLot sum using the same LOT in isolated SQL fixtures"
+      "testEvidence": "ProductionBulkStockSlotRepositoryScenario.Run checks STOCKTP SLNHAP - SLXUAT = SLCONLAI and compares exact LOT active SlotLot quantities; header reconciliation includes every SlotLot status except quarantine/NG. Runtime SQL execution still required."
     },
     {
       "id": "REP-002",
@@ -519,6 +521,14 @@
       "expected": "UI actions, persisted stock/SlotLot/history/delivery/QC state and cleanup all reconcile; injected failure scenarios leave no partial data",
       "status": "planned",
       "testEvidence": "Requires isolated QC database, seeded/reset contract, stable runtime UIA AutomationIds and DB assertion adapter; navigation manifests alone are not transaction evidence"
+    },
+    {
+      "id": "INV-001",
+      "module": "KhoCore/StockInvariant",
+      "scenario": "Reconcile STOCKTP physical LOT stock, SlotLot quantity and Slot header after mutation/rollback",
+      "expected": "Exclude quarantine/NG (PhieuStatus=3); include all other SlotLot statuses in Slot.Quantity; exact full physical LOT identity is used when multiple STOCKTP rows share a 13-character root; no partial stock/history/pending mutation on rollback",
+      "status": "implemented",
+      "testEvidence": "ProductionBulkStockSlotRepositoryScenario.Run asserts Slot.Quantity = sum SlotLot.Quantity excluding only PhieuStatus=3, including closed/cancelled rows; OrderTableSourceContractTests guards stored procedure full-LOT identity and ambiguous-root fail-closed behavior. These are fixture/source-contract checks; runtime SQL acceptance remains not-run until the isolated SQL integration harness executes."
     }
   ]
 }
