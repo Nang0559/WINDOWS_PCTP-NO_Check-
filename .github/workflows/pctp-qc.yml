@@ -43,6 +43,9 @@ jobs:
             Write-Host "PASS: PowerShell syntax $path"
           }
 
+      - name: Build SQL integration harness
+        run: dotnet build .\\PCTP.QC.SqlIntegration\\PCTP.QC.SqlIntegration.csproj --configuration Release
+
       - name: Run QC unit tests
         run: dotnet test .\PCTP.QC.Tests\PCTP.QC.Tests.csproj --configuration Release --logger "trx;LogFileName=pctp-qc-tests.trx"
 
