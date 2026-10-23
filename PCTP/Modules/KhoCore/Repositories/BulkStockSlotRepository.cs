@@ -52,7 +52,7 @@ namespace PCTP.Modules.KhoVatLy.Repositories
             return System.Text.RegularExpressions.Regex.Replace(
                 sql,
                 @"(?<![@#\w])(Warehouse|Rack|SlotLot|Slot)\b",
-                match => (_qcTablePrefix ?? "#") + match.Value,
+                match => (string.IsNullOrEmpty(_qcTablePrefix) ? "#" : _qcTablePrefix) + match.Value,
                 System.Text.RegularExpressions.RegexOptions.IgnoreCase);
         }
 
