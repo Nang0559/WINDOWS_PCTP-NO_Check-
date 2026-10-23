@@ -32,7 +32,7 @@ INSERT INTO #Warehouse VALUES(1, N'QC-WH');
 INSERT INTO #Rack VALUES(1, 1, N'QC-RACK');
 INSERT INTO #Slot VALUES(1, 1, 7);
 INSERT INTO #SlotLot(SlotId, LotNo, Qty, Status) VALUES(1, N'QC-LOT-001', 15, 3);
-INSERT INTO #Movement(LotNo, QtyIn, QtyOut) VALUES(N'QC-LOT-001', 20, 5);", connection)
+INSERT INTO #Movement(LotNo, QtyIn, QtyOut) VALUES(N'QC-LOT-001', 12, 5);", connection)
         { CommandTimeout = 5 };
         await setup.ExecuteNonQueryAsync();
 
@@ -111,11 +111,11 @@ END;");
         // A unique tempdb global temp table lets two independent SQL sessions
         // contend for one LOT without creating or mutating any dbo business table.
         var table = "##PCTP_QC_LOT_" + Guid.NewGuid().ToString("N");
-        await using (var setupConnection = new SqlConnection(cs))
+        await using var setupConnection = new SqlConnection(cs);
+        await setupConnection.OpenAsync();
+        await using (var setup = new SqlCommand($"CREATE TABLE {table}(Id int NOT NULL PRIMARY KEY, Qty int NOT NULL); INSERT INTO {table}(Id,Qty) VALUES(1,15);", setupConnection)
+        { CommandTimeout = 5 })
         {
-            await setupConnection.OpenAsync();
-            await using var setup = new SqlCommand($"CREATE TABLE {table}(Id int NOT NULL PRIMARY KEY, Qty int NOT NULL); INSERT INTO {table}(Id,Qty) VALUES(1,15);", setupConnection)
-            { CommandTimeout = 5 };
             await setup.ExecuteNonQueryAsync();
         }
 
@@ -154,9 +154,7 @@ SELECT @@ROWCOUNT;", connection, transaction) { CommandTimeout = 10 };
         }
         finally
         {
-            await using var cleanupConnection = new SqlConnection(cs);
-            await cleanupConnection.OpenAsync();
-            await using var cleanup = new SqlCommand($"IF OBJECT_ID('tempdb..{table}') IS NOT NULL DROP TABLE {table};", cleanupConnection)
+            await using var cleanup = new SqlCommand($"IF OBJECT_ID('tempdb..{table}') IS NOT NULL DROP TABLE {table};", setupConnection)
             { CommandTimeout = 5 };
             await cleanup.ExecuteNonQueryAsync();
         }
