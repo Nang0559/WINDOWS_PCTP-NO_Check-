@@ -157,7 +157,7 @@
       "scenario": "Concurrent identical delivery confirmations race before LUUPHIEUGIAOHANG existence check",
       "expected": "A transaction-owned application lock serializes the complete delivery identity before duplicate lookup; the second request observes the first committed confirmation",
       "status": "implemented",
-      "testEvidence": "DeliveryTransactionContractTests.StockProcedure_SerializesDuplicateConfirmationBeforeCheckingExistingDelivery; SQL procedure acquires sys.sp_getapplock using a SHA2-256 key derived from part/date/slot/line/quantity/time/factory. Concurrent SQL runtime verification is still required."
+      "testEvidence": "DeliveryTransactionContractTests.StockProcedure_SerializesDuplicateConfirmationBeforeCheckingExistingDelivery; DeliveryTransactionBoundaryScenario.RunAsync runs two SQL sessions against a unique tempdb fixture to verify transaction-owned sp_getapplock serializes a duplicate key. The exact production procedure still requires execution in a dedicated isolated database."
     },
     {
       "id": "DEL-003",
