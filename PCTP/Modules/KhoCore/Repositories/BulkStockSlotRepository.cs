@@ -121,7 +121,7 @@ namespace PCTP.Modules.KhoVatLy.Repositories
         {
             DataTable dt = LoadData(
                 @"SELECT ItemCode, LotNo, Quantity, TemCode, QrData, MaPhieu, ImportDate
-              FROM SlotLot WHERE SlotId = @SlotId AND PhieuStatus = 0 ORDER BY LotNo",
+              FROM SlotLot WHERE SlotId = @SlotId AND PhieuStatus <> 3 ORDER BY LotNo",
                 new SqlParameter("@SlotId", slotId));
 
             var lots = new List<LotInfo>();
