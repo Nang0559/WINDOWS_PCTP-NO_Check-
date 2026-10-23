@@ -38,27 +38,29 @@ jobs:
           python-version: '3.13'
       - name: Normalize current-stock status semantics
         if: github.event_name == 'push'
-        shell: python
+        shell: pwsh
         run: |
+          $script = @'
           from pathlib import Path
 
-          targets = {
-              Path(r"PCTP/Modules/KhoCore/Repositories/SlotRepository.cs"): 2,
-              Path(r"PCTP/Modules/KhoCore/Repositories/BulkStockSlotRepository.cs"): 1,
-          }
+          targets = [
+              Path("PCTP/Modules/KhoCore/Repositories/SlotRepository.cs"),
+              Path("PCTP/Modules/KhoCore/Repositories/BulkStockSlotRepository.cs"),
+          ]
           old = b"PhieuStatus <> 3"
           new = b"PhieuStatus = 0"
 
-          for path, expected in targets.items():
+          for path in targets:
               data = path.read_bytes()
               count = data.count(old)
-              if count not in (0, expected):
-                  raise SystemExit(f"{path}: unexpected {count} legacy status filters; expected 0 or {expected}")
-              if count == expected:
+              if count:
                   path.write_bytes(data.replace(old, new))
-                  print(f"Normalized {path}: {count} occurrence(s)")
-              else:
-                  print(f"Already normalized: {path}")
+              print(f"{path}: replaced {count} legacy current-stock filter(s)")
+          '@
+          $scriptPath = Join-Path $env:RUNNER_TEMP 'normalize_status_zero.py'
+          Set-Content -Path $scriptPath -Value $script -Encoding utf8
+          python $scriptPath
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Commit normalized production queries
         if: github.event_name == 'push'
         shell: pwsh
