@@ -29,8 +29,8 @@ jobs:
         shell: pwsh
         run: |
           $paths = @(
-            ".\\PCTP.QC.UI\\Invoke-PctpUiSmoke.ps1",
-            ".\\PCTP.QC.UI\\Invoke-PctpUiJourney.ps1"
+            ".\PCTP.QC.UI\Invoke-PctpUiSmoke.ps1",
+            ".\PCTP.QC.UI\Invoke-PctpUiJourney.ps1"
           )
           foreach ($path in $paths) {
             $tokens = $null
@@ -44,7 +44,10 @@ jobs:
           }
 
       - name: Build SQL integration harness
-        run: dotnet build .\\PCTP.QC.SqlIntegration\\PCTP.QC.SqlIntegration.csproj --configuration Release
+        run: dotnet build .\PCTP.QC.SqlIntegration\PCTP.QC.SqlIntegration.csproj --configuration Release
+
+      - name: Build WinForms test dashboard
+        run: dotnet build .\PCTP.QC.TestRunner\PCTP.QC.TestRunner.csproj --configuration Release
 
       - name: Run QC unit tests
         run: dotnet test .\PCTP.QC.Tests\PCTP.QC.Tests.csproj --configuration Release --logger "trx;LogFileName=pctp-qc-tests.trx"
