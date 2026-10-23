@@ -24,6 +24,15 @@ public sealed class OrderTableSqlTests
     }
 
     [Fact]
+    public void MarkDelivered_AcceptsSafeSessionLocalTempTable()
+    {
+        var sql = OrderTableSql.MarkDelivered("#PCTP_QC_ORD_012345");
+
+        Assert.StartsWith("UPDATE [#PCTP_QC_ORD_012345] SET IsDelivered = 1", sql);
+        Assert.EndsWith("AND IsDelivered = 0", sql);
+    }
+
+    [Fact]
     public void MarkDelivered_OnlyTouchesUndeliveredRows_SoReplayIsIdempotent()
     {
         Assert.EndsWith("AND IsDelivered = 0", OrderTableSql.MarkDelivered("Purchase_Order_HTN"));
@@ -32,7 +41,7 @@ public sealed class OrderTableSqlTests
     [Theory]
     [InlineData(null)]
     [InlineData("")]
-    [InlineData("a b")]
+    [InlineData("##global")]\n    [InlineData("#bad name")]\n    [InlineData("#T]; DROP TABLE X;--")]\n    [InlineData("a b")]
     [InlineData("dbo.Purchase_Order")]
     [InlineData("T]; DROP TABLE X;--")]
     [InlineData("1Table")]
