@@ -71,6 +71,35 @@ INSERT INTO #DeliveryState(Id,HistoryCount,PendingClosed) VALUES(1,0,0);";
             Require(Convert.ToInt32(ScalarInTransaction(uow, "SELECT Quantity FROM #Slot WHERE SlotId=@id", slotId)) == 65,
                 "Slot header did not match the sum of active SlotLot quantities.");
 
+            // Exercise the production repository's quarantine guard, not only a synthetic SQL predicate.
+            using (var quarantine = uow.Connection.CreateCommand())
+            {
+                quarantine.Transaction = uow.Transaction;
+                quarantine.CommandTimeout = 5;
+                quarantine.CommandText = @"
+INSERT INTO #SlotLot(SlotId,ItemCode,LotNo,Quantity,TemCode,QrData,ImportDate,PhieuStatus)
+VALUES(@slot,N'QC-PART',N'QC-QUARANTINE-LOT',5,N'QC-QUARANTINE-TEM',N'QC-QUARANTINE-QR',GETDATE(),3);";
+                quarantine.Parameters.Add(new SqlParameter("@slot", slotId));
+                quarantine.ExecuteNonQuery();
+            }
+
+            bool quarantineRejected = false;
+            try
+            {
+                bulk.TakeLot(slotId, "QC-QUARANTINE-LOT", "QC-PART", 1);
+            }
+            catch (InvalidOperationException ex) when (ex.Message.Contains("không đủ", StringComparison.OrdinalIgnoreCase))
+            {
+                quarantineRejected = true;
+            }
+            Require(quarantineRejected, "Production TakeLot allowed a quarantined LOT to be exported.");
+            Require(Convert.ToInt32(ScalarInTransaction(uow,
+                "SELECT Quantity FROM #SlotLot WHERE LotNo=@lot AND PhieuStatus=3", "QC-QUARANTINE-LOT")) == 5,
+                "Quarantined LOT quantity changed after rejected export.");
+            Require(Convert.ToInt32(ScalarInTransaction(uow, "SELECT Quantity FROM #Slot WHERE SlotId=@id", slotId)) == 65,
+                "Rejected quarantined export changed the active Slot header.");
+            Console.WriteLine("PASS: production BulkStockSlotRepository.TakeLot rejects quarantined LOT without changing its quantity or active Slot header.");
+
             uow.Transaction.Save("QC_BEFORE_DELIVERY");
             try
             {
