@@ -33,6 +33,21 @@ public sealed class DeliveryTransactionContractTests
     }
 
     [Fact]
+    public void StockProcedure_SerializesDuplicateConfirmationBeforeCheckingExistingDelivery()
+    {
+        var sql = ReadSource("Usp_Qrcode_Update_Stock2405.sql");
+
+        var appLock = sql.IndexOf("sys.sp_getapplock", StringComparison.OrdinalIgnoreCase);
+        var duplicateLookup = sql.IndexOf("-- 6.1. KIỂM TRA PHIẾU ĐÃ LƯU", StringComparison.OrdinalIgnoreCase);
+
+        Assert.Contains("PCTP_DELIVERY:", sql);
+        Assert.Contains("@LockOwner = N'Transaction'", sql);
+        Assert.Contains("@LockMode = N'Exclusive'", sql);
+        Assert.True(appLock >= 0 && duplicateLookup > appLock,
+            "A transaction-owned application lock must be acquired before the existing-delivery lookup.");
+    }
+
+    [Fact]
     public void DeliveryRepository_DoesNotConsumeRolledBackSuccessRowsWhenProcedureReturnsErrors()
     {
         var source = ReadSource("PhieuKhoRepository.source.cs");
