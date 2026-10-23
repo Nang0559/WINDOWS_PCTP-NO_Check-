@@ -14,9 +14,20 @@ namespace PCTP.Modules.NhapKho.Repository
 {
     public sealed class StockTpRepository : SqlRepositoryBase, IStockTpRepository
     {
-        public StockTpRepository(PhieuSqlExecutor db, IUnitOfWork uow)
+        private readonly string _tableName;
+
+        // Production callers use STOCKTP. SQL integration tests may explicitly target
+        // a session-local #STOCKTP table so tests cannot mutate shared dbo business data.
+        // Deliberately whitelist identifiers; SQL parameters cannot bind table names.
+        public StockTpRepository(PhieuSqlExecutor db, IUnitOfWork uow, string tableName = "STOCKTP")
             : base(db, uow)
         {
+            if (string.Equals(tableName, "STOCKTP", StringComparison.OrdinalIgnoreCase))
+                _tableName = "STOCKTP";
+            else if (string.Equals(tableName, "#STOCKTP", StringComparison.OrdinalIgnoreCase))
+                _tableName = "#STOCKTP";
+            else
+                throw new ArgumentException("Table name must be STOCKTP or #STOCKTP.", nameof(tableName));
         }
 
         public bool ExistsStockTp(string lot)
