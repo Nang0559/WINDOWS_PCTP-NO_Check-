@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   unit-tests:
@@ -19,68 +19,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Normalize current-stock status semantics
-        shell: pwsh
-        run: |
-          $targets = @(
-            @{ Path = '.\PCTP\Modules\KhoCore\Repositories\SlotRepository.cs'; Expected = 2 },
-            @{ Path = '.\PCTP\Modules\KhoCore\Repositories\BulkStockSlotRepository.cs'; Expected = 1 }
-          )
-
-          $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
-          $utf8Bom = New-Object System.Text.UTF8Encoding($true)
-
-          foreach ($target in $targets) {
-            $path = $target.Path
-            $bytes = [System.IO.File]::ReadAllBytes($path)
-            $hasBom = $bytes.Length -ge 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF
-            $encoding = if ($hasBom) { $utf8Bom } else { $utf8NoBom }
-            $text = $encoding.GetString($bytes)
-            $count = ([regex]::Matches($text, [regex]::Escape('PhieuStatus <> 3'))).Count
-
-            if ($count -ne 0 -and $count -ne [int]$target.Expected) {
-              throw "$path: unexpected $count occurrences of 'PhieuStatus <> 3'; expected 0 or $($target.Expected)."
-            }
-
-            if ($count -eq [int]$target.Expected) {
-              $text = $text.Replace('PhieuStatus <> 3', 'PhieuStatus = 0')
-              [System.IO.File]::WriteAllText($path, $text, $encoding)
-              Write-Host "Normalized $path ($count occurrence(s))."
-            } else {
-              Write-Host "Already normalized: $path."
-            }
-          }
-
-      - name: Commit normalized production queries
-        if: ${{ github.event_name == 'push' }}
-        shell: pwsh
-        run: |
-          $paths = @(
-            '.\PCTP\Modules\KhoCore\Repositories\SlotRepository.cs',
-            '.\PCTP\Modules\KhoCore\Repositories\BulkStockSlotRepository.cs'
-          )
-
-          $legacy = Select-String -Path $paths -Pattern 'PhieuStatus <> 3' -SimpleMatch
-          if ($legacy) {
-            $legacy | ForEach-Object { Write-Host $_.ToString() }
-            throw 'Legacy current-stock status filter remains.'
-          }
-
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-
-          $diff = git status --short -- $paths
-          if (-not $diff) {
-            Write-Host 'No production status-filter changes required.'
-            exit 0
-          }
-
-          git add -- $paths
-          git commit -m 'fix(stock): enforce status-zero current stock paths'
-          git push origin HEAD:feature/pctp-qc-test-platform
 
       - name: Setup .NET 8
         uses: actions/setup-dotnet@v4
