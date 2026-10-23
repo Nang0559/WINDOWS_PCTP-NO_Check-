@@ -1,5 +1,5 @@
 using System;
-using System.Data.SqlClient;
+using Microsoft.Data.SqlClient;
 using PCTP.Modules.XuLyHangLoi.Application;
 using PCTP.Modules.XuLyHangLoi.Models;
 using PCTP.Shared.Common;
