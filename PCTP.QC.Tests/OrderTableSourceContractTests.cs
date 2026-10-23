@@ -67,6 +67,8 @@ public sealed class OrderTableSourceContractTests
         Assert.Contains("COUNT(DISTINCT RTRIM(LOT))", sql, StringComparison.Ordinal);
         Assert.Contains("Mã LOT gốc ánh xạ nhiều LOT vật lý", sql, StringComparison.Ordinal);
         Assert.Contains("S.PhysicalLot = RTRIM(G.LOT)", sql, StringComparison.Ordinal);
+        Assert.Contains("NOT EXISTS\n              (\n                  SELECT 1\n                  FROM #STNG E", sql, StringComparison.Ordinal);
+        Assert.DoesNotContain("SELECT DISTINCT STT\n                FROM #STNG", sql, StringComparison.Ordinal);
 
         // This is a source-contract guard only. SQL Server integration against the
         // actual stored procedure and isolated business-schema copy remains required.
