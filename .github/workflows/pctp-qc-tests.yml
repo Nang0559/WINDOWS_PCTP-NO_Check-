@@ -17,10 +17,10 @@ on:
         type: boolean
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: pctp-qc-${{ github.ref }}-${{ github.sha }}
+  group: pctp-qc-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -29,61 +29,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Setup Python for one-shot normalization
-        if: github.event_name == 'push'
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.13'
-      - name: Normalize current-stock status semantics
-        if: github.event_name == 'push'
-        shell: pwsh
-        run: |
-          $script = @'
-          from pathlib import Path
-
-          targets = [
-              Path("PCTP/Modules/KhoCore/Repositories/SlotRepository.cs"),
-              Path("PCTP/Modules/KhoCore/Repositories/BulkStockSlotRepository.cs"),
-          ]
-          old = b"PhieuStatus <> 3"
-          new = b"PhieuStatus = 0"
-
-          for path in targets:
-              data = path.read_bytes()
-              count = data.count(old)
-              if count:
-                  path.write_bytes(data.replace(old, new))
-              print(f"{path}: replaced {count} legacy current-stock filter(s)")
-          '@
-          $scriptPath = Join-Path $env:RUNNER_TEMP 'normalize_status_zero.py'
-          Set-Content -Path $scriptPath -Value $script -Encoding utf8
-          python $scriptPath
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - name: Commit normalized production queries
-        if: github.event_name == 'push'
-        shell: pwsh
-        run: |
-          $paths = @(
-            '.\PCTP\Modules\KhoCore\Repositories\SlotRepository.cs',
-            '.\PCTP\Modules\KhoCore\Repositories\BulkStockSlotRepository.cs'
-          )
-          $legacy = Select-String -Path $paths -Pattern 'PhieuStatus <> 3' -SimpleMatch
-          if ($legacy) {
-            $legacy | ForEach-Object { Write-Host $_.ToString() }
-            throw 'Legacy current-stock status filter remains.'
-          }
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          $diff = git status --short -- $paths
-          if (-not $diff) {
-            Write-Host 'No production status-filter changes required.'
-            exit 0
-          }
-          git add -- $paths
-          git commit -m 'fix(stock): enforce status-zero current stock paths'
-          git push origin HEAD:feature/pctp-qc-test-platform
       - name: Setup .NET 8
         uses: actions/setup-dotnet@v4
         with:
