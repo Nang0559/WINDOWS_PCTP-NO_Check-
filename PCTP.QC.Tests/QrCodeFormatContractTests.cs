@@ -28,7 +28,7 @@ public sealed class QrCodeFormatContractTests
         Assert.Equal(500, parsed.Quantity);
         Assert.Equal("1", parsed.SoPhieuTong);
         Assert.Equal("A010000000059136", parsed.MaPhieu);
-        Assert.Equal(new DateTime(2026, 8, 7), parsed.ImportDate);
+        Assert.Equal<DateTime?>(new DateTime(2026, 8, 7), parsed.ImportDate);
         Assert.Equal(ReceivingMasterLabel, parsed.RawQr);
     }
 
