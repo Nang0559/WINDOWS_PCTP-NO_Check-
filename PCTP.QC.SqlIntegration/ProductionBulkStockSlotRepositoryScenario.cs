@@ -71,32 +71,28 @@ INSERT INTO #DeliveryState(Id,HistoryCount,PendingClosed) VALUES(1,0,0);";
             Require(Convert.ToInt32(ScalarInTransaction(uow, "SELECT Quantity FROM #Slot WHERE SlotId=@id", slotId)) == 65,
                 "Slot header did not match the sum of active SlotLot quantities.");
 
-            // Exercise the production repository's quarantine guard, not only a synthetic SQL predicate.
-            using (var quarantine = uow.Connection.CreateCommand())
+            // Seed status variants through the production repository so its real header
+            // refresh logic is exercised (not reproduced in ad-hoc fixture SQL).
+            bulk.AddLot(slotId, new StockSlotLot
             {
-                quarantine.Transaction = uow.Transaction;
-                quarantine.CommandTimeout = 5;
-                quarantine.CommandText = @"
-INSERT INTO #SlotLot(SlotId,ItemCode,LotNo,Quantity,TemCode,QrData,ImportDate,PhieuStatus)
-VALUES(@slot,N'QC-PART',N'QC-QUARANTINE-LOT',5,N'QC-QUARANTINE-TEM',N'QC-QUARANTINE-QR',GETDATE(),3);
--- Closed/cancelled historical SlotLot rows remain part of Slot.Quantity reconciliation;
--- quarantine/NG (PhieuStatus=3) is the only excluded status.
-INSERT INTO #SlotLot(SlotId,ItemCode,LotNo,Quantity,TemCode,QrData,ImportDate,PhieuStatus)
-VALUES(@slot,N'QC-PART',N'QC-CLOSED-LOT',7,N'QC-CLOSED-TEM',N'QC-CLOSED-QR',GETDATE(),1),
-      (@slot,N'QC-PART',N'QC-CANCELLED-LOT',8,N'QC-CANCELLED-TEM',N'QC-CANCELLED-QR',GETDATE(),2);
-UPDATE s
-SET Quantity = ISNULL(x.TotalQty, 0),
-    IsOccupied = CASE WHEN ISNULL(x.TotalQty, 0) > 0 THEN 1 ELSE 0 END
-FROM #Slot s
-OUTER APPLY (
-    SELECT SUM(Quantity) AS TotalQty
-    FROM #SlotLot
-    WHERE SlotId = s.SlotId AND PhieuStatus <> 3
-) x
-WHERE s.SlotId = @slot;";
-                quarantine.Parameters.Add(new SqlParameter("@slot", slotId));
-                quarantine.ExecuteNonQuery();
-            }
+                LotNo = "QC-QUARANTINE-LOT", ItemCode = "QC-PART", Quantity = 5,
+                TemCode = "QC-QUARANTINE-TEM", RawQr = "QC-QUARANTINE-QR",
+                ImportDate = DateTime.Today, PhieuStatus = 3
+            });
+            bulk.AddLot(slotId, new StockSlotLot
+            {
+                LotNo = "QC-CLOSED-LOT", ItemCode = "QC-PART", Quantity = 7,
+                TemCode = "QC-CLOSED-TEM", RawQr = "QC-CLOSED-QR",
+                ImportDate = DateTime.Today, PhieuStatus = 1
+            });
+            bulk.AddLot(slotId, new StockSlotLot
+            {
+                LotNo = "QC-CANCELLED-LOT", ItemCode = "QC-PART", Quantity = 8,
+                TemCode = "QC-CANCELLED-TEM", RawQr = "QC-CANCELLED-QR",
+                ImportDate = DateTime.Today, PhieuStatus = 2
+            });
+            Require(Convert.ToInt32(ScalarInTransaction(uow, "SELECT Quantity FROM #Slot WHERE SlotId=@id", slotId)) == 80,
+                "Production Slot header must include statuses 0/1/2 and exclude quarantine/NG status 3.");
 
             bool quarantineRejected = false;
             try
