@@ -28,6 +28,8 @@ public sealed class DeliveryTransactionContractTests
         Assert.Contains("IF @StartedTransaction = 1", sql);
         Assert.Contains("COMMIT TRANSACTION;", sql);
         Assert.Contains("ROLLBACK TRANSACTION UspQrcodeUpdateStock2405", sql);
+        Assert.Contains("DECLARE @ErrorSnapshot TABLE", sql);
+        Assert.Contains("FROM @ErrorSnapshot", sql);
         Assert.Contains("ELSE IF XACT_STATE() = -1", sql);
         Assert.Contains("THROW; -- the caller must roll back the doomed outer transaction", sql);
     }
