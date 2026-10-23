@@ -12,8 +12,8 @@ public sealed class MainForm : Form
     private readonly TextBox _user = new() { Width = 150 };
     private readonly TextBox _password = new() { Width = 150, UseSystemPasswordChar = true };
     private readonly Button _unitRun = new() { Text = "Unit / Regression", AutoSize = true };
-    private readonly Button _sqlPreflight = new() { Text = "SQL Preflight", AutoSize = true };
-    private readonly Button _sqlRun = new() { Text = "★ FULL SQL TEST", AutoSize = true };
+    private readonly Button _sqlPreflight = new() { Text = "SQL 57 Read-only Check", AutoSize = true };
+    private readonly Button _sqlRun = new() { Text = "SQL 57 Diagnostics", AutoSize = true };
     private readonly Label _status = new() { Text = "Sẵn sàng.", AutoSize = true };
     private readonly TextBox _output = new()
     {
@@ -100,7 +100,7 @@ public sealed class MainForm : Form
             return;
         }
 
-        SetRunning(true, preflightOnly ? "Đang kiểm tra SQL Preflight..." : "Đang chạy FULL SQL TEST...");
+        SetRunning(true, preflightOnly ? "Đang kiểm tra schema SQL 57 (read-only)..." : "Đang chẩn đoán SQL 57 (read-only)...");
         try
         {
             var arguments = new System.Collections.Generic.List<string>
@@ -115,8 +115,8 @@ public sealed class MainForm : Form
             var exitCode = await RunProcessAsync(root, "dotnet", arguments.ToArray());
             SetFinished(exitCode == 0,
                 exitCode == 0
-                    ? (preflightOnly ? "PASS — SQL Preflight." : "PASS — FULL SQL TEST.")
-                    : (preflightOnly ? "FAIL — SQL Preflight." : "FAIL — FULL SQL TEST."));
+                    ? (preflightOnly ? "PASS — SQL 57 Read-only Check." : "PASS — SQL 57 Diagnostics.")
+                    : (preflightOnly ? "FAIL — SQL 57 Read-only Check." : "FAIL — SQL 57 Diagnostics."));
         }
         catch (Exception ex)
         {
