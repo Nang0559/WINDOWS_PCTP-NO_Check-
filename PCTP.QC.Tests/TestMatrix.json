@@ -8,6 +8,14 @@
   },
   "modules": [
     {
+      "id": "DEL-SP-001",
+      "module": "GiaoHangKhach/DeploymentPreflight",
+      "scenario": "Read-only verify the deployed Usp_Qrcode_Update_Stock2405 and required delivery ledger objects",
+      "expected": "Report missing procedure/tables or missing transaction savepoint and transaction-owned idempotency lock markers without executing the procedure or changing business rows",
+      "status": "implemented",
+      "testEvidence": "PCTP.QC.SqlIntegration.Program.VerifyDeliveryProcedureReadinessAsync; dashboard action SQL Delivery SP Check; GitHub Actions build"
+    },
+    {
       "id": "QR-001",
       "module": "QRCode/NhapKho",
       "scenario": "Parse the supplied receiving master label with exactly 6 colon-delimited fields",
