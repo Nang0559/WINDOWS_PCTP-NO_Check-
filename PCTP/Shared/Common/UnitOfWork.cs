@@ -82,21 +82,8 @@ namespace PCTP.Shared.Common
         {
             if (exception == null) return false;
             foreach (SqlError error in exception.Errors)
-            {
-                switch (error.Number)
-                {
-                    case -2:      // connect timeout
-                    case 2:       // SQL network endpoint not found
-                    case 53:      // network path not found
-                    case 64:      // network name deleted
-                    case 233:     // connection initialization failure
-                    case 10053:   // connection aborted
-                    case 10054:   // connection reset
-                    case 10060:   // network timeout
-                    case 11001:   // host not found
-                        return true;
-                }
-            }
+                if (SqlConnectionRetryPolicy.IsTransientConnectionErrorNumber(error.Number))
+                    return true;
             return false;
         }
 
