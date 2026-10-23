@@ -1,0 +1,11 @@
+{
+  "name": "receive-navigation",
+  "purpose": "Read-only navigation smoke: open the real receiving workflow screen from the PCTP menu.",
+  "dataMutation": false,
+  "steps": [
+    { "id": "expand-receive-menu", "action": "click", "automationId": "NHAccordionControlElement" },
+    { "id": "open-receive-workflow", "action": "click", "automationId": "E_NhapTP", "waitAfterMs": 1200 },
+    { "id": "receiving-screen-visible", "action": "wait-for-window", "value": "Quản lý tiến trình Nhập kho", "timeoutSeconds": 45 },
+    { "id": "verify-receiving-title", "action": "assert-window-title", "value": "Quản lý tiến trình Nhập kho" }
+  ]
+}
