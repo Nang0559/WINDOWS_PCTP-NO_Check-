@@ -264,7 +264,7 @@ BEGIN
                         ISNULL(CONVERT(NVARCHAR(20), SOLUONG), N''''), N''|'',
                         UPPER(RTRIM(ISNULL(GIOGIAO, N''''))), N''|'',
                         UPPER(RTRIM(LEFT(ISNULL(@NHAMAY, N''''), 50)))
-                    ), 2)
+                    )), 2)
                 FROM [' + @TMPTABLE + N']
                 WHERE STT = @STT;';
 
