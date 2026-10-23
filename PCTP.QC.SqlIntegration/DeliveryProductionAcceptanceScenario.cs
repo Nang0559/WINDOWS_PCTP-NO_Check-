@@ -83,7 +83,7 @@ ORDER BY t.NGAYGIAO,t.STT;";
         var after = await ReadStateAsync(connection, tx, c.Stt);
         Require(after.TempStatus.Equals("OK", StringComparison.OrdinalIgnoreCase), "Successful procedure did not mark TMPPHIEUGIAOHANG OK inside the caller transaction.");
         Require(after.LedgerCount == before.LedgerCount + 1, "Successful procedure did not create exactly one delivery ledger row.");
-        Require(after.StockRemaining < before.StockRemaining, "Successful procedure did not reduce STOCKTP.");
+        Require(after.StockRemaining == before.StockRemaining - c.Quantity, "Successful procedure did not reduce STOCKTP by the requested quantity.");
         await tx.RollbackAsync();
 
         var restored = await ReadStateAsync(connection, null, c.Stt);
@@ -113,6 +113,8 @@ ORDER BY t.NGAYGIAO,t.STT;";
         var before = await ReadStateAsync(connection, tx, c.Stt);
         var first = await ExecuteProcedureAsync(connection, tx, c, c.Quantity);
         Require(first.SuccessCount > 0 && first.ErrorCount == 0, "DEL-004 first confirmation did not succeed.");
+
+        await ExecuteAsync(connection, tx, "UPDATE dbo.TMPPHIEUGIAOHANG SET STATUS=N'PENDING' WHERE STT=@stt", new SqlParameter("@stt", c.Stt));
         var replay = await ExecuteProcedureAsync(connection, tx, c, c.Quantity);
         Require(replay.SuccessCount == 0 && replay.ErrorCount > 0, "DEL-004 replay unexpectedly deducted stock twice.");
         var after = await ReadStateAsync(connection, tx, c.Stt);
