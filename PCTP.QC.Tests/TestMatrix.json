@@ -230,7 +230,8 @@
       "module": "XuLyHangLoi",
       "scenario": "Quarantine and release",
       "expected": "Quarantined LOT cannot be exported/moved until authorized release",
-      "status": "planned"
+      "status": "planned",
+      "testEvidence": "ProductionBulkStockSlotRepositoryScenario now invokes production BulkStockSlotRepository.TakeLot against a PhieuStatus=3 isolated fixture and verifies the attempted export is rejected without changing quarantined quantity or active Slot header. Authorization/permission validation for release and the release transition remain unverified."
     },
     {
       "id": "RWK-003",
