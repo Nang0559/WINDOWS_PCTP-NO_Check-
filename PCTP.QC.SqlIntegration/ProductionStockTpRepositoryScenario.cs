@@ -14,6 +14,7 @@ internal static class ProductionStockTpRepositoryScenario
 {
     public static void Run(string connectionString)
     {
+        connectionString = SqlTestConfiguration.BuildLegacySqlClientConnectionString(connectionString);
         var provider = new PCTP.ClassSQL.SQLPROVIDER { B7R2_FCCdb = connectionString };
         using var uow = new UnitOfWork(provider);
         uow.Begin();
