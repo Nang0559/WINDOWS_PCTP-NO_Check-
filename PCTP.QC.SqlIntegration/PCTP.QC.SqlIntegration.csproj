@@ -23,6 +23,7 @@
     <Compile Include="../PCTP/Modules/KhoCore/Models/LotInfo.cs" Link="Production/LotInfo.cs" />
     <Compile Include="../PCTP/Shared/Models/PhieuStatus.cs" Link="Production/PhieuStatus.cs" />
     <Compile Include="../PCTP/Shared/Models/QRCodeInfo.cs" Link="Production/QRCodeInfo.cs" />
+    <Compile Include="../PCTP/Shared/Models/TachLotQrInfo.cs" Link="Production/TachLotQrInfo.cs" />
     <Compile Include="../PCTP/Shared/Helpers/QRCodeParser.cs" Link="Production/QRCodeParser.cs" />
     <Compile Include="../PCTP/Shared/Helpers/QRCodeBuilder.cs" Link="Production/QRCodeBuilder.cs" />
     <Compile Include="../PCTP/Modules/KhoCore/Application/Contracts/Stock/IStockSlotRepository.cs" Link="Production/IStockSlotRepository.cs" />
