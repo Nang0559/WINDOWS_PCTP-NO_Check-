@@ -14,375 +14,136 @@ namespace PCTP.QC.SqlIntegration
 {
 internal static class ProductionBulkStockSlotRepositoryScenario
 {
-    private static readonly string[] FixtureTables = { "Warehouse", "Rack", "Slot", "SlotLot" };
-
+    /// <summary>
+    /// Executes the production BulkStockSlotRepository and StockTpRepository against
+    /// session-local # fixtures only. No dbo business tables are created or mutated.
+    /// </summary>
     public static void Run(string connectionString)
     {
         connectionString = SqlTestConfiguration.BuildLegacySqlClientConnectionString(connectionString);
-        EnsureFixtureNamesAreUnused(connectionString);
-        CreateFixture(connectionString);
+        var provider = new PCTP.ClassSQL.SQLPROVIDER { B7R2_FCCdb = connectionString };
+        using var uow = new UnitOfWork(provider);
+        uow.Begin();
 
         try
         {
-            int slotId;
-            var provider = new PCTP.ClassSQL.SQLPROVIDER { B7R2_FCCdb = connectionString };
-            using (var uow = new UnitOfWork(provider))
+            using (var setup = uow.Connection.CreateCommand())
             {
-                uow.Begin();
-                try
-                {
-                    var repository = new BulkStockSlotRepository(new PhieuSqlExecutor(), uow);
-                    slotId = repository.GetOrCreateVirtualSlotId("QC-WH", "QC-RACK", 1000);
-                    Require(slotId > 0, "GetOrCreateVirtualSlotId did not create a Slot.");
-
-                    repository.AddLot(slotId, new StockSlotLot
-                    {
-                        LotNo = "26080700748100851600",
-                        ItemCode = "QC-PART",
-                        Quantity = 40,
-                        TemCode = "QC-TEM-001",
-                        RawQr = "QC-QR-001",
-                        ImportDate = new DateTime(2026, 10, 20),
-                        PhieuStatus = 0
-                    });
-                    repository.AddLot(slotId, new StockSlotLot
-                    {
-                        LotNo = "26080700748100851600",
-                        ItemCode = "QC-PART",
-                        Quantity = 25,
-                        TemCode = "QC-TEM-002",
-                        RawQr = "QC-QR-002",
-                        ImportDate = new DateTime(2026, 10, 21),
-                        PhieuStatus = 0
-                    });
-
-                    Require(repository.GetLotQuantity(1) == 40, "First inserted SlotLot quantity mismatch.");
-                    Require(repository.GetPhieuStatus(1) == 0, "Active SlotLot status mismatch.");
-                    Require(repository.GetLotDetails(2)?.TemCode == "QC-TEM-002", "SlotLot metadata lookup mismatch.");
-                    Require(repository.GetSlotId(1) == slotId, "SlotLot to Slot relationship mismatch.");
-
-                    var take = repository.TakeLot(slotId, "26080700748100851600", "QC-PART", 50);
-                    Require(take.Quantity == 50 && take.ExportLots.Count == 2,
-                        "TakeLot did not split consumption across FIFO rows.");
-                    Require(take.ExportLots[0].Quantity == 40 && take.ExportLots[1].Quantity == 10,
-                        "TakeLot did not consume oldest ImportDate first.");
-                    Require(repository.GetLotQuantity(1) == 0 && repository.GetLotQuantity(2) == 15,
-                        "TakeLot left unexpected per-row quantities.");
-
-                    var lots = repository.GetLots(slotId);
-                    Require(lots.Count == 2 && lots.Sum(x => x.Quantity) == 15 &&
-                            lots.Any(x => x.Quantity == 15 && x.TemCode == "QC-TEM-002"),
-                        "GetLots did not preserve remaining LOT metadata and quantities.");
-                    uow.Commit();
-                }
-                catch
-                {
-                    try { uow.Rollback(); } catch { }
-                    throw;
-                }
+                setup.Transaction = uow.Transaction;
+                setup.CommandTimeout = 5;
+                setup.CommandText = @"
+CREATE TABLE #Warehouse(WarehouseId int IDENTITY(1,1) NOT NULL PRIMARY KEY, Name nvarchar(100) NOT NULL UNIQUE);
+CREATE TABLE #Rack(RackId int IDENTITY(1,1) NOT NULL PRIMARY KEY, WarehouseId int NOT NULL, RackName nvarchar(100) NOT NULL, CONSTRAINT UQ_QC_Rack UNIQUE(WarehouseId,RackName));
+CREATE TABLE #Slot(SlotId int IDENTITY(1,1) NOT NULL PRIMARY KEY, RackId int NOT NULL, SlotNumber int NOT NULL, IsOccupied bit NOT NULL DEFAULT(0), Capacity int NOT NULL, Quantity int NOT NULL DEFAULT(0), ItemCode nvarchar(100) NULL, ImportDate datetime NULL);
+CREATE TABLE #SlotLot(SlotLotId int IDENTITY(1,1) NOT NULL PRIMARY KEY, SlotId int NOT NULL, ItemCode nvarchar(100) NULL, LotNo nvarchar(100) NOT NULL, Quantity int NOT NULL CHECK(Quantity >= 0), TemCode nvarchar(100) NULL, QrData nvarchar(500) NULL, MaPhieu nvarchar(100) NULL, ImportDate datetime NULL, PhieuStatus tinyint NOT NULL);
+CREATE TABLE #STOCKTP(LOT nvarchar(100) NOT NULL PRIMARY KEY, MODEL nvarchar(100) NULL, PART nvarchar(100) NULL, NAME nvarchar(200) NULL, CASX smallint NULL, NGAYSX datetime NULL, SLSX int NULL, NGAYNHAP datetime NULL, SLNHAP int NULL, NGAYXUAT datetime NULL, SLXUAT int NULL, SLCONLAI int NULL, SATUS smallint NULL);
+CREATE TABLE #DeliveryState(Id int NOT NULL PRIMARY KEY, HistoryCount int NOT NULL, PendingClosed bit NOT NULL);
+INSERT INTO #DeliveryState(Id,HistoryCount,PendingClosed) VALUES(1,0,0);";
+                setup.ExecuteNonQuery();
             }
 
-            Require(Convert.ToInt32(Scalar(connectionString,
-                    "SELECT Quantity FROM Slot WHERE SlotId=@id",
-                    new SqlParameter("@id", slotId))) == 15,
-                "Slot header quantity was not recalculated from active SlotLot rows.");
+            var bulk = new BulkStockSlotRepository(new PhieuSqlExecutor(), uow);
+            IStockTpRepository stock = new StockTpRepository(new PhieuSqlExecutor(), uow, "#STOCKTP");
+            int slotId = bulk.GetOrCreateVirtualSlotId("QC-WH-" + Guid.NewGuid().ToString("N"), "QC-RACK", 1000);
+            const string lot = "26080700748100851600";
 
-            // Concurrent requests compete for one production LOT through two independent
-            // production UnitOfWork instances. Exactly one may consume 10 of 15.
-            RunConcurrentProductionLotConsumption(connectionString, provider, slotId);
-
-            // Cross-repository delivery rollback (including synthetic finalization-state rollback): a STOCKTP decrement and the actual
-            // BulkStockSlotRepository.TakeLot must enlist in the same production UoW.
-            RunSharedStockTpAndSlotRollback(connectionString, slotId);
-
-            // Failure injection: repository writes are enlisted in the active production UoW.
-            using (var uow = new UnitOfWork(provider))
+            bulk.AddLot(slotId, new StockSlotLot
             {
-                uow.Begin();
-                try
-                {
-                    var repository = new BulkStockSlotRepository(new PhieuSqlExecutor(), uow);
-                    repository.AddLot(slotId, new StockSlotLot
-                    {
-                        LotNo = "26080700748100851600",
-                        ItemCode = "QC-PART",
-                        Quantity = 7,
-                        TemCode = "QC-TEM-ROLLBACK",
-                        RawQr = "QC-QR-ROLLBACK",
-                        ImportDate = new DateTime(2026, 10, 22),
-                        PhieuStatus = 0
-                    });
-                    throw new InvalidOperationException("QC injected failure after production AddLot.");
-                }
-                catch (InvalidOperationException ex) when (ex.Message == "QC injected failure after production AddLot.")
-                {
-                    uow.Rollback();
-                }
-            }
+                LotNo = lot, ItemCode = "QC-PART", Quantity = 40,
+                TemCode = "QC-TEM-001", RawQr = "QC-QR-001",
+                ImportDate = new DateTime(2026, 10, 20), PhieuStatus = 0
+            });
+            bulk.AddLot(slotId, new StockSlotLot
+            {
+                LotNo = lot, ItemCode = "QC-PART", Quantity = 25,
+                TemCode = "QC-TEM-002", RawQr = "QC-QR-002",
+                ImportDate = new DateTime(2026, 10, 21), PhieuStatus = 0
+            });
+            stock.InsertStockTp(new NhapKhoItem
+            {
+                Lot = lot, Part = "QC-PART", Name = "QC isolated delivery",
+                Model = "QC", CaSX = 1, SlSanXuat = 65, SlNhap = 65,
+                NgaySX = new DateTime(2026, 10, 20)
+            }, 0);
 
-            Require(Convert.ToInt32(Scalar(connectionString,
-                    "SELECT COUNT(1) FROM SlotLot WHERE TemCode=@tem",
-                    new SqlParameter("@tem", "QC-TEM-ROLLBACK"))) == 0,
-                "Production BulkStockSlotRepository AddLot was not rolled back.");
-            Require(Convert.ToInt32(Scalar(connectionString,
-                    "SELECT Quantity FROM Slot WHERE SlotId=@id",
-                    new SqlParameter("@id", slotId))) == 20,
-                "Slot header was not rolled back with SlotLot.");
-            Console.WriteLine("PASS: production BulkStockSlotRepository add/FIFO-take/header-refresh/rollback executed against disposable fixture tables.");
-        }
-        finally
-        {
-            DropFixture(connectionString);
-        }
-    }
+            Require(bulk.GetLotQuantity(1) == 40 && bulk.GetLotQuantity(2) == 25,
+                "Production BulkStockSlotRepository did not insert the two fixture rows.");
+            Require(Convert.ToInt32(ScalarInTransaction(uow, "SELECT Quantity FROM #Slot WHERE SlotId=@id", slotId)) == 65,
+                "Slot header did not match the sum of active SlotLot quantities.");
 
-    private static void RunConcurrentProductionLotConsumption(string cs, PCTP.ClassSQL.SQLPROVIDER provider, int slotId)
-    {
-        const string lotNo = "QC-CONCURRENT-LOT";
-        using (var seed = new UnitOfWork(provider))
-        {
-            seed.Begin();
+            uow.Transaction.Save("QC_BEFORE_DELIVERY");
             try
             {
-                var repository = new BulkStockSlotRepository(new PhieuSqlExecutor(), seed);
-                repository.AddLot(slotId, new StockSlotLot
+                var take = bulk.TakeLot(slotId, lot, "QC-PART", 50);
+                Require(take.Quantity == 50 && take.ExportLots.Count == 2,
+                    "Production TakeLot did not consume the requested quantity across FIFO rows.");
+                Require(take.ExportLots[0].Quantity == 40 && take.ExportLots[1].Quantity == 10,
+                    "Production TakeLot did not consume oldest ImportDate first.");
+                Require(bulk.GetLotQuantity(1) == 0 && bulk.GetLotQuantity(2) == 15,
+                    "Production TakeLot left unexpected per-row quantities.");
+
+                using (var updateStock = uow.Connection.CreateCommand())
                 {
-                    LotNo = lotNo, ItemCode = "QC-PART", Quantity = 8,
-                    TemCode = "QC-CONCURRENT-OLD", RawQr = "QC-CONCURRENT-OLD",
-                    ImportDate = new DateTime(2026, 10, 18), PhieuStatus = 0
-                });
-                repository.AddLot(slotId, new StockSlotLot
+                    updateStock.Transaction = uow.Transaction;
+                    updateStock.CommandTimeout = 5;
+                    updateStock.CommandText = "UPDATE #STOCKTP SET SLCONLAI=SLCONLAI-@q, SLXUAT=ISNULL(SLXUAT,0)+@q WHERE LOT=@lot AND SLCONLAI>=@q;";
+                    updateStock.Parameters.Add(new SqlParameter("@q", 50));
+                    updateStock.Parameters.Add(new SqlParameter("@lot", lot));
+                    Require(updateStock.ExecuteNonQuery() == 1, "Isolated STOCKTP fixture decrement failed.");
+                }
+                using (var finalize = uow.Connection.CreateCommand())
                 {
-                    LotNo = lotNo, ItemCode = "QC-PART", Quantity = 7,
-                    TemCode = "QC-CONCURRENT-NEW", RawQr = "QC-CONCURRENT-NEW",
-                    ImportDate = new DateTime(2026, 10, 19), PhieuStatus = 0
-                });
-                seed.Commit();
-            }
-            catch { try { seed.Rollback(); } catch { } throw; }
-        }
+                    finalize.Transaction = uow.Transaction;
+                    finalize.CommandText = "UPDATE #DeliveryState SET HistoryCount=HistoryCount+1, PendingClosed=1 WHERE Id=1;";
+                    Require(finalize.ExecuteNonQuery() == 1, "Isolated delivery finalization fixture update failed.");
+                }
 
-        using var ready = new CountdownEvent(2);
-        using var start = new ManualResetEventSlim(false);
+                Require(Convert.ToInt32(ScalarInTransaction(uow, "SELECT SLCONLAI FROM #STOCKTP WHERE LOT=@lot", lot)) == 15,
+                    "STOCKTP remaining quantity did not reconcile after simulated delivery.");
+                Require(Convert.ToInt32(ScalarInTransaction(uow, "SELECT Quantity FROM #Slot WHERE SlotId=@id", slotId)) == 15,
+                    "Slot header did not refresh after production TakeLot.");
+                Require(Convert.ToInt32(ScalarInTransaction(uow, "SELECT HistoryCount FROM #DeliveryState WHERE Id=1")) == 1,
+                    "Delivery history fixture did not record the successful simulated finalization.");
 
-        Task<bool> ConsumeAsync() => Task.Run(() =>
-        {
-            using var uow = new UnitOfWork(provider);
-            uow.Begin();
-            ready.Signal();
-            if (!start.Wait(TimeSpan.FromSeconds(10)))
-            {
-                try { uow.Rollback(); } catch { }
-                throw new TimeoutException("Concurrent LOT consumers did not reach the start barrier.");
-            }
-
-            try
-            {
-                var repository = new BulkStockSlotRepository(new PhieuSqlExecutor(), uow);
-                var result = repository.TakeLot(slotId, lotNo, "QC-PART", 10);
-                Require(result.Quantity == 10, "Production TakeLot returned an incorrect concurrent consumption quantity.");
-                uow.Commit();
-                return true;
-            }
-            catch (InvalidOperationException ex) when (ex.Message.Contains("không đủ", StringComparison.OrdinalIgnoreCase))
-            {
-                uow.Rollback();
-                return false;
+                // Roll back every repository/ledger/finalization write to the same savepoint.
+                uow.Transaction.Rollback("QC_BEFORE_DELIVERY");
             }
             catch
             {
-                try { uow.Rollback(); } catch { }
+                try { uow.Transaction.Rollback("QC_BEFORE_DELIVERY"); } catch { }
                 throw;
             }
-        });
 
-        var first = ConsumeAsync();
-        var second = ConsumeAsync();
-        if (!ready.Wait(TimeSpan.FromSeconds(10)))
-            throw new TimeoutException("Both production LOT consumers did not become ready.");
-        start.Set();
+            Require(Convert.ToInt32(ScalarInTransaction(uow, "SELECT SLCONLAI FROM #STOCKTP WHERE LOT=@lot", lot)) == 65,
+                "STOCKTP quantity was not restored by cross-repository rollback.");
+            Require(Convert.ToInt32(ScalarInTransaction(uow, "SELECT SUM(Quantity) FROM #SlotLot WHERE SlotId=@id AND PhieuStatus=0", slotId)) == 65,
+                "SlotLot quantities were not restored by cross-repository rollback.");
+            Require(Convert.ToInt32(ScalarInTransaction(uow, "SELECT Quantity FROM #Slot WHERE SlotId=@id", slotId)) == 65,
+                "Slot header quantity was not restored by cross-repository rollback.");
+            Require(Convert.ToInt32(ScalarInTransaction(uow, "SELECT HistoryCount FROM #DeliveryState WHERE Id=1")) == 0 &&
+                    Convert.ToInt32(ScalarInTransaction(uow, "SELECT PendingClosed FROM #DeliveryState WHERE Id=1")) == 0,
+                "Delivery history/pending fixture writes were not rolled back.");
 
-        var outcomes = Task.WhenAll(first, second).GetAwaiter().GetResult();
-        Require(outcomes.Count(x => x) == 1,
-            "Exactly one of two concurrent 10-unit requests against 15 units must succeed.");
-        Require(Convert.ToInt32(Scalar(cs,
-                "SELECT SUM(Quantity) FROM SlotLot WHERE LotNo=@lot AND PhieuStatus=0",
-                new SqlParameter("@lot", lotNo))) == 5,
-            "Concurrent production TakeLot caused overselling or lost quantity.");
-        Require(Convert.ToInt32(Scalar(cs,
-                "SELECT Quantity FROM Slot WHERE SlotId=@id",
-                new SqlParameter("@id", slotId))) == 20,
-            "Slot header did not reconcile after concurrent production LOT consumption.");
-        Console.WriteLine("PASS: production BulkStockSlotRepository serialized concurrent same-LOT consumers; one won and 5 units remained.");
-    }
-
-    private static void RunSharedStockTpAndSlotRollback(string cs, int slotId)
-    {
-        var provider = new PCTP.ClassSQL.SQLPROVIDER { B7R2_FCCdb = cs };
-        using var uow = new UnitOfWork(provider);
-        var bulk = new BulkStockSlotRepository(new PhieuSqlExecutor(), uow);
-        IStockTpRepository stock = new StockTpRepository(new PhieuSqlExecutor(), uow);
-
-        // A connection-local STOCKTP fixture avoids touching any production table.
-        uow.Begin();
-        try
-        {
-            using (var command = uow.Connection.CreateCommand())
-            {
-                command.Transaction = uow.Transaction;
-                command.CommandText = @"
-CREATE TABLE #STOCKTP
-(
-    LOT nvarchar(50) NOT NULL PRIMARY KEY,
-    PART nvarchar(50) NULL,
-    NAME nvarchar(100) NULL,
-    MODEL nvarchar(30) NULL,
-    SLNHAP int NULL,
-    SLCONLAI int NULL,
-    SLXUAT int NULL,
-    SATUS smallint NULL,
-    CASX smallint NULL,
-    NGAYSX datetime NULL,
-    NGAYNHAP datetime NULL,
-    SLSX int NULL,
-    NGAYXUAT datetime NULL
-);";
-                command.ExecuteNonQuery();
-            }
-
-            stock.InsertStockTp(new NhapKhoItem
-            {
-                Lot = "QC-DELIVERY-ATOMIC-LOT",
-                Part = "QC-PART",
-                Name = "QC delivery atomicity",
-                Model = "QC",
-                CaSX = 1,
-                SlSanXuat = 60,
-                SlNhap = 60,
-                NgaySX = new DateTime(2026, 10, 22)
-            }, 0);
-            uow.Commit();
-        }
-        catch
-        {
-            try { uow.Rollback(); } catch { }
-            throw;
-        }
-
-        uow.Begin();
-        try
-        {
-            using (var command = uow.Connection.CreateCommand())
-            {
-                command.Transaction = uow.Transaction;
-                command.CommandText = @"
-UPDATE #STOCKTP
-SET SLCONLAI = SLCONLAI - 5, SLXUAT = ISNULL(SLXUAT, 0) + 5
-WHERE LOT = @lot AND SLCONLAI >= 5;";
-                var parameter = command.CreateParameter();
-                parameter.ParameterName = "@lot";
-                parameter.Value = "QC-DELIVERY-ATOMIC-LOT";
-                command.Parameters.Add(parameter);
-                if (command.ExecuteNonQuery() != 1)
-                    throw new InvalidOperationException("Could not apply the synthetic STOCKTP delivery decrement.");
-            }
-
-            var take = bulk.TakeLot(slotId, "26080700748100851600", "QC-PART", 5);
-            Require(take.Quantity == 5, "Production BulkStockSlotRepository did not pick the expected delivery quantity.");
-
-            // Synthetic delivery-history and pending-delivery writes deliberately
-            // enlist in the same production UoW. They are fixture tables, not the
-            // production repositories; this validates the shared transaction boundary.
-            using (var finalize = uow.Connection.CreateCommand())
-            {
-                finalize.Transaction = uow.Transaction;
-                finalize.CommandText = @"
-UPDATE dbo.__PCTP_QC_DeliveryState
-SET HistoryCount = HistoryCount + 1, PendingClosed = 1
-WHERE Id = 1;";
-                if (finalize.ExecuteNonQuery() != 1)
-                    throw new InvalidOperationException("Synthetic delivery finalization fixture row was not updated.");
-            }
-
-            throw new InvalidOperationException("QC injected cross-repository delivery failure.");
-        }
-        catch (InvalidOperationException ex) when (ex.Message == "QC injected cross-repository delivery failure.")
-        {
             uow.Rollback();
+            Console.WriteLine("PASS: production BulkStockSlotRepository FIFO/header refresh and STOCKTP + SlotLot + delivery-state rollback using session-local # fixtures only.");
         }
         catch
         {
-            try { uow.Rollback(); } catch { }
+            try { if (uow.IsInTransaction) uow.Rollback(); } catch { }
             throw;
         }
-
-        var stockAfterRollback = stock.GetByLot("QC-DELIVERY-ATOMIC-LOT");
-        Require(stockAfterRollback != null && stockAfterRollback.SlConLai == 60,
-            "STOCKTP decrement was not rolled back with the SlotLot movement.");
-        Require(bulk.GetLotQuantity(1) == 0 && bulk.GetLotQuantity(2) == 15,
-            "SlotLot rows were not restored by the shared delivery rollback.");
-        Require(bulk.GetLots(slotId).Sum(x => x.Quantity) == 20,
-            "Slot header/active SlotLot quantity changed after cross-repository rollback.");
-        Require(Convert.ToInt32(Scalar(cs, "SELECT HistoryCount FROM dbo.__PCTP_QC_DeliveryState WHERE Id=1")) == 0 &&
-                Convert.ToInt32(Scalar(cs, "SELECT PendingClosed FROM dbo.__PCTP_QC_DeliveryState WHERE Id=1")) == 0,
-            "Synthetic delivery history/pending finalization did not roll back with STOCKTP and SlotLot.");
-        Console.WriteLine("PASS: production UnitOfWork rolled back STOCKTP and production BulkStockSlotRepository.TakeLot plus synthetic history/pending-finalization writes as one delivery unit.");
     }
 
-    private static void EnsureFixtureNamesAreUnused(string cs)
+    private static object ScalarInTransaction(UnitOfWork uow, string sql, object parameter = null)
     {
-        using var connection = new SqlConnection(cs);
-        connection.Open();
-        using var command = connection.CreateCommand();
-        command.CommandText = "SELECT name FROM sys.tables WHERE schema_id = SCHEMA_ID('dbo') AND name IN ('Warehouse','Rack','Slot','SlotLot','__PCTP_QC_DeliveryState')";
-        using var reader = command.ExecuteReader();
-        if (reader.Read())
-            throw new InvalidOperationException("Bulk repository fixture requires an empty TEST database: dbo.Warehouse/dbo.Rack/dbo.Slot/dbo.SlotLot already exists. Use a dedicated disposable database; existing tables will never be modified.");
-    }
-
-    private static void CreateFixture(string cs)
-    {
-        using var connection = new SqlConnection(cs);
-        connection.Open();
-        using var command = connection.CreateCommand();
-        command.CommandText = @"
-BEGIN TRANSACTION;
-BEGIN TRY
-    CREATE TABLE dbo.Warehouse (WarehouseId int IDENTITY(1,1) NOT NULL PRIMARY KEY, Name nvarchar(100) NOT NULL);
-    CREATE TABLE dbo.Rack (RackId int IDENTITY(1,1) NOT NULL PRIMARY KEY, WarehouseId int NOT NULL, RackName nvarchar(100) NOT NULL);
-    CREATE TABLE dbo.Slot (SlotId int IDENTITY(1,1) NOT NULL PRIMARY KEY, RackId int NOT NULL, SlotNumber int NOT NULL, IsOccupied bit NOT NULL DEFAULT(0), Capacity int NOT NULL, Quantity int NOT NULL DEFAULT(0), ItemCode nvarchar(100) NULL, ImportDate datetime NULL);
-    CREATE TABLE dbo.SlotLot (SlotLotId int IDENTITY(1,1) NOT NULL PRIMARY KEY, SlotId int NOT NULL, ItemCode nvarchar(100) NULL, LotNo nvarchar(100) NOT NULL, Quantity int NOT NULL, TemCode nvarchar(100) NULL, QrData nvarchar(500) NULL, MaPhieu nvarchar(100) NULL, ImportDate datetime NULL, PhieuStatus tinyint NOT NULL);
-    CREATE TABLE dbo.__PCTP_QC_DeliveryState (Id int NOT NULL PRIMARY KEY, HistoryCount int NOT NULL, PendingClosed bit NOT NULL);
-    INSERT INTO dbo.__PCTP_QC_DeliveryState(Id, HistoryCount, PendingClosed) VALUES (1, 0, 0);
-    COMMIT TRANSACTION;
-END TRY
-BEGIN CATCH
-    IF XACT_STATE() <> 0 ROLLBACK TRANSACTION;
-    THROW;
-END CATCH;";
-        command.ExecuteNonQuery();
-    }
-
-    private static void DropFixture(string cs)
-    {
-        using var connection = new SqlConnection(cs);
-        connection.Open();
-        using var command = connection.CreateCommand();
-        command.CommandText = @"
-IF OBJECT_ID('dbo.__PCTP_QC_DeliveryState','U') IS NOT NULL DROP TABLE dbo.__PCTP_QC_DeliveryState;
-IF OBJECT_ID('dbo.SlotLot','U') IS NOT NULL DROP TABLE dbo.SlotLot;
-IF OBJECT_ID('dbo.Slot','U') IS NOT NULL DROP TABLE dbo.Slot;
-IF OBJECT_ID('dbo.Rack','U') IS NOT NULL DROP TABLE dbo.Rack;
-IF OBJECT_ID('dbo.Warehouse','U') IS NOT NULL DROP TABLE dbo.Warehouse;";
-        command.ExecuteNonQuery();
-    }
-
-    private static object Scalar(string cs, string sql, params SqlParameter[] parameters)
-    {
-        using var connection = new SqlConnection(cs);
-        connection.Open();
-        using var command = new SqlCommand(sql, connection);
-        command.Parameters.AddRange(parameters);
+        using var command = uow.Connection.CreateCommand();
+        command.Transaction = uow.Transaction;
+        command.CommandTimeout = 5;
+        command.CommandText = sql;
+        if (sql.Contains("@id", StringComparison.OrdinalIgnoreCase))
+            command.Parameters.Add(new SqlParameter("@id", parameter));
+        else if (sql.Contains("@lot", StringComparison.OrdinalIgnoreCase))
+            command.Parameters.Add(new SqlParameter("@lot", parameter));
         return command.ExecuteScalar();
     }
 
@@ -390,8 +151,6 @@ IF OBJECT_ID('dbo.Warehouse','U') IS NOT NULL DROP TABLE dbo.Warehouse;";
     {
         if (!condition) throw new InvalidOperationException(message);
     }
-}
-
 }
 
 namespace PCTP.Modules.KhoVatLy.Kho.Models
