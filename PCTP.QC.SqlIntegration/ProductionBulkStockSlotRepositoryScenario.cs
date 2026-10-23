@@ -153,6 +153,8 @@ INSERT INTO #DeliveryState(Id,HistoryCount,PendingClosed) VALUES(1,0,0);";
     }
 }
 
+}
+
 namespace PCTP.Modules.KhoVatLy.Kho.Models
 {
     public sealed class LotInfo
