@@ -88,7 +88,7 @@ namespace PCTP.Modules.XuLyHangLoi
             Text = "Quản lý tiến trình Xử lý hàng lỗi";
             Size = new Size(1500, 850);
             StartPosition = FormStartPosition.CenterParent;
-            var root = new TableLayoutPanel { Dock = DockStyle.Fill, RowCount = 4, ColumnCount = 1 };
+            var root = new TableLayoutPanel { Name = "rework_rootLayout", Dock = DockStyle.Fill, RowCount = 4, ColumnCount = 1 };
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 115));
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
@@ -99,7 +99,7 @@ namespace PCTP.Modules.XuLyHangLoi
             for (int i = 0; i < labels.Length; i++)
             {
                 int step = i + 1;
-                var button = new Button { Width = 160, Height = 80, Text = labels[i] + "\r\n(0)", Tag = step, FlatStyle = FlatStyle.Flat, Margin = new Padding(3), Font = new Font("Tahoma", 9F, FontStyle.Bold), BackColor = Color.White };
+                var button = new Button { Name = "rework_step_" + step.ToString("00"), Width = 160, Height = 80, Text = labels[i] + "\r\n(0)", Tag = step, FlatStyle = FlatStyle.Flat, Margin = new Padding(3), Font = new Font("Tahoma", 9F, FontStyle.Bold), BackColor = Color.White };
                 button.Click += (s, e) => { _searchMode = false; _txtSearch.Text = string.Empty; SetActiveStep((int)((Button)s).Tag); };
                 _stepButtons[i] = button;
                 timeline.Controls.Add(button);
@@ -115,29 +115,29 @@ namespace PCTP.Modules.XuLyHangLoi
             toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 210));
             toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 170));
             toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 130));
-            _txtSearch = new TextEdit { Dock = DockStyle.Fill };
+            _txtSearch = new TextEdit { Name = "rework_search", Dock = DockStyle.Fill };
             _txtSearch.Properties.NullValuePrompt = "Tìm số phiếu, model, mã hàng, LOT...";
             _txtSearch.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) { e.Handled = true; e.SuppressKeyPress = true; ExecuteSearch(); } };
             toolbar.Controls.Add(_txtSearch, 0, 0);
-            _btnSecondary = new SimpleButton { Text = "Tạo phiếu nội bộ", Dock = DockStyle.Fill };
+            _btnSecondary = new SimpleButton { Name = "rework_btnCreateInternal", Text = "Tạo phiếu nội bộ", Dock = DockStyle.Fill };
             _btnSecondary.Click += (s, e) => TaoPhieuNoiBo();
             toolbar.Controls.Add(_btnSecondary, 1, 0);
-            var btnSlot = new SimpleButton { Text = "Tạo từ Slot", Dock = DockStyle.Fill };
+            var btnSlot = new SimpleButton { Name = "rework_btnCreateFromSlot", Text = "Tạo từ Slot", Dock = DockStyle.Fill };
             btnSlot.Click += (s, e) => TaoPhieuTuSlot();
             toolbar.Controls.Add(btnSlot, 2, 0);
-            _btnPrimary = new SimpleButton { Dock = DockStyle.Fill };
+            _btnPrimary = new SimpleButton { Name = "rework_btnPrimaryAction", Dock = DockStyle.Fill };
             _btnPrimary.Appearance.Font = new Font("Tahoma", 9F, FontStyle.Bold);
             _btnPrimary.Click += BtnActionPrimary_Click;
             toolbar.Controls.Add(_btnPrimary, 3, 0);
-            _btnCreateXuLy = new SimpleButton { Text = "Tạo phiếu bất thường", Dock = DockStyle.Fill };
+            _btnCreateXuLy = new SimpleButton { Name = "rework_btnCreateAbnormal", Text = "Tạo phiếu bất thường", Dock = DockStyle.Fill };
             _btnCreateXuLy.Click += (s, e) => TaoPhieuXuLyBatThuong();
             toolbar.Controls.Add(_btnCreateXuLy, 4, 0);
-            _btnExport = new SimpleButton { Text = "Xuất Excel", Dock = DockStyle.Fill };
+            _btnExport = new SimpleButton { Name = "rework_btnExportExcel", Text = "Xuất Excel", Dock = DockStyle.Fill };
             _btnExport.Click += (s, e) => _gridView.ExportToXlsx($"HangLoi_Buoc{_activeStep}_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx");
             toolbar.Controls.Add(_btnExport, 5, 0);
             root.Controls.Add(toolbar, 0, 1);
 
-            _grid = new GridControl { Dock = DockStyle.Fill };
+            _grid = new GridControl { Name = "rework_worklistGrid", Dock = DockStyle.Fill };
             _gridView = new GridView(_grid);
             _grid.MainView = _gridView;
             _gridView.OptionsBehavior.Editable = false;
@@ -145,7 +145,7 @@ namespace PCTP.Modules.XuLyHangLoi
             _gridView.OptionsView.RowAutoHeight = true;
             _gridView.DoubleClick += (s, e) => OnGridDoubleClick();
             root.Controls.Add(_grid, 0, 2);
-            _lblHint = new LabelControl { Dock = DockStyle.Fill, Padding = new Padding(10, 5, 0, 0), Appearance = { Font = new Font("Tahoma", 9F, FontStyle.Italic), ForeColor = Color.DimGray } };
+            _lblHint = new LabelControl { Name = "rework_workflowHint", Dock = DockStyle.Fill, Padding = new Padding(10, 5, 0, 0), Appearance = { Font = new Font("Tahoma", 9F, FontStyle.Italic), ForeColor = Color.DimGray } };
             root.Controls.Add(_lblHint, 0, 3);
             Controls.Add(root);
         }
