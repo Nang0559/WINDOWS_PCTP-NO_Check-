@@ -14,7 +14,7 @@ internal static class Program
             var password = GetOption(args, "--password");
             if (string.IsNullOrWhiteSpace(userId) || string.IsNullOrWhiteSpace(password))
             {
-                Console.Error.WriteLine("BLOCKED: SQL Test requires --user <sql-user> and --password <sql-password>.");
+                Console.Error.WriteLine("BLOCKED: SQL Test requires --user/--password or environment variables PCTP_QC_SQL_USER and PCTP_QC_SQL_PASSWORD.");
                 Console.Error.WriteLine($"Target is fixed to {SqlTestConfiguration.Server}/{SqlTestConfiguration.Database}.");
                 return 2;
             }
@@ -89,7 +89,13 @@ internal static class Program
             if (string.Equals(args[i], name, StringComparison.OrdinalIgnoreCase))
                 return args[i + 1];
         }
-        return null;
+        var environmentVariable = name switch
+        {
+            "--user" => "PCTP_QC_SQL_USER",
+            "--password" => "PCTP_QC_SQL_PASSWORD",
+            _ => null
+        };
+        return environmentVariable == null ? null : Environment.GetEnvironmentVariable(environmentVariable);
     }
 
     // Optional SQL-engine smoke test retained for future opt-in use. Its fixture is
