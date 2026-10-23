@@ -19,6 +19,7 @@ public sealed class MainForm : Form
     private readonly TextBox _password = new() { Width = 145, UseSystemPasswordChar = true };
     private readonly Button _unitRun = new() { Text = "Unit / Regression", AutoSize = true };
     private readonly Button _sqlPreflight = new() { Text = "SQL 57 Read-only Check", AutoSize = true };
+    private readonly Button _deliveryPreflight = new() { Text = "SQL Delivery SP Check", AutoSize = true };
     private readonly Button _sqlRun = new() { Text = "Full SQL Integration", AutoSize = true };
     private readonly Button _stop = new() { Text = "Dừng kiểm thử", AutoSize = true, Enabled = false };
     private readonly Button _export = new() { Text = "Xuất báo cáo HTML", AutoSize = true };
@@ -95,6 +96,7 @@ public sealed class MainForm : Form
 
         _unitRun.Click += async (_, _) => await RunUnitTestsAsync();
         _sqlPreflight.Click += async (_, _) => await RunSqlIntegrationAsync(preflightOnly: true);
+        _deliveryPreflight.Click += async (_, _) => await RunSqlDeliveryPreflightAsync();
         _sqlRun.Click += async (_, _) => await RunSqlIntegrationAsync(preflightOnly: false);
         _stop.Click += (_, _) => StopActiveProcess();
         _export.Click += (_, _) => ExportHtmlReport();
@@ -121,6 +123,7 @@ public sealed class MainForm : Form
         header.Controls.Add(_password);
         header.Controls.Add(_unitRun);
         header.Controls.Add(_sqlPreflight);
+        header.Controls.Add(_deliveryPreflight);
         header.Controls.Add(_sqlRun);
         header.Controls.Add(_stop);
         header.Controls.Add(new Label { Text = "Production 192.168.200.14\\BRAVO: blocked", AutoSize = true, ForeColor = Color.Firebrick, Margin = new Padding(8, 8, 3, 3) });
@@ -230,6 +233,24 @@ public sealed class MainForm : Form
         var args = new List<string> { "run", "--project", project, "--configuration", "Release", "--" };
         if (preflightOnly) args.Add("--preflight");
         await RunTestAsync(preflightOnly ? "SQL 57 Read-only Check" : "Full SQL Integration", "sql", args.ToArray(), needsSqlCredentials: true);
+    }
+
+    private async Task RunSqlDeliveryPreflightAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_user.Text) || string.IsNullOrWhiteSpace(_password.Text))
+        {
+            MessageBox.Show(this, "Nhập SQL User và Password của môi trường Test 192.168.200.57.", "PCTP QC", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+        var project = Path.Combine(_root, "PCTP.QC.SqlIntegration", "PCTP.QC.SqlIntegration.csproj");
+        if (!File.Exists(project))
+        {
+            MessageBox.Show(this, "Không tìm thấy PCTP.QC.SqlIntegration.csproj.", "PCTP QC", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+        await RunTestAsync("SQL Delivery Procedure Check", "sql",
+            new[] { "run", "--project", project, "--configuration", "Release", "--", "--delivery-preflight" },
+            needsSqlCredentials: true);
     }
 
     private async Task RunTestAsync(string testName, string source, string[] arguments, bool needsSqlCredentials)
@@ -420,6 +441,7 @@ public sealed class MainForm : Form
     {
         _unitRun.Enabled = !running;
         _sqlPreflight.Enabled = !running;
+        _deliveryPreflight.Enabled = !running;
         _sqlRun.Enabled = !running;
         _stop.Enabled = running;
         _status.Text = status;
