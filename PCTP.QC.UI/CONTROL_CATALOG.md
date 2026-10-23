@@ -23,13 +23,13 @@ This catalog is derived from the WinForms source (not guessed screen captions). 
 | Screen | Form Name | Window title | Child controls observed in source |
 |---|---|---|---|
 | Shell | `Main_APP` | `PCTP - WMS` | `accordionControl`, `ribbonControl`, `btHelp` |
-| Receiving worklist | `FormNhapKhoTienTrinh` | Quản lý tiến trình Nhập kho | Dynamic controls: _btnAction, _btnScanAction, _gridView |
+| Receiving worklist | `FormNhapKhoTienTrinh` | Quản lý tiến trình Nhập kho | `receive_btnRefresh`, `receive_btnScan`, `receive_worklistGrid` |
 | Warehouse canvas | `MainStockSV` | MainStock | `btnEnterItem`, `btnRegisterRack`, `PEditInput`, `pnlMain` |
-| Slot export | `ExportFormSV` | XUẤT KHO - FVN | Dynamic buttons: Pick hàng (Chờ giao), In phiếu, Hủy |
+| Slot export | `ExportFormSV` | XUẤT KHO - FVN | `slotExport_quantity`, `slotExport_btnPick`, `slotExport_btnPrint`, `slotExport_btnCancel`, `slotExport_btnCancelPending` |
 | Customer delivery | `HVN_PGH` | HVN_PGH | `txt_DOCQRCODE`, `gridCtrDONHANG`, `gridCtrDOCQrCODE`, `UIButtonHOME` |
-| Defect/rework worklist | `FormQuanLyTienTrinhHangLoi` | Quản lý tiến trình Xử lý hàng lỗi | Dynamic controls: _txtSearch, _btnPrimary, _btnCreateXuLy, _grid |
-| QC direction | `FormQCDinhHuong` | QC định hướng xử lý hàng lỗi | Dynamic decision/note/confirm controls |
-| QC final | `FormQCXacNhanCuoi` | QC xác nhận cuối | Dynamic result/inspection/confirm controls |
+| Defect/rework worklist | `FormQuanLyTienTrinhHangLoi` | Quản lý tiến trình Xử lý hàng lỗi | `rework_search`, `rework_btnPrimaryAction`, `rework_btnCreateAbnormal`, `rework_worklistGrid`, `rework_step_01` … `rework_step_08` |
+| QC direction | `FormQCDinhHuong` | QC định hướng xử lý hàng lỗi | `qcDirection_disposition`, `qcDirection_note`, `qcDirection_operator`, `qcDirection_btnConfirm`, `qcDirection_btnClose` |
+| QC final | `FormQCXacNhanCuoi` | QC xác nhận cuối | `qcFinal_qtyOK`, `qcFinal_qtyNG`, `qcFinal_reworkLot`, `qcFinal_note`, `qcFinal_operator`, `qcFinal_btnConfirm`, `qcFinal_btnClose` |
 
 ## Important limitations
 
