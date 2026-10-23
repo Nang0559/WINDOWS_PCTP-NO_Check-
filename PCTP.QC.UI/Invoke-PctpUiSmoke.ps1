@@ -80,8 +80,13 @@ while ($queue.Count -gt 0) {
             Name = $element.Current.Name
             AutomationId = $element.Current.AutomationId
             ControlType = $element.Current.ControlType.ProgrammaticName
+            ClassName = $element.Current.ClassName
+            FrameworkId = $element.Current.FrameworkId
+            ProcessId = $element.Current.ProcessId
             Enabled = $element.Current.IsEnabled
             Offscreen = $element.Current.IsOffscreen
+            IsKeyboardFocusable = $element.Current.IsKeyboardFocusable
+            HasKeyboardFocus = $element.Current.HasKeyboardFocus
             X = [int]$rect.X
             Y = [int]$rect.Y
             Width = [int]$rect.Width
