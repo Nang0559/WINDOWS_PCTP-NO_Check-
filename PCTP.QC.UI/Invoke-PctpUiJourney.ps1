@@ -23,6 +23,18 @@ Add-Type -AssemblyName UIAutomationTypes
 Add-Type -AssemblyName System.Drawing
 Add-Type -AssemblyName System.Windows.Forms
 
+function Get-ProcessWindows {
+    $all = $desktop.FindAll([System.Windows.Automation.TreeScope]::Children, [System.Windows.Automation.Condition]::TrueCondition)
+    $found = @()
+    foreach ($item in $all) {
+        try {
+            if ($item.Current.ProcessId -eq $process.Id -and $item.Current.ControlType -eq [System.Windows.Automation.ControlType]::Window) {
+                $found += $item
+            }
+        } catch { }
+    }
+    return $found
+}
 $process = Start-Process -FilePath $resolvedExe -PassThru
 $desktop = [System.Windows.Automation.AutomationElement]::RootElement
 $deadline = [DateTime]::UtcNow.AddSeconds($StartupTimeoutSeconds)
@@ -39,18 +51,7 @@ if ($mainWindow.Current.Name -notmatch $ExpectedWindowTitleRegex) {
     throw "Unexpected startup window title '$($mainWindow.Current.Name)' (expected '$ExpectedWindowTitleRegex')."
 }
 
-function Get-ProcessWindows {
-    $all = $desktop.FindAll([System.Windows.Automation.TreeScope]::Children, [System.Windows.Automation.Condition]::TrueCondition)
-    $found = @()
-    foreach ($item in $all) {
-        try {
-            if ($item.Current.ProcessId -eq $process.Id -and $item.Current.ControlType -eq [System.Windows.Automation.ControlType]::Window) {
-                $found += $item
-            }
-        } catch { }
-    }
-    return $found
-}
+
 function Get-CurrentWindow {
     $windows = @(Get-ProcessWindows)
     if ($windows.Count -eq 0) { return $null }
