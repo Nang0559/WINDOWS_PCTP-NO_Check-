@@ -45,7 +45,7 @@
       "scenario": "Trace supplied QR payloads through actual receiving and customer-delivery UI/service/parser and SQL persistence",
       "expected": "Production parser semantics and QR-to-LOT/order mapping verified; stock, slot, history and delivered quantity reconcile; duplicate scan cannot mutate twice",
       "status": "planned",
-      "testEvidence": "Requires adapter-level tests against the actual production scan handlers and isolated SQL integration database"
+      "testEvidence": "QrCodeWorkflowAdapterTests plus RemainingQcCaseContractTests verify production parser-to-StockMovementRequest mapping for receiving and delivery. Actual UI handlers, isolated SQL persistence/replay, and cross-ledger reconciliation remain runtime acceptance gates."
     },
     {
       "id": "IN-001",
@@ -173,7 +173,7 @@
       "scenario": "Execute production customer-delivery stock deduction across STOCKTP, SlotLot, stock history and pending-delivery records",
       "expected": "All repository writes enlist in the same phieuUow; any injected failure rolls back every stock/history/delivery mutation",
       "status": "planned",
-      "testEvidence": "Still a required gap: current ProductionBulkStockSlotRepositoryScenario exercises production repositories plus synthetic delivery state, not PhieuKhoRepository + the exact Usp_Qrcode_Update_Stock2405 against an isolated copy of the full business schema."
+      "testEvidence": "DeliveryProductionBoundaryTests guards the production PhieuKhoRepository UoW ordering and rollback source contract. Full Usp_Qrcode_Update_Stock2405 + PhieuKhoRepository execution against a DBA-provisioned isolated business-schema copy remains a runtime acceptance gate."
     },
     {
       "id": "DEL-004",
@@ -213,7 +213,7 @@
       "scenario": "Verify transaction boundary for stored-procedure delivery routes and post-delivery finalization",
       "expected": "STOCKTP deduction, SlotLot deduction, pending-delivery closure and history either commit atomically or expose an explicit recoverable state",
       "status": "planned",
-      "testEvidence": "Still a required gap: transaction-boundary contract and synthetic SQL-engine rollback exist, but full stored-procedure + repository post-delivery finalization against an isolated copy of the business schema has not been executed."
+      "testEvidence": "DeliveryProductionBoundaryTests and DeliveryTransactionContractTests guard source-level transaction/savepoint/idempotency contracts. Full production procedure + repository finalization/rollback remains unexecuted against an isolated business-schema copy."
     },
     {
       "id": "DEL-009",
@@ -340,14 +340,16 @@
       "module": "Performance",
       "scenario": "QC Final small/medium/large synthetic workload",
       "expected": "Baseline latency and bounded execution",
-      "status": "planned"
+      "status": "implemented",
+      "testEvidence": "PerformanceContractTests.QcFinal_SyntheticWorkload_HasBoundedExecution runs 100/1,000/5,000 synthetic domain-validation records with bounded thresholds. This is a synthetic CPU/domain baseline, not production database/UI latency."
     },
     {
       "id": "PERF-002",
       "module": "Performance",
       "scenario": "Repeated QC Final and concurrent LOT requests",
       "expected": "No double processing, leaks or unbounded queue growth",
-      "status": "planned"
+      "status": "implemented",
+      "testEvidence": "PerformanceContractTests.RepeatedAndConcurrentLotRequests_ClaimExactlyOnceWithoutQueueGrowth checks 3,200 concurrent duplicate claim attempts against a concurrent in-memory claim set. This is a concurrency contract, not SQL lock/connection-pool performance acceptance."
     },
     {
       "id": "UI-000",
@@ -474,7 +476,7 @@
       "scenario": "Authorize release of a quarantined SlotLot only after QC disposition, preserve audit trail, and reconcile available STOCKTP/Slot header atomically",
       "expected": "Unauthorized release is rejected; authorized release changes quarantine status and stock/history together; failure rolls all changes back",
       "status": "planned",
-      "testEvidence": "QuarantineReleaseScenario verifies a synthetic isolated SQL-engine transition and audit/rollback contract. Production authorization adapter and actual QuarantineReleaseService-to-repository SQL transaction are still not proven; status remains planned for full acceptance."
+      "testEvidence": "QuarantineReleaseServiceTests verify authorization/QC gates and unit-of-work rollback; QuarantineReleaseScenario verifies SQL-engine fixture behavior only. Production authorization/repository adapters against isolated business schema remain unproven."
     },
     {
       "id": "UI-002",
@@ -538,7 +540,7 @@
       "scenario": "Execute real ReworkStockService NG output path and verify created SlotLot is PhieuStatus=3",
       "expected": "Rework NG is stored at the NG slot with PhieuStatus=3; STOCKTP available balance is not increased; Slot.Quantity excludes NG; transaction failure rolls back NG SlotLot and workflow state",
       "status": "planned",
-      "testEvidence": "Current source path ReworkStockService.NhapLaiHangNG documents status 3, and repository-level tests cover exclusion of status 3, but no test invokes the actual rework NG service path and asserts persisted SQL postconditions."
+      "testEvidence": "RemainingQcCaseContractTests guards the actual ReworkStockService.NhapLaiHangNG and StockMovementService status-3/no-STOCKTP-credit path. Persisted SQL postconditions and injected rollback against an isolated business schema remain runtime acceptance gates."
     }
   ]
 }
