@@ -18,6 +18,7 @@ internal static class ProductionBulkStockSlotRepositoryScenario
 
     public static void Run(string connectionString)
     {
+        connectionString = SqlTestConfiguration.BuildLegacySqlClientConnectionString(connectionString);
         EnsureFixtureNamesAreUnused(connectionString);
         CreateFixture(connectionString);
 
