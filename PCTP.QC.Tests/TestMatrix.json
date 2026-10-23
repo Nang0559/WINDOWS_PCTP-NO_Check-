@@ -199,7 +199,8 @@
       "module": "GiaoHangKhach",
       "scenario": "Mark an order-table line delivered only for its own delivery time (PhieuKhoRepository.DanhDauDaGiao via OrderTableSql.MarkDelivered)",
       "expected": "Delivering 14:00 does not mark 08:00/08:30 of the same PO/part/date, nor other PO/part/date; replay updates 0 rows. Unit evidence: OrderTableSqlTests (SQL text only). Executable SQL evidence: SqlIntegration OrderTableDeliveryMarkingScenario, not yet executed on a disposable SQL Server",
-      "status": "planned"
+      "status": "implemented",
+      "testEvidence": "OrderTableSqlTests and OrderTableDeliveryMarkingScenario.Run; SQL Integration runner now executes the production OrderTableSql.MarkDelivered statement against a transaction-isolated fixture, checks exact PO + part + date + hour:minute matching, replay idempotency, neighboring time slots and no-match behavior. Re-run SQL Integration to obtain execution evidence."
     },
     {
       "id": "DEL-011",
