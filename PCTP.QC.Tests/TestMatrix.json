@@ -8,6 +8,38 @@
   },
   "modules": [
     {
+      "id": "QR-001",
+      "module": "QRCode/NhapKho",
+      "scenario": "Parse the supplied receiving master label with exactly 6 colon-delimited fields",
+      "expected": "Preserve all field values; require non-empty fields; quantity is a positive integer and date uses valid dd/MM/yyyy format",
+      "status": "implemented",
+      "testEvidence": "QrCodeFormatContractTests.ReceivingMasterLabel_HasSixColonDelimitedFields;QrCodeFormatContractTests.SuppliedDate_IsParsedWithExplicitDayFirstFormat"
+    },
+    {
+      "id": "QR-002",
+      "module": "QRCode/GiaoHangKhach",
+      "scenario": "Parse the supplied customer carton label with exactly 4 colon-delimited fields",
+      "expected": "Preserve all field values; reject 6-field master labels and 4-field carton labels when the wrong format is requested",
+      "status": "implemented",
+      "testEvidence": "QrCodeFormatContractTests.CustomerCartonLabel_HasFourColonDelimitedFields;QrCodeFormatContractTests.ReceivingAndCartonFormats_AreNotInterchangeable"
+    },
+    {
+      "id": "QR-003",
+      "module": "QRCode/Validation",
+      "scenario": "Reject malformed QR payloads: blank, missing/extra fields, blank fields, invalid date, zero/negative/non-numeric quantity",
+      "expected": "Validation fails deterministically before business persistence",
+      "status": "implemented",
+      "testEvidence": "QrCodeFormatContractTests.EmptyQr_IsRejected;QrCodeFormatContractTests.WrongFieldCount_IsRejected;QrCodeFormatContractTests.MissingRequiredWireField_IsRejected;QrCodeFormatContractTests.QuantityMustBePositiveInteger;QrCodeFormatContractTests.ManufacturingDateMustMatchDdMmYyyyAndBeValid"
+    },
+    {
+      "id": "QR-004",
+      "module": "QRCode/Integration",
+      "scenario": "Trace supplied QR payloads through actual receiving and customer-delivery UI/service/parser and SQL persistence",
+      "expected": "Production parser semantics and QR-to-LOT/order mapping verified; stock, slot, history and delivered quantity reconcile; duplicate scan cannot mutate twice",
+      "status": "planned",
+      "testEvidence": "Requires adapter-level tests against the actual production scan handlers and isolated SQL integration database"
+    },
+    {
       "id": "IN-001",
       "module": "NhapKho",
       "scenario": "Receive valid LOT and quantity",
