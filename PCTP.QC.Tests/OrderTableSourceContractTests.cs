@@ -28,9 +28,19 @@ public sealed class OrderTableSourceContractTests
         Assert.Contains("o.Slgiao", method);
         Assert.Contains("o.Part_name", method);
         Assert.Contains("o.NgayGiao", method);
-        Assert.DoesNotContain("SUM(o.Slgiao)", method, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("MAX(o.", method, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("GROUP BY", method, StringComparison.OrdinalIgnoreCase);
+        // Inspect only the SQL construction, not comments explaining the invariant.
+        // Otherwise the guard mistakes the explanatory "Không GROUP BY" comment
+        // for a GROUP BY clause in the query that is actually executed.
+        var sqlStart = method.IndexOf("string sql =", StringComparison.Ordinal);
+        Assert.True(sqlStart >= 0, "SQL query construction was not found.");
+
+        var sqlEnd = method.IndexOf("DataTable dt = _db.LoadData(sql);", sqlStart, StringComparison.Ordinal);
+        Assert.True(sqlEnd > sqlStart, "Could not isolate the SQL passed to LoadData.");
+
+        var sql = method.Substring(sqlStart, sqlEnd - sqlStart);
+        Assert.DoesNotContain("SUM(o.Slgiao)", sql, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("MAX(o.", sql, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("GROUP BY", sql, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
