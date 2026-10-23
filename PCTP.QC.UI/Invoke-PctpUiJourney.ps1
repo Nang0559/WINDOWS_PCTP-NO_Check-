@@ -6,6 +6,7 @@ param(
     [Parameter(Mandatory = $false)][string]$ExpectedWindowTitleRegex = ".*",
     [Parameter(Mandatory = $false)][int]$StartupTimeoutSeconds = 45,
     [Parameter(Mandatory = $false)][int]$StepTimeoutSeconds = 20,
+    [Parameter(Mandatory = $false)][switch]$AllowMutations,
     [Parameter(Mandatory = $false)][switch]$CloseOnFinish
 )
 $ErrorActionPreference = "Stop"
@@ -15,6 +16,8 @@ if (-not (Test-Path -LiteralPath $ManifestPath -PathType Leaf)) { throw "Manifes
 
 $manifest = Get-Content -LiteralPath $ManifestPath -Raw | ConvertFrom-Json
 if (-not $manifest.steps -or $manifest.steps.Count -eq 0) { throw "Manifest must define at least one step." }
+$declaredMutations = [bool]$manifest.dataMutation -or @($manifest.steps | Where-Object { $_.mutatesData -eq $true }).Count -gt 0
+if ($declaredMutations -and -not $AllowMutations) { throw "This manifest declares data mutations. Re-run only against disposable QC data with -AllowMutations after verifying its reset contract." }
 $resolvedExe = (Resolve-Path -LiteralPath $ExePath).Path
 $out = [System.IO.Path]::GetFullPath($OutputDirectory)
 New-Item -ItemType Directory -Force -Path $out | Out-Null
@@ -110,6 +113,7 @@ try {
         $script:stepIndex++
         $label = if ($step.id) { [string]$step.id } else { "step-$script:stepIndex" }
         $action = ([string]$step.action).ToLowerInvariant()
+        if ($step.mutatesData -eq $true -and -not $AllowMutations) { throw "Step '$label' is marked mutatesData; -AllowMutations is required." }
         $target = $null
         switch ($action) {
             "assert-window-title" {
@@ -202,6 +206,7 @@ try {
         Executable = $resolvedExe
         ProcessId = $process.Id
         StartupWindowTitle = $mainWindow.Current.Name
+        MutationsAllowed = [bool]$AllowMutations
         Manifest = (Resolve-Path -LiteralPath $ManifestPath).Path
         StartedAt = (Get-Date).ToString("o")
         CompletedAt = (Get-Date).ToString("o")
