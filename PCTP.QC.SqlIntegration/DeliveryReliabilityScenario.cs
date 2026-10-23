@@ -37,16 +37,24 @@ internal static class DeliveryReliabilityScenario
         await using var connection = new SqlConnection(cs);
         await connection.OpenAsync();
         await using var command = new SqlCommand($@"
-CREATE TABLE {table}
-(
-    Id int NOT NULL PRIMARY KEY,
-    Qty int NOT NULL,
-    DeliveryKey nvarchar(80) NULL,
-    HistoryCount int NOT NULL DEFAULT(0),
-    PendingClosed bit NOT NULL DEFAULT(0)
-);
-CREATE UNIQUE INDEX UX_QC_REL_DeliveryKey ON {table}(DeliveryKey) WHERE DeliveryKey IS NOT NULL;
-INSERT INTO {table}(Id, Qty) VALUES (1, 10), (2, 10), (3, 10), (4, 50);", connection)
+BEGIN TRANSACTION;
+BEGIN TRY
+    CREATE TABLE {table}
+    (
+        Id int NOT NULL PRIMARY KEY,
+        Qty int NOT NULL,
+        DeliveryKey nvarchar(80) NULL,
+        HistoryCount int NOT NULL DEFAULT(0),
+        PendingClosed bit NOT NULL DEFAULT(0)
+    );
+    CREATE UNIQUE INDEX UX_QC_REL_DeliveryKey ON {table}(DeliveryKey) WHERE DeliveryKey IS NOT NULL;
+    INSERT INTO {table}(Id, Qty) VALUES (1, 10), (2, 10), (3, 10), (4, 50);
+    COMMIT TRANSACTION;
+END TRY
+BEGIN CATCH
+    IF XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+    THROW;
+END CATCH;", connection)
         { CommandTimeout = 5 };
         await command.ExecuteNonQueryAsync();
     }
