@@ -45,7 +45,7 @@ VALUES(1,N'QC-PART',N'QC-CONCURRENT-LOT',15,N'QC-TEM-CONC',N'QC-QR-CONC',GETDATE
                 await setup.ExecuteNonQueryAsync();
             }
 
-            async Task<bool> TryConsumeTenAsync()
+            bool TryConsumeTen()
             {
                 var provider = new PCTP.ClassSQL.SQLPROVIDER { B7R2_FCCdb = legacyConnectionString };
                 using var uow = new UnitOfWork(provider);
@@ -73,7 +73,7 @@ VALUES(1,N'QC-PART',N'QC-CONCURRENT-LOT',15,N'QC-TEM-CONC',N'QC-QR-CONC',GETDATE
                 }
             }
 
-            var results = await Task.WhenAll(Task.Run(TryConsumeTenAsync), Task.Run(TryConsumeTenAsync));
+            var results = await Task.WhenAll(Task.Run(TryConsumeTen), Task.Run(TryConsumeTen));
             Require(results.Count(x => x) == 1,
                 $"Expected one production repository TakeLot to succeed from 15 units; results were {string.Join(",", results)}.");
 
