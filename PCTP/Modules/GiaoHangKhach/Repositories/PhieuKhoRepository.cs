@@ -82,6 +82,17 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
 
                 stok = ds != null && ds.Tables.Count > 0 ? ds.Tables[0] : new DataTable();
                 errors = ds != null && ds.Tables.Count > 1 ? ds.Tables[1] : new DataTable();
+
+                // The stock procedure rolls back its stock writes when it reports any
+                // validation/business error. Never consume its #STOK success resultset
+                // as if those rows had committed: doing so would deduct SlotLot and close
+                // pending-delivery records after STOCKTP was rolled back.
+                if (errors.Rows.Count > 0)
+                {
+                    Uow.Rollback();
+                    return 0;
+                }
+
                 coAnhHuongA0 = TruKhoAoTuKetQuaSP(stok, out List<string> lotsDaXuatThanhCong);
                 HoanTatSauKhiTruKho(lotsDaXuatThanhCong, SYSTEM_PERFORMED_BY);
 
@@ -152,6 +163,17 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                 );
                 stok = ds != null && ds.Tables.Count > 0 ? ds.Tables[0] : new DataTable();
                 errors = ds != null && ds.Tables.Count > 1 ? ds.Tables[1] : new DataTable();
+
+                // The stock procedure rolls back its stock writes when it reports any
+                // validation/business error. Never consume its #STOK success resultset
+                // as if those rows had committed: doing so would deduct SlotLot and close
+                // pending-delivery records after STOCKTP was rolled back.
+                if (errors.Rows.Count > 0)
+                {
+                    Uow.Rollback();
+                    return 0;
+                }
+
                 coAnhHuongA0 = TruKhoAoTuKetQuaSP(stok, out List<string> lotsDaXuatThanhCong);
                 HoanTatSauKhiTruKho(lotsDaXuatThanhCong, SYSTEM_PERFORMED_BY);
                 Uow.Commit();
