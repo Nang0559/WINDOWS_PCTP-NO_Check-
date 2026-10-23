@@ -1021,7 +1021,7 @@ BEGIN
             -- + NGAYGIAO/GIOGIAO and calling OrderTableSql.MarkDelivered.
             -- Keeping this update in one place avoids a second, weaker key
             -- interpretation in SQL (especially legacy hour-only GIOGIAO).
-            END;  
+  
   
         END;  
   
