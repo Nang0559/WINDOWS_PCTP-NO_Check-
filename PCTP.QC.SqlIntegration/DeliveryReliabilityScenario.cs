@@ -204,30 +204,33 @@ UPDATE {table} SET HistoryCount=HistoryCount+1, PendingClosed=1 WHERE Id=2;", co
         await using var connection = new SqlConnection(cs);
         await connection.OpenAsync();
         await using var transaction = (SqlTransaction)await connection.BeginTransactionAsync(IsolationLevel.ReadCommitted);
-        var cancelled = false;
+
         try
         {
             await using (var update = new SqlCommand($"UPDATE {table} SET Qty=Qty-5 WHERE Id=4 AND Qty>=5;", connection, transaction))
                 await update.ExecuteNonQueryAsync();
 
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(1));
-            await using var wait = new SqlCommand("WAITFOR DELAY '00:00:15';", connection, transaction)
-            { CommandTimeout = 20 };
-            try
+            // Use SqlCommand.CommandTimeout instead of CancellationToken cancellation.
+            // SqlClient may surface token cancellation as a generic SqlException ("Operation
+            // cancelled by user") and can break the connection, making rollback verification
+            // unreliable. A command timeout is the provider-supported attention path to test.
+            var timedOut = false;
+            await using (var wait = new SqlCommand("WAITFOR DELAY '00:00:15';", connection, transaction)
+            { CommandTimeout = 2 })
             {
-                await wait.ExecuteNonQueryAsync(cts.Token);
-            }
-            catch (OperationCanceledException)
-            {
-                cancelled = true;
-            }
-            catch (SqlException ex) when (ex.Number == -2)
-            {
-                cancelled = true;
+                try
+                {
+                    await wait.ExecuteNonQueryAsync();
+                }
+                catch (SqlException ex) when (ex.Number == -2)
+                {
+                    timedOut = true;
+                }
             }
 
-            if (!cancelled)
-                throw new InvalidOperationException("SQL command ignored the cancellation token.");
+            if (!timedOut)
+                throw new InvalidOperationException("SQL command did not time out within the configured command timeout.");
+
             await transaction.RollbackAsync();
         }
         catch
@@ -237,8 +240,8 @@ UPDATE {table} SET HistoryCount=HistoryCount+1, PendingClosed=1 WHERE Id=2;", co
         }
 
         Require(await ScalarIntAsync(cs, $"SELECT Qty FROM {table} WHERE Id=4") == 50,
-            "Cancellation did not roll back the write performed before WAITFOR.");
-        Console.WriteLine("PASS: SQL cancellation interrupted a running command and rolled back the active transaction.");
+            "Command timeout did not roll back the write performed before WAITFOR.");
+        Console.WriteLine("PASS: SQL command timeout interrupted a running command and rolled back the active transaction.");
     }
 
     private static async Task UpdateQtyAsync(SqlConnection connection, SqlTransaction transaction, string table, int id)
