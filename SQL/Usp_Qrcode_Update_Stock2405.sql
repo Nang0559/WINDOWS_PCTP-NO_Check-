@@ -81,7 +81,9 @@ BEGIN
     -- 2. KHAI BÁO BIẾN  
     --------------------------------------------------------------------  
     DECLARE @NgayGiao SMALLDATETIME = CAST(GETDATE() AS SMALLDATETIME);  
-    DECLARE @sql NVARCHAR(MAX);  
+    DECLARE @sql NVARCHAR(MAX);
+    DECLARE @StartedTransaction BIT = 0;
+    DECLARE @SavepointName SYSNAME = N'UspQrcodeUpdateStock2405';  
   
     DECLARE  
         @_LOT          NVARCHAR(MAX),  
@@ -647,7 +649,18 @@ BEGIN
         ----------------------------------------------------------------  
         -- 10. TRANSACTION  
         ----------------------------------------------------------------  
-        BEGIN TRANSACTION;  
+        -- Participate in the caller's UnitOfWork transaction when one exists.
+        -- A nested COMMIT would decrement @@TRANCOUNT, while an unqualified ROLLBACK
+        -- would abort the caller's entire delivery transaction.
+        IF @@TRANCOUNT = 0
+        BEGIN
+            BEGIN TRANSACTION;
+            SET @StartedTransaction = 1;
+        END
+        ELSE
+        BEGIN
+            SAVE TRANSACTION UspQrcodeUpdateStock2405;
+        END;
   
         DECLARE UPDATETMP CURSOR LOCAL FAST_FORWARD FOR  
             SELECT  
@@ -778,7 +791,10 @@ BEGIN
             FROM #STNG  
         )  
         BEGIN  
-            ROLLBACK TRANSACTION;  
+            IF @StartedTransaction = 1
+                ROLLBACK TRANSACTION;
+            ELSE
+                ROLLBACK TRANSACTION UspQrcodeUpdateStock2405;
   
             SELECT  
                 STT,  
@@ -1028,13 +1044,23 @@ BEGIN
         ----------------------------------------------------------------  
         -- 18. COMMIT  
         ----------------------------------------------------------------  
-        COMMIT TRANSACTION;  
+        -- Only commit a transaction opened by this procedure. If a caller owns
+        -- the transaction, leave final commit/rollback to the caller.
+        IF @StartedTransaction = 1
+            COMMIT TRANSACTION;
   
     END TRY  
     BEGIN CATCH  
   
-        IF @@TRANCOUNT > 0  
-            ROLLBACK TRANSACTION;  
+        IF @@TRANCOUNT > 0
+        BEGIN
+            IF @StartedTransaction = 1
+                ROLLBACK TRANSACTION;
+            ELSE IF XACT_STATE() = 1
+                ROLLBACK TRANSACTION UspQrcodeUpdateStock2405;
+            ELSE IF XACT_STATE() = -1
+                THROW; -- the caller must roll back the doomed outer transaction
+        END;  
   
         IF CURSOR_STATUS('local', 'LOT_IN_PGH') >= 0  
         BEGIN  
