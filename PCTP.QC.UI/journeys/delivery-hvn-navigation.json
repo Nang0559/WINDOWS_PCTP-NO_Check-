@@ -1,0 +1,11 @@
+{
+  "name": "delivery-hvn-navigation",
+  "purpose": "Read-only navigation smoke: open the HVN customer-delivery workspace.",
+  "dataMutation": false,
+  "steps": [
+    { "id": "expand-delivery-menu", "action": "click", "automationId": "accordionControlElement22" },
+    { "id": "open-hvn-delivery", "action": "click", "automationId": "E_GHHVN_MP", "waitAfterMs": 1200 },
+    { "id": "delivery-screen-visible", "action": "wait-for-window", "value": "HVN_PGH", "timeoutSeconds": 45 },
+    { "id": "verify-delivery-title", "action": "assert-window-title", "value": "HVN_PGH" }
+  ]
+}
