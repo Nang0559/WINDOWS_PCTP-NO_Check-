@@ -26,7 +26,7 @@ internal static class ProductionStockTpRepositoryScenario
             // All repository calls participate in this UnitOfWork transaction; rollback
             // ensures the unique test LOT is never committed to the shared test database.
             IStockTpRepository repository = new StockTpRepository(
-                new PhieuSqlExecutor(provider), uow);
+                new PhieuSqlExecutor(), uow);
 
             repository.InsertStockTp(new NhapKhoItem
             {
