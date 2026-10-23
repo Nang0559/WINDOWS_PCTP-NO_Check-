@@ -4,7 +4,7 @@
     "productionDatabaseAccess": false,
     "mutatingProductionData": false,
     "sqlScriptsExecutedByDefault": false,
-    "integrationDatabasePolicy": "SQL engine fixtures use session-local # tables or a uniquely named tempdb ## table on the fixed test endpoint 192.168.200.57/B7R2_FCC; production repository scenarios must use rollback transactions and never target 192.168.200.14\\\\BRAVO."
+    "integrationDatabasePolicy": "SQL engine fixtures use session-local # tables or a uniquely named tempdb ## table on the fixed test endpoint 192.168.200.57/B7R2_FCC; production repository scenarios must use rollback transactions and never target 192.168.200.14\\BRAVO."
   },
   "modules": [
     {
