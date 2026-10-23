@@ -253,6 +253,7 @@ BEGIN
             -- an existing confirmation. The lock is transaction-owned and therefore
             -- remains held through STOCKTP, ledger, and pending-delivery writes.
             ------------------------------------------------------------
+            SET @LockResource = NULL;
             SET @sql = N'
                 SELECT @Resource =
                     N''PCTP_DELIVERY:'' +
