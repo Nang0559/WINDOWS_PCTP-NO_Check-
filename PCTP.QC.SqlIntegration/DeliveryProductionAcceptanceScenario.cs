@@ -19,10 +19,7 @@ internal static class DeliveryProductionAcceptanceScenario
         await connection.OpenAsync();
         var candidate = await FindCandidateAsync(connection);
         if (candidate == null)
-        {
-            Console.WriteLine("SKIP: DEL runtime acceptance found no safe pending delivery row with a unique stocked LOT and no existing delivery ledger row. No data was changed.");
-            return;
-        }
+            throw new InvalidOperationException("DEL runtime acceptance could not find a safe pending delivery row with a unique stocked LOT and no existing delivery ledger row. Prepare one isolated pending row in B7R2_FCC and rerun SQL integration.");
 
         Console.WriteLine($"INFO: DEL runtime candidate STT={candidate.Stt}, LOT={candidate.LotExpression}, quantity={candidate.Quantity}, item={candidate.ItemCode}.");
         await VerifySuccessAndCallerRollbackAsync(connection, candidate);
@@ -113,7 +110,6 @@ ORDER BY t.NGAYGIAO,t.STT;";
         var before = await ReadStateAsync(connection, tx, c.Stt);
         var first = await ExecuteProcedureAsync(connection, tx, c, c.Quantity);
         Require(first.SuccessCount > 0 && first.ErrorCount == 0, "DEL-004 first confirmation did not succeed.");
-
         await ExecuteAsync(connection, tx, "UPDATE dbo.TMPPHIEUGIAOHANG SET STATUS=N'PENDING' WHERE STT=@stt", new SqlParameter("@stt", c.Stt));
         var replay = await ExecuteProcedureAsync(connection, tx, c, c.Quantity);
         Require(replay.SuccessCount == 0 && replay.ErrorCount > 0, "DEL-004 replay unexpectedly deducted stock twice.");
@@ -152,7 +148,11 @@ ORDER BY t.NGAYGIAO,t.STT;";
         var dash = lotExpression.IndexOf('-');
         var lot = (dash > 0 ? lotExpression[..dash] : lotExpression).Trim();
         var status = await ScalarStringAsync(connection, tx, "SELECT ISNULL(STATUS,N'') FROM dbo.TMPPHIEUGIAOHANG WHERE STT=@stt", new SqlParameter("@stt", stt)) ?? string.Empty;
-        var stock = await ScalarIntAsync(connection, tx, "SELECT ISNULL(SLCONLAI,0) FROM dbo.STOCKTP WHERE RTRIM(LOT)=RTRIM(@lot)", new SqlParameter("@lot", lot));
+        var stock = await ScalarIntAsync(connection, tx, @"SELECT ISNULL(SUM(s.SLCONLAI),0)
+FROM dbo.STOCKTP s
+WHERE RTRIM(s.LOT)=RTRIM(@lot)
+   OR (LEN(RTRIM(@lot)) <= 13 AND LEFT(RTRIM(s.LOT),13)=LEFT(RTRIM(@lot),13)
+       AND (SELECT COUNT(DISTINCT RTRIM(s2.LOT)) FROM dbo.STOCKTP s2 WHERE LEFT(RTRIM(s2.LOT),13)=LEFT(RTRIM(@lot),13))=1)", new SqlParameter("@lot", lot));
         var ledger = await ScalarIntAsync(connection, tx, @"SELECT COUNT(*) FROM dbo.LUUPHIEUGIAOHANG l JOIN dbo.TMPPHIEUGIAOHANG t ON t.STT=@stt
 WHERE RTRIM(l.MAHANG)=RTRIM(t.MAHANG) AND CAST(l.NGAYGIAO AS date)=CAST(t.NGAYGIAO AS date)
   AND RTRIM(ISNULL(l.CUA,N''))=RTRIM(ISNULL(t.CUA,N'')) AND RTRIM(ISNULL(l.TRUYEN,N''))=RTRIM(ISNULL(t.TRUYEN,N''))
