@@ -22,6 +22,7 @@
     <None Include="../SQL/PCTPStockMovementGuard.sql" Link="PCTPStockMovementGuard.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/GiaoHangKhach/Repositories/TableOrderRepo.cs" Link="TableOrderRepo.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/GiaoHangKhach/Repositories/PhieuKhoRepository.cs" Link="PhieuKhoRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/GiaoHangKhach/Services/PhieuKhoService.cs" Link="PhieuKhoService.source.cs" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="../PCTP/Shared/Helpers/QRCodeParser.cs" Link="Sut/QRCodeParser.cs" />
