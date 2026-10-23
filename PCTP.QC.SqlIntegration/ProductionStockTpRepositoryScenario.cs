@@ -44,8 +44,17 @@ CREATE TABLE #STOCKTP
                 create.ExecuteNonQuery();
             }
 
+            // Explicitly target the session-local fixture. The repository's default
+            // remains STOCKTP for production callers; this scenario must never hit dbo.STOCKTP.
+            using (var verify = uow.Connection.CreateCommand())
+            {
+                verify.Transaction = uow.Transaction;
+                verify.CommandText = "IF OBJECT_ID('tempdb..#STOCKTP') IS NULL THROW 51091, 'Isolated #STOCKTP fixture was not created.', 1;";
+                verify.ExecuteNonQuery();
+            }
+
             IStockTpRepository repository = new StockTpRepository(
-                new PhieuSqlExecutor(), uow);
+                new PhieuSqlExecutor(), uow, "#STOCKTP");
 
             repository.InsertStockTp(new NhapKhoItem
             {
