@@ -100,6 +100,26 @@ VALUES(@slot,N'QC-PART',N'QC-QUARANTINE-LOT',5,N'QC-QUARANTINE-TEM',N'QC-QUARANT
                 "Rejected quarantined export changed the active Slot header.");
             Console.WriteLine("PASS: production BulkStockSlotRepository.TakeLot rejects quarantined LOT without changing its quantity or active Slot header.");
 
+            // Over-request must be rejected, and the caller's transaction/savepoint
+            // must restore rows that TakeLot tentatively decremented before detecting shortage.
+            uow.Transaction.Save("QC_BEFORE_SHORTAGE");
+            bool shortageRejected = false;
+            try
+            {
+                bulk.TakeLot(slotId, lot, "QC-PART", 66);
+            }
+            catch (InvalidOperationException ex) when (ex.Message.Contains("không đủ", StringComparison.OrdinalIgnoreCase))
+            {
+                shortageRejected = true;
+                uow.Transaction.Rollback("QC_BEFORE_SHORTAGE");
+            }
+            Require(shortageRejected, "Production TakeLot accepted an over-request of 66 from 65 units.");
+            Require(bulk.GetLotQuantity(1) == 40 && bulk.GetLotQuantity(2) == 25,
+                "Caller rollback did not restore both SlotLot rows after an insufficient-stock request.");
+            Require(Convert.ToInt32(ScalarInTransaction(uow, "SELECT Quantity FROM #Slot WHERE SlotId=@id", slotId)) == 65,
+                "Slot header changed after a rejected insufficient-stock request.");
+            Console.WriteLine("PASS: production TakeLot rejects an over-request and savepoint rollback restores all partially touched LOT rows.");
+
             uow.Transaction.Save("QC_BEFORE_DELIVERY");
             try
             {
