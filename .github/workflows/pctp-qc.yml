@@ -1,0 +1,37 @@
+name: PCTP QC tests
+
+on:
+  push:
+    branches:
+      - feature/pctp-qc-test-platform
+  pull_request:
+    branches:
+      - feature/pctp-qc-test-platform
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  unit-tests:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Run QC unit tests
+        run: dotnet test .\PCTP.QC.Tests\PCTP.QC.Tests.csproj --configuration Release --logger "trx;LogFileName=pctp-qc-tests.trx"
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pctp-qc-unit-test-results
+          path: PCTP.QC.Tests/TestResults/*.trx
+          if-no-files-found: ignore
