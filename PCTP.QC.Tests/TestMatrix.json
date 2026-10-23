@@ -152,6 +152,14 @@
       "testEvidence": "DeliveryTransactionContractTests.StockProcedure_PreservesCallerOwnedTransaction; DeliveryTransactionContractTests.DeliveryRepository_DoesNotConsumeRolledBackSuccessRowsWhenProcedureReturnsErrors; DeliveryTransactionBoundaryScenario.RunAsync exercises savepoint/caller rollback semantics using a session-local SQL fixture. Runtime execution still required."
     },
     {
+      "id": "DEL-TXN-002",
+      "module": "GiaoHangKhach",
+      "scenario": "Concurrent identical delivery confirmations race before LUUPHIEUGIAOHANG existence check",
+      "expected": "A transaction-owned application lock serializes the complete delivery identity before duplicate lookup; the second request observes the first committed confirmation",
+      "status": "implemented",
+      "testEvidence": "DeliveryTransactionContractTests.StockProcedure_SerializesDuplicateConfirmationBeforeCheckingExistingDelivery; SQL procedure acquires sys.sp_getapplock using a SHA2-256 key derived from part/date/slot/line/quantity/time/factory. Concurrent SQL runtime verification is still required."
+    },
+    {
       "id": "DEL-003",
       "module": "GiaoHangKhach",
       "scenario": "Execute production customer-delivery stock deduction across STOCKTP, SlotLot, stock history and pending-delivery records",
