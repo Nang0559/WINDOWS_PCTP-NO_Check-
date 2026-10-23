@@ -20,6 +20,7 @@ dotnet build .\PCTP.QC.TestRunner\PCTP.QC.TestRunner.csproj --configuration Rele
 
 - **Unit / Regression** runs `PCTP.QC.Tests`.
 - **SQL 57 Read-only Check** validates the fixed test database schema only.
+- **SQL Delivery SP Check** reads deployed SQL metadata and verifies `dbo.Usp_Qrcode_Update_Stock2405`, required delivery ledgers, and transaction/savepoint/idempotency-lock markers. It never executes the stored procedure or mutates business data.
 - **Full SQL Integration** runs SQL integration scenarios against the fixed target `192.168.200.57/B7R2_FCC`.
 - Live log output and a parsed event table with PASS / FAIL / INFO / WARN entries.
 - Unit-test summary parses the actual `dotnet test` totals (passed/failed/skipped/total), separately from parsed log-event counts.
