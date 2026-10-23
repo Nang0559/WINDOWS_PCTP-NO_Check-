@@ -140,6 +140,7 @@ namespace PCTP.Modules.XuLyHangLoi
 
             _cboHuongXuLy = new ComboBoxEdit
             {
+                Name = "qcDirection_disposition",
                 Dock = DockStyle.Fill
             };
             _cboHuongXuLy.Properties.TextEditStyle =
@@ -191,6 +192,7 @@ namespace PCTP.Modules.XuLyHangLoi
 
             _txtGhiChu = new MemoEdit
             {
+                Name = "qcDirection_note",
                 Dock = DockStyle.Fill
             };
             bottom.Controls.Add(_txtGhiChu, 0, 1);
@@ -213,6 +215,7 @@ namespace PCTP.Modules.XuLyHangLoi
             };
             _txtNguoiThucHien = new TextEdit
             {
+                Name = "qcDirection_operator",
                 Dock = DockStyle.Fill,
                 Text = Environment.UserName
             };
@@ -225,6 +228,7 @@ namespace PCTP.Modules.XuLyHangLoi
             // Buttons
             _btnXacNhan = new SimpleButton
             {
+                Name = "qcDirection_btnConfirm",
                 Text = "✔ Xác nhận",
                 Dock = DockStyle.Fill
             };
@@ -234,6 +238,7 @@ namespace PCTP.Modules.XuLyHangLoi
 
             _btnHuy = new SimpleButton
             {
+                Name = "qcDirection_btnClose",
                 Text = "Đóng",
                 Dock = DockStyle.Fill
             };
