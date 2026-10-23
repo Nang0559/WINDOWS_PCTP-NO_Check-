@@ -82,8 +82,6 @@ INSERT INTO #DeliveryState(Id,HistoryCount,PendingClosed) VALUES(1,0,0);";
                 "Production BulkStockSlotRepository did not insert the two fixture rows.");
             Require(Convert.ToInt32(ScalarInTransaction(uow, "SELECT Quantity FROM #Slot WHERE SlotId=@id", slotId)) == 65,
                 "Slot header did not match the sum of active SlotLot quantities.");
-            Require(Convert.ToInt32(ScalarInTransaction(uow, "SELECT SUM(SLCONLAI) FROM #STOCKTP")) == 80,
-                "Fixture precondition failed: total physical STOCKTP must equal active + closed + cancelled SlotLot quantities.");
 
             // Seed status variants through the production repository so its real header
             // refresh logic is exercised (not reproduced in ad-hoc fixture SQL).
@@ -107,6 +105,8 @@ INSERT INTO #DeliveryState(Id,HistoryCount,PendingClosed) VALUES(1,0,0);";
             });
             Require(Convert.ToInt32(ScalarInTransaction(uow, "SELECT Quantity FROM #Slot WHERE SlotId=@id", slotId)) == 80,
                 "Production Slot header must include statuses 0/1/2 and exclude quarantine/NG status 3.");
+            Require(Convert.ToInt32(ScalarInTransaction(uow, "SELECT SUM(SLCONLAI) FROM #STOCKTP")) == 80,
+                "Fixture precondition failed: total physical STOCKTP must equal active + closed + cancelled SlotLot quantities.");
 
             bool quarantineRejected = false;
             try
