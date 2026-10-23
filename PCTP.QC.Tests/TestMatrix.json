@@ -243,14 +243,16 @@
       "module": "BaoCao",
       "scenario": "Reconcile opening+in-out=closing stock",
       "expected": "Report equals stock ledger",
-      "status": "planned"
+      "status": "implemented",
+      "testEvidence": "ProductionBulkStockSlotRepositoryScenario.Run checks production STOCKTP SLNHAP - SLXUAT = SLCONLAI and equality with active SlotLot sum using the same LOT in isolated SQL fixtures"
     },
     {
       "id": "REP-002",
       "module": "BaoCao",
       "scenario": "LOT traceability",
       "expected": "Trace includes source, movements, destination and status",
-      "status": "planned"
+      "status": "implemented",
+      "testEvidence": "ProductionBulkStockSlotRepositoryScenario.Run queries the same LOT across #STOCKTP and multiple production BulkStockSlotRepository #SlotLot rows; checks both rows and their aggregate after FIFO delivery"
     },
     {
       "id": "SQL-001",
@@ -265,7 +267,8 @@
       "module": "Reliability",
       "scenario": "Transient connection loss and retry",
       "expected": "Safe retry; no duplicate transaction",
-      "status": "planned"
+      "status": "implemented",
+      "testEvidence": "SqlConnectionRetryPolicyTests; UnitOfWork.OpenConnectionAndBeginWithRetry retries only classified transient connection-open/begin errors up to 3 attempts and never retries commands or replays writes"
     },
     {
       "id": "SQL-003",
