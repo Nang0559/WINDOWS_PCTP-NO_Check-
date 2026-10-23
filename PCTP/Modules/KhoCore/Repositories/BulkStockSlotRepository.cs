@@ -253,7 +253,7 @@ WHERE (@qr IS NOT NULL AND QrData = @qr)
 
             try
             {
-                ExecuteNonQuery(@"
+                ExecuteNonQuery($@"
 INSERT INTO {_movementGuardTable}
     (ReferenceType, ReferenceId, QrHash, TemHash, CreatedAt)
 VALUES
