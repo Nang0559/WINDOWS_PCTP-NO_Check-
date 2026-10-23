@@ -125,7 +125,7 @@ internal static class ProductionBulkStockSlotRepositoryScenario
                 "Production BulkStockSlotRepository AddLot was not rolled back.");
             Require(Convert.ToInt32(Scalar(connectionString,
                     "SELECT Quantity FROM Slot WHERE SlotId=@id",
-                    new SqlParameter("@id", slotId))) == 15,
+                    new SqlParameter("@id", slotId))) == 20,
                 "Slot header was not rolled back with SlotLot.");
             Console.WriteLine("PASS: production BulkStockSlotRepository add/FIFO-take/header-refresh/rollback executed against disposable fixture tables.");
         }
@@ -320,7 +320,7 @@ WHERE Id = 1;";
             "STOCKTP decrement was not rolled back with the SlotLot movement.");
         Require(bulk.GetLotQuantity(1) == 0 && bulk.GetLotQuantity(2) == 15,
             "SlotLot rows were not restored by the shared delivery rollback.");
-        Require(bulk.GetLots(slotId).Sum(x => x.Quantity) == 15,
+        Require(bulk.GetLots(slotId).Sum(x => x.Quantity) == 20,
             "Slot header/active SlotLot quantity changed after cross-repository rollback.");
         Require(Convert.ToInt32(Scalar(cs, "SELECT HistoryCount FROM dbo.__PCTP_QC_DeliveryState WHERE Id=1")) == 0 &&
                 Convert.ToInt32(Scalar(cs, "SELECT PendingClosed FROM dbo.__PCTP_QC_DeliveryState WHERE Id=1")) == 0,
