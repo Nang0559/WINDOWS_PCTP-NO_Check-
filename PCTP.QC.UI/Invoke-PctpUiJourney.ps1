@@ -141,6 +141,20 @@ try {
                         }
                         if ($pattern -is [System.Windows.Automation.InvokePattern]) { $pattern.Invoke() } else { $pattern.Select() }
                     }
+                    "expand" {
+                        $pattern = $null
+                        if (-not $target.TryGetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern, [ref]$pattern)) {
+                            throw "Step '$label': target does not expose ExpandCollapsePattern."
+                        }
+                        if ($pattern.Current.ExpandCollapseState -ne [System.Windows.Automation.ExpandCollapseState]::Expanded) { $pattern.Expand() }
+                    }
+                    "collapse" {
+                        $pattern = $null
+                        if (-not $target.TryGetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern, [ref]$pattern)) {
+                            throw "Step '$label': target does not expose ExpandCollapsePattern."
+                        }
+                        if ($pattern.Current.ExpandCollapseState -ne [System.Windows.Automation.ExpandCollapseState]::Collapsed) { $pattern.Collapse() }
+                    }
                     "set-value" {
                         $pattern = $null
                         if (-not $target.TryGetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern, [ref]$pattern)) {
