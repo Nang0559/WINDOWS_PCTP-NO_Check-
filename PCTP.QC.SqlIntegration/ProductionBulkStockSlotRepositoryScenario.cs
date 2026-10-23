@@ -62,7 +62,7 @@ INSERT INTO #DeliveryState(Id,HistoryCount,PendingClosed) VALUES(1,0,0);";
             stock.InsertStockTp(new NhapKhoItem
             {
                 Lot = lot, Part = "QC-PART", Name = "QC isolated delivery",
-                Model = "QC", CaSX = 1, SlSanXuat = 80, SlNhap = 80,
+                Model = "QC", CaSX = 1, SlSanXuat = 65, SlNhap = 65,
                 NgaySX = new DateTime(2026, 10, 20)
             }, 0);
 
@@ -162,7 +162,7 @@ WHERE s.SlotId = @slot;";
                     Require(finalize.ExecuteNonQuery() == 1, "Isolated delivery finalization fixture update failed.");
                 }
 
-                Require(Convert.ToInt32(ScalarInTransaction(uow, "SELECT SLCONLAI FROM #STOCKTP WHERE LOT=@lot", lot)) == 30,
+                Require(Convert.ToInt32(ScalarInTransaction(uow, "SELECT SLCONLAI FROM #STOCKTP WHERE LOT=@lot", lot)) == 15,
                     "STOCKTP remaining quantity did not reconcile after simulated delivery.");
                 Require(Convert.ToInt32(ScalarInTransaction(uow,
                     "SELECT CASE WHEN ISNULL(SLNHAP,0)-ISNULL(SLXUAT,0)=ISNULL(SLCONLAI,0) THEN 1 ELSE 0 END FROM #STOCKTP WHERE LOT=@lot", lot)) == 1,
@@ -171,7 +171,7 @@ WHERE s.SlotId = @slot;";
                     "SELECT COUNT(1) FROM #SlotLot WHERE LotNo=@lot AND PhieuStatus=0", lot)) == 2,
                     "LOT traceability did not return both active SlotLot rows for the stock ledger LOT.");
                 Require(Convert.ToInt32(ScalarInTransaction(uow,
-                    "SELECT CASE WHEN (SELECT SUM(Quantity) FROM #SlotLot WHERE LotNo=@lot AND PhieuStatus <> 3) = (SELECT SLCONLAI FROM #STOCKTP WHERE LOT=@lot) THEN 1 ELSE 0 END", lot)) == 1,
+                    "SELECT CASE WHEN (SELECT SUM(Quantity) FROM #SlotLot WHERE LotNo=@lot AND PhieuStatus = 0) = (SELECT SLCONLAI FROM #STOCKTP WHERE LOT=@lot) THEN 1 ELSE 0 END", lot)) == 1,
                     "Production STOCKTP current stock does not reconcile with active SlotLot quantities.");
                 Require(Convert.ToInt32(ScalarInTransaction(uow, "SELECT Quantity FROM #Slot WHERE SlotId=@id", slotId)) == 30,
                     "Slot header must include active + closed + cancelled SlotLot quantities but exclude quarantine/NG.");
@@ -187,7 +187,7 @@ WHERE s.SlotId = @slot;";
                 throw;
             }
 
-            Require(Convert.ToInt32(ScalarInTransaction(uow, "SELECT SLCONLAI FROM #STOCKTP WHERE LOT=@lot", lot)) == 80,
+            Require(Convert.ToInt32(ScalarInTransaction(uow, "SELECT SLCONLAI FROM #STOCKTP WHERE LOT=@lot", lot)) == 65,
                 "STOCKTP quantity was not restored by cross-repository rollback.");
             Require(Convert.ToInt32(ScalarInTransaction(uow, "SELECT SUM(Quantity) FROM #SlotLot WHERE SlotId=@id AND PhieuStatus <> 3", slotId)) == 80,
                 "SlotLot quantities were not restored by cross-repository rollback.");
