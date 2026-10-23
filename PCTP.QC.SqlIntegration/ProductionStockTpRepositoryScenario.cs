@@ -79,7 +79,7 @@ CREATE TABLE #STOCKTP
             var batch = repository.GetSlConLaiBatch(new[] { fixtureLot, "QC-REPO-MISSING", fixtureLot });
             Require(batch.Count == 1 && batch[fixtureLot] == 55,
                 "GetSlConLaiBatch returned unexpected LOT values.");
-            Console.WriteLine("PASS: real dbo.STOCKTP update delta and batch lookup.");
+            Console.WriteLine("PASS: session-local #STOCKTP update delta and batch lookup.");
 
             var current = repository.GetTonKhoHienTai();
             var currentFixtureRows = current.AsEnumerable()
@@ -100,13 +100,13 @@ CREATE TABLE #STOCKTP
                 "GetDanhSachLotConTon did not return exactly one test LOT with SLCONLAI=55. " +
                 "Rows=" + remainingFixtureLots.Count +
                 "; quantities=" + string.Join(",", remainingFixtureLots.Select(item => item.SlConLai)));
-            Console.WriteLine("PASS: real dbo.STOCKTP current-stock and remaining-LOT list projections.");
+            Console.WriteLine("PASS: session-local #STOCKTP current-stock and remaining-LOT list projections.");
 
             var selectedLots = repository.GetTonKhoTheoLot(new List<string> { fixtureLot });
             Require(selectedLots.Rows.Count == 1, "GetTonKhoTheoLot did not return the requested test LOT.");
             Require(repository.GetTonKhoTheoLot(null!).Rows.Count == 0,
                 "GetTonKhoTheoLot(null) should return an empty table.");
-            Console.WriteLine("PASS: real dbo.STOCKTP selected-LOT query and null-input contract.");
+            Console.WriteLine("PASS: session-local #STOCKTP selected-LOT query and null-input contract.");
 
             bool missingLotRejected = false;
             try { repository.UpdateStockTp("QC-REPO-MISSING-" + Guid.NewGuid().ToString("N"), 1, 0); }
