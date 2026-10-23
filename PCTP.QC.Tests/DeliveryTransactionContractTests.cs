@@ -37,14 +37,15 @@ public sealed class DeliveryTransactionContractTests
     {
         var sql = ReadSource("Usp_Qrcode_Update_Stock2405.sql");
 
+        var transactionStart = sql.IndexOf("IF @@TRANCOUNT = 0", StringComparison.OrdinalIgnoreCase);
         var appLock = sql.IndexOf("sys.sp_getapplock", StringComparison.OrdinalIgnoreCase);
         var duplicateLookup = sql.IndexOf("-- 6.1. KIỂM TRA PHIẾU ĐÃ LƯU", StringComparison.OrdinalIgnoreCase);
 
         Assert.Contains("PCTP_DELIVERY:", sql);
         Assert.Contains("@LockOwner = N'Transaction'", sql);
         Assert.Contains("@LockMode = N'Exclusive'", sql);
-        Assert.True(appLock >= 0 && duplicateLookup > appLock,
-            "A transaction-owned application lock must be acquired before the existing-delivery lookup.");
+        Assert.True(transactionStart >= 0 && appLock > transactionStart && duplicateLookup > appLock,
+            "The transaction must start first, then acquire a transaction-owned application lock before the existing-delivery lookup.");
     }
 
     [Fact]
