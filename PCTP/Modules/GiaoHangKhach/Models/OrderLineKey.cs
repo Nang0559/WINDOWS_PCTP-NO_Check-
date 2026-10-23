@@ -14,8 +14,8 @@ namespace PCTP.Modules.GiaoHangKhach.Models
     /// vẫn có thể có nhiều đợt giao ở các giờ khác nhau. Mọi nơi đánh dấu / ghép
     /// dữ liệu theo "dòng đơn hàng" phải dùng khoá này, không tự ghép chuỗi.
     ///
-    /// Độ chính xác thời gian là PHÚT, khớp với cách TableOrderRepo.LoadPhieuTuBangRieng
-    /// gom dòng (GROUP BY PO, Part_no, CONVERT(VARCHAR(5), NgayGiao, 108)). Giây bị bỏ qua.
+    /// Độ chính xác thời gian là PHÚT. TableOrderRepo giữ từng record nguồn, không gộp
+    /// số lượng; phần giây không tham gia định danh và được bỏ qua khi so khớp.
     ///
     /// Lớp này thuần (không phụ thuộc WinForms/SQL) để test được trên .NET 8.
     /// Chỉ dùng cú pháp C# 7.3 vì PCTP build bằng .NET Framework 4.7.2.
