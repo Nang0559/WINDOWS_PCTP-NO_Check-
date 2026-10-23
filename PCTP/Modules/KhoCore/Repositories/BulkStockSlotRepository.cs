@@ -11,6 +11,10 @@ using System.Data;
 using System.Data.SqlClient;
 using System.Linq;
 
+// This legacy application project targets C# 7.3; its null-returning repository contracts
+// are intentionally consumed by the nullable-enabled integration harness.
+#pragma warning disable CS8625, CS8600, CS8601, CS8603
+
 namespace PCTP.Modules.KhoVatLy.Repositories
 {
     public sealed class BulkStockSlotRepository : SqlRepositoryBase, IBulkStockSlotRepository, IStockSlotRepository
@@ -179,7 +183,7 @@ namespace PCTP.Modules.KhoVatLy.Repositories
             var list = new List<BulkSlotLotLocation>();
             foreach (DataRow r in dt.Rows)
             {
-                string item = r["ItemCode"] == DBNull.Value ? null : r["ItemCode"].ToString();
+                string item = r["ItemCode"] == DBNull.Value ? string.Empty : r["ItemCode"].ToString() ?? string.Empty;
                 if (string.IsNullOrWhiteSpace(item)) continue;
                 list.Add(new BulkSlotLotLocation
                 {
