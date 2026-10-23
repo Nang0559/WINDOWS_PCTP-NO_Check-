@@ -30,4 +30,32 @@ public static class SqlTestConfiguration
         };
         return builder.ConnectionString;
     }
+    /// <summary>
+    /// Builds a connection string compatible with the legacy System.Data.SqlClient
+    /// used by the production repositories. Microsoft.Data.SqlClient 6 emits the
+    /// newer "Trust Server Certificate" keyword, which the legacy provider rejects.
+    /// The target remains the same fixed test server/database; encryption options
+    /// are intentionally not copied across providers.
+    /// </summary>
+    public static string BuildLegacySqlClientConnectionString(string modernConnectionString)
+    {
+        var modern = new SqlConnectionStringBuilder(modernConnectionString);
+        var legacy = new System.Data.SqlClient.SqlConnectionStringBuilder
+        {
+            DataSource = modern.DataSource,
+            InitialCatalog = modern.InitialCatalog,
+            UserID = modern.UserID,
+            Password = modern.Password,
+            ConnectTimeout = modern.ConnectTimeout,
+            ApplicationName = modern.ApplicationName,
+            PersistSecurityInfo = modern.PersistSecurityInfo
+        };
+
+        if (!string.Equals(legacy.DataSource, Server, StringComparison.OrdinalIgnoreCase) ||
+            !string.Equals(legacy.InitialCatalog, Database, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("Legacy SQL test connection target does not match the fixed test environment.");
+
+        return legacy.ConnectionString;
+    }
+
 }
