@@ -98,7 +98,9 @@ BEGIN
         @_SLUD         INT,  
         @_STTUD        INT,  
         @_STUP         NVARCHAR(15),  
-        @LotThuc       NVARCHAR(500);  
+        @LotThuc       NVARCHAR(500),
+        @LockResource  NVARCHAR(255),
+        @LockResult    INT;  
   
     --------------------------------------------------------------------  
     -- 3. XÓA TEMP TABLE CŨ  
@@ -160,9 +162,15 @@ BEGIN
   
     BEGIN TRY
 
-        -- Establish a savepoint before any procedure work if the caller owns a
-        -- transaction. This also covers failures before the stock-write phase.
-        IF @@TRANCOUNT > 0
+        -- Own a transaction when called directly; otherwise participate in the
+        -- repository UnitOfWork through a savepoint. Start before the idempotency
+        -- check so concurrent confirmations serialize before reading/writing stock.
+        IF @@TRANCOUNT = 0
+        BEGIN
+            BEGIN TRANSACTION;
+            SET @StartedTransaction = 1;
+        END
+        ELSE
         BEGIN
             SAVE TRANSACTION UspQrcodeUpdateStock2405;
             SET @SavepointCreated = 1;
@@ -193,7 +201,10 @@ BEGIN
         -- Không có phiếu  
         ----------------------------------------------------------------  
         IF NOT EXISTS (SELECT 1 FROM #PHIEU)  
-        BEGIN  
+        BEGIN
+            IF @StartedTransaction = 1
+                COMMIT TRANSACTION;
+  
             SELECT  
                 STT,  
                 LOT,  
@@ -237,9 +248,48 @@ BEGIN
                 Found INT  
             );  
   
-            ------------------------------------------------------------  
-            -- 6.1. KIỂM TRA PHIẾU ĐÃ LƯU  
-            ------------------------------------------------------------  
+            ------------------------------------------------------------
+            -- 6.1. Serialize the complete delivery identity before checking for
+            -- an existing confirmation. The lock is transaction-owned and therefore
+            -- remains held through STOCKTP, ledger, and pending-delivery writes.
+            ------------------------------------------------------------
+            SET @sql = N'
+                SELECT @Resource =
+                    N''PCTP_DELIVERY:'' +
+                    CONVERT(NVARCHAR(64), HASHBYTES(''SHA2_256'', CONCAT(
+                        UPPER(RTRIM(ISNULL(MAHANG, N''''))), N''|'',
+                        ISNULL(CONVERT(NVARCHAR(10), CAST(NGAYGIAO AS DATE), 23), N''''), N''|'',
+                        UPPER(RTRIM(ISNULL(CUA, N''''))), N''|'',
+                        UPPER(RTRIM(ISNULL(TRUYEN, N''''))), N''|'',
+                        ISNULL(CONVERT(NVARCHAR(20), SOLUONG), N''''), N''|'',
+                        UPPER(RTRIM(ISNULL(GIOGIAO, N''''))), N''|'',
+                        UPPER(RTRIM(LEFT(ISNULL(@NHAMAY, N''''), 50)))
+                    ), 2)
+                FROM [' + @TMPTABLE + N']
+                WHERE STT = @STT;';
+
+            EXEC sp_executesql
+                @sql,
+                N'@STT INT, @NHAMAY NVARCHAR(250), @Resource NVARCHAR(255) OUTPUT',
+                @STT = @STT,
+                @NHAMAY = @NHAMAY,
+                @Resource = @LockResource OUTPUT;
+
+            IF @LockResource IS NULL
+                RAISERROR(N'Không tạo được khóa chống xác nhận giao hàng trùng.', 16, 1);
+
+            EXEC @LockResult = sys.sp_getapplock
+                @Resource = @LockResource,
+                @LockMode = N'Exclusive',
+                @LockOwner = N'Transaction',
+                @LockTimeout = 10000;
+
+            IF @LockResult < 0
+                RAISERROR(N'Không lấy được khóa xác nhận giao hàng; vui lòng thử lại.', 16, 1);
+
+            ------------------------------------------------------------
+            -- 6.1. KIỂM TRA PHIẾU ĐÃ LƯU
+            ------------------------------------------------------------
             SET @sql = N'  
                 SELECT TOP 1 1  
                 FROM [' + @TMPTABLE + N'] tmp  
@@ -657,19 +707,8 @@ BEGIN
         ----------------------------------------------------------------  
         -- 10. TRANSACTION  
         ----------------------------------------------------------------  
-        -- Participate in the caller's UnitOfWork transaction when one exists.
-        -- A nested COMMIT would decrement @@TRANCOUNT, while an unqualified ROLLBACK
-        -- would abort the caller's entire delivery transaction.
-        IF @@TRANCOUNT = 0
-        BEGIN
-            BEGIN TRANSACTION;
-            SET @StartedTransaction = 1;
-        END
-        ELSE IF @SavepointCreated = 0
-        BEGIN
-            SAVE TRANSACTION UspQrcodeUpdateStock2405;
-            SET @SavepointCreated = 1;
-        END;
+        -- The transaction/savepoint was established before the duplicate check;
+        -- all stock writes below remain inside that same transaction scope.
   
         DECLARE UPDATETMP CURSOR LOCAL FAST_FORWARD FOR  
             SELECT  
