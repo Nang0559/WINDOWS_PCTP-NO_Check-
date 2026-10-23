@@ -41,7 +41,8 @@ internal static class ProductionStockTpRepositoryScenario
             }, 0);
 
             var inserted = repository.GetByLot(fixtureLot);
-            Require(inserted != null, "InsertStockTp then GetByLot returned no row from dbo.STOCKTP.");
+            if (inserted is null)
+                throw new InvalidOperationException("InsertStockTp then GetByLot returned no row from dbo.STOCKTP.");
             Require(inserted.SlNhap == 40 && inserted.SlConLai == 40,
                 $"InsertStockTp mapped wrong quantities: received={inserted.SlNhap}, remaining={inserted.SlConLai}.");
             Require(repository.ExistsStockTp(fixtureLot),
@@ -82,7 +83,7 @@ internal static class ProductionStockTpRepositoryScenario
 
             var selectedLots = repository.GetTonKhoTheoLot(new List<string> { fixtureLot });
             Require(selectedLots.Rows.Count == 1, "GetTonKhoTheoLot did not return the requested test LOT.");
-            Require(repository.GetTonKhoTheoLot(null).Rows.Count == 0,
+            Require(repository.GetTonKhoTheoLot(null!).Rows.Count == 0,
                 "GetTonKhoTheoLot(null) should return an empty table.");
             Console.WriteLine("PASS: real dbo.STOCKTP selected-LOT query and null-input contract.");
 
@@ -129,10 +130,10 @@ namespace PCTP.Shared.Models
 {
     public sealed class StockItem
     {
-        public string Lot { get; set; }
-        public string Part { get; set; }
-        public string Name { get; set; }
-        public string Model { get; set; }
+        public string Lot { get; set; } = string.Empty;
+        public string Part { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string Model { get; set; } = string.Empty;
         public int? SlNhap { get; set; }
         public int? SlConLai { get; set; }
         public int? SlXuat { get; set; }
