@@ -67,6 +67,7 @@ CREATE TABLE #STOCKTP
                 "ExistsStockTp did not find the inserted LOT.");
             Require(repository.GetSlDaNhap("QC-REPO-LOT-0001") == 40,
                 "GetSlDaNhap returned an unexpected quantity.");
+            Console.WriteLine("PASS: StockTp insert / GetByLot / ExistsStockTp / GetSlDaNhap.");
 
             repository.UpdateStockTp("QC-REPO-LOT-0001", 15, 1);
             Require(repository.GetSlConLai("QC-REPO-LOT-0001") == 55,
@@ -78,6 +79,7 @@ CREATE TABLE #STOCKTP
             });
             Require(batch.Count == 1 && batch["QC-REPO-LOT-0001"] == 55,
                 "GetSlConLaiBatch returned unexpected LOT values.");
+            Console.WriteLine("PASS: StockTp update delta and batch lookup.");
 
             var current = repository.GetTonKhoHienTai();
             var currentFixtureRows = current.AsEnumerable()
@@ -104,18 +106,21 @@ CREATE TABLE #STOCKTP
                 "GetDanhSachLotConTon did not return exactly one fixture LOT with SLCONLAI=55. " +
                 "Fixture rows found=" + remainingFixtureLots.Count +
                 "; quantities=" + string.Join(",", remainingFixtureLots.Select(item => item.SlConLai)));
+            Console.WriteLine("PASS: current-stock and remaining-LOT list projections.");
 
             var selectedLots = repository.GetTonKhoTheoLot(new List<string> { "QC-REPO-LOT-0001" });
             Require(selectedLots.Rows.Count == 1,
                 "GetTonKhoTheoLot did not return the requested LOT.");
             Require(repository.GetTonKhoTheoLot(null).Rows.Count == 0,
                 "GetTonKhoTheoLot(null) should return an empty table.");
+            Console.WriteLine("PASS: selected-LOT query and null-input contract.");
 
             bool missingLotRejected = false;
             try { repository.UpdateStockTp("QC-REPO-MISSING", 1, 0); }
             catch (InvalidOperationException) { missingLotRejected = true; }
             Require(missingLotRejected,
                 "UpdateStockTp must reject a LOT that does not exist.");
+            Console.WriteLine("PASS: update of a missing LOT is rejected.");
 
             uow.Commit();
             Console.WriteLine("PASS: production StockTpRepository CRUD/read/batch methods executed against isolated #STOCKTP.");
