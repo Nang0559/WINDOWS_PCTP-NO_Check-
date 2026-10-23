@@ -38,7 +38,7 @@ namespace PCTP.Modules.KhoVatLy.Repositories
     public sealed class BulkSlotLotLocation
     {
         public int SlotId { get; set; }
-        public string ItemCode { get; set; }
+        public string ItemCode { get; set; } = string.Empty;
         public int Quantity { get; set; }
     }
 }
