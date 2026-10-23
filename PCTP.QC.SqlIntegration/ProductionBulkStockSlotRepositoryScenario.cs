@@ -1,5 +1,6 @@
 using System;
 using System.Data.SqlClient;
+using PCTP.Modules.GiaoHangKhach;
 using PCTP.Modules.KhoCore.Application.Contracts.Stock;
 using PCTP.Modules.KhoVatLy.Repositories;
 using PCTP.Modules.NhapKho.Interfaces;
