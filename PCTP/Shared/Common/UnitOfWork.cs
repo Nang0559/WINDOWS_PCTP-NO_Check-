@@ -59,11 +59,12 @@ namespace PCTP.Shared.Common
                     _transaction = transaction;
                     return;
                 }
-                catch (SqlException ex) when (IsTransientConnectionError(ex) && attempt < maxAttempts)
+                catch (SqlException ex) when (IsTransientConnectionError(ex))
                 {
                     last = ex;
                     candidate?.Dispose();
-                    System.Threading.Thread.Sleep(200 * attempt);
+                    if (attempt < maxAttempts)
+                        System.Threading.Thread.Sleep(200 * attempt);
                 }
                 catch
                 {
