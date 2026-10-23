@@ -116,14 +116,16 @@
       "module": "KhoCore",
       "scenario": "Execute production BulkStockSlotRepository add/FIFO-take/header refresh and rollback",
       "expected": "SlotLot and Slot header reconcile; FIFO preserves remaining metadata; failed UnitOfWork rolls back both",
-      "status": "planned"
+      "status": "implemented",
+      "testEvidence": "ProductionBulkStockSlotRepositoryScenario.Run; executes production BulkStockSlotRepository against session-local #Warehouse/#Rack/#Slot/#SlotLot; verifies FIFO TakeLot, Slot header refresh and savepoint rollback"
     },
     {
       "id": "PHY-001",
       "module": "KhoVatLy",
       "scenario": "Register rack and slot; locate LOT",
       "expected": "Unique location and traceable movement",
-      "status": "planned"
+      "status": "implemented",
+      "testEvidence": "ProductionBulkStockSlotRepositoryScenario.Run; production GetOrCreateVirtualSlotId creates Warehouse/Rack/Slot against session-local # fixtures and tests LOT placement"
     },
     {
       "id": "DEL-001",
@@ -405,6 +407,14 @@
       "expected": "Unique filtered indexes protect reference, QR hash and tem hash; test migration is copied into QC artifacts",
       "status": "implemented",
       "testEvidence": "SQL/PCTPStockMovementGuard.sql; PCTP.QC.Tests.csproj includes migration; production repository fails closed if its required guard table is unavailable"
+    },
+    {
+      "id": "SQL-008",
+      "module": "SqlReliability/CrossRepositoryRollback",
+      "scenario": "Rollback production StockTpRepository and BulkStockSlotRepository changes with delivery-state/history fixture writes",
+      "expected": "StockTP balance, SlotLot quantities, Slot header and delivery finalization state return to pre-delivery values after injected rollback",
+      "status": "implemented",
+      "testEvidence": "ProductionBulkStockSlotRepositoryScenario.Run; StockTpRepository uses #STOCKTP and BulkStockSlotRepository uses #Warehouse/#Rack/#Slot/#SlotLot on the same UnitOfWork; delivery state is a session-local #DeliveryState fixture"
     }
   ]
 }
