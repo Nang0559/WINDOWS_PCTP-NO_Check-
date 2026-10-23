@@ -14,7 +14,7 @@ public sealed class QuarantineReleaseServiceTests
     [Fact]
     public void Release_RejectsUnauthorizedBeforeAnyStockMutation()
     {
-        var f = CreateFixture(authorized: false);
+        var f = CreateCreateFixture(authorized: false);
         var result = f.Service.Release(new QuarantineReleaseRequest
         {
             SlotLotId = 7, QcDispositionApproved = true, PerformedBy = "operator", ReferenceId = "REL-001"
@@ -30,7 +30,7 @@ public sealed class QuarantineReleaseServiceTests
     [Fact]
     public void Release_RequiresQcDisposition()
     {
-        var f = Fixture(authorized: true);
+        var f = CreateFixture(authorized: true);
         var result = f.Service.Release(new QuarantineReleaseRequest
         {
             SlotLotId = 7, QcDispositionApproved = false, PerformedBy = "qc-admin"
@@ -45,7 +45,7 @@ public sealed class QuarantineReleaseServiceTests
     [Fact]
     public void Release_ConvertsQuarantineToActiveStockAndAuditsInOneTransaction()
     {
-        var f = Fixture(authorized: true);
+        var f = CreateFixture(authorized: true);
         var result = f.Service.Release(new QuarantineReleaseRequest
         {
             SlotLotId = 7,
@@ -67,7 +67,7 @@ public sealed class QuarantineReleaseServiceTests
     [Fact]
     public void Release_FailureRollsBackEveryMutation()
     {
-        var f = Fixture(authorized: true);
+        var f = CreateFixture(authorized: true);
         f.Balance.Throw = true;
         var result = f.Service.Release(new QuarantineReleaseRequest
         {
