@@ -1,0 +1,11 @@
+{
+  "name": "rework-navigation",
+  "purpose": "Read-only navigation smoke: open the defect/rework workflow worklist.",
+  "dataMutation": false,
+  "steps": [
+    { "id": "expand-defect-menu", "action": "click", "automationId": "E_Trahang" },
+    { "id": "open-rework-worklist", "action": "click", "automationId": "trahangndHVN", "waitAfterMs": 1200 },
+    { "id": "rework-screen-visible", "action": "wait-for-window", "value": "Quản lý tiến trình Xử lý hàng lỗi", "timeoutSeconds": 45 },
+    { "id": "verify-rework-title", "action": "assert-window-title", "value": "Quản lý tiến trình Xử lý hàng lỗi" }
+  ]
+}
