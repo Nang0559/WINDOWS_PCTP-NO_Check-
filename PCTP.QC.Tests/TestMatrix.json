@@ -178,7 +178,8 @@
       "module": "GiaoHangKhach",
       "scenario": "Reject delivery when the requested quantity exceeds available stock across virtual and physical slots",
       "expected": "No partial stock deduction; shortage is explicit and consistent with the selected transaction mode",
-      "status": "planned"
+      "status": "implemented",
+      "testEvidence": "BulkStockAdjustServiceTests.DeliveryPick_InsufficientAcrossVirtualAndPhysicalSlotsThrowsForSharedTransaction covers a shortage after picking from both sources; ProductionBulkStockSlotRepositoryScenario.Run now over-requests 66 from 65 and rolls back to a savepoint, verifying both SlotLot rows and Slot header return to opening quantities. Runtime SQL execution still required."
     },
     {
       "id": "DEL-006",
