@@ -44,7 +44,7 @@ namespace PCTP.Modules.NhapKho.Repository
             return ToInt(result) > 0;
         }
 
-        public StockItem GetByLot(string lot)
+        public StockItem? GetByLot(string lot)
         {
             if (string.IsNullOrWhiteSpace(lot))
                 return null;
@@ -155,7 +155,7 @@ namespace PCTP.Modules.NhapKho.Repository
             foreach (DataRow row in dt.Rows)
             {
                 if (row["LOT"] == DBNull.Value) continue;
-                string lot = row["LOT"].ToString();
+                string lot = row["LOT"].ToString() ?? string.Empty;
                 if (string.IsNullOrWhiteSpace(lot)) continue;
                 result.Add((lot, ToInt(row["SLCONLAI"])));
             }
@@ -230,7 +230,7 @@ namespace PCTP.Modules.NhapKho.Repository
         }
 
         private static string GetString(DataRow row, string column) =>
-            !row.Table.Columns.Contains(column) || row[column] == DBNull.Value ? null : row[column]?.ToString();
+            !row.Table.Columns.Contains(column) || row[column] == DBNull.Value ? string.Empty : row[column]?.ToString() ?? string.Empty;
 
         private static int? GetNullableInt(DataRow row, string column) =>
             !row.Table.Columns.Contains(column) || row[column] == DBNull.Value ? (int?)null : ToInt(row[column]);
