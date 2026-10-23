@@ -44,28 +44,33 @@ jobs:
           foreach ($target in $targets) {
             $path = $target.Path
             $bytes = [System.IO.File]::ReadAllBytes($path)
+            $result = [System.Collections.Generic.List[byte]]::new()
             $count = 0
-            for ($i = 0; $i -le $bytes.Length - $old.Length; $i++) {
-              $match = $true
-              for ($j = 0; $j -lt $old.Length; $j++) {
-                if ($bytes[$i + $j] -ne $old[$j]) {
-                  $match = $false
-                  break
+            for ($i = 0; $i -lt $bytes.Length;) {
+              $match = $false
+              if ($i + $old.Length -le $bytes.Length) {
+                $match = $true
+                for ($j = 0; $j -lt $old.Length; $j++) {
+                  if ($bytes[$i + $j] -ne $old[$j]) {
+                    $match = $false
+                    break
+                  }
                 }
               }
               if ($match) {
-                for ($j = 0; $j -lt $old.Length; $j++) {
-                  $bytes[$i + $j] = $new[$j]
-                }
+                $result.AddRange($new)
                 $count++
-                $i += $old.Length - 1
+                $i += $old.Length
+              } else {
+                $result.Add($bytes[$i])
+                $i++
               }
             }
             if ($count -ne 0 -and $count -ne [int]$target.Expected) {
               throw "${path}: unexpected $count occurrences of legacy status filter; expected 0 or $($target.Expected)."
             }
             if ($count -eq [int]$target.Expected) {
-              [System.IO.File]::WriteAllBytes($path, $bytes)
+              [System.IO.File]::WriteAllBytes($path, $result.ToArray())
               Write-Host "Normalized $path ($count occurrence(s))."
             } else {
               Write-Host "Already normalized: $path."
