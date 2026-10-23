@@ -6,9 +6,9 @@ using Microsoft.Data.SqlClient;
 namespace PCTP.QC.Tests;
 
 /// <summary>
-/// Fail-closed guard for any future SQL integration/performance fixture.
-/// Accepts exactly one local server alias and one explicitly test-named database.
-/// Ambiguous/duplicate aliases are rejected to prevent connection-string parser differentials.
+/// Fail-closed guard for SQL integration tests.
+/// Development uses the dedicated 192.168.200.57/B7R2_FCC test target.
+/// The production 192.168.200.14\\BRAVO target is always rejected.
 /// </summary>
 public static class TestEnvironmentPolicy
 {
@@ -17,12 +17,14 @@ public static class TestEnvironmentPolicy
     private static readonly string[] DatabaseAliases =
         { "Initial Catalog", "Database" };
 
+    private const string AllowedTestServer = "192.168.200.57";
+    private const string AllowedTestDatabase = "B7R2_FCC";
+    private const string BlockedProductionServer = "192.168.200.14\\BRAVO";
+
     public static bool IsSafeSqlTestTarget(string connectionString)
     {
         if (string.IsNullOrWhiteSpace(connectionString)) return false;
 
-        // Provider versions can reject special keywords with either exception type.
-        // Both cases must fail closed; they must never escape this safety guard.
         SqlConnectionStringBuilder builder;
         try
         {
@@ -40,8 +42,6 @@ public static class TestEnvironmentPolicy
         if (!string.IsNullOrWhiteSpace(builder.AttachDBFilename)
             || !string.IsNullOrWhiteSpace(builder.FailoverPartner)
             || builder.UserInstance
-            // Microsoft.Data.SqlClient does not expose ContextConnection on
-            // SqlConnectionStringBuilder. Reject the keyword explicitly.
             || ReadValues(connectionString, new[] { "Context Connection" }).Count > 0)
             return false;
 
@@ -49,27 +49,27 @@ public static class TestEnvironmentPolicy
         var databases = ReadValues(connectionString, DatabaseAliases);
         if (servers.Count != 1 || databases.Count != 1) return false;
 
-        var server = builder.DataSource.Trim().ToLowerInvariant();
-        var isLocal = server == "." || server == "(local)" || server == "localhost"
-            || server == "127.0.0.1" || server == "::1"
-            || server.StartsWith(".\\", StringComparison.Ordinal)
-            || server.StartsWith("localhost\\", StringComparison.Ordinal)
-            || server.StartsWith("(local)\\", StringComparison.Ordinal)
-            || server.StartsWith("(localdb)\\", StringComparison.Ordinal);
-
+        var server = builder.DataSource.Trim();
         var db = builder.InitialCatalog.Trim();
-        var isTestDatabase = db.StartsWith("TEST_", StringComparison.OrdinalIgnoreCase)
-            || db.EndsWith("_TEST", StringComparison.OrdinalIgnoreCase)
-            || db.EndsWith("_TESTING", StringComparison.OrdinalIgnoreCase);
 
-        return isLocal && isTestDatabase;
+        if (server.Equals(BlockedProductionServer, StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        return server.Equals(AllowedTestServer, StringComparison.OrdinalIgnoreCase)
+            && db.Equals(AllowedTestDatabase, StringComparison.OrdinalIgnoreCase);
     }
 
     public static void EnsureSafeSqlTestTarget(string connectionString)
     {
         if (!IsSafeSqlTestTarget(connectionString))
             throw new InvalidOperationException(
-                "SQL integration tests are blocked. Exactly one local server and one TEST_* / *_TEST / *_TESTING database must be specified. Production, remote, and ambiguous targets are rejected.");
+                $"SQL integration tests are blocked. Only {AllowedTestServer}/{AllowedTestDatabase} is allowed in the development QC runner; production {BlockedProductionServer} is rejected.");
+    }
+
+    public static string DescribeTarget(string connectionString)
+    {
+        var builder = new SqlConnectionStringBuilder(connectionString);
+        return $"{builder.DataSource}/{builder.InitialCatalog}";
     }
 
     private static List<string> ReadValues(string connectionString, string[] aliases)
