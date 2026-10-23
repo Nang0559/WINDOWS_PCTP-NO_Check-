@@ -35,6 +35,16 @@ powershell.exe -ExecutionPolicy Bypass -File .\PCTP.QC.UI\Invoke-PctpUiJourney.p
   -CloseOnFinish
 ```
 
+Run all five read-only journeys sequentially and produce one suite summary:
+
+```powershell
+powershell.exe -ExecutionPolicy Bypass -File .\PCTP.QC.UI\Invoke-PctpUiSuite.ps1 `
+  -ExePath "H:\95 - Project\09. QRcode\PCSYS160926\PCSYS160926\PCTP\bin\Debug\PCTP.exe" `
+  -OutputDirectory ".\artifacts\pctp-ui-suite"
+```
+
+The suite writes one report per journey plus `pctp-ui-suite-report.json`. A suite PASS means every navigation manifest found its expected window; it does not mean a business transaction passed.
+
 ## 3. Current source-mapped navigation journeys
 
 | Journey | What it opens | Mutation |
