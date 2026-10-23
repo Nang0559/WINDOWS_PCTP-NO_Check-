@@ -82,8 +82,7 @@ BEGIN
     --------------------------------------------------------------------  
     DECLARE @NgayGiao SMALLDATETIME = CAST(GETDATE() AS SMALLDATETIME);  
     DECLARE @sql NVARCHAR(MAX);
-    DECLARE @StartedTransaction BIT = 0;
-    DECLARE @SavepointName SYSNAME = N'UspQrcodeUpdateStock2405';  
+    DECLARE @StartedTransaction BIT = 0;  
   
     DECLARE  
         @_LOT          NVARCHAR(MAX),  
