@@ -124,6 +124,9 @@ namespace PCTP.Modules.KhoCore.Application.Services
                         string.Format("SlotLot {0} chỉ còn {1}, không đủ {2}.",
                             request.SlotLotId.Value, available, request.Quantity));
 
+                if (!TryClaimRequest(request, false))
+                    return StockMovementResult.AlreadyProcessed("Mã tham chiếu di chuyển kho đã được xử lý trước đó.");
+
                 string itemCode = request.ItemCode;
                 if (string.IsNullOrWhiteSpace(itemCode))
                     itemCode = sourceItemCode;
@@ -187,6 +190,12 @@ namespace PCTP.Modules.KhoCore.Application.Services
             try
             {
                 _uow.Begin();
+                if (!TryClaimRequest(request, false))
+                {
+                    _uow.Rollback();
+                    return StockMovementResult.AlreadyProcessed("Mã tham chiếu điều chỉnh tồn đã được xử lý trước đó.");
+                }
+
                 if (request.Quantity > 0)
                 {
                     _slots.AddLot(request.SlotId.Value, new StockSlotLot
@@ -256,6 +265,9 @@ namespace PCTP.Modules.KhoCore.Application.Services
 
             try
             {
+                if (!TryClaimRequest(request, !request.SlotLotWrittenByCaller))
+                    return StockMovementResult.AlreadyProcessed("Yêu cầu nhập kho hoặc QR này đã được xử lý trước đó.");
+
                 bool isQuarantineReceive = string.Equals(
                     request.MovementType,
                     StockMovementRequest.Types.ReworkNgReceive,
@@ -296,7 +308,8 @@ namespace PCTP.Modules.KhoCore.Application.Services
                         LotNo = request.LotNo,
                         ItemCode = request.ItemCode,
                         Quantity = request.Quantity,
-                        RawQr = null,
+                        RawQr = string.IsNullOrWhiteSpace(request.QrData) ? null : request.QrData,
+                        TemCode = string.IsNullOrWhiteSpace(request.TemCode) ? null : request.TemCode,
                         ImportDate = request.ProductionDate ?? request.OccurredAt ?? DateTime.Now,
                         // NG cách ly: dòng SlotLot riêng (PhieuStatus = 3), KHÔNG cộng STOCKTP.
                         PhieuStatus = isQuarantineReceive ? (byte)3 : (byte)0
@@ -339,6 +352,9 @@ namespace PCTP.Modules.KhoCore.Application.Services
                     if (!adjustAvailable)
                         return StockMovementResult.Fail("Pick cần SlotLotId hoặc SlotId + LotNo.");
 
+                    if (!TryClaimRequest(request, false))
+                        return StockMovementResult.AlreadyProcessed("Mã tham chiếu xuất kho đã được xử lý trước đó.");
+
                     if (!_balance.TryDecreaseAvailableQuantity(request.LotNo, request.Quantity))
                         return StockMovementResult.Fail(
                             string.Format("STOCKTP LOT [{0}] không đủ hoặc đã thay đổi.", request.LotNo));
@@ -369,6 +385,9 @@ namespace PCTP.Modules.KhoCore.Application.Services
                         string.Format("SlotLot {0} chỉ còn {1}, không đủ {2}.",
                             request.SlotLotId.Value, availableSlot, request.Quantity));
 
+                if (!TryClaimRequest(request, false))
+                    return StockMovementResult.AlreadyProcessed("Mã tham chiếu xuất/pick kho đã được xử lý trước đó.");
+
                 if (adjustAvailable &&
                     !_balance.TryDecreaseAvailableQuantity(request.LotNo, request.Quantity))
                     return StockMovementResult.Fail(
@@ -381,6 +400,25 @@ namespace PCTP.Modules.KhoCore.Application.Services
             {
                 return StockMovementResult.Fail("Lỗi xuất tồn kho: " + ex.Message);
             }
+        }
+
+        private bool TryClaimRequest(StockMovementRequest request, bool includeQr)
+        {
+            if (request == null) return false;
+
+            bool hasReference = !string.IsNullOrWhiteSpace(request.ReferenceType)
+                || !string.IsNullOrWhiteSpace(request.ReferenceId);
+            string qr = includeQr ? request.QrData : null;
+            string tem = includeQr ? request.TemCode : null;
+            if (!hasReference && string.IsNullOrWhiteSpace(qr) && string.IsNullOrWhiteSpace(tem))
+                return true;
+
+            return _slots.TryRegisterMovement(
+                request.ReferenceType,
+                request.ReferenceId,
+                qr,
+                tem,
+                includeQr && !request.SlotLotWrittenByCaller);
         }
 
         private static StockMovementResult ValidateSourceLotIdentity(
