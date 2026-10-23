@@ -131,36 +131,33 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             string safeNgayGiao =
                 (ngayGiao ?? "").Replace("'", "''");
 
+            // Một record nguồn = một dòng đơn. Không GROUP BY / SUM / MAX:
+            // nếu gộp theo PO + Part + phút sẽ làm biến mất dòng nguồn và khiến
+            // trạng thái giao/LOT không còn ánh xạ được về đúng dòng đơn.
             string sql =
                 "SELECT " +
                 "    o.Oder_no                            AS PO_NO, " +
                 "    CONVERT(VARCHAR(5), o.NgayGiao, 108) AS GIO, " +
-                "    MAX(o.CUA)                           AS CUA, " +
-                "    MAX(o.CUA)                           AS TRUYEN, " +
+                "    o.CUA                                AS CUA, " +
+                "    o.CUA                                AS TRUYEN, " +
                 "    o.Part_no                            AS MAHANG, " +
-                "    MAX(o.Part_name)                     AS TENHANG, " +
+                "    o.Part_name                          AS TENHANG, " +
                 "    ''                                   AS LOT, " +
                 "    'PCS'                                AS DV, " +
-                "    SUM(o.Slgiao)                        AS SOLUONG, " +
-                "    MAX(o.QCDG)                          AS HOP, " +
-                "    MAX(ISNULL(o.Gear, ''))              AS GEAR, " +
+                "    o.Slgiao                             AS SOLUONG, " +
+                "    o.QCDG                               AS HOP, " +
+                "    ISNULL(o.Gear, '')                   AS GEAR, " +
                 "    'NG'                                 AS STATUS, " +
                 "    'NG'                                 AS STATUSDOC, " +
                 "    ''                                   AS TTPHIEU, " +
-                "    MIN(o.NgayGiao)                      AS NGAYGIAO, " +
+                "    o.NgayGiao                           AS NGAYGIAO, " +
                 "    o.Oder_no                            AS ORDER_NO " +
                 $"FROM [{tenBang}] o " +
                 $"WHERE CAST(o.NgayGiao AS DATE) = '{safeNgayGiao}' " +
                 whereGio +
                 whereSP +
-                "GROUP BY " +
-                "    o.Oder_no, " +
-                "    o.Part_no, " +
-                "    CONVERT(VARCHAR(5), o.NgayGiao, 108) " +
                 "ORDER BY " +
-                "    GIO, " +
-                "    MAX(o.CUA), " +
-                "    o.Part_no";
+                "    GIO, o.CUA, o.Part_no, o.Oder_no";
 
             DataTable dt = _db.LoadData(sql);
 
