@@ -57,7 +57,8 @@ internal static class Program
                 await RunRollbackAtomicityAsync(connection, table);
                 await RunConcurrentConditionalDecrementAsync(connectionString, table);
                 await RunCommandTimeoutRollbackAsync(connection, table);
-                Console.WriteLine("PASS: 11 SQL Server integration scenarios completed (3 production UnitOfWork + 1 production SqlRepositoryBase + 1 production StockTpRepository + 1 production BulkStockSlotRepository + 1 order-table delivery marking (PO + part + date + hour:minute) + 1 cross-repository delivery rollback + 3 SQL engine contracts).");
+                await DeliveryReliabilityScenario.RunAsync(connectionString);
+                Console.WriteLine("PASS: SQL Server integration suite completed (3 production UnitOfWork + 1 production SqlRepositoryBase + 1 production StockTpRepository + 1 production BulkStockSlotRepository + 1 order-table delivery marking (PO + part + date + hour:minute) + 1 cross-repository delivery rollback + 3 SQL engine contracts).");
                 return 0;
             }
             finally
