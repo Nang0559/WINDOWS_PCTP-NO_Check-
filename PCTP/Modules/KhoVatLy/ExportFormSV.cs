@@ -116,6 +116,7 @@ namespace PCTP.Modules.KhoVatLy
 
             spinExportQty = new SpinEdit
             {
+                Name = "slotExport_quantity",
                 Dock = DockStyle.Fill,
                 Properties = { MinValue = 1, MaxValue = 99999, IsFloatValue = false },
                 Value = 1
@@ -157,13 +158,13 @@ namespace PCTP.Modules.KhoVatLy
             groupSlotList.Controls.Add(listBoxSlots);
 
             // ==== Bottom Panel ====
-            btnExport = new SimpleButton { Text = "Pick hàng (Chờ giao)", Width = 130, Margin = new Padding(5) };
+            btnExport = new SimpleButton { Name = "slotExport_btnPick", Text = "Pick hàng (Chờ giao)", Width = 130, Margin = new Padding(5) };
             btnExport.Click += BtnExport_Click;
-            btnPrint = new SimpleButton { Text = "In phiếu", Width = 100, Margin = new Padding(5) };
+            btnPrint = new SimpleButton { Name = "slotExport_btnPrint", Text = "In phiếu", Width = 100, Margin = new Padding(5) };
             btnPrint.Click += BtnPrint_Click;
-            btnCancel = new SimpleButton { Text = "Hủy", Width = 100, Margin = new Padding(5) };
+            btnCancel = new SimpleButton { Name = "slotExport_btnCancel", Text = "Hủy", Width = 100, Margin = new Padding(5) };
             btnCancel.Click += (s, e) => { this.Close(); };
-            btnCancelPending = new SimpleButton { Text = "Huỷ chờ giao", Width = 120, Margin = new Padding(5) };
+            btnCancelPending = new SimpleButton { Name = "slotExport_btnCancelPending", Text = "Huỷ chờ giao", Width = 120, Margin = new Padding(5) };
             btnCancelPending.Click += BtnCancelPending_Click;
 
             var bottomPanel = new FlowLayoutPanel
