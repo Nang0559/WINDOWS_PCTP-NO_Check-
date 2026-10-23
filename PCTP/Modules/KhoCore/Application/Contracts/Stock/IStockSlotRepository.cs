@@ -12,9 +12,6 @@ namespace PCTP.Modules.KhoCore.Application.Contracts.Stock
         void AddQuantity(int slotId, int quantity, string itemCode);
         void AddLot(int slotId, StockSlotLot lot);
 
-        /// <summary>Changes the quarantine/status flag inside the caller-owned transaction.</summary>
-        void SetPhieuStatus(int slotLotId, byte status);
-
         /// <summary>
         /// Claims a request reference and/or QR fingerprint in the current SQL transaction.
         /// Returns false when the reference or QR has already been processed.
