@@ -56,6 +56,7 @@ if (Test-Path -LiteralPath $evidenceRunner) {
         $summary.Status = "FAIL"
     }
 }
+$summary | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $summaryPath -Encoding UTF8
 $summary | Format-List Test, Status, JourneysPassed, JourneysFailed, Executable | Out-String | Write-Host
 Write-Host "Suite report: $summaryPath"
 if ($summary.Status -ne "PASS") { exit 1 }
