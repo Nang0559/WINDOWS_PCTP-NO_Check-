@@ -42,7 +42,7 @@ INSERT INTO #DeliveryState(Id,HistoryCount,PendingClosed) VALUES(1,0,0);";
                 setup.ExecuteNonQuery();
             }
 
-            var bulk = new BulkStockSlotRepository(new PhieuSqlExecutor(), uow);
+            var bulk = new BulkStockSlotRepository(new PhieuSqlExecutor(), uow, useQcTempTables: true);
             IStockTpRepository stock = new StockTpRepository(new PhieuSqlExecutor(), uow, "#STOCKTP");
             int slotId = bulk.GetOrCreateVirtualSlotId("QC-WH-" + Guid.NewGuid().ToString("N"), "QC-RACK", 1000);
             const string lot = "26080700748100851600";
