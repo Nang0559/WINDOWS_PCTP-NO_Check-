@@ -39,24 +39,33 @@ jobs:
             @{ Path = '.\PCTP\Modules\KhoCore\Repositories\SlotRepository.cs'; Expected = 2 },
             @{ Path = '.\PCTP\Modules\KhoCore\Repositories\BulkStockSlotRepository.cs'; Expected = 1 }
           )
+          $old = [System.Text.Encoding]::ASCII.GetBytes('PhieuStatus <> 3')
+          $new = [System.Text.Encoding]::ASCII.GetBytes('PhieuStatus = 0')
           foreach ($target in $targets) {
             $path = $target.Path
             $bytes = [System.IO.File]::ReadAllBytes($path)
-            $hasBom = $bytes.Length -ge 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF
-            if ($hasBom) {
-              $text = [System.Text.Encoding]::UTF8.GetString($bytes, 3, $bytes.Length - 3)
-              $encoding = [System.Text.UTF8Encoding]::new($true)
-            } else {
-              $text = [System.Text.Encoding]::UTF8.GetString($bytes)
-              $encoding = [System.Text.UTF8Encoding]::new($false)
+            $count = 0
+            for ($i = 0; $i -le $bytes.Length - $old.Length; $i++) {
+              $match = $true
+              for ($j = 0; $j -lt $old.Length; $j++) {
+                if ($bytes[$i + $j] -ne $old[$j]) {
+                  $match = $false
+                  break
+                }
+              }
+              if ($match) {
+                for ($j = 0; $j -lt $old.Length; $j++) {
+                  $bytes[$i + $j] = $new[$j]
+                }
+                $count++
+                $i += $old.Length - 1
+              }
             }
-            $count = ([regex]::Matches($text, [regex]::Escape('PhieuStatus <> 3'))).Count
             if ($count -ne 0 -and $count -ne [int]$target.Expected) {
-              throw "${path}: unexpected $count occurrences of 'PhieuStatus <> 3'; expected 0 or $($target.Expected)."
+              throw "${path}: unexpected $count occurrences of legacy status filter; expected 0 or $($target.Expected)."
             }
             if ($count -eq [int]$target.Expected) {
-              $text = $text.Replace('PhieuStatus <> 3', 'PhieuStatus = 0')
-              [System.IO.File]::WriteAllText($path, $text, $encoding)
+              [System.IO.File]::WriteAllBytes($path, $bytes)
               Write-Host "Normalized $path ($count occurrence(s))."
             } else {
               Write-Host "Already normalized: $path."
