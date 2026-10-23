@@ -348,8 +348,8 @@
       "module": "Performance",
       "scenario": "Repeated QC Final and concurrent LOT requests",
       "expected": "No double processing, leaks or unbounded queue growth",
-      "status": "implemented",
-      "testEvidence": "PerformanceContractTests.RepeatedAndConcurrentLotRequests_ClaimExactlyOnceWithoutQueueGrowth checks 3,200 concurrent duplicate claim attempts against a concurrent in-memory claim set. This is a concurrency contract, not SQL lock/connection-pool performance acceptance."
+      "status": "planned",
+      "testEvidence": "The prior ConcurrentDictionary-only test was removed because it did not execute production code. Production SQL idempotency/locking and repeated QC Final request behavior still require a runtime acceptance scenario through the real service/repository path; no performance claim is made from an in-memory claim set."
     },
     {
       "id": "UI-000",
