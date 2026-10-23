@@ -53,8 +53,20 @@ public sealed class MainForm : Form
     };
     private readonly BindingSource _eventSource = new();
     private readonly BindingSource _historySource = new();
+    private readonly BindingSource _matrixSource = new();
+    private readonly DataGridView _matrixGrid = new()
+    {
+        Dock = DockStyle.Fill, ReadOnly = true, AllowUserToAddRows = false,
+        AllowUserToDeleteRows = false, AutoGenerateColumns = false,
+        AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+        SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+        MultiSelect = false, RowHeadersVisible = false
+    };
+    private readonly ComboBox _matrixFilter = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 170 };
+    private readonly Label _matrixSummary = new() { AutoSize = true };
     private readonly List<TestEvent> _eventItems = new();
     private readonly List<RunRecord> _history = new();
+    private readonly List<MatrixRow> _matrixRows = new();
     private readonly TabControl _tabs = new() { Dock = DockStyle.Fill };
     private Process _activeProcess;
     private RunRecord _activeRun;
@@ -79,6 +91,7 @@ public sealed class MainForm : Form
         ConfigureGrids();
         BuildLayout();
         LoadHistory();
+        LoadMatrix();
 
         _unitRun.Click += async (_, _) => await RunUnitTestsAsync();
         _sqlPreflight.Click += async (_, _) => await RunSqlIntegrationAsync(preflightOnly: true);
@@ -139,9 +152,26 @@ public sealed class MainForm : Form
         _historyGrid.DataSource = _historySource;
         historyPage.Controls.Add(_historyGrid);
 
+        var matrixPage = new TabPage("Ma trận kiểm thử");
+        var matrixLayout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2, Padding = new Padding(6) };
+        matrixLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        matrixLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        var matrixToolbar = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, WrapContents = true };
+        matrixToolbar.Controls.Add(new Label { Text = "Lọc trạng thái:", AutoSize = true, Margin = new Padding(3, 7, 3, 3) });
+        _matrixFilter.Items.AddRange(new object[] { "Tất cả", "implemented", "partial", "planned", "blocked" });
+        _matrixFilter.SelectedIndex = 0;
+        _matrixFilter.SelectedIndexChanged += (_, _) => ApplyMatrixFilter();
+        matrixToolbar.Controls.Add(_matrixFilter);
+        matrixToolbar.Controls.Add(_matrixSummary);
+        matrixLayout.Controls.Add(matrixToolbar, 0, 0);
+        _matrixGrid.DataSource = _matrixSource;
+        matrixLayout.Controls.Add(_matrixGrid, 0, 1);
+        matrixPage.Controls.Add(matrixLayout);
+
         _tabs.TabPages.Add(eventPage);
         _tabs.TabPages.Add(logPage);
         _tabs.TabPages.Add(historyPage);
+        _tabs.TabPages.Add(matrixPage);
 
         outer.Controls.Add(header, 0, 0);
         outer.Controls.Add(summary, 0, 1);
@@ -161,6 +191,13 @@ public sealed class MainForm : Form
         _historyGrid.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = nameof(RunRecord.Status), HeaderText = "Trạng thái", FillWeight = 15 });
         _historyGrid.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = nameof(RunRecord.Duration), HeaderText = "Thời lượng", FillWeight = 15 });
         _historyGrid.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = nameof(RunRecord.LogPath), HeaderText = "Log", FillWeight = 50 });
+
+        _matrixGrid.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = nameof(MatrixRow.Id), HeaderText = "ID", FillWeight = 10 });
+        _matrixGrid.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = nameof(MatrixRow.Module), HeaderText = "Module", FillWeight = 20 });
+        _matrixGrid.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = nameof(MatrixRow.Status), HeaderText = "Trạng thái", FillWeight = 14 });
+        _matrixGrid.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = nameof(MatrixRow.Scenario), HeaderText = "Kịch bản", FillWeight = 38 });
+        _matrixGrid.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = nameof(MatrixRow.Expected), HeaderText = "Kết quả mong đợi", FillWeight = 38 });
+        _matrixGrid.Columns.Add(new DataGridViewTextBoxColumn { DataPropertyName = nameof(MatrixRow.TestEvidence), HeaderText = "Bằng chứng test", FillWeight = 38 });
     }
 
     private async Task RunUnitTestsAsync()
@@ -405,6 +442,60 @@ public sealed class MainForm : Form
         }
     }
 
+    private void LoadMatrix()
+    {
+        var path = Path.Combine(_root, "PCTP.QC.Tests", "TestMatrix.json");
+        try
+        {
+            if (!File.Exists(path))
+            {
+                _matrixSummary.Text = "Không tìm thấy TestMatrix.json";
+                return;
+            }
+            using var document = JsonDocument.Parse(File.ReadAllText(path, Encoding.UTF8));
+            if (!document.RootElement.TryGetProperty("modules", out var modules) || modules.ValueKind != JsonValueKind.Array)
+            {
+                _matrixSummary.Text = "Ma trận không có mảng modules hợp lệ.";
+                return;
+            }
+
+            _matrixRows.Clear();
+            foreach (var module in modules.EnumerateArray())
+            {
+                _matrixRows.Add(new MatrixRow
+                {
+                    Id = ReadJsonString(module, "id"),
+                    Module = ReadJsonString(module, "module"),
+                    Status = ReadJsonString(module, "status"),
+                    Scenario = ReadJsonString(module, "scenario"),
+                    Expected = ReadJsonString(module, "expected"),
+                    TestEvidence = ReadJsonString(module, "testEvidence")
+                });
+            }
+            ApplyMatrixFilter();
+        }
+        catch (Exception ex)
+        {
+            _matrixSummary.Text = "Lỗi đọc ma trận: " + ex.Message;
+        }
+    }
+
+    private static string ReadJsonString(JsonElement element, string property)
+        => element.TryGetProperty(property, out var value) && value.ValueKind == JsonValueKind.String
+            ? value.GetString() ?? string.Empty
+            : string.Empty;
+
+    private void ApplyMatrixFilter()
+    {
+        var selected = _matrixFilter.SelectedItem?.ToString() ?? "Tất cả";
+        var filtered = selected == "Tất cả"
+            ? _matrixRows.ToList()
+            : _matrixRows.Where(row => string.Equals(row.Status, selected, StringComparison.OrdinalIgnoreCase)).ToList();
+        _matrixSource.DataSource = null;
+        _matrixSource.DataSource = filtered;
+        _matrixSummary.Text = $"Hiển thị {filtered.Count}/{_matrixRows.Count} | implemented: {_matrixRows.Count(x => x.Status == "implemented")} | partial: {_matrixRows.Count(x => x.Status == "partial")} | planned: {_matrixRows.Count(x => x.Status == "planned")}";
+    }
+
     private void UpdateCounters()
     {
         _runCount.Text = "Lần chạy đã lưu: " + _history.Count;
@@ -514,6 +605,16 @@ public sealed class MainForm : Form
             if (File.Exists(Path.Combine(directory.FullName, "WINDOWS_PCTP(NO_Check).sln")))
                 return directory.FullName;
         return Directory.GetCurrentDirectory();
+    }
+
+    private sealed class MatrixRow
+    {
+        public string Id { get; set; }
+        public string Module { get; set; }
+        public string Status { get; set; }
+        public string Scenario { get; set; }
+        public string Expected { get; set; }
+        public string TestEvidence { get; set; }
     }
 
     private sealed class TestEvent
