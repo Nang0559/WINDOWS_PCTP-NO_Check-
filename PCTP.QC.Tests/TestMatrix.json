@@ -176,9 +176,9 @@
       "id": "DEL-012",
       "module": "GiaoHangKhach",
       "scenario": "Preserve one source Purchase_Order row per delivery row and mark only the exact PO + part + date + hour:minute row in Usp_Qrcode_Update_Stock2405",
-      "expected": "Loading does not aggregate source rows with SUM/GROUP BY; HTN and YMVN delivered-state updates both match the complete OrderLineKey and cannot mark sibling order rows",
+      "expected": "Loading does not aggregate source rows with SUM/GROUP BY; stock stored procedure does not perform a duplicate weaker order-state update; PhieuKhoRepository builds the complete OrderLineKey (including GIOGIAO fallback) and marks through OrderTableSql.MarkDelivered in the UnitOfWork",
       "status": "implemented",
-      "testEvidence": "OrderTableSourceContractTests.LoadPhieuTuBangRieng_PreservesEachSourceOrderRow;OrderTableSourceContractTests.MarkDelivered_UsesCompleteOrderLineKeyForBothOrderTables"
+      "testEvidence": "OrderTableSourceContractTests.LoadPhieuTuBangRieng_PreservesEachSourceOrderRow;OrderTableSourceContractTests.StoredProcedure_DoesNotDuplicateOrderDeliveredFinalization"
     },
     {
       "id": "RWK-001",
