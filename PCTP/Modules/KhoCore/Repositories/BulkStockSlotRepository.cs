@@ -179,7 +179,7 @@ namespace PCTP.Modules.KhoVatLy.Repositories
             var list = new List<BulkSlotLotLocation>();
             foreach (DataRow r in dt.Rows)
             {
-                string? item = r["ItemCode"] == DBNull.Value ? null : r["ItemCode"].ToString();
+                string item = r["ItemCode"] == DBNull.Value ? null : r["ItemCode"].ToString();
                 if (string.IsNullOrWhiteSpace(item)) continue;
                 list.Add(new BulkSlotLotLocation
                 {
