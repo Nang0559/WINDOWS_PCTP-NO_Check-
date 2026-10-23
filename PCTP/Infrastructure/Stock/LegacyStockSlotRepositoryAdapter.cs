@@ -83,6 +83,21 @@ namespace PCTP.Infrastructure.Stock
             _legacy.AddQuantity(slotId, quantity, itemCode, DateTime.Now);
         }
 
+        public bool TryRegisterMovement(string referenceType, string referenceId, string qrData, string temCode, bool checkExistingQr)
+        {
+            if (string.IsNullOrWhiteSpace(referenceType)
+                && string.IsNullOrWhiteSpace(referenceId)
+                && string.IsNullOrWhiteSpace(qrData)
+                && string.IsNullOrWhiteSpace(temCode))
+                return true;
+
+            // The legacy ISlotService API does not expose the caller's SQL transaction.
+            // Never emulate an idempotency claim in process memory: it would not be atomic
+            // with stock writes or shared across application instances.
+            throw new NotSupportedException(
+                "Stock movement idempotency requires BulkStockSlotRepository and the PCTPStockMovementGuard SQL migration in the same UnitOfWork transaction. LegacyStockSlotRepositoryAdapter fails closed.");
+        }
+
         /// <summary>
         /// INSERT-ONLY. Trước đây method này đọc TOÀN BỘ lot của Slot rồi SaveLots (xoá hết + ghi lại)
         /// → với Slot ảo A0 chứa rất nhiều LOT sẽ làm mất QrData/MaPhieu/NgaySX của các tem đã nhập,
