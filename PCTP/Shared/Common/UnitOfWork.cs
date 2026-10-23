@@ -13,8 +13,8 @@ namespace PCTP.Shared.Common
         private readonly SQLPROVIDER _sql;
         private int _depth;
         private bool _rollbackOnly;   // ← THÊM
-        private SqlConnection _connection = null!;
-        private SqlTransaction _transaction = null!;
+        private SqlConnection _connection = null;
+        private SqlTransaction _transaction = null;
 
         public UnitOfWork(SQLPROVIDER sql)
             => _sql = sql ?? throw new ArgumentNullException(nameof(sql));
@@ -45,7 +45,7 @@ namespace PCTP.Shared.Common
         private void OpenConnectionAndBeginWithRetry()
         {
             const int maxAttempts = 3;
-            Exception? last = null;
+            Exception last = null;
 
             for (int attempt = 1; attempt <= maxAttempts; attempt++)
             {
@@ -142,9 +142,9 @@ namespace PCTP.Shared.Common
         private void DisposeTransaction()
         {
             _transaction?.Dispose();
-            _transaction = null!;
+            _transaction = null;
             _connection?.Dispose();
-            _connection = null!;
+            _connection = null;
         }
 
         public void Dispose()
