@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Text.RegularExpressions;
 using Xunit;
 
 namespace PCTP.QC.Tests;
@@ -13,6 +14,9 @@ public sealed class OrderTableSourceContractTests
 {
     private static string ReadSource(string fileName) =>
         File.ReadAllText(Path.Combine(AppContext.BaseDirectory, fileName));
+
+    private static string NormalizeSql(string value) =>
+        Regex.Replace(value ?? string.Empty, @"\s+", " ").Trim();
 
     [Fact]
     public void LoadPhieuTuBangRieng_PreservesEachSourceOrderRow()
@@ -28,9 +32,8 @@ public sealed class OrderTableSourceContractTests
         Assert.Contains("o.Slgiao", method);
         Assert.Contains("o.Part_name", method);
         Assert.Contains("o.NgayGiao", method);
+
         // Inspect only the SQL construction, not comments explaining the invariant.
-        // Otherwise the guard mistakes the explanatory "Không GROUP BY" comment
-        // for a GROUP BY clause in the query that is actually executed.
         var sqlStart = method.IndexOf("string sql =", StringComparison.Ordinal);
         Assert.True(sqlStart >= 0, "SQL query construction was not found.");
 
@@ -58,20 +61,22 @@ public sealed class OrderTableSourceContractTests
         Assert.Contains("BuildOrderLineKeyFromTmp", repository, StringComparison.Ordinal);
         Assert.Contains("GIOGIAO", repository, StringComparison.Ordinal);
     }
+
     [Fact]
     public void DeliveryProcedure_UsesFullPhysicalLotIdentityAndFailsClosedOnAmbiguousRoot()
     {
         var sql = ReadSource("Usp_Qrcode_Update_Stock2405.sql");
-        Assert.Contains("RTRIM(LOT) = RTRIM(@_LOTOK)", sql, StringComparison.Ordinal);
-        Assert.Contains("RTRIM(LOT) = RTRIM(@_LOTUD)", sql, StringComparison.Ordinal);
-        Assert.Contains("COUNT(DISTINCT RTRIM(LOT))", sql, StringComparison.Ordinal);
-        Assert.Contains("Mã LOT gốc ánh xạ nhiều LOT vật lý", sql, StringComparison.Ordinal);
-        Assert.Contains("S.PhysicalLot = RTRIM(G.LOT)", sql, StringComparison.Ordinal);
-        Assert.Contains("NOT EXISTS\n              (\n                  SELECT 1\n                  FROM #STNG E", sql, StringComparison.Ordinal);
-        Assert.DoesNotContain("SELECT DISTINCT STT\n                FROM #STNG", sql, StringComparison.Ordinal);
+        var normalized = NormalizeSql(sql);
+
+        Assert.Contains(NormalizeSql("RTRIM(LOT) = RTRIM(@_LOTOK)"), normalized, StringComparison.Ordinal);
+        Assert.Contains(NormalizeSql("RTRIM(LOT) = RTRIM(@_LOTUD)"), normalized, StringComparison.Ordinal);
+        Assert.Contains(NormalizeSql("COUNT(DISTINCT RTRIM(LOT))"), normalized, StringComparison.Ordinal);
+        Assert.Contains(NormalizeSql("Mã LOT gốc ánh xạ nhiều LOT vật lý"), normalized, StringComparison.Ordinal);
+        Assert.Contains(NormalizeSql("S.PhysicalLot = RTRIM(G.LOT)"), normalized, StringComparison.Ordinal);
+        Assert.Contains(NormalizeSql("NOT EXISTS ( SELECT 1 FROM #STNG E"), normalized, StringComparison.Ordinal);
+        Assert.DoesNotContain(NormalizeSql("SELECT DISTINCT STT FROM #STNG"), normalized, StringComparison.Ordinal);
 
         // This is a source-contract guard only. SQL Server integration against the
         // actual stored procedure and isolated business-schema copy remains required.
     }
-
 }
