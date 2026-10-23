@@ -56,6 +56,9 @@ internal static class Program
             ProductionBulkStockSlotRepositoryScenario.Run(connectionString);
             Console.WriteLine("PASS: production BulkStockSlotRepository FIFO, slot-header refresh and cross-repository rollback checks completed with isolated fixtures.");
 
+            Console.WriteLine("INFO: running concurrent production BulkStockSlotRepository.TakeLot checks against uniquely named tempdb fixtures...");
+            await ProductionBulkStockSlotConcurrencyScenario.RunAsync(connectionString);
+            
             Console.WriteLine("INFO: running isolated SQL transaction rollback/commit smoke checks...");
             await RunIsolatedEngineReliabilityAsync(connection);
             Console.WriteLine("PASS: SQL transaction rollback/commit smoke checks completed using a session-local temporary table.");
