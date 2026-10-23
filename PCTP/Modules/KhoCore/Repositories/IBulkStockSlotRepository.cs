@@ -1,5 +1,4 @@
 ﻿using PCTP.Modules.KhoVatLy.Kho.Models;
-using PCTP.VIEWSTOCK.Models;
 using System.Collections.Generic;
 
 namespace PCTP.Modules.KhoVatLy.Repositories
