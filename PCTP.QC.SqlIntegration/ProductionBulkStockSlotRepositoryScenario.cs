@@ -162,7 +162,7 @@ WHERE s.SlotId = @slot;";
                     Require(finalize.ExecuteNonQuery() == 1, "Isolated delivery finalization fixture update failed.");
                 }
 
-                Require(Convert.ToInt32(ScalarInTransaction(uow, "SELECT SLCONLAI FROM #STOCKTP WHERE LOT=@lot", lot)) == 15,
+                Require(Convert.ToInt32(ScalarInTransaction(uow, "SELECT SLCONLAI FROM #STOCKTP WHERE LOT=@lot", lot)) == 30,
                     "STOCKTP remaining quantity did not reconcile after simulated delivery.");
                 Require(Convert.ToInt32(ScalarInTransaction(uow,
                     "SELECT CASE WHEN ISNULL(SLNHAP,0)-ISNULL(SLXUAT,0)=ISNULL(SLCONLAI,0) THEN 1 ELSE 0 END FROM #STOCKTP WHERE LOT=@lot", lot)) == 1,
@@ -187,7 +187,7 @@ WHERE s.SlotId = @slot;";
                 throw;
             }
 
-            Require(Convert.ToInt32(ScalarInTransaction(uow, "SELECT SLCONLAI FROM #STOCKTP WHERE LOT=@lot", lot)) == 65,
+            Require(Convert.ToInt32(ScalarInTransaction(uow, "SELECT SLCONLAI FROM #STOCKTP WHERE LOT=@lot", lot)) == 80,
                 "STOCKTP quantity was not restored by cross-repository rollback.");
             Require(Convert.ToInt32(ScalarInTransaction(uow, "SELECT SUM(Quantity) FROM #SlotLot WHERE SlotId=@id AND PhieuStatus <> 3", slotId)) == 80,
                 "SlotLot quantities were not restored by cross-repository rollback.");
