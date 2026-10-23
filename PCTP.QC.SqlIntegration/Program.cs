@@ -26,27 +26,20 @@ internal static class Program
             await connection.OpenAsync();
             Console.WriteLine($"PASS: SQL connection established to {SqlTestConfiguration.Server}/{SqlTestConfiguration.Database}.");
 
-            if (args.Any(x => string.Equals(x, "--preflight", StringComparison.OrdinalIgnoreCase)))
+            // Safe-by-default mode: inspect the existing SQL 57 database only.
+            // Never create/drop dbo tables or mutate business rows on the shared server.
+            var missing = await FindMissingProductionSchemaAsync(connection);
+            if (missing.Count > 0)
             {
-                var missing = await FindMissingProductionSchemaAsync(connection);
-                if (missing.Count > 0)
-                {
-                    Console.Error.WriteLine("FAIL: production schema preflight.");
-                    foreach (var item in missing) Console.Error.WriteLine(" - " + item);
-                    return 3;
-                }
-
-                Console.WriteLine("PASS: production STOCKTP/SlotLot/Slot/Rack/Warehouse schema preflight.");
-                return 0;
+                Console.Error.WriteLine("FAIL: schema diagnostics found issues. No data or schema was changed.");
+                foreach (var item in missing) Console.Error.WriteLine(" - " + item);
+                Console.Error.WriteLine("ACTION: review the listed table/column definitions on 192.168.200.57; this tester will not auto-create or alter them.");
+                return 3;
             }
 
-            await RunIsolatedEngineReliabilityAsync(connection);
-            ProductionStockTpRepositoryScenario.Run(connectionString);
-            ProductionBulkStockSlotRepositoryScenario.Run(connectionString);
-            OrderTableDeliveryMarkingScenario.Run(connectionString);
-            await DeliveryReliabilityScenario.RunAsync(connectionString);
-
-            Console.WriteLine("PASS: FULL SQL TEST completed.");
+            Console.WriteLine("PASS: existing dbo schema is compatible with the currently declared QC repository contract.");
+            Console.WriteLine("INFO: read-only diagnostic mode completed; no CREATE/ALTER/DROP/INSERT/UPDATE/DELETE was executed.");
+            Console.WriteLine("INFO: repository write/concurrency tests are intentionally not run against shared dbo tables.");
             return 0;
         }
         catch (Exception ex)
