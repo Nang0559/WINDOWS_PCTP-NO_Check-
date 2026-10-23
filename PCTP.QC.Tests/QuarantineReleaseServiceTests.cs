@@ -14,7 +14,7 @@ public sealed class QuarantineReleaseServiceTests
     [Fact]
     public void Release_RejectsUnauthorizedBeforeAnyStockMutation()
     {
-        var f = CreateCreateFixture(authorized: false);
+        var f = CreateFixture(authorized: false);
         var result = f.Service.Release(new QuarantineReleaseRequest
         {
             SlotLotId = 7, QcDispositionApproved = true, PerformedBy = "operator", ReferenceId = "REL-001"
