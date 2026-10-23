@@ -38,8 +38,21 @@ internal static class Program
             }
 
             Console.WriteLine("PASS: existing dbo schema is compatible with the currently declared QC repository contract.");
-            Console.WriteLine("INFO: read-only diagnostic mode completed; no CREATE/ALTER/DROP/INSERT/UPDATE/DELETE was executed.");
-            Console.WriteLine("INFO: repository write/concurrency tests are intentionally not run against shared dbo tables.");
+
+            if (args.Any(arg => string.Equals(arg, "--preflight", StringComparison.OrdinalIgnoreCase)))
+            {
+                Console.WriteLine("INFO: schema-only preflight completed; no database objects or business rows were changed.");
+                return 0;
+            }
+
+            // Exercise the real production StockTpRepository implementation using a
+            // session-local #STOCKTP fixture. The fixture is isolated to this SQL
+            // connection and disappears when the UnitOfWork connection closes.
+            // Never invoke the dbo-table bulk/concurrency scenarios against shared SQL 57.
+            Console.WriteLine("INFO: running production StockTpRepository CRUD/read/batch checks against isolated #STOCKTP...");
+            ProductionStockTpRepositoryScenario.Run(connectionString);
+            Console.WriteLine("PASS: repository integration checks completed; only the session-local #STOCKTP fixture was written.");
+            Console.WriteLine("INFO: bulk Slot/Rack/Warehouse writes, delivery scenarios, and concurrency tests remain disabled on shared dbo data.");
             return 0;
         }
         catch (Exception ex)
