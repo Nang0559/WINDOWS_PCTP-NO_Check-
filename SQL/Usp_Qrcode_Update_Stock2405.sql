@@ -1012,82 +1012,15 @@ BEGIN
   
             EXEC sp_executesql @sql;  
   
-            ----------------------------------------------------------------  
-            -- 16. PURCHASE_ORDER_HTN  
-            ----------------------------------------------------------------  
-            IF EXISTS  
-            (  
-                SELECT 1  
-                FROM INFORMATION_SCHEMA.COLUMNS  
-                WHERE TABLE_NAME = 'Purchase_Order_HTN'  
-                  AND COLUMN_NAME = 'IsDelivered'  
-            )  
-            BEGIN  
-  
-                SET @sql = N'  
-                    UPDATE po  
-                    SET  
-                        po.IsDelivered = 1,  
-                        po.DeliveredDate = GETDATE()  
-                    FROM Purchase_Order_HTN po  
-                    INNER JOIN [' + @TMPTABLE + N'] tmp  
-                        ON LTRIM(RTRIM(CAST(tmp.PO_NO AS NVARCHAR(100)))) =  
-                           LTRIM(RTRIM(CAST(po.Oder_no AS NVARCHAR(100))))  
-                       AND LTRIM(RTRIM(tmp.MAHANG)) = LTRIM(RTRIM(po.Part_no))  
-                       AND CAST(tmp.NGAYGIAO AS DATE) = CAST(po.NgayGiao AS DATE)  
-                       AND DATEPART(HH, tmp.NGAYGIAO) = DATEPART(HH, po.NgayGiao)  
-                       AND DATEPART(MI, tmp.NGAYGIAO) = DATEPART(MI, po.NgayGiao)  
-                    WHERE NULLIF(LTRIM(RTRIM(CAST(tmp.PO_NO AS NVARCHAR(100)))), '''') IS NOT NULL  
-                      AND NULLIF(LTRIM(RTRIM(tmp.MAHANG)), '''') IS NOT NULL  
-                      AND tmp.STT IN  
-                    (  
-                        SELECT STT  
-                        FROM #STOK  
-                        WHERE STATUS = ''OK''  
-                    )  
-                      AND po.IsDelivered = 0;  
-                ';  
-  
-                EXEC sp_executesql @sql;  
-            END;  
-  
-            ----------------------------------------------------------------  
-            -- 17. PURCHASE_ORDER_YMVN  
-            ----------------------------------------------------------------  
-            IF EXISTS  
-            (  
-                SELECT 1  
-                FROM INFORMATION_SCHEMA.COLUMNS  
-                WHERE TABLE_NAME = 'Purchase_Order_YMVN'  
-                  AND COLUMN_NAME = 'IsDelivered'  
-            )  
-            BEGIN  
-  
-                SET @sql = N'  
-                    UPDATE po  
-                    SET  
-                        po.IsDelivered = 1,  
-                        po.DeliveredDate = GETDATE()  
-                    FROM Purchase_Order_YMVN po  
-                    INNER JOIN [' + @TMPTABLE + N'] tmp  
-                        ON LTRIM(RTRIM(CAST(tmp.PO_NO AS NVARCHAR(100)))) =  
-                           LTRIM(RTRIM(CAST(po.Oder_no AS NVARCHAR(100))))  
-                       AND LTRIM(RTRIM(tmp.MAHANG)) = LTRIM(RTRIM(po.Part_no))  
-                       AND CAST(tmp.NGAYGIAO AS DATE) = CAST(po.NgayGiao AS DATE)  
-                       AND DATEPART(HH, tmp.NGAYGIAO) = DATEPART(HH, po.NgayGiao)  
-                       AND DATEPART(MI, tmp.NGAYGIAO) = DATEPART(MI, po.NgayGiao)  
-                    WHERE NULLIF(LTRIM(RTRIM(CAST(tmp.PO_NO AS NVARCHAR(100)))), '''') IS NOT NULL  
-                      AND NULLIF(LTRIM(RTRIM(tmp.MAHANG)), '''') IS NOT NULL  
-                      AND tmp.STT IN  
-                    (  
-                        SELECT STT  
-                        FROM #STOK  
-                        WHERE STATUS = ''OK''  
-                    )  
-                      AND po.IsDelivered = 0;  
-                ';  
-  
-                EXEC sp_executesql @sql;  
+            ----------------------------------------------------------------
+            -- 16. ORDER TABLE DELIVERY STATE
+            ----------------------------------------------------------------
+            -- Deliberately do not update Purchase_Order_HTN/YMVN here.
+            -- The application finalizes each successful TMP row inside the
+            -- same UnitOfWork by building OrderLineKey from PO_NO + MAHANG
+            -- + NGAYGIAO/GIOGIAO and calling OrderTableSql.MarkDelivered.
+            -- Keeping this update in one place avoids a second, weaker key
+            -- interpretation in SQL (especially legacy hour-only GIOGIAO).
             END;  
   
         END;  
