@@ -83,7 +83,17 @@ VALUES(@slot,N'QC-PART',N'QC-QUARANTINE-LOT',5,N'QC-QUARANTINE-TEM',N'QC-QUARANT
 -- quarantine/NG (PhieuStatus=3) is the only excluded status.
 INSERT INTO #SlotLot(SlotId,ItemCode,LotNo,Quantity,TemCode,QrData,ImportDate,PhieuStatus)
 VALUES(@slot,N'QC-PART',N'QC-CLOSED-LOT',7,N'QC-CLOSED-TEM',N'QC-CLOSED-QR',GETDATE(),1),
-      (@slot,N'QC-PART',N'QC-CANCELLED-LOT',8,N'QC-CANCELLED-TEM',N'QC-CANCELLED-QR',GETDATE(),2);";
+      (@slot,N'QC-PART',N'QC-CANCELLED-LOT',8,N'QC-CANCELLED-TEM',N'QC-CANCELLED-QR',GETDATE(),2);
+UPDATE s
+SET Quantity = ISNULL(x.TotalQty, 0),
+    IsOccupied = CASE WHEN ISNULL(x.TotalQty, 0) > 0 THEN 1 ELSE 0 END
+FROM #Slot s
+OUTER APPLY (
+    SELECT SUM(Quantity) AS TotalQty
+    FROM #SlotLot
+    WHERE SlotId = s.SlotId AND PhieuStatus <> 3
+) x
+WHERE s.SlotId = @slot;";
                 quarantine.Parameters.Add(new SqlParameter("@slot", slotId));
                 quarantine.ExecuteNonQuery();
             }
@@ -101,8 +111,8 @@ VALUES(@slot,N'QC-PART',N'QC-CLOSED-LOT',7,N'QC-CLOSED-TEM',N'QC-CLOSED-QR',GETD
             Require(Convert.ToInt32(ScalarInTransaction(uow,
                 "SELECT Quantity FROM #SlotLot WHERE LotNo=@lot AND PhieuStatus=3", "QC-QUARANTINE-LOT")) == 5,
                 "Quarantined LOT quantity changed after rejected export.");
-            Require(Convert.ToInt32(ScalarInTransaction(uow, "SELECT Quantity FROM #Slot WHERE SlotId=@id", slotId)) == 65,
-                "Rejected quarantined export changed the active Slot header.");
+            Require(Convert.ToInt32(ScalarInTransaction(uow, "SELECT Quantity FROM #Slot WHERE SlotId=@id", slotId)) == 80,
+                "Rejected quarantined export changed the reconciled Slot header.");
             Console.WriteLine("PASS: production BulkStockSlotRepository.TakeLot rejects quarantined LOT without changing its quantity or active Slot header.");
 
             // Over-request must be rejected, and the caller's transaction/savepoint
@@ -121,7 +131,7 @@ VALUES(@slot,N'QC-PART',N'QC-CLOSED-LOT',7,N'QC-CLOSED-TEM',N'QC-CLOSED-QR',GETD
             Require(shortageRejected, "Production TakeLot accepted an over-request of 66 from 65 units.");
             Require(bulk.GetLotQuantity(1) == 40 && bulk.GetLotQuantity(2) == 25,
                 "Caller rollback did not restore both SlotLot rows after an insufficient-stock request.");
-            Require(Convert.ToInt32(ScalarInTransaction(uow, "SELECT Quantity FROM #Slot WHERE SlotId=@id", slotId)) == 65,
+            Require(Convert.ToInt32(ScalarInTransaction(uow, "SELECT Quantity FROM #Slot WHERE SlotId=@id", slotId)) == 80,
                 "Slot header changed after a rejected insufficient-stock request.");
             Console.WriteLine("PASS: production TakeLot rejects an over-request and savepoint rollback restores all partially touched LOT rows.");
 
