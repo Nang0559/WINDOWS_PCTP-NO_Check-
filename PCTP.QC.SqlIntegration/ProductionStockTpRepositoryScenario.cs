@@ -17,48 +17,20 @@ internal static class ProductionStockTpRepositoryScenario
         connectionString = SqlTestConfiguration.BuildLegacySqlClientConnectionString(connectionString);
         var provider = new PCTP.ClassSQL.SQLPROVIDER { B7R2_FCCdb = connectionString };
         using var uow = new UnitOfWork(provider);
+        var fixtureLot = "QC-REPO-" + Guid.NewGuid().ToString("N");
         uow.Begin();
 
         try
         {
-            using (var create = uow.Connection.CreateCommand())
-            {
-                create.Transaction = uow.Transaction;
-                create.CommandText = @"
-CREATE TABLE #STOCKTP
-(
-    LOT nvarchar(50) NOT NULL PRIMARY KEY,
-    PART nvarchar(50) NULL,
-    NAME nvarchar(100) NULL,
-    MODEL nvarchar(30) NULL,
-    SLNHAP int NULL,
-    SLCONLAI int NULL,
-    SLXUAT int NULL,
-    SATUS smallint NULL,
-    CASX smallint NULL,
-    NGAYSX datetime NULL,
-    NGAYNHAP datetime NULL,
-    SLSX int NULL,
-    NGAYXUAT datetime NULL
-);";
-                create.ExecuteNonQuery();
-            }
-
-            // Explicitly target the session-local fixture. The repository's default
-            // remains STOCKTP for production callers; this scenario must never hit dbo.STOCKTP.
-            using (var verify = uow.Connection.CreateCommand())
-            {
-                verify.Transaction = uow.Transaction;
-                verify.CommandText = "IF OBJECT_ID('tempdb..#STOCKTP') IS NULL THROW 51091, 'Isolated #STOCKTP fixture was not created.', 1;";
-                verify.ExecuteNonQuery();
-            }
-
+            // Exercise the actual dbo.STOCKTP schema and repository SQL on SQL 57.
+            // All repository calls participate in this UnitOfWork transaction; rollback
+            // ensures the unique test LOT is never committed to the shared test database.
             IStockTpRepository repository = new StockTpRepository(
-                new PhieuSqlExecutor(), uow, "#STOCKTP");
+                new PhieuSqlExecutor(provider), uow);
 
             repository.InsertStockTp(new NhapKhoItem
             {
-                Lot = "QC-REPO-LOT-0001",
+                Lot = fixtureLot,
                 Part = "PART-QC",
                 Name = "QC integration",
                 Model = "MODEL-QC",
@@ -68,75 +40,77 @@ CREATE TABLE #STOCKTP
                 NgaySX = new DateTime(2026, 10, 20)
             }, 0);
 
-            var inserted = repository.GetByLot("QC-REPO-LOT-0001");
-            Require(inserted != null, "InsertStockTp then GetByLot returned no row.");
+            var inserted = repository.GetByLot(fixtureLot);
+            Require(inserted != null, "InsertStockTp then GetByLot returned no row from dbo.STOCKTP.");
             Require(inserted.SlNhap == 40 && inserted.SlConLai == 40,
                 $"InsertStockTp mapped wrong quantities: received={inserted.SlNhap}, remaining={inserted.SlConLai}.");
-            Require(repository.ExistsStockTp("QC-REPO-LOT-0001"),
-                "ExistsStockTp did not find the inserted LOT.");
-            Require(repository.GetSlDaNhap("QC-REPO-LOT-0001") == 40,
+            Require(repository.ExistsStockTp(fixtureLot),
+                "ExistsStockTp did not find the inserted test LOT in dbo.STOCKTP.");
+            Require(repository.GetSlDaNhap(fixtureLot) == 40,
                 "GetSlDaNhap returned an unexpected quantity.");
-            Console.WriteLine("PASS: StockTp insert / GetByLot / ExistsStockTp / GetSlDaNhap.");
+            Console.WriteLine("PASS: real dbo.STOCKTP insert / GetByLot / ExistsStockTp / GetSlDaNhap (uncommitted transaction).");
 
-            repository.UpdateStockTp("QC-REPO-LOT-0001", 15, 1);
-            Require(repository.GetSlConLai("QC-REPO-LOT-0001") == 55,
+            repository.UpdateStockTp(fixtureLot, 15, 1);
+            Require(repository.GetSlConLai(fixtureLot) == 55,
                 "UpdateStockTp did not increment SLCONLAI by the received delta.");
 
-            var batch = repository.GetSlConLaiBatch(new[]
-            {
-                "QC-REPO-LOT-0001", "QC-REPO-MISSING", "QC-REPO-LOT-0001"
-            });
-            Require(batch.Count == 1 && batch["QC-REPO-LOT-0001"] == 55,
+            var batch = repository.GetSlConLaiBatch(new[] { fixtureLot, "QC-REPO-MISSING", fixtureLot });
+            Require(batch.Count == 1 && batch[fixtureLot] == 55,
                 "GetSlConLaiBatch returned unexpected LOT values.");
-            Console.WriteLine("PASS: StockTp update delta and batch lookup.");
+            Console.WriteLine("PASS: real dbo.STOCKTP update delta and batch lookup.");
 
             var current = repository.GetTonKhoHienTai();
             var currentFixtureRows = current.AsEnumerable()
-                .Where(row => string.Equals(
-                    Convert.ToString(row["LOT"]),
-                    "QC-REPO-LOT-0001",
+                .Where(row => string.Equals(Convert.ToString(row["LOT"]), fixtureLot,
                     StringComparison.OrdinalIgnoreCase))
                 .ToList();
             Require(currentFixtureRows.Count == 1 &&
                     Convert.ToInt32(currentFixtureRows[0]["SLCONLAI"]) == 55,
-                "GetTonKhoHienTai did not return exactly one active fixture row with SLCONLAI=55. " +
-                $"Fixture rows found={currentFixtureRows.Count}; quantities=" +
+                "GetTonKhoHienTai did not return exactly one active test LOT with SLCONLAI=55. " +
+                $"Rows={currentFixtureRows.Count}; quantities=" +
                 string.Join(",", currentFixtureRows.Select(row => Convert.ToString(row["SLCONLAI"]))));
 
             var remainingLots = repository.GetDanhSachLotConTon();
             var remainingFixtureLots = remainingLots
-                .Where(item => string.Equals(
-                    item.Lot,
-                    "QC-REPO-LOT-0001",
-                    StringComparison.OrdinalIgnoreCase))
+                .Where(item => string.Equals(item.Lot, fixtureLot, StringComparison.OrdinalIgnoreCase))
                 .ToList();
-            Require(remainingFixtureLots.Count == 1 &&
-                    remainingFixtureLots[0].SlConLai == 55,
-                "GetDanhSachLotConTon did not return exactly one fixture LOT with SLCONLAI=55. " +
-                "Fixture rows found=" + remainingFixtureLots.Count +
+            Require(remainingFixtureLots.Count == 1 && remainingFixtureLots[0].SlConLai == 55,
+                "GetDanhSachLotConTon did not return exactly one test LOT with SLCONLAI=55. " +
+                "Rows=" + remainingFixtureLots.Count +
                 "; quantities=" + string.Join(",", remainingFixtureLots.Select(item => item.SlConLai)));
-            Console.WriteLine("PASS: current-stock and remaining-LOT list projections.");
+            Console.WriteLine("PASS: real dbo.STOCKTP current-stock and remaining-LOT list projections.");
 
-            var selectedLots = repository.GetTonKhoTheoLot(new List<string> { "QC-REPO-LOT-0001" });
-            Require(selectedLots.Rows.Count == 1,
-                "GetTonKhoTheoLot did not return the requested LOT.");
+            var selectedLots = repository.GetTonKhoTheoLot(new List<string> { fixtureLot });
+            Require(selectedLots.Rows.Count == 1, "GetTonKhoTheoLot did not return the requested test LOT.");
             Require(repository.GetTonKhoTheoLot(null).Rows.Count == 0,
                 "GetTonKhoTheoLot(null) should return an empty table.");
-            Console.WriteLine("PASS: selected-LOT query and null-input contract.");
+            Console.WriteLine("PASS: real dbo.STOCKTP selected-LOT query and null-input contract.");
 
             bool missingLotRejected = false;
-            try { repository.UpdateStockTp("QC-REPO-MISSING", 1, 0); }
+            try { repository.UpdateStockTp("QC-REPO-MISSING-" + Guid.NewGuid().ToString("N"), 1, 0); }
             catch (InvalidOperationException) { missingLotRejected = true; }
-            Require(missingLotRejected,
-                "UpdateStockTp must reject a LOT that does not exist.");
+            Require(missingLotRejected, "UpdateStockTp must reject a LOT that does not exist.");
             Console.WriteLine("PASS: update of a missing LOT is rejected.");
 
-            uow.Commit();
-            Console.WriteLine("PASS: production StockTpRepository CRUD/read/batch methods executed against isolated #STOCKTP.");
+            // Deliberately rollback rather than commit: test real constraints and SQL,
+            // but leave the shared SQL 57 business rows unchanged.
+            uow.Rollback();
+            Console.WriteLine("PASS: dbo.STOCKTP repository checks rolled back; no fixture LOT committed.");
+
+            using (var verifyConnection = new SqlConnection(connectionString))
+            using (var verify = new SqlCommand("SELECT COUNT(1) FROM dbo.STOCKTP WHERE LOT = @lot;", verifyConnection))
+            {
+                verify.Parameters.Add(new SqlParameter("@lot", fixtureLot));
+                verify.CommandTimeout = 5;
+                verifyConnection.Open();
+                var count = Convert.ToInt32(verify.ExecuteScalar());
+                Require(count == 0, "Safety verification failed: test LOT still exists in dbo.STOCKTP after rollback.");
+            }
+            Console.WriteLine("PASS: rollback verification confirmed no test LOT remains in dbo.STOCKTP.");
         }
         catch
         {
-            try { uow.Rollback(); } catch { }
+            try { if (uow.IsInTransaction) uow.Rollback(); } catch { }
             throw;
         }
     }
