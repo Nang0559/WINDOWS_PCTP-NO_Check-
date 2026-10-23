@@ -144,6 +144,14 @@
       "testEvidence": "YmvnGearQuantityValidatorTests"
     },
     {
+      "id": "DEL-TXN-001",
+      "module": "GiaoHangKhach",
+      "scenario": "Stored procedure called inside repository-owned transaction; procedure error resultset must not be treated as committed stock",
+      "expected": "Usp_Qrcode_Update_Stock2405 uses a savepoint when the caller owns the transaction, only commits transactions it opened, and repository does not deduct SlotLot or close pending delivery when the procedure returns business errors",
+      "status": "implemented",
+      "testEvidence": "DeliveryTransactionContractTests.StockProcedure_PreservesCallerOwnedTransaction; DeliveryTransactionContractTests.DeliveryRepository_DoesNotConsumeRolledBackSuccessRowsWhenProcedureReturnsErrors; SQL/Usp_Qrcode_Update_Stock2405.sql and PhieuKhoRepository.source.cs are linked into the test output. These are source-contract tests; runtime SQL verification is still required."
+    },
+    {
       "id": "DEL-003",
       "module": "GiaoHangKhach",
       "scenario": "Execute production customer-delivery stock deduction across STOCKTP, SlotLot, stock history and pending-delivery records",
@@ -231,7 +239,7 @@
       "scenario": "Quarantine and release",
       "expected": "Quarantined LOT cannot be exported/moved until authorized release",
       "status": "planned",
-      "testEvidence": "ProductionBulkStockSlotRepositoryScenario now invokes production BulkStockSlotRepository.TakeLot against a PhieuStatus=3 isolated fixture and verifies the attempted export is rejected without changing quarantined quantity or active Slot header. Authorization/permission validation for release and the release transition remain unverified."
+      "testEvidence": "ProductionBulkStockSlotRepositoryScenario invokes production BulkStockSlotRepository.TakeLot against a PhieuStatus=3 isolated fixture and verifies export rejection without changing quarantined quantity or active Slot header. Authorization/permission validation for release and the release transition remain unverified; do not mark the full quarantine/release journey complete."
     },
     {
       "id": "RWK-003",
@@ -317,6 +325,14 @@
       "scenario": "Repeated QC Final and concurrent LOT requests",
       "expected": "No double processing, leaks or unbounded queue growth",
       "status": "planned"
+    },
+    {
+      "id": "UI-000",
+      "module": "UI Automation",
+      "scenario": "Launch WinForms app, detect accessible main window, capture screenshot and export UI Automation tree",
+      "expected": "Smoke report and screenshot are written to an explicit output folder; unexpected startup exit or window title fails",
+      "status": "implemented",
+      "testEvidence": "PCTP.QC.UI/Invoke-PctpUiSmoke.ps1; must be executed on Windows with a built PCTP.exe. This is a startup/accessibility smoke test, not yet a full receive/delivery/rework workflow."
     },
     {
       "id": "UI-001",
