@@ -112,16 +112,16 @@ INSERT INTO #DeliveryState VALUES(1,0,0);");
             bulk.AddLot(slotId, new StockSlotLot { LotNo = lot, ItemCode = "QC-PART", Quantity = quantity, TemCode = tem, RawQr = qr, ImportDate = importDate, PhieuStatus = status });
         }
 
-        private static int Scalar(UnitOfWork uow, string sql, object parameter = null)
+        private static int Scalar(UnitOfWork uow, string sql, object? parameter = null)
         {
             using var command = uow.Connection.CreateCommand();
             command.Transaction = uow.Transaction;
             command.CommandTimeout = 5;
             command.CommandText = sql;
             if (sql.Contains("@id", StringComparison.OrdinalIgnoreCase))
-                command.Parameters.Add(new SqlParameter("@id", parameter));
+                command.Parameters.Add(new SqlParameter("@id", parameter ?? DBNull.Value));
             else if (sql.Contains("@lot", StringComparison.OrdinalIgnoreCase))
-                command.Parameters.Add(new SqlParameter("@lot", parameter));
+                command.Parameters.Add(new SqlParameter("@lot", parameter ?? DBNull.Value));
             return Convert.ToInt32(command.ExecuteScalar());
         }
 
@@ -152,41 +152,3 @@ INSERT INTO #DeliveryState VALUES(1,0,0);");
         }
     }
 }
-
-namespace PCTP.Modules.KhoVatLy.Kho.Models
-{
-    public sealed class LotInfo
-    {
-        public string LotNo { get; set; } = string.Empty;
-        public string ItemCode { get; set; } = string.Empty;
-        public int Quantity { get; set; }
-        public string TemCode { get; set; } = string.Empty;
-        public string RawQr { get; set; } = string.Empty;
-        public PCTP.Shared.Models.QRCodeInfo QRInfo { get; set; } = new PCTP.Shared.Models.QRCodeInfo();
-        public DateTime? ImportDate { get; set; }
-    }
-}
-
-namespace PCTP.Shared.Models
-{
-    public sealed class QRCodeInfo
-    {
-        public string LotNo { get; set; } = string.Empty;
-        public string ItemCode { get; set; } = string.Empty;
-        public int Quantity { get; set; }
-        public string MaPhieu { get; set; } = string.Empty;
-        public DateTime? ImportDate { get; set; }
-        public string RawQr { get; set; } = string.Empty;
-    }
-}
-
-namespace PCTP.Shared.Helpers
-{
-    public static class QRCodeParser
-    {
-        public static PCTP.Shared.Models.QRCodeInfo ParseQRCode(string value)
-            => throw new FormatException("Synthetic fixture QR is intentionally not a production QR payload.");
-    }
-}
-
-namespace PCTP.VIEWSTOCK.Models { }
