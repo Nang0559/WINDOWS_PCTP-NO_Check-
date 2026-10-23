@@ -11,7 +11,7 @@ using System.Data.SqlClient;
 using System.Linq;
 
 // C# 7.3 legacy repository uses null to signal that a LOT was not found.
-#pragma warning disable CS8603
+#pragma warning disable CS8600, CS8603
 
 namespace PCTP.Modules.NhapKho.Repository
 {
