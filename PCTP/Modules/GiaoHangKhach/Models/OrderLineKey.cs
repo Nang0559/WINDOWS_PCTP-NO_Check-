@@ -191,7 +191,7 @@ namespace PCTP.Modules.GiaoHangKhach.Models
     public static class OrderTableSql
     {
         private static readonly Regex SafeName =
-            new Regex("^[A-Za-z_][A-Za-z0-9_]{0,127}$", RegexOptions.CultureInvariant);
+            new Regex("^#?[A-Za-z_][A-Za-z0-9_]{0,127}$", RegexOptions.CultureInvariant);
 
         /// <summary>
         /// Đánh dấu ĐÚNG MỘT dòng đơn (PO + mã hàng + ngày + giờ:phút) là đã giao.
