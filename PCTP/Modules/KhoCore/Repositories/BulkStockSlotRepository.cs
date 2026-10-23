@@ -19,7 +19,7 @@ namespace PCTP.Modules.KhoVatLy.Repositories
         private readonly bool _useQcTempTables;
         private readonly string _qcTablePrefix = string.Empty;
 
-        public BulkStockSlotRepository(PhieuSqlExecutor db, IUnitOfWork uow, string movementGuardTable = "dbo.PCTPStockMovementGuard", bool useQcTempTables = false, string? qcTablePrefix = null)
+        public BulkStockSlotRepository(PhieuSqlExecutor db, IUnitOfWork uow, string movementGuardTable = "dbo.PCTPStockMovementGuard", bool useQcTempTables = false, string qcTablePrefix = null)
             : base(db, uow)
         {
             _useQcTempTables = useQcTempTables;
@@ -28,7 +28,7 @@ namespace PCTP.Modules.KhoVatLy.Repositories
                 throw new ArgumentException("QC table prefix must be a unique ##PCTP_QC_<32-hex>_ prefix.", nameof(qcTablePrefix));
             if (!string.IsNullOrWhiteSpace(qcTablePrefix) && !useQcTempTables)
                 throw new ArgumentException("QC table prefix is valid only when useQcTempTables is enabled.", nameof(qcTablePrefix));
-            _qcTablePrefix = qcTablePrefix;
+            _qcTablePrefix = qcTablePrefix ?? string.Empty;
             if (string.Equals(movementGuardTable, "dbo.PCTPStockMovementGuard", StringComparison.OrdinalIgnoreCase)
                 || string.Equals(movementGuardTable, "#PCTPStockMovementGuard", StringComparison.OrdinalIgnoreCase))
                 _movementGuardTable = movementGuardTable;
@@ -204,7 +204,7 @@ namespace PCTP.Modules.KhoVatLy.Repositories
             return value == null || value == DBNull.Value ? (byte)255 : Convert.ToByte(value);
         }
 
-        public StockSlotLot? GetLotDetails(int slotLotId)
+        public StockSlotLot GetLotDetails(int slotLotId)
         {
             DataTable dt = LoadData(
                 @"SELECT LotNo, ItemCode, Quantity, TemCode, QrData, ImportDate, PhieuStatus FROM SlotLot WHERE SlotLotId=@id",
@@ -223,10 +223,10 @@ namespace PCTP.Modules.KhoVatLy.Repositories
             };
         }
 
-        public string? GetLotNo(int slotLotId)
+        public string GetLotNo(int slotLotId)
             => Convert.ToString(ExecuteScalar("SELECT LotNo FROM SlotLot WHERE SlotLotId=@id", new SqlParameter("@id", slotLotId)));
 
-        public string? GetItemCode(int slotLotId)
+        public string GetItemCode(int slotLotId)
             => Convert.ToString(ExecuteScalar("SELECT ItemCode FROM SlotLot WHERE SlotLotId=@id", new SqlParameter("@id", slotLotId)));
 
         public int? GetSlotId(int slotLotId)
@@ -323,7 +323,7 @@ VALUES
             UpdateSlotHeaderBySlotId(slotId);
         }
 
-        public StockSlotTakeResult? TakeLot(int slotId, string lotNo, string itemCode, int quantity)
+        public StockSlotTakeResult TakeLot(int slotId, string lotNo, string itemCode, int quantity)
         {
             if (slotId <= 0) throw new ArgumentOutOfRangeException(nameof(slotId));
             if (string.IsNullOrWhiteSpace(lotNo)) throw new ArgumentException("LotNo không được rỗng.", nameof(lotNo));
