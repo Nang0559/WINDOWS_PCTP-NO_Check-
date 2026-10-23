@@ -23,6 +23,7 @@ Supported actions:
 - `set-value`: UIA ValuePattern
 - `assert-exists`, `assert-name-contains`
 - `wait`, `wait-for-window`, `assert-window-title`
+- `-AllowMutations` is a required explicit opt-in when a manifest declares `dataMutation: true` or a step declares `mutatesData: true`; use only with disposable QC data and a verified reset contract.
 
 Example: run the receiving navigation journey (read-only; no receipt is posted):
 
