@@ -56,7 +56,7 @@ namespace PCTP.Modules.NhapKho
             Size = new Size(1250, 720);
             StartPosition = FormStartPosition.CenterParent;
 
-            var mainLayout = new TableLayoutPanel { Dock = DockStyle.Fill, RowCount = 3, ColumnCount = 1 };
+            var mainLayout = new TableLayoutPanel { Name = "receive_mainLayout", Dock = DockStyle.Fill, RowCount = 3, ColumnCount = 1 };
             mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 120)); // Row 0: Timeline (Tăng lên 120 để chứa trọn vẹn nút, không bị cắt)
             mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 45));  // Row 1: Toolbar cố định chiều cao chuẩn, không bị bóp méo
             mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));  // Row 2: Grid chiếm phần còn lại
@@ -107,13 +107,13 @@ namespace PCTP.Modules.NhapKho
             // ── Row 1: Toolbar chứa nút Quét nhập và Làm mới (Dùng Panel chống bóp méo) ──
             var toolbarPanel = new Panel { Dock = DockStyle.Fill, BackColor = Color.WhiteSmoke };
 
-            _btnAction = new SimpleButton { Text = "🔄 Làm mới", Width = 115, Height = 33 };
+            _btnAction = new SimpleButton { Name = "receive_btnRefresh", Text = "🔄 Làm mới", Width = 115, Height = 33 };
             _btnAction.Location = new Point(toolbarPanel.Width - 125, 6);
             _btnAction.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             _btnAction.Appearance.Font = new Font("Tahoma", 9F);
             _btnAction.Click += (s, e) => RefreshDataByActiveStep(true);
 
-            _btnScanAction = new SimpleButton { Text = "📷 Quét nhập", Width = 160, Height = 33 };
+            _btnScanAction = new SimpleButton { Name = "receive_btnScan", Text = "📷 Quét nhập", Width = 160, Height = 33 };
             _btnScanAction.Location = new Point(toolbarPanel.Width - 295, 6);
             _btnScanAction.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             _btnScanAction.Appearance.Font = new Font("Tahoma", 9F, FontStyle.Bold);
@@ -125,7 +125,7 @@ namespace PCTP.Modules.NhapKho
             mainLayout.Controls.Add(toolbarPanel, 0, 1);
 
             // ── Row 2: Grid ──────────────────────────────────────────────
-            _grid = new GridControl { Dock = DockStyle.Fill };
+            _grid = new GridControl { Name = "receive_worklistGrid", Dock = DockStyle.Fill };
             _gridView = new GridView(_grid);
             _grid.MainView = _gridView;
             _gridView.OptionsBehavior.Editable = false;
