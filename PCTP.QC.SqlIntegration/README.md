@@ -1,6 +1,6 @@
 # PCTP QC SQL Integration
 
-Safe SQL schema diagnostics, production `StockTpRepository` integration checks, and SQL transaction rollback/commit smoke tests using session-local temporary tables.
+Safe SQL schema diagnostics, production `StockTpRepository` integration checks against a session-local `#STOCKTP` fixture, SQL engine workflow checks, and concurrent LOT reservation checks using temporary fixtures.
 
 ## Fixed target
 
@@ -28,12 +28,15 @@ dotnet run --project .\\PCTP.QC.SqlIntegration\\PCTP.QC.SqlIntegration.csproj --
 The default SQL 57 test first checks whether the existing `dbo.STOCKTP`, `dbo.SlotLot`, `dbo.Slot`, `dbo.Rack`, and `dbo.Warehouse` tables contain the columns declared by the QC repository contract. If that passes, it runs `ProductionStockTpRepositoryScenario` against a session-local SQL Server temporary table named `#STOCKTP`.
 
 - The repository scenario exercises the actual production `StockTpRepository` implementation: insert, lookup, exists, received quantity, update, batch lookup, current-stock listing, LOT listing, selected-LOT lookup, and rejection of a missing LOT update.
-- A separate SQL-engine smoke test verifies that an injected transaction failure rolls back its quantity update and that a committed transaction persists its update. It uses a uniquely named local `#` temporary table, not a `dbo` table.
+- SQL engine smoke checks verify transaction rollback/commit using a uniquely named local `#` temporary table.
+- `SqlEngineWorkflowScenario` uses session-local `#` fixtures to verify warehouse/rack/slot LOT lookup, quarantine export blocking, release status, duplicate reference behavior, opening + received - issued = closing, and rollback across stock/history writes.
+- Its concurrency check uses a GUID-named `##` temporary table in `tempdb` so two independent SQL sessions can contend for one LOT. The creator connection remains open during the test and the fixture is dropped in `finally`. No `dbo` business table is created or changed.
+- These are SQL Server engine-level contract tests. They do **not** yet prove that production delivery/rework/report UI orchestration invokes the same SQL transaction or idempotency implementation.
 - The temporary fixture is scoped to the scenario's SQL session and is discarded when its connection closes. Its test rows are not inserted into `dbo.STOCKTP`.
 - If a required table/column is missing, the output lists each fully qualified item and stops before repository tests.
 - The tester does not create, alter, or drop existing `dbo` business tables and does not mutate shared business rows.
 - `--preflight` runs schema diagnostics only.
-- Bulk Slot/Rack/Warehouse, delivery, cross-repository transaction, and concurrency scenarios remain disabled against shared SQL 57. They require a dedicated disposable test database or a separately designed isolated fixture and must not be re-enabled by simply removing safety checks.
+- Production `BulkStockSlotRepository`, delivery finalization, cross-repository transaction enlistment, production LOT concurrency, and WinForms automation remain unverified against real production adapters. These require a disposable database with a documented schema/seed/cleanup contract or UI automation infrastructure; do not mark them passed based only on the isolated engine fixture.
 - A schema pass alone is not a business-test pass; the default mode now reports the repository scenario separately.
 
 ## WinForms TestRunner
@@ -48,12 +51,13 @@ Enter SQL credentials and use:
 
 - **Unit / Regression** — xUnit suite.
 - **SQL 57 Read-only Check** — schema compatibility diagnostics only (`--preflight`).
-- **SQL 57 Diagnostics** — schema check, isolated production StockTpRepository checks against `#STOCKTP`, and isolated SQL rollback/commit smoke tests.
+- **SQL 57 Diagnostics** — schema check, isolated production StockTpRepository checks against `#STOCKTP`, SQL rollback/commit smoke tests, temporary-fixture workflow checks, and two-session LOT reservation test.
 
 ## Interpreting results
 
 - `PASS: existing dbo schema...`: required column names were found; this alone does not prove business behavior.
 - `PASS: production StockTpRepository...`: isolated repository behavior checks also passed using `#STOCKTP`.
 - `PASS: SQL transaction rollback/commit...`: the isolated engine transaction checks passed.
+- `PASS: isolated SQL workflow...`: temporary-fixture location, quarantine/release, ledger, duplicate-reference, rollback, and concurrency checks passed. This is not a substitute for production delivery adapter or UI end-to-end tests.
 - `FAIL`: review the listed missing table/column names against the actual schema and repository SQL. Apply approved fixes manually on SQL 57, then rerun the diagnostics.
 - SQL errors such as permission denied, connection timeout, or login failure are reported as failures; they are not auto-corrected.
