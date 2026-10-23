@@ -15,9 +15,20 @@ namespace PCTP.Modules.KhoVatLy.Repositories
 {
     public sealed class BulkStockSlotRepository : SqlRepositoryBase, IBulkStockSlotRepository, IStockSlotRepository
     {
-        public BulkStockSlotRepository(PhieuSqlExecutor db, IUnitOfWork uow)
+        private readonly string _movementGuardTable;
+
+        public BulkStockSlotRepository(PhieuSqlExecutor db, IUnitOfWork uow, string movementGuardTable = "dbo.PCTPStockMovementGuard")
             : base(db, uow)
         {
+            if (string.Equals(movementGuardTable, "dbo.PCTPStockMovementGuard", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(movementGuardTable, "#PCTPStockMovementGuard", StringComparison.OrdinalIgnoreCase))
+                _movementGuardTable = movementGuardTable;
+            else if (System.Text.RegularExpressions.Regex.IsMatch(
+                movementGuardTable ?? string.Empty,
+                @"^##PCTPStockMovementGuard_[A-Fa-f0-9]{32}$"))
+                _movementGuardTable = movementGuardTable;
+            else
+                throw new ArgumentException("Movement guard table must be dbo.PCTPStockMovementGuard or a QC temporary table.", nameof(movementGuardTable));
         }
 
         public int GetOrCreateVirtualSlotId(string warehouseName, string rackName, int capacity)
@@ -243,7 +254,7 @@ WHERE (@qr IS NOT NULL AND QrData = @qr)
             try
             {
                 ExecuteNonQuery(@"
-INSERT INTO dbo.PCTPStockMovementGuard
+INSERT INTO {_movementGuardTable}
     (ReferenceType, ReferenceId, QrHash, TemHash, CreatedAt)
 VALUES
     (@referenceType, @referenceId,
