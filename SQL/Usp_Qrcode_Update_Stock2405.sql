@@ -1037,7 +1037,9 @@ BEGIN
                        AND CAST(tmp.NGAYGIAO AS DATE) = CAST(po.NgayGiao AS DATE)  
                        AND DATEPART(HH, tmp.NGAYGIAO) = DATEPART(HH, po.NgayGiao)  
                        AND DATEPART(MI, tmp.NGAYGIAO) = DATEPART(MI, po.NgayGiao)  
-                    WHERE tmp.STT IN  
+                    WHERE NULLIF(LTRIM(RTRIM(CAST(tmp.PO_NO AS NVARCHAR(100)))), '''') IS NOT NULL  
+                      AND NULLIF(LTRIM(RTRIM(tmp.MAHANG)), '''') IS NOT NULL  
+                      AND tmp.STT IN  
                     (  
                         SELECT STT  
                         FROM #STOK  
@@ -1074,7 +1076,9 @@ BEGIN
                        AND CAST(tmp.NGAYGIAO AS DATE) = CAST(po.NgayGiao AS DATE)  
                        AND DATEPART(HH, tmp.NGAYGIAO) = DATEPART(HH, po.NgayGiao)  
                        AND DATEPART(MI, tmp.NGAYGIAO) = DATEPART(MI, po.NgayGiao)  
-                    WHERE tmp.STT IN  
+                    WHERE NULLIF(LTRIM(RTRIM(CAST(tmp.PO_NO AS NVARCHAR(100)))), '''') IS NOT NULL  
+                      AND NULLIF(LTRIM(RTRIM(tmp.MAHANG)), '''') IS NOT NULL  
+                      AND tmp.STT IN  
                     (  
                         SELECT STT  
                         FROM #STOK  
