@@ -113,9 +113,15 @@ try {
         $target = $null
         switch ($action) {
             "assert-window-title" {
-                $window = Get-CurrentWindow
-                if (-not $window -or $window.Current.Name -notmatch [string]$step.value) {
-                    throw "Step '$label': active window title did not match '$($step.value)'."
+                $matchingWindow = $null
+                foreach ($candidate in @(Get-ProcessWindows)) {
+                    if (-not $candidate.Current.IsOffscreen -and $candidate.Current.Name -match [string]$step.value) {
+                        $matchingWindow = $candidate
+                        break
+                    }
+                }
+                if (-not $matchingWindow) {
+                    throw "Step '$label': no visible PCTP window title matched '$($step.value)'."
                 }
             }
             "wait-for-window" {
