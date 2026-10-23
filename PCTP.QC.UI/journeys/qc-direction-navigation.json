@@ -3,7 +3,7 @@
   "purpose": "Read-only navigation smoke: open QC direction queue from the defect workflow menu.",
   "dataMutation": false,
   "steps": [
-    { "id": "expand-defect-menu", "action": "click", "automationId": "E_Trahang" },
+    { "id": "expand-defect-menu", "action": "expand", "automationId": "E_Trahang" },
     { "id": "open-qc-direction", "action": "click", "automationId": "accordionControlElement_QCDinhHuong", "waitAfterMs": 800 },
     { "id": "qc-direction-screen-visible", "action": "wait-for-window", "value": "QC định hướng xử lý hàng lỗi", "timeoutSeconds": 45 },
     { "id": "verify-qc-direction-title", "action": "assert-window-title", "value": "QC định hướng xử lý hàng lỗi" }
