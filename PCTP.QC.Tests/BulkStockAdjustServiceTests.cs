@@ -92,6 +92,35 @@ namespace PCTP.QC.Tests
         }
 
         [Fact]
+        public void DeliveryPick_InsufficientAcrossVirtualAndPhysicalSlotsThrowsForSharedTransaction()
+        {
+            var slots = new FakeBulkSlots
+            {
+                VirtualLots = new List<LotInfo>
+                {
+                    new LotInfo { LotNo = Lot, ItemCode = "PART-01", Quantity = 2 }
+                },
+                PhysicalLots = new List<BulkSlotLotLocation>
+                {
+                    new BulkSlotLotLocation { SlotId = 22, ItemCode = "PART-01", Quantity = 2 }
+                }
+            };
+            var movement = new FakeMovement();
+            var uow = new FakeUnitOfWork();
+            var service = new BulkStockAdjustService(slots, new FakeHistory(), uow, movement);
+
+            var error = Assert.Throws<InvalidOperationException>(() =>
+                service.TruKhoAoTheoLot(Lot, 5, manageTransaction: false));
+
+            Assert.Contains("thiếu 1", error.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Equal(new[] { 2, 2 }, movement.Picks.ConvertAll(x => x.Quantity));
+            Assert.Equal(new[] { 100, 22 }, movement.Picks.ConvertAll(x => x.SlotId.Value));
+            Assert.Equal(0, uow.BeginCount);
+            Assert.Equal(0, uow.CommitCount);
+            Assert.Equal(0, uow.RollbackCount);
+        }
+
+        [Fact]
         public void DeliveryPick_MovementFailureRollsBackOwnedTransaction()
         {
             var slots = new FakeBulkSlots
