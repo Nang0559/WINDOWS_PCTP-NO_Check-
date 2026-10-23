@@ -1,6 +1,6 @@
 # PCTP QC SQL Integration
 
-Read-only SQL diagnostics for the existing shared test database.
+Safe SQL schema diagnostics plus production `StockTpRepository` integration checks using a session-local temporary table.
 
 ## Fixed target
 
@@ -11,13 +11,13 @@ Read-only SQL diagnostics for the existing shared test database.
 
 ## Run from the repository root
 
-Read-only schema diagnostics:
+SQL integration (schema preflight + isolated repository behavior checks):
 
 ```powershell
 dotnet run --project .\\PCTP.QC.SqlIntegration\\PCTP.QC.SqlIntegration.csproj --configuration Release -- --user YOUR_SQL_USER --password YOUR_SQL_PASSWORD
 ```
 
-Schema-only check (same safe read-only behavior):
+Schema-only preflight (does not execute repository behavior checks):
 
 ```powershell
 dotnet run --project .\\PCTP.QC.SqlIntegration\\PCTP.QC.SqlIntegration.csproj --configuration Release -- --user YOUR_SQL_USER --password YOUR_SQL_PASSWORD --preflight
@@ -25,13 +25,15 @@ dotnet run --project .\\PCTP.QC.SqlIntegration\\PCTP.QC.SqlIntegration.csproj --
 
 ## Safety contract
 
-The default SQL 57 test is **read-only**. It connects to the fixed target and checks whether the existing `dbo.STOCKTP`, `dbo.SlotLot`, `dbo.Slot`, `dbo.Rack`, and `dbo.Warehouse` tables contain the columns expected by the current QC repository contract.
+The default SQL 57 test first checks whether the existing `dbo.STOCKTP`, `dbo.SlotLot`, `dbo.Slot`, `dbo.Rack`, and `dbo.Warehouse` tables contain the columns declared by the QC repository contract. If that passes, it runs `ProductionStockTpRepositoryScenario` against a session-local SQL Server temporary table named `#STOCKTP`.
 
-- If a table or column is missing, the output lists each fully qualified item (for example, `dbo.SlotLot.QrData`) and tells you to review/fix the schema on SQL 57.
-- The tester does not automatically create, alter, or drop existing tables.
-- It does not insert, update, or delete business rows.
-- It does not run write/concurrency/rollback scenarios against the shared database, because doing so could affect real test data or require destructive fixture cleanup.
-- A schema pass means only that the required column names exist. It is not a claim that production CRUD, delivery, concurrency, or rollback behavior has passed.
+- The repository scenario exercises the actual production `StockTpRepository` implementation: insert, lookup, exists, received quantity, update, batch lookup, current-stock listing, LOT listing, selected-LOT lookup, and rejection of a missing LOT update.
+- The temporary fixture is scoped to the scenario's SQL session and is discarded when its connection closes. Its test rows are not inserted into `dbo.STOCKTP`.
+- If a required table/column is missing, the output lists each fully qualified item and stops before repository tests.
+- The tester does not create, alter, or drop existing `dbo` business tables and does not mutate shared business rows.
+- `--preflight` runs schema diagnostics only.
+- Bulk Slot/Rack/Warehouse, delivery, cross-repository transaction, and concurrency scenarios remain disabled against shared SQL 57. They require a dedicated disposable test database or a separately designed isolated fixture and must not be re-enabled by simply removing safety checks.
+- A schema pass alone is not a business-test pass; the default mode now reports the repository scenario separately.
 
 ## WinForms TestRunner
 
@@ -44,11 +46,12 @@ dotnet run --project .\\PCTP.QC.TestRunner\\PCTP.QC.TestRunner.csproj
 Enter SQL credentials and use:
 
 - **Unit / Regression** — xUnit suite.
-- **SQL 57 Read-only Check** — schema compatibility diagnostics.
-- **SQL 57 Diagnostics** — same safe diagnostic path; no database writes.
+- **SQL 57 Read-only Check** — schema compatibility diagnostics only (`--preflight`).
+- **SQL 57 Diagnostics** — schema check plus isolated production StockTpRepository checks against `#STOCKTP`.
 
 ## Interpreting results
 
-- `PASS`: all declared required columns were found; no schema/data changes were made.
+- `PASS: existing dbo schema...`: required column names were found; this alone does not prove business behavior.
+- `PASS: production StockTpRepository...`: isolated repository behavior checks also passed using `#STOCKTP`.
 - `FAIL`: review the listed missing table/column names against the actual schema and repository SQL. Apply approved fixes manually on SQL 57, then rerun the diagnostics.
 - SQL errors such as permission denied, connection timeout, or login failure are reported as failures; they are not auto-corrected.
