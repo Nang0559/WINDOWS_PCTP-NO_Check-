@@ -16,10 +16,12 @@ namespace PCTP.Modules.KhoVatLy.Repositories
     public sealed class BulkStockSlotRepository : SqlRepositoryBase, IBulkStockSlotRepository, IStockSlotRepository
     {
         private readonly string _movementGuardTable;
+        private readonly bool _useQcTempTables;
 
-        public BulkStockSlotRepository(PhieuSqlExecutor db, IUnitOfWork uow, string movementGuardTable = "dbo.PCTPStockMovementGuard")
+        public BulkStockSlotRepository(PhieuSqlExecutor db, IUnitOfWork uow, string movementGuardTable = "dbo.PCTPStockMovementGuard", bool useQcTempTables = false)
             : base(db, uow)
         {
+            _useQcTempTables = useQcTempTables;
             if (string.Equals(movementGuardTable, "dbo.PCTPStockMovementGuard", StringComparison.OrdinalIgnoreCase)
                 || string.Equals(movementGuardTable, "#PCTPStockMovementGuard", StringComparison.OrdinalIgnoreCase))
                 _movementGuardTable = movementGuardTable;
@@ -30,6 +32,27 @@ namespace PCTP.Modules.KhoVatLy.Repositories
             else
                 throw new ArgumentException("Movement guard table must be dbo.PCTPStockMovementGuard or a QC temporary table.", nameof(movementGuardTable));
         }
+
+        // SQL integration runs the real repository against session-local fixtures. This flag is
+        // opt-in and leaves every production query/table name unchanged by default.
+        private string RewriteTableNames(string sql)
+        {
+            if (!_useQcTempTables || string.IsNullOrEmpty(sql)) return sql;
+            return System.Text.RegularExpressions.Regex.Replace(
+                sql,
+                @"\\b(Warehouse|Rack|SlotLot|Slot)\\b",
+                match => "#" + match.Value,
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        }
+
+        private new DataTable LoadData(string sql, params SqlParameter[] parameters)
+            => base.LoadData(RewriteTableNames(sql), parameters);
+
+        private new object ExecuteScalar(string sql, params SqlParameter[] parameters)
+            => base.ExecuteScalar(RewriteTableNames(sql), parameters);
+
+        private new int ExecuteNonQuery(string sql, params SqlParameter[] parameters)
+            => base.ExecuteNonQuery(RewriteTableNames(sql), parameters);
 
         public int GetOrCreateVirtualSlotId(string warehouseName, string rackName, int capacity)
         {
