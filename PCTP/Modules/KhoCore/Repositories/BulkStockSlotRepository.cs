@@ -40,7 +40,7 @@ namespace PCTP.Modules.KhoVatLy.Repositories
             if (!_useQcTempTables || string.IsNullOrEmpty(sql)) return sql;
             return System.Text.RegularExpressions.Regex.Replace(
                 sql,
-                @"\\b(Warehouse|Rack|SlotLot|Slot)\\b",
+                @"\b(Warehouse|Rack|SlotLot|Slot)\b",
                 match => "#" + match.Value,
                 System.Text.RegularExpressions.RegexOptions.IgnoreCase);
         }
