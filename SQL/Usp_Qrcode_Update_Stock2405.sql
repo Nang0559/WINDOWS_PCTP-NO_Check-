@@ -1031,8 +1031,12 @@ BEGIN
                         po.DeliveredDate = GETDATE()  
                     FROM Purchase_Order_HTN po  
                     INNER JOIN [' + @TMPTABLE + N'] tmp  
-                        ON CAST(tmp.PO_NO AS NVARCHAR) =  
-                           CAST(po.Oder_no AS NVARCHAR)  
+                        ON LTRIM(RTRIM(CAST(tmp.PO_NO AS NVARCHAR(100)))) =  
+                           LTRIM(RTRIM(CAST(po.Oder_no AS NVARCHAR(100))))  
+                       AND LTRIM(RTRIM(tmp.MAHANG)) = LTRIM(RTRIM(po.Part_no))  
+                       AND CAST(tmp.NGAYGIAO AS DATE) = CAST(po.NgayGiao AS DATE)  
+                       AND DATEPART(HH, tmp.NGAYGIAO) = DATEPART(HH, po.NgayGiao)  
+                       AND DATEPART(MI, tmp.NGAYGIAO) = DATEPART(MI, po.NgayGiao)  
                     WHERE tmp.STT IN  
                     (  
                         SELECT STT  
@@ -1064,8 +1068,12 @@ BEGIN
                         po.DeliveredDate = GETDATE()  
                     FROM Purchase_Order_YMVN po  
                     INNER JOIN [' + @TMPTABLE + N'] tmp  
-                        ON CAST(tmp.PO_NO AS NVARCHAR) =  
-                           CAST(po.Oder_no AS NVARCHAR)  
+                        ON LTRIM(RTRIM(CAST(tmp.PO_NO AS NVARCHAR(100)))) =  
+                           LTRIM(RTRIM(CAST(po.Oder_no AS NVARCHAR(100))))  
+                       AND LTRIM(RTRIM(tmp.MAHANG)) = LTRIM(RTRIM(po.Part_no))  
+                       AND CAST(tmp.NGAYGIAO AS DATE) = CAST(po.NgayGiao AS DATE)  
+                       AND DATEPART(HH, tmp.NGAYGIAO) = DATEPART(HH, po.NgayGiao)  
+                       AND DATEPART(MI, tmp.NGAYGIAO) = DATEPART(MI, po.NgayGiao)  
                     WHERE tmp.STT IN  
                     (  
                         SELECT STT  
