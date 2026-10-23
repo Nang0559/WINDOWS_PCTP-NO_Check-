@@ -48,6 +48,15 @@ $summary = [pscustomobject]@{
 }
 $summaryPath = Join-Path $out "pctp-ui-suite-report.json"
 $summary | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $summaryPath -Encoding UTF8
+$evidenceRunner = Join-Path $PSScriptRoot "Invoke-PctpUiEvidenceSummary.ps1"
+if (Test-Path -LiteralPath $evidenceRunner) {
+    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $evidenceRunner -EvidenceDirectory $out -OutputDirectory $out
+    if ($LASTEXITCODE -ne 0) {
+        Write-Warning "Evidence summary reported failed journeys."
+        $summary.Status = "FAIL"
+    }
+}
+$summary | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $summaryPath -Encoding UTF8
 $summary | Format-List Test, Status, JourneysPassed, JourneysFailed, Executable | Out-String | Write-Host
 Write-Host "Suite report: $summaryPath"
 if ($summary.Status -ne "PASS") { exit 1 }

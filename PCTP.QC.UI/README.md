@@ -73,3 +73,19 @@ Never run mutating UI journeys against production. The SQL harness has a separat
 ## 5. Evidence and acceptance rules
 
 Each step writes a screenshot and the run writes `pctp-ui-journey-report.json`. A navigation test is PASS only when the target window is actually observed. A business E2E test must additionally prove persisted postconditions and cleanup. A planned journey must remain planned until it has been run on the Windows workstation against isolated test data and its artifacts have been reviewed.
+
+
+## 6. Consolidated evidence summary
+
+After the suite has completed, generate a Markdown and CSV roll-up from all per-journey JSON reports:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\PCTP.QC.UI\Invoke-PctpUiEvidenceSummary.ps1 `
+  -EvidenceDirectory ".\artifacts\pctp-ui-suite"
+```
+
+Outputs:
+- `pctp-ui-evidence-summary.md` — journey-level PASS/FAIL, step counts, screenshot counts, report paths and failure messages.
+- `pctp-ui-evidence-summary.csv` — machine-readable summary.
+
+The evidence summary intentionally preserves navigation semantics. It does not upgrade navigation PASS into a transaction PASS. See [BUSINESS_E2E_ACCEPTANCE.md](BUSINESS_E2E_ACCEPTANCE.md) for the workflow-by-workflow acceptance matrix, data assertions and cleanup requirements.
