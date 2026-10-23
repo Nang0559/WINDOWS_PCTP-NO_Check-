@@ -14,7 +14,9 @@ internal static class SqlEngineWorkflowScenario
     {
         await VerifyPhysicalLocationQuarantineAndLedgerAsync(connectionString);
         await VerifyConcurrentLotReservationAsync(connectionString);
-        Console.WriteLine("PASS: isolated SQL workflow checks (location lookup, quarantine/release, ledger equation, idempotent reference, concurrent LOT reservation).");
+        VerifyProductionMovementGuardAsync(connectionString);
+        await VerifyConcurrentProductionMovementGuardAsync(connectionString);
+        Console.WriteLine("PASS: isolated SQL workflow checks, including production BulkStockSlotRepository idempotency and two-session duplicate-reference race.");
     }
 
     private static async Task VerifyPhysicalLocationQuarantineAndLedgerAsync(string cs)
@@ -157,6 +159,117 @@ SELECT @@ROWCOUNT;", connection, transaction) { CommandTimeout = 10 };
             await using var cleanup = new SqlCommand($"IF OBJECT_ID('tempdb..{table}') IS NOT NULL DROP TABLE {table};", setupConnection)
             { CommandTimeout = 5 };
             await cleanup.ExecuteNonQueryAsync();
+        }
+    }
+
+    private static void VerifyProductionMovementGuardAsync(string connectionString)
+    {
+        var legacyConnectionString = PCTP.QC.SqlIntegration.SqlTestConfiguration.BuildLegacySqlClientConnectionString(connectionString);
+        var table = "##PCTPStockMovementGuard_" + Guid.NewGuid().ToString("N");
+        using var owner = new System.Data.SqlClient.SqlConnection(legacyConnectionString);
+        owner.Open();
+        using (var create = new System.Data.SqlClient.SqlCommand($@"
+CREATE TABLE {table}
+(
+    GuardId bigint IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    ReferenceType nvarchar(80) NULL,
+    ReferenceId nvarchar(200) NULL,
+    QrHash varbinary(32) NULL,
+    TemHash varbinary(32) NULL,
+    CreatedAt datetime2(3) NOT NULL
+);
+CREATE UNIQUE INDEX UX_QC_Ref ON {table}(ReferenceType, ReferenceId)
+    WHERE ReferenceType IS NOT NULL AND ReferenceId IS NOT NULL;
+CREATE UNIQUE INDEX UX_QC_Qr ON {table}(QrHash) WHERE QrHash IS NOT NULL;
+CREATE UNIQUE INDEX UX_QC_Tem ON {table}(TemHash) WHERE TemHash IS NOT NULL;", owner) { CommandTimeout = 5 })
+        {
+            create.ExecuteNonQuery();
+        }
+
+        try
+        {
+            var provider = new PCTP.ClassSQL.SQLPROVIDER { B7R2_FCCdb = legacyConnectionString };
+            using var uow = new PCTP.Shared.Common.UnitOfWork(provider);
+            uow.Begin();
+            var repository = new PCTP.Modules.KhoVatLy.Repositories.BulkStockSlotRepository(
+                new PCTP.Modules.GiaoHangKhach.PhieuSqlExecutor(), uow, table);
+
+            Require(repository.TryRegisterMovement("RECEIVING", "QC-REF-1", null, null, false),
+                "Production guard rejected the first reference claim.");
+            Require(!repository.TryRegisterMovement("RECEIVING", "QC-REF-1", null, null, false),
+                "Production guard accepted a repeated ReferenceType + ReferenceId.");
+            Require(repository.TryRegisterMovement("RECEIVING", "QC-REF-2", "QC-QR-UNIQUE", null, false),
+                "Production guard rejected the first QR claim.");
+            Require(!repository.TryRegisterMovement("RECEIVING", "QC-REF-3", "QC-QR-UNIQUE", null, false),
+                "Production guard accepted a repeated QR with a different reference.");
+            uow.Rollback();
+            Console.WriteLine("PASS: production BulkStockSlotRepository rejects duplicate reference and QR claims in one rollback transaction.");
+        }
+        finally
+        {
+            using var drop = new System.Data.SqlClient.SqlCommand($"IF OBJECT_ID('tempdb..{table}') IS NOT NULL DROP TABLE {table};", owner)
+            { CommandTimeout = 5 };
+            drop.ExecuteNonQuery();
+        }
+    }
+
+    private static async Task VerifyConcurrentProductionMovementGuardAsync(string connectionString)
+    {
+        var legacyConnectionString = PCTP.QC.SqlIntegration.SqlTestConfiguration.BuildLegacySqlClientConnectionString(connectionString);
+        var table = "##PCTPStockMovementGuard_" + Guid.NewGuid().ToString("N");
+        using var owner = new System.Data.SqlClient.SqlConnection(legacyConnectionString);
+        await owner.OpenAsync();
+        await using (var create = new System.Data.SqlClient.SqlCommand($@"
+CREATE TABLE {table}
+(
+    GuardId bigint IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    ReferenceType nvarchar(80) NULL,
+    ReferenceId nvarchar(200) NULL,
+    QrHash varbinary(32) NULL,
+    TemHash varbinary(32) NULL,
+    CreatedAt datetime2(3) NOT NULL
+);
+CREATE UNIQUE INDEX UX_QC_Ref ON {table}(ReferenceType, ReferenceId)
+    WHERE ReferenceType IS NOT NULL AND ReferenceId IS NOT NULL;
+CREATE UNIQUE INDEX UX_QC_Qr ON {table}(QrHash) WHERE QrHash IS NOT NULL;
+CREATE UNIQUE INDEX UX_QC_Tem ON {table}(TemHash) WHERE TemHash IS NOT NULL;", owner) { CommandTimeout = 5 })
+        {
+            await create.ExecuteNonQueryAsync();
+        }
+
+        try
+        {
+            async Task<bool> TryClaimAsync()
+            {
+                var provider = new PCTP.ClassSQL.SQLPROVIDER { B7R2_FCCdb = legacyConnectionString };
+                using var uow = new PCTP.Shared.Common.UnitOfWork(provider);
+                uow.Begin();
+                try
+                {
+                    var repository = new PCTP.Modules.KhoVatLy.Repositories.BulkStockSlotRepository(
+                        new PCTP.Modules.GiaoHangKhach.PhieuSqlExecutor(), uow, table);
+                    bool claimed = repository.TryRegisterMovement("DELIVERY", "QC-CONCURRENT-REF", null, null, false);
+                    if (claimed) uow.Commit();
+                    else uow.Rollback();
+                    return claimed;
+                }
+                catch
+                {
+                    try { uow.Rollback(); } catch { }
+                    throw;
+                }
+            }
+
+            var results = await Task.WhenAll(Task.Run(TryClaimAsync), Task.Run(TryClaimAsync));
+            Require(results.Count(x => x) == 1,
+                $"Production guard should allow exactly one concurrent claim, actual results: {string.Join(",", results)}.");
+            Console.WriteLine("PASS: production BulkStockSlotRepository allows exactly one of two concurrent identical reference claims.");
+        }
+        finally
+        {
+            await using var drop = new System.Data.SqlClient.SqlCommand($"IF OBJECT_ID('tempdb..{table}') IS NOT NULL DROP TABLE {table};", owner)
+            { CommandTimeout = 5 };
+            await drop.ExecuteNonQueryAsync();
         }
     }
 
