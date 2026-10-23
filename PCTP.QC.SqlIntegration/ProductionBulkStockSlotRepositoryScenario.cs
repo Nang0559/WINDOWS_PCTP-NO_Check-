@@ -78,7 +78,12 @@ INSERT INTO #DeliveryState(Id,HistoryCount,PendingClosed) VALUES(1,0,0);";
                 quarantine.CommandTimeout = 5;
                 quarantine.CommandText = @"
 INSERT INTO #SlotLot(SlotId,ItemCode,LotNo,Quantity,TemCode,QrData,ImportDate,PhieuStatus)
-VALUES(@slot,N'QC-PART',N'QC-QUARANTINE-LOT',5,N'QC-QUARANTINE-TEM',N'QC-QUARANTINE-QR',GETDATE(),3);";
+VALUES(@slot,N'QC-PART',N'QC-QUARANTINE-LOT',5,N'QC-QUARANTINE-TEM',N'QC-QUARANTINE-QR',GETDATE(),3);
+-- Closed/cancelled historical SlotLot rows remain part of Slot.Quantity reconciliation;
+-- quarantine/NG (PhieuStatus=3) is the only excluded status.
+INSERT INTO #SlotLot(SlotId,ItemCode,LotNo,Quantity,TemCode,QrData,ImportDate,PhieuStatus)
+VALUES(@slot,N'QC-PART',N'QC-CLOSED-LOT',7,N'QC-CLOSED-TEM',N'QC-CLOSED-QR',GETDATE(),1),
+      (@slot,N'QC-PART',N'QC-CANCELLED-LOT',8,N'QC-CANCELLED-TEM',N'QC-CANCELLED-QR',GETDATE(),2);";
                 quarantine.Parameters.Add(new SqlParameter("@slot", slotId));
                 quarantine.ExecuteNonQuery();
             }
@@ -158,8 +163,8 @@ VALUES(@slot,N'QC-PART',N'QC-QUARANTINE-LOT',5,N'QC-QUARANTINE-TEM',N'QC-QUARANT
                 Require(Convert.ToInt32(ScalarInTransaction(uow,
                     "SELECT CASE WHEN (SELECT SUM(Quantity) FROM #SlotLot WHERE LotNo=@lot AND PhieuStatus=0) = (SELECT SLCONLAI FROM #STOCKTP WHERE LOT=@lot) THEN 1 ELSE 0 END", lot)) == 1,
                     "Production STOCKTP current stock does not reconcile with active SlotLot quantities.");
-                Require(Convert.ToInt32(ScalarInTransaction(uow, "SELECT Quantity FROM #Slot WHERE SlotId=@id", slotId)) == 15,
-                    "Slot header did not refresh after production TakeLot.");
+                Require(Convert.ToInt32(ScalarInTransaction(uow, "SELECT Quantity FROM #Slot WHERE SlotId=@id", slotId)) == 30,
+                    "Slot header must include active + closed + cancelled SlotLot quantities but exclude quarantine/NG.");
                 Require(Convert.ToInt32(ScalarInTransaction(uow, "SELECT HistoryCount FROM #DeliveryState WHERE Id=1")) == 1,
                     "Delivery history fixture did not record the successful simulated finalization.");
 
@@ -176,8 +181,8 @@ VALUES(@slot,N'QC-PART',N'QC-QUARANTINE-LOT',5,N'QC-QUARANTINE-TEM',N'QC-QUARANT
                 "STOCKTP quantity was not restored by cross-repository rollback.");
             Require(Convert.ToInt32(ScalarInTransaction(uow, "SELECT SUM(Quantity) FROM #SlotLot WHERE SlotId=@id AND PhieuStatus=0", slotId)) == 65,
                 "SlotLot quantities were not restored by cross-repository rollback.");
-            Require(Convert.ToInt32(ScalarInTransaction(uow, "SELECT Quantity FROM #Slot WHERE SlotId=@id", slotId)) == 65,
-                "Slot header quantity was not restored by cross-repository rollback.");
+            Require(Convert.ToInt32(ScalarInTransaction(uow, "SELECT Quantity FROM #Slot WHERE SlotId=@id", slotId)) == 80,
+                "Slot header was not restored to active + closed + cancelled quantities after rollback.");
             Require(Convert.ToInt32(ScalarInTransaction(uow, "SELECT HistoryCount FROM #DeliveryState WHERE Id=1")) == 0 &&
                     Convert.ToInt32(ScalarInTransaction(uow, "SELECT PendingClosed FROM #DeliveryState WHERE Id=1")) == 0,
                 "Delivery history/pending fixture writes were not rolled back.");
