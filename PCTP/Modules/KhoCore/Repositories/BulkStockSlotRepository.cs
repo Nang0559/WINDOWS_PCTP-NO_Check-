@@ -212,6 +212,56 @@ namespace PCTP.Modules.KhoVatLy.Repositories
                 new SqlParameter("@q", quantity), new SqlParameter("@id", slotId));
         }
 
+        public bool TryRegisterMovement(string referenceType, string referenceId, string qrData, string temCode, bool checkExistingQr)
+        {
+            if (!HasTransaction)
+                throw new InvalidOperationException("TryRegisterMovement phải chạy trong cùng UnitOfWork transaction với thao tác tồn kho.");
+
+            bool hasType = !string.IsNullOrWhiteSpace(referenceType);
+            bool hasId = !string.IsNullOrWhiteSpace(referenceId);
+            if (hasType != hasId)
+                throw new ArgumentException("ReferenceType và ReferenceId phải cùng được cung cấp hoặc cùng để trống.");
+
+            string qr = string.IsNullOrWhiteSpace(qrData) ? null : qrData.Trim();
+            string tem = string.IsNullOrWhiteSpace(temCode) ? null : temCode.Trim();
+            if (!hasType && qr == null && tem == null)
+                return true;
+
+            if (checkExistingQr && (qr != null || tem != null))
+            {
+                object existing = ExecuteScalar(@"
+SELECT TOP (1) 1
+FROM SlotLot WITH (UPDLOCK, HOLDLOCK)
+WHERE (@qr IS NOT NULL AND QrData = @qr)
+   OR (@tem IS NOT NULL AND TemCode = @tem);",
+                    new SqlParameter("@qr", (object)qr ?? DBNull.Value),
+                    new SqlParameter("@tem", (object)tem ?? DBNull.Value));
+                if (existing != null && existing != DBNull.Value)
+                    return false;
+            }
+
+            try
+            {
+                ExecuteNonQuery(@"
+INSERT INTO dbo.PCTPStockMovementGuard
+    (ReferenceType, ReferenceId, QrHash, TemHash, CreatedAt)
+VALUES
+    (@referenceType, @referenceId,
+     CASE WHEN @qr IS NULL THEN NULL ELSE HASHBYTES('SHA2_256', CONVERT(varbinary(max), @qr)) END,
+     CASE WHEN @tem IS NULL THEN NULL ELSE HASHBYTES('SHA2_256', CONVERT(varbinary(max), @tem)) END,
+     SYSUTCDATETIME());",
+                    new SqlParameter("@referenceType", hasType ? (object)referenceType.Trim() : DBNull.Value),
+                    new SqlParameter("@referenceId", hasId ? (object)referenceId.Trim() : DBNull.Value),
+                    new SqlParameter("@qr", (object)qr ?? DBNull.Value),
+                    new SqlParameter("@tem", (object)tem ?? DBNull.Value));
+                return true;
+            }
+            catch (SqlException ex) when (ex.Number == 2601 || ex.Number == 2627)
+            {
+                return false;
+            }
+        }
+
         public void AddLot(int slotId, StockSlotLot lot)
         {
             if (lot == null) throw new ArgumentNullException(nameof(lot));
