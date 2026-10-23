@@ -13,14 +13,14 @@ namespace PCTP.Shared.Common
         private readonly SQLPROVIDER _sql;
         private int _depth;
         private bool _rollbackOnly;   // ← THÊM
-        private SqlConnection _connection;
-        private SqlTransaction _transaction;
+        private SqlConnection? _connection;
+        private SqlTransaction? _transaction;
 
         public UnitOfWork(SQLPROVIDER sql)
             => _sql = sql ?? throw new ArgumentNullException(nameof(sql));
 
-        public SqlConnection Connection => _connection;
-        public SqlTransaction Transaction => _transaction;
+        public SqlConnection Connection => _connection!;
+        public SqlTransaction Transaction => _transaction!;
         public bool IsInTransaction => _transaction != null;
         public int Depth => _depth;
 
