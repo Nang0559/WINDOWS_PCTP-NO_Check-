@@ -26,9 +26,6 @@ internal static class Program
             await connection.OpenAsync();
             Console.WriteLine($"PASS: SQL connection established to {SqlTestConfiguration.Server}/{SqlTestConfiguration.Database}.");
 
-            // Safe-by-default mode: inspect the fixed test schema, then exercise production repositories
-            // against isolated # fixtures and use a rollback-only smoke test against dbo.STOCKTP.
-            // No shared workflow tables are created, dropped, or committed.
             var missing = await FindMissingProductionSchemaAsync(connection);
             if (missing.Count > 0)
             {
@@ -53,8 +50,13 @@ internal static class Program
                 return 0;
             }
 
-            // Production StockTpRepository scenario uses a session-local #STOCKTP fixture and rollback.
-            // Bulk Slot/Rack/Warehouse operations below also use only session-local # tables.
+            if (args.Any(arg => string.Equals(arg, "--quarantine-release-preflight", StringComparison.OrdinalIgnoreCase)))
+            {
+                await QuarantineReleaseScenario.RunAsync(connectionString);
+                Console.WriteLine("PASS: quarantine release SQL-engine contract completed using isolated tempdb fixtures.");
+                return 0;
+            }
+
             Console.WriteLine("INFO: running production StockTpRepository checks against real dbo.STOCKTP in a rollback transaction...");
             ProductionStockTpRepositoryScenario.Run(connectionString);
             Console.WriteLine("PASS: production StockTpRepository integration checks completed against dbo.STOCKTP with rollback isolation.");
@@ -65,7 +67,7 @@ internal static class Program
 
             Console.WriteLine("INFO: running concurrent production BulkStockSlotRepository.TakeLot checks against uniquely named tempdb fixtures...");
             await ProductionBulkStockSlotConcurrencyScenario.RunAsync(connectionString);
-            
+
             Console.WriteLine("INFO: running isolated SQL transaction rollback/commit smoke checks...");
             await RunIsolatedEngineReliabilityAsync(connection);
             Console.WriteLine("PASS: SQL transaction rollback/commit smoke checks completed using a session-local temporary table.");
@@ -84,7 +86,10 @@ internal static class Program
             await SqlEngineWorkflowScenario.RunAsync(connectionString);
             Console.WriteLine("PASS: isolated SQL workflow and concurrent LOT reservation checks completed.");
 
-            Console.WriteLine("INFO: remaining unverified: execution of Usp_Qrcode_Update_Stock2405 against a dedicated isolated copy of the business schema; full PhieuKhoRepository orchestration; WinForms business-journey automation; and quarantine-release authorization. All executed scenarios use session-local or uniquely named tempdb fixtures, or rollback-only transactions; no shared business workflow rows were mutated.");
+            Console.WriteLine("INFO: running quarantine release authorization and atomicity against isolated tempdb fixtures...");
+            await QuarantineReleaseScenario.RunAsync(connectionString);
+
+            Console.WriteLine("INFO: remaining runtime acceptance gates: exact Usp_Qrcode_Update_Stock2405 execution against a dedicated isolated copy of the business schema; full PhieuKhoRepository orchestration; and Windows end-to-end UI business-journey execution. No shared production workflow rows were mutated.");
             return 0;
         }
         catch (Exception ex)
@@ -167,8 +172,6 @@ LEFT JOIN sys.sql_modules m
         return environmentVariable == null ? null : Environment.GetEnvironmentVariable(environmentVariable);
     }
 
-    // Optional SQL-engine smoke test retained for future opt-in use. Its fixture is
-    // session-local; do not change this to dbo or enable shared-table fixtures here.
     private static async Task RunIsolatedEngineReliabilityAsync(SqlConnection connection)
     {
         var table = "[#__PCTP_QC_ENGINE_" + Guid.NewGuid().ToString("N") + "]";
