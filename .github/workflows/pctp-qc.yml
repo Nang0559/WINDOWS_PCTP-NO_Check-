@@ -25,6 +25,24 @@ jobs:
         with:
           dotnet-version: 8.0.x
 
+      - name: Validate WinForms UI automation scripts parse
+        shell: pwsh
+        run: |
+          $paths = @(
+            ".\\PCTP.QC.UI\\Invoke-PctpUiSmoke.ps1",
+            ".\\PCTP.QC.UI\\Invoke-PctpUiJourney.ps1"
+          )
+          foreach ($path in $paths) {
+            $tokens = $null
+            $parseErrors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $path).Path, [ref]$tokens, [ref]$parseErrors) | Out-Null
+            if ($parseErrors.Count -gt 0) {
+              $parseErrors | Format-List | Out-String | Write-Host
+              throw "PowerShell parse failed: $path"
+            }
+            Write-Host "PASS: PowerShell syntax $path"
+          }
+
       - name: Run QC unit tests
         run: dotnet test .\PCTP.QC.Tests\PCTP.QC.Tests.csproj --configuration Release --logger "trx;LogFileName=pctp-qc-tests.trx"
 
