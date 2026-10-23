@@ -63,6 +63,9 @@ internal static class Program
             await RunIsolatedEngineReliabilityAsync(connection);
             Console.WriteLine("PASS: SQL transaction rollback/commit smoke checks completed using a session-local temporary table.");
 
+            Console.WriteLine("INFO: verifying delivery savepoint behavior against a session-local fixture...");
+            await DeliveryTransactionBoundaryScenario.RunAsync(connectionString);
+
             Console.WriteLine("INFO: running exact order-table delivery marking against a rollback-isolated SQL fixture...");
             OrderTableDeliveryMarkingScenario.Run(connectionString);
             Console.WriteLine("PASS: order-table delivery marking verified for PO + part + date + hour:minute; replay and neighboring delivery slots checked.");
