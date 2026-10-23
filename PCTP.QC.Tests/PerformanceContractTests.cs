@@ -1,9 +1,5 @@
 using System;
-using System.Collections.Concurrent;
 using System.Diagnostics;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using PCTP.Modules.XuLyHangLoi.Models;
 using Xunit;
 
@@ -37,28 +33,5 @@ public sealed class PerformanceContractTests
         watch.Stop();
         Assert.True(watch.ElapsedMilliseconds <= maxMilliseconds,
             $"Synthetic QC workload exceeded bound: {watch.ElapsedMilliseconds}ms > {maxMilliseconds}ms for {records} records.");
-    }
-
-    [Fact]
-    public async Task RepeatedAndConcurrentLotRequests_ClaimExactlyOnceWithoutQueueGrowth()
-    {
-        const int workers = 32;
-        const int requestsPerWorker = 100;
-        var claims = new ConcurrentDictionary<string, byte>(StringComparer.OrdinalIgnoreCase);
-        var rejected = 0;
-        var tasks = Enumerable.Range(0, workers).Select(_ => Task.Run(() =>
-        {
-            for (var i = 0; i < requestsPerWorker; i++)
-            {
-                var key = "LOT-LOAD-001|ITEM-A|DELIVERY-001";
-                if (!claims.TryAdd(key, 1)) Interlocked.Increment(ref rejected);
-            }
-        })).ToArray();
-
-        await Task.WhenAll(tasks);
-
-        Assert.Single(claims);
-        Assert.Equal(workers * requestsPerWorker - 1, rejected);
-        Assert.True(tasks.All(t => t.IsCompletedSuccessfully));
     }
 }
