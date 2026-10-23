@@ -13,7 +13,7 @@
       "scenario": "Parse the supplied receiving master label with exactly 6 colon-delimited fields",
       "expected": "Preserve all field values; require non-empty fields; quantity is a positive integer and date uses valid dd/MM/yyyy format",
       "status": "implemented",
-      "testEvidence": "QrCodeFormatContractTests.ReceivingMasterLabel_HasSixColonDelimitedFields;QrCodeFormatContractTests.SuppliedDate_IsParsedWithExplicitDayFirstFormat"
+      "testEvidence": "QrCodeFormatContractTests.ProductionParser_ParsesReceivingMasterLabel; QrCodeFormatContractTests.ReceivingMasterLabel_HasSixColonDelimitedFields"
     },
     {
       "id": "QR-002",
@@ -21,7 +21,7 @@
       "scenario": "Parse the supplied customer carton label with exactly 4 colon-delimited fields",
       "expected": "Preserve all field values; reject 6-field master labels and 4-field carton labels when the wrong format is requested",
       "status": "implemented",
-      "testEvidence": "QrCodeFormatContractTests.CustomerCartonLabel_HasFourColonDelimitedFields;QrCodeFormatContractTests.ReceivingAndCartonFormats_AreNotInterchangeable"
+      "testEvidence": "QrCodeFormatContractTests.ProductionParser_ParsesCustomerCartonLabel; QrCodeFormatContractTests.CustomerCartonLabel_HasFourColonDelimitedFields"
     },
     {
       "id": "QR-003",
@@ -29,7 +29,7 @@
       "scenario": "Reject malformed QR payloads: blank, missing/extra fields, blank fields, invalid date, zero/negative/non-numeric quantity",
       "expected": "Validation fails deterministically before business persistence",
       "status": "implemented",
-      "testEvidence": "QrCodeFormatContractTests.EmptyQr_IsRejected;QrCodeFormatContractTests.WrongFieldCount_IsRejected;QrCodeFormatContractTests.MissingRequiredWireField_IsRejected;QrCodeFormatContractTests.QuantityMustBePositiveInteger;QrCodeFormatContractTests.ManufacturingDateMustMatchDdMmYyyyAndBeValid"
+      "testEvidence": "QrCodeFormatContractTests.ProductionParser_RejectsMalformedQr; validates production parser rejects blank fields, invalid date, non-positive/non-numeric quantity and unsupported field counts"
     },
     {
       "id": "QR-004",
