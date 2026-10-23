@@ -106,7 +106,8 @@
       "module": "NhapKho",
       "scenario": "Execute production StockTpRepository insert/update/lookup/batch SQL methods",
       "expected": "Repository SQL maps quantities correctly and rejects updates for missing LOTs; isolated SQL fixture only",
-      "status": "planned"
+      "status": "implemented",
+      "testEvidence": "ProductionStockTpRepositoryScenario.Run; executes the production StockTpRepository against session-local #STOCKTP in one UnitOfWork transaction, validates insert/update/query/batch/missing-LOT behavior, rolls back and checks dbo.STOCKTP has no fixture row"
     },
     {
       "id": "STK-004",
