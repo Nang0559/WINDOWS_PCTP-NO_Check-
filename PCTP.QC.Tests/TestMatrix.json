@@ -275,7 +275,7 @@
       "scenario": "Reconcile opening+in-out=closing stock",
       "expected": "Reconcile opening + in - out = closing stock; STOCKTP current balance equals non-quarantined/non-NG SlotLot quantities by exact physical LOT; Slot.Quantity equals the sum of SlotLot quantities in that slot excluding PhieuStatus=3.",
       "status": "implemented",
-      "testEvidence": "ProductionBulkStockSlotRepositoryScenario.Run checks STOCKTP SLNHAP - SLXUAT = SLCONLAI and compares exact LOT active SlotLot quantities; header reconciliation includes every SlotLot status except quarantine/NG. Runtime SQL execution still required."
+      "testEvidence": "ProductionBulkStockSlotRepositoryScenario.Run checks STOCKTP SLNHAP - SLXUAT = SLCONLAI and compares exact physical LOT against the sum of all non-quarantine/non-NG SlotLot rows; Slot header includes every SlotLot status except PhieuStatus=3. Runtime SQL execution still required."
     },
     {
       "id": "REP-002",
@@ -528,7 +528,7 @@
       "scenario": "Reconcile STOCKTP physical LOT stock, SlotLot quantity and Slot header after mutation/rollback",
       "expected": "Exclude quarantine/NG (PhieuStatus=3); include all other SlotLot statuses in Slot.Quantity; exact full physical LOT identity is used when multiple STOCKTP rows share a 13-character root; no partial stock/history/pending mutation on rollback",
       "status": "implemented",
-      "testEvidence": "ProductionBulkStockSlotRepositoryScenario.Run asserts Slot.Quantity = sum SlotLot.Quantity excluding only PhieuStatus=3, including closed/cancelled rows; OrderTableSourceContractTests guards stored procedure full-LOT identity and ambiguous-root fail-closed behavior. These are fixture/source-contract checks; runtime SQL acceptance remains not-run until the isolated SQL integration harness executes."
+      "testEvidence": "ProductionBulkStockSlotRepositoryScenario.Run seeds active, closed, cancelled and quarantine rows; asserts STOCKTP balance equals SlotLot sum excluding PhieuStatus=3 and Slot.Quantity reconciles after FIFO mutation/rollback. OrderTableSourceContractTests guards exact full-LOT identity and ambiguous-root fail-closed behavior. Runtime SQL acceptance remains not-run."
     }
   ]
 }
