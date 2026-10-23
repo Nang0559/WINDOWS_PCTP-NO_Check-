@@ -112,13 +112,16 @@ INSERT INTO #DeliveryState VALUES(1,0,0);");
             bulk.AddLot(slotId, new StockSlotLot { LotNo = lot, ItemCode = "QC-PART", Quantity = quantity, TemCode = tem, RawQr = qr, ImportDate = importDate, PhieuStatus = status });
         }
 
-        private static int Scalar(UnitOfWork uow, string sql, object parameter)
+        private static int Scalar(UnitOfWork uow, string sql, object parameter = null)
         {
             using var command = uow.Connection.CreateCommand();
             command.Transaction = uow.Transaction;
             command.CommandTimeout = 5;
             command.CommandText = sql;
-            command.Parameters.Add(new SqlParameter(sql.Contains("@id", StringComparison.OrdinalIgnoreCase) ? "@id" : "@lot", parameter));
+            if (sql.Contains("@id", StringComparison.OrdinalIgnoreCase))
+                command.Parameters.Add(new SqlParameter("@id", parameter));
+            else if (sql.Contains("@lot", StringComparison.OrdinalIgnoreCase))
+                command.Parameters.Add(new SqlParameter("@lot", parameter));
             return Convert.ToInt32(command.ExecuteScalar());
         }
 
