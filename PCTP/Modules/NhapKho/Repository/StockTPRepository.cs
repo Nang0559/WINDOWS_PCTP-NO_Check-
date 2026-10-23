@@ -44,7 +44,7 @@ namespace PCTP.Modules.NhapKho.Repository
             return ToInt(result) > 0;
         }
 
-        public StockItem? GetByLot(string lot)
+        public StockItem GetByLot(string lot)
         {
             if (string.IsNullOrWhiteSpace(lot))
                 return null;
