@@ -17,7 +17,11 @@ internal static class DeliveryReliabilityScenario
     public static async Task RunAsync(string connectionString)
     {
         var table = "##PCTP_QC_REL_" + Guid.NewGuid().ToString("N");
-        await CreateAsync(connectionString, table);
+        // Keep the creator session alive: SQL Server drops a global temp table when its
+        // creating session closes and no other session references it.
+        await using var owner = new SqlConnection(connectionString);
+        await owner.OpenAsync();
+        await CreateAsync(owner, table);
         try
         {
             await VerifyIdempotentDeliveryAndInsufficientStockAsync(connectionString, table);
@@ -32,10 +36,8 @@ internal static class DeliveryReliabilityScenario
         }
     }
 
-    private static async Task CreateAsync(string cs, string table)
+    private static async Task CreateAsync(SqlConnection connection, string table)
     {
-        await using var connection = new SqlConnection(cs);
-        await connection.OpenAsync();
         await using var command = new SqlCommand($@"
 BEGIN TRANSACTION;
 BEGIN TRY
