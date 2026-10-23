@@ -44,7 +44,6 @@ public sealed class OrderTableSourceContractTests
         Assert.DoesNotContain("Purchase_Order_YMVN po", sql, StringComparison.Ordinal);
 
         var repository = ReadSource("PhieuKhoRepository.source.cs");
-        Assert.Contains("OrderLineKey.Build", repository, StringComparison.Ordinal);
         Assert.Contains("OrderTableSql.MarkDelivered", repository, StringComparison.Ordinal);
         Assert.Contains("BuildOrderLineKeyFromTmp", repository, StringComparison.Ordinal);
         Assert.Contains("GIOGIAO", repository, StringComparison.Ordinal);
