@@ -26,9 +26,9 @@ internal static class Program
             await connection.OpenAsync();
             Console.WriteLine($"PASS: SQL connection established to {SqlTestConfiguration.Server}/{SqlTestConfiguration.Database}.");
 
-            // Safe-by-default mode: inspect existing SQL 57 schema, then run only
-            // the production StockTpRepository scenario against a session-local #STOCKTP.
-            // Never create/drop dbo tables or mutate shared business rows.
+            // Safe-by-default mode: inspect the real SQL 57 schema, then exercise the
+            // production StockTpRepository against dbo.STOCKTP inside a rollback transaction.
+            // No shared business rows are committed; no dbo tables are created/dropped.
             var missing = await FindMissingProductionSchemaAsync(connection);
             if (missing.Count > 0)
             {
@@ -46,13 +46,13 @@ internal static class Program
                 return 0;
             }
 
-            // Exercise the real production StockTpRepository implementation using a
-            // session-local #STOCKTP fixture. The fixture is isolated to this SQL
-            // connection and disappears when the UnitOfWork connection closes.
-            // Never invoke the dbo-table bulk/concurrency scenarios against shared SQL 57.
-            Console.WriteLine("INFO: running production StockTpRepository CRUD/read/batch checks against isolated #STOCKTP...");
+            // Exercise the production repository against the actual dbo.STOCKTP schema.
+            // Scenario generates a unique LOT, uses the UnitOfWork transaction, then
+            // rolls back and verifies that no fixture row remains committed.
+            // Never invoke the legacy dbo-table bulk/concurrency scenarios here.
+            Console.WriteLine("INFO: running production StockTpRepository checks against real dbo.STOCKTP in a rollback transaction...");
             ProductionStockTpRepositoryScenario.Run(connectionString);
-            Console.WriteLine("PASS: production StockTpRepository integration checks completed using session-local #STOCKTP.");
+            Console.WriteLine("PASS: production StockTpRepository integration checks completed against dbo.STOCKTP with rollback isolation.");
 
             Console.WriteLine("INFO: running isolated SQL transaction rollback/commit smoke checks...");
             await RunIsolatedEngineReliabilityAsync(connection);
