@@ -35,9 +35,9 @@ namespace PCTP.Modules.NhapKho.Repository
             if (string.IsNullOrWhiteSpace(lot))
                 return false;
 
-            const string sql = @"
+            string sql = $@"
         SELECT COUNT(1)
-        FROM STOCKTP
+        FROM {_tableName}
         WHERE LOT = @lot;";
 
             object result = ExecuteScalar(sql, new SqlParameter("@lot", lot));
@@ -49,10 +49,10 @@ namespace PCTP.Modules.NhapKho.Repository
             if (string.IsNullOrWhiteSpace(lot))
                 return null;
 
-            const string sql = @"
+            string sql = $@"
         SELECT LOT, PART, NAME, MODEL, SLNHAP, SLCONLAI, SLXUAT,
                SATUS, CASX, NGAYSX, NGAYNHAP
-        FROM STOCKTP
+        FROM {_tableName}
         WHERE LOT = @lot;";
 
             DataTable dt = LoadData(sql, new SqlParameter("@lot", lot));
@@ -67,9 +67,9 @@ namespace PCTP.Modules.NhapKho.Repository
             if (string.IsNullOrWhiteSpace(lot))
                 return 0;
 
-            const string sql = @"
+            string sql = $@"
         SELECT ISNULL(SLCONLAI, 0)
-        FROM STOCKTP
+        FROM {_tableName}
         WHERE LOT = @lot;";
 
             return ToInt(ExecuteScalar(sql, new SqlParameter("@lot", lot)));
@@ -80,9 +80,9 @@ namespace PCTP.Modules.NhapKho.Repository
             if (string.IsNullOrWhiteSpace(lot))
                 return 0;
 
-            const string sql = @"
+            string sql = $@"
         SELECT ISNULL(SLNHAP, 0)
-        FROM STOCKTP
+        FROM {_tableName}
         WHERE LOT = @lot;";
 
             return ToInt(ExecuteScalar(sql, new SqlParameter("@lot", lot)));
@@ -97,8 +97,8 @@ namespace PCTP.Modules.NhapKho.Repository
             if (item.SlNhap <= 0)
                 throw new ArgumentOutOfRangeException(nameof(item.SlNhap), "Số lượng nhập phải lớn hơn 0.");
 
-            const string sql = @"
-        INSERT INTO STOCKTP
+            string sql = $@"
+        INSERT INTO {_tableName}
         (LOT, MODEL, PART, NAME, CASX, NGAYSX, SLSX, NGAYNHAP, SLNHAP, NGAYXUAT, SLXUAT, SLCONLAI, SATUS)
         VALUES
         (@lot, @model, @part, @name, @casx, @ngaysx, @slsx, GETDATE(), @slnhap, GETDATE(), 0, @slconlai, @status);";
@@ -123,8 +123,8 @@ namespace PCTP.Modules.NhapKho.Repository
             if (slSeNhap <= 0)
                 throw new ArgumentOutOfRangeException(nameof(slSeNhap), "Số lượng nhập phải lớn hơn 0.");
 
-            const string sql = @"
-        UPDATE STOCKTP
+            string sql = $@"
+        UPDATE {_tableName}
         SET SLNHAP = ISNULL(SLNHAP, 0) + @sl,
             SLCONLAI = ISNULL(SLCONLAI, 0) + @sl,
             NGAYNHAP = GETDATE(),
@@ -142,9 +142,9 @@ namespace PCTP.Modules.NhapKho.Repository
 
         public List<(string Lot, int SlConLai)> GetDanhSachLotConTon()
         {
-            const string sql = @"
+            string sql = $@"
         SELECT LOT, ISNULL(SLCONLAI, 0) AS SLCONLAI
-        FROM STOCKTP
+        FROM {_tableName}
         WHERE ISNULL(SLCONLAI, 0) > 0
         ORDER BY LOT;";
 
@@ -184,7 +184,7 @@ namespace PCTP.Modules.NhapKho.Repository
 
             string sql = $@"
         SELECT LOT, ISNULL(SLCONLAI, 0) AS SLCONLAI
-        FROM STOCKTP
+        FROM {_tableName}
         WHERE LOT IN ({string.Join(", ", placeholders)});";
 
             DataTable dt = LoadData(sql, parameters.ToArray());
@@ -250,10 +250,10 @@ namespace PCTP.Modules.NhapKho.Repository
 
         public DataTable GetTonKhoHienTai()
         {
-            const string sql = @"
+            string sql = $@"
 SELECT LOT, PART, NAME, CASX, NGAYSX, SLSX, NGAYNHAP, SLNHAP,
        NGAYXUAT, SLXUAT, SLCONLAI, SATUS AS Satus
-FROM STOCKTP
+FROM {_tableName}
 WHERE ISNULL(SLCONLAI,0) > 0
 ORDER BY NGAYNHAP DESC;";
             return LoadData(sql);
@@ -275,7 +275,7 @@ ORDER BY NGAYNHAP DESC;";
             string sql = $@"
             SELECT LOT, PART, NAME, CASX, NGAYSX, SLSX, NGAYNHAP, SLNHAP,
                    NGAYXUAT, SLXUAT, SLCONLAI, SATUS AS Satus
-            FROM STOCKTP
+            FROM {_tableName}
             WHERE LOT IN ({string.Join(", ", placeholders)})
             ORDER BY NGAYNHAP DESC;";
             return LoadData(sql, parameters.ToArray());
