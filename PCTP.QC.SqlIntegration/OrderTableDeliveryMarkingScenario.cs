@@ -13,7 +13,7 @@ namespace PCTP.QC.SqlIntegration
 /// PhieuKhoRepository.DanhDauDaGiao dùng) trên bảng fixture và kiểm tra rằng giao một đợt giờ
 /// KHÔNG đánh dấu các đợt khác giờ của cùng PO/mã hàng/ngày.
 ///
-/// Bảng fixture được tạo và ghi trong một UnitOfWork rồi ROLLBACK: không để lại đối tượng nào trong DB test.
+/// Fixture dùng local #temp table trên đúng session của UnitOfWork rồi ROLLBACK; không tạo bảng dbo/permanent.
 /// Tham số bên dưới phải khớp PhieuKhoRepository.DanhDauDaGiao (kiểu NVarChar(100)/Date/Int).
 /// </summary>
 internal static class OrderTableDeliveryMarkingScenario
@@ -25,7 +25,7 @@ internal static class OrderTableDeliveryMarkingScenario
         using var uow = new UnitOfWork(provider);
         uow.Begin();
 
-        var table = "__PCTP_QC_ORD_" + Guid.NewGuid().ToString("N");
+        var table = "#PCTP_QC_ORD_" + Guid.NewGuid().ToString("N");
         var day = new DateTime(2026, 10, 23);
 
         try
