@@ -26,9 +26,9 @@ internal static class Program
             await connection.OpenAsync();
             Console.WriteLine($"PASS: SQL connection established to {SqlTestConfiguration.Server}/{SqlTestConfiguration.Database}.");
 
-            // Safe-by-default mode: inspect the real SQL 57 schema, then exercise the
-            // production StockTpRepository against dbo.STOCKTP inside a rollback transaction.
-            // No shared business rows are committed; no dbo tables are created/dropped.
+            // Safe-by-default mode: inspect the fixed test schema, then exercise production repositories
+            // against isolated # fixtures and use a rollback-only smoke test against dbo.STOCKTP.
+            // No shared workflow tables are created, dropped, or committed.
             var missing = await FindMissingProductionSchemaAsync(connection);
             if (missing.Count > 0)
             {
@@ -46,13 +46,15 @@ internal static class Program
                 return 0;
             }
 
-            // Exercise the production repository against the actual dbo.STOCKTP schema.
-            // Scenario generates a unique LOT, uses the UnitOfWork transaction, then
-            // rolls back and verifies that no fixture row remains committed.
-            // Never invoke the legacy dbo-table bulk/concurrency scenarios here.
+            // Production StockTpRepository scenario uses a session-local #STOCKTP fixture and rollback.
+            // Bulk Slot/Rack/Warehouse operations below also use only session-local # tables.
             Console.WriteLine("INFO: running production StockTpRepository checks against real dbo.STOCKTP in a rollback transaction...");
             ProductionStockTpRepositoryScenario.Run(connectionString);
             Console.WriteLine("PASS: production StockTpRepository integration checks completed against dbo.STOCKTP with rollback isolation.");
+
+            Console.WriteLine("INFO: running production BulkStockSlotRepository against session-local #Warehouse/#Rack/#Slot/#SlotLot fixtures...");
+            ProductionBulkStockSlotRepositoryScenario.Run(connectionString);
+            Console.WriteLine("PASS: production BulkStockSlotRepository FIFO, slot-header refresh and cross-repository rollback checks completed with isolated fixtures.");
 
             Console.WriteLine("INFO: running isolated SQL transaction rollback/commit smoke checks...");
             await RunIsolatedEngineReliabilityAsync(connection);
