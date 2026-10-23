@@ -193,7 +193,8 @@
       "module": "GiaoHangKhach",
       "scenario": "Inject failure after STOCKTP decrement and production BulkStockSlotRepository.TakeLot in one production UnitOfWork",
       "expected": "Both STOCKTP and SlotLot/header quantities are restored; synthetic #STOCKTP fixture only",
-      "status": "planned"
+      "status": "implemented",
+      "testEvidence": "ProductionBulkStockSlotRepositoryScenario.Run executes production BulkStockSlotRepository.TakeLot and STOCKTP/SlotLot/slot-header/history/pending fixture writes inside one UnitOfWork savepoint, injects rollback, and verifies every fixture quantity/state returns to its opening value. This is repository-level rollback evidence, not full PhieuKhoRepository orchestration."
     },
     {
       "id": "DEL-007",
