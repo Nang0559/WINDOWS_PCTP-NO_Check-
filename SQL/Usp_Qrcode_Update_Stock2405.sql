@@ -82,7 +82,8 @@ BEGIN
     --------------------------------------------------------------------  
     DECLARE @NgayGiao SMALLDATETIME = CAST(GETDATE() AS SMALLDATETIME);  
     DECLARE @sql NVARCHAR(MAX);
-    DECLARE @StartedTransaction BIT = 0;  
+    DECLARE @StartedTransaction BIT = 0;
+    DECLARE @SavepointCreated BIT = 0;  
   
     DECLARE  
         @_LOT          NVARCHAR(MAX),  
@@ -157,7 +158,15 @@ BEGIN
         MH  NVARCHAR(60)  
     );  
   
-    BEGIN TRY  
+    BEGIN TRY
+
+        -- Establish a savepoint before any procedure work if the caller owns a
+        -- transaction. This also covers failures before the stock-write phase.
+        IF @@TRANCOUNT > 0
+        BEGIN
+            SAVE TRANSACTION UspQrcodeUpdateStock2405;
+            SET @SavepointCreated = 1;
+        END;
   
         ----------------------------------------------------------------  
         -- 5. NẠP PHIẾU  
@@ -656,9 +665,10 @@ BEGIN
             BEGIN TRANSACTION;
             SET @StartedTransaction = 1;
         END
-        ELSE
+        ELSE IF @SavepointCreated = 0
         BEGIN
             SAVE TRANSACTION UspQrcodeUpdateStock2405;
+            SET @SavepointCreated = 1;
         END;
   
         DECLARE UPDATETMP CURSOR LOCAL FAST_FORWARD FOR  
@@ -1055,7 +1065,7 @@ BEGIN
         BEGIN
             IF @StartedTransaction = 1
                 ROLLBACK TRANSACTION;
-            ELSE IF XACT_STATE() = 1
+            ELSE IF XACT_STATE() = 1 AND @SavepointCreated = 1
                 ROLLBACK TRANSACTION UspQrcodeUpdateStock2405;
             ELSE IF XACT_STATE() = -1
                 THROW; -- the caller must roll back the doomed outer transaction
