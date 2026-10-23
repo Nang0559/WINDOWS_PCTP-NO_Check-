@@ -666,6 +666,7 @@
     <Compile Include="Shared\Common\LotCodeHelper.cs" />
     <Compile Include="Shared\Common\PhieuValueObject.cs" />
     <Compile Include="Shared\Common\SqlRepositoryBase.cs" />
+    <Compile Include="Shared\Common\SqlConnectionRetryPolicy.cs" />
     <Compile Include="Shared\Common\TemFccParseResult.cs" />
     <Compile Include="Shared\Common\UnitOfWork.cs" />
     <Compile Include="Shared\Common\WarehouseProcessNavigator.cs" />
