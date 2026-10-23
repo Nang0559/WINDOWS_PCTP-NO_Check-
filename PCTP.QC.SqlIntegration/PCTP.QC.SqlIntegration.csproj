@@ -14,6 +14,7 @@
     <Compile Include="../PCTP.QC.Tests/TestEnvironmentPolicy.cs" Link="Safety/TestEnvironmentPolicy.cs" />
     <Compile Include="../PCTP/Shared/Common/IUnitOfWork.cs" Link="Production/IUnitOfWork.cs" />
     <Compile Include="../PCTP/Shared/Common/UnitOfWork.cs" Link="Production/UnitOfWork.cs" />
+    <Compile Include="../PCTP/Shared/Common/SqlConnectionRetryPolicy.cs" Link="Production/SqlConnectionRetryPolicy.cs" />
     <Compile Include="../PCTP/Shared/Common/SqlRepositoryBase.cs" Link="Production/SqlRepositoryBase.cs" />
     <Compile Include="../PCTP/Modules/NhapKho/Repository/StockTPRepository.cs" Link="Production/StockTPRepository.cs" />
     <Compile Include="../PCTP/Modules/NhapKho/Interfaces/IStockTpRepository.cs" Link="Production/IStockTpRepository.cs" />
