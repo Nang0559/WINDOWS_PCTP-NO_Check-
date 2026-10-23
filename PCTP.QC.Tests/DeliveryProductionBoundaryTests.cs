@@ -15,7 +15,7 @@ public sealed class DeliveryProductionBoundaryTests
     {
         var path = Path.Combine(AppContext.BaseDirectory, "PhieuKhoRepository.source.cs");
         Assert.True(File.Exists(path), "Linked PhieuKhoRepository source fixture missing: " + path);
-        return File.ReadAllText(path);
+        return File.ReadAllText(path).Replace("\r\n", "\n").Replace("\r", "\n");
     }
 
     [Fact]
