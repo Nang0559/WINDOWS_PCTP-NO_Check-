@@ -89,3 +89,41 @@ Outputs:
 - `pctp-ui-evidence-summary.csv` — machine-readable summary.
 
 The evidence summary intentionally preserves navigation semantics. It does not upgrade navigation PASS into a transaction PASS. See [BUSINESS_E2E_ACCEPTANCE.md](BUSINESS_E2E_ACCEPTANCE.md) for the workflow-by-workflow acceptance matrix, data assertions and cleanup requirements.
+
+## 7. Chẩn đoán khi không chụp được màn hình / dữ liệu kịch bản kèm ảnh
+
+Runner luôn tạo ảnh và báo cáo, kể cả khi PCTP không khởi động được:
+
+- `00-startup.png`: ảnh lúc khởi động (nếu không có cửa sổ nào thì chụp toàn màn hình) kèm banner lỗi.
+- `startup-windows.json`: mọi cửa sổ top-level của process (tiêu đề, class, chữ hiển thị). Hộp thoại lỗi SQL/licence/DevExpress sẽ xuất hiện ở đây.
+- `NN-<step>.png`: mỗi bước có banner phía trên ảnh: scenario, **test data**, mô tả bước, kết quả mong đợi, từng phép kiểm (`[PASS]/[FAIL]` + giá trị thực tế) và tiêu đề cửa sổ.
+- `NN-<step>-tree.json`: cây control UIA (AutomationId, Name, ControlType, Patterns, Value) khi bước FAIL hoặc bước có `"dump": true`. Dùng file này để lấy AutomationId/Name thật.
+- `pctp-ui-journey-report.html` và `index.html` (suite): ảnh, dữ liệu kịch bản, expected/actual cạnh nhau.
+
+Chạy gỡ lỗi một journey, giữ app mở khi lỗi và chạy hết các bước để thấy toàn bộ lỗi UI:
+
+```powershell
+powershell.exe -ExecutionPolicy Bypass -File .\PCTP.QC.UI\Invoke-PctpUiSuite.ps1 `
+  -ExePath "H:\95 - Project\09. QRcode\PCSYS160926\PCSYS160926\PCTP\bin\Debug\PCTP.exe" `
+  -OutputDirectory ".\artifacts\pctp-ui-suite" `
+  -JourneyFilter receive-navigation -ContinueOnFailure -KeepOpenOnFailure -StartupTimeoutSeconds 90
+```
+
+### Schema manifest có dữ liệu kịch bản
+
+```json
+{
+  "scenario": { "id": "UI-003", "title": "...", "description": "..." },
+  "testData": { "po": "PO-QC-001", "lot": "LOT-QC-001", "qty": 12 },
+  "steps": [
+    { "id": "enter-lot", "action": "set-value", "automationId": "txt_DOCQRCODE",
+      "value": "{{lot}}", "description": "Nhập LOT {{lot}}", "expected": "Ô QR hiển thị {{lot}}",
+      "expect": [ { "automationId": "txt_DOCQRCODE", "property": "value", "equals": "{{lot}}" } ] }
+  ]
+}
+```
+
+- `{{key}}` được thay bằng giá trị trong `testData` ở `value`, `description`, `expected`, `expect.*`.
+- `expect[].property`: `name`, `value`, `enabled`, `exists`; so sánh bằng `equals`, `contains` hoặc `matches` (regex).
+- `fallbackName`: tìm theo caption khi control không lộ AutomationId (mục `AccordionControlElement` của DevExpress không phải control HWND). Caption runtime có thể khác Designer (ví dụ `Nhập Kho`, không phải `Nhập Kho & QC`).
+- Nếu phần tử không có Invoke/Expand pattern, runner click chuột vào tâm phần tử đã tìm thấy bằng UIA (ghi `mouse-fallback` trong báo cáo).

@@ -33,7 +33,7 @@ Add-Type -AssemblyName UIAutomationTypes
 Add-Type -AssemblyName System.Drawing
 Add-Type -AssemblyName System.Windows.Forms
 
-$process = Start-Process -FilePath $resolvedExe -PassThru
+$process = Start-Process -FilePath $resolvedExe -WorkingDirectory (Split-Path -Parent $resolvedExe) -PassThru
 $deadline = [DateTime]::UtcNow.AddSeconds($StartupTimeoutSeconds)
 $window = $null
 

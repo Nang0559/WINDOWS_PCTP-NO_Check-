@@ -2,38 +2,59 @@
   "name": "qc-direction-navigation",
   "purpose": "Read-only navigation smoke: open QC direction queue from the defect workflow menu.",
   "dataMutation": false,
+  "scenario": {
+    "id": "UI-006",
+    "title": "Mở hàng đợi QC chờ định hướng",
+    "description": "Điều hướng chỉ đọc: mở form QC định hướng; không bấm Xác nhận."
+  },
+  "testData": {
+    "menuPath": "Xử lý hàng lỗi > QC chờ định hướng",
+    "expectedWindowTitle": "QC định hướng xử lý hàng lỗi"
+  },
   "steps": [
     {
       "id": "expand-defect-menu",
       "action": "expand",
-      "automationId": "E_Trahang"
+      "automationId": "E_Trahang",
+      "fallbackName": "Xử lý hàng lỗi",
+      "description": "Mở nhóm menu 'Xử lý hàng lỗi'"
     },
     {
       "id": "open-qc-direction",
       "action": "click",
       "automationId": "accordionControlElement_QCDinhHuong",
-      "waitAfterMs": 800
+      "waitAfterMs": 800,
+      "fallbackName": "QC chờ định hướng",
+      "description": "Chọn mục menu 'QC chờ định hướng' ({{menuPath}})"
     },
     {
       "id": "qc-direction-screen-visible",
       "action": "wait-for-window",
-      "value": "QC định hướng xử lý hàng lỗi",
-      "timeoutSeconds": 45
+      "value": "{{expectedWindowTitle}}",
+      "timeoutSeconds": 45,
+      "description": "Chờ màn hình đích xuất hiện",
+      "expected": "Cửa sổ có tiêu đề '{{expectedWindowTitle}}' hiển thị",
+      "dump": true
     },
     {
       "id": "verify-qc-direction-title",
       "action": "assert-window-title",
-      "value": "QC định hướng xử lý hàng lỗi"
+      "value": "{{expectedWindowTitle}}",
+      "description": "Xác nhận tiêu đề cửa sổ"
     },
     {
       "id": "qc-direction-choice-exposed",
       "action": "assert-exists",
-      "automationId": "qcDirection_disposition"
+      "automationId": "qcDirection_disposition",
+      "description": "Control 'qcDirection_disposition' phải tồn tại trên màn hình",
+      "expected": "'qcDirection_disposition' hiển thị"
     },
     {
       "id": "qc-direction-confirm-exposed",
       "action": "assert-exists",
-      "automationId": "qcDirection_btnConfirm"
+      "automationId": "qcDirection_btnConfirm",
+      "description": "Control 'qcDirection_btnConfirm' phải tồn tại trên màn hình",
+      "expected": "'qcDirection_btnConfirm' hiển thị"
     }
   ]
 }

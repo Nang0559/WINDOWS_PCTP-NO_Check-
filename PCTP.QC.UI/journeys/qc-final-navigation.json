@@ -2,43 +2,66 @@
   "name": "qc-final-navigation",
   "purpose": "Read-only navigation smoke: open final QC confirmation queue from the defect workflow menu.",
   "dataMutation": false,
+  "scenario": {
+    "id": "UI-006",
+    "title": "Mở hàng đợi QC chờ xác nhận cuối",
+    "description": "Điều hướng chỉ đọc: mở form QC xác nhận cuối; không nhập số lượng, không bấm Xác nhận."
+  },
+  "testData": {
+    "menuPath": "Xử lý hàng lỗi > QC chờ xác nhận cuối",
+    "expectedWindowTitle": "QC xác nhận cuối"
+  },
   "steps": [
     {
       "id": "expand-defect-menu",
       "action": "expand",
-      "automationId": "E_Trahang"
+      "automationId": "E_Trahang",
+      "fallbackName": "Xử lý hàng lỗi",
+      "description": "Mở nhóm menu 'Xử lý hàng lỗi'"
     },
     {
       "id": "open-qc-final",
       "action": "click",
       "automationId": "accordionControlElement_QCXacNhanCuoi",
-      "waitAfterMs": 800
+      "waitAfterMs": 800,
+      "fallbackName": "QC chờ xác nhận cuối",
+      "description": "Chọn mục menu 'QC chờ xác nhận cuối' ({{menuPath}})"
     },
     {
       "id": "qc-final-screen-visible",
       "action": "wait-for-window",
-      "value": "QC xác nhận cuối",
-      "timeoutSeconds": 45
+      "value": "{{expectedWindowTitle}}",
+      "timeoutSeconds": 45,
+      "description": "Chờ màn hình đích xuất hiện",
+      "expected": "Cửa sổ có tiêu đề '{{expectedWindowTitle}}' hiển thị",
+      "dump": true
     },
     {
       "id": "verify-qc-final-title",
       "action": "assert-window-title",
-      "value": "QC xác nhận cuối"
+      "value": "{{expectedWindowTitle}}",
+      "description": "Xác nhận tiêu đề cửa sổ"
     },
     {
       "id": "qc-final-ok-quantity-exposed",
       "action": "assert-exists",
-      "automationId": "qcFinal_qtyOK"
+      "automationId": "qcFinal_qtyOK",
+      "description": "Control 'qcFinal_qtyOK' phải tồn tại trên màn hình",
+      "expected": "'qcFinal_qtyOK' hiển thị"
     },
     {
       "id": "qc-final-ng-quantity-exposed",
       "action": "assert-exists",
-      "automationId": "qcFinal_qtyNG"
+      "automationId": "qcFinal_qtyNG",
+      "description": "Control 'qcFinal_qtyNG' phải tồn tại trên màn hình",
+      "expected": "'qcFinal_qtyNG' hiển thị"
     },
     {
       "id": "qc-final-confirm-exposed",
       "action": "assert-exists",
-      "automationId": "qcFinal_btnConfirm"
+      "automationId": "qcFinal_btnConfirm",
+      "description": "Control 'qcFinal_btnConfirm' phải tồn tại trên màn hình",
+      "expected": "'qcFinal_btnConfirm' hiển thị"
     }
   ]
 }
