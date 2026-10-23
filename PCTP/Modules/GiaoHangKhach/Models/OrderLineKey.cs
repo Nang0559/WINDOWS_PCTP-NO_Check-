@@ -1,4 +1,7 @@
 using System;
+
+// Keep IEquatable/object overrides compatible with the application's C# 7.3 target.
+#pragma warning disable CS8767, CS8765, CS8604
 using System.Globalization;
 using System.Text.RegularExpressions;
 
