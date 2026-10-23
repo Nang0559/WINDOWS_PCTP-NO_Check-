@@ -1,7 +1,7 @@
 /* ============================================================================
    PHASE14 - SlotLot.PhieuStatus = 3 (NG cách ly) cho hàng NG sau Rework
    ----------------------------------------------------------------------------
-   Quy tắc: STOCKTP.SLCONLAI đối chiếu lượng khả dụng (PhieuStatus = 0) theo LOT vật lý.
+   Quy tắc: STOCKTP.SLCONLAI đối chiếu tổng lượng vật lý SlotLot theo LOT đầy đủ, loại trừ duy nhất PhieuStatus = 3 (quarantine/NG).
    Slot.Quantity = SUM(SlotLot.Quantity) trong ô, loại trừ duy nhất PhieuStatus = 3 (quarantine/NG).
    Hàng NG sau Rework nằm vật lý ở slot NG nhưng KHÔNG thuộc STOCKTP -> PhieuStatus = 3.
    Trước bản vá, NG được ghi PhieuStatus = 0 cùng LotNo -> lệch đối chiếu, bị liệt kê để Rework lại.
