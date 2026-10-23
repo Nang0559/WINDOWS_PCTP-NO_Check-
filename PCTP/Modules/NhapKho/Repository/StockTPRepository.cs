@@ -193,7 +193,7 @@ namespace PCTP.Modules.NhapKho.Repository
             foreach (DataRow row in dt.Rows)
             {
                 if (row["LOT"] == DBNull.Value) continue;
-                string lot = row["LOT"].ToString();
+                string lot = row["LOT"].ToString() ?? string.Empty;
                 if (string.IsNullOrWhiteSpace(lot)) continue;
                 result[lot] = ToInt(row["SLCONLAI"]);
             }
