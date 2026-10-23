@@ -49,7 +49,7 @@ jobs:
             $text = $encoding.GetString($bytes)
             $count = ([regex]::Matches($text, [regex]::Escape('PhieuStatus <> 3'))).Count
             if ($count -ne 0 -and $count -ne [int]$target.Expected) {
-              throw "$path: unexpected $count occurrences of 'PhieuStatus <> 3'; expected 0 or $($target.Expected)."
+              throw "${path}: unexpected $count occurrences of 'PhieuStatus <> 3'; expected 0 or $($target.Expected)."
             }
             if ($count -eq [int]$target.Expected) {
               $text = $text.Replace('PhieuStatus <> 3', 'PhieuStatus = 0')
