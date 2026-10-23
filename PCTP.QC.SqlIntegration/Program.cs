@@ -71,7 +71,7 @@ internal static class Program
             await SqlEngineWorkflowScenario.RunAsync(connectionString);
             Console.WriteLine("PASS: isolated SQL workflow and concurrent LOT reservation checks completed.");
 
-            Console.WriteLine("INFO: remaining unverified: full production delivery orchestration, WinForms UI automation, and concurrency across production repositories. No shared business workflow rows were mutated.");
+            Console.WriteLine("INFO: remaining unverified: full production delivery orchestration, WinForms UI automation, and end-to-end concurrency across delivery stock/history/pending repositories. All executed scenarios use isolated fixtures or rollback-only transactions; no shared business workflow rows were mutated.");
             return 0;
         }
         catch (Exception ex)
