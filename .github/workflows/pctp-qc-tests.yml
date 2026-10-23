@@ -43,7 +43,6 @@ jobs:
           path: PCTP.QC.Tests/TestResults/*.trx
           if-no-files-found: ignore
 
-
   sql-engine-integration:
     # The SQL test endpoint is private. Never expose it to a GitHub-hosted runner
     # and never point this job at production. Configure a dedicated self-hosted
@@ -53,6 +52,7 @@ jobs:
     env:
       PCTP_QC_SQL_USER: ${{ secrets.PCTP_QC_SQL_USER }}
       PCTP_QC_SQL_PASSWORD: ${{ secrets.PCTP_QC_SQL_PASSWORD }}
+      PCTP_QC_RUN_DEL_ACCEPTANCE: '1'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
