@@ -23,6 +23,16 @@ Schema-only preflight (does not execute repository behavior checks):
 dotnet run --project .\\PCTP.QC.SqlIntegration\\PCTP.QC.SqlIntegration.csproj --configuration Release -- --user YOUR_SQL_USER --password YOUR_SQL_PASSWORD --preflight
 ```
 
+## Stock movement idempotency migration
+
+Before enabling `ReferenceType` / `ReferenceId` or QR/tem duplicate enforcement in an application environment, review and deploy [`SQL/PCTPStockMovementGuard.sql`](../SQL/PCTPStockMovementGuard.sql) to that environment. The migration creates `dbo.PCTPStockMovementGuard` with unique filtered indexes for the reference pair, QR SHA-256, and tem SHA-256.
+
+- The production `BulkStockSlotRepository.TryRegisterMovement` requires an active `IUnitOfWork` transaction and inserts the claim into the same transaction as stock changes.
+- A duplicate returns `false`; `StockMovementService` converts it to `StockMovementResult.Duplicate` without applying a second stock mutation.
+- If the application uses `LegacyStockSlotRepositoryAdapter` for a request that carries a reference/QR/tem, it fails closed because the legacy adapter cannot prove that the claim and stock writes share one SQL transaction. Wire the transactional `BulkStockSlotRepository` or implement an equivalent transaction-aware adapter before enabling those request fields.
+- Callers must rollback the surrounding UnitOfWork whenever the stock movement result is unsuccessful. Do not commit a transaction containing a claimed reference after a later stock mutation fails.
+- SQL integration validates the production guard against unique temporary `tempdb` fixtures, including a two-connection duplicate-reference race; it does not create the permanent guard table in the shared SQL 57 database.
+
 ## Safety contract
 
 The default SQL 57 test first checks whether the existing `dbo.STOCKTP`, `dbo.SlotLot`, `dbo.Slot`, `dbo.Rack`, and `dbo.Warehouse` tables contain the columns declared by the QC repository contract. If that passes, it runs `ProductionStockTpRepositoryScenario` against a session-local SQL Server temporary table named `#STOCKTP`.
