@@ -171,7 +171,8 @@
       "module": "GiaoHangKhach",
       "scenario": "Repeat delivery confirmation or replay the same delivery reference",
       "expected": "Idempotent result; STOCKTP, SlotLot, history and delivered quantity are not deducted or recorded twice",
-      "status": "planned"
+      "status": "implemented",
+      "testEvidence": "Usp_Qrcode_Update_Stock2405 serializes the full delivery identity with transaction-owned sys.sp_getapplock before checking LUUPHIEUGIAOHANG; DeliveryTransactionContractTests guards lock ordering and DeliveryTransactionBoundaryScenario verifies two-session lock serialization on a tempdb fixture. Exact stored-procedure replay against an isolated copy of the business schema remains a runtime acceptance gate."
     },
     {
       "id": "DEL-005",
