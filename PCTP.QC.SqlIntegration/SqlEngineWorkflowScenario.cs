@@ -239,7 +239,7 @@ CREATE UNIQUE INDEX UX_QC_Tem ON {table}(TemHash) WHERE TemHash IS NOT NULL;", o
 
         try
         {
-            async Task<bool> TryClaimAsync()
+            bool TryClaim()
             {
                 var provider = new PCTP.ClassSQL.SQLPROVIDER { B7R2_FCCdb = legacyConnectionString };
                 using var uow = new PCTP.Shared.Common.UnitOfWork(provider);
@@ -260,7 +260,7 @@ CREATE UNIQUE INDEX UX_QC_Tem ON {table}(TemHash) WHERE TemHash IS NOT NULL;", o
                 }
             }
 
-            var results = await Task.WhenAll(Task.Run(TryClaimAsync), Task.Run(TryClaimAsync));
+            var results = await Task.WhenAll(Task.Run(TryClaim), Task.Run(TryClaim));
             Require(results.Count(x => x) == 1,
                 $"Production guard should allow exactly one concurrent claim, actual results: {string.Join(",", results)}.");
             Console.WriteLine("PASS: production BulkStockSlotRepository allows exactly one of two concurrent identical reference claims.");
