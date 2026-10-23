@@ -103,15 +103,16 @@ public sealed class MainForm : Form
         SetRunning(true, preflightOnly ? "Đang kiểm tra SQL Preflight..." : "Đang chạy FULL SQL TEST...");
         try
         {
-            var arguments = new[]
+            var arguments = new System.Collections.Generic.List<string>
             {
                 "run", "--project", project, "--configuration", "Release", "--",
                 "--user", _user.Text,
-                "--password", _password.Text,
-                ...(preflightOnly ? new[] { "--preflight" } : Array.Empty<string>())
+                "--password", _password.Text
             };
+            if (preflightOnly)
+                arguments.Add("--preflight");
 
-            var exitCode = await RunProcessAsync(root, "dotnet", arguments);
+            var exitCode = await RunProcessAsync(root, "dotnet", arguments.ToArray());
             SetFinished(exitCode == 0,
                 exitCode == 0
                     ? (preflightOnly ? "PASS — SQL Preflight." : "PASS — FULL SQL TEST.")
@@ -166,7 +167,7 @@ public sealed class MainForm : Form
         _status.Text = status;
     }
 
-    private void AppendLine(string? line)
+    private void AppendLine(string line)
     {
         if (line == null) return;
         if (InvokeRequired)
