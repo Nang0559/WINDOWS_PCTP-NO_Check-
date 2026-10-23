@@ -100,6 +100,15 @@ INSERT INTO #DeliveryState(Id,HistoryCount,PendingClosed) VALUES(1,0,0);";
 
                 Require(Convert.ToInt32(ScalarInTransaction(uow, "SELECT SLCONLAI FROM #STOCKTP WHERE LOT=@lot", lot)) == 15,
                     "STOCKTP remaining quantity did not reconcile after simulated delivery.");
+                Require(Convert.ToInt32(ScalarInTransaction(uow,
+                    "SELECT CASE WHEN ISNULL(SLNHAP,0)-ISNULL(SLXUAT,0)=ISNULL(SLCONLAI,0) THEN 1 ELSE 0 END FROM #STOCKTP WHERE LOT=@lot", lot)) == 1,
+                    "Production STOCKTP report equation SLNHAP - SLXUAT = SLCONLAI failed.");
+                Require(Convert.ToInt32(ScalarInTransaction(uow,
+                    "SELECT COUNT(1) FROM #SlotLot WHERE LotNo=@lot AND PhieuStatus=0", lot)) == 2,
+                    "LOT traceability did not return both active SlotLot rows for the stock ledger LOT.");
+                Require(Convert.ToInt32(ScalarInTransaction(uow,
+                    "SELECT CASE WHEN (SELECT SUM(Quantity) FROM #SlotLot WHERE LotNo=@lot AND PhieuStatus=0) = (SELECT SLCONLAI FROM #STOCKTP WHERE LOT=@lot) THEN 1 ELSE 0 END", lot)) == 1,
+                    "Production STOCKTP current stock does not reconcile with active SlotLot quantities.");
                 Require(Convert.ToInt32(ScalarInTransaction(uow, "SELECT Quantity FROM #Slot WHERE SlotId=@id", slotId)) == 15,
                     "Slot header did not refresh after production TakeLot.");
                 Require(Convert.ToInt32(ScalarInTransaction(uow, "SELECT HistoryCount FROM #DeliveryState WHERE Id=1")) == 1,
