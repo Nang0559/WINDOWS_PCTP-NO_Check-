@@ -647,16 +647,16 @@ BEGIN
             FROM #GomNhomCheck G  
             LEFT JOIN  
             (  
-                SELECT  
-                    LEFT(LOT, 13) AS LotKey,  
-                    SUM(ISNULL(SLCONLAI, 0)) AS SLCONLAI  
-                FROM STOCKTP  
-                WHERE ISNULL(SLCONLAI, 0) > 0  
-                GROUP BY  
-                    LEFT(LOT, 13)  
-            ) S  
-                ON S.LotKey =  
-                   LEFT(G.LOT, 13)  
+                SELECT
+                    RTRIM(LOT) AS PhysicalLot,
+                    LEFT(RTRIM(LOT), 13) AS LotKey,
+                    SUM(ISNULL(SLCONLAI, 0)) AS SLCONLAI
+                FROM STOCKTP
+                WHERE ISNULL(SLCONLAI, 0) > 0
+                GROUP BY RTRIM(LOT), LEFT(RTRIM(LOT), 13)
+            ) S
+                ON ((LEN(RTRIM(G.LOT)) > 13 AND S.PhysicalLot = RTRIM(G.LOT))
+                 OR (LEN(RTRIM(G.LOT)) <= 13 AND S.LotKey = LEFT(RTRIM(G.LOT), 13)))  
             WHERE  
                 ISNULL(S.SLCONLAI, 0) -  
                 G.TONG_CAN_XUAT < 0;  
