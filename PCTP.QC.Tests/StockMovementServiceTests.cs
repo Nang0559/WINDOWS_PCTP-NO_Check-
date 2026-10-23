@@ -82,6 +82,27 @@ public sealed class StockMovementServiceTests
     }
 
     [Fact]
+    public void Export_RejectsRepeatedReferenceWithoutSecondDeduction()
+    {
+        var slots = new FakeSlots { Status = 0, LotQuantity = 10, LotNo = "26080700748100851600", ItemCode = "PART-01" };
+        var balance = new FakeBalance();
+        var service = Create(slots, balance);
+        var request = new StockMovementRequest
+        {
+            MovementType = StockMovementRequest.Types.Export,
+            SlotLotId = 11, LotNo = "26080700748100851600", ItemCode = "PART-01", Quantity = 2,
+            ReferenceType = "DELIVERY", ReferenceId = "DELIVERY-100"
+        };
+
+        Assert.True(service.Export(request).Success);
+        var replay = service.Export(request);
+
+        Assert.True(replay.Duplicate);
+        Assert.Equal(1, balance.TryDecreaseCalls);
+        Assert.Equal(1, slots.DecreaseCalls);
+    }
+
+    [Fact]
     public void Receive_RejectsRepeatedQrEvenWhenReferenceDiffers()
     {
         var slots = new FakeSlots();
