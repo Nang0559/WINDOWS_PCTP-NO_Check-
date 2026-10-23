@@ -6,6 +6,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
+// Null represents the absence of an active connection/transaction in this C# 7.3 project.
+#pragma warning disable CS8625, CS8600
+
 namespace PCTP.Shared.Common
 {
     public sealed class UnitOfWork : IUnitOfWork
