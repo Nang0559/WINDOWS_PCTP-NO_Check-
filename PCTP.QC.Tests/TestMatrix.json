@@ -4,7 +4,7 @@
     "productionDatabaseAccess": false,
     "mutatingProductionData": false,
     "sqlScriptsExecutedByDefault": false,
-    "integrationDatabasePolicy": "SQL engine fixtures use session-local # tables or a uniquely named tempdb ## table on the fixed test endpoint 192.168.200.57/B7R2_FCC; production repository scenarios must use rollback transactions and never target 192.168.200.14\\BRAVO."
+    "integrationDatabasePolicy": "SQL engine fixtures use session-local # tables or uniquely named tempdb ## tables on the fixed test endpoint 192.168.200.57/B7R2_FCC; production repository scenarios must use isolated fixtures and never target 192.168.200.14\\BRAVO."
   },
   "modules": [
     {
@@ -200,7 +200,7 @@
       "scenario": "Mark an order-table line delivered only for its own delivery time (PhieuKhoRepository.DanhDauDaGiao via OrderTableSql.MarkDelivered)",
       "expected": "Delivering 14:00 does not mark 08:00/08:30 of the same PO/part/date, nor other PO/part/date; replay updates 0 rows. Unit evidence: OrderTableSqlTests (SQL text only). Executable SQL evidence: SqlIntegration OrderTableDeliveryMarkingScenario, not yet executed on a disposable SQL Server",
       "status": "implemented",
-      "testEvidence": "OrderTableSqlTests and OrderTableDeliveryMarkingScenario.Run; SQL Integration runner now executes the production OrderTableSql.MarkDelivered statement against a transaction-isolated fixture, checks exact PO + part + date + hour:minute matching, replay idempotency, neighboring time slots and no-match behavior. Re-run SQL Integration to obtain execution evidence."
+      "testEvidence": "OrderTableSqlTests and OrderTableDeliveryMarkingScenario.Run; user-provided SQL Integration log confirmed the production OrderTableSql.MarkDelivered statement passed against a transaction-isolated fixture, including exact PO + part + date + hour:minute matching, replay idempotency and neighboring time slots."
     },
     {
       "id": "DEL-011",
@@ -300,8 +300,8 @@
       "module": "GiaoHangKhach",
       "scenario": "Concurrent consumers request the same production SlotLot FIFO quantity",
       "expected": "Two independent production UnitOfWork instances cannot oversell one LOT; one 10-unit request wins from 15 and exactly 5 remain, with Slot header reconciled",
-      "status": "planned",
-      "testEvidence": "ProductionBulkStockSlotRepositoryScenario.RunConcurrentProductionLotConsumption"
+      "status": "implemented",
+      "testEvidence": "ProductionBulkStockSlotConcurrencyScenario.RunAsync; Program invokes two independent production UnitOfWork + BulkStockSlotRepository.TakeLot calls against uniquely named tempdb global fixtures and verifies one success, one shortage rejection, and SlotLot/Slot quantities both equal 5. Runtime PASS still requires running SQL Integration after this commit."
     },
     {
       "id": "PERF-001",
