@@ -277,7 +277,7 @@
       "scenario": "Reconcile opening+in-out=closing stock",
       "expected": "Reconcile opening + in - out = closing stock; STOCKTP current balance equals non-quarantined/non-NG SlotLot quantities by exact physical LOT; Slot.Quantity equals the sum of SlotLot quantities in that slot excluding PhieuStatus=3.",
       "status": "implemented",
-      "testEvidence": "ProductionBulkStockSlotRepositoryScenario.Run checks STOCKTP SLNHAP - SLXUAT = SLCONLAI and compares exact physical LOT against the sum of all non-quarantine/non-NG SlotLot rows; Slot header includes every SlotLot status except PhieuStatus=3. Runtime SQL execution still required."
+      "testEvidence": "ProductionBulkStockSlotRepositoryScenario checks STOCKTP SLNHAP - SLXUAT = SLCONLAI; compares each physical LOT to its own non-quarantine SlotLot sum; and separately verifies total STOCKTP = Slot.Quantity before/after export and rollback. SQL integration harness has not yet been confirmed green."
     },
     {
       "id": "REP-002",
@@ -531,6 +531,14 @@
       "expected": "Exclude quarantine/NG (PhieuStatus=3); include all other SlotLot statuses in Slot.Quantity; exact full physical LOT identity is used when multiple STOCKTP rows share a 13-character root; no partial stock/history/pending mutation on rollback",
       "status": "implemented",
       "testEvidence": "ProductionBulkStockSlotRepositoryScenario separates physical LOT balance from Slot total: LOT starts at 65 and becomes 15 after export of 50; slot header separately includes the 7 and 8 quantities from other non-quarantine lots, moving 80 to 30. Quarantine/NG status 3 is excluded. Runtime SQL harness still not run."
+    },
+    {
+      "id": "RWK-008",
+      "module": "XuLyHangLoi/Rework-to-Quarantine",
+      "scenario": "Execute real ReworkStockService NG output path and verify created SlotLot is PhieuStatus=3",
+      "expected": "Rework NG is stored at the NG slot with PhieuStatus=3; STOCKTP available balance is not increased; Slot.Quantity excludes NG; transaction failure rolls back NG SlotLot and workflow state",
+      "status": "planned",
+      "testEvidence": "Current source path ReworkStockService.NhapLaiHangNG documents status 3, and repository-level tests cover exclusion of status 3, but no test invokes the actual rework NG service path and asserts persisted SQL postconditions."
     }
   ]
 }
