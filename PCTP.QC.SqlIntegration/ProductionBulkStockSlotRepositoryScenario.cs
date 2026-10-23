@@ -192,7 +192,7 @@ VALUES(@slot,N'QC-PART',N'QC-QUARANTINE-LOT',5,N'QC-QUARANTINE-TEM',N'QC-QUARANT
         }
     }
 
-    private static object ScalarInTransaction(UnitOfWork uow, string sql, object parameter = null)
+    private static object ScalarInTransaction(UnitOfWork uow, string sql, object parameter = null!)
     {
         using var command = uow.Connection.CreateCommand();
         command.Transaction = uow.Transaction;
