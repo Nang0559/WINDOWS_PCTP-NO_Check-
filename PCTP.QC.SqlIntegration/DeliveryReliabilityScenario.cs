@@ -1,5 +1,6 @@
 using System;
 using System.Data;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Data.SqlClient;
@@ -40,10 +41,11 @@ CREATE TABLE {table}
 (
     Id int NOT NULL PRIMARY KEY,
     Qty int NOT NULL,
-    DeliveryKey nvarchar(80) NULL UNIQUE,
+    DeliveryKey nvarchar(80) NULL,
     HistoryCount int NOT NULL DEFAULT(0),
     PendingClosed bit NOT NULL DEFAULT(0)
 );
+CREATE UNIQUE INDEX UX_QC_REL_DeliveryKey ON {table}(DeliveryKey) WHERE DeliveryKey IS NOT NULL;
 INSERT INTO {table}(Id, Qty) VALUES (1, 10), (2, 10), (3, 10), (4, 50);", connection)
         { CommandTimeout = 5 };
         await command.ExecuteNonQueryAsync();
