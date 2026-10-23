@@ -51,6 +51,25 @@ The default SQL 57 test first checks whether the existing `dbo.STOCKTP`, `dbo.Sl
 - The actual delivery-confirmation repository and production history repository are not yet invoked end-to-end; `#DeliveryState` is a synthetic finalization fixture. Production `BulkStockSlotRepository` LOT consumption concurrency and WinForms UI automation remain unverified. These require a disposable database with a documented schema/seed/cleanup contract or UI automation infrastructure; do not mark them passed based only on isolated fixtures.
 - A schema pass alone is not a business-test pass; the default mode now reports the repository scenario separately.
 
+## Delivery acceptance gates (not implied by the default PASS)
+
+The default SQL integration command intentionally does **not** execute `dbo.Usp_Qrcode_Update_Stock2405` against the shared `B7R2_FCC` business tables. The procedure writes stock and delivery-ledger state; wrapping it in a transaction is not a sufficient safety guarantee if the procedure, triggers, or nested code change transaction state. Do not treat the engine-level fixture PASS messages as proof that the full delivery procedure ran.
+
+Run the read-only deployment preflight first:
+
+```powershell
+dotnet run --project .\\PCTP.QC.SqlIntegration\\PCTP.QC.SqlIntegration.csproj --configuration Release -- --user YOUR_SQL_USER --password YOUR_SQL_PASSWORD --delivery-preflight
+```
+
+This checks the deployed procedure and key ledger metadata/transaction-lock markers only. It does not execute the procedure.
+
+The remaining full acceptance work requires:
+1. A DBA-provisioned disposable database restored from a representative schema/data snapshot, with an explicit cleanup/seed contract. Execute the procedure only in that isolated database and assert STOCKTP, delivery ledgers, QR state, pending-delivery status, rollback, replay, and concurrent duplicate behavior.
+2. Run the production `PhieuKhoRepository` orchestration against the same isolated database, with production history/slot adapters wired into the same UnitOfWork. Source-contract unit tests are regression guards, not a runtime integration pass.
+3. Run the WinForms journey on a Windows test agent with a dedicated test account and disposable test records. Capture screenshots and assert both UI state and SQL postconditions.
+
+Until these three gates have run and produced artifacts, report delivery acceptance as **PARTIAL**, even if the default SQL integration runner exits with code 0. Never substitute the shared SQL 57 database or production SQL 14 for the disposable acceptance database.
+
 ## WinForms TestRunner
 
 Run:
