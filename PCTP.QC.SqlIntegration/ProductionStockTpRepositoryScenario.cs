@@ -22,11 +22,32 @@ internal static class ProductionStockTpRepositoryScenario
 
         try
         {
-            // Exercise the actual dbo.STOCKTP schema and repository SQL on SQL 57.
-            // All repository calls participate in this UnitOfWork transaction; rollback
-            // ensures the unique test LOT is never committed to the shared test database.
+            // Session-local fixture on the exact UnitOfWork connection. Never write to
+            // shared dbo business tables during the repository integration test.
+            using (var createFixture = new SqlCommand(@"
+CREATE TABLE #STOCKTP
+(
+    LOT nvarchar(100) NOT NULL PRIMARY KEY,
+    MODEL nvarchar(100) NULL,
+    PART nvarchar(100) NULL,
+    NAME nvarchar(200) NULL,
+    CASX smallint NULL,
+    NGAYSX datetime NULL,
+    SLSX int NULL,
+    NGAYNHAP datetime NULL,
+    SLNHAP int NULL,
+    NGAYXUAT datetime NULL,
+    SLXUAT int NULL,
+    SLCONLAI int NULL,
+    SATUS smallint NULL
+);", uow.Connection, uow.Transaction))
+            {
+                createFixture.CommandTimeout = 5;
+                createFixture.ExecuteNonQuery();
+            }
+
             IStockTpRepository repository = new StockTpRepository(
-                new PhieuSqlExecutor(), uow);
+                new PhieuSqlExecutor(), uow, "#STOCKTP");
 
             repository.InsertStockTp(new NhapKhoItem
             {
@@ -42,14 +63,14 @@ internal static class ProductionStockTpRepositoryScenario
 
             var inserted = repository.GetByLot(fixtureLot);
             if (inserted is null)
-                throw new InvalidOperationException("InsertStockTp then GetByLot returned no row from dbo.STOCKTP.");
+                throw new InvalidOperationException("InsertStockTp then GetByLot returned no row from session-local #STOCKTP.");
             Require(inserted.SlNhap == 40 && inserted.SlConLai == 40,
                 $"InsertStockTp mapped wrong quantities: received={inserted.SlNhap}, remaining={inserted.SlConLai}.");
             Require(repository.ExistsStockTp(fixtureLot),
-                "ExistsStockTp did not find the inserted test LOT in dbo.STOCKTP.");
+                "ExistsStockTp did not find the inserted test LOT in session-local #STOCKTP.");
             Require(repository.GetSlDaNhap(fixtureLot) == 40,
                 "GetSlDaNhap returned an unexpected quantity.");
-            Console.WriteLine("PASS: real dbo.STOCKTP insert / GetByLot / ExistsStockTp / GetSlDaNhap (uncommitted transaction).");
+            Console.WriteLine("PASS: session-local #STOCKTP insert / GetByLot / ExistsStockTp / GetSlDaNhap (uncommitted transaction).");
 
             repository.UpdateStockTp(fixtureLot, 15, 1);
             Require(repository.GetSlConLai(fixtureLot) == 55,
@@ -96,7 +117,7 @@ internal static class ProductionStockTpRepositoryScenario
             // Deliberately rollback rather than commit: test real constraints and SQL,
             // but leave the shared SQL 57 business rows unchanged.
             uow.Rollback();
-            Console.WriteLine("PASS: dbo.STOCKTP repository checks rolled back; no fixture LOT committed.");
+            Console.WriteLine("PASS: session-local #STOCKTP checks rolled back; no shared business row was written.");
 
             using (var verifyConnection = new SqlConnection(connectionString))
             using (var verify = new SqlCommand("SELECT COUNT(1) FROM dbo.STOCKTP WHERE LOT = @lot;", verifyConnection))
