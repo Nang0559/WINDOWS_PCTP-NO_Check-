@@ -23,6 +23,7 @@ public sealed class QuarantineReleaseServiceTests
         Assert.False(result.Success);
         Assert.True(result.Unauthorized);
         Assert.Empty(f.Slots.Mutations);
+        Assert.Equal(0, f.Balance.AdjustCount);
         Assert.Equal(0, f.Uow.BeginCount);
     }
 
@@ -38,6 +39,7 @@ public sealed class QuarantineReleaseServiceTests
         Assert.False(result.Success);
         Assert.Contains("kết luận QC", result.Message, StringComparison.OrdinalIgnoreCase);
         Assert.Empty(f.Slots.Mutations);
+        Assert.Equal(0, f.Uow.BeginCount);
     }
 
     [Fact]
@@ -57,7 +59,9 @@ public sealed class QuarantineReleaseServiceTests
         Assert.Equal(1, f.Uow.BeginCount);
         Assert.Equal(1, f.Uow.CommitCount);
         Assert.Equal(0, f.Uow.RollbackCount);
-        Assert.Equal(new[] { "decrease:7:12", "add:12:12:0", "balance:LOT-Q:12", "audit:7:12:REL-001" }, f.Slots.Mutations);
+        Assert.Equal(new[] { "decrease:7:12", "add:12:12:0" }, f.Slots.Mutations);
+        Assert.Equal(1, f.Balance.AdjustCount);
+        Assert.Equal(1, f.Audit.Count);
     }
 
     [Fact]
@@ -74,7 +78,7 @@ public sealed class QuarantineReleaseServiceTests
         Assert.Equal(1, f.Uow.BeginCount);
         Assert.Equal(0, f.Uow.CommitCount);
         Assert.Equal(1, f.Uow.RollbackCount);
-        Assert.Equal(1, f.Audit.Count);
+        Assert.Equal(0, f.Audit.Count);
     }
 
     private static Fixture Fixture(bool authorized)
@@ -109,11 +113,13 @@ public sealed class QuarantineReleaseServiceTests
     private sealed class FakeBalance : IStockBalanceRepository
     {
         public bool Throw { get; set; }
+        public int AdjustCount { get; private set; }
         public int GetAvailableQuantity(string lotNo) => 0;
         public void DecreaseAvailableQuantity(string lotNo, int quantity) { }
         public void AdjustAvailableQuantity(string lotNo, int delta)
         {
             if (Throw) throw new InvalidOperationException("Injected balance failure");
+            AdjustCount++;
         }
         public bool TryDecreaseAvailableQuantity(string lotNo, int quantity) => true;
     }
