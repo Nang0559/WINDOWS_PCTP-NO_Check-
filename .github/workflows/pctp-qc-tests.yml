@@ -20,7 +20,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: pctp-qc-${{ github.ref }}
+  group: pctp-qc-${{ github.ref }}-${{ github.sha }}
   cancel-in-progress: true
 
 jobs:
