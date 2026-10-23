@@ -17,9 +17,15 @@ internal static class DeliveryProductionAcceptanceScenario
     {
         await using var connection = new SqlConnection(connectionString);
         await connection.OpenAsync();
-        var candidate = await FindCandidateAsync(connection);
+        // Never wait on locks held by real users of the shared test DB.
+        await using (var lockTimeout = new SqlCommand("SET LOCK_TIMEOUT 5000;", connection))
+            await lockTimeout.ExecuteNonQueryAsync();
+        int? pinnedStt = int.TryParse(Environment.GetEnvironmentVariable("PCTP_QC_DEL_ACCEPTANCE_STT"), out var parsedStt) ? parsedStt : null;
+        var candidate = await FindCandidateAsync(connection, pinnedStt);
         if (candidate == null)
-            throw new InvalidOperationException("DEL runtime acceptance could not find a safe pending delivery row with a unique stocked LOT and no existing delivery ledger row. Prepare one isolated pending row in B7R2_FCC and rerun SQL integration.");
+            throw new InvalidOperationException(pinnedStt.HasValue
+                ? $"DEL runtime acceptance: TMPPHIEUGIAOHANG STT={pinnedStt} is not an eligible pending row (needs unique stocked LOT, enough SLCONLAI, no existing delivery ledger row)."
+                : "DEL runtime acceptance could not find a safe pending delivery row. Seed one dedicated pending row and set PCTP_QC_DEL_ACCEPTANCE_STT to its STT.");
 
         Console.WriteLine($"INFO: DEL runtime candidate STT={candidate.Stt}, LOT={candidate.LotExpression}, quantity={candidate.Quantity}, item={candidate.ItemCode}.");
         await VerifySuccessAndCallerRollbackAsync(connection, candidate);
@@ -28,14 +34,15 @@ internal static class DeliveryProductionAcceptanceScenario
         Console.WriteLine("PASS: DEL-003/DEL-004/DEL-007 production procedure acceptance completed with rollback isolation.");
     }
 
-    private static async Task<Candidate?> FindCandidateAsync(SqlConnection connection)
+    private static async Task<Candidate?> FindCandidateAsync(SqlConnection connection, int? pinnedStt)
     {
         const string sql = @"
 SELECT TOP (1)
     t.STT, RTRIM(t.LOT), RTRIM(t.MAHANG), t.SOLUONG,
     RTRIM(ISNULL(t.NHAMAY,N'')), RTRIM(ISNULL(t.GIOGIAO,N''))
 FROM dbo.TMPPHIEUGIAOHANG t
-WHERE ISNULL(t.LOT,N'') <> N''
+WHERE (@pinned IS NULL OR t.STT = @pinned)
+  AND ISNULL(t.LOT,N'') <> N''
   AND ISNULL(t.STATUS,N'') <> N'OK'
   AND ISNULL(t.SOLUONG,0) > 0
   AND CHARINDEX(N',',t.LOT) = 0
@@ -63,6 +70,7 @@ WHERE ISNULL(t.LOT,N'') <> N''
 ORDER BY t.NGAYGIAO,t.STT;";
 
         await using var command = new SqlCommand(sql, connection) { CommandTimeout = 10 };
+        command.Parameters.Add(new SqlParameter("@pinned", SqlDbType.Int) { Value = (object?)pinnedStt ?? DBNull.Value });
         await using var reader = await command.ExecuteReaderAsync();
         if (!await reader.ReadAsync()) return null;
         return new Candidate(

@@ -50,6 +50,16 @@ internal static class Program
                 return 0;
             }
 
+            if (args.Any(arg => string.Equals(arg, "--delivery-acceptance", StringComparison.OrdinalIgnoreCase)))
+            {
+                // Explicit opt-in only. Executes dbo.Usp_Qrcode_Update_Stock2405 inside rollback-only
+                // transactions, so it is never reachable from --preflight / --delivery-preflight or
+                // from an ambient environment variable.
+                await VerifyDeliveryProcedureReadinessAsync(connection);
+                await DeliveryProductionAcceptanceScenario.RunAsync(connectionString);
+                return 0;
+            }
+
             if (args.Any(arg => string.Equals(arg, "--quarantine-release-preflight", StringComparison.OrdinalIgnoreCase)))
             {
                 await QuarantineReleaseScenario.RunAsync(connectionString);
@@ -57,9 +67,9 @@ internal static class Program
                 return 0;
             }
 
-            Console.WriteLine("INFO: running production StockTpRepository checks against real dbo.STOCKTP in a rollback transaction...");
+            Console.WriteLine("INFO: running production StockTpRepository checks against a session-local #STOCKTP fixture (dbo.STOCKTP is not touched)...");
             ProductionStockTpRepositoryScenario.Run(connectionString);
-            Console.WriteLine("PASS: production StockTpRepository integration checks completed against dbo.STOCKTP with rollback isolation.");
+            Console.WriteLine("PASS: production StockTpRepository integration checks completed against session-local #STOCKTP.");
 
             Console.WriteLine("INFO: running production BulkStockSlotRepository against session-local #Warehouse/#Rack/#Slot/#SlotLot fixtures...");
             ProductionBulkStockSlotRepositoryScenario.Run(connectionString);

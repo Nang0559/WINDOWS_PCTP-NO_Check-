@@ -15,6 +15,16 @@ on:
         required: true
         default: false
         type: boolean
+      run_delivery_acceptance:
+        description: 'Also run rollback-only Usp_Qrcode_Update_Stock2405 acceptance (needs a seeded pending row)'
+        required: false
+        default: false
+        type: boolean
+      delivery_acceptance_stt:
+        description: 'TMPPHIEUGIAOHANG.STT of the dedicated seeded pending row'
+        required: false
+        default: ''
+        type: string
 
 permissions:
   contents: read
@@ -49,10 +59,10 @@ jobs:
     # Windows runner labelled pctp-qc-sql with network access only to the test DB.
     if: github.event_name == 'workflow_dispatch' && inputs.run_sql_integration == true
     runs-on: [self-hosted, windows, pctp-qc-sql]
+    timeout-minutes: 30
     env:
       PCTP_QC_SQL_USER: ${{ secrets.PCTP_QC_SQL_USER }}
       PCTP_QC_SQL_PASSWORD: ${{ secrets.PCTP_QC_SQL_PASSWORD }}
-      PCTP_QC_RUN_DEL_ACCEPTANCE: '1'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -69,6 +79,13 @@ jobs:
       - name: Run SQL integration harness
         shell: pwsh
         run: dotnet run --project PCTP.QC.SqlIntegration/PCTP.QC.SqlIntegration.csproj --configuration Release -- --user "$env:PCTP_QC_SQL_USER" --password "$env:PCTP_QC_SQL_PASSWORD"
+
+      - name: Run delivery stored-procedure acceptance (rollback-only, opt-in)
+        if: inputs.run_delivery_acceptance == true
+        shell: pwsh
+        env:
+          PCTP_QC_DEL_ACCEPTANCE_STT: ${{ inputs.delivery_acceptance_stt }}
+        run: dotnet run --project PCTP.QC.SqlIntegration/PCTP.QC.SqlIntegration.csproj --configuration Release --no-build -- --user "$env:PCTP_QC_SQL_USER" --password "$env:PCTP_QC_SQL_PASSWORD" --delivery-acceptance
 
   desktop-runner-build:
     runs-on: windows-latest

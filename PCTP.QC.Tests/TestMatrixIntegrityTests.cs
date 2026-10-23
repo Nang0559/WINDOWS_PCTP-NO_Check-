@@ -35,6 +35,26 @@ public sealed class TestMatrixIntegrityTests
     }
 
     [Fact]
+    public void ImplementedScenarioMustNotAdmitAnOpenRuntimeGapInItsOwnEvidence()
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, "TestMatrix.json");
+        using var document = JsonDocument.Parse(File.ReadAllText(path));
+        var gapPhrases = new[]
+        {
+            "remains a runtime acceptance gate", "remains unexecuted",
+            "do not yet invoke", "has not yet been confirmed"
+        };
+        foreach (var scenario in document.RootElement.GetProperty("modules").EnumerateArray())
+        {
+            if (!string.Equals(scenario.GetProperty("status").GetString(), "implemented", StringComparison.OrdinalIgnoreCase)) continue;
+            var evidence = scenario.GetProperty("testEvidence").GetString() ?? string.Empty;
+            foreach (var phrase in gapPhrases)
+                Assert.False(evidence.Contains(phrase, StringComparison.OrdinalIgnoreCase),
+                    $"Scenario {scenario.GetProperty("id").GetString()} is 'implemented' but its evidence says \"{phrase}\". Mark it 'partial'.");
+        }
+    }
+
+    [Fact]
     public void ScenarioIdsMustBeUniqueAndStatusesMustBeRecognized()
     {
         var path = Path.Combine(AppContext.BaseDirectory, "TestMatrix.json");
@@ -46,7 +66,7 @@ public sealed class TestMatrixIntegrityTests
         foreach (var scenario in modules)
         {
             var status = scenario.GetProperty("status").GetString();
-            Assert.Contains(status, new[] { "implemented", "planned", "blocked" });
+            Assert.Contains(status, new[] { "implemented", "partial", "planned", "blocked" });
         }
     }
 

@@ -172,7 +172,7 @@
       "module": "GiaoHangKhach",
       "scenario": "Execute production customer-delivery stock deduction across STOCKTP, SlotLot, stock history and pending-delivery records",
       "expected": "All repository writes enlist in the same phieuUow; any injected failure rolls back every stock/history/delivery mutation",
-      "status": "planned",
+      "status": "partial",
       "testEvidence": "DeliveryProductionBoundaryTests guards the production PhieuKhoRepository UoW ordering and rollback source contract. Full Usp_Qrcode_Update_Stock2405 + PhieuKhoRepository execution against a DBA-provisioned isolated business-schema copy remains a runtime acceptance gate."
     },
     {
@@ -180,7 +180,7 @@
       "module": "GiaoHangKhach",
       "scenario": "Repeat delivery confirmation or replay the same delivery reference",
       "expected": "Idempotent result; STOCKTP, SlotLot, history and delivered quantity are not deducted or recorded twice",
-      "status": "implemented",
+      "status": "partial",
       "testEvidence": "Usp_Qrcode_Update_Stock2405 serializes the full delivery identity with transaction-owned sys.sp_getapplock before checking LUUPHIEUGIAOHANG; DeliveryTransactionContractTests guards lock ordering and DeliveryTransactionBoundaryScenario verifies two-session lock serialization on a tempdb fixture. Exact stored-procedure replay against an isolated copy of the business schema remains a runtime acceptance gate."
     },
     {
@@ -212,7 +212,7 @@
       "module": "GiaoHangKhach",
       "scenario": "Verify transaction boundary for stored-procedure delivery routes and post-delivery finalization",
       "expected": "STOCKTP deduction, SlotLot deduction, pending-delivery closure and history either commit atomically or expose an explicit recoverable state",
-      "status": "planned",
+      "status": "partial",
       "testEvidence": "DeliveryProductionBoundaryTests and DeliveryTransactionContractTests guard source-level transaction/savepoint/idempotency contracts. Full production procedure + repository finalization/rollback remains unexecuted against an isolated business-schema copy."
     },
     {
@@ -260,7 +260,7 @@
       "module": "XuLyHangLoi",
       "scenario": "Quarantine and release",
       "expected": "Quarantined LOT cannot be exported/moved until authorized release",
-      "status": "implemented",
+      "status": "partial",
       "testEvidence": "PCTP.QC.SqlIntegration/ProductionBulkStockSlotRepositoryScenario.cs verifies production TakeLot rejects PhieuStatus=3; PCTP.QC.SqlIntegration/QuarantineReleaseScenario.cs exercises isolated SQL-engine release/rollback contract. These do not yet invoke the real ReworkStockService or production release adapter; full journey remains a gap."
     },
     {
@@ -276,7 +276,7 @@
       "module": "BaoCao",
       "scenario": "Reconcile opening+in-out=closing stock",
       "expected": "Reconcile opening + in - out = closing stock; STOCKTP current balance equals non-quarantined/non-NG SlotLot quantities by exact physical LOT; Slot.Quantity equals the sum of SlotLot quantities in that slot excluding PhieuStatus=3.",
-      "status": "implemented",
+      "status": "partial",
       "testEvidence": "ProductionBulkStockSlotRepositoryScenario checks STOCKTP SLNHAP - SLXUAT = SLCONLAI; compares each physical LOT to its own non-quarantine SlotLot sum; and separately verifies total STOCKTP = Slot.Quantity before/after export and rollback. SQL integration harness has not yet been confirmed green."
     },
     {
