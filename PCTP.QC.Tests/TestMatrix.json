@@ -52,7 +52,8 @@
       "module": "NhapKho",
       "scenario": "Reject duplicate QR/tem",
       "expected": "No duplicate SlotLot or double-counted balance",
-      "status": "planned"
+      "status": "implemented",
+      "testEvidence": "StockMovementServiceTests.Receive_RejectsRepeatedReferenceBeforeSecondMutation;StockMovementServiceTests.Receive_ConcurrentSameReferenceOnlyMutatesOnce;StockMovementServiceTests.Receive_RejectsRepeatedQrEvenWhenReferenceDiffers;SqlEngineWorkflowScenario.VerifyProductionMovementGuardAsync; requires SQL/PCTPStockMovementGuard.sql deployed for production adapter"
     },
     {
       "id": "IN-003",
@@ -83,7 +84,8 @@
       "module": "XuatKho",
       "scenario": "Repeat same reference",
       "expected": "Idempotent duplicate protection",
-      "status": "planned"
+      "status": "implemented",
+      "testEvidence": "StockMovementServiceTests.Export_RejectsRepeatedReferenceWithoutSecondDeduction;SqlEngineWorkflowScenario.VerifyProductionMovementGuardAsync; SqlEngineWorkflowScenario.VerifyConcurrentProductionMovementGuardAsync"
     },
     {
       "id": "STK-001",
@@ -387,6 +389,22 @@
       "expected": "Exactly one reservation succeeds and 5 units remain; no oversell",
       "status": "implemented",
       "testEvidence": "SqlEngineWorkflowScenario.VerifyConcurrentLotReservationAsync; two independent connections against a uniquely named tempdb global temporary table"
+    },
+    {
+      "id": "STK-005",
+      "module": "KhoCore/Idempotency",
+      "scenario": "Production BulkStockSlotRepository claims ReferenceType+ReferenceId and QR/Tem fingerprint atomically in caller UnitOfWork",
+      "expected": "Duplicate reference or QR returns duplicate; a two-session race can commit exactly one claim; rollback removes the claim",
+      "status": "implemented",
+      "testEvidence": "StockMovementServiceTests reference/QR replay tests; SqlEngineWorkflowScenario.VerifyProductionMovementGuardAsync and VerifyConcurrentProductionMovementGuardAsync exercise production BulkStockSlotRepository against uniquely named tempdb global fixtures"
+    },
+    {
+      "id": "SQL-007",
+      "module": "SqlReliability/Idempotency",
+      "scenario": "Idempotency guard schema is deployed as a reviewed SQL migration and transaction-enlisted with stock changes",
+      "expected": "Unique filtered indexes protect reference, QR hash and tem hash; test migration is copied into QC artifacts",
+      "status": "implemented",
+      "testEvidence": "SQL/PCTPStockMovementGuard.sql; PCTP.QC.Tests.csproj includes migration; production repository fails closed if its required guard table is unavailable"
     }
   ]
 }
