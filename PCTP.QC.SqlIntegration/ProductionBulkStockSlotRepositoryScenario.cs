@@ -86,6 +86,10 @@ internal static class ProductionBulkStockSlotRepositoryScenario
                     new SqlParameter("@id", slotId))) == 15,
                 "Slot header quantity was not recalculated from active SlotLot rows.");
 
+            // Concurrent requests compete for one production LOT through two independent
+            // production UnitOfWork instances. Exactly one may consume 10 of 15.
+            RunConcurrentProductionLotConsumption(connectionString, provider, slotId);
+
             // Cross-repository delivery rollback (including synthetic finalization-state rollback): a STOCKTP decrement and the actual
             // BulkStockSlotRepository.TakeLot must enlist in the same production UoW.
             RunSharedStockTpAndSlotRollback(connectionString, slotId);
@@ -129,6 +133,86 @@ internal static class ProductionBulkStockSlotRepositoryScenario
         {
             DropFixture(connectionString);
         }
+    }
+
+    private static void RunConcurrentProductionLotConsumption(string cs, PCTP.ClassSQL.SQLPROVIDER provider, int slotId)
+    {
+        const string lotNo = "QC-CONCURRENT-LOT";
+        using (var seed = new UnitOfWork(provider))
+        {
+            seed.Begin();
+            try
+            {
+                var repository = new BulkStockSlotRepository(new PhieuSqlExecutor(), seed);
+                repository.AddLot(slotId, new StockSlotLot
+                {
+                    LotNo = lotNo, ItemCode = "QC-PART", Quantity = 8,
+                    TemCode = "QC-CONCURRENT-OLD", RawQr = "QC-CONCURRENT-OLD",
+                    ImportDate = new DateTime(2026, 10, 18), PhieuStatus = 0
+                });
+                repository.AddLot(slotId, new StockSlotLot
+                {
+                    LotNo = lotNo, ItemCode = "QC-PART", Quantity = 7,
+                    TemCode = "QC-CONCURRENT-NEW", RawQr = "QC-CONCURRENT-NEW",
+                    ImportDate = new DateTime(2026, 10, 19), PhieuStatus = 0
+                });
+                seed.Commit();
+            }
+            catch { try { seed.Rollback(); } catch { } throw; }
+        }
+
+        using var ready = new CountdownEvent(2);
+        using var start = new ManualResetEventSlim(false);
+
+        Task<bool> ConsumeAsync() => Task.Run(() =>
+        {
+            using var uow = new UnitOfWork(provider);
+            uow.Begin();
+            ready.Signal();
+            if (!start.Wait(TimeSpan.FromSeconds(10)))
+            {
+                try { uow.Rollback(); } catch { }
+                throw new TimeoutException("Concurrent LOT consumers did not reach the start barrier.");
+            }
+
+            try
+            {
+                var repository = new BulkStockSlotRepository(new PhieuSqlExecutor(), uow);
+                var result = repository.TakeLot(slotId, lotNo, "QC-PART", 10);
+                Require(result.Quantity == 10, "Production TakeLot returned an incorrect concurrent consumption quantity.");
+                uow.Commit();
+                return true;
+            }
+            catch (InvalidOperationException ex) when (ex.Message.Contains("không đủ", StringComparison.OrdinalIgnoreCase))
+            {
+                uow.Rollback();
+                return false;
+            }
+            catch
+            {
+                try { uow.Rollback(); } catch { }
+                throw;
+            }
+        });
+
+        var first = ConsumeAsync();
+        var second = ConsumeAsync();
+        if (!ready.Wait(TimeSpan.FromSeconds(10)))
+            throw new TimeoutException("Both production LOT consumers did not become ready.");
+        start.Set();
+
+        var outcomes = Task.WhenAll(first, second).GetAwaiter().GetResult();
+        Require(outcomes.Count(x => x) == 1,
+            "Exactly one of two concurrent 10-unit requests against 15 units must succeed.");
+        Require(Convert.ToInt32(Scalar(cs,
+                "SELECT SUM(Quantity) FROM SlotLot WHERE LotNo=@lot AND PhieuStatus=0",
+                new SqlParameter("@lot", lotNo))) == 5,
+            "Concurrent production TakeLot caused overselling or lost quantity.");
+        Require(Convert.ToInt32(Scalar(cs,
+                "SELECT Quantity FROM Slot WHERE SlotId=@id",
+                new SqlParameter("@id", slotId))) == 20,
+            "Slot header did not reconcile after concurrent production LOT consumption.");
+        Console.WriteLine("PASS: production BulkStockSlotRepository serialized concurrent same-LOT consumers; one won and 5 units remained.");
     }
 
     private static void RunSharedStockTpAndSlotRollback(string cs, int slotId)
