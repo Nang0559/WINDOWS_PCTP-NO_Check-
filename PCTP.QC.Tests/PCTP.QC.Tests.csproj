@@ -23,6 +23,10 @@
     <None Include="../PCTP/Modules/GiaoHangKhach/Repositories/PhieuKhoRepository.cs" Link="PhieuKhoRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="../PCTP/Shared/Helpers/QRCodeParser.cs" Link="Sut/QRCodeParser.cs" />
+    <Compile Include="../PCTP/Shared/Helpers/QRCodeBuilder.cs" Link="Sut/QRCodeBuilder.cs" />
+    <Compile Include="../PCTP/Shared/Models/QRCodeInfo.cs" Link="Sut/QRCodeInfo.cs" />
+    <Compile Include="../PCTP/Shared/Models/TachLotQrInfo.cs" Link="Sut/TachLotQrInfo.cs" />
     <Compile Include="../PCTP/Modules/GiaoHangKhach/Services/FifoSessionState.cs" Link="Sut/FifoSessionState.cs" />
     <Compile Include="../PCTP/Modules/GiaoHangKhach/Models/OrderLineKey.cs" Link="Sut/OrderLineKey.cs" />
     <Compile Include="../PCTP/Modules/GiaoHangKhach/Models/OrderLotMerger.cs" Link="Sut/OrderLotMerger.cs" />
