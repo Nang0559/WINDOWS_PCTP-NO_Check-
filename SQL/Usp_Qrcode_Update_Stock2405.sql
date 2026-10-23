@@ -834,16 +834,36 @@ BEGIN
         ----------------------------------------------------------------  
         -- 11. KIỂM TRA LỖI PHÁT SINH TRONG TRANSACTION  
         ----------------------------------------------------------------  
-        IF EXISTS  
-        (  
-            SELECT 1  
-            FROM #STNG  
-        )  
-        BEGIN  
+        IF EXISTS
+        (
+            SELECT 1
+            FROM #STNG
+        )
+        BEGIN
+            -- Preserve business diagnostics across rollback. The temp-table writes
+            -- are transactional, but the table variable snapshot survives rollback.
+            DECLARE @ErrorSnapshot TABLE
+            (
+                MH NVARCHAR(100),
+                LOT NVARCHAR(MAX),
+                SLCAN INT,
+                SLCO INT,
+                SLTHIEU INT,
+                STATUS NVARCHAR(500)
+            );
+
+            INSERT INTO @ErrorSnapshot(MH, LOT, SLCAN, SLCO, SLTHIEU, STATUS)
+            SELECT MH, LOT, SLCAN, SLCO, SLTHIEU, STATUS
+            FROM #STNG;
+
             IF @StartedTransaction = 1
                 ROLLBACK TRANSACTION;
             ELSE
                 ROLLBACK TRANSACTION UspQrcodeUpdateStock2405;
+
+            INSERT INTO #STNG(MH, LOT, SLCAN, SLCO, SLTHIEU, STATUS)
+            SELECT MH, LOT, SLCAN, SLCO, SLTHIEU, STATUS
+            FROM @ErrorSnapshot;
   
             SELECT  
                 STT,  
