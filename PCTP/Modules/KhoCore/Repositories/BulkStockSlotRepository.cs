@@ -17,11 +17,18 @@ namespace PCTP.Modules.KhoVatLy.Repositories
     {
         private readonly string _movementGuardTable;
         private readonly bool _useQcTempTables;
+        private readonly string _qcTablePrefix;
 
-        public BulkStockSlotRepository(PhieuSqlExecutor db, IUnitOfWork uow, string movementGuardTable = "dbo.PCTPStockMovementGuard", bool useQcTempTables = false)
+        public BulkStockSlotRepository(PhieuSqlExecutor db, IUnitOfWork uow, string movementGuardTable = "dbo.PCTPStockMovementGuard", bool useQcTempTables = false, string qcTablePrefix = null)
             : base(db, uow)
         {
             _useQcTempTables = useQcTempTables;
+            if (!string.IsNullOrWhiteSpace(qcTablePrefix) &&
+                !System.Text.RegularExpressions.Regex.IsMatch(qcTablePrefix, @"^##PCTP_QC_[A-Fa-f0-9]{32}_$"))
+                throw new ArgumentException("QC table prefix must be a unique ##PCTP_QC_<32-hex>_ prefix.", nameof(qcTablePrefix));
+            if (!string.IsNullOrWhiteSpace(qcTablePrefix) && !useQcTempTables)
+                throw new ArgumentException("QC table prefix is valid only when useQcTempTables is enabled.", nameof(qcTablePrefix));
+            _qcTablePrefix = qcTablePrefix;
             if (string.Equals(movementGuardTable, "dbo.PCTPStockMovementGuard", StringComparison.OrdinalIgnoreCase)
                 || string.Equals(movementGuardTable, "#PCTPStockMovementGuard", StringComparison.OrdinalIgnoreCase))
                 _movementGuardTable = movementGuardTable;
@@ -41,7 +48,7 @@ namespace PCTP.Modules.KhoVatLy.Repositories
             return System.Text.RegularExpressions.Regex.Replace(
                 sql,
                 @"(?<![@#\w])(Warehouse|Rack|SlotLot|Slot)\b",
-                match => "#" + match.Value,
+                match => (_qcTablePrefix ?? "#") + match.Value,
                 System.Text.RegularExpressions.RegexOptions.IgnoreCase);
         }
 
