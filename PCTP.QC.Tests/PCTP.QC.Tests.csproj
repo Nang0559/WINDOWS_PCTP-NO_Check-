@@ -42,6 +42,7 @@
     <Compile Include="../PCTP/Modules/KhoCore/Application/Contracts/Stock/StockSlotLot.cs" Link="Sut/StockSlotLot.cs" />
     <Compile Include="../PCTP/Modules/KhoCore/Application/Contracts/Stock/StockSlotTakeResult.cs" Link="Sut/StockSlotTakeResult.cs" />
     <Compile Include="../PCTP/Shared/Common/LotCodeHelper.cs" Link="Sut/LotCodeHelper.cs" />
+    <Compile Include="../PCTP/Shared/Common/SqlConnectionRetryPolicy.cs" Link="Sut/SqlConnectionRetryPolicy.cs" />
     <Compile Include="../PCTP/Modules/GiaoHangKhach/Services/BulkStockAdjustService.cs" Link="Sut/BulkStockAdjustService.cs" />
     <Compile Include="../PCTP/Modules/GiaoHangKhach/Services/IBulkStockAdjustService.cs" Link="Sut/IBulkStockAdjustService.cs" />
     <Compile Include="../PCTP/Modules/KhoCore/Repositories/IBulkStockSlotRepository.cs" Link="Sut/IBulkStockSlotRepository.cs" />
