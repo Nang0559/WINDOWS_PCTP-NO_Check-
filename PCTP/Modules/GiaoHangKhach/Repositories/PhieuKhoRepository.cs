@@ -1,6 +1,7 @@
 using PCTP.Common;
 using PCTP.FuctionMain;
 using PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao;
+using PCTP.Modules.GiaoHangKhach.Models;
 using PCTP.Modules.GiaoHangKhach.Services;
 using PCTP.Modules.KhoCore.Application.Contracts.Stock;
 using PCTP.Modules.KhoVatLy.Kho.Models;
@@ -96,10 +97,13 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                         if (string.IsNullOrEmpty(maHang)) continue;
 
                         string whereClause = stt > 0 ? $"STT={stt}" : $"MAHANG='{SqlHelper.Esc(maHang)}' AND STATUS='OK'";
-                        string ngayGiao = Convert.ToString(ExecuteScalar($"SELECT CONVERT(varchar, NGAYGIAO, 23) FROM [{tmpTable}] WHERE {whereClause}"))?.Trim() ?? "";
-                        string poNo = Convert.ToString(ExecuteScalar($"SELECT ISNULL(PO_NO,'') FROM [{tmpTable}] WHERE {whereClause}"))?.Trim() ?? "";
-                        if (!string.IsNullOrEmpty(poNo) && !string.IsNullOrEmpty(ngayGiao))
-                            DanhDauDaGiao(poNo, maHang, ngayGiao, _cfg);
+                        // Một dòng TMP duy nhất cho cả PO/NGAYGIAO(có giờ)/GIOGIAO: lấy cùng một lần để
+                        // không ghép PO của dòng này với giờ của dòng khác.
+                        DataTable tmpRow = LoadData(
+                            $"SELECT TOP 1 ISNULL(PO_NO,'') AS PO_NO, NGAYGIAO, ISNULL(GIOGIAO,'') AS GIOGIAO FROM [{tmpTable}] WHERE {whereClause} ORDER BY STT");
+                        OrderLineKey key = BuildOrderLineKeyFromTmp(tmpRow, maHang);
+                        if (key != null)
+                            DanhDauDaGiao(key, _cfg);
                     }
                 }
                 Uow.Commit();
@@ -293,11 +297,15 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
 
                 HoanTatSauKhiTruKho(lotsDaXuatThanhCong, SYSTEM_PERFORMED_BY);
 
-                string poNoInTransaction = Convert.ToString(ExecuteScalar(
-                    $"SELECT ISNULL(PO_NO,'') FROM [{tmpTable}] WHERE STT = @stt",
-                    new SqlParameter("@stt", SqlDbType.Int) { Value = stt }))?.Trim() ?? "";
-                if (!string.IsNullOrEmpty(poNoInTransaction) && !string.IsNullOrEmpty(_cfg.Delivery.OrderTable))
-                    DanhDauDaGiao(poNoInTransaction, maHang, ngayGiao, _cfg);
+                if (!string.IsNullOrEmpty(_cfg.Delivery.OrderTable))
+                {
+                    DataTable tmpRow = LoadData(
+                        $"SELECT ISNULL(PO_NO,'') AS PO_NO, NGAYGIAO, ISNULL(GIOGIAO,'') AS GIOGIAO FROM [{tmpTable}] WHERE STT = @stt",
+                        new SqlParameter("@stt", SqlDbType.Int) { Value = stt });
+                    OrderLineKey key = BuildOrderLineKeyFromTmp(tmpRow, maHang, gioGiao);
+                    if (key != null)
+                        DanhDauDaGiao(key, _cfg);
+                }
 
                 Uow.Commit();
             }
@@ -313,16 +321,41 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         #endregion
 
         #region DanhDauDaGiao
-        public void DanhDauDaGiao(string poNo, string maHang, string ngayGiao, CustomerConfig cfg)
+        /// <summary>
+        /// Đánh dấu đã giao đúng một dòng đơn (PO + mã hàng + ngày + giờ:phút).
+        /// Trước đây chỉ lọc PO + mã hàng + NGÀY nên giao đợt 08:00 cũng đánh dấu luôn đợt 14:00.
+        /// </summary>
+        public int DanhDauDaGiao(OrderLineKey key, CustomerConfig cfg)
         {
-            if (cfg == null || string.IsNullOrEmpty(cfg.Delivery.OrderTable)) return;
+            if (key == null) throw new ArgumentNullException(nameof(key));
+            if (cfg == null || string.IsNullOrEmpty(cfg.Delivery.OrderTable)) return 0;
             Db.ValidateTableName(cfg.Delivery.OrderTable);
-            ExecuteNonQuery(
-                $"UPDATE [{cfg.Delivery.OrderTable}] SET IsDelivered = 1, DeliveredDate = GETDATE() " +
-                "WHERE Oder_no = @po AND Part_no = @pno AND CAST(NgayGiao AS DATE) = @ng AND IsDelivered = 0",
-                new SqlParameter("@po", SqlDbType.NVarChar, 100) { Value = poNo ?? "" },
-                new SqlParameter("@pno", SqlDbType.NVarChar, 100) { Value = maHang ?? "" },
-                new SqlParameter("@ng", SqlDbType.Date) { Value = ngayGiao ?? "" });
+            return ExecuteNonQuery(
+                OrderTableSql.MarkDelivered(cfg.Delivery.OrderTable),
+                new SqlParameter("@po", SqlDbType.NVarChar, 100) { Value = key.PoNo },
+                new SqlParameter("@pno", SqlDbType.NVarChar, 100) { Value = key.MaHang },
+                new SqlParameter("@ng", SqlDbType.Date) { Value = key.NgayGiao },
+                new SqlParameter("@hh", SqlDbType.Int) { Value = key.GioGiao.Hours },
+                new SqlParameter("@mi", SqlDbType.Int) { Value = key.GioGiao.Minutes });
+        }
+
+        /// <summary>
+        /// Dựng khoá từ dòng TMP. Trả về null khi dòng không có PO hoặc không có ngày giao
+        /// (giữ nguyên hành vi cũ: không đánh dấu). PO + ngày có nhưng không đọc được thì ném lỗi,
+        /// vì lặng lẽ đoán giờ sẽ đánh dấu nhầm đợt giao khác.
+        /// </summary>
+        private static OrderLineKey BuildOrderLineKeyFromTmp(DataTable tmpRow, string maHang, string gioGiaoOverride = null)
+        {
+            if (tmpRow == null || tmpRow.Rows.Count == 0) return null;
+            DataRow row = tmpRow.Rows[0];
+
+            string poNo = Convert.ToString(row["PO_NO"])?.Trim() ?? "";
+            if (poNo.Length == 0 || string.IsNullOrWhiteSpace(maHang) || row["NGAYGIAO"] == DBNull.Value) return null;
+
+            string gio = string.IsNullOrWhiteSpace(gioGiaoOverride)
+                ? Convert.ToString(row["GIOGIAO"])
+                : gioGiaoOverride;
+            return OrderLineKey.FromTmpValues(poNo, maHang, row["NGAYGIAO"], gio);
         }
         #endregion
 

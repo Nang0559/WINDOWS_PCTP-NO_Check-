@@ -26,7 +26,14 @@ The production application remains .NET Framework 4.7.2 / WinForms. The test har
 | QC Final domain rules | initial QC OK/NG reconciliation, rework OK/NG reconciliation, final scrap disposition, compensation separation, affected LOT non-negative quantities | Unit/domain |
 | YMVN delivery validation | LOT character 13 → Gear, order quantity limit, missing Gear, completion totals, unexpected Gear, empty order | Unit/regression |
 | Stock movement (KhoCore) | normal receiving, NG quarantine status, successful/blocked export, quantity guards, LOT identity, full/partial move QR rules, restore-picked, correction transaction guard | Unit/regression |
+| Order-table line identity (`OrderLineKey`) | PO + part + delivery date + hour:minute as one key; same PO/part/date at different times are different lines; blank PO/part and group-hour values rejected (`DEL-009`) | Unit/regression |
+| Saved-LOT merge (`OrderLotMerger`) | LOT bound to PO + part + hour:minute; no cross-PO or same-hour cross-minute assignment; legacy rows only when unambiguous (`DEL-011`) | Unit/regression |
+| Order-table delivery marking SQL (`OrderTableSql`) | UPDATE filters PO + part + date + hour + minute and `IsDelivered = 0`; unsafe table names rejected (`DEL-010`, SQL text only) | Unit/regression |
 | Environment safety | local test database allow-list; production/remote rejection | Unit/security |
+
+## Order line identity
+
+A line in the customer order table (`Purchase_Order_YMVN`, `Purchase_Order_HTN`, ...) is identified by **PO + part number + delivery date + delivery hour:minute**. PO + date + part is not unique: the same PO and part can be delivered at several times on the same day. `OrderLineKey` is the single definition of this key; `PhieuKhoRepository.DanhDauDaGiao` (marking a line delivered) and `OrderLotMerger` (binding saved LOTs to order rows) use it instead of ad-hoc string keys. Time precision is the minute, matching how `TableOrderRepo.LoadPhieuTuBangRieng` groups rows (`GROUP BY PO, Part_no, HH:mm`). If an order row cannot be located by its full key, nothing is marked: leaving a line undelivered is visible to the operator, marking another delivery time as delivered is not.
 
 ## Coverage evidence integrity
 

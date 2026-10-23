@@ -3,6 +3,7 @@ using PCTP.Domain.Interfaces;
 using PCTP.FuctionMain;
 using PCTP.Infrastructure.Repositories;
 using PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao;
+using PCTP.Modules.GiaoHangKhach.Models;
 using PCTP.Shared.Common;
 using PCTP.Shared.Helpers;
 using PCTP.Shared.Models;
@@ -601,117 +602,9 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             if (luuDt.Rows.Count == 0)
                 return;
 
-            var lookup =
-                new Dictionary<string, DataRow>(
-                    StringComparer.OrdinalIgnoreCase);
-
-            foreach (DataRow row in luuDt.Rows)
-            {
-                string gioChuan =
-                    GioHelper.NormalizeGio(
-                        row["GIOGIAO"]?.ToString()?.Trim());
-
-                string maHang =
-                    row["MAHANG"]?.ToString()?.Trim() ?? "";
-
-                string poNo =
-                    row["PO_NO"]?.ToString()?.Trim() ?? "";
-
-                string keyFull =
-                    maHang +
-                    "|" +
-                    gioChuan +
-                    "|" +
-                    poNo;
-
-                string keyShort =
-                    maHang +
-                    "|" +
-                    gioChuan;
-
-                if (!lookup.ContainsKey(keyFull))
-                    lookup[keyFull] = row;
-
-                if (!lookup.ContainsKey(keyShort))
-                    lookup[keyShort] = row;
-            }
-
-            if (!dt.Columns.Contains("GearSuDung"))
-                dt.Columns.Add(
-                    "GearSuDung",
-                    typeof(string));
-
-            foreach (DataRow row in dt.Rows)
-            {
-                string gioChuan =
-                    GioHelper.NormalizeGio(
-                        row["GIO"]?.ToString()?.Trim());
-
-                string maHang =
-                    row["MAHANG"]?.ToString()?.Trim() ?? "";
-
-                string poNo =
-                    dt.Columns.Contains("PO_NO")
-                        ? row["PO_NO"]?.ToString()?.Trim() ?? ""
-                        : "";
-
-                string keyFull =
-                    maHang +
-                    "|" +
-                    gioChuan +
-                    "|" +
-                    poNo;
-
-                string keyShort =
-                    maHang +
-                    "|" +
-                    gioChuan;
-
-                DataRow luuRow = null;
-
-                if (!lookup.TryGetValue(
-                        keyFull,
-                        out luuRow))
-                {
-                    lookup.TryGetValue(
-                        keyShort,
-                        out luuRow);
-                }
-
-                if (luuRow == null)
-                    continue;
-
-                string lot =
-                    luuRow["LOT"]?.ToString()?.Trim() ?? "";
-
-                if (string.IsNullOrEmpty(lot))
-                    continue;
-
-                row["LOT"] =
-                    lot;
-
-                row["STATUS"] =
-                    luuRow["STATUS"]?.ToString() ?? "NG";
-
-                row["STATUSDOC"] =
-                    luuRow["STATUSDOC"]?.ToString() ?? "NG";
-
-                if (dt.Columns.Contains("GEAR"))
-                {
-                    string gearHienTai =
-                        row["GEAR"]?.ToString()?.Trim() ?? "";
-
-                    string gearLuu =
-                        luuRow["GEAR"]?.ToString()?.Trim() ?? "";
-
-                    if (string.IsNullOrEmpty(gearHienTai) &&
-                        !string.IsNullOrEmpty(gearLuu))
-                    {
-                        row["GEAR"] =
-                            gearLuu;
-                    }
-                }
-            }
+            // Định danh dòng đơn = PO + mã hàng + ngày + giờ:phút. Logic ghép nằm trong
+            // OrderLotMerger (có test) — không tự ghép chuỗi "mã hàng|giờ" ở đây nữa.
+            OrderLotMerger.Merge(dt, luuDt);
         }
         public Dictionary<string, int> GetQcDongGoiBatch(
          List<string> maHangList)

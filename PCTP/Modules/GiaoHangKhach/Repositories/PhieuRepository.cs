@@ -1,6 +1,7 @@
 using PCTP.Domain.Entities;
 using PCTP.Domain.Interfaces;
 using PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao;
+using PCTP.Modules.GiaoHangKhach.Models;
 using PCTP.Modules.KhoCore.Application.Contracts.Stock;
 using PCTP.Modules.KhoCore.Repositories;
 using PCTP.Modules.KhoVatLy.Repositories;
@@ -121,7 +122,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         public int CapNhapKhoHTN(string nhaMay, string tmpTable, string docQRTable, out DataTable errors) => _kho.CapNhapKhoHTN(nhaMay, tmpTable, docQRTable, out errors);
         public int CapNhapKhoSP(string gioGiaoFcc, string nhaMay, out DataTable errors) => _kho.CapNhapKhoSP(gioGiaoFcc, nhaMay, out errors);
         public bool CapNhapKhoYMVN(int stt, string lotSl, string maHang, string ngayGiao, string gioGiao, string nhaMay, out DS_ERR_CNK error) => _kho.CapNhapKhoYMVN(stt, lotSl, maHang, ngayGiao, gioGiao, nhaMay, out error);
-        public void DanhDauDaGiao(string poNo, string maHang, string ngayGiao, CustomerConfig cfg) => _kho.DanhDauDaGiao(poNo, maHang, ngayGiao, cfg);
+        public int DanhDauDaGiao(OrderLineKey key, CustomerConfig cfg) => _kho.DanhDauDaGiao(key, cfg);
 
         public DataTable LoadLuuPhieu(string nhaMay, string ngayGiao, string gioGiaoFcc) => _luuTru.LoadLuuPhieu(nhaMay, ngayGiao, gioGiaoFcc);
         public int LuuPhieuSP(string nhaMay, string ngayGiao, string gioGiaoFcc, string loaiPhieu) => _luuTru.LuuPhieuSP(nhaMay, ngayGiao, gioGiaoFcc, loaiPhieu);

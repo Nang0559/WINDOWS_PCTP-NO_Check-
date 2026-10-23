@@ -50,6 +50,7 @@ Exit codes:
 8. **SQL engine atomic rollback:** performs two writes in one transaction, deliberately raises a SQL error, rolls back, and verifies both values are unchanged.
 9. **Concurrent conditional decrement:** two independent SQL connections race to decrement a quantity of 10 by 7. Exactly one update must affect a row; final quantity must be 3.
 10. **Command timeout:** updates a synthetic row, runs a command that exceeds a one-second timeout, rolls back, and verifies the original quantity.
+11. **Order-table delivery marking by PO + part + date + hour:minute:** creates a uniquely named fixture order table inside a production `UnitOfWork`, inserts the same PO/part/date at 08:00, 08:30:45 and 14:00 plus a next-day row, another-PO row and another-part row, then runs the production `OrderTableSql.MarkDelivered` statement. Delivering 14:00 must update exactly one row and leave every other row undelivered; replay updates 0 rows; 08:30 matches the 08:30:45 row (seconds ignored); a time with no order row updates 0 rows. The transaction is rolled back, so no object remains in the test database. This does not execute `PhieuKhoRepository` itself (it depends on WinForms/ERP types); it executes the SQL statement that repository uses (`DEL-010`, still `planned` until executed on a disposable SQL Server).
 
 ## CI behavior and limitations
 

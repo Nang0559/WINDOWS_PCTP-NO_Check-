@@ -53,10 +53,11 @@ internal static class Program
                 await RunProductionSqlRepositoryBaseRollbackAsync(connectionString, table);
                 PCTP.QC.SqlIntegration.ProductionStockTpRepositoryScenario.Run(connectionString);
                 PCTP.QC.SqlIntegration.ProductionBulkStockSlotRepositoryScenario.Run(connectionString);
+                PCTP.QC.SqlIntegration.OrderTableDeliveryMarkingScenario.Run(connectionString);
                 await RunRollbackAtomicityAsync(connection, table);
                 await RunConcurrentConditionalDecrementAsync(connectionString, table);
                 await RunCommandTimeoutRollbackAsync(connection, table);
-                Console.WriteLine("PASS: 10 SQL Server integration scenarios completed (3 production UnitOfWork + 1 production SqlRepositoryBase + 1 production StockTpRepository + 1 production BulkStockSlotRepository + 1 cross-repository delivery rollback + 3 SQL engine contracts).");
+                Console.WriteLine("PASS: 11 SQL Server integration scenarios completed (3 production UnitOfWork + 1 production SqlRepositoryBase + 1 production StockTpRepository + 1 production BulkStockSlotRepository + 1 order-table delivery marking (PO + part + date + hour:minute) + 1 cross-repository delivery rollback + 3 SQL engine contracts).");
                 return 0;
             }
             finally

@@ -150,6 +150,29 @@
       "status": "planned"
     },
     {
+      "id": "DEL-009",
+      "module": "GiaoHangKhach",
+      "scenario": "Order-table line identity: PO + part + delivery date + delivery hour:minute (same PO/part/date may have several delivery times)",
+      "expected": "Lines of the same PO/part/date at different times are different keys; keys are trimmed and case-insensitive; blank PO/part and group-hour values are rejected instead of guessed",
+      "status": "implemented",
+      "testEvidence": "OrderLineKeyTests"
+    },
+    {
+      "id": "DEL-010",
+      "module": "GiaoHangKhach",
+      "scenario": "Mark an order-table line delivered only for its own delivery time (PhieuKhoRepository.DanhDauDaGiao via OrderTableSql.MarkDelivered)",
+      "expected": "Delivering 14:00 does not mark 08:00/08:30 of the same PO/part/date, nor other PO/part/date; replay updates 0 rows. Unit evidence: OrderTableSqlTests (SQL text only). Executable SQL evidence: SqlIntegration OrderTableDeliveryMarkingScenario, not yet executed on a disposable SQL Server",
+      "status": "planned"
+    },
+    {
+      "id": "DEL-011",
+      "module": "GiaoHangKhach",
+      "scenario": "Merge saved LOT (LUUPHIEUGIAOHANG) into order-table rows by PO + part + hour:minute",
+      "expected": "Same PO/part/date at different times keep their own LOT; same-hour different-minute rows do not share a LOT; a LOT saved for another PO is never assigned; legacy rows (no PO / hour-only) match only when unambiguous",
+      "status": "implemented",
+      "testEvidence": "OrderLotMergerTests"
+    },
+    {
       "id": "RWK-001",
       "module": "XuLyHangLoi",
       "scenario": "QC final OK/NG split",
