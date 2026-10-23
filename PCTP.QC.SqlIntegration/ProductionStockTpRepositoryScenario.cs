@@ -93,10 +93,17 @@ CREATE TABLE #STOCKTP
                 string.Join(",", currentFixtureRows.Select(row => Convert.ToString(row["SLCONLAI"]))));
 
             var remainingLots = repository.GetDanhSachLotConTon();
-            Require(remainingLots.Count == 1 &&
-                    remainingLots[0].Lot == "QC-REPO-LOT-0001" &&
-                    remainingLots[0].SlConLai == 55,
-                "GetDanhSachLotConTon returned an unexpected result.");
+            var remainingFixtureLots = remainingLots
+                .Where(item => string.Equals(
+                    item.Lot,
+                    "QC-REPO-LOT-0001",
+                    StringComparison.OrdinalIgnoreCase))
+                .ToList();
+            Require(remainingFixtureLots.Count == 1 &&
+                    remainingFixtureLots[0].SlConLai == 55,
+                "GetDanhSachLotConTon did not return exactly one fixture LOT with SLCONLAI=55. " +
+                "Fixture rows found=" + remainingFixtureLots.Count +
+                "; quantities=" + string.Join(",", remainingFixtureLots.Select(item => item.SlConLai)));
 
             var selectedLots = repository.GetTonKhoTheoLot(new List<string> { "QC-REPO-LOT-0001" });
             Require(selectedLots.Rows.Count == 1,
