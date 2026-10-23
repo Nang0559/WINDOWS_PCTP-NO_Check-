@@ -1,13 +1,13 @@
 using System;
 using System.Globalization;
 using Xunit;
+using PCTP.Shared.Helpers;
 
 namespace PCTP.QC.Tests;
 
 /// <summary>
 /// Contract tests for the two real QR payload formats supplied for the PCTP
-/// receiving and customer-delivery workflows. These tests intentionally verify
-/// the wire format only; field semantics must be established by production code.
+/// receiving and customer-delivery workflows. These tests exercise the production QRCodeParser as well as explicit wire-format contracts.
 /// </summary>
 public sealed class QrCodeFormatContractTests
 {
@@ -16,6 +16,48 @@ public sealed class QrCodeFormatContractTests
 
     public const string CustomerCartonLabel =
         "260807008581007817008000:22110-K2T-V000:07/08/2026:1000";
+
+    [Fact]
+    public void ProductionParser_ParsesReceivingMasterLabel()
+    {
+        var parsed = QRCodeParser.ParseQRCode(ReceivingMasterLabel);
+
+        Assert.True(parsed.IsTongPhieu);
+        Assert.Equal("2608070085810078170000030500", parsed.LotNo);
+        Assert.Equal("22110-K2T-V000", parsed.ItemCode);
+        Assert.Equal(500, parsed.Quantity);
+        Assert.Equal("1", parsed.SoPhieuTong);
+        Assert.Equal("A010000000059136", parsed.MaPhieu);
+        Assert.Equal(new DateTime(2026, 8, 7), parsed.ImportDate);
+        Assert.Equal(ReceivingMasterLabel, parsed.RawQr);
+    }
+
+    [Fact]
+    public void ProductionParser_ParsesCustomerCartonLabel()
+    {
+        var parsed = QRCodeParser.ParseQRCode(CustomerCartonLabel);
+
+        Assert.False(parsed.IsTongPhieu);
+        Assert.Equal("260807008581007817008000", parsed.LotNo);
+        Assert.Equal("22110-K2T-V000", parsed.ItemCode);
+        Assert.Equal(1000, parsed.Quantity);
+        Assert.Equal(new DateTime(2026, 8, 7), parsed.ImportDate);
+        Assert.Equal(CustomerCartonLabel, parsed.RawQr);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("lot::07/08/2026:10")]
+    [InlineData("lot:item:31/13/2026:10")]
+    [InlineData("lot:item:07/08/2026:0")]
+    [InlineData("lot:item:07/08/2026:-1")]
+    [InlineData("lot:item:07/08/2026:abc")]
+    [InlineData("lot:item:2026-08-07:10")]
+    [InlineData("lot:item:07/08/2026:10:extra")]
+    public void ProductionParser_RejectsMalformedQr(string qr)
+    {
+        Assert.Throws<FormatException>(() => QRCodeParser.ParseQRCode(qr));
+    }
 
     [Fact]
     public void ReceivingMasterLabel_HasSixColonDelimitedFields()
