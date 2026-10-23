@@ -3,9 +3,42 @@
   "purpose": "Read-only navigation smoke: open the defect/rework workflow worklist.",
   "dataMutation": false,
   "steps": [
-    { "id": "expand-defect-menu", "action": "expand", "automationId": "E_Trahang" },
-    { "id": "open-rework-worklist", "action": "click", "automationId": "trahangndHVN", "waitAfterMs": 1200 },
-    { "id": "rework-screen-visible", "action": "wait-for-window", "value": "Quản lý tiến trình Xử lý hàng lỗi", "timeoutSeconds": 45 },
-    { "id": "verify-rework-title", "action": "assert-window-title", "value": "Quản lý tiến trình Xử lý hàng lỗi" }
+    {
+      "id": "expand-defect-menu",
+      "action": "expand",
+      "automationId": "E_Trahang"
+    },
+    {
+      "id": "open-rework-worklist",
+      "action": "click",
+      "automationId": "trahangndHVN",
+      "waitAfterMs": 1200
+    },
+    {
+      "id": "rework-screen-visible",
+      "action": "wait-for-window",
+      "value": "Quản lý tiến trình Xử lý hàng lỗi",
+      "timeoutSeconds": 45
+    },
+    {
+      "id": "verify-rework-title",
+      "action": "assert-window-title",
+      "value": "Quản lý tiến trình Xử lý hàng lỗi"
+    },
+    {
+      "id": "rework-search-exposed",
+      "action": "assert-exists",
+      "automationId": "rework_search"
+    },
+    {
+      "id": "rework-grid-exposed",
+      "action": "assert-exists",
+      "automationId": "rework_worklistGrid"
+    },
+    {
+      "id": "rework-primary-action-exposed",
+      "action": "assert-exists",
+      "automationId": "rework_btnPrimaryAction"
+    }
   ]
 }
