@@ -8,15 +8,15 @@ using Microsoft.Data.SqlClient;
 namespace PCTP.QC.SqlIntegration;
 
 /// <summary>
-/// SQL-engine reliability tests on uniquely named synthetic tables in the guarded
-/// local TEST database. These scenarios prove SQL transaction/idempotency behavior;
+/// SQL-engine reliability tests on uniquely named global temporary tables in tempdb.
+/// These scenarios prove SQL transaction/idempotency behavior;
 /// they do not claim to invoke the WinForms customer-delivery orchestration.
 /// </summary>
 internal static class DeliveryReliabilityScenario
 {
     public static async Task RunAsync(string connectionString)
     {
-        var table = "dbo.[__PCTP_QC_REL_" + Guid.NewGuid().ToString("N") + "]";
+        var table = "##PCTP_QC_REL_" + Guid.NewGuid().ToString("N");
         await CreateAsync(connectionString, table);
         try
         {
