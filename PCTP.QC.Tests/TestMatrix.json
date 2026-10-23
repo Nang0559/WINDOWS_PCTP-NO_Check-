@@ -149,7 +149,7 @@
       "scenario": "Stored procedure called inside repository-owned transaction; procedure error resultset must not be treated as committed stock",
       "expected": "Usp_Qrcode_Update_Stock2405 uses a savepoint when the caller owns the transaction, only commits transactions it opened, and repository does not deduct SlotLot or close pending delivery when the procedure returns business errors",
       "status": "implemented",
-      "testEvidence": "DeliveryTransactionContractTests.StockProcedure_PreservesCallerOwnedTransaction; DeliveryTransactionContractTests.DeliveryRepository_DoesNotConsumeRolledBackSuccessRowsWhenProcedureReturnsErrors; SQL/Usp_Qrcode_Update_Stock2405.sql and PhieuKhoRepository.source.cs are linked into the test output. These are source-contract tests; runtime SQL verification is still required."
+      "testEvidence": "DeliveryTransactionContractTests.StockProcedure_PreservesCallerOwnedTransaction; DeliveryTransactionContractTests.DeliveryRepository_DoesNotConsumeRolledBackSuccessRowsWhenProcedureReturnsErrors; DeliveryTransactionBoundaryScenario.RunAsync exercises savepoint/caller rollback semantics using a session-local SQL fixture. Runtime execution still required."
     },
     {
       "id": "DEL-003",
@@ -332,7 +332,7 @@
       "scenario": "Launch WinForms app, detect accessible main window, capture screenshot and export UI Automation tree",
       "expected": "Smoke report and screenshot are written to an explicit output folder; unexpected startup exit or window title fails",
       "status": "implemented",
-      "testEvidence": "PCTP.QC.UI/Invoke-PctpUiSmoke.ps1; must be executed on Windows with a built PCTP.exe. This is a startup/accessibility smoke test, not yet a full receive/delivery/rework workflow."
+      "testEvidence": "PCTP.QC.UI/Invoke-PctpUiSmoke.ps1 and PCTP.QC.UI/README.md; must be executed on Windows with a built PCTP.exe. This is a startup/accessibility smoke test, not yet a full receive/delivery/rework workflow."
     },
     {
       "id": "UI-001",
