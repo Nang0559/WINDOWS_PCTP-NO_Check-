@@ -222,7 +222,7 @@ namespace PCTP.Modules.KhoVatLy.Kho.Models
         public int Quantity { get; set; }
         public string TemCode { get; set; } = string.Empty;
         public string RawQr { get; set; } = string.Empty;
-        public PCTP.Shared.Models.QRCodeInfo QRInfo { get; set; }
+        public PCTP.Shared.Models.QRCodeInfo QRInfo { get; set; } = new PCTP.Shared.Models.QRCodeInfo();
         public DateTime? ImportDate { get; set; }
     }
 }
@@ -231,12 +231,12 @@ namespace PCTP.Shared.Models
 {
     public sealed class QRCodeInfo
     {
-        public string LotNo { get; set; }
-        public string ItemCode { get; set; }
+        public string LotNo { get; set; } = string.Empty;
+        public string ItemCode { get; set; } = string.Empty;
         public int Quantity { get; set; }
         public string MaPhieu { get; set; } = string.Empty;
         public DateTime? ImportDate { get; set; }
-        public string RawQr { get; set; }
+        public string RawQr { get; set; } = string.Empty;
     }
 }
 
