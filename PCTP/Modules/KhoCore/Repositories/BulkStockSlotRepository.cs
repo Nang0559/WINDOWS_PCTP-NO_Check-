@@ -15,11 +15,11 @@ namespace PCTP.Modules.KhoVatLy.Repositories
 {
     public sealed class BulkStockSlotRepository : SqlRepositoryBase, IBulkStockSlotRepository, IStockSlotRepository
     {
-        private readonly string _movementGuardTable;
+        private readonly string _movementGuardTable = string.Empty;
         private readonly bool _useQcTempTables;
-        private readonly string _qcTablePrefix;
+        private readonly string _qcTablePrefix = string.Empty;
 
-        public BulkStockSlotRepository(PhieuSqlExecutor db, IUnitOfWork uow, string movementGuardTable = "dbo.PCTPStockMovementGuard", bool useQcTempTables = false, string qcTablePrefix = null)
+        public BulkStockSlotRepository(PhieuSqlExecutor db, IUnitOfWork uow, string movementGuardTable = "dbo.PCTPStockMovementGuard", bool useQcTempTables = false, string? qcTablePrefix = null)
             : base(db, uow)
         {
             _useQcTempTables = useQcTempTables;
@@ -123,10 +123,10 @@ namespace PCTP.Modules.KhoVatLy.Repositories
             var lots = new List<LotInfo>();
             foreach (DataRow row in dt.Rows)
             {
-                string lotNo = row["LotNo"] == DBNull.Value ? "" : row["LotNo"].ToString();
+                string lotNo = row["LotNo"] == DBNull.Value ? string.Empty : row["LotNo"].ToString() ?? string.Empty;
                 int quantity = Convert.ToInt32(row["Quantity"]);
-                string temCode = row["TemCode"] == DBNull.Value ? "" : row["TemCode"].ToString();
-                string qrData = row["QrData"] == DBNull.Value ? "" : row["QrData"].ToString();
+                string temCode = row["TemCode"] == DBNull.Value ? string.Empty : row["TemCode"].ToString() ?? string.Empty;
+                string qrData = row["QrData"] == DBNull.Value ? string.Empty : row["QrData"].ToString() ?? string.Empty;
                 QRCodeInfo qrInfo = null;
                 if (!string.IsNullOrWhiteSpace(qrData))
                 {
@@ -138,7 +138,7 @@ namespace PCTP.Modules.KhoVatLy.Repositories
                     qrInfo = new QRCodeInfo
                     {
                         LotNo = lotNo,
-                        ItemCode = row["ItemCode"] == DBNull.Value ? "" : row["ItemCode"].ToString(),
+                        ItemCode = row["ItemCode"] == DBNull.Value ? string.Empty : row["ItemCode"].ToString() ?? string.Empty,
                         Quantity = quantity,
                         MaPhieu = row["MaPhieu"] == DBNull.Value ? "" : row["MaPhieu"].ToString(),
                         ImportDate = row["ImportDate"] == DBNull.Value ? (DateTime?)null : Convert.ToDateTime(row["ImportDate"]),
@@ -179,7 +179,7 @@ namespace PCTP.Modules.KhoVatLy.Repositories
             var list = new List<BulkSlotLotLocation>();
             foreach (DataRow r in dt.Rows)
             {
-                string item = r["ItemCode"] == DBNull.Value ? null : r["ItemCode"].ToString();
+                string? item = r["ItemCode"] == DBNull.Value ? null : r["ItemCode"].ToString();
                 if (string.IsNullOrWhiteSpace(item)) continue;
                 list.Add(new BulkSlotLotLocation
                 {
@@ -204,7 +204,7 @@ namespace PCTP.Modules.KhoVatLy.Repositories
             return value == null || value == DBNull.Value ? (byte)255 : Convert.ToByte(value);
         }
 
-        public StockSlotLot GetLotDetails(int slotLotId)
+        public StockSlotLot? GetLotDetails(int slotLotId)
         {
             DataTable dt = LoadData(
                 @"SELECT LotNo, ItemCode, Quantity, TemCode, QrData, ImportDate, PhieuStatus FROM SlotLot WHERE SlotLotId=@id",
@@ -223,10 +223,10 @@ namespace PCTP.Modules.KhoVatLy.Repositories
             };
         }
 
-        public string GetLotNo(int slotLotId)
+        public string? GetLotNo(int slotLotId)
             => Convert.ToString(ExecuteScalar("SELECT LotNo FROM SlotLot WHERE SlotLotId=@id", new SqlParameter("@id", slotLotId)));
 
-        public string GetItemCode(int slotLotId)
+        public string? GetItemCode(int slotLotId)
             => Convert.ToString(ExecuteScalar("SELECT ItemCode FROM SlotLot WHERE SlotLotId=@id", new SqlParameter("@id", slotLotId)));
 
         public int? GetSlotId(int slotLotId)
@@ -323,7 +323,7 @@ VALUES
             UpdateSlotHeaderBySlotId(slotId);
         }
 
-        public StockSlotTakeResult TakeLot(int slotId, string lotNo, string itemCode, int quantity)
+        public StockSlotTakeResult? TakeLot(int slotId, string lotNo, string itemCode, int quantity)
         {
             if (slotId <= 0) throw new ArgumentOutOfRangeException(nameof(slotId));
             if (string.IsNullOrWhiteSpace(lotNo)) throw new ArgumentException("LotNo không được rỗng.", nameof(lotNo));
@@ -358,8 +358,8 @@ VALUES
 
                 exports.Add(new StockSlotLot
                 {
-                    LotNo = row["LotNo"].ToString(),
-                    ItemCode = row["ItemCode"].ToString(),
+                    LotNo = row["LotNo"].ToString() ?? string.Empty,
+                    ItemCode = row["ItemCode"].ToString() ?? string.Empty,
                     Quantity = take,
                     TemCode = row["TemCode"] == DBNull.Value ? null : row["TemCode"].ToString(),
                     RawQr = row["QrData"] == DBNull.Value ? null : row["QrData"].ToString(),
