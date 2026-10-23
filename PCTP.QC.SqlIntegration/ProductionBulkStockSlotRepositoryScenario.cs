@@ -17,6 +17,8 @@ internal static class ProductionBulkStockSlotRepositoryScenario
     /// <summary>
     /// Executes the production BulkStockSlotRepository and StockTpRepository against
     /// session-local # fixtures only. No dbo business tables are created or mutated.
+    /// Inventory semantics: PhieuStatus 0 is current physical stock; 1/2 are historical
+    /// trace states; 3 is NG/quarantine and none of 1/2/3 contributes to current stock.
     /// </summary>
     public static void Run(string connectionString)
     {
@@ -65,48 +67,40 @@ INSERT INTO #DeliveryState(Id,HistoryCount,PendingClosed) VALUES(1,0,0);";
                 Model = "QC", CaSX = 1, SlSanXuat = 65, SlNhap = 65,
                 NgaySX = new DateTime(2026, 10, 20)
             }, 0);
-            stock.InsertStockTp(new NhapKhoItem
-            {
-                Lot = "QC-CLOSED-LOT", Part = "QC-PART", Name = "QC closed ticket stock",
-                Model = "QC", CaSX = 1, SlSanXuat = 7, SlNhap = 7,
-                NgaySX = new DateTime(2026, 10, 20)
-            }, 0);
-            stock.InsertStockTp(new NhapKhoItem
-            {
-                Lot = "QC-CANCELLED-LOT", Part = "QC-PART", Name = "QC cancelled ticket stock",
-                Model = "QC", CaSX = 1, SlSanXuat = 8, SlNhap = 8,
-                NgaySX = new DateTime(2026, 10, 20)
-            }, 0);
 
             Require(bulk.GetLotQuantity(1) == 40 && bulk.GetLotQuantity(2) == 25,
                 "Production BulkStockSlotRepository did not insert the two fixture rows.");
             Require(Convert.ToInt32(ScalarInTransaction(uow, "SELECT Quantity FROM #Slot WHERE SlotId=@id", slotId)) == 65,
                 "Slot header did not match the sum of active SlotLot quantities.");
 
-            // Seed status variants through the production repository so its real header
-            // refresh logic is exercised (not reproduced in ad-hoc fixture SQL).
+            // Historical states are represented explicitly with zero quantity. They must
+            // remain trace-only and must never be treated as current physical inventory.
+            bulk.AddLot(slotId, new StockSlotLot
+            {
+                LotNo = "QC-CLOSED-LOT", ItemCode = "QC-PART", Quantity = 0,
+                TemCode = "QC-CLOSED-TEM", RawQr = "QC-CLOSED-QR",
+                ImportDate = DateTime.Today, PhieuStatus = 1
+            });
+            bulk.AddLot(slotId, new StockSlotLot
+            {
+                LotNo = "QC-CANCELLED-LOT", ItemCode = "QC-PART", Quantity = 0,
+                TemCode = "QC-CANCELLED-TEM", RawQr = "QC-CANCELLED-QR",
+                ImportDate = DateTime.Today, PhieuStatus = 2
+            });
             bulk.AddLot(slotId, new StockSlotLot
             {
                 LotNo = "QC-QUARANTINE-LOT", ItemCode = "QC-PART", Quantity = 5,
                 TemCode = "QC-QUARANTINE-TEM", RawQr = "QC-QUARANTINE-QR",
                 ImportDate = DateTime.Today, PhieuStatus = 3
             });
-            bulk.AddLot(slotId, new StockSlotLot
-            {
-                LotNo = "QC-CLOSED-LOT", ItemCode = "QC-PART", Quantity = 7,
-                TemCode = "QC-CLOSED-TEM", RawQr = "QC-CLOSED-QR",
-                ImportDate = DateTime.Today, PhieuStatus = 1
-            });
-            bulk.AddLot(slotId, new StockSlotLot
-            {
-                LotNo = "QC-CANCELLED-LOT", ItemCode = "QC-PART", Quantity = 8,
-                TemCode = "QC-CANCELLED-TEM", RawQr = "QC-CANCELLED-QR",
-                ImportDate = DateTime.Today, PhieuStatus = 2
-            });
-            Require(Convert.ToInt32(ScalarInTransaction(uow, "SELECT Quantity FROM #Slot WHERE SlotId=@id", slotId)) == 80,
-                "Production Slot header must include statuses 0/1/2 and exclude quarantine/NG status 3.");
-            Require(Convert.ToInt32(ScalarInTransaction(uow, "SELECT SUM(SLCONLAI) FROM #STOCKTP")) == 80,
-                "Fixture precondition failed: total physical STOCKTP must equal active + closed + cancelled SlotLot quantities.");
+            Require(Convert.ToInt32(ScalarInTransaction(uow, "SELECT Quantity FROM #Slot WHERE SlotId=@id", slotId)) == 65,
+                "Slot header must count only PhieuStatus=0 and exclude historical/quarantine states.");
+            Require(Convert.ToInt32(ScalarInTransaction(uow,
+                "SELECT ISNULL(SUM(Quantity),0) FROM #SlotLot WHERE SlotId=@id AND PhieuStatus=0", slotId)) == 65,
+                "Active SlotLot invariant must equal the Slot header quantity.");
+            Require(Convert.ToInt32(ScalarInTransaction(uow,
+                "SELECT ISNULL(SUM(Quantity),0) FROM #SlotLot WHERE SlotId=@id AND PhieuStatus IN (1,2,3)", slotId)) == 5,
+                "Status fixture did not preserve the expected trace/quarantine rows.");
 
             bool quarantineRejected = false;
             try
@@ -121,12 +115,10 @@ INSERT INTO #DeliveryState(Id,HistoryCount,PendingClosed) VALUES(1,0,0);";
             Require(Convert.ToInt32(ScalarInTransaction(uow,
                 "SELECT Quantity FROM #SlotLot WHERE LotNo=@lot AND PhieuStatus=3", "QC-QUARANTINE-LOT")) == 5,
                 "Quarantined LOT quantity changed after rejected export.");
-            Require(Convert.ToInt32(ScalarInTransaction(uow, "SELECT Quantity FROM #Slot WHERE SlotId=@id", slotId)) == 80,
+            Require(Convert.ToInt32(ScalarInTransaction(uow, "SELECT Quantity FROM #Slot WHERE SlotId=@id", slotId)) == 65,
                 "Rejected quarantined export changed the reconciled Slot header.");
             Console.WriteLine("PASS: production BulkStockSlotRepository.TakeLot rejects quarantined LOT without changing its quantity or active Slot header.");
 
-            // Over-request must be rejected, and the caller's transaction/savepoint
-            // must restore rows that TakeLot tentatively decremented before detecting shortage.
             uow.Transaction.Save("QC_BEFORE_SHORTAGE");
             bool shortageRejected = false;
             try
@@ -141,7 +133,7 @@ INSERT INTO #DeliveryState(Id,HistoryCount,PendingClosed) VALUES(1,0,0);";
             Require(shortageRejected, "Production TakeLot accepted an over-request of 66 from 65 units.");
             Require(bulk.GetLotQuantity(1) == 40 && bulk.GetLotQuantity(2) == 25,
                 "Caller rollback did not restore both SlotLot rows after an insufficient-stock request.");
-            Require(Convert.ToInt32(ScalarInTransaction(uow, "SELECT Quantity FROM #Slot WHERE SlotId=@id", slotId)) == 80,
+            Require(Convert.ToInt32(ScalarInTransaction(uow, "SELECT Quantity FROM #Slot WHERE SlotId=@id", slotId)) == 65,
                 "Slot header changed after a rejected insufficient-stock request.");
             Console.WriteLine("PASS: production TakeLot rejects an over-request and savepoint rollback restores all partially touched LOT rows.");
 
@@ -181,26 +173,18 @@ INSERT INTO #DeliveryState(Id,HistoryCount,PendingClosed) VALUES(1,0,0);";
                     "SELECT COUNT(1) FROM #SlotLot WHERE LotNo=@lot AND PhieuStatus=0", lot)) == 2,
                     "LOT traceability did not return both active SlotLot rows for the stock ledger LOT.");
                 Require(Convert.ToInt32(ScalarInTransaction(uow,
-                    "SELECT CASE WHEN (SELECT SUM(Quantity) FROM #SlotLot WHERE LotNo=@lot AND PhieuStatus <> 3) = (SELECT SLCONLAI FROM #STOCKTP WHERE LOT=@lot) THEN 1 ELSE 0 END", lot)) == 1,
+                    "SELECT CASE WHEN (SELECT SUM(Quantity) FROM #SlotLot WHERE LotNo=@lot AND PhieuStatus=0) = (SELECT SLCONLAI FROM #STOCKTP WHERE LOT=@lot) THEN 1 ELSE 0 END", lot)) == 1,
                     "Production STOCKTP current stock does not reconcile with active SlotLot quantities.");
-                Require(Convert.ToInt32(ScalarInTransaction(uow, @"
-                    SELECT COUNT(1)
-                    FROM #STOCKTP st
-                    WHERE st.LOT IN (N'QC-CLOSED-LOT', N'QC-CANCELLED-LOT')
-                      AND st.SLCONLAI = (
-                          SELECT ISNULL(SUM(sl.Quantity), 0)
-                          FROM #SlotLot sl
-                          WHERE sl.LotNo = st.LOT AND sl.PhieuStatus <> 3
-                      )")) == 2,
-                    "Closed/cancelled physical LOTs must reconcile to their own STOCKTP rows, not be mixed into another LOT's balance.");
-                Require(Convert.ToInt32(ScalarInTransaction(uow, "SELECT Quantity FROM #Slot WHERE SlotId=@id", slotId)) == 30,
-                    "Slot header must include active + closed + cancelled SlotLot quantities but exclude quarantine/NG.");
-                Require(Convert.ToInt32(ScalarInTransaction(uow, "SELECT SUM(SLCONLAI) FROM #STOCKTP")) == 30,
-                    "After export, total STOCKTP must equal the reconciled physical Slot quantity.");
+                Require(Convert.ToInt32(ScalarInTransaction(uow,
+                    "SELECT COUNT(1) FROM #SlotLot WHERE LotNo=@lot AND PhieuStatus IN (1,2,3) AND Quantity > 0", lot)) == 0,
+                    "Historical/quarantine statuses must not introduce positive current-stock quantity for the active LOT.");
+                Require(Convert.ToInt32(ScalarInTransaction(uow, "SELECT Quantity FROM #Slot WHERE SlotId=@id", slotId)) == 15,
+                    "Slot header must equal the remaining active SlotLot quantity after export.");
+                Require(Convert.ToInt32(ScalarInTransaction(uow, "SELECT SUM(SLCONLAI) FROM #STOCKTP")) == 15,
+                    "After export, STOCKTP must equal the remaining physical current stock.");
                 Require(Convert.ToInt32(ScalarInTransaction(uow, "SELECT HistoryCount FROM #DeliveryState WHERE Id=1")) == 1,
                     "Delivery history fixture did not record the successful simulated finalization.");
 
-                // Roll back every repository/ledger/finalization write to the same savepoint.
                 uow.Transaction.Rollback("QC_BEFORE_DELIVERY");
             }
             catch
@@ -211,10 +195,10 @@ INSERT INTO #DeliveryState(Id,HistoryCount,PendingClosed) VALUES(1,0,0);";
 
             Require(Convert.ToInt32(ScalarInTransaction(uow, "SELECT SLCONLAI FROM #STOCKTP WHERE LOT=@lot", lot)) == 65,
                 "STOCKTP quantity was not restored by cross-repository rollback.");
-            Require(Convert.ToInt32(ScalarInTransaction(uow, "SELECT SUM(Quantity) FROM #SlotLot WHERE SlotId=@id AND PhieuStatus <> 3", slotId)) == 80,
-                "SlotLot quantities were not restored by cross-repository rollback.");
-            Require(Convert.ToInt32(ScalarInTransaction(uow, "SELECT Quantity FROM #Slot WHERE SlotId=@id", slotId)) == 80,
-                "Slot header was not restored to active + closed + cancelled quantities after rollback.");
+            Require(Convert.ToInt32(ScalarInTransaction(uow, "SELECT SUM(Quantity) FROM #SlotLot WHERE SlotId=@id AND PhieuStatus=0", slotId)) == 65,
+                "Active SlotLot quantities were not restored by cross-repository rollback.");
+            Require(Convert.ToInt32(ScalarInTransaction(uow, "SELECT Quantity FROM #Slot WHERE SlotId=@id", slotId)) == 65,
+                "Slot header was not restored to the active physical quantity after rollback.");
             Require(Convert.ToInt32(ScalarInTransaction(uow, "SELECT HistoryCount FROM #DeliveryState WHERE Id=1")) == 0 &&
                     Convert.ToInt32(ScalarInTransaction(uow, "SELECT PendingClosed FROM #DeliveryState WHERE Id=1")) == 0,
                 "Delivery history/pending fixture writes were not rolled back.");
