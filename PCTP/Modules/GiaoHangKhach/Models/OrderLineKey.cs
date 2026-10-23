@@ -80,7 +80,7 @@ namespace PCTP.Modules.GiaoHangKhach.Models
             }
             else
             {
-                string text = Convert.ToString(ngayGiao, CultureInfo.InvariantCulture);
+                string text = Convert.ToString(ngayGiao, CultureInfo.InvariantCulture) ?? string.Empty;
                 if (!DateTime.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.None, out ngay))
                     throw new FormatException("Ngày giao không hợp lệ: '" + text + "'.");
             }
@@ -146,7 +146,7 @@ namespace PCTP.Modules.GiaoHangKhach.Models
             return true;
         }
 
-        public bool Equals(OrderLineKey other)
+        public bool Equals(OrderLineKey? other)
         {
             if (ReferenceEquals(other, null)) return false;
             if (ReferenceEquals(this, other)) return true;
@@ -158,7 +158,7 @@ namespace PCTP.Modules.GiaoHangKhach.Models
                 && GioGiao == other.GioGiao;
         }
 
-        public override bool Equals(object obj) { return Equals(obj as OrderLineKey); }
+        public override bool Equals(object? obj) { return Equals(obj as OrderLineKey); }
 
         public override int GetHashCode()
         {
