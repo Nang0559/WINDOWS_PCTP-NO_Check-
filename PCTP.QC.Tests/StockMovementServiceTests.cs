@@ -41,6 +41,70 @@ public sealed class StockMovementServiceTests
     }
 
     [Fact]
+    public void Receive_RejectsRepeatedReferenceBeforeSecondMutation()
+    {
+        var slots = new FakeSlots();
+        var service = Create(slots);
+        var request = new StockMovementRequest
+        {
+            MovementType = StockMovementRequest.Types.Receive,
+            TargetSlotId = 7, LotNo = "LOT-REF-01", ItemCode = "PART-01", Quantity = 4,
+            ReferenceType = "RECEIVING", ReferenceId = "RCV-100"
+        };
+
+        Assert.True(service.Receive(request).Success);
+        var replay = service.Receive(request);
+
+        Assert.False(replay.Success);
+        Assert.True(replay.Duplicate);
+        Assert.Single(slots.AddedLots);
+    }
+
+    [Fact]
+    public async System.Threading.Tasks.Task Receive_ConcurrentSameReferenceOnlyMutatesOnce()
+    {
+        var slots = new FakeSlots();
+        var service = Create(slots);
+        StockMovementRequest NewRequest() => new StockMovementRequest
+        {
+            MovementType = StockMovementRequest.Types.Receive,
+            TargetSlotId = 7, LotNo = "LOT-REF-02", ItemCode = "PART-01", Quantity = 4,
+            ReferenceType = "RECEIVING", ReferenceId = "RCV-CONCURRENT-100"
+        };
+
+        var results = await System.Threading.Tasks.Task.WhenAll(
+            System.Threading.Tasks.Task.Run(() => service.Receive(NewRequest())),
+            System.Threading.Tasks.Task.Run(() => service.Receive(NewRequest())));
+
+        Assert.Single(results, x => x.Success);
+        Assert.Single(results, x => x.Duplicate);
+        Assert.Single(slots.AddedLots);
+    }
+
+    [Fact]
+    public void Receive_RejectsRepeatedQrEvenWhenReferenceDiffers()
+    {
+        var slots = new FakeSlots();
+        var service = Create(slots);
+        var first = service.Receive(new StockMovementRequest
+        {
+            MovementType = StockMovementRequest.Types.Receive, TargetSlotId = 7,
+            LotNo = "LOT-QR-01", ItemCode = "PART-01", Quantity = 4,
+            ReferenceType = "RECEIVING", ReferenceId = "RCV-QR-1", QrData = "QR-UNIQUE-001"
+        });
+        var replay = service.Receive(new StockMovementRequest
+        {
+            MovementType = StockMovementRequest.Types.Receive, TargetSlotId = 7,
+            LotNo = "LOT-QR-02", ItemCode = "PART-01", Quantity = 4,
+            ReferenceType = "RECEIVING", ReferenceId = "RCV-QR-2", QrData = "QR-UNIQUE-001"
+        });
+
+        Assert.True(first.Success);
+        Assert.True(replay.Duplicate);
+        Assert.Single(slots.AddedLots);
+    }
+
+    [Fact]
     public void ReworkNgReceive_CreatesQuarantineLotWithoutIncreasingAvailableBalance()
     {
         var slots = new FakeSlots();
@@ -257,6 +321,8 @@ public sealed class StockMovementServiceTests
         public StockSlotLot Details { get; set; }
         public int DecreaseCalls { get; private set; }
         public System.Collections.Generic.List<StockSlotLot> AddedLots { get; } = new();
+        private readonly System.Collections.Concurrent.ConcurrentDictionary<string, byte> _claims =
+            new System.Collections.Concurrent.ConcurrentDictionary<string, byte>(StringComparer.OrdinalIgnoreCase);
 
         public int GetLotQuantity(int slotLotId) => LotQuantity;
         public byte GetPhieuStatus(int slotLotId) => Status;
@@ -267,6 +333,17 @@ public sealed class StockMovementServiceTests
         public void DecreaseLotQuantity(int slotLotId, int quantity) => DecreaseCalls++;
         public void AddQuantity(int slotId, int quantity, string itemCode) { }
         public void AddLot(int slotId, StockSlotLot lot) => AddedLots.Add(lot);
+        public bool TryRegisterMovement(string referenceType, string referenceId, string qrData, string temCode, bool checkExistingQr)
+        {
+            if (!string.IsNullOrWhiteSpace(referenceType) || !string.IsNullOrWhiteSpace(referenceId))
+            {
+                if (string.IsNullOrWhiteSpace(referenceType) || string.IsNullOrWhiteSpace(referenceId)) return false;
+                if (!_claims.TryAdd("REF:" + referenceType.Trim() + ":" + referenceId.Trim(), 0)) return false;
+            }
+            if (!string.IsNullOrWhiteSpace(qrData) && !_claims.TryAdd("QR:" + qrData.Trim(), 0)) return false;
+            if (!string.IsNullOrWhiteSpace(temCode) && !_claims.TryAdd("TEM:" + temCode.Trim(), 0)) return false;
+            return true;
+        }
         public StockSlotTakeResult TakeLot(int slotId, string lotNo, string itemCode, int quantity)
             => new StockSlotTakeResult { Quantity = quantity };
     }
