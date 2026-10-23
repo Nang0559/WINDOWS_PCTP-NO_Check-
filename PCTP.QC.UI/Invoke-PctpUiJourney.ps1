@@ -5,6 +5,7 @@ param(
     [Parameter(Mandatory = $false)][string]$OutputDirectory = ".\artifacts\pctp-ui-journey",
     [Parameter(Mandatory = $false)][string]$ExpectedWindowTitleRegex = ".*",
     [Parameter(Mandatory = $false)][int]$StartupTimeoutSeconds = 45,
+    [Parameter(Mandatory = $false)][int]$StepTimeoutSeconds = 20,
     [Parameter(Mandatory = $false)][switch]$CloseOnFinish
 )
 $ErrorActionPreference = "Stop"
@@ -23,35 +24,58 @@ Add-Type -AssemblyName System.Drawing
 Add-Type -AssemblyName System.Windows.Forms
 
 $process = Start-Process -FilePath $resolvedExe -PassThru
+$desktop = [System.Windows.Automation.AutomationElement]::RootElement
 $deadline = [DateTime]::UtcNow.AddSeconds($StartupTimeoutSeconds)
-$window = $null
+$mainWindow = $null
 while ([DateTime]::UtcNow -lt $deadline) {
     Start-Sleep -Milliseconds 350
     $process.Refresh()
     if ($process.HasExited) { throw "Application exited during startup with code $($process.ExitCode)." }
-    if ($process.MainWindowHandle -ne [IntPtr]::Zero) {
-        try {
-            $candidate = [System.Windows.Automation.AutomationElement]::FromHandle($process.MainWindowHandle)
-            if ($candidate -and -not [string]::IsNullOrWhiteSpace($candidate.Current.Name)) { $window = $candidate; break }
-        } catch { }
-    }
+    $mainWindow = Get-ProcessWindows | Select-Object -First 1
+    if ($mainWindow) { break }
 }
-if (-not $window) { throw "No accessible main window within $StartupTimeoutSeconds seconds." }
-if ($window.Current.Name -notmatch $ExpectedWindowTitleRegex) {
-    throw "Unexpected window title '$($window.Current.Name)' (expected '$ExpectedWindowTitleRegex')."
+if (-not $mainWindow) { throw "No accessible PCTP window within $StartupTimeoutSeconds seconds." }
+if ($mainWindow.Current.Name -notmatch $ExpectedWindowTitleRegex) {
+    throw "Unexpected startup window title '$($mainWindow.Current.Name)' (expected '$ExpectedWindowTitleRegex')."
 }
 
+function Get-ProcessWindows {
+    $all = $desktop.FindAll([System.Windows.Automation.TreeScope]::Children, [System.Windows.Automation.Condition]::TrueCondition)
+    $found = @()
+    foreach ($item in $all) {
+        try {
+            if ($item.Current.ProcessId -eq $process.Id -and $item.Current.ControlType -eq [System.Windows.Automation.ControlType]::Window) {
+                $found += $item
+            }
+        } catch { }
+    }
+    return $found
+}
+function Get-CurrentWindow {
+    $windows = @(Get-ProcessWindows)
+    if ($windows.Count -eq 0) { return $null }
+    # Prefer the newest visible owned window, otherwise retain the main window.
+    $visible = @($windows | Where-Object { -not $_.Current.IsOffscreen })
+    if ($visible.Count -gt 0) { return $visible[$visible.Count - 1] }
+    return $windows[0]
+}
 function Find-Target([object]$step) {
     $property = if ($step.automationId) {
         [System.Windows.Automation.AutomationElement]::AutomationIdProperty
     } elseif ($step.name) {
         [System.Windows.Automation.AutomationElement]::NameProperty
-    } else { throw "Each UI step must specify automationId or name." }
+    } else { throw "Step '$($step.id)' must specify automationId or name." }
     $value = if ($step.automationId) { [string]$step.automationId } else { [string]$step.name }
     $condition = New-Object System.Windows.Automation.PropertyCondition($property, $value)
-    return $window.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $condition)
+    foreach ($root in @(Get-ProcessWindows)) {
+        $target = $root.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $condition)
+        if ($target) { return $target }
+    }
+    return $null
 }
-function Save-StepScreenshot([string]$label) {
+function Save-WindowScreenshot([string]$label) {
+    $window = Get-CurrentWindow
+    if (-not $window) { return $null }
     $safe = ($label -replace '[^A-Za-z0-9_-]', '_')
     $bounds = $window.Current.BoundingRectangle
     if ($bounds.Width -le 0 -or $bounds.Height -le 0) { return $null }
@@ -64,6 +88,18 @@ function Save-StepScreenshot([string]$label) {
     } finally { $graphics.Dispose(); $bitmap.Dispose() }
     return $path
 }
+function Wait-ForWindow([string]$regex, [int]$timeout) {
+    $until = [DateTime]::UtcNow.AddSeconds($timeout)
+    do {
+        foreach ($candidate in @(Get-ProcessWindows)) {
+            try {
+                if (-not $candidate.Current.IsOffscreen -and $candidate.Current.Name -match $regex) { return $candidate }
+            } catch { }
+        }
+        Start-Sleep -Milliseconds 300
+    } while ([DateTime]::UtcNow -lt $until)
+    throw "No visible PCTP window matched title regex '$regex' within $timeout seconds."
+}
 
 $results = New-Object System.Collections.Generic.List[object]
 $script:stepIndex = 0
@@ -74,65 +110,79 @@ try {
         $label = if ($step.id) { [string]$step.id } else { "step-$script:stepIndex" }
         $action = ([string]$step.action).ToLowerInvariant()
         $target = $null
-        if ($action -notin @("wait")) {
-            $target = Find-Target $step
-            if (-not $target) { throw "Step '$label': UI element not found (AutomationId='$($step.automationId)', Name='$($step.name)')." }
-        }
         switch ($action) {
-            "assert-exists" { }
-            "click" {
-                if (-not $target.Current.IsEnabled) { throw "Step '$label': target is disabled." }
-                $pattern = $null
-                if (-not $target.TryGetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern, [ref]$pattern)) {
-                    if (-not $target.TryGetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern, [ref]$pattern)) {
-                        throw "Step '$label': target has no Invoke/SelectionItem pattern; add a stable AutomationId and accessible pattern."
-                    }
+            "assert-window-title" {
+                $window = Get-CurrentWindow
+                if (-not $window -or $window.Current.Name -notmatch [string]$step.value) {
+                    throw "Step '$label': active window title did not match '$($step.value)'."
                 }
-                if ($pattern -is [System.Windows.Automation.InvokePattern]) { $pattern.Invoke() } else { $pattern.Select() }
             }
-            "set-value" {
-                $pattern = $null
-                if (-not $target.TryGetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern, [ref]$pattern)) {
-                    throw "Step '$label': target does not expose ValuePattern."
-                }
-                if ($pattern.Current.IsReadOnly) { throw "Step '$label': target value is read-only." }
-                $pattern.SetValue([string]$step.value)
-            }
-            "assert-name-contains" {
-                if ($target.Current.Name -notlike ("*" + [string]$step.value + "*")) {
-                    throw "Step '$label': name '$($target.Current.Name)' does not contain '$($step.value)'."
-                }
+            "wait-for-window" {
+                $null = Wait-ForWindow ([string]$step.value) $(if ($step.timeoutSeconds) { [int]$step.timeoutSeconds } else { $StepTimeoutSeconds })
             }
             "wait" {
                 $milliseconds = [int]$step.milliseconds
                 if ($milliseconds -lt 0 -or $milliseconds -gt 30000) { throw "Step '$label': wait must be between 0 and 30000 ms." }
                 Start-Sleep -Milliseconds $milliseconds
             }
-            default { throw "Step '$label': unsupported action '$action'." }
+            default {
+                $target = Find-Target $step
+                if (-not $target) { throw "Step '$label': UI element not found (AutomationId='$($step.automationId)', Name='$($step.name)')." }
+                switch ($action) {
+                    "assert-exists" { }
+                    "click" {
+                        if (-not $target.Current.IsEnabled) { throw "Step '$label': target is disabled." }
+                        $pattern = $null
+                        if (-not $target.TryGetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern, [ref]$pattern)) {
+                            if (-not $target.TryGetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern, [ref]$pattern)) {
+                                throw "Step '$label': target has no Invoke/SelectionItem pattern."
+                            }
+                        }
+                        if ($pattern -is [System.Windows.Automation.InvokePattern]) { $pattern.Invoke() } else { $pattern.Select() }
+                    }
+                    "set-value" {
+                        $pattern = $null
+                        if (-not $target.TryGetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern, [ref]$pattern)) {
+                            throw "Step '$label': target does not expose ValuePattern."
+                        }
+                        if ($pattern.Current.IsReadOnly) { throw "Step '$label': target value is read-only." }
+                        $pattern.SetValue([string]$step.value)
+                    }
+                    "assert-name-contains" {
+                        if ($target.Current.Name -notlike ("*" + [string]$step.value + "*")) {
+                            throw "Step '$label': name '$($target.Current.Name)' does not contain '$($step.value)'."
+                        }
+                    }
+                    default { throw "Step '$label': unsupported action '$action'." }
+                }
+            }
         }
-        $screenshot = Save-StepScreenshot $label
-        $results.Add([pscustomobject]@{
-            Step = $script:stepIndex; Id = $label; Action = $action; Status = "PASS"
-            AutomationId = $step.automationId; Name = $step.name; Screenshot = $screenshot
-        })
         if ($step.waitAfterMs) {
             $delay = [int]$step.waitAfterMs
             if ($delay -lt 0 -or $delay -gt 30000) { throw "Step '$label': waitAfterMs must be between 0 and 30000." }
             Start-Sleep -Milliseconds $delay
         }
+        $screenshot = Save-WindowScreenshot $label
+        $window = Get-CurrentWindow
+        $results.Add([pscustomobject]@{
+            Step = $script:stepIndex; Id = $label; Action = $action; Status = "PASS"
+            AutomationId = $step.automationId; Name = $step.name
+            ActiveWindowTitle = if ($window) { $window.Current.Name } else { $null }
+            Screenshot = $screenshot
+        })
     }
 } catch {
     $failure = $_.Exception.Message
-    $results.Add([pscustomobject]@{ Step = $script:stepIndex; Status = "FAIL"; Error = $failure; Screenshot = (Save-StepScreenshot "failure") })
+    $results.Add([pscustomobject]@{ Step = $script:stepIndex; Status = "FAIL"; Error = $failure; Screenshot = (Save-WindowScreenshot "failure") })
 } finally {
     $report = [pscustomobject]@{
         Status = if ($failure) { "FAIL" } else { "PASS" }
         Test = "WinForms UI journey"
         Executable = $resolvedExe
         ProcessId = $process.Id
-        WindowTitle = $window.Current.Name
+        StartupWindowTitle = $mainWindow.Current.Name
         Manifest = (Resolve-Path -LiteralPath $ManifestPath).Path
-        StartedAt = $manifest.startedAt
+        StartedAt = (Get-Date).ToString("o")
         CompletedAt = (Get-Date).ToString("o")
         StepsPassed = @($results | Where-Object Status -eq "PASS").Count
         StepsFailed = @($results | Where-Object Status -eq "FAIL").Count
@@ -140,7 +190,7 @@ try {
     }
     $reportPath = Join-Path $out "pctp-ui-journey-report.json"
     $report | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $reportPath -Encoding UTF8
-    $report | Format-List Status, Test, WindowTitle, StepsPassed, StepsFailed, Manifest | Out-String | Write-Host
+    $report | Format-List Status, Test, StartupWindowTitle, StepsPassed, StepsFailed, Manifest | Out-String | Write-Host
     Write-Host "Report: $reportPath"
     if ($CloseOnFinish -and -not $process.HasExited) { $process.CloseMainWindow() | Out-Null }
 }
