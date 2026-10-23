@@ -1,50 +1,64 @@
 # PCTP WinForms UI automation
 
-## Startup/accessibility smoke test
+## 1. Startup and UI discovery
 
-Run on a Windows workstation where the application can be launched with the current user's normal permissions:
+Run on the Windows workstation where PCTP and its required DevExpress/runtime dependencies are installed:
 
 ```powershell
 powershell.exe -ExecutionPolicy Bypass -File .\PCTP.QC.UI\Invoke-PctpUiSmoke.ps1 `
-  -ExePath "H:\path\to\PCTP.exe" `
+  -ExePath "H:\95 - Project\09. QRcode\PCSYS160926\PCSYS160926\PCTP\bin\Debug\PCTP.exe" `
   -OutputDirectory ".\artifacts\pctp-ui-smoke" `
   -ExpectedWindowTitleRegex "PCTP|FCC|Auto Ware"
 ```
 
-The runner launches the app, waits for an accessible main window, checks the title regex, exports the Windows UI Automation control tree, captures the main-window screenshot, and writes a JSON report. It fails if the process exits during startup, the window is inaccessible, or the title does not match.
+The smoke runner verifies startup, exports the accessible control tree (AutomationId, Name, control type, class, framework, process, bounds and focus state), captures the main window and writes a JSON report. It is a startup/accessibility check only.
 
-To close the main window after a successful smoke check, add `-CloseOnSuccess`.
+## 2. Source-mapped UI journeys
 
-## Full business journeys
+The journey runner now tracks all visible top-level windows owned by the PCTP process. It can interact with controls in opened child forms, wait for a specific window title, verify a window title, expand/collapse menu groups, click, set values and assert accessible names.
 
-The smoke script intentionally does not click guessed controls or submit business data. Before automating receive, export, delivery, and rework journeys, add stable `AutomationId` values to the corresponding WinForms controls and define an isolated test-data/reset contract. Use a dedicated QC account and never point a UI run at production data. Capture the resulting report and screenshot as CI artifacts.
+Supported actions:
+- `expand`, `collapse`: UIA ExpandCollapsePattern
+- `click`: UIA InvokePattern or SelectionItemPattern
+- `set-value`: UIA ValuePattern
+- `assert-exists`, `assert-name-contains`
+- `wait`, `wait-for-window`, `assert-window-title`
 
-This is currently a startup/accessibility smoke test; it is not evidence that the full business journeys have passed.
-
-
-## Manifest-driven UI journeys
-
-`Invoke-PctpUiJourney.ps1` executes explicit UI Automation steps against stable controls. It supports `click`, `set-value`, `assert-exists`, `assert-name-contains`, and bounded `wait` steps. Every step records a screenshot and the run emits `pctp-ui-journey-report.json`.
-
-Create a manifest using actual AutomationId values from the UI tree produced by the smoke runner. Example schema (replace the example ID with a real, stable AutomationId):
-
-```json
-{
-  "steps": [
-    { "id": "main-window-ready", "action": "assert-exists", "automationId": "REPLACE_WITH_REAL_AUTOMATION_ID" },
-    { "id": "wait-for-render", "action": "wait", "milliseconds": 500 }
-  ]
-}
-```
-
-Run it with:
+Example: run the receiving navigation journey (read-only; no receipt is posted):
 
 ```powershell
 powershell.exe -ExecutionPolicy Bypass -File .\PCTP.QC.UI\Invoke-PctpUiJourney.ps1 `
-  -ExePath "H:\path\to\PCTP.exe" `
-  -ManifestPath ".\PCTP.QC.UI\journeys\delivery-smoke.json" `
-  -OutputDirectory ".\artifacts\pctp-ui-journey" `
-  -ExpectedWindowTitleRegex "PCTP|FCC|Auto Ware"
+  -ExePath "H:\95 - Project\09. QRcode\PCSYS160926\PCSYS160926\PCTP\bin\Debug\PCTP.exe" `
+  -ManifestPath ".\PCTP.QC.UI\journeys\receive-navigation.json" `
+  -OutputDirectory ".\artifacts\pctp-ui-receive" `
+  -ExpectedWindowTitleRegex "PCTP|FCC|Auto Ware" `
+  -CloseOnFinish
 ```
 
-Do not use guessed control names or run mutation journeys against a shared/production database. The repository currently does not provide stable AutomationId mappings for all receive/delivery/QC controls, so the runner is the execution engine—not a claim that those business journeys have already passed. Add the mappings to the WinForms controls and use dedicated disposable QC data before marking full UI coverage as implemented.
+## 3. Current source-mapped navigation journeys
+
+| Journey | What it opens | Mutation |
+|---|---|---|
+| `receive-navigation.json` | Receiving worklist via `NHAccordionControlElement` → `E_NhapTP` | None |
+| `delivery-hvn-navigation.json` | HVN delivery workspace via `accordionControlElement22` → `E_GHHVN_MP` | None |
+| `rework-navigation.json` | Defect/rework worklist via `E_Trahang` → `trahangndHVN` | None |
+| `qc-direction-navigation.json` | QC direction queue | None |
+| `qc-final-navigation.json` | Final QC queue | None |
+
+Control names and source titles are recorded in [CONTROL_CATALOG.md](CONTROL_CATALOG.md). These journeys verify menu accessibility and screen navigation; they do not submit receipt, export, delivery, QC or rework transactions.
+
+## 4. What remains before business E2E can be called complete
+
+The codebase has several dynamically composed DevExpress forms. Some controls are created at runtime and may not expose a stable AutomationId or Invoke/Value pattern until the application is inspected on the target workstation. In particular:
+
+- **Receiving:** opening the worklist is covered; QR scan and receipt posting need a dedicated disposable receiving reference and verified control IDs.
+- **Export:** `ExportFormSV` is opened from a slot double-click/context action on the warehouse canvas. The runner does not guess screen coordinates or choose an arbitrary slot. Provide a seeded disposable slot and map its UIA element before testing the export commit.
+- **Delivery:** opening `HVN_PGH` is covered; QR scanning and final delivery commit require isolated order/LOT fixtures and verified runtime UIA controls.
+- **QC/Rework:** queue navigation is covered; decision/confirmation buttons must not be invoked against live work items. A disposable test ticket and explicit reset/cleanup contract are required.
+- **Data assertions:** UI screenshots and titles are not proof of SQL persistence. Each mutating journey must assert the corresponding stock, SlotLot, history, pending-delivery and workflow state against a dedicated test database.
+
+Never run mutating UI journeys against production. The SQL harness has a separate fail-closed environment policy; UI journeys must use an equivalent explicit QC environment configuration before enabling submit actions.
+
+## 5. Evidence and acceptance rules
+
+Each step writes a screenshot and the run writes `pctp-ui-journey-report.json`. A navigation test is PASS only when the target window is actually observed. A business E2E test must additionally prove persisted postconditions and cleanup. A planned journey must remain planned until it has been run on the Windows workstation against isolated test data and its artifacts have been reviewed.
