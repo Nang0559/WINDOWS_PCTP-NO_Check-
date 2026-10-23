@@ -212,7 +212,7 @@ WHERE SlotId = @SlotId;";
             SELECT ISNULL(SUM(sl.Quantity), 0)
             FROM SlotLot sl
             WHERE sl.SlotId = Slot.SlotId
-              AND sl.PhieuStatus <> 3
+              AND sl.PhieuStatus = 0
         )
         WHERE SlotId = @SlotId;";
 
@@ -236,7 +236,7 @@ WHERE SlotId = @SlotId;";
             const string sql = @"
             SELECT ItemCode, LotNo, Quantity, TemCode, QrData, MaPhieu, ImportDate
             FROM SlotLot
-            WHERE SlotId = @SlotId AND PhieuStatus <> 3
+            WHERE SlotId = @SlotId AND PhieuStatus = 0
             ORDER BY LotNo;";
 
             DataTable dt = LoadData(sql,
@@ -481,12 +481,12 @@ FROM Slot s
 OUTER APPLY (
     SELECT SUM(Quantity) AS TotalQty, MAX(ImportDate) AS MaxImportDate
     FROM SlotLot
-    WHERE SlotId = s.SlotId AND PhieuStatus <> 3
+    WHERE SlotId = s.SlotId AND PhieuStatus = 0
 ) x
 OUTER APPLY (
     SELECT TOP 1 ItemCode
     FROM SlotLot
-    WHERE SlotId = s.SlotId AND PhieuStatus <> 3 AND Quantity > 0
+    WHERE SlotId = s.SlotId AND PhieuStatus = 0 AND Quantity > 0
     ORDER BY ImportDate DESC, SlotLotId DESC
 ) l
 WHERE s.SlotId = @SlotId;";
