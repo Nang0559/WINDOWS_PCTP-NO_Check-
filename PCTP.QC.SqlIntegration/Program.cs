@@ -66,6 +66,9 @@ internal static class Program
             Console.WriteLine("INFO: verifying delivery savepoint behavior against a session-local fixture...");
             await DeliveryTransactionBoundaryScenario.RunAsync(connectionString);
 
+            Console.WriteLine("INFO: running delivery reliability tests in uniquely named tempdb fixtures...");
+            await DeliveryReliabilityScenario.RunAsync(connectionString);
+
             Console.WriteLine("INFO: running exact order-table delivery marking against a rollback-isolated SQL fixture...");
             OrderTableDeliveryMarkingScenario.Run(connectionString);
             Console.WriteLine("PASS: order-table delivery marking verified for PO + part + date + hour:minute; replay and neighboring delivery slots checked.");
@@ -74,7 +77,7 @@ internal static class Program
             await SqlEngineWorkflowScenario.RunAsync(connectionString);
             Console.WriteLine("PASS: isolated SQL workflow and concurrent LOT reservation checks completed.");
 
-            Console.WriteLine("INFO: remaining unverified: full production delivery orchestration, WinForms UI automation, and end-to-end concurrency across delivery stock/history/pending repositories. All executed scenarios use isolated fixtures or rollback-only transactions; no shared business workflow rows were mutated.");
+            Console.WriteLine("INFO: remaining unverified: execution of Usp_Qrcode_Update_Stock2405 against a dedicated isolated copy of the business schema; full PhieuKhoRepository orchestration; WinForms business-journey automation; and quarantine-release authorization. All executed scenarios use session-local or uniquely named tempdb fixtures, or rollback-only transactions; no shared business workflow rows were mutated.");
             return 0;
         }
         catch (Exception ex)
