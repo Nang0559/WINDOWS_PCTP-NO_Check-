@@ -60,11 +60,15 @@ internal static class Program
             await RunIsolatedEngineReliabilityAsync(connection);
             Console.WriteLine("PASS: SQL transaction rollback/commit smoke checks completed using a session-local temporary table.");
 
+            Console.WriteLine("INFO: running exact order-table delivery marking against a rollback-isolated SQL fixture...");
+            OrderTableDeliveryMarkingScenario.Run(connectionString);
+            Console.WriteLine("PASS: order-table delivery marking verified for PO + part + date + hour:minute; replay and neighboring delivery slots checked.");
+
             Console.WriteLine("INFO: running isolated SQL workflow checks using temporary fixtures only...");
             await SqlEngineWorkflowScenario.RunAsync(connectionString);
             Console.WriteLine("PASS: isolated SQL workflow and concurrent LOT reservation checks completed.");
 
-            Console.WriteLine("INFO: production delivery orchestration, WinForms automation, and production repository concurrency remain unverified; no shared dbo workflow tables were mutated.");
+            Console.WriteLine("INFO: remaining unverified: full production delivery orchestration, WinForms UI automation, and concurrency across production repositories. No shared business workflow rows were mutated.");
             return 0;
         }
         catch (Exception ex)
