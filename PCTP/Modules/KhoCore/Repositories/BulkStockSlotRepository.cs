@@ -393,7 +393,7 @@ VALUES
                   SET s.Quantity = ISNULL(x.TotalQty,0),
                       s.IsOccupied = CASE WHEN ISNULL(x.TotalQty,0) > 0 THEN 1 ELSE 0 END
                   FROM Slot s
-                  OUTER APPLY (SELECT SUM(Quantity) AS TotalQty FROM SlotLot WHERE SlotId=@slot AND PhieuStatus=0) x
+                  OUTER APPLY (SELECT SUM(Quantity) AS TotalQty FROM SlotLot WHERE SlotId=@slot AND PhieuStatus <> 3) x
                   WHERE s.SlotId=@slot",
                 new SqlParameter("@slot", slotId));
         }
