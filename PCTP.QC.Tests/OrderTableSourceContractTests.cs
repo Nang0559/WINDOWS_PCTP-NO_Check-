@@ -58,4 +58,18 @@ public sealed class OrderTableSourceContractTests
         Assert.Contains("BuildOrderLineKeyFromTmp", repository, StringComparison.Ordinal);
         Assert.Contains("GIOGIAO", repository, StringComparison.Ordinal);
     }
+    [Fact]
+    public void DeliveryProcedure_UsesFullPhysicalLotIdentityAndFailsClosedOnAmbiguousRoot()
+    {
+        var sql = ReadSource("Usp_Qrcode_Update_Stock2405.sql");
+        Assert.Contains("RTRIM(LOT) = RTRIM(@_LOTOK)", sql, StringComparison.Ordinal);
+        Assert.Contains("RTRIM(LOT) = RTRIM(@_LOTUD)", sql, StringComparison.Ordinal);
+        Assert.Contains("COUNT(DISTINCT RTRIM(LOT))", sql, StringComparison.Ordinal);
+        Assert.Contains("Mã LOT gốc ánh xạ nhiều LOT vật lý", sql, StringComparison.Ordinal);
+        Assert.Contains("S.PhysicalLot = RTRIM(G.LOT)", sql, StringComparison.Ordinal);
+
+        // This is a source-contract guard only. SQL Server integration against the
+        // actual stored procedure and isolated business-schema copy remains required.
+    }
+
 }
