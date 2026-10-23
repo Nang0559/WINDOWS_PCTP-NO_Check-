@@ -7,6 +7,7 @@ using System.Linq;
 using System.Net;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
@@ -28,6 +29,7 @@ public sealed class MainForm : Form
     private readonly Label _passCount = new() { AutoSize = true, ForeColor = Color.SeaGreen };
     private readonly Label _failCount = new() { AutoSize = true, ForeColor = Color.Firebrick };
     private readonly Label _infoCount = new() { AutoSize = true, ForeColor = Color.DimGray };
+    private readonly Label _caseSummary = new() { AutoSize = true, ForeColor = Color.DarkSlateBlue, Text = "Test cases: chưa có dữ liệu" };
     private readonly TextBox _output = new()
     {
         Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Both,
@@ -120,6 +122,8 @@ public sealed class MainForm : Form
         summary.Controls.Add(_failCount);
         summary.Controls.Add(new Label { Text = "   |   ", AutoSize = true });
         summary.Controls.Add(_infoCount);
+        summary.Controls.Add(new Label { Text = "   |   ", AutoSize = true });
+        summary.Controls.Add(_caseSummary);
         summary.Controls.Add(_export);
         summary.Controls.Add(_openFolder);
         summary.Controls.Add(_clearOutput);
@@ -203,6 +207,7 @@ public sealed class MainForm : Form
         _eventSource.DataSource = null;
         _eventSource.DataSource = _eventItems;
         _pass = _fail = _info = 0;
+        _caseSummary.Text = "Test cases: đang chờ kết quả";
         _output.Clear();
         _activeRun = new RunRecord
         {
@@ -300,6 +305,26 @@ public sealed class MainForm : Form
         }
 
         var trimmed = line.Trim();
+        var testSummary = Regex.Match(trimmed,
+            @"Failed:\s*(\d+),\s*Passed:\s*(\d+),\s*Skipped:\s*(\d+),\s*Total:\s*(\d+)",
+            RegexOptions.IgnoreCase);
+        if (testSummary.Success)
+        {
+            var failed = int.Parse(testSummary.Groups[1].Value);
+            var passed = int.Parse(testSummary.Groups[2].Value);
+            var skipped = int.Parse(testSummary.Groups[3].Value);
+            var total = int.Parse(testSummary.Groups[4].Value);
+            _caseSummary.Text = $"Test cases: {passed}/{total} PASS, {failed} FAIL, {skipped} SKIP";
+            if (_activeRun != null)
+            {
+                _activeRun.TestCasesPassed = passed;
+                _activeRun.TestCasesFailed = failed;
+                _activeRun.TestCasesSkipped = skipped;
+                _activeRun.TestCasesTotal = total;
+            }
+            AddEvent(failed == 0 ? "PASS" : "FAIL", "Unit / Regression",
+                $"Test case summary: passed={passed}, failed={failed}, skipped={skipped}, total={total}");
+        }
         if (trimmed.StartsWith("PASS:", StringComparison.OrdinalIgnoreCase) ||
             trimmed.StartsWith("Passed!", StringComparison.OrdinalIgnoreCase))
             AddEvent("PASS", CurrentSource(trimmed), trimmed);
@@ -436,9 +461,9 @@ public sealed class MainForm : Form
             html.AppendLine("<style>body{font:14px Segoe UI,Arial;margin:24px;color:#202938}table{border-collapse:collapse;width:100%;margin:16px 0}th,td{border:1px solid #d7dce2;padding:8px;text-align:left}th{background:#eef2f7}.PASS{color:#16803c}.FAIL{color:#b42318}.WARN{color:#9a6700}pre{white-space:pre-wrap;background:#f6f8fa;padding:12px}</style></head><body>");
             html.AppendLine("<h1>PCTP QC Test Report</h1><p>Xuất lúc: " + WebUtility.HtmlEncode(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")) + "</p>");
             html.AppendLine("<p>Target test cố định: 192.168.200.57 / B7R2_FCC. Production 192.168.200.14\\BRAVO bị chặn.</p>");
-            html.AppendLine("<h2>Lịch sử chạy</h2><table><tr><th>Bắt đầu</th><th>Bài kiểm thử</th><th>Trạng thái</th><th>Thời lượng</th><th>Exit code</th></tr>");
+            html.AppendLine("<h2>Lịch sử chạy</h2><table><tr><th>Bắt đầu</th><th>Bài kiểm thử</th><th>Trạng thái</th><th>Thời lượng</th><th>Exit code</th><th>Test cases</th></tr>");
             foreach (var run in _history.Take(200))
-                html.AppendLine("<tr><td>" + E(run.StartedAt) + "</td><td>" + E(run.TestName) + "</td><td class='" + E(run.Status) + "'>" + E(run.Status) + "</td><td>" + E(run.Duration) + "</td><td>" + run.ExitCode + "</td></tr>");
+                html.AppendLine("<tr><td>" + E(run.StartedAt) + "</td><td>" + E(run.TestName) + "</td><td class='" + E(run.Status) + "'>" + E(run.Status) + "</td><td>" + E(run.Duration) + "</td><td>" + run.ExitCode + "</td><td>" + run.TestCasesPassed + "/" + run.TestCasesTotal + " (fail " + run.TestCasesFailed + ", skip " + run.TestCasesSkipped + ")</td></tr>");
             html.AppendLine("</table><h2>Sự kiện của phiên hiện tại</h2><table><tr><th>Thời gian</th><th>Kết quả</th><th>Nhóm</th><th>Chi tiết</th></tr>");
             foreach (var item in _eventItems)
                 html.AppendLine("<tr><td>" + E(item.Time) + "</td><td class='" + E(item.Level) + "'>" + E(item.Level) + "</td><td>" + E(item.Source) + "</td><td>" + E(item.Message) + "</td></tr>");
@@ -509,6 +534,10 @@ public sealed class MainForm : Form
         public int PassCount { get; set; }
         public int FailCount { get; set; }
         public int InfoCount { get; set; }
+        public int TestCasesPassed { get; set; }
+        public int TestCasesFailed { get; set; }
+        public int TestCasesSkipped { get; set; }
+        public int TestCasesTotal { get; set; }
         public string LogPath { get; set; }
     }
 }
