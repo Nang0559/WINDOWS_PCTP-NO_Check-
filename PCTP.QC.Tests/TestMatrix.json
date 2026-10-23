@@ -220,7 +220,8 @@
       "module": "Reliability",
       "scenario": "SQL command timeout",
       "expected": "Bounded failure with diagnostic and no partial commit",
-      "status": "planned"
+      "status": "implemented",
+      "testEvidence": "DeliveryReliabilityScenario.VerifyIdempotentDeliveryAndInsufficientStockAsync"
     },
     {
       "id": "SQL-002",
@@ -232,9 +233,26 @@
     {
       "id": "SQL-003",
       "module": "Reliability",
-      "scenario": "Deadlock and cancellation",
-      "expected": "Controlled rollback and recoverable state",
-      "status": "planned"
+      "scenario": "Deadlock victim and command cancellation",
+      "expected": "Exactly one deadlock victim; victim writes roll back; cancellation interrupts a running command and rolls back prior writes",
+      "status": "implemented",
+      "testEvidence": "DeliveryReliabilityScenario.VerifyDeadlockVictimRollbackAsync;DeliveryReliabilityScenario.VerifyCancellationRollbackAsync"
+    },
+    {
+      "id": "SQL-004",
+      "module": "Reliability",
+      "scenario": "Injected failure after quantity, history and pending-state writes",
+      "expected": "All writes in the active SQL transaction roll back; fixture quantity/history/pending state return to their original values",
+      "status": "implemented",
+      "testEvidence": "DeliveryReliabilityScenario.VerifyAtomicFailureRollbackAsync"
+    },
+    {
+      "id": "DEL-013",
+      "module": "GiaoHangKhach",
+      "scenario": "Concurrent consumers request the same production SlotLot FIFO quantity",
+      "expected": "Two independent production UnitOfWork instances cannot oversell one LOT; one 10-unit request wins from 15 and exactly 5 remain, with Slot header reconciled",
+      "status": "planned",
+      "testEvidence": "ProductionBulkStockSlotRepositoryScenario.RunConcurrentProductionLotConsumption"
     },
     {
       "id": "PERF-001",
