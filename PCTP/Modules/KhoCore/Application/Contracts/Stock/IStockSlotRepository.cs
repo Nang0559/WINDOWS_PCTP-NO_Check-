@@ -4,9 +4,9 @@ namespace PCTP.Modules.KhoCore.Application.Contracts.Stock
     {
         int GetLotQuantity(int slotLotId);
         byte GetPhieuStatus(int slotLotId);
-        StockSlotLot? GetLotDetails(int slotLotId);
-        string? GetLotNo(int slotLotId);
-        string? GetItemCode(int slotLotId);
+        StockSlotLot GetLotDetails(int slotLotId);
+        string GetLotNo(int slotLotId);
+        string GetItemCode(int slotLotId);
         int? GetSlotId(int slotLotId);
         void DecreaseLotQuantity(int slotLotId, int quantity);
         void AddQuantity(int slotId, int quantity, string itemCode);
@@ -24,6 +24,6 @@ namespace PCTP.Modules.KhoCore.Application.Contracts.Stock
         /// ItemCode is part of the selection key so the same LOT key cannot
         /// accidentally consume another item's stock.
         /// </summary>
-        StockSlotTakeResult? TakeLot(int slotId, string lotNo, string itemCode, int quantity);
+        StockSlotTakeResult TakeLot(int slotId, string lotNo, string itemCode, int quantity);
     }
 }
