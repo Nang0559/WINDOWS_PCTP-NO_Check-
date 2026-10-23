@@ -80,9 +80,17 @@ CREATE TABLE #STOCKTP
                 "GetSlConLaiBatch returned unexpected LOT values.");
 
             var current = repository.GetTonKhoHienTai();
-            Require(current.Rows.Count == 1 &&
-                    Convert.ToInt32(current.Rows[0]["SLCONLAI"]) == 55,
-                "GetTonKhoHienTai did not return the active fixture row.");
+            var currentFixtureRows = current.AsEnumerable()
+                .Where(row => string.Equals(
+                    Convert.ToString(row["LOT"]),
+                    "QC-REPO-LOT-0001",
+                    StringComparison.OrdinalIgnoreCase))
+                .ToList();
+            Require(currentFixtureRows.Count == 1 &&
+                    Convert.ToInt32(currentFixtureRows[0]["SLCONLAI"]) == 55,
+                "GetTonKhoHienTai did not return exactly one active fixture row with SLCONLAI=55. " +
+                $"Fixture rows found={currentFixtureRows.Count}; quantities=" +
+                string.Join(",", currentFixtureRows.Select(row => Convert.ToString(row["SLCONLAI"]))));
 
             var remainingLots = repository.GetDanhSachLotConTon();
             Require(remainingLots.Count == 1 &&
