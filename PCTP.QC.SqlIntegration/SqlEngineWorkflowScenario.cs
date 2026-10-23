@@ -14,7 +14,7 @@ internal static class SqlEngineWorkflowScenario
     {
         await VerifyPhysicalLocationQuarantineAndLedgerAsync(connectionString);
         await VerifyConcurrentLotReservationAsync(connectionString);
-        VerifyProductionMovementGuardAsync(connectionString);
+        VerifyProductionMovementGuard(connectionString);
         await VerifyConcurrentProductionMovementGuardAsync(connectionString);
         Console.WriteLine("PASS: isolated SQL workflow checks, including production BulkStockSlotRepository idempotency and two-session duplicate-reference race.");
     }
@@ -194,11 +194,11 @@ CREATE UNIQUE INDEX UX_QC_Tem ON {table}(TemHash) WHERE TemHash IS NOT NULL;", o
             var repository = new PCTP.Modules.KhoVatLy.Repositories.BulkStockSlotRepository(
                 new PCTP.Modules.GiaoHangKhach.PhieuSqlExecutor(), uow, table);
 
-            Require(repository.TryRegisterMovement("RECEIVING", "QC-REF-1", null, null, false),
+            Require(repository.TryRegisterMovement("RECEIVING", "QC-REF-1", null!, null!, false),
                 "Production guard rejected the first reference claim.");
             Require(!repository.TryRegisterMovement("RECEIVING", "QC-REF-1", null, null, false),
                 "Production guard accepted a repeated ReferenceType + ReferenceId.");
-            Require(repository.TryRegisterMovement("RECEIVING", "QC-REF-2", "QC-QR-UNIQUE", null, false),
+            Require(repository.TryRegisterMovement("RECEIVING", "QC-REF-2", "QC-QR-UNIQUE", null!, false),
                 "Production guard rejected the first QR claim.");
             Require(!repository.TryRegisterMovement("RECEIVING", "QC-REF-3", "QC-QR-UNIQUE", null, false),
                 "Production guard accepted a repeated QR with a different reference.");
