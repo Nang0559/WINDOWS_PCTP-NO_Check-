@@ -42,7 +42,7 @@ VALUES (1,10,N'LOT-Q',N'ITEM-Q',12,3,0);");
         {
             // Authorization and QC gates are fail-closed and must not start a transaction.
             var unauthorized = await ScalarAsync(owner, $"SELECT COUNT(1) FROM {lots} WHERE SlotLotId=1 AND PhieuStatus=3");
-            Require(unauthorized == 1, "Quarantine fixture was not created.");
+            Require(Convert.ToInt32(unauthorized) == 1, "Quarantine fixture was not created.");
 
             await using (var tx = (SqlTransaction)await owner.BeginTransactionAsync(IsolationLevel.ReadCommitted))
             {
