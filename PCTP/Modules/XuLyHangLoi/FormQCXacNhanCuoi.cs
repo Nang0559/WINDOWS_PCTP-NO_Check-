@@ -167,7 +167,7 @@ namespace PCTP.Modules.XuLyHangLoi
             var lblOK = CreateCaptionLabel("Số lượng OK:");
             main.Controls.Add(lblOK, 0, 7);
 
-            _spSoLuongOK = new SpinEdit { Dock = DockStyle.Fill };
+            _spSoLuongOK = new SpinEdit { Name = "qcFinal_qtyOK", Dock = DockStyle.Fill };
             _spSoLuongOK.Properties.IsFloatValue = false;
             _spSoLuongOK.Properties.MinValue = 0;
             _spSoLuongOK.Properties.MaxValue = 999999999;
@@ -181,7 +181,7 @@ namespace PCTP.Modules.XuLyHangLoi
             var lblNG = CreateCaptionLabel("Số lượng NG:");
             main.Controls.Add(lblNG, 0, 8);
 
-            _spSoLuongNG = new SpinEdit { Dock = DockStyle.Fill };
+            _spSoLuongNG = new SpinEdit { Name = "qcFinal_qtyNG", Dock = DockStyle.Fill };
             _spSoLuongNG.Properties.IsFloatValue = false;
             _spSoLuongNG.Properties.MinValue = 0;
             _spSoLuongNG.Properties.MaxValue = 999999999;
@@ -209,7 +209,7 @@ namespace PCTP.Modules.XuLyHangLoi
             var lblLotNhapLai = CreateCaptionLabel("Lot nhập lại:");
             main.Controls.Add(lblLotNhapLai, 0, 10);
 
-            _txtLotNhapLai = new TextEdit { Dock = DockStyle.Fill };
+            _txtLotNhapLai = new TextEdit { Name = "qcFinal_reworkLot", Dock = DockStyle.Fill };
             main.Controls.Add(_txtLotNhapLai, 1, 10);
 
             // ========================================================
@@ -249,7 +249,7 @@ namespace PCTP.Modules.XuLyHangLoi
                 new ColumnStyle(SizeType.Percent, 100));
 
             var lblNote = CreateCaptionLabel("Ghi chú:");
-            _txtGhiChu = new MemoEdit { Dock = DockStyle.Fill };
+            _txtGhiChu = new MemoEdit { Name = "qcFinal_note", Dock = DockStyle.Fill };
 
             notePanel.Controls.Add(lblNote, 0, 0);
             notePanel.Controls.Add(_txtGhiChu, 1, 0);
@@ -275,6 +275,7 @@ namespace PCTP.Modules.XuLyHangLoi
             // Người QC
             _txtNguoiQC = new TextEdit
             {
+                Name = "qcFinal_operator",
                 Dock = DockStyle.Fill,
                 Text = Environment.UserName
             };
@@ -282,6 +283,7 @@ namespace PCTP.Modules.XuLyHangLoi
 
             _btnXacNhan = new SimpleButton
             {
+                Name = "qcFinal_btnConfirm",
                 Text = "✔ Xác nhận",
                 Dock = DockStyle.Fill
             };
@@ -292,6 +294,7 @@ namespace PCTP.Modules.XuLyHangLoi
 
             _btnDong = new SimpleButton
             {
+                Name = "qcFinal_btnClose",
                 Text = "Đóng",
                 Dock = DockStyle.Fill
             };
