@@ -9,6 +9,12 @@ on:
       - fix/qc-final-execution-timeout
       - feature/pctp-qc-test-platform
   workflow_dispatch:
+    inputs:
+      run_sql_integration:
+        description: 'Run SQL integration tests on the isolated self-hosted SQL runner'
+        required: true
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -36,6 +42,33 @@ jobs:
           name: pctp-qc-test-results
           path: PCTP.QC.Tests/TestResults/*.trx
           if-no-files-found: ignore
+
+
+  sql-engine-integration:
+    # The SQL test endpoint is private. Never expose it to a GitHub-hosted runner
+    # and never point this job at production. Configure a dedicated self-hosted
+    # Windows runner labelled pctp-qc-sql with network access only to the test DB.
+    if: github.event_name == 'workflow_dispatch' && inputs.run_sql_integration == true
+    runs-on: [self-hosted, windows, pctp-qc-sql]
+    env:
+      PCTP_QC_SQL_USER: ${{ secrets.PCTP_QC_SQL_USER }}
+      PCTP_QC_SQL_PASSWORD: ${{ secrets.PCTP_QC_SQL_PASSWORD }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Require isolated SQL credentials
+        shell: pwsh
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:PCTP_QC_SQL_USER) -or [string]::IsNullOrWhiteSpace($env:PCTP_QC_SQL_PASSWORD)) {
+            throw "Configure PCTP_QC_SQL_USER and PCTP_QC_SQL_PASSWORD secrets before running SQL integration."
+          }
+      - name: Run SQL integration harness
+        shell: pwsh
+        run: dotnet run --project PCTP.QC.SqlIntegration/PCTP.QC.SqlIntegration.csproj --configuration Release -- --user "$env:PCTP_QC_SQL_USER" --password "$env:PCTP_QC_SQL_PASSWORD"
 
   desktop-runner-build:
     runs-on: windows-latest
