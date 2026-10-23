@@ -34,27 +34,19 @@ public sealed class OrderTableSourceContractTests
     }
 
     [Fact]
-    public void MarkDelivered_UsesCompleteOrderLineKeyForBothOrderTables()
+    public void StoredProcedure_DoesNotDuplicateOrderDeliveredFinalization()
     {
         var sql = ReadSource("Usp_Qrcode_Update_Stock2405.sql");
-        Assert.Equal(2, Count(sql, "AND LTRIM(RTRIM(tmp.MAHANG)) = LTRIM(RTRIM(po.Part_no))"));
-        Assert.Equal(2, Count(sql, "AND CAST(tmp.NGAYGIAO AS DATE) = CAST(po.NgayGiao AS DATE)"));
-        Assert.Equal(2, Count(sql, "AND DATEPART(HH, tmp.NGAYGIAO) = DATEPART(HH, po.NgayGiao)"));
-        Assert.Equal(2, Count(sql, "AND DATEPART(MI, tmp.NGAYGIAO) = DATEPART(MI, po.NgayGiao)"));
-        Assert.Contains("FROM Purchase_Order_HTN po", sql, StringComparison.Ordinal);
-        Assert.Contains("FROM Purchase_Order_YMVN po", sql, StringComparison.Ordinal);
-        Assert.DoesNotContain("ON CAST(tmp.PO_NO AS NVARCHAR) =", sql, StringComparison.Ordinal);
-    }
+        Assert.Contains("OrderLineKey", sql, StringComparison.Ordinal);
+        Assert.Contains("OrderTableSql.MarkDelivered", sql, StringComparison.Ordinal);
+        Assert.DoesNotContain("UPDATE po", sql, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Purchase_Order_HTN po", sql, StringComparison.Ordinal);
+        Assert.DoesNotContain("Purchase_Order_YMVN po", sql, StringComparison.Ordinal);
 
-    private static int Count(string source, string value)
-    {
-        var count = 0;
-        var offset = 0;
-        while ((offset = source.IndexOf(value, offset, StringComparison.Ordinal)) >= 0)
-        {
-            count++;
-            offset += value.Length;
-        }
-        return count;
+        var repository = ReadSource("PhieuKhoRepository.source.cs");
+        Assert.Contains("OrderLineKey.Build", repository, StringComparison.Ordinal);
+        Assert.Contains("OrderTableSql.MarkDelivered", repository, StringComparison.Ordinal);
+        Assert.Contains("BuildOrderLineKeyFromTmp", repository, StringComparison.Ordinal);
+        Assert.Contains("GIOGIAO", repository, StringComparison.Ordinal);
     }
 }
