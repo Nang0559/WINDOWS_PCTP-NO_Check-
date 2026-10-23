@@ -171,7 +171,7 @@ WHERE s.SlotId = @slot;";
                     "SELECT COUNT(1) FROM #SlotLot WHERE LotNo=@lot AND PhieuStatus=0", lot)) == 2,
                     "LOT traceability did not return both active SlotLot rows for the stock ledger LOT.");
                 Require(Convert.ToInt32(ScalarInTransaction(uow,
-                    "SELECT CASE WHEN (SELECT SUM(Quantity) FROM #SlotLot WHERE LotNo=@lot AND PhieuStatus = 0) = (SELECT SLCONLAI FROM #STOCKTP WHERE LOT=@lot) THEN 1 ELSE 0 END", lot)) == 1,
+                    "SELECT CASE WHEN (SELECT SUM(Quantity) FROM #SlotLot WHERE LotNo=@lot AND PhieuStatus <> 3) = (SELECT SLCONLAI FROM #STOCKTP WHERE LOT=@lot) THEN 1 ELSE 0 END", lot)) == 1,
                     "Production STOCKTP current stock does not reconcile with active SlotLot quantities.");
                 Require(Convert.ToInt32(ScalarInTransaction(uow, "SELECT Quantity FROM #Slot WHERE SlotId=@id", slotId)) == 30,
                     "Slot header must include active + closed + cancelled SlotLot quantities but exclude quarantine/NG.");
