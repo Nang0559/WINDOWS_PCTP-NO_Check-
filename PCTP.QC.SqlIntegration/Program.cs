@@ -26,8 +26,9 @@ internal static class Program
             await connection.OpenAsync();
             Console.WriteLine($"PASS: SQL connection established to {SqlTestConfiguration.Server}/{SqlTestConfiguration.Database}.");
 
-            // Safe-by-default mode: inspect the existing SQL 57 database only.
-            // Never create/drop dbo tables or mutate business rows on the shared server.
+            // Safe-by-default mode: inspect existing SQL 57 schema, then run only
+            // the production StockTpRepository scenario against a session-local #STOCKTP.
+            // Never create/drop dbo tables or mutate shared business rows.
             var missing = await FindMissingProductionSchemaAsync(connection);
             if (missing.Count > 0)
             {
@@ -73,9 +74,11 @@ internal static class Program
         return null;
     }
 
+    // Optional SQL-engine smoke test retained for future opt-in use. Its fixture is
+    // session-local; do not change this to dbo or enable shared-table fixtures here.
     private static async Task RunIsolatedEngineReliabilityAsync(SqlConnection connection)
     {
-        var table = "dbo.[__PCTP_QC_ENGINE_" + Guid.NewGuid().ToString("N") + "]";
+        var table = "[#__PCTP_QC_ENGINE_" + Guid.NewGuid().ToString("N") + "]";
         await using var create = new SqlCommand($@"
 CREATE TABLE {table}
 (
