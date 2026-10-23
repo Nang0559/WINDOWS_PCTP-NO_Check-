@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Data.SqlClient;
+using Microsoft.Data.SqlClient;
 using PCTP.Modules.KhoCore.Application.Contracts.Stock;
 using PCTP.Modules.KhoCore.Application.Services;
 using PCTP.Modules.KhoVatLy.Repositories;
@@ -14,7 +14,7 @@ public sealed class QuarantineReleaseServiceTests
     [Fact]
     public void Release_RejectsUnauthorizedBeforeAnyStockMutation()
     {
-        var f = Fixture(authorized: false);
+        var f = CreateFixture(authorized: false);
         var result = f.Service.Release(new QuarantineReleaseRequest
         {
             SlotLotId = 7, QcDispositionApproved = true, PerformedBy = "operator", ReferenceId = "REL-001"
@@ -81,7 +81,7 @@ public sealed class QuarantineReleaseServiceTests
         Assert.Equal(0, f.Audit.Count);
     }
 
-    private static Fixture Fixture(bool authorized)
+    private static Fixture CreateFixture(bool authorized)
     {
         var slots = new FakeSlots();
         var balance = new FakeBalance();
