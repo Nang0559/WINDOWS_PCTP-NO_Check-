@@ -9,7 +9,7 @@ namespace PCTP.Modules.NhapKho.Interfaces
     {
         bool ExistsStockTp(string lot);
 
-        StockItem GetByLot(string lot);
+        StockItem? GetByLot(string lot);
 
         int GetSlConLai(string lot);
 
