@@ -221,7 +221,7 @@
       "scenario": "SQL command timeout",
       "expected": "Bounded failure with diagnostic and no partial commit",
       "status": "implemented",
-      "testEvidence": "DeliveryReliabilityScenario.VerifyIdempotentDeliveryAndInsufficientStockAsync"
+      "testEvidence": "Program.RunCommandTimeoutRollbackAsync"
     },
     {
       "id": "SQL-002",
@@ -245,6 +245,14 @@
       "expected": "All writes in the active SQL transaction roll back; fixture quantity/history/pending state return to their original values",
       "status": "implemented",
       "testEvidence": "DeliveryReliabilityScenario.VerifyAtomicFailureRollbackAsync"
+    },
+    {
+      "id": "SQL-005",
+      "module": "Reliability",
+      "scenario": "Synthetic delivery replay and insufficient-stock contract",
+      "expected": "A repeated unique delivery key does not decrement stock or duplicate history; an insufficient-stock request makes no partial mutation",
+      "status": "implemented",
+      "testEvidence": "DeliveryReliabilityScenario.VerifyIdempotentDeliveryAndInsufficientStockAsync"
     },
     {
       "id": "DEL-013",
