@@ -58,7 +58,7 @@ internal static class Program
                 await RunConcurrentConditionalDecrementAsync(connectionString, table);
                 await RunCommandTimeoutRollbackAsync(connection, table);
                 await DeliveryReliabilityScenario.RunAsync(connectionString);
-                Console.WriteLine("PASS: SQL Server integration suite completed (3 production UnitOfWork + 1 production SqlRepositoryBase + 1 production StockTpRepository + 1 production BulkStockSlotRepository + 1 order-table delivery marking (PO + part + date + hour:minute) + 1 cross-repository delivery rollback + 3 SQL engine contracts).");
+                Console.WriteLine("PASS: SQL Server integration suite completed (production UnitOfWork/SqlRepositoryBase/StockTpRepository/BulkStockSlotRepository; exact order-line marking; shared stock/slot rollback; production same-LOT concurrency; SQL replay/shortage/rollback/deadlock/cancellation contracts; engine timeout/concurrency).");
                 return 0;
             }
             finally
