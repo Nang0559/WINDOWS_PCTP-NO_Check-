@@ -73,3 +73,16 @@ Enter SQL credentials and use:
 - `PASS: isolated SQL workflow...`: temporary-fixture location, quarantine/release, ledger, duplicate-reference, rollback, and concurrency checks passed. This is not a substitute for production delivery confirmation/history adapters or UI end-to-end tests.
 - `FAIL`: review the listed missing table/column names against the actual schema and repository SQL. Apply approved fixes manually on SQL 57, then rerun the diagnostics.
 - SQL errors such as permission denied, connection timeout, or login failure are reported as failures; they are not auto-corrected.
+
+
+## Delivery reliability SQL-engine scenarios
+
+The runner now invokes `DeliveryReliabilityScenario` after the savepoint/duplicate-lock checks. It creates a GUID-named `##PCTP_QC_REL_<guid>` table in `tempdb` and keeps the creator connection open for the full scenario. It verifies:
+
+- replay is idempotent and changes quantity/history/pending state once;
+- insufficient stock creates no delivery state;
+- an injected exception after writes rolls quantity/history/pending state back together;
+- a two-session deadlock rolls back the selected victim transaction;
+- SQL cancellation rolls back the preceding write.
+
+The fixture is dropped in `finally`. These are SQL-engine contract checks over a synthetic tempdb fixture; they do not invoke `Usp_Qrcode_Update_Stock2405` against the full business schema or prove that the WinForms orchestration is atomic end-to-end.
