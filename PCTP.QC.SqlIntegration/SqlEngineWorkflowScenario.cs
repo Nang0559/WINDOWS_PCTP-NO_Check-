@@ -162,7 +162,7 @@ SELECT @@ROWCOUNT;", connection, transaction) { CommandTimeout = 10 };
         }
     }
 
-    private static void VerifyProductionMovementGuardAsync(string connectionString)
+    private static void VerifyProductionMovementGuard(string connectionString)
     {
         var legacyConnectionString = PCTP.QC.SqlIntegration.SqlTestConfiguration.BuildLegacySqlClientConnectionString(connectionString);
         var table = "##PCTPStockMovementGuard_" + Guid.NewGuid().ToString("N");
@@ -196,11 +196,11 @@ CREATE UNIQUE INDEX UX_QC_Tem ON {table}(TemHash) WHERE TemHash IS NOT NULL;", o
 
             Require(repository.TryRegisterMovement("RECEIVING", "QC-REF-1", null!, null!, false),
                 "Production guard rejected the first reference claim.");
-            Require(!repository.TryRegisterMovement("RECEIVING", "QC-REF-1", null, null, false),
+            Require(!repository.TryRegisterMovement("RECEIVING", "QC-REF-1", null!, null!, false),
                 "Production guard accepted a repeated ReferenceType + ReferenceId.");
             Require(repository.TryRegisterMovement("RECEIVING", "QC-REF-2", "QC-QR-UNIQUE", null!, false),
                 "Production guard rejected the first QR claim.");
-            Require(!repository.TryRegisterMovement("RECEIVING", "QC-REF-3", "QC-QR-UNIQUE", null, false),
+            Require(!repository.TryRegisterMovement("RECEIVING", "QC-REF-3", "QC-QR-UNIQUE", null!, false),
                 "Production guard accepted a repeated QR with a different reference.");
             uow.Rollback();
             Console.WriteLine("PASS: production BulkStockSlotRepository rejects duplicate reference and QR claims in one rollback transaction.");
@@ -248,7 +248,7 @@ CREATE UNIQUE INDEX UX_QC_Tem ON {table}(TemHash) WHERE TemHash IS NOT NULL;", o
                 {
                     var repository = new PCTP.Modules.KhoVatLy.Repositories.BulkStockSlotRepository(
                         new PCTP.Modules.GiaoHangKhach.PhieuSqlExecutor(), uow, table);
-                    bool claimed = repository.TryRegisterMovement("DELIVERY", "QC-CONCURRENT-REF", null, null, false);
+                    bool claimed = repository.TryRegisterMovement("DELIVERY", "QC-CONCURRENT-REF", null!, null!, false);
                     if (claimed) uow.Commit();
                     else uow.Rollback();
                     return claimed;
