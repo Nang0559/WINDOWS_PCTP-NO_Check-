@@ -104,7 +104,7 @@ VALUES (1,12,N'qc-admin',N'REL-001');");
     private static async Task<object> ScalarAsync(SqlConnection connection, string sql)
     {
         await using var command = new SqlCommand(sql, connection) { CommandTimeout = 5 };
-        return await command.ExecuteScalarAsync();
+        return await command.ExecuteScalarAsync() ?? DBNull.Value;
     }
 
     private static async Task TryDropAsync(SqlConnection connection, string table)
