@@ -46,6 +46,13 @@ internal static class Program
                 return 0;
             }
 
+            if (args.Any(arg => string.Equals(arg, "--delivery-preflight", StringComparison.OrdinalIgnoreCase)))
+            {
+                await VerifyDeliveryProcedureReadinessAsync(connection);
+                Console.WriteLine("PASS: delivery procedure deployment preflight completed; metadata only, no procedure execution or business writes.");
+                return 0;
+            }
+
             // Production StockTpRepository scenario uses a session-local #STOCKTP fixture and rollback.
             // Bulk Slot/Rack/Warehouse operations below also use only session-local # tables.
             Console.WriteLine("INFO: running production StockTpRepository checks against real dbo.STOCKTP in a rollback transaction...");
@@ -86,6 +93,62 @@ internal static class Program
             Console.Error.WriteLine(ex);
             return 1;
         }
+    }
+
+    private static async Task VerifyDeliveryProcedureReadinessAsync(SqlConnection connection)
+    {
+        const string sql = @"
+SELECT
+    OBJECT_ID(N'dbo.Usp_Qrcode_Update_Stock2405', N'P') AS ProcedureId,
+    OBJECT_ID(N'dbo.LUUPHIEUGIAOHANG', N'U') AS DeliveryLedgerId,
+    OBJECT_ID(N'dbo.LUUDOCQRCODE', N'U') AS DeliveryQrLedgerId,
+    OBJECT_ID(N'dbo.STOCKTP', N'U') AS StockId,
+    m.definition
+FROM (VALUES (1)) AS seed(n)
+LEFT JOIN sys.sql_modules m
+    ON m.object_id = OBJECT_ID(N'dbo.Usp_Qrcode_Update_Stock2405', N'P');";
+
+        await using var command = new SqlCommand(sql, connection) { CommandTimeout = 5 };
+        await using var reader = await command.ExecuteReaderAsync();
+        if (!await reader.ReadAsync())
+            throw new InvalidOperationException("Delivery procedure metadata query returned no row.");
+
+        var procedureId = reader.IsDBNull(0) ? (int?)null : reader.GetInt32(0);
+        var ledgerId = reader.IsDBNull(1) ? (int?)null : reader.GetInt32(1);
+        var qrLedgerId = reader.IsDBNull(2) ? (int?)null : reader.GetInt32(2);
+        var stockId = reader.IsDBNull(3) ? (int?)null : reader.GetInt32(3);
+        var definition = reader.IsDBNull(4) ? string.Empty : reader.GetString(4);
+        await reader.CloseAsync();
+
+        var missing = new List<string>();
+        if (procedureId == null) missing.Add("dbo.Usp_Qrcode_Update_Stock2405 is missing");
+        if (ledgerId == null) missing.Add("dbo.LUUPHIEUGIAOHANG is missing");
+        if (qrLedgerId == null) missing.Add("dbo.LUUDOCQRCODE is missing");
+        if (stockId == null) missing.Add("dbo.STOCKTP is missing");
+
+        if (procedureId != null)
+        {
+            if (!definition.Contains("PCTP_DELIVERY:", StringComparison.OrdinalIgnoreCase))
+                missing.Add("deployed procedure does not contain the PCTP_DELIVERY idempotency lock marker");
+            if (!definition.Contains("sp_getapplock", StringComparison.OrdinalIgnoreCase))
+                missing.Add("deployed procedure does not contain sp_getapplock");
+            if (!definition.Contains("SAVE TRANSACTION UspQrcodeUpdateStock2405", StringComparison.OrdinalIgnoreCase))
+                missing.Add("deployed procedure does not preserve the caller transaction with the expected savepoint");
+            if (!definition.Contains("@LockOwner = N'Transaction'", StringComparison.OrdinalIgnoreCase))
+                missing.Add("deployed procedure does not use a transaction-owned application lock");
+        }
+
+        if (missing.Count > 0)
+        {
+            foreach (var item in missing)
+                Console.Error.WriteLine("FAIL: DELIVERY PREFLIGHT: " + item);
+            Console.Error.WriteLine("ACTION: compare the deployed dbo.Usp_Qrcode_Update_Stock2405 definition with SQL/Usp_Qrcode_Update_Stock2405.sql and review required ledger tables. This check is read-only.");
+            throw new InvalidOperationException("Delivery procedure deployment preflight failed with " + missing.Count + " issue(s).");
+        }
+
+        Console.WriteLine("PASS: dbo.Usp_Qrcode_Update_Stock2405 exists.");
+        Console.WriteLine("PASS: delivery and QR ledger tables plus dbo.STOCKTP exist.");
+        Console.WriteLine("PASS: deployed procedure contains savepoint and transaction-owned idempotency-lock markers.");
     }
 
     private static string? GetOption(string[] args, string name)
