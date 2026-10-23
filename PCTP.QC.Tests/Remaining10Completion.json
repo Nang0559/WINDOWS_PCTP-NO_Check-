@@ -66,6 +66,12 @@
       "evidence": [
         "QuarantineReleaseServiceTests verify authorization/QC gates and unit-of-work rollback; QuarantineReleaseScenario verifies SQL-engine fixture behavior only. Production authorization/repository adapters against isolated business schema remain unproven."
       ]
+    },
+    "RWK-008": {
+      "status": "planned",
+      "evidence": [
+        "RemainingQcCaseContractTests verifies the production NG movement/status-3/no-STOCKTP-credit source path; persisted SQL postconditions and injected rollback against an isolated business schema remain required."
+      ]
     }
   },
   "runtimeGates": [
