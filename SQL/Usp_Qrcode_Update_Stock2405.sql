@@ -438,17 +438,37 @@ BEGIN
                             ------------------------------------------------  
                             -- 6.5. TÌM TỒN THEO LOT KEY 13 KÝ TỰ  
                             ------------------------------------------------  
-                            SET @_SLCONLAI = 0;  
-  
-                            SELECT TOP (1)  
-                                @_SLCONLAI =  
-                                    ISNULL(SLCONLAI, 0)  
-                            FROM STOCKTP  
-                            WHERE LEFT(LOT, 13) =  
-                                  LEFT(@_LOTOK, 13)  
-                            ORDER BY  
-                                SLCONLAI DESC,  
-                                LOT ASC;  
+                            SET @_SLCONLAI = 0;
+
+                            -- Full physical LOT is the exact identity. A 13-character
+                            -- root is accepted only when it maps to one physical LOT.
+                            IF LEN(RTRIM(@_LOTOK)) > 13
+                            BEGIN
+                                SELECT @_SLCONLAI = ISNULL(SLCONLAI, 0)
+                                FROM STOCKTP
+                                WHERE RTRIM(LOT) = RTRIM(@_LOTOK);
+                            END
+                            ELSE IF (
+                                SELECT COUNT(DISTINCT RTRIM(LOT))
+                                FROM STOCKTP
+                                WHERE LEFT(RTRIM(LOT), 13) = LEFT(RTRIM(@_LOTOK), 13)
+                            ) = 1
+                            BEGIN
+                                SELECT TOP (1) @_SLCONLAI = ISNULL(SLCONLAI, 0)
+                                FROM STOCKTP
+                                WHERE LEFT(RTRIM(LOT), 13) = LEFT(RTRIM(@_LOTOK), 13)
+                                ORDER BY LOT ASC;
+                            END
+                            ELSE IF (
+                                SELECT COUNT(DISTINCT RTRIM(LOT))
+                                FROM STOCKTP
+                                WHERE LEFT(RTRIM(LOT), 13) = LEFT(RTRIM(@_LOTOK), 13)
+                            ) > 1
+                            BEGIN
+                                INSERT INTO #STNG(MH, LOT, SLCAN, SLCO, SLTHIEU, STATUS)
+                                VALUES(@MH, @_LOTOK, @_SLOK, 0, @_SLOK,
+                                       N'Mã LOT gốc ánh xạ nhiều LOT vật lý; vui lòng cung cấp LOT đầy đủ');
+                            END;  
   
                             ------------------------------------------------  
                             -- 6.6. KIỂM TRA LOT TỒN TẠI  
@@ -748,15 +768,25 @@ BEGIN
             --  
             -- Sau khi tìm được mới UPDATE WHERE LOT = @LotThuc.  
             ----------------------------------------------------------------  
-            SELECT TOP (1)  
-                @LotThuc = LOT  
-            FROM STOCKTP  
-            WHERE LEFT(LOT, 13) =  
-                  LEFT(@_LOTUD, 13)  
-              AND ISNULL(SLCONLAI, 0) >= @_SLUD  
-            ORDER BY  
-                NGAYNHAP ASC,  
-                LOT ASC;  
+            IF LEN(RTRIM(@_LOTUD)) > 13
+            BEGIN
+                SELECT @LotThuc = LOT
+                FROM STOCKTP
+                WHERE RTRIM(LOT) = RTRIM(@_LOTUD)
+                  AND ISNULL(SLCONLAI, 0) >= @_SLUD;
+            END
+            ELSE IF (
+                SELECT COUNT(DISTINCT RTRIM(LOT))
+                FROM STOCKTP
+                WHERE LEFT(RTRIM(LOT), 13) = LEFT(RTRIM(@_LOTUD), 13)
+            ) = 1
+            BEGIN
+                SELECT TOP (1) @LotThuc = LOT
+                FROM STOCKTP
+                WHERE LEFT(RTRIM(LOT), 13) = LEFT(RTRIM(@_LOTUD), 13)
+                  AND ISNULL(SLCONLAI, 0) >= @_SLUD
+                ORDER BY NGAYNHAP ASC, LOT ASC;
+            END  
   
             ----------------------------------------------------------------  
             -- 10.2. Không tìm được LOT vật lý  
