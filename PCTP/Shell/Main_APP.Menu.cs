@@ -20,7 +20,6 @@ namespace PCTP
     public partial class Main_APP
     {
         private AccordionControlElement _menuKho;
-        private AccordionControlElement _menuKhoBanDo;
         private AccordionControlElement _menuKhoTonTP;
         private AccordionControlElement _menuBcLichSuKho;
         private AccordionControlElement _menuBcLichSuQC;
