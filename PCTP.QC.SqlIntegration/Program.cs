@@ -57,7 +57,12 @@ internal static class Program
             Console.WriteLine("INFO: running isolated SQL transaction rollback/commit smoke checks...");
             await RunIsolatedEngineReliabilityAsync(connection);
             Console.WriteLine("PASS: SQL transaction rollback/commit smoke checks completed using a session-local temporary table.");
-            Console.WriteLine("INFO: bulk Slot/Rack/Warehouse writes, delivery scenarios, and production concurrency tests remain disabled on shared dbo data.");
+
+            Console.WriteLine("INFO: running isolated SQL workflow checks using temporary fixtures only...");
+            await SqlEngineWorkflowScenario.RunAsync(connectionString);
+            Console.WriteLine("PASS: isolated SQL workflow and concurrent LOT reservation checks completed.");
+
+            Console.WriteLine("INFO: production delivery orchestration, WinForms automation, and production repository concurrency remain unverified; no shared dbo workflow tables were mutated.");
             return 0;
         }
         catch (Exception ex)
