@@ -28,14 +28,75 @@ namespace PCTP.Shared.Common
         {
             if (_transaction == null)
             {
-                _connection = new SqlConnection(_sql.B7R2_FCCdb);
-                _connection.Open();
-                _transaction = _connection.BeginTransaction();
+                OpenConnectionAndBeginWithRetry();
                 _depth = 1;
                 _rollbackOnly = false;
                 return;
             }
             _depth++;
+        }
+
+        /// <summary>
+        /// Retries only opening a SQL connection / beginning an empty transaction.
+        /// Never retries a command or replays a business write: after a connection
+        /// loss during a write, the caller must roll back/reconcile before retrying
+        /// the idempotent business request.
+        /// </summary>
+        private void OpenConnectionAndBeginWithRetry()
+        {
+            const int maxAttempts = 3;
+            Exception last = null;
+
+            for (int attempt = 1; attempt <= maxAttempts; attempt++)
+            {
+                SqlConnection candidate = null;
+                try
+                {
+                    candidate = new SqlConnection(_sql.B7R2_FCCdb);
+                    candidate.Open();
+                    SqlTransaction transaction = candidate.BeginTransaction();
+                    _connection = candidate;
+                    _transaction = transaction;
+                    return;
+                }
+                catch (SqlException ex) when (IsTransientConnectionError(ex) && attempt < maxAttempts)
+                {
+                    last = ex;
+                    candidate?.Dispose();
+                    System.Threading.Thread.Sleep(200 * attempt);
+                }
+                catch
+                {
+                    candidate?.Dispose();
+                    throw;
+                }
+            }
+
+            throw new InvalidOperationException(
+                "Không thể mở SQL transaction sau 3 lần thử kết nối. Không tự chạy lại thao tác ghi; hãy kiểm tra kết nối rồi truy vấn trạng thái theo ReferenceType/ReferenceId.",
+                last);
+        }
+
+        internal static bool IsTransientConnectionError(SqlException exception)
+        {
+            if (exception == null) return false;
+            foreach (SqlError error in exception.Errors)
+            {
+                switch (error.Number)
+                {
+                    case -2:      // connect timeout
+                    case 2:       // SQL network endpoint not found
+                    case 53:      // network path not found
+                    case 64:      // network name deleted
+                    case 233:     // connection initialization failure
+                    case 10053:   // connection aborted
+                    case 10054:   // connection reset
+                    case 10060:   // network timeout
+                    case 11001:   // host not found
+                        return true;
+                }
+            }
+            return false;
         }
 
         public void Commit()
