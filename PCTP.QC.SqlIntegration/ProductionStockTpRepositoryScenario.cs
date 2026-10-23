@@ -151,10 +151,10 @@ namespace PCTP.Shared.Models
 {
     public sealed class StockItem
     {
-        public string Lot { get; set; } = string.Empty;
-        public string Part { get; set; } = string.Empty;
-        public string Name { get; set; } = string.Empty;
-        public string Model { get; set; } = string.Empty;
+        public string Lot { get; set; } = string.Empty; = string.Empty;
+        public string Part { get; set; } = string.Empty; = string.Empty;
+        public string Name { get; set; } = string.Empty; = string.Empty;
+        public string Model { get; set; } = string.Empty; = string.Empty;
         public int? SlNhap { get; set; }
         public int? SlConLai { get; set; }
         public int? SlXuat { get; set; }
