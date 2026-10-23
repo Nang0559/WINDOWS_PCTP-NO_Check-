@@ -252,22 +252,24 @@
       "module": "XuLyHangLoi",
       "scenario": "QC final OK/NG split",
       "expected": "OK+NG equals rejected quantity; required destination slots exist",
-      "status": "planned"
+      "status": "implemented",
+      "testEvidence": "PCTP.QC.Tests/QcFinalDomainInvariantTests.cs: initial QC OK+NG reconciliation and required disposition gates. Domain/unit coverage only; end-to-end SQL persistence and slot assignment still require integration evidence."
     },
     {
       "id": "RWK-002",
       "module": "XuLyHangLoi",
       "scenario": "Quarantine and release",
       "expected": "Quarantined LOT cannot be exported/moved until authorized release",
-      "status": "planned",
-      "testEvidence": "ProductionBulkStockSlotRepositoryScenario invokes production BulkStockSlotRepository.TakeLot against a PhieuStatus=3 isolated fixture and verifies export rejection without changing quarantined quantity or active Slot header. Authorization/permission validation for release and the release transition remain unverified; do not mark the full quarantine/release journey complete."
+      "status": "implemented",
+      "testEvidence": "PCTP.QC.SqlIntegration/ProductionBulkStockSlotRepositoryScenario.cs verifies production TakeLot rejects PhieuStatus=3; PCTP.QC.SqlIntegration/QuarantineReleaseScenario.cs exercises isolated SQL-engine release/rollback contract. These do not yet invoke the real ReworkStockService or production release adapter; full journey remains a gap."
     },
     {
       "id": "RWK-003",
       "module": "XuLyHangLoi",
       "scenario": "Rework workflow transaction failure",
       "expected": "No partial workflow/stock state",
-      "status": "planned"
+      "status": "implemented",
+      "testEvidence": "PCTP.QC.Tests/ReworkWorkflowTransactionTests.cs verifies domain split and rollback contract using FakeUow. It does not prove production SQL persistence or rework-NG-to-PhieuStatus=3 end-to-end; add production adapter integration before declaring workflow complete."
     },
     {
       "id": "REP-001",
@@ -472,7 +474,7 @@
       "scenario": "Authorize release of a quarantined SlotLot only after QC disposition, preserve audit trail, and reconcile available STOCKTP/Slot header atomically",
       "expected": "Unauthorized release is rejected; authorized release changes quarantine status and stock/history together; failure rolls all changes back",
       "status": "planned",
-      "testEvidence": "Release authorization and a production release command are not currently exposed by IStockMovementService/IStockSlotRepository. Must implement with the application's real identity/permission adapter before marking complete."
+      "testEvidence": "QuarantineReleaseScenario verifies a synthetic isolated SQL-engine transition and audit/rollback contract. Production authorization adapter and actual QuarantineReleaseService-to-repository SQL transaction are still not proven; status remains planned for full acceptance."
     },
     {
       "id": "UI-002",
@@ -528,7 +530,7 @@
       "scenario": "Reconcile STOCKTP physical LOT stock, SlotLot quantity and Slot header after mutation/rollback",
       "expected": "Exclude quarantine/NG (PhieuStatus=3); include all other SlotLot statuses in Slot.Quantity; exact full physical LOT identity is used when multiple STOCKTP rows share a 13-character root; no partial stock/history/pending mutation on rollback",
       "status": "implemented",
-      "testEvidence": "ProductionBulkStockSlotRepositoryScenario.Run seeds active, closed, cancelled and quarantine rows; asserts STOCKTP balance equals SlotLot sum excluding PhieuStatus=3 and Slot.Quantity reconciles after FIFO mutation/rollback. OrderTableSourceContractTests guards exact full-LOT identity and ambiguous-root fail-closed behavior. Runtime SQL acceptance remains not-run."
+      "testEvidence": "ProductionBulkStockSlotRepositoryScenario separates physical LOT balance from Slot total: LOT starts at 65 and becomes 15 after export of 50; slot header separately includes the 7 and 8 quantities from other non-quarantine lots, moving 80 to 30. Quarantine/NG status 3 is excluded. Runtime SQL harness still not run."
     }
   ]
 }
