@@ -1,195 +1,148 @@
 USE [B7R2_FCC]
 GO
-
-/****** Object:  StoredProcedure [dbo].[Usp_Qrcode_Take_Lot2405]    Script Date: 9/8/2026 3:29:19 PM ******/
 SET ANSI_NULLS ON
 GO
-
 SET QUOTED_IDENTIFIER ON
 GO
-
-create PROC [dbo].[Usp_Qrcode_Take_Lot2405]
-    @_MaFCC     NVARCHAR(50) = N'',
-    @_STTP      INT          = 0,
-    @_DeM       INT          = 0,
-    @_SLGIAO    INT          = 0,
-    -- ── THÊM 2 THAM SỐ MỚI ─────────────────────────────────────────
-    @DOCQRTABLE NVARCHAR(128) = N'DOCQRCODE',
-    @TMPTABLE   NVARCHAR(128) = N'TMPPHIEUGIAOHANG'
+CREATE OR ALTER PROC [dbo].[Usp_Qrcode_Take_Lot2405]
+    @_MaFCC NVARCHAR(50)=N'',
+    @_STTP INT=0,
+    @_DeM INT=0,
+    @_SLGIAO INT=0,
+    @DOCQRTABLE NVARCHAR(128)=N'DOCQRCODE',
+    @TMPTABLE NVARCHAR(128)=N'TMPPHIEUGIAOHANG'
 AS
 BEGIN
-    SET NOCOUNT ON;
+ SET NOCOUNT ON;
+ SET XACT_ABORT ON;
+ IF @DOCQRTABLE NOT IN(N'DOCQRCODE',N'DOCQRCODE_SP',N'DOCQRCODE_100003')
+  THROW 51101,N'Tên bảng DOCQRTABLE không hợp lệ.',1;
+ IF @TMPTABLE NOT IN(N'TMPPHIEUGIAOHANG',N'TMPPHIEUGIAOHANG_SP',N'TMPPHIEUGIAOHANG_100003')
+  THROW 51102,N'Tên bảng TMPTABLE không hợp lệ.',1;
+ IF NULLIF(LTRIM(RTRIM(@_MaFCC)),N'') IS NULL OR @_STTP<=0 OR @_SLGIAO<=0
+  THROW 51103,N'Thông tin mã hàng, STT hoặc số lượng giao không hợp lệ.',1;
 
-    -- ── WHITELIST chống SQL injection ───────────────────────────────
-    IF @DOCQRTABLE NOT IN (
-        N'DOCQRCODE',
-        N'DOCQRCODE_SP',
-        N'DOCQRCODE_100003'
-    )
+ DECLARE @OwnTran bit=0,@Savepoint bit=0,@sql nvarchar(max),@path nvarchar(max),
+         @chosenCount int=0,@affected int=0;
+ BEGIN TRY
+  IF @@TRANCOUNT=0 BEGIN TRANSACTION; SET @OwnTran=1;
+  ELSE BEGIN SAVE TRANSACTION PctpTakeLot2405; SET @Savepoint=1; END;
+
+  SET @sql=N'
+   IF NOT EXISTS(SELECT 1 FROM dbo.'+QUOTENAME(@TMPTABLE)+N' WITH(UPDLOCK,HOLDLOCK)
+    WHERE STT=@stt AND MAHANG=@ma AND SOLUONG=@qty AND ISNULL(LOT,N'''')=N'''')
+    THROW 51104,N''Dòng phiếu không còn hợp lệ hoặc đã được xử lý.'',1;';
+  EXEC sys.sp_executesql @sql,N'@stt int,@ma nvarchar(50),@qty int',@_STTP,@_MaFCC,@_SLGIAO;
+
+  CREATE TABLE #QRData(STT int NOT NULL PRIMARY KEY,LOTFCC nvarchar(56),SLTEMFCC int NOT NULL,SLTEMHVN int NOT NULL);
+  SET @sql=N'INSERT #QRData(STT,LOTFCC,SLTEMFCC,SLTEMHVN)
+   SELECT STT,LOTFCC,ISNULL(SLTEMFCC,0),ISNULL(SLTEMHVN,0)
+   FROM dbo.'+QUOTENAME(@DOCQRTABLE)+N' WITH(UPDLOCK,HOLDLOCK)
+   WHERE MAHANGFCC=@ma AND ISNULL(KETQUA,N'''')<>N''DG'' AND ISNULL(SLTEMFCC,0)>0;';
+  EXEC sys.sp_executesql @sql,N'@ma nvarchar(50)',@_MaFCC;
+
+  CREATE TABLE #DP(Qty int NOT NULL PRIMARY KEY,Path nvarchar(max) NOT NULL);
+  CREATE TABLE #DPPrev(Qty int NOT NULL PRIMARY KEY,Path nvarchar(max) NOT NULL);
+  INSERT #DP VALUES(0,N',');
+  DECLARE @qrStt int,@qrQty int,@qrLot nvarchar(56),@qrHvn int;
+  DECLARE QrCursor CURSOR LOCAL FAST_FORWARD FOR SELECT STT,SLTEMFCC,LOTFCC,SLTEMHVN FROM #QRData ORDER BY STT;
+  OPEN QrCursor;
+  FETCH NEXT FROM QrCursor INTO @qrStt,@qrQty,@qrLot,@qrHvn;
+  WHILE @@FETCH_STATUS=0
+  BEGIN
+   IF @qrQty>0 AND @qrQty<=@_SLGIAO
+   BEGIN
+    TRUNCATE TABLE #DPPrev;
+    INSERT #DPPrev SELECT Qty,Path FROM #DP;
+    INSERT #DP(Qty,Path)
+    SELECT p.Qty+@qrQty,p.Path+CONVERT(nvarchar(20),@qrStt)+N','
+    FROM #DPPrev p
+    WHERE p.Qty+@qrQty<=@_SLGIAO
+      AND NOT EXISTS(SELECT 1 FROM #DP d WHERE d.Qty=p.Qty+@qrQty);
+    IF EXISTS(SELECT 1 FROM #DP WHERE Qty=@_SLGIAO) BREAK;
+   END;
+   FETCH NEXT FROM QrCursor INTO @qrStt,@qrQty,@qrLot,@qrHvn;
+  END;
+  CLOSE QrCursor; DEALLOCATE QrCursor;
+  SELECT @path=Path FROM #DP WHERE Qty=@_SLGIAO;
+  IF @path IS NULL
+  BEGIN
+   IF @OwnTran=1 COMMIT TRANSACTION;
+   SELECT CAST(NULL AS nvarchar(56)) AS LOTFCC,CAST(0 AS int) AS FCC,CAST(0 AS int) AS HVN WHERE 1=0;
+   RETURN;
+  END;
+
+  CREATE TABLE #Chosen(STT int NOT NULL PRIMARY KEY);
+  INSERT #Chosen SELECT DISTINCT TRY_CONVERT(int,value) FROM STRING_SPLIT(@path,N',')
+   WHERE TRY_CONVERT(int,value) IS NOT NULL;
+  SELECT @chosenCount=COUNT(*) FROM #Chosen;
+  IF @chosenCount=0 THROW 51105,N'Danh sách QR phân bổ rỗng.',1;
+
+  SELECT TOP 0 LOTFCC,SLTEMFCC,SLTEMHVN INTO #CtTmp FROM dbo.DOCQRCODE;
+  DECLARE @lot nvarchar(56),@fcc int,@hvn int,@pos int,@next int,@token nvarchar(56),
+          @hyphen int,@lotPart nvarchar(30),@qtyPart int;
+  DECLARE ChosenCursor CURSOR LOCAL FAST_FORWARD FOR
+   SELECT q.LOTFCC,q.SLTEMFCC,q.SLTEMHVN FROM #QRData q JOIN #Chosen c ON c.STT=q.STT ORDER BY q.STT;
+  OPEN ChosenCursor;
+  FETCH NEXT FROM ChosenCursor INTO @lot,@fcc,@hvn;
+  WHILE @@FETCH_STATUS=0
+  BEGIN
+   IF CHARINDEX(N',',ISNULL(@lot,N''))>0
+   BEGIN
+    SET @pos=1;
+    WHILE @pos<=LEN(ISNULL(@lot,N''))
     BEGIN
-        RAISERROR(N'Tên bảng DOCQRTABLE không hợp lệ: %s', 16, 1, @DOCQRTABLE);
-        RETURN;
-    END
+     SET @next=CHARINDEX(N',',@lot,@pos); IF @next=0 SET @next=LEN(@lot)+1;
+     SET @token=LTRIM(RTRIM(SUBSTRING(@lot,@pos,@next-@pos)));
+     SET @hyphen=CHARINDEX(N'-',@token);
+     IF @hyphen>1 AND @hyphen<LEN(@token)
+     BEGIN
+      SET @lotPart=LEFT(@token,@hyphen-1);
+      SET @qtyPart=TRY_CONVERT(int,SUBSTRING(@token,@hyphen+1,20));
+      IF @qtyPart>0
+      BEGIN
+       IF EXISTS(SELECT 1 FROM #CtTmp WHERE LOTFCC=@lotPart)
+        UPDATE #CtTmp SET SLTEMFCC=SLTEMFCC+@qtyPart,SLTEMHVN=SLTEMHVN+@qtyPart WHERE LOTFCC=@lotPart;
+       ELSE INSERT #CtTmp(LOTFCC,SLTEMFCC,SLTEMHVN) VALUES(@lotPart,@qtyPart,@qtyPart);
+      END;
+     END;
+     SET @pos=@next+1;
+    END;
+   END
+   ELSE
+   BEGIN
+    IF EXISTS(SELECT 1 FROM #CtTmp WHERE LOTFCC=RTRIM(@lot))
+     UPDATE #CtTmp SET SLTEMFCC=SLTEMFCC+@fcc,SLTEMHVN=SLTEMHVN+@hvn WHERE LOTFCC=RTRIM(@lot);
+    ELSE INSERT #CtTmp(LOTFCC,SLTEMFCC,SLTEMHVN) VALUES(RTRIM(@lot),@fcc,@hvn);
+   END;
+   FETCH NEXT FROM ChosenCursor INTO @lot,@fcc,@hvn;
+  END;
+  CLOSE ChosenCursor; DEALLOCATE ChosenCursor;
 
-    IF @TMPTABLE NOT IN (
-        N'TMPPHIEUGIAOHANG',
-        N'TMPPHIEUGIAOHANG_SP',
-        N'TMPPHIEUGIAOHANG_100003'
-    )
-    BEGIN
-        RAISERROR(N'Tên bảng TMPTABLE không hợp lệ: %s', 16, 1, @TMPTABLE);
-        RETURN;
-    END
+  SET @sql=N'UPDATE q SET KETQUA=N''DG'',STTBAN=@stt,GIO=@stt
+    FROM dbo.'+QUOTENAME(@DOCQRTABLE)+N' q JOIN #Chosen c ON c.STT=q.STT
+    WHERE q.MAHANGFCC=@ma AND ISNULL(q.KETQUA,N'''')<>N''DG'';
+    SELECT @n=@@ROWCOUNT;';
+  EXEC sys.sp_executesql @sql,N'@stt int,@ma nvarchar(50),@n int OUTPUT',@_STTP,@_MaFCC,@affected OUTPUT;
+  IF @affected<>@chosenCount THROW 51106,N'QR đã bị tiến trình khác nhận; hủy cấp phát.',1;
 
-    DECLARE
-        @_LOTHVN    NVARCHAR(24),
-        @_LOTFCC    NVARCHAR(56),
-        @_SLTEMFCC  INT,
-        @_SLTEMHVN  INT,
-        @_ID        NVARCHAR(10),
-        @_Count_R   INT,
-        @_STTDOC    INT,
-        @SLTT       INT,
-        @sql        NVARCHAR(MAX)
+  SET @sql=N'UPDATE dbo.'+QUOTENAME(@TMPTABLE)+N'
+    SET TTPHIEU=N''Đã Thống Kê QR'',STATUSDOC=N''OK''
+    WHERE STT=@stt AND MAHANG=@ma AND SOLUONG=@qty AND ISNULL(LOT,N'''')=N'''';
+    SELECT @n=@@ROWCOUNT;';
+  SET @affected=0;
+  EXEC sys.sp_executesql @sql,N'@stt int,@ma nvarchar(50),@qty int,@n int OUTPUT',@_STTP,@_MaFCC,@_SLGIAO,@affected OUTPUT;
+  IF @affected<>1 THROW 51107,N'Dòng phiếu thay đổi trong lúc cấp phát; hủy toàn bộ.',1;
 
-    SELECT @_ID = STUFF('00000', 5-LEN(Id)+1, LEN(Id), Id)
-    FROM B20ITEM WHERE code = @_MaFCC
-
-    -- ── Đếm tổng SLTEMHVN từ DOCQRTABLE động ───────────────────────
-    SET @sql = N'SELECT @cnt = SUM(SLTEMHVN) FROM [' + @DOCQRTABLE + N']
-                 WHERE MAHANGFCC = @ma AND KETQUA <> ''DG'''
-    EXEC sp_executesql @sql,
-        N'@cnt INT OUTPUT, @ma NVARCHAR(50)',
-        @_SLTEMFCC OUTPUT, @_MaFCC
-
-    IF OBJECT_ID('TempDb..#CtTmp') IS NOT NULL DROP TABLE #CtTmp
-    SELECT TOP 0 LOTFCC, SLTEMFCC, SLTEMHVN
-    INTO #CtTmp
-    FROM DOCQRCODE  -- chỉ dùng để lấy schema, không lấy data
-
-    SET @SLTT = 0
-
-    -- ── Nạp dữ liệu QR vào bảng tạm để CURSOR không dùng dynamic ───
-    IF OBJECT_ID('TempDb..#QRData') IS NOT NULL DROP TABLE #QRData
-    CREATE TABLE #QRData (
-        LOTFCC   NVARCHAR(56),
-        SLTEMFCC INT,
-        SLTEMHVN INT,
-        STT      INT
-    )
-
-    SET @sql = N'
-        INSERT INTO #QRData (LOTFCC, SLTEMFCC, SLTEMHVN, STT)
-        SELECT LOTFCC, SLTEMFCC, SLTEMHVN, STT
-        FROM [' + @DOCQRTABLE + N']
-        WHERE MAHANGFCC = @ma AND KETQUA <> ''DG''
-        ORDER BY STT'
-    EXEC sp_executesql @sql, N'@ma NVARCHAR(50)', @_MaFCC
-
-    -- ── CURSOR đọc từ #QRData (không dynamic) ───────────────────────
-    DECLARE QRcode CURSOR FOR
-        SELECT LOTFCC, SLTEMFCC, SLTEMHVN, STT FROM #QRData
-
-    OPEN QRcode
-    FETCH NEXT FROM QRcode INTO @_LOTFCC, @_SLTEMFCC, @_SLTEMHVN, @_STTDOC
-
-    WHILE @@FETCH_STATUS = 0
-    BEGIN
-        IF (@SLTT < @_SLGIAO)
-        BEGIN
-            SET @SLTT = @SLTT + @_SLTEMFCC
-
-            -- UPDATE STTBAN vào DOCQRTABLE động
-            SET @sql = N'UPDATE [' + @DOCQRTABLE + N']
-                         SET STTBAN = @sttp
-                         WHERE STT = @sttdoc AND MAHANGFCC = @ma'
-            EXEC sp_executesql @sql,
-                N'@sttp INT, @sttdoc INT, @ma NVARCHAR(50)',
-                @_STTP, @_STTDOC, @_MaFCC
-
-            IF (CHARINDEX(',', @_LOTFCC) <> 0)
-            BEGIN
-                DECLARE @pos INT, @posTach INT
-                DECLARE @len INT, @lenTach INT
-                DECLARE @value NVARCHAR(56), @valueLOT NVARCHAR(30), @valueSL NVARCHAR(5)
-                SET @pos = 0
-                SET @len = 0
-
-                WHILE CHARINDEX(',', CONCAT(RTRIM(@_LOTFCC), ','), @pos+1) > 0
-                BEGIN
-                    SET @len   = CHARINDEX(',', CONCAT(RTRIM(@_LOTFCC), ','), @pos+1) - @pos
-                    SET @value = SUBSTRING(CONCAT(RTRIM(@_LOTFCC), ','), @pos, @len)
-
-                    IF (@value <> '')
-                    BEGIN
-                        SET @lenTach  = CHARINDEX('-', @value, 1)
-                        SET @valueLOT = SUBSTRING(@value, 1, @lenTach-1)
-                        SET @valueSL  = SUBSTRING(@value, @lenTach+1, LEN(@value)-@lenTach)
-
-                        IF EXISTS (SELECT 1 FROM #CtTmp WHERE LOTFCC = @valueLOT)
-                            UPDATE #CtTmp SET SLTEMFCC = SLTEMFCC + @valueSL WHERE LOTFCC = @valueLOT
-                        ELSE
-                            INSERT INTO #CtTmp VALUES (@valueLOT, @valueSL, @valueSL)
-                    END
-
-                    SET @pos = CHARINDEX(',', CONCAT(RTRIM(@_LOTFCC), ','), @pos+@len) + 1
-                END
-            END
-            ELSE
-            BEGIN
-                IF EXISTS (SELECT 1 FROM #CtTmp WHERE LOTFCC = @_LOTFCC)
-                    UPDATE #CtTmp SET SLTEMFCC = SLTEMFCC + @_SLTEMFCC WHERE LOTFCC = RTRIM(@_LOTFCC)
-                ELSE
-                    INSERT INTO #CtTmp VALUES (RTRIM(@_LOTFCC), @_SLTEMFCC, @_SLTEMHVN)
-            END
-        END
-
-        FETCH NEXT FROM QRcode INTO @_LOTFCC, @_SLTEMFCC, @_SLTEMHVN, @_STTDOC
-    END
-
-    CLOSE QRcode
-    DEALLOCATE QRcode
-
-    -- ── Xử lý kết quả ───────────────────────────────────────────────
-    IF (@SLTT = @_SLGIAO)
-    BEGIN
-        -- UPDATE DOCQRTABLE động
-        SET @sql = N'
-            UPDATE [' + @DOCQRTABLE + N']
-            SET KETQUA = ''DG'', STTBAN = @sttp, GIO = @sttp
-            WHERE STTBAN = @sttp AND MAHANGFCC = @ma'
-        EXEC sp_executesql @sql,
-            N'@sttp INT, @ma NVARCHAR(50)',
-            @_STTP, @_MaFCC
-
-        -- UPDATE TMPTABLE động
-        SET @sql = N'
-            UPDATE [' + @TMPTABLE + N']
-            SET TTPHIEU = N''Đã Thống Kê QR'', STATUSDOC = ''OK''
-            WHERE STT = @sttp AND MAHANG = @ma'
-        EXEC sp_executesql @sql,
-            N'@sttp INT, @ma NVARCHAR(50)',
-            @_STTP, @_MaFCC
-
-        SET @SLTT = 0
-        SELECT LOTFCC, SUM(SLTEMFCC) AS FCC, SUM(SLTEMHVN) AS HVN
-        FROM #CtTmp GROUP BY LOTFCC
-    END
-    ELSE
-    BEGIN
-        -- Rollback STTBAN
-        SET @sql = N'
-            UPDATE [' + @DOCQRTABLE + N']
-            SET STTBAN = NULL
-            WHERE STTBAN = @sttp AND MAHANGFCC = @ma'
-        EXEC sp_executesql @sql,
-            N'@sttp INT, @ma NVARCHAR(50)',
-            @_STTP, @_MaFCC
-
-        SET @SLTT = 0
-    END
-
+  SELECT LOTFCC,SUM(SLTEMFCC) AS FCC,SUM(SLTEMHVN) AS HVN FROM #CtTmp GROUP BY LOTFCC ORDER BY LOTFCC;
+  IF @OwnTran=1 COMMIT TRANSACTION;
+ END TRY
+ BEGIN CATCH
+  IF CURSOR_STATUS('local','QrCursor')>=0 BEGIN CLOSE QrCursor; DEALLOCATE QrCursor; END;
+  IF CURSOR_STATUS('local','ChosenCursor')>=0 BEGIN CLOSE ChosenCursor; DEALLOCATE ChosenCursor; END;
+  IF @OwnTran=1 AND XACT_STATE()<>0 ROLLBACK TRANSACTION;
+  ELSE IF @Savepoint=1 AND XACT_STATE()=1 ROLLBACK TRANSACTION PctpTakeLot2405;
+  THROW;
+ END CATCH;
 END
 GO
-
-
