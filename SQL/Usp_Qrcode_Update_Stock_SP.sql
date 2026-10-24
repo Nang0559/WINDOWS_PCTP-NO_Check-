@@ -36,9 +36,21 @@ BEGIN
         @slConLai   INT,
         @StockUpdated BIT;
     DECLARE @LockResult INT;
+    DECLARE @StartedTransaction BIT = 0;
+    DECLARE @SavepointCreated BIT = 0;
 
     BEGIN TRY
-        BEGIN TRANSACTION;
+        -- Participate in a caller UnitOfWork when present; otherwise own the transaction.
+        IF @@TRANCOUNT = 0
+        BEGIN
+            BEGIN TRANSACTION;
+            SET @StartedTransaction = 1;
+        END
+        ELSE
+        BEGIN
+            SAVE TRANSACTION PctpFifoDeliverySp;
+            SET @SavepointCreated = 1;
+        END;
 
         -- Serialize this FIFO delivery path and keep stock + ledger writes atomic.
         EXEC @LockResult = sys.sp_getapplock
@@ -247,7 +259,8 @@ BEGIN
         ON TRY_CONVERT(INT, completed.STT) = tmp.STT
        AND completed.STATUS = 'OK';  
   
-    COMMIT TRANSACTION;
+    IF @StartedTransaction = 1
+        COMMIT TRANSACTION;
     END TRY
     BEGIN CATCH
         IF CURSOR_STATUS('local', 'cur') >= 0
@@ -257,7 +270,14 @@ BEGIN
         END;
 
         IF XACT_STATE() <> 0
-            ROLLBACK TRANSACTION;
+        BEGIN
+            IF @StartedTransaction = 1
+                ROLLBACK TRANSACTION;
+            ELSE IF XACT_STATE() = 1 AND @SavepointCreated = 1
+                ROLLBACK TRANSACTION PctpFifoDeliverySp;
+            -- A doomed caller transaction cannot roll back to a savepoint.
+            -- The caller owns and must roll back that outer transaction.
+        END;
 
         THROW;
     END CATCH;
