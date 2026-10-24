@@ -167,12 +167,45 @@ function Find-PctpTarget($step) {
     if ($step.name) { $candidates.Add(@('Name', [string]$step.name, [System.Windows.Automation.AutomationElement]::NameProperty)) }
     if ($step.fallbackName) { $candidates.Add(@('FallbackName', [string]$step.fallbackName, [System.Windows.Automation.AutomationElement]::NameProperty)) }
     if ($candidates.Count -eq 0) { throw "Step '$($step.id)' must specify automationId, name or fallbackName." }
-    $windows = @(Get-PctpWindows)
+
+    $windows = @(Get-PctpWindows | Where-Object { try { -not $_.Current.IsOffscreen } catch { $false } })
     foreach ($cand in $candidates) {
         $cond = New-Object System.Windows.Automation.PropertyCondition($cand[2], $cand[1])
         foreach ($root in $windows) {
-            $t = $root.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $cond)
-            if ($t) { return [pscustomobject]@{ Element = $t; FoundBy = ("{0}='{1}'" -f $cand[0], $cand[1]) } }
+            # First use the provider's normal FindFirst path. Then traverse RawView:
+            # DevExpress custom controls can expose children in RawView but omit them
+            # from the ControlView tree used for human-facing diagnostics.
+            try {
+                $t = $root.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $cond)
+                if ($t) { return [pscustomobject]@{ Element = $t; FoundBy = ("{0}='{1}'" -f $cand[0], $cand[1]) } }
+            } catch { }
+
+            $walker = [System.Windows.Automation.TreeWalker]::RawViewWalker
+            $queue = New-Object 'System.Collections.Generic.Queue[object]'
+            try {
+                $first = $walker.GetFirstChild($root)
+                while ($first) {
+                    $queue.Enqueue($first)
+                    $first = $walker.GetNextSibling($first)
+                }
+                $visited = 0
+                while ($queue.Count -gt 0 -and $visited -lt 5000) {
+                    $element = $queue.Dequeue()
+                    $visited++
+                    try {
+                        $current = $element.Current
+                        $actual = if ($cand[0] -eq 'AutomationId') { [string]$current.AutomationId } else { [string]$current.Name }
+                        if ([string]::Equals($actual, [string]$cand[1], [StringComparison]::OrdinalIgnoreCase)) {
+                            return [pscustomobject]@{ Element = $element; FoundBy = ("RawView {0}='{1}'" -f $cand[0], $cand[1]) }
+                        }
+                        $child = $walker.GetFirstChild($element)
+                        while ($child) {
+                            $queue.Enqueue($child)
+                            $child = $walker.GetNextSibling($child)
+                        }
+                    } catch { }
+                }
+            } catch { }
         }
     }
     return $null
