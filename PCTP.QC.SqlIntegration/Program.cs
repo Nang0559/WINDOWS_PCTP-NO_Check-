@@ -32,6 +32,8 @@ internal static class Program
             if (engineOnly)
             {
                 Console.WriteLine("INFO: ephemeral SQL engine mode; business-schema preflight is intentionally skipped. Only isolated tempdb/session fixtures will be used.");
+                Console.WriteLine("INFO: executing active QR-to-STT LOT procedure against disposable dbo fixtures...");
+                await DeliveryQrAllocationScenario.RunAsync(connectionString);
             }
             else
             {
