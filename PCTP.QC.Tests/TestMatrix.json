@@ -603,7 +603,7 @@
       "module": "KhoCore/STOCKTP",
       "scenario": "Determine the actual STOCKTP business key and reconcile duplicate LOT / LOT+PART rows with active SlotLot",
       "expected": "Exactly one STOCKTP row per LOT; one LOT may occupy multiple Slots. Sum active SlotLot quantities across all Slots and reconcile to STOCKTP; each Slot header reconciles only to active SlotLots in that Slot.",
-      "status": "implemented-pending-business-db-audit",
+      "status": "partial",
       "testEvidence": "User confirmed the business key. Production repository guards reject multi-row LOT reads/updates; central balance no longer sums duplicate STOCKTP rows; SQL audit is LOT-grain; guarded unique-index migration added but not executed. SQL engine integration now creates one LOT across two Slots and checks aggregate stock reconciliation."
     }
   ]
