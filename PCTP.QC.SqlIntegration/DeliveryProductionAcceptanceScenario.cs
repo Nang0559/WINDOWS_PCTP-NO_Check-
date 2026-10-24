@@ -133,6 +133,10 @@ ORDER BY t.NGAYGIAO,t.STT;";
 
     private static async Task<(int SuccessCount,int ErrorCount)> ExecuteProcedureAsync(SqlConnection connection, SqlTransaction tx, Candidate c, int quantity)
     {
+        // The procedure loads EVERY TMP row whose STATUS is not OK, not only the candidate. Other pending rows
+        // (e.g. leftover NG rows with insufficient stock) would add errors and block the stock update, so mask them
+        // as OK for this call. This runs inside the caller transaction that every scenario rolls back.
+        await ExecuteAsync(connection, tx, "UPDATE dbo.TMPPHIEUGIAOHANG SET STATUS=N'OK' WHERE ISNULL(STT,-1)<>@stt AND (STATUS IS NULL OR STATUS<>N'OK')", new SqlParameter("@stt", c.Stt));
         await ExecuteAsync(connection, tx, "UPDATE dbo.TMPPHIEUGIAOHANG SET SOLUONG=@q WHERE STT=@stt", new SqlParameter("@q", quantity), new SqlParameter("@stt", c.Stt));
         await using var command = new SqlCommand("dbo.Usp_Qrcode_Update_Stock2405", connection, tx)
         {
