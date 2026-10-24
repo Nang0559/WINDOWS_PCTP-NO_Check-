@@ -149,6 +149,36 @@ public sealed class AtomicityFindingsSourceContractTests
     }
 
     [Fact]
+    public void Delivery2405_BusinessValidationReturnsRollbackTheirTransactionScope()
+    {
+        var sql = ReadSource("Usp_Qrcode_Update_Stock2405.sql");
+        Assert.Contains("ROLLBACK TRANSACTION UspQrcodeUpdateStock2405;", sql, StringComparison.Ordinal);
+        Assert.Contains("ELSE IF XACT_STATE() = -1", sql, StringComparison.Ordinal);
+        Assert.True(Regex.Matches(sql, @"IF EXISTS\s*\(\s*SELECT 1\s*FROM #STNG\s*\)[\s\S]*?ROLLBACK TRANSACTION").Count >= 1);
+    }
+
+    [Fact]
+    public void LegacyFifoProcedure_IsAtomicAndArchivesOnlyRowsCompletedByThisExecution()
+    {
+        var sql = ReadSource("Usp_Qrcode_Update_Stock_SP.sql");
+        Assert.Contains("BEGIN TRY\n        BEGIN TRANSACTION;", sql, StringComparison.Ordinal);
+        Assert.Contains("@Resource = N'PCTP_DELIVERY_FIFO_SP'", sql, StringComparison.Ordinal);
+        Assert.Contains("COMMIT TRANSACTION;", sql, StringComparison.Ordinal);
+        Assert.Contains("IF XACT_STATE() <> 0\n            ROLLBACK TRANSACTION;", sql, StringComparison.Ordinal);
+        Assert.Contains("INNER JOIN #STOK_SP AS completed", sql, StringComparison.Ordinal);
+        Assert.Contains("AND ISNULL(SLCONLAI, 0) >= @slCan", sql, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void CurrentStockProcedure_UsesExactPhysicalLotAndGuardsRootLotAmbiguity()
+    {
+        var sql = ReadSource("sp_GetCurrentStockStatus.sql");
+        Assert.Contains("RTRIM(sl.LotNo) = RTRIM(stp.LOT)", sql, StringComparison.Ordinal);
+        Assert.Contains("lk.PhysicalLotCount = 1", sql, StringComparison.Ordinal);
+        Assert.Contains("sl.PhieuStatus = 0", sql, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void CurrentStockProcedure_IsReadOnlyAndKeepsTheColumnsTheRepositoryReads()
     {
         var sql = ReadSource("sp_GetCurrentStockStatus.sql");
