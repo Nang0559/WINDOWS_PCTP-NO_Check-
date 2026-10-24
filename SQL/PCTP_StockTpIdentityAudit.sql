@@ -5,13 +5,13 @@
     Never run against 192.168.200.14\BRAVO.
 
     Purpose:
-    - Establish whether LOT is unique in STOCKTP or whether duplicate LOT / LOT+PART rows exist.
-    - Compare STOCKTP aggregate quantities with active SlotLot quantities.
-    - Detect STOCKTP equation and Slot header mismatches before changing repository semantics.
-    No assumption is made here that LOT alone is the business key.
+    - LOT is the unique business key in STOCKTP (confirmed business rule).
+    - A LOT may be distributed across multiple active SlotLot rows and multiple Slots.
+    - Compare one STOCKTP row per LOT against the SUM of active SlotLot quantities for that LOT.
+    - Detect one LOT mapped to inconsistent item codes, duplicate STOCKTP LOTs and Slot header mismatches.
 */
 
--- 1. Duplicate LOT across all PART values.
+-- 1. STOCKTP must contain exactly one row per LOT.
 SELECT
     LTRIM(RTRIM(LOT)) AS LOT,
     COUNT_BIG(*) AS RowCount,
@@ -21,70 +21,65 @@ SELECT
     SUM(ISNULL(SLCONLAI, 0)) AS TotalAvailable
 FROM dbo.STOCKTP
 GROUP BY LTRIM(RTRIM(LOT))
-HAVING COUNT_BIG(*) > 1
+HAVING COUNT_BIG(*) <> 1
 ORDER BY LTRIM(RTRIM(LOT));
 
--- 2. Duplicate rows for the same logical LOT + PART key.
-SELECT
-    LTRIM(RTRIM(LOT)) AS LOT,
-    LTRIM(RTRIM(ISNULL(PART, N''))) AS PART,
-    COUNT_BIG(*) AS RowCount,
-    SUM(ISNULL(SLNHAP, 0)) AS TotalReceived,
-    SUM(ISNULL(SLXUAT, 0)) AS TotalIssued,
-    SUM(ISNULL(SLCONLAI, 0)) AS TotalAvailable
-FROM dbo.STOCKTP
-GROUP BY LTRIM(RTRIM(LOT)), LTRIM(RTRIM(ISNULL(PART, N'')))
-HAVING COUNT_BIG(*) > 1
-ORDER BY LTRIM(RTRIM(LOT)), LTRIM(RTRIM(ISNULL(PART, N'')));
-
--- 3. Compare aggregate STOCKTP with active physical/virtual SlotLot by LOT + PART.
-;WITH StockByKey AS
+-- 2. Compare one STOCKTP row per LOT with the sum of all active SlotLot rows.
+-- A LOT can appear in multiple Slots; SlotLot quantities must be aggregated by LOT,
+-- not compared one-to-one and not grouped by SlotId.
+;WITH StockByLot AS
 (
     SELECT
         LTRIM(RTRIM(LOT)) AS LOT,
-        LTRIM(RTRIM(ISNULL(PART, N''))) AS PART,
+        MAX(LTRIM(RTRIM(ISNULL(PART, N'')))) AS PART,
+        COUNT_BIG(*) AS StockRows,
         SUM(ISNULL(SLCONLAI, 0)) AS StockQty,
         SUM(ISNULL(SLNHAP, 0)) AS TotalReceived,
         SUM(ISNULL(SLXUAT, 0)) AS TotalIssued
     FROM dbo.STOCKTP
-    GROUP BY LTRIM(RTRIM(LOT)), LTRIM(RTRIM(ISNULL(PART, N'')))
+    GROUP BY LTRIM(RTRIM(LOT))
 ),
-SlotByKey AS
+SlotByLot AS
 (
     SELECT
         LTRIM(RTRIM(LotNo)) AS LOT,
-        LTRIM(RTRIM(ISNULL(ItemCode, N''))) AS PART,
-        SUM(ISNULL(Quantity, 0)) AS ActiveSlotQty
+        SUM(ISNULL(Quantity, 0)) AS ActiveSlotQty,
+        COUNT(DISTINCT LTRIM(RTRIM(ISNULL(ItemCode, N'')))) AS DistinctItemCodes,
+        COUNT(DISTINCT SlotId) AS SlotCount
     FROM dbo.SlotLot
     WHERE PhieuStatus = 0 AND ISNULL(Quantity, 0) > 0
-    GROUP BY LTRIM(RTRIM(LotNo)), LTRIM(RTRIM(ISNULL(ItemCode, N'')))
+    GROUP BY LTRIM(RTRIM(LotNo))
 )
 SELECT
     COALESCE(st.LOT, sl.LOT) AS LOT,
-    COALESCE(st.PART, sl.PART) AS PART,
+    st.PART,
+    ISNULL(st.StockRows, 0) AS StockTpRows,
     ISNULL(st.StockQty, 0) AS StockTpQty,
     ISNULL(sl.ActiveSlotQty, 0) AS ActiveSlotLotQty,
     ISNULL(st.StockQty, 0) - ISNULL(sl.ActiveSlotQty, 0) AS Difference,
+    ISNULL(sl.SlotCount, 0) AS ActiveSlotCount,
+    ISNULL(sl.DistinctItemCodes, 0) AS DistinctItemCodes,
     ISNULL(st.TotalReceived, 0) AS TotalReceived,
     ISNULL(st.TotalIssued, 0) AS TotalIssued
-FROM StockByKey st
-FULL OUTER JOIN SlotByKey sl
-    ON sl.LOT = st.LOT AND sl.PART = st.PART
-WHERE ISNULL(st.StockQty, 0) <> ISNULL(sl.ActiveSlotQty, 0)
-ORDER BY COALESCE(st.LOT, sl.LOT), COALESCE(st.PART, sl.PART);
+FROM StockByLot st
+FULL OUTER JOIN SlotByLot sl ON sl.LOT = st.LOT
+WHERE ISNULL(st.StockRows, 0) <> 1
+   OR ISNULL(st.StockQty, 0) <> ISNULL(sl.ActiveSlotQty, 0)
+   OR ISNULL(sl.DistinctItemCodes, 0) > 1
+ORDER BY COALESCE(st.LOT, sl.LOT);
 
--- 4. Check cumulative STOCKTP equation at the same LOT + PART grain.
+-- 3. STOCKTP equation at the unique LOT grain.
 SELECT
     LTRIM(RTRIM(LOT)) AS LOT,
-    LTRIM(RTRIM(ISNULL(PART, N''))) AS PART,
+    MAX(LTRIM(RTRIM(ISNULL(PART, N'')))) AS PART,
     SUM(ISNULL(SLNHAP, 0)) AS TotalReceived,
     SUM(ISNULL(SLXUAT, 0)) AS TotalIssued,
     SUM(ISNULL(SLCONLAI, 0)) AS TotalAvailable,
     SUM(ISNULL(SLNHAP, 0)) - SUM(ISNULL(SLXUAT, 0)) - SUM(ISNULL(SLCONLAI, 0)) AS Difference
 FROM dbo.STOCKTP
-GROUP BY LTRIM(RTRIM(LOT)), LTRIM(RTRIM(ISNULL(PART, N'')))
+GROUP BY LTRIM(RTRIM(LOT))
 HAVING SUM(ISNULL(SLNHAP, 0)) - SUM(ISNULL(SLXUAT, 0)) <> SUM(ISNULL(SLCONLAI, 0))
-ORDER BY LTRIM(RTRIM(LOT)), LTRIM(RTRIM(ISNULL(PART, N'')));
+ORDER BY LTRIM(RTRIM(LOT));
 
 -- 5. Slot header must equal the sum of active SlotLot rows in that Slot.
 SELECT
