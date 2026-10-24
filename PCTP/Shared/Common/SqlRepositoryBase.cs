@@ -127,6 +127,39 @@
             }
         }
 
+        /// <summary>
+        /// Chạy <paramref name="work"/> trong một transaction.
+        /// - Caller đã Uow.Begin() → tham gia transaction đó (caller commit/rollback).
+        /// - Chưa có transaction → tự Begin/Commit; lỗi thì Rollback rồi ném lại.
+        /// Bên trong <paramref name="work"/> phải dùng ExecuteNonQuery/ExecuteScalar/... của lớp
+        /// base (hoặc Db.*(Connection, Transaction, ...)); KHÔNG dùng Db.* không tham số
+        /// conn/tran vì chúng tự mở connection riêng và bỏ qua transaction.
+        /// </summary>
+        protected T InTransaction<T>(Func<T> work)
+        {
+            if (work == null) throw new ArgumentNullException(nameof(work));
+
+            bool ownTransaction = !HasTransaction;
+            if (ownTransaction) Uow.Begin();
+            try
+            {
+                T result = work();
+                if (ownTransaction) Uow.Commit();
+                return result;
+            }
+            catch
+            {
+                if (ownTransaction) Uow.Rollback();
+                throw;
+            }
+        }
+
+        protected void InTransaction(Action work)
+        {
+            if (work == null) throw new ArgumentNullException(nameof(work));
+            InTransaction<object>(() => { work(); return null; });
+        }
+
         protected object ExecuteScalarStoredProcedure(string procedureName, params SqlParameter[] parameters)
         {
             if (!HasTransaction)

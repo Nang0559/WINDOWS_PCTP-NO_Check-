@@ -78,10 +78,17 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             Db.ValidateTableName(tenBan);
             Db.ValidateTableName(docQRTable);
 
+            // Hai UPDATE (bảng TMP rồi bảng DOCQR) phải cùng thành công hoặc cùng huỷ.
+            InTransaction(() => LayLaiLotNoCore(stt, tenBan, docQRTable));
+        }
+
+        private void LayLaiLotNoCore(int stt, string tenBan, string docQRTable)
+        {
+
             // A FIFO release is valid only for the exact delivery STT that still
             // owns a current QR row. This prevents a focused GridView row from
             // being released when it is not the row that violated FIFO.
-            int linkedQrCount = Convert.ToInt32(Db.ExecuteScalar(
+            int linkedQrCount = Convert.ToInt32(ExecuteScalar(
                 $"SELECT COUNT(*) FROM [{docQRTable}] WHERE ISNULL(STTBAN, 0) = @stt",
                 new SqlParameter("@stt", stt)) ?? 0);
 
@@ -91,7 +98,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             // This method is called only after the user explicitly confirmed
             // the FIFO violations. Do not add STATUS guards here: a confirmed
             // violation must be released deterministically for this exact STT.
-            Db.ExecuteNonQuery(
+            ExecuteNonQuery(
                 $"UPDATE [{tenBan}] " +
                 "SET LOT = '', STATUS = 'NG', STATUSDOC = 'NG', TTPHIEU = NULL " +
                 "WHERE STT = @stt",
@@ -100,7 +107,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             // Keep the physical QR scan for traceability, but detach it from the
             // delivery row and mark it NG. It is then excluded from the current
             // CNK candidates and cannot be consumed by Usp_Qrcode_Update_Stock2405.
-            Db.ExecuteNonQuery(
+            ExecuteNonQuery(
                 $"UPDATE [{docQRTable}] " +
                 "SET GIO = NULL, KETQUA = 'NG', STTBAN = NULL " +
                 "WHERE ISNULL(STTBAN, 0) = @stt",

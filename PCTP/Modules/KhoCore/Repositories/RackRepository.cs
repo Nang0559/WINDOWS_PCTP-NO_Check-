@@ -489,10 +489,14 @@ namespace PCTP.Modules.KhoVatLy.Repositories
         {
             if (rackId <= 0) throw new ArgumentException("RackId không hợp lệ.", nameof(rackId));
 
-            ExecuteNonQuery("DELETE FROM Slot WHERE RackId = @RackId",
-                new SqlParameter("@RackId", SqlDbType.Int) { Value = rackId });
-            ExecuteNonQuery("DELETE FROM Rack WHERE RackId = @RackId",
-                new SqlParameter("@RackId", SqlDbType.Int) { Value = rackId });
+            // Xoá Slot rồi Rack phải atomic: không để lại Rack mất Slot (hoặc ngược lại).
+            InTransaction(() =>
+            {
+                ExecuteNonQuery("DELETE FROM Slot WHERE RackId = @RackId",
+                    new SqlParameter("@RackId", SqlDbType.Int) { Value = rackId });
+                ExecuteNonQuery("DELETE FROM Rack WHERE RackId = @RackId",
+                    new SqlParameter("@RackId", SqlDbType.Int) { Value = rackId });
+            });
         }
         // ============================================================
         // MAPPING

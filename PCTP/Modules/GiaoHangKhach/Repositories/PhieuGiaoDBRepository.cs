@@ -57,8 +57,18 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             Db.ValidateTableName(tmpTable);
             Db.ValidateTableName(ifsTable);
 
-            Db.DropCreate(ifsTable, donHang);
-            Db.BulkInsertDataTable(ifsTable, donHang);
+            // DropCreate + BulkInsert + SP + UPDATE cuối: một transaction duy nhất.
+            // Trước đây 3 bước đầu tự mở connection riêng (auto-commit), chỉ UPDATE cuối
+            // tham gia Uow → lỗi giữa chừng để lại bảng IFS/TMP ở trạng thái dở.
+            InTransaction(() => LuuGiaoDBCore(donHang, gioFccMoTa, addNm, tmpTable, ifsTable, nhaMayOverride));
+        }
+
+        private void LuuGiaoDBCore(
+            DataTable donHang, string gioFccMoTa, int addNm,
+            string tmpTable, string ifsTable, string nhaMayOverride)
+        {
+            Db.DropCreate(Connection, Transaction, ifsTable, donHang);
+            Db.BulkInsert(Connection, Transaction, ifsTable, donHang);
 
             string nhaMay = !string.IsNullOrWhiteSpace(nhaMayOverride)
                 ? nhaMayOverride
@@ -69,6 +79,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             var tables = new PhieuTableSet(tmpTable, ifsTable, "DOCQRCODE");
 
             Db.CallPhieuSP(
+                Connection, Transaction,
                 "Usp_Qrcode_LOAD_PHIEU_DOCQR2405",
                 DateTime.Now.ToString("yyyy-MM-dd"),
                 nhaMay, gioFccMoTa, addNm, tables);
@@ -83,7 +94,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                AND D.STATUS = 'NG'
                AND T.LOT <> ''";
 
-            ExecuteNonQuery(sql);   // ✅ đổi Db.ExecuteNonQuery → ExecuteNonQuery (base class) để tham gia Uow nếu có
+            ExecuteNonQuery(sql);
         }
 
         // ✅ ĐÃ ĐỔI tên bảng TMPPHIEUNHANDB → TMPPHIEUGIAODBHD

@@ -373,6 +373,34 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             if (donHang == null)
                 throw new ArgumentNullException(nameof(donHang));
 
+            // Toàn bộ upload chạy trong MỘT transaction: lỗi giữa chừng → rollback hết,
+            // không để lại dữ liệu dở. Kiểm tra tồn tại + INSERT gộp thành một câu lệnh
+            // (UPDLOCK, HOLDLOCK) để hai lần upload song song không chèn trùng.
+            using (var conn = new SqlConnection(_db.Sql.B7R2_FCCdb))
+            {
+                conn.Open();
+                using (var tran = conn.BeginTransaction())
+                {
+                    try
+                    {
+                        UploadMilkrunSPCore(conn, tran, donHang, ngayGiao);
+                        tran.Commit();
+                    }
+                    catch
+                    {
+                        try { tran.Rollback(); } catch { /* connection có thể đã đóng */ }
+                        throw;
+                    }
+                }
+            }
+        }
+
+        private void UploadMilkrunSPCore(
+            SqlConnection conn,
+            SqlTransaction tran,
+            DataTable donHang,
+            string ngayGiao)
+        {
             foreach (DataRow row in donHang.Rows)
             {
                 string dockCode =
@@ -394,28 +422,17 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                     DbValueHelper.SafeInt(
                         row["BUY_QTY_DUE"]);
 
-                object checkObj = _db.ExecuteScalar(
-                    @"SELECT COUNT(*)
-                  FROM Purchase_Order_YMVN
-                  WHERE Oder_no = @po
-                    AND Part_no = @pno",
-                    new SqlParameter(
-                        "@po",
-                        po),
-                    new SqlParameter(
-                        "@pno",
-                        pno));
-
-                int exists =
-                    checkObj == null || checkObj == DBNull.Value
-                        ? 0
-                        : Convert.ToInt32(checkObj);
-
-                if (exists != 0)
-                    continue;
-
                 _db.ExecuteNonQuery(
-                    @"INSERT INTO Purchase_Order_YMVN
+                    conn,
+                    tran,
+                    @"IF NOT EXISTS
+                (
+                    SELECT 1
+                    FROM Purchase_Order_YMVN WITH (UPDLOCK, HOLDLOCK)
+                    WHERE Oder_no = @po
+                      AND Part_no = @pno
+                )
+                INSERT INTO Purchase_Order_YMVN
                 (
                     Oder_no,
                     Part_no,

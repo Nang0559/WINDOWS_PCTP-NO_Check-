@@ -42,6 +42,15 @@ namespace PCTP.Modules.XuLyHangLoi.Repository
             int phieuTraHangCTId,
             PhieuXuLyBatThuong p)
         {
+            // INSERT phiếu + UPDATE FVN_PhieuTraHangCT phải atomic kể cả khi gọi Insert
+            // độc lập (không qua QTChungService đã tự Uow.Begin()).
+            return InTransaction(() => InsertCore(phieuTraHangCTId, p));
+        }
+
+        private int InsertCore(
+            int phieuTraHangCTId,
+            PhieuXuLyBatThuong p)
+        {
             if (p == null)
                 throw new ArgumentNullException(nameof(p));
 

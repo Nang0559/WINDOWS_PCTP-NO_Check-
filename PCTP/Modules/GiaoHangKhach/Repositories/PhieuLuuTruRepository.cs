@@ -118,8 +118,17 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             string gioGiaoFcc,
             string loaiPhieu)
         {
+            // UPDATE + COUNT chạy trên cùng connection/transaction: tham gia transaction
+            // của caller nếu có, nếu không thì tự mở và commit/rollback.
+            return InTransaction(() => LuuPhieuSPCore(nhaMay, ngayGiao, gioGiaoFcc));
+        }
+
+        private int LuuPhieuSPCore(
+            string nhaMay,
+            string ngayGiao,
+            string gioGiaoFcc)
+        {
             // loaiPhieu hiện chưa được sử dụng trong implementation cũ.
-            // Giữ parameter để tương thích interface hiện tại.
 
             const string updateSql = @"
                     UPDATE LUUPHIEUGIAOHANG
@@ -130,7 +139,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                       AND (LOT IS NULL OR LOT = '')
                       AND ISNULL(PO_NO, '') <> ''";
 
-            Db.ExecuteNonQuery(
+            ExecuteNonQuery(
                 updateSql,
 
                 new SqlParameter(
@@ -154,7 +163,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                       AND LOT IS NOT NULL
                       AND LOT <> ''";
 
-            object raw = Db.ExecuteScalar(
+            object raw = ExecuteScalar(
                 countSql,
 
                 new SqlParameter(
