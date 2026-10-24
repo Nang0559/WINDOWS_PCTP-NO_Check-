@@ -50,3 +50,26 @@ A missing required artifact means the gate is BLOCKED/NOT VERIFIED, not PASS. Ne
 6. G6 mutating UI-to-SQL E2E on the disposable database, then cleanup and independent evidence review.
 
 Do not run `--delivery-acceptance` against shared SQL 57 or production SQL 14. The current CLI's fixed-target policy and transaction wrapper are not a substitute for a dedicated disposable database and explicit fixture/reset contract.
+
+
+## Build blocker observed on Windows workstation (2026-10-24)
+
+The supplied Visual Studio output reports `MSB3027` / `MSB3021`: the build could not replace `PCTP.exe` and dependencies because process `PCTP (21584)` held files under `PCTP\bin\Debug`. The QC test projects compiled, but the application project failed to copy its output; overall result was **3 succeeded, 1 failed**. This is a file-lock failure, not evidence of a C# compile error in the listed nullable warnings.
+
+Before rebuilding, close the PCTP window normally and confirm the exact process executable path. Do not terminate an arbitrary process by name if it could be a user's active session. Example diagnostic commands in an elevated or same-user PowerShell:
+
+```powershell
+Get-CimInstance Win32_Process -Filter "ProcessId = 21584" |
+  Select-Object ProcessId, ExecutablePath, CommandLine
+
+Get-Process -Id 21584 -ErrorAction SilentlyContinue |
+  Select-Object Id, ProcessName, StartTime, Path
+```
+
+After confirming it is the test instance, close it normally; only if it does not exit and the operator approves, terminate that exact PID and rebuild. Avoid starting QC.UI against an executable while Visual Studio is trying to replace it. Build a fresh executable first, record its path/hash, then run read-only QC.UI against that artifact. This workstation log does not establish a successful rebuild.
+
+## QC.UI failure diagnosis change
+
+The receiving manifest previously coupled the grid assertion to a separate refresh-button expectation. These are now separate checks so the failure identifies which control is missing. When a step fails, the journey runner now exports the selected tree plus each visible top-level PCTP window's UI Automation tree; this helps distinguish a missing child control from the wrong form being active. The suite and child journey share a run ID, and journey timestamps record actual start and completion.
+
+These source changes are **not runtime-verified yet**. Re-run on the Windows test workstation with a fresh output directory; retain the new per-window trees and review the actual `receive-navigation` JSON/HTML report before adjusting any further AutomationIds.
