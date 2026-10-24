@@ -52,13 +52,42 @@ function Update-PctpPids {
 function Get-PctpWindows {
     Update-PctpPids
     $found = New-Object System.Collections.Generic.List[object]
+    $windowType = [System.Windows.Automation.ControlType]::Window
+    $windowCond = New-Object System.Windows.Automation.PropertyCondition(
+        [System.Windows.Automation.AutomationElement]::ControlTypeProperty, $windowType)
     $all = [System.Windows.Automation.AutomationElement]::RootElement.FindAll(
         [System.Windows.Automation.TreeScope]::Children, [System.Windows.Automation.Condition]::TrueCondition)
+
+    # Modal/owned dialogs (ShowDialog, or Show(owner)) are not desktop-root children.
+    # Walk Window children of each PCTP window so owned dialogs are visible to the runner.
+    $queue = New-Object 'System.Collections.Generic.Queue[object]'
     foreach ($item in $all) {
         try {
             $c = $item.Current
-            if ($script:Pids.Contains([int]$c.ProcessId) -and $c.ControlType -eq [System.Windows.Automation.ControlType]::Window) {
+            if ($script:Pids.Contains([int]$c.ProcessId) -and $c.ControlType -eq $windowType) {
                 $found.Add($item)
+                $queue.Enqueue(@($item, 1))
+            }
+        } catch { }
+    }
+
+    $seen = New-Object 'System.Collections.Generic.HashSet[int]'
+    foreach ($w in $found) {
+        try {
+            $h = [int]$w.Current.NativeWindowHandle
+            if ($h -ne 0) { [void]$seen.Add($h) }
+        } catch { }
+    }
+    while ($queue.Count -gt 0 -and $found.Count -lt 200) {
+        $pair = $queue.Dequeue()
+        try {
+            foreach ($child in $pair[0].FindAll([System.Windows.Automation.TreeScope]::Children, $windowCond)) {
+                $cc = $child.Current
+                $handle = [int]$cc.NativeWindowHandle
+                if ($script:Pids.Contains([int]$cc.ProcessId) -and ($handle -eq 0 -or $seen.Add($handle))) {
+                    $found.Add($child)
+                    if ($pair[1] -lt 4) { $queue.Enqueue(@($child, ($pair[1] + 1))) }
+                }
             }
         } catch { }
     }
