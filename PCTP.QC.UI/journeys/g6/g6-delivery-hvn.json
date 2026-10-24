@@ -1,0 +1,85 @@
+{
+  "name": "g6-delivery-hvn",
+  "purpose": "G6 business journey (seed -> UI -> SQL assert -> cleanup). Extends delivery-hvn-navigation.json.",
+  "configured": false,
+  "configurationNeeded": "seed.sql (dong TMPPHIEUGIAOHANG + LOT con ton, dung PCTP_QC_DEL_ACCEPTANCE_STT), buoc UI giao hang, assert.sql (LUUPHIEUGIAOHANG, STOCKTP, SlotLot, history), cleanup/verify.sql",
+  "dataMutation": true,
+  "scenario": {
+    "id": "G6-004",
+    "title": "Giao hang HVN mot phieu seed",
+    "description": "KHUNG CHUA CAU HINH: seed/assert/cleanup SQL va cac buoc UI thao tac phai bo sung theo schema that. Cac buoc dieu huong da duoc xac minh o G5."
+  },
+  "testData": {
+    "menuPath": "Giao Hàng > HVN - MP",
+    "expectedWindowTitle": "HVN_PGH"
+  },
+  "steps": [
+    {
+      "id": "seed",
+      "action": "sql-seed",
+      "mutatesData": true,
+      "sqlFile": "sql/delivery-hvn/seed.sql",
+      "expectRowsAtLeast": 1,
+      "description": "Seed du lieu duy nhat voi tien to {{prefix}}"
+    },
+    {
+      "id": "expand-delivery-menu",
+      "action": "expand",
+      "automationId": "accordionControlElement22",
+      "fallbackName": "Giao Hàng",
+      "description": "Mở nhóm menu 'Giao Hàng'"
+    },
+    {
+      "id": "open-hvn-delivery",
+      "action": "click",
+      "automationId": "E_GHHVN_MP",
+      "waitAfterMs": 1200,
+      "fallbackName": "HVN - MP",
+      "description": "Chọn mục menu 'HVN - MP' ({{menuPath}})"
+    },
+    {
+      "id": "delivery-screen-visible",
+      "action": "wait-for-window",
+      "value": "{{expectedWindowTitle}}",
+      "timeoutSeconds": 45,
+      "description": "Chờ màn hình đích xuất hiện",
+      "expected": "Cửa sổ có tiêu đề '{{expectedWindowTitle}}' hiển thị",
+      "dump": true
+    },
+    {
+      "id": "verify-delivery-title",
+      "action": "assert-window-title",
+      "value": "{{expectedWindowTitle}}",
+      "description": "Xác nhận tiêu đề cửa sổ"
+    },
+    {
+      "id": "delivery-qr-input-exposed",
+      "action": "assert-exists",
+      "automationId": "txt_DOCQRCODE",
+      "description": "Control 'txt_DOCQRCODE' phải tồn tại trên màn hình",
+      "expected": "'txt_DOCQRCODE' hiển thị"
+    },
+    {
+      "id": "delivery-order-grid-exposed",
+      "action": "assert-exists",
+      "automationId": "gridCtrDONHANG",
+      "description": "Control 'gridCtrDONHANG' phải tồn tại trên màn hình",
+      "expected": "'gridCtrDONHANG' hiển thị"
+    },
+    {
+      "id": "assert-after-ui",
+      "action": "sql-assert",
+      "sqlFile": "sql/delivery-hvn/assert.sql",
+      "expectColumns": {},
+      "description": "SQL hau dieu kien sau thao tac UI"
+    },
+    {
+      "id": "cleanup",
+      "action": "sql-cleanup",
+      "mutatesData": true,
+      "sqlFile": "sql/delivery-hvn/cleanup.sql",
+      "verifySqlFile": "sql/delivery-hvn/verify.sql",
+      "description": "Xoa dung du lieu da seed va kiem tra khong con dong nao"
+    }
+  ]
+}

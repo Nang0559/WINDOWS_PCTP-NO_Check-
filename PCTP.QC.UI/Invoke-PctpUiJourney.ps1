@@ -11,7 +11,12 @@ param(
     # Keep running after a failed step so one run shows every UI defect, not just the first.
     [Parameter(Mandatory = $false)][switch]$ContinueOnFailure,
     # Leave PCTP open when the journey failed so the screen can be inspected by hand.
-    [Parameter(Mandatory = $false)][switch]$KeepOpenOnFailure
+    [Parameter(Mandatory = $false)][switch]$KeepOpenOnFailure,
+    # G6 (sql-seed / sql-assert / sql-cleanup). Production is always rejected by PctpSql.Common.ps1.
+    [Parameter(Mandatory = $false)][string]$SqlServer = "192.168.200.57",
+    [Parameter(Mandatory = $false)][string]$SqlDatabase = "B7R2_FCC",
+    # The runner cannot see which DB PCTP.exe really uses; the operator confirms it points at the isolated DB.
+    [Parameter(Mandatory = $false)][switch]$ConfirmAppUsesIsolatedDb
 )
 $ErrorActionPreference = "Stop"
 if ($env:OS -ne "Windows_NT") { throw "PCTP UI journey automation must run on Windows." }
@@ -24,9 +29,27 @@ if (-not (Test-Path -LiteralPath $ManifestPath -PathType Leaf)) { throw "Manifes
 
 $manifest = Get-Content -LiteralPath $ManifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
 if (-not $manifest.steps -or $manifest.steps.Count -eq 0) { throw "Manifest must define at least one step." }
+if ($manifest.PSObject.Properties["configured"] -and $manifest.configured -eq $false) { throw "Manifest is a template and is not configured yet: $($manifest.configurationNeeded)" }
 $declaredMutations = [bool]$manifest.dataMutation -or @($manifest.steps | Where-Object { $_.mutatesData -eq $true }).Count -gt 0
 if ($declaredMutations -and -not $AllowMutations) { throw "This manifest declares data mutations. Re-run only against disposable QC data with -AllowMutations after verifying its reset contract." }
 
+. (Join-Path $PSScriptRoot "PctpSql.Common.ps1")
+$sqlActions = @("sql-seed", "sql-assert", "sql-cleanup")
+$sqlSteps = @($manifest.steps | Where-Object { $sqlActions -contains ([string]$_.action).ToLowerInvariant() })
+$hasSql = $sqlSteps.Count -gt 0
+if ($hasSql) {
+    foreach ($ss in $sqlSteps) {
+        $a = ([string]$ss.action).ToLowerInvariant()
+        if (($a -eq "sql-seed" -or $a -eq "sql-cleanup") -and $ss.mutatesData -ne $true) { throw "Step '$($ss.id)': $a must declare mutatesData=true." }
+    }
+    if (@($sqlSteps | Where-Object { ([string]$_.action).ToLowerInvariant() -eq "sql-seed" }).Count -gt 0 -and
+        @($sqlSteps | Where-Object { ([string]$_.action).ToLowerInvariant() -eq "sql-cleanup" }).Count -eq 0) {
+        throw "Manifest seeds data but defines no sql-cleanup step. Every seed needs a cleanup."
+    }
+    if (-not $AllowMutations -and @($sqlSteps | Where-Object { $_.mutatesData -eq $true }).Count -gt 0) { throw "Manifest seeds/cleans SQL data; -AllowMutations is required (isolated DB only)." }
+    Test-PctpSqlTarget $SqlServer $SqlDatabase
+}
+$manifestDir = Split-Path -Parent ((Resolve-Path -LiteralPath $ManifestPath).Path)
 $resolvedExe = (Resolve-Path -LiteralPath $ExePath).Path
 $out = [System.IO.Path]::GetFullPath($OutputDirectory)
 New-Item -ItemType Directory -Force -Path $out | Out-Null
@@ -60,6 +83,14 @@ function New-Banner([string]$status, [string]$stepLabel, [string]$action, [strin
 
 $journeyStartedAt = (Get-Date).ToString("o")
 $runId = if ($env:PCTP_QC_RUN_ID) { $env:PCTP_QC_RUN_ID } else { [guid]::NewGuid().ToString("N") }
+$sqlPrefix = "QCUI_" + $runId.Substring(0, [Math]::Min(8, $runId.Length))
+$cleanupDone = New-Object 'System.Collections.Generic.HashSet[string]'
+if ($hasSql) {
+    # Tokens usable in manifests: {{prefix}} {{runId}}
+    $testData | Add-Member -NotePropertyName prefix -NotePropertyValue $sqlPrefix -Force
+    $testData | Add-Member -NotePropertyName runId -NotePropertyValue $runId -Force
+    $testDataText = Format-PctpTestData $testData
+}
 $results = New-Object System.Collections.Generic.List[object]
 $failure = $null
 $startup = $null
@@ -71,6 +102,11 @@ try {
     # DevExpress AccordionControl items are not exposed through UI Automation. The app-side bridge
     # (Main_APP.QcUiBridge.cs) publishes one real button per menu element, but only when this variable is set.
     # Process-scoped: restored in finally so a normal PCTP launch from this shell is never affected.
+    if ($hasSql) {
+        $appDbCheck = Test-PctpAppTargetsIsolatedDb $resolvedExe $SqlServer -confirmed:$ConfirmAppUsesIsolatedDb
+        Write-Host "G6 guard: app DB target check = $appDbCheck; SQL target = $SqlServer/$SqlDatabase; prefix = $sqlPrefix"
+        Open-PctpSql $SqlServer $SqlDatabase
+    }
     $previousBridge = $env:PCTP_QC_UI_BRIDGE
     $env:PCTP_QC_UI_BRIDGE = "1"
     try { $script:Process = Start-Process -FilePath $resolvedExe -WorkingDirectory $workDir -PassThru }
@@ -152,6 +188,9 @@ try {
                         Start-Sleep -Milliseconds $ms
                     }
                     "dump-tree" { }
+                    "sql-seed" { $checks = @(Invoke-PctpSqlStep $step $manifestDir $sqlPrefix $runId "seed"); $method = "sql-seed" }
+                    "sql-assert" { $checks = @(Invoke-PctpSqlStep $step $manifestDir $sqlPrefix $runId "assert"); $method = "sql-assert" }
+                    "sql-cleanup" { [void]$cleanupDone.Add([string]$step.id); $checks = @(Invoke-PctpSqlStep $step $manifestDir $sqlPrefix $runId "cleanup"); $method = "sql-cleanup" }
                     default {
                         $found = Find-PctpTarget $step
                         if (-not $found) { throw "Step '$label': UI element not found (AutomationId='$($step.automationId)', Name='$($step.name)', FallbackName='$($step.fallbackName)'). See the control-tree dump for the real AutomationIds/Names." }
@@ -263,6 +302,21 @@ try {
     $shot = Save-PctpScreenshot (Join-Path $out "99-runner-error.png") @("[FAIL] runner error: $failure") (Get-CurrentPctpWindow)
     $results.Add([pscustomobject]@{ Step = $script:stepIndex; Id = "runner-error"; Action = "runner"; Status = "FAIL"; Error = $failure; Screenshot = $shot.Path; ScreenshotError = $shot.Error })
 } finally {
+    # G6: cleanup ALWAYS runs (also after a failed UI step) and must prove no seeded row remains.
+    if ($hasSql -and $script:PctpSqlConnection) {
+        foreach ($cs in @($sqlSteps | Where-Object { ([string]$_.action).ToLowerInvariant() -eq "sql-cleanup" })) {
+            if ($cleanupDone.Contains([string]$cs.id)) { continue }
+            $script:stepIndex++
+            $cErr = $null; $cChecks = @()
+            try { $cChecks = @(Invoke-PctpSqlStep $cs $manifestDir $sqlPrefix $runId "cleanup") } catch { $cErr = $_.Exception.Message }
+            $results.Add([pscustomobject]@{
+                Step = $script:stepIndex; Id = [string]$cs.id + "(finally)"; Action = "sql-cleanup"; Status = $(if ($cErr) { "FAIL" } else { "PASS" })
+                Description = "Cleanup in finally (UI steps may have aborted before reaching it)"; Checks = @($cChecks); Error = $cErr
+            })
+            if ($cErr -and -not $failure) { $failure = $cErr }
+        }
+    }
+    Close-PctpSql
     $failedCount = @($results | Where-Object Status -eq "FAIL").Count
     $report = [pscustomobject]@{
         Status = $(if ($failure -or $failedCount -gt 0) { "FAIL" } else { "PASS" })

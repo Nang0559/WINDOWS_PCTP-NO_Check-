@@ -132,3 +132,11 @@ powershell.exe -ExecutionPolicy Bypass -File .\PCTP.QC.UI\Invoke-PctpUiSuite.ps1
 ## 8. Six production acceptance gates
 
 The single source of truth for release status and evidence requirements is [Production Acceptance & Release Gates](../docs/acceptance/PRODUCTION_ACCEPTANCE_RELEASE_GATES.md). It separates source inventory, unit/regression, SQL repository integration, transaction/reliability, UI navigation and full UI-to-SQL business E2E. Current navigation manifests are read-only; they are not transaction tests. No gate should be called PASS until its evidence contract is satisfied.
+
+## 4. Gate runner (G1-G6) va buoc SQL cho G6
+
+`Invoke-PctpQcGates.ps1 -Gate G1..G6` ghi bang chung vao `artifacts\gates\<commit>\<Gate>\gate-summary.json`; xem `docs/QC_GATES_ROADMAP.md` va `docs/QC_GATE_STATUS.md`.
+Mat khau SQL doc tu `PCTP_QC_SQL_PASSWORD` (hoac hoi) va chi truyen cho tien trinh con qua bien moi truong cua tien trinh, khong dua len dong lenh.
+
+Journey runner them 3 action: `sql-seed`, `sql-assert`, `sql-cleanup` (xem `journeys\g6\README.md`). Token `{{prefix}}` va `{{runId}}` duoc runner them vao `testData` khi manifest co buoc SQL.
+
