@@ -154,6 +154,8 @@ public sealed class AtomicityFindingsSourceContractTests
         var sql = ReadSource("Usp_Qrcode_Update_Stock2405.sql");
         Assert.Contains("ROLLBACK TRANSACTION UspQrcodeUpdateStock2405;", sql, StringComparison.Ordinal);
         Assert.Contains("ELSE IF XACT_STATE() = -1", sql, StringComparison.Ordinal);
+        Assert.Contains("-- No stock rows are eligible", sql, StringComparison.Ordinal);
+        Assert.Contains("IF @StartedTransaction = 1\n                ROLLBACK TRANSACTION;", sql, StringComparison.Ordinal);
         Assert.True(Regex.Matches(sql, @"IF EXISTS\s*\(\s*SELECT 1\s*FROM #STNG\s*\)[\s\S]*?ROLLBACK TRANSACTION").Count >= 1);
     }
 
