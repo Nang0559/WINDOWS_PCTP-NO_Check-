@@ -33,7 +33,8 @@ BEGIN
         @maHang     NVARCHAR(50),  
         @slCan      INT,  
         @lotChon    NVARCHAR(50),  
-        @slConLai   INT;  
+        @slConLai   INT,
+        @StockUpdated BIT;  
   
     DECLARE cur CURSOR LOCAL FAST_FORWARD FOR  
         SELECT  
@@ -138,43 +139,41 @@ BEGIN
             UPDATE STOCKTP  
             SET  
                 SLXUAT   = ISNULL(SLXUAT, 0) + @slCan,  
-                SLCONLAI = SLCONLAI - @slCan,  
+                SLCONLAI = ISNULL(SLCONLAI, 0) - @slCan,  
                 NGAYXUAT = GETDATE()  
             WHERE LOT = @lotChon  
-              AND SP = @maHang;  
-  
-            /*  
-            ========================================================  
-            CẬP NHẬT PHIẾU TẠM  
-            ========================================================  
-            */  
-  
-            UPDATE TMPPHIEUGIAOHANG  
-            SET  
-                LOT = @lotChon,  
-                STATUS = 'OK'  
-            WHERE STT = @stt;  
-  
-            /*  
-            ========================================================  
-            KẾT QUẢ  
-            ========================================================  
-            */  
-  
-            INSERT INTO #STOK_SP  
-            (  
-                STT,  
-                LOT,  
-                SOLUONG,  
-                STATUS  
-            )  
-            VALUES  
-            (  
-                @stt,  
-                @lotChon,  
-                @slCan,  
-                'OK'  
-            );  
+              AND SP = @maHang
+              AND ISNULL(SLCONLAI, 0) >= @slCan;
+
+            SET @StockUpdated = CASE WHEN @@ROWCOUNT = 1 THEN 1 ELSE 0 END;
+
+            IF @StockUpdated = 0
+            BEGIN
+                INSERT INTO #ERR_SP(MH, LOT, SLCAN, SLCO, STATUS)
+                VALUES(@maHang, @lotChon, @slCan, ISNULL(@slConLai, 0), 'TON_VUA_THAY_DOI');
+            END
+            ELSE
+            BEGIN
+                /*
+                ========================================================
+                CẬP NHẬT PHIẾU TẠM
+                ========================================================
+                */
+                UPDATE TMPPHIEUGIAOHANG
+                SET LOT = @lotChon, STATUS = 'OK'
+                WHERE STT = TRY_CONVERT(INT, @stt)
+                  AND ISNULL(STATUS, '') <> 'OK';
+
+                IF @@ROWCOUNT = 1
+                BEGIN
+                    INSERT INTO #STOK_SP(STT, LOT, SOLUONG, STATUS)
+                    VALUES(@stt, @lotChon, @slCan, 'OK');
+                END
+                ELSE
+                BEGIN
+                    THROW 51032, N'Phiếu giao đã thay đổi trạng thái trong lúc xử lý.', 1;
+                END;
+            END;  
         END;  
   
         FETCH NEXT FROM cur  
