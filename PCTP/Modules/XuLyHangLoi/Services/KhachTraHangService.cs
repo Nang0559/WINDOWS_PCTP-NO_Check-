@@ -403,27 +403,12 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             // Không thay đổi PhieuTraHang.Status.
             // ========================================================
 
-            try
-            {
-                Uow.Begin();
-
-                // A. Note phiếu giao gốc
-                _phieuGiaoRepo.CapNhatNotePhieuGiao(
-                    dinhDanhPhieuGiao,
-                    note);
-
-                Uow.Commit();
-
-            }
-            catch
-            {
-                SafeRollback();
-                throw;
-            }
-            // Đẩy việc đổi QTChungStatus sang đúng chủ sở hữu — QTChungService
-            // (Cần thêm 1 method QTChungService.DanhDauChoGiaoBu tương tự XacNhanChoGiaoBu ở mục 7
-            //  nhưng chỉ set status ChoGiaoBu, không gọi GiaoBuNGService)
-            var result = _qtChungService.DanhDauChoGiaoBu(phieuXuLy.Id, nguoiThucHien);
+            // Ghi Note phiếu giao gốc và đổi QTChungStatus trong cùng transaction.
+            // Nếu một trong hai thao tác lỗi, QTChungService rollback cả hai.
+            var result = _qtChungService.DanhDauChoGiaoBu(
+                phieuXuLy.Id,
+                nguoiThucHien,
+                () => _phieuGiaoRepo.CapNhatNotePhieuGiao(dinhDanhPhieuGiao, note));
             if (!result.IsOK)
                 throw new InvalidOperationException(result.Message);
         }

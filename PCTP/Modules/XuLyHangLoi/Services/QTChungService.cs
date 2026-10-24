@@ -523,18 +523,43 @@ namespace PCTP.Modules.XuLyHangLoi.Services
 
         public ScanResult DanhDauChoGiaoBu(int phieuXuLyId, string nguoiThucHien)
         {
+            return DanhDauChoGiaoBu(phieuXuLyId, nguoiThucHien, null);
+        }
+
+        /// <summary>
+        /// Chuyển QT Chung sang ChoGiaoBu và cho phép caller ghi nhận trạng thái
+        /// phiếu giao gốc trong cùng UnitOfWork. Callback chỉ được dùng cho các
+        /// repository cùng chia sẻ UnitOfWork/connection đã cấu hình.
+        /// </summary>
+        public ScanResult DanhDauChoGiaoBu(int phieuXuLyId, string nguoiThucHien, Action beforeStatusUpdate)
+        {
             ValidateNguoiThucHien(nguoiThucHien);
             var phieu = GetRequired(phieuXuLyId);
-            if (phieu.HuongXuLy != HuongXuLyBatThuong.ChiGiaoBu) return ScanResult.Fail("Chỉ phiếu hướng ChiGiaoBu mới được đánh dấu chờ giao bù.");
-            ValidateTransition(phieu, QTChungStatus.ChoGiaoBu);
+            if (phieu.HuongXuLy != HuongXuLyBatThuong.ChiGiaoBu)
+                return ScanResult.Fail("Chỉ phiếu hướng ChiGiaoBu mới được đánh dấu chờ giao bù.");
+            bool alreadyWaitingForCompensation = phieu.Status == QTChungStatus.ChoGiaoBu;
+            if (!alreadyWaitingForCompensation &&
+                !_workflow.CanTransition(ProcessCodeQTChung, (int)phieu.Status, (int)QTChungStatus.ChoGiaoBu))
+                return ScanResult.Fail($"Workflow không cho phép chuyển QT Chung {phieu.Status} → {QTChungStatus.ChoGiaoBu}.");
+
             try
             {
                 _uow.Begin();
-                UpdateStatusWithConcurrencyCheck(phieuXuLyId, phieu.Status, QTChungStatus.ChoGiaoBu, nguoiThucHien);
+                // Always execute the related delivery-note write, including the
+                // idempotent/concurrent path where the status already reached target.
+                beforeStatusUpdate?.Invoke();
+                if (!alreadyWaitingForCompensation)
+                    UpdateStatusWithConcurrencyCheck(phieuXuLyId, phieu.Status, QTChungStatus.ChoGiaoBu, nguoiThucHien);
                 _uow.Commit();
-                return ScanResult.OK("Đã chuyển sang chờ giao bù.");
+                return ScanResult.OK(alreadyWaitingForCompensation
+                    ? "Phiếu đã chờ giao bù; đã đồng bộ lại phiếu giao gốc."
+                    : "Đã chuyển sang chờ giao bù và đồng bộ phiếu giao gốc.");
             }
-            catch (Exception ex) { SafeRollback(); return ScanResult.Fail(ex.Message); }
+            catch (Exception ex)
+            {
+                SafeRollback();
+                return ScanResult.Fail("Không thể đồng bộ trạng thái chờ giao bù: " + ex.Message);
+            }
         }
 
         public ScanResult NhapLaiHangNG(int phieuXuLyId, string lotNo, int soLuongNG, int? slotIdOK, int? slotIdNG, string nguoiNhap)

@@ -19,10 +19,16 @@ namespace PCTP.Infrastructure.Stock
 
         public int GetAvailableQuantity(string lotNo)
         {
-            object value = ExecuteScalar(
-                "SELECT ISNULL(SUM(SLCONLAI),0) FROM STOCKTP WHERE LOT=@lot",
+            var rows = LoadData(
+                "SELECT SLCONLAI FROM STOCKTP WHERE LOT=@lot",
                 new SqlParameter("@lot", lotNo ?? ""));
-            return value == null || value == System.DBNull.Value ? 0 : System.Convert.ToInt32(value);
+            if (rows == null || rows.Rows.Count == 0) return 0;
+            if (rows.Rows.Count != 1)
+                throw new InvalidOperationException(
+                    string.Format("STOCKTP vi phạm khóa LOT duy nhất: LOT [{0}] có {1} dòng.", lotNo, rows.Rows.Count));
+            return rows.Rows[0]["SLCONLAI"] == System.DBNull.Value
+                ? 0
+                : Convert.ToInt32(rows.Rows[0]["SLCONLAI"]);
         }
 
         public void DecreaseAvailableQuantity(string lotNo, int quantity)
@@ -46,7 +52,10 @@ namespace PCTP.Infrastructure.Stock
                 new SqlParameter("@lot", lotNo),
                 new SqlParameter("@q", quantity));
 
-            return affected > 0;
+            if (affected > 1)
+                throw new InvalidOperationException(
+                    string.Format("STOCKTP vi phạm khóa LOT duy nhất: UPDATE tác động {0} dòng cho LOT [{1}].", affected, lotNo));
+            return affected == 1;
         }
 
         public void AdjustAvailableQuantity(string lotNo, int delta)
@@ -65,9 +74,9 @@ namespace PCTP.Infrastructure.Stock
                 new SqlParameter("@lot", lotNo),
                 new SqlParameter("@q", delta));
 
-            if (affected == 0)
+            if (affected != 1)
                 throw new System.InvalidOperationException(
-                    string.Format("Không tìm thấy STOCKTP LOT [{0}] để điều chỉnh tăng tồn.", lotNo));
+                    string.Format("STOCKTP yêu cầu đúng một dòng LOT [{0}] khi điều chỉnh tăng, nhưng UPDATE tác động {1} dòng.", lotNo, affected));
         }
     }
 }

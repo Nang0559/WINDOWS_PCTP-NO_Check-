@@ -565,6 +565,46 @@
       "expected": "Full LOT matches exactly; 13-character root is accepted only when unique; quarantined SlotLot rows remain excluded; separate physical slot allocations remain visible",
       "status": "implemented",
       "testEvidence": "AtomicityFindingsSourceContractTests.CurrentStockProcedure_UsesExactPhysicalLotAndGuardsRootLotAmbiguity; SQL/sp_GetCurrentStockStatus.sql"
+    },
+    {
+      "id": "IN-TXN-001",
+      "module": "NhapKho/UnitOfWork",
+      "scenario": "Receive one master QR into physical Slot or virtual A0 and synchronize STOCKTP, Slot header, SlotLot, production tracking and stock history",
+      "expected": "All receiving writes commit in one UnitOfWork; duplicate QR, capacity failure or injected persistence failure leaves every ledger unchanged",
+      "status": "partial",
+      "testEvidence": "StockMovementServiceTests covers central movement invariants; NhapTpReceivingService transaction orchestration and full production persistence still need an isolated business-schema execution."
+    },
+    {
+      "id": "STK-LOCK-001",
+      "module": "KhoCore/QuarantineRelease",
+      "scenario": "Two QC operators release the same quarantined SlotLot concurrently",
+      "expected": "Slot row is locked, status and quantity are re-read after lock, only one transaction converts the quarantined quantity to active stock and updates STOCKTP/audit",
+      "status": "partial",
+      "testEvidence": "QuarantineReleaseServiceTests.Release_RevalidatesQuarantineAfterWaitingForSlotLock; production BulkStockSlotRepository.LockSlotForUpdate; concurrent runtime execution of QuarantineReleaseService against isolated SQL fixtures remains pending."
+    },
+    {
+      "id": "RWK-IDEM-001",
+      "module": "XuLyHangLoi/StockMovementGuard",
+      "scenario": "Rework export, OK receive, NG quarantine receive and cancellation return use operation-scoped idempotency keys",
+      "expected": "Different stages and different source LOT/Slot movements of one abnormal ticket do not collide under the unique ReferenceType+ReferenceId guard; replay of the same operation remains blocked",
+      "status": "partial",
+      "testEvidence": "RemainingQcCaseContractTests.ReworkMovements_UseDistinctIdempotencyKeysAcrossStagesAndLots; repeated partial export from the same source SlotLot still requires a caller-stable operation ID/business rule."
+    },
+    {
+      "id": "WMS-E2E-001",
+      "module": "WMS/EndToEnd",
+      "scenario": "Receive → Rack/Slot/A0 → deliver → NG quarantine → QC/rework/release → stock reconciliation",
+      "expected": "LOT/QR traceability and quantities reconcile across STOCKTP, Rack/Slot/SlotLot, delivery ledgers, rework ledgers and history; rollback/replay/concurrency paths are verified",
+      "status": "planned",
+      "testEvidence": "Existing module-level unit and SQL-engine fixtures cover selected invariants; full UI + production repository + SQL business-schema E2E is not yet executed."
+    },
+    {
+      "id": "STK-IDENTITY-001",
+      "module": "KhoCore/STOCKTP",
+      "scenario": "Determine the actual STOCKTP business key and reconcile duplicate LOT / LOT+PART rows with active SlotLot",
+      "expected": "Exactly one STOCKTP row per LOT; one LOT may occupy multiple Slots. Sum active SlotLot quantities across all Slots and reconcile to STOCKTP; each Slot header reconciles only to active SlotLots in that Slot.",
+      "status": "partial",
+      "testEvidence": "User confirmed the business key. Production repository guards reject multi-row LOT reads/updates; central balance no longer sums duplicate STOCKTP rows; SQL audit is LOT-grain; guarded unique-index migration added but not executed. SQL engine integration now creates one LOT across two Slots and checks aggregate stock reconciliation."
     }
   ]
 }

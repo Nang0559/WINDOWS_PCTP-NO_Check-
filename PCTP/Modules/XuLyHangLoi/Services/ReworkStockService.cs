@@ -211,8 +211,10 @@ namespace PCTP.Modules.XuLyHangLoi.Services
                     LotNo = lotChuan,
                     ItemCode = slotLot.ItemCode,
                     Quantity = soLuong,
-                    ReferenceType = "PHIEU_XU_LY_BAT_THUONG",
-                    ReferenceId = phieuXuLyId.ToString(),
+                    ReferenceType = "QT_REWORK_EXPORT",
+                    // Một phiếu có thể xuất từ nhiều SlotLot. Dùng SlotLot nguồn
+                    // để các LOT khác nhau không chiếm cùng một idempotency key.
+                    ReferenceId = phieuXuLyId + ":" + slotLotId,
                     PerformedBy = nguoiXuat,
                     Reason = "Xuất kho đi rework"
                 });
@@ -338,7 +340,7 @@ namespace PCTP.Modules.XuLyHangLoi.Services
                     LotNo = lotChuan,
                     ItemCode = phieu.MaSanPham,
                     Quantity = soLuongNG,
-                    ReferenceType = "PHIEU_XU_LY_BAT_THUONG",
+                    ReferenceType = "QT_REWORK_NG_RECEIVE",
                     ReferenceId = phieuXuLyId.ToString(),
                     PerformedBy = nguoiNhap,
                     Reason = "Nhập lại hàng NG sau rework"
@@ -438,7 +440,7 @@ namespace PCTP.Modules.XuLyHangLoi.Services
                     LotNo = lotChuan,
                     ItemCode = phieu.MaSanPham,
                     Quantity = soLuongOK,
-                    ReferenceType = "PHIEU_XU_LY_BAT_THUONG",
+                    ReferenceType = "QT_REWORK_OK_RECEIVE",
                     ReferenceId = phieuXuLyId.ToString(),
                     PerformedBy = nguoiNhap,
                     Reason = "Nhập lại hàng OK sau rework"
@@ -541,8 +543,10 @@ namespace PCTP.Modules.XuLyHangLoi.Services
                         LotNo = lotChuan,
                         ItemCode = nhom.MaHang,
                         Quantity = conTreo,
-                        ReferenceType = "PHIEU_XU_LY_BAT_THUONG",
-                        ReferenceId = phieuXuLyId.ToString(),
+                        ReferenceType = "QT_REWORK_CANCEL_RETURN",
+                        // Một phiếu huỷ có thể hoàn nhiều LOT/Slot; mỗi cặp LOT+Slot
+                        // cần một khóa riêng trong cùng transaction.
+                        ReferenceId = phieuXuLyId + ":" + nhom.SlotId + ":" + lotChuan,
                         PerformedBy = nguoiThucHien,
                         Reason = "Hoàn trả kho do huỷ QT chung"
                     });

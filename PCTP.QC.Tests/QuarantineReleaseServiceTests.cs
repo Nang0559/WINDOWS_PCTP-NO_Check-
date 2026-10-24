@@ -60,8 +60,30 @@ public sealed class QuarantineReleaseServiceTests
         Assert.Equal(1, f.Uow.CommitCount);
         Assert.Equal(0, f.Uow.RollbackCount);
         Assert.Equal(new[] { "decrease:7:12", "add:12:12:0" }, f.Slots.Mutations);
+        Assert.Equal(1, f.Slots.LockCount);
+        Assert.Equal(2, f.Slots.GetLotDetailsCount);
         Assert.Equal(1, f.Balance.AdjustCount);
         Assert.Equal(1, f.Audit.Count);
+    }
+
+    [Fact]
+    public void Release_RevalidatesQuarantineAfterWaitingForSlotLock()
+    {
+        var f = CreateFixture(authorized: true);
+        f.Slots.StatusAfterLock = QuarantineReleaseService.ActiveStatus;
+
+        var result = f.Service.Release(new QuarantineReleaseRequest
+        {
+            SlotLotId = 7, QcDispositionApproved = true, PerformedBy = "qc-admin", ReferenceId = "REL-RACE"
+        });
+
+        Assert.False(result.Success);
+        Assert.Equal(1, f.Slots.LockCount);
+        Assert.Empty(f.Slots.Mutations);
+        Assert.Equal(0, f.Balance.AdjustCount);
+        Assert.Equal(0, f.Audit.Count);
+        Assert.Equal(0, f.Uow.CommitCount);
+        Assert.Equal(1, f.Uow.RollbackCount);
     }
 
     [Fact]
@@ -127,15 +149,25 @@ public sealed class QuarantineReleaseServiceTests
     private sealed class FakeSlots : IStockSlotRepository
     {
         public List<string> Mutations { get; } = new();
+        public int LockCount { get; private set; }
+        public int GetLotDetailsCount { get; private set; }
+        public byte? StatusAfterLock { get; set; }
+        private bool _locked;
         public int GetLotQuantity(int slotLotId) => 12;
         public byte GetPhieuStatus(int slotLotId) => QuarantineReleaseService.QuarantineStatus;
-        public StockSlotLot GetLotDetails(int slotLotId) => new StockSlotLot
+        public StockSlotLot GetLotDetails(int slotLotId)
         {
-            LotNo = "LOT-Q", ItemCode = "ITEM-Q", Quantity = 12, TemCode = "TEM-Q", RawQr = "QR-Q", PhieuStatus = 3
-        };
+            GetLotDetailsCount++;
+            return new StockSlotLot
+            {
+                LotNo = "LOT-Q", ItemCode = "ITEM-Q", Quantity = 12, TemCode = "TEM-Q", RawQr = "QR-Q",
+                PhieuStatus = _locked && StatusAfterLock.HasValue ? StatusAfterLock.Value : (byte)3
+            };
+        }
         public string GetLotNo(int slotLotId) => "LOT-Q";
         public string GetItemCode(int slotLotId) => "ITEM-Q";
         public int? GetSlotId(int slotLotId) => 12;
+        public void LockSlotForUpdate(int slotId) { LockCount++; _locked = true; }
         public void DecreaseLotQuantity(int slotLotId, int quantity) => Mutations.Add($"decrease:{slotLotId}:{quantity}");
         public void AddQuantity(int slotId, int quantity, string itemCode) => Mutations.Add($"addqty:{slotId}:{quantity}");
         public void AddLot(int slotId, StockSlotLot lot) => Mutations.Add($"add:{slotId}:{lot.Quantity}:{lot.PhieuStatus}");
