@@ -24,6 +24,16 @@ namespace PCTP.Domain.Interfaces
     }
 }
 
+namespace PCTP.Modules.GiaoHangKhach.Services
+{
+    public interface IPhieuLotService
+    {
+        List<(int Stt, string Lot)> TinhTongLot(
+            DataTable bangTam, string tenBan, string docQRTable, string tmpTable,
+            Func<DataTable, int> chonSttKhiTrung);
+    }
+}
+
 namespace PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao
 {
     public interface IPhieuLotRepository
