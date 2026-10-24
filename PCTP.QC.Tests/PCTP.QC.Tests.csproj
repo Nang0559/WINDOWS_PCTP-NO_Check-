@@ -41,6 +41,8 @@
     <None Include="../PCTP/Modules/GiaoHangKhach/Repositories/PhieuKhoRepository.cs" Link="PhieuKhoRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/GiaoHangKhach/Services/PhieuKhoService.cs" Link="PhieuKhoService.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/XuLyHangLoi/Services/ReworkStockService.cs" Link="ReworkStockService.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/XuLyHangLoi/Services/KhachTraHangService.cs" Link="KhachTraHangService.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/XuLyHangLoi/Services/QTChungService.cs" Link="QTChungService.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/KhoCore/Application/Services/StockMovementService.cs" Link="StockMovementService.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Shared/Helpers/QRCodeWorkflowAdapter.cs" Link="QRCodeWorkflowAdapter.source.cs" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
