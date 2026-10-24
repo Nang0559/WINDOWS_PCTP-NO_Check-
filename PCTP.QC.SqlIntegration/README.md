@@ -63,12 +63,23 @@ dotnet run --project .\\PCTP.QC.SqlIntegration\\PCTP.QC.SqlIntegration.csproj --
 
 This checks the deployed procedure and key ledger metadata/transaction-lock markers only. It does not execute the procedure.
 
-The remaining full acceptance work requires:
-1. A DBA-provisioned disposable database restored from a representative schema/data snapshot, with an explicit cleanup/seed contract. Execute the procedure only in that isolated database and assert STOCKTP, delivery ledgers, QR state, pending-delivery status, rollback, replay, and concurrent duplicate behavior.
-2. Run the production `PhieuKhoRepository` orchestration against the same isolated database, with production history/slot adapters wired into the same UnitOfWork. Source-contract unit tests are regression guards, not a runtime integration pass.
-3. Run the WinForms journey on a Windows test agent with a dedicated test account and disposable test records. Capture screenshots and assert both UI state and SQL postconditions.
+The read-only `--delivery-preflight` checks the six operator-confirmed active procedures:
+- `dbo.Usp_Qrcode_Update_Stock_SP`
+- `dbo.Usp_Qrcode_Update_Stock2405`
+- `dbo.Usp_Qrcode_LOAD_PHIEU_DOCQR2405`
+- `dbo.Usp_Qrcode_Take_Lot2405`
+- `dbo.Usp_Qrcode_Take_LotYMVN2405`
+- `dbo.sp_GetCurrentStockStatus`
 
-Until these three gates have run and produced artifacts, report delivery acceptance as **PARTIAL**, even if the default SQL integration runner exits with code 0. Never substitute the shared SQL 57 database or production SQL 14 for the disposable acceptance database.
+It also checks the delivery ledgers and the `STOCKTP`, `TMPPHIEUGIAOHANG`, and `DOCQRCODE` tables, and verifies selected transaction/LOT markers in the deployed definitions. It does not execute any of those procedures and does not prove their runtime behavior.
+
+The remaining full acceptance work requires:
+1. A DBA-provisioned disposable database restored from a representative schema/data snapshot, with an explicit cleanup/seed contract. Execute the delivery and FIFO procedures only in that isolated database and assert STOCKTP, delivery ledgers, QR state, pending-delivery status, rollback, replay, and concurrent duplicate behavior.
+2. Exercise `Usp_Qrcode_LOAD_PHIEU_DOCQR2405`, `Usp_Qrcode_Take_Lot2405`, and `Usp_Qrcode_Take_LotYMVN2405` against isolated seeded data, including FIFO ordering, LOT uniqueness/ambiguity, and insufficient-stock boundaries.
+3. Run the production `PhieuKhoRepository` orchestration against the same isolated database, with production history/slot adapters wired into the same UnitOfWork. Source-contract unit tests are regression guards, not a runtime integration pass.
+4. Run the WinForms journey on a Windows test agent with a dedicated test account and disposable test records. Capture screenshots and assert both UI state and SQL postconditions.
+
+Until these gates have run and produced artifacts, report delivery acceptance as **PARTIAL**, even if the default SQL integration runner exits with code 0. Never substitute the shared SQL 57 database or production SQL 14 for the disposable acceptance database.
 
 ## WinForms TestRunner
 
