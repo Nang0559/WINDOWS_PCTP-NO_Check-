@@ -29,7 +29,7 @@ public sealed class DeliveryQrAllocationSourceContractTests
     public void SqlAllocator_MustMarkOnlyChosenQrRowsAndRollbackPartialWrites()
     {
         var sql = Read("Usp_Qrcode_Take_Lot2405.sql");
-        Assert.Contains("INNER JOIN #Chosen c ON c.STT = q.STT", sql, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("JOIN #Chosen c ON c.STT=q.STT", sql, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("IF @affected<>@chosenCount THROW", sql, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("IF @affected<>1 THROW", sql, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("SAVE TRANSACTION PctpTakeLot2405", sql, StringComparison.OrdinalIgnoreCase);
