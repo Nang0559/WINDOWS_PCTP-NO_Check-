@@ -2,6 +2,20 @@
 
 Safe SQL schema diagnostics plus production `StockTpRepository` and `BulkStockSlotRepository` checks against session-local fixtures, production idempotency-guard tests, SQL engine workflow checks, and concurrent LOT/reference reservation checks using temporary fixtures.
 
+## GitHub Actions: disposable SQL Server engine
+
+Every CI run now starts a disposable SQL Server 2022 Developer container on the GitHub-hosted runner and creates the isolated `PCTP_QC_CI` database. The SQL integration job uses an explicit ephemeral connection string and `--engine-only` mode.
+
+- The CI connection is accepted only when `PCTP_QC_ALLOW_EPHEMERAL_SQL=true`, the server is loopback (`localhost` / `127.0.0.1`), and the database is exactly `PCTP_QC_CI`.
+- The ephemeral path is separate from the fixed SQL 57 target and is not permitted to redirect to SQL 14 production.
+- Engine-only mode skips the business-schema preflight and executes the existing SQL Server engine/repository scenarios using session-local or GUID-named `tempdb` fixtures.
+- The container is destroyed with the GitHub job. No SQL 57/SQL 14 network connection, database credential, or business data is used.
+- This validates SQL Server behavior, transaction semantics, concurrency fixtures, and the production repository SQL against controlled fixture schemas. It does **not** recreate the full `B7R2_FCC` schema or prove the six delivery stored procedures against representative business rows.
+
+### What is still needed to emulate SQL 57 business behavior
+
+To execute all six active stored procedures end-to-end in CI, add a DBA-approved schema-only export (tables, indexes, constraints, triggers, dependent functions/procedures) and a sanitized, minimal seed dataset from SQL 57. Do not commit a production backup or real employee/customer/QR data. The resulting fixture must be versioned as reviewed SQL scripts and must include deterministic cleanup/reset. Once that fixture exists, the CI job can install the six procedure definitions and run assertions for stock balances, delivery ledgers, QR deletion/state, FIFO selection, replay, rollback, and concurrency inside `PCTP_QC_CI`.
+
 ## Fixed target
 
 - SQL Server: `192.168.200.57`
