@@ -102,6 +102,12 @@ BEGIN
   
     IF OBJECT_ID('TempDb..#SplitResult') IS NOT NULL  
         DROP TABLE #SplitResult;  
+
+    IF OBJECT_ID('TempDb..#StockByLot') IS NOT NULL
+        DROP TABLE #StockByLot;
+
+    IF OBJECT_ID('TempDb..#LotKeyCount') IS NOT NULL
+        DROP TABLE #LotKeyCount;
   
     --------------------------------------------------------------------  
     -- 4. TEMP TABLE  
@@ -613,46 +619,79 @@ BEGIN
                 MH,
                 LOT;  
   
-            ------------------------------------------------------------  
-            -- Aggregate STOCKTP theo LOT KEY 13 ký tự  
-            ------------------------------------------------------------  
-            INSERT INTO #STNG  
-            (  
-                MH,  
-                LOT,  
-                SLCAN,  
-                SLCO,  
-                SLTHIEU,  
-                STATUS  
-            )  
-            SELECT  
-                G.MH,  
-                G.LOT,  
-                G.TONG_CAN_XUAT,  
-                ISNULL(S.SLCONLAI, 0),  
-                G.TONG_CAN_XUAT -  
-                    ISNULL(S.SLCONLAI, 0),  
-                N'Không đủ tồn kho (kiểm tra lần 2)'  
-            FROM #GomNhomCheck G  
-            LEFT JOIN  
-            (  
-                SELECT
-                    RTRIM(LOT) AS PhysicalLot,
-                    LEFT(RTRIM(LOT), 13) AS LotKey,
-                    SUM(ISNULL(SLCONLAI, 0)) AS SLCONLAI
-                FROM STOCKTP
-                WHERE ISNULL(SLCONLAI, 0) > 0
-                GROUP BY RTRIM(LOT), LEFT(RTRIM(LOT), 13)
-            ) S
-                ON ((LEN(RTRIM(G.LOT)) > 13 AND S.PhysicalLot = RTRIM(G.LOT))
-                 OR (LEN(RTRIM(G.LOT)) <= 13
-                     AND S.LotKey = LEFT(RTRIM(G.LOT), 13)
-                     AND (SELECT COUNT(DISTINCT RTRIM(S2.LOT))
-                          FROM STOCKTP S2
-                          WHERE LEFT(RTRIM(S2.LOT), 13) = LEFT(RTRIM(G.LOT), 13)) = 1))  
-            WHERE  
-                ISNULL(S.SLCONLAI, 0) -  
-                G.TONG_CAN_XUAT < 0;  
+            ------------------------------------------------------------
+            -- Aggregate STOCKTP once (not once per delivery line).
+            --
+            -- The previous form LEFT JOINed the aggregate with an ON clause that
+            -- contained OR plus a correlated COUNT(DISTINCT ...) over STOCKTP. SQL
+            -- Server could not hash/merge-join it, so it compared every delivery
+            -- line with every physical LOT and re-ran that sub-query each time
+            -- (minutes on ~66k STOCKTP rows). Same rules, computed once:
+            --   * input LOT longer than 13 chars -> exact physical LOT only;
+            --   * 13-char root -> only when it maps to exactly ONE physical LOT
+            --     in all of STOCKTP (counted without the SLCONLAI > 0 filter).
+            ------------------------------------------------------------
+            SELECT
+                RTRIM(LOT) AS PhysicalLot,
+                LEFT(RTRIM(LOT), 13) AS LotKey,
+                SUM(ISNULL(SLCONLAI, 0)) AS SLCONLAI
+            INTO #StockByLot
+            FROM STOCKTP
+            WHERE ISNULL(SLCONLAI, 0) > 0
+            GROUP BY RTRIM(LOT), LEFT(RTRIM(LOT), 13);
+
+            CREATE CLUSTERED INDEX IX_StockByLot_PhysicalLot ON #StockByLot(PhysicalLot);
+            CREATE NONCLUSTERED INDEX IX_StockByLot_LotKey ON #StockByLot(LotKey);
+
+            SELECT
+                LEFT(RTRIM(LOT), 13) AS LotKey,
+                COUNT(DISTINCT RTRIM(LOT)) AS PhysicalLotCount
+            INTO #LotKeyCount
+            FROM STOCKTP
+            GROUP BY LEFT(RTRIM(LOT), 13);
+
+            CREATE CLUSTERED INDEX IX_LotKeyCount_LotKey ON #LotKeyCount(LotKey);
+
+            INSERT INTO #STNG
+            (
+                MH,
+                LOT,
+                SLCAN,
+                SLCO,
+                SLTHIEU,
+                STATUS
+            )
+            SELECT
+                G.MH,
+                G.LOT,
+                G.TONG_CAN_XUAT,
+                X.SLCONLAI,
+                G.TONG_CAN_XUAT - X.SLCONLAI,
+                N'Không đủ tồn kho (kiểm tra lần 2)'
+            FROM #GomNhomCheck G
+            CROSS APPLY
+            (
+                SELECT ISNULL(
+                    CASE
+                        WHEN LEN(RTRIM(G.LOT)) > 13
+                            THEN (SELECT SUM(S.SLCONLAI)
+                                  FROM #StockByLot S
+                                  WHERE S.PhysicalLot = RTRIM(G.LOT))
+                        WHEN EXISTS (SELECT 1
+                                     FROM #LotKeyCount K
+                                     WHERE K.LotKey = LEFT(RTRIM(G.LOT), 13)
+                                       AND K.PhysicalLotCount = 1)
+                            THEN (SELECT SUM(S.SLCONLAI)
+                                  FROM #StockByLot S
+                                  WHERE S.LotKey = LEFT(RTRIM(G.LOT), 13))
+                    END, 0) AS SLCONLAI
+            ) X
+            WHERE
+                X.SLCONLAI -
+                G.TONG_CAN_XUAT < 0;
+
+            DROP TABLE #StockByLot;
+            DROP TABLE #LotKeyCount;
   
             DROP TABLE #GomNhomCheck;  
         END;  

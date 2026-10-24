@@ -92,4 +92,16 @@ public sealed class OrderTableSourceContractTests
         Assert.Contains(NormalizeSql("NOT EXISTS ( SELECT 1 FROM #STNG E"), gomNhomCheck, StringComparison.Ordinal);
         Assert.DoesNotContain(NormalizeSql("STT NOT IN ( SELECT DISTINCT STT FROM #STNG"), gomNhomCheck, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void DeliveryProcedure_SecondStockCheck_AggregatesOnceAndHasNoCorrelatedDistinctCountJoin()
+    {
+        // Regression guard: the old LEFT JOIN ... ON (... OR ... (SELECT COUNT(DISTINCT RTRIM(S2.LOT)) ...)) compared
+        // every delivery line with every STOCKTP LOT and ran for minutes on the shared test database.
+        var normalized = NormalizeSql(ReadSource("Usp_Qrcode_Update_Stock2405.sql"));
+
+        Assert.Contains("INTO #StockByLot", normalized, StringComparison.Ordinal);
+        Assert.Contains("INTO #LotKeyCount", normalized, StringComparison.Ordinal);
+        Assert.DoesNotContain("COUNT(DISTINCT RTRIM(S2.LOT))", normalized, StringComparison.Ordinal);
+    }
 }
