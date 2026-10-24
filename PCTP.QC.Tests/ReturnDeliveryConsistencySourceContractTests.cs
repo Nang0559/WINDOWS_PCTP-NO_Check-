@@ -39,6 +39,10 @@ public sealed class ReturnDeliveryConsistencySourceContractTests
         Assert.True(begin >= 0 && begin < callback);
         Assert.True(callback < status && status < commit);
         Assert.True(rollback > commit);
+        Assert.Contains("bool alreadyWaitingForCompensation", qtMethod, StringComparison.Ordinal);
+        Assert.Contains("beforeStatusUpdate?.Invoke()", qtMethod, StringComparison.Ordinal);
+        Assert.Contains("if (!alreadyWaitingForCompensation)", qtMethod, StringComparison.Ordinal);
+        Assert.DoesNotContain("if (phieu.Status == QTChungStatus.ChoGiaoBu)\n                return ScanResult.OK", qtMethod, StringComparison.Ordinal);
     }
 
     [Fact]
