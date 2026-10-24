@@ -541,6 +541,30 @@
       "expected": "Rework NG is stored at the NG slot with PhieuStatus=3; STOCKTP available balance is not increased; Slot.Quantity excludes NG; transaction failure rolls back NG SlotLot and workflow state",
       "status": "planned",
       "testEvidence": "RemainingQcCaseContractTests guards the actual ReworkStockService.NhapLaiHangNG and StockMovementService status-3/no-STOCKTP-credit path. Persisted SQL postconditions and injected rollback against an isolated business schema remain runtime acceptance gates."
+    },
+    {
+      "id": "DEL-SP-002",
+      "module": "GiaoHangKhach/LegacyFifoDelivery",
+      "scenario": "Execute Usp_Qrcode_Update_Stock_SP with FIFO stock reservation and delivery ledger persistence",
+      "expected": "Stock decrement and pending-row status update are transactionally coupled; execution is serialized; a stale or non-unique stock update rolls back; only rows completed by this invocation are inserted into LUUPHIEUGIAOHANG",
+      "status": "implemented",
+      "testEvidence": "AtomicityFindingsSourceContractTests.LegacyFifoProcedure_IsAtomicAndArchivesOnlyRowsCompletedByThisExecution; SQL/Usp_Qrcode_Update_Stock_SP.sql"
+    },
+    {
+      "id": "DEL-SP-003",
+      "module": "GiaoHangKhach/Delivery2405",
+      "scenario": "Return business validation errors from Usp_Qrcode_Update_Stock2405",
+      "expected": "Owned transaction or caller savepoint is rolled back before returning diagnostics; a doomed caller transaction is rethrown for caller rollback",
+      "status": "implemented",
+      "testEvidence": "AtomicityFindingsSourceContractTests.Delivery2405_BusinessValidationReturnsRollbackTheirTransactionScope; SQL/Usp_Qrcode_Update_Stock2405.sql"
+    },
+    {
+      "id": "STK-STATUS-001",
+      "module": "KhoCore/CurrentStockStatus",
+      "scenario": "Resolve SlotLot against STOCKTP using physical LOT identity",
+      "expected": "Full LOT matches exactly; 13-character root is accepted only when unique; quarantined SlotLot rows remain excluded; separate physical slot allocations remain visible",
+      "status": "implemented",
+      "testEvidence": "AtomicityFindingsSourceContractTests.CurrentStockProcedure_UsesExactPhysicalLotAndGuardsRootLotAmbiguity; SQL/sp_GetCurrentStockStatus.sql"
     }
   ]
 }
