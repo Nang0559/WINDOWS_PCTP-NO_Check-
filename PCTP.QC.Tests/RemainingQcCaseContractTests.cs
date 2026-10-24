@@ -28,6 +28,24 @@ public sealed class RemainingQcCaseContractTests
     }
 
     [Fact]
+    public void ReworkMovements_UseDistinctIdempotencyKeysAcrossStagesAndLots()
+    {
+        var source = Read("ReworkStockService.source.cs");
+        var export = Method(source, "public ScanResult XuatKhoRework(", "/// <summary>null = Slot hợp lệ");
+        var ng = Method(source, "public ScanResult NhapLaiHangNG(", "public ScanResult NhapLaiHangOK(");
+        var ok = Method(source, "public ScanResult NhapLaiHangOK(", "public ScanResult HoanTraKhoKhiHuy(");
+        var cancel = Method(source, "public ScanResult HoanTraKhoKhiHuy(", "private ScanResult FailAndRollback(");
+
+        Assert.Contains("ReferenceType = \"QT_REWORK_EXPORT\"", export);
+        Assert.Contains("ReferenceId = phieuXuLyId + \":\" + slotLotId", export);
+        Assert.Contains("ReferenceType = \"QT_REWORK_NG_RECEIVE\"", ng);
+        Assert.Contains("ReferenceType = \"QT_REWORK_OK_RECEIVE\"", ok);
+        Assert.Contains("ReferenceType = \"QT_REWORK_CANCEL_RETURN\"", cancel);
+        Assert.Contains("ReferenceId = phieuXuLyId + \":\" + nhom.SlotId + \":\" + lotChuan", cancel);
+        Assert.DoesNotContain("ReferenceType = \"PHIEU_XU_LY_BAT_THUONG\"", source);
+    }
+
+    [Fact]
     public void ReworkNgImport_UsesQuarantineMovementAndDoesNotDirectlyCreditStockTp()
     {
         var rework = Read("ReworkStockService.source.cs");
