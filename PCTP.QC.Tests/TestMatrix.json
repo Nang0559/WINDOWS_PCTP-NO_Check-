@@ -597,6 +597,14 @@
       "expected": "LOT/QR traceability and quantities reconcile across STOCKTP, Rack/Slot/SlotLot, delivery ledgers, rework ledgers and history; rollback/replay/concurrency paths are verified",
       "status": "planned",
       "testEvidence": "Existing module-level unit and SQL-engine fixtures cover selected invariants; full UI + production repository + SQL business-schema E2E is not yet executed."
+    },
+    {
+      "id": "STK-IDENTITY-001",
+      "module": "KhoCore/STOCKTP",
+      "scenario": "Determine the actual STOCKTP business key and reconcile duplicate LOT / LOT+PART rows with active SlotLot",
+      "expected": "Repository read/update operations use the confirmed unique key or an explicitly aggregated logical key; STOCKTP, SlotLot and Slot header totals reconcile without updating multiple rows unintentionally",
+      "status": "partial",
+      "testEvidence": "SQL/PCTP_StockTpIdentityAudit.sql is read-only and reports duplicate LOT, duplicate LOT+PART, STOCKTP-vs-SlotLot and Slot-header differences. Do not change STOCKTP mutation semantics until the approved schema/data audit confirms the key."
     }
   ]
 }
