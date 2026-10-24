@@ -28,6 +28,7 @@
     <None Include="../SQL/PCTP_EnforceUniqueStockTpLot.sql" Link="PCTP_EnforceUniqueStockTpLot.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/NhapKho/Repository/StockTPRepository.cs" Link="StockTPRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/XuatKho/Repositories/StockExportRepository.cs" Link="StockExportRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Infrastructure/Stock/LegacyStockBalanceRepositoryAdapter.cs" Link="LegacyStockBalanceRepositoryAdapter.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/GiaoHangKhach/Repositories/TableOrderRepo.cs" Link="TableOrderRepo.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Shared/Common/SqlRepositoryBase.cs" Link="SqlRepositoryBase.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/GiaoHangKhach/Repositories/PhieuLotRepository.cs" Link="PhieuLotRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />
