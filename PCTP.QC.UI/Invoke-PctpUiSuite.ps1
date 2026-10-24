@@ -8,7 +8,9 @@ param(
     # Run a subset, e.g. -JourneyFilter receive-navigation (name without .json; wildcards allowed).
     [Parameter(Mandatory = $false)][string]$JourneyFilter = "*",
     [Parameter(Mandatory = $false)][switch]$ContinueOnFailure,
-    [Parameter(Mandatory = $false)][switch]$KeepOpenOnFailure
+    [Parameter(Mandatory = $false)][switch]$KeepOpenOnFailure,
+    # Explicit opt-in only for disposable QC fixtures; forwarded to each journey.
+    [Parameter(Mandatory = $false)][switch]$AllowMutations
 )
 $ErrorActionPreference = "Stop"
 if ($env:OS -ne "Windows_NT") { throw "PCTP UI suite must run on Windows." }
@@ -25,6 +27,8 @@ if ($manifests.Count -eq 0) { throw "No journey matches -JourneyFilter '$Journey
 $extra = @()
 if ($ContinueOnFailure) { $extra += "-ContinueOnFailure" }
 if ($KeepOpenOnFailure) { $extra += "-KeepOpenOnFailure" }
+if ($AllowMutations) { $extra += "-AllowMutations" }
+$suiteStartedAt = (Get-Date).ToString("o")
 $results = New-Object System.Collections.Generic.List[object]
 foreach ($manifestName in $manifests) {
     $manifest = Join-Path $journeyRoot $manifestName
@@ -32,6 +36,11 @@ foreach ($manifestName in $manifests) {
     $journeyOut = Join-Path $out $name
     New-Item -ItemType Directory -Force -Path $journeyOut | Out-Null
     Write-Host "=== PCTP UI journey: $name ==="
+    # Prevent stale reports from a previous run from being mistaken for this run.
+    foreach ($stale in @("pctp-ui-journey-report.json", "pctp-ui-journey-report.html", "startup-windows.json")) {
+        $stalePath = Join-Path $journeyOut $stale
+        if (Test-Path -LiteralPath $stalePath) { Remove-Item -LiteralPath $stalePath -Force }
+    }
     & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $runner -ExePath $exe -ManifestPath $manifest -OutputDirectory $journeyOut -ExpectedWindowTitleRegex $ExpectedWindowTitleRegex -StartupTimeoutSeconds $StartupTimeoutSeconds -StepTimeoutSeconds $StepTimeoutSeconds -CloseOnFinish @extra
     $exitCode = $LASTEXITCODE
     $reportPath = Join-Path $journeyOut "pctp-ui-journey-report.json"
@@ -50,12 +59,15 @@ foreach ($manifestName in $manifests) {
     })
 }
 $summary = [pscustomobject]@{
-    Test = "PCTP read-only UI navigation suite"
+    RunId = [guid]::NewGuid().ToString("N")
+    StartedAt = $suiteStartedAt
+    Test = if ($AllowMutations) { "PCTP UI suite (mutations explicitly enabled)" } else { "PCTP read-only UI navigation suite" }
     Executable = $exe
     Status = if (@($results | Where-Object Status -eq "FAIL").Count -eq 0) { "PASS" } else { "FAIL" }
     JourneysPassed = @($results | Where-Object Status -eq "PASS").Count
     JourneysFailed = @($results | Where-Object Status -eq "FAIL").Count
     CompletedAt = (Get-Date).ToString("o")
+    AllowMutations = [bool]$AllowMutations
     Results = @($results)
 }
 $summaryPath = Join-Path $out "pctp-ui-suite-report.json"
