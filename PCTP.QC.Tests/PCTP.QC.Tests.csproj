@@ -27,6 +27,9 @@
     <None Include="../PCTP/Modules/GiaoHangKhach/Repositories/TableOrderRepo.cs" Link="TableOrderRepo.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Shared/Common/SqlRepositoryBase.cs" Link="SqlRepositoryBase.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/GiaoHangKhach/Repositories/PhieuLotRepository.cs" Link="PhieuLotRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/GiaoHangKhach/Services/PhieuLotService.cs" Link="PhieuLotService.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/GiaoHangKhach/SubForm/FRM_LISTRUNGMSL.cs" Link="FRM_LISTRUNGMSL.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/GiaoHangKhach/HVN/Controls/PhieuDialogControl.cs" Link="PhieuDialogControl.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/GiaoHangKhach/Repositories/PhieuLuuTruRepository.cs" Link="PhieuLuuTruRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/GiaoHangKhach/Repositories/PhieuGiaoDBRepository.cs" Link="PhieuGiaoDBRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/KhoCore/Repositories/RackRepository.cs" Link="RackRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />
