@@ -44,7 +44,8 @@ public sealed class ReturnDeliveryConsistencySourceContractTests
     [Fact]
     public void Interface_ExposesAtomicCallbackWithoutRemovingExistingCallContract()
     {
-        var contract = ReadSource("QTChungService.source.cs");
+        var contract = ReadSource("IQTChungService.source.cs");
+        Assert.Contains("DanhDauChoGiaoBu(int phieuXuLyId, string nguoiThucHien)", contract, StringComparison.Ordinal);
         Assert.Contains("DanhDauChoGiaoBu(int phieuXuLyId, string nguoiThucHien, Action beforeStatusUpdate)", contract, StringComparison.Ordinal);
     }
 }
