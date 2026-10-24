@@ -29,9 +29,9 @@ namespace PCTP.Modules.KhoVatLy.Kho.Models
         // Thông tin phiếu
         // =========================================================
 
-        public string MaPhieuKho { get; set; }
+        public string MaPhieuKho { get; set; } = string.Empty;
 
-        public string ParentSoPhieuKho { get; set; }
+        public string ParentSoPhieuKho { get; set; } = string.Empty;
 
         public PhieuStatus PhieuStatus { get; set; }
 
@@ -39,20 +39,24 @@ namespace PCTP.Modules.KhoVatLy.Kho.Models
         // LOT
         // =========================================================
 
-        public string ItemCode { get; set; }
+        public string ItemCode { get; set; } = string.Empty;
 
-        public string LotNo { get; set; }
+        public string LotNo { get; set; } = string.Empty;
 
         public int Quantity { get; set; }
 
-        public string TemCode { get; set; }
+        public string TemCode { get; set; } = string.Empty;
 
         /// <summary>
         /// QR gốc nếu LOT xuất phát từ QR.
+        /// Chuỗi rỗng biểu thị model chưa có dữ liệu QR gốc.
         /// </summary>
-        public string RawQr { get; set; }
+        public string RawQr { get; set; } = string.Empty;
 
-        public QRCodeInfo QRInfo { get; set; }
+        /// <summary>
+        /// Thông tin QR chỉ có khi LOT được tạo từ QR.
+        /// </summary>
+        public QRCodeInfo? QRInfo { get; set; }
 
         public DateTime? ImportDate { get; set; }
 
@@ -60,9 +64,9 @@ namespace PCTP.Modules.KhoVatLy.Kho.Models
         // Hiển thị vị trí
         // =========================================================
 
-        public string WarehouseName { get; set; }
+        public string WarehouseName { get; set; } = string.Empty;
 
-        public string RackName { get; set; }
+        public string RackName { get; set; } = string.Empty;
 
         public int? SlotNumber { get; set; }
 
