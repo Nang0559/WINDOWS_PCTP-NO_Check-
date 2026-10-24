@@ -57,9 +57,19 @@ public static class SqlTestConfiguration
             PersistSecurityInfo = modern.PersistSecurityInfo
         };
 
-        if (!string.Equals(legacy.DataSource, Server, StringComparison.OrdinalIgnoreCase) ||
-            !string.Equals(legacy.InitialCatalog, Database, StringComparison.OrdinalIgnoreCase))
-            throw new InvalidOperationException("Legacy SQL test connection target does not match the fixed test environment.");
+        var ephemeralAllowed = string.Equals(
+            Environment.GetEnvironmentVariable("PCTP_QC_ALLOW_EPHEMERAL_SQL"),
+            "true",
+            StringComparison.OrdinalIgnoreCase);
+        var isFixedTestTarget =
+            string.Equals(legacy.DataSource, Server, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(legacy.InitialCatalog, Database, StringComparison.OrdinalIgnoreCase);
+        var isEphemeralTarget = ephemeralAllowed &&
+            (legacy.DataSource.StartsWith("localhost,", StringComparison.OrdinalIgnoreCase) ||
+             legacy.DataSource.StartsWith("127.0.0.1,", StringComparison.OrdinalIgnoreCase)) &&
+            string.Equals(legacy.InitialCatalog, "PCTP_QC_CI", StringComparison.OrdinalIgnoreCase);
+        if (!isFixedTestTarget && !isEphemeralTarget)
+            throw new InvalidOperationException("Legacy SQL test connection target does not match an explicitly allowed isolated SQL test environment.");
 
         return legacy.ConnectionString;
     }
