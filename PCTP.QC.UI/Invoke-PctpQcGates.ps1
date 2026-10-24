@@ -130,6 +130,7 @@ try {
             $proj = Join-Path $root 'PCTP.QC.SqlIntegration\PCTP.QC.SqlIntegration.csproj'
             Invoke-Native { & dotnet run --project $proj --configuration $Configuration -- --delivery-preflight } (Join-Path $out 'G4-delivery-preflight.log')
             $preExit = $LASTEXITCODE
+            if ($preExit -ne 0) { $notes.Add('Delivery preflight failed: the deployed Usp_Qrcode_Update_Stock2405 is outdated. Run PCTP.QC.UI\Deploy-PctpDeliveryProcedure.ps1 -SqlUser <user> -ConfirmIsolatedDb, commit, then re-run G2/G3/G4.') }
             Invoke-Native { & dotnet run --project $proj --configuration $Configuration -- --delivery-acceptance } $log
             $exit = $LASTEXITCODE
             $text = Get-Content -LiteralPath $log -Raw

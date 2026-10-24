@@ -1,5 +1,4 @@
-Text
-CREATE   PROC [dbo].[Usp_Qrcode_Update_Stock2405]  
+CREATE OR ALTER PROC [dbo].[Usp_Qrcode_Update_Stock2405]  
     @GIOGIAOFCC  NVARCHAR(250) = N'',  
     @NHAMAY      NVARCHAR(250) = N'',  
     @TMPTABLE    NVARCHAR(128) = N'TMPPHIEUGIAOHANG',  

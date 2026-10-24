@@ -56,7 +56,8 @@ WHERE (@pinned IS NULL OR t.STT = @pinned)
         AND l.SOLUONG = t.SOLUONG
         AND RTRIM(ISNULL(l.GIOGIAO,N'')) = RTRIM(ISNULL(t.GIOGIAO,N''))
         AND RTRIM(ISNULL(l.NHAMAY,N'')) = RTRIM(LEFT(ISNULL(t.NHAMAY,N''),50)) )
-  AND NOT EXISTS (SELECT 1 FROM dbo.LUUPHIEUGIAOHANG l WHERE l.STT=t.STT)
+  -- (no 'l.STT = t.STT' check: TMP.STT restarts every batch and is copied into the ledger, so it is not a unique key;
+  --  the 7-field delivery key above is the same identity the procedure uses for its duplicate check.)
   AND EXISTS (
       SELECT 1
       FROM dbo.STOCKTP s

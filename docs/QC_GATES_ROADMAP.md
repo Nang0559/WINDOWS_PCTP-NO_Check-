@@ -7,7 +7,7 @@ Nguyên tắc: một Gate chỉ PASS khi có **log chạy thật gắn với com
 | G1   | Chạy được, đang FAIL (gap thật) | `.\PCTP.QC.UI\Invoke-PctpQcGates.ps1 -Gate G1` (cần Python 3) → `docs/TRACEABILITY_MATRIX.md` | Mỗi dòng ma trận có file code, SP/SQL, transaction boundary và test tương ứng (gaps = 0) |
 | G2 | Đã Chạy  | `.\PCTP.QC.UI\Invoke-PctpQcGates.ps1 -Gate G2` | Failed = 0, Total > 0, có file `.trx` |
 | G3 | Đã Chạy | `.\PCTP.QC.UI\Invoke-PctpQcGates.ps1 -Gate G3 -SqlUser <user>` | Preflight **và** chạy đầy đủ repository scenario đều exit 0 |
-| G4   | Đã nối wrapper, chưa chạy | `.\PCTP.QC.UI\Invoke-PctpQcGates.ps1 -Gate G4 -SqlUser <user>` (cần G3 PASS cùng commit) | SQL hậu điều kiện đúng sau cả thành công lẫn thất bại; dòng `PASS: DEL-003/DEL-004/DEL-007` có trong log |
+| G4   | FAIL (`f98d063`): SP trên DB test là bản cũ | Chạy `.\PCTP.QC.UI\Deploy-PctpDeliveryProcedure.ps1 -SqlUser <user> -ConfirmIsolatedDb`, commit, rồi `Invoke-PctpQcGates.ps1 -Gate G4 -SqlUser <user>` | SQL hậu điều kiện đúng sau cả thành công lẫn thất bại |
 | G5   | Đã vá discovery, chưa xác nhận | `.\PCTP.QC.UI\Invoke-PctpQcGates.ps1 -Gate G5 -ExePath <PCTP.exe>` | 5 journey PASS, ảnh + tree JSON sinh ra trong chính lần chạy |
 | G6   | Có khung, thiếu seed nghiệp vụ | `.\PCTP.QC.UI\Invoke-PctpQcGates.ps1 -Gate G6 -ExePath <PCTP.exe> -SqlUser <user> -AllowMutations -ConfirmAppUsesIsolatedDb` | UI + SQL + cleanup cùng PASS trên fixture cô lập (selftest + 4 journey) |
 
