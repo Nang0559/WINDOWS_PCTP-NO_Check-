@@ -34,7 +34,7 @@ public sealed class DeliveryQrAllocationSourceContractTests
         Assert.Contains("IF @affected<>1 THROW", sql, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("SAVE TRANSACTION PctpTakeLot2405", sql, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("ROLLBACK TRANSACTION PctpTakeLot2405", sql, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("ISNULL(KETQUA,N'')<>N'DG'", sql, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("ISNULL(KETQUA,N'''')<>N''DG''", sql, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
