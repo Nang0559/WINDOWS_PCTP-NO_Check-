@@ -15,6 +15,12 @@ public static class SqlTestConfiguration
 
     public static string BuildConnectionString(string userId, string password)
     {
+        // CI may opt into an ephemeral SQL Server container. The target is still
+        // validated by TestEnvironmentPolicy before any query is executed.
+        var ciConnection = Environment.GetEnvironmentVariable("PCTP_QC_EPHEMERAL_SQL_CONNECTION");
+        if (!string.IsNullOrWhiteSpace(ciConnection))
+            return ciConnection;
+
         if (string.IsNullOrWhiteSpace(userId) || string.IsNullOrWhiteSpace(password))
             throw new InvalidOperationException("SQL Test requires SQL authentication credentials.");
 
