@@ -602,9 +602,9 @@
       "id": "STK-IDENTITY-001",
       "module": "KhoCore/STOCKTP",
       "scenario": "Determine the actual STOCKTP business key and reconcile duplicate LOT / LOT+PART rows with active SlotLot",
-      "expected": "Repository read/update operations use the confirmed unique key or an explicitly aggregated logical key; STOCKTP, SlotLot and Slot header totals reconcile without updating multiple rows unintentionally",
-      "status": "partial",
-      "testEvidence": "SQL/PCTP_StockTpIdentityAudit.sql is read-only and reports duplicate LOT, duplicate LOT+PART, STOCKTP-vs-SlotLot and Slot-header differences. Do not change STOCKTP mutation semantics until the approved schema/data audit confirms the key."
+      "expected": "Exactly one STOCKTP row per LOT; one LOT may occupy multiple Slots. Sum active SlotLot quantities across all Slots and reconcile to STOCKTP; each Slot header reconciles only to active SlotLots in that Slot.",
+      "status": "implemented-pending-business-db-audit",
+      "testEvidence": "User confirmed the business key. Production repository guards reject multi-row LOT reads/updates; central balance no longer sums duplicate STOCKTP rows; SQL audit is LOT-grain; guarded unique-index migration added but not executed. SQL engine integration now creates one LOT across two Slots and checks aggregate stock reconciliation."
     }
   ]
 }
