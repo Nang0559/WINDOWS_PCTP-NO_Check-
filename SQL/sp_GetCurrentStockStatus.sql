@@ -1,4 +1,4 @@
-CREATE PROCEDURE [dbo].[sp_GetCurrentStockStatus]
+CREATE OR ALTER PROCEDURE [dbo].[sp_GetCurrentStockStatus]
 AS
 BEGIN
     SET NOCOUNT ON;
