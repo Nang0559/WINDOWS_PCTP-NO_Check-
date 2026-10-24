@@ -1,14 +1,16 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)][string]$EvidenceDirectory,
-    [Parameter(Mandatory = $false)][string]$OutputDirectory
+    [Parameter(Mandatory = $false)][string]$OutputDirectory,
+    [Parameter(Mandatory = $false)][string]$JourneyFilter = "*"
 )
 $ErrorActionPreference = "Stop"
 $root = (Resolve-Path -LiteralPath $EvidenceDirectory).Path
 $out = if ([string]::IsNullOrWhiteSpace($OutputDirectory)) { $root } else { [System.IO.Path]::GetFullPath($OutputDirectory) }
 New-Item -ItemType Directory -Force -Path $out | Out-Null
-$reports = @(Get-ChildItem -LiteralPath $root -Filter "pctp-ui-journey-report.json" -File -Recurse)
-if ($reports.Count -eq 0) { throw "No pctp-ui-journey-report.json files found under '$root'. Run Invoke-PctpUiSuite.ps1 first." }
+$reports = @(Get-ChildItem -LiteralPath $root -Filter "pctp-ui-journey-report.json" -File -Recurse |
+    Where-Object { [System.IO.Path]::GetFileNameWithoutExtension([string]$_.Directory.Name) -like $JourneyFilter })
+if ($reports.Count -eq 0) { throw "No journey reports matching '$JourneyFilter' found under '$root'. Run Invoke-PctpUiSuite.ps1 first." }
 $items = New-Object System.Collections.Generic.List[object]
 foreach ($file in $reports) {
     $report = Get-Content -LiteralPath $file.FullName -Raw | ConvertFrom-Json
