@@ -158,6 +158,11 @@ public sealed class AtomicityFindingsSourceContractTests
         Assert.Contains("ELSE IF XACT_STATE() = -1", normalized, StringComparison.Ordinal);
         Assert.Contains("-- No stock rows are eligible", sql, StringComparison.Ordinal);
         Assert.Contains("IF @StartedTransaction = 1 ROLLBACK TRANSACTION;", normalized, StringComparison.Ordinal);
+        var emptyQueueBranch = sql.Substring(sql.IndexOf("-- Không có phiếu", StringComparison.Ordinal),
+            sql.IndexOf("-- 6.", sql.IndexOf("-- Không có phiếu", StringComparison.Ordinal), StringComparison.Ordinal)
+            - sql.IndexOf("-- Không có phiếu", StringComparison.Ordinal));
+        Assert.Contains("COMMIT TRANSACTION;", emptyQueueBranch, StringComparison.Ordinal);
+        Assert.DoesNotContain("ROLLBACK TRANSACTION", emptyQueueBranch, StringComparison.Ordinal);
         Assert.True(Regex.Matches(normalized, @"IF EXISTS\s*\(\s*SELECT 1\s*FROM #STNG\s*\).*?ROLLBACK TRANSACTION").Count >= 1);
     }
 
