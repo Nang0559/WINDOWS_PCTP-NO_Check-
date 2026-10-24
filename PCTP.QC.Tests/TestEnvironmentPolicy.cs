@@ -55,6 +55,17 @@ public static class TestEnvironmentPolicy
         if (server.Equals(BlockedProductionServer, StringComparison.OrdinalIgnoreCase))
             return false;
 
+        var allowEphemeral = string.Equals(
+            Environment.GetEnvironmentVariable("PCTP_QC_ALLOW_EPHEMERAL_SQL"),
+            "true",
+            StringComparison.OrdinalIgnoreCase);
+        if (allowEphemeral &&
+            (server.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
+             server.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase) ||
+             server.StartsWith("localhost,", StringComparison.OrdinalIgnoreCase) ||
+             server.StartsWith("127.0.0.1,", StringComparison.OrdinalIgnoreCase)))
+            return db.Equals("PCTP_QC_CI", StringComparison.OrdinalIgnoreCase);
+
         return server.Equals(AllowedTestServer, StringComparison.OrdinalIgnoreCase)
             && db.Equals(AllowedTestDatabase, StringComparison.OrdinalIgnoreCase);
     }
