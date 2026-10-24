@@ -771,7 +771,16 @@ BEGIN
                 SLTHIEU AS SLT,  
                 STATUS  
             FROM #STNG;  
-  
+
+            -- No stock rows are eligible: release this invocation's savepoint
+            -- and transaction-owned application locks before returning.
+            IF @StartedTransaction = 1
+                ROLLBACK TRANSACTION;
+            ELSE IF XACT_STATE() = 1 AND @SavepointCreated = 1
+                ROLLBACK TRANSACTION UspQrcodeUpdateStock2405;
+            ELSE IF XACT_STATE() = -1
+                THROW;
+
             RETURN;  
         END;  
   
