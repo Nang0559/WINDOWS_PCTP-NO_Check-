@@ -1,4 +1,4 @@
-CREATE PROC [dbo].[Usp_Qrcode_Update_Stock_SP]  
+CREATE OR ALTER PROC [dbo].[Usp_Qrcode_Update_Stock_SP]  
     @GIOGIAOFCC NVARCHAR(50) = N'',  
     @NHAMAY     NVARCHAR(50) = N''  
 AS  
