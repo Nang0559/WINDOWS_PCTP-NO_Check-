@@ -58,6 +58,8 @@ function New-Banner([string]$status, [string]$stepLabel, [string]$action, [strin
     return $lines.ToArray()
 }
 
+$journeyStartedAt = (Get-Date).ToString("o")
+$runId = if ($env:PCTP_QC_RUN_ID) { $env:PCTP_QC_RUN_ID } else { [guid]::NewGuid().ToString("N") }
 $results = New-Object System.Collections.Generic.List[object]
 $failure = $null
 $startup = $null
@@ -258,6 +260,7 @@ try {
     $failedCount = @($results | Where-Object Status -eq "FAIL").Count
     $report = [pscustomobject]@{
         Status = $(if ($failure -or $failedCount -gt 0) { "FAIL" } else { "PASS" })
+        RunId = $runId
         Test = "WinForms UI journey"
         Executable = $resolvedExe
         ProcessId = $(if ($script:Process) { $script:Process.Id } else { $null })
@@ -268,7 +271,7 @@ try {
         TestData = $testData; TestDataText = $testDataText
         Startup = $startup
         FailureSummary = $failure
-        StartedAt = (Get-Date).ToString("o")
+        StartedAt = $journeyStartedAt
         CompletedAt = (Get-Date).ToString("o")
         StepsPassed = @($results | Where-Object { $_.Status -eq "PASS" -and $_.Step -gt 0 }).Count
         StepsFailed = $failedCount
