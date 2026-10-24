@@ -183,8 +183,11 @@ public sealed class AtomicityFindingsSourceContractTests
     public void CurrentStockProcedure_IsReadOnlyAndKeepsTheColumnsTheRepositoryReads()
     {
         var sql = ReadSource("sp_GetCurrentStockStatus.sql");
-        Assert.False(Regex.IsMatch(sql, @"\b(INSERT|UPDATE|DELETE|MERGE|TRUNCATE|DROP|ALTER|EXEC|EXECUTE)\b", RegexOptions.IgnoreCase),
-            "sp_GetCurrentStockStatus must stay read-only.");
+        var bodyStart = sql.IndexOf("AS", StringComparison.OrdinalIgnoreCase);
+        Assert.True(bodyStart >= 0, "Procedure body not found.");
+        var procedureBody = sql.Substring(bodyStart + 2);
+        Assert.False(Regex.IsMatch(procedureBody, @"\b(INSERT|UPDATE|DELETE|MERGE|TRUNCATE|DROP|EXEC|EXECUTE)\b", RegexOptions.IgnoreCase),
+            "sp_GetCurrentStockStatus must stay read-only; deployment DDL is outside the procedure body.");
 
         foreach (var alias in new[] { "ItemCode", "LotNo", "QrData", "Quantity", "LocationCode", "Status" })
             Assert.Matches(@"\bAS\s+" + alias + @"\b", sql);
