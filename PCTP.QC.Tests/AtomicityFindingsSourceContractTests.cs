@@ -179,7 +179,8 @@ public sealed class AtomicityFindingsSourceContractTests
         Assert.Contains("ROLLBACK TRANSACTION PctpFifoDeliverySp;", normalized, StringComparison.Ordinal);
         Assert.Contains("@Resource = N'PCTP_DELIVERY_FIFO_SP'", normalized, StringComparison.Ordinal);
         Assert.Contains("COMMIT TRANSACTION;", normalized, StringComparison.Ordinal);
-        Assert.Contains("IF XACT_STATE() <> 0 ROLLBACK TRANSACTION;", normalized, StringComparison.Ordinal);
+        Assert.Contains("IF XACT_STATE() <> 0 BEGIN IF @StartedTransaction = 1 ROLLBACK TRANSACTION;", normalized, StringComparison.Ordinal);
+        Assert.Contains("ELSE IF XACT_STATE() = 1 AND @SavepointCreated = 1 ROLLBACK TRANSACTION PctpFifoDeliverySp;", normalized, StringComparison.Ordinal);
         Assert.Contains("INNER JOIN #STOK_SP AS completed", normalized, StringComparison.Ordinal);
         Assert.Contains("AND ISNULL(SLCONLAI, 0) >= @slCan", normalized, StringComparison.Ordinal);
         Assert.Contains("IF @StockUpdated <> 1", normalized, StringComparison.Ordinal);
