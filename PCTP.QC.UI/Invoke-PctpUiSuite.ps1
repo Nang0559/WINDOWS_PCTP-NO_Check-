@@ -29,6 +29,9 @@ if ($ContinueOnFailure) { $extra += "-ContinueOnFailure" }
 if ($KeepOpenOnFailure) { $extra += "-KeepOpenOnFailure" }
 if ($AllowMutations) { $extra += "-AllowMutations" }
 $suiteStartedAt = (Get-Date).ToString("o")
+$suiteRunId = $suiteRunId
+$previousRunId = $env:PCTP_QC_RUN_ID
+$env:PCTP_QC_RUN_ID = $suiteRunId
 $results = New-Object System.Collections.Generic.List[object]
 foreach ($manifestName in $manifests) {
     $manifest = Join-Path $journeyRoot $manifestName
@@ -93,4 +96,5 @@ $index | Set-Content -LiteralPath (Join-Path $out "index.html") -Encoding UTF8
 Write-Host "Open: $(Join-Path $out 'index.html')"
 $summary | Format-List Test, Status, JourneysPassed, JourneysFailed, Executable | Out-String | Write-Host
 Write-Host "Suite report: $summaryPath"
+if ($null -eq $previousRunId) { Remove-Item Env:PCTP_QC_RUN_ID -ErrorAction SilentlyContinue } else { $env:PCTP_QC_RUN_ID = $previousRunId }
 if ($summary.Status -ne "PASS") { exit 1 }
