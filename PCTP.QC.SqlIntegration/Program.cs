@@ -183,6 +183,10 @@ WHERE p.schema_id = SCHEMA_ID(N'dbo')
                 missing.Add("Usp_Qrcode_Update_Stock_SP lacks the FIFO serialization lock marker");
             if (!fifoSp.Contains("SAVE TRANSACTION PctpFifoDeliverySp", StringComparison.OrdinalIgnoreCase))
                 missing.Add("Usp_Qrcode_Update_Stock_SP does not preserve the caller transaction with its savepoint");
+            if (!fifoSp.Contains("UPDLOCK, HOLDLOCK", StringComparison.OrdinalIgnoreCase))
+                missing.Add("Usp_Qrcode_Update_Stock_SP does not lock the selected FIFO stock row");
+            if (!fifoSp.Contains("@slCan <= 0", StringComparison.OrdinalIgnoreCase))
+                missing.Add("Usp_Qrcode_Update_Stock_SP does not reject non-positive delivery quantities");
             if (!fifoSp.Contains("BEGIN TRANSACTION", StringComparison.OrdinalIgnoreCase)
                 || !fifoSp.Contains("COMMIT TRANSACTION", StringComparison.OrdinalIgnoreCase)
                 || !fifoSp.Contains("ROLLBACK TRANSACTION", StringComparison.OrdinalIgnoreCase))
