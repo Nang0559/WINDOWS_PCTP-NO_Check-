@@ -47,11 +47,14 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
 
         public int ShowChonSttTrungMa(ListView danhSachTrung)
         {
+            if (danhSachTrung == null || danhSachTrung.Items.Count == 0)
+                return -1;
+
             using (var form = new FRM_LISTRUNGMSL(danhSachTrung))
             {
-                form.ShowDialog();
-                if (string.IsNullOrWhiteSpace(FRM_LISTRUNGMSL.STTPHIEU)) return -1;
-                return int.TryParse(FRM_LISTRUNGMSL.STTPHIEU, out var stt) ? stt : -1;
+                return form.ShowDialog() == DialogResult.OK && form.SelectedStt.HasValue
+                    ? form.SelectedStt.Value
+                    : -1;
             }
         }
 
@@ -71,10 +74,7 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
         {
             if (errors == null) return;
             temporarilyDisableOwner?.Invoke();
-            var form = new frm_err_cnk(errors)
-            {
-                StartPosition = FormStartPosition.CenterParent
-            };
+            var form = new frm_err_cnk(errors) { StartPosition = FormStartPosition.CenterParent };
             form.FormClosed += (s, e) =>
             {
                 if (ParentForm != null)
@@ -102,12 +102,7 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
             {
                 if (form.ShowDialog() != DialogResult.OK)
                     return new ChonLotResult { Confirmed = false };
-
-                return new ChonLotResult
-                {
-                    LotGhep = form.LotGhep,
-                    Confirmed = true
-                };
+                return new ChonLotResult { LotGhep = form.LotGhep, Confirmed = true };
             }
         }
 
