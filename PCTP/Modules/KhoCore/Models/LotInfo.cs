@@ -56,7 +56,7 @@ namespace PCTP.Modules.KhoVatLy.Kho.Models
         /// <summary>
         /// Thông tin QR chỉ có khi LOT được tạo từ QR.
         /// </summary>
-        public QRCodeInfo? QRInfo { get; set; }
+        public QRCodeInfo QRInfo { get; set; }
 
         public DateTime? ImportDate { get; set; }
 
