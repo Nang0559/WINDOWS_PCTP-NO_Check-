@@ -61,6 +61,8 @@ namespace PCTP.Modules.NhapKho.Repository
             DataTable dt = LoadData(sql, new SqlParameter("@lot", lot));
             if (dt == null || dt.Rows.Count == 0)
                 return null;
+            if (dt.Rows.Count != 1)
+                throw new InvalidOperationException($"STOCKTP vi phạm khóa nghiệp vụ: LOT '{lot}' có {dt.Rows.Count} dòng; mỗi LOT chỉ được có một dòng.");
 
             return MapStockItem(dt.Rows[0]);
         }
@@ -75,7 +77,11 @@ namespace PCTP.Modules.NhapKho.Repository
         FROM {_tableName}
         WHERE LOT = @lot;";
 
-            return ToInt(ExecuteScalar(sql, new SqlParameter("@lot", lot)));
+            DataTable dt = LoadData(sql, new SqlParameter("@lot", lot));
+            if (dt == null || dt.Rows.Count == 0) return 0;
+            if (dt.Rows.Count != 1)
+                throw new InvalidOperationException($"STOCKTP vi phạm khóa nghiệp vụ: LOT '{lot}' có {dt.Rows.Count} dòng.");
+            return ToInt(dt.Rows[0][0]);
         }
 
         public int GetSlDaNhap(string lot)
@@ -88,7 +94,11 @@ namespace PCTP.Modules.NhapKho.Repository
         FROM {_tableName}
         WHERE LOT = @lot;";
 
-            return ToInt(ExecuteScalar(sql, new SqlParameter("@lot", lot)));
+            DataTable dt = LoadData(sql, new SqlParameter("@lot", lot));
+            if (dt == null || dt.Rows.Count == 0) return 0;
+            if (dt.Rows.Count != 1)
+                throw new InvalidOperationException($"STOCKTP vi phạm khóa nghiệp vụ: LOT '{lot}' có {dt.Rows.Count} dòng.");
+            return ToInt(dt.Rows[0][0]);
         }
 
         public void InsertStockTp(NhapKhoItem item, int status)
@@ -99,6 +109,9 @@ namespace PCTP.Modules.NhapKho.Repository
                 throw new ArgumentException("LOT không được để trống.", nameof(item));
             if (item.SlNhap <= 0)
                 throw new ArgumentOutOfRangeException(nameof(item.SlNhap), "Số lượng nhập phải lớn hơn 0.");
+
+            if (ExistsStockTp(item.Lot))
+                throw new InvalidOperationException($"LOT '{item.Lot}' đã tồn tại trong STOCKTP; không được tạo dòng thứ hai.");
 
             string sql = $@"
         INSERT INTO {_tableName}
@@ -139,8 +152,8 @@ namespace PCTP.Modules.NhapKho.Repository
                 new SqlParameter("@status", status),
                 new SqlParameter("@lot", lot));
 
-            if (affected == 0)
-                throw new InvalidOperationException($"Không tìm thấy LOT '{lot}' trong STOCKTP.");
+            if (affected != 1)
+                throw new InvalidOperationException($"STOCKTP yêu cầu đúng một dòng cho LOT '{lot}', nhưng UPDATE tác động {affected} dòng. Transaction phải rollback.");
         }
 
         public List<(string Lot, int SlConLai)> GetDanhSachLotConTon()
@@ -198,7 +211,9 @@ namespace PCTP.Modules.NhapKho.Repository
                 if (row["LOT"] == DBNull.Value) continue;
                 string lot = row["LOT"].ToString() ?? string.Empty;
                 if (string.IsNullOrWhiteSpace(lot)) continue;
-                result[lot] = ToInt(row["SLCONLAI"]);
+                if (result.ContainsKey(lot))
+                    throw new InvalidOperationException($"STOCKTP vi phạm khóa nghiệp vụ: LOT '{lot}' xuất hiện nhiều dòng.");
+                result.Add(lot, ToInt(row["SLCONLAI"]));
             }
             return result;
         }
