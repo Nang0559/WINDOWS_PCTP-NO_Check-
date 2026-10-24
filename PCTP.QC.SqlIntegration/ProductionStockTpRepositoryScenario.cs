@@ -12,7 +12,7 @@ namespace PCTP.QC.SqlIntegration
 {
 internal static class ProductionStockTpRepositoryScenario
 {
-    public static void Run(string connectionString)
+    public static void Run(string connectionString, bool verifySharedBusinessTable = true)
     {
         connectionString = SqlTestConfiguration.BuildLegacySqlClientConnectionString(connectionString);
         var provider = new PCTP.ClassSQL.SQLPROVIDER { B7R2_FCCdb = connectionString };
@@ -119,16 +119,25 @@ CREATE TABLE #STOCKTP
             uow.Rollback();
             Console.WriteLine("PASS: session-local #STOCKTP checks rolled back; no shared business row was written.");
 
-            using (var verifyConnection = new SqlConnection(connectionString))
-            using (var verify = new SqlCommand("SELECT COUNT(1) FROM dbo.STOCKTP WHERE LOT = @lot;", verifyConnection))
+            if (verifySharedBusinessTable)
             {
+                // This cross-session read is valid only against the explicitly selected
+                // SQL 57 business database, where dbo.STOCKTP is expected to exist.
+                // The disposable engine-only CI database intentionally has no business
+                // schema; never turn a tempdb-only test into an implicit dbo dependency.
+                using var verifyConnection = new SqlConnection(connectionString);
+                using var verify = new SqlCommand("SELECT COUNT(1) FROM dbo.STOCKTP WHERE LOT = @lot;", verifyConnection);
                 verify.Parameters.Add(new SqlParameter("@lot", fixtureLot));
                 verify.CommandTimeout = 5;
                 verifyConnection.Open();
                 var count = Convert.ToInt32(verify.ExecuteScalar());
                 Require(count == 0, "Safety verification failed: test LOT still exists in dbo.STOCKTP after rollback.");
+                Console.WriteLine("PASS: rollback verification confirmed no test LOT remains in dbo.STOCKTP.");
             }
-            Console.WriteLine("PASS: rollback verification confirmed no test LOT remains in dbo.STOCKTP.");
+            else
+            {
+                Console.WriteLine("PASS: ephemeral-engine mode skipped shared dbo.STOCKTP verification; all fixture writes were rolled back in the session-local transaction.");
+            }
         }
         catch
         {
