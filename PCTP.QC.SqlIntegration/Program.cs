@@ -78,7 +78,7 @@ internal static class Program
             }
 
             Console.WriteLine("INFO: running production StockTpRepository checks against a session-local #STOCKTP fixture (dbo.STOCKTP is not touched)...");
-            ProductionStockTpRepositoryScenario.Run(connectionString);
+            ProductionStockTpRepositoryScenario.Run(connectionString, verifySharedBusinessTable: !engineOnly);
             Console.WriteLine("PASS: production StockTpRepository integration checks completed against session-local #STOCKTP.");
 
             Console.WriteLine("INFO: running production BulkStockSlotRepository against session-local #Warehouse/#Rack/#Slot/#SlotLot fixtures...");
