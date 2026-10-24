@@ -24,6 +24,7 @@
     <None Include="../SQL/Usp_Qrcode_Take_Lot2405.sql" Link="Usp_Qrcode_Take_Lot2405.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../SQL/Usp_Qrcode_Take_LotYMVN2405.sql" Link="Usp_Qrcode_Take_LotYMVN2405.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../SQL/PCTPStockMovementGuard.sql" Link="PCTPStockMovementGuard.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../SQL/PCTP_StockTpIdentityAudit.sql" Link="PCTP_StockTpIdentityAudit.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/GiaoHangKhach/Repositories/TableOrderRepo.cs" Link="TableOrderRepo.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Shared/Common/SqlRepositoryBase.cs" Link="SqlRepositoryBase.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/GiaoHangKhach/Repositories/PhieuLotRepository.cs" Link="PhieuLotRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />
