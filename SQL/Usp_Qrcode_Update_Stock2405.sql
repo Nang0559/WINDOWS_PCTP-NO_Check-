@@ -728,7 +728,7 @@ BEGIN
             ELSE IF XACT_STATE() = 1 AND @SavepointCreated = 1
                 ROLLBACK TRANSACTION UspQrcodeUpdateStock2405;
             ELSE IF XACT_STATE() = -1
-                THROW;
+                THROW 51034, N'Giao dịch bên ngoài đã ở trạng thái không thể commit; bên gọi phải ROLLBACK transaction.', 1;
 
             RETURN;  
         END;  
@@ -770,7 +770,7 @@ BEGIN
             ELSE IF XACT_STATE() = 1 AND @SavepointCreated = 1
                 ROLLBACK TRANSACTION UspQrcodeUpdateStock2405;
             ELSE IF XACT_STATE() = -1
-                THROW;
+                THROW 51034, N'Giao dịch bên ngoài đã ở trạng thái không thể commit; bên gọi phải ROLLBACK transaction.', 1;
 
             RETURN;  
         END;  
