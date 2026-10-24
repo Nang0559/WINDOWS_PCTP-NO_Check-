@@ -167,6 +167,7 @@ public sealed class AtomicityFindingsSourceContractTests
         Assert.Contains("IF XACT_STATE() <> 0\n            ROLLBACK TRANSACTION;", sql, StringComparison.Ordinal);
         Assert.Contains("INNER JOIN #STOK_SP AS completed", sql, StringComparison.Ordinal);
         Assert.Contains("AND ISNULL(SLCONLAI, 0) >= @slCan", sql, StringComparison.Ordinal);
+        Assert.Contains("IF @StockUpdated <> 1", sql, StringComparison.Ordinal);
     }
 
     [Fact]
