@@ -537,18 +537,23 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             var phieu = GetRequired(phieuXuLyId);
             if (phieu.HuongXuLy != HuongXuLyBatThuong.ChiGiaoBu)
                 return ScanResult.Fail("Chỉ phiếu hướng ChiGiaoBu mới được đánh dấu chờ giao bù.");
-            if (phieu.Status == QTChungStatus.ChoGiaoBu)
-                return ScanResult.OK("Phiếu đã ở trạng thái chờ giao bù.");
-            if (!_workflow.CanTransition(ProcessCodeQTChung, (int)phieu.Status, (int)QTChungStatus.ChoGiaoBu))
+            bool alreadyWaitingForCompensation = phieu.Status == QTChungStatus.ChoGiaoBu;
+            if (!alreadyWaitingForCompensation &&
+                !_workflow.CanTransition(ProcessCodeQTChung, (int)phieu.Status, (int)QTChungStatus.ChoGiaoBu))
                 return ScanResult.Fail($"Workflow không cho phép chuyển QT Chung {phieu.Status} → {QTChungStatus.ChoGiaoBu}.");
 
             try
             {
                 _uow.Begin();
+                // Always execute the related delivery-note write, including the
+                // idempotent/concurrent path where the status already reached target.
                 beforeStatusUpdate?.Invoke();
-                UpdateStatusWithConcurrencyCheck(phieuXuLyId, phieu.Status, QTChungStatus.ChoGiaoBu, nguoiThucHien);
+                if (!alreadyWaitingForCompensation)
+                    UpdateStatusWithConcurrencyCheck(phieuXuLyId, phieu.Status, QTChungStatus.ChoGiaoBu, nguoiThucHien);
                 _uow.Commit();
-                return ScanResult.OK("Đã chuyển sang chờ giao bù và đồng bộ phiếu giao gốc.");
+                return ScanResult.OK(alreadyWaitingForCompensation
+                    ? "Phiếu đã chờ giao bù; đã đồng bộ lại phiếu giao gốc."
+                    : "Đã chuyển sang chờ giao bù và đồng bộ phiếu giao gốc.");
             }
             catch (Exception ex)
             {
