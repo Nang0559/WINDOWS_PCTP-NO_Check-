@@ -71,20 +71,34 @@ ORDER BY t.NGAYGIAO, t.STT;";
             }
         }
 
+        if (rows.Count == 0)
+            Console.WriteLine(pinnedStt.HasValue
+                ? $"INFO: DEL candidate: no TMPPHIEUGIAOHANG row with STT={pinnedStt} passes the basic filter (LOT not empty, no comma, '-' after position 1, STATUS not OK, SOLUONG > 0, NGAYGIAO not null). Run SQL/QC_G4_DeliveryFixture_Seed.sql on this database, or check the row."
+                : "INFO: DEL candidate: no pending TMPPHIEUGIAOHANG row passes the basic filter.");
+
         foreach (var row in rows)
         {
             var dash = row.LotExpression.IndexOf('-');
             var lotInput = row.LotExpression[..dash].Trim();
-            if (lotInput.Length == 0) continue;
+            if (lotInput.Length == 0) { Console.WriteLine($"INFO: DEL candidate STT={row.Stt}: rejected, empty LOT before '-'."); continue; }
 
             // Stock: exactly one physical LOT with enough SLCONLAI (same rule the procedure and ReadStateAsync use).
             var (lotCount, remaining) = await ReadStockAsync(connection, lotInput);
             var stockOk = lotInput.Length > 13 ? lotCount >= 1 && remaining >= row.Quantity : lotCount == 1 && remaining >= row.Quantity;
-            if (!stockOk) continue;
+            if (!stockOk)
+            {
+                Console.WriteLine($"INFO: DEL candidate STT={row.Stt}: rejected by stock. LOT='{lotInput}', physical LOT rows={lotCount}, SLCONLAI={remaining}, needs {row.Quantity}" + (lotInput.Length > 13 ? "." : " and exactly one physical LOT."));
+                continue;
+            }
 
             // No delivery ledger row with the same 7-field identity the procedure uses for its duplicate check.
             var factory = row.Factory.Length > 50 ? row.Factory[..50] : row.Factory;
-            if (await CountLedgerKeyAsync(connection, row, factory) > 0) continue;
+            var ledgerMatches = await CountLedgerKeyAsync(connection, row, factory);
+            if (ledgerMatches > 0)
+            {
+                Console.WriteLine($"INFO: DEL candidate STT={row.Stt}: rejected, {ledgerMatches} delivery ledger row(s) already match the 7-field key (part, date, door, transfer, qty, time, factory).");
+                continue;
+            }
 
             return new Candidate(row.Stt, row.LotExpression, row.ItemCode, row.Quantity, row.Factory, row.DeliveryTime);
         }
