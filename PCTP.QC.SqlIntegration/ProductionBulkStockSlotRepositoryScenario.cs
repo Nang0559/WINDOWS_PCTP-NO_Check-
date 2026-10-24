@@ -87,7 +87,7 @@ INSERT INTO #DeliveryState VALUES(1,0,0);");
                     Exec(uow, "UPDATE #STOCKTP SET SLCONLAI=SLCONLAI-@q, SLXUAT=ISNULL(SLXUAT,0)+@q WHERE LOT=@lot AND SLCONLAI>=@q;", 1, new SqlParameter("@q", 50), new SqlParameter("@lot", lot));
                     Exec(uow, "UPDATE #DeliveryState SET HistoryCount=HistoryCount+1, PendingClosed=1 WHERE Id=1;", 1);
 
-                    Require(Scalar(uow, "SELECT SLCONLAI FROM #STOCKTP WHERE LOT=@lot", lot) == 15, "STOCKTP remaining quantity did not reconcile.");
+                    Require(Scalar(uow, "SELECT SLCONLAI FROM #STOCKTP WHERE LOT=@lot", lot) == 40, "STOCKTP remaining quantity did not reconcile across multiple Slots.");
                     Require(Scalar(uow, "SELECT CASE WHEN ISNULL(SLNHAP,0)-ISNULL(SLXUAT,0)=ISNULL(SLCONLAI,0) THEN 1 ELSE 0 END FROM #STOCKTP WHERE LOT=@lot", lot) == 1, "STOCKTP equation failed.");
                     Require(Scalar(uow, "SELECT CASE WHEN (SELECT SUM(Quantity) FROM #SlotLot WHERE LotNo=@lot AND PhieuStatus=0)=(SELECT SLCONLAI FROM #STOCKTP WHERE LOT=@lot) THEN 1 ELSE 0 END", lot) == 1, "STOCKTP does not reconcile with active SlotLot quantity across multiple Slots.");
                     Require(Scalar(uow, "SELECT Quantity FROM #Slot WHERE SlotId=@id", slotId) == 15, "First Slot header does not reconcile after export.");
@@ -102,7 +102,7 @@ INSERT INTO #DeliveryState VALUES(1,0,0);");
                 }
 
                 Require(Scalar(uow, "SELECT SLCONLAI FROM #STOCKTP WHERE LOT=@lot", lot) == 90, "STOCKTP was not restored by rollback.");
-                Require(Scalar(uow, "SELECT SUM(Quantity) FROM #SlotLot WHERE SlotId=@id AND PhieuStatus=0", slotId) == 90, "Active SlotLot rows were not restored by rollback.");
+                Require(Scalar(uow, "SELECT SUM(Quantity) FROM #SlotLot WHERE LotNo=@lot AND PhieuStatus=0", lot) == 90, "Active SlotLot rows were not restored by rollback.");
                 Require(Scalar(uow, "SELECT Quantity FROM #Slot WHERE SlotId=@id", slotId) == 65, "First Slot header was not restored by rollback.");
                 Require(Scalar(uow, "SELECT Quantity FROM #Slot WHERE SlotId=@id", secondSlotId) == 25, "Second Slot header was not restored by rollback.");
                 Require(Scalar(uow, "SELECT HistoryCount FROM #DeliveryState WHERE Id=1") == 0 && Scalar(uow, "SELECT PendingClosed FROM #DeliveryState WHERE Id=1") == 0, "Delivery-state writes were not rolled back.");
