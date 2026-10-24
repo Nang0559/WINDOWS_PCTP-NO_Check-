@@ -27,27 +27,27 @@ namespace PCTP.Shared.Models
         /// LOT chuẩn dùng cho nghiệp vụ.
         /// Ví dụ: 260521015721010540006956000
         /// </summary>
-        public string LotNo { get; set; }
+        public string LotNo { get; set; } = string.Empty;
 
         /// <summary>
         /// LOT nguyên bản từ QR, có thể còn suffix SL/counter/quantity.
         /// </summary>
-        public string RawLotNoSL { get; set; }
+        public string RawLotNoSL { get; set; } = string.Empty;
 
         /// <summary>
         /// LOT gốc sau khi tách phần không cần thiết.
         /// </summary>
-        public string RawLotNo { get; set; }
+        public string RawLotNo { get; set; } = string.Empty;
 
         /// <summary>
         /// Mã sản phẩm.
         /// </summary>
-        public string ItemCode { get; set; }
+        public string ItemCode { get; set; } = string.Empty;
 
         /// <summary>
         /// Ngày sản xuất dạng string theo format QR.
         /// </summary>
-        public string NgaySX { get; set; }
+        public string NgaySX { get; set; } = string.Empty;
 
         /// <summary>
         /// Số lượng của tem.
@@ -69,12 +69,12 @@ namespace PCTP.Shared.Models
         /// Số phiếu tổng.
         /// Ví dụ: "1"
         /// </summary>
-        public string SoPhieuTong { get; set; }
+        public string SoPhieuTong { get; set; } = string.Empty;
 
         /// <summary>
         /// Mã phiếu sản xuất / phiếu tham chiếu.
         /// </summary>
-        public string MaPhieu { get; set; }
+        public string MaPhieu { get; set; } = string.Empty;
 
         /// <summary>
         /// Chuỗi QR nguyên bản.
@@ -84,7 +84,7 @@ namespace PCTP.Shared.Models
         /// - audit
         /// - DeliveryTrace
         /// </summary>
-        public string RawQr { get; set; }
+        public string RawQr { get; set; } = string.Empty;
 
         /// <summary>
         /// Case production tương ứng với QR.
@@ -92,7 +92,7 @@ namespace PCTP.Shared.Models
         /// Nếu parser đã xác định được CaseNo thì service
         /// nên ưu tiên sử dụng giá trị này.
         /// </summary>
-        public string CaseNo { get; set; }
+        public string CaseNo { get; set; } = string.Empty;
 
 
         // =========================================================
