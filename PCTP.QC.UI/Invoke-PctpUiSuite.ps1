@@ -83,7 +83,7 @@ $summaryPath = Join-Path $out "pctp-ui-suite-report.json"
 $summary | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $summaryPath -Encoding UTF8
 $evidenceRunner = Join-Path $PSScriptRoot "Invoke-PctpUiEvidenceSummary.ps1"
 if (Test-Path -LiteralPath $evidenceRunner) {
-    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $evidenceRunner -EvidenceDirectory $out -OutputDirectory $out
+    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $evidenceRunner -EvidenceDirectory $out -OutputDirectory $out -JourneyFilter $JourneyFilter
     if ($LASTEXITCODE -ne 0) {
         Write-Warning "Evidence summary reported failed journeys."
         $summary.Status = "FAIL"
