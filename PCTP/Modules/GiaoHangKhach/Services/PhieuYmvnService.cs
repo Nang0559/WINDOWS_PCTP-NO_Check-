@@ -122,12 +122,20 @@ namespace PCTP.Modules.GiaoHangKhach.Services
 
         public void HoanThanh(bool isLoaiSP = false)
         {
+            // MP and SP are distinct YMVN table families. Resolve both names
+            // from the customer configuration; never silently fall back to MP.
+            string tmpTable = isLoaiSP ? _cfg.Delivery.TmpTableSP : _cfg.Delivery.TmpTable;
+            string docQrTable = isLoaiSP ? _cfg.Delivery.DocQRTableSP : _cfg.Delivery.DocQRTable;
+            if (string.IsNullOrWhiteSpace(tmpTable) || string.IsNullOrWhiteSpace(docQrTable))
+                throw new InvalidOperationException(
+                    $"YMVN table configuration is incomplete for {(isLoaiSP ? "SP" : "MP")}.");
+
             System.Diagnostics.Debug.WriteLine(
-                $"[HoanThanhYMVN] TmpTable={_cfg.Delivery.TmpTable}, DocQRTable={_cfg.Delivery.DocQRTable}, isLoaiSP={isLoaiSP}");
+                $"[HoanThanhYMVN] TmpTable={tmpTable}, DocQRTable={docQrTable}, isLoaiSP={isLoaiSP}");
 
             DataTable result = _phieuRepo.TakeLotYMVN(
-                _cfg.Delivery.TmpTable,
-                _cfg.Delivery.DocQRTable,
+                tmpTable,
+                docQrTable,
                 isLoaiSP);
 
             if (result == null || result.Rows.Count == 0)
