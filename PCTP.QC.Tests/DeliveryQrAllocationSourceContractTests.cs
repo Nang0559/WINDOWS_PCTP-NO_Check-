@@ -85,6 +85,7 @@ public sealed class DeliveryQrAllocationSourceContractTests
         var config = Read("CustomerTableConfig.source.cs");
         var ymvn = Read("PhieuYmvnService.source.cs");
         var hvnProcedure = Read("Usp_Qrcode_Take_Lot2405.sql");
+        var ymvnProcedure = Read("Usp_Qrcode_Take_LotYMVN2405.sql");
 
         Assert.Contains("DocQRTable = \"YMVN_DOCQRCODE\"", config);
         Assert.Contains("DocQRTableSP = \"SP_DOCQRCODE\"", config);
@@ -92,6 +93,11 @@ public sealed class DeliveryQrAllocationSourceContractTests
         Assert.Contains("_phieuRepo.TakeLotYMVN(", ymvn);
         Assert.Contains("_cfg.Delivery.TmpTable", ymvn);
         Assert.Contains("_cfg.Delivery.DocQRTable", ymvn);
+        Assert.Contains("isLoaiSP ? _cfg.Delivery.TmpTableSP : _cfg.Delivery.TmpTable", ymvn);
+        Assert.Contains("isLoaiSP ? _cfg.Delivery.DocQRTableSP : _cfg.Delivery.DocQRTable", ymvn);
+        Assert.Contains("N'SP_TMPPHIEUGIAOHANG'", ymvnProcedure);
+        Assert.Contains("N'SP_DOCQRCODE'", ymvnProcedure);
+        Assert.Contains("@ISLOAISP = 1", ymvnProcedure);
         Assert.DoesNotContain("YMVN_DOCQRCODE", hvnProcedure);
         Assert.DoesNotContain("SP_DOCQRCODE", hvnProcedure);
     }
