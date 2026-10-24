@@ -79,4 +79,21 @@ public sealed class DeliveryQrAllocationSourceContractTests
         var source = Read("PhieuValidationRepository.source.cs");
         Assert.Contains("WHERE MAHANG = @ma AND SOLUONG = @sl", source);
     }
+    [Fact]
+    public void CustomerRouting_KeepsYmvNOnItsDedicatedConfiguredProcedureAndTables()
+    {
+        var config = Read("CustomerTableConfig.source.cs");
+        var ymvn = Read("PhieuYmvnService.source.cs");
+        var hvnProcedure = Read("Usp_Qrcode_Take_Lot2405.sql");
+
+        Assert.Contains("DocQRTable = \"YMVN_DOCQRCODE\"", config);
+        Assert.Contains("DocQRTableSP = \"SP_DOCQRCODE\"", config);
+        Assert.Contains("TmpTableSP = \"SP_TMPPHIEUGIAOHANG\"", config);
+        Assert.Contains("_phieuRepo.TakeLotYMVN(", ymvn);
+        Assert.Contains("_cfg.Delivery.TmpTable", ymvn);
+        Assert.Contains("_cfg.Delivery.DocQRTable", ymvn);
+        Assert.DoesNotContain("YMVN_DOCQRCODE", hvnProcedure);
+        Assert.DoesNotContain("SP_DOCQRCODE", hvnProcedure);
+    }
+
 }
