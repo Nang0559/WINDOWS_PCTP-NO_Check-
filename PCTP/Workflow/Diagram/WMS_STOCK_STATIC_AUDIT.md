@@ -133,3 +133,7 @@ Integration/concurrency tests still need to be added and executed against the re
 - Generic stock-movement idempotency: **NOT YET IMPLEMENTED**
 - All legacy stock callers: **NOT YET PROVEN CLEAN** — Visual Studio compile remains the final caller gate
 - Integration/concurrency tests: **NOT YET IMPLEMENTED**
+
+## STOCKTP identity audit gate
+
+The repository surface currently addresses stock rows primarily by LOT, while the supplied QC fixture intentionally does not declare LOT as a primary key and rework lookup aggregates multiple STOCKTP rows by LOT. Before changing mutation semantics, confirm whether the production business key is LOT, LOT+PART, or a surrogate row identity. Run the read-only `SQL/PCTP_StockTpIdentityAudit.sql` only against an approved isolated business-schema copy/DB57. It reports duplicate LOT / LOT+PART rows and cross-ledger quantity differences; it does not modify data. Until that evidence is available, no automatic deduplication or unique-index migration is safe.
