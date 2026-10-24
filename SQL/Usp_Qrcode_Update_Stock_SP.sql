@@ -161,11 +161,8 @@ BEGIN
 
             SET @StockUpdated = CASE WHEN @@ROWCOUNT = 1 THEN 1 ELSE 0 END;
 
-            IF @StockUpdated = 0
-            BEGIN
-                INSERT INTO #ERR_SP(MH, LOT, SLCAN, SLCO, STATUS)
-                VALUES(@maHang, @lotChon, @slCan, ISNULL(@slConLai, 0), 'TON_VUA_THAY_DOI');
-            END
+            IF @StockUpdated <> 1
+                THROW 51033, N'Không cập nhật được đúng một dòng tồn kho cho LOT đã chọn; giao dịch đã bị hủy.', 1;
             ELSE
             BEGIN
                 /*
