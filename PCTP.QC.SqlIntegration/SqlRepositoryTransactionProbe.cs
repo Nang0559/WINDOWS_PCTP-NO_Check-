@@ -15,5 +15,9 @@ namespace PCTP.QC.SqlIntegration
             && ReferenceEquals(Transaction, Uow.Transaction);
 
         public int ExecuteUpdate(string sql) => ExecuteNonQuery(sql);
+
+        // Expose the protected SqlRepositoryBase.InTransaction scope to the integration scenarios.
+        public T RunFunc<T>(Func<T> work) => InTransaction(work);
+        public void RunAction(Action work) => InTransaction(work);
     }
 }

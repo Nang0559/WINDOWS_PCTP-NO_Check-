@@ -78,6 +78,9 @@ internal static class Program
             Console.WriteLine("INFO: running concurrent production BulkStockSlotRepository.TakeLot checks against uniquely named tempdb fixtures...");
             await ProductionBulkStockSlotConcurrencyScenario.RunAsync(connectionString);
 
+            Console.WriteLine("INFO: running SqlRepositoryBase.InTransaction commit/rollback/join-caller checks against a uniquely named tempdb fixture...");
+            await InTransactionScenario.RunAsync(connectionString);
+
             Console.WriteLine("INFO: running isolated SQL transaction rollback/commit smoke checks...");
             await RunIsolatedEngineReliabilityAsync(connection);
             Console.WriteLine("PASS: SQL transaction rollback/commit smoke checks completed using a session-local temporary table.");

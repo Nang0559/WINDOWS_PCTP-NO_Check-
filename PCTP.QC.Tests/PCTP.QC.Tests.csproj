@@ -21,6 +21,13 @@
     <None Include="../SQL/Usp_Qrcode_Update_Stock2405.sql" Link="Usp_Qrcode_Update_Stock2405.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../SQL/PCTPStockMovementGuard.sql" Link="PCTPStockMovementGuard.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/GiaoHangKhach/Repositories/TableOrderRepo.cs" Link="TableOrderRepo.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Shared/Common/SqlRepositoryBase.cs" Link="SqlRepositoryBase.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/GiaoHangKhach/Repositories/PhieuLotRepository.cs" Link="PhieuLotRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/GiaoHangKhach/Repositories/PhieuLuuTruRepository.cs" Link="PhieuLuuTruRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/GiaoHangKhach/Repositories/PhieuGiaoDBRepository.cs" Link="PhieuGiaoDBRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/KhoCore/Repositories/RackRepository.cs" Link="RackRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/XuLyHangLoi/Repository/PhieuXuLyBatThuongRepository.cs" Link="PhieuXuLyBatThuongRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../SQL/sp_GetCurrentStockStatus.sql" Link="sp_GetCurrentStockStatus.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/GiaoHangKhach/Repositories/PhieuKhoRepository.cs" Link="PhieuKhoRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/GiaoHangKhach/Services/PhieuKhoService.cs" Link="PhieuKhoService.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/XuLyHangLoi/Services/ReworkStockService.cs" Link="ReworkStockService.source.cs" CopyToOutputDirectory="PreserveNewest" />
