@@ -76,7 +76,13 @@ BEGIN
         INTO @stt, @maHang, @slCan;  
   
     WHILE @@FETCH_STATUS = 0  
-    BEGIN  
+    BEGIN
+        IF @slCan IS NULL OR @slCan <= 0
+            THROW 51035, N'Số lượng giao phải lớn hơn 0; giao dịch FIFO đã bị hủy.', 1;
+
+        IF @maHang IS NULL OR LTRIM(RTRIM(@maHang)) = N''
+            THROW 51036, N'Mã hàng không hợp lệ; giao dịch FIFO đã bị hủy.', 1;
+
         SET @lotChon = NULL;  
         SET @slConLai = NULL;  
   
@@ -99,7 +105,7 @@ BEGIN
         SELECT TOP 1  
             @lotChon  = s.LOT,  
             @slConLai = ISNULL(s.SLCONLAI, 0)  
-        FROM STOCKTP s  
+        FROM STOCKTP s WITH (UPDLOCK, HOLDLOCK)
         WHERE s.SP = @maHang  
           AND ISNULL(s.SLCONLAI, 0) > 0  
   
