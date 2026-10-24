@@ -34,7 +34,21 @@ BEGIN
         @slCan      INT,  
         @lotChon    NVARCHAR(50),  
         @slConLai   INT,
-        @StockUpdated BIT;  
+        @StockUpdated BIT;
+    DECLARE @LockResult INT;
+
+    BEGIN TRY
+        BEGIN TRANSACTION;
+
+        -- Serialize this FIFO delivery path and keep stock + ledger writes atomic.
+        EXEC @LockResult = sys.sp_getapplock
+            @Resource = N'PCTP_DELIVERY_FIFO_SP',
+            @LockMode = N'Exclusive',
+            @LockOwner = N'Transaction',
+            @LockTimeout = 15000;
+
+        IF @LockResult < 0
+            THROW 51031, N'Không lấy được khóa xử lý FIFO giao hàng; vui lòng thử lại.', 1;  
   
     DECLARE cur CURSOR LOCAL FAST_FORWARD FOR  
         SELECT  
@@ -212,28 +226,45 @@ BEGIN
         PO_ITEM  
     )  
     SELECT  
-        STT,  
-        CUA,  
-        TRUYEN,  
-        MAHANG,  
-        TENHANG,  
-        LOT,  
-        DV,  
-        SOLUONG,  
-        NGAYGIAO,  
-        GIOGIAO,  
+        tmp.STT,  
+        tmp.CUA,  
+        tmp.TRUYEN,  
+        tmp.MAHANG,  
+        tmp.TENHANG,  
+        tmp.LOT,  
+        tmp.DV,  
+        tmp.SOLUONG,  
+        tmp.NGAYGIAO,  
+        tmp.GIOGIAO,  
         'OK',  
-        TTPHIEU,  
+        tmp.TTPHIEU,  
         @NHAMAY,  
         @GIOGIAOFCC,  
-        HOP,  
-        STATUSDOC,  
-        Note,  
-        PO_NO,  
-        PO_ITEM  
-    FROM TMPPHIEUGIAOHANG  
-    WHERE STATUS = 'OK';  
+        tmp.HOP,  
+        tmp.STATUSDOC,  
+        tmp.Note,  
+        tmp.PO_NO,  
+        tmp.PO_ITEM  
+    FROM TMPPHIEUGIAOHANG AS tmp
+    INNER JOIN #STOK_SP AS completed
+        ON TRY_CONVERT(INT, completed.STT) = tmp.STT
+       AND completed.STATUS = 'OK';  
   
+    COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF CURSOR_STATUS('local', 'cur') >= 0
+        BEGIN
+            CLOSE cur;
+            DEALLOCATE cur;
+        END;
+
+        IF XACT_STATE() <> 0
+            ROLLBACK TRANSACTION;
+
+        THROW;
+    END CATCH;
+
     /*  
     ================================================================  
     TRẢ KẾT QUẢ  
