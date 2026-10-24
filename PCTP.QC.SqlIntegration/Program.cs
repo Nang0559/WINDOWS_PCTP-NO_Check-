@@ -181,6 +181,8 @@ WHERE p.schema_id = SCHEMA_ID(N'dbo')
         {
             if (!fifoSp.Contains("PCTP_DELIVERY_FIFO_SP", StringComparison.OrdinalIgnoreCase))
                 missing.Add("Usp_Qrcode_Update_Stock_SP lacks the FIFO serialization lock marker");
+            if (!fifoSp.Contains("SAVE TRANSACTION PctpFifoDeliverySp", StringComparison.OrdinalIgnoreCase))
+                missing.Add("Usp_Qrcode_Update_Stock_SP does not preserve the caller transaction with its savepoint");
             if (!fifoSp.Contains("BEGIN TRANSACTION", StringComparison.OrdinalIgnoreCase)
                 || !fifoSp.Contains("COMMIT TRANSACTION", StringComparison.OrdinalIgnoreCase)
                 || !fifoSp.Contains("ROLLBACK TRANSACTION", StringComparison.OrdinalIgnoreCase))
