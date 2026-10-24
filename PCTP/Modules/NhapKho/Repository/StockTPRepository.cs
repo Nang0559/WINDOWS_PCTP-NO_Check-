@@ -44,7 +44,10 @@ namespace PCTP.Modules.NhapKho.Repository
         WHERE LOT = @lot;";
 
             object result = ExecuteScalar(sql, new SqlParameter("@lot", lot));
-            return ToInt(result) > 0;
+            int count = ToInt(result);
+            if (count > 1)
+                throw new InvalidOperationException($"STOCKTP vi phạm khóa nghiệp vụ: LOT '{lot}' có {count} dòng.");
+            return count == 1;
         }
 
         public StockItem GetByLot(string lot)
@@ -173,6 +176,8 @@ namespace PCTP.Modules.NhapKho.Repository
                 if (row["LOT"] == DBNull.Value) continue;
                 string lot = row["LOT"].ToString() ?? string.Empty;
                 if (string.IsNullOrWhiteSpace(lot)) continue;
+                if (result.Any(x => string.Equals(x.Lot, lot, StringComparison.OrdinalIgnoreCase)))
+                    throw new InvalidOperationException($"STOCKTP vi phạm khóa nghiệp vụ: LOT '{lot}' xuất hiện nhiều dòng trong danh sách tồn.");
                 result.Add((lot, ToInt(row["SLCONLAI"])));
             }
             return result;
@@ -274,7 +279,9 @@ SELECT LOT, PART, NAME, CASX, NGAYSX, SLSX, NGAYNHAP, SLNHAP,
 FROM {_tableName}
 WHERE ISNULL(SLCONLAI,0) > 0
 ORDER BY NGAYNHAP DESC;";
-            return LoadData(sql);
+            DataTable result = LoadData(sql);
+            EnsureUniqueLotRows(result, "GetTonKhoHienTai");
+            return result;
         }
 
         public DataTable GetTonKhoTheoLot(List<string> lots)
@@ -296,7 +303,23 @@ ORDER BY NGAYNHAP DESC;";
             FROM {_tableName}
             WHERE LOT IN ({string.Join(", ", placeholders)})
             ORDER BY NGAYNHAP DESC;";
-            return LoadData(sql, parameters.ToArray());
+            DataTable result = LoadData(sql, parameters.ToArray());
+            EnsureUniqueLotRows(result, "GetTonKhoTheoLot");
+            return result;
+        }
+
+        private static void EnsureUniqueLotRows(DataTable table, string operation)
+        {
+            if (table == null || !table.Columns.Contains("LOT")) return;
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (DataRow row in table.Rows)
+            {
+                if (row["LOT"] == DBNull.Value) continue;
+                string lot = Convert.ToString(row["LOT"])?.Trim() ?? string.Empty;
+                if (string.IsNullOrWhiteSpace(lot)) continue;
+                if (!seen.Add(lot))
+                    throw new InvalidOperationException($"STOCKTP vi phạm khóa LOT duy nhất tại {operation}: LOT '{lot}' xuất hiện nhiều dòng.");
+            }
         }
     }
 }
