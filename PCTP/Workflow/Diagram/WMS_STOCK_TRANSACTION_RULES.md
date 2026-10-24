@@ -30,6 +30,8 @@ XuLyHangLoi ────┘
 | Xuất thực tế | 0 | - | + | Export |
 | Chuyển Slot | - / + | 0 | + | Cùng một movement |
 | Trả từ Rework OK | + | + | + | ReturnFromRework |
+| Nhập lại Rework NG | + (cách ly, `PhieuStatus=3`) | 0 | + | Không cộng tồn khả dụng; chỉ QC release mới chuyển sang active |
+| QC release hàng cách ly | - quarantine / + active | + | + | Khóa Slot, đọc lại SlotLot sau lock, một transaction cho SlotLot + STOCKTP + audit |
 | Giao bù | - | - | + | Phải dùng stock command chuẩn |
 | Hủy giao chưa xuất | + | + hoặc 0* | + | Theo trạng thái nguồn |
 
