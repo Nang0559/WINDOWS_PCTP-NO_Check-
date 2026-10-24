@@ -29,7 +29,7 @@ if ($ContinueOnFailure) { $extra += "-ContinueOnFailure" }
 if ($KeepOpenOnFailure) { $extra += "-KeepOpenOnFailure" }
 if ($AllowMutations) { $extra += "-AllowMutations" }
 $suiteStartedAt = (Get-Date).ToString("o")
-$suiteRunId = $suiteRunId
+$suiteRunId = [guid]::NewGuid().ToString("N")
 $previousRunId = $env:PCTP_QC_RUN_ID
 $env:PCTP_QC_RUN_ID = $suiteRunId
 $results = New-Object System.Collections.Generic.List[object]
@@ -62,7 +62,7 @@ foreach ($manifestName in $manifests) {
     })
 }
 $summary = [pscustomobject]@{
-    RunId = [guid]::NewGuid().ToString("N")
+    RunId = $suiteRunId
     StartedAt = $suiteStartedAt
     Test = if ($AllowMutations) { "PCTP UI suite (mutations explicitly enabled)" } else { "PCTP read-only UI navigation suite" }
     Executable = $exe
