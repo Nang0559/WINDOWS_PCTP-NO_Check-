@@ -24,18 +24,26 @@ internal static class Program
 
             await using var connection = new SqlConnection(connectionString);
             await connection.OpenAsync();
-            Console.WriteLine($"PASS: SQL connection established to {SqlTestConfiguration.Server}/{SqlTestConfiguration.Database}.");
+            Console.WriteLine($"PASS: SQL connection established to {SqlTestConfiguration.DescribeTarget(connectionString)}.");
 
-            var missing = await FindMissingProductionSchemaAsync(connection);
-            if (missing.Count > 0)
+            var engineOnly = args.Any(arg => string.Equals(arg, "--engine-only", StringComparison.OrdinalIgnoreCase));
+            if (engineOnly)
             {
-                Console.Error.WriteLine("FAIL: schema diagnostics found issues. No data or schema was changed.");
-                foreach (var item in missing) Console.Error.WriteLine(" - " + item);
-                Console.Error.WriteLine("ACTION: review the listed table/column definitions on 192.168.200.57; this tester will not auto-create or alter them.");
-                return 3;
+                Console.WriteLine("INFO: ephemeral SQL engine mode; business-schema preflight is intentionally skipped. Only isolated tempdb/session fixtures will be used.");
             }
+            else
+            {
+                var missing = await FindMissingProductionSchemaAsync(connection);
+                if (missing.Count > 0)
+                {
+                    Console.Error.WriteLine("FAIL: schema diagnostics found issues. No data or schema was changed.");
+                    foreach (var item in missing) Console.Error.WriteLine(" - " + item);
+                    Console.Error.WriteLine("ACTION: review the listed table/column definitions on 192.168.200.57; this tester will not auto-create or alter them.");
+                    return 3;
+                }
 
-            Console.WriteLine("PASS: existing dbo schema is compatible with the currently declared QC repository contract.");
+                Console.WriteLine("PASS: existing dbo schema is compatible with the currently declared QC repository contract.");
+            }
 
             if (args.Any(arg => string.Equals(arg, "--preflight", StringComparison.OrdinalIgnoreCase)))
             {
