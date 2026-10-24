@@ -16,6 +16,23 @@ Every CI run now starts a disposable SQL Server 2022 Developer container on the 
 
 To execute all six active stored procedures end-to-end in CI, add a DBA-approved schema-only export (tables, indexes, constraints, triggers, dependent functions/procedures) and a sanitized, minimal seed dataset from SQL 57. Do not commit a production backup or real employee/customer/QR data. The resulting fixture must be versioned as reviewed SQL scripts and must include deterministic cleanup/reset. Once that fixture exists, the CI job can install the six procedure definitions and run assertions for stock balances, delivery ledgers, QR deletion/state, FIFO selection, replay, rollback, and concurrency inside `PCTP_QC_CI`.
 
+## Active procedure execution coverage (current status)
+
+The operator-confirmed active procedure set is:
+
+- `dbo.Usp_Qrcode_Update_Stock_SP`
+- `dbo.Usp_Qrcode_Update_Stock2405`
+- `dbo.Usp_Qrcode_LOAD_PHIEU_DOCQR2405`
+- `dbo.Usp_Qrcode_Take_Lot2405`
+- `dbo.Usp_Qrcode_Take_LotYMVN2405`
+- `dbo.sp_GetCurrentStockStatus`
+
+The repository currently tracks executable SQL source for `Usp_Qrcode_Update_Stock_SP`, `Usp_Qrcode_Update_Stock2405`, and `sp_GetCurrentStockStatus`. The other three procedure definitions have not yet been located as versioned SQL files in this branch. The current six-procedure readiness check reads metadata from the fixed SQL 57 target; it is not a substitute for having all six reviewed source files in the test fixture.
+
+Do not synthesize replacement definitions for the missing procedures. Add their exact reviewed definitions from the operator-provided source before claiming full six-procedure execution coverage. The only confirmed detailed table contract currently mirrored in a fixture is `dbo.STOCKTP`; its supplied columns include both `PART` and `SP`, and no primary key on `LOT` has been assumed. Other business table constraints and indexes must be captured from the previously supplied schema artifacts before creating a full-fidelity fixture.
+
+The latest FIFO regression additionally asserts that candidate LOT selection filters on `SLCONLAI >= @slCan`, so an undersized earliest LOT does not mask a later sufficient LOT. This is a source-contract guard; runtime FIFO acceptance still requires a seeded isolated business-schema fixture.
+
 ## Fixed target
 
 - SQL Server: `192.168.200.57`
