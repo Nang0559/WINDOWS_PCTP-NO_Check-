@@ -18,10 +18,14 @@ namespace PCTP.Modules.XuatKho.Repositories
 
         public int GetSlConLai(string lotNo)
         {
-            object kq = ExecuteScalar(
-                "SELECT ISNULL(SLCONLAI,0) FROM STOCKTP WHERE LOT = @lot",
+            DataTable rows = LoadData(
+                "SELECT ISNULL(SLCONLAI,0) AS SLCONLAI FROM STOCKTP WHERE LOT = @lot",
                 new SqlParameter("@lot", lotNo));
-            return kq == null || kq == DBNull.Value ? 0 : Convert.ToInt32(kq);
+            if (rows == null || rows.Rows.Count == 0) return 0;
+            if (rows.Rows.Count != 1)
+                throw new InvalidOperationException(
+                    $"STOCKTP vi phạm khóa LOT duy nhất: LOT [{lotNo}] có {rows.Rows.Count} dòng.");
+            return Convert.ToInt32(rows.Rows[0]["SLCONLAI"]);
         }
 
         public void DecreaseStockTp(string lotNo, int soLuong)
