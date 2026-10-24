@@ -236,8 +236,8 @@ public sealed class AtomicityFindingsSourceContractTests
         foreach (var name in new[] { "DOCQRCODE", "DOCQRCODE_SP", "DOCQRCODE_100003",
                                     "TMPPHIEUGIAOHANG", "TMPPHIEUGIAOHANG_SP", "TMPPHIEUGIAOHANG_100003" })
             Assert.Contains("N'" + name + "'", sql, StringComparison.Ordinal);
-        Assert.Contains("IF @DOCQRTABLE NOT IN", sql, StringComparison.Ordinal);
-        Assert.Contains("IF @TMPTABLE NOT IN", sql, StringComparison.Ordinal);
+        Assert.Contains("IF @DOCQRTABLE IS NULL OR @DOCQRTABLE NOT IN", sql, StringComparison.Ordinal);
+        Assert.Contains("IF @TMPTABLE IS NULL OR @TMPTABLE NOT IN", sql, StringComparison.Ordinal);
     }
 
     [Fact]
