@@ -131,9 +131,13 @@ BEGIN
   SET @sql=N'UPDATE q SET KETQUA=N''DG'',STTBAN=@stt,GIO=@stt
     FROM dbo.'+QUOTENAME(@DOCQRTABLE)+N' q JOIN #Chosen c ON c.STT=q.STT
     WHERE q.MAHANGFCC=@ma AND ISNULL(q.KETQUA,N'''')<>N''DG'';
-    SELECT @n=@@ROWCOUNT;';
+    SET @n=@@ROWCOUNT;';
   EXEC sys.sp_executesql @sql,N'@stt int,@ma nvarchar(50),@n int OUTPUT',@_STTP,@_MaFCC,@affected OUTPUT;
-  IF @affected<>@chosenCount THROW 51106,N'QR đã bị tiến trình khác nhận; hủy cấp phát.',1;
+  IF @affected<>@chosenCount
+  BEGIN
+   DECLARE @claimError nvarchar(2048)=CONCAT(N'QR đã bị tiến trình khác nhận; expected=',@chosenCount,N', actual=',@affected,N'.');
+   THROW 51106,@claimError,1;
+  END;
 
   SET @sql=N'UPDATE dbo.'+QUOTENAME(@TMPTABLE)+N'
     SET TTPHIEU=N''Đã Thống Kê QR'',STATUSDOC=N''OK''
