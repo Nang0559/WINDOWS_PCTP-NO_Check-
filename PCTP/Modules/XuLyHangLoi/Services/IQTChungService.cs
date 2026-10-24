@@ -40,6 +40,8 @@ namespace PCTP.Modules.XuLyHangLoi.Services
         ScanResult HoanTat(int phieuXuLyId, string nguoiThucHien);
         ScanResult XacNhanChoGiaoBu(int phieuXuLyId, string nguoiThucHien);
         ScanResult DanhDauChoGiaoBu(int phieuXuLyId, string nguoiThucHien);
+        /// <summary>Thực hiện cập nhật liên quan trong cùng UnitOfWork với chuyển trạng thái chờ giao bù.</summary>
+        ScanResult DanhDauChoGiaoBu(int phieuXuLyId, string nguoiThucHien, Action beforeStatusUpdate);
         ScanResult GiaoLaiBoPhanPhatHien(int phieuXuLyId, string boPhanNhan, int soLuongGiaoLai, string nguoiThucHien);
         ScanResult HuyQTChung(int phieuXuLyId, string lyDoHuy, string nguoiThucHien);
         PhieuXuLyBatThuong GetById(int phieuXuLyId);
