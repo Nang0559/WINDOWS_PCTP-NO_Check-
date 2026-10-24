@@ -16,27 +16,46 @@ AS
 BEGIN       
     SET NOCOUNT ON;       
 
-    -- Dynamic identifiers are concatenated below; restrict them to the same
-    -- known table families accepted by Usp_Qrcode_Take_Lot2405.
-    IF @TMPTABLE NOT IN (
+    -- YMVN/HTN have their own configured table families. These identifiers
+    -- are intentionally separate from the HVN exact-allocation procedure.
+    IF @TMPTABLE IS NULL OR @TMPTABLE NOT IN (
         N'TMPPHIEUGIAOHANG',
+        N'TMPPHIEUGIAOHANG_100002',
+        N'TMPPHIEUGIAOHANG_100003',
         N'TMPPHIEUGIAOHANG_SP',
-        N'TMPPHIEUGIAOHANG_100003'
+        N'SP_TMPPHIEUGIAOHANG'
     )
     BEGIN
-        RAISERROR(N'Tên bảng TMPTABLE không hợp lệ: %s', 16, 1, @TMPTABLE);
-        RETURN;
+        THROW 51201, N'Tên bảng YMVN TMPTABLE không hợp lệ.', 1;
     END;
 
-    IF @DOCQRTABLE NOT IN (
+    IF @DOCQRTABLE IS NULL OR @DOCQRTABLE NOT IN (
         N'DOCQRCODE',
+        N'YMVN_DOCQRCODE',
+        N'DOCQRCODE_100003',
         N'DOCQRCODE_SP',
-        N'DOCQRCODE_100003'
+        N'SP_DOCQRCODE'
     )
     BEGIN
-        RAISERROR(N'Tên bảng DOCQRTABLE không hợp lệ: %s', 16, 1, @DOCQRTABLE);
-        RETURN;
+        THROW 51202, N'Tên bảng YMVN DOCQRTABLE không hợp lệ.', 1;
     END;
+
+    IF @ISLOAISP IS NULL OR @ISLOAISP NOT IN (0, 1)
+        THROW 51203, N'Loại phiếu YMVN không hợp lệ.', 1;
+
+    IF @ISLOAISP = 1
+       AND (@TMPTABLE <> N'SP_TMPPHIEUGIAOHANG' OR @DOCQRTABLE <> N'SP_DOCQRCODE')
+        THROW 51204, N'YMVN SP phải sử dụng đúng cặp bảng SP đã cấu hình.', 1;
+
+    IF @ISLOAISP = 0
+       AND (@TMPTABLE = N'SP_TMPPHIEUGIAOHANG' OR @DOCQRTABLE = N'SP_DOCQRCODE')
+        THROW 51205, N'Không được dùng bảng SP cho luồng YMVN MP.', 1;
+
+    IF @TMPTABLE = N'TMPPHIEUGIAOHANG_100002' AND @DOCQRTABLE <> N'YMVN_DOCQRCODE'
+        THROW 51206, N'Cặp bảng YMVN MP không khớp cấu hình.', 1;
+
+    IF @TMPTABLE = N'TMPPHIEUGIAOHANG_100003' AND @DOCQRTABLE <> N'DOCQRCODE_100003'
+        THROW 51207, N'Cặp bảng khách hàng 100003 không khớp cấu hình.', 1;
 
     DECLARE @sql nvarchar(max);       
     
