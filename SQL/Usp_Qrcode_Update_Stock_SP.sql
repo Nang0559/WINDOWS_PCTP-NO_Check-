@@ -107,7 +107,7 @@ BEGIN
             @slConLai = ISNULL(s.SLCONLAI, 0)  
         FROM STOCKTP s WITH (UPDLOCK, HOLDLOCK)
         WHERE s.SP = @maHang  
-          AND ISNULL(s.SLCONLAI, 0) > 0  
+          AND ISNULL(s.SLCONLAI, 0) >= @slCan  
   
           -- LOT phải có tối thiểu 7 ký tự  
           AND LEN(ISNULL(s.LOT, '')) >= 7  
