@@ -25,22 +25,40 @@ internal static class ProductionStockTpRepositoryScenario
             // Session-local fixture on the exact UnitOfWork connection. Never write to
             // shared dbo business tables during the repository integration test.
             using (var createFixture = new SqlCommand(@"
-CREATE TABLE #STOCKTP
-(
-    LOT nvarchar(100) NOT NULL PRIMARY KEY,
-    MODEL nvarchar(100) NULL,
-    PART nvarchar(100) NULL,
-    NAME nvarchar(200) NULL,
-    CASX smallint NULL,
-    NGAYSX datetime NULL,
-    SLSX int NULL,
-    NGAYNHAP datetime NULL,
-    SLNHAP int NULL,
-    NGAYXUAT datetime NULL,
-    SLXUAT int NULL,
-    SLCONLAI int NULL,
-    SATUS smallint NULL
-);", uow.Connection, uow.Transaction))
+-- Mirror the operator-supplied dbo.STOCKTP schema from SQL 57 / B7R2_FCC.
+            -- In particular, LOT is nvarchar(50), SLCONLAI is NOT NULL, and the
+            -- real table has both PART and SP. No PK is declared in the supplied
+            -- metadata, so the fixture must not invent LOT as a primary key.
+            CREATE TABLE #STOCKTP
+            (
+                LOT nvarchar(50) NOT NULL,
+                PART nvarchar(50) NULL,
+                NAME nvarchar(100) NULL,
+                CASX smallint NULL,
+                NGAYSX smalldatetime NULL,
+                SLSX int NULL,
+                NGAYNHAP smalldatetime NULL,
+                SLNHAP int NULL,
+                NGAYXUAT smalldatetime NULL,
+                SLXUAT int NULL,
+                SLCONLAI int NOT NULL,
+                MODEL nvarchar(30) NULL,
+                SLCONLAITMP int NULL,
+                SATUS smallint NULL,
+                NGAYNHAP1 smalldatetime NULL,
+                NGAYNHAP2 smalldatetime NULL,
+                NGAYNHAP3 smalldatetime NULL,
+                NGAYNHAP4 smalldatetime NULL,
+                NGAYNHAP5 smalldatetime NULL,
+                SLNHAP1 int NULL,
+                SLNHAP2 int NULL,
+                SLNHAP3 int NULL,
+                SLNHAP4 int NULL,
+                SLNHAP5 int NULL,
+                STATUSNHAP nvarchar(50) NULL,
+                SP nvarchar(100) NULL,
+                LineCodes nvarchar(10) NULL
+            );", uow.Connection, uow.Transaction))
             {
                 createFixture.CommandTimeout = 5;
                 createFixture.ExecuteNonQuery();
