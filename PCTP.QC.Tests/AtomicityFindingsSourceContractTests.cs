@@ -184,6 +184,8 @@ public sealed class AtomicityFindingsSourceContractTests
         Assert.Contains("INNER JOIN #STOK_SP AS completed", normalized, StringComparison.Ordinal);
         Assert.Contains("AND ISNULL(SLCONLAI, 0) >= @slCan", normalized, StringComparison.Ordinal);
         Assert.Contains("IF @StockUpdated <> 1", normalized, StringComparison.Ordinal);
+        Assert.Contains("IF @slCan IS NULL OR @slCan <= 0", normalized, StringComparison.Ordinal);
+        Assert.Contains("FROM STOCKTP s WITH (UPDLOCK, HOLDLOCK)", normalized, StringComparison.Ordinal);
     }
 
     [Fact]
