@@ -213,9 +213,27 @@ try {
             $shot = Save-PctpScreenshot (Join-Path $out $shotName) $banner $window
             $texts = if ($window) { @(Get-ElementTexts $window 12) } else { @() }
             $treePath = $null
-            if (($status -eq "FAIL" -or $action -eq "dump-tree" -or $step.dump -eq $true) -and $window) {
-                $treePath = Join-Path $out ("{0:D2}-{1}-tree.json" -f $script:stepIndex, ($label -replace '[^A-Za-z0-9_-]', '_'))
-                try { [void](Export-PctpTree $window $treePath) } catch { $treePath = $null }
+            if ($status -eq "FAIL" -or $action -eq "dump-tree" -or $step.dump -eq $true) {
+                $safeLabel = ($label -replace '[^A-Za-z0-9_-]', '_')
+                # Always preserve the selected window tree, then dump every visible PCTP top-level
+                # window. DevExpress workflows often open a separate form; a missing control in
+                # the dashboard tree alone is not enough to diagnose the failure.
+                if ($window) {
+                    $treePath = Join-Path $out ("{0:D2}-{1}-tree.json" -f $script:stepIndex, $safeLabel)
+                    try { [void](Export-PctpTree $window $treePath) } catch { $treePath = $null }
+                }
+                if ($status -eq "FAIL") {
+                    $windowIndex = 0
+                    foreach ($diagnosticWindow in @(Get-PctpWindows)) {
+                        $windowIndex++
+                        try {
+                            $wc = $diagnosticWindow.Current
+                            if ($wc.IsOffscreen) { continue }
+                            $diagnosticPath = Join-Path $out ("{0:D2}-{1}-window-{2}-pid-{3}-tree.json" -f $script:stepIndex, $safeLabel, $windowIndex, $wc.ProcessId)
+                            [void](Export-PctpTree $diagnosticWindow $diagnosticPath)
+                        } catch { }
+                    }
+                }
             }
             $results.Add([pscustomobject]@{
                 Step = $script:stepIndex; Id = $label; Action = $action; Status = $status
