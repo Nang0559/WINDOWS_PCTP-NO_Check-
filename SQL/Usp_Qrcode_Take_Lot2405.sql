@@ -128,6 +128,12 @@ BEGIN
   END;
   CLOSE ChosenCursor; DEALLOCATE ChosenCursor;
 
+  -- LOT payload must reconcile to the same exact quantity before any QR is marked DG.
+  DECLARE @LotTotal bigint;
+  SELECT @LotTotal=SUM(CONVERT(bigint,SLTEMFCC)) FROM #CtTmp;
+  IF @LotTotal IS NULL OR @LotTotal<>CONVERT(bigint,@_SLGIAO)
+   THROW 51108,N'Tổng số lượng LOT sau khi phân rã không khớp số lượng dòng phiếu; hủy cấp phát.',1;
+
   SET @sql=N'UPDATE q SET KETQUA=N''DG'',STTBAN=@stt,GIO=@stt
     FROM dbo.'+QUOTENAME(@DOCQRTABLE)+N' q JOIN #Chosen c ON c.STT=q.STT
     WHERE q.MAHANGFCC=@ma AND ISNULL(q.KETQUA,N'''')<>N''DG'';
