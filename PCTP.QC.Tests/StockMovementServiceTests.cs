@@ -103,6 +103,31 @@ public sealed class StockMovementServiceTests
     }
 
     [Fact]
+    public void Pick_BySlotAndLot_ClaimsReferenceBeforeMutatingAndRejectsReplay()
+    {
+        var slots = new FakeSlots { LotQuantity = 10, LotNo = "LOT-PICK-01", ItemCode = "PART-01" };
+        var service = Create(slots);
+        var request = new StockMovementRequest
+        {
+            MovementType = StockMovementRequest.Types.Pick,
+            SlotId = 7,
+            LotNo = "LOT-PICK-01",
+            ItemCode = "PART-01",
+            Quantity = 4,
+            ReferenceType = "DELIVERY",
+            ReferenceId = "DELIVERY-PICK-100"
+        };
+
+        var first = service.Pick(request);
+        var replay = service.Pick(request);
+
+        Assert.True(first.Success);
+        Assert.True(replay.Duplicate);
+        Assert.Equal(1, slots.RegisterMovementCalls);
+        Assert.Equal(1, slots.TakeLotCalls);
+    }
+
+    [Fact]
     public void Receive_RejectsRepeatedQrEvenWhenReferenceDiffers()
     {
         var slots = new FakeSlots();
@@ -341,6 +366,8 @@ public sealed class StockMovementServiceTests
         public string ItemCode { get; set; }
         public StockSlotLot Details { get; set; }
         public int DecreaseCalls { get; private set; }
+        public int RegisterMovementCalls { get; private set; }
+        public int TakeLotCalls { get; private set; }
         public System.Collections.Generic.List<StockSlotLot> AddedLots { get; } = new();
         private readonly System.Collections.Concurrent.ConcurrentDictionary<string, byte> _claims =
             new System.Collections.Concurrent.ConcurrentDictionary<string, byte>(StringComparer.OrdinalIgnoreCase);
@@ -357,6 +384,7 @@ public sealed class StockMovementServiceTests
         public void AddLot(int slotId, StockSlotLot lot) => AddedLots.Add(lot);
         public bool TryRegisterMovement(string referenceType, string referenceId, string qrData, string temCode, bool checkExistingQr)
         {
+            RegisterMovementCalls++;
             if (!string.IsNullOrWhiteSpace(referenceType) || !string.IsNullOrWhiteSpace(referenceId))
             {
                 if (string.IsNullOrWhiteSpace(referenceType) || string.IsNullOrWhiteSpace(referenceId)) return false;
@@ -367,7 +395,10 @@ public sealed class StockMovementServiceTests
             return true;
         }
         public StockSlotTakeResult TakeLot(int slotId, string lotNo, string itemCode, int quantity)
-            => new StockSlotTakeResult { Quantity = quantity };
+        {
+            TakeLotCalls++;
+            return new StockSlotTakeResult { Quantity = quantity };
+        }
     }
 
     private sealed class FakeReceiving : IStockReceivingRepository
