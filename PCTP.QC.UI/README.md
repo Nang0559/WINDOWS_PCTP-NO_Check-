@@ -44,7 +44,7 @@ powershell.exe -ExecutionPolicy Bypass -File .\PCTP.QC.UI\Invoke-PctpUiSuite.ps1
   -OutputDirectory ".\artifacts\pctp-ui-suite"
 ```
 
-The suite writes one report per journey plus `pctp-ui-suite-report.json`. A suite PASS means every navigation manifest found its expected window; it does not mean a business transaction passed.
+The suite writes one report per journey plus `pctp-ui-suite-report.json`. Each run removes stale JSON/HTML/startup reports in a journey output folder before execution so a crashed runner cannot silently reuse the previous report. Use a new `-OutputDirectory` per evidence run to preserve prior evidence. The suite report includes a run ID and start/end timestamps. A suite PASS means every selected manifest found its expected window; it does not mean a business transaction passed.
 
 ## 3. Current source-mapped navigation journeys
 
@@ -88,7 +88,7 @@ Outputs:
 - `pctp-ui-evidence-summary.md` — journey-level PASS/FAIL, step counts, screenshot counts, report paths and failure messages.
 - `pctp-ui-evidence-summary.csv` — machine-readable summary.
 
-The evidence summary intentionally preserves navigation semantics. It does not upgrade navigation PASS into a transaction PASS. See [BUSINESS_E2E_ACCEPTANCE.md](BUSINESS_E2E_ACCEPTANCE.md) for the workflow-by-workflow acceptance matrix, data assertions and cleanup requirements.
+For future mutating manifests, `Invoke-PctpUiSuite.ps1` forwards `-AllowMutations` to the journey runner. This switch is only a guard override, not proof that the SQL target is safe; enable it only after confirming the executable points to a test environment and a disposable fixture/reset contract exists. Do not use it on production data. The evidence summary intentionally preserves navigation semantics. It does not upgrade navigation PASS into a transaction PASS. See [BUSINESS_E2E_ACCEPTANCE.md](BUSINESS_E2E_ACCEPTANCE.md) for the workflow-by-workflow acceptance matrix, data assertions and cleanup requirements.
 
 ## 7. Chẩn đoán khi không chụp được màn hình / dữ liệu kịch bản kèm ảnh
 
@@ -127,3 +127,8 @@ powershell.exe -ExecutionPolicy Bypass -File .\PCTP.QC.UI\Invoke-PctpUiSuite.ps1
 - `expect[].property`: `name`, `value`, `enabled`, `exists`; so sánh bằng `equals`, `contains` hoặc `matches` (regex).
 - `fallbackName`: tìm theo caption khi control không lộ AutomationId (mục `AccordionControlElement` của DevExpress không phải control HWND). Caption runtime có thể khác Designer (ví dụ `Nhập Kho`, không phải `Nhập Kho & QC`).
 - Nếu phần tử không có Invoke/Expand pattern, runner click chuột vào tâm phần tử đã tìm thấy bằng UIA (ghi `mouse-fallback` trong báo cáo).
+
+
+## 8. Six production acceptance gates
+
+The single source of truth for release status and evidence requirements is [Production Acceptance & Release Gates](../docs/acceptance/PRODUCTION_ACCEPTANCE_RELEASE_GATES.md). It separates source inventory, unit/regression, SQL repository integration, transaction/reliability, UI navigation and full UI-to-SQL business E2E. Current navigation manifests are read-only; they are not transaction tests. No gate should be called PASS until its evidence contract is satisfied.
