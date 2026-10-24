@@ -12,7 +12,9 @@ internal static class Program
         {
             var userId = GetOption(args, "--user");
             var password = GetOption(args, "--password");
-            if (string.IsNullOrWhiteSpace(userId) || string.IsNullOrWhiteSpace(password))
+            var ephemeralConnection = Environment.GetEnvironmentVariable("PCTP_QC_EPHEMERAL_SQL_CONNECTION");
+            if ((string.IsNullOrWhiteSpace(userId) || string.IsNullOrWhiteSpace(password)) &&
+                string.IsNullOrWhiteSpace(ephemeralConnection))
             {
                 Console.Error.WriteLine("BLOCKED: SQL Test requires --user/--password or environment variables PCTP_QC_SQL_USER and PCTP_QC_SQL_PASSWORD.");
                 Console.Error.WriteLine($"Target is fixed to {SqlTestConfiguration.Server}/{SqlTestConfiguration.Database}.");
