@@ -34,8 +34,9 @@ INSERT INTO #DeliveryState VALUES(1,0,0);");
                 var bulk = new BulkStockSlotRepository(new PhieuSqlExecutor(), uow, useQcTempTables: true);
                 IStockTpRepository stock = new StockTpRepository(new PhieuSqlExecutor(), uow, "#STOCKTP");
                 string warehouse = "QC-WH-" + Guid.NewGuid().ToString("N");
+                string secondWarehouse = warehouse + "-02";
                 int slotId = bulk.GetOrCreateVirtualSlotId(warehouse, "QC-RACK-01", 1000);
-                int secondSlotId = bulk.GetOrCreateVirtualSlotId(warehouse, "QC-RACK-02", 1000);
+                int secondSlotId = bulk.GetOrCreateVirtualSlotId(secondWarehouse, "QC-RACK-02", 1000);
                 const string lot = "26080700748100851600";
 
                 Add(bulk, slotId, lot, 40, "QC-TEM-001", "QC-QR-001", 0, new DateTime(2026, 10, 20));
