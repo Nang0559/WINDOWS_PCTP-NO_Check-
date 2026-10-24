@@ -13,6 +13,12 @@ public static class SqlTestConfiguration
     public const string Database = "B7R2_FCC";
     public const string ProductionServer = "192.168.200.14\\BRAVO";
 
+    public static string DescribeTarget(string connectionString)
+    {
+        var builder = new SqlConnectionStringBuilder(connectionString);
+        return $"{builder.DataSource}/{builder.InitialCatalog}";
+    }
+
     public static string BuildConnectionString(string userId, string password)
     {
         // CI may opt into an ephemeral SQL Server container. The target is still
