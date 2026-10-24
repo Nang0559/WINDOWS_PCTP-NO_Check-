@@ -98,3 +98,18 @@ The branch review at commit `9e787c06c4f8be8480a72f7e9fff435ed54985d0` found:
 7. The C# path shown by `PhieuLotRepository.GetLotNo` invokes `Usp_Qrcode_Take_Lot2405`; the YMVN path must be verified separately against `CustomerTableConfig` and its active call sites before any shared refactor.
 
 These are failing acceptance areas until fixed and verified with the evidence above.
+
+## 9. Implementation notes and verification boundary
+
+- The HVN procedure now uses a bounded exact-sum DP over eligible QR rows. It walks QR `STT` ascending to make the first exact subset deterministic. This is a technical tie-break, not an independently confirmed business preference; if multiple exact subsets exist, the first ascending-STT solution wins until the business owner specifies another preference.
+- `PhieuLotRepository.GetLotNo` now executes the QR procedure and persists LOT to the exact TMP row in the same `IUnitOfWork` transaction. A failed LOT update throws and rolls back QR `DG`, STTBAN, and TMP status.
+- `PhieuLotService` processes each exact `MAHANG + SOLUONG` group once, presents the existing selector while more than one STT remains, validates the returned STT against the active candidate list, and processes the final row implicitly.
+- `FRM_LISTRUNGMSL` now stores selection on the form instance; cancel returns no STT and no static selection leaks between dialogs.
+- YMVN MP/SP now resolves separate configured TMP/DOCQR pairs. The YMVN procedure whitelist includes its own MP/SP names and validates the SP flag/pair. It remains separate from the HVN exact-sum procedure.
+
+### Executable evidence added
+
+- Unit tests compile and execute the production `PhieuLotService` with repository/UI fakes for duplicate-group processing, n-1 selector calls, implicit final STT, cancellation, stale STT, different quantities, and allocation failure.
+- Source-contract tests guard the production SQL transaction/selected-row update, repository transaction boundary, dialog instance state, unchanged duplicate key, and YMVN routing.
+- SQL Server 2022 CI executes the actual `Usp_Qrcode_Take_Lot2405` source against disposable dbo fixtures. Cases include 60+50+40 → 100 (select 60+40), no exact subset, excluding DG rows, caller rollback, and two-session concurrent claim.
+- The SQL integration fixture is deliberately minimal and isolated. It proves SQL Server execution and the stated column contract, not full compatibility with every DB57 table variation. DB57 acceptance remains a controlled, non-production step after comparing the live DOCQRCODE/TMP schemas and deployed procedure definitions.
