@@ -74,15 +74,28 @@ jobs:
           if-no-files-found: ignore
 
   sql-engine-integration:
-    # The SQL test endpoint is private. Never expose it to a GitHub-hosted runner
-    # and never point this job at production. Configure a dedicated self-hosted
-    # Windows runner labelled pctp-qc-sql with network access only to the test DB.
-    if: github.event_name == 'workflow_dispatch' && inputs.run_sql_integration == true
-    runs-on: [self-hosted, windows, pctp-qc-sql]
-    timeout-minutes: 30
+    # A disposable SQL Server container runs on GitHub-hosted infrastructure.
+    # It has no route or credentials to SQL 57 / production SQL 14.
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    services:
+      sqlserver:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: Y
+          MSSQL_PID: Developer
+          SA_PASSWORD: PctpQc_CI_Only_2026!
+        ports:
+          - 1433:1433
+        options: >-
+          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'PctpQc_CI_Only_2026!' -C -Q 'SELECT 1' || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 20
+          --health-start-period 30s
     env:
-      PCTP_QC_SQL_USER: ${{ secrets.PCTP_QC_SQL_USER }}
-      PCTP_QC_SQL_PASSWORD: ${{ secrets.PCTP_QC_SQL_PASSWORD }}
+      PCTP_QC_ALLOW_EPHEMERAL_SQL: "true"
+      PCTP_QC_EPHEMERAL_SQL_CONNECTION: "Server=127.0.0.1,1433;Initial Catalog=PCTP_QC_CI;User ID=sa;Password=PctpQc_CI_Only_2026!;Encrypt=True;TrustServerCertificate=True;Connect Timeout=5;Application Name=PCTP-QC-Ephemeral-CI"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -90,22 +103,24 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0.x
-      - name: Require isolated SQL credentials
-        shell: pwsh
+      - name: Create isolated CI database
+        shell: bash
         run: |
-          if ([string]::IsNullOrWhiteSpace($env:PCTP_QC_SQL_USER) -or [string]::IsNullOrWhiteSpace($env:PCTP_QC_SQL_PASSWORD)) {
-            throw "Configure PCTP_QC_SQL_USER and PCTP_QC_SQL_PASSWORD secrets before running SQL integration."
-          }
-      - name: Run SQL integration harness
-        shell: pwsh
-        run: dotnet run --project PCTP.QC.SqlIntegration/PCTP.QC.SqlIntegration.csproj --configuration Release -- --user "$env:PCTP_QC_SQL_USER" --password "$env:PCTP_QC_SQL_PASSWORD"
-
-      - name: Run delivery stored-procedure acceptance (rollback-only, opt-in)
-        if: inputs.run_delivery_acceptance == true
-        shell: pwsh
-        env:
-          PCTP_QC_DEL_ACCEPTANCE_STT: ${{ inputs.delivery_acceptance_stt }}
-        run: dotnet run --project PCTP.QC.SqlIntegration/PCTP.QC.SqlIntegration.csproj --configuration Release --no-build -- --user "$env:PCTP_QC_SQL_USER" --password "$env:PCTP_QC_SQL_PASSWORD" --delivery-acceptance
+          set -euo pipefail
+          container_id="$(docker ps -q --filter ancestor=mcr.microsoft.com/mssql/server:2022-latest | head -n 1)"
+          if [ -z "$container_id" ]; then
+            echo "SQL Server service container was not found."
+            exit 1
+          fi
+          for attempt in $(seq 1 30); do
+            if docker exec "$container_id" /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'PctpQc_CI_Only_2026!' -C -Q "SELECT 1" >/dev/null 2>&1; then
+              break
+            fi
+            sleep 5
+          done
+          docker exec "$container_id" /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'PctpQc_CI_Only_2026!' -C -b -Q "IF DB_ID(N'PCTP_QC_CI') IS NULL CREATE DATABASE PCTP_QC_CI;"
+      - name: Run isolated SQL Server engine integration
+        run: dotnet run --project PCTP.QC.SqlIntegration/PCTP.QC.SqlIntegration.csproj --configuration Release -- --engine-only
 
   desktop-runner-build:
     runs-on: windows-latest
