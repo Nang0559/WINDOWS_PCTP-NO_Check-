@@ -207,15 +207,6 @@ BEGIN
                 STATUS  
             FROM #STNG;  
 
-            -- Roll back this procedure's work before returning business errors.
-            -- A doomed caller transaction must be rolled back by its owner.
-            IF @StartedTransaction = 1
-                ROLLBACK TRANSACTION;
-            ELSE IF XACT_STATE() = 1 AND @SavepointCreated = 1
-                ROLLBACK TRANSACTION UspQrcodeUpdateStock2405;
-            ELSE IF XACT_STATE() = -1
-                THROW;
-
             RETURN;  
         END;  
   
