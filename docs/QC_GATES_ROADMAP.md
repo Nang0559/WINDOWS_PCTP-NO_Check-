@@ -5,8 +5,8 @@ Nguyên tắc: một Gate chỉ PASS khi có **log chạy thật gắn với com
 | Gate | Trạng thái | Cách chạy / làm | Điều kiện PASS |
 |---|---|---|---|
 | G1 | Chưa làm | Xem mục G1 bên dưới | Mỗi dòng ma trận có file code, SP/SQL, transaction boundary và test tương ứng |
-| G2 | Chưa chạy | `.\PCTP.QC.UI\Invoke-PctpQcGates.ps1 -Gate G2` | Failed = 0, Total > 0, có file `.trx` |
-| G3 | Chưa chạy | `.\PCTP.QC.UI\Invoke-PctpQcGates.ps1 -Gate G3 -SqlUser <user>` | Preflight **và** chạy đầy đủ repository scenario đều exit 0 |
+| G2 | Đã Chạy  | `.\PCTP.QC.UI\Invoke-PctpQcGates.ps1 -Gate G2` | Failed = 0, Total > 0, có file `.trx` |
+| G3 | Đã Chạy | `.\PCTP.QC.UI\Invoke-PctpQcGates.ps1 -Gate G3 -SqlUser <user>` | Preflight **và** chạy đầy đủ repository scenario đều exit 0 |
 | G4 | Một phần có sẵn | Scenario có sẵn trong `PCTP.QC.SqlIntegration` (rollback, duplicate, concurrency) + SP `Usp_Qrcode_Update_Stock2405` | SQL hậu điều kiện đúng sau cả thành công lẫn thất bại |
 | G5 | Đang sửa | `Invoke-PctpUiSuite.ps1 -OutputDirectory .\artifacts\ui-<commit>` | 5 journey PASS, ảnh + tree JSON mới |
 | G6 | Chưa có | Xem mục G6 bên dưới | UI + SQL + cleanup cùng PASS trên fixture cô lập |
