@@ -217,4 +217,44 @@ public sealed class AtomicityFindingsSourceContractTests
         // The DB column is spelled SATUS (typo kept by the schema).
         Assert.Contains("stp.SATUS", sql, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void LoadDeliveryQrProcedure_QuotesDynamicTableIdentifiersAndUsesBoundValues()
+    {
+        var sql = ReadSource("Usp_Qrcode_LOAD_PHIEU_DOCQR2405.sql");
+        Assert.Contains("QUOTENAME(@TMPTABLE)", sql, StringComparison.Ordinal);
+        Assert.Contains("QUOTENAME(@IFSTABLE)", sql, StringComparison.Ordinal);
+        Assert.Contains("QUOTENAME(@DOCQRTABLE)", sql, StringComparison.Ordinal);
+        Assert.Contains("sp_executesql", sql, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("@NGAYGIAO nvarchar(20), @NHAMAY nvarchar(50), @ADDNM int", sql, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TakeLot2405_RestrictsDynamicTableNamesToKnownFamilies()
+    {
+        var sql = ReadSource("Usp_Qrcode_Take_Lot2405.sql");
+        foreach (var name in new[] { "DOCQRCODE", "DOCQRCODE_SP", "DOCQRCODE_100003",
+                                    "TMPPHIEUGIAOHANG", "TMPPHIEUGIAOHANG_SP", "TMPPHIEUGIAOHANG_100003" })
+            Assert.Contains("N'" + name + "'", sql, StringComparison.Ordinal);
+        Assert.Contains("IF @DOCQRTABLE NOT IN", sql, StringComparison.Ordinal);
+        Assert.Contains("IF @TMPTABLE NOT IN", sql, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TakeLotYmvN_RejectsUnapprovedDynamicIdentifiersBeforeAnyDdlOrDml()
+    {
+        var sql = ReadSource("Usp_Qrcode_Take_LotYMVN2405.sql");
+        var normalized = Regex.Replace(sql, @"\\s+", " ");
+        var docWhitelist = normalized.IndexOf("IF @DOCQRTABLE NOT IN", StringComparison.Ordinal);
+        var tmpWhitelist = normalized.IndexOf("IF @TMPTABLE NOT IN", StringComparison.Ordinal);
+        var firstDynamicExecution = normalized.IndexOf("EXEC sp_executesql", StringComparison.Ordinal);
+        Assert.True(docWhitelist >= 0 && tmpWhitelist >= 0,
+            "Both dynamic table parameters must be restricted to approved table families.");
+        Assert.True(firstDynamicExecution > docWhitelist && firstDynamicExecution > tmpWhitelist,
+            "Identifier validation must happen before dynamic SQL execution.");
+        Assert.Contains("N'DOCQRCODE_SP'", normalized, StringComparison.Ordinal);
+        Assert.Contains("N'DOCQRCODE_100003'", normalized, StringComparison.Ordinal);
+        Assert.Contains("N'TMPPHIEUGIAOHANG_SP'", normalized, StringComparison.Ordinal);
+        Assert.Contains("N'TMPPHIEUGIAOHANG_100003'", normalized, StringComparison.Ordinal);
+    }
 }
