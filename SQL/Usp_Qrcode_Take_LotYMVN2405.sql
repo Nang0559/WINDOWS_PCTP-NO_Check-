@@ -15,6 +15,29 @@ CREATE PROC [dbo].[Usp_Qrcode_Take_LotYMVN2405]
 AS       
 BEGIN       
     SET NOCOUNT ON;       
+
+    -- Dynamic identifiers are concatenated below; restrict them to the same
+    -- known table families accepted by Usp_Qrcode_Take_Lot2405.
+    IF @TMPTABLE NOT IN (
+        N'TMPPHIEUGIAOHANG',
+        N'TMPPHIEUGIAOHANG_SP',
+        N'TMPPHIEUGIAOHANG_100003'
+    )
+    BEGIN
+        RAISERROR(N'Tên bảng TMPTABLE không hợp lệ: %s', 16, 1, @TMPTABLE);
+        RETURN;
+    END;
+
+    IF @DOCQRTABLE NOT IN (
+        N'DOCQRCODE',
+        N'DOCQRCODE_SP',
+        N'DOCQRCODE_100003'
+    )
+    BEGIN
+        RAISERROR(N'Tên bảng DOCQRTABLE không hợp lệ: %s', 16, 1, @DOCQRTABLE);
+        RETURN;
+    END;
+
     DECLARE @sql nvarchar(max);       
     
     -- ── Bước 0: Fix kiểu cột STATUS nếu đang là smallint ─────────────    
