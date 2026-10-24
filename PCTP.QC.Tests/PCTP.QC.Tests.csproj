@@ -49,6 +49,7 @@
     <Compile Include="../PCTP/Shared/Models/QRCodeInfo.cs" Link="Sut/QRCodeInfo.cs" />
     <Compile Include="../PCTP/Shared/Models/TachLotQrInfo.cs" Link="Sut/TachLotQrInfo.cs" />
     <Compile Include="../PCTP/Modules/GiaoHangKhach/Services/FifoSessionState.cs" Link="Sut/FifoSessionState.cs" />
+    <Compile Include="../PCTP/Modules/GiaoHangKhach/Services/PhieuLotService.cs" Link="Sut/PhieuLotService.cs" />
     <Compile Include="../PCTP/Modules/GiaoHangKhach/Models/OrderLineKey.cs" Link="Sut/OrderLineKey.cs" />
     <Compile Include="../PCTP/Modules/GiaoHangKhach/Models/OrderLotMerger.cs" Link="Sut/OrderLotMerger.cs" />
     <Compile Include="../PCTP/Modules/GiaoHangKhach/Services/YmvnGearQuantityValidator.cs" Link="Sut/YmvnGearQuantityValidator.cs" />
