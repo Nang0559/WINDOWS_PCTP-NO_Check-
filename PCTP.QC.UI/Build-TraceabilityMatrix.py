@@ -135,6 +135,14 @@ def analyze_cs(path):
         tx = "PARTICIPANT"
     else:
         tx = "NONE"
+    # A file that names SQL objects but never executes SQL (no Execute*/CallPhieuSP/DropCreate/BulkInsert/
+    # SqlCommand/adapter call) only forwards to repositories that own the transaction. NONE stays NONE
+    # for any file that does execute SQL without a transaction contract.
+    executes_sql = bool(re.search(
+        r"ExecuteNonQuery|ExecuteScalar\w*\(|ExecuteReader|\.Execute\s*\(|ExecuteStoredProcedure|CallPhieuSP|"
+        r"DropCreate|BulkInsert|\bnew\s+SqlCommand\b|SqlDataAdapter|\.Fill\s*\(", src))
+    if tx == "NONE" and not executes_sql:
+        tx = "DELEGATES"
 
     classes = re.findall(r"\b(?:class|record|struct)\s+([A-Z]\w*)", src)
     exec_nonquery = bool(re.search(r"ExecuteNonQuery|ExecuteScalar\w*\(|\.Execute\s*\(|ExecuteStoredProcedure", src))

@@ -44,6 +44,66 @@ These are source-level changes and transaction-composition checks. They are not 
 6. Source review found a concrete delivery consistency gap: stored-procedure routes mutate STOCKTP before the later independently managed SlotLot transaction; YMVN keeps STOCKTP and SlotLot together but performs pending-delivery closure/history finalization after commit. See the findings section above. These are production behavior risks, not merely missing tests.
 5. A future SQL integration suite should deliberately fail after the first mutation (for example, after source decrease but before target insert) and assert that both source and target state are unchanged after rollback. It must use only a local database accepted by `TestEnvironmentPolicy.EnsureSafeSqlTestTarget`.
 
+## G1 repository transaction contracts
+
+Source-level audit at commit `9bcf9c9`, written for the G1 traceability matrix. It records what each file does
+with `UnitOfWork` as read from the code. It is not SQL evidence: rollback/atomicity is proven only by G3/G4 for the
+paths those gates execute.
+
+### Contract vocabulary
+
+Most repositories derive from `SqlRepositoryBase`. Its `ExecuteNonQuery` / `ExecuteScalar` / `ExecuteStoredProcedure`
+use the `UnitOfWork` connection and transaction when `Uow.IsInTransaction` is true, and otherwise delegate to
+`PhieuSqlExecutor`, which opens its own connection and auto-commits each statement.
+`UnitOfWork.Begin()` is nesting-safe (depth counter), so a service may call it inside a caller's transaction.
+
+| Contract | Meaning |
+|---|---|
+| JOIN-OR-AUTOCOMMIT | Joins the caller's transaction if one is active; otherwise each statement auto-commits. Atomicity of a multi-statement method depends on the caller. |
+| OWNS-IF-NO-AMBIENT | `ownTransaction = !HasTransaction`: begins/commits/rolls back its own transaction only when the caller has none. |
+| REQUIRES-TX | Throws when no transaction is active. |
+| OWNS | Always begins its own transaction (or nests through the depth counter) and commits/rolls back. |
+| DELEGATES | Contains no SQL execution call; transaction ownership lives in the repository it calls. |
+
+### Per-file contracts
+
+| File | Writes | Contract | Verified detail |
+|---|---|---|---|
+| `CurrentStockRepository` | none in C# | READ via SP | Calls `sp_GetCurrentStockStatus` only. The SP body is not in `SQL\`, so "read-only" is unverified: run `sp_helptext sp_GetCurrentStockStatus` on the test DB and confirm it has no INSERT/UPDATE/DELETE. |
+| `ItemFifoConfigRepository` | `FVN_ItemFifoConfig`, `FVN_ItemFifoConfig_History` | OWNS-IF-NO-AMBIENT | `Upsert` and `Delete` write config + history in one transaction; commit on success, rollback on exception. |
+| `PhieuGiaoDBRepository` | `TMPPHIEUGIAODBHD`, `TMPPHIEUGIAOHANGDBCT` | OWNS-IF-NO-AMBIENT (`TaoPhieuVaChiTietGiaoDB`); **mixed** in `LuuGiaoDB` | See finding F4. |
+| `PhieuLotRepository` | `[tenBan]`, `[docQRTable]` via `Usp_Qrcode_Take_Lot*` / `Usp_Qrcode_gheplot` | JOIN-OR-AUTOCOMMIT for the SP and `CapNhapLotTmpPhieu`; `LayLaiLotNo` bypasses the UoW | See finding F2. |
+| `PhieuLuuTruRepository` | `LUUPHIEUGIAOHANG` | `LuuPhieuSP` bypasses the UoW | See finding F3. |
+| `PhieuTmpRepository` | TMP/DOCQR/IFS tables | OWNS-IF-NO-AMBIENT (`PushIfsSnapshot`, `LuuVaLoad`: drop/create, bulk insert, guard DELETE and load SP in one transaction); JOIN-OR-AUTOCOMMIT for `InsertTmpRow`, `XoaTmpPhieu`, `XoaDocQRCode` | Single-statement writes. |
+| `TableOrderRepo` | `Purchase_Order_YMVN` | **NONE** | See finding F1. |
+| `MachinePermissionService` | `tbl_QR_MAY_DOCQR` | OWNS | `ChuyenMayBan` opens `_sql.BeginTransaction`, resets TT, then updates or inserts the target machine; commit, rollback on exception. |
+| `PhieuLoadService` | none directly | DELEGATES | No SQL execution call; passes the load SP name to `_workingState.SaveFromSource` / `_phieuRepo.LuuVaLoad`, which own the transaction. |
+| `PhieuService` | none directly | DELEGATES | No SQL execution call; forwards to `_phieuRepo`, `_khoService`, `_ymvnService`, `_giaoDbService`. |
+| `InspectionConfigRepository` | `InspectionConfig` | JOIN-OR-AUTOCOMMIT | Single-statement `Insert` / `Update` / `Delete`. |
+| `InspectionLogRepository` | `InspectionLog` | JOIN-OR-AUTOCOMMIT | Single INSERT in `SaveLog`. |
+| `QuarantineReleaseAuditRepository` | `PCTPQuarantineReleaseAudit` | REQUIRES-TX | `RecordRelease` throws if `!HasTransaction`. Referenced by `QuarantineReleaseService` and by unit tests with fakes (`QuarantineReleaseServiceTests`); the G3 `QuarantineReleaseScenario` does not reference this repository, so there is no SQL test of the audit insert yet. |
+| `RackRepository` | `Rack`, `Slot` | JOIN-OR-AUTOCOMMIT | `DeleteCascade` is two statements; see finding F5. Other writes are single statements. |
+| `WarehouseRepository` | `Warehouse` | JOIN-OR-AUTOCOMMIT | Single INSERT in `Insert`. |
+| `StockTpStatusRepository` | `STOCKTP` | JOIN-OR-AUTOCOMMIT | `MoLaiLot` and `DongBoSLSXVaMoLaiNeuThayDoi` are single UPDATEs, each checking the affected-row count. |
+| `PhieuGiaoRepository` | `LUUPHIEUGIAOHANG` | JOIN-OR-AUTOCOMMIT | Single UPDATE in `CapNhatNotePhieuGiao`. |
+| `PhieuTraHangRepository` | `FVN_PhieuTraHang`, `FVN_PhieuTraHangCT` | JOIN-OR-AUTOCOMMIT | Header and items are written by separate calls (`Insert`, `InsertItems`); `XuLyHangLoiServiceBase` (the create-phieu method that calls `Repo.Insert` then `Repo.InsertItems`) wraps both in `Uow.Begin()` ... `Uow.Commit()` with `SafeRollback`. Other callers were not audited. |
+| `PhieuXuLyBatThuongRepository` | `FVN_PhieuXuLyBatThuong`, `FVN_PhieuTraHangCT` | JOIN-OR-AUTOCOMMIT | `Insert` writes the header then links `FVN_PhieuTraHangCT`; see finding F6. |
+| `TraHangQTChungRepository` | `FVN_TraHangQTChung*` | JOIN-OR-AUTOCOMMIT | Each `Insert*` / `Update*` is one statement. |
+| `TransactionalPhieuTraHangRepository` | `FVN_PhieuTraHang` | JOIN-OR-AUTOCOMMIT | Facade: `UpdateStatus` runs in the active transaction when present, otherwise delegates to `PhieuTraHangRepository.UpdateStatus`. |
+| `AffectedLotTraceService` | `FVN_PhieuXuLyBatThuongAffectedLot` | OWNS | `TruyVetLOT` begins, deletes the old snapshot, inserts the new one, commits; rollback on exception. |
+
+### Open findings (not fixed by this document)
+
+These are production-behavior risks found while reading the code. They are listed so the matrix does not hide them.
+A finding is closed only by a code change plus a test, not by this text.
+
+- **F1 `TableOrderRepo.UploadMilkrunSP`**: loops over rows doing check-then-INSERT through `_db` (`PhieuSqlExecutor`) with no `UnitOfWork` and no transaction. A failure mid-upload leaves a partial upload, and two concurrent uploads can both pass the existence check. The repo contains no evidence of a unique constraint on `Purchase_Order_YMVN`.
+- **F2 `PhieuLotRepository.LayLaiLotNo`**: two UPDATEs (`[tenBan]`, then `[docQRTable]`) through `Db.ExecuteNonQuery`, which ignores an active `UnitOfWork`. If the second fails, the delivery row is reset while the QR row stays attached.
+- **F3 `PhieuLuuTruRepository.LuuPhieuSP`**: UPDATE and COUNT go through `Db.*`, so they never join a caller's transaction. Single-statement atomic, but not composable.
+- **F4 `PhieuGiaoDBRepository.LuuGiaoDB`**: `DropCreate`, `BulkInsertDataTable` and `CallPhieuSP` use `Db` (own connections, auto-commit); only the final UPDATE uses the base class and can join a transaction. The method is therefore not atomic.
+- **F5 `RackRepository.DeleteCascade`** (called by `RackService.Delete`, which begins no transaction): `DELETE Slot` then `DELETE Rack` auto-commit separately, so a failure between them leaves a rack without slots.
+- **F6 `PhieuXuLyBatThuongRepository.Insert`**: header INSERT plus `UPDATE FVN_PhieuTraHangCT`, with no transaction inside the method. The caller (`QTChungService`, `_repo.Insert(ct.Id, p)`) was not checked for a wrapping transaction.
+
 ## Safety
 
 This audit reads source code and records production source changes on the test branch. It does not open a database, execute SQL, or alter production data.
