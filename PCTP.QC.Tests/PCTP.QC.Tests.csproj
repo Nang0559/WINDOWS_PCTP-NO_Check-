@@ -45,6 +45,7 @@
     <None Include="../PCTP/Modules/XuLyHangLoi/Services/QTChungService.cs" Link="QTChungService.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/XuLyHangLoi/Services/IQTChungService.cs" Link="IQTChungService.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/KhoCore/Application/Services/StockMovementService.cs" Link="StockMovementService.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/KhoCore/Application/Services/QuarantineReleaseService.cs" Link="QuarantineReleaseService.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Infrastructure/Stock/LegacyStockSlotRepositoryAdapter.cs" Link="LegacyStockSlotRepositoryAdapter.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Shared/Helpers/QRCodeWorkflowAdapter.cs" Link="QRCodeWorkflowAdapter.source.cs" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
