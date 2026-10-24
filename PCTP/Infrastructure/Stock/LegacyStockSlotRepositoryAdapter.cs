@@ -75,10 +75,12 @@ namespace PCTP.Infrastructure.Stock
 
         public void LockSlotForUpdate(int slotId)
         {
-            // Legacy ISlotService does not expose a transaction-aware row lock.
-            // Quarantine release must fail closed rather than race a second release.
-            throw new NotSupportedException(
-                "Quarantine release requires BulkStockSlotRepository.LockSlotForUpdate in the caller UnitOfWork.");
+            if (slotId <= 0)
+                throw new ArgumentOutOfRangeException(nameof(slotId));
+
+            // ISlotService.LockSlotForUpdate delegates to SlotRepository, which
+            // shares the same UnitOfWork supplied by the module composition root.
+            _legacy.LockSlotForUpdate(slotId);
         }
 
         public void DecreaseLotQuantity(int slotLotId, int quantity)
