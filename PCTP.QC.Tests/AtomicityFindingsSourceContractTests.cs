@@ -152,8 +152,8 @@ public sealed class AtomicityFindingsSourceContractTests
     public void StockTpIdentityAudit_IsReadOnlyAndChecksTheActualReconciliationGrains()
     {
         var sql = ReadSource("PCTP_StockTpIdentityAudit.sql");
-        var executable = Regex.Replace(sql, @"(?s)/\\*.*?\\*/|--.*?$", string.Empty, RegexOptions.Multiline);
-        Assert.False(Regex.IsMatch(executable, @"\\b(INSERT|UPDATE|DELETE|MERGE|TRUNCATE|DROP|ALTER|CREATE|EXEC|EXECUTE)\\b", RegexOptions.IgnoreCase),
+        var executable = Regex.Replace(sql, @"(?s)/\*.*?\*/|--.*?$", string.Empty, RegexOptions.Multiline);
+        Assert.False(Regex.IsMatch(executable, @"\b(INSERT|UPDATE|DELETE|MERGE|TRUNCATE|DROP|ALTER|CREATE|EXEC|EXECUTE)\b", RegexOptions.IgnoreCase),
             "STOCKTP identity audit must remain read-only.");
         Assert.Contains("GROUP BY LTRIM(RTRIM(LOT))", executable, StringComparison.Ordinal);
         Assert.Contains("GROUP BY LTRIM(RTRIM(LOT)), LTRIM(RTRIM(ISNULL(PART, N'')))", executable, StringComparison.Ordinal);
