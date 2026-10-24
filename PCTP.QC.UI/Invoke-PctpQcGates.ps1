@@ -61,6 +61,15 @@ function Clear-SqlEnvironment {
     Remove-Item Env:PCTP_QC_DEL_ACCEPTANCE_STT -ErrorAction SilentlyContinue
 }
 
+# Windows PowerShell 5.1 turns native stderr into a terminating error under $ErrorActionPreference='Stop',
+# which truncated logs (e.g. G4 lost all but the first FAIL line). Run native tools with Continue and keep every line.
+function Invoke-Native([scriptblock]$Command, [string]$LogPath) {
+    $prev = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try { & $Command 2>&1 | ForEach-Object { "$_" } | Tee-Object -FilePath $LogPath }
+    finally { $ErrorActionPreference = $prev }
+}
+
 function Read-GateSummary([string]$gateName) {
     $p = Join-Path $root "artifacts\gates\$short\$gateName\gate-summary.json"
     if (-not (Test-Path -LiteralPath $p -PathType Leaf)) { return $null }
@@ -77,7 +86,7 @@ try {
             }
             if (-not $py) { throw 'G1 needs Python 3 on PATH (py / python / python3) to run Build-TraceabilityMatrix.py.' }
             $script = Join-Path $root 'PCTP.QC.UI\Build-TraceabilityMatrix.py'
-            & $py @pyArgs $script --out $out --docs (Join-Path $root 'docs') 2>&1 | Tee-Object -FilePath $log
+            Invoke-Native { & $py @pyArgs $script --out $out --docs (Join-Path $root 'docs') } $log
             $exit = $LASTEXITCODE
             $g1 = Join-Path $out 'gate-summary.json'
             if (Test-Path -LiteralPath $g1) { $counts = (Get-Content -LiteralPath $g1 -Raw | ConvertFrom-Json).Counts }
@@ -87,8 +96,7 @@ try {
         }
 
         'G2' {
-            & dotnet test (Join-Path $root 'PCTP.QC.Tests\PCTP.QC.Tests.csproj') --configuration $Configuration `
-                --logger "trx;LogFileName=pctp-qc-tests.trx" --results-directory $out 2>&1 | Tee-Object -FilePath $log
+            Invoke-Native { & dotnet test (Join-Path $root 'PCTP.QC.Tests\PCTP.QC.Tests.csproj') --configuration $Configuration --logger "trx;LogFileName=pctp-qc-tests.trx" --results-directory $out } $log
             $exit = $LASTEXITCODE
             $text = Get-Content -LiteralPath $log -Raw
             $m = [regex]::Match($text, '(?i)(Passed!|Failed!)\s*-\s*Failed:\s*(\d+),\s*Passed:\s*(\d+),\s*Skipped:\s*(\d+),\s*Total:\s*(\d+)')
@@ -101,9 +109,9 @@ try {
             Set-SqlEnvironment
             $proj = Join-Path $root 'PCTP.QC.SqlIntegration\PCTP.QC.SqlIntegration.csproj'
             # Credentials reach the runner through PCTP_QC_SQL_USER / PCTP_QC_SQL_PASSWORD (Program.GetOption fallback).
-            & dotnet run --project $proj --configuration $Configuration -- --preflight 2>&1 | Tee-Object -FilePath (Join-Path $out 'G3-preflight.log')
+            Invoke-Native { & dotnet run --project $proj --configuration $Configuration -- --preflight } (Join-Path $out 'G3-preflight.log')
             $preExit = $LASTEXITCODE
-            & dotnet run --project $proj --configuration $Configuration 2>&1 | Tee-Object -FilePath $log
+            Invoke-Native { & dotnet run --project $proj --configuration $Configuration } $log
             $exit = $LASTEXITCODE
             # Schema PASS alone is not Gate G3: require the full run to succeed too.
             $status = if ($preExit -eq 0 -and $exit -eq 0) { 'PASS' } else { 'FAIL' }
@@ -120,9 +128,9 @@ try {
             Set-SqlEnvironment
             if ($DeliveryAcceptanceStt -gt 0) { $env:PCTP_QC_DEL_ACCEPTANCE_STT = [string]$DeliveryAcceptanceStt }
             $proj = Join-Path $root 'PCTP.QC.SqlIntegration\PCTP.QC.SqlIntegration.csproj'
-            & dotnet run --project $proj --configuration $Configuration -- --delivery-preflight 2>&1 | Tee-Object -FilePath (Join-Path $out 'G4-delivery-preflight.log')
+            Invoke-Native { & dotnet run --project $proj --configuration $Configuration -- --delivery-preflight } (Join-Path $out 'G4-delivery-preflight.log')
             $preExit = $LASTEXITCODE
-            & dotnet run --project $proj --configuration $Configuration -- --delivery-acceptance 2>&1 | Tee-Object -FilePath $log
+            Invoke-Native { & dotnet run --project $proj --configuration $Configuration -- --delivery-acceptance } $log
             $exit = $LASTEXITCODE
             $text = Get-Content -LiteralPath $log -Raw
             # The scenario prints this only after success-then-rollback, shortage-then-rollback and replay checks all passed.
@@ -136,8 +144,7 @@ try {
             if (-not $ExePath) { throw 'G5 needs -ExePath <PCTP.exe>.' }
             $uiOut = Join-Path $out 'ui'
             $suite = Join-Path $PSScriptRoot 'Invoke-PctpUiSuite.ps1'
-            & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $suite -ExePath $ExePath -OutputDirectory $uiOut `
-                -ExpectedWindowTitleRegex $ExpectedWindowTitleRegex -ContinueOnFailure 2>&1 | Tee-Object -FilePath $log
+            Invoke-Native { & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $suite -ExePath $ExePath -OutputDirectory $uiOut -ExpectedWindowTitleRegex $ExpectedWindowTitleRegex -ContinueOnFailure } $log
             $exit = $LASTEXITCODE
             $reportPath = Join-Path $uiOut 'pctp-ui-suite-report.json'
             if (-not (Test-Path -LiteralPath $reportPath)) { throw "Suite wrote no report: $reportPath" }
@@ -186,7 +193,7 @@ try {
                     '-OutputDirectory', $jOut, '-ExpectedWindowTitleRegex', $ExpectedWindowTitleRegex, '-AllowMutations', '-CloseOnFinish',
                     '-SqlServer', $SqlServer, '-SqlDatabase', $SqlDatabase)
                 if ($ConfirmAppUsesIsolatedDb) { $args2 += '-ConfirmAppUsesIsolatedDb' }
-                & powershell.exe @args2 2>&1 | Tee-Object -FilePath (Join-Path $out "$name.log")
+                Invoke-Native { & powershell.exe @args2 } (Join-Path $out "$name.log")
                 $jExit = $LASTEXITCODE
                 Remove-Item Env:PCTP_QC_RUN_ID -ErrorAction SilentlyContinue
                 $rep = Join-Path $jOut 'pctp-ui-journey-report.json'

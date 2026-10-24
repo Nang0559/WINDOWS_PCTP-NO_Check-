@@ -251,6 +251,17 @@ try {
                 foreach ($c in $checks) { if ($c.Status -eq "FAIL") { $errors.Add("Expect failed: $($c.Target) $($c.Expected) but actual '$($c.Actual)'") } }
             }
 
+            # If PCTP died (crash / self-close) every later step fails with "element not found"; say so explicitly.
+            $appExited = $false
+            if ($script:Process) {
+                try {
+                    $script:Process.Refresh()
+                    if ($script:Process.HasExited) {
+                        $appExited = $true
+                        $errors.Add("PCTP process exited (exit code $($script:Process.ExitCode)) during or right after this step. Check Windows Event Viewer > Windows Logs > Application ('Application Error', '.NET Runtime') at this time for the crash cause.")
+                    }
+                } catch { }
+            }
             $status = if ($errors.Count -gt 0) { "FAIL" } else { "PASS" }
             $errorText = ($errors.ToArray() -join " ; ")
             $window = Get-CurrentPctpWindow
@@ -292,7 +303,7 @@ try {
             })
             if ($status -eq "FAIL") {
                 if (-not $failure) { $failure = $errorText }
-                if (-not $ContinueOnFailure) { break }
+                if (-not $ContinueOnFailure -or $appExited) { break }
             }
         }
     }
