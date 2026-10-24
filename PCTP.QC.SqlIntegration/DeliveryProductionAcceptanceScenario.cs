@@ -163,7 +163,8 @@ WHERE l.MAHANG = @mahang
         await using var tx = (SqlTransaction)await connection.BeginTransactionAsync(IsolationLevel.ReadCommitted);
         var before = await ReadStateAsync(connection, tx, c.Stt);
         var shortage = checked(before.StockRemaining + c.Quantity + 1);
-        await ExecuteAsync(connection, tx, "UPDATE dbo.TMPPHIEUGIAOHANG SET SOLUONG=@q WHERE STT=@stt", new SqlParameter("@q", shortage), new SqlParameter("@stt", c.Stt));
+        if (shortage > short.MaxValue)
+            throw new InvalidOperationException($"DEL-007 needs a shortage quantity of {shortage}, which does not fit TMPPHIEUGIAOHANG.SOLUONG (smallint, max {short.MaxValue}). Seed the fixture on a LOT whose SLCONLAI is below {short.MaxValue - c.Quantity}.");
         var result = await ExecuteProcedureAsync(connection, tx, c, shortage);
         Require(result.SuccessCount == 0 && result.ErrorCount > 0, "DEL-007 shortage did not return an explicit business error.");
         var after = await ReadStateAsync(connection, tx, c.Stt);
@@ -197,10 +198,15 @@ WHERE l.MAHANG = @mahang
         // (e.g. leftover NG rows with insufficient stock) would add errors and block the stock update, so mask them
         // as OK for this call. This runs inside the caller transaction that every scenario rolls back.
         await ExecuteAsync(connection, tx, "UPDATE dbo.TMPPHIEUGIAOHANG SET STATUS=N'OK' WHERE ISNULL(STT,-1)<>@stt AND (STATUS IS NULL OR STATUS<>N'OK')", new SqlParameter("@stt", c.Stt));
-        await ExecuteAsync(connection, tx, "UPDATE dbo.TMPPHIEUGIAOHANG SET SOLUONG=@q WHERE STT=@stt", new SqlParameter("@q", quantity), new SqlParameter("@stt", c.Stt));
+        // The procedure deducts the quantity written after the dash of TMP.LOT ("<LOT>-<qty>", see @_SLOK), while
+        // TMP.SOLUONG is only part of the delivery identity/ledger. Keep both equal, otherwise a "shortage" test that
+        // changes SOLUONG alone still deducts the original quantity and (correctly) succeeds.
+        var lotDash = c.LotExpression.IndexOf('-');
+        var lotWithQuantity = c.LotExpression[..lotDash].Trim() + "-" + quantity.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        await ExecuteAsync(connection, tx, "UPDATE dbo.TMPPHIEUGIAOHANG SET SOLUONG=@q, LOT=@lot WHERE STT=@stt", new SqlParameter("@q", quantity), new SqlParameter("@lot", lotWithQuantity), new SqlParameter("@stt", c.Stt));
         await using var command = new SqlCommand("dbo.Usp_Qrcode_Update_Stock2405", connection, tx)
         {
-            CommandType = CommandType.StoredProcedure, CommandTimeout = 30
+            CommandType = CommandType.StoredProcedure, CommandTimeout = 60
         };
         command.Parameters.Add(new SqlParameter("@GIOGIAOFCC", c.DeliveryTime));
         command.Parameters.Add(new SqlParameter("@NHAMAY", c.Factory));
@@ -209,9 +215,17 @@ WHERE l.MAHANG = @mahang
 
         var success = 0;
         var errors = 0;
-        await using var reader = await command.ExecuteReaderAsync();
-        while (await reader.ReadAsync()) success++;
-        if (await reader.NextResultAsync()) while (await reader.ReadAsync()) errors++;
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        try
+        {
+            await using var reader = await command.ExecuteReaderAsync();
+            while (await reader.ReadAsync()) success++;
+            if (await reader.NextResultAsync()) while (await reader.ReadAsync()) errors++;
+        }
+        finally
+        {
+            Console.WriteLine($"INFO: DEL procedure call (STT={c.Stt}, qty={quantity}) took {stopwatch.ElapsedMilliseconds} ms; ok rows={success}, error rows={errors}.");
+        }
         return (success, errors);
     }
 
