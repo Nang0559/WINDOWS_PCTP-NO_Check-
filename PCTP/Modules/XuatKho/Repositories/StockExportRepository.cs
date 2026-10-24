@@ -39,9 +39,9 @@ namespace PCTP.Modules.XuatKho.Repositories
                 new SqlParameter("@sl", soLuong),
                 new SqlParameter("@lot", lotNo));
 
-            if (rows == 0)
+            if (rows != 1)
                 throw new InvalidOperationException(
-                    $"Không tìm thấy LOT [{lotNo}] trong STOCKTP để trừ xuất.");
+                    $"STOCKTP yêu cầu đúng một dòng LOT [{lotNo}] khi trừ xuất, nhưng UPDATE tác động {rows} dòng. Transaction phải rollback.");
         }
         public void AdjustSlConLai(string lotNo, int delta)
         {
@@ -53,8 +53,8 @@ namespace PCTP.Modules.XuatKho.Repositories
                 new SqlParameter("@delta", delta),
                 new SqlParameter("@lot", lotNo));
 
-            if (rows == 0)
-                throw new InvalidOperationException($"Không tìm thấy LOT [{lotNo}] trong STOCKTP.");
+            if (rows != 1)
+                throw new InvalidOperationException($"STOCKTP yêu cầu đúng một dòng LOT [{lotNo}], nhưng UPDATE tác động {rows} dòng. Transaction phải rollback.");
         }
         // Thêm vào IStockExportRepository / StockExportRepository
         /// <summary>
@@ -72,7 +72,9 @@ namespace PCTP.Modules.XuatKho.Repositories
                 "WHERE LOT = @lot AND SLCONLAI >= @sl",
                 new SqlParameter("@sl", soLuong),
                 new SqlParameter("@lot", lotNo));
-            return rows > 0;
+            if (rows > 1)
+                throw new InvalidOperationException($"STOCKTP vi phạm khóa LOT duy nhất: UPDATE tác động {rows} dòng cho LOT [{lotNo}].");
+            return rows == 1;
         }
         // Thêm vào IStockExportRepository / StockExportRepository
         public List<StockTpLotInfo> FindLotsWithStock(string maHang, string lotNo)
