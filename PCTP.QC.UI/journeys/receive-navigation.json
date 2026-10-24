@@ -57,18 +57,20 @@
       ]
     },
     {
+      "id": "receiving-refresh-control-exposed",
+      "action": "assert-exists",
+      "automationId": "receive_btnRefresh",
+      "fallbackName": "Làm mới",
+      "description": "Nút làm mới worklist phải được expose riêng, không dùng làm điều kiện cho grid",
+      "expected": "Nút Làm mới tồn tại"
+    },
+    {
       "id": "receiving-worklist-grid-exposed",
       "action": "assert-exists",
       "automationId": "receive_worklistGrid",
-      "description": "Control 'receive_worklistGrid' phải tồn tại trên màn hình",
+      "description": "Control 'receive_worklistGrid' phải tồn tại trên màn hình. Kiểm tra nút refresh ở bước riêng.",
       "expected": "'receive_worklistGrid' hiển thị",
-      "expect": [
-        {
-          "automationId": "receive_btnRefresh",
-          "property": "name",
-          "contains": "Làm mới"
-        }
-      ]
+      "expect": []
     }
   ]
 }
