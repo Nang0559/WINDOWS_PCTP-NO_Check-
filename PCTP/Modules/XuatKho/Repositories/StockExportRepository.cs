@@ -106,6 +106,13 @@ namespace PCTP.Modules.XuatKho.Repositories
                 };
 
             DataTable dt = LoadData(sql, pars);
+            var seenLots = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (DataRow row in dt.Rows)
+            {
+                string candidateLot = Convert.ToString(row["LOT"])?.Trim() ?? string.Empty;
+                if (!seenLots.Add(candidateLot))
+                    throw new InvalidOperationException($"STOCKTP vi phạm khóa LOT duy nhất: LOT [{candidateLot}] xuất hiện nhiều dòng khi tra tồn.");
+            }
             return dt.Rows.Cast<DataRow>().Select(r => new StockTpLotInfo
             {
                 LotNo = Convert.ToString(r["LOT"]).Trim(),
