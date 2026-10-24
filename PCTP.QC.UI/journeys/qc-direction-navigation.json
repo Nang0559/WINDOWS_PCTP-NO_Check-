@@ -1,15 +1,15 @@
 {
   "name": "qc-direction-navigation",
-  "purpose": "Read-only navigation smoke: open QC direction queue from the defect workflow menu.",
+  "purpose": "Read-only navigation smoke: open the unified defect workflow screen from the defect workflow menu.",
   "dataMutation": false,
   "scenario": {
     "id": "UI-006",
-    "title": "Mở hàng đợi QC chờ định hướng",
-    "description": "Điều hướng chỉ đọc: mở form QC định hướng; không bấm Xác nhận."
+    "title": "Mở màn hình quy trình hàng lỗi tại bước QC định hướng",
+    "description": "Điều hướng chỉ đọc: menu này mở màn hình quy trình hàng lỗi dùng chung (WarehouseProcessNavigator.OpenQCDinhHuong/OpenQCXacNhanCuoi -> OpenQuanLyTienTrinhHangLoi). Form chi tiết (FormQCDinhHuong/FormQCXacNhanCuoi) chỉ mở ShowDialog từ một dòng phiếu đã seed -> thuộc journey G6, không kiểm ở đây."
   },
   "testData": {
     "menuPath": "Xử lý hàng lỗi > QC chờ định hướng",
-    "expectedWindowTitle": "QC định hướng xử lý hàng lỗi"
+    "expectedWindowTitle": "Quản lý tiến trình Xử lý hàng lỗi"
   },
   "steps": [
     {
@@ -43,18 +43,25 @@
       "description": "Xác nhận tiêu đề cửa sổ"
     },
     {
-      "id": "qc-direction-choice-exposed",
+      "id": "workflow-step-04-exposed",
       "action": "assert-exists",
-      "automationId": "qcDirection_disposition",
-      "description": "Control 'qcDirection_disposition' phải tồn tại trên màn hình",
-      "expected": "'qcDirection_disposition' hiển thị"
+      "automationId": "rework_step_04",
+      "description": "Nút timeline 'rework_step_04' phải tồn tại trên màn hình quy trình",
+      "expected": "'rework_step_04' hiển thị",
+      "expect": [
+        {
+          "automationId": "rework_step_04",
+          "property": "name",
+          "contains": "QC định hướng"
+        }
+      ]
     },
     {
-      "id": "qc-direction-confirm-exposed",
+      "id": "workflow-worklist-grid-exposed",
       "action": "assert-exists",
-      "automationId": "qcDirection_btnConfirm",
-      "description": "Control 'qcDirection_btnConfirm' phải tồn tại trên màn hình",
-      "expected": "'qcDirection_btnConfirm' hiển thị"
+      "automationId": "rework_worklistGrid",
+      "description": "Control 'rework_worklistGrid' phải tồn tại",
+      "expected": "'rework_worklistGrid' hiển thị"
     }
   ]
 }

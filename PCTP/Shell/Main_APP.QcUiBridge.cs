@@ -68,12 +68,33 @@ namespace PCTP
                     Size = new System.Drawing.Size(1, 1),
                     Location = new System.Drawing.Point(0, 0)
                 };
-                button.Click += (s, e) => InvokeQcUiElement(captured);
+                // Post, do not run inline: several handlers open MODAL screens (ShowDialog), and a modal
+                // message loop inside the UIA Invoke call would block the runner until the dialog closes.
+                button.Click += (s, e) => BeginInvoke(new Action(() => RunQcUiElement(captured)));
                 _qcUiBridgePanel.Controls.Add(button);
             }
 
             foreach (AccordionControlElement child in element.Elements)
                 AddBridgeButtons(child, seen);
+        }
+
+        private void RunQcUiElement(AccordionControlElement element)
+        {
+            try
+            {
+                InvokeQcUiElement(element);
+            }
+            catch (Exception ex)
+            {
+                // Never crash the app under test; leave evidence the journey report can point to.
+                try
+                {
+                    System.IO.File.AppendAllText(
+                        System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "qc-ui-bridge.log"),
+                        DateTime.Now.ToString("o") + " " + element.Name + ": " + ex + Environment.NewLine);
+                }
+                catch { }
+            }
         }
 
         private void InvokeQcUiElement(AccordionControlElement element)

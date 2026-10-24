@@ -4,12 +4,12 @@
   "dataMutation": false,
   "scenario": {
     "id": "UI-006",
-    "title": "Mở hàng đợi QC chờ xác nhận cuối",
-    "description": "Điều hướng chỉ đọc: mở form QC xác nhận cuối; không nhập số lượng, không bấm Xác nhận."
+    "title": "Mở màn hình quy trình hàng lỗi tại bước QC Rework / xác nhận cuối",
+    "description": "Điều hướng chỉ đọc: menu này mở màn hình quy trình hàng lỗi dùng chung (WarehouseProcessNavigator.OpenQCDinhHuong/OpenQCXacNhanCuoi -> OpenQuanLyTienTrinhHangLoi). Form chi tiết (FormQCDinhHuong/FormQCXacNhanCuoi) chỉ mở ShowDialog từ một dòng phiếu đã seed -> thuộc journey G6, không kiểm ở đây."
   },
   "testData": {
     "menuPath": "Xử lý hàng lỗi > QC chờ xác nhận cuối",
-    "expectedWindowTitle": "QC xác nhận cuối"
+    "expectedWindowTitle": "Quản lý tiến trình Xử lý hàng lỗi"
   },
   "steps": [
     {
@@ -43,25 +43,25 @@
       "description": "Xác nhận tiêu đề cửa sổ"
     },
     {
-      "id": "qc-final-ok-quantity-exposed",
+      "id": "workflow-step-07-exposed",
       "action": "assert-exists",
-      "automationId": "qcFinal_qtyOK",
-      "description": "Control 'qcFinal_qtyOK' phải tồn tại trên màn hình",
-      "expected": "'qcFinal_qtyOK' hiển thị"
+      "automationId": "rework_step_07",
+      "description": "Nút timeline 'rework_step_07' phải tồn tại trên màn hình quy trình",
+      "expected": "'rework_step_07' hiển thị",
+      "expect": [
+        {
+          "automationId": "rework_step_07",
+          "property": "name",
+          "contains": "QC Rework"
+        }
+      ]
     },
     {
-      "id": "qc-final-ng-quantity-exposed",
+      "id": "workflow-worklist-grid-exposed",
       "action": "assert-exists",
-      "automationId": "qcFinal_qtyNG",
-      "description": "Control 'qcFinal_qtyNG' phải tồn tại trên màn hình",
-      "expected": "'qcFinal_qtyNG' hiển thị"
-    },
-    {
-      "id": "qc-final-confirm-exposed",
-      "action": "assert-exists",
-      "automationId": "qcFinal_btnConfirm",
-      "description": "Control 'qcFinal_btnConfirm' phải tồn tại trên màn hình",
-      "expected": "'qcFinal_btnConfirm' hiển thị"
+      "automationId": "rework_worklistGrid",
+      "description": "Control 'rework_worklistGrid' phải tồn tại",
+      "expected": "'rework_worklistGrid' hiển thị"
     }
   ]
 }
