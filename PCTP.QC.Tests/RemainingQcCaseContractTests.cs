@@ -46,6 +46,24 @@ public sealed class RemainingQcCaseContractTests
     }
 
     [Fact]
+    public void QuarantineRelease_LocksThroughSharedSlotRepositoryBeforeRevalidating()
+    {
+        var service = Read("QuarantineReleaseService.source.cs");
+        var release = Method(service, "public QuarantineReleaseResult Release(", "    }\n}");
+        var begin = release.IndexOf("_uow.Begin()", StringComparison.Ordinal);
+        var lockSlot = release.IndexOf("_slots.LockSlotForUpdate(slotId.Value)", StringComparison.Ordinal);
+        var reread = release.IndexOf("var details = _slots.GetLotDetails(request.SlotLotId)", StringComparison.Ordinal);
+        var mutation = release.IndexOf("_slots.DecreaseLotQuantity(", StringComparison.Ordinal);
+        Assert.True(begin >= 0 && begin < lockSlot && lockSlot < reread && reread < mutation,
+            "Release must lock the Slot and re-read quarantine state before changing stock.");
+
+        var adapter = Read("LegacyStockSlotRepositoryAdapter.source.cs");
+        var adapterLock = Method(adapter, "public void LockSlotForUpdate(", "public void DecreaseLotQuantity(");
+        Assert.Contains("_legacy.LockSlotForUpdate(slotId)", adapterLock);
+        Assert.DoesNotContain("NotSupportedException", adapterLock);
+    }
+
+    [Fact]
     public void ReworkNgImport_UsesQuarantineMovementAndDoesNotDirectlyCreditStockTp()
     {
         var rework = Read("ReworkStockService.source.cs");
