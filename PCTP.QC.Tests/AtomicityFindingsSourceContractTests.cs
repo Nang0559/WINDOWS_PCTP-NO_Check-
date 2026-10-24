@@ -173,7 +173,10 @@ public sealed class AtomicityFindingsSourceContractTests
         var sql = ReadSource("Usp_Qrcode_Update_Stock_SP.sql");
         var normalized = Regex.Replace(sql, @"\s+", " ");
 
-        Assert.Contains("BEGIN TRY BEGIN TRANSACTION;", normalized, StringComparison.Ordinal);
+        Assert.Contains("IF @@TRANCOUNT = 0 BEGIN BEGIN TRANSACTION;", normalized, StringComparison.Ordinal);
+        Assert.Contains("SAVE TRANSACTION PctpFifoDeliverySp;", normalized, StringComparison.Ordinal);
+        Assert.Contains("IF @StartedTransaction = 1 COMMIT TRANSACTION;", normalized, StringComparison.Ordinal);
+        Assert.Contains("ROLLBACK TRANSACTION PctpFifoDeliverySp;", normalized, StringComparison.Ordinal);
         Assert.Contains("@Resource = N'PCTP_DELIVERY_FIFO_SP'", normalized, StringComparison.Ordinal);
         Assert.Contains("COMMIT TRANSACTION;", normalized, StringComparison.Ordinal);
         Assert.Contains("IF XACT_STATE() <> 0 ROLLBACK TRANSACTION;", normalized, StringComparison.Ordinal);
