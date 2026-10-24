@@ -83,7 +83,7 @@ BEGIN
 
   CREATE TABLE #Chosen(STT int NOT NULL PRIMARY KEY);
   INSERT #Chosen SELECT DISTINCT TRY_CONVERT(int,value) FROM STRING_SPLIT(@path,N',')
-   WHERE TRY_CONVERT(int,value) IS NOT NULL;
+   WHERE NULLIF(value,N'') IS NOT NULL AND TRY_CONVERT(int,value) IS NOT NULL;
   SELECT @chosenCount=COUNT(*) FROM #Chosen;
   IF @chosenCount=0 THROW 51105,N'Danh sách QR phân bổ rỗng.',1;
 
