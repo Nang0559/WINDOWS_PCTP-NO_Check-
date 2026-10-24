@@ -95,6 +95,7 @@ namespace PCTP
             DevExpress.LookAndFeel.UserLookAndFeel.Default.SetSkinStyle("Caramel");
             InitializeShellComposition();
             InitializeDashboard();
+            InstallQcUiBridgeIfRequested(); // test-only; no-op unless PCTP_QC_UI_BRIDGE=1
         }
 
         private void InitializeShellComposition()

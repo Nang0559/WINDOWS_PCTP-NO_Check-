@@ -68,7 +68,13 @@ $script:stepIndex = 0
 try {
     # ---------------- startup (always produces a screenshot + diagnostics, even when it fails) -------------
     $workDir = Split-Path -Parent $resolvedExe
-    $script:Process = Start-Process -FilePath $resolvedExe -WorkingDirectory $workDir -PassThru
+    # DevExpress AccordionControl items are not exposed through UI Automation. The app-side bridge
+    # (Main_APP.QcUiBridge.cs) publishes one real button per menu element, but only when this variable is set.
+    # Process-scoped: restored in finally so a normal PCTP launch from this shell is never affected.
+    $previousBridge = $env:PCTP_QC_UI_BRIDGE
+    $env:PCTP_QC_UI_BRIDGE = "1"
+    try { $script:Process = Start-Process -FilePath $resolvedExe -WorkingDirectory $workDir -PassThru }
+    finally { if ($null -eq $previousBridge) { Remove-Item Env:PCTP_QC_UI_BRIDGE -ErrorAction SilentlyContinue } else { $env:PCTP_QC_UI_BRIDGE = $previousBridge } }
     $startedAt = Get-Date
     $deadline = [DateTime]::UtcNow.AddSeconds($StartupTimeoutSeconds)
     $startupError = $null
