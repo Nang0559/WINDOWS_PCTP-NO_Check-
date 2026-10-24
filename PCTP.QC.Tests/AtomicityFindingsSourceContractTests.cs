@@ -245,8 +245,8 @@ public sealed class AtomicityFindingsSourceContractTests
     {
         var sql = ReadSource("Usp_Qrcode_Take_LotYMVN2405.sql");
         var normalized = Regex.Replace(sql, @"\s+", " ");
-        var docWhitelist = normalized.IndexOf("IF @DOCQRTABLE NOT IN", StringComparison.Ordinal);
-        var tmpWhitelist = normalized.IndexOf("IF @TMPTABLE NOT IN", StringComparison.Ordinal);
+        var docWhitelist = normalized.IndexOf("IF @DOCQRTABLE IS NULL OR @DOCQRTABLE NOT IN", StringComparison.Ordinal);
+        var tmpWhitelist = normalized.IndexOf("IF @TMPTABLE IS NULL OR @TMPTABLE NOT IN", StringComparison.Ordinal);
         var firstDynamicExecution = normalized.IndexOf("EXEC sp_executesql", StringComparison.Ordinal);
         Assert.True(docWhitelist >= 0 && tmpWhitelist >= 0,
             "Both dynamic table parameters must be restricted to approved table families.");
