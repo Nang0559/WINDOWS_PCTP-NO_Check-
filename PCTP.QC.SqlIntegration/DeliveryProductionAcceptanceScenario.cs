@@ -34,12 +34,20 @@ internal static class DeliveryProductionAcceptanceScenario
         Console.WriteLine("PASS: DEL-003/DEL-004/DEL-007 production procedure acceptance completed with rollback isolation.");
     }
 
+    private sealed record TmpRow(int Stt, string LotExpression, string ItemCode, int Quantity, string Factory, string DeliveryTime, string Door, string Transfer, DateTime DeliveryDate);
+
+    /// <summary>
+    /// Finds one safe pending TMP row with several small queries instead of one large correlated query.
+    /// The previous single-statement version re-scanned dbo.STOCKTP for every STOCKTP row (quadratic) and
+    /// wrapped ledger columns in functions, so it exceeded the command timeout on the real test database.
+    /// </summary>
     private static async Task<Candidate?> FindCandidateAsync(SqlConnection connection, int? pinnedStt)
     {
-        const string sql = @"
-SELECT TOP (1)
-    t.STT, RTRIM(t.LOT), RTRIM(t.MAHANG), t.SOLUONG,
-    RTRIM(ISNULL(t.NHAMAY,N'')), RTRIM(ISNULL(t.GIOGIAO,N''))
+        const string tmpSql = @"
+SELECT TOP (25)
+    t.STT, RTRIM(t.LOT), RTRIM(ISNULL(t.MAHANG,N'')), t.SOLUONG,
+    RTRIM(ISNULL(t.NHAMAY,N'')), RTRIM(ISNULL(t.GIOGIAO,N'')),
+    RTRIM(ISNULL(t.CUA,N'')), RTRIM(ISNULL(t.TRUYEN,N'')), t.NGAYGIAO
 FROM dbo.TMPPHIEUGIAOHANG t
 WHERE (@pinned IS NULL OR t.STT = @pinned)
   AND ISNULL(t.LOT,N'') <> N''
@@ -47,37 +55,75 @@ WHERE (@pinned IS NULL OR t.STT = @pinned)
   AND ISNULL(t.SOLUONG,0) > 0
   AND CHARINDEX(N',',t.LOT) = 0
   AND CHARINDEX(N'-',t.LOT) > 1
-  AND NOT EXISTS (
-      SELECT 1 FROM dbo.LUUPHIEUGIAOHANG l
-      WHERE RTRIM(ISNULL(l.MAHANG,N'')) = RTRIM(ISNULL(t.MAHANG,N''))
-        AND CAST(l.NGAYGIAO AS date) = CAST(t.NGAYGIAO AS date)
-        AND RTRIM(ISNULL(l.CUA,N'')) = RTRIM(ISNULL(t.CUA,N''))
-        AND RTRIM(ISNULL(l.TRUYEN,N'')) = RTRIM(ISNULL(t.TRUYEN,N''))
-        AND l.SOLUONG = t.SOLUONG
-        AND RTRIM(ISNULL(l.GIOGIAO,N'')) = RTRIM(ISNULL(t.GIOGIAO,N''))
-        AND RTRIM(ISNULL(l.NHAMAY,N'')) = RTRIM(LEFT(ISNULL(t.NHAMAY,N''),50)) )
-  -- (no 'l.STT = t.STT' check: TMP.STT restarts every batch and is copied into the ledger, so it is not a unique key;
-  --  the 7-field delivery key above is the same identity the procedure uses for its duplicate check.)
-  AND EXISTS (
-      SELECT 1
-      FROM dbo.STOCKTP s
-      CROSS APPLY (SELECT LEFT(RTRIM(t.LOT),CHARINDEX(N'-',t.LOT)-1) LotInput) x
-      WHERE ((LEN(RTRIM(x.LotInput)) > 13 AND RTRIM(s.LOT)=RTRIM(x.LotInput))
-          OR (LEN(RTRIM(x.LotInput)) <= 13
-              AND LEFT(RTRIM(s.LOT),13)=LEFT(RTRIM(x.LotInput),13)
-              AND (SELECT COUNT(DISTINCT RTRIM(s2.LOT)) FROM dbo.STOCKTP s2
-                   WHERE LEFT(RTRIM(s2.LOT),13)=LEFT(RTRIM(x.LotInput),13))=1))
-        AND ISNULL(s.SLCONLAI,0) >= t.SOLUONG )
-ORDER BY t.NGAYGIAO,t.STT;";
+  AND t.NGAYGIAO IS NOT NULL
+ORDER BY t.NGAYGIAO, t.STT;";
 
-        await using var command = new SqlCommand(sql, connection) { CommandTimeout = 10 };
-        command.Parameters.Add(new SqlParameter("@pinned", SqlDbType.Int) { Value = (object?)pinnedStt ?? DBNull.Value });
+        var rows = new List<TmpRow>();
+        await using (var command = new SqlCommand(tmpSql, connection) { CommandTimeout = 15 })
+        {
+            command.Parameters.Add(new SqlParameter("@pinned", SqlDbType.Int) { Value = (object?)pinnedStt ?? DBNull.Value });
+            await using var reader = await command.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                rows.Add(new TmpRow(
+                    Convert.ToInt32(reader.GetValue(0)), reader.GetString(1), reader.GetString(2), Convert.ToInt32(reader.GetValue(3)),
+                    reader.GetString(4), reader.GetString(5), reader.GetString(6), reader.GetString(7), Convert.ToDateTime(reader.GetValue(8))));
+            }
+        }
+
+        foreach (var row in rows)
+        {
+            var dash = row.LotExpression.IndexOf('-');
+            var lotInput = row.LotExpression[..dash].Trim();
+            if (lotInput.Length == 0) continue;
+
+            // Stock: exactly one physical LOT with enough SLCONLAI (same rule the procedure and ReadStateAsync use).
+            var (lotCount, remaining) = await ReadStockAsync(connection, lotInput);
+            var stockOk = lotInput.Length > 13 ? lotCount >= 1 && remaining >= row.Quantity : lotCount == 1 && remaining >= row.Quantity;
+            if (!stockOk) continue;
+
+            // No delivery ledger row with the same 7-field identity the procedure uses for its duplicate check.
+            var factory = row.Factory.Length > 50 ? row.Factory[..50] : row.Factory;
+            if (await CountLedgerKeyAsync(connection, row, factory) > 0) continue;
+
+            return new Candidate(row.Stt, row.LotExpression, row.ItemCode, row.Quantity, row.Factory, row.DeliveryTime);
+        }
+        return null;
+    }
+
+    private static async Task<(int LotCount, long Remaining)> ReadStockAsync(SqlConnection connection, string lotInput)
+    {
+        var sql = lotInput.Length > 13
+            ? "SELECT COUNT(DISTINCT RTRIM(LOT)), ISNULL(SUM(CAST(SLCONLAI AS bigint)),0) FROM dbo.STOCKTP WHERE LOT = @lot"
+            : "SELECT COUNT(DISTINCT RTRIM(LOT)), ISNULL(SUM(CAST(SLCONLAI AS bigint)),0) FROM dbo.STOCKTP WHERE LEFT(RTRIM(LOT),13) = @lot";
+        await using var command = new SqlCommand(sql, connection) { CommandTimeout = 30 };
+        command.Parameters.Add(new SqlParameter("@lot", SqlDbType.NVarChar, 100) { Value = lotInput.Length > 13 ? lotInput : lotInput[..Math.Min(13, lotInput.Length)] });
         await using var reader = await command.ExecuteReaderAsync();
-        if (!await reader.ReadAsync()) return null;
-        return new Candidate(
-            reader.GetInt32(0), reader.GetString(1), reader.GetString(2), reader.GetInt32(3),
-            reader.IsDBNull(4) ? string.Empty : reader.GetString(4),
-            reader.IsDBNull(5) ? string.Empty : reader.GetString(5));
+        if (!await reader.ReadAsync()) return (0, 0);
+        return (Convert.ToInt32(reader.GetValue(0)), Convert.ToInt64(reader.GetValue(1)));
+    }
+
+    private static async Task<int> CountLedgerKeyAsync(SqlConnection connection, TmpRow row, string factory)
+    {
+        const string sql = @"
+SELECT COUNT(*)
+FROM dbo.LUUPHIEUGIAOHANG l
+WHERE l.MAHANG = @mahang
+  AND l.NGAYGIAO >= @d AND l.NGAYGIAO < DATEADD(day, 1, @d)
+  AND ISNULL(l.CUA,N'') = @cua
+  AND ISNULL(l.TRUYEN,N'') = @truyen
+  AND l.SOLUONG = @qty
+  AND ISNULL(l.GIOGIAO,N'') = @gio
+  AND ISNULL(l.NHAMAY,N'') = @nhamay;";
+        await using var command = new SqlCommand(sql, connection) { CommandTimeout = 30 };
+        command.Parameters.Add(new SqlParameter("@mahang", SqlDbType.NVarChar, 100) { Value = row.ItemCode });
+        command.Parameters.Add(new SqlParameter("@d", SqlDbType.DateTime) { Value = row.DeliveryDate.Date });
+        command.Parameters.Add(new SqlParameter("@cua", SqlDbType.NVarChar, 100) { Value = row.Door });
+        command.Parameters.Add(new SqlParameter("@truyen", SqlDbType.NVarChar, 100) { Value = row.Transfer });
+        command.Parameters.Add(new SqlParameter("@qty", SqlDbType.Int) { Value = row.Quantity });
+        command.Parameters.Add(new SqlParameter("@gio", SqlDbType.NVarChar, 100) { Value = row.DeliveryTime });
+        command.Parameters.Add(new SqlParameter("@nhamay", SqlDbType.NVarChar, 100) { Value = factory });
+        return Convert.ToInt32(await command.ExecuteScalarAsync());
     }
 
     private static async Task VerifySuccessAndCallerRollbackAsync(SqlConnection connection, Candidate c)
@@ -161,11 +207,15 @@ ORDER BY t.NGAYGIAO,t.STT;";
         var dash = lotExpression.IndexOf('-');
         var lot = (dash > 0 ? lotExpression[..dash] : lotExpression).Trim();
         var status = await ScalarStringAsync(connection, tx, "SELECT ISNULL(STATUS,N'') FROM dbo.TMPPHIEUGIAOHANG WHERE STT=@stt", new SqlParameter("@stt", stt)) ?? string.Empty;
-        var stock = await ScalarIntAsync(connection, tx, @"SELECT ISNULL(SUM(s.SLCONLAI),0)
+        var stockSql = lot.Length > 13
+            ? "SELECT ISNULL(SUM(s.SLCONLAI),0) FROM dbo.STOCKTP s WHERE s.LOT = @lot"
+            : @"SELECT ISNULL(SUM(s.SLCONLAI),0)
 FROM dbo.STOCKTP s
 WHERE RTRIM(s.LOT)=RTRIM(@lot)
-   OR (LEN(RTRIM(@lot)) <= 13 AND LEFT(RTRIM(s.LOT),13)=LEFT(RTRIM(@lot),13)
-       AND (SELECT COUNT(DISTINCT RTRIM(s2.LOT)) FROM dbo.STOCKTP s2 WHERE LEFT(RTRIM(s2.LOT),13)=LEFT(RTRIM(@lot),13))=1)", new SqlParameter("@lot", lot));
+   OR (LEFT(RTRIM(s.LOT),13)=LEFT(RTRIM(@lot),13)
+       AND (SELECT COUNT(DISTINCT RTRIM(s2.LOT)) FROM dbo.STOCKTP s2
+            WHERE LEFT(RTRIM(s2.LOT),13)=LEFT(RTRIM(@lot),13))=1)";
+        var stock = await ScalarIntAsync(connection, tx, stockSql, new SqlParameter("@lot", lot));
         var ledger = await ScalarIntAsync(connection, tx, @"SELECT COUNT(*) FROM dbo.LUUPHIEUGIAOHANG l JOIN dbo.TMPPHIEUGIAOHANG t ON t.STT=@stt
 WHERE RTRIM(l.MAHANG)=RTRIM(t.MAHANG) AND CAST(l.NGAYGIAO AS date)=CAST(t.NGAYGIAO AS date)
   AND RTRIM(ISNULL(l.CUA,N''))=RTRIM(ISNULL(t.CUA,N'')) AND RTRIM(ISNULL(l.TRUYEN,N''))=RTRIM(ISNULL(t.TRUYEN,N''))
@@ -176,14 +226,14 @@ WHERE RTRIM(l.MAHANG)=RTRIM(t.MAHANG) AND CAST(l.NGAYGIAO AS date)=CAST(t.NGAYGI
 
     private static async Task ExecuteAsync(SqlConnection connection, SqlTransaction tx, string sql, params SqlParameter[] parameters)
     {
-        await using var command = new SqlCommand(sql, connection, tx) { CommandTimeout = 10 };
+        await using var command = new SqlCommand(sql, connection, tx) { CommandTimeout = 30 };
         command.Parameters.AddRange(parameters);
         await command.ExecuteNonQueryAsync();
     }
 
     private static async Task<string?> ScalarStringAsync(SqlConnection connection, SqlTransaction? tx, string sql, params SqlParameter[] parameters)
     {
-        await using var command = new SqlCommand(sql, connection, tx) { CommandTimeout = 10 };
+        await using var command = new SqlCommand(sql, connection, tx) { CommandTimeout = 30 };
         command.Parameters.AddRange(parameters);
         var value = await command.ExecuteScalarAsync();
         return value == null || value == DBNull.Value ? null : Convert.ToString(value);
@@ -191,7 +241,7 @@ WHERE RTRIM(l.MAHANG)=RTRIM(t.MAHANG) AND CAST(l.NGAYGIAO AS date)=CAST(t.NGAYGI
 
     private static async Task<int> ScalarIntAsync(SqlConnection connection, SqlTransaction? tx, string sql, params SqlParameter[] parameters)
     {
-        await using var command = new SqlCommand(sql, connection, tx) { CommandTimeout = 10 };
+        await using var command = new SqlCommand(sql, connection, tx) { CommandTimeout = 30 };
         command.Parameters.AddRange(parameters);
         var value = await command.ExecuteScalarAsync();
         return value == null || value == DBNull.Value ? 0 : Convert.ToInt32(value);
