@@ -186,6 +186,8 @@ public sealed class AtomicityFindingsSourceContractTests
         Assert.Contains("IF @StockUpdated <> 1", normalized, StringComparison.Ordinal);
         Assert.Contains("IF @slCan IS NULL OR @slCan <= 0", normalized, StringComparison.Ordinal);
         Assert.Contains("FROM STOCKTP s WITH (UPDLOCK, HOLDLOCK)", normalized, StringComparison.Ordinal);
+        Assert.Contains("AND ISNULL(s.SLCONLAI, 0) >= @slCan", normalized, StringComparison.Ordinal);
+        Assert.DoesNotContain("AND ISNULL(s.SLCONLAI, 0) > 0", normalized, StringComparison.Ordinal);
     }
 
     [Fact]
