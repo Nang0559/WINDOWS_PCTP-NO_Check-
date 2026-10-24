@@ -244,7 +244,7 @@ public sealed class AtomicityFindingsSourceContractTests
     public void TakeLotYmvN_RejectsUnapprovedDynamicIdentifiersBeforeAnyDdlOrDml()
     {
         var sql = ReadSource("Usp_Qrcode_Take_LotYMVN2405.sql");
-        var normalized = Regex.Replace(sql, @"\\s+", " ");
+        var normalized = Regex.Replace(sql, @"\s+", " ");
         var docWhitelist = normalized.IndexOf("IF @DOCQRTABLE NOT IN", StringComparison.Ordinal);
         var tmpWhitelist = normalized.IndexOf("IF @TMPTABLE NOT IN", StringComparison.Ordinal);
         var firstDynamicExecution = normalized.IndexOf("EXEC sp_executesql", StringComparison.Ordinal);
