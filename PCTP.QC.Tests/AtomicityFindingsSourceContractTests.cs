@@ -152,33 +152,39 @@ public sealed class AtomicityFindingsSourceContractTests
     public void Delivery2405_BusinessValidationReturnsRollbackTheirTransactionScope()
     {
         var sql = ReadSource("Usp_Qrcode_Update_Stock2405.sql");
-        Assert.Contains("ROLLBACK TRANSACTION UspQrcodeUpdateStock2405;", sql, StringComparison.Ordinal);
-        Assert.Contains("ELSE IF XACT_STATE() = -1", sql, StringComparison.Ordinal);
+        var normalized = Regex.Replace(sql, @"\s+", " ");
+
+        Assert.Contains("ROLLBACK TRANSACTION UspQrcodeUpdateStock2405;", normalized, StringComparison.Ordinal);
+        Assert.Contains("ELSE IF XACT_STATE() = -1", normalized, StringComparison.Ordinal);
         Assert.Contains("-- No stock rows are eligible", sql, StringComparison.Ordinal);
-        Assert.Contains("IF @StartedTransaction = 1\n                ROLLBACK TRANSACTION;", sql, StringComparison.Ordinal);
-        Assert.True(Regex.Matches(sql, @"IF EXISTS\s*\(\s*SELECT 1\s*FROM #STNG\s*\)[\s\S]*?ROLLBACK TRANSACTION").Count >= 1);
+        Assert.Contains("IF @StartedTransaction = 1 ROLLBACK TRANSACTION;", normalized, StringComparison.Ordinal);
+        Assert.True(Regex.Matches(normalized, @"IF EXISTS\s*\(\s*SELECT 1\s*FROM #STNG\s*\).*?ROLLBACK TRANSACTION").Count >= 1);
     }
 
     [Fact]
     public void LegacyFifoProcedure_IsAtomicAndArchivesOnlyRowsCompletedByThisExecution()
     {
         var sql = ReadSource("Usp_Qrcode_Update_Stock_SP.sql");
-        Assert.Contains("BEGIN TRY\n        BEGIN TRANSACTION;", sql, StringComparison.Ordinal);
-        Assert.Contains("@Resource = N'PCTP_DELIVERY_FIFO_SP'", sql, StringComparison.Ordinal);
-        Assert.Contains("COMMIT TRANSACTION;", sql, StringComparison.Ordinal);
-        Assert.Contains("IF XACT_STATE() <> 0\n            ROLLBACK TRANSACTION;", sql, StringComparison.Ordinal);
-        Assert.Contains("INNER JOIN #STOK_SP AS completed", sql, StringComparison.Ordinal);
-        Assert.Contains("AND ISNULL(SLCONLAI, 0) >= @slCan", sql, StringComparison.Ordinal);
-        Assert.Contains("IF @StockUpdated <> 1", sql, StringComparison.Ordinal);
+        var normalized = Regex.Replace(sql, @"\s+", " ");
+
+        Assert.Contains("BEGIN TRY BEGIN TRANSACTION;", normalized, StringComparison.Ordinal);
+        Assert.Contains("@Resource = N'PCTP_DELIVERY_FIFO_SP'", normalized, StringComparison.Ordinal);
+        Assert.Contains("COMMIT TRANSACTION;", normalized, StringComparison.Ordinal);
+        Assert.Contains("IF XACT_STATE() <> 0 ROLLBACK TRANSACTION;", normalized, StringComparison.Ordinal);
+        Assert.Contains("INNER JOIN #STOK_SP AS completed", normalized, StringComparison.Ordinal);
+        Assert.Contains("AND ISNULL(SLCONLAI, 0) >= @slCan", normalized, StringComparison.Ordinal);
+        Assert.Contains("IF @StockUpdated <> 1", normalized, StringComparison.Ordinal);
     }
 
     [Fact]
     public void CurrentStockProcedure_UsesExactPhysicalLotAndGuardsRootLotAmbiguity()
     {
         var sql = ReadSource("sp_GetCurrentStockStatus.sql");
-        Assert.Contains("RTRIM(sl.LotNo) = RTRIM(stp.LOT)", sql, StringComparison.Ordinal);
-        Assert.Contains("lk.PhysicalLotCount = 1", sql, StringComparison.Ordinal);
-        Assert.Contains("sl.PhieuStatus = 0", sql, StringComparison.Ordinal);
+        var normalized = Regex.Replace(sql, @"\s+", " ");
+
+        Assert.Contains("RTRIM(sl.LotNo) = RTRIM(stp.LOT)", normalized, StringComparison.Ordinal);
+        Assert.Contains("lk.PhysicalLotCount = 1", normalized, StringComparison.Ordinal);
+        Assert.Contains("sl.PhieuStatus = 0", normalized, StringComparison.Ordinal);
     }
 
     [Fact]
