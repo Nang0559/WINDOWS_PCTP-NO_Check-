@@ -17,6 +17,8 @@
     <Compile Include="../PCTP/Shared/Common/UnitOfWork.cs" Link="Production/UnitOfWork.cs" />
     <Compile Include="../PCTP/Shared/Common/SqlConnectionRetryPolicy.cs" Link="Production/SqlConnectionRetryPolicy.cs" />
     <Compile Include="../PCTP/Shared/Common/SqlRepositoryBase.cs" Link="Production/SqlRepositoryBase.cs" />
+    <Compile Include="../PCTP/Infrastructure/Stock/StockReceivingRepository.cs" Link="Production/StockReceivingRepository.cs" />
+    <Compile Include="../PCTP/Modules/KhoCore/Application/Contracts/Stock/IStockReceivingRepository.cs" Link="Production/IStockReceivingRepository.cs" />
     <Compile Include="../PCTP/Modules/NhapKho/Repository/StockTPRepository.cs" Link="Production/StockTPRepository.cs" />
     <Compile Include="../PCTP/Modules/NhapKho/Interfaces/IStockTpRepository.cs" Link="Production/IStockTpRepository.cs" />
     <Compile Include="../PCTP/Modules/KhoCore/Repositories/BulkStockSlotRepository.cs" Link="Production/BulkStockSlotRepository.cs" />
