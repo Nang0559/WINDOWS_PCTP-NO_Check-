@@ -45,12 +45,14 @@ namespace PCTP.Modules.KhoCore.Application.Contracts.Stock
         public DateTime? ProductionDate { get; set; }
         public int ProductionQuantity { get; set; }
         public int? ReceivingStatus { get; set; }
+        public string ReceivingNgaySX { get; set; }
+        public string ReceivingSoPhieuTong { get; set; }
+        public string ReceivingMaPhieu { get; set; }
+        public string ReceivingParentSoPhieu { get; set; }
 
         /// <summary>
-        /// true = caller TỰ ghi dòng SlotLot (vd. nhập TP: PhieuTrackingRepository.InsertPhieuMoi tạo dòng
-        /// có MaPhieu/QrData/TemCode — là dòng mà ExistsQrData và đối chiếu tồn dựa vào).
-        /// Khi đó StockMovementService chỉ cộng tồn header Slot, KHÔNG thêm dòng SlotLot thứ hai
-        /// (tránh 1 tem thành 2 dòng → tồn SlotLot bị đếm gấp đôi).
+        /// Compatibility switch for legacy callers that still own SlotLot detail.
+        /// New receiving workflows must leave this false so KhoCore writes the detail atomically.
         /// </summary>
         public bool SlotLotWrittenByCaller { get; set; }
     }
