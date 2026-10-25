@@ -28,7 +28,7 @@ Tài liệu này mô tả chi tiết luồng vận hành và kiến trúc xử l
 6. **Thực hiện atomic receiving qua KhoCore trong transaction:**
    * Lấy application lock theo thứ tự QR → LOT bằng `IStockTpImportGuardRepository`. Khóa LOT tuần tự hóa các tem khác nhau cùng cập nhật một LOT sản xuất.
    * Kiểm tra QR đã nhập trong `SlotLot.QrData` hoặc `StockHistory(IMPORT)` sau khi đã lấy khóa.
-   * `StockMovementService.Receive` gọi `IStockReceivingRepository` để insert/update `STOCKTP` qua adapter legacy, sau đó gọi `BulkStockSlotRepository.AddLot` để ghi một dòng SlotLot với TemCode, QrData, NgaySX, SoPhieuTong, MaPhieu, ParentSoPhieu, ImportDate và PhieuStatus; đồng thời tính lại Slot header.
+   * `StockMovementService.Receive` gọi `IStockReceivingRepository` do `Infrastructure.Stock.StockReceivingRepository` triển khai trực tiếp (không còn adapter `NhapKho` trong module factory) để insert/update `STOCKTP`, sau đó gọi `BulkStockSlotRepository.AddLot` để ghi một dòng SlotLot với TemCode, QrData, NgaySX, SoPhieuTong, MaPhieu, ParentSoPhieu, ImportDate và PhieuStatus; đồng thời tính lại Slot header.
    * `AddLot` từ chối chạy nếu không có transaction. Workflow owner chịu trách nhiệm rollback khi movement trả Fail/Duplicate.
    * `IPhieuTrackingRepository.InsertPhieuMoi` không còn được gọi trong luồng nhập thành phẩm chuẩn; repository vẫn có thể tồn tại cho các caller legacy khác.
 7. **Ghi Lịch Sử & Commit:**
