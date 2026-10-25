@@ -32,7 +32,7 @@ namespace PCTP.Infrastructure.Stock
             EnsureTransaction();
             if (string.IsNullOrWhiteSpace(lotNo)) return false;
             object value = ExecuteScalar(
-                `SELECT COUNT(1) FROM " + _stockTable + " WITH (UPDLOCK, HOLDLOCK) WHERE LOT=@lot`,
+                "SELECT COUNT(1) FROM " + _stockTable + " WITH (UPDLOCK, HOLDLOCK) WHERE LOT=@lot",
                 new SqlParameter("@lot", lotNo.Trim()));
             int count = value == null || value == DBNull.Value ? 0 : Convert.ToInt32(value);
             if (count > 1) throw new InvalidOperationException(
@@ -45,7 +45,7 @@ namespace PCTP.Infrastructure.Stock
             EnsureTransaction();
             if (string.IsNullOrWhiteSpace(lotNo)) return 0;
             DataTable rows = LoadData(
-                `SELECT ISNULL(SLNHAP,0) AS SLNHAP FROM " + _stockTable + " WITH (UPDLOCK, HOLDLOCK) WHERE LOT=@lot`,
+                "SELECT ISNULL(SLNHAP,0) AS SLNHAP FROM " + _stockTable + " WITH (UPDLOCK, HOLDLOCK) WHERE LOT=@lot",
                 new SqlParameter("@lot", lotNo.Trim()));
             if (rows == null || rows.Rows.Count == 0) return 0;
             if (rows.Rows.Count != 1) throw new InvalidOperationException(
