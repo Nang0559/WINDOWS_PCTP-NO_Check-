@@ -1,7 +1,7 @@
 # WMS Implementation Audit — 2026-10-25
 
 > Phạm vi: đối chiếu code thực tế, SQL, test và tài liệu trên branch `feature/wms-end-to-end-consistency`.
-> Code snapshot đã rà soát cho cập nhật này: `6a5351c40ad19ec20135ec4a43b06670ad3861e6`. CI của HEAD tài liệu đang chạy; xem evidence trên GitHub Actions.
+> Code snapshot ban đầu của đợt rà soát: `6a5351c40ad19ec20135ec4a43b06670ad3861e6`. Các thay đổi tiếp theo được ghi nhận theo commit và CI evidence tương ứng; không coi snapshot cũ là HEAD hiện tại.
 > Đây là biên bản hiện trạng đã xác minh, không phải tuyên bố hệ thống đã đạt Single Writer.
 
 ## 1. Kết luận điều hành
@@ -20,7 +20,7 @@ Không gộp `IStockExportService` với `IStockMovementService`: một bên đi
 
 | Luồng | Code thực tế | Mutation đã xác minh | Trạng thái |
 |---|---|---|---|
-| Nhập thành phẩm | `NhapTpReceivingService.NhapTpVaoSlot` | Lấy applock QR → LOT; gọi `IStockMovementService.Receive`; command gọi receiving adapter cập nhật STOCKTP, `BulkStockSlotRepository.AddLot` ghi SlotLot đầy đủ metadata và refresh Slot header; workflow ghi history trước commit. | **SlotLot + Slot header đã chuyển vào KhoCore command**; STOCKTP vẫn đi qua `StockReceivingRepositoryAdapter` → `StockTPRepository` legacy, nên chưa Single Writer hoàn toàn ở persistence layer. |
+| Nhập thành phẩm | `NhapTpReceivingService.NhapTpVaoSlot` | Lấy applock QR → LOT; gọi `IStockMovementService.Receive`; command gọi `IStockReceivingRepository` (hiện triển khai bằng `Infrastructure.Stock.StockReceivingRepository`) insert/update STOCKTP, `BulkStockSlotRepository.AddLot` ghi SlotLot đầy đủ metadata và refresh Slot header; workflow ghi history trước commit. | **SlotLot + Slot header và STOCKTP đã đi qua KhoCore command/port**; STOCKTP persistence được triển khai trong `Infrastructure.Stock.StockReceivingRepository`, cùng UnitOfWork. Vẫn cần hoàn tất test schema thật và rà soát các writer ngoài luồng nhập. |
 | Xuất kho — Pick | `StockExportService.PickToChoGiao` | Khóa Slot, gọi `IStockMovementService.Pick`, tạo `HangChoGiao`, lưu history trong cùng UoW. Pick không trừ STOCKTP. | Dùng workflow + movement boundary. |
 | Hủy chờ giao | `StockExportService.CancelChoGiao` | Gọi `RestorePicked` để hoàn chi tiết đã pick; cập nhật trạng thái chờ giao và history. Không cộng lại STOCKTP vì Pick chưa trừ STOCKTP. | Dùng workflow + movement boundary. |
 | Xác nhận giao | `StockExportService.ConfirmGiaoHangTuChoGiao` | Gọi `IStockMovementService.Export` để trừ STOCKTP và SlotLot; cập nhật HangChoGiao, ghi history trong cùng UoW. | Dùng workflow + movement boundary. |
@@ -48,7 +48,7 @@ Kết luận: `IStockMovementService` hiện chỉ quản lý một phần SlotL
 
 `NhapTpReceivingService` hiện không gọi `_phieuRepo.InsertPhieuMoi` trong luồng nhập thành phẩm chuẩn và không bật `SlotLotWrittenByCaller`. Workflow truyền TemCode, QrData, NgaySX, SoPhieuTong, MaPhieu và ParentSoPhieu vào `StockMovementRequest`. `StockMovementService.AddToSlot` gọi receiving adapter để cập nhật STOCKTP, sau đó gọi `BulkStockSlotRepository.AddLot` ghi SlotLot và cập nhật Slot header. `AddLot` fail-closed nếu không có transaction. `ImportDate` của nhận hàng giữ timestamp thực tế, không lấy ngày sản xuất.
 
-Phần còn lại: `StockReceivingRepositoryAdapter` vẫn ủy quyền STOCKTP cho `StockTPRepository`; cần chuyển persistence này vào KhoCore khi có contract/storage migration phù hợp. Phải tiếp tục test QR duplicate, multi-QR same LOT, partial receipt, reopen LOT, capacity, metadata và rollback trên schema được DBA xác nhận.
+Phần đã chuyển tiếp: `StockReceivingRepositoryAdapter` đã được thay khỏi hai module factory bằng `Infrastructure.Stock.StockReceivingRepository`, triển khai trực tiếp `IStockReceivingRepository`. Repository yêu cầu transaction, khóa đọc LOT bằng `UPDLOCK, HOLDLOCK`, kiểm tra LOT duy nhất, giữ nguyên INSERT/UPDATE các cột và phép cộng SLNHAP/SLCONLAI/SATUS của legacy. SQL integration đã được mở rộng để chạy implementation mới trên #STOCKTP cùng UoW và rollback fixture. Còn phải chờ CI xác nhận commit mới và kiểm thử trên schema/seed DBA xác nhận cho QR duplicate, multi-QR same LOT, partial receipt, reopen LOT, capacity, metadata và rollback xuyên STOCKTP + Slot + SlotLot + history.
 
 ### 3.3 KhoCore chuyên biệt
 
@@ -72,7 +72,7 @@ Phần còn lại: `StockReceivingRepositoryAdapter` vẫn ủy quyền STOCKTP 
 
 ### Giới hạn quan trọng
 
-- Run `40172884697` trên code snapshot trước thay đổi nhập SlotLot đã PASS ba job. Run `40173319239` phát hiện hai vấn đề mới trong test: một assertion source-contract tìm nhầm AddLot ở Correct thay vì AddToSlot, và fixture `#SlotLot` thiếu CreatedDate/metadata columns. Đã sửa assertion, mở rộng fixture và schema audit; run `40173498043` trên commit `6a5351c40ad19ec20135ec4a43b06670ad3861e6` đang chờ chạy. Chưa công nhận các thay đổi nhập SlotLot PASS cho đến khi run này hoàn tất.
+- Run `40173518138` trên commit `fa1f0a5183007ed468d1a01ccb9231449039c597` đã hoàn tất với conclusion `success` (3 jobs: SQL engine integration, unit/regression, desktop runner build). Đây là evidence cho Wave 2 bước chuyển SlotLot metadata, không phải evidence cho các thay đổi native STOCKTP repository được commit sau đó. Run mới phải xác nhận đúng HEAD mới trước khi công nhận thay đổi này PASS.
 - SQL integration hiện dùng database CI cô lập/fixture engine; không chứng minh toàn bộ stored procedure nghiệp vụ chạy đúng trên schema sản xuất đại diện.
 - G6 business journeys `receive`, `qc-direction`, `qc-final`, `delivery-hvn` còn cấu hình chưa hoàn tất theo tài liệu G6; chỉ self-test đã cấu hình. Không được gọi G6 business E2E là PASS.
 - `DeliveryTransactionContractTests` và `DeliveryProductionBoundaryTests` hiện đang kiểm tra/đòi hỏi repository gọi stored procedure trừ tồn, sau đó xử lý kết quả và hoàn tất chờ giao. Các test này bảo vệ transaction contract hiện hữu, nhưng chưa bảo vệ mục tiêu Single Writer mới. Khi migrate giao hàng, phải thay đổi assertion có chủ đích; không xóa test rollback/idempotency.
@@ -101,7 +101,7 @@ Phần còn lại: `StockReceivingRepositoryAdapter` vẫn ủy quyền STOCKTP 
 1. **Đã làm:** chuyển SlotLot detail + metadata từ `PhieuTrackingRepository.InsertPhieuMoi` vào `StockMovementService.Receive` → `BulkStockSlotRepository.AddLot`; bắt buộc transaction; giữ ImportDate là thời điểm nhập thực tế.
 2. **Đã làm:** applock theo QR → LOT để tuần tự hóa hai tem khác nhau cùng cập nhật một LOT sản xuất.
 3. **Đã làm:** bổ sung source-contract test và SQL fixture kiểm tra persistence của metadata; fixture được mở rộng theo schema cột thực tế mà legacy `InsertPhieuMoi` đã sử dụng.
-4. **Còn lại:** đưa STOCKTP persistence ra khỏi `StockReceivingRepositoryAdapter`/`StockTPRepository` legacy.
+4. **Đã chuyển code:** thay `StockReceivingRepositoryAdapter` khỏi cả `NhapTpModuleFactory` và `MainStockModuleFactory`; `Infrastructure.Stock.StockReceivingRepository` triển khai `IStockReceivingRepository` và dùng chung UoW. `StockTPRepository` vẫn tồn tại cho các truy vấn/luồng legacy khác, chưa xóa.
 5. **Còn lại:** kiểm thử tích hợp nhận thật trên schema/seed DBA xác nhận cho QR duplicate, số phiếu trùng, nhiều tem cùng lệnh sản xuất, receive partial/retry, reopen LOT, capacity và rollback xuyên STOCKTP + Slot + SlotLot + history.
 
 ### Wave 3 — Hàng lỗi / Rework / Giao bù / Quarantine
