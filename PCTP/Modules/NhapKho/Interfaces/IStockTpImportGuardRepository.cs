@@ -20,5 +20,12 @@ namespace PCTP.Modules.NhapKho.Repository
         /// BẮT BUỘC gọi sau IUnitOfWork.Begin() và TRƯỚC khi kiểm tra trùng.
         /// </summary>
         void AcquireImportLock(string qrData);
+
+        /// <summary>
+        /// Serializes receiving updates for the same LOT so cumulative received quantity
+        /// and completion status are calculated from the latest committed value.
+        /// Must be called inside the receiving UnitOfWork, after the QR lock.
+        /// </summary>
+        void AcquireLotImportLock(string lotNo);
     }
 }
