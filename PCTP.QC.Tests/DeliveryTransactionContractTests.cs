@@ -63,6 +63,35 @@ public sealed class DeliveryTransactionContractTests
     }
 
     [Fact]
+    public void StockProcedureSp_SerializesFifoAndGuardsStockDecrement()
+    {
+        var sql = ReadSource("Usp_Qrcode_Update_Stock_SP.sql");
+
+        var transactionStart = sql.IndexOf("IF @@TRANCOUNT = 0", StringComparison.OrdinalIgnoreCase);
+        var appLock = sql.IndexOf("sys.sp_getapplock", StringComparison.OrdinalIgnoreCase);
+        var fifoCursor = sql.IndexOf("DECLARE cur CURSOR", StringComparison.OrdinalIgnoreCase);
+        var stockUpdate = sql.IndexOf("UPDATE STOCKTP", StringComparison.OrdinalIgnoreCase);
+
+        Assert.Contains("PCTP_DELIVERY_FIFO_SP", sql);
+        Assert.Contains("@LockOwner = N'Transaction'", sql);
+        Assert.Contains("WITH (UPDLOCK, HOLDLOCK)", sql);
+        Assert.Contains("AND ISNULL(SLCONLAI, 0) >= @slCan", sql);
+        Assert.Contains("SET @StockUpdated = CASE WHEN @@ROWCOUNT = 1 THEN 1 ELSE 0 END", sql);
+        Assert.Contains("IF @StockUpdated <> 1", sql);
+        Assert.True(transactionStart >= 0 && appLock > transactionStart && fifoCursor > appLock && stockUpdate > fifoCursor,
+            "The FIFO path must start/join its transaction and acquire the transaction-owned lock before reading delivery rows or decrementing stock.");
+    }
+
+    [Fact]
+    public void YmvnFifoAllocation_UsesStableTieBreakerForEqualReceiptDates()
+    {
+        var source = ReadSource("PhieuKhoRepository.source.cs");
+        Assert.Contains("ORDER BY NGAYNHAP ASC, LOT ASC", source);
+        Assert.Contains("WITH (UPDLOCK, HOLDLOCK)", source);
+        Assert.Contains("WHERE LOT = @lot AND SLCONLAI >= @sl", source);
+    }
+
+    [Fact]
     public void DeliveryRepository_DoesNotConsumeRolledBackSuccessRowsWhenProcedureReturnsErrors()
     {
         var source = ReadSource("PhieuKhoRepository.source.cs");
