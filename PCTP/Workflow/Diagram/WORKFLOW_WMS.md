@@ -16,7 +16,7 @@ Tài liệu này phân biệt kiến trúc đích với code đang chạy. Khôn
 |---|---|
 | IStockMovementService / StockMovementService | Primitive commands: Receive, Pick, Export, Move, ReturnFromRework, Correct, RestorePicked. |
 | IStockExportService / StockExportService | Workflow xuất: validate, lock, Pick, HangChoGiao, xác nhận Export, hủy chờ giao, chứng từ và history. |
-| INhapTpReceivingService / NhapTpReceivingService | Workflow nhận QR/phiếu nhập, production metadata, receiving tracking, chống trùng, transaction và history; hiện vẫn có đường caller ghi SlotLot. |
+| INhapTpReceivingService / NhapTpReceivingService | Workflow nhận QR/phiếu nhập, production metadata, receiving tracking, chống trùng, transaction và history; gọi StockMovementService.Receive để KhoCore ghi SlotLot detail. |
 | QuarantineReleaseService | Command chuyên biệt KhoCore để chuyển hàng cách ly sang khả dụng, cập nhật SlotLot + STOCKTP + audit trong transaction. |
 | PhieuKhoRepository | Hiện vẫn có đường giao hàng khách gọi SP/SQL để trừ STOCKTP, sau đó đồng bộ SlotLot và đóng chứng từ. Đây là phần chưa đạt đích. |
 
@@ -24,11 +24,11 @@ Tài liệu này phân biệt kiến trúc đích với code đang chạy. Khôn
 
 ### 3.1 Nhập thành phẩm
 
-QR / phiếu sản xuất → NhapTpReceivingService parse, validate, chống trùng → StockMovementService.Receive → PhieuTrackingRepository.InsertPhieuMoi tạo chi tiết phiếu/SlotLot (caller-owned) → history + commit.
+QR / phiếu sản xuất → NhapTpReceivingService parse, validate, khóa QR → LOT, chống trùng → StockMovementService.Receive → IStockReceivingRepository cập nhật STOCKTP + BulkStockSlotRepository.AddLot ghi SlotLot metadata/QR/phiếu và cập nhật Slot header → history + commit.
 
 Trong transaction, workflow lấy application lock theo QR trước, sau đó theo LOT (`AcquireImportLock` → `AcquireLotImportLock`). Khóa QR chống hai máy nhập cùng tem; khóa LOT tuần tự hóa các tem khác nhau cùng đóng góp vào một STOCKTP LOT, để phép tính SLNHAP/status không dùng snapshot cũ. Khóa được giữ đến commit/rollback.
 
-Điểm cần hoàn thiện: đưa việc tạo SlotLot detail vào atomic receiving command hoặc port KhoCore được ủy quyền rõ ràng. Không tạo LOT vật lý mới cho từng phiếu nếu LOT sản xuất là duy nhất.
+Đã chuyển SlotLot detail (TemCode, QrData, NgaySX, SoPhieuTong, MaPhieu, ParentSoPhieu, PhieuStatus) vào StockMovementService.Receive/BulkStockSlotRepository trong transaction của workflow. STOCKTP vẫn đi qua adapter legacy; cần tiếp tục đưa persistence STOCKTP về KhoCore. Không tạo LOT vật lý mới cho từng phiếu nếu LOT sản xuất là duy nhất.
 
 ### 3.2 Xuất kho chuẩn (Pick → Confirm)
 
