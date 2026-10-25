@@ -1,116 +1,142 @@
-# WMS OVERALL STATUS
+# WMS — BẢNG TỔNG HỢP TOÀN BỘ
 
-> Snapshot after commit `112a44f2980b406a3df1abbac445a1376287b9d8`.
+> **Ngày rà soát:** 2026-10-25  
+> **Repository:** `Nang0559/WINDOWS_PCTP-NO_Check-`  
+> **Branch:** `feature/wms-end-to-end-consistency`  
+> **Baseline đã xác minh trước khi cập nhật tài liệu:** `e334fed1528d8d4ca89179f87dace182a2bc451c`  
+> **PR:** #3 — Draft  
+> **Nguyên tắc:** bảng này ghi nhận trạng thái theo bằng chứng code/SQL/test đang có; không dùng phần trăm ước lượng và không suy diễn PASS từ việc có class, migration hoặc source-contract test.
 
-## 1. Tổng quan kiến trúc hiện tại
+## 1. Kết luận điều hành
 
-```text
-NhapKho ───────────────┐
-XuatKho ───────────────┤
-GiaoHangKhach ─────────┤
-XuLyHangLoi ───────────┤
-                       v
-              IStockMovementService
-                       |
-              StockMovementService
-                 /      |      \
-                v       v       v
-      IStockBalance  IStockSlot  IStockReceiving
-          |              |             |
-          v              v             v
-      legacy DB      legacy Slot    STOCKTP receive
-       adapter         adapter         adapter
-```
+WMS đã có các ranh giới xử lý tồn kho tập trung qua KhoCore / `IStockMovementService`, các workflow nhập/xuất/Rework và lớp audit. Tuy nhiên, **chưa đạt Single Writer toàn hệ thống và chưa hoàn tất kiểm thử nghiệp vụ end-to-end**.
 
-## 2. Phase status
+Ba điểm chặn quan trọng nhất:
 
-| Phase | Status | Ghi chú |
+1. **Giao Hàng Khách:** một số nhánh vẫn trừ `STOCKTP` bằng stored procedure hoặc SQL trực tiếp tại `PhieuKhoRepository`, sau đó mới điều chỉnh `SlotLot`. Đây là đường ghi tồn ngoài stock command thống nhất.
+2. **Rework:** `QTChungService.XuatKhoRework` đã có idempotency theo `OperationId` và application lock, nhưng chưa gọi guard Phase 4 để chặn xuất vượt số lượng Rework được Initial QC duyệt. Việc tạo service trong factory không chứng minh guard được gọi ở lệnh xuất thật.
+3. **Verification:** CI gần nhất đã xác nhận 3 job tự động thành công, nhưng chưa chứng minh build ứng dụng WinForms đầy đủ trên môi trường mục tiêu, G5/G6 UI journey nghiệp vụ, schema SQL sản xuất đại diện hoặc kiểm thử đồng thời xuyên toàn workflow.
+
+**Quyết định:** giữ PR #3 ở Draft; không tuyên bố WMS hoàn thành cho tới khi các điều kiện đóng wave ở mục 7 đạt đủ.
+
+## 2. Bảng tổng hợp phạm vi nghiệp vụ WMS
+
+| ID | Phân hệ / nghiệp vụ | Luồng chuẩn cần bảo đảm | Trạng thái code đã rà | Rủi ro / phần còn thiếu | Ưu tiên |
+|---|---|---|---|---|---|
+| WMS-01 | KhoCore — tồn tổng | Một owner cho STOCKTP, Slot, SlotLot; transaction và audit thống nhất | Đã có `IStockMovementService / StockMovementService`; có adapter và command chuyên biệt | Chưa Single Writer toàn repo; còn writer legacy và QuarantineRelease là command chuyên biệt cần được quy định rõ ownership | P0 |
+| WMS-02 | Nhập thành phẩm | QR → LOT → Slot/SlotLot → STOCKTP → history trong cùng UoW | Đã chuyển đường nhập chuẩn qua `StockMovementService.Receive` và `Infrastructure.Stock.StockReceivingRepository`; có applock theo QR/LOT | Cần schema/seed DBA đại diện; kiểm QR trùng, nhiều QR cùng LOT, nhập một phần, reopen LOT, capacity, metadata và rollback xuyên các bảng | P1 |
+| WMS-03 | Xuất kho — Pick | Khóa Slot, phân bổ LOT, giảm lượng khả dụng/picked, tạo HangChoGiao và history | Đã điều phối qua `StockExportService` + `IStockMovementService.Pick` | Cần kiểm thử đồng thời Pick/Export, phân bổ Slot/LOT và đối chiếu số dư | P1 |
+| WMS-04 | Hủy chờ giao | Khôi phục đúng lượng đã Pick, không cộng STOCKTP lần hai | Có `RestorePicked` và cập nhật trạng thái/histories trong workflow | Cần test retry, partial cancel, double cancel và rollback | P1 |
+| WMS-05 | Xác nhận giao từ chờ giao | Export trừ STOCKTP + SlotLot, đóng HangChoGiao và ghi history một transaction | Đã có `ConfirmGiaoHangTuChoGiao` qua `IStockMovementService.Export`; có bảo vệ trạng thái/GetForUpdate | Cần SQL integration và UI E2E trên schema đại diện | P1 |
+| WMS-06 | Xuất trực tiếp | Phân bổ FIFO/QR/PART/LOT, chứng từ và tồn đồng nhất | Có `StockExportService.XuatTrucTiep` và workflow idempotency | Rà hết nhánh Slot/A0, allocation nhiều LOT, retry và duplicate | P1 |
+| WMS-07 | Giao Hàng Khách | FIFO RAM/DB, QR/PART/multi-LOT, STOCKTP + SlotLot + chứng từ + history cùng UoW | Đã có transaction/rollback ở các nhánh đã rà; một phần SlotLot qua movement | **P0 blocker:** `PhieuKhoRepository` còn gọi `Usp_Qrcode_Update_Stock2405`, `Usp_Qrcode_Update_Stock_SP`, SQL YMVN/`TruStockTpFifo` để trừ STOCKTP rồi mới điều chỉnh SlotLot | P0 |
+| WMS-08 | Hàng lỗi — truy vết LOT | Tập hợp nguồn sản xuất, tồn kho, hàng trả; snapshot ảnh hưởng | Có `AffectedLotTraceService` và dữ liệu AffectedLot | Cần kiểm tra độ đầy đủ nguồn trace, snapshot bất biến và đồng bộ khi tồn thay đổi | P1 |
+| WMS-09 | Hàng lỗi — Initial QC | QC đủ lượng ảnh hưởng; OK + NG = inspected; NG = Rework + loại bỏ | Có validation và lưu Initial QC trong `IAffectedLotTraceService.cs` | Cần SQL integration xác nhận unique ticket, concurrency, update affected LOT và rollback | P1 |
+| WMS-10 | Rework — kế hoạch và xuất | Chỉ xuất theo `SoLuongRework` đã duyệt; retry không xuất trùng | Có ledger `OperationId`, app lock theo phiếu, unique filtered index migration Phase 14 | **P0 blocker:** `QTChungService.XuatKhoRework` chưa gọi guard `EnsureCanExport`; phải fail-closed và chống vượt hạn mức dưới concurrency | P0 |
+| WMS-11 | Rework — giao sản xuất | Chỉ giao lượng đã xuất và không vượt lượng QC duyệt | Có chuỗi Phase 4–9 và báo cáo kế hoạch được mô tả trong tài liệu | Chưa đủ bằng chứng lệnh giao thực tế khóa/cập nhật kế hoạch cùng transaction và chặn giao vượt | P0 |
+| WMS-12 | Rework — QC cuối | Chỉ QC sau khi xuất/giao đủ; OK + NG = lượng Rework | Quy tắc được mô tả trong `PHASE4_9_COMPLETION_STATUS.md` | Cần xác minh guard trong command thật, SQL CHECK, unique result và test transition | P1 |
+| WMS-13 | Disposition / loại bỏ | Tổng loại bỏ cuối = loại bỏ ban đầu + NG sau Rework | Quy tắc nghiệp vụ được tài liệu hóa | Cần xác minh phép cộng từ dữ liệu chuẩn, quyền phê duyệt, audit và test không ghi trùng | P1 |
+| WMS-14 | Giao bù NG | Nghĩa vụ giao bù là chứng từ độc lập, số lượng theo yêu cầu khách hàng | `GiaoBuNGService` điều phối qua `IStockExportService` trong đường code đã rà | Phải chứng minh không suy ra giao bù từ NG; chống giao trùng/vượt nghĩa vụ; rollback và audit | P1 |
+| WMS-15 | Quarantine / QC release | Hàng cách ly không được tính tồn khả dụng; chỉ release theo QC/quyền hợp lệ | Có `QuarantineReleaseService` thuộc KhoCore, khóa Slot và cập nhật SlotLot/STOCKTP/audit | Cần ghi rõ đây là command chuyên biệt thuộc KhoCore; kiểm concurrency, quyền và đối chiếu tồn | P1 |
+| WMS-16 | Lịch sử / audit | Mỗi biến động có chứng từ, người thao tác, thời điểm, loại movement và liên kết nguồn | Workflow ghi history trong cùng UoW ở các luồng đã rà | `StockMovementService` không tự ghi StockHistory; phải rà mọi caller để tránh thiếu hoặc ghi hai lần | P1 |
+| WMS-17 | Idempotency / retry | Một business operation retry không làm tăng/giảm tồn lần hai | Có key theo workflow cho một số luồng Xuất kho và Rework | Chưa có generic durable idempotency cho mọi `StockMovementRequest`; phải xác định key theo nghiệp vụ, không dùng GUID mới mỗi lần retry | P1 |
+| WMS-18 | Legacy cleanup | Không còn caller ghi tồn ngoài owner đã quy định | Một số contract legacy đã được loại khỏi Nhập kho | Còn stored procedure/repository legacy, transitional adapters và caller cần static scan + bằng chứng | P1 |
+
+## 3. Bảng tổng hợp kiến trúc và quyền sở hữu dữ liệu
+
+| Thành phần | Trách nhiệm đúng | Trạng thái / quy tắc kiểm soát |
 |---|---|---|
-| Phase 1 - Architecture contract | 🟡 90% | Contract/rules/ownership/state-machine đã có; còn dọn tài liệu legacy mâu thuẫn. |
-| Phase 2 - KhoCore consolidation | 🟡 70% | Contract mới và adapter boundary đã có; physical ownership chưa hoàn toàn về KhoCore. |
-| Phase 3 - Central StockMovement | 🟢 92% | Central boundary, source LOT invariant, NhapKho writer cleanup và XuLy composition đã làm; generic idempotency + tests còn thiếu. |
-| Phase 4 - NhapKho | 🟢 95% | Receiving mutation qua StockMovement; legacy export/correction escape hatches đã loại khỏi NhapKho contract. |
-| Phase 5 - XuatKho | 🟢 98% | PICK/EXPORT qua StockMovement; workflow-level idempotency đã thêm cho PickToChoGiao/XuatTrucTiep. |
-| Phase 6 - GiaoHangKhach | 🟢 100% | 12A-12H hoàn tất; BulkStockAdjust không còn direct A0 SlotLot mutation. |
-| Phase 7 - XuLyHangLoi | 🟢 90% | Rework mutation qua StockMovement; composition root + shared UoW đã wired. |
-| Phase 8 - Shared cleanup | 🔴 Chưa đóng | Chưa ưu tiên trước verification gate. |
-| Phase 9 - Legacy cleanup | 🟡 30% | Transitional adapters vẫn còn. |
-| Phase 10 - Verification | 🟡 35% | Static review tiến thêm; build/integration/concurrency tests còn thiếu. |
+| Workflow services | FIFO, chọn chứng từ/LOT, kiểm tra nghiệp vụ, trạng thái, điều phối transaction | Được phép điều phối; không tự ý tạo đường ghi tồn thứ hai |
+| `IStockMovementService` / `StockMovementService` | Receive, Pick, RestorePicked, Export, Move, ReturnFromRework và movement chuẩn | Caller sở hữu UoW với movement thông thường; phải rollback khi result fail |
+| KhoCore application commands | Các nghiệp vụ stock chuyên biệt như Quarantine release | Được phép là command riêng nếu cùng tuân thủ ownership, khóa, transaction, audit và test |
+| STOCKTP repository/adapter | Persistence tồn tổng theo contract | Không để repository nghiệp vụ tự trừ tồn ngoài command owner |
+| Slot / SlotLot repository | Persistence tồn vị trí và LOT | Phải cùng transaction với STOCKTP khi nghiệp vụ thay đổi cả hai |
+| StockHistory / workflow audit | Dấu vết biến động và chuyển trạng thái | Ghi cùng transaction với dữ liệu nghiệp vụ; xác định một nơi chịu trách nhiệm để không thiếu/trùng |
+| Legacy stored procedures | Compatibility/đối chiếu trong giai đoạn chuyển đổi | Không được đồng thời trừ tồn với application command; chỉ loại bỏ sau khi đối chiếu FIFO/QR/PART và rollback |
+| Business idempotency ledger | Ghi nhận một lần thực thi theo khóa nghiệp vụ | Kiểm tra trong transaction/lock trước physical mutation; unique constraint là lớp bảo vệ cuối |
 
-## 3. Gate đã đóng
+## 4. Bảng tổng hợp Phase triển khai
 
-### Legacy writer cleanup
+| Phase / Wave | Phạm vi | Đánh giá hiện tại | Điều kiện đóng |
+|---|---|---|---|
+| Phase 1 | Architecture contract, ownership, state machine | 🟡 Một phần đã có | Chốt một mô hình ownership không mâu thuẫn giữa StockMovement và command chuyên biệt; loại tài liệu legacy sai |
+| Phase 2 | KhoCore consolidation | 🟡 Một phần đã có | Các writer STOCKTP/Slot/SlotLot có owner rõ; dependency scan không còn bypass ngoài danh sách ngoại lệ được duyệt |
+| Phase 3 | Central StockMovement | 🟡 Đã có command trung tâm | Kiểm toàn bộ caller; idempotency/business key, rollback và concurrency có SQL integration |
+| Phase 4 | Nhập kho | 🟡 Đã chuyển đường nhập chuẩn | Chạy đủ QR/LOT/multi-QR/partial/reopen/capacity/metadata/rollback trên schema DBA đại diện |
+| Phase 5 | Xuất kho | 🟡 Đã có Pick/Export workflow | Đóng mọi nhánh trực tiếp, chờ giao, retry, duplicate, FIFO, Slot/LOT và concurrency |
+| Phase 6 | Giao Hàng Khách | 🔴 Chưa đóng | Thay đường trừ STOCKTP tại repository/SP bằng command thống nhất; giữ parity FIFO/QR/PART/multi-LOT; test rollback |
+| Phase 7 | Hàng lỗi / Rework / Giao bù / Quarantine | 🔴 Chưa đóng | Nối Phase 4 guard vào export và delivery thật; QC cuối/disposition/compensation đúng số lượng; test đồng thời |
+| Phase 8 | Shared cleanup | 🟡 Chưa đóng | Xóa trùng logic, thống nhất DI/composition root, transaction, audit, idempotency |
+| Phase 9 | Legacy cleanup | 🟡 Chưa đóng | Static scan toàn repo; loại legacy callers/adapters sau khi chứng minh parity và không còn consumer |
+| Phase 10 | Verification / release | 🔴 Chưa đóng | G1–G6 đủ bằng chứng, build ứng dụng thật, SQL integration, UI E2E, cleanup sạch, evidence đúng commit SHA |
 
-Đã loại khỏi business-facing NhapKho contracts:
+## 5. Bảng Gate kiểm thử và bằng chứng
 
-- `IStockTpRepository.XuatKhoThat(...)`
-- `IStockTpRepository.DieuChinhSlConLai(...)`
-- `IStockTpLookupService.DieuChinhSlConLai(...)`
+| Gate | Nội dung phải chứng minh | Evidence hiện có | Trạng thái |
+|---|---|---|---|
+| G1 — Traceability | Mỗi yêu cầu/luồng nối được code ↔ SQL object ↔ transaction ↔ test ↔ tài liệu; không còn gap chưa xử lý | Đợt rà trước ghi nhận 87 code rows, 75 code gaps, 12 SQL scripts, 104 gaps tổng; chưa có kết quả G1 PASS mới được xác minh | 🔴 OPEN |
+| G2 — Unit/regression | Unit/source-contract và regression bảo vệ quy tắc nghiệp vụ | CI gần nhất chạy job `unit-regression-tests` thành công trên commit `e334fed...` | 🟢 PASS trên commit đó |
+| G3 — SQL integration | Chạy implementation/repository thật với SQL engine cô lập, kiểm dữ liệu và rollback | CI gần nhất chạy job `sql-engine-integration` thành công; chưa tương đương schema nghiệp vụ sản xuất đầy đủ | 🟡 PASS có giới hạn |
+| G4 — Production procedure compatibility | Kiểm procedure thật trong DB thử nghiệm được cô lập, rollback-only và có G3 PASS cùng commit | Chưa có bằng chứng mới xác nhận schema/seed/procedure nghiệp vụ đại diện | 🔴 BLOCKED |
+| G5 — UI journeys | AutomationId thật; chạy 5 hành trình UI; assert dữ liệu sau thao tác | UI runner/build job có chạy; các business journey chưa có bằng chứng PASS đầy đủ | 🔴 OPEN |
+| G6 — Full business E2E | Seed → thao tác UI → assert DB → cleanup; Remaining = 0; database cô lập | Các journey receive, QC direction, QC final, delivery HVN chưa được xác nhận PASS; self-test không thay thế business E2E | 🔴 OPEN |
 
-### XuLyHangLoi composition root
+### CI snapshot
 
-`XuLyHangLoiModuleFactory` là composition root. `WarehouseProcessNavigator` tạo một `PhieuSqlExecutor` + `UnitOfWork` cho workflow và truyền cùng graph vào `XuLyHangLoiModuleFactory`, `GiaoBuNGService`, `StockExportService`.
+- Branch HEAD được xác minh: `e334fed1528d8d4ca89179f87dace182a2bc451c`.
+- Workflow run gần nhất được ghi nhận: `40195012228`, kết luận success, 3/3 jobs: `unit-regression-tests`, `sql-engine-integration`, `desktop-runner-build`.
+- Đây là kết quả CI của commit trên; không được dùng thay bằng chứng G1/G4/G5/G6 hoặc schema production representative.
+- Không được dùng database production hoặc SQL dùng chung để chạy test có mutation. G4 phải rollback-only; G6 chỉ chạy trên database cô lập có xác nhận.
 
-### XuatKho workflow idempotency
+## 6. Danh sách blocker theo thứ tự ưu tiên
 
-XuatKho đã có durable reference trong `StockHistory.MaPhieu`. `StockExportService` kiểm tra `ActionType + MaPhieu` trước physical mutation cho `PickToChoGiao` và `XuatTrucTiep`.
+| Mã | Blocker | Hậu quả nếu chưa xử lý | Hành động đóng |
+|---|---|---|---|
+| B0-01 | Giao Hàng Khách còn trừ STOCKTP qua SP/SQL trong `PhieuKhoRepository` | Hai nguồn mutation có thể lệch STOCKTP và SlotLot | Thiết kế delivery stock command theo allocation LOT/Slot; migration từng nhánh; không chạy song song hai writer |
+| B0-02 | Rework export chưa gọi Phase 4 `EnsureCanExport` | Có thể xuất vượt số lượng Initial QC duyệt | Xác minh/hoàn thiện service contract; inject fail-closed vào QTChung composition; guard dưới lock/UoW trước movement |
+| B0-03 | Rework delivery chưa chứng minh kiểm soát remaining | Có thể giao vượt số đã xuất/được duyệt | Guard giao theo ledger xuất + kế hoạch QC; cập nhật kế hoạch cùng transaction |
+| B1-01 | G1 traceability chưa PASS | Không biết đầy đủ đường code/SQL/test nào thiếu bảo vệ | Hoàn thiện mapping thực tế; không sửa CSV để giảm tiêu chí |
+| B1-02 | G4 thiếu schema/seed DBA xác nhận | Không chứng minh stored procedure thật tương thích | Xin schema-only export và seed đã làm sạch; chạy rollback-only trên DB cô lập |
+| B1-03 | G5/G6 business UI journeys chưa PASS | Không chứng minh thao tác thực tế xuyên UI và dữ liệu | Lấy AutomationId từ UI catalog; bật journey thật; assert stock/history/guard; cleanup Remaining=0 |
+| B1-04 | Generic movement idempotency chưa có cho mọi workflow | Retry ở workflow chưa có business key có thể lặp mutation | Chốt key bền vững từng nghiệp vụ; unique index/ledger; concurrent retry test |
+| B1-05 | Static legacy writer/caller scan chưa đóng | Có thể còn đường ghi tồn ngoài owner | Scan toàn repository và SQL; phân loại caller; chỉ xóa sau parity |
+| B1-06 | Build WinForms đầy đủ chưa được chứng minh trên môi trường mục tiêu | CI desktop runner không thay thế build ứng dụng thật | Build toàn solution/project trên môi trường .NET Framework mục tiêu và lưu log theo SHA |
 
-`StockExportReferenceKey` đã được sửa để dùng cùng formatter với dữ liệu được persist (`PGH#id`, `CGB#id`, `XLBT#id`, `KTR#id`).
+## 7. Lộ trình đóng WMS theo cuốn chiếu
 
-`ConfirmGiaoHangTuChoGiao` tiếp tục được bảo vệ bởi trạng thái `HangChoGiao` + `GetForUpdate`.
+| Thứ tự | Gói công việc | Đầu ra bắt buộc | Tiêu chí hoàn tất |
+|---|---|---|---|
+| 1 | Chốt traceability inventory (G1) | Ma trận requirement → code → SQL → transaction → test → doc | Không còn gap không được phân loại; mọi ngoại lệ có owner và lý do |
+| 2 | Rework Phase 4–9 | Guard export/delivery, QC cuối, disposition, compensation, workflow audit | Test vượt hạn mức, thiếu QC, retry, duplicate, concurrency, rollback đều PASS |
+| 3 | Delivery Single Writer | Stock command theo allocation FIFO/QR/PART/multi-LOT | STOCKTP = tổng SlotLot hợp lệ; rollback xuyên tồn/chứng từ/history |
+| 4 | Receiving hardening | SQL test QR/LOT/multi-QR/partial/reopen/capacity/metadata | Không duplicate; mọi bảng cùng transaction; retry an toàn |
+| 5 | Movement idempotency + concurrency | Business key ledger và test nhiều session | Một operation chỉ có một physical mutation; retry trả lại kết quả cũ |
+| 6 | Legacy cleanup | Dependency scan + danh sách caller còn lại | Không còn writer bypass ngoài command owner được phê duyệt |
+| 7 | G4/G5/G6 | Schema/seed cô lập, UI Automation, DB assertion và cleanup | G4 rollback-only; G5/G6 business journeys PASS; Remaining = 0 |
+| 8 | Release closeout | Build log, CI SHA, SQL report, test artifacts, tài liệu VI/JP nếu cần | Tất cả evidence cùng commit SHA; PR mới chuyển Ready khi đủ tiêu chí |
 
-## 4. Chưa đóng
+## 8. Quy tắc nghiệm thu thống nhất
 
-### Generic central idempotency
+Một luồng WMS chỉ được đánh dấu **DONE** khi có đủ tất cả:
 
-`StockMovementRequest.ReferenceType/ReferenceId` chưa được persist trong generic `StockHistory` contract. Vì vậy chưa được phép tuyên bố `IStockMovementService` có idempotency tổng quát.
+- [ ] Code production thực sự gọi đúng command/guard; không chỉ có class hoặc factory registration.
+- [ ] Business rule và hậu điều kiện số lượng được xác định bằng công thức rõ ràng.
+- [ ] STOCKTP, Slot, SlotLot, chứng từ, trạng thái và history nhất quán trong cùng transaction khi nghiệp vụ yêu cầu.
+- [ ] Lock/concurrency và idempotency ngăn duplicate hoặc vượt hạn mức.
+- [ ] Test có cả trường hợp thành công, lỗi, partial, retry, duplicate, concurrent và rollback.
+- [ ] SQL integration chạy implementation thật; schema/seed có nguồn xác nhận.
+- [ ] UI journey thao tác trên ứng dụng thật và assert DB sau thao tác.
+- [ ] Cleanup sạch; không để fixture tồn đọng.
+- [ ] Tài liệu phản ánh đúng code đã kiểm chứng.
+- [ ] CI/test evidence thuộc đúng commit SHA đang nghiệm thu.
 
-Các workflow NhapKho/Rework/GiaoHangKhach nếu cần retry-safe central operation phải có durable business key riêng hoặc bảng movement/idempotency riêng.
+## 9. Quyết định hiện tại
 
-### Verification / tests
+**WMS: IN PROGRESS — NOT READY FOR RELEASE.**
 
-Cần chạy trong Visual Studio / môi trường .NET Framework 4.7.2:
-
-- build toàn solution
-- duplicate XuatKho reference
-- SlotLotId mismatch không được mutate
-- concurrent Pick/Export
-- Rework round-trip
-- Receive -> Slot/Lot -> STOCKTP reconciliation
-- static dependency scan toàn repository
-
-## 5. Thứ tự tiếp theo
-
-```text
-[ĐÃ LÀM]
-XuLyHangLoi composition root
-        |
-        v
-[ĐÃ LÀM]
-XuatKho workflow idempotency
-        |
-        v
-[TIẾP]
-Generic business-key verification cho NhapKho/Rework/GiaoHangKhach
-        |
-        v
-Integration + concurrency tests
-        |
-        v
-Static dependency scan / legacy caller proof
-        |
-        v
-KhoCore physical ownership
-        |
-        v
-Legacy cleanup / Phase 9
-        |
-        v
-Phase 10 closeout
-```
-
-## 6. Kết luận hiện tại
-
-**WMS refactor chưa hoàn thành toàn bộ.** Central stock-write architecture, source LOT invariant, XuLyHangLoi composition và XuatKho workflow-level idempotency đã được xử lý. Phần còn lại là generic idempotency cho các workflow chưa có durable key, integration/concurrency verification, static caller proof và sau đó mới chuyển sang physical ownership/legacy cleanup.
-
-Không có CI/build status cho các commit vừa thực hiện, vì vậy chưa kết luận build pass.
+- PR #3 tiếp tục để Draft.
+- Không đánh dấu Phase 6/7/10 hoàn tất khi còn B0-01/B0-02/B0-03 và G1/G4/G5/G6 chưa đóng.
+- Không dùng phần trăm hoàn thành ước lượng làm chỉ số nghiệm thu.
+- Không sửa tiêu chí test hoặc xóa regression chỉ để làm xanh CI.
+- Không thực hiện mutation trên production/shared SQL.
+- Mọi lần cập nhật bảng này phải ghi commit SHA, workflow run, phạm vi test và giới hạn bằng chứng.
