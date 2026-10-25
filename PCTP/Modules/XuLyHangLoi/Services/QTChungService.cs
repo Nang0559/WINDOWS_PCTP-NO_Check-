@@ -338,7 +338,7 @@ IF @result < 0 THROW 51000, 'Không lấy được khóa xuất Rework theo phi�
                 if (previous != null)
                 {
                     if (previous.PhieuXuLyBatThuongId != phieuXuLyId ||
-                        !string.Equals(previous.LotXuat, lotNo, StringComparison.OrdinalIgnoreCase) ||
+                        !string.Equals(LotNoHelper.GetStockTpKey(previous.LotXuat), LotNoHelper.GetStockTpKey(lotNo), StringComparison.OrdinalIgnoreCase) ||
                         previous.SoLuongXuat != soLuong)
                     {
                         SafeRollback();
