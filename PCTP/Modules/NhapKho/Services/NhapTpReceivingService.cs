@@ -199,9 +199,12 @@ namespace PCTP.Modules.NhapKho.Services
                     ProductionQuantity = nhapItem.SlSanXuat,
                     Quantity = qr.Quantity,
                     ReceivingStatus = status,
-                    // Dòng SlotLot của tem này do _phieuRepo.InsertPhieuMoi bên dưới tạo (có QrData/MaPhieu).
-                    // Receive chỉ được cộng tồn header Slot, không tạo thêm dòng SlotLot thứ hai.
-                    SlotLotWrittenByCaller = true,
+                    TemCode = qr.MaPhieu,
+                    QrData = qr.RawQr,
+                    ReceivingNgaySX = qr.NgaySX,
+                    ReceivingSoPhieuTong = qr.SoPhieuTong,
+                    ReceivingMaPhieu = PhieuNoHelper.NewMaPhieuNhap(lotNo),
+                    ReceivingParentSoPhieu = null,
                     ReferenceType = "NHAP_TP",
                     ReferenceId = qr.MaPhieu,
                     OccurredAt = ngayNhapThucTe,
@@ -213,12 +216,6 @@ namespace PCTP.Modules.NhapKho.Services
                     _uow.Rollback();
                     return ScanResult.Fail(movement.Message);
                 }
-
-                string maPhieuMoi = PhieuNoHelper.NewMaPhieuNhap(lotNo);
-                _phieuRepo.InsertPhieuMoi(
-                    slotId, qr.ItemCode, lotNo, qr.Quantity, qr.MaPhieu, qr.RawQr,
-                    ngayNhapThucTe, qr.NgaySX, qr.SoPhieuTong, maPhieuMoi,
-                    null, PhieuStatus.Active);
 
                 _historyRepo.SaveHistory(
                     "IMPORT", qr.ItemCode,
