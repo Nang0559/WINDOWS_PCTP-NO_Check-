@@ -317,7 +317,7 @@ INSERT INTO {table}(Id, Qty) VALUES (1, 50), (2, 10);", connection) { CommandTim
         var required = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
         {
             ["STOCKTP"] = new[] { "LOT", "PART", "NAME", "MODEL", "SLNHAP", "SLCONLAI", "SLXUAT", "SATUS", "CASX", "NGAYSX", "NGAYNHAP", "SLSX", "NGAYXUAT" },
-            ["SlotLot"] = new[] { "SlotLotId", "SlotId", "LotNo", "ItemCode", "Quantity", "TemCode", "QrData", "MaPhieu", "ImportDate", "PhieuStatus" },
+            ["SlotLot"] = new[] { "SlotLotId", "SlotId", "LotNo", "ItemCode", "Quantity", "TemCode", "QrData", "MaPhieu", "ParentSoPhieu", "SoPhieuTong", "NgaySX", "ImportDate", "CreatedDate", "PhieuStatus" },
             ["Slot"] = new[] { "SlotId", "RackId", "SlotNumber", "Capacity", "Quantity", "IsOccupied", "ItemCode", "ImportDate" },
             ["Rack"] = new[] { "RackId", "WarehouseId", "RackName" },
             ["Warehouse"] = new[] { "WarehouseId", "Name" }
