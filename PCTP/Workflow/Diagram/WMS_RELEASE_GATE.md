@@ -4,35 +4,35 @@
 >
 > Branch: `feature/wms-end-to-end-consistency`
 >
-> This document is the release contract for the WMS end-to-end wave. It deliberately does **not** infer PASS from the existence of a class, interface, migration, source-contract test, or successful SQL-engine test.
+> This is the authoritative release contract for the WMS end-to-end wave. It does not infer PASS from the existence of a class, interface, migration, source-contract test, or successful SQL-engine test.
 
-## 1. Release decision
+## 1. Current release decision
 
-The branch may be promoted to `Ready` only when all gates G1–G6 are evidenced against the same code revision and the same database/schema revision used by the business test.
+The branch remains Draft/Blocked. The Rework export guard has now been wired into the runtime export path and the composition root supplies it lazily to avoid the Phase-4 dependency cycle. This is an **implementation change**, not yet a production verification PASS.
 
 | Gate | Meaning | Required evidence | Current |
 |---|---|---|---|
 | G1 | Source/architecture contract | Static scan proving forbidden stock writers are absent or explicitly allow-listed | 🟡 |
-| G2 | SQL behavior | Isolated SQL tests for movement, constraints and rollback | 🟢/🟡 |
+| G2 | SQL behavior | Isolated SQL tests for movement, constraints and rollback | 🟡 |
 | G3 | Transaction/state | Real workflow tests proving state transition + stock + audit are atomic | 🔴 |
 | G4 | Real schema integration | Business tests against DBA-provided representative schema | 🔴 |
 | G5 | Concurrency | Two-session tests proving no over-export/over-delivery and no double mutation | 🔴 |
 | G6 | End-to-end | NHAP → QC → SLOT/LOT → XUAT → GIAO → ledger/history reconciliation | 🔴 |
 
-**Release rule:** any P0 blocker, any unresolved stock-owner ambiguity, any unverified transaction boundary, or any missing concurrency evidence keeps the release gate RED.
+**Release rule:** any P0 blocker, unresolved stock-owner ambiguity, unverified transaction boundary, or missing concurrency evidence keeps the release gate RED.
 
-## 2. P0 blockers that must be closed
+## 2. P0 blockers / closure status
 
-### B0-02 — Rework export guard is not on the runtime path
+### B0-02 — Rework export guard
 
-`IReworkPhase4Service.EnsureCanExport(...)` exists, but the reviewed `ReworkStockService.XuatKhoRework(...)` path does not invoke it before stock mutation.
+**Implementation: CLOSED. Verification: OPEN.**
 
-Required runtime order:
+`ReworkStockService.XuatKhoRework(...)` now performs, in order:
 
 ```text
-XuatKhoRework
-  → idempotency lookup
-  → transaction / business lock
+Begin transaction
+  → idempotency lookup by OperationId
+  → lock current Rework ticket row in the same transaction
   → EnsureCanExport
   → validate SlotLot / LOT / quantity
   → IStockMovementService.Export
@@ -40,22 +40,33 @@ XuatKhoRework
   → commit
 ```
 
-The guard must fail closed and must use the same transaction/concurrency boundary as the stock mutation.
+The Phase-4 service is supplied lazily from `XuLyHangLoiModuleFactory` because Initial QC depends on the Rework trace service. If the guard cannot be resolved, export fails closed.
 
-### B0-03 — Rework delivery quantity must be read under the transaction/lock
+Required verification remains:
 
-Any read of `GetXuat` / delivered quantity used to decide whether another delivery is permitted must happen after the transaction and business lock are acquired.
+- over-limit export is rejected;
+- exact-limit export succeeds;
+- retry is idempotent;
+- two concurrent sessions cannot both consume the same remaining quota.
 
-The acceptance test must prove:
+### B0-03 — Rework delivery quantity must be read under transaction/lock
+
+**Status: OPEN.**
+
+The delivery path still requires a complete review so all reads of exported/delivered quantities used for authorization occur after the transaction and serialization boundary is acquired.
+
+Required concurrency proof:
 
 ```text
-Session A: read remaining → reserve/write → commit
+Session A: acquire ticket lock → read remaining → write → commit
 Session B: waits → rereads remaining → rejects when limit is exhausted
 ```
 
-A transaction without a serialization mechanism is not sufficient evidence for this gate.
+A transaction without serialization evidence is not sufficient.
 
 ### B0-01 — Customer delivery has one stock owner
+
+**Status: OPEN.**
 
 `Giao Hàng Khách` must not directly mutate `STOCKTP` through legacy procedures/repositories and then mutate `SlotLot` separately.
 
@@ -71,7 +82,7 @@ STOCKTP + SlotLot + movement/idempotency
 workflow document + history
 ```
 
-Before removing the legacy path, parity must be demonstrated for FIFO, QR, PART, multi-LOT, partial LOT and rollback.
+Before removing the legacy path, prove parity for FIFO, QR, PART, multi-LOT, partial LOT and rollback.
 
 ## 3. Mandatory business invariants
 
@@ -81,7 +92,7 @@ Before removing the legacy path, parity must be demonstrated for FIFO, QR, PART,
 4. A failed movement leaves STOCKTP, SlotLot, workflow ledger and history unchanged.
 5. Active stock only can be exported; quarantine/NG rows cannot be treated as available stock.
 6. STOCKTP and SlotLot remain consistent after every committed stock mutation.
-7. FIFO/QR/PART/multi-LOT allocation remains behaviorally equivalent during the Customer Delivery migration.
+7. FIFO/QR/PART/multi-LOT allocation remains behaviorally equivalent during Customer Delivery migration.
 8. Every committed movement has exactly one authoritative audit/history record.
 
 ## 4. Mandatory concurrency matrix
@@ -115,12 +126,10 @@ Do not use ambiguous `DONE` for release claims.
 
 Use only:
 
-- `🟢 VERIFIED` — implementation + required evidence are complete at the recorded SHA.
+- `🟢 VERIFIED` — implementation + required evidence complete at the recorded SHA.
 - `🟡 IMPLEMENTED / NOT VERIFIED` — code exists, but required evidence is missing.
-- `🔴 BLOCKED` — a known defect or missing prerequisite prevents verification.
+- `🔴 BLOCKED` — known defect or missing prerequisite prevents verification.
 - `⚪ PLANNED` — not implemented.
-
-A roadmap item may be `IMPLEMENTED / NOT VERIFIED` even when its coding tasks are complete.
 
 ## 7. Single source of truth for SQL
 
@@ -132,8 +141,8 @@ Legacy/no-extension SP snapshots should be removed or explicitly marked as immut
 
 ## 8. Final acceptance sequence
 
-1. Close B0-02.
-2. Close B0-03 with a real two-session test.
+1. Verify B0-02 with unit/source and real DB tests.
+2. Close B0-03 with a real two-session delivery test.
 3. Refactor B0-01 to the single stock owner and prove parity.
 4. Obtain DBA schema-only package.
 5. Run G4 on the representative schema.
