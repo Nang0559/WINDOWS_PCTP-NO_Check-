@@ -127,6 +127,7 @@ public sealed class DeliveryTransactionContractTests
         Assert.Contains("MaPhieu = request.ReceivingMaPhieu", movement);
         Assert.Contains("SoPhieuTong = request.ReceivingSoPhieuTong", movement);
         Assert.Contains("ParentSoPhieu = request.ReceivingParentSoPhieu", movement);
+        Assert.Contains("ImportDate = isNormalReceive", movement);
         Assert.Contains("INSERT INTO SlotLot", slotRepository);
         Assert.Contains("NgaySX, SoPhieuTong, MaPhieu, ParentSoPhieu, PhieuStatus", slotRepository);
         Assert.Contains("UpdateSlotHeaderBySlotId(slotId)", slotRepository);
