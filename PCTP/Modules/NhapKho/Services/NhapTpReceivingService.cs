@@ -143,6 +143,7 @@ namespace PCTP.Modules.NhapKho.Services
                 // Khoá theo QR trước để 2 máy quét cùng tem bị xếp hàng (SlotLot.QrData không có
                 // unique index), rồi mới kiểm tra trùng.
                 _importGuard.AcquireImportLock(qr.RawQr);
+                _importGuard.AcquireLotImportLock(lotNo);
                 if (DaNhapTruocDo(qr))
                 {
                     _uow.Rollback();
