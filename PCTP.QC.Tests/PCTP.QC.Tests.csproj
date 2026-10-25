@@ -57,6 +57,7 @@
     <None Include="../PCTP/Modules/XuLyHangLoi/Services/IReworkStockService.cs" Link="IReworkStockService.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/XuLyHangLoi/Repository/TraHangQTChungRepository.cs" Link="TraHangQTChungRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/XuLyHangLoi/FormReworkProcess.cs" Link="FormReworkProcess.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/XuLyHangLoi/Database/PHASE14_ReworkExportIdempotency.sql" Link="PHASE14_ReworkExportIdempotency.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/KhoCore/Repositories/BulkStockSlotRepository.cs" Link="BulkStockSlotRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/KhoCore/Application/Services/StockMovementService.cs" Link="StockMovementService.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/KhoCore/Application/Services/QuarantineReleaseService.cs" Link="QuarantineReleaseService.source.cs" CopyToOutputDirectory="PreserveNewest" />
