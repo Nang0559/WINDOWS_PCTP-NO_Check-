@@ -14,6 +14,7 @@ Contract này áp dụng cho mọi nghiệp vụ thay đổi tồn kho. Một ng
 - QuarantineReleaseService: command chuyên biệt trong KhoCore cho release hàng cách ly; phải giữ cùng transaction cho SlotLot, STOCKTP và audit.
 - StockExportService: workflow xuất, không phải stock writer thay thế KhoCore.
 - NhapTpReceivingService: workflow nhập; hiện request có SlotLotWrittenByCaller=true, nên SlotLot detail còn được caller/repository tạo.
+- Nhập thành phẩm lấy khóa transaction theo thứ tự QR → LOT. Khóa LOT phải được lấy trước khi đọc SLNHAP tích lũy và tính trạng thái hoàn thành; không thay thế khóa QR/idempotency.
 - PhieuKhoRepository: hiện còn SP/SQL direct STOCKTP cho giao hàng khách; đây là lỗi lệch kiến trúc cần migration.
 
 ## 3. Transaction matrix
