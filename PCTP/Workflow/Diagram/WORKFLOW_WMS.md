@@ -26,6 +26,8 @@ Tài liệu này phân biệt kiến trúc đích với code đang chạy. Khôn
 
 QR / phiếu sản xuất → NhapTpReceivingService parse, validate, chống trùng → StockMovementService.Receive → PhieuTrackingRepository.InsertPhieuMoi tạo chi tiết phiếu/SlotLot (caller-owned) → history + commit.
 
+Trong transaction, workflow lấy application lock theo QR trước, sau đó theo LOT (`AcquireImportLock` → `AcquireLotImportLock`). Khóa QR chống hai máy nhập cùng tem; khóa LOT tuần tự hóa các tem khác nhau cùng đóng góp vào một STOCKTP LOT, để phép tính SLNHAP/status không dùng snapshot cũ. Khóa được giữ đến commit/rollback.
+
 Điểm cần hoàn thiện: đưa việc tạo SlotLot detail vào atomic receiving command hoặc port KhoCore được ủy quyền rõ ràng. Không tạo LOT vật lý mới cho từng phiếu nếu LOT sản xuất là duy nhất.
 
 ### 3.2 Xuất kho chuẩn (Pick → Confirm)
