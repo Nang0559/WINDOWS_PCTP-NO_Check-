@@ -31,13 +31,16 @@ public sealed class RemainingQcCaseContractTests
     public void ReworkMovements_UseDistinctIdempotencyKeysAcrossStagesAndLots()
     {
         var source = Read("ReworkStockService.source.cs");
-        var export = Method(source, "public ScanResult XuatKhoRework(", "/// <summary>null = Slot hợp lệ");
+        var export = Method(source,
+            "public ScanResult XuatKhoRework(\n            int phieuXuLyId,\n            int slotLotId,\n            string lotNo,\n            int soLuong,\n            string nguoiXuat,\n            Guid operationId)",
+            "/// <summary>null = Slot hợp lệ");
         var ng = Method(source, "public ScanResult NhapLaiHangNG(", "public ScanResult NhapLaiHangOK(");
         var ok = Method(source, "public ScanResult NhapLaiHangOK(", "public ScanResult HoanTraKhoKhiHuy(");
         var cancel = Method(source, "public ScanResult HoanTraKhoKhiHuy(", "private ScanResult FailAndRollback(");
 
         Assert.Contains("ReferenceType = \"QT_REWORK_EXPORT\"", export);
-        Assert.Contains("ReferenceId = phieuXuLyId + \":\" + slotLotId", export);
+        Assert.Contains("if (operationId == Guid.Empty)", export);
+        Assert.Contains("ReferenceId = operationId.ToString(\"D\")", export);
         Assert.Contains("ReferenceType = \"QT_REWORK_NG_RECEIVE\"", ng);
         Assert.Contains("ReferenceType = \"QT_REWORK_OK_RECEIVE\"", ok);
         Assert.Contains("ReferenceType = \"QT_REWORK_CANCEL_RETURN\"", cancel);
