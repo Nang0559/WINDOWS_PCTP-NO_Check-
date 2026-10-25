@@ -4,6 +4,8 @@
 >
 > Branch: `feature/wms-end-to-end-consistency`
 >
+> Current code/documentation HEAD: `94a145536591e4579e177b5debbcee5bc3689b79`
+>
 > This is the authoritative release contract for the WMS end-to-end wave. It does not infer PASS from the existence of a class, interface, migration, source-contract test, or successful SQL-engine test.
 
 ## 1. Current release decision
