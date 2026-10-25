@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
 using PCTP.Modules.GiaoHangKhach;
+using PCTP.Modules.KhoCore.Application.Contracts.Stock;
+using PCTP.Infrastructure.Stock;
 using PCTP.Modules.NhapKho.Interfaces;
 using PCTP.Modules.NhapKho.Repository;
 using PCTP.Shared.Common;
@@ -131,6 +133,68 @@ internal static class ProductionStockTpRepositoryScenario
             catch (InvalidOperationException) { missingLotRejected = true; }
             Require(missingLotRejected, "UpdateStockTp must reject a LOT that does not exist.");
             Console.WriteLine("PASS: update of a missing LOT is rejected.");
+
+            // Exercise the new KhoCore port against the same session-local STOCKTP
+            // fixture and UnitOfWork; this is the implementation wired by module factories.
+            IStockReceivingRepository receiving = new StockReceivingRepository(new PhieuSqlExecutor(), uow);
+            var nativeLot = fixtureLot + "-K";
+            receiving.Insert(new StockReceivingRecord
+            {
+                LotNo = nativeLot,
+                ItemCode = "PART-NATIVE",
+                ItemName = "KhoCore receiving integration",
+                Model = "MODEL-NATIVE",
+                ProductionCase = "2",
+                ProductionDate = new DateTime(2026, 10, 20),
+                ProductionQuantity = 90,
+                ReceivedQuantity = 30,
+                Status = 0
+            });
+            Require(receiving.Exists(nativeLot), "KhoCore receiving repository did not insert/find its LOT.");
+            Require(receiving.GetReceivedQuantity(nativeLot) == 30,
+                "KhoCore receiving repository returned wrong initial SLNHAP.");
+            receiving.Update(nativeLot, 12, 1);
+            Require(receiving.GetReceivedQuantity(nativeLot) == 42,
+                "KhoCore receiving repository did not add the received delta.");
+            using (var verifyNative = new SqlCommand(
+                "SELECT PART, NAME, MODEL, CASX, NGAYSX, SLSX, SLNHAP, SLCONLAI, SATUS FROM #STOCKTP WHERE LOT=@lot",
+                uow.Connection, uow.Transaction))
+            {
+                verifyNative.Parameters.Add(new SqlParameter("@lot", nativeLot));
+                using (var reader = verifyNative.ExecuteReader())
+                {
+                    Require(reader.Read(), "KhoCore receiving row is missing from #STOCKTP.");
+                    Require(Convert.ToString(reader["PART"]) == "PART-NATIVE", "PART was not preserved.");
+                    Require(Convert.ToString(reader["NAME"]) == "KhoCore receiving integration", "NAME was not preserved.");
+                    Require(Convert.ToString(reader["MODEL"]) == "MODEL-NATIVE", "MODEL was not preserved.");
+                    Require(Convert.ToInt32(reader["CASX"]) == 2, "CASX was not parsed from ProductionCase.");
+                    Require(Convert.ToInt32(reader["SLSX"]) == 90, "SLSX was not preserved.");
+                    Require(Convert.ToInt32(reader["SLNHAP"]) == 42 && Convert.ToInt32(reader["SLCONLAI"]) == 42,
+                        "SLNHAP/SLCONLAI delta semantics changed.");
+                    Require(Convert.ToInt32(reader["SATUS"]) == 1, "SATUS was not updated.");
+                }
+            }
+            Console.WriteLine("PASS: KhoCore IStockReceivingRepository insert/update, metadata and quantity/status semantics.");
+
+            bool duplicateInsertRejected = false;
+            try
+            {
+                receiving.Insert(new StockReceivingRecord
+                {
+                    LotNo = nativeLot, ItemCode = "PART-NATIVE", ReceivedQuantity = 1, Status = 0
+                });
+            }
+            catch (InvalidOperationException) { duplicateInsertRejected = true; }
+            Require(duplicateInsertRejected, "KhoCore receiving repository must reject a duplicate LOT insert.");
+
+            bool transactionRequired = false;
+            uow.Commit();
+            try { receiving.Update(nativeLot, 1, 0); }
+            catch (InvalidOperationException) { transactionRequired = true; }
+            Require(transactionRequired, "KhoCore receiving writes must fail closed without an active UnitOfWork transaction.");
+            // Reopen an outer transaction so the common cleanup path rolls back the fixture.
+            uow.Begin();
+            Console.WriteLine("PASS: KhoCore receiving repository rejects duplicate LOT and calls without transaction.");
 
             // Deliberately rollback rather than commit: test real constraints and SQL,
             // but leave the shared SQL 57 business rows unchanged.
