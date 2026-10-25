@@ -29,6 +29,7 @@ namespace PCTP.Modules.XuLyHangLoi
         private readonly IQTChungService _qtChungService;
         private readonly IReworkStockService _reworkStockService;
         private readonly int _phieuXuLyId;
+        private Guid? _pendingReworkExportOperationId;
         private readonly INoiBoLookupRepository _noiBoLookupRepo;
         private readonly ITraHangQTChungRepository _qtChungRepo;
 
@@ -656,18 +657,24 @@ namespace PCTP.Modules.XuLyHangLoi
                 // sẽ không bao giờ bật được, quy trình bị kẹt vĩnh viễn.
                 // Đồng thời form gốc không kiểm tra kết quả trả về, luôn
                 // báo "thành công" kể cả khi thất bại.
+                if (!_pendingReworkExportOperationId.HasValue)
+                    _pendingReworkExportOperationId = Guid.NewGuid();
+
                 ScanResult result = _qtChungService.XuatKhoRework(
                     _phieuXuLyId,
                     slotId,
                     lotNo,
                     soLuong,
-                    Environment.UserName);
+                    Environment.UserName,
+                    _pendingReworkExportOperationId.Value);
 
                 if (result == null || !result.IsOK)
                 {
                     ShowWarning(result?.Message ?? "Xuất kho Rework không thành công.");
                     return;
                 }
+
+                _pendingReworkExportOperationId = null;
 
                 XtraMessageBox.Show(
                     result.Message ?? "Đã xuất kho Rework thành công.",
