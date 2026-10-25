@@ -136,7 +136,7 @@ internal static class ProductionStockTpRepositoryScenario
 
             // Exercise the new KhoCore port against the same session-local STOCKTP
             // fixture and UnitOfWork; this is the implementation wired by module factories.
-            IStockReceivingRepository receiving = new StockReceivingRepository(new PhieuSqlExecutor(), uow);
+            IStockReceivingRepository receiving = new StockReceivingRepository(new PhieuSqlExecutor(), uow, "#STOCKTP");
             var nativeLot = fixtureLot + "-K";
             receiving.Insert(new StockReceivingRecord
             {
