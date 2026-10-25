@@ -128,3 +128,16 @@ Một wave chỉ được đóng khi đồng thời có:
 - tài liệu workflow/dependency/transaction cập nhật theo code đã xác minh;
 - CI evidence thuộc đúng commit SHA;
 - không có thao tác ghi vào database production hoặc SQL dùng chung.
+
+
+## 8. Wave Rework export idempotency — implementation in progress
+
+Commit-level change set on `feature/wms-end-to-end-consistency`:
+
+- `TraHangQTChungXuat` carries a caller-created `OperationId`; the Rework form retains the pending ID until it receives a successful result.
+- `QTChungService` begins/joins the UoW, acquires `sp_getapplock` (`QT_REWORK_EXPORT:<PhieuXuLyBatThuongId>`, transaction owner), then checks the export ledger by OperationId before invoking stock mutation.
+- `ReworkStockService` passes the same ID as the StockMovement reference and persists it in the export ledger.
+- `PHASE14_ReworkExportIdempotency.sql` adds a nullable GUID for legacy rows and a unique filtered index. Apply this migration before deploying the code.
+- Source-contract tests cover ID propagation, lookup and transaction-owned lock. They are not a substitute for SQL Server concurrency/retry tests.
+
+**Open blocker:** the current `QTChungService` export path still does not invoke `IReworkPhase4Service.EnsureCanExport`. The phase guard is built in `XuLyHangLoiModuleFactory`, but the QTChungService composition root that must receive it has not been identified/wired. Therefore the Initial QC allocation limit is not certified as enforced by the actual export command. Do not close Wave 3 or call Rework E2E complete until this is wired fail-closed and tested.
