@@ -61,13 +61,6 @@ namespace PCTP.Modules.KhoCore.Application.Services
                 if (string.IsNullOrWhiteSpace(request.ItemCode))
                     return StockMovementResult.Fail("ItemCode không được rỗng khi Pick theo Slot + LOT.");
 
-                // Slot + LOT is a real stock mutation too. Claim the business reference
-                // before touching SlotLot so concurrent retries cannot pick the same
-                // delivery/rework request twice. The caller owns the transaction and
-                // must roll it back if TakeLot fails after this claim.
-                if (!TryClaimRequest(request, false))
-                    return StockMovementResult.AlreadyProcessed("Mã tham chiếu pick kho đã được xử lý trước đó.");
-
                 try
                 {
                     var take = _slots.TakeLot(
