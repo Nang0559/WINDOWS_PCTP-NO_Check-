@@ -13,14 +13,26 @@ namespace PCTP.Infrastructure.Stock
     /// </summary>
     public sealed class StockReceivingRepository : SqlRepositoryBase, IStockReceivingRepository
     {
-        public StockReceivingRepository(PhieuSqlExecutor db, IUnitOfWork uow) : base(db, uow) { }
+        private readonly string _stockTable;
+
+        public StockReceivingRepository(PhieuSqlExecutor db, IUnitOfWork uow)
+            : this(db, uow, "dbo.STOCKTP") { }
+
+        // Explicit table override is limited to the session-local integration fixture.
+        public StockReceivingRepository(PhieuSqlExecutor db, IUnitOfWork uow, string stockTable)
+            : base(db, uow)
+        {
+            if (stockTable != "dbo.STOCKTP" && stockTable != "#STOCKTP")
+                throw new ArgumentException("Only dbo.STOCKTP or the isolated #STOCKTP fixture is supported.", nameof(stockTable));
+            _stockTable = stockTable;
+        }
 
         public bool Exists(string lotNo)
         {
             EnsureTransaction();
             if (string.IsNullOrWhiteSpace(lotNo)) return false;
             object value = ExecuteScalar(
-                "SELECT COUNT(1) FROM STOCKTP WITH (UPDLOCK, HOLDLOCK) WHERE LOT=@lot",
+                `SELECT COUNT(1) FROM " + _stockTable + " WITH (UPDLOCK, HOLDLOCK) WHERE LOT=@lot`,
                 new SqlParameter("@lot", lotNo.Trim()));
             int count = value == null || value == DBNull.Value ? 0 : Convert.ToInt32(value);
             if (count > 1) throw new InvalidOperationException(
@@ -33,7 +45,7 @@ namespace PCTP.Infrastructure.Stock
             EnsureTransaction();
             if (string.IsNullOrWhiteSpace(lotNo)) return 0;
             DataTable rows = LoadData(
-                "SELECT ISNULL(SLNHAP,0) AS SLNHAP FROM STOCKTP WITH (UPDLOCK, HOLDLOCK) WHERE LOT=@lot",
+                `SELECT ISNULL(SLNHAP,0) AS SLNHAP FROM " + _stockTable + " WITH (UPDLOCK, HOLDLOCK) WHERE LOT=@lot`,
                 new SqlParameter("@lot", lotNo.Trim()));
             if (rows == null || rows.Rows.Count == 0) return 0;
             if (rows.Rows.Count != 1) throw new InvalidOperationException(
@@ -53,7 +65,7 @@ namespace PCTP.Infrastructure.Stock
             int caSx;
             if (!int.TryParse(record.ProductionCase, out caSx)) caSx = 0;
             int affected = ExecuteNonQuery(@"
-INSERT INTO STOCKTP
+INSERT INTO " + _stockTable + "
     (LOT, MODEL, PART, NAME, CASX, NGAYSX, SLSX, NGAYNHAP, SLNHAP, NGAYXUAT, SLXUAT, SLCONLAI, SATUS)
 VALUES
     (@lot, @model, @part, @name, @casx, @ngaysx, @slsx, GETDATE(), @slnhap, GETDATE(), 0, @slconlai, @status);",
@@ -77,7 +89,7 @@ VALUES
             if (string.IsNullOrWhiteSpace(lotNo)) throw new ArgumentException("LOT không được để trống.", nameof(lotNo));
             if (receivedQuantityDelta <= 0) throw new ArgumentOutOfRangeException(nameof(receivedQuantityDelta));
             int affected = ExecuteNonQuery(@"
-UPDATE STOCKTP
+UPDATE " + _stockTable + "
 SET SLNHAP = ISNULL(SLNHAP, 0) + @sl,
     SLCONLAI = ISNULL(SLCONLAI, 0) + @sl,
     NGAYNHAP = GETDATE(),
