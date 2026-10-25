@@ -65,7 +65,7 @@ namespace PCTP.Infrastructure.Stock
             int caSx;
             if (!int.TryParse(record.ProductionCase, out caSx)) caSx = 0;
             int affected = ExecuteNonQuery(@"
-INSERT INTO " + _stockTable + "
+INSERT INTO " + _stockTable + @"
     (LOT, MODEL, PART, NAME, CASX, NGAYSX, SLSX, NGAYNHAP, SLNHAP, NGAYXUAT, SLXUAT, SLCONLAI, SATUS)
 VALUES
     (@lot, @model, @part, @name, @casx, @ngaysx, @slsx, GETDATE(), @slnhap, GETDATE(), 0, @slconlai, @status);",
@@ -89,7 +89,7 @@ VALUES
             if (string.IsNullOrWhiteSpace(lotNo)) throw new ArgumentException("LOT không được để trống.", nameof(lotNo));
             if (receivedQuantityDelta <= 0) throw new ArgumentOutOfRangeException(nameof(receivedQuantityDelta));
             int affected = ExecuteNonQuery(@"
-UPDATE " + _stockTable + "
+UPDATE " + _stockTable + @"
 SET SLNHAP = ISNULL(SLNHAP, 0) + @sl,
     SLCONLAI = ISNULL(SLCONLAI, 0) + @sl,
     NGAYNHAP = GETDATE(),
