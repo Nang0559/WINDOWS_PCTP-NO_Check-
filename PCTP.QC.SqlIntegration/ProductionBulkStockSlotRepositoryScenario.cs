@@ -26,7 +26,7 @@ namespace PCTP.QC.SqlIntegration
 CREATE TABLE #Warehouse(WarehouseId int IDENTITY(1,1) NOT NULL PRIMARY KEY, Name nvarchar(100) NOT NULL UNIQUE);
 CREATE TABLE #Rack(RackId int IDENTITY(1,1) NOT NULL PRIMARY KEY, WarehouseId int NOT NULL, RackName nvarchar(100) NOT NULL, CONSTRAINT UQ_QC_Rack UNIQUE(WarehouseId,RackName));
 CREATE TABLE #Slot(SlotId int IDENTITY(1,1) NOT NULL PRIMARY KEY, RackId int NOT NULL, SlotNumber int NOT NULL, IsOccupied bit NOT NULL DEFAULT(0), Capacity int NOT NULL, Quantity int NOT NULL DEFAULT(0), ItemCode nvarchar(100) NULL, ImportDate datetime NULL);
-CREATE TABLE #SlotLot(SlotLotId int IDENTITY(1,1) NOT NULL PRIMARY KEY, SlotId int NOT NULL, ItemCode nvarchar(100) NULL, LotNo nvarchar(100) NOT NULL, Quantity int NOT NULL CHECK(Quantity >= 0), TemCode nvarchar(100) NULL, QrData nvarchar(500) NULL, MaPhieu nvarchar(100) NULL, ImportDate datetime NULL, PhieuStatus tinyint NOT NULL);
+CREATE TABLE #SlotLot(SlotLotId int IDENTITY(1,1) NOT NULL PRIMARY KEY, SlotId int NOT NULL, ItemCode nvarchar(100) NULL, LotNo nvarchar(100) NOT NULL, Quantity int NOT NULL CHECK(Quantity >= 0), TemCode nvarchar(100) NULL, QrData nvarchar(500) NULL, MaPhieu nvarchar(100) NULL, ParentSoPhieu nvarchar(100) NULL, SoPhieuTong nvarchar(100) NULL, NgaySX nvarchar(100) NULL, ImportDate datetime NULL, CreatedDate datetime NULL, PhieuStatus tinyint NOT NULL);
 CREATE TABLE #STOCKTP(LOT nvarchar(100) NOT NULL PRIMARY KEY, MODEL nvarchar(100) NULL, PART nvarchar(100) NULL, NAME nvarchar(200) NULL, CASX smallint NULL, NGAYSX datetime NULL, SLSX int NULL, NGAYNHAP datetime NULL, SLNHAP int NULL, NGAYXUAT datetime NULL, SLXUAT int NULL, SLCONLAI int NULL, SATUS smallint NULL);
 CREATE TABLE #DeliveryState(Id int NOT NULL PRIMARY KEY, HistoryCount int NOT NULL, PendingClosed bit NOT NULL);
 INSERT INTO #DeliveryState VALUES(1,0,0);");
@@ -107,6 +107,29 @@ INSERT INTO #DeliveryState VALUES(1,0,0);");
                 Require(Scalar(uow, "SELECT Quantity FROM #Slot WHERE SlotId=@id", slotId) == 65, "First Slot header was not restored by rollback.");
                 Require(Scalar(uow, "SELECT Quantity FROM #Slot WHERE SlotId=@id", secondSlotId) == 25, "Second Slot header was not restored by rollback.");
                 Require(Scalar(uow, "SELECT HistoryCount FROM #DeliveryState WHERE Id=1") == 0 && Scalar(uow, "SELECT PendingClosed FROM #DeliveryState WHERE Id=1") == 0, "Delivery-state writes were not rolled back.");
+
+                bulk.AddLot(slotId, new StockSlotLot
+                {
+                    LotNo = "QC-METADATA-LOT",
+                    ItemCode = "QC-PART",
+                    Quantity = 2,
+                    TemCode = "QC-METADATA-TEM",
+                    RawQr = "QC-METADATA-QR",
+                    ImportDate = new DateTime(2026, 10, 25, 8, 30, 0),
+                    NgaySX = "2026-10-24",
+                    SoPhieuTong = "QC-TONG-001",
+                    MaPhieu = "QC-PHIEU-001",
+                    ParentSoPhieu = "QC-PARENT-001",
+                    PhieuStatus = 0
+                });
+                Require(Scalar(uow, @"SELECT COUNT(1) FROM #SlotLot
+                    WHERE LotNo=@lot AND TemCode=N'QC-METADATA-TEM' AND QrData=N'QC-METADATA-QR'
+                      AND NgaySX=N'2026-10-24' AND SoPhieuTong=N'QC-TONG-001'
+                      AND MaPhieu=N'QC-PHIEU-001' AND ParentSoPhieu=N'QC-PARENT-001'
+                      AND ImportDate='2026-10-25T08:30:00' AND CreatedDate IS NOT NULL AND PhieuStatus=0",
+                    "QC-METADATA-LOT") == 1,
+                    "KhoCore AddLot did not persist the complete receiving QR/production/receipt metadata.");
+                Console.WriteLine("PASS: receiving SlotLot metadata persisted by KhoCore within the caller transaction.");
 
                 uow.Rollback();
                 Console.WriteLine("PASS: production BulkStockSlotRepository FIFO, PhieuStatus current-stock filtering, STOCKTP reconciliation and cross-ledger rollback using session-local # fixtures.");
