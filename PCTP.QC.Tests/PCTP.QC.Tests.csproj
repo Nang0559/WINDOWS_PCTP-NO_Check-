@@ -30,6 +30,9 @@
     <None Include="../PCTP/Modules/NhapKho/Services/NhapTpReceivingService.cs" Link="NhapTpReceivingService.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/NhapKho/Repository/StockTPRepository.cs" Link="StockTPRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/XuatKho/Repositories/StockExportRepository.cs" Link="StockExportRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Infrastructure/Stock/StockReceivingRepository.cs" Link="StockReceivingRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/KhoVatLy/NhapTpModuleFactory.cs" Link="NhapTpModuleFactory.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/KhoVatLy/MainStockModuleFactory.cs" Link="MainStockModuleFactory.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Infrastructure/Stock/LegacyStockBalanceRepositoryAdapter.cs" Link="LegacyStockBalanceRepositoryAdapter.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/GiaoHangKhach/Repositories/TableOrderRepo.cs" Link="TableOrderRepo.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Shared/Common/SqlRepositoryBase.cs" Link="SqlRepositoryBase.source.cs" CopyToOutputDirectory="PreserveNewest" />
