@@ -40,6 +40,6 @@ public sealed class ReworkExportIdempotencyContractTests
         Assert.Contains("@OperationId", repository);
         Assert.Contains("GetXuatByOperationId(Guid operationId)", repository);
         Assert.Contains("WHERE OperationId = @OperationId", repository);
-        Assert.Contains("OperationId = row[\"OperationId\"]", repository);
+        Assert.Contains("OperationId = row[\"OperationId\"] == DBNull.Value", repository);
     }
 }
