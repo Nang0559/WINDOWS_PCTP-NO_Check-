@@ -130,6 +130,12 @@ public sealed class DeliveryTransactionContractTests
         Assert.Contains("INSERT INTO SlotLot", slotRepository);
         Assert.Contains("NgaySX, SoPhieuTong, MaPhieu, ParentSoPhieu, PhieuStatus", slotRepository);
         Assert.Contains("UpdateSlotHeaderBySlotId(slotId)", slotRepository);
+
+        var receivingWrite = movement.IndexOf("_receiving.Update(request.LotNo", StringComparison.Ordinal);
+        var slotLotWrite = movement.IndexOf("_slots.AddLot(request.TargetSlotId.Value", StringComparison.Ordinal);
+        Assert.True(receivingWrite >= 0 && slotLotWrite > receivingWrite,
+            "STOCKTP receiving persistence and SlotLot detail must both be invoked by the same KhoCore movement before workflow commit.");
+
     }
 
     [Fact]
