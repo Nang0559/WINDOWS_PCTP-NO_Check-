@@ -427,7 +427,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
 
         private bool TruStockTpFifo(string matchCondition, int slCan)
         {
-            DataTable rows = LoadData($"SELECT LOT, SLCONLAI FROM STOCKTP WITH (UPDLOCK, HOLDLOCK) WHERE {matchCondition} AND SLCONLAI > 0 ORDER BY NGAYNHAP ASC");
+            DataTable rows = LoadData($"SELECT LOT, SLCONLAI FROM STOCKTP WITH (UPDLOCK, HOLDLOCK) WHERE {matchCondition} AND SLCONLAI > 0 ORDER BY NGAYNHAP ASC, LOT ASC");
             int conLaiCanTru = slCan;
             foreach (DataRow row in rows.Rows)
             {
