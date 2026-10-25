@@ -142,6 +142,17 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             int soLuong,
             string nguoiXuat)
         {
+            return XuatKhoRework(phieuXuLyId, slotLotId, lotNo, soLuong, nguoiXuat, Guid.NewGuid());
+        }
+
+        public ScanResult XuatKhoRework(
+            int phieuXuLyId,
+            int slotLotId,
+            string lotNo,
+            int soLuong,
+            string nguoiXuat,
+            Guid operationId)
+        {
             if (phieuXuLyId <= 0)
                 return ScanResult.Fail("phieuXuLyId không hợp lệ.");
             if (slotLotId <= 0)
@@ -152,6 +163,8 @@ namespace PCTP.Modules.XuLyHangLoi.Services
                 return ScanResult.Fail("Số lượng xuất phải lớn hơn 0.");
             if (string.IsNullOrWhiteSpace(nguoiXuat))
                 return ScanResult.Fail("Chưa xác định người xuất.");
+            if (operationId == Guid.Empty)
+                return ScanResult.Fail("OperationId không hợp lệ.");
 
             string lotChuan;
             try
@@ -214,7 +227,7 @@ namespace PCTP.Modules.XuLyHangLoi.Services
                     ReferenceType = "QT_REWORK_EXPORT",
                     // Một phiếu có thể xuất từ nhiều SlotLot. Dùng SlotLot nguồn
                     // để các LOT khác nhau không chiếm cùng một idempotency key.
-                    ReferenceId = phieuXuLyId + ":" + slotLotId,
+                    ReferenceId = operationId.ToString("D"),
                     PerformedBy = nguoiXuat,
                     Reason = "Xuất kho đi rework"
                 });
@@ -226,6 +239,7 @@ namespace PCTP.Modules.XuLyHangLoi.Services
 
                 int xuatId = _qtChungRepo.InsertXuat(new TraHangQTChungXuat
                 {
+                    OperationId = operationId,
                     PhieuXuLyBatThuongId = phieuXuLyId,
                     SlotIdNguon = slotLot.SlotVatLyId,
                     LotXuat = lotChuan,
