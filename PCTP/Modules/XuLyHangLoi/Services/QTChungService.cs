@@ -8,6 +8,8 @@ using PCTP.Shared.Helpers;
 using PCTP.Shared.UiMd;
 using System;
 using System.Collections.Generic;
+using System.Data;
+using System.Data.SqlClient;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -290,10 +292,16 @@ namespace PCTP.Modules.XuLyHangLoi.Services
 
         public ScanResult XuatKhoRework(int phieuXuLyId, int slotId, string lotNo, int soLuong, string nguoiXuat)
         {
+            return XuatKhoRework(phieuXuLyId, slotId, lotNo, soLuong, nguoiXuat, Guid.NewGuid());
+        }
+
+        public ScanResult XuatKhoRework(int phieuXuLyId, int slotId, string lotNo, int soLuong, string nguoiXuat, Guid operationId)
+        {
             ValidateNguoiThucHien(nguoiXuat);
             if (slotId <= 0) return ScanResult.Fail("SlotId không hợp lệ.");
             if (string.IsNullOrWhiteSpace(lotNo)) return ScanResult.Fail("LotNo không được rỗng.");
             if (soLuong <= 0) return ScanResult.Fail("SoLuong phải lớn hơn 0.");
+            if (operationId == Guid.Empty) return ScanResult.Fail("OperationId không hợp lệ.");
 
             var phieu = GetRequired(phieuXuLyId);
             if (phieu.HuongXuLy != HuongXuLyBatThuong.CanRework)
@@ -308,7 +316,39 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             try
             {
                 _uow.Begin();
-                var result = _reworkStockService.XuatKhoRework(phieuXuLyId, slotId, lotNo, soLuong, nguoiXuat);
+                using (var command = _uow.Connection.CreateCommand())
+                {
+                    command.Transaction = _uow.Transaction;
+                    command.CommandText = @"
+DECLARE @result int;
+EXEC @result = sys.sp_getapplock
+    @Resource = @Resource,
+    @LockMode = 'Exclusive',
+    @LockOwner = 'Transaction',
+    @LockTimeout = 15000;
+IF @result < 0 THROW 51000, 'Không lấy được khóa xuất Rework theo phiếu.', 1;";
+                    var resource = command.CreateParameter();
+                    resource.ParameterName = "@Resource";
+                    resource.Value = "QT_REWORK_EXPORT:" + phieuXuLyId;
+                    command.Parameters.Add(resource);
+                    command.ExecuteNonQuery();
+                }
+
+                var previous = _traHangQTChungRepository.GetXuatByOperationId(operationId);
+                if (previous != null)
+                {
+                    if (previous.PhieuXuLyBatThuongId != phieuXuLyId ||
+                        !string.Equals(previous.LotXuat, lotNo, StringComparison.OrdinalIgnoreCase) ||
+                        previous.SoLuongXuat != soLuong)
+                    {
+                        SafeRollback();
+                        return ScanResult.Fail("OperationId đã được sử dụng cho một yêu cầu xuất Rework khác.");
+                    }
+                    SafeRollback();
+                    return ScanResult.OK("Lệnh xuất Rework đã được xử lý trước đó (OperationId=" + operationId.ToString("D") + ").");
+                }
+
+                var result = _reworkStockService.XuatKhoRework(phieuXuLyId, slotId, lotNo, soLuong, nguoiXuat, operationId);
                 if (!result.IsOK) { SafeRollback(); return result; }
 
                 // Chỉ chuyển trạng thái ở lần xuất đầu tiên; cho phép nhiều lần xuất
