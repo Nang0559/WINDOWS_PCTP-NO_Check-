@@ -80,7 +80,8 @@ BEGIN
         @_STUP         NVARCHAR(15),  
         @LotThuc       NVARCHAR(500),
         @LockResource  NVARCHAR(255),
-        @LockResult    INT;  
+        @LockResult    INT,
+        @StockRowsUpdated INT;  
   
     --------------------------------------------------------------------  
     -- 3. XÓA TEMP TABLE CŨ  
@@ -820,19 +821,21 @@ BEGIN
             ----------------------------------------------------------------  
             IF LEN(RTRIM(@_LOTUD)) > 13
             BEGIN
+                -- Lock the exact physical LOT while choosing it. Different delivery
+                -- identities can still compete for this same stock row.
                 SELECT @LotThuc = LOT
-                FROM STOCKTP
+                FROM STOCKTP WITH (UPDLOCK, HOLDLOCK, ROWLOCK)
                 WHERE RTRIM(LOT) = RTRIM(@_LOTUD)
                   AND ISNULL(SLCONLAI, 0) >= @_SLUD;
             END
             ELSE IF (
                 SELECT COUNT(DISTINCT RTRIM(LOT))
-                FROM STOCKTP
+                FROM STOCKTP WITH (UPDLOCK, HOLDLOCK)
                 WHERE LEFT(RTRIM(LOT), 13) = LEFT(RTRIM(@_LOTUD), 13)
             ) = 1
             BEGIN
                 SELECT TOP (1) @LotThuc = LOT
-                FROM STOCKTP
+                FROM STOCKTP WITH (UPDLOCK, HOLDLOCK, ROWLOCK)
                 WHERE LEFT(RTRIM(LOT), 13) = LEFT(RTRIM(@_LOTUD), 13)
                   AND ISNULL(SLCONLAI, 0) >= @_SLUD
                 ORDER BY NGAYNHAP ASC, LOT ASC;
@@ -868,39 +871,38 @@ BEGIN
                 ----------------------------------------------------------------  
                 -- 10.3. UPDATE ĐÚNG LOT VẬT LÝ  
                 ----------------------------------------------------------------  
-                UPDATE STOCKTP  
-                SET  
-                    SLCONLAI =  
-                        ISNULL(SLCONLAI, 0) - @_SLUD,  
-  
-                    SLXUAT =  
-                        ISNULL(SLXUAT, 0) + @_SLUD  
-                WHERE LOT = @LotThuc;  
-  
-                ----------------------------------------------------------------  
-                -- 10.4. LƯU LOT VẬT LÝ THẬT  
-                ----------------------------------------------------------------  
-                IF NOT EXISTS  
-                (  
-                    SELECT 1  
-                    FROM #STOK  
-                    WHERE STT = @_STTUD  
-                )  
-                BEGIN  
-                    INSERT INTO #STOK  
-                    (  
-                        STT,  
-                        LOT,  
-                        SOLUONG,  
-                        STATUS  
-                    )  
-        VALUES  
-                    (  
-                        @_STTUD,  
-                        @LotThuc,  
-                        @_SLUD,  
-                        'OK'  
-                    );  
+                UPDATE STOCKTP
+                SET
+                    SLCONLAI = ISNULL(SLCONLAI, 0) - @_SLUD,
+                    SLXUAT = ISNULL(SLXUAT, 0) + @_SLUD
+                WHERE LOT = @LotThuc
+                  AND ISNULL(SLCONLAI, 0) >= @_SLUD;
+
+                SET @StockRowsUpdated = @@ROWCOUNT;
+
+                IF @StockRowsUpdated <> 1
+                BEGIN
+                    INSERT INTO #STNG (MH, LOT, SLCAN, SLCO, SLTHIEU, STATUS)
+                    VALUES
+                    (
+                        @MH,
+                        @_LOTUD,
+                        @_SLUD,
+                        ISNULL((SELECT SLCONLAI FROM STOCKTP WHERE LOT = @LotThuc), 0),
+                        @_SLUD - ISNULL((SELECT SLCONLAI FROM STOCKTP WHERE LOT = @LotThuc), 0),
+                        N'Tồn kho LOT đã thay đổi trong lúc xác nhận giao; vui lòng thử lại'
+                    );
+                END
+                ELSE
+                BEGIN
+                    ----------------------------------------------------------------
+                    -- 10.4. LƯU LOT VẬT LÝ THẬT CHỈ KHI ĐÃ TRỪ ĐÚNG MỘT DÒNG
+                    ----------------------------------------------------------------
+                    IF NOT EXISTS (SELECT 1 FROM #STOK WHERE STT = @_STTUD)
+                    BEGIN
+                        INSERT INTO #STOK (STT, LOT, SOLUONG, STATUS)
+                        VALUES (@_STTUD, @LotThuc, @_SLUD, 'OK');
+                    END;
                 END;  
             END;  
   
