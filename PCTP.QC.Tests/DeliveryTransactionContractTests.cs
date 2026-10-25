@@ -51,6 +51,18 @@ public sealed class DeliveryTransactionContractTests
     }
 
     [Fact]
+    public void StockProcedure_LocksPhysicalLotAndGuardsFinalDecrement()
+    {
+        var sql = ReadSource("Usp_Qrcode_Update_Stock2405.sql");
+
+        Assert.Contains("FROM STOCKTP WITH (UPDLOCK, HOLDLOCK, ROWLOCK)", sql);
+        Assert.Contains("AND ISNULL(SLCONLAI, 0) >= @_SLUD", sql);
+        Assert.Contains("SET @StockRowsUpdated = @@ROWCOUNT", sql);
+        Assert.Contains("IF @StockRowsUpdated <> 1", sql);
+        Assert.Contains("Tồn kho LOT đã thay đổi trong lúc xác nhận giao", sql);
+    }
+
+    [Fact]
     public void DeliveryRepository_DoesNotConsumeRolledBackSuccessRowsWhenProcedureReturnsErrors()
     {
         var source = ReadSource("PhieuKhoRepository.source.cs");
