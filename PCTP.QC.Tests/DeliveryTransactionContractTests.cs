@@ -150,6 +150,8 @@ public sealed class DeliveryTransactionContractTests
         var stockFactory = ReadSource("MainStockModuleFactory.source.cs");
 
         Assert.Contains("IStockReceivingRepository", repository);
+        Assert.Contains(": this(db, uow, \"dbo.STOCKTP\")", repository);
+        Assert.Contains("\"#STOCKTP\"", repository);
         Assert.Contains("WITH (UPDLOCK, HOLDLOCK)", repository);
         Assert.Contains("SLNHAP = ISNULL(SLNHAP, 0) + @sl", repository);
         Assert.Contains("SLCONLAI = ISNULL(SLCONLAI, 0) + @sl", repository);
