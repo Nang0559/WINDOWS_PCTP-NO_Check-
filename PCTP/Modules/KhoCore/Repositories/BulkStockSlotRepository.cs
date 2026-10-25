@@ -312,6 +312,7 @@ VALUES
             if (lot == null) throw new ArgumentNullException(nameof(lot));
             if (string.IsNullOrWhiteSpace(lot.LotNo)) throw new ArgumentException("LotNo không được rỗng.", nameof(lot));
             if (lot.Quantity <= 0) throw new ArgumentOutOfRangeException(nameof(lot.Quantity));
+            if (!HasTransaction) throw new InvalidOperationException("AddLot phải chạy trong transaction để SlotLot và Slot header được cập nhật nguyên tử.");
 
             ExecuteNonQuery(
                 @"INSERT INTO SlotLot
