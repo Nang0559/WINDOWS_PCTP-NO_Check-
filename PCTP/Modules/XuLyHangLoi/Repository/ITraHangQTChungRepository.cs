@@ -64,6 +64,9 @@ namespace PCTP.Modules.XuLyHangLoi.Repository
         TraHangQTChungXuat GetXuatById(
             int id);
 
+        /// <summary>Finds a previously committed export command for idempotent retries.</summary>
+        TraHangQTChungXuat GetXuatByOperationId(Guid operationId);
+
 
         // ============================================================
         // GIAO CHO SẢN XUẤT
