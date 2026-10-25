@@ -143,6 +143,27 @@ public sealed class DeliveryTransactionContractTests
     }
 
     [Fact]
+    public void Receiving_UsesKhoCoreOwnedStockTpPersistenceInAllModuleFactories()
+    {
+        var repository = ReadSource("StockReceivingRepository.source.cs");
+        var receivingFactory = ReadSource("NhapTpModuleFactory.source.cs");
+        var stockFactory = ReadSource("MainStockModuleFactory.source.cs");
+
+        Assert.Contains("IStockReceivingRepository", repository);
+        Assert.Contains("WITH (UPDLOCK, HOLDLOCK)", repository);
+        Assert.Contains("SLNHAP = ISNULL(SLNHAP, 0) + @sl", repository);
+        Assert.Contains("SLCONLAI = ISNULL(SLCONLAI, 0) + @sl", repository);
+        Assert.Contains("NGAYNHAP = GETDATE()", repository);
+        Assert.Contains("SATUS = @status", repository);
+        Assert.Contains("affected != 1", repository);
+        Assert.Contains("EnsureTransaction()", repository);
+        Assert.Contains("StockReceivingRepository(dbExecutor, uow)", receivingFactory);
+        Assert.Contains("StockReceivingRepository(dbExecutor, uow)", stockFactory);
+        Assert.DoesNotContain("StockReceivingRepositoryAdapter", receivingFactory);
+        Assert.DoesNotContain("StockReceivingRepositoryAdapter", stockFactory);
+    }
+
+    [Fact]
     public void DeliveryRepository_DoesNotConsumeRolledBackSuccessRowsWhenProcedureReturnsErrors()
     {
         var source = ReadSource("PhieuKhoRepository.source.cs");
