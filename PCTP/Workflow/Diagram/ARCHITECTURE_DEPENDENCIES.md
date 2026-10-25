@@ -28,6 +28,7 @@ GiaoHangKhach workflow ────────> delivery stock command thuộc 
 | Nguồn | Đích hiện tại | Loại | Đánh giá |
 |---|---|---|---|
 | NhapTpReceivingService | IStockMovementService.Receive | Application command | Đã dùng; caller vẫn ghi SlotLot detail qua InsertPhieuMoi |
+| NhapTpReceivingService | IStockTpImportGuardRepository (QR → LOT) | Transaction application locks | Tuần tự hóa nhập cùng QR và QR khác nhau cùng LOT trước khi đọc SLNHAP; SlotLot detail vẫn caller-owned |
 | StockExportService | IStockMovementService | Application command | Đã dùng cho Pick/Export/RestorePicked |
 | ReworkStockService | IStockMovementService | Application command | Đã dùng ở các luồng Rework đã rà |
 | GiaoBuNGService | IStockExportService | Workflow | Giữ nguyên workflow giao bù |
