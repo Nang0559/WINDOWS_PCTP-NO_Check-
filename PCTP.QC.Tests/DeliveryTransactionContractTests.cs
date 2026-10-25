@@ -112,6 +112,27 @@ public sealed class DeliveryTransactionContractTests
     }
 
     [Fact]
+    public void Receiving_SlotLotMetadataIsPersistedByKhoCoreWithinMovement()
+    {
+        var receiving = ReadSource("NhapTpReceivingService.source.cs");
+        var movement = ReadSource("StockMovementService.source.cs");
+        var slotRepository = ReadSource("BulkStockSlotRepository.source.cs");
+
+        Assert.Contains("ReceivingMaPhieu = PhieuNoHelper.NewMaPhieuNhap(lotNo)", receiving);
+        Assert.Contains("TemCode = qr.MaPhieu", receiving);
+        Assert.Contains("QrData = qr.RawQr", receiving);
+        Assert.DoesNotContain("_phieuRepo.InsertPhieuMoi(", receiving);
+        Assert.DoesNotContain("SlotLotWrittenByCaller = true", receiving);
+
+        Assert.Contains("MaPhieu = request.ReceivingMaPhieu", movement);
+        Assert.Contains("SoPhieuTong = request.ReceivingSoPhieuTong", movement);
+        Assert.Contains("ParentSoPhieu = request.ReceivingParentSoPhieu", movement);
+        Assert.Contains("INSERT INTO SlotLot", slotRepository);
+        Assert.Contains("NgaySX, SoPhieuTong, MaPhieu, ParentSoPhieu, PhieuStatus", slotRepository);
+        Assert.Contains("UpdateSlotHeaderBySlotId(slotId)", slotRepository);
+    }
+
+    [Fact]
     public void DeliveryRepository_DoesNotConsumeRolledBackSuccessRowsWhenProcedureReturnsErrors()
     {
         var source = ReadSource("PhieuKhoRepository.source.cs");
