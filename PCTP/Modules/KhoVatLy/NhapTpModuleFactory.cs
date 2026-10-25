@@ -11,7 +11,6 @@ using PCTP.Modules.KhoVatLy.Application.Interfaces;
 using PCTP.Modules.KhoVatLy.Application.Services;
 using PCTP.Modules.KhoVatLy.Repositories;
 using PCTP.Modules.KhoVatLy.Repository;
-using PCTP.Modules.NhapKho.Application.Adapters;
 using PCTP.Modules.NhapKho.Repository;
 using PCTP.Modules.NhapKho.Services;
 using PCTP.Modules.XuatKho.Application.Adapters;
@@ -62,7 +61,7 @@ namespace PCTP.Modules.KhoVatLy
                 new StockExportRepositoryAdapter(
                     new PCTP.Modules.XuatKho.Repositories.StockExportRepository(dbExecutor, uow));
             IStockReceivingRepository stockReceivingRepository =
-                new StockReceivingRepositoryAdapter(stockTpRepo);
+                new StockReceivingRepository(dbExecutor, uow);
 
             var stockMovement = new StockMovementService(
                 stockBalanceRepository,
