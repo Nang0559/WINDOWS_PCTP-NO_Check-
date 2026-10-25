@@ -25,13 +25,14 @@ Tài liệu này mô tả chi tiết luồng vận hành và kiến trúc xử l
    * **Nhập chi tiết (Detailed Mode):** Người dùng thực hiện chọn không gian theo thứ tự `Warehouse` $\rightarrow$ `Rack` $\rightarrow$ chọn 1 Slot cụ thể thông qua `ISlotService.GetEmptySlots`.
 5. **Thực Hiện Nhập Vào Slot (Unit of Work):**
    * Tất cả các luồng sau khi định vị vị trí đều gọi chung `INhapTpReceivingService.NhapTpVaoSlot` chạy trong **một `IUnitOfWork` duy nhất**.
-6. **Bốn Nhánh Transaction Song Song:**
-   * *Nhánh 1:* `IStockTpImportGuardRepository` — Khoá theo QR (`sp_getapplock`) và kiểm tra trùng trong transaction.
-   * *Nhánh 2:* `IStockTpRepository` — Insert hoặc update cộng dồn tồn kho tổng `STOCKTP`.
-   * *Nhánh 3:* `IPhieuTrackingRepository` — Insert phiếu mới theo dõi Slot-Lot tracking.
-   * *Nhánh 4:* `ISlotService` — Lưu chi tiết `SaveLots` và cộng số lượng `AddQuantity` vào Kho Core.
-7. **Commit Transaction & Ghi Lịch Sử:**
-   * Sau khi commit thành công vào Database, hệ thống thực hiện gọi `SaveHistory` với `ActionType` tương ứng (ví dụ: `IMPORT`, `BULK_IMPORT`, hoặc `NHAP_LAI_SAU_REWORK`).
+6. **Thực hiện atomic receiving qua KhoCore trong transaction:**
+   * Lấy application lock theo thứ tự QR → LOT bằng `IStockTpImportGuardRepository`. Khóa LOT tuần tự hóa các tem khác nhau cùng cập nhật một LOT sản xuất.
+   * Kiểm tra QR đã nhập trong `SlotLot.QrData` hoặc `StockHistory(IMPORT)` sau khi đã lấy khóa.
+   * `StockMovementService.Receive` gọi `IStockReceivingRepository` để insert/update `STOCKTP` qua adapter legacy, sau đó gọi `BulkStockSlotRepository.AddLot` để ghi một dòng SlotLot với TemCode, QrData, NgaySX, SoPhieuTong, MaPhieu, ParentSoPhieu, ImportDate và PhieuStatus; đồng thời tính lại Slot header.
+   * `AddLot` từ chối chạy nếu không có transaction. Workflow owner chịu trách nhiệm rollback khi movement trả Fail/Duplicate.
+   * `IPhieuTrackingRepository.InsertPhieuMoi` không còn được gọi trong luồng nhập thành phẩm chuẩn; repository vẫn có thể tồn tại cho các caller legacy khác.
+7. **Ghi Lịch Sử & Commit:**
+   * Sau khi movement thành công, workflow gọi `SaveHistory(ActionType = IMPORT)` trước `Commit`; history, STOCKTP, SlotLot và Slot header cùng commit/rollback trong một UoW.
    * Kết thúc quy trình nhập kho.
 
 ---
@@ -72,20 +73,13 @@ graph TD
     BulkMode --> NhapVaoSlot["INhapTpReceivingService.N<br/>hapTpVaoSlot<br/>— MỘT IUnitOfWork DUY<br/>NHẤT"]
     SelectSlot --> NhapVaoSlot
 
-    %% 4 NHÁNH TRANSACTION SONG SONG
-    NhapVaoSlot --> Tr1["1. IStockTpImportGuardRepository<br/>— applock theo QR + check trùng"]
-    NhapVaoSlot --> Tr2["2. IStockTpRepository —<br/>insert/update STOCKTP<br/>(cộng)"]
-    NhapVaoSlot --> Tr3["3. IPhieuTrackingRepository<br/>— insertPhieuMoi (SlotLot<br/>tracking)"]
-    NhapVaoSlot --> Tr4["4. ISlotService — SaveLots +<br/>AddQuantity (Kho Core)"]
-
-    %% HỘI TỤ COMMIT TRANSACTION
-    Tr1 --> CommitDB[(Commit transaction)]
-    Tr2 --> CommitDB
-    Tr3 --> CommitDB
-    Tr4 --> CommitDB
-
-    %% LỊCH SỬ SAU COMMIT
-    CommitDB --> History["Sau khi commit: SaveHistory<br/>ActionType = IMPORT /<br/>BULK_IMPORT / NHAP_LAI_SAU_REWORK"]
+    %% CHUỖI ATOMIC RECEIVING TUẦN TỰ TRONG MỘT UOW
+    NhapVaoSlot --> Tr1["AcquireImportLock(QR)<br/>AcquireLotImportLock(LOT)"]
+    Tr1 --> Tr2["Kiểm tra QR trùng<br/>SlotLot + StockHistory"]
+    Tr2 --> Tr3["StockMovementService.Receive<br/>IStockReceivingRepository<br/>insert/update STOCKTP"]
+    Tr3 --> Tr4["BulkStockSlotRepository.AddLot<br/>insert SlotLot metadata/QR<br/>refresh Slot header"]
+    Tr4 --> History["SaveHistory(IMPORT)<br/>trước Commit"]
+    History --> CommitDB[(Commit transaction)]
 
     %% HOÀN TẤT
     History --> End([HOÀN TẤT NHẬP KHO])
