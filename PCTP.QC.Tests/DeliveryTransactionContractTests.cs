@@ -92,6 +92,26 @@ public sealed class DeliveryTransactionContractTests
     }
 
     [Fact]
+    public void Receiving_SerializesSameLotBeforeReadingCumulativeReceivedQuantity()
+    {
+        var service = ReadSource("NhapTpReceivingService.source.cs");
+        var guard = ReadSource("StockTpImportGuardRepository.source.cs");
+
+        var qrLock = service.IndexOf("_importGuard.AcquireImportLock(qr.RawQr)", StringComparison.Ordinal);
+        var lotLock = service.IndexOf("_importGuard.AcquireLotImportLock(lotNo)", StringComparison.Ordinal);
+        var duplicateCheck = service.IndexOf("if (DaNhapTruocDo(qr))", qrLock, StringComparison.Ordinal);
+        var receivedQuantityRead = service.IndexOf("_stockTpRepo.GetSlDaNhap(lotNo)", lotLock, StringComparison.Ordinal);
+
+        Assert.True(qrLock >= 0 && lotLock > qrLock && duplicateCheck > lotLock,
+            "The QR lock and then LOT lock must be acquired before the transactional duplicate check.");
+        Assert.True(receivedQuantityRead > lotLock,
+            "Cumulative STOCKTP received quantity must be read only after same-LOT receipts are serialized.");
+        Assert.Contains("NHAPTP_LOT_", guard);
+        Assert.Contains("@LockOwner   = 'Transaction'", guard);
+        Assert.Contains("AcquireLotImportLock phải được gọi bên trong transaction", guard);
+    }
+
+    [Fact]
     public void DeliveryRepository_DoesNotConsumeRolledBackSuccessRowsWhenProcedureReturnsErrors()
     {
         var source = ReadSource("PhieuKhoRepository.source.cs");
