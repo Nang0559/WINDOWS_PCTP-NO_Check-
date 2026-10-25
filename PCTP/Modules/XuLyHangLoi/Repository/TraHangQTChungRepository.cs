@@ -206,6 +206,7 @@ WHERE OperationId = @OperationId;";
             const string sql = @"
 SELECT
     Id,
+    OperationId,
     PhieuXuLyBatThuongId,
     SlotIdNguon,
     LotXuat,
