@@ -47,6 +47,8 @@ Các đường trên vẫn ghi STOCKTP từ repository/SP ngoài stock command K
 ### 3.4 Hàng lỗi
 
 - Rework xuất, nhập NG cách ly và trả OK hiện gọi IStockMovementService trong các đường đã rà.
+- Xuất Rework mang `OperationId` do UI tạo và giữ nguyên khi retry; `QTChungService` lấy transaction-owned application lock theo phiếu trước khi tra lịch sử OperationId. `FVN_TraHangQTChungXuat.OperationId` có unique filtered index để chặn ghi lịch sử trùng. Cần triển khai migration `PHASE14_ReworkExportIdempotency.sql` trước khi chạy phiên bản code này.
+- Đây mới là bảo vệ retry/đồng thời cho một OperationId; chưa chứng minh guard hạn mức Initial QC đã được gọi trong mọi composition root, cũng chưa thay thế SQL integration/UI E2E.
 - Giao bù điều phối qua IStockExportService; phải giữ riêng nghĩa vụ giao bù.
 - QC release là command KhoCore riêng, không nhập chung với Rework OK hoặc coi NG tự động là giao bù.
 
