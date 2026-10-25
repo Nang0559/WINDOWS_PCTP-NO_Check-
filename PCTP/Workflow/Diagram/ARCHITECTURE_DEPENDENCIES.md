@@ -27,8 +27,8 @@ GiaoHangKhach workflow ────────> delivery stock command thuộc 
 
 | Nguồn | Đích hiện tại | Loại | Đánh giá |
 |---|---|---|---|
-| NhapTpReceivingService | IStockMovementService.Receive | Application command | Đã dùng; caller vẫn ghi SlotLot detail qua InsertPhieuMoi |
-| NhapTpReceivingService | IStockTpImportGuardRepository (QR → LOT) | Transaction application locks | Tuần tự hóa nhập cùng QR và QR khác nhau cùng LOT trước khi đọc SLNHAP; SlotLot detail vẫn caller-owned |
+| NhapTpReceivingService | IStockMovementService.Receive | Application command | KhoCore ghi SlotLot detail + Slot header; STOCKTP còn adapter sang StockTPRepository legacy |
+| NhapTpReceivingService | IStockTpImportGuardRepository (QR → LOT) | Transaction application locks | Tuần tự hóa nhập cùng QR và QR khác nhau cùng LOT trước khi đọc SLNHAP; KhoCore ghi SlotLot detail |
 | StockExportService | IStockMovementService | Application command | Đã dùng cho Pick/Export/RestorePicked |
 | ReworkStockService | IStockMovementService | Application command | Đã dùng ở các luồng Rework đã rà |
 | GiaoBuNGService | IStockExportService | Workflow | Giữ nguyên workflow giao bù |
@@ -41,7 +41,7 @@ GiaoHangKhach workflow ────────> delivery stock command thuộc 
 
 - Form chọn Slot/LOT chỉ đọc dữ liệu qua query/service read-only.
 - Module nghiệp vụ được đọc tồn để validate/allocate nhưng không được direct mutate stock tables.
-- Chỉ application command thuộc KhoCore được thay đổi STOCKTP, Slot, SlotLot.
+- Chỉ application command thuộc KhoCore được thay đổi STOCKTP, Slot, SlotLot. Nhập thành phẩm đã chuyển SlotLot/Slot header qua Receive; adapter STOCKTP vẫn là bước chuyển tiếp cần loại bỏ.
 - Workflow owner được ghi chứng từ/history trong cùng UnitOfWork theo contract.
 - Quarantine release là command riêng, không được bypass kiểm tra QC/status.
 - Legacy delivery SQL/SP chỉ tồn tại tạm thời đến khi Wave 1 có parity tests và cutover; không chạy legacy và command mới cùng một giao dịch.
