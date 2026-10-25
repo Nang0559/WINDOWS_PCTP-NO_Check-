@@ -32,6 +32,7 @@ namespace PCTP.Modules.XuLyHangLoi.Services
         AffectedLotTraceResult TruyVetLOT(int phieuXuLyId, string nguoiThucHien);
         List<LotInfo> GetLotsCanRework(int phieuXuLyId);
         ScanResult XuatKhoRework(int phieuXuLyId, int slotId, string lotNo, int soLuong, string nguoiXuat);
+        ScanResult XuatKhoRework(int phieuXuLyId, int slotId, string lotNo, int soLuong, string nguoiXuat, Guid operationId);
         ScanResult GiaoHangRework(int phieuXuLyId, List<LotInfo> lots, string ngayGiao, string nguoiNhan, string boPhanNhan);
         void GhiNhanDangRework(int phieuXuLyId, string ghiChu, string nguoiThucHien);
         ScanResult QCXacNhanCuoi(int phieuXuLyId, int soLuongOK, int soLuongNG, string nguoiQC, int? slotIdOK = null, int? slotIdNG = null, string lotNo = null);
