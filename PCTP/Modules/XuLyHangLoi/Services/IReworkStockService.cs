@@ -28,6 +28,8 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             int soLuong,
             string nguoiXuat);
 
+        ScanResult XuatKhoRework(int phieuXuLyId, int slotLotId, string lotNo, int soLuong, string nguoiXuat, Guid operationId);
+
         ScanResult NhapLaiHangNG(
             int phieuXuLyId,
             string lotNo,
