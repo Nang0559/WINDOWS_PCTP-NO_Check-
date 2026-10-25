@@ -21,7 +21,7 @@ Contract này áp dụng cho mọi nghiệp vụ thay đổi tồn kho. Một ng
 
 | Nghiệp vụ | Slot / SlotLot | STOCKTP | History | Owner hiện tại / lưu ý |
 |---|---:|---:|---:|---|
-| Nhập thành phẩm OK | + | + | + | Receiving workflow + StockMovementService; SlotLot detail còn caller-owned |
+| Nhập thành phẩm OK | + | + | + | Receiving workflow + StockMovementService; KhoCore ghi SlotLot detail và Slot header, STOCKTP qua adapter legacy trong cùng UoW |
 | Pick | - | 0 | + | StockExportService + StockMovementService |
 | Confirm Export | - | - | + | StockExportService + StockMovementService |
 | Hủy chờ giao | + | 0 | + | RestorePicked; Pick chưa trừ STOCKTP |
