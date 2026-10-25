@@ -3,7 +3,8 @@
 > **Ngày rà soát:** 2026-10-25  
 > **Repository:** `Nang0559/WINDOWS_PCTP-NO_Check-`  
 > **Branch:** `feature/wms-end-to-end-consistency`  
-> **Baseline đã xác minh trước khi cập nhật tài liệu:** `e334fed1528d8d4ca89179f87dace182a2bc451c`  
+> **Code audit baseline:** `e334fed1528d8d4ca89179f87dace182a2bc451c` (code snapshot dùng cho các nhận định source-level ban đầu).  
+> **Documentation/CI HEAD hiện tại:** `6a4242ff6f30f75c3f091dd15d0bf189b10e16e1` (commit cập nhật bảng tổng hợp; CI run mới đã chạy trên SHA này).  
 > **PR:** #3 — Draft  
 > **Nguyên tắc:** bảng này ghi nhận trạng thái theo bằng chứng code/SQL/test đang có; không dùng phần trăm ước lượng và không suy diễn PASS từ việc có class, migration hoặc source-contract test.
 
@@ -33,9 +34,9 @@ Ba điểm chặn quan trọng nhất:
 | WMS-08 | Hàng lỗi — truy vết LOT | Tập hợp nguồn sản xuất, tồn kho, hàng trả; snapshot ảnh hưởng | Có `AffectedLotTraceService` và dữ liệu AffectedLot | Cần kiểm tra độ đầy đủ nguồn trace, snapshot bất biến và đồng bộ khi tồn thay đổi | P1 |
 | WMS-09 | Hàng lỗi — Initial QC | QC đủ lượng ảnh hưởng; OK + NG = inspected; NG = Rework + loại bỏ | Có validation và lưu Initial QC trong `IAffectedLotTraceService.cs` | Cần SQL integration xác nhận unique ticket, concurrency, update affected LOT và rollback | P1 |
 | WMS-10 | Rework — kế hoạch và xuất | Chỉ xuất theo `SoLuongRework` đã duyệt; retry không xuất trùng | Có ledger `OperationId`, app lock theo phiếu, unique filtered index migration Phase 14 | **P0 blocker:** `QTChungService.XuatKhoRework` chưa gọi guard `EnsureCanExport`; phải fail-closed và chống vượt hạn mức dưới concurrency | P0 |
-| WMS-11 | Rework — giao sản xuất | Chỉ giao lượng đã xuất và không vượt lượng QC duyệt | Có chuỗi Phase 4–9 và báo cáo kế hoạch được mô tả trong tài liệu | Chưa đủ bằng chứng lệnh giao thực tế khóa/cập nhật kế hoạch cùng transaction và chặn giao vượt | P0 |
-| WMS-12 | Rework — QC cuối | Chỉ QC sau khi xuất/giao đủ; OK + NG = lượng Rework | Quy tắc được mô tả trong `PHASE4_9_COMPLETION_STATUS.md` | Cần xác minh guard trong command thật, SQL CHECK, unique result và test transition | P1 |
-| WMS-13 | Disposition / loại bỏ | Tổng loại bỏ cuối = loại bỏ ban đầu + NG sau Rework | Quy tắc nghiệp vụ được tài liệu hóa | Cần xác minh phép cộng từ dữ liệu chuẩn, quyền phê duyệt, audit và test không ghi trùng | P1 |
+| WMS-11 | Rework — giao sản xuất | Chỉ giao lượng đã xuất và không vượt lượng QC duyệt | Có code kiểm tra tổng đã giao + lượng yêu cầu không vượt tổng đã xuất theo LOT (`QTChungService.cs:384–428`); ghi giao trong UoW (`:430–435`) | Các phép đọc số đã xuất/đã giao xảy ra trước `_uow.Begin()`; chưa chứng minh khóa/serialize hai session, retry và rollback toàn bộ luồng | P0 |
+| WMS-12 | Rework — QC cuối | Chỉ QC sau khi xuất/giao đủ; OK + NG = lượng Rework | Có code `HangLoiPhase5To9Service.ConfirmReworkQC` kiểm Initial QC, `GetPlan`, `DaXuatDu`, `DaGiaoDu`, tổng OK+NG và kết quả đã tồn tại (`IQTChungService.cs:142–158`) | Cần xác minh các kiểm tra được serialize trong cùng transaction; kiểm tra DB unique/CHECK và SQL concurrency chưa được chứng minh bằng test tích hợp | P1 |
+| WMS-13 | Disposition / loại bỏ | Tổng loại bỏ cuối = loại bỏ ban đầu + NG sau Rework | Có code `ConfirmDisposition` tính `SoLuongLoaiBoCuoi = SoLuongLoaiBoBanDau + ReworkNG` và lưu bảng Disposition (`IQTChungService.cs:170–188`) | Chưa chứng minh unique constraint/serialize tạo disposition đồng thời, quyền phê duyệt đầy đủ và test rollback/duplicate trên SQL thật | P1 |
 | WMS-14 | Giao bù NG | Nghĩa vụ giao bù là chứng từ độc lập, số lượng theo yêu cầu khách hàng | `GiaoBuNGService` điều phối qua `IStockExportService` trong đường code đã rà | Phải chứng minh không suy ra giao bù từ NG; chống giao trùng/vượt nghĩa vụ; rollback và audit | P1 |
 | WMS-15 | Quarantine / QC release | Hàng cách ly không được tính tồn khả dụng; chỉ release theo QC/quyền hợp lệ | Có `QuarantineReleaseService` thuộc KhoCore, khóa Slot và cập nhật SlotLot/STOCKTP/audit | Cần ghi rõ đây là command chuyên biệt thuộc KhoCore; kiểm concurrency, quyền và đối chiếu tồn | P1 |
 | WMS-16 | Lịch sử / audit | Mỗi biến động có chứng từ, người thao tác, thời điểm, loại movement và liên kết nguồn | Workflow ghi history trong cùng UoW ở các luồng đã rà | `StockMovementService` không tự ghi StockHistory; phải rà mọi caller để tránh thiếu hoặc ghi hai lần | P1 |
@@ -62,10 +63,10 @@ Ba điểm chặn quan trọng nhất:
 | Phase 1 | Architecture contract, ownership, state machine | 🟡 Một phần đã có | Chốt một mô hình ownership không mâu thuẫn giữa StockMovement và command chuyên biệt; loại tài liệu legacy sai |
 | Phase 2 | KhoCore consolidation | 🟡 Một phần đã có | Các writer STOCKTP/Slot/SlotLot có owner rõ; dependency scan không còn bypass ngoài danh sách ngoại lệ được duyệt |
 | Phase 3 | Central StockMovement | 🟡 Đã có command trung tâm | Kiểm toàn bộ caller; idempotency/business key, rollback và concurrency có SQL integration |
-| Phase 4 | Nhập kho | 🟡 Đã chuyển đường nhập chuẩn | Chạy đủ QR/LOT/multi-QR/partial/reopen/capacity/metadata/rollback trên schema DBA đại diện |
+| Implementation Phase 4 — Receiving | Nhập kho | 🟡 Đã chuyển đường nhập chuẩn | Chạy đủ QR/LOT/multi-QR/partial/reopen/capacity/metadata/rollback trên schema DBA đại diện |
 | Phase 5 | Xuất kho | 🟡 Đã có Pick/Export workflow | Đóng mọi nhánh trực tiếp, chờ giao, retry, duplicate, FIFO, Slot/LOT và concurrency |
 | Phase 6 | Giao Hàng Khách | 🔴 Chưa đóng | Thay đường trừ STOCKTP tại repository/SP bằng command thống nhất; giữ parity FIFO/QR/PART/multi-LOT; test rollback |
-| Phase 7 | Hàng lỗi / Rework / Giao bù / Quarantine | 🔴 Chưa đóng | Nối Phase 4 guard vào export và delivery thật; QC cuối/disposition/compensation đúng số lượng; test đồng thời |
+| Implementation Phase 7 — Defect workflows | Hàng lỗi / Rework / Giao bù / Quarantine | 🔴 Chưa đóng | Nối **Rework process Phase 4 guard** vào export và delivery thật; QC cuối/disposition/compensation đúng số lượng; test đồng thời |
 | Phase 8 | Shared cleanup | 🟡 Chưa đóng | Xóa trùng logic, thống nhất DI/composition root, transaction, audit, idempotency |
 | Phase 9 | Legacy cleanup | 🟡 Chưa đóng | Static scan toàn repo; loại legacy callers/adapters sau khi chứng minh parity và không còn consumer |
 | Phase 10 | Verification / release | 🔴 Chưa đóng | G1–G6 đủ bằng chứng, build ứng dụng thật, SQL integration, UI E2E, cleanup sạch, evidence đúng commit SHA |
@@ -74,33 +75,51 @@ Ba điểm chặn quan trọng nhất:
 
 | Gate | Nội dung phải chứng minh | Evidence hiện có | Trạng thái |
 |---|---|---|---|
-| G1 — Traceability | Mỗi yêu cầu/luồng nối được code ↔ SQL object ↔ transaction ↔ test ↔ tài liệu; không còn gap chưa xử lý | Đợt rà trước ghi nhận 87 code rows, 75 code gaps, 12 SQL scripts, 104 gaps tổng; chưa có kết quả G1 PASS mới được xác minh | 🔴 OPEN |
-| G2 — Unit/regression | Unit/source-contract và regression bảo vệ quy tắc nghiệp vụ | CI gần nhất chạy job `unit-regression-tests` thành công trên commit `e334fed...` | 🟢 PASS trên commit đó |
-| G3 — SQL integration | Chạy implementation/repository thật với SQL engine cô lập, kiểm dữ liệu và rollback | CI gần nhất chạy job `sql-engine-integration` thành công; chưa tương đương schema nghiệp vụ sản xuất đầy đủ | 🟡 PASS có giới hạn |
+| G1 — Traceability | Mỗi yêu cầu/luồng nối được code ↔ SQL object ↔ transaction ↔ test ↔ tài liệu; không còn gap chưa xử lý | Số liệu `87/75/12/104` là snapshot cũ, không có ngày và SHA gắn kèm trong hồ sơ hiện tại; **không dùng làm số liệu hiện hành**. Chưa có lần rà G1 mới đủ artifacts để xác nhận PASS | 🔴 OPEN |
+| G2 — Unit/regression | Unit/source-contract và regression bảo vệ quy tắc nghiệp vụ | CI `40199959465` chạy `unit-regression-tests` thành công trên HEAD `6a4242ff…`; test liên quan hiện có: `ReworkExportIdempotencyContractTests`, `ReworkWorkflowTransactionTests`, `DeliveryTransactionContractTests` | 🟢 PASS trên HEAD này; phạm vi vẫn là các test đã cấu hình, không phải full E2E |
+| G3 — SQL integration | Chạy implementation/repository thật với SQL engine cô lập, kiểm dữ liệu và rollback | CI `40199959465` chạy `sql-engine-integration` thành công trên HEAD `6a4242ff…`; chưa tương đương schema nghiệp vụ sản xuất đầy đủ | 🟡 PASS có giới hạn |
 | G4 — Production procedure compatibility | Kiểm procedure thật trong DB thử nghiệm được cô lập, rollback-only và có G3 PASS cùng commit | Chưa có bằng chứng mới xác nhận schema/seed/procedure nghiệp vụ đại diện | 🔴 BLOCKED |
-| G5 — UI journeys | AutomationId thật; chạy 5 hành trình UI; assert dữ liệu sau thao tác | UI runner/build job có chạy; các business journey chưa có bằng chứng PASS đầy đủ | 🔴 OPEN |
+| G5 — UI journeys | AutomationId thật; chạy 5 hành trình UI; assert dữ liệu sau thao tác | `desktop-runner-build` của run `40199959465` thành công; đây là build runner, không phải kết quả chạy 5 business journey | 🔴 OPEN |
 | G6 — Full business E2E | Seed → thao tác UI → assert DB → cleanup; Remaining = 0; database cô lập | Các journey receive, QC direction, QC final, delivery HVN chưa được xác nhận PASS; self-test không thay thế business E2E | 🔴 OPEN |
 
 ### CI snapshot
 
-- Branch HEAD được xác minh: `e334fed1528d8d4ca89179f87dace182a2bc451c`.
-- Workflow run gần nhất được ghi nhận: `40195012228`, kết luận success, 3/3 jobs: `unit-regression-tests`, `sql-engine-integration`, `desktop-runner-build`.
-- Đây là kết quả CI của commit trên; không được dùng thay bằng chứng G1/G4/G5/G6 hoặc schema production representative.
+- Code audit snapshot ban đầu: `e334fed1528d8d4ca89179f87dace182a2bc451c`.
+- Documentation HEAD hiện tại: `6a4242ff6f30f75c3f091dd15d0bf189b10e16e1`.
+- Workflow run `40199959465` kết luận success trên đúng HEAD `6a4242ff…`, gồm 3/3 jobs: `unit-regression-tests`, `sql-engine-integration`, `desktop-runner-build`.
+- Workflow run cũ `40195012228` thuộc code baseline `e334fed…`; không dùng run cũ làm bằng chứng cho HEAD mới khi đã có run `40199959465`.
+- CI success không thay thế bằng chứng G1/G4/G5/G6 hoặc schema production representative.
 - Không được dùng database production hoặc SQL dùng chung để chạy test có mutation. G4 phải rollback-only; G6 chỉ chạy trên database cô lập có xác nhận.
 
 ## 6. Danh sách blocker theo thứ tự ưu tiên
 
+> **Quy ước Phase:** `Implementation Phase 1–10` là các wave triển khai WMS trong mục 4. `Rework process Phase 4–9` là các bước nghiệp vụ xử lý hàng lỗi trong `PHASE4_9_COMPLETION_STATUS.md`; hai hệ đánh số độc lập, không được viết tắt cùng một nhãn “Phase 4”.
+
 | Mã | Blocker | Hậu quả nếu chưa xử lý | Hành động đóng |
 |---|---|---|---|
-| B0-01 | Giao Hàng Khách còn trừ STOCKTP qua SP/SQL trong `PhieuKhoRepository` | Hai nguồn mutation có thể lệch STOCKTP và SlotLot | Thiết kế delivery stock command theo allocation LOT/Slot; migration từng nhánh; không chạy song song hai writer |
-| B0-02 | Rework export chưa gọi Phase 4 `EnsureCanExport` | Có thể xuất vượt số lượng Initial QC duyệt | Xác minh/hoàn thiện service contract; inject fail-closed vào QTChung composition; guard dưới lock/UoW trước movement |
-| B0-03 | Rework delivery chưa chứng minh kiểm soát remaining | Có thể giao vượt số đã xuất/được duyệt | Guard giao theo ledger xuất + kế hoạch QC; cập nhật kế hoạch cùng transaction |
+| B0-01 | Giao Hàng Khách còn trừ STOCKTP qua SP/SQL trong `PhieuKhoRepository.cs:76–88, 160–170` | Hai nguồn mutation có thể lệch STOCKTP và SlotLot | **Owner:** WMS/KhoCore + Giao Hàng Khách. **Ngày rà:** 2026-10-25. Thiết kế delivery stock command theo allocation LOT/Slot; giữ FIFO/QR/PART/multi-LOT parity; migrate từng nhánh; tuyệt đối không chạy hai writer song song |
+| B0-02 | Rework export chưa gọi Rework process Phase 4 `EnsureCanExport` trong `QTChungService.cs:298–359` | Có thể xuất vượt số lượng Initial QC duyệt | **Owner:** XuLyHangLoi/WMS. **Ngày rà:** 2026-10-25. `WarehouseProcessNavigator.cs:123–132` là composition root đã xác định nhưng hiện chỉ truyền `module.AffectedLotTraceService`, chưa truyền Phase4 guard. Hoàn thiện contract, inject bắt buộc (không nullable), guard sau idempotency lookup và trước stock mutation, dưới cùng transaction/app lock |
+| B0-03 | Rework delivery chưa chứng minh kiểm soát remaining/concurrency | Có thể hai session cùng đọc số đã giao cũ rồi ghi vượt số đã xuất | **Owner:** XuLyHangLoi/WMS. **Ngày rà:** 2026-10-25. Code hiện có kiểm tra theo LOT tại `QTChungService.cs:384–428`, nhưng đọc ledger trước `_uow.Begin()` (`:430`); cần chuyển kiểm tra/đọc khóa vào transaction và test hai session, retry, rollback trước khi đóng blocker |
 | B1-01 | G1 traceability chưa PASS | Không biết đầy đủ đường code/SQL/test nào thiếu bảo vệ | Hoàn thiện mapping thực tế; không sửa CSV để giảm tiêu chí |
 | B1-02 | G4 thiếu schema/seed DBA xác nhận | Không chứng minh stored procedure thật tương thích | Xin schema-only export và seed đã làm sạch; chạy rollback-only trên DB cô lập |
 | B1-03 | G5/G6 business UI journeys chưa PASS | Không chứng minh thao tác thực tế xuyên UI và dữ liệu | Lấy AutomationId từ UI catalog; bật journey thật; assert stock/history/guard; cleanup Remaining=0 |
 | B1-04 | Generic movement idempotency chưa có cho mọi workflow | Retry ở workflow chưa có business key có thể lặp mutation | Chốt key bền vững từng nghiệp vụ; unique index/ledger; concurrent retry test |
 | B1-05 | Static legacy writer/caller scan chưa đóng | Có thể còn đường ghi tồn ngoài owner | Scan toàn repository và SQL; phân loại caller; chỉ xóa sau parity |
 | B1-06 | Build WinForms đầy đủ chưa được chứng minh trên môi trường mục tiêu | CI desktop runner không thay thế build ứng dụng thật | Build toàn solution/project trên môi trường .NET Framework mục tiêu và lưu log theo SHA |
+
+
+
+### 6.1. Evidence index — file/line, owner và test
+
+| ID | Code evidence đã đối chiếu trên code snapshot `e334fed…` | Test hiện có | Owner xử lý / trạng thái |
+|---|---|---|---|
+| B0-01 | `PCTP/Modules/GiaoHangKhach/Repositories/PhieuKhoRepository.cs:76–88, 160–170` gọi hai stored procedure giao hàng; đường SQL/FIFO YMVN cần rà tiếp toàn file và các caller | `PCTP.QC.Tests/DeliveryTransactionContractTests.cs` (source-contract cho procedure/transaction); chưa có test chứng minh chuyển hẳn sang movement allocation | WMS/KhoCore + Giao Hàng Khách; open |
+| B0-02 | `PCTP/Modules/XuLyHangLoi/Services/QTChungService.cs:298–359`; composition `PCTP/Shared/Common/WarehouseProcessNavigator.cs:123–132`; factory tạo guard tại `PCTP/Modules/XuLyHangLoi/Application/XuLyHangLoiModuleFactory.cs:86–101` | `PCTP.QC.Tests/ReworkExportIdempotencyContractTests.cs` chỉ kiểm ID/lock/lookup; **chưa** có test guard vượt hạn mức, bằng hạn mức, retry SQL, hai session và rollback | XuLyHangLoi/WMS; open |
+| B0-03 | `PCTP/Modules/XuLyHangLoi/Services/QTChungService.cs:384–435` | `PCTP.QC.Tests/ReworkWorkflowTransactionTests.cs` kiểm invariant/rollback abstraction; **chưa** chứng minh concurrency của giao Rework trên SQL | XuLyHangLoi/WMS; open |
+| WMS-12 | `PCTP/Modules/XuLyHangLoi/Services/IQTChungService.cs:142–158` | Chưa thấy test SQL concurrency/duplicate cho ConfirmReworkQC | XuLyHangLoi/WMS; verify |
+| WMS-13 | `PCTP/Modules/XuLyHangLoi/Services/IQTChungService.cs:170–188` | Chưa thấy test SQL concurrency/duplicate cho ConfirmDisposition | XuLyHangLoi/WMS; verify |
+
+> Owner trong bảng là **nhóm chịu trách nhiệm kỹ thuật**, không phải cá nhân được assign. Ngày rà source: 2026-10-25. Các line number là theo code snapshot `e334fed…`; khi code thay đổi phải cập nhật lại line và SHA. Những test ghi “chưa có” nghĩa là chưa xác minh được test đáp ứng điều kiện đó, không khẳng định tuyệt đối không tồn tại test ở nơi khác.
 
 ## 7. Lộ trình đóng WMS theo cuốn chiếu
 
@@ -129,6 +148,28 @@ Một luồng WMS chỉ được đánh dấu **DONE** khi có đủ tất cả:
 - [ ] Cleanup sạch; không để fixture tồn đọng.
 - [ ] Tài liệu phản ánh đúng code đã kiểm chứng.
 - [ ] CI/test evidence thuộc đúng commit SHA đang nghiệm thu.
+
+
+
+### 8.1. Invariant đối chiếu tồn kho dùng trong SQL integration
+
+Mẫu kiểm tra dưới đây là **logic invariant**, chưa phải câu SQL chạy được trên mọi schema. Trước khi đưa vào test phải xác minh kiểu dữ liệu, cột quantity, trạng thái SlotLot hợp lệ và quy tắc có/không tính hàng quarantine. Chỉ so sánh tồn khả dụng cùng phạm vi PartNo/LOT/Slot; không cộng các trạng thái cách ly hoặc hàng đã xuất.
+
+```sql
+-- Pseudocode: thay tên cột/trạng thái sau khi DBA xác nhận schema.
+SELECT s.PartNo
+FROM dbo.STOCKTP AS s
+LEFT JOIN (
+    SELECT PartNo, SUM(Qty) AS SlotLotQty
+    FROM dbo.SlotLot
+    WHERE <điều kiện SlotLot được tính vào tồn khả dụng>
+    GROUP BY PartNo
+) AS l ON l.PartNo = s.PartNo
+WHERE ISNULL(s.Qty, 0) <> ISNULL(l.SlotLotQty, 0);
+-- Kỳ vọng: 0 dòng sau mỗi test đã commit; khi test rollback phải khôi phục snapshot ban đầu.
+```
+
+Không copy nguyên câu query mẫu vào production hoặc CI trước khi thay placeholder bằng schema contract đã xác nhận.
 
 ## 9. Quyết định hiện tại
 
