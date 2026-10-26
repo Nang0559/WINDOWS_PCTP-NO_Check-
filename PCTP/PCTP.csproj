@@ -985,6 +985,8 @@
       <SubType>Component</SubType>
     </Compile>
     <Compile Include="Modules\GiaoHangKhach\Services\BulkStockAdjustService.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Contracts\Delivery\DeliveryStockCommand.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Services\IDeliveryStockCommandHandler.cs" />
     <Compile Include="Domain\Events\NhapKhoCompletedEvent.cs" />
     <Compile Include="Shared\Models\StockItem.cs" />
     <Compile Include="Modules\KhoVatLy\UCControls\FormBulkSlotView.cs">
