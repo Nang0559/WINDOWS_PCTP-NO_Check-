@@ -77,7 +77,7 @@ Ba điểm chặn quan trọng nhất:
 | Gate | Nội dung phải chứng minh | Evidence hiện có | Trạng thái |
 |---|---|---|---|
 | G1 — Traceability | Mỗi yêu cầu/luồng nối được code ↔ SQL object ↔ transaction ↔ test ↔ tài liệu; không còn gap chưa xử lý | Snapshot `PCTP.QC.UI/G1-gaps.csv` SHA `ab064ed03a6ff3d3c12bba192e24f4fafdd87f17`: 122 data rows. Chưa có remediation/evidence đóng đủ từng dòng | 🔴 OPEN |
-| G2 — Unit/regression | Unit/source-contract và regression bảo vệ quy tắc nghiệp vụ | Historical runs `40253439019`/`40253444406` không chạy trên SHA hiện tại; run `40254095397` SUCCESS nhưng `head_sha=20de300…`, không phải `fe73e91…` | 🟡 NOT VERIFIED ON HEAD |
+| G2 — Unit/regression | Unit/source-contract và regression bảo vệ quy tắc nghiệp vụ | Runs `40254418356`/`40254422559` PASS 3/3 jobs trên baseline `fe73e91…`; chúng chạy trước thay đổi compile-item. Candidate hiện tại `e5f0eab…` đang chờ CI | 🟡 NOT VERIFIED ON CANDIDATE |
 | G3 — SQL integration | Chạy implementation/repository thật với SQL engine cô lập, kiểm dữ liệu và rollback | CI runs `40253439019` và `40253444406` PASS SQL engine integration trên HEAD `a8393df…`; chỉ chứng minh SQL fixture/engine, không thay thế schema DBA representative | PASS LIMITED |
 | G4 — Production procedure compatibility | Kiểm procedure thật trong DB thử nghiệm được cô lập, rollback-only và có G3 PASS cùng commit | Chưa có bằng chứng mới xác nhận schema/seed/procedure nghiệp vụ đại diện | 🔴 BLOCKED |
 | G5 — Two-session concurrency | AutomationId thật; chạy 5 hành trình UI; assert dữ liệu sau thao tác | `desktop-runner-build` PASS ở runs `40253439019`/`40253444406`; build runner không phải kết quả chạy 5 business journey | 🔴 OPEN |
