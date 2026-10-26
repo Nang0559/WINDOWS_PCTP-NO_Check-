@@ -104,4 +104,15 @@ public sealed class OrderTableSourceContractTests
         Assert.Contains("INTO #LotKeyCount", normalized, StringComparison.Ordinal);
         Assert.DoesNotContain("COUNT(DISTINCT RTRIM(S2.LOT))", normalized, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void DeliveryProcedure_LedgerInsert_CopiesPoFieldsOnlyWhenTmpTableHasThem()
+    {
+        var sql = NormalizeSql(ReadSource("Usp_Qrcode_Update_Stock2405.sql"));
+
+        Assert.Contains(NormalizeSql("COL_LENGTH(N'dbo.' + @TMPTABLE, N'PO_NO') IS NOT NULL"), sql, StringComparison.Ordinal);
+        Assert.Contains(NormalizeSql("COL_LENGTH(N'dbo.' + @TMPTABLE, N'PO_ITEM') IS NOT NULL"), sql, StringComparison.Ordinal);
+        Assert.Contains(NormalizeSql("Note' + @LuuPoCols + N'"), sql, StringComparison.Ordinal);
+        Assert.Contains(NormalizeSql("LEFT(tmp.Note, 250)' + @LuuPoSel + N'"), sql, StringComparison.Ordinal);
+    }
 }

@@ -977,6 +977,14 @@ BEGIN
         )  
         BEGIN  
   
+            -- PO_NO / PO_ITEM: chi sao chep khi bang TMP cua khach hang co cot nay
+            -- (HVN MP/SP, 100003). Tranh mat PO trong ledger ma khong vo bang khong co cot.
+            DECLARE @LuuPoCols NVARCHAR(100) = N'', @LuuPoSel NVARCHAR(200) = N'';
+            IF COL_LENGTH(N'dbo.' + @TMPTABLE, N'PO_NO') IS NOT NULL
+                SELECT @LuuPoCols += N', PO_NO', @LuuPoSel += N', LEFT(tmp.PO_NO, 50)';
+            IF COL_LENGTH(N'dbo.' + @TMPTABLE, N'PO_ITEM') IS NOT NULL
+                SELECT @LuuPoCols += N', PO_ITEM', @LuuPoSel += N', LEFT(tmp.PO_ITEM, 50)';
+
             SET @sql = N'  
                 INSERT INTO LUUPHIEUGIAOHANG  
                 (  
@@ -996,7 +1004,7 @@ BEGIN
                     GIOGIAOFCC,  
                     HOP,  
                     STATUSDOC,  
-                    Note  
+                    Note' + @LuuPoCols + N'  
                 )  
                 SELECT  
                     tmp.STT,  
@@ -1015,7 +1023,7 @@ BEGIN
                     LEFT(@GIOGIAOFCC, 50),  
                     LEFT(tmp.HOP, 50),  
                     LEFT(tmp.STATUSDOC, 50),  
-                    LEFT(tmp.Note, 250)  
+                    LEFT(tmp.Note, 250)' + @LuuPoSel + N'  
                 FROM [' + @TMPTABLE + N'] tmp  
                 WHERE tmp.STT IN  
                 (  
