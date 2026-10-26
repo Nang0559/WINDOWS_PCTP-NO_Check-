@@ -52,3 +52,15 @@ Phân loại chi tiết từng file, bằng chứng và việc còn lại: xem `
 - Run full solution MSBuild on Windows with the required DevExpress assemblies, restored NuGet packages, WebView2 targets and signing certificate.
 - Run the production executable smoke test and verify the active navigation paths.
 - Do not interpret QC test project compilation as production project compilation.
+
+
+## Delivery command contract additions (2026-10-26)
+
+The following two production contract files are now explicit compile items in `PCTP/PCTP.csproj`:
+
+- `Modules/GiaoHangKhach/Contracts/Delivery/DeliveryStockCommand.cs`
+- `Modules/GiaoHangKhach/Services/IDeliveryStockCommandHandler.cs`
+
+They define PART-scoped LOT allocation and a stable business key boundary. They are **contract scaffolding only**: there is no production handler, no DI registration, and no cutover from the legacy stored procedures. See `WMS_B0_01_DELIVERY_PARITY.md`.
+
+The 17 legacy form/report files remain excluded. The new delivery contract does not establish whether any legacy UI is still reachable.
