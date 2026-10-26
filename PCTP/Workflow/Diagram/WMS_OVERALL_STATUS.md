@@ -4,8 +4,8 @@
 > **Repository:** `Nang0559/WINDOWS_PCTP-NO_Check-`  
 > **Branch:** `feature/wms-end-to-end-consistency`  
 > **Code audit baseline:** `fe73e91cf25737def51a85ab0642723e5711085f` (source review; chưa có build WinForms thật trên SHA này).  
-> **CI:** run `40254095397` SUCCESS, nhưng workflow payload ghi `head_sha=20de3005dca50f2fbcefe6698ba434d1095fdae8`; PR metadata tham chiếu head `fe73e91…`. Vì vậy run này **không xác nhận build/test trên code SHA `fe73e91…`**.  
-> **PR:** #3 — Draft  
+> **CI baseline:** run `40254418356` (push) và `40254422559` (PR) SUCCESS 3/3 jobs trên SHA `fe73e91…`; các run này chạy trước thay đổi compile-item trong commit `76040b0…`, nên không xác nhận phần `.csproj` mới. Run `40254095397` thực tế chạy trên `20de300…`, không phải `fe73e91…`.  
+> **Latest candidate:** `76040b0771ebce8d8f839094abbe5802d2c577e6`; runs `40255604638` (push) và `40255608652` (PR) đang chạy tại thời điểm cập nhật.  
 > **PR:** #3 — Draft  
 > **Nguyên tắc:** bảng này ghi nhận trạng thái theo bằng chứng code/SQL/test đang có; không dùng phần trăm ước lượng và không suy diễn PASS từ việc có class, migration hoặc source-contract test.
 
@@ -106,7 +106,7 @@ Ba điểm chặn quan trọng nhất:
 | B0-03 | Rework delivery concurrency | Serialize authorization reads and writes | `QTChungService.cs` `GiaoHangRework`: UoW Begin → transaction-owned `QT_REWORK_DELIVERY` applock → reload ticket → GetXuat/GetGiao → validate → InsertGiao → status update → Commit. Test `ReworkDelivery_LocksAndReadsLedgersInsideTransactionBeforeInsert` added in `ReworkExportIdempotencyContractTests.cs` | **Owner:** XuLyHangLoi/WMS. **Ngày rà:** 2026-10-26. Implementation: CLOSED; SQL two-session + injected rollback acceptance: OPEN |
 | B1-01 | G1 traceability chưa PASS | Không biết đầy đủ đường code/SQL/test nào thiếu bảo vệ | Hoàn thiện mapping thực tế; không sửa CSV để giảm tiêu chí |
 | B1-02 | G4 thiếu schema/seed DBA xác nhận | Không chứng minh stored procedure thật tương thích | Xin schema-only export và seed đã làm sạch; chạy rollback-only trên DB cô lập |
-| B1-03 | G5/G6 business UI journeys chưa PASS | Không chứng minh thao tác thực tế xuyên UI và dữ liệu | Lấy AutomationId từ UI catalog; bật journey thật; assert stock/history/guard; cleanup Remaining=0 |
+| B1-03 | G5 SQL concurrency và G6 business UI journeys chưa PASS | Không chứng minh thao tác thực tế xuyên UI và dữ liệu | Lấy AutomationId từ UI catalog; bật journey thật; assert stock/history/guard; cleanup Remaining=0 |
 | B1-04 | Generic movement idempotency chưa có cho mọi workflow | Retry ở workflow chưa có business key có thể lặp mutation | Chốt key bền vững từng nghiệp vụ; unique index/ledger; concurrent retry test |
 | B1-05 | Static legacy writer/caller scan chưa đóng | Có thể còn đường ghi tồn ngoài owner | Scan toàn repository và SQL; phân loại caller; chỉ xóa sau parity |
 | B1-06 | Build WinForms đầy đủ chưa được chứng minh trên môi trường mục tiêu | CI desktop runner không thay thế build ứng dụng thật | Build toàn solution/project trên môi trường .NET Framework mục tiêu và lưu log theo SHA |
@@ -143,7 +143,7 @@ Test mới `ReworkExport_EnforcesPhase4QuotaFailClosedBeforeStockMovement` kiể
 | 4 | Receiving hardening | SQL test QR/LOT/multi-QR/partial/reopen/capacity/metadata | Không duplicate; mọi bảng cùng transaction; retry an toàn |
 | 5 | Movement idempotency + concurrency | Business key ledger và test nhiều session | Một operation chỉ có một physical mutation; retry trả lại kết quả cũ |
 | 6 | Legacy cleanup | Dependency scan + danh sách caller còn lại | Không còn writer bypass ngoài command owner được phê duyệt |
-| 7 | G4/G5/G6 | Schema/seed cô lập, UI Automation, DB assertion và cleanup | G4 rollback-only; G5/G6 business journeys PASS; Remaining = 0 |
+| 7 | G4/G5/G6 | Schema/seed cô lập, UI Automation, DB assertion và cleanup | G4 rollback-only; G5 concurrency PASS; G6 UI-to-DB business journeys PASS; Remaining = 0 |
 | 8 | Release closeout | Build log, CI SHA, SQL report, test artifacts, tài liệu VI/JP nếu cần | Tất cả evidence cùng commit SHA; PR mới chuyển Ready khi đủ tiêu chí |
 
 ## 8. Quy tắc nghiệm thu thống nhất
