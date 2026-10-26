@@ -137,3 +137,19 @@ Do not delete SQL files solely because they are stored under a documentation dir
 ## 9. Latest candidate status
 
 Candidate code SHA `bb15a604a292a75c61455d25094940ee80aa5671` contains the delivery command contract, shared Rework ticket lock and associated contract/source tests. Runs `40264579206` (push) and `40264584779` (PR) were cancelled before checkout while successive commits were pushed. No test result can be inferred from those runs. The last verified green baseline remains `a41d5df18ee7cb3920915d47548e1db7899eb2f1`.
+
+
+## 10. Ánh xạ gate trong tài liệu ↔ script chạy
+
+`Invoke-PctpQcGates.ps1` đánh số G3–G6 khác tài liệu này. Định nghĩa **chuẩn** là các dòng ở §1 của tài liệu này; script chỉ là công cụ chạy. Bảng ánh xạ và quy ước ghi bằng chứng nằm ở `docs/WMS_SQL_RUNBOOK.md` §1. Kịch bản hai session R1–R5 (B0-02/B0-03) chạy bên trong `-Gate G3` của script, nhưng bằng chứng được ghi dưới G5 của tài liệu này.
+
+## 11. Candidate `a49654018c302107399f0dffedd0611e388df6bb` — bằng chứng do chủ repo báo, chưa đính kèm
+
+| Mục | Nội dung | Trạng thái theo §5 |
+|---|---|---|
+| Build WinForms đầy đủ | Chủ repo báo build thành công | NOT VERIFIED (chưa có log gắn SHA) |
+| `PCTP.QC.Tests` | Chủ repo báo 339 test PASS | NOT VERIFIED (chưa có `.trx` gắn SHA) |
+| CI exact-SHA | Chưa có run báo SHA này | NOT VERIFIED |
+| G3–G6 | Chưa chạy trên SHA này | OPEN |
+
+Mục này chỉ ghi nhận lời báo cáo. Khi có `artifacts\gates\a496540\G2\` thì thay bằng bằng chứng thật.

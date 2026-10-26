@@ -46,7 +46,9 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             _validationRepo = validationRepo ?? throw new ArgumentNullException(nameof(validationRepo));
             _cfg = cfg;
             _hangChoGiaoRepo = hangChoGiaoRepo;
-            _stockMovement = stockMovement;
+            // B0-01: khong co movement service thi khong duoc dung duong tru kho/SlotLot.
+            // Production chi co 1 duong dung (GiaoHangKhachFactory -> PhieuRepository) va luon truyen vao.
+            _stockMovement = stockMovement ?? throw new ArgumentNullException(nameof(stockMovement));
         }
 
         private BulkStockAdjustService CreateBulkService()

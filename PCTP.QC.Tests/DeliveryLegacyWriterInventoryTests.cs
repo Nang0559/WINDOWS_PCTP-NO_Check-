@@ -87,6 +87,15 @@ public sealed class DeliveryLegacyWriterInventoryTests
         Assert.Equal(new[] { "PhieuRepository.cs" }, SitesOf("new PhieuKhoRepository("));
     }
 
+    [Fact]
+    public void PhieuKhoRepository_RequiresMovementService_FailsClosedWhenMissing()
+    {
+        // B0-01 hardening: the stock-movement owner must never be optional at runtime.
+        var source = ReadSource("PhieuKhoRepository.source.cs");
+
+        Assert.Contains("_stockMovement = stockMovement ?? throw new ArgumentNullException(nameof(stockMovement));", source);
+    }
+
     private static string FindRepositoryRoot()
     {
         var dir = new DirectoryInfo(AppContext.BaseDirectory);
