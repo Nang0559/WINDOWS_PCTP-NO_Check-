@@ -103,4 +103,18 @@ public sealed class DeliveryQrAllocationSourceContractTests
         Assert.DoesNotContain("SP_DOCQRCODE", hvnProcedure);
     }
 
+    [Fact]
+    public void TakeLotYmvn_CallerParameterNamesMatchProcedureDeclaration()
+    {
+        // Regression: caller sent @ISLOAIASP while the procedure declares @ISLOAISP,
+        // which makes every YMVN Take_Lot call fail with "not a parameter" at runtime.
+        var caller = Read("PhieuLotRepository.source.cs");
+        var proc = Read("Usp_Qrcode_Take_LotYMVN2405.sql");
+        foreach (var name in new[] { "@TMPTABLE", "@DOCQRTABLE", "@ISLOAISP" })
+        {
+            Assert.Contains(name + " ", proc);
+            Assert.Contains("\"" + name + "\"", caller);
+        }
+        Assert.DoesNotContain("@ISLOAIASP", caller);
+    }
 }
