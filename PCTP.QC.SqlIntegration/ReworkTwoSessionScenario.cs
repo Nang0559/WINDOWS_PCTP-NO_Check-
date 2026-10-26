@@ -473,8 +473,13 @@ CREATE TABLE [{f.Giao}](Id int IDENTITY(1,1) NOT NULL PRIMARY KEY, PhieuId int N
             found[pm.Groups["p"].Value] = m.Groups["sql"].Value.Replace("\"\"", "\"");
         }
 
-        Require(found.ContainsKey("QT_REWORK_EXPORT:") && found.ContainsKey("QT_REWORK_DELIVERY:"),
-            "QTChungService.cs no longer exposes both QT_REWORK_EXPORT: and QT_REWORK_DELIVERY: application locks; update this scenario with the new design.");
+        // Both Rework operations intentionally share one ticket-scoped application lock.
+        // Require two production acquisition sites, but only one distinct resource prefix.
+        var resourceAssignments = Regex.Matches(qt, """Value\\s*=\\s*"(?<p>QT_REWORK_[A-Z_]+:)"\\s*\\+""", RegexOptions.None, timeout);
+        Require(resourceAssignments.Count >= 2,
+            "QTChungService.cs must expose application-lock resource assignments for both export and delivery.");
+        Require(found.Count == 1 && found.ContainsKey("QT_REWORK_TICKET:"),
+            "Rework export and delivery must share the single QT_REWORK_TICKET: application-lock resource.");
 
         foreach (var pair in found)
         {
@@ -490,10 +495,10 @@ CREATE TABLE [{f.Giao}](Id int IDENTITY(1,1) NOT NULL PRIMARY KEY, PhieuId int N
 
         return new ProductionSql
         {
-            ExportLock = found["QT_REWORK_EXPORT:"],
-            DeliveryLock = found["QT_REWORK_DELIVERY:"],
-            ExportPrefix = "QT_REWORK_EXPORT:",
-            DeliveryPrefix = "QT_REWORK_DELIVERY:",
+            ExportLock = found["QT_REWORK_TICKET:"],
+            DeliveryLock = found["QT_REWORK_TICKET:"],
+            ExportPrefix = "QT_REWORK_TICKET:",
+            DeliveryPrefix = "QT_REWORK_TICKET:",
             RowLockTemplate = rm.Groups["sql"].Value.Replace("\"\"", "\"")
         };
     }
