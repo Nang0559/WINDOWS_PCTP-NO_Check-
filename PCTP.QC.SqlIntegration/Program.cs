@@ -93,6 +93,9 @@ internal static class Program
             Console.WriteLine("INFO: running Rework export/delivery two-session lock protocol (B0-02/B0-03) against uniquely named tempdb fixtures...");
             await ReworkTwoSessionScenario.RunAsync(connectionString);
 
+            Console.WriteLine("INFO: running YMVN customer-delivery specification (B0-01 characterization) against uniquely named tempdb fixtures...");
+            await YmvnDeliverySpecScenario.RunAsync(connectionString);
+
             Console.WriteLine("INFO: running SqlRepositoryBase.InTransaction commit/rollback/join-caller checks against a uniquely named tempdb fixture...");
             await InTransactionScenario.RunAsync(connectionString);
 

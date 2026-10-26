@@ -605,6 +605,22 @@
       "expected": "Exactly one STOCKTP row per LOT; one LOT may occupy multiple Slots. Sum active SlotLot quantities across all Slots and reconcile to STOCKTP; each Slot header reconciles only to active SlotLots in that Slot.",
       "status": "partial",
       "testEvidence": "User confirmed the business key. Production repository guards reject multi-row LOT reads/updates; central balance no longer sums duplicate STOCKTP rows; SQL audit is LOT-grain; guarded unique-index migration added but not executed. SQL engine integration now creates one LOT across two Slots and checks aggregate stock reconciliation."
+    },
+    {
+      "id": "YMVN-SPEC-001",
+      "module": "GiaoHangKhach/YMVN/B0-01",
+      "scenario": "Characterize the YMVN delivery writer: input parsing before the transaction, lock-read then shortage rollback, TruStockTpFifo order/guard, SlotLot in the same UoW, ledger/TMP guard/scan-row order, commit; inventory of the three legacy STOCKTP writers; FIFO gate before the first YMVN stock call",
+      "expected": "Any change to the legacy YMVN writer order, statements or writer inventory fails a test, so the B0-01 delivery command must keep parity or change the spec deliberately",
+      "status": "partial",
+      "testEvidence": "YmvnDeliverySpecContractTests (13 source-contract tests over PhieuKhoRepository, BulkStockAdjustService and PhieuYmvnService). Source-order evidence only; the C# method is not executed. B0-01 stays OPEN: movement service is still optional and STOCKTP is still written by SP/SQL."
+    },
+    {
+      "id": "YMVN-SPEC-002",
+      "module": "GiaoHangKhach/YMVN/B0-01",
+      "scenario": "YMVN delivery specification on SQL Server: FIFO order and tie-break, exact 20-char key isolation, legacy 13-char key fallback, multi-LOT composite, partial delivery equation, shortage rollback, malformed input, SlotLot shortage fail-closed, injected failure rollback, retry of the same STT, two sessions on the same remaining quantity, same STT from two sessions, negative control and guard-only defense in depth, scan-row scoping",
+      "expected": "STOCKTP equals active SlotLot per LOT key after every case; committed deduction never exceeds stock; a retry or a second session never deducts twice; failure rolls back stock, SlotLot, TMP, ledgers and scan rows together",
+      "status": "partial",
+      "testEvidence": "PCTP.QC.SqlIntegration.YmvnDeliverySpecScenario Y1-Y15 in job sql-engine-integration, using the STOCKTP statements extracted from PhieuKhoRepository.cs and the real LotCodeHelper predicate on ##PCTP_QC_YMVN_* tempdb fixtures. Protocol-level only: CapNhapKhoYMVN and BulkStockAdjustService are mirrored, not executed. CI run id and SHA must be recorded before any status change."
     }
   ]
 }
