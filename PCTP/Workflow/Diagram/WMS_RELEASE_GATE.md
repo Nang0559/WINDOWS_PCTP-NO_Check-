@@ -13,7 +13,7 @@ No PASS may be inferred from class existence, source-contract tests, SQL-engine 
 | Gate | Single definition | Current |
 |---|---|---|
 | G1 | Traceability/source ownership: requirement → code → SQL → transaction → test → evidence; all gaps classified and closed or approved exceptions | 🔴 OPEN — historical 122-row CSV snapshot is not present in this branch tree; current `TRACEABILITY_MATRIX.md` contains GAP entries and must be reconciled |
-| G2 | Unit/regression tests on exact candidate SHA, including production project compile items | 🟡 NOT VERIFIED on candidate `e5f0eab…`; runs `40254418356`/`40254422559` passed on baseline `fe73e91…` before the six compile items were added |
+| G2 | Unit/regression tests on exact candidate SHA, including production project compile items | 🟡 NOT VERIFIED on `fe73e91…`; run `40254095397` reports `20de300…`, not exact HEAD |
 | G3 | SQL engine integration using implementation/repository code, isolated SQL Server, data assertions and rollback | 🟡 PASS LIMITED historically; does not prove representative DBA schema or full workflow rollback |
 | G4 | Representative production-like schema/procedure compatibility on isolated, rollback-only database | 🔴 BLOCKED — no current evidence |
 | G5 | Two-session SQL concurrency for shared business keys/quotas, including lock serialization and injected rollback | 🔴 OPEN — no SQL two-session evidence |
