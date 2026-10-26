@@ -34,6 +34,8 @@ internal static class Program
                 Console.WriteLine("INFO: ephemeral SQL engine mode; business-schema preflight is intentionally skipped. Only isolated tempdb/session fixtures will be used.");
                 Console.WriteLine("INFO: executing active QR-to-STT LOT procedure against disposable dbo fixtures...");
                 await DeliveryQrAllocationScenario.RunAsync(connectionString);
+                Console.WriteLine("INFO: running production XuLyHangLoi repositories against disposable dbo fixtures...");
+                await ProductionReworkRepositorySqlScenario.RunAsync(connectionString);
             }
             else
             {

@@ -39,5 +39,20 @@
     <Compile Include="../PCTP/Modules/XuLyHangLoi/Enums/QTChungStatus.cs" Link="Production/QTChungStatus.cs" />
     <Compile Include="../PCTP/Modules/XuLyHangLoi/Services/ReworkQuantityPolicy.cs" Link="Production/ReworkQuantityPolicy.cs" />
     <Compile Include="../PCTP/Modules/GiaoHangKhach/Models/OrderLineKey.cs" Link="Production/OrderLineKey.cs" />
+    <Compile Include="../PCTP/Modules/XuLyHangLoi/Repository/TraHangQTChungRepository.cs" Link="Production/TraHangQTChungRepository.cs" />
+    <Compile Include="../PCTP/Modules/XuLyHangLoi/Repository/ITraHangQTChungRepository.cs" Link="Production/ITraHangQTChungRepository.cs" />
+    <Compile Include="../PCTP/Modules/XuLyHangLoi/Repository/PhieuXuLyBatThuongRepository.cs" Link="Production/PhieuXuLyBatThuongRepository.cs" />
+    <Compile Include="../PCTP/Modules/XuLyHangLoi/Repository/IPhieuXuLyBatThuongRepository.cs" Link="Production/IPhieuXuLyBatThuongRepository.cs" />
+    <Compile Include="../PCTP/Modules/XuLyHangLoi/Models/PhieuXuLyBatThuong.cs" Link="Production/PhieuXuLyBatThuong.cs" />
+    <Compile Include="../PCTP/Modules/XuLyHangLoi/Models/TraHangQTChungXuat.cs" Link="Production/TraHangQTChungXuat.cs" />
+    <Compile Include="../PCTP/Modules/XuLyHangLoi/Models/TraHangQTChungGiao.cs" Link="Production/TraHangQTChungGiao.cs" />
+    <Compile Include="../PCTP/Modules/XuLyHangLoi/Models/TraHangQTChungQC.cs" Link="Production/TraHangQTChungQC.cs" />
+    <Compile Include="../PCTP/Modules/XuLyHangLoi/Models/TraHangQTChungNhapNG.cs" Link="Production/TraHangQTChungNhapNG.cs" />
+    <Compile Include="../PCTP/Modules/XuLyHangLoi/Models/QTChungTimelineItem.cs" Link="Production/QTChungTimelineItem.cs" />
+    <Compile Include="../PCTP/Modules/XuLyHangLoi/Enums/HuongXuLyBatThuong.cs" Link="Production/HuongXuLyBatThuong.cs" />
+    <Compile Include="../PCTP/Modules/XuLyHangLoi/Enums/NguonXuLyBatThuong.cs" Link="Production/NguonXuLyBatThuong.cs" />
+    <Compile Include="../PCTP/Shared/Common/DbValueHelper.cs" Link="Production/DbValueHelper.cs" />
+    <Compile Include="ProductionReworkRepositorySqlScenario.cs" />
+    <Compile Include="LegacyWinFormsCompileStub.cs" />
   </ItemGroup>
 </Project>
