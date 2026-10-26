@@ -475,7 +475,7 @@ CREATE TABLE [{f.Giao}](Id int IDENTITY(1,1) NOT NULL PRIMARY KEY, PhieuId int N
 
         // Both Rework operations intentionally share one ticket-scoped application lock.
         // Require two production acquisition sites, but only one distinct resource prefix.
-        var resourceAssignments = Regex.Matches(qt, """Value\\s*=\\s*"(?<p>QT_REWORK_[A-Z_]+:)"\\s*\\+""", RegexOptions.None, timeout);
+        var resourceAssignments = Regex.Matches(qt, """Value\s*=\s*"(?<p>QT_REWORK_[A-Z_]+:)"\s*\+""", RegexOptions.None, timeout);
         Require(resourceAssignments.Count >= 2,
             "QTChungService.cs must expose application-lock resource assignments for both export and delivery.");
         Require(found.Count == 1 && found.ContainsKey("QT_REWORK_TICKET:"),
