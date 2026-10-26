@@ -3,9 +3,9 @@
 > **Ngày rà soát:** 2026-10-26  
 > **Repository:** `Nang0559/WINDOWS_PCTP-NO_Check-`  
 > **Branch:** `feature/wms-end-to-end-consistency`  
-> **Code audit baseline:** `fe73e91cf25737def51a85ab0642723e5711085f` (source review; chưa có build WinForms thật trên SHA này).  
-> **CI baseline:** run `40254418356` (push) và `40254422559` (PR) SUCCESS 3/3 jobs trên SHA `fe73e91…`; các run này chạy trước thay đổi compile-item trong commit `76040b0…`, nên không xác nhận phần `.csproj` mới. Run `40254095397` thực tế chạy trên `20de300…`, không phải `fe73e91…`.  
-> **Latest candidate:** `76040b0771ebce8d8f839094abbe5802d2c577e6`; runs `40255604638` (push) và `40255608652` (PR) đang chạy tại thời điểm cập nhật.  
+> **Code audit baseline:** `a41d5df18ee7cb3920915d47548e1db7899eb2f1` (2026-10-26; branch HEAD at evidence capture).  
+> **CI exact-SHA evidence:** push run `40262798818` and PR run `40262804379` both SUCCESS on `a41d5df18ee7cb3920915d47548e1db7899eb2f1`; these cover configured QC workflow jobs only, not full WinForms build or SQL two-session/UI E2E.  
+> **Latest verified source candidate:** `a41d5df18ee7cb3920915d47548e1db7899eb2f1`; subsequent changes require fresh CI evidence.  
 > **PR:** #3 — Draft  
 > **Nguyên tắc:** bảng này ghi nhận trạng thái theo bằng chứng code/SQL/test đang có; không dùng phần trăm ước lượng và không suy diễn PASS từ việc có class, migration hoặc source-contract test.
 
@@ -85,8 +85,8 @@ Ba điểm chặn quan trọng nhất:
 
 ### CI snapshot
 
-- Code SHA đã được unit/regression và SQL engine integration xác nhận: `dd5ad9e07f6b35c83cfb036c25514152e51dc679`.
-- Docs HEAD hiện tại sau cập nhật trạng thái: `5e1ee801501f3c6d8af7a1b46fe7dfe720e74902`; đây là docs-only, CI mới được kích hoạt tự động sau commit.
+- Exact candidate SHA `a41d5df18ee7cb3920915d47548e1db7899eb2f1`: push run `40262798818` and PR run `40262804379` SUCCESS, both exact `head_sha`.
+- These runs do not build the full WinForms `PCTP.csproj`, execute SQL two-session tests, or run full UI-to-DB G6 journeys.
 
 - Code audit snapshot ban đầu: `e334fed1528d8d4ca89179f87dace182a2bc451c`.
 - Documentation HEAD hiện tại: `18eedca9055aeccbc8e0afa763ad8b67966902a5`.
@@ -236,3 +236,8 @@ The recursive tree contains 24 C# files absent from the legacy explicit-include 
 After the production compile-item correction, 18 files remain intentionally outside `PCTP.csproj`: 17 legacy/UI candidates requiring an explicit business decision and 1 test-only source. Do not bulk-include designer/code-behind pairs without their resource/dependency review.
 
 The six production compile items are now included in this project file. This repository-side edit is not a substitute for a real MSBuild of the full solution on Windows with the required DevExpress, NuGet and signing dependencies.
+
+
+## 9. CI evidence normalization (2026-10-26)
+
+The only current exact-SHA CI snapshot for the candidate at evidence capture is push `40262798818` and PR `40262804379`, both SUCCESS on `a41d5df18ee7cb3920915d47548e1db7899eb2f1`. Earlier run IDs and SHAs above are historical context only; they must not be described as current-candidate evidence. Canonical G1/G5 definitions and release decisions are owned by `WMS_RELEASE_GATE.md`.
