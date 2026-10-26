@@ -83,17 +83,14 @@ Ba điểm chặn quan trọng nhất:
 | G5 — Two-session concurrency | Hai session SQL trên cùng business key; chứng minh application lock serialize, tổng lượng không vượt quota và rollback không để lại mutation dở dang | Chưa có execution evidence SQL two-session trên exact candidate SHA | 🔴 OPEN |
 | G6 — Full business E2E | Seed → thao tác UI thật → assert DB/ledger/history → cleanup; Remaining = 0; database cô lập | Các journey receive, QC direction, QC final, delivery HVN và UI assertions chưa được xác nhận PASS | 🔴 OPEN |
 
-### CI snapshot
+### CI snapshot — consolidated history
 
-- Exact candidate SHA `a41d5df18ee7cb3920915d47548e1db7899eb2f1`: push run `40262798818` and PR run `40262804379` SUCCESS, both exact `head_sha`.
-- These runs do not build the full WinForms `PCTP.csproj`, execute SQL two-session tests, or run full UI-to-DB G6 journeys.
+| Classification | Run IDs | SHA | Use |
+|---|---|---|---|
+| Current exact-SHA evidence at capture | `40262798818` push; `40262804379` PR | `a41d5df18ee7cb3920915d47548e1db7899eb2f1` | SUCCESS; configured QC workflow jobs only |
+| Historical, not current-candidate evidence | `40254418356`, `40254422559`, `40254095397`, `40253439019`, `40253444406`, `40195012228`, `40199959465` | Multiple earlier SHAs (see original CI artifacts) | Retained only as historical records; never combine as one green candidate |
 
-- Code audit snapshot ban đầu: `e334fed1528d8d4ca89179f87dace182a2bc451c`.
-- Documentation HEAD hiện tại: `18eedca9055aeccbc8e0afa763ad8b67966902a5`.
-- Workflow run `40254095397` đã SUCCESS, nhưng workflow payload ghi `head_sha=20de3005…`; PR metadata gắn run với head `fe73e91…`. Không dùng run này làm bằng chứng build/test cho `fe73e91…` hoặc thay đổi `.csproj` trong commit đó.
-- Workflow run cũ `40195012228` thuộc code baseline `e334fed…`; không dùng run cũ làm bằng chứng cho HEAD mới khi đã có run `40199959465`.
-- CI success không thay thế bằng chứng G1/G4/G5/G6 hoặc schema production representative.
-- Không được dùng database production hoặc SQL dùng chung để chạy test có mutation. G4 phải rollback-only; G6 chỉ chạy trên database cô lập có xác nhận.
+The current workflow does not build the complete WinForms `PCTP.csproj`, execute SQL two-session concurrency, or perform UI-to-database G6 journeys. The release gate owns the authoritative G1–G6 definitions and current status.
 
 ## 6. Danh sách blocker theo thứ tự ưu tiên
 
@@ -241,3 +238,11 @@ The six production compile items are now included in this project file. This rep
 ## 9. CI evidence normalization (2026-10-26)
 
 The only current exact-SHA CI snapshot for the candidate at evidence capture is push `40262798818` and PR `40262804379`, both SUCCESS on `a41d5df18ee7cb3920915d47548e1db7899eb2f1`. Earlier run IDs and SHAs above are historical context only; they must not be described as current-candidate evidence. Canonical G1/G5 definitions and release decisions are owned by `WMS_RELEASE_GATE.md`.
+
+
+## 10. B0-01 design decision (2026-10-26)
+
+- F-Y1 = `part`: one delivery PART line owns one or more LOT allocation slices; quantity is the sum of those LOT slices. Do not flatten away PART-to-LOT traceability.
+- F-Y4 = `atomic`: all STT/parts in one business command commit or roll back together. A larger daily batch may consist of multiple independently retryable business commands; it is not one transaction for the whole day.
+- The new `DeliveryStockCommand` / `IDeliveryStockCommandHandler` are contract scaffolding only. No production handler is wired yet. Legacy `Usp_Qrcode_Update_Stock2405`, `Usp_Qrcode_Update_Stock_SP`, `Usp_Qrcode_Take_LotYMVN2405`, and `TruStockTpFifo` remain untouched until parity tests pass.
+- Rework export and delivery now use the same transaction-owned application-lock resource `QT_REWORK_TICKET:{PhieuXuLyId}`. The ReworkStockService row status guard remains an additional conditional guard, not a substitute for the shared resource lock. SQL two-session execution remains required.
