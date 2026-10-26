@@ -16,8 +16,15 @@ namespace PCTP.QC.Tests
     /// </summary>
     public sealed class DeliveryStockCommandHandlerTests
     {
-        private sealed class World : IUnitOfWork, IStockMovementService, IDeliveryCommandLedger, IDeliveryPendingGate
+        private sealed class World : IUnitOfWork, IStockMovementService, IDeliveryCommandLedger, IDeliveryPendingGate, IDeliveryPostStockStep
         {
+            public int PostCalls; public bool FailPost; public HashSet<string> PostMarks = new HashSet<string>();
+            public void Run(DeliveryStockCommand c)
+            {
+                PostCalls++;
+                if (FailPost) throw new InvalidOperationException("post step failed");
+                PostMarks.Add(c.BusinessKey);
+            }
             public Dictionary<string, int> StockTp = new Dictionary<string, int>();
             public Dictionary<int, int> SlotLot = new Dictionary<int, int>();
             public Dictionary<string, int> Ledger = new Dictionary<string, int>();
@@ -34,13 +41,13 @@ namespace PCTP.QC.Tests
                 Rollbacks++;
                 if (_snap == null) return;
                 StockTp = _snap.StockTp; SlotLot = _snap.SlotLot; Ledger = _snap.Ledger;
-                Qr = _snap.Qr; PendingOpen = _snap.PendingOpen; Refs = _snap.Refs; _snap = null;
+                Qr = _snap.Qr; PendingOpen = _snap.PendingOpen; Refs = _snap.Refs; PostMarks = _snap.PostMarks; _snap = null;
             }
             private World Clone() => new World
             {
                 StockTp = new Dictionary<string, int>(StockTp), SlotLot = new Dictionary<int, int>(SlotLot),
                 Ledger = new Dictionary<string, int>(Ledger), Qr = new HashSet<string>(Qr, StringComparer.OrdinalIgnoreCase),
-                PendingOpen = new HashSet<int>(PendingOpen), Refs = new HashSet<string>(Refs)
+                PendingOpen = new HashSet<int>(PendingOpen), Refs = new HashSet<string>(Refs), PostMarks = new HashSet<string>(PostMarks)
             };
 
             public StockMovementResult Export(StockMovementRequest r)
@@ -76,7 +83,8 @@ namespace PCTP.QC.Tests
             w.PendingOpen.UnionWith(new[] { 1, 2 });
             return w;
         }
-        private static DeliveryStockCommandHandler Handler(World w) => new DeliveryStockCommandHandler(w, w, w, w);
+        private static DeliveryStockCommandHandler Handler(World w, bool withPost = false) =>
+            withPost ? new DeliveryStockCommandHandler(w, w, w, w, w) : new DeliveryStockCommandHandler(w, w, w, w);
         private static DeliveryPartAllocation Part(string part, string[] qr, params (string lot, int slotLot, int qty)[] lots) =>
             new DeliveryPartAllocation(part, "M", "G",
                 lots.Select((l, i) => new DeliveryLotAllocation(l.lot, l.lot, l.slotLot, l.qty, i)), qr);
@@ -172,6 +180,29 @@ namespace PCTP.QC.Tests
             var w = Seed();
             Handler(w).Execute(Cmd("K10", new[] { 1 }, Part("A", new[] { "QR1" }, ("LOT-1", 101, 1))));
             Assert.Contains("GIAOHANG_KHACH|K10|A|0", w.Refs);
+        }
+
+        [Fact]
+        public void PostStockStep_RunsInsideTransaction_AndItsFailureRollsBackStock()
+        {
+            var ok = Seed();
+            Assert.True(Handler(ok, true).Execute(Cmd("K11", new[] { 1 }, Part("A", new[] { "QR1" }, ("LOT-1", 101, 2)))).Success);
+            Assert.Equal(1, ok.PostCalls); Assert.Contains("K11", ok.PostMarks);
+
+            var bad = Seed(); bad.FailPost = true;
+            var r = Handler(bad, true).Execute(Cmd("K12", new[] { 1 }, Part("A", new[] { "QR1" }, ("LOT-1", 101, 2))));
+            Assert.False(r.Success);
+            Assert.Equal(10, bad.StockTp["LOT-1"]); Assert.Equal(10, bad.SlotLot[101]);
+            Assert.Empty(bad.Ledger); Assert.Equal(2, bad.PendingOpen.Count); Assert.Equal(0, bad.Commits);
+        }
+
+        [Fact]
+        public void PostStockStep_IsNotRunOnReplay()
+        {
+            var w = Seed(); var h = Handler(w, true);
+            var cmd = Cmd("K13", new[] { 1 }, Part("A", new[] { "QR1" }, ("LOT-1", 101, 2)));
+            h.Execute(cmd); h.Execute(cmd);
+            Assert.Equal(1, w.PostCalls);
         }
     }
 }

@@ -36,6 +36,8 @@ internal static class Program
                 await DeliveryQrAllocationScenario.RunAsync(connectionString);
                 Console.WriteLine("INFO: running production XuLyHangLoi repositories against disposable dbo fixtures...");
                 await ProductionReworkRepositorySqlScenario.RunAsync(connectionString);
+                Console.WriteLine("INFO: running delivery stock command (B0-01) against disposable dbo ledger + tempdb fixtures...");
+                await DeliveryCommandSqlScenario.RunAsync(connectionString);
             }
             else
             {

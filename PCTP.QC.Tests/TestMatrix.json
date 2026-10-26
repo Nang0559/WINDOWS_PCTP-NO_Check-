@@ -176,12 +176,20 @@
       "testEvidence": "DeliveryProductionBoundaryTests guards the production PhieuKhoRepository UoW ordering and rollback source contract. Full Usp_Qrcode_Update_Stock2405 + PhieuKhoRepository execution against a DBA-provisioned isolated business-schema copy remains a runtime acceptance gate."
     },
     {
+      "id": "DEL-CMD-002",
+      "module": "GiaoHangKhach/DeliveryStockCommand/SQL",
+      "scenario": "Real SQL Server run of DeliveryStockCommandHandler with the real ledger repository and TMP pending gate: replay, duplicate QR, rollback of stock+ledger+QR+TMP+scan rows, two sessions on one BusinessKey and on one QR",
+      "expected": "One physical mutation per BusinessKey and per QR; failed command leaves no partial row; DG scan rows archived per PART (F-Y1); migration idempotent",
+      "status": "partial",
+      "testEvidence": "PCTP.QC.SqlIntegration.DeliveryCommandSqlScenario (job sql-engine-integration, --engine-only). Stock is a SQL fixture, not KhoCore; marked partial until a green CI run on the exact SHA is recorded in WMS_RELEASE_GATE.md and P4/A0 are closed."
+    },
+    {
       "id": "DEL-CMD-001",
       "module": "GiaoHangKhach/DeliveryStockCommand",
       "scenario": "Delivery stock command handler (B0-01 slice 1): one UoW for STOCKTP+SlotLot via IStockMovementService.Export, durable BusinessKey/QR ledger, all-or-nothing pending close",
       "expected": "P1,P2,P3,P5-P10 parity: exact quantities, replay returns prior outcome, duplicate QR rejected, any failure rolls back stock, ledger, QR and pending state",
       "status": "partial",
-      "testEvidence": "DeliveryStockCommandHandlerTests (in-memory transactional fakes, 9 tests). Not wired to production; SQL ledger SQL/PCTP_DeliveryCommandLedger.sql and DeliveryCommandLedgerRepository are unexecuted; P4, P11-P13, A0 allocations and SQL two-session evidence remain open."
+      "testEvidence": "DeliveryStockCommandHandlerTests (in-memory transactional fakes, 9 tests). Not wired to production; post-stock step covered (11 tests). SQL side: see DEL-CMD-002. P4 and A0 allocations remain open; handler is not wired to production."
     },
     {
       "id": "DEL-004",

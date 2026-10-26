@@ -6,14 +6,14 @@ using PCTP.Shared.Common;
 namespace PCTP.Modules.GiaoHangKhach.Services
 {
     /// <summary>
-    /// B0-01 delivery command handler - FIRST SLICE (P1, P2, P3, P5, P6, P7, P8, P9, P10).
+    /// B0-01 delivery command handler - FIRST SLICE (P1-P3, P5-P10; P11-P13 via the pending gate).
     /// Every PART/LOT/STT of a command commits or rolls back as one unit (F-Y4); STOCKTP and
     /// SlotLot are mutated only through IStockMovementService.Export. It never calls the legacy
     /// Usp_Qrcode_Update_Stock* procedures (migration constraint 2).
     ///
     /// NOT WIRED into production composition (migration constraint 3). Out of scope here and
-    /// failing closed: allocations without SlotLotId (A0/virtual stock), YMVN Gear/Model (P11),
-    /// MP/SP table variants (P12) and DG scan-row archiving (P13).
+    /// failing closed: allocations without SlotLotId (A0/virtual stock; legacy BulkStockAdjustService
+    /// still owns that path) and QR-to-LOT association (P4; the command carries QR per PART only).
     /// </summary>
     public sealed class DeliveryStockCommandHandler : IDeliveryStockCommandHandler
     {
@@ -23,13 +23,16 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         private readonly IStockMovementService _stock;
         private readonly IDeliveryCommandLedger _ledger;
         private readonly IDeliveryPendingGate _pending;
+        private readonly IDeliveryPostStockStep _post;
 
         public DeliveryStockCommandHandler(
             IUnitOfWork uow,
             IStockMovementService stock,
             IDeliveryCommandLedger ledger,
-            IDeliveryPendingGate pending)
+            IDeliveryPendingGate pending,
+            IDeliveryPostStockStep post = null)
         {
+            _post = post;
             _uow = uow ?? throw new ArgumentNullException(nameof(uow));
             _stock = stock ?? throw new ArgumentNullException(nameof(stock));
             _ledger = ledger ?? throw new ArgumentNullException(nameof(ledger));
@@ -94,6 +97,8 @@ namespace PCTP.Modules.GiaoHangKhach.Services
                 if (closed != command.PendingStt.Count)
                     return Abort("Đóng chờ giao không đủ: " + closed + "/" + command.PendingStt.Count +
                                  " STT; huỷ toàn bộ command (F-Y4).");
+
+                if (_post != null) _post.Run(command);
 
                 _uow.Commit();
                 return DeliveryStockCommandResult.Ok(command.TotalQuantity);

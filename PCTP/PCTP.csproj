@@ -991,6 +991,8 @@
     <Compile Include="Modules\GiaoHangKhach\Services\IDeliveryCommandLedger.cs" />
     <Compile Include="Modules\GiaoHangKhach\Services\DeliveryStockCommandHandler.cs" />
     <Compile Include="Modules\GiaoHangKhach\Repositories\DeliveryCommandLedgerRepository.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Repositories\DeliveryTmpPendingGate.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Repositories\DeliveryHangChoGiaoPostStep.cs" />
     <Compile Include="Domain\Events\NhapKhoCompletedEvent.cs" />
     <Compile Include="Shared\Models\StockItem.cs" />
     <Compile Include="Modules\KhoVatLy\UCControls\FormBulkSlotView.cs">

@@ -57,6 +57,18 @@ public sealed class DeliveryLegacyWriterInventoryTests
     }
 
     [Fact]
+    public void DeliveryStockCommandHandler_IsNotWiredIntoProductionComposition_UntilCutoverIsDeliberate()
+    {
+        // B0-01 cutover ratchet. The handler exists and is tested, but it must not be constructed by the
+        // production factory until P4/A0 are closed, the SQL scenario is green on the exact SHA and the
+        // three legacy writers are replaced in the same commit. When that happens, flip this assertion
+        // together with DeliveryLegacyWriterInventoryTests and WMS_B0_01_DELIVERY_PARITY.md.
+        var factory = ReadSource("GiaoHangKhachFactory.source.cs");
+        Assert.DoesNotContain("DeliveryStockCommandHandler", factory);
+        Assert.DoesNotContain("DeliveryTmpPendingGate", factory);
+    }
+
+    [Fact]
     public void ProductionCode_HasSingleConstructionPathForPhieuRepositoryAndPhieuKhoRepository()
     {
         var root = FindRepositoryRoot();

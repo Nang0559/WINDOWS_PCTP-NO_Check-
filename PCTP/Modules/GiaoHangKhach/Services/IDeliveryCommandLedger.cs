@@ -30,4 +30,13 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         /// <summary>Returns the number of pending rows actually closed.</summary>
         int ClosePending(DeliveryStockCommand command);
     }
+
+    /// <summary>
+    /// Work that the legacy path did right after the stock deduction (close HangChoGiao rows and write
+    /// EXPORT_CONFIRMED_HVN history). Runs inside the handler's transaction; any exception rolls back.
+    /// </summary>
+    public interface IDeliveryPostStockStep
+    {
+        void Run(DeliveryStockCommand command);
+    }
 }
