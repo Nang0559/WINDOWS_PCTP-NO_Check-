@@ -2,8 +2,8 @@
 
 > **Status: NOT READY / BLOCKED**  
 > Branch: `feature/wms-end-to-end-consistency`  
-> Current code HEAD: `dd5ad9e07f6b35c83cfb036c25514152e51dc679`  
-> CI runs for this HEAD: `40253223656` and `40253227418` — in progress at documentation time; check exact run/job conclusions before release.
+> Current branch HEAD: `2474c41f4da8f1e3911118eb6b48341332939861` (docs-only commit after verified code SHA `dd5ad9e07f6b35c83cfb036c25514152e51dc679`)  
+> Verified code CI: run `40253223656` on code SHA `dd5ad9e07f6b35c83cfb036c25514152e51dc679`, all 3 jobs SUCCESS. Run `40253365904` is queued for docs-only HEAD `2474c41…`.
 
 This is the authoritative release contract. No PASS may be inferred from class existence, source-contract tests, SQL-engine tests, or a successful build alone.
 
@@ -11,9 +11,9 @@ This is the authoritative release contract. No PASS may be inferred from class e
 
 | Gate | Meaning | Current |
 |---|---|---|
-| G1 | Source/architecture ownership | 🔴 OPEN — 122 gap rows / 97 code rows in current inventory; remediation incomplete |
+| G1 | Source/architecture ownership | 🔴 OPEN — 122 gap rows / 97 code rows, 91 distinct IDs in `G1-gaps.csv` SHA `ab064ed…`; remediation incomplete |
 | G2 | Unit/regression + SQL behavior on exact HEAD | 🟡 PENDING CI `40253021662` |
-| G3 | Transaction/state atomicity | 🔴 OPEN — source changes exist; SQL rollback/concurrency proof incomplete |
+| G3 | SQL engine integration | 🟡 PASS LIMITED — run `40253223656`, job `sql-engine-integration`, isolated SQL Server 2022; full workflow rollback/DBA schema still open |
 | G4 | Representative real schema | 🔴 |
 | G5 | Two-session concurrency | 🔴 |
 | G6 | Full E2E reconciliation | 🔴 |
@@ -134,7 +134,7 @@ The previous green run `40103616750` is historical evidence only; it predates th
 
 ## 7. Closure sequence
 
-1. Verify CI runs `40253223656` / `40253227418` for HEAD `dd5ad9e…`; rerun after any further code changes.
+1. CI run `40253223656` verified all 3 jobs on code SHA `dd5ad9e…`; run `40253365904` covers the subsequent docs-only HEAD.
 2. Verify B0-03 source-contract and add/run SQL two-session + rollback tests; implementation is now in place.
 3. Refactor B0-01 so all stock mutation goes through `IStockMovementService.Export`.
 4. Run SQL rollback/FIFO/QR/PART/multi-LOT tests.

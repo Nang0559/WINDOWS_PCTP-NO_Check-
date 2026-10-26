@@ -4,7 +4,7 @@
 > **Repository:** `Nang0559/WINDOWS_PCTP-NO_Check-`  
 > **Branch:** `feature/wms-end-to-end-consistency`  
 > **Code audit baseline:** `e334fed1528d8d4ca89179f87dace182a2bc451c` (code snapshot dùng cho các nhận định source-level ban đầu).  
-> **Code HEAD hiện tại tại lần rà:** `dd5ad9e07f6b35c83cfb036c25514152e51dc679`; CI runs `40253223656` và `40253227418` đang chạy trên đúng SHA này.  
+> **Code HEAD hiện tại tại lần rà:** `dd5ad9e07f6b35c83cfb036c25514152e51dc679`; CI run `40253223656` đã PASS 3/3 jobs trên code SHA `dd5ad9e…`; commit hiện tại `2474c41…` chỉ cập nhật tài liệu và run `40253365904` đang queued.  
 > **PR:** #3 — Draft  
 > **Nguyên tắc:** bảng này ghi nhận trạng thái theo bằng chứng code/SQL/test đang có; không dùng phần trăm ước lượng và không suy diễn PASS từ việc có class, migration hoặc source-contract test.
 
@@ -86,7 +86,7 @@ Ba điểm chặn quan trọng nhất:
 
 - Code audit snapshot ban đầu: `e334fed1528d8d4ca89179f87dace182a2bc451c`.
 - Documentation HEAD hiện tại: `18eedca9055aeccbc8e0afa763ad8b67966902a5`.
-- Workflow runs `40253223656` và `40253227418` đang chạy trên HEAD `dd5ad9e…`; chưa có kết luận PASS tại thời điểm cập nhật.
+- Workflow run `40253223656` đã hoàn tất SUCCESS 3/3 jobs trên code SHA `dd5ad9e…`: `unit-regression-tests`, `sql-engine-integration`, `desktop-runner-build`. Commit `2474c41…` sau đó chỉ thay đổi tài liệu; run `40253365904` đang queued.
 - Workflow run cũ `40195012228` thuộc code baseline `e334fed…`; không dùng run cũ làm bằng chứng cho HEAD mới khi đã có run `40199959465`.
 - CI success không thay thế bằng chứng G1/G4/G5/G6 hoặc schema production representative.
 - Không được dùng database production hoặc SQL dùng chung để chạy test có mutation. G4 phải rollback-only; G6 chỉ chạy trên database cô lập có xác nhận.
