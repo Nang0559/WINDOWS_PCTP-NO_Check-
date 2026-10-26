@@ -27,7 +27,7 @@ public sealed class ReworkExportIdempotencyContractTests
         Assert.Contains("ReferenceId = operationId.ToString(\"D\")", service);
         Assert.Contains("OperationId = operationId", service);
         Assert.Contains("GetXuatByOperationId(operationId)", qt);
-        Assert.Contains("QT_REWORK_EXPORT:", qt);
+        Assert.Contains("QT_REWORK_TICKET:", qt);
         Assert.Contains("@LockOwner = 'Transaction'", qt);
     }
 
@@ -60,7 +60,7 @@ public sealed class ReworkExportIdempotencyContractTests
 
         var method = service.Substring(methodStart, methodEnd - methodStart);
         var begin = method.IndexOf("_uow.Begin()", StringComparison.Ordinal);
-        var appLock = method.IndexOf("QT_REWORK_DELIVERY:", StringComparison.Ordinal);
+        var appLock = method.IndexOf("QT_REWORK_TICKET:", StringComparison.Ordinal);
         var exportRead = method.IndexOf("_traHangQTChungRepository.GetXuat(", StringComparison.Ordinal);
         var deliveryRead = method.IndexOf("_traHangQTChungRepository.GetGiao(", StringComparison.Ordinal);
         var insert = method.IndexOf("_traHangQTChungRepository.InsertGiao(", StringComparison.Ordinal);
