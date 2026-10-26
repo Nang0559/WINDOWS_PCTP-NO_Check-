@@ -4,7 +4,7 @@
 > **Repository:** `Nang0559/WINDOWS_PCTP-NO_Check-`  
 > **Branch:** `feature/wms-end-to-end-consistency`  
 > **Code audit baseline:** `e334fed1528d8d4ca89179f87dace182a2bc451c` (code snapshot dùng cho các nhận định source-level ban đầu).  
-> **Documentation/CI HEAD hiện tại:** `6a4242ff6f30f75c3f091dd15d0bf189b10e16e1` (commit cập nhật bảng tổng hợp; CI run mới đã chạy trên SHA này).  
+> **Code HEAD hiện tại tại lần rà:** `e804a96d605fda55976ed3f2eaae9bd6c8242be5`; CI run `40253021662` đang chạy trên đúng SHA này.  
 > **PR:** #3 — Draft  
 > **Nguyên tắc:** bảng này ghi nhận trạng thái theo bằng chứng code/SQL/test đang có; không dùng phần trăm ước lượng và không suy diễn PASS từ việc có class, migration hoặc source-contract test.
 
@@ -76,17 +76,17 @@ Ba điểm chặn quan trọng nhất:
 | Gate | Nội dung phải chứng minh | Evidence hiện có | Trạng thái |
 |---|---|---|---|
 | G1 — Traceability | Mỗi yêu cầu/luồng nối được code ↔ SQL object ↔ transaction ↔ test ↔ tài liệu; không còn gap chưa xử lý | Snapshot hiện tại `PCTP.QC.UI/G1-gaps.csv` tại SHA `ab064ed…`, rà trên HEAD code `18eedca…` ngày 2026-10-26: 122 gap rows, 97 code rows, 91 distinct IDs (IDs có thể lặp cho nhiều missing dimension). Chưa có remediation/evidence đóng đủ từng dòng | 🔴 OPEN |
-| G2 — Unit/regression | Unit/source-contract và regression bảo vệ quy tắc nghiệp vụ | CI `40199959465` chạy `unit-regression-tests` thành công trên HEAD `6a4242ff…`; test liên quan hiện có: `ReworkExportIdempotencyContractTests`, `ReworkWorkflowTransactionTests`, `DeliveryTransactionContractTests` | 🟢 PASS trên HEAD này; phạm vi vẫn là các test đã cấu hình, không phải full E2E |
-| G3 — SQL integration | Chạy implementation/repository thật với SQL engine cô lập, kiểm dữ liệu và rollback | CI `40199959465` chạy `sql-engine-integration` thành công trên HEAD `6a4242ff…`; chưa tương đương schema nghiệp vụ sản xuất đầy đủ | 🟡 PASS có giới hạn |
+| G2 — Unit/regression | Unit/source-contract và regression bảo vệ quy tắc nghiệp vụ | CI run `40253021662` đang chạy unit/regression trên HEAD `e804a96…`, gồm source-contract mới cho guard Rework và serialize Rework delivery | 🟡 PENDING |
+| G3 — SQL integration | Chạy implementation/repository thật với SQL engine cô lập, kiểm dữ liệu và rollback | CI run `40253021662` đang chạy SQL engine integration trên HEAD `e804a96…`; dù PASS cũng chỉ chứng minh engine/fixture đã cấu hình, không thay thế schema DBA representative | 🟡 PENDING |
 | G4 — Production procedure compatibility | Kiểm procedure thật trong DB thử nghiệm được cô lập, rollback-only và có G3 PASS cùng commit | Chưa có bằng chứng mới xác nhận schema/seed/procedure nghiệp vụ đại diện | 🔴 BLOCKED |
-| G5 — UI journeys | AutomationId thật; chạy 5 hành trình UI; assert dữ liệu sau thao tác | `desktop-runner-build` của run `40199959465` thành công; đây là build runner, không phải kết quả chạy 5 business journey | 🔴 OPEN |
+| G5 — UI journeys | AutomationId thật; chạy 5 hành trình UI; assert dữ liệu sau thao tác | `desktop-runner-build` của run `40253021662` đang chạy; build runner không phải kết quả chạy 5 business journey | 🔴 OPEN |
 | G6 — Full business E2E | Seed → thao tác UI → assert DB → cleanup; Remaining = 0; database cô lập | Các journey receive, QC direction, QC final, delivery HVN chưa được xác nhận PASS; self-test không thay thế business E2E | 🔴 OPEN |
 
 ### CI snapshot
 
 - Code audit snapshot ban đầu: `e334fed1528d8d4ca89179f87dace182a2bc451c`.
 - Documentation HEAD hiện tại: `18eedca9055aeccbc8e0afa763ad8b67966902a5`.
-- Workflow run `40200584223` kết luận success trên đúng HEAD `18eedca…`, gồm 3/3 jobs: `unit-regression-tests`, `sql-engine-integration`, `desktop-runner-build`.
+- Workflow run `40253021662` đang chạy trên HEAD `e804a96…`; chưa có kết luận PASS tại thời điểm cập nhật.
 - Workflow run cũ `40195012228` thuộc code baseline `e334fed…`; không dùng run cũ làm bằng chứng cho HEAD mới khi đã có run `40199959465`.
 - CI success không thay thế bằng chứng G1/G4/G5/G6 hoặc schema production representative.
 - Không được dùng database production hoặc SQL dùng chung để chạy test có mutation. G4 phải rollback-only; G6 chỉ chạy trên database cô lập có xác nhận.
@@ -99,7 +99,7 @@ Ba điểm chặn quan trọng nhất:
 |---|---|---|---|
 | B0-01 | Giao Hàng Khách còn trừ STOCKTP qua SP/SQL trong `PhieuKhoRepository.cs:76–88, 160–170` | Hai nguồn mutation có thể lệch STOCKTP và SlotLot | **Owner:** WMS/KhoCore + Giao Hàng Khách. **Ngày rà:** 2026-10-25. Thiết kế delivery stock command theo allocation LOT/Slot; giữ FIFO/QR/PART/multi-LOT parity; migrate từng nhánh; tuyệt đối không chạy hai writer song song |
 | B0-02 | Guard Rework quota | Guard được gọi trong đường stock mutation thật, sau lock phiếu và trước Export; provider thiếu thì từ chối | `ReworkStockService.cs:222–234` resolve `_phase4Provider`, fail-closed và gọi `EnsureCanExport` trước `_stockMovement.Export` (`:263`). Factory tạo lazy provider sau khi dựng `InitialQCService` (`XuLyHangLoiModuleFactory.cs:70–101`). `QTChungService` giữ transaction/app lock ngoài (`:318–359`); `UnitOfWork` hỗ trợ nested scope cùng transaction (`UnitOfWork.cs:30–40, 93–120`) | **Owner:** XuLyHangLoi/WMS. **Ngày rà:** 2026-10-26. Implementation blocker: **CLOSED**. Source-contract test mới bổ sung kiểm thứ tự lock → fail-closed → quota guard → movement; SQL two-session/concurrency/rollback acceptance vẫn là test gap của G3/G6, không được suy ra đã PASS |
-| B0-03 | Rework delivery chưa chứng minh kiểm soát remaining/concurrency | Có thể hai session cùng đọc số đã giao cũ rồi ghi vượt số đã xuất | **Owner:** XuLyHangLoi/WMS. **Ngày rà:** 2026-10-25. Code hiện có kiểm tra theo LOT tại `QTChungService.cs:384–428`, nhưng đọc ledger trước `_uow.Begin()` (`:430`); cần chuyển kiểm tra/đọc khóa vào transaction và test hai session, retry, rollback trước khi đóng blocker |
+| B0-03 | Rework delivery concurrency | Serialize authorization reads and writes | `QTChungService.cs` `GiaoHangRework`: UoW Begin → transaction-owned `QT_REWORK_DELIVERY` applock → reload ticket → GetXuat/GetGiao → validate → InsertGiao → status update → Commit. Test `ReworkDelivery_LocksAndReadsLedgersInsideTransactionBeforeInsert` added in `ReworkExportIdempotencyContractTests.cs` | **Owner:** XuLyHangLoi/WMS. **Ngày rà:** 2026-10-26. Implementation: CLOSED; SQL two-session + injected rollback acceptance: OPEN |
 | B1-01 | G1 traceability chưa PASS | Không biết đầy đủ đường code/SQL/test nào thiếu bảo vệ | Hoàn thiện mapping thực tế; không sửa CSV để giảm tiêu chí |
 | B1-02 | G4 thiếu schema/seed DBA xác nhận | Không chứng minh stored procedure thật tương thích | Xin schema-only export và seed đã làm sạch; chạy rollback-only trên DB cô lập |
 | B1-03 | G5/G6 business UI journeys chưa PASS | Không chứng minh thao tác thực tế xuyên UI và dữ liệu | Lấy AutomationId từ UI catalog; bật journey thật; assert stock/history/guard; cleanup Remaining=0 |
@@ -184,8 +184,8 @@ Không copy nguyên câu query mẫu vào production hoặc CI trước khi thay
 **WMS: IN PROGRESS — NOT READY FOR RELEASE.**
 
 - PR #3 tiếp tục để Draft.
-- B0-02 đã có implementation fail-closed trong `ReworkStockService`; bổ sung source-contract regression test trong commit kế tiếp. Chưa coi SQL concurrency acceptance của Rework đã PASS.
-- B0-01 và B0-03 vẫn OPEN; G1/G4/G5/G6 vẫn OPEN.
+- B0-02 đã có implementation fail-closed trong `ReworkStockService` và source-contract regression test. B0-03 đã chuyển toàn bộ đọc ledger sau transaction-owned applock, bổ sung source-contract test; cả hai còn chờ CI và SQL concurrency/rollback evidence. Chưa coi SQL concurrency acceptance của Rework đã PASS.
+- B0-01 vẫn OPEN. B0-03 implementation đã chuyển kiểm tra ledger vào transaction và khóa theo phiếu; xác minh SQL concurrency/rollback vẫn OPEN. G1/G4/G5/G6 vẫn OPEN.
 - Không đánh dấu Phase 6/7/10 hoàn tất khi các blocker và gate tương ứng chưa có bằng chứng nghiệm thu.
 - Không dùng phần trăm hoàn thành ước lượng làm chỉ số nghiệm thu.
 - Không sửa tiêu chí test hoặc xóa regression chỉ để làm xanh CI.

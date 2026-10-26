@@ -2,8 +2,8 @@
 
 > **Status: NOT READY / BLOCKED**  
 > Branch: `feature/wms-end-to-end-consistency`  
-> Current code HEAD: `e6dea18fdcbf6cc4d3041dc0f08894f3baa8aa79`  
-> CI run for this HEAD: `40251750826` — queued/in progress at documentation time.
+> Current code HEAD: `e804a96d605fda55976ed3f2eaae9bd6c8242be5`  
+> CI run for this HEAD: `40253021662` — in progress at documentation time; must be rechecked after completion.
 
 This is the authoritative release contract. No PASS may be inferred from class existence, source-contract tests, SQL-engine tests, or a successful build alone.
 
@@ -11,9 +11,9 @@ This is the authoritative release contract. No PASS may be inferred from class e
 
 | Gate | Meaning | Current |
 |---|---|---|
-| G1 | Source/architecture ownership | 🟡 |
-| G2 | SQL behavior | 🟡 |
-| G3 | Transaction/state atomicity | 🔴 |
+| G1 | Source/architecture ownership | 🔴 OPEN — 122 gap rows / 97 code rows in current inventory; remediation incomplete |
+| G2 | Unit/regression + SQL behavior on exact HEAD | 🟡 PENDING CI `40253021662` |
+| G3 | Transaction/state atomicity | 🔴 OPEN — source changes exist; SQL rollback/concurrency proof incomplete |
 | G4 | Representative real schema | 🔴 |
 | G5 | Two-session concurrency | 🔴 |
 | G6 | Full E2E reconciliation | 🔴 |
@@ -50,9 +50,11 @@ Required proof:
 
 ### B0-03 — Rework delivery concurrency
 
-**OPEN.**
+**Implementation: CLOSED on code HEAD `e804a96…`; verification: OPEN.**
 
-The delivery path must acquire the ticket serialization boundary **before** reading exported/delivered quantities used for authorization. The final transaction must re-read quantities after the lock and before inserting delivery records.
+`QTChungService.GiaoHangRework` now begins/joins the UoW, obtains transaction-owned `QT_REWORK_DELIVERY:<ticket>` exclusive application lock, reloads the ticket, and reads export/delivery ledgers only after the lock. It inserts delivery ledger rows and changes ticket status before committing the same transaction. Any validation failure rolls back. The source-contract test `ReworkDelivery_LocksAndReadsLedgersInsideTransactionBeforeInsert` asserts transaction → lock → ledger reads → insert → commit order.
+
+Remaining proof: SQL two-session test where two sessions attempt delivery against the same remaining quantity, plus rollback injection after the first ledger insert. Do not mark concurrency acceptance VERIFIED until those execute against SQL Server.
 
 Required sequence:
 
@@ -132,8 +134,8 @@ The previous green run `40103616750` is historical evidence only; it predates th
 
 ## 7. Closure sequence
 
-1. Verify CI run `40251750826`.
-2. Close B0-03 with transaction-before-read + serialization and two-session tests.
+1. Verify CI run `40253021662` for HEAD `e804a96…`; then rerun after any further code changes.
+2. Verify B0-03 source-contract and add/run SQL two-session + rollback tests; implementation is now in place.
 3. Refactor B0-01 so all stock mutation goes through `IStockMovementService.Export`.
 4. Run SQL rollback/FIFO/QR/PART/multi-LOT tests.
 5. Run representative DBA-schema integration (G4).
