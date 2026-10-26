@@ -5,7 +5,7 @@
 > **Branch:** `feature/wms-end-to-end-consistency`  
 > **Code audit baseline:** `a41d5df18ee7cb3920915d47548e1db7899eb2f1` (2026-10-26; branch HEAD at evidence capture).  
 > **CI exact-SHA evidence:** push run `40262798818` and PR run `40262804379` both SUCCESS on `a41d5df18ee7cb3920915d47548e1db7899eb2f1`; these cover configured QC workflow jobs only, not full WinForms build or SQL two-session/UI E2E.  
-> **Latest verified source candidate:** `a41d5df18ee7cb3920915d47548e1db7899eb2f1`; subsequent changes require fresh CI evidence.  
+> **Last green baseline:** `a41d5df18ee7cb3920915d47548e1db7899eb2f1` (runs `40262798818` push and `40262804379` PR). **Current change candidate:** `bb15a604a292a75c61455d25094940ee80aa5671`; runs `40264579206` and `40264584779` were cancelled before checkout, so current candidate is NOT VERIFIED.  
 > **PR:** #3 — Draft  
 > **Nguyên tắc:** bảng này ghi nhận trạng thái theo bằng chứng code/SQL/test đang có; không dùng phần trăm ước lượng và không suy diễn PASS từ việc có class, migration hoặc source-contract test.
 
@@ -237,7 +237,7 @@ The six production compile items are now included in this project file. This rep
 
 ## 9. CI evidence normalization (2026-10-26)
 
-The only current exact-SHA CI snapshot for the candidate at evidence capture is push `40262798818` and PR `40262804379`, both SUCCESS on `a41d5df18ee7cb3920915d47548e1db7899eb2f1`. Earlier run IDs and SHAs above are historical context only; they must not be described as current-candidate evidence. Canonical G1/G5 definitions and release decisions are owned by `WMS_RELEASE_GATE.md`.
+The last green exact-SHA baseline is push `40262798818` and PR `40262804379`, both SUCCESS on `a41d5df18ee7cb3920915d47548e1db7899eb2f1`. Current change candidate `bb15a604a292a75c61455d25094940ee80aa5671` had push `40264579206` and PR `40264584779` cancelled before checkout. Earlier run IDs and SHAs are historical context only; they must not be described as current-candidate evidence. Canonical G1/G5 definitions and release decisions are owned by `WMS_RELEASE_GATE.md`.
 
 
 ## 10. B0-01 design decision (2026-10-26)
@@ -246,3 +246,8 @@ The only current exact-SHA CI snapshot for the candidate at evidence capture is 
 - F-Y4 = `atomic`: all STT/parts in one business command commit or roll back together. A larger daily batch may consist of multiple independently retryable business commands; it is not one transaction for the whole day.
 - The new `DeliveryStockCommand` / `IDeliveryStockCommandHandler` are contract scaffolding only. No production handler is wired yet. Legacy `Usp_Qrcode_Update_Stock2405`, `Usp_Qrcode_Update_Stock_SP`, `Usp_Qrcode_Take_LotYMVN2405`, and `TruStockTpFifo` remain untouched until parity tests pass.
 - Rework export and delivery now use the same transaction-owned application-lock resource `QT_REWORK_TICKET:{PhieuXuLyId}`. The ReworkStockService row status guard remains an additional conditional guard, not a substitute for the shared resource lock. SQL two-session execution remains required.
+
+
+## 11. Current change candidate — verification state
+
+The delivery allocation contract and shared Rework application-lock resource were committed after the last green baseline. The current candidate has no completed CI result: both observed workflow runs were cancelled before checkout. Do not mark G2, G5, B0-01 or release as PASS on this basis. Full Windows MSBuild and real-method SQL/UI harness execution have not been run in this environment.
