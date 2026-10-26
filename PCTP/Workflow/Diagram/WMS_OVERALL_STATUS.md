@@ -4,7 +4,7 @@
 > **Repository:** `Nang0559/WINDOWS_PCTP-NO_Check-`  
 > **Branch:** `feature/wms-end-to-end-consistency`  
 > **Code audit baseline:** `e334fed1528d8d4ca89179f87dace182a2bc451c` (code snapshot dùng cho các nhận định source-level ban đầu).  
-> **Code HEAD hiện tại tại lần rà:** `e804a96d605fda55976ed3f2eaae9bd6c8242be5`; CI run `40253021662` đang chạy trên đúng SHA này.  
+> **Code HEAD hiện tại tại lần rà:** `dd5ad9e07f6b35c83cfb036c25514152e51dc679`; CI runs `40253223656` và `40253227418` đang chạy trên đúng SHA này.  
 > **PR:** #3 — Draft  
 > **Nguyên tắc:** bảng này ghi nhận trạng thái theo bằng chứng code/SQL/test đang có; không dùng phần trăm ước lượng và không suy diễn PASS từ việc có class, migration hoặc source-contract test.
 
@@ -86,7 +86,7 @@ Ba điểm chặn quan trọng nhất:
 
 - Code audit snapshot ban đầu: `e334fed1528d8d4ca89179f87dace182a2bc451c`.
 - Documentation HEAD hiện tại: `18eedca9055aeccbc8e0afa763ad8b67966902a5`.
-- Workflow run `40253021662` đang chạy trên HEAD `e804a96…`; chưa có kết luận PASS tại thời điểm cập nhật.
+- Workflow runs `40253223656` và `40253227418` đang chạy trên HEAD `dd5ad9e…`; chưa có kết luận PASS tại thời điểm cập nhật.
 - Workflow run cũ `40195012228` thuộc code baseline `e334fed…`; không dùng run cũ làm bằng chứng cho HEAD mới khi đã có run `40199959465`.
 - CI success không thay thế bằng chứng G1/G4/G5/G6 hoặc schema production representative.
 - Không được dùng database production hoặc SQL dùng chung để chạy test có mutation. G4 phải rollback-only; G6 chỉ chạy trên database cô lập có xác nhận.
@@ -114,7 +114,7 @@ Ba điểm chặn quan trọng nhất:
 | ID | Code evidence đã đối chiếu trên code snapshot `e334fed…` | Test hiện có | Owner xử lý / trạng thái |
 |---|---|---|---|
 | B0-01 | `PCTP/Modules/GiaoHangKhach/Repositories/PhieuKhoRepository.cs:76–88, 160–170` gọi hai stored procedure giao hàng; đường SQL/FIFO YMVN cần rà tiếp toàn file và các caller | `PCTP.QC.Tests/DeliveryTransactionContractTests.cs` (source-contract cho procedure/transaction); chưa có test chứng minh chuyển hẳn sang movement allocation | WMS/KhoCore + Giao Hàng Khách; open |
-| B0-02 | `PCTP/Modules/XuLyHangLoi/Services/QTChungService.cs:298–359`; composition `PCTP/Shared/Common/WarehouseProcessNavigator.cs:123–132`; factory tạo guard tại `PCTP/Modules/XuLyHangLoi/Application/XuLyHangLoiModuleFactory.cs:86–101` | `PCTP.QC.Tests/ReworkExportIdempotencyContractTests.cs` chỉ kiểm ID/lock/lookup; **chưa** có test guard vượt hạn mức, bằng hạn mức, retry SQL, hai session và rollback | XuLyHangLoi/WMS; open |
+| B0-02 | `PCTP/Modules/XuLyHangLoi/Services/QTChungService.cs:298–359`; composition `PCTP/Shared/Common/WarehouseProcessNavigator.cs:123–132`; factory tạo guard tại `PCTP/Modules/XuLyHangLoi/Application/XuLyHangLoiModuleFactory.cs:86–101` | `PCTP.QC.Tests/ReworkExportIdempotencyContractTests.cs` có source-contract cho ID/lock/lookup, fail-closed quota guard và transaction/lock-before-read cho delivery; **chưa** có SQL test vượt hạn mức, hai session và rollback | XuLyHangLoi/WMS; open |
 | B0-03 | `PCTP/Modules/XuLyHangLoi/Services/QTChungService.cs:384–435` | `PCTP.QC.Tests/ReworkWorkflowTransactionTests.cs` kiểm invariant/rollback abstraction; **chưa** chứng minh concurrency của giao Rework trên SQL | XuLyHangLoi/WMS; open |
 | WMS-12 | `PCTP/Modules/XuLyHangLoi/Services/IQTChungService.cs:142–158` | Chưa thấy test SQL concurrency/duplicate cho ConfirmReworkQC | XuLyHangLoi/WMS; verify |
 | WMS-13 | `PCTP/Modules/XuLyHangLoi/Services/IQTChungService.cs:170–188` | Chưa thấy test SQL concurrency/duplicate cho ConfirmDisposition | XuLyHangLoi/WMS; verify |
