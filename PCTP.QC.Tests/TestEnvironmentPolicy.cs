@@ -59,8 +59,7 @@ public static class TestEnvironmentPolicy
                 || server.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase)
                 || server.StartsWith("localhost,", StringComparison.OrdinalIgnoreCase)
                 || server.StartsWith("127.0.0.1,", StringComparison.OrdinalIgnoreCase);
-            return isLocal
-                && db.Equals("PCTP_QC_CI", StringComparison.OrdinalIgnoreCase);
+            return isLocal && db.Equals("PCTP_QC_CI", StringComparison.OrdinalIgnoreCase);
         }
 
         var allowEphemeral = string.Equals(
@@ -97,7 +96,7 @@ public static class TestEnvironmentPolicy
         foreach (var alias in aliases)
         {
             var pattern = @"(?:^|;)\s*" + Regex.Escape(alias) +
-                @"\s*=\s*(?:\"(?<quoted>[^\"]*)\"|(?<plain>[^;]*))";
+                @"\s*=\s*(?:""(?<quoted>[^""]*)""|(?<plain>[^;]*))";
             foreach (Match match in Regex.Matches(connectionString, pattern, RegexOptions.IgnoreCase))
             {
                 values.Add(match.Groups["quoted"].Success
