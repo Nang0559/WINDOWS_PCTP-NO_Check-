@@ -1,8 +1,8 @@
 # G1 - Ma trận truy vết (code -> SP/SQL -> transaction -> test)
 
-- Commit: `53af05dcde9d8c0da9942dfca3369098c7a30701`  |  sinh bởi `PCTP.QC.UI/Build-TraceabilityMatrix.py` (phân tích tĩnh, không mở DB)
-- Dòng code: 88 (COMPLETE 22, **GAP 66**)  |  SQL script: 17  |  dòng TestMatrix không `implemented`: 22
-- Tổng số gap: **105**. Gate G1 chỉ PASS khi bằng 0.
+- Commit: `e5a75b0907ae3c69a0714f3b2afcfe40f22ceb20`  |  sinh bởi `PCTP.QC.UI/Build-TraceabilityMatrix.py` (phân tích tĩnh, không mở DB)
+- Dòng code: 92 (COMPLETE 26, **GAP 66**)  |  SQL script: 19  |  dòng TestMatrix không `implemented`: 24
+- Tổng số gap: **109**. Gate G1 chỉ PASS khi bằng 0.
 
 Giới hạn: regex trên chuỗi SQL trong C#; SQL ghép động (string concat từ biến) hoặc đặt tên bảng trong biến sẽ không bắt được - những dòng đó có cột `Ghi` rỗng nhưng vẫn gọi `Execute*` được liệt kê ở `hasSql`. Cần review tay các dòng này.
 
@@ -21,83 +21,87 @@ Giới hạn: regex trên chuỗi SQL trong C#; SQL ghép động (string concat
 | G1-009 | BaoCao | Repository | `PCTP/Modules/BaoCao/Infrastructure/Repositories/QualityHistoryRepository.cs` | — | — | PARTICIPANT | — | — | **GAP**: test |
 | G1-010 | BaoCao | Repository | `PCTP/Modules/BaoCao/Infrastructure/Repositories/StockHistoryRepository.cs` | sp_GetStockHistory | — | PARTICIPANT (doc) | BulkStockAdjustServiceTests.cs | — | **GAP**: sql-test(only-fakes) |
 | G1-011 | GiaoHangKhach | Repository | `PCTP/Modules/GiaoHangKhach/Reports/Report.cs` | — | — | DELEGATES | — | — | **GAP**: test |
-| G1-012 | GiaoHangKhach | Repository | `PCTP/Modules/GiaoHangKhach/Repositories/ItemFifoConfigRepository.cs` | — | FVN_ItemFifoConfig, FVN_ItemFifoConfig_History | PARTICIPANT (doc) | — | — | **GAP**: test |
-| G1-013 | GiaoHangKhach | Repository | `PCTP/Modules/GiaoHangKhach/Repositories/PhieuCurrentQrFifoValidationRepository.cs` | — | — | PARTICIPANT | FifoSessionStateTests.cs | — | OK |
-| G1-014 | GiaoHangKhach | Repository | `PCTP/Modules/GiaoHangKhach/Repositories/PhieuGiaoDBRepository.cs` | Usp_Qrcode_LOAD_PHIEU_DOCQR2405 | TMPPHIEUGIAODBHD, TMPPHIEUGIAOHANGDBCT | PARTICIPANT (doc) | AtomicityFindingsSourceContractTests.cs | — | **GAP**: sql-test(only-fakes) |
-| G1-015 | GiaoHangKhach | Repository | `PCTP/Modules/GiaoHangKhach/Repositories/PhieuKhoRepository.cs` | Usp_Qrcode_LOAD_HANGTHIEU, Usp_Qrcode_LOAD_HANGTHIEUView, Usp_Qrcode_Update_Stock2405, Usp_Qrcode_Update_Stock_SP | LUUDOCQRCODE, LUUPHIEUGIAOHANG, STOCKTP | PARTICIPANT (doc) | DeliveryLegacyWriterInventoryTests.cs, DeliveryProductionBoundaryTests.cs, DeliveryTransactionContractTests.cs, OrderTableSourceContractTests.cs, YmvnDeliverySpecContractTests.cs | OrderTableDeliveryMarkingScenario.cs, Program.cs, YmvnDeliverySpecScenario.cs | OK |
-| G1-016 | GiaoHangKhach | Repository | `PCTP/Modules/GiaoHangKhach/Repositories/PhieuLotRepository.cs` | Usp_Qrcode_Take_Lot2405, Usp_Qrcode_Take_LotYMVN2405, Usp_Qrcode_gheplot | — | PARTICIPANT (doc) | AtomicityFindingsSourceContractTests.cs, DeliveryLotServiceTestDoubles.cs, DeliveryLotServiceUnitTests.cs, DeliveryQrAllocationSourceContractTests.cs | — | **GAP**: sql-test(only-fakes) |
-| G1-017 | GiaoHangKhach | Repository | `PCTP/Modules/GiaoHangKhach/Repositories/PhieuLuuTruRepository.cs` | — | LUUPHIEUGIAOHANG | PARTICIPANT (doc) | AtomicityFindingsSourceContractTests.cs | — | **GAP**: sql-test(only-fakes) |
-| G1-018 | GiaoHangKhach | Repository | `PCTP/Modules/GiaoHangKhach/Repositories/PhieuRepository.cs` | — | — | PARTICIPANT (doc) | DeliveryLegacyWriterInventoryTests.cs, FifoSessionStateTests.cs | — | OK |
-| G1-019 | GiaoHangKhach | Repository | `PCTP/Modules/GiaoHangKhach/Repositories/PhieuTmpRepository.cs` | Usp_Qrcode_LOAD_PHIEU_DOCQR2405 | — | PARTICIPANT (doc) | — | — | **GAP**: test |
-| G1-020 | GiaoHangKhach | Repository | `PCTP/Modules/GiaoHangKhach/Repositories/PhieuValidationRepository.cs` | — | — | PARTICIPANT | DeliveryLotServiceTestDoubles.cs, DeliveryLotServiceUnitTests.cs, DeliveryQrAllocationSourceContractTests.cs | — | OK |
-| G1-021 | GiaoHangKhach | Repository | `PCTP/Modules/GiaoHangKhach/Repositories/TableOrderRepo.cs` | — | Purchase_Order_YMVN | OWNS (doc) | AtomicityFindingsSourceContractTests.cs, OrderLineKeyTests.cs, OrderTableSourceContractTests.cs | — | **GAP**: sql-test(only-fakes) |
-| G1-022 | GiaoHangKhach | Service | `PCTP/Modules/GiaoHangKhach/Services/BulkStockAdjustService.cs` | — | — | OWNS (doc) | BulkStockAdjustServiceTests.cs, YmvnDeliverySpecContractTests.cs | YmvnDeliverySpecScenario.cs | OK |
-| G1-023 | GiaoHangKhach | Service | `PCTP/Modules/GiaoHangKhach/Services/CustomerAddressService.cs` | — | — | DELEGATES | — | — | **GAP**: test |
-| G1-024 | GiaoHangKhach | Service | `PCTP/Modules/GiaoHangKhach/Services/DocQRScanEngine.cs` | — | — | DELEGATES | — | — | **GAP**: test |
-| G1-025 | GiaoHangKhach | Service | `PCTP/Modules/GiaoHangKhach/Services/DocQRService.cs` | — | — | DELEGATES | — | — | **GAP**: test |
-| G1-026 | GiaoHangKhach | Service | `PCTP/Modules/GiaoHangKhach/Services/DocQRSessionState.cs` | — | — | DELEGATES | — | — | **GAP**: test |
-| G1-027 | GiaoHangKhach | Service | `PCTP/Modules/GiaoHangKhach/Services/DocQRTableResolver.cs` | — | — | DELEGATES | — | — | **GAP**: test |
-| G1-028 | GiaoHangKhach | Service | `PCTP/Modules/GiaoHangKhach/Services/FifoSessionService.cs` | — | — | DELEGATES | — | — | **GAP**: test |
-| G1-029 | GiaoHangKhach | Service | `PCTP/Modules/GiaoHangKhach/Services/FifoSessionState.cs` | — | — | DELEGATES | FifoSessionStateTests.cs | — | OK |
-| G1-030 | GiaoHangKhach | Service | `PCTP/Modules/GiaoHangKhach/Services/GiaoHangKhachFactory.cs` | — | — | PARTICIPANT | DeliveryLegacyWriterInventoryTests.cs | — | OK |
-| G1-031 | GiaoHangKhach | Service | `PCTP/Modules/GiaoHangKhach/Services/HangThieuCaNgayService.cs` | — | — | DELEGATES | — | — | **GAP**: test |
-| G1-032 | GiaoHangKhach | Service | `PCTP/Modules/GiaoHangKhach/Services/InPhieuService.cs` | — | — | DELEGATES | — | — | **GAP**: test |
-| G1-033 | GiaoHangKhach | Service | `PCTP/Modules/GiaoHangKhach/Services/MachinePermissionService.cs` | — | tbl_QR_MAY_DOCQR | OWNS (doc) | — | — | **GAP**: test |
-| G1-034 | GiaoHangKhach | Service | `PCTP/Modules/GiaoHangKhach/Services/PhieuGiaoDbService.cs` | — | — | DELEGATES | — | — | **GAP**: test |
-| G1-035 | GiaoHangKhach | Service | `PCTP/Modules/GiaoHangKhach/Services/PhieuKhoService.cs` | — | — | DELEGATES (doc) | DeliveryServiceOrchestrationTests.cs | — | OK |
-| G1-036 | GiaoHangKhach | Service | `PCTP/Modules/GiaoHangKhach/Services/PhieuLoadService.cs` | Usp_Qrcode_LOAD_PHIEU_DOCQR2405, Usp_Qrcode_LOAD_PHIEU_DOCQRView2405 | — | DELEGATES (doc) | — | — | **GAP**: test |
-| G1-037 | GiaoHangKhach | Service | `PCTP/Modules/GiaoHangKhach/Services/PhieuLotService.cs` | — | — | DELEGATES | DeliveryLotServiceTestDoubles.cs, DeliveryLotServiceUnitTests.cs, DeliveryQrAllocationSourceContractTests.cs | — | OK |
-| G1-038 | GiaoHangKhach | Service | `PCTP/Modules/GiaoHangKhach/Services/PhieuService.cs` | Usp_Qrcode_LOAD_PHIEU_DOCQR2405 | — | DELEGATES (doc) | — | — | **GAP**: test |
-| G1-039 | GiaoHangKhach | Service | `PCTP/Modules/GiaoHangKhach/Services/PhieuYmvnService.cs` | — | — | DELEGATES | DeliveryQrAllocationSourceContractTests.cs, YmvnDeliverySpecContractTests.cs | — | OK |
-| G1-040 | GiaoHangKhach | Service | `PCTP/Modules/GiaoHangKhach/Services/YmvnGearQuantityValidator.cs` | — | — | DELEGATES | YmvnGearQuantityValidatorTests.cs | — | OK |
-| G1-041 | KhoCore | Service | `PCTP/Modules/KhoCore/Application/Services/QuarantineReleaseService.cs` | — | — | OWNS (doc) | QuarantineReleaseServiceTests.cs, RemainingQcCaseContractTests.cs | — | OK |
-| G1-042 | KhoCore | Service | `PCTP/Modules/KhoCore/Application/Services/StockMovementService.cs` | — | — | OWNS (doc) | BulkStockAdjustServiceTests.cs, DeliveryLegacyWriterInventoryTests.cs, DeliveryTransactionContractTests.cs, RemainingQcCaseContractTests.cs, StockMovementServiceTests.cs, YmvnDeliverySpecContractTests.cs | — | OK |
-| G1-043 | KhoCore | Repository | `PCTP/Modules/KhoCore/Infrastructure/Tracking/PhieuTrackingReadRepository.cs` | — | — | PARTICIPANT | — | — | **GAP**: test |
-| G1-044 | KhoCore | Repository | `PCTP/Modules/KhoCore/Repositories/BulkStockSlotRepository.cs` | — | Rack, Slot, SlotLot, Warehouse | PARTICIPANT (doc) | BulkStockAdjustServiceTests.cs, DeliveryTransactionContractTests.cs | ProductionBulkStockSlotConcurrencyScenario.cs, ProductionBulkStockSlotRepositoryScenario.cs, Program.cs, SqlEngineWorkflowScenario.cs | OK |
-| G1-045 | KhoCore | Repository | `PCTP/Modules/KhoCore/Repositories/InspectionConfigRepository.cs` | — | InspectionConfig | PARTICIPANT (doc) | — | — | **GAP**: test |
-| G1-046 | KhoCore | Repository | `PCTP/Modules/KhoCore/Repositories/InspectionLogRepository.cs` | — | InspectionLog | PARTICIPANT (doc) | — | — | **GAP**: test |
-| G1-047 | KhoCore | Repository | `PCTP/Modules/KhoCore/Repositories/QuarantineReleaseAuditRepository.cs` | — | PCTPQuarantineReleaseAudit | PARTICIPANT (doc) | QuarantineReleaseServiceTests.cs | — | **GAP**: sql-test(only-fakes) |
-| G1-048 | KhoCore | Repository | `PCTP/Modules/KhoCore/Repositories/RackRepository.cs` | — | Rack, Slot | PARTICIPANT (doc) | AtomicityFindingsSourceContractTests.cs | — | **GAP**: sql-test(only-fakes) |
-| G1-049 | KhoCore | Repository | `PCTP/Modules/KhoCore/Repositories/SlotRepository.cs` | — | Rack, Slot, SlotLot, Warehouse | PARTICIPANT (doc) | — | — | **GAP**: test |
-| G1-050 | KhoCore | Repository | `PCTP/Modules/KhoCore/Repositories/StockHistoryRepository.cs` | — | StockHistory | PARTICIPANT (doc) | BulkStockAdjustServiceTests.cs | — | **GAP**: sql-test(only-fakes) |
-| G1-051 | KhoCore | Repository | `PCTP/Modules/KhoCore/Repositories/WarehouseRepository.cs` | — | Warehouse | PARTICIPANT (doc) | — | — | **GAP**: test |
-| G1-052 | KhoCore | Service | `PCTP/Modules/KhoCore/Services/InspectionConfigService.cs` | — | — | DELEGATES | — | — | **GAP**: test |
-| G1-053 | KhoCore | Service | `PCTP/Modules/KhoCore/Services/InspectionService.cs` | — | — | DELEGATES | — | — | **GAP**: test |
-| G1-054 | KhoCore | Service | `PCTP/Modules/KhoCore/Services/RackService.cs` | — | — | DELEGATES (doc) | — | — | **GAP**: test |
-| G1-055 | KhoCore | Service | `PCTP/Modules/KhoCore/Services/SlotService.cs` | — | — | DELEGATES (doc) | — | — | **GAP**: test |
-| G1-056 | KhoCore | Service | `PCTP/Modules/KhoCore/Services/StockHistoryService.cs` | — | — | DELEGATES | — | — | **GAP**: test |
-| G1-057 | KhoCore | Service | `PCTP/Modules/KhoCore/Services/WarehouseService.cs` | — | — | OWNS | — | — | **GAP**: test |
-| G1-058 | NhapKho | Repository | `PCTP/Modules/NhapKho/Application/Adapters/StockReceivingRepositoryAdapter.cs` | — | — | DELEGATES | DeliveryTransactionContractTests.cs | — | OK |
-| G1-059 | NhapKho | Repository | `PCTP/Modules/NhapKho/Application/Adapters/StockSlotRepositoryAdapter.cs` | — | — | DELEGATES | — | — | **GAP**: test |
-| G1-060 | NhapKho | Repository | `PCTP/Modules/NhapKho/NhapKhoDashboardRepository.cs` | — | — | PARTICIPANT | — | — | **GAP**: test |
-| G1-061 | NhapKho | Repository | `PCTP/Modules/NhapKho/Repository/StockTPRepository.cs` | — | tác | PARTICIPANT (doc) | AtomicityFindingsSourceContractTests.cs | ProductionBulkStockSlotRepositoryScenario.cs, ProductionStockTpRepositoryScenario.cs, Program.cs | OK |
-| G1-062 | NhapKho | Repository | `PCTP/Modules/NhapKho/Repository/StockTpImportGuardRepository.cs` | — | — | PARTICIPANT | DeliveryTransactionContractTests.cs | — | OK |
-| G1-063 | NhapKho | Repository | `PCTP/Modules/NhapKho/Repository/StockTpProductionRepository.cs` | — | — | PARTICIPANT | — | — | **GAP**: test |
-| G1-064 | NhapKho | Repository | `PCTP/Modules/NhapKho/Repository/StockTpStatusRepository.cs` | — | STOCKTP | PARTICIPANT (doc) | — | — | **GAP**: test |
-| G1-065 | NhapKho | Service | `PCTP/Modules/NhapKho/Services/NhapTpReceivingService.cs` | — | — | OWNS (doc) | DeliveryTransactionContractTests.cs | — | OK |
-| G1-066 | NhapKho | Service | `PCTP/Modules/NhapKho/Services/StockTpLookupService.cs` | — | — | DELEGATES | — | — | **GAP**: test |
-| G1-067 | NhapKho | Service | `PCTP/Modules/NhapKho/Services/WarehouseDashboardService.cs` | — | — | DELEGATES | — | — | **GAP**: test |
-| G1-068 | XuLyHangLoi | Repository | `PCTP/Modules/XuLyHangLoi/Repository/NoiBoLookupRepository.cs` | — | — | PARTICIPANT | — | — | **GAP**: test |
-| G1-069 | XuLyHangLoi | Repository | `PCTP/Modules/XuLyHangLoi/Repository/PhieuGiaoRepository.cs` | — | LUUPHIEUGIAOHANG | PARTICIPANT (doc) | — | — | **GAP**: test |
-| G1-070 | XuLyHangLoi | Repository | `PCTP/Modules/XuLyHangLoi/Repository/PhieuTraHangRepository.cs` | — | FVN_PhieuTraHang, FVN_PhieuTraHangCT | PARTICIPANT (doc) | — | — | **GAP**: test |
-| G1-071 | XuLyHangLoi | Repository | `PCTP/Modules/XuLyHangLoi/Repository/PhieuXuLyBatThuongRepository.cs` | — | FVN_PhieuTraHangCT, FVN_PhieuXuLyBatThuong | PARTICIPANT (doc) | AtomicityFindingsSourceContractTests.cs | — | **GAP**: sql-test(only-fakes) |
-| G1-072 | XuLyHangLoi | Repository | `PCTP/Modules/XuLyHangLoi/Repository/TraHangQTChungRepository.cs` | — | FVN_TraHangQTChungGiao, FVN_TraHangQTChungNhapNG, FVN_TraHangQTChungQC, FVN_TraHangQTChungXuat, LatestGiao | PARTICIPANT (doc) | ReworkExportIdempotencyContractTests.cs | — | **GAP**: sql-test(only-fakes) |
-| G1-073 | XuLyHangLoi | Repository | `PCTP/Modules/XuLyHangLoi/Repository/TransactionalPhieuTraHangRepository.cs` | — | FVN_PhieuTraHang | PARTICIPANT (doc) | — | — | **GAP**: test |
-| G1-074 | XuLyHangLoi | Service | `PCTP/Modules/XuLyHangLoi/Services/AffectedLotTraceService.cs` | — | FVN_PhieuXuLyBatThuongAffectedLot | PARTICIPANT (doc) | — | — | **GAP**: test |
-| G1-075 | XuLyHangLoi | Service | `PCTP/Modules/XuLyHangLoi/Services/GiaoBuNGService.cs` | — | — | DELEGATES | — | — | **GAP**: test |
-| G1-076 | XuLyHangLoi | Service | `PCTP/Modules/XuLyHangLoi/Services/KhachTraHangService.cs` | — | — | PARTICIPANT | ReturnDeliveryConsistencySourceContractTests.cs | — | OK |
-| G1-077 | XuLyHangLoi | Service | `PCTP/Modules/XuLyHangLoi/Services/QTChungService.cs` | — | — | OWNS (doc) | ReturnDeliveryConsistencySourceContractTests.cs, ReworkExportIdempotencyContractTests.cs | ReworkTwoSessionScenario.cs | OK |
-| G1-078 | XuLyHangLoi | Service | `PCTP/Modules/XuLyHangLoi/Services/QrItemParser.cs` | — | — | DELEGATES | — | — | **GAP**: test |
-| G1-079 | XuLyHangLoi | Service | `PCTP/Modules/XuLyHangLoi/Services/ReworkQuantityPolicy.cs` | — | — | DELEGATES | ReworkExportIdempotencyContractTests.cs, ReworkQuantityPolicyTests.cs | ReworkTwoSessionScenario.cs | OK |
-| G1-080 | XuLyHangLoi | Service | `PCTP/Modules/XuLyHangLoi/Services/ReworkStockService.cs` | — | — | OWNS (doc) | RemainingQcCaseContractTests.cs, ReworkExportIdempotencyContractTests.cs | ReworkTwoSessionScenario.cs | OK |
-| G1-081 | XuLyHangLoi | Service | `PCTP/Modules/XuLyHangLoi/Services/TraNoiBoService.cs` | — | — | PARTICIPANT | — | — | **GAP**: test |
-| G1-082 | XuLyHangLoi | Service | `PCTP/Modules/XuLyHangLoi/Services/XuLyHangLoiServiceBase.cs` | — | — | PARTICIPANT (doc) | — | — | **GAP**: test |
-| G1-083 | XuatKho | Repository | `PCTP/Modules/XuatKho/Application/Adapters/StockExportRepositoryAdapter.cs` | — | — | DELEGATES | — | — | **GAP**: test |
-| G1-084 | XuatKho | Repository | `PCTP/Modules/XuatKho/Repositories/HangChoGiaoRepository.cs` | — | FVN_HangChoGiao, FVN_HangChoGiaoPickDetail | PARTICIPANT (doc) | — | — | **GAP**: test |
-| G1-085 | XuatKho | Repository | `PCTP/Modules/XuatKho/Repositories/StockExportHistoryRepository.cs` | — | — | PARTICIPANT | — | — | **GAP**: test |
-| G1-086 | XuatKho | Repository | `PCTP/Modules/XuatKho/Repositories/StockExportRepository.cs` | — | STOCKTP, tác | PARTICIPANT (doc) | AtomicityFindingsSourceContractTests.cs | — | **GAP**: sql-test(only-fakes) |
-| G1-087 | XuatKho | Service | `PCTP/Modules/XuatKho/Services/StockExportService.cs` | — | — | OWNS (doc) | — | — | **GAP**: test |
-| G1-088 | XuatKho | Service | `PCTP/Modules/XuatKho/Services/StockExportValidationService.cs` | — | — | DELEGATES | — | — | **GAP**: test |
+| G1-012 | GiaoHangKhach | Repository | `PCTP/Modules/GiaoHangKhach/Repositories/DeliveryCommandLedgerRepository.cs` | — | DeliveryCommandLedger, DeliveryCommandQr | PARTICIPANT | — | DeliveryCommandSqlScenario.cs | **GAP**: transaction-boundary(not-documented) |
+| G1-013 | GiaoHangKhach | Repository | `PCTP/Modules/GiaoHangKhach/Repositories/DeliveryHangChoGiaoPostStep.cs` | — | — | PARTICIPANT | — | — | **GAP**: test |
+| G1-014 | GiaoHangKhach | Repository | `PCTP/Modules/GiaoHangKhach/Repositories/DeliveryTmpPendingGate.cs` | — | — | PARTICIPANT | DeliveryLegacyWriterInventoryTests.cs | DeliveryCommandSqlScenario.cs | OK |
+| G1-015 | GiaoHangKhach | Repository | `PCTP/Modules/GiaoHangKhach/Repositories/ItemFifoConfigRepository.cs` | — | FVN_ItemFifoConfig, FVN_ItemFifoConfig_History | PARTICIPANT (doc) | — | — | **GAP**: test |
+| G1-016 | GiaoHangKhach | Repository | `PCTP/Modules/GiaoHangKhach/Repositories/PhieuCurrentQrFifoValidationRepository.cs` | — | — | PARTICIPANT | FifoSessionStateTests.cs | — | OK |
+| G1-017 | GiaoHangKhach | Repository | `PCTP/Modules/GiaoHangKhach/Repositories/PhieuGiaoDBRepository.cs` | Usp_Qrcode_LOAD_PHIEU_DOCQR2405 | TMPPHIEUGIAODBHD, TMPPHIEUGIAOHANGDBCT | PARTICIPANT (doc) | AtomicityFindingsSourceContractTests.cs | — | **GAP**: sql-test(only-fakes) |
+| G1-018 | GiaoHangKhach | Repository | `PCTP/Modules/GiaoHangKhach/Repositories/PhieuKhoRepository.cs` | Usp_Qrcode_LOAD_HANGTHIEU, Usp_Qrcode_LOAD_HANGTHIEUView, Usp_Qrcode_Update_Stock2405, Usp_Qrcode_Update_Stock_SP | LUUDOCQRCODE, LUUPHIEUGIAOHANG, STOCKTP | PARTICIPANT (doc) | DeliveryLegacyWriterInventoryTests.cs, DeliveryProductionBoundaryTests.cs, DeliveryTransactionContractTests.cs, OrderTableSourceContractTests.cs, YmvnDeliverySpecContractTests.cs | OrderTableDeliveryMarkingScenario.cs, Program.cs, YmvnDeliverySpecScenario.cs | OK |
+| G1-019 | GiaoHangKhach | Repository | `PCTP/Modules/GiaoHangKhach/Repositories/PhieuLotRepository.cs` | Usp_Qrcode_Take_Lot2405, Usp_Qrcode_Take_LotYMVN2405, Usp_Qrcode_gheplot | — | PARTICIPANT (doc) | AtomicityFindingsSourceContractTests.cs, DeliveryLotServiceTestDoubles.cs, DeliveryLotServiceUnitTests.cs, DeliveryQrAllocationSourceContractTests.cs | — | **GAP**: sql-test(only-fakes) |
+| G1-020 | GiaoHangKhach | Repository | `PCTP/Modules/GiaoHangKhach/Repositories/PhieuLuuTruRepository.cs` | — | LUUPHIEUGIAOHANG | PARTICIPANT (doc) | AtomicityFindingsSourceContractTests.cs | — | **GAP**: sql-test(only-fakes) |
+| G1-021 | GiaoHangKhach | Repository | `PCTP/Modules/GiaoHangKhach/Repositories/PhieuRepository.cs` | — | — | PARTICIPANT (doc) | DeliveryLegacyWriterInventoryTests.cs, FifoSessionStateTests.cs | — | OK |
+| G1-022 | GiaoHangKhach | Repository | `PCTP/Modules/GiaoHangKhach/Repositories/PhieuTmpRepository.cs` | Usp_Qrcode_LOAD_PHIEU_DOCQR2405 | — | PARTICIPANT (doc) | — | — | **GAP**: test |
+| G1-023 | GiaoHangKhach | Repository | `PCTP/Modules/GiaoHangKhach/Repositories/PhieuValidationRepository.cs` | — | — | PARTICIPANT | DeliveryLotServiceTestDoubles.cs, DeliveryLotServiceUnitTests.cs, DeliveryQrAllocationSourceContractTests.cs | — | OK |
+| G1-024 | GiaoHangKhach | Repository | `PCTP/Modules/GiaoHangKhach/Repositories/TableOrderRepo.cs` | — | Purchase_Order_YMVN | OWNS (doc) | AtomicityFindingsSourceContractTests.cs, OrderLineKeyTests.cs, OrderTableSourceContractTests.cs | — | **GAP**: sql-test(only-fakes) |
+| G1-025 | GiaoHangKhach | Service | `PCTP/Modules/GiaoHangKhach/Services/BulkStockAdjustService.cs` | — | — | OWNS (doc) | BulkStockAdjustServiceTests.cs, YmvnDeliverySpecContractTests.cs | YmvnDeliverySpecScenario.cs | OK |
+| G1-026 | GiaoHangKhach | Service | `PCTP/Modules/GiaoHangKhach/Services/CustomerAddressService.cs` | — | — | DELEGATES | — | — | **GAP**: test |
+| G1-027 | GiaoHangKhach | Service | `PCTP/Modules/GiaoHangKhach/Services/DeliveryStockCommandHandler.cs` | — | — | OWNS | DeliveryLegacyWriterInventoryTests.cs, DeliveryStockCommandHandlerTests.cs | DeliveryCommandSqlScenario.cs | OK |
+| G1-028 | GiaoHangKhach | Service | `PCTP/Modules/GiaoHangKhach/Services/DocQRScanEngine.cs` | — | — | DELEGATES | — | — | **GAP**: test |
+| G1-029 | GiaoHangKhach | Service | `PCTP/Modules/GiaoHangKhach/Services/DocQRService.cs` | — | — | DELEGATES | — | — | **GAP**: test |
+| G1-030 | GiaoHangKhach | Service | `PCTP/Modules/GiaoHangKhach/Services/DocQRSessionState.cs` | — | — | DELEGATES | — | — | **GAP**: test |
+| G1-031 | GiaoHangKhach | Service | `PCTP/Modules/GiaoHangKhach/Services/DocQRTableResolver.cs` | — | — | DELEGATES | — | — | **GAP**: test |
+| G1-032 | GiaoHangKhach | Service | `PCTP/Modules/GiaoHangKhach/Services/FifoSessionService.cs` | — | — | DELEGATES | — | — | **GAP**: test |
+| G1-033 | GiaoHangKhach | Service | `PCTP/Modules/GiaoHangKhach/Services/FifoSessionState.cs` | — | — | DELEGATES | FifoSessionStateTests.cs | — | OK |
+| G1-034 | GiaoHangKhach | Service | `PCTP/Modules/GiaoHangKhach/Services/GiaoHangKhachFactory.cs` | — | — | PARTICIPANT | DeliveryLegacyWriterInventoryTests.cs | — | OK |
+| G1-035 | GiaoHangKhach | Service | `PCTP/Modules/GiaoHangKhach/Services/HangThieuCaNgayService.cs` | — | — | DELEGATES | — | — | **GAP**: test |
+| G1-036 | GiaoHangKhach | Service | `PCTP/Modules/GiaoHangKhach/Services/InPhieuService.cs` | — | — | DELEGATES | — | — | **GAP**: test |
+| G1-037 | GiaoHangKhach | Service | `PCTP/Modules/GiaoHangKhach/Services/MachinePermissionService.cs` | — | tbl_QR_MAY_DOCQR | OWNS (doc) | — | — | **GAP**: test |
+| G1-038 | GiaoHangKhach | Service | `PCTP/Modules/GiaoHangKhach/Services/PhieuGiaoDbService.cs` | — | — | DELEGATES | — | — | **GAP**: test |
+| G1-039 | GiaoHangKhach | Service | `PCTP/Modules/GiaoHangKhach/Services/PhieuKhoService.cs` | — | — | DELEGATES (doc) | DeliveryServiceOrchestrationTests.cs | — | OK |
+| G1-040 | GiaoHangKhach | Service | `PCTP/Modules/GiaoHangKhach/Services/PhieuLoadService.cs` | Usp_Qrcode_LOAD_PHIEU_DOCQR2405, Usp_Qrcode_LOAD_PHIEU_DOCQRView2405 | — | DELEGATES (doc) | — | — | **GAP**: test |
+| G1-041 | GiaoHangKhach | Service | `PCTP/Modules/GiaoHangKhach/Services/PhieuLotService.cs` | — | — | DELEGATES | DeliveryLotServiceTestDoubles.cs, DeliveryLotServiceUnitTests.cs, DeliveryQrAllocationSourceContractTests.cs | — | OK |
+| G1-042 | GiaoHangKhach | Service | `PCTP/Modules/GiaoHangKhach/Services/PhieuService.cs` | Usp_Qrcode_LOAD_PHIEU_DOCQR2405 | — | DELEGATES (doc) | — | — | **GAP**: test |
+| G1-043 | GiaoHangKhach | Service | `PCTP/Modules/GiaoHangKhach/Services/PhieuYmvnService.cs` | — | — | DELEGATES | DeliveryQrAllocationSourceContractTests.cs, YmvnDeliverySpecContractTests.cs | — | OK |
+| G1-044 | GiaoHangKhach | Service | `PCTP/Modules/GiaoHangKhach/Services/YmvnGearQuantityValidator.cs` | — | — | DELEGATES | YmvnGearQuantityValidatorTests.cs | — | OK |
+| G1-045 | KhoCore | Service | `PCTP/Modules/KhoCore/Application/Services/QuarantineReleaseService.cs` | — | — | OWNS (doc) | QuarantineReleaseServiceTests.cs, RemainingQcCaseContractTests.cs | — | OK |
+| G1-046 | KhoCore | Service | `PCTP/Modules/KhoCore/Application/Services/StockMovementService.cs` | — | — | OWNS (doc) | BulkStockAdjustServiceTests.cs, DeliveryLegacyWriterInventoryTests.cs, DeliveryStockCommandHandlerTests.cs, DeliveryTransactionContractTests.cs, RemainingQcCaseContractTests.cs, StockMovementServiceTests.cs, YmvnDeliverySpecContractTests.cs | DeliveryCommandSqlScenario.cs | OK |
+| G1-047 | KhoCore | Repository | `PCTP/Modules/KhoCore/Infrastructure/Tracking/PhieuTrackingReadRepository.cs` | — | — | PARTICIPANT | — | — | **GAP**: test |
+| G1-048 | KhoCore | Repository | `PCTP/Modules/KhoCore/Repositories/BulkStockSlotRepository.cs` | — | Rack, Slot, SlotLot, Warehouse | PARTICIPANT (doc) | BulkStockAdjustServiceTests.cs, DeliveryTransactionContractTests.cs | ProductionBulkStockSlotConcurrencyScenario.cs, ProductionBulkStockSlotRepositoryScenario.cs, Program.cs, SqlEngineWorkflowScenario.cs | OK |
+| G1-049 | KhoCore | Repository | `PCTP/Modules/KhoCore/Repositories/InspectionConfigRepository.cs` | — | InspectionConfig | PARTICIPANT (doc) | — | — | **GAP**: test |
+| G1-050 | KhoCore | Repository | `PCTP/Modules/KhoCore/Repositories/InspectionLogRepository.cs` | — | InspectionLog | PARTICIPANT (doc) | — | — | **GAP**: test |
+| G1-051 | KhoCore | Repository | `PCTP/Modules/KhoCore/Repositories/QuarantineReleaseAuditRepository.cs` | — | PCTPQuarantineReleaseAudit | PARTICIPANT (doc) | QuarantineReleaseServiceTests.cs | — | **GAP**: sql-test(only-fakes) |
+| G1-052 | KhoCore | Repository | `PCTP/Modules/KhoCore/Repositories/RackRepository.cs` | — | Rack, Slot | PARTICIPANT (doc) | AtomicityFindingsSourceContractTests.cs | — | **GAP**: sql-test(only-fakes) |
+| G1-053 | KhoCore | Repository | `PCTP/Modules/KhoCore/Repositories/SlotRepository.cs` | — | Rack, Slot, SlotLot, Warehouse | PARTICIPANT (doc) | — | — | **GAP**: test |
+| G1-054 | KhoCore | Repository | `PCTP/Modules/KhoCore/Repositories/StockHistoryRepository.cs` | — | StockHistory | PARTICIPANT (doc) | BulkStockAdjustServiceTests.cs | — | **GAP**: sql-test(only-fakes) |
+| G1-055 | KhoCore | Repository | `PCTP/Modules/KhoCore/Repositories/WarehouseRepository.cs` | — | Warehouse | PARTICIPANT (doc) | — | — | **GAP**: test |
+| G1-056 | KhoCore | Service | `PCTP/Modules/KhoCore/Services/InspectionConfigService.cs` | — | — | DELEGATES | — | — | **GAP**: test |
+| G1-057 | KhoCore | Service | `PCTP/Modules/KhoCore/Services/InspectionService.cs` | — | — | DELEGATES | — | — | **GAP**: test |
+| G1-058 | KhoCore | Service | `PCTP/Modules/KhoCore/Services/RackService.cs` | — | — | DELEGATES (doc) | — | — | **GAP**: test |
+| G1-059 | KhoCore | Service | `PCTP/Modules/KhoCore/Services/SlotService.cs` | — | — | DELEGATES (doc) | — | — | **GAP**: test |
+| G1-060 | KhoCore | Service | `PCTP/Modules/KhoCore/Services/StockHistoryService.cs` | — | — | DELEGATES | — | — | **GAP**: test |
+| G1-061 | KhoCore | Service | `PCTP/Modules/KhoCore/Services/WarehouseService.cs` | — | — | OWNS | — | — | **GAP**: test |
+| G1-062 | NhapKho | Repository | `PCTP/Modules/NhapKho/Application/Adapters/StockReceivingRepositoryAdapter.cs` | — | — | DELEGATES | DeliveryTransactionContractTests.cs | — | OK |
+| G1-063 | NhapKho | Repository | `PCTP/Modules/NhapKho/Application/Adapters/StockSlotRepositoryAdapter.cs` | — | — | DELEGATES | — | — | **GAP**: test |
+| G1-064 | NhapKho | Repository | `PCTP/Modules/NhapKho/NhapKhoDashboardRepository.cs` | — | — | PARTICIPANT | — | — | **GAP**: test |
+| G1-065 | NhapKho | Repository | `PCTP/Modules/NhapKho/Repository/StockTPRepository.cs` | — | tác | PARTICIPANT (doc) | AtomicityFindingsSourceContractTests.cs | ProductionBulkStockSlotRepositoryScenario.cs, ProductionStockTpRepositoryScenario.cs, Program.cs | OK |
+| G1-066 | NhapKho | Repository | `PCTP/Modules/NhapKho/Repository/StockTpImportGuardRepository.cs` | — | — | PARTICIPANT | DeliveryTransactionContractTests.cs | — | OK |
+| G1-067 | NhapKho | Repository | `PCTP/Modules/NhapKho/Repository/StockTpProductionRepository.cs` | — | — | PARTICIPANT | — | — | **GAP**: test |
+| G1-068 | NhapKho | Repository | `PCTP/Modules/NhapKho/Repository/StockTpStatusRepository.cs` | — | STOCKTP | PARTICIPANT (doc) | — | — | **GAP**: test |
+| G1-069 | NhapKho | Service | `PCTP/Modules/NhapKho/Services/NhapTpReceivingService.cs` | — | — | OWNS (doc) | DeliveryTransactionContractTests.cs | — | OK |
+| G1-070 | NhapKho | Service | `PCTP/Modules/NhapKho/Services/StockTpLookupService.cs` | — | — | DELEGATES | — | — | **GAP**: test |
+| G1-071 | NhapKho | Service | `PCTP/Modules/NhapKho/Services/WarehouseDashboardService.cs` | — | — | DELEGATES | — | — | **GAP**: test |
+| G1-072 | XuLyHangLoi | Repository | `PCTP/Modules/XuLyHangLoi/Repository/NoiBoLookupRepository.cs` | — | — | PARTICIPANT | — | — | **GAP**: test |
+| G1-073 | XuLyHangLoi | Repository | `PCTP/Modules/XuLyHangLoi/Repository/PhieuGiaoRepository.cs` | — | LUUPHIEUGIAOHANG | PARTICIPANT (doc) | — | — | **GAP**: test |
+| G1-074 | XuLyHangLoi | Repository | `PCTP/Modules/XuLyHangLoi/Repository/PhieuTraHangRepository.cs` | — | FVN_PhieuTraHang, FVN_PhieuTraHangCT | PARTICIPANT (doc) | — | — | **GAP**: test |
+| G1-075 | XuLyHangLoi | Repository | `PCTP/Modules/XuLyHangLoi/Repository/PhieuXuLyBatThuongRepository.cs` | — | FVN_PhieuTraHangCT, FVN_PhieuXuLyBatThuong | PARTICIPANT (doc) | AtomicityFindingsSourceContractTests.cs | ProductionReworkRepositorySqlScenario.Contracts.cs, ProductionReworkRepositorySqlScenario.cs | OK |
+| G1-076 | XuLyHangLoi | Repository | `PCTP/Modules/XuLyHangLoi/Repository/TraHangQTChungRepository.cs` | — | FVN_TraHangQTChungGiao, FVN_TraHangQTChungNhapNG, FVN_TraHangQTChungQC, FVN_TraHangQTChungXuat, LatestGiao | PARTICIPANT (doc) | ReworkExportIdempotencyContractTests.cs | ProductionReworkRepositorySqlScenario.Contracts.cs, ProductionReworkRepositorySqlScenario.cs | OK |
+| G1-077 | XuLyHangLoi | Repository | `PCTP/Modules/XuLyHangLoi/Repository/TransactionalPhieuTraHangRepository.cs` | — | FVN_PhieuTraHang | PARTICIPANT (doc) | — | — | **GAP**: test |
+| G1-078 | XuLyHangLoi | Service | `PCTP/Modules/XuLyHangLoi/Services/AffectedLotTraceService.cs` | — | FVN_PhieuXuLyBatThuongAffectedLot | PARTICIPANT (doc) | — | — | **GAP**: test |
+| G1-079 | XuLyHangLoi | Service | `PCTP/Modules/XuLyHangLoi/Services/GiaoBuNGService.cs` | — | — | DELEGATES | — | — | **GAP**: test |
+| G1-080 | XuLyHangLoi | Service | `PCTP/Modules/XuLyHangLoi/Services/KhachTraHangService.cs` | — | — | PARTICIPANT | ReturnDeliveryConsistencySourceContractTests.cs | — | OK |
+| G1-081 | XuLyHangLoi | Service | `PCTP/Modules/XuLyHangLoi/Services/QTChungService.cs` | — | — | OWNS (doc) | ReturnDeliveryConsistencySourceContractTests.cs, ReworkExportIdempotencyContractTests.cs | ReworkTwoSessionScenario.cs | OK |
+| G1-082 | XuLyHangLoi | Service | `PCTP/Modules/XuLyHangLoi/Services/QrItemParser.cs` | — | — | DELEGATES | — | — | **GAP**: test |
+| G1-083 | XuLyHangLoi | Service | `PCTP/Modules/XuLyHangLoi/Services/ReworkQuantityPolicy.cs` | — | — | DELEGATES | ReworkExportIdempotencyContractTests.cs, ReworkQuantityPolicyTests.cs | ReworkTwoSessionScenario.cs | OK |
+| G1-084 | XuLyHangLoi | Service | `PCTP/Modules/XuLyHangLoi/Services/ReworkStockService.cs` | — | — | OWNS (doc) | RemainingQcCaseContractTests.cs, ReworkExportIdempotencyContractTests.cs | ReworkTwoSessionScenario.cs | OK |
+| G1-085 | XuLyHangLoi | Service | `PCTP/Modules/XuLyHangLoi/Services/TraNoiBoService.cs` | — | — | PARTICIPANT | — | — | **GAP**: test |
+| G1-086 | XuLyHangLoi | Service | `PCTP/Modules/XuLyHangLoi/Services/XuLyHangLoiServiceBase.cs` | — | — | PARTICIPANT (doc) | — | — | **GAP**: test |
+| G1-087 | XuatKho | Repository | `PCTP/Modules/XuatKho/Application/Adapters/StockExportRepositoryAdapter.cs` | — | — | DELEGATES | — | — | **GAP**: test |
+| G1-088 | XuatKho | Repository | `PCTP/Modules/XuatKho/Repositories/HangChoGiaoRepository.cs` | — | FVN_HangChoGiao, FVN_HangChoGiaoPickDetail | PARTICIPANT (doc) | — | — | **GAP**: test |
+| G1-089 | XuatKho | Repository | `PCTP/Modules/XuatKho/Repositories/StockExportHistoryRepository.cs` | — | — | PARTICIPANT | — | — | **GAP**: test |
+| G1-090 | XuatKho | Repository | `PCTP/Modules/XuatKho/Repositories/StockExportRepository.cs` | — | STOCKTP, tác | PARTICIPANT (doc) | AtomicityFindingsSourceContractTests.cs | — | **GAP**: sql-test(only-fakes) |
+| G1-091 | XuatKho | Service | `PCTP/Modules/XuatKho/Services/StockExportService.cs` | — | — | OWNS (doc) | — | — | **GAP**: test |
+| G1-092 | XuatKho | Service | `PCTP/Modules/XuatKho/Services/StockExportValidationService.cs` | — | — | DELEGATES | — | — | **GAP**: test |
 
 ## SQL scripts (`SQL\`)
 
@@ -107,7 +111,9 @@ Giới hạn: regex trên chuỗi SQL trong C#; SQL ghép động (string concat
 | `SQL/NHAP_TP_HIS_Retire.sql` | — | — | — | **GAP**: no-code-reference; no-test-reference |
 | `SQL/PCTPQuarantineRelease.sql` | INDEX IX_PCTPQuarantineReleaseAudit_SlotLotId, TABLE PCTPQuarantineReleaseAudit | PCTPQuarantineReleaseAudit | — | **GAP**: no-test-reference |
 | `SQL/PCTPStockMovementGuard.sql` | TABLE PCTPStockMovementGuard | — | PCTPStockMovementGuard | **GAP**: no-code-reference |
+| `SQL/PCTP_DeliveryCommandLedger.sql` | TABLE DeliveryCommandLedger, TABLE DeliveryCommandQr | DeliveryCommandLedger, DeliveryCommandQr | DeliveryCommandLedger, DeliveryCommandQr | OK |
 | `SQL/PCTP_EnforceUniqueStockTpLot.sql` | — | — | — | **GAP**: no-code-reference; no-test-reference |
+| `SQL/PCTP_LuuPhieuGiaoHang_CustomerIsolation.sql` | — | — | — | **GAP**: no-code-reference; no-test-reference |
 | `SQL/PCTP_StockTpIdentityAudit.sql` | — | — | — | **GAP**: no-code-reference; no-test-reference |
 | `SQL/PHASE14_SlotLot_NgQuarantine.sql` | TABLE SlotLot | SlotLot | SlotLot | OK |
 | `SQL/PHASE15_HangChoGiaoPickDetails.sql` | INDEX IX_FVN_HangChoGiaoPickDetail_HangChoGiaoId, TABLE FVN_HangChoGiaoPickDetail | FVN_HangChoGiaoPickDetail | — | **GAP**: no-test-reference |
@@ -127,6 +133,8 @@ Giới hạn: regex trên chuỗi SQL trong C#; SQL ghép động (string concat
 |---|---|---|---|
 | QR-004 | QRCode/Integration | planned | Trace supplied QR payloads through actual receiving and customer-delivery UI/service/parser and SQL persistence |
 | DEL-003 | GiaoHangKhach | partial | Execute production customer-delivery stock deduction across STOCKTP, SlotLot, stock history and pending-delivery records |
+| DEL-CMD-002 | GiaoHangKhach/DeliveryStockCommand/SQL | partial | Real SQL Server run of DeliveryStockCommandHandler with the real ledger repository and TMP pending gate: replay, duplicate QR, rollback of stock+ledger+QR+TMP+scan rows, two sessions on one BusinessKey and on one QR |
+| DEL-CMD-001 | GiaoHangKhach/DeliveryStockCommand | partial | Delivery stock command handler (B0-01 slice 1): one UoW for STOCKTP+SlotLot via IStockMovementService.Export, durable BusinessKey/QR ledger, all-or-nothing pending close |
 | DEL-004 | GiaoHangKhach | partial | Repeat delivery confirmation or replay the same delivery reference |
 | DEL-007 | GiaoHangKhach | partial | Verify transaction boundary for stored-procedure delivery routes and post-delivery finalization |
 | RWK-002 | XuLyHangLoi | partial | Quarantine and release |
