@@ -3,8 +3,9 @@
 > **Ngày rà soát:** 2026-10-26  
 > **Repository:** `Nang0559/WINDOWS_PCTP-NO_Check-`  
 > **Branch:** `feature/wms-end-to-end-consistency`  
-> **Code audit baseline:** `e334fed1528d8d4ca89179f87dace182a2bc451c` (code snapshot dùng cho các nhận định source-level ban đầu).  
-> **Code HEAD đã kiểm thử:** `dd5ad9e07f6b35c83cfb036c25514152e51dc679`; docs HEAD sau rà soát: `5e1ee801501f3c6d8af7a1b46fe7dfe720e74902`. CI runs `40253439019` và `40253444406` PASS 3/3 jobs trên code-equivalent docs HEAD `a8393df…`: unit/regression, SQL engine integration, desktop runner build.  
+> **Code audit baseline:** `fe73e91cf25737def51a85ab0642723e5711085f` (source review; chưa có build WinForms thật trên SHA này).  
+> **CI:** run `40254095397` SUCCESS, nhưng workflow payload ghi `head_sha=20de3005dca50f2fbcefe6698ba434d1095fdae8`; PR metadata tham chiếu head `fe73e91…`. Vì vậy run này **không xác nhận build/test trên code SHA `fe73e91…`**.  
+> **PR:** #3 — Draft  
 > **PR:** #3 — Draft  
 > **Nguyên tắc:** bảng này ghi nhận trạng thái theo bằng chứng code/SQL/test đang có; không dùng phần trăm ước lượng và không suy diễn PASS từ việc có class, migration hoặc source-contract test.
 
@@ -76,11 +77,11 @@ Ba điểm chặn quan trọng nhất:
 | Gate | Nội dung phải chứng minh | Evidence hiện có | Trạng thái |
 |---|---|---|---|
 | G1 — Traceability | Mỗi yêu cầu/luồng nối được code ↔ SQL object ↔ transaction ↔ test ↔ tài liệu; không còn gap chưa xử lý | Snapshot `PCTP.QC.UI/G1-gaps.csv` SHA `ab064ed03a6ff3d3c12bba192e24f4fafdd87f17`: 122 data rows. Chưa có remediation/evidence đóng đủ từng dòng | 🔴 OPEN |
-| G2 — Unit/regression | Unit/source-contract và regression bảo vệ quy tắc nghiệp vụ | CI runs `40253439019` và `40253444406` PASS trên HEAD `a8393df…` (3/3 jobs); code tests bao gồm source-contract guard Rework và serialize Rework delivery trên code SHA `dd5ad9e…` | PASS |
+| G2 — Unit/regression | Unit/source-contract và regression bảo vệ quy tắc nghiệp vụ | Historical runs `40253439019`/`40253444406` không chạy trên SHA hiện tại; run `40254095397` SUCCESS nhưng `head_sha=20de300…`, không phải `fe73e91…` | 🟡 NOT VERIFIED ON HEAD |
 | G3 — SQL integration | Chạy implementation/repository thật với SQL engine cô lập, kiểm dữ liệu và rollback | CI runs `40253439019` và `40253444406` PASS SQL engine integration trên HEAD `a8393df…`; chỉ chứng minh SQL fixture/engine, không thay thế schema DBA representative | PASS LIMITED |
 | G4 — Production procedure compatibility | Kiểm procedure thật trong DB thử nghiệm được cô lập, rollback-only và có G3 PASS cùng commit | Chưa có bằng chứng mới xác nhận schema/seed/procedure nghiệp vụ đại diện | 🔴 BLOCKED |
-| G5 — UI journeys | AutomationId thật; chạy 5 hành trình UI; assert dữ liệu sau thao tác | `desktop-runner-build` PASS ở runs `40253439019`/`40253444406`; build runner không phải kết quả chạy 5 business journey | 🔴 OPEN |
-| G6 — Full business E2E | Seed → thao tác UI → assert DB → cleanup; Remaining = 0; database cô lập | Các journey receive, QC direction, QC final, delivery HVN chưa được xác nhận PASS; self-test không thay thế business E2E | 🔴 OPEN |
+| G5 — Two-session concurrency | AutomationId thật; chạy 5 hành trình UI; assert dữ liệu sau thao tác | `desktop-runner-build` PASS ở runs `40253439019`/`40253444406`; build runner không phải kết quả chạy 5 business journey | 🔴 OPEN |
+| G6 — Full business E2E | Seed → thao tác UI thật → assert DB/ledger/history → cleanup; Remaining = 0; database cô lập | Các journey receive, QC direction, QC final, delivery HVN và UI assertions chưa được xác nhận PASS | 🔴 OPEN |
 
 ### CI snapshot
 
@@ -89,7 +90,7 @@ Ba điểm chặn quan trọng nhất:
 
 - Code audit snapshot ban đầu: `e334fed1528d8d4ca89179f87dace182a2bc451c`.
 - Documentation HEAD hiện tại: `18eedca9055aeccbc8e0afa763ad8b67966902a5`.
-- Workflow run `40253223656` đã hoàn tất SUCCESS 3/3 jobs trên code SHA `dd5ad9e…`: `unit-regression-tests`, `sql-engine-integration`, `desktop-runner-build`. Commit `2474c41…` sau đó chỉ thay đổi tài liệu; run `40253365904` đang queued.
+- Workflow run `40254095397` đã SUCCESS, nhưng workflow payload ghi `head_sha=20de3005…`; PR metadata gắn run với head `fe73e91…`. Không dùng run này làm bằng chứng build/test cho `fe73e91…` hoặc thay đổi `.csproj` trong commit đó.
 - Workflow run cũ `40195012228` thuộc code baseline `e334fed…`; không dùng run cũ làm bằng chứng cho HEAD mới khi đã có run `40199959465`.
 - CI success không thay thế bằng chứng G1/G4/G5/G6 hoặc schema production representative.
 - Không được dùng database production hoặc SQL dùng chung để chạy test có mutation. G4 phải rollback-only; G6 chỉ chạy trên database cô lập có xác nhận.
@@ -217,3 +218,21 @@ Không copy nguyên câu query mẫu vào production hoặc CI trước khi thay
 - Run `40253444406`: SUCCESS, cùng 3 jobs đều success.
 - Hai run dùng HEAD docs-only. Bằng chứng unit/source-contract của thay đổi code B0-02/B0-03 thuộc code SHA `dd5ad9e07f6b35c83cfb036c25514152e51dc679`; không diễn giải CI docs-only như build code mới.
 - G1 snapshot: 122 data rows ở CSV SHA `ab064ed03a6ff3d3c12bba192e24f4fafdd87f17`.
+
+
+## 11. Compile inventory — exact branch snapshot `fe73e91cf25737def51a85ab0642723e5711085f`
+
+The recursive tree contains 24 C# files absent from the legacy explicit-include `PCTP/PCTP.csproj` at this snapshot. Classification is based on source location and current startup wiring, not an assertion that all excluded screens are permanently obsolete.
+
+| Group | Files | Decision |
+|---|---:|---|
+| KhoCore QuarantineRelease production types/services/repository | 4 | Add to PCTP compile items |
+| ReworkWorkflowTransaction + QRCodeWorkflowAdapter | 2 | Add to PCTP compile items |
+| `Workflow/Tests/FifoSessionStateRegressionTests.cs` | 1 | Test-only; do not compile into WinForms production assembly |
+| YMVN delivery forms | 10 | Keep excluded pending explicit product-owner confirmation; `Program.cs` has the YMVN entry points commented and current startup is `Main_APP` |
+| NhanLaiNG forms | 5 | Keep excluded pending caller/entry-point confirmation |
+| `Reports/IN_GHP_LOT_YMVN` | 2 | Keep excluded pending confirmation that YMVN report workflow is active |
+
+After the production compile-item correction, 18 files remain intentionally outside `PCTP.csproj`: 17 legacy/UI candidates requiring an explicit business decision and 1 test-only source. Do not bulk-include designer/code-behind pairs without their resource/dependency review.
+
+The six production compile items are now included in this project file. This repository-side edit is not a substitute for a real MSBuild of the full solution on Windows with the required DevExpress, NuGet and signing dependencies.

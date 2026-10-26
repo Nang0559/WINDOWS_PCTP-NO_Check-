@@ -1,24 +1,25 @@
-# WMS — RELEASE GATE / END-TO-END ACCEPTANCE CONTRACT
+# WMS — AUTHORITATIVE RELEASE GATE / END-TO-END ACCEPTANCE CONTRACT
 
 > **Status: NOT READY / BLOCKED**  
 > Branch: `feature/wms-end-to-end-consistency`  
-> Current branch HEAD: `2474c41f4da8f1e3911118eb6b48341332939861` (docs-only commit after verified code SHA `dd5ad9e07f6b35c83cfb036c25514152e51dc679`)  
-> Verified code CI: run `40253223656` on code SHA `dd5ad9e07f6b35c83cfb036c25514152e51dc679`, all 3 jobs SUCCESS. Run `40253365904` is queued for docs-only HEAD `2474c41…`.
+> Gate owner: this document. `WMS_OVERALL_STATUS.md` is the operational dashboard and MUST use the same G1–G6 definitions below.  
+> Last source-review baseline: `fe73e91cf25737def51a85ab0642723e5711085f` (2026-10-26).  
+> CI run `40254095397`: SUCCESS, but workflow payload reports `head_sha=20de3005dca50f2fbcefe6698ba434d1095fdae8`; PR metadata references head `fe73e91…`. Treat as **not verified on the current code SHA** until a run explicitly reports that SHA.
 
-This is the authoritative release contract. No PASS may be inferred from class existence, source-contract tests, SQL-engine tests, or a successful build alone.
+No PASS may be inferred from class existence, source-contract tests, SQL-engine tests, or a successful build alone.
 
-## 1. Gate matrix
+## 1. Canonical gate matrix
 
-| Gate | Meaning | Current |
+| Gate | Single definition | Current |
 |---|---|---|
-| G1 | Source/architecture ownership | 🔴 OPEN — 122 gap rows / 97 code rows, 91 distinct IDs in `G1-gaps.csv` SHA `ab064ed…`; remediation incomplete |
-| G2 | Unit/regression + SQL behavior on exact HEAD | 🟡 PENDING CI `40253021662` |
-| G3 | SQL engine integration | 🟡 PASS LIMITED — run `40253223656`, job `sql-engine-integration`, isolated SQL Server 2022; full workflow rollback/DBA schema still open |
-| G4 | Representative real schema | 🔴 |
-| G5 | Two-session concurrency | 🔴 |
-| G6 | Full E2E reconciliation | 🔴 |
+| G1 | Traceability/source ownership: requirement → code → SQL → transaction → test → evidence; all gaps classified and closed or approved exceptions | 🔴 OPEN — historical 122-row CSV snapshot is not present in this branch tree; current `TRACEABILITY_MATRIX.md` contains GAP entries and must be reconciled |
+| G2 | Unit/regression tests on exact candidate SHA, including production project compile items | 🟡 NOT VERIFIED on `fe73e91…`; run `40254095397` reports `20de300…`, not exact HEAD |
+| G3 | SQL engine integration using implementation/repository code, isolated SQL Server, data assertions and rollback | 🟡 PASS LIMITED historically; does not prove representative DBA schema or full workflow rollback |
+| G4 | Representative production-like schema/procedure compatibility on isolated, rollback-only database | 🔴 BLOCKED — no current evidence |
+| G5 | Two-session SQL concurrency for shared business keys/quotas, including lock serialization and injected rollback | 🔴 OPEN — no SQL two-session evidence |
+| G6 | Full business E2E: real UI journey → DB/ledger/history assertions → cleanup, including delivery and reconciliation | 🔴 OPEN — UI runner build alone is not a business journey |
 
-Release remains RED while any P0 blocker is open or transaction/concurrency evidence is missing.
+**Release rule:** keep PR #3 Draft and release RED while any P0 blocker or G4/G5/G6 is open.
 
 ## 2. P0 blockers
 
@@ -26,12 +27,12 @@ Release remains RED while any P0 blocker is open or transaction/concurrency evid
 
 **Implementation: CLOSED. Verification: OPEN.**
 
-Runtime sequence is:
+Runtime sequence in `ReworkStockService.XuatKhoRework`:
 
 ```text
 Begin transaction
  → idempotency(OperationId)
- → serialize current Rework ticket row
+ → lock current Rework ticket row
  → EnsureCanExport
  → validate SlotLot / LOT / STOCKTP
  → IStockMovementService.Export
@@ -39,53 +40,32 @@ Begin transaction
  → Commit
 ```
 
-`XuLyHangLoiModuleFactory` supplies the Phase-4 guard lazily so the Initial QC / Rework dependency cycle is avoided. If the guard cannot be resolved, export fails closed.
+The Phase-4 guard is resolved lazily to avoid the Initial QC / Rework dependency cycle. If it cannot be resolved, export fails closed.
 
-Required proof:
-
-- over-limit export rejected;
-- exact-limit export succeeds;
-- same OperationId mutates only once;
-- two sessions cannot consume the same remaining quota.
+Required SQL evidence: over-limit rejected; exact-limit accepted; same OperationId mutates once; two sessions cannot consume the same remaining quota; failure after movement rolls back stock and ledger.
 
 ### B0-03 — Rework delivery concurrency
 
-**Implementation: CLOSED on code HEAD `e804a96…`; verification: OPEN.**
+**Implementation: CLOSED. Verification: OPEN.**
 
-`QTChungService.GiaoHangRework` now begins/joins the UoW, obtains transaction-owned `QT_REWORK_DELIVERY:<ticket>` exclusive application lock, reloads the ticket, and reads export/delivery ledgers only after the lock. It inserts delivery ledger rows and changes ticket status before committing the same transaction. Any validation failure rolls back. The source-contract test `ReworkDelivery_LocksAndReadsLedgersInsideTransactionBeforeInsert` asserts transaction → lock → ledger reads → insert → commit order.
+`QTChungService.GiaoHangRework` begins/joins the UoW, obtains a transaction-owned exclusive application lock for the ticket, reloads the ticket, and only then reads export/delivery ledgers. Delivery ledger and status changes are committed in the same transaction. Error paths call `SafeRollback`.
 
-Remaining proof: SQL two-session test where two sessions attempt delivery against the same remaining quantity, plus rollback injection after the first ledger insert. Do not mark concurrency acceptance VERIFIED until those execute against SQL Server.
+The existing source-contract test proves source ordering only. It is not SQL concurrency evidence.
 
-Required sequence:
-
-```text
-Begin
- → lock ticket
- → read committed export/delivery totals
- → validate remaining
- → stock movement + delivery ledger
- → commit
-```
-
-A stale read followed by a transaction is not acceptable.
+Required SQL evidence: two sessions deliver against the same remaining quantity; combined committed delivery never exceeds approved/exported quantity; injected failure after first ledger insert leaves no partial ledger, status or stock mutation.
 
 ### B0-01 — Customer Delivery stock owner
 
-**OPEN.**
+**OPEN — legacy writer paths remain.**
 
-`PhieuKhoRepository` still contains legacy paths that directly change `STOCKTP` through QR/FIFO stored procedures and then adjust SlotLot. This violates the single stock-owner boundary.
+`PhieuKhoRepository` still calls:
+- `Usp_Qrcode_Update_Stock2405`;
+- `Usp_Qrcode_Update_Stock_SP`;
+- `TruStockTpFifo` (direct `STOCKTP` update).
 
-Required architecture:
+The repository constructor currently allows `IStockMovementService = null`. In addition, `GiaoHangKhachModuleFactory` constructs a movement service for `PhieuRepository`; this alone does not prove the `PhieuKhoRepository` path is wired to it.
 
-```text
-Customer Delivery
-  → QR/PART/FIFO allocation (read/plan only)
-  → IStockMovementService.Export
-  → atomic STOCKTP + SlotLot mutation
-  → delivery ledger/history
-```
-
-FIFO, QR, PART, multi-LOT, partial LOT and rollback behavior must remain equivalent after migration.
+Do not simply replace the stored procedures with one `Export` call. First implement a delivery command that accepts validated QR/PART/FIFO allocation, resolves exact LOT/SlotLot quantities, and atomically applies `STOCKTP`, `SlotLot`, delivery ledger/history and pending-delivery state under the shared UoW. Preserve multi-LOT, partial-LOT, retry/idempotency and rollback behavior. Remove legacy writers only after parity tests pass.
 
 ## 3. Mandatory invariants
 
@@ -112,33 +92,18 @@ FIFO, QR, PART, multi-LOT, partial LOT and rollback behavior must remain equival
 
 ## 5. Evidence rules
 
-### VERIFIED
-Exact code SHA + test identifier + schema identity + successful execution are recorded.
+- **VERIFIED:** exact candidate code SHA + test identifier + schema identity + successful execution are recorded.
+- **IMPLEMENTED / NOT VERIFIED:** code exists, but required runtime/business/concurrency evidence is incomplete.
+- **BLOCKED:** a release blocker remains.
+- **PLANNED:** not implemented.
 
-### IMPLEMENTED / NOT VERIFIED
-Code exists, but the required runtime/business/concurrency evidence is not complete.
+## 6. Canonical closure sequence
 
-### BLOCKED
-A release blocker remains.
-
-### PLANNED
-Not implemented.
-
-## 6. Current CI evidence
-
-The previous run `40204047693` tested merge commit `1b6cff5db7a48ade89b940afee6e4e81a41d9c8a`. Desktop build and SQL-engine integration passed, but unit/regression failed 1/269 because the source-contract extractor still expected an obsolete method boundary.
-
-That test was corrected in commit `e6dea18fdcbf6cc4d3041dc0f08894f3baa8aa79`. CI run `40251750826` was automatically queued for this exact HEAD and must be allowed to complete before any test gate is marked PASS.
-
-The previous green run `40103616750` is historical evidence only; it predates the current Rework export implementation and is not sufficient to verify this HEAD.
-
-## 7. Closure sequence
-
-1. CI run `40253223656` verified all 3 jobs on code SHA `dd5ad9e…`; run `40253365904` covers the subsequent docs-only HEAD.
-2. Verify B0-03 source-contract and add/run SQL two-session + rollback tests; implementation is now in place.
-3. Refactor B0-01 so all stock mutation goes through `IStockMovementService.Export`.
-4. Run SQL rollback/FIFO/QR/PART/multi-LOT tests.
-5. Run representative DBA-schema integration (G4).
-6. Run real two-session concurrency (G5).
-7. Run full E2E reconciliation (G6).
-8. Update this gate with exact evidence and only then permit release.
+1. Reconcile G1 traceability and classify all source/project compile gaps.
+2. Build the full WinForms solution on Windows at the exact candidate SHA; run G2.
+3. Add and execute SQL two-session + rollback tests for B0-02/B0-03 (G5).
+4. Design and implement the B0-01 delivery command; require movement service in the production composition root.
+5. Prove QR/PART/FIFO/multi-LOT/partial-LOT parity, idempotency and rollback.
+6. Run representative isolated DBA-schema tests (G4).
+7. Run full UI-to-database business journeys and reconciliation (G6).
+8. Update both gate documents from this canonical matrix only after evidence is attached.
