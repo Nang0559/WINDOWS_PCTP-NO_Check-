@@ -31,6 +31,25 @@ public sealed class ReworkExportIdempotencyContractTests
         Assert.Contains("@LockOwner = 'Transaction'", qt);
     }
 
+
+    [Fact]
+    public void ReworkExport_EnforcesPhase4QuotaFailClosedBeforeStockMovement()
+    {
+        var service = ReadSource("ReworkStockService.source.cs");
+
+        var lockRow = service.IndexOf("UpdateStatusIfCurrentIs(", StringComparison.Ordinal);
+        var guardProvider = service.IndexOf("_phase4Provider()", StringComparison.Ordinal);
+        var failClosed = service.IndexOf("Không cấu hình được Phase 4 Rework guard", StringComparison.Ordinal);
+        var quotaGuard = service.IndexOf("phase4.EnsureCanExport(phieuXuLyId, soLuong, nguoiXuat)", StringComparison.Ordinal);
+        var movement = service.IndexOf("_stockMovement.Export(", StringComparison.Ordinal);
+
+        Assert.True(lockRow >= 0, "The ticket row must be locked before quota validation.");
+        Assert.True(guardProvider > lockRow, "The required Phase 4 guard must be resolved after acquiring the ticket row lock.");
+        Assert.True(failClosed > guardProvider, "A missing Phase 4 guard must reject the export.");
+        Assert.True(quotaGuard > failClosed, "The approved Rework quantity must be validated before movement.");
+        Assert.True(movement > quotaGuard, "No stock movement may happen before the quota guard succeeds.");
+    }
+
     [Fact]
     public void ReworkExportRepository_PersistsAndReadsOperationId()
     {
