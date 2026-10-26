@@ -1,4 +1,5 @@
 using PCTP.Common;
+using PCTP.Modules.GiaoHangKhach;
 using PCTP.Shared.Common;
 using System;
 using System.Data.SqlClient;

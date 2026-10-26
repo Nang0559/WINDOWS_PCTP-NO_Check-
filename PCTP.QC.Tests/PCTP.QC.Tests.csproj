@@ -88,6 +88,8 @@
     <Compile Include="../PCTP/Modules/KhoCore/Application/Contracts/Stock/StockMovementRequest.cs" Link="Sut/StockMovementRequest.cs" />
     <Compile Include="../PCTP/Modules/GiaoHangKhach/Contracts/Delivery/DeliveryStockCommand.cs" Link="Sut/DeliveryStockCommand.cs" />
     <Compile Include="../PCTP/Modules/GiaoHangKhach/Services/IDeliveryStockCommandHandler.cs" Link="Sut/IDeliveryStockCommandHandler.cs" />
+    <Compile Include="../PCTP/Modules/GiaoHangKhach/Services/IDeliveryCommandLedger.cs" Link="Sut/IDeliveryCommandLedger.cs" />
+    <Compile Include="../PCTP/Modules/GiaoHangKhach/Services/DeliveryStockCommandHandler.cs" Link="Sut/DeliveryStockCommandHandler.cs" />
     <Compile Include="../PCTP/Modules/KhoCore/Application/Contracts/Stock/StockMovementResult.cs" Link="Sut/StockMovementResult.cs" />
     <Compile Include="../PCTP/Modules/KhoCore/Application/Contracts/Stock/StockSlotLot.cs" Link="Sut/StockSlotLot.cs" />
     <Compile Include="../PCTP/Modules/KhoCore/Application/Contracts/Stock/StockSlotTakeResult.cs" Link="Sut/StockSlotTakeResult.cs" />

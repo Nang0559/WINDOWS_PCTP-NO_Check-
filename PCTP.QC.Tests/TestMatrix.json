@@ -176,6 +176,14 @@
       "testEvidence": "DeliveryProductionBoundaryTests guards the production PhieuKhoRepository UoW ordering and rollback source contract. Full Usp_Qrcode_Update_Stock2405 + PhieuKhoRepository execution against a DBA-provisioned isolated business-schema copy remains a runtime acceptance gate."
     },
     {
+      "id": "DEL-CMD-001",
+      "module": "GiaoHangKhach/DeliveryStockCommand",
+      "scenario": "Delivery stock command handler (B0-01 slice 1): one UoW for STOCKTP+SlotLot via IStockMovementService.Export, durable BusinessKey/QR ledger, all-or-nothing pending close",
+      "expected": "P1,P2,P3,P5-P10 parity: exact quantities, replay returns prior outcome, duplicate QR rejected, any failure rolls back stock, ledger, QR and pending state",
+      "status": "partial",
+      "testEvidence": "DeliveryStockCommandHandlerTests (in-memory transactional fakes, 9 tests). Not wired to production; SQL ledger SQL/PCTP_DeliveryCommandLedger.sql and DeliveryCommandLedgerRepository are unexecuted; P4, P11-P13, A0 allocations and SQL two-session evidence remain open."
+    },
+    {
       "id": "DEL-004",
       "module": "GiaoHangKhach",
       "scenario": "Repeat delivery confirmation or replay the same delivery reference",
