@@ -78,7 +78,9 @@ Mỗi script đều viết để chạy lại được (idempotent) trừ khi gh
 
 Không chạy: `A0_SlotLot_Diagnose_Repair.sql` (chẩn đoán/sửa dữ liệu A0 — chỉ khi có yêu cầu riêng), `NHAP_TP_HIS_Retire.sql` (tự nhắc "chạy từng bước, không tự động DROP"), `QC_G4_DeliveryFixture_*.sql` (do G4 tự dùng).
 
-### 3.3 Deploy proc `Usp_Qrcode_Update_Stock2405`
+### 3.3 Deploy hai proc giao hàng (`Usp_Qrcode_Update_Stock2405` và `Usp_Qrcode_Update_Stock_SP`)
+
+Script deploy cả hai proc (mặc định `-Procedure All`; có thể chọn `Stock2405` hoặc `Stock_SP`). G4 preflight kiểm cả hai, nên nếu chỉ deploy một proc thì G4 vẫn FAIL.
 
 ```powershell
 # 1) so sánh, không ghi
@@ -99,6 +101,18 @@ Không chạy: `A0_SlotLot_Diagnose_Repair.sql` (chẩn đoán/sửa dữ liệu
 ```
 
 Kết quả nằm ở `artifacts\gates\<7 ký tự đầu của SHA>\<Gate>\` (log + summary).
+
+### Điều kiện riêng của G5/G6 (UI)
+
+- `PCTP.exe.config` cạnh file exe được truyền vào `-ExePath` **phải trỏ DB57**. Runner đọc config này và từ chối chạy (kể cả G6 ghi dữ liệu) nếu thấy server production `192.168.200.14\BRAVO`. Đây là chốt an toàn, không phải lỗi: đừng sửa runner để bỏ qua.
+- Không sửa `PCTP\bin\Debug\PCTP.exe.config` đang dùng hằng ngày. Sao chép toàn bộ thư mục build sang thư mục riêng (ví dụ `artifacts\ui-app\`), sửa connection string trong bản sao đó sang DB57 rồi truyền `-ExePath artifacts\ui-app\PCTP.exe`.
+- Log của runner chỉ ghi lỗi chung (`Argument types do not match`); lý do thật (ví dụ "references the production server") nằm ở ảnh `99-runner-error.png` trong thư mục journey và dòng đỏ trên cùng ảnh đó.
+- G5 không có `gate-summary.json` nghĩa là script bị dừng giữa chừng; chạy lại và đừng đóng cửa sổ ứng dụng khi runner còn chạy.
+
+### Đọc kết quả: khi nào là bằng chứng
+
+- `WorkingTreeDirty: true` trong `gate-summary.json` nghĩa là kết quả **không dùng làm bằng chứng**, kể cả khi PASS. Commit hết rồi chạy lại.
+- G4 cần G3 PASS **cùng SHA**. Đổi commit thì chạy lại từ G2.
 Chỉ coi là PASS khi chính script báo PASS trên lần chạy đó.
 
 ### Những gì R1–R5 (B0-02/B0-03) chứng minh và không chứng minh
