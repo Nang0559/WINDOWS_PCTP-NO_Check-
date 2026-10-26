@@ -4,7 +4,7 @@
 > **Repository:** `Nang0559/WINDOWS_PCTP-NO_Check-`  
 > **Branch:** `feature/wms-end-to-end-consistency`  
 > **Code audit baseline:** `e334fed1528d8d4ca89179f87dace182a2bc451c` (code snapshot dùng cho các nhận định source-level ban đầu).  
-> **Code HEAD hiện tại tại lần rà:** `a8393dfbca2dca7755e6abc7f6efc6d5ddae95da` (docs-only sau code SHA `dd5ad9e07f6b35c83cfb036c25514152e51dc679`). CI runs `40253439019` và `40253444406` đều PASS 3/3 jobs trên HEAD `a8393df…`: unit/regression, SQL engine integration, desktop runner build.  
+> **Code HEAD đã kiểm thử:** `dd5ad9e07f6b35c83cfb036c25514152e51dc679`; docs HEAD sau rà soát: `5e1ee801501f3c6d8af7a1b46fe7dfe720e74902`. CI runs `40253439019` và `40253444406` PASS 3/3 jobs trên code-equivalent docs HEAD `a8393df…`: unit/regression, SQL engine integration, desktop runner build.  
 > **PR:** #3 — Draft  
 > **Nguyên tắc:** bảng này ghi nhận trạng thái theo bằng chứng code/SQL/test đang có; không dùng phần trăm ước lượng và không suy diễn PASS từ việc có class, migration hoặc source-contract test.
 
@@ -76,13 +76,16 @@ Ba điểm chặn quan trọng nhất:
 | Gate | Nội dung phải chứng minh | Evidence hiện có | Trạng thái |
 |---|---|---|---|
 | G1 — Traceability | Mỗi yêu cầu/luồng nối được code ↔ SQL object ↔ transaction ↔ test ↔ tài liệu; không còn gap chưa xử lý | Snapshot `PCTP.QC.UI/G1-gaps.csv` SHA `ab064ed03a6ff3d3c12bba192e24f4fafdd87f17`: 122 data rows. Chưa có remediation/evidence đóng đủ từng dòng | 🔴 OPEN |
-| G2 — Unit/regression | Unit/source-contract và regression bảo vệ quy tắc nghiệp vụ | CI runs `40253439019` và `40253444406` PASS trên HEAD `a8393df…` (3/3 jobs); code tests bao gồm source-contract guard Rework và serialize Rework delivery trên code SHA `dd5ad9e…` | 🟡 PENDING |
-| G3 — SQL integration | Chạy implementation/repository thật với SQL engine cô lập, kiểm dữ liệu và rollback | CI runs `40253439019` và `40253444406` PASS SQL engine integration trên HEAD `a8393df…`; chỉ chứng minh SQL fixture/engine, không thay thế schema DBA representative | 🟡 PENDING |
+| G2 — Unit/regression | Unit/source-contract và regression bảo vệ quy tắc nghiệp vụ | CI runs `40253439019` và `40253444406` PASS trên HEAD `a8393df…` (3/3 jobs); code tests bao gồm source-contract guard Rework và serialize Rework delivery trên code SHA `dd5ad9e…` | <badge>PASS</badge> |
+| G3 — SQL integration | Chạy implementation/repository thật với SQL engine cô lập, kiểm dữ liệu và rollback | CI runs `40253439019` và `40253444406` PASS SQL engine integration trên HEAD `a8393df…`; chỉ chứng minh SQL fixture/engine, không thay thế schema DBA representative | PASS LIMITED |
 | G4 — Production procedure compatibility | Kiểm procedure thật trong DB thử nghiệm được cô lập, rollback-only và có G3 PASS cùng commit | Chưa có bằng chứng mới xác nhận schema/seed/procedure nghiệp vụ đại diện | 🔴 BLOCKED |
 | G5 — UI journeys | AutomationId thật; chạy 5 hành trình UI; assert dữ liệu sau thao tác | `desktop-runner-build` PASS ở runs `40253439019`/`40253444406`; build runner không phải kết quả chạy 5 business journey | 🔴 OPEN |
 | G6 — Full business E2E | Seed → thao tác UI → assert DB → cleanup; Remaining = 0; database cô lập | Các journey receive, QC direction, QC final, delivery HVN chưa được xác nhận PASS; self-test không thay thế business E2E | 🔴 OPEN |
 
 ### CI snapshot
+
+- Code SHA đã được unit/regression và SQL engine integration xác nhận: `dd5ad9e07f6b35c83cfb036c25514152e51dc679`.
+- Docs HEAD hiện tại sau cập nhật trạng thái: `5e1ee801501f3c6d8af7a1b46fe7dfe720e74902`; đây là docs-only, CI mới được kích hoạt tự động sau commit.
 
 - Code audit snapshot ban đầu: `e334fed1528d8d4ca89179f87dace182a2bc451c`.
 - Documentation HEAD hiện tại: `18eedca9055aeccbc8e0afa763ad8b67966902a5`.
