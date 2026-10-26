@@ -54,9 +54,7 @@
     <None Include="../PCTP/Modules/GiaoHangKhach/Contracts/Delivery/DeliveryStockCommand.cs" Link="DeliveryStockCommand.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/GiaoHangKhach/Services/PhieuKhoService.cs" Link="PhieuKhoService.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/GiaoHangKhach/Services/BulkStockAdjustService.cs" Link="BulkStockAdjustService.source.cs" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="../PCTP/Modules/XuLyHangLoi/Services/ReworkStockService.cs" Link="ReworkStockService.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/XuLyHangLoi/Services/KhachTraHangService.cs" Link="KhachTraHangService.source.cs" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="../PCTP/Modules/XuLyHangLoi/Services/QTChungService.cs" Link="QTChungService.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/XuLyHangLoi/Services/IQTChungService.cs" Link="IQTChungService.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/XuLyHangLoi/Services/IReworkStockService.cs" Link="IReworkStockService.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/XuLyHangLoi/Repository/TraHangQTChungRepository.cs" Link="TraHangQTChungRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />
