@@ -49,6 +49,9 @@
     <None Include="../PCTP/Modules/XuLyHangLoi/Repository/PhieuXuLyBatThuongRepository.cs" Link="PhieuXuLyBatThuongRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../SQL/sp_GetCurrentStockStatus.sql" Link="sp_GetCurrentStockStatus.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/GiaoHangKhach/Repositories/PhieuKhoRepository.cs" Link="PhieuKhoRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/XuLyHangLoi/Services/QTChungService.cs" Link="QTChungService.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/XuLyHangLoi/Services/ReworkStockService.cs" Link="ReworkStockService.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/GiaoHangKhach/Contracts/Delivery/DeliveryStockCommand.cs" Link="DeliveryStockCommand.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/GiaoHangKhach/Services/PhieuKhoService.cs" Link="PhieuKhoService.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/GiaoHangKhach/Services/BulkStockAdjustService.cs" Link="BulkStockAdjustService.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/XuLyHangLoi/Services/ReworkStockService.cs" Link="ReworkStockService.source.cs" CopyToOutputDirectory="PreserveNewest" />
@@ -83,6 +86,8 @@
     <Compile Include="../PCTP/Modules/KhoCore/Application/Contracts/Stock/IStockSlotRepository.cs" Link="Sut/IStockSlotRepository.cs" />
     <Compile Include="../PCTP/Modules/KhoCore/Application/Contracts/Stock/IStockReceivingRepository.cs" Link="Sut/IStockReceivingRepository.cs" />
     <Compile Include="../PCTP/Modules/KhoCore/Application/Contracts/Stock/StockMovementRequest.cs" Link="Sut/StockMovementRequest.cs" />
+    <Compile Include="../PCTP/Modules/GiaoHangKhach/Contracts/Delivery/DeliveryStockCommand.cs" Link="Sut/DeliveryStockCommand.cs" />
+    <Compile Include="../PCTP/Modules/GiaoHangKhach/Services/IDeliveryStockCommandHandler.cs" Link="Sut/IDeliveryStockCommandHandler.cs" />
     <Compile Include="../PCTP/Modules/KhoCore/Application/Contracts/Stock/StockMovementResult.cs" Link="Sut/StockMovementResult.cs" />
     <Compile Include="../PCTP/Modules/KhoCore/Application/Contracts/Stock/StockSlotLot.cs" Link="Sut/StockSlotLot.cs" />
     <Compile Include="../PCTP/Modules/KhoCore/Application/Contracts/Stock/StockSlotTakeResult.cs" Link="Sut/StockSlotTakeResult.cs" />
