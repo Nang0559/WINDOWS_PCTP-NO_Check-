@@ -1024,12 +1024,21 @@ namespace PCTP.Modules.XuLyHangLoi
             }
         }
 
+        private const string PlanUnavailableWarning =
+            " | CẢNH BÁO: không tải được kế hoạch A/X/D — nút theo trạng thái, hệ thống sẽ kiểm tra số lượng khi lưu";
+
         private void ApplyQuantitySummary(ReworkPhase4Plan plan)
         {
-            if (plan == null || _lblTrangThai == null) return;
+            if (_lblTrangThai == null) return;
             string text = _lblTrangThai.Text ?? string.Empty;
             int marker = text.IndexOf(QuantitySummaryMarker, StringComparison.Ordinal);
             if (marker >= 0) text = text.Substring(0, marker);
+            if (plan == null)
+            {
+                // Không âm thầm chuyển sang fallback: người dùng phải thấy số liệu đang thiếu.
+                _lblTrangThai.Text = text + PlanUnavailableWarning;
+                return;
+            }
             int conGiao = Math.Max(0, plan.SoLuongDaXuatRework - plan.SoLuongDaGiaoSanXuat);
             _lblTrangThai.Text = text + QuantitySummaryMarker +
                 $"{plan.SoLuongReworkDuocPhep:n0}/{plan.SoLuongDaXuatRework:n0}/{plan.SoLuongDaGiaoSanXuat:n0}" +

@@ -154,8 +154,10 @@ public sealed class ReworkExportIdempotencyContractTests
 
         var begin = method.IndexOf("_uow.Begin()", StringComparison.Ordinal);
         var lockCall = method.IndexOf("AcquireReworkTicketLock(", StringComparison.Ordinal);
-        var reread = method.IndexOf("phieu = GetRequired(phieuXuLyId)", StringComparison.Ordinal);
-        var plan = method.IndexOf("_reworkStockService.GetReworkPlan(", StringComparison.Ordinal);
+        // The pre-lock snapshot is "var phieu = GetRequired(...)", which also contains the
+        // substring below. Only a re-read located AFTER the lock call proves the ordering.
+        var reread = lockCall < 0 ? -1 : method.IndexOf("phieu = GetRequired(phieuXuLyId)", lockCall, StringComparison.Ordinal);
+        var plan = lockCall < 0 ? -1 : method.IndexOf("_reworkStockService.GetReworkPlan(", lockCall, StringComparison.Ordinal);
         var insert = method.IndexOf("_traHangQTChungRepository.InsertQC(", StringComparison.Ordinal);
         var stock = method.IndexOf("_reworkStockService.NhapLaiHang", StringComparison.Ordinal);
 

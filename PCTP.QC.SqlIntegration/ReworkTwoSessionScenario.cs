@@ -36,6 +36,8 @@ internal static class ReworkTwoSessionScenario
     {
         public string ExportLock = "";
         public string DeliveryLock = "";
+        public string QcFinalLock = "";
+        public string QcFinalPrefix = "";
         public string ExportPrefix = "";
         public string DeliveryPrefix = "";
         public string RowLockTemplate = "";
@@ -746,29 +748,45 @@ CREATE TABLE [{f.Stock}](Lot nvarchar(50) NOT NULL PRIMARY KEY, Qty int NOT NULL
 
         var lockBlock = new Regex("""CommandText\s*=\s*@"(?<sql>(?:[^"]|"")*?sp_getapplock(?:[^"]|"")*)"\s*;""", RegexOptions.None, timeout);
         var prefixRegex = new Regex("""Value\s*=\s*"(?<p>QT_REWORK_[A-Z_]+:)"\s*\+""", RegexOptions.None, timeout);
+        var resourceReturn = new Regex("""return\s*"(?<p>QT_REWORK_[A-Z_]+:)"\s*\+""", RegexOptions.None, timeout);
 
-        var found = new Dictionary<string, string>(StringComparer.Ordinal);
-        foreach (Match m in lockBlock.Matches(qt))
+        // Extract per business path. Never take "the first sp_getapplock block in the file":
+        // QCXacNhanCuoi reaches the same lock through AcquireReworkTicketLock(), which sits
+        // between the other two sites and would otherwise be mistaken for them.
+        var exportBody = MethodBody(qt,
+            "public ScanResult XuatKhoRework(int phieuXuLyId, int slotId, string lotNo, int soLuong, string nguoiXuat, Guid operationId)",
+            "public ScanResult GiaoHangRework(");
+        var deliveryBody = MethodBody(qt, "public ScanResult GiaoHangRework(", "public void GhiNhanDangRework(");
+        var qcBody = MethodBody(qt, "public ScanResult QCXacNhanCuoi(", "public void GhiNhanKiemTraTem(");
+        var helperBody = MethodBody(qt, "private void AcquireReworkTicketLock(", "public ScanResult QCXacNhanCuoi(");
+        var resourceBody = MethodBody(qt, "private static string TicketLockResource(", "private void AcquireReworkTicketLock(");
+
+        var (exportSql, exportPrefix) = InlineLock(exportBody, "XuatKhoRework", lockBlock, prefixRegex);
+        var (deliverySql, deliveryPrefix) = InlineLock(deliveryBody, "GiaoHangRework", lockBlock, prefixRegex);
+
+        Require(qcBody.Contains("AcquireReworkTicketLock(", StringComparison.Ordinal),
+            "QCXacNhanCuoi must take the ticket lock through AcquireReworkTicketLock().");
+        Require(lockBlock.Matches(qcBody).Count == 0,
+            "QCXacNhanCuoi must not carry its own sp_getapplock block; it shares AcquireReworkTicketLock().");
+        var helperLocks = lockBlock.Matches(helperBody);
+        Require(helperLocks.Count == 1, "AcquireReworkTicketLock must contain exactly one sp_getapplock block.");
+        Require(helperBody.Contains("TicketLockResource(", StringComparison.Ordinal),
+            "AcquireReworkTicketLock must derive its resource from TicketLockResource().");
+        var rm0 = resourceReturn.Match(resourceBody);
+        Require(rm0.Success, "Could not find the QT_REWORK_ resource prefix returned by TicketLockResource().");
+        var qcSql = helperLocks[0].Groups["sql"].Value.Replace("\"\"", "\"");
+        var qcPrefix = rm0.Groups["p"].Value;
+
+        // All three business paths must serialize on ONE ticket-scoped application lock.
+        Require(exportPrefix == "QT_REWORK_TICKET:" && deliveryPrefix == exportPrefix && qcPrefix == exportPrefix,
+            $"Export ({exportPrefix}), delivery ({deliveryPrefix}) and final QC ({qcPrefix}) must share the single QT_REWORK_TICKET: resource.");
+
+        foreach (var (name, lockSql) in new[] { ("export", exportSql), ("delivery", deliverySql), ("final QC", qcSql) })
         {
-            var pm = prefixRegex.Match(qt, m.Index + m.Length);
-            Require(pm.Success, "Could not find the lock resource prefix after a production sp_getapplock block.");
-            found[pm.Groups["p"].Value] = m.Groups["sql"].Value.Replace("\"\"", "\"");
-        }
-
-        // Both Rework operations intentionally share one ticket-scoped application lock.
-        // Require two production acquisition sites, but only one distinct resource prefix.
-        var resourceAssignments = Regex.Matches(qt, """Value\s*=\s*"(?<p>QT_REWORK_[A-Z_]+:)"\s*\+""", RegexOptions.None, timeout);
-        Require(resourceAssignments.Count >= 2,
-            "QTChungService.cs must expose application-lock resource assignments for both export and delivery.");
-        Require(found.Count == 1 && found.ContainsKey("QT_REWORK_TICKET:"),
-            "Rework export and delivery must share the single QT_REWORK_TICKET: application-lock resource.");
-
-        foreach (var pair in found)
-        {
-            Require(pair.Value.Contains("@LockMode = 'Exclusive'") && pair.Value.Contains("@LockOwner = 'Transaction'"),
-                $"{pair.Key} lock must be Exclusive and Transaction-owned.");
-            Require(pair.Value.Contains("@LockTimeout = 15000") && pair.Value.Contains("THROW 51000"),
-                $"{pair.Key} lock must declare a 15000 ms timeout and fail closed with THROW 51000.");
+            Require(lockSql.Contains("@LockMode = 'Exclusive'") && lockSql.Contains("@LockOwner = 'Transaction'"),
+                $"{name} lock must be Exclusive and Transaction-owned.");
+            Require(lockSql.Contains("@LockTimeout = 15000") && lockSql.Contains("THROW 51000"),
+                $"{name} lock must declare a 15000 ms timeout and fail closed with THROW 51000.");
         }
 
         var rowLock = new Regex("""string sql = \$@"(?<sql>(?:[^"]|"")*?SET \{statusColumnName\} = @NewStatus(?:[^"]|"")*)"\s*;""", RegexOptions.None, timeout);
@@ -777,12 +795,33 @@ CREATE TABLE [{f.Stock}](Lot nvarchar(50) NOT NULL PRIMARY KEY, Qty int NOT NULL
 
         return new ProductionSql
         {
-            ExportLock = found["QT_REWORK_TICKET:"],
-            DeliveryLock = found["QT_REWORK_TICKET:"],
-            ExportPrefix = "QT_REWORK_TICKET:",
-            DeliveryPrefix = "QT_REWORK_TICKET:",
+            ExportLock = exportSql,
+            DeliveryLock = deliverySql,
+            QcFinalLock = qcSql,
+            ExportPrefix = exportPrefix,
+            DeliveryPrefix = deliveryPrefix,
+            QcFinalPrefix = qcPrefix,
             RowLockTemplate = rm.Groups["sql"].Value.Replace("\"\"", "\"")
         };
+    }
+
+    private static string MethodBody(string source, string startToken, string endToken)
+    {
+        var start = source.IndexOf(startToken, StringComparison.Ordinal);
+        Require(start >= 0, $"Could not find '{startToken}' in QTChungService.cs.");
+        var end = source.IndexOf(endToken, start + startToken.Length, StringComparison.Ordinal);
+        Require(end > start, $"Could not find the end boundary '{endToken}' after '{startToken}'.");
+        return source.Substring(start, end - start);
+    }
+
+    private static (string Sql, string Prefix) InlineLock(string body, string method, Regex lockBlock, Regex prefixRegex)
+    {
+        var locks = lockBlock.Matches(body);
+        Require(locks.Count == 1, $"{method} must contain exactly one sp_getapplock block (found {locks.Count}).");
+        var prefixes = prefixRegex.Matches(body);
+        Require(prefixes.Count == 1, $"{method} must assign exactly one QT_REWORK_ lock resource (found {prefixes.Count}).");
+        Require(prefixes[0].Index > locks[0].Index, $"{method} must assign the lock resource after its sp_getapplock command text.");
+        return (locks[0].Groups["sql"].Value.Replace("\"\"", "\""), prefixes[0].Groups["p"].Value);
     }
 
     private static string RowLockSql(ProductionSql sql, Fixture f) =>

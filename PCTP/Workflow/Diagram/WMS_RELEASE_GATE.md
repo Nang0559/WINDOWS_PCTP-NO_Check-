@@ -21,6 +21,17 @@ No PASS may be inferred from class existence, source-contract tests, SQL-engine 
 
 **Release rule:** keep PR #3 Draft and release RED while any P0 blocker or G4/G5/G6 is open.
 
+### 1.1 Candidate `1300e22` — CI findings and fixes (unverified until rerun)
+
+CI on `1300e22` FAILED (run `40268627593`). Root causes found by source review, fixes in the follow-up patch; **none is a PASS until a run reports the new SHA**:
+
+| Job | Failure | Root cause | Fix |
+|---|---|---|---|
+| unit-regression-tests | `ReworkFinalQc_TakesTicketLockAndRereadsStateBeforeAnyWrite` (1 of 317) | The test searched `phieu = GetRequired(phieuXuLyId)` from method start and matched the pre-lock `var phieu = GetRequired(...)`, so "re-read after lock" could never hold | Search the re-read and `GetReworkPlan` only after the `AcquireReworkTicketLock(` call; assertions not relaxed |
+| sql-engine-integration | `Could not find the lock resource prefix after a production sp_getapplock block` | `LoadProductionSql()` scanned every `sp_getapplock` block in the file; the `AcquireReworkTicketLock()` helper block has no literal resource prefix after it | Extract per method (`XuatKhoRework`, `GiaoHangRework`, `QCXacNhanCuoi` via helper + `TicketLockResource`); require one shared `QT_REWORK_TICKET:` resource, Exclusive, Transaction-owned, 15000 ms, `THROW 51000` |
+
+R1–R5 have still not run on SQL Server. The SQL fixture remains protocol-level: it does not call `GiaoHangRework()`/`XuatKhoRework()` directly.
+
 ## 2. P0 blockers
 
 ### B0-02 — Rework export quota
