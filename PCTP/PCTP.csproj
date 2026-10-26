@@ -302,6 +302,7 @@
     <Compile Include="Domain\Events\HoanThanhYMVNCompletedEvent.cs" />
     <Compile Include="Infrastructure\Stock\LegacyStockBalanceRepositoryAdapter.cs" />
     <Compile Include="Infrastructure\Stock\LegacyStockSlotRepositoryAdapter.cs" />
+    <Compile Include="Infrastructure\Stock\StockReceivingRepository.cs" />
     <Compile Include="Modules\BaoCao\Application\Contracts\HistorySearchCriteria.cs" />
     <Compile Include="Modules\BaoCao\Application\Contracts\Models\HangChoGiaoRow.cs" />
     <Compile Include="Modules\BaoCao\Application\Contracts\Models\LotLocationRow.cs" />
