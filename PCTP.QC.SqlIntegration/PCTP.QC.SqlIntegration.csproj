@@ -36,6 +36,8 @@
     <Compile Include="../PCTP/Modules/KhoCore/Application/Contracts/Stock/StockSlotLot.cs" Link="Production/StockSlotLot.cs" />
     <Compile Include="../PCTP/Modules/KhoCore/Application/Contracts/Stock/StockSlotTakeResult.cs" Link="Production/StockSlotTakeResult.cs" />
     <Compile Include="../PCTP/Shared/Common/LotCodeHelper.cs" Link="Production/LotCodeHelper.cs" />
+    <Compile Include="../PCTP/Modules/XuLyHangLoi/Enums/QTChungStatus.cs" Link="Production/QTChungStatus.cs" />
+    <Compile Include="../PCTP/Modules/XuLyHangLoi/Services/ReworkQuantityPolicy.cs" Link="Production/ReworkQuantityPolicy.cs" />
     <Compile Include="../PCTP/Modules/GiaoHangKhach/Models/OrderLineKey.cs" Link="Production/OrderLineKey.cs" />
   </ItemGroup>
 </Project>

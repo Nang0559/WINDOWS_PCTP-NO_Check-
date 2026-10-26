@@ -28,6 +28,11 @@ Negative controls (D2, E2) run the same steps without locks and **must** oversel
 | E4 | B0-02 | same `OperationId`, no locks | one commit, one unique-index violation (2601/2627) |
 | E5 | B0-02 | row lock only, no application lock | A committed, B rejected, exported 6 |
 | F1 | B0-02/03 | export holds the ticket lock, delivery on the same ticket with 500 ms timeout | delivery gets 51000, writes nothing, export committed |
+| R1 | policy | A=10, X=6, D=0: two sessions deliver 6 (+ unlocked negative control) | one commits, D=6 (D<=X); control oversells to 12 |
+| R2 | policy | A=10, X=6: deliver 6 + two exports of 4 | delivery commits, exactly one export commits, X=10, D=6 |
+| R3 | policy | A=10, X=6, D=6: export 4 holds the lock, delivery 4 waits | delivery re-reads X after the lock, commits, ticket completes (D=10, DaGiaoSanXuat) |
+| R4 | policy | A=10, X=10, D=6: two sessions deliver the last 4 | exactly one commits and completes the ticket |
+| R5 | policy | same OperationId twice + a competing export of 6 | one ledger row, no duplicate OperationId, X=6 |
 | F2 | B0-02/03 | delivery holds the ticket lock, export on the same ticket with 500 ms timeout | export gets 51000, writes nothing, delivery committed |
 
 ## Status rule

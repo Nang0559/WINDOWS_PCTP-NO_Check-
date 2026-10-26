@@ -92,7 +92,8 @@ public sealed class ReworkExportIdempotencyContractTests
 
         Assert.DoesNotContain("QT_REWORK_EXPORT:", qt);
         Assert.DoesNotContain("QT_REWORK_DELIVERY:", qt);
-        Assert.Equal(2, System.Text.RegularExpressions.Regex.Matches(qt, "\"QT_REWORK_TICKET:\"").Count);
+        Assert.Equal(2, System.Text.RegularExpressions.Regex.Matches(qt, "resource\\.Value = \"QT_REWORK_TICKET:\" \\+ phieuXuLyId").Count);
+        Assert.Contains("return \"QT_REWORK_TICKET:\" + phieuXuLyId;", qt);
         Assert.Contains("\"QT_REWORK_TICKET:\" + phieuXuLyId", qc);
     }
 
@@ -140,5 +141,46 @@ public sealed class ReworkExportIdempotencyContractTests
         Assert.Contains("ReworkQuantityPolicy.EvaluateExport(", contract);
         Assert.Contains("ReworkQuantityPolicy.EvaluateDelivery(", contract);
         Assert.Contains("ReworkPhase4Plan GetReworkPlan(int phieuXuLyId);", contract);
+    }
+
+    [Fact]
+    public void ReworkFinalQc_TakesTicketLockAndRereadsStateBeforeAnyWrite()
+    {
+        var qt = ReadSource("QTChungService.source.cs");
+        var start = qt.IndexOf("public ScanResult QCXacNhanCuoi(", StringComparison.Ordinal);
+        var end = qt.IndexOf("public void GhiNhanKiemTraTem(", start, StringComparison.Ordinal);
+        Assert.True(start >= 0 && end > start, "QCXacNhanCuoi boundaries must exist.");
+        var method = qt.Substring(start, end - start);
+
+        var begin = method.IndexOf("_uow.Begin()", StringComparison.Ordinal);
+        var lockCall = method.IndexOf("AcquireReworkTicketLock(", StringComparison.Ordinal);
+        var reread = method.IndexOf("phieu = GetRequired(phieuXuLyId)", StringComparison.Ordinal);
+        var plan = method.IndexOf("_reworkStockService.GetReworkPlan(", StringComparison.Ordinal);
+        var insert = method.IndexOf("_traHangQTChungRepository.InsertQC(", StringComparison.Ordinal);
+        var stock = method.IndexOf("_reworkStockService.NhapLaiHang", StringComparison.Ordinal);
+
+        Assert.True(begin >= 0 && lockCall > begin && reread > lockCall && plan > reread,
+            "Final QC must lock the ticket, then re-read status and plan, inside the transaction.");
+        Assert.True(insert > plan && stock > insert, "No QC row or stock return may be written before the guards.");
+        Assert.Contains("QTChungStatus.DaGiaoSanXuat", method);
+        Assert.Contains("plan.DaGiaoDu", method);
+        Assert.Contains("soLuongOK + soLuongNG != plan.SoLuongReworkDuocPhep", method);
+    }
+
+    [Fact]
+    public void ReworkForm_ExportAndDeliveryButtonsFollowPolicyAndShowQuantities()
+    {
+        var form = ReadSource("FormReworkProcess.source.cs");
+        var start = form.IndexOf("private void UpdateActionState()", StringComparison.Ordinal);
+        var end = form.IndexOf("private const string QuantitySummaryMarker", start, StringComparison.Ordinal);
+        Assert.True(start >= 0 && end > start, "UpdateActionState boundaries must exist.");
+        var method = form.Substring(start, end - start);
+
+        Assert.Contains("status == QTChungStatus.DaDinhHuong ||", method);
+        Assert.Contains("status == QTChungStatus.DaXuatKhoRework", method);
+        Assert.Contains("TryGetReworkPlan()", method);
+        Assert.Contains("ApplyQuantitySummary(plan)", method);
+        Assert.Contains("plan.SoLuongConPhaiXuat > 0", method);
+        Assert.Contains("_reworkStockService.GetReworkPlan(_phieuXuLyId)", form);
     }
 }

@@ -974,16 +974,27 @@ namespace PCTP.Modules.XuLyHangLoi
 
                 bool daChonLot = GetFocusedLot() != null;
 
-                // ----------------------------------------------------
-                // Xuất kho: chỉ có ý nghĩa trước khi đã giao SX.
-                // ----------------------------------------------------
-                _btnXuatKho.Enabled =
-                    daChonLot && status == QTChungStatus.DaDinhHuong;
+                // A/X/D chỉ để gợi ý UI; server (policy sau khóa phiếu) mới là nơi quyết định.
+                // Không đọc được kế hoạch thì chỉ dựa vào trạng thái, không khóa nhầm nghiệp vụ.
+                var plan = TryGetReworkPlan();
+                ApplyQuantitySummary(plan);
 
                 // ----------------------------------------------------
-                // Giao SX: Service sẽ tự validate số lượng / trạng thái.
+                // Xuất kho: được xuất nhiều lần (DaDinhHuong hoặc DaXuatKhoRework)
+                // khi còn hạn mức và chưa giao đủ.
                 // ----------------------------------------------------
-                _btnGiaoSX.Enabled = status == QTChungStatus.DaXuatKhoRework;
+                _btnXuatKho.Enabled =
+                    daChonLot &&
+                    (status == QTChungStatus.DaDinhHuong ||
+                     status == QTChungStatus.DaXuatKhoRework) &&
+                    (plan == null || (plan.SoLuongConPhaiXuat > 0 && !plan.DaGiaoDu));
+
+                // ----------------------------------------------------
+                // Giao SX: nhiều lần, chỉ phần đã xuất chưa giao.
+                // ----------------------------------------------------
+                _btnGiaoSX.Enabled =
+                    status == QTChungStatus.DaXuatKhoRework &&
+                    (plan == null || plan.SoLuongDaXuatRework - plan.SoLuongDaGiaoSanXuat > 0);
 
                 // ----------------------------------------------------
                 // Ghi nhận đang rework: nghiệp vụ note, KHÔNG tạo state
@@ -997,6 +1008,32 @@ namespace PCTP.Modules.XuLyHangLoi
                 _btnGiaoSX.Enabled = false;
                 _btnDangRework.Enabled = false;
             }
+        }
+
+        private const string QuantitySummaryMarker = " | A/X/D: ";
+
+        private ReworkPhase4Plan TryGetReworkPlan()
+        {
+            try
+            {
+                return _reworkStockService.GetReworkPlan(_phieuXuLyId);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private void ApplyQuantitySummary(ReworkPhase4Plan plan)
+        {
+            if (plan == null || _lblTrangThai == null) return;
+            string text = _lblTrangThai.Text ?? string.Empty;
+            int marker = text.IndexOf(QuantitySummaryMarker, StringComparison.Ordinal);
+            if (marker >= 0) text = text.Substring(0, marker);
+            int conGiao = Math.Max(0, plan.SoLuongDaXuatRework - plan.SoLuongDaGiaoSanXuat);
+            _lblTrangThai.Text = text + QuantitySummaryMarker +
+                $"{plan.SoLuongReworkDuocPhep:n0}/{plan.SoLuongDaXuatRework:n0}/{plan.SoLuongDaGiaoSanXuat:n0}" +
+                $" | còn xuất {plan.SoLuongConPhaiXuat:n0} | còn giao {conGiao:n0}";
         }
 
         // ============================================================

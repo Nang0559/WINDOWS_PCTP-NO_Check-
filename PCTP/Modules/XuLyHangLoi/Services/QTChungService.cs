@@ -540,6 +540,33 @@ IF @result < 0 THROW 51000, 'Không lấy được khóa giao Rework theo phiế
             _traHangQTChungRepository.UpdateLatestGiaoNote(phieuXuLyId, ghiChu.Trim(), nguoiThucHien.Trim());
         }
 
+        private static string TicketLockResource(int phieuXuLyId)
+        {
+            return "QT_REWORK_TICKET:" + phieuXuLyId;
+        }
+
+        /// <summary>Same transaction-owned resource as Rework export and delivery.</summary>
+        private void AcquireReworkTicketLock(int phieuXuLyId)
+        {
+            using (var command = _uow.Connection.CreateCommand())
+            {
+                command.Transaction = _uow.Transaction;
+                command.CommandText = @"
+DECLARE @result int;
+EXEC @result = sys.sp_getapplock
+    @Resource = @Resource,
+    @LockMode = 'Exclusive',
+    @LockOwner = 'Transaction',
+    @LockTimeout = 15000;
+IF @result < 0 THROW 51000, 'Không lấy được khóa QC cuối Rework theo phiếu.', 1;";
+                var resource = command.CreateParameter();
+                resource.ParameterName = "@Resource";
+                resource.Value = TicketLockResource(phieuXuLyId);
+                command.Parameters.Add(resource);
+                command.ExecuteNonQuery();
+            }
+        }
+
         public ScanResult QCXacNhanCuoi(int phieuXuLyId, int soLuongOK, int soLuongNG, string nguoiQC, int? slotIdOK = null, int? slotIdNG = null, string lotNo = null)
         {
             ValidateNguoiThucHien(nguoiQC);
@@ -557,6 +584,28 @@ IF @result < 0 THROW 51000, 'Không lấy được khóa giao Rework theo phiế
             try
             {
                 _uow.Begin();
+                AcquireReworkTicketLock(phieuXuLyId);
+
+                // Re-read everything after the shared ticket lock: a concurrent final QC, export or
+                // delivery must not be authorized from the stale pre-lock snapshot.
+                phieu = GetRequired(phieuXuLyId);
+                if (phieu.Status != QTChungStatus.DaGiaoSanXuat)
+                {
+                    SafeRollback();
+                    return ScanResult.Fail($"QC cuối chỉ thực hiện khi phiếu đã giao đủ (DaGiaoSanXuat). Trạng thái hiện tại: {phieu.Status}.");
+                }
+                var plan = _reworkStockService.GetReworkPlan(phieuXuLyId);
+                if (!plan.DaGiaoDu)
+                {
+                    SafeRollback();
+                    return ScanResult.Fail($"Chưa giao đủ hàng Rework: được duyệt={plan.SoLuongReworkDuocPhep:n0}, đã giao={plan.SoLuongDaGiaoSanXuat:n0}.");
+                }
+                if (soLuongOK + soLuongNG != plan.SoLuongReworkDuocPhep)
+                {
+                    SafeRollback();
+                    return ScanResult.Fail($"QC cuối phải phân loại đủ {plan.SoLuongReworkDuocPhep:n0}. Hiện OK+NG={soLuongOK + soLuongNG:n0}.");
+                }
+
                 int qcId = _traHangQTChungRepository.InsertQC(new TraHangQTChungQC
                 {
                     PhieuXuLyBatThuongId = phieuXuLyId,
