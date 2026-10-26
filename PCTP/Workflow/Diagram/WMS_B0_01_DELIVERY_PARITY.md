@@ -10,28 +10,32 @@ Status: **contract scaffold only; no production cutover**.
 ## Command identity and allocation contract
 
 - `BusinessKey` is mandatory, stable across retries, and scoped to the customer/delivery document plus its business revision/window. Never generate a new GUID for each retry.
+- `PendingStt` lists the `TMPPHIEUGIAOHANG.STT` rows closed by this command (needed for the TMP guard, pending-delivery close and F-Y4 atomicity). At least one, distinct, positive.
 - `CustomerCode`, `DeliveryReference`, `PerformedBy`, and occurrence time are required.
 - Every PART has one or more LOT allocations, QR identities, optional Gear/Model metadata, and a quantity derived from its LOT slices.
-- Each LOT allocation carries the displayed LOT key, the exact STOCKTP LOT key, optional physical `SlotLotId`, positive quantity, and FIFO sequence.
+- FIFO sequence is unique within a PART. Each LOT allocation carries the displayed LOT key, the exact STOCKTP LOT key, optional physical `SlotLotId`, positive quantity, and FIFO sequence.
 - Allocation is prepared and validated upstream. The eventual handler must revalidate identities, remaining quantities, FIFO order and source-document status inside its transaction before mutation; the command object is not a substitute for DB validation.
 - Duplicate PART rows are rejected; combine their LOT slices under one PART before constructing the command.
 
 ## Required parity scenarios
 
+IDs are `P1..P13` (command parity). They are distinct from the `Y1..Y15` characterization cases in `docs/acceptance/YMVN_DELIVERY_SPEC_ACCEPTANCE.md`, which freeze the legacy behaviour these parity cases must match.
+
 | ID | Scenario | Required assertions |
 |---|---|---|
-| Y1 | One PART, one LOT | STOCKTP and SlotLot each decrease by the same quantity; one PART ledger detail |
-| Y2 | One PART spans multiple LOTs | PART total equals sum of LOT slices; FIFO sequence respected |
-| Y3 | Multiple PARTs, same LOT | PART traceability preserved; aggregate LOT deduction equals sum of PART allocations |
-| Y4 | QR/PART association | Every delivered QR is linked to the correct PART and LOT; QR cannot be replayed |
-| Y5 | Partial LOT | Deduct exact partial quantity; remaining STOCKTP and SlotLot reconcile |
-| Y6 | Multiple STT in one command | All commit or all roll back (F-Y4) |
-| Y7 | Same BusinessKey retry | Return prior outcome; no second stock, ledger, history or pending-delivery mutation |
-| Y8 | Same QR with another BusinessKey | Reject duplicate QR; no mutation |
-| Y9 | Failure after STOCKTP update | Entire transaction rolls back, including SlotLot, ledger, history and TMP/pending status |
-| Y10 | Failure after first PART/STT | All PART/STT changes in this command roll back |
-| Y11 | YMVN Gear/Model | Gear/Model and CoGear semantics match current `Cfg.Delivery` behavior |
-| Y12 | MP/SP variants | Correct configured TMP/DocQR tables and `Usp_Qrcode_Take_LotYMVN2405` result parity |
+| P1 | One PART, one LOT | STOCKTP and SlotLot each decrease by the same quantity; one PART ledger detail |
+| P2 | One PART spans multiple LOTs | PART total equals sum of LOT slices; FIFO sequence respected |
+| P3 | Multiple PARTs, same LOT | PART traceability preserved; aggregate LOT deduction equals sum of PART allocations |
+| P4 | QR/PART association | Every delivered QR is linked to the correct PART and LOT; QR cannot be replayed |
+| P5 | Partial LOT | Deduct exact partial quantity; remaining STOCKTP and SlotLot reconcile |
+| P6 | Multiple STT in one command | All commit or all roll back (F-Y4) |
+| P7 | Same BusinessKey retry | Return prior outcome; no second stock, ledger, history or pending-delivery mutation |
+| P8 | Same QR with another BusinessKey | Reject duplicate QR; no mutation |
+| P9 | Failure after STOCKTP update | Entire transaction rolls back, including SlotLot, ledger, history and TMP/pending status |
+| P10 | Failure after first PART/STT | All PART/STT changes in this command roll back |
+| P11 | YMVN Gear/Model | Gear/Model and CoGear semantics match current `Cfg.Delivery` behavior |
+| P12 | MP/SP variants | Correct configured TMP/DocQR tables and `Usp_Qrcode_Take_LotYMVN2405` result parity |
+| P13 | F-Y1 = part: scan rows | Delivering one STT of a PART archives/deletes the `DG` rows of that PART, including other STT of the same PART; non-DG rows stay (legacy Y15) |
 
 ## Migration constraints
 

@@ -16,6 +16,8 @@ namespace PCTP.Modules.GiaoHangKhach.Contracts.Delivery
         public string PerformedBy { get; private set; }
         public DateTime OccurredAt { get; private set; }
         public IList<DeliveryPartAllocation> Parts { get; private set; }
+        /// <summary>TMPPHIEUGIAOHANG.STT rows closed by this command; all commit or none (F-Y4).</summary>
+        public IList<int> PendingStt { get; private set; }
 
         public DeliveryStockCommand(
             string businessKey,
@@ -23,7 +25,8 @@ namespace PCTP.Modules.GiaoHangKhach.Contracts.Delivery
             string deliveryReference,
             string performedBy,
             DateTime occurredAt,
-            IEnumerable<DeliveryPartAllocation> parts)
+            IEnumerable<DeliveryPartAllocation> parts,
+            IEnumerable<int> pendingStt)
         {
             BusinessKey = Required(businessKey, nameof(businessKey));
             CustomerCode = Required(customerCode, nameof(customerCode));
@@ -36,6 +39,12 @@ namespace PCTP.Modules.GiaoHangKhach.Contracts.Delivery
             if (copy.Select(x => x.PartCode).Distinct(StringComparer.OrdinalIgnoreCase).Count() != copy.Count)
                 throw new ArgumentException("Each PART must occur once; combine its LOT allocations under one PART.", nameof(parts));
             Parts = copy.AsReadOnly();
+            var sttCopy = (pendingStt ?? Enumerable.Empty<int>()).ToList();
+            if (sttCopy.Count == 0 || sttCopy.Any(x => x <= 0))
+                throw new ArgumentException("Delivery command requires at least one positive pending STT.", nameof(pendingStt));
+            if (sttCopy.Distinct().Count() != sttCopy.Count)
+                throw new ArgumentException("Pending STT values must be distinct.", nameof(pendingStt));
+            PendingStt = sttCopy.AsReadOnly();
         }
 
         public int TotalQuantity => Parts.Sum(x => x.Quantity);
@@ -75,7 +84,9 @@ namespace PCTP.Modules.GiaoHangKhach.Contracts.Delivery
                 throw new ArgumentException("PART requires at least one LOT allocation.", nameof(lots));
             if (lotCopy.GroupBy(x => x.LotKey, StringComparer.OrdinalIgnoreCase).Any(g => g.Count() > 1))
                 throw new ArgumentException("Duplicate LOT allocation under one PART must be consolidated.", nameof(lots));
-            Lots = lotCopy.AsReadOnly();
+            if (lotCopy.Select(x => x.FifoSequence).Distinct().Count() != lotCopy.Count)
+                throw new ArgumentException("FIFO sequence must be unique within one PART.", nameof(lots));
+            Lots = lotCopy.OrderBy(x => x.FifoSequence).ToList().AsReadOnly();
             var qrCopy = (qrKeys ?? Enumerable.Empty<string>())
                 .Where(x => !string.IsNullOrWhiteSpace(x))
                 .Select(x => x.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).ToList();

@@ -83,4 +83,33 @@ public sealed class ReworkExportIdempotencyContractTests
         Assert.Contains("WHERE OperationId = @OperationId", repository);
         Assert.Contains("OperationId = row[\"OperationId\"] == DBNull.Value", repository);
     }
+
+    [Fact]
+    public void ReworkExportDeliveryAndQc_ShareOneTicketLockResource()
+    {
+        var qt = ReadSource("QTChungService.source.cs");
+        var qc = ReadSource("IQTChungService.source.cs");
+
+        Assert.DoesNotContain("QT_REWORK_EXPORT:", qt);
+        Assert.DoesNotContain("QT_REWORK_DELIVERY:", qt);
+        Assert.Equal(2, System.Text.RegularExpressions.Regex.Matches(qt, "\"QT_REWORK_TICKET:\"").Count);
+        Assert.Contains("\"QT_REWORK_TICKET:\" + phieuXuLyId", qc);
+    }
+
+    [Fact]
+    public void ReworkQcAndDisposition_TakeTicketLockInsideTransactionBeforeInsert()
+    {
+        var qc = ReadSource("IQTChungService.source.cs");
+        foreach (var name in new[] { "ConfirmReworkQC", "ConfirmDisposition" })
+        {
+            var start = qc.IndexOf("public " + (name == "ConfirmReworkQC" ? "ReworkQCResult " : "DispositionResult ") + name, StringComparison.Ordinal);
+            Assert.True(start >= 0, name + " implementation not found.");
+            var insertToken = name == "ConfirmReworkQC" ? "INSERT INTO dbo.FVN_PXLB_ReworkQC" : "INSERT INTO dbo.FVN_PXLB_Disposition";
+            var begin = qc.IndexOf("Uow.Begin()", start, StringComparison.Ordinal);
+            var lockCall = qc.IndexOf("AcquireTicketLock(", begin, StringComparison.Ordinal);
+            var insert = qc.IndexOf(insertToken, begin, StringComparison.Ordinal);
+            Assert.True(begin > start && lockCall > begin && insert > lockCall,
+                name + " must begin the transaction and take the ticket lock before the insert.");
+        }
+    }
 }

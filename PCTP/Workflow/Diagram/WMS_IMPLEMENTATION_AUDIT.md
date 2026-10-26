@@ -135,7 +135,7 @@ Một wave chỉ được đóng khi đồng thời có:
 Commit-level change set on `feature/wms-end-to-end-consistency`:
 
 - `TraHangQTChungXuat` carries a caller-created `OperationId`; the Rework form retains the pending ID until it receives a successful result.
-- `QTChungService` begins/joins the UoW, acquires `sp_getapplock` (`QT_REWORK_EXPORT:<PhieuXuLyBatThuongId>`, transaction owner), then checks the export ledger by OperationId before invoking stock mutation.
+- `QTChungService` begins/joins the UoW, acquires `sp_getapplock` (`QT_REWORK_TICKET:<PhieuXuLyBatThuongId>` (shared with Rework delivery), transaction owner), then checks the export ledger by OperationId before invoking stock mutation.
 - `ReworkStockService` passes the same ID as the StockMovement reference and persists it in the export ledger.
 - `PHASE14_ReworkExportIdempotency.sql` adds a nullable GUID for legacy rows and a unique filtered index. Apply this migration before deploying the code.
 - Source-contract tests cover ID propagation, lookup and transaction-owned lock. They are not a substitute for SQL Server concurrency/retry tests.

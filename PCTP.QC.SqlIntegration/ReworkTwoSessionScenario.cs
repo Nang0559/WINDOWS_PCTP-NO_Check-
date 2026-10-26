@@ -73,6 +73,7 @@ CREATE TABLE [{f.Giao}](Id int IDENTITY(1,1) NOT NULL PRIMARY KEY, PhieuId int N
             await ExportRowLockAloneAsync(connectionString, owner, f, sql);
             await ExportSameOperationIdAsync(connectionString, owner, f, sql);
             await ExportUniqueIndexBackstopAsync(connectionString, owner, f);
+            await CrossPathSerializationAsync(connectionString, owner, f, sql);
 
             Console.WriteLine("PASS: Rework two-session lock protocol (B0-02/B0-03) verified on SQL Server with production lock SQL text; protocol-level evidence only, not the C# methods end to end.");
         }
@@ -350,6 +351,81 @@ CREATE TABLE [{f.Giao}](Id int IDENTITY(1,1) NOT NULL PRIMARY KEY, PhieuId int N
     }
 
     // ---------------------------------------------------------------- protocol mirrors
+
+    // ---------------------------------------------------------------- F1/F2 export <-> delivery on one ticket
+
+    private static async Task CrossPathSerializationAsync(string cs, SqlConnection owner, Fixture f, ProductionSql sql)
+    {
+        var shortExport = sql.ExportLock.Replace("@LockTimeout = 15000", "@LockTimeout = 500");
+        var shortDelivery = sql.DeliveryLock.Replace("@LockTimeout = 15000", "@LockTimeout = 500");
+        Require(!string.Equals(shortExport, sql.ExportLock, StringComparison.Ordinal) &&
+                !string.Equals(shortDelivery, sql.DeliveryLock, StringComparison.Ordinal),
+            "F1/F2 expected both production locks to declare '@LockTimeout = 15000'; source changed, update the scenario.");
+
+        // F1: export holds the ticket lock, delivery on the same ticket must fail closed.
+        var ticket1 = NewTicket();
+        await SeedTicketAsync(owner, f, ticket1, quota: 100);
+        await SeedExportAsync(owner, f, ticket1, "LOT-F1", 10);
+        var exportLocked = new TaskCompletionSource();
+        var releaseExport = new TaskCompletionSource();
+        var exporter = Task.Run(() => ExportAsync(cs, f, ticket1, "LOT-F1", 5, new Options
+        {
+            AppLockSql = sql.ExportLock,
+            AppLockResource = sql.ExportPrefix + ticket1,
+            OnLocked = () => exportLocked.TrySetResult(),
+            AfterRead = () => releaseExport.Task,
+            OperationId = Guid.NewGuid()
+        }));
+        await exportLocked.Task.WaitAsync(TimeSpan.FromSeconds(20));
+        SqlException? deliveryFailure = null;
+        try
+        {
+            await DeliverAsync(cs, f, ticket1, new[] { ("LOT-F1", 4) }, new Options
+            {
+                AppLockSql = shortDelivery,
+                AppLockResource = sql.DeliveryPrefix + ticket1
+            });
+        }
+        catch (SqlException ex) { deliveryFailure = ex; }
+        releaseExport.SetResult();
+        var exportOutcome = await exporter;
+        var delivered1 = await SumAsync(owner, $"SELECT ISNULL(SUM(SoLuongGiao),0) FROM [{f.Giao}] WHERE PhieuId={ticket1}");
+        Require(deliveryFailure != null && deliveryFailure.Number == 51000 && exportOutcome == Outcome.Committed && delivered1 == 0,
+            $"F1 expected delivery to fail closed (51000) while export holds the ticket lock; got failure={(deliveryFailure == null ? "none" : deliveryFailure.Number.ToString())}, export={exportOutcome}, delivered={delivered1}.");
+        Console.WriteLine("PASS: F1 delivery cannot enter while an export holds the shared ticket lock.");
+
+        // F2: delivery holds the ticket lock, export on the same ticket must fail closed.
+        var ticket2 = NewTicket();
+        await SeedTicketAsync(owner, f, ticket2, quota: 100);
+        await SeedExportAsync(owner, f, ticket2, "LOT-F2", 10);
+        var deliveryLocked = new TaskCompletionSource();
+        var releaseDelivery = new TaskCompletionSource();
+        var deliverer = Task.Run(() => DeliverAsync(cs, f, ticket2, new[] { ("LOT-F2", 4) }, new Options
+        {
+            AppLockSql = sql.DeliveryLock,
+            AppLockResource = sql.DeliveryPrefix + ticket2,
+            OnLocked = () => deliveryLocked.TrySetResult(),
+            AfterRead = () => releaseDelivery.Task
+        }));
+        await deliveryLocked.Task.WaitAsync(TimeSpan.FromSeconds(20));
+        SqlException? exportFailure = null;
+        try
+        {
+            await ExportAsync(cs, f, ticket2, "LOT-F2", 5, new Options
+            {
+                AppLockSql = shortExport,
+                AppLockResource = sql.ExportPrefix + ticket2,
+                OperationId = Guid.NewGuid()
+            });
+        }
+        catch (SqlException ex) { exportFailure = ex; }
+        releaseDelivery.SetResult();
+        var deliveryOutcome = await deliverer;
+        var exported2 = await SumAsync(owner, $"SELECT ISNULL(SUM(SoLuongXuat),0) FROM [{f.Xuat}] WHERE PhieuId={ticket2}");
+        Require(exportFailure != null && exportFailure.Number == 51000 && deliveryOutcome == Outcome.Committed && exported2 == 10,
+            $"F2 expected export to fail closed (51000) while delivery holds the ticket lock; got failure={(exportFailure == null ? "none" : exportFailure.Number.ToString())}, delivery={deliveryOutcome}, exported={exported2}.");
+        Console.WriteLine("PASS: F2 export cannot enter while a delivery holds the shared ticket lock.");
+    }
 
     private static async Task<Outcome> DeliverAsync(string cs, Fixture f, int ticket, (string Lot, int Qty)[] lines, Options o)
     {
