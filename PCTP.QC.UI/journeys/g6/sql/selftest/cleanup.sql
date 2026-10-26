@@ -1,1 +1,0 @@
-DELETE FROM #QCUI_SELFTEST WHERE Name LIKE @Prefix + N'%';

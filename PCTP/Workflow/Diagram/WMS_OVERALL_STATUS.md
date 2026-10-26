@@ -1,10 +1,10 @@
 # WMS — BẢNG TỔNG HỢP TOÀN BỘ
 
-> **Ngày rà soát:** 2026-10-25  
+> **Ngày rà soát:** 2026-10-26  
 > **Repository:** `Nang0559/WINDOWS_PCTP-NO_Check-`  
 > **Branch:** `feature/wms-end-to-end-consistency`  
 > **Code audit baseline:** `e334fed1528d8d4ca89179f87dace182a2bc451c` (code snapshot dùng cho các nhận định source-level ban đầu).  
-> **Code HEAD hiện tại tại lần rà:** `dd5ad9e07f6b35c83cfb036c25514152e51dc679`; CI run `40253223656` đã PASS 3/3 jobs trên code SHA `dd5ad9e…`; commit hiện tại `2474c41…` chỉ cập nhật tài liệu và run `40253365904` đang queued.  
+> **Code HEAD hiện tại tại lần rà:** `a8393dfbca2dca7755e6abc7f6efc6d5ddae95da` (docs-only sau code SHA `dd5ad9e07f6b35c83cfb036c25514152e51dc679`). CI runs `40253439019` và `40253444406` đều PASS 3/3 jobs trên HEAD `a8393df…`: unit/regression, SQL engine integration, desktop runner build.  
 > **PR:** #3 — Draft  
 > **Nguyên tắc:** bảng này ghi nhận trạng thái theo bằng chứng code/SQL/test đang có; không dùng phần trăm ước lượng và không suy diễn PASS từ việc có class, migration hoặc source-contract test.
 
@@ -15,7 +15,7 @@ WMS đã có các ranh giới xử lý tồn kho tập trung qua KhoCore / `ISto
 Ba điểm chặn quan trọng nhất:
 
 1. **Giao Hàng Khách:** một số nhánh vẫn trừ `STOCKTP` bằng stored procedure hoặc SQL trực tiếp tại `PhieuKhoRepository`, sau đó mới điều chỉnh `SlotLot`. Đây là đường ghi tồn ngoài stock command thống nhất.
-2. **Rework:** `QTChungService.XuatKhoRework` đã có idempotency theo `OperationId` và application lock, nhưng chưa gọi guard Phase 4 để chặn xuất vượt số lượng Rework được Initial QC duyệt. Việc tạo service trong factory không chứng minh guard được gọi ở lệnh xuất thật.
+2. **Rework:** B0-02 đã được nối vào đường xuất thật: `ReworkStockService` resolve Phase 4 provider, fail-closed nếu thiếu và gọi `EnsureCanExport` trước movement; B0-03 đã khóa theo ticket và đọc ledger sau lock trong cùng transaction. Source-contract test đã có; SQL two-session/rollback vẫn chưa được chứng minh.
 3. **Verification:** CI gần nhất đã xác nhận 3 job tự động thành công, nhưng chưa chứng minh build ứng dụng WinForms đầy đủ trên môi trường mục tiêu, G5/G6 UI journey nghiệp vụ, schema SQL sản xuất đại diện hoặc kiểm thử đồng thời xuyên toàn workflow.
 
 **Quyết định:** giữ PR #3 ở Draft; không tuyên bố WMS hoàn thành cho tới khi các điều kiện đóng wave ở mục 7 đạt đủ.
@@ -33,8 +33,8 @@ Ba điểm chặn quan trọng nhất:
 | WMS-07 | Giao Hàng Khách | FIFO RAM/DB, QR/PART/multi-LOT, STOCKTP + SlotLot + chứng từ + history cùng UoW | Đã có transaction/rollback ở các nhánh đã rà; một phần SlotLot qua movement | **P0 blocker:** `PhieuKhoRepository` còn gọi `Usp_Qrcode_Update_Stock2405`, `Usp_Qrcode_Update_Stock_SP`, SQL YMVN/`TruStockTpFifo` để trừ STOCKTP rồi mới điều chỉnh SlotLot | P0 |
 | WMS-08 | Hàng lỗi — truy vết LOT | Tập hợp nguồn sản xuất, tồn kho, hàng trả; snapshot ảnh hưởng | Có `AffectedLotTraceService` và dữ liệu AffectedLot | Cần kiểm tra độ đầy đủ nguồn trace, snapshot bất biến và đồng bộ khi tồn thay đổi | P1 |
 | WMS-09 | Hàng lỗi — Initial QC | QC đủ lượng ảnh hưởng; OK + NG = inspected; NG = Rework + loại bỏ | Có validation và lưu Initial QC trong `IAffectedLotTraceService.cs` | Cần SQL integration xác nhận unique ticket, concurrency, update affected LOT và rollback | P1 |
-| WMS-10 | Rework — kế hoạch và xuất | Chỉ xuất theo `SoLuongRework` đã duyệt; retry không xuất trùng | Có ledger `OperationId`, app lock theo phiếu, unique filtered index migration Phase 14 | **P0 blocker:** `QTChungService.XuatKhoRework` chưa gọi guard `EnsureCanExport`; phải fail-closed và chống vượt hạn mức dưới concurrency | P0 |
-| WMS-11 | Rework — giao sản xuất | Chỉ giao lượng đã xuất và không vượt lượng QC duyệt | Có code kiểm tra tổng đã giao + lượng yêu cầu không vượt tổng đã xuất theo LOT (`QTChungService.cs:384–428`); ghi giao trong UoW (`:430–435`) | Các phép đọc số đã xuất/đã giao xảy ra trước `_uow.Begin()`; chưa chứng minh khóa/serialize hai session, retry và rollback toàn bộ luồng | P0 |
+| WMS-10 | Rework — kế hoạch và xuất | Chỉ xuất theo `SoLuongRework` đã duyệt; retry không xuất trùng | Có ledger `OperationId`, app lock theo phiếu, unique filtered index migration Phase 14 | **Implementation đã đóng:** `ReworkStockService` gọi Phase 4 `EnsureCanExport` fail-closed trước Export; `QTChungService` giữ app lock/OperationId. SQL concurrency/rollback còn mở | P0 |
+| WMS-11 | Rework — giao sản xuất | Chỉ giao lượng đã xuất và không vượt lượng QC duyệt | `GiaoHangRework`: Begin → transaction-owned applock → reload ticket → đọc ledger → validate → insert/status → Commit; có source-contract test thứ tự | SQL two-session và injected rollback sau insert vẫn cần test | P0 |
 | WMS-12 | Rework — QC cuối | Chỉ QC sau khi xuất/giao đủ; OK + NG = lượng Rework | Có code `HangLoiPhase5To9Service.ConfirmReworkQC` kiểm Initial QC, `GetPlan`, `DaXuatDu`, `DaGiaoDu`, tổng OK+NG và kết quả đã tồn tại (`IQTChungService.cs:142–158`) | Cần xác minh các kiểm tra được serialize trong cùng transaction; kiểm tra DB unique/CHECK và SQL concurrency chưa được chứng minh bằng test tích hợp | P1 |
 | WMS-13 | Disposition / loại bỏ | Tổng loại bỏ cuối = loại bỏ ban đầu + NG sau Rework | Có code `ConfirmDisposition` tính `SoLuongLoaiBoCuoi = SoLuongLoaiBoBanDau + ReworkNG` và lưu bảng Disposition (`IQTChungService.cs:170–188`) | Chưa chứng minh unique constraint/serialize tạo disposition đồng thời, quyền phê duyệt đầy đủ và test rollback/duplicate trên SQL thật | P1 |
 | WMS-14 | Giao bù NG | Nghĩa vụ giao bù là chứng từ độc lập, số lượng theo yêu cầu khách hàng | `GiaoBuNGService` điều phối qua `IStockExportService` trong đường code đã rà | Phải chứng minh không suy ra giao bù từ NG; chống giao trùng/vượt nghĩa vụ; rollback và audit | P1 |
@@ -75,11 +75,11 @@ Ba điểm chặn quan trọng nhất:
 
 | Gate | Nội dung phải chứng minh | Evidence hiện có | Trạng thái |
 |---|---|---|---|
-| G1 — Traceability | Mỗi yêu cầu/luồng nối được code ↔ SQL object ↔ transaction ↔ test ↔ tài liệu; không còn gap chưa xử lý | Snapshot hiện tại `PCTP.QC.UI/G1-gaps.csv` tại SHA `ab064ed…`, rà trên HEAD code `18eedca…` ngày 2026-10-26: 122 gap rows, 97 code rows, 91 distinct IDs (IDs có thể lặp cho nhiều missing dimension). Chưa có remediation/evidence đóng đủ từng dòng | 🔴 OPEN |
-| G2 — Unit/regression | Unit/source-contract và regression bảo vệ quy tắc nghiệp vụ | CI run `40253021662` đang chạy unit/regression trên HEAD `e804a96…`, gồm source-contract mới cho guard Rework và serialize Rework delivery | 🟡 PENDING |
-| G3 — SQL integration | Chạy implementation/repository thật với SQL engine cô lập, kiểm dữ liệu và rollback | CI run `40253021662` đang chạy SQL engine integration trên HEAD `e804a96…`; dù PASS cũng chỉ chứng minh engine/fixture đã cấu hình, không thay thế schema DBA representative | 🟡 PENDING |
+| G1 — Traceability | Mỗi yêu cầu/luồng nối được code ↔ SQL object ↔ transaction ↔ test ↔ tài liệu; không còn gap chưa xử lý | Snapshot `PCTP.QC.UI/G1-gaps.csv` SHA `ab064ed03a6ff3d3c12bba192e24f4fafdd87f17`: 122 data rows. Chưa có remediation/evidence đóng đủ từng dòng | 🔴 OPEN |
+| G2 — Unit/regression | Unit/source-contract và regression bảo vệ quy tắc nghiệp vụ | CI runs `40253439019` và `40253444406` PASS trên HEAD `a8393df…` (3/3 jobs); code tests bao gồm source-contract guard Rework và serialize Rework delivery trên code SHA `dd5ad9e…` | 🟡 PENDING |
+| G3 — SQL integration | Chạy implementation/repository thật với SQL engine cô lập, kiểm dữ liệu và rollback | CI runs `40253439019` và `40253444406` PASS SQL engine integration trên HEAD `a8393df…`; chỉ chứng minh SQL fixture/engine, không thay thế schema DBA representative | 🟡 PENDING |
 | G4 — Production procedure compatibility | Kiểm procedure thật trong DB thử nghiệm được cô lập, rollback-only và có G3 PASS cùng commit | Chưa có bằng chứng mới xác nhận schema/seed/procedure nghiệp vụ đại diện | 🔴 BLOCKED |
-| G5 — UI journeys | AutomationId thật; chạy 5 hành trình UI; assert dữ liệu sau thao tác | `desktop-runner-build` của run `40253021662` đang chạy; build runner không phải kết quả chạy 5 business journey | 🔴 OPEN |
+| G5 — UI journeys | AutomationId thật; chạy 5 hành trình UI; assert dữ liệu sau thao tác | `desktop-runner-build` PASS ở runs `40253439019`/`40253444406`; build runner không phải kết quả chạy 5 business journey | 🔴 OPEN |
 | G6 — Full business E2E | Seed → thao tác UI → assert DB → cleanup; Remaining = 0; database cô lập | Các journey receive, QC direction, QC final, delivery HVN chưa được xác nhận PASS; self-test không thay thế business E2E | 🔴 OPEN |
 
 ### CI snapshot
@@ -184,10 +184,33 @@ Không copy nguyên câu query mẫu vào production hoặc CI trước khi thay
 **WMS: IN PROGRESS — NOT READY FOR RELEASE.**
 
 - PR #3 tiếp tục để Draft.
-- B0-02 đã có implementation fail-closed trong `ReworkStockService` và source-contract regression test. B0-03 đã chuyển toàn bộ đọc ledger sau transaction-owned applock, bổ sung source-contract test; cả hai còn chờ CI và SQL concurrency/rollback evidence. Chưa coi SQL concurrency acceptance của Rework đã PASS.
-- B0-01 vẫn OPEN. B0-03 implementation đã chuyển kiểm tra ledger vào transaction và khóa theo phiếu; xác minh SQL concurrency/rollback vẫn OPEN. G1/G4/G5/G6 vẫn OPEN.
+- B0-02 implementation fail-closed và B0-03 transaction-owned applock/read-after-lock đã có source-contract regression tests; CI unit/regression PASS trên code SHA `dd5ad9e…`. SQL concurrency/rollback acceptance của cả hai vẫn OPEN. Chưa coi SQL concurrency acceptance của Rework đã PASS.
+- B0-01 vẫn OPEN: `CapNhapKho`/`CapNhapKhoSP` dùng stored procedure trừ STOCKTP rồi `TruKhoAoTuKetQuaSP` pick SlotLot; `CapNhapKhoYMVN` tự trừ STOCKTP qua `TruStockTpFifo` rồi pick SlotLot. G1/G4/G5/G6 vẫn OPEN.
 - Không đánh dấu Phase 6/7/10 hoàn tất khi các blocker và gate tương ứng chưa có bằng chứng nghiệm thu.
 - Không dùng phần trăm hoàn thành ước lượng làm chỉ số nghiệm thu.
 - Không sửa tiêu chí test hoặc xóa regression chỉ để làm xanh CI.
 - Không thực hiện mutation trên production/shared SQL.
 - Mọi lần cập nhật bảng này phải ghi commit SHA, workflow run, phạm vi test và giới hạn bằng chứng.
+
+
+## 10. Rà soát bổ sung 2026-10-26 — B0-01 và CI HEAD
+
+### B0-01: phạm vi writer xác minh trực tiếp
+
+`PCTP/Modules/GiaoHangKhach/Repositories/PhieuKhoRepository.cs`:
+
+- `CapNhapKho` gọi `Usp_Qrcode_Update_Stock2405`, sau đó gọi `TruKhoAoTuKetQuaSP` để pick SlotLot, rồi đóng hàng chờ giao và commit.
+- `CapNhapKhoSP` gọi `Usp_Qrcode_Update_Stock_SP`, sau đó thực hiện cùng bước pick SlotLot.
+- `CapNhapKhoYMVN` đọc `STOCKTP` bằng `UPDLOCK, HOLDLOCK`, gọi `TruStockTpFifo` để cập nhật `SLXUAT/SLCONLAI`, rồi `BulkStockAdjustService.TruKhoAoTheoLot` pick SlotLot.
+- `BulkStockAdjustService` đã fail-fast nếu không cấu hình `IStockMovementService`; khi cùng UoW (`manageTransaction:false`), thiếu SlotLot sẽ throw để caller rollback. Tuy nhiên, nó vẫn chỉ là bước SlotLot sau khi STOCKTP đã bị mutate ở SP/SQL; do đó chưa phải Single Writer.
+- `Usp_Qrcode_Update_Stock2405.sql` có quy tắc LOT vật lý, QR/DG, transaction/savepoint và khóa theo identity giao; `Usp_Qrcode_Update_Stock_SP.sql` có FIFO, applock transaction-owned và cập nhật STOCKTP + TMP. Các hành vi này phải được giữ parity khi chuyển allocation sang command.
+
+**Không được xóa hoặc bypass hai stored procedure trong bước sửa nhỏ.** Cần thay đổi theo một delivery command nhận kết quả allocation đã xác thực (QR/PART/FIFO/multi-LOT), phân bổ chính xác LOT/SlotLot, rồi thực hiện STOCKTP + SlotLot + chứng từ + HangChoGiao + history trong cùng UoW. Chỉ xóa writer cũ sau khi SQL integration chứng minh parity, concurrency, idempotency và rollback.
+
+### CI evidence trên HEAD tài liệu hiện tại
+
+- HEAD: `a8393dfbca2dca7755e6abc7f6efc6d5ddae95da`.
+- Run `40253439019`: SUCCESS, jobs `unit-regression-tests`, `sql-engine-integration`, `desktop-runner-build` đều success.
+- Run `40253444406`: SUCCESS, cùng 3 jobs đều success.
+- Hai run dùng HEAD docs-only. Bằng chứng unit/source-contract của thay đổi code B0-02/B0-03 thuộc code SHA `dd5ad9e07f6b35c83cfb036c25514152e51dc679`; không diễn giải CI docs-only như build code mới.
+- G1 snapshot: 122 data rows ở CSV SHA `ab064ed03a6ff3d3c12bba192e24f4fafdd87f17`.

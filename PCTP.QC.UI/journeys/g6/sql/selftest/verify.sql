@@ -1,1 +1,0 @@
-SELECT COUNT(*) AS Remaining FROM #QCUI_SELFTEST WHERE Name LIKE @Prefix + N'%';
