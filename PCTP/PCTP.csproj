@@ -603,6 +603,7 @@
     <Compile Include="Modules\XuLyHangLoi\Services\IAffectedLotTraceService.cs" />
     <Compile Include="Modules\XuLyHangLoi\Services\IQTChungService.cs" />
     <Compile Include="Modules\XuLyHangLoi\Services\IReworkStockService.cs" />
+    <Compile Include="Modules\XuLyHangLoi\Services\ReworkQuantityPolicy.cs" />
     <Compile Include="Modules\XuLyHangLoi\Services\IXuLyHangLoiService.cs" />
     <Compile Include="Modules\XuLyHangLoi\Services\KhachTraHangService.cs" />
     <Compile Include="Modules\XuLyHangLoi\Services\QTChungService.cs" />

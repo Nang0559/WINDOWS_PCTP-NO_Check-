@@ -408,12 +408,6 @@ IF @result < 0 THROW 51000, 'Không lấy được khóa giao Rework theo phiế
                     SafeRollback();
                     return ScanResult.Fail("Chỉ phiếu CanRework mới được giao sản xuất.");
                 }
-                if (!_workflow.CanTransition(ProcessCodeQTChung, (int)phieu.Status, (int)QTChungStatus.DaGiaoSanXuat))
-                {
-                    SafeRollback();
-                    return ScanResult.Fail($"Không thể chuyển {phieu.Status} → {QTChungStatus.DaGiaoSanXuat}.");
-                }
-
                 var xuat = (_traHangQTChungRepository.GetXuat(phieuXuLyId) ?? new List<TraHangQTChungXuat>())
                     .Where(x => x != null && string.Equals(x.LoaiXuat, "Rework", StringComparison.OrdinalIgnoreCase))
                     .ToList();
@@ -477,10 +471,22 @@ IF @result < 0 THROW 51000, 'Không lấy được khóa giao Rework theo phiế
                 int tongXuatRework = xuat.Sum(x => Math.Max(0, x.SoLuongXuat));
                 int tongDaGiaoTruoc = giaoHienTai.Sum(x => Math.Max(0, x.SoLuongGiao));
                 int tongYeuCauGiao = lotGiaoHopLe.Sum(x => x.Quantity);
-                if (tongDaGiaoTruoc + tongYeuCauGiao != tongXuatRework)
+
+                // Quantity/status rule evaluated after the ticket lock, from freshly read state:
+                // delivered + requested <= exported <= approved; fully delivered => no more delivery.
+                var plan = _reworkStockService.GetReworkPlan(phieuXuLyId);
+                var decision = ReworkQuantityPolicy.EvaluateDelivery(
+                    phieu.Status, true, plan.SoLuongReworkDuocPhep, tongXuatRework, tongDaGiaoTruoc, tongYeuCauGiao);
+                if (!decision.Allowed)
                 {
                     SafeRollback();
-                    return ScanResult.Fail($"Chỉ được chuyển sang giao sản xuất khi giao đủ số lượng đã xuất rework. Đã xuất={tongXuatRework:n0}, đã giao={tongDaGiaoTruoc:n0}, yêu cầu lần này={tongYeuCauGiao:n0}.");
+                    return ScanResult.Fail(decision.Message);
+                }
+                if (decision.CompletesDelivery &&
+                    !_workflow.CanTransition(ProcessCodeQTChung, (int)phieu.Status, (int)QTChungStatus.DaGiaoSanXuat))
+                {
+                    SafeRollback();
+                    return ScanResult.Fail($"Không thể chuyển {phieu.Status} → {QTChungStatus.DaGiaoSanXuat}.");
                 }
 
                 foreach (var lot in lotGiaoHopLe)
@@ -499,14 +505,19 @@ IF @result < 0 THROW 51000, 'Không lấy được khóa giao Rework theo phiế
                     });
                 }
 
-                if (!_repo.UpdateStatusIfCurrentIs(phieuXuLyId, phieu.Status, QTChungStatus.DaGiaoSanXuat, nguoiNhan))
+                // Partial delivery keeps the status (same-value update still takes the row lock and
+                // verifies the status did not change); only full delivery moves to DaGiaoSanXuat.
+                var statusSauGiao = decision.CompletesDelivery ? QTChungStatus.DaGiaoSanXuat : phieu.Status;
+                if (!_repo.UpdateStatusIfCurrentIs(phieuXuLyId, phieu.Status, statusSauGiao, nguoiNhan))
                 {
                     SafeRollback();
                     return ScanResult.Fail("Trạng thái phiếu đã thay đổi trong lúc ghi nhận giao rework. Vui lòng tải lại.");
                 }
 
                 _uow.Commit();
-                return ScanResult.OK($"Đã ghi nhận giao rework {lotGiaoHopLe.Sum(x => x.Quantity):n0} sản phẩm cho bộ phận {boPhanNhan.Trim()}.");
+                var conLai = plan.SoLuongReworkDuocPhep - (tongDaGiaoTruoc + tongYeuCauGiao);
+                return ScanResult.OK($"Đã ghi nhận giao rework {lotGiaoHopLe.Sum(x => x.Quantity):n0} sản phẩm cho bộ phận {boPhanNhan.Trim()}." +
+                    (decision.CompletesDelivery ? " Đã giao đủ." : $" Còn lại {conLai:n0}."));
             }
             catch (Exception ex)
             {

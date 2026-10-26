@@ -331,6 +331,15 @@ namespace PCTP.Modules.XuLyHangLoi.Services
                 tenSlot, slotId));
         }
 
+        public ReworkPhase4Plan GetReworkPlan(int phieuXuLyId)
+        {
+            var phase4 = _phase4Provider == null ? null : _phase4Provider();
+            if (phase4 == null)
+                throw new InvalidOperationException(
+                    "Phase 4 Rework guard chưa được cấu hình; không thể đọc kế hoạch Rework (fail-closed).");
+            return phase4.GetPlan(phieuXuLyId);
+        }
+
         public ScanResult NhapLaiHangNG(
             int phieuXuLyId,
             string lotNo,

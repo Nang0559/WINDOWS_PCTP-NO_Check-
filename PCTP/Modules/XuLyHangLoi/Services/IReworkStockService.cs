@@ -48,6 +48,9 @@ namespace PCTP.Modules.XuLyHangLoi.Services
         ScanResult HoanTraKhoKhiHuy(
             int phieuXuLyId,
             string nguoiThucHien);
+
+        /// <summary>Approved/exported/delivered quantities; throws when the Phase 4 guard is not configured (fail-closed).</summary>
+        ReworkPhase4Plan GetReworkPlan(int phieuXuLyId);
     }
 
     /// <summary>
@@ -74,12 +77,12 @@ namespace PCTP.Modules.XuLyHangLoi.Services
 
         public bool DaXuatDu
         {
-            get { return SoLuongDaXuatRework == SoLuongReworkDuocPhep; }
+            get { return SoLuongDaXuatRework >= SoLuongReworkDuocPhep; }
         }
 
         public bool DaGiaoDu
         {
-            get { return SoLuongDaGiaoSanXuat == SoLuongReworkDuocPhep; }
+            get { return SoLuongDaGiaoSanXuat >= SoLuongReworkDuocPhep; }
         }
     }
 
@@ -165,19 +168,16 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             var phieu = _phieuRepo.GetById(phieuXuLyId);
             if (phieu == null)
                 throw new InvalidOperationException("Không tìm thấy phiếu xử lý bất thường.");
-            if (phieu.HuongXuLy != HuongXuLyBatThuong.CanRework)
-                throw new InvalidOperationException("Chỉ phiếu CanRework mới được xuất Rework.");
-            if (phieu.Status != QTChungStatus.DaDinhHuong &&
-                phieu.Status != QTChungStatus.DaXuatKhoRework)
-                throw new InvalidOperationException($"Không thể xuất Rework khi trạng thái là {phieu.Status}.");
-
             var plan = GetPlan(phieuXuLyId);
-            if (plan.SoLuongReworkDuocPhep <= 0)
-                throw new InvalidOperationException("QC ban đầu không phân bổ số lượng Rework.");
-            if (plan.SoLuongDaXuatRework + soLuong > plan.SoLuongReworkDuocPhep)
-                throw new InvalidOperationException(
-                    $"Xuất Rework vượt số lượng được QC phân bổ. Được phép={plan.SoLuongReworkDuocPhep:n0}, " +
-                    $"đã xuất={plan.SoLuongDaXuatRework:n0}, yêu cầu thêm={soLuong:n0}.");
+            var decision = ReworkQuantityPolicy.EvaluateExport(
+                phieu.Status,
+                phieu.HuongXuLy == HuongXuLyBatThuong.CanRework,
+                plan.SoLuongReworkDuocPhep,
+                plan.SoLuongDaXuatRework,
+                plan.SoLuongDaGiaoSanXuat,
+                soLuong);
+            if (!decision.Allowed)
+                throw new InvalidOperationException(decision.Message);
         }
 
         public void EnsureCanDeliver(int phieuXuLyId, int soLuongGiao, string nguoiThucHien)
@@ -189,18 +189,16 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             var phieu = _phieuRepo.GetById(phieuXuLyId);
             if (phieu == null)
                 throw new InvalidOperationException("Không tìm thấy phiếu xử lý bất thường.");
-            if (phieu.HuongXuLy != HuongXuLyBatThuong.CanRework)
-                throw new InvalidOperationException("Chỉ phiếu CanRework mới được giao sản xuất.");
-            if (phieu.Status != QTChungStatus.DaXuatKhoRework)
-                throw new InvalidOperationException($"Phải xuất đủ hàng Rework trước khi giao. Trạng thái hiện tại: {phieu.Status}.");
-
             var plan = GetPlan(phieuXuLyId);
-            if (!plan.DaXuatDu)
-                throw new InvalidOperationException(
-                    $"Chưa xuất đủ hàng Rework: còn {plan.SoLuongConPhaiXuat:n0}.");
-
-            if (plan.SoLuongDaGiaoSanXuat + soLuongGiao > plan.SoLuongReworkDuocPhep)
-                throw new InvalidOperationException("Tổng giao Rework vượt số lượng được QC phân bổ.");
+            var decision = ReworkQuantityPolicy.EvaluateDelivery(
+                phieu.Status,
+                phieu.HuongXuLy == HuongXuLyBatThuong.CanRework,
+                plan.SoLuongReworkDuocPhep,
+                plan.SoLuongDaXuatRework,
+                plan.SoLuongDaGiaoSanXuat,
+                soLuongGiao);
+            if (!decision.Allowed)
+                throw new InvalidOperationException(decision.Message);
         }
 
         public void EnsureCanFinalQC(int phieuXuLyId, int soLuongOK, int soLuongNG, string nguoiQC)

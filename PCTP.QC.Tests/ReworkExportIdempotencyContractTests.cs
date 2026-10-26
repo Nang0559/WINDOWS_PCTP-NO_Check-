@@ -112,4 +112,33 @@ public sealed class ReworkExportIdempotencyContractTests
                 name + " must begin the transaction and take the ticket lock before the insert.");
         }
     }
+
+    [Fact]
+    public void ReworkDelivery_EvaluatesQuantityPolicyAfterLockAndLedgerReads_AndPartialKeepsStatus()
+    {
+        var service = ReadSource("QTChungService.source.cs");
+        var start = service.IndexOf("public ScanResult GiaoHangRework(", StringComparison.Ordinal);
+        var end = service.IndexOf("public void GhiNhanDangRework(", start, StringComparison.Ordinal);
+        var method = service.Substring(start, end - start);
+
+        var appLock = method.IndexOf("QT_REWORK_TICKET:", StringComparison.Ordinal);
+        var deliveryRead = method.IndexOf("_traHangQTChungRepository.GetGiao(", StringComparison.Ordinal);
+        var policy = method.IndexOf("ReworkQuantityPolicy.EvaluateDelivery(", StringComparison.Ordinal);
+        var insert = method.IndexOf("_traHangQTChungRepository.InsertGiao(", StringComparison.Ordinal);
+        var completes = method.IndexOf("decision.CompletesDelivery ? QTChungStatus.DaGiaoSanXuat : phieu.Status", StringComparison.Ordinal);
+
+        Assert.True(appLock >= 0 && deliveryRead > appLock && policy > deliveryRead && insert > policy,
+            "Quantity policy must run after the ticket lock and ledger reads, before the delivery insert.");
+        Assert.True(completes > insert, "Only full delivery may move the ticket to DaGiaoSanXuat.");
+        Assert.DoesNotContain("!= tongXuatRework", method);
+    }
+
+    [Fact]
+    public void ReworkPhase4Guards_DelegateToQuantityPolicy()
+    {
+        var contract = ReadSource("IReworkStockService.source.cs");
+        Assert.Contains("ReworkQuantityPolicy.EvaluateExport(", contract);
+        Assert.Contains("ReworkQuantityPolicy.EvaluateDelivery(", contract);
+        Assert.Contains("ReworkPhase4Plan GetReworkPlan(int phieuXuLyId);", contract);
+    }
 }
