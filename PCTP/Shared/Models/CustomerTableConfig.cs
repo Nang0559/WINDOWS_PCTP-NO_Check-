@@ -94,7 +94,7 @@ namespace PCTP.Shared.Models
                         DocQRTableSP = "SP_DOCQRCODE",
                         CoNhieuNhaMay = false,
                         AddNmMacDinh = 1,
-                        TenNhaMay = "'YAMAHA - VIET NAM'",
+                        TenNhaMay = "YAMAHA - VIET NAM",
                         LoadTheoNgay = false,
                         RequirePoRelNo = false,
                         CoGear = true,

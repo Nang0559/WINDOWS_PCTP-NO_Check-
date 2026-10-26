@@ -115,4 +115,15 @@ public sealed class OrderTableSourceContractTests
         Assert.Contains(NormalizeSql("Note' + @LuuPoCols + N'"), sql, StringComparison.Ordinal);
         Assert.Contains(NormalizeSql("LEFT(tmp.Note, 250)' + @LuuPoSel + N'"), sql, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void CustomerTableConfig_TenNhaMay_IsPlainValueNotSqlLiteral()
+    {
+        // TenNhaMay duoc so sanh bang NHAMAY = '...' voi ledger va in ra phieu, nen phai la
+        // gia tri thuan (ledger: 'YAMAHA - VIET NAM'). Chi NhaMayCase la bieu thuc SQL co dau nhay.
+        var config = ReadSource("CustomerTableConfig.source.cs");
+
+        Assert.DoesNotContain("TenNhaMay = \"'", config, StringComparison.Ordinal);
+        Assert.Contains("TenNhaMay = \"YAMAHA - VIET NAM\"", config, StringComparison.Ordinal);
+    }
 }
