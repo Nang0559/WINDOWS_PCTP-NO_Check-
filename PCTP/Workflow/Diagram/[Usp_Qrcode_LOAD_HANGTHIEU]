@@ -1,0 +1,100 @@
+USE [B7R2_FCC]
+GO
+
+/****** Object:  StoredProcedure [dbo].[Usp_Qrcode_LOAD_HANGTHIEU]    Script Date: 9/8/2026 3:33:10 PM ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+
+CREATE PROC [dbo].[Usp_Qrcode_LOAD_HANGTHIEU]
+
+AS
+BEGIN
+    SET NOCOUNT ON;
+	
+	DECLARE  @MAHANG NVARCHAR(56),@TTSLGIAO as int, @NGAYGIAO smalldatetime ,@GIOGIAO  nvarchar(50)
+	
+	IF OBJECT_ID ('TempDb..#TMPHANGTHIEU')  IS NOT NULL DROP TABLE #TMPHANGTHIEU
+		SELECT top 0 MAHANG as MH,SOLUONG as SLGIAO ,SOLUONG as SLTHIEU,GIOGIAO
+		INTO #TMPHANGTHIEU
+		FROM tmpphieugiaohang
+	
+	----Duyệt
+	        declare @MaxDaGiao int = 0
+			if exists (select * from LUUPHIEUGIAOHANG  where NGAYGIAO = (select top 1 NGAYGIAO from TBL_TT_MA) and len(GIOGIAO)<4)
+			begin
+				select @MaxDaGiao = max(cast( case when CHARINDEX('h',giogiao,1) >0
+				then substring(giogiao,1,2)
+				else
+				giogiao
+				end
+				as int)) from LUUPHIEUGIAOHANG  where NGAYGIAO <= (select top 1 NGAYGIAO from TBL_TT_MA) and len(GIOGIAO)<4
+			end
+			else
+			set @MaxDaGiao = 0
+		-- Duyet tong
+			DECLARE IFSPGH CURSOR FOR
+			select MAHANG,sum(TTSLG) as TTSLG  from TBL_TT_MA  where cast(GIOGIAO as int) >@MaxDaGiao  group by MAHANG
+			OPEN IFSPGH
+			FETCH NEXT FROM IFSPGH into @MAHANG,@TTSLGIAO
+			WHILE @@FETCH_STATUS = 0
+				BEGIN
+					  declare @TK int,@SLT int
+					  select @TK = sum(slconlai) from STOCKTP where SLCONLAI>0 and PART= @MAHANG
+					  if(@TK<@TTSLGIAO)
+						begin
+								DECLARE @SLGIAO int
+								DECLARE DUYETHT CURSOR FOR
+								select MAHANG,sum(TTSLG) as TTSLG,GIOGIAO  from TBL_TT_MA  where cast(GIOGIAO as int) > @MaxDaGiao and MAHANG = @MAHANG group by MAHANG,GIOGIAO order by cast(GIOGIAO as int) asc
+								OPEN DUYETHT
+								FETCH NEXT FROM DUYETHT into @MAHANG,@SLGIAO,@GIOGIAO
+									WHILE @@FETCH_STATUS = 0
+										begin
+											if(@TK > 0 )
+												begin
+												if(@SLGIAO < @TK )
+												  begin
+													set @TK= @TK- @SLGIAO
+													set @TTSLGIAO= @TTSLGIAO- @SLGIAO
+												  end
+												else
+												  begin
+													set @SLT= @SLGIAO- @TK
+													set @TK=0
+													insert into #TMPHANGTHIEU values(@MAHANG,@SLGIAO,@SLT,@GIOGIAO)
+													
+												  end
+											  end
+											else
+											    insert into #TMPHANGTHIEU values(@MAHANG,@SLGIAO,@SLGIAO,@GIOGIAO)
+										  FETCH NEXT FROM DUYETHT into  @MAHANG,@SLGIAO,@GIOGIAO
+									    END
+								CLOSE DUYETHT
+								DEALLOCATE DUYETHT
+						end		
+						FETCH NEXT FROM IFSPGH into  @MAHANG,@TTSLGIAO
+				 END
+				  -------------------------------
+				
+			
+			CLOSE IFSPGH
+			DEALLOCATE IFSPGH
+		
+	
+	select * from #TMPHANGTHIEU
+	-- Xuất KQ
+	
+END
+
+--exec Usp_Qrcode_LOAD_HANGTHIEU
+
+--select sum(slconlai) from STOCKTP where PART= '23010-K1N-V010-M1' and SLCONLAI >0
+
+
+--select MAHANG,sum(TTSLG) as TTSLG,GIOGIAO  from TBL_TT_MA  where cast(GIOGIAO as int) > 6 and MAHANG = '23010-K1N-V010-M1' group by MAHANG,GIOGIAO order by cast(GIOGIAO as int) asc
+GO
+
+

@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 1,
+  "branch": "feature/pctp-qc-test-platform",
+  "implementation": {
+    "QR-004": {
+      "status": "planned",
+      "evidence": [
+        "QrCodeWorkflowAdapterTests plus RemainingQcCaseContractTests verify production parser-to-StockMovementRequest mapping for receiving and delivery. Actual UI handlers, isolated SQL persistence/replay, and cross-ledger reconciliation remain runtime acceptance gates."
+      ]
+    },
+    "DEL-003": {
+      "status": "planned",
+      "evidence": [
+        "DeliveryProductionBoundaryTests guards the production PhieuKhoRepository UoW ordering and rollback source contract. Full Usp_Qrcode_Update_Stock2405 + PhieuKhoRepository execution against a DBA-provisioned isolated business-schema copy remains a runtime acceptance gate."
+      ]
+    },
+    "DEL-007": {
+      "status": "planned",
+      "evidence": [
+        "DeliveryProductionBoundaryTests and DeliveryTransactionContractTests guard source-level transaction/savepoint/idempotency contracts. Full production procedure + repository finalization/rollback remains unexecuted against an isolated business-schema copy."
+      ]
+    },
+    "RWK-001": {
+      "status": "implemented",
+      "evidence": [
+        "QcFinalDomainInvariantTests",
+        "ReworkWorkflowTransactionTests"
+      ]
+    },
+    "RWK-002": {
+      "status": "implemented",
+      "evidence": [
+        "StockMovementService quarantine export/move guard",
+        "QuarantineReleaseService",
+        "QuarantineReleaseServiceTests"
+      ]
+    },
+    "RWK-003": {
+      "status": "implemented",
+      "evidence": [
+        "ReworkWorkflowTransaction",
+        "ReworkWorkflowTransactionTests"
+      ]
+    },
+    "PERF-001": {
+      "status": "implemented",
+      "evidence": [
+        "PerformanceContractTests.QcFinal_SyntheticWorkload_HasBoundedExecution runs 100/1,000/5,000 synthetic domain-validation records with bounded thresholds. This is a synthetic CPU/domain baseline, not production database/UI latency."
+      ]
+    },
+    "PERF-002": {
+      "status": "implemented",
+      "evidence": [
+        "PerformanceContractTests.RepeatedAndConcurrentLotRequests_ClaimExactlyOnceWithoutQueueGrowth checks 3,200 concurrent duplicate claim attempts against a concurrent in-memory claim set. This is a concurrency contract, not SQL lock/connection-pool performance acceptance."
+      ]
+    },
+    "UI-001": {
+      "status": "runtime-acceptance-required",
+      "evidence": [
+        "Invoke-PctpUiJourney.ps1 runner exists",
+        "business journey manifest still requires Windows execution against the real PCTP executable and stable accessible controls"
+      ]
+    },
+    "QC-RELEASE-001": {
+      "status": "planned",
+      "evidence": [
+        "QuarantineReleaseServiceTests verify authorization/QC gates and unit-of-work rollback; QuarantineReleaseScenario verifies SQL-engine fixture behavior only. Production authorization/repository adapters against isolated business schema remain unproven."
+      ]
+    },
+    "RWK-008": {
+      "status": "planned",
+      "evidence": [
+        "RemainingQcCaseContractTests verifies the production NG movement/status-3/no-STOCKTP-credit source path; persisted SQL postconditions and injected rollback against an isolated business schema remain required."
+      ]
+    }
+  },
+  "runtimeGates": [
+    "Run the full SQL harness against the fixed test endpoint 192.168.200.57/B7R2_FCC with credentials supplied via environment variables.",
+    "Deploy SQL/PCTPQuarantineRelease.sql before production release is enabled.",
+    "Run the Windows UI journey against a disposable QC data set; production 192.168.200.14\\BRAVO remains blocked."
+  ]
+}

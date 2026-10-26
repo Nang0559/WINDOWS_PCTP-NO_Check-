@@ -1,0 +1,37 @@
+﻿using DevExpress.XtraCharts.Native;
+using PCTP.Modules.XuatKho.Models;
+using PCTP.Modules.XuLyHangLoi.Models;
+using PCTP.Shared.Enums;
+using System;
+using System.Collections.Generic;
+using System.Data.SqlClient;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace PCTP.Modules.XuatKho.Interfaces
+{
+    public interface IHangChoGiaoRepository
+    {
+        int Insert(HangChoGiao item);
+
+        void InsertPickDetails(int hangChoGiaoId, int slotId, IList<PCTP.Modules.KhoCore.Application.Contracts.Stock.StockSlotLot> lots);
+        IList<PCTP.Modules.KhoCore.Application.Contracts.Stock.StockSlotLot> GetPickDetails(int hangChoGiaoId);
+        List<HangChoGiao> GetPending();
+
+        /// <summary>Đọc kèm khoá dòng (SELECT ... WITH (UPDLOCK, ROWLOCK)) — PHẢI gọi trong transaction.</summary>
+        HangChoGiao GetForUpdate(int id);
+
+        HangChoGiao GetById(int id);
+
+        void UpdateStatus(int id, HangChoGiaoStatus status, string nguoiGiao = null);
+
+        List<HangChoGiao> GetByReference(StockExportReferenceType type, int referenceId, HangChoGiaoStatus? status = null);
+
+        List<HangChoGiao> CloseChoGiaoTheoLotAndReturn(
+           SqlConnection conn,
+           SqlTransaction tran,
+           List<string> lots,
+           string nguoiGiao = null);
+    }
+}

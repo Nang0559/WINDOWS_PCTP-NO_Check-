@@ -1,0 +1,68 @@
+create PROC [dbo].[Usp_gheplotPrint]
+    @MACHINE          NVARCHAR(50),
+    @_Id              INT = NULL,
+    @_DocDate         NVARCHAR(16) = '',
+    @_ReceiptItemCode NVARCHAR(24) = '',
+    @_LOTTMP          NVARCHAR(600) = ''
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET FMTONLY OFF;
+
+    IF OBJECT_ID('TempDb..#CtTmp') IS NOT NULL DROP TABLE #CtTmp
+    SELECT TOP 0 ItemCode AS Model, ItemCode AS ShiftCode, CAST(0 AS NUMERIC(18,0)) AS Quantity9,
+        itemcode AS DocDate, ItemCode, ItemName, ItemName AS ItemLotCode, EmployeeCode,
+        CAST(N'' AS NVARCHAR(10)) AS Group1, DeptName, CAST(N'' AS NVARCHAR(256)) AS QRCODE
+    INTO #CtTmp
+    FROM dbo.B00CtTmp
+
+    EXECUTE dbo.usp_sys_DefaultTable '#CtTmp'
+
+    DECLARE MY_CURSOR CURSOR LOCAL STATIC READ_ONLY FORWARD_ONLY FOR
+        -- ✅ CHỈ đọc dữ liệu của ĐÚNG máy đang in — không lẫn máy khác
+        SELECT DISTINCT LOT, MAHANG
+        FROM TMPLOTGHEP
+        WHERE MachineName = @MACHINE
+
+    OPEN MY_CURSOR
+    FETCH NEXT FROM MY_CURSOR INTO @_LOTTMP, @_ReceiptItemCode
+    WHILE @@FETCH_STATUS = 0
+    BEGIN
+        DECLARE @nsx AS NVARCHAR(6) = '', @_d AS NVARCHAR(2) = '', @_m AS NVARCHAR(2) = '', @_y AS NVARCHAR(2) = '',
+                @_ItemName AS NVARCHAR(50), @_Model AS NVARCHAR(25),
+                @_ItemLotCodeTP NVARCHAR(25), @_SL INT = 0,
+                @_ShiftCode AS INT, @_QRCODE NVARCHAR(256), @_LOT AS NVARCHAR(25)
+
+        DECLARE TT_CURSOR CURSOR LOCAL STATIC READ_ONLY FORWARD_ONLY FOR
+            SELECT * FROM Split(@_LOTTMP, ',')
+
+        OPEN TT_CURSOR
+        FETCH NEXT FROM TT_CURSOR INTO @_LOT
+        WHILE @@FETCH_STATUS = 0
+        BEGIN
+            SET @_SL = @_SL + CAST(RTRIM(SUBSTRING(@_Lot, CHARINDEX('-',@_Lot)+1, LEN(@_Lot)-CHARINDEX('-',@_Lot,1))) AS INT)
+            FETCH NEXT FROM TT_CURSOR INTO @_LOT
+        END
+        CLOSE TT_CURSOR
+        DEALLOCATE TT_CURSOR
+
+        SELECT @_ItemName = Name, @_Model = model FROM B20Item WHERE Code = @_ReceiptItemCode
+
+        SET @nsx = LEFT(@_LOTTMP, 6)
+        SET @_d = RIGHT(@nsx, 2)
+        SET @_m = SUBSTRING(@nsx, 3, 2)
+        SELECT @_y = LEFT(@nsx, 2)
+        SET @_DocDate = @_d + '/' + @_m + '/' + @_y
+        SET @_ShiftCode = SUBSTRING(@_LOTTMP, 12, 1)
+        SET @_QRCODE = LTRIM(RTRIM(@_LOTTMP)) + ':' + LTRIM(RTRIM(@_ReceiptItemCode)) + ':' + LTRIM(RTRIM(@_DocDate)) + ':' + CAST(@_SL AS NVARCHAR(10))
+
+        INSERT INTO #CtTmp (Model, ShiftCode, Quantity9, DocDate, ItemCode, ItemName, ItemLotCode, EmployeeCode, Group1, DeptName, QRCODE)
+        VALUES (@_Model, @_ShiftCode, @_SL, @_DocDate, @_ReceiptItemCode, @_ItemName, @_LOTTMP, '', '', '', @_QRCODE)
+
+        FETCH NEXT FROM MY_CURSOR INTO @_LOTTMP, @_ReceiptItemCode
+    END
+    CLOSE MY_CURSOR
+    DEALLOCATE MY_CURSOR
+
+    SELECT * FROM #CtTmp
+END

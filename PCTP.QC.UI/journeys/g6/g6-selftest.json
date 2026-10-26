@@ -1,0 +1,40 @@
+{
+  "name": "g6-selftest",
+  "purpose": "Proves the sql-seed / sql-assert / sql-cleanup mechanics (prefix scoping, postcondition, cleanup-to-zero) without touching any business table.",
+  "dataMutation": true,
+  "scenario": {
+    "id": "G6-000",
+    "title": "G6 framework self-test",
+    "description": "Seeds two rows into a session-local #temp table with the run prefix, asserts the count via SQL, deletes them and verifies Remaining = 0. No UI interaction beyond app startup."
+  },
+  "testData": {
+    "note": "prefix and runId are injected by the runner"
+  },
+  "steps": [
+    {
+      "id": "seed",
+      "action": "sql-seed",
+      "mutatesData": true,
+      "sqlFile": "sql/selftest/seed.sql",
+      "expectRowsAtLeast": 2,
+      "description": "Seed 2 rows with prefix {{prefix}}"
+    },
+    {
+      "id": "assert-seeded",
+      "action": "sql-assert",
+      "sqlFile": "sql/selftest/assert.sql",
+      "expectColumns": {
+        "N": 2
+      },
+      "description": "SQL postcondition: exactly 2 seeded rows exist"
+    },
+    {
+      "id": "cleanup",
+      "action": "sql-cleanup",
+      "mutatesData": true,
+      "sqlFile": "sql/selftest/cleanup.sql",
+      "verifySqlFile": "sql/selftest/verify.sql",
+      "description": "Delete seeded rows and verify none remain"
+    }
+  ]
+}

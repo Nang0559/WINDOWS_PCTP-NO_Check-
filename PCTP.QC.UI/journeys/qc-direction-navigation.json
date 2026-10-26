@@ -1,0 +1,67 @@
+{
+  "name": "qc-direction-navigation",
+  "purpose": "Read-only navigation smoke: open the unified defect workflow screen from the defect workflow menu.",
+  "dataMutation": false,
+  "scenario": {
+    "id": "UI-006",
+    "title": "Mở màn hình quy trình hàng lỗi tại bước QC định hướng",
+    "description": "Điều hướng chỉ đọc: menu này mở màn hình quy trình hàng lỗi dùng chung (WarehouseProcessNavigator.OpenQCDinhHuong/OpenQCXacNhanCuoi -> OpenQuanLyTienTrinhHangLoi). Form chi tiết (FormQCDinhHuong/FormQCXacNhanCuoi) chỉ mở ShowDialog từ một dòng phiếu đã seed -> thuộc journey G6, không kiểm ở đây."
+  },
+  "testData": {
+    "menuPath": "Xử lý hàng lỗi > QC chờ định hướng",
+    "expectedWindowTitle": "Quản lý tiến trình Xử lý hàng lỗi"
+  },
+  "steps": [
+    {
+      "id": "expand-defect-menu",
+      "action": "expand",
+      "automationId": "E_Trahang",
+      "fallbackName": "Xử lý hàng lỗi",
+      "description": "Mở nhóm menu 'Xử lý hàng lỗi'"
+    },
+    {
+      "id": "open-qc-direction",
+      "action": "click",
+      "automationId": "accordionControlElement_QCDinhHuong",
+      "waitAfterMs": 800,
+      "fallbackName": "QC chờ định hướng",
+      "description": "Chọn mục menu 'QC chờ định hướng' ({{menuPath}})"
+    },
+    {
+      "id": "qc-direction-screen-visible",
+      "action": "wait-for-window",
+      "value": "{{expectedWindowTitle}}",
+      "timeoutSeconds": 45,
+      "description": "Chờ màn hình đích xuất hiện",
+      "expected": "Cửa sổ có tiêu đề '{{expectedWindowTitle}}' hiển thị",
+      "dump": true
+    },
+    {
+      "id": "verify-qc-direction-title",
+      "action": "assert-window-title",
+      "value": "{{expectedWindowTitle}}",
+      "description": "Xác nhận tiêu đề cửa sổ"
+    },
+    {
+      "id": "workflow-step-04-exposed",
+      "action": "assert-exists",
+      "automationId": "rework_step_04",
+      "description": "Nút timeline 'rework_step_04' phải tồn tại trên màn hình quy trình",
+      "expected": "'rework_step_04' hiển thị",
+      "expect": [
+        {
+          "automationId": "rework_step_04",
+          "property": "name",
+          "contains": "QC định hướng"
+        }
+      ]
+    },
+    {
+      "id": "workflow-worklist-grid-exposed",
+      "action": "assert-exists",
+      "automationId": "rework_worklistGrid",
+      "description": "Control 'rework_worklistGrid' phải tồn tại",
+      "expected": "'rework_worklistGrid' hiển thị"
+    }
+  ]
+}

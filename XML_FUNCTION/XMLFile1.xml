@@ -1,0 +1,21 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+
+<rules>
+	<required target="txtRequired.Text" errorMessage="this field cannot be empty."/>
+	<rangeInt target="txtInt.Text" minValue="0" maxValue="70" errorMessage="Value {v:value} is not in the range : {v:min} - {v:max}"/>
+	<rangeDouble target="txtDouble.Text" minValue="30" maxValue="30.88" errorMessage="incorrect range"/>
+	<regExp target="txtEmail.Text" exp="\w+([-+.]\w+)*@\w+([-.]\w+)*\.\w+([-.]\w+)*" errorMessage="incorrect email. check format" when="cbEmailCondition.Checked = true"/>
+	<!-- 
+  <rangeInt target="txtRequired.Text.Length" minValue="1" errorMessage="stupid but ok!"/>
+  -->
+
+<validator type="requiredstring">
+	<param name="fieldname">personBean.phoneNumber</param>
+	<message>Phone number is required.</message>
+</validator>
+<validator type="regex">
+	<param name="fieldname">personBean.phoneNumber</param>
+	<param name="regex"><![CDATA[\d{3}-\d{3}-\d{4}]]></param>
+	<message>Phone number must be entered as 999-999-9999.</message>
+</validator>
+</rules>

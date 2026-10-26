@@ -1,0 +1,42 @@
+﻿using PCTP.Modules.KhoCore.Models;
+using PCTP.Shared.Models;
+using System.Collections.Generic;
+
+
+namespace PCTP.Modules.KhoVatLy.Repositories
+{
+    public interface IRackRepository
+    {
+        int Create(int warehouseId, string rackName, int rowCount, int columnCount);
+        
+        Rack GetById(int rackId);
+
+        List<Rack> GetRacksByWarehouse(int warehouseId);
+
+        int Insert(int warehouseId, Rack rack);
+
+        void Update(Rack rack);
+
+        void Delete(int rackId);
+
+        bool Exists(
+            int warehouseId,
+            string rackName);
+
+        int GetRackId(
+            int warehouseId,
+            string rackName);
+
+        void UpdateLayout(
+            int rackId,
+            int rowCount,
+            int columnCount);
+        /// <summary>Tạo 1 Slot trống trong Rack — dùng khi đăng ký Rack mới với N Slot.</summary>
+        void InsertSlot(int rackId, int slotNumber, int capacity);
+
+        List<RackRenderInfo> GetRackRenderInfos();
+        /// <summary>Xóa Rack cùng toàn bộ Slot của nó trong 1 transaction.</summary>
+        void DeleteCascade(int rackId);
+
+    }
+}

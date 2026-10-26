@@ -1,0 +1,74 @@
+{
+  "name": "rework-navigation",
+  "purpose": "Read-only navigation smoke: open the defect/rework workflow worklist.",
+  "dataMutation": false,
+  "scenario": {
+    "id": "UI-006",
+    "title": "Mở worklist Xử lý hàng lỗi",
+    "description": "Điều hướng chỉ đọc: mở worklist hàng lỗi; không bấm nút xác nhận/tạo phiếu."
+  },
+  "testData": {
+    "menuPath": "Xử lý hàng lỗi > Quản lý tiến trình",
+    "expectedWindowTitle": "Quản lý tiến trình Xử lý hàng lỗi"
+  },
+  "steps": [
+    {
+      "id": "expand-defect-menu",
+      "action": "expand",
+      "automationId": "E_Trahang",
+      "fallbackName": "Xử lý hàng lỗi",
+      "description": "Mở nhóm menu 'Xử lý hàng lỗi'"
+    },
+    {
+      "id": "open-rework-worklist",
+      "action": "click",
+      "automationId": "trahangndHVN",
+      "waitAfterMs": 1200,
+      "fallbackName": "Quản lý tiến trình",
+      "description": "Chọn mục menu 'Quản lý tiến trình' ({{menuPath}})"
+    },
+    {
+      "id": "rework-screen-visible",
+      "action": "wait-for-window",
+      "value": "{{expectedWindowTitle}}",
+      "timeoutSeconds": 45,
+      "description": "Chờ màn hình đích xuất hiện",
+      "expected": "Cửa sổ có tiêu đề '{{expectedWindowTitle}}' hiển thị",
+      "dump": true
+    },
+    {
+      "id": "verify-rework-title",
+      "action": "assert-window-title",
+      "value": "{{expectedWindowTitle}}",
+      "description": "Xác nhận tiêu đề cửa sổ"
+    },
+    {
+      "id": "rework-search-exposed",
+      "action": "assert-exists",
+      "automationId": "rework_search",
+      "description": "Control 'rework_search' phải tồn tại trên màn hình",
+      "expected": "'rework_search' hiển thị"
+    },
+    {
+      "id": "rework-grid-exposed",
+      "action": "assert-exists",
+      "automationId": "rework_worklistGrid",
+      "description": "Control 'rework_worklistGrid' phải tồn tại trên màn hình",
+      "expected": "'rework_worklistGrid' hiển thị"
+    },
+    {
+      "id": "rework-primary-action-exposed",
+      "action": "assert-exists",
+      "automationId": "rework_btnPrimaryAction",
+      "description": "Control 'rework_btnPrimaryAction' phải tồn tại trên màn hình",
+      "expected": "'rework_btnPrimaryAction' hiển thị",
+      "expect": [
+        {
+          "automationId": "rework_btnCreateAbnormal",
+          "property": "name",
+          "contains": "Tạo phiếu bất thường"
+        }
+      ]
+    }
+  ]
+}

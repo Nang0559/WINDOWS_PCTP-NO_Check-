@@ -1,0 +1,76 @@
+{
+  "name": "receive-navigation",
+  "purpose": "Read-only navigation smoke: open the real receiving workflow screen from the PCTP menu.",
+  "dataMutation": false,
+  "scenario": {
+    "id": "UI-003",
+    "title": "Mở worklist Nhập kho từ menu",
+    "description": "Điều hướng chỉ đọc: mở màn hình Quản lý tiến trình Nhập kho; không quét QR, không ghi phiếu nhập."
+  },
+  "testData": {
+    "menuPath": "Nhập Kho > Nhập thành phẩm - QR",
+    "expectedWindowTitle": "Quản lý tiến trình Nhập kho"
+  },
+  "steps": [
+    {
+      "id": "expand-receive-menu",
+      "action": "expand",
+      "automationId": "NHAccordionControlElement",
+      "fallbackName": "Nhập Kho",
+      "description": "Mở nhóm menu 'Nhập Kho'"
+    },
+    {
+      "id": "open-receive-workflow",
+      "action": "click",
+      "automationId": "E_NhapTP",
+      "waitAfterMs": 1200,
+      "fallbackName": "Nhập thành phẩm - QR",
+      "description": "Chọn mục menu 'Nhập thành phẩm - QR' ({{menuPath}})"
+    },
+    {
+      "id": "receiving-screen-visible",
+      "action": "wait-for-window",
+      "value": "{{expectedWindowTitle}}",
+      "timeoutSeconds": 45,
+      "description": "Chờ màn hình đích xuất hiện",
+      "expected": "Cửa sổ có tiêu đề '{{expectedWindowTitle}}' hiển thị",
+      "dump": true
+    },
+    {
+      "id": "verify-receiving-title",
+      "action": "assert-window-title",
+      "value": "{{expectedWindowTitle}}",
+      "description": "Xác nhận tiêu đề cửa sổ"
+    },
+    {
+      "id": "receiving-scan-control-exposed",
+      "action": "assert-exists",
+      "automationId": "receive_btnScan",
+      "description": "Control 'receive_btnScan' phải tồn tại trên màn hình",
+      "expected": "'receive_btnScan' hiển thị",
+      "expect": [
+        {
+          "automationId": "receive_btnScan",
+          "property": "name",
+          "contains": "Quét nhập"
+        }
+      ]
+    },
+    {
+      "id": "receiving-refresh-control-exposed",
+      "action": "assert-exists",
+      "automationId": "receive_btnRefresh",
+      "fallbackName": "Làm mới",
+      "description": "Nút làm mới worklist phải được expose riêng, không dùng làm điều kiện cho grid",
+      "expected": "Nút Làm mới tồn tại"
+    },
+    {
+      "id": "receiving-worklist-grid-exposed",
+      "action": "assert-exists",
+      "automationId": "receive_worklistGrid",
+      "description": "Control 'receive_worklistGrid' phải tồn tại trên màn hình. Kiểm tra nút refresh ở bước riêng.",
+      "expected": "'receive_worklistGrid' hiển thị",
+      "expect": []
+    }
+  ]
+}

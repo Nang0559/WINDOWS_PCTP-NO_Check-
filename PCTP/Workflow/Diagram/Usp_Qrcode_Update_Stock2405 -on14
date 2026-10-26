@@ -1,0 +1,1236 @@
+  
+CREATE PROC [dbo].[Usp_Qrcode_Update_Stock2405]  
+    @GIOGIAOFCC  NVARCHAR(250) = N'',  
+    @NHAMAY      NVARCHAR(250) = N'',  
+    @TMPTABLE    NVARCHAR(128) = N'TMPPHIEUGIAOHANG',  
+    @DOCQRTABLE  NVARCHAR(128) = N'DOCQRCODE'  
+AS  
+BEGIN  
+    SET NOCOUNT ON;  
+    SET XACT_ABORT ON;  
+  
+    ----------------------------------------------------------------------  
+    -- LOT RULE  
+    --  
+    -- LOT KEY = LEFT(LOT,13)  
+    --  
+    -- 1-6   : YYMMDD  
+    -- 7-11  : ItemCode  
+    -- 12    : ShiftCode  
+    -- 13    : Gear  
+    --  
+    -- 14-16 : MachineCode - không tham gia LOT KEY  
+    -- 17-20 : LineCode    - không tham gia LOT KEY  
+    --  
+    -- FIFO:  
+    --   YYMMDD  
+    --   -> ShiftCode  
+    --   -> LOT KEY  
+    ----------------------------------------------------------------------  
+  
+    ----------------------------------------------------------------------  
+    -- 1. WHITELIST  
+    ----------------------------------------------------------------------  
+    IF @TMPTABLE NOT IN  
+    (  
+        N'TMPPHIEUGIAOHANG',  
+        N'TMPPHIEUGIAOHANG_SP',  
+        N'TMPPHIEUGIAOHANG_100003'  
+    )  
+    BEGIN  
+        RAISERROR  
+        (  
+            N'Tên bảng TMPTABLE không hợp lệ: %s',  
+            16,  
+            1,  
+            @TMPTABLE  
+        );  
+  
+        RETURN;  
+    END;  
+  
+    IF @DOCQRTABLE NOT IN  
+    (  
+        N'DOCQRCODE',  
+        N'DOCQRCODE_SP',  
+        N'DOCQRCODE_100003'  
+    )  
+    BEGIN  
+        RAISERROR  
+        (  
+            N'Tên bảng DOCQRTABLE không hợp lệ: %s',  
+            16,  
+            1,  
+            @DOCQRTABLE  
+        );  
+  
+        RETURN;  
+    END;  
+  
+    ----------------------------------------------------------------------  
+    -- 2. VARIABLES  
+    ----------------------------------------------------------------------  
+    DECLARE @NgayGiao SMALLDATETIME =  
+        CAST(GETDATE() AS SMALLDATETIME);  
+  
+    DECLARE @sql NVARCHAR(MAX);  
+  
+    DECLARE  
+        @_LOT        NVARCHAR(MAX),  
+        @_SLCONLAI   INT,  
+        @STT         INT,  
+        @MH          NVARCHAR(60),  
+        @_LOTSL_Tach NVARCHAR(500),  
+        @_LOTOK      NVARCHAR(500),  
+        @_SLOK       INT,  
+        @_KTPC       INT,  
+        @_LOTUD      NVARCHAR(500),  
+        @_SLUD       INT,  
+        @_STTUD      INT,  
+        @_STUP       NVARCHAR(15);  
+  
+    ----------------------------------------------------------------------  
+    -- 3. TEMP TABLE  
+    ----------------------------------------------------------------------  
+    IF OBJECT_ID('TempDb..#TMPUPDATE') IS NOT NULL  
+        DROP TABLE #TMPUPDATE;  
+  
+    IF OBJECT_ID('TempDb..#STOK') IS NOT NULL  
+        DROP TABLE #STOK;  
+  
+    IF OBJECT_ID('TempDb..#STNG') IS NOT NULL  
+        DROP TABLE #STNG;  
+  
+    IF OBJECT_ID('TempDb..#PHIEU') IS NOT NULL  
+        DROP TABLE #PHIEU;  
+  
+    IF OBJECT_ID('TempDb..#GomNhomCheck') IS NOT NULL  
+        DROP TABLE #GomNhomCheck;  
+  
+    IF OBJECT_ID('TempDb..#SplitResult') IS NOT NULL  
+        DROP TABLE #SplitResult;  
+  
+    CREATE TABLE #TMPUPDATE  
+    (  
+        STT     INT,  
+        MH      NVARCHAR(60),  
+        LOT     NVARCHAR(MAX),  
+        SOLUONG INT,  
+        STATUS  NVARCHAR(50)  
+    );  
+  
+    CREATE TABLE #STOK  
+    (  
+        STT     INT,  
+        LOT     NVARCHAR(MAX),  
+        SOLUONG INT,  
+        STATUS  NVARCHAR(50)  
+    );  
+  
+    CREATE TABLE #STNG  
+    (  
+        MH       NVARCHAR(100),  
+        LOT      NVARCHAR(MAX),  
+        SLCAN    INT,  
+        SLCO     INT,  
+        SLTHIEU  INT,  
+        STATUS   NVARCHAR(500)  
+    );  
+  
+    CREATE TABLE #PHIEU  
+    (  
+        STT INT,  
+        LOT NVARCHAR(MAX),  
+        MH  NVARCHAR(60)  
+    );  
+  
+    BEGIN TRY  
+  
+        ------------------------------------------------------------------  
+        -- 4. NẠP PHIẾU  
+        ------------------------------------------------------------------  
+        SET @sql = N'  
+            INSERT INTO #PHIEU  
+            (  
+                STT,  
+                LOT,  
+                MH  
+            )  
+            SELECT  
+         STT,  
+                LOT,  
+                MAHANG  
+            FROM [' + @TMPTABLE + N']  
+            WHERE ISNULL(LOT, '''') <> ''''  
+              AND (STATUS <> ''OK'' OR STATUS IS NULL);';  
+  
+        EXEC sp_executesql @sql;  
+  
+        ------------------------------------------------------------------  
+        -- KHÔNG CÓ DỮ LIỆU  
+        ------------------------------------------------------------------  
+        IF NOT EXISTS  
+        (  
+            SELECT 1  
+            FROM #PHIEU  
+        )  
+        BEGIN  
+  
+            SELECT  
+                STT,  
+                LOT,  
+                SOLUONG,  
+                STATUS  
+            FROM #STOK;  
+  
+            SELECT  
+                MH,  
+                LOT,  
+                SLCAN AS SLC,  
+                SLCO AS SLTK,  
+                SLTHIEU AS SLT,  
+                STATUS  
+            FROM #STNG;  
+  
+            RETURN;  
+        END;  
+  
+        ------------------------------------------------------------------  
+        -- 5. DUYỆT PHIẾU  
+        ------------------------------------------------------------------  
+        DECLARE PGH CURSOR LOCAL FAST_FORWARD FOR  
+            SELECT  
+                STT,  
+                LOT,  
+                MH  
+            FROM #PHIEU;  
+  
+        OPEN PGH;  
+  
+        FETCH NEXT FROM PGH  
+        INTO  
+            @STT,  
+            @_LOT,  
+            @MH;  
+  
+        WHILE @@FETCH_STATUS = 0  
+        BEGIN  
+  
+            ----------------------------------------------------------------  
+            -- 5.1 KIỂM TRA PHIẾU ĐÃ LƯU  
+            ----------------------------------------------------------------  
+            DECLARE @DaTon BIT = 0;  
+  
+            DECLARE @CheckResult TABLE  
+            (  
+                Found INT  
+            );  
+  
+            SET @sql = N'  
+                SELECT TOP 1  
+                    1  
+                FROM [' + @TMPTABLE + N'] tmp  
+                INNER JOIN LUUPHIEUGIAOHANG luu  
+                    ON RTRIM(luu.MAHANG) =  
+                       RTRIM(tmp.MAHANG)  
+  
+                   AND CAST(luu.NGAYGIAO AS DATE) =  
+                       CAST(tmp.NGAYGIAO AS DATE)  
+  
+                   AND RTRIM(luu.CUA) =  
+                       RTRIM(tmp.CUA)  
+  
+                   AND RTRIM(luu.TRUYEN) =  
+                       RTRIM(tmp.TRUYEN)  
+  
+                   AND luu.SOLUONG =  
+                       tmp.SOLUONG  
+  
+                   AND RTRIM(luu.GIOGIAO) =  
+                       RTRIM(tmp.GIOGIAO)  
+  
+                   AND RTRIM(luu.NHAMAY) =  
+                       RTRIM(LEFT(@NHAMAY, 50))  
+  
+                WHERE tmp.STT = @STT;';  
+  
+            INSERT INTO @CheckResult  
+            EXEC sp_executesql  
+                @sql,  
+                N'@NHAMAY NVARCHAR(250),  
+                  @STT INT',  
+                @NHAMAY,  
+                @STT;  
+  
+            IF EXISTS  
+            (  
+                SELECT 1  
+                FROM @CheckResult  
+            )  
+            BEGIN  
+                SET @DaTon = 1;  
+            END;  
+  
+            DELETE FROM @CheckResult;  
+  
+            ----------------------------------------------------------------  
+            -- 5.2 PHIẾU ĐÃ TỒN TẠI  
+            ----------------------------------------------------------------  
+            IF @DaTon = 1  
+            BEGIN  
+  
+                INSERT INTO #STNG  
+                (  
+                    MH,  
+                    LOT,  
+                    SLCAN,  
+                    SLCO,  
+                    SLTHIEU,  
+                    STATUS  
+                )  
+                VALUES  
+                (  
+                    @MH,  
+                    @_LOT,  
+                    0,  
+                    0,  
+                    0,  
+                    N'Mã hàng này đã được lưu trước đó!'  
+                );  
+  
+            END  
+            ELSE  
+            BEGIN  
+  
+                ----------------------------------------------------------------  
+                -- 5.3 TÁCH LOT-SL  
+                ----------------------------------------------------------------  
+                IF OBJECT_ID('TempDb..#SplitResult') IS NOT NULL  
+                    DROP TABLE #SplitResult;  
+  
+                CREATE TABLE #SplitResult  
+                (  
+                    LotTach NVARCHAR(500)  
+                );  
+  
+                INSERT INTO #SplitResult  
+                SELECT *  
+                FROM dbo.Split(@_LOT, ',');  
+  
+                DECLARE LOT_IN_PGH CURSOR LOCAL FAST_FORWARD FOR  
+                    SELECT  
+                        LotTach  
+                    FROM #SplitResult;  
+  
+                OPEN LOT_IN_PGH;  
+  
+                FETCH NEXT FROM LOT_IN_PGH  
+                INTO @_LOTSL_Tach;  
+  
+                WHILE @@FETCH_STATUS = 0  
+                BEGIN  
+  
+                    SET @_KTPC =  
+                        CHARINDEX('-', @_LOTSL_Tach);  
+  
+                    ----------------------------------------------------------------  
+                    -- LOT-SL hợp lệ  
+                    ----------------------------------------------------------------  
+                    IF @_KTPC > 1  
+                    BEGIN  
+  
+                        SET @_LOTOK =  
+                            SUBSTRING  
+                            (  
+                                @_LOTSL_Tach,  
+                                1,  
+                                @_KTPC - 1  
+                            );  
+  
+                        SET @_SLOK =  
+                            TRY_CAST  
+                            (  
+                                RIGHT  
+                                (  
+                                    @_LOTSL_Tach,  
+                                    LEN(@_LOTSL_Tach) - @_KTPC  
+                                )  
+                                AS INT  
+                            );  
+  
+                        ----------------------------------------------------------------  
+                        -- SL không hợp lệ  
+                        ----------------------------------------------------------------  
+                        IF @_SLOK IS NULL OR @_SLOK <= 0  
+                        BEGIN  
+  
+                            INSERT INTO #STNG  
+                            (  
+                                MH,  
+                                LOT,  
+                                SLCAN,  
+                                SLCO,  
+                                SLTHIEU,  
+                                STATUS  
+                            )  
+                            VALUES  
+                            (  
+                                @MH,  
+                                @_LOTSL_Tach,  
+                                0,  
+                                0,  
+                                0,  
+                                N'Số lượng trong chuỗi LOT-SL không hợp lệ'  
+                            );  
+  
+                        END  
+  
+                        ----------------------------------------------------------------  
+                        -- LOT không đủ 13 ký tự  
+                        ----------------------------------------------------------------  
+                        ELSE IF LEN(@_LOTOK) < 13  
+                        BEGIN  
+  
+                            INSERT INTO #STNG  
+                            (  
+                                MH,  
+                                LOT,  
+                                SLCAN,  
+                                SLCO,  
+                                SLTHIEU,  
+                                STATUS  
+                            )  
+                            VALUES  
+                            (  
+                                @MH,  
+                                @_LOTOK,  
+                                @_SLOK,  
+                                0,  
+                                @_SLOK,  
+                                N'LOT không đủ 13 ký tự để xác định LOT'  
+                            );  
+  
+                        END  
+                        ELSE  
+                        BEGIN  
+  
+      ----------------------------------------------------------------  
+                            -- 5.4 LOT KEY 13  
+                            ----------------------------------------------------------------  
+                            SET @_SLCONLAI = 0;  
+  
+                            SELECT  
+                                @_SLCONLAI =  
+                                    ISNULL  
+                                    (  
+                                        SUM(ISNULL(SLCONLAI, 0)),  
+                                        0  
+                                    )  
+                            FROM STOCKTP  
+                            WHERE LEFT(LOT, 13) =  
+                                  LEFT(@_LOTOK, 13);  
+  
+                            ----------------------------------------------------------------  
+                            -- LOT tồn tại  
+                            ----------------------------------------------------------------  
+                            IF EXISTS  
+                            (  
+                                SELECT 1  
+                                FROM STOCKTP  
+                                WHERE LEFT(LOT, 13) =  
+                                      LEFT(@_LOTOK, 13)  
+                                  AND ISNULL(SLCONLAI, 0) > 0  
+                            )  
+                            BEGIN  
+  
+                                IF @_SLCONLAI >= @_SLOK  
+                                BEGIN  
+  
+                                    INSERT INTO #TMPUPDATE  
+                                    (  
+                                        STT,  
+                                        MH,  
+                                        LOT,  
+                                        SOLUONG,  
+                                        STATUS  
+                                    )  
+                                    VALUES  
+                                    (  
+                                        @STT,  
+                                        @MH,  
+                                        @_LOTOK,  
+                                        @_SLOK,  
+                                        'OK'  
+                                    );  
+  
+                                END  
+                                ELSE  
+                                BEGIN  
+  
+                                    INSERT INTO #STNG  
+                                    (  
+                                        MH,  
+                                        LOT,  
+                                        SLCAN,  
+                                        SLCO,  
+                                        SLTHIEU,  
+                                        STATUS  
+                                    )  
+                                    VALUES  
+                                    (  
+                                        @MH,  
+                                        @_LOTOK,  
+                                        @_SLOK,  
+                                        @_SLCONLAI,  
+                                        @_SLOK - @_SLCONLAI,  
+                                        N'Không đủ tồn kho ban đầu'  
+                                    );  
+  
+                                END;  
+  
+                            END  
+                            ELSE  
+                            BEGIN  
+  
+                                INSERT INTO #STNG  
+                                (  
+                                    MH,  
+                                    LOT,  
+                                    SLCAN,  
+                                    SLCO,  
+                                    SLTHIEU,  
+                                    STATUS  
+                                )  
+                                VALUES  
+                                (  
+                                    @MH,  
+                                    @_LOTOK,  
+                                    @_SLOK,  
+                                    0,  
+                                    @_SLOK,  
+                                   N'Không tồn tại LOT trong STOCKTP'  
+                                );  
+  
+                            END;  
+                        END;  
+                    END  
+                    ELSE  
+                    BEGIN  
+  
+                        INSERT INTO #STNG  
+                        (  
+                            MH,  
+                            LOT,  
+                            SLCAN,  
+                            SLCO,  
+                            SLTHIEU,  
+                            STATUS  
+                        )  
+                        VALUES  
+                        (  
+                            @MH,  
+                            @_LOTSL_Tach,  
+                            0,  
+                            0,  
+                            0,  
+                            N'Định dạng chuỗi LOT-SL không hợp lệ'  
+                        );  
+  
+                    END;  
+  
+                    FETCH NEXT FROM LOT_IN_PGH  
+                    INTO @_LOTSL_Tach;  
+                END;  
+  
+                CLOSE LOT_IN_PGH;  
+                DEALLOCATE LOT_IN_PGH;  
+  
+            END;  
+  
+            FETCH NEXT FROM PGH  
+            INTO  
+                @STT,  
+                @_LOT,  
+                @MH;  
+        END;  
+  
+        CLOSE PGH;  
+        DEALLOCATE PGH;  
+  
+        ------------------------------------------------------------------  
+        -- 6. KIỂM TRA TỔNG SL THEO LOT KEY 13  
+        ------------------------------------------------------------------  
+        IF EXISTS  
+        (  
+            SELECT 1  
+            FROM #TMPUPDATE  
+            WHERE STATUS = 'OK'  
+        )  
+        BEGIN  
+  
+            SELECT  
+                MH,  
+                LEFT(LOT, 13) AS LOTKEY13,  
+                SUM(SOLUONG) AS TONG_CAN_XUAT  
+            INTO #GomNhomCheck  
+            FROM #TMPUPDATE  
+            WHERE STT NOT IN  
+            (  
+                SELECT DISTINCT  
+                    STT  
+                FROM #STNG  
+            )  
+            GROUP BY  
+                MH,  
+                LEFT(LOT, 13);  
+  
+            ----------------------------------------------------------------  
+            -- Kiểm tra tồn theo LOT KEY 13  
+            ----------------------------------------------------------------  
+            INSERT INTO #STNG  
+            (  
+                MH,  
+                LOT,  
+                SLCAN,  
+                SLCO,  
+                SLTHIEU,  
+                STATUS  
+            )  
+            SELECT  
+                G.MH,  
+                G.LOTKEY13,  
+                G.TONG_CAN_XUAT,  
+                ISNULL(S.TONGTON, 0),  
+                G.TONG_CAN_XUAT -  
+                    ISNULL(S.TONGTON, 0),  
+                N'Không đủ tồn kho (kiểm tra lần 2)'  
+            FROM #GomNhomCheck G  
+            OUTER APPLY  
+            (  
+                SELECT  
+                    SUM(ISNULL(ST.SLCONLAI, 0)) AS TONGTON  
+                FROM STOCKTP ST  
+                WHERE LEFT(ST.LOT, 13) =  
+                      G.LOTKEY13  
+            ) S  
+            WHERE ISNULL(S.TONGTON, 0) <  
+                  G.TONG_CAN_XUAT;  
+  
+            DROP TABLE #GomNhomCheck;  
+  
+        END;  
+  
+        ------------------------------------------------------------------  
+        -- 7. CÓ LỖI → KHÔNG TRỪ KHO  
+        ------------------------------------------------------------------  
+        IF EXISTS  
+        (  
+            SELECT 1  
+            FROM #STNG  
+        )  
+        BEGIN  
+  
+            SELECT  
+                STT,  
+                LOT,  
+                SOLUONG,  
+                STATUS  
+            FROM #STOK;  
+  
+            SELECT  
+                MH,  
+                LOT,  
+                SLCAN AS SLC,  
+                SLCO AS SLTK,  
+                SLTHIEU AS SLT,  
+                STATUS  
+            FROM #STNG;  
+  
+            RETURN;  
+        END;  
+  
+        ------------------------------------------------------------------  
+        -- 8. KHÔNG CÓ DỮ LIỆU HỢP LỆ  
+        ------------------------------------------------------------------  
+        IF NOT EXISTS  
+        (  
+            SELECT 1  
+            FROM #TMPUPDATE  
+            WHERE STT NOT IN  
+            (  
+                SELECT DISTINCT  
+                    STT  
+                FROM #STNG  
+            )  
+        )  
+        BEGIN  
+  
+            SELECT  
+                STT,  
+                LOT,  
+                SOLUONG,  
+                STATUS  
+            FROM #STOK;  
+  
+            SELECT  
+                MH,  
+                LOT,  
+                SLCAN AS SLC,  
+                SLCO AS SLTK,  
+                SLTHIEU AS SLT,  
+                STATUS  
+            FROM #STNG;  
+  
+            RETURN;  
+        END;  
+  
+        ------------------------------------------------------------------  
+        -- 9. TRANSACTION  
+        ------------------------------------------------------------------  
+        BEGIN TRANSACTION;  
+  
+        ------------------------------------------------------------------  
+        -- 10. TRỪ STOCKTP  
+        ------------------------------------------------------------------  
+        DECLARE UPDATETMP CURSOR LOCAL FAST_FORWARD FOR  
+            SELECT  
+                STT,  
+                LOT,  
+                SOLUONG,  
+                STATUS  
+            FROM #TMPUPDATE  
+            WHERE STT NOT IN  
+            (  
+                SELECT DISTINCT  
+                    STT  
+                FROM #STNG  
+            );  
+  
+        OPEN UPDATETMP;  
+  
+        FETCH NEXT FROM UPDATETMP  
+        INTO  
+            @_STTUD,  
+            @_LOTUD,  
+            @_SLUD,  
+            @_STUP;  
+  
+        WHILE @@FETCH_STATUS = 0  
+        BEGIN  
+  
+            ----------------------------------------------------------------  
+            -- Tổng lượng cần trừ  
+            ----------------------------------------------------------------  
+            DECLARE  
+                @RemainUD      INT,  
+                @LotPhysicalUD NVARCHAR(500),  
+                @TonPhysicalUD INT,  
+                @TruUD         INT;  
+  
+            SET @RemainUD = @_SLUD;  
+  
+            ----------------------------------------------------------------  
+            -- Physical LOT thuộc cùng LOT KEY 13  
+            ----------------------------------------------------------------  
+            DECLARE CUR_LOT_STOCK CURSOR LOCAL FAST_FORWARD FOR  
+                SELECT  
+                    LOT,  
+                    ISNULL(SLCONLAI, 0)  
+                FROM STOCKTP WITH (UPDLOCK, ROWLOCK)  
+                WHERE LEFT(LOT, 13) =  
+                      LEFT(@_LOTUD, 13)  
+                  AND ISNULL(SLCONLAI, 0) > 0  
+                ORDER BY  
+                    LOT ASC;  
+  
+            OPEN CUR_LOT_STOCK;  
+  
+            FETCH NEXT FROM CUR_LOT_STOCK  
+            INTO  
+                @LotPhysicalUD,  
+                @TonPhysicalUD;  
+  
+            WHILE @@FETCH_STATUS = 0  
+              AND @RemainUD > 0  
+            BEGIN  
+  
+                SET @TruUD =  
+                    CASE  
+                        WHEN @TonPhysicalUD >= @RemainUD  
+                            THEN @RemainUD  
+                        ELSE @TonPhysicalUD  
+                    END;  
+  
+                ----------------------------------------------------------------  
+                -- Trừ physical LOT  
+                ----------------------------------------------------------------  
+                UPDATE STOCKTP  
+                SET  
+                    SLCONLAI =  
+                        ISNULL(SLCONLAI, 0) - @TruUD,  
+  
+                    SLXUAT =  
+                        ISNULL(SLXUAT, 0) + @TruUD,  
+  
+                    NGAYXUAT =  
+                        GETDATE()  
+                WHERE LOT = @LotPhysicalUD;  
+  
+                SET @RemainUD =  
+                    @RemainUD - @TruUD;  
+  
+                FETCH NEXT FROM CUR_LOT_STOCK  
+                INTO  
+                    @LotPhysicalUD,  
+                    @TonPhysicalUD;  
+            END;  
+  
+            CLOSE CUR_LOT_STOCK;  
+            DEALLOCATE CUR_LOT_STOCK;  
+  
+         ----------------------------------------------------------------  
+            -- Không đủ tồn thực tế  
+            ----------------------------------------------------------------  
+            IF @RemainUD > 0  
+            BEGIN  
+  
+                INSERT INTO #STNG  
+                (  
+                    MH,  
+                    LOT,  
+                    SLCAN,  
+                    SLCO,  
+                    SLTHIEU,  
+                    STATUS  
+                )  
+                VALUES  
+                (  
+                    N'',  
+                    @_LOTUD,  
+                    @_SLUD,  
+                    @_SLUD - @RemainUD,  
+                    @RemainUD,  
+                    N'Không đủ tồn kho khi cập nhật thực tế'  
+                );  
+  
+                ROLLBACK TRANSACTION;  
+  
+                SELECT  
+                    STT,  
+                    LOT,  
+                    SOLUONG,  
+                    STATUS  
+                FROM #STOK;  
+  
+                SELECT  
+                    MH,  
+                    LOT,  
+                    SLCAN AS SLC,  
+                    SLCO AS SLTK,  
+                    SLTHIEU AS SLT,  
+                    STATUS  
+                FROM #STNG;  
+  
+                RETURN;  
+            END;  
+  
+            ----------------------------------------------------------------  
+            -- Ghi kết quả  
+            ----------------------------------------------------------------  
+            INSERT INTO #STOK  
+            (  
+                STT,  
+                LOT,  
+                SOLUONG,  
+                STATUS  
+            )  
+            VALUES  
+            (  
+                @_STTUD,  
+                @_LOTUD,  
+                @_SLUD,  
+                'OK'  
+            );  
+  
+            FETCH NEXT FROM UPDATETMP  
+            INTO  
+                @_STTUD,  
+                @_LOTUD,  
+                @_SLUD,  
+                @_STUP;  
+        END;  
+  
+        CLOSE UPDATETMP;  
+        DEALLOCATE UPDATETMP;  
+  
+        ------------------------------------------------------------------  
+        -- 11. LƯU LUUPHIEUGIAOHANG  
+        ------------------------------------------------------------------  
+        IF EXISTS  
+        (  
+            SELECT 1  
+            FROM #STOK  
+            WHERE STATUS = 'OK'  
+        )  
+        BEGIN  
+  
+            SET @sql = N'  
+                INSERT INTO LUUPHIEUGIAOHANG  
+                (  
+                    STT,  
+                    CUA,  
+                    TRUYEN,  
+                    MAHANG,  
+                    TENHANG,  
+                    LOT,  
+                    DV,  
+                    SOLUONG,  
+                    NGAYGIAO,  
+                    GIOGIAO,  
+                    STATUS,  
+                    TTPHIEU,  
+                    NHAMAY,  
+                    GIOGIAOFCC,  
+                    HOP,  
+                    STATUSDOC,  
+                    Note  
+                )  
+                SELECT  
+                    tmp.STT,  
+                    LEFT(tmp.CUA, 50),  
+                    LEFT(tmp.TRUYEN, 50),  
+                    LEFT(tmp.MAHANG, 50),  
+                    LEFT(tmp.TENHANG, 60),  
+                    LEFT(tmp.LOT, 500),  
+                    LEFT(tmp.DV, 50),  
+                    tmp.SOLUONG,  
+                    tmp.NGAYGIAO,  
+                    LEFT(tmp.GIOGIAO, 50),  
+                    ''OK'',  
+                    LEFT(tmp.TTPHIEU, 50),  
+                    LEFT(@NHAMAY, 60),  
+                    LEFT(@GIOGIAOFCC, 50),  
+                    LEFT(tmp.HOP, 50),  
+                    LEFT(tmp.STATUSDOC, 50),  
+                    LEFT(tmp.Note, 250)  
+                FROM [' + @TMPTABLE + N'] tmp  
+                WHERE tmp.STT IN  
+                (  
+                    SELECT STT  
+                    FROM #STOK  
+                    WHERE STATUS = ''OK''  
+                );';  
+  
+            EXEC sp_executesql  
+                @sql,  
+                N'@NHAMAY NVARCHAR(250),  
+                  @GIOGIAOFCC NVARCHAR(250)',  
+                @NHAMAY,  
+                @GIOGIAOFCC;  
+  
+            ----------------------------------------------------------------  
+            -- 12. LUUDOCQRCODE  
+            ----------------------------------------------------------------  
+            SET @sql = N'  
+                INSERT INTO LUUDOCQRCODE  
+                (  
+                    LOTFCC,  
+                    MAHANGFCC,  
+                    SLTEMFCC,  
+                    LOTHVN,  
+                    MAHANGHVN,  
+                    SLTEMHVN,  
+                    STATUS,  
+                    MAFCC,  
+                    STT,  
+                    KETQUA,  
+                    NGAYXUAT,  
+                    GIOXUAT,  
+                    NHAMAY  
+                )  
+                SELECT  
+                    LEFT(DQ.LOTFCC, 500),  
+                    LEFT(DQ.MAHANGFCC, 60),  
+                    DQ.SLTEMFCC,  
+                    LEFT(DQ.LOTHVN, 500),  
+                    LEFT(DQ.MAHANGHVN, 60),  
+                    DQ.SLTEMHVN,  
+                    DQ.STATUS,  
+                    LEFT(DQ.MAFCC, 50),  
+                    DQ.STT,  
+                    LEFT(DQ.KETQUA, 30),  
+                    @NgayGiao,  
+                    LEFT(@GIOGIAOFCC, 30),  
+                    LEFT(@NHAMAY, 60)  
+                FROM [' + @DOCQRTABLE + N'] DQ  
+                INNER JOIN [' + @TMPTABLE + N'] PG  
+                    ON PG.STT =  
+                       TRY_CAST(DQ.GIO AS INT)  
+                WHERE PG.STT IN  
+                (  
+                    SELECT STT  
+                    FROM #STOK  
+                    WHERE STATUS = ''OK''  
+                )  
+                AND ISNULL(DQ.GIO, '''') <> '''';  
+  
+                INSERT INTO LUUDOCQRCODE  
+                (  
+                    LOTFCC,  
+                    MAHANGFCC,  
+                    SLTEMFCC,  
+                    LOTHVN,  
+                    MAHANGHVN,  
+                    SLTEMHVN,  
+                    STATUS,  
+                    MAFCC,  
+                    STT,  
+                    KETQUA,  
+                    NGAYXUAT,  
+                    GIOXUAT,  
+                    NHAMAY  
+                )  
+                SELECT  
+                    LEFT(DQ.LOTFCC, 500),  
+                    LEFT(DQ.MAHANGFCC, 60),  
+                    DQ.SLTEMFCC,  
+                    LEFT(DQ.LOTHVN, 500),  
+                    LEFT(DQ.MAHANGHVN, 60),  
+                    DQ.SLTEMHVN,  
+                    DQ.STATUS,  
+                    LEFT(DQ.MAFCC, 50),  
+                    DQ.STT,  
+                    LEFT(DQ.KETQUA, 30),  
+                    @NgayGiao,  
+                    LEFT(@GIOGIAOFCC, 30),  
+                    LEFT(@NHAMAY, 60)  
+                FROM [' + @DOCQRTABLE + N'] DQ  
+                INNER JOIN [' + @TMPTABLE + N'] PG  
+                    ON RTRIM(DQ.MAHANGFCC) =  
+                       RTRIM(PG.MAHANG)  
+                WHERE PG.STT IN  
+                (  
+                    SELECT STT  
+                    FROM #STOK  
+                    WHERE STATUS = ''OK''  
+                )  
+                AND ISNULL(DQ.GIO, '''') = '''';';  
+  
+            EXEC sp_executesql  
+                @sql,  
+                N'@NgayGiao SMALLDATETIME,  
+                  @GIOGIAOFCC NVARCHAR(250),  
+                  @NHAMAY NVARCHAR(250)',  
+                @NgayGiao,  
+                @GIOGIAOFCC,  
+                @NHAMAY;  
+  
+            ----------------------------------------------------------------  
+            -- 13. UPDATE STATUS TMP  
+            ----------------------------------------------------------------  
+            SET @sql = N'  
+                UPDATE [' + @TMPTABLE + N']  
+                SET STATUS = ''OK''  
+                WHERE STT IN  
+                (  
+                    SELECT STT  
+                    FROM #STOK  
+                    WHERE STATUS = ''OK''  
+                );';  
+  
+            EXEC sp_executesql @sql;  
+  
+            ----------------------------------------------------------------  
+            -- 14. DELETE DOCQRCODE  
+            ----------------------------------------------------------------  
+            SET @sql = N'  
+                DELETE DQ  
+                FROM [' + @DOCQRTABLE + N'] DQ  
+                INNER JOIN [' + @TMPTABLE + N'] PG  
+                    ON PG.STT =  
+                       TRY_CAST(DQ.GIO AS INT)  
+                WHERE PG.STT IN  
+                (  
+                    SELECT STT  
+                    FROM #STOK  
+                    WHERE STATUS = ''OK''  
+                )  
+                AND ISNULL(DQ.GIO, '''') <> '''';  
+  
+                DELETE DQ  
+                FROM [' + @DOCQRTABLE + N'] DQ  
+                INNER JOIN [' + @TMPTABLE + N'] PG  
+                    ON RTRIM(DQ.MAHANGFCC) =  
+                       RTRIM(PG.MAHANG)  
+                WHERE PG.STT IN  
+                (  
+                    SELECT STT  
+                    FROM #STOK  
+                    WHERE STATUS = ''OK''  
+                )  
+                AND ISNULL(DQ.GIO, '''') = '''';';  
+  
+            EXEC sp_executesql @sql;  
+  
+            ----------------------------------------------------------------  
+            -- 15. Purchase_Order_HTN  
+            ----------------------------------------------------------------  
+            IF EXISTS  
+            (  
+                SELECT 1  
+                FROM INFORMATION_SCHEMA.COLUMNS  
+                WHERE TABLE_NAME = 'Purchase_Order_HTN'  
+                  AND COLUMN_NAME = 'IsDelivered'  
+            )  
+            BEGIN  
+  
+                SET @sql = N'  
+                    UPDATE po  
+                    SET  
+                        po.IsDelivered = 1,  
+                        po.DeliveredDate = GETDATE()  
+                    FROM Purchase_Order_HTN po  
+                    INNER JOIN [' + @TMPTABLE + N'] tmp  
+                        ON CAST(tmp.PO_NO AS NVARCHAR) =  
+                           CAST(po.Oder_no AS NVARCHAR)  
+                    WHERE tmp.STT IN  
+                    (  
+                        SELECT STT  
+                        FROM #STOK  
+                        WHERE STATUS = ''OK''  
+                    )  
+                    AND po.IsDelivered = 0;';  
+  
+                EXEC sp_executesql @sql;  
+  
+            END;  
+  
+            ----------------------------------------------------------------  
+            -- 16. Purchase_Order_YMVN  
+            ----------------------------------------------------------------  
+            IF EXISTS  
+            (  
+                SELECT 1  
+                FROM INFORMATION_SCHEMA.COLUMNS  
+                WHERE TABLE_NAME = 'Purchase_Order_YMVN'  
+                  AND COLUMN_NAME = 'IsDelivered'  
+            )  
+            BEGIN  
+  
+                SET @sql = N'  
+                    UPDATE po  
+                    SET  
+                        po.IsDelivered = 1,  
+                        po.DeliveredDate = GETDATE()  
+                    FROM Purchase_Order_YMVN po  
+                    INNER JOIN [' + @TMPTABLE + N'] tmp  
+                        ON CAST(tmp.PO_NO AS NVARCHAR) =  
+                           CAST(po.Oder_no AS NVARCHAR)  
+                    WHERE tmp.STT IN  
+                    (  
+                        SELECT STT  
+                        FROM #STOK  
+                        WHERE STATUS = ''OK''  
+                    )  
+                    AND po.IsDelivered = 0;';  
+  
+                EXEC sp_executesql @sql;  
+  
+            END;  
+  
+        END;  
+  
+        ------------------------------------------------------------------  
+        -- 17. COMMIT  
+        ------------------------------------------------------------------  
+        COMMIT TRANSACTION;  
+  
+    END TRY  
+  
+    BEGIN CATCH  
+  
+        ------------------------------------------------------------------  
+        -- Đóng cursor nếu còn tồn tại  
+        ------------------------------------------------------------------  
+        IF CURSOR_STATUS('local', 'CUR_LOT_STOCK') >= 0  
+        BEGIN  
+            CLOSE CUR_LOT_STOCK;  
+            DEALLOCATE CUR_LOT_STOCK;  
+        END;  
+  
+        IF CURSOR_STATUS('local', 'LOT_IN_PGH') >= 0  
+        BEGIN  
+            CLOSE LOT_IN_PGH;  
+            DEALLOCATE LOT_IN_PGH;  
+        END;  
+  
+        IF CURSOR_STATUS('local', 'PGH') >= 0  
+        BEGIN  
+            CLOSE PGH;  
+            DEALLOCATE PGH;  
+        END;  
+  
+        IF CURSOR_STATUS('local', 'UPDATETMP') >= 0  
+        BEGIN  
+            CLOSE UPDATETMP;  
+            DEALLOCATE UPDATETMP;  
+        END;  
+  
+        ------------------------------------------------------------------  
+        -- Rollback  
+        ------------------------------------------------------------------  
+        IF @@TRANCOUNT > 0  
+            ROLLBACK TRANSACTION;  
+  
+        ------------------------------------------------------------------  
+        -- Ghi lỗi  
+        ------------------------------------------------------------------  
+        INSERT INTO #STNG  
+        (  
+            MH,  
+            LOT,  
+            SLCAN,  
+            SLCO,  
+            SLTHIEU,  
+            STATUS  
+        )  
+        VALUES  
+        (  
+            N'SYSTEM ERROR',  
+            N'Line '  
+            + CAST(ERROR_LINE() AS NVARCHAR(10)),  
+            0,  
+            0,  
+            0,  
+            LEFT  
+            (  
+                N'Lỗi dòng '  
+                + CAST(ERROR_LINE() AS NVARCHAR(10))  
+                + N': '  
+                + ERROR_MESSAGE(),  
+                500  
+            )  
+        );  
+  
+    END CATCH;  
+  
+    ----------------------------------------------------------------------  
+    -- RESULT  
+    ----------------------------------------------------------------------  
+    SELECT  
+        STT,  
+        LOT,  
+        SOLUONG,  
+        STATUS  
+    FROM #STOK;  
+  
+    SELECT  
+        MH,  
+        LOT,  
+        SLCAN AS SLC,  
+        SLCO AS SLTK,  
+        SLTHIEU AS SLT,  
+        STATUS  
+    FROM #STNG;  
+  
+END  

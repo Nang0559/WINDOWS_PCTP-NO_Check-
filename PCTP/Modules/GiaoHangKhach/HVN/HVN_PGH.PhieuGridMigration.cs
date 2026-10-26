@@ -1,0 +1,241 @@
+﻿using PCTP.Modules.GiaoHangKhach.HVN.Controls;
+using System;
+using System.Windows.Forms;
+
+
+namespace PCTP.Modules.GiaoHangKhach.HVN
+{
+    partial class HVN_PGH
+    {
+        private PhieuGridControl _phieuGridControl;
+        private DocQrControl _docQrControl;
+        private PhieuBottomStateControl _phieuBottomStateControl;
+        private PhieuHeaderControl _phieuHeaderControl;
+        private HangThieuControl _hangThieuControl;
+        private PhieuActionBarControl _phieuActionBarControl;
+        private PhieuDialogControl _phieuDialogControl;
+        private DocQrInputControl _docQrInputControl;
+
+        protected override void OnLoad(EventArgs e)
+        {
+            MigratePhieuHeaderToUserControl();
+            MigrateHangThieuToUserControl();
+            MigratePhieuOrderGridToUserControl();
+            MigrateDocQrGridToUserControl();
+            MigrateBottomStateGridEvents();
+            MigratePhieuActionBarToUserControl();
+            MigratePhieuDialogToUserControl();
+            MigrateDocQrInputToUserControl();
+            base.OnLoad(e);
+
+            // ============================================================
+            // UI FIX - Hoàn thành DocQR phải quay về GridView Đơn hàng.
+            //
+            // Không tạo thêm OnLoad ở partial khác vì HVN_PGH chỉ được
+            // override OnLoad đúng một lần. Đăng ký sau base.OnLoad() để
+            // handler này đứng sau các handler HoanThanhClicked đã được
+            // presenter đăng ký trong quá trình Load.
+            // ============================================================
+            HoanThanhClicked -= OnHoanThanhResetPhieuView;
+            HoanThanhClicked += OnHoanThanhResetPhieuView;
+        }
+
+        /// <summary>
+        /// Chỉ xử lý trạng thái hiển thị UI, không xử lý nghiệp vụ/data.
+        /// Nghiệp vụ Hoàn thành vẫn nằm ở PhieuPresenter.
+        /// </summary>
+        private void OnHoanThanhResetPhieuView(object sender, EventArgs e)
+        {
+            if (IsDisposed || !IsHandleCreated)
+                return;
+
+            BeginInvoke(new Action(() =>
+            {
+                if (IsDisposed || !IsHandleCreated)
+                    return;
+
+                // ========================================================
+                // Bước 1: đóng hoàn toàn vùng DocQR.
+                // Chỉ BringToFront Grid đơn hàng là chưa đủ vì DocQR
+                // vẫn có thể còn Visible và nằm trên một container khác.
+                // ========================================================
+                if (_docQrControl != null)
+                    _docQrControl.Visible = false;
+
+                if (PN_DOCQR_SUASL1 != null)
+                    PN_DOCQR_SUASL1.Visible = false;
+
+                // ========================================================
+                // Bước 2: bật lại vùng Phiếu + GridView Đơn hàng.
+                // ========================================================
+                if (_phieuHeaderControl != null)
+                    _phieuHeaderControl.Visible = true;
+
+                if (_phieuGridControl != null)
+                {
+                    _phieuGridControl.Visible = true;
+                    _phieuGridControl.BringToFrontGrid();
+                }
+
+                // ========================================================
+                // Bước 3: bảo đảm control phụ của màn hình Phiếu không
+                // bị vùng DocQR cũ che lên.
+                // ========================================================
+                try
+                {
+                    if (_hangThieuControl != null)
+                    {
+                        _hangThieuControl.Visible = true;
+                        _hangThieuControl.BringToFront();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine(
+                        "[OnHoanThanhResetPhieuView] Không thể đưa HangThieu lên trước: " + ex.Message);
+                }
+            }));
+        }
+
+        private int ReplaceControl(Control existing, Control replacement, Control parent)
+        {
+            if (existing == null || replacement == null || parent == null) return -1;
+            int childIndex = parent.Controls.GetChildIndex(existing);
+            parent.Controls.Remove(existing);
+            parent.Controls.Add(replacement);
+            parent.Controls.SetChildIndex(replacement, childIndex);
+            return childIndex;
+        }
+
+        private void MigratePhieuHeaderToUserControl()
+        {
+            if (_phieuHeaderControl != null || PN_DOCQR_TOP == null || panelPhieu == null) return;
+            Control parent = panelPhieu.Parent;
+            if (parent == null) return;
+            _phieuHeaderControl = new PhieuHeaderControl();
+            ReplaceControl(panelPhieu, _phieuHeaderControl, parent);
+            _phieuHeaderControl.Adopt(panelPhieu);
+            _phieuHeaderControl.DateChanged += PhieuHeaderControl_DateChanged;
+            _phieuHeaderControl.GioXuatChanged += PhieuHeaderControl_GioXuatChanged;
+            _phieuHeaderControl.TabChanged += PhieuHeaderControl_TabChanged;
+            _phieuHeaderControl.GioXuatCheckedChanged += PhieuHeaderControl_GioXuatCheckedChanged;
+            _phieuHeaderControl.CheckGX_ItemCheck += PhieuHeaderControl_CheckGX_ItemCheck;
+            _phieuHeaderControl.LoaiPhieuChanged += PhieuHeaderControl_LoaiPhieuChanged;
+        }
+
+        private void PhieuHeaderControl_DateChanged(object sender, EventArgs e) => DateChanged.Invoke(this, EventArgs.Empty);
+        private void PhieuHeaderControl_GioXuatChanged(object sender, EventArgs e) => GioXuatChanged.Invoke(this, EventArgs.Empty);
+        private void PhieuHeaderControl_TabChanged(object sender, EventArgs e) => TabChanged.Invoke(this, EventArgs.Empty);
+        private void PhieuHeaderControl_GioXuatCheckedChanged(object sender, EventArgs e) => GioXuatCheckedChanged.Invoke(this, EventArgs.Empty);
+        private void PhieuHeaderControl_CheckGX_ItemCheck(object sender, EventArgs e) => CheckGX_ItemCheck.Invoke(this, EventArgs.Empty);
+        private void PhieuHeaderControl_LoaiPhieuChanged(object sender, EventArgs e) => LoaiPhieuChanged.Invoke(this, e);
+
+        private void MigrateHangThieuToUserControl()
+        {
+            if (_hangThieuControl != null || GCT_HT == null) return;
+            Control parent = GCT_HT.Parent;
+            if (parent == null) return;
+            _hangThieuControl = new HangThieuControl();
+            ReplaceControl(GCT_HT, _hangThieuControl, parent);
+            _hangThieuControl.Adopt(GCT_HT);
+        }
+
+        private void MigratePhieuOrderGridToUserControl()
+        {
+            if (_phieuGridControl != null || sidePanel2 == null) return;
+            object existingDataSource = gridCtrDONHANG != null ? gridCtrDONHANG.DataSource : null;
+            _phieuGridControl = new PhieuGridControl();
+            if (gridCtrDONHANG != null) ReplaceControl(gridCtrDONHANG, _phieuGridControl, sidePanel2);
+            else sidePanel2.Controls.Add(_phieuGridControl);
+            if (existingDataSource != null) _phieuGridControl.OrderGrid.DataSource = existingDataSource;
+            gridCtrDONHANG = _phieuGridControl.OrderGrid;
+            GridViewDONHANG = _phieuGridControl.OrderView;
+            gridBandDH = _phieuGridControl.OrderBand;
+            _phieuGridControl.OrderView.RowCellStyle += GridViewDONHANG_RowCellStyle;
+        }
+
+        private void MigrateDocQrGridToUserControl()
+        {
+            if (_docQrControl != null || sidePanel2 == null || gridCtrDOCQrCODE == null) return;
+
+            object existingDataSource = gridCtrDOCQrCODE.DataSource;
+            var legacyGrid = gridCtrDOCQrCODE;
+
+            _docQrControl = new DocQrControl();
+            ReplaceControl(legacyGrid, _docQrControl, sidePanel2);
+            _docQrControl.AttachExistingLayout(legacyGrid);
+
+            if (existingDataSource != null) _docQrControl.QrGrid.DataSource = existingDataSource;
+            gridCtrDOCQrCODE = _docQrControl.QrGrid;
+            gridVDOCQRCODE = _docQrControl.QrView;
+
+            _docQrControl.DetachLegacyFocusedRowChanged(gridVDOCQRCODE_FocusedRowChanged);
+            _docQrControl.FocusedRowChanged -= DocQrControl_FocusedRowChanged;
+            _docQrControl.FocusedRowChanged += DocQrControl_FocusedRowChanged;
+        }
+
+        private void DocQrControl_FocusedRowChanged(object sender, DevExpress.XtraGrid.Views.Base.FocusedRowChangedEventArgs e)
+        {
+            gridVDOCQRCODE_FocusedRowChanged(sender, e);
+        }
+
+        private void MigrateBottomStateGridEvents()
+        {
+            if (_phieuBottomStateControl == null)
+                return;
+
+            // Constructor compatibility: remove the legacy direct GridView
+            // subscription and route focus changes through the control boundary.
+            _phieuBottomStateControl.DetachLegacySuaSlFocusedRowChanged(gridVSUASL_FocusedRowChanged);
+            _phieuBottomStateControl.SuaSlFocusedRowChanged -= BottomStateControl_SuaSlFocusedRowChanged;
+            _phieuBottomStateControl.SuaSlFocusedRowChanged += BottomStateControl_SuaSlFocusedRowChanged;
+        }
+
+        private void BottomStateControl_SuaSlFocusedRowChanged(
+            object sender,
+            DevExpress.XtraGrid.Views.Base.FocusedRowChangedEventArgs e)
+        {
+            gridVSUASL_FocusedRowChanged(sender, e);
+        }
+
+        private void MigratePhieuActionBarToUserControl()
+        {
+            if (_phieuActionBarControl != null || sidePanel3 == null || UIButton == null) return;
+            Control parent = UIButton.Parent;
+            if (parent == null) return;
+            _phieuActionBarControl = new PhieuActionBarControl();
+            ReplaceControl(UIButton, _phieuActionBarControl, parent);
+            _phieuActionBarControl.Adopt(UIButton);
+            _phieuActionBarControl.ActionClicked += PhieuActionBarControl_ActionClicked;
+        }
+
+        private void MigratePhieuDialogToUserControl()
+        {
+            if (_phieuDialogControl != null)
+                return;
+            _phieuDialogControl = new PhieuDialogControl();
+            _phieuDialogControl.Visible = false;
+            Controls.Add(_phieuDialogControl);
+        }
+
+        private void MigrateDocQrInputToUserControl()
+        {
+            if (_docQrInputControl != null || txt_DOCQRCODE == null)
+                return;
+
+            _docQrInputControl = new DocQrInputControl();
+            _docQrInputControl.Visible = false;
+            Controls.Add(_docQrInputControl);
+            _docQrInputControl.Adopt(txt_DOCQRCODE);
+
+            // 12F: the input boundary owns Enter/Submit. Do not let the legacy
+            // form handler publish a second QRCodeSubmitted event.
+            _docQrInputControl.Submitted += DocQrInputControl_Submitted;
+        }
+
+        private void DocQrInputControl_Submitted(object sender, string value)
+        {
+            QRCodeSubmitted.Invoke(this, value);
+        }
+    }
+}

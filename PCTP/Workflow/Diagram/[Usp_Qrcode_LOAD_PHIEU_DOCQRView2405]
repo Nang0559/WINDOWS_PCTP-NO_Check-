@@ -1,0 +1,261 @@
+USE [B7R2_FCC]
+GO
+
+/****** Object:  StoredProcedure [dbo].[Usp_Qrcode_LOAD_PHIEU_DOCQRView2405]    Script Date: 9/8/2026 3:32:20 PM ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE PROC [dbo].[Usp_Qrcode_LOAD_PHIEU_DOCQRView2405]          
+    @NGAYGIAO    NVARCHAR(20),          
+    @NHAMAY      NVARCHAR(50)  = N'',          
+    @GIOFCC      NVARCHAR(200) = N'',          
+    @ADDNM       INT,      
+    @TENBAN      NVARCHAR(100) = N'TMPPHIEUGIAOHANGView',
+    @DOCQRTABLE  NVARCHAR(100) = N'DOCQRCODE',
+    @IFSVIEW     NVARCHAR(100) = N'IFSPHIEUGIAOHANGView'    
+AS          
+BEGIN          
+    SET NOCOUNT ON      
+
+    -- ── 1. VALIDATE TÊN BẢNG ────────────────────────────────────────────
+    IF PATINDEX('%[^A-Za-z0-9_]%', @TENBAN) > 0 OR LEN(@TENBAN) = 0      
+    BEGIN      
+        RAISERROR(N'Tên bảng @TENBAN không hợp lệ', 16, 1); RETURN      
+    END    
+    IF PATINDEX('%[^A-Za-z0-9_]%', @IFSVIEW) > 0 OR LEN(@IFSVIEW) = 0      
+    BEGIN      
+        RAISERROR(N'Tên bảng @IFSVIEW không hợp lệ', 16, 1); RETURN      
+    END  
+    IF PATINDEX('%[^A-Za-z0-9_]%', @DOCQRTABLE) > 0 OR LEN(@DOCQRTABLE) = 0      
+    BEGIN      
+        RAISERROR(N'Tên bảng @DOCQRTABLE không hợp lệ', 16, 1); RETURN      
+    END  
+
+    -- ── 2. SUY RA CUSTOMERID ─────────────────────────────────────────────
+    DECLARE @CUSTOMERID NVARCHAR(20)  
+    IF @TENBAN = N'TMPPHIEUGIAOHANGView'  
+        SET @CUSTOMERID = '100001'  
+    ELSE IF CHARINDEX('_', @TENBAN) > 0  
+        SET @CUSTOMERID = SUBSTRING(  
+            @TENBAN,  
+            CHARINDEX('_', @TENBAN) + 1,  
+            CASE WHEN CHARINDEX('_', @TENBAN, CHARINDEX('_', @TENBAN)+1) > 0  
+                 THEN CHARINDEX('_', @TENBAN, CHARINDEX('_', @TENBAN)+1)  
+                      - CHARINDEX('_', @TENBAN) - 1  
+                 ELSE LEN(@TENBAN)  
+            END)  
+    ELSE  
+        SET @CUSTOMERID = '100001'  
+
+    -- ── 3. BUILD #GioList ────────────────────────────────────────────────
+    CREATE TABLE #GioList (Gio NVARCHAR(10))
+
+    -- Giờ thường: lấy trực tiếp
+    INSERT INTO #GioList          
+    SELECT LTRIM(RTRIM(REPLACE(value, '''', '')))          
+    FROM STRING_SPLIT(REPLACE(@GIOFCC, '''', ''), ',')          
+    WHERE LTRIM(RTRIM(REPLACE(value, '''', ''))) <> ''
+      AND LTRIM(RTRIM(REPLACE(value, '''', ''))) NOT LIKE '(O TYPE%'
+
+    -- O TYPE: lookup GIOHVN từ QRCODE_CHANGETIME → lưu dạng string '00','01'...
+    INSERT INTO #GioList
+    SELECT DISTINCT C.GIOHVN
+    FROM STRING_SPLIT(REPLACE(@GIOFCC, '''', ''), ',') S
+    INNER JOIN QRCODE_CHANGETIME C
+        ON LTRIM(RTRIM(REPLACE(S.value, '''', ''))) = C.GioFCCVP
+    WHERE C.GioFCCVP LIKE '(O TYPE%'
+
+    -- ── 4. SCHEMA #IFS ───────────────────────────────────────────────────
+    CREATE TABLE #IFS (        
+        STT        NVARCHAR(20), CUA NVARCHAR(20), TRUYEN NVARCHAR(20),        
+        MAHANG     NVARCHAR(50), TENHANG NVARCHAR(200), LOT NVARCHAR(500),        
+        DV         NVARCHAR(20), SOLUONG INT, NGAYGIAO NVARCHAR(20),        
+        GIOGIAO    NVARCHAR(10), STATUS NVARCHAR(20), TTPHIEU NVARCHAR(200),        
+        NHAMAY     NVARCHAR(100), ADDNM INT, HOP NVARCHAR(20),        
+        STATUSDOC  NVARCHAR(50), Note NVARCHAR(500),        
+        PO_NO      NVARCHAR(50), PO_ITEM NVARCHAR(50)        
+    )      
+
+    -- ── 5. TẠO BẢNG VIEW ĐỘNG NẾU CHƯA CÓ ──────────────────────────────
+    DECLARE @sqlCreate NVARCHAR(MAX)      
+    SET @sqlCreate = N'      
+        IF NOT EXISTS (      
+            SELECT 1 FROM sys.objects       
+            WHERE object_id = OBJECT_ID(N''[dbo].[' + @TENBAN + ']'')       
+            AND type = ''U''      
+        )      
+        CREATE TABLE [dbo].[' + @TENBAN + '] (      
+            STT        NVARCHAR(20), CUA NVARCHAR(20), TRUYEN NVARCHAR(20),      
+            MAHANG     NVARCHAR(50), TENHANG NVARCHAR(200), LOT NVARCHAR(500),      
+            DV         NVARCHAR(20), SOLUONG INT, NGAYGIAO NVARCHAR(20),      
+            GIOGIAO    NVARCHAR(10), STATUS NVARCHAR(20), TTPHIEU NVARCHAR(200),      
+            NHAMAY     NVARCHAR(100), ADDNM INT, HOP NVARCHAR(20),      
+            STATUSDOC  NVARCHAR(50), Note NVARCHAR(500),      
+            PO_NO      NVARCHAR(50), PO_ITEM NVARCHAR(50)      
+        )'      
+    EXEC sp_executesql @sqlCreate      
+
+    -- ── 6. ĐỔ DỮ LIỆU TỪ @IFSVIEW VÀO #IFS ────────────────────────────
+    DECLARE @sql NVARCHAR(MAX)  
+    SET @sql = N'    
+        INSERT INTO #IFS        
+        SELECT STT,CUA,TRUYEN,MAHANG,TENHANG,LOT,DV,SOLUONG,        
+               NGAYGIAO,GIOGIAO,STATUS,TTPHIEU,NHAMAY,ADDNM,        
+               HOP,STATUSDOC,Note,        
+               ISNULL(PO_NO,''''), ISNULL(PO_ITEM,'''')        
+        FROM [dbo].[' + @IFSVIEW + ']'    
+    EXEC sp_executesql @sql    
+
+    DECLARE @TTIFS INT      
+    SELECT @TTIFS = COUNT(*) FROM #IFS      
+
+    -- ── 7. NORMALIZE @NHAMAY ────────────────────────────────────────────
+    IF @CUSTOMERID = '100001'  
+    BEGIN  
+        UPDATE LUUPHIEUGIAOHANG SET GIOGIAO = '00H'  
+            WHERE GIOGIAO = '0H'          
+        UPDATE LUUPHIEUGIAOHANG SET NHAMAY = 'HON DA - VIET NAM(NHA MAY VP)'  
+            WHERE NHAMAY LIKE '%VP)'          
+
+        IF CHARINDEX('(NHA MAY HA NAM)', @NHAMAY) > 0          
+            SET @NHAMAY = '%NHA MAY HA NAM%'          
+        ELSE          
+            SET @NHAMAY = '%(NHA MAY VP)'  
+    END  
+    ELSE  
+    BEGIN  
+        IF @NHAMAY = N''  
+            SET @NHAMAY = '%'  
+        ELSE  
+            SET @NHAMAY = '%' + @NHAMAY + '%'  
+    END  
+
+    -- ── 8. KIỂM TRA DOCQRTABLE ──────────────────────────────────────────
+    DECLARE @demQR INT = 0  
+    SET @sql = N'SELECT @cnt = COUNT(*) FROM [dbo].[' + @DOCQRTABLE + ']'  
+    EXEC sp_executesql @sql, N'@cnt INT OUTPUT', @cnt = @demQR OUTPUT  
+
+    -- ── 9. TRƯỜNG HỢP 1: CÓ DỮ LIỆU QUÉT HOẶC CÓ LỊCH SỬ ─────────────
+    IF @demQR > 0 OR @GIOFCC = '' OR EXISTS (          
+        SELECT 1 FROM LUUPHIEUGIAOHANG          
+        WHERE NHAMAY LIKE @NHAMAY          
+          AND CAST(NGAYGIAO AS DATE) = CAST(@NGAYGIAO AS DATE)
+          AND (
+              -- Giờ thường
+              (GIOGIAO NOT LIKE '%[^0-9]%' AND GIOGIAO <> '')
+              OR
+              -- O TYPE
+              GIOGIAOFCC LIKE '(O TYPE%'
+          )
+          AND (  
+              NOT EXISTS (SELECT 1 FROM #GioList)  
+              OR GIOGIAO IN (SELECT Gio FROM #GioList)  
+          )         
+    )          
+    BEGIN      
+        SET @sql = N'DELETE [dbo].[' + @TENBAN + ']'      
+        EXEC sp_executesql @sql      
+
+        IF @CUSTOMERID = '100001'  
+        BEGIN  
+            IF @NHAMAY = '%(NHA MAY VP)'    
+                SET @ADDNM = 1          
+            ELSE          
+                SET @ADDNM = 2  
+        END  
+
+        -- Bước 1.1: Đổ lịch sử đã quét
+        SET @sql = N'      
+            INSERT INTO [dbo].[' + @TENBAN + ']      
+                (STT,CUA,TRUYEN,MAHANG,TENHANG,LOT,DV,SOLUONG,      
+                 NGAYGIAO,GIOGIAO,STATUS,TTPHIEU,NHAMAY,ADDNM,      
+                 HOP,STATUSDOC,Note,PO_NO,PO_ITEM)      
+            SELECT STT,CUA,TRUYEN,MAHANG,TENHANG,LOT,DV,SOLUONG,      
+                   NGAYGIAO,GIOGIAO,STATUS,TTPHIEU,NHAMAY,' + CAST(@ADDNM AS NVARCHAR) + ',      
+                   HOP,STATUSDOC,Note,      
+                   ISNULL(PO_NO,''''), ISNULL(PO_ITEM,'''')      
+            FROM LUUPHIEUGIAOHANG      
+            WHERE NHAMAY LIKE ''' + @NHAMAY + '''      
+              AND CAST(NGAYGIAO AS DATE) = CAST(''' + @NGAYGIAO + ''' AS DATE)
+              AND (
+                  (GIOGIAO NOT LIKE ''%[^0-9]%'' AND GIOGIAO <> '''')
+                  OR GIOGIAOFCC LIKE ''(O TYPE%''
+              )
+              AND (  
+                  NOT EXISTS (SELECT 1 FROM #GioList)  
+                  OR GIOGIAO IN (SELECT Gio FROM #GioList)  
+              )'       
+        EXEC sp_executesql @sql      
+
+        -- Bước 1.2: Bù đắp hàng thiếu từ IFS  
+        IF @TTIFS > 0          
+        BEGIN          
+            DECLARE @slluu INT, @slifs INT, @cnt INT  
+            SET @sql = N'SELECT @cnt = COUNT(*) FROM [dbo].[' + @TENBAN + ']'      
+            EXEC sp_executesql @sql, N'@cnt INT OUTPUT', @cnt = @slluu OUTPUT      
+            SELECT @slifs = COUNT(*) FROM #IFS      
+
+            IF @slluu <> @slifs          
+            BEGIN      
+                SET @sql = N'      
+                    INSERT INTO [dbo].[' + @TENBAN + ']      
+                        (STT,CUA,TRUYEN,MAHANG,TENHANG,LOT,DV,SOLUONG,      
+                         NGAYGIAO,GIOGIAO,STATUS,TTPHIEU,NHAMAY,ADDNM,      
+                         HOP,STATUSDOC,Note,PO_NO,PO_ITEM)      
+                    SELECT i.STT,i.CUA,i.TRUYEN,i.MAHANG,i.TENHANG,i.LOT,i.DV,i.SOLUONG,      
+                           i.NGAYGIAO,i.GIOGIAO,i.STATUS,i.TTPHIEU,i.NHAMAY,i.ADDNM,      
+                           i.HOP,i.STATUSDOC,i.Note,      
+                           ISNULL(i.PO_NO,''''), ISNULL(i.PO_ITEM,'''')      
+                    FROM #IFS i      
+                    WHERE NOT EXISTS (      
+                        SELECT 1 FROM [dbo].[' + @TENBAN + '] t      
+                        WHERE RTRIM(t.CUA)     = RTRIM(i.CUA)      
+                          AND RTRIM(t.TRUYEN)  = RTRIM(i.TRUYEN)      
+                          AND RTRIM(t.MAHANG)  = RTRIM(i.MAHANG)      
+                          AND t.SOLUONG        = i.SOLUONG      
+                          AND RTRIM(t.GIOGIAO) = RTRIM(i.GIOGIAO)      
+                    )'      
+                EXEC sp_executesql @sql      
+            END      
+        END          
+    END          
+
+    -- ── 10. TRƯỜNG HỢP 2: CHƯA CÓ GÌ — NẠP THẲNG TỪ IFS ───────────────
+    ELSE          
+    BEGIN      
+        SET @sql = N'DELETE [dbo].[' + @TENBAN + ']'      
+        EXEC sp_executesql @sql      
+
+        SET @sql = N'      
+            INSERT INTO [dbo].[' + @TENBAN + ']      
+                (STT,CUA,TRUYEN,MAHANG,TENHANG,LOT,DV,SOLUONG,      
+                 NGAYGIAO,GIOGIAO,STATUS,TTPHIEU,NHAMAY,ADDNM,      
+                 HOP,STATUSDOC,Note,PO_NO,PO_ITEM)      
+            SELECT STT,CUA,TRUYEN,MAHANG,TENHANG,LOT,DV,SOLUONG,      
+                   NGAYGIAO,GIOGIAO,STATUS,TTPHIEU,NHAMAY,ADDNM,      
+                   HOP,STATUSDOC,Note,      
+                   ISNULL(PO_NO,''''), ISNULL(PO_ITEM,'''')      
+            FROM #IFS'      
+        EXEC sp_executesql @sql      
+    END          
+
+    -- ── 11. TRẢ KẾT QUẢ ─────────────────────────────────────────────────
+    SET @sql = N'      
+        SELECT STT,CUA,TRUYEN,MAHANG,TENHANG,LOT,DV,SOLUONG,      
+               NGAYGIAO,GIOGIAO,STATUS,TTPHIEU,NHAMAY,ADDNM,      
+               HOP,STATUSDOC,Note,      
+               ISNULL(PO_NO,'''')   AS PO_NO,      
+               ISNULL(PO_ITEM,'''') AS PO_ITEM      
+        FROM [dbo].[' + @TENBAN + ']      
+        ORDER BY TRY_CAST(STT AS INT), STT'      
+    EXEC sp_executesql @sql      
+
+    DROP TABLE #GioList          
+    DROP TABLE #IFS      
+END
+GO
+
+

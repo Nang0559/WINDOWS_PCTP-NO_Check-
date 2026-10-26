@@ -1,0 +1,151 @@
+﻿using PCTP.Modules.KhoCore.Models;
+using PCTP.Modules.KhoVatLy.Kho.Models;
+using System;
+using System.Collections.Generic;
+using System.Data;
+
+
+namespace PCTP.Modules.KhoVatLy.Repositories
+{
+    public interface ISlotRepository
+    {
+        // ============================================================
+        // TÌM SLOT
+        // ============================================================
+
+        int GetSlotId(
+            string warehouseName,
+            string rackName,
+            int slotNumber);
+
+        // ============================================================
+        // CAPACITY
+        // ============================================================
+
+        int GetCapacity(int slotId);
+
+        int GetQuantity(int slotId);
+
+        int GetQuantityWithLock(int slotId);
+
+        // ============================================================
+        // UPDATE SLOT
+        // ============================================================
+
+        void LockSlotForUpdate(int slotId);
+
+        void AddQuantity(
+            int slotId,
+            int quantity,
+            string itemCode,
+            DateTime? importDate);
+
+        void Clear(int slotId);
+
+        void UpdateQuantityFromLots(int slotId);
+
+        // ============================================================
+        // LOT
+        // ============================================================
+
+        List<LotInfo> GetLots(int slotId);
+
+        /// <summary>
+        /// ⚠ NGUY HIỂM với Slot nhiều LOT (đặc biệt Slot ảo A0): DELETE toàn bộ SlotLot của Slot rồi
+        /// INSERT lại từ danh sách → mất QrData/MaPhieu/NgaySX/SoPhieuTong, đổi SlotLotId, rất chậm.
+        /// KHÔNG dùng cho nhập/xuất/dời hàng. Dùng <see cref="AppendLot"/> / <see cref="TakeLotFifo"/> / <see cref="MoveLot"/>.
+        /// </summary>
+        void SaveLots(
+            int slotId,
+            List<LotInfo> lots);
+
+        bool ExistsLot(
+            int slotId,
+            string lotNo);
+
+        /// <summary>
+        /// INSERT-ONLY: thêm đúng 1 dòng SlotLot (PhieuStatus mặc định 0; 3 = NG cách ly). KHÔNG đọc lại, KHÔNG xoá,
+        /// KHÔNG ghi đè bất kỳ dòng nào khác của Slot — an toàn cho Slot ảo A0 chứa rất nhiều LOT.
+        /// Không tự cập nhật header Slot: gọi <see cref="RefreshSlotHeader"/> sau đó.
+        /// </summary>
+        void AppendLot(
+            int slotId,
+            string itemCode,
+            string lotNo,
+            int quantity,
+            string temCode,
+            string qrData,
+            DateTime importDate,
+            byte phieuStatus = 0);
+
+        /// <summary>
+        /// Tính lại header Slot (Quantity/IsOccupied/ItemCode/ImportDate) bằng 1 câu UPDATE
+        /// tổng hợp từ SlotLot đang hoạt động — không phải nạp danh sách LOT lên client.
+        /// </summary>
+        void RefreshSlotHeader(int slotId);
+
+        /// <summary>
+        /// Lấy hàng theo FIFO (ImportDate cũ nhất trước) CHỈ bằng UPDATE/DELETE đúng các dòng bị lấy —
+        /// các dòng SlotLot khác của Slot không bị đụng tới. Dòng lấy hết thì xoá, lấy một phần thì trừ Quantity
+        /// (giữ nguyên QrData/MaPhieu gốc). Trả về các phần đã lấy (đã tách QR theo số lượng nếu lấy một phần).
+        /// Ném InvalidOperationException nếu tồn không đủ. Tự cập nhật header Slot.
+        /// </summary>
+        List<LotInfo> TakeLotFifo(int slotId, string lotNo, string itemCode, int quantity);
+
+        // ============================================================
+        // SLOT CHƯA CÓ LOT
+        // ============================================================
+        // ============================================================
+        // SLOTLOT — THAO TÁC THEO SlotLotId (dùng cho rework, xuất 1 dòng cụ thể)
+        // ============================================================
+        /// <summary>Đọc đúng 1 dòng SlotLot theo Id. Trả null nếu không tồn tại.</summary>
+        SlotLotInfo GetSlotLotById(int slotLotId);
+        // KHOCORE/Repositories/ISlotRepository.cs — thêm
+        List<SlotLotViewInfo> GetAllActiveSlotLots();
+
+        /// <summary>Slot có tồn tại trong bảng Slot không (tránh vi phạm FK FK_SlotLot_Slot khi nhập tồn).</summary>
+        bool SlotExists(int slotId);
+
+        /// <summary>Toàn bộ Slot (kho / rack / số slot) — dùng cho danh sách chọn Slot đích khi nhập lại hàng.</summary>
+        List<Slot> GetAllSlots();
+
+        /// <summary>Ghi đè Quantity của đúng 1 dòng SlotLot. Không tự xoá khi = 0,
+        /// không tự cập nhật header Slot — đó là việc của tầng Service.</summary>
+        void UpdateSlotLotQuantity(int slotLotId, int newQuantity);
+
+        /// <summary>Xoá hẳn 1 dòng SlotLot.</summary>
+        void DeleteSlotLot(int slotLotId);
+        List<SlotChuaLotInfo> GetSlotsChuaLot(
+            string lot);
+        List<string> GetEmptySlots(string itemCode, int soLuongNhap);
+        string GetOrCreateNamedSlot(string warehouseName, string rackName, int capacity);
+        // ============================================================
+        // UPDATE SLOT HEADER
+        // ============================================================
+
+        void UpdateHeader(
+            int slotId,
+            string itemCode,
+            DateTime? importDate,
+            int quantity);
+        /// <summary>
+        /// Lấy SlotId duy nhất trong 1 rack (dùng cho rack ảo bulk-import, nơi
+        /// toàn bộ kho/rack chỉ chứa đúng 1 Slot vật lý). Trả về 0 nếu không tìm thấy
+        /// hoặc rack có nhiều hơn 1 slot (dữ liệu bất thường, không được đoán bừa).
+        /// </summary>
+        int GetSingleSlotIdInRack(string warehouseName, string rackName);
+
+        // ============================================================
+        // SẮP XẾP LẠI KHO — dời 1 LOT giữa 2 Slot (KHÔNG đụng STOCKTP)
+        // ============================================================
+        /// <summary>
+        /// Dời toàn bộ số lượng của 1 LOT từ Slot nguồn sang Slot đích, gộp nếu đích
+        /// đã có cùng LotNo. Tự cập nhật header (Quantity/ItemCode/ImportDate) của
+        /// CẢ HAI Slot trong cùng 1 transaction. Ném lỗi nếu LOT không tồn tại ở nguồn.
+        /// </summary>
+        void MoveLot(int fromSlotId, int toSlotId, string lotNo);
+
+
+        DataTable GetOccupiedSlotsForLookup();
+    }
+}
