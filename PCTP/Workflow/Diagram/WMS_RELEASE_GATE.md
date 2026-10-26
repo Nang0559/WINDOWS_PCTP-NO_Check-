@@ -13,7 +13,7 @@ No PASS may be inferred from class existence, source-contract tests, SQL-engine 
 | Gate | Single definition | Current |
 |---|---|---|
 | G1 | Traceability/source ownership: requirement → code → SQL → transaction → test → evidence; all gaps classified and closed or approved exceptions | 🔴 OPEN — current matrix still has GAP entries; historical 122-row CSV snapshot is absent from this branch tree and is not a current authoritative artifact |
-| G2 | Unit/regression tests on exact candidate SHA, including production project compile items | 🟡 CI PASS on `a41d5df…` (runs `40262798818`, `40262804379`); full WinForms `PCTP.csproj` build still NOT VERIFIED |
+| G2 | Unit/regression tests on exact candidate SHA, including production project compile items | 🟡 Last green baseline `a41d5df…`; current candidate `bb15a60…` CI CANCELLED (runs `40264579206`, `40264584779`); full WinForms build NOT VERIFIED |
 | G3 | SQL engine integration using implementation/repository code, isolated SQL Server, data assertions and rollback | 🟡 PASS LIMITED historically; does not prove representative DBA schema or full workflow rollback |
 | G4 | Representative production-like schema/procedure compatibility on isolated, rollback-only database | 🔴 BLOCKED — no current evidence |
 | G5 | Two-session SQL concurrency for shared business keys/quotas, including lock serialization and injected rollback | 🔴 OPEN — no SQL two-session evidence |
@@ -121,3 +121,8 @@ Older CI snapshots are historical only and must not be combined with these exact
 ## 8. SQL files under `Workflow/Diagram`
 
 Do not delete SQL files solely because they are stored under a documentation directory. Inventory each file by purpose: (a) authoritative deploy/migration script, (b) reproducible test fixture/seed, (c) diagnostic/query aid, or (d) obsolete snapshot. Only category (d) may be removed, and only after verifying there are no workflow, DBA, CI, or operator references. Move deployable scripts to a dedicated database/migrations location in a separate change with updated references; preserve content and history.
+
+
+## 9. Latest candidate status
+
+Candidate code SHA `bb15a604a292a75c61455d25094940ee80aa5671` contains the delivery command contract, shared Rework ticket lock and associated contract/source tests. Runs `40264579206` (push) and `40264584779` (PR) were cancelled before checkout while successive commits were pushed. No test result can be inferred from those runs. The last verified green baseline remains `a41d5df18ee7cb3920915d47548e1db7899eb2f1`.
