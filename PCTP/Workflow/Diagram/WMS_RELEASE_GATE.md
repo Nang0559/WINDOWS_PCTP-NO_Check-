@@ -12,8 +12,8 @@ No PASS may be inferred from class existence, source-contract tests, SQL-engine 
 
 | Gate | Single definition | Current |
 |---|---|---|
-| G1 | Traceability/source ownership: requirement → code → SQL → transaction → test → evidence; all gaps classified and closed or approved exceptions | 🔴 OPEN — historical 122-row CSV snapshot is not present in this branch tree; current `TRACEABILITY_MATRIX.md` contains GAP entries and must be reconciled |
-| G2 | Unit/regression tests on exact candidate SHA, including production project compile items | 🟡 NOT VERIFIED on `fe73e91…`; run `40254095397` reports `20de300…`, not exact HEAD |
+| G1 | Traceability/source ownership: requirement → code → SQL → transaction → test → evidence; all gaps classified and closed or approved exceptions | 🔴 OPEN — current matrix still has GAP entries; historical 122-row CSV snapshot is absent from this branch tree and is not a current authoritative artifact |
+| G2 | Unit/regression tests on exact candidate SHA, including production project compile items | 🟡 CI PASS on `a41d5df…` (runs `40262798818`, `40262804379`); full WinForms `PCTP.csproj` build still NOT VERIFIED |
 | G3 | SQL engine integration using implementation/repository code, isolated SQL Server, data assertions and rollback | 🟡 PASS LIMITED historically; does not prove representative DBA schema or full workflow rollback |
 | G4 | Representative production-like schema/procedure compatibility on isolated, rollback-only database | 🔴 BLOCKED — no current evidence |
 | G5 | Two-session SQL concurrency for shared business keys/quotas, including lock serialization and injected rollback | 🔴 OPEN — no SQL two-session evidence |
@@ -107,3 +107,17 @@ Do not simply replace the stored procedures with one `Export` call. First implem
 6. Run representative isolated DBA-schema tests (G4).
 7. Run full UI-to-database business journeys and reconciliation (G6).
 8. Update both gate documents from this canonical matrix only after evidence is attached.
+
+
+## 7. Current CI evidence snapshot (2026-10-26)
+
+| Run | Event | SHA | Result | Scope |
+|---|---|---|---|---|
+| [40262798818](https://github.com/Nang0559/WINDOWS_PCTP-NO_Check-/actions/runs/40262798818) | push | `a41d5df18ee7cb3920915d47548e1db7899eb2f1` | SUCCESS | PCTP QC Test Platform workflow (configured jobs) |
+| [40262804379](https://github.com/Nang0559/WINDOWS_PCTP-NO_Check-/actions/runs/40262804379) | pull_request | `a41d5df18ee7cb3920915d47548e1db7899eb2f1` | SUCCESS | PCTP QC Test Platform workflow (configured jobs) |
+
+Older CI snapshots are historical only and must not be combined with these exact-SHA runs as if they validated the same candidate. The workflow does not build the full legacy WinForms `PCTP.csproj`, does not execute SQL two-session tests, and does not perform UI-to-database G6 journeys.
+
+## 8. SQL files under `Workflow/Diagram`
+
+Do not delete SQL files solely because they are stored under a documentation directory. Inventory each file by purpose: (a) authoritative deploy/migration script, (b) reproducible test fixture/seed, (c) diagnostic/query aid, or (d) obsolete snapshot. Only category (d) may be removed, and only after verifying there are no workflow, DBA, CI, or operator references. Move deployable scripts to a dedicated database/migrations location in a separate change with updated references; preserve content and history.
