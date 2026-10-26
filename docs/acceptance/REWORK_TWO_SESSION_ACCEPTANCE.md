@@ -34,6 +34,10 @@ Negative controls (D2, E2) run the same steps without locks and **must** oversel
 | R4 | policy | A=10, X=10, D=6: two sessions deliver the last 4 | exactly one commits and completes the ticket |
 | R5 | policy | same OperationId twice + a competing export of 6 | one ledger row, no duplicate OperationId, X=6 |
 | F2 | B0-02/03 | delivery holds the ticket lock, export on the same ticket with 500 ms timeout | export gets 51000, writes nothing, delivery committed |
+| F3 | B0-03/QC | delivery holds the ticket lock, final QC on the same ticket with 500 ms timeout | QC gets 51000, writes no QC row, delivery committed |
+| F4 | B0-03/QC | final QC holds the ticket lock, delivery on the same ticket with 500 ms timeout | delivery gets 51000, writes nothing, QC committed, ticket HoanTat |
+| Q1 | QC | A=X=D=10, two sessions run the final QC under the ticket lock | one QC row, one committed, loser re-reads HoanTat after the lock and is rejected |
+| Q2 | control | same, no lock, both read before either writes | two QC rows (double final QC) |
 
 ## Status rule
 

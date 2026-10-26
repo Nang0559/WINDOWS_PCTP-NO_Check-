@@ -30,6 +30,7 @@ internal static class ReworkTwoSessionScenario
         public string Xuat = "";
         public string Giao = "";
         public string Stock = "";
+        public string Qc = "";
     }
 
     private sealed class ProductionSql
@@ -58,7 +59,7 @@ internal static class ReworkTwoSessionScenario
     {
         var sql = LoadProductionSql();
         var prefix = "##PCTP_QC_" + Guid.NewGuid().ToString("N") + "_";
-        var f = new Fixture { Ticket = prefix + "Ticket", Xuat = prefix + "Xuat", Giao = prefix + "Giao", Stock = prefix + "Stock" };
+        var f = new Fixture { Ticket = prefix + "Ticket", Xuat = prefix + "Xuat", Giao = prefix + "Giao", Stock = prefix + "Stock", Qc = prefix + "Qc" };
 
         await using var owner = await OpenAsync(connectionString);
         try
@@ -68,7 +69,8 @@ CREATE TABLE [{f.Ticket}](Id int NOT NULL PRIMARY KEY, Status int NOT NULL, Quot
 CREATE TABLE [{f.Xuat}](Id int IDENTITY(1,1) NOT NULL PRIMARY KEY, PhieuId int NOT NULL, LotXuat nvarchar(50) NOT NULL, SoLuongXuat int NOT NULL, OperationId uniqueidentifier NULL);
 CREATE UNIQUE INDEX UX_QC_Op ON [{f.Xuat}](OperationId) WHERE OperationId IS NOT NULL;
 CREATE TABLE [{f.Giao}](Id int IDENTITY(1,1) NOT NULL PRIMARY KEY, PhieuId int NOT NULL, LotGiao nvarchar(50) NOT NULL, SoLuongGiao int NOT NULL);
-CREATE TABLE [{f.Stock}](Lot nvarchar(50) NOT NULL PRIMARY KEY, Qty int NOT NULL);");
+CREATE TABLE [{f.Stock}](Lot nvarchar(50) NOT NULL PRIMARY KEY, Qty int NOT NULL);
+CREATE TABLE [{f.Qc}](Id int IDENTITY(1,1) NOT NULL PRIMARY KEY, PhieuId int NOT NULL, SoLuongOK int NOT NULL, SoLuongNG int NOT NULL);");
 
             await DeliveryLockedRaceAsync(connectionString, owner, f, sql);
             await DeliveryUnlockedControlAsync(connectionString, owner, f);
@@ -81,12 +83,13 @@ CREATE TABLE [{f.Stock}](Lot nvarchar(50) NOT NULL PRIMARY KEY, Qty int NOT NULL
             await ExportUniqueIndexBackstopAsync(connectionString, owner, f);
             await CrossPathSerializationAsync(connectionString, owner, f, sql);
             await PolicyRacesAsync(connectionString, owner, f, sql);
+            await QcFinalSerializationAsync(connectionString, owner, f, sql);
 
             Console.WriteLine("PASS: Rework two-session lock protocol (B0-02/B0-03) verified on SQL Server with production lock SQL text; protocol-level evidence only, not the C# methods end to end.");
         }
         finally
         {
-            foreach (var table in new[] { f.Stock, f.Giao, f.Xuat, f.Ticket })
+            foreach (var table in new[] { f.Qc, f.Stock, f.Giao, f.Xuat, f.Ticket })
             {
                 await ExecAsync(owner, null, $"IF OBJECT_ID(N'tempdb..{table}') IS NOT NULL DROP TABLE [{table}];");
             }
@@ -432,6 +435,140 @@ CREATE TABLE [{f.Stock}](Lot nvarchar(50) NOT NULL PRIMARY KEY, Qty int NOT NULL
         Require(exportFailure != null && exportFailure.Number == 51000 && deliveryOutcome == Outcome.Committed && exported2 == 10,
             $"F2 expected export to fail closed (51000) while delivery holds the ticket lock; got failure={(exportFailure == null ? "none" : exportFailure.Number.ToString())}, delivery={deliveryOutcome}, exported={exported2}.");
         Console.WriteLine("PASS: F2 export cannot enter while a delivery holds the shared ticket lock.");
+    }
+
+    // ---------------------------------------------------------------- F3/F4/Q1/Q2 final QC on the shared ticket lock
+
+    private static Options QcLocked(ProductionSql sql, int ticket) => new Options
+    {
+        AppLockSql = sql.QcFinalLock,
+        AppLockResource = sql.QcFinalPrefix + ticket
+    };
+
+    private static async Task QcFinalSerializationAsync(string cs, SqlConnection owner, Fixture f, ProductionSql sql)
+    {
+        var shortQc = sql.QcFinalLock.Replace("@LockTimeout = 15000", "@LockTimeout = 500");
+        var shortDelivery = sql.DeliveryLock.Replace("@LockTimeout = 15000", "@LockTimeout = 500");
+        Require(!string.Equals(shortQc, sql.QcFinalLock, StringComparison.Ordinal) &&
+                !string.Equals(shortDelivery, sql.DeliveryLock, StringComparison.Ordinal),
+            "F3/F4 expected the final-QC and delivery locks to declare '@LockTimeout = 15000'; source changed, update the scenario.");
+
+        // F3: a delivery holds the ticket lock, the final QC on the same ticket must fail closed.
+        var t3 = NewTicket();
+        await SeedPolicyAsync(owner, f, t3, QTChungStatus.DaXuatKhoRework, approved: 10, exported: 10, delivered: 6, lot: "LOT-F3");
+        var deliveryLocked = new TaskCompletionSource();
+        var releaseDelivery = new TaskCompletionSource();
+        var deliveryOptions = Locked(sql, false, t3);
+        deliveryOptions.OnLocked = () => deliveryLocked.TrySetResult();
+        deliveryOptions.AfterRead = () => releaseDelivery.Task;
+        var deliverer = Task.Run(() => PolicyMoveAsync(cs, f, t3, false, "LOT-F3", 4, deliveryOptions));
+        await deliveryLocked.Task.WaitAsync(TimeSpan.FromSeconds(20));
+        SqlException? qcFailure = null;
+        try
+        {
+            await QcFinalAsync(cs, f, t3, 7, 3, new Options { AppLockSql = shortQc, AppLockResource = sql.QcFinalPrefix + t3 });
+        }
+        catch (SqlException ex) { qcFailure = ex; }
+        releaseDelivery.SetResult();
+        var deliveryOutcome = await deliverer;
+        var qcRows3 = await SumAsync(owner, $"SELECT COUNT(*) FROM [{f.Qc}] WHERE PhieuId={t3}");
+        Require(qcFailure != null && qcFailure.Number == 51000 && deliveryOutcome == Outcome.Committed && qcRows3 == 0,
+            $"F3 expected final QC to fail closed (51000) while delivery holds the ticket lock; got failure={(qcFailure == null ? "none" : qcFailure.Number.ToString())}, delivery={deliveryOutcome}, qcRows={qcRows3}.");
+        await AssertStateAsync(owner, f, t3, "LOT-F3", expectedX: 10, expectedD: 10, expectedStatus: QTChungStatus.DaGiaoSanXuat, "F3");
+        Console.WriteLine("PASS: F3 final QC cannot enter while a delivery holds the shared ticket lock and writes no QC row.");
+
+        // F4: the final QC holds the ticket lock, a delivery on the same ticket must fail closed.
+        var t4 = NewTicket();
+        await SeedPolicyAsync(owner, f, t4, QTChungStatus.DaGiaoSanXuat, approved: 10, exported: 10, delivered: 10, lot: "LOT-F4");
+        var qcLocked = new TaskCompletionSource();
+        var releaseQc = new TaskCompletionSource();
+        var qcOptions = QcLocked(sql, t4);
+        qcOptions.OnLocked = () => qcLocked.TrySetResult();
+        qcOptions.AfterRead = () => releaseQc.Task;
+        var qcTask = Task.Run(() => QcFinalAsync(cs, f, t4, 7, 3, qcOptions));
+        await qcLocked.Task.WaitAsync(TimeSpan.FromSeconds(20));
+        SqlException? deliveryFailure = null;
+        try
+        {
+            await PolicyMoveAsync(cs, f, t4, false, "LOT-F4", 1, new Options { AppLockSql = shortDelivery, AppLockResource = sql.DeliveryPrefix + t4 });
+        }
+        catch (SqlException ex) { deliveryFailure = ex; }
+        releaseQc.SetResult();
+        var qcOutcome = await qcTask;
+        var qcRows4 = await SumAsync(owner, $"SELECT COUNT(*) FROM [{f.Qc}] WHERE PhieuId={t4}");
+        Require(deliveryFailure != null && deliveryFailure.Number == 51000 && qcOutcome == Outcome.Committed && qcRows4 == 1,
+            $"F4 expected delivery to fail closed (51000) while final QC holds the ticket lock; got failure={(deliveryFailure == null ? "none" : deliveryFailure.Number.ToString())}, qc={qcOutcome}, qcRows={qcRows4}.");
+        await AssertStateAsync(owner, f, t4, "LOT-F4", expectedX: 10, expectedD: 10, expectedStatus: QTChungStatus.HoanTat, "F4");
+        Console.WriteLine("PASS: F4 delivery cannot enter while the final QC holds the shared ticket lock.");
+
+        // Q1: two final QCs race on the same ticket -> exactly one QC row, ticket completed once.
+        var q1 = NewTicket();
+        await SeedPolicyAsync(owner, f, q1, QTChungStatus.DaGiaoSanXuat, approved: 10, exported: 10, delivered: 10, lot: "LOT-Q1");
+        var rq1 = await Task.WhenAll(
+            Task.Run(() => QcFinalAsync(cs, f, q1, 7, 3, QcLocked(sql, q1))),
+            Task.Run(() => QcFinalAsync(cs, f, q1, 7, 3, QcLocked(sql, q1))));
+        var qcRows1 = await SumAsync(owner, $"SELECT COUNT(*) FROM [{f.Qc}] WHERE PhieuId={q1}");
+        Require(rq1.Count(x => x == Outcome.Committed) == 1 && rq1.Count(x => x == Outcome.Rejected) == 1 && qcRows1 == 1,
+            $"Q1 expected one committed and one rejected final QC with a single QC row; got {string.Join(",", rq1)}, qcRows={qcRows1}.");
+        await AssertStateAsync(owner, f, q1, "LOT-Q1", expectedX: 10, expectedD: 10, expectedStatus: QTChungStatus.HoanTat, "Q1");
+        Console.WriteLine("PASS: Q1 two final QCs on one ticket wrote one QC row; the loser re-read HoanTat after the lock and was rejected.");
+
+        // Q2 negative control: same race without the lock must double-commit, otherwise Q1 proves nothing.
+        var q2 = NewTicket();
+        await SeedPolicyAsync(owner, f, q2, QTChungStatus.DaGiaoSanXuat, approved: 10, exported: 10, delivered: 10, lot: "LOT-Q2");
+        using (var barrier = new Barrier(2))
+        {
+            Func<Task> meet = () => MeetAsync(barrier);
+            await Task.WhenAll(
+                Task.Run(() => QcFinalAsync(cs, f, q2, 7, 3, new Options { AfterRead = meet })),
+                Task.Run(() => QcFinalAsync(cs, f, q2, 7, 3, new Options { AfterRead = meet })));
+        }
+        var qcRows2 = await SumAsync(owner, $"SELECT COUNT(*) FROM [{f.Qc}] WHERE PhieuId={q2}");
+        Require(qcRows2 == 2, $"Q2 negative control must double-commit the final QC (2 rows); got {qcRows2}.");
+        Console.WriteLine("PASS: Q2 negative control without lock committed the final QC twice (qcRows=2).");
+    }
+
+    /// <summary>
+    /// Mirrors the production QCXacNhanCuoi order after the pre-checks (lock -> re-read status, A, D ->
+    /// guards -> QC row + status HoanTat). Protocol-level mirror, not the C# method.
+    /// </summary>
+    private static async Task<Outcome> QcFinalAsync(string cs, Fixture f, int ticket, int ok, int ng, Options o)
+    {
+        await using var c = await OpenAsync(cs);
+        await using var tx = (SqlTransaction)await c.BeginTransactionAsync();
+        try
+        {
+            if (o.AppLockSql != null)
+            {
+                await AcquireLockAsync(c, tx, o.AppLockSql, o.AppLockResource);
+                o.OnLocked?.Invoke();
+            }
+
+            var status = await SumAsync(c, tx, $"SELECT Status FROM [{f.Ticket}] WHERE Id=@id", P("@id", ticket));
+            var approved = await SumAsync(c, tx, $"SELECT QuotaRework FROM [{f.Ticket}] WHERE Id=@id", P("@id", ticket));
+            var delivered = await SumAsync(c, tx, $"SELECT ISNULL(SUM(SoLuongGiao),0) FROM [{f.Giao}] WHERE PhieuId=@id", P("@id", ticket));
+
+            if (o.AfterRead != null) await o.AfterRead();
+
+            if ((QTChungStatus)status != QTChungStatus.DaGiaoSanXuat || delivered < approved || ok + ng != approved)
+            {
+                await tx.RollbackAsync();
+                return Outcome.Rejected;
+            }
+
+            await ExecAsync(c, tx, $"INSERT INTO [{f.Qc}](PhieuId,SoLuongOK,SoLuongNG) VALUES(@id,@ok,@ng)",
+                P("@id", ticket), P("@ok", ok), P("@ng", ng));
+            await ExecAsync(c, tx, $"UPDATE [{f.Ticket}] SET Status=@s WHERE Id=@id",
+                P("@s", (int)QTChungStatus.HoanTat), P("@id", ticket));
+
+            await tx.CommitAsync();
+            return Outcome.Committed;
+        }
+        catch
+        {
+            await SafeRollbackAsync(tx);
+            throw;
+        }
     }
 
     // ---------------------------------------------------------------- R1..R5 policy races (A / X / D)
