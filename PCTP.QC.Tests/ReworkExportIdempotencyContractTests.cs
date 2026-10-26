@@ -51,6 +51,28 @@ public sealed class ReworkExportIdempotencyContractTests
     }
 
     [Fact]
+    public void ReworkDelivery_LocksAndReadsLedgersInsideTransactionBeforeInsert()
+    {
+        var service = ReadSource("QTChungService.source.cs");
+        var methodStart = service.IndexOf("public ScanResult GiaoHangRework(", StringComparison.Ordinal);
+        var methodEnd = service.IndexOf("public void GhiNhanDangRework(", methodStart, StringComparison.Ordinal);
+        Assert.True(methodStart >= 0 && methodEnd > methodStart, "Rework delivery method boundaries must exist.");
+
+        var method = service.Substring(methodStart, methodEnd - methodStart);
+        var begin = method.IndexOf("_uow.Begin()", StringComparison.Ordinal);
+        var appLock = method.IndexOf("QT_REWORK_DELIVERY:", StringComparison.Ordinal);
+        var exportRead = method.IndexOf("_traHangQTChungRepository.GetXuat(", StringComparison.Ordinal);
+        var deliveryRead = method.IndexOf("_traHangQTChungRepository.GetGiao(", StringComparison.Ordinal);
+        var insert = method.IndexOf("_traHangQTChungRepository.InsertGiao(", StringComparison.Ordinal);
+        var commit = method.IndexOf("_uow.Commit()", StringComparison.Ordinal);
+
+        Assert.True(begin >= 0 && appLock > begin, "Transaction and ticket application lock must start before ledger reads.");
+        Assert.True(exportRead > appLock && deliveryRead > appLock, "Both export and delivery totals must be read after serialization.");
+        Assert.True(insert > deliveryRead && commit > insert, "Delivery ledger insert must remain in the locked transaction.");
+        Assert.Contains("@LockOwner = 'Transaction'", method);
+    }
+
+    [Fact]
     public void ReworkExportRepository_PersistsAndReadsOperationId()
     {
         var repository = ReadSource("TraHangQTChungRepository.source.cs");
