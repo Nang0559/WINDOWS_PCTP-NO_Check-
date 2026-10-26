@@ -12,7 +12,7 @@ No PASS may be inferred from class existence, source-contract tests, SQL-engine 
 
 | Gate | Single definition | Current |
 |---|---|---|
-| G1 | Traceability/source ownership: requirement → code → SQL → transaction → test → evidence; all gaps classified and closed or approved exceptions | 🔴 OPEN — current matrix still has GAP entries; historical 122-row CSV snapshot is absent from this branch tree and is not a current authoritative artifact |
+| G1 | Traceability/source ownership: requirement → code → SQL → transaction → test → evidence; all gaps classified and closed or approved exceptions | 🔴 OPEN — regenerated matrix (`docs/TRACEABILITY_MATRIX.md`, `PCTP.QC.UI/G1-gaps.csv`): 88 code rows (66 GAP), 17 SQL scripts, 22 non-implemented TestMatrix rows, 105 gaps. Classified in `docs/G1_GAP_TRIAGE.md`; owners/exceptions not yet assigned. A COMPLETE row means "referenced by a test", not "behaviour verified" (see triage §2) |
 | G2 | Unit/regression tests on exact candidate SHA, including production project compile items | 🟡 Last green baseline `a41d5df…`; current candidate `bb15a60…` CI CANCELLED (runs `40264579206`, `40264584779`); full WinForms build NOT VERIFIED |
 | G3 | SQL engine integration using implementation/repository code, isolated SQL Server, data assertions and rollback | 🟡 PASS LIMITED historically; does not prove representative DBA schema or full workflow rollback |
 | G4 | Representative production-like schema/procedure compatibility on isolated, rollback-only database | 🔴 BLOCKED — no current evidence |
@@ -74,7 +74,7 @@ Required SQL evidence: two sessions deliver against the same remaining quantity;
 - `Usp_Qrcode_Update_Stock_SP`;
 - `TruStockTpFifo` (direct `STOCKTP` update).
 
-The repository constructor currently allows `IStockMovementService = null`. In addition, `GiaoHangKhachModuleFactory` constructs a movement service for `PhieuRepository`; this alone does not prove the `PhieuKhoRepository` path is wired to it.
+The repository constructor still allows `IStockMovementService = null`. Source review of `53af05d` found a single production construction path: `GiaoHangKhachModuleFactory.Build` passes a `StockMovementService` to `PhieuRepository`, which passes it to its one `PhieuKhoRepository`. `DeliveryLegacyWriterInventoryTests` pins that wiring and the exact set of legacy STOCKTP writers so neither can change silently. This does not close B0-01: STOCKTP is still written by the two stored procedures and by `TruStockTpFifo`; parity P1–P13 are not started (see `WMS_B0_01_DELIVERY_PARITY.md`).
 
 Do not simply replace the stored procedures with one `Export` call. First implement a delivery command that accepts validated QR/PART/FIFO allocation, resolves exact LOT/SlotLot quantities, and atomically applies `STOCKTP`, `SlotLot`, delivery ledger/history and pending-delivery state under the shared UoW. Preserve multi-LOT, partial-LOT, retry/idempotency and rollback behavior. Remove legacy writers only after parity tests pass.
 

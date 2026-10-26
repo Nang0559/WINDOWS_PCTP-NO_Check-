@@ -76,7 +76,7 @@ Ba điểm chặn quan trọng nhất:
 
 | Gate | Nội dung phải chứng minh | Evidence hiện có | Trạng thái |
 |---|---|---|---|
-| G1 — Traceability | Mỗi yêu cầu/luồng nối được code ↔ SQL object ↔ transaction ↔ test ↔ tài liệu; không còn gap chưa xử lý | Snapshot `PCTP.QC.UI/G1-gaps.csv` SHA `ab064ed03a6ff3d3c12bba192e24f4fafdd87f17`: 122 data rows. Chưa có remediation/evidence đóng đủ từng dòng | 🔴 OPEN |
+| G1 — Traceability | Mỗi yêu cầu/luồng nối được code ↔ SQL object ↔ transaction ↔ test ↔ tài liệu; không còn gap chưa xử lý | Ma trận sinh lại bằng `Build-TraceabilityMatrix.py`: 88 dòng code (66 GAP), 17 SQL script, 22 dòng TestMatrix chưa implemented, 105 gap; phân loại tại `docs/G1_GAP_TRIAGE.md`. Chưa gán owner/ngoại lệ, chưa đóng đủ từng dòng | 🔴 OPEN |
 | G2 — Unit/regression | Unit/source-contract và regression bảo vệ quy tắc nghiệp vụ | Runs `40254418356`/`40254422559` PASS 3/3 jobs trên baseline `fe73e91…`; chúng chạy trước thay đổi compile-item. Candidate hiện tại `e5f0eab…` đang chờ CI | 🟡 NOT VERIFIED ON CANDIDATE |
 | G3 — SQL integration | Chạy implementation/repository thật với SQL engine cô lập, kiểm dữ liệu và rollback | CI runs `40253439019` và `40253444406` PASS SQL engine integration trên HEAD `a8393df…`; chỉ chứng minh SQL fixture/engine, không thay thế schema DBA representative | PASS LIMITED |
 | G4 — Production procedure compatibility | Kiểm procedure thật trong DB thử nghiệm được cô lập, rollback-only và có G3 PASS cùng commit | Chưa có bằng chứng mới xác nhận schema/seed/procedure nghiệp vụ đại diện | 🔴 BLOCKED |
@@ -214,7 +214,7 @@ Không copy nguyên câu query mẫu vào production hoặc CI trước khi thay
 - Run `40253439019`: SUCCESS, jobs `unit-regression-tests`, `sql-engine-integration`, `desktop-runner-build` đều success.
 - Run `40253444406`: SUCCESS, cùng 3 jobs đều success.
 - Hai run dùng HEAD docs-only. Bằng chứng unit/source-contract của thay đổi code B0-02/B0-03 thuộc code SHA `dd5ad9e07f6b35c83cfb036c25514152e51dc679`; không diễn giải CI docs-only như build code mới.
-- G1 snapshot: 122 data rows ở CSV SHA `ab064ed03a6ff3d3c12bba192e24f4fafdd87f17`.
+- G1 snapshot hiện hành: 105 gap (88 dòng code, 17 SQL script, 22 dòng TestMatrix) — xem `docs/G1_GAP_TRIAGE.md`. Snapshot cũ 122 dòng (`ab064ed…`) và 104 gap (`8f00ebe…`) chỉ còn là lịch sử.
 
 
 ## 11. Compile inventory — exact branch snapshot `fe73e91cf25737def51a85ab0642723e5711085f`

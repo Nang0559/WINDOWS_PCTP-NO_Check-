@@ -13,6 +13,8 @@ This document records a source-level review of the current stock-mutation compos
 | Rework / QC | `XuLyHangLoiModuleFactory.Build()` creates one `UnitOfWork`; the overload also accepts the workflow-owned instance | Slot, STOCKTP, history, rework/QT and abnormal-ticket repositories are composed with that instance |
 | Customer delivery | `GiaoHangKhachModuleFactory.Build()` creates `phieuUow` | `BulkStockSlotRepository`, `StockHistoryRepository`, `HangChoGiaoRepository`, and `LegacyStockBalanceRepositoryAdapter` share the same executor/UoW |
 
+Naming note for the G1 generator: the class `StockTpRepository` lives in the file `StockTPRepository.cs` (note the capital P). The generator matches the file stem, so both spellings are written here. `StockTPRepository.cs` does not own a transaction: it takes the workflow `IUnitOfWork` in its constructor and executes through `PhieuSqlExecutor`, so it participates in the transaction begun by `NhapTpReceivingService` (receiving) or by the stock export workflow (main stock). Its SQL behaviour is exercised by `ProductionStockTpRepositoryScenario` against an isolated `#STOCKTP` fixture.
+
 The stock-slot adapter delegates to the workflow's `SlotService`; the balance adapters delegate to repositories constructed with the same workflow UoW. This is the intended path for SQL mutations to participate in one transaction. This row verifies factory composition only; it is not evidence that the complete customer-delivery operation has been executed or rolled back in a SQL integration test.
 
 ## Verified workflow ownership

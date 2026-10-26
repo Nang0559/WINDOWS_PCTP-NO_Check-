@@ -53,3 +53,35 @@ IDs are `P1..P13` (command parity). They are distinct from the `Y1..Y15` charact
 - Real method execution against isolated SQL Server; two sessions for same BusinessKey and same QR.
 - Failure injection after each mutation boundary and exact before/after quantity reconciliation.
 - Full UI journey and cleanup on an isolated database.
+
+## Current-state inventory (source review of `53af05d` plus the ratchet test patch)
+
+Verified from source; none of this is a SQL result.
+
+**Legacy STOCKTP writers still reachable from customer delivery** (`PhieuKhoRepository.cs`):
+
+| Writer | Entry points | Notes |
+|---|---|---|
+| `Usp_Qrcode_Update_Stock2405` | `CapNhapKho` (and `CapNhapKhoHTN` through it) | stored procedure deducts STOCKTP; SlotLot then deducted by `BulkStockAdjustService` |
+| `Usp_Qrcode_Update_Stock_SP` | `CapNhapKhoSP` | same pattern for the SP variant |
+| `UPDATE STOCKTP ... SLCONLAI = SLCONLAI - @sl` in `TruStockTpFifo` | `CapNhapKhoYMVN` | repository-owned FIFO deduction guarded by `SLCONLAI >= @sl` and a one-row check |
+
+`DeliveryLegacyWriterInventoryTests` pins exactly this set (two procedures, one `UPDATE STOCKTP`, one caller of `TruStockTpFifo`). Adding a writer fails the test. It is a ratchet, not closure: B0-01 stays OPEN.
+
+**Construction paths (migration constraint 4).** `PhieuRepository` is constructed once in production, in `GiaoHangKhachModuleFactory.Build` (file `GiaoHangKhachFactory.cs`), which creates `StockMovementService` and passes it as `stockMovement:`. `PhieuRepository` constructs `PhieuKhoRepository` once and forwards `stockMovement`. So the production path is wired with a non-null movement service, and no other production construction site exists in `PCTP/`. The three `= null` defaults (`PhieuRepository`, `PhieuKhoRepository`, `BulkStockAdjustService`) are therefore unused by production composition but are still selectable by any future caller. Removing them is a separate change after the delivery command exists; `BulkStockAdjustService.TruKhoAoTheoLot` already fails closed (throws) when the service is null.
+
+**Parity status (P1–P13): NOT STARTED.** `DeliveryStockCommand` and `IDeliveryStockCommandHandler` exist as a contract (validated by `DeliveryStockCommandContractTests`); there is no handler implementation and no parity test. `DEL-003`, `DEL-004` and `DEL-007` remain partial in `TestMatrix.json`.
+
+**Not provided by the current code (inputs the handler design must decide):**
+
+1. No persisted idempotency key on any delivery path. Replay protection today depends on TMP/pending state; `DEL-004` is therefore partial. P7/P8 need a durable `BusinessKey` and a unique index, delivered as an idempotent migration under the root `SQL/` folder.
+2. The YMVN path takes LOT lists as parsed strings (`lotSl`) rather than PART-scoped allocations; the command's PART/LOT model has no producer yet.
+3. The stored-procedure paths return LOT/SOLUONG rows after deducting STOCKTP; a handler that deducts itself must not also call these procedures (migration constraint 2).
+
+## Suggested build order for the handler (no code in this patch)
+
+1. SQL fixture with representative `STOCKTP`, `SlotLot`, QR, TMP, ledger and history shapes (G4 prerequisite; DBA-confirmed schema, no invented procedure definitions).
+2. Handler for the simplest slice (P1, P5) behind an internal switch that is off in `GiaoHangKhachModuleFactory`.
+3. Add P7/P8 (idempotency) and P9/P10 (rollback injection) before widening to multi-LOT/multi-PART (P2–P4, P6).
+4. YMVN (P11, P13) and MP/SP variants (P12) last, against the existing `YMVN_DELIVERY_SPEC_ACCEPTANCE.md` characterization cases.
+5. Replace the stored-procedure source-contract assertions (`DeliveryTransactionContractTests`, `DeliveryProductionBoundaryTests`) deliberately and only after P1–P13 pass; keep rollback/idempotency regressions.
