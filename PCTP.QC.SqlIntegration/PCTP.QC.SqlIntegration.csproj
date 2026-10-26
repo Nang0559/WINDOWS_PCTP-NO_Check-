@@ -9,6 +9,9 @@
   <ItemGroup>
     <None Include="../SQL/Usp_Qrcode_Take_Lot2405.sql" Link="Usp_Qrcode_Take_Lot2405.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/XuLyHangLoi/Services/QTChungService.cs" Link="QTChungService.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/XuLyHangLoi/Database/PHASE12_PhieuXuLyBatThuong_PhieuTraHangCTId.sql" Link="Database/PHASE12_PhieuXuLyBatThuong_PhieuTraHangCTId.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/XuLyHangLoi/Database/PHASE13_QTChung_ReworkTables.sql" Link="Database/PHASE13_QTChung_ReworkTables.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/XuLyHangLoi/Database/PHASE14_ReworkExportIdempotency.sql" Link="Database/PHASE14_ReworkExportIdempotency.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Shared/Common/SqlRepositoryBase.cs" Link="SqlRepositoryBase.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/GiaoHangKhach/Repositories/PhieuKhoRepository.cs" Link="PhieuKhoRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <PackageReference Include="Microsoft.Data.SqlClient" Version="6.1.3" />

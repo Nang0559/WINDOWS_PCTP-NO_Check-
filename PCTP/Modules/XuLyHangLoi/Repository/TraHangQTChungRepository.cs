@@ -979,7 +979,7 @@ WHERE Id = @Id;";
             int phieuXuLyId)
         {
             return GetTotal(
-                @"SELECT ISNULL(SoLuongOK, 0)
+                @"SELECT ISNULL(SUM(SoLuongOK), 0)
               FROM dbo.FVN_TraHangQTChungQC
               WHERE PhieuXuLyBatThuongId = @Id",
                 phieuXuLyId);
@@ -989,7 +989,7 @@ WHERE Id = @Id;";
             int phieuXuLyId)
         {
             return GetTotal(
-                @"SELECT ISNULL(SoLuongNG, 0)
+                @"SELECT ISNULL(SUM(SoLuongNG), 0)
               FROM dbo.FVN_TraHangQTChungQC
               WHERE PhieuXuLyBatThuongId = @Id",
                 phieuXuLyId);

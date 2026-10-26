@@ -1,6 +1,8 @@
 using System;
 using System.Data;
 using System.Data.SqlClient;
+using System.IO;
+using System.Text.RegularExpressions;
 using PCTP.ClassSQL;
 using PCTP.Modules.GiaoHangKhach;
 using PCTP.Modules.XuLyHangLoi.Enums;
@@ -17,7 +19,7 @@ namespace PCTP.QC.SqlIntegration;
 /// eligible. Production repository code, SqlRepositoryBase, UnitOfWork and SQL Server are real.
 /// The test executor deliberately throws if a repository bypasses the active UnitOfWork.
 /// </summary>
-internal static class ProductionReworkRepositorySqlScenario
+internal static partial class ProductionReworkRepositorySqlScenario
 {
     private const string TicketTable = "dbo.FVN_PhieuXuLyBatThuong";
     private const string ReturnLineTable = "dbo.FVN_PhieuTraHangCT";
@@ -38,6 +40,9 @@ internal static class ProductionReworkRepositorySqlScenario
         {
             RunAbnormalTicketRepository(legacyConnectionString);
             RunReturnWorkflowRepository(legacyConnectionString);
+            RunAbnormalTicketEdgeContracts(legacyConnectionString);
+            RunReturnWorkflowEdgeContracts(legacyConnectionString);
+            RunSchemaEnforcedLedgerContracts(legacyConnectionString);
             Console.WriteLine("PASS: production TraHangQTChungRepository + PhieuXuLyBatThuongRepository SQL integration against disposable dbo fixtures; rollback and UnitOfWork participation verified.");
         }
         finally
@@ -124,10 +129,17 @@ INSERT INTO {ReturnLineTable}(Id, PhieuXuLyBatThuongId) VALUES ({returnLineId}, 
         }
 
         // A failed child-link update must roll back the newly inserted parent row.
+        // With the real PHASE12 unique index UX_FVN_PhieuXuLyBatThuong_PhieuTraHangCTId the duplicate
+        // INSERT is rejected by SQL Server itself (2601/2627) before the link UPDATE can run. The
+        // InvalidOperationException path remains only for databases that lack that index.
         bool duplicateLinkRejected = false;
         try
         {
             repository.Insert(returnLineId, NewTicket("QC-SQL-TICKET-DUPLICATE", returnLineId));
+        }
+        catch (SqlException ex) when (ex.Number == 2601 || ex.Number == 2627)
+        {
+            duplicateLinkRejected = true;
         }
         catch (InvalidOperationException)
         {
@@ -317,11 +329,12 @@ SELECT
         Console.WriteLine("PASS: production TraHangQTChungRepository CRUD/map/ledger totals/timeline/OperationId uniqueness/caller rollback.");
     }
 
-    private static PhieuXuLyBatThuong NewTicket(string number, int returnLineId) => new()
+    private static PhieuXuLyBatThuong NewTicket(
+        string number, int returnLineId, int returnId = 77, string defect = "integration") => new()
     {
         SoPhieu = number,
         Nguon = NguonXuLyBatThuong.TraNoiBo,
-        PhieuTraHangId = 77,
+        PhieuTraHangId = returnId,
         PhieuTraHangCTId = returnLineId,
         SoPhieuTraHangGoc = "RETURN-SQL",
         SlotIdNguon = 41,
@@ -331,7 +344,7 @@ SELECT
         SoLo = "LOT-SQL",
         SoLoLoi = "LOT-SQL-NG",
         SoLuongLoi = 4,
-        NoiDungBatThuong = "integration",
+        NoiDungBatThuong = defect,
         PhanLoaiXuLy = "QC",
         BoPhanPhatHanh = "QA",
         HuongXuLy = HuongXuLyBatThuong.ChuaXacDinh,
@@ -393,71 +406,16 @@ CREATE TABLE dbo.FVN_PhieuXuLyBatThuong
     UpdatedAt datetime NULL,
     UpdatedBy nvarchar(100) NULL
 );
+");
 
-CREATE TABLE dbo.FVN_TraHangQTChungXuat
-(
-    Id int IDENTITY(1,1) NOT NULL PRIMARY KEY,
-    OperationId uniqueidentifier NULL,
-    PhieuXuLyBatThuongId int NOT NULL,
-    SlotIdNguon int NOT NULL,
-    LotXuat nvarchar(100) NULL,
-    LoaiXuat nvarchar(50) NULL,
-    MaHang nvarchar(100) NULL,
-    SoLuongXuat int NOT NULL,
-    TonTruoc int NOT NULL,
-    TonSau int NOT NULL,
-    NgayXuat datetime NOT NULL,
-    NguoiXuat nvarchar(100) NULL,
-    LyDo nvarchar(500) NULL,
-    Note nvarchar(1000) NULL
-);
-CREATE UNIQUE INDEX UX_QC_ReworkExport_OperationId
-ON dbo.FVN_TraHangQTChungXuat(OperationId)
-WHERE OperationId IS NOT NULL;
-
-CREATE TABLE dbo.FVN_TraHangQTChungGiao
-(
-    Id int IDENTITY(1,1) NOT NULL PRIMARY KEY,
-    PhieuXuLyBatThuongId int NOT NULL,
-    LotGiao nvarchar(100) NULL,
-    MaHang nvarchar(100) NULL,
-    SoLuongGiao int NOT NULL,
-    ThoiGian datetime NOT NULL,
-    NgayGiao nvarchar(30) NULL,
-    NguoiNhan nvarchar(100) NULL,
-    BoPhanNhan nvarchar(100) NULL,
-    SoPhieuGiaoNhan nvarchar(100) NULL,
-    Note nvarchar(1000) NULL
-);
-CREATE TABLE dbo.FVN_TraHangQTChungQC
-(
-    Id int IDENTITY(1,1) NOT NULL PRIMARY KEY,
-    PhieuXuLyBatThuongId int NOT NULL,
-    SoLuongDaRework int NOT NULL,
-    SoLuongOK int NOT NULL,
-    SoLuongNG int NOT NULL,
-    DaKiemTraTem bit NOT NULL,
-    ThoiGian datetime NOT NULL,
-    NguoiQC nvarchar(100) NULL,
-    KetLuan nvarchar(500) NULL,
-    Note nvarchar(1000) NULL
-);
-CREATE TABLE dbo.FVN_TraHangQTChungNhapNG
-(
-    Id int IDENTITY(1,1) NOT NULL PRIMARY KEY,
-    PhieuXuLyBatThuongId int NOT NULL,
-    SlotIdOK int NULL,
-    SlotIdNG int NULL,
-    LotNhapLai nvarchar(100) NULL,
-    MaHang nvarchar(100) NULL,
-    SoLuongNG int NOT NULL,
-    SlotIdNhap int NULL,
-    NgayNhap datetime NOT NULL,
-    NguoiNhap nvarchar(100) NULL,
-    LyDo nvarchar(500) NULL,
-    Note nvarchar(1000) NULL
-);");
-        Console.WriteLine("PASS: disposable XuLyHangLoi repository fixture schema created (fixed dbo names confirmed absent).");
+        // The four ledger tables, the OperationId idempotency index and the unique ticket->return-line
+        // index are created from the REAL migration scripts, not hand-written copies, so column
+        // nullability, CHECK constraints and index names cannot drift from production DDL.
+        // (The QT Chung core tables above have no DDL in this repository and stay hand-built.)
+        ExecuteScript(connectionString, ReadMigration("PHASE12_PhieuXuLyBatThuong_PhieuTraHangCTId.sql"));
+        ExecuteScript(connectionString, ReadMigration("PHASE13_QTChung_ReworkTables.sql"));
+        ExecuteScript(connectionString, ReadMigration("PHASE14_ReworkExportIdempotency.sql"));
+        Console.WriteLine("PASS: disposable XuLyHangLoi repository fixture schema created (core tables hand-built; ledger tables + indexes from real PHASE12/13/14 scripts; fixed dbo names confirmed absent).");
     }
 
     private static void DropFixtures(string connectionString)
