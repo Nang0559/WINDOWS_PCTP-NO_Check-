@@ -329,7 +329,7 @@ EXEC @result = sys.sp_getapplock
 IF @result < 0 THROW 51000, 'Không lấy được khóa xuất Rework theo phiếu.', 1;";
                     var resource = command.CreateParameter();
                     resource.ParameterName = "@Resource";
-                    resource.Value = "QT_REWORK_EXPORT:" + phieuXuLyId;
+                    resource.Value = "QT_REWORK_TICKET:" + phieuXuLyId;
                     command.Parameters.Add(resource);
                     command.ExecuteNonQuery();
                 }
@@ -395,7 +395,7 @@ EXEC @result = sys.sp_getapplock
 IF @result < 0 THROW 51000, 'Không lấy được khóa giao Rework theo phiếu.', 1;";
                     var resource = command.CreateParameter();
                     resource.ParameterName = "@Resource";
-                    resource.Value = "QT_REWORK_DELIVERY:" + phieuXuLyId;
+                    resource.Value = "QT_REWORK_TICKET:" + phieuXuLyId;
                     command.Parameters.Add(resource);
                     command.ExecuteNonQuery();
                 }
