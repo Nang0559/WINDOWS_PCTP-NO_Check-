@@ -4,10 +4,12 @@ on:
   push:
     branches:
       - feature/pctp-qc-test-platform
+      - feature/wms-end-to-end-consistency
   pull_request:
     branches:
       - fix/qc-final-execution-timeout
       - feature/pctp-qc-test-platform
+      - feature/wms-end-to-end-consistency
   workflow_dispatch:
     inputs:
       run_sql_integration:
