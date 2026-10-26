@@ -25,7 +25,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
     ///
     /// Trạng thái pending được tính từ source Order - LUUPHIEUGIAOHANG,
     /// sau đó mới phân bổ tồn kho theo giờ/FIFO để tạo Worklist.
-    /// Không query trực tiếp bảng legacy GIAOHANGYMN/YAMAHAQRCDE_SP.
+    /// Không query trực tiếp bảng của form YMVN legacy (xem WMS_LEGACY_FILE_CLASSIFICATION.md).
     /// </summary>
     public sealed class HangThieuCaNgayService : IHangThieuCaNgayService
     {

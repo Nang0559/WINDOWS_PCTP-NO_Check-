@@ -44,6 +44,8 @@ It belongs to regression/test scope and must not be compiled into the production
 
 Reason for exclusion pending review: `PCTP/Program.cs` starts `Main_APP`; the visible YMVN entry points `GIAOHANGYMN` and `YAMAHAQRCDE_SP` are commented out. This is evidence of current startup exclusion, not proof that all related forms/reports are permanently retired. Confirm active callers, menu/navigation reachability, deployment usage, designer resources and customer workflow before adding or deleting them.
 
+Phân loại chi tiết từng file, bằng chứng và việc còn lại: xem `WMS_LEGACY_FILE_CLASSIFICATION.md`.
+
 ## Required verification
 
 - Run a case-insensitive tree-vs-`<Compile Include>` audit after each project edit.
