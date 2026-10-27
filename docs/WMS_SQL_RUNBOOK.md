@@ -99,7 +99,19 @@ Script deploy cả hai proc (mặc định `-Procedure All`; có thể chọn `S
 - Nếu phát hiện caller SQL hoặc Agent, script dừng. Kiểm tra module SQL/Agent không phát hiện được mọi lời gọi C# hoặc SQL động; phải tìm trong source/config và kiểm thử luồng ứng dụng.
 - Khi xác nhận retire, procedure giữ nguyên chữ ký nhưng trả lỗi `51015` thay vì chạy các lệnh ghi dữ liệu không an toàn. Đây là fail-closed, không phải bản thay thế nghiệp vụ cho luồng lưu phiếu chuẩn.
 
-Kết quả người dùng đã cung cấp từ `ACCFAST\\BRAVO / B7R2_FCC` xác nhận procedure tồn tại trên server đó. Vì vậy không được thử nghiệm bằng cách thực thi procedure tại server này; dùng DB57 cô lập theo quy tắc ở §0.
+Kết quả precheck người dùng cung cấp:
+- `ACCFAST\\BRAVO / B7R2_FCC`: procedure tồn tại; không dùng để chạy retire.
+- `QC-CNC\\BRV / B7R2_FCC`: procedure tồn tại; truy vấn không tìm thấy SQL module caller hoặc SQL Agent job step. Lần chạy là `PRECHECK ONLY`, không có DDL.
+- Chưa có bằng chứng rằng `QC-CNC\\BRV` chính là DB57. Chạy truy vấn chỉ đọc sau trên đúng kết nối:
+
+```sql
+SELECT
+    @@SERVERNAME AS ServerName,
+    DB_NAME() AS DatabaseName,
+    CONVERT(nvarchar(48), CONNECTIONPROPERTY('local_net_address')) AS SqlServerIp;
+```
+
+Chỉ tiếp tục nếu `SqlServerIp = 192.168.200.57`. Nếu giá trị khác hoặc `NULL`, dừng và không đặt `@ConfirmRetire = 1`. Precheck SQL không loại trừ caller từ C#, cấu hình, SQL động hoặc hệ thống bên ngoài.
 
 ## 4. Chạy gate và thu bằng chứng
 
