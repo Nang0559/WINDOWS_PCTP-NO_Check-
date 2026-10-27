@@ -86,6 +86,18 @@ class ExportTests(unittest.TestCase):
             findings, _ = run(out)
             self.assertEqual([], [f for f in findings if f.level == 'ERROR'])
 
+    def test_normalised_copy_parses_windows_crlf_export(self):
+        with tempfile.TemporaryDirectory() as d:
+            src, dst = os.path.join(d, 'export.txt'), os.path.join(d, 'out.sql')
+            with open(src, 'wb') as handle:
+                handle.write(self.EXPORT.replace('\n', '\r\n').encode('utf-8'))
+            self.assertEqual(0, checker.main(['--export', src, '--emit-loadable', dst, '--halve-unicode-lengths']))
+            with open(dst, encoding='utf-8') as handle:
+                out = handle.read()
+            self.assertIn('CREATE TABLE [dbo].[T1]', out)
+            self.assertIn('NVARCHAR(50)', out)
+            self.assertNotIn('Missing', out)
+
     def test_raw_export_is_reported_as_defective(self):
         findings, _ = run(self.EXPORT)
         self.assertTrue({'E001', 'E002'} <= {f.code for f in findings})
