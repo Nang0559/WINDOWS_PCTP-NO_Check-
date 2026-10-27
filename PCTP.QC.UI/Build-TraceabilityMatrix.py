@@ -137,7 +137,7 @@ def analyze_cs(path):
         # boundary even without an explicit multi-statement transaction.
         # Never apply this shortcut to stored-procedure calls or multi-DML batches.
         dml_count = len(_WRITE.findall(" ".join(lits)))
-        dml_calls = len(re.findall(r"\\b(?:ExecuteNonQuery|ExecuteScalar|ExecuteReader)\\s*\\(", src))
+        dml_calls = len(re.findall(r"\b(?:ExecuteNonQuery|ExecuteScalar|ExecuteReader)\s*\(", src))
         tx = "STATEMENT-ATOMIC" if dml_count == 1 and dml_calls == 1 and not sps else "NONE"
     # A file that names SQL objects but never executes SQL (no Execute*/CallPhieuSP/DropCreate/BulkInsert/
     # SqlCommand/adapter call) only forwards to repositories that own the transaction. NONE stays NONE
