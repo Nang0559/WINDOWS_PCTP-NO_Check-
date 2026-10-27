@@ -297,8 +297,9 @@ def main():
     # unrelated B7R2 dbo tables are never pulled into the PCTP CI baseline.
     available_tables = {name for name, value in exp.items() if value["kind"] == "table"}
     inventory_candidates = runtime_table_candidates(inv)
-    seed_tables = ({name for name in refs if name in available_tables}
-                   | (inventory_candidates & available_tables))
+    # The CSV is the scope authority. Literal code references are a completeness
+    # audit; they do not silently expand the generated schema.
+    seed_tables = inventory_candidates & available_tables
     fk_dependencies = foreign_key_dependency_map(METADATA, seed_tables, available_tables)
     # This is the exact set that the current CI run will generate from SQL2,
     # not a scan of stale checked-in 02/03 artifacts from an older wider scope.
@@ -313,7 +314,12 @@ def main():
             continue  # SQL2 catalog is lookup evidence, not a request to clone all of B7R2
         on57, gitf, cis = status(n, exp, gitd, ci_names)
         in_runtime_scope = n in inventory_candidates
-        cls = classify(bool(r or in_runtime_scope or dependency_parents), e, g, ci)
+        if dependency_parents and not r:
+            cls = 'GAP-fk-dependency'
+        elif r and e and e['kind'] == 'table' and not in_runtime_scope:
+            cls = 'GAP-not-in-runtime-inventory'
+        else:
+            cls = classify(bool(in_runtime_scope or dependency_parents), e, g, ci)
         rows.append({
             'object': (e['name'] if e else (inv[n]['Tên đối tượng'] if in_inv else n)),
             'kind': (e['kind'] if e else ''),
@@ -325,7 +331,7 @@ def main():
             'in_runtime_inventory': 'có' if in_runtime_scope else ('cần xác minh' if in_inv else 'không'),
             'class': ('GAP-fk-dependency' if dependency_parents and not r else cls),
         })
-    order = {'GAP-db57-unverified': 0, 'GAP-fk-dependency': 1, 'GAP-no-git-ddl': 2, 'GAP-ci-schema': 3, 'OK-testable': 4, 'info': 5}
+    order = {'GAP-db57-unverified': 0, 'GAP-not-in-runtime-inventory': 1, 'GAP-fk-dependency': 2, 'GAP-no-git-ddl': 3, 'GAP-ci-schema': 4, 'OK-testable': 5, 'info': 6}
     rows.sort(key=lambda x: (order[x['class']], x['object'].lower()))
     out = os.path.join(ROOT, a.out) if not os.path.isabs(a.out) else a.out
     os.makedirs(os.path.dirname(out), exist_ok=True)
@@ -352,9 +358,14 @@ def main():
         new = sorted(verified - set(known)); stale = sorted(set(known) - verified)
         for n in new: print('NEW SQL2 column mismatch (review SQL/code):', n)
         for n in stale: print('WARN known SQL2 gap no longer present:', n)
+        scope_gaps = [r for r in rows if r['class'] in {'GAP-db57-unverified', 'GAP-not-in-runtime-inventory'}
+                      and (r['referenced_by_code'] == 'có' or r['in_runtime_inventory'] == 'có')]
+        for row in scope_gaps:
+            print('SCHEMA SCOPE GAP:', row['object'], row['class'])
         print('UNVERIFIED table writes (not a mismatch verdict):', len(unverified))
-        print('CHECK', 'FAIL' if new else 'PASS', f'({len(verified)} verified mismatches, {len(known)} known, {len(unverified)} unverified)')
-        return 1 if new else 0
+        failed = bool(new or scope_gaps)
+        print('CHECK', 'FAIL' if failed else 'PASS', f'({len(verified)} verified mismatches, {len(known)} known, {len(unverified)} unverified, {len(scope_gaps)} scope gaps)')
+        return 1 if failed else 0
     return 0
 
 if __name__ == '__main__':
