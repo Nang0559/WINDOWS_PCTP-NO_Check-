@@ -142,6 +142,22 @@ class Sql2DdlGeneratorTests(unittest.TestCase):
         self.assertIn("CREATE TABLE dbo.[FVN_Test]", sql)
         self.assertNotIn("CREATE TABLE dbo.[OtherTable]", sql)
 
+    def test_full_database_baseline_class_is_not_included(self):
+        self.coverage.write_text(
+            "object,kind,on_db57_export,git_ddl_files,class,in_runtime_inventory\\n"
+            "UnrelatedDb57Table,table,có,,GAP-db57-baseline,không\\n",
+            encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "allow-list is empty"):
+            gen.render(self.inventory, self.coverage)
+
+    def test_explicit_pctp_runtime_inventory_is_included(self):
+        self.coverage.write_text(
+            "object,kind,on_db57_export,git_ddl_files,class,in_runtime_inventory\\n"
+            "FVN_Test,table,có,,OK-testable,có\\n",
+            encoding="utf-8")
+        sql = gen.render(self.inventory, self.coverage)
+        self.assertIn("CREATE TABLE dbo.[FVN_Test]", sql)
+
     def test_allowlist_rejects_table_missing_from_metadata(self):
         self.coverage.write_text(
             "object,kind,on_db57_export,class\nMissingTable,table,có,GAP-no-git-ddl\n",
