@@ -4,7 +4,7 @@
   Muc dich:
     - Ngung an toan proc legacy co UPDATE LUUPHIEUGIAOHANG thieu WHERE va DELETE DOCQRCODE
       theo KETQUA tren toan bang.
-    - Khong tu dong chay tren production.
+    - Chi cho phep IP SQL Server DB test 192.168.200.57; khong dua vao ten alias de nhan dien moi truong.
     - Mac dinh chi preflight; chi thay proc thanh THROW khi @ConfirmRetire = 1.
 
   QUAN TRONG:
