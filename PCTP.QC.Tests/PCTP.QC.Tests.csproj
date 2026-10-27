@@ -73,6 +73,10 @@
     <None Include="../PCTP/Modules/KhoCore/Application/Services/QuarantineReleaseService.cs" Link="QuarantineReleaseService.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Infrastructure/Stock/LegacyStockSlotRepositoryAdapter.cs" Link="LegacyStockSlotRepositoryAdapter.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Shared/Helpers/QRCodeWorkflowAdapter.cs" Link="QRCodeWorkflowAdapter.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/KhoCore/Fuction/CheckInfor.cs" Link="CheckInfor.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/GiaoHangKhach/ComaprePart/ComaparePart.cs" Link="ComaparePart.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/GiaoHangKhach/HVN/Edit_DH.cs" Link="Edit_DH.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/UF_CHANGETIME.cs" Link="UF_CHANGETIME.source.cs" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="../PCTP/Shared/Helpers/QRCodeParser.cs" Link="Sut/QRCodeParser.cs" />
