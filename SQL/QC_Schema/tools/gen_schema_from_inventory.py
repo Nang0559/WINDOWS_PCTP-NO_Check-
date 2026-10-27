@@ -71,6 +71,11 @@ def load_columns(path: Path):
         # This generator emits dbo-qualified objects only. Fail rather than silently
         # generating dbo tables from metadata exported from another schema.
         rows = [row for row in rows if row.get("SchemaName", "").casefold() == "dbo"]
+        # A valid CSV containing only non-dbo objects should flow to render(), where
+        # the allow-list check reports the missing table names instead of a vague
+        # "metadata contains no rows" parsing error.
+        if not rows:
+            return defaultdict(list)
     else:
         rows = list(fixed_width_rows(path, "TableName"))
     if not rows:
