@@ -43,6 +43,28 @@ def sections(path, required_sets):
     if missing: raise ValueError("Missing metadata sections: "+", ".join(sorted(missing)))
     return found
 
+def module_inventory(path):
+    # Module bodies are multiline in the SSMS text export. Only recognize row headers
+    # at the fixed-width schema/object/type positions; never parse body lines as rows.
+    lines=path.read_text(encoding="utf-8-sig",errors="replace").splitlines()
+    header_i=next((i for i,line in enumerate(lines)
+      if line.startswith("SchemaName") and {"ObjectName","ObjectType","ObjectTypeDescription","SqlDefinition"}.issubset(set(re.findall(r"\\S+",line)))),None)
+    if header_i is None: raise ValueError("Missing module-definition metadata header")
+    header=lines[header_i]; starts=[m.start() for m in re.finditer(r"\\S+",header)]
+    names=re.findall(r"\\S+",header)
+    sep=next((j for j in range(header_i+1,min(header_i+4,len(lines))) if lines[j].startswith("---")),None)
+    if sep is None: raise ValueError("Missing module metadata separator")
+    rows=[]
+    for raw in lines[sep+1:]:
+        if not raw.strip() or raw.startswith("===="): continue
+        # Continuation/body lines begin with whitespace and do not contain the
+        # expected fixed-width object-type field.
+        if len(raw)<=starts[2] or not raw[:starts[0]].strip(): continue
+        row={names[k]:raw[starts[k]:(starts[k+1] if k+1<len(starts) else len(raw))].strip() if starts[k]<len(raw) else "" for k in range(len(names))}
+        if row.get("SchemaName") and row.get("ObjectName") and row.get("ObjectType"):
+            rows.append({"schema":row["SchemaName"],"name":row["ObjectName"],"type":row["ObjectType"],"description":row.get("ObjectTypeDescription",""),"definition_present":bool(row.get("SqlDefinition") and row["SqlDefinition"].upper()!="NULL")})
+    return rows
+
 def render(metadata, coverage):
     allowed=allowlist(coverage)
     data=sections(metadata,{
@@ -50,7 +72,6 @@ def render(metadata, coverage):
       "fks":{"ParentSchema","ParentTable","ParentColumn","ReferencedSchema","ReferencedTable","ReferencedColumn","ForeignKeyName","ColumnOrdinal","OnDelete","OnUpdate","IsDisabled","IsNotTrusted"},
       "checks":{"SchemaName","TableName","ConstraintName","Definition","IsDisabled","IsNotTrusted"},
       "defaults":{"SchemaName","TableName","ColumnName","ConstraintName","Definition"},
-      "modules":{"SchemaName","ObjectName","ObjectType","ObjectTypeDescription","SqlDefinition"}
     })
     out=["/* AUTO-GENERATED from SQL2 metadata. Review before use.",
          "   Apply only to disposable PCTP_QC_CI, after 02_Generated_From_DB57.sql.",
@@ -58,7 +79,7 @@ def render(metadata, coverage):
          "SET ANSI_NULLS ON;","SET QUOTED_IDENTIFIER ON;","GO",""]
     report={"allowlisted_tables":sorted(allowed.values()),"indexes":[],"checks":[],"foreign_keys_generated":[],"foreign_keys_external_or_skipped":[],"defaults_inventory":[],"modules_inventory":[],"warnings":[
       "DEFAULTs are inventory-only; column DDL already emits defaults. Compare both sources.",
-      "Module bodies are inventory-only; SSMS text exports can truncate/fold multiline definitions.",
+      "Module bodies are inventory-only; SSMS text exports can truncate/fold multiline definitions. Inventory does not validate executable definitions.",
       "Preserve both unique constraints and same-column unique indexes when both exist in source; review intentionality."
     ]}
     grouped=defaultdict(list)
@@ -114,9 +135,7 @@ def render(metadata, coverage):
     for r in data["defaults"]:
         if r.get("SchemaName","").casefold()=="dbo" and r.get("TableName","").casefold() in allowed:
             report["defaults_inventory"].append({"table":r["TableName"],"column":r["ColumnName"],"name":r.get("ConstraintName",""),"definition":r.get("Definition","")})
-    for r in data["modules"]:
-        if r.get("SchemaName","").casefold()=="dbo":
-            report["modules_inventory"].append({"schema":r["SchemaName"],"name":r["ObjectName"],"type":r["ObjectType"],"description":r["ObjectTypeDescription"],"definition_present":bool(r.get("SqlDefinition") and r["SqlDefinition"].upper()!="NULL")})
+    report["modules_inventory"] = module_inventory(metadata)
     return "\n".join(out),report
 
 def main():
