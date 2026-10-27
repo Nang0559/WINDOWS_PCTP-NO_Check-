@@ -79,6 +79,12 @@ class SchemaConstraintGeneratorTests(unittest.TestCase):
         self.assertIn("CHECK ([Qty]>=(0))", sql)
         self.assertEqual(counts["foreign_keys"], 1)
         self.assertEqual(counts["checks"], 1)
+        # Post-deploy checks must compare definitions and ordered columns,
+        # not merely confirm that an object with the same name exists.
+        self.assertIn("Index columns differ", sql)
+        self.assertIn("FK columns differ", sql)
+        self.assertIn("CHECK definition/properties differ", sql)
+        self.assertIn("definition=N'([Qty]>=(0))'", sql)
 
     def test_external_fk_is_reported_and_not_generated(self):
         fk = {"ParentSchema":"dbo","ParentTable":"Child","ParentColumn":"Status","ReferencedSchema":"dbo",
