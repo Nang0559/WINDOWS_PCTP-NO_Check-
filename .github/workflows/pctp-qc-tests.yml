@@ -13,19 +13,19 @@ on:
   workflow_dispatch:
     inputs:
       run_sql_integration:
-        description: 'Run SQL integration tests on the isolated self-hosted SQL runner'
+        description: 'Run SQL integration tests on the disposable GitHub-hosted SQL Server'
         required: true
-        default: false
+        default: true
         type: boolean
       run_delivery_acceptance:
-        description: 'Also run rollback-only Usp_Qrcode_Update_Stock2405 acceptance (needs a seeded pending row)'
+        description: 'Run G4 rollback-only Usp_Qrcode_Update_Stock2405 acceptance on the disposable database'
         required: false
-        default: false
+        default: true
         type: boolean
       delivery_acceptance_stt:
-        description: 'TMPPHIEUGIAOHANG.STT of the dedicated seeded pending row'
+        description: 'Dedicated deterministic G4 fixture STT'
         required: false
-        default: ''
+        default: '32001'
         type: string
 
 permissions:
@@ -34,6 +34,12 @@ permissions:
 concurrency:
   group: pctp-qc-${{ github.ref }}
   cancel-in-progress: true
+
+env:
+  PCTP_QC_ALLOW_EPHEMERAL_SQL: "true"
+  PCTP_QC_REQUIRE_EPHEMERAL_SQL: "true"
+  PCTP_QC_EPHEMERAL_SQL_CONNECTION: "Server=127.0.0.1,1433;Initial Catalog=PCTP_QC_CI;User ID=sa;Password=PctpQc_CI_Only_2026!;Encrypt=True;TrustServerCertificate=True;Connect Timeout=5;Application Name=PCTP-QC-Ephemeral-CI"
+  PCTP_QC_DEL_ACCEPTANCE_STT: "32001"
 
 jobs:
   unit-regression-tests:
@@ -76,10 +82,11 @@ jobs:
           if-no-files-found: ignore
 
   sql-engine-integration:
-    # A disposable SQL Server container runs on GitHub-hosted infrastructure.
-    # It has no route or credentials to SQL 57 / production SQL 14.
+    # CRITICAL SAFETY BOUNDARY:
+    # this job has no credentials, route, or connection string for DB57/DB14.
+    # The only SQL Server is the disposable service container below.
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 45
     services:
       sqlserver:
         image: mcr.microsoft.com/mssql/server:2022-latest
@@ -95,34 +102,95 @@ jobs:
           --health-timeout 5s
           --health-retries 20
           --health-start-period 30s
-    env:
-      PCTP_QC_ALLOW_EPHEMERAL_SQL: "true"
-      PCTP_QC_EPHEMERAL_SQL_CONNECTION: "Server=127.0.0.1,1433;Initial Catalog=PCTP_QC_CI;User ID=sa;Password=PctpQc_CI_Only_2026!;Encrypt=True;TrustServerCertificate=True;Connect Timeout=5;Application Name=PCTP-QC-Ephemeral-CI"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
       - name: Setup .NET 8
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0.x
-      - name: Create isolated CI database
+
+      - name: Locate disposable SQL Server container
+        id: sql
         shell: bash
         run: |
           set -euo pipefail
           container_id="$(docker ps -q --filter ancestor=mcr.microsoft.com/mssql/server:2022-latest | head -n 1)"
-          if [ -z "$container_id" ]; then
-            echo "SQL Server service container was not found."
-            exit 1
-          fi
-          for attempt in $(seq 1 30); do
-            if docker exec "$container_id" /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'PctpQc_CI_Only_2026!' -C -Q "SELECT 1" >/dev/null 2>&1; then
-              break
-            fi
-            sleep 5
+          test -n "$container_id"
+          echo "container_id=$container_id" >> "$GITHUB_OUTPUT"
+          echo "PASS: using disposable SQL Server container $container_id"
+
+      - name: Create isolated CI database
+        shell: bash
+        run: |
+          set -euo pipefail
+          c='${{ steps.sql.outputs.container_id }}'
+          docker exec "$c" /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'PctpQc_CI_Only_2026!' -C -b \
+            -Q "IF DB_ID(N'PCTP_QC_CI') IS NULL CREATE DATABASE PCTP_QC_CI;"
+
+      - name: Deploy DB57-derived schema to disposable database
+        shell: bash
+        run: |
+          set -euo pipefail
+          c='${{ steps.sql.outputs.container_id }}'
+          for f in \
+            SQL/QC_Schema/01_Tables.sql \
+            SQL/QC_Schema/05_TestDependencyShim.sql \
+            SQL/Usp_Qrcode_Update_Stock2405.sql \
+            SQL/Usp_Qrcode_Update_Stock_SP.sql \
+            SQL/sp_GetCurrentStockStatus.sql; do
+            echo "INFO: deploying $f"
+            docker cp "$f" "$c:/tmp/$(basename "$f")"
+            docker exec "$c" /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'PctpQc_CI_Only_2026!' -C -b -d PCTP_QC_CI -i "/tmp/$(basename "$f")"
           done
-          docker exec "$container_id" /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'PctpQc_CI_Only_2026!' -C -b -Q "IF DB_ID(N'PCTP_QC_CI') IS NULL CREATE DATABASE PCTP_QC_CI;"
-      - name: Run isolated SQL Server engine integration
+          echo "PASS: DB57-derived schema and checked-in WMS procedures deployed to PCTP_QC_CI"
+
+      - name: Seed deterministic G4 fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          c='${{ steps.sql.outputs.container_id }}'
+          f=SQL/QC_G4_DeliveryFixture_Seed.sql
+          docker cp "$f" "$c:/tmp/QC_G4_DeliveryFixture_Seed.sql"
+          docker exec "$c" /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'PctpQc_CI_Only_2026!' -C -b -d PCTP_QC_CI -i /tmp/QC_G4_DeliveryFixture_Seed.sql
+
+      - name: G3 — isolated SQL engine integration
         run: dotnet run --project PCTP.QC.SqlIntegration/PCTP.QC.SqlIntegration.csproj --configuration Release -- --engine-only
+
+      - name: G4 — production delivery procedure acceptance on disposable DB
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.run_delivery_acceptance }}
+        run: dotnet run --project PCTP.QC.SqlIntegration/PCTP.QC.SqlIntegration.csproj --configuration Release -- --delivery-preflight
+
+      - name: G4 — execute rollback-only delivery acceptance
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.run_delivery_acceptance }}
+        run: dotnet run --project PCTP.QC.SqlIntegration/PCTP.QC.SqlIntegration.csproj --configuration Release -- --delivery-acceptance
+
+      - name: G6 — schema contract smoke for stock/slot state
+        shell: bash
+        run: |
+          set -euo pipefail
+          c='${{ steps.sql.outputs.container_id }}'
+          docker exec "$c" /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'PctpQc_CI_Only_2026!' -C -b -d PCTP_QC_CI -Q "
+            IF OBJECT_ID(N'dbo.STOCKTP',N'U') IS NULL THROW 52001,N'STOCKTP missing',1;
+            IF OBJECT_ID(N'dbo.Slot',N'U') IS NULL THROW 52002,N'Slot missing',1;
+            IF OBJECT_ID(N'dbo.SlotLot',N'U') IS NULL THROW 52003,N'SlotLot missing',1;
+            IF OBJECT_ID(N'dbo.Warehouse',N'U') IS NULL THROW 52004,N'Warehouse missing',1;
+            IF OBJECT_ID(N'dbo.Rack',N'U') IS NULL THROW 52005,N'Rack missing',1;
+            IF OBJECT_ID(N'dbo.sp_GetCurrentStockStatus',N'P') IS NULL THROW 52006,N'sp_GetCurrentStockStatus missing',1;
+            SELECT 'PASS: G6 schema contract' AS Result;"
+
+      - name: Cleanup deterministic G4 fixture
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          c='${{ steps.sql.outputs.container_id }}'
+          if docker ps -q --filter "id=$c" | grep -q .; then
+            f=SQL/QC_G4_DeliveryFixture_Cleanup.sql
+            docker cp "$f" "$c:/tmp/QC_G4_DeliveryFixture_Cleanup.sql"
+            docker exec "$c" /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'PctpQc_CI_Only_2026!' -C -b -d PCTP_QC_CI -i /tmp/QC_G4_DeliveryFixture_Cleanup.sql
+          fi
 
   desktop-runner-build:
     runs-on: windows-latest
@@ -135,5 +203,5 @@ jobs:
           dotnet-version: 8.0.x
       - name: Build Windows desktop TestRunner
         run: dotnet build PCTP.QC.TestRunner/PCTP.QC.TestRunner.csproj --configuration Release
-      - name: Build opt-in SQL integration harness (does not connect to SQL)
+      - name: Build opt-in SQL integration harness
         run: dotnet build PCTP.QC.SqlIntegration/PCTP.QC.SqlIntegration.csproj --configuration Release
