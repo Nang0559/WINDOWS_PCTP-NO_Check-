@@ -128,6 +128,9 @@ def generate(metadata: str, allowed: set[tuple[str, str]]) -> tuple[str, str, di
         is_pk, is_uc = first.get("IsPrimaryKey") == "1", first.get("IsUniqueConstraint") == "1"
         unique = first.get("IsUnique") == "1"
         kind = first.get("IndexType", "NONCLUSTERED").upper()
+        if kind not in {"CLUSTERED", "NONCLUSTERED"}:
+            manual.append(f"Index {schema}.{table}.{name}: unsupported SQL Server index type {kind}; skipped.")
+            continue
         if is_pk or is_uc:
             constraint_kind = "PRIMARY KEY" if is_pk else "UNIQUE"
             output += [
