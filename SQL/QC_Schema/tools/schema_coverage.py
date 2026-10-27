@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Static schema coverage: which SQL objects the PCTP code uses, which exist on DB57 (per the
-exported docs/SQL.text), which are defined in Git, and which are present in the disposable CI
-schema. No database access. Output is evidence for "what SQL to fix / where in code".
+Static schema coverage: code references vs the structured SQL2 DB57 metadata snapshot,
+Git DDL, and disposable CI schema. docs/SQL.text is intentionally NOT authoritative because
+its DDL was found lossy. Absence from a metadata snapshot is UNVERIFIED, not proof of absence.
 
   python3 SQL/QC_Schema/tools/schema_coverage.py --out docs/SCHEMA_COVERAGE
 
@@ -15,8 +15,12 @@ import argparse, csv, json, os, re, subprocess, sys
 from collections import defaultdict
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
-EXPORT = os.path.join(ROOT, 'docs', 'SQL.text')
+METADATA = os.path.join(ROOT, 'SQL', 'Result_Export_SQL2_Complete_DDL_Metadata.txt')
+COLUMN_INVENTORY = os.path.join(ROOT, 'docs', 'SQL2_ColumnInventory.csv')
 INVENTORY = os.path.join(ROOT, 'docs', 'PCTP_SQL_Runtime_Inventory_A-K.csv')
+
+sys.path.insert(0, os.path.dirname(__file__))
+from gen_schema_from_inventory import load_columns
 CI_BASE_FILES = [
     'SQL/QC_Schema/01_Tables.sql', 'SQL/QC_Schema/02_Generated_From_DB57.sql',
     'SQL/QC_Schema/03_Generated_From_DB57_Constraints.sql', 'SQL/QC_Schema/05_Split.sql',
@@ -31,13 +35,51 @@ def read(p):
     with open(p, encoding='utf-8-sig', errors='replace') as f:
         return f.read()
 
-def export_objects():
-    """name(lower) -> dict(kind, stub). Export lists '-- OBJECT: name (T)'; stub when notice follows."""
-    t = read(EXPORT)
-    out = {}
-    for m in re.finditer(r'-- OBJECT: (\S+) \((\w+)\)\n-+\n(-- \[Notice\][^\n]*)?', t):
-        k = {'U': 'table', 'V': 'view', 'P': 'proc', 'FN': 'function', 'TF': 'function', 'IF': 'function'}.get(m.group(2), m.group(2))
-        out[m.group(1).lower()] = {'name': m.group(1), 'kind': k, 'stub': bool(m.group(3))}
+def fixed_width_section_rows(path, required):
+    """Read SQL2 fixed-width rows; ignore continuation lines in module definitions."""
+    lines = read(path).splitlines()
+    for header_i, header in enumerate(lines):
+        names = re.findall(r"\\S+", header)
+        if not required.issubset(names):
+            continue
+        starts = [m.start() for m in re.finditer(r"\\S+", header)]
+        sep_i = next((i for i in range(header_i + 1, min(header_i + 4, len(lines)))
+                      if lines[i].startswith("---")), None)
+        if sep_i is None:
+            continue
+        rows = []
+        for line in lines[sep_i + 1:]:
+            if not line.strip():
+                continue
+            row = {name: (line[starts[j]:(starts[j + 1] if j + 1 < len(starts) else len(line))].strip()
+                          if starts[j] < len(line) else "")
+                   for j, name in enumerate(names)}
+            if row.get("SchemaName") and row.get("ObjectType"):
+                rows.append(row)
+        return rows
+    raise ValueError("SQL2 metadata section not found: " + ", ".join(sorted(required)))
+
+
+MODULE_KIND = {"U": "table", "V": "view", "P": "proc",
+               "FN": "function", "TF": "function", "IF": "function", "TR": "trigger"}
+
+
+def export_objects(metadata_path=None, column_inventory_path=None):
+    """dbo tables from SQL2 column inventory + modules from SQL2 metadata."""
+    metadata_path = metadata_path or METADATA
+    column_inventory_path = column_inventory_path or COLUMN_INVENTORY
+    out = {name: {"name": name, "kind": "table", "stub": False}
+           for name in load_columns(Path(column_inventory_path))}
+    rows = fixed_width_section_rows(
+        metadata_path, {"SchemaName", "ObjectName", "ObjectType", "ObjectTypeDescription", "SqlDefinition"})
+    for row in rows:
+        if row["SchemaName"].casefold() != "dbo":
+            continue
+        name = row["ObjectName"].strip()
+        kind = MODULE_KIND.get(row["ObjectType"].strip().upper())
+        if not name or "..." in name or not kind:
+            continue
+        out[name.casefold()] = {"name": name, "kind": kind, "stub": False}
     return out
 
 def git_ddl():
@@ -98,17 +140,11 @@ def code_refs():
     return refs, dyn
 
 
-COLDEF = re.compile(r'^\s*\[?([A-Za-z_][\w]*)\]?\s+(?:N?VARCHAR|N?CHAR|INT|BIGINT|SMALLINT|TINYINT|BIT|DATETIME2?|SMALLDATETIME|DATE|TIME|DECIMAL|NUMERIC|FLOAT|REAL|MONEY|UNIQUEIDENTIFIER|VARBINARY|XML)\b', re.I | re.M)
-
-def export_columns():
-    """table(lower) -> set(lower column names) from real (non-stub) export tables."""
-    t = read(EXPORT).replace('\\n', '\n')
-    cols = {}
-    for m in re.finditer(r'-- OBJECT: (\S+) \(U\)\n-+\n(.*?)\nGO', t, re.S):
-        if m.group(2).lstrip().startswith('-- [Notice]'):
-            continue
-        cols[m.group(1).lower()] = {c.lower() for c in COLDEF.findall(m.group(2))}
-    return cols
+def export_columns(inventory_path=None):
+    """dbo table columns from structured SQL2 column inventory."""
+    tables = load_columns(Path(inventory_path or COLUMN_INVENTORY))
+    return {name: {row["ColumnName"].casefold() for row in rows}
+            for name, rows in tables.items()}
 
 def git_columns():
     """table(lower) -> set(columns) from CREATE TABLE bodies and ALTER TABLE ... ADD in repo .sql files."""
@@ -149,38 +185,44 @@ def code_column_writes():
 
 def column_report(exp_cols, git_cols):
     rows = []
-    for (t, c), files in sorted(code_column_writes().items()):
-        if t in exp_cols:
-            src, known = 'DB57 export', exp_cols[t]
-        elif t in git_cols:
-            src, known = 'Git DDL (không có trong file xuất)', git_cols[t]
-        else:
+    for (table, column), files in sorted(code_column_writes().items()):
+        if table not in exp_cols:
+            rows.append({
+                'table': table, 'column_written_by_code': column,
+                'compared_with': 'Không xác minh: bảng ngoài SQL2 dbo column inventory',
+                'column_in_git_ddl': 'có' if column in git_cols.get(table, set()) else 'không',
+                'code_files': '; '.join(sorted(os.path.basename(x) for x in files))[:240],
+                'meaning': 'Chưa có bằng chứng schema DB57 cho bảng này; cần xác minh schema/owner hoặc bổ sung đúng metadata export.'
+            })
             continue
-        if c in known: continue
-        in_git = c in git_cols.get(t, set())
-        rows.append({'table': t, 'column_written_by_code': c, 'compared_with': src,
-                     'column_in_git_ddl': 'có' if in_git else 'không',
-                     'code_files': '; '.join(sorted(os.path.basename(x) for x in files))[:240],
-                     'meaning': ('Code ghi cột này; DB57 (theo file xuất) chưa có; Git có script thêm cột => chạy script trên DB57'
-                                 if src == 'DB57 export' and in_git else
-                                 'Code ghi cột không có trong schema đối chiếu => sửa SQL (thêm cột) hoặc sửa code'
-                                 ) })
+        if column in exp_cols[table]:
+            continue
+        in_git = column in git_cols.get(table, set())
+        rows.append({
+            'table': table, 'column_written_by_code': column,
+            'compared_with': 'SQL2 DB57 column inventory',
+            'column_in_git_ddl': 'có' if in_git else 'không',
+            'code_files': '; '.join(sorted(os.path.basename(x) for x in files))[:240],
+            'meaning': ('Code ghi cột không có trong SQL2 snapshot; Git có script thêm cột, cần đối chiếu trạng thái deploy'
+                        if in_git else
+                        'Code ghi cột không có trong SQL2 snapshot và không có Git DDL; cần xác minh DB57 trước khi sửa code/schema')
+        })
     return rows
 
 def status(name, exp, gitd, ci_names):
     e = exp.get(name)
-    on57 = 'có' if e and not e['stub'] else ('stub (không tồn tại lúc xuất)' if e else 'không có trong file xuất')
+    on57 = 'có trong SQL2 metadata' if e else 'chưa xác minh trong SQL2 metadata'
     g = gitd.get(name)
     return on57, (', '.join(g) if g else 'không'), ('có' if name in ci_names else 'không')
 
+
 def classify(refd, e, g, ci):
     if not refd: return 'info'
-    stub = e and e['stub']; on57 = e and not stub
-    if on57 and ci: return 'OK-testable'
-    if on57 and g and not ci: return 'GAP-ci-schema'      # DB57 + Git DDL, but CI base schema lacks it
-    if on57 and not g: return 'GAP-no-git-ddl'            # exists on 57, no DDL in Git
-    if (stub or not e) and g: return 'GAP-not-deployed-57'  # Git DDL but DB57 lacks it
-    return 'GAP-undefined'                                  # code uses it; neither 57 nor Git defines it
+    # Absence from this snapshot is not proof of non-existence on DB57.
+    if e and ci: return 'OK-testable'
+    if e and g and not ci: return 'GAP-ci-schema'
+    if e and not g: return 'GAP-no-git-ddl'
+    return 'GAP-db57-unverified'
 
 def main():
     ap = argparse.ArgumentParser()
@@ -216,7 +258,7 @@ def main():
             'in_runtime_inventory': 'có' if in_inv else 'KHÔNG (thiếu trong CSV)',
             'class': cls,
         })
-    order = {'GAP-undefined': 0, 'GAP-no-git-ddl': 1, 'GAP-not-deployed-57': 2, 'GAP-ci-schema': 3, 'OK-testable': 4, 'info': 5}
+    order = {'GAP-db57-unverified': 0, 'GAP-no-git-ddl': 1, 'GAP-ci-schema': 2, 'OK-testable': 3, 'info': 4}
     rows.sort(key=lambda x: (order[x['class']], x['object'].lower()))
     out = os.path.join(ROOT, a.out) if not os.path.isabs(a.out) else a.out
     os.makedirs(os.path.dirname(out), exist_ok=True)
@@ -228,7 +270,7 @@ def main():
     with open(out + '_columns.csv', 'w', encoding='utf-8-sig', newline='') as fh:
         w = csv.DictWriter(fh, fieldnames=['table','column_written_by_code','compared_with','column_in_git_ddl','code_files','meaning'])
         w.writeheader(); w.writerows(crow)
-    print('COVERAGE', dict(cnt), 'dynamic-ref files:', len(dyn), '| column mismatches:', len(crow))
+    print('COVERAGE (SQL2 structured snapshot; absence=unverified)', dict(cnt), 'dynamic-ref files:', len(dyn), '| column mismatches/unverified:', len(crow))
     if a.check:
         known = {}
         kp = os.path.join(os.path.dirname(__file__), 'known_column_gaps.txt')
@@ -237,10 +279,14 @@ def main():
             if line and not line.startswith('#'):
                 known[line.split('|')[0].strip().lower()] = line
         seen = {f"{r['table']}.{r['column_written_by_code']}" for r in crow}
-        new = sorted(seen - set(known)); stale = sorted(set(known) - seen)
-        for n in new: print('NEW column mismatch (fix SQL or code):', n)
-        for n in stale: print('WARN known gap no longer present, remove from known_column_gaps.txt:', n)
-        print('CHECK', 'FAIL' if new else 'PASS', f'({len(seen)} mismatch, {len(known)} known)')
+        verified = {f"{r['table']}.{r['column_written_by_code']}" for r in crow
+                    if r['compared_with'] == 'SQL2 DB57 column inventory'}
+        unverified = [r for r in crow if r['compared_with'].startswith('Không xác minh:')]
+        new = sorted(verified - set(known)); stale = sorted(set(known) - verified)
+        for n in new: print('NEW SQL2 column mismatch (review SQL/code):', n)
+        for n in stale: print('WARN known SQL2 gap no longer present:', n)
+        print('UNVERIFIED table writes (not a mismatch verdict):', len(unverified))
+        print('CHECK', 'FAIL' if new else 'PASS', f'({len(verified)} verified mismatches, {len(known)} known, {len(unverified)} unverified)')
         return 1 if new else 0
     return 0
 
