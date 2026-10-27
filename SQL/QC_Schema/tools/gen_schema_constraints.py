@@ -223,16 +223,15 @@ def generate(metadata: str, allowed: set[tuple[str, str]]) -> tuple[str, str, di
             f"FROM sys.foreign_key_columns fkc "
             f"JOIN sys.columns pc ON pc.object_id=fkc.parent_object_id AND pc.column_id=fkc.parent_column_id "
             f"JOIN sys.columns rc ON rc.object_id=fkc.referenced_object_id AND rc.column_id=fkc.referenced_column_id "
-            f"WHERE fkc.constraint_object_id=OBJECT_ID({literal(name)}) "
-            f"AND fkc.parent_object_id=OBJECT_ID({literal(ps + '.' + pt)})")
+            f"JOIN sys.foreign_keys fk ON fk.object_id=fkc.constraint_object_id "
+            f"WHERE fk.name={literal(name)} AND fkc.parent_object_id=OBJECT_ID({literal(ps + '.' + pt)})")
         expected_fk_query = f"SELECT v.ordinal, v.parent_column, v.referenced_column FROM (VALUES {expected_fk}) v(ordinal,parent_column,referenced_column)"
         verify.append(
             f"IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE parent_object_id=OBJECT_ID({literal(ps + '.' + pt)}) "
             f"AND name={literal(name)} AND referenced_object_id=OBJECT_ID({literal(rs + '.' + rt)}) "
             f"AND delete_referential_action_desc={literal(delete_action.replace(' ', '_'))} "
             f"AND update_referential_action_desc={literal(update_action.replace(' ', '_'))} "
-            f"AND is_disabled={1 if disabled else 0} AND is_not_trusted={1 if untrusted else 0} "
-            f"AND is_not_for_replication={1 if first.get('IsNotForReplication') == '1' else 0}) "
+            f"AND is_disabled={1 if disabled else 0} AND is_not_trusted={1 if untrusted else 0}) "
             f"THROW 52306, N'FK properties differ: {ps}.{pt}.{name}', 1;")
         verify.append(
             f"IF EXISTS ({actual_fk} EXCEPT {expected_fk_query}) OR "
