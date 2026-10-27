@@ -233,10 +233,19 @@ def main() -> int:
     parser.add_argument("--coverage", required=True, type=Path)
     parser.add_argument("--out", required=True, type=Path)
     parser.add_argument("--report", required=True, type=Path)
+    parser.add_argument("--check", action="store_true", help="fail if generated SQL/report differ from checked-in files")
     args = parser.parse_args()
     try:
         metadata = args.metadata.read_text(encoding="utf-8-sig", errors="replace")
         sql, report, counts = generate(metadata, load_scope(args.coverage))
+        if args.check:
+            actual_sql = args.out.read_text(encoding="utf-8-sig") if args.out.exists() else None
+            actual_report = args.report.read_text(encoding="utf-8-sig") if args.report.exists() else None
+            if actual_sql != sql or actual_report != report:
+                print("STALE: generated SQL2 constraints or metadata report differ from source metadata", file=sys.stderr)
+                return 1
+            print("PASS: generated SQL2 constraints and metadata report are current")
+            return 0
         args.out.parent.mkdir(parents=True, exist_ok=True)
         args.report.parent.mkdir(parents=True, exist_ok=True)
         args.out.write_text(sql, encoding="utf-8", newline="\n")
