@@ -70,7 +70,11 @@ public sealed class LegacyTransactionBoundarySourceContractTests
     [Fact]
     public void LegacyDeliveryLotEdit_UsesParametersAndChecksAffectedRows()
     {
-        string body = Method(Read("Edit_DH.source.cs"), "private void simpleButton3_Click_1(");
+        string source = Read("Edit_DH.source.cs");
+        string lookup = Method(source, "private void load()");
+        Assert.Contains("WHERE part = @Part", lookup, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("new SqlParameter(\"@Part\"", lookup, StringComparison.Ordinal);
+        string body = Method(source, "private void simpleButton3_Click_1(");
         Assert.Contains("UPDATE tmpphieugiaohang", body, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("@Lot", body, StringComparison.Ordinal);
         Assert.Contains("@Stt", body, StringComparison.Ordinal);
