@@ -46,9 +46,18 @@ def fixed_width_rows(path: Path, header_prefix: str):
 
 
 def csv_rows(path: Path):
-    """Read a real CSV export, preserving commas/quotes inside SQL expressions."""
+    """Read delimited inventory exports, preserving quoted SQL expressions."""
     with path.open(encoding="utf-8-sig", newline="") as stream:
-        reader = csv.DictReader(stream)
+        # SQL Server exports may be saved by regional Excel settings using
+        # semicolons or tabs instead of commas. Detect only common delimiters;
+        # never split lines manually, because SQL expressions may contain commas.
+        sample = stream.read(64 * 1024)
+        stream.seek(0)
+        try:
+            dialect = csv.Sniffer().sniff(sample, delimiters=",;\\t|")
+        except csv.Error:
+            dialect = csv.excel
+        reader = csv.DictReader(stream, dialect=dialect)
         if not reader.fieldnames:
             raise ValueError("CSV inventory has no header")
         # Trim accidental whitespace around exported header names and values.
