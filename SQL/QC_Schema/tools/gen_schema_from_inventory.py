@@ -233,7 +233,7 @@ def render(inventory: Path, coverage: Path, type_map_path: Path | None = None):
         # Validate pre-existing fixture tables too. CREATE IF NOT EXISTS alone can
         # hide a stale 01_Tables definition, so compare every SQL2 column contract.
         expected = []
-        for column in columns:
+        for ordinal, column in enumerate(columns, 1):
             col_name = column["ColumnName"]
             raw_type = column["DataType"].strip().casefold()
             mapped_type = type_map.get(raw_type, column["DataType"]).strip()
@@ -256,12 +256,12 @@ def render(inventory: Path, coverage: Path, type_map_path: Path | None = None):
                 if value and not re.fullmatch(r"[-+]?(?:\d+(?:\.\d*)?|\.\d+)", value):
                     raise ValueError(f"invalid {label}: {name}.{col_name}={value!r}")
             expected.append(
-                f"({int(column['column_id'])}, {sql_literal(col_name)}, {sql_literal(base_type)}, {max_length}, "
+                f"({ordinal}, {sql_literal(col_name)}, {sql_literal(base_type)}, {max_length}, "
                 f"{precision}, {scale}, {nullable}, {identity_flag}, {computed_flag}, "
                 f"{sql_literal(computed)}, {sql_literal(default)}, {sql_literal(seed)}, {sql_literal(increment)})")
         expected_values = ", ".join(expected)
         actual_columns = (
-            f"SELECT c.column_id, c.name, TYPE_NAME(c.system_type_id), c.max_length, c.precision, c.scale, "
+            f"SELECT ROW_NUMBER() OVER (ORDER BY c.column_id), c.name, TYPE_NAME(c.system_type_id), c.max_length, c.precision, c.scale, "
             f"CONVERT(int,c.is_nullable), CONVERT(int,c.is_identity), CONVERT(int,c.is_computed), "
             f"ISNULL(cc.definition,N''), ISNULL(dc.definition,N''), "
             f"ISNULL(CONVERT(nvarchar(128),ic.seed_value),N''), ISNULL(CONVERT(nvarchar(128),ic.increment_value),N'') "
