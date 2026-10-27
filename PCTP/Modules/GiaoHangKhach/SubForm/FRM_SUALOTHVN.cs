@@ -80,6 +80,22 @@ namespace PCTP.QRCODE_HVN
                 {
                     try
                     {
+                        using (SqlCommand appLock = new SqlCommand(@"
+DECLARE @Result int;
+EXEC @Result = sys.sp_getapplock
+    @Resource = @Resource,
+    @LockMode = 'Exclusive',
+    @LockOwner = 'Transaction',
+    @LockTimeout = 10000;
+SELECT @Result;", connection, transaction))
+                        {
+                            appLock.Parameters.Add("@Resource", SqlDbType.NVarChar, 255).Value =
+                                "PCTP_HVN_LOT_EDIT:" + (_MH ?? string.Empty).Trim();
+                            int lockResult = Convert.ToInt32(appLock.ExecuteScalar());
+                            if (lockResult < 0)
+                                throw new InvalidOperationException("Không lấy được khóa chỉnh LOT HVN (sp_getapplock).");
+                        }
+
                         using (SqlCommand resetTmp = new SqlCommand(
                             "UPDATE TMPPHIEUGIAOHANG SET LOT = '' WHERE MAHANG = @MaHang",
                             connection, transaction))
