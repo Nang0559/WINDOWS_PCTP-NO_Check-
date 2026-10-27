@@ -119,9 +119,12 @@ def load_allowlist(path: Path):
     allowed = {}
     with path.open(encoding="utf-8-sig", newline="") as stream:
         for row in csv.DictReader(stream):
-            if (row.get("class", "").strip() == "GAP-no-git-ddl"
+            generated_table_ddl = "SQL/QC_Schema/02_Generated_From_DB57.sql" in row.get("git_ddl_files", "")
+            scope_class = row.get("class", "").strip() == "GAP-no-git-ddl" or (
+                generated_table_ddl and row.get("class", "").strip() in {"OK-testable", "GAP-ci-schema"})
+            if (scope_class
                     and row.get("kind", "").strip().lower() == "table"
-                    and row.get("on_db57_export", "").strip().lower() in {"có", "yes", "true"}):
+                    and row.get("on_db57_export", "").strip().lower() in {"có", "co", "yes", "true"}):
                 name = row["object"].strip()
                 allowed[name.casefold()] = name
     if not allowed:
@@ -183,9 +186,9 @@ def render(inventory: Path, coverage: Path, type_map_path: Path | None = None):
         type_map = {str(k).casefold(): str(v) for k, v in json.loads(type_map_path.read_text(encoding="utf-8-sig")).items()}
     lines = [
         "/*",
-        " AUTO-GENERATED from SQL2 DB57 column metadata for allow-listed GAP-no-git-ddl tables.",
-        " REVIEW REQUIRED: this file does not synthesize PK/unique indexes, FKs, CHECK constraints,",
-        " triggers, permissions or procedure dependencies. Alias types require an explicit verified map.",
+        " AUTO-GENERATED from SQL2 DB57 column metadata for the reviewed table allowlist.",
+        " PK/unique indexes, FKs and CHECK constraints are emitted separately by 03_Generated_From_DB57_Constraints.sql.",
+        " Triggers, permissions and procedure dependencies require separate review. Alias types require a verified map.",
         " Apply only to disposable PCTP_QC_CI. Never apply to DB57 or production.",
         "*/",
         "SET ANSI_NULLS ON;", "SET QUOTED_IDENTIFIER ON;", "GO", ""
