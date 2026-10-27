@@ -120,15 +120,15 @@ The following files were classified as `transaction-boundary(NONE)` by the stati
 | File | Source-level observation | Required disposition | Status |
 |---|---|---|---|
 | `PCTP/Acess Image/ImagesControl.cs` | Uses `SQLPROVIDER` for B20Item/B20ImageStore access; image add/edit/delete handlers need full review | Separate read-only image lookup from image mutations; add a transaction for multi-statement image changes if required | OPEN |
-| `PCTP/Modules/GiaoHangKhach/ComaprePart/ComaparePart.cs` | Direct SQLProvider access to `tbl_QR_ComparePart`; create/update/delete handlers | Verify each mutation and uniqueness/concurrency behavior; test the actual SQL path | OPEN |
-| `PCTP/Modules/GiaoHangKhach/HVN/Edit_DH.cs` | Direct UPDATE of `tmpphieugiaohang` after LOT allocation editing | Verify this is a single isolated edit and that the delivery workflow revalidates allocation before export | OPEN |
+| `PCTP/Modules/GiaoHangKhach/ComaprePart/ComaparePart.cs` | Replaced check-then-insert with a serializable `UPDLOCK,HOLDLOCK` transaction; selected-row deletes share one transaction | Run source-contract tests; confirm supporting index/unique constraint and execute isolated SQL concurrency test | CODE FIXED; SQL PROOF OPEN |
+| `PCTP/Modules/GiaoHangKhach/HVN/Edit_DH.cs` | One parameterized UPDATE of `tmpphieugiaohang`; checks exactly one affected row | Confirm delivery workflow revalidates allocation before export; run source-contract test | CODE FIXED; G2 PENDING |
 | `PCTP/Modules/GiaoHangKhach/SubForm/FRM_SUALOTHVN.cs` | Legacy LOT editing form; transaction ownership not established by static scan | Trace caller and every write; prohibit edits after delivery/export and add regression coverage | OPEN |
 | `PCTP/Modules/GiaoHangKhach/SubForm/UF_TACHLOT.cs` | Legacy LOT split UI; transaction ownership not established by static scan | Trace all stock/QR/TMP writes and make split atomic or delegate to the stock workflow | OPEN |
 | `PCTP/Modules/GiaoHangKhach/YMVN/GIAOHANGYMN.cs` | Legacy YMVN delivery form; source contains direct SQL access | Confirm whether compiled/launchable and trace all runtime call paths before classifying as dead code | OPEN |
 | `PCTP/Modules/GiaoHangKhach/YMVN/YAMAHAQRCDE_SP.cs` | Legacy YMVN QR/SP integration source | Identify invoked procedures and actual callers; verify procedure transaction semantics | OPEN |
 | `PCTP/Modules/GiaoHangKhach/YMVN/YMVNDOCQRCODE.cs` | Legacy YMVN QR persistence/validation source | Trace QR-to-LOT persistence and transaction owner; add replay/duplicate SQL scenario | OPEN |
-| `PCTP/Modules/KhoCore/Fuction/CheckInfor.cs` | Direct SQLProvider writes Rack and Slot while adding a rack | Wrap rack + all slot inserts in one transaction; validate partial-failure rollback and same-warehouse uniqueness | OPEN |
-| `PCTP/UF_CHANGETIME.cs` | Direct single-row UPDATE of `QRCODE_CHANGETIME` | Confirm key uniqueness and parameterize update; transaction is statement-scoped if only this statement is executed | OPEN |
+| `PCTP/Modules/KhoCore/Fuction/CheckInfor.cs` | Rack header and all Slot inserts now share one local SQL transaction; parameterized SQL and rollback on failure | Run source-contract test and isolated SQL injected-failure test; verify rack/slot uniqueness constraints | CODE FIXED; SQL PROOF OPEN |
+| `PCTP/UF_CHANGETIME.cs` | One parameterized UPDATE; checks exactly one affected row | Confirm `GIOHVN` is unique in deployed schema; run source-contract test | CODE FIXED; G2 PENDING |
 
 ### Required closure evidence
 
@@ -139,4 +139,4 @@ For each OPEN row:
 4. Add a production-path test. A mock/fake or a test that only mentions the class name is not SQL persistence evidence.
 5. Close only after G2 source/regression tests and, where data mutation is involved, a G3/G4 isolated SQL scenario prove the relevant postconditions.
 
-The current G1 output is a static lead list. Do not downgrade these OPEN rows to PASS by adding a class name to this document.
+The current G1 output is a static lead list. The four rows marked CODE FIXED are code changes, not SQL/runtime proof. Do not downgrade remaining OPEN rows or SQL PROOF OPEN rows to PASS by adding a class name to this document.
