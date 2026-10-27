@@ -261,7 +261,7 @@ def parse_columns(body):
 
 def export_objects(text):
     """Yield (name, type_code, sql_or_None_when_stub) for every '-- OBJECT:' block of the DB57 export."""
-    for m in re.finditer(r'-- OBJECT: (\S+) \((\w+)\)\n-+\n(.*?)\nGO\n', text, re.S):
+    for m in re.finditer(r'-- OBJECT: (\S+) \((\w+)\)\r?\n-+\r?\n(.*?)\r?\nGO\r?\n', text, re.S | re.I):
         body = m.group(3)
         stub = '[Notice]' in body and not re.search(r'^\s*CREATE\b', body, re.M | re.I)
         yield m.group(1), m.group(2), None if stub else body
