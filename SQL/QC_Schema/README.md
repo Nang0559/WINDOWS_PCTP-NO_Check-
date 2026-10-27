@@ -77,6 +77,13 @@ SQL2 FK section hiện không xuất `IsNotForReplication`; index section không
 pad index, ignore-duplicate-key và row/page-lock options. Các thuộc tính không có nguồn
 metadata không được giả vờ là đã kiểm chứng; chúng được nêu trong gap report.
 
+### 3. SQL helper `dbo.Split`
+
+`SQL/QC_Schema/05_Split.sql` contains the DB57 `dbo.Split` table-valued function.
+Its definition has been checked against the structured SQL2 module catalog
+(`ObjectType=TF`); it is deployed after the generated table/constraint baseline and before
+the WMS stored procedures that call it. It is not sourced from the lossy `docs/SQL.text`.
+
 ### 3. Coverage
 
 `tools/schema_coverage.py` dùng SQL2 structured metadata, không dùng `docs/SQL.text`.
