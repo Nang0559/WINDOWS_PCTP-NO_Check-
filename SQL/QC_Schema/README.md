@@ -91,16 +91,18 @@ To verify without modifying files, append `--check`. This is a static comparison
 
 ## SQL2 metadata completion (keys, indexes, checks, relationships)
 
-The column generator emits the reviewed 19-table allow-list. The companion `tools/gen_constraints_from_metadata.py` consumes the full SSMS fixed-width metadata export and emits a second-stage DDL file plus a JSON review report:
+The CI-deployed source of truth is `tools/gen_schema_constraints.py`. It consumes the complete SSMS metadata export and generates `03_Generated_From_DB57_Constraints.sql` plus `04_SQL2_Metadata_Gaps.md`. CI runs this generator with `--check`, deploys the generated SQL only after `02_Generated_From_DB57.sql`, and executes post-deployment assertions in disposable SQL Server.
 
 ```powershell
-python .\SQL\QC_Schema\tools\gen_constraints_from_metadata.py --metadata .\SQL\Result_Export_SQL2_Complete_DDL_Metadata.txt --coverage .\docs\SCHEMA_COVERAGE.csv --out .\SQL\QC_Schema\03_Generated_Constraints_From_DB57.sql --report .\SQL\QC_Schema\SQL2_Metadata_Review_Report.json
-python -m unittest discover -s .\SQL\QC_Schema\tools -p "test_gen_constraints_from_metadata.py" -v
+python .\SQL\QC_Schema\tools\gen_schema_constraints.py --metadata .\SQL\Result_Export_SQL2_Complete_DDL_Metadata.txt --coverage .\docs\SCHEMA_COVERAGE.csv --out .\SQL\QC_Schema\03_Generated_From_DB57_Constraints.sql --report .\SQL\QC_Schema\04_SQL2_Metadata_Gaps.md
 ```
 
-The generator preserves composite key order, descending keys and included columns; it emits PKs, unique constraints/indexes, regular indexes, CHECKs and only FKs whose source and referenced tables are both allow-listed. FKs pointing outside that scope are written to the review report, not silently created. Filtered/disabled indexes and disabled/untrusted constraints stop generation for manual review.
+The supplementary `tools/gen_constraints_from_metadata.py` is an audit/candidate generator. It inventories DEFAULT definitions and module names/types in JSON and can produce a candidate DDL for manual comparison; its output is **not** deployed by CI. If you run it, use a clearly separate candidate filename:
 
-DEFAULT metadata is inventory-only because `02_Generated_From_DB57.sql` already emits column defaults; compare the report against the generated table DDL. Module names/types are inventoried, but module bodies are not regenerated from the SSMS text export because multiline/truncated definitions need a verified source. Review duplicate unique constraints/indexes for intentionality.
+```powershell
+python .\SQL\QC_Schema\tools\gen_constraints_from_metadata.py --metadata .\SQL\Result_Export_SQL2_Complete_DDL_Metadata.txt --coverage .\docs\SCHEMA_COVERAGE.csv --out .\SQL\QC_Schema\03_Generated_Constraints_From_DB57.candidate.sql --report .\SQL\QC_Schema\SQL2_Metadata_Review_Report.json
+```
 
-This is static schema generation, not proof that SQL Server accepts the DDL or that the complete dependency graph is restored. Apply `03_Generated_Constraints_From_DB57.sql` only after tables exist, in a disposable CI SQL Server database. Never deploy this output to DB57 (`192.168.200.57`) or production (`192.168.200.14\BRAVO`).
+The current review identifies an FK from `sys_WorkflowTransitions` to `sys_WorkflowStatuses`, outside the 19-table generated allowlist. It is intentionally omitted and reported, not silently restored. Disabled or untrusted constraints, filtered/disabled indexes, module bodies, permissions, triggers, jobs and external dependencies require separate review.
 
+All SQL2-derived DDL must be tested only in disposable CI SQL Server. Never apply generated or candidate DDL to DB57 or production.
