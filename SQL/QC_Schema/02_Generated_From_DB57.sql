@@ -1,4 +1,11 @@
 /*
+  STALE CHECKED-IN ARTIFACT — DO NOT DEPLOY.
+  This file predates the PCTP-only runtime inventory scope and may contain unrelated
+  B7R2_FCC dbo objects. Regenerate from docs/PCTP_SQL_Runtime_Inventory_A-K.csv,
+  SQL/Result_Export_SQL2_Complete_DDL_Metadata.txt and docs/SQL2_ColumnInventory.csv
+  before use. CI regenerates the scoped artifact in its disposable runner.
+*/
+/*
  AUTO-GENERATED from SQL2 DB57 column metadata for allow-listed GAP-no-git-ddl tables.
  REVIEW REQUIRED: this file does not synthesize PK/unique indexes, FKs, CHECK constraints,
  triggers, permissions or procedure dependencies. Alias types require an explicit verified map.
