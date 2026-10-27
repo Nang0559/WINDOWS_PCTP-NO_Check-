@@ -58,6 +58,10 @@ $python = Get-Command python -ErrorAction SilentlyContinue
 if (-not $python) { throw "Python 3 is required but 'python' was not found on PATH." }
 Invoke-Checked $python.Source @("--version")
 
+# G1 scanner contract tests: statement-level atomicity must not be confused with
+# multi-statement transaction ownership or stored-procedure behavior.
+Invoke-Checked $python.Source @("-m", "unittest", "discover", "-s", "PCTP.QC.UI", "-p", "test_*.py", "-v")
+
 # 1. Unit tests for SQL2 metadata generators and SQL batch checker.
 Invoke-Checked $python.Source @("-m", "unittest", "discover", "-s", "SQL/QC_Schema/tools", "-p", "test_*.py", "-v")
 
