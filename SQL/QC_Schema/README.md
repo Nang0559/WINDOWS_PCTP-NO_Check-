@@ -7,7 +7,7 @@ CI must create a disposable SQL Server database and must not connect to DB57 or 
 
 ## Source of truth
 
-- Source export: `SQL_sql.sql` supplied from DB57/B7R2_FCC.
+- Source export for `01_Tables.sql`: `SQL_sql.sql` supplied from DB57/B7R2_FCC (kept outside Git).
 - SHA-256: `cc21dbc1ebf16f62e3b3fe5d24ff1eff1ce73f88cd34d090408a1bff591c7785`
 - `01_Tables.sql` contains only the dependency-closed tables required by the current G4 delivery acceptance and G6 stock/slot journeys. Table definitions are copied from the source export; they are not hand-designed test DDL.
 - No production/business rows are copied into Git.
@@ -15,17 +15,24 @@ CI must create a disposable SQL Server database and must not connect to DB57 or 
 ## Deployment order
 
 1. `01_Tables.sql`
-2. `05_TestDependencyShim.sql` (CI-only compatibility dependency; see below)
+2. `05_Split.sql` (`dbo.Split`, definition exported from DB57; see below)
 3. checked-in WMS procedures / hardening SQL
 4. deterministic fixture seed
 5. G3/G4/G6 execution
 6. fixture cleanup
 
-## Important exception: `dbo.Split`
+## `dbo.Split`
 
-The supplied DB57 export does not contain the source definition of `dbo.Split`, while the checked-in `Usp_Qrcode_Update_Stock2405.sql` depends on it. CI therefore uses `05_TestDependencyShim.sql`, implemented with SQL Server `STRING_SPLIT`.
+`docs/SQL.sql.txt` (SHA-256 `595aafa76194aa239710acd085645283e381899d4669a2141c5841fb01292380`) contains the DB57 definition of `dbo.Split`.
+`05_Split.sql` is that definition verbatim, with `CREATE` changed to `CREATE OR ALTER` so the CI deployment can be repeated.
+It replaces the former `STRING_SPLIT` shim, which returned a column named `value` and did not guarantee token order.
+`Usp_Qrcode_Update_Stock2405.sql` reads it with `INSERT INTO #SplitResult SELECT * FROM dbo.Split(@_LOT, ',')`, so only the order and the single-column shape matter.
+The file is for the disposable CI database; never apply it to DB57/DB14 from this repository.
 
-This file is **not** presented as a DB57 schema export and must not be deployed to DB57/DB14. If an authoritative DB57 definition of `dbo.Split` is later exported, replace the shim and update the source hash/evidence.
+## Tools
+
+`tools/sql_batch_check.py` simulates how `sqlcmd -b -i` splits and loads the deploy files (no database access) and fails the CI job on loader defects.
+`docs/SQL.sql.txt` is **not** a deploy file; its known defects and the G4 consequences are recorded in `docs/G4_SCHEMA_FROM_GIT.md`.
 
 ## Safety invariant
 

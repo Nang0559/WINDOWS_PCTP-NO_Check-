@@ -15,7 +15,7 @@ No PASS may be inferred from class existence, source-contract tests, SQL-engine 
 | G1 | Traceability/source ownership: requirement → code → SQL → transaction → test → evidence; all gaps classified and closed or approved exceptions | 🔴 OPEN — regenerated matrix (`docs/TRACEABILITY_MATRIX.md`, `PCTP.QC.UI/G1-gaps.csv`): 88 code rows (66 GAP), 17 SQL scripts, 22 non-implemented TestMatrix rows, 105 gaps. Classified in `docs/G1_GAP_TRIAGE.md`; owners/exceptions not yet assigned. A COMPLETE row means "referenced by a test", not "behaviour verified" (see triage §2) |
 | G2 | Unit/regression tests on exact candidate SHA, including production project compile items | 🟡 Last green baseline `a41d5df…`; current candidate `bb15a60…` CI CANCELLED (runs `40264579206`, `40264584779`); full WinForms build NOT VERIFIED |
 | G3 | SQL engine integration using implementation/repository code, isolated SQL Server, data assertions and rollback | 🟡 PASS LIMITED historically; does not prove representative DBA schema or full workflow rollback |
-| G4 | Representative production-like schema/procedure compatibility on isolated, rollback-only database | 🔴 BLOCKED — no current evidence |
+| G4 | Representative production-like schema/procedure compatibility on isolated, rollback-only database | 🔴 BLOCKED — no current evidence; schema-from-Git inputs checked statically only (`docs/G4_SCHEMA_FROM_GIT.md`) |
 | G5 | Two-session SQL concurrency for shared business keys/quotas, including lock serialization and injected rollback | 🔴 OPEN — no SQL two-session evidence |
 | G6 | Full business E2E: real UI journey → DB/ledger/history assertions → cleanup, including delivery and reconciliation | 🔴 OPEN — UI runner build alone is not a business journey |
 
