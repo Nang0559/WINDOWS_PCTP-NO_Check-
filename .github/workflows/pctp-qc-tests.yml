@@ -39,6 +39,7 @@ env:
   PCTP_QC_ALLOW_EPHEMERAL_SQL: "true"
   PCTP_QC_REQUIRE_EPHEMERAL_SQL: "true"
   PCTP_QC_EPHEMERAL_SQL_CONNECTION: "Server=127.0.0.1,1433;Initial Catalog=PCTP_QC_CI;User ID=sa;Password=PctpQc_CI_Only_2026!;Encrypt=True;TrustServerCertificate=True;Connect Timeout=5;Application Name=PCTP-QC-Ephemeral-CI"
+  PCTP_QC_REWORK_FIXTURE_CONNECTION: "Server=127.0.0.1,1433;Initial Catalog=PCTP_QC_REWORK_CI;User ID=sa;Password=PctpQc_CI_Only_2026!;Encrypt=True;TrustServerCertificate=True;Connect Timeout=5;Application Name=PCTP-QC-Rework-Fixture-CI"
   PCTP_QC_DEL_ACCEPTANCE_STT: "32001"
 
 jobs:
@@ -127,7 +128,7 @@ jobs:
           set -euo pipefail
           c='${{ steps.sql.outputs.container_id }}'
           docker exec "$c" /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'PctpQc_CI_Only_2026!' -C -b \
-            -Q "IF DB_ID(N'PCTP_QC_CI') IS NULL CREATE DATABASE PCTP_QC_CI;"
+            -Q "IF DB_ID(N'PCTP_QC_CI') IS NULL CREATE DATABASE PCTP_QC_CI; IF DB_ID(N'PCTP_QC_REWORK_CI') IS NULL CREATE DATABASE PCTP_QC_REWORK_CI;"
 
       - name: Prepare CI copies of the delivery procedures (strip USE [B7R2_FCC], no database access)
         shell: bash
