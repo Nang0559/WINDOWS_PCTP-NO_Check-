@@ -75,3 +75,16 @@ CSV must be exported as actual CSV (not copied fixed-width text) with headers `S
 The complete read-only metadata export is now used to generate `03_Generated_From_DB57_Constraints.sql`, which restores primary keys, unique constraints, ordinary/filtered indexes, foreign keys whose referenced tables are inside the allowlist, and CHECK constraints. DEFAULT expressions remain inline in `02_Generated_From_DB57.sql` and are not duplicated. The accompanying `04_SQL2_Metadata_Gaps.md` lists foreign keys intentionally omitted because their referenced tables are outside the generated scope; currently `sys_WorkflowTransitions` references `sys_WorkflowStatuses`, so that dependency remains explicit and unresolved. SQL modules, permissions, triggers and runtime dependencies still require separate review.
 
 CI runs the Python unit tests and static SQL batch simulation, deploys `01_Tables.sql`, `02_Generated_From_DB57.sql`, and `03_Generated_From_DB57_Constraints.sql` only into the disposable GitHub-hosted SQL Server database `PCTP_QC_CI`, and the generated constraints script throws if any expected index/key/FK/CHECK object is missing. No SQL2-derived DDL is deployed to DB57 or production. After regenerating `docs/SCHEMA_COVERAGE.csv`, the generators preserve their explicit scope by selecting rows whose `git_ddl_files` contains `SQL/QC_Schema/02_Generated_From_DB57.sql`.
+## Regenerate or verify SQL2 constraints
+
+Use the checked-in read-only metadata export. The default command regenerates the reviewed SQL and gap report; CI uses `--check` to fail if either checked-in artifact is stale.
+
+```powershell
+python SQL/QC_Schema/tools/gen_schema_constraints.py `
+  --metadata SQL/Result_Export_SQL2_Complete_DDL_Metadata.txt `
+  --coverage docs/SCHEMA_COVERAGE.csv `
+  --out SQL/QC_Schema/03_Generated_From_DB57_Constraints.sql `
+  --report SQL/QC_Schema/04_SQL2_Metadata_Gaps.md
+```
+
+To verify without modifying files, append `--check`. This is a static comparison only; SQL Server deployment verification runs in the disposable CI database.
