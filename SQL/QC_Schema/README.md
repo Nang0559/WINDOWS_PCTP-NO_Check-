@@ -24,21 +24,31 @@ Object không thấy trong SQL2 snapshot được phân loại `GAP-db57-unverif
 kết luận là "không tồn tại DB57". Các object ngoài dbo, synonym, linked server, dynamic name
 và object bị thiếu trong snapshot cần xác minh riêng.
 
-## Phạm vi CI
+## Phạm vi CI — chỉ schema PCTP
 
-Snapshot hiện tại có **550 dbo user tables**. CI sinh toàn bộ 550 bảng và các metadata
-constraint/index tương ứng, không còn giới hạn ở allowlist WMS 19 bảng cũ. Bộ CI không phải
-bản sao đầy đủ mọi tính năng của DB57: không có business data, non-dbo schemas, toàn bộ
-2.345 module bodies, SQL Agent jobs, permissions hoặc linked-server configuration.
+B7R2_FCC là database nền dùng chung cho nhiều ứng dụng; PCTP chỉ sử dụng một tập đối tượng.
+Vì vậy CI **không sinh 550 dbo user tables** và không sao chép toàn bộ schema B7R2.
 
-Transitive dbo FK dependencies được truy vết từ các bảng code tham chiếu. Trong baseline
-550 bảng, target dbo đã nằm trong generated scope. Nếu FK/index không thể tái tạo từ SQL2,
-`--strict-dependencies` làm CI thất bại thay vì âm thầm bỏ qua.
+Nguồn xác định phạm vi:
+- `docs/PCTP_SQL_Runtime_Inventory_A-K.csv`: danh sách đối tượng PCTP runtime/configuration và caller.
+  Chỉ các dòng được phân loại là bảng SQL Server runtime mới trở thành seed candidate.
+- Câu SQL literal trong `PCTP/**/*.cs`: bổ sung các bảng có bằng chứng được code tham chiếu.
+- SQL2 metadata DB57: xác nhận candidate có thực sự là dbo table trên DB57 và cung cấp định nghĩa cột.
+- FK SQL2: chỉ mở rộng đệ quy tới bảng dbo được tham chiếu bởi các bảng seed trong scope PCTP.
 
-`SQL/QC_Schema/01_Tables.sql` là fixture lịch sử 15 bảng, **không còn được deploy**.
-CI dùng `02_Generated_From_DB57.sql` làm table baseline chuẩn. Hai bảng
-`DOCQRCODE_100003` và `TMPPHIEUGIAOHANG_100003` không còn lấy từ fixture cũ vì cấu trúc
-khách hàng khác; chúng được tạo trực tiếp từ SQL2 inventory DB57.
+Các dòng IFS/Oracle, nguồn external, class C#, đối tượng hệ thống, test-only, template có
+`{hostName}`, và dòng chưa xác định runtime không được tự động biến thành bảng CI.
+Candidate không tìm thấy trong SQL2 được ghi `GAP-db57-unverified`; không tự tạo bảng
+theo suy đoán và không kết luận object không tồn tại trên DB57.
+
+Do inventory có các biến thể theo khách hàng (HVN/SP/HTN/YMVN), mỗi tên vật lý chỉ được
+đưa vào scope khi được cấu hình/runtime inventory xác nhận và khớp đúng dbo object trong
+SQL2. Không gộp các biến thể có cấu trúc khác nhau.
+
+`SQL/QC_Schema/01_Tables.sql` là fixture lịch sử, không phải baseline DB57.
+CI tạo `02_Generated_From_DB57.sql` và `03_Generated_From_DB57_Constraints.sql`
+từ cùng một coverage CSV tươi trong runner. Hai file này chỉ đại diện cho PCTP runtime
+tables + FK dependencies, không đại diện toàn bộ B7R2_FCC.
 
 ## Các generator và kiểm chứng
 
@@ -88,14 +98,14 @@ the WMS stored procedures that call it. It is not sourced from the lossy `docs/S
 
 `tools/schema_coverage.py` dùng SQL2 structured metadata, không dùng `docs/SQL.text`.
 Coverage phân biệt:
-- `GAP-db57-baseline`: dbo table có trong SQL2 nhưng không phải runtime reference;
-- `GAP-fk-dependency`: table được đưa vào do FK dependency;
+- `GAP-fk-dependency`: dbo table được đưa vào do FK dependency;
 - `GAP-db57-unverified`: không đủ metadata để kết luận;
 - `GAP-no-git-ddl`, `GAP-ci-schema`, `OK-testable`: trạng thái đối chiếu code/Git/CI.
 
 `docs/SCHEMA_COVERAGE.csv` là snapshot checked-in và phải được regenerate trước khi dùng
 làm đầu vào thủ công. CI tạo coverage tươi trong runner temp directory rồi dùng đúng CSV đó
-để sinh cả 02 và 03, không phụ thuộc snapshot cũ.
+để sinh cả 02 và 03. Các bảng không nằm trong runtime inventory/code references/FK closure
+không được đưa vào coverage chỉ vì chúng tồn tại trong SQL2 catalog.
 
 ## Lệnh regenerate / kiểm thử local
 
