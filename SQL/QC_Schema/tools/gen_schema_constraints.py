@@ -242,6 +242,18 @@ def main() -> int:
             actual_sql = args.out.read_text(encoding="utf-8-sig") if args.out.exists() else None
             actual_report = args.report.read_text(encoding="utf-8-sig") if args.report.exists() else None
             if actual_sql != sql or actual_report != report:
+                for label, expected, actual in (("SQL", sql, actual_sql), ("report", report, actual_report)):
+                    if expected == actual:
+                        continue
+                    expected_lines = expected.splitlines()
+                    actual_lines = actual.splitlines() if actual is not None else []
+                    limit = max(len(expected_lines), len(actual_lines))
+                    for line_no in range(limit):
+                        want = expected_lines[line_no] if line_no < len(expected_lines) else "<EOF>"
+                        got = actual_lines[line_no] if line_no < len(actual_lines) else "<EOF>"
+                        if want != got:
+                            print(f"STALE {label} at line {line_no + 1}: expected={want!r}; actual={got!r}", file=sys.stderr)
+                            break
                 print("STALE: generated SQL2 constraints or metadata report differ from source metadata", file=sys.stderr)
                 return 1
             print("PASS: generated SQL2 constraints and metadata report are current")
