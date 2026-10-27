@@ -74,8 +74,6 @@ def load_columns(path: Path):
         for row in rows:
             if row.get("type_desc") == "USER_TABLE" and row.get("TableName"):
                 schemas_by_table[row["TableName"].casefold()].add(row.get("SchemaName", ""))
-        non_dbo = {name: schemas for name, schemas in schemas_by_table.items()
-                   if "dbo" not in schemas}
         rows = [row for row in rows if row.get("SchemaName", "").casefold() == "dbo"]
     else:
         rows = list(fixed_width_rows(path, "TableName"))
