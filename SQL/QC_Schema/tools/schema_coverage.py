@@ -174,7 +174,7 @@ def foreign_key_dependency_map(metadata_path, seed_tables, available_tables):
     return dependencies
 
 COLDEF = re.compile(
-    r'^\s*\\[?([A-Za-z_][\w]*)\\]?\s+(?:N?VARCHAR|N?CHAR|INT|BIGINT|SMALLINT|TINYINT|BIT|DATETIME2?|SMALLDATETIME|DATE|TIME|DECIMAL|NUMERIC|FLOAT|REAL|MONEY|UNIQUEIDENTIFIER|VARBINARY|XML)\b',
+    r'^\s*\[?([A-Za-z_][\w]*)\]?\s+(?:N?VARCHAR|N?CHAR|INT|BIGINT|SMALLINT|TINYINT|BIT|DATETIME2?|SMALLDATETIME|DATE|TIME|DECIMAL|NUMERIC|FLOAT|REAL|MONEY|UNIQUEIDENTIFIER|VARBINARY|XML)\b',
     re.I | re.M
 )
 
