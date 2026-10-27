@@ -46,6 +46,7 @@ class Sql2DdlGeneratorTests(unittest.TestCase):
         self.assertIn("[Calculated] AS ([Id] + (1))", sql)
         self.assertIn("SQL2 table/column definition mismatch", sql)
         self.assertIn("sys.identity_columns", sql)
+        self.assertIn("ROW_NUMBER() OVER (ORDER BY c.column_id)", sql)
         self.assertIn("PK/unique indexes, FKs and CHECK constraints are emitted separately", sql)
 
     def test_alias_type_fails_closed_without_verified_mapping(self):
