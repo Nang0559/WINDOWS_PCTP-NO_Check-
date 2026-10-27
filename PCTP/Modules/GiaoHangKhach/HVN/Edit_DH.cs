@@ -9,6 +9,7 @@ using System.Linq;
 using System.Windows.Forms;
 using System.Data;
 using System.Collections;
+using System.Data.SqlClient;
 
 namespace PCTP.QRCODE_HVN.PGH
 {
@@ -76,12 +77,21 @@ namespace PCTP.QRCODE_HVN.PGH
                 if (int.Parse(slxuat.Text) == SLX)
                 {
                     _MyView.PostEditor();
-                    int STT;
-                    string LOT, sql;
-                    STT = int.Parse(MyView.GetFocusedRowCellDisplayText("STT").Trim());
-                    LOT = MyView.GetFocusedRowCellDisplayText("LOT").Trim();
-                    sql = "update tmpphieugiaohang set lot= '" + lot.Text + "' where stt = " + STT;
-                    sqlBRV.ExecuteNonQuery(sqlBRV.B7R2_FCCdb, sql);
+                    if (!int.TryParse(MyView.GetFocusedRowCellDisplayText("STT").Trim(), out int stt) || stt <= 0)
+                        throw new InvalidOperationException("STT phiếu giao hàng không hợp lệ.");
+
+                    const string updateSql = @"
+UPDATE tmpphieugiaohang
+SET lot = @Lot
+WHERE stt = @Stt;";
+                    int affected = sqlBRV.ExecuteNonQuery(
+                        sqlBRV.B7R2_FCCdb,
+                        updateSql,
+                        new SqlParameter("@Lot", SqlDbType.NVarChar, -1) { Value = lot.Text },
+                        new SqlParameter("@Stt", SqlDbType.Int) { Value = stt });
+                    if (affected != 1)
+                        throw new InvalidOperationException("Không cập nhật được đúng một dòng phiếu giao hàng.");
+
                     _MyView.CloseEditForm();
                 }
                 else
