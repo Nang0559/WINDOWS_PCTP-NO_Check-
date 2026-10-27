@@ -18,6 +18,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Update="TestMatrix.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../SQL/Usp_Qrcode_LUU_PHIEU_RetireUnsafeLegacy.sql" Link="Usp_Qrcode_LUU_PHIEU_RetireUnsafeLegacy.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../SQL/Usp_Qrcode_Update_Stock2405.sql" Link="Usp_Qrcode_Update_Stock2405.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../SQL/Usp_Qrcode_Update_Stock_SP.sql" Link="Usp_Qrcode_Update_Stock_SP.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../SQL/Usp_Qrcode_LOAD_PHIEU_DOCQR2405.sql" Link="Usp_Qrcode_LOAD_PHIEU_DOCQR2405.sql" CopyToOutputDirectory="PreserveNewest" />
