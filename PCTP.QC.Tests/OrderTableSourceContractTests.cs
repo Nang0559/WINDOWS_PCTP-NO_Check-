@@ -126,4 +126,22 @@ public sealed class OrderTableSourceContractTests
         Assert.DoesNotContain("TenNhaMay = \"'", config, StringComparison.Ordinal);
         Assert.Contains("TenNhaMay = \"YAMAHA - VIET NAM\"", config, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void DeliveryQrAllocationScenario_SetsAsideDeployedTablesInsteadOfDroppingThem()
+    {
+        // G3 shares PCTP_QC_CI with the DB57-derived schema deployed by CI. This scenario used to drop
+        // dbo.TMPPHIEUGIAOHANG / dbo.DOCQRCODE / the Take_Lot procedure, which made the next scenario
+        // ("DB57-derived delivery tables are not deployed") and the G4 seed/cleanup steps fail.
+        var source = ReadSource("DeliveryQrAllocationScenario.source.cs");
+
+        Assert.Contains("sp_rename", source, StringComparison.Ordinal);
+        Assert.Contains("RestoreSavedTableAsync", source, StringComparison.Ordinal);
+        Assert.Contains("procedureExisted", source, StringComparison.Ordinal);
+
+        var setAside = source.IndexOf("await SetAsideDeployedTablesAsync(connection);", StringComparison.Ordinal);
+        var createFixture = source.IndexOf("await CreateFixtureAsync(connection);", StringComparison.Ordinal);
+        Assert.True(setAside >= 0 && createFixture > setAside,
+            "Deployed tables must be set aside before the scenario creates its own fixtures.");
+    }
 }

@@ -8,13 +8,26 @@ internal static class DeliveryQrAllocationScenario
 {
     private const string Part = "QC-QR-EXACT-PART";
 
+    // CI deploys the DB57-derived dbo tables (and the real Usp_Qrcode_Take_Lot2405) into the same
+    // PCTP_QC_CI database that G3/G4 share. This scenario needs its own simplified fixtures under the
+    // SAME fixed dbo names, so it sets the deployed tables aside (sp_rename) and puts them back
+    // afterwards instead of dropping them: DeliveryCommandSqlScenario and the G4 seed/cleanup steps
+    // depend on them.
+    private static readonly string[] FixtureTables = { "TMPPHIEUGIAOHANG", "DOCQRCODE", "B20ITEM" };
+    private const string SavedSuffix = "__qcsave";
+
     public static async Task RunAsync(string connectionString)
     {
         await using var connection = new SqlConnection(connectionString);
         await connection.OpenAsync();
-        await CreateFixtureAsync(connection);
+        var procedureExisted = await ScalarAsync<int>(connection,
+            "SELECT CASE WHEN OBJECT_ID(N'dbo.Usp_Qrcode_Take_Lot2405', N'P') IS NULL THEN 0 ELSE 1 END;") == 1;
+        var tablesSetAside = false;
         try
         {
+            await SetAsideDeployedTablesAsync(connection);
+            tablesSetAside = true;
+            await CreateFixtureAsync(connection);
             await DeployProcedureAsync(connection);
             await VerifyExactSubsetAsync(connection);
             await VerifyNoExactSubsetLeavesQrUntouchedAsync(connection);
@@ -25,12 +38,41 @@ internal static class DeliveryQrAllocationScenario
         }
         finally
         {
-            await ExecuteAsync(connection, @"
-IF OBJECT_ID(N'dbo.Usp_Qrcode_Take_Lot2405', N'P') IS NOT NULL DROP PROCEDURE dbo.Usp_Qrcode_Take_Lot2405;
-IF OBJECT_ID(N'dbo.TMPPHIEUGIAOHANG', N'U') IS NOT NULL DROP TABLE dbo.TMPPHIEUGIAOHANG;
-IF OBJECT_ID(N'dbo.DOCQRCODE', N'U') IS NOT NULL DROP TABLE dbo.DOCQRCODE;
-IF OBJECT_ID(N'dbo.B20ITEM', N'U') IS NOT NULL DROP TABLE dbo.B20ITEM;");
+            // The procedure deployed above is the same checked-in script CI deploys, so it is only
+            // removed when this scenario was the one that introduced it.
+            if (!procedureExisted)
+                await ExecuteAsync(connection, "IF OBJECT_ID(N'dbo.Usp_Qrcode_Take_Lot2405', N'P') IS NOT NULL DROP PROCEDURE dbo.Usp_Qrcode_Take_Lot2405;");
+            foreach (var table in FixtureTables)
+            {
+                // Drop the fixture only when this run created it; never drop a table it did not set aside.
+                if (tablesSetAside)
+                    await ExecuteAsync(connection, $"IF OBJECT_ID(N'dbo.{table}', N'U') IS NOT NULL DROP TABLE dbo.{table};");
+                await RestoreSavedTableAsync(connection, table);
+            }
         }
+    }
+
+    private static async Task SetAsideDeployedTablesAsync(SqlConnection connection)
+    {
+        foreach (var table in FixtureTables)
+        {
+            // A crashed earlier run may have left the real table renamed: put it back first so it is never lost.
+            await RestoreSavedTableAsync(connection, table);
+            await ExecuteAsync(connection, $@"
+IF OBJECT_ID(N'dbo.{table}', N'U') IS NOT NULL
+    EXEC sp_rename N'dbo.{table}', N'{table}{SavedSuffix}', N'OBJECT';");
+        }
+    }
+
+    // Renames a set-aside real table back. Does nothing when no set-aside copy exists.
+    private static async Task RestoreSavedTableAsync(SqlConnection connection, string table)
+    {
+        await ExecuteAsync(connection, $@"
+IF OBJECT_ID(N'dbo.{table}{SavedSuffix}', N'U') IS NOT NULL
+BEGIN
+    IF OBJECT_ID(N'dbo.{table}', N'U') IS NOT NULL DROP TABLE dbo.{table};
+    EXEC sp_rename N'dbo.{table}{SavedSuffix}', N'{table}', N'OBJECT';
+END");
     }
 
     private static async Task CreateFixtureAsync(SqlConnection connection)
