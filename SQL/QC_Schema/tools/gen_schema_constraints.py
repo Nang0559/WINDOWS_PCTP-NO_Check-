@@ -178,6 +178,8 @@ def generate(metadata: str, allowed: set[tuple[str, str]]) -> tuple[str, str, di
             f"IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID({literal(schema + '.' + table)}) "
             f"AND name={literal(name)} AND type_desc={literal(kind)} "
             f"AND is_unique={1 if unique or is_pk or is_uc else 0} "
+            f"AND is_primary_key={1 if is_pk else 0} "
+            f"AND is_unique_constraint={1 if is_uc else 0} "
             f"AND has_filter={1 if first.get('HasFilter') == '1' else 0} "
             f"AND ISNULL(filter_definition,N'')={literal(expected_filter)} "
             f"AND is_disabled={1 if first.get('IsDisabled') == '1' else 0}) "
