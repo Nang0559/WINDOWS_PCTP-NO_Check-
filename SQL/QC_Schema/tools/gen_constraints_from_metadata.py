@@ -48,10 +48,10 @@ def module_inventory(path):
     # at the fixed-width schema/object/type positions; never parse body lines as rows.
     lines=path.read_text(encoding="utf-8-sig",errors="replace").splitlines()
     header_i=next((i for i,line in enumerate(lines)
-      if line.startswith("SchemaName") and {"ObjectName","ObjectType","ObjectTypeDescription","SqlDefinition"}.issubset(set(re.findall(r"\\S+",line)))),None)
+      if line.startswith("SchemaName") and {"ObjectName","ObjectType","ObjectTypeDescription","SqlDefinition"}.issubset(set(re.findall(r"\S+",line)))),None)
     if header_i is None: raise ValueError("Missing module-definition metadata header")
-    header=lines[header_i]; starts=[m.start() for m in re.finditer(r"\\S+",header)]
-    names=re.findall(r"\\S+",header)
+    header=lines[header_i]; starts=[m.start() for m in re.finditer(r"\S+",header)]
+    names=re.findall(r"\S+",header)
     sep=next((j for j in range(header_i+1,min(header_i+4,len(lines))) if lines[j].startswith("---")),None)
     if sep is None: raise ValueError("Missing module metadata separator")
     rows=[]
