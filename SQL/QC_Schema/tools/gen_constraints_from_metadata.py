@@ -59,8 +59,9 @@ def module_inventory(path):
         if not raw.strip() or raw.startswith("===="): continue
         # Continuation/body lines begin with whitespace and do not contain the
         # expected fixed-width object-type field.
-        if len(raw)<=starts[2] or not raw[:starts[0]].strip(): continue
+        if len(raw)<=starts[2]: continue
         row={names[k]:raw[starts[k]:(starts[k+1] if k+1<len(starts) else len(raw))].strip() if starts[k]<len(raw) else "" for k in range(len(names))}
+        if not row.get("SchemaName"): continue
         if row.get("SchemaName") and row.get("ObjectName") and row.get("ObjectType"):
             rows.append({"schema":row["SchemaName"],"name":row["ObjectName"],"type":row["ObjectType"],"description":row.get("ObjectTypeDescription",""),"definition_present":bool(row.get("SqlDefinition") and row["SqlDefinition"].upper()!="NULL")})
     return rows
