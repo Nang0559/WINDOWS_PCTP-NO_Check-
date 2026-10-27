@@ -39,6 +39,12 @@ BEGIN
 END;
 GO
 
+IF NOT EXISTS (SELECT 1 FROM sys.key_constraints WHERE parent_object_id = OBJECT_ID(N'dbo.FVN_ItemFifoConfig') AND name = N'PK__FVN_Item__3ECC0FEBBDA5DBF4')
+BEGIN
+    ALTER TABLE [dbo].[FVN_ItemFifoConfig] ADD CONSTRAINT [PK__FVN_Item__3ECC0FEBBDA5DBF4] PRIMARY KEY CLUSTERED ([ItemCode] ASC);
+END;
+GO
+
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.FVN_ItemFifoConfig_History') AND name = N'IX_FifoHistory_ItemCode')
 BEGIN
     CREATE NONCLUSTERED INDEX [IX_FifoHistory_ItemCode] ON [dbo].[FVN_ItemFifoConfig_History] ([ItemCode] ASC, [ThoiGian] DESC);
@@ -51,9 +57,9 @@ BEGIN
 END;
 GO
 
-IF NOT EXISTS (SELECT 1 FROM sys.key_constraints WHERE parent_object_id = OBJECT_ID(N'dbo.FVN_ItemFifoConfig') AND name = N'PK__FVN_Item__3ECC0FEBBDA5DBF4')
+IF NOT EXISTS (SELECT 1 FROM sys.key_constraints WHERE parent_object_id = OBJECT_ID(N'dbo.FVN_PhieuTraHang') AND name = N'PK_FVN_PhieuTraHang')
 BEGIN
-    ALTER TABLE [dbo].[FVN_ItemFifoConfig] ADD CONSTRAINT [PK__FVN_Item__3ECC0FEBBDA5DBF4] PRIMARY KEY CLUSTERED ([ItemCode] ASC);
+    ALTER TABLE [dbo].[FVN_PhieuTraHang] ADD CONSTRAINT [PK_FVN_PhieuTraHang] PRIMARY KEY CLUSTERED ([Id] ASC);
 END;
 GO
 
@@ -66,12 +72,6 @@ GO
 IF NOT EXISTS (SELECT 1 FROM sys.key_constraints WHERE parent_object_id = OBJECT_ID(N'dbo.FVN_PhieuTraHangCT') AND name = N'PK_FVN_PhieuTraHangCT')
 BEGIN
     ALTER TABLE [dbo].[FVN_PhieuTraHangCT] ADD CONSTRAINT [PK_FVN_PhieuTraHangCT] PRIMARY KEY CLUSTERED ([Id] ASC);
-END;
-GO
-
-IF NOT EXISTS (SELECT 1 FROM sys.key_constraints WHERE parent_object_id = OBJECT_ID(N'dbo.FVN_PhieuTraHang') AND name = N'PK_FVN_PhieuTraHang')
-BEGIN
-    ALTER TABLE [dbo].[FVN_PhieuTraHang] ADD CONSTRAINT [PK_FVN_PhieuTraHang] PRIMARY KEY CLUSTERED ([Id] ASC);
 END;
 GO
 
@@ -152,7 +152,7 @@ BEGIN
     ALTER TABLE [dbo].[FVN_PhieuTraHangCT] WITH CHECK ADD CONSTRAINT [FK_FVN_PhieuTraHangCT_Header] FOREIGN KEY ([PhieuTraHangId])
         REFERENCES [dbo].[FVN_PhieuTraHang] ([Id]) ON DELETE NO ACTION ON UPDATE NO ACTION;
 END;
-ALTER TABLE [dbo].[FVN_PhieuTraHangCT] WITH CHECK CHECK CONSTRAINT [FK_FVN_PhieuTraHangCT_Header]
+ALTER TABLE [dbo].[FVN_PhieuTraHangCT] WITH CHECK CHECK CONSTRAINT [FK_FVN_PhieuTraHangCT_Header];
 GO
 
 IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE parent_object_id = OBJECT_ID(N'dbo.TMPPHIEUGIAOHANGDBCT') AND name = N'FK_TMPPHIEUGIAOHANGDBCT_HD')
@@ -160,21 +160,21 @@ BEGIN
     ALTER TABLE [dbo].[TMPPHIEUGIAOHANGDBCT] WITH CHECK ADD CONSTRAINT [FK_TMPPHIEUGIAOHANGDBCT_HD] FOREIGN KEY ([IDP])
         REFERENCES [dbo].[TMPPHIEUGIAODBHD] ([IDP]) ON DELETE NO ACTION ON UPDATE NO ACTION;
 END;
-ALTER TABLE [dbo].[TMPPHIEUGIAOHANGDBCT] WITH CHECK CHECK CONSTRAINT [FK_TMPPHIEUGIAOHANGDBCT_HD]
+ALTER TABLE [dbo].[TMPPHIEUGIAOHANGDBCT] WITH CHECK CHECK CONSTRAINT [FK_TMPPHIEUGIAOHANGDBCT_HD];
 GO
 
 IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE parent_object_id = OBJECT_ID(N'dbo.FVN_PhieuXuLyBatThuong') AND name = N'CK_FVN_PhieuXuLyBatThuong_Nguon')
 BEGIN
     ALTER TABLE [dbo].[FVN_PhieuXuLyBatThuong] WITH CHECK ADD CONSTRAINT [CK_FVN_PhieuXuLyBatThuong_Nguon] CHECK ([Nguon]=(2) OR [Nguon]=(1));
 END;
-ALTER TABLE [dbo].[FVN_PhieuXuLyBatThuong] WITH CHECK CHECK CONSTRAINT [CK_FVN_PhieuXuLyBatThuong_Nguon]
+ALTER TABLE [dbo].[FVN_PhieuXuLyBatThuong] WITH CHECK CHECK CONSTRAINT [CK_FVN_PhieuXuLyBatThuong_Nguon];
 GO
 
 IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE parent_object_id = OBJECT_ID(N'dbo.FVN_PhieuXuLyBatThuong') AND name = N'CK_FVN_PhieuXuLyBatThuong_SoLuongLoi')
 BEGIN
     ALTER TABLE [dbo].[FVN_PhieuXuLyBatThuong] WITH CHECK ADD CONSTRAINT [CK_FVN_PhieuXuLyBatThuong_SoLuongLoi] CHECK ([SoLuongLoi]>=(0));
 END;
-ALTER TABLE [dbo].[FVN_PhieuXuLyBatThuong] WITH CHECK CHECK CONSTRAINT [CK_FVN_PhieuXuLyBatThuong_SoLuongLoi]
+ALTER TABLE [dbo].[FVN_PhieuXuLyBatThuong] WITH CHECK CHECK CONSTRAINT [CK_FVN_PhieuXuLyBatThuong_SoLuongLoi];
 GO
 
 -- Post-deployment metadata assertions: fail CI if any expected object is absent.
@@ -184,12 +184,12 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.B20It
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.B20Item') AND name = N'IX_B20Item_Code') THROW 52301, N'Missing index/constraint dbo.B20Item.IX_B20Item_Code', 1;
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.B20Item') AND name = N'PK_B20Item') THROW 52301, N'Missing index/constraint dbo.B20Item.PK_B20Item', 1;
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.FVN_HangChoGiao') AND name = N'PK__FVN_Hang__3214EC07E6905088') THROW 52301, N'Missing index/constraint dbo.FVN_HangChoGiao.PK__FVN_Hang__3214EC07E6905088', 1;
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.FVN_ItemFifoConfig') AND name = N'PK__FVN_Item__3ECC0FEBBDA5DBF4') THROW 52301, N'Missing index/constraint dbo.FVN_ItemFifoConfig.PK__FVN_Item__3ECC0FEBBDA5DBF4', 1;
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.FVN_ItemFifoConfig_History') AND name = N'IX_FifoHistory_ItemCode') THROW 52301, N'Missing index/constraint dbo.FVN_ItemFifoConfig_History.IX_FifoHistory_ItemCode', 1;
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.FVN_ItemFifoConfig_History') AND name = N'PK__FVN_Item__3214EC072BCF3DCA') THROW 52301, N'Missing index/constraint dbo.FVN_ItemFifoConfig_History.PK__FVN_Item__3214EC072BCF3DCA', 1;
-IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.FVN_ItemFifoConfig') AND name = N'PK__FVN_Item__3ECC0FEBBDA5DBF4') THROW 52301, N'Missing index/constraint dbo.FVN_ItemFifoConfig.PK__FVN_Item__3ECC0FEBBDA5DBF4', 1;
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.FVN_PhieuTraHang') AND name = N'PK_FVN_PhieuTraHang') THROW 52301, N'Missing index/constraint dbo.FVN_PhieuTraHang.PK_FVN_PhieuTraHang', 1;
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.FVN_PhieuTraHangCT') AND name = N'IX_FVN_PhieuTraHangCT_PhieuXuLyBatThuongId') THROW 52301, N'Missing index/constraint dbo.FVN_PhieuTraHangCT.IX_FVN_PhieuTraHangCT_PhieuXuLyBatThuongId', 1;
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.FVN_PhieuTraHangCT') AND name = N'PK_FVN_PhieuTraHangCT') THROW 52301, N'Missing index/constraint dbo.FVN_PhieuTraHangCT.PK_FVN_PhieuTraHangCT', 1;
-IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.FVN_PhieuTraHang') AND name = N'PK_FVN_PhieuTraHang') THROW 52301, N'Missing index/constraint dbo.FVN_PhieuTraHang.PK_FVN_PhieuTraHang', 1;
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.FVN_PhieuXuLyBatThuong') AND name = N'IX_FVN_PhieuXuLy_Header_Status_QC_FINAL') THROW 52301, N'Missing index/constraint dbo.FVN_PhieuXuLyBatThuong.IX_FVN_PhieuXuLy_Header_Status_QC_FINAL', 1;
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.FVN_PhieuXuLyBatThuong') AND name = N'PK_FVN_PhieuXuLyBatThuong') THROW 52301, N'Missing index/constraint dbo.FVN_PhieuXuLyBatThuong.PK_FVN_PhieuXuLyBatThuong', 1;
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.FVN_PhieuXuLyBatThuong') AND name = N'UQ_FVN_PhieuXuLyBatThuong_PhieuTraHangCTId') THROW 52301, N'Missing index/constraint dbo.FVN_PhieuXuLyBatThuong.UQ_FVN_PhieuXuLyBatThuong_PhieuTraHangCTId', 1;
