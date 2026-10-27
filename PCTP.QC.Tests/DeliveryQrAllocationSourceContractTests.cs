@@ -132,26 +132,38 @@ public sealed class DeliveryQrAllocationSourceContractTests
         Assert.Contains("@affected <> @expected", sql);
     }
 
-    [Fact]
-    public void TakeLotYmvn_NeverUpdatesQrOrLotByPartCodeOnly()
+    private static string ClaimSection(string sql)
     {
-        var sql = Read("Usp_Qrcode_Take_LotYMVN2405.sql");
-        // Old behaviour: LOT merge and KETQUA update joined only on MAHANGFCC across all phieu.
-        Assert.DoesNotContain("INNER JOIN #LotTmp", sql);
-        Assert.DoesNotContain("WHERE RTRIM(d2.MAHANGFCC) = RTRIM(d.MAHANGFCC)", sql);
-        // Rows are identified by the rowversion, because DOCQR.STT is not unique.
-        Assert.Contains("INNER JOIN #Qr q ON q.Rid = d.TGLUU", sql);
-        Assert.Contains("WHERE q.Owner <> q.OrigOwner", sql);
+        var i = sql.IndexOf("CLAIM-MODE-BEGIN", StringComparison.Ordinal);
+        Assert.True(i >= 0, "CLAIM-MODE-BEGIN marker missing");
+        return sql.Substring(i);
     }
 
     [Fact]
-    public void TakeLotYmvn_DoesNotAlterSchemaAtRuntime_AndFailsClosedOnMissingColumns()
+    public void TakeLotYmvn_ClaimMode_NeverUpdatesQrOrLotByPartCodeOnly()
+    {
+        var claim = ClaimSection(Read("Usp_Qrcode_Take_LotYMVN2405.sql"));
+        // Old behaviour: LOT merge and KETQUA update joined only on MAHANGFCC across all phieu.
+        Assert.DoesNotContain("#LotTmp", claim);
+        Assert.DoesNotContain("WHERE RTRIM(d2.MAHANGFCC) = RTRIM(d.MAHANGFCC)", claim);
+        // Rows are identified by the rowversion, because DOCQR.STT is not unique.
+        Assert.Contains("INNER JOIN #Qr q ON q.Rid = d.TGLUU", claim);
+        Assert.Contains("WHERE q.Owner <> q.OrigOwner", claim);
+    }
+
+    [Fact]
+    public void TakeLotYmvn_SelectsModePerCustomerTableFamily_WithoutRuntimeDdl()
     {
         var sql = Read("Usp_Qrcode_Take_LotYMVN2405.sql");
+        // YMVN_DOCQRCODE has no TGLUU -> legacy mode; SP_* tables have a different schema -> rejected.
+        Assert.Contains("DECLARE @ClaimMode bit", sql);
+        Assert.Contains("COL_LENGTH(@qrTbl, N'TGLUU')", sql);
+        Assert.Contains("LEGACY-MODE-BEGIN", sql);
+        Assert.Contains("THROW 51213", sql);
+        // TMP.STT is not unique in production (IX_TMP_STT is non-unique).
+        Assert.Contains("THROW 51214", sql);
         Assert.DoesNotContain("ALTER TABLE", sql, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("ALTER COLUMN", sql, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("THROW 51210", sql);
-        Assert.Contains("THROW 51211", sql);
     }
 
     [Fact]

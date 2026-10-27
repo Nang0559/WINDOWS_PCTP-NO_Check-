@@ -58,23 +58,126 @@ BEGIN
     IF @TMPTABLE = N'TMPPHIEUGIAOHANG_100003' AND @DOCQRTABLE <> N'DOCQRCODE_100003'
         THROW 51207, N'Cặp bảng khách hàng 100003 không khớp cấu hình.', 1;
 
-    -- ── Schema guard (fail-closed): bảng đã whitelist phải có đủ cột để claim QR ──
+    -- ── Họ bảng theo khách hàng (CustomerTableConfig) ─────────────────────────
+    -- DOCQRCODE / DOCQRCODE_100003 : có TGLUU + STTBAN + GIO  -> CLAIM MODE
+    -- YMVN_DOCQRCODE               : KHÔNG có TGLUU           -> LEGACY MODE
+    -- SP_DOCQRCODE / SP_TMPPHIEU.. : schema khác hoàn toàn    -> không hỗ trợ
     DECLARE @tmpTbl nvarchar(300) = N'dbo.' + QUOTENAME(@TMPTABLE);
     DECLARE @qrTbl  nvarchar(300) = N'dbo.' + QUOTENAME(@DOCQRTABLE);
 
-    IF COL_LENGTH(@qrTbl, N'TGLUU') IS NULL OR COL_LENGTH(@qrTbl, N'STTBAN') IS NULL
-       OR COL_LENGTH(@qrTbl, N'GIO') IS NULL OR COL_LENGTH(@qrTbl, N'KETQUA') IS NULL
-       OR COL_LENGTH(@qrTbl, N'MAHANGFCC') IS NULL OR COL_LENGTH(@qrTbl, N'SLTEMHVN') IS NULL
-       OR COL_LENGTH(@qrTbl, N'LOTHVN') IS NULL OR COL_LENGTH(@qrTbl, N'LOTFCC') IS NULL
-        THROW 51210, N'Bảng DOCQR YMVN thiếu cột bắt buộc để claim QR (TGLUU/STTBAN/GIO/KETQUA/MAHANGFCC/SLTEMHVN/LOTHVN/LOTFCC).', 1;
+    DECLARE @TmpOk bit = CASE WHEN COL_LENGTH(@tmpTbl, N'STT') IS NOT NULL
+        AND COL_LENGTH(@tmpTbl, N'MAHANG') IS NOT NULL AND COL_LENGTH(@tmpTbl, N'SOLUONG') IS NOT NULL
+        AND COL_LENGTH(@tmpTbl, N'LOT') IS NOT NULL AND COL_LENGTH(@tmpTbl, N'STATUSDOC') IS NOT NULL
+        AND COL_LENGTH(@tmpTbl, N'TTPHIEU') IS NOT NULL THEN 1 ELSE 0 END;
 
-    IF COL_LENGTH(@tmpTbl, N'STT') IS NULL OR COL_LENGTH(@tmpTbl, N'MAHANG') IS NULL
-       OR COL_LENGTH(@tmpTbl, N'SOLUONG') IS NULL OR COL_LENGTH(@tmpTbl, N'LOT') IS NULL
-       OR COL_LENGTH(@tmpTbl, N'STATUSDOC') IS NULL OR COL_LENGTH(@tmpTbl, N'TTPHIEU') IS NULL
-        THROW 51211, N'Bảng TMP YMVN thiếu cột bắt buộc (STT/MAHANG/SOLUONG/LOT/STATUSDOC/TTPHIEU).', 1;
+    DECLARE @LegacyQrOk bit = CASE WHEN COL_LENGTH(@qrTbl, N'MAHANGFCC') IS NOT NULL
+        AND COL_LENGTH(@qrTbl, N'SLTEMHVN') IS NOT NULL AND COL_LENGTH(@qrTbl, N'SLTEMFCC') IS NOT NULL
+        AND COL_LENGTH(@qrTbl, N'LOTHVN') IS NOT NULL AND COL_LENGTH(@qrTbl, N'LOTFCC') IS NOT NULL
+        AND COL_LENGTH(@qrTbl, N'KETQUA') IS NOT NULL AND COL_LENGTH(@qrTbl, N'STT') IS NOT NULL THEN 1 ELSE 0 END;
 
-    DECLARE @OwnTran bit = 0, @Savepoint bit = 0, @sql nvarchar(max),
-            @expected int = 0, @affected int = 0;
+    DECLARE @ClaimMode bit = CASE WHEN @TmpOk = 1 AND @LegacyQrOk = 1
+        AND COL_LENGTH(@qrTbl, N'TGLUU') IS NOT NULL AND COL_LENGTH(@qrTbl, N'STTBAN') IS NOT NULL
+        AND COL_LENGTH(@qrTbl, N'GIO') IS NOT NULL THEN 1 ELSE 0 END;
+
+    IF @TmpOk = 0 OR @LegacyQrOk = 0
+        THROW 51213, N'Cặp bảng không có schema được hỗ trợ bởi Usp_Qrcode_Take_LotYMVN2405 (ví dụ SP_DOCQRCODE/SP_TMPPHIEUGIAOHANG có cột khác hẳn).', 1;
+
+    DECLARE @sql nvarchar(max);
+
+    IF @ClaimMode = 0
+    BEGIN
+        -- >>> LEGACY-MODE-BEGIN <<< (không đổi hành vi so với bản trước) ═══════════════════
+        -- Bảng không có TGLUU nên chưa có khóa dòng để claim an toàn
+        -- (ví dụ YMVN_DOCQRCODE). Giữ nguyên logic cũ; KHÔNG ALTER schema lúc chạy.
+        -- Muốn claim theo phiếu cho họ bảng này cần quyết định thiết kế riêng
+        -- (xem WMS_CUSTOMER_TABLE_FAMILIES.md).
+        -- ── Bước 1: Tạo #LotTmp ─────────────────────────────────────────    
+        IF OBJECT_ID('tempdb..#LotTmp') IS NOT NULL DROP TABLE #LotTmp;    
+    
+        CREATE TABLE #LotTmp (    
+            MAHANG      nvarchar(50),    
+            STT         int,    
+            LOT_GHEP    nvarchar(max),    
+            TONG_SLHVN  bigint,    
+            TONG_SLFCC  bigint,    
+            SL_GIAO     bigint    
+        );    
+    
+        -- ── Bước 2: Tổng hợp LOT từ DOCQR ───────────────────────────────    
+        -- Sử dụng TRY_CAST để tránh lỗi khi dữ liệu trong cột không phải là số hợp lệ    
+        SET @sql = N'    
+        INSERT INTO #LotTmp (MAHANG, STT, LOT_GHEP, TONG_SLHVN, TONG_SLFCC, SL_GIAO)    
+        SELECT     
+            MAHANG,     
+            STT,     
+            LOT_GHEP,     
+            TONG_SLHVN,     
+            TONG_SLFCC,     
+            SL_GIAO    
+        FROM (    
+            SELECT    
+                RTRIM(d.MAHANGFCC) AS MAHANG,    
+                t.STT AS STT,    
+                ISNULL(TRY_CAST(t.SOLUONG AS bigint), 0) AS SL_GIAO,    
+                SUM(ISNULL(TRY_CAST(d.SLTEMHVN AS bigint), 0)) AS TONG_SLHVN,    
+                SUM(ISNULL(TRY_CAST(d.SLTEMFCC AS bigint), 0)) AS TONG_SLFCC,    
+                STUFF((    
+                    SELECT N'','' + RTRIM(ISNULL(d2.LOTHVN, d2.LOTFCC)) + N''-''     
+                         + CONVERT(nvarchar(20), ISNULL(TRY_CAST(d2.SLTEMHVN AS bigint), 0))    
+                    FROM ' + @qrTbl + N' d2    
+                    WHERE RTRIM(d2.MAHANGFCC) = RTRIM(d.MAHANGFCC)    
+                    ORDER BY d2.STT    
+                    FOR XML PATH(N''''), TYPE    
+                ).value(N''(./text())[1]'', N''nvarchar(max)''), 1, 1, N'''') AS LOT_GHEP    
+            FROM ' + @qrTbl + N' d    
+            INNER JOIN ' + @tmpTbl + N' t ON RTRIM(d.MAHANGFCC) = RTRIM(t.MAHANG)    
+            GROUP BY RTRIM(d.MAHANGFCC), t.STT, t.SOLUONG    
+        ) AS grp';    
+    
+        EXEC sp_executesql @sql;    
+    
+        -- ── Bước 3: UPDATE TMPTABLE ──────────────────────────────────────    
+        SET @sql = N'    
+        UPDATE t    
+        SET    
+            t.LOT       = l.LOT_GHEP,    
+            -- t.STATUS    = CASE WHEN l.TONG_SLHVN >= l.SL_GIAO THEN N''OK'' ELSE N''NG'' END,    
+            t.STATUSDOC = CASE WHEN l.TONG_SLHVN >= l.SL_GIAO THEN N''OK'' ELSE N''NG'' END,    
+            t.TTPHIEU   = CASE WHEN l.TONG_SLHVN >= l.SL_GIAO THEN N''DG'' ELSE N'''' END    
+        FROM ' + @tmpTbl + N' t    
+        INNER JOIN #LotTmp l ON l.STT = ISNULL(TRY_CAST(t.STT AS int), -1) AND l.MAHANG = RTRIM(t.MAHANG)';    
+    
+        EXEC sp_executesql @sql;    
+    
+        -- ── Bước 4: UPDATE DOCQRTABLE ────────────────────────────────────    
+        SET @sql = N'    
+        UPDATE d    
+        SET d.KETQUA = CASE WHEN l.TONG_SLHVN >= l.SL_GIAO THEN N''DG'' ELSE d.KETQUA END    
+        FROM ' + @qrTbl + N' d    
+        INNER JOIN #LotTmp l ON RTRIM(d.MAHANGFCC) = l.MAHANG';    
+    
+        EXEC sp_executesql @sql;    
+    
+        -- ── Bước 5: Xuất kết quả ─────────────────────────────────────────    
+        SET @sql = N'    
+        SELECT    
+            t.STT, t.MAHANG, t.TENHANG, t.LOT, t.SOLUONG, t.STATUS, t.STATUSDOC,    
+            ISNULL(l.TONG_SLHVN, 0) AS TONG_SLHVN,    
+            ISNULL(TRY_CAST(t.SOLUONG AS bigint), 0) AS SL_GIAO,    
+            CASE WHEN ISNULL(l.TONG_SLHVN, 0) >= ISNULL(TRY_CAST(t.SOLUONG AS bigint), 0) THEN 1 ELSE 0 END AS IsOK    
+        FROM ' + @tmpTbl + N' t    
+        LEFT JOIN #LotTmp l ON l.STT = ISNULL(TRY_CAST(t.STT AS int), -1) AND l.MAHANG = RTRIM(t.MAHANG)    
+        ORDER BY t.STT';    
+    
+        EXEC sp_executesql @sql;    
+    
+        DROP TABLE #LotTmp;
+
+        RETURN;
+    END;
+
+    -- >>> CLAIM-MODE-BEGIN <<< (DOCQRCODE / DOCQRCODE_100003: có TGLUU + STTBAN + GIO)
+    DECLARE @OwnTran bit = 0, @Savepoint bit = 0, @expected int = 0, @affected int = 0;
 
     BEGIN TRY
         IF @@TRANCOUNT = 0
@@ -92,8 +195,7 @@ BEGIN
         CREATE TABLE #Tmp (
             STT     int           NOT NULL,
             MAHANG  nvarchar(120) NOT NULL,
-            SL_GIAO bigint        NOT NULL,
-            PRIMARY KEY (STT, MAHANG)
+            SL_GIAO bigint        NOT NULL
         );
 
         SET @sql = N'
@@ -103,6 +205,10 @@ BEGIN
         WHERE TRY_CAST(t.STT AS int) IS NOT NULL
           AND NULLIF(RTRIM(t.MAHANG), N'''') IS NOT NULL;';
         EXEC sp_executesql @sql;
+
+        -- TMP không có ràng buộc duy nhất trên STT: từ chối thay vì cấp phát mơ hồ.
+        IF EXISTS (SELECT 1 FROM #Tmp GROUP BY STT, MAHANG HAVING COUNT(*) > 1)
+            THROW 51214, N'Bảng TMP có nhiều dòng trùng (STT, MAHANG); không thể cấp phát QR an toàn.', 1;
 
         -- ── 2. QR ứng viên: QR tự do, hoặc QR đã thuộc đúng một dòng phiếu này ─
         -- STTBAN = GIO = TMP.STT (cùng ngữ nghĩa với Usp_Qrcode_Take_Lot2405 và
