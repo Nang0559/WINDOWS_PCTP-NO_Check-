@@ -109,7 +109,7 @@ class Sql2DdlGeneratorTests(unittest.TestCase):
         values = ["dbo", "FVN_Test", "USER_TABLE", "1", "Id", "int", "4", "10", "0",
                   "0", "0", "NULL", "NULL", "0", "NULL", "NULL"]
         row = "".join(str(value).ljust(width) for value, width in zip(values, widths)).rstrip()
-        inventory.write_text(header + "\\n" + "-" * sum(widths) + "\\n" + row + "\\n",
+        inventory.write_text(header + "\n" + "-" * sum(widths) + "\n" + row + "\n",
                              encoding="utf-8")
         sql = gen.render(inventory, self.coverage)
         self.assertIn("[Id] int NOT NULL", sql)
