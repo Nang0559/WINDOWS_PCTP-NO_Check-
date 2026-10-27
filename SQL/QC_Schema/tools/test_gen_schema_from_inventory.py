@@ -48,7 +48,7 @@ class Sql2DdlGeneratorTests(unittest.TestCase):
 
     def test_alias_type_fails_closed_without_verified_mapping(self):
         source = self.inventory.read_text(encoding="utf-8")
-        source = source.replace("nvarchar", "LongCodeType").replace("40".ljust(11), "40".ljust(11), 1)
+        source = source.replace("nvarchar".ljust(128), "LongCodeType".ljust(128)).replace("40".ljust(11), "40".ljust(11), 1)
         self.inventory.write_text(source, encoding="utf-8")
         with self.assertRaisesRegex(ValueError, "verified --type-map"):
             gen.render(self.inventory, self.coverage)
