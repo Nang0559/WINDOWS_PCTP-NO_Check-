@@ -13,6 +13,7 @@ positives and are listed under 'unresolved'. A name found in a C# string is "ref
 """
 import argparse, csv, json, os, re, subprocess, sys
 from collections import defaultdict
+from pathlib import Path
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 METADATA = os.path.join(ROOT, 'SQL', 'Result_Export_SQL2_Complete_DDL_Metadata.txt')
@@ -244,7 +245,7 @@ def main():
     for n in names:
         e = exp.get(n); g = gitd.get(n); ci = n in ci_names; r = refs.get(n)
         in_inv = n in inv
-        if not (r or e or in_inv):
+        if not (r or in_inv or (e and n in gitd)):
             continue  # defined only in Git and never referenced anywhere else: not part of coverage
         on57, gitf, cis = status(n, exp, gitd, ci_names)
         cls = classify(bool(r), e, g, ci)
