@@ -306,10 +306,9 @@ def main():
     seed_tables = ({name for name in refs if name in available_tables}
                    | (inventory_candidates & available_tables))
     fk_dependencies = foreign_key_dependency_map(METADATA, seed_tables, available_tables)
-    ci_names = set()
-    for f in CI_BASE_FILES:
-        for m in DDL.finditer(read(os.path.join(ROOT, f))):
-            ci_names.add(m.group(2).lower())
+    # This is the exact set that the current CI run will generate from SQL2,
+    # not a scan of stale checked-in 02/03 artifacts from an older wider scope.
+    ci_names = set(seed_tables) | set(fk_dependencies)
     names = sorted(set(refs) | set(inv) | set(fk_dependencies))
     rows = []
     for n in names:
