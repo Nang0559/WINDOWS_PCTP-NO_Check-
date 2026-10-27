@@ -446,4 +446,4 @@ BEGIN
 END;
 GO
 
-/* PK/index/FK/CHECK DDL intentionally omitted until verified metadata is supplied. */
+/* PK/index/FK/CHECK constraints are emitted from verified SQL2 metadata in 03_Generated_From_DB57_Constraints.sql. */
