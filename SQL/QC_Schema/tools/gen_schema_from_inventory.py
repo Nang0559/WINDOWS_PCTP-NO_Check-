@@ -121,7 +121,7 @@ def load_allowlist(path: Path):
         for row in csv.DictReader(stream):
             generated_table_ddl = "SQL/QC_Schema/02_Generated_From_DB57.sql" in row.get("git_ddl_files", "")
             row_class = row.get("class", "").strip()
-            scope_class = (row_class in {"GAP-no-git-ddl", "GAP-fk-dependency", "GAP-db57-baseline"} or (
+            scope_class = (row_class in {"GAP-no-git-ddl", "GAP-fk-dependency"} or (
                 row_class in {"GAP-ci-schema", "OK-testable"} and (
                     row.get("referenced_by_code", "").strip().casefold() in {"có", "co", "yes", "true"}
                     or bool(row.get("dependency_of_code", "").strip())
