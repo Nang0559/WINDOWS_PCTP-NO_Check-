@@ -70,7 +70,9 @@ schema source, for example `{"longcodetype":"nvarchar(20)"}` only if that mappin
 
 The generated file is deliberately **not yet treated as production-ready DDL**: the SQL2
 column section does not provide a complete structured set of PK/unique indexes, FKs, CHECK
-constraints, triggers or permissions. Those must be imported from a complete schema export
-or added as reviewed migrations. The generator's unit tests run in the existing static
-schema-check step; they require no SQL Server connection. No SQL2-derived DDL is automatically
-deployed to DB57 or production.
+constraints, triggers or permissions. Run the read-only `Export_SQL2_Complete_DDL_Metadata.sql`
+in the authorized DB57/B7R2_FCC context to export the missing metadata as separate result sets;
+this query contains SELECTs only and does not change the database. Keep those exports as review
+inputs, then add constraints through a separate reviewed migration. The generator's unit tests
+run in the existing static schema-check step; they require no SQL Server connection. No SQL2-derived
+DDL is automatically deployed to DB57 or production.
