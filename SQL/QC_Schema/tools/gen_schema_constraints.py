@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """Generate reviewed SQL Server indexes and constraints from SQL2 metadata text.
 
-Input is a read-only metadata export, not executable SQL. Only dbo tables
-allow-listed as GAP-no-git-ddl/table/on_db57_export=có are emitted.
+Input is a read-only metadata export, not executable SQL. Only dbo tables in the PCTP runtime inventory, direct SQL references, and verified FK dependency closure are emitted.
 DEFAULT constraints are deliberately not emitted because 02_Generated_From_DB57.sql
 already preserves defaults inline.
 """
