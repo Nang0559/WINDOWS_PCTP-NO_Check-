@@ -17,11 +17,22 @@ class ParsingTests(unittest.TestCase):
     def test_ddl_regex_matches_alter_and_create_proc(self):
         self.assertEqual('Usp_X', sc.DDL.search('CREATE OR ALTER PROCEDURE dbo.Usp_X AS').group(2))
 
-    def test_export_columns_found_for_real_tables_only(self):
+    def test_export_columns_come_from_structured_sql2_inventory(self):
         cols = sc.export_columns()
         self.assertIn('rack', cols)
         self.assertIn('rackrowcount', cols['rack'])
-        self.assertNotIn('customerconfig', cols)  # stub on DB57
+        self.assertNotIn('customerconfig', cols)
+
+    def test_db57_absence_is_unverified_not_nonexistent(self):
+        self.assertEqual('GAP-db57-unverified', sc.classify(True, None, None, False))
+        self.assertEqual('GAP-no-git-ddl', sc.classify(True, {'stub': False}, None, False))
+
+    def test_sql2_catalog_contains_dbo_tables_and_modules(self):
+        objects = sc.export_objects()
+        self.assertIn('b20gear', objects)
+        self.assertEqual('table', objects['b20gear']['kind'])
+        self.assertIn('vnhaptp', objects)
+        self.assertEqual('view', objects['vnhaptp']['kind'])
 
 
 if __name__ == '__main__':
