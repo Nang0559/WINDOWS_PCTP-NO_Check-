@@ -31,9 +31,23 @@ class ParsingTests(unittest.TestCase):
         objects = sc.export_objects()
         self.assertIn('b20gear', objects)
         self.assertEqual('table', objects['b20gear']['kind'])
-        self.assertGreaterEqual(sum(1 for item in objects.values() if item['kind'] == 'table'), 500)
         self.assertIn('vnhaptp', objects)
         self.assertEqual('view', objects['vnhaptp']['kind'])
+
+    def test_runtime_scope_uses_pctp_inventory_not_all_db57_tables(self):
+        inventory = {
+            "stocktp": {"Loại đối tượng": "Bảng", "Runtime hay test-only": "Runtime",
+                        "Database/schema": "Chưa xác định", "Trạng thái xác minh": "Caller đã thấy"},
+            "tmp_delivery": {"Loại đối tượng": "Bảng (tên cấu hình)", "Runtime hay test-only": "Runtime theo cấu hình",
+                             "Database/schema": "Chưa xác định", "Trạng thái xác minh": "Tên cấu hình"},
+            "ifs_source": {"Loại đối tượng": "Bảng/nguồn IFS cấu hình", "Runtime hay test-only": "Runtime theo cấu hình",
+                           "Database/schema": "IFS connection", "Trạng thái xác minh": "Không mặc định là DB57"},
+            "not_confirmed": {"Loại đối tượng": "Bảng", "Runtime hay test-only": "Chưa xác định runtime",
+                              "Database/schema": "Chưa xác định", "Trạng thái xác minh": "Cần xác minh"},
+            "ui_type": {"Loại đối tượng": "Lớp C#", "Runtime hay test-only": "Runtime",
+                        "Database/schema": "Không áp dụng", "Trạng thái xác minh": "Không phải bảng SQL"},
+        }
+        self.assertEqual({"stocktp", "tmp_delivery"}, sc.runtime_table_candidates(inventory))
 
     def test_sql2_fk_dependency_closure_includes_workflow_status_table(self):
         objects = sc.export_objects()
