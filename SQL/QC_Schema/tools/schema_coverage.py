@@ -23,12 +23,6 @@ INVENTORY = os.path.join(ROOT, 'docs', 'PCTP_SQL_Runtime_Inventory_A-K.csv')
 sys.path.insert(0, os.path.dirname(__file__))
 from gen_schema_from_inventory import load_columns
 from gen_schema_constraints import parse_section
-CI_BASE_FILES = [
-    'SQL/QC_Schema/01_Tables.sql', 'SQL/QC_Schema/02_Generated_From_DB57.sql',
-    'SQL/QC_Schema/03_Generated_From_DB57_Constraints.sql', 'SQL/QC_Schema/05_Split.sql',
-    'SQL/Usp_Qrcode_Update_Stock2405.sql', 'SQL/Usp_Qrcode_Update_Stock_SP.sql',
-    'SQL/sp_GetCurrentStockStatus.sql',
-]
 DDL = re.compile(r'\bCREATE\s+(?:OR\s+ALTER\s+)?(TABLE|PROC(?:EDURE)?|VIEW|FUNCTION|TRIGGER)\s+'
                  r'(?:\[?dbo\]?\.)?\[?([A-Za-z_][\w]*)\]?', re.I)
 KIND = {'TABLE': 'table', 'PROC': 'proc', 'PROCEDURE': 'proc', 'VIEW': 'view', 'FUNCTION': 'function', 'TRIGGER': 'trigger'}
