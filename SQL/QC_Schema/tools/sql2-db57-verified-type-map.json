@@ -1,0 +1,12 @@
+{
+  "codetype": "nvarchar(16)",
+  "datetype": "smalldatetime",
+  "exchangeratetype": "numeric(15,5)",
+  "longcodetype": "nvarchar(24)",
+  "moneytype": "numeric(18,2)",
+  "percentagetype": "numeric(8,4)",
+  "pricetype": "numeric(18,5)",
+  "quantitytype": "numeric(15,4)",
+  "tablenameType": "varchar(32)",
+  "uniquekeytype": "varchar(16)"
+}
