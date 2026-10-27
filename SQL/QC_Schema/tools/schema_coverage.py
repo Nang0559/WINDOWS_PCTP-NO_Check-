@@ -257,6 +257,33 @@ def classify(refd, e, g, ci):
     if e and not g: return 'GAP-no-git-ddl'
     return 'GAP-db57-unverified'
 
+def runtime_table_candidates(inventory_rows):
+    """PCTP SQL Server table candidates from the curated runtime inventory.
+
+    The SQL2 snapshot proves whether a candidate is a dbo table on DB57.
+    IFS/Oracle, external sources, C# types and non-table entries are excluded.
+    """
+    candidates = set()
+    for name, row in inventory_rows.items():
+        kind = (row.get("Loại đối tượng") or "").casefold()
+        runtime = (row.get("Runtime hay test-only") or "").casefold()
+        database = (row.get("Database/schema") or "").casefold()
+        status = (row.get("Trạng thái xác minh") or "").casefold()
+        if "bảng" not in kind:
+            continue
+        if "ifs" in kind or "ifs" in database or "oracle" in database or "external" in runtime:
+            continue
+        if "test-only" in runtime or "test only" in runtime:
+            continue
+        if "không mặc định db57" in status or "không phải bảng sql" in status:
+            continue
+        # Do not resolve host-name templates as literal table names.
+        if "{" in name or "}" in name:
+            continue
+        candidates.add(name.casefold())
+    return candidates
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--out', default='docs/SCHEMA_COVERAGE', help='output prefix (writes <out>.csv and <out>_columns.csv)')
@@ -264,32 +291,33 @@ def main():
     a = ap.parse_args()
     exp, gitd = export_objects(), git_ddl()
     refs, dyn = code_refs()
-    seed_tables = {name for name, value in refs.items()
-                   if name in exp and exp[name]["kind"] == "table"}
+    inv = {}
+    with open(INVENTORY, encoding='utf-8-sig', newline='') as fh:
+        for row in csv.DictReader(fh):
+            inv[row['Tên đối tượng'].split('.')[-1].casefold()] = row
+
+    # The PCTP runtime inventory, plus literal SQL references, is the seed scope.
+    # SQL2 metadata is used only to resolve those names and their FK dependencies;
+    # unrelated B7R2 dbo tables are never pulled into the PCTP CI baseline.
     available_tables = {name for name, value in exp.items() if value["kind"] == "table"}
+    inventory_candidates = runtime_table_candidates(inv)
+    seed_tables = ({name for name in refs if name in available_tables}
+                   | (inventory_candidates & available_tables))
     fk_dependencies = foreign_key_dependency_map(METADATA, seed_tables, available_tables)
     ci_names = set()
     for f in CI_BASE_FILES:
         for m in DDL.finditer(read(os.path.join(ROOT, f))):
             ci_names.add(m.group(2).lower())
-    inv = {}
-    with open(INVENTORY, encoding='utf-8-sig', newline='') as fh:
-        for r in csv.DictReader(fh):
-            inv[r['Tên đối tượng'].split('.')[-1].lower()] = r
-    # Include every dbo user table from the SQL2 snapshot as the DB57 table baseline,
-    # not only the tables that happen to appear in the WMS runtime allowlist.
-    names = sorted(set(refs) | set(inv) | set(gitd) | set(exp) | set(fk_dependencies))
+    names = sorted(set(refs) | set(inv) | set(fk_dependencies))
     rows = []
     for n in names:
         e = exp.get(n); g = gitd.get(n); ci = n in ci_names; r = refs.get(n)
         in_inv = n in inv
         dependency_parents = fk_dependencies.get(n, set())
-        if not (r or in_inv or (e and (n in gitd or e['kind'] == 'table')) or dependency_parents):
-            continue  # defined only in Git and never referenced anywhere else: not part of coverage
+        if not (r or in_inv or dependency_parents):
+            continue  # SQL2 catalog is lookup evidence, not a request to clone all of B7R2
         on57, gitf, cis = status(n, exp, gitd, ci_names)
-        cls = classify(bool(r), e, g, ci)
-        if e and e['kind'] == 'table' and not r and not dependency_parents:
-            cls = 'GAP-db57-baseline'
+        cls = classify(bool(r or in_inv or dependency_parents), e, g, ci)
         rows.append({
             'object': (e['name'] if e else (inv[n]['Tên đối tượng'] if in_inv else n)),
             'kind': (e['kind'] if e else ''),
@@ -301,7 +329,7 @@ def main():
             'in_runtime_inventory': 'có' if in_inv else 'KHÔNG (thiếu trong CSV)',
             'class': ('GAP-fk-dependency' if dependency_parents and not r else cls),
         })
-    order = {'GAP-db57-unverified': 0, 'GAP-fk-dependency': 1, 'GAP-no-git-ddl': 2, 'GAP-ci-schema': 3, 'OK-testable': 4, 'GAP-db57-baseline': 5, 'info': 6}
+    order = {'GAP-db57-unverified': 0, 'GAP-fk-dependency': 1, 'GAP-no-git-ddl': 2, 'GAP-ci-schema': 3, 'OK-testable': 4, 'info': 5}
     rows.sort(key=lambda x: (order[x['class']], x['object'].lower()))
     out = os.path.join(ROOT, a.out) if not os.path.isabs(a.out) else a.out
     os.makedirs(os.path.dirname(out), exist_ok=True)
