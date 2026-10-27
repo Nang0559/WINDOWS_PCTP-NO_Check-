@@ -280,6 +280,21 @@ def runtime_table_candidates(inventory_rows):
     return candidates
 
 
+def external_inventory_names(inventory_rows):
+    """Names explicitly belonging to IFS/Oracle/external sources, not DB57."""
+    excluded = set()
+    for name, row in inventory_rows.items():
+        kind = (row.get("Loại đối tượng") or "").casefold()
+        database = (row.get("Database/schema") or "").casefold()
+        runtime = (row.get("Runtime hay test-only") or "").casefold()
+        status = (row.get("Trạng thái xác minh") or "").casefold()
+        if "ifs" in kind or "ifs" in database or "oracle" in database or "external" in runtime:
+            excluded.add(name.casefold())
+        if "không mặc định db57" in status:
+            excluded.add(name.casefold())
+    return excluded
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--out', default='docs/SCHEMA_COVERAGE', help='output prefix (writes <out>.csv and <out>_columns.csv)')
@@ -297,6 +312,7 @@ def main():
     # unrelated B7R2 dbo tables are never pulled into the PCTP CI baseline.
     available_tables = {name for name, value in exp.items() if value["kind"] == "table"}
     inventory_candidates = runtime_table_candidates(inv)
+    external_names = external_inventory_names(inv)
     # The CSV is the scope authority. Literal code references are a completeness
     # audit; they do not silently expand the generated schema.
     seed_tables = inventory_candidates & available_tables
@@ -316,7 +332,7 @@ def main():
         in_runtime_scope = n in inventory_candidates
         if dependency_parents and not r:
             cls = 'GAP-fk-dependency'
-        elif r and e and e['kind'] == 'table' and not in_runtime_scope:
+        elif r and not in_runtime_scope and n not in external_names and (not e or e['kind'] == 'table'):
             cls = 'GAP-not-in-runtime-inventory'
         else:
             cls = classify(bool(in_runtime_scope or dependency_parents), e, g, ci)
