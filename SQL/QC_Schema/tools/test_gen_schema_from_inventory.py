@@ -80,6 +80,24 @@ class Sql2DdlGeneratorTests(unittest.TestCase):
         self.assertIn("[Id] int IDENTITY(1,1) NOT NULL", sql)
         self.assertIn("[Amount] AS (CONVERT(numeric(15,4), [Id] * 1.0))", sql)
 
+    def test_reads_semicolon_delimited_inventory_export(self):
+        csv_inventory = self.root / "SQL2_ColumnInventory.csv"
+        fields = ["SchemaName", "TableName", "type_desc", "column_id", "ColumnName",
+                  "DataType", "MaxChars", "precision", "scale", "is_nullable",
+                  "is_identity", "seed_value", "increment_value", "is_computed",
+                  "ComputedDefinition", "DefaultDefinition"]
+        row = {"SchemaName": "dbo", "TableName": "FVN_Test", "type_desc": "USER_TABLE",
+               "column_id": "1", "ColumnName": "Id", "DataType": "int", "MaxChars": "4",
+               "precision": "10", "scale": "0", "is_nullable": "0", "is_identity": "0",
+               "seed_value": "", "increment_value": "", "is_computed": "0",
+               "ComputedDefinition": "", "DefaultDefinition": ""}
+        with csv_inventory.open("w", encoding="utf-8", newline="") as stream:
+            writer = csv.DictWriter(stream, fieldnames=fields, delimiter=";")
+            writer.writeheader()
+            writer.writerow(row)
+        sql = gen.render(csv_inventory, self.coverage)
+        self.assertIn("[Id] int NOT NULL", sql)
+
     def test_csv_inventory_rejects_non_dbo_only_table(self):
         csv_inventory = self.root / "SQL2_ColumnInventory.csv"
         fields = ["SchemaName", "TableName", "type_desc", "column_id", "ColumnName",
