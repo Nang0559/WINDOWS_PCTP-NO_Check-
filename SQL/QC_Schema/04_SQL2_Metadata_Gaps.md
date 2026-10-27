@@ -1,3 +1,5 @@
+> **Historical artifact — regenerate before use.** This report predates the PCTP-only runtime inventory scope and may include unrelated B7R2_FCC objects. CI regenerates it from the scoped coverage CSV and current SQL2 metadata.
+
 # SQL2 metadata coverage / unresolved dependencies
 
 Generated from the read-only SQL2 metadata export and docs/SCHEMA_COVERAGE.csv.
