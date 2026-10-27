@@ -19,8 +19,19 @@ function Invoke-Checked {
     $exitCode = 0
     try {
         $ErrorActionPreference = "Continue"
-        & $File @Arguments
+        # Capture native stderr as ordinary output. Windows PowerShell 5.1 can
+        # otherwise surface Python unittest's expected stderr stream as
+        # NativeCommandError records even when the process exits successfully.
+        $nativeOutput = @(& $File @Arguments 2>&1)
         $exitCode = $LASTEXITCODE
+        foreach ($line in $nativeOutput) {
+            if ($line -is [System.Management.Automation.ErrorRecord]) {
+                Write-Host $line.ToString()
+            }
+            else {
+                Write-Output $line
+            }
+        }
     }
     finally {
         $ErrorActionPreference = $previousErrorActionPreference
