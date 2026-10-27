@@ -68,21 +68,31 @@ def csv_rows(path: Path):
 
 
 def load_columns(path: Path):
+    required = {"TableName", "type_desc", "column_id", "ColumnName", "DataType", "MaxChars",
+                "precision", "scale", "is_nullable", "is_identity", "seed_value",
+                "increment_value", "is_computed", "ComputedDefinition", "DefaultDefinition"}
     if path.suffix.casefold() == ".csv":
         rows = list(csv_rows(path))
-        required = {"SchemaName", "TableName", "type_desc", "column_id", "ColumnName", "DataType",
-                    "MaxChars", "precision", "scale", "is_nullable", "is_identity", "seed_value",
-                    "increment_value", "is_computed", "ComputedDefinition", "DefaultDefinition"}
-        if not rows or not required.issubset(rows[0]):
-            found = sorted(rows[0]) if rows else []
-            raise ValueError("CSV column inventory header is incomplete; missing: "
-                             + ", ".join(sorted(required - set(found))))
+        csv_required = required | {"SchemaName"}
+        # Some SQL Server exports are saved with a .csv extension despite being
+        # aligned fixed-width text. If the delimited header is not valid, retry
+        # the documented fixed-width parser instead of misreporting missing fields.
+        if not rows or not csv_required.issubset(rows[0]):
+            try:
+                fixed_rows = list(fixed_width_rows(path, "SchemaName"))
+            except ValueError:
+                fixed_rows = []
+            if fixed_rows and csv_required.issubset(fixed_rows[0]):
+                rows = fixed_rows
+            else:
+                found = sorted(rows[0]) if rows else []
+                raise ValueError("CSV/fixed-width column inventory header is incomplete; missing: "
+                                 + ", ".join(sorted(csv_required - set(found))))
         # This generator emits dbo-qualified objects only. Fail rather than silently
         # generating dbo tables from metadata exported from another schema.
         rows = [row for row in rows if row.get("SchemaName", "").casefold() == "dbo"]
-        # A valid CSV containing only non-dbo objects should flow to render(), where
-        # the allow-list check reports the missing table names instead of a vague
-        # "metadata contains no rows" parsing error.
+        # A valid inventory containing only non-dbo objects should flow to render(),
+        # where the allow-list check reports the missing table names.
         if not rows:
             return defaultdict(list)
     else:
