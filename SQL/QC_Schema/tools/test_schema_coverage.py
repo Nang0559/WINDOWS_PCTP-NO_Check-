@@ -31,6 +31,7 @@ class ParsingTests(unittest.TestCase):
         objects = sc.export_objects()
         self.assertIn('b20gear', objects)
         self.assertEqual('table', objects['b20gear']['kind'])
+        self.assertGreaterEqual(sum(1 for item in objects.values() if item['kind'] == 'table'), 500)
         self.assertIn('vnhaptp', objects)
         self.assertEqual('view', objects['vnhaptp']['kind'])
 
