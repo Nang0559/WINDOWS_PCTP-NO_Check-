@@ -138,7 +138,13 @@ def analyze_cs(path):
         # Never apply this shortcut to stored-procedure calls or multi-DML batches.
         dml_count = len(_WRITE.findall(" ".join(lits)))
         dml_calls = len(re.findall(r"\b(?:ExecuteNonQuery|ExecuteScalar|ExecuteReader)\s*\(", src))
-        tx = "STATEMENT-ATOMIC" if dml_count == 1 and dml_calls == 1 and not sps else "NONE"
+        # A single call site inside a loop can execute multiple times. This
+        # scanner works at file scope, so conservatively refuse statement-level
+        # classification whenever a loop construct and SQL execution coexist.
+        has_loop = bool(re.search(r"\b(?:for|foreach|while|do)\b", src))
+        tx = "STATEMENT-ATOMIC" if (
+            dml_count == 1 and dml_calls == 1 and not sps and not has_loop
+        ) else "NONE"
     # A file that names SQL objects but never executes SQL (no Execute*/CallPhieuSP/DropCreate/BulkInsert/
     # SqlCommand/adapter call) only forwards to repositories that own the transaction. NONE stays NONE
     # for any file that does execute SQL without a transaction contract.
