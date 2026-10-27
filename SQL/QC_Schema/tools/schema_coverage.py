@@ -270,16 +270,20 @@ def main():
     with open(INVENTORY, encoding='utf-8-sig', newline='') as fh:
         for r in csv.DictReader(fh):
             inv[r['Tên đối tượng'].split('.')[-1].lower()] = r
-    names = sorted(set(refs) | set(inv) | set(gitd) | set(fk_dependencies))
+    # Include every dbo user table from the SQL2 snapshot as the DB57 table baseline,
+    # not only the tables that happen to appear in the WMS runtime allowlist.
+    names = sorted(set(refs) | set(inv) | set(gitd) | set(exp) | set(fk_dependencies))
     rows = []
     for n in names:
         e = exp.get(n); g = gitd.get(n); ci = n in ci_names; r = refs.get(n)
         in_inv = n in inv
         dependency_parents = fk_dependencies.get(n, set())
-        if not (r or in_inv or (e and n in gitd) or dependency_parents):
+        if not (r or in_inv or (e and (n in gitd or e['kind'] == 'table')) or dependency_parents):
             continue  # defined only in Git and never referenced anywhere else: not part of coverage
         on57, gitf, cis = status(n, exp, gitd, ci_names)
         cls = classify(bool(r), e, g, ci)
+        if e and e['kind'] == 'table' and not r and not dependency_parents:
+            cls = 'GAP-db57-baseline'
         rows.append({
             'object': (e['name'] if e else (inv[n]['Tên đối tượng'] if in_inv else n)),
             'kind': (e['kind'] if e else ''),
@@ -291,7 +295,7 @@ def main():
             'in_runtime_inventory': 'có' if in_inv else 'KHÔNG (thiếu trong CSV)',
             'class': ('GAP-fk-dependency' if dependency_parents and not r else cls),
         })
-    order = {'GAP-db57-unverified': 0, 'GAP-fk-dependency': 1, 'GAP-no-git-ddl': 2, 'GAP-ci-schema': 3, 'OK-testable': 4, 'info': 5}
+    order = {'GAP-db57-unverified': 0, 'GAP-fk-dependency': 1, 'GAP-no-git-ddl': 2, 'GAP-ci-schema': 3, 'OK-testable': 4, 'GAP-db57-baseline': 5, 'info': 6}
     rows.sort(key=lambda x: (order[x['class']], x['object'].lower()))
     out = os.path.join(ROOT, a.out) if not os.path.isabs(a.out) else a.out
     os.makedirs(os.path.dirname(out), exist_ok=True)
