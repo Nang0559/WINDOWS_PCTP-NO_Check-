@@ -98,6 +98,22 @@ class Sql2DdlGeneratorTests(unittest.TestCase):
         sql = gen.render(csv_inventory, self.coverage)
         self.assertIn("[Id] int NOT NULL", sql)
 
+    def test_reads_fixed_width_inventory_saved_with_csv_extension(self):
+        inventory = self.root / "SQL2_ColumnInventory.csv"
+        fields = ["SchemaName", "TableName", "type_desc", "column_id", "ColumnName",
+                  "DataType", "MaxChars", "precision", "scale", "is_nullable",
+                  "is_identity", "seed_value", "increment_value", "is_computed",
+                  "ComputedDefinition", "DefaultDefinition"]
+        widths = [16, 16, 16, 12, 16, 16, 12, 12, 8, 12, 12, 12, 16, 12, 28, 28]
+        header = "".join(name.ljust(width) for name, width in zip(fields, widths)).rstrip()
+        values = ["dbo", "FVN_Test", "USER_TABLE", "1", "Id", "int", "4", "10", "0",
+                  "0", "0", "NULL", "NULL", "0", "NULL", "NULL"]
+        row = "".join(str(value).ljust(width) for value, width in zip(values, widths)).rstrip()
+        inventory.write_text(header + "\\n" + "-" * sum(widths) + "\\n" + row + "\\n",
+                             encoding="utf-8")
+        sql = gen.render(inventory, self.coverage)
+        self.assertIn("[Id] int NOT NULL", sql)
+
     def test_csv_inventory_rejects_non_dbo_only_table(self):
         csv_inventory = self.root / "SQL2_ColumnInventory.csv"
         fields = ["SchemaName", "TableName", "type_desc", "column_id", "ColumnName",
