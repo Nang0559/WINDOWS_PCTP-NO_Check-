@@ -35,6 +35,14 @@ class TransactionClassificationTests(unittest.TestCase):
         result = self.analyze('class Legacy { void Save() { ExecuteStoredProcedure("Usp_UpdateStock"); } }')
         self.assertEqual("NONE", result["tx"])
 
+    def test_loop_keyword_inside_sql_literal_does_not_create_false_gap(self):
+        result = self.analyze('class Legacy { void Save() { ExecuteNonQuery("UPDATE T SET Note = \'for while do\'"); } }')
+        self.assertEqual("STATEMENT-ATOMIC", result["tx"])
+
+    def test_loop_keyword_inside_comment_does_not_create_false_gap(self):
+        result = self.analyze('class Legacy { void Save() { /* foreach item */ ExecuteNonQuery("UPDATE T SET A = 1"); } }')
+        self.assertEqual("STATEMENT-ATOMIC", result["tx"])
+
     def test_explicit_begin_commit_is_owner(self):
         result = self.analyze('class Legacy { void Save() { uow.Begin(); ExecuteNonQuery("UPDATE T SET A = 1"); uow.Commit(); } }')
         self.assertEqual("OWNS", result["tx"])
