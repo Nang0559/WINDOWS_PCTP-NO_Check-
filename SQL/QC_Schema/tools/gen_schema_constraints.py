@@ -49,7 +49,10 @@ def load_scope(path: Path) -> set[tuple[str, str]]:
     allowed = set()
     with path.open(encoding="utf-8-sig", newline="") as stream:
         for row in csv.DictReader(stream):
-            if (row.get("class", "").strip() == "GAP-no-git-ddl"
+            generated_table_ddl = "SQL/QC_Schema/02_Generated_From_DB57.sql" in row.get("git_ddl_files", "")
+            scope_class = row.get("class", "").strip() == "GAP-no-git-ddl" or (
+                generated_table_ddl and row.get("class", "").strip() in {"OK-testable", "GAP-ci-schema"})
+            if (scope_class
                 and row.get("kind", "").strip().casefold() == "table"
                 and row.get("on_db57_export", "").strip().casefold() in {"có", "co", "yes", "true"}):
                 allowed.add(("dbo", row.get("object", "").strip().casefold()))
