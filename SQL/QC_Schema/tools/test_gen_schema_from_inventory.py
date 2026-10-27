@@ -44,7 +44,7 @@ class Sql2DdlGeneratorTests(unittest.TestCase):
         self.assertIn("[Id] int IDENTITY(1,1) NOT NULL", sql)
         self.assertIn("[Code] nvarchar(20) NOT NULL DEFAULT ('x')", sql)
         self.assertIn("[Calculated] AS ([Id] + (1))", sql)
-        self.assertIn("PK/index/FK/CHECK DDL intentionally omitted", sql)
+        self.assertIn("PK/unique indexes, FKs and CHECK constraints are emitted separately", sql)
 
     def test_alias_type_fails_closed_without_verified_mapping(self):
         source = self.inventory.read_text(encoding="utf-8")
@@ -129,6 +129,15 @@ class Sql2DdlGeneratorTests(unittest.TestCase):
                              "is_nullable": "0", "is_identity": "0", "is_computed": "0"})
         with self.assertRaisesRegex(ValueError, "absent from SQL2"):
             gen.render(csv_inventory, self.coverage)
+
+    def test_allowlist_remains_scoped_after_coverage_refresh(self):
+        self.coverage.write_text(
+            "object,kind,on_db57_export,git_ddl_files,class\n"
+            "FVN_Test,table,có,SQL/QC_Schema/02_Generated_From_DB57.sql,OK-testable\n",
+            encoding="utf-8")
+        sql = gen.render(self.inventory, self.coverage)
+        self.assertIn("CREATE TABLE dbo.[FVN_Test]", sql)
+        self.assertNotIn("CREATE TABLE dbo.[OtherTable]", sql)
 
     def test_allowlist_rejects_table_missing_from_metadata(self):
         self.coverage.write_text(
