@@ -1,7 +1,7 @@
 # G4 — schema dựng từ Git: kiểm tra tĩnh và kết quả
 
 Phạm vi: đầu vào của G4 (`SQL/QC_Schema/*`, các proc trong `SQL/`, fixture) và hai file bạn bổ sung
-`docs/SQL.sql.txt` + `docs/PCTP_SQL_Runtime_Inventory_A-K.csv`.  
+`docs/SQL.text` + `docs/PCTP_SQL_Runtime_Inventory_A-K.csv`.  
 Công cụ: `SQL/QC_Schema/tools/sql_batch_check.py` (mô phỏng cách `sqlcmd -b -i` tách batch và nạp file; không kết nối DB).
 
 > **Trạng thái G4 không đổi: 🔴 BLOCKED.** Tài liệu này chỉ chứng minh tĩnh rằng đầu vào nạp được và ghi các chênh lệch với DB57.
@@ -12,12 +12,12 @@ Công cụ: `SQL/QC_Schema/tools/sql_batch_check.py` (mô phỏng cách `sqlcmd 
 | Đầu vào | Kết quả |
 |---|---|
 | 7 file deploy của CI (`01_Tables`, `05_Split`, `Usp_Qrcode_Update_Stock2405`, `Usp_Qrcode_Update_Stock_SP`, `sp_GetCurrentStockStatus`, seed, cleanup) | **0 lỗi**: không `\n` literal, không dòng nhiễu SSMS, không `USE`, không biến sqlcmd, mọi `CREATE PROC/FUNCTION` là lệnh đầu batch, không dấu phẩy thừa, không mã định danh server production |
-| `docs/SQL.sql.txt` | 69 batch, 68 object, **16 object là stub** (không tồn tại trên DB lúc xuất). **Không nạp được nguyên trạng** (mục 2) |
+| `docs/SQL.text` | 69 batch, 68 object, **16 object là stub** (không tồn tại trên DB lúc xuất). **Không nạp được nguyên trạng** (mục 2) |
 | Bản chuẩn hóa sinh bởi `--emit-loadable --halve-unicode-lengths` | 52 object, 0 lỗi nạp; 45 câu `CREATE TABLE` parse được bằng `sqlglot` (T-SQL) |
 
 Công cụ có 11 unit test (`python3 -m unittest discover -s SQL/QC_Schema/tools`), đã thêm vào job `sql-engine-integration` trước bước deploy.
 
-## 2. `docs/SQL.sql.txt` — lỗi của file xuất
+## 2. `docs/SQL.text` — lỗi của file xuất
 
 | Lỗi | Số liệu |
 |---|---|
@@ -27,7 +27,7 @@ Công cụ có 11 unit test (`python3 -m unittest discover -s SQL/QC_Schema/tool
 | Độ dài `NVARCHAR/NCHAR` gấp đôi thật (xuất `max_length` tính bằng byte như số ký tự) | trên 15 bảng trùng với `01_Tables.sql`: 119 cột đúng gấp 2×; sau khi chia đôi có 216 cột khớp, 0 cột gấp 2× |
 | Mất `IDENTITY`, `UNIQUE` và khóa ngoại so với `01_Tables.sql` | `IDENTITY` mất ở `Warehouse`, `Rack`, `Slot`, `SlotLot`; `UNIQUE` `UQ_LUUPHIEU` mất ở `LUUPHIEUGIAOHANG`; các FK của `Slot`/`SlotLot` không có trong file xuất; PK vẫn còn |
 
-Hệ quả: **không dùng `docs/SQL.sql.txt` làm nguồn DDL cho G4.** Nó đúng khi dùng làm tài liệu (tên bảng, cột, nội dung proc).
+Hệ quả: **không dùng `docs/SQL.text` làm nguồn DDL cho G4.** Nó đúng khi dùng làm tài liệu (tên bảng, cột, nội dung proc).
 Nếu dùng DDL thì chỉ qua `--emit-loadable --halve-unicode-lengths`, và chỉ sau khi chủ DB xác nhận quy tắc chia đôi (đã khớp 216/216 cột trên 15 bảng đối chiếu).
 Nên sửa bộ xuất: dùng `max_length/2` cho `nvarchar/nchar`, xuống dòng thật, không dấu phẩy thừa, bỏ dòng kết quả SSMS.
 

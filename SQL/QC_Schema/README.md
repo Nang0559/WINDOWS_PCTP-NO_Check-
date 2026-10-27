@@ -23,7 +23,7 @@ CI must create a disposable SQL Server database and must not connect to DB57 or 
 
 ## `dbo.Split`
 
-`docs/SQL.sql.txt` (SHA-256 `595aafa76194aa239710acd085645283e381899d4669a2141c5841fb01292380`) contains the DB57 definition of `dbo.Split`.
+`docs/SQL.text` (SHA-256 `595aafa76194aa239710acd085645283e381899d4669a2141c5841fb01292380`) contains the DB57 definition of `dbo.Split`.
 `05_Split.sql` is that definition verbatim, with `CREATE` changed to `CREATE OR ALTER` so the CI deployment can be repeated.
 It replaces the former `STRING_SPLIT` shim, which returned a column named `value` and did not guarantee token order.
 `Usp_Qrcode_Update_Stock2405.sql` reads it with `INSERT INTO #SplitResult SELECT * FROM dbo.Split(@_LOT, ',')`, so only the order and the single-column shape matter.
@@ -32,7 +32,7 @@ The file is for the disposable CI database; never apply it to DB57/DB14 from thi
 ## Tools
 
 `tools/sql_batch_check.py` simulates how `sqlcmd -b -i` splits and loads the deploy files (no database access) and fails the CI job on loader defects.
-`docs/SQL.sql.txt` is **not** a deploy file; its known defects and the G4 consequences are recorded in `docs/G4_SCHEMA_FROM_GIT.md`.
+`docs/SQL.text` is **not** a deploy file; its known defects and the G4 consequences are recorded in `docs/G4_SCHEMA_FROM_GIT.md`.
 
 ## Safety invariant
 

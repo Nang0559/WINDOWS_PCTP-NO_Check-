@@ -139,7 +139,13 @@ jobs:
                     SQL/Usp_Qrcode_Update_Stock2405.sql SQL/Usp_Qrcode_Update_Stock_SP.sql \
                     SQL/sp_GetCurrentStockStatus.sql \
                     SQL/QC_G4_DeliveryFixture_Seed.sql SQL/QC_G4_DeliveryFixture_Cleanup.sql \
-            --export docs/SQL.sql.txt --reference SQL/QC_Schema/01_Tables.sql
+            --export docs/SQL.text --reference SQL/QC_Schema/01_Tables.sql
+
+      - name: Schema coverage - code vs DB57 export vs Git (static, no database access)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 SQL/QC_Schema/tools/schema_coverage.py --out "$RUNNER_TEMP/schema_coverage" --check
 
       - name: Deploy DB57-derived schema to disposable database
         shell: bash

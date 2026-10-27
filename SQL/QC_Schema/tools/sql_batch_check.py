@@ -5,8 +5,8 @@ Static simulation of how `sqlcmd -b -i <file>` loads the SQL files of the PCTP Q
 Standard library only. It never connects to a database.
 
   deploy files   python3 sql_batch_check.py --files A.sql B.sql ...
-  full export    python3 sql_batch_check.py --export docs/SQL.sql.txt --reference SQL/QC_Schema/01_Tables.sql
-  loadable copy  python3 sql_batch_check.py --export docs/SQL.sql.txt --emit-loadable out.sql [--halve-unicode-lengths]
+  full export    python3 sql_batch_check.py --export docs/SQL.text --reference SQL/QC_Schema/01_Tables.sql
+  loadable copy  python3 sql_batch_check.py --export docs/SQL.text --emit-loadable out.sql [--halve-unicode-lengths]
 
 Exit code: 0 = no ERROR in the files passed with --files, 1 = at least one ERROR, 2 = usage / unreadable input.
 Defects found in --export are reported but are informational (the export is documentation, not a deploy file)
@@ -370,7 +370,7 @@ def emit_loadable(text, target, halve, out):
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--files', nargs='*', default=[], help='deploy files in load order (checked strictly)')
-    ap.add_argument('--export', help='full DB57 export (docs/SQL.sql.txt); informational')
+    ap.add_argument('--export', help='full DB57 export (docs/SQL.text); informational')
     ap.add_argument('--reference', help='reference DDL (SQL/QC_Schema/01_Tables.sql) to compare export column types')
     ap.add_argument('--strict-export', action='store_true', help='fail on defects found in --export')
     ap.add_argument('--emit-loadable', help='write a normalised loadable copy of the export')
