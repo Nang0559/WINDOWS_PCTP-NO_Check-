@@ -54,6 +54,9 @@ CI tạo `02_Generated_From_DB57.sql` và `03_Generated_From_DB57_Constraints.sq
 từ cùng một coverage CSV tươi trong runner. Hai file này chỉ đại diện cho PCTP runtime
 tables + FK dependencies, không đại diện toàn bộ B7R2_FCC.
 
+Các bản checked-in của 02/03/04 được đánh dấu **STALE** cho tới khi regenerate theo scope mới.
+Không deploy các bản này bằng tay. Lệnh regenerate bên dưới sẽ thay thế chúng bằng bản PCTP-only.
+
 ## Các generator và kiểm chứng
 
 ### 1. Table/column DDL
