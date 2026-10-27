@@ -22,6 +22,7 @@ INVENTORY = os.path.join(ROOT, 'docs', 'PCTP_SQL_Runtime_Inventory_A-K.csv')
 
 sys.path.insert(0, os.path.dirname(__file__))
 from gen_schema_from_inventory import load_columns
+from gen_schema_constraints import parse_section
 CI_BASE_FILES = [
     'SQL/QC_Schema/01_Tables.sql', 'SQL/QC_Schema/02_Generated_From_DB57.sql',
     'SQL/QC_Schema/03_Generated_From_DB57_Constraints.sql', 'SQL/QC_Schema/05_Split.sql',
@@ -147,6 +148,30 @@ def export_columns(inventory_path=None):
     return {name: {row["ColumnName"].casefold() for row in rows}
             for name, rows in tables.items()}
 
+def foreign_key_dependency_map(metadata_path, seed_tables, available_tables):
+    """Transitive dbo FK closure for code-referenced tables, limited to SQL2-known tables."""
+    fields = {"ParentSchema", "ParentTable", "ParentColumn", "ReferencedSchema",
+              "ReferencedTable", "ReferencedColumn", "ForeignKeyName", "ColumnOrdinal",
+              "OnDelete", "OnUpdate", "IsDisabled", "IsNotTrusted"}
+    fks = parse_section(read(metadata_path), fields)
+    available = {name.casefold() for name in available_tables}
+    known = {name.casefold() for name in seed_tables}
+    dependencies = defaultdict(set)
+    changed = True
+    while changed:
+        changed = False
+        for row in fks:
+            parent = row.get("ParentTable", "").casefold()
+            target = row.get("ReferencedTable", "").casefold()
+            if (row.get("ParentSchema", "").casefold() != "dbo"
+                    or row.get("ReferencedSchema", "").casefold() != "dbo"
+                    or parent not in known or target not in available or target in known):
+                continue
+            dependencies[target].add(parent)
+            known.add(target)
+            changed = True
+    return dependencies
+
 def git_columns():
     """table(lower) -> set(columns) from CREATE TABLE bodies and ALTER TABLE ... ADD in repo .sql files."""
     cols = defaultdict(set)
@@ -232,6 +257,9 @@ def main():
     a = ap.parse_args()
     exp, gitd = export_objects(), git_ddl()
     refs, dyn = code_refs()
+    seed_tables = {name for name, value in refs.items()
+                   if name in exp and exp[name]["kind"] == "table"}
+    fk_dependencies = foreign_key_dependency_map(METADATA, seed_tables, exp)
     ci_names = set()
     for f in CI_BASE_FILES:
         for m in DDL.finditer(read(os.path.join(ROOT, f))):
@@ -240,12 +268,13 @@ def main():
     with open(INVENTORY, encoding='utf-8-sig', newline='') as fh:
         for r in csv.DictReader(fh):
             inv[r['Tên đối tượng'].split('.')[-1].lower()] = r
-    names = sorted(set(refs) | set(exp) | set(inv) | set(gitd))
+    names = sorted(set(refs) | set(inv) | set(gitd) | set(fk_dependencies))
     rows = []
     for n in names:
         e = exp.get(n); g = gitd.get(n); ci = n in ci_names; r = refs.get(n)
         in_inv = n in inv
-        if not (r or in_inv or (e and n in gitd)):
+        dependency_parents = fk_dependencies.get(n, set())
+        if not (r or in_inv or (e and n in gitd) or dependency_parents):
             continue  # defined only in Git and never referenced anywhere else: not part of coverage
         on57, gitf, cis = status(n, exp, gitd, ci_names)
         cls = classify(bool(r), e, g, ci)
@@ -253,13 +282,14 @@ def main():
             'object': (e['name'] if e else (inv[n]['Tên đối tượng'] if in_inv else n)),
             'kind': (e['kind'] if e else ''),
             'referenced_by_code': 'có' if r else 'không thấy literal SQL',
+            'dependency_of_code': '; '.join(sorted(dependency_parents)),
             'code_files': '; '.join(sorted(os.path.basename(x) for x in r['files']))[:300] if r else '',
-            'code_ops': '/'.join(sorted(r['ops'])) if r else '',
+            'code_ops': '/'.join(sorted(r['ops'])) if r else ('FK-DEPENDENCY' if dependency_parents else ''),
             'on_db57_export': on57, 'git_ddl_files': gitf, 'in_ci_base_schema': cis,
             'in_runtime_inventory': 'có' if in_inv else 'KHÔNG (thiếu trong CSV)',
-            'class': cls,
+            'class': ('GAP-fk-dependency' if dependency_parents and not r else cls),
         })
-    order = {'GAP-db57-unverified': 0, 'GAP-no-git-ddl': 1, 'GAP-ci-schema': 2, 'OK-testable': 3, 'info': 4}
+    order = {'GAP-db57-unverified': 0, 'GAP-fk-dependency': 1, 'GAP-no-git-ddl': 2, 'GAP-ci-schema': 3, 'OK-testable': 4, 'info': 5}
     rows.sort(key=lambda x: (order[x['class']], x['object'].lower()))
     out = os.path.join(ROOT, a.out) if not os.path.isabs(a.out) else a.out
     os.makedirs(os.path.dirname(out), exist_ok=True)
