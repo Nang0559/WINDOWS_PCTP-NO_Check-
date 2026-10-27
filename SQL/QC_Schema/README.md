@@ -80,11 +80,18 @@ CI runs the Python unit tests and static SQL batch simulation, deploys `01_Table
 Use the checked-in read-only metadata export. The default command regenerates the reviewed SQL and gap report; CI uses `--check` to fail if either checked-in artifact is stale.
 
 ```powershell
+python SQL/QC_Schema/tools/schema_coverage.py --out docs/SCHEMA_COVERAGE --check
+python SQL/QC_Schema/tools/gen_schema_from_inventory.py `
+  --inventory docs/SQL2_ColumnInventory.csv `
+  --coverage docs/SCHEMA_COVERAGE.csv `
+  --type-map SQL/QC_Schema/tools/sql2-db57-verified-type-map.json `
+  --out SQL/QC_Schema/02_Generated_From_DB57.sql
 python SQL/QC_Schema/tools/gen_schema_constraints.py `
   --metadata SQL/Result_Export_SQL2_Complete_DDL_Metadata.txt `
   --coverage docs/SCHEMA_COVERAGE.csv `
   --out SQL/QC_Schema/03_Generated_From_DB57_Constraints.sql `
-  --report SQL/QC_Schema/04_SQL2_Metadata_Gaps.md
+  --report SQL/QC_Schema/04_SQL2_Metadata_Gaps.md `
+  --strict-dependencies
 ```
 
 To verify without modifying files, append `--check`. This is a static comparison only; SQL Server deployment verification runs in the disposable CI database.
@@ -137,6 +144,6 @@ The supplementary `tools/gen_constraints_from_metadata.py` is an audit/candidate
 python .\SQL\QC_Schema\tools\gen_constraints_from_metadata.py --metadata .\SQL\Result_Export_SQL2_Complete_DDL_Metadata.txt --coverage .\docs\SCHEMA_COVERAGE.csv --out .\SQL\QC_Schema\03_Generated_Constraints_From_DB57.candidate.sql --report .\SQL\QC_Schema\SQL2_Metadata_Review_Report.json
 ```
 
-The current review identifies an FK from `sys_WorkflowTransitions` to `sys_WorkflowStatuses`, outside the 19-table generated allowlist. It is intentionally omitted and reported, not silently restored. Disabled or untrusted constraints, filtered/disabled indexes, module bodies, permissions, triggers, jobs and external dependencies require separate review.
+The previously identified FK from `sys_WorkflowTransitions` to `sys_WorkflowStatuses` is now included through transitive FK dependency closure when both tables are present in the SQL2 dbo column inventory. CI runs with `--strict-dependencies`: any FK/index dependency that cannot be reconstructed is a blocker, not a successful partial restore. Disabled/untrusted states are preserved and checked. Module bodies, permissions, SQL Agent jobs, synonyms, linked-server dependencies and other non-exported metadata still require separate review.
 
 All SQL2-derived DDL must be tested only in disposable CI SQL Server. Never apply generated or candidate DDL to DB57 or production.
