@@ -30,14 +30,18 @@ B7R2_FCC là database nền dùng chung cho nhiều ứng dụng; PCTP chỉ s�
 Vì vậy CI **không sinh 550 dbo user tables** và không sao chép toàn bộ schema B7R2.
 
 Nguồn xác định phạm vi:
-- `docs/PCTP_SQL_Runtime_Inventory_A-K.csv`: danh sách đối tượng PCTP runtime/configuration và caller.
-  Chỉ các dòng được phân loại là bảng SQL Server runtime mới trở thành seed candidate.
-- Câu SQL literal trong `PCTP/**/*.cs`: bổ sung các bảng có bằng chứng được code tham chiếu.
-- SQL2 metadata DB57: xác nhận candidate có thực sự là dbo table trên DB57 và cung cấp định nghĩa cột.
+- `docs/PCTP_SQL_Runtime_Inventory_A-K.csv` là **nguồn scope có thẩm quyền**.
+  Chỉ các dòng được phân loại rõ là bảng SQL Server runtime mới trở thành seed candidate.
+- Câu SQL literal trong `PCTP/**/*.cs` là **completeness audit**, không tự động mở rộng DDL scope.
+  Nếu code tham chiếu bảng không có trong CSV, coverage báo `GAP-not-in-runtime-inventory`
+  để người phụ trách xác minh/cập nhật CSV trước khi đưa vào baseline.
+- SQL2 metadata DB57 xác nhận candidate có thực sự là dbo table trên DB57 và cung cấp định nghĩa cột.
 - FK SQL2: chỉ mở rộng đệ quy tới bảng dbo được tham chiếu bởi các bảng seed trong scope PCTP.
 
 Các dòng IFS/Oracle, nguồn external, class C#, đối tượng hệ thống, test-only, template có
 `{hostName}`, và dòng chưa xác định runtime không được tự động biến thành bảng CI.
+Bảng có trong SQL2 nhưng không nằm trong CSV PCTP cũng không được đưa vào CI chỉ vì tồn tại
+trong B7R2_FCC.
 Candidate không tìm thấy trong SQL2 được ghi `GAP-db57-unverified`; không tự tạo bảng
 theo suy đoán và không kết luận object không tồn tại trên DB57.
 
@@ -100,8 +104,8 @@ Coverage phân biệt:
 
 `docs/SCHEMA_COVERAGE.csv` là snapshot checked-in và phải được regenerate trước khi dùng
 làm đầu vào thủ công. CI tạo coverage tươi trong runner temp directory, đánh dấu đúng tập bảng sẽ được sinh trong
-lần chạy đó, rồi dùng cùng CSV để sinh cả 02 và 03. Các bảng không nằm trong runtime inventory/code references/FK closure
-không được đưa vào coverage chỉ vì chúng tồn tại trong SQL2 catalog.
+lần chạy đó, rồi dùng cùng CSV để sinh cả 02 và 03. Các bảng không nằm trong CSV runtime scope và FK closure không được đưa vào DDL chỉ vì
+chúng tồn tại trong SQL2 catalog; code references ngoài CSV được báo thành scope gap.
 
 ## Lệnh regenerate / kiểm thử local
 
