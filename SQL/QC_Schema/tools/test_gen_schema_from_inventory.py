@@ -39,6 +39,12 @@ class Sql2DdlGeneratorTests(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
+    def test_load_columns_can_filter_to_pctp_runtime_scope(self):
+        tables = gen.load_columns(self.inventory, {"fvn_test", "unrelated"})
+        self.assertEqual({"fvn_test"}, set(tables))
+        self.assertEqual(["Id", "Code", "Calculated"],
+                         [row["ColumnName"] for row in tables["fvn_test"]])
+
     def test_preserves_identity_nvarchar_byte_length_default_and_computed(self):
         sql = gen.render(self.inventory, self.coverage)
         self.assertIn("[Id] int IDENTITY(1,1) NOT NULL", sql)
