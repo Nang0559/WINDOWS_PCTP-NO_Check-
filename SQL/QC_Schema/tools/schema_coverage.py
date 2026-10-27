@@ -40,10 +40,10 @@ def fixed_width_section_rows(path, required):
     """Read SQL2 fixed-width rows; ignore continuation lines in module definitions."""
     lines = read(path).splitlines()
     for header_i, header in enumerate(lines):
-        names = re.findall(r"\\S+", header)
+        names = re.findall(r"\S+", header)
         if not required.issubset(names):
             continue
-        starts = [m.start() for m in re.finditer(r"\\S+", header)]
+        starts = [m.start() for m in re.finditer(r"\S+", header)]
         sep_i = next((i for i in range(header_i + 1, min(header_i + 4, len(lines)))
                       if lines[i].startswith("---")), None)
         if sep_i is None:
