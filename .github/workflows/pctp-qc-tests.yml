@@ -146,6 +146,12 @@ jobs:
         run: |
           set -euo pipefail
           python3 -m unittest discover -s SQL/QC_Schema/tools -p 'test_*.py'
+          python3 SQL/QC_Schema/tools/gen_schema_constraints.py \
+            --metadata SQL/Result_Export_SQL2_Complete_DDL_Metadata.txt \
+            --coverage docs/SCHEMA_COVERAGE.csv \
+            --out SQL/QC_Schema/03_Generated_From_DB57_Constraints.sql \
+            --report SQL/QC_Schema/04_SQL2_Metadata_Gaps.md \
+            --check
           python3 SQL/QC_Schema/tools/sql_batch_check.py \
             --files SQL/QC_Schema/01_Tables.sql \
                     SQL/QC_Schema/02_Generated_From_DB57.sql \
