@@ -116,12 +116,13 @@ An object absent from the SQL2 snapshot is reported as `GAP-db57-unverified`, no
 "does not exist on DB57". Dynamic/customer-suffixed names, non-dbo objects, linked-server
 objects, synonyms, and incomplete export scope require explicit verification.
 
-The disposable CI database is NOT a clone of all DB57. It is a test schema for the WMS
-runtime dependency closure. The scanner follows transitive dbo foreign-key dependencies
-from code-referenced tables when the referenced table is present in the SQL2 column inventory;
-those rows are classified `GAP-fk-dependency` and included in the generated table/constraint
-scope. A dependency missing from the structured table inventory remains an explicit unresolved
-gap; it must not be silently omitted or treated as restored.
+The disposable CI database is not a byte-for-byte/full-feature clone of DB57, but its table
+baseline now includes **all dbo user tables in the SQL2 column inventory** (550 tables in the
+current snapshot), not merely the former 19-table WMS allowlist. It includes no business data,
+non-dbo schemas, all 2,345 SQL modules, SQL Agent jobs, permissions or linked-server setup.
+Transitive dbo FK dependencies are also traced from code-referenced tables and reported as
+`GAP-fk-dependency`; in the all-dbo baseline, their target tables are already part of the
+generated scope. Any FK/index dependency that cannot be reconstructed is a strict CI blocker.
 
 Regenerate the checked-in coverage snapshot locally before using it as an input:
 
@@ -130,7 +131,7 @@ python SQL/QC_Schema/tools/schema_coverage.py --out docs/SCHEMA_COVERAGE --check
 ```
 
 CI regenerates coverage into its runner temp directory and uses that same CSV to generate
-both `02_Generated_From_DB57.sql` and `03_Generated_From_DB57_Constraints.sql` before
+both `02_Generated_From_DB57.sql` and `03_Generated_From_DB57_Constraints.sql` for the full dbo table baseline before
 deployment. This prevents a stale `docs/SCHEMA_COVERAGE.csv` snapshot from controlling CI.
 
 ## SQL2 metadata completion (keys, indexes, checks, relationships)
