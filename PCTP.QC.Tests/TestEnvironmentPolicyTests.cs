@@ -46,6 +46,21 @@ public sealed class TestEnvironmentPolicyTests : IDisposable
     }
 
     [Fact]
+    public void ReworkFixtureDatabase_IsAllowedOnlyInStrictLocalCiMode()
+    {
+        Environment.SetEnvironmentVariable(Require, "true");
+        Assert.True(TestEnvironmentPolicy.IsSafeSqlFixtureTarget(
+            "Server=127.0.0.1,1433;Initial Catalog=PCTP_QC_REWORK_CI;User ID=sa;Password=x;Encrypt=True;TrustServerCertificate=True"));
+        Assert.False(TestEnvironmentPolicy.IsSafeSqlFixtureTarget(
+            "Server=127.0.0.1,1433;Initial Catalog=PCTP_QC_CI;User ID=sa;Password=x"));
+        Assert.False(TestEnvironmentPolicy.IsSafeSqlFixtureTarget(
+            "Server=192.168.200.57;Initial Catalog=B7R2_FCC;User ID=sa;Password=x"));
+        Environment.SetEnvironmentVariable(Require, null);
+        Assert.False(TestEnvironmentPolicy.IsSafeSqlFixtureTarget(
+            "Server=127.0.0.1,1433;Initial Catalog=PCTP_QC_REWORK_CI;User ID=sa;Password=x"));
+    }
+
+    [Fact]
     public void AllowEphemeralMode_AcceptsLocalCiDatabaseButStillRejectsDb14()
     {
         Environment.SetEnvironmentVariable(Allow, "true");
