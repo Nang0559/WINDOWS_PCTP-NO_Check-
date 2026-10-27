@@ -27,6 +27,10 @@ class TransactionClassificationTests(unittest.TestCase):
         result = self.analyze('class Legacy { void Save() { ExecuteNonQuery("UPDATE T SET A = 1; DELETE FROM T WHERE A = 2"); } }')
         self.assertEqual("NONE", result["tx"])
 
+    def test_repeated_execution_call_is_not_statement_atomic(self):
+        result = self.analyze('class Legacy { void Save() { for (int i = 0; i < 2; i++) ExecuteNonQuery("UPDATE T SET A = 1"); } }')
+        self.assertEqual("NONE", result["tx"])
+
     def test_stored_procedure_call_is_not_misclassified_as_single_statement(self):
         result = self.analyze('class Legacy { void Save() { ExecuteStoredProcedure("Usp_UpdateStock"); } }')
         self.assertEqual("NONE", result["tx"])
