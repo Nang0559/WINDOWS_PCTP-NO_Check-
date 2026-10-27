@@ -34,6 +34,12 @@ class ParsingTests(unittest.TestCase):
         self.assertIn('vnhaptp', objects)
         self.assertEqual('view', objects['vnhaptp']['kind'])
 
+    def test_sql2_fk_dependency_closure_includes_workflow_status_table(self):
+        objects = sc.export_objects()
+        deps = sc.foreign_key_dependency_map(
+            sc.METADATA, {'sys_workflowtransitions'}, objects)
+        self.assertIn('sys_workflowstatuses', deps)
+
 
 if __name__ == '__main__':
     unittest.main()
