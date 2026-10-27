@@ -1,5 +1,13 @@
 # G4 — schema dựng từ Git: kiểm tra tĩnh và kết quả
 
+> **Cập nhật 2026-10-27:** Các số liệu coverage bên dưới là snapshot lịch sử của lần rà soát
+> trước, khi `schema_coverage.py` còn đọc `docs/SQL.text`. Không dùng các số liệu đó để
+> kết luận schema DB57 hiện tại. Coverage hiện tại đã chuyển sang `docs/SQL2_ColumnInventory.csv`
+> và `SQL/Result_Export_SQL2_Complete_DDL_Metadata.txt`; absence trong snapshot được phân loại
+> là `GAP-db57-unverified`, không phải bằng chứng object không tồn tại. CI tạo coverage tươi,
+> sinh table/constraint DDL từ cùng snapshot, kiểm tra exact column/constraint metadata và
+> đưa transitive dbo FK dependencies vào schema disposable. Xem `SQL/QC_Schema/README.md`.
+
 Phạm vi: đầu vào của G4 (`SQL/QC_Schema/*`, các proc trong `SQL/`, fixture) và hai file bạn bổ sung
 `docs/SQL.text` + `docs/PCTP_SQL_Runtime_Inventory_A-K.csv`.  
 Công cụ: `SQL/QC_Schema/tools/sql_batch_check.py` (mô phỏng cách `sqlcmd -b -i` tách batch và nạp file; không kết nối DB).
