@@ -146,6 +146,42 @@ def generate(metadata: str, allowed: set[tuple[str, str]]) -> tuple[str, str, di
         if first.get("IsDisabled") == "1":
             output.append(f"ALTER INDEX {qname} ON {qtable} DISABLE;")
         verify.append(f"IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID({literal(schema + '.' + table)}) AND name = {literal(name)}) THROW 52301, N'Missing index/constraint {schema}.{table}.{name}', 1;")
+        # Verify the actual definition, not just the object name: type, uniqueness,
+        # filter, disabled state, ordered key columns/direction and included columns.
+        expected_keys = ", ".join(
+            f"({int(r['KeyOrdinal'])}, {literal(r['ColumnName'])}, {1 if r.get('IsDescendingKey') == '1' else 0})"
+            for r in sorted(key_rows, key=lambda r: int(r['KeyOrdinal'])))
+        actual_key_query = (
+            f"SELECT ic.key_ordinal, c.name, CONVERT(int, ic.is_descending_key) "
+            f"FROM sys.index_columns ic JOIN sys.columns c ON c.object_id=ic.object_id AND c.column_id=ic.column_id "
+            f"WHERE ic.object_id=OBJECT_ID({literal(schema + '.' + table)}) "
+            f"AND ic.index_id=INDEXPROPERTY(OBJECT_ID({literal(schema + '.' + table)}), {literal(name)}, 'IndexID') "
+            f"AND ic.is_included_column=0 AND ic.key_ordinal>0")
+        expected_key_query = f"SELECT v.ordinal, v.column_name, v.is_descending FROM (VALUES {expected_keys}) v(ordinal,column_name,is_descending)"
+        expected_includes = ", ".join(f"({literal(r['ColumnName'])})" for r in include_rows)
+        actual_include_query = (
+            f"SELECT c.name FROM sys.index_columns ic JOIN sys.columns c ON c.object_id=ic.object_id AND c.column_id=ic.column_id "
+            f"WHERE ic.object_id=OBJECT_ID({literal(schema + '.' + table)}) "
+            f"AND ic.index_id=INDEXPROPERTY(OBJECT_ID({literal(schema + '.' + table)}), {literal(name)}, 'IndexID') "
+            f"AND ic.is_included_column=1")
+        expected_include_query = (f"SELECT v.column_name FROM (VALUES {expected_includes}) v(column_name)"
+                                  if include_rows else "SELECT CONVERT(sysname, NULL) AS column_name WHERE 1=0")
+        filter_definition = first.get("FilterDefinition", "")
+        expected_filter = "" if filter_definition in {"", "NULL"} else filter_definition
+        verify.append(
+            f"IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID({literal(schema + '.' + table)}) "
+            f"AND name={literal(name)} AND type_desc={literal(kind)} "
+            f"AND is_unique={1 if unique or is_pk or is_uc else 0} "
+            f"AND has_filter={1 if first.get('HasFilter') == '1' else 0} "
+            f"AND ISNULL(filter_definition,N'')={literal(expected_filter)} "
+            f"AND is_disabled={1 if first.get('IsDisabled') == '1' else 0}) "
+            f"THROW 52304, N'Index properties differ: {schema}.{table}.{name}', 1;")
+        verify.append(
+            f"IF EXISTS ({actual_key_query} EXCEPT {expected_key_query}) OR "
+            f"EXISTS ({expected_key_query} EXCEPT {actual_key_query}) OR "
+            f"EXISTS ({actual_include_query} EXCEPT {expected_include_query}) OR "
+            f"EXISTS ({expected_include_query} EXCEPT {actual_include_query}) "
+            f"THROW 52305, N'Index columns differ: {schema}.{table}.{name}', 1;")
         output += ["GO", ""]
 
     fk_groups = group_rows(selected_fks, ["ParentSchema", "ParentTable", "ForeignKeyName"])
@@ -179,6 +215,29 @@ def generate(metadata: str, allowed: set[tuple[str, str]]) -> tuple[str, str, di
             output.append(f"ALTER TABLE {qparent} WITH CHECK CHECK CONSTRAINT {qname};")
         counts["foreign_keys"] += 1
         verify.append(f"IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE parent_object_id = OBJECT_ID({literal(ps + '.' + pt)}) AND name = {literal(name)}) THROW 52302, N'Missing FK {ps}.{pt}.{name}', 1;")
+        expected_fk = ", ".join(
+            f"({i}, {literal(r['ParentColumn'])}, {literal(r['ReferencedColumn'])})"
+            for i, r in enumerate(rows, 1))
+        actual_fk = (
+            f"SELECT fkc.constraint_column_id, pc.name, rc.name "
+            f"FROM sys.foreign_key_columns fkc "
+            f"JOIN sys.columns pc ON pc.object_id=fkc.parent_object_id AND pc.column_id=fkc.parent_column_id "
+            f"JOIN sys.columns rc ON rc.object_id=fkc.referenced_object_id AND rc.column_id=fkc.referenced_column_id "
+            f"WHERE fkc.constraint_object_id=OBJECT_ID({literal(name)}) "
+            f"AND fkc.parent_object_id=OBJECT_ID({literal(ps + '.' + pt)})")
+        expected_fk_query = f"SELECT v.ordinal, v.parent_column, v.referenced_column FROM (VALUES {expected_fk}) v(ordinal,parent_column,referenced_column)"
+        verify.append(
+            f"IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE parent_object_id=OBJECT_ID({literal(ps + '.' + pt)}) "
+            f"AND name={literal(name)} AND referenced_object_id=OBJECT_ID({literal(rs + '.' + rt)}) "
+            f"AND delete_referential_action_desc={literal(delete_action.replace(' ', '_'))} "
+            f"AND update_referential_action_desc={literal(update_action.replace(' ', '_'))} "
+            f"AND is_disabled={1 if disabled else 0} AND is_not_trusted={1 if untrusted else 0} "
+            f"AND is_not_for_replication={1 if first.get('IsNotForReplication') == '1' else 0}) "
+            f"THROW 52306, N'FK properties differ: {ps}.{pt}.{name}', 1;")
+        verify.append(
+            f"IF EXISTS ({actual_fk} EXCEPT {expected_fk_query}) OR "
+            f"EXISTS ({expected_fk_query} EXCEPT {actual_fk}) "
+            f"THROW 52307, N'FK columns differ: {ps}.{pt}.{name}', 1;")
         output += ["GO", ""]
 
     for row in sorted(selected_checks, key=lambda r: (r["SchemaName"].casefold(), r["TableName"].casefold(), r["ConstraintName"].casefold())):
@@ -199,6 +258,12 @@ def generate(metadata: str, allowed: set[tuple[str, str]]) -> tuple[str, str, di
             output.append(f"ALTER TABLE {qtable} WITH CHECK CHECK CONSTRAINT {qname};")
         counts["checks"] += 1
         verify.append(f"IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE parent_object_id = OBJECT_ID({literal(schema + '.' + table)}) AND name = {literal(name)}) THROW 52303, N'Missing CHECK {schema}.{table}.{name}', 1;")
+        verify.append(
+            f"IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE parent_object_id=OBJECT_ID({literal(schema + '.' + table)}) "
+            f"AND name={literal(name)} AND definition={literal(definition)} "
+            f"AND is_disabled={1 if disabled else 0} AND is_not_trusted={1 if untrusted else 0} "
+            f"AND is_not_for_replication={1 if nfr else 0}) "
+            f"THROW 52308, N'CHECK definition/properties differ: {schema}.{table}.{name}', 1;")
         output += ["GO", ""]
 
     output += ["-- Post-deployment metadata assertions: fail CI if any expected object is absent.", "GO", *verify,
