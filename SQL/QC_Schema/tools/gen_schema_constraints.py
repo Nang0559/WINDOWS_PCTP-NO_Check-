@@ -58,7 +58,7 @@ def load_scope(path: Path) -> set[tuple[str, str]]:
                 and row.get("on_db57_export", "").strip().casefold() in {"có", "co", "yes", "true"}):
                 allowed.add(("dbo", row.get("object", "").strip().casefold()))
     if not allowed:
-        raise ValueError("Coverage allowlist selected zero tables")
+        raise ValueError("Coverage scope selected zero SQL2 tables")
     return allowed
 
 def group_rows(rows, keys):
@@ -94,7 +94,7 @@ def generate(metadata: str, allowed: set[tuple[str, str]]) -> tuple[str, str, di
 
     output = [
         "/*",
-        " AUTO-GENERATED from SQL2 complete DDL metadata for the reviewed GAP-no-git-ddl allowlist.",
+        " AUTO-GENERATED from SQL2 complete DDL metadata for the reviewed runtime/FK dependency scope.",
         " Contains PK/unique constraints, indexes, foreign keys and CHECK constraints only.",
         " DEFAULTs are already emitted inline in 02_Generated_From_DB57.sql and are not duplicated.",
         " Review required. Deploy only after 02_Generated_From_DB57.sql and only to disposable PCTP_QC_CI.",
@@ -286,7 +286,9 @@ def generate(metadata: str, allowed: set[tuple[str, str]]) -> tuple[str, str, di
     report += [
         "", "## Explicit limitations", "",
         "- SQL modules (procedures, views, functions, triggers) are not auto-deployed from this report; compare their definitions with reviewed source scripts.",
-        "- FKs whose referenced table is outside the allowlist are intentionally omitted, not silently treated as restored.",
+        "- FKs whose referenced table is outside the generated scope are reported; strict CI mode fails rather than silently accepting them.",
+        "- SQL2 FK metadata does not export IsNotForReplication; FK replication behavior is therefore not asserted.",
+        "- SQL2 index metadata does not export fill factor, pad index, ignore-duplicate-key, or row/page-lock options; those options are not asserted.",
         "- This metadata export does not provide permissions, SQL Agent jobs, synonyms, linked-server dependencies, or application data.",
         "- Generated DDL is intended only for disposable PCTP_QC_CI; it must never target DB57 or production.", ""
     ]
@@ -299,10 +301,16 @@ def main() -> int:
     parser.add_argument("--out", required=True, type=Path)
     parser.add_argument("--report", required=True, type=Path)
     parser.add_argument("--check", action="store_true", help="fail if generated SQL/report differ from checked-in files")
+    parser.add_argument("--strict-dependencies", action="store_true",
+                        help="fail when any FK/index dependency is omitted or cannot be reconstructed")
     args = parser.parse_args()
     try:
         metadata = args.metadata.read_text(encoding="utf-8-sig", errors="replace")
         sql, report, counts = generate(metadata, load_scope(args.coverage))
+        unresolved = [line for line in report.splitlines() if line.startswith("- FK ") or line.startswith("- Index ")]
+        if args.strict_dependencies and unresolved:
+            print("ERROR: unresolved SQL2 dependencies:", *unresolved, sep="\\n", file=sys.stderr)
+            return 3
         if args.check:
             actual_sql = args.out.read_text(encoding="utf-8-sig") if args.out.exists() else None
             actual_report = args.report.read_text(encoding="utf-8-sig") if args.report.exists() else None
