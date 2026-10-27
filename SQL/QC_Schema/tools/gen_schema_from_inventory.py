@@ -240,6 +240,8 @@ def render(inventory: Path, coverage: Path, type_map_path: Path | None = None):
             base_type = re.match(r"[A-Za-z][A-Za-z0-9_]*", mapped_type).group(0).casefold()
             if base_type == "sysname":
                 base_type = "nvarchar"
+            elif base_type == "rowversion":
+                base_type = "timestamp"
             max_length = int(column["MaxChars"]) if column.get("MaxChars", "").lstrip("-").isdigit() else -999999
             precision = int(column["precision"]) if column.get("precision", "").isdigit() else 0
             scale = int(column["scale"]) if column.get("scale", "").isdigit() else 0
