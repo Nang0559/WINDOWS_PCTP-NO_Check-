@@ -141,7 +141,11 @@ def analyze_cs(path):
         # A single call site inside a loop can execute multiple times. This
         # scanner works at file scope, so conservatively refuse statement-level
         # classification whenever a loop construct and SQL execution coexist.
-        has_loop = bool(re.search(r"\b(?:for|foreach|while|do)\b", src))
+        # Ignore C# string/character contents when looking for loop constructs.
+        # A SQL literal or diagnostic message containing the word "for"/"while"
+        # must not turn an otherwise single-statement writer into a false gap.
+        code_without_literals = _LIT.sub(" ", src)
+        has_loop = bool(re.search(r"\b(?:for|foreach|while|do)\b", code_without_literals))
         tx = "STATEMENT-ATOMIC" if (
             dml_count == 1 and dml_calls == 1 and not sps and not has_loop
         ) else "NONE"
