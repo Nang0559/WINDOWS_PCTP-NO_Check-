@@ -218,18 +218,13 @@ namespace PCTP.QRCODE_HVN.ComaprePart
                 return;
             }
 
-            if (!CheckComparePartExists(partNo, partNoCompare))
+            if (TryInsertComparePart(partNo, partNoCompare))
             {
-                InsertComparePart(
-                    partNo,
-                    partNoCompare);
-
                 XtraMessageBox.Show(
                     "Đã tạo mapping mã hàng thành công.",
                     "Thông báo",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Information);
-
                 LoadComparePart();
             }
             else
@@ -242,77 +237,50 @@ namespace PCTP.QRCODE_HVN.ComaprePart
             }
         }
 
-        private bool CheckComparePartExists(
-            string partNo,
-            string partNoCompare)
+        private bool TryInsertComparePart(string partNo, string partNoCompare)
         {
-            const string sql = @"
-            SELECT COUNT(*)
-            FROM tbl_QR_ComparePart
-            WHERE PartNo = @PartNo
-              AND PartNoCompare = @PartNoCompare";
-
-            object result = _sql.ExecuteScalar(
-                _sql.B7R2_FCCdb,
-                sql,
-                new[]
+            // The existence check and INSERT must share a serializable transaction;
+            // otherwise two users can both pass the old check-then-insert sequence.
+            using (SqlConnection connection = new SqlConnection(_sql.B7R2_FCCdb))
+            {
+                connection.Open();
+                using (SqlTransaction transaction = connection.BeginTransaction(IsolationLevel.Serializable))
                 {
-                new SqlParameter("@PartNo", SqlDbType.NVarChar, 100)
-                {
-                    Value = partNo
-                },
-
-                new SqlParameter("@PartNoCompare", SqlDbType.NVarChar, 100)
-                {
-                    Value = partNoCompare
+                    try
+                    {
+                        const string sql = @"
+IF EXISTS
+(
+    SELECT 1
+    FROM tbl_QR_ComparePart WITH (UPDLOCK, HOLDLOCK)
+    WHERE PartNo = @PartNo AND PartNoCompare = @PartNoCompare
+)
+    SELECT CAST(0 AS int);
+ELSE
+BEGIN
+    INSERT INTO tbl_QR_ComparePart (PartNo, PartNoCompare, timeSet, IsActive)
+    VALUES (@PartNo, @PartNoCompare, @TimeSet, 1);
+    SELECT CAST(1 AS int);
+END";
+                        int inserted;
+                        using (SqlCommand command = new SqlCommand(sql, connection, transaction))
+                        {
+                            command.Parameters.Add("@PartNo", SqlDbType.NVarChar, 100).Value = partNo;
+                            command.Parameters.Add("@PartNoCompare", SqlDbType.NVarChar, 100).Value = partNoCompare;
+                            command.Parameters.Add("@TimeSet", SqlDbType.DateTime).Value = DateE_NgayAPP.DateTime;
+                            inserted = Convert.ToInt32(command.ExecuteScalar());
+                        }
+                        transaction.Commit();
+                        return inserted == 1;
+                    }
+                    catch
+                    {
+                        try { transaction.Rollback(); }
+                        catch { /* Preserve the original exception. */ }
+                        throw;
+                    }
                 }
-                });
-
-            return result != null
-                && result != DBNull.Value
-                && Convert.ToInt32(result) > 0;
-        }
-
-        private void InsertComparePart(
-            string partNo,
-            string partNoCompare)
-        {
-            const string sql = @"
-            INSERT INTO tbl_QR_ComparePart
-            (
-                PartNo,
-                PartNoCompare,
-                timeSet,
-                IsActive
-            )
-            VALUES
-            (
-                @PartNo,
-                @PartNoCompare,
-                @TimeSet,
-                1
-            )";
-
-            _sql.ExecuteNonQuery(
-                _sql.B7R2_FCCdb,
-                sql,
-                new SqlParameter[]
-                {
-                new SqlParameter("@PartNo", SqlDbType.NVarChar, 100)
-                {
-                    Value = partNo
-                },
-
-                new SqlParameter("@PartNoCompare", SqlDbType.NVarChar, 100)
-                {
-                    Value = partNoCompare
-                },
-
-                new SqlParameter("@TimeSet", SqlDbType.DateTime)
-                {
-                    Value = DateE_NgayAPP.DateTime
-                }
-                });
+            }
         }
 
         #endregion
@@ -401,42 +369,53 @@ namespace PCTP.QRCODE_HVN.ComaprePart
             if (confirm != DialogResult.Yes)
                 return;
 
+            var ids = new List<int>();
             foreach (int rowHandle in selectedRows)
             {
                 if (rowHandle < 0)
                     continue;
-
-                object sttValue =
-                    view.GetRowCellValue(rowHandle, "STT");
-
-                if (sttValue == null ||
-                    sttValue == DBNull.Value)
+                object sttValue = view.GetRowCellValue(rowHandle, "STT");
+                if (sttValue == null || sttValue == DBNull.Value)
                     continue;
-
-                if (!int.TryParse(
-                    sttValue.ToString(),
-                    out int stt))
-                    continue;
-
-                DeleteComparePart(stt);
+                if (int.TryParse(sttValue.ToString(), out int stt) && stt > 0)
+                    ids.Add(stt);
             }
 
+            DeleteCompareParts(ids);
             LoadComparePart();
         }
 
-        private void DeleteComparePart(int stt)
+        private void DeleteCompareParts(IList<int> ids)
         {
-            const string sql = @"
-            DELETE FROM tbl_QR_ComparePart
-            WHERE STT = @STT";
+            if (ids == null || ids.Count == 0)
+                return;
 
-            _sql.ExecuteNonQuery(
-                _sql.B7R2_FCCdb,
-                sql,
-                new SqlParameter("@STT", SqlDbType.Int)
+            using (SqlConnection connection = new SqlConnection(_sql.B7R2_FCCdb))
+            {
+                connection.Open();
+                using (SqlTransaction transaction = connection.BeginTransaction())
                 {
-                    Value = stt
-                });
+                    try
+                    {
+                        const string sql = "DELETE FROM tbl_QR_ComparePart WHERE STT = @STT";
+                        foreach (int id in ids.Distinct())
+                        {
+                            using (SqlCommand command = new SqlCommand(sql, connection, transaction))
+                            {
+                                command.Parameters.Add("@STT", SqlDbType.Int).Value = id;
+                                command.ExecuteNonQuery();
+                            }
+                        }
+                        transaction.Commit();
+                    }
+                    catch
+                    {
+                        try { transaction.Rollback(); }
+                        catch { /* Preserve the original exception. */ }
+                        throw;
+                    }
+                }
+            }
         }
 
         #endregion
