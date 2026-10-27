@@ -3,6 +3,8 @@
 > Mục đích: một tài liệu duy nhất cho người chạy SQL: chạy ở đâu, theo thứ tự nào, lệnh nào, ghi bằng chứng ra sao.
 > Định nghĩa gate **chuẩn** nằm ở `PCTP/Workflow/Diagram/WMS_RELEASE_GATE.md`. Tài liệu này không đổi định nghĩa đó.
 
+> Lối chạy ngắn cho người vận hành: [WMS_QC_OPERATOR_CHECKLIST.md](WMS_QC_OPERATOR_CHECKLIST.md). Chạy preflight PowerShell trước khi kết nối SQL; checklist phân biệt bước chỉ đọc, SQL Integration, UI G6 có ghi dữ liệu và migration nghiệp vụ.
+
 ## 0. An toàn — đọc trước khi chạy bất cứ thứ gì
 
 | Môi trường | Server / database | Được chạy? |
