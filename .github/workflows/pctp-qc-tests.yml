@@ -147,7 +147,10 @@ jobs:
           set -euo pipefail
           python3 -m unittest discover -s SQL/QC_Schema/tools -p 'test_*.py'
           python3 SQL/QC_Schema/tools/sql_batch_check.py \
-            --files SQL/QC_Schema/01_Tables.sql SQL/QC_Schema/05_Split.sql \
+            --files SQL/QC_Schema/01_Tables.sql \
+                    SQL/QC_Schema/02_Generated_From_DB57.sql \
+                    SQL/QC_Schema/03_Generated_From_DB57_Constraints.sql \
+                    SQL/QC_Schema/05_Split.sql \
                     SQL/Usp_Qrcode_Update_Stock2405.sql SQL/Usp_Qrcode_Update_Stock_SP.sql \
                     SQL/sp_GetCurrentStockStatus.sql \
                     "$RUNNER_TEMP/deploy/Usp_Qrcode_LOAD_PHIEU_DOCQR2405.sql" \
@@ -169,6 +172,8 @@ jobs:
           c='${{ steps.sql.outputs.container_id }}'
           for f in \
             SQL/QC_Schema/01_Tables.sql \
+            SQL/QC_Schema/02_Generated_From_DB57.sql \
+            SQL/QC_Schema/03_Generated_From_DB57_Constraints.sql \
             SQL/QC_Schema/05_Split.sql \
             SQL/Usp_Qrcode_Update_Stock2405.sql \
             SQL/Usp_Qrcode_Update_Stock_SP.sql \
