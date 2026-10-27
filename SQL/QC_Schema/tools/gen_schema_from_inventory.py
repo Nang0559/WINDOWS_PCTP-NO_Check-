@@ -172,6 +172,10 @@ def sql_type(row, type_map):
     return t
 
 
+def sql_sql_literal(value):
+    return "N'" + str(value).replace("'", "''") + "'"
+
+
 def safe_expression(value, table, column, kind):
     expr = (value or "").strip()
     if not expr or expr.upper() == "NULL":
@@ -250,9 +254,9 @@ def render(inventory: Path, coverage: Path, type_map_path: Path | None = None):
                 if value and not re.fullmatch(r"[-+]?(?:\\d+(?:\\.\\d*)?|\\.\\d+)", value):
                     raise ValueError(f"invalid {label}: {name}.{col_name}={value!r}")
             expected.append(
-                f"({int(column['column_id'])}, {literal(col_name)}, {literal(base_type)}, {max_length}, "
+                f"({int(column['column_id'])}, {sql_literal(col_name)}, {sql_literal(base_type)}, {max_length}, "
                 f"{precision}, {scale}, {nullable}, {identity_flag}, {computed_flag}, "
-                f"{literal(computed)}, {literal(default)}, {literal(seed)}, {literal(increment)})")
+                f"{sql_literal(computed)}, {sql_literal(default)}, {sql_literal(seed)}, {sql_literal(increment)})")
         expected_values = ", ".join(expected)
         actual_columns = (
             f"SELECT c.column_id, c.name, TYPE_NAME(c.system_type_id), c.max_length, c.precision, c.scale, "
@@ -262,7 +266,7 @@ def render(inventory: Path, coverage: Path, type_map_path: Path | None = None):
             f"FROM sys.columns c LEFT JOIN sys.computed_columns cc ON cc.object_id=c.object_id AND cc.column_id=c.column_id "
             f"LEFT JOIN sys.default_constraints dc ON dc.parent_object_id=c.object_id AND dc.parent_column_id=c.column_id "
             f"LEFT JOIN sys.identity_columns ic ON ic.object_id=c.object_id AND ic.column_id=c.column_id "
-            f"WHERE c.object_id=OBJECT_ID({literal('dbo.' + name)})")
+            f"WHERE c.object_id=OBJECT_ID({sql_literal('dbo.' + name)})")
         expected_columns = (
             f"SELECT v.column_id, v.column_name, v.type_name, v.max_length, v.precision, v.scale, "
             f"v.is_nullable, v.is_identity, v.is_computed, v.computed_definition, v.default_definition, "
