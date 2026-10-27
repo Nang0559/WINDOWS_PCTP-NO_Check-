@@ -165,8 +165,7 @@ jobs:
             --report SQL/QC_Schema/04_SQL2_Metadata_Gaps.md \
             --strict-dependencies
           python3 SQL/QC_Schema/tools/sql_batch_check.py \
-            --files SQL/QC_Schema/01_Tables.sql \
-                    SQL/QC_Schema/02_Generated_From_DB57.sql \
+            --files SQL/QC_Schema/02_Generated_From_DB57.sql \
                     SQL/QC_Schema/03_Generated_From_DB57_Constraints.sql \
                     SQL/QC_Schema/05_Split.sql \
                     SQL/Usp_Qrcode_Update_Stock2405.sql SQL/Usp_Qrcode_Update_Stock_SP.sql \
@@ -174,8 +173,7 @@ jobs:
                     "$RUNNER_TEMP/deploy/Usp_Qrcode_LOAD_PHIEU_DOCQR2405.sql" \
                     "$RUNNER_TEMP/deploy/Usp_Qrcode_Take_Lot2405.sql" \
                     "$RUNNER_TEMP/deploy/Usp_Qrcode_Take_LotYMVN2405.sql" \
-                    SQL/QC_G4_DeliveryFixture_Seed.sql SQL/QC_G4_DeliveryFixture_Cleanup.sql \
-            --export docs/SQL.text --reference SQL/QC_Schema/01_Tables.sql
+                    SQL/QC_G4_DeliveryFixture_Seed.sql SQL/QC_G4_DeliveryFixture_Cleanup.sql
           if [ "$coverage_status" -ne 0 ]; then
             echo "ERROR: SQL2 code/schema mismatches remain; generated DDL was checked but deployment is blocked."
             exit "$coverage_status"
@@ -199,8 +197,9 @@ jobs:
         run: |
           set -euo pipefail
           c='${{ steps.sql.outputs.container_id }}'
+          # 02 is the full 550-table DB57 dbo baseline; 01_Tables.sql is a
+          # historical 15-table fixture and must not shadow the authoritative SQL2 DDL.
           for f in \
-            SQL/QC_Schema/01_Tables.sql \
             SQL/QC_Schema/02_Generated_From_DB57.sql \
             SQL/QC_Schema/03_Generated_From_DB57_Constraints.sql \
             SQL/QC_Schema/05_Split.sql \
