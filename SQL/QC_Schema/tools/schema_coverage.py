@@ -165,11 +165,12 @@ def foreign_key_dependency_map(metadata_path, seed_tables, available_tables):
             target = row.get("ReferencedTable", "").casefold()
             if (row.get("ParentSchema", "").casefold() != "dbo"
                     or row.get("ReferencedSchema", "").casefold() != "dbo"
-                    or parent not in known or target not in available or target in known):
+                    or parent not in known or target not in available):
                 continue
             dependencies[target].add(parent)
-            known.add(target)
-            changed = True
+            if target not in known:
+                known.add(target)
+                changed = True
     return dependencies
 
 def git_columns():
@@ -259,7 +260,8 @@ def main():
     refs, dyn = code_refs()
     seed_tables = {name for name, value in refs.items()
                    if name in exp and exp[name]["kind"] == "table"}
-    fk_dependencies = foreign_key_dependency_map(METADATA, seed_tables, exp)
+    available_tables = {name for name, value in exp.items() if value["kind"] == "table"}
+    fk_dependencies = foreign_key_dependency_map(METADATA, seed_tables, available_tables)
     ci_names = set()
     for f in CI_BASE_FILES:
         for m in DDL.finditer(read(os.path.join(ROOT, f))):
