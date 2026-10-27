@@ -219,7 +219,7 @@ def render(inventory: Path, coverage: Path, type_map_path: Path | None = None):
             raise ValueError(f"table {name} has no columns")
         lines += [f"IF OBJECT_ID(N'dbo.{name}', N'U') IS NULL", "BEGIN",
                   f"    CREATE TABLE dbo.[{name}] (", ",\n".join(definitions), "    );", "END;", "GO", ""]
-    lines += ["/* PK/index/FK/CHECK DDL intentionally omitted until verified metadata is supplied. */", ""]
+    lines += ["/* PK/index/FK/CHECK constraints are emitted from verified SQL2 metadata in 03_Generated_From_DB57_Constraints.sql. */", ""]
     return "\n".join(lines)
 
 
