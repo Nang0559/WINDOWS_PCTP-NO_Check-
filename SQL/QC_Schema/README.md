@@ -46,8 +46,9 @@ The workflow sets `PCTP_QC_ALLOW_EPHEMERAL_SQL=true` and `PCTP_QC_REQUIRE_EPHEME
 ## SQL2 metadata to reviewed DDL
 
 The SQL2 upload can be used as a *metadata input*, not as a complete, executable schema export.
-The repository now includes `tools/gen_schema_from_inventory.py`. It reads the fixed-width
-object/column metadata, selects only rows classified as `GAP-no-git-ddl` + `table` +
+The repository now includes `tools/gen_schema_from_inventory.py`. It reads either the legacy fixed-width
+SQL2 column section or a real CSV column export (`SQL2_ColumnInventory.csv`, with a `SchemaName` column),
+selects only rows classified as `GAP-no-git-ddl` + `table` +
 `on_db57_export=có` in `docs/SCHEMA_COVERAGE.csv`, and emits idempotent table-column DDL
 for the selected scope. It preserves column order, SQL built-in types and lengths, nullability,
 identity seed/increment, computed expressions and default expressions.
@@ -69,7 +70,7 @@ python SQL/QC_Schema/tools/gen_schema_from_inventory.py `
 Supply a reviewed JSON type map only after obtaining the exact definitions from a trusted
 schema source, for example `{"longcodetype":"nvarchar(20)"}` only if that mapping is verified.
 
-The generated file is deliberately **not yet treated as production-ready DDL**: the SQL2
+CSV must be exported as actual CSV (not copied fixed-width text) with headers `SchemaName`, `TableName`, `type_desc`, `column_id`, `ColumnName`, `DataType`, `MaxChars`, `precision`, `scale`, `is_nullable`, `is_identity`, `seed_value`, `increment_value`, `is_computed`, `ComputedDefinition`, and `DefaultDefinition`. The generator currently emits `dbo` tables only and fails closed if an allow-listed table is absent from that schema. `MaxChars` is SQL Server `sys.columns.max_length` in bytes; the generator converts Unicode string lengths to characters.\n\nThe generated file is deliberately **not yet treated as production-ready DDL**: the SQL2
 column section does not provide a complete structured set of PK/unique indexes, FKs, CHECK
 constraints, triggers or permissions. Run the read-only `Export_SQL2_Complete_DDL_Metadata.sql`
 in the authorized DB57/B7R2_FCC context to export the missing metadata as separate result sets;
