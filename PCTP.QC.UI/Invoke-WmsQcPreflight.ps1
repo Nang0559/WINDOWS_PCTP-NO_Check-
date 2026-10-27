@@ -10,9 +10,24 @@ function Invoke-Checked {
     param([string]$File, [string[]]$Arguments)
     Write-Host ""
     Write-Host (">>> " + $File + " " + ($Arguments -join " ")) -ForegroundColor Cyan
-    & $File @Arguments
-    if ($LASTEXITCODE -ne 0) {
-        throw "Command failed with exit code $LASTEXITCODE : $File $($Arguments -join ' ')"
+
+    # Native tools such as Python unittest intentionally write progress to stderr.
+    # Windows PowerShell can promote native stderr records to terminating errors
+    # when ErrorActionPreference=Stop. Temporarily use Continue, then trust the
+    # native process exit code as the success/failure contract.
+    $previousErrorActionPreference = $ErrorActionPreference
+    $exitCode = 0
+    try {
+        $ErrorActionPreference = "Continue"
+        & $File @Arguments
+        $exitCode = $LASTEXITCODE
+    }
+    finally {
+        $ErrorActionPreference = $previousErrorActionPreference
+    }
+
+    if ($null -eq $exitCode -or $exitCode -ne 0) {
+        throw "Command failed with exit code $exitCode : $File $($Arguments -join ' ')"
     }
 }
 
