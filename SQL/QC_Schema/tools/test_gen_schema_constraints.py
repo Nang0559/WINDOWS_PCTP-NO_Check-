@@ -106,6 +106,15 @@ class SchemaConstraintGeneratorTests(unittest.TestCase):
                 encoding="utf-8")
             self.assertEqual(gen.load_scope(coverage), {("dbo", "parent")})
 
+    def test_full_database_baseline_is_not_in_scope(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            coverage = Path(tmp) / "coverage.csv"
+            coverage.write_text(
+                "object,kind,on_db57_export,git_ddl_files,class,in_runtime_inventory\\n"
+                "UnrelatedDb57Table,table,có,,GAP-db57-baseline,không\\n",
+                encoding="utf-8")
+            self.assertEqual(gen.load_scope(coverage), set())
+
     def test_default_constraints_are_not_duplicated(self):
         metadata = fixed_section(INDEX_FIELDS, []) + "\n" + fixed_section(FK_FIELDS, []) + "\n" + fixed_section(CHECK_FIELDS, [])
         sql, report, _ = gen.generate(metadata, {("dbo","parent")})
