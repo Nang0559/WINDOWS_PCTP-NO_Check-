@@ -1,88 +1,101 @@
-# PCTP QC ephemeral SQL schema
+# PCTP QC — SQL2 DB57 schema baseline
 
-## Purpose
+## Mục đích và ranh giới an toàn
 
-This directory is the **CI database schema source** for G3/G4/G6 SQL acceptance.
-CI must create a disposable SQL Server database and must not connect to DB57 or DB14.
+CI tạo database SQL Server dùng một lần `PCTP_QC_CI` để chạy G3/G4/G6.
+CI **không kết nối DB57 (192.168.200.57), DB14 hay production**. Không copy business data
+từ DB57 vào Git hoặc database CI.
 
-## Source of truth
+`docs/SQL.text` là bản xuất lịch sử bị mất/biến dạng thông tin. Không được dùng file này
+để kết luận object/cột có hay không có trên DB57, cũng không dùng nó làm schema baseline.
 
-- Source export for `01_Tables.sql`: `SQL_sql.sql` supplied from DB57/B7R2_FCC (kept outside Git).
-- SHA-256: `cc21dbc1ebf16f62e3b3fe5d24ff1eff1ce73f88cd34d090408a1bff591c7785`
-- `01_Tables.sql` contains only the dependency-closed tables required by the current G4 delivery acceptance and G6 stock/slot journeys. Table definitions are copied from the source export; they are not hand-designed test DDL.
-- No production/business rows are copied into Git.
+## Nguồn dữ liệu chuẩn
 
-## Deployment order
+- `docs/SQL2_ColumnInventory.csv`: metadata cột của dbo user tables, gồm thứ tự, kiểu,
+  độ dài byte, precision/scale, nullability, identity, computed expression và default.
+- `SQL/Result_Export_SQL2_Complete_DDL_Metadata.txt`: metadata SQL2 cho module catalog,
+  index, PK/unique, FK và CHECK.
+- `SQL/QC_Schema/tools/sql2-db57-verified-type-map.json`: ánh xạ alias type đã được xác minh.
+  Generator fail-closed nếu gặp alias/type chưa có mapping.
+- C# SQL literals và SQL scripts trong repo: nguồn đối chiếu runtime/code/Git, không thay thế
+  metadata DB57.
 
-1. `01_Tables.sql`
-2. `05_Split.sql` (`dbo.Split`, definition exported from DB57; see below)
-3. checked-in WMS procedures / hardening SQL
-4. deterministic fixture seed
-5. G3/G4/G6 execution
-6. fixture cleanup
+Object không thấy trong SQL2 snapshot được phân loại `GAP-db57-unverified`, không được
+kết luận là "không tồn tại DB57". Các object ngoài dbo, synonym, linked server, dynamic name
+và object bị thiếu trong snapshot cần xác minh riêng.
 
-## `dbo.Split`
+## Phạm vi CI
 
-`docs/SQL.text` (SHA-256 `595aafa76194aa239710acd085645283e381899d4669a2141c5841fb01292380`) contains the DB57 definition of `dbo.Split`.
-`05_Split.sql` is that definition verbatim, with `CREATE` changed to `CREATE OR ALTER` so the CI deployment can be repeated.
-It replaces the former `STRING_SPLIT` shim, which returned a column named `value` and did not guarantee token order.
-`Usp_Qrcode_Update_Stock2405.sql` reads it with `INSERT INTO #SplitResult SELECT * FROM dbo.Split(@_LOT, ',')`, so only the order and the single-column shape matter.
-The file is for the disposable CI database; never apply it to DB57/DB14 from this repository.
+Snapshot hiện tại có **550 dbo user tables**. CI sinh toàn bộ 550 bảng và các metadata
+constraint/index tương ứng, không còn giới hạn ở allowlist WMS 19 bảng cũ. Bộ CI không phải
+bản sao đầy đủ mọi tính năng của DB57: không có business data, non-dbo schemas, toàn bộ
+2.345 module bodies, SQL Agent jobs, permissions hoặc linked-server configuration.
 
-## Tools
+Transitive dbo FK dependencies được truy vết từ các bảng code tham chiếu. Trong baseline
+550 bảng, target dbo đã nằm trong generated scope. Nếu FK/index không thể tái tạo từ SQL2,
+`--strict-dependencies` làm CI thất bại thay vì âm thầm bỏ qua.
 
-`tools/sql_batch_check.py` simulates how `sqlcmd -b -i` splits and loads the deploy files (no database access) and fails the CI job on loader defects.
-`docs/SQL.text` is **not** a deploy file; its known defects and the G4 consequences are recorded in `docs/G4_SCHEMA_FROM_GIT.md`.
+`SQL/QC_Schema/01_Tables.sql` là fixture lịch sử 15 bảng, **không còn được deploy**.
+CI dùng `02_Generated_From_DB57.sql` làm table baseline chuẩn. Hai bảng
+`DOCQRCODE_100003` và `TMPPHIEUGIAOHANG_100003` không còn lấy từ fixture cũ vì cấu trúc
+khách hàng khác; chúng được tạo trực tiếp từ SQL2 inventory DB57.
 
-## Safety invariant
+## Các generator và kiểm chứng
 
-The CI connection is expected to be:
+### 1. Table/column DDL
 
-`127.0.0.1,1433 / PCTP_QC_CI`
+`tools/gen_schema_from_inventory.py` sinh `02_Generated_From_DB57.sql`.
+Ngoài `CREATE TABLE` khi bảng chưa tồn tại, script phát sinh assertion hai chiều sau deploy
+cho mọi bảng trong baseline. Assertion kiểm tra:
+- số lượng và tên cột, thứ tự tương đối (không so sánh raw `column_id`, vì SQL Server có thể
+  để gap sau khi drop cột);
+- base SQL type, max_length theo byte, precision/scale;
+- nullability, identity seed/increment;
+- computed expression và default expression.
 
-The workflow sets `PCTP_QC_ALLOW_EPHEMERAL_SQL=true` and `PCTP_QC_REQUIRE_EPHEMERAL_SQL=true`. The test policy rejects production DB14 and, in CI-required-ephemeral mode, rejects DB57 as well.
+Do đó bảng fixture cũ không thể được chấp nhận chỉ vì `OBJECT_ID` đã tồn tại. Assertion chỉ
+có thể kiểm tra các thuộc tính mà SQL2 inventory thực sự xuất; collation, sparse/rowguid,
+XML schema collection và một số thuộc tính storage không có trong inventory hiện tại vẫn là
+metadata gap cần bổ sung nếu cần parity tuyệt đối.
 
+### 2. Constraint/index DDL
 
-## SQL2 metadata to reviewed DDL
+`tools/gen_schema_constraints.py` sinh `03_Generated_From_DB57_Constraints.sql` và
+`04_SQL2_Metadata_Gaps.md`. Script tái tạo:
+- 248 ordinary/filtered indexes;
+- 439 primary keys;
+- 167 unique constraints;
+- 31 foreign keys;
+- 28 CHECK constraints.
 
-The SQL2 upload can be used as a *metadata input*, not as a complete, executable schema export.
-The repository now includes `tools/gen_schema_from_inventory.py`. It reads either the legacy fixed-width
-SQL2 column section or a real CSV column export (`SQL2_ColumnInventory.csv`, with a `SchemaName` column),
-selects only rows classified as `GAP-no-git-ddl` + `table` +
-`on_db57_export=có` in `docs/SCHEMA_COVERAGE.csv`, and emits idempotent table-column DDL
-for the selected scope. It preserves column order, SQL built-in types and lengths, nullability,
-identity seed/increment, computed expressions and default expressions. It also emits bidirectional
-post-deploy metadata assertions for every selected table, so a pre-existing table in `01_Tables.sql`
-that differs from SQL2 (including missing/extra columns, type/length, nullability, identity, computed
-or default definition) fails CI instead of being silently accepted by `IF OBJECT_ID ... IS NULL`.
+Các con số là snapshot SQL2 hiện tại; CI sinh lại từ metadata trong từng run.
 
-Example (run locally against the uploaded SQL2 export; do not deploy to DB57):
+Post-deploy assertions kiểm tra index type, uniqueness, PK/UQ identity, filter, disabled state,
+key column order/direction và included columns; FK target, referential actions, column order,
+trusted/disabled state; CHECK definition, trusted/disabled và not-for-replication state.
+SQL2 FK section hiện không xuất `IsNotForReplication`; index section không xuất fill factor,
+pad index, ignore-duplicate-key và row/page-lock options. Các thuộc tính không có nguồn
+metadata không được giả vờ là đã kiểm chứng; chúng được nêu trong gap report.
+
+### 3. Coverage
+
+`tools/schema_coverage.py` dùng SQL2 structured metadata, không dùng `docs/SQL.text`.
+Coverage phân biệt:
+- `GAP-db57-baseline`: dbo table có trong SQL2 nhưng không phải runtime reference;
+- `GAP-fk-dependency`: table được đưa vào do FK dependency;
+- `GAP-db57-unverified`: không đủ metadata để kết luận;
+- `GAP-no-git-ddl`, `GAP-ci-schema`, `OK-testable`: trạng thái đối chiếu code/Git/CI.
+
+`docs/SCHEMA_COVERAGE.csv` là snapshot checked-in và phải được regenerate trước khi dùng
+làm đầu vào thủ công. CI tạo coverage tươi trong runner temp directory rồi dùng đúng CSV đó
+để sinh cả 02 và 03, không phụ thuộc snapshot cũ.
+
+## Lệnh regenerate / kiểm thử local
+
+Chạy từ repository root:
 
 ```powershell
-python SQL/QC_Schema/tools/gen_schema_from_inventory.py `
-  --inventory "docs\\SQL2_ColumnInventory.csv" `
-  --coverage docs/SCHEMA_COVERAGE.csv `
-  --type-map SQL/QC_Schema/tools/sql2-db57-verified-type-map.json `
-  --out SQL/QC_Schema/02_Generated_From_DB57.sql
-```
-
-**Fail-closed behavior is intentional.** SQL2 shows user-defined aliases such as
-`LongCodeType`, `CodeType`, `QuantityType`, `MoneyType`, `PercentageType`,
-`ExchangeRateType`, and `UniqueKeyType`, but this export does not supply verified
-`CREATE TYPE` definitions for them. The generator refuses to guess their base type.
-Supply a reviewed JSON type map only after obtaining the exact definitions from a trusted
-schema source, for example `{"longcodetype":"nvarchar(20)"}` only if that mapping is verified.
-
-CSV must be exported as actual CSV (not copied fixed-width text) with headers `SchemaName`, `TableName`, `type_desc`, `column_id`, `ColumnName`, `DataType`, `MaxChars`, `precision`, `scale`, `is_nullable`, `is_identity`, `seed_value`, `increment_value`, `is_computed`, `ComputedDefinition`, and `DefaultDefinition`. The generator emits `dbo` tables only and fails closed if an allow-listed table is absent from that schema. `MaxChars` is SQL Server `sys.columns.max_length` in bytes; the generator converts Unicode string lengths to characters.
-
-The complete read-only metadata export is used to generate `03_Generated_From_DB57_Constraints.sql`, including primary keys, unique constraints, ordinary/filtered indexes, transitive FK dependencies in the generated scope, and CHECK constraints. Post-deploy assertions compare index type/uniqueness/PK-UQ identity/filter/disabled state/key order/direction/include columns, FK target/actions/column order/trust/disabled state, and CHECK expression/trust/disabled/replication state. DEFAULT expressions remain inline in `02_Generated_From_DB57.sql` and are not duplicated. The accompanying `04_SQL2_Metadata_Gaps.md` lists foreign keys intentionally omitted because their referenced tables are outside the generated scope; the scanner expands transitive dbo FK dependencies from referenced runtime tables; dependencies absent from SQL2 table inventory or outside dbo remain explicit and unresolved. SQL modules, permissions, triggers and runtime dependencies still require separate review.
-
-CI runs the Python unit tests and static SQL batch simulation, deploys `01_Tables.sql`, `02_Generated_From_DB57.sql`, and `03_Generated_From_DB57_Constraints.sql` only into the disposable GitHub-hosted SQL Server database `PCTP_QC_CI`, and the generated constraints script throws if any expected index/key/FK/CHECK object is missing or its exported definition, key-column order/direction, include columns, filter, referential action, trust/disabled state or CHECK expression differs. No SQL2-derived DDL is deployed to DB57 or production. After regenerating `docs/SCHEMA_COVERAGE.csv`, the generators preserve their explicit scope by selecting rows whose `git_ddl_files` contains `SQL/QC_Schema/02_Generated_From_DB57.sql`.
-## Regenerate or verify SQL2 constraints
-
-Use the checked-in read-only metadata export. The default command regenerates the reviewed SQL and gap report; CI uses `--check` to fail if either checked-in artifact is stale.
-
-```powershell
+python -m unittest discover -s SQL/QC_Schema/tools -p "test_*.py" -v
 python SQL/QC_Schema/tools/schema_coverage.py --out docs/SCHEMA_COVERAGE --check
 python SQL/QC_Schema/tools/gen_schema_from_inventory.py `
   --inventory docs/SQL2_ColumnInventory.csv `
@@ -95,59 +108,17 @@ python SQL/QC_Schema/tools/gen_schema_constraints.py `
   --out SQL/QC_Schema/03_Generated_From_DB57_Constraints.sql `
   --report SQL/QC_Schema/04_SQL2_Metadata_Gaps.md `
   --strict-dependencies
+python SQL/QC_Schema/tools/sql_batch_check.py --files `
+  SQL/QC_Schema/02_Generated_From_DB57.sql `
+  SQL/QC_Schema/03_Generated_From_DB57_Constraints.sql
 ```
 
-To verify without modifying files, append `--check`. This is a static comparison only; SQL Server deployment verification runs in the disposable CI database.
+Chỉ kiểm chứng triển khai trên SQL Server disposable. Không chạy generated/candidate DDL lên DB57
+hoặc production.
 
-## DB57 schema coverage: authoritative inputs and scope
+## Legacy YMVN ghép LOT
 
-`docs/SQL.text` is a historical/lossy export and MUST NOT be used to decide whether a DB57
-object or column exists. It is retained only as legacy comparison material. In particular,
-its missing/malformed DDL can create both false missing-object findings and false confidence
-about columns/types; it is not a schema baseline.
-
-The coverage scanner now uses:
-- `docs/SQL2_ColumnInventory.csv` for dbo user-table and column metadata;
-- `SQL/Result_Export_SQL2_Complete_DDL_Metadata.txt` for dbo procedures, views, functions,
-  triggers, indexes, foreign keys and CHECK constraints;
-- repository SQL scripts and C# SQL literals for Git/code references.
-
-An object absent from the SQL2 snapshot is reported as `GAP-db57-unverified`, not as
-"does not exist on DB57". Dynamic/customer-suffixed names, non-dbo objects, linked-server
-objects, synonyms, and incomplete export scope require explicit verification.
-
-The disposable CI database is not a byte-for-byte/full-feature clone of DB57, but its table
-baseline now includes **all dbo user tables in the SQL2 column inventory** (550 tables in the
-current snapshot), not merely the former 19-table WMS allowlist. It includes no business data,
-non-dbo schemas, all 2,345 SQL modules, SQL Agent jobs, permissions or linked-server setup.
-Transitive dbo FK dependencies are also traced from code-referenced tables and reported as
-`GAP-fk-dependency`; in the all-dbo baseline, their target tables are already part of the
-generated scope. Any FK/index dependency that cannot be reconstructed is a strict CI blocker.
-
-Regenerate the checked-in coverage snapshot locally before using it as an input:
-
-```powershell
-python SQL/QC_Schema/tools/schema_coverage.py --out docs/SCHEMA_COVERAGE --check
-```
-
-CI regenerates coverage into its runner temp directory and uses that same CSV to generate
-both `02_Generated_From_DB57.sql` and `03_Generated_From_DB57_Constraints.sql` for the full dbo table baseline before
-deployment. This prevents a stale `docs/SCHEMA_COVERAGE.csv` snapshot from controlling CI.
-
-## SQL2 metadata completion (keys, indexes, checks, relationships)
-
-The CI-deployed source of truth is `tools/gen_schema_constraints.py`. It consumes the complete SSMS metadata export and generates `03_Generated_From_DB57_Constraints.sql` plus `04_SQL2_Metadata_Gaps.md`. CI runs this generator with `--check`, deploys the generated SQL only after `02_Generated_From_DB57.sql`, and executes post-deployment assertions in disposable SQL Server.
-
-```powershell
-python .\SQL\QC_Schema\tools\gen_schema_constraints.py --metadata .\SQL\Result_Export_SQL2_Complete_DDL_Metadata.txt --coverage .\docs\SCHEMA_COVERAGE.csv --out .\SQL\QC_Schema\03_Generated_From_DB57_Constraints.sql --report .\SQL\QC_Schema\04_SQL2_Metadata_Gaps.md
-```
-
-The supplementary `tools/gen_constraints_from_metadata.py` is an audit/candidate generator. It inventories DEFAULT definitions and module names/types in JSON and can produce a candidate DDL for manual comparison; its output is **not** deployed by CI. If you run it, use a clearly separate candidate filename:
-
-```powershell
-python .\SQL\QC_Schema\tools\gen_constraints_from_metadata.py --metadata .\SQL\Result_Export_SQL2_Complete_DDL_Metadata.txt --coverage .\docs\SCHEMA_COVERAGE.csv --out .\SQL\QC_Schema\03_Generated_Constraints_From_DB57.candidate.sql --report .\SQL\QC_Schema\SQL2_Metadata_Review_Report.json
-```
-
-The previously identified FK from `sys_WorkflowTransitions` to `sys_WorkflowStatuses` is now included through transitive FK dependency closure when both tables are present in the SQL2 dbo column inventory. CI runs with `--strict-dependencies`: any FK/index dependency that cannot be reconstructed is a blocker, not a successful partial restore. Disabled/untrusted states are preserved and checked. Module bodies, permissions, SQL Agent jobs, synonyms, linked-server dependencies and other non-exported metadata still require separate review.
-
-All SQL2-derived DDL must be tested only in disposable CI SQL Server. Never apply generated or candidate DDL to DB57 or production.
+Schema mismatch của `GIAOHANGYMN.CMD_INGHEPLOT_Click` được ghi riêng tại
+`docs/LEGACY_YMVN_GHEPLOT_GAP.md`. Không thêm cột vào DB57 để làm cho legacy SQL cũ chạy;
+nếu form được tái kích hoạt phải migrate sang contract DB57 hiện có và bổ sung SQL integration
+coverage.
