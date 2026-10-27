@@ -70,29 +70,58 @@ namespace PCTP.QRCODE_HVN
                 return;
             }
 
-            // 3. Reset trạng thái — parameterized, không còn nối chuỗi.
-            sqlBRV.ExecuteNonQuery(sqlBRV.B7R2_FCCdb,
-                "UPDATE TMPPHIEUGIAOHANG SET LOT = '' WHERE MAHANG = @MaHang",
-                new SqlParameter("@MaHang", SqlDbType.NVarChar, 100) { Value = _MH });
-
-            sqlBRV.ExecuteNonQuery(sqlBRV.B7R2_FCCdb,
-                "UPDATE DOCQRCODE SET KETQUA = 'OK' WHERE KETQUA = 'DG'");
-
-            // 4. Gán LOT tăng dần cho từng dòng được chọn — giữ đúng thứ tự
-            //    duyệt (i tăng dần) và logic tăng LOT như bản gốc.
+            // Reset and reassign LOT in one transaction. Scope the DOCQRCODE
+            // reset to the selected item so another user's item is not affected.
             double lot = double.Parse(LOTBD.Text.Trim());
-
-            for (int i = 0; i < gridVSUALOTHVN.RowCount; i++)
+            using (SqlConnection connection = new SqlConnection(sqlBRV.B7R2_FCCdb))
             {
-                if (!gridVSUALOTHVN.IsRowSelected(i)) continue;
+                connection.Open();
+                using (SqlTransaction transaction = connection.BeginTransaction())
+                {
+                    try
+                    {
+                        using (SqlCommand resetTmp = new SqlCommand(
+                            "UPDATE TMPPHIEUGIAOHANG SET LOT = '' WHERE MAHANG = @MaHang",
+                            connection, transaction))
+                        {
+                            resetTmp.Parameters.Add("@MaHang", SqlDbType.NVarChar, 100).Value = _MH ?? string.Empty;
+                            resetTmp.ExecuteNonQuery();
+                        }
 
-                int stt = Convert.ToInt32(gridVSUALOTHVN.GetRowCellValue(i, "STT"));
-                lot += 1;
+                        using (SqlCommand resetQr = new SqlCommand(
+                            "UPDATE DOCQRCODE SET KETQUA = 'OK' WHERE KETQUA = 'DG' AND MAHANGFCC = @MaHang",
+                            connection, transaction))
+                        {
+                            resetQr.Parameters.Add("@MaHang", SqlDbType.NVarChar, 100).Value = _MH ?? string.Empty;
+                            resetQr.ExecuteNonQuery();
+                        }
 
-                sqlBRV.ExecuteNonQuery(sqlBRV.B7R2_FCCdb,
-                    "UPDATE DOCQRCODE SET SUALOTHVN = @LotMoi, KETQUA = 'OK' WHERE STT = @Stt",
-                    new SqlParameter("@LotMoi", SqlDbType.NVarChar, 50) { Value = lot.ToString() },
-                    new SqlParameter("@Stt", SqlDbType.Int) { Value = stt });
+                        for (int i = 0; i < gridVSUALOTHVN.RowCount; i++)
+                        {
+                            if (!gridVSUALOTHVN.IsRowSelected(i)) continue;
+                            int stt = Convert.ToInt32(gridVSUALOTHVN.GetRowCellValue(i, "STT"));
+                            lot += 1;
+                            using (SqlCommand updateQr = new SqlCommand(
+                                "UPDATE DOCQRCODE SET SUALOTHVN = @LotMoi, KETQUA = 'OK' WHERE STT = @Stt AND MAHANGFCC = @MaHang",
+                                connection, transaction))
+                            {
+                                updateQr.Parameters.Add("@LotMoi", SqlDbType.NVarChar, 50).Value = lot.ToString();
+                                updateQr.Parameters.Add("@Stt", SqlDbType.Int).Value = stt;
+                                updateQr.Parameters.Add("@MaHang", SqlDbType.NVarChar, 100).Value = _MH ?? string.Empty;
+                                if (updateQr.ExecuteNonQuery() != 1)
+                                    throw new InvalidOperationException("Không cập nhật được đúng một dòng DOCQRCODE cho STT " + stt + ".");
+                            }
+                        }
+
+                        transaction.Commit();
+                    }
+                    catch
+                    {
+                        try { transaction.Rollback(); }
+                        catch { /* Preserve the original exception. */ }
+                        throw;
+                    }
+                }
             }
 
             LOTBD.Text = lot.ToString();
