@@ -88,3 +88,19 @@ python SQL/QC_Schema/tools/gen_schema_constraints.py `
 ```
 
 To verify without modifying files, append `--check`. This is a static comparison only; SQL Server deployment verification runs in the disposable CI database.
+
+## SQL2 metadata completion (keys, indexes, checks, relationships)
+
+The column generator emits the reviewed 19-table allow-list. The companion `tools/gen_constraints_from_metadata.py` consumes the full SSMS fixed-width metadata export and emits a second-stage DDL file plus a JSON review report:
+
+```powershell
+python .\SQL\QC_Schema\tools\gen_constraints_from_metadata.py --metadata .\SQL\Result_Export_SQL2_Complete_DDL_Metadata.txt --coverage .\docs\SCHEMA_COVERAGE.csv --out .\SQL\QC_Schema\03_Generated_Constraints_From_DB57.sql --report .\SQL\QC_Schema\SQL2_Metadata_Review_Report.json
+python -m unittest discover -s .\SQL\QC_Schema\tools -p "test_gen_constraints_from_metadata.py" -v
+```
+
+The generator preserves composite key order, descending keys and included columns; it emits PKs, unique constraints/indexes, regular indexes, CHECKs and only FKs whose source and referenced tables are both allow-listed. FKs pointing outside that scope are written to the review report, not silently created. Filtered/disabled indexes and disabled/untrusted constraints stop generation for manual review.
+
+DEFAULT metadata is inventory-only because `02_Generated_From_DB57.sql` already emits column defaults; compare the report against the generated table DDL. Module names/types are inventoried, but module bodies are not regenerated from the SSMS text export because multiline/truncated definitions need a verified source. Review duplicate unique constraints/indexes for intentionality.
+
+This is static schema generation, not proof that SQL Server accepts the DDL or that the complete dependency graph is restored. Apply `03_Generated_Constraints_From_DB57.sql` only after tables exist, in a disposable CI SQL Server database. Never deploy this output to DB57 (`192.168.200.57`) or production (`192.168.200.14\BRAVO`).
+
