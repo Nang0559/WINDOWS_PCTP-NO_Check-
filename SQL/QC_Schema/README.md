@@ -57,7 +57,7 @@ Example (run locally against the uploaded SQL2 export; do not deploy to DB57):
 
 ```powershell
 python SQL/QC_Schema/tools/gen_schema_from_inventory.py `
-  --inventory "C:\path\to\SQL2.txt" `
+  --inventory "docs\\SQL2_ColumnInventory.csv" `
   --coverage docs/SCHEMA_COVERAGE.csv `
   --type-map SQL/QC_Schema/tools/sql2-db57-verified-type-map.json `
   --out SQL/QC_Schema/02_Generated_From_DB57.sql
