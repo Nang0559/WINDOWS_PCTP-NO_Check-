@@ -181,7 +181,7 @@
       "scenario": "Real SQL Server run of DeliveryStockCommandHandler with the real ledger repository and TMP pending gate: replay, duplicate QR, rollback of stock+ledger+QR+TMP+scan rows, two sessions on one BusinessKey and on one QR",
       "expected": "One physical mutation per BusinessKey and per QR; failed command leaves no partial row; DG scan rows archived per PART (F-Y1); migration idempotent",
       "status": "partial",
-      "testEvidence": "PCTP.QC.SqlIntegration.DeliveryCommandSqlScenario (job sql-engine-integration, --engine-only). Stock is a SQL fixture, not KhoCore; marked partial until a green CI run on the exact SHA is recorded in WMS_RELEASE_GATE.md and P4/A0 are closed."
+      "testEvidence": "PCTP.QC.SqlIntegration.DeliveryCommandSqlScenario (job sql-engine-integration, --engine-only). Runs on the DB57-derived dbo tables from SQL/QC_Schema/01_Tables.sql incl. real UQ_LUUPHIEU (the G3 step was green in CI for the previous version; re-verify on the new SHA). Stock is a SQL fixture, not KhoCore; marked partial until a green CI run on the exact SHA is recorded in WMS_RELEASE_GATE.md and P4/A0 are closed."
     },
     {
       "id": "DEL-CMD-001",

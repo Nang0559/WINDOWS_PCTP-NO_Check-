@@ -129,6 +129,18 @@ jobs:
           docker exec "$c" /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'PctpQc_CI_Only_2026!' -C -b \
             -Q "IF DB_ID(N'PCTP_QC_CI') IS NULL CREATE DATABASE PCTP_QC_CI;"
 
+      - name: Prepare CI copies of the delivery procedures (strip USE [B7R2_FCC], no database access)
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Take_Lot2405 / Take_LotYMVN2405 start with "USE [B7R2_FCC]" (DB57 name). The production scripts stay
+          # untouched; only the CI copies drop that line so the deploy cannot leave PCTP_QC_CI.
+          mkdir -p "$RUNNER_TEMP/deploy"
+          for n in Usp_Qrcode_LOAD_PHIEU_DOCQR2405 Usp_Qrcode_Take_Lot2405 Usp_Qrcode_Take_LotYMVN2405; do
+            sed -E '/^[[:space:]]*USE[[:space:]]+\[B7R2_FCC\][[:space:]]*\r?$/d' "SQL/$n.sql" > "$RUNNER_TEMP/deploy/$n.sql"
+          done
+          ls -l "$RUNNER_TEMP/deploy"
+
       - name: Static batch simulation of the schema deploy files (no database access)
         shell: bash
         run: |
@@ -138,6 +150,9 @@ jobs:
             --files SQL/QC_Schema/01_Tables.sql SQL/QC_Schema/05_Split.sql \
                     SQL/Usp_Qrcode_Update_Stock2405.sql SQL/Usp_Qrcode_Update_Stock_SP.sql \
                     SQL/sp_GetCurrentStockStatus.sql \
+                    "$RUNNER_TEMP/deploy/Usp_Qrcode_LOAD_PHIEU_DOCQR2405.sql" \
+                    "$RUNNER_TEMP/deploy/Usp_Qrcode_Take_Lot2405.sql" \
+                    "$RUNNER_TEMP/deploy/Usp_Qrcode_Take_LotYMVN2405.sql" \
                     SQL/QC_G4_DeliveryFixture_Seed.sql SQL/QC_G4_DeliveryFixture_Cleanup.sql \
             --export docs/SQL.text --reference SQL/QC_Schema/01_Tables.sql
 
@@ -157,12 +172,15 @@ jobs:
             SQL/QC_Schema/05_Split.sql \
             SQL/Usp_Qrcode_Update_Stock2405.sql \
             SQL/Usp_Qrcode_Update_Stock_SP.sql \
-            SQL/sp_GetCurrentStockStatus.sql; do
+            SQL/sp_GetCurrentStockStatus.sql \
+            "$RUNNER_TEMP/deploy/Usp_Qrcode_LOAD_PHIEU_DOCQR2405.sql" \
+            "$RUNNER_TEMP/deploy/Usp_Qrcode_Take_Lot2405.sql" \
+            "$RUNNER_TEMP/deploy/Usp_Qrcode_Take_LotYMVN2405.sql"; do
             echo "INFO: deploying $f"
             docker cp "$f" "$c:/tmp/$(basename "$f")"
             docker exec "$c" /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'PctpQc_CI_Only_2026!' -C -b -d PCTP_QC_CI -i "/tmp/$(basename "$f")"
           done
-          echo "PASS: DB57-derived schema and checked-in WMS procedures deployed to PCTP_QC_CI"
+          echo "PASS: DB57-derived schema and the six checked-in WMS procedures deployed to PCTP_QC_CI"
 
       - name: Seed deterministic G4 fixture
         shell: bash

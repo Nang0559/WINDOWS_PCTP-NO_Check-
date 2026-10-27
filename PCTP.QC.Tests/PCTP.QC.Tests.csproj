@@ -46,6 +46,10 @@
     <None Include="../PCTP/Modules/GiaoHangKhach/Repositories/PhieuLuuTruRepository.cs" Link="PhieuLuuTruRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/GiaoHangKhach/Repositories/PhieuGiaoDBRepository.cs" Link="PhieuGiaoDBRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/KhoCore/Repositories/RackRepository.cs" Link="RackRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP.QC.SqlIntegration/Program.cs" Link="SqlIntegrationProgram.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../.github/workflows/pctp-qc-tests.yml" Link="pctp-qc-tests.workflow.yml" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../SQL/Usp_Qrcode_Take_Lot2405.sql" Link="Usp_Qrcode_Take_Lot2405.source.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../SQL/Usp_Qrcode_Take_LotYMVN2405.sql" Link="Usp_Qrcode_Take_LotYMVN2405.source.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/XuLyHangLoi/Repository/PhieuXuLyBatThuongRepository.cs" Link="PhieuXuLyBatThuongRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../SQL/sp_GetCurrentStockStatus.sql" Link="sp_GetCurrentStockStatus.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/GiaoHangKhach/Repositories/PhieuKhoRepository.cs" Link="PhieuKhoRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />
