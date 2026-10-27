@@ -45,9 +45,14 @@ namespace PCTP.QRCODE_HVN.PGH
        
         private void load()
         {
-            string MH = label2.Text;
-            string sql = "select LOT,slconlai from stocktp where part =  '" + MH.Trim() + "' and slconlai >0";
-            DataTable DML = sqlBRV.LoadData1(sqlBRV.B7R2_FCCdb, sql);
+            const string sql = @"
+SELECT LOT, slconlai
+FROM stocktp
+WHERE part = @Part AND slconlai > 0;";
+            DataTable DML = sqlBRV.LoadData1(
+                sqlBRV.B7R2_FCCdb,
+                sql,
+                new SqlParameter("@Part", SqlDbType.NVarChar, 100) { Value = (label2.Text ?? string.Empty).Trim() });
             lookUpEdit1.Properties.DataSource = DML;
             lookUpEdit1.Properties.ValueMember = "slconlai";
             lookUpEdit1.Properties.DisplayMember = "LOT";
@@ -97,9 +102,9 @@ WHERE stt = @Stt;";
                 else
                     XtraMessageBox.Show("Error");
             }
-            catch (Exception m)
+            catch
             {
-                throw m;
+                throw;
             }
         }
 
