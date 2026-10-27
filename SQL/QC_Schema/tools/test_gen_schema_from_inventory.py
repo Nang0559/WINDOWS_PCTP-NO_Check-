@@ -53,6 +53,49 @@ class Sql2DdlGeneratorTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "verified --type-map"):
             gen.render(self.inventory, self.coverage)
 
+    def test_reads_csv_column_inventory_and_preserves_quoted_comma_expressions(self):
+        csv_inventory = self.root / "SQL2_ColumnInventory.csv"
+        fields = ["SchemaName", "TableName", "type_desc", "column_id", "ColumnName",
+                  "DataType", "MaxChars", "precision", "scale", "is_nullable",
+                  "is_identity", "seed_value", "increment_value", "is_computed",
+                  "ComputedDefinition", "DefaultDefinition"]
+        rows = [
+            {"SchemaName": "dbo", "TableName": "FVN_Test", "type_desc": "USER_TABLE",
+             "column_id": "1", "ColumnName": "Id", "DataType": "int", "MaxChars": "4",
+             "precision": "10", "scale": "0", "is_nullable": "0", "is_identity": "1",
+             "seed_value": "1", "increment_value": "1", "is_computed": "0",
+             "ComputedDefinition": "", "DefaultDefinition": ""},
+            {"SchemaName": "dbo", "TableName": "FVN_Test", "type_desc": "USER_TABLE",
+             "column_id": "2", "ColumnName": "Amount", "DataType": "numeric",
+             "MaxChars": "9", "precision": "15", "scale": "4", "is_nullable": "1",
+             "is_identity": "0", "seed_value": "", "increment_value": "",
+             "is_computed": "1", "ComputedDefinition": "(CONVERT(numeric(15,4), [Id] * 1.0))",
+             "DefaultDefinition": ""},
+        ]
+        with csv_inventory.open("w", encoding="utf-8", newline="") as stream:
+            writer = csv.DictWriter(stream, fieldnames=fields)
+            writer.writeheader()
+            writer.writerows(rows)
+        sql = gen.render(csv_inventory, self.coverage)
+        self.assertIn("[Id] int IDENTITY(1,1) NOT NULL", sql)
+        self.assertIn("[Amount] AS (CONVERT(numeric(15,4), [Id] * 1.0))", sql)
+
+    def test_csv_inventory_rejects_non_dbo_only_table(self):
+        csv_inventory = self.root / "SQL2_ColumnInventory.csv"
+        fields = ["SchemaName", "TableName", "type_desc", "column_id", "ColumnName",
+                  "DataType", "MaxChars", "precision", "scale", "is_nullable",
+                  "is_identity", "seed_value", "increment_value", "is_computed",
+                  "ComputedDefinition", "DefaultDefinition"]
+        with csv_inventory.open("w", encoding="utf-8", newline="") as stream:
+            writer = csv.DictWriter(stream, fieldnames=fields)
+            writer.writeheader()
+            writer.writerow({"SchemaName": "other", "TableName": "FVN_Test",
+                             "type_desc": "USER_TABLE", "column_id": "1", "ColumnName": "Id",
+                             "DataType": "int", "MaxChars": "4", "precision": "10", "scale": "0",
+                             "is_nullable": "0", "is_identity": "0", "is_computed": "0"})
+        with self.assertRaisesRegex(ValueError, "absent from SQL2"):
+            gen.render(csv_inventory, self.coverage)
+
     def test_allowlist_rejects_table_missing_from_metadata(self):
         self.coverage.write_text(
             "object,kind,on_db57_export,class\nMissingTable,table,có,GAP-no-git-ddl\n",
