@@ -18,6 +18,13 @@ SET NOCOUNT ON;
 IF DB_NAME() <> N'B7R2_FCC'
     THROW 51015, N'Sai database. Script nay chi danh cho B7R2_FCC tren DB test.', 1;
 
+-- Allowlist theo dia chi IP thuc cua SQL Server, khong chi dua vao ten alias/instance.
+-- QC-CNC\\BRV chua du de ket luan la DB57; phai xac nhan local_net_address = 192.168.200.57.
+DECLARE @SqlServerIp nvarchar(48) = CONVERT(nvarchar(48), CONNECTIONPROPERTY('local_net_address'));
+
+IF @SqlServerIp IS NULL OR @SqlServerIp <> N'192.168.200.57'
+    THROW 51015, N'Chan deploy: chi cho phep SQL Server co local_net_address = 192.168.200.57 (DB test DB57).', 1;
+
 IF UPPER(COALESCE(CONVERT(nvarchar(256), SERVERPROPERTY('ServerName')), @@SERVERNAME)) LIKE N'%BRAVO%'
     THROW 51015, N'Chan deploy: server BRAVO duoc xem la production. Khong duoc retire proc tai day.', 1;
 
