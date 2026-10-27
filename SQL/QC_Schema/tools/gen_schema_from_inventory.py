@@ -70,10 +70,6 @@ def load_columns(path: Path):
                              + ", ".join(sorted(required - set(found))))
         # This generator emits dbo-qualified objects only. Fail rather than silently
         # generating dbo tables from metadata exported from another schema.
-        schemas_by_table = defaultdict(set)
-        for row in rows:
-            if row.get("type_desc") == "USER_TABLE" and row.get("TableName"):
-                schemas_by_table[row["TableName"].casefold()].add(row.get("SchemaName", ""))
         rows = [row for row in rows if row.get("SchemaName", "").casefold() == "dbo"]
     else:
         rows = list(fixed_width_rows(path, "TableName"))
