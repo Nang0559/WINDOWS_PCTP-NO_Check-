@@ -159,7 +159,8 @@ jobs:
             --metadata SQL/Result_Export_SQL2_Complete_DDL_Metadata.txt \
             --coverage "$RUNNER_TEMP/schema_coverage.csv" \
             --out SQL/QC_Schema/03_Generated_From_DB57_Constraints.sql \
-            --report SQL/QC_Schema/04_SQL2_Metadata_Gaps.md
+            --report SQL/QC_Schema/04_SQL2_Metadata_Gaps.md \
+            --strict-dependencies
           python3 SQL/QC_Schema/tools/sql_batch_check.py \
             --files SQL/QC_Schema/01_Tables.sql \
                     SQL/QC_Schema/02_Generated_From_DB57.sql \
