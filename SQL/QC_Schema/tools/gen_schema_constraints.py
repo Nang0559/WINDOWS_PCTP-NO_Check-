@@ -103,6 +103,7 @@ def generate(metadata: str, allowed: set[tuple[str, str]]) -> tuple[str, str, di
     counts = {"tables": len(allowed), "indexes": 0, "primary_keys": 0,
               "unique_constraints": 0, "foreign_keys": 0, "checks": 0}
     manual = []
+    verify = []
 
     idx_groups = group_rows(selected_indexes, ["SchemaName", "TableName", "IndexName"])
     for (schema, table, name), rows in sorted(idx_groups.items(), key=lambda item: tuple(x.casefold() for x in item[0])):
@@ -144,6 +145,7 @@ def generate(metadata: str, allowed: set[tuple[str, str]]) -> tuple[str, str, di
             counts["indexes"] += 1
         if first.get("IsDisabled") == "1":
             output.append(f"ALTER INDEX {qname} ON {qtable} DISABLE;")
+        verify.append(f"IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID({literal(schema + '.' + table)}) AND name = {literal(name)}) THROW 52301, N'Missing index/constraint {schema}.{table}.{name}', 1;")
         output += ["GO", ""]
 
     fk_groups = group_rows(selected_fks, ["ParentSchema", "ParentTable", "ForeignKeyName"])
@@ -176,6 +178,7 @@ def generate(metadata: str, allowed: set[tuple[str, str]]) -> tuple[str, str, di
         elif not untrusted:
             output.append(f"ALTER TABLE {qparent} WITH CHECK CHECK CONSTRAINT {qname};")
         counts["foreign_keys"] += 1
+        verify.append(f"IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE parent_object_id = OBJECT_ID({literal(ps + '.' + pt)}) AND name = {literal(name)}) THROW 52302, N'Missing FK {ps}.{pt}.{name}', 1;")
         output += ["GO", ""]
 
     for row in sorted(selected_checks, key=lambda r: (r["SchemaName"].casefold(), r["TableName"].casefold(), r["ConstraintName"].casefold())):
@@ -195,7 +198,11 @@ def generate(metadata: str, allowed: set[tuple[str, str]]) -> tuple[str, str, di
         elif not untrusted:
             output.append(f"ALTER TABLE {qtable} WITH CHECK CHECK CONSTRAINT {qname};")
         counts["checks"] += 1
+        verify.append(f"IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE parent_object_id = OBJECT_ID({literal(schema + '.' + table)}) AND name = {literal(name)}) THROW 52303, N'Missing CHECK {schema}.{table}.{name}', 1;")
         output += ["GO", ""]
+
+    output += ["-- Post-deployment metadata assertions: fail CI if any expected object is absent.", "GO", *verify,
+               "SELECT N'PASS: generated SQL2 keys/indexes/FKs/CHECK constraints verified' AS Result;", "GO", ""]
 
     report = [
         "# SQL2 metadata coverage / unresolved dependencies", "",
