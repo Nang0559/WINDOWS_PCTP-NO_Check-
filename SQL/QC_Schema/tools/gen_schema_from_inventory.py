@@ -172,7 +172,7 @@ def sql_type(row, type_map):
     return t
 
 
-def sql_sql_literal(value):
+def sql_literal(value):
     return "N'" + str(value).replace("'", "''") + "'"
 
 
