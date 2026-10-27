@@ -18,7 +18,8 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..')
 EXPORT = os.path.join(ROOT, 'docs', 'SQL.text')
 INVENTORY = os.path.join(ROOT, 'docs', 'PCTP_SQL_Runtime_Inventory_A-K.csv')
 CI_BASE_FILES = [
-    'SQL/QC_Schema/01_Tables.sql', 'SQL/QC_Schema/05_Split.sql',
+    'SQL/QC_Schema/01_Tables.sql', 'SQL/QC_Schema/02_Generated_From_DB57.sql',
+    'SQL/QC_Schema/03_Generated_From_DB57_Constraints.sql', 'SQL/QC_Schema/05_Split.sql',
     'SQL/Usp_Qrcode_Update_Stock2405.sql', 'SQL/Usp_Qrcode_Update_Stock_SP.sql',
     'SQL/sp_GetCurrentStockStatus.sql',
 ]
