@@ -67,7 +67,7 @@ def csv_rows(path: Path):
                    for k, v in raw.items() if k is not None}
 
 
-def load_columns(path: Path):
+def load_columns(path: Path, table_filter: set[str] | None = None):
     required = {"TableName", "type_desc", "column_id", "ColumnName", "DataType", "MaxChars",
                 "precision", "scale", "is_nullable", "is_identity", "seed_value",
                 "increment_value", "is_computed", "ComputedDefinition", "DefaultDefinition"}
@@ -105,10 +105,12 @@ def load_columns(path: Path):
     if not required.issubset(rows[0]):
         raise ValueError("SQL2 column metadata header is incomplete: " + ", ".join(sorted(required)))
     tables = defaultdict(list)
+    allowed_names = {name.casefold() for name in table_filter} if table_filter is not None else None
     for row in rows:
         if row.get("type_desc") != "USER_TABLE":
             continue
-        if row.get("TableName") and row.get("ColumnName") and row.get("column_id", "").isdigit():
+        if (row.get("TableName") and row.get("ColumnName") and row.get("column_id", "").isdigit()
+                and (allowed_names is None or row["TableName"].casefold() in allowed_names)):
             tables[row["TableName"].casefold()].append(row)
     for columns in tables.values():
         columns.sort(key=lambda row: int(row["column_id"]))
@@ -187,8 +189,10 @@ def safe_expression(value, table, column, kind):
 
 
 def render(inventory: Path, coverage: Path, type_map_path: Path | None = None):
-    columns_by_table = load_columns(inventory)
     allowlist = load_allowlist(coverage)
+    # Parse/store only PCTP runtime tables + verified FK dependencies, not every
+    # unrelated dbo table present in the shared B7R2_FCC metadata export.
+    columns_by_table = load_columns(inventory, set(allowlist))
     missing = sorted(set(allowlist) - set(columns_by_table))
     if missing:
         raise ValueError("allow-listed tables absent from SQL2 column metadata: " + ", ".join(missing))
