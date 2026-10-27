@@ -41,3 +41,36 @@ The CI connection is expected to be:
 `127.0.0.1,1433 / PCTP_QC_CI`
 
 The workflow sets `PCTP_QC_ALLOW_EPHEMERAL_SQL=true` and `PCTP_QC_REQUIRE_EPHEMERAL_SQL=true`. The test policy rejects production DB14 and, in CI-required-ephemeral mode, rejects DB57 as well.
+
+
+## SQL2 metadata to reviewed DDL
+
+The SQL2 upload can be used as a *metadata input*, not as a complete, executable schema export.
+The repository now includes `tools/gen_schema_from_inventory.py`. It reads the fixed-width
+object/column metadata, selects only rows classified as `GAP-no-git-ddl` + `table` +
+`on_db57_export=có` in `docs/SCHEMA_COVERAGE.csv`, and emits idempotent table-column DDL
+for the selected scope. It preserves column order, SQL built-in types and lengths, nullability,
+identity seed/increment, computed expressions and default expressions.
+
+Example (run locally against the uploaded SQL2 export; do not deploy to DB57):
+
+```powershell
+python SQL/QC_Schema/tools/gen_schema_from_inventory.py `
+  --inventory "C:\path\to\SQL2.txt" `
+  --coverage docs/SCHEMA_COVERAGE.csv `
+  --out SQL/QC_Schema/02_Generated_From_DB57.sql
+```
+
+**Fail-closed behavior is intentional.** SQL2 shows user-defined aliases such as
+`LongCodeType`, `CodeType`, `QuantityType`, `MoneyType`, `PercentageType`,
+`ExchangeRateType`, and `UniqueKeyType`, but this export does not supply verified
+`CREATE TYPE` definitions for them. The generator refuses to guess their base type.
+Supply a reviewed JSON type map only after obtaining the exact definitions from a trusted
+schema source, for example `{"longcodetype":"nvarchar(20)"}` only if that mapping is verified.
+
+The generated file is deliberately **not yet treated as production-ready DDL**: the SQL2
+column section does not provide a complete structured set of PK/unique indexes, FKs, CHECK
+constraints, triggers or permissions. Those must be imported from a complete schema export
+or added as reviewed migrations. The generator's unit tests run in the existing static
+schema-check step; they require no SQL Server connection. No SQL2-derived DDL is automatically
+deployed to DB57 or production.
