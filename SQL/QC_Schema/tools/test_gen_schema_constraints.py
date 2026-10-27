@@ -110,8 +110,8 @@ class SchemaConstraintGeneratorTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             coverage = Path(tmp) / "coverage.csv"
             coverage.write_text(
-                "object,kind,on_db57_export,git_ddl_files,class,in_runtime_inventory\\n"
-                "UnrelatedDb57Table,table,có,,GAP-db57-baseline,không\\n",
+                "object,kind,on_db57_export,git_ddl_files,class,in_runtime_inventory\n"
+                "UnrelatedDb57Table,table,có,,GAP-db57-baseline,không\n",
                 encoding="utf-8")
             self.assertEqual(gen.load_scope(coverage), set())
 
