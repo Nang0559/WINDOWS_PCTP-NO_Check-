@@ -70,11 +70,8 @@ python SQL/QC_Schema/tools/gen_schema_from_inventory.py `
 Supply a reviewed JSON type map only after obtaining the exact definitions from a trusted
 schema source, for example `{"longcodetype":"nvarchar(20)"}` only if that mapping is verified.
 
-CSV must be exported as actual CSV (not copied fixed-width text) with headers `SchemaName`, `TableName`, `type_desc`, `column_id`, `ColumnName`, `DataType`, `MaxChars`, `precision`, `scale`, `is_nullable`, `is_identity`, `seed_value`, `increment_value`, `is_computed`, `ComputedDefinition`, and `DefaultDefinition`. The generator currently emits `dbo` tables only and fails closed if an allow-listed table is absent from that schema. `MaxChars` is SQL Server `sys.columns.max_length` in bytes; the generator converts Unicode string lengths to characters.\n\nThe generated file is deliberately **not yet treated as production-ready DDL**: the SQL2
-column section does not provide a complete structured set of PK/unique indexes, FKs, CHECK
-constraints, triggers or permissions. Run the read-only `Export_SQL2_Complete_DDL_Metadata.sql`
-in the authorized DB57/B7R2_FCC context to export the missing metadata as separate result sets;
-this query contains SELECTs only and does not change the database. Keep those exports as review
-inputs, then add constraints through a separate reviewed migration. The generator's unit tests
-run in the existing static schema-check step; they require no SQL Server connection. No SQL2-derived
-DDL is automatically deployed to DB57 or production.
+CSV must be exported as actual CSV (not copied fixed-width text) with headers `SchemaName`, `TableName`, `type_desc`, `column_id`, `ColumnName`, `DataType`, `MaxChars`, `precision`, `scale`, `is_nullable`, `is_identity`, `seed_value`, `increment_value`, `is_computed`, `ComputedDefinition`, and `DefaultDefinition`. The generator emits `dbo` tables only and fails closed if an allow-listed table is absent from that schema. `MaxChars` is SQL Server `sys.columns.max_length` in bytes; the generator converts Unicode string lengths to characters.
+
+The complete read-only metadata export is now used to generate `03_Generated_From_DB57_Constraints.sql`, which restores primary keys, unique constraints, ordinary/filtered indexes, foreign keys whose referenced tables are inside the allowlist, and CHECK constraints. DEFAULT expressions remain inline in `02_Generated_From_DB57.sql` and are not duplicated. The accompanying `04_SQL2_Metadata_Gaps.md` lists foreign keys intentionally omitted because their referenced tables are outside the generated scope; currently `sys_WorkflowTransitions` references `sys_WorkflowStatuses`, so that dependency remains explicit and unresolved. SQL modules, permissions, triggers and runtime dependencies still require separate review.
+
+CI runs the Python unit tests and static SQL batch simulation, deploys `01_Tables.sql`, `02_Generated_From_DB57.sql`, and `03_Generated_From_DB57_Constraints.sql` only into the disposable GitHub-hosted SQL Server database `PCTP_QC_CI`, and the generated constraints script throws if any expected index/key/FK/CHECK object is missing. No SQL2-derived DDL is deployed to DB57 or production. After regenerating `docs/SCHEMA_COVERAGE.csv`, the generators preserve their explicit scope by selecting rows whose `git_ddl_files` contains `SQL/QC_Schema/02_Generated_From_DB57.sql`.
