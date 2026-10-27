@@ -34,8 +34,18 @@ internal static class Program
                 Console.WriteLine("INFO: ephemeral SQL engine mode; business-schema preflight is intentionally skipped. Only isolated tempdb/session fixtures will be used.");
                 Console.WriteLine("INFO: executing active QR-to-STT LOT procedure against disposable dbo fixtures...");
                 await DeliveryQrAllocationScenario.RunAsync(connectionString);
-                Console.WriteLine("INFO: running production XuLyHangLoi repositories against disposable dbo fixtures...");
-                await ProductionReworkRepositorySqlScenario.RunAsync(connectionString);
+                var reworkFixtureConnection = Environment.GetEnvironmentVariable("PCTP_QC_REWORK_FIXTURE_CONNECTION");
+                if (string.IsNullOrWhiteSpace(reworkFixtureConnection))
+                {
+                    Console.WriteLine("INFO: running production XuLyHangLoi repositories against disposable dbo fixtures...");
+                    await ProductionReworkRepositorySqlScenario.RunAsync(connectionString);
+                }
+                else
+                {
+                    TestEnvironmentPolicy.EnsureSafeSqlFixtureTarget(reworkFixtureConnection);
+                    Console.WriteLine($"INFO: running production XuLyHangLoi repositories against isolated fixture database {TestEnvironmentPolicy.DescribeTarget(reworkFixtureConnection)}...");
+                    await ProductionReworkRepositorySqlScenario.RunAsync(reworkFixtureConnection);
+                }
                 Console.WriteLine("INFO: running delivery stock command (B0-01) against disposable dbo ledger + tempdb fixtures...");
                 await DeliveryCommandSqlScenario.RunAsync(connectionString);
             }
