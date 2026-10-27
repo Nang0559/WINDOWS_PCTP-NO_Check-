@@ -71,14 +71,10 @@ metadata gap cần bổ sung nếu cần parity tuyệt đối.
 ### 2. Constraint/index DDL
 
 `tools/gen_schema_constraints.py` sinh `03_Generated_From_DB57_Constraints.sql` và
-`04_SQL2_Metadata_Gaps.md`. Script tái tạo:
-- 248 ordinary/filtered indexes;
-- 439 primary keys;
-- 167 unique constraints;
-- 31 foreign keys;
-- 28 CHECK constraints.
-
-Các con số là snapshot SQL2 hiện tại; CI sinh lại từ metadata trong từng run.
+`04_SQL2_Metadata_Gaps.md`. Metadata SQL2 hiện có các nhóm index/constraint trên toàn B7R2; đó là số liệu catalog,
+không phải số object PCTP sẽ deploy. Generator lọc theo đúng bảng trong PCTP runtime scope
+và FK closure trước khi phát DDL. Số lượng thực tế được ghi ở đầu file SQL sinh ra và trong
+`04_SQL2_Metadata_Gaps.md` của từng lần chạy CI.
 
 Post-deploy assertions kiểm tra index type, uniqueness, PK/UQ identity, filter, disabled state,
 key column order/direction và included columns; FK target, referential actions, column order,
@@ -103,8 +99,8 @@ Coverage phân biệt:
 - `GAP-no-git-ddl`, `GAP-ci-schema`, `OK-testable`: trạng thái đối chiếu code/Git/CI.
 
 `docs/SCHEMA_COVERAGE.csv` là snapshot checked-in và phải được regenerate trước khi dùng
-làm đầu vào thủ công. CI tạo coverage tươi trong runner temp directory rồi dùng đúng CSV đó
-để sinh cả 02 và 03. Các bảng không nằm trong runtime inventory/code references/FK closure
+làm đầu vào thủ công. CI tạo coverage tươi trong runner temp directory, đánh dấu đúng tập bảng sẽ được sinh trong
+lần chạy đó, rồi dùng cùng CSV để sinh cả 02 và 03. Các bảng không nằm trong runtime inventory/code references/FK closure
 không được đưa vào coverage chỉ vì chúng tồn tại trong SQL2 catalog.
 
 ## Lệnh regenerate / kiểm thử local
