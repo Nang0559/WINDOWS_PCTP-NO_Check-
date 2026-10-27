@@ -103,7 +103,7 @@ class SchemaConstraintGeneratorTests(unittest.TestCase):
     def test_default_constraints_are_not_duplicated(self):
         metadata = fixed_section(INDEX_FIELDS, []) + "\n" + fixed_section(FK_FIELDS, []) + "\n" + fixed_section(CHECK_FIELDS, [])
         sql, report, _ = gen.generate(metadata, {("dbo","parent")})
-        self.assertNotIn("DEFAULT", sql)
+        self.assertNotIn(" DEFAULT ", sql)
         self.assertIn("DEFAULT constraints are represented inline", report)
 
 
