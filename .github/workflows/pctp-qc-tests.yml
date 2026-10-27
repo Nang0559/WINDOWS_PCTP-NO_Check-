@@ -174,6 +174,19 @@ jobs:
                     SQL/QC_G4_DeliveryFixture_Seed.sql SQL/QC_G4_DeliveryFixture_Cleanup.sql \
             --export docs/SQL.text --reference SQL/QC_Schema/01_Tables.sql
 
+      - name: Upload SQL2 schema coverage and generated DDL evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pctp-sql2-schema-evidence
+          path: |
+            ${{ runner.temp }}/schema_coverage.csv
+            ${{ runner.temp }}/schema_coverage_columns.csv
+            SQL/QC_Schema/02_Generated_From_DB57.sql
+            SQL/QC_Schema/03_Generated_From_DB57_Constraints.sql
+            SQL/QC_Schema/04_SQL2_Metadata_Gaps.md
+          if-no-files-found: warn
+
       - name: Deploy DB57-derived schema to disposable database
         shell: bash
         run: |
