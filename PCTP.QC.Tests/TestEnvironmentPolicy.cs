@@ -84,6 +84,47 @@ public static class TestEnvironmentPolicy
                 $"SQL integration tests are blocked. CI-required mode permits only 127.0.0.1/localhost PCTP_QC_CI; development mode permits only {AllowedTestServer}/{AllowedTestDatabase}; production {BlockedProductionServer} is always rejected.");
     }
 
+    /// <summary>
+    /// Allows the rework repository fixture to use its own empty database only in strict CI mode.
+    /// This keeps hand-built dbo fixtures isolated from the DB57-derived schema under test.
+    /// </summary>
+    public static bool IsSafeSqlFixtureTarget(string connectionString)
+    {
+        if (string.IsNullOrWhiteSpace(connectionString)) return false;
+        SqlConnectionStringBuilder builder;
+        try { builder = new SqlConnectionStringBuilder(connectionString); }
+        catch (ArgumentException) { return false; }
+        catch (InvalidOperationException) { return false; }
+
+        if (!string.IsNullOrWhiteSpace(builder.AttachDBFilename)
+            || !string.IsNullOrWhiteSpace(builder.FailoverPartner)
+            || builder.UserInstance
+            || ReadValues(connectionString, new[] { "Context Connection" }).Count > 0)
+            return false;
+
+        var servers = ReadValues(connectionString, ServerAliases);
+        var databases = ReadValues(connectionString, DatabaseAliases);
+        if (servers.Count != 1 || databases.Count != 1) return false;
+        if (!string.Equals(Environment.GetEnvironmentVariable("PCTP_QC_REQUIRE_EPHEMERAL_SQL"),
+                "true", StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        var server = builder.DataSource.Trim();
+        var isLocal = server.Equals("localhost", StringComparison.OrdinalIgnoreCase)
+            || server.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase)
+            || server.StartsWith("localhost,", StringComparison.OrdinalIgnoreCase)
+            || server.StartsWith("127.0.0.1,", StringComparison.OrdinalIgnoreCase);
+        return isLocal
+            && builder.InitialCatalog.Equals("PCTP_QC_REWORK_CI", StringComparison.OrdinalIgnoreCase);
+    }
+
+    public static void EnsureSafeSqlFixtureTarget(string connectionString)
+    {
+        if (!IsSafeSqlFixtureTarget(connectionString))
+            throw new InvalidOperationException(
+                "SQL repository fixtures are blocked. Only localhost/127.0.0.1 PCTP_QC_REWORK_CI is permitted while PCTP_QC_REQUIRE_EPHEMERAL_SQL=true.");
+    }
+
     public static string DescribeTarget(string connectionString)
     {
         var builder = new SqlConnectionStringBuilder(connectionString);
