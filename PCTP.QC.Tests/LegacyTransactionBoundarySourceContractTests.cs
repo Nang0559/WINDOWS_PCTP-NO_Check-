@@ -56,6 +56,18 @@ public sealed class LegacyTransactionBoundarySourceContractTests
     }
 
     [Fact]
+    public void HvnLotReassignment_ResetsAndUpdatesSelectedItemInOneTransaction()
+    {
+        string body = Method(Read("FRM_SUALOTHVN.source.cs"), "private void simpleButton1_Click(");
+        Assert.Contains("BeginTransaction()", body, StringComparison.Ordinal);
+        Assert.Contains("transaction.Commit()", body, StringComparison.Ordinal);
+        Assert.Contains("transaction.Rollback()", body, StringComparison.Ordinal);
+        Assert.Contains("AND MAHANGFCC = @MaHang", body, StringComparison.Ordinal);
+        Assert.Contains("connection, transaction", body, StringComparison.Ordinal);
+        Assert.DoesNotContain("sqlBRV.ExecuteNonQuery", body, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void LegacyDeliveryLotEdit_UsesParametersAndChecksAffectedRows()
     {
         string body = Method(Read("Edit_DH.source.cs"), "private void simpleButton3_Click_1(");
