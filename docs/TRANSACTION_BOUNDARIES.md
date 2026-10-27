@@ -113,6 +113,12 @@ Evidence for every finding: source-contract tests in `PCTP.QC.Tests\AtomicityFin
 This audit reads source code and records production source changes on the test branch. It does not open a database, execute SQL, or alter production data.
 
 
+## G1 scanner interpretation update
+
+The G1 scanner now recognizes `STATEMENT-ATOMIC` only when it finds exactly one DML statement, exactly one direct SQL execution call, and no stored-procedure call in the source file. This avoids demanding an explicit multi-statement transaction for simple one-statement edits such as `Edit_DH` and `UF_CHANGETIME`.
+
+This classification is intentionally conservative but remains file-level static analysis. It can still overcount unrelated statements in separate event handlers and cannot prove runtime call counts, actual schema uniqueness, or transaction ownership inside a stored procedure. The focused regression suite is `PCTP.QC.UI/test_build_traceability_matrix.py`; the WMS preflight now runs it before generating G1 evidence. Do not use `STATEMENT-ATOMIC` for a method that executes a command repeatedly in a loop or for a batch containing multiple DML statements.
+
 ## Legacy UI / direct SQL callers surfaced by G1
 
 The following files were classified as `transaction-boundary(NONE)` by the static scanner. They are recorded here so the audit does not silently omit them. **This table is an unresolved review register, not a verified transaction contract.** The scanner result alone cannot tell whether a SQLProvider call is a single autocommit statement, a multi-statement workflow, or a call whose transaction is owned elsewhere.
