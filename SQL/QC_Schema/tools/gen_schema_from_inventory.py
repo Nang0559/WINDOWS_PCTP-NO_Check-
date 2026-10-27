@@ -253,7 +253,7 @@ def render(inventory: Path, coverage: Path, type_map_path: Path | None = None):
             seed = column.get("seed_value", "").strip() if identity_flag else ""
             increment = column.get("increment_value", "").strip() if identity_flag else ""
             for label, value in (("identity seed", seed), ("identity increment", increment)):
-                if value and not re.fullmatch(r"[-+]?(?:\\d+(?:\\.\\d*)?|\\.\\d+)", value):
+                if value and not re.fullmatch(r"[-+]?(?:\d+(?:\.\d*)?|\.\d+)", value):
                     raise ValueError(f"invalid {label}: {name}.{col_name}={value!r}")
             expected.append(
                 f"({int(column['column_id'])}, {sql_literal(col_name)}, {sql_literal(base_type)}, {max_length}, "
