@@ -275,6 +275,8 @@ def runtime_table_candidates(inventory_rows):
             continue
         if "test-only" in runtime or "test only" in runtime:
             continue
+        if runtime.startswith("chưa xác định") or runtime.startswith("cần trace"):
+            continue
         if "không mặc định db57" in status or "không phải bảng sql" in status:
             continue
         # Do not resolve host-name templates as literal table names.
@@ -317,7 +319,8 @@ def main():
         if not (r or in_inv or dependency_parents):
             continue  # SQL2 catalog is lookup evidence, not a request to clone all of B7R2
         on57, gitf, cis = status(n, exp, gitd, ci_names)
-        cls = classify(bool(r or in_inv or dependency_parents), e, g, ci)
+        in_runtime_scope = n in inventory_candidates
+        cls = classify(bool(r or in_runtime_scope or dependency_parents), e, g, ci)
         rows.append({
             'object': (e['name'] if e else (inv[n]['Tên đối tượng'] if in_inv else n)),
             'kind': (e['kind'] if e else ''),
@@ -326,7 +329,7 @@ def main():
             'code_files': '; '.join(sorted(os.path.basename(x) for x in r['files']))[:300] if r else '',
             'code_ops': '/'.join(sorted(r['ops'])) if r else ('FK-DEPENDENCY' if dependency_parents else ''),
             'on_db57_export': on57, 'git_ddl_files': gitf, 'in_ci_base_schema': cis,
-            'in_runtime_inventory': 'có' if in_inv else 'KHÔNG (thiếu trong CSV)',
+            'in_runtime_inventory': 'có' if in_runtime_scope else ('cần xác minh' if in_inv else 'không'),
             'class': ('GAP-fk-dependency' if dependency_parents and not r else cls),
         })
     order = {'GAP-db57-unverified': 0, 'GAP-fk-dependency': 1, 'GAP-no-git-ddl': 2, 'GAP-ci-schema': 3, 'OK-testable': 4, 'info': 5}
