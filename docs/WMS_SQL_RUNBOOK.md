@@ -94,8 +94,8 @@ Script deploy cả hai proc (mặc định `-Procedure All`; có thể chọn `S
 `SQL/Usp_Qrcode_LUU_PHIEU_RetireUnsafeLegacy.sql` xử lý procedure cũ có `UPDATE LUUPHIEUGIAOHANG` thiếu `WHERE` và `DELETE DOCQRCODE` theo `KETQUA` trên toàn bảng.
 
 - Mặc định `@ConfirmRetire = 0`: chỉ preflight, không thay đổi procedure.
-- Script từ chối database khác `B7R2_FCC` và server có tên chứa `BRAVO`; **không chạy trên production**.
-- Trước khi đổi `@ConfirmRetire = 1), backup DB test và xác minh cả source code, cấu hình, module SQL và SQL Agent không còn caller hợp lệ.
+- Script chỉ cho phép database `B7R2_FCC` khi `CONNECTIONPROPERTY('local_net_address') = '192.168.200.57'`; ngoài ra vẫn từ chối server có tên chứa `BRAVO`. Tên instance/alias một mình không chứng minh môi trường là test.
+- Trước khi đổi `@ConfirmRetire = 1`, backup DB test và xác minh cả source code, cấu hình, module SQL và SQL Agent không còn caller hợp lệ.
 - Nếu phát hiện caller SQL hoặc Agent, script dừng. Kiểm tra module SQL/Agent không phát hiện được mọi lời gọi C# hoặc SQL động; phải tìm trong source/config và kiểm thử luồng ứng dụng.
 - Khi xác nhận retire, procedure giữ nguyên chữ ký nhưng trả lỗi `51015` thay vì chạy các lệnh ghi dữ liệu không an toàn. Đây là fail-closed, không phải bản thay thế nghiệp vụ cho luồng lưu phiếu chuẩn.
 
