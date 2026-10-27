@@ -51,7 +51,10 @@ SQL2 column section or a real CSV column export (`SQL2_ColumnInventory.csv`, wit
 selects only rows classified as `GAP-no-git-ddl` + `table` +
 `on_db57_export=có` in `docs/SCHEMA_COVERAGE.csv`, and emits idempotent table-column DDL
 for the selected scope. It preserves column order, SQL built-in types and lengths, nullability,
-identity seed/increment, computed expressions and default expressions.
+identity seed/increment, computed expressions and default expressions. It also emits bidirectional
+post-deploy metadata assertions for every selected table, so a pre-existing table in `01_Tables.sql`
+that differs from SQL2 (including missing/extra columns, type/length, nullability, identity, computed
+or default definition) fails CI instead of being silently accepted by `IF OBJECT_ID ... IS NULL`.
 
 Example (run locally against the uploaded SQL2 export; do not deploy to DB57):
 
@@ -72,7 +75,7 @@ schema source, for example `{"longcodetype":"nvarchar(20)"}` only if that mappin
 
 CSV must be exported as actual CSV (not copied fixed-width text) with headers `SchemaName`, `TableName`, `type_desc`, `column_id`, `ColumnName`, `DataType`, `MaxChars`, `precision`, `scale`, `is_nullable`, `is_identity`, `seed_value`, `increment_value`, `is_computed`, `ComputedDefinition`, and `DefaultDefinition`. The generator emits `dbo` tables only and fails closed if an allow-listed table is absent from that schema. `MaxChars` is SQL Server `sys.columns.max_length` in bytes; the generator converts Unicode string lengths to characters.
 
-The complete read-only metadata export is used to generate `03_Generated_From_DB57_Constraints.sql`, including primary keys, unique constraints, ordinary/filtered indexes, FK dependencies in the generated scope, and CHECK constraints. DEFAULT expressions remain inline in `02_Generated_From_DB57.sql` and are not duplicated. The accompanying `04_SQL2_Metadata_Gaps.md` lists foreign keys intentionally omitted because their referenced tables are outside the generated scope; the scanner expands transitive dbo FK dependencies from referenced runtime tables; dependencies absent from SQL2 table inventory or outside dbo remain explicit and unresolved. SQL modules, permissions, triggers and runtime dependencies still require separate review.
+The complete read-only metadata export is used to generate `03_Generated_From_DB57_Constraints.sql`, including primary keys, unique constraints, ordinary/filtered indexes, transitive FK dependencies in the generated scope, and CHECK constraints. Post-deploy assertions compare index type/uniqueness/PK-UQ identity/filter/disabled state/key order/direction/include columns, FK target/actions/column order/trust/disabled state, and CHECK expression/trust/disabled/replication state. DEFAULT expressions remain inline in `02_Generated_From_DB57.sql` and are not duplicated. The accompanying `04_SQL2_Metadata_Gaps.md` lists foreign keys intentionally omitted because their referenced tables are outside the generated scope; the scanner expands transitive dbo FK dependencies from referenced runtime tables; dependencies absent from SQL2 table inventory or outside dbo remain explicit and unresolved. SQL modules, permissions, triggers and runtime dependencies still require separate review.
 
 CI runs the Python unit tests and static SQL batch simulation, deploys `01_Tables.sql`, `02_Generated_From_DB57.sql`, and `03_Generated_From_DB57_Constraints.sql` only into the disposable GitHub-hosted SQL Server database `PCTP_QC_CI`, and the generated constraints script throws if any expected index/key/FK/CHECK object is missing or its exported definition, key-column order/direction, include columns, filter, referential action, trust/disabled state or CHECK expression differs. No SQL2-derived DDL is deployed to DB57 or production. After regenerating `docs/SCHEMA_COVERAGE.csv`, the generators preserve their explicit scope by selecting rows whose `git_ddl_files` contains `SQL/QC_Schema/02_Generated_From_DB57.sql`.
 ## Regenerate or verify SQL2 constraints
