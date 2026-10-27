@@ -90,6 +90,16 @@ class SchemaConstraintGeneratorTests(unittest.TestCase):
         self.assertIn("outside the generated allowlist", report)
         self.assertEqual(counts["foreign_keys"], 0)
 
+    def test_scope_remains_stable_after_coverage_refresh(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            coverage = Path(tmp) / "coverage.csv"
+            coverage.write_text(
+                "object,kind,on_db57_export,git_ddl_files,class\n"
+                "Parent,table,có,SQL/QC_Schema/02_Generated_From_DB57.sql,OK-testable\n"
+                "Unrelated,table,có,SQL/Other.sql,OK-testable\n",
+                encoding="utf-8")
+            self.assertEqual(gen.load_scope(coverage), {("dbo", "parent")})
+
     def test_default_constraints_are_not_duplicated(self):
         metadata = fixed_section(INDEX_FIELDS, []) + "\n" + fixed_section(FK_FIELDS, []) + "\n" + fixed_section(CHECK_FIELDS, [])
         sql, report, _ = gen.generate(metadata, {("dbo","parent")})
