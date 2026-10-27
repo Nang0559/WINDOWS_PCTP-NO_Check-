@@ -105,8 +105,9 @@ Coverage phân biệt:
 - `GAP-db57-unverified`: không đủ metadata để kết luận;
 - `GAP-no-git-ddl`, `GAP-ci-schema`, `OK-testable`: trạng thái đối chiếu code/Git/CI.
 
-`docs/SCHEMA_COVERAGE.csv` là snapshot checked-in và phải được regenerate trước khi dùng
-làm đầu vào thủ công. CI tạo coverage tươi trong runner temp directory, đánh dấu đúng tập bảng sẽ được sinh trong
+`docs/SCHEMA_COVERAGE.csv` và `docs/SCHEMA_COVERAGE_columns.csv` checked-in hiện là
+snapshot cũ trước khi chuyển sang PCTP-only scope; không dùng chúng làm bằng chứng hiện tại.
+Phải regenerate trước khi dùng làm đầu vào thủ công. CI tạo coverage tươi trong runner temp directory, đánh dấu đúng tập bảng sẽ được sinh trong
 lần chạy đó, rồi dùng cùng CSV để sinh cả 02 và 03. Các bảng không nằm trong CSV runtime scope và FK closure không được đưa vào DDL chỉ vì
 chúng tồn tại trong SQL2 catalog; code references ngoài CSV được báo thành scope gap.
 
