@@ -54,7 +54,7 @@ def csv_rows(path: Path):
         sample = stream.read(64 * 1024)
         stream.seek(0)
         try:
-            dialect = csv.Sniffer().sniff(sample, delimiters=",;\\t|")
+            dialect = csv.Sniffer().sniff(sample, delimiters=",;\t|")
         except csv.Error:
             dialect = csv.excel
         reader = csv.DictReader(stream, dialect=dialect)
