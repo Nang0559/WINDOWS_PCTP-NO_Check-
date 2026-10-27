@@ -197,8 +197,9 @@ jobs:
         run: |
           set -euo pipefail
           c='${{ steps.sql.outputs.container_id }}'
-          # 02 is the full 550-table DB57 dbo baseline; 01_Tables.sql is a
-          # historical 15-table fixture and must not shadow the authoritative SQL2 DDL.
+          # 02 is the PCTP runtime inventory + verified dbo FK dependency scope
+          # extracted from DB57 SQL2 metadata. It intentionally excludes unrelated
+          # B7R2_FCC application tables; 01_Tables.sql is a legacy fixture.
           for f in \
             SQL/QC_Schema/02_Generated_From_DB57.sql \
             SQL/QC_Schema/03_Generated_From_DB57_Constraints.sql \
