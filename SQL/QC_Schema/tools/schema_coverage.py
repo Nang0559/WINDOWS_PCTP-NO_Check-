@@ -28,9 +28,9 @@ CI_BASE_FILES = [
     'SQL/Usp_Qrcode_Update_Stock2405.sql', 'SQL/Usp_Qrcode_Update_Stock_SP.sql',
     'SQL/sp_GetCurrentStockStatus.sql',
 ]
-DDL = re.compile(r'\bCREATE\s+(?:OR\s+ALTER\s+)?(TABLE|PROC(?:EDURE)?|VIEW|FUNCTION)\s+'
+DDL = re.compile(r'\bCREATE\s+(?:OR\s+ALTER\s+)?(TABLE|PROC(?:EDURE)?|VIEW|FUNCTION|TRIGGER)\s+'
                  r'(?:\[?dbo\]?\.)?\[?([A-Za-z_][\w]*)\]?', re.I)
-KIND = {'TABLE': 'table', 'PROC': 'proc', 'PROCEDURE': 'proc', 'VIEW': 'view', 'FUNCTION': 'function'}
+KIND = {'TABLE': 'table', 'PROC': 'proc', 'PROCEDURE': 'proc', 'VIEW': 'view', 'FUNCTION': 'function', 'TRIGGER': 'trigger'}
 
 def read(p):
     with open(p, encoding='utf-8-sig', errors='replace') as f:
@@ -212,7 +212,7 @@ def column_report(exp_cols, git_cols):
 
 def status(name, exp, gitd, ci_names):
     e = exp.get(name)
-    on57 = 'có trong SQL2 metadata' if e else 'chưa xác minh trong SQL2 metadata'
+    on57 = 'có' if e else 'chưa xác minh trong SQL2 metadata'
     g = gitd.get(name)
     return on57, (', '.join(g) if g else 'không'), ('có' if name in ci_names else 'không')
 
