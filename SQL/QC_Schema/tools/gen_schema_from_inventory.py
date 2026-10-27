@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate reviewable SQL Server table DDL from the SQL2 fixed-width metadata export.
+"""Generate reviewable SQL Server table DDL from SQL2 fixed-width or CSV column metadata.
 
 The supplied SQL2 export has column metadata but is not a complete schema
 source: keys/indexes, foreign keys, check constraints, triggers and permissions
@@ -45,12 +45,46 @@ def fixed_width_rows(path: Path, header_prefix: str):
                for j, start in enumerate(starts)}
 
 
+def csv_rows(path: Path):
+    """Read a real CSV export, preserving commas/quotes inside SQL expressions."""
+    with path.open(encoding="utf-8-sig", newline="") as stream:
+        reader = csv.DictReader(stream)
+        if not reader.fieldnames:
+            raise ValueError("CSV inventory has no header")
+        # Trim accidental whitespace around exported header names and values.
+        reader.fieldnames = [name.strip() if name else "" for name in reader.fieldnames]
+        for raw in reader:
+            yield {str(k).strip(): (v.strip() if isinstance(v, str) else "")
+                   for k, v in raw.items() if k is not None}
+
+
 def load_columns(path: Path):
-    rows = list(fixed_width_rows(path, "TableName"))
+    if path.suffix.casefold() == ".csv":
+        rows = list(csv_rows(path))
+        required = {"SchemaName", "TableName", "type_desc", "column_id", "ColumnName", "DataType",
+                    "MaxChars", "precision", "scale", "is_nullable", "is_identity", "seed_value",
+                    "increment_value", "is_computed", "ComputedDefinition", "DefaultDefinition"}
+        if not rows or not required.issubset(rows[0]):
+            found = sorted(rows[0]) if rows else []
+            raise ValueError("CSV column inventory header is incomplete; missing: "
+                             + ", ".join(sorted(required - set(found))))
+        # This generator emits dbo-qualified objects only. Fail rather than silently
+        # generating dbo tables from metadata exported from another schema.
+        schemas_by_table = defaultdict(set)
+        for row in rows:
+            if row.get("type_desc") == "USER_TABLE" and row.get("TableName"):
+                schemas_by_table[row["TableName"].casefold()].add(row.get("SchemaName", ""))
+        non_dbo = {name: schemas for name, schemas in schemas_by_table.items()
+                   if "dbo" not in schemas}
+        rows = [row for row in rows if row.get("SchemaName", "").casefold() == "dbo"]
+    else:
+        rows = list(fixed_width_rows(path, "TableName"))
+    if not rows:
+        raise ValueError("SQL2 column metadata contains no rows")
     required = {"TableName", "type_desc", "column_id", "ColumnName", "DataType", "MaxChars",
                 "precision", "scale", "is_nullable", "is_identity", "seed_value",
                 "increment_value", "is_computed", "ComputedDefinition", "DefaultDefinition"}
-    if not rows or not required.issubset(rows[0]):
+    if not required.issubset(rows[0]):
         raise ValueError("SQL2 column metadata header is incomplete: " + ", ".join(sorted(required)))
     tables = defaultdict(list)
     for row in rows:
@@ -152,12 +186,12 @@ def render(inventory: Path, coverage: Path, type_map_path: Path | None = None):
                 continue
             default = safe_expression(column.get("DefaultDefinition"), name, col, "default")
             identity = ""
-            if column.get("is_identity", "0") == "1":
+            if column.get("is_identity", "0").strip().casefold() in {"1", "true", "yes"}:
                 seed, increment = column.get("seed_value", "NULL"), column.get("increment_value", "NULL")
                 if seed in ("", "NULL") or increment in ("", "NULL"):
                     raise ValueError(f"IDENTITY seed/increment missing: {name}.{col}")
                 identity = f" IDENTITY({seed},{increment})"
-            nullability = " NULL" if column.get("is_nullable", "1") == "1" else " NOT NULL"
+            nullability = " NULL" if column.get("is_nullable", "1").strip().casefold() in {"1", "true", "yes"} else " NOT NULL"
             default_sql = f" DEFAULT {default}" if default else ""
             definitions.append(f"        [{col}] {typ}{identity}{nullability}{default_sql}")
         if not definitions:
