@@ -225,6 +225,56 @@ def render(inventory: Path, coverage: Path, type_map_path: Path | None = None):
             raise ValueError(f"table {name} has no columns")
         lines += [f"IF OBJECT_ID(N'dbo.{name}', N'U') IS NULL", "BEGIN",
                   f"    CREATE TABLE dbo.[{name}] (", ",\n".join(definitions), "    );", "END;", "GO", ""]
+
+        # Validate pre-existing fixture tables too. CREATE IF NOT EXISTS alone can
+        # hide a stale 01_Tables definition, so compare every SQL2 column contract.
+        expected = []
+        for column in columns:
+            col_name = column["ColumnName"]
+            raw_type = column["DataType"].strip().casefold()
+            mapped_type = type_map.get(raw_type, column["DataType"]).strip()
+            base_type = re.match(r"[A-Za-z][A-Za-z0-9_]*", mapped_type).group(0).casefold()
+            if base_type == "sysname":
+                base_type = "nvarchar"
+            max_length = int(column["MaxChars"]) if column.get("MaxChars", "").lstrip("-").isdigit() else -999999
+            precision = int(column["precision"]) if column.get("precision", "").isdigit() else 0
+            scale = int(column["scale"]) if column.get("scale", "").isdigit() else 0
+            nullable = 1 if column.get("is_nullable", "1").strip().casefold() in {"1", "true", "yes"} else 0
+            identity_flag = 1 if column.get("is_identity", "0").strip().casefold() in {"1", "true", "yes"} else 0
+            computed_flag = 1 if column.get("is_computed", "0").strip().casefold() in {"1", "true", "yes"} else 0
+            computed = safe_expression(column.get("ComputedDefinition"), name, col_name, "computed expression")
+            default = safe_expression(column.get("DefaultDefinition"), name, col_name, "default")
+            seed = column.get("seed_value", "").strip() if identity_flag else ""
+            increment = column.get("increment_value", "").strip() if identity_flag else ""
+            for label, value in (("identity seed", seed), ("identity increment", increment)):
+                if value and not re.fullmatch(r"[-+]?(?:\\d+(?:\\.\\d*)?|\\.\\d+)", value):
+                    raise ValueError(f"invalid {label}: {name}.{col_name}={value!r}")
+            expected.append(
+                f"({int(column['column_id'])}, {literal(col_name)}, {literal(base_type)}, {max_length}, "
+                f"{precision}, {scale}, {nullable}, {identity_flag}, {computed_flag}, "
+                f"{literal(computed)}, {literal(default)}, {literal(seed)}, {literal(increment)})")
+        expected_values = ", ".join(expected)
+        actual_columns = (
+            f"SELECT c.column_id, c.name, TYPE_NAME(c.system_type_id), c.max_length, c.precision, c.scale, "
+            f"CONVERT(int,c.is_nullable), CONVERT(int,c.is_identity), CONVERT(int,c.is_computed), "
+            f"ISNULL(cc.definition,N''), ISNULL(dc.definition,N''), "
+            f"ISNULL(CONVERT(nvarchar(128),ic.seed_value),N''), ISNULL(CONVERT(nvarchar(128),ic.increment_value),N'') "
+            f"FROM sys.columns c LEFT JOIN sys.computed_columns cc ON cc.object_id=c.object_id AND cc.column_id=c.column_id "
+            f"LEFT JOIN sys.default_constraints dc ON dc.parent_object_id=c.object_id AND dc.parent_column_id=c.column_id "
+            f"LEFT JOIN sys.identity_columns ic ON ic.object_id=c.object_id AND ic.column_id=c.column_id "
+            f"WHERE c.object_id=OBJECT_ID({literal('dbo.' + name)})")
+        expected_columns = (
+            f"SELECT v.column_id, v.column_name, v.type_name, v.max_length, v.precision, v.scale, "
+            f"v.is_nullable, v.is_identity, v.is_computed, v.computed_definition, v.default_definition, "
+            f"v.seed_value, v.increment_value FROM (VALUES {expected_values}) "
+            f"v(column_id,column_name,type_name,max_length,precision,scale,is_nullable,is_identity,is_computed,"
+            f"computed_definition,default_definition,seed_value,increment_value)")
+        lines += [
+            f"IF OBJECT_ID(N'dbo.{name}', N'U') IS NULL THROW 52201, N'Missing SQL2 table dbo.{name}', 1;",
+            f"IF EXISTS ({actual_columns} EXCEPT {expected_columns}) OR EXISTS ({expected_columns} EXCEPT {actual_columns})",
+            f"    THROW 52202, N'SQL2 table/column definition mismatch: dbo.{name}', 1;",
+            "GO", ""
+        ]
     lines += ["/* PK/index/FK/CHECK constraints are emitted from verified SQL2 metadata in 03_Generated_From_DB57_Constraints.sql. */", ""]
     return "\n".join(lines)
 
