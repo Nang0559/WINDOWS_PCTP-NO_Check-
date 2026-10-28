@@ -5,11 +5,13 @@ on:
     branches:
       - feature/pctp-qc-test-platform
       - feature/wms-end-to-end-consistency
+      - feature/wms-live-data-test-harness
   pull_request:
     branches:
       - fix/qc-final-execution-timeout
       - feature/pctp-qc-test-platform
       - feature/wms-end-to-end-consistency
+      - feature/wms-live-data-test-harness
   workflow_dispatch:
     inputs:
       run_sql_integration:
@@ -69,7 +71,8 @@ jobs:
             ".\\PCTP.QC.UI\\PctpSql.Common.ps1",
             ".\\PCTP.QC.UI\\Invoke-PctpQcGates.ps1",
             ".\\PCTP.QC.UI\\Start-PctpIsolatedSql.ps1",
-            ".\\PCTP.QC.UI\\Test-PctpIsolation.ps1"
+            ".\\PCTP.QC.UI\\Test-PctpIsolation.ps1",
+            ".\\PCTP.QC.UI\\Invoke-PctpLiveDataInventory.ps1"
           )
           foreach ($path in $paths) {
             $tokens = $null
