@@ -1,16 +1,15 @@
 ﻿object,kind,referenced_by_code,dependency_of_code,code_files,code_ops,on_db57_export,git_ddl_files,in_ci_base_schema,in_runtime_inventory,class
-DeliveryCommandLedger,,có,,DeliveryCommandLedgerRepository.cs,FROM/INTO,chưa xác minh trong SQL2 metadata,SQL/PCTP_DeliveryCommandLedger.sql,không,có,GAP-db57-unverified
-DeliveryCommandQr,,có,,DeliveryCommandLedgerRepository.cs,FROM/INTO,chưa xác minh trong SQL2 metadata,SQL/PCTP_DeliveryCommandLedger.sql,không,có,GAP-db57-unverified
-PCTPQuarantineReleaseAudit,,có,,QuarantineReleaseAuditRepository.cs,INTO,chưa xác minh trong SQL2 metadata,SQL/PCTPQuarantineRelease.sql,không,có,GAP-db57-unverified
-Purchase_Order_HVNDB,,không thấy literal SQL,,,,chưa xác minh trong SQL2 metadata,không,không,có,GAP-db57-unverified
-QCDONGGOI,,có,,TableOrderRepo.cs,FROM,chưa xác minh trong SQL2 metadata,không,không,có,GAP-db57-unverified
+FVN_DeliveryCommandLedger,,có,,DeliveryCommandLedgerRepository.cs,FROM/INTO,chưa xác minh trong SQL2 metadata,SQL/PCTP_DeliveryCommandLedger.sql,không,có,GAP-db57-unverified
+FVN_DeliveryCommandQr,,có,,DeliveryCommandLedgerRepository.cs,FROM/INTO,chưa xác minh trong SQL2 metadata,SQL/PCTP_DeliveryCommandLedger.sql,không,có,GAP-db57-unverified
+FVN_PCTPQuarantineReleaseAudit,,có,,QuarantineReleaseAuditRepository.cs,INTO,chưa xác minh trong SQL2 metadata,SQL/PCTPQuarantineRelease.sql,không,có,GAP-db57-unverified
+FVN_Purchase_Order_HVNDB,,không thấy literal SQL,,,,chưa xác minh trong SQL2 metadata,SQL/FVN_PCTP_RuntimeTables.sql,không,có,GAP-db57-unverified
+FVN_sys_WorkflowTransitions,,có,,WorkflowRepository.cs,FROM,chưa xác minh trong SQL2 metadata,SQL/FVN_PCTP_RuntimeTables.sql,không,có,GAP-db57-unverified
 fvn_pxlb_reworkplan,table,không thấy literal SQL,fvn_pxlb_reworkmovement,,FK-DEPENDENCY,có,PCTP/Modules/XuLyHangLoi/Database/PHASE4_9_ReworkDispositionCompensationWorkflowReport.sql,có,có,GAP-fk-dependency
-sys_workflowstatuses,table,không thấy literal SQL,sys_workflowtransitions,,FK-DEPENDENCY,có,không,có,không,GAP-fk-dependency
 b20dept,table,có,,NoiBoLookupRepository.cs,FROM,có,không,có,có,OK-testable
 b20gear,table,có,,DocQRRepository.cs; YAMAHAQRCDE_SP.cs; YMVNDOCQRCODE.cs,FROM,có,SQL/QC_Schema/02_Generated_From_DB57.sql,có,có,OK-testable
 b20imagestore,table,có,,FRMSHOW.cs; ImagesControl.cs,DELETE/FROM/INTO/UPDATE,có,không,có,có,OK-testable
 b20item,table,có,,ComaparePart.cs; DocQRRepository.cs; GIAOHANGYMN.cs; ImagesControl.cs; ItemFifoConfigRepository.cs; PhieuGiaoDBRepository.cs; PhieuValidationRepository.cs; SqlRepository.cs; StockTpProductionRepository.cs; WarehouseRepository.cs; YMVNDOCQRCODE.cs,FROM/JOIN,có,SQL/QC_Schema/02_Generated_From_DB57.sql,có,có,OK-testable
-b20itemquycach,table,có,,GIAOHANGYMN.cs; UF_TACHLOT.cs,FROM,có,không,có,có,OK-testable
+b20itemquycach,table,có,,GIAOHANGYMN.cs; TableOrderRepo.cs; UF_TACHLOT.cs,FROM,có,không,có,có,OK-testable
 docqrcode,table,có,,FRM_SUALOTHVN.cs,FROM/UPDATE,có,SQL/QC_Schema/01_Tables.sql,có,có,OK-testable
 docqrcode_100003,table,không thấy literal SQL,,,,có,không,có,có,OK-testable
 docqrcode_sp,table,không thấy literal SQL,,,,có,SQL/QC_Schema/01_Tables.sql,có,có,OK-testable
@@ -47,7 +46,6 @@ sp_docqrcode,table,có,,GIAOHANGYMN.cs; YAMAHAQRCDE_SP.cs,DELETE/FROM/INTO,có,k
 sp_tmpphieugiaohang,table,có,,GIAOHANGYMN.cs; YAMAHAQRCDE_SP.cs,FROM/INTO/UPDATE,có,không,có,có,OK-testable
 stockhistory,table,có,,StockExportHistoryRepository.cs; StockHistoryRepository.cs; StockHistoryRepository.cs; StockTpImportGuardRepository.cs,FROM/INTO,có,SQL/QC_Schema/02_Generated_From_DB57.sql,có,có,OK-testable
 stocktp,table,có,,Edit_DH.cs; GIAOHANGYMN.cs; HangThieuCaNgayService.cs; LegacyStockBalanceRepositoryAdapter.cs; MainAppDashboardController.cs; NhapKhoDashboardRepository.cs; PhieuCurrentQrFifoValidationRepository.cs; PhieuKhoRepository.cs; PhieuLotRepository.cs; PhieuLuuTruRepository.cs; PhieuRepository.cs; PhieuVal,FROM/UPDATE,có,SQL/QC_Schema/01_Tables.sql,có,có,OK-testable
-sys_workflowtransitions,table,có,,WorkflowRepository.cs,FROM,có,SQL/QC_Schema/02_Generated_From_DB57.sql,có,có,OK-testable
 tbl_qr_comparepart,table,có,,ComaparePart.cs; DocQRRepository.cs,DELETE/FROM/INTO,có,SQL/QC_Schema/02_Generated_From_DB57.sql,có,có,OK-testable
 tbl_qr_may_docqr,table,có,,ISqlRepository.cs; MachinePermissionService.cs; MainAppDashboardController.cs; QrMachineSwitchService.cs; SqlRepository.cs,FROM/INTO/UPDATE,có,không,có,có,OK-testable
 tmplotghep,table,có,,SqlRepository.cs,DELETE/INTO,có,không,có,có,OK-testable
