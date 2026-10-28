@@ -30,9 +30,10 @@ public sealed class LiveInventoryScopeContractTests
     {
         var source = ReadSource("Invoke-PctpLiveDataInventory.source.ps1");
 
-        Assert.Contains("LOWER(t.name) IN ($tableList)", source, StringComparison.Ordinal);
-        Assert.Contains("LOWER(pt.name) IN ($tableList) OR LOWER(rt.name) IN ($tableList)", source, StringComparison.Ordinal);
-        Assert.Contains("LOWER(OBJECT_NAME(tr.parent_id)) IN ($tableList)", source, StringComparison.Ordinal);
+        Assert.Contains("s.name=N'dbo' AND LOWER(t.name) IN ($tableList)", source, StringComparison.Ordinal);
+        Assert.Contains("s.name=N'dbo' AND LOWER(p.name) IN ($procedureList)", source, StringComparison.Ordinal);
+        Assert.Contains("(ps.name=N'dbo' AND LOWER(pt.name) IN ($tableList)) OR (rs.name=N'dbo' AND LOWER(rt.name) IN ($tableList))", source, StringComparison.Ordinal);
+        Assert.Contains("OBJECT_SCHEMA_NAME(tr.parent_id)=N'dbo' AND LOWER(OBJECT_NAME(tr.parent_id)) IN ($tableList)", source, StringComparison.Ordinal);
         Assert.Contains("LOWER(p.name) IN ($procedureList)", source, StringComparison.Ordinal);
 
         Assert.DoesNotContain(
