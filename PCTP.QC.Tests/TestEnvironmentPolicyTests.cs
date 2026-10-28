@@ -7,9 +7,11 @@ public sealed class TestEnvironmentPolicyTests
     // The QC runner is intentionally restricted to one explicit test target.
     // "Local" or a database name containing TEST is not sufficient authorization.
     [Theory]
-    [InlineData("Server=192.168.200.57;Database=B7R2_FCC;Trusted_Connection=True", true)]
-    [InlineData("Data Source=192.168.200.57;Initial Catalog=B7R2_FCC;Integrated Security=True", true)]
-    [InlineData("Network Address=192.168.200.57;Database=B7R2_FCC;Integrated Security=True", true)]
+    [InlineData("Server=192.168.200.57;Database=B7R2_FCC_QC;Trusted_Connection=True", true)]
+    [InlineData("Data Source=192.168.200.57;Initial Catalog=B7R2_FCC_QC;Integrated Security=True", true)]
+    [InlineData("Network Address=192.168.200.57;Database=B7R2_FCC_QC;Integrated Security=True", true)]
+    [InlineData("Server=192.168.200.57;Database=B7R2_FCC;Trusted_Connection=True", false)]
+    [InlineData("Server=192.168.200.57;Database=B7R2_FCC_QC;Trusted_Connection=True", true)]
     [InlineData("Server=192.168.200.57;Database=OTHER_TEST_DB;Trusted_Connection=True", false)]
     [InlineData("Server=192.168.200.57;Database=PCTP_PROD;Trusted_Connection=True", false)]
     [InlineData("Server=localhost;Database=TEST_PCTP;Trusted_Connection=True", false)]
@@ -33,6 +35,16 @@ public sealed class TestEnvironmentPolicyTests
     public void SqlTargetMustMatchExplicitAllowlist(string connectionString, bool expected)
     {
         Assert.Equal(expected, TestEnvironmentPolicy.IsSafeSqlTestTarget(connectionString));
+    }
+
+
+    [Theory]
+    [InlineData("Server=192.168.200.57;Database=B7R2_FCC;ApplicationIntent=ReadOnly;Trusted_Connection=True", true)]
+    [InlineData("Server=192.168.200.57;Database=B7R2_FCC;Trusted_Connection=True", false)]
+    [InlineData("Server=192.168.200.14\\\\BRAVO;Database=B7R2_FCC;ApplicationIntent=ReadOnly;Trusted_Connection=True", false)]
+    public void SharedCatalogIsAllowedOnlyForExplicitReadOnlyPreflight(string connectionString, bool expected)
+    {
+        Assert.Equal(expected, TestEnvironmentPolicy.IsSafeSqlReadOnlyPreflightTarget(connectionString));
     }
 
     [Fact]
