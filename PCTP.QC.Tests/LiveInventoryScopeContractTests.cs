@@ -11,13 +11,43 @@ namespace PCTP.QC.Tests;
 /// </summary>
 public sealed class LiveInventoryScopeContractTests
 {
-    private static string ReadSource(string fileName) =>
-        File.ReadAllText(Path.Combine(AppContext.BaseDirectory, fileName));
+    private static string ReadSource(string fileName)
+    {
+        var candidates = new[]
+        {
+            Path.Combine(AppContext.BaseDirectory, fileName),
+            Path.Combine(Directory.GetCurrentDirectory(), "PCTP.QC.UI", fileName),
+            Path.Combine(Directory.GetCurrentDirectory(), "PCTP.QC.UI", "Invoke-PctpLiveDataInventory.ps1")
+        };
+
+        foreach (var candidate in candidates)
+        {
+            if (File.Exists(candidate)) return File.ReadAllText(candidate);
+        }
+
+        throw new FileNotFoundException($"Live inventory contract file was not found: {fileName}");
+    }
+
+    private static string ReadCoverage()
+    {
+        var candidates = new[]
+        {
+            Path.Combine(AppContext.BaseDirectory, "SCHEMA_COVERAGE_EFFECTIVE.csv"),
+            Path.Combine(Directory.GetCurrentDirectory(), "docs", "SCHEMA_COVERAGE_EFFECTIVE.csv")
+        };
+
+        foreach (var candidate in candidates)
+        {
+            if (File.Exists(candidate)) return File.ReadAllText(candidate);
+        }
+
+        throw new FileNotFoundException("PCTP schema coverage CSV was not found.");
+    }
 
     [Fact]
     public void LiveInventory_FailsClosedAndRequiresPctpScopeCsv()
     {
-        var source = ReadSource("Invoke-PctpLiveDataInventory.source.ps1");
+        var source = ReadSource("Invoke-PctpLiveDataInventory.ps1");
 
         Assert.Contains("PCTP scope CSV not found", source, StringComparison.Ordinal);
         Assert.Contains("Refusing to inventory the entire database", source, StringComparison.Ordinal);
@@ -30,7 +60,7 @@ public sealed class LiveInventoryScopeContractTests
     [Fact]
     public void LiveInventory_ScopesEveryTableMetadataQueryToAllowlist()
     {
-        var source = ReadSource("Invoke-PctpLiveDataInventory.source.ps1");
+        var source = ReadSource("Invoke-PctpLiveDataInventory.ps1");
 
         Assert.Contains("s.name=N'dbo' AND LOWER(t.name) IN ($tableList)", source, StringComparison.Ordinal);
         Assert.Contains("s.name=N'dbo' AND LOWER(p.name) IN ($procedureList)", source, StringComparison.Ordinal);
@@ -38,20 +68,14 @@ public sealed class LiveInventoryScopeContractTests
         Assert.Contains("OBJECT_SCHEMA_NAME(tr.parent_id)=N'dbo' AND LOWER(OBJECT_NAME(tr.parent_id)) IN ($tableList)", source, StringComparison.Ordinal);
         Assert.Contains("LOWER(p.name) IN ($procedureList)", source, StringComparison.Ordinal);
 
-        Assert.DoesNotContain(
-            "WHERE t.is_ms_shipped=0 ORDER BY s.name,t.name;",
-            source,
-            StringComparison.Ordinal);
-        Assert.DoesNotContain(
-            "WHERE p.is_ms_shipped=0 ORDER BY s.name,p.name;",
-            source,
-            StringComparison.Ordinal);
+        Assert.DoesNotContain("WHERE t.is_ms_shipped=0 ORDER BY s.name,t.name;", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("WHERE p.is_ms_shipped=0 ORDER BY s.name,p.name;", source, StringComparison.Ordinal);
     }
 
     [Fact]
     public void LiveInventoryScope_ContainsPctpClassifiedObjectsNotWholeDatabaseNames()
     {
-        var csv = ReadSource("SCHEMA_COVERAGE_EFFECTIVE.csv");
+        var csv = ReadCoverage();
         Assert.Contains("object,kind,", csv, StringComparison.Ordinal);
         Assert.Contains("OK-fk-dependency", csv, StringComparison.Ordinal);
         Assert.Contains("OK-testable", csv, StringComparison.Ordinal);
