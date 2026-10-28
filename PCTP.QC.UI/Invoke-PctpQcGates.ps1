@@ -27,7 +27,7 @@ param(
     [switch]$AllowMutations,
     [switch]$ConfirmAppUsesIsolatedDb,
     [string]$SqlServer = '192.168.200.57',
-    [string]$SqlDatabase = 'B7R2_FCC'
+    [string]$SqlDatabase = 'B7R2_FCC_QC'
 )
 $ErrorActionPreference = 'Stop'
 $root = (Get-Location).Path
