@@ -136,6 +136,8 @@ DECLARE @missing nvarchar(max) = N'';
 SELECT @missing = @missing + t.n + N' ' FROM (VALUES (N'STOCKTP'),(N'LUUPHIEUGIAOHANG'),(N'LUUDOCQRCODE'),(N'TMPPHIEUGIAOHANG'),(N'DOCQRCODE'),(N'Slot'),(N'SlotLot')) AS t(n)
 WHERE OBJECT_ID(N'dbo.' + t.n, N'U') IS NULL;
 IF LEN(@missing) > 0 THROW 52101, N'Isolated schema deploy is missing tables', 1;
+IF OBJECT_ID(N'dbo.vNhapTP', N'V') IS NULL THROW 52102, N'Isolated schema deploy is missing view dbo.vNhapTP', 1;
+SELECT COUNT(*) AS vNhapTP_rows FROM dbo.vNhapTP;
 "@
 Invoke-SqlBatches $target $verify 'verify-schema'
 

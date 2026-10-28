@@ -200,6 +200,7 @@ jobs:
             --files SQL/QC_Schema/02_Generated_From_DB57.sql \
                     SQL/QC_Schema/03_Generated_From_DB57_Constraints.sql \
                     SQL/QC_Schema/05_Split.sql \
+                    SQL/QC_Schema/06_Fixture_NhapTP_SourceTables.sql SQL/PCTP_vNhapTP.sql \
                     SQL/Usp_Qrcode_Update_Stock2405.sql SQL/Usp_Qrcode_Update_Stock_SP.sql \
                     SQL/sp_GetCurrentStockStatus.sql \
                     "$RUNNER_TEMP/deploy/Usp_Qrcode_LOAD_PHIEU_DOCQR2405.sql" \
@@ -236,6 +237,8 @@ jobs:
             SQL/QC_Schema/02_Generated_From_DB57.sql \
             SQL/QC_Schema/03_Generated_From_DB57_Constraints.sql \
             SQL/QC_Schema/05_Split.sql \
+            SQL/QC_Schema/06_Fixture_NhapTP_SourceTables.sql \
+            SQL/PCTP_vNhapTP.sql \
             SQL/Usp_Qrcode_Update_Stock2405.sql \
             SQL/Usp_Qrcode_Update_Stock_SP.sql \
             SQL/sp_GetCurrentStockStatus.sql \
@@ -260,6 +263,8 @@ jobs:
             IF OBJECT_ID(N'dbo.LUUDOCQRCODE',N'U') IS NULL THROW 52103,N'Schema deploy missing dbo.LUUDOCQRCODE',1;
             IF OBJECT_ID(N'dbo.TMPPHIEUGIAOHANG',N'U') IS NULL THROW 52104,N'Schema deploy missing dbo.TMPPHIEUGIAOHANG',1;
             IF OBJECT_ID(N'dbo.DOCQRCODE',N'U') IS NULL THROW 52105,N'Schema deploy missing dbo.DOCQRCODE',1;
+            IF OBJECT_ID(N'dbo.vNhapTP',N'V') IS NULL THROW 52106,N'Schema deploy missing dbo.vNhapTP',1;
+            SELECT COUNT(*) AS vNhapTP_rows FROM dbo.vNhapTP;
             SELECT 'PASS: required delivery tables verified in PCTP_QC_CI' AS Result;"
           echo "PASS: DB57-derived schema and the six checked-in WMS procedures deployed to PCTP_QC_CI"
 
@@ -273,6 +278,8 @@ jobs:
             SQL/QC_Schema/02_Generated_From_DB57.sql \
             SQL/QC_Schema/03_Generated_From_DB57_Constraints.sql \
             SQL/QC_Schema/05_Split.sql \
+            SQL/QC_Schema/06_Fixture_NhapTP_SourceTables.sql \
+            SQL/PCTP_vNhapTP.sql \
             SQL/Usp_Qrcode_Update_Stock2405.sql \
             SQL/Usp_Qrcode_Update_Stock_SP.sql \
             SQL/sp_GetCurrentStockStatus.sql \
@@ -282,7 +289,7 @@ jobs:
             i=$((i+1)); n="$(printf '%02d_%s' "$i" "$(basename "$f")")"
             cp "$f" "$b/$n"; echo "$n" >> "$b/deploy-order.txt"
           done
-          test "$i" -eq 9
+          test "$i" -eq 11
           echo "$GITHUB_SHA" > "$b/COMMIT.txt"
           cat "$b/deploy-order.txt"
 
