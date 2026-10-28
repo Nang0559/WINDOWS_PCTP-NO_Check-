@@ -1,5 +1,4 @@
 ﻿SchemaName,TableName,type_desc,column_id,ColumnName,DataType,MaxChars,precision,scale,is_nullable,is_identity,seed_value,increment_value,is_computed,ComputedDefinition,DefaultDefinition
-SchemaName,TableName,type_desc,column_id,ColumnName,DataType,MaxChars,precision,scale,is_nullable,is_identity,seed_value,increment_value,is_computed,ComputedDefinition,DefaultDefinition
 dbo,B20Dept,USER_TABLE,1,Id,int,4,10,0,0,1,1,1,0,NULL,NULL
 dbo,B20Dept,USER_TABLE,2,ParentId,int,4,10,0,0,0,NULL,NULL,0,NULL,((-1))
 dbo,B20Dept,USER_TABLE,3,IsGroup,bit,1,1,0,0,0,NULL,NULL,0,NULL,((0))
