@@ -22,6 +22,8 @@ public sealed class LiveInventoryScopeContractTests
         Assert.Contains("PCTP scope CSV not found", source, StringComparison.Ordinal);
         Assert.Contains("Refusing to inventory the entire database", source, StringComparison.Ordinal);
         Assert.Contains("refusing broad inventory", source, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Assert-PctpSourceReadOnly $source 'SQL14 source'", source, StringComparison.Ordinal);
+        Assert.Contains("Assert-PctpSourceReadOnly $target 'SQL57 metadata target'", source, StringComparison.Ordinal);
         Assert.Contains("full_database_inventory=$false", source, StringComparison.Ordinal);
     }
 
