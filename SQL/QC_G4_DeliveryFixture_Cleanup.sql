@@ -4,6 +4,17 @@ SET XACT_ABORT ON;
 IF DB_NAME() <> N'PCTP_QC_CI' THROW 51001, N'Wrong database: G4 cleanup is for PCTP_QC_CI only.', 1;
 IF @@SERVERNAME LIKE N'%BRAVO%' THROW 51002, N'Production server refused.', 1;
 
+-- The workflow invokes cleanup with if: always(). If schema coverage/deployment failed
+-- before fixture seeding, these tables may not exist yet. Skip safely so cleanup does
+-- not mask the original CI failure with "Invalid object name".
+IF OBJECT_ID(N'dbo.TMPPHIEUGIAOHANG', N'U') IS NULL
+   OR OBJECT_ID(N'dbo.STOCKTP', N'U') IS NULL
+   OR OBJECT_ID(N'dbo.LUUPHIEUGIAOHANG', N'U') IS NULL
+BEGIN
+    PRINT N'SKIP: G4 fixture cleanup; required tables were not deployed (fixture was not seeded).';
+    RETURN;
+END;
+
 BEGIN TRANSACTION;
 DELETE FROM dbo.TMPPHIEUGIAOHANG
 WHERE STT = 32001 AND Note = N'QC_G4_ACCEPTANCE_FIXTURE';
