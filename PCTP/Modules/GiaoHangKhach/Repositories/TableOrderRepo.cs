@@ -621,13 +621,16 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             OrderLotMerger.Merge(dt, luuDt);
         }
         public Dictionary<string, int> GetQcDongGoiBatch(
-         List<string> maHangList)
+         List<string> maHangList, string customerCode)
         {
             var result = new Dictionary<string, int>(
                 StringComparer.OrdinalIgnoreCase);
 
             if (maHangList == null || maHangList.Count == 0)
                 return result;
+
+            if (string.IsNullOrWhiteSpace(customerCode))
+                throw new ArgumentException("CustomerCode là bắt buộc khi tra quy cách đóng gói.", nameof(customerCode));
 
             var maHangs = maHangList
                 .Where(x => !string.IsNullOrWhiteSpace(x))
@@ -658,12 +661,17 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                     });
             }
 
+            parameters.Add(new SqlParameter("@CustomerCode", customerCode.Trim()));
+
             string sql = $@"
                     SELECT
-                        PART_NO AS MAHANG,
-                        QCDG
-                    FROM QCDONGGOI
-                    WHERE PART_NO IN ({string.Join(",", placeholders)})
+                        ItemCode AS MAHANG,
+                        Quantity AS QCDG
+                    FROM dbo.B20ItemQuyCach
+                    WHERE CustomerCode = @CustomerCode
+                      AND IsActive = 1
+                      AND IsGroup = 0
+                      AND ItemCode IN ({string.Join(",", placeholders)})
                 ";
 
             DataTable dt = _db.LoadData(
