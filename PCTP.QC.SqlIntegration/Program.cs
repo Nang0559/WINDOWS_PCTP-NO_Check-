@@ -24,6 +24,12 @@ internal static class Program
             var readOnlyPreflight =
                 args.Any(arg => string.Equals(arg, "--preflight", StringComparison.OrdinalIgnoreCase)) ||
                 args.Any(arg => string.Equals(arg, "--delivery-preflight", StringComparison.OrdinalIgnoreCase));
+            var engineOnlyRequested = args.Any(arg => string.Equals(arg, "--engine-only", StringComparison.OrdinalIgnoreCase));
+            var mutationCapableModeRequested =
+                args.Any(arg => string.Equals(arg, "--delivery-acceptance", StringComparison.OrdinalIgnoreCase)) ||
+                args.Any(arg => string.Equals(arg, "--quarantine-release-preflight", StringComparison.OrdinalIgnoreCase));
+            if (readOnlyPreflight && (engineOnlyRequested || mutationCapableModeRequested))
+                throw new InvalidOperationException("Read-only preflight cannot be combined with fixture, engine, or acceptance modes. Run exactly one mode per invocation.");
             var connectionString = readOnlyPreflight
                 ? SqlTestConfiguration.BuildReadOnlyPreflightConnectionString(userId, password)
                 : SqlTestConfiguration.BuildConnectionString(userId, password);
