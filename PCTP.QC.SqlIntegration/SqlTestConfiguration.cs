@@ -10,7 +10,8 @@ namespace PCTP.QC.SqlIntegration;
 public static class SqlTestConfiguration
 {
     public const string Server = "192.168.200.57";
-    public const string Database = "B7R2_FCC";
+    public const string Database = "B7R2_FCC_QC";
+    public const string ReadOnlyPreflightDatabase = "B7R2_FCC";
     public const string ProductionServer = "192.168.200.14\\BRAVO";
 
     public static string DescribeTarget(string connectionString)
@@ -42,6 +43,34 @@ public static class SqlTestConfiguration
         };
         return builder.ConnectionString;
     }
+    /// <summary>
+    /// Read-only schema preflight may inspect the shared SQL57 catalog. This method
+    /// is used only by --preflight and --delivery-preflight, which return before any
+    /// business procedure or mutating repository scenario can execute.
+    /// </summary>
+    public static string BuildReadOnlyPreflightConnectionString(string userId, string password)
+    {
+        var ciConnection = Environment.GetEnvironmentVariable("PCTP_QC_EPHEMERAL_SQL_CONNECTION");
+        if (!string.IsNullOrWhiteSpace(ciConnection))
+            return ciConnection;
+
+        if (string.IsNullOrWhiteSpace(userId) || string.IsNullOrWhiteSpace(password))
+            throw new InvalidOperationException("SQL preflight requires SQL authentication credentials.");
+
+        var builder = new SqlConnectionStringBuilder
+        {
+            DataSource = Server,
+            InitialCatalog = ReadOnlyPreflightDatabase,
+            UserID = userId,
+            Password = password,
+            TrustServerCertificate = true,
+            ConnectTimeout = 5,
+            ApplicationName = "PCTP-QC-SQL57-ReadOnly-Preflight",
+            ApplicationIntent = ApplicationIntent.ReadOnly
+        };
+        return builder.ConnectionString;
+    }
+
     /// <summary>
     /// Builds a connection string compatible with the legacy System.Data.SqlClient
     /// used by the production repositories. Microsoft.Data.SqlClient 6 emits the
