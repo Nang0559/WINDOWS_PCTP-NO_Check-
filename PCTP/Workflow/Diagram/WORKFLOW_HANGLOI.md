@@ -60,9 +60,9 @@ namespace PCTP.Modules.XuLyHangLoi.Enums
 
 > ⚠️ **Đã đổi tên so với bản trước:** `DaDinhHuongRework` → `DaDinhHuong` (giá trị số `= 20` giữ nguyên). Mọi tham chiếu cũ tới `QTChungStatus.DaDinhHuongRework` trong code/tài liệu đều là lỗi biên dịch/lỗi thời — phải đổi sang `DaDinhHuong`.
 
-### Transition không còn hard-code trong C# — đã chuyển sang bảng `sys_WorkflowTransitions`
+### Transition không còn hard-code trong C# — đã chuyển sang bảng `FVN_sys_WorkflowTransitions`
 
-**Thay đổi kiến trúc quan trọng:** class tĩnh `QTChungStatusTransition` (hard-code `Dictionary<QTChungStatus, QTChungStatus[]>` theo từng nhánh `HuongXuLyBatThuong`) **đã bị loại bỏ hoàn toàn**. Toàn bộ luật chuyển trạng thái giờ là **dữ liệu trong SQL** (bảng `sys_WorkflowTransitions`), được đọc qua 1 engine dùng chung cho MỌI process trong hệ thống (không riêng QTChung) — `IWorkflowRepository` / `WorkflowEngine` / `WorkflowTransitionService`, đặt tại `PCTP.Shared.UiMd`:
+**Thay đổi kiến trúc quan trọng:** class tĩnh `QTChungStatusTransition` (hard-code `Dictionary<QTChungStatus, QTChungStatus[]>` theo từng nhánh `HuongXuLyBatThuong`) **đã bị loại bỏ hoàn toàn**. Toàn bộ luật chuyển trạng thái giờ là **dữ liệu trong SQL** (bảng `FVN_sys_WorkflowTransitions`), được đọc qua 1 engine dùng chung cho MỌI process trong hệ thống (không riêng QTChung) — `IWorkflowRepository` / `WorkflowEngine` / `WorkflowTransitionService`, đặt tại `PCTP.Shared.UiMd`:
 
 ```csharp
 public interface IWorkflowRepository
@@ -89,7 +89,7 @@ public class WorkflowRepository : SqlRepositoryBase, IWorkflowRepository
     private List<WorkflowTransition> LoadFromDb(string processCode)
     {
         // SELECT FromStatus, ToStatus, ActionName, Description
-        // FROM sys_WorkflowTransitions WHERE ProcessCode=@pc AND IsActive=1 ORDER BY Id
+        // FROM FVN_sys_WorkflowTransitions WHERE ProcessCode=@pc AND IsActive=1 ORDER BY Id
         ...
     }
 }
@@ -104,7 +104,7 @@ Có **2 lớp bọc** trên cùng 1 `IWorkflowRepository`, dùng cho 2 mục đ�
 
 `processCode` dùng cho QTChung là hằng số `ProcessCodeQTChung = "QT_CHUNG"` khai trong `QTChungService` (còn `"PHIEU_TRA_HANG"` dùng cho state machine của `PhieuTraHangStatus`, khác cấp — xem đầu tài liệu).
 
-**Vì sao đổi từ C# sang SQL:** để thêm/sửa 1 luật chuyển trạng thái (VD: cho phép huỷ ở 1 mốc mới) không cần build lại ứng dụng — chỉ cần INSERT/UPDATE `sys_WorkflowTransitions` rồi gọi `InvalidateCache(processCode)`. Đánh đổi: luật giờ nằm trong dữ liệu vận hành (DBA/người quản trị chỉnh), không còn nằm trong source control theo dõi qua Git như `QTChungStatusTransition` cũ — cần quy trình kiểm soát thay đổi riêng cho bảng này (ai được sửa, review thế nào) nếu muốn giữ tính audit tương đương.
+**Vì sao đổi từ C# sang SQL:** để thêm/sửa 1 luật chuyển trạng thái (VD: cho phép huỷ ở 1 mốc mới) không cần build lại ứng dụng — chỉ cần INSERT/UPDATE `FVN_sys_WorkflowTransitions` rồi gọi `InvalidateCache(processCode)`. Đánh đổi: luật giờ nằm trong dữ liệu vận hành (DBA/người quản trị chỉnh), không còn nằm trong source control theo dõi qua Git như `QTChungStatusTransition` cũ — cần quy trình kiểm soát thay đổi riêng cho bảng này (ai được sửa, review thế nào) nếu muốn giữ tính audit tương đương.
 
 **Phân biệt `TuChoiGiaoBu` vs `Huy`:** `TuChoiGiaoBu` là một kết quả nghiệp vụ hợp lệ của bước QC Định Hướng (khiếu nại không có căn cứ). `Huy` dành cho phiếu bị hủy do sai sót/tạo nhầm/trùng lặp, có thể xảy ra ở bất kỳ bước nào trước `HoanTat`. Hai state này không được gộp chung để báo cáo tỷ lệ khiếu nại vô căn cứ tách biệt khỏi tỷ lệ hủy phiếu do lỗi thao tác.
 
@@ -589,7 +589,7 @@ new Dictionary<PhieuTraHangStatus, PhieuTraHangStatus[]>
 
 2. **QC Định Hướng (Gate Quyết Định):** (`Status: DaTaoPhieuBatThuong → DaDinhHuong → ...`)
 
-   Thực hiện qua `IQTChungService.QCDinhHuongRework`, ghi `HuongXuLy`, `NgayDinhHuong`, `NguoiDinhHuong` vào bảng chính (`Status → DaDinhHuong`), rồi phân tách theo 3 nhánh (transition tiếp theo do `WorkflowEngine`/`sys_WorkflowTransitions` xác nhận hợp lệ trước khi `ChangeStatus`, xem mục 0):
+   Thực hiện qua `IQTChungService.QCDinhHuongRework`, ghi `HuongXuLy`, `NgayDinhHuong`, `NguoiDinhHuong` vào bảng chính (`Status → DaDinhHuong`), rồi phân tách theo 3 nhánh (transition tiếp theo do `WorkflowEngine`/`FVN_sys_WorkflowTransitions` xác nhận hợp lệ trước khi `ChangeStatus`, xem mục 0):
 
    - **Nhánh 1 (Khách không lỗi thật):**
      `ChangeStatus(TuChoiGiaoBu, ...)` — dừng quy trình, từ chối giao bù. Đây là state **terminal riêng biệt**, không dùng `Huy`, rồi tự động `ChangeStatus(HoanTat, ...)` ($\rightarrow$ `END`).
@@ -608,7 +608,7 @@ new Dictionary<PhieuTraHangStatus, PhieuTraHangStatus[]>
 
 4. **Tiến Hành Rework & QC Xác Nhận Cuối:** (`Status: DaGiaoSanXuat → DaQCXacNhanCuoi`)
 
-   - Sản phẩm được tiến hành sửa chữa tại xưởng — bước này **ngoài hệ thống** (không có status riêng, không self-loop; xem `sys_WorkflowTransitions` để biết mốc trung gian nếu có bổ sung sau).
+   - Sản phẩm được tiến hành sửa chữa tại xưởng — bước này **ngoài hệ thống** (không có status riêng, không self-loop; xem `FVN_sys_WorkflowTransitions` để biết mốc trung gian nếu có bổ sung sau).
    - Rework xong tại xưởng, QC thực hiện `IQTChungService.QCXacNhanCuoi` → ghi `FVN_TraHangQTChung_QC` (`SoLuongOK`, `SoLuongNG`), `ChangeStatus(DaQCXacNhanCuoi, ...)`.
 
    **4b. Kiểm Tra Tem khi Nhập Lại sau Rework:**
@@ -813,4 +813,4 @@ graph TD
 | `HoanTat` (100) | **Terminal.** Kết thúc toàn bộ quy trình | — |
 | `Huy` (900) | **Terminal.** Phiếu bị hủy do sai sót/trùng lặp | — |
 
-> Danh sách transition hợp lệ giữa các status trên KHÔNG còn nằm trong bảng này hay trong code C# — tra cứu trực tiếp bảng `sys_WorkflowTransitions WHERE ProcessCode = 'QT_CHUNG'` (xem mục 0).
+> Danh sách transition hợp lệ giữa các status trên KHÔNG còn nằm trong bảng này hay trong code C# — tra cứu trực tiếp bảng `FVN_sys_WorkflowTransitions WHERE ProcessCode = 'QT_CHUNG'` (xem mục 0).
