@@ -60,7 +60,7 @@ internal static class DeliveryCommandSqlScenario
         finally
         {
             try { await DeleteFixtureRows(owner, f); } catch { }
-            try { await Exec(owner, "IF OBJECT_ID(N'dbo.DeliveryCommandQr') IS NOT NULL DROP TABLE dbo.DeliveryCommandQr; IF OBJECT_ID(N'dbo.DeliveryCommandLedger') IS NOT NULL DROP TABLE dbo.DeliveryCommandLedger;"); } catch { }
+            try { await Exec(owner, "IF OBJECT_ID(N'dbo.FVN_DeliveryCommandQr') IS NOT NULL DROP TABLE dbo.FVN_DeliveryCommandQr; IF OBJECT_ID(N'dbo.FVN_DeliveryCommandLedger') IS NOT NULL DROP TABLE dbo.FVN_DeliveryCommandLedger;"); } catch { }
             foreach (var t in new[] { f.TmpG, f.Stock, f.Slot })
                 try { await Exec(owner, $"IF OBJECT_ID(N'tempdb..[{t}]') IS NOT NULL DROP TABLE [{t}];"); } catch { }
         }
@@ -83,8 +83,8 @@ internal static class DeliveryCommandSqlScenario
         Require(await Scalar(o, $"SELECT COUNT(*) FROM [{f.Doc}] WHERE KETQUA='DG' AND MAHANGFCC='QCD-A'") == 0, "P13: DG rows of the PART consumed, incl. other STT.");
         Require(await Scalar(o, $"SELECT COUNT(*) FROM [{f.LuuD}] WHERE MAHANGFCC LIKE N'QCD-%'") == 2, "P13: DG rows archived.");
         Require(await Scalar(o, $"SELECT COUNT(*) FROM [{f.Doc}] WHERE KETQUA<>'DG' AND MAHANGFCC LIKE 'QCD-%'") == 1, "P13: non-DG rows stay.");
-        Require(await Scalar(o, "SELECT COUNT(*) FROM dbo.DeliveryCommandLedger WHERE BusinessKey='K-HAPPY'") == 1, "one ledger row.");
-        Require(await Scalar(o, "SELECT COUNT(*) FROM dbo.DeliveryCommandQr WHERE QrKey='QR-H1'") == 1, "one QR row.");
+        Require(await Scalar(o, "SELECT COUNT(*) FROM dbo.FVN_DeliveryCommandLedger WHERE BusinessKey='K-HAPPY'") == 1, "one ledger row.");
+        Require(await Scalar(o, "SELECT COUNT(*) FROM dbo.FVN_DeliveryCommandQr WHERE QrKey='QR-H1'") == 1, "one QR row.");
     }
 
     private static async Task Replay_P7(string conn, SqlConnection o, Fx f)
@@ -92,7 +92,7 @@ internal static class DeliveryCommandSqlScenario
         var r = Run(conn, f, Cmd("K-HAPPY", new[] { 1, 2 }, Part("QCD-A", new[] { "QR-H1" }, ("LOT-1", 101, 3))));
         Require(r.Success && r.Duplicate && r.CommittedQuantity == 3, "replay must return prior outcome.");
         Require(await Scalar(o, $"SELECT SLCONLAI FROM [{f.Stock}] WHERE LOT='LOT-1'") == 7, "replay must not deduct again.");
-        Require(await Scalar(o, "SELECT COUNT(*) FROM dbo.DeliveryCommandLedger WHERE BusinessKey='K-HAPPY'") == 1, "replay must not add ledger rows.");
+        Require(await Scalar(o, "SELECT COUNT(*) FROM dbo.FVN_DeliveryCommandLedger WHERE BusinessKey='K-HAPPY'") == 1, "replay must not add ledger rows.");
     }
 
     private static async Task SameQrOtherKey_P8(string conn, SqlConnection o, Fx f)
@@ -100,7 +100,7 @@ internal static class DeliveryCommandSqlScenario
         var r = Run(conn, f, Cmd("K-QR2", new[] { 3 }, Part("QCD-B", new[] { "QR-H1" }, ("LOT-1", 101, 2))));
         Require(!r.Success, "QR already delivered under another key must be rejected.");
         Require(await Scalar(o, $"SELECT SLCONLAI FROM [{f.Stock}] WHERE LOT='LOT-1'") == 7, "rejected QR must not move stock.");
-        Require(await Scalar(o, "SELECT COUNT(*) FROM dbo.DeliveryCommandLedger WHERE BusinessKey='K-QR2'") == 0, "no ledger for rejected command.");
+        Require(await Scalar(o, "SELECT COUNT(*) FROM dbo.FVN_DeliveryCommandLedger WHERE BusinessKey='K-QR2'") == 0, "no ledger for rejected command.");
         Require(await Scalar(o, $"SELECT COUNT(*) FROM [{f.Tmp}] WHERE STT=3 AND STATUS='NG'") == 1, "STT 3 stays pending.");
     }
 
@@ -111,8 +111,8 @@ internal static class DeliveryCommandSqlScenario
         Require(await Scalar(o, $"SELECT SLCONLAI FROM [{f.Stock}] WHERE LOT='LOT-1'") == 7, "stock restored after rollback.");
         Require(await Scalar(o, $"SELECT Quantity FROM [{f.Slot}] WHERE Id=101") == 7, "SlotLot restored after rollback.");
         Require(await Scalar(o, $"SELECT COUNT(*) FROM [{f.Tmp}] WHERE STT=3 AND STATUS='NG'") == 1, "closed STT 3 restored (F-Y4).");
-        Require(await Scalar(o, "SELECT COUNT(*) FROM dbo.DeliveryCommandLedger WHERE BusinessKey='K-ROLL'") == 0, "ledger rolled back.");
-        Require(await Scalar(o, "SELECT COUNT(*) FROM dbo.DeliveryCommandQr WHERE QrKey='QR-R1'") == 0, "QR rolled back.");
+        Require(await Scalar(o, "SELECT COUNT(*) FROM dbo.FVN_DeliveryCommandLedger WHERE BusinessKey='K-ROLL'") == 0, "ledger rolled back.");
+        Require(await Scalar(o, "SELECT COUNT(*) FROM dbo.FVN_DeliveryCommandQr WHERE QrKey='QR-R1'") == 0, "QR rolled back.");
         Require(await Scalar(o, $"SELECT COUNT(*) FROM [{f.LuuP}] WHERE MAHANG LIKE N'QCD-%'") == 2, "archive insert for STT 3 rolled back.");
     }
 
@@ -125,7 +125,7 @@ internal static class DeliveryCommandSqlScenario
         Require(!r.Success && (r.Message ?? "").Contains("UQ_LUUPHIEU"), "duplicate 8-column key must fail naming UQ_LUUPHIEU: " + r.Message);
         Require(await Scalar(o, $"SELECT SLCONLAI FROM [{f.Stock}] WHERE LOT='LOT-1'") == 10, "stock restored after UQ violation.");
         Require(await Scalar(o, $"SELECT COUNT(*) FROM [{f.Tmp}] WHERE STT=3 AND STATUS='NG'") == 1, "TMP stays pending after UQ violation.");
-        Require(await Scalar(o, "SELECT COUNT(*) FROM dbo.DeliveryCommandLedger WHERE BusinessKey='K-DUP'") == 0, "no ledger after UQ violation.");
+        Require(await Scalar(o, "SELECT COUNT(*) FROM dbo.FVN_DeliveryCommandLedger WHERE BusinessKey='K-DUP'") == 0, "no ledger after UQ violation.");
         // Same STT but a different key column (SOLUONG) is a different business row and must be allowed.
         await Exec(o, $"DELETE FROM [{f.LuuP}] WHERE MAHANG LIKE N'QCD-%'; INSERT [{f.LuuP}](STT,MAHANG,NGAYGIAO,SOLUONG,GIOGIAO,NHAMAY) VALUES (3,N'QCD-B','2026-10-26',99,N'08:00',N'N1');");
         var ok = Run(conn, f, Cmd("K-DUP2", new[] { 3 }, Part("QCD-B", new[] { "QR-D2" }, ("LOT-1", 101, 2))));
@@ -148,7 +148,7 @@ internal static class DeliveryCommandSqlScenario
         Require(res.Count(x => x.Success && !x.Duplicate) == 1, "exactly one session commits the same BusinessKey.");
         Require(res.Count(x => x.Success && x.Duplicate) == 1, "the other session returns the prior outcome: " + string.Join("|", res.Select(x => x.Message)));
         Require(await Scalar(o, $"SELECT SLCONLAI FROM [{f.Stock}] WHERE LOT='LOT-1'") == 6, "stock deducted exactly once.");
-        Require(await Scalar(o, "SELECT COUNT(*) FROM dbo.DeliveryCommandLedger WHERE BusinessKey='K-RACE'") == 1, "one ledger row.");
+        Require(await Scalar(o, "SELECT COUNT(*) FROM dbo.FVN_DeliveryCommandLedger WHERE BusinessKey='K-RACE'") == 1, "one ledger row.");
     }
 
     private static async Task TwoSessionsSameQr_G5(string conn, SqlConnection o, Fx f)
@@ -159,7 +159,7 @@ internal static class DeliveryCommandSqlScenario
         var res = await Task.WhenAll(Task.Run(() => Run(conn, f, a)), Task.Run(() => Run(conn, f, b)));
         Require(res.Count(x => x.Success) == 1, "same QR under two keys: exactly one commits: " + string.Join("|", res.Select(x => x.Message)));
         Require(await Scalar(o, $"SELECT SLCONLAI FROM [{f.Stock}] WHERE LOT='LOT-1'") == 8, "stock deducted once.");
-        Require(await Scalar(o, "SELECT COUNT(*) FROM dbo.DeliveryCommandQr WHERE QrKey='QR-SAME'") == 1, "one QR row.");
+        Require(await Scalar(o, "SELECT COUNT(*) FROM dbo.FVN_DeliveryCommandQr WHERE QrKey='QR-SAME'") == 1, "one QR row.");
     }
 
     // ---- plumbing ---------------------------------------------------------------------------
@@ -225,7 +225,7 @@ DELETE FROM dbo.TMPPHIEUGIAOHANG WHERE MAHANG LIKE N'QCD-%';");
         await DeleteFixtureRows(o, f);
         await Exec(o, $@"
 DELETE FROM [{f.TmpG}]; DELETE FROM [{f.Stock}]; DELETE FROM [{f.Slot}];
-DELETE FROM dbo.DeliveryCommandQr; DELETE FROM dbo.DeliveryCommandLedger;
+DELETE FROM dbo.FVN_DeliveryCommandQr; DELETE FROM dbo.FVN_DeliveryCommandLedger;
 INSERT [{f.Stock}] VALUES (N'LOT-1', 10); INSERT [{f.Slot}] VALUES (101, 10);
 INSERT [{f.Tmp}](STT,MAHANG,LOT,SOLUONG,NGAYGIAO,GIOGIAO,STATUS,NHAMAY,PO_NO,PO_ITEM,HOP,Note,STATUSDOC) VALUES
  (1,N'QCD-A',N'LOT-1',3,'2026-10-26','08:00','NG','N1','PO1',N'10',5,N'n1',N'OK'),(2,N'QCD-A',N'LOT-1',0,'2026-10-26','08:00','NG','N1','PO1',N'20',5,N'n2',N'OK'),(3,N'QCD-B',N'LOT-1',2,'2026-10-26','08:00','NG','N1','PO2',N'30',1,N'n3',N'OK');
