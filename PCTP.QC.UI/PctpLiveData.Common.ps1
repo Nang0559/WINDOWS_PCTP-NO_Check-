@@ -49,7 +49,7 @@ function Get-PctpLiveConnection {
     # Indexer (canonical keywords) works in Windows PowerShell 5.1 and PowerShell 7 alike.
     $b['Application Name'] = if ($Role -eq 'Source') { 'PCTP-QC-LiveData-Source-ReadOnly' } else { 'PCTP-QC-LiveData-Target' }
     $b['Connect Timeout'] = 10
-    if ($Role -eq 'Source') { $b['ApplicationIntent'] = 'ReadOnly' }
+    if ($Role -eq 'Source' -or -not $AllowWrites) { $b['ApplicationIntent'] = 'ReadOnly' }
     return $b.ConnectionString
 }
 
