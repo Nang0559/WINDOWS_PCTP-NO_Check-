@@ -40,6 +40,9 @@ foreach ($required in @('LOT','PART','SLCONLAI','SP')) {
 if (-not $columns.ContainsKey('B20Item') -or $columns['B20Item'] -notcontains 'Code') {
     throw 'Source dbo.B20Item.Code was not confirmed. Do not guess the item join; review schema metadata first.'
 }
+if (-not $columns.ContainsKey('Purchase_Order_YMVN') -or $columns['Purchase_Order_YMVN'] -notcontains 'Part_no') {
+    throw 'Source dbo.Purchase_Order_YMVN.Part_no was not confirmed; review schema metadata before profiling order matches.'
+}
 
 $profileSql = @"
 SET NOCOUNT ON;
@@ -52,7 +55,7 @@ SELECT
   (SELECT COUNT_BIG(*) FROM dbo.STOCKTP st WHERE st.SLCONLAI > 0 AND NULLIF(LTRIM(RTRIM(st.PART)),N'') IS NOT NULL AND EXISTS (SELECT 1 FROM dbo.B20Item i WHERE LTRIM(RTRIM(CONVERT(nvarchar(100),i.Code)))=LTRIM(RTRIM(st.PART)))) AS positive_matching_b20item_rows,
   (SELECT COUNT_BIG(*) FROM dbo.STOCKTP st WHERE st.SLCONLAI > 0 AND NULLIF(LTRIM(RTRIM(st.PART)),N'') IS NOT NULL AND EXISTS (SELECT 1 FROM dbo.B20Item i WHERE LTRIM(RTRIM(CONVERT(nvarchar(100),i.Code)))=LTRIM(RTRIM(st.PART))) AND EXISTS (SELECT 1 FROM dbo.Purchase_Order_YMVN po WHERE LTRIM(RTRIM(po.Part_no))=LTRIM(RTRIM(st.PART)))) AS positive_matching_item_and_po_rows;
 "@
-$profile = (Invoke-PctpScalarRows $connectionString $profileSql).Rows[0]
+$metrics = (Invoke-PctpScalarRows $connectionString $profileSql).Rows[0]
 
 New-Item -ItemType Directory -Force -Path $OutputDirectory | Out-Null
 $manifest = [ordered]@{
@@ -66,7 +69,7 @@ $manifest = [ordered]@{
     ddl_or_dml_executed = $false
     query_timeout_seconds = 60
     counts = [ordered]@{
-        stocktp_rows = [long]$profile['stocktp_rows']
+        stocktp_rows = [long]$metrics['stocktp_rows']
         positive_remaining_rows = [long]$profile['positive_remaining_rows']
         positive_with_part_rows = [long]$profile['positive_with_part_rows']
         positive_with_sp_rows = [long]$profile['positive_with_sp_rows']
