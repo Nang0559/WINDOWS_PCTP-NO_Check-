@@ -16,7 +16,7 @@ class InvalidSqlLengthTests(unittest.TestCase):
             "precision": "0",
             "scale": "0",
         }
-        with self.assertRaisesRegex(ValueError, "invalid Unicode byte length"):
+        with self.assertRaisesRegex(ValueError, "zero/non-positive Unicode character length"):
             gen.sql_type(row, {})
 
     def test_rejects_zero_non_unicode_length_before_sql_deploy(self):

@@ -153,7 +153,7 @@ def sql_type(row, type_map):
         if m == -1:
             return f"{t}(MAX)"
         if m < 1:
-            raise ValueError(f"invalid zero/non-positive character length for {row['TableName']}.{row['ColumnName']}: {m}")
+            raise ValueError(f"invalid zero/non-positive Unicode character length for {row['TableName']}.{row['ColumnName']}: {m}")
         return f"{t}({m})"
 
     if t in {"decimal", "numeric"}:
