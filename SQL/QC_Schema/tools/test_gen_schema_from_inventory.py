@@ -36,18 +36,21 @@ class Sql2DdlGeneratorTests(unittest.TestCase):
         tables = gen.load_columns(self.inventory, {"fvn_test", "unrelated"})
         self.assertEqual({"fvn_test"}, set(tables)); self.assertEqual(["Id", "Code", "Calculated", "OccurredAt"], [r["ColumnName"] for r in tables["fvn_test"]])
 
-    def test_preserves_identity_unicode_byte_length_default_computed_and_temporal_scale(self):
+    def test_preserves_identity_unicode_character_length_default_computed_and_temporal_scale(self):
         sql = gen.render(self.inventory, self.coverage)
         self.assertIn("[Id] int IDENTITY(1,1) NOT NULL", sql); self.assertIn("[Code] nvarchar(20) NOT NULL DEFAULT ('x')", sql)
-        self.assertIn("[OccurredAt] datetime2(0) NOT NULL", sql); self.assertIn("N'Code', N'nvarchar', 40", sql)
+        self.assertIn("[OccurredAt] datetime2(0) NOT NULL", sql); self.assertIn("N'Code', N'nvarchar', 80", sql)
         self.assertIn("[Calculated] AS ([Id] + (1))", sql); self.assertIn("SQL2 table/column definition mismatch", sql)
         self.assertIn("sys.identity_columns", sql); self.assertIn("ROW_NUMBER() OVER (ORDER BY c.column_id)", sql)
         self.assertIn("PK/unique indexes, FKs and CHECK constraints are emitted separately", sql)
 
-    def test_native_unicode_lengths_are_bytes_but_alias_lengths_use_verified_map(self):
-        self.assertEqual("nvarchar(5)", gen.sql_type({"TableName":"FVN_Test","ColumnName":"KETQUA","DataType":"nvarchar","MaxChars":"10"}, {}))
-        self.assertEqual("nchar(1)", gen.sql_type({"TableName":"FVN_Test","ColumnName":"Gear","DataType":"nchar","MaxChars":"2"}, {}))
-        self.assertEqual("nvarchar(16)", gen.sql_type({"TableName":"FVN_Test","ColumnName":"Code","DataType":"CodeType","MaxChars":"32"}, {"codetype":"nvarchar(16)"}))
+    def test_native_unicode_lengths_are_characters_and_alias_lengths_use_verified_map(self):
+        self.assertEqual("nvarchar(10)", gen.sql_type({"TableName":"FVN_Test","ColumnName":"KETQUA","DataType":"nvarchar","MaxChars":"10"}, {}))
+        self.assertEqual("nchar(1)", gen.sql_type({"TableName":"FVN_Test","ColumnName":"Gear","DataType":"nchar","MaxChars":"1"}, {}))
+        self.assertEqual("nvarchar(16)", gen.sql_type({"TableName":"FVN_Test","ColumnName":"Code","DataType":"CodeType","MaxChars":"16"}, {"codetype":"nvarchar(16)"}))
+        self.assertEqual(2, gen.verifier_max_length({"TableName":"FVN_Test","ColumnName":"Gear","MaxChars":"1"}, "nchar"))
+        with self.assertRaisesRegex(ValueError, "zero/non-positive Unicode character length"):
+            gen.sql_type({"TableName":"FVN_Test","ColumnName":"Gear","DataType":"nchar","MaxChars":"0"}, {})
 
     def test_temporal_zero_scale_is_explicit(self):
         for typ in ("datetime2", "time", "datetimeoffset"):
