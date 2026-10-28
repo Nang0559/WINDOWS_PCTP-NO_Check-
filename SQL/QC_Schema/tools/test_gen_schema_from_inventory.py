@@ -45,22 +45,22 @@ class Sql2DdlGeneratorTests(unittest.TestCase):
         self.assertEqual(["Id", "Code", "Calculated"],
                          [row["ColumnName"] for row in tables["fvn_test"]])
 
-    def test_preserves_identity_unicode_character_length_default_and_computed(self):
+    def test_preserves_identity_unicode_byte_length_default_and_computed(self):
         sql = gen.render(self.inventory, self.coverage)
         self.assertIn("[Id] int IDENTITY(1,1) NOT NULL", sql)
-        self.assertIn("[Code] nvarchar(40) NOT NULL DEFAULT ('x')", sql)
-        self.assertIn("N'Code', N'nvarchar', 80", sql)
+        self.assertIn("[Code] nvarchar(20) NOT NULL DEFAULT ('x')", sql)
+        self.assertIn("N'Code', N'nvarchar', 40", sql)
         self.assertIn("[Calculated] AS ([Id] + (1))", sql)
         self.assertIn("SQL2 table/column definition mismatch", sql)
         self.assertIn("sys.identity_columns", sql)
         self.assertIn("ROW_NUMBER() OVER (ORDER BY c.column_id)", sql)
         self.assertIn("PK/unique indexes, FKs and CHECK constraints are emitted separately", sql)
 
-    def test_native_unicode_lengths_are_characters_but_alias_lengths_use_verified_map(self):
+    def test_native_unicode_lengths_are_bytes_but_alias_lengths_use_verified_map(self):
         nvarchar_row = {"TableName": "FVN_Test", "ColumnName": "KETQUA",
-                        "DataType": "nvarchar", "MaxChars": "5"}
+                        "DataType": "nvarchar", "MaxChars": "10"}
         nchar_row = {"TableName": "FVN_Test", "ColumnName": "Gear",
-                     "DataType": "nchar", "MaxChars": "1"}
+                     "DataType": "nchar", "MaxChars": "2"}
         alias_row = {"TableName": "FVN_Test", "ColumnName": "Code",
                      "DataType": "CodeType", "MaxChars": "32"}
         self.assertEqual("nvarchar(5)", gen.sql_type(nvarchar_row, {}))
