@@ -116,7 +116,7 @@ public sealed class MainForm : Form
 
         var header = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, WrapContents = true, Padding = new Padding(4), Margin = new Padding(0, 0, 0, 6) };
         header.Controls.Add(new Label { Text = "SQL Test:", AutoSize = true, Margin = new Padding(3, 8, 3, 3) });
-        header.Controls.Add(new Label { Text = "192.168.200.57 / B7R2_FCC", AutoSize = true, Font = new Font(Font, FontStyle.Bold), Margin = new Padding(3, 8, 14, 3) });
+        header.Controls.Add(new Label { Text = "SQL57: B7R2_FCC (chỉ đọc) | B7R2_FCC_QC (integration)", AutoSize = true, Font = new Font(Font, FontStyle.Bold), Margin = new Padding(3, 8, 14, 3) });
         header.Controls.Add(new Label { Text = "SQL User:", AutoSize = true, Margin = new Padding(3, 8, 3, 3) });
         header.Controls.Add(_user);
         header.Controls.Add(new Label { Text = "Password:", AutoSize = true, Margin = new Padding(10, 8, 3, 3) });
@@ -279,7 +279,7 @@ public sealed class MainForm : Form
         AppendLine("=== " + testName + " ===");
         AppendLine("Bắt đầu: " + _activeRun.StartedAt);
         AppendLine("Repository: " + _root);
-        AppendLine("Target: " + (needsSqlCredentials ? "192.168.200.57/B7R2_FCC" : "local test suite"));
+        AppendLine("Target: " + (needsSqlCredentials ? (testName.Contains("Read-only", StringComparison.OrdinalIgnoreCase) || testName.Contains("Procedure Check", StringComparison.OrdinalIgnoreCase) ? "192.168.200.57/B7R2_FCC (read-only preflight)" : "192.168.200.57/B7R2_FCC_QC (isolated integration)") : "local test suite"));
 
         try
         {
