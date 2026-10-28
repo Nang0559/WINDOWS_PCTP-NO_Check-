@@ -338,6 +338,12 @@ try {
     }
     Close-PctpSql
     $failedCount = @($results | Where-Object Status -eq "FAIL").Count
+    # Type-safe count: "$_.Step -gt 0" threw "Argument types do not match" under Windows PowerShell 5.1 and hid the real failure.
+    $stepsPassed = 0
+    foreach ($r in $results) {
+        $n = 0
+        if (([string]$r.Status -eq "PASS") -and [int]::TryParse([string]$r.Step, [ref]$n) -and $n -gt 0) { $stepsPassed++ }
+    }
     $report = [pscustomobject]@{
         Status = $(if ($failure -or $failedCount -gt 0) { "FAIL" } else { "PASS" })
         RunId = $runId
@@ -353,7 +359,7 @@ try {
         FailureSummary = $failure
         StartedAt = $journeyStartedAt
         CompletedAt = (Get-Date).ToString("o")
-        StepsPassed = @($results | Where-Object { $_.Status -eq "PASS" -and $_.Step -gt 0 }).Count
+        StepsPassed = $stepsPassed
         StepsFailed = $failedCount
         Results = @($results)
     }
