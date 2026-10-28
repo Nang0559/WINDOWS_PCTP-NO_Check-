@@ -18,18 +18,18 @@ This phase does not synchronize schemas and does not deploy SQL57 changes to SQL
 - [MP object candidate matrix](MP_TEST_DATASET_OBJECTS.csv): first-pass classification of source and target objects.
 - `PCTP.QC.UI/Invoke-PctpMpSourcePreview.ps1`: read-only aggregate profile; it does not emit LOT/item/order identifiers or business values.
 - `.github/workflows/pctp-mp-source-profile.yml`: manually dispatched, explicitly confirmed source profile on the `pctp-ui` Windows runner.
-- `PCTP.QC.UI/PctpLiveData.Common.ps1`: shared host/catalog guards, source read-only permission probe, and stale-isolation check.
+- `PCTP.QC.UI/PctpLiveData.Common.ps1`: exact host/catalog guards, read-only permission probes for both inventory endpoints, and stale-isolation check.
 - `.github/workflows/pctp-qc-tests.yml`: isolated regression tests; SQL integration runs on a disposable SQL Server container with no SQL14/SQL57 credentials.
 
 ## 3. Before the source-profile run
 
 1. Confirm the workflow changes are present on the repository default branch. GitHub only offers manual dispatch for a workflow present on the default branch.
 2. Configure repository secret `PCTP_QC_SOURCE_SQL_CONNECTION` for SQL14/BRAVO, catalog `B7R2_FCC`, using the dedicated login `PCTP_QC_InventoryReader` or an equivalent SELECT/metadata-only account.
-3. Do not use a SQL login that is sysadmin, db_owner, db_datawriter, db_ddladmin, or has INSERT/UPDATE/DELETE/EXECUTE/ALTER permission. The script fails closed if the source permission probe finds those privileges.
+3. Configure repository secret `PCTP_QC_TARGET_SQL_CONNECTION` for SQL57 / `B7R2_FCC` using a separate metadata-only account. Both SQL14 and SQL57 inventory logins are checked and must not be sysadmin, db_owner, db_datawriter, db_ddladmin, or have INSERT/UPDATE/DELETE/EXECUTE/ALTER permission. The inventory fails closed if either permission probe finds those privileges.
 4. Ensure the FCCIT self-hosted runner has no leftover `PCTP-QC-ISOLATION-*` firewall rules. The script fails closed when stale isolation rules are found.
 5. Never add SQL credentials to repository files, workflow text, command-line arguments, output, or artifacts.
 
-The current metadata artifact reports the SQL57 inventory login as `sa`. Before any future SQL57 fixture write phase, replace it with a least-privilege dedicated account. This source-profile workflow does not use the SQL57 connection.
+The earlier metadata artifact reported the SQL57 inventory login as `sa`; that account is not acceptable for the hardened inventory workflow. Replace `PCTP_QC_TARGET_SQL_CONNECTION` with a dedicated read-only metadata login before dispatching inventory. A separate integration login, if used later, must be scoped to `B7R2_FCC_QC*` only and must never be reused for SQL14 or shared `B7R2_FCC`.
 
 ## 4. Run the aggregate profile
 
