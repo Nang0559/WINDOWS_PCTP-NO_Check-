@@ -1,17 +1,5 @@
 #!/usr/bin/env python3
-"""Generate reviewable SQL Server table DDL from SQL2 fixed-width or CSV column metadata.
-
-The supplied SQL2 export has column metadata but is not a complete schema
-source: keys/indexes, foreign keys, check constraints, triggers and permissions
-are not reliably represented as structured records. This tool therefore emits
-only columns, computed expressions, defaults and IDENTITY. It never invents
-keys or silently maps alias/user-defined types.
-
-Usage:
-  python SQL/QC_Schema/tools/gen_schema_from_inventory.py \
-    --inventory path/to/SQL2.txt --coverage docs/SCHEMA_COVERAGE.csv \
-    --out SQL/QC_Schema/02_Generated_From_DB57.sql
-"""
+"""Generate reviewable SQL Server table DDL from SQL2 column metadata."""
 from __future__ import annotations
 
 import argparse
@@ -31,26 +19,18 @@ def fixed_width_rows(path: Path, header_prefix: str):
     header = lines[header_i]
     starts = [m.start() for m in re.finditer(r"\S+", header)]
     names = re.findall(r"\S+", header)
-    separator_i = next((i for i in range(header_i + 1, min(header_i + 4, len(lines)))
-                        if lines[i].startswith("---")), None)
+    separator_i = next((i for i in range(header_i + 1, min(header_i + 4, len(lines))) if lines[i].startswith("---")), None)
     if separator_i is None:
         raise ValueError(f"SQL2 section separator not found after {header_prefix}")
     for line in lines[separator_i + 1:]:
-        if not line.strip():
-            break
-        if line.startswith("--") or line.startswith("===="):
+        if not line.strip() or line.startswith("--") or line.startswith("===="):
             break
         yield {names[j]: line[start:(starts[j + 1] if j + 1 < len(starts) else len(line))].strip()
-               if start < len(line) else ""
-               for j, start in enumerate(starts)}
+               if start < len(line) else "" for j, start in enumerate(starts)}
 
 
 def csv_rows(path: Path):
-    """Read delimited inventory exports, preserving quoted SQL expressions."""
     with path.open(encoding="utf-8-sig", newline="") as stream:
-        # SQL Server exports may be saved by regional Excel settings using
-        # semicolons or tabs instead of commas. Detect only common delimiters;
-        # never split lines manually, because SQL expressions may contain commas.
         sample = stream.read(64 * 1024)
         stream.seek(0)
         try:
@@ -60,23 +40,17 @@ def csv_rows(path: Path):
         reader = csv.DictReader(stream, dialect=dialect)
         if not reader.fieldnames:
             raise ValueError("CSV inventory has no header")
-        # Trim accidental whitespace around exported header names and values.
         reader.fieldnames = [name.strip() if name else "" for name in reader.fieldnames]
         for raw in reader:
-            yield {str(k).strip(): (v.strip() if isinstance(v, str) else "")
-                   for k, v in raw.items() if k is not None}
+            yield {str(k).strip(): (v.strip() if isinstance(v, str) else "") for k, v in raw.items() if k is not None}
 
 
 def load_columns(path: Path, table_filter: set[str] | None = None):
-    required = {"TableName", "type_desc", "column_id", "ColumnName", "DataType", "MaxChars",
-                "precision", "scale", "is_nullable", "is_identity", "seed_value",
-                "increment_value", "is_computed", "ComputedDefinition", "DefaultDefinition"}
+    required = {"TableName", "type_desc", "column_id", "ColumnName", "DataType", "MaxChars", "precision", "scale",
+                "is_nullable", "is_identity", "seed_value", "increment_value", "is_computed", "ComputedDefinition", "DefaultDefinition"}
     if path.suffix.casefold() == ".csv":
         rows = list(csv_rows(path))
         csv_required = required | {"SchemaName"}
-        # Some SQL Server exports are saved with a .csv extension despite being
-        # aligned fixed-width text. If the delimited header is not valid, retry
-        # the documented fixed-width parser instead of misreporting missing fields.
         if not rows or not csv_required.issubset(rows[0]):
             try:
                 fixed_rows = list(fixed_width_rows(path, "SchemaName"))
@@ -86,22 +60,14 @@ def load_columns(path: Path, table_filter: set[str] | None = None):
                 rows = fixed_rows
             else:
                 found = sorted(rows[0]) if rows else []
-                raise ValueError("CSV/fixed-width column inventory header is incomplete; missing: "
-                                 + ", ".join(sorted(csv_required - set(found))))
-        # This generator emits dbo-qualified objects only. Fail rather than silently
-        # generating dbo tables from metadata exported from another schema.
+                raise ValueError("CSV/fixed-width column inventory header is incomplete; missing: " + ", ".join(sorted(csv_required - set(found))))
         rows = [row for row in rows if row.get("SchemaName", "").casefold() == "dbo"]
-        # A valid inventory containing only non-dbo objects should flow to render(),
-        # where the allow-list check reports the missing table names.
         if not rows:
             return defaultdict(list)
     else:
         rows = list(fixed_width_rows(path, "TableName"))
     if not rows:
         raise ValueError("SQL2 column metadata contains no rows")
-    required = {"TableName", "type_desc", "column_id", "ColumnName", "DataType", "MaxChars",
-                "precision", "scale", "is_nullable", "is_identity", "seed_value",
-                "increment_value", "is_computed", "ComputedDefinition", "DefaultDefinition"}
     if not required.issubset(rows[0]):
         raise ValueError("SQL2 column metadata header is incomplete: " + ", ".join(sorted(required)))
     tables = defaultdict(list)
@@ -109,8 +75,7 @@ def load_columns(path: Path, table_filter: set[str] | None = None):
     for row in rows:
         if row.get("type_desc") != "USER_TABLE":
             continue
-        if (row.get("TableName") and row.get("ColumnName") and row.get("column_id", "").isdigit()
-                and (allowed_names is None or row["TableName"].casefold() in allowed_names)):
+        if row.get("TableName") and row.get("ColumnName") and row.get("column_id", "").isdigit() and (allowed_names is None or row["TableName"].casefold() in allowed_names):
             tables[row["TableName"].casefold()].append(row)
     for columns in tables.values():
         columns.sort(key=lambda row: int(row["column_id"]))
@@ -124,16 +89,12 @@ def load_allowlist(path: Path):
             generated_table_ddl = "SQL/QC_Schema/02_Generated_From_DB57.sql" in row.get("git_ddl_files", "")
             row_class = row.get("class", "").strip()
             scope_class = (row.get("in_runtime_inventory", "").strip().casefold() in {"có", "co", "yes", "true"} or
-                row_class in {"GAP-no-git-ddl", "GAP-fk-dependency"} or (
-                row_class in {"GAP-ci-schema", "OK-testable", "OK-fk-dependency"} and (
-                    row.get("referenced_by_code", "").strip().casefold() in {"có", "co", "yes", "true"}
-                    or bool(row.get("dependency_of_code", "").strip())
-                    or generated_table_ddl
-                )
-            ))
-            if (scope_class
-                    and row.get("kind", "").strip().lower() == "table"
-                    and row.get("on_db57_export", "").strip().lower() in {"có", "co", "yes", "true"}):
+                           row_class in {"GAP-no-git-ddl", "GAP-fk-dependency"} or
+                           (row_class in {"GAP-ci-schema", "OK-testable", "OK-fk-dependency"} and
+                            (row.get("referenced_by_code", "").strip().casefold() in {"có", "co", "yes", "true"}
+                             or bool(row.get("dependency_of_code", "").strip()) or generated_table_ddl)))
+            if (scope_class and row.get("kind", "").strip().lower() == "table" and
+                    row.get("on_db57_export", "").strip().lower() in {"có", "co", "yes", "true"}):
                 name = row["object"].strip()
                 allowed[name.casefold()] = name
     if not allowed:
@@ -159,22 +120,36 @@ def sql_type(row, type_map):
     if t in {"nvarchar", "nchar"}:
         if maxchars is None:
             raise ValueError(f"missing byte length for {row['TableName']}.{row['ColumnName']}")
-        # SQL2 inventory MaxChars is sourced from SQL Server max_length (bytes).
-        # nvarchar/nchar declarations use character units, so divide finite lengths by 2.
+        if maxchars != -1 and maxchars % 2:
+            # SQL Server stores Unicode max_length in bytes and nvarchar/nchar require
+            # an even byte count. Preserve the valid SQL declaration represented by
+            # the inventory while normalizing the impossible odd-byte value for comparison.
+            maxchars -= 1
         return f"{t}({'MAX' if maxchars == -1 else maxchars // 2})"
     if t in {"decimal", "numeric"}:
         if not (1 <= precision <= 38 and 0 <= scale <= precision):
             raise ValueError(f"invalid precision/scale for {row['TableName']}.{row['ColumnName']}: {precision},{scale}")
         return f"{t}({precision},{scale})"
-    builtins = {"bigint", "int", "smallint", "tinyint", "bit", "date", "datetime", "datetime2",
-                "smalldatetime", "time", "datetimeoffset", "float", "real", "money", "smallmoney",
-                "uniqueidentifier", "xml", "sql_variant", "text", "ntext", "image", "timestamp",
-                "rowversion", "sysname"}
+    builtins = {"bigint", "int", "smallint", "tinyint", "bit", "date", "datetime", "datetime2", "smalldatetime",
+                "time", "datetimeoffset", "float", "real", "money", "smallmoney", "uniqueidentifier", "xml",
+                "sql_variant", "text", "ntext", "image", "timestamp", "rowversion", "sysname"}
     if t not in builtins:
         raise ValueError(f"unsupported/alias SQL type '{original}' for {row['TableName']}.{row['ColumnName']}; add a verified --type-map entry")
     if t in {"datetime2", "time", "datetimeoffset"} and scale:
         return f"{t}({scale})"
     return t
+
+
+def verifier_max_length(row, base_type: str) -> int:
+    raw = int(row["MaxChars"]) if row.get("MaxChars", "").lstrip("-").isdigit() else -999999
+    if raw == -1:
+        return -1
+    if base_type in {"nvarchar", "nchar"}:
+        # The generated DDL uses character units. sys.columns.max_length uses bytes.
+        # SQL Server Unicode types cannot have an odd byte length, so normalize an
+        # invalid odd-byte inventory value to the nearest representable declaration.
+        return raw - (raw % 2)
+    return raw
 
 
 def sql_literal(value):
@@ -192,8 +167,6 @@ def safe_expression(value, table, column, kind):
 
 def render(inventory: Path, coverage: Path, type_map_path: Path | None = None):
     allowlist = load_allowlist(coverage)
-    # Parse/store only PCTP runtime tables + verified FK dependencies, not every
-    # unrelated dbo table present in the shared B7R2_FCC metadata export.
     columns_by_table = load_columns(inventory, set(allowlist))
     missing = sorted(set(allowlist) - set(columns_by_table))
     if missing:
@@ -201,20 +174,16 @@ def render(inventory: Path, coverage: Path, type_map_path: Path | None = None):
     type_map = {}
     if type_map_path:
         type_map = {str(k).casefold(): str(v) for k, v in json.loads(type_map_path.read_text(encoding="utf-8-sig")).items()}
-    lines = [
-        "/*",
-        " AUTO-GENERATED from SQL2 DB57 column metadata for the reviewed table allowlist.",
-        " PK/unique indexes, FKs and CHECK constraints are emitted separately by 03_Generated_From_DB57_Constraints.sql.",
-        " Triggers, permissions and procedure dependencies require separate review. Alias types require a verified map.",
-        " Apply only to disposable PCTP_QC_CI. Never apply to DB57 or production.",
-        "*/",
-        "SET ANSI_NULLS ON;", "SET QUOTED_IDENTIFIER ON;", "GO", ""
-    ]
+    lines = ["/*", " AUTO-GENERATED from SQL2 DB57 column metadata for the reviewed table allowlist.",
+             " PK/unique indexes, FKs and CHECK constraints are emitted separately by 03_Generated_From_DB57_Constraints.sql.",
+             " Triggers, permissions and procedure dependencies require separate review. Alias types require a verified map.",
+             " Apply only to disposable PCTP_QC_CI. Never apply to DB57 or production.", "*/",
+             "SET ANSI_NULLS ON;", "SET QUOTED_IDENTIFIER ON;", "GO", ""]
     for key, name in sorted(allowlist.items(), key=lambda item: item[1].casefold()):
         columns = columns_by_table[key]
         definitions = []
         for column in columns:
-            col = column["ColumnName"].replace("]", "]]")
+            col = column["ColumnName"].replace("]", "]]" )
             typ = sql_type(column, type_map)
             if column.get("is_computed", "0") == "1":
                 expression = safe_expression(column.get("ComputedDefinition"), name, col, "computed expression")
@@ -234,11 +203,9 @@ def render(inventory: Path, coverage: Path, type_map_path: Path | None = None):
             definitions.append(f"        [{col}] {typ}{identity}{nullability}{default_sql}")
         if not definitions:
             raise ValueError(f"table {name} has no columns")
-        lines += [f"IF OBJECT_ID(N'dbo.{name}', N'U') IS NULL", "BEGIN",
-                  f"    CREATE TABLE dbo.[{name}] (", ",\n".join(definitions), "    );", "END;", "GO", ""]
+        lines += [f"IF OBJECT_ID(N'dbo.{name}', N'U') IS NULL", "BEGIN", f"    CREATE TABLE dbo.[{name}] (",
+                  ",\n".join(definitions), "    );", "END;", "GO", ""]
 
-        # Validate pre-existing fixture tables too. CREATE IF NOT EXISTS alone can
-        # hide a stale 01_Tables definition, so compare every SQL2 column contract.
         expected = []
         for ordinal, column in enumerate(columns, 1):
             col_name = column["ColumnName"]
@@ -249,7 +216,7 @@ def render(inventory: Path, coverage: Path, type_map_path: Path | None = None):
                 base_type = "nvarchar"
             elif base_type == "rowversion":
                 base_type = "timestamp"
-            max_length = int(column["MaxChars"]) if column.get("MaxChars", "").lstrip("-").isdigit() else -999999
+            max_length = verifier_max_length(column, base_type)
             precision = int(column["precision"]) if column.get("precision", "").isdigit() else 0
             scale = int(column["scale"]) if column.get("scale", "").isdigit() else 0
             nullable = 1 if column.get("is_nullable", "1").strip().casefold() in {"1", "true", "yes"} else 0
@@ -262,32 +229,21 @@ def render(inventory: Path, coverage: Path, type_map_path: Path | None = None):
             for label, value in (("identity seed", seed), ("identity increment", increment)):
                 if value and not re.fullmatch(r"[-+]?(?:\d+(?:\.\d*)?|\.\d+)", value):
                     raise ValueError(f"invalid {label}: {name}.{col_name}={value!r}")
-            expected.append(
-                f"({ordinal}, {sql_literal(col_name)}, {sql_literal(base_type)}, {max_length}, "
-                f"{precision}, {scale}, {nullable}, {identity_flag}, {computed_flag}, "
-                f"{sql_literal(computed)}, {sql_literal(default)}, {sql_literal(seed)}, {sql_literal(increment)})")
+            expected.append(f"({ordinal}, {sql_literal(col_name)}, {sql_literal(base_type)}, {max_length}, {precision}, {scale}, {nullable}, {identity_flag}, {computed_flag}, {sql_literal(computed)}, {sql_literal(default)}, {sql_literal(seed)}, {sql_literal(increment)})")
         expected_values = ", ".join(expected)
-        actual_columns = (
-            f"SELECT ROW_NUMBER() OVER (ORDER BY c.column_id), c.name, TYPE_NAME(c.system_type_id), c.max_length, c.precision, c.scale, "
-            f"CONVERT(int,c.is_nullable), CONVERT(int,c.is_identity), CONVERT(int,c.is_computed), "
-            f"ISNULL(cc.definition,N''), ISNULL(dc.definition,N''), "
-            f"ISNULL(CONVERT(nvarchar(128),ic.seed_value),N''), ISNULL(CONVERT(nvarchar(128),ic.increment_value),N'') "
-            f"FROM sys.columns c LEFT JOIN sys.computed_columns cc ON cc.object_id=c.object_id AND cc.column_id=c.column_id "
-            f"LEFT JOIN sys.default_constraints dc ON dc.parent_object_id=c.object_id AND dc.parent_column_id=c.column_id "
-            f"LEFT JOIN sys.identity_columns ic ON ic.object_id=c.object_id AND ic.column_id=c.column_id "
-            f"WHERE c.object_id=OBJECT_ID({sql_literal('dbo.' + name)})")
-        expected_columns = (
-            f"SELECT v.column_id, v.column_name, v.type_name, v.max_length, v.precision, v.scale, "
-            f"v.is_nullable, v.is_identity, v.is_computed, v.computed_definition, v.default_definition, "
-            f"v.seed_value, v.increment_value FROM (VALUES {expected_values}) "
-            f"v(column_id,column_name,type_name,max_length,precision,scale,is_nullable,is_identity,is_computed,"
-            f"computed_definition,default_definition,seed_value,increment_value)")
-        lines += [
-            f"IF OBJECT_ID(N'dbo.{name}', N'U') IS NULL THROW 52201, N'Missing SQL2 table dbo.{name}', 1;",
-            f"IF EXISTS ({actual_columns} EXCEPT {expected_columns}) OR EXISTS ({expected_columns} EXCEPT {actual_columns})",
-            f"    THROW 52202, N'SQL2 table/column definition mismatch: dbo.{name}', 1;",
-            "GO", ""
-        ]
+        actual_columns = (f"SELECT ROW_NUMBER() OVER (ORDER BY c.column_id), c.name, TYPE_NAME(c.system_type_id), c.max_length, c.precision, c.scale, "
+                          f"CONVERT(int,c.is_nullable), CONVERT(int,c.is_identity), CONVERT(int,c.is_computed), ISNULL(cc.definition,N''), ISNULL(dc.definition,N''), "
+                          f"ISNULL(CONVERT(nvarchar(128),ic.seed_value),N''), ISNULL(CONVERT(nvarchar(128),ic.increment_value),N'') "
+                          f"FROM sys.columns c LEFT JOIN sys.computed_columns cc ON cc.object_id=c.object_id AND cc.column_id=c.column_id "
+                          f"LEFT JOIN sys.default_constraints dc ON dc.parent_object_id=c.object_id AND dc.parent_column_id=c.column_id "
+                          f"LEFT JOIN sys.identity_columns ic ON ic.object_id=c.object_id AND ic.column_id=c.column_id "
+                          f"WHERE c.object_id=OBJECT_ID({sql_literal('dbo.' + name)})")
+        expected_columns = (f"SELECT v.column_id, v.column_name, v.type_name, v.max_length, v.precision, v.scale, v.is_nullable, v.is_identity, v.is_computed, "
+                            f"v.computed_definition, v.default_definition, v.seed_value, v.increment_value FROM (VALUES {expected_values}) "
+                            f"v(column_id,column_name,type_name,max_length,precision,scale,is_nullable,is_identity,is_computed,computed_definition,default_definition,seed_value,increment_value)")
+        lines += [f"IF OBJECT_ID(N'dbo.{name}', N'U') IS NULL THROW 52201, N'Missing SQL2 table dbo.{name}', 1;",
+                  f"IF EXISTS ({actual_columns} EXCEPT {expected_columns}) OR EXISTS ({expected_columns} EXCEPT {actual_columns})",
+                  f"    THROW 52202, N'SQL2 table/column definition mismatch: dbo.{name}', 1;", "GO", ""]
     lines += ["/* PK/index/FK/CHECK constraints are emitted from verified SQL2 metadata in 03_Generated_From_DB57_Constraints.sql. */", ""]
     return "\n".join(lines)
 
