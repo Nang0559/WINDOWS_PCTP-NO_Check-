@@ -1,4 +1,4 @@
-name: PCTP MP source profile (read-only)
+name: PCTP MP source profile (3-table allowlist, read-only)
 
 on:
   workflow_dispatch:
@@ -39,6 +39,23 @@ jobs:
             if ($parseErrors.Count -gt 0) { $parseErrors | Format-List | Out-String | Write-Host; throw "PowerShell parse failed: $path" }
             Write-Host "PASS: syntax $path"
           }
+
+      - name: Enforce PCTP scope boundary (3 allowlisted tables only)
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          # This is a bounded source-profile, not a full-database inventory. The 61-table PCTP
+          # runtime inventory is the project scope; this phase only profiles three source candidates.
+          $scriptPath = '.\\PCTP.QC.UI\\Invoke-PctpMpSourcePreview.ps1'
+          $source = Get-Content -LiteralPath $scriptPath -Raw
+          $required = @('N''STOCKTP''','N''B20Item''','N''Purchase_Order_YMVN''')
+          foreach ($table in $required) {
+            if (-not $source.Contains($table)) { throw "Scope guard failed: allowlisted table $table is missing." }
+          }
+          if ($source -match 'sys\\.tables\\s+t\\s*(?![\\s\\S]*t\\.name\\s+IN\\s*\\(N''STOCKTP'',N''B20Item'',N''Purchase_Order_YMVN''\\))') {
+            throw 'Scope guard failed: metadata query is no longer visibly constrained to the three allowlisted tables.'
+          }
+          Write-Host 'PASS: source-profile scope is limited to STOCKTP, B20Item, Purchase_Order_YMVN; no 550-object inventory is run.'
 
       - name: Run bounded SQL14 read-only aggregate profile
         shell: powershell
