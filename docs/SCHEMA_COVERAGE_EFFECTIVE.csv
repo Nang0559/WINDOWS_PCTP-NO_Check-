@@ -1,9 +1,4 @@
 ﻿object,kind,referenced_by_code,dependency_of_code,code_files,code_ops,on_db57_export,git_ddl_files,in_ci_base_schema,in_runtime_inventory,class
-FVN_DeliveryCommandLedger,,có,,DeliveryCommandLedgerRepository.cs,FROM/INTO,chưa xác minh trong SQL2 metadata,SQL/PCTP_DeliveryCommandLedger.sql,không,có,GAP-db57-unverified
-FVN_DeliveryCommandQr,,có,,DeliveryCommandLedgerRepository.cs,FROM/INTO,chưa xác minh trong SQL2 metadata,SQL/PCTP_DeliveryCommandLedger.sql,không,có,GAP-db57-unverified
-FVN_PCTPQuarantineReleaseAudit,,có,,QuarantineReleaseAuditRepository.cs,INTO,chưa xác minh trong SQL2 metadata,SQL/PCTPQuarantineRelease.sql,không,có,GAP-db57-unverified
-FVN_Purchase_Order_HVNDB,,không thấy literal SQL,,,,chưa xác minh trong SQL2 metadata,SQL/FVN_PCTP_RuntimeTables.sql,không,có,GAP-db57-unverified
-FVN_sys_WorkflowTransitions,,có,,WorkflowRepository.cs,FROM,chưa xác minh trong SQL2 metadata,SQL/FVN_PCTP_RuntimeTables.sql,không,có,GAP-db57-unverified
 fvn_pxlb_reworkplan,table,không thấy literal SQL,fvn_pxlb_reworkmovement,,FK-DEPENDENCY,có,PCTP/Modules/XuLyHangLoi/Database/PHASE4_9_ReworkDispositionCompensationWorkflowReport.sql,có,có,GAP-fk-dependency
 b20dept,table,có,,NoiBoLookupRepository.cs,FROM,có,không,có,có,OK-testable
 b20gear,table,có,,DocQRRepository.cs; YAMAHAQRCDE_SP.cs; YMVNDOCQRCODE.cs,FROM,có,SQL/QC_Schema/02_Generated_From_DB57.sql,có,có,OK-testable
@@ -13,21 +8,26 @@ b20itemquycach,table,có,,GIAOHANGYMN.cs; TableOrderRepo.cs; UF_TACHLOT.cs,FROM,
 docqrcode,table,có,,FRM_SUALOTHVN.cs,FROM/UPDATE,có,SQL/QC_Schema/01_Tables.sql,có,có,OK-testable
 docqrcode_100003,table,không thấy literal SQL,,,,có,không,có,có,OK-testable
 docqrcode_sp,table,không thấy literal SQL,,,,có,SQL/QC_Schema/01_Tables.sql,có,có,OK-testable
+fvn_deliverycommandledger,table,có,fvn_deliverycommandqr,DeliveryCommandLedgerRepository.cs,FROM/INTO,có,SQL/PCTP_DeliveryCommandLedger.sql,có,có,OK-testable
+fvn_deliverycommandqr,table,có,,DeliveryCommandLedgerRepository.cs,FROM/INTO,có,SQL/PCTP_DeliveryCommandLedger.sql,có,có,OK-testable
 fvn_hangchogiao,table,có,,HangChoGiaoRepository.cs; NhapKhoDashboardRepository.cs,FROM/INTO/UPDATE,có,SQL/QC_Schema/02_Generated_From_DB57.sql,có,có,OK-testable
 fvn_hangchogiaopickdetail,table,có,,HangChoGiaoRepository.cs,FROM/INTO,có,SQL/PHASE15_HangChoGiaoPickDetails.sql,có,có,OK-testable
 fvn_itemfifoconfig,table,có,,ItemFifoConfigRepository.cs; PhieuCurrentQrFifoValidationRepository.cs; PhieuRepository.cs; PhieuValidationRepository.cs,DELETE/FROM/JOIN,có,SQL/QC_Schema/02_Generated_From_DB57.sql,có,có,OK-testable
 fvn_itemfifoconfig_history,table,có,,ItemFifoConfigRepository.cs,FROM/INTO,có,SQL/QC_Schema/02_Generated_From_DB57.sql,có,có,OK-testable
+fvn_pctpquarantinereleaseaudit,table,có,,QuarantineReleaseAuditRepository.cs,INTO,có,SQL/PCTPQuarantineRelease.sql,có,có,OK-testable
 fvn_phieutrahang,table,có,fvn_phieutrahangct,PhieuTraHangRepository.cs; TransactionalPhieuTraHangRepository.cs,DELETE/FROM/INTO/UPDATE,có,SQL/QC_Schema/02_Generated_From_DB57.sql,có,có,OK-testable
 fvn_phieutrahangct,table,có,,AffectedLotTraceService.cs; PhieuTraHangRepository.cs; PhieuXuLyBatThuongRepository.cs,DELETE/FROM/INTO/UPDATE,có,SQL/QC_Schema/02_Generated_From_DB57.sql,có,có,OK-testable
 fvn_phieuxulybatthuong,table,có,fvn_phieuxulybatthuongaffectedlot; fvn_phieuxulybatthuongqcinitial; fvn_pxlb_compensation; fvn_pxlb_disposition; fvn_pxlb_reworkmovement; fvn_pxlb_reworkplan; fvn_pxlb_reworkqc; fvn_pxlb_workflowaudit,PhieuTraHangRepository.cs; PhieuXuLyBatThuongRepository.cs; TransactionalPhieuTraHangRepository.cs,FROM/INTO/UPDATE,có,SQL/QC_Schema/02_Generated_From_DB57.sql,có,có,OK-testable
 fvn_phieuxulybatthuongaffectedlot,table,có,,AffectedLotTraceService.cs; IAffectedLotTraceService.cs,DELETE/FROM/INTO/UPDATE,có,PCTP/Modules/XuLyHangLoi/Database/PHASE2_AffectedLotSnapshot.sql,có,có,OK-testable
 fvn_phieuxulybatthuongqcinitial,table,có,,IAffectedLotTraceService.cs,FROM/INTO,có,PCTP/Modules/XuLyHangLoi/Database/PHASE3_InitialQC.sql,có,có,OK-testable
+fvn_purchase_order_hvndb,table,không thấy literal SQL,,,,có,SQL/FVN_PCTP_RuntimeTables.sql,có,có,OK-testable
 fvn_pxlb_compensation,table,có,fvn_pxlb_compensationmovement,IQTChungService.cs,FROM/INTO/UPDATE,có,PCTP/Modules/XuLyHangLoi/Database/PHASE4_9_ReworkDispositionCompensationWorkflowReport.sql,có,có,OK-testable
 fvn_pxlb_compensationmovement,table,có,,IQTChungService.cs,INTO,có,PCTP/Modules/XuLyHangLoi/Database/PHASE4_9_ReworkDispositionCompensationWorkflowReport.sql,có,có,OK-testable
 fvn_pxlb_disposition,table,có,,IQTChungService.cs,FROM/INTO,có,PCTP/Modules/XuLyHangLoi/Database/PHASE4_9_ReworkDispositionCompensationWorkflowReport.sql,có,có,OK-testable
 fvn_pxlb_reworkmovement,table,không thấy literal SQL,,,,có,PCTP/Modules/XuLyHangLoi/Database/PHASE4_9_ReworkDispositionCompensationWorkflowReport.sql,có,có,OK-testable
 fvn_pxlb_reworkqc,table,có,,IQTChungService.cs,FROM/INTO,có,PCTP/Modules/XuLyHangLoi/Database/PHASE4_9_ReworkDispositionCompensationWorkflowReport.sql,có,có,OK-testable
 fvn_pxlb_workflowaudit,table,có,,IQTChungService.cs,INTO,có,PCTP/Modules/XuLyHangLoi/Database/PHASE4_9_ReworkDispositionCompensationWorkflowReport.sql,có,có,OK-testable
+fvn_sys_workflowtransitions,table,có,,WorkflowRepository.cs,FROM,có,SQL/FVN_PCTP_RuntimeTables.sql,có,có,OK-testable
 fvn_trahangqtchunggiao,table,có,,TraHangQTChungRepository.cs,FROM/INTO,có,PCTP/Modules/XuLyHangLoi/Database/PHASE13_QTChung_ReworkTables.sql,có,có,OK-testable
 fvn_trahangqtchungnhapng,table,có,,TraHangQTChungRepository.cs,FROM/INTO,có,PCTP/Modules/XuLyHangLoi/Database/PHASE13_QTChung_ReworkTables.sql,có,có,OK-testable
 fvn_trahangqtchungqc,table,có,,TraHangQTChungRepository.cs,FROM/INTO/UPDATE,có,PCTP/Modules/XuLyHangLoi/Database/PHASE13_QTChung_ReworkTables.sql,có,có,OK-testable
@@ -65,20 +65,20 @@ CUSTOMER_ADDRESS_AV,,có,,IFSRepository.cs,FROM,chưa xác minh trong SQL2 metad
 CUSTOMER_ORDER_JOIN,,có,,GIAOHANGYMN.cs; IFSRepository.cs; MainAppDashboardController.cs,FROM,chưa xác minh trong SQL2 metadata,không,không,cần xác minh,info
 CustomerConfig,,không thấy literal SQL,,,,chưa xác minh trong SQL2 metadata,không,không,cần xác minh,info
 CustomerTableConfig,,không thấy literal SQL,,,,chưa xác minh trong SQL2 metadata,không,không,cần xác minh,info
-donhang,table,không thấy literal SQL,,,,có,SQL/QC_Schema/01_Tables.sql,không,cần xác minh,info
+DONHANG,,không thấy literal SQL,,,,chưa xác minh trong SQL2 metadata,SQL/QC_Schema/01_Tables.sql,không,cần xác minh,info
 DUAL/dual,,không thấy literal SQL,,,,chưa xác minh trong SQL2 metadata,không,không,cần xác minh,info
-giao_hang,table,không thấy literal SQL,,,,có,SQL/QC_Schema/01_Tables.sql,không,cần xác minh,info
+GIAO_HANG,,không thấy literal SQL,,,,chưa xác minh trong SQL2 metadata,SQL/QC_Schema/01_Tables.sql,không,cần xác minh,info
 GiaoHangKhachCustomerOptions,,không thấy literal SQL,,,,chưa xác minh trong SQL2 metadata,không,không,cần xác minh,info
 GridViewSettings,,không thấy literal SQL,,,,chưa xác minh trong SQL2 metadata,không,không,cần xác minh,info
-ifsphieugiaohang,table,có,,ISqlRepository.cs; SqlRepository.cs,FROM,có,SQL/QC_Schema/02_Generated_From_DB57.sql,không,cần xác minh,info
-ifsphieugiaohang_100002,table,không thấy literal SQL,,,,có,không,không,cần xác minh,info
+IFSPHIEUGIAOHANG,,có,,ISqlRepository.cs; SqlRepository.cs,FROM,chưa xác minh trong SQL2 metadata,SQL/QC_Schema/02_Generated_From_DB57.sql,không,cần xác minh,info
+IFSPHIEUGIAOHANG_100002,,không thấy literal SQL,,,,chưa xác minh trong SQL2 metadata,không,không,cần xác minh,info
 IFSPHIEUGIAOHANG_100002View,,không thấy literal SQL,,,,chưa xác minh trong SQL2 metadata,không,không,cần xác minh,info
-ifsphieugiaohang_100003,table,không thấy literal SQL,,,,có,không,không,cần xác minh,info
-ifsphieugiaohang_100003view,table,không thấy literal SQL,,,,có,không,không,cần xác minh,info
-ifsphieugiaohang_sp,table,không thấy literal SQL,,,,có,không,không,cần xác minh,info
+IFSPHIEUGIAOHANG_100003,,không thấy literal SQL,,,,chưa xác minh trong SQL2 metadata,không,không,cần xác minh,info
+IFSPHIEUGIAOHANG_100003View,,không thấy literal SQL,,,,chưa xác minh trong SQL2 metadata,không,không,cần xác minh,info
+IFSPHIEUGIAOHANG_SP,,không thấy literal SQL,,,,chưa xác minh trong SQL2 metadata,không,không,cần xác minh,info
 IFSPHIEUGIAOHANG_SPView,,không thấy literal SQL,,,,chưa xác minh trong SQL2 metadata,không,không,cần xác minh,info
-ifsphieugiaohangview,table,không thấy literal SQL,,,,có,không,không,cần xác minh,info
-nhap_tp_his,table,không thấy literal SQL,,,,có,không,không,cần xác minh,info
+IFSPHIEUGIAOHANGView,,không thấy literal SQL,,,,chưa xác minh trong SQL2 metadata,không,không,cần xác minh,info
+NHAP_TP_HIS,,không thấy literal SQL,,,,chưa xác minh trong SQL2 metadata,không,không,cần xác minh,info
 PCTPStockMovementGuard,,không thấy literal SQL,,,,chưa xác minh trong SQL2 metadata,SQL/PCTPStockMovementGuard.sql,không,cần xác minh,info
 sp_executesql,,không thấy literal SQL,,,,chưa xác minh trong SQL2 metadata,không,không,cần xác minh,info
 sp_GetCurrentStockStatus,proc,có,,CurrentStockRepository.cs,EXEC,có,SQL/sp_GetCurrentStockStatus.sql,không,cần xác minh,info
