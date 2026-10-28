@@ -425,7 +425,7 @@ jobs:
     needs: sql-engine-integration
     # Automatically exercise the real WinForms UI on trusted pushes to the active harness branch.
     # Never run repository code on the self-hosted machine for fork-originated pull requests.
-    if: ${{ always() && needs.sql-engine-integration.result == 'success' && (inputs.run_ui_gates == true || vars.PCTP_UI_GATES == 'true' || (github.event_name == 'push' && github.ref == 'refs/heads/feature/wms-live-data-test-harness')) }}
+    if: ${{ always() && needs.sql-engine-integration.result == 'success' && (inputs.run_ui_gates == true || vars.PCTP_UI_GATES == 'true' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'feature/wms-live-data-test-harness')) }}
     runs-on: [self-hosted, windows, pctp-ui]
     timeout-minutes: 90
     steps:
@@ -520,6 +520,7 @@ jobs:
           UI_RESULT: ${{ needs.ui-isolated-g5-g6.result }}
           SQL_RESULT: ${{ needs.sql-engine-integration.result }}
           UI_REQUIRED: ${{ vars.PCTP_UI_GATES_REQUIRED }}
+          UI_REQUIRED_FOR_PR: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'feature/wms-live-data-test-harness' }}
         run: |
           {
             echo "## G5/G6 UI gates"
@@ -532,7 +533,7 @@ jobs:
             skipped)
               echo "**G5/G6 were NOT EXECUTED (job skipped) - this run proves nothing about G5/G6.** Enable with workflow_dispatch input run_ui_gates=true or repo variable PCTP_UI_GATES=true, and a self-hosted runner labelled [self-hosted, windows, pctp-ui]." >> "$GITHUB_STEP_SUMMARY"
               echo "::warning title=G5/G6 not executed::ui-isolated-g5-g6 was skipped; overall success does not cover G5/G6."
-              if [ "$UI_REQUIRED" = "true" ]; then echo "::error::PCTP_UI_GATES_REQUIRED=true but G5/G6 did not run."; exit 1; fi ;;
+              if [ "$UI_REQUIRED" = "true" ] || [ "$UI_REQUIRED_FOR_PR" = "true" ]; then echo "::error::G5/G6 are required for this acceptance PR but did not run."; exit 1; fi ;;
             *)
               echo "**G5/G6 result: $UI_RESULT**" >> "$GITHUB_STEP_SUMMARY"; exit 1 ;;
           esac
