@@ -1,0 +1,53 @@
+name: PCTP live-data inventory (read-only)
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_read_only_inventory:
+        description: "Confirm metadata-only inventory on SQL14 and SQL57; no business rows or writes"
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pctp-live-data-inventory
+  cancel-in-progress: false
+
+jobs:
+  inventory:
+    if: \${{ inputs.confirm_read_only_inventory == true }}
+    runs-on: [self-hosted, windows, pctp-ui]
+    timeout-minutes: 15
+    steps:
+      - name: Checkout inventory branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/wms-live-data-test-harness
+          persist-credentials: false
+
+      - name: Run read-only SQL metadata inventory
+        shell: powershell
+        env:
+          PCTP_QC_SOURCE_SQL_CONNECTION: \${{ secrets.PCTP_QC_SOURCE_SQL_CONNECTION }}
+          PCTP_QC_TARGET_SQL_CONNECTION: \${{ secrets.PCTP_QC_TARGET_SQL_CONNECTION }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ([string]::IsNullOrWhiteSpace($env:PCTP_QC_SOURCE_SQL_CONNECTION)) {
+            throw 'Missing GitHub secret PCTP_QC_SOURCE_SQL_CONNECTION (read-only SQL14 account).'
+          }
+          if ([string]::IsNullOrWhiteSpace($env:PCTP_QC_TARGET_SQL_CONNECTION)) {
+            throw 'Missing GitHub secret PCTP_QC_TARGET_SQL_CONNECTION (SQL57 test account).'
+          }
+          .\PCTP.QC.UI\Invoke-PctpLiveDataInventory.ps1 -OutputDirectory "$env:RUNNER_TEMP\pctp-live-data-inventory"
+
+      - name: Upload inventory reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pctp-live-data-inventory-\${{ github.run_number }}
+          path: \${{ runner.temp }}\pctp-live-data-inventory\
+          if-no-files-found: error
+          retention-days: 7
