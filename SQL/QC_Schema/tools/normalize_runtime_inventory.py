@@ -149,6 +149,7 @@ def main() -> int:
             continue
 
         if key in by_name:
+            if key in {x.casefold() for x in FORCE_RUNTIME}:
             target = by_name[key]
             merge_rows(target, correction)
             if key.split(".")[-1] in correction_keys:
