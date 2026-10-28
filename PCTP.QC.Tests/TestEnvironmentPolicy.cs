@@ -7,7 +7,7 @@ namespace PCTP.QC.Tests;
 
 /// <summary>
 /// Fail-closed guard for SQL integration tests.
-/// Development uses the dedicated 192.168.200.57/B7R2_FCC test target.
+/// Integration uses isolated 192.168.200.57/B7R2_FCC_QC; shared B7R2_FCC is read-only-preflight only.
 /// The production 192.168.200.14\\BRAVO target is always rejected.
 /// </summary>
 public static class TestEnvironmentPolicy
