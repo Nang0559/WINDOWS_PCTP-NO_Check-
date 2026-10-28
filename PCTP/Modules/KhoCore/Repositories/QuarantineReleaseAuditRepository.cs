@@ -27,7 +27,7 @@ namespace PCTP.Modules.KhoVatLy.Repositories
                 throw new ArgumentException("PerformedBy is required.", nameof(performedBy));
 
             ExecuteNonQuery(@"
-INSERT INTO dbo.PCTPQuarantineReleaseAudit
+INSERT INTO dbo.FVN_PCTPQuarantineReleaseAudit
     (SlotLotId, SlotId, LotNo, ItemCode, Quantity, PerformedBy, ReferenceId, Reason, ReleasedAtUtc)
 VALUES
     (@slotLotId, @slotId, @lotNo, @itemCode, @quantity, @performedBy, @referenceId, @reason, SYSUTCDATETIME());",
