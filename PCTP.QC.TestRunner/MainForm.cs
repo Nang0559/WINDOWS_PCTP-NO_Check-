@@ -231,7 +231,7 @@ public sealed class MainForm : Form
             return;
         }
         var args = new List<string> { "run", "--project", project, "--configuration", "Release", "--" };
-        if (preflightOnly) args.Add("--preflight");
+        if (preflightOnly) args.Add("--shared-readonly-preflight");
         await RunTestAsync(preflightOnly ? "SQL 57 Read-only Check" : "Full SQL Integration", "sql", args.ToArray(), needsSqlCredentials: true);
     }
 
@@ -279,7 +279,7 @@ public sealed class MainForm : Form
         AppendLine("=== " + testName + " ===");
         AppendLine("Bắt đầu: " + _activeRun.StartedAt);
         AppendLine("Repository: " + _root);
-        AppendLine("Target: " + (needsSqlCredentials ? (testName.Contains("Read-only", StringComparison.OrdinalIgnoreCase) || testName.Contains("Procedure Check", StringComparison.OrdinalIgnoreCase) ? "192.168.200.57/B7R2_FCC (read-only preflight)" : "192.168.200.57/B7R2_FCC_QC (isolated integration)") : "local test suite"));
+        AppendLine("Target: " + (needsSqlCredentials ? (testName.Contains("Read-only", StringComparison.OrdinalIgnoreCase) ? "192.168.200.57/B7R2_FCC (shared, read-only)" : "192.168.200.57/B7R2_FCC_QC (isolated QC)") : "local test suite"));
 
         try
         {
