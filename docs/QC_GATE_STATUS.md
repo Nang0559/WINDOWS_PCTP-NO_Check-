@@ -1,5 +1,30 @@
 # Trạng thái 6 Gate — bằng chứng thực tế
 
+> **Quyết định phát hành hiện tại (2026-10-28): BLOCKED — chưa được đưa vào production.**
+>
+> Bảng lịch sử bên dưới ghi lại bằng chứng của các commit cũ; không được tái sử dụng làm PASS cho commit mới.
+> PR #4 (feature/wms-live-data-test-harness → feature/pctp-qc-test-platform) có CI run
+> [40725382801](https://github.com/Nang0559/WINDOWS_PCTP-NO_Check-/actions/runs/40725382801):
+> unit/regression **389/389 PASS**, SQL-engine G3/G4 **PASS**, TestRunner + integration harness build **PASS**.
+> Tuy nhiên, G5/G6 đang ở trạng thái queued trên self-hosted runner và chưa có verdict.
+> Bản vá target-isolation mới nhất trên feature/pctp-qc-test-platform cũng đang chờ CI run
+> [40729642010](https://github.com/Nang0559/WINDOWS_PCTP-NO_Check-/actions/runs/40729642010);
+> các kết quả của commit trước không thay thế được run đó.
+>
+> | Điều kiện phát hành | Trạng thái hiện tại | Điều kiện để mở khóa |
+> |---|---|---|
+> | Unit / source-contract | PASS trên commit PR trước; **chờ chạy lại** sau target-isolation patch | CI xanh trên HEAD mới nhất |
+> | G3 / G4 trên SQL Server cô lập CI | PASS trên commit PR trước; **chờ chạy lại** sau target-isolation patch | CI xanh, fixture cleanup và rollback evidence thành công |
+> | G5 UI navigation trên WinForms thực | **Chưa nghiệm thu**; lịch sử có failure ở receive-navigation | Chạy thật trên Windows runner, mọi journey bắt buộc PASS và có screenshots/logs |
+> | G6 end-to-end nghiệp vụ | **Chưa nghiệm thu**; khung có nhưng journey nghiệp vụ chưa đủ | Seed → UI → SQL assertions → cleanup cho các luồng đã công bố |
+> | G1 traceability / coverage | **FAIL theo báo cáo đo gần nhất: 105 gap** | Chạy lại G1 trên HEAD phát hành và xử lý/định nghĩa ngoại lệ cho mọi gap |
+> | SQL57 live target | **Chưa có bằng chứng nghiệm thu** | Chạy preflight read-only trên B7R2_FCC, sau đó test có kiểm soát trên catalog cô lập B7R2_FCC_QC |
+> | Production safety | **Đang siết chính sách** | Xác nhận CI mới chặn B7R2_FCC cho mọi chế độ integration và chặn SQL14; không dùng credential quyền cao |
+>
+> Không được đánh dấu product-ready chỉ vì unit tests hoặc G3/G4 xanh. Không chạy ghi dữ liệu trên SQL14
+> hoặc catalog dùng chung SQL57 B7R2_FCC. Các acceptance có ghi chỉ được chạy trên SQL Server CI dùng riêng
+> hoặc catalog cô lập B7R2_FCC_QC*, với dữ liệu fixture xác định và cleanup có xác nhận.
+
 Nguyên tắc: Gate chỉ PASS khi có log chạy thật gắn với commit trong `artifacts\gates\<commit>\<Gate>\gate-summary.json`.
 Bảng dưới tách rõ **bằng chứng đã có** và **việc đã vá nhưng chưa chạy thật**.
 
