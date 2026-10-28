@@ -280,6 +280,15 @@ def runtime_table_candidates(inventory_rows):
     return candidates
 
 
+def fk_dependency_classification(dependency_parents, referenced_by_code, export_object, on_db57, in_ci):
+    """Distinguish a verified indirect FK dependency from a genuine schema gap."""
+    if not dependency_parents or referenced_by_code:
+        return None
+    if export_object and export_object.get("kind") == "table" and on_db57 == 'có' and in_ci:
+        return 'OK-fk-dependency'
+    return 'GAP-fk-dependency'
+
+
 def external_inventory_names(inventory_rows):
     """Names explicitly belonging to IFS/Oracle/external sources, not DB57."""
     excluded = set()
@@ -331,8 +340,9 @@ def main():
             continue  # SQL2 catalog is lookup evidence, not a request to clone all of B7R2
         on57, gitf, cis = status(n, exp, gitd, ci_names)
         in_runtime_scope = n in inventory_candidates
-        if dependency_parents and not r:
-            cls = 'GAP-fk-dependency'
+        dependency_class = fk_dependency_classification(dependency_parents, r, e, on57, ci)
+        if dependency_class:
+            cls = dependency_class
         elif r and not in_runtime_scope and n not in external_names and (not e or e['kind'] == 'table'):
             cls = 'GAP-not-in-runtime-inventory'
         else:
@@ -348,7 +358,7 @@ def main():
             'in_runtime_inventory': 'có' if in_runtime_scope else ('cần xác minh' if in_inv else 'không'),
             'class': ('GAP-fk-dependency' if dependency_parents and not r else cls),
         })
-    order = {'GAP-db57-unverified': 0, 'GAP-not-in-runtime-inventory': 1, 'GAP-fk-dependency': 2, 'GAP-no-git-ddl': 3, 'GAP-ci-schema': 4, 'OK-testable': 5, 'info': 6}
+    order = {'GAP-db57-unverified': 0, 'GAP-not-in-runtime-inventory': 1, 'GAP-fk-dependency': 2, 'GAP-no-git-ddl': 3, 'GAP-ci-schema': 4, 'OK-fk-dependency': 5, 'OK-testable': 6, 'info': 7}
     rows.sort(key=lambda x: (order[x['class']], x['object'].lower()))
     out = os.path.join(ROOT, a.out) if not os.path.isabs(a.out) else a.out
     os.makedirs(os.path.dirname(out), exist_ok=True)
