@@ -21,7 +21,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             // UPDLOCK+HOLDLOCK takes a key-range lock even when the row is absent,
             // so two sessions with the same BusinessKey serialize here.
             object v = ExecuteScalar(
-                "SELECT TotalQuantity FROM dbo.DeliveryCommandLedger WITH (UPDLOCK, HOLDLOCK) WHERE BusinessKey = @k",
+                "SELECT TotalQuantity FROM dbo.FVN_DeliveryCommandLedger WITH (UPDLOCK, HOLDLOCK) WHERE BusinessKey = @k",
                 new SqlParameter("@k", SqlDbType.NVarChar, 200) { Value = businessKey });
             return v == null || v == DBNull.Value ? (int?)null : Convert.ToInt32(v);
         }
@@ -29,7 +29,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         public int Insert(DeliveryStockCommand c)
         {
             object id = ExecuteScalar(
-                @"INSERT INTO dbo.DeliveryCommandLedger
+                @"INSERT INTO dbo.FVN_DeliveryCommandLedger
                     (BusinessKey, CustomerCode, DeliveryReference, PerformedBy, OccurredAt, TotalQuantity, PendingSttCsv)
                   OUTPUT INSERTED.Id
                   VALUES (@k, @c, @r, @p, @t, @q, @s)",
@@ -47,9 +47,9 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         {
             // Atomic claim: insert only when absent; 0 rows affected = already delivered (P8).
             int n = ExecuteNonQuery(
-                @"INSERT INTO dbo.DeliveryCommandQr (LedgerId, PartCode, QrKey)
+                @"INSERT INTO dbo.FVN_DeliveryCommandQr (LedgerId, PartCode, QrKey)
                   SELECT @l, @p, @q
-                  WHERE NOT EXISTS (SELECT 1 FROM dbo.DeliveryCommandQr WITH (UPDLOCK, HOLDLOCK) WHERE QrKey = @q)",
+                  WHERE NOT EXISTS (SELECT 1 FROM dbo.FVN_DeliveryCommandQr WITH (UPDLOCK, HOLDLOCK) WHERE QrKey = @q)",
                 new SqlParameter("@l", SqlDbType.Int) { Value = ledgerId },
                 new SqlParameter("@p", SqlDbType.NVarChar, 100) { Value = partCode },
                 new SqlParameter("@q", SqlDbType.NVarChar, 450) { Value = qrKey });
