@@ -356,7 +356,7 @@ def main():
             'code_ops': '/'.join(sorted(r['ops'])) if r else ('FK-DEPENDENCY' if dependency_parents else ''),
             'on_db57_export': on57, 'git_ddl_files': gitf, 'in_ci_base_schema': cis,
             'in_runtime_inventory': 'có' if in_runtime_scope else ('cần xác minh' if in_inv else 'không'),
-            'class': ('GAP-fk-dependency' if dependency_parents and not r else cls),
+            'class': cls,
         })
     order = {'GAP-db57-unverified': 0, 'GAP-not-in-runtime-inventory': 1, 'GAP-fk-dependency': 2, 'GAP-no-git-ddl': 3, 'GAP-ci-schema': 4, 'OK-fk-dependency': 5, 'OK-testable': 6, 'info': 7}
     rows.sort(key=lambda x: (order[x['class']], x['object'].lower()))
