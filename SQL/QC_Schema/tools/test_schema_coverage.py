@@ -35,6 +35,18 @@ class ParsingTests(unittest.TestCase):
         self.assertIn('vnhaptp', objects)
         self.assertEqual('view', objects['vnhaptp']['kind'])
 
+    def test_documented_legacy_only_tables_are_excluded_from_runtime_scope(self):
+        inventory = {
+            "tmplotgheptest": {
+                "Loại đối tượng": "Bảng (legacy-only)",
+                "Runtime hay test-only": "Legacy-only test-only",
+                "Database/schema": "B7R2_FCC.dbo",
+                "Trạng thái xác minh": "legacy-only; see docs/LEGACY_YMVN_GHEPLOT_GAP.md",
+            }
+        }
+        self.assertNotIn("tmplotgheptest", sc.runtime_table_candidates(inventory))
+        self.assertIn("tmplotgheptest", sc.external_inventory_names(inventory))
+
     def test_runtime_scope_uses_pctp_inventory_not_all_db57_tables(self):
         inventory = {
             "stocktp": {"Loại đối tượng": "Bảng", "Runtime hay test-only": "Runtime",
