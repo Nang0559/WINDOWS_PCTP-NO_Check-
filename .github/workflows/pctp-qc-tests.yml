@@ -460,6 +460,36 @@ jobs:
             ForEach-Object { $j = Get-Content $_.FullName -Raw | ConvertFrom-Json; "{0}: {1}" -f $j.Gate, $j.Status }
           if ($g5 -ne 'success' -or $g6 -ne 'success') { throw "G5=$g5 G6=$g6 (see evidence artifact; unconfigured G6 journeys are BLOCKED, not PASS)." }
 
+  ui-gates-status:
+    # Makes the G5/G6 outcome explicit. The overall workflow can be green while ui-isolated-g5-g6 was SKIPPED,
+    # which must never be read as "G5/G6 PASS". Set repo variable PCTP_UI_GATES_REQUIRED=true to make a skip fail.
+    needs: [sql-engine-integration, ui-isolated-g5-g6]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report G5/G6 execution status
+        shell: bash
+        env:
+          UI_RESULT: ${{ needs.ui-isolated-g5-g6.result }}
+          SQL_RESULT: ${{ needs.sql-engine-integration.result }}
+          UI_REQUIRED: ${{ vars.PCTP_UI_GATES_REQUIRED }}
+        run: |
+          {
+            echo "## G5/G6 UI gates"
+            echo "- sql-engine-integration (G3/G4): \`$SQL_RESULT\`"
+            echo "- ui-isolated-g5-g6: \`$UI_RESULT\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+          case "$UI_RESULT" in
+            success)
+              echo "**G5 and G6 were EXECUTED and PASSED** on the isolated fixture (see pctp-g5-g6-evidence)." >> "$GITHUB_STEP_SUMMARY" ;;
+            skipped)
+              echo "**G5/G6 were NOT EXECUTED (job skipped) - this run proves nothing about G5/G6.** Enable with workflow_dispatch input run_ui_gates=true or repo variable PCTP_UI_GATES=true, and a self-hosted runner labelled [self-hosted, windows, pctp-ui]." >> "$GITHUB_STEP_SUMMARY"
+              echo "::warning title=G5/G6 not executed::ui-isolated-g5-g6 was skipped; overall success does not cover G5/G6."
+              if [ "$UI_REQUIRED" = "true" ]; then echo "::error::PCTP_UI_GATES_REQUIRED=true but G5/G6 did not run."; exit 1; fi ;;
+            *)
+              echo "**G5/G6 result: $UI_RESULT**" >> "$GITHUB_STEP_SUMMARY"; exit 1 ;;
+          esac
+
   desktop-runner-build:
     runs-on: windows-latest
     steps:

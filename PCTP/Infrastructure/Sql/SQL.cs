@@ -22,12 +22,13 @@ namespace PCTP.ClassSQL
         // lịch sử còn sót lại. Giữ cả 2 vì nhiều repository tham chiếu theo tên
         // cũ; đổi tên sẽ vỡ build hàng loạt.
         // ════════════════════════════════════════════════════════════════════
-        //public string B7R2_FCCdb = QcSqlOverride.Resolve(@"Data Source=192.168.200.57;Initial Catalog=B7R2_FCC;User ID=sa;Password=fccbrv");
-        //public string B7R2_FCCdbb = QcSqlOverride.Resolve(@"Data Source=192.168.200.57;Initial Catalog=B7R2_FCC;User ID=sa;Password=fccbrv");
+        // Mặc định KHÔNG trỏ Production. Môi trường khác (Production, CI fixture) phải được cấp rõ ràng:
+        //   * CI/QC fixture : PCTP_QC_SQL_CONNECTION + PCTP_QC_ISOLATED_FIXTURE=1 (QcSqlOverride, fail-closed).
+        //   * Production    : build/cấu hình riêng của bản phát hành — không commit vào mặc định này.
+        // Guard: PCTP.QC.Tests/SqlDefaultConnectionSafetyTests.cs fail nếu 2 field dưới trỏ 192.168.200.14 / BRAVO.
+        public string B7R2_FCCdb = QcSqlOverride.Resolve(@"Data Source=192.168.200.57;Initial Catalog=B7R2_FCC;User ID=sa;Password=fccbrv");
+        public string B7R2_FCCdbb = QcSqlOverride.Resolve(@"Data Source=192.168.200.57;Initial Catalog=B7R2_FCC;User ID=sa;Password=fccbrv");
 
-        // Product
-        public string B7R2_FCCdb = @"Data Source=192.168.200.14\BRAVO;Initial Catalog=B7R2_FCC;User ID=sa;Password=fccbrv";
-        public string B7R2_FCCdbb = @"Data Source=192.168.200.14\BRAVO;Initial Catalog=B7R2_FCC;User ID=sa;Password=fccbrv";
 
         #region ══ TRANSACTION LIFECYCLE ══════════════════════════════════════
 
