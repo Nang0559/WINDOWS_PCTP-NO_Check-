@@ -33,7 +33,7 @@ jobs:
           $ErrorActionPreference = 'Stop'
           if ($env:GITHUB_EVENT_NAME -ne 'workflow_dispatch') { throw 'This workflow may only run by explicit manual dispatch.' }
           if ($env:GITHUB_REF -notmatch '^refs/heads/(feature/pctp-mp-fixture-phase2|feature/wms-live-data-test-harness)$') { throw "Run only on the approved phase-2 or default branch; got $env:GITHUB_REF" }
-          foreach ($path in @('.\\PCTP.QC.UI\\PctpLiveData.Common.ps1','.\\PCTP.QC.UI\\Invoke-PctpMpSourcePreview.ps1')) {
+          foreach ($path in @('.\PCTP.QC.UI\PctpLiveData.Common.ps1','.\PCTP.QC.UI\Invoke-PctpMpSourcePreview.ps1')) {
             $tokens = $null; $parseErrors = $null
             [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $path).Path,[ref]$tokens,[ref]$parseErrors) | Out-Null
             if ($parseErrors.Count -gt 0) { $parseErrors | Format-List | Out-String | Write-Host; throw "PowerShell parse failed: $path" }
@@ -47,7 +47,7 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           if ([string]::IsNullOrWhiteSpace($env:PCTP_QC_SOURCE_SQL_CONNECTION)) { throw 'Missing repository secret PCTP_QC_SOURCE_SQL_CONNECTION.' }
-          .\\PCTP.QC.UI\\Invoke-PctpMpSourcePreview.ps1 -OutputDirectory '.\\artifacts\\mp-source-preview'
+          .\PCTP.QC.UI\Invoke-PctpMpSourcePreview.ps1 -OutputDirectory '.\artifacts\mp-source-preview'
 
       - name: Upload aggregate-only manifest
         if: always()
