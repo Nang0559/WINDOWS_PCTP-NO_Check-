@@ -28,16 +28,18 @@ function Export-Query([string]$ConnectionString, [string]$Sql, [string]$Path, [s
 function Export-Inventory([string]$Label, [string]$ConnectionString, [string]$Root, [string]$Database, [string]$LoginName, [object[]]$ScopeObjects) {
     $tableNames = @($ScopeObjects | Where-Object { $_.kind -eq 'table' } | ForEach-Object { $_.name.ToLowerInvariant() } | Sort-Object -Unique)
     $procedureNames = @($ScopeObjects | Where-Object { $_.kind -eq 'proc' } | ForEach-Object { $_.name.ToLowerInvariant() } | Sort-Object -Unique)
+    $viewNames = @($ScopeObjects | Where-Object { $_.kind -eq 'view' } | ForEach-Object { $_.name.ToLowerInvariant() } | Sort-Object -Unique)
+    $functionNames = @($ScopeObjects | Where-Object { $_.kind -eq 'function' } | ForEach-Object { $_.name.ToLowerInvariant() } | Sort-Object -Unique)
     if ($tableNames.Count -eq 0) { throw 'PCTP scope contains no allowlisted tables; refusing broad inventory.' }
 
     # Scope values originate in the checked-in allowlist. Validate before interpolating SQL literals.
-    foreach ($name in (@($tableNames) + @($procedureNames))) {
+    foreach ($name in (@($tableNames) + @($procedureNames) + @($viewNames) + @($functionNames))) {
         if ($name -notmatch '^[a-z0-9_]+$') { throw "Unsafe object name in PCTP scope: $name" }
     }
     $tableList = ($tableNames | ForEach-Object { "N'$_'" }) -join ','
-    $procedureList = if ($procedureNames.Count -gt 0) {
-        ($procedureNames | ForEach-Object { "N'$_'" }) -join ','
-    } else { "N'__NO_PCTP_PROCEDURES__'" }
+    $procedureList = if ($procedureNames.Count -gt 0) { ($procedureNames | ForEach-Object { "N'$_'" }) -join ',' } else { "N'__NO_PCTP_PROCEDURES__'" }
+    $viewList = if ($viewNames.Count -gt 0) { ($viewNames | ForEach-Object { "N'$_'" }) -join ',' } else { "N'__NO_PCTP_VIEWS__'" }
+    $functionList = if ($functionNames.Count -gt 0) { ($functionNames | ForEach-Object { "N'$_'" }) -join ',' } else { "N'__NO_PCTP_FUNCTIONS__'" }
 
     $dir = Join-Path $Root $Label
     New-Item -ItemType Directory -Force -Path $dir | Out-Null
@@ -48,6 +50,8 @@ function Export-Inventory([string]$Label, [string]$ConnectionString, [string]$Ro
         foreign_keys = "SELECT ps.name parent_schema,pt.name parent_table,pc.name parent_column,rs.name referenced_schema,rt.name referenced_table,rc.name referenced_column,fk.name foreign_key_name,fk.is_disabled,fk.is_not_trusted,fkc.constraint_column_id FROM sys.foreign_keys fk JOIN sys.foreign_key_columns fkc ON fkc.constraint_object_id=fk.object_id JOIN sys.tables pt ON pt.object_id=fkc.parent_object_id JOIN sys.schemas ps ON ps.schema_id=pt.schema_id JOIN sys.columns pc ON pc.object_id=pt.object_id AND pc.column_id=fkc.parent_column_id JOIN sys.tables rt ON rt.object_id=fkc.referenced_object_id JOIN sys.schemas rs ON rs.schema_id=rt.schema_id JOIN sys.columns rc ON rc.object_id=rt.object_id AND rc.column_id=fkc.referenced_column_id WHERE LOWER(pt.name) IN ($tableList) OR LOWER(rt.name) IN ($tableList) ORDER BY ps.name,pt.name,fk.name,fkc.constraint_column_id;"
         indexes = "SELECT s.name schema_name,t.name table_name,i.name index_name,i.is_primary_key,i.is_unique,i.is_disabled,i.type_desc FROM sys.indexes i JOIN sys.tables t ON t.object_id=i.object_id JOIN sys.schemas s ON s.schema_id=t.schema_id WHERE t.is_ms_shipped=0 AND i.index_id>0 AND LOWER(t.name) IN ($tableList) ORDER BY s.name,t.name,i.index_id;"
         procedures = "SELECT s.name schema_name,p.name procedure_name,p.create_date,p.modify_date FROM sys.procedures p JOIN sys.schemas s ON s.schema_id=p.schema_id WHERE p.is_ms_shipped=0 AND LOWER(p.name) IN ($procedureList) ORDER BY s.name,p.name;"
+        views = "SELECT s.name schema_name,v.name view_name,v.create_date,v.modify_date FROM sys.views v JOIN sys.schemas s ON s.schema_id=v.schema_id WHERE v.is_ms_shipped=0 AND LOWER(v.name) IN ($viewList) ORDER BY s.name,v.name;"
+        functions = "SELECT s.name schema_name,o.name function_name,o.type_desc,o.create_date,o.modify_date FROM sys.objects o JOIN sys.schemas s ON s.schema_id=o.schema_id WHERE o.is_ms_shipped=0 AND o.type IN ('FN','IF','TF','FS','FT') AND LOWER(o.name) IN ($functionList) ORDER BY s.name,o.name;"
         triggers = "SELECT OBJECT_SCHEMA_NAME(tr.parent_id) schema_name,OBJECT_NAME(tr.parent_id) table_name,tr.name trigger_name,tr.is_disabled,tr.is_instead_of_trigger FROM sys.triggers tr WHERE tr.is_ms_shipped=0 AND LOWER(OBJECT_NAME(tr.parent_id)) IN ($tableList) ORDER BY schema_name,table_name,tr.name;"
         procedure_modules = "SELECT s.name schema_name,p.name procedure_name,LEN(m.definition) definition_length,CONVERT(varchar(64),HASHBYTES('SHA2_256',CONVERT(varbinary(max),m.definition)),2) definition_sha256 FROM sys.procedures p JOIN sys.schemas s ON s.schema_id=p.schema_id JOIN sys.sql_modules m ON m.object_id=p.object_id WHERE p.is_ms_shipped=0 AND LOWER(p.name) IN ($procedureList) ORDER BY s.name,p.name;"
         row_counts = "SELECT s.name schema_name,t.name table_name,SUM(COALESCE(p.rows,0)) approximate_rows FROM sys.tables t JOIN sys.schemas s ON s.schema_id=t.schema_id LEFT JOIN sys.partitions p ON p.object_id=t.object_id AND p.index_id IN (0,1) WHERE t.is_ms_shipped=0 AND LOWER(t.name) IN ($tableList) GROUP BY s.name,t.name ORDER BY s.name,t.name;"
@@ -60,7 +64,7 @@ function Export-Inventory([string]$Label, [string]$ConnectionString, [string]$Ro
         environment=$Label; database=$Database; login=$LoginName; git_sha=$env:GITHUB_SHA
         run_id=$env:GITHUB_RUN_ID; captured_utc=[DateTime]::UtcNow.ToString('o')
         mode='READ_ONLY_METADATA_ONLY'; row_contents_exported=$false; ddl_or_dml_executed=$false
-        scope_tables=$tableNames.Count; scope_procedures=$procedureNames.Count; full_database_inventory=$false
+        scope_tables=$tableNames.Count; scope_procedures=$procedureNames.Count; scope_views=$viewNames.Count; scope_functions=$functionNames.Count; full_database_inventory=$false
     } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $dir 'inventory-manifest.json') -Encoding UTF8
 }
 
@@ -72,7 +76,7 @@ $tableScopeCount = @($scope | Where-Object { $_.kind -eq 'table' }).Count
 if ($tableScopeCount -eq 0) { throw 'PCTP scope CSV resolved to zero tables; refusing broad inventory.' }
 $names = @{}
 foreach ($obj in $scope) { $names[$obj.name] = $obj.kind }
-Write-Host "PCTP allowlist loaded: $tableScopeCount tables and $(@($scope | Where-Object { $_.kind -eq 'proc' }).Count) procedures. Unrelated database objects will not be queried."
+Write-Host "PCTP allowlist loaded: $tableScopeCount tables, $(@($scope | Where-Object { $_.kind -eq 'proc' }).Count) procedures, $(@($scope | Where-Object { $_.kind -eq 'view' }).Count) views and $(@($scope | Where-Object { $_.kind -eq 'function' }).Count) functions. Unrelated database objects will not be queried."
 
 if (-not $SkipFirewallCheck) { Assert-PctpNoStaleIsolationRules }
 $source = Get-PctpLiveConnection -VariableName 'PCTP_QC_SOURCE_SQL_CONNECTION' -Role Source
