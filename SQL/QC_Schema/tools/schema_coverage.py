@@ -301,6 +301,10 @@ def external_inventory_names(inventory_rows):
             excluded.add(name.casefold())
         if "không mặc định db57" in status:
             excluded.add(name.casefold())
+        # Explicitly documented retired/legacy-only code paths are audited but are
+        # not allowed to expand the current runtime schema scope.
+        if "legacy-only" in runtime or "legacy-only" in status:
+            excluded.add(name.casefold())
     return excluded
 
 
