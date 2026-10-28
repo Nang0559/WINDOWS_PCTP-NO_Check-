@@ -55,6 +55,24 @@ class ParsingTests(unittest.TestCase):
             sc.METADATA, {'sys_workflowtransitions'}, objects)
         self.assertIn('sys_workflowstatuses', deps)
 
+    def test_verified_fk_dependency_is_not_reported_as_a_schema_gap(self):
+        classification = sc.fk_dependency_classification(
+            {'fvn_pxlb_reworkmovement'}, None,
+            {'kind': 'table', 'name': 'FVN_PXLB_ReworkPlan'}, 'có', True)
+        self.assertEqual('OK-fk-dependency', classification)
+
+    def test_fk_dependency_missing_from_db57_or_ci_remains_a_gap(self):
+        dependency = {'fvn_pxlb_reworkmovement'}
+        table = {'kind': 'table', 'name': 'FVN_PXLB_ReworkPlan'}
+        self.assertEqual('GAP-fk-dependency',
+                         sc.fk_dependency_classification(dependency, None, table, 'không', True))
+        self.assertEqual('GAP-fk-dependency',
+                         sc.fk_dependency_classification(dependency, None, table, 'có', False))
+
+    def test_fk_dependency_with_direct_code_reference_uses_normal_classification(self):
+        self.assertIsNone(sc.fk_dependency_classification(
+            {'fvn_pxlb_reworkmovement'}, {'files': set()}, {'kind': 'table'}, 'có', True))
+
 
 if __name__ == '__main__':
     unittest.main()
