@@ -149,14 +149,12 @@ def sql_type(row, type_map):
 
     if t in {"nvarchar", "nchar"}:
         if m is None:
-            raise ValueError(f"missing byte length for {row['TableName']}.{row['ColumnName']}")
+            raise ValueError(f"missing character length for {row['TableName']}.{row['ColumnName']}")
         if m == -1:
             return f"{t}(MAX)"
-        if m < 2:
-            raise ValueError(f"invalid Unicode byte length for {row['TableName']}.{row['ColumnName']}: {m}; SQL Server requires at least 1 byte-pair")
-        if m % 2:
-            m -= 1
-        return f"{t}({m // 2})"
+        if m < 1:
+            raise ValueError(f"invalid zero/non-positive character length for {row['TableName']}.{row['ColumnName']}: {m}")
+        return f"{t}({m})"
 
     if t in {"decimal", "numeric"}:
         if not 1 <= p <= 38 or not 0 <= s <= p:
@@ -187,9 +185,9 @@ def verifier_max_length(row, base):
     if x == -1:
         return -1
     if base in {"nvarchar", "nchar"}:
-        if x < 2:
-            raise ValueError(f"invalid Unicode byte length for {row['TableName']}.{row['ColumnName']}: {x}")
-        return x - (x % 2)
+        if x < 1:
+            raise ValueError(f"invalid zero/non-positive Unicode character length for {row['TableName']}.{row['ColumnName']}: {x}")
+        return x * 2
     if x < 1 and base in {"varchar", "char", "varbinary", "binary"}:
         raise ValueError(f"invalid zero/non-positive length for {row['TableName']}.{row['ColumnName']}: {x}")
     return x
