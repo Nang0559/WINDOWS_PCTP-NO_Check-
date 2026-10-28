@@ -193,6 +193,25 @@ def verifier_max_length(row, base):
     return x
 
 
+def mapped_max_length(mapped):
+    """sys.columns.max_length (bytes) implied by an explicit --type-map entry.
+
+    The inventory reports alias-typed columns (e.g. CodeType) in bytes, so the
+    verifier must follow the mapped base type, not MaxChars * 2. Returns None
+    for mapped types without a string/binary length (numeric(15,4), datetime...).
+    """
+    m = re.fullmatch(r"\s*([A-Za-z]+)\s*\(\s*(MAX|\d+)\s*\)\s*", mapped, re.I)
+    if not m:
+        return None
+    base, size = m.group(1).casefold(), m.group(2)
+    if base not in {"nvarchar", "nchar", "varchar", "char", "varbinary", "binary"}:
+        return None
+    if size.upper() == "MAX":
+        return -1
+    n = int(size)
+    return n * 2 if base in {"nvarchar", "nchar"} else n
+
+
 def lit(value):
     return "N'" + str(value).replace("'", "''") + "'"
 
@@ -260,6 +279,7 @@ def render(inventory, coverage, type_map_path=None):
             match = re.match(r"[A-Za-z][A-Za-z0-9_]*", mapped)
             if not match:
                 raise ValueError(f"invalid SQL type for {name}.{row['ColumnName']}: {mapped!r}")
+            alias_len = mapped_max_length(mapped) if row["DataType"].strip().casefold() in type_map else None
             base = match.group(0).casefold()
             base = {"sysname": "nvarchar", "rowversion": "timestamp"}.get(base, base)
             p = int(row["precision"]) if row.get("precision", "").isdigit() else 0
@@ -275,7 +295,7 @@ def render(inventory, coverage, type_map_path=None):
                 if value and not re.fullmatch(r"[-+]?(?:\d+(?:\.\d*)?|\.\d+)", value):
                     raise ValueError(f"invalid {label}: {name}.{row['ColumnName']}={value!r}")
             expected.append(
-                f"({i}, {lit(row['ColumnName'])}, {lit(base)}, {verifier_max_length(row, base)}, {p}, {s}, {nullable}, {identity}, {computed}, {lit(computed_definition)}, {lit(default_definition)}, {lit(seed)}, {lit(increment)})"
+                f"({i}, {lit(row['ColumnName'])}, {lit(base)}, {alias_len if alias_len is not None else verifier_max_length(row, base)}, {p}, {s}, {nullable}, {identity}, {computed}, {lit(computed_definition)}, {lit(default_definition)}, {lit(seed)}, {lit(increment)})"
             )
 
         values = ", ".join(expected)
