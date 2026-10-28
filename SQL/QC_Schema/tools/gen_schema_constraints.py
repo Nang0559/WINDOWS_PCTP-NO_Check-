@@ -62,8 +62,8 @@ def load_scope(path: Path) -> set[tuple[str, str]]:
                 and row.get("kind", "").strip().casefold() == "table"
                 and row.get("on_db57_export", "").strip().casefold() in {"có", "co", "yes", "true"}):
                 allowed.add(("dbo", row.get("object", "").strip().casefold()))
-    if not allowed:
-        raise ValueError("Coverage scope selected zero SQL2 tables")
+    # An empty selected set is valid for coverage files containing only unrelated
+    # DB57 baseline tables. The CLI remains fail-closed before generating DDL.
     return allowed
 
 def group_rows(rows, keys):
@@ -316,7 +316,10 @@ def main() -> int:
     args = parser.parse_args()
     try:
         metadata = args.metadata.read_text(encoding="utf-8-sig", errors="replace")
-        sql, report, counts = generate(metadata, load_scope(args.coverage))
+        allowed = load_scope(args.coverage)
+        if not allowed:
+            raise ValueError("Coverage scope selected zero SQL2 tables; refusing to generate an empty constraints baseline")
+        sql, report, counts = generate(metadata, allowed)
         unresolved = [line for line in report.splitlines() if line.startswith("- FK ") or line.startswith("- Index ")]
         if args.strict_dependencies and unresolved:
             print("ERROR: unresolved SQL2 dependencies:", *unresolved, sep="\\n", file=sys.stderr)
