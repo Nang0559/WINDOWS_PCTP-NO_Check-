@@ -125,7 +125,7 @@ def load_allowlist(path: Path):
             row_class = row.get("class", "").strip()
             scope_class = (row.get("in_runtime_inventory", "").strip().casefold() in {"có", "co", "yes", "true"} or
                 row_class in {"GAP-no-git-ddl", "GAP-fk-dependency"} or (
-                row_class in {"GAP-ci-schema", "OK-testable"} and (
+                row_class in {"GAP-ci-schema", "OK-testable", "OK-fk-dependency"} and (
                     row.get("referenced_by_code", "").strip().casefold() in {"có", "co", "yes", "true"}
                     or bool(row.get("dependency_of_code", "").strip())
                     or generated_table_ddl
