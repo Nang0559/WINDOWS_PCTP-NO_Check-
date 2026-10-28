@@ -1,4 +1,5 @@
 import os, sys, unittest
+from unittest.mock import patch
 sys.path.insert(0, os.path.dirname(__file__))
 import schema_coverage as sc
 
@@ -50,9 +51,20 @@ class ParsingTests(unittest.TestCase):
         self.assertEqual({"stocktp", "tmp_delivery"}, sc.runtime_table_candidates(inventory))
 
     def test_sql2_fk_dependency_closure_includes_workflow_status_table(self):
-        objects = sc.export_objects()
-        deps = sc.foreign_key_dependency_map(
-            sc.METADATA, {'sys_workflowtransitions'}, objects)
+        # Keep this algorithm test independent of the optional local SQL2 export.
+        objects = {'sys_workflowtransitions': {'kind': 'table'},
+                   'sys_workflowstatuses': {'kind': 'table'}}
+        fk_rows = [{
+            'ParentSchema': 'dbo', 'ParentTable': 'sys_workflowtransitions',
+            'ParentColumn': 'StatusId', 'ReferencedSchema': 'dbo',
+            'ReferencedTable': 'sys_workflowstatuses', 'ReferencedColumn': 'Id',
+            'ForeignKeyName': 'FK_Transitions_Status', 'ColumnOrdinal': '1',
+            'OnDelete': 'NO_ACTION', 'OnUpdate': 'NO_ACTION',
+            'IsDisabled': '0', 'IsNotTrusted': '0',
+        }]
+        with patch.object(sc, 'parse_section', return_value=fk_rows):
+            deps = sc.foreign_key_dependency_map(
+                sc.METADATA, {'sys_workflowtransitions'}, objects)
         self.assertIn('sys_workflowstatuses', deps)
 
     def test_verified_fk_dependency_is_not_reported_as_a_schema_gap(self):
