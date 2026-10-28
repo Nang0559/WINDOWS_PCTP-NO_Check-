@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """Generate reviewed SQL Server indexes and constraints from SQL2 metadata text.
 
-Input is a read-only metadata export, not executable SQL. Only dbo tables
-allow-listed as GAP-no-git-ddl/table/on_db57_export=có are emitted.
+Input is a read-only metadata export, not executable SQL. Only dbo tables in the PCTP runtime inventory, direct SQL references, and verified FK dependency closure are emitted.
 DEFAULT constraints are deliberately not emitted because 02_Generated_From_DB57.sql
 already preserves defaults inline.
 """
@@ -51,7 +50,8 @@ def load_scope(path: Path) -> set[tuple[str, str]]:
         for row in csv.DictReader(stream):
             generated_table_ddl = "SQL/QC_Schema/02_Generated_From_DB57.sql" in row.get("git_ddl_files", "")
             row_class = row.get("class", "").strip()
-            scope_class = (row_class in {"GAP-no-git-ddl", "GAP-fk-dependency", "GAP-db57-baseline"} or (
+            scope_class = (row.get("in_runtime_inventory", "").strip().casefold() in {"có", "co", "yes", "true"} or
+                row_class in {"GAP-no-git-ddl", "GAP-fk-dependency"} or (
                 row_class in {"GAP-ci-schema", "OK-testable"} and (
                     row.get("referenced_by_code", "").strip().casefold() in {"có", "co", "yes", "true"}
                     or bool(row.get("dependency_of_code", "").strip())

@@ -1,6 +1,6 @@
 /*
-  dbo.Split - definition exported from DB57 (docs/SQL.text, object "Split").
-  Source docs/SQL.text SHA-256: 595aafa76194aa239710acd085645283e381899d4669a2141c5841fb01292380
+  dbo.Split - definition verified against SQL2 DB57 module metadata (object "Split").
+  Source SQL2 metadata: SQL/Result_Export_SQL2_Complete_DDL_Metadata.txt (dbo.Split, SQL_TABLE_VALUED_FUNCTION).
   Body is verbatim; only "CREATE" became "CREATE OR ALTER" so the CI deployment can be re-run.
   It replaces the former STRING_SPLIT-based test shim (05_TestDependencyShim.sql), which returned a column
   named [value] and does not guarantee token order. The production function returns [strval] in input order.

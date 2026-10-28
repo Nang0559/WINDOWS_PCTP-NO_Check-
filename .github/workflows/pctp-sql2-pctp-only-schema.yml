@@ -1,0 +1,87 @@
+name: PCTP SQL2 PCTP-only schema
+
+on:
+  push:
+    branches:
+      - feature/wms-end-to-end-consistency
+  pull_request:
+    branches:
+      - feature/wms-end-to-end-consistency
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  generate-pctp-only-schema:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Build corrected PCTP runtime inventory
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 SQL/QC_Schema/tools/normalize_runtime_inventory.py \
+            --inventory docs/PCTP_SQL_Runtime_Inventory_A-K.csv \
+            --corrections docs/PCTP_SQL_Runtime_Inventory_ScopeCorrections.csv \
+            --out "$RUNNER_TEMP/PCTP_SQL_Runtime_Inventory_A-K.csv"
+
+      - name: Run SQL2 coverage against the corrected PCTP-only scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp docs/PCTP_SQL_Runtime_Inventory_A-K.csv "$RUNNER_TEMP/PCTP_SQL_Runtime_Inventory_A-K.original.csv"
+          cp "$RUNNER_TEMP/PCTP_SQL_Runtime_Inventory_A-K.csv" docs/PCTP_SQL_Runtime_Inventory_A-K.csv
+          trap 'cp "$RUNNER_TEMP/PCTP_SQL_Runtime_Inventory_A-K.original.csv" docs/PCTP_SQL_Runtime_Inventory_A-K.csv' EXIT
+          python3 -m unittest discover -s SQL/QC_Schema/tools -p 'test_*.py'
+          python3 SQL/QC_Schema/tools/schema_coverage.py --out "$RUNNER_TEMP/schema_coverage" --check
+          python3 SQL/QC_Schema/tools/gen_schema_from_inventory.py \
+            --inventory docs/SQL2_ColumnInventory.csv \
+            --coverage "$RUNNER_TEMP/schema_coverage.csv" \
+            --type-map SQL/QC_Schema/tools/sql2-db57-verified-type-map.json \
+            --out "$RUNNER_TEMP/02_Generated_From_DB57.sql"
+          python3 SQL/QC_Schema/tools/gen_schema_constraints.py \
+            --metadata SQL/Result_Export_SQL2_Complete_DDL_Metadata.txt \
+            --coverage "$RUNNER_TEMP/schema_coverage.csv" \
+            --out "$RUNNER_TEMP/03_Generated_From_DB57_Constraints.sql" \
+            --report "$RUNNER_TEMP/04_SQL2_Metadata_Gaps.md" \
+            --strict-dependencies
+
+      - name: Prove the generated baseline is PCTP-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - "$RUNNER_TEMP/schema_coverage.csv" "$RUNNER_TEMP/02_Generated_From_DB57.sql" <<'PY'
+          import csv, re, sys
+          coverage, ddl = sys.argv[1:]
+          rows = list(csv.DictReader(open(coverage, encoding='utf-8-sig', newline='')))
+          included = {r['object'].casefold() for r in rows if r['in_ci_base_schema'].strip().casefold() in {'có','co','yes','true'}}
+          creates = {m.group(1).casefold() for m in re.finditer(r'CREATE TABLE dbo\.\[([^]]+)\]', open(ddl, encoding='utf-8').read(), re.I)}
+          if not creates <= included:
+              raise SystemExit('Generated DDL contains a table outside the PCTP coverage allow-list: ' + ', '.join(sorted(creates - included)))
+          if len(creates) > 150:
+              raise SystemExit(f'PCTP-only guard failed: generated {len(creates)} tables')
+          print(f'PASS: PCTP-only generated baseline contains {len(creates)} tables')
+          PY
+
+      - name: Upload PCTP-only schema evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pctp-only-sql2-schema
+          path: |
+            ${{ runner.temp }}/PCTP_SQL_Runtime_Inventory_A-K.csv
+            ${{ runner.temp }}/schema_coverage.csv
+            ${{ runner.temp }}/schema_coverage_columns.csv
+            ${{ runner.temp }}/02_Generated_From_DB57.sql
+            ${{ runner.temp }}/03_Generated_From_DB57_Constraints.sql
+            ${{ runner.temp }}/04_SQL2_Metadata_Gaps.md
+          if-no-files-found: warn

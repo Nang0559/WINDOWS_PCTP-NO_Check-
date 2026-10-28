@@ -23,12 +23,6 @@ INVENTORY = os.path.join(ROOT, 'docs', 'PCTP_SQL_Runtime_Inventory_A-K.csv')
 sys.path.insert(0, os.path.dirname(__file__))
 from gen_schema_from_inventory import load_columns
 from gen_schema_constraints import parse_section
-CI_BASE_FILES = [
-    'SQL/QC_Schema/01_Tables.sql', 'SQL/QC_Schema/02_Generated_From_DB57.sql',
-    'SQL/QC_Schema/03_Generated_From_DB57_Constraints.sql', 'SQL/QC_Schema/05_Split.sql',
-    'SQL/Usp_Qrcode_Update_Stock2405.sql', 'SQL/Usp_Qrcode_Update_Stock_SP.sql',
-    'SQL/sp_GetCurrentStockStatus.sql',
-]
 DDL = re.compile(r'\bCREATE\s+(?:OR\s+ALTER\s+)?(TABLE|PROC(?:EDURE)?|VIEW|FUNCTION|TRIGGER)\s+'
                  r'(?:\[?dbo\]?\.)?\[?([A-Za-z_][\w]*)\]?', re.I)
 KIND = {'TABLE': 'table', 'PROC': 'proc', 'PROCEDURE': 'proc', 'VIEW': 'view', 'FUNCTION': 'function', 'TRIGGER': 'trigger'}
@@ -257,6 +251,50 @@ def classify(refd, e, g, ci):
     if e and not g: return 'GAP-no-git-ddl'
     return 'GAP-db57-unverified'
 
+def runtime_table_candidates(inventory_rows):
+    """PCTP SQL Server table candidates from the curated runtime inventory.
+
+    The SQL2 snapshot proves whether a candidate is a dbo table on DB57.
+    IFS/Oracle, external sources, C# types and non-table entries are excluded.
+    """
+    candidates = set()
+    for name, row in inventory_rows.items():
+        kind = (row.get("Loại đối tượng") or "").casefold()
+        runtime = (row.get("Runtime hay test-only") or "").casefold()
+        database = (row.get("Database/schema") or "").casefold()
+        status = (row.get("Trạng thái xác minh") or "").casefold()
+        if "bảng" not in kind:
+            continue
+        if "ifs" in kind or "ifs" in database or "oracle" in database or "external" in runtime:
+            continue
+        if "test-only" in runtime or "test only" in runtime:
+            continue
+        if runtime.startswith("chưa xác định") or runtime.startswith("cần trace"):
+            continue
+        if "không mặc định db57" in status or "không phải bảng sql" in status:
+            continue
+        # Do not resolve host-name templates as literal table names.
+        if "{" in name or "}" in name:
+            continue
+        candidates.add(name.casefold())
+    return candidates
+
+
+def external_inventory_names(inventory_rows):
+    """Names explicitly belonging to IFS/Oracle/external sources, not DB57."""
+    excluded = set()
+    for name, row in inventory_rows.items():
+        kind = (row.get("Loại đối tượng") or "").casefold()
+        database = (row.get("Database/schema") or "").casefold()
+        runtime = (row.get("Runtime hay test-only") or "").casefold()
+        status = (row.get("Trạng thái xác minh") or "").casefold()
+        if "ifs" in kind or "ifs" in database or "oracle" in database or "external" in runtime:
+            excluded.add(name.casefold())
+        if "không mặc định db57" in status:
+            excluded.add(name.casefold())
+    return excluded
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--out', default='docs/SCHEMA_COVERAGE', help='output prefix (writes <out>.csv and <out>_columns.csv)')
@@ -264,32 +302,40 @@ def main():
     a = ap.parse_args()
     exp, gitd = export_objects(), git_ddl()
     refs, dyn = code_refs()
-    seed_tables = {name for name, value in refs.items()
-                   if name in exp and exp[name]["kind"] == "table"}
-    available_tables = {name for name, value in exp.items() if value["kind"] == "table"}
-    fk_dependencies = foreign_key_dependency_map(METADATA, seed_tables, available_tables)
-    ci_names = set()
-    for f in CI_BASE_FILES:
-        for m in DDL.finditer(read(os.path.join(ROOT, f))):
-            ci_names.add(m.group(2).lower())
     inv = {}
     with open(INVENTORY, encoding='utf-8-sig', newline='') as fh:
-        for r in csv.DictReader(fh):
-            inv[r['Tên đối tượng'].split('.')[-1].lower()] = r
-    # Include every dbo user table from the SQL2 snapshot as the DB57 table baseline,
-    # not only the tables that happen to appear in the WMS runtime allowlist.
-    names = sorted(set(refs) | set(inv) | set(gitd) | set(exp) | set(fk_dependencies))
+        for row in csv.DictReader(fh):
+            inv[row['Tên đối tượng'].split('.')[-1].casefold()] = row
+
+    # The PCTP runtime inventory, plus literal SQL references, is the seed scope.
+    # SQL2 metadata is used only to resolve those names and their FK dependencies;
+    # unrelated B7R2 dbo tables are never pulled into the PCTP CI baseline.
+    available_tables = {name for name, value in exp.items() if value["kind"] == "table"}
+    inventory_candidates = runtime_table_candidates(inv)
+    external_names = external_inventory_names(inv)
+    # The CSV is the scope authority. Literal code references are a completeness
+    # audit; they do not silently expand the generated schema.
+    seed_tables = inventory_candidates & available_tables
+    fk_dependencies = foreign_key_dependency_map(METADATA, seed_tables, available_tables)
+    # This is the exact set that the current CI run will generate from SQL2,
+    # not a scan of stale checked-in 02/03 artifacts from an older wider scope.
+    ci_names = set(seed_tables) | set(fk_dependencies)
+    names = sorted(set(refs) | set(inv) | set(fk_dependencies))
     rows = []
     for n in names:
         e = exp.get(n); g = gitd.get(n); ci = n in ci_names; r = refs.get(n)
         in_inv = n in inv
         dependency_parents = fk_dependencies.get(n, set())
-        if not (r or in_inv or (e and (n in gitd or e['kind'] == 'table')) or dependency_parents):
-            continue  # defined only in Git and never referenced anywhere else: not part of coverage
+        if not (r or in_inv or dependency_parents):
+            continue  # SQL2 catalog is lookup evidence, not a request to clone all of B7R2
         on57, gitf, cis = status(n, exp, gitd, ci_names)
-        cls = classify(bool(r), e, g, ci)
-        if e and e['kind'] == 'table' and not r and not dependency_parents:
-            cls = 'GAP-db57-baseline'
+        in_runtime_scope = n in inventory_candidates
+        if dependency_parents and not r:
+            cls = 'GAP-fk-dependency'
+        elif r and not in_runtime_scope and n not in external_names and (not e or e['kind'] == 'table'):
+            cls = 'GAP-not-in-runtime-inventory'
+        else:
+            cls = classify(bool(in_runtime_scope or dependency_parents), e, g, ci)
         rows.append({
             'object': (e['name'] if e else (inv[n]['Tên đối tượng'] if in_inv else n)),
             'kind': (e['kind'] if e else ''),
@@ -298,10 +344,10 @@ def main():
             'code_files': '; '.join(sorted(os.path.basename(x) for x in r['files']))[:300] if r else '',
             'code_ops': '/'.join(sorted(r['ops'])) if r else ('FK-DEPENDENCY' if dependency_parents else ''),
             'on_db57_export': on57, 'git_ddl_files': gitf, 'in_ci_base_schema': cis,
-            'in_runtime_inventory': 'có' if in_inv else 'KHÔNG (thiếu trong CSV)',
+            'in_runtime_inventory': 'có' if in_runtime_scope else ('cần xác minh' if in_inv else 'không'),
             'class': ('GAP-fk-dependency' if dependency_parents and not r else cls),
         })
-    order = {'GAP-db57-unverified': 0, 'GAP-fk-dependency': 1, 'GAP-no-git-ddl': 2, 'GAP-ci-schema': 3, 'OK-testable': 4, 'GAP-db57-baseline': 5, 'info': 6}
+    order = {'GAP-db57-unverified': 0, 'GAP-not-in-runtime-inventory': 1, 'GAP-fk-dependency': 2, 'GAP-no-git-ddl': 3, 'GAP-ci-schema': 4, 'OK-testable': 5, 'info': 6}
     rows.sort(key=lambda x: (order[x['class']], x['object'].lower()))
     out = os.path.join(ROOT, a.out) if not os.path.isabs(a.out) else a.out
     os.makedirs(os.path.dirname(out), exist_ok=True)
@@ -328,9 +374,14 @@ def main():
         new = sorted(verified - set(known)); stale = sorted(set(known) - verified)
         for n in new: print('NEW SQL2 column mismatch (review SQL/code):', n)
         for n in stale: print('WARN known SQL2 gap no longer present:', n)
+        scope_gaps = [r for r in rows if r['class'] in {'GAP-db57-unverified', 'GAP-not-in-runtime-inventory'}
+                      and (r['referenced_by_code'] == 'có' or r['in_runtime_inventory'] == 'có')]
+        for row in scope_gaps:
+            print('SCHEMA SCOPE GAP:', row['object'], row['class'])
         print('UNVERIFIED table writes (not a mismatch verdict):', len(unverified))
-        print('CHECK', 'FAIL' if new else 'PASS', f'({len(verified)} verified mismatches, {len(known)} known, {len(unverified)} unverified)')
-        return 1 if new else 0
+        failed = bool(new or scope_gaps)
+        print('CHECK', 'FAIL' if failed else 'PASS', f'({len(verified)} verified mismatches, {len(known)} known, {len(unverified)} unverified, {len(scope_gaps)} scope gaps)')
+        return 1 if failed else 0
     return 0
 
 if __name__ == '__main__':

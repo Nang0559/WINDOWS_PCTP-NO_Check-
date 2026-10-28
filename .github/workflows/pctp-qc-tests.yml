@@ -149,7 +149,10 @@ jobs:
           python3 -m unittest discover -s SQL/QC_Schema/tools -p 'test_*.py'
           # Build coverage from structured DB57 SQL2 metadata. docs/SQL.text is
           # deliberately excluded because its DDL export is lossy.
+          set +e
           python3 SQL/QC_Schema/tools/schema_coverage.py --out "$RUNNER_TEMP/schema_coverage" --check
+          coverage_status=$?
+          set -e
           python3 SQL/QC_Schema/tools/gen_schema_from_inventory.py \
             --inventory docs/SQL2_ColumnInventory.csv \
             --coverage "$RUNNER_TEMP/schema_coverage.csv" \
@@ -162,8 +165,7 @@ jobs:
             --report SQL/QC_Schema/04_SQL2_Metadata_Gaps.md \
             --strict-dependencies
           python3 SQL/QC_Schema/tools/sql_batch_check.py \
-            --files SQL/QC_Schema/01_Tables.sql \
-                    SQL/QC_Schema/02_Generated_From_DB57.sql \
+            --files SQL/QC_Schema/02_Generated_From_DB57.sql \
                     SQL/QC_Schema/03_Generated_From_DB57_Constraints.sql \
                     SQL/QC_Schema/05_Split.sql \
                     SQL/Usp_Qrcode_Update_Stock2405.sql SQL/Usp_Qrcode_Update_Stock_SP.sql \
@@ -171,8 +173,11 @@ jobs:
                     "$RUNNER_TEMP/deploy/Usp_Qrcode_LOAD_PHIEU_DOCQR2405.sql" \
                     "$RUNNER_TEMP/deploy/Usp_Qrcode_Take_Lot2405.sql" \
                     "$RUNNER_TEMP/deploy/Usp_Qrcode_Take_LotYMVN2405.sql" \
-                    SQL/QC_G4_DeliveryFixture_Seed.sql SQL/QC_G4_DeliveryFixture_Cleanup.sql \
-            --export docs/SQL.text --reference SQL/QC_Schema/01_Tables.sql
+                    SQL/QC_G4_DeliveryFixture_Seed.sql SQL/QC_G4_DeliveryFixture_Cleanup.sql
+          if [ "$coverage_status" -ne 0 ]; then
+            echo "ERROR: SQL2 code/schema mismatches remain; generated DDL was checked but deployment is blocked."
+            exit "$coverage_status"
+          fi
 
       - name: Upload SQL2 schema coverage and generated DDL evidence
         if: always()
@@ -192,8 +197,10 @@ jobs:
         run: |
           set -euo pipefail
           c='${{ steps.sql.outputs.container_id }}'
+          # 02 is the PCTP runtime inventory + verified dbo FK dependency scope
+          # extracted from DB57 SQL2 metadata. It intentionally excludes unrelated
+          # B7R2_FCC application tables; 01_Tables.sql is a legacy fixture.
           for f in \
-            SQL/QC_Schema/01_Tables.sql \
             SQL/QC_Schema/02_Generated_From_DB57.sql \
             SQL/QC_Schema/03_Generated_From_DB57_Constraints.sql \
             SQL/QC_Schema/05_Split.sql \

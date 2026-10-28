@@ -1,4 +1,14 @@
-# G4 — schema dựng từ Git: kiểm tra tĩnh và kết quả
+# G4 — Schema baseline evidence
+
+> **Cập nhật phạm vi 2026-10-27:** Các số liệu coverage cũ trong tài liệu này là snapshot lịch sử,
+> trước khi chuyển sang SQL2 metadata và trước khi giới hạn schema theo PCTP runtime inventory.
+> Không dùng các số liệu cũ để kết luận phạm vi hoặc số bảng CI hiện tại.
+>
+> Baseline hiện tại phải được sinh từ `docs/PCTP_SQL_Runtime_Inventory_A-K.csv` + SQL literal
+> references trong PCTP + FK closure từ SQL2 metadata DB57. Không dựng toàn bộ 550 bảng B7R2_FCC.
+> `docs/SQL.text` chỉ là tư liệu lịch sử bị mất thông tin, không phải nguồn DDL/absence proof.
+> Xem `SQL/QC_Schema/README.md` để biết quy tắc scope hiện hành.
+
 
 > **Cập nhật 2026-10-27:** Các số liệu coverage bên dưới là snapshot lịch sử của lần rà soát
 > trước, khi `schema_coverage.py` còn đọc `docs/SQL.text`. Không dùng các số liệu đó để

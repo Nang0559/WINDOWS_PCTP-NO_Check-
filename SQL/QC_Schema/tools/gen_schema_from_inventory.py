@@ -67,7 +67,7 @@ def csv_rows(path: Path):
                    for k, v in raw.items() if k is not None}
 
 
-def load_columns(path: Path):
+def load_columns(path: Path, table_filter: set[str] | None = None):
     required = {"TableName", "type_desc", "column_id", "ColumnName", "DataType", "MaxChars",
                 "precision", "scale", "is_nullable", "is_identity", "seed_value",
                 "increment_value", "is_computed", "ComputedDefinition", "DefaultDefinition"}
@@ -105,10 +105,12 @@ def load_columns(path: Path):
     if not required.issubset(rows[0]):
         raise ValueError("SQL2 column metadata header is incomplete: " + ", ".join(sorted(required)))
     tables = defaultdict(list)
+    allowed_names = {name.casefold() for name in table_filter} if table_filter is not None else None
     for row in rows:
         if row.get("type_desc") != "USER_TABLE":
             continue
-        if row.get("TableName") and row.get("ColumnName") and row.get("column_id", "").isdigit():
+        if (row.get("TableName") and row.get("ColumnName") and row.get("column_id", "").isdigit()
+                and (allowed_names is None or row["TableName"].casefold() in allowed_names)):
             tables[row["TableName"].casefold()].append(row)
     for columns in tables.values():
         columns.sort(key=lambda row: int(row["column_id"]))
@@ -121,7 +123,8 @@ def load_allowlist(path: Path):
         for row in csv.DictReader(stream):
             generated_table_ddl = "SQL/QC_Schema/02_Generated_From_DB57.sql" in row.get("git_ddl_files", "")
             row_class = row.get("class", "").strip()
-            scope_class = (row_class in {"GAP-no-git-ddl", "GAP-fk-dependency", "GAP-db57-baseline"} or (
+            scope_class = (row.get("in_runtime_inventory", "").strip().casefold() in {"có", "co", "yes", "true"} or
+                row_class in {"GAP-no-git-ddl", "GAP-fk-dependency"} or (
                 row_class in {"GAP-ci-schema", "OK-testable"} and (
                     row.get("referenced_by_code", "").strip().casefold() in {"có", "co", "yes", "true"}
                     or bool(row.get("dependency_of_code", "").strip())
@@ -186,8 +189,10 @@ def safe_expression(value, table, column, kind):
 
 
 def render(inventory: Path, coverage: Path, type_map_path: Path | None = None):
-    columns_by_table = load_columns(inventory)
     allowlist = load_allowlist(coverage)
+    # Parse/store only PCTP runtime tables + verified FK dependencies, not every
+    # unrelated dbo table present in the shared B7R2_FCC metadata export.
+    columns_by_table = load_columns(inventory, set(allowlist))
     missing = sorted(set(allowlist) - set(columns_by_table))
     if missing:
         raise ValueError("allow-listed tables absent from SQL2 column metadata: " + ", ".join(missing))
@@ -233,7 +238,7 @@ def render(inventory: Path, coverage: Path, type_map_path: Path | None = None):
         # Validate pre-existing fixture tables too. CREATE IF NOT EXISTS alone can
         # hide a stale 01_Tables definition, so compare every SQL2 column contract.
         expected = []
-        for column in columns:
+        for ordinal, column in enumerate(columns, 1):
             col_name = column["ColumnName"]
             raw_type = column["DataType"].strip().casefold()
             mapped_type = type_map.get(raw_type, column["DataType"]).strip()
@@ -256,12 +261,12 @@ def render(inventory: Path, coverage: Path, type_map_path: Path | None = None):
                 if value and not re.fullmatch(r"[-+]?(?:\d+(?:\.\d*)?|\.\d+)", value):
                     raise ValueError(f"invalid {label}: {name}.{col_name}={value!r}")
             expected.append(
-                f"({int(column['column_id'])}, {sql_literal(col_name)}, {sql_literal(base_type)}, {max_length}, "
+                f"({ordinal}, {sql_literal(col_name)}, {sql_literal(base_type)}, {max_length}, "
                 f"{precision}, {scale}, {nullable}, {identity_flag}, {computed_flag}, "
                 f"{sql_literal(computed)}, {sql_literal(default)}, {sql_literal(seed)}, {sql_literal(increment)})")
         expected_values = ", ".join(expected)
         actual_columns = (
-            f"SELECT c.column_id, c.name, TYPE_NAME(c.system_type_id), c.max_length, c.precision, c.scale, "
+            f"SELECT ROW_NUMBER() OVER (ORDER BY c.column_id), c.name, TYPE_NAME(c.system_type_id), c.max_length, c.precision, c.scale, "
             f"CONVERT(int,c.is_nullable), CONVERT(int,c.is_identity), CONVERT(int,c.is_computed), "
             f"ISNULL(cc.definition,N''), ISNULL(dc.definition,N''), "
             f"ISNULL(CONVERT(nvarchar(128),ic.seed_value),N''), ISNULL(CONVERT(nvarchar(128),ic.increment_value),N'') "

@@ -77,10 +77,8 @@ CREATE TABLE [dbo].[DOCQRCODE_SP](
 ) ON [PRIMARY]
 GO
 
-CREATE TABLE [dbo].[DOCQRCODE_100003](
-	[LOTFCC] [nvarchar](500) NULL,[MAHANGFCC] [nvarchar](60) NULL,[SLTEMFCC] [smallint] NULL,[LOTHVN] [nvarchar](500) NULL,[MAHANGHVN] [nvarchar](60) NULL,[SLTEMHVN] [smallint] NULL,[STATUS] [smallint] NULL,[MAFCC] [nvarchar](50) NULL,[STT] [smallint] NULL,[KETQUA] [nvarchar](30) NULL,[CUA] [nvarchar](10) NULL,[TRUYEN] [nvarchar](50) NULL,[GIO] [nvarchar](50) NULL,[STTBAN] [int] NULL,[SUALOTHVN] [nchar](30) NULL,[TGLUU] [timestamp] NULL,[FindTem] [nvarchar](50) NULL
-) ON [PRIMARY]
-GO
+-- DOCQRCODE_100003 is customer-specific; generated from the DB57 SQL2 inventory in 02_Generated_From_DB57.sql.
+
 
 CREATE TABLE [dbo].[LUUDOCQRCODE](
 	[LOTFCC] [nvarchar](500) NULL,[MAHANGFCC] [nvarchar](100) NULL,[SLTEMFCC] [smallint] NULL,[LOTHVN] [nvarchar](500) NULL,[MAHANGHVN] [nvarchar](100) NULL,[SLTEMHVN] [smallint] NULL,[STATUS] [smallint] NULL,[MAFCC] [nvarchar](50) NULL,[STT] [smallint] NULL,[KETQUA] [nvarchar](50) NULL,[NGAYXUAT] [smalldatetime] NULL,[GIOXUAT] [nvarchar](200) NULL,[NHAMAY] [nvarchar](200) NULL,[GIOGIAO] [nvarchar](50) NULL,[TGLUU] [timestamp] NULL,[TGLuuDuLieu] [datetime] NULL
@@ -97,10 +95,8 @@ CREATE TABLE [dbo].[TMPPHIEUGIAOHANG_SP](
 ) ON [PRIMARY]
 GO
 
-CREATE TABLE [dbo].[TMPPHIEUGIAOHANG_100003](
-	[STT] [smallint] NULL,[CUA] [nvarchar](50) NULL,[TRUYEN] [nvarchar](50) NULL,[MAHANG] [nvarchar](50) NULL,[TENHANG] [nvarchar](50) NULL,[LOT] [nvarchar](500) NULL,[DV] [nvarchar](50) NULL,[SOLUONG] [smallint] NULL,[NGAYGIAO] [smalldatetime] NULL,[GIOGIAO] [nvarchar](50) NULL,[STATUS] [nvarchar](50) NULL,[TTPHIEU] [nvarchar](50) NULL,[NHAMAY] [varchar](50) NULL,[ADDNM] [int] NULL,[HOP] [int] NULL,[STATUSDOC] [nchar](50) NULL,[Note] [nvarchar](250) NULL,[PO_NO] [nvarchar](200) NULL,[PO_ITEM] [nvarchar](200) NULL
-) ON [PRIMARY]
-GO
+-- TMPPHIEUGIAOHANG_100003 is customer-specific; generated from the DB57 SQL2 inventory in 02_Generated_From_DB57.sql.
+
 
 CREATE TABLE [dbo].[Warehouse](
 	[WarehouseId] [int] IDENTITY(1,1) NOT NULL,[Name] [nvarchar](100) NOT NULL,

@@ -39,6 +39,12 @@ class Sql2DdlGeneratorTests(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
+    def test_load_columns_can_filter_to_pctp_runtime_scope(self):
+        tables = gen.load_columns(self.inventory, {"fvn_test", "unrelated"})
+        self.assertEqual({"fvn_test"}, set(tables))
+        self.assertEqual(["Id", "Code", "Calculated"],
+                         [row["ColumnName"] for row in tables["fvn_test"]])
+
     def test_preserves_identity_nvarchar_byte_length_default_and_computed(self):
         sql = gen.render(self.inventory, self.coverage)
         self.assertIn("[Id] int IDENTITY(1,1) NOT NULL", sql)
@@ -46,6 +52,7 @@ class Sql2DdlGeneratorTests(unittest.TestCase):
         self.assertIn("[Calculated] AS ([Id] + (1))", sql)
         self.assertIn("SQL2 table/column definition mismatch", sql)
         self.assertIn("sys.identity_columns", sql)
+        self.assertIn("ROW_NUMBER() OVER (ORDER BY c.column_id)", sql)
         self.assertIn("PK/unique indexes, FKs and CHECK constraints are emitted separately", sql)
 
     def test_alias_type_fails_closed_without_verified_mapping(self):
@@ -140,6 +147,22 @@ class Sql2DdlGeneratorTests(unittest.TestCase):
         sql = gen.render(self.inventory, self.coverage)
         self.assertIn("CREATE TABLE dbo.[FVN_Test]", sql)
         self.assertNotIn("CREATE TABLE dbo.[OtherTable]", sql)
+
+    def test_full_database_baseline_class_is_not_included(self):
+        self.coverage.write_text(
+            "object,kind,on_db57_export,git_ddl_files,class,in_runtime_inventory\n"
+            "UnrelatedDb57Table,table,có,,GAP-db57-baseline,không\n",
+            encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "allow-list is empty"):
+            gen.render(self.inventory, self.coverage)
+
+    def test_explicit_pctp_runtime_inventory_is_included(self):
+        self.coverage.write_text(
+            "object,kind,on_db57_export,git_ddl_files,class,in_runtime_inventory\n"
+            "FVN_Test,table,có,,OK-testable,có\n",
+            encoding="utf-8")
+        sql = gen.render(self.inventory, self.coverage)
+        self.assertIn("CREATE TABLE dbo.[FVN_Test]", sql)
 
     def test_allowlist_rejects_table_missing_from_metadata(self):
         self.coverage.write_text(
