@@ -70,12 +70,12 @@ $manifest = [ordered]@{
     query_timeout_seconds = 60
     counts = [ordered]@{
         stocktp_rows = [long]$metrics['stocktp_rows']
-        positive_remaining_rows = [long]$profile['positive_remaining_rows']
-        positive_with_part_rows = [long]$profile['positive_with_part_rows']
-        positive_with_sp_rows = [long]$profile['positive_with_sp_rows']
-        positive_with_part_and_sp_rows = [long]$profile['positive_with_part_and_sp_rows']
-        positive_matching_b20item_rows = [long]$profile['positive_matching_b20item_rows']
-        positive_matching_item_and_po_rows = [long]$profile['positive_matching_item_and_po_rows']
+        positive_remaining_rows = [long]$metrics['positive_remaining_rows']
+        positive_with_part_rows = [long]$metrics['positive_with_part_rows']
+        positive_with_sp_rows = [long]$metrics['positive_with_sp_rows']
+        positive_with_part_and_sp_rows = [long]$metrics['positive_with_part_and_sp_rows']
+        positive_matching_b20item_rows = [long]$metrics['positive_matching_b20item_rows']
+        positive_matching_item_and_po_rows = [long]$metrics['positive_matching_item_and_po_rows']
     }
 }
 $path = Join-Path $OutputDirectory 'mp-source-profile-manifest.json'
