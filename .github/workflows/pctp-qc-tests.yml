@@ -6,12 +6,14 @@ on:
       - feature/pctp-qc-test-platform
       - feature/wms-end-to-end-consistency
       - feature/wms-live-data-test-harness
+      - feature/pctp-mp-fixture-phase2
   pull_request:
     branches:
       - fix/qc-final-execution-timeout
       - feature/pctp-qc-test-platform
       - feature/wms-end-to-end-consistency
       - feature/wms-live-data-test-harness
+      - feature/pctp-mp-fixture-phase2
   workflow_dispatch:
     inputs:
       run_sql_integration:
@@ -73,7 +75,8 @@ jobs:
             ".\\PCTP.QC.UI\\Start-PctpIsolatedSql.ps1",
             ".\\PCTP.QC.UI\\Test-PctpIsolation.ps1",
             ".\\PCTP.QC.UI\\Invoke-PctpLiveDataInventory.ps1",
-            ".\\PCTP.QC.UI\\PctpLiveData.Common.ps1"
+            ".\\PCTP.QC.UI\\PctpLiveData.Common.ps1",
+            ".\\PCTP.QC.UI\\Invoke-PctpMpSourcePreview.ps1"
           )
           foreach ($path in $paths) {
             $tokens = $null
