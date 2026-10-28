@@ -58,6 +58,12 @@ function Test-PctpSqlTarget([string]$server, [string]$database) {
         if ($pair -ieq ('{0}/{1}' -f $iso.Server, $iso.Database)) { return }
         throw "Isolated mode: SQL target '$pair' is not the fixture '$($iso.Server)/$($iso.Database)'. DB57 is not allowed."
     }
+    # Live-data mode (PCTP_QC_LIVE_MODE=1): seed/mutate/cleanup may only touch a dedicated test catalog on SQL57,
+    # never the shared B7R2_FCC that other modules use.
+    if ($env:PCTP_QC_LIVE_MODE -eq '1') {
+        if ($server.Trim() -eq $script:PctpDefaultServer -and $database.Trim() -match '^B7R2_FCC_QC[A-Za-z0-9_]*$') { return }
+        throw "Live-data mode: SQL target '$pair' is rejected. Only $($script:PctpDefaultServer)/B7R2_FCC_QC* is allowed."
+    }
     $default = ('{0}/{1}' -f $script:PctpDefaultServer, $script:PctpDefaultDatabase)
     if ($pair -ieq $default) { return }
     $explicit = $env:PCTP_QC_ISOLATED_TARGET

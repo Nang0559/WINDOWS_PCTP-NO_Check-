@@ -72,7 +72,8 @@ jobs:
             ".\\PCTP.QC.UI\\Invoke-PctpQcGates.ps1",
             ".\\PCTP.QC.UI\\Start-PctpIsolatedSql.ps1",
             ".\\PCTP.QC.UI\\Test-PctpIsolation.ps1",
-            ".\\PCTP.QC.UI\\Invoke-PctpLiveDataInventory.ps1"
+            ".\\PCTP.QC.UI\\Invoke-PctpLiveDataInventory.ps1",
+            ".\\PCTP.QC.UI\\PctpLiveData.Common.ps1"
           )
           foreach ($path in $paths) {
             $tokens = $null

@@ -31,3 +31,13 @@ Artifact: pctp-live-data-inventory-<run>, retained for 7 days. The artifact cont
 - Do not add live-data loading to the normal push/PR CI path.
 - Before the next phase, review the inventory and explicitly select the delivery dates/tables and the expected write scope. The next phase should export only approved rows from SQL14 and apply changes to SQL57 with a repeatable run ID, pre/post checks, and rollback/recovery plan.
 - This phase does not create/drop databases, alter schema, insert/update/delete rows, or execute business procedures.
+
+## Hardening added after review (this patch)
+
+- `PctpLiveData.Common.ps1` centralises the guards: exact host match (the old `-like "*192.168.200.14*"` also accepted `192.168.200.140`), SQL14 login proven read-only by a permission probe (rejects sysadmin, db_owner, db_datawriter, db_ddladmin, INSERT/UPDATE/DELETE/EXECUTE/ALTER), and a rule that any *write* phase may only target `192.168.200.57 / B7R2_FCC_QC*`, never the shared `B7R2_FCC`.
+- The inventory fails fast when leftover `PCTP-QC-ISOLATION-*` firewall rules exist on the runner (a crashed G5/G6 job would otherwise make SQL14/SQL57 connections time out). Fix with `Test-PctpIsolation.ps1 -Mode Unblock` from an elevated session.
+- `-TargetDatabase` (workflow input `target_database`) lets the same inventory run against `B7R2_FCC_QC*` once it exists.
+- `drift_columns_pctp_scope.csv` compares SQL14 vs SQL57 columns only for objects classed `OK-*` in `docs/SCHEMA_COVERAGE_EFFECTIVE.csv`, so unrelated tables of the shared B7R2 database are ignored.
+- Manifests record login, `GITHUB_SHA` and run id. `procedure_modules.csv` holds SHA-256 of procedure definitions (optional; needs VIEW DEFINITION).
+- `PCTP_QC_LIVE_MODE=1` makes `PctpSql.Common.ps1` accept only `B7R2_FCC_QC*` on SQL57 for seed/cleanup.
+
