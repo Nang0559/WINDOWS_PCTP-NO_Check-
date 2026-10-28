@@ -19,6 +19,15 @@ param(
     [Parameter(Mandatory = $false)][switch]$ConfirmAppUsesIsolatedDb
 )
 $ErrorActionPreference = "Stop"
+# Diagnostics: a bare "Argument types do not match" gives no location. Print type, line and stack to the log
+# (captured by Invoke-PctpQcGates) before rethrowing, so a failed run is diagnosable from the evidence alone.
+trap {
+    Write-Host ("JOURNEY-FATAL: {0}: {1}" -f $_.Exception.GetType().FullName, $_.Exception.Message)
+    if ($_.InvocationInfo) { Write-Host $_.InvocationInfo.PositionMessage }
+    if ($_.ScriptStackTrace) { Write-Host $_.ScriptStackTrace }
+    if ($_.Exception.InnerException) { Write-Host ("INNER: {0}" -f $_.Exception.InnerException.Message) }
+    break
+}
 if ($env:OS -ne "Windows_NT") { throw "PCTP UI journey automation must run on Windows." }
 if (-not (Test-Path -LiteralPath $ExePath -PathType Leaf)) { throw "Executable not found: $ExePath" }
 if (-not (Test-Path -LiteralPath $ManifestPath -PathType Leaf)) { throw "Manifest not found: $ManifestPath" }
