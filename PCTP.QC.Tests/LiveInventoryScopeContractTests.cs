@@ -22,7 +22,7 @@ public sealed class LiveInventoryScopeContractTests
         Assert.Contains("PCTP scope CSV not found", source, StringComparison.Ordinal);
         Assert.Contains("Refusing to inventory the entire database", source, StringComparison.Ordinal);
         Assert.Contains("refusing broad inventory", source, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("full_database_inventory=\$false".Replace("\\", string.Empty), source, StringComparison.Ordinal);
+        Assert.Contains("full_database_inventory=$false", source, StringComparison.Ordinal);
     }
 
     [Fact]
