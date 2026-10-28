@@ -297,13 +297,14 @@ def external_inventory_names(inventory_rows):
 
 def main():
     ap = argparse.ArgumentParser()
+    ap.add_argument('--inventory', type=str, default=INVENTORY, help='runtime inventory CSV (default: PCTP_SQL_Runtime_Inventory_A-K.csv)')
     ap.add_argument('--out', default='docs/SCHEMA_COVERAGE', help='output prefix (writes <out>.csv and <out>_columns.csv)')
     ap.add_argument('--check', action='store_true', help='exit 1 on a column mismatch not listed in known_column_gaps.txt')
     a = ap.parse_args()
     exp, gitd = export_objects(), git_ddl()
     refs, dyn = code_refs()
     inv = {}
-    with open(INVENTORY, encoding='utf-8-sig', newline='') as fh:
+    with open(a.inventory, encoding='utf-8-sig', newline='') as fh:
         for row in csv.DictReader(fh):
             inv[row['Tên đối tượng'].split('.')[-1].casefold()] = row
 
