@@ -72,8 +72,8 @@ public static class TestEnvironmentPolicy
     }
 
     /// <summary>
-    /// Allows only metadata/schema preflight against the shared SQL57 catalog.
-    /// Full integration and all mutation-capable acceptance modes must use B7R2_FCC_QC*.
+    /// Allows metadata-only preflight on the shared catalog or isolated QC catalog.
+    /// Shared B7R2_FCC requires read-only intent; integration and mutation modes use B7R2_FCC_QC*.
     /// </summary>
     public static bool IsSafeSqlReadOnlyPreflightTarget(string connectionString)
     {
