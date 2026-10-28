@@ -59,6 +59,11 @@ public sealed class LegacyDeliverySaveProcedureRetirementTests
             .SelectMany(directory => Directory.EnumerateFiles(directory, "*", SearchOption.AllDirectories))
             .Where(file => extensions.Contains(Path.GetExtension(file)))
             .Where(file => !string.Equals(Path.GetFileName(file), "Usp_Qrcode_LUU_PHIEU_RetireUnsafeLegacy.sql", StringComparison.OrdinalIgnoreCase))
+            // This generated metadata report records procedure names as evidence; it is not an executable caller.
+            .Where(file => !string.Equals(
+                Path.GetRelativePath(root, file).Replace(Path.DirectorySeparatorChar, '/'),
+                "SQL/QC_Schema/SQL2_Metadata_Review_Report.json",
+                StringComparison.OrdinalIgnoreCase))
             .Where(file => File.ReadAllText(file).Contains("Usp_Qrcode_LUU_PHIEU", StringComparison.OrdinalIgnoreCase))
             .Select(file => Path.GetRelativePath(root, file))
             .OrderBy(file => file, StringComparer.OrdinalIgnoreCase)
