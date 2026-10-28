@@ -52,7 +52,7 @@ jobs:
           foreach ($table in $required) {
             if (-not $source.Contains($table)) { throw "Scope guard failed: allowlisted table $table is missing." }
           }
-          if ($source -match 'sys\\.tables\\s+t\\s*(?![\\s\\S]*t\\.name\\s+IN\\s*\\(N''STOCKTP'',N''B20Item'',N''Purchase_Order_YMVN''\\))') {
+          if ($source -notmatch 't\.name\s+IN\s*\(N''STOCKTP'',N''B20Item'',N''Purchase_Order_YMVN''\)') {
             throw 'Scope guard failed: metadata query is no longer visibly constrained to the three allowlisted tables.'
           }
           Write-Host 'PASS: source-profile scope is limited to STOCKTP, B20Item, Purchase_Order_YMVN; no 550-object inventory is run.'
