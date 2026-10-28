@@ -44,9 +44,8 @@ public static class SqlTestConfiguration
         return builder.ConnectionString;
     }
     /// <summary>
-    /// Read-only schema preflight may inspect the shared SQL57 catalog. This method
-    /// is used only by --preflight and --delivery-preflight, which return before any
-    /// business procedure or mutating repository scenario can execute.
+    /// Read-only schema preflight for G3/G4 targets the isolated QC catalog.
+    /// The shared catalog is available only through the explicit shared-preflight method.
     /// </summary>
     public static string BuildReadOnlyPreflightConnectionString(string userId, string password)
     {
@@ -60,12 +59,39 @@ public static class SqlTestConfiguration
         var builder = new SqlConnectionStringBuilder
         {
             DataSource = Server,
+            InitialCatalog = Database,
+            UserID = userId,
+            Password = password,
+            TrustServerCertificate = true,
+            ConnectTimeout = 5,
+            ApplicationName = "PCTP-QC-Isolated-ReadOnly-Preflight",
+            ApplicationIntent = ApplicationIntent.ReadOnly
+        };
+        return builder.ConnectionString;
+    }
+
+    /// <summary>
+    /// Explicit metadata-only connection to shared B7R2_FCC. UI uses this only for
+    /// the named read-only check; integration gates must use the isolated QC catalog.
+    /// </summary>
+    public static string BuildSharedReadOnlyPreflightConnectionString(string userId, string password)
+    {
+        var ciConnection = Environment.GetEnvironmentVariable("PCTP_QC_EPHEMERAL_SQL_CONNECTION");
+        if (!string.IsNullOrWhiteSpace(ciConnection))
+            return ciConnection;
+
+        if (string.IsNullOrWhiteSpace(userId) || string.IsNullOrWhiteSpace(password))
+            throw new InvalidOperationException("Shared SQL57 preflight requires SQL authentication credentials.");
+
+        var builder = new SqlConnectionStringBuilder
+        {
+            DataSource = Server,
             InitialCatalog = ReadOnlyPreflightDatabase,
             UserID = userId,
             Password = password,
             TrustServerCertificate = true,
             ConnectTimeout = 5,
-            ApplicationName = "PCTP-QC-SQL57-ReadOnly-Preflight",
+            ApplicationName = "PCTP-QC-Shared-ReadOnly-Preflight",
             ApplicationIntent = ApplicationIntent.ReadOnly
         };
         return builder.ConnectionString;
