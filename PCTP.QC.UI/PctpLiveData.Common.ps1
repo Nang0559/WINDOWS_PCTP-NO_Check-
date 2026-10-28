@@ -65,7 +65,7 @@ function Invoke-PctpScalarRows([string]$ConnectionString, [string]$Sql) {
 }
 
 # Fail-closed proof that the source login cannot change data or schema. Returns the login name for the manifest.
-function Assert-PctpSourceReadOnly([string]$ConnectionString) {
+function Assert-PctpSourceReadOnly([string]$ConnectionString, [string]$Label = 'SQL14 source') {
     $sql = @"
 SELECT SUSER_SNAME() AS login_name,
        CAST(ISNULL(IS_SRVROLEMEMBER('sysadmin'),0) AS int) AS is_sysadmin,
@@ -81,7 +81,7 @@ SELECT SUSER_SNAME() AS login_name,
     $row = (Invoke-PctpScalarRows $ConnectionString $sql).Rows[0]
     $bad = @('is_sysadmin', 'is_db_owner', 'is_datawriter', 'is_ddladmin', 'can_insert', 'can_update', 'can_delete', 'can_execute', 'can_alter') |
         Where-Object { [int]$row[$_] -ne 0 }
-    if ($bad) { throw "SQL14 source login is not read-only (found: $($bad -join ', ')). Use a SELECT/VIEW DEFINITION-only login." }
+    if ($bad) { throw "$Label login is not read-only (found: $($bad -join ', ')). Use a SELECT/VIEW DEFINITION-only login." }
     return [string]$row['login_name']
 }
 
