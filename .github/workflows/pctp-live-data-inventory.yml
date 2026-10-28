@@ -1,0 +1,67 @@
+name: PCTP live-data inventory (read-only)
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_read_only_inventory:
+        description: "Confirm metadata-only inventory on SQL14 and SQL57; no business rows or writes"
+        required: true
+        type: boolean
+        default: false
+      target_database:
+        description: "SQL57 catalog to inventory (B7R2_FCC shared, or a dedicated B7R2_FCC_QC* test catalog)"
+        required: false
+        type: string
+        default: B7R2_FCC
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pctp-live-data-inventory
+  cancel-in-progress: false
+
+jobs:
+  inventory:
+    if: ${{ inputs.confirm_read_only_inventory == true }}
+    runs-on: [self-hosted, windows, pctp-ui]
+    timeout-minutes: 15
+    steps:
+      # No hard-coded ref: the dispatched branch/commit is what runs, and its SHA is recorded in the manifests.
+      - name: Checkout dispatched commit
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Validate target catalog input
+        shell: powershell
+        env:
+          TARGET_DATABASE: ${{ inputs.target_database }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ($env:TARGET_DATABASE -notmatch '^(B7R2_FCC|B7R2_FCC_QC[A-Za-z0-9_]*)$') { throw "target_database '$($env:TARGET_DATABASE)' is not an approved catalog." }
+
+      - name: Run read-only SQL metadata inventory
+        shell: powershell
+        env:
+          PCTP_QC_SOURCE_SQL_CONNECTION: ${{ secrets.PCTP_QC_SOURCE_SQL_CONNECTION }}
+          PCTP_QC_TARGET_SQL_CONNECTION: ${{ secrets.PCTP_QC_TARGET_SQL_CONNECTION }}
+          TARGET_DATABASE: ${{ inputs.target_database }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ([string]::IsNullOrWhiteSpace($env:PCTP_QC_SOURCE_SQL_CONNECTION)) {
+            throw 'Missing GitHub secret PCTP_QC_SOURCE_SQL_CONNECTION (read-only SQL14 account).'
+          }
+          if ([string]::IsNullOrWhiteSpace($env:PCTP_QC_TARGET_SQL_CONNECTION)) {
+            throw 'Missing GitHub secret PCTP_QC_TARGET_SQL_CONNECTION (SQL57 test account).'
+          }
+          .\PCTP.QC.UI\Invoke-PctpLiveDataInventory.ps1 -OutputDirectory "$env:RUNNER_TEMP\pctp-live-data-inventory" -TargetDatabase "$env:TARGET_DATABASE"
+
+      - name: Upload inventory reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pctp-live-data-inventory-${{ github.run_number }}
+          path: ${{ runner.temp }}\pctp-live-data-inventory\
+          if-no-files-found: error
+          retention-days: 7

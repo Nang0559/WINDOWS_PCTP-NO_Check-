@@ -55,56 +55,84 @@ namespace PCTP.Modules.KhoCore.Fuction
         }
         public void AddRackToExistingWarehouse(string warehouseName, Rack newRack)
         {
-            string findQuery = "SELECT WarehouseId FROM Warehouse WHERE Name = @Name";
-            object warehouseIdObj = sql.ExecuteScalar(sql.B7R2_FCCdbb, findQuery,
-                new[] { new SqlParameter("@Name", warehouseName) });
+            if (string.IsNullOrWhiteSpace(warehouseName))
+                throw new ArgumentException("Tên kho không được để trống.", nameof(warehouseName));
+            if (newRack == null)
+                throw new ArgumentNullException(nameof(newRack));
+            if (newRack.Slots == null)
+                throw new ArgumentException("Danh sách Slot không được null.", nameof(newRack));
 
-            if (warehouseIdObj == null || warehouseIdObj == DBNull.Value)
+            // Rack header and every Slot row form one business operation. Use one
+            // connection/transaction so a failed Slot insert cannot leave a partial Rack.
+            using (SqlConnection conn = new SqlConnection(sql.B7R2_FCCdbb))
             {
-                MessageBox.Show($"Không tìm thấy kho '{warehouseName}'!",
-                    "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return;
-            }
-
-            int warehouseId = Convert.ToInt32(warehouseIdObj);
-
-            string insertRackQuery = @"
-        INSERT INTO Rack (RackName, WarehouseId) 
-        VALUES (@RackName, @WarehouseId); 
-        SELECT SCOPE_IDENTITY();";
-
-            int newRackId = Convert.ToInt32(
-                sql.ExecuteScalar(sql.B7R2_FCCdbb, insertRackQuery, new[]
+                conn.Open();
+                using (SqlTransaction transaction = conn.BeginTransaction())
                 {
-            new SqlParameter("@RackName",    SqlDbType.NVarChar) { Value = newRack.Name },
-            new SqlParameter("@WarehouseId", SqlDbType.Int)      { Value = warehouseId  }
-                }));
+                    try
+                    {
+                        int warehouseId;
+                        using (SqlCommand find = new SqlCommand(@"
+SELECT WarehouseId
+FROM Warehouse WITH (UPDLOCK, HOLDLOCK)
+WHERE Name = @Name;", conn, transaction))
+                        {
+                            find.Parameters.Add("@Name", SqlDbType.NVarChar, 255).Value = warehouseName.Trim();
+                            object value = find.ExecuteScalar();
+                            if (value == null || value == DBNull.Value)
+                                throw new InvalidOperationException("Không tìm thấy kho '" + warehouseName + "'.");
+                            warehouseId = Convert.ToInt32(value);
+                        }
 
-            foreach (var slot in newRack.Slots)
-            {
-                // ✅ KIẾN TRÚC MỚI: bảng Slot không còn cột TemCode/LotNo (đã chuyển hẳn sang
-                // bảng SlotLot). Slot mới tạo luôn trống — chưa có Lot nào — nên không cần
-                // (và không được) insert 2 cột này vào Slot nữa.
-                string insertSlotQuery = @"
-            INSERT INTO Slot 
-                (SlotNumber, IsOccupied, RackId, Capacity, 
-                 ItemCode,   Quantity, ImportDate)
-            VALUES 
-                (@SlotNumber, @IsOccupied, @RackId, @Capacity,
-                 @ItemCode,   @Quantity, @ImportDate)";
+                        int newRackId;
+                        using (SqlCommand insertRack = new SqlCommand(@"
+INSERT INTO Rack (RackName, WarehouseId)
+VALUES (@RackName, @WarehouseId);
+SELECT CAST(SCOPE_IDENTITY() AS int);", conn, transaction))
+                        {
+                            insertRack.Parameters.Add("@RackName", SqlDbType.NVarChar, 255).Value =
+                                (object)newRack.Name ?? DBNull.Value;
+                            insertRack.Parameters.Add("@WarehouseId", SqlDbType.Int).Value = warehouseId;
+                            object value = insertRack.ExecuteScalar();
+                            if (value == null || value == DBNull.Value)
+                                throw new InvalidOperationException("Không lấy được RackId vừa tạo.");
+                            newRackId = Convert.ToInt32(value);
+                        }
 
-                sql.ExecuteScalar(sql.B7R2_FCCdbb, insertSlotQuery, new[]
-                {
-            new SqlParameter("@SlotNumber", SqlDbType.Int)          { Value = slot.SlotNumber },
-            new SqlParameter("@IsOccupied", SqlDbType.Bit)          { Value = false           },
-            new SqlParameter("@RackId",     SqlDbType.Int)          { Value = newRackId       },
-            new SqlParameter("@Capacity",   SqlDbType.Int)          { Value = slot.Capacity   },
-            new SqlParameter("@ItemCode",   SqlDbType.NVarChar, -1) { Value = DBNull.Value    },
-            new SqlParameter("@Quantity",   SqlDbType.Int)          { Value = 0               },
-            new SqlParameter("@ImportDate", SqlDbType.DateTime)     { Value = DBNull.Value    },
-        });
+                        foreach (var slot in newRack.Slots)
+                        {
+                            if (slot == null)
+                                throw new InvalidOperationException("Danh sách Slot chứa phần tử null.");
+                            if (slot.SlotNumber <= 0)
+                                throw new InvalidOperationException("SlotNumber phải lớn hơn 0.");
+                            if (slot.Capacity < 0)
+                                throw new InvalidOperationException("Capacity không được âm.");
+
+                            using (SqlCommand insertSlot = new SqlCommand(@"
+INSERT INTO Slot
+    (SlotNumber, IsOccupied, RackId, Capacity, ItemCode, Quantity, ImportDate)
+VALUES
+    (@SlotNumber, 0, @RackId, @Capacity, NULL, 0, NULL);", conn, transaction))
+                            {
+                                insertSlot.Parameters.Add("@SlotNumber", SqlDbType.Int).Value = slot.SlotNumber;
+                                insertSlot.Parameters.Add("@RackId", SqlDbType.Int).Value = newRackId;
+                                insertSlot.Parameters.Add("@Capacity", SqlDbType.Int).Value = slot.Capacity;
+                                insertSlot.ExecuteNonQuery();
+                            }
+                        }
+
+                        transaction.Commit();
+                    }
+                    catch
+                    {
+                        try { transaction.Rollback(); }
+                        catch { /* Preserve the original exception. */ }
+                        throw;
+                    }
+                }
             }
         }
+
         public InspectionConfig GetInspectionConfig(string itemCode)
         {
             string q = @"

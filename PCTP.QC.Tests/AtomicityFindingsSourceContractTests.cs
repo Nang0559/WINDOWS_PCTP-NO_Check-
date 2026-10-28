@@ -149,6 +149,57 @@ public sealed class AtomicityFindingsSourceContractTests
     }
 
     [Fact]
+    public void StockTpIdentityAudit_IsReadOnlyAndChecksTheActualReconciliationGrains()
+    {
+        var sql = ReadSource("PCTP_StockTpIdentityAudit.sql");
+        var executable = Regex.Replace(sql, @"(?s)/\*.*?\*/|--.*?$", string.Empty, RegexOptions.Multiline);
+        Assert.False(Regex.IsMatch(executable, @"\b(INSERT|UPDATE|DELETE|MERGE|TRUNCATE|DROP|ALTER|CREATE|EXEC|EXECUTE)\b", RegexOptions.IgnoreCase),
+            "STOCKTP identity audit must remain read-only.");
+        Assert.Contains("GROUP BY LTRIM(RTRIM(LOT))", executable, StringComparison.Ordinal);
+        Assert.Contains("GROUP BY LTRIM(RTRIM(LOT))", executable, StringComparison.Ordinal);
+        Assert.Contains("FULL OUTER JOIN SlotByLot", executable, StringComparison.Ordinal);
+        Assert.Contains("COUNT(DISTINCT SlotId) AS SlotCount", executable, StringComparison.Ordinal);
+        Assert.Contains("DistinctItemCodes", executable, StringComparison.Ordinal);
+        Assert.Contains("PhieuStatus = 0", executable, StringComparison.Ordinal);
+        Assert.Contains("SLNHAP", executable, StringComparison.Ordinal);
+        Assert.Contains("SLXUAT", executable, StringComparison.Ordinal);
+        Assert.Contains("SLCONLAI", executable, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void StockTpRepository_EnforcesSingleAggregateRowPerLot()
+    {
+        var stock = ReadSource("StockTPRepository.source.cs");
+        Assert.Contains("dt.Rows.Count != 1", Method(stock, "public StockItem GetByLot("), StringComparison.Ordinal);
+        Assert.Contains("dt.Rows.Count != 1", Method(stock, "public int GetSlConLai("), StringComparison.Ordinal);
+        Assert.Contains("dt.Rows.Count != 1", Method(stock, "public int GetSlDaNhap("), StringComparison.Ordinal);
+        Assert.Contains("affected != 1", Method(stock, "public void UpdateStockTp("), StringComparison.Ordinal);
+        Assert.Contains("result.ContainsKey(lot)", Method(stock, "public Dictionary<string, int> GetSlConLaiBatch("), StringComparison.Ordinal);
+
+        var export = ReadSource("StockExportRepository.source.cs");
+        Assert.Contains("rows != 1", Method(export, "public void DecreaseStockTp("), StringComparison.Ordinal);
+        Assert.Contains("rows != 1", Method(export, "public void AdjustSlConLai("), StringComparison.Ordinal);
+        Assert.Contains("rows > 1", Method(export, "public bool TryDecreaseSlConLai("), StringComparison.Ordinal);
+        var balance = ReadSource("LegacyStockBalanceRepositoryAdapter.source.cs");
+        var getBalance = Method(balance, "public int GetAvailableQuantity(");
+        Assert.Contains("rows.Rows.Count != 1", getBalance, StringComparison.Ordinal);
+        Assert.DoesNotContain("SUM(SLCONLAI)", getBalance, StringComparison.Ordinal);
+        Assert.Contains("affected > 1", Method(balance, "public bool TryDecreaseAvailableQuantity("), StringComparison.Ordinal);
+        Assert.Contains("affected != 1", Method(balance, "public void AdjustAvailableQuantity("), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void StockTpUniqueLotMigration_FailsClosedOnBlankOrDuplicateLots()
+    {
+        var sql = ReadSource("PCTP_EnforceUniqueStockTpLot.sql");
+        Assert.Contains("LOT IS NULL OR LTRIM(RTRIM(LOT)) = N''", sql, StringComparison.Ordinal);
+        Assert.Contains("GROUP BY LTRIM(RTRIM(LOT))", sql, StringComparison.Ordinal);
+        Assert.Contains("HAVING COUNT_BIG(*) > 1", sql, StringComparison.Ordinal);
+        Assert.Contains("CREATE UNIQUE INDEX UX_STOCKTP_LOT", sql, StringComparison.Ordinal);
+        Assert.Contains("THROW 51002", sql, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Delivery2405_BusinessValidationReturnsRollbackTheirTransactionScope()
     {
         var sql = ReadSource("Usp_Qrcode_Update_Stock2405.sql");

@@ -34,6 +34,20 @@ internal static class Program
                 Console.WriteLine("INFO: ephemeral SQL engine mode; business-schema preflight is intentionally skipped. Only isolated tempdb/session fixtures will be used.");
                 Console.WriteLine("INFO: executing active QR-to-STT LOT procedure against disposable dbo fixtures...");
                 await DeliveryQrAllocationScenario.RunAsync(connectionString);
+                var reworkFixtureConnection = Environment.GetEnvironmentVariable("PCTP_QC_REWORK_FIXTURE_CONNECTION");
+                if (string.IsNullOrWhiteSpace(reworkFixtureConnection))
+                {
+                    Console.WriteLine("INFO: running production XuLyHangLoi repositories against disposable dbo fixtures...");
+                    await ProductionReworkRepositorySqlScenario.RunAsync(connectionString);
+                }
+                else
+                {
+                    TestEnvironmentPolicy.EnsureSafeSqlFixtureTarget(reworkFixtureConnection);
+                    Console.WriteLine($"INFO: running production XuLyHangLoi repositories against isolated fixture database {TestEnvironmentPolicy.DescribeTarget(reworkFixtureConnection)}...");
+                    await ProductionReworkRepositorySqlScenario.RunAsync(reworkFixtureConnection);
+                }
+                Console.WriteLine("INFO: running delivery stock command (B0-01) against disposable dbo ledger + tempdb fixtures...");
+                await DeliveryCommandSqlScenario.RunAsync(connectionString);
             }
             else
             {
@@ -89,6 +103,12 @@ internal static class Program
 
             Console.WriteLine("INFO: running concurrent production BulkStockSlotRepository.TakeLot checks against uniquely named tempdb fixtures...");
             await ProductionBulkStockSlotConcurrencyScenario.RunAsync(connectionString);
+
+            Console.WriteLine("INFO: running Rework export/delivery two-session lock protocol (B0-02/B0-03) against uniquely named tempdb fixtures...");
+            await ReworkTwoSessionScenario.RunAsync(connectionString);
+
+            Console.WriteLine("INFO: running YMVN customer-delivery specification (B0-01 characterization) against uniquely named tempdb fixtures...");
+            await YmvnDeliverySpecScenario.RunAsync(connectionString);
 
             Console.WriteLine("INFO: running SqlRepositoryBase.InTransaction commit/rollback/join-caller checks against a uniquely named tempdb fixture...");
             await InTransactionScenario.RunAsync(connectionString);
@@ -317,7 +337,7 @@ INSERT INTO {table}(Id, Qty) VALUES (1, 50), (2, 10);", connection) { CommandTim
         var required = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
         {
             ["STOCKTP"] = new[] { "LOT", "PART", "NAME", "MODEL", "SLNHAP", "SLCONLAI", "SLXUAT", "SATUS", "CASX", "NGAYSX", "NGAYNHAP", "SLSX", "NGAYXUAT" },
-            ["SlotLot"] = new[] { "SlotLotId", "SlotId", "LotNo", "ItemCode", "Quantity", "TemCode", "QrData", "MaPhieu", "ImportDate", "PhieuStatus" },
+            ["SlotLot"] = new[] { "SlotLotId", "SlotId", "LotNo", "ItemCode", "Quantity", "TemCode", "QrData", "MaPhieu", "ParentSoPhieu", "SoPhieuTong", "NgaySX", "ImportDate", "CreatedDate", "PhieuStatus" },
             ["Slot"] = new[] { "SlotId", "RackId", "SlotNumber", "Capacity", "Quantity", "IsOccupied", "ItemCode", "ImportDate" },
             ["Rack"] = new[] { "RackId", "WarehouseId", "RackName" },
             ["Warehouse"] = new[] { "WarehouseId", "Name" }

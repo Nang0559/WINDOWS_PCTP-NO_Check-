@@ -104,4 +104,44 @@ public sealed class OrderTableSourceContractTests
         Assert.Contains("INTO #LotKeyCount", normalized, StringComparison.Ordinal);
         Assert.DoesNotContain("COUNT(DISTINCT RTRIM(S2.LOT))", normalized, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void DeliveryProcedure_LedgerInsert_CopiesPoFieldsOnlyWhenTmpTableHasThem()
+    {
+        var sql = NormalizeSql(ReadSource("Usp_Qrcode_Update_Stock2405.sql"));
+
+        Assert.Contains(NormalizeSql("COL_LENGTH(N'dbo.' + @TMPTABLE, N'PO_NO') IS NOT NULL"), sql, StringComparison.Ordinal);
+        Assert.Contains(NormalizeSql("COL_LENGTH(N'dbo.' + @TMPTABLE, N'PO_ITEM') IS NOT NULL"), sql, StringComparison.Ordinal);
+        Assert.Contains(NormalizeSql("Note' + @LuuPoCols + N'"), sql, StringComparison.Ordinal);
+        Assert.Contains(NormalizeSql("LEFT(tmp.Note, 250)' + @LuuPoSel + N'"), sql, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void CustomerTableConfig_TenNhaMay_IsPlainValueNotSqlLiteral()
+    {
+        // TenNhaMay duoc so sanh bang NHAMAY = '...' voi ledger va in ra phieu, nen phai la
+        // gia tri thuan (ledger: 'YAMAHA - VIET NAM'). Chi NhaMayCase la bieu thuc SQL co dau nhay.
+        var config = ReadSource("CustomerTableConfig.source.cs");
+
+        Assert.DoesNotContain("TenNhaMay = \"'", config, StringComparison.Ordinal);
+        Assert.Contains("TenNhaMay = \"YAMAHA - VIET NAM\"", config, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void DeliveryQrAllocationScenario_SetsAsideDeployedTablesInsteadOfDroppingThem()
+    {
+        // G3 shares PCTP_QC_CI with the DB57-derived schema deployed by CI. This scenario used to drop
+        // dbo.TMPPHIEUGIAOHANG / dbo.DOCQRCODE / the Take_Lot procedure, which made the next scenario
+        // ("DB57-derived delivery tables are not deployed") and the G4 seed/cleanup steps fail.
+        var source = ReadSource("DeliveryQrAllocationScenario.source.cs");
+
+        Assert.Contains("sp_rename", source, StringComparison.Ordinal);
+        Assert.Contains("RestoreSavedTableAsync", source, StringComparison.Ordinal);
+        Assert.Contains("procedureExisted", source, StringComparison.Ordinal);
+
+        var setAside = source.IndexOf("await SetAsideDeployedTablesAsync(connection);", StringComparison.Ordinal);
+        var createFixture = source.IndexOf("await CreateFixtureAsync(connection);", StringComparison.Ordinal);
+        Assert.True(setAside >= 0 && createFixture > setAside,
+            "Deployed tables must be set aside before the scenario creates its own fixtures.");
+    }
 }

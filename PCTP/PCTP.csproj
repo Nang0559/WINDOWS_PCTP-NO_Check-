@@ -302,6 +302,7 @@
     <Compile Include="Domain\Events\HoanThanhYMVNCompletedEvent.cs" />
     <Compile Include="Infrastructure\Stock\LegacyStockBalanceRepositoryAdapter.cs" />
     <Compile Include="Infrastructure\Stock\LegacyStockSlotRepositoryAdapter.cs" />
+    <Compile Include="Infrastructure\Stock\StockReceivingRepository.cs" />
     <Compile Include="Modules\BaoCao\Application\Contracts\HistorySearchCriteria.cs" />
     <Compile Include="Modules\BaoCao\Application\Contracts\Models\HangChoGiaoRow.cs" />
     <Compile Include="Modules\BaoCao\Application\Contracts\Models\LotLocationRow.cs" />
@@ -470,6 +471,7 @@
     <Compile Include="Infrastructure\Sql\DataAccessException.cs" />
     <Compile Include="Infrastructure\Sql\DataAccessStatus.cs" />
     <Compile Include="Infrastructure\Sql\SQL.cs" />
+    <Compile Include="Infrastructure\Sql\QcSqlOverride.cs" />
     <Compile Include="ClsResize.cs" />
     <Compile Include="Modules\GiaoHangKhach\OrderLoading\IFS\IfsOrderLoadStrategy.cs" />
     <Compile Include="Modules\GiaoHangKhach\Contracts\PhieuGiao\IPhieuGiaoDBRepository.cs" />
@@ -602,6 +604,7 @@
     <Compile Include="Modules\XuLyHangLoi\Services\IAffectedLotTraceService.cs" />
     <Compile Include="Modules\XuLyHangLoi\Services\IQTChungService.cs" />
     <Compile Include="Modules\XuLyHangLoi\Services\IReworkStockService.cs" />
+    <Compile Include="Modules\XuLyHangLoi\Services\ReworkQuantityPolicy.cs" />
     <Compile Include="Modules\XuLyHangLoi\Services\IXuLyHangLoiService.cs" />
     <Compile Include="Modules\XuLyHangLoi\Services\KhachTraHangService.cs" />
     <Compile Include="Modules\XuLyHangLoi\Services\QTChungService.cs" />
@@ -984,6 +987,13 @@
       <SubType>Component</SubType>
     </Compile>
     <Compile Include="Modules\GiaoHangKhach\Services\BulkStockAdjustService.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Contracts\Delivery\DeliveryStockCommand.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Services\IDeliveryStockCommandHandler.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Services\IDeliveryCommandLedger.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Services\DeliveryStockCommandHandler.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Repositories\DeliveryCommandLedgerRepository.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Repositories\DeliveryTmpPendingGate.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Repositories\DeliveryHangChoGiaoPostStep.cs" />
     <Compile Include="Domain\Events\NhapKhoCompletedEvent.cs" />
     <Compile Include="Shared\Models\StockItem.cs" />
     <Compile Include="Modules\KhoVatLy\UCControls\FormBulkSlotView.cs">
@@ -1060,6 +1070,13 @@
     <None Include="Workflow\Diagram\WORKFLOW_NHAPKHO.md" />
     <None Include="Workflow\Diagram\ARCHITECTURE_DEPENDENCIES.md" />
     <None Include="Workflow\Diagram\WORKFLOW_WMS.md" />
+    <!-- WMS production files: these were previously compiled only by QC test projects. -->
+    <Compile Include="Modules\KhoCore\Application\Contracts\Stock\QuarantineRelease.cs" />
+    <Compile Include="Modules\KhoCore\Application\Services\QuarantineReleaseService.cs" />
+    <Compile Include="Modules\KhoCore\Repositories\IQuarantineReleaseAuditRepository.cs" />
+    <Compile Include="Modules\KhoCore\Repositories\QuarantineReleaseAuditRepository.cs" />
+    <Compile Include="Modules\XuLyHangLoi\Application\ReworkWorkflowTransaction.cs" />
+    <Compile Include="Shared\Helpers\QRCodeWorkflowAdapter.cs" />
     <Compile Include="Workflow\FRM_WORKFLOW_HANGLOI.cs" />
     <Compile Include="Workflow\FRM_WORKFLOW_MAIN.cs" />
     <Compile Include="Workflow\FRM_WORKFLOW_NHAPKHO.cs" />

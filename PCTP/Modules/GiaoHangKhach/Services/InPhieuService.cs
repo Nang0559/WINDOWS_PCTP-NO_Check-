@@ -139,7 +139,7 @@ namespace PCTP.Applications.Services
         public DataTable BuildReportDataYMVN(DataTable donHang)
         {
             // YMVN: dùng data từ grid trực tiếp
-            // Tương đương CMD_INPHIEUGIAO_Click trong GIAOHANGYMN
+            // Tương đương CMD_INPHIEUGIAO_Click của form YMVN legacy
             var tbl = donHang.Copy();
             foreach (DataRow row in tbl.Rows)
             {

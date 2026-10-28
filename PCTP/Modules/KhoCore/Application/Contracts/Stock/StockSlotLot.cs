@@ -14,6 +14,10 @@ namespace PCTP.Modules.KhoCore.Application.Contracts.Stock
         public string TemCode { get; set; } = string.Empty;
         public string RawQr { get; set; } = string.Empty;
         public DateTime? ImportDate { get; set; }
+        public string NgaySX { get; set; }
+        public string SoPhieuTong { get; set; }
+        public string MaPhieu { get; set; }
+        public string ParentSoPhieu { get; set; }
 
         /// <summary>0 = Active (mặc định). 3 = NG cách ly (không thuộc STOCKTP).</summary>
         public byte PhieuStatus { get; set; }

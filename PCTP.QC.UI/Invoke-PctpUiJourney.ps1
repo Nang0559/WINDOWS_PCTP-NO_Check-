@@ -19,6 +19,17 @@ param(
     [Parameter(Mandatory = $false)][switch]$ConfirmAppUsesIsolatedDb
 )
 $ErrorActionPreference = "Stop"
+# Diagnostics: a bare "Argument types do not match" gives no location. Print type, line and stack to the log
+# (captured by Invoke-PctpQcGates) before rethrowing, so a failed run is diagnosable from the evidence alone.
+trap {
+    Write-Host ("JOURNEY-FATAL: {0}: {1}" -f $_.Exception.GetType().FullName, $_.Exception.Message)
+    if ($_.InvocationInfo) { Write-Host $_.InvocationInfo.PositionMessage }
+    if ($_.ScriptStackTrace) { Write-Host $_.ScriptStackTrace }
+    if ($_.Exception.InnerException) { Write-Host ("INNER: {0}" -f $_.Exception.InnerException.Message) }
+    # Do not leave an orphaned PCTP.exe behind: stale instances broke the next journey ("Another PCTP instance is already running").
+    try { if ($script:Process -and -not $script:Process.HasExited) { Stop-Process -Id $script:Process.Id -Force -ErrorAction SilentlyContinue } } catch { }
+    break
+}
 if ($env:OS -ne "Windows_NT") { throw "PCTP UI journey automation must run on Windows." }
 if (-not (Test-Path -LiteralPath $ExePath -PathType Leaf)) { throw "Executable not found: $ExePath" }
 if (-not (Test-Path -LiteralPath $ManifestPath -PathType Leaf)) { throw "Manifest not found: $ManifestPath" }
@@ -329,13 +340,25 @@ try {
     }
     Close-PctpSql
     $failedCount = @($results | Where-Object Status -eq "FAIL").Count
+    # Type-safe count: "$_.Step -gt 0" threw "Argument types do not match" under Windows PowerShell 5.1 and hid the real failure.
+    $stepsPassed = 0
+    foreach ($r in $results) {
+        $n = 0
+        if (([string]$r.Status -eq "PASS") -and [int]::TryParse([string]$r.Step, [ref]$n) -and $n -gt 0) { $stepsPassed++ }
+    }
+    # Statement form: try/catch as a value inside $(if ...) in a hashtable literal throws "Argument types do not match"
+    # in Windows PowerShell 5.1.
+    $startupWindowTitle = $null
+    if ($mainWindow) {
+        try { $startupWindowTitle = [string]$mainWindow.Current.Name } catch { $startupWindowTitle = $null }
+    }
     $report = [pscustomobject]@{
         Status = $(if ($failure -or $failedCount -gt 0) { "FAIL" } else { "PASS" })
         RunId = $runId
         Test = "WinForms UI journey"
         Executable = $resolvedExe
         ProcessId = $(if ($script:Process) { $script:Process.Id } else { $null })
-        StartupWindowTitle = $(if ($mainWindow) { try { $mainWindow.Current.Name } catch { $null } } else { $null })
+        StartupWindowTitle = $startupWindowTitle
         MutationsAllowed = [bool]$AllowMutations
         Manifest = (Resolve-Path -LiteralPath $ManifestPath).Path
         ScenarioId = $scenarioId; ScenarioTitle = $scenarioTitle; ScenarioDescription = $scenarioDescription
@@ -344,7 +367,7 @@ try {
         FailureSummary = $failure
         StartedAt = $journeyStartedAt
         CompletedAt = (Get-Date).ToString("o")
-        StepsPassed = @($results | Where-Object { $_.Status -eq "PASS" -and $_.Step -gt 0 }).Count
+        StepsPassed = $stepsPassed
         StepsFailed = $failedCount
         Results = @($results)
     }

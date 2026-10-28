@@ -8,6 +8,9 @@ namespace PCTP.Modules.KhoCore.Application.Contracts.Stock
         string GetLotNo(int slotLotId);
         string GetItemCode(int slotLotId);
         int? GetSlotId(int slotLotId);
+
+        /// <summary>Khóa Slot vật lý bằng UPDLOCK trong UnitOfWork trước khi kiểm tra/chuyển trạng thái SlotLot.</summary>
+        void LockSlotForUpdate(int slotId);
         void DecreaseLotQuantity(int slotLotId, int quantity);
         void AddQuantity(int slotId, int quantity, string itemCode);
         void AddLot(int slotId, StockSlotLot lot);

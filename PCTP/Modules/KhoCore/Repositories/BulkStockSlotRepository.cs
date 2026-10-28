@@ -312,10 +312,15 @@ VALUES
             if (lot == null) throw new ArgumentNullException(nameof(lot));
             if (string.IsNullOrWhiteSpace(lot.LotNo)) throw new ArgumentException("LotNo không được rỗng.", nameof(lot));
             if (lot.Quantity <= 0) throw new ArgumentOutOfRangeException(nameof(lot.Quantity));
+            if (!HasTransaction) throw new InvalidOperationException("AddLot phải chạy trong transaction để SlotLot và Slot header được cập nhật nguyên tử.");
 
             ExecuteNonQuery(
-                @"INSERT INTO SlotLot (SlotId, ItemCode, LotNo, Quantity, TemCode, QrData, ImportDate, PhieuStatus)
-                  VALUES (@slot,@item,@lot,@q,@tem,@qr,@date,@status)",
+                @"INSERT INTO SlotLot
+                  (SlotId, ItemCode, LotNo, Quantity, TemCode, QrData, ImportDate, CreatedDate,
+                   NgaySX, SoPhieuTong, MaPhieu, ParentSoPhieu, PhieuStatus)
+                  VALUES
+                  (@slot,@item,@lot,@q,@tem,@qr,@date,GETDATE(),
+                   @ngaySx,@soPhieuTong,@maPhieu,@parentSoPhieu,@status)",
                 new SqlParameter("@slot", slotId),
                 new SqlParameter("@item", (object)lot.ItemCode ?? DBNull.Value),
                 new SqlParameter("@lot", lot.LotNo),
@@ -323,6 +328,10 @@ VALUES
                 new SqlParameter("@tem", (object)lot.TemCode ?? DBNull.Value),
                 new SqlParameter("@qr", (object)lot.RawQr ?? DBNull.Value),
                 new SqlParameter("@date", (object)(lot.ImportDate ?? DateTime.Now)),
+                new SqlParameter("@ngaySx", (object)lot.NgaySX ?? DBNull.Value),
+                new SqlParameter("@soPhieuTong", (object)lot.SoPhieuTong ?? DBNull.Value),
+                new SqlParameter("@maPhieu", (object)lot.MaPhieu ?? DBNull.Value),
+                new SqlParameter("@parentSoPhieu", (object)lot.ParentSoPhieu ?? DBNull.Value),
                 new SqlParameter("@status", SqlDbType.TinyInt) { Value = lot.PhieuStatus });
             UpdateSlotHeaderBySlotId(slotId);
         }

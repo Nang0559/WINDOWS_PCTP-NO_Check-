@@ -26,7 +26,7 @@
 
 ## Phase 7 — Workflow
 
-Workflow remains data-driven through `sys_WorkflowTransitions`.
+Workflow remains data-driven through `FVN_sys_WorkflowTransitions`.
 All Phase 4-9 transitions are audited in `FVN_PXLB_WorkflowAudit`.
 
 ## Phase 8 — Application/UI boundary

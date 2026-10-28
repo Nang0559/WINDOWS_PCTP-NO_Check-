@@ -1,0 +1,13 @@
+﻿table,column_written_by_code,compared_with,column_in_git_ddl,code_files,meaning
+d,ggfcc,Không xác minh: bảng ngoài SQL2 dbo column inventory,không,PhieuGiaoDBRepository.cs,Chưa có bằng chứng schema DB57 cho bảng này; cần xác minh schema/owner hoặc bổ sung đúng metadata export.
+d,lot,Không xác minh: bảng ngoài SQL2 dbo column inventory,không,PhieuGiaoDBRepository.cs,Chưa có bằng chứng schema DB57 cho bảng này; cần xác minh schema/owner hoặc bổ sung đúng metadata export.
+d,ngaygiao,Không xác minh: bảng ngoài SQL2 dbo column inventory,không,PhieuGiaoDBRepository.cs,Chưa có bằng chứng schema DB57 cho bảng này; cần xác minh schema/owner hoặc bổ sung đúng metadata export.
+d,status,Không xác minh: bảng ngoài SQL2 dbo column inventory,không,PhieuGiaoDBRepository.cs,Chưa có bằng chứng schema DB57 cho bảng này; cần xác minh schema/owner hoặc bổ sung đúng metadata export.
+fvn_trahangqtchungxuat,operationid,SQL2 DB57 column inventory,có,TraHangQTChungRepository.cs,"Code ghi cột không có trong SQL2 snapshot; Git có script thêm cột, cần đối chiếu trạng thái deploy"
+latestgiao,note,Không xác minh: bảng ngoài SQL2 dbo column inventory,không,TraHangQTChungRepository.cs,Chưa có bằng chứng schema DB57 cho bảng này; cần xác minh schema/owner hoặc bổ sung đúng metadata export.
+s,importdate,Không xác minh: bảng ngoài SQL2 dbo column inventory,không,SlotRepository.cs,Chưa có bằng chứng schema DB57 cho bảng này; cần xác minh schema/owner hoặc bổ sung đúng metadata export.
+s,isoccupied,Không xác minh: bảng ngoài SQL2 dbo column inventory,không,BulkStockSlotRepository.cs; SlotRepository.cs,Chưa có bằng chứng schema DB57 cho bảng này; cần xác minh schema/owner hoặc bổ sung đúng metadata export.
+s,itemcode,Không xác minh: bảng ngoài SQL2 dbo column inventory,không,SlotRepository.cs,Chưa có bằng chứng schema DB57 cho bảng này; cần xác minh schema/owner hoặc bổ sung đúng metadata export.
+s,quantity,Không xác minh: bảng ngoài SQL2 dbo column inventory,không,BulkStockSlotRepository.cs; SlotRepository.cs,Chưa có bằng chứng schema DB57 cho bảng này; cần xác minh schema/owner hoặc bổ sung đúng metadata export.
+t,ngayxuat,Không xác minh: bảng ngoài SQL2 dbo column inventory,không,GIAOHANGYMN.cs,Chưa có bằng chứng schema DB57 cho bảng này; cần xác minh schema/owner hoặc bổ sung đúng metadata export.
+tmplotgheptest,gearname,SQL2 DB57 column inventory,không,GIAOHANGYMN.cs,Code ghi cột không có trong SQL2 snapshot và không có Git DDL; cần xác minh DB57 trước khi sửa code/schema

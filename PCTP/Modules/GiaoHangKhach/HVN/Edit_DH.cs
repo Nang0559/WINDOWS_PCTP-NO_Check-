@@ -9,6 +9,7 @@ using System.Linq;
 using System.Windows.Forms;
 using System.Data;
 using System.Collections;
+using System.Data.SqlClient;
 
 namespace PCTP.QRCODE_HVN.PGH
 {
@@ -44,9 +45,14 @@ namespace PCTP.QRCODE_HVN.PGH
        
         private void load()
         {
-            string MH = label2.Text;
-            string sql = "select LOT,slconlai from stocktp where part =  '" + MH.Trim() + "' and slconlai >0";
-            DataTable DML = sqlBRV.LoadData1(sqlBRV.B7R2_FCCdb, sql);
+            const string sql = @"
+SELECT LOT, slconlai
+FROM stocktp
+WHERE part = @Part AND slconlai > 0;";
+            DataTable DML = sqlBRV.LoadData1(
+                sqlBRV.B7R2_FCCdb,
+                sql,
+                new SqlParameter("@Part", SqlDbType.NVarChar, 100) { Value = (label2.Text ?? string.Empty).Trim() });
             lookUpEdit1.Properties.DataSource = DML;
             lookUpEdit1.Properties.ValueMember = "slconlai";
             lookUpEdit1.Properties.DisplayMember = "LOT";
@@ -76,20 +82,29 @@ namespace PCTP.QRCODE_HVN.PGH
                 if (int.Parse(slxuat.Text) == SLX)
                 {
                     _MyView.PostEditor();
-                    int STT;
-                    string LOT, sql;
-                    STT = int.Parse(MyView.GetFocusedRowCellDisplayText("STT").Trim());
-                    LOT = MyView.GetFocusedRowCellDisplayText("LOT").Trim();
-                    sql = "update tmpphieugiaohang set lot= '" + lot.Text + "' where stt = " + STT;
-                    sqlBRV.ExecuteNonQuery(sqlBRV.B7R2_FCCdb, sql);
+                    if (!int.TryParse(MyView.GetFocusedRowCellDisplayText("STT").Trim(), out int stt) || stt <= 0)
+                        throw new InvalidOperationException("STT phiếu giao hàng không hợp lệ.");
+
+                    const string updateSql = @"
+UPDATE tmpphieugiaohang
+SET lot = @Lot
+WHERE stt = @Stt;";
+                    int affected = sqlBRV.ExecuteNonQuery(
+                        sqlBRV.B7R2_FCCdb,
+                        updateSql,
+                        new SqlParameter("@Lot", SqlDbType.NVarChar, -1) { Value = lot.Text },
+                        new SqlParameter("@Stt", SqlDbType.Int) { Value = stt });
+                    if (affected != 1)
+                        throw new InvalidOperationException("Không cập nhật được đúng một dòng phiếu giao hàng.");
+
                     _MyView.CloseEditForm();
                 }
                 else
                     XtraMessageBox.Show("Error");
             }
-            catch (Exception m)
+            catch
             {
-                throw m;
+                throw;
             }
         }
 

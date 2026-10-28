@@ -25,6 +25,7 @@ internal static class DeliveryReliabilityScenario
         try
         {
             await VerifyIdempotentDeliveryAndInsufficientStockAsync(connectionString, table);
+            await VerifyConcurrentDifferentDeliveriesCannotOversellAsync(connectionString, table);
             await VerifyAtomicFailureRollbackAsync(connectionString, table);
             await VerifyDeadlockVictimRollbackAsync(connectionString, table);
             await VerifyCancellationRollbackAsync(connectionString, table);
@@ -117,6 +118,84 @@ IF @@ROWCOUNT=1
         Require(await ScalarIntAsync(cs, $"SELECT COUNT(1) FROM {table} WHERE DeliveryKey=N'QC-DELIVERY-INSUFFICIENT'") == 0,
             "Insufficient-stock attempt created a delivery/history record.");
         Console.WriteLine("PASS: delivery replay is idempotent and insufficient stock creates no partial delivery state.");
+    }
+
+    private static async Task VerifyConcurrentDifferentDeliveriesCannotOversellAsync(string cs, string table)
+    {
+        const int stockId = 5;
+        await using (var seedConnection = new SqlConnection(cs))
+        {
+            await seedConnection.OpenAsync();
+            await using var seed = new SqlCommand($"INSERT INTO {table}(Id, Qty) VALUES (@id, 10);", seedConnection);
+            seed.Parameters.Add(new SqlParameter("@id", SqlDbType.Int) { Value = stockId });
+            await seed.ExecuteNonQueryAsync();
+        }
+
+        using var ready = new CountdownEvent(2);
+        using var start = new ManualResetEventSlim(false);
+
+        async Task<bool> Confirm(string deliveryKey, int ledgerId)
+        {
+            await using var connection = new SqlConnection(cs);
+            await connection.OpenAsync();
+            await using var transaction = (SqlTransaction)await connection.BeginTransactionAsync(IsolationLevel.ReadCommitted);
+            try
+            {
+                ready.Signal();
+                if (!start.Wait(TimeSpan.FromSeconds(10)))
+                    throw new TimeoutException("Concurrent delivery workers did not reach the start barrier.");
+
+                int available;
+                await using (var read = new SqlCommand(
+                    $"SELECT Qty FROM {table} WITH (UPDLOCK, HOLDLOCK, ROWLOCK) WHERE Id=@id;",
+                    connection, transaction) { CommandTimeout = 10 })
+                {
+                    read.Parameters.Add(new SqlParameter("@id", SqlDbType.Int) { Value = stockId });
+                    available = Convert.ToInt32(await read.ExecuteScalarAsync());
+                }
+
+                var succeeded = false;
+                if (available >= 7)
+                {
+                    await using var update = new SqlCommand($@"
+UPDATE {table} SET Qty = Qty - 7 WHERE Id=@id AND Qty >= 7;
+IF @@ROWCOUNT = 1
+BEGIN
+    INSERT INTO {table}(Id, Qty, DeliveryKey, HistoryCount, PendingClosed)
+    VALUES (@ledgerId, 0, @deliveryKey, 1, 1);
+    SELECT 1;
+END
+ELSE SELECT 0;", connection, transaction) { CommandTimeout = 10 };
+                    update.Parameters.Add(new SqlParameter("@id", SqlDbType.Int) { Value = stockId });
+                    update.Parameters.Add(new SqlParameter("@ledgerId", SqlDbType.Int) { Value = ledgerId });
+                    update.Parameters.Add(new SqlParameter("@deliveryKey", SqlDbType.NVarChar, 80) { Value = deliveryKey });
+                    succeeded = Convert.ToInt32(await update.ExecuteScalarAsync()) == 1;
+                }
+
+                await transaction.CommitAsync();
+                return succeeded;
+            }
+            catch
+            {
+                try { await transaction.RollbackAsync(); } catch { }
+                throw;
+            }
+        }
+
+        var first = Task.Run(() => Confirm("QC-CONCURRENT-DELIVERY-A", 105));
+        var second = Task.Run(() => Confirm("QC-CONCURRENT-DELIVERY-B", 106));
+        if (!ready.Wait(TimeSpan.FromSeconds(10)))
+            throw new TimeoutException("Both concurrent delivery sessions did not reach the barrier.");
+        start.Set();
+
+        var outcomes = await Task.WhenAll(first, second);
+        Require(outcomes.Count(x => x) == 1,
+            "Two different delivery identities must not both consume 7 units from a LOT with only 10 available.");
+        Require(await ScalarIntAsync(cs, $"SELECT Qty FROM {table} WHERE Id={stockId}") == 3,
+            "Concurrent delivery caused an incorrect remaining quantity or oversold the stock row.");
+        Require(await ScalarIntAsync(cs, $"SELECT COUNT(1) FROM {table} WHERE DeliveryKey IN (N'QC-CONCURRENT-DELIVERY-A',N'QC-CONCURRENT-DELIVERY-B')") == 1,
+            "Exactly one delivery ledger row must be committed for the contested stock row.");
+        Console.WriteLine("PASS: different concurrent delivery identities serialize on the stock row; oversell is rejected.");
     }
 
     private static async Task VerifyAtomicFailureRollbackAsync(string cs, string table)

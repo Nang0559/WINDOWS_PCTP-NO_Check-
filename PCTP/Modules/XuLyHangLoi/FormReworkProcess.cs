@@ -29,6 +29,7 @@ namespace PCTP.Modules.XuLyHangLoi
         private readonly IQTChungService _qtChungService;
         private readonly IReworkStockService _reworkStockService;
         private readonly int _phieuXuLyId;
+        private Guid? _pendingReworkExportOperationId;
         private readonly INoiBoLookupRepository _noiBoLookupRepo;
         private readonly ITraHangQTChungRepository _qtChungRepo;
 
@@ -656,18 +657,24 @@ namespace PCTP.Modules.XuLyHangLoi
                 // sẽ không bao giờ bật được, quy trình bị kẹt vĩnh viễn.
                 // Đồng thời form gốc không kiểm tra kết quả trả về, luôn
                 // báo "thành công" kể cả khi thất bại.
+                if (!_pendingReworkExportOperationId.HasValue)
+                    _pendingReworkExportOperationId = Guid.NewGuid();
+
                 ScanResult result = _qtChungService.XuatKhoRework(
                     _phieuXuLyId,
                     slotId,
                     lotNo,
                     soLuong,
-                    Environment.UserName);
+                    Environment.UserName,
+                    _pendingReworkExportOperationId.Value);
 
                 if (result == null || !result.IsOK)
                 {
                     ShowWarning(result?.Message ?? "Xuất kho Rework không thành công.");
                     return;
                 }
+
+                _pendingReworkExportOperationId = null;
 
                 XtraMessageBox.Show(
                     result.Message ?? "Đã xuất kho Rework thành công.",
@@ -967,16 +974,27 @@ namespace PCTP.Modules.XuLyHangLoi
 
                 bool daChonLot = GetFocusedLot() != null;
 
-                // ----------------------------------------------------
-                // Xuất kho: chỉ có ý nghĩa trước khi đã giao SX.
-                // ----------------------------------------------------
-                _btnXuatKho.Enabled =
-                    daChonLot && status == QTChungStatus.DaDinhHuong;
+                // A/X/D chỉ để gợi ý UI; server (policy sau khóa phiếu) mới là nơi quyết định.
+                // Không đọc được kế hoạch thì chỉ dựa vào trạng thái, không khóa nhầm nghiệp vụ.
+                var plan = TryGetReworkPlan();
+                ApplyQuantitySummary(plan);
 
                 // ----------------------------------------------------
-                // Giao SX: Service sẽ tự validate số lượng / trạng thái.
+                // Xuất kho: được xuất nhiều lần (DaDinhHuong hoặc DaXuatKhoRework)
+                // khi còn hạn mức và chưa giao đủ.
                 // ----------------------------------------------------
-                _btnGiaoSX.Enabled = status == QTChungStatus.DaXuatKhoRework;
+                _btnXuatKho.Enabled =
+                    daChonLot &&
+                    (status == QTChungStatus.DaDinhHuong ||
+                     status == QTChungStatus.DaXuatKhoRework) &&
+                    (plan == null || (plan.SoLuongConPhaiXuat > 0 && !plan.DaGiaoDu));
+
+                // ----------------------------------------------------
+                // Giao SX: nhiều lần, chỉ phần đã xuất chưa giao.
+                // ----------------------------------------------------
+                _btnGiaoSX.Enabled =
+                    status == QTChungStatus.DaXuatKhoRework &&
+                    (plan == null || plan.SoLuongDaXuatRework - plan.SoLuongDaGiaoSanXuat > 0);
 
                 // ----------------------------------------------------
                 // Ghi nhận đang rework: nghiệp vụ note, KHÔNG tạo state
@@ -990,6 +1008,41 @@ namespace PCTP.Modules.XuLyHangLoi
                 _btnGiaoSX.Enabled = false;
                 _btnDangRework.Enabled = false;
             }
+        }
+
+        private const string QuantitySummaryMarker = " | A/X/D: ";
+
+        private ReworkPhase4Plan TryGetReworkPlan()
+        {
+            try
+            {
+                return _reworkStockService.GetReworkPlan(_phieuXuLyId);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private const string PlanUnavailableWarning =
+            " | CẢNH BÁO: không tải được kế hoạch A/X/D — nút theo trạng thái, hệ thống sẽ kiểm tra số lượng khi lưu";
+
+        private void ApplyQuantitySummary(ReworkPhase4Plan plan)
+        {
+            if (_lblTrangThai == null) return;
+            string text = _lblTrangThai.Text ?? string.Empty;
+            int marker = text.IndexOf(QuantitySummaryMarker, StringComparison.Ordinal);
+            if (marker >= 0) text = text.Substring(0, marker);
+            if (plan == null)
+            {
+                // Không âm thầm chuyển sang fallback: người dùng phải thấy số liệu đang thiếu.
+                _lblTrangThai.Text = text + PlanUnavailableWarning;
+                return;
+            }
+            int conGiao = Math.Max(0, plan.SoLuongDaXuatRework - plan.SoLuongDaGiaoSanXuat);
+            _lblTrangThai.Text = text + QuantitySummaryMarker +
+                $"{plan.SoLuongReworkDuocPhep:n0}/{plan.SoLuongDaXuatRework:n0}/{plan.SoLuongDaGiaoSanXuat:n0}" +
+                $" | còn xuất {plan.SoLuongConPhaiXuat:n0} | còn giao {conGiao:n0}";
         }
 
         // ============================================================

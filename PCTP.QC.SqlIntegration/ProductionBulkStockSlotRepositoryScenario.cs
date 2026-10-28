@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Data.SqlClient;
 using PCTP.Modules.GiaoHangKhach;
 using PCTP.Modules.KhoCore.Application.Contracts.Stock;
@@ -25,22 +26,30 @@ namespace PCTP.QC.SqlIntegration
 CREATE TABLE #Warehouse(WarehouseId int IDENTITY(1,1) NOT NULL PRIMARY KEY, Name nvarchar(100) NOT NULL UNIQUE);
 CREATE TABLE #Rack(RackId int IDENTITY(1,1) NOT NULL PRIMARY KEY, WarehouseId int NOT NULL, RackName nvarchar(100) NOT NULL, CONSTRAINT UQ_QC_Rack UNIQUE(WarehouseId,RackName));
 CREATE TABLE #Slot(SlotId int IDENTITY(1,1) NOT NULL PRIMARY KEY, RackId int NOT NULL, SlotNumber int NOT NULL, IsOccupied bit NOT NULL DEFAULT(0), Capacity int NOT NULL, Quantity int NOT NULL DEFAULT(0), ItemCode nvarchar(100) NULL, ImportDate datetime NULL);
-CREATE TABLE #SlotLot(SlotLotId int IDENTITY(1,1) NOT NULL PRIMARY KEY, SlotId int NOT NULL, ItemCode nvarchar(100) NULL, LotNo nvarchar(100) NOT NULL, Quantity int NOT NULL CHECK(Quantity >= 0), TemCode nvarchar(100) NULL, QrData nvarchar(500) NULL, MaPhieu nvarchar(100) NULL, ImportDate datetime NULL, PhieuStatus tinyint NOT NULL);
+CREATE TABLE #SlotLot(SlotLotId int IDENTITY(1,1) NOT NULL PRIMARY KEY, SlotId int NOT NULL, ItemCode nvarchar(100) NULL, LotNo nvarchar(100) NOT NULL, Quantity int NOT NULL CHECK(Quantity >= 0), TemCode nvarchar(100) NULL, QrData nvarchar(500) NULL, MaPhieu nvarchar(100) NULL, ParentSoPhieu nvarchar(100) NULL, SoPhieuTong nvarchar(100) NULL, NgaySX nvarchar(100) NULL, ImportDate datetime NULL, CreatedDate datetime NULL, PhieuStatus tinyint NOT NULL);
 CREATE TABLE #STOCKTP(LOT nvarchar(100) NOT NULL PRIMARY KEY, MODEL nvarchar(100) NULL, PART nvarchar(100) NULL, NAME nvarchar(200) NULL, CASX smallint NULL, NGAYSX datetime NULL, SLSX int NULL, NGAYNHAP datetime NULL, SLNHAP int NULL, NGAYXUAT datetime NULL, SLXUAT int NULL, SLCONLAI int NULL, SATUS smallint NULL);
 CREATE TABLE #DeliveryState(Id int NOT NULL PRIMARY KEY, HistoryCount int NOT NULL, PendingClosed bit NOT NULL);
 INSERT INTO #DeliveryState VALUES(1,0,0);");
 
                 var bulk = new BulkStockSlotRepository(new PhieuSqlExecutor(), uow, useQcTempTables: true);
                 IStockTpRepository stock = new StockTpRepository(new PhieuSqlExecutor(), uow, "#STOCKTP");
-                int slotId = bulk.GetOrCreateVirtualSlotId("QC-WH-" + Guid.NewGuid().ToString("N"), "QC-RACK", 1000);
+                string warehouse = "QC-WH-" + Guid.NewGuid().ToString("N");
+                string secondWarehouse = warehouse + "-02";
+                int slotId = bulk.GetOrCreateVirtualSlotId(warehouse, "QC-RACK-01", 1000);
+                int secondSlotId = bulk.GetOrCreateVirtualSlotId(secondWarehouse, "QC-RACK-02", 1000);
                 const string lot = "26080700748100851600";
 
                 Add(bulk, slotId, lot, 40, "QC-TEM-001", "QC-QR-001", 0, new DateTime(2026, 10, 20));
                 Add(bulk, slotId, lot, 25, "QC-TEM-002", "QC-QR-002", 0, new DateTime(2026, 10, 21));
-                stock.InsertStockTp(new NhapKhoItem { Lot = lot, Part = "QC-PART", Name = "QC isolated delivery", Model = "QC", CaSX = 1, SlSanXuat = 65, SlNhap = 65, NgaySX = new DateTime(2026, 10, 20) }, 0);
+                Add(bulk, secondSlotId, lot, 25, "QC-TEM-003", "QC-QR-003", 0, new DateTime(2026, 10, 22));
+                stock.InsertStockTp(new NhapKhoItem { Lot = lot, Part = "QC-PART", Name = "QC isolated delivery", Model = "QC", CaSX = 1, SlSanXuat = 90, SlNhap = 90, NgaySX = new DateTime(2026, 10, 20) }, 0);
 
-                Require(bulk.GetLotQuantity(1) == 40 && bulk.GetLotQuantity(2) == 25, "Initial SlotLot fixtures were not inserted.");
-                Require(Scalar(uow, "SELECT Quantity FROM #Slot WHERE SlotId=@id", slotId) == 65, "Slot header must equal active SlotLot quantity.");
+                Require(bulk.GetLotQuantity(1) == 40 && bulk.GetLotQuantity(2) == 25 && bulk.GetLotQuantity(3) == 25, "Initial SlotLot fixtures were not inserted across both Slots.");
+                Require(Scalar(uow, "SELECT Quantity FROM #Slot WHERE SlotId=@id", slotId) == 65, "First Slot header must equal its active SlotLot quantity.");
+                Require(Scalar(uow, "SELECT Quantity FROM #Slot WHERE SlotId=@id", secondSlotId) == 25, "Second Slot header must equal its active SlotLot quantity.");
+                var locations = bulk.FindSlotLotsByLot(lot, 0);
+                Require(locations.Count == 2 && locations.Sum(x => x.Quantity) == 90, "One LOT must be discoverable in multiple Slots while STOCKTP remains a single aggregate row.");
+                Require(locations.Any(x => x.SlotId == slotId && x.Quantity == 65) && locations.Any(x => x.SlotId == secondSlotId && x.Quantity == 25), "LOT quantities were not grouped by physical Slot.");
 
                 // AddLot rejects Quantity <= 0, so historical states use positive trace quantities.
                 // They must still be excluded from current stock because only PhieuStatus=0 counts.
@@ -79,10 +88,11 @@ INSERT INTO #DeliveryState VALUES(1,0,0);");
                     Exec(uow, "UPDATE #STOCKTP SET SLCONLAI=SLCONLAI-@q, SLXUAT=ISNULL(SLXUAT,0)+@q WHERE LOT=@lot AND SLCONLAI>=@q;", 1, new SqlParameter("@q", 50), new SqlParameter("@lot", lot));
                     Exec(uow, "UPDATE #DeliveryState SET HistoryCount=HistoryCount+1, PendingClosed=1 WHERE Id=1;", 1);
 
-                    Require(Scalar(uow, "SELECT SLCONLAI FROM #STOCKTP WHERE LOT=@lot", lot) == 15, "STOCKTP remaining quantity did not reconcile.");
+                    Require(Scalar(uow, "SELECT SLCONLAI FROM #STOCKTP WHERE LOT=@lot", lot) == 40, "STOCKTP remaining quantity did not reconcile across multiple Slots.");
                     Require(Scalar(uow, "SELECT CASE WHEN ISNULL(SLNHAP,0)-ISNULL(SLXUAT,0)=ISNULL(SLCONLAI,0) THEN 1 ELSE 0 END FROM #STOCKTP WHERE LOT=@lot", lot) == 1, "STOCKTP equation failed.");
-                    Require(Scalar(uow, "SELECT CASE WHEN (SELECT SUM(Quantity) FROM #SlotLot WHERE LotNo=@lot AND PhieuStatus=0)=(SELECT SLCONLAI FROM #STOCKTP WHERE LOT=@lot) THEN 1 ELSE 0 END", lot) == 1, "STOCKTP does not reconcile with active SlotLot quantity.");
-                    Require(Scalar(uow, "SELECT Quantity FROM #Slot WHERE SlotId=@id", slotId) == 15, "Slot header does not reconcile after export.");
+                    Require(Scalar(uow, "SELECT CASE WHEN (SELECT SUM(Quantity) FROM #SlotLot WHERE LotNo=@lot AND PhieuStatus=0)=(SELECT SLCONLAI FROM #STOCKTP WHERE LOT=@lot) THEN 1 ELSE 0 END", lot) == 1, "STOCKTP does not reconcile with active SlotLot quantity across multiple Slots.");
+                    Require(Scalar(uow, "SELECT Quantity FROM #Slot WHERE SlotId=@id", slotId) == 15, "First Slot header does not reconcile after export.");
+                    Require(Scalar(uow, "SELECT Quantity FROM #Slot WHERE SlotId=@id", secondSlotId) == 25, "Second Slot header must remain unchanged after export from the first Slot.");
                     Require(Scalar(uow, "SELECT HistoryCount FROM #DeliveryState WHERE Id=1") == 1, "Delivery finalization fixture did not update.");
                     uow.Transaction.Rollback("QC_BEFORE_DELIVERY");
                 }
@@ -92,10 +102,34 @@ INSERT INTO #DeliveryState VALUES(1,0,0);");
                     throw;
                 }
 
-                Require(Scalar(uow, "SELECT SLCONLAI FROM #STOCKTP WHERE LOT=@lot", lot) == 65, "STOCKTP was not restored by rollback.");
-                Require(Scalar(uow, "SELECT SUM(Quantity) FROM #SlotLot WHERE SlotId=@id AND PhieuStatus=0", slotId) == 65, "Active SlotLot rows were not restored by rollback.");
-                Require(Scalar(uow, "SELECT Quantity FROM #Slot WHERE SlotId=@id", slotId) == 65, "Slot header was not restored by rollback.");
+                Require(Scalar(uow, "SELECT SLCONLAI FROM #STOCKTP WHERE LOT=@lot", lot) == 90, "STOCKTP was not restored by rollback.");
+                Require(Scalar(uow, "SELECT SUM(Quantity) FROM #SlotLot WHERE LotNo=@lot AND PhieuStatus=0", lot) == 90, "Active SlotLot rows were not restored by rollback.");
+                Require(Scalar(uow, "SELECT Quantity FROM #Slot WHERE SlotId=@id", slotId) == 65, "First Slot header was not restored by rollback.");
+                Require(Scalar(uow, "SELECT Quantity FROM #Slot WHERE SlotId=@id", secondSlotId) == 25, "Second Slot header was not restored by rollback.");
                 Require(Scalar(uow, "SELECT HistoryCount FROM #DeliveryState WHERE Id=1") == 0 && Scalar(uow, "SELECT PendingClosed FROM #DeliveryState WHERE Id=1") == 0, "Delivery-state writes were not rolled back.");
+
+                bulk.AddLot(slotId, new StockSlotLot
+                {
+                    LotNo = "QC-METADATA-LOT",
+                    ItemCode = "QC-PART",
+                    Quantity = 2,
+                    TemCode = "QC-METADATA-TEM",
+                    RawQr = "QC-METADATA-QR",
+                    ImportDate = new DateTime(2026, 10, 25, 8, 30, 0),
+                    NgaySX = "2026-10-24",
+                    SoPhieuTong = "QC-TONG-001",
+                    MaPhieu = "QC-PHIEU-001",
+                    ParentSoPhieu = "QC-PARENT-001",
+                    PhieuStatus = 0
+                });
+                Require(Scalar(uow, @"SELECT COUNT(1) FROM #SlotLot
+                    WHERE LotNo=@lot AND TemCode=N'QC-METADATA-TEM' AND QrData=N'QC-METADATA-QR'
+                      AND NgaySX=N'2026-10-24' AND SoPhieuTong=N'QC-TONG-001'
+                      AND MaPhieu=N'QC-PHIEU-001' AND ParentSoPhieu=N'QC-PARENT-001'
+                      AND ImportDate='2026-10-25T08:30:00' AND CreatedDate IS NOT NULL AND PhieuStatus=0",
+                    "QC-METADATA-LOT") == 1,
+                    "KhoCore AddLot did not persist the complete receiving QR/production/receipt metadata.");
+                Console.WriteLine("PASS: receiving SlotLot metadata persisted by KhoCore within the caller transaction.");
 
                 uow.Rollback();
                 Console.WriteLine("PASS: production BulkStockSlotRepository FIFO, PhieuStatus current-stock filtering, STOCKTP reconciliation and cross-ledger rollback using session-local # fixtures.");

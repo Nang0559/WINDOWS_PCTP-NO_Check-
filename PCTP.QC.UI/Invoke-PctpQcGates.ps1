@@ -9,6 +9,13 @@
    .\PCTP.QC.UI\Invoke-PctpQcGates.ps1 -Gate G5 -ExePath <PCTP.exe>               # 5 UI journeys
    .\PCTP.QC.UI\Invoke-PctpQcGates.ps1 -Gate G6 -ExePath <PCTP.exe> -SqlUser <user> -AllowMutations -ConfirmAppUsesIsolatedDb
 
+ Isolated mode (what CI uses for G5/G6; G3/G4 run in the sql-engine-integration job on the SQL Server container):
+   .\PCTP.QC.UI\Start-PctpIsolatedSql.ps1 -BundleDirectory <bundle>      # sets PCTP_QC_SQL_CONNECTION (local PCTP_QC_* DB)
+   .\PCTP.QC.UI\Invoke-PctpQcGates.ps1 -Gate G5 -ExePath <PCTP.exe> -Isolated
+   .\PCTP.QC.UI\Invoke-PctpQcGates.ps1 -Gate G6 -ExePath <PCTP.exe> -Isolated -AllowMutations
+ -Isolated blocks DB57 / production / IFS egress for this run, forces PCTP.exe onto the fixture database
+ (QcSqlOverride) and needs no SQL user or password. Journeys that are not configured return BLOCKED, never PASS.
+
  A gate is reported PASS only when its documented condition is proven by the logs of THIS run.
  SQL password: taken from PCTP_QC_SQL_PASSWORD if set, otherwise prompted. It is handed to child
  processes through process-scoped environment variables only (never on a command line, never on disk).
@@ -26,6 +33,8 @@ param(
     # G6
     [switch]$AllowMutations,
     [switch]$ConfirmAppUsesIsolatedDb,
+    # G5 / G6: run against the disposable local fixture database only (PCTP_QC_SQL_CONNECTION), never DB57.
+    [switch]$Isolated,
     [string]$SqlServer = '192.168.200.57',
     [string]$SqlDatabase = 'B7R2_FCC'
 )
@@ -43,6 +52,29 @@ $exit = 0
 $status = 'FAIL'
 $notes = New-Object System.Collections.Generic.List[string]
 $scope = $null
+
+# CI must never take the DB57 path: G3/G4 are covered by the SQL Server container job, G5/G6 need -Isolated.
+if ($env:GITHUB_ACTIONS -eq 'true') {
+    if ($Gate -in @('G3', 'G4')) { Write-Host "FAIL: $Gate in CI runs in the sql-engine-integration job (SQL Server container), not through this script against DB57."; exit 1 }
+    if ($Gate -in @('G5', 'G6') -and -not $Isolated) { Write-Host "FAIL: $Gate in CI requires -Isolated."; exit 1 }
+}
+$isolationActive = $false
+$isolationScript = Join-Path $PSScriptRoot 'Test-PctpIsolation.ps1'
+
+function Enter-Isolation {
+    . (Join-Path $PSScriptRoot 'PctpSql.Common.ps1')
+    $env:PCTP_QC_REQUIRE_ISOLATED = '1'
+    $env:PCTP_QC_ISOLATED_FIXTURE = '1'
+    $iso = Get-PctpIsolatedConnection            # throws unless a local PCTP_QC_* fixture (never DB57/DB14)
+    $script:SqlServer = $iso.Server
+    $script:SqlDatabase = $iso.Database
+    $programs = @($ExePath)
+    Invoke-Native { & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $isolationScript -Mode Block -ProgramPath $programs } (Join-Path $out 'isolation.log')
+    if ($LASTEXITCODE -eq 3) { throw 'BLOCKED: cannot enforce network isolation here (needs an elevated session with Windows Firewall).' }
+    if ($LASTEXITCODE -ne 0) { throw 'Isolation check failed: DB57 / production / IFS is reachable (see isolation.log).' }
+    $script:isolationActive = $true
+    $script:scope = "Isolated fixture $($iso.Server)/$($iso.Database); DB57/DB14/IFS egress blocked and asserted for this run."
+}
 
 function Set-SqlEnvironment {
     if (-not $SqlUser) { throw "$Gate needs -SqlUser. The password is read from PCTP_QC_SQL_PASSWORD or prompted, and is not written anywhere." }
@@ -106,6 +138,7 @@ try {
         }
 
         'G3' {
+            if ($Isolated) { throw 'G3/G4 isolated runs are the sql-engine-integration CI job (SQL Server container).' }
             Set-SqlEnvironment
             $proj = Join-Path $root 'PCTP.QC.SqlIntegration\PCTP.QC.SqlIntegration.csproj'
             # Credentials reach the runner through PCTP_QC_SQL_USER / PCTP_QC_SQL_PASSWORD (Program.GetOption fallback).
@@ -119,6 +152,7 @@ try {
         }
 
         'G4' {
+            if ($Isolated) { throw 'G4 isolated runs are the sql-engine-integration CI job (SQL Server container).' }
             # G4 = G3's rollback/duplicate/concurrency scenarios + the REAL stored procedure with SQL postconditions.
             $g3 = Read-GateSummary 'G3'
             if (-not $g3 -or $g3.Status -ne 'PASS' -or $g3.Commit -ne $commit) {
@@ -130,7 +164,7 @@ try {
             $proj = Join-Path $root 'PCTP.QC.SqlIntegration\PCTP.QC.SqlIntegration.csproj'
             Invoke-Native { & dotnet run --project $proj --configuration $Configuration -- --delivery-preflight } (Join-Path $out 'G4-delivery-preflight.log')
             $preExit = $LASTEXITCODE
-            if ($preExit -ne 0) { $notes.Add('Delivery preflight failed: the deployed Usp_Qrcode_Update_Stock2405 is outdated. Run PCTP.QC.UI\Deploy-PctpDeliveryProcedure.ps1 -SqlUser <user> -ConfirmIsolatedDb, commit, then re-run G2/G3/G4.') }
+            if ($preExit -ne 0) { $notes.Add('Delivery preflight failed: a deployed delivery procedure (Usp_Qrcode_Update_Stock2405 and/or Usp_Qrcode_Update_Stock_SP; see the FAIL lines in G4.log) is outdated. This describes the database you ran against, not the repository: the CI job sql-engine-integration deploys the procedures from the tested commit into a disposable SQL Server and re-checks the same markers. Prefer that result over deploying to DB57.') }
             Invoke-Native { & dotnet run --project $proj --configuration $Configuration -- --delivery-acceptance } $log
             $exit = $LASTEXITCODE
             $text = Get-Content -LiteralPath $log -Raw
@@ -143,6 +177,7 @@ try {
 
         'G5' {
             if (-not $ExePath) { throw 'G5 needs -ExePath <PCTP.exe>.' }
+            if ($Isolated) { Enter-Isolation }
             $uiOut = Join-Path $out 'ui'
             $suite = Join-Path $PSScriptRoot 'Invoke-PctpUiSuite.ps1'
             Invoke-Native { & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $suite -ExePath $ExePath -OutputDirectory $uiOut -ExpectedWindowTitleRegex $ExpectedWindowTitleRegex -ContinueOnFailure } $log
@@ -168,13 +203,13 @@ try {
             $counts = [pscustomobject]@{ JourneysPassed = $suiteReport.JourneysPassed; JourneysFailed = $suiteReport.JourneysFailed; Expected = $expected.Count }
             foreach ($p in $problems) { $notes.Add($p) }
             $status = if ($exit -eq 0 -and $problems.Count -eq 0 -and $suiteReport.JourneysPassed -eq $expected.Count) { 'PASS' } else { 'FAIL' }
-            $scope = 'Read-only navigation. PASS is not proof of SQL persistence (that is G6).'
+            $scope = 'Read-only navigation. PASS is not proof of SQL persistence (that is G6).' + $(if ($Isolated) { ' ' + $scope } else { '' })
         }
 
         'G6' {
             if (-not $ExePath) { throw 'G6 needs -ExePath <PCTP.exe>.' }
             if (-not $AllowMutations) { throw 'G6 seeds and deletes data: pass -AllowMutations (isolated DB only).' }
-            Set-SqlEnvironment
+            if ($Isolated) { Enter-Isolation } else { Set-SqlEnvironment }
             $runner = Join-Path $PSScriptRoot 'Invoke-PctpUiJourney.ps1'
             $dir = Join-Path $PSScriptRoot 'journeys\g6'
             $business = @('g6-qc-direction', 'g6-qc-final', 'g6-receive', 'g6-delivery-hvn')
@@ -193,7 +228,7 @@ try {
                 $args2 = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $runner, '-ExePath', $ExePath, '-ManifestPath', $manifestPath,
                     '-OutputDirectory', $jOut, '-ExpectedWindowTitleRegex', $ExpectedWindowTitleRegex, '-AllowMutations', '-CloseOnFinish',
                     '-SqlServer', $SqlServer, '-SqlDatabase', $SqlDatabase)
-                if ($ConfirmAppUsesIsolatedDb) { $args2 += '-ConfirmAppUsesIsolatedDb' }
+                if ($ConfirmAppUsesIsolatedDb -and -not $Isolated) { $args2 += '-ConfirmAppUsesIsolatedDb' }
                 Invoke-Native { & powershell.exe @args2 } (Join-Path $out "$name.log")
                 $jExit = $LASTEXITCODE
                 Remove-Item Env:PCTP_QC_RUN_ID -ErrorAction SilentlyContinue
@@ -216,19 +251,23 @@ try {
             foreach ($r2 in $rows) { if ($r2.Status -ne 'PASS') { $notes.Add("$($r2.Journey): $($r2.Status) $($r2.Detail)") } }
             $counts = [pscustomobject]@{ Passed = @($rows | Where-Object Status -eq 'PASS').Count; Blocked = @($rows | Where-Object Status -eq 'BLOCKED').Count; Failed = @($rows | Where-Object Status -eq 'FAIL').Count; Required = $order.Count }
             $status = if (@($rows | Where-Object Status -ne 'PASS').Count -eq 0 -and $rows.Count -eq $order.Count) { 'PASS' } else { 'FAIL' }
+            # Missing seed/assert/cleanup manifests are BLOCKED (not skipped, not PASS) unless something actually failed.
+            if ($status -eq 'FAIL' -and $blocked -and @($rows | Where-Object Status -eq 'FAIL').Count -eq 0) { $status = 'BLOCKED' }
             if ($blocked) { $notes.Add('BLOCKED journeys still need their seed/assert/cleanup SQL (see journeys\g6\README.md).') }
             $exit = if ($status -eq 'PASS') { 0 } else { 1 }
-            $scope = "UI + SQL + cleanup on $SqlServer/$SqlDatabase; seeded rows carry the QCUI_<runId> prefix."
+            if (-not $Isolated) { $scope = "UI + SQL + cleanup on $SqlServer/$SqlDatabase; seeded rows carry the QCUI_<runId> prefix." }
         }
     }
 }
 catch {
-    $status = 'FAIL'
+    $status = if ($_.Exception.Message -like 'BLOCKED:*') { 'BLOCKED' } else { 'FAIL' }
     if ($exit -eq 0) { $exit = 1 }
     $notes.Add($_.Exception.Message)
     Write-Host "FAIL: $($_.Exception.Message)"
 }
 finally {
+    Remove-Item Env:PCTP_QC_REQUIRE_ISOLATED -ErrorAction SilentlyContinue
+    if ($isolationActive) { & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $isolationScript -Mode Unblock | Out-Host }
     Clear-SqlEnvironment
     Remove-Item Env:PCTP_QC_RUN_ID -ErrorAction SilentlyContinue
 }

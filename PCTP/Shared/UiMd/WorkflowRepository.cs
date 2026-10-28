@@ -35,7 +35,7 @@ namespace PCTP.Shared.UiMd
             // Thay Query(...) bằng LoadData(...) có sẵn ở SqlRepositoryBase
             var dt = LoadData(
                 "SELECT FromStatus, ToStatus, ActionName, Description " +
-                "FROM sys_WorkflowTransitions WHERE ProcessCode=@pc AND IsActive=1 ORDER BY Id",
+                "FROM FVN_sys_WorkflowTransitions WHERE ProcessCode=@pc AND IsActive=1 ORDER BY Id",
                 new SqlParameter("@pc", processCode ?? (object)DBNull.Value));
 
             return dt.Rows.Cast<DataRow>().Select(r => new WorkflowTransition

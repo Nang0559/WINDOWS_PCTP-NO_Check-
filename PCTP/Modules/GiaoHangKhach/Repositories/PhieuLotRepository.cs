@@ -152,7 +152,7 @@ FROM Fifo ORDER BY FIFO_RANK;";
                 "Usp_Qrcode_Take_LotYMVN2405",
                 new SqlParameter("@TMPTABLE", tmpTable),
                 new SqlParameter("@DOCQRTABLE", docQRTable),
-                new SqlParameter("@ISLOAIASP", isLoaiSP ? 1 : 0));
+                new SqlParameter("@ISLOAISP", isLoaiSP ? 1 : 0));
             return ds.Tables.Count > 0 ? ds.Tables[0] : new DataTable();
         }
     }

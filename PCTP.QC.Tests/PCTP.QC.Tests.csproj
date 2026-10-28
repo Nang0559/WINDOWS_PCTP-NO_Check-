@@ -18,12 +18,25 @@
   </ItemGroup>
   <ItemGroup>
     <None Update="TestMatrix.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP.QC.UI/Invoke-PctpLiveDataInventory.ps1" Link="Invoke-PctpLiveDataInventory.source.ps1" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../docs/SCHEMA_COVERAGE_EFFECTIVE.csv" Link="SCHEMA_COVERAGE_EFFECTIVE.csv" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../SQL/Usp_Qrcode_LUU_PHIEU_RetireUnsafeLegacy.sql" Link="Usp_Qrcode_LUU_PHIEU_RetireUnsafeLegacy.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../SQL/Usp_Qrcode_Update_Stock2405.sql" Link="Usp_Qrcode_Update_Stock2405.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../SQL/Usp_Qrcode_Update_Stock_SP.sql" Link="Usp_Qrcode_Update_Stock_SP.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../SQL/Usp_Qrcode_LOAD_PHIEU_DOCQR2405.sql" Link="Usp_Qrcode_LOAD_PHIEU_DOCQR2405.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../SQL/Usp_Qrcode_Take_Lot2405.sql" Link="Usp_Qrcode_Take_Lot2405.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../SQL/Usp_Qrcode_Take_LotYMVN2405.sql" Link="Usp_Qrcode_Take_LotYMVN2405.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../SQL/PCTPStockMovementGuard.sql" Link="PCTPStockMovementGuard.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../SQL/PCTP_StockTpIdentityAudit.sql" Link="PCTP_StockTpIdentityAudit.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../SQL/PCTP_EnforceUniqueStockTpLot.sql" Link="PCTP_EnforceUniqueStockTpLot.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/NhapKho/Repository/StockTpImportGuardRepository.cs" Link="StockTpImportGuardRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/NhapKho/Services/NhapTpReceivingService.cs" Link="NhapTpReceivingService.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/NhapKho/Repository/StockTPRepository.cs" Link="StockTPRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/XuatKho/Repositories/StockExportRepository.cs" Link="StockExportRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Infrastructure/Stock/StockReceivingRepository.cs" Link="StockReceivingRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/KhoVatLy/NhapTpModuleFactory.cs" Link="NhapTpModuleFactory.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/KhoVatLy/MainStockModuleFactory.cs" Link="MainStockModuleFactory.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Infrastructure/Stock/LegacyStockBalanceRepositoryAdapter.cs" Link="LegacyStockBalanceRepositoryAdapter.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/GiaoHangKhach/Repositories/TableOrderRepo.cs" Link="TableOrderRepo.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Shared/Common/SqlRepositoryBase.cs" Link="SqlRepositoryBase.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/GiaoHangKhach/Repositories/PhieuLotRepository.cs" Link="PhieuLotRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />
@@ -36,15 +49,40 @@
     <None Include="../PCTP/Modules/GiaoHangKhach/Repositories/PhieuLuuTruRepository.cs" Link="PhieuLuuTruRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/GiaoHangKhach/Repositories/PhieuGiaoDBRepository.cs" Link="PhieuGiaoDBRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/KhoCore/Repositories/RackRepository.cs" Link="RackRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP.QC.SqlIntegration/Program.cs" Link="SqlIntegrationProgram.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP.QC.SqlIntegration/DeliveryQrAllocationScenario.cs" Link="DeliveryQrAllocationScenario.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../.github/workflows/pctp-qc-tests.yml" Link="pctp-qc-tests.workflow.yml" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../SQL/Usp_Qrcode_Take_Lot2405.sql" Link="Usp_Qrcode_Take_Lot2405.source.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../SQL/Usp_Qrcode_Take_LotYMVN2405.sql" Link="Usp_Qrcode_Take_LotYMVN2405.source.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/XuLyHangLoi/Repository/PhieuXuLyBatThuongRepository.cs" Link="PhieuXuLyBatThuongRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../SQL/sp_GetCurrentStockStatus.sql" Link="sp_GetCurrentStockStatus.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/GiaoHangKhach/Repositories/PhieuKhoRepository.cs" Link="PhieuKhoRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="../PCTP/Modules/GiaoHangKhach/Services/PhieuKhoService.cs" Link="PhieuKhoService.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/GiaoHangKhach/Repositories/PhieuRepository.cs" Link="PhieuRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/GiaoHangKhach/Services/GiaoHangKhachFactory.cs" Link="GiaoHangKhachFactory.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/XuLyHangLoi/Services/QTChungService.cs" Link="QTChungService.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/XuLyHangLoi/Services/ReworkStockService.cs" Link="ReworkStockService.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/GiaoHangKhach/Contracts/Delivery/DeliveryStockCommand.cs" Link="DeliveryStockCommand.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/GiaoHangKhach/Services/PhieuKhoService.cs" Link="PhieuKhoService.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/GiaoHangKhach/Services/BulkStockAdjustService.cs" Link="BulkStockAdjustService.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/XuLyHangLoi/Services/KhachTraHangService.cs" Link="KhachTraHangService.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/XuLyHangLoi/Services/IQTChungService.cs" Link="IQTChungService.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/XuLyHangLoi/Services/IReworkStockService.cs" Link="IReworkStockService.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/XuLyHangLoi/Repository/TraHangQTChungRepository.cs" Link="TraHangQTChungRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/XuLyHangLoi/FormReworkProcess.cs" Link="FormReworkProcess.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/XuLyHangLoi/Database/PHASE14_ReworkExportIdempotency.sql" Link="PHASE14_ReworkExportIdempotency.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/KhoCore/Repositories/BulkStockSlotRepository.cs" Link="BulkStockSlotRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/KhoCore/Application/Services/StockMovementService.cs" Link="StockMovementService.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/KhoCore/Application/Services/QuarantineReleaseService.cs" Link="QuarantineReleaseService.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Infrastructure/Stock/LegacyStockSlotRepositoryAdapter.cs" Link="LegacyStockSlotRepositoryAdapter.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Shared/Helpers/QRCodeWorkflowAdapter.cs" Link="QRCodeWorkflowAdapter.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/KhoCore/Fuction/CheckInfor.cs" Link="CheckInfor.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/GiaoHangKhach/ComaprePart/ComaparePart.cs" Link="ComaparePart.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/GiaoHangKhach/SubForm/FRM_SUALOTHVN.cs" Link="FRM_SUALOTHVN.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/GiaoHangKhach/HVN/Edit_DH.cs" Link="Edit_DH.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/UF_CHANGETIME.cs" Link="UF_CHANGETIME.source.cs" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="../PCTP/Infrastructure/Sql/QcSqlOverride.cs" Link="Sut/QcSqlOverride.cs" />
     <Compile Include="../PCTP/Shared/Helpers/QRCodeParser.cs" Link="Sut/QRCodeParser.cs" />
     <Compile Include="../PCTP/Shared/Helpers/QRCodeBuilder.cs" Link="Sut/QRCodeBuilder.cs" />
     <Compile Include="../PCTP/Shared/Helpers/QRCodeWorkflowAdapter.cs" Link="Sut/QRCodeWorkflowAdapter.cs" />
@@ -62,6 +100,10 @@
     <Compile Include="../PCTP/Modules/KhoCore/Application/Contracts/Stock/IStockSlotRepository.cs" Link="Sut/IStockSlotRepository.cs" />
     <Compile Include="../PCTP/Modules/KhoCore/Application/Contracts/Stock/IStockReceivingRepository.cs" Link="Sut/IStockReceivingRepository.cs" />
     <Compile Include="../PCTP/Modules/KhoCore/Application/Contracts/Stock/StockMovementRequest.cs" Link="Sut/StockMovementRequest.cs" />
+    <Compile Include="../PCTP/Modules/GiaoHangKhach/Contracts/Delivery/DeliveryStockCommand.cs" Link="Sut/DeliveryStockCommand.cs" />
+    <Compile Include="../PCTP/Modules/GiaoHangKhach/Services/IDeliveryStockCommandHandler.cs" Link="Sut/IDeliveryStockCommandHandler.cs" />
+    <Compile Include="../PCTP/Modules/GiaoHangKhach/Services/IDeliveryCommandLedger.cs" Link="Sut/IDeliveryCommandLedger.cs" />
+    <Compile Include="../PCTP/Modules/GiaoHangKhach/Services/DeliveryStockCommandHandler.cs" Link="Sut/DeliveryStockCommandHandler.cs" />
     <Compile Include="../PCTP/Modules/KhoCore/Application/Contracts/Stock/StockMovementResult.cs" Link="Sut/StockMovementResult.cs" />
     <Compile Include="../PCTP/Modules/KhoCore/Application/Contracts/Stock/StockSlotLot.cs" Link="Sut/StockSlotLot.cs" />
     <Compile Include="../PCTP/Modules/KhoCore/Application/Contracts/Stock/StockSlotTakeResult.cs" Link="Sut/StockSlotTakeResult.cs" />
@@ -78,5 +120,6 @@
     <Compile Include="../PCTP/Modules/XuLyHangLoi/Enums/HuongXuLyBatThuong.cs" Link="Sut/HuongXuLyBatThuong.cs" />
     <Compile Include="../PCTP/Modules/XuLyHangLoi/Enums/NguonXuLyBatThuong.cs" Link="Sut/NguonXuLyBatThuong.cs" />
     <Compile Include="../PCTP/Modules/XuLyHangLoi/Enums/QTChungStatus.cs" Link="Sut/QTChungStatus.cs" />
+    <Compile Include="../PCTP/Modules/XuLyHangLoi/Services/ReworkQuantityPolicy.cs" Link="Sut/ReworkQuantityPolicy.cs" />
   </ItemGroup>
 </Project>

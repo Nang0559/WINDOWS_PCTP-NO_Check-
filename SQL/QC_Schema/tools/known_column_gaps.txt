@@ -1,0 +1,5 @@
+# Columns the C# code writes that the DB57 export does not (yet) show.
+# Format: table.column | reason | what closes it.  The CI step fails on any gap NOT listed here
+# (a new code/schema mismatch) and warns when a listed gap no longer exists (remove the line).
+fvn_trahangqtchungxuat.operationid | export of DB57 has no OperationId; InsertXuat/GetXuatByOperationId use it | run PCTP/Modules/XuLyHangLoi/Database/PHASE14_ReworkExportIdempotency.sql on DB57 (after PHASE13), then re-export
+tmplotgheptest.gearname | legacy-only: GIAOHANGYMN.CMD_INGHEPLOT_Click writes GearName and calls Usp_gheplotPrintYM1, absent from SQL2; do not add this column to DB57 | retire or migrate the legacy form to TMPLOTGHEP/MachineName + Usp_gheplotPrint with SQL integration coverage; see docs/LEGACY_YMVN_GHEPLOT_GAP.md

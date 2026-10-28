@@ -76,5 +76,36 @@ SELECT @Rc;";
                 throw new InvalidOperationException(
                     "Tem này đang được máy khác xử lý nhập kho. Vui lòng thử lại sau giây lát.");
         }
+        public void AcquireLotImportLock(string lotNo)
+        {
+            if (string.IsNullOrWhiteSpace(lotNo))
+                throw new ArgumentException("LOT không được rỗng.", nameof(lotNo));
+
+            if (!HasTransaction)
+                throw new InvalidOperationException(
+                    "AcquireLotImportLock phải được gọi bên trong transaction (IUnitOfWork.Begin).");
+
+            // Serialize different QR receipts that contribute to one STOCKTP LOT.
+            const string sql = @"
+DECLARE @Res NVARCHAR(255) =
+    N'NHAPTP_LOT_' + CONVERT(NVARCHAR(64), HASHBYTES('SHA2_256', UPPER(LTRIM(RTRIM(@LotNo)))), 2);
+DECLARE @Rc INT;
+EXEC @Rc = sp_getapplock
+    @Resource    = @Res,
+    @LockMode    = 'Exclusive',
+    @LockOwner   = 'Transaction',
+    @LockTimeout = @TimeoutMs;
+SELECT @Rc;";
+
+            object result = ExecuteScalar(
+                sql,
+                new SqlParameter("@LotNo", SqlDbType.NVarChar, 100) { Value = lotNo.Trim() },
+                new SqlParameter("@TimeoutMs", SqlDbType.Int) { Value = LockTimeoutMs });
+
+            if (DbValueHelper.ToInt(result) < 0)
+                throw new InvalidOperationException(
+                    "LOT đang được máy khác xử lý nhập kho. Vui lòng thử lại sau giây lát.");
+        }
+
     }
 }

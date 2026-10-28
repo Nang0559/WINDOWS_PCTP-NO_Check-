@@ -26,6 +26,7 @@ namespace PCTP.Modules.XuLyHangLoi.Services
     /// - IStockExportRepository chỉ dùng để tra cứu STOCKTP.
     /// - Mọi mutation Slot/SlotLot/STOCKTP đi qua IStockMovementService.
     /// - Audit/history vẫn nằm trong cùng UnitOfWork của workflow.
+    /// - Export Rework phải qua Phase 4 guard trong cùng transaction/lock.
     /// </summary>
     public sealed class ReworkStockService : IReworkStockService
     {
@@ -38,6 +39,7 @@ namespace PCTP.Modules.XuLyHangLoi.Services
         private readonly IStockHistoryRepository _historyRepo;
         private readonly ITraHangQTChungRepository _qtChungRepo;
         private readonly IPhieuXuLyBatThuongRepository _phieuXuLyRepo;
+        private readonly Func<IReworkPhase4Service> _phase4Provider;
 
         public ReworkStockService(
             IUnitOfWork uow,
@@ -47,6 +49,19 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             IStockHistoryRepository historyRepo,
             ITraHangQTChungRepository qtChungRepo,
             IPhieuXuLyBatThuongRepository phieuXuLyRepo)
+            : this(uow, slotService, stockTpRepo, stockMovement, historyRepo, qtChungRepo, phieuXuLyRepo, null)
+        {
+        }
+
+        public ReworkStockService(
+            IUnitOfWork uow,
+            ISlotService slotService,
+            IStockExportRepository stockTpRepo,
+            IStockMovementService stockMovement,
+            IStockHistoryRepository historyRepo,
+            ITraHangQTChungRepository qtChungRepo,
+            IPhieuXuLyBatThuongRepository phieuXuLyRepo,
+            Func<IReworkPhase4Service> phase4Provider)
         {
             _uow = uow ?? throw new ArgumentNullException(nameof(uow));
             _slotService = slotService ?? throw new ArgumentNullException(nameof(slotService));
@@ -55,6 +70,7 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             _historyRepo = historyRepo ?? throw new ArgumentNullException(nameof(historyRepo));
             _qtChungRepo = qtChungRepo ?? throw new ArgumentNullException(nameof(qtChungRepo));
             _phieuXuLyRepo = phieuXuLyRepo ?? throw new ArgumentNullException(nameof(phieuXuLyRepo));
+            _phase4Provider = phase4Provider;
         }
 
         public List<LotInfo> GetLotsCanRework(string maHang, string lotNo)
@@ -67,9 +83,6 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             if (!string.IsNullOrWhiteSpace(lotNo))
                 lotChuan = LotNoHelper.GetStockTpKey(lotNo);
 
-            // STOCKTP chỉ là sổ tồn tổng hợp, không chứa vị trí vật lý/SlotLotId.
-            // Trước đây map trực tiếp STOCKTP thành LotInfo làm SlotId mặc định = 0,
-            // nên người dùng thấy LOT nhưng không thể chọn đúng Slot để xuất Rework.
             var stockRows = _stockTpRepo.FindLotsWithStock(maHangChuan, lotChuan);
             if (stockRows == null || stockRows.Count == 0)
                 return new List<LotInfo>();
@@ -82,8 +95,6 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             if (stockByLot.Count == 0)
                 return new List<LotInfo>();
 
-            // Đọc SlotLot đang hoạt động để lấy đúng SlotLotId (LotInfo.SlotId),
-            // Slot vật lý, vị trí kho và số lượng nằm tại vị trí đó.
             var slotRows = _slotService.GetAllActiveSlotLots();
             if (slotRows == null || slotRows.Count == 0)
                 return new List<LotInfo>();
@@ -100,7 +111,6 @@ namespace PCTP.Modules.XuLyHangLoi.Services
                     stockByLot.Keys.Any(stockLot => LotCodeHelper.AreLotKeysEquivalent(stockLot, x.LotNo)))
                 .Select(x => new LotInfo
                 {
-                    // Contract cũ: LotInfo.SlotId thực tế là SlotLotId.
                     SlotId = x.SlotLotId,
                     SlotVatLyId = x.SlotId,
                     LotNo = x.LotNo.Trim(),
@@ -142,6 +152,17 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             int soLuong,
             string nguoiXuat)
         {
+            return XuatKhoRework(phieuXuLyId, slotLotId, lotNo, soLuong, nguoiXuat, Guid.NewGuid());
+        }
+
+        public ScanResult XuatKhoRework(
+            int phieuXuLyId,
+            int slotLotId,
+            string lotNo,
+            int soLuong,
+            string nguoiXuat,
+            Guid operationId)
+        {
             if (phieuXuLyId <= 0)
                 return ScanResult.Fail("phieuXuLyId không hợp lệ.");
             if (slotLotId <= 0)
@@ -152,6 +173,8 @@ namespace PCTP.Modules.XuLyHangLoi.Services
                 return ScanResult.Fail("Số lượng xuất phải lớn hơn 0.");
             if (string.IsNullOrWhiteSpace(nguoiXuat))
                 return ScanResult.Fail("Chưa xác định người xuất.");
+            if (operationId == Guid.Empty)
+                return ScanResult.Fail("OperationId không hợp lệ.");
 
             string lotChuan;
             try
@@ -166,22 +189,55 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             _uow.Begin();
             try
             {
+                // Idempotency phải được kiểm tra trước business validation/mutation.
+                var existing = _qtChungRepo.GetXuatByOperationId(operationId);
+                if (existing != null)
+                {
+                    SafeRollback();
+                    return ScanResult.OK(
+                        string.Format("Yêu cầu xuất Rework OperationId={0} đã được xử lý trước đó (XuatId={1}).",
+                            operationId, existing.Id));
+                }
+
                 var phieu = _phieuXuLyRepo.GetById(phieuXuLyId);
                 if (phieu == null)
                     return FailAndRollback(
                         string.Format("Không tìm thấy phiếu xử lý bất thường Id={0}.", phieuXuLyId));
 
+                // Update cùng giá trị trạng thái trong transaction để lấy row lock ổn định
+                // trên phiếu. Hai session cùng một phiếu vì vậy không thể cùng đọc một
+                // remaining quota rồi cùng commit vượt hạn mức.
+                if (!_phieuXuLyRepo.UpdateStatusIfCurrentIs(
+                        phieuXuLyId, phieu.Status, phieu.Status, nguoiXuat))
+                {
+                    return FailAndRollback(
+                        string.Format("Phiếu Id={0} vừa được cập nhật bởi thao tác khác; vui lòng thử lại.",
+                            phieuXuLyId));
+                }
+
                 if (phieu.HuongXuLy != HuongXuLyBatThuong.CanRework)
                     return FailAndRollback(
                         string.Format("Phiếu Id={0} không có hướng xử lý CanRework.", phieuXuLyId));
+
+                var phase4 = _phase4Provider == null ? null : _phase4Provider();
+                if (phase4 == null)
+                    return FailAndRollback(
+                        "Không cấu hình được Phase 4 Rework guard; từ chối xuất kho để bảo đảm fail-closed.");
+
+                try
+                {
+                    phase4.EnsureCanExport(phieuXuLyId, soLuong, nguoiXuat);
+                }
+                catch (Exception ex)
+                {
+                    return FailAndRollback(ex.Message);
+                }
 
                 var slotLot = _slotService.GetLotsBySlotLotId(slotLotId);
                 if (slotLot == null)
                     return FailAndRollback(
                         string.Format("Không tìm thấy SlotLot Id={0}.", slotLotId));
 
-                // Dòng NG cách ly (PhieuStatus = 3) không thuộc STOCKTP -> không được rework lại,
-                // nếu không STOCKTP bị trừ cho hàng chưa từng được cộng vào.
                 if (slotLot.PhieuStatus != (byte)PhieuStatus.Active)
                     return FailAndRollback(
                         string.Format("SlotLot {0} không ở trạng thái dùng được (PhieuStatus={1}); " +
@@ -211,8 +267,8 @@ namespace PCTP.Modules.XuLyHangLoi.Services
                     LotNo = lotChuan,
                     ItemCode = slotLot.ItemCode,
                     Quantity = soLuong,
-                    ReferenceType = "PHIEU_XU_LY_BAT_THUONG",
-                    ReferenceId = phieuXuLyId.ToString(),
+                    ReferenceType = "QT_REWORK_EXPORT",
+                    ReferenceId = operationId.ToString("D"),
                     PerformedBy = nguoiXuat,
                     Reason = "Xuất kho đi rework"
                 });
@@ -224,6 +280,7 @@ namespace PCTP.Modules.XuLyHangLoi.Services
 
                 int xuatId = _qtChungRepo.InsertXuat(new TraHangQTChungXuat
                 {
+                    OperationId = operationId,
                     PhieuXuLyBatThuongId = phieuXuLyId,
                     SlotIdNguon = slotLot.SlotVatLyId,
                     LotXuat = lotChuan,
@@ -264,7 +321,6 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             }
         }
 
-        /// <summary>null = Slot hợp lệ; ngược lại trả ScanResult.Fail với thông báo rõ ràng.</summary>
         private ScanResult KiemTraSlotTonTai(int slotId, string tenSlot)
         {
             if (_slotService.SlotExists(slotId))
@@ -273,6 +329,15 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             return ScanResult.Fail(string.Format(
                 "{0} (Id={1}) không tồn tại trong kho. Vui lòng chọn Slot hợp lệ từ danh sách.",
                 tenSlot, slotId));
+        }
+
+        public ReworkPhase4Plan GetReworkPlan(int phieuXuLyId)
+        {
+            var phase4 = _phase4Provider == null ? null : _phase4Provider();
+            if (phase4 == null)
+                throw new InvalidOperationException(
+                    "Phase 4 Rework guard chưa được cấu hình; không thể đọc kế hoạch Rework (fail-closed).");
+            return phase4.GetPlan(phieuXuLyId);
         }
 
         public ScanResult NhapLaiHangNG(
@@ -294,7 +359,6 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             if (string.IsNullOrWhiteSpace(nguoiNhap))
                 return ScanResult.Fail("Chưa xác định người nhập.");
 
-            // Slot phải có thật trong kho — nếu không, INSERT SlotLot sẽ vi phạm FK_SlotLot_Slot.
             var slotNgLoi = KiemTraSlotTonTai(slotIdNG.Value, "Slot NG");
             if (slotNgLoi != null)
                 return slotNgLoi;
@@ -323,14 +387,9 @@ namespace PCTP.Modules.XuLyHangLoi.Services
                     return FailAndRollback(
                         string.Format("Không tìm thấy phiếu xử lý bất thường Id={0}.", phieuXuLyId));
 
-                // OK chỉ được nhập qua NhapLaiHangOK (QTChungService.QCXacNhanCuoi gọi trước).
-                // Trước đây hàm này nhập OK thêm lần nữa khi QC đã có SoLuongOK -> OK bị cộng đôi
-                // (STOCKTP và SlotLot). Chỉ ghi nhận số OK để hiển thị kết quả.
                 var qc = _qtChungRepo.GetQC(phieuXuLyId);
                 int soLuongOK = qc == null ? 0 : qc.SoLuongOK;
 
-                // NG được nhập vào slot NG dưới dạng dòng SlotLot PhieuStatus = 3 (cách ly):
-                // KHÔNG tăng STOCKTP và bị mọi bộ lọc PhieuStatus = 0 loại khỏi tồn/đối chiếu/Rework.
                 var ngMovement = _stockMovement.Receive(new StockMovementRequest
                 {
                     MovementType = MovementReworkNgReceive,
@@ -338,7 +397,7 @@ namespace PCTP.Modules.XuLyHangLoi.Services
                     LotNo = lotChuan,
                     ItemCode = phieu.MaSanPham,
                     Quantity = soLuongNG,
-                    ReferenceType = "PHIEU_XU_LY_BAT_THUONG",
+                    ReferenceType = "QT_REWORK_NG_RECEIVE",
                     ReferenceId = phieuXuLyId.ToString(),
                     PerformedBy = nguoiNhap,
                     Reason = "Nhập lại hàng NG sau rework"
@@ -406,7 +465,6 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             if (string.IsNullOrWhiteSpace(nguoiNhap))
                 return ScanResult.Fail("Chưa xác định người nhập.");
 
-            // Slot phải có thật trong kho — nếu không, INSERT SlotLot sẽ vi phạm FK_SlotLot_Slot.
             var slotLoi = KiemTraSlotTonTai(slotIdOK, "Slot OK");
             if (slotLoi != null)
                 return slotLoi;
@@ -438,7 +496,7 @@ namespace PCTP.Modules.XuLyHangLoi.Services
                     LotNo = lotChuan,
                     ItemCode = phieu.MaSanPham,
                     Quantity = soLuongOK,
-                    ReferenceType = "PHIEU_XU_LY_BAT_THUONG",
+                    ReferenceType = "QT_REWORK_OK_RECEIVE",
                     ReferenceId = phieuXuLyId.ToString(),
                     PerformedBy = nguoiNhap,
                     Reason = "Nhập lại hàng OK sau rework"
@@ -510,9 +568,6 @@ namespace PCTP.Modules.XuLyHangLoi.Services
                     .ToDictionary(g => g.Key, g => g.Sum(x => x.SoLuongNG));
 
                 var ketQua = new List<string>();
-
-                // OK đã nhập lại kho (QCXacNhanCuoi -> NhapLaiHangOK) cũng đã rời khỏi phần "treo".
-                // Trước đây chỉ trừ NG nên huỷ sau bước QC hoàn trả trùng phần OK.
                 var qcDaCo = _qtChungRepo.GetQC(phieuXuLyId);
                 int okConPhanBo = qcDaCo == null ? 0 : qcDaCo.SoLuongOK;
 
@@ -541,8 +596,8 @@ namespace PCTP.Modules.XuLyHangLoi.Services
                         LotNo = lotChuan,
                         ItemCode = nhom.MaHang,
                         Quantity = conTreo,
-                        ReferenceType = "PHIEU_XU_LY_BAT_THUONG",
-                        ReferenceId = phieuXuLyId.ToString(),
+                        ReferenceType = "QT_REWORK_CANCEL_RETURN",
+                        ReferenceId = phieuXuLyId + ":" + nhom.SlotId + ":" + lotChuan,
                         PerformedBy = nguoiThucHien,
                         Reason = "Hoàn trả kho do huỷ QT chung"
                     });
@@ -600,7 +655,6 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             }
             catch
             {
-                // Không che lỗi nghiệp vụ ban đầu.
             }
         }
     }

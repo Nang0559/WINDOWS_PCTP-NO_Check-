@@ -47,7 +47,7 @@ namespace PCTP.Shared.Models
                             "CASE WHEN col.SHIP_ADDR_NO = 1 " +
                             "THEN 'HON DA -VIET NAM- (NHA MAY VINH PHUC)' " +
                             "ELSE 'HON DA -VIET NAM- (NHA MAY HA NAM)' END",
-                        OrderTableGiaoDacBiet = "Purchase_Order_HVNDB",
+                        OrderTableGiaoDacBiet = "FVN_Purchase_Order_HVNDB",
                     },
                 },
 
@@ -94,7 +94,7 @@ namespace PCTP.Shared.Models
                         DocQRTableSP = "SP_DOCQRCODE",
                         CoNhieuNhaMay = false,
                         AddNmMacDinh = 1,
-                        TenNhaMay = "'YAMAHA - VIET NAM'",
+                        TenNhaMay = "YAMAHA - VIET NAM",
                         LoadTheoNgay = false,
                         RequirePoRelNo = false,
                         CoGear = true,

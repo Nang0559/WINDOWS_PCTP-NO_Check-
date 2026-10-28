@@ -9,12 +9,41 @@
 #   * sql-seed and sql-cleanup statements MUST reference @Prefix (QCUI_<runId>), so every mutation is
 #     scoped to rows this run created. TRUNCATE / DROP DATABASE / DROP TABLE on non-# tables are rejected.
 #   * sql-cleanup must be followed by a verification query returning Remaining = 0.
+#
+# Isolated mode (PCTP_QC_REQUIRE_ISOLATED=1, set by Invoke-PctpQcGates.ps1 -Isolated and always in CI):
+#   * DB57 (192.168.200.57 / B7R2_FCC) is rejected as well as production;
+#   * the only accepted target is the local PCTP_QC_* database named by PCTP_QC_SQL_CONNECTION;
+#   * PCTP.exe is forced onto that database by QcSqlOverride, so no operator confirmation is accepted.
 
 $script:PctpSqlConnection = $null
 $script:PctpSqlTarget = $null
 
 $script:PctpDefaultServer = '192.168.200.57'
 $script:PctpDefaultDatabase = 'B7R2_FCC'
+
+function Test-PctpIsolatedMode { return ($env:PCTP_QC_REQUIRE_ISOLATED -eq '1') }
+
+# Parses and validates PCTP_QC_SQL_CONNECTION. Returns @{ Server; Database; ConnectionString }; throws when unsafe.
+function Get-PctpIsolatedConnection {
+    $cs = $env:PCTP_QC_SQL_CONNECTION
+    if ([string]::IsNullOrWhiteSpace($cs)) { throw 'Isolated mode needs PCTP_QC_SQL_CONNECTION (run Start-PctpIsolatedSql.ps1 first).' }
+    if ($cs -match '192\.168\.200\.(57|14)' -or $cs -match '(?i)BRAVO' -or $cs -match '(?i)B7R2_FCC') {
+        throw 'PCTP_QC_SQL_CONNECTION mentions DB57 / production / B7R2_FCC and is rejected.'
+    }
+    $b = New-Object System.Data.Common.DbConnectionStringBuilder
+    # PowerShell treats DbConnectionStringBuilder as a dictionary: '$b.ConnectionString = x' would set a KEY, so call the setter.
+    $b.set_ConnectionString($cs)
+    $server = $null; $database = $null
+    foreach ($k in @('data source', 'server', 'address', 'addr', 'network address')) { if ($b.ContainsKey($k)) { $server = [string]$b[$k]; break } }
+    foreach ($k in @('initial catalog', 'database')) { if ($b.ContainsKey($k)) { $database = [string]$b[$k]; break } }
+    if ([string]::IsNullOrWhiteSpace($server) -or [string]::IsNullOrWhiteSpace($database)) { throw 'PCTP_QC_SQL_CONNECTION must name both server and database.' }
+    $h = $server.Trim() -replace '^(?i)tcp:', ''
+    $cut = $h.IndexOfAny(@([char]'\', [char]','))
+    if ($cut -ge 0) { $h = $h.Substring(0, $cut) }
+    if (@('localhost', '127.0.0.1', '.', '(local)', '(localdb)') -notcontains $h.Trim().ToLowerInvariant()) { throw "Isolated server '$server' is not local to this machine." }
+    if ($database -notmatch '^(?i)PCTP_QC_') { throw "Isolated database '$database' must start with PCTP_QC_." }
+    return @{ Server = $server.Trim(); Database = $database.Trim(); ConnectionString = $cs }
+}
 
 function Test-PctpSqlTarget([string]$server, [string]$database) {
     if ([string]::IsNullOrWhiteSpace($server) -or [string]::IsNullOrWhiteSpace($database)) {
@@ -24,6 +53,17 @@ function Test-PctpSqlTarget([string]$server, [string]$database) {
         throw "SQL target '$server' is the production server and is always rejected."
     }
     $pair = ('{0}/{1}' -f $server.Trim(), $database.Trim())
+    if (Test-PctpIsolatedMode) {
+        $iso = Get-PctpIsolatedConnection
+        if ($pair -ieq ('{0}/{1}' -f $iso.Server, $iso.Database)) { return }
+        throw "Isolated mode: SQL target '$pair' is not the fixture '$($iso.Server)/$($iso.Database)'. DB57 is not allowed."
+    }
+    # Live-data mode (PCTP_QC_LIVE_MODE=1): seed/mutate/cleanup may only touch a dedicated test catalog on SQL57,
+    # never the shared B7R2_FCC that other modules use.
+    if ($env:PCTP_QC_LIVE_MODE -eq '1') {
+        if ($server.Trim() -eq $script:PctpDefaultServer -and $database.Trim() -match '^B7R2_FCC_QC[A-Za-z0-9_]*$') { return }
+        throw "Live-data mode: SQL target '$pair' is rejected. Only $($script:PctpDefaultServer)/B7R2_FCC_QC* is allowed."
+    }
     $default = ('{0}/{1}' -f $script:PctpDefaultServer, $script:PctpDefaultDatabase)
     if ($pair -ieq $default) { return }
     $explicit = $env:PCTP_QC_ISOLATED_TARGET
@@ -33,6 +73,17 @@ function Test-PctpSqlTarget([string]$server, [string]$database) {
 
 function Open-PctpSql([string]$server, [string]$database) {
     Test-PctpSqlTarget $server $database
+    if (Test-PctpIsolatedMode) {
+        $iso = Get-PctpIsolatedConnection
+        $conn = New-Object System.Data.SqlClient.SqlConnection($iso.ConnectionString)
+        $conn.Open()
+        $cmd = $conn.CreateCommand()
+        $cmd.CommandText = 'SET LOCK_TIMEOUT 5000;'
+        [void]$cmd.ExecuteNonQuery()
+        $script:PctpSqlConnection = $conn
+        $script:PctpSqlTarget = ('{0}/{1}' -f $iso.Server, $iso.Database)
+        return
+    }
     $user = $env:PCTP_QC_SQL_USER
     $pwd = $env:PCTP_QC_SQL_PASSWORD
     if ([string]::IsNullOrWhiteSpace($user) -or [string]::IsNullOrWhiteSpace($pwd)) {
@@ -64,6 +115,13 @@ function Close-PctpSql {
 function Test-PctpAppTargetsIsolatedDb([string]$exePath, [string]$server, [switch]$confirmed) {
     # The runner cannot see the connection the app really uses. Read the app config (best effort),
     # refuse production, and otherwise require an explicit human confirmation.
+    if (Test-PctpIsolatedMode) {
+        # Not best-effort and not operator-confirmed: PCTP.exe (QcSqlOverride) throws at startup unless the
+        # connection from PCTP_QC_SQL_CONNECTION is a local PCTP_QC_* fixture, and every SQLPROVIDER field uses it.
+        $iso = Get-PctpIsolatedConnection
+        if ($server.Trim() -ine $iso.Server) { throw "Isolated mode: journey SQL server '$server' differs from the fixture '$($iso.Server)'." }
+        return 'qc-override-enforced-by-app'
+    }
     $cfg = $exePath + '.config'
     $text = ''
     if (Test-Path -LiteralPath $cfg -PathType Leaf) { $text = Get-Content -LiteralPath $cfg -Raw -ErrorAction SilentlyContinue }
