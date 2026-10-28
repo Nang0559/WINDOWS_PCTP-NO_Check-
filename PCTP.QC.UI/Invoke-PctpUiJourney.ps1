@@ -26,6 +26,8 @@ trap {
     if ($_.InvocationInfo) { Write-Host $_.InvocationInfo.PositionMessage }
     if ($_.ScriptStackTrace) { Write-Host $_.ScriptStackTrace }
     if ($_.Exception.InnerException) { Write-Host ("INNER: {0}" -f $_.Exception.InnerException.Message) }
+    # Do not leave an orphaned PCTP.exe behind: stale instances broke the next journey ("Another PCTP instance is already running").
+    try { if ($script:Process -and -not $script:Process.HasExited) { Stop-Process -Id $script:Process.Id -Force -ErrorAction SilentlyContinue } } catch { }
     break
 }
 if ($env:OS -ne "Windows_NT") { throw "PCTP UI journey automation must run on Windows." }
@@ -344,13 +346,19 @@ try {
         $n = 0
         if (([string]$r.Status -eq "PASS") -and [int]::TryParse([string]$r.Step, [ref]$n) -and $n -gt 0) { $stepsPassed++ }
     }
+    # Statement form: try/catch as a value inside $(if ...) in a hashtable literal throws "Argument types do not match"
+    # in Windows PowerShell 5.1.
+    $startupWindowTitle = $null
+    if ($mainWindow) {
+        try { $startupWindowTitle = [string]$mainWindow.Current.Name } catch { $startupWindowTitle = $null }
+    }
     $report = [pscustomobject]@{
         Status = $(if ($failure -or $failedCount -gt 0) { "FAIL" } else { "PASS" })
         RunId = $runId
         Test = "WinForms UI journey"
         Executable = $resolvedExe
         ProcessId = $(if ($script:Process) { $script:Process.Id } else { $null })
-        StartupWindowTitle = $(if ($mainWindow) { try { $mainWindow.Current.Name } catch { $null } } else { $null })
+        StartupWindowTitle = $startupWindowTitle
         MutationsAllowed = [bool]$AllowMutations
         Manifest = (Resolve-Path -LiteralPath $ManifestPath).Path
         ScenarioId = $scenarioId; ScenarioTitle = $scenarioTitle; ScenarioDescription = $scenarioDescription
