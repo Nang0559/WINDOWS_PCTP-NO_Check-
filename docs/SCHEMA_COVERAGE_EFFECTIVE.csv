@@ -1,5 +1,5 @@
 ﻿object,kind,referenced_by_code,dependency_of_code,code_files,code_ops,on_db57_export,git_ddl_files,in_ci_base_schema,in_runtime_inventory,class
-fvn_pxlb_reworkplan,table,không thấy literal SQL,fvn_pxlb_reworkmovement,,FK-DEPENDENCY,có,"PCTP/Modules/XuLyHangLoi/Database/PHASE4_9_ReworkDispositionCompensationWorkflowReport.sql, SQL/QC_Schema/02_Generated_From_DB57.sql",có,có,GAP-fk-dependency
+fvn_pxlb_reworkplan,table,không thấy literal SQL,fvn_pxlb_reworkmovement,,FK-DEPENDENCY,có,"PCTP/Modules/XuLyHangLoi/Database/PHASE4_9_ReworkDispositionCompensationWorkflowReport.sql, SQL/QC_Schema/02_Generated_From_DB57.sql",có,có,OK-fk-dependency
 b20dept,table,có,,NoiBoLookupRepository.cs,FROM,có,SQL/QC_Schema/02_Generated_From_DB57.sql,có,có,OK-testable
 b20gear,table,có,,DocQRRepository.cs; YAMAHAQRCDE_SP.cs; YMVNDOCQRCODE.cs,FROM,có,SQL/QC_Schema/02_Generated_From_DB57.sql,có,có,OK-testable
 b20imagestore,table,có,,FRMSHOW.cs; ImagesControl.cs,DELETE/FROM/INTO/UPDATE,có,SQL/QC_Schema/02_Generated_From_DB57.sql,có,có,OK-testable
