@@ -4,7 +4,7 @@
     "productionDatabaseAccess": false,
     "mutatingProductionData": false,
     "sqlScriptsExecutedByDefault": false,
-    "integrationDatabasePolicy": "SQL engine fixtures use session-local # tables or uniquely named tempdb ## tables on the fixed test endpoint 192.168.200.57/B7R2_FCC; production repository scenarios must use isolated fixtures and never target 192.168.200.14\\BRAVO."
+    "integrationDatabasePolicy": "SQL integration and acceptance target 192.168.200.57/B7R2_FCC_QC; only the explicit --shared-readonly-preflight may inspect shared 192.168.200.57/B7R2_FCC with ApplicationIntent=ReadOnly; SQL14 192.168.200.14\\BRAVO is always blocked."
   },
   "modules": [
     {
