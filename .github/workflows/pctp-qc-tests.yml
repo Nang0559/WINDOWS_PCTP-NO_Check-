@@ -433,7 +433,7 @@ jobs:
       - name: Build PCTP.exe (Debug, same commit)
         shell: powershell
         run: |
-          msbuild PCTP\PCTP.csproj -p:Configuration=Debug -p:Platform=AnyCPU -v:m
+          msbuild PCTP\PCTP.csproj -p:Configuration=Debug -p:Platform=AnyCPU -p:SignManifests=false -p:GenerateManifests=false -p:ManifestCertificateThumbprint= -v:m
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           if (-not (Test-Path PCTP\bin\Debug\PCTP.exe)) { throw 'PCTP.exe was not produced.' }
 
