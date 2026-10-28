@@ -63,13 +63,24 @@ jobs:
           import csv, re, sys
           coverage, ddl = sys.argv[1:]
           rows = list(csv.DictReader(open(coverage, encoding='utf-8-sig', newline='')))
-          included = {r['object'].casefold() for r in rows if r['in_ci_base_schema'].strip().casefold() in {'có','co','yes','true'}}
+          truthy = {'có', 'co', 'yes', 'true'}
+          included = {r['object'].casefold() for r in rows
+                      if r['kind'].strip().casefold() == 'table'
+                      and r['on_db57_export'].strip().casefold() in truthy
+                      and r['in_ci_base_schema'].strip().casefold() in truthy}
           creates = {m.group(1).casefold() for m in re.finditer(r'CREATE TABLE dbo\.\[([^]]+)\]', open(ddl, encoding='utf-8').read(), re.I)}
-          if not creates <= included:
-              raise SystemExit('Generated DDL contains a table outside the PCTP coverage allow-list: ' + ', '.join(sorted(creates - included)))
+          missing = included - creates
+          unexpected = creates - included
+          if missing or unexpected:
+              details = []
+              if missing:
+                  details.append('missing from generated DDL: ' + ', '.join(sorted(missing)))
+              if unexpected:
+                  details.append('outside PCTP coverage scope: ' + ', '.join(sorted(unexpected)))
+              raise SystemExit('Generated schema/coverage mismatch; ' + '; '.join(details))
           if len(creates) > 150:
               raise SystemExit(f'PCTP-only guard failed: generated {len(creates)} tables')
-          print(f'PASS: PCTP-only generated baseline contains {len(creates)} tables')
+          print(f'PASS: generated baseline exactly matches {len(included)} SQL2-backed PCTP tables')
           PY
 
       - name: Upload PCTP-only schema evidence
