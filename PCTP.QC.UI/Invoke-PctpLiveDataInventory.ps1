@@ -38,7 +38,7 @@ function Export-Inventory([string]$Label, [string]$ConnectionString, [string]$Ro
         indexes = "SELECT s.name schema_name,t.name table_name,i.name index_name,i.is_primary_key,i.is_unique,i.is_disabled,i.type_desc FROM sys.indexes i JOIN sys.tables t ON t.object_id=i.object_id JOIN sys.schemas s ON s.schema_id=t.schema_id WHERE t.is_ms_shipped=0 AND i.index_id>0 ORDER BY s.name,t.name,i.index_id;"
         procedures = "SELECT s.name schema_name,p.name procedure_name,p.create_date,p.modify_date FROM sys.procedures p JOIN sys.schemas s ON s.schema_id=p.schema_id WHERE p.is_ms_shipped=0 ORDER BY s.name,p.name;"
         triggers = "SELECT OBJECT_SCHEMA_NAME(tr.parent_id) schema_name,OBJECT_NAME(tr.parent_id) table_name,tr.name trigger_name,tr.is_disabled,tr.is_instead_of_trigger FROM sys.triggers tr WHERE tr.is_ms_shipped=0 ORDER BY schema_name,table_name,tr.name;"
-        row_counts = "SELECT s.name schema_name,t.name table_name,SUM(CASE WHEN p.index_id IN (0,1) THEN p.rows ELSE 0 END) approximate_rows FROM sys.tables t JOIN sys.schemas s ON s.schema_id=t.schema_id LEFT JOIN sys.dm_db_partition_stats p ON p.object_id=t.object_id WHERE t.is_ms_shipped=0 GROUP BY s.name,t.name ORDER BY s.name,t.name;"
+        row_counts = "SELECT s.name schema_name,t.name table_name,SUM(COALESCE(p.rows,0)) approximate_rows FROM sys.tables t JOIN sys.schemas s ON s.schema_id=t.schema_id LEFT JOIN sys.partitions p ON p.object_id=t.object_id AND p.index_id IN (0,1) WHERE t.is_ms_shipped=0 GROUP BY s.name,t.name ORDER BY s.name,t.name;"
     }
     foreach ($key in $queries.Keys) {
         Write-Host "Inventory $Label / $key"
