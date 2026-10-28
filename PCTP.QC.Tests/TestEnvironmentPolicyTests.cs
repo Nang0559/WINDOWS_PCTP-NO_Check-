@@ -44,7 +44,7 @@ public sealed class TestEnvironmentPolicyTests
     [InlineData("Server=192.168.200.57;Database=B7R2_FCC_QC;Trusted_Connection=True", false)]
     [InlineData("Server=192.168.200.57;Database=B7R2_FCC;Trusted_Connection=True", false)]
     [InlineData("Server=192.168.200.14\\\\BRAVO;Database=B7R2_FCC;ApplicationIntent=ReadOnly;Trusted_Connection=True", false)]
-    public void SharedCatalogIsAllowedOnlyForExplicitReadOnlyPreflight(string connectionString, bool expected)
+    public void PreflightTargetRequiresReadOnlyAndApprovedCatalog(string connectionString, bool expected)
     {
         Assert.Equal(expected, TestEnvironmentPolicy.IsSafeSqlReadOnlyPreflightTarget(connectionString));
     }
