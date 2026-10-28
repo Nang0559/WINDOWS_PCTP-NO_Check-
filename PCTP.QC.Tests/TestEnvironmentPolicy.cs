@@ -98,6 +98,10 @@ public static class TestEnvironmentPolicy
         var db = builder.InitialCatalog.Trim();
         if (db.Equals(ReadOnlyPreflightDatabase, StringComparison.OrdinalIgnoreCase))
             return builder.ApplicationIntent == ApplicationIntent.ReadOnly;
+        if (db.Equals(AllowedTestDatabase, StringComparison.OrdinalIgnoreCase))
+            return builder.ApplicationIntent == ApplicationIntent.ReadOnly && IsSafeSqlTestTarget(connectionString);
+        // CI's disposable PCTP_QC_CI connection is allowed only when its explicit
+        // environment switch is enabled and IsSafeSqlTestTarget validates the exact loopback catalog.
         return IsSafeSqlTestTarget(connectionString);
     }
 
@@ -105,7 +109,7 @@ public static class TestEnvironmentPolicy
     {
         if (!IsSafeSqlReadOnlyPreflightTarget(connectionString))
             throw new InvalidOperationException(
-                $"SQL read-only preflight is blocked. Shared {AllowedTestServer}/{ReadOnlyPreflightDatabase} requires ApplicationIntent=ReadOnly; integration tests require {AllowedTestServer}/{AllowedTestDatabase}.");
+                $"SQL read-only preflight is blocked. Shared {AllowedTestServer}/{ReadOnlyPreflightDatabase} and isolated {AllowedTestServer}/{AllowedTestDatabase} require ApplicationIntent=ReadOnly; CI may use only the explicitly enabled loopback fixture.");
     }
 
     public static void EnsureSafeSqlTestTarget(string connectionString)
