@@ -65,7 +65,7 @@ The extraction query must be deterministic and bounded: explicit selected item/L
 - [x] Phase 1: metadata-only inventory on SQL14 and SQL57; source permission probe; artifact uploaded.
 - [x] Phase 2A: first-pass source/target object manifest created from metadata and code coverage.
 - [ ] Phase 2B: inspect relevant repository SQL and PK/FK/index metadata; confirm exact joins and candidate natural keys.
-- [ ] Phase 2C: run a read-only, bounded candidate preview on SQL14 (counts and selected identifiers only initially).
+- [ ] Phase 2C: run the manually gated read-only aggregate profile on SQL14; it exports counts only and no row identifiers.
 - [ ] Phase 3: define an explicit, reviewed extraction contract and transformation mapping.
 - [ ] Phase 4: seed only an isolated SQL57 `B7R2_FCC_QC*` catalog; create target Rack/Slot/SlotLot rows; validate invariants.
 - [ ] Phase 5: run `Usp_Qrcode_Update_Stock2405`, `PhieuKhoRepository`, FIFO and bulk stock-slot scenarios with rollback/cleanup checks.
