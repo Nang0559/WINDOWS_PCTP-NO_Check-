@@ -92,7 +92,7 @@ The fixture must not make a test pass by artificially increasing header quantiti
 - [x] Metadata-only inventory completed; run [40688306068](https://github.com/Nang0559/WINDOWS_PCTP-NO_Check-/actions/runs/40688306068).
 - [x] Source/target object candidate matrix created.
 - [x] Read-only aggregate profiling script and manually gated workflow added to the phase-2 branch.
-- [ ] CI regression run for this branch is green.
+- [x] CI regression run for this branch is green (Actions run [#1392](https://github.com/Nang0559/WINDOWS_PCTP-NO_Check-/actions/runs/40707047185): unit/regression, isolated SQL engine, and Windows build jobs passed).
 - [ ] Aggregate profile completed on FCCIT and reviewed.
 - [ ] Exact MP selection and key mapping approved.
 - [ ] Isolated target fixture loader implemented and tested.
