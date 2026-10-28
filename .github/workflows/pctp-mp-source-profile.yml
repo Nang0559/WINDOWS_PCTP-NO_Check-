@@ -1,0 +1,84 @@
+name: PCTP MP source profile (read-only)
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_read_only_profile:
+        description: "Confirm aggregate-only profiling on SQL14; no identifiers, business values, or writes"
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pctp-mp-source-profile
+  cancel-in-progress: false
+
+jobs:
+  source-profile:
+    if: ${{ inputs.confirm_read_only_profile == true }}
+    runs-on: [self-hosted, windows, pctp-ui]
+    timeout-minutes: 10
+    steps:
+      - name: Checkout selected branch/commit
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Verify runner and PowerShell syntax
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ($env:GITHUB_EVENT_NAME -ne 'workflow_dispatch') { throw 'This workflow may only run by explicit manual dispatch.' }
+          if ($env:GITHUB_REF -notmatch '^refs/heads/(feature/pctp-mp-fixture-phase2|feature/wms-live-data-test-harness)$') { throw "Run only on the approved phase-2 or default branch; got $env:GITHUB_REF" }
+          foreach ($path in @('.\PCTP.QC.UI\PctpLiveData.Common.ps1','.\PCTP.QC.UI\Invoke-PctpMpSourcePreview.ps1')) {
+            $tokens = $null; $parseErrors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $path).Path,[ref]$tokens,[ref]$parseErrors) | Out-Null
+            if ($parseErrors.Count -gt 0) { $parseErrors | Format-List | Out-String | Write-Host; throw "PowerShell parse failed: $path" }
+            Write-Host "PASS: syntax $path"
+          }
+
+      - name: Run bounded SQL14 read-only aggregate profile
+        shell: powershell
+        env:
+          PCTP_QC_SOURCE_SQL_CONNECTION: ${{ secrets.PCTP_QC_SOURCE_SQL_CONNECTION }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ([string]::IsNullOrWhiteSpace($env:PCTP_QC_SOURCE_SQL_CONNECTION)) { throw 'Missing repository secret PCTP_QC_SOURCE_SQL_CONNECTION.' }
+          .\PCTP.QC.UI\Invoke-PctpMpSourcePreview.ps1 -OutputDirectory '.\artifacts\mp-source-preview'
+
+      - name: Upload aggregate-only manifest
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pctp-mp-source-profile-${{ github.run_number }}
+          path: artifacts/mp-source-preview/mp-source-profile-manifest.json
+          if-no-files-found: ignore
+          retention-days: 3
+) { throw "Run only on the approved phase-2 or default branch; got $env:GITHUB_REF" }
+          foreach ($path in @('.\PCTP.QC.UI\PctpLiveData.Common.ps1','.\PCTP.QC.UI\Invoke-PctpMpSourcePreview.ps1')) {
+            $tokens = $null; $parseErrors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $path).Path,[ref]$tokens,[ref]$parseErrors) | Out-Null
+            if ($parseErrors.Count -gt 0) { $parseErrors | Format-List | Out-String | Write-Host; throw "PowerShell parse failed: $path" }
+            Write-Host "PASS: syntax $path"
+          }
+
+      - name: Run bounded SQL14 read-only aggregate profile
+        shell: powershell
+        env:
+          PCTP_QC_SOURCE_SQL_CONNECTION: ${{ secrets.PCTP_QC_SOURCE_SQL_CONNECTION }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ([string]::IsNullOrWhiteSpace($env:PCTP_QC_SOURCE_SQL_CONNECTION)) { throw 'Missing repository secret PCTP_QC_SOURCE_SQL_CONNECTION.' }
+          .\PCTP.QC.UI\Invoke-PctpMpSourcePreview.ps1 -OutputDirectory '.\artifacts\mp-source-preview'
+
+      - name: Upload aggregate-only manifest
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pctp-mp-source-profile-${{ github.run_number }}
+          path: artifacts/mp-source-preview/mp-source-profile-manifest.json
+          if-no-files-found: ignore
+          retention-days: 3

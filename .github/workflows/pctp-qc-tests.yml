@@ -6,12 +6,14 @@ on:
       - feature/pctp-qc-test-platform
       - feature/wms-end-to-end-consistency
       - feature/wms-live-data-test-harness
+      - feature/pctp-mp-fixture-phase2
   pull_request:
     branches:
       - fix/qc-final-execution-timeout
       - feature/pctp-qc-test-platform
       - feature/wms-end-to-end-consistency
       - feature/wms-live-data-test-harness
+      - feature/pctp-mp-fixture-phase2
   workflow_dispatch:
     inputs:
       run_sql_integration:
@@ -73,7 +75,8 @@ jobs:
             ".\\PCTP.QC.UI\\Start-PctpIsolatedSql.ps1",
             ".\\PCTP.QC.UI\\Test-PctpIsolation.ps1",
             ".\\PCTP.QC.UI\\Invoke-PctpLiveDataInventory.ps1",
-            ".\\PCTP.QC.UI\\PctpLiveData.Common.ps1"
+            ".\\PCTP.QC.UI\\PctpLiveData.Common.ps1",
+            ".\\PCTP.QC.UI\\Invoke-PctpMpSourcePreview.ps1"
           )
           foreach ($path in $paths) {
             $tokens = $null
@@ -129,14 +132,30 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # 1. The workflows must not use secrets that carry real SQL credentials or name the real servers.
-          #    (patterns are written so this step does not match itself)
-          if grep -nE 'secrets\.[A-Za-z0-9_]*(SQL|DB57|DB14|BRAV[O]|B7R2|FCC)' .github/workflows/*.yml; then
-            echo "ERROR: a workflow references a SQL-related secret; CI must only use the disposable container."; exit 1
+          # 1. The disposable SQL CI workflow itself must never reference live SQL secrets/hosts.
+          #    Two explicitly approved live-data workflows are excluded from this scan only because
+          #    they are manually dispatched, isolated jobs with their own fail-closed source/target guards.
+          #    Any new workflow that references live SQL credentials is rejected by default.
+          live_data_workflows=' .github/workflows/pctp-live-data-inventory.yml .github/workflows/pctp-mp-source-profile.yml '
+          scan_files=()
+          for f in .github/workflows/*.yml; do
+            case "$live_data_workflows" in *" $f "*) continue ;; esac
+            scan_files+=("$f")
+          done
+          if grep -nE 'secrets\.[A-Za-z0-9_]*(SQL|DB57|DB14|BRAV[O]|B7R2|FCC)' "${scan_files[@]}"; then
+            echo "ERROR: an unapproved workflow references a SQL-related secret; CI must only use the disposable container."; exit 1
           fi
-          if grep -nE '192\.168\.200\.(5[7]|1[4])|BRAV[O]' .github/workflows/*.yml | grep -v 'ISOLATION_CANARY'; then
-            echo "ERROR: a workflow names DB57/DB14."; exit 1
+          if grep -nE '192\.168\.200\.(5[7]|1[4])|BRAV[O]' "${scan_files[@]}" | grep -v 'ISOLATION_CANARY'; then
+            echo "ERROR: an unapproved workflow names DB57/DB14."; exit 1
           fi
+          # 2. Approved live-data workflows must be manual-only and must retain an explicit confirmation gate.
+          for f in .github/workflows/pctp-live-data-inventory.yml .github/workflows/pctp-mp-source-profile.yml; do
+            test -f "$f"
+            grep -q 'workflow_dispatch:' "$f" || { echo "ERROR: $f is not manually dispatched."; exit 1; }
+            if grep -Eq '^[[:space:]]*(push|pull_request):' "$f"; then
+              echo "ERROR: $f must not run automatically on push or pull_request."; exit 1
+            fi
+          done
           # 2. Drop all traffic to the DB57/DB14 subnet and the IFS/Oracle host, then prove it with a canary.
           sudo iptables -I OUTPUT -d 192.168.200.0/24 -j REJECT
           sudo iptables -I OUTPUT -d 192.168.2.10/32 -j REJECT
