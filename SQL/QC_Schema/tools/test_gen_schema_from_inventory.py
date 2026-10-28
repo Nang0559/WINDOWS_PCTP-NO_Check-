@@ -38,7 +38,7 @@ class Sql2DdlGeneratorTests(unittest.TestCase):
 
     def test_preserves_identity_unicode_character_length_default_computed_and_temporal_scale(self):
         sql = gen.render(self.inventory, self.coverage)
-        self.assertIn("[Id] int IDENTITY(1,1) NOT NULL", sql); self.assertIn("[Code] nvarchar(20) NOT NULL DEFAULT ('x')", sql)
+        self.assertIn("[Id] int IDENTITY(1,1) NOT NULL", sql); self.assertIn("[Code] nvarchar(40) NOT NULL DEFAULT ('x')", sql)
         self.assertIn("[OccurredAt] datetime2(0) NOT NULL", sql); self.assertIn("N'Code', N'nvarchar', 80", sql)
         self.assertIn("[Calculated] AS ([Id] + (1))", sql); self.assertIn("SQL2 table/column definition mismatch", sql)
         self.assertIn("sys.identity_columns", sql); self.assertIn("ROW_NUMBER() OVER (ORDER BY c.column_id)", sql)
