@@ -158,10 +158,10 @@ def sql_type(row, type_map):
         return f"{t}({'MAX' if maxchars == -1 else maxchars})"
     if t in {"nvarchar", "nchar"}:
         if maxchars is None:
-            raise ValueError(f"missing character length for {row['TableName']}.{row['ColumnName']}")
-        # SQL2's MaxChars column is already a character count for built-in Unicode
-        # types. Do not halve it; alias/user-defined types are handled by the verified map.
-        return f"{t}({'MAX' if maxchars == -1 else maxchars})"
+            raise ValueError(f"missing byte length for {row['TableName']}.{row['ColumnName']}")
+        # SQL2 inventory MaxChars is sourced from SQL Server max_length (bytes).
+        # nvarchar/nchar declarations use character units, so divide finite lengths by 2.
+        return f"{t}({'MAX' if maxchars == -1 else maxchars // 2})"
     if t in {"decimal", "numeric"}:
         if not (1 <= precision <= 38 and 0 <= scale <= precision):
             raise ValueError(f"invalid precision/scale for {row['TableName']}.{row['ColumnName']}: {precision},{scale}")
@@ -250,11 +250,6 @@ def render(inventory: Path, coverage: Path, type_map_path: Path | None = None):
             elif base_type == "rowversion":
                 base_type = "timestamp"
             max_length = int(column["MaxChars"]) if column.get("MaxChars", "").lstrip("-").isdigit() else -999999
-            # For built-in nvarchar/nchar, SQL2 exports MaxChars as characters while
-            # sys.columns.max_length is bytes. Convert only those native types; alias
-            # types (e.g. CodeType) retain byte lengths and use the verified type map.
-            if raw_type in {"nvarchar", "nchar"} and max_length > 0:
-                max_length *= 2
             precision = int(column["precision"]) if column.get("precision", "").isdigit() else 0
             scale = int(column["scale"]) if column.get("scale", "").isdigit() else 0
             nullable = 1 if column.get("is_nullable", "1").strip().casefold() in {"1", "true", "yes"} else 0
