@@ -3,12 +3,17 @@ using System.Drawing;
 using System.Collections;
 using System.ComponentModel;
 using DevExpress.XtraReports.UI;
-using PCTP.QRCODE_HVN.YMN;
 
 namespace PCTP.QRCODE_HVN.Report
 {
     public partial class IN_GHP_LOT_YMVN : DevExpress.XtraReports.UI.XtraReport
     {
+        /// <summary>
+        /// true = Gear, false = Model. Caller đặt từ CustomerConfig.Delivery.CoGear
+        /// (cùng contract với IN_GHP_LOT); không còn đọc trạng thái static của form legacy.
+        /// </summary>
+        public bool IsGear { get; set; }
+
         public IN_GHP_LOT_YMVN()
         {
             InitializeComponent();
@@ -22,7 +27,7 @@ namespace PCTP.QRCODE_HVN.Report
 
         private void IN_GHP_LOT_DesignerLoaded(object sender, DevExpress.XtraReports.UserDesigner.DesignerLoadedEventArgs e)
         {
-            if(GIAOHANGYMN.CHONYMVN==1)
+            if (IsGear)
             {
                 this.Model.Text = "Gear";
             }
@@ -32,7 +37,7 @@ namespace PCTP.QRCODE_HVN.Report
 
         private void IN_GHP_LOT_BeforePrint(object sender, CancelEventArgs e)
         {
-            if (GIAOHANGYMN.CHONYMVN == 1)
+            if (IsGear)
             {
                 this.Model.Text = "Gear";
             }

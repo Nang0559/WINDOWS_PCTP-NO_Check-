@@ -44,6 +44,7 @@ namespace PCTP.Modules.XuLyHangLoi.Repository
             const string sql = @"
 INSERT INTO dbo.FVN_TraHangQTChungXuat
 (
+    OperationId,
     PhieuXuLyBatThuongId,
     SlotIdNguon,
     LotXuat,
@@ -60,6 +61,7 @@ INSERT INTO dbo.FVN_TraHangQTChungXuat
 OUTPUT INSERTED.Id
 VALUES
 (
+    @OperationId,
     @PhieuXuLyBatThuongId,
     @SlotIdNguon,
     @LotXuat,
@@ -77,6 +79,8 @@ VALUES
             return Convert.ToInt32(
                 ExecuteScalar(
                     sql,
+
+                    new SqlParameter("@OperationId", entity.OperationId),
 
                     new SqlParameter(
                         "@PhieuXuLyBatThuongId",
@@ -142,6 +146,7 @@ VALUES
             const string sql = @"
 SELECT
     Id,
+    OperationId,
     PhieuXuLyBatThuongId,
     SlotIdNguon,
     LotXuat,
@@ -175,6 +180,22 @@ ORDER BY NgayXuat, Id;";
             return result;
         }
 
+        public TraHangQTChungXuat GetXuatByOperationId(Guid operationId)
+        {
+            if (operationId == Guid.Empty)
+                throw new ArgumentException("OperationId không hợp lệ.", nameof(operationId));
+
+            const string sql = @"
+SELECT TOP 1
+    Id, OperationId, PhieuXuLyBatThuongId, SlotIdNguon, LotXuat, LoaiXuat,
+    MaHang, SoLuongXuat, TonTruoc, TonSau, NgayXuat, NguoiXuat, LyDo, Note
+FROM dbo.FVN_TraHangQTChungXuat
+WHERE OperationId = @OperationId;";
+
+            DataTable table = LoadData(sql, new SqlParameter("@OperationId", operationId));
+            return table.Rows.Count == 0 ? null : MapXuat(table.Rows[0]);
+        }
+
         public TraHangQTChungXuat GetXuatById(
             int id)
         {
@@ -185,6 +206,7 @@ ORDER BY NgayXuat, Id;";
             const string sql = @"
 SELECT
     Id,
+    OperationId,
     PhieuXuLyBatThuongId,
     SlotIdNguon,
     LotXuat,
@@ -957,7 +979,7 @@ WHERE Id = @Id;";
             int phieuXuLyId)
         {
             return GetTotal(
-                @"SELECT ISNULL(SoLuongOK, 0)
+                @"SELECT ISNULL(SUM(SoLuongOK), 0)
               FROM dbo.FVN_TraHangQTChungQC
               WHERE PhieuXuLyBatThuongId = @Id",
                 phieuXuLyId);
@@ -967,7 +989,7 @@ WHERE Id = @Id;";
             int phieuXuLyId)
         {
             return GetTotal(
-                @"SELECT ISNULL(SoLuongNG, 0)
+                @"SELECT ISNULL(SUM(SoLuongNG), 0)
               FROM dbo.FVN_TraHangQTChungQC
               WHERE PhieuXuLyBatThuongId = @Id",
                 phieuXuLyId);
@@ -1031,6 +1053,8 @@ WHERE Id = @Id;";
             {
                 Id =
                     DbValueHelper.ToInt(row["Id"]),
+
+                OperationId = row["OperationId"] == DBNull.Value ? Guid.Empty : (Guid)row["OperationId"],
 
                 PhieuXuLyBatThuongId =
                     DbValueHelper.ToInt(

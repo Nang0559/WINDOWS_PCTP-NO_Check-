@@ -4,26 +4,33 @@ on:
   push:
     branches:
       - feature/pctp-qc-test-platform
+      - feature/wms-end-to-end-consistency
   pull_request:
     branches:
       - fix/qc-final-execution-timeout
       - feature/pctp-qc-test-platform
+      - feature/wms-end-to-end-consistency
   workflow_dispatch:
     inputs:
       run_sql_integration:
-        description: 'Run SQL integration tests on the isolated self-hosted SQL runner'
+        description: 'Run SQL integration tests on the disposable GitHub-hosted SQL Server'
         required: true
-        default: false
+        default: true
         type: boolean
       run_delivery_acceptance:
-        description: 'Also run rollback-only Usp_Qrcode_Update_Stock2405 acceptance (needs a seeded pending row)'
+        description: 'Run G4 rollback-only Usp_Qrcode_Update_Stock2405 acceptance on the disposable database'
+        required: false
+        default: true
+        type: boolean
+      run_ui_gates:
+        description: 'Run G5/G6 on a Windows runner (label pctp-ui) against a local disposable SQL fixture; never DB57'
         required: false
         default: false
         type: boolean
       delivery_acceptance_stt:
-        description: 'TMPPHIEUGIAOHANG.STT of the dedicated seeded pending row'
+        description: 'Dedicated deterministic G4 fixture STT'
         required: false
-        default: ''
+        default: '32001'
         type: string
 
 permissions:
@@ -32,6 +39,13 @@ permissions:
 concurrency:
   group: pctp-qc-${{ github.ref }}
   cancel-in-progress: true
+
+env:
+  PCTP_QC_ALLOW_EPHEMERAL_SQL: "true"
+  PCTP_QC_REQUIRE_EPHEMERAL_SQL: "true"
+  PCTP_QC_EPHEMERAL_SQL_CONNECTION: "Server=127.0.0.1,1433;Initial Catalog=PCTP_QC_CI;User ID=sa;Password=PctpQc_CI_Only_2026!;Encrypt=True;TrustServerCertificate=True;Connect Timeout=5;Application Name=PCTP-QC-Ephemeral-CI"
+  PCTP_QC_REWORK_FIXTURE_CONNECTION: "Server=127.0.0.1,1433;Initial Catalog=PCTP_QC_REWORK_CI;User ID=sa;Password=PctpQc_CI_Only_2026!;Encrypt=True;TrustServerCertificate=True;Connect Timeout=5;Application Name=PCTP-QC-Rework-Fixture-CI"
+  PCTP_QC_DEL_ACCEPTANCE_STT: "32001"
 
 jobs:
   unit-regression-tests:
@@ -51,7 +65,11 @@ jobs:
             ".\\PCTP.QC.UI\\Invoke-PctpUiJourney.ps1",
             ".\\PCTP.QC.UI\\Invoke-PctpUiSuite.ps1",
             ".\\PCTP.QC.UI\\Invoke-PctpUiEvidenceSummary.ps1",
-            ".\\PCTP.QC.UI\\PctpUi.Common.ps1"
+            ".\\PCTP.QC.UI\\PctpUi.Common.ps1",
+            ".\\PCTP.QC.UI\\PctpSql.Common.ps1",
+            ".\\PCTP.QC.UI\\Invoke-PctpQcGates.ps1",
+            ".\\PCTP.QC.UI\\Start-PctpIsolatedSql.ps1",
+            ".\\PCTP.QC.UI\\Test-PctpIsolation.ps1"
           )
           foreach ($path in $paths) {
             $tokens = $null
@@ -74,10 +92,11 @@ jobs:
           if-no-files-found: ignore
 
   sql-engine-integration:
-    # A disposable SQL Server container runs on GitHub-hosted infrastructure.
-    # It has no route or credentials to SQL 57 / production SQL 14.
+    # CRITICAL SAFETY BOUNDARY:
+    # this job has no credentials, route, or connection string for DB57/DB14.
+    # The only SQL Server is the disposable service container below.
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 45
     services:
       sqlserver:
         image: mcr.microsoft.com/mssql/server:2022-latest
@@ -93,34 +112,405 @@ jobs:
           --health-timeout 5s
           --health-retries 20
           --health-start-period 30s
-    env:
-      PCTP_QC_ALLOW_EPHEMERAL_SQL: "true"
-      PCTP_QC_EPHEMERAL_SQL_CONNECTION: "Server=127.0.0.1,1433;Initial Catalog=PCTP_QC_CI;User ID=sa;Password=PctpQc_CI_Only_2026!;Encrypt=True;TrustServerCertificate=True;Connect Timeout=5;Application Name=PCTP-QC-Ephemeral-CI"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
       - name: Setup .NET 8
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0.x
-      - name: Create isolated CI database
+
+      - name: Isolation guard - no SQL secrets, block DB57/DB14/IFS egress and prove it
+        shell: bash
+        run: |
+          set -euo pipefail
+          # 1. The workflows must not use secrets that carry real SQL credentials or name the real servers.
+          #    (patterns are written so this step does not match itself)
+          if grep -nE 'secrets\.[A-Za-z0-9_]*(SQL|DB57|DB14|BRAV[O]|B7R2|FCC)' .github/workflows/*.yml; then
+            echo "ERROR: a workflow references a SQL-related secret; CI must only use the disposable container."; exit 1
+          fi
+          if grep -nE '192\.168\.200\.(5[7]|1[4])|BRAV[O]' .github/workflows/*.yml | grep -v 'ISOLATION_CANARY'; then
+            echo "ERROR: a workflow names DB57/DB14."; exit 1
+          fi
+          # 2. Drop all traffic to the DB57/DB14 subnet and the IFS/Oracle host, then prove it with a canary.
+          sudo iptables -I OUTPUT -d 192.168.200.0/24 -j REJECT
+          sudo iptables -I OUTPUT -d 192.168.2.10/32 -j REJECT
+          for ep in 192.168.200.57:1433 192.168.200.14:1433 192.168.2.10:8088; do # ISOLATION_CANARY
+            host="${ep%%:*}"; port="${ep##*:}"
+            if timeout 3 bash -c "exec 3<>/dev/tcp/$host/$port" 2>/dev/null; then
+              echo "ISOLATION BREACH: $ep is reachable from the CI job"; exit 1
+            fi
+            echo "PASS: $ep is not reachable from the CI job"
+          done
+
+      - name: Locate disposable SQL Server container
+        id: sql
         shell: bash
         run: |
           set -euo pipefail
           container_id="$(docker ps -q --filter ancestor=mcr.microsoft.com/mssql/server:2022-latest | head -n 1)"
-          if [ -z "$container_id" ]; then
-            echo "SQL Server service container was not found."
-            exit 1
-          fi
-          for attempt in $(seq 1 30); do
-            if docker exec "$container_id" /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'PctpQc_CI_Only_2026!' -C -Q "SELECT 1" >/dev/null 2>&1; then
-              break
-            fi
-            sleep 5
+          test -n "$container_id"
+          echo "container_id=$container_id" >> "$GITHUB_OUTPUT"
+          echo "PASS: using disposable SQL Server container $container_id"
+
+      - name: Create isolated CI database
+        shell: bash
+        run: |
+          set -euo pipefail
+          c='${{ steps.sql.outputs.container_id }}'
+          docker exec "$c" /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'PctpQc_CI_Only_2026!' -C -b \
+            -Q "IF DB_ID(N'PCTP_QC_CI') IS NULL CREATE DATABASE PCTP_QC_CI; IF DB_ID(N'PCTP_QC_REWORK_CI') IS NULL CREATE DATABASE PCTP_QC_REWORK_CI;"
+
+      - name: Prepare CI copies of the delivery procedures (strip USE [B7R2_FCC], no database access)
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Take_Lot2405 / Take_LotYMVN2405 start with "USE [B7R2_FCC]" (DB57 name). The production scripts stay
+          # untouched; only the CI copies drop that line so the deploy cannot leave PCTP_QC_CI.
+          mkdir -p "$RUNNER_TEMP/deploy"
+          for n in Usp_Qrcode_LOAD_PHIEU_DOCQR2405 Usp_Qrcode_Take_Lot2405 Usp_Qrcode_Take_LotYMVN2405; do
+            sed -E '/^[[:space:]]*USE[[:space:]]+\[B7R2_FCC\][[:space:]]*\r?$/d' "SQL/$n.sql" > "$RUNNER_TEMP/deploy/$n.sql"
           done
-          docker exec "$container_id" /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'PctpQc_CI_Only_2026!' -C -b -Q "IF DB_ID(N'PCTP_QC_CI') IS NULL CREATE DATABASE PCTP_QC_CI;"
-      - name: Run isolated SQL Server engine integration
-        run: dotnet run --project PCTP.QC.SqlIntegration/PCTP.QC.SqlIntegration.csproj --configuration Release -- --engine-only
+          ls -l "$RUNNER_TEMP/deploy"
+
+      - name: SQL2-driven schema generation and static checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s SQL/QC_Schema/tools -p 'test_*.py'
+          # Build coverage from structured DB57 SQL2 metadata. docs/SQL.text is
+          # deliberately excluded because its DDL export is lossy.
+          set +e
+          python3 SQL/QC_Schema/tools/schema_coverage.py --out "$RUNNER_TEMP/schema_coverage" --check
+          coverage_status=$?
+          set -e
+          python3 SQL/QC_Schema/tools/gen_schema_from_inventory.py \
+            --inventory docs/SQL2_ColumnInventory.csv \
+            --coverage "$RUNNER_TEMP/schema_coverage.csv" \
+            --type-map SQL/QC_Schema/tools/sql2-db57-verified-type-map.json \
+            --out SQL/QC_Schema/02_Generated_From_DB57.sql
+          python3 SQL/QC_Schema/tools/gen_schema_constraints.py \
+            --metadata SQL/Result_Export_SQL2_Complete_DDL_Metadata.txt \
+            --coverage "$RUNNER_TEMP/schema_coverage.csv" \
+            --out SQL/QC_Schema/03_Generated_From_DB57_Constraints.sql \
+            --report SQL/QC_Schema/04_SQL2_Metadata_Gaps.md \
+            --strict-dependencies
+          python3 SQL/QC_Schema/tools/sql_batch_check.py \
+            --files SQL/QC_Schema/02_Generated_From_DB57.sql \
+                    SQL/QC_Schema/03_Generated_From_DB57_Constraints.sql \
+                    SQL/QC_Schema/05_Split.sql \
+                    SQL/QC_Schema/06_Fixture_NhapTP_SourceTables.sql SQL/PCTP_vNhapTP.sql \
+                    SQL/Usp_Qrcode_Update_Stock2405.sql SQL/Usp_Qrcode_Update_Stock_SP.sql \
+                    SQL/sp_GetCurrentStockStatus.sql \
+                    "$RUNNER_TEMP/deploy/Usp_Qrcode_LOAD_PHIEU_DOCQR2405.sql" \
+                    "$RUNNER_TEMP/deploy/Usp_Qrcode_Take_Lot2405.sql" \
+                    "$RUNNER_TEMP/deploy/Usp_Qrcode_Take_LotYMVN2405.sql" \
+                    SQL/QC_G4_DeliveryFixture_Seed.sql SQL/QC_G4_DeliveryFixture_Cleanup.sql
+          if [ "$coverage_status" -ne 0 ]; then
+            echo "ERROR: SQL2 code/schema mismatches remain; generated DDL was checked but deployment is blocked."
+            exit "$coverage_status"
+          fi
+
+      - name: Upload SQL2 schema coverage and generated DDL evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pctp-sql2-schema-evidence
+          path: |
+            ${{ runner.temp }}/schema_coverage.csv
+            ${{ runner.temp }}/schema_coverage_columns.csv
+            SQL/QC_Schema/02_Generated_From_DB57.sql
+            SQL/QC_Schema/03_Generated_From_DB57_Constraints.sql
+            SQL/QC_Schema/04_SQL2_Metadata_Gaps.md
+          if-no-files-found: warn
+
+      - name: Deploy DB57-derived schema to disposable database
+        shell: bash
+        run: |
+          set -euo pipefail
+          c='${{ steps.sql.outputs.container_id }}'
+          # 02 is the PCTP runtime inventory + verified dbo FK dependency scope
+          # extracted from DB57 SQL2 metadata. It intentionally excludes unrelated
+          # B7R2_FCC application tables; 01_Tables.sql is a legacy fixture.
+          for f in \
+            SQL/QC_Schema/02_Generated_From_DB57.sql \
+            SQL/QC_Schema/03_Generated_From_DB57_Constraints.sql \
+            SQL/QC_Schema/05_Split.sql \
+            SQL/QC_Schema/06_Fixture_NhapTP_SourceTables.sql \
+            SQL/PCTP_vNhapTP.sql \
+            SQL/Usp_Qrcode_Update_Stock2405.sql \
+            SQL/Usp_Qrcode_Update_Stock_SP.sql \
+            SQL/sp_GetCurrentStockStatus.sql \
+            "$RUNNER_TEMP/deploy/Usp_Qrcode_LOAD_PHIEU_DOCQR2405.sql" \
+            "$RUNNER_TEMP/deploy/Usp_Qrcode_Take_Lot2405.sql" \
+            "$RUNNER_TEMP/deploy/Usp_Qrcode_Take_LotYMVN2405.sql"; do
+            echo "INFO: deploying $f"
+            docker cp "$f" "$c:/tmp/$(basename "$f")"
+            docker exec "$c" /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'PctpQc_CI_Only_2026!' -C -b -d PCTP_QC_CI -i "/tmp/$(basename "$f")"
+          done
+          # Fail at the schema deployment boundary, not later in G3/G4/cleanup.
+          # The previous workflow printed PASS unconditionally and only discovered missing
+          # dbo tables inside DeliveryCommandSqlScenario after fixture seeding.
+          docker exec "$c" /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'PctpQc_CI_Only_2026!' -C -b -d PCTP_QC_CI -Q "
+            SET NOCOUNT ON;
+            SELECT name, type_desc
+            FROM sys.objects
+            WHERE schema_id = SCHEMA_ID(N'dbo')
+              AND name IN (N'STOCKTP',N'LUUPHIEUGIAOHANG',N'LUUDOCQRCODE',N'TMPPHIEUGIAOHANG',N'DOCQRCODE');
+            IF OBJECT_ID(N'dbo.STOCKTP',N'U') IS NULL THROW 52101,N'Schema deploy missing dbo.STOCKTP',1;
+            IF OBJECT_ID(N'dbo.LUUPHIEUGIAOHANG',N'U') IS NULL THROW 52102,N'Schema deploy missing dbo.LUUPHIEUGIAOHANG',1;
+            IF OBJECT_ID(N'dbo.LUUDOCQRCODE',N'U') IS NULL THROW 52103,N'Schema deploy missing dbo.LUUDOCQRCODE',1;
+            IF OBJECT_ID(N'dbo.TMPPHIEUGIAOHANG',N'U') IS NULL THROW 52104,N'Schema deploy missing dbo.TMPPHIEUGIAOHANG',1;
+            IF OBJECT_ID(N'dbo.DOCQRCODE',N'U') IS NULL THROW 52105,N'Schema deploy missing dbo.DOCQRCODE',1;
+            IF OBJECT_ID(N'dbo.vNhapTP',N'V') IS NULL THROW 52106,N'Schema deploy missing dbo.vNhapTP',1;
+            SELECT COUNT(*) AS vNhapTP_rows FROM dbo.vNhapTP;
+            SELECT 'PASS: required delivery tables verified in PCTP_QC_CI' AS Result;"
+          echo "PASS: DB57-derived schema and the six checked-in WMS procedures deployed to PCTP_QC_CI"
+
+      - name: Package SQL deploy bundle for the Windows UI fixture (same files, same order as the deploy above)
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Keep this list identical to "Deploy DB57-derived schema to disposable database".
+          b="$RUNNER_TEMP/bundle"; mkdir -p "$b"; : > "$b/deploy-order.txt"; i=0
+          for f in \
+            SQL/QC_Schema/02_Generated_From_DB57.sql \
+            SQL/QC_Schema/03_Generated_From_DB57_Constraints.sql \
+            SQL/QC_Schema/05_Split.sql \
+            SQL/QC_Schema/06_Fixture_NhapTP_SourceTables.sql \
+            SQL/PCTP_vNhapTP.sql \
+            SQL/Usp_Qrcode_Update_Stock2405.sql \
+            SQL/Usp_Qrcode_Update_Stock_SP.sql \
+            SQL/sp_GetCurrentStockStatus.sql \
+            "$RUNNER_TEMP/deploy/Usp_Qrcode_LOAD_PHIEU_DOCQR2405.sql" \
+            "$RUNNER_TEMP/deploy/Usp_Qrcode_Take_Lot2405.sql" \
+            "$RUNNER_TEMP/deploy/Usp_Qrcode_Take_LotYMVN2405.sql"; do
+            i=$((i+1)); n="$(printf '%02d_%s' "$i" "$(basename "$f")")"
+            cp "$f" "$b/$n"; echo "$n" >> "$b/deploy-order.txt"
+          done
+          test "$i" -eq 11
+          echo "$GITHUB_SHA" > "$b/COMMIT.txt"
+          cat "$b/deploy-order.txt"
+
+      - name: Upload SQL deploy bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: pctp-isolated-sql-bundle
+          path: ${{ runner.temp }}/bundle
+          if-no-files-found: error
+
+      - name: Seed deterministic G4 fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          c='${{ steps.sql.outputs.container_id }}'
+          f=SQL/QC_G4_DeliveryFixture_Seed.sql
+          docker cp "$f" "$c:/tmp/QC_G4_DeliveryFixture_Seed.sql"
+          docker exec "$c" /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'PctpQc_CI_Only_2026!' -C -b -d PCTP_QC_CI -i /tmp/QC_G4_DeliveryFixture_Seed.sql
+
+      - name: G3 — isolated SQL engine integration
+        id: g3
+        shell: bash
+        run: |
+          mkdir -p artifacts/gates/ci
+          dotnet run --project PCTP.QC.SqlIntegration/PCTP.QC.SqlIntegration.csproj --configuration Release -- --engine-only 2>&1 | tee artifacts/gates/ci/G3-engine.log
+
+      - name: G4 — production delivery procedure acceptance on disposable DB
+        id: g4_pre
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.run_delivery_acceptance }}
+        shell: bash
+        run: |
+          # Markers are checked on procedures deployed FROM THE SOURCE IN THIS COMMIT into PCTP_QC_CI,
+          # not on whatever is deployed on DB57.
+          mkdir -p artifacts/gates/ci
+          dotnet run --project PCTP.QC.SqlIntegration/PCTP.QC.SqlIntegration.csproj --configuration Release -- --delivery-preflight 2>&1 | tee artifacts/gates/ci/G4-delivery-preflight.log
+
+      - name: G4 — execute rollback-only delivery acceptance
+        id: g4_acc
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.run_delivery_acceptance }}
+        shell: bash
+        run: |
+          mkdir -p artifacts/gates/ci
+          dotnet run --project PCTP.QC.SqlIntegration/PCTP.QC.SqlIntegration.csproj --configuration Release -- --delivery-acceptance 2>&1 | tee artifacts/gates/ci/G4-delivery-acceptance.log
+          grep -q 'PASS:[[:space:]]*DEL-003/DEL-004/DEL-007' artifacts/gates/ci/G4-delivery-acceptance.log
+
+      - name: G6 prerequisite — schema contract smoke for stock/slot state (not a G6 PASS; G6 is the UI journey job)
+        shell: bash
+        run: |
+          set -euo pipefail
+          c='${{ steps.sql.outputs.container_id }}'
+          docker exec "$c" /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'PctpQc_CI_Only_2026!' -C -b -d PCTP_QC_CI -Q "
+            IF OBJECT_ID(N'dbo.STOCKTP',N'U') IS NULL THROW 52001,N'STOCKTP missing',1;
+            IF OBJECT_ID(N'dbo.Slot',N'U') IS NULL THROW 52002,N'Slot missing',1;
+            IF OBJECT_ID(N'dbo.SlotLot',N'U') IS NULL THROW 52003,N'SlotLot missing',1;
+            IF OBJECT_ID(N'dbo.Warehouse',N'U') IS NULL THROW 52004,N'Warehouse missing',1;
+            IF OBJECT_ID(N'dbo.Rack',N'U') IS NULL THROW 52005,N'Rack missing',1;
+            IF OBJECT_ID(N'dbo.sp_GetCurrentStockStatus',N'P') IS NULL THROW 52006,N'sp_GetCurrentStockStatus missing',1;
+            SELECT 'PASS: G6 schema contract' AS Result;"
+
+      - name: Cleanup deterministic G4 fixture
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          c='${{ steps.sql.outputs.container_id }}'
+          if docker ps -q --filter "id=$c" | grep -q .; then
+            f=SQL/QC_G4_DeliveryFixture_Cleanup.sql
+            docker cp "$f" "$c:/tmp/QC_G4_DeliveryFixture_Cleanup.sql"
+            docker exec "$c" /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'PctpQc_CI_Only_2026!' -C -b -d PCTP_QC_CI -i /tmp/QC_G4_DeliveryFixture_Cleanup.sql
+          fi
+
+      - name: Write CI gate summaries (G3/G4)
+        if: always()
+        shell: bash
+        env:
+          G3_OUTCOME: ${{ steps.g3.outcome }}
+          G4_PRE_OUTCOME: ${{ steps.g4_pre.outcome }}
+          G4_ACC_OUTCOME: ${{ steps.g4_acc.outcome }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          mkdir -p artifacts/gates/ci
+          python3 - <<'PY'
+          import json, os
+          def gate(name, outcomes, scope):
+              ok = all(o == "success" for o in outcomes)
+              return {"Gate": name, "Status": "PASS" if ok else "FAIL", "Outcomes": outcomes, "Commit": os.environ["COMMIT_SHA"],
+                      "Target": "127.0.0.1,1433/PCTP_QC_CI (disposable SQL Server container)", "Egress": "DB57/DB14/IFS blocked and asserted", "Scope": scope}
+          out = [
+              gate("G3", [os.environ["G3_OUTCOME"]], "SQL engine integration on the disposable container"),
+              gate("G4", [os.environ["G4_PRE_OUTCOME"], os.environ["G4_ACC_OUTCOME"]], "Procedures built from this commit; marker preflight + rollback-only acceptance"),
+          ]
+          for g in out:
+              json.dump(g, open("artifacts/gates/ci/%s-gate-summary.json" % g["Gate"], "w"), indent=2)
+              print(g["Gate"], g["Status"], g["Outcomes"])
+          PY
+
+      - name: Upload CI gate evidence (G3/G4)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pctp-ci-gate-evidence
+          path: artifacts/gates/ci
+          if-no-files-found: warn
+
+  ui-isolated-g5-g6:
+    # G5/G6 drive the real WinForms app, so they need Windows, DevExpress 25.2 and MSBuild (the app references
+    # DevExpress from the machine, not from NuGet): a self-hosted Windows runner labelled "pctp-ui".
+    # The SQL fixture is created ON that machine (LocalDB / SQL Express) from the bundle built by the Linux job;
+    # PCTP.exe is forced onto it (QcSqlOverride) and DB57/DB14/IFS egress is blocked and asserted per run.
+    needs: sql-engine-integration
+    if: ${{ always() && needs.sql-engine-integration.result == 'success' && (inputs.run_ui_gates == true || vars.PCTP_UI_GATES == 'true') }}
+    runs-on: [self-hosted, windows, pctp-ui]
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download SQL deploy bundle (schema + procedures from this commit)
+        uses: actions/download-artifact@v4
+        with:
+          name: pctp-isolated-sql-bundle
+          path: ${{ runner.temp }}/bundle
+
+      - name: Provision disposable SQL fixture on this machine
+        shell: powershell
+        run: |
+          .\PCTP.QC.UI\Start-PctpIsolatedSql.ps1 -BundleDirectory "$env:RUNNER_TEMP\bundle" -EnvFile $env:GITHUB_ENV
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Add MSBuild to PATH
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Setup NuGet CLI for legacy packages.config project
+        uses: NuGet/setup-nuget@v2
+        with:
+          nuget-version: 6.x
+
+      - name: Restore PCTP packages.config dependencies
+        shell: powershell
+        run: |
+          nuget restore PCTP\packages.config -PackagesDirectory packages -NonInteractive -Verbosity normal
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $requiredProps = "packages\EntityFramework.6.6.0-preview1-final\build\EntityFramework.props"
+          if (-not (Test-Path $requiredProps)) {
+            throw "NuGet restore did not produce required Entity Framework build props: $requiredProps"
+          }
+
+      - name: Build PCTP.exe (Debug, same commit)
+        shell: powershell
+        run: |
+          msbuild PCTP\PCTP.csproj -p:Configuration=Debug -p:Platform=AnyCPU -p:SignManifests=false -p:GenerateManifests=false -p:ManifestCertificateThumbprint= -v:m
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (-not (Test-Path PCTP\bin\Debug\PCTP.exe)) { throw 'PCTP.exe was not produced.' }
+
+      - name: G5 - UI navigation journeys on the isolated fixture
+        id: g5
+        continue-on-error: true
+        shell: powershell
+        run: .\PCTP.QC.UI\Invoke-PctpQcGates.ps1 -Gate G5 -ExePath "$PWD\PCTP\bin\Debug\PCTP.exe" -Isolated
+
+      - name: G6 - business journeys (seed -> UI -> SQL assert -> cleanup) on the isolated fixture
+        id: g6
+        continue-on-error: true
+        shell: powershell
+        run: .\PCTP.QC.UI\Invoke-PctpQcGates.ps1 -Gate G6 -ExePath "$PWD\PCTP\bin\Debug\PCTP.exe" -Isolated -AllowMutations
+
+      - name: Remove isolation rules and drop the fixture database
+        if: always()
+        shell: powershell
+        run: |
+          .\PCTP.QC.UI\Test-PctpIsolation.ps1 -Mode Unblock
+          .\PCTP.QC.UI\Start-PctpIsolatedSql.ps1 -Teardown
+
+      - name: Upload G5/G6 evidence (summaries, logs, screenshots, trees)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pctp-g5-g6-evidence
+          path: |
+            artifacts/gates/**
+            artifacts/isolated-sql/**
+          if-no-files-found: warn
+
+      - name: Gate verdict (BLOCKED and FAIL both fail the job)
+        if: always()
+        shell: powershell
+        run: |
+          $g5 = '${{ steps.g5.outcome }}'; $g6 = '${{ steps.g6.outcome }}'
+          Get-ChildItem artifacts\gates -Recurse -Filter gate-summary.json -ErrorAction SilentlyContinue |
+            ForEach-Object { $j = Get-Content $_.FullName -Raw | ConvertFrom-Json; "{0}: {1}" -f $j.Gate, $j.Status }
+          if ($g5 -ne 'success' -or $g6 -ne 'success') { throw "G5=$g5 G6=$g6 (see evidence artifact; unconfigured G6 journeys are BLOCKED, not PASS)." }
+
+  ui-gates-status:
+    # Makes the G5/G6 outcome explicit. The overall workflow can be green while ui-isolated-g5-g6 was SKIPPED,
+    # which must never be read as "G5/G6 PASS". Set repo variable PCTP_UI_GATES_REQUIRED=true to make a skip fail.
+    needs: [sql-engine-integration, ui-isolated-g5-g6]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report G5/G6 execution status
+        shell: bash
+        env:
+          UI_RESULT: ${{ needs.ui-isolated-g5-g6.result }}
+          SQL_RESULT: ${{ needs.sql-engine-integration.result }}
+          UI_REQUIRED: ${{ vars.PCTP_UI_GATES_REQUIRED }}
+        run: |
+          {
+            echo "## G5/G6 UI gates"
+            echo "- sql-engine-integration (G3/G4): \`$SQL_RESULT\`"
+            echo "- ui-isolated-g5-g6: \`$UI_RESULT\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+          case "$UI_RESULT" in
+            success)
+              echo "**G5 and G6 were EXECUTED and PASSED** on the isolated fixture (see pctp-g5-g6-evidence)." >> "$GITHUB_STEP_SUMMARY" ;;
+            skipped)
+              echo "**G5/G6 were NOT EXECUTED (job skipped) - this run proves nothing about G5/G6.** Enable with workflow_dispatch input run_ui_gates=true or repo variable PCTP_UI_GATES=true, and a self-hosted runner labelled [self-hosted, windows, pctp-ui]." >> "$GITHUB_STEP_SUMMARY"
+              echo "::warning title=G5/G6 not executed::ui-isolated-g5-g6 was skipped; overall success does not cover G5/G6."
+              if [ "$UI_REQUIRED" = "true" ]; then echo "::error::PCTP_UI_GATES_REQUIRED=true but G5/G6 did not run."; exit 1; fi ;;
+            *)
+              echo "**G5/G6 result: $UI_RESULT**" >> "$GITHUB_STEP_SUMMARY"; exit 1 ;;
+          esac
 
   desktop-runner-build:
     runs-on: windows-latest
@@ -133,5 +523,5 @@ jobs:
           dotnet-version: 8.0.x
       - name: Build Windows desktop TestRunner
         run: dotnet build PCTP.QC.TestRunner/PCTP.QC.TestRunner.csproj --configuration Release
-      - name: Build opt-in SQL integration harness (does not connect to SQL)
+      - name: Build opt-in SQL integration harness
         run: dotnet build PCTP.QC.SqlIntegration/PCTP.QC.SqlIntegration.csproj --configuration Release

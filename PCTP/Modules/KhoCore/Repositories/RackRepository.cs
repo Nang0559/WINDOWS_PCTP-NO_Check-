@@ -29,7 +29,7 @@ namespace PCTP.Modules.KhoVatLy.Repositories
                 throw new ArgumentException("Tên Rack không được rỗng.", nameof(rackName));
 
             const string sql = @"
-        INSERT INTO Rack (WarehouseId, RackName, RowCount, ColumnCount)
+        INSERT INTO Rack (WarehouseId, RackName, RackRowCount, ColumnCount)
         OUTPUT INSERTED.RackId
         VALUES (@WarehouseId, @RackName, @RowCount, @ColumnCount);";
 

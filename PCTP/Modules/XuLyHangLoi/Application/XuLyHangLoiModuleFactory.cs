@@ -55,9 +55,6 @@ namespace PCTP.Modules.XuLyHangLoi.Application
             var historyRepo = new StockHistoryRepository(dbExecutor, uow);
             var phieuXuLyRepo = new PhieuXuLyBatThuongRepository(dbExecutor, uow);
 
-            // Keep the legacy repository for all non-transactional operations,
-            // but route transaction-sensitive header reads/writes through the
-            // active UnitOfWork connection/transaction.
             var legacyPhieuTraHangRepo = new PhieuTraHangRepository(dbExecutor, uow);
             IPhieuTraHangRepository phieuTraHangRepo =
                 new TransactionalPhieuTraHangRepository(
@@ -71,8 +68,19 @@ namespace PCTP.Modules.XuLyHangLoi.Application
             IStockSlotRepository stockSlot = new ReworkStockSlotAdapter(slotService);
             var stockMovement = new StockMovementService(stockBalance, stockSlot);
 
+            // Phase 4 depends on InitialQC -> AffectedLotTrace -> ReworkStockService,
+            // so the runtime guard is supplied lazily. This removes the composition-root
+            // cycle while keeping the guard fail-closed at execution time.
+            IReworkPhase4Service reworkPhase4Service = null;
             var reworkStockService = new ReworkStockService(
-                uow, slotService, stockTpRepo, stockMovement, historyRepo, qtChungRepo, phieuXuLyRepo);
+                uow,
+                slotService,
+                stockTpRepo,
+                stockMovement,
+                historyRepo,
+                qtChungRepo,
+                phieuXuLyRepo,
+                () => reworkPhase4Service);
 
             var productionProvider = new ProductionLotTraceProvider(dbExecutor, uow);
             var customerReturnProvider = new CustomerReturnLotTraceProvider(phieuTraHangRepo);
@@ -83,7 +91,7 @@ namespace PCTP.Modules.XuLyHangLoi.Application
             var initialQcService = new InitialQCService(
                 dbExecutor, uow, phieuXuLyRepo, affectedLotTraceService);
 
-            var reworkPhase4Service = new ReworkPhase4Service(
+            reworkPhase4Service = new ReworkPhase4Service(
                 phieuXuLyRepo, qtChungRepo, initialQcService);
 
             var workflowRepository = new WorkflowRepository(dbExecutor, uow);

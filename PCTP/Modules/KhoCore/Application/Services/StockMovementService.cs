@@ -310,7 +310,13 @@ namespace PCTP.Modules.KhoCore.Application.Services
                         Quantity = request.Quantity,
                         RawQr = string.IsNullOrWhiteSpace(request.QrData) ? null : request.QrData,
                         TemCode = string.IsNullOrWhiteSpace(request.TemCode) ? null : request.TemCode,
-                        ImportDate = request.ProductionDate ?? request.OccurredAt ?? DateTime.Now,
+                        ImportDate = isNormalReceive
+                            ? request.OccurredAt ?? DateTime.Now
+                            : request.ProductionDate ?? request.OccurredAt ?? DateTime.Now,
+                        NgaySX = request.ReceivingNgaySX,
+                        SoPhieuTong = request.ReceivingSoPhieuTong,
+                        MaPhieu = request.ReceivingMaPhieu,
+                        ParentSoPhieu = request.ReceivingParentSoPhieu,
                         // NG cách ly: dòng SlotLot riêng (PhieuStatus = 3), KHÔNG cộng STOCKTP.
                         PhieuStatus = isQuarantineReceive ? (byte)3 : (byte)0
                     });

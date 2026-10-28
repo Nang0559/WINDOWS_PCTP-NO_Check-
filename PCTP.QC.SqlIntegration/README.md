@@ -12,6 +12,15 @@ Every CI run now starts a disposable SQL Server 2022 Developer container on the 
 - The container is destroyed with the GitHub job. No SQL 57/SQL 14 network connection, database credential, or business data is used.
 - This validates SQL Server behavior, transaction semantics, concurrency fixtures, and the production repository SQL against controlled fixture schemas. It does **not** recreate the full `B7R2_FCC` schema or prove the six delivery stored procedures against representative business rows.
 
+### XuLyHangLoi repository coverage (`--engine-only`)
+
+`ProductionReworkRepositorySqlScenario*.cs` runs the production `PhieuXuLyBatThuongRepository` and `TraHangQTChungRepository` through the real `SqlRepositoryBase` + `UnitOfWork` against disposable `dbo` fixtures:
+
+- `ProductionReworkRepositorySqlScenario.cs`: happy path (insert/map/status/compare-and-set/cancel, ledger CRUD, totals, timeline, caller rollback).
+- `ProductionReworkRepositorySqlScenario.Contracts.cs`: unknown ids, argument/validation failures, ordering guarantees, multi-row aggregation, latest-QC selection, progress-note append, per-ticket isolation, and schema-enforced constraints.
+
+**Fixture fidelity rule.** The four ledger tables, the `OperationId` unique index and the `PhieuTraHangCTId` unique index are created by executing the *real* `PHASE12/13/14` scripts from `PCTP/Modules/XuLyHangLoi/Database/` (copied to the harness output by the csproj and split on `GO`), never by hand-written copies. Only `FVN_PhieuTraHangCT` and `FVN_PhieuXuLyBatThuong` are hand-built, because the QT Chung core DDL is not versioned in this repository. If a migration changes, these tests exercise the change automatically; do not re-introduce inline `CREATE TABLE` for the ledger tables.
+
 ### What is still needed to emulate SQL 57 business behavior
 
 To execute all six active stored procedures end-to-end in CI, add a DBA-approved schema-only export (tables, indexes, constraints, triggers, dependent functions/procedures) and a sanitized, minimal seed dataset from SQL 57. Do not commit a production backup or real employee/customer/QR data. The resulting fixture must be versioned as reviewed SQL scripts and must include deterministic cleanup/reset. Once that fixture exists, the CI job can install the six procedure definitions and run assertions for stock balances, delivery ledgers, QR deletion/state, FIFO selection, replay, rollback, and concurrency inside `PCTP_QC_CI`.

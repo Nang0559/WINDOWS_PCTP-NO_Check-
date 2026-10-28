@@ -73,6 +73,16 @@ namespace PCTP.Infrastructure.Stock
             return lot == null ? (int?)null : lot.SlotVatLyId;
         }
 
+        public void LockSlotForUpdate(int slotId)
+        {
+            if (slotId <= 0)
+                throw new ArgumentOutOfRangeException(nameof(slotId));
+
+            // ISlotService.LockSlotForUpdate delegates to SlotRepository, which
+            // shares the same UnitOfWork supplied by the module composition root.
+            _legacy.LockSlotForUpdate(slotId);
+        }
+
         public void DecreaseLotQuantity(int slotLotId, int quantity)
         {
             _legacy.DecreaseSlotLotQuantity(slotLotId, quantity);

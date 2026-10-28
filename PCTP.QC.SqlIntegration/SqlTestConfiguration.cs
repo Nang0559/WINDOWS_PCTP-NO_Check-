@@ -70,11 +70,20 @@ public static class SqlTestConfiguration
         var isFixedTestTarget =
             string.Equals(legacy.DataSource, Server, StringComparison.OrdinalIgnoreCase) &&
             string.Equals(legacy.InitialCatalog, Database, StringComparison.OrdinalIgnoreCase);
-        var isEphemeralTarget = ephemeralAllowed &&
-            (legacy.DataSource.StartsWith("localhost,", StringComparison.OrdinalIgnoreCase) ||
-             legacy.DataSource.StartsWith("127.0.0.1,", StringComparison.OrdinalIgnoreCase)) &&
+        var isLocalEphemeralHost =
+            legacy.DataSource.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
+            legacy.DataSource.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase) ||
+            legacy.DataSource.StartsWith("localhost,", StringComparison.OrdinalIgnoreCase) ||
+            legacy.DataSource.StartsWith("127.0.0.1,", StringComparison.OrdinalIgnoreCase);
+        var isEphemeralTarget = ephemeralAllowed && isLocalEphemeralHost &&
             string.Equals(legacy.InitialCatalog, "PCTP_QC_CI", StringComparison.OrdinalIgnoreCase);
-        if (!isFixedTestTarget && !isEphemeralTarget)
+        var requireEphemeral = string.Equals(
+            Environment.GetEnvironmentVariable("PCTP_QC_REQUIRE_EPHEMERAL_SQL"),
+            "true",
+            StringComparison.OrdinalIgnoreCase);
+        var isReworkFixtureTarget = ephemeralAllowed && requireEphemeral && isLocalEphemeralHost &&
+            string.Equals(legacy.InitialCatalog, "PCTP_QC_REWORK_CI", StringComparison.OrdinalIgnoreCase);
+        if (!isFixedTestTarget && !isEphemeralTarget && !isReworkFixtureTarget)
             throw new InvalidOperationException("Legacy SQL test connection target does not match an explicitly allowed isolated SQL test environment.");
 
         return legacy.ConnectionString;

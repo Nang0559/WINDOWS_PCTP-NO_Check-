@@ -24,6 +24,9 @@ namespace PCTP.Modules.XuLyHangLoi.Models
     {
         public int Id { get; set; }
 
+        /// <summary>Stable idempotency key supplied by the initiating UI command and reused on retry.</summary>
+        public Guid OperationId { get; set; }
+
         public int PhieuXuLyBatThuongId { get; set; }
 
         public int SlotIdNguon { get; set; }

@@ -39,6 +39,6 @@ namespace PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao
         DataTable donHangBangRieng, DataTable ifsDataDaLoc,
         CustomerConfig cfg);
         Dictionary<string, int> GetQcDongGoiBatch(
-        List<string> maHangList);
+        List<string> maHangList, string customerCode);
     }
 }

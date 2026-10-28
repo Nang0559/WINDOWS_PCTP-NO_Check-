@@ -103,4 +103,78 @@ public sealed class DeliveryQrAllocationSourceContractTests
         Assert.DoesNotContain("SP_DOCQRCODE", hvnProcedure);
     }
 
+    [Fact]
+    public void TakeLotYmvn_CallerParameterNamesMatchProcedureDeclaration()
+    {
+        // Regression: caller sent @ISLOAIASP while the procedure declares @ISLOAISP,
+        // which makes every YMVN Take_Lot call fail with "not a parameter" at runtime.
+        var caller = Read("PhieuLotRepository.source.cs");
+        var proc = Read("Usp_Qrcode_Take_LotYMVN2405.sql");
+        foreach (var name in new[] { "@TMPTABLE", "@DOCQRTABLE", "@ISLOAISP" })
+        {
+            Assert.Contains(name + " ", proc);
+            Assert.Contains("\"" + name + "\"", caller);
+        }
+        Assert.DoesNotContain("@ISLOAIASP", caller);
+    }
+
+    [Fact]
+    public void TakeLotYmvn_ClaimsQrByGioAndSttBanInsideOneTransaction()
+    {
+        var sql = Read("Usp_Qrcode_Take_LotYMVN2405.sql");
+        Assert.Contains("SET XACT_ABORT ON", sql);
+        Assert.Contains("BEGIN TRANSACTION", sql);
+        Assert.Contains("SAVE TRANSACTION PctpTakeLotYmvn2405", sql);
+        // Same claim semantics as HVN: STTBAN = GIO = TMP.STT.
+        Assert.Contains("d.STTBAN = CASE WHEN q.Owner > 0 THEN q.Owner END", sql);
+        Assert.Contains("d.GIO    = CASE WHEN q.Owner > 0 THEN CONVERT(nvarchar(100), q.Owner) END", sql);
+        // Optimistic check: a claim that did not touch exactly the expected rows must abort.
+        Assert.Contains("@affected <> @expected", sql);
+    }
+
+    private static string ClaimSection(string sql)
+    {
+        var i = sql.IndexOf("CLAIM-MODE-BEGIN", StringComparison.Ordinal);
+        Assert.True(i >= 0, "CLAIM-MODE-BEGIN marker missing");
+        return sql.Substring(i);
+    }
+
+    [Fact]
+    public void TakeLotYmvn_ClaimMode_NeverUpdatesQrOrLotByPartCodeOnly()
+    {
+        var claim = ClaimSection(Read("Usp_Qrcode_Take_LotYMVN2405.sql"));
+        // Old behaviour: LOT merge and KETQUA update joined only on MAHANGFCC across all phieu.
+        Assert.DoesNotContain("#LotTmp", claim);
+        Assert.DoesNotContain("WHERE RTRIM(d2.MAHANGFCC) = RTRIM(d.MAHANGFCC)", claim);
+        // Rows are identified by the rowversion, because DOCQR.STT is not unique.
+        Assert.Contains("INNER JOIN #Qr q ON q.Rid = d.TGLUU", claim);
+        Assert.Contains("WHERE q.Owner <> q.OrigOwner", claim);
+    }
+
+    [Fact]
+    public void TakeLotYmvn_SelectsModePerCustomerTableFamily_WithoutRuntimeDdl()
+    {
+        var sql = Read("Usp_Qrcode_Take_LotYMVN2405.sql");
+        // YMVN_DOCQRCODE has no TGLUU -> legacy mode; SP_* tables have a different schema -> rejected.
+        Assert.Contains("DECLARE @ClaimMode bit", sql);
+        Assert.Contains("COL_LENGTH(@qrTbl, N'TGLUU')", sql);
+        Assert.Contains("LEGACY-MODE-BEGIN", sql);
+        Assert.Contains("THROW 51213", sql);
+        // TMP.STT is not unique in production (IX_TMP_STT is non-unique).
+        Assert.Contains("THROW 51214", sql);
+        Assert.DoesNotContain("ALTER TABLE", sql, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("ALTER COLUMN", sql, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void TakeLotYmvn_ClaimIsCompatibleWithReleaseAndResultContract()
+    {
+        var sql = Read("Usp_Qrcode_Take_LotYMVN2405.sql");
+        var repo = Read("PhieuLotRepository.source.cs");
+        // Release path (LayLaiLotNo) frees QR by STTBAN = @stt, so the claim must write STTBAN = TMP.STT.
+        Assert.Contains("WHERE ISNULL(STTBAN, 0) = @stt", repo);
+        // Columns read by PhieuYmvnService.HoanThanhYMVN must still be returned.
+        foreach (var column in new[] { "TONG_SLHVN", "SL_GIAO", "IsOK", "STATUSDOC", "t.LOT" })
+            Assert.Contains(column, sql);
+    }
 }

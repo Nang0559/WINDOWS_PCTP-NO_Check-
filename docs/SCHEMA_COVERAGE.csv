@@ -1,0 +1,100 @@
+﻿object,kind,referenced_by_code,code_files,code_ops,on_db57_export,git_ddl_files,in_ci_base_schema,in_runtime_inventory,class
+b20dept,,có,NoiBoLookupRepository.cs,FROM,không có trong file xuất,không,không,KHÔNG (thiếu trong CSV),GAP-undefined
+b20imagestore,,có,FRMSHOW.cs; ImagesControl.cs,DELETE/FROM/INTO/UPDATE,không có trong file xuất,không,không,KHÔNG (thiếu trong CSV),GAP-undefined
+b20itemquycach,,có,GIAOHANGYMN.cs; UF_TACHLOT.cs,FROM,không có trong file xuất,không,không,KHÔNG (thiếu trong CSV),GAP-undefined
+CUST_SCHED_LINE_TAB,,có,IFSRepository.cs,FROM,không có trong file xuất,không,không,có,GAP-undefined
+CUSTOMER_ADDRESS_AV,,có,IFSRepository.cs,FROM,không có trong file xuất,không,không,có,GAP-undefined
+CUSTOMER_ORDER_JOIN,,có,GIAOHANGYMN.cs; IFSRepository.cs; MainAppDashboardController.cs,FROM,không có trong file xuất,không,không,có,GAP-undefined
+QCDONGGOI,table,có,TableOrderRepo.cs,FROM,stub (không tồn tại lúc xuất),không,không,có,GAP-undefined
+SP_DOCQRCODE,proc,có,GIAOHANGYMN.cs; YAMAHAQRCDE_SP.cs,DELETE/FROM/INTO,stub (không tồn tại lúc xuất),không,không,có,GAP-undefined
+sp_getstockhistory,,có,StockHistoryRepository.cs,EXEC,không có trong file xuất,không,không,KHÔNG (thiếu trong CSV),GAP-undefined
+SP_TMPPHIEUGIAOHANG,proc,có,GIAOHANGYMN.cs; YAMAHAQRCDE_SP.cs,FROM/INTO/UPDATE,stub (không tồn tại lúc xuất),không,không,có,GAP-undefined
+tbl_qr_may_docqr,,có,ISqlRepository.cs; MachinePermissionService.cs; MainAppDashboardController.cs; QrMachineSwitchService.cs; SqlRepository.cs,FROM/INTO/UPDATE,không có trong file xuất,không,không,KHÔNG (thiếu trong CSV),GAP-undefined
+tmplotghep,,có,SqlRepository.cs,DELETE/INTO,không có trong file xuất,không,không,KHÔNG (thiếu trong CSV),GAP-undefined
+tmplotgheptest,,có,GIAOHANGYMN.cs,DELETE/INTO,không có trong file xuất,không,không,KHÔNG (thiếu trong CSV),GAP-undefined
+tmplottach,,có,UF_TACHLOT.cs,DELETE/INTO,không có trong file xuất,không,không,KHÔNG (thiếu trong CSV),GAP-undefined
+usp_gheplotprint,,có,SqlRepository.cs,EXEC,không có trong file xuất,không,không,KHÔNG (thiếu trong CSV),GAP-undefined
+usp_qrcode_gheplot,,có,PhieuLotRepository.cs,EXEC,không có trong file xuất,không,không,KHÔNG (thiếu trong CSV),GAP-undefined
+usp_qrcode_load_hangthieu,,có,PhieuKhoRepository.cs,EXEC,không có trong file xuất,không,không,KHÔNG (thiếu trong CSV),GAP-undefined
+usp_qrcode_load_hangthieuview,,có,PhieuKhoRepository.cs,EXEC,không có trong file xuất,không,không,KHÔNG (thiếu trong CSV),GAP-undefined
+ymvn_tmpphieugiaohang,,có,GIAOHANGYMN.cs; YMVNDOCQRCODE.cs,FROM/INTO/UPDATE,không có trong file xuất,không,không,KHÔNG (thiếu trong CSV),GAP-undefined
+B20Gear,table,có,DocQRRepository.cs; YAMAHAQRCDE_SP.cs; YMVNDOCQRCODE.cs,FROM,có,không,không,có,GAP-no-git-ddl
+B20Item,table,có,ComaparePart.cs; DocQRRepository.cs; GIAOHANGYMN.cs; ImagesControl.cs; ItemFifoConfigRepository.cs; PhieuGiaoDBRepository.cs; PhieuValidationRepository.cs; SqlRepository.cs; StockTpProductionRepository.cs; WarehouseRepository.cs; YMVNDOCQRCODE.cs,FROM/JOIN,có,không,không,có,GAP-no-git-ddl
+FVN_HangChoGiao,table,có,HangChoGiaoRepository.cs; NhapKhoDashboardRepository.cs,FROM/INTO/UPDATE,có,không,không,có,GAP-no-git-ddl
+FVN_ItemFifoConfig,table,có,ItemFifoConfigRepository.cs; PhieuCurrentQrFifoValidationRepository.cs; PhieuRepository.cs; PhieuValidationRepository.cs,DELETE/FROM/JOIN,có,không,không,có,GAP-no-git-ddl
+FVN_ItemFifoConfig_History,table,có,ItemFifoConfigRepository.cs,FROM/INTO,có,không,không,có,GAP-no-git-ddl
+FVN_PhieuTraHang,table,có,PhieuTraHangRepository.cs; TransactionalPhieuTraHangRepository.cs,DELETE/FROM/INTO/UPDATE,có,không,không,có,GAP-no-git-ddl
+FVN_PhieuTraHangCT,table,có,AffectedLotTraceService.cs; PhieuTraHangRepository.cs; PhieuXuLyBatThuongRepository.cs,DELETE/FROM/INTO/UPDATE,có,không,không,có,GAP-no-git-ddl
+FVN_PhieuXuLyBatThuong,table,có,PhieuTraHangRepository.cs; PhieuXuLyBatThuongRepository.cs; TransactionalPhieuTraHangRepository.cs,FROM/INTO/UPDATE,có,không,không,có,GAP-no-git-ddl
+IFSPHIEUGIAOHANG,table,có,ISqlRepository.cs; SqlRepository.cs,FROM,có,không,không,có,GAP-no-git-ddl
+InspectionConfig,table,có,CheckInfor.cs; InspectionConfigRepository.cs; WarehouseRepository.cs,DELETE/FROM/INTO/UPDATE,có,không,không,có,GAP-no-git-ddl
+InspectionLog,table,có,InspectionLogRepository.cs; QualityHistoryRepository.cs,FROM/INTO,có,không,không,có,GAP-no-git-ddl
+PURCHASE_ORDER_YMVN,table,có,GIAOHANGYMN.cs; GioXuatRepository.cs; TableOrderRepo.cs,FROM/INTO,có,không,không,có,GAP-no-git-ddl
+QRCODE_CHANGETIME,table,có,GioXuatRepository.cs; UF_CHANGETIME.cs,FROM/UPDATE,có,không,không,có,GAP-no-git-ddl
+StockHistory,table,có,StockExportHistoryRepository.cs; StockHistoryRepository.cs; StockHistoryRepository.cs; StockTpImportGuardRepository.cs,FROM/INTO,có,không,không,có,GAP-no-git-ddl
+sys_WorkflowTransitions,table,có,WorkflowRepository.cs,FROM,có,không,không,có,GAP-no-git-ddl
+tbl_QR_ComparePart,table,có,ComaparePart.cs; DocQRRepository.cs,DELETE/FROM/INTO,có,không,không,có,GAP-no-git-ddl
+TMPPHIEUGIAODBHD,table,có,PhieuGiaoDBRepository.cs,INTO/JOIN,có,không,không,có,GAP-no-git-ddl
+TMPPHIEUGIAOHANGDBCT,table,có,PhieuGiaoDBRepository.cs,FROM/INTO/JOIN,có,không,không,có,GAP-no-git-ddl
+vB20Item,view,có,FormInspectionConfig.cs; InspectionConfigRepository.cs; NoiBoLookupRepository.cs; WarehouseRepository.cs,FROM/JOIN,có,không,không,có,GAP-no-git-ddl
+vNhapTP,view,có,IAffectedLotTraceService.cs; NhapKhoDashboardRepository.cs; StockTpProductionRepository.cs,FROM,có,không,không,có,GAP-no-git-ddl
+YMVN_DOCQRCODE,table,có,GIAOHANGYMN.cs; YMVNDOCQRCODE.cs,DELETE/FROM/INTO/UPDATE,có,không,không,có,GAP-no-git-ddl
+DeliveryCommandLedger,table,có,DeliveryCommandLedgerRepository.cs,FROM/INTO,stub (không tồn tại lúc xuất),SQL/PCTP_DeliveryCommandLedger.sql,không,có,GAP-not-deployed-57
+DeliveryCommandQr,table,có,DeliveryCommandLedgerRepository.cs,FROM/INTO,stub (không tồn tại lúc xuất),SQL/PCTP_DeliveryCommandLedger.sql,không,có,GAP-not-deployed-57
+fvn_phieuxulybatthuongaffectedlot,,có,AffectedLotTraceService.cs; IAffectedLotTraceService.cs,DELETE/FROM/INTO/UPDATE,không có trong file xuất,PCTP/Modules/XuLyHangLoi/Database/PHASE2_AffectedLotSnapshot.sql,không,KHÔNG (thiếu trong CSV),GAP-not-deployed-57
+fvn_phieuxulybatthuongqcinitial,,có,IAffectedLotTraceService.cs,FROM/INTO,không có trong file xuất,PCTP/Modules/XuLyHangLoi/Database/PHASE3_InitialQC.sql,không,KHÔNG (thiếu trong CSV),GAP-not-deployed-57
+fvn_pxlb_compensation,,có,IQTChungService.cs,FROM/INTO/UPDATE,không có trong file xuất,PCTP/Modules/XuLyHangLoi/Database/PHASE4_9_ReworkDispositionCompensationWorkflowReport.sql,không,KHÔNG (thiếu trong CSV),GAP-not-deployed-57
+fvn_pxlb_compensationmovement,,có,IQTChungService.cs,INTO,không có trong file xuất,PCTP/Modules/XuLyHangLoi/Database/PHASE4_9_ReworkDispositionCompensationWorkflowReport.sql,không,KHÔNG (thiếu trong CSV),GAP-not-deployed-57
+fvn_pxlb_disposition,,có,IQTChungService.cs,FROM/INTO,không có trong file xuất,PCTP/Modules/XuLyHangLoi/Database/PHASE4_9_ReworkDispositionCompensationWorkflowReport.sql,không,KHÔNG (thiếu trong CSV),GAP-not-deployed-57
+fvn_pxlb_reworkqc,,có,IQTChungService.cs,FROM/INTO,không có trong file xuất,PCTP/Modules/XuLyHangLoi/Database/PHASE4_9_ReworkDispositionCompensationWorkflowReport.sql,không,KHÔNG (thiếu trong CSV),GAP-not-deployed-57
+fvn_pxlb_workflowaudit,,có,IQTChungService.cs,INTO,không có trong file xuất,PCTP/Modules/XuLyHangLoi/Database/PHASE4_9_ReworkDispositionCompensationWorkflowReport.sql,không,KHÔNG (thiếu trong CSV),GAP-not-deployed-57
+PCTPQuarantineReleaseAudit,table,có,QuarantineReleaseAuditRepository.cs,INTO,stub (không tồn tại lúc xuất),SQL/PCTPQuarantineRelease.sql,không,có,GAP-not-deployed-57
+usp_qrcode_take_lotymvn2405,,có,PhieuLotRepository.cs,EXEC,không có trong file xuất,SQL/Usp_Qrcode_Take_LotYMVN2405.sql,không,KHÔNG (thiếu trong CSV),GAP-not-deployed-57
+usp_qrcode_update_stock_sp,,có,PhieuKhoRepository.cs,EXEC,không có trong file xuất,SQL/Usp_Qrcode_Update_Stock_SP.sql,có,KHÔNG (thiếu trong CSV),GAP-not-deployed-57
+vfvn_pxlb_processreport,,có,IQTChungService.cs,FROM,không có trong file xuất,PCTP/Modules/XuLyHangLoi/Database/PHASE4_9_ReworkDispositionCompensationWorkflowReport.sql,không,KHÔNG (thiếu trong CSV),GAP-not-deployed-57
+FVN_HangChoGiaoPickDetail,table,có,HangChoGiaoRepository.cs,FROM/INTO,có,SQL/PHASE15_HangChoGiaoPickDetails.sql,không,có,GAP-ci-schema
+FVN_TraHangQTChungGiao,table,có,TraHangQTChungRepository.cs,FROM/INTO,có,PCTP/Modules/XuLyHangLoi/Database/PHASE13_QTChung_ReworkTables.sql,không,có,GAP-ci-schema
+FVN_TraHangQTChungNhapNG,table,có,TraHangQTChungRepository.cs,FROM/INTO,có,PCTP/Modules/XuLyHangLoi/Database/PHASE13_QTChung_ReworkTables.sql,không,có,GAP-ci-schema
+FVN_TraHangQTChungQC,table,có,TraHangQTChungRepository.cs,FROM/INTO/UPDATE,có,PCTP/Modules/XuLyHangLoi/Database/PHASE13_QTChung_ReworkTables.sql,không,có,GAP-ci-schema
+FVN_TraHangQTChungXuat,table,có,TraHangQTChungRepository.cs,FROM/INTO,có,PCTP/Modules/XuLyHangLoi/Database/PHASE13_QTChung_ReworkTables.sql,không,có,GAP-ci-schema
+Usp_Qrcode_Take_Lot2405,proc,có,PhieuLotRepository.cs,EXEC,có,SQL/Usp_Qrcode_Take_Lot2405.sql,không,có,GAP-ci-schema
+DOCQRCODE,table,có,FRM_SUALOTHVN.cs,FROM/UPDATE,có,SQL/QC_Schema/01_Tables.sql,có,có,OK-testable
+LUUDOCQRCODE,table,có,DeliveryTraceRepository.cs; GIAOHANGYMN.cs; PhieuKhoRepository.cs,INTO/JOIN,có,SQL/QC_Schema/01_Tables.sql,có,có,OK-testable
+LUUPHIEUGIAOHANG,table,có,DeliveryTraceRepository.cs; GIAOHANGYMN.cs; MainAppDashboardController.cs; PhieuGiaoRepository.cs; PhieuKhoRepository.cs; PhieuLuuTruRepository.cs; SqlRepository.cs; TableOrderRepo.cs,FROM/INTO/UPDATE,có,SQL/QC_Schema/01_Tables.sql,có,có,OK-testable
+Rack,table,có,BulkStockSlotRepository.cs; CheckInfor.cs; LotLocationRepository.cs; NhapKhoDashboardRepository.cs; PhieuTrackingReadRepository.cs; PhieuTrackingRepository.cs; RackRepository.cs; SlotRepository.cs; WarehouseRepository.cs,DELETE/FROM/INTO/JOIN/UPDATE,có,SQL/QC_Schema/01_Tables.sql,có,có,OK-testable
+Slot,table,có,BulkStockSlotRepository.cs; CheckInfor.cs; LotLocationRepository.cs; NhapKhoDashboardRepository.cs; PhieuTrackingReadRepository.cs; PhieuTrackingRepository.cs; RackRepository.cs; SlotRepository.cs,DELETE/FROM/INTO/JOIN/UPDATE,có,SQL/QC_Schema/01_Tables.sql,có,có,OK-testable
+SlotLot,table,có,BulkStockSlotRepository.cs; CheckInfor.cs; LotLocationRepository.cs; NhapKhoDashboardRepository.cs; NoiBoLookupRepository.cs; PhieuTrackingReadRepository.cs; PhieuTrackingRepository.cs; RackRepository.cs; SlotRepository.cs,DELETE/FROM/INTO/JOIN/UPDATE,có,SQL/QC_Schema/01_Tables.sql,có,có,OK-testable
+sp_GetCurrentStockStatus,proc,có,CurrentStockRepository.cs,EXEC,có,SQL/sp_GetCurrentStockStatus.sql,có,có,OK-testable
+STOCKTP,table,có,Edit_DH.cs; GIAOHANGYMN.cs; HangThieuCaNgayService.cs; LegacyStockBalanceRepositoryAdapter.cs; MainAppDashboardController.cs; NhapKhoDashboardRepository.cs; PhieuCurrentQrFifoValidationRepository.cs; PhieuKhoRepository.cs; PhieuLotRepository.cs; PhieuLuuTruRepository.cs; PhieuRepository.cs; PhieuVal,FROM/UPDATE,có,SQL/QC_Schema/01_Tables.sql,có,có,OK-testable
+TMPPHIEUGIAOHANG,table,có,Edit_DH.cs; FRM_SUALOTHVN.cs,UPDATE,có,SQL/QC_Schema/01_Tables.sql,có,có,OK-testable
+Usp_Qrcode_Update_Stock2405,proc,có,PhieuKhoRepository.cs,EXEC,có,SQL/Usp_Qrcode_Update_Stock2405.sql,có,có,OK-testable
+Warehouse,table,có,BulkStockSlotRepository.cs; CheckInfor.cs; LotLocationRepository.cs; NhapKhoDashboardRepository.cs; PhieuTrackingReadRepository.cs; PhieuTrackingRepository.cs; RackRepository.cs; SlotRepository.cs; WarehouseRepository.cs,FROM/INTO/JOIN,có,SQL/QC_Schema/01_Tables.sql,có,có,OK-testable
+CustomerConfig,table,không thấy literal SQL,,,stub (không tồn tại lúc xuất),không,không,có,info
+CustomerTableConfig,table,không thấy literal SQL,,,stub (không tồn tại lúc xuất),không,không,có,info
+DOCQRCODE_100003,table,không thấy literal SQL,,,có,SQL/QC_Schema/01_Tables.sql,có,có,info
+DOCQRCODE_SP,table,không thấy literal SQL,,,có,SQL/QC_Schema/01_Tables.sql,có,có,info
+DONHANG,table,không thấy literal SQL,,,có,SQL/QC_Schema/01_Tables.sql,có,có,info
+DUAL/dual,,không thấy literal SQL,,,không có trong file xuất,không,không,có,info
+GIAO_HANG,table,không thấy literal SQL,,,có,SQL/QC_Schema/01_Tables.sql,có,có,info
+GiaoHangKhachCustomerOptions,table,không thấy literal SQL,,,stub (không tồn tại lúc xuất),không,không,có,info
+GridViewSettings,table,không thấy literal SQL,,,stub (không tồn tại lúc xuất),không,không,có,info
+IFSPHIEUGIAOHANG_100002,table,không thấy literal SQL,,,có,không,không,có,info
+IFSPHIEUGIAOHANG_100002View,view,không thấy literal SQL,,,stub (không tồn tại lúc xuất),không,không,có,info
+IFSPHIEUGIAOHANG_100003,table,không thấy literal SQL,,,có,không,không,có,info
+IFSPHIEUGIAOHANG_100003View,view,không thấy literal SQL,,,stub (không tồn tại lúc xuất),không,không,có,info
+IFSPHIEUGIAOHANG_SP,table,không thấy literal SQL,,,có,không,không,có,info
+IFSPHIEUGIAOHANG_SPView,view,không thấy literal SQL,,,stub (không tồn tại lúc xuất),không,không,có,info
+IFSPHIEUGIAOHANGView,view,không thấy literal SQL,,,stub (không tồn tại lúc xuất),không,không,có,info
+PCTPStockMovementGuard,table,không thấy literal SQL,,,stub (không tồn tại lúc xuất),SQL/PCTPStockMovementGuard.sql,không,có,info
+Purchase_Order_HTN,table,không thấy literal SQL,,,có,không,không,có,info
+Purchase_Order_HVNDB,table,không thấy literal SQL,,,stub (không tồn tại lúc xuất),không,không,có,info
+sp_executesql,,không thấy literal SQL,,,không có trong file xuất,không,không,có,info
+Split,function,không thấy literal SQL,,,có,SQL/QC_Schema/05_Split.sql,có,có,info
+STRING_SPLIT,,không thấy literal SQL,,,không có trong file xuất,không,không,có,info
+TMPPHIEUGIAOHANG_100002,table,không thấy literal SQL,,,có,không,không,có,info
+TMPPHIEUGIAOHANG_100003,table,không thấy literal SQL,,,có,SQL/QC_Schema/01_Tables.sql,có,có,info
+TMPPHIEUGIAOHANG_SP,table,không thấy literal SQL,,,có,SQL/QC_Schema/01_Tables.sql,có,có,info
+TMPPHIEUGIAOHANGView_100002_{hostName},,không thấy literal SQL,,,không có trong file xuất,không,không,có,info
+TMPPHIEUGIAOHANGView_100003_{hostName},,không thấy literal SQL,,,không có trong file xuất,không,không,có,info
+TMPPHIEUGIAOHANGView_{hostName},,không thấy literal SQL,,,không có trong file xuất,không,không,có,info
+Usp_Qrcode_LOAD_PHIEU_DOCQR2405,proc,không thấy literal SQL,,,có,SQL/Usp_Qrcode_LOAD_PHIEU_DOCQR2405.sql,không,có,info

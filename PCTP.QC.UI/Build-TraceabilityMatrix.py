@@ -27,13 +27,12 @@ import sys
 from collections import defaultdict
 
 ROOT = os.getcwd()
-MODULES = os.path.join("PCTP", "Modules")
 TEST_DIRS = ["PCTP.QC.Tests", "PCTP.QC.SqlIntegration"]
-SQL_DIR = "SQL"
+REPO_COMPONENT_EXTS = (".cs", ".sql", ".ps1", ".py", ".csproj", ".json")
 BOUNDARY_DOC = os.path.join("docs", "TRANSACTION_BOUNDARIES.md")
 TEST_MATRIX = os.path.join("PCTP.QC.Tests", "TestMatrix.json")
 
-SKIP_DIRS = {"bin", "obj", ".git", "packages", "Properties"}
+SKIP_DIRS = {"bin", "obj", ".git", "packages", "Properties", ".vs", "node_modules", ".venv", "venv", "TestResults", "artifacts", "coverage"}
 
 # ----------------------------------------------------------------------------- helpers
 def read(path):
@@ -134,7 +133,22 @@ def analyze_cs(path):
     elif uow_ref:
         tx = "PARTICIPANT"
     else:
-        tx = "NONE"
+        # A single direct DML statement is atomic at the SQL Server statement
+        # boundary even without an explicit multi-statement transaction.
+        # Never apply this shortcut to stored-procedure calls or multi-DML batches.
+        dml_count = len(_WRITE.findall(" ".join(lits)))
+        dml_calls = len(re.findall(r"\b(?:ExecuteNonQuery|ExecuteScalar|ExecuteReader)\s*\(", src))
+        # A single call site inside a loop can execute multiple times. This
+        # scanner works at file scope, so conservatively refuse statement-level
+        # classification whenever a loop construct and SQL execution coexist.
+        # Ignore C# string/character contents when looking for loop constructs.
+        # A SQL literal or diagnostic message containing the word "for"/"while"
+        # must not turn an otherwise single-statement writer into a false gap.
+        code_without_literals = _LIT.sub(" ", src)
+        has_loop = bool(re.search(r"\b(?:for|foreach|while|do)\b", code_without_literals))
+        tx = "STATEMENT-ATOMIC" if (
+            dml_count == 1 and dml_calls == 1 and not sps and not has_loop
+        ) else "NONE"
     # A file that names SQL objects but never executes SQL (no Execute*/CallPhieuSP/DropCreate/BulkInsert/
     # SqlCommand/adapter call) only forwards to repositories that own the transaction. NONE stays NONE
     # for any file that does execute SQL without a transaction contract.
@@ -176,33 +190,44 @@ def is_interface_file(fn):
 
 def inventory():
     rows = []
-    for path in sorted(walk(MODULES, (".cs",))):
+    for path in sorted(walk(".", (".cs",))):
         fn = os.path.basename(path)
         if fn.endswith((".Designer.cs", ".g.cs")):
             continue
         p = rel(path)
         low = p.lower()
-        in_repo_dir = "/repositories/" in low
-        in_service_dir = "/services/" in low
-        name_match = bool(re.search(r"(Repository|Repo|Service)\w*\.cs$", fn))
-        if not (in_repo_dir or in_service_dir or name_match):
+        # Scan the whole repository, not only PCTP/Modules.
+        if any(part.lower().endswith((".tests", ".test")) or part.lower() in {"test", "tests"}
+               for part in p.split("/")):
             continue
+        in_repo_dir = "/repositories/" in low or "/repository/" in low
+        in_service_dir = "/services/" in low or "/service/" in low
+        name_match = bool(re.search(r"(Repository|Repo|Service)\w*\.cs$", fn))
         if is_interface_file(fn):
             continue
         info = analyze_cs(path)
-        kind = "Repository" if re.search(r"Repo", fn) or in_repo_dir else "Service"
+        if not (in_repo_dir or in_service_dir or name_match or info["hasSql"]):
+            continue
+        kind = ("Repository" if re.search(r"Repo", fn) or in_repo_dir else
+                "Service" if re.search(r"Service", fn) or in_service_dir else "SQL caller")
         parts = p.split("/")
-        module = parts[parts.index("Modules") + 1] if "Modules" in parts else "?"
+        module = parts[parts.index("Modules") + 1] if "Modules" in parts else parts[0]
         rows.append({"id": None, "module": module, "kind": kind, "file": p, **info})
     return rows
 
 
 def load_test_sources():
     tests = {}
-    for d in TEST_DIRS:
+    roots = set(TEST_DIRS)
+    for dirpath, dirnames, _ in os.walk(ROOT):
+        dirnames[:] = [d for d in dirnames if d not in SKIP_DIRS]
+        base = os.path.basename(dirpath).lower()
+        if base.endswith((".tests", ".test")) or base in {"tests", "test"}:
+            roots.add(os.path.relpath(dirpath, ROOT))
+    for d in sorted(roots):
         if not os.path.isdir(d):
             continue
-        for path in walk(d, (".cs",)):
+        for path in walk(d, (".cs", ".py", ".ps1", ".sql")):
             tests[rel(path)] = read(path)
     return tests
 
@@ -257,9 +282,8 @@ def sql_scripts(rows, tests):
     all_sp = {s.lower() for r in rows for s in r["sps"]}
     all_tables = {t.lower() for r in rows for t in (r["writes"] + r["reads"])}
     test_blob = "\n".join(tests.values()).lower()
-    if not os.path.isdir(SQL_DIR):
-        return out
-    for path in sorted(walk(SQL_DIR, (".sql",))):
+    # SQL is distributed across SQL/, module Database/ folders and tooling.
+    for path in sorted(walk(".", (".sql",))):
         objs = sql_script_objects(path)
         names = [n for k, n in objs if k != "TABLE-REF"]
         used_in_code = sorted({n for n in names if n.lower() in all_sp or n.lower() in all_tables})
@@ -323,8 +347,7 @@ def render_md(commit, rows, scripts, gaps, mods):
              f"{sum(1 for m in mods if m['status']!='implemented')}")
     L.append(f"- Tổng số gap: **{len(gaps)}**. Gate G1 chỉ PASS khi bằng 0.")
     L.append("")
-    L.append("Giới hạn: regex trên chuỗi SQL trong C#; SQL ghép động (string concat từ biến) hoặc đặt tên bảng trong biến sẽ không bắt được "
-             "- những dòng đó có cột `Ghi` rỗng nhưng vẫn gọi `Execute*` được liệt kê ở `hasSql`. Cần review tay các dòng này.")
+    L.append("Giới hạn: static inventory bằng regex, không phải compiler hay SQL parser. SQL ghép động, tên bảng lấy từ biến, reflection, DI runtime và delegate có thể không được nhận diện. Test chỉ nhắc tên class không chứng minh đã gọi production method; cần review call-site và fixture thực tế trước khi dùng làm bằng chứng release.")
     L.append("")
     L.append("## Repository / Service")
     L.append("")
@@ -337,7 +360,7 @@ def render_md(commit, rows, scripts, gaps, mods):
         L.append(f"| {r['id']} | {r['module']} | {r['kind']} | `{r['file']}` | {', '.join(r['sps']) or '—'} | "
                  f"{', '.join(r['writes']) or '—'} | {r['tx']}{' (doc)' if r['txDocumented'] else ''} | {tu} | {ts} | {st} |")
     L.append("")
-    L.append("## SQL scripts (`SQL\\`)")
+    L.append("## SQL scripts (toàn repository: SQL/, Modules/*/Database/, tooling)")
     L.append("")
     L.append("| File | Đối tượng | Code tham chiếu | Test tham chiếu | Trạng thái |")
     L.append("|---|---|---|---|---|")

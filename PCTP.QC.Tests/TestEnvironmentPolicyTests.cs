@@ -1,9 +1,73 @@
+using System;
 using Xunit;
 
 namespace PCTP.QC.Tests;
 
-public sealed class TestEnvironmentPolicyTests
+[CollectionDefinition("TestEnvironmentPolicy", DisableParallelization = true)]
+public sealed class TestEnvironmentPolicyCollection { }
+
+/// <summary>
+/// The policy reads process-wide environment variables, and the CI workflow sets
+/// PCTP_QC_REQUIRE_EPHEMERAL_SQL=true for every job (including the DB-less unit job). These tests therefore
+/// pin the mode they assert instead of inheriting it: the constructor selects development mode and
+/// Dispose restores the caller's values. CI mode has its own explicit cases below.
+/// </summary>
+[Collection("TestEnvironmentPolicy")]
+public sealed class TestEnvironmentPolicyTests : IDisposable
 {
+    private const string Require = "PCTP_QC_REQUIRE_EPHEMERAL_SQL";
+    private const string Allow = "PCTP_QC_ALLOW_EPHEMERAL_SQL";
+    private readonly string? _savedRequire = Environment.GetEnvironmentVariable(Require);
+    private readonly string? _savedAllow = Environment.GetEnvironmentVariable(Allow);
+
+    public TestEnvironmentPolicyTests()
+    {
+        Environment.SetEnvironmentVariable(Require, null); // development mode
+        Environment.SetEnvironmentVariable(Allow, null);
+    }
+
+    public void Dispose()
+    {
+        Environment.SetEnvironmentVariable(Require, _savedRequire);
+        Environment.SetEnvironmentVariable(Allow, _savedAllow);
+    }
+
+    [Theory]
+    [InlineData("Server=127.0.0.1,1433;Initial Catalog=PCTP_QC_CI;User ID=sa;Password=x;Encrypt=True;TrustServerCertificate=True", true)]
+    [InlineData("Server=localhost;Database=PCTP_QC_CI;Trusted_Connection=True", true)]
+    [InlineData("Server=192.168.200.57;Database=B7R2_FCC;Trusted_Connection=True", false)]   // DB57 rejected in CI
+    [InlineData("Server=127.0.0.1;Database=B7R2_FCC;User Id=x;Password=y", false)]          // local but wrong database
+    [InlineData("Server=192.168.200.14\\BRAVO;Database=B7R2_FCC;Trusted_Connection=True", false)] // DB14 always rejected
+    [InlineData("Server=192.168.1.10;Database=PCTP_QC_CI;User Id=x;Password=y", false)]     // right name, remote host
+    public void CiRequiredMode_PermitsOnlyLocalEphemeralDatabase(string connectionString, bool expected)
+    {
+        Environment.SetEnvironmentVariable(Require, "true");
+        Assert.Equal(expected, TestEnvironmentPolicy.IsSafeSqlTestTarget(connectionString));
+    }
+
+    [Fact]
+    public void ReworkFixtureDatabase_IsAllowedOnlyInStrictLocalCiMode()
+    {
+        Environment.SetEnvironmentVariable(Require, "true");
+        Assert.True(TestEnvironmentPolicy.IsSafeSqlFixtureTarget(
+            "Server=127.0.0.1,1433;Initial Catalog=PCTP_QC_REWORK_CI;User ID=sa;Password=x;Encrypt=True;TrustServerCertificate=True"));
+        Assert.False(TestEnvironmentPolicy.IsSafeSqlFixtureTarget(
+            "Server=127.0.0.1,1433;Initial Catalog=PCTP_QC_CI;User ID=sa;Password=x"));
+        Assert.False(TestEnvironmentPolicy.IsSafeSqlFixtureTarget(
+            "Server=192.168.200.57;Initial Catalog=B7R2_FCC;User ID=sa;Password=x"));
+        Environment.SetEnvironmentVariable(Require, null);
+        Assert.False(TestEnvironmentPolicy.IsSafeSqlFixtureTarget(
+            "Server=127.0.0.1,1433;Initial Catalog=PCTP_QC_REWORK_CI;User ID=sa;Password=x"));
+    }
+
+    [Fact]
+    public void AllowEphemeralMode_AcceptsLocalCiDatabaseButStillRejectsDb14()
+    {
+        Environment.SetEnvironmentVariable(Allow, "true");
+        Assert.True(TestEnvironmentPolicy.IsSafeSqlTestTarget("Server=127.0.0.1,1433;Initial Catalog=PCTP_QC_CI;User ID=sa;Password=x"));
+        Assert.False(TestEnvironmentPolicy.IsSafeSqlTestTarget("Server=192.168.200.14\\BRAVO;Database=PCTP_QC_CI;Trusted_Connection=True"));
+    }
+
     // The QC runner is intentionally restricted to one explicit test target.
     // "Local" or a database name containing TEST is not sufficient authorization.
     [Theory]

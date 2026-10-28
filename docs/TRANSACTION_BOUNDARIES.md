@@ -1,6 +1,6 @@
 # Stock mutation transaction-boundary audit
 
-Audit target: `feature/pctp-qc-test-platform`
+Audit target: `feature/wms-end-to-end-consistency`
 
 This document records a source-level review of the current stock-mutation composition. It is not a SQL integration-test result.
 
@@ -12,6 +12,8 @@ This document records a source-level review of the current stock-mutation compos
 | Finished-goods receiving | `NhapTpModuleFactory.Build()` creates one `UnitOfWork` | `StockTpRepository`, `SlotRepository` through `SlotService`, tracking, import guard, status and history repositories receive that same instance |
 | Rework / QC | `XuLyHangLoiModuleFactory.Build()` creates one `UnitOfWork`; the overload also accepts the workflow-owned instance | Slot, STOCKTP, history, rework/QT and abnormal-ticket repositories are composed with that instance |
 | Customer delivery | `GiaoHangKhachModuleFactory.Build()` creates `phieuUow` | `BulkStockSlotRepository`, `StockHistoryRepository`, `HangChoGiaoRepository`, and `LegacyStockBalanceRepositoryAdapter` share the same executor/UoW |
+
+Naming note for the G1 generator: the class `StockTpRepository` lives in the file `StockTPRepository.cs` (note the capital P). The generator matches the file stem, so both spellings are written here. `StockTPRepository.cs` does not own a transaction: it takes the workflow `IUnitOfWork` in its constructor and executes through `PhieuSqlExecutor`, so it participates in the transaction begun by `NhapTpReceivingService` (receiving) or by the stock export workflow (main stock). Its SQL behaviour is exercised by `ProductionStockTpRepositoryScenario` against an isolated `#STOCKTP` fixture.
 
 The stock-slot adapter delegates to the workflow's `SlotService`; the balance adapters delegate to repositories constructed with the same workflow UoW. This is the intended path for SQL mutations to participate in one transaction. This row verifies factory composition only; it is not evidence that the complete customer-delivery operation has been executed or rolled back in a SQL integration test.
 
@@ -41,7 +43,7 @@ These are source-level changes and transaction-composition checks. They are not 
 3. `StockMovementService.Move` performs source decrease followed by target insertion. Its atomicity therefore depends on callers using the documented shared transaction. Before adding a new direct caller, verify that it begins the same UoW and rolls back when the movement result is unsuccessful.
 4. `LegacyStockSlotRepositoryAdapter` delegates through `ISlotService`; transaction sharing depends on constructing that service with a repository bound to the same UoW, as the factories above currently do.
 5. Delivery tests now additionally cover the production `BulkStockAdjustService` with fakes (`DEL-006`); this proves branch/ordering/transaction-callback behavior only. It does not execute the actual SQL repository graph. The required delivery integration scenarios are `DEL-003` (cross-repository rollback), `DEL-004` (duplicate/replayed confirmation), `DEL-005` (insufficient stock/shortfall), and `DEL-007` (stored-procedure/finalization transaction boundary). All remain pending; do not treat the factory's shared-UoW wiring as proof of workflow atomicity.
-6. Source review found a concrete delivery consistency gap: stored-procedure routes mutate STOCKTP before the later independently managed SlotLot transaction; YMVN keeps STOCKTP and SlotLot together but performs pending-delivery closure/history finalization after commit. See the findings section above. These are production behavior risks, not merely missing tests.
+6. **Do not treat this source audit as proof of delivery atomicity.** The source description above records intended shared-UoW composition, but the SQL acceptance scenarios still do not execute the complete `PhieuKhoRepository` production orchestration. The older claim that the stored-procedure route necessarily uses an independently managed SlotLot transaction is not established by this document and is withdrawn pending a call-chain/runtime test. YMVN pending-delivery finalization must likewise be checked against the current branch implementation before closure.
 5. A future SQL integration suite should deliberately fail after the first mutation (for example, after source decrease but before target insert) and assert that both source and target state are unchanged after rollback. It must use only a local database accepted by `TestEnvironmentPolicy.EnsureSafeSqlTestTarget`.
 
 ## G1 repository transaction contracts
@@ -109,3 +111,38 @@ Evidence for every finding: source-contract tests in `PCTP.QC.Tests\AtomicityFin
 ## Safety
 
 This audit reads source code and records production source changes on the test branch. It does not open a database, execute SQL, or alter production data.
+
+
+## G1 scanner interpretation update
+
+The G1 scanner now recognizes `STATEMENT-ATOMIC` only when it finds exactly one DML statement, exactly one direct SQL execution call, and no stored-procedure call in the source file. This avoids demanding an explicit multi-statement transaction for simple one-statement edits such as `Edit_DH` and `UF_CHANGETIME`.
+
+This classification is intentionally conservative but remains file-level static analysis. It can still overcount unrelated statements in separate event handlers and cannot prove runtime call counts, actual schema uniqueness, or transaction ownership inside a stored procedure. The focused regression suite is `PCTP.QC.UI/test_build_traceability_matrix.py`; the WMS preflight now runs it before generating G1 evidence. Do not use `STATEMENT-ATOMIC` for a method that executes a command repeatedly in a loop or for a batch containing multiple DML statements.
+
+## Legacy UI / direct SQL callers surfaced by G1
+
+The following files were classified as `transaction-boundary(NONE)` by the static scanner. They are recorded here so the audit does not silently omit them. **This table is an unresolved review register, not a verified transaction contract.** The scanner result alone cannot tell whether a SQLProvider call is a single autocommit statement, a multi-statement workflow, or a call whose transaction is owned elsewhere.
+
+| File | Source-level observation | Required disposition | Status |
+|---|---|---|---|
+| `PCTP/Acess Image/ImagesControl.cs` | Uses `SQLPROVIDER` for B20Item/B20ImageStore access; image add/edit/delete handlers need full review | Separate read-only image lookup from image mutations; add a transaction for multi-statement image changes if required | OPEN |
+| `PCTP/Modules/GiaoHangKhach/ComaprePart/ComaparePart.cs` | Replaced check-then-insert with a serializable `UPDLOCK,HOLDLOCK` transaction; selected-row deletes share one transaction | Run source-contract tests; confirm supporting index/unique constraint and execute isolated SQL concurrency test | CODE FIXED; SQL PROOF OPEN |
+| `PCTP/Modules/GiaoHangKhach/HVN/Edit_DH.cs` | One parameterized UPDATE of `tmpphieugiaohang`; checks exactly one affected row | Confirm delivery workflow revalidates allocation before export; run source-contract test | CODE FIXED; G2 PENDING |
+| `PCTP/Modules/GiaoHangKhach/SubForm/FRM_SUALOTHVN.cs` | Reset TMP LOT + item-scoped DOCQRCODE status + selected QR LOT updates now share one local transaction; QR reset is scoped by MAHANGFCC and edits serialize via transaction-owned sp_getapplock per item | Run G2 source-contract and isolated SQL rollback/replay test; verify callers block edits after export | CODE FIXED; SQL PROOF OPEN |
+| `PCTP/Modules/GiaoHangKhach/SubForm/UF_TACHLOT.cs` | Legacy LOT split UI; transaction ownership not established by static scan | Trace all stock/QR/TMP writes and make split atomic or delegate to the stock workflow | OPEN |
+| `PCTP/Modules/GiaoHangKhach/YMVN/GIAOHANGYMN.cs` | Legacy YMVN delivery form; source contains direct SQL access | Confirm whether compiled/launchable and trace all runtime call paths before classifying as dead code | OPEN |
+| `PCTP/Modules/GiaoHangKhach/YMVN/YAMAHAQRCDE_SP.cs` | Legacy YMVN QR/SP integration source | Identify invoked procedures and actual callers; verify procedure transaction semantics | OPEN |
+| `PCTP/Modules/GiaoHangKhach/YMVN/YMVNDOCQRCODE.cs` | Legacy YMVN QR persistence/validation source | Trace QR-to-LOT persistence and transaction owner; add replay/duplicate SQL scenario | OPEN |
+| `PCTP/Modules/KhoCore/Fuction/CheckInfor.cs` | Rack header and all Slot inserts now share one local SQL transaction; parameterized SQL and rollback on failure | Run source-contract test and isolated SQL injected-failure test; verify rack/slot uniqueness constraints | CODE FIXED; SQL PROOF OPEN |
+| `PCTP/UF_CHANGETIME.cs` | One parameterized UPDATE; checks exactly one affected row | Confirm `GIOHVN` is unique in deployed schema; run source-contract test | CODE FIXED; G2 PENDING |
+
+### Required closure evidence
+
+For each OPEN row:
+1. Trace the actual form/event caller and whether the file is included in the compiled project.
+2. Identify every SQL statement and whether it is one statement or a multi-statement business operation.
+3. Record the transaction owner explicitly: workflow UoW, repository-owned transaction, SQL procedure-owned transaction, or statement-level autocommit.
+4. Add a production-path test. A mock/fake or a test that only mentions the class name is not SQL persistence evidence.
+5. Close only after G2 source/regression tests and, where data mutation is involved, a G3/G4 isolated SQL scenario prove the relevant postconditions.
+
+The current G1 output is a static lead list. Rows marked CODE FIXED are code changes, not SQL/runtime proof. Do not downgrade remaining OPEN rows or SQL PROOF OPEN rows to PASS by adding a class name to this document.

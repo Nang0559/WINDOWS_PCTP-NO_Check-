@@ -28,6 +28,45 @@ public sealed class RemainingQcCaseContractTests
     }
 
     [Fact]
+    public void ReworkMovements_UseDistinctIdempotencyKeysAcrossStagesAndLots()
+    {
+        var source = Read("ReworkStockService.source.cs");
+        var export = Method(source,
+            "public ScanResult XuatKhoRework(\n            int phieuXuLyId,\n            int slotLotId,\n            string lotNo,\n            int soLuong,\n            string nguoiXuat,\n            Guid operationId)",
+            "private ScanResult KiemTraSlotTonTai(");
+        var ng = Method(source, "public ScanResult NhapLaiHangNG(", "public ScanResult NhapLaiHangOK(");
+        var ok = Method(source, "public ScanResult NhapLaiHangOK(", "public ScanResult HoanTraKhoKhiHuy(");
+        var cancel = Method(source, "public ScanResult HoanTraKhoKhiHuy(", "private ScanResult FailAndRollback(");
+
+        Assert.Contains("ReferenceType = \"QT_REWORK_EXPORT\"", export);
+        Assert.Contains("if (operationId == Guid.Empty)", export);
+        Assert.Contains("ReferenceId = operationId.ToString(\"D\")", export);
+        Assert.Contains("ReferenceType = \"QT_REWORK_NG_RECEIVE\"", ng);
+        Assert.Contains("ReferenceType = \"QT_REWORK_OK_RECEIVE\"", ok);
+        Assert.Contains("ReferenceType = \"QT_REWORK_CANCEL_RETURN\"", cancel);
+        Assert.Contains("ReferenceId = phieuXuLyId + \":\" + nhom.SlotId + \":\" + lotChuan", cancel);
+        Assert.DoesNotContain("ReferenceType = \"PHIEU_XU_LY_BAT_THUONG\"", source);
+    }
+
+    [Fact]
+    public void QuarantineRelease_LocksThroughSharedSlotRepositoryBeforeRevalidating()
+    {
+        var service = Read("QuarantineReleaseService.source.cs");
+        var release = Method(service, "public QuarantineReleaseResult Release(", "    }\n}");
+        var begin = release.IndexOf("_uow.Begin()", StringComparison.Ordinal);
+        var lockSlot = release.IndexOf("_slots.LockSlotForUpdate(slotId.Value)", StringComparison.Ordinal);
+        var reread = release.IndexOf("var details = _slots.GetLotDetails(request.SlotLotId)", StringComparison.Ordinal);
+        var mutation = release.IndexOf("_slots.DecreaseLotQuantity(", StringComparison.Ordinal);
+        Assert.True(begin >= 0 && begin < lockSlot && lockSlot < reread && reread < mutation,
+            "Release must lock the Slot and re-read quarantine state before changing stock.");
+
+        var adapter = Read("LegacyStockSlotRepositoryAdapter.source.cs");
+        var adapterLock = Method(adapter, "public void LockSlotForUpdate(", "public void DecreaseLotQuantity(");
+        Assert.Contains("_legacy.LockSlotForUpdate(slotId)", adapterLock);
+        Assert.DoesNotContain("NotSupportedException", adapterLock);
+    }
+
+    [Fact]
     public void ReworkNgImport_UsesQuarantineMovementAndDoesNotDirectlyCreditStockTp()
     {
         var rework = Read("ReworkStockService.source.cs");

@@ -133,3 +133,7 @@ Integration/concurrency tests still need to be added and executed against the re
 - Generic stock-movement idempotency: **NOT YET IMPLEMENTED**
 - All legacy stock callers: **NOT YET PROVEN CLEAN** — Visual Studio compile remains the final caller gate
 - Integration/concurrency tests: **NOT YET IMPLEMENTED**
+
+## STOCKTP identity audit gate
+
+Business rule confirmed by the user: **STOCKTP has exactly one row per LOT**. The same LOT may be distributed over multiple physical Slots; its SlotLot rows are location details and must be summed by LOT when reconciling with STOCKTP. A STOCKTP row is never created per Slot.\n\nThe code has been aligned to this rule: reads fail if more than one STOCKTP row is returned for a LOT; updates require exactly one affected row; central balance lookup no longer sums duplicate STOCKTP rows. The read-only `SQL/PCTP_StockTpIdentityAudit.sql` now compares the single STOCKTP LOT row with the sum of active SlotLot quantities across all Slots and reports a LOT mapped to inconsistent item codes.\n\nA guarded deployment script `SQL/PCTP_EnforceUniqueStockTpLot.sql` adds `UX_STOCKTP_LOT` only if there are no blank or duplicate LOT values. It is **not auto-executed** by tests or CI. First run the read-only audit against an approved isolated business-schema copy/DB57, reconcile any reported legacy duplicates manually, then execute the migration under an approved change window. Never run this against production during QC.

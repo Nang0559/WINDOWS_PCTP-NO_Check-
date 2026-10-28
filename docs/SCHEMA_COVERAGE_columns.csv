@@ -1,0 +1,2 @@
+﻿table,column_written_by_code,compared_with,column_in_git_ddl,code_files,meaning
+fvn_trahangqtchungxuat,operationid,DB57 export,có,TraHangQTChungRepository.cs,Code ghi cột này; DB57 (theo file xuất) chưa có; Git có script thêm cột => chạy script trên DB57

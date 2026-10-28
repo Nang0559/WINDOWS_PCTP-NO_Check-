@@ -1,0 +1,2309 @@
+
+(68 rows affected)
+----------------------------------------------------------------------------------
+-- OBJECT: Purchase_Order_HTN (U)
+----------------------------------------------------------------------------------
+CREATE TABLE [dbo].[Purchase_Order_HTN] (\n    [Oder_no] NVARCHAR(20) NULL,\n    [Part_no] NVARCHAR(100) NULL,\n    [Part_name] NVARCHAR(120) NULL,\n    [NgayGiao] SMALLDATETIME NULL,\n    [Slgiao] INT NULL,\n    [QCDG] INT NULL,\n    [Gear] NVARCHAR(160) NULL,\n    [CUA] NCHAR(20) NULL,\n    [IsDelivered] BIT NULL DEFAULT ((0)),\n    [DeliveredDate] DATETIME NULL,\n);\n
+GO
+ 
+----------------------------------------------------------------------------------
+-- OBJECT: Purchase_Order_HVNDB (U)
+----------------------------------------------------------------------------------
+-- [Notice]: Table [Purchase_Order_HVNDB] does not exist in current database.
+GO
+ 
+----------------------------------------------------------------------------------
+-- OBJECT: Purchase_Order_YMVN (U)
+----------------------------------------------------------------------------------
+CREATE TABLE [dbo].[Purchase_Order_YMVN] (\n    [Oder_no] NVARCHAR(20) NULL,\n    [Part_no] NVARCHAR(100) NULL,\n    [Part_name] NVARCHAR(120) NULL,\n    [NgayGiao] SMALLDATETIME NULL,\n    [Slgiao] INT NULL,\n    [QCDG] INT NULL,\n    [Gear] NVARCHAR(160) NULL,\n    [CUA] NCHAR(20) NULL,\n);\n
+GO
+ 
+----------------------------------------------------------------------------------
+-- OBJECT: CustomerConfig (U)
+----------------------------------------------------------------------------------
+-- [Notice]: Table [CustomerConfig] does not exist in current database.
+GO
+ 
+----------------------------------------------------------------------------------
+-- OBJECT: CustomerTableConfig (U)
+----------------------------------------------------------------------------------
+-- [Notice]: Table [CustomerTableConfig] does not exist in current database.
+GO
+ 
+----------------------------------------------------------------------------------
+-- OBJECT: GiaoHangKhachCustomerOptions (U)
+----------------------------------------------------------------------------------
+-- [Notice]: Table [GiaoHangKhachCustomerOptions] does not exist in current database.
+GO
+ 
+----------------------------------------------------------------------------------
+-- OBJECT: TMPPHIEUGIAOHANG (U)
+----------------------------------------------------------------------------------
+CREATE TABLE [dbo].[TMPPHIEUGIAOHANG] (\n    [STT] SMALLINT NULL,\n    [CUA] NVARCHAR(100) NULL,\n    [TRUYEN] NVARCHAR(100) NULL,\n    [MAHANG] NVARCHAR(100) NULL,\n    [TENHANG] NVARCHAR(100) NULL,\n    [LOT] NVARCHAR(1000) NULL,\n    [DV] NVARCHAR(100) NULL,\n    [SOLUONG] SMALLINT NULL,\n    [NGAYGIAO] SMALLDATETIME NULL,\n    [GIOGIAO] NVARCHAR(100) NULL,\n    [STATUS] NVARCHAR(100) NULL,\n    [TTPHIEU] NVARCHAR(100) NULL,\n    [NHAMAY] VARCHAR(50) NULL,\n    [ADDNM] INT NULL,\n    [HOP] INT NULL,\n    [STATUSDOC] NCHAR(100) NULL,\n    [Note] NVARCHAR(500) NULL,\n    [PO_NO] NVARCHAR(400) NULL,\n    [PO_ITEM] NVARCHAR(400) NULL,\n);\n
+GO
+ 
+----------------------------------------------------------------------------------
+-- OBJECT: TMPPHIEUGIAOHANG_SP (U)
+----------------------------------------------------------------------------------
+CREATE TABLE [dbo].[TMPPHIEUGIAOHANG_SP] (\n    [STT] SMALLINT NULL,\n    [CUA] NVARCHAR(100) NULL,\n    [TRUYEN] NVARCHAR(100) NULL,\n    [MAHANG] NVARCHAR(100) NULL,\n    [TENHANG] NVARCHAR(100) NULL,\n    [LOT] NVARCHAR(1000) NULL,\n    [DV] NVARCHAR(100) NULL,\n    [SOLUONG] SMALLINT NULL,\n    [NGAYGIAO] SMALLDATETIME NULL,\n    [GIOGIAO] NVARCHAR(100) NULL,\n    [STATUS] NVARCHAR(100) NULL,\n    [TTPHIEU] NVARCHAR(100) NULL,\n    [NHAMAY] VARCHAR(50) NULL,\n    [ADDNM] INT NULL,\n    [HOP] INT NULL,\n    [STATUSDOC] NCHAR(100) NULL,\n    [Note] NVARCHAR(500) NULL,\n    [PO_NO] NVARCHAR(400) NULL,\n    [PO_ITEM] NVARCHAR(400) NULL,\n);\n
+GO
+ 
+----------------------------------------------------------------------------------
+-- OBJECT: TMPPHIEUGIAOHANG_100003 (U)
+----------------------------------------------------------------------------------
+CREATE TABLE [dbo].[TMPPHIEUGIAOHANG_100003] (\n    [STT] SMALLINT NULL,\n    [CUA] NVARCHAR(100) NULL,\n    [TRUYEN] NVARCHAR(100) NULL,\n    [MAHANG] NVARCHAR(100) NULL,\n    [TENHANG] NVARCHAR(100) NULL,\n    [LOT] NVARCHAR(1000) NULL,\n    [DV] NVARCHAR(100) NULL,\n    [SOLUONG] INT NULL,\n    [NGAYGIAO] SMALLDATETIME NULL,\n    [GIOGIAO] NVARCHAR(100) NULL,\n    [STATUS] NVARCHAR(20) NULL,\n    [TTPHIEU] NVARCHAR(100) NULL,\n    [NHAMAY] VARCHAR(50) NULL,\n    [ADDNM] INT NULL,\n    [HOP] INT NULL,\n    [STATUSDOC] NCHAR(100) NULL,\n    [Note] NVARCHAR(500) NULL,\n    [PO_NO] NVARCHAR(400) NULL,\n    [PO_ITEM] NVARCHAR(400) NULL,\n    [GEAR] NVARCHAR(100) NULL,\n);\n
+GO
+ 
+----------------------------------------------------------------------------------
+-- OBJECT: TMPPHIEUGIAOHANG_100002 (U)
+----------------------------------------------------------------------------------
+CREATE TABLE [dbo].[TMPPHIEUGIAOHANG_100002] (\n    [STT] SMALLINT NULL,\n    [CUA] NVARCHAR(100) NULL,\n    [TRUYEN] NVARCHAR(100) NULL,\n    [MAHANG] NVARCHAR(100) NULL,\n    [TENHANG] NVARCHAR(100) NULL,\n    [LOT] NVARCHAR(1000) NULL,\n    [DV] NVARCHAR(100) NULL,\n    [SOLUONG] SMALLINT NULL,\n    [NGAYGIAO] SMALLDATETIME NULL,\n    [GIOGIAO] NVARCHAR(100) NULL,\n    [STATUS] NVARCHAR(100) NULL,\n    [TTPHIEU] NVARCHAR(100) NULL,\n    [NHAMAY] VARCHAR(50) NULL,\n    [ADDNM] INT NULL,\n    [HOP] INT NULL,\n    [STATUSDOC] NCHAR(100) NULL,\n    [Note] NVARCHAR(500) NULL,\n    [PO_NO] NVARCHAR(400) NULL,\n    [PO_ITEM] NVARCHAR(400) NULL,\n);\n
+GO
+ 
+----------------------------------------------------------------------------------
+-- OBJECT: DOCQRCODE (U)
+----------------------------------------------------------------------------------
+CREATE TABLE [dbo].[DOCQRCODE] (\n    [LOTFCC] NVARCHAR(1000) NULL,\n    [MAHANGFCC] NVARCHAR(120) NULL,\n    [SLTEMFCC] SMALLINT NULL,\n    [LOTHVN] NVARCHAR(1000) NULL,\n    [MAHANGHVN] NVARCHAR(120) NULL,\n    [SLTEMHVN] SMALLINT NULL,\n    [STATUS] SMALLINT NULL,\n    [MAFCC] NVARCHAR(100) NULL,\n    [STT] SMALLINT NULL,\n    [KETQUA] NVARCHAR(60) NULL,\n    [CUA] NVARCHAR(20) NULL,\n    [TRUYEN] NVARCHAR(100) NULL,\n    [GIO] NVARCHAR(100) NULL,\n    [STTBAN] INT NULL,\n    [SUALOTHVN] NCHAR(60) NULL,\n    [TGLUU] TIMESTAMP NULL,\n    [FindTem] NVARCHAR(100) NULL,\n);\n
+GO
+ 
+----------------------------------------------------------------------------------
+-- OBJECT: DOCQRCODE_SP (U)
+----------------------------------------------------------------------------------
+CREATE TABLE [dbo].[DOCQRCODE_SP] (\n    [LOTFCC] NVARCHAR(1000) NULL,\n    [MAHANGFCC] NVARCHAR(120) NULL,\n    [SLTEMFCC] SMALLINT NULL,\n    [LOTHVN] NVARCHAR(1000) NULL,\n    [MAHANGHVN] NVARCHAR(120) NULL,\n    [SLTEMHVN] SMALLINT NULL,\n    [STATUS] SMALLINT NULL,\n    [MAFCC] NVARCHAR(100) NULL,\n    [STT] SMALLINT NULL,\n    [KETQUA] NVARCHAR(60) NULL,\n    [CUA] NVARCHAR(20) NULL,\n    [TRUYEN] NVARCHAR(100) NULL,\n    [GIO] NVARCHAR(100) NULL,\n    [STTBAN] INT NULL,\n    [SUALOTHVN] NCHAR(60) NULL,\n    [TGLUU] TIMESTAMP NULL,\n    [FindTem] NVARCHAR(100) NULL,\n);\n
+GO
+ 
+----------------------------------------------------------------------------------
+-- OBJECT: DOCQRCODE_100003 (U)
+----------------------------------------------------------------------------------
+CREATE TABLE [dbo].[DOCQRCODE_100003] (\n    [LOTFCC] NVARCHAR(1000) NULL,\n    [MAHANGFCC] NVARCHAR(120) NULL,\n    [SLTEMFCC] INT NULL,\n    [LOTHVN] NVARCHAR(1000) NULL,\n    [MAHANGHVN] NVARCHAR(120) NULL,\n    [SLTEMHVN] INT NULL,\n    [STATUS] NVARCHAR(20) NULL,\n    [MAFCC] NVARCHAR(100) NULL,\n    [STT] SMALLINT NULL,\n    [KETQUA] NVARCHAR(60) NULL,\n    [CUA] NVARCHAR(20) NULL,\n    [TRUYEN] NVARCHAR(100) NULL,\n    [GIO] NVARCHAR(100) NULL,\n    [STTBAN] INT NULL,\n    [SUALOTHVN] NCHAR(60) NULL,\n    [TGLUU] TIMESTAMP NULL,\n    [FindTem] NVARCHAR(100) NULL,\n    [SOPHIEU] NVARCHAR(100) NULL,\n    [GEAR] NVARCHAR(100) NULL,\n);\n
+GO
+ 
+----------------------------------------------------------------------------------
+-- OBJECT: YMVN_DOCQRCODE (U)
+----------------------------------------------------------------------------------
+CREATE TABLE [dbo].[YMVN_DOCQRCODE] (\n    [LOTFCC] NCHAR(240) NULL,\n    [MAHANGFCC] NCHAR(120) NULL,\n    [SLTEMFCC] SMALLINT NULL,\n    [LOTHVN] NCHAR(60) NULL,\n    [MAHANGHVN] NCHAR(120) NULL,\n    [SLTEMHVN] SMALLINT NULL,\n    [STATUS] SMALLINT NULL,\n    [MAFCC] NCHAR(100) NULL,\n    [STT] SMALLINT NULL,\n    [KETQUA] NCHAR(60) NULL,\n    [CUA] NCHAR(20) NULL,\n    [TRUYEN] NCHAR(20) NULL,\n    [GIO] NCHAR(20) NULL,\n    [STTBAN] INT NULL,\n    [SUALOTHVN] NCHAR(60) NULL,\n    [Gear] NCHAR(2) NULL,\n);\n
+GO
+ 
+----------------------------------------------------------------------------------
+-- OBJECT: IFSPHIEUGIAOHANG (U)
+----------------------------------------------------------------------------------
+CREATE TABLE [dbo].[IFSPHIEUGIAOHANG] (\n    [STT] NVARCHAR(1000) NULL,\n    [FIND] NVARCHAR(1000) NULL,\n    [CUSTOMER_NO] NVARCHAR(1000) NULL,\n    [GIOGIAO] NVARCHAR(1000) NULL,\n    [SOLUONG] DECIMAL(18, 4) NULL,\n    [DV] NVARCHAR(1000) NULL,\n    [ADDNM] NVARCHAR(1000) NULL,\n    [CUA] NVARCHAR(1000) NULL,\n    [MAHANG] NVARCHAR(1000) NULL,\n    [TENHANG] NVARCHAR(1000) NULL,\n    [CUSTOMER_PO_REL_NO] NVARCHAR(1000) NULL,\n    [TRUYEN] NVARCHAR(1000) NULL,\n    [ORDER_NO] NVARCHAR(1000) NULL,\n    [CATALOG_NO] NVARCHAR(1000) NULL,\n    [NGAYGIAO] NVARCHAR(1000) NULL,\n    [CUSTOMER_PO_NO] NVARCHAR(1000) NULL,\n    [HOP] NVARCHAR(1000) NULL,\n    [LOT] NVARCHAR(1000) NULL,\n    [DIA_CHI] NVARCHAR(1000) NULL,\n    [KGX] NVARCHAR(1000) NULL,\n    [STATUS] NVARCHAR(1000) NULL,\n    [STATUSDOC] NVARCHAR(1000) NULL,\n    [TTPHIEU] NVARCHAR(1000) NULL,\n    [GIOGIAOFCC] NVARCHAR(1000) NULL,\n    [SHIP_ADDR_NO] NVARCHAR(1000) NULL,\n    [NHAMAY] NVARCHAR(1000) NULL,\n    [NOTE] NVARCHAR(1000) NULL,\n    [PO_NO] NVARCHAR(1000) NULL,\n    [PO_ITEM] NVARCHAR(1000) NULL,\n);\n
+GO
+ 
+----------------------------------------------------------------------------------
+-- OBJECT: IFSPHIEUGIAOHANG_SP (U)
+----------------------------------------------------------------------------------
+CREATE TABLE [dbo].[IFSPHIEUGIAOHANG_SP] (\n    [STT] NVARCHAR(1000) NULL,\n    [FIND] NVARCHAR(1000) NULL,\n    [CUSTOMER_NO] NVARCHAR(1000) NULL,\n    [GIOGIAO] NVARCHAR(1000) NULL,\n    [SOLUONG] DECIMAL(18, 4) NULL,\n    [DV] NVARCHAR(1000) NULL,\n    [ADDNM] NVARCHAR(1000) NULL,\n    [CUA] NVARCHAR(1000) NULL,\n    [MAHANG] NVARCHAR(1000) NULL,\n    [TENHANG] NVARCHAR(1000) NULL,\n    [CUSTOMER_PO_REL_NO] NVARCHAR(1000) NULL,\n    [TRUYEN] NVARCHAR(1000) NULL,\n    [ORDER_NO] NVARCHAR(1000) NULL,\n    [CATALOG_NO] NVARCHAR(1000) NULL,\n    [NGAYGIAO] NVARCHAR(1000) NULL,\n    [CUSTOMER_PO_NO] NVARCHAR(1000) NULL,\n    [HOP] NVARCHAR(1000) NULL,\n    [LOT] NVARCHAR(1000) NULL,\n    [DIA_CHI] NVARCHAR(1000) NULL,\n    [KGX] NVARCHAR(1000) NULL,\n    [STATUS] NVARCHAR(1000) NULL,\n    [STATUSDOC] NVARCHAR(1000) NULL,\n    [TTPHIEU] NVARCHAR(1000) NULL,\n    [GIOGIAOFCC] NVARCHAR(1000) NULL,\n    [SHIP_ADDR_NO] NVARCHAR(1000) NULL,\n    [NHAMAY] NVARCHAR(1000) NULL,\n    [NOTE] NVARCHAR(1000) NULL,\n    [PO_NO] NVARCHAR(1000) NULL,\n    [PO_ITEM] NVARCHAR(1000) NULL,\n);\n
+GO
+ 
+----------------------------------------------------------------------------------
+-- OBJECT: IFSPHIEUGIAOHANG_100003 (U)
+----------------------------------------------------------------------------------
+CREATE TABLE [dbo].[IFSPHIEUGIAOHANG_100003] (\n    [STT] NVARCHAR(1000) NULL,\n    [FIND] NVARCHAR(1000) NULL,\n    [CUSTOMER_NO] NVARCHAR(1000) NULL,\n    [GIOGIAO] NVARCHAR(1000) NULL,\n    [SOLUONG] DECIMAL(18, 4) NULL,\n    [DV] NVARCHAR(1000) NULL,\n    [ADDNM] NVARCHAR(1000) NULL,\n    [CUA] NVARCHAR(1000) NULL,\n    [MAHANG] NVARCHAR(1000) NULL,\n    [TENHANG] NVARCHAR(1000) NULL,\n    [CUSTOMER_PO_REL_NO] NVARCHAR(1000) NULL,\n    [TRUYEN] NVARCHAR(1000) NULL,\n    [ORDER_NO] NVARCHAR(1000) NULL,\n    [CATALOG_NO] NVARCHAR(1000) NULL,\n    [NGAYGIAO] NVARCHAR(1000) NULL,\n    [CUSTOMER_PO_NO] NVARCHAR(1000) NULL,\n    [HOP] NVARCHAR(1000) NULL,\n    [LOT] NVARCHAR(1000) NULL,\n    [DIA_CHI] NVARCHAR(1000) NULL,\n    [KGX] NVARCHAR(1000) NULL,\n    [STATUS] NVARCHAR(1000) NULL,\n    [STATUSDOC] NVARCHAR(1000) NULL,\n    [TTPHIEU] NVARCHAR(1000) NULL,\n    [GIOGIAOFCC] NVARCHAR(1000) NULL,\n    [SHIP_ADDR_NO] NVARCHAR(1000) NULL,\n    [NHAMAY] NVARCHAR(1000) NULL,\n    [NOTE] NVARCHAR(1000) NULL,\n    [PO_NO] NVARCHAR(1000) NULL,\n    [PO_ITEM] NVARCHAR(1000) NULL,\n);\n
+GO
+ 
+----------------------------------------------------------------------------------
+-- OBJECT: IFSPHIEUGIAOHANG_100002 (U)
+----------------------------------------------------------------------------------
+CREATE TABLE [dbo].[IFSPHIEUGIAOHANG_100002] (\n    [STT] NVARCHAR(1000) NULL,\n    [FIND] NVARCHAR(1000) NULL,\n    [CUSTOMER_NO] NVARCHAR(1000) NULL,\n    [GIOGIAO] NVARCHAR(1000) NULL,\n    [SOLUONG] DECIMAL(18, 4) NULL,\n    [DV] NVARCHAR(1000) NULL,\n    [ADDNM] NVARCHAR(1000) NULL,\n    [CUA] NVARCHAR(1000) NULL,\n    [MAHANG] NVARCHAR(1000) NULL,\n    [TENHANG] NVARCHAR(1000) NULL,\n    [CUSTOMER_PO_REL_NO] NVARCHAR(1000) NULL,\n    [TRUYEN] NVARCHAR(1000) NULL,\n    [ORDER_NO] NVARCHAR(1000) NULL,\n    [CATALOG_NO] NVARCHAR(1000) NULL,\n    [NGAYGIAO] NVARCHAR(1000) NULL,\n    [CUSTOMER_PO_NO] NVARCHAR(1000) NULL,\n    [HOP] NVARCHAR(1000) NULL,\n    [LOT] NVARCHAR(1000) NULL,\n    [DIA_CHI] NVARCHAR(1000) NULL,\n    [KGX] NVARCHAR(1000) NULL,\n    [STATUS] NVARCHAR(1000) NULL,\n    [STATUSDOC] NVARCHAR(1000) NULL,\n    [TTPHIEU] NVARCHAR(1000) NULL,\n    [GIOGIAOFCC] NVARCHAR(1000) NULL,\n    [SHIP_ADDR_NO] NVARCHAR(1000) NULL,\n    [NHAMAY] NVARCHAR(1000) NULL,\n    [NOTE] NVARCHAR(1000) NULL,\n    [PO_NO] NVARCHAR(1000) NULL,\n    [PO_ITEM] NVARCHAR(1000) NULL,\n);\n
+GO
+ 
+----------------------------------------------------------------------------------
+-- OBJECT: GridViewSettings (U)
+----------------------------------------------------------------------------------
+-- [Notice]: Table [GridViewSettings] does not exist in current database.
+GO
+ 
+----------------------------------------------------------------------------------
+-- OBJECT: Warehouse (U)
+----------------------------------------------------------------------------------
+CREATE TABLE [dbo].[Warehouse] (\n    [WarehouseId] INT NOT NULL,\n    [Name] NVARCHAR(200) NOT NULL,\n        CONSTRAINT [PK__Warehous__2608AFF9F82D1687] PRIMARY KEY CLUSTERED ([WarehouseId] ASC)\n);\n
+GO
+ 
+----------------------------------------------------------------------------------
+-- OBJECT: Rack (U)
+----------------------------------------------------------------------------------
+CREATE TABLE [dbo].[Rack] (\n    [RackId] INT NOT NULL,\n    [WarehouseId] INT NULL,\n    [RackName] NVARCHAR(200) NOT NULL,\n    [RackRowCount] INT NULL,\n    [ColumnCount] INT NULL,\n        CONSTRAINT [PK__Rack__0363DAA833635C41] PRIMARY KEY CLUSTERED ([RackId] ASC)\n);\n
+GO
+ 
+----------------------------------------------------------------------------------
+-- OBJECT: Slot (U)
+----------------------------------------------------------------------------------
+CREATE TABLE [dbo].[Slot] (\n    [SlotId] INT NOT NULL,\n    [RackId] INT NULL,\n    [SlotNumber] INT NOT NULL,\n    [IsOccupied] BIT NOT NULL,\n    [ItemCode] NVARCHAR(MAX) NULL,\n    [LotNo] NVARCHAR(MAX) NULL,\n    [Quantity] INT NULL,\n    [ImportDate] DATETIME NULL,\n    [TemCode] NVARCHAR(MAX) NULL,\n    [Capacity] INT NULL,\n    [RowIndex] INT NULL,\n    [ColumnIndex] INT NULL,\n    [QrData] NVARCHAR(MAX) NULL,\n        CONSTRAINT [PK__Slot__0A124AAF6CE91084] PRIMARY KEY CLUSTERED ([SlotId] ASC)\n);\n
+GO
+ 
+----------------------------------------------------------------------------------
+-- OBJECT: SlotLot (U)
+----------------------------------------------------------------------------------
+CREATE TABLE [dbo].[SlotLot] (\n    [SlotLotId] INT NOT NULL,\n    [SlotId] INT NOT NULL,\n    [ItemCode] NVARCHAR(200) NOT NULL,\n    [LotNo] NVARCHAR(400) NOT NULL,\n    [Quantity] INT NOT NULL,\n    [TemCode] NVARCHAR(400) NULL,\n    [QrData] NVARCHAR(MAX) NULL,\n    [ImportDate] DATETIME NULL,\n    [CreatedDate] DATETIME NOT NULL DEFAULT (getdate()),\n    [NgaySX] NVARCHAR(40) NULL,\n    [SoPhieuTong] NVARCHAR(100) NULL,\n    [MaPhieu] NVARCHAR(200) NULL,\n    [ParentSoPhieu] NVARCHAR(100) NULL,\n    [PhieuStatus] TINYINT NOT NULL DEFAULT ((0)),\n        CONSTRAINT [PK__SlotLot__A67D0C81C592DA43] PRIMARY KEY CLUSTERED ([SlotLotId] ASC)\n);\n
+GO
+ 
+----------------------------------------------------------------------------------
+-- OBJECT: InspectionConfig (U)
+----------------------------------------------------------------------------------
+CREATE TABLE [dbo].[InspectionConfig] (\n    [ConfigId] INT NOT NULL,\n    [ItemCode] NVARCHAR(200) NOT NULL,\n    [DefaultQty] INT NOT NULL DEFAULT ((1)),\n    [CheckItemCode] BIT NULL DEFAULT ((1)),\n    [CheckLotNo] BIT NULL DEFAULT ((1)),\n    [CheckNSX] BIT NULL DEFAULT ((1)),\n    [IsActive] BIT NULL DEFAULT ((1)),\n    [Note] NVARCHAR(1000) NULL,\n    [CreatedAt] DATETIME NULL DEFAULT (getdate()),\n        CONSTRAINT [PK__Inspecti__C3BC335CB9A2E9A7] PRIMARY KEY CLUSTERED ([ConfigId] ASC)\n);\n
+GO
+ 
+----------------------------------------------------------------------------------
+-- OBJECT: B20Item (U)
+----------------------------------------------------------------------------------
+CREATE TABLE [dbo].[B20Item] (\n    [Id] INT NOT NULL,\n    [ParentId] INT NOT NULL DEFAULT ((-1)),\n    [IsGroup] BIT NOT NULL DEFAULT ((0)),\n    [BranchCode] VARCHAR(3) NOT NULL DEFAULT (''),\n    [Code] NVARCHAR(100) NOT NULL,\n    [BarCode] LONGCODETYPE NOT NULL DEFAULT (''),\n    [Name] NVARCHAR(384) NOT NULL DEFAULT (''),\n    [Name2] NVARCHAR(384) NOT NULL DEFAULT (''),\n    [Unit] NVARCHAR(16) NOT NULL DEFAULT (''),\n    [Unit0] NVARCHAR(16) NOT NULL DEFAULT (''),\n    [ConvertRate0] EXCHANGERATETYPE NOT NULL DEFAULT ((1)),\n    [Unit1] NVARCHAR(16) NOT NULL DEFAULT (''),\n    [ConvertRate1] EXCHANGERATETYPE NOT NULL DEFAULT ((1)),\n    [Unit2] NVARCHAR(16) NOT NULL DEFAULT (''),\n    [ConvertRate2] EXCHANGERATETYPE NOT NULL DEFAULT ((1)),\n    [Weight] QUANTITYTYPE NOT NULL DEFAULT ((1)),\n    [UnitCost] MONEYTYPE NOT NULL DEFAULT ((0)),\n    [UnitPrice] MONEYTYPE NOT NULL DEFAULT ((0)),\n    [MinCloseQty] QUANTITYTYPE NOT NULL DEFAULT ((0)),\n    [MaxCloseQty] QUANTITYTYPE NOT NULL DEFAULT ((0)),\n    [SalesTaxCode] CODETYPE NOT NULL DEFAULT (''),\n    [ExciseTaxCode] CODETYPE NOT NULL DEFAULT (''),\n    [ExciseTaxRate] PERCENTAGETYPE NOT NULL DEFAULT ((0)),\n    [ItemType] TINYINT NOT NULL DEFAULT ((2)),\n    [ItemCatgCode] CODETYPE NOT NULL DEFAULT (''),\n    [ItemGroupCode] CODETYPE NOT NULL DEFAULT (''),\n    [ProductCostId] UNIQUEKEYTYPE NOT NULL DEFAULT (''),\n    [ProductItemCode] LONGCODETYPE NOT NULL DEFAULT (''),\n    [EnvCode] CODETYPE NOT NULL DEFAULT (''),\n    [EnvTaxRate] EXCHANGERATETYPE NOT NULL DEFAULT ((1)),\n    [Length] QUANTITYTYPE NOT NULL DEFAULT ((0)),\n    [Width] QUANTITYTYPE NOT NULL DEFAULT ((0)),\n    [Height] QUANTITYTYPE NOT NULL DEFAULT ((0)),\n    [IsItemWithSerialNo] TINYINT NOT NULL DEFAULT ((0)),\n    [IsItemWithInstall] TINYINT NOT NULL DEFAULT ((0)),\n    [IsItemWithTransport] TINYINT NOT NULL DEFAULT ((0)),\n    [IsItemWithScale] TINYINT NOT NULL DEFAULT ((0)),\n    [IsItemWithLocation] TINYINT NOT NULL DEFAULT ((0)),\n    [IsItemWithLot] TINYINT NOT NULL DEFAULT ((0)),\n    [ShelfLife] TINYINT NOT NULL DEFAULT ((0)),\n    [ManufacturerCode] CODETYPE NOT NULL DEFAULT (''),\n    [Comment] NVARCHAR(384) NOT NULL DEFAULT (''),\n    [ClassCode1] CODETYPE NOT NULL DEFAULT (''),\n    [ClassCode2] CODETYPE NOT NULL DEFAULT (''),\n    [ClassCode3] CODETYPE NOT NULL DEFAULT (''),\n    [IsActive] BIT NOT NULL DEFAULT ((1)),\n    [CreatedBy] INT NOT NULL DEFAULT ((-1)),\n    [CreatedAt] DATETIME NOT NULL DEFAULT (getutcdate()),\n    [ModifiedBy] INT NOT NULL DEFAULT ((-1)),\n    [ModifiedAt] DATETIME NOT NULL DEFAULT (getutcdate()),\n    [timestamp] TIMESTAMP NOT NULL,\n    [_ParentCode0] LONGCODETYPE NULL,\n    [Model] NVARCHAR(48) NOT NULL DEFAULT (''),\n    [DeptCode] CODETYPE NULL,\n    [LinesCode] CODETYPE NULL,\n        CONSTRAINT [PK_B20Item] PRIMARY KEY NONCLUSTERED ([Id] ASC)\n);\n
+GO
+ 
+----------------------------------------------------------------------------------
+-- OBJECT: STOCKTP (U)
+----------------------------------------------------------------------------------
+CREATE TABLE [dbo].[STOCKTP] (\n    [LOT] NVARCHAR(100) NOT NULL,\n    [PART] NVARCHAR(100) NULL,\n    [NAME] NVARCHAR(200) NULL,\n    [CASX] SMALLINT NULL,\n    [NGAYSX] SMALLDATETIME NULL,\n    [SLSX] INT NULL,\n    [NGAYNHAP] SMALLDATETIME NULL,\n    [SLNHAP] INT NULL,\n    [NGAYXUAT] SMALLDATETIME NULL,\n    [SLXUAT] INT NULL,\n    [SLCONLAI] INT NOT NULL,\n    [MODEL] NVARCHAR(60) NULL,\n    [SLCONLAITMP] INT NULL,\n    [SATUS] SMALLINT NULL,\n    [NGAYNHAP1] SMALLDATETIME NULL,\n    [SLNHAP1] INT NULL,\n    [NGAYNHAP2] SMALLDATETIME NULL,\n    [SLNHAP2] INT NULL,\n    [NGAYNHAP3] SMALLDATETIME NULL,\n    [SLNHAP3] INT NULL,\n    [NGAYNHAP4] SMALLDATETIME NULL,\n    [SLNHAP4] INT NULL,\n    [NGAYNHAP5] SMALLDATETIME NULL,\n    [SLNHAP5] INT NULL,\n    [STATUSNHAP] NVARCHAR(100) NULL,\n    [SP] NVARCHAR(200) NULL,\n    [LineCodes] NVARCHAR(20) NULL,\n    [DeptCode] NVARCHAR(20) NULL,\n        CONSTRAINT [PK_STOCKTP] PRIMARY KEY CLUSTERED ([LOT] ASC)\n);\n
+GO
+ 
+----------------------------------------------------------------------------------
+-- OBJECT: FVN_ItemFifoConfig (U)
+----------------------------------------------------------------------------------
+CREATE TABLE [dbo].[FVN_ItemFifoConfig] (\n    [ItemCode] NVARCHAR(120) NOT NULL,\n    [EnforceFifo] BIT NOT NULL DEFAULT ((0)),\n    [UpdatedAt] DATETIME NULL,\n    [UpdatedBy] NVARCHAR(100) NULL,\n        CONSTRAINT [PK__FVN_Item__3ECC0FEBBDA5DBF4] PRIMARY KEY CLUSTERED ([ItemCode] ASC)\n);\n
+GO
+ 
+----------------------------------------------------------------------------------
+-- OBJECT: FVN_ItemFifoConfig_History (U)
+----------------------------------------------------------------------------------
+CREATE TABLE [dbo].[FVN_ItemFifoConfig_History] (\n    [Id] INT NOT NULL,\n    [ItemCode] NVARCHAR(120) NOT NULL,\n    [EnforceFifoCu] BIT NULL,\n    [EnforceFifoMoi] BIT NOT NULL,\n    [ThoiGian] DATETIME NOT NULL DEFAULT (getdate()),\n    [NguoiThucHien] NVARCHAR(100) NULL,\n        CONSTRAINT [PK__FVN_Item__3214EC072BCF3DCA] PRIMARY KEY CLUSTERED ([Id] ASC)\n);\n
+GO
+ 
+----------------------------------------------------------------------------------
+-- OBJECT: StockHistory (U)
+----------------------------------------------------------------------------------
+CREATE TABLE [dbo].[StockHistory] (\n    [Id] INT NOT NULL,\n    [ActionType] VARCHAR(30) NOT NULL,\n    [ItemCode] NVARCHAR(200) NULL,\n    [TemCode] NVARCHAR(200) NULL,\n    [LotNo] NVARCHAR(400) NULL,\n    [Quantity] INT NULL,\n    [Date] DATETIME NULL,\n    [SlotId] INT NULL,\n    [PerformedBy] NVARCHAR(200) NULL,\n    [QrData] NVARCHAR(MAX) NULL,\n    [MaPhieu] NVARCHAR(100) NULL,\n    [FromSlotId] INT NULL,\n    [ToSlotId] INT NULL,\n        CONSTRAINT [PK__StockHis__3214EC0738B89F8A] PRIMARY KEY CLUSTERED ([Id] ASC)\n);\n
+GO
+ 
+----------------------------------------------------------------------------------
+-- OBJECT: PCTPStockMovementGuard (U)
+----------------------------------------------------------------------------------
+-- [Notice]: Table [PCTPStockMovementGuard] does not exist in current database.
+GO
+ 
+----------------------------------------------------------------------------------
+-- OBJECT: PCTPQuarantineReleaseAudit (U)
+----------------------------------------------------------------------------------
+-- [Notice]: Table [PCTPQuarantineReleaseAudit] does not exist in current database.
+GO
+ 
+----------------------------------------------------------------------------------
+-- OBJECT: LUUPHIEUGIAOHANG (U)
+----------------------------------------------------------------------------------
+CREATE TABLE [dbo].[LUUPHIEUGIAOHANG] (\n    [STT] SMALLINT NULL,\n    [CUA] NVARCHAR(100) NULL,\n    [TRUYEN] NVARCHAR(100) NULL,\n    [MAHANG] NVARCHAR(100) NULL,\n    [TENHANG] NVARCHAR(120) NULL,\n    [LOT] NVARCHAR(1000) NULL,\n    [DV] NVARCHAR(100) NULL,\n    [SOLUONG] INT NULL,\n    [NGAYGIAO] SMALLDATETIME NULL,\n    [GIOGIAO] NVARCHAR(100) NULL,\n    [STATUS] NVARCHAR(100) NULL,\n    [TTPHIEU] NVARCHAR(100) NULL,\n    [NHAMAY] NVARCHAR(120) NULL,\n    [GIOGIAOFCC] NVARCHAR(100) NULL,\n    [GearYMVN] NVARCHAR(100) NULL,\n    [HOP] INT NULL,\n    [STATUSDOC] NCHAR(100) NULL,\n    [Note] NVARCHAR(500) NULL,\n    [TGLUU] TIMESTAMP NULL,\n    [PO_NO] NVARCHAR(400) NULL,\n    [PO_ITEM] NVARCHAR(400) NULL,\n);\n
+GO
+ 
+----------------------------------------------------------------------------------
+-- OBJECT: LUUDOCQRCODE (U)
+----------------------------------------------------------------------------------
+CREATE TABLE [dbo].[LUUDOCQRCODE] (\n    [LOTFCC] NVARCHAR(1000) NULL,\n    [MAHANGFCC] NVARCHAR(200) NULL,\n    [SLTEMFCC] SMALLINT NULL,\n    [LOTHVN] NVARCHAR(1000) NULL,\n    [MAHANGHVN] NVARCHAR(200) NULL,\n    [SLTEMHVN] SMALLINT NULL,\n    [STATUS] SMALLINT NULL,\n    [MAFCC] NVARCHAR(100) NULL,\n    [STT] SMALLINT NULL,\n    [KETQUA] NVARCHAR(100) NULL,\n    [NGAYXUAT] SMALLDATETIME NULL,\n    [GIOXUAT] NVARCHAR(400) NULL,\n    [NHAMAY] NVARCHAR(400) NULL,\n    [GIOGIAO] NVARCHAR(100) NULL,\n    [TGLUU] TIMESTAMP NULL,\n    [TGLuuDuLieu] DATETIME NULL DEFAULT (getutcdate()),\n);\n
+GO
+ 
+----------------------------------------------------------------------------------
+-- OBJECT: TMPPHIEUGIAOHANGDBCT (U)
+----------------------------------------------------------------------------------
+CREATE TABLE [dbo].[TMPPHIEUGIAOHANGDBCT] (\n    [ID] INT NOT NULL,\n    [IDP] INT NOT NULL,\n    [GGFCC] NVARCHAR(100) NULL,\n    [STT] SMALLINT NULL,\n    [CUA] NVARCHAR(100) NULL,\n    [TRUYEN] NVARCHAR(100) NULL,\n    [MAHANG] NVARCHAR(100) NULL,\n    [TENHANG] NVARCHAR(100) NULL,\n    [LOT] NVARCHAR(400) NULL,\n    [DV] NVARCHAR(100) NULL,\n    [SOLUONG] SMALLINT NULL,\n    [NGAYGIAO] SMALLDATETIME NULL,\n    [GIOGIAO] NVARCHAR(100) NULL,\n    [STATUS] NVARCHAR(100) NULL,\n    [TTPHIEU] NVARCHAR(100) NULL,\n    [NHAMAY] VARCHAR(50) NULL,\n    [ADDNM] INT NULL,\n    [HOP] INT NULL,\n    [STATUSDOC] NVARCHAR(100) NULL,\n    [NGAYNHAN] SMALLDATETIME NULL,\n    [TTNHAN] BIT NULL,\n    [Note] NVARCHAR(500) NULL,\n    [PO_NO] NVARCHAR(100) NULL,\n    [PO_ITEM] NVARCHAR(100) NULL,\n        CONSTRAINT [PK__TMPPHIEU__3214EC273EFF485B] PRIMARY KEY CLUSTERED ([ID] ASC)\n);\n
+GO
+ 
+----------------------------------------------------------------------------------
+-- OBJECT: TMPPHIEUGIAODBHD (U)
+----------------------------------------------------------------------------------
+CREATE TABLE [dbo].[TMPPHIEUGIAODBHD] (\n    [IDP] INT NOT NULL,\n    [NAME] NVARCHAR(500) NULL,\n    [TRANGTHAIGIAO] BIT NULL,\n    [Note] NVARCHAR(500) NULL,\n    [NGAYLAP] SMALLDATETIME NULL,\n    [NHAMAY] INT NOT NULL,\n    [NHAMAYNAME] NVARCHAR(100) NULL,\n        CONSTRAINT [PK__TMPPHIEU__C4971C3EC4DB953D] PRIMARY KEY CLUSTERED ([IDP] ASC)\n);\n
+GO
+ 
+----------------------------------------------------------------------------------
+-- OBJECT: QCDONGGOI (U)
+----------------------------------------------------------------------------------
+-- [Notice]: Table [QCDONGGOI] does not exist in current database.
+GO
+ 
+----------------------------------------------------------------------------------
+-- OBJECT: QRCODE_CHANGETIME (U)
+----------------------------------------------------------------------------------
+CREATE TABLE [dbo].[QRCODE_CHANGETIME] (\n    [GioFCCVP] NVARCHAR(100) NULL,\n    [GIOHVN] NVARCHAR(10) NULL,\n    [GIOFCCHN] NVARCHAR(100) NULL,\n    [ID] INT NULL,\n    [GIOCBVP] NVARCHAR(100) NULL,\n    [GIOCBHN] NVARCHAR(100) NULL,\n    [DisplayName] NVARCHAR(100) NOT NULL DEFAULT ('Name'),\n);\n
+GO
+ 
+----------------------------------------------------------------------------------
+-- OBJECT: tbl_QR_ComparePart (U)
+----------------------------------------------------------------------------------
+CREATE TABLE [dbo].[tbl_QR_ComparePart] (\n    [STT] INT NULL,\n    [PartNo] NVARCHAR(100) NULL,\n    [PartName] NVARCHAR(120) NULL,\n    [PartNoCompare] NVARCHAR(100) NULL,\n    [timeSet] SMALLDATETIME NULL,\n    [IsActive] BIT NULL,\n);\n
+GO
+ 
+----------------------------------------------------------------------------------
+-- OBJECT: B20Gear (U)
+----------------------------------------------------------------------------------
+CREATE TABLE [dbo].[B20Gear] (\n    [Id] INT NOT NULL,\n    [ParentId] INT NOT NULL DEFAULT ((-1)),\n    [IsGroup] BIT NOT NULL DEFAULT ((0)),\n    [BranchCode] NVARCHAR(6) NOT NULL DEFAULT (''),\n    [Code] INT NOT NULL,\n    [Name] NVARCHAR(20) NOT NULL,\n    [Name2] NVARCHAR(128) NOT NULL DEFAULT (''),\n    [IsActive] BIT NOT NULL DEFAULT ((1)),\n    [CreatedBy] INT NOT NULL DEFAULT ((-1)),\n    [CreatedAt] DATETIME NOT NULL DEFAULT (getutcdate()),\n    [ModifiedBy] INT NOT NULL DEFAULT ((-1)),\n    [ModifiedAt] DATETIME NOT NULL DEFAULT (getutcdate()),\n    [timestamp] TIMESTAMP NOT NULL,\n        CONSTRAINT [PK_GearList] PRIMARY KEY CLUSTERED ([Id] ASC)\n);\n
+GO
+ 
+----------------------------------------------------------------------------------
+-- OBJECT: DONHANG (U)
+----------------------------------------------------------------------------------
+CREATE TABLE [dbo].[DONHANG] (\n    [cua] NCHAR(20) NULL,\n    [mahang] NCHAR(100) NULL,\n    [tenhang] NCHAR(120) NULL,\n    [gioxuat] INT NULL,\n    [truyen] NCHAR(20) NULL,\n    [Oty] INT NULL,\n    [slxuat] INT NULL,\n    [NgayXuat] SMALLDATETIME NULL,\n);\n
+GO
+ 
+----------------------------------------------------------------------------------
+-- OBJECT: GIAO_HANG (U)
+----------------------------------------------------------------------------------
+CREATE TABLE [dbo].[GIAO_HANG] (\n    [LOT] NVARCHAR(100) NULL,\n    [NGAYGIAO] SMALLDATETIME NULL,\n    [GIOGIAO] NVARCHAR(100) NULL,\n    [SLGIAO] SMALLINT NULL,\n    [STATUS] SMALLINT NULL,\n    [GIOBAN] DATETIME NULL DEFAULT (getdate()),\n);\n
+GO
+ 
+----------------------------------------------------------------------------------
+-- OBJECT: InspectionLog (U)
+----------------------------------------------------------------------------------
+CREATE TABLE [dbo].[InspectionLog] (\n    [LogId] INT NOT NULL,\n    [InspectionCode] NVARCHAR(100) NOT NULL,\n    [ItemCode] NVARCHAR(200) NULL,\n    [TemCodeTong] NVARCHAR(400) NULL,\n    [LotNoTong] NVARCHAR(400) NULL,\n    [NSXTong] NVARCHAR(100) NULL,\n    [SoLuongTong] INT NULL,\n    [MaPhieu] NVARCHAR(200) NULL,\n    [BoxTemCode] NVARCHAR(400) NULL,\n    [BoxLotNo] NVARCHAR(400) NULL,\n    [BoxNSX] NVARCHAR(100) NULL,\n    [IsMatch] BIT NULL DEFAULT ((1)),\n    [MismatchFields] NVARCHAR(1000) NULL,\n    [FinalResult] NVARCHAR(40) NULL,\n    [CheckedAt] DATETIME NULL DEFAULT (getdate()),\n    [CheckedBy] NVARCHAR(200) NULL,\n        CONSTRAINT [PK__Inspecti__5E54864800C0C605] PRIMARY KEY CLUSTERED ([LogId] ASC)\n);\n
+GO
+ 
+----------------------------------------------------------------------------------
+-- OBJECT: PURCHASE_ORDER_YMVN (U)
+----------------------------------------------------------------------------------
+CREATE TABLE [dbo].[PURCHASE_ORDER_YMVN] (\n    [Oder_no] NVARCHAR(20) NULL,\n    [Part_no] NVARCHAR(100) NULL,\n    [Part_name] NVARCHAR(120) NULL,\n    [NgayGiao] SMALLDATETIME NULL,\n    [Slgiao] INT NULL,\n    [QCDG] INT NULL,\n    [Gear] NVARCHAR(160) NULL,\n    [CUA] NCHAR(20) NULL,\n);\n
+GO
+ 
+----------------------------------------------------------------------------------
+-- OBJECT: FVN_HangChoGiao (U)
+----------------------------------------------------------------------------------
+CREATE TABLE [dbo].[FVN_HangChoGiao] (\n    [Id] INT NOT NULL,\n    [MaHang] NVARCHAR(100) NOT NULL,\n    [LotThung] NVARCHAR(100) NULL,\n    [LotGoc] NVARCHAR(100) NULL,\n    [SoLuong] INT NOT NULL,\n    [SlotIdNguon] INT NULL,\n    [LoaiYeuCauGiao] NVARCHAR(60) NOT NULL,\n    [PhieuKhachTraId] INT NULL,\n    [PhieuXuLyBatThuongId] INT NULL,\n    [DinhDanhPhieuGiao] NVARCHAR(400) NULL,\n    [TrangThai] NVARCHAR(60) NOT NULL,\n    [NgayXuatKho] DATETIME NULL,\n    [NguoiXuatKho] NVARCHAR(100) NULL,\n    [NgayGiao] DATETIME NULL,\n    [NguoiGiao] NVARCHAR(100) NULL,\n    [Note] NVARCHAR(500) NULL,\n        CONSTRAINT [PK__FVN_Hang__3214EC07E6905088] PRIMARY KEY CLUSTERED ([Id] ASC)\n);\n
+GO
+ 
+----------------------------------------------------------------------------------
+-- OBJECT: FVN_HangChoGiaoPickDetail (U)
+----------------------------------------------------------------------------------
+CREATE TABLE [dbo].[FVN_HangChoGiaoPickDetail] (\n    [Id] INT NOT NULL,\n    [HangChoGiaoId] INT NOT NULL,\n    [SlotIdNguon] INT NOT NULL,\n    [ItemCode] NVARCHAR(200) NOT NULL,\n    [LotNo] NVARCHAR(1000) NOT NULL,\n    [Quantity] INT NOT NULL,\n    [TemCode] NVARCHAR(1000) NULL,\n    [QrData] NVARCHAR(MAX) NULL,\n    [ImportDate] DATETIME NULL,\n    [PhieuStatus] TINYINT NOT NULL DEFAULT ((0)),\n    [CreatedAt] DATETIME NOT NULL DEFAULT (getdate()),\n        CONSTRAINT [PK_FVN_HangChoGiaoPickDetail] PRIMARY KEY CLUSTERED ([Id] ASC)\n);\n
+GO
+ 
+----------------------------------------------------------------------------------
+-- OBJECT: FVN_PhieuTraHang (U)
+----------------------------------------------------------------------------------
+CREATE TABLE [dbo].[FVN_PhieuTraHang] (\n    [Id] INT NOT NULL,\n    [Nguon] INT NOT NULL,\n    [SoPhieu] NVARCHAR(100) NULL,\n    [NguonKhachTra] INT NULL,\n    [SoPhieuKhach] NVARCHAR(100) NULL,\n    [NgayPhatHanh] DATETIME NULL,\n    [SlipNo] NVARCHAR(100) NULL,\n    [Ca] NVARCHAR(20) NULL,\n    [PhongBan] NVARCHAR(200) NULL,\n    [LyDo] NVARCHAR(1000) NULL,\n    [TenKhachHang] NVARCHAR(400) NULL,\n    [BoPhanPhatHienLoi] NVARCHAR(200) NULL,\n    [XacNhanBPPhatHienLoi] NVARCHAR(200) NULL,\n    [XacNhanQCKhach] NVARCHAR(200) NULL,\n    [XacNhanNhaCungCap] NVARCHAR(200) NULL,\n    [NgayNhanKho] DATETIME NULL,\n    [TongSoLuongNhan] INT NOT NULL DEFAULT ((0)),\n    [Status] INT NOT NULL DEFAULT ((0)),\n    [BoPhanNhanLai] NVARCHAR(200) NULL,\n    [SoLuongGiaoLai] INT NULL,\n    [NgayGiaoLaiBoPhan] DATETIME NULL,\n    [NguoiGiaoLaiBoPhan] NVARCHAR(100) NULL,\n    [Note] NVARCHAR(2000) NULL,\n    [CreatedAt] DATETIME NOT NULL DEFAULT (getdate()),\n    [CreatedBy] NVARCHAR(100) NULL,\n    [UpdatedAt] DATETIME NULL,\n    [UpdatedBy] NVARCHAR(100) NULL,\n    [CustomerNo] NVARCHAR(40) NULL,\n        CONSTRAINT [PK_FVN_PhieuTraHang] PRIMARY KEY CLUSTERED ([Id] ASC)\n);\n
+GO
+ 
+----------------------------------------------------------------------------------
+-- OBJECT: FVN_PhieuTraHangCT (U)
+----------------------------------------------------------------------------------
+CREATE TABLE [dbo].[FVN_PhieuTraHangCT] (\n    [Id] INT NOT NULL,\n    [PhieuTraHangId] INT NOT NULL,\n    [SlotIdNguon] INT NULL,\n    [MaHang] NVARCHAR(100) NULL,\n    [TenHang] NVARCHAR(400) NULL,\n    [LotNo] NVARCHAR(200) NULL,\n    [SoLuong] INT NOT NULL DEFAULT ((0)),\n    [LyDoNg] NVARCHAR(1000) NULL,\n    [DinhDanhPhieuGiao] NVARCHAR(200) NULL,\n    [PoNo] NVARCHAR(100) NULL,\n    [NgayGiao] DATETIME NULL,\n    [NhaMay] NVARCHAR(200) NULL,\n    [PhieuXuLyBatThuongId] INT NULL,\n        CONSTRAINT [PK_FVN_PhieuTraHangCT] PRIMARY KEY CLUSTERED ([Id] ASC)\n);\n
+GO
+ 
+----------------------------------------------------------------------------------
+-- OBJECT: FVN_PhieuXuLyBatThuong (U)
+----------------------------------------------------------------------------------
+CREATE TABLE [dbo].[FVN_PhieuXuLyBatThuong] (\n    [Id] INT NOT NULL,\n    [SoPhieu] NVARCHAR(100) NOT NULL,\n    [Nguon] INT NOT NULL,\n    [PhieuTraHangId] INT NULL,\n    [PhieuTraHangCTId] INT NOT NULL,\n    [SoPhieuTraHangGoc] NVARCHAR(100) NULL,\n    [PhieuKhachTraId] INT NULL,\n    [SlotIdNguon] INT NULL,\n    [LotNguon] NVARCHAR(100) NULL,\n    [Model] NVARCHAR(200) NULL,\n    [MaSanPham] NVARCHAR(100) NULL,\n    [SoLo] NVARCHAR(100) NULL,\n    [SoLoLoi] NVARCHAR(100) NULL,\n    [SoLuongLoi] INT NOT NULL DEFAULT ((0)),\n    [NoiDungBatThuong] NVARCHAR(1000) NULL,\n    [PhanLoaiXuLy] NVARCHAR(200) NULL,\n    [BoPhanPhatHanh] NVARCHAR(200) NULL,\n    [Status] INT NOT NULL DEFAULT ((0)),\n    [HuongXuLy] INT NOT NULL DEFAULT ((0)),\n    [NgayDinhHuong] DATETIME NULL,\n    [NguoiDinhHuong] NVARCHAR(100) NULL,\n    [CreatedAt] DATETIME NOT NULL DEFAULT (getdate()),\n    [CreatedBy] NVARCHAR(100) NULL,\n    [UpdatedAt] DATETIME NULL,\n    [UpdatedBy] NVARCHAR(100) NULL,\n    [LyDoHuy] NVARCHAR(1000) NULL,\n    [NgayHuy] DATETIME NULL,\n    [NguoiHuy] NVARCHAR(100) NULL,\n        CONSTRAINT [PK_FVN_PhieuXuLyBatThuong] PRIMARY KEY CLUSTERED ([Id] ASC)\n);\n
+GO
+ 
+----------------------------------------------------------------------------------
+-- OBJECT: FVN_TraHangQTChungXuat (U)
+----------------------------------------------------------------------------------
+CREATE TABLE [dbo].[FVN_TraHangQTChungXuat] (\n    [Id] INT NOT NULL,\n    [PhieuXuLyBatThuongId] INT NOT NULL,\n    [SlotIdNguon] INT NOT NULL,\n    [LotXuat] NVARCHAR(200) NOT NULL,\n    [LoaiXuat] NVARCHAR(60) NULL,\n    [MaHang] NVARCHAR(200) NOT NULL,\n    [SoLuongXuat] INT NOT NULL,\n    [TonTruoc] INT NOT NULL,\n    [TonSau] INT NOT NULL,\n    [NgayXuat] DATETIME NOT NULL DEFAULT (getdate()),\n    [NguoiXuat] NVARCHAR(200) NULL,\n    [LyDo] NVARCHAR(1000) NULL,\n    [Note] NVARCHAR(MAX) NULL,\n        CONSTRAINT [PK_FVN_TraHangQTChungXuat] PRIMARY KEY CLUSTERED ([Id] ASC)\n);\n
+GO
+ 
+----------------------------------------------------------------------------------
+-- OBJECT: FVN_TraHangQTChungGiao (U)
+----------------------------------------------------------------------------------
+CREATE TABLE [dbo].[FVN_TraHangQTChungGiao] (\n    [Id] INT NOT NULL,\n    [PhieuXuLyBatThuongId] INT NOT NULL,\n    [LotGiao] NVARCHAR(200) NULL,\n    [MaHang] NVARCHAR(200) NULL,\n    [SoLuongGiao] INT NOT NULL,\n    [ThoiGian] DATETIME NOT NULL DEFAULT (getdate()),\n    [NgayGiao] NVARCHAR(200) NULL,\n    [NguoiNhan] NVARCHAR(200) NULL,\n    [BoPhanNhan] NVARCHAR(200) NULL,\n    [SoPhieuGiaoNhan] NVARCHAR(200) NULL,\n    [Note] NVARCHAR(MAX) NULL,\n        CONSTRAINT [PK_FVN_TraHangQTChungGiao] PRIMARY KEY CLUSTERED ([Id] ASC)\n);\n
+GO
+ 
+----------------------------------------------------------------------------------
+-- OBJECT: FVN_TraHangQTChungQC (U)
+----------------------------------------------------------------------------------
+CREATE TABLE [dbo].[FVN_TraHangQTChungQC] (\n    [Id] INT NOT NULL,\n    [PhieuXuLyBatThuongId] INT NOT NULL,\n    [SoLuongDaRework] INT NOT NULL,\n    [SoLuongOK] INT NOT NULL,\n    [SoLuongNG] INT NOT NULL,\n    [DaKiemTraTem] BIT NOT NULL DEFAULT ((0)),\n    [ThoiGian] DATETIME NOT NULL DEFAULT (getdate()),\n    [NguoiQC] NVARCHAR(200) NULL,\n    [KetLuan] NVARCHAR(200) NULL,\n    [Note] NVARCHAR(MAX) NULL,\n        CONSTRAINT [PK_FVN_TraHangQTChungQC] PRIMARY KEY CLUSTERED ([Id] ASC)\n);\n
+GO
+ 
+----------------------------------------------------------------------------------
+-- OBJECT: FVN_TraHangQTChungNhapNG (U)
+----------------------------------------------------------------------------------
+CREATE TABLE [dbo].[FVN_TraHangQTChungNhapNG] (\n    [Id] INT NOT NULL,\n    [PhieuXuLyBatThuongId] INT NOT NULL,\n    [SlotIdOK] INT NULL,\n    [SlotIdNG] INT NULL,\n    [LotNhapLai] NVARCHAR(200) NOT NULL,\n    [MaHang] NVARCHAR(200) NOT NULL,\n    [SoLuongNG] INT NOT NULL,\n    [SlotIdNhap] INT NULL,\n    [NgayNhap] DATETIME NOT NULL DEFAULT (getdate()),\n    [NguoiNhap] NVARCHAR(200) NULL,\n    [LyDo] NVARCHAR(1000) NULL,\n    [Note] NVARCHAR(MAX) NULL,\n        CONSTRAINT [PK_FVN_TraHangQTChungNhapNG] PRIMARY KEY CLUSTERED ([Id] ASC)\n);\n
+GO
+ 
+----------------------------------------------------------------------------------
+-- OBJECT: sys_WorkflowTransitions (U)
+----------------------------------------------------------------------------------
+CREATE TABLE [dbo].[sys_WorkflowTransitions] (\n    [Id] INT NOT NULL,\n    [ProcessCode] VARCHAR(50) NOT NULL,\n    [FromStatus] INT NOT NULL,\n    [ToStatus] INT NOT NULL,\n    [ActionName] NVARCHAR(300) NULL,\n    [Description] NVARCHAR(1000) NULL,\n    [IsActive] BIT NOT NULL DEFAULT ((1)),\n        CONSTRAINT [PK__sys_Work__3214EC078ACC2616] PRIMARY KEY CLUSTERED ([Id] ASC)\n);\n
+GO
+ 
+----------------------------------------------------------------------------------
+-- OBJECT: DeliveryCommandLedger (U)
+----------------------------------------------------------------------------------
+-- [Notice]: Table [DeliveryCommandLedger] does not exist in current database.
+GO
+ 
+----------------------------------------------------------------------------------
+-- OBJECT: DeliveryCommandQr (U)
+----------------------------------------------------------------------------------
+-- [Notice]: Table [DeliveryCommandQr] does not exist in current database.
+GO
+ 
+----------------------------------------------------------------------------------
+-- OBJECT: vB20Item (V)
+----------------------------------------------------------------------------------
+
+CREATE VIEW [dbo].[vB20Item]
+AS
+SELECT dmvt.Id, dmvt.ParentId, dmvt.IsGroup, dmvt.BranchCode, dmvt.Code, dmvt.Name, dmvt.Name2,
+	dmvt.Unit, dmvt.Unit0, dmvt.ConvertRate0, dmvt.Unit1, dmvt.ConvertRate1, dmvt.Unit2, dmvt.ConvertRate2, 
+	dmvt.Weight, dmvt.UnitCost, dmvt.UnitPrice, dmvt.MinCloseQty, dmvt.MaxCloseQty, 
+	dmvt.ExciseTaxCode, dmvt.ExciseTaxRate, 
+	dmvt.EnvCode, dmvt.EnvTaxRate, dmvt.SalesTaxCode,
+	dmvt.ItemType, dmvt.ItemCatgCode, dmvt.ItemGroupCode,
+	itemgroup.ItemAccount, itemgroup.COGSAccount, itemgroup.SalesAccount, 
+	itemgroup.SalesReturnAccount, itemgroup.SalesDiscountAccount, 
+	itemgroup.ItemAccount1, itemgroup.COGSAccount1, itemgroup.SalesAccount1, 
+	itemgroup.SalesReturnAccount1, itemgroup.SalesDiscountAccount1, 
+	itemgroup.ItemAccount2, itemgroup.COGSAccount2, itemgroup.SalesAccount2, 
+	itemgroup.SalesReturnAccount2, itemgroup.SalesDiscountAccount2, 
+	itemgroup.ItemAccount3, itemgroup.COGSAccount3, itemgroup.SalesAccount3, 
+	itemgroup.SalesReturnAccount3, itemgroup.SalesDiscountAccount3, dmvt.DeptCode,dmvt.LinesCode,
+	dmvt.ProductCostId, --ProductCost.ProductCostInfo,
+	CASE WHEN dmvt.IsGroup = 1 THEN 0 
+		WHEN dmvt.ItemType = 3 THEN 2
+		ELSE 1 END AS ItemGroup,	-- VT_Loai
+	dmvt.Length, dmvt.Width, dmvt.Height,
+	dmvt.IsItemWithSerialNo, dmvt.IsItemWithInstall, dmvt.IsItemWithTransport, 
+	dmvt.IsItemWithScale, dmvt.IsItemWithLocation, dmvt.IsItemWithLot, 
+	dmvt.ShelfLife, dmvt.ManufacturerCode,
+	dmvt.ProductItemCode, loai.Name AS ItemTypeName, 
+	dmvt.ClassCode1, dmvt.ClassCode2, dmvt.ClassCode3, 
+	--nhom.Code AS ParentCode,
+	CAST(REPLACE(STR(ROW_NUMBER() OVER (ORDER BY DmVt.Code), 6), SPACE(1), '0') AS NVARCHAR(6)) AS _GroupOrder, 
+	CAST(0 AS TinyInt) AS AutoCreateProductCode, 
+	CAST(NULL AS NVARCHAR(24)) AS CodeTmp,
+	Img.Image, Img.ParentId AS attachedParentId,	-- Image luu o bang khac
+	dmvt.BarCode, dmvt.Comment, 
+	dmvt.IsActive, dmvt.CreatedBy, dmvt.CreatedAt, dmvt.ModifiedBy, dmvt.ModifiedAt, dmvt.timestamp,
+	dmvt.Model
+FROM dbo.B20Item AS dmvt LEFT OUTER JOIN
+	dbo.B20Class AS loai ON dmvt.ItemType = loai.Code AND ParentCode='DMVT_Loai_Vt' LEFT OUTER JOIN
+	--dbo.vB20ProductCost AS ProductCost ON ProductCost.RowId = dmvt.ProductCostId LEFT OUTER JOIN
+	--dbo.B20Item AS nhom ON dmvt.ParentId = nhom.Id LEFT OUTER JOIN
+	dbo.B20ItemGroup AS itemgroup ON dmvt.ItemGroupCode = itemgroup.Code LEFT OUTER JOIN
+	dbo.B20ImageStore Img ON Img.ParentId = dmvt.Id AND Img.Type = 'ITEM'
+
+
+
+
+GO
+ 
+----------------------------------------------------------------------------------
+-- OBJECT: vNhapTP (V)
+----------------------------------------------------------------------------------
+CREATE VIEW [dbo].[vNhapTP]
+AS
+SELECT 
+    ROW_NUMBER() OVER (ORDER BY NGAY_SAN_XUAT DESC) AS STT, 
+    (LOT_NO + LY_DO_TRA) AS FIND, 
+    *
+FROM (
+    SELECT 
+        RTRIM(tt.ItemLot) AS LOT_NO, 
+        tt.Model, 
+        tt.Name AS TEN_SAN_PHAM, 
+        tt.ReceiptItemCode AS MA_SAN_PHAM, 
+        RTRIM(tt.ShiftCode) AS CA_SAN_XUAT, 
+        tt.DocDate AS NGAY_SAN_XUAT, 
+        tt.Qty AS SL_DA_SAN_XUAT, 
+        s.ngaynhap AS NGAY_NHAP, 
+        ISNULL(s.slnhap, 0) AS SL_DA_NHAP, 
+        '' AS SL_DA_TRA, 
+        '' AS LY_DO_TRA, 
+        s.slconlai AS TON_KHO_TP, 
+        '' AS SL_SE_NHAP, 
+        -- ✅ FIX 1: tính thật thay vì hardcode ''
+        CASE WHEN ISNULL(s.Satus, 0) = 1 THEN '1' ELSE '0' END AS KET_THUC_LOT
+    FROM (
+        SELECT 
+            t.ItemLot, t.DocDate, t.ShiftCode, t.Model, 
+            t.ReceiptItemCode, t.Name, SUM(t.QuantityT) AS Qty
+        FROM (
+            SELECT 
+                SUBSTRING(SX.ItemLotCodeTP,0,21) AS ItemLot, 
+                SX.DocDate, SX.ShiftCode, SX.Model, 
+                SX.ItemLotCodeTP, SX.ReceiptItemCode, K.Name, 
+                CAST(SUM(SX.ReceiptQuantity) AS INT) AS QuantityT
+            FROM 
+                dbo.B30AccDoc AS SX
+                INNER JOIN dbo.B20Item AS K ON SX.ReceiptItemCode = K.Code
+            WHERE 
+                SX.ItemLotCodeTP <> '' 
+                AND SX.IsActive <> 0 
+                AND SX.ReceiptQuantity > 0
+            GROUP BY 
+                SX.DocDate, SX.ShiftCode, SX.Model, SX.ItemLotCodeTP, 
+                SX.ReceiptItemCode, K.Name, K.Id, SX.MachinesCode, SX.GearCode
+        ) AS T
+        GROUP BY t.ItemLot, t.DocDate, t.ShiftCode, t.Model, t.ReceiptItemCode, t.Name
+    ) AS TT
+    LEFT JOIN dbo.Stocktp AS S ON tt.ItemLot = s.LOT
+    -- ✅ FIX 2: BỎ điều kiện "AND (s.Satus <> 1 OR s.Satus IS NULL)".
+    -- Lý do: điều kiện này khiến LOT đã bị khoá (Satus=1) biến mất khỏi view
+    -- vĩnh viễn, kể cả khi MES tăng SL_SAN_XUAT sau đó. Tầng C#
+    -- (DongBoSLSXVaMoLaiNeuThayDoi) cần dòng này vẫn hiện diện để so sánh
+    -- SLSX mới với SLSX đã lưu trong STOCKTP và tự mở khoá — nếu view chặn
+    -- trước, C# không bao giờ có dữ liệu để đối chiếu.
+    WHERE 
+        (ISNULL(s.slnhap, 0) = 0 OR ISNULL(s.slnhap, 0) <> tt.Qty)
+    
+    UNION ALL
+    
+    SELECT 
+        RTRIM(D.Lot) AS ItemLot, D.Model, RTRIM(D.Name), 
+        RTRIM(D.part) AS ReceiptItem, RTRIM(D.casx) AS ShiftCode, 
+        RTRIM(D.ngaysx) AS Docdate, D.SLSX AS Qty, 
+        D.ngaynhap, D.slnhap, E.slconlai, RTRIM(E.ly_do_ng), 
+        D.slconlai, '' AS SL_SE_NHAP, 
+        -- ✅ FIX 1: tính thật thay vì hardcode '' (tên cột cũ còn viết sai KET_THUC_NOT)
+        CASE WHEN ISNULL(D.Satus, 0) = 1 THEN '1' ELSE '0' END AS KET_THUC_LOT
+    FROM 
+        Stocktp AS D
+        INNER JOIN (
+            SELECT lot AS lottra, SUM(slconlai) AS slconlai, ly_do_ng
+            FROM dbo.stocktptrahang
+            WHERE status <> 1 AND slconlai > 0
+            GROUP BY lot, ly_do_ng
+        ) AS E ON D.lot = E.lottra
+    
+    UNION ALL
+    
+    SELECT 
+        RTRIM(K.Lot) AS ItemLot, K.Model, RTRIM(K.Name), 
+        RTRIM(K.part) AS ReceiptItem, RTRIM(K.casx) AS ShiftCode, 
+        RTRIM(K.ngaysx) AS Docdate, K.SLSX AS Qty, 
+        K.ngaynhap, K.slnhap, SUM(T.sltra) AS SL_DATRA, 
+        '' AS ly_do_ng, K.slconlai, '' AS SL_SE_NHAP, 
+        -- ✅ FIX 1
+        CASE WHEN ISNULL(K.SATUS, 0) = 1 THEN '1' ELSE '0' END AS KET_THUC_LOT
+    FROM 
+        STOCKTP AS K
+        LEFT JOIN STOCKTPTRAHANG AS T ON K.LOT = T.LOT
+    WHERE 
+        K.SLCONLAI > 0 
+        -- ✅ FIX 2: BỎ "AND K.SATUS <> 1" — cùng lý do như nhánh 1
+        AND K.PART IN (
+            SELECT ReceiptItemCode FROM B30AccDoc
+            WHERE IsActive = 0 
+              AND ReceiptItemCode NOT IN (
+                  SELECT ReceiptItemCode FROM B30AccDoc WHERE IsActive = 1
+              )
+        )
+    GROUP BY 
+   
+     K.Lot, K.Model, K.Name, K.part, K.casx, K.ngaysx, 
+        K.SLSX, K.ngaynhap, K.slnhap, K.slconlai, K.SATUS   -- ← thêm K.SATUS vào GROUP BY vì giờ SELECT tham chiếu nó
+) AS TTK
+GO
+ 
+----------------------------------------------------------------------------------
+-- OBJECT: IFSPHIEUGIAOHANGView (V)
+----------------------------------------------------------------------------------
+-- [Notice]: Definition not found or object does not exist in current DB.
+GO
+ 
+----------------------------------------------------------------------------------
+-- OBJECT: IFSPHIEUGIAOHANG_SPView (V)
+----------------------------------------------------------------------------------
+-- [Notice]: Definition not found or object does not exist in current DB.
+GO
+ 
+----------------------------------------------------------------------------------
+-- OBJECT: IFSPHIEUGIAOHANG_100003View (V)
+----------------------------------------------------------------------------------
+-- [Notice]: Definition not found or object does not exist in current DB.
+GO
+ 
+----------------------------------------------------------------------------------
+-- OBJECT: IFSPHIEUGIAOHANG_100002View (V)
+----------------------------------------------------------------------------------
+-- [Notice]: Definition not found or object does not exist in current DB.
+GO
+ 
+----------------------------------------------------------------------------------
+-- OBJECT: SP_TMPPHIEUGIAOHANG (P)
+----------------------------------------------------------------------------------
+-- [Notice]: Definition not found or object does not exist in current DB.
+GO
+ 
+----------------------------------------------------------------------------------
+-- OBJECT: SP_DOCQRCODE (P)
+----------------------------------------------------------------------------------
+-- [Notice]: Definition not found or object does not exist in current DB.
+GO
+ 
+----------------------------------------------------------------------------------
+-- OBJECT: Usp_Qrcode_Update_Stock2405 (P)
+----------------------------------------------------------------------------------
+CREATE   PROC [dbo].[Usp_Qrcode_Update_Stock2405]  
+    @GIOGIAOFCC  NVARCHAR(250) = N'',  
+    @NHAMAY      NVARCHAR(250) = N'',  
+    @TMPTABLE    NVARCHAR(128) = N'TMPPHIEUGIAOHANG',  
+    @DOCQRTABLE  NVARCHAR(128) = N'DOCQRCODE'  
+AS  
+BEGIN  
+    SET NOCOUNT ON;  
+  
+    /*  
+        ================================================================  
+        QUY ƯỚC LOT  
+        ================================================================  
+  
+        STOCKTP.LOT đầy đủ là định danh chính xác của LOT vật lý.
+
+        - Nếu đầu vào dài hơn 13 ký tự: chỉ khớp RTRIM(STOCKTP.LOT) = RTRIM(@LOT).
+        - Nếu đầu vào chỉ có mã gốc 13 ký tự: chỉ chấp nhận khi mã gốc ánh xạ tới
+          đúng một LOT vật lý; nếu có nhiều LOT vật lý thì ghi lỗi và dừng trước
+          mọi cập nhật tồn.
+        - Tuyệt đối không cộng tồn của nhiều LOT vật lý theo tiền tố rồi trừ một
+          LOT bất kỳ. Kiểm tra khả dụng và bước trừ kho phải dùng cùng quy tắc.
+    */  
+  
+    --------------------------------------------------------------------  
+    -- 1. WHITELIST TÊN BẢNG  
+    --------------------------------------------------------------------  
+    IF @TMPTABLE NOT IN  
+    (  
+        N'TMPPHIEUGIAOHANG',  
+        N'TMPPHIEUGIAOHANG_SP',  
+        N'TMPPHIEUGIAOHANG_100003'  
+    )  
+    BEGIN  
+        RAISERROR(  
+            N'Tên bảng TMPTABLE không hợp lệ: %s',  
+            16,  
+            1,  
+            @TMPTABLE  
+        );  
+        RETURN;  
+    END;  
+  
+    IF @DOCQRTABLE NOT IN  
+    (  
+        N'DOCQRCODE',  
+        N'DOCQRCODE_SP',  
+        N'DOCQRCODE_100003'  
+    )  
+    BEGIN  
+        RAISERROR(  
+            N'Tên bảng DOCQRTABLE không hợp lệ: %s',  
+            16,  
+            1,  
+            @DOCQRTABLE  
+        );  
+        RETURN;  
+    END;  
+  
+    --------------------------------------------------------------------  
+    -- 2. KHAI BÁO BIẾN  
+    --------------------------------------------------------------------  
+    DECLARE @NgayGiao SMALLDATETIME = CAST(GETDATE() AS SMALLDATETIME);  
+    DECLARE @sql NVARCHAR(MAX);
+    DECLARE @StartedTransaction BIT = 0;
+    DECLARE @SavepointCreated BIT = 0;  
+  
+    DECLARE  
+        @_LOT          NVARCHAR(MAX),  
+        @_SLCONLAI     INT,  
+        @STT           INT,  
+        @MH            NVARCHAR(60),  
+        @_LOTSL_Tach   NVARCHAR(500),  
+        @_LOTOK        NVARCHAR(500),  
+        @_SLOK         INT,  
+        @_KTPC         INT,  
+        @_LOTUD        NVARCHAR(500),  
+        @_SLUD         INT,  
+        @_STTUD        INT,  
+        @_STUP         NVARCHAR(15),  
+        @LotThuc       NVARCHAR(500),
+        @LockResource  NVARCHAR(255),
+        @LockResult    INT;  
+  
+    --------------------------------------------------------------------  
+    -- 3. XÓA TEMP TABLE CŨ  
+    --------------------------------------------------------------------  
+    IF OBJECT_ID('TempDb..#TMPUPDATE') IS NOT NULL  
+        DROP TABLE #TMPUPDATE;  
+  
+    IF OBJECT_ID('TempDb..#STOK') IS NOT NULL  
+        DROP TABLE #STOK;  
+  
+    IF OBJECT_ID('TempDb..#STNG') IS NOT NULL  
+        DROP TABLE #STNG;  
+  
+    IF OBJECT_ID('TempDb..#PHIEU') IS NOT NULL  
+        DROP TABLE #PHIEU;  
+  
+    IF OBJECT_ID('TempDb..#GomNhomCheck') IS NOT NULL  
+        DROP TABLE #GomNhomCheck;  
+  
+    IF OBJECT_ID('TempDb..#SplitResult') IS NOT NULL  
+        DROP TABLE #SplitResult;  
+
+    IF OBJECT_ID('TempDb..#StockByLot') IS NOT NULL
+        DROP TABLE #StockByLot;
+
+    IF OBJECT_ID('TempDb..#LotKeyCount') IS NOT NULL
+        DROP TABLE #LotKeyCount;
+  
+    --------------------------------------------------------------------  
+    -- 4. TEMP TABLE  
+    --------------------------------------------------------------------  
+    CREATE TABLE #TMPUPDATE  
+    (  
+        STT     INT,  
+        MH      NVARCHAR(60),  
+        LOT     NVARCHAR(MAX),  
+        SOLUONG INT,  
+        STATUS  NVARCHAR(50)  
+    );  
+  
+    CREATE TABLE #STOK  
+    (  
+        STT     INT,  
+        LOT     NVARCHAR(MAX),  
+        SOLUONG INT,  
+        STATUS  NVARCHAR(50)  
+    );  
+  
+    CREATE TABLE #STNG  
+    (  
+        MH       NVARCHAR(100),  
+        LOT      NVARCHAR(MAX),  
+        SLCAN    INT,  
+        SLCO     INT,  
+        SLTHIEU  INT,  
+        STATUS   NVARCHAR(500)  
+    );  
+  
+    CREATE TABLE #PHIEU  
+    (  
+        STT INT,  
+        LOT NVARCHAR(MAX),  
+        MH  NVARCHAR(60)  
+    );  
+  
+    BEGIN TRY
+
+        -- Own a transaction when called directly; otherwise participate in the
+        -- repository UnitOfWork through a savepoint. Start before the idempotency
+        -- check so concurrent confirmations serialize before reading/writing stock.
+        IF @@TRANCOUNT = 0
+        BEGIN
+            BEGIN TRANSACTION;
+            SET @StartedTransaction = 1;
+        END
+        ELSE
+        BEGIN
+            SAVE TRANSACTION UspQrcodeUpdateStock2405;
+            SET @SavepointCreated = 1;
+        END;
+  
+        ----------------------------------------------------------------  
+        -- 5. NẠP PHIẾU  
+        ----------------------------------------------------------------  
+        SET @sql = N'  
+            INSERT INTO #PHIEU  
+            (  
+                STT,  
+                LOT,  
+                MH  
+            )  
+            SELECT  
+                STT,  
+                LOT,  
+                MAHANG  
+            FROM [' + @TMPTABLE + N']  
+            WHERE ISNULL(LOT, '''') <> ''''  
+              AND (STATUS <> ''OK'' OR STATUS IS NULL);  
+        ';  
+  
+        EXEC sp_executesql @sql;  
+  
+        ----------------------------------------------------------------  
+        -- Không có phiếu  
+        ----------------------------------------------------------------  
+        IF NOT EXISTS (SELECT 1 FROM #PHIEU)  
+        BEGIN
+            IF @StartedTransaction = 1
+                COMMIT TRANSACTION;
+  
+            SELECT  
+                STT,  
+                LOT,  
+                SOLUONG,  
+                STATUS  
+            FROM #STOK;  
+  
+            SELECT  
+                MH,  
+                LOT,  
+                SLCAN AS SLC,  
+                SLCO AS SLTK,  
+                SLTHIEU AS SLT,  
+                STATUS  
+            FROM #STNG;  
+  
+            RETURN;  
+        END;  
+  
+        ----------------------------------------------------------------  
+        -- 6. DUYỆT PHIẾU  
+        ----------------------------------------------------------------  
+        DECLARE PGH CURSOR LOCAL FAST_FORWARD FOR  
+            SELECT  
+                STT,  
+                LOT,  
+                MH  
+            FROM #PHIEU;  
+  
+        OPEN PGH;  
+  
+        FETCH NEXT FROM PGH  
+        INTO @STT, @_LOT, @MH;  
+  
+        WHILE @@FETCH_STATUS = 0  
+        BEGIN  
+            DECLARE @DaTon BIT = 0;  
+  
+            DECLARE @CheckResult TABLE  
+            (  
+                Found INT  
+            );  
+  
+            ------------------------------------------------------------
+            -- 6.1. Serialize the complete delivery identity before checking for
+            -- an existing confirmation. The lock is transaction-owned and therefore
+            -- remains held through STOCKTP, ledger, and pending-delivery writes.
+            ------------------------------------------------------------
+            SET @LockResource = NULL;
+            SET @sql = N'
+                SELECT @Resource =
+                    N''PCTP_DELIVERY:'' +
+                    CONVERT(NVARCHAR(64), HASHBYTES(''SHA2_256'', CONCAT(
+                        UPPER(RTRIM(ISNULL(MAHANG, N''''))), N''|'',
+                        ISNULL(CONVERT(NVARCHAR(10), CAST(NGAYGIAO AS DATE), 23), N''''), N''|'',
+                        UPPER(R
+TRIM(ISNULL(CUA, N''''))), N''|'',
+                        UPPER(RTRIM(ISNULL(TRUYEN, N''''))), N''|'',
+                        ISNULL(CONVERT(NVARCHAR(20), SOLUONG), N''''), N''|'',
+                        UPPER(RTRIM(ISNULL(GIOGIAO, N''''))), N''|'',
+                        UPPER(RTRIM(LEFT(ISNULL(@NHAMAY, N''''), 50)))
+                    )), 2)
+                FROM [' + @TMPTABLE + N']
+                WHERE STT = @STT;';
+
+            EXEC sp_executesql
+                @sql,
+                N'@STT INT, @NHAMAY NVARCHAR(250), @Resource NVARCHAR(255) OUTPUT',
+                @STT = @STT,
+                @NHAMAY = @NHAMAY,
+                @Resource = @LockResource OUTPUT;
+
+            IF @LockResource IS NULL
+                RAISERROR(N'Không tạo được khóa chống xác nhận giao hàng trùng.', 16, 1);
+
+            EXEC @LockResult = sys.sp_getapplock
+                @Resource = @LockResource,
+                @LockMode = N'Exclusive',
+                @LockOwner = N'Transaction',
+                @LockTimeout = 10000;
+
+            IF @LockResult < 0
+                RAISERROR(N'Không lấy được khóa xác nhận giao hàng; vui lòng thử lại.', 16, 1);
+
+            ------------------------------------------------------------
+            -- 6.1. KIỂM TRA PHIẾU ĐÃ LƯU
+            ------------------------------------------------------------
+            SET @sql = N'  
+                SELECT TOP 1 1  
+                FROM [' + @TMPTABLE + N'] tmp  
+                INNER JOIN LUUPHIEUGIAOHANG luu  
+                    ON RTRIM(luu.MAHANG) =  
+                       RTRIM(tmp.MAHANG)  
+  
+                   AND CAST(luu.NGAYGIAO AS DATE) =  
+                       CAST(tmp.NGAYGIAO AS DATE)  
+  
+                   AND RTRIM(luu.CUA) =  
+                       RTRIM(tmp.CUA)  
+  
+                   AND RTRIM(luu.TRUYEN) =  
+                       RTRIM(tmp.TRUYEN)  
+  
+                   AND luu.SOLUONG =  
+                       tmp.SOLUONG  
+  
+                   AND RTRIM(luu.GIOGIAO) =  
+                       RTRIM(tmp.GIOGIAO)  
+  
+                   AND RTRIM(luu.NHAMAY) =  
+                       RTRIM(LEFT(@NHAMAY, 50))  
+  
+                WHERE tmp.STT = @STT;  
+            ';  
+  
+            INSERT INTO @CheckResult  
+            EXEC sp_executesql  
+                @sql,  
+                N'@NHAMAY NVARCHAR(250), @STT INT',  
+                @NHAMAY,  
+                @STT;  
+  
+            IF EXISTS (SELECT 1 FROM @CheckResult)  
+                SET @DaTon = 1;  
+  
+            DELETE FROM @CheckResult;  
+  
+            ------------------------------------------------------------  
+            -- 6.2. ĐÃ TỒN TẠI  
+            ------------------------------------------------------------  
+            IF @DaTon = 1  
+            BEGIN  
+                INSERT INTO #STNG  
+                (  
+                    MH,  
+                    LOT,  
+                    SLCAN,  
+                    SLCO,  
+                    SLTHIEU,  
+                    STATUS  
+                )  
+                VALUES  
+                (  
+                    @MH,  
+                    @_LOT,  
+               0,  
+                    0,  
+                    0,  
+                    N'Mã hàng này đã được lưu trước đó!'  
+                );  
+            END  
+            ELSE  
+            BEGIN  
+  
+                --------------------------------------------------------  
+                -- 6.3. TÁCH LOT-SL  
+                --------------------------------------------------------  
+                IF OBJECT_ID('TempDb..#SplitResult') IS NOT NULL  
+                    DROP TABLE #SplitResult;  
+  
+                CREATE TABLE #SplitResult  
+                (  
+                    LotTach NVARCHAR(500)  
+                );  
+  
+                INSERT INTO #SplitResult  
+                SELECT *  
+                FROM dbo.Split(@_LOT, ',');  
+ 
+ 
+                DECLARE LOT_IN_PGH CURSOR LOCAL FAST_FORWARD FOR  
+                    SELECT LotTach  
+                    FROM #SplitResult;  
+  
+                OPEN LOT_IN_PGH;  
+  
+                FETCH NEXT FROM LOT_IN_PGH  
+                INTO @_LOTSL_Tach;  
+  
+                WHILE @@FETCH_STATUS = 0  
+                BEGIN  
+                    ----------------------------------------------------  
+                    -- 6.4. TÁCH LOT-SL  
+                    ----------------------------------------------------  
+                    SET @_KTPC =  
+                        CHARINDEX('-', @_LOTSL_Tach);  
+  
+                    IF @_KTPC > 1  
+                    BEGIN  
+                        SET @_LOTOK =  
+                            SUBSTRING(  
+                                @_LOTSL_Tach,  
+                                1,  
+                                @_KTPC - 1  
+                            );  
+  
+                        SET @_SLOK =  
+                            TRY_CAST(  
+                                RIGHT(  
+                                    @_LOTSL_Tach,  
+                                    LEN(@_LOTSL_Tach) - @_KTPC  
+                                )  
+                                AS INT  
+                            );  
+  
+                        ------------------------------------------------  
+                        -- SL không hợp lệ  
+                        ------------------------------------------------  
+                        IF @_SLOK IS NULL  
+                        BEGIN  
+                            INSERT INTO #STNG  
+                            (  
+                                MH,  
+                                LOT,  
+                                SLCAN,  
+                                SLCO,  
+                                SLTHIEU,  
+                                STATUS  
+                            )  
+                            VALUES  
+                            (  
+                                @MH,  
+                                @_LOTSL_Tach,  
+                                0,  
+                                0,  
+                                0,  
+                                N'Số lượng trong chuỗi LOT-SL không hợp lệ'  
+                            );  
+                        END  
+                        ELSE  
+                        BEGIN  
+  
+                            ------------------------------------------------  
+                            -- 6.5. TÌM TỒN THEO LOT KEY 13 KÝ TỰ  
+                            ------------------------------------------------  
+                            SET @_SLCONLAI = 0;
+
+                            -- Full physical LOT is the exact identity. A 13-character
+                            -- root is accepted only when it maps to one physical LOT.
+                            IF LEN(RTRIM(@_LOTOK)) > 13
+                            BEGIN
+                                SELECT @_SLCONLAI = ISNULL(SLCONLAI, 0)
+                                FROM STOCKTP
+                                WHERE RTRIM(LOT) = RTRIM(@_LOTOK);
+                            END
+                            ELSE IF (
+                                SELECT COUNT(DISTINCT RTRIM(LOT))
+                                FROM STOCKTP
+                                WHERE LEFT(RTRIM(LOT), 13) = LEFT(RTRIM(@_LOTOK), 13)
+                            ) = 1
+                            BEGIN
+                                SELECT TOP (1) @_SLCONLAI = ISNULL(SLCONLAI, 0)
+                                FROM STOCKTP
+                                WHERE LEFT(RTRIM(LOT), 13) = LEFT(RTRIM(@_LOTOK), 13)
+                                ORDER BY LOT ASC;
+                            END
+                            ELSE IF (
+                                SELECT COUNT(DISTINCT RTRIM(LOT))
+                                FROM STOCKTP
+                        
+        WHERE LEFT(RTRIM(LOT), 13) = LEFT(RTRIM(@_LOTOK), 13)
+                            ) > 1
+                            BEGIN
+                                INSERT INTO #STNG(MH, LOT, SLCAN, SLCO, SLTHIEU, STATUS)
+                                VALUES(@MH, @_LOTOK, @_SLOK, 0, @_SLOK,
+                                       N'Mã LOT gốc ánh xạ nhiều LOT vật lý; vui lòng cung cấp LOT đầy đủ');
+                            END;  
+  
+                            ------------------------------------------------  
+                            -- 6.6. KIỂM TRA LOT TỒN TẠI. Skip duplicate diagnostics if root is ambiguous.
+                            IF NOT EXISTS
+                            (
+                                SELECT 1 FROM #STNG
+                                WHERE RTRIM(MH) = RTRIM(@MH)
+                                  AND RTRIM(LOT) = RTRIM(@_LOTOK)
+                                  AND STATUS = N'Mã LOT gốc ánh xạ nhiều LOT vật lý; vui lòng cung cấp LOT đầy đủ'
+                            )
+                            AND EXISTS
+                            (
+                                SELECT 1
+                                FROM STOCKTP
+                                WHERE (LEN(RTRIM(@_LOTOK)) > 13 AND RTRIM(LOT) = RTRIM(@_LOTOK))
+                                   OR (LEN(RTRIM(@_LOTOK)) <= 13 AND LEFT(RTRIM(LOT), 13) = LEFT(RTRIM(@_LOTOK), 13))
+                            )
+                            BEGIN  
+  
+                                ------------------------------------------------  
+                                -- ĐỦ TỒN  
+                                ------------------------------------------------  
+                                IF @_SLCONLAI >= @_SLOK  
+                                BEGIN  
+                                    INSERT INTO #TMPUPDATE  
+                                    (  
+                                        STT,  
+                                        MH,  
+                                        LOT,  
+                                        SOLUONG,  
+                                        STATUS  
+                                    )  
+                                    VALUES  
+                                    (  
+                                        @STT,  
+                                        @MH,  
+                                        @_LOTOK,  
+                                        @_SLOK,  
+                                        'OK'  
+                                    );  
+                                END  
+                                ELSE  
+                                BEGIN  
+  
+                                    ------------------------------------------------  
+                                    -- KHÔNG ĐỦ TỒN  
+                                    ------------------------------------------------  
+                                    INSERT INTO #STNG  
+                                    (  
+                                        MH,  
+                                        LOT,  
+                                        SLCAN,  
+                                        SLCO,  
+                                        SLTHIEU,  
+                                        STATUS  
+                                    )  
+                                    VALUES  
+                                    (  
+                                        @MH,  
+                                        @_LOTOK,  
+                                        @_SLOK,  
+                                        @_SLCONLAI,  
+                                        @_SLOK - @_SLCONLAI,  
+                                        N'Không đủ tồn kho ban đầu'  
+                                    );  
+                                END;  
+                            END  
+                            ELSE  
+                            BEGIN  
+  
+                        
+        ------------------------------------------------  
+                                -- KHÔNG TỒN TẠI LOT  
+                                ------------------------------------------------  
+                                INSERT INTO #STNG  
+                                (  
+                                    MH,  
+                                    LOT,  
+                                    SLCAN,  
+                                    SLCO,  
+                                    SLTHIEU,  
+                                    STATUS  
+                                )  
+                                VALUES  
+                                (  
+                                    @MH,  
+                                    @_LOTOK,  
+                                    @_SLOK,  
+                                    0,  
+                                    @_SLOK,  
+                                    N'Không tồn tại LOT trong STOCKTP'  
+                                );  
+                            END;  
+                        END;  
+                    END  
+                    ELSE  
+                    BEGIN  
+  
+                        ----------------------------------------------------  
+                        -- FORMAT LOT-SL KHÔNG HỢP LỆ  
+   ----------------------------------------------------  
+                        INSERT INTO #STNG  
+                        (  
+                            MH,  
+                            LOT,  
+                            SLCAN,  
+                            SLCO,  
+                            SLTHIEU,  
+                            STATUS  
+                        )  
+                        VALUES  
+                        (  
+                            @MH,  
+                            @_LOTSL_Tach,  
+                            0,  
+                            0,  
+                            0,  
+                            N'Định dạng chuỗi LOT-SL không hợp lệ'  
+                        );  
+                    END;  
+  
+                    FETCH NEXT FROM LOT_IN_PGH  
+                    INTO @_LOTSL_Tach;  
+                END;  
+  
+                CLOSE LOT_IN_PGH;  
+                DEALLOCATE LOT_IN_PGH;  
+            END;  
+  
+            FETCH NEXT FROM PGH  
+            INTO @STT, @_LOT, @MH;  
+        END;  
+  
+        CLOSE PGH;  
+        DEALLOCATE PGH;  
+  
+        ----------------------------------------------------------------  
+        -- 7. KIỂM TRA TỔNG SL CẦN XUẤT VS TỒN  
+        ----------------------------------------------------------------  
+        IF EXISTS  
+        (  
+            SELECT 1  
+            FROM #TMPUPDATE  
+            WHERE STATUS = 'OK'  
+        )  
+        BEGIN  
+  
+            SELECT  
+                MH,  
+                LOT,  
+                SUM(SOLUONG) AS TONG_CAN_XUAT  
+            INTO #GomNhomCheck  
+            FROM #TMPUPDATE T
+            WHERE T.STATUS = 'OK'
+              AND NOT EXISTS
+              (
+                  SELECT 1
+                  FROM #STNG E
+                  WHERE RTRIM(E.MH) = RTRIM(T.MH)
+                    AND RTRIM(E.LOT) = RTRIM(T.LOT)
+              )
+            GROUP BY
+                MH,
+                LOT;  
+  
+            ------------------------------------------------------------
+            -- Aggregate STOCKTP once (not once per delivery line).
+            --
+            -- The previous form LEFT JOINed the aggregate with an ON clause that
+            -- contained OR plus a correlated COUNT(DISTINCT ...) over STOCKTP. SQL
+            -- Server could not hash/merge-join it, so it compared every delivery
+            -- line with every physical LOT and re-ran that sub-query each time
+            -- (minutes on ~66k STOCKTP rows). Same rules, computed once:
+            --   * input LOT longer than 13 chars -> exact physical LOT only;
+            --   * 13-char root ->
+ only when it maps to exactly ONE physical LOT
+            --     in all of STOCKTP (counted without the SLCONLAI > 0 filter).
+            ------------------------------------------------------------
+            SELECT
+                RTRIM(LOT) AS PhysicalLot,
+                LEFT(RTRIM(LOT), 13) AS LotKey,
+                SUM(ISNULL(SLCONLAI, 0)) AS SLCONLAI
+            INTO #StockByLot
+            FROM STOCKTP
+            WHERE ISNULL(SLCONLAI, 0) > 0
+            GROUP BY RTRIM(LOT), LEFT(RTRIM(LOT), 13);
+
+            CREATE CLUSTERED INDEX IX_StockByLot_PhysicalLot ON #StockByLot(PhysicalLot);
+            CREATE NONCLUSTERED INDEX IX_StockByLot_LotKey ON #StockByLot(LotKey);
+
+            SELECT
+                LEFT(RTRIM(LOT), 13) AS LotKey,
+                COUNT(DISTINCT RTRIM(LOT)) AS PhysicalLotCount
+            INTO #LotKeyCount
+            FROM STOCKTP
+            GROUP BY LEFT(RTRIM(LOT), 13);
+
+            CREATE CLUSTERED INDEX IX_LotKeyCount_LotKey ON #LotKeyCount(LotKey);
+
+            INSERT INTO #STNG
+            (
+                MH,
+                LOT,
+                SLCAN,
+                SLCO,
+                SLTHIEU,
+                STATUS
+            )
+            SELECT
+                G.MH,
+                G.LOT,
+                G.TONG_CAN_XUAT,
+                X.SLCONLAI,
+                G.TONG_CAN_XUAT - X.SLCONLAI,
+                N'Không đủ tồn kho (kiểm tra lần 2)'
+            FROM #GomNhomCheck G
+            CROSS APPLY
+            (
+                SELECT ISNULL(
+                    CASE
+                        WHEN LEN(RTRIM(G.LOT)) > 13
+                            THEN (SELECT SUM(S.SLCONLAI)
+                                  FROM #StockByLot S
+                                  WHERE S.PhysicalLot = RTRIM(G.LOT))
+                        WHEN EXISTS (SELECT 1
+                                     FROM #LotKeyCount K
+                                     WHERE K.LotKey = LEFT(RTRIM(G.LOT), 13)
+                                       AND K.PhysicalLotCount = 1)
+                            THEN (SELECT SUM(S.SLCONLAI)
+                                  FROM #StockByLot S
+                                  WHERE S.LotKey = LEFT(RTRIM(G.LOT), 13))
+                    END, 0) AS SLCONLAI
+            ) X
+            WHERE
+                X.SLCONLAI -
+                G.TONG_CAN_XUAT < 0;
+
+            DROP TABLE #StockByLot;
+            DROP TABLE #LotKeyCount;
+  
+            DROP TABLE #GomNhomCheck;  
+        END;  
+  
+        ----------------------------------------------------------------  
+        -- 8. NẾU CÓ LỖI → KHÔNG UPDATE STOCK  
+        ----------------------------------------------------------------  
+        IF EXISTS  
+        (  
+            SELECT 1  
+            FROM #STNG  
+        )  
+        BEGIN  
+            SELECT  
+                STT,  
+                LOT,  
+                SOLUONG,  
+                STATUS  
+            FROM #STOK;  
+  
+            SELECT  
+                MH,  
+                LOT,  
+                SLCAN AS SLC,  
+                SLCO AS SLTK,  
+                SLTHIEU AS SLT,  
+                STATUS  
+            FROM #STNG;  
+  
+            RETURN;  
+        END;  
+  
+        ----------------------------------------------------------------  
+        -- 9. KHÔNG CÓ DỮ LIỆU UPDATE  
+        ----------------------------------------------------------------  
+        IF NOT EXISTS  
+        (  
+            SELECT 1  
+            FROM #TMPUPDATE  
+            WHERE STT NOT IN  
+            (  
+                SELECT DISTINCT STT  
+                FROM #STNG  
+            )  
+        )  
+        BEGIN  
+            SELECT  
+                STT,  
+                LOT,  
+                SOLUONG,  
+                STATUS  
+            FROM #STOK;  
+  
+            SELECT  
+                MH,  
+                LOT,  
+                SLCAN AS SLC,  
+ 
+               SLCO AS SLTK,  
+                SLTHIEU AS SLT,  
+                STATUS  
+            FROM #STNG;  
+  
+            RETURN;  
+        END;  
+  
+        ----------------------------------------------------------------  
+        -- 10. TRANSACTION  
+        ----------------------------------------------------------------  
+        -- The transaction/savepoint was established before the duplicate check;
+        -- all stock writes below remain inside that same transaction scope.
+  
+        DECLARE UPDATETMP CURSOR LOCAL FAST_FORWARD FOR  
+            SELECT  
+                STT,  
+                LOT,  
+                SOLUONG,  
+                STATUS  
+            FROM #TMPUPDATE  
+            WHERE STT NOT IN  
+            (  
+                SELECT DISTINCT STT  
+                FROM #STNG  
+            );  
+  
+        OPEN UPDATETMP;  
+  
+        FETCH NEXT FROM UPDATETMP  
+        INTO @_STTUD, @_LOTUD, @_SLUD, @_STUP;  
+  
+        WHILE @@FETCH_STATUS = 0  
+        BEGIN  
+  
+            SET @LotThuc = NULL;  
+  
+            ----------------------------------------------------------------  
+            -- 10.1. TÌM LOT VẬT LÝ THẬT  
+            --  
+            -- Input:  
+            --     @_LOTUD = 2609100101410  
+            --  
+            -- STOCKTP:  
+            --     26091001014100861700  
+            --  
+            -- Match:  
+            --     LEFT(LOT,13) = LEFT(@_LOTUD,13)  
+            --  
+            -- Sau khi tìm được mới UPDATE WHERE LOT = @LotThuc.  
+            ----------------------------------------------------------------  
+            IF LEN(RTRIM(@_LOTUD)) > 13
+            BEGIN
+                SELECT @LotThuc = LOT
+                FROM STOCKTP
+                WHERE RTRIM(LOT) = RTRIM(@_LOTUD)
+                  AND ISNULL(SLCONLAI, 0) >= @_SLUD;
+            END
+            ELSE IF (
+                SELECT COUNT(DISTINCT RTRIM(LOT))
+                FROM STOCKTP
+                WHERE LEFT(RTRIM(LOT), 13) = LEFT(RTRIM(@_LOTUD), 13)
+            ) = 1
+            BEGIN
+                SELECT TOP (1) @LotThuc = LOT
+                FROM STOCKTP
+                WHERE LEFT(RTRIM(LOT), 13) = LEFT(RTRIM(@_LOTUD), 13)
+                  AND ISNULL(SLCONLAI, 0) >= @_SLUD
+                ORDER BY NGAYNHAP ASC, LOT ASC;
+            END  
+  
+            ----------------------------------------------------------------  
+            -- 10.2. Không tìm được LOT vật lý  
+            ----------------------------------------------------------------  
+            IF @LotThuc IS NULL  
+            BEGIN  
+                INSERT INTO #STNG  
+                (  
+                    MH,  
+                    LOT,  
+                    SLCAN,  
+                    SLCO,  
+                    SLTHIEU,  
+                    STATUS  
+                )  
+                VALUES  
+                (  
+                    @MH,  
+                    @_LOTUD,  
+                    @_SLUD,  
+                    0,  
+                    @_SLUD,  
+                    N'Không xác định được LOT tồn kho hợp lệ khi trừ kho'  
+                );  
+            END  
+            ELSE  
+            BEGIN  
+  
+                ----------------------------------------------------------------  
+                -- 10.3. UPDATE ĐÚNG LOT VẬT LÝ  
+                ----------------------------------------------------------------  
+                UPDATE STOCKTP  
+                SET  
+                    SLCONLAI =  
+                        ISNULL(SLCONLAI, 0) - @_SLUD,  
+  
+                    SLXUAT =  
+                        ISNULL(SLXUAT, 0) + @_SLUD  
+                WHERE LOT = @LotThuc;  
+  
+                ----------------------------------------------------------------  
+                -- 10.4. LƯU LOT VẬT LÝ THẬT  
+                ----------------------------------------------------------------  
+                
+IF NOT EXISTS  
+                (  
+                    SELECT 1  
+                    FROM #STOK  
+                    WHERE STT = @_STTUD  
+                )  
+                BEGIN  
+                    INSERT INTO #STOK  
+                    (  
+                        STT,  
+                        LOT,  
+                        SOLUONG,  
+                        STATUS  
+                    )  
+        VALUES  
+                    (  
+                        @_STTUD,  
+                        @LotThuc,  
+                        @_SLUD,  
+                        'OK'  
+                    );  
+                END;  
+            END;  
+  
+            FETCH NEXT FROM UPDATETMP  
+            INTO @_STTUD, @_LOTUD, @_SLUD, @_STUP;  
+        END;  
+  
+        CLOSE UPDATETMP;  
+        DEALLOCATE UPDATETMP;  
+  
+        ----------------------------------------------------------------  
+        -- 11. KIỂM TRA LỖI PHÁT SINH TRONG TRANSACTION  
+        ----------------------------------------------------------------  
+        IF EXISTS
+        (
+            SELECT 1
+            FROM #STNG
+        )
+        BEGIN
+            -- Preserve business diagnostics across rollback. The temp-table writes
+            -- are transactional, but the table variable snapshot survives rollback.
+            DECLARE @ErrorSnapshot TABLE
+            (
+                MH NVARCHAR(100),
+                LOT NVARCHAR(MAX),
+                SLCAN INT,
+                SLCO INT,
+                SLTHIEU INT,
+                STATUS NVARCHAR(500)
+            );
+
+            INSERT INTO @ErrorSnapshot(MH, LOT, SLCAN, SLCO, SLTHIEU, STATUS)
+            SELECT MH, LOT, SLCAN, SLCO, SLTHIEU, STATUS
+            FROM #STNG;
+
+            IF @StartedTransaction = 1
+                ROLLBACK TRANSACTION;
+            ELSE
+                ROLLBACK TRANSACTION UspQrcodeUpdateStock2405;
+
+            INSERT INTO #STNG(MH, LOT, SLCAN, SLCO, SLTHIEU, STATUS)
+            SELECT MH, LOT, SLCAN, SLCO, SLTHIEU, STATUS
+            FROM @ErrorSnapshot;
+  
+            SELECT  
+                STT,  
+                LOT,  
+                SOLUONG,  
+                STATUS  
+            FROM #STOK;  
+  
+            SELECT  
+                MH,  
+                LOT,  
+                SLCAN AS SLC,  
+                SLCO AS SLTK,  
+                SLTHIEU AS SLT,  
+                STATUS  
+            FROM #STNG;  
+  
+            RETURN;  
+        END;  
+  
+        ----------------------------------------------------------------  
+        -- 12. LƯU LUUPHIEUGIAOHANG  
+        ----------------------------------------------------------------  
+        IF EXISTS  
+        (  
+            SELECT 1  
+            FROM #STOK  
+            WHERE STATUS = 'OK'  
+        )  
+        BEGIN  
+  
+            SET @sql = N'  
+                INSERT INTO LUUPHIEUGIAOHANG  
+                (  
+                    STT,  
+                    CUA,  
+                    TRUYEN,  
+                    MAHANG,  
+                    TENHANG,  
+                    LOT,  
+                    DV,  
+                    SOLUONG,  
+                    NGAYGIAO,  
+                    GIOGIAO,  
+                    STATUS,  
+                    TTPHIEU,  
+                    NHAMAY,  
+                    GIOGIAOFCC,  
+                    HOP,  
+                    STATUSDOC,  
+                    Note  
+                )  
+                SELECT  
+                    tmp.STT,  
+                    LEFT(tmp.CUA, 50),  
+                    LEFT(tmp.TRUYEN, 50),  
+                    LEFT(tmp.MAHANG, 50),  
+                    LEFT(tmp.TENHANG, 60),  
+                    LEFT(tmp.LOT, 500),  
+                    LEFT(tmp.DV, 50),  
+                    tmp.SOLUONG,  
+                    tmp.NGAYGIAO,  
+                    LEFT(tmp.GIOGIAO, 50),  
+                    ''OK'',  
+                    
+LEFT(tmp.TTPHIEU, 50),  
+                    LEFT(@NHAMAY, 60),  
+                    LEFT(@GIOGIAOFCC, 50),  
+                    LEFT(tmp.HOP, 50),  
+                    LEFT(tmp.STATUSDOC, 50),  
+                    LEFT(tmp.Note, 250)  
+                FROM [' + @TMPTABLE + N'] tmp  
+                WHERE tmp.STT IN  
+                (  
+                    SELECT STT  
+                    FROM #STOK  
+                    WHERE STATUS = ''OK''  
+                );  
+            ';  
+  
+            EXEC sp_executesql  
+                @sql,  
+                N'@NHAMAY NVARCHAR(250),  
+                  @GIOGIAOFCC NVARCHAR(250)',  
+                @NHAMAY,  
+                @GIOGIAOFCC;  
+  
+            ----------------------------------------------------------------  
+            -- 13. LƯU LUUDOCQRCODE  
+            ----------------------------------------------------------------  
+            SET @sql = N'  
+                INSERT INTO LUUDOCQRCODE  
+                (  
+                    LOTFCC,  
+                    MAHANGFCC,  
+                    SLTEMFCC,  
+                    LOTHVN,  
+                    MAHANGHVN,  
+                    SLTEMHVN,  
+                    STATUS,  
+                    MAFCC,  
+                    STT,  
+                    KETQUA,  
+                    NGAYXUAT,  
+                    GIOXUAT,  
+                    NHAMAY  
+                )  
+                SELECT  
+                    LEFT(DQ.LOTFCC, 500),  
+                    LEFT(DQ.MAHANGFCC, 60),  
+                   DQ.SLTEMFCC,  
+                    LEFT(DQ.LOTHVN, 500),  
+                    LEFT(DQ.MAHANGHVN, 60),  
+                    DQ.SLTEMHVN,  
+                    DQ.STATUS,  
+                    LEFT(DQ.MAFCC, 50),  
+                    DQ.STT,  
+                    LEFT(DQ.KETQUA, 30),  
+                    @NgayGiao,  
+                    LEFT(@GIOGIAOFCC, 30),  
+                    LEFT(@NHAMAY, 60)  
+                FROM [' + @DOCQRTABLE + N'] DQ  
+                INNER JOIN [' + @TMPTABLE + N'] PG  
+                    ON PG.STT =  
+                       TRY_CAST(DQ.GIO AS INT)  
+                WHERE PG.STT IN  
+                (  
+                    SELECT STT  
+                    FROM #STOK  
+                    WHERE STATUS = ''OK''  
+                )  
+                  AND ISNULL(DQ.GIO, '''') <> '''';  
+  
+                INSERT INTO LUUDOCQRCODE  
+                (  
+                    LOTFCC,  
+                    MAHANGFCC,  
+                    SLTEMFCC,  
+                    LOTHVN,  
+                    MAHANGHVN,  
+                    SLTEMHVN,  
+                    STATUS,  
+                    MAFCC,  
+                    STT,  
+                    KETQUA,  
+                    NGAYXUAT,  
+                    GIOXUAT,  
+                    NHAMAY  
+                )  
+                SELECT  
+                    LEFT(DQ.LOTFCC, 500),  
+                    LEFT(DQ.MAHANGFCC, 60),  
+                    DQ.SLTEMFCC,  
+                    LEFT(DQ.LOTHVN, 500),  
+                    LEFT(DQ.MAHANGHVN, 60),  
+                    DQ.SLTEMHVN,  
+                    DQ.STATUS,  
+                    LEFT(DQ.MAFCC, 50),  
+                    DQ.STT,  
+                    LEFT(DQ.KETQUA, 30),  
+                    @NgayGiao,  
+                    LEFT(@GIOGIAOFCC, 30),  
+                    LEFT(@NHAMAY, 60)  
+                FROM [' + @DOCQRTABLE + N'] DQ  
+                INNER JOIN [' + @TMPTABLE + N'] PG  
+                    ON RTRIM(DQ.MAHANGFCC) =  
+                       RTRIM(PG.MAHANG)  
+                WHERE PG.STT IN  
+                (  
+                    SELECT STT  
+                    FROM #STOK  
+                    WHERE STATUS = ''OK''  
+                )  
+                  AND ISNULL(DQ.GIO, '''') = '''';  
+            ';  
+  
+            EXEC sp_executesql  
+          
+      @sql,  
+                N'@NgayGiao SMALLDATETIME,  
+                  @GIOGIAOFCC NVARCHAR(250),  
+                  @NHAMAY NVARCHAR(250)',  
+                @NgayGiao,  
+                @GIOGIAOFCC,  
+                @NHAMAY;  
+  
+            ----------------------------------------------------------------  
+            -- 14. UPDATE TMP STATUS  
+            ----------------------------------------------------------------  
+            SET @sql = N'  
+                UPDATE [' + @TMPTABLE + N']  
+                SET STATUS = ''OK''  
+                WHERE STT IN  
+                (  
+                    SELECT STT  
+                    FROM #STOK  
+                    WHERE STATUS = ''OK''  
+                );  
+            ';  
+  
+            EXEC sp_executesql @sql;  
+  
+            ----------------------------------------------------------------  
+            -- 15. DELETE DOCQRCODE ĐÃ XỬ LÝ  
+            ----------------------------------------------------------------  
+            SET @sql = N'  
+                DELETE DQ  
+                FROM [' + @DOCQRTABLE + N'] DQ  
+                INNER JOIN [' + @TMPTABLE + N'] PG  
+                    ON PG.STT =  
+                       TRY_CAST(DQ.GIO AS INT)  
+                WHERE PG.STT IN  
+                (  
+                    SELECT STT  
+                    FROM #STOK  
+                    WHERE STATUS = ''OK''  
+                )  
+                  AND ISNULL(DQ.GIO, '''') <> '''';  
+  
+                DELETE DQ  
+                FROM [' + @DOCQRTABLE + N'] DQ  
+                INNER JOIN [' + @TMPTABLE + N'] PG  
+                    ON RTRIM(DQ.MAHANGFCC) =  
+                       RTRIM(PG.MAHANG)  
+                WHERE PG.STT IN  
+                (  
+                    SELECT STT  
+                    FROM #STOK  
+                    WHERE STATUS = ''OK''  
+                )  
+                  AND ISNULL(DQ.GIO, '''') = '''';  
+            ';  
+  
+            EXEC sp_executesql @sql;  
+  
+            ----------------------------------------------------------------
+            -- 16. ORDER TABLE DELIVERY STATE
+            ----------------------------------------------------------------
+            -- Deliberately do not update Purchase_Order_HTN/YMVN here.
+            -- The application finalizes each successful TMP row inside the
+            -- same UnitOfWork by building OrderLineKey from PO_NO + MAHANG
+            -- + NGAYGIAO/GIOGIAO and calling OrderTableSql.MarkDelivered.
+            -- Keeping this update in one place avoids a second, weaker key
+            -- interpretation in SQL (especially legacy hour-only GIOGIAO).
+  
+  
+        END;  
+  
+        ----------------------------------------------------------------  
+        -- 18. COMMIT  
+        ----------------------------------------------------------------  
+        -- Only commit a transaction opened by this procedure. If a caller owns
+        -- the transaction, leave final commit/rollback to the caller.
+        IF @StartedTransaction = 1
+            COMMIT TRANSACTION;
+  
+    END TRY  
+    BEGIN CATCH  
+  
+        IF @@TRANCOUNT > 0
+        BEGIN
+            IF @StartedTransaction = 1
+                ROLLBACK TRANSACTION;
+            ELSE IF XACT_STATE() = 1 AND @SavepointCreated = 1
+                ROLLBACK TRANSACTION UspQrcodeUpdateStock2405;
+            ELSE IF XACT_STATE() = -1
+                THROW; -- the caller must roll back the doomed outer transaction
+        END;  
+  
+        IF CURSOR_STATUS('local', 'LOT_IN_PGH') >= 0  
+        BEGIN  
+            CLOSE LOT_IN_PGH;  
+            DEALLOCATE LOT_IN_PGH;  
+        END;  
+  
+        IF CURSOR_STATUS('local', 'PGH') >= 0  
+        BEGIN  
+            CLOSE PGH;  
+            DEALLOCATE PGH;  
+        END;  
+  
+        IF CURSOR_STATUS('local', 'UPDATETMP') >= 0  
+        BEGIN  
+            CLOSE UPDATETMP;  
+            DE
+ALLOCATE UPDATETMP;  
+        END;  
+  
+        INSERT INTO #STNG  
+        (  
+            MH,  
+            LOT,  
+            SLCAN,  
+            SLCO,  
+            SLTHIEU,  
+            STATUS  
+        )  
+        VALUES  
+        (  
+            N'SYSTEM ERROR',  
+            N'Line ' +  
+                CAST(ERROR_LINE() AS NVARCHAR(10)),  
+            0,  
+            0,  
+            0,  
+            LEFT  
+            (  
+                N'Lỗi dòng ' +  
+                CAST(ERROR_LINE() AS NVARCHAR(10)) +  
+                N': ' +  
+                ERROR_MESSAGE(),  
+                500  
+            )  
+        );  
+  
+    END CATCH;  
+  
+    --------------------------------------------------------------------  
+    -- 19. TRẢ KẾT QUẢ  
+    --------------------------------------------------------------------  
+    SELECT  
+        STT,  
+        LOT,  
+        SOLUONG,  
+        STATUS  
+    FROM #STOK;  
+  
+    SELECT  
+        MH,  
+        LOT,  
+        SLCAN AS SLC,  
+        SLCO AS SLTK,  
+        SLTHIEU AS SLT,  
+        STATUS  
+    FROM #STNG;  
+  
+END;  
+GO
+ 
+----------------------------------------------------------------------------------
+-- OBJECT: Usp_Qrcode_LOAD_PHIEU_DOCQR2405 (P)
+----------------------------------------------------------------------------------
+CREATE PROC [dbo].[Usp_Qrcode_LOAD_PHIEU_DOCQR2405]  
+    @NGAYGIAO   nvarchar(20),  
+    @NHAMAY     nvarchar(50)  = N'',  
+    @GIOFCC     nvarchar(200) = N'',  
+    @ADDNM      int,  
+    @TMPTABLE   nvarchar(100) = N'TMPPHIEUGIAOHANG',  
+    @IFSTABLE   nvarchar(100) = N'IFSPHIEUGIAOHANG',  
+    @DOCQRTABLE nvarchar(100) = N'DOCQRCODE'  
+AS  
+BEGIN  
+    SET NOCOUNT ON;  
+  
+    -- ── 1. Build #GioList (giữ INT như SP cũ) ───────────────────────────  
+    CREATE TABLE #GioList (GioInt int)  
+    INSERT INTO #GioList  
+    SELECT TRY_CAST(LTRIM(RTRIM(REPLACE(value, '''', ''))) AS INT)  
+    FROM   STRING_SPLIT(REPLACE(@GIOFCC, '''', ''), ',')  
+    WHERE  LTRIM(RTRIM(REPLACE(value, '''', ''))) <> ''  
+      AND  LTRIM(RTRIM(REPLACE(value, '''', ''))) <> '(GIAO DB)'  
+      AND  TRY_CAST(LTRIM(RTRIM(REPLACE(value, '''', ''))) AS INT) IS NOT NULL  
+  
+    -- ── 2. Đếm IFS ──────────────────────────────────────────────────────  
+    DECLARE @TTIFS int  
+    DECLARE @SQL   nvarchar(max)  
+    SET @SQL = N'SELECT @CNT = COUNT(*) FROM ' + QUOTENAME(@IFSTABLE)  
+    EXEC sp_executesql @SQL, N'@CNT int OUTPUT', @TTIFS OUTPUT  
+  
+    -- ── 3. Chuẩn hóa NHAMAY ─────────────────────────────────────────────  
+    IF CHARINDEX('(NHA MAY HA NAM)', @NHAMAY) > 0  
+        SET @NHAMAY = '%NHA MAY HA NAM%'  
+    ELSE  
+        SET @NHAMAY = '%(NHA MAY VP)'  
+  
+    IF @NHAMAY LIKE '%NHA MAY VP%'  
+        SET @ADDNM = 1  
+    ELSE  
+        SET @ADDNM = 2  
+  
+    -- ── 4. Normalize LUUPHIEUGIAOHANG — chỉ theo ngày+nhà máy ──────────  
+    -- GIỮ từ SP mới: filter NGAYGIAO + NHAMAY, không update toàn bảng  
+    UPDATE LUUPHIEUGIAOHANG  
+    SET GIOGIAO = CASE  
+        WHEN GIOGIAO = '0H'    THEN '00H'  
+        WHEN GIOGIAO LIKE '%H' THEN REPLACE(GIOGIAO, 'H', '')  
+        ELSE GIOGIAO END  
+    WHERE NHAMAY   LIKE @NHAMAY  
+      AND NGAYGIAO  = @NGAYGIAO  
+      AND (GIOGIAO = '0H' OR GIOGIAO LIKE '%H')  
+  
+    UPDATE LUUPHIEUGIAOHANG  
+    SET NHAMAY = 'HON DA - VIET NAM(NHA MAY VP)'  
+    WHERE NHAMAY   LIKE '%VP)'  
+      AND NGAYGIAO  = @NGAYGIAO  
+  
+    UPDATE LUUPHIEUGIAOHANG  
+    SET GIOGIAOFCC = GIOGIAO  
+    WHERE GIOGIAOFCC = '(GIAO DB)'  
+      AND GIOGIAO   <> '05'  
+      AND NGAYGIAO   = @NGAYGIAO  
+      AND NHAMAY    LIKE @NHAMAY  
+  
+    -- ── 5. Chuẩn hóa GIOGIAOFCC — SET-BASED (GIỮ từ SP mới) ────────────  
+    UPDATE luu  
+    SET luu.GIOGIAOFCC = CASE  
+        WHEN @NHAMAY LIKE '%NHA MAY HA NAM%' THEN ct.GIOFCCHN  
+        ELSE ct.GioFCCVP  
+    END  
+    FROM LUUPHIEUGIAOHANG luu  
+    INNER JOIN QRCODE_CHANGETIME ct  
+           ON  ct.GIOHVN        = luu.GIOGIAOFCC  
+    WHERE  luu.NHAMAY          LIKE @NHAMAY  
+      AND  luu.NGAYGIAO         = @NGAYGIAO  
+      AND  luu.GIOGIAOFCC NOT LIKE '%H'  
+      AND  luu.GIOGIAOFCC NOT LIKE '(O TYPE%'  
+      AND  luu.NHAMAY          <> 'YAMAHA - VIET NAM'  
+  
+    -- ── 6. GIAO DB ───────────────────────────────────────────────────────  
+    IF @GIOFCC = '(GIAO DB)'  
+    BEGIN  
+        SET @SQL =  
+            N'DELETE ' + QUOTENAME(@TMPTABLE) + N';' +  
+            N'INSERT INTO ' + QUOTENAME(@TMPTABLE) +  
+            N' (STT,CUA,TRUYEN,MAHANG,TENHANG,LOT,DV,SOLUONG,NGAYGIAO,GIOGIAO,' +  
+            N'  STATUS,TTPHIEU,NHAMAY,ADDNM,HOP,STATUSDOC,Note,PO_NO,PO_ITEM)' +  
+            N' SELECT STT,CUA,TRUYEN,MAHANG,TENHANG,LOT,DV,SOLUONG,NGAYGIAO,GIOGIAO,' +  
+            N'        STATUS,TTPHIEU,NHAMAY,ADDNM,HOP,STATUSDOC,Note,' +  
+            N'        ISNULL(PO_NO,''''),ISNULL(PO_ITEM,'''')' +  
+            N' FROM ' + QUOTENAME(@IFSTABLE)  
+        EXEC sp_executesql @SQL  
+        GOTO XUAT_KQ  
+    END  
+  
+    -- ── 7. Kiểm tra DOCQR — đang bắn dở → giữ nguyên TMP ───────────────  
+    DECLARE @CntDocQR int = 0  
+    SET @SQL = N'SELECT @CNT = COUNT(*) FROM ' + QUOTENAME(@DOCQRTABLE)  
+    EXEC sp_executesql @SQL, N'@CNT int OUTPUT', @CntDocQR OUTPUT  
+  
+    I
+F @CntDocQR > 0  
+        GOTO XUAT_KQ  
+  
+    -- ── 8. Không bắn QR → load mới ──────────────────────────────────────  
+    SET @SQL = N'DELETE ' + QUOTENAME(@TMPTABLE)  
+    EXEC sp_executesql @SQL  
+  
+    -- ── 9. TTIFS = 0 → IFS đã close → đọc thẳng LUUPHIEUGIAOHANG ────────  
+    IF @TTIFS = 0  
+    BEGIN  
+        SET @SQL = N'  
+            INSERT INTO ' + QUOTENAME(@TMPTABLE) + N'  
+                (STT,CUA,TRUYEN,MAHANG,TENHANG,LOT,DV,SOLUONG,  
+                 NGAYGIAO,GIOGIAO,STATUS,TTPHIEU,NHAMAY,ADDNM,  
+                 HOP,STATUSDOC,Note,PO_NO,PO_ITEM)  
+            SELECT  
+                STT,CUA,TRUYEN,MAHANG,TENHANG,LOT,DV,SOLUONG,  
+                NGAYGIAO,GIOGIAO,STATUS,TTPHIEU,NHAMAY,@ADDNM,  
+                HOP,STATUSDOC,Note,  
+                ISNULL(PO_NO,''''), ISNULL(PO_ITEM,'''')  
+            FROM LUUPHIEUGIAOHANG  
+            WHERE CAST(NGAYGIAO AS date) = CAST(@NGAYGIAO AS date)  
+              AND NHAMAY LIKE @NHAMAY  
+              AND GIOGIAO NOT LIKE ''%[^0-9]%''  
+              AND GIOGIAO <> ''''  
+              AND (  
+                  NOT EXISTS (SELECT 1 FROM #GioList)  
+                  OR TRY_CAST(GIOGIAO AS INT) IN (SELECT GioInt FROM #GioList)  
+              )'  
+        EXEC sp_executesql @SQL,  
+            N'@NGAYGIAO nvarchar(20), @NHAMAY nvarchar(50), @ADDNM int',  
+            @NGAYGIAO, @NHAMAY, @ADDNM  
+        GOTO XUAT_KQ  
+    END  
+  
+    -- ── 10. TTIFS > 0 → IFS có data → #LUU → #LUUGIO → LEFT JOIN ────────  
+    -- GIỮ NGUYÊN từ SP cũ: đây là flow đúng, không dùng LEFT JOIN thô  
+    CREATE TABLE #LUU (  
+        MAHANG     nvarchar(50),  
+        NGAYGIAO   date,  
+        CUA        nvarchar(20),  
+        TRUYEN     nvarchar(20),  
+        SOLUONG    int,  
+        GIOGIAO    nvarchar(10),  
+        GIOGIAOFCC nvarchar(50),  
+        LOT        nvarchar(500),  
+        STATUS     nvarchar(20),  
+        STATUSDOC  nvarchar(50)  
+    )  
+  
+    CREATE TABLE #LUUGIO (  
+        MAHANG    nvarchar(50),  
+        NGAYGIAO  date,  
+        CUA       nvarchar(20),  
+        TRUYEN    nvarchar(20),  
+        SOLUONG   int,  
+        GIO_PARSE nvarchar(10),  
+        LOT       nvarchar(500),  
+        STATUS    nvarchar(20),  
+        STATUSDOC nvarchar(50)  
+    )  
+  
+    -- ── 11. INSERT #LUU — lấy dòng mới nhất theo TGLUU ──────────────────  
+    INSERT INTO #LUU  
+    SELECT  
+        RTRIM(MAHANG), CAST(NGAYGIAO AS date),  
+        RTRIM(CUA), RTRIM(TRUYEN),  
+        SOLUONG, GIOGIAO, GIOGIAOFCC, LOT, STATUS, STATUSDOC  
+    FROM (  
+        SELECT *,  
+            ROW_NUMBER() OVER (  
+                PARTITION BY RTRIM(MAHANG), CAST(NGAYGIAO AS date),  
+                             RTRIM(CUA), RTRIM(TRUYEN),  
+                             SOLUONG, GIOGIAO, RTRIM(NHAMAY)  
+                ORDER BY TGLUU DESC  
+            ) AS RN  
+        FROM LUUPHIEUGIAOHANG  
+        WHERE CAST(NGAYGIAO AS date) = CAST(@NGAYGIAO AS date)  
+          AND NHAMAY LIKE @NHAMAY  
+          AND GIOGIAO NOT LIKE '%[^0-9]%'  
+          AND GIOGIAO <> ''  
+          AND (  
+              NOT EXISTS (SELECT 1 FROM #GioList)  
+              OR TRY_CAST(GIOGIAO AS INT) IN (SELECT GioInt FROM #GioList)  
+          )  
+    ) x  
+    WHERE x.RN = 1  
+  
+    -- ── 12. INSERT #LUUGIO — chuẩn hóa GIO_PARSE ────────────────────────  
+    INSERT INTO #LUUGIO  
+    SELECT  
+        l.MAHANG, l.NGAYGIAO, l.CUA, l.TRUYEN, l.SOLUONG,  
+        RIGHT('00' + LTRIM(RTRIM(l.GIOGIAO)), 2) AS GIO_PARSE,  
+        l.LOT, l.STATUS, l.STATUSDOC  
+    FROM #LUU l  
+    WHERE l.GIOGIAO <> ''  
+      AND (  
+          NOT EXISTS (SELECT 1 FROM #GioList)  
+          OR TRY_CAST(l.GIOGIAO AS INT) IN (SELECT GioInt FROM #GioList)  
+      )  
+  
+    -- Index để tăng tốc JOIN ở bước 13  
+    CREATE NONCLUSTERED INDEX IX_LUUGIO  
+        ON #LUUGIO (MAHANG, CUA, TRUYEN, SOLUONG, GIO_PARSE)  
+  
+    -- ── 13.
+ INSERT vào TMP — LEFT JOIN IFS + #LUUGIO ─────────────────────  
+    -- FIX NULL: ISNULL(CUA,'') và ISNULL(TRUYEN,'') — giữ từ SP cũ đã fix  
+    SET @SQL = N'  
+        INSERT INTO ' + QUOTENAME(@TMPTABLE) + N'  
+            (STT,CUA,TRUYEN,MAHANG,TENHANG,LOT,DV,SOLUONG,NGAYGIAO,GIOGIAO,  
+             STATUS,TTPHIEU,NHAMAY,ADDNM,HOP,STATUSDOC,Note,PO_NO,PO_ITEM)  
+        SELECT  
+            i.STT, i.CUA, i.TRUYEN, i.MAHANG, i.TENHANG,  
+            ISNULL(l.LOT,       i.LOT),       i.DV, i.SOLUONG, i.NGAYGIAO, i.GIOGIAO,  
+            ISNULL(l.STATUS,    i.STATUS),    i.TTPHIEU, i.NHAMAY, @ADDNM,  
+            i.HOP,  
+            ISNULL(l.STATUSDOC, i.STATUSDOC), i.Note,  
+            ISNULL(i.PO_NO,  '''') AS PO_NO,  
+            ISNULL(i.PO_ITEM,'''') AS PO_ITEM  
+        FROM ' + QUOTENAME(@IFSTABLE) + N' i  
+        LEFT JOIN #LUUGIO l  
+            ON  l.MAHANG                  = RTRIM(i.MAHANG)  
+            AND ISNULL(l.CUA,   '''')     = ISNULL(RTRIM(i.CUA),   '''')  
+            AND ISNULL(l.TRUYEN,'''')     = ISNULL(RTRIM(i.TRUYEN),'''')  
+            AND l.SOLUONG                 = i.SOLUONG  
+            AND l.GIO_PARSE               = RIGHT(''00'' + LTRIM(RTRIM(i.GIOGIAO)), 2)'  
+    EXEC sp_executesql @SQL, N'@ADDNM int', @ADDNM  
+  
+    DROP TABLE #LUU  
+    DROP TABLE #LUUGIO  
+  
+    XUAT_KQ:  
+    DROP TABLE #GioList  
+  
+    -- ── 14. Xuất kết quả ─────────────────────────────────────────────────  
+    SET @SQL =  
+        N'SELECT STT,CUA,TRUYEN,MAHANG,TENHANG,LOT,DV,SOLUONG,' +  
+        N'       NGAYGIAO,GIOGIAO,STATUS,TTPHIEU,NHAMAY,ADDNM,' +  
+        N'       HOP,STATUSDOC,Note,' +  
+        N'       ISNULL(PO_NO,'''')   AS PO_NO,' +  
+        N'       ISNULL(PO_ITEM,'''') AS PO_ITEM' +  
+        N' FROM ' + QUOTENAME(@TMPTABLE) +  
+        N' ORDER BY TRY_CAST(STT AS INT), STT'  
+    EXEC sp_executesql @SQL  
+END
+GO
+ 
+----------------------------------------------------------------------------------
+-- OBJECT: Usp_Qrcode_Take_Lot2405 (P)
+----------------------------------------------------------------------------------
+create PROC [dbo].[Usp_Qrcode_Take_Lot2405]
+    @_MaFCC     NVARCHAR(50) = N'',
+    @_STTP      INT          = 0,
+    @_DeM       INT          = 0,
+    @_SLGIAO    INT          = 0,
+    -- ── THÊM 2 THAM SỐ MỚI ─────────────────────────────────────────
+    @DOCQRTABLE NVARCHAR(128) = N'DOCQRCODE',
+    @TMPTABLE   NVARCHAR(128) = N'TMPPHIEUGIAOHANG'
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    -- ── WHITELIST chống SQL injection ───────────────────────────────
+    IF @DOCQRTABLE NOT IN (
+        N'DOCQRCODE',
+        N'DOCQRCODE_SP',
+        N'DOCQRCODE_100003'
+    )
+    BEGIN
+        RAISERROR(N'Tên bảng DOCQRTABLE không hợp lệ: %s', 16, 1, @DOCQRTABLE);
+        RETURN;
+    END
+
+    IF @TMPTABLE NOT IN (
+        N'TMPPHIEUGIAOHANG',
+        N'TMPPHIEUGIAOHANG_SP',
+        N'TMPPHIEUGIAOHANG_100003'
+    )
+    BEGIN
+        RAISERROR(N'Tên bảng TMPTABLE không hợp lệ: %s', 16, 1, @TMPTABLE);
+        RETURN;
+    END
+
+    DECLARE
+        @_LOTHVN    NVARCHAR(24),
+        @_LOTFCC    NVARCHAR(56),
+        @_SLTEMFCC  INT,
+        @_SLTEMHVN  INT,
+        @_ID        NVARCHAR(10),
+        @_Count_R   INT,
+        @_STTDOC    INT,
+        @SLTT       INT,
+        @sql        NVARCHAR(MAX)
+
+    SELECT @_ID = STUFF('00000', 5-LEN(Id)+1, LEN(Id), Id)
+    FROM B20ITEM WHERE code = @_MaFCC
+
+    -- ── Đếm tổng SLTEMHVN từ DOCQRTABLE động ───────────────────────
+    SET @sql = N'SELECT @cnt = SUM(SLTEMHVN) FROM [' + @DOCQRTABLE + N']
+                 WHERE MAHANGFCC = @ma AND KETQUA <> ''DG'''
+    EXEC sp_executesql @sql,
+        N'@cnt INT OUTPUT, @ma NVARCHAR(50)',
+        @_SLTEMFCC OUTPUT, @_MaFCC
+
+    IF OBJECT_ID('TempDb..#CtTmp') IS NOT NULL DROP TABLE #CtTmp
+    SELECT TOP 0 LOTFCC, SLTEMFCC, SLTEMHVN
+    INTO #CtTmp
+    FROM DOCQRCODE  -- chỉ dùng để lấy schema, không lấy data
+
+    SET @SLTT = 0
+
+    -- ── Nạp dữ liệu QR vào bảng tạm để CURSOR không dùng dynamic ───
+    IF OBJECT_ID('TempDb..#QRData') IS NOT NULL DROP TABLE #QRData
+    CREATE TABLE #QRData (
+        LOTFCC   NVARCHAR(56),
+        SLTEMFCC INT,
+        SLTEMHVN INT,
+        STT      INT
+    )
+
+    SET @sql = N'
+        INSERT INTO #QRData (LOTFCC, SLTEMFCC, SLTEMHVN, STT)
+        SELECT LOTFCC, SLTEMFCC, SLTEMHVN, STT
+        FROM [' + @DOCQRTABLE + N']
+        WHERE MAHANGFCC = @ma AND KETQUA <> ''DG''
+        ORDER BY STT'
+    EXEC sp_executesql @sql, N'@ma NVARCHAR(50)', @_MaFCC
+
+    -- ── CURSOR đọc từ #QRData (không dynamic) ───────────────────────
+    DECLARE QRcode CURSOR FOR
+        SELECT LOTFCC, SLTEMFCC, SLTEMHVN, STT FROM #QRData
+
+    OPEN QRcode
+    FETCH NEXT FROM QRcode INTO @_LOTFCC, @_SLTEMFCC, @_SLTEMHVN, @_STTDOC
+
+    WHILE @@FETCH_STATUS = 0
+    BEGIN
+        IF (@SLTT < @_SLGIAO)
+        BEGIN
+            SET @SLTT = @SLTT + @_SLTEMFCC
+
+            -- UPDATE STTBAN vào DOCQRTABLE động
+            SET @sql = N'UPDATE [' + @DOCQRTABLE + N']
+                         SET STTBAN = @sttp
+                         WHERE STT = @sttdoc AND MAHANGFCC = @ma'
+            EXEC sp_executesql @sql,
+                N'@sttp INT, @sttdoc INT, @ma NVARCHAR(50)',
+                @_STTP, @_STTDOC, @_MaFCC
+
+            IF (CHARINDEX(',', @_LOTFCC) <> 0)
+            BEGIN
+                DECLARE @pos INT, @posTach INT
+                DECLARE @len INT, @lenTach INT
+                DECLARE @value NVARCHAR(56), @valueLOT NVARCHAR(30), @valueSL NVARCHAR(5)
+                SET @pos = 0
+                SET @len = 0
+
+                WHILE CHARINDEX(',', CONCAT(RTRIM(@_LOTFCC), ','), @pos+1) > 0
+                BEGIN
+                    SET @len   = CHARINDEX(',', CONCAT(RTRIM(@_LOTFCC), ','), @pos+1) - @pos
+                    SET @value = SUBSTRING(CONCAT(RTRIM(@_LOTFCC), ','), @pos, @len)
+
+                    IF (@value <> '')
+                    BEGIN
+                        SET @lenTach  = CHARINDEX('-', @value, 1)
+                        SET @valueLOT = SUBSTRING(@value
+, 1, @lenTach-1)
+                        SET @valueSL  = SUBSTRING(@value, @lenTach+1, LEN(@value)-@lenTach)
+
+                        IF EXISTS (SELECT 1 FROM #CtTmp WHERE LOTFCC = @valueLOT)
+                            UPDATE #CtTmp SET SLTEMFCC = SLTEMFCC + @valueSL WHERE LOTFCC = @valueLOT
+                        ELSE
+                            INSERT INTO #CtTmp VALUES (@valueLOT, @valueSL, @valueSL)
+                    END
+
+                    SET @pos = CHARINDEX(',', CONCAT(RTRIM(@_LOTFCC), ','), @pos+@len) + 1
+                END
+            END
+            ELSE
+            BEGIN
+                IF EXISTS (SELECT 1 FROM #CtTmp WHERE LOTFCC = @_LOTFCC)
+                    UPDATE #CtTmp SET SLTEMFCC = SLTEMFCC + @_SLTEMFCC WHERE LOTFCC = RTRIM(@_LOTFCC)
+                ELSE
+                    INSERT INTO #CtTmp VALUES (RTRIM(@_LOTFCC), @_SLTEMFCC, @_SLTEMHVN)
+            END
+        END
+
+        FETCH NEXT FROM QRcode INTO @_LOTFCC, @_SLTEMFCC, @_SLTEMHVN, @_STTDOC
+    END
+
+    CLOSE QRcode
+    DEALLOCATE QRcode
+
+    -- ── Xử lý kết quả ───────────────────────────────────────────────
+    IF (@SLTT = @_SLGIAO)
+    BEGIN
+        -- UPDATE DOCQRTABLE động
+        SET @sql = N'
+            UPDATE [' + @DOCQRTABLE + N']
+            SET KETQUA = ''DG'', STTBAN = @sttp, GIO = @sttp
+            WHERE STTBAN = @sttp AND MAHANGFCC = @ma'
+        EXEC sp_executesql @sql,
+            N'@sttp INT, @ma NVARCHAR(50)',
+            @_STTP, @_MaFCC
+
+        -- UPDATE TMPTABLE động
+        SET @sql = N'
+            UPDATE [' + @TMPTABLE + N']
+            SET TTPHIEU = N''Đã Thống Kê QR'', STATUSDOC = ''OK''
+            WHERE STT = @sttp AND MAHANG = @ma'
+        EXEC sp_executesql @sql,
+            N'@sttp INT, @ma NVARCHAR(50)',
+            @_STTP, @_MaFCC
+
+        SET @SLTT = 0
+        SELECT LOTFCC, SUM(SLTEMFCC) AS FCC, SUM(SLTEMHVN) AS HVN
+        FROM #CtTmp GROUP BY LOTFCC
+    END
+    ELSE
+    BEGIN
+        -- Rollback STTBAN
+        SET @sql = N'
+            UPDATE [' + @DOCQRTABLE + N']
+            SET STTBAN = NULL
+            WHERE STTBAN = @sttp AND MAHANGFCC = @ma'
+        EXEC sp_executesql @sql,
+            N'@sttp INT, @ma NVARCHAR(50)',
+            @_STTP, @_MaFCC
+
+        SET @SLTT = 0
+    END
+
+END
+GO
+ 
+----------------------------------------------------------------------------------
+-- OBJECT: sp_GetCurrentStockStatus (P)
+----------------------------------------------------------------------------------
+CREATE PROCEDURE [dbo].[sp_GetCurrentStockStatus]
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT
+        ISNULL(sl.ItemCode, stp.PART)                                       AS ItemCode,
+        stp.LOT                                                             AS LotNo,
+        sl.TemCode                                                          AS QrData,
+        ISNULL(sl.Quantity, stp.SLCONLAI)                                   AS Quantity,
+        CASE WHEN s.SlotId IS NOT NULL
+             THEN w.Name + '-' + r.RackName + '-Slot' + CAST(s.SlotNumber AS NVARCHAR(20))
+             ELSE NULL END                                                  AS LocationCode,
+        stp.SATUS                                                           AS Status
+    FROM STOCKTP stp
+    LEFT JOIN SlotLot sl
+        ON (CASE WHEN LEN(sl.LotNo) >= 20 THEN LEFT(sl.LotNo,20) ELSE LEFT(sl.LotNo,13) END)
+         = (CASE WHEN LEN(stp.LOT) >= 20 THEN LEFT(stp.LOT,20) ELSE LEFT(stp.LOT,13) END)
+       AND sl.PhieuStatus = 0
+    LEFT JOIN Slot s      ON s.SlotId = sl.SlotId
+    LEFT JOIN Rack r      ON r.RackId = s.RackId
+    LEFT JOIN Warehouse w ON w.WarehouseId = r.WarehouseId
+    WHERE ISNULL(stp.SLCONLAI, 0) > 0
+    ORDER BY stp.LOT, w.Name, r.RackName, s.SlotNumber;
+END
+GO
+ 
+----------------------------------------------------------------------------------
+-- OBJECT: Split (FN)
+----------------------------------------------------------------------------------
+CREATE FUNCTION [dbo].[Split]
+(
+ @SearchString NVARCHAR (max),
+ @Separator NVARCHAR (5)
+)
+ 
+RETURNS @strtable TABLE (strval NVARCHAR (max))
+AS
+ 
+BEGIN
+ DECLARE @SeparatorLength INT
+ SET @SeparatorLength = DATALENGTH(@Separator) / 2
+ 
+ IF (@SeparatorLength = 0)
+  RETURN
+ 
+ WHILE 1=1
+ BEGIN
+  IF (CHARINDEX(@Separator,@SearchString) = 0)
+  BEGIN
+   INSERT INTO @strtable
+   VALUES (@SearchString);
+   BREAK;
+  END
+ 
+  INSERT INTO @strtable
+  VALUES ( LEFT(@SearchString, CHARINDEX(@Separator,@SearchString) - 1))
+ 
+  SET @SearchString = RIGHT(@SearchString, DATALENGTH(@SearchString)/2 - CHARINDEX(@Separator,@SearchString) - @SeparatorLength + 1)
+ END
+ RETURN
+END
+GO
+ 
+
+Completion time: 2026-10-27T09:21:54.4566650+07:00

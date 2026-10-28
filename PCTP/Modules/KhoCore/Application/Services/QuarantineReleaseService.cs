@@ -47,14 +47,11 @@ namespace PCTP.Modules.KhoCore.Application.Services
             if (!_authorization.CanRelease(request.PerformedBy.Trim()))
                 return QuarantineReleaseResult.Fail("Tài khoản không có quyền release hàng cách ly.", unauthorized: true);
 
-            var details = _slots.GetLotDetails(request.SlotLotId);
-            if (details == null)
+            // Read the source Slot once to determine the lock target. The status and
+            // quantity are re-read only after that Slot is locked inside the transaction.
+            var initialDetails = _slots.GetLotDetails(request.SlotLotId);
+            if (initialDetails == null)
                 return QuarantineReleaseResult.Fail($"Không tìm thấy SlotLot {request.SlotLotId}.");
-            if (details.PhieuStatus != QuarantineStatus)
-                return QuarantineReleaseResult.Fail($"SlotLot {request.SlotLotId} không ở trạng thái cách ly.");
-            if (details.Quantity <= 0)
-                return QuarantineReleaseResult.Fail("LOT cách ly không còn số lượng để release.");
-
             var slotId = _slots.GetSlotId(request.SlotLotId);
             if (!slotId.HasValue || slotId.Value <= 0)
                 return QuarantineReleaseResult.Fail("Không xác định được Slot của LOT cách ly.");
@@ -62,6 +59,27 @@ namespace PCTP.Modules.KhoCore.Application.Services
             try
             {
                 _uow.Begin();
+                _slots.LockSlotForUpdate(slotId.Value);
+
+                // A second operator may have released this SlotLot while this request
+                // waited for the Slot lock. Re-read under the lock before any mutation.
+                var details = _slots.GetLotDetails(request.SlotLotId);
+                if (details == null || details.PhieuStatus != QuarantineStatus)
+                {
+                    _uow.Rollback();
+                    return QuarantineReleaseResult.Fail($"SlotLot {request.SlotLotId} không còn ở trạng thái cách ly; có thể đã được xử lý bởi giao dịch khác.");
+                }
+                if (details.Quantity <= 0)
+                {
+                    _uow.Rollback();
+                    return QuarantineReleaseResult.Fail("LOT cách ly không còn số lượng để release.");
+                }
+                var currentSlotId = _slots.GetSlotId(request.SlotLotId);
+                if (!currentSlotId.HasValue || currentSlotId.Value != slotId.Value)
+                {
+                    _uow.Rollback();
+                    return QuarantineReleaseResult.Fail("Vị trí SlotLot đã thay đổi trong lúc release. Vui lòng tải lại.");
+                }
 
                 // Remove the quarantined quantity first. AddLot below creates the active
                 // representation in the same transaction; a failure anywhere rolls back both.

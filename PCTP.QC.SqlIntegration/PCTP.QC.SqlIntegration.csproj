@@ -7,7 +7,14 @@
     <LangVersion>latest</LangVersion>
   </PropertyGroup>
   <ItemGroup>
+    <None Include="../SQL/PCTP_DeliveryCommandLedger.sql" Link="Database/PCTP_DeliveryCommandLedger.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../SQL/Usp_Qrcode_Take_Lot2405.sql" Link="Usp_Qrcode_Take_Lot2405.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/XuLyHangLoi/Services/QTChungService.cs" Link="QTChungService.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/XuLyHangLoi/Database/PHASE12_PhieuXuLyBatThuong_PhieuTraHangCTId.sql" Link="Database/PHASE12_PhieuXuLyBatThuong_PhieuTraHangCTId.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/XuLyHangLoi/Database/PHASE13_QTChung_ReworkTables.sql" Link="Database/PHASE13_QTChung_ReworkTables.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/XuLyHangLoi/Database/PHASE14_ReworkExportIdempotency.sql" Link="Database/PHASE14_ReworkExportIdempotency.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Shared/Common/SqlRepositoryBase.cs" Link="SqlRepositoryBase.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/GiaoHangKhach/Repositories/PhieuKhoRepository.cs" Link="PhieuKhoRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <PackageReference Include="Microsoft.Data.SqlClient" Version="6.1.3" />
     <PackageReference Include="System.Data.SqlClient" Version="4.8.6" />
   </ItemGroup>
@@ -17,6 +24,8 @@
     <Compile Include="../PCTP/Shared/Common/UnitOfWork.cs" Link="Production/UnitOfWork.cs" />
     <Compile Include="../PCTP/Shared/Common/SqlConnectionRetryPolicy.cs" Link="Production/SqlConnectionRetryPolicy.cs" />
     <Compile Include="../PCTP/Shared/Common/SqlRepositoryBase.cs" Link="Production/SqlRepositoryBase.cs" />
+    <Compile Include="../PCTP/Infrastructure/Stock/StockReceivingRepository.cs" Link="Production/StockReceivingRepository.cs" />
+    <Compile Include="../PCTP/Modules/KhoCore/Application/Contracts/Stock/IStockReceivingRepository.cs" Link="Production/IStockReceivingRepository.cs" />
     <Compile Include="../PCTP/Modules/NhapKho/Repository/StockTPRepository.cs" Link="Production/StockTPRepository.cs" />
     <Compile Include="../PCTP/Modules/NhapKho/Interfaces/IStockTpRepository.cs" Link="Production/IStockTpRepository.cs" />
     <Compile Include="../PCTP/Modules/KhoCore/Repositories/BulkStockSlotRepository.cs" Link="Production/BulkStockSlotRepository.cs" />
@@ -31,6 +40,30 @@
     <Compile Include="../PCTP/Modules/KhoCore/Application/Contracts/Stock/StockSlotLot.cs" Link="Production/StockSlotLot.cs" />
     <Compile Include="../PCTP/Modules/KhoCore/Application/Contracts/Stock/StockSlotTakeResult.cs" Link="Production/StockSlotTakeResult.cs" />
     <Compile Include="../PCTP/Shared/Common/LotCodeHelper.cs" Link="Production/LotCodeHelper.cs" />
+    <Compile Include="../PCTP/Modules/XuLyHangLoi/Enums/QTChungStatus.cs" Link="Production/QTChungStatus.cs" />
+    <Compile Include="../PCTP/Modules/XuLyHangLoi/Services/ReworkQuantityPolicy.cs" Link="Production/ReworkQuantityPolicy.cs" />
     <Compile Include="../PCTP/Modules/GiaoHangKhach/Models/OrderLineKey.cs" Link="Production/OrderLineKey.cs" />
+    <Compile Include="../PCTP/Modules/XuLyHangLoi/Repository/TraHangQTChungRepository.cs" Link="Production/TraHangQTChungRepository.cs" />
+    <Compile Include="../PCTP/Modules/XuLyHangLoi/Repository/ITraHangQTChungRepository.cs" Link="Production/ITraHangQTChungRepository.cs" />
+    <Compile Include="../PCTP/Modules/XuLyHangLoi/Repository/PhieuXuLyBatThuongRepository.cs" Link="Production/PhieuXuLyBatThuongRepository.cs" />
+    <Compile Include="../PCTP/Modules/XuLyHangLoi/Repository/IPhieuXuLyBatThuongRepository.cs" Link="Production/IPhieuXuLyBatThuongRepository.cs" />
+    <Compile Include="../PCTP/Modules/XuLyHangLoi/Models/PhieuXuLyBatThuong.cs" Link="Production/PhieuXuLyBatThuong.cs" />
+    <Compile Include="../PCTP/Modules/XuLyHangLoi/Models/TraHangQTChungXuat.cs" Link="Production/TraHangQTChungXuat.cs" />
+    <Compile Include="../PCTP/Modules/XuLyHangLoi/Models/TraHangQTChungGiao.cs" Link="Production/TraHangQTChungGiao.cs" />
+    <Compile Include="../PCTP/Modules/XuLyHangLoi/Models/TraHangQTChungQC.cs" Link="Production/TraHangQTChungQC.cs" />
+    <Compile Include="../PCTP/Modules/XuLyHangLoi/Models/TraHangQTChungNhapNG.cs" Link="Production/TraHangQTChungNhapNG.cs" />
+    <Compile Include="../PCTP/Modules/XuLyHangLoi/Models/QTChungTimelineItem.cs" Link="Production/QTChungTimelineItem.cs" />
+    <Compile Include="../PCTP/Modules/XuLyHangLoi/Enums/HuongXuLyBatThuong.cs" Link="Production/HuongXuLyBatThuong.cs" />
+    <Compile Include="../PCTP/Modules/XuLyHangLoi/Enums/NguonXuLyBatThuong.cs" Link="Production/NguonXuLyBatThuong.cs" />
+    <Compile Include="../PCTP/Shared/Common/DbValueHelper.cs" Link="Production/DbValueHelper.cs" />
+    <Compile Include="../PCTP/Modules/GiaoHangKhach/Contracts/Delivery/DeliveryStockCommand.cs" Link="Production/DeliveryStockCommand.cs" />
+    <Compile Include="../PCTP/Modules/GiaoHangKhach/Services/IDeliveryStockCommandHandler.cs" Link="Production/IDeliveryStockCommandHandler.cs" />
+    <Compile Include="../PCTP/Modules/GiaoHangKhach/Services/IDeliveryCommandLedger.cs" Link="Production/IDeliveryCommandLedger.cs" />
+    <Compile Include="../PCTP/Modules/GiaoHangKhach/Services/DeliveryStockCommandHandler.cs" Link="Production/DeliveryStockCommandHandler.cs" />
+    <Compile Include="../PCTP/Modules/GiaoHangKhach/Repositories/DeliveryCommandLedgerRepository.cs" Link="Production/DeliveryCommandLedgerRepository.cs" />
+    <Compile Include="../PCTP/Modules/GiaoHangKhach/Repositories/DeliveryTmpPendingGate.cs" Link="Production/DeliveryTmpPendingGate.cs" />
+    <Compile Include="../PCTP/Modules/KhoCore/Application/Contracts/Stock/IStockMovementService.cs" Link="Production/IStockMovementService.cs" />
+    <Compile Include="../PCTP/Modules/KhoCore/Application/Contracts/Stock/StockMovementRequest.cs" Link="Production/StockMovementRequest.cs" />
+    <Compile Include="../PCTP/Modules/KhoCore/Application/Contracts/Stock/StockMovementResult.cs" Link="Production/StockMovementResult.cs" />
   </ItemGroup>
 </Project>

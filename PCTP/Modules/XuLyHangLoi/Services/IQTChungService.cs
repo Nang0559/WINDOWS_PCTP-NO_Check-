@@ -32,6 +32,7 @@ namespace PCTP.Modules.XuLyHangLoi.Services
         AffectedLotTraceResult TruyVetLOT(int phieuXuLyId, string nguoiThucHien);
         List<LotInfo> GetLotsCanRework(int phieuXuLyId);
         ScanResult XuatKhoRework(int phieuXuLyId, int slotId, string lotNo, int soLuong, string nguoiXuat);
+        ScanResult XuatKhoRework(int phieuXuLyId, int slotId, string lotNo, int soLuong, string nguoiXuat, Guid operationId);
         ScanResult GiaoHangRework(int phieuXuLyId, List<LotInfo> lots, string ngayGiao, string nguoiNhan, string boPhanNhan);
         void GhiNhanDangRework(int phieuXuLyId, string ghiChu, string nguoiThucHien);
         ScanResult QCXacNhanCuoi(int phieuXuLyId, int soLuongOK, int soLuongNG, string nguoiQC, int? slotIdOK = null, int? slotIdNG = null, string lotNo = null);
@@ -40,6 +41,8 @@ namespace PCTP.Modules.XuLyHangLoi.Services
         ScanResult HoanTat(int phieuXuLyId, string nguoiThucHien);
         ScanResult XacNhanChoGiaoBu(int phieuXuLyId, string nguoiThucHien);
         ScanResult DanhDauChoGiaoBu(int phieuXuLyId, string nguoiThucHien);
+        /// <summary>Thực hiện cập nhật liên quan trong cùng UnitOfWork với chuyển trạng thái chờ giao bù.</summary>
+        ScanResult DanhDauChoGiaoBu(int phieuXuLyId, string nguoiThucHien, Action beforeStatusUpdate);
         ScanResult GiaoLaiBoPhanPhatHien(int phieuXuLyId, string boPhanNhan, int soLuongGiaoLai, string nguoiThucHien);
         ScanResult HuyQTChung(int phieuXuLyId, string lyDoHuy, string nguoiThucHien);
         PhieuXuLyBatThuong GetById(int phieuXuLyId);
@@ -149,12 +152,36 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             try
             {
                 Uow.Begin();
+                AcquireTicketLock(phieuXuLyId);
+                // Re-check after the shared ticket lock so QC cannot interleave with export/delivery.
+                var lockedPlan = _reworkPhase4.GetPlan(phieuXuLyId);
+                if (lockedPlan == null || !lockedPlan.DaXuatDu || !lockedPlan.DaGiaoDu) throw new InvalidOperationException("Chỉ được QC Rework sau khi đã xuất và giao đủ Rework.");
+                if (GetReworkQC(phieuXuLyId) != null) throw new InvalidOperationException("Phiếu đã có kết quả QC Rework.");
                 ExecuteNonQuery(@"INSERT INTO dbo.FVN_PXLB_ReworkQC(PhieuXuLyBatThuongId,SoLuongRework,SoLuongOK,SoLuongNG,ConfirmedAt,ConfirmedBy,KetLuan) VALUES(@P,@R,@O,@N,GETDATE(),@By,@K);",
                     new SqlParameter("@P", phieuXuLyId), new SqlParameter("@R", initial.SoLuongRework), new SqlParameter("@O", soLuongOK), new SqlParameter("@N", soLuongNG), new SqlParameter("@By", nguoiQC), new SqlParameter("@K", DbValueHelper.DbValue(ketLuan)));
                 Uow.Commit();
                 return GetReworkQC(phieuXuLyId);
             }
             catch { SafeRollback(); throw; }
+        }
+
+        // Same transaction-owned resource as QTChungService export/delivery (QT_REWORK_TICKET:<id>).
+        private void AcquireTicketLock(int phieuXuLyId)
+        {
+            using (var command = Connection.CreateCommand())
+            {
+                command.Transaction = Transaction;
+                command.CommandText = @"
+DECLARE @result int;
+EXEC @result = sys.sp_getapplock
+    @Resource = @Resource,
+    @LockMode = 'Exclusive',
+    @LockOwner = 'Transaction',
+    @LockTimeout = 15000;
+IF @result < 0 THROW 51000, 'Không lấy được khóa phiếu Rework.', 1;";
+                command.Parameters.AddWithValue("@Resource", "QT_REWORK_TICKET:" + phieuXuLyId);
+                command.ExecuteNonQuery();
+            }
         }
 
         public ReworkQCResult GetReworkQC(int phieuXuLyId)
@@ -178,6 +205,8 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             try
             {
                 Uow.Begin();
+                AcquireTicketLock(phieuXuLyId);
+                if (GetDisposition(phieuXuLyId) != null) throw new InvalidOperationException("Phiếu đã có Disposition.");
                 ExecuteNonQuery(@"INSERT INTO dbo.FVN_PXLB_Disposition(PhieuXuLyBatThuongId,SoLuongLoaiBoBanDau,SoLuongNGRework,SoLuongLoaiBoCuoi,Reason,ConfirmedAt,ConfirmedBy) VALUES(@P,@S,@N,@F,@R,GETDATE(),@By);",
                     new SqlParameter("@P", phieuXuLyId), new SqlParameter("@S", initial.SoLuongLoaiBoBanDau), new SqlParameter("@N", reworkNg), new SqlParameter("@F", finalScrap), new SqlParameter("@R", DbValueHelper.DbValue(reason)), new SqlParameter("@By", nguoiThucHien));
                 Uow.Commit();
