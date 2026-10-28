@@ -21,7 +21,8 @@ internal static class Program
                 return 2;
             }
 
-            var readOnlyPreflight =
+            var sharedReadOnlyPreflight = args.Any(arg => string.Equals(arg, "--shared-readonly-preflight", StringComparison.OrdinalIgnoreCase));
+            var readOnlyPreflight = sharedReadOnlyPreflight ||
                 args.Any(arg => string.Equals(arg, "--preflight", StringComparison.OrdinalIgnoreCase)) ||
                 args.Any(arg => string.Equals(arg, "--delivery-preflight", StringComparison.OrdinalIgnoreCase));
             var engineOnlyRequested = args.Any(arg => string.Equals(arg, "--engine-only", StringComparison.OrdinalIgnoreCase));
@@ -30,9 +31,11 @@ internal static class Program
                 args.Any(arg => string.Equals(arg, "--quarantine-release-preflight", StringComparison.OrdinalIgnoreCase));
             if (readOnlyPreflight && (engineOnlyRequested || mutationCapableModeRequested))
                 throw new InvalidOperationException("Read-only preflight cannot be combined with fixture, engine, or acceptance modes. Run exactly one mode per invocation.");
-            var connectionString = readOnlyPreflight
-                ? SqlTestConfiguration.BuildReadOnlyPreflightConnectionString(userId, password)
-                : SqlTestConfiguration.BuildConnectionString(userId, password);
+            var connectionString = sharedReadOnlyPreflight
+                ? SqlTestConfiguration.BuildSharedReadOnlyPreflightConnectionString(userId, password)
+                : readOnlyPreflight
+                    ? SqlTestConfiguration.BuildReadOnlyPreflightConnectionString(userId, password)
+                    : SqlTestConfiguration.BuildConnectionString(userId, password);
             if (readOnlyPreflight)
                 TestEnvironmentPolicy.EnsureSafeSqlReadOnlyPreflightTarget(connectionString);
             else
@@ -63,7 +66,7 @@ internal static class Program
                 Console.WriteLine("PASS: existing dbo schema is compatible with the currently declared QC repository contract.");
             }
 
-            if (args.Any(arg => string.Equals(arg, "--preflight", StringComparison.OrdinalIgnoreCase)))
+            if (args.Any(arg => string.Equals(arg, "--preflight", StringComparison.OrdinalIgnoreCase)) || sharedReadOnlyPreflight)
             {
                 Console.WriteLine("INFO: schema-only preflight completed; no database objects or business rows were changed.");
                 return 0;
