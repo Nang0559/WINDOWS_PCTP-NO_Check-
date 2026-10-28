@@ -81,9 +81,9 @@ Write-Host "PCTP allowlist loaded: $tableScopeCount tables, $(@($scope | Where-O
 if (-not $SkipFirewallCheck) { Assert-PctpNoStaleIsolationRules }
 $source = Get-PctpLiveConnection -VariableName 'PCTP_QC_SOURCE_SQL_CONNECTION' -Role Source
 $target = Get-PctpLiveConnection -VariableName 'PCTP_QC_TARGET_SQL_CONNECTION' -Role Target -Catalog $TargetDatabase
-$sourceLogin = Assert-PctpSourceReadOnly $source
-$targetLogin = [string](Invoke-PctpScalarRows $target 'SELECT SUSER_SNAME() AS login_name').Rows[0]['login_name']
-Write-Host 'PASS: SQL14 login is read-only (no sysadmin/db_owner/write/execute/alter permission).'
+$sourceLogin = Assert-PctpSourceReadOnly $source 'SQL14 source'
+$targetLogin = Assert-PctpSourceReadOnly $target 'SQL57 metadata target'
+Write-Host 'PASS: SQL14 source and SQL57 metadata target logins are read-only (no sysadmin/db_owner/write/execute/alter permission).'
 New-Item -ItemType Directory -Force -Path $OutputDirectory | Out-Null
 Export-Inventory 'source_sql14' $source $OutputDirectory 'B7R2_FCC' $sourceLogin $scope
 Export-Inventory 'target_sql57' $target $OutputDirectory $TargetDatabase $targetLogin $scope
