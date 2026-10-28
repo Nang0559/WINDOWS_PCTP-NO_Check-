@@ -11,7 +11,7 @@ namespace PCTP
     {
         #region Instance Variables
         //public string B7R2_FCCdb = @"Data Source=192.168.200.14\BRAVO;Initial Catalog=B7R2_FCC;User ID=sa;Password=fccbrv";
-        public string B7R2_FCCdb = @"Data Source=192.168.200.57;Initial Catalog=B7R2_FCC;User ID=sa;Password=fccbrv";
+        public string B7R2_FCCdb = PCTP.ClassSQL.QcSqlOverride.Resolve(@"Data Source=192.168.200.57;Initial Catalog=B7R2_FCC;User ID=sa;Password=fccbrv");
         private SqlConnection _connection;
         public SqlConnection Connection
         {

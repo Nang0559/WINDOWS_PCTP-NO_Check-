@@ -15,3 +15,6 @@ Commit nền của bản vá này: `9bcf9c9`. Bằng chứng thật mới nhất
 | G6 | **Có khung chạy, chưa có journey nghiệp vụ** | Runner có `sql-seed` / `sql-assert` / `sql-cleanup` (cleanup luôn chạy trong `finally`, kiểm tra `Remaining = 0`). `g6-selftest` kiểm cơ chế bằng bảng `#temp`. 4 journey nghiệp vụ là **khung chưa cấu hình** (`"configured": false`) nên Gate trả `BLOCKED/FAIL`, không thể PASS giả. Cần seed SQL theo schema thật + AutomationId thao tác UI (xem `journeys\g6\README.md`) |
 
 Ghi chú G3: log của chính nó nêu rõ các phần còn lại là SP thật trên bản sao schema cô lập, `PhieuKhoRepository` đầy đủ và journey UI nghiệp vụ.
+
+## CI cô lập (G3-G6)
+Xem `docs/CI_ISOLATION.md`. G4 trong CI kiểm tra procedure dựng từ source của commit đang test trên SQL Server container tạm; kết quả FAIL trên DB57 không chứng minh source thiếu marker. G5/G6 chạy trên DB fixture cục bộ qua `-Isolated`; journey G6 chưa cấu hình trả `BLOCKED`.

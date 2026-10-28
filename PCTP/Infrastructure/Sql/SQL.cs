@@ -22,8 +22,8 @@ namespace PCTP.ClassSQL
         // lịch sử còn sót lại. Giữ cả 2 vì nhiều repository tham chiếu theo tên
         // cũ; đổi tên sẽ vỡ build hàng loạt.
         // ════════════════════════════════════════════════════════════════════
-        public string B7R2_FCCdb = @"Data Source=192.168.200.57;Initial Catalog=B7R2_FCC;User ID=sa;Password=fccbrv";
-        public string B7R2_FCCdbb = @"Data Source=192.168.200.57;Initial Catalog=B7R2_FCC;User ID=sa;Password=fccbrv";
+        public string B7R2_FCCdb = QcSqlOverride.Resolve(@"Data Source=192.168.200.57;Initial Catalog=B7R2_FCC;User ID=sa;Password=fccbrv");
+        public string B7R2_FCCdbb = QcSqlOverride.Resolve(@"Data Source=192.168.200.57;Initial Catalog=B7R2_FCC;User ID=sa;Password=fccbrv");
 
         // Product
         //public string B7R2_FCCdb = @"Data Source=192.168.200.14\BRAVO;Initial Catalog=B7R2_FCC;User ID=sa;Password=fccbrv";
@@ -581,7 +581,7 @@ namespace PCTP.ClassSQL
     class WH4SQLPROVIDER
     {
 
-        public string AutoWH = @"Data Source=192.168.200.14\BRAVO;Initial Catalog=B7R2_FCC;User ID=sa;Password=fccbrv";
+        public string AutoWH = QcSqlOverride.Resolve(@"Data Source=192.168.200.14\BRAVO;Initial Catalog=B7R2_FCC;User ID=sa;Password=fccbrv");
         //public string B7R2_FCCdb = @"Data Source=192.168.200.57;Initial Catalog=B7R2_FCC;User ID=sa;Password=fccbrv";
         public DataTable WH4ExecuteQuery(string connectionSTR, string query, List<SqlParameter> parameter = null)
         {

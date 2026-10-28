@@ -80,6 +80,7 @@
     <None Include="../PCTP/UF_CHANGETIME.cs" Link="UF_CHANGETIME.source.cs" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="../PCTP/Infrastructure/Sql/QcSqlOverride.cs" Link="Sut/QcSqlOverride.cs" />
     <Compile Include="../PCTP/Shared/Helpers/QRCodeParser.cs" Link="Sut/QRCodeParser.cs" />
     <Compile Include="../PCTP/Shared/Helpers/QRCodeBuilder.cs" Link="Sut/QRCodeBuilder.cs" />
     <Compile Include="../PCTP/Shared/Helpers/QRCodeWorkflowAdapter.cs" Link="Sut/QRCodeWorkflowAdapter.cs" />

@@ -22,6 +22,11 @@ on:
         required: false
         default: true
         type: boolean
+      run_ui_gates:
+        description: 'Run G5/G6 on a Windows runner (label pctp-ui) against a local disposable SQL fixture; never DB57'
+        required: false
+        default: false
+        type: boolean
       delivery_acceptance_stt:
         description: 'Dedicated deterministic G4 fixture STT'
         required: false
@@ -60,7 +65,11 @@ jobs:
             ".\\PCTP.QC.UI\\Invoke-PctpUiJourney.ps1",
             ".\\PCTP.QC.UI\\Invoke-PctpUiSuite.ps1",
             ".\\PCTP.QC.UI\\Invoke-PctpUiEvidenceSummary.ps1",
-            ".\\PCTP.QC.UI\\PctpUi.Common.ps1"
+            ".\\PCTP.QC.UI\\PctpUi.Common.ps1",
+            ".\\PCTP.QC.UI\\PctpSql.Common.ps1",
+            ".\\PCTP.QC.UI\\Invoke-PctpQcGates.ps1",
+            ".\\PCTP.QC.UI\\Start-PctpIsolatedSql.ps1",
+            ".\\PCTP.QC.UI\\Test-PctpIsolation.ps1"
           )
           foreach ($path in $paths) {
             $tokens = $null
@@ -111,6 +120,29 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0.x
+
+      - name: Isolation guard - no SQL secrets, block DB57/DB14/IFS egress and prove it
+        shell: bash
+        run: |
+          set -euo pipefail
+          # 1. The workflows must not use secrets that carry real SQL credentials or name the real servers.
+          #    (patterns are written so this step does not match itself)
+          if grep -nE 'secrets\.[A-Za-z0-9_]*(SQL|DB57|DB14|BRAV[O]|B7R2|FCC)' .github/workflows/*.yml; then
+            echo "ERROR: a workflow references a SQL-related secret; CI must only use the disposable container."; exit 1
+          fi
+          if grep -nE '192\.168\.200\.(5[7]|1[4])|BRAV[O]' .github/workflows/*.yml | grep -v 'ISOLATION_CANARY'; then
+            echo "ERROR: a workflow names DB57/DB14."; exit 1
+          fi
+          # 2. Drop all traffic to the DB57/DB14 subnet and the IFS/Oracle host, then prove it with a canary.
+          sudo iptables -I OUTPUT -d 192.168.200.0/24 -j REJECT
+          sudo iptables -I OUTPUT -d 192.168.2.10/32 -j REJECT
+          for ep in 192.168.200.57:1433 192.168.200.14:1433 192.168.2.10:8088; do # ISOLATION_CANARY
+            host="${ep%%:*}"; port="${ep##*:}"
+            if timeout 3 bash -c "exec 3<>/dev/tcp/$host/$port" 2>/dev/null; then
+              echo "ISOLATION BREACH: $ep is reachable from the CI job"; exit 1
+            fi
+            echo "PASS: $ep is not reachable from the CI job"
+          done
 
       - name: Locate disposable SQL Server container
         id: sql
@@ -231,6 +263,36 @@ jobs:
             SELECT 'PASS: required delivery tables verified in PCTP_QC_CI' AS Result;"
           echo "PASS: DB57-derived schema and the six checked-in WMS procedures deployed to PCTP_QC_CI"
 
+      - name: Package SQL deploy bundle for the Windows UI fixture (same files, same order as the deploy above)
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Keep this list identical to "Deploy DB57-derived schema to disposable database".
+          b="$RUNNER_TEMP/bundle"; mkdir -p "$b"; : > "$b/deploy-order.txt"; i=0
+          for f in \
+            SQL/QC_Schema/02_Generated_From_DB57.sql \
+            SQL/QC_Schema/03_Generated_From_DB57_Constraints.sql \
+            SQL/QC_Schema/05_Split.sql \
+            SQL/Usp_Qrcode_Update_Stock2405.sql \
+            SQL/Usp_Qrcode_Update_Stock_SP.sql \
+            SQL/sp_GetCurrentStockStatus.sql \
+            "$RUNNER_TEMP/deploy/Usp_Qrcode_LOAD_PHIEU_DOCQR2405.sql" \
+            "$RUNNER_TEMP/deploy/Usp_Qrcode_Take_Lot2405.sql" \
+            "$RUNNER_TEMP/deploy/Usp_Qrcode_Take_LotYMVN2405.sql"; do
+            i=$((i+1)); n="$(printf '%02d_%s' "$i" "$(basename "$f")")"
+            cp "$f" "$b/$n"; echo "$n" >> "$b/deploy-order.txt"
+          done
+          test "$i" -eq 9
+          echo "$GITHUB_SHA" > "$b/COMMIT.txt"
+          cat "$b/deploy-order.txt"
+
+      - name: Upload SQL deploy bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: pctp-isolated-sql-bundle
+          path: ${{ runner.temp }}/bundle
+          if-no-files-found: error
+
       - name: Seed deterministic G4 fixture
         shell: bash
         run: |
@@ -241,17 +303,32 @@ jobs:
           docker exec "$c" /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'PctpQc_CI_Only_2026!' -C -b -d PCTP_QC_CI -i /tmp/QC_G4_DeliveryFixture_Seed.sql
 
       - name: G3 — isolated SQL engine integration
-        run: dotnet run --project PCTP.QC.SqlIntegration/PCTP.QC.SqlIntegration.csproj --configuration Release -- --engine-only
+        id: g3
+        shell: bash
+        run: |
+          mkdir -p artifacts/gates/ci
+          dotnet run --project PCTP.QC.SqlIntegration/PCTP.QC.SqlIntegration.csproj --configuration Release -- --engine-only 2>&1 | tee artifacts/gates/ci/G3-engine.log
 
       - name: G4 — production delivery procedure acceptance on disposable DB
+        id: g4_pre
         if: ${{ github.event_name != 'workflow_dispatch' || inputs.run_delivery_acceptance }}
-        run: dotnet run --project PCTP.QC.SqlIntegration/PCTP.QC.SqlIntegration.csproj --configuration Release -- --delivery-preflight
+        shell: bash
+        run: |
+          # Markers are checked on procedures deployed FROM THE SOURCE IN THIS COMMIT into PCTP_QC_CI,
+          # not on whatever is deployed on DB57.
+          mkdir -p artifacts/gates/ci
+          dotnet run --project PCTP.QC.SqlIntegration/PCTP.QC.SqlIntegration.csproj --configuration Release -- --delivery-preflight 2>&1 | tee artifacts/gates/ci/G4-delivery-preflight.log
 
       - name: G4 — execute rollback-only delivery acceptance
+        id: g4_acc
         if: ${{ github.event_name != 'workflow_dispatch' || inputs.run_delivery_acceptance }}
-        run: dotnet run --project PCTP.QC.SqlIntegration/PCTP.QC.SqlIntegration.csproj --configuration Release -- --delivery-acceptance
+        shell: bash
+        run: |
+          mkdir -p artifacts/gates/ci
+          dotnet run --project PCTP.QC.SqlIntegration/PCTP.QC.SqlIntegration.csproj --configuration Release -- --delivery-acceptance 2>&1 | tee artifacts/gates/ci/G4-delivery-acceptance.log
+          grep -q 'PASS:[[:space:]]*DEL-003/DEL-004/DEL-007' artifacts/gates/ci/G4-delivery-acceptance.log
 
-      - name: G6 — schema contract smoke for stock/slot state
+      - name: G6 prerequisite — schema contract smoke for stock/slot state (not a G6 PASS; G6 is the UI journey job)
         shell: bash
         run: |
           set -euo pipefail
@@ -276,6 +353,112 @@ jobs:
             docker cp "$f" "$c:/tmp/QC_G4_DeliveryFixture_Cleanup.sql"
             docker exec "$c" /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'PctpQc_CI_Only_2026!' -C -b -d PCTP_QC_CI -i /tmp/QC_G4_DeliveryFixture_Cleanup.sql
           fi
+
+      - name: Write CI gate summaries (G3/G4)
+        if: always()
+        shell: bash
+        env:
+          G3_OUTCOME: ${{ steps.g3.outcome }}
+          G4_PRE_OUTCOME: ${{ steps.g4_pre.outcome }}
+          G4_ACC_OUTCOME: ${{ steps.g4_acc.outcome }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          mkdir -p artifacts/gates/ci
+          python3 - <<'PY'
+          import json, os
+          def gate(name, outcomes, scope):
+              ok = all(o == "success" for o in outcomes)
+              return {"Gate": name, "Status": "PASS" if ok else "FAIL", "Outcomes": outcomes, "Commit": os.environ["COMMIT_SHA"],
+                      "Target": "127.0.0.1,1433/PCTP_QC_CI (disposable SQL Server container)", "Egress": "DB57/DB14/IFS blocked and asserted", "Scope": scope}
+          out = [
+              gate("G3", [os.environ["G3_OUTCOME"]], "SQL engine integration on the disposable container"),
+              gate("G4", [os.environ["G4_PRE_OUTCOME"], os.environ["G4_ACC_OUTCOME"]], "Procedures built from this commit; marker preflight + rollback-only acceptance"),
+          ]
+          for g in out:
+              json.dump(g, open("artifacts/gates/ci/%s-gate-summary.json" % g["Gate"], "w"), indent=2)
+              print(g["Gate"], g["Status"], g["Outcomes"])
+          PY
+
+      - name: Upload CI gate evidence (G3/G4)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pctp-ci-gate-evidence
+          path: artifacts/gates/ci
+          if-no-files-found: warn
+
+  ui-isolated-g5-g6:
+    # G5/G6 drive the real WinForms app, so they need Windows, DevExpress 25.2 and MSBuild (the app references
+    # DevExpress from the machine, not from NuGet): a self-hosted Windows runner labelled "pctp-ui".
+    # The SQL fixture is created ON that machine (LocalDB / SQL Express) from the bundle built by the Linux job;
+    # PCTP.exe is forced onto it (QcSqlOverride) and DB57/DB14/IFS egress is blocked and asserted per run.
+    needs: sql-engine-integration
+    if: ${{ always() && needs.sql-engine-integration.result == 'success' && (inputs.run_ui_gates == true || vars.PCTP_UI_GATES == 'true') }}
+    runs-on: [self-hosted, windows, pctp-ui]
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download SQL deploy bundle (schema + procedures from this commit)
+        uses: actions/download-artifact@v4
+        with:
+          name: pctp-isolated-sql-bundle
+          path: ${{ runner.temp }}/bundle
+
+      - name: Provision disposable SQL fixture on this machine
+        shell: powershell
+        run: |
+          .\PCTP.QC.UI\Start-PctpIsolatedSql.ps1 -BundleDirectory "$env:RUNNER_TEMP\bundle" -EnvFile $env:GITHUB_ENV
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Add MSBuild to PATH
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Build PCTP.exe (Debug, same commit)
+        shell: powershell
+        run: |
+          msbuild PCTP\PCTP.csproj -restore -p:Configuration=Debug -p:Platform=AnyCPU -v:m
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (-not (Test-Path PCTP\bin\Debug\PCTP.exe)) { throw 'PCTP.exe was not produced.' }
+
+      - name: G5 - UI navigation journeys on the isolated fixture
+        id: g5
+        continue-on-error: true
+        shell: powershell
+        run: .\PCTP.QC.UI\Invoke-PctpQcGates.ps1 -Gate G5 -ExePath "$PWD\PCTP\bin\Debug\PCTP.exe" -Isolated
+
+      - name: G6 - business journeys (seed -> UI -> SQL assert -> cleanup) on the isolated fixture
+        id: g6
+        continue-on-error: true
+        shell: powershell
+        run: .\PCTP.QC.UI\Invoke-PctpQcGates.ps1 -Gate G6 -ExePath "$PWD\PCTP\bin\Debug\PCTP.exe" -Isolated -AllowMutations
+
+      - name: Remove isolation rules and drop the fixture database
+        if: always()
+        shell: powershell
+        run: |
+          .\PCTP.QC.UI\Test-PctpIsolation.ps1 -Mode Unblock
+          .\PCTP.QC.UI\Start-PctpIsolatedSql.ps1 -Teardown
+
+      - name: Upload G5/G6 evidence (summaries, logs, screenshots, trees)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pctp-g5-g6-evidence
+          path: |
+            artifacts/gates/**
+            artifacts/isolated-sql/**
+          if-no-files-found: warn
+
+      - name: Gate verdict (BLOCKED and FAIL both fail the job)
+        if: always()
+        shell: powershell
+        run: |
+          $g5 = '${{ steps.g5.outcome }}'; $g6 = '${{ steps.g6.outcome }}'
+          Get-ChildItem artifacts\gates -Recurse -Filter gate-summary.json -ErrorAction SilentlyContinue |
+            ForEach-Object { $j = Get-Content $_.FullName -Raw | ConvertFrom-Json; "{0}: {1}" -f $j.Gate, $j.Status }
+          if ($g5 -ne 'success' -or $g6 -ne 'success') { throw "G5=$g5 G6=$g6 (see evidence artifact; unconfigured G6 journeys are BLOCKED, not PASS)." }
 
   desktop-runner-build:
     runs-on: windows-latest

@@ -471,6 +471,7 @@
     <Compile Include="Infrastructure\Sql\DataAccessException.cs" />
     <Compile Include="Infrastructure\Sql\DataAccessStatus.cs" />
     <Compile Include="Infrastructure\Sql\SQL.cs" />
+    <Compile Include="Infrastructure\Sql\QcSqlOverride.cs" />
     <Compile Include="ClsResize.cs" />
     <Compile Include="Modules\GiaoHangKhach\OrderLoading\IFS\IfsOrderLoadStrategy.cs" />
     <Compile Include="Modules\GiaoHangKhach\Contracts\PhieuGiao\IPhieuGiaoDBRepository.cs" />
