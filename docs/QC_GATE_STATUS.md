@@ -7,14 +7,14 @@
 > [40725382801](https://github.com/Nang0559/WINDOWS_PCTP-NO_Check-/actions/runs/40725382801):
 > unit/regression **389/389 PASS**, SQL-engine G3/G4 **PASS**, TestRunner + integration harness build **PASS**.
 > Tuy nhiên, G5/G6 đang ở trạng thái queued trên self-hosted runner và chưa có verdict.
-> Bản vá target-isolation trên feature/pctp-qc-test-platform đã được kiểm thử tại commit
-> `42cde3e4be9823a3a7123332a1e9f0de71cd02dd`, CI run
-> [40730342787](https://github.com/Nang0559/WINDOWS_PCTP-NO_Check-/actions/runs/40730342787): **257/257 unit/regression PASS**, G3/G4 SQL-engine **PASS**, TestRunner và integration harness build **PASS**.
+> Bản vá cô lập SQL + tách luồng preflight trên feature/pctp-qc-test-platform đã được kiểm thử tại commit
+> `abaa1a771a79722a52653e6722b9f15b61d8f573`, CI run
+> [40732026740](https://github.com/Nang0559/WINDOWS_PCTP-NO_Check-/actions/runs/40732026740): **259/259 unit/regression PASS**, PowerShell parse **PASS**, G3/G4 SQL-engine **PASS**, TestRunner và integration harness build **PASS**.
 >
 > | Điều kiện phát hành | Trạng thái hiện tại | Điều kiện để mở khóa |
 > |---|---|---|
-> | Unit / source-contract | **257/257 PASS** trên target-isolation commit `42cde3e` | Giữ CI xanh trên commit phát hành cuối cùng |
-> | G3 / G4 trên SQL Server cô lập CI | **PASS** trên target-isolation commit `42cde3e` | Giữ CI xanh, fixture cleanup và rollback evidence thành công |
+> | Unit / source-contract | **259/259 PASS** trên commit `abaa1a7` | Giữ CI xanh trên commit phát hành cuối cùng |
+> | G3 / G4 trên SQL Server cô lập CI | **PASS** trên commit `abaa1a7` | Giữ CI xanh, fixture cleanup và rollback evidence thành công |
 > | G5 UI navigation trên WinForms thực | **Chưa nghiệm thu**; lịch sử có failure ở receive-navigation | Chạy thật trên Windows runner, mọi journey bắt buộc PASS và có screenshots/logs |
 > | G6 end-to-end nghiệp vụ | **Chưa nghiệm thu**; khung có nhưng journey nghiệp vụ chưa đủ | Seed → UI → SQL assertions → cleanup cho các luồng đã công bố |
 > | G1 traceability / coverage | **FAIL theo báo cáo đo gần nhất: 105 gap** | Chạy lại G1 trên HEAD phát hành và xử lý/định nghĩa ngoại lệ cho mọi gap |
