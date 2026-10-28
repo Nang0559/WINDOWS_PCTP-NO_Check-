@@ -21,8 +21,16 @@ internal static class Program
                 return 2;
             }
 
-            var connectionString = SqlTestConfiguration.BuildConnectionString(userId, password);
-            TestEnvironmentPolicy.EnsureSafeSqlTestTarget(connectionString);
+            var readOnlyPreflight =
+                args.Any(arg => string.Equals(arg, "--preflight", StringComparison.OrdinalIgnoreCase)) ||
+                args.Any(arg => string.Equals(arg, "--delivery-preflight", StringComparison.OrdinalIgnoreCase));
+            var connectionString = readOnlyPreflight
+                ? SqlTestConfiguration.BuildReadOnlyPreflightConnectionString(userId, password)
+                : SqlTestConfiguration.BuildConnectionString(userId, password);
+            if (readOnlyPreflight)
+                TestEnvironmentPolicy.EnsureSafeSqlReadOnlyPreflightTarget(connectionString);
+            else
+                TestEnvironmentPolicy.EnsureSafeSqlTestTarget(connectionString);
 
             await using var connection = new SqlConnection(connectionString);
             await connection.OpenAsync();
