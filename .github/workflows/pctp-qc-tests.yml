@@ -29,7 +29,7 @@ on:
       run_ui_gates:
         description: 'Run G5/G6 on a Windows runner (label pctp-ui) against a local disposable SQL fixture; never DB57'
         required: false
-        default: false
+        default: true
         type: boolean
       delivery_acceptance_stt:
         description: 'Dedicated deterministic G4 fixture STT'
@@ -423,7 +423,9 @@ jobs:
     # The SQL fixture is created ON that machine (LocalDB / SQL Express) from the bundle built by the Linux job;
     # PCTP.exe is forced onto it (QcSqlOverride) and DB57/DB14/IFS egress is blocked and asserted per run.
     needs: sql-engine-integration
-    if: ${{ always() && needs.sql-engine-integration.result == 'success' && (inputs.run_ui_gates == true || vars.PCTP_UI_GATES == 'true') }}
+    # Automatically exercise the real WinForms UI on trusted pushes to the active harness branch.
+    # Never run repository code on the self-hosted machine for fork-originated pull requests.
+    if: ${{ always() && needs.sql-engine-integration.result == 'success' && (inputs.run_ui_gates == true || vars.PCTP_UI_GATES == 'true' || (github.event_name == 'push' && github.ref == 'refs/heads/feature/wms-live-data-test-harness')) }}
     runs-on: [self-hosted, windows, pctp-ui]
     timeout-minutes: 90
     steps:
