@@ -23,7 +23,7 @@
 
 ### P0 — writes with only fake/unit evidence (9)
 
-Use the exact artifact's `gaps.csv` for source paths. For each repository:
+Source paths identified in the measured `gaps.csv` are: `PCTP/Modules/BaoCao/Infrastructure/Repositories/StockHistoryRepository.cs`, `PCTP/Modules/GiaoHangKhach/Repositories/PhieuGiaoDBRepository.cs`, `PCTP/Modules/GiaoHangKhach/Repositories/PhieuLotRepository.cs`, `PCTP/Modules/GiaoHangKhach/Repositories/PhieuLuuTruRepository.cs`, `PCTP/Modules/GiaoHangKhach/Repositories/TableOrderRepo.cs`, `PCTP/Modules/KhoCore/Repositories/QuarantineReleaseAuditRepository.cs`, `PCTP/Modules/KhoCore/Repositories/RackRepository.cs`, `PCTP/Modules/KhoCore/Repositories/StockHistoryRepository.cs`, and `PCTP/Modules/XuLyHangLoi/Repository/PhieuXuLyBatThuongRepository.cs`. For each repository:
 1. Add a SQL-engine integration scenario using session-local `#temp` fixtures or uniquely named isolated fixtures.
 2. Instantiate the production repository, not a hand-reimplemented SQL statement.
 3. Assert persisted values, duplicate/replay behavior, transaction ownership, and rollback after injected failure as applicable.
