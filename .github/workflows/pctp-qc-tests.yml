@@ -26,11 +26,6 @@ on:
         required: false
         default: true
         type: boolean
-      run_ui_gates:
-        description: 'Run G5/G6 on a Windows runner (label pctp-ui) against a local disposable SQL fixture; never DB57'
-        required: false
-        default: true
-        type: boolean
       delivery_acceptance_stt:
         description: 'Dedicated deterministic G4 fixture STT'
         required: false
