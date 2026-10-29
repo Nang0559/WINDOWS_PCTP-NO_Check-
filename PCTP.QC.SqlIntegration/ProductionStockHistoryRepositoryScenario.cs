@@ -58,17 +58,17 @@ CREATE TABLE #StockHistory
                     "Production repository did not insert exactly one history row.");
                 Require(Convert.ToInt32(Scalar(uow, "SELECT Quantity FROM #StockHistory")) == 17,
                     "Production repository did not persist the LOT quantity.");
-                Require(Scalar(uow, "SELECT ItemCode FROM #StockHistory") == "QC-ITEM",
+                Require(Convert.ToString(Scalar(uow, "SELECT ItemCode FROM #StockHistory")) == "QC-ITEM",
                     "Production repository did not persist ItemCode.");
-                Require(Scalar(uow, "SELECT TemCode FROM #StockHistory") == "QC-TEM-HISTORY",
+                Require(Convert.ToString(Scalar(uow, "SELECT TemCode FROM #StockHistory")) == "QC-TEM-HISTORY",
                     "Production repository did not persist TemCode.");
-                Require(Scalar(uow, "SELECT LotNo FROM #StockHistory") == "QC-LOT-HISTORY",
+                Require(Convert.ToString(Scalar(uow, "SELECT LotNo FROM #StockHistory")) == "QC-LOT-HISTORY",
                     "Production repository did not persist LotNo.");
-                Require(Scalar(uow, "SELECT QrData FROM #StockHistory") == "QC-RAW-QR",
+                Require(Convert.ToString(Scalar(uow, "SELECT QrData FROM #StockHistory")) == "QC-RAW-QR",
                     "Production repository did not preserve the raw QR.");
-                Require(Scalar(uow, "SELECT MaPhieu FROM #StockHistory") == "QC-PHIEU-HISTORY",
+                Require(Convert.ToString(Scalar(uow, "SELECT MaPhieu FROM #StockHistory")) == "QC-PHIEU-HISTORY",
                     "Production repository did not persist MaPhieu.");
-                Require(Scalar(uow, "SELECT PerformedBy FROM #StockHistory") == "QC-OPERATOR",
+                Require(Convert.ToString(Scalar(uow, "SELECT PerformedBy FROM #StockHistory")) == "QC-OPERATOR",
                     "Production repository did not persist the operator.");
                 Require(Convert.ToInt32(Scalar(uow, "SELECT FromSlotId FROM #StockHistory")) == 11,
                     "Production repository did not persist FromSlotId.");
