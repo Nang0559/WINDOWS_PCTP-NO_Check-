@@ -10,6 +10,7 @@
 - **Runner:** Windows self-hosted, labels [self-hosted, windows, pctp-ui].
 - **Workflow chính:** pctp-db57-source-order-harness.yml.
 - **Crosswalk thiết kế → test:** `PCTP/Workflow/Diagram/WMS_TEST_DOCUMENTATION_CROSSWALK.md`.
+- **Sổ evidence và trạng thái gate:** `PCTP/Workflow/Diagram/WMS_TEST_EXECUTION_STATUS.md`.
 
 ## 1. Nguyên tắc bất biến — không được lệch hướng
 
