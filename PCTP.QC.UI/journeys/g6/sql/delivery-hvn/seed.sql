@@ -33,3 +33,9 @@ IF @Stt > 32500 THROW 52106, N'g6-delivery-hvn seed: reserved STT range 30000..3
 INSERT INTO dbo.TMPPHIEUGIAOHANG (STT, CUA, TRUYEN, MAHANG, TENHANG, LOT, DV, SOLUONG, NGAYGIAO, GIOGIAO, STATUS, NHAMAY, Note)
 VALUES (@Stt, @Prefix, @Prefix, @Item, N'QC fixture ' + @Prefix, @Lot20 + N'-' + CAST(@Qty AS nvarchar(10)),
         N'PCS', @Qty, CAST(GETDATE() AS date), N'23:59', N'PENDING', 'QCUI', @Prefix + N'_DEL');
+
+
+-- Capture the run-scoped carton QR for the real UI. This returns input only; no delivery/QR result table is written here.
+SELECT CAST(3 AS int) AS SeedRowsAffected,
+       RTRIM(@Lot20) + N'0001' + RIGHT(N'0000' + CAST(@Qty AS nvarchar(4)), 4) + N':' + RTRIM(@Item) + N':' +
+       CONVERT(nvarchar(10), @Today, 103) + N':' + CAST(@Qty AS nvarchar(10)) AS Qr1;
