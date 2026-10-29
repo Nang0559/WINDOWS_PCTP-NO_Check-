@@ -149,7 +149,7 @@ jobs:
             echo "ERROR: an unapproved workflow names DB57/DB14."; exit 1
           fi
           # 2. Approved live-data workflows must be manual-only and must retain an explicit confirmation gate.
-          for f in .github/workflows/pctp-live-data-inventory.yml .github/workflows/pctp-mp-source-profile.yml; do
+          for f in .github/workflows/pctp-live-data-inventory.yml .github/workflows/pctp-mp-source-profile.yml .github/workflows/pctp-db57-acceptance.yml; do
             test -f "$f"
             grep -q 'workflow_dispatch:' "$f" || { echo "ERROR: $f is not manually dispatched."; exit 1; }
             if grep -Eq '^[[:space:]]*(push|pull_request):' "$f"; then
@@ -417,130 +417,8 @@ jobs:
           path: artifacts/gates/ci
           if-no-files-found: warn
 
-  ui-db57-g5-g6:
-    # G5/G6 drive the real WinForms app against DB57/B7R2_FCC on the trusted Windows pctp-ui runner.
-    # G6 mutations are prefixed per run and each journey must assert then clean up its own rows.
-    needs: sql-engine-integration
-    # Automatically exercise the real WinForms UI on trusted pushes to the active harness branch.
-    # Never run repository code on the self-hosted machine for fork-originated pull requests.
-    if: ${{ always() && needs.sql-engine-integration.result == 'success' && (inputs.run_ui_gates == true || vars.PCTP_UI_GATES == 'true' || (github.event_name == 'push' && github.ref == 'refs/heads/feature/wms-live-data-test-harness') || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'feature/wms-live-data-test-harness')) }}
-    runs-on: [self-hosted, windows, pctp-ui]
-    timeout-minutes: 90
-    env:
-      PCTP_QC_SQL_USER: ${{ secrets.PCTP_QC_SQL_USER }}
-      PCTP_QC_SQL_PASSWORD: ${{ secrets.PCTP_QC_SQL_PASSWORD }}
-      PCTP_QC_LIVE_MODE: '1'
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Validate DB57 acceptance secrets and target
-        shell: powershell
-        env:
-          PCTP_QC_SQL_USER: ${{ secrets.PCTP_QC_SQL_USER }}
-          PCTP_QC_SQL_PASSWORD: ${{ secrets.PCTP_QC_SQL_PASSWORD }}
-        run: |
-          if ([string]::IsNullOrWhiteSpace($env:PCTP_QC_SQL_USER) -or [string]::IsNullOrWhiteSpace($env:PCTP_QC_SQL_PASSWORD)) {
-            throw 'Configure repository secrets PCTP_QC_SQL_USER and PCTP_QC_SQL_PASSWORD for DB57 acceptance.'
-          }
-          $cs = New-Object System.Data.SqlClient.SqlConnectionStringBuilder
-          $cs['Data Source'] = '192.168.200.57'; $cs['Initial Catalog'] = 'B7R2_FCC'
-          $cs['User ID'] = $env:PCTP_QC_SQL_USER; $cs['Password'] = $env:PCTP_QC_SQL_PASSWORD
-          $cs['Connect Timeout'] = 10; $cs['Application Name'] = 'PCTP-QC-DB57-Preflight'
-          $conn = New-Object System.Data.SqlClient.SqlConnection($cs.ConnectionString)
-          try {
-            $conn.Open(); $cmd = $conn.CreateCommand(); $cmd.CommandText = 'SELECT DB_NAME()'
-            $actual = [string]$cmd.ExecuteScalar()
-            if ($actual -ne 'B7R2_FCC') { throw "Expected DB57/B7R2_FCC, got '$actual'." }
-            Write-Host 'PASS: DB57 connection preflight succeeded for B7R2_FCC.'
-          } finally { $conn.Dispose() }
-
-      - name: Add MSBuild to PATH
-        uses: microsoft/setup-msbuild@v2
-
-      - name: Setup NuGet CLI for legacy packages.config project
-        uses: NuGet/setup-nuget@v2
-        with:
-          nuget-version: 6.x
-
-      - name: Restore PCTP packages.config dependencies
-        shell: powershell
-        run: |
-          nuget restore PCTP\packages.config -PackagesDirectory packages -NonInteractive -Verbosity normal
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $requiredProps = "packages\EntityFramework.6.6.0-preview1-final\build\EntityFramework.props"
-          if (-not (Test-Path $requiredProps)) {
-            throw "NuGet restore did not produce required Entity Framework build props: $requiredProps"
-          }
-
-      - name: Build PCTP.exe (Debug, same commit)
-        shell: powershell
-        run: |
-          msbuild PCTP\PCTP.csproj -p:Configuration=Debug -p:Platform=AnyCPU -p:SignManifests=false -p:GenerateManifests=false -p:ManifestCertificateThumbprint= -v:m
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          if (-not (Test-Path PCTP\bin\Debug\PCTP.exe)) { throw 'PCTP.exe was not produced.' }
-
-      - name: G5 - UI navigation journeys against DB57
-        id: g5
-        continue-on-error: true
-        shell: powershell
-        run: .\PCTP.QC.UI\Invoke-PctpQcGates.ps1 -Gate G5 -ExePath "$PWD\PCTP\bin\Debug\PCTP.exe" -LiveDb57 -SqlServer 192.168.200.57 -SqlDatabase B7R2_FCC
-
-      - name: G6 - DB57 business journeys (scoped seed -> UI -> SQL assert -> cleanup)
-        id: g6
-        continue-on-error: true
-        shell: powershell
-        run: .\PCTP.QC.UI\Invoke-PctpQcGates.ps1 -Gate G6 -ExePath "$PWD\PCTP\bin\Debug\PCTP.exe" -LiveDb57 -SqlServer 192.168.200.57 -SqlDatabase B7R2_FCC -AllowMutations
-
-      - name: Upload G5/G6 evidence (summaries, logs, screenshots, trees)
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: pctp-g5-g6-evidence
-          path: |
-            artifacts/gates/**
-            artifacts/isolated-sql/**
-          if-no-files-found: warn
-
-      - name: Gate verdict (BLOCKED and FAIL both fail the job)
-        if: always()
-        shell: powershell
-        run: |
-          $g5 = '${{ steps.g5.outcome }}'; $g6 = '${{ steps.g6.outcome }}'
-          Get-ChildItem artifacts\gates -Recurse -Filter gate-summary.json -ErrorAction SilentlyContinue |
-            ForEach-Object { $j = Get-Content $_.FullName -Raw | ConvertFrom-Json; "{0}: {1}" -f $j.Gate, $j.Status }
-          if ($g5 -ne 'success' -or $g6 -ne 'success') { throw "G5=$g5 G6=$g6 (see evidence artifact; unconfigured G6 journeys are BLOCKED, not PASS)." }
-
-  ui-gates-status:
-    # Makes the G5/G6 outcome explicit. The overall workflow can be green while ui-db57-g5-g6 was SKIPPED,
-    # which must never be read as "G5/G6 PASS". Set repo variable PCTP_UI_GATES_REQUIRED=true to make a skip fail.
-    needs: [sql-engine-integration, ui-db57-g5-g6]
-    if: ${{ always() }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Report G5/G6 execution status
-        shell: bash
-        env:
-          UI_RESULT: ${{ needs.ui-db57-g5-g6.result }}
-          SQL_RESULT: ${{ needs.sql-engine-integration.result }}
-          UI_REQUIRED: ${{ vars.PCTP_UI_GATES_REQUIRED }}
-          UI_REQUIRED_FOR_PR: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'feature/wms-live-data-test-harness' }}
-        run: |
-          {
-            echo "## G5/G6 UI gates"
-            echo "- sql-engine-integration (G3/G4): \`$SQL_RESULT\`"
-            echo "- ui-isolated-g5-g6: \`$UI_RESULT\`"
-          } >> "$GITHUB_STEP_SUMMARY"
-          case "$UI_RESULT" in
-            success)
-              echo "**G5 and G6 were EXECUTED and PASSED** against DB57/B7R2_FCC (see pctp-g5-g6-evidence)." >> "$GITHUB_STEP_SUMMARY" ;;
-            skipped)
-              echo "**G5/G6 were NOT EXECUTED (job skipped) - this run proves nothing about G5/G6.** Enable with a push to feature/wms-live-data-test-harness, workflow_dispatch input run_ui_gates=true, or repo variable PCTP_UI_GATES=true, and a self-hosted runner labelled [self-hosted, windows, pctp-ui]." >> "$GITHUB_STEP_SUMMARY"
-              echo "::warning title=G5/G6 not executed::ui-db57-g5-g6 was skipped; overall success does not cover DB57 acceptance."
-              if [ "$UI_REQUIRED" = "true" ] || [ "$UI_REQUIRED_FOR_PR" = "true" ]; then echo "::error::G5/G6 are required for this acceptance PR but did not run."; exit 1; fi ;;
-            *)
-              echo "**G5/G6 result: $UI_RESULT**" >> "$GITHUB_STEP_SUMMARY"; exit 1 ;;
-          esac
+  # G5/G6 live acceptance is intentionally separated into the manual-only
+  # pctp-db57-acceptance.yml workflow. This disposable CI workflow never targets DB57.
 
   desktop-runner-build:
     runs-on: windows-latest
