@@ -104,3 +104,16 @@ Full day: 199 LUUPHIEUGIAOHANG rows, 23 slips, 3108 LUUDOCQRCODE rows, 112 STOCK
 `assert-after-scan.sql` fails the run on `StockViolations`, `LuuOverIssued` and `QrWithoutStockViolations`; the other columns (`QrFccQty` vs `StockIssued`, `QrDuplicateRows`, lots without QR) are information only. `QrDuplicateRows` tests the open hypothesis that QR rows are duplicated when `DOCQRCODE.GIO` is empty and several pending lines share a `MAHANG`.
 
 Limits that remain: the QR scan is still manual; `PCTPStockMovementGuard` and `FVN_DeliveryCommand*` ledger rows written by a real scan carry no prefix and are not removed by cleanup; the YMVN (`YMVN_DOCQRCODE`) and SP (`SP_DOCQRCODE`) paths are not covered yet; the new SQL was syntax-checked only, it has not run on SQL Server.
+
+### Running the fixture from GitHub Actions (self-hosted runner on the dev machine)
+
+Workflow **PCTP DB57 delivery fixture (seed / assert / cleanup)** (`.github/workflows/pctp-db57-delivery-fixture.yml`, manual dispatch only, runner labels `self-hosted, windows, pctp-ui`, secrets `PCTP_QC_TEST_USER` / `PCTP_QC_TEST_PASSWORD`, target pinned to the SQL57 test database by `PCTP_QC_LIVE_MODE`). Inputs: tick `confirm_db57_test_writes`, pick `phase`.
+
+1. `phase = seed`: creates the journey data under a fresh prefix and prints the prefix and the carton QR strings in the **job summary** (also in the artifact `pctp-db57-delivery-fixture-seed-<run>`).
+2. Scan those QRs by hand on the HVN - MP screen of `PCTP.exe` on the runner machine (its `PCTP.exe.config` must point at the test database).
+3. `phase = assert`, `prefix = QCUI_xxxxxxxx`: read-only; the run **fails** when `StockViolations`, `LuuOverIssued` or `QrWithoutStockViolations` is not 0. Information columns never fail the run.
+4. `phase = cleanup`, same prefix: removes the rows; the run fails unless `Remaining = 0`.
+
+It shares the concurrency group `pctp-db57-acceptance` with the full G6 acceptance workflow, so the two never write to the same database at the same time. `pctp-db57-acceptance.yml` (G5 + G6, now including `g6-delivery-hvn-multilot` as a seed -> open screen -> assert -> cleanup journey) remains the end-to-end gate; this workflow adds the manual-scan phases it cannot automate.
+
+Why the scan is not automated: the runner can type into `txt_DOCQRCODE` and press Enter (`set-value`, `press-enter`), but the delivery also needs the pending grid rows selected (checkbox column) and the save action on `HVN_PGH`; their AutomationIds have not been captured from a `pctp-ui-tree-*.json` on the runner yet. Dispatch G5 once on the runner, send the tree file, and the scan steps can be added to the journey.

@@ -1,0 +1,114 @@
+name: PCTP DB57 delivery fixture (seed / assert / cleanup)
+
+# Manual, run-scoped test data on the agreed test database only. The QR scan between "seed" and "assert" is done by hand on the
+# runner machine (PCTP.exe must point at the test database); see PCTP.QC.UI/LIVE-DATA-TEST-HARNESS.md.
+#   1. phase = seed     -> creates journey data under a new QCUI_<8 chars> prefix and prints the QR strings to scan
+#   2. scan the QRs by hand on the HVN - MP screen
+#   3. phase = assert   -> read-only invariants after the scan (fails the run on a violated invariant)
+#   4. phase = cleanup  -> removes everything for that prefix; the run fails unless Remaining = 0
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_db57_test_writes:
+        description: "I confirm this run may write run-scoped QC rows to the SQL57 test database (seed/cleanup) or read them (assert)."
+        required: true
+        type: boolean
+        default: false
+      phase:
+        description: "seed = create data and print QRs; assert = check invariants after the manual scan; cleanup = remove the prefix"
+        required: true
+        type: choice
+        options:
+          - seed
+          - assert
+          - cleanup
+        default: seed
+      prefix:
+        description: "QCUI_<8 letters/digits>; required for assert and cleanup (printed by the seed run), ignored for seed"
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+# Same group as the DB57 acceptance workflow: both write run-scoped rows to the same database, never overlap.
+concurrency:
+  group: pctp-db57-acceptance
+  cancel-in-progress: false
+
+jobs:
+  fixture:
+    if: ${{ inputs.confirm_db57_test_writes == true }}
+    runs-on: [self-hosted, windows, pctp-ui]
+    timeout-minutes: 20
+    env:
+      PCTP_QC_SQL_USER: ${{ secrets.PCTP_QC_TEST_USER }}
+      PCTP_QC_SQL_PASSWORD: ${{ secrets.PCTP_QC_TEST_PASSWORD }}
+      PCTP_QC_LIVE_MODE: '1'
+      PHASE: ${{ inputs.phase }}
+      PREFIX_INPUT: ${{ inputs.prefix }}
+    steps:
+      - name: Checkout dispatched commit
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Validate inputs and credentials
+        id: prep
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ([string]::IsNullOrWhiteSpace($env:PCTP_QC_SQL_USER) -or [string]::IsNullOrWhiteSpace($env:PCTP_QC_SQL_PASSWORD)) {
+            throw 'Configure repository secrets PCTP_QC_TEST_USER and PCTP_QC_TEST_PASSWORD.'
+          }
+          if ($env:PHASE -notin @('seed', 'assert', 'cleanup')) { throw "phase '$($env:PHASE)' is not allowed." }
+          if ($env:PHASE -eq 'seed') {
+            $prefix = 'QCUI_' + [guid]::NewGuid().ToString('N').Substring(0, 8)
+          } else {
+            $prefix = $env:PREFIX_INPUT.Trim()
+            if ($prefix -notmatch '^QCUI_[0-9A-Za-z]{8}$') { throw "phase '$($env:PHASE)' needs prefix QCUI_<8 letters/digits> (printed by the seed run); got '$prefix'." }
+          }
+          "prefix=$prefix" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          New-Item -ItemType Directory -Force -Path "$env:RUNNER_TEMP\pctp-delivery-fixture" | Out-Null
+          Write-Host "PASS: phase=$($env:PHASE) prefix=$prefix"
+
+      - name: Run phase
+        shell: powershell
+        env:
+          PREFIX: ${{ steps.prep.outputs.prefix }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $log = "$env:RUNNER_TEMP\pctp-delivery-fixture\$($env:PHASE).txt"
+          $script = '.\PCTP.QC.UI\Invoke-PctpQcSeed.ps1'
+          $common = @{ Journey = 'delivery-hvn-multilot'; Prefix = $env:PREFIX; SqlUser = $env:PCTP_QC_SQL_USER }
+          switch ($env:PHASE) {
+            'seed'    { & $script -Action Seed    -ConfirmWrites @common *>&1 | Tee-Object -FilePath $log }
+            'assert'  { & $script -Action Assert  @common *>&1 | Tee-Object -FilePath $log }
+            'cleanup' { & $script -Action Cleanup -ConfirmWrites @common *>&1 | Tee-Object -FilePath $log }
+          }
+
+      - name: Job summary
+        if: always()
+        shell: powershell
+        env:
+          PREFIX: ${{ steps.prep.outputs.prefix }}
+        run: |
+          $log = "$env:RUNNER_TEMP\pctp-delivery-fixture\$($env:PHASE).txt"
+          $lines = @("### DB57 delivery fixture: $($env:PHASE)", "", "Prefix: ``$($env:PREFIX)``", "")
+          if ($env:PHASE -eq 'seed') {
+            $lines += "Next: scan the QR strings below on the HVN - MP screen, then dispatch this workflow with phase=assert and prefix=$($env:PREFIX); finish with phase=cleanup."
+            $lines += ""
+          }
+          if (Test-Path -LiteralPath $log) { $lines += '```'; $lines += (Get-Content -LiteralPath $log -Encoding UTF8); $lines += '```' }
+          else { $lines += '_No output captured (the phase stopped before running the script)._' }
+          $lines | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+
+      - name: Upload fixture output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pctp-db57-delivery-fixture-${{ inputs.phase }}-${{ github.run_number }}
+          path: ${{ runner.temp }}\pctp-delivery-fixture\
+          if-no-files-found: warn
+          retention-days: 7

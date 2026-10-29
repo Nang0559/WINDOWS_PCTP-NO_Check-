@@ -153,7 +153,7 @@ jobs:
             echo "ERROR: an unapproved workflow names DB57/DB14."; exit 1
           fi
           # 2. Approved live-data workflows must be manual-only and must retain an explicit confirmation gate.
-          for f in .github/workflows/pctp-live-data-inventory.yml .github/workflows/pctp-live-data-profile.yml .github/workflows/pctp-mp-source-profile.yml .github/workflows/pctp-db57-acceptance.yml; do
+          for f in .github/workflows/pctp-live-data-inventory.yml .github/workflows/pctp-live-data-profile.yml .github/workflows/pctp-mp-source-profile.yml .github/workflows/pctp-db57-acceptance.yml .github/workflows/pctp-db57-delivery-fixture.yml; do
             test -f "$f"
             grep -q 'workflow_dispatch:' "$f" || { echo "ERROR: $f is not manually dispatched."; exit 1; }
             if grep -Eq '^[[:space:]]*(push|pull_request):' "$f"; then
