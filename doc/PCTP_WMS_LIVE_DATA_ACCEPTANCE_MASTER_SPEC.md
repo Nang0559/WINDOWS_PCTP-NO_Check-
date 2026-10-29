@@ -73,12 +73,13 @@ Bộ crosswalk giữa tài liệu thiết kế và test coverage được duy tr
 
 Branch change being implemented: automated the multi-LOT delivery journey so it no longer relies on a human copying QR values from the runner output.
 
-- Manifest: `PCTP.QC.UI/journeys/g6/g6-delivery-hvn-multilot.json`.
-- Seed: `PCTP.QC.UI/journeys/g6/sql/delivery-hvn-multilot/seed.sql` creates only prerequisite item/stock/pending-delivery rows, then returns six derived QR input strings as a single result row for in-memory capture.
-- UI: runner writes each captured value to the real `txt_DOCQRCODE` control and sends Enter to invoke the actual UI event path. It does not insert/update `DOCQRCODE`, `LUUPHIEUGIAOHANG`, or `LUUDOCQRCODE` to fake a scan.
-- Assertions: the journey switches to `assert-after-scan.sql` and checks stock balance, over-issuance, QR-to-stock mapping, delivered LOT coverage and duplicate QR rows.
-- Cleanup: the manifest retains the run-prefix cleanup and `Remaining = 0` verification; runner cleanup is also attempted on failure.
-- Offline guard: `Test-PctpG6SqlGuards.ps1` now checks that the manifest has six real QR-input/Enter pairs and uses the post-scan assertion.
+- Delivery manifests: `PCTP.QC.UI/journeys/g6/g6-delivery-hvn.json` and `g6-delivery-hvn-multilot.json`.
+- Delivery seed: each script creates only prerequisite item/stock/pending-delivery rows, then returns one or six derived QR input strings as a single result row for in-memory capture.
+- Receiving manifest: `PCTP.QC.UI/journeys/g6/g6-receive.json`; its seed creates the item, two production documents and run-owned warehouse/rack/slots, then returns two tem-tong QR strings for in-memory capture.
+- UI: the delivery runner writes captured values to the real `HVN_PGH.txt_DOCQRCODE` control and sends Enter. The receiving runner opens the actual `FormEnterItemSV`, writes values to `receive_qrInput`, and sends Enter to invoke the real KeyDown handler. None of these seeds inserts the business result rows to fake a scan.
+- Assertions: delivery journeys check stock balance, over-issuance, QR-to-stock mapping, delivered LOT coverage and duplicate QR rows. Receiving checks `STOCKTP`, `SlotLot`, `StockHistory`, and quantity reconciliation.
+- Cleanup: each manifest retains run-prefix cleanup and `Remaining = 0` verification; runner cleanup is also attempted on failure.
+- Offline guard: `Test-PctpG6SqlGuards.ps1` checks the configured journeys have generated QR inputs, real UI input/Enter steps, and post-scan assertions.
 
 **Status: IMPLEMENTED IN SOURCE; NOT VERIFIED AT RUNTIME.** A green offline guard/build is not proof that the actual Windows UI accepts these six QR inputs. The DB57 runner must confirm UI acceptance, expected business rows/quantities, no unexpected modal/dialog, and cleanup verification before this journey can be marked PASS.
 
