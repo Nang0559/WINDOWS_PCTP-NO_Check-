@@ -80,5 +80,16 @@ if (Test-Path -LiteralPath $singleDeliveryPath) {
     Check 'single-line delivery: QR input + Enter are automated' ((@($singleSteps | Where-Object { $_.id -eq 'enter-carton-qr' -and $_.action -eq 'set-value' -and $_.automationId -eq 'txt_DOCQRCODE' }).Count -eq 1) -and (@($singleSteps | Where-Object { $_.id -eq 'submit-carton-qr' -and $_.action -eq 'press-enter' -and $_.automationId -eq 'txt_DOCQRCODE' }).Count -eq 1))
     Check 'single-line delivery: read-only post-scan assertions are wired' (($singleAssert.Count -eq 1) -and ($singleAssert[0].sqlFile -eq 'sql/delivery-hvn/assert-after-scan.sql') -and ($singleAssert[0].expectColumns.DeliveredQty -eq 10))
 }
+# ---- receiving must submit real tem-tong QR inputs through FormEnterItemSV
+$receiveManifestPath = Join-Path $PSScriptRoot 'journeys\\g6\\g6-receive.json'
+if (Test-Path -LiteralPath $receiveManifestPath) {
+    $receive = Get-Content -LiteralPath $receiveManifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
+    $receiveSteps = @($receive.steps)
+    $receiveSeed = @($receiveSteps | Where-Object { $_.id -eq 'seed' } | Select-Object -First 1)
+    Check 'receive journey: seed captures two generated tem-tong QR inputs' (($receiveSeed.Count -eq 1) -and (@($receiveSeed[0].captureColumns) -contains 'Qr1') -and (@($receiveSeed[0].captureColumns) -contains 'Qr2') -and (@($receiveSeed[0].captureColumns) -contains 'SeedRowsAffected'))
+    Check 'receive journey: opens the real scan form and submits both QR values' ((@($receiveSteps | Where-Object { $_.id -eq 'open-receive-scan-form' -and $_.action -eq 'click' -and $_.automationId -eq 'receive_btnScan' }).Count -eq 1) -and (@($receiveSteps | Where-Object { $_.action -eq 'set-value' -and $_.automationId -eq 'receive_qrInput' }).Count -eq 2) -and (@($receiveSteps | Where-Object { $_.action -eq 'press-enter' -and $_.automationId -eq 'receive_qrInput' }).Count -eq 2))
+    $receiveAssert = @($receiveSteps | Where-Object { $_.id -eq 'assert-after-ui' } | Select-Object -First 1)
+    Check 'receive journey: post-scan assertion covers stock, SlotLot and history' (($receiveAssert.Count -eq 1) -and ($receiveAssert[0].sqlFile -eq 'sql/receive/assert-after-scan.sql') -and ($receiveAssert[0].expectColumns.StockReceived -eq 20) -and ($receiveAssert[0].expectColumns.SlotLotQty -eq 20))
+}
 if ($script:fail -gt 0) { Write-Host "$script:fail check(s) failed."; exit 1 }
 Write-Host 'All G6 SQL guard checks passed.'; exit 0
