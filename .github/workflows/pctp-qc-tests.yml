@@ -514,7 +514,7 @@ jobs:
   ui-gates-status:
     # Makes the G5/G6 outcome explicit. The overall workflow can be green while ui-db57-g5-g6 was SKIPPED,
     # which must never be read as "G5/G6 PASS". Set repo variable PCTP_UI_GATES_REQUIRED=true to make a skip fail.
-    needs: [sql-engine-integration, ui-isolated-g5-g6]
+    needs: [sql-engine-integration, ui-db57-g5-g6]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
