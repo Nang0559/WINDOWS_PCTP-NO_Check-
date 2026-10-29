@@ -92,3 +92,30 @@ INSERT INTO dbo.Rack (WarehouseId, RackName, RackRowCount, ColumnCount) VALUES (
 DECLARE @RackId int = (SELECT RackId FROM dbo.Rack WHERE RackName = @Prefix + N'_RK');
 INSERT INTO dbo.Slot (RackId, SlotNumber, IsOccupied, Capacity, RowIndex, ColumnIndex)
 VALUES (@RackId, 1, 0, 1000, 0, 0), (@RackId, 2, 0, 1000, 0, 1);
+
+
+-- Capture two valid tem-tong QR inputs for the real FormEnterItemSV UI.
+-- The returned values are inputs only; STOCKTP/SlotLot/StockHistory must be created by the real receiving service.
+;WITH Q0 AS (
+    SELECT RTRIM(a.ItemLotCodeTP) + N':' + RTRIM(a.ReceiptItemCode) + N':' +
+           CONVERT(nvarchar(10), a.DocDate, 103) + N':' +
+           CAST(CAST(a.ReceiptQuantity AS int) AS nvarchar(10)) + N':' +
+           @Prefix + N'_T1:' + @Prefix + N'_P1 AS Qr,
+           ROW_NUMBER() OVER (ORDER BY a.ItemLotCodeTP) AS rn
+    FROM dbo.B30AccDoc a
+    WHERE a.ReceiptItemCode = @Item
+), Q AS (
+    SELECT MAX(CASE WHEN rn = 1 THEN Qr END) AS Qr1,
+           MAX(CASE WHEN rn = 2 THEN Qr END) AS Qr2,
+           COUNT(*) AS QrCount
+    FROM Q0
+)
+SELECT
+    (SELECT COUNT(*) FROM dbo.B20Item WHERE Code = @Item)
+  + (SELECT COUNT(*) FROM dbo.B30AccDoc WHERE ReceiptItemCode = @Item)
+  + (SELECT COUNT(*) FROM dbo.Warehouse WHERE Name = @Prefix + N'_WH')
+  + (SELECT COUNT(*) FROM dbo.Rack WHERE RackName = @Prefix + N'_RK')
+  + (SELECT COUNT(*) FROM dbo.Slot s JOIN dbo.Rack r ON r.RackId = s.RackId WHERE r.RackName = @Prefix + N'_RK') AS SeedRowsAffected,
+  Qr1, Qr2
+FROM Q
+WHERE QrCount = 2;
