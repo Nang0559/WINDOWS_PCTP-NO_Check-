@@ -8,11 +8,11 @@ Moi journey gom 4 phan theo thu tu: `sql-seed` -> thao tac UI -> `sql-assert` ->
 | `g6-qc-direction.json` | **Chua cau hinh** | Mo rong `qc-direction-navigation.json` |
 | `g6-qc-final.json` | **Chua cau hinh** | Mo rong `qc-final-navigation.json` |
 | `g6-receive.json` | **Seed + worklist** (chua quet QR) | Seed phieu san xuat -> dong `vNhapTP`; quet QR tem tong chua tu dong hoa |
-| `g6-delivery-hvn.json` | **Seed + dong cho giao** (chua quet QR) | Seed TMPPHIEUGIAOHANG + STOCKTP; quet QR tem thung chua tu dong hoa |
+| `g6-delivery-hvn.json` | **UI scan + SQL assert + cleanup (chưa có run evidence)** | Capture QR từ LOT/quantity, nhập vào `txt_DOCQRCODE`, gửi Enter, đối chiếu delivery/QR/stock. |
 
 Journey `"configured": false` bi runner tu choi chay; Gate bao `BLOCKED`. Khong co duong nao cho PASS gia.
 
-> **Lưu ý trạng thái:** việc thêm bước quét tự động vào manifest mới là implementation trên branch; chưa được coi là G6 PASS cho tới khi runner Windows thực thi trên DB57, xác nhận QR được chấp nhận bởi UI/procedure thật, assertion pass và cleanup trả Remaining = 0. Hai journey QC vẫn `configured: false`; receive và single-line delivery vẫn chưa hoàn tất quét QR tự động.
+> **Lưu ý trạng thái:** việc thêm bước quét tự động vào manifest mới là implementation trên branch; chưa được coi là G6 PASS cho tới khi runner Windows thực thi trên DB57, xác nhận QR được chấp nhận bởi UI/procedure thật, assertion pass và cleanup trả Remaining = 0. Hai journey QC vẫn `configured: false`; receive vẫn chưa hoàn tất quét tem tổng tự động. Hai journey delivery đã có bước quét QR tự động trong source nhưng chưa có runtime evidence.
 
 ## Can bo sung cho moi journey nghiep vu
 1. `sql/<journey>/seed.sql` - tao du lieu duy nhat, **moi khoa/ma phieu bat dau bang `@Prefix`** (`QCUI_<runId8>`).
