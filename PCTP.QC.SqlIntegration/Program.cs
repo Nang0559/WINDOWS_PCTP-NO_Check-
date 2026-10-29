@@ -48,6 +48,8 @@ internal static class Program
                 }
                 Console.WriteLine("INFO: running delivery stock command (B0-01) against disposable dbo ledger + tempdb fixtures...");
                 await DeliveryCommandSqlScenario.RunAsync(connectionString);
+                Console.WriteLine("INFO: running production StockHistoryRepository against a dedicated disposable database...");
+                ProductionStockHistoryRepositoryScenario.Run(connectionString);
             }
             else
             {
