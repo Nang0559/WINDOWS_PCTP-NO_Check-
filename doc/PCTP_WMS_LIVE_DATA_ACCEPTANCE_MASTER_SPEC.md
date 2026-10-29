@@ -9,6 +9,7 @@
 - **DB57 (test target):** 192.168.200.57 / B7R2_FCC — môi trường duy nhất được phép ghi dữ liệu kiểm thử.
 - **Runner:** Windows self-hosted, labels [self-hosted, windows, pctp-ui].
 - **Workflow chính:** pctp-db57-source-order-harness.yml.
+- **Crosswalk thiết kế → test:** `PCTP/Workflow/Diagram/WMS_TEST_DOCUMENTATION_CROSSWALK.md`.
 
 ## 1. Nguyên tắc bất biến — không được lệch hướng
 
@@ -53,18 +54,20 @@ Vì vậy, tại thời điểm này **không được ghi G1–G6 là PASS/ổn
 6. Phân loại từng kết quả: `PASS`, `FAIL`, `INCOMPLETE`, `BLOCKED`, `NOT VERIFIED`, hoặc `NOT AVAILABLE IN SOURCE DATA`.
 7. Chỉ chuyển gate sang `PASS` khi tất cả bước bắt buộc của scenario và hậu điều kiện nghiệp vụ đều có evidence.
 
-### Bảng kiểm G1–G6 bắt buộc bổ sung
+### Bảng gate G1–G6 chuẩn — theo WMS_RELEASE_GATE.md
 
-| Gate | Việc cần xác minh | Điều kiện không được coi là PASS |
+Nguồn định nghĩa: [`PCTP/Workflow/Diagram/WMS_RELEASE_GATE.md`](../PCTP/Workflow/Diagram/WMS_RELEASE_GATE.md). Đây là định nghĩa gate; trạng thái/run/commit được ghi trong tài liệu đó có baseline và branch riêng, **không được kế thừa sang branch hiện tại** nếu chưa chạy lại trên đúng SHA.
+
+| Gate | Định nghĩa chuẩn | Điều kiện không được coi là PASS |
 |---|---|---|
-| G1 | Lấy đúng scope và inventory các test/schema/luồng hiện có theo định nghĩa G1 trong repo | Chỉ có build/unit test hoặc chưa có evidence |
-| G2 | Xác minh các contract/invariant dữ liệu và SQL liên quan theo định nghĩa G2 trong repo | Chỉ đọc source hoặc kiểm tra tĩnh |
-| G3 | Xác minh logic nghiệp vụ/service/procedure theo định nghĩa G3 trong repo | Có code nhưng chưa chạy test tương ứng |
-| G4 | Xác minh tích hợp SQL/repository và các invariant dữ liệu theo định nghĩa G4 trong repo | Seed thành công nhưng chưa assert hậu điều kiện |
-| G5 | Xác minh UI navigation/control và hành vi thực tế theo định nghĩa G5 trong repo | Chỉ thấy control/menu hoặc chỉ kiểm tra navigation |
-| G6 | Xác minh business journey seed → UI thật → SQL assert → cleanup/verify; hoàn tất các journey còn thiếu scan/QR/QC | Self-test `#temp`, worklist xuất hiện, hoặc seed dữ liệu không đủ để kết luận nghiệp vụ đã chạy |
+| G1 | Traceability/source ownership: requirement → code → SQL → transaction → test → evidence; mọi gap phải được phân loại và đóng hoặc có exception được duyệt | Chỉ có danh sách file/test; gap chưa có disposition hoặc không có evidence link |
+| G2 | Unit/regression trên đúng candidate SHA, bao gồm compile items của production project | Build/test xanh ở SHA khác hoặc production project chưa được compile đầy đủ |
+| G3 | SQL engine integration dùng implementation/repository code trên SQL Server cô lập, có data assertions và rollback | Chỉ test protocol/fixture hoặc seed thành công mà không chứng minh code path, hậu điều kiện và rollback |
+| G4 | Tương thích schema/procedure đại diện production trên database cô lập, rollback-only | Chỉ kiểm tra tĩnh schema từ Git hoặc chưa có evidence tương thích procedure |
+| G5 | Concurrency hai session trên business keys/quota dùng chung, gồm lock serialization và rollback injection | Chỉ unit test hoặc chạy một session; chưa chứng minh không double-consume và rollback |
+| G6 | Full business E2E: UI thật → DB/ledger/history assertions → cleanup, bao gồm delivery và reconciliation | Self-test `#temp`, worklist xuất hiện, seed dữ liệu, build UI hoặc manifest tồn tại nhưng chưa chạy nghiệp vụ thật |
 
-> Bảng trên là khung kiểm soát không được bỏ qua; tên và phạm vi chính thức của từng G1–G6 phải được đối chiếu với tài liệu/test runner trong repo. Không tự suy diễn G1–G5 từ tên gate nếu repository định nghĩa khác. Nếu phát hiện khác biệt, cập nhật bảng này theo nguồn trong repo và lưu đường dẫn/evidence.
+Bộ crosswalk giữa tài liệu thiết kế và test coverage được duy trì tại [`PCTP/Workflow/Diagram/WMS_TEST_DOCUMENTATION_CROSSWALK.md`](../PCTP/Workflow/Diagram/WMS_TEST_DOCUMENTATION_CROSSWALK.md). Crosswalk ánh xạ workflow/contract → testcase → assertion; nó không tự xác nhận testcase đã chạy hoặc gate đã PASS.
 
 ## 2. Mục tiêu end-to-end
 
