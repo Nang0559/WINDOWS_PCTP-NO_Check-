@@ -38,8 +38,7 @@ Bằng chứng repository đã kiểm tra ở thời điểm cập nhật tài l
 
 - `PCTP.QC.UI/journeys/g6/README.md` ghi `g6-selftest.json` là self-test cơ chế runner với bảng `#temp`, không đụng bảng nghiệp vụ. Đây **không phải** bằng chứng nghiệp vụ WMS G6 đã pass.
 - README ghi `g6-qc-direction.json` và `g6-qc-final.json` **chưa cấu hình**.
-- README ghi `g6-receive.json` mới seed/worklist, **chưa tự động quét QR**.
-- README ghi `g6-delivery-hvn.json` mới seed/dòng chờ giao, **chưa tự động quét QR**.
+- Trạng thái ban đầu của README ghi `g6-receive.json` và `g6-delivery-hvn.json` chưa tự động quét QR. Sau đó các manifest đã được cập nhật để capture QR trong bộ nhớ và gửi qua control UI thật; implementation mới chưa có runtime evidence nên không tự nâng thành PASS.
 - Các manifest giao hàng nhiều LOT và các journey khác phải được kiểm tra theo nội dung và kết quả run cụ thể; sự tồn tại của file không đồng nghĩa đã nghiệm thu.
 
 Vì vậy, tại thời điểm này **không được ghi G1–G6 là PASS/ổn định chỉ dựa trên tài liệu, file journey hoặc unit tests**. Với các gate chưa có evidence, trạng thái đúng là `NOT VERIFIED`; với journey còn thiếu bước thì ghi `INCOMPLETE` hoặc `BLOCKED`.
@@ -81,9 +80,9 @@ Branch change being implemented: automated the multi-LOT delivery journey so it 
 - Cleanup: each manifest retains run-prefix cleanup and `Remaining = 0` verification; runner cleanup is also attempted on failure.
 - Offline guard: `Test-PctpG6SqlGuards.ps1` checks the configured journeys have generated QR inputs, real UI input/Enter steps, and post-scan assertions.
 
-**Status: IMPLEMENTED IN SOURCE; NOT VERIFIED AT RUNTIME.** A green offline guard/build is not proof that the actual Windows UI accepts these six QR inputs. The DB57 runner must confirm UI acceptance, expected business rows/quantities, no unexpected modal/dialog, and cleanup verification before this journey can be marked PASS.
+**Status: IMPLEMENTED IN SOURCE; NOT VERIFIED AT RUNTIME.** A green offline guard/build is not proof that the actual Windows UI accepts the QR inputs. The DB57 runner must confirm UI acceptance, expected business rows/quantities, no unexpected modal/dialog, and cleanup verification before these journeys can be marked PASS.
 
-Remaining G6 blockers are not hidden: `g6-qc-direction.json` and `g6-qc-final.json` remain unconfigured; `g6-receive.json` and `g6-delivery-hvn.json` still have manual QR steps. G6 remains BLOCKED/NOT VERIFIED until every required journey is completed and evidence is attached to the exact commit SHA.
+Remaining G6 blockers are not hidden: `g6-qc-direction.json` and `g6-qc-final.json` remain unconfigured. The receiving and both delivery manifests now have automated QR input steps in source, but require an actual Windows UI/DB57 run. G6 remains BLOCKED/NOT VERIFIED until every required journey is completed and evidence is attached to the exact commit SHA.
 
 ## 2. Mục tiêu end-to-end
 
