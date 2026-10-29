@@ -27,34 +27,20 @@ jobs:
     runs-on: [self-hosted, windows, pctp-ui]
     timeout-minutes: 90
     env:
-      PCTP_QC_SQL_USER: ${{ secrets.PCTP_QC_SQL_USER }}
-      PCTP_QC_SQL_PASSWORD: ${{ secrets.PCTP_QC_SQL_PASSWORD }}
+      PCTP_QC_SQL_USER: ${{ secrets.PCTP_QC_TEST_USER }}
+      PCTP_QC_SQL_PASSWORD: ${{ secrets.PCTP_QC_TEST_PASSWORD }}
       PCTP_QC_LIVE_MODE: '1'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Validate DB57 target and credentials
+      - name: Validate DB57 acceptance credentials are configured
         shell: powershell
         run: |
           if ([string]::IsNullOrWhiteSpace($env:PCTP_QC_SQL_USER) -or [string]::IsNullOrWhiteSpace($env:PCTP_QC_SQL_PASSWORD)) {
-            throw 'Configure repository secrets PCTP_QC_SQL_USER and PCTP_QC_SQL_PASSWORD.'
+            throw 'Configure repository secrets PCTP_QC_TEST_USER and PCTP_QC_TEST_PASSWORD for DB57 acceptance.'
           }
-          $cs = New-Object System.Data.SqlClient.SqlConnectionStringBuilder
-          $cs['Data Source'] = '192.168.200.57'; $cs['Initial Catalog'] = 'B7R2_FCC'
-          $cs['User ID'] = $env:PCTP_QC_SQL_USER; $cs['Password'] = $env:PCTP_QC_SQL_PASSWORD
-          $cs['Connect Timeout'] = 10; $cs['Application Name'] = 'PCTP-QC-DB57-Acceptance-Preflight'
-          $conn = New-Object System.Data.SqlClient.SqlConnection($cs.ConnectionString)
-          try {
-            $conn.Open(); $cmd = $conn.CreateCommand(); $cmd.CommandText = 'SELECT DB_NAME(), CONVERT(nvarchar(128), SERVERPROPERTY(''MachineName'')), SUSER_SNAME()'
-            $reader = $cmd.ExecuteReader()
-            try {
-              if (-not $reader.Read()) { throw 'DB57 preflight returned no row.' }
-              $db = [string]$reader.GetValue(0); $machine = [string]$reader.GetValue(1); $login = [string]$reader.GetValue(2)
-            } finally { $reader.Close() }
-            if ($db -ne 'B7R2_FCC') { throw "Expected SQL57/B7R2_FCC; connected to '$db'." }
-            Write-Host "PASS: DB57/B7R2_FCC reachable; machine=$machine; login=$login."
-          } finally { $conn.Dispose() }
+          Write-Host 'PASS: DB57 acceptance credentials are configured; target validation occurs in the gate runner.'
 
       - name: Add MSBuild to PATH
         uses: microsoft/setup-msbuild@v2
@@ -81,12 +67,12 @@ jobs:
       - name: G5 - UI navigation against DB57
         id: g5
         shell: powershell
-        run: .\PCTP.QC.UI\Invoke-PctpQcGates.ps1 -Gate G5 -ExePath "$PWD\PCTP\bin\Debug\PCTP.exe" -LiveDb57 -SqlUser $env:PCTP_QC_SQL_USER -SqlServer 192.168.200.57 -SqlDatabase B7R2_FCC
+        run: .\PCTP.QC.UI\Invoke-PctpQcGates.ps1 -Gate G5 -ExePath "$PWD\PCTP\bin\Debug\PCTP.exe" -LiveDb57 -SqlUser $env:PCTP_QC_SQL_USER
 
       - name: G6 - DB57 business journeys (seed -> UI -> SQL assert -> cleanup)
         id: g6
         shell: powershell
-        run: .\PCTP.QC.UI\Invoke-PctpQcGates.ps1 -Gate G6 -ExePath "$PWD\PCTP\bin\Debug\PCTP.exe" -LiveDb57 -SqlServer 192.168.200.57 -SqlDatabase B7R2_FCC -AllowMutations
+        run: .\PCTP.QC.UI\Invoke-PctpQcGates.ps1 -Gate G6 -ExePath "$PWD\PCTP\bin\Debug\PCTP.exe" -LiveDb57 -AllowMutations
 
       - name: Upload DB57 acceptance evidence
         if: always()
