@@ -29,6 +29,43 @@
 11. Không tắt isolation guard để làm workflow chạy qua. Phải allow-list workflow cụ thể và giữ các xác nhận an toàn.
 12. Không kết luận PASS hoặc SAFE FOR PROMOTION chỉ từ build/unit test hoặc SQL seed thành công; phải có evidence của UI/procedure và assertion nghiệp vụ.
 
+## 2A. Trạng thái G1–G6 — KHÔNG mặc định là đã ổn
+
+**Quyết định quan trọng:** việc mở rộng sang G7 không xác nhận G1–G6 đã hoàn tất. G1–G6 phải được kiểm kê và nghiệm thu riêng; hiện trạng chỉ được đánh dấu PASS khi có bằng chứng chạy thực tế phù hợp.
+
+Bằng chứng repository đã kiểm tra ở thời điểm cập nhật tài liệu:
+
+- `PCTP.QC.UI/journeys/g6/README.md` ghi `g6-selftest.json` là self-test cơ chế runner với bảng `#temp`, không đụng bảng nghiệp vụ. Đây **không phải** bằng chứng nghiệp vụ WMS G6 đã pass.
+- README ghi `g6-qc-direction.json` và `g6-qc-final.json` **chưa cấu hình**.
+- README ghi `g6-receive.json` mới seed/worklist, **chưa tự động quét QR**.
+- README ghi `g6-delivery-hvn.json` mới seed/dòng chờ giao, **chưa tự động quét QR**.
+- Các manifest giao hàng nhiều LOT và các journey khác phải được kiểm tra theo nội dung và kết quả run cụ thể; sự tồn tại của file không đồng nghĩa đã nghiệm thu.
+
+Vì vậy, tại thời điểm này **không được ghi G1–G6 là PASS/ổn định chỉ dựa trên tài liệu, file journey hoặc unit tests**. Với các gate chưa có evidence, trạng thái đúng là `NOT VERIFIED`; với journey còn thiếu bước thì ghi `INCOMPLETE` hoặc `BLOCKED`.
+
+### Quy tắc nghiệm thu áp dụng cho từng gate G1–G6
+
+1. Liệt kê từng scenario/journey và nghiệp vụ mà nó đại diện.
+2. Kiểm tra manifest có cấu hình đầy đủ; không còn `configured: false` hoặc TODO/blocker chưa xử lý.
+3. Xác minh seed tạo đúng input cô lập, assertion kiểm tra hậu điều kiện thực, cleanup và verify cleanup chạy cả khi UI fail.
+4. Với nghiệp vụ scan/nhập/giao/QC, phải thực hiện thao tác qua UI/procedure thật; không coi việc mở màn hình, thấy worklist hoặc seed SQL là hoàn tất nghiệp vụ.
+5. Chạy trên DB57 với runner/app đã xác minh cùng target cô lập; thu workflow/run ID, log, assertion và cleanup evidence.
+6. Phân loại từng kết quả: `PASS`, `FAIL`, `INCOMPLETE`, `BLOCKED`, `NOT VERIFIED`, hoặc `NOT AVAILABLE IN SOURCE DATA`.
+7. Chỉ chuyển gate sang `PASS` khi tất cả bước bắt buộc của scenario và hậu điều kiện nghiệp vụ đều có evidence.
+
+### Bảng kiểm G1–G6 bắt buộc bổ sung
+
+| Gate | Việc cần xác minh | Điều kiện không được coi là PASS |
+|---|---|---|
+| G1 | Lấy đúng scope và inventory các test/schema/luồng hiện có theo định nghĩa G1 trong repo | Chỉ có build/unit test hoặc chưa có evidence |
+| G2 | Xác minh các contract/invariant dữ liệu và SQL liên quan theo định nghĩa G2 trong repo | Chỉ đọc source hoặc kiểm tra tĩnh |
+| G3 | Xác minh logic nghiệp vụ/service/procedure theo định nghĩa G3 trong repo | Có code nhưng chưa chạy test tương ứng |
+| G4 | Xác minh tích hợp SQL/repository và các invariant dữ liệu theo định nghĩa G4 trong repo | Seed thành công nhưng chưa assert hậu điều kiện |
+| G5 | Xác minh UI navigation/control và hành vi thực tế theo định nghĩa G5 trong repo | Chỉ thấy control/menu hoặc chỉ kiểm tra navigation |
+| G6 | Xác minh business journey seed → UI thật → SQL assert → cleanup/verify; hoàn tất các journey còn thiếu scan/QR/QC | Self-test `#temp`, worklist xuất hiện, hoặc seed dữ liệu không đủ để kết luận nghiệp vụ đã chạy |
+
+> Bảng trên là khung kiểm soát không được bỏ qua; tên và phạm vi chính thức của từng G1–G6 phải được đối chiếu với tài liệu/test runner trong repo. Không tự suy diễn G1–G5 từ tên gate nếu repository định nghĩa khác. Nếu phát hiện khác biệt, cập nhật bảng này theo nguồn trong repo và lưu đường dẫn/evidence.
+
 ## 2. Mục tiêu end-to-end
 
 Identity chain cần được duy trì:
