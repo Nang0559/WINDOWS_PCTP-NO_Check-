@@ -81,7 +81,7 @@ jobs:
       - name: G5 - UI navigation against DB57
         id: g5
         shell: powershell
-        run: .\PCTP.QC.UI\Invoke-PctpQcGates.ps1 -Gate G5 -ExePath "$PWD\PCTP\bin\Debug\PCTP.exe" -LiveDb57 -SqlServer 192.168.200.57 -SqlDatabase B7R2_FCC
+        run: .\PCTP.QC.UI\Invoke-PctpQcGates.ps1 -Gate G5 -ExePath "$PWD\PCTP\bin\Debug\PCTP.exe" -LiveDb57 -SqlUser $env:PCTP_QC_SQL_USER -SqlServer 192.168.200.57 -SqlDatabase B7R2_FCC
 
       - name: G6 - DB57 business journeys (seed -> UI -> SQL assert -> cleanup)
         id: g6
