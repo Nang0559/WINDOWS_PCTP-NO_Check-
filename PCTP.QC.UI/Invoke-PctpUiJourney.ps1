@@ -201,7 +201,7 @@ try {
                     "dump-tree" { }
                     "sql-seed" { $checks = @(Invoke-PctpSqlStep $step $manifestDir $sqlPrefix $runId "seed" $testData); $method = "sql-seed" }
                     "sql-assert" { $checks = @(Invoke-PctpSqlStep $step $manifestDir $sqlPrefix $runId "assert" $testData); $method = "sql-assert" }
-                    "sql-cleanup" { [void]$cleanupDone.Add([string]$step.id); $checks = @(Invoke-PctpSqlStep $step $manifestDir $sqlPrefix $runId "cleanup" $testData); $method = "sql-cleanup" }
+                    "sql-cleanup" { $checks = @(Invoke-PctpSqlStep $step $manifestDir $sqlPrefix $runId "cleanup" $testData); [void]$cleanupDone.Add([string]$step.id); $method = "sql-cleanup" }
                     default {
                         $found = Find-PctpTarget $step
                         if (-not $found) { throw "Step '$label': UI element not found (AutomationId='$($step.automationId)', Name='$($step.name)', FallbackName='$($step.fallbackName)'). See the control-tree dump for the real AutomationIds/Names." }
