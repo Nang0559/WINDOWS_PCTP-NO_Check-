@@ -18,25 +18,54 @@ if (-not (Test-Path -LiteralPath $ConfigPath -PathType Leaf)) {
     throw "Application config not found: $ConfigPath"
 }
 
+function Get-BuilderKey([System.Data.Common.DbConnectionStringBuilder]$Builder, [string]$Name) {
+    foreach ($key in $Builder.Keys) {
+        if ([string]::Equals([string]$key, $Name, [System.StringComparison]::OrdinalIgnoreCase)) {
+            return [string]$key
+        }
+    }
+    return $null
+}
+
+function Test-BuilderKey([System.Data.Common.DbConnectionStringBuilder]$Builder, [string]$Name) {
+    return $null -ne (Get-BuilderKey $Builder $Name)
+}
+
+function Get-BuilderValue([System.Data.Common.DbConnectionStringBuilder]$Builder, [string]$Name) {
+    $actualKey = Get-BuilderKey $Builder $Name
+    if ($null -eq $actualKey) { return $null }
+    return $Builder[$actualKey]
+}
+
+function Remove-BuilderKey([System.Data.Common.DbConnectionStringBuilder]$Builder, [string]$Name) {
+    $actualKey = Get-BuilderKey $Builder $Name
+    if ($null -ne $actualKey) { [void]$Builder.Remove($actualKey) }
+}
+
+function Set-BuilderValue([System.Data.Common.DbConnectionStringBuilder]$Builder, [string]$Name, [object]$Value) {
+    $actualKey = Get-BuilderKey $Builder $Name
+    if ($null -eq $actualKey) { $actualKey = $Name }
+    $Builder[$actualKey] = $Value
+}
+
 function Set-Db57Connection([System.Data.Common.DbConnectionStringBuilder]$Builder) {
     foreach ($key in @('data source', 'server', 'address', 'addr', 'network address')) {
-        if ($Builder.ContainsKey($key)) { [void]$Builder.Remove($key) }
+        Remove-BuilderKey $Builder $key
     }
     foreach ($key in @('initial catalog', 'database')) {
-        if ($Builder.ContainsKey($key)) { [void]$Builder.Remove($key) }
+        Remove-BuilderKey $Builder $key
     }
     foreach ($key in @('user id', 'uid', 'user', 'password', 'pwd')) {
-        if ($Builder.ContainsKey($key)) { [void]$Builder.Remove($key) }
+        Remove-BuilderKey $Builder $key
     }
-    $Builder['Data Source'] = $Server
-    $Builder['Initial Catalog'] = $Database
-    $Builder['User ID'] = $SqlUser
-    $Builder['Password'] = $SqlPassword
+    Set-BuilderValue $Builder 'Data Source' $Server
+    Set-BuilderValue $Builder 'Initial Catalog' $Database
+    Set-BuilderValue $Builder 'User ID' $SqlUser
+    Set-BuilderValue $Builder 'Password' $SqlPassword
 }
 
 [xml]$xml = Get-Content -LiteralPath $ConfigPath -Raw -Encoding UTF8
-# Use XPath rather than PowerShell's XML dot adapter: "add" can be resolved
-# ambiguously as a member, yielding zero entries even when the config is valid.
+# Use XPath and explicit case-insensitive connection-string keyword lookup.
 $entries = @($xml.SelectNodes('/configuration/connectionStrings/add'))
 if ($entries.Count -eq 0) { throw 'Application config has no connectionStrings/add entries (XPath /configuration/connectionStrings/add).' }
 
@@ -49,28 +78,28 @@ foreach ($entry in $entries) {
     try { $outer.ConnectionString = $original }
     catch { throw "Cannot parse connection string entry '$($entry.GetAttribute('name'))'." }
 
-    if ($outer.ContainsKey('provider connection string')) {
+    if (Test-BuilderKey $outer 'provider connection string') {
         $inner = New-Object System.Data.Common.DbConnectionStringBuilder
-        try { $inner.ConnectionString = [string]$outer['provider connection string'] }
+        try { $inner.ConnectionString = [string](Get-BuilderValue $outer 'provider connection string') }
         catch { throw "Cannot parse nested provider connection string entry '$($entry.GetAttribute('name'))'." }
-        if ($inner.ContainsKey('data source') -or $inner.ContainsKey('server') -or $inner.ContainsKey('xpoprovider')) {
+        if ((Test-BuilderKey $inner 'data source') -or (Test-BuilderKey $inner 'server') -or (Test-BuilderKey $inner 'xpoprovider')) {
             Set-Db57Connection $inner
-            $outer['provider connection string'] = $inner.ConnectionString
+            Set-BuilderValue $outer 'provider connection string' $inner.ConnectionString
             $entry.SetAttribute('connectionString', $outer.ConnectionString)
             $changed++
         }
     }
-    elseif ($outer.ContainsKey('data source') -or $outer.ContainsKey('server') -or $outer.ContainsKey('xpoprovider')) {
+    elseif ((Test-BuilderKey $outer 'data source') -or (Test-BuilderKey $outer 'server') -or (Test-BuilderKey $outer 'xpoprovider')) {
         Set-Db57Connection $outer
         $entry.SetAttribute('connectionString', $outer.ConnectionString)
         $changed++
     }
 }
 
-if ($changed -eq 0) { throw 'No SQL connection strings were found to redirect to DB57.' }
+if ($changed -eq 0) { throw 'No SQL connection strings were found to redirect to DB57. Parsed connectionStrings/add entries, but no SQL/XPO provider keywords were recognized.' }
 
 # Fail closed: verify every SQL connection string by parsing it again. Never
-# print the connection strings because they contain credentials.
+# print connection strings because they contain credentials.
 foreach ($entry in $entries) {
     $name = [string]$entry.GetAttribute('name')
     $value = [string]$entry.GetAttribute('connectionString')
@@ -83,29 +112,29 @@ foreach ($entry in $entries) {
     try { $outer.ConnectionString = $value }
     catch { throw "Cannot validate connection string entry '$name' after rewrite." }
     $candidate = $outer
-    if ($outer.ContainsKey('provider connection string')) {
+    if (Test-BuilderKey $outer 'provider connection string') {
         $candidate = New-Object System.Data.Common.DbConnectionStringBuilder
-        try { $candidate.ConnectionString = [string]$outer['provider connection string'] }
+        try { $candidate.ConnectionString = [string](Get-BuilderValue $outer 'provider connection string') }
         catch { throw "Cannot validate nested provider connection string entry '$name' after rewrite." }
     }
 
-    $isSql = $candidate.ContainsKey('data source') -or $candidate.ContainsKey('server') -or $candidate.ContainsKey('xpoprovider')
+    $isSql = (Test-BuilderKey $candidate 'data source') -or (Test-BuilderKey $candidate 'server') -or (Test-BuilderKey $candidate 'xpoprovider')
     if ($isSql) {
         $source = ''
         $catalog = ''
         foreach ($key in @('data source', 'server', 'address', 'addr', 'network address')) {
-            if ($candidate.ContainsKey($key)) { $source = [string]$candidate[$key]; break }
+            if (Test-BuilderKey $candidate $key) { $source = [string](Get-BuilderValue $candidate $key); break }
         }
         foreach ($key in @('initial catalog', 'database')) {
-            if ($candidate.ContainsKey($key)) { $catalog = [string]$candidate[$key]; break }
+            if (Test-BuilderKey $candidate $key) { $catalog = [string](Get-BuilderValue $candidate $key); break }
         }
         if ($source -ne $Server -or $catalog -ne $Database) {
             throw "SQL connection string '$name' did not resolve to DB57/B7R2_FCC."
         }
-        if (-not $candidate.ContainsKey('user id') -and -not $candidate.ContainsKey('uid')) {
+        if (-not (Test-BuilderKey $candidate 'user id') -and -not (Test-BuilderKey $candidate 'uid')) {
             throw "SQL connection string '$name' has no QC SQL login after rewrite."
         }
-        $login = if ($candidate.ContainsKey('user id')) { [string]$candidate['user id'] } else { [string]$candidate['uid'] }
+        $login = if (Test-BuilderKey $candidate 'user id') { [string](Get-BuilderValue $candidate 'user id') } else { [string](Get-BuilderValue $candidate 'uid') }
         if ($login -ne $SqlUser) { throw "SQL connection string '$name' is not using the configured QC SQL login." }
     }
 }
