@@ -102,6 +102,26 @@ function Assert-PctpNoStaleIsolationRules {
     }
 }
 
+# Quotes a SQL identifier ("]" doubled), so column names read from sys.columns can be placed in a SELECT list safely.
+function ConvertTo-PctpBracket([string]$Name) {
+    if ([string]::IsNullOrEmpty($Name)) { throw 'ConvertTo-PctpBracket: empty identifier.' }
+    return '[' + $Name.Replace(']', ']]') + ']'
+}
+
+# Splits a list into batches of at most $Size items and returns them as ONE array of arrays (leading comma), so
+# "foreach ($b in (Get-PctpInBatches $keys 800))" always iterates real arrays - also when there is a single batch
+# (PowerShell would otherwise unroll it into scalars and "$b[$i]" would index characters). Empty input -> no iterations.
+function Get-PctpInBatches($Items, [int]$Size = 800) {
+    if ($Size -lt 1) { throw 'Get-PctpInBatches: batch size must be >= 1.' }
+    $all = @($Items)
+    $batches = New-Object System.Collections.Generic.List[object]
+    for ($i = 0; $i -lt $all.Count; $i += $Size) {
+        $end = [Math]::Min($i + $Size, $all.Count) - 1
+        $batches.Add(@($all[$i..$end]))
+    }
+    return , $batches.ToArray()
+}
+
 function New-PctpLiveRunId { return ('LD' + [DateTime]::UtcNow.ToString('yyyyMMddHHmmss') + '_' + ([guid]::NewGuid().ToString('N').Substring(0, 6))) }
 
 function Get-PctpScopeObjects([string]$CoverageCsv) {

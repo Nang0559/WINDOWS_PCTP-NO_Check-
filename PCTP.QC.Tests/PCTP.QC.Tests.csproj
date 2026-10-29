@@ -19,6 +19,8 @@
   <ItemGroup>
     <None Update="TestMatrix.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP.QC.UI/Invoke-PctpLiveDataInventory.ps1" Link="Invoke-PctpLiveDataInventory.source.ps1" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP.QC.UI/Invoke-PctpLiveDataProfile.ps1" Link="Invoke-PctpLiveDataProfile.source.ps1" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP.QC.UI/PctpLiveData.Common.ps1" Link="PctpLiveData.Common.source.ps1" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../docs/SCHEMA_COVERAGE_EFFECTIVE.csv" Link="SCHEMA_COVERAGE_EFFECTIVE.csv" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../SQL/Usp_Qrcode_LUU_PHIEU_RetireUnsafeLegacy.sql" Link="Usp_Qrcode_LUU_PHIEU_RetireUnsafeLegacy.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../SQL/Usp_Qrcode_Update_Stock2405.sql" Link="Usp_Qrcode_Update_Stock2405.sql" CopyToOutputDirectory="PreserveNewest" />
