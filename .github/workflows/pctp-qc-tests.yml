@@ -417,13 +417,13 @@ jobs:
           path: artifacts/gates/ci
           if-no-files-found: warn
 
-  ui-isolated-g5-g6:
+  ui-db57-g5-g6:
     # G5/G6 drive the real WinForms app against DB57/B7R2_FCC on the trusted Windows pctp-ui runner.
     # G6 mutations are prefixed per run and each journey must assert then clean up its own rows.
     needs: sql-engine-integration
     # Automatically exercise the real WinForms UI on trusted pushes to the active harness branch.
     # Never run repository code on the self-hosted machine for fork-originated pull requests.
-    if: ${{ always() && needs.sql-engine-integration.result == 'success' && (inputs.run_ui_gates == true || vars.PCTP_UI_GATES == 'true' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'feature/wms-live-data-test-harness')) }}
+    if: ${{ always() && needs.sql-engine-integration.result == 'success' && (inputs.run_ui_gates == true || vars.PCTP_UI_GATES == 'true' || (github.event_name == 'push' && github.ref == 'refs/heads/feature/wms-live-data-test-harness') || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'feature/wms-live-data-test-harness')) }}
     runs-on: [self-hosted, windows, pctp-ui]
     timeout-minutes: 90
     env:
@@ -512,7 +512,7 @@ jobs:
           if ($g5 -ne 'success' -or $g6 -ne 'success') { throw "G5=$g5 G6=$g6 (see evidence artifact; unconfigured G6 journeys are BLOCKED, not PASS)." }
 
   ui-gates-status:
-    # Makes the G5/G6 outcome explicit. The overall workflow can be green while ui-isolated-g5-g6 was SKIPPED,
+    # Makes the G5/G6 outcome explicit. The overall workflow can be green while ui-db57-g5-g6 was SKIPPED,
     # which must never be read as "G5/G6 PASS". Set repo variable PCTP_UI_GATES_REQUIRED=true to make a skip fail.
     needs: [sql-engine-integration, ui-isolated-g5-g6]
     if: ${{ always() }}
@@ -521,7 +521,7 @@ jobs:
       - name: Report G5/G6 execution status
         shell: bash
         env:
-          UI_RESULT: ${{ needs.ui-isolated-g5-g6.result }}
+          UI_RESULT: ${{ needs.ui-db57-g5-g6.result }}
           SQL_RESULT: ${{ needs.sql-engine-integration.result }}
           UI_REQUIRED: ${{ vars.PCTP_UI_GATES_REQUIRED }}
           UI_REQUIRED_FOR_PR: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'feature/wms-live-data-test-harness' }}
@@ -535,8 +535,8 @@ jobs:
             success)
               echo "**G5 and G6 were EXECUTED and PASSED** against DB57/B7R2_FCC (see pctp-g5-g6-evidence)." >> "$GITHUB_STEP_SUMMARY" ;;
             skipped)
-              echo "**G5/G6 were NOT EXECUTED (job skipped) - this run proves nothing about G5/G6.** Enable with workflow_dispatch input run_ui_gates=true or repo variable PCTP_UI_GATES=true, and a self-hosted runner labelled [self-hosted, windows, pctp-ui]." >> "$GITHUB_STEP_SUMMARY"
-              echo "::warning title=G5/G6 not executed::ui-isolated-g5-g6 was skipped; overall success does not cover G5/G6."
+              echo "**G5/G6 were NOT EXECUTED (job skipped) - this run proves nothing about G5/G6.** Enable with a push to feature/wms-live-data-test-harness, workflow_dispatch input run_ui_gates=true, or repo variable PCTP_UI_GATES=true, and a self-hosted runner labelled [self-hosted, windows, pctp-ui]." >> "$GITHUB_STEP_SUMMARY"
+              echo "::warning title=G5/G6 not executed::ui-db57-g5-g6 was skipped; overall success does not cover DB57 acceptance."
               if [ "$UI_REQUIRED" = "true" ] || [ "$UI_REQUIRED_FOR_PR" = "true" ]; then echo "::error::G5/G6 are required for this acceptance PR but did not run."; exit 1; fi ;;
             *)
               echo "**G5/G6 result: $UI_RESULT**" >> "$GITHUB_STEP_SUMMARY"; exit 1 ;;
