@@ -1,0 +1,68 @@
+name: PCTP G1 traceability measurement
+
+on:
+  pull_request:
+    branches:
+      - feature/pctp-qc-test-platform
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pctp-g1-traceability-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  measure-g1:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact tested commit
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Generate G1 traceability evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          python PCTP.QC.UI/Build-TraceabilityMatrix.py --allow-gaps --out "artifacts/gates/${GITHUB_SHA}/G1"
+
+      - name: Publish measured gap count
+        if: always()
+        shell: python
+        run: |
+          import json, os
+          path = f"artifacts/gates/{os.environ['GITHUB_SHA']}/G1/gate-summary.json"
+          if not os.path.exists(path):
+              with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as f:
+                  f.write("## G1 traceability\n\n**Measurement failed:** no gate-summary.json was generated.\n")
+              raise SystemExit(1)
+          with open(path, encoding="utf-8") as stream:
+              report = json.load(stream)
+          counts = report.get("Counts", {})
+          status = report.get("Status", "UNKNOWN")
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as f:
+              f.write("## G1 traceability measurement\n\n")
+              f.write(f"- Commit: `{report.get('Commit', 'unknown')}`\n")
+              f.write(f"- Static analyzer result: **{status}**\n")
+              f.write(f"- Code rows: {counts.get('codeRows', 'unknown')}\n")
+              f.write(f"- Code rows with gaps: {counts.get('codeGaps', 'unknown')}\n")
+              f.write(f"- SQL scripts: {counts.get('sqlScripts', 'unknown')}\n")
+              f.write(f"- Total gaps: **{counts.get('gaps', 'unknown')}**\n\n")
+              f.write("This workflow is a measurement/reporting job. It does not convert non-zero gaps to PASS; release G1 remains blocked until the gap count is zero and findings are reviewed.\n")
+
+      - name: Upload G1 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pctp-g1-traceability-${{ github.sha }}
+          path: artifacts/gates/${{ github.sha }}/G1/
+          if-no-files-found: error
+          retention-days: 14
