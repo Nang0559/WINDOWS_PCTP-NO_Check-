@@ -52,7 +52,7 @@ IF NOT EXISTS (SELECT 1 FROM #PCTPQC_Source)
     THROW 51005, N'G6 receive blocked: no active B30AccDoc/B20Item row is available as a safe schema-compatible template.', 1;
 
 SELECT TOP (1)
-    @ItemCode = UPPER(LTRIM(RTRIM(ReceiptItemCode))),
+    @ItemCode = LTRIM(RTRIM(ReceiptItemCode)),
     @ItemId = __PCTPQC_ItemId
 FROM #PCTPQC_Source;
 
@@ -63,7 +63,7 @@ SET @BaseLot = CONVERT(char(6), @DocDate, 12)
     + @ShiftCode + CONVERT(char(1), @GearCode)
     + LEFT(@RunId, 3) + SUBSTRING(@RunId, 4, 4);
 SET @FullLot = @BaseLot + SUBSTRING(@RunId, 8, 4) + RIGHT('0000' + CONVERT(varchar(4), @Qty), 4);
-SET @Qr = @FullLot + N':' + @ItemCode + N':' + CONVERT(char(10), @DocDate, 103)
+SET @Qr = @FullLot + N':' + UPPER(@ItemCode) + N':' + CONVERT(char(10), @DocDate, 103)
     + N':' + CONVERT(nvarchar(10), @Qty) + N':1:' + @Prefix;
 
 IF LEN(@BaseLot) <> 20 OR LEN(@FullLot) <> 28
