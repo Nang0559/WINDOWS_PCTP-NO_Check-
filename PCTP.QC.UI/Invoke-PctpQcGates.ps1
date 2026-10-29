@@ -33,7 +33,9 @@ param(
     # G6
     [switch]$AllowMutations,
     [switch]$ConfirmAppUsesIsolatedDb,
-    # G5 / G6: run against the disposable local fixture database only (PCTP_QC_SQL_CONNECTION), never DB57.
+    # Explicit live acceptance mode against the agreed SQL57 test database.
+    [switch]$LiveDb57,
+    # Isolated CI mode against a disposable local fixture.
     [switch]$Isolated,
     [string]$SqlServer = '192.168.200.57',
     [string]$SqlDatabase = 'B7R2_FCC'
@@ -56,7 +58,7 @@ $scope = $null
 # CI must never take the DB57 path: G3/G4 are covered by the SQL Server container job, G5/G6 need -Isolated.
 if ($env:GITHUB_ACTIONS -eq 'true') {
     if ($Gate -in @('G3', 'G4')) { Write-Host "FAIL: $Gate in CI runs in the sql-engine-integration job (SQL Server container), not through this script against DB57."; exit 1 }
-    if ($Gate -in @('G5', 'G6') -and -not $Isolated) { Write-Host "FAIL: $Gate in CI requires -Isolated."; exit 1 }
+    if ($Gate -in @('G5', 'G6') -and -not ($Isolated -or $LiveDb57)) { Write-Host "FAIL: $Gate in CI requires -Isolated or explicit -LiveDb57 acceptance mode."; exit 1 }
 }
 $isolationActive = $false
 $isolationScript = Join-Path $PSScriptRoot 'Test-PctpIsolation.ps1'
@@ -76,6 +78,15 @@ function Enter-Isolation {
     $script:scope = "Isolated fixture $($iso.Server)/$($iso.Database); DB57/DB14/IFS egress blocked and asserted for this run."
 }
 
+function Assert-LiveDb57Target {
+    if ($SqlServer.Trim() -ne '192.168.200.57' -or $SqlDatabase.Trim() -ne 'B7R2_FCC') { throw 'Live DB57 acceptance is pinned to 192.168.200.57/B7R2_FCC.' }
+    if (-not $ExePath -or -not (Test-Path -LiteralPath ($ExePath + '.config') -PathType Leaf)) { throw 'Live DB57 acceptance requires PCTP.exe.config.' }
+    $cfgText = Get-Content -LiteralPath ($ExePath + '.config') -Raw
+    if ($cfgText -match '192\.168\.200\.14|BRAVO') { throw 'PCTP.exe.config points to SQL14/BRAVO; refusing production.' }
+    if ($cfgText -notmatch '192\.168\.200\.57') { throw 'PCTP.exe.config must explicitly target SQL57 (192.168.200.57).' }
+    $env:PCTP_QC_LIVE_MODE = '1'
+}
+
 function Set-SqlEnvironment {
     if (-not $SqlUser) { throw "$Gate needs -SqlUser. The password is read from PCTP_QC_SQL_PASSWORD or prompted, and is not written anywhere." }
     $plain = $env:PCTP_QC_SQL_PASSWORD
@@ -85,6 +96,14 @@ function Set-SqlEnvironment {
     }
     $env:PCTP_QC_SQL_USER = $SqlUser
     $env:PCTP_QC_SQL_PASSWORD = $plain
+    if ($LiveDb57) {
+        Assert-LiveDb57Target
+        $b = New-Object System.Data.SqlClient.SqlConnectionStringBuilder
+        $b['Data Source'] = $SqlServer; $b['Initial Catalog'] = $SqlDatabase
+        $b['User ID'] = $SqlUser; $b['Password'] = $plain; $b['Connect Timeout'] = 10
+        $conn = New-Object System.Data.SqlClient.SqlConnection($b.ConnectionString)
+        try { $conn.Open(); $cmd = $conn.CreateCommand(); $cmd.CommandText = 'SELECT DB_NAME()'; if ([string]$cmd.ExecuteScalar() -ne 'B7R2_FCC') { throw 'DB57 preflight connected to a database other than B7R2_FCC.' }; Write-Host 'PASS: SQL57/B7R2_FCC connection preflight.' } finally { $conn.Dispose() }
+    }
 }
 
 function Clear-SqlEnvironment {
@@ -178,6 +197,7 @@ try {
         'G5' {
             if (-not $ExePath) { throw 'G5 needs -ExePath <PCTP.exe>.' }
             if ($Isolated) { Enter-Isolation }
+            elseif ($LiveDb57) { Assert-LiveDb57Target }
             $uiOut = Join-Path $out 'ui'
             $suite = Join-Path $PSScriptRoot 'Invoke-PctpUiSuite.ps1'
             Invoke-Native { & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $suite -ExePath $ExePath -OutputDirectory $uiOut -ExpectedWindowTitleRegex $ExpectedWindowTitleRegex -ContinueOnFailure } $log
@@ -228,7 +248,7 @@ try {
                 $args2 = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $runner, '-ExePath', $ExePath, '-ManifestPath', $manifestPath,
                     '-OutputDirectory', $jOut, '-ExpectedWindowTitleRegex', $ExpectedWindowTitleRegex, '-AllowMutations', '-CloseOnFinish',
                     '-SqlServer', $SqlServer, '-SqlDatabase', $SqlDatabase)
-                if ($ConfirmAppUsesIsolatedDb -and -not $Isolated) { $args2 += '-ConfirmAppUsesIsolatedDb' }
+                if (($ConfirmAppUsesIsolatedDb -or $LiveDb57) -and -not $Isolated) { $args2 += '-ConfirmAppUsesIsolatedDb' }
                 Invoke-Native { & powershell.exe @args2 } (Join-Path $out "$name.log")
                 $jExit = $LASTEXITCODE
                 Remove-Item Env:PCTP_QC_RUN_ID -ErrorAction SilentlyContinue
@@ -255,7 +275,7 @@ try {
             if ($status -eq 'FAIL' -and $blocked -and @($rows | Where-Object Status -eq 'FAIL').Count -eq 0) { $status = 'BLOCKED' }
             if ($blocked) { $notes.Add('BLOCKED journeys still need their seed/assert/cleanup SQL (see journeys\g6\README.md).') }
             $exit = if ($status -eq 'PASS') { 0 } else { 1 }
-            if (-not $Isolated) { $scope = "UI + SQL + cleanup on $SqlServer/$SqlDatabase; seeded rows carry the QCUI_<runId> prefix." }
+            if (-not $Isolated) { $scope = "UI + SQL + cleanup on $SqlServer/$SqlDatabase; seeded rows carry the QCUI_<runId> prefix." + $(if ($LiveDb57) { " Live DB57 mode checked the app config and SQL connection." } else { "" }) }
         }
     }
 }
