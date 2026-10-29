@@ -25,6 +25,8 @@ IF OBJECT_ID(N'dbo.B20Item', N'U') IS NULL
     THROW 51002, N'G6 receive blocked: dbo.B20Item is missing.', 1;
 IF OBJECT_ID(N'dbo.vNhapTP', N'V') IS NULL
     THROW 51003, N'G6 receive blocked: dbo.vNhapTP is missing.', 1;
+IF OBJECT_ID(N'dbo.PCTPStockMovementGuard', N'U') IS NULL
+    THROW 51011, N'G6 receive blocked: dbo.PCTPStockMovementGuard is missing; the real receiving transaction requires the movement idempotency guard.', 1;
 
 IF EXISTS (SELECT 1 FROM dbo.B30AccDoc WHERE Model = @Prefix)
     THROW 51004, N'G6 receive blocked: this run prefix already exists in B30AccDoc; refusing to overwrite/reuse it.', 1;
@@ -125,6 +127,12 @@ EXEC sys.sp_executesql
 
 IF @InsertedRows <> 1
     THROW 51010, N'G6 receive blocked: expected exactly one synthetic B30AccDoc row.', 1;
+IF NOT EXISTS (
+    SELECT 1 FROM dbo.vNhapTP
+    WHERE FIND=@BaseLot AND MA_SAN_PHAM=@ItemCode
+      AND ISNULL(SL_DA_SAN_XUAT,0)=@Qty AND ISNULL(SL_DA_NHAP,0)=0
+)
+    THROW 51012, N'G6 receive blocked: the synthetic row did not appear as one pending row in vNhapTP.', 1;
 
 SELECT @InsertedRows AS SeedRowsAffected,
        @ItemCode AS itemCode,
