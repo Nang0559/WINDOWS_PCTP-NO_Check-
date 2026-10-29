@@ -72,7 +72,7 @@ jobs:
       - name: G6 - DB57 business journeys (seed -> UI -> SQL assert -> cleanup)
         id: g6
         shell: powershell
-        run: .\PCTP.QC.UI\Invoke-PctpQcGates.ps1 -Gate G6 -ExePath "$PWD\PCTP\bin\Debug\PCTP.exe" -LiveDb57 -AllowMutations
+        run: .\PCTP.QC.UI\Invoke-PctpQcGates.ps1 -Gate G6 -ExePath "$PWD\PCTP\bin\Debug\PCTP.exe" -LiveDb57 -SqlUser $env:PCTP_QC_SQL_USER -AllowMutations
 
       - name: Upload DB57 acceptance evidence
         if: always()
