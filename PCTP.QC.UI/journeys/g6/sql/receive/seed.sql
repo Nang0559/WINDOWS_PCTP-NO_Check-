@@ -7,7 +7,7 @@ DECLARE @Qty int = 8;
 DECLARE @DocDate datetime = GETDATE();
 DECLARE @Model nvarchar(30) = @Prefix;
 DECLARE @ShiftCode nvarchar(10) = N'9';
-DECLARE @MachinesCode nvarchar(10) = RIGHT(@RunId, 4);
+DECLARE @MachinesCode nvarchar(10) = SUBSTRING(@RunId, 4, 4);
 DECLARE @GearCode int = 0;
 DECLARE @ItemCode nvarchar(50);
 DECLARE @ItemId int;
