@@ -129,6 +129,7 @@ namespace PCTP.Modules.KhoVatLy
 
             chkNhapHangLoat = new CheckEdit
             {
+                Name = "receive_bulkImport",
                 Text = "Nhập hàng loạt (không cần chọn Slot — vào kho tạm)",
                 Dock = DockStyle.Fill,
                 Font = new Font("Tahoma", 10, FontStyle.Bold),
@@ -139,6 +140,7 @@ namespace PCTP.Modules.KhoVatLy
 
             txtQRCode = new TextBox
             {
+                Name = "receive_qrInput",
                 Dock = DockStyle.Fill,
                 Font = new Font("Tahoma", 12)
             };
@@ -146,6 +148,7 @@ namespace PCTP.Modules.KhoVatLy
 
             lblBulkStatus = new LabelControl
             {
+                Name = "receive_bulkStatus",
                 Dock = DockStyle.Fill,
                 Appearance = { Font = new Font("Tahoma", 9, FontStyle.Bold) }
             };
@@ -663,6 +666,7 @@ namespace PCTP.Modules.KhoVatLy
             // =========================
             btnOK = new SimpleButton
             {
+                Name = "receive_btnConfirm",
                 Text = "OK",
                 Size = new Size(80, 30),
                 Top = top,
