@@ -75,23 +75,23 @@ foreach ($entry in $entries) {
     if ([string]::IsNullOrWhiteSpace($original)) { continue }
 
     $outer = New-Object System.Data.Common.DbConnectionStringBuilder
-    try { $outer.ConnectionString = $original }
+    try { $outer.set_ConnectionString($original) }
     catch { throw "Cannot parse connection string entry '$($entry.GetAttribute('name'))'." }
 
     if (Test-BuilderKey $outer 'provider connection string') {
         $inner = New-Object System.Data.Common.DbConnectionStringBuilder
-        try { $inner.ConnectionString = [string](Get-BuilderValue $outer 'provider connection string') }
+        try { $inner.set_ConnectionString([string](Get-BuilderValue $outer 'provider connection string')) }
         catch { throw "Cannot parse nested provider connection string entry '$($entry.GetAttribute('name'))'." }
         if ((Test-BuilderKey $inner 'data source') -or (Test-BuilderKey $inner 'server') -or (Test-BuilderKey $inner 'xpoprovider')) {
             Set-Db57Connection $inner
-            Set-BuilderValue $outer 'provider connection string' $inner.ConnectionString
-            $entry.SetAttribute('connectionString', $outer.ConnectionString)
+            Set-BuilderValue $outer 'provider connection string' $inner.get_ConnectionString()
+            $entry.SetAttribute('connectionString', $outer.get_ConnectionString())
             $changed++
         }
     }
     elseif ((Test-BuilderKey $outer 'data source') -or (Test-BuilderKey $outer 'server') -or (Test-BuilderKey $outer 'xpoprovider')) {
         Set-Db57Connection $outer
-        $entry.SetAttribute('connectionString', $outer.ConnectionString)
+        $entry.SetAttribute('connectionString', $outer.get_ConnectionString())
         $changed++
     }
 }
@@ -109,12 +109,12 @@ foreach ($entry in $entries) {
     }
 
     $outer = New-Object System.Data.Common.DbConnectionStringBuilder
-    try { $outer.ConnectionString = $value }
+    try { $outer.set_ConnectionString($value) }
     catch { throw "Cannot validate connection string entry '$name' after rewrite." }
     $candidate = $outer
     if (Test-BuilderKey $outer 'provider connection string') {
         $candidate = New-Object System.Data.Common.DbConnectionStringBuilder
-        try { $candidate.ConnectionString = [string](Get-BuilderValue $outer 'provider connection string') }
+        try { $candidate.set_ConnectionString([string](Get-BuilderValue $outer 'provider connection string')) }
         catch { throw "Cannot validate nested provider connection string entry '$name' after rewrite." }
     }
 
