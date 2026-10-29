@@ -27,5 +27,6 @@ Journey `"configured": false` bi runner tu choi chay; Gate bao `BLOCKED`. Khong 
 - Runner khong the biet PCTP.exe dang tro vao DB nao: no doc `PCTP.exe.config`, tu choi neu thay production, neu khong xac minh duoc thi can `-ConfirmAppUsesIsolatedDb`.
 - Cleanup luon chay trong `finally`, ke ca khi buoc UI loi giua chung.
 
-Chay: `.| `g6-delivery-hvn-multilot.json` | `configured` | **UI scan + SQL assert + cleanup (chưa có run evidence)** | Seed 3 dòng pending (1/2/3 LOT), capture 6 QR trong bộ nhớ, nhập từng QR qua `txt_DOCQRCODE` và gửi Enter; đối chiếu delivery/QR/stock invariants. |
+| `g6-delivery-hvn-multilot.json` | **UI scan + SQL assert + cleanup (chưa có run evidence)** | Seed 3 dòng pending (1/2/3 LOT), capture 6 QR trong bộ nhớ, nhập từng QR qua `txt_DOCQRCODE` và gửi Enter; đối chiếu delivery/QR/stock invariants. |
+Chạy: `.\PCTP.QC.UI\Invoke-PctpQcGates.ps1 -Gate G6 -ExePath <PCTP.exe> -SqlUser <user> -AllowMutations -ConfirmAppUsesIsolatedDb`
 PCTP.QC.UI\Invoke-PctpQcGates.ps1 -Gate G6 -ExePath <PCTP.exe> -SqlUser <user> -AllowMutations -ConfirmAppUsesIsolatedDb`
