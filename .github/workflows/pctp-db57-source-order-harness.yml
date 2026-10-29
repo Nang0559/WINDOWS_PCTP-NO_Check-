@@ -1,0 +1,152 @@
+name: PCTP DB57 source-order harness (DB14 read-only -> DB57)
+
+# One real delivery group is read from SQL14/BRAVO, transformed into a run-scoped fixture,
+# then seeded on SQL57. SQL14 is SELECT-only; SQL57 is the only write target.
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_db14_read_only:
+        description: "Confirm: read one newest delivery order from SQL14/BRAVO using the configured read-only account."
+        required: true
+        type: boolean
+        default: false
+      confirm_db57_test_writes:
+        description: "Confirm: seed/cleanup may write run-scoped QC rows to SQL57/B7R2_FCC."
+        required: true
+        type: boolean
+        default: false
+      phase:
+        description: "seed = read DB14 + seed DB57; assert = read-only after manual UI scan; cleanup = remove the run"
+        required: true
+        type: choice
+        options:
+          - seed
+          - assert
+          - cleanup
+        default: seed
+      prefix:
+        description: "QCUI_<8 chars>; required for assert/cleanup"
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pctp-db57-acceptance
+  cancel-in-progress: false
+
+jobs:
+  harness:
+    if: ${{ inputs.confirm_db14_read_only == true && inputs.confirm_db57_test_writes == true }}
+    runs-on: [self-hosted, windows, pctp-ui]
+    timeout-minutes: 30
+    env:
+      PCTP_QC_SOURCE_SQL_CONNECTION: ${{ secrets.PCTP_QC_SOURCE_SQL_CONNECTION }}
+      PCTP_QC_SQL_USER: ${{ secrets.PCTP_QC_TEST_USER }}
+      PCTP_QC_SQL_PASSWORD: ${{ secrets.PCTP_QC_TEST_PASSWORD }}
+      PHASE: ${{ inputs.phase }}
+      PREFIX_INPUT: ${{ inputs.prefix }}
+    steps:
+      - name: Checkout dispatched commit
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Validate inputs and credentials
+        id: prep
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          if([string]::IsNullOrWhiteSpace($env:PCTP_QC_SOURCE_SQL_CONNECTION)){throw 'Missing PCTP_QC_SOURCE_SQL_CONNECTION.'}
+          if([string]::IsNullOrWhiteSpace($env:PCTP_QC_SQL_USER) -or [string]::IsNullOrWhiteSpace($env:PCTP_QC_SQL_PASSWORD)){throw 'Missing PCTP_QC_TEST_USER/PCTP_QC_TEST_PASSWORD.'}
+          if($env:PHASE -notin @('seed','assert','cleanup')){throw "Invalid phase '$($env:PHASE)'."}
+          if($env:PHASE -eq 'seed'){$prefix='QCUI_'+[guid]::NewGuid().ToString('N').Substring(0,8)}else{$prefix=$env:PREFIX_INPUT.Trim();if($prefix -notmatch '^QCUI_[0-9A-Za-z]{8}$'){throw "Phase $($env:PHASE) requires QCUI_<8 chars>."}}
+          "prefix=$prefix" | Out-File $env:GITHUB_OUTPUT -Append -Encoding utf8
+          New-Item -ItemType Directory -Force -Path "$env:RUNNER_TEMP\pctp-source-order" | Out-Null
+          Write-Host "PASS: phase=$($env:PHASE) prefix=$prefix"
+
+      - name: Read newest SQL14 order (read-only) and build run-local fixture
+        if: ${{ inputs.phase == 'seed' }}
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $raw="$env:RUNNER_TEMP\pctp-source-order\source-fixture.json"
+          $normalized="$env:RUNNER_TEMP\pctp-source-order\source-fixture-normalized.json"
+          try {
+            .\PCTP.QC.UI\Invoke-PctpLiveOrderFixture.ps1 -OutputFile $raw
+            .\PCTP.QC.UI\Normalize-PctpSourceFixture.ps1 -InputFile $raw -OutputFile $normalized
+            if(-not(Test-Path $normalized)){throw 'Normalized source fixture was not created.'}
+          } catch {
+            Write-Host '--- SOURCE FIXTURE FAILURE ---'
+            $_ | Format-List * -Force | Out-String -Width 300 | Write-Host
+            throw
+          }
+
+      - name: Seed DB57 from the selected SQL14 order
+        if: ${{ inputs.phase == 'seed' }}
+        shell: powershell
+        env:
+          PREFIX: ${{ steps.prep.outputs.prefix }}
+        run: |
+          $ErrorActionPreference='Stop'
+          try {
+            .\PCTP.QC.UI\Invoke-PctpQcSourceDrivenSeed.ps1 -SourceFixture "$env:RUNNER_TEMP\pctp-source-order\source-fixture-normalized.json" -SqlUser $env:PCTP_QC_SQL_USER -Prefix $env:PREFIX -ConfirmWrites
+            Write-Host "PASS: DB57 source-driven seed complete. Prefix=$env:PREFIX"
+          } catch {
+            Write-Host '--- DB57 SOURCE-DRIVEN SEED FAILURE ---'
+            $_ | Format-List * -Force | Out-String -Width 300 | Write-Host
+            throw
+          }
+
+      - name: Read-only post-seed inventory
+        if: ${{ inputs.phase == 'seed' }}
+        shell: powershell
+        env:
+          PREFIX: ${{ steps.prep.outputs.prefix }}
+        run: |
+          $ErrorActionPreference='Stop'
+          .\PCTP.QC.UI\Invoke-PctpQcSeed.ps1 -Action Verify -Journey delivery-hvn-multilot -Prefix $env:PREFIX -SqlUser $env:PCTP_QC_SQL_USER
+          .\PCTP.QC.UI\Invoke-PctpQcSeed.ps1 -Action Qr -Journey delivery-hvn-multilot -Prefix $env:PREFIX -SqlUser $env:PCTP_QC_SQL_USER
+
+      - name: Post-scan assertions
+        if: ${{ inputs.phase == 'assert' }}
+        shell: powershell
+        env:
+          PREFIX: ${{ steps.prep.outputs.prefix }}
+        run: |
+          $ErrorActionPreference='Stop'
+          try {
+            .\PCTP.QC.UI\Invoke-PctpQcSeed.ps1 -Action Assert -Journey delivery-hvn-multilot -Prefix $env:PREFIX -SqlUser $env:PCTP_QC_SQL_USER
+          } catch {
+            Write-Host '--- DB57 POST-SCAN ASSERTION FAILURE ---'
+            $_ | Format-List * -Force | Out-String -Width 300 | Write-Host
+            throw
+          }
+
+      - name: Cleanup DB57 run
+        if: ${{ inputs.phase == 'cleanup' }}
+        shell: powershell
+        env:
+          PREFIX: ${{ steps.prep.outputs.prefix }}
+        run: |
+          $ErrorActionPreference='Stop'
+          try {
+            .\PCTP.QC.UI\Invoke-PctpQcSeed.ps1 -Action Cleanup -Journey delivery-hvn-multilot -Prefix $env:PREFIX -SqlUser $env:PCTP_QC_SQL_USER -ConfirmWrites
+          } catch {
+            Write-Host '--- DB57 CLEANUP FAILURE ---'
+            $_ | Format-List * -Force | Out-String -Width 300 | Write-Host
+            throw
+          }
+
+      - name: Summary
+        if: always()
+        shell: powershell
+        env:
+          PREFIX: ${{ steps.prep.outputs.prefix }}
+        run: |
+          $p=$env:PREFIX
+          $lines=@("### DB57 source-order harness", "", "Phase: **$($env:PHASE)**", "Prefix: **$p**", "")
+          if($env:PHASE -eq 'seed'){$lines += 'SQL14 was read-only. The selected order fixture stayed in runner TEMP; it was not uploaded. Next: use the printed QR values on the real HVN - MP UI, then run phase=assert with this prefix, then phase=cleanup.'}
+          $lines | Out-File $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
