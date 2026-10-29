@@ -12,6 +12,8 @@ Moi journey gom 4 phan theo thu tu: `sql-seed` -> thao tac UI -> `sql-assert` ->
 
 Journey `"configured": false` bi runner tu choi chay; Gate bao `BLOCKED`. Khong co duong nao cho PASS gia.
 
+> **Lưu ý trạng thái:** việc thêm bước quét tự động vào manifest mới là implementation trên branch; chưa được coi là G6 PASS cho tới khi runner Windows thực thi trên DB57, xác nhận QR được chấp nhận bởi UI/procedure thật, assertion pass và cleanup trả Remaining = 0. Hai journey QC vẫn `configured: false`; receive và single-line delivery vẫn chưa hoàn tất quét QR tự động.
+
 ## Can bo sung cho moi journey nghiep vu
 1. `sql/<journey>/seed.sql` - tao du lieu duy nhat, **moi khoa/ma phieu bat dau bang `@Prefix`** (`QCUI_<runId8>`).
 2. Cac buoc UI thao tac that (chon dong phieu, mo form chi tiet, bam nut) voi AutomationId lay tu file `*-tree.json` cua G5 hoac `CONTROL_CATALOG.md`.
@@ -25,4 +27,5 @@ Journey `"configured": false` bi runner tu choi chay; Gate bao `BLOCKED`. Khong 
 - Runner khong the biet PCTP.exe dang tro vao DB nao: no doc `PCTP.exe.config`, tu choi neu thay production, neu khong xac minh duoc thi can `-ConfirmAppUsesIsolatedDb`.
 - Cleanup luon chay trong `finally`, ke ca khi buoc UI loi giua chung.
 
-Chay: `.\PCTP.QC.UI\Invoke-PctpQcGates.ps1 -Gate G6 -ExePath <PCTP.exe> -SqlUser <user> -AllowMutations -ConfirmAppUsesIsolatedDb`
+Chay: `.| `g6-delivery-hvn-multilot.json` | `configured` | **UI scan + SQL assert + cleanup (chưa có run evidence)** | Seed 3 dòng pending (1/2/3 LOT), capture 6 QR trong bộ nhớ, nhập từng QR qua `txt_DOCQRCODE` và gửi Enter; đối chiếu delivery/QR/stock invariants. |
+PCTP.QC.UI\Invoke-PctpQcGates.ps1 -Gate G6 -ExePath <PCTP.exe> -SqlUser <user> -AllowMutations -ConfirmAppUsesIsolatedDb`
