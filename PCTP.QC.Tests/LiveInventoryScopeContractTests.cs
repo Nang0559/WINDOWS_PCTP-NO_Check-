@@ -23,7 +23,10 @@ public sealed class LiveInventoryScopeContractTests
         Assert.Contains("Refusing to inventory the entire database", source, StringComparison.Ordinal);
         Assert.Contains("refusing broad inventory", source, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("Assert-PctpSourceReadOnly $source 'SQL14 source'", source, StringComparison.Ordinal);
-        Assert.Contains("Assert-PctpSourceReadOnly $target 'SQL57 metadata target'", source, StringComparison.Ordinal);
+        // SQL57 target: read-only by default; a privileged login is accepted only with the explicit -AllowPrivilegedTarget opt-in.
+        Assert.Contains("Get-PctpLoginPrivileges $target", source, StringComparison.Ordinal);
+        Assert.Contains("SQL57 metadata target login is not read-only", source, StringComparison.Ordinal);
+        Assert.Contains("if (-not $AllowPrivilegedTarget)", source, StringComparison.Ordinal);
         Assert.Contains("full_database_inventory=$false", source, StringComparison.Ordinal);
     }
 

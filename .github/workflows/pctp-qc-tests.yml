@@ -137,10 +137,10 @@ jobs:
         run: |
           set -euo pipefail
           # 1. The disposable SQL CI workflow itself must never reference live SQL secrets/hosts.
-          #    Two explicitly approved live-data workflows are excluded from this scan only because
+          #    Explicitly approved live-data workflows are excluded from this scan only because
           #    they are manually dispatched, isolated jobs with their own fail-closed source/target guards.
           #    Any new workflow that references live SQL credentials is rejected by default.
-          live_data_workflows=' .github/workflows/pctp-live-data-inventory.yml .github/workflows/pctp-mp-source-profile.yml '
+          live_data_workflows=' .github/workflows/pctp-live-data-inventory.yml .github/workflows/pctp-live-data-profile.yml .github/workflows/pctp-mp-source-profile.yml '
           scan_files=()
           for f in .github/workflows/*.yml; do
             case "$live_data_workflows" in *" $f "*) continue ;; esac
@@ -153,7 +153,7 @@ jobs:
             echo "ERROR: an unapproved workflow names DB57/DB14."; exit 1
           fi
           # 2. Approved live-data workflows must be manual-only and must retain an explicit confirmation gate.
-          for f in .github/workflows/pctp-live-data-inventory.yml .github/workflows/pctp-mp-source-profile.yml .github/workflows/pctp-db57-acceptance.yml; do
+          for f in .github/workflows/pctp-live-data-inventory.yml .github/workflows/pctp-live-data-profile.yml .github/workflows/pctp-mp-source-profile.yml .github/workflows/pctp-db57-acceptance.yml; do
             test -f "$f"
             grep -q 'workflow_dispatch:' "$f" || { echo "ERROR: $f is not manually dispatched."; exit 1; }
             if grep -Eq '^[[:space:]]*(push|pull_request):' "$f"; then
