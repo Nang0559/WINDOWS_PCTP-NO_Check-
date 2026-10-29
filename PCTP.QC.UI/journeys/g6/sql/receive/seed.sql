@@ -27,6 +27,9 @@ IF OBJECT_ID(N'dbo.vNhapTP', N'V') IS NULL
     THROW 51003, N'G6 receive blocked: dbo.vNhapTP is missing.', 1;
 IF OBJECT_ID(N'dbo.PCTPStockMovementGuard', N'U') IS NULL
     THROW 51011, N'G6 receive blocked: dbo.PCTPStockMovementGuard is missing; the real receiving transaction requires the movement idempotency guard.', 1;
+-- A live fixture must not fire unknown ERP-side effects. Fail closed if the source table has enabled triggers.
+IF EXISTS (SELECT 1 FROM sys.triggers WHERE parent_id=OBJECT_ID(N'dbo.B30AccDoc') AND is_disabled=0)
+    THROW 51013, N'G6 receive blocked: dbo.B30AccDoc has enabled triggers; review their side effects before live seeding.', 1;
 
 IF EXISTS (SELECT 1 FROM dbo.B30AccDoc WHERE Model = @Prefix)
     THROW 51004, N'G6 receive blocked: this run prefix already exists in B30AccDoc; refusing to overwrite/reuse it.', 1;
