@@ -11,37 +11,38 @@ namespace PCTP.QC.Tests;
 /// </summary>
 public sealed class LiveInventoryScopeContractTests
 {
-    private static string ReadSource(string fileName)
+    private static string FindRepoRoot()
     {
-        var candidates = new[]
+        var starts = new[] { AppContext.BaseDirectory, Directory.GetCurrentDirectory() };
+        foreach (var start in starts)
         {
-            Path.Combine(AppContext.BaseDirectory, fileName),
-            Path.Combine(Directory.GetCurrentDirectory(), "PCTP.QC.UI", fileName),
-            Path.Combine(Directory.GetCurrentDirectory(), "PCTP.QC.UI", "Invoke-PctpLiveDataInventory.ps1")
-        };
-
-        foreach (var candidate in candidates)
-        {
-            if (File.Exists(candidate)) return File.ReadAllText(candidate);
+            var directory = new DirectoryInfo(start);
+            while (directory is not null)
+            {
+                if (File.Exists(Path.Combine(directory.FullName, "PCTP.QC.UI", "Invoke-PctpLiveDataInventory.ps1")) ||
+                    File.Exists(Path.Combine(directory.FullName, "docs", "SCHEMA_COVERAGE_EFFECTIVE.csv")))
+                {
+                    return directory.FullName;
+                }
+                directory = directory.Parent;
+            }
         }
 
-        throw new FileNotFoundException($"Live inventory contract file was not found: {fileName}");
+        throw new DirectoryNotFoundException("PCTP repository root could not be located from the test execution directory.");
+    }
+
+    private static string ReadSource(string fileName)
+    {
+        var candidate = Path.Combine(FindRepoRoot(), "PCTP.QC.UI", fileName);
+        if (File.Exists(candidate)) return File.ReadAllText(candidate);
+        throw new FileNotFoundException($"Live inventory contract file was not found: {candidate}");
     }
 
     private static string ReadCoverage()
     {
-        var candidates = new[]
-        {
-            Path.Combine(AppContext.BaseDirectory, "SCHEMA_COVERAGE_EFFECTIVE.csv"),
-            Path.Combine(Directory.GetCurrentDirectory(), "docs", "SCHEMA_COVERAGE_EFFECTIVE.csv")
-        };
-
-        foreach (var candidate in candidates)
-        {
-            if (File.Exists(candidate)) return File.ReadAllText(candidate);
-        }
-
-        throw new FileNotFoundException("PCTP schema coverage CSV was not found.");
+        var candidate = Path.Combine(FindRepoRoot(), "docs", "SCHEMA_COVERAGE_EFFECTIVE.csv");
+        if (File.Exists(candidate)) return File.ReadAllText(candidate);
+        throw new FileNotFoundException($"PCTP schema coverage CSV was not found: {candidate}");
     }
 
     [Fact]
