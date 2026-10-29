@@ -102,7 +102,7 @@ jobs:
           @(
             "### G1 traceability inventory",
             "",
-            "- Candidate SHA: `$($summary.Commit)`",
+            "- Candidate SHA: $($summary.Commit)",
             "- Static status: **$($summary.Status)**",
             "- Code rows: $($summary.Counts.codeRows)",
             "- Code rows with gaps: $($summary.Counts.codeGaps)",
