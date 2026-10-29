@@ -1,3 +1,10 @@
--- g6-receive: template. Every mutating statement MUST be scoped by @Prefix (QCUI_<runId>) and have a WHERE.
--- SELECT SUM(n) AS Remaining FROM (SELECT COUNT(*) n FROM <table> WHERE <key> LIKE @Prefix + N'%' UNION ALL ...) x;
-THROW 50000, N'G6 g6-receive NOT CONFIGURED: provide this SQL for the isolated DB. Needed: seed.sql (1 tem/QR nhap hop le + slot trong), buoc UI quet/nhap QR, assert.sql (STOCKTP, SlotLot, StockHistory, PCTPStockMovementGuard), cleanup/verify.sql', 1;
+-- g6-receive: Remaining must be 0 after cleanup.
+SELECT
+    (SELECT COUNT(*) FROM dbo.StockHistory WHERE ItemCode LIKE @Prefix + N'%')
+  + (SELECT COUNT(*) FROM dbo.SlotLot WHERE ItemCode LIKE @Prefix + N'%')
+  + (SELECT COUNT(*) FROM dbo.Slot s JOIN dbo.Rack r ON r.RackId = s.RackId WHERE r.RackName LIKE @Prefix + N'%')
+  + (SELECT COUNT(*) FROM dbo.Rack WHERE RackName LIKE @Prefix + N'%')
+  + (SELECT COUNT(*) FROM dbo.Warehouse WHERE Name LIKE @Prefix + N'%')
+  + (SELECT COUNT(*) FROM dbo.STOCKTP WHERE PART LIKE @Prefix + N'%')
+  + (SELECT COUNT(*) FROM dbo.B30AccDoc WHERE ReceiptItemCode LIKE @Prefix + N'%')
+  + (SELECT COUNT(*) FROM dbo.B20Item WHERE Code LIKE @Prefix + N'%') AS Remaining;

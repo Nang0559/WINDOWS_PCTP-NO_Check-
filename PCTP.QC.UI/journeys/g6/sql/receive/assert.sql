@@ -1,3 +1,8 @@
--- g6-receive: template. Every mutating statement MUST be scoped by @Prefix (QCUI_<runId>) and have a WHERE.
--- SELECT the postcondition columns, e.g.: SELECT Status, SoLuongConLai FROM ... WHERE Key LIKE @Prefix + N'%';
-THROW 50000, N'G6 g6-receive NOT CONFIGURED: provide this SQL for the isolated DB. Needed: seed.sql (1 tem/QR nhap hop le + slot trong), buoc UI quet/nhap QR, assert.sql (STOCKTP, SlotLot, StockHistory, PCTPStockMovementGuard), cleanup/verify.sql', 1;
+-- g6-receive: worklist postcondition (read-only). Matches the seed: 2 production docs of 10 pcs on one 20-char LOT.
+SELECT
+    (SELECT COUNT(*) FROM dbo.vNhapTP WHERE MA_SAN_PHAM LIKE @Prefix + N'%') AS WorklistRows,
+    (SELECT ISNULL(SUM(SL_DA_SAN_XUAT), 0) FROM dbo.vNhapTP WHERE MA_SAN_PHAM LIKE @Prefix + N'%') AS Produced,
+    (SELECT ISNULL(SUM(SL_DA_NHAP), 0) FROM dbo.vNhapTP WHERE MA_SAN_PHAM LIKE @Prefix + N'%') AS Received,
+    (SELECT ISNULL(MAX(LEN(LOT_NO)), 0) FROM dbo.vNhapTP WHERE MA_SAN_PHAM LIKE @Prefix + N'%') AS LotLength,
+    (SELECT COUNT(*) FROM dbo.Slot s JOIN dbo.Rack r ON r.RackId = s.RackId
+      WHERE r.RackName LIKE @Prefix + N'%' AND s.IsOccupied = 0) AS FreeSlots;

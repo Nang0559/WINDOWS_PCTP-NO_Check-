@@ -1,13 +1,12 @@
 {
   "name": "g6-receive",
-  "purpose": "G6 business journey (seed -> UI -> SQL assert -> cleanup). Extends receive-navigation.json.",
-  "configured": false,
-  "configurationNeeded": "seed.sql (1 tem/QR nhap hop le + slot trong), buoc UI quet/nhap QR, assert.sql (STOCKTP, SlotLot, StockHistory, PCTPStockMovementGuard), cleanup/verify.sql",
+  "purpose": "G6 business journey (seed -> UI -> SQL assert -> cleanup). Extends receive-navigation.json. Data layer only: seeds a vNhapTP worklist row and QC slots; the QR scan itself is not automated yet.",
+  "configured": true,
   "dataMutation": true,
   "scenario": {
     "id": "G6-003",
-    "title": "Nhap kho mot phieu seed",
-    "description": "KHUNG CHUA CAU HINH: seed/assert/cleanup SQL va cac buoc UI thao tac phai bo sung theo schema that. Cac buoc dieu huong da duoc xac minh o G5."
+    "title": "Nhap kho: seed phieu san xuat -> hien tren vNhapTP",
+    "description": "Seed B20Item + 2 dong B30AccDoc (LOT 20 ky tu) + kho/ke/2 slot QC voi tien to {{prefix}}; mo man hinh Nhap thanh pham - QR; SQL xac nhan dong worklist trong dbo.vNhapTP (SL san xuat 20, SL da nhap 0, 2 slot trong); cleanup ve Remaining = 0. Buoc quet QR tem tong (FormEnterItemSV) CHUA tu dong hoa - dung qr.sql de lay chuoi QR va quet tay, xem docs/QC_LIVE_SEED_DATA.md."
   },
   "testData": {
     "menuPath": "Nhập Kho > Nhập thành phẩm - QR",
@@ -19,8 +18,8 @@
       "action": "sql-seed",
       "mutatesData": true,
       "sqlFile": "sql/receive/seed.sql",
-      "expectRowsAtLeast": 1,
-      "description": "Seed du lieu duy nhat voi tien to {{prefix}}"
+      "expectRowsAtLeast": 7,
+      "description": "Seed item, 2 phieu san xuat B30AccDoc, kho/ke/2 slot voi tien to {{prefix}}"
     },
     {
       "id": "expand-receive-menu",
@@ -86,8 +85,14 @@
       "id": "assert-after-ui",
       "action": "sql-assert",
       "sqlFile": "sql/receive/assert.sql",
-      "expectColumns": {},
-      "description": "SQL hau dieu kien sau thao tac UI"
+      "expectColumns": {
+        "WorklistRows": 1,
+        "Produced": 20,
+        "Received": 0,
+        "LotLength": 20,
+        "FreeSlots": 2
+      },
+      "description": "SQL: dong worklist vNhapTP ton tai dung so luong, chua nhap, 2 slot QC con trong"
     },
     {
       "id": "cleanup",

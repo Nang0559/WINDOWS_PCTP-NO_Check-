@@ -1,3 +1,10 @@
--- g6-receive: template. Every mutating statement MUST be scoped by @Prefix (QCUI_<runId>) and have a WHERE.
--- DELETE FROM <table> WHERE <key> LIKE @Prefix + N'%';  (child tables first)
-THROW 50000, N'G6 g6-receive NOT CONFIGURED: provide this SQL for the isolated DB. Needed: seed.sql (1 tem/QR nhap hop le + slot trong), buoc UI quet/nhap QR, assert.sql (STOCKTP, SlotLot, StockHistory, PCTPStockMovementGuard), cleanup/verify.sql', 1;
+-- g6-receive cleanup: child tables first. Every statement is scoped by @Prefix (item code / rack / warehouse name).
+-- Rows created by a real UI scan (STOCKTP, SlotLot, StockHistory) carry the QC item code, so they are removed too.
+DELETE FROM dbo.StockHistory WHERE ItemCode LIKE @Prefix + N'%';
+DELETE FROM dbo.SlotLot WHERE ItemCode LIKE @Prefix + N'%' OR SlotId IN (SELECT s.SlotId FROM dbo.Slot s JOIN dbo.Rack r ON r.RackId = s.RackId WHERE r.RackName LIKE @Prefix + N'%');
+DELETE FROM dbo.Slot WHERE RackId IN (SELECT RackId FROM dbo.Rack WHERE RackName LIKE @Prefix + N'%');
+DELETE FROM dbo.Rack WHERE RackName LIKE @Prefix + N'%';
+DELETE FROM dbo.Warehouse WHERE Name LIKE @Prefix + N'%';
+DELETE FROM dbo.STOCKTP WHERE PART LIKE @Prefix + N'%';
+DELETE FROM dbo.B30AccDoc WHERE ReceiptItemCode LIKE @Prefix + N'%';
+DELETE FROM dbo.B20Item WHERE Code LIKE @Prefix + N'%';
