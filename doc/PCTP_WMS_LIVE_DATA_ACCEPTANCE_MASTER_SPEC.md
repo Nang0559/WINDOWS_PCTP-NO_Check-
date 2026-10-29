@@ -69,6 +69,21 @@ Nguồn định nghĩa: [`PCTP/Workflow/Diagram/WMS_RELEASE_GATE.md`](../PCTP/Wo
 
 Bộ crosswalk giữa tài liệu thiết kế và test coverage được duy trì tại [`PCTP/Workflow/Diagram/WMS_TEST_DOCUMENTATION_CROSSWALK.md`](../PCTP/Workflow/Diagram/WMS_TEST_DOCUMENTATION_CROSSWALK.md). Crosswalk ánh xạ workflow/contract → testcase → assertion; nó không tự xác nhận testcase đã chạy hoặc gate đã PASS.
 
+## 1A. Implementation log — G6 multi-LOT delivery automation
+
+Branch change being implemented: automated the multi-LOT delivery journey so it no longer relies on a human copying QR values from the runner output.
+
+- Manifest: `PCTP.QC.UI/journeys/g6/g6-delivery-hvn-multilot.json`.
+- Seed: `PCTP.QC.UI/journeys/g6/sql/delivery-hvn-multilot/seed.sql` creates only prerequisite item/stock/pending-delivery rows, then returns six derived QR input strings as a single result row for in-memory capture.
+- UI: runner writes each captured value to the real `txt_DOCQRCODE` control and sends Enter to invoke the actual UI event path. It does not insert/update `DOCQRCODE`, `LUUPHIEUGIAOHANG`, or `LUUDOCQRCODE` to fake a scan.
+- Assertions: the journey switches to `assert-after-scan.sql` and checks stock balance, over-issuance, QR-to-stock mapping, delivered LOT coverage and duplicate QR rows.
+- Cleanup: the manifest retains the run-prefix cleanup and `Remaining = 0` verification; runner cleanup is also attempted on failure.
+- Offline guard: `Test-PctpG6SqlGuards.ps1` now checks that the manifest has six real QR-input/Enter pairs and uses the post-scan assertion.
+
+**Status: IMPLEMENTED IN SOURCE; NOT VERIFIED AT RUNTIME.** A green offline guard/build is not proof that the actual Windows UI accepts these six QR inputs. The DB57 runner must confirm UI acceptance, expected business rows/quantities, no unexpected modal/dialog, and cleanup verification before this journey can be marked PASS.
+
+Remaining G6 blockers are not hidden: `g6-qc-direction.json` and `g6-qc-final.json` remain unconfigured; `g6-receive.json` and `g6-delivery-hvn.json` still have manual QR steps. G6 remains BLOCKED/NOT VERIFIED until every required journey is completed and evidence is attached to the exact commit SHA.
+
 ## 2. Mục tiêu end-to-end
 
 Identity chain cần được duy trì:
