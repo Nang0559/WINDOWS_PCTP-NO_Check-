@@ -195,3 +195,103 @@ function Get-PctpColumnProfile([string]$Name, [string]$TypeName, $Values, [bool]
     elseif ($first -is [bool]) { $o.enum_values = (($vals | Group-Object | ForEach-Object { "$($_.Name) x$($_.Count)" }) -join ' | ') }
     return [pscustomobject]$o
 }
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Profile v2: composite-key relations, group-size distributions and quantity relations. Every helper returns counts,
+# percentages and buckets only - never a business value.
+# ---------------------------------------------------------------------------------------------------------------------
+
+# "L1,L2" (a delivery/label LOT field can hold several LOTs) -> normalised elements. Blank/null -> nothing. Callers wrap in @().
+function Split-PctpLotList($Value) {
+    if ($null -eq $Value -or $Value -is [System.DBNull]) { return @() }
+    $out = New-Object System.Collections.Generic.List[string]
+    foreach ($p in ([string]$Value).Split(',')) { $t = $p.Trim().ToUpperInvariant(); if ($t.Length -gt 0) { $out.Add($t) } }
+    return $out.ToArray()
+}
+
+# LOT root = first 13 characters (shorter values stay as they are).
+function Get-PctpLotRoot([string]$Lot) { if ($Lot.Length -ge 13) { return $Lot.Substring(0, 13) } else { return $Lot } }
+
+function Get-PctpCell($Row, [string]$Column) {
+    if ($Row.Table.Columns.Contains($Column) -and $Row[$Column] -isnot [System.DBNull]) { return ([string]$Row[$Column]).Trim().ToUpperInvariant() }
+    return ''
+}
+
+# One entry per row: the composite keys that row can produce. Column specs: 'COL' (value as is) or 'COL:lotroots' (every LOT in
+# a comma list reduced to its 13-char root; the row yields one key per root). Rows with an empty part yield no key.
+function Get-PctpRowKeyLists($Table, [string[]]$Specs) {
+    $result = New-Object System.Collections.Generic.List[object]
+    foreach ($row in $Table.Rows) {
+        $combos = @('')
+        $ok = $true
+        foreach ($spec in $Specs) {
+            $col = $spec; $mode = ''
+            if ($spec.Contains(':')) { $col = $spec.Split(':')[0]; $mode = $spec.Split(':')[1] }
+            $raw = Get-PctpCell $row $col
+            if ($raw.Length -eq 0) { $ok = $false; break }
+            $vals = @($raw)
+            if ($mode -eq 'lotroots') { $vals = @(Split-PctpLotList $raw | ForEach-Object { Get-PctpLotRoot $_ } | Select-Object -Unique) }
+            if ($vals.Count -eq 0) { $ok = $false; break }
+            $next = New-Object System.Collections.Generic.List[string]
+            foreach ($c in $combos) { foreach ($v in $vals) { $next.Add($(if ($c.Length -eq 0) { $v } else { $c + '|' + $v })) } }
+            $combos = $next.ToArray()
+        }
+        $result.Add($(if ($ok) { ,$combos } else { ,@() }))
+    }
+    return ,$result.ToArray()
+}
+
+# Left rows (each with its key list) against a right key set: row matches ANY key / ALL keys.
+function Get-PctpMultiKeyJoinRate($LeftKeyLists, $RightKeyLists) {
+    $right = New-Object 'System.Collections.Generic.HashSet[string]'
+    foreach ($kl in $RightKeyLists) { foreach ($k in @($kl)) { [void]$right.Add([string]$k) } }
+    $rows = 0; $any = 0; $all = 0; $noKey = 0
+    foreach ($kl in $LeftKeyLists) {
+        $keys = @($kl)
+        if ($keys.Count -eq 0) { $noKey++; continue }
+        $rows++
+        $hit = @($keys | Where-Object { $right.Contains([string]$_) }).Count
+        if ($hit -gt 0) { $any++ }
+        if ($hit -eq $keys.Count) { $all++ }
+    }
+    $anyPct = 0.0; $allPct = 0.0
+    if ($rows -gt 0) { $anyPct = [Math]::Round(100.0 * $any / $rows, 1); $allPct = [Math]::Round(100.0 * $all / $rows, 1) }
+    return [pscustomobject]@{ left_rows = $rows; left_rows_without_key = $noKey; any_key_match_pct = $anyPct; all_keys_match_pct = $allPct; right_distinct_keys = $right.Count }
+}
+
+# How many rows share a group key, as buckets: "1 x12 | 2 x3 | 3-5 x1 | 6-10 x0 | 11+ x0" = number of GROUPS of that size.
+function Get-PctpGroupSizeBuckets($Values) {
+    $g = @{}
+    foreach ($v in $Values) { if ($null -eq $v -or $v -is [System.DBNull]) { continue }; $k = [string]$v; if ($g.ContainsKey($k)) { $g[$k]++ } else { $g[$k] = 1 } }
+    $b = [ordered]@{ '1' = 0; '2' = 0; '3-5' = 0; '6-10' = 0; '11-50' = 0; '51+' = 0 }
+    foreach ($n in $g.Values) {
+        if ($n -eq 1) { $b['1']++ } elseif ($n -eq 2) { $b['2']++ } elseif ($n -le 5) { $b['3-5']++ } elseif ($n -le 10) { $b['6-10']++ } elseif ($n -le 50) { $b['11-50']++ } else { $b['51+']++ }
+    }
+    return ('groups=' + $g.Count + '; size ' + (($b.GetEnumerator() | ForEach-Object { "$($_.Key) x$($_.Value)" }) -join ' | '))
+}
+
+# Element-count buckets of comma lists ("1 LOT x120 | 2 LOTs x15 | ...").
+function Get-PctpListLengthBuckets($Values) {
+    $b = @{}
+    foreach ($v in $Values) { $n = @(Split-PctpLotList $v).Count; if ($n -eq 0) { continue }; $k = $(if ($n -ge 6) { '6+' } else { [string]$n }); if ($b.ContainsKey($k)) { $b[$k]++ } else { $b[$k] = 1 } }
+    return (($b.GetEnumerator() | Sort-Object Name | ForEach-Object { "$($_.Key) LOT x$($_.Value)" }) -join ' | ')
+}
+
+# Sum a quantity per key on both sides and compare group totals (counts only).
+function Compare-PctpGroupSums($LeftKeys, $LeftQty, $RightKeys, $RightQty) {
+    $l = @{}; $r = @{}
+    for ($i = 0; $i -lt @($LeftKeys).Count; $i++) { $k = $LeftKeys[$i]; if (-not $k) { continue }; $q = $LeftQty[$i]; if ($q -is [System.DBNull] -or $null -eq $q) { continue }; if ($l.ContainsKey($k)) { $l[$k] += [double]$q } else { $l[$k] = [double]$q } }
+    for ($i = 0; $i -lt @($RightKeys).Count; $i++) { $k = $RightKeys[$i]; if (-not $k) { continue }; $q = $RightQty[$i]; if ($q -is [System.DBNull] -or $null -eq $q) { continue }; if ($r.ContainsKey($k)) { $r[$k] += [double]$q } else { $r[$k] = [double]$q } }
+    $both = 0; $eq = 0; $gt = 0; $lt = 0; $lo = 0; $ro = 0
+    foreach ($k in $l.Keys) { if ($r.ContainsKey($k)) { $both++; if ($l[$k] -eq $r[$k]) { $eq++ } elseif ($l[$k] -gt $r[$k]) { $gt++ } else { $lt++ } } else { $lo++ } }
+    foreach ($k in $r.Keys) { if (-not $l.ContainsKey($k)) { $ro++ } }
+    return [pscustomobject]@{ keys_both = $both; sums_equal = $eq; left_greater = $gt; left_smaller = $lt; left_only_keys = $lo; right_only_keys = $ro }
+}
+
+# For quantity comparison: the key of rows that produced exactly one key; $null for rows with none or several (the quantity of a
+# multi-LOT row cannot be split, so those rows are counted separately instead of being guessed).
+function Get-PctpSingleKeys($KeyLists) {
+    $out = New-Object System.Collections.Generic.List[object]
+    foreach ($kl in $KeyLists) { $k = @($kl); if ($k.Count -eq 1) { $out.Add([string]$k[0]) } else { $out.Add($null) } }
+    return ,$out.ToArray()
+}

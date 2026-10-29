@@ -128,12 +128,85 @@ try {
     Add-Inv 'STOCKTP rows SLCONLAI<0' @(Col $stock 'SLCONLAI' | Where-Object { $_ -isnot [System.DBNull] -and [double]$_ -lt 0 }).Count
     Add-Inv 'STOCKTP rows SLXUAT>0' @(Col $stock 'SLXUAT' | Where-Object { $_ -isnot [System.DBNull] -and [double]$_ -gt 0 }).Count
     Add-Inv 'TMP rows (pending that day)' $tmp.Rows.Count; Add-Inv 'DOCQRCODE rows (queue now)' $docQr.Rows.Count
+
+    # ---- 6) profile v2: composite-key relations, group-size distributions, quantity relations (counts/buckets only).
+    # Single-field joins such as STT are misleading on small integers (STT 1..23 always "exists" among 1..212), so relations are
+    # also tested on composite keys: (MAHANG + LOT root), + NHAMAY, + STT. LOT root = first 13 chars; comma lists are split.
+    $v2Rel = New-Object System.Collections.Generic.List[object]
+    function Add-V2Rel([string]$name, $l, $r) {
+        $jr = Get-PctpMultiKeyJoinRate $l $r
+        $v2Rel.Add([pscustomobject]@{ relation = $name; left_rows = $jr.left_rows; left_rows_without_key = $jr.left_rows_without_key; any_key_match_pct = $jr.any_key_match_pct; all_keys_match_pct = $jr.all_keys_match_pct; right_distinct_keys = $jr.right_distinct_keys })
+    }
+    $kLuu_ML = Get-PctpRowKeyLists $luu @('MAHANG', 'LOT:lotroots');                $kQr_ML = Get-PctpRowKeyLists $luuQr @('MAHANGFCC', 'LOTFCC:lotroots')
+    $kLuu_NML = Get-PctpRowKeyLists $luu @('NHAMAY', 'MAHANG', 'LOT:lotroots');     $kQr_NML = Get-PctpRowKeyLists $luuQr @('NHAMAY', 'MAHANGFCC', 'LOTFCC:lotroots')
+    $kLuu_SML = Get-PctpRowKeyLists $luu @('STT', 'MAHANG', 'LOT:lotroots');        $kQr_SML = Get-PctpRowKeyLists $luuQr @('STT', 'MAHANGFCC', 'LOTFCC:lotroots')
+    $kLuu_SN = Get-PctpRowKeyLists $luu @('STT', 'NHAMAY');                         $kQr_SN = Get-PctpRowKeyLists $luuQr @('STT', 'NHAMAY')
+    $kLuu_S = Get-PctpRowKeyLists $luu @('STT');                                    $kTmp_S = Get-PctpRowKeyLists $tmp @('STT')
+    $kLuu_G = Get-PctpRowKeyLists $luu @('GIOGIAOFCC');                             $kQr_G = Get-PctpRowKeyLists $luuQr @('GIOXUAT')
+    $kTmp_ML = Get-PctpRowKeyLists $tmp @('MAHANG', 'LOT:lotroots');                $kTmp_SML = Get-PctpRowKeyLists $tmp @('STT', 'MAHANG', 'LOT:lotroots')
+    $kDoc_B = Get-PctpRowKeyLists $docQr @('STTBAN');                               $kDoc_ML = Get-PctpRowKeyLists $docQr @('MAHANGFCC', 'LOTFCC:lotroots')
+    $kStk_ML = Get-PctpRowKeyLists $stock @('PART', 'LOT:lotroots')
+    Add-V2Rel 'LUU(MAHANG+LOTroot) -> LUUQR(MAHANGFCC+LOTFCC root)' $kLuu_ML $kQr_ML
+    Add-V2Rel 'LUUQR(MAHANGFCC+LOTFCC root) -> LUU(MAHANG+LOTroot)' $kQr_ML $kLuu_ML
+    Add-V2Rel 'LUU(NHAMAY+MAHANG+LOTroot) -> LUUQR(same)' $kLuu_NML $kQr_NML
+    Add-V2Rel 'LUU(STT+MAHANG+LOTroot) -> LUUQR(same)' $kLuu_SML $kQr_SML
+    Add-V2Rel 'LUUQR(STT+MAHANGFCC+LOTroot) -> LUU(same)' $kQr_SML $kLuu_SML
+    Add-V2Rel 'LUU(STT+NHAMAY) -> LUUQR(STT+NHAMAY)' $kLuu_SN $kQr_SN
+    Add-V2Rel 'LUUQR(STT+NHAMAY) -> LUU(STT+NHAMAY)' $kQr_SN $kLuu_SN
+    Add-V2Rel 'LUU(GIOGIAOFCC) -> LUUQR(GIOXUAT)' $kLuu_G $kQr_G
+    Add-V2Rel 'LUUQR(GIOXUAT) -> LUU(GIOGIAOFCC)' $kQr_G $kLuu_G
+    Add-V2Rel 'TMP(MAHANG+LOTroot) -> LUU(MAHANG+LOTroot)' $kTmp_ML $kLuu_ML
+    Add-V2Rel 'TMP(STT+MAHANG+LOTroot) -> LUU(same)' $kTmp_SML $kLuu_SML
+    Add-V2Rel 'DOCQRCODE(STTBAN) -> TMP(STT)' $kDoc_B $kTmp_S
+    Add-V2Rel 'DOCQRCODE(STTBAN) -> LUU(STT)' $kDoc_B $kLuu_S
+    Add-V2Rel 'DOCQRCODE(MAHANGFCC+LOTFCC root) -> LUUQR(same)' $kDoc_ML $kQr_ML
+    Add-V2Rel 'LUUQR(MAHANGFCC+LOTFCC root) -> STOCKTP(PART+LOT root)' $kQr_ML $kStk_ML
+    Add-V2Rel 'LUU(MAHANG+LOTroot) -> STOCKTP(PART+LOT root)' $kLuu_ML $kStk_ML
+    Add-V2Rel 'STOCKTP(PART+LOT root) -> LUU(MAHANG+LOTroot)' $kStk_ML $kLuu_ML
+    Add-V2Rel 'TMP(MAHANG+LOTroot) -> STOCKTP(PART+LOT root)' $kTmp_ML $kStk_ML
+
+    $v2Dist = New-Object System.Collections.Generic.List[object]
+    function Add-V2Dist([string]$metric, [string]$detail) { $v2Dist.Add([pscustomobject]@{ metric = $metric; detail = $detail }) }
+    Add-V2Dist 'LUU rows per STT (groups by size)' (Get-PctpGroupSizeBuckets (Col $luu 'STT'))
+    Add-V2Dist 'LUUQR rows per STT' (Get-PctpGroupSizeBuckets (Col $luuQr 'STT'))
+    Add-V2Dist 'LUUQR rows per LOTHVN (label id; 1 = unique label)' (Get-PctpGroupSizeBuckets (Col $luuQr 'LOTHVN'))
+    Add-V2Dist 'LUUQR rows per (STT+NHAMAY)' (Get-PctpGroupSizeBuckets (@($kQr_SN | ForEach-Object { @($_) | Select-Object -First 1 })))
+    Add-V2Dist 'LUUQR rows per (MAHANGFCC+LOTFCC root), single-LOT rows' (Get-PctpGroupSizeBuckets (@((Get-PctpSingleKeys $kQr_ML) | Where-Object { $_ })))
+    Add-V2Dist 'LUU rows per (MAHANG+LOTroot), single-LOT rows' (Get-PctpGroupSizeBuckets (@((Get-PctpSingleKeys $kLuu_ML) | Where-Object { $_ })))
+    Add-V2Dist 'STOCKTP rows per LOT root' (Get-PctpGroupSizeBuckets (@(Col $stock 'LOT' | ForEach-Object { if ($_ -is [string] -and $_.Trim().Length -gt 0) { Get-PctpLotRoot $_.Trim().ToUpperInvariant() } })))
+    Add-V2Dist 'DOCQRCODE rows per STTBAN' (Get-PctpGroupSizeBuckets (Col $docQr 'STTBAN'))
+    Add-V2Dist 'LUU.LOT elements per row' (Get-PctpListLengthBuckets (Col $luu 'LOT'))
+    Add-V2Dist 'LUUQR.LOTFCC elements per row' (Get-PctpListLengthBuckets (Col $luuQr 'LOTFCC'))
+    Add-V2Dist 'TMP.LOT elements per row' (Get-PctpListLengthBuckets (Col $tmp 'LOT'))
+    $luuStt = @(Col $luu 'STT' | ForEach-Object { [string]$_ } | Select-Object -Unique); $qrStt = @(Col $luuQr 'STT' | ForEach-Object { [string]$_ } | Select-Object -Unique)
+    Add-V2Dist 'distinct STT: LUU / LUUQR / LUUQR also in LUU' ("$($luuStt.Count) / $($qrStt.Count) / $(@($qrStt | Where-Object { $luuStt -contains $_ }).Count)")
+    $stkRows = @($stock.Rows)
+    Add-V2Dist 'STOCKTP identity SLNHAP - SLXUAT = SLCONLAI (rows ok / total)' ("$(@($stkRows | Where-Object { $_['SLNHAP'] -isnot [System.DBNull] -and $_['SLXUAT'] -isnot [System.DBNull] -and $_['SLCONLAI'] -isnot [System.DBNull] -and ([double]$_['SLNHAP'] - [double]$_['SLXUAT']) -eq [double]$_['SLCONLAI'] }).Count) / $($stkRows.Count)")
+    Add-V2Dist 'STOCKTP SLCONLAI = SLCONLAITMP (rows ok / total)' ("$(@($stkRows | Where-Object { $_['SLCONLAI'] -isnot [System.DBNull] -and $_['SLCONLAITMP'] -isnot [System.DBNull] -and [double]$_['SLCONLAI'] -eq [double]$_['SLCONLAITMP'] }).Count) / $($stkRows.Count)")
+    Add-V2Dist 'STOCKTP NGAYXUAT on profile day (rows / total)' ("$(@($stkRows | Where-Object { $_['NGAYXUAT'] -isnot [System.DBNull] -and ([datetime]$_['NGAYXUAT']).Date -eq $from }).Count) / $($stkRows.Count)")
+    Add-V2Dist 'STOCKTP SLXUAT <= SLNHAP (rows ok / total)' ("$(@($stkRows | Where-Object { $_['SLNHAP'] -isnot [System.DBNull] -and $_['SLXUAT'] -isnot [System.DBNull] -and [double]$_['SLXUAT'] -le [double]$_['SLNHAP'] }).Count) / $($stkRows.Count)")
+
+    $v2Qty = New-Object System.Collections.Generic.List[object]
+    function Add-V2Qty([string]$name, $lk, $lq, $rk, $rq) {
+        $c = Compare-PctpGroupSums $lk $lq $rk $rq
+        $v2Qty.Add([pscustomobject]@{ comparison = $name; keys_both = $c.keys_both; sums_equal = $c.sums_equal; left_greater = $c.left_greater; left_smaller = $c.left_smaller; left_only_keys = $c.left_only_keys; right_only_keys = $c.right_only_keys })
+    }
+    $sLuuML = Get-PctpSingleKeys $kLuu_ML; $sQrML = Get-PctpSingleKeys $kQr_ML; $sLuuSML = Get-PctpSingleKeys $kLuu_SML; $sQrSML = Get-PctpSingleKeys $kQr_SML
+    $qLuu = @(Col $luu 'SOLUONG'); $qHvn = @(Col $luuQr 'SLTEMHVN'); $qFcc = @(Col $luuQr 'SLTEMFCC')
+    Add-V2Qty 'per (MAHANG+LOTroot): LUU.SOLUONG vs LUUQR.SLTEMHVN' $sLuuML $qLuu $sQrML $qHvn
+    Add-V2Qty 'per (MAHANG+LOTroot): LUU.SOLUONG vs LUUQR.SLTEMFCC' $sLuuML $qLuu $sQrML $qFcc
+    Add-V2Qty 'per (STT+MAHANG+LOTroot): LUU.SOLUONG vs LUUQR.SLTEMHVN' $sLuuSML $qLuu $sQrSML $qHvn
+    Add-V2Qty 'per (STT+MAHANG+LOTroot): LUU.SOLUONG vs LUUQR.SLTEMFCC' $sLuuSML $qLuu $sQrSML $qFcc
+    Add-V2Dist 'rows excluded from qty comparison (multi-LOT or no key): LUU / LUUQR' ("$(@($sLuuML | Where-Object { -not $_ }).Count) / $(@($sQrML | Where-Object { -not $_ }).Count)")
 } finally { $conn.Dispose() }
 
 New-Item -ItemType Directory -Force -Path $OutputDirectory | Out-Null
 $profiles | Export-Csv -LiteralPath (Join-Path $OutputDirectory 'column_profiles.csv') -NoTypeInformation -Encoding UTF8
 $joins | Export-Csv -LiteralPath (Join-Path $OutputDirectory 'join_candidates.csv') -NoTypeInformation -Encoding UTF8
 $inv | Export-Csv -LiteralPath (Join-Path $OutputDirectory 'invariants.csv') -NoTypeInformation -Encoding UTF8
+$v2Rel | Export-Csv -LiteralPath (Join-Path $OutputDirectory 'relations_v2.csv') -NoTypeInformation -Encoding UTF8
+$v2Dist | Export-Csv -LiteralPath (Join-Path $OutputDirectory 'distributions_v2.csv') -NoTypeInformation -Encoding UTF8
+$v2Qty | Export-Csv -LiteralPath (Join-Path $OutputDirectory 'qty_relations_v2.csv') -NoTypeInformation -Encoding UTF8
 $md = New-Object System.Collections.Generic.List[string]
 $md.Add("# Live-data profile (SQL14, read-only) - day $($from.ToString('yyyy-MM-dd'))"); $md.Add('')
 $md.Add('No raw business values are in this report: value shapes use 9 for digits and A/a for letters.'); $md.Add('')
@@ -141,6 +214,12 @@ $md.Add('## Best join per relation'); $md.Add('')
 foreach ($g in ($joins | Group-Object relation)) { $b = $g.Group | Sort-Object match_pct -Descending | Select-Object -First 1; $md.Add("- $($g.Name): best key mode **$($b.key_mode)** = $($b.match_pct)% of $($b.left_rows) rows") }
 $md.Add(''); $md.Add('## Invariants'); $md.Add('')
 foreach ($i in $inv) { $md.Add("- $($i.invariant): $($i.value)") }
+$md.Add(''); $md.Add('## Composite-key relations (v2)'); $md.Add('')
+foreach ($x in $v2Rel) { $md.Add("- $($x.relation): any-key $($x.any_key_match_pct)%, all-keys $($x.all_keys_match_pct)% of $($x.left_rows) keyed rows ($($x.left_rows_without_key) without key)") }
+$md.Add(''); $md.Add('## Distributions (v2)'); $md.Add('')
+foreach ($x in $v2Dist) { $md.Add("- $($x.metric): $($x.detail)") }
+$md.Add(''); $md.Add('## Quantity relations per key (v2)'); $md.Add('')
+foreach ($x in $v2Qty) { $md.Add("- $($x.comparison): both=$($x.keys_both) equal=$($x.sums_equal) left>right=$($x.left_greater) left<right=$($x.left_smaller) left-only=$($x.left_only_keys) right-only=$($x.right_only_keys)") }
 Set-Content -LiteralPath (Join-Path $OutputDirectory 'profile.md') -Value $md -Encoding UTF8
 [pscustomobject]@{ mode = 'READ_ONLY_PROFILE'; day = $from.ToString('yyyy-MM-dd'); login = $login; git_sha = $env:GITHUB_SHA; run_id = $env:GITHUB_RUN_ID; captured_utc = [DateTime]::UtcNow.ToString('o'); raw_values_exported = $false; enum_columns_listed = $enumCols } |
     ConvertTo-Json | Set-Content -LiteralPath (Join-Path $OutputDirectory 'profile-manifest.json') -Encoding UTF8

@@ -30,5 +30,38 @@ $n = Get-PctpColumnProfile 'SOLUONG' 'Int16' @([int16]5, [int16]20) $false
 Check 'profile: numeric min/max'                       ($n.num_min -eq 5 -and $n.num_max -eq 20)
 $d = Get-PctpColumnProfile 'NGAYGIAO' 'DateTime' @([datetime]'2026-10-28 08:00', [datetime]'2026-10-28 17:30') $false
 Check 'profile: date min/max'                          ($d.date_min -eq '2026-10-28 08:00' -and $d.date_max -eq '2026-10-28 17:30')
+# ---- profile v2 helpers (synthetic data only)
+Check 'lot list: splits, trims, upper-cases'          ((@(Split-PctpLotList ' ab-1 , cd-22 ,')).Count -eq 2 -and (Split-PctpLotList 'ab-1,cd-22')[1] -eq 'CD-22')
+Check 'lot list: blank/DBNull give no elements'       (@(Split-PctpLotList '  ').Count -eq 0 -and @(Split-PctpLotList ([System.DBNull]::Value)).Count -eq 0)
+Check 'lot root: first 13 chars, short kept'          ((Get-PctpLotRoot '1234567890123-045') -eq '1234567890123' -and (Get-PctpLotRoot '12345') -eq '12345')
+
+function New-T([string[]]$cols) { $t = New-Object System.Data.DataTable; foreach ($c in $cols) { [void]$t.Columns.Add($c) }; return , $t }
+$luu = New-T @('STT', 'MAHANG', 'LOT', 'SOLUONG')
+[void]$luu.Rows.Add('1', 'P-A', '1111111111111-001', '100')
+[void]$luu.Rows.Add('1', 'P-A', '1111111111111-002,2222222222222-001', '50')
+[void]$luu.Rows.Add('2', 'P-B', '3333333333333-001', '70')
+[void]$luu.Rows.Add('3', 'P-C', '', '5')
+$qr = New-T @('STT', 'MAHANGFCC', 'LOTFCC', 'SLTEMHVN')
+[void]$qr.Rows.Add('1', 'P-A', '1111111111111', '60'); [void]$qr.Rows.Add('1', 'P-A', '1111111111111', '40')
+[void]$qr.Rows.Add('9', 'P-B', '3333333333333', '70')
+
+$lk = Get-PctpRowKeyLists $luu @('MAHANG', 'LOT:lotroots')
+Check 'row keys: multi-LOT row yields one key per root' (@($lk[1]).Count -eq 2 -and @($lk[1])[0] -eq 'P-A|1111111111111')
+Check 'row keys: row with empty part yields no key'     (@($lk[3]).Count -eq 0)
+$rk = Get-PctpRowKeyLists $qr @('MAHANGFCC', 'LOTFCC:lotroots')
+$j = Get-PctpMultiKeyJoinRate $lk $rk
+Check 'multi-key join: any vs all (2 of 3 keyed rows hit any, 2 hit all)' ($j.left_rows -eq 3 -and $j.left_rows_without_key -eq 1 -and $j.any_key_match_pct -eq 100 -and $j.all_keys_match_pct -eq 66.7)
+$j2 = Get-PctpMultiKeyJoinRate (Get-PctpRowKeyLists $luu @('STT', 'MAHANG', 'LOT:lotroots')) (Get-PctpRowKeyLists $qr @('STT', 'MAHANGFCC', 'LOTFCC:lotroots'))
+Check 'multi-key join: adding STT to the key lowers the match' ($j2.any_key_match_pct -lt $j.any_key_match_pct)
+
+$b = Get-PctpGroupSizeBuckets @(1, 1, 1, 2, 3, 3)
+Check 'group sizes: 3 groups sized 3/1/2 -> buckets'   ($b -match 'groups=3' -and $b -match '1 x1' -and $b -match '2 x1' -and $b -match '3-5 x1')
+Check 'list length buckets'                            ((Get-PctpListLengthBuckets @('A', 'A,B', 'A,B', '')) -eq '1 LOT x1 | 2 LOT x2')
+
+$lkk = @('K1', 'K1', 'K2', 'K3'); $lq = @(100, 50, 70, 5)
+$rkk = @('K1', 'K2', 'K4'); $rq = @(150, 60, 9)
+$c = Compare-PctpGroupSums $lkk $lq $rkk $rq
+Check 'group sums: equal / left greater / left-only / right-only' ($c.keys_both -eq 2 -and $c.sums_equal -eq 1 -and $c.left_greater -eq 1 -and $c.left_only_keys -eq 1 -and $c.right_only_keys -eq 1)
+
 if ($script:fail -gt 0) { Write-Host "$script:fail check(s) failed."; exit 1 }
 Write-Host 'All profile helper checks passed.'; exit 0
