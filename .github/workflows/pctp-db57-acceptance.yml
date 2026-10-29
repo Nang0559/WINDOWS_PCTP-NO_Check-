@@ -64,6 +64,9 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           if (-not (Test-Path 'PCTP\bin\Debug\PCTP.exe')) { throw 'PCTP.exe was not produced.' }
 
+      - name: Redirect all application SQL connections to DB57
+        shell: powershell
+        run: .\PCTP.QC.UI\Set-PctpDb57ConnectionStrings.ps1 -ConfigPath "$PWD\PCTP\bin\Debug\PCTP.exe.config"
       - name: G5 - UI navigation against DB57
         id: g5
         shell: powershell
