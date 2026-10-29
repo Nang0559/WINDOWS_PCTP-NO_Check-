@@ -1,12 +1,12 @@
 {
   "name": "g6-receive",
-  "purpose": "G6 business journey (seed -> UI -> SQL assert -> cleanup). Extends receive-navigation.json. Data layer only: seeds a vNhapTP worklist row and QC slots; the QR scan itself is not automated yet.",
+  "purpose": "G6 real receiving journey: seed a run-scoped production worklist, capture two valid carton/total QR strings in memory, scan them through the real FormEnterItemSV input/Enter handler, assert STOCKTP + SlotLot + StockHistory postconditions, then cleanup.",
   "configured": true,
   "dataMutation": true,
   "scenario": {
     "id": "G6-003",
     "title": "Nhap kho: seed phieu san xuat -> hien tren vNhapTP",
-    "description": "Seed B20Item + 2 dong B30AccDoc (LOT 20 ky tu) + kho/ke/2 slot QC voi tien to {{prefix}}; mo man hinh Nhap thanh pham - QR; SQL xac nhan dong worklist trong dbo.vNhapTP (SL san xuat 20, SL da nhap 0, 2 slot trong); cleanup ve Remaining = 0. Buoc quet QR tem tong (FormEnterItemSV) CHUA tu dong hoa - dung qr.sql de lay chuoi QR va quet tay, xem docs/QC_LIVE_SEED_DATA.md."
+    "description": "Seed B20Item + two B30AccDoc rows + run-owned warehouse/rack/slots. Verify vNhapTP worklist before scanning, open the real receiving scan form, submit both generated tem-tong QR inputs through receive_qrInput and Enter, assert the receiving service created the expected stock/location/history, and clean up the run."
   },
   "testData": {
     "menuPath": "Nhập Kho > Nhập thành phẩm - QR",
@@ -19,7 +19,12 @@
       "mutatesData": true,
       "sqlFile": "sql/receive/seed.sql",
       "expectRowsAtLeast": 7,
-      "description": "Seed item, 2 phieu san xuat B30AccDoc, kho/ke/2 slot voi tien to {{prefix}}"
+      "description": "Seed item, 2 phieu san xuat B30AccDoc, kho/ke/2 slot voi tien to {{prefix}}",
+      "captureColumns": [
+        "SeedRowsAffected",
+        "Qr1",
+        "Qr2"
+      ]
     },
     {
       "id": "expand-receive-menu",
@@ -82,7 +87,7 @@
       "expect": []
     },
     {
-      "id": "assert-after-ui",
+      "id": "assert-worklist-before-scan",
       "action": "sql-assert",
       "sqlFile": "sql/receive/assert.sql",
       "expectColumns": {
@@ -93,6 +98,73 @@
         "FreeSlots": 2
       },
       "description": "SQL: dong worklist vNhapTP ton tai dung so luong, chua nhap, 2 slot QC con trong"
+    },
+    {
+      "id": "open-receive-scan-form",
+      "action": "click",
+      "automationId": "receive_btnScan",
+      "description": "Mở form quét tem tổng thực tế",
+      "waitAfterMs": 300,
+      "dump": true
+    },
+    {
+      "id": "receive-scan-form-visible",
+      "action": "wait-for-window",
+      "value": "NHẬP KHO HÀNG HÓA - CANVAS UI",
+      "timeoutSeconds": 20,
+      "description": "Chờ form FormEnterItemSV xuất hiện",
+      "expected": "Form quét tem tổng hiển thị",
+      "dump": true
+    },
+    {
+      "id": "enter-receipt-qr-1",
+      "action": "set-value",
+      "automationId": "receive_qrInput",
+      "value": "{{Qr1}}",
+      "description": "Nhập tem tổng thứ nhất sinh từ B30AccDoc",
+      "waitAfterMs": 100
+    },
+    {
+      "id": "submit-receipt-qr-1",
+      "action": "press-enter",
+      "automationId": "receive_qrInput",
+      "description": "Gửi tem tổng thứ nhất qua KeyDown Enter để chạy receiving service thật",
+      "waitAfterMs": 600,
+      "dump": true
+    },
+    {
+      "id": "enter-receipt-qr-2",
+      "action": "set-value",
+      "automationId": "receive_qrInput",
+      "value": "{{Qr2}}",
+      "description": "Nhập tem tổng thứ hai sinh từ B30AccDoc",
+      "waitAfterMs": 100
+    },
+    {
+      "id": "submit-receipt-qr-2",
+      "action": "press-enter",
+      "automationId": "receive_qrInput",
+      "description": "Gửi tem tổng thứ hai qua KeyDown Enter để chạy receiving service thật",
+      "waitAfterMs": 800,
+      "dump": true
+    },
+    {
+      "id": "assert-after-ui",
+      "action": "sql-assert",
+      "sqlFile": "sql/receive/assert-after-scan.sql",
+      "expectColumns": {
+        "StockRows": 1,
+        "StockReceived": 20,
+        "StockRemaining": 20,
+        "StockIssued": 0,
+        "StockViolations": 0,
+        "SlotLotRows": 1,
+        "SlotLotQty": 20,
+        "HistoryRows": 2,
+        "HistoryQty": 20,
+        "SlotLotWithoutStockViolations": 0
+      },
+      "description": "Xác minh kết quả nhập kho thật sau hai tem: STOCKTP + SlotLot + StockHistory và invariant."
     },
     {
       "id": "cleanup",
