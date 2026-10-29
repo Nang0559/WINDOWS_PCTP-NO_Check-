@@ -96,6 +96,10 @@ internal static class Program
                 return 0;
             }
 
+            Console.WriteLine("INFO: running production StockHistoryRepository parameter and rollback checks against session-local #StockHistory...");
+            ProductionStockHistoryRepositoryScenario.Run(connectionString);
+            Console.WriteLine("PASS: production StockHistoryRepository persistence mapping and rollback checks completed with isolated fixtures.");
+
             Console.WriteLine("INFO: running production StockTpRepository checks against a session-local #STOCKTP fixture (dbo.STOCKTP is not touched)...");
             ProductionStockTpRepositoryScenario.Run(connectionString, verifySharedBusinessTable: !engineOnly);
             Console.WriteLine("PASS: production StockTpRepository integration checks completed against session-local #STOCKTP.");
