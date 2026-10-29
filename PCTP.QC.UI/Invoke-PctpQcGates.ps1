@@ -80,7 +80,11 @@ function Enter-Isolation {
 function Assert-LiveDb57Target {
     if ($SqlServer.Trim() -ne '192.168.200.57' -or $SqlDatabase.Trim() -ne 'B7R2_FCC') { throw 'Live DB57 acceptance is pinned to 192.168.200.57/B7R2_FCC.' }
     if (-not $ExePath -or -not (Test-Path -LiteralPath ($ExePath + '.config') -PathType Leaf)) { throw 'Live DB57 acceptance requires PCTP.exe.config.' }
-    $cfgText = Get-Content -LiteralPath ($ExePath + '.config') -Raw
+    # Connection-string entry NAMES are identifiers referenced by code (e.g. 'accfast\bravo.B7R2_FCC.dbo' used by report
+    # data sources); only their values can point at a server, so ignore the names when scanning for SQL14/BRAVO.
+    [xml]$cfgXml = Get-Content -LiteralPath ($ExePath + '.config') -Raw
+    foreach ($cfgEntry in @($cfgXml.SelectNodes('/configuration/connectionStrings/add'))) { [void]$cfgEntry.RemoveAttribute('name') }
+    $cfgText = $cfgXml.OuterXml
     if ($cfgText -match '192\.168\.200\.14|BRAVO') { throw 'PCTP.exe.config points to SQL14/BRAVO; refusing production.' }
     if ($cfgText -notmatch '192\.168\.200\.57') { throw 'PCTP.exe.config must explicitly target SQL57 (192.168.200.57).' }
     $env:PCTP_QC_LIVE_MODE = '1'

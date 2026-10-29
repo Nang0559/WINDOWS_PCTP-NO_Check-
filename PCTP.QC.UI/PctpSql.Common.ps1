@@ -124,7 +124,15 @@ function Test-PctpAppTargetsIsolatedDb([string]$exePath, [string]$server, [switc
     }
     $cfg = $exePath + '.config'
     $text = ''
-    if (Test-Path -LiteralPath $cfg -PathType Leaf) { $text = Get-Content -LiteralPath $cfg -Raw -ErrorAction SilentlyContinue }
+    if (Test-Path -LiteralPath $cfg -PathType Leaf) {
+        $text = Get-Content -LiteralPath $cfg -Raw -ErrorAction SilentlyContinue
+        # Entry names (e.g. 'accfast\bravo.B7R2_FCC.dbo') are identifiers, not targets: scan values only.
+        try {
+            [xml]$cfgXml = $text
+            foreach ($cfgEntry in @($cfgXml.SelectNodes('/configuration/connectionStrings/add'))) { [void]$cfgEntry.RemoveAttribute('name') }
+            $text = $cfgXml.OuterXml
+        } catch { }
+    }
     if ($text -match '192\.168\.200\.14' -or $text -match 'BRAVO') {
         throw "App config '$cfg' references the production server. G6 mutations are refused."
     }
