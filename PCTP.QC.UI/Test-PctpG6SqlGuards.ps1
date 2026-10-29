@@ -69,5 +69,16 @@ if (Test-Path -LiteralPath $deliveryManifestPath) {
     $postScan = @($deliverySteps | Where-Object { $_.id -eq 'assert-after-ui' } | Select-Object -First 1)
     Check 'multilot journey: assertion runs after scan and checks stock/QR/delivery invariants' (($postScan.Count -eq 1) -and ($postScan[0].sqlFile -eq 'sql/delivery-hvn-multilot/assert-after-scan.sql') -and ($postScan[0].expectColumns.StockViolations -eq 0) -and ($postScan[0].expectColumns.QrWithoutStockViolations -eq 0))
 }
+# ---- single-line delivery also must execute the real QR UI path (not merely show a worklist)
+$singleDeliveryPath = Join-Path $PSScriptRoot 'journeys\\g6\\g6-delivery-hvn.json'
+if (Test-Path -LiteralPath $singleDeliveryPath) {
+    $single = Get-Content -LiteralPath $singleDeliveryPath -Raw -Encoding UTF8 | ConvertFrom-Json
+    $singleSteps = @($single.steps)
+    $singleSeed = @($singleSteps | Where-Object { $_.id -eq 'seed' } | Select-Object -First 1)
+    $singleAssert = @($singleSteps | Where-Object { $_.id -eq 'assert-after-ui' } | Select-Object -First 1)
+    Check 'single-line delivery: seed captures generated QR input' (($singleSeed.Count -eq 1) -and (@($singleSeed[0].captureColumns) -contains 'Qr1') -and (@($singleSeed[0].captureColumns) -contains 'SeedRowsAffected'))
+    Check 'single-line delivery: QR input + Enter are automated' ((@($singleSteps | Where-Object { $_.id -eq 'enter-carton-qr' -and $_.action -eq 'set-value' -and $_.automationId -eq 'txt_DOCQRCODE' }).Count -eq 1) -and (@($singleSteps | Where-Object { $_.id -eq 'submit-carton-qr' -and $_.action -eq 'press-enter' -and $_.automationId -eq 'txt_DOCQRCODE' }).Count -eq 1))
+    Check 'single-line delivery: read-only post-scan assertions are wired' (($singleAssert.Count -eq 1) -and ($singleAssert[0].sqlFile -eq 'sql/delivery-hvn/assert-after-scan.sql') -and ($singleAssert[0].expectColumns.DeliveredQty -eq 10))
+}
 if ($script:fail -gt 0) { Write-Host "$script:fail check(s) failed."; exit 1 }
 Write-Host 'All G6 SQL guard checks passed.'; exit 0
