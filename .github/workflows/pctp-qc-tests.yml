@@ -286,38 +286,6 @@ jobs:
             SELECT 'PASS: required delivery tables verified in PCTP_QC_CI' AS Result;"
           echo "PASS: DB57-derived schema and the six checked-in WMS procedures deployed to PCTP_QC_CI"
 
-      - name: Package SQL deploy bundle for the Windows UI fixture (same files, same order as the deploy above)
-        shell: bash
-        run: |
-          set -euo pipefail
-          # Keep this list identical to "Deploy DB57-derived schema to disposable database".
-          b="$RUNNER_TEMP/bundle"; mkdir -p "$b"; : > "$b/deploy-order.txt"; i=0
-          for f in \
-            SQL/QC_Schema/02_Generated_From_DB57.sql \
-            SQL/QC_Schema/03_Generated_From_DB57_Constraints.sql \
-            SQL/QC_Schema/05_Split.sql \
-            SQL/QC_Schema/06_Fixture_NhapTP_SourceTables.sql \
-            SQL/PCTP_vNhapTP.sql \
-            SQL/Usp_Qrcode_Update_Stock2405.sql \
-            SQL/Usp_Qrcode_Update_Stock_SP.sql \
-            SQL/sp_GetCurrentStockStatus.sql \
-            "$RUNNER_TEMP/deploy/Usp_Qrcode_LOAD_PHIEU_DOCQR2405.sql" \
-            "$RUNNER_TEMP/deploy/Usp_Qrcode_Take_Lot2405.sql" \
-            "$RUNNER_TEMP/deploy/Usp_Qrcode_Take_LotYMVN2405.sql"; do
-            i=$((i+1)); n="$(printf '%02d_%s' "$i" "$(basename "$f")")"
-            cp "$f" "$b/$n"; echo "$n" >> "$b/deploy-order.txt"
-          done
-          test "$i" -eq 11
-          echo "$GITHUB_SHA" > "$b/COMMIT.txt"
-          cat "$b/deploy-order.txt"
-
-      - name: Upload SQL deploy bundle
-        uses: actions/upload-artifact@v4
-        with:
-          name: pctp-isolated-sql-bundle
-          path: ${{ runner.temp }}/bundle
-          if-no-files-found: error
-
       - name: Seed deterministic G4 fixture
         shell: bash
         run: |
