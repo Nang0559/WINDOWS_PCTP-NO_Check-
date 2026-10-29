@@ -54,9 +54,9 @@ CREATE TABLE #StockHistory
 
                 repository.SaveHistory("MOVE", "QC-ITEM", lot, 11, 22, "QC-OPERATOR");
 
-                Require(Scalar(uow, "SELECT COUNT(*) FROM #StockHistory") == 1,
+                Require(Convert.ToInt32(Scalar(uow, "SELECT COUNT(*) FROM #StockHistory")) == 1,
                     "Production repository did not insert exactly one history row.");
-                Require(Scalar(uow, "SELECT Quantity FROM #StockHistory") == 17,
+                Require(Convert.ToInt32(Scalar(uow, "SELECT Quantity FROM #StockHistory")) == 17,
                     "Production repository did not persist the LOT quantity.");
                 Require(Scalar(uow, "SELECT ItemCode FROM #StockHistory") == "QC-ITEM",
                     "Production repository did not persist ItemCode.");
@@ -70,9 +70,9 @@ CREATE TABLE #StockHistory
                     "Production repository did not persist MaPhieu.");
                 Require(Scalar(uow, "SELECT PerformedBy FROM #StockHistory") == "QC-OPERATOR",
                     "Production repository did not persist the operator.");
-                Require(Scalar(uow, "SELECT FromSlotId FROM #StockHistory") == 11,
+                Require(Convert.ToInt32(Scalar(uow, "SELECT FromSlotId FROM #StockHistory")) == 11,
                     "Production repository did not persist FromSlotId.");
-                Require(Scalar(uow, "SELECT ToSlotId FROM #StockHistory") == 22,
+                Require(Convert.ToInt32(Scalar(uow, "SELECT ToSlotId FROM #StockHistory")) == 22,
                     "Production repository did not persist ToSlotId.");
 
                 uow.Rollback();
