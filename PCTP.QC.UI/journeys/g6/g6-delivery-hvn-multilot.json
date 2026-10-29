@@ -1,12 +1,12 @@
 {
   "name": "g6-delivery-hvn-multilot",
-  "purpose": "G6 business journey (seed -> UI -> SQL assert -> cleanup), profile-shaped. Seeds 3 pending TMPPHIEUGIAOHANG lines with 1, 2 and 3 LOT (comma-separated 'LOT20-qty') plus 6 STOCKTP lots (one row per LOT root13), taken from the SQL14 profile of 2026-10-28. Data layer only: the carton QR scan is still manual, so LUUPHIEUGIAOHANG / LUUDOCQRCODE are written by the real procedure, never seeded.",
+  "purpose": "G6 real UI journey: seed run-scoped prerequisites, capture generated QR values without logging them, enter each QR through the real HVN_PGH control and Enter handler, assert delivery/QR/stock invariants, then cleanup.",
   "configured": true,
   "dataMutation": true,
   "scenario": {
     "id": "G6-005",
     "title": "Giao hang HVN 3 phieu 1/2/3 LOT",
-    "description": "Seed B20Item x3 + STOCKTP x6 (LOT 20 ky tu, root13 duy nhat) + 3 dong TMPPHIEUGIAOHANG (1/2/3 LOT) voi tien to {{prefix}}; mo man hinh HVN_PGH; SQL xac nhan 3 dong cho giao (TmpQty 28), ton kho 42, chua co LUUPHIEUGIAOHANG; cleanup ve Remaining = 0. Sau khi quet tay: Invoke-PctpQcSeed.ps1 -Action Assert -Journey delivery-hvn-multilot."
+    "description": "Seed 3 B20Item + 6 STOCKTP LOT + 3 TMPPHIEUGIAOHANG pending lines. QR values are generated from the seeded LOT and quantity and captured in memory only. The runner enters all six carton QR values into txt_DOCQRCODE and sends Enter, then asserts the real procedure's postconditions and cleans up the run prefix."
   },
   "testData": {
     "menuPath": "Giao Hàng > HVN - MP",
@@ -19,7 +19,16 @@
       "mutatesData": true,
       "sqlFile": "sql/delivery-hvn-multilot/seed.sql",
       "expectRowsAtLeast": 12,
-      "description": "Seed 3 item, 6 STOCKTP lot va 3 dong TMPPHIEUGIAOHANG (1/2/3 LOT) voi tien to {{prefix}}"
+      "description": "Seed 3 item, 6 STOCKTP lot va 3 dong TMPPHIEUGIAOHANG (1/2/3 LOT) voi tien to {{prefix}}",
+      "captureColumns": [
+        "SeedRowsAffected",
+        "Qr1",
+        "Qr2",
+        "Qr3",
+        "Qr4",
+        "Qr5",
+        "Qr6"
+      ]
     },
     {
       "id": "expand-delivery-menu",
@@ -66,21 +75,116 @@
       "expected": "'gridCtrDONHANG' hiển thị"
     },
     {
+      "id": "enter-carton-qr-1",
+      "action": "set-value",
+      "automationId": "txt_DOCQRCODE",
+      "value": "{{Qr1}}",
+      "description": "Nhập QR tem thùng #1 được sinh từ LOT/quantity của run này vào ô quét thật",
+      "waitAfterMs": 150
+    },
+    {
+      "id": "submit-carton-qr-1",
+      "action": "press-enter",
+      "automationId": "txt_DOCQRCODE",
+      "description": "Gửi QR tem thùng #1 qua event Enter của UI thật",
+      "waitAfterMs": 350,
+      "dump": true
+    },
+    {
+      "id": "enter-carton-qr-2",
+      "action": "set-value",
+      "automationId": "txt_DOCQRCODE",
+      "value": "{{Qr2}}",
+      "description": "Nhập QR tem thùng #2 được sinh từ LOT/quantity của run này vào ô quét thật",
+      "waitAfterMs": 150
+    },
+    {
+      "id": "submit-carton-qr-2",
+      "action": "press-enter",
+      "automationId": "txt_DOCQRCODE",
+      "description": "Gửi QR tem thùng #2 qua event Enter của UI thật",
+      "waitAfterMs": 350,
+      "dump": false
+    },
+    {
+      "id": "enter-carton-qr-3",
+      "action": "set-value",
+      "automationId": "txt_DOCQRCODE",
+      "value": "{{Qr3}}",
+      "description": "Nhập QR tem thùng #3 được sinh từ LOT/quantity của run này vào ô quét thật",
+      "waitAfterMs": 150
+    },
+    {
+      "id": "submit-carton-qr-3",
+      "action": "press-enter",
+      "automationId": "txt_DOCQRCODE",
+      "description": "Gửi QR tem thùng #3 qua event Enter của UI thật",
+      "waitAfterMs": 350,
+      "dump": false
+    },
+    {
+      "id": "enter-carton-qr-4",
+      "action": "set-value",
+      "automationId": "txt_DOCQRCODE",
+      "value": "{{Qr4}}",
+      "description": "Nhập QR tem thùng #4 được sinh từ LOT/quantity của run này vào ô quét thật",
+      "waitAfterMs": 150
+    },
+    {
+      "id": "submit-carton-qr-4",
+      "action": "press-enter",
+      "automationId": "txt_DOCQRCODE",
+      "description": "Gửi QR tem thùng #4 qua event Enter của UI thật",
+      "waitAfterMs": 350,
+      "dump": false
+    },
+    {
+      "id": "enter-carton-qr-5",
+      "action": "set-value",
+      "automationId": "txt_DOCQRCODE",
+      "value": "{{Qr5}}",
+      "description": "Nhập QR tem thùng #5 được sinh từ LOT/quantity của run này vào ô quét thật",
+      "waitAfterMs": 150
+    },
+    {
+      "id": "submit-carton-qr-5",
+      "action": "press-enter",
+      "automationId": "txt_DOCQRCODE",
+      "description": "Gửi QR tem thùng #5 qua event Enter của UI thật",
+      "waitAfterMs": 350,
+      "dump": false
+    },
+    {
+      "id": "enter-carton-qr-6",
+      "action": "set-value",
+      "automationId": "txt_DOCQRCODE",
+      "value": "{{Qr6}}",
+      "description": "Nhập QR tem thùng #6 được sinh từ LOT/quantity của run này vào ô quét thật",
+      "waitAfterMs": 150
+    },
+    {
+      "id": "submit-carton-qr-6",
+      "action": "press-enter",
+      "automationId": "txt_DOCQRCODE",
+      "description": "Gửi QR tem thùng #6 qua event Enter của UI thật",
+      "waitAfterMs": 350,
+      "dump": true
+    },
+    {
       "id": "assert-after-ui",
       "action": "sql-assert",
-      "sqlFile": "sql/delivery-hvn-multilot/assert.sql",
+      "sqlFile": "sql/delivery-hvn-multilot/assert-after-scan.sql",
       "expectColumns": {
-        "TmpRows": 3,
-        "TmpQty": 28,
-        "TmpMultiLotRows": 2,
-        "StockRows": 6,
-        "StockRemaining": 42,
-        "DuplicateRoot13": 0,
-        "StockInvariantViolations": 0,
-        "DeliveredRows": 0,
-        "PendingQrRows": 0
+        "StockViolations": 0,
+        "LuuOverIssued": 0,
+        "QrWithoutStockViolations": 0,
+        "LuuLots": 6,
+        "LuuLotsWithQr": 6,
+        "QrFccQty": 28,
+        "StockIssued": 28,
+        "QrDuplicateRows": 0
       },
-      "description": "SQL: 3 dong cho giao (28), 2 dong nhieu LOT, 6 lot ton 42, root13 khong trung, chua co phieu giao / QR cho"
+      "description": "Sau 6 lần quét QR bằng ô UI thật, đối chiếu delivery/QR/stock và invariant; không seed kết quả nghiệp vụ."
     },
     {
       "id": "cleanup",
