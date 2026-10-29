@@ -91,5 +91,16 @@ if (Test-Path -LiteralPath $receiveManifestPath) {
     $receiveAssert = @($receiveSteps | Where-Object { $_.id -eq 'assert-after-ui' } | Select-Object -First 1)
     Check 'receive journey: post-scan assertion covers stock, SlotLot and history' (($receiveAssert.Count -eq 1) -and ($receiveAssert[0].sqlFile -eq 'sql/receive/assert-after-scan.sql') -and ($receiveAssert[0].expectColumns.StockReceived -eq 20) -and ($receiveAssert[0].expectColumns.SlotLotQty -eq 20))
 }
+# ---- cleanup must be marked complete only AFTER cleanup SQL and Remaining verification succeed
+$journeyRunnerPath = Join-Path $PSScriptRoot 'Invoke-PctpUiJourney.ps1'
+if (Test-Path -LiteralPath $journeyRunnerPath) {
+    $journeyRunner = Get-Content -LiteralPath $journeyRunnerPath -Raw -Encoding UTF8
+    $cleanupCaseMatch = [regex]::Match($journeyRunner, '(?s)"sql-cleanup"\s*\{([^}]*)\}')
+    $cleanupCase = if ($cleanupCaseMatch.Success) { $cleanupCaseMatch.Groups[1].Value } else { '' }
+    $invokeCleanupAt = $cleanupCase.IndexOf('Invoke-PctpSqlStep')
+    $markCleanupAt = $cleanupCase.IndexOf('$cleanupDone.Add')
+    Check 'runner marks cleanup complete only after verified cleanup returns' (($invokeCleanupAt -ge 0) -and ($markCleanupAt -gt $invokeCleanupAt))
+    Check 'runner finally retries any cleanup not marked complete' ($journeyRunner -match '(?s)if \(\$cleanupDone\.Contains\(\[string\]\$cs\.id\)\) \{ continue \}.*?Invoke-PctpSqlStep \$cs.*?"cleanup"')
+}
 if ($script:fail -gt 0) { Write-Host "$script:fail check(s) failed."; exit 1 }
 Write-Host 'All G6 SQL guard checks passed.'; exit 0
