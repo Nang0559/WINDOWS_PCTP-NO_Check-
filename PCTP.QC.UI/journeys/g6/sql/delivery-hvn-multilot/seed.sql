@@ -64,3 +64,34 @@ INSERT INTO dbo.TMPPHIEUGIAOHANG (STT, CUA, TRUYEN, MAHANG, TENHANG, LOT, DV, SO
 VALUES (@Stt + 1, @Prefix, @Prefix, @ItemB, N'QC fixture ' + @Prefix, @LotB1 + N'-6,' + @LotB2 + N'-4', N'PCS', 10, CAST(GETDATE() AS date), N'23:59', N'PENDING', 'QCUI', @Prefix + N'_DEL2');
 INSERT INTO dbo.TMPPHIEUGIAOHANG (STT, CUA, TRUYEN, MAHANG, TENHANG, LOT, DV, SOLUONG, NGAYGIAO, GIOGIAO, STATUS, NHAMAY, Note)
 VALUES (@Stt + 2, @Prefix, @Prefix, @ItemC, N'QC fixture ' + @Prefix, @LotC1 + N'-3,' + @LotC2 + N'-3,' + @LotC3 + N'-2', N'PCS', 8, CAST(GETDATE() AS date), N'23:59', N'PENDING', 'QCUI', @Prefix + N'_DEL3');
+
+
+-- Return one row of run-local QR values to the UI runner. The runner captures only the declared aliases;
+-- values are never written to logs. These are inputs for real UI scan steps, not pre-seeded business results.
+;WITH Q0 AS (
+    SELECT t.STT,
+           RTRIM(s.LOT) + N'0001' + RIGHT(N'0000' + CAST(x.Qty AS nvarchar(4)), 4) + N':' + RTRIM(s.PART) + N':' +
+             CONVERT(nvarchar(10), s.NGAYSX, 103) + N':' + CAST(x.Qty AS nvarchar(10)) AS Qr,
+           ROW_NUMBER() OVER (ORDER BY t.STT, s.NGAYSX DESC, s.LOT) AS rn
+    FROM dbo.STOCKTP s
+    JOIN dbo.TMPPHIEUGIAOHANG t
+      ON t.MAHANG = s.PART
+     AND t.Note LIKE REPLACE(@Prefix, N'_', N'[_]') + N'%'
+     AND t.LOT LIKE N'%' + RTRIM(s.LOT) + N'-%'
+    CROSS APPLY (SELECT CHARINDEX(RTRIM(s.LOT) + N'-', t.LOT) AS P) p
+    CROSS APPLY (SELECT TRY_CAST(SUBSTRING(t.LOT, p.P + 21,
+                        CHARINDEX(N',', t.LOT + N',', p.P) - (p.P + 21)) AS int) AS Qty) x
+    WHERE s.PART LIKE REPLACE(@Prefix, N'_', N'[_]') + N'%'
+), Q AS (
+    SELECT MAX(CASE WHEN rn = 1 THEN Qr END) AS Qr1,
+           MAX(CASE WHEN rn = 2 THEN Qr END) AS Qr2,
+           MAX(CASE WHEN rn = 3 THEN Qr END) AS Qr3,
+           MAX(CASE WHEN rn = 4 THEN Qr END) AS Qr4,
+           MAX(CASE WHEN rn = 5 THEN Qr END) AS Qr5,
+           MAX(CASE WHEN rn = 6 THEN Qr END) AS Qr6,
+           COUNT(*) AS QrCount
+    FROM Q0
+)
+SELECT CAST(12 AS int) AS SeedRowsAffected, Qr1, Qr2, Qr3, Qr4, Qr5, Qr6
+FROM Q
+WHERE QrCount = 6;
