@@ -1,13 +1,13 @@
 {
   "name": "g6-receive",
   "purpose": "G6 business journey (seed -> UI -> SQL assert -> cleanup). Extends receive-navigation.json.",
-  "configured": false,
-  "configurationNeeded": "seed.sql (1 tem/QR nhap hop le + slot trong), buoc UI quet/nhap QR, assert.sql (STOCKTP, SlotLot, StockHistory, PCTPStockMovementGuard), cleanup/verify.sql",
+  "configured": true,
+  "configurationNeeded": "",
   "dataMutation": true,
   "scenario": {
     "id": "G6-003",
     "title": "Nhap kho mot phieu seed",
-    "description": "KHUNG CHUA CAU HINH: seed/assert/cleanup SQL va cac buoc UI thao tac phai bo sung theo schema that. Cac buoc dieu huong da duoc xac minh o G5."
+    "description": "Tạo một dòng B30AccDoc riêng theo run, xác minh xuất hiện trong vNhapTP, tự điền QR tổng vào UI nhập kho, thực hiện nhập thật rồi kiểm tra STOCKTP/SlotLot/StockHistory/MovementGuard và cleanup."
   },
   "testData": {
     "menuPath": "Nhập Kho > Nhập thành phẩm - QR",
@@ -20,14 +20,23 @@
       "mutatesData": true,
       "sqlFile": "sql/receive/seed.sql",
       "expectRowsAtLeast": 1,
-      "description": "Seed du lieu duy nhat voi tien to {{prefix}}"
+      "captureColumns": [
+        "SeedRowsAffected",
+        "itemCode",
+        "baseLot",
+        "fullLot",
+        "qr",
+        "productionDate",
+        "quantity"
+      ],
+      "description": "Tạo phiếu sản xuất riêng cho run {{prefix}} và lấy QR sinh từ dữ liệu SQL"
     },
     {
       "id": "expand-receive-menu",
       "action": "expand",
       "automationId": "NHAccordionControlElement",
       "fallbackName": "Nhập Kho",
-      "description": "Mở nhóm menu 'Nhập Kho'"
+      "description": "Mở nhóm menu Nhập Kho"
     },
     {
       "id": "open-receive-workflow",
@@ -35,59 +44,70 @@
       "automationId": "E_NhapTP",
       "waitAfterMs": 1200,
       "fallbackName": "Nhập thành phẩm - QR",
-      "description": "Chọn mục menu 'Nhập thành phẩm - QR' ({{menuPath}})"
+      "description": "Mở màn hình nhập kho"
     },
     {
       "id": "receiving-screen-visible",
       "action": "wait-for-window",
       "value": "{{expectedWindowTitle}}",
       "timeoutSeconds": 45,
-      "description": "Chờ màn hình đích xuất hiện",
-      "expected": "Cửa sổ có tiêu đề '{{expectedWindowTitle}}' hiển thị",
+      "description": "Chờ màn hình tiến trình nhập kho",
+      "expected": "Màn hình tiến trình nhập kho hiển thị",
       "dump": true
     },
     {
-      "id": "verify-receiving-title",
-      "action": "assert-window-title",
-      "value": "{{expectedWindowTitle}}",
-      "description": "Xác nhận tiêu đề cửa sổ"
-    },
-    {
-      "id": "receiving-scan-control-exposed",
-      "action": "assert-exists",
+      "id": "open-qr-scan",
+      "action": "click",
       "automationId": "receive_btnScan",
-      "description": "Control 'receive_btnScan' phải tồn tại trên màn hình",
-      "expected": "'receive_btnScan' hiển thị",
-      "expect": [
-        {
-          "automationId": "receive_btnScan",
-          "property": "name",
-          "contains": "Quét nhập"
-        }
-      ]
+      "waitAfterMs": 800,
+      "fallbackName": "Quét nhập",
+      "description": "Mở màn hình nhập QR"
     },
     {
-      "id": "receiving-refresh-control-exposed",
-      "action": "assert-exists",
-      "automationId": "receive_btnRefresh",
-      "fallbackName": "Làm mới",
-      "description": "Nút làm mới worklist phải được expose riêng, không dùng làm điều kiện cho grid",
-      "expected": "Nút Làm mới tồn tại"
+      "id": "qr-entry-screen-visible",
+      "action": "wait-for-window",
+      "value": "NHẬP KHO HÀNG HÓA",
+      "timeoutSeconds": 30,
+      "description": "Chờ form quét QR tổng",
+      "expected": "Form nhập QR tổng hiển thị",
+      "dump": true
     },
     {
-      "id": "receiving-worklist-grid-exposed",
-      "action": "assert-exists",
-      "automationId": "receive_worklistGrid",
-      "description": "Control 'receive_worklistGrid' phải tồn tại trên màn hình. Kiểm tra nút refresh ở bước riêng.",
-      "expected": "'receive_worklistGrid' hiển thị",
-      "expect": []
+      "id": "fill-receiving-qr",
+      "action": "set-value",
+      "automationId": "receive_qrInput",
+      "value": "{{qr}}",
+      "description": "Tự điền QR tổng do bước seed sinh ra"
+    },
+    {
+      "id": "submit-receiving-qr",
+      "action": "press-enter",
+      "automationId": "receive_qrInput",
+      "waitAfterMs": 1200,
+      "description": "Kích hoạt luồng quét QR thật; chế độ nhập hàng loạt tự lưu vào Slot ảo"
+    },
+    {
+      "id": "receiving-success-visible",
+      "action": "assert-name-contains",
+      "automationId": "receive_bulkStatus",
+      "value": "Đã nhập LOT",
+      "description": "Xác nhận UI báo nhập kho thành công",
+      "expected": "Thông báo thành công có LOT"
     },
     {
       "id": "assert-after-ui",
       "action": "sql-assert",
       "sqlFile": "sql/receive/assert.sql",
-      "expectColumns": {},
-      "description": "SQL hau dieu kien sau thao tac UI"
+      "expectColumns": {
+        "SourceRows": 1,
+        "StockRows": 1,
+        "SlotLotRows": 1,
+        "ImportHistoryRows": 1,
+        "ReceivedQty": 8,
+        "RemainingQty": 8,
+        "MovementGuardRows": 1
+      },
+      "description": "Xác minh giao dịch nhập kho đã commit trong DB57"
     },
     {
       "id": "cleanup",
@@ -95,7 +115,7 @@
       "mutatesData": true,
       "sqlFile": "sql/receive/cleanup.sql",
       "verifySqlFile": "sql/receive/verify.sql",
-      "description": "Xoa dung du lieu da seed va kiem tra khong con dong nao"
+      "description": "Dọn riêng dữ liệu do run này tạo và xác minh Remaining=0"
     }
   ]
 }
