@@ -4,6 +4,8 @@ Branch kiểm thử: `feature/wms-live-data-test-harness`
 
 Tài liệu này nối bộ thiết kế nghiệp vụ/kiến trúc WMS với `doc/PCTP_WMS_LIVE_DATA_ACCEPTANCE_MASTER_SPEC.md`. Đây là **bản đồ truy vết và quy tắc điều phối tài liệu**, không thay thế thiết kế gốc, không tự khẳng định implementation đã đúng và không thay thế evidence chạy thật.
 
+**Sổ evidence chạy thật:** xem [`WMS_TEST_EXECUTION_STATUS.md`](WMS_TEST_EXECUTION_STATUS.md). Tài liệu này giữ trạng thái gate theo run/SHA; không lấy checklist hay trạng thái branch khác thay cho evidence.
+
 ## 1. Thứ bậc tài liệu và xử lý xung đột
 
 | Lớp | Nguồn | Dùng để quyết định | Không được dùng để kết luận |
