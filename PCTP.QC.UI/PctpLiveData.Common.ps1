@@ -64,8 +64,9 @@ function Invoke-PctpScalarRows([string]$ConnectionString, [string]$Sql) {
     } finally { $conn.Dispose() }
 }
 
-# Fail-closed proof that the source login cannot change data or schema. Returns the login name for the manifest.
-function Assert-PctpSourceReadOnly([string]$ConnectionString, [string]$Label = 'SQL14 source') {
+# Reports what a login can do in its current database. Used by Assert-PctpSourceReadOnly (SQL14: fail closed) and, for the
+# SQL57 inventory target only, by the explicit -AllowPrivilegedTarget opt-in (recorded in the manifest, never silent).
+function Get-PctpLoginPrivileges([string]$ConnectionString) {
     $sql = @"
 SELECT SUSER_SNAME() AS login_name,
        CAST(ISNULL(IS_SRVROLEMEMBER('sysadmin'),0) AS int) AS is_sysadmin,
@@ -81,8 +82,14 @@ SELECT SUSER_SNAME() AS login_name,
     $row = (Invoke-PctpScalarRows $ConnectionString $sql).Rows[0]
     $bad = @('is_sysadmin', 'is_db_owner', 'is_datawriter', 'is_ddladmin', 'can_insert', 'can_update', 'can_delete', 'can_execute', 'can_alter') |
         Where-Object { [int]$row[$_] -ne 0 }
-    if ($bad) { throw "$Label login is not read-only (found: $($bad -join ', ')). Use a SELECT/VIEW DEFINITION-only login." }
-    return [string]$row['login_name']
+    return [pscustomobject]@{ Login = [string]$row['login_name']; Privileges = @($bad) }
+}
+
+# Fail-closed proof that the login cannot change data or schema. Returns the login name for the manifest.
+function Assert-PctpSourceReadOnly([string]$ConnectionString, [string]$Label = 'SQL14 source') {
+    $p = Get-PctpLoginPrivileges $ConnectionString
+    if ($p.Privileges.Count -gt 0) { throw "$Label login is not read-only (found: $($p.Privileges -join ', ')). Use a SELECT/VIEW DEFINITION-only login." }
+    return $p.Login
 }
 
 # The G5/G6 isolation job adds program-scoped firewall rules for powershell.exe. If one is left behind
@@ -101,4 +108,70 @@ function Get-PctpScopeObjects([string]$CoverageCsv) {
     # PCTP-only scope = objects classified OK-* in docs/SCHEMA_COVERAGE_EFFECTIVE.csv (tables, procs, views, functions).
     $rows = Import-Csv -LiteralPath $CoverageCsv -Encoding UTF8 | Where-Object { $_.class -like 'OK-*' -and $_.kind -in @('table', 'proc', 'view', 'function') }
     return @($rows | ForEach-Object { [pscustomobject]@{ name = $_.object.ToLowerInvariant(); kind = $_.kind } })
+}
+
+
+# ---------------------------------------------------------------- profiling helpers (pure; used by Invoke-PctpLiveDataProfile.ps1)
+# Shape of a value without its content: digits -> 9, upper-case letters -> A, lower-case -> a, everything else kept.
+function Get-PctpValueMask($Value, [int]$Max = 64) {
+    if ($null -eq $Value) { return $null }
+    $sb = New-Object System.Text.StringBuilder
+    foreach ($ch in ([string]$Value).ToCharArray()) {
+        if ([char]::IsDigit($ch)) { [void]$sb.Append('9') }
+        elseif ([char]::IsLetter($ch)) { if ([char]::IsUpper($ch)) { [void]$sb.Append('A') } else { [void]$sb.Append('a') } }
+        else { [void]$sb.Append($ch) }
+        if ($sb.Length -ge $Max) { [void]$sb.Append('~'); break }
+    }
+    return $sb.ToString()
+}
+
+function Get-PctpKeyNormalized($Value, [string]$Mode) {
+    if ($null -eq $Value -or $Value -is [System.DBNull]) { return $null }
+    $v = ([string]$Value).Trim().ToUpperInvariant()
+    if ($v.Length -eq 0) { return $null }
+    switch ($Mode) {
+        'exact' { return $v }
+        'left20' { if ($v.Length -ge 20) { return $v.Substring(0, 20) } else { return $v } }
+        'left13' { if ($v.Length -ge 13) { return $v.Substring(0, 13) } else { return $v } }
+        default { throw "Unknown key mode '$Mode'." }
+    }
+}
+
+# How many left values find a partner on the right once both sides are normalised the same way.
+function Get-PctpJoinRate($LeftValues, $RightValues, [string]$Mode) {
+    $right = New-Object 'System.Collections.Generic.HashSet[string]'
+    foreach ($r in $RightValues) { $k = Get-PctpKeyNormalized $r $Mode; if ($null -ne $k) { [void]$right.Add($k) } }
+    $left = 0; $matched = 0; $matchedKeys = New-Object 'System.Collections.Generic.HashSet[string]'
+    foreach ($l in $LeftValues) {
+        $k = Get-PctpKeyNormalized $l $Mode
+        if ($null -eq $k) { continue }
+        $left++
+        if ($right.Contains($k)) { $matched++; [void]$matchedKeys.Add($k) }
+    }
+    $pct = 0.0; if ($left -gt 0) { $pct = [Math]::Round(100.0 * $matched / $left, 1) }
+    return [pscustomobject]@{ left_rows = $left; matched_rows = $matched; match_pct = $pct; distinct_keys_matched = $matchedKeys.Count; right_distinct_keys = $right.Count }
+}
+
+# Column profile that never emits raw values, except short low-cardinality enum columns the caller whitelists.
+function Get-PctpColumnProfile([string]$Name, [string]$TypeName, $Values, [bool]$ListEnum = $false, [int]$EnumMax = 15) {
+    $vals = @($Values | Where-Object { $null -ne $_ -and $_ -isnot [System.DBNull] })
+    $total = @($Values).Count
+    $o = [ordered]@{ column = $Name; type = $TypeName; rows = $total; nulls = ($total - $vals.Count); distinct = 0; len_min = $null; len_max = $null; num_min = $null; num_max = $null; date_min = $null; date_max = $null; top_masks = $null; enum_values = $null }
+    if ($vals.Count -eq 0) { return [pscustomobject]$o }
+    $first = $vals[0]
+    $distinct = @($vals | ForEach-Object { [string]$_ } | Select-Object -Unique)
+    $o.distinct = $distinct.Count
+    if ($first -is [string]) {
+        $lens = @($vals | ForEach-Object { $_.Trim().Length } | Measure-Object -Minimum -Maximum)
+        $o.len_min = $lens[0].Minimum; $o.len_max = $lens[0].Maximum
+        $masks = @{}
+        foreach ($v in $vals) { $m = Get-PctpValueMask ($v.Trim()); if ($masks.ContainsKey($m)) { $masks[$m]++ } else { $masks[$m] = 1 } }
+        $o.top_masks = (($masks.GetEnumerator() | Sort-Object Value -Descending | Select-Object -First 5 | ForEach-Object { "$($_.Key) x$($_.Value)" }) -join ' | ')
+        if ($ListEnum -and $distinct.Count -le $EnumMax) { $o.enum_values = (($vals | ForEach-Object { $_.Trim() } | Group-Object | Sort-Object Count -Descending | ForEach-Object { "$($_.Name) x$($_.Count)" }) -join ' | ') }
+    }
+    elseif ($first -is [datetime]) { $m = $vals | Measure-Object -Minimum -Maximum; $o.date_min = $m.Minimum.ToString('yyyy-MM-dd HH:mm'); $o.date_max = $m.Maximum.ToString('yyyy-MM-dd HH:mm') }
+    elseif ($first -is [ValueType] -and $first -isnot [bool] -and $first -isnot [guid]) { $m = $vals | Measure-Object -Minimum -Maximum; $o.num_min = $m.Minimum; $o.num_max = $m.Maximum
+        if ($ListEnum -and $distinct.Count -le $EnumMax) { $o.enum_values = (($vals | Group-Object | Sort-Object Count -Descending | ForEach-Object { "$($_.Name) x$($_.Count)" }) -join ' | ') } }
+    elseif ($first -is [bool]) { $o.enum_values = (($vals | Group-Object | ForEach-Object { "$($_.Name) x$($_.Count)" }) -join ' | ') }
+    return [pscustomobject]$o
 }

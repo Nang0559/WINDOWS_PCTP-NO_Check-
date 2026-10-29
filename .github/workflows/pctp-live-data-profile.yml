@@ -1,0 +1,57 @@
+name: PCTP live-data profile (SQL14, read-only)
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_read_only_profile:
+        description: "Confirm: SELECT-only on SQL14 for one delivery day; artifacts contain counts, value shapes and match rates, no raw values"
+        required: true
+        type: boolean
+        default: false
+      delivery_date:
+        description: "Delivery day yyyy-MM-dd (empty = newest day in LUUPHIEUGIAOHANG)"
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pctp-live-data-profile
+  cancel-in-progress: false
+
+jobs:
+  profile:
+    if: ${{ inputs.confirm_read_only_profile == true }}
+    runs-on: [self-hosted, windows, pctp-ui]
+    timeout-minutes: 20
+    steps:
+      - name: Checkout dispatched commit
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Profile the delivery day on SQL14 (read-only)
+        shell: powershell
+        env:
+          PCTP_QC_SOURCE_SQL_CONNECTION: ${{ secrets.PCTP_QC_SOURCE_SQL_CONNECTION }}
+          DELIVERY_DATE: ${{ inputs.delivery_date }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ([string]::IsNullOrWhiteSpace($env:PCTP_QC_SOURCE_SQL_CONNECTION)) { throw 'Missing GitHub secret PCTP_QC_SOURCE_SQL_CONNECTION (read-only SQL14 account).' }
+          $extra = @{}
+          if (-not [string]::IsNullOrWhiteSpace($env:DELIVERY_DATE)) {
+            if ($env:DELIVERY_DATE -notmatch '^\d{4}-\d{2}-\d{2}$') { throw "delivery_date must be yyyy-MM-dd (got '$($env:DELIVERY_DATE)')." }
+            $extra['Date'] = [datetime]::ParseExact($env:DELIVERY_DATE, 'yyyy-MM-dd', [Globalization.CultureInfo]::InvariantCulture)
+          }
+          .\PCTP.QC.UI\Invoke-PctpLiveDataProfile.ps1 -OutputDirectory "$env:RUNNER_TEMP\pctp-live-data-profile" @extra
+
+      - name: Upload profile report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pctp-live-data-profile-${{ github.run_number }}
+          path: ${{ runner.temp }}\pctp-live-data-profile\
+          if-no-files-found: warn
+          retention-days: 7

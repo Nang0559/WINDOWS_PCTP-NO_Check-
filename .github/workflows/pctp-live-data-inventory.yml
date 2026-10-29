@@ -14,6 +14,12 @@ on:
         type: string
         default: B7R2_FCC
 
+      allow_privileged_target:
+        description: "SQL57 only: accept a privileged (sa/db_owner) login on the SQL57 test database. SQL14 must always be read-only."
+        required: false
+        type: boolean
+        default: false
+
 permissions:
   contents: read
 
@@ -47,6 +53,7 @@ jobs:
           PCTP_QC_SOURCE_SQL_CONNECTION: ${{ secrets.PCTP_QC_SOURCE_SQL_CONNECTION }}
           PCTP_QC_TARGET_SQL_CONNECTION: ${{ secrets.PCTP_QC_TARGET_SQL_CONNECTION }}
           TARGET_DATABASE: ${{ inputs.target_database }}
+          ALLOW_PRIVILEGED_TARGET: ${{ inputs.allow_privileged_target }}
         run: |
           $ErrorActionPreference = 'Stop'
           if ([string]::IsNullOrWhiteSpace($env:PCTP_QC_SOURCE_SQL_CONNECTION)) {
@@ -55,7 +62,9 @@ jobs:
           if ([string]::IsNullOrWhiteSpace($env:PCTP_QC_TARGET_SQL_CONNECTION)) {
             throw 'Missing GitHub secret PCTP_QC_TARGET_SQL_CONNECTION (SQL57 test account).'
           }
-          .\PCTP.QC.UI\Invoke-PctpLiveDataInventory.ps1 -OutputDirectory "$env:RUNNER_TEMP\pctp-live-data-inventory" -TargetDatabase "$env:TARGET_DATABASE"
+          $extra = @{}
+          if ($env:ALLOW_PRIVILEGED_TARGET -eq 'true') { $extra['AllowPrivilegedTarget'] = $true }
+          .\PCTP.QC.UI\Invoke-PctpLiveDataInventory.ps1 -OutputDirectory "$env:RUNNER_TEMP\pctp-live-data-inventory" -TargetDatabase "$env:TARGET_DATABASE" @extra
 
       - name: Upload inventory reports
         if: always()
@@ -63,5 +72,5 @@ jobs:
         with:
           name: pctp-live-data-inventory-${{ github.run_number }}
           path: ${{ runner.temp }}\pctp-live-data-inventory\
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 7

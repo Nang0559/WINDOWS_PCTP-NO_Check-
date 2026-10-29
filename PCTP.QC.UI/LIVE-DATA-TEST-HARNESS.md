@@ -41,3 +41,30 @@ Artifact: pctp-live-data-inventory-<run>, retained for 7 days. The artifact cont
 - Manifests record login, `GITHUB_SHA` and run id. `procedure_modules.csv` holds SHA-256 of procedure definitions (optional; needs VIEW DEFINITION).
 - `PCTP_QC_LIVE_MODE=1` makes `PctpSql.Common.ps1` accept only `B7R2_FCC_QC*` on SQL57 for seed/cleanup.
 
+
+## Run failure "SQL57 metadata target login is not read-only"
+
+The inventory requires a read-only login on both servers. The `PCTP_QC_TARGET_SQL_CONNECTION` secret uses a privileged login (sysadmin / db_owner), so the guard stopped the run before any query. Two valid fixes:
+
+1. Preferred: a catalog-only login for SQL57 (and, if not done yet, the same pattern for SQL14):
+   ```sql
+   CREATE LOGIN pctp_qc_ro WITH PASSWORD = '<strong password>', CHECK_POLICY = ON;
+   USE B7R2_FCC;
+   CREATE USER pctp_qc_ro FOR LOGIN pctp_qc_ro;
+   ALTER ROLE db_datareader ADD MEMBER pctp_qc_ro;
+   GRANT VIEW DEFINITION TO pctp_qc_ro;
+   ```
+   Put its connection string in the secret.
+2. SQL57 is the agreed writable test database, so the workflow also has the input `allow_privileged_target`. When ticked, the SQL57 login may be privileged; the script still runs catalog SELECTs only and records `privileged_login_opt_in=true` in the manifest. This opt-in never applies to SQL14.
+
+The upload step no longer fails with "No files were found" when the script stops early; that message hid the real error.
+
+## Step 1: profile the newest delivery day on SQL14
+
+Workflow `PCTP live-data profile (SQL14, read-only)` (`Invoke-PctpLiveDataProfile.ps1`). It reads `LUUPHIEUGIAOHANG` and `LUUDOCQRCODE` for one day (default: the newest `NGAYGIAO` not in the future) plus the directly related `STOCKTP`, `TMPPHIEUGIAOHANG` and `DOCQRCODE` rows, in memory only, and writes:
+
+- `column_profiles.csv`: per column type, null/distinct counts, length and range, value *shapes* (digits become 9, letters A/a), and the values of short status columns only.
+- `join_candidates.csv`: match rate of each candidate relation (STT, LOT exact / first 20 / first 13 characters, item code) so the real chain is measured, not assumed.
+- `invariants.csv` and `profile.md`: counts, sums, delivered vs scanned quantity per STT, STOCKTP sanity counts.
+
+No raw part code, LOT, QR string or customer value is written. After the run, the profile decides the fixture format (step 2) and the UI flow (step 3).

@@ -3,6 +3,9 @@ param(
     [string]$OutputDirectory = (Join-Path (Get-Location).Path 'artifacts\live-data-inventory'),
     [string]$TargetDatabase = 'B7R2_FCC',
     [string]$ScopeCsv = (Join-Path $PSScriptRoot '..\docs\SCHEMA_COVERAGE_EFFECTIVE.csv'),
+    # SQL57 only: allow a privileged (sa/db_owner) login because SQL57 is the agreed writable test database. This script only runs
+    # catalog SELECTs either way; the opt-in is recorded in the manifest. SQL14 must ALWAYS be a read-only login.
+    [switch]$AllowPrivilegedTarget,
     [switch]$SkipFirewallCheck
 )
 $ErrorActionPreference = 'Stop'
@@ -61,7 +64,7 @@ function Export-Inventory([string]$Label, [string]$ConnectionString, [string]$Ro
         Export-Query $ConnectionString $queries[$key] (Join-Path $dir "$key.csv") -Optional:($key -eq 'procedure_modules')
     }
     [pscustomobject]@{
-        environment=$Label; database=$Database; login=$LoginName; git_sha=$env:GITHUB_SHA
+        environment=$Label; database=$Database; login=$LoginName; privileged_login_opt_in=$([bool]$script:TargetPrivileged -and $Label -eq 'target_sql57'); git_sha=$env:GITHUB_SHA
         run_id=$env:GITHUB_RUN_ID; captured_utc=[DateTime]::UtcNow.ToString('o')
         mode='READ_ONLY_METADATA_ONLY'; row_contents_exported=$false; ddl_or_dml_executed=$false
         scope_tables=$tableNames.Count; scope_procedures=$procedureNames.Count; scope_views=$viewNames.Count; scope_functions=$functionNames.Count; full_database_inventory=$false
@@ -82,8 +85,16 @@ if (-not $SkipFirewallCheck) { Assert-PctpNoStaleIsolationRules }
 $source = Get-PctpLiveConnection -VariableName 'PCTP_QC_SOURCE_SQL_CONNECTION' -Role Source
 $target = Get-PctpLiveConnection -VariableName 'PCTP_QC_TARGET_SQL_CONNECTION' -Role Target -Catalog $TargetDatabase
 $sourceLogin = Assert-PctpSourceReadOnly $source 'SQL14 source'
-$targetLogin = Assert-PctpSourceReadOnly $target 'SQL57 metadata target'
-Write-Host 'PASS: SQL14 source and SQL57 metadata target logins are read-only (no sysadmin/db_owner/write/execute/alter permission).'
+$tp = Get-PctpLoginPrivileges $target
+$targetLogin = $tp.Login
+if ($tp.Privileges.Count -gt 0) {
+    if (-not $AllowPrivilegedTarget) {
+        throw "SQL57 metadata target login is not read-only (found: $($tp.Privileges -join ', ')). Use a SELECT/VIEW DEFINITION-only login, or re-run with -AllowPrivilegedTarget (workflow input allow_privileged_target) to accept a privileged login on the SQL57 test database."
+    }
+    Write-Warning "SQL57 target login has elevated rights ($($tp.Privileges -join ', ')); accepted because -AllowPrivilegedTarget was set. This run issues catalog SELECTs only."
+    Write-Host 'PASS: SQL14 login is read-only; SQL57 login is privileged by explicit opt-in.'
+} else { Write-Host 'PASS: SQL14 source and SQL57 metadata target logins are read-only.' }
+$script:TargetPrivileged = ($tp.Privileges.Count -gt 0)
 New-Item -ItemType Directory -Force -Path $OutputDirectory | Out-Null
 Export-Inventory 'source_sql14' $source $OutputDirectory 'B7R2_FCC' $sourceLogin $scope
 Export-Inventory 'target_sql57' $target $OutputDirectory $TargetDatabase $targetLogin $scope

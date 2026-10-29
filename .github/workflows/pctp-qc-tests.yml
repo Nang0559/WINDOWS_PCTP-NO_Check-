@@ -73,7 +73,9 @@ jobs:
             ".\\PCTP.QC.UI\\PctpLiveData.Common.ps1",
             ".\\PCTP.QC.UI\\Invoke-PctpMpSourcePreview.ps1",
             ".\\PCTP.QC.UI\\Invoke-PctpQcSeed.ps1",
-            ".\\PCTP.QC.UI\\Test-PctpG6SqlGuards.ps1"
+            ".\\PCTP.QC.UI\\Test-PctpG6SqlGuards.ps1",
+            ".\\PCTP.QC.UI\\Invoke-PctpLiveDataProfile.ps1",
+            ".\\PCTP.QC.UI\\Test-PctpLiveDataProfileUnit.ps1"
           )
           foreach ($path in $paths) {
             $tokens = $null
@@ -87,7 +89,9 @@ jobs:
           }
       - name: Offline G6 SQL / write-guard checks (no database)
         shell: pwsh
-        run: .\PCTP.QC.UI\Test-PctpG6SqlGuards.ps1
+        run: |
+          .\PCTP.QC.UI\Test-PctpG6SqlGuards.ps1
+          .\PCTP.QC.UI\Test-PctpLiveDataProfileUnit.ps1
       - name: Run isolated unit and regression tests
         run: dotnet test PCTP.QC.Tests/PCTP.QC.Tests.csproj --configuration Release --logger "trx;LogFileName=pctp-qc-tests.trx"
       - name: Upload test results
