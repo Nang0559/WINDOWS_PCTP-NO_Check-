@@ -9,13 +9,12 @@
    .\PCTP.QC.UI\Invoke-PctpQcGates.ps1 -Gate G5 -ExePath <PCTP.exe>               # 5 UI journeys
    .\PCTP.QC.UI\Invoke-PctpQcGates.ps1 -Gate G6 -ExePath <PCTP.exe> -SqlUser <user> -AllowMutations -ConfirmAppUsesIsolatedDb
 
- Isolated mode (what CI uses for G5/G6; G3/G4 run in the sql-engine-integration job on the SQL Server container):
-   .\PCTP.QC.UI\Start-PctpIsolatedSql.ps1 -BundleDirectory <bundle>      # sets PCTP_QC_SQL_CONNECTION (local PCTP_QC_* DB)
-   .\PCTP.QC.UI\Invoke-PctpQcGates.ps1 -Gate G5 -ExePath <PCTP.exe> -Isolated
-   .\PCTP.QC.UI\Invoke-PctpQcGates.ps1 -Gate G6 -ExePath <PCTP.exe> -Isolated -AllowMutations
- -Isolated blocks DB57 / production / IFS egress for this run, forces PCTP.exe onto the fixture database
- (QcSqlOverride) and needs no SQL user or password. Journeys that are not configured return BLOCKED, never PASS.
-
+ DB57 acceptance mode (the required live acceptance path for G5/G6):
+   .\PCTP.QC.UI\Invoke-PctpQcGates.ps1 -Gate G5 -ExePath <PCTP.exe> -LiveDb57
+   .\PCTP.QC.UI\Invoke-PctpQcGates.ps1 -Gate G6 -ExePath <PCTP.exe> -LiveDb57 -SqlUser <user> -AllowMutations
+ -LiveDb57 is pinned to 192.168.200.57/B7R2_FCC, rejects SQL14/BRAVO, validates PCTP.exe.config, and preflights SQL credentials.
+ G6 test data must use the run-specific QCUI_<runId> prefix and every journey must assert then clean up its own rows.
+ -Isolated remains available for local-only troubleshooting, but it is not DB57 acceptance evidence.
  A gate is reported PASS only when its documented condition is proven by the logs of THIS run.
  SQL password: taken from PCTP_QC_SQL_PASSWORD if set, otherwise prompted. It is handed to child
  processes through process-scoped environment variables only (never on a command line, never on disk).
