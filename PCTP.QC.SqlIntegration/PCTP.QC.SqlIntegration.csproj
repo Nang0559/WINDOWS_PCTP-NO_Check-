@@ -30,6 +30,8 @@
     <Compile Include="../PCTP/Modules/NhapKho/Interfaces/IStockTpRepository.cs" Link="Production/IStockTpRepository.cs" />
     <Compile Include="../PCTP/Modules/KhoCore/Repositories/BulkStockSlotRepository.cs" Link="Production/BulkStockSlotRepository.cs" />
     <Compile Include="../PCTP/Modules/KhoCore/Repositories/IBulkStockSlotRepository.cs" Link="Production/IBulkStockSlotRepository.cs" />
+    <Compile Include="../PCTP/Modules/KhoCore/Repositories/StockHistoryRepository.cs" Link="Production/StockHistoryRepository.cs" />
+    <Compile Include="../PCTP/Modules/KhoCore/Repositories/IStockHistoryRepository.cs" Link="Production/IStockHistoryRepository.cs" />
     <Compile Include="../PCTP/Modules/KhoCore/Models/LotInfo.cs" Link="Production/LotInfo.cs" />
     <Compile Include="../PCTP/Shared/Models/PhieuStatus.cs" Link="Production/PhieuStatus.cs" />
     <Compile Include="../PCTP/Shared/Models/QRCodeInfo.cs" Link="Production/QRCodeInfo.cs" />
