@@ -235,6 +235,13 @@ try {
                                 if ($pattern.Current.IsReadOnly) { throw "Step '$label': target value is read-only." }
                                 $pattern.SetValue((Expand-PctpTokens ([string]$step.value) $testData)); $method = "value-pattern"
                             }
+                            "press-enter" {
+                                # TextBox.KeyDown handlers (QR scanner input) are not triggered by ValuePattern.SetValue.
+                                # Focus the actual control and send Enter so the real WinForms workflow executes.
+                                $target.SetFocus()
+                                [System.Windows.Forms.SendKeys]::SendWait("{ENTER}")
+                                $method = "send-enter"
+                            }
                             "assert-name-contains" {
                                 $want = Expand-PctpTokens ([string]$step.value) $testData
                                 if ($target.Current.Name -notlike ("*" + $want + "*")) { throw "Step '$label': name '$($target.Current.Name)' does not contain '$want'." }
