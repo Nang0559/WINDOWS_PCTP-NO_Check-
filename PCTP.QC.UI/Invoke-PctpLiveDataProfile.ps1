@@ -212,6 +212,7 @@ $md.Add("# Live-data profile (SQL14, read-only) - day $($from.ToString('yyyy-MM-
 $md.Add('No raw business values are in this report: value shapes use 9 for digits and A/a for letters.'); $md.Add('')
 $md.Add('## Best join per relation'); $md.Add('')
 foreach ($g in ($joins | Group-Object relation)) { $b = $g.Group | Sort-Object match_pct -Descending | Select-Object -First 1; $md.Add("- $($g.Name): best key mode **$($b.key_mode)** = $($b.match_pct)% of $($b.left_rows) rows") }
+$md.Add(''); $md.Add('Reading notes (code-verified, Usp_Qrcode_Update_Stock2405): LUUDOCQRCODE.STT is the scan-record number copied from DOCQRCODE.STT, NOT the delivery-slip number, '+ 'so LUU.STT = LUUQR.STT only overlaps because both are small integers (reverse direction ~20%). Use MAHANG + first 13 chars of LOT for LUU <-> LUUQR <-> STOCKTP; '+ 'do not use STT, GIOGIAOFCC/GIOXUAT or LOTHVN as keys.')
 $md.Add(''); $md.Add('## Invariants'); $md.Add('')
 foreach ($i in $inv) { $md.Add("- $($i.invariant): $($i.value)") }
 $md.Add(''); $md.Add('## Composite-key relations (v2)'); $md.Add('')

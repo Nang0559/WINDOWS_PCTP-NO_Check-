@@ -1,0 +1,94 @@
+{
+  "name": "g6-delivery-hvn-multilot",
+  "purpose": "G6 business journey (seed -> UI -> SQL assert -> cleanup), profile-shaped. Seeds 3 pending TMPPHIEUGIAOHANG lines with 1, 2 and 3 LOT (comma-separated 'LOT20-qty') plus 6 STOCKTP lots (one row per LOT root13), taken from the SQL14 profile of 2026-10-28. Data layer only: the carton QR scan is still manual, so LUUPHIEUGIAOHANG / LUUDOCQRCODE are written by the real procedure, never seeded.",
+  "configured": true,
+  "dataMutation": true,
+  "scenario": {
+    "id": "G6-005",
+    "title": "Giao hang HVN 3 phieu 1/2/3 LOT",
+    "description": "Seed B20Item x3 + STOCKTP x6 (LOT 20 ky tu, root13 duy nhat) + 3 dong TMPPHIEUGIAOHANG (1/2/3 LOT) voi tien to {{prefix}}; mo man hinh HVN_PGH; SQL xac nhan 3 dong cho giao (TmpQty 28), ton kho 42, chua co LUUPHIEUGIAOHANG; cleanup ve Remaining = 0. Sau khi quet tay: Invoke-PctpQcSeed.ps1 -Action Assert -Journey delivery-hvn-multilot."
+  },
+  "testData": {
+    "menuPath": "Giao Hàng > HVN - MP",
+    "expectedWindowTitle": "HVN_PGH"
+  },
+  "steps": [
+    {
+      "id": "seed",
+      "action": "sql-seed",
+      "mutatesData": true,
+      "sqlFile": "sql/delivery-hvn-multilot/seed.sql",
+      "expectRowsAtLeast": 12,
+      "description": "Seed 3 item, 6 STOCKTP lot va 3 dong TMPPHIEUGIAOHANG (1/2/3 LOT) voi tien to {{prefix}}"
+    },
+    {
+      "id": "expand-delivery-menu",
+      "action": "expand",
+      "automationId": "accordionControlElement22",
+      "fallbackName": "Giao Hàng",
+      "description": "Mở nhóm menu 'Giao Hàng'"
+    },
+    {
+      "id": "open-hvn-delivery",
+      "action": "click",
+      "automationId": "E_GHHVN_MP",
+      "waitAfterMs": 1200,
+      "fallbackName": "HVN - MP",
+      "description": "Chọn mục menu 'HVN - MP' ({{menuPath}})"
+    },
+    {
+      "id": "delivery-screen-visible",
+      "action": "wait-for-window",
+      "value": "{{expectedWindowTitle}}",
+      "timeoutSeconds": 45,
+      "description": "Chờ màn hình đích xuất hiện",
+      "expected": "Cửa sổ có tiêu đề '{{expectedWindowTitle}}' hiển thị",
+      "dump": true
+    },
+    {
+      "id": "verify-delivery-title",
+      "action": "assert-window-title",
+      "value": "{{expectedWindowTitle}}",
+      "description": "Xác nhận tiêu đề cửa sổ"
+    },
+    {
+      "id": "delivery-qr-input-exposed",
+      "action": "assert-exists",
+      "automationId": "txt_DOCQRCODE",
+      "description": "Control 'txt_DOCQRCODE' phải tồn tại trên màn hình",
+      "expected": "'txt_DOCQRCODE' hiển thị"
+    },
+    {
+      "id": "delivery-order-grid-exposed",
+      "action": "assert-exists",
+      "automationId": "gridCtrDONHANG",
+      "description": "Control 'gridCtrDONHANG' phải tồn tại trên màn hình",
+      "expected": "'gridCtrDONHANG' hiển thị"
+    },
+    {
+      "id": "assert-after-ui",
+      "action": "sql-assert",
+      "sqlFile": "sql/delivery-hvn-multilot/assert.sql",
+      "expectColumns": {
+        "TmpRows": 3,
+        "TmpQty": 28,
+        "TmpMultiLotRows": 2,
+        "StockRows": 6,
+        "StockRemaining": 42,
+        "DuplicateRoot13": 0,
+        "StockInvariantViolations": 0,
+        "DeliveredRows": 0,
+        "PendingQrRows": 0
+      },
+      "description": "SQL: 3 dong cho giao (28), 2 dong nhieu LOT, 6 lot ton 42, root13 khong trung, chua co phieu giao / QR cho"
+    },
+    {
+      "id": "cleanup",
+      "action": "sql-cleanup",
+      "mutatesData": true,
+      "sqlFile": "sql/delivery-hvn-multilot/cleanup.sql",
+      "verifySqlFile": "sql/delivery-hvn-multilot/verify.sql",
+      "description": "Xoa dung du lieu da seed va kiem tra khong con dong nao"
+    }
+  ]
+}

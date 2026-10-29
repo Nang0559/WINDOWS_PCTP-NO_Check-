@@ -14,8 +14,8 @@
 #>
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory = $true)][ValidateSet('Seed', 'Qr', 'Cleanup', 'Verify')][string]$Action,
-    [ValidateSet('receive', 'delivery-hvn')][string]$Journey = 'receive',
+    [Parameter(Mandatory = $true)][ValidateSet('Seed', 'Qr', 'Cleanup', 'Verify', 'Assert')][string]$Action,
+    [ValidateSet('receive', 'delivery-hvn', 'delivery-hvn-multilot')][string]$Journey = 'receive',
     [string]$Prefix,
     [string]$SqlUser = $env:PCTP_QC_SQL_USER,
     [string]$Server = '192.168.200.57',
@@ -84,6 +84,15 @@ try {
         }
         'Qr' { [void](Show-Rows 'qr') }
         'Verify' { [void](Show-Rows 'verify') }
+        'Assert' {
+            # Post-scan invariants (read-only). Only journeys that ship assert-after-scan.sql support it.
+            if (-not (Test-Path -LiteralPath (Join-Path $dir 'assert-after-scan.sql') -PathType Leaf)) { throw "Journey '$Journey' has no assert-after-scan.sql." }
+            $t = Show-Rows 'assert-after-scan'
+            $bad = 0
+            foreach ($col in $t.Columns) { if ($col.ColumnName -like '*Violations' -or $col.ColumnName -eq 'LuuOverIssued') { $bad += [int]$t.Rows[0][$col.ColumnName] } }
+            if ($bad -ne 0) { throw "Post-scan invariants violated ($bad). See the columns above." }
+            Write-Host 'PASS: post-scan invariants hold (information columns are not assertions).'
+        }
         'Cleanup' {
             [void](Invoke-Write 'cleanup')
             $t = Show-Rows 'verify'

@@ -40,5 +40,22 @@ $env:PCTP_QC_ALLOWED_TEST_SERVER = '10.0.0.5'
 Check 'server guard: env override is honoured'        (-not (Throws { Assert-PctpTestServerName '10.0.0.5' 'B7R2_FCC' }))
 Check 'server guard: env override rejects DB57'       (Throws { Assert-PctpTestServerName '192.168.200.57' 'B7R2_FCC' })
 Remove-Item Env:PCTP_QC_ALLOWED_TEST_SERVER -ErrorAction SilentlyContinue
+# ---- profile-shaped multi-LOT delivery fixture (journeys\g6\sql\delivery-hvn-multilot): shape + read-only guarantees
+$mlDir = Join-Path $sqlRoot 'delivery-hvn-multilot'
+function Get-SqlCode([string]$Path) { return ((Get-Content -LiteralPath $Path -Raw -Encoding UTF8) -split "`n" | Where-Object { $_ -notmatch '^\s*--' }) -join "`n" }
+if (Test-Path -LiteralPath $mlDir) {
+    $seedCode = Get-SqlCode (Join-Path $mlDir 'seed.sql')
+    Check 'multilot seed: writes prerequisites only (no LUU*/DOCQRCODE inserts)' ($seedCode -notmatch '(?i)INSERT\s+INTO\s+dbo\.(LUUPHIEUGIAOHANG|LUUDOCQRCODE|DOCQRCODE)\b')
+    Check 'multilot seed: SLCONLAITMP and SATUS stay at defaults'               ($seedCode -notmatch '(?i)SLCONLAITMP|\bSATUS\b')
+    Check 'multilot seed: 3 pending lines, 6 lots'                              (([regex]::Matches($seedCode, '(?i)INSERT\s+INTO\s+dbo\.TMPPHIEUGIAOHANG')).Count -eq 3 -and ([regex]::Matches($seedCode, '(?i)INSERT\s+INTO\s+dbo\.STOCKTP')).Count -eq 6)
+    Check 'multilot seed: 2-LOT and 3-LOT lines use comma-separated LOT-qty'    (([regex]::Matches($seedCode, "N'-\d+,'")).Count -eq 3)
+    foreach ($ro in @('qr', 'assert', 'assert-after-scan', 'verify')) {
+        $code = Get-SqlCode (Join-Path $mlDir "$ro.sql")
+        Check "multilot ${ro}.sql is read-only" ($code -notmatch '(?i)\b(INSERT|UPDATE|DELETE|DROP|TRUNCATE|ALTER|CREATE|EXEC)\b')
+    }
+    $afterCode = Get-SqlCode (Join-Path $mlDir 'assert-after-scan.sql')
+    Check 'multilot post-scan: no SLCONLAITMP/SATUS/LOTHVN/GIO* in the checks'  ($afterCode -notmatch '(?i)SLCONLAITMP|\bSATUS\b|GIOGIAOFCC|GIOXUAT|\.LOTHVN')
+    Check 'multilot post-scan: joins on 13-char root, not on STT'               ($afterCode -match 'LEFT\(LOT, 13\)' -and $afterCode -notmatch '(?i)\.STT\s*=')
+}
 if ($script:fail -gt 0) { Write-Host "$script:fail check(s) failed."; exit 1 }
 Write-Host 'All G6 SQL guard checks passed.'; exit 0

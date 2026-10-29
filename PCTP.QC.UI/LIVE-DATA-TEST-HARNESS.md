@@ -68,3 +68,39 @@ Workflow `PCTP live-data profile (SQL14, read-only)` (`Invoke-PctpLiveDataProfil
 - `invariants.csv` and `profile.md`: counts, sums, delivered vs scanned quantity per STT, STOCKTP sanity counts.
 
 No raw part code, LOT, QR string or customer value is written. After the run, the profile decides the fixture format (step 2) and the UI flow (step 3).
+
+## Step 1 result: profile of 2026-10-28 (run 40840127480) and what it fixes for the fixture
+
+Full day: 199 LUUPHIEUGIAOHANG rows, 23 slips, 3108 LUUDOCQRCODE rows, 112 STOCKTP lots. No raw values were exported.
+
+**Join keys (measured, then confirmed in `Usp_Qrcode_Update_Stock2405`)**
+
+| Relation | Key | Result |
+|---|---|---|
+| LUU <-> STOCKTP, LUUQR <-> STOCKTP | `MAHANG`/`PART` + `LEFT(LOT,13)` of every comma-separated LOT element | 100% (any-key) |
+| LUU <-> LUUQR | same key, **no** day filter | 95.5% any-key, 91.5% all-keys in the day; 17 of the 18 missing LOTs have QR on earlier days |
+| LUU <-> LUUQR by `STT` | **not a key** | `LUUDOCQRCODE.STT` is the scan-record number (230 values) copied from `DOCQRCODE.STT`; the slip number is `DOCQRCODE.GIO`, which is not stored in LUUQR. The 100% "STT" match is only small-integer overlap (reverse direction 20.8%) |
+| `GIOGIAOFCC`/`GIOXUAT`, `LOTHVN` | not keys | 87.9% and 0% |
+
+**Business invariants that held on 100% of live rows** (used by the fixture asserts): `SLNHAP - SLXUAT = SLCONLAI` (112/112), `SLCONLAI >= 0`, `SLXUAT <= SLNHAP`, one STOCKTP row per LOT root13 (112/112), `SUM(LUU.SOLUONG of single-LOT lines) <= SLXUAT` (50/50 lots).
+
+**Not invariants (do not assert):** `LUU.SOLUONG = SUM(QR)` (equal on 8 of 50 keys; QR may be scanned on other days), `SLCONLAI = SLCONLAITMP` (84/112, `SLCONLAITMP` is a YMVN working column), `SATUS`.
+
+**Shape the fixture copies:** 140/51/8 LUU rows with 1/2/3 LOT elements (multi-LOT stored as `LOT20-qty,LOT20-qty`); lots of the same item differ by production date, so root13 stays unique; Yamaha-type labels (plant 3) carry a huge `SLTEMHVN` (338750 vs 3550 for `SLTEMFCC`), so quantities are always measured with `SLTEMFCC`.
+
+### Fixture `g6-delivery-hvn-multilot` (HVN path: `TMPPHIEUGIAOHANG` / `DOCQRCODE`)
+
+`journeys/g6/sql/delivery-hvn-multilot/` seeds only prerequisites keyed by the run prefix `QCUI_<runId8>` (3 items, 6 STOCKTP lots, 3 pending lines with 1/2/3 LOT). The result tables `DOCQRCODE`, `LUUPHIEUGIAOHANG`, `LUUDOCQRCODE` are written by the real UI scan through the real procedure, never seeded.
+
+```powershell
+# seed + print carton QRs (one per lot, quantity taken from the pending line)
+.\PCTP.QC.UI\Invoke-PctpQcSeed.ps1 -Action Seed -Journey delivery-hvn-multilot -ConfirmWrites -SqlUser <user>
+# scan the QRs on the HVN - MP screen by hand, then check the invariants (read-only)
+.\PCTP.QC.UI\Invoke-PctpQcSeed.ps1 -Action Assert -Journey delivery-hvn-multilot -Prefix QCUI_xxxxxxxx -SqlUser <user>
+# remove everything for that prefix, Remaining must be 0
+.\PCTP.QC.UI\Invoke-PctpQcSeed.ps1 -Action Cleanup -Journey delivery-hvn-multilot -Prefix QCUI_xxxxxxxx -ConfirmWrites -SqlUser <user>
+```
+
+`assert-after-scan.sql` fails the run on `StockViolations`, `LuuOverIssued` and `QrWithoutStockViolations`; the other columns (`QrFccQty` vs `StockIssued`, `QrDuplicateRows`, lots without QR) are information only. `QrDuplicateRows` tests the open hypothesis that QR rows are duplicated when `DOCQRCODE.GIO` is empty and several pending lines share a `MAHANG`.
+
+Limits that remain: the QR scan is still manual; `PCTPStockMovementGuard` and `FVN_DeliveryCommand*` ledger rows written by a real scan carry no prefix and are not removed by cleanup; the YMVN (`YMVN_DOCQRCODE`) and SP (`SP_DOCQRCODE`) paths are not covered yet; the new SQL was syntax-checked only, it has not run on SQL Server.

@@ -235,7 +235,7 @@ try {
             if ($Isolated) { Enter-Isolation } else { Set-SqlEnvironment }
             $runner = Join-Path $PSScriptRoot 'Invoke-PctpUiJourney.ps1'
             $dir = Join-Path $PSScriptRoot 'journeys\g6'
-            $business = @('g6-qc-direction', 'g6-qc-final', 'g6-receive', 'g6-delivery-hvn')
+            $business = @('g6-qc-direction', 'g6-qc-final', 'g6-receive', 'g6-delivery-hvn', 'g6-delivery-hvn-multilot')
             $order = @('g6-selftest') + $business
             $rows = New-Object System.Collections.Generic.List[object]
             $blocked = $false
