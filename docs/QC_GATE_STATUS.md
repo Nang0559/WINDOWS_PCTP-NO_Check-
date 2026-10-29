@@ -1,42 +1,34 @@
 # Trạng thái 6 Gate — bằng chứng thực tế
 
-> **Quyết định phát hành hiện tại (2026-10-28): BLOCKED — chưa được đưa vào production.**
+> **Quyết định phát hành: BLOCKED — chưa được đưa vào production.**
 >
-> Bảng lịch sử bên dưới ghi lại bằng chứng của các commit cũ; không được tái sử dụng làm PASS cho commit mới.
-> PR #4 (feature/wms-live-data-test-harness → feature/pctp-qc-test-platform) có CI run
-> [40725382801](https://github.com/Nang0559/WINDOWS_PCTP-NO_Check-/actions/runs/40725382801):
-> unit/regression **389/389 PASS**, SQL-engine G3/G4 **PASS**, TestRunner + integration harness build **PASS**.
-> Tuy nhiên, G5/G6 đang ở trạng thái queued trên self-hosted runner và chưa có verdict.
-> Bản vá cô lập SQL + tách luồng preflight trên feature/pctp-qc-test-platform đã được kiểm thử tại commit
-> `abaa1a771a79722a52653e6722b9f15b61d8f573`, CI run
-> [40732026740](https://github.com/Nang0559/WINDOWS_PCTP-NO_Check-/actions/runs/40732026740): **259/259 unit/regression PASS**, PowerShell parse **PASS**, G3/G4 SQL-engine **PASS**, TestRunner và integration harness build **PASS**.
+> G1 được chạy tự động trên PR #6 bằng workflow [PCTP G1 traceability measurement](https://github.com/Nang0559/WINDOWS_PCTP-NO_Check-/actions/runs/40794437869), trên merge ref `1307b0b80699da5c14b40cfbb26bc0b2f1f5c0c4` (PR head `b7e3bd884e1772ca0ec40bfecaf5c3cc9eb0e1cf`). Kết quả: **FAIL — 87 dòng code, 72 dòng có gap, 15 SQL scripts, 100 gap tổng**. Báo cáo máy đọc được nằm trong artifact [pctp-g1-traceability](https://github.com/Nang0559/WINDOWS_PCTP-NO_Check-/actions/runs/40794437869/artifacts/12862991922).
 >
-> | Điều kiện phát hành | Trạng thái hiện tại | Điều kiện để mở khóa |
+> Phân loại 100 gap: **72 code-to-test/SQL-test**, **13 SQL script references**, **15 TestMatrix rows** còn `planned` hoặc `partial`. Trong 72 gap code, 9 yêu cầu SQL test (hiện analyzer chỉ thấy fake/unit evidence); phần còn lại chủ yếu thiếu test được liên kết tường minh. Đây là kết quả phân tích tĩnh, không phải bằng chứng chạy SQL thật. Xem [kế hoạch xử lý G1](G1_REMEDIATION_PLAN.md).
+>
+> | Điều kiện phát hành | Trạng thái | Điều kiện để mở khóa |
 > |---|---|---|
-> | Unit / source-contract | **259/259 PASS** trên commit `abaa1a7` | Giữ CI xanh trên commit phát hành cuối cùng |
-> | G3 / G4 trên SQL Server cô lập CI | **PASS** trên commit `abaa1a7` | Giữ CI xanh, fixture cleanup và rollback evidence thành công |
-> | G5 UI navigation trên WinForms thực | **Chưa nghiệm thu**; lịch sử có failure ở receive-navigation | Chạy thật trên Windows runner, mọi journey bắt buộc PASS và có screenshots/logs |
-> | G6 end-to-end nghiệp vụ | **Chưa nghiệm thu**; khung có nhưng journey nghiệp vụ chưa đủ | Seed → UI → SQL assertions → cleanup cho các luồng đã công bố |
-> | G1 traceability / coverage | **FAIL theo báo cáo đo gần nhất: 105 gap** | Chạy lại G1 trên HEAD phát hành và xử lý/định nghĩa ngoại lệ cho mọi gap |
-> | SQL57 live target | **Chưa có bằng chứng nghiệm thu** | Chạy preflight read-only trên B7R2_FCC, sau đó test có kiểm soát trên catalog cô lập B7R2_FCC_QC |
-> | Production safety | **Đang siết chính sách** | Xác nhận CI mới chặn B7R2_FCC cho mọi chế độ integration và chặn SQL14; không dùng credential quyền cao |
+> | Unit / source-contract | CI #1452 PASS trên commit `87d9ec15c97e69061ce7e3cf46455325303c9894` | Giữ CI xanh trên commit phát hành cuối cùng |
+> | G3 / G4 trên SQL Server cô lập CI | PASS trên các run trước đó; run #1452 tiếp tục xác nhận SQL engine integration | Giữ CI xanh, fixture cleanup và rollback evidence thành công |
+> | G5 UI navigation trên WinForms thực | **Chưa nghiệm thu** | Windows runner thực, mọi journey bắt buộc PASS và screenshots/logs |
+> | G6 end-to-end nghiệp vụ | **Chưa nghiệm thu** | Seed → UI → SQL assertions → cleanup cho các luồng đã công bố |
+> | G1 traceability / coverage | **FAIL — 100 gap** trên merge ref của PR #6 | Xử lý hoặc có ngoại lệ được review cho từng gap; chạy lại G1 |
+> | SQL57 live target | **Chưa có bằng chứng nghiệm thu** | Preflight read-only trên SQL57; thử nghiệm ghi chỉ trên catalog cô lập `B7R2_FCC_QC*` |
+> | Production safety | **Chưa đủ bằng chứng nghiệm thu cuối** | Xác nhận credential metadata chỉ đọc, SQL14 luôn read-only/blocked với mọi đường ghi, rollback và cleanup có bằng chứng |
 >
-> Không được đánh dấu product-ready chỉ vì unit tests hoặc G3/G4 xanh. Không chạy ghi dữ liệu trên SQL14
-> hoặc catalog dùng chung SQL57 B7R2_FCC. Các acceptance có ghi chỉ được chạy trên SQL Server CI dùng riêng
-> hoặc catalog cô lập B7R2_FCC_QC*, với dữ liệu fixture xác định và cleanup có xác nhận.
+> Không được đánh dấu product-ready chỉ vì unit tests hoặc G3/G4 xanh. Không ghi dữ liệu vào SQL14 `192.168.200.14\\BRAVO` hoặc catalog dùng chung SQL57 `B7R2_FCC`. Các acceptance có ghi chỉ được chạy trên SQL Server CI dùng riêng hoặc catalog cô lập `B7R2_FCC_QC*`, với fixture xác định và cleanup có xác nhận.
 
-Nguyên tắc: Gate chỉ PASS khi có log chạy thật gắn với commit trong `artifacts\gates\<commit>\<Gate>\gate-summary.json`.
-Bảng dưới tách rõ **bằng chứng đã có** và **việc đã vá nhưng chưa chạy thật**.
+## Lịch sử bằng chứng
 
-Commit nền của bản vá này: `9bcf9c9`. Bằng chứng thật mới nhất (G2/G3/G4/G5) thuộc commit `9bcf9c9`, chạy ngày 2026-10-24 (xem bảng). Mọi thay đổi sau commit này cần chạy lại Gate trước khi công bố.
+Gate chỉ PASS khi có log chạy thật gắn với commit trong `artifacts/gates/<commit>/<Gate>/gate-summary.json`. Bằng chứng trên commit cũ không tự động áp dụng cho commit mới.
 
-| Gate | Trạng thái | Bằng chứng / việc còn lại |
+| Gate | Trạng thái / bằng chứng | Việc còn lại |
 |---|---|---|
-| G1 | **FAIL (còn gap)** | Trước bản vá: 126 gap trên `9bcf9c9` (phân tích tĩnh). Sau bản vá tài liệu `TRANSACTION_BOUNDARIES.md` (mục "G1 repository transaction contracts") và phân loại `DELEGATES` trong `Build-TraceabilityMatrix.py`: **105 gap** (đo tĩnh ngoài máy Windows, chưa chạy lại bằng `-Gate G1` trên máy bạn). Còn lại: ~71 dòng thiếu test, 4 dòng chỉ có test giả, và các dòng ma trận/SQL script planned hoặc không tham chiếu. 6 finding F1-F6 đã có bản vá code (xem `TRANSACTION_BOUNDARIES.md`), test hợp đồng nguồn (G2) và scenario `InTransaction` (G3); đo tĩnh sau vá: gap `transaction-boundary(NONE)` của `TableOrderRepo` biến mất, các dòng khác chuyển từ `test` sang `sql-test(only-fakes)`; chưa chạy lại Gate trên máy Windows. PASS khi `gaps = 0` |
-| G2 | **PASS** (commit `9bcf9c9`) | `artifacts\gates\9bcf9c9\G2`: 225/225 pass, 0 fail, 0 skipped, có `.trx`, working tree sạch |
-| G3 | **PASS (phạm vi tempdb/fixture)** (commit `9bcf9c9`) | `artifacts\gates\9bcf9c9\G3`: preflight + toàn bộ scenario PASS, SQL 57 / `B7R2_FCC`, chỉ bảng tạm, working tree sạch |
-| G4 | **PASS (commit `9bcf9c9`)** | `artifacts\gates\9bcf9c9\G4`: preflight PASS, DEL-003/DEL-004/DEL-007 PASS trên `Usp_Qrcode_Update_Stock2405` thật (STT 32001, mọi ghi đều rollback), working tree sạch. Không phủ `PhieuKhoRepository` end-to-end. Sau khi chạy xong phải chạy `SQL\QC_G4_DeliveryFixture_Cleanup.sql` (cả hai cột phải = 0) |
-| G5 | **FAIL / chưa hoàn tất (commit `9bcf9c9`)** | Journey `receive-navigation` fail ở bước `receiving-screen-visible`: sau khi bấm menu "Nhập thành phẩm - QR", tiến trình PCTP thoát với exit code 0 trước khi thấy cửa sổ "Quản lý tiến trình Nhập kho" (45 s). Chưa có `gate-summary.json` và các journey còn lại chưa chạy xong. Chưa rõ nguyên nhân: cần `PCTP\bin\Debug\qc-ui-bridge.log`, Event Viewer, và kết quả bấm tay không bridge; build lại Debug đúng commit trước khi chạy lại |
-| G6 | **Có khung chạy, chưa có journey nghiệp vụ** | Runner có `sql-seed` / `sql-assert` / `sql-cleanup` (cleanup luôn chạy trong `finally`, kiểm tra `Remaining = 0`). `g6-selftest` kiểm cơ chế bằng bảng `#temp`. 4 journey nghiệp vụ là **khung chưa cấu hình** (`"configured": false`) nên Gate trả `BLOCKED/FAIL`, không thể PASS giả. Cần seed SQL theo schema thật + AutomationId thao tác UI (xem `journeys\g6\README.md`) |
+| G1 | **FAIL: 100 gap** theo run #40794437869 | Ưu tiên gap ghi dữ liệu và các kiểm thử SQL chỉ dùng fake; xem kế hoạch G1 |
+| G2 | **PASS lịch sử**: commit `9bcf9c9`, 225/225 pass, 0 fail, 0 skipped | Chạy lại trên commit phát hành cuối |
+| G3 | **PASS lịch sử trong phạm vi tempdb/fixture**: commit `9bcf9c9` | Không suy rộng thành nghiệm thu SQL57 hoặc schema production |
+| G4 | **PASS lịch sử**: commit `9bcf9c9`, DEL-003/DEL-004/DEL-007 chạy trên procedure thật với rollback | Chưa phủ `PhieuKhoRepository` end-to-end; cần bằng chứng mới trên commit cuối |
+| G5 | **Chưa hoàn tất**: lịch sử `receive-navigation` lỗi trước khi cửa sổ nhập kho xuất hiện | Chạy lại trên Windows runner; lưu log, screenshot và gate summary |
+| G6 | **Chưa hoàn tất**: framework có `sql-seed/sql-assert/sql-cleanup`, nhưng journey nghiệp vụ chưa đủ | Cấu hình và chạy các journey nghiệp vụ thực |
+| Live SQL57 | **Chưa chạy** | Chỉ chạy inventory read-only bằng tài khoản metadata chuyên dụng; không ghi vào catalog dùng chung |
 
-Ghi chú G3: log của chính nó nêu rõ các phần còn lại là SP thật trên bản sao schema cô lập, `PhieuKhoRepository` đầy đủ và journey UI nghiệp vụ.
