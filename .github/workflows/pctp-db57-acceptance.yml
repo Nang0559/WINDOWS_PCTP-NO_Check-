@@ -1,0 +1,106 @@
+name: PCTP DB57 Acceptance
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_db57_test_writes:
+        description: 'I confirm G6 may write run-scoped test data to SQL57/B7R2_FCC and must clean it up.'
+        required: true
+        default: false
+        type: boolean
+      confirm_qc_cleanup:
+        description: 'I confirm every G6 journey must pass SQL assertions and cleanup verification.'
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pctp-db57-acceptance
+  cancel-in-progress: false
+
+jobs:
+  db57-acceptance:
+    if: ${{ inputs.confirm_db57_test_writes == true && inputs.confirm_qc_cleanup == true }}
+    runs-on: [self-hosted, windows, pctp-ui]
+    timeout-minutes: 90
+    env:
+      PCTP_QC_SQL_USER: ${{ secrets.PCTP_QC_SQL_USER }}
+      PCTP_QC_SQL_PASSWORD: ${{ secrets.PCTP_QC_SQL_PASSWORD }}
+      PCTP_QC_LIVE_MODE: '1'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate DB57 target and credentials
+        shell: powershell
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:PCTP_QC_SQL_USER) -or [string]::IsNullOrWhiteSpace($env:PCTP_QC_SQL_PASSWORD)) {
+            throw 'Configure repository secrets PCTP_QC_SQL_USER and PCTP_QC_SQL_PASSWORD.'
+          }
+          $cs = New-Object System.Data.SqlClient.SqlConnectionStringBuilder
+          $cs['Data Source'] = '192.168.200.57'; $cs['Initial Catalog'] = 'B7R2_FCC'
+          $cs['User ID'] = $env:PCTP_QC_SQL_USER; $cs['Password'] = $env:PCTP_QC_SQL_PASSWORD
+          $cs['Connect Timeout'] = 10; $cs['Application Name'] = 'PCTP-QC-DB57-Acceptance-Preflight'
+          $conn = New-Object System.Data.SqlClient.SqlConnection($cs.ConnectionString)
+          try {
+            $conn.Open(); $cmd = $conn.CreateCommand(); $cmd.CommandText = 'SELECT DB_NAME(), CONVERT(nvarchar(128), SERVERPROPERTY(''MachineName'')), SUSER_SNAME()'
+            $reader = $cmd.ExecuteReader()
+            try {
+              if (-not $reader.Read()) { throw 'DB57 preflight returned no row.' }
+              $db = [string]$reader.GetValue(0); $machine = [string]$reader.GetValue(1); $login = [string]$reader.GetValue(2)
+            } finally { $reader.Close() }
+            if ($db -ne 'B7R2_FCC') { throw "Expected SQL57/B7R2_FCC; connected to '$db'." }
+            Write-Host "PASS: DB57/B7R2_FCC reachable; machine=$machine; login=$login."
+          } finally { $conn.Dispose() }
+
+      - name: Add MSBuild to PATH
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Setup NuGet CLI
+        uses: NuGet/setup-nuget@v2
+        with:
+          nuget-version: 6.x
+
+      - name: Restore PCTP dependencies
+        shell: powershell
+        run: |
+          nuget restore PCTP\packages.config -PackagesDirectory packages -NonInteractive -Verbosity normal
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (-not (Test-Path 'packages\EntityFramework.6.6.0-preview1-final\build\EntityFramework.props')) { throw 'Required Entity Framework build props missing.' }
+
+      - name: Build PCTP.exe
+        shell: powershell
+        run: |
+          msbuild PCTP\PCTP.csproj -p:Configuration=Debug -p:Platform=AnyCPU -p:SignManifests=false -p:GenerateManifests=false -p:ManifestCertificateThumbprint= -v:m
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (-not (Test-Path 'PCTP\bin\Debug\PCTP.exe')) { throw 'PCTP.exe was not produced.' }
+
+      - name: G5 - UI navigation against DB57
+        id: g5
+        shell: powershell
+        run: .\PCTP.QC.UI\Invoke-PctpQcGates.ps1 -Gate G5 -ExePath "$PWD\PCTP\bin\Debug\PCTP.exe" -LiveDb57 -SqlServer 192.168.200.57 -SqlDatabase B7R2_FCC
+
+      - name: G6 - DB57 business journeys (seed -> UI -> SQL assert -> cleanup)
+        id: g6
+        shell: powershell
+        run: .\PCTP.QC.UI\Invoke-PctpQcGates.ps1 -Gate G6 -ExePath "$PWD\PCTP\bin\Debug\PCTP.exe" -LiveDb57 -SqlServer 192.168.200.57 -SqlDatabase B7R2_FCC -AllowMutations
+
+      - name: Upload DB57 acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pctp-db57-acceptance-evidence
+          path: artifacts/gates/**
+          if-no-files-found: warn
+
+      - name: Acceptance verdict
+        if: always()
+        shell: powershell
+        run: |
+          $g5 = '${{ steps.g5.outcome }}'; $g6 = '${{ steps.g6.outcome }}'
+          Get-ChildItem artifacts\gates -Recurse -Filter gate-summary.json -ErrorAction SilentlyContinue |
+            ForEach-Object { $j = Get-Content $_.FullName -Raw | ConvertFrom-Json; "{0}: {1} / {2}" -f $j.Gate, $j.Status, $j.Scope }
+          if ($g5 -ne 'success' -or $g6 -ne 'success') { throw "DB57 acceptance failed: G5=$g5 G6=$g6." }
