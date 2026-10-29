@@ -199,9 +199,9 @@ try {
                         Start-Sleep -Milliseconds $ms
                     }
                     "dump-tree" { }
-                    "sql-seed" { $checks = @(Invoke-PctpSqlStep $step $manifestDir $sqlPrefix $runId "seed"); $method = "sql-seed" }
-                    "sql-assert" { $checks = @(Invoke-PctpSqlStep $step $manifestDir $sqlPrefix $runId "assert"); $method = "sql-assert" }
-                    "sql-cleanup" { [void]$cleanupDone.Add([string]$step.id); $checks = @(Invoke-PctpSqlStep $step $manifestDir $sqlPrefix $runId "cleanup"); $method = "sql-cleanup" }
+                    "sql-seed" { $checks = @(Invoke-PctpSqlStep $step $manifestDir $sqlPrefix $runId "seed" $testData); $method = "sql-seed" }
+                    "sql-assert" { $checks = @(Invoke-PctpSqlStep $step $manifestDir $sqlPrefix $runId "assert" $testData); $method = "sql-assert" }
+                    "sql-cleanup" { [void]$cleanupDone.Add([string]$step.id); $checks = @(Invoke-PctpSqlStep $step $manifestDir $sqlPrefix $runId "cleanup" $testData); $method = "sql-cleanup" }
                     default {
                         $found = Find-PctpTarget $step
                         if (-not $found) { throw "Step '$label': UI element not found (AutomationId='$($step.automationId)', Name='$($step.name)', FallbackName='$($step.fallbackName)'). See the control-tree dump for the real AutomationIds/Names." }
@@ -234,6 +234,13 @@ try {
                                 if (-not $target.TryGetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern, [ref]$pattern)) { throw "Step '$label': target does not expose ValuePattern." }
                                 if ($pattern.Current.IsReadOnly) { throw "Step '$label': target value is read-only." }
                                 $pattern.SetValue((Expand-PctpTokens ([string]$step.value) $testData)); $method = "value-pattern"
+                            }
+                            "press-enter" {
+                                # TextBox.KeyDown handlers (QR scanner input) are not triggered by ValuePattern.SetValue.
+                                # Focus the actual control and send Enter so the real WinForms workflow executes.
+                                $target.SetFocus()
+                                [System.Windows.Forms.SendKeys]::SendWait("{ENTER}")
+                                $method = "send-enter"
                             }
                             "assert-name-contains" {
                                 $want = Expand-PctpTokens ([string]$step.value) $testData

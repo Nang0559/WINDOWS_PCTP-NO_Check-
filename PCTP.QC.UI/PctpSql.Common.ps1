@@ -220,7 +220,7 @@ function Invoke-PctpSqlAssert($step, [string]$sql, [string]$prefix, [string]$run
     return $checks.ToArray()
 }
 
-function Invoke-PctpSqlStep($step, [string]$manifestDir, [string]$prefix, [string]$runId, [string]$kind) {
+function Invoke-PctpSqlStep($step, [string]$manifestDir, [string]$prefix, [string]$runId, [string]$kind, $testData) {
     if (-not $script:PctpSqlConnection) { throw "Step '$($step.id)': SQL connection is not open." }
     $sql = Get-PctpStepSql $step $manifestDir
     switch ($kind) {
@@ -230,7 +230,43 @@ function Invoke-PctpSqlStep($step, [string]$manifestDir, [string]$prefix, [strin
             $tx = $script:PctpSqlConnection.BeginTransaction()
             try {
                 $cmd = New-PctpSqlCommand $script:PctpSqlConnection $sql $tx $step $prefix $runId
-                $rows = $cmd.ExecuteNonQuery()
+                $rows = 0
+                $captureNames = @($step.captureColumns | ForEach-Object { [string]$_ })
+                if ($captureNames.Count -gt 0) {
+                    # Seeds can return generated scenario values (QR, LOT, item code) for subsequent UI steps.
+                    # Capture only explicitly declared columns and never write their values to logs.
+                    $reader = $cmd.ExecuteReader()
+                    $captured = $false
+                    try {
+                        do {
+                            if ($reader.FieldCount -gt 0) {
+                                $ordinals = @{}
+                                $allPresent = $true
+                                foreach ($columnName in $captureNames) {
+                                    try { $ordinals[$columnName] = $reader.GetOrdinal($columnName) }
+                                    catch { $allPresent = $false; break }
+                                }
+                                if ($allPresent) {
+                                    if (-not $reader.Read()) { throw "Step '$($step.id)': capture result set returned no row." }
+                                    foreach ($columnName in $captureNames) {
+                                        $value = $reader.GetValue($ordinals[$columnName])
+                                        if ($value -is [System.DBNull]) { $value = '' }
+                                        $testData | Add-Member -NotePropertyName $columnName -NotePropertyValue ([string]$value) -Force
+                                    }
+                                    if (-not $testData.PSObject.Properties['SeedRowsAffected']) {
+                                        throw "Step '$($step.id)': captureColumns must include SeedRowsAffected."
+                                    }
+                                    $rows = [int]$testData.SeedRowsAffected
+                                    $captured = $true
+                                    break
+                                }
+                            }
+                        } while ($reader.NextResult())
+                    } finally { $reader.Close() }
+                    if (-not $captured) { throw "Step '$($step.id)': SQL did not return all declared captureColumns: $($captureNames -join ', ')." }
+                } else {
+                    $rows = $cmd.ExecuteNonQuery()
+                }
                 $min = if ($null -ne $step.expectRowsAtLeast) { [int]$step.expectRowsAtLeast } else { 1 }
                 if ($rows -lt $min) { throw "Step '$($step.id)': seed affected $rows rows, expected at least $min." }
                 $tx.Commit()
