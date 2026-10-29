@@ -92,6 +92,34 @@ jobs:
         run: |
           .\PCTP.QC.UI\Test-PctpG6SqlGuards.ps1
           .\PCTP.QC.UI\Test-PctpLiveDataProfileUnit.ps1
+      - name: Regenerate G1 traceability matrix (report gaps, do not hide them)
+        shell: pwsh
+        run: |
+          $out = Join-Path $env:RUNNER_TEMP "pctp-g1-traceability"
+          python .\PCTP.QC.UI\Build-TraceabilityMatrix.py --out $out --allow-gaps
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $summary = Get-Content (Join-Path $out "gate-summary.json") -Raw | ConvertFrom-Json
+          @(
+            "### G1 traceability inventory",
+            "",
+            "- Candidate SHA: `$($summary.Commit)`",
+            "- Static status: **$($summary.Status)**",
+            "- Code rows: $($summary.Counts.codeRows)",
+            "- Code rows with gaps: $($summary.Counts.codeGaps)",
+            "- SQL scripts: $($summary.Counts.sqlScripts)",
+            "- Total gaps: $($summary.Counts.gaps)",
+            "",
+            "Gaps are reported as evidence; this step does not mark G1 PASS when gaps remain."
+          ) | Out-File $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+
+      - name: Upload G1 traceability evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pctp-g1-traceability-evidence
+          path: ${{ runner.temp }}/pctp-g1-traceability/**
+          if-no-files-found: warn
+
       - name: Run isolated unit and regression tests
         run: dotnet test PCTP.QC.Tests/PCTP.QC.Tests.csproj --configuration Release --logger "trx;LogFileName=pctp-qc-tests.trx"
       - name: Upload test results
