@@ -51,7 +51,7 @@ BEGIN
         ORDER BY ImportDate DESC, SlotLotId DESC
     ) l;
 
-    DELETE FROM dbo.STOCKTP WHERE LOT=@BaseLot AND MODEL=@Prefix;
+    DELETE FROM dbo.STOCKTP WHERE LOT=@BaseLot;
 
     IF OBJECT_ID(N'dbo.PCTPStockMovementGuard', N'U') IS NOT NULL
         DELETE FROM dbo.PCTPStockMovementGuard
