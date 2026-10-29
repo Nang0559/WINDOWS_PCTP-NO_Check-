@@ -44,4 +44,27 @@ Khi quét thử, chọn slot thuộc kệ `<prefix>_RK` (màn hình quét liệt
 - Script SQL chưa được chạy trên SQL Server thật khi viết. Lần chạy đầu trên DB57 cần được xem như lần kiểm chứng.
 - Runner đặt timeout 15 giây cho mỗi lệnh. Nếu `vNhapTP` chậm trên dữ liệu thật, bước assert có thể quá hạn.
 - Cleanup và `verify.sql` chỉ phủ các bảng trên (khoá theo mã hàng/kệ/kho có tiền tố). Nếu thao tác quét ghi thêm bảng khác, cần bổ sung.
-- Chưa có seed cho luồng xuất kho (`TMPPHIEUGIAOHANG`, `DOCQRCODE`) và QC; xem `SQL/QC_G4_DeliveryFixture_Seed.sql` làm mẫu.
+- Seed xuất kho có ở mục bên dưới; chưa có seed cho luồng QC (`g6-qc-direction`, `g6-qc-final`).
+
+## Seed xuất kho (`g6-delivery-hvn`, journey `delivery-hvn`)
+
+Một lần seed tạo, tất cả có tiền tố `QCUI_<runId8>`:
+
+- 1 mã hàng `QCUI_<runId8>_DL` trong `B20Item` (hậu tố `_DL` để không trùng với `_FG` của luồng nhập kho).
+- 1 dòng `STOCKTP` (LOT 20 ký tự, `SLCONLAI = 10`, `STATUSNHAP = QC_FIXTURE`).
+- 1 dòng `TMPPHIEUGIAOHANG` chờ giao (`SOLUONG = 10`, `Note = <prefix>_DEL`, STT lấy trong dải dành riêng 30000..32500, cột `LOT` = `LOT20-10` theo `QC_G4_DeliveryFixture_Seed.sql`).
+
+Chạy tay: `Invoke-PctpQcSeed.ps1 -Journey delivery-hvn -Action Seed -ConfirmWrites -SqlUser <user>` (in chuỗi QR tem thùng và STT cần giao); dọn bằng `-Action Cleanup -Prefix QCUI_xxxxxxxx`.
+
+Giới hạn:
+
+- Quét QR chưa tự động hóa; journey chỉ chứng minh lớp dữ liệu (`TmpRows=1`, `StockRemaining=10`, chưa có `LUUPHIEUGIAOHANG`).
+- Giả định cần xác nhận bằng một lần quét tay: màn hình ghép LOT 28 ký tự của QR với `STOCKTP.LOT` (LOT20) và `TMPPHIEUGIAOHANG.LOT` (`LOT20-qty`). Nếu màn hình từ chối, gửi thông báo lỗi để chỉnh seed.
+- Cleanup chỉ xóa `LUUDOCQRCODE`, `DOCQRCODE` (theo `MAHANGFCC`), `LUUPHIEUGIAOHANG`, `TMPPHIEUGIAOHANG`, `STOCKTP`, `B20Item`. Các dòng `PCTPStockMovementGuard` và `FVN_DeliveryCommand*` do một lần giao thật ghi ra không có khóa tiền tố nên **không** bị xóa (mỗi lần seed có mã hàng/LOT mới nên không đụng nhau).
+
+## Guard cho script ghi dữ liệu
+
+- `Assert-PctpTestServerName` / `Assert-PctpConnectedToTestServer` (`PctpSql.Common.ps1`): trước khi ghi, kiểm tra tên server, và sau khi mở kết nối kiểm tra `@@SERVERNAME` (từ chối `BRAVO`) và `DB_NAME()`. Mặc định chỉ `192.168.200.57` / `B7R2_FCC`; đổi bằng `PCTP_QC_ALLOWED_TEST_SERVER` / `PCTP_QC_ALLOWED_TEST_DATABASE`.
+- Mọi `LIKE @Prefix` trong SQL của journey đã escape `_` (`REPLACE(@Prefix, N'_', N'[_]')`), vì `_` là ký tự đại diện một ký tự trong `LIKE`.
+- Một step có thể đặt `"timeoutSeconds"` (5..120, mặc định 15) cho truy vấn chậm như `vNhapTP`.
+- `Test-PctpG6SqlGuards.ps1` chạy trong CI (không cần database): kiểm tra SQL journey qua `Assert-PctpMutationScoped`, escape `LIKE`, journey đã cấu hình có đủ file, và guard server.

@@ -1,3 +1,8 @@
--- g6-delivery-hvn: template. Every mutating statement MUST be scoped by @Prefix (QCUI_<runId>) and have a WHERE.
--- SELECT the postcondition columns, e.g.: SELECT Status, SoLuongConLai FROM ... WHERE Key LIKE @Prefix + N'%';
-THROW 50000, N'G6 g6-delivery-hvn NOT CONFIGURED: provide this SQL for the isolated DB. Needed: seed.sql (dong TMPPHIEUGIAOHANG + LOT con ton, dung PCTP_QC_DEL_ACCEPTANCE_STT), buoc UI giao hang, assert.sql (LUUPHIEUGIAOHANG, STOCKTP, SlotLot, history), cleanup/verify.sql', 1;
+-- g6-delivery-hvn: pre-scan postcondition (read-only). After a real scan these numbers change on purpose.
+SELECT
+    (SELECT COUNT(*) FROM dbo.TMPPHIEUGIAOHANG WHERE Note LIKE REPLACE(@Prefix, N'_', N'[_]') + N'%') AS TmpRows,
+    (SELECT ISNULL(SUM(SOLUONG), 0) FROM dbo.TMPPHIEUGIAOHANG WHERE Note LIKE REPLACE(@Prefix, N'_', N'[_]') + N'%') AS TmpQty,
+    (SELECT COUNT(*) FROM dbo.STOCKTP WHERE PART LIKE REPLACE(@Prefix, N'_', N'[_]') + N'%') AS StockRows,
+    (SELECT ISNULL(SUM(SLCONLAI), 0) FROM dbo.STOCKTP WHERE PART LIKE REPLACE(@Prefix, N'_', N'[_]') + N'%') AS StockRemaining,
+    (SELECT COUNT(*) FROM dbo.LUUPHIEUGIAOHANG WHERE MAHANG LIKE REPLACE(@Prefix, N'_', N'[_]') + N'%') AS DeliveredRows,
+    (SELECT COUNT(*) FROM dbo.DOCQRCODE WHERE MAHANGFCC LIKE REPLACE(@Prefix, N'_', N'[_]') + N'%') AS PendingQrRows;

@@ -1,3 +1,8 @@
--- g6-delivery-hvn: template. Every mutating statement MUST be scoped by @Prefix (QCUI_<runId>) and have a WHERE.
--- SELECT SUM(n) AS Remaining FROM (SELECT COUNT(*) n FROM <table> WHERE <key> LIKE @Prefix + N'%' UNION ALL ...) x;
-THROW 50000, N'G6 g6-delivery-hvn NOT CONFIGURED: provide this SQL for the isolated DB. Needed: seed.sql (dong TMPPHIEUGIAOHANG + LOT con ton, dung PCTP_QC_DEL_ACCEPTANCE_STT), buoc UI giao hang, assert.sql (LUUPHIEUGIAOHANG, STOCKTP, SlotLot, history), cleanup/verify.sql', 1;
+-- g6-delivery-hvn: Remaining must be 0 after cleanup.
+SELECT
+    (SELECT COUNT(*) FROM dbo.LUUDOCQRCODE WHERE MAHANGFCC LIKE REPLACE(@Prefix, N'_', N'[_]') + N'%')
+  + (SELECT COUNT(*) FROM dbo.DOCQRCODE WHERE MAHANGFCC LIKE REPLACE(@Prefix, N'_', N'[_]') + N'%')
+  + (SELECT COUNT(*) FROM dbo.LUUPHIEUGIAOHANG WHERE MAHANG LIKE REPLACE(@Prefix, N'_', N'[_]') + N'%' OR CUA = @Prefix)
+  + (SELECT COUNT(*) FROM dbo.TMPPHIEUGIAOHANG WHERE Note LIKE REPLACE(@Prefix, N'_', N'[_]') + N'%' OR CUA = @Prefix OR MAHANG LIKE REPLACE(@Prefix, N'_', N'[_]') + N'%')
+  + (SELECT COUNT(*) FROM dbo.STOCKTP WHERE PART LIKE REPLACE(@Prefix, N'_', N'[_]') + N'%')
+  + (SELECT COUNT(*) FROM dbo.B20Item WHERE Code LIKE REPLACE(@Prefix, N'_', N'[_]') + N'%') AS Remaining;

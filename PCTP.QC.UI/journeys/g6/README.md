@@ -8,7 +8,7 @@ Moi journey gom 4 phan theo thu tu: `sql-seed` -> thao tac UI -> `sql-assert` ->
 | `g6-qc-direction.json` | **Chua cau hinh** | Mo rong `qc-direction-navigation.json` |
 | `g6-qc-final.json` | **Chua cau hinh** | Mo rong `qc-final-navigation.json` |
 | `g6-receive.json` | **Seed + worklist** (chua quet QR) | Seed phieu san xuat -> dong `vNhapTP`; quet QR tem tong chua tu dong hoa |
-| `g6-delivery-hvn.json` | **Chua cau hinh** | Mo rong `delivery-hvn-navigation.json` |
+| `g6-delivery-hvn.json` | **Seed + dong cho giao** (chua quet QR) | Seed TMPPHIEUGIAOHANG + STOCKTP; quet QR tem thung chua tu dong hoa |
 
 Journey `"configured": false` bi runner tu choi chay; Gate bao `BLOCKED`. Khong co duong nao cho PASS gia.
 

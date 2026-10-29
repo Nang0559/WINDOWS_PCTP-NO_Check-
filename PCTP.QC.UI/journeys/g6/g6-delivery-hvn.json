@@ -1,13 +1,12 @@
 {
   "name": "g6-delivery-hvn",
-  "purpose": "G6 business journey (seed -> UI -> SQL assert -> cleanup). Extends delivery-hvn-navigation.json.",
-  "configured": false,
-  "configurationNeeded": "seed.sql (dong TMPPHIEUGIAOHANG + LOT con ton, dung PCTP_QC_DEL_ACCEPTANCE_STT), buoc UI giao hang, assert.sql (LUUPHIEUGIAOHANG, STOCKTP, SlotLot, history), cleanup/verify.sql",
+  "purpose": "G6 business journey (seed -> UI -> SQL assert -> cleanup). Extends delivery-hvn-navigation.json. Data layer only: seeds one pending TMPPHIEUGIAOHANG line + its STOCKTP LOT; the QR scan itself is not automated yet.",
+  "configured": true,
   "dataMutation": true,
   "scenario": {
     "id": "G6-004",
     "title": "Giao hang HVN mot phieu seed",
-    "description": "KHUNG CHUA CAU HINH: seed/assert/cleanup SQL va cac buoc UI thao tac phai bo sung theo schema that. Cac buoc dieu huong da duoc xac minh o G5."
+    "description": "Seed B20Item + STOCKTP (LOT 20 ky tu, SLCONLAI 10) + 1 dong TMPPHIEUGIAOHANG voi tien to {{prefix}}; mo man hinh HVN_PGH; SQL xac nhan dong cho giao + ton kho, chua co dong LUUPHIEUGIAOHANG; cleanup ve Remaining = 0. Buoc quet QR tem thung CHUA tu dong hoa - dung qr.sql de lay chuoi QR va quet tay (Invoke-PctpQcSeed.ps1 -Journey delivery-hvn)."
   },
   "testData": {
     "menuPath": "Giao Hàng > HVN - MP",
@@ -19,8 +18,8 @@
       "action": "sql-seed",
       "mutatesData": true,
       "sqlFile": "sql/delivery-hvn/seed.sql",
-      "expectRowsAtLeast": 1,
-      "description": "Seed du lieu duy nhat voi tien to {{prefix}}"
+      "expectRowsAtLeast": 3,
+      "description": "Seed item, STOCKTP LOT va 1 dong TMPPHIEUGIAOHANG voi tien to {{prefix}}"
     },
     {
       "id": "expand-delivery-menu",
@@ -70,8 +69,15 @@
       "id": "assert-after-ui",
       "action": "sql-assert",
       "sqlFile": "sql/delivery-hvn/assert.sql",
-      "expectColumns": {},
-      "description": "SQL hau dieu kien sau thao tac UI"
+      "expectColumns": {
+        "TmpRows": 1,
+        "TmpQty": 10,
+        "StockRows": 1,
+        "StockRemaining": 10,
+        "DeliveredRows": 0,
+        "PendingQrRows": 0
+      },
+      "description": "SQL: 1 dong cho giao (10), ton 10, chua co phieu giao / QR cho"
     },
     {
       "id": "cleanup",

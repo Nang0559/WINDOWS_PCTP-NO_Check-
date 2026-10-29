@@ -15,17 +15,19 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)][ValidateSet('Seed', 'Qr', 'Cleanup', 'Verify')][string]$Action,
-    [string]$Journey = 'receive',
+    [ValidateSet('receive', 'delivery-hvn')][string]$Journey = 'receive',
     [string]$Prefix,
     [string]$SqlUser = $env:PCTP_QC_SQL_USER,
     [string]$Server = '192.168.200.57',
     [string]$Database = 'B7R2_FCC',
-    [switch]$ConfirmWrites
+    [switch]$ConfirmWrites,
+    [ValidateRange(5, 300)][int]$CommandTimeoutSeconds = 60
 )
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'PctpSql.Common.ps1')
 
 if ($Server -ne '192.168.200.57' -or $Database -ne 'B7R2_FCC') { throw 'Invoke-PctpQcSeed is pinned to 192.168.200.57/B7R2_FCC.' }
+Assert-PctpTestServerName $Server $Database
 if ($Action -in @('Seed', 'Cleanup') -and -not $ConfirmWrites) { throw "$Action writes to DB57: pass -ConfirmWrites." }
 if ([string]::IsNullOrWhiteSpace($SqlUser)) { throw 'Pass -SqlUser (or set PCTP_QC_SQL_USER).' }
 $password = $env:PCTP_QC_SQL_PASSWORD
@@ -49,7 +51,7 @@ $b['Data Source'] = $Server; $b['Initial Catalog'] = $Database; $b['User ID'] = 
 $conn = New-Object System.Data.SqlClient.SqlConnection($b.ConnectionString)
 
 function New-Cmd([string]$sql, $tx) {
-    $c = $conn.CreateCommand(); $c.CommandText = $sql; $c.CommandTimeout = 60
+    $c = $conn.CreateCommand(); $c.CommandText = $sql; $c.CommandTimeout = $CommandTimeoutSeconds
     if ($tx) { $c.Transaction = $tx }
     [void]$c.Parameters.AddWithValue('@Prefix', $Prefix)
     [void]$c.Parameters.AddWithValue('@RunId', $Prefix.Substring(5))
@@ -72,7 +74,7 @@ function Show-Rows([string]$name) {
 
 $conn.Open()
 try {
-    if ((New-Cmd 'SELECT DB_NAME()' $null).ExecuteScalar() -ne 'B7R2_FCC') { throw 'Connected to a database other than B7R2_FCC.' }
+    Assert-PctpConnectedToTestServer $conn
     switch ($Action) {
         'Seed' {
             $n = Invoke-Write 'seed'

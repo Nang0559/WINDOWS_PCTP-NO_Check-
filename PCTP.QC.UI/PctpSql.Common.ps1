@@ -71,6 +71,28 @@ function Test-PctpSqlTarget([string]$server, [string]$database) {
     throw "SQL target '$pair' is not allowed. Default is '$default'. To use another disposable copy, set PCTP_QC_ISOLATED_TARGET='$pair' explicitly."
 }
 
+# Defence in depth for every script that WRITES test data: besides Test-PctpSqlTarget (names), prove after connecting that the
+# server we really reached is the approved test server. Override with PCTP_QC_ALLOWED_TEST_SERVER / PCTP_QC_ALLOWED_TEST_DATABASE.
+function Get-PctpAllowedTestServer { if ($env:PCTP_QC_ALLOWED_TEST_SERVER) { return $env:PCTP_QC_ALLOWED_TEST_SERVER.Trim() } else { return $script:PctpDefaultServer } }
+function Get-PctpAllowedTestDatabase { if ($env:PCTP_QC_ALLOWED_TEST_DATABASE) { return $env:PCTP_QC_ALLOWED_TEST_DATABASE.Trim() } else { return $script:PctpDefaultDatabase } }
+
+function Assert-PctpTestServerName([string]$server, [string]$database) {
+    $allowed = Get-PctpAllowedTestServer
+    $h = ($server.Trim() -replace '^(?i)tcp:', ''); $cut = $h.IndexOfAny([char[]]@('\', ',')); if ($cut -ge 0) { $h = $h.Substring(0, $cut) }
+    if ($h -ine $allowed) { throw "Write scripts may only connect to the approved test server '$allowed' (got '$server'). Set PCTP_QC_ALLOWED_TEST_SERVER only for another disposable server." }
+    if ($server -match '(?i)BRAVO' -or $server -match '192\.168\.200\.14\b') { throw "Production server '$server' is always rejected." }
+    $db = Get-PctpAllowedTestDatabase
+    if ($database.Trim() -ine $db) { throw "Write scripts may only target database '$db' (got '$database')." }
+}
+
+function Assert-PctpConnectedToTestServer($conn) {
+    $cmd = $conn.CreateCommand(); $cmd.CommandText = 'SELECT CAST(@@SERVERNAME AS nvarchar(128)) AS srv, DB_NAME() AS db'; $cmd.CommandTimeout = 15
+    $r = $cmd.ExecuteReader()
+    try { [void]$r.Read(); $srv = [string]$r['srv']; $db = [string]$r['db'] } finally { $r.Close() }
+    if ($srv -match '(?i)BRAVO') { throw "Connected server reports itself as '$srv' (production). Refusing to write." }
+    if ($db -ine (Get-PctpAllowedTestDatabase)) { throw "Connected database is '$db', expected '$(Get-PctpAllowedTestDatabase)'. Refusing to write." }
+}
+
 function Open-PctpSql([string]$server, [string]$database) {
     Test-PctpSqlTarget $server $database
     if (Test-PctpIsolatedMode) {
@@ -96,8 +118,10 @@ function Open-PctpSql([string]$server, [string]$database) {
     $b['Password'] = $pwd
     $b['Connect Timeout'] = 5
     $b['Application Name'] = 'PCTP-QC-G6'
+    Assert-PctpTestServerName $server $database
     $conn = New-Object System.Data.SqlClient.SqlConnection($b.ConnectionString)
     $conn.Open()
+    try { Assert-PctpConnectedToTestServer $conn } catch { $conn.Dispose(); throw }
     $cmd = $conn.CreateCommand()
     $cmd.CommandText = 'SET LOCK_TIMEOUT 5000;'
     [void]$cmd.ExecuteNonQuery()
@@ -167,7 +191,10 @@ function Assert-PctpMutationScoped([string]$sql, [string]$stepId) {
 function New-PctpSqlCommand($conn, [string]$sql, $tx, $step, [string]$prefix, [string]$runId) {
     $cmd = $conn.CreateCommand()
     $cmd.CommandText = $sql
-    $cmd.CommandTimeout = 15
+    # Default 15 s; a step may raise it (5..120 s) with "timeoutSeconds" for slow views such as dbo.vNhapTP on real data.
+    $timeout = 15
+    if ($step -and $step.PSObject.Properties['timeoutSeconds'] -and $null -ne $step.timeoutSeconds) { $timeout = [Math]::Min(120, [Math]::Max(5, [int]$step.timeoutSeconds)) }
+    $cmd.CommandTimeout = $timeout
     if ($tx) { $cmd.Transaction = $tx }
     [void]$cmd.Parameters.AddWithValue('@Prefix', $prefix)
     [void]$cmd.Parameters.AddWithValue('@RunId', $runId)
