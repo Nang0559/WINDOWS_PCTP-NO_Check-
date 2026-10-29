@@ -1,12 +1,12 @@
 {
   "name": "g6-delivery-hvn",
-  "purpose": "G6 business journey (seed -> UI -> SQL assert -> cleanup). Extends delivery-hvn-navigation.json. Data layer only: seeds one pending TMPPHIEUGIAOHANG line + its STOCKTP LOT; the QR scan itself is not automated yet.",
+  "purpose": "G6 real UI journey: seed one pending delivery line and its stock LOT, capture the generated carton QR in memory, enter it through the real HVN_PGH QR control and Enter handler, assert delivery/QR/stock postconditions, then cleanup.",
   "configured": true,
   "dataMutation": true,
   "scenario": {
     "id": "G6-004",
     "title": "Giao hang HVN mot phieu seed",
-    "description": "Seed B20Item + STOCKTP (LOT 20 ky tu, SLCONLAI 10) + 1 dong TMPPHIEUGIAOHANG voi tien to {{prefix}}; mo man hinh HVN_PGH; SQL xac nhan dong cho giao + ton kho, chua co dong LUUPHIEUGIAOHANG; cleanup ve Remaining = 0. Buoc quet QR tem thung CHUA tu dong hoa - dung qr.sql de lay chuoi QR va quet tay (Invoke-PctpQcSeed.ps1 -Journey delivery-hvn)."
+    "description": "Seed one B20Item + STOCKTP LOT + TMPPHIEUGIAOHANG pending line. Capture the run-scoped carton QR from the seeded LOT/quantity, submit it through txt_DOCQRCODE on the real UI, assert the resulting delivery/QR/stock state and clean up only this run."
   },
   "testData": {
     "menuPath": "Giao Hàng > HVN - MP",
@@ -19,7 +19,11 @@
       "mutatesData": true,
       "sqlFile": "sql/delivery-hvn/seed.sql",
       "expectRowsAtLeast": 3,
-      "description": "Seed item, STOCKTP LOT va 1 dong TMPPHIEUGIAOHANG voi tien to {{prefix}}"
+      "description": "Seed item, STOCKTP LOT va 1 dong TMPPHIEUGIAOHANG voi tien to {{prefix}}",
+      "captureColumns": [
+        "SeedRowsAffected",
+        "Qr1"
+      ]
     },
     {
       "id": "expand-delivery-menu",
@@ -66,18 +70,37 @@
       "expected": "'gridCtrDONHANG' hiển thị"
     },
     {
+      "id": "enter-carton-qr",
+      "action": "set-value",
+      "automationId": "txt_DOCQRCODE",
+      "value": "{{Qr1}}",
+      "description": "Nhập QR tem thùng được sinh từ LOT/quantity của run này vào ô quét thật",
+      "waitAfterMs": 150
+    },
+    {
+      "id": "submit-carton-qr",
+      "action": "press-enter",
+      "automationId": "txt_DOCQRCODE",
+      "description": "Gửi QR qua Enter handler thật của màn hình HVN_PGH",
+      "waitAfterMs": 500,
+      "dump": true
+    },
+    {
       "id": "assert-after-ui",
       "action": "sql-assert",
-      "sqlFile": "sql/delivery-hvn/assert.sql",
+      "sqlFile": "sql/delivery-hvn/assert-after-scan.sql",
       "expectColumns": {
-        "TmpRows": 1,
-        "TmpQty": 10,
+        "StockViolations": 0,
         "StockRows": 1,
-        "StockRemaining": 10,
-        "DeliveredRows": 0,
-        "PendingQrRows": 0
+        "StockIssued": 10,
+        "StockRemaining": 0,
+        "DeliveredRows": 1,
+        "DeliveredQty": 10,
+        "QrRows": 1,
+        "QrQty": 10,
+        "QrWithoutStockViolations": 0
       },
-      "description": "SQL: 1 dong cho giao (10), ton 10, chua co phieu giao / QR cho"
+      "description": "Xác minh kết quả sau QR scan bằng UI thật: STOCKTP, phiếu giao, QR và liên kết LOT."
     },
     {
       "id": "cleanup",
