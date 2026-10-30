@@ -326,7 +326,7 @@ jobs:
             IF OBJECT_ID(N'dbo.DOCQRCODE',N'U') IS NULL THROW 52105,N'Schema deploy missing dbo.DOCQRCODE',1;
             IF OBJECT_ID(N'dbo.vNhapTP',N'V') IS NULL THROW 52106,N'Schema deploy missing dbo.vNhapTP',1;
             SELECT COUNT(*) AS vNhapTP_rows FROM dbo.vNhapTP;
-            SELECT 'PASS: required delivery tables verified in PCTP_QC_CI' AS Result;"
+            SELECT 'PASS: required delivery tables and catalog views verified in PCTP_QC_CI' AS Result;"
           echo "PASS: DB57-derived schema and the six checked-in WMS procedures deployed to PCTP_QC_CI"
 
       - name: Seed deterministic G4 fixture
