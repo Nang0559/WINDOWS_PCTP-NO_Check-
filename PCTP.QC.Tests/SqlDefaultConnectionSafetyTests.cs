@@ -36,9 +36,9 @@ public sealed class SqlDefaultConnectionSafetyTests
     [Fact]
     public void AutoWhAlias_UsesTheSharedExternalDatabaseSetting()
     {
-        var line = CodeLines().SingleOrDefault(l => l.StartsWith("public string AutoWH =", StringComparison.Ordinal));
+        var line = CodeLines().SingleOrDefault(l => l.StartsWith("public string AutoWH", StringComparison.Ordinal));
         Assert.NotNull(line);
-        Assert.Contains("GetConfiguredConnection(\"B7R2_FCCdb\")", line);
+        Assert.Contains("SQLPROVIDER.GetConfiguredConnection(\"B7R2_FCCdb\")", line);
     }
 
     [Fact]
@@ -69,10 +69,21 @@ public sealed class SqlDefaultConnectionSafetyTests
         Assert.Contains("B7R2_FCCEntities", content);
         Assert.Contains("localhost_B7R2_FCC_Connection", content);
         Assert.Contains("B7R2_FCCdbb", content);
-        var lower = content.ToLowerInvariant();
-        Assert.DoesNotContain("192.168.200.14", lower);
-        Assert.DoesNotContain("bravo", lower);
-        Assert.DoesNotContain("fccbrv", lower);
+        // "bravo" is part of a legacy connection NAME, not a server/credential value.
+        var document = System.Xml.Linq.XDocument.Parse(content);
+        var connectionValues = document.Root.Elements("add")
+            .Select(e => (string)e.Attribute("connectionString"))
+            .Where(v => !string.IsNullOrWhiteSpace(v))
+            .ToArray();
+        Assert.NotEmpty(connectionValues);
+        var values = string.Join("\n", connectionValues).ToLowerInvariant();
+        Assert.DoesNotContain("192.168.200.14", values);
+        Assert.DoesNotContain("192.168.200.57", values);
+        Assert.DoesNotContain("fccbrv", values);
+        Assert.DoesNotContain("password=sa", values);
+        Assert.Contains("your_sql_server", values);
+        Assert.Contains("your_sql_user", values);
+        Assert.Contains("your_sql_password", values);
     }
 
     private static string FindRepositoryRoot()
