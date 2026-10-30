@@ -666,7 +666,7 @@ namespace PCTP.ClassSQL
             var data = new DataTable();
             try
             {
-                using (var connection = CreateConnection(connectionSTR))
+                using (var connection = SQLPROVIDER.CreateConnection(connectionSTR))
                 using (var command = new SqlCommand(query, connection))
                 using (var adapter = new SqlDataAdapter(command))
                 {
@@ -689,7 +689,7 @@ namespace PCTP.ClassSQL
         public string WH4ExecuteReader(string connectionSTR, string query)
         {
             var value = "";
-            using (var connection = CreateConnection(connectionSTR))
+            using (var connection = SQLPROVIDER.CreateConnection(connectionSTR))
             using (var command = new SqlCommand(query, connection))
             {
                 connection.Open();
@@ -716,7 +716,7 @@ namespace PCTP.ClassSQL
             var data = new DataSet();
             try
             {
-                using (var connection = CreateConnection(connectionSTR))
+                using (var connection = SQLPROVIDER.CreateConnection(connectionSTR))
                 using (var command = new SqlCommand(query, connection))
                 using (var adapter = new SqlDataAdapter(command))
                 {
@@ -737,7 +737,7 @@ namespace PCTP.ClassSQL
         public DataSet WH4ExecuteProcedureReturnDataSet(string connString, string procName,
             params SqlParameter[] parameters)
         {
-            using (var connection = CreateConnection(connString))
+            using (var connection = SQLPROVIDER.CreateConnection(connString))
             using (var command = connection.CreateCommand())
             using (var adapter = new SqlDataAdapter(command))
             {
@@ -759,7 +759,7 @@ namespace PCTP.ClassSQL
         {
             try
             {
-                using (var connection = CreateConnection(connectionSTR))
+                using (var connection = SQLPROVIDER.CreateConnection(connectionSTR))
                 using (var command = new SqlCommand(query, connection))
                 {
                     AddNamedParameters(command, query, parameter);
@@ -781,7 +781,7 @@ namespace PCTP.ClassSQL
         {
             try
             {
-                using (var connection = CreateConnection(connectionSTR))
+                using (var connection = SQLPROVIDER.CreateConnection(connectionSTR))
                 using (var command = new SqlCommand(query, connection))
                 {
                     AddNamedParameters(command, query, parameter);
