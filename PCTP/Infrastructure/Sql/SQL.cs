@@ -24,16 +24,16 @@ namespace PCTP.ClassSQL
         public string B7R2_FCCdbb = GetConfiguredConnection("B7R2_FCCdbb");
 
         /// <summary>
-        /// Reads the connection string from the external PCTP.Database.config file.
+        /// Reads the named connection string from the external PCTP.Database.config file.
         /// QcSqlOverride remains the final gate for isolated CI fixture redirection.
         /// </summary>
         private static string GetConfiguredConnection(string key)
         {
-            var configured = ConfigurationManager.AppSettings[key];
+            var configured = ConfigurationManager.ConnectionStrings[key]?.ConnectionString;
             if (string.IsNullOrWhiteSpace(configured))
             {
                 throw new InvalidOperationException(
-                    "Missing database setting '" + key + "'. Check PCTP.Database.config next to PCTP.exe.");
+                    "Missing database setting '" + key + "'. Check the connectionStrings section in PCTP.Database.config next to PCTP.exe.");
             }
 
             return QcSqlOverride.Resolve(configured);
