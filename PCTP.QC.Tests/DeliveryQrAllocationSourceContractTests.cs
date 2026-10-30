@@ -260,6 +260,9 @@ public sealed class DeliveryQrAllocationSourceContractTests
         Assert.Contains("VALUES (@Stt, @Prefix, @Prefix, @ItemA, N'QC fixture ' + @Prefix, N''", multiSeed);
         Assert.Contains("VALUES (@Stt + 1, @Prefix, @Prefix, @ItemB, N'QC fixture ' + @Prefix, N''", multiSeed);
         Assert.Contains("VALUES (@Stt + 2, @Prefix, @Prefix, @ItemC, N'QC fixture ' + @Prefix, N''", multiSeed);
+        Assert.Contains("WHEN s.PART = @ItemB AND s.LOT = @LotB1 THEN 6", multiSeed);
+        Assert.Contains("WHEN s.PART = @ItemC AND s.LOT = @LotC3 THEN 2", multiSeed);
+        Assert.Contains("WHERE QrCount = 6", multiSeed);
     }
 
     [Fact]
