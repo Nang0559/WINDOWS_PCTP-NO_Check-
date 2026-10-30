@@ -27,16 +27,38 @@ namespace PCTP.ClassSQL
         /// Reads the named connection string from the external PCTP.Database.config file.
         /// QcSqlOverride remains the final gate for isolated CI fixture redirection.
         /// </summary>
-        internal static string GetConfiguredConnection(string key)
+        /// <summary>
+        /// Single source of truth for the application's SQL Server database.
+        /// Legacy callers may still pass an old connection-string alias; all
+        /// aliases are normalized to the canonical B7R2_FCCdb setting.
+        /// QcSqlOverride remains able to redirect this connection to an
+        /// isolated CI fixture.
+        /// </summary>
+        internal static string GetConfiguredConnection(string key = "B7R2_FCCdb")
         {
-            var configured = ConfigurationManager.ConnectionStrings[key]?.ConnectionString;
+            var configured = ConfigurationManager.ConnectionStrings["B7R2_FCCdb"]?.ConnectionString;
             if (string.IsNullOrWhiteSpace(configured))
             {
                 throw new InvalidOperationException(
-                    "Missing database setting '" + key + "'. Check the connectionStrings section in PCTP.Database.config next to PCTP.exe.");
+                    "Missing canonical SQL setting 'B7R2_FCCdb'. Check PCTP.Database.config next to PCTP.exe.");
+            }
+
+            if (configured.IndexOf("YOUR_SQL_USER", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                configured.IndexOf("YOUR_SQL_PASSWORD", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                throw new InvalidOperationException(
+                    "SQL credentials are not configured. Set the local B7R2_FCCdb connection in PCTP.Database.config.");
             }
 
             return QcSqlOverride.Resolve(configured);
+        }
+
+        /// <summary>Creates SQL connections through the canonical DB configuration.</summary>
+        internal static SqlConnection CreateConnection(string legacyConnectionString = null)
+        {
+            // Explicit legacy strings are intentionally ignored: all SQL Server
+            // modules in this application use the same B7R2_FCC database.
+            return new SqlConnection(GetConfiguredConnection());
         }
         // lịch sử còn sót lại. Giữ cả 2 vì nhiều repository tham chiếu theo tên
         // cũ; đổi tên sẽ vỡ build hàng loạt.
@@ -63,7 +85,7 @@ namespace PCTP.ClassSQL
         /// </example>
         public SqlConnection BeginTransaction(string connectionSTR, out SqlTransaction tran)
         {
-            var conn = new SqlConnection(connectionSTR);
+            var conn = CreateConnection(connectionSTR);
             conn.Open();
             tran = conn.BeginTransaction();
             return conn;
@@ -243,7 +265,7 @@ namespace PCTP.ClassSQL
         /// </summary>
         public DataTable LoadData1(string connString, string query, params SqlParameter[] paramList)
         {
-            using (var sqlConnection = new SqlConnection(connString))
+            using (var sqlConnection = CreateConnection(connString))
             using (var cmd = sqlConnection.CreateCommand())
             {
                 cmd.CommandType = CommandType.Text;
@@ -371,7 +393,7 @@ namespace PCTP.ClassSQL
         string procedureName,
         params SqlParameter[] parameters)
         {
-            using (var connection = new SqlConnection(connectionString))
+            using (var connection = CreateConnection(connectionString))
             using (var command = new SqlCommand(procedureName, connection))
             {
                 command.CommandType = CommandType.StoredProcedure;
@@ -644,7 +666,7 @@ namespace PCTP.ClassSQL
             var data = new DataTable();
             try
             {
-                using (var connection = new SqlConnection(ResolveConnection(connectionSTR)))
+                using (var connection = CreateConnection(connectionSTR))
                 using (var command = new SqlCommand(query, connection))
                 using (var adapter = new SqlDataAdapter(command))
                 {
@@ -715,7 +737,7 @@ namespace PCTP.ClassSQL
         public DataSet WH4ExecuteProcedureReturnDataSet(string connString, string procName,
             params SqlParameter[] parameters)
         {
-            using (var connection = new SqlConnection(ResolveConnection(connString)))
+            using (var connection = CreateConnection(connString))
             using (var command = connection.CreateCommand())
             using (var adapter = new SqlDataAdapter(command))
             {
