@@ -91,3 +91,15 @@ Therefore, the supplied total and box labels are a valid matching fixture for th
 - A contract-oracle test is not proof that production receiving/export services normalize the LOT correctly.
 - The current legacy `ParseTachLotQr` implementation documents a 27-character LOT and strips only the final four characters. That assumption does not match this 28-character / 20-character identity contract. Track it as a production integration blocker; do not change the production parser or central SQL in this QC-only change.
 - Full acceptance additionally requires isolated SQL Server tests for receiving with total labels, issue with box labels, shared LOT reconciliation, shortage/rollback/replay/concurrency, and cleanup; then a real Windows UI journey. Do not mark G6 PASS from parser/unit tests alone.
+
+
+### Confirmed production integration gap (not a QR-data blocker)
+
+Source inspection of `QRCodeInfo`, `QRCodeParser.ParseQRCode`, `NhapTpReceivingService.NhapTpVaoSlot`, and `QRCodeWorkflowAdapter` found two concrete issues:
+
+1. `QRCodeInfo.RawLotNoSL` defaults to an empty string. `ParseQRCode` currently sets `LotNo` and `RawLotNo`, but does not set `RawLotNoSL`. In the no-`matchedPhieu` receiving path, `RawLotNoSL ?? RawLotNo ?? LotNo` selects the non-null empty string; `StripCounterAndQty` returns it unchanged. The resulting LOT is empty and receiving fails with "Không xác định được LOT."
+2. `QRCodeWorkflowAdapter.BuildReceivingRequest` and `BuildCustomerDeliveryRequest` copy `qr.LotNo` directly. The parser currently leaves that property as the full 28-character printed token, while the confirmed stock key is 20 characters. This can send the wrong LOT key into the central stock movement path.
+
+The correct parser/adapter contract should preserve the printed token in `RawLotNoSL` (and raw trace fields), while exposing the normalized 20-character stock identity in `LotNo`. The receiving service should also use a non-empty fallback, not null-coalescing alone, for legacy QR objects. Do not infer that these paths are safe merely because the isolated parser and helper tests pass.
+
+Three explicit acceptance tests were added with `Skip` so the current CI remains truthful while production changes are outside this QC-only authorization: parser raw/normalized fields, receiving adapter normalized LOT, and delivery adapter normalized LOT + box quantity. Enable these tests only after the production fix is approved and implemented.
