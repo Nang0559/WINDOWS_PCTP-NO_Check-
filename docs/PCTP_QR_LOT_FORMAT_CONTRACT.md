@@ -7,7 +7,7 @@ Status: business field layout confirmed by the operator on 2026-10-30. This docu
 ### Tem tổng — 6 colon-separated fields
 
 ```text
-LOTNO_TEM_TONG:MA_HANG:NGAY_SX:SO_LUONG_TEM:SO_TEM_CUA_PHIEU:MA_TEM
+LOTNO_TEM_TONG:MA_HANG:NGAY_SX:SO_LUONG_TEM:SO_THU_TU_MA_PHIEU:MA_PHIEU
 2610300027230077170007512000:2210A-K2C-V000:30/10/2026:2000:2:A010000000059140
 ```
 
@@ -17,8 +17,8 @@ LOTNO_TEM_TONG:MA_HANG:NGAY_SX:SO_LUONG_TEM:SO_TEM_CUA_PHIEU:MA_TEM
 | 2 | Item code | `2210A-K2C-V000` |
 | 3 | Manufacturing date, dd/MM/yyyy | `30/10/2026` |
 | 4 | Label quantity | `2000` |
-| 5 | Number of labels on the slip | `2` |
-| 6 | Label identifier | `A010000000059140` |
+| 5 | Sequence number belonging to the `A…` slip code (`SoPhieuTong` in the legacy model) | `2` |
+| 6 | Slip code (`MaPhieu`) | `A010000000059140` |
 
 ### Tem hộp — 4 colon-separated fields
 
@@ -27,6 +27,19 @@ LOTNO_TEM_HOP:MA_HANG:NGAY_SX:SO_LUONG
 ```
 
 The box label uses its own serial and quantity suffix in the LOTNO token. Warehouse receipt uses the total label; warehouse issue/delivery uses the box label. The quantity used for a box issue is the quantity field of that box QR, not the total-label quantity.
+
+## 1.1 Independent identity domains — do not conflate them
+
+The operator confirmed that field 5 and field 6 together identify the receiving slip/label reference:
+
+- Field 6 (`MaPhieu`) is the `A…` slip code.
+- Field 5 (`SoPhieuTong`) is the sequence number associated with that `A…` code.
+- The receiving reference key is `MaPhieu:SoPhieuTong`, for example `A010000000059140:2`.
+- This sequence is **not** the daily label sequence embedded in LOTNO positions 21–24 (the example value `0751`).
+- LOTNO's daily sequence distinguishes printed LOT/label tokens; it must never replace either part of the slip reference key.
+- Conversely, the slip reference key must never be used to derive or replace the 20-character stock LOT identity.
+
+The legacy property name `SoPhieuTong` is retained for compatibility, but its business meaning in this six-field QR is specifically the sequence number associated with `MaPhieu`, not the daily LOTNO sequence and not a count of labels on the slip.
 
 ## 2. LOTNO token layout
 
