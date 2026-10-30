@@ -179,6 +179,27 @@ public sealed class DeliveryTransactionContractTests
         Assert.DoesNotContain("new LegacyStockSlotRepositoryAdapter(", stockFactory);
     }
 
+    [Theory]
+    [InlineData("2610300027230077170007512000", true, 3)]   // LOT in trên tem tổng → ca 3
+    [InlineData("26103000272300771700", true, 3)]           // khoá 20 ký tự
+    [InlineData("2610300027200", true, 0)]                  // khoá cũ 13 ký tự, ca 0 = hành chính
+    [InlineData("26103000272", false, 0)]                   // quá ngắn
+    [InlineData("26103000272X00771700", false, 0)]          // ký tự ca không phải số
+    public void LotCodeHelper_ReadsShiftFromTwelfthCharacter(string lot, bool ok, int expected)
+    {
+        int shift;
+        Assert.Equal(ok, PCTP.Common.LotCodeHelper.TryGetShiftFromLot(lot, out shift));
+        Assert.Equal(expected, shift);
+    }
+
+    [Fact]
+    public void Receiving_DoesNotSendLotPlusPhieuAsProductionCase()
+    {
+        var service = ReadSource("NhapTpReceivingService.source.cs");
+        Assert.Contains("LotCodeHelper.TryGetShiftFromLot(lotNo, out caSx)", service);
+        Assert.DoesNotContain("qr.RawLotNo + qr.SoPhieuTong", service);
+    }
+
     [Fact]
     public void ReworkFactory_WiresTransactionalMovementGuardIntoLegacySlotAdapter()
     {

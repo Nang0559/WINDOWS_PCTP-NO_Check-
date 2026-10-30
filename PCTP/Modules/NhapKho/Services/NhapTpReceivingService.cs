@@ -118,9 +118,13 @@ namespace PCTP.Modules.NhapKho.Services
             if (string.IsNullOrWhiteSpace(lotNo))
                 return ScanResult.Fail("Không xác định được LOT.");
 
-            string caseNo = !string.IsNullOrWhiteSpace(qr.SoPhieuTong)
-                ? qr.RawLotNo + qr.SoPhieuTong
-                : qr.RawLotNo + "4";
+            // CA SẢN XUẤT (STOCKTP.CASX) = ký tự thứ 12 của LOT; '0' = hành chính.
+            // Trước đây truyền "RawLotNo + SoPhieuTong" (chuỗi ~28 chữ số) → int.TryParse tràn → CASX luôn = 0.
+            // Dự phòng: ca của phiếu SX (vNhapTP) nếu LOT không đọc được.
+            int caSx;
+            if (!LotCodeHelper.TryGetShiftFromLot(lotNo, out caSx))
+                caSx = phieuLive != null ? phieuLive.CaSX : 0;
+            string caseNo = caSx.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
             NhapKhoItem nhapItem = new NhapKhoItem
             {

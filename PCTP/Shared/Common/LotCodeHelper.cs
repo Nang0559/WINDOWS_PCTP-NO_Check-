@@ -74,6 +74,24 @@ namespace PCTP.Common
                 ? lot.Substring(LEN_DATE, LEN_ID_ITEM)
                 : "";
 
+        /// <summary>
+        /// Ca sản xuất = ký tự thứ 12 của LOT (sau YYMMDD + Id_Item 5 ký tự). '0' = hành chính.
+        /// Chỉ cần LOT đủ 12 ký tự (khoá cũ 13 ký tự vẫn đọc được), khác <see cref="GetShiftPart"/>
+        /// vốn đòi đủ 20 ký tự đầu. Trả false nếu LOT quá ngắn hoặc ký tự đó không phải chữ số.
+        /// </summary>
+        public static bool TryGetShiftFromLot(string lot, out int shift)
+        {
+            shift = 0;
+            if (string.IsNullOrWhiteSpace(lot)) return false;
+            string t = lot.Trim();
+            int idx = LEN_DATE + LEN_ID_ITEM;           // 11 (0-based) = ký tự thứ 12
+            if (t.Length <= idx) return false;
+            char c = t[idx];
+            if (c < '0' || c > '9') return false;
+            shift = c - '0';
+            return true;
+        }
+
         public static string GetShiftPart(string lot)
             => lot != null && lot.Length >= LEN_HEAD_FIXED
                 ? lot.Substring(LEN_DATE + LEN_ID_ITEM, LEN_SHIFT)
