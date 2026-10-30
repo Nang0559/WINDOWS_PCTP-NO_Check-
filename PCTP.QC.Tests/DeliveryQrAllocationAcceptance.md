@@ -285,3 +285,24 @@ Consequences:
 | RL-LOT-010 | Replay same business key after success | Return idempotent result; do not consume L1 twice |
 
 **Current implementation boundary:** the inspected `ReworkStockService` still does not resolve `FVN_ItemFifoConfig` or enforce this affected-LOT-constrained FIFO policy. This decision closes the business-rule ambiguity, not the implementation gap. The production service/SQL integration remains BLOCKED until the approved item-level switch is applied inside the same transaction/locking boundary and the above cases execute against real repositories on isolated SQL Server. This QC-only pass still does not authorize changes to centralized production C# or deployed business procedures.
+
+
+## 12. Operator-confirmed production QR LOT contract (2026-10-30)
+
+The authoritative field layout is documented in `docs/PCTP_QR_LOT_FORMAT_CONTRACT.md`. This rule is separate from the customer delivery QR formats in section 10.
+
+- Total label: six colon-separated fields; warehouse receiving uses this label.
+- Box label: four colon-separated fields; warehouse issue/delivery uses this label.
+- LOTNO token layout: 6 date + 5 product + 1 shift + 1 Gear + 3 line + 4 department + 4 daily sequence + 4 embedded quantity = 28 characters.
+- Canonical stock LOT identity is the first 20 characters (date/product/shift/Gear/line/department). The 4-character daily sequence and 4-character embedded quantity are label-level suffixes, not separate stock LOT identity.
+- Box issue quantity is read from the box QR quantity field. It is not inherited from the total label.
+- HVN Gear is `0`; YMVN Gear is `1=A, 2=B, 3=C, 4=D, 5=E`.
+- FIFO is constrained to the resolved stock LOT. It must not substitute a different LOT.
+
+### QR contract test coverage
+
+`QrLotFormatContractTests` verifies the confirmed offsets, 20-character identity, total-label production parser fields, customer Gear mapping, a synthetic 28-character box-token vector, and rejection of the earlier 22-character box token as a valid fixture.
+
+### Known production integration blocker
+
+The production `QRCodeParser.ParseTachLotQr` still documents a legacy 27-character LOT assumption. The new 28-character / 20-character stock identity contract is not yet proven end-to-end through receiving, box issue, stock persistence, and ledger. The contract tests are not a substitute for that integration. Keep the production parser/SQL unchanged in this QC-only commit; report this as BLOCKED until the business owner confirms the corrected real box QR and authorizes any necessary production-code change.
