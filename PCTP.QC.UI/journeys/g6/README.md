@@ -16,8 +16,15 @@ Mỗi journey theo thứ tự: `sql-seed` -> thao tác UI thật -> `sql-assert`
 | `g6-qc-direction.json` | **BLOCKED / chưa cấu hình** | Chưa có seed/assert/cleanup nghiệp vụ đã xác minh |
 | `g6-qc-final.json` | **BLOCKED / chưa cấu hình** | Chưa có seed/assert/cleanup nghiệp vụ đã xác minh |
 | `g6-receive.json` | Configured, chưa có runtime evidence | Seed B20Item/B30AccDoc/kho-kệ-slot; scan 2 QR thật; assert STOCKTP/SlotLot/StockHistory |
-| `g6-delivery-hvn.json` | Configured nhưng cleanup chưa đầy đủ | Scan QR thật; hiện cleanup/verify chưa cover PCTPStockMovementGuard và FVN_DeliveryCommand* |
-| `g6-delivery-hvn-multilot.json` | Configured nhưng cleanup chưa đầy đủ | 3 dòng 1/2/3 LOT, 6 QR; cùng blocker ledger/guard như delivery đơn |
+| `g6-delivery-hvn.json` | **BLOCKED / chưa đủ luồng HVN MP** | Fixture chỉ quét FCC QR; thiếu tem khách hàng theo thứ tự FCC → HVN và thao tác hoàn tất/CNK trước assert tồn kho/ledger. |
+| `g6-delivery-hvn-multilot.json` | **BLOCKED / chưa đủ luồng HVN MP** | Sáu QR hiện tại đều là FCC; thiếu cặp tem khách hàng và thao tác hoàn tất/CNK. Cleanup/verify cũng cần kiểm kê theo writer thực tế. |
+
+## Blocker HVN MP phải đóng trước G6 PASS
+
+1. `DocQRScanEngine.ProcessScan` định tuyến QR 4 trường sang `ScanFCC`; các QR khác mới đi `ScanHVN`. Cấu hình HVN ghi thứ tự FCC → HVN, nhưng repo hiện chưa có fixture tem khách hàng HVN được xác nhận từ nhãn thực tế. Không tự tạo tem HVN bằng cách suy diễn định dạng.
+2. Cả hai manifest hiện chỉ submit FCC QR rồi chạy SQL assert đòi hỏi `LUUPHIEUGIAOHANG`, `LUUDOCQRCODE`, `STOCKTP.SLXUAT` đã thay đổi. Chúng không thao tác hoàn tất giao hàng/CNK. Vì vậy không thể dùng kết quả assert đó để chứng minh luồng giao hàng hoàn tất.
+3. HVN MP phải có test đúng cặp tem FCC + tem khách hàng, thứ tự đúng/sai, tem trùng, mã hàng không khớp, số lượng khớp/lệch và xác nhận chênh lệch; sau đó mới thực hiện đúng thao tác hoàn tất/CNK của UI và kiểm tra SQL.
+4. Chỉ bật lại `configured:true` sau khi lấy được format tem HVN thực tế và xác định automationId thao tác hoàn tất/CNK từ UI thật.
 
 ## Blocker an toàn phải đóng trước G6 PASS
 
