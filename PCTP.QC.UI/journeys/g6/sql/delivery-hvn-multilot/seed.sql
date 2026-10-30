@@ -56,14 +56,15 @@ INSERT INTO dbo.STOCKTP (LOT, PART, NAME, NGAYSX, SLSX, SLNHAP, SLCONLAI, SLXUAT
 DECLARE @Stt int = ISNULL((SELECT MAX(STT) FROM dbo.TMPPHIEUGIAOHANG WHERE STT BETWEEN 30000 AND 32500), 29999) + 1;
 IF @Stt + 2 > 32500 THROW 52206, N'g6-delivery-hvn-multilot seed: reserved STT range 30000..32500 is exhausted.', 1;
 
--- Pending lines. TMP.LOT = 'LOT20-qty' per element, comma separated; SOLUONG = sum of the element quantities.
+-- Pending lines must start with blank TMP.LOT. The production exact-sum QR allocator fills the comma-separated LOT payload on Hoàn thành.
+-- Pre-populating LOT bypasses GetDonHangChuaLot, so DOCQRCODE rows remain non-DG and the QR session cannot complete.
 --   line 1: 1 LOT  (10)            line 2: 2 LOT (6 + 4 = 10)            line 3: 3 LOT (3 + 3 + 2 = 8)
 INSERT INTO dbo.TMPPHIEUGIAOHANG (STT, CUA, TRUYEN, MAHANG, TENHANG, LOT, DV, SOLUONG, NGAYGIAO, GIOGIAO, STATUS, NHAMAY, Note)
-VALUES (@Stt, @Prefix, @Prefix, @ItemA, N'QC fixture ' + @Prefix, @LotA1 + N'-10', N'PCS', 10, CAST(GETDATE() AS date), N'23:59', N'PENDING', 'QCUI', @Prefix + N'_DEL1');
+VALUES (@Stt, @Prefix, @Prefix, @ItemA, N'QC fixture ' + @Prefix, N'', N'PCS', 10, CAST(GETDATE() AS date), N'23:59', N'PENDING', 'QCUI', @Prefix + N'_DEL1');
 INSERT INTO dbo.TMPPHIEUGIAOHANG (STT, CUA, TRUYEN, MAHANG, TENHANG, LOT, DV, SOLUONG, NGAYGIAO, GIOGIAO, STATUS, NHAMAY, Note)
-VALUES (@Stt + 1, @Prefix, @Prefix, @ItemB, N'QC fixture ' + @Prefix, @LotB1 + N'-6,' + @LotB2 + N'-4', N'PCS', 10, CAST(GETDATE() AS date), N'23:59', N'PENDING', 'QCUI', @Prefix + N'_DEL2');
+VALUES (@Stt + 1, @Prefix, @Prefix, @ItemB, N'QC fixture ' + @Prefix, N'', N'PCS', 10, CAST(GETDATE() AS date), N'23:59', N'PENDING', 'QCUI', @Prefix + N'_DEL2');
 INSERT INTO dbo.TMPPHIEUGIAOHANG (STT, CUA, TRUYEN, MAHANG, TENHANG, LOT, DV, SOLUONG, NGAYGIAO, GIOGIAO, STATUS, NHAMAY, Note)
-VALUES (@Stt + 2, @Prefix, @Prefix, @ItemC, N'QC fixture ' + @Prefix, @LotC1 + N'-3,' + @LotC2 + N'-3,' + @LotC3 + N'-2', N'PCS', 8, CAST(GETDATE() AS date), N'23:59', N'PENDING', 'QCUI', @Prefix + N'_DEL3');
+VALUES (@Stt + 2, @Prefix, @Prefix, @ItemC, N'QC fixture ' + @Prefix, N'', N'PCS', 8, CAST(GETDATE() AS date), N'23:59', N'PENDING', 'QCUI', @Prefix + N'_DEL3');
 
 
 -- Return one row of run-local QR values to the UI runner. The runner captures only the declared aliases;
