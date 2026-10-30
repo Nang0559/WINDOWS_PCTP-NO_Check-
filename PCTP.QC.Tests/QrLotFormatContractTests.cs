@@ -90,6 +90,38 @@ public sealed class QrLotFormatContractTests
         Assert.Equal(expectedStockLot, LotCodeHelper.StripCounterAndQty(boxToken));
     }
 
+    [Fact(Skip = "BLOCKED: production QRCodeParser currently leaves RawLotNoSL empty and LotNo unnormalized; enable after the production fix is authorized.")]
+    public void ProductionParser_ShouldExposeRawTokenAndNormalizedStockLot()
+    {
+        var parsed = QRCodeParser.ParseQRCode(TotalQr);
+
+        Assert.Equal("2610300027230077170007512000", parsed.RawLotNoSL);
+        Assert.Equal("26103000272300771700", parsed.LotNo);
+    }
+
+    [Fact(Skip = "BLOCKED: QRCodeWorkflowAdapter currently forwards the raw 28-character LotNo; enable after the production parser/adapter contract is corrected.")]
+    public void ReceivingAdapter_ShouldSendNormalizedTwentyCharacterStockLot()
+    {
+        var request = QRCodeWorkflowAdapter.BuildReceivingRequest(
+            TotalQr, targetSlotId: 1, performedBy: "QC");
+
+        Assert.Equal("26103000272300771700", request.LotNo);
+        Assert.Equal(2000, request.Quantity);
+    }
+
+    [Fact(Skip = "BLOCKED: QRCodeWorkflowAdapter currently forwards the raw 28-character LotNo; enable after the production parser/adapter contract is corrected.")]
+    public void DeliveryAdapter_ShouldSendNormalizedTwentyCharacterStockLotAndBoxQuantity()
+    {
+        const string boxQr =
+            "2610300027230077170007520020:2210A-K2C-V000:30/10/2026:20";
+
+        var request = QRCodeWorkflowAdapter.BuildCustomerDeliveryRequest(
+            boxQr, slotLotId: 1, performedBy: "QC", deliveryReference: "QC-DELIVERY-1");
+
+        Assert.Equal("26103000272300771700", request.LotNo);
+        Assert.Equal(20, request.Quantity);
+    }
+
     [Theory]
     [InlineData("100001", "0", true)]
     [InlineData("100001", "1", false)]
