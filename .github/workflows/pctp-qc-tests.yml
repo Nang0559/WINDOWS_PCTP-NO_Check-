@@ -168,7 +168,7 @@ jobs:
           #    Explicitly approved live-data workflows are excluded from this scan only because
           #    they are manually dispatched, isolated jobs with their own fail-closed source/target guards.
           #    Any new workflow that references live SQL credentials is rejected by default.
-          live_data_workflows=' .github/workflows/pctp-live-data-inventory.yml .github/workflows/pctp-live-data-profile.yml .github/workflows/pctp-mp-source-profile.yml .github/workflows/pctp-db57-source-order-harness.yml '
+          live_data_workflows=' .github/workflows/pctp-live-data-inventory.yml .github/workflows/pctp-live-data-profile.yml .github/workflows/pctp-mp-source-profile.yml .github/workflows/pctp-db57-source-order-harness.yml .github/workflows/pctp-schema-5-runs.yml '
           scan_files=()
           for f in .github/workflows/*.yml; do
             case "$live_data_workflows" in *" $f "*) continue ;; esac
@@ -181,9 +181,13 @@ jobs:
             echo "ERROR: an unapproved workflow names DB57/DB14."; exit 1
           fi
           # 2. Approved live-data workflows must be manual-only and must retain an explicit confirmation gate.
-          for f in .github/workflows/pctp-live-data-inventory.yml .github/workflows/pctp-live-data-profile.yml .github/workflows/pctp-mp-source-profile.yml .github/workflows/pctp-db57-acceptance.yml .github/workflows/pctp-db57-delivery-fixture.yml .github/workflows/pctp-db57-source-order-harness.yml; do
+          for f in .github/workflows/pctp-live-data-inventory.yml .github/workflows/pctp-live-data-profile.yml .github/workflows/pctp-mp-source-profile.yml .github/workflows/pctp-db57-acceptance.yml .github/workflows/pctp-db57-delivery-fixture.yml .github/workflows/pctp-db57-source-order-harness.yml .github/workflows/pctp-schema-5-runs.yml; do
             test -f "$f"
             grep -q 'workflow_dispatch:' "$f" || { echo "ERROR: $f is not manually dispatched."; exit 1; }
+  if [[ "$f" == ".github/workflows/pctp-schema-5-runs.yml" ]]; then
+    grep -q 'confirm_live_inventory:' "$f" || { echo "ERROR: $f is missing the explicit live-inventory confirmation input."; exit 1; }
+    grep -q 'inputs.confirm_live_inventory' "$f" || { echo "ERROR: $f does not gate live SQL jobs on explicit confirmation."; exit 1; }
+  fi
             if grep -Eq '^[[:space:]]*(push|pull_request):' "$f"; then
               echo "ERROR: $f must not run automatically on push or pull_request."; exit 1
             fi
