@@ -112,10 +112,8 @@ namespace PCTP.Modules.NhapKho
 
         public int DemPhieuChoNhap()
         {
-            object kq = ExecuteScalar(@"
-                SELECT COUNT(*) FROM vNhapTP
-                WHERE ISNULL(KET_THUC_LOT,0)=0
-                  AND ISNULL(SL_DA_NHAP,0) < ISNULL(SL_DA_SAN_XUAT,0)");
+            object kq = ExecuteScalar(
+                "SELECT COUNT(*) FROM vNhapTP" + ReceivingWorklistFilter.WhereClause);
             return int.TryParse(kq?.ToString(), out int v) ? v : 0;
         }
 
@@ -123,9 +121,7 @@ namespace PCTP.Modules.NhapKho
             SELECT FIND, LOT_NO, MODEL, TEN_SAN_PHAM, MA_SAN_PHAM, CA_SAN_XUAT,
                    NGAY_SAN_XUAT, SL_DA_SAN_XUAT, SL_DA_NHAP,
                    (SL_DA_SAN_XUAT - SL_DA_NHAP) AS SL_CON_THIEU
-            FROM vNhapTP
-            WHERE ISNULL(KET_THUC_LOT,0) = 0
-              AND ISNULL(SL_DA_NHAP,0) < ISNULL(SL_DA_SAN_XUAT,0)
+            FROM vNhapTP" + ReceivingWorklistFilter.WhereClause + @"
             ORDER BY NGAY_SAN_XUAT DESC");
 
         public int DemDaNhapHomNay()

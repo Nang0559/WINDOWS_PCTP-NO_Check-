@@ -3,6 +3,8 @@
 -- disposable PCTP_QC_* databases. Requires dbo.B30AccDoc, dbo.B20Item, dbo.Stocktp, dbo.STOCKTPTRAHANG.
 -- KET_THUC_LOT is computed from SATUS. Locked lots (SATUS = 1) stay visible so the C# layer
 -- (DongBoSLSXVaMoLaiNeuThayDoi) can compare the new SLSX with the saved one and reopen them.
+-- SLSX_DA_LUU = STOCKTP.SLSX (the production quantity saved when the lot was received). A locked lot whose
+-- SL_DA_SAN_XUAT (from MES) is now greater than SLSX_DA_LUU is a lot whose plan was increased -> re-openable.
 SET ANSI_NULLS ON
 GO
 
@@ -30,7 +32,8 @@ FROM (
         '' AS LY_DO_TRA, 
         s.slconlai AS TON_KHO_TP, 
         '' AS SL_SE_NHAP, 
-        CASE WHEN ISNULL(s.Satus, 0) = 1 THEN '1' ELSE '0' END AS KET_THUC_LOT
+        CASE WHEN ISNULL(s.Satus, 0) = 1 THEN '1' ELSE '0' END AS KET_THUC_LOT,
+        ISNULL(s.SLSX, 0) AS SLSX_DA_LUU
     FROM (
         SELECT 
             t.ItemLot, t.DocDate, t.ShiftCode, t.Model, 
@@ -66,7 +69,8 @@ FROM (
         RTRIM(D.ngaysx) AS Docdate, D.SLSX AS Qty, 
         D.ngaynhap, D.slnhap, E.slconlai, RTRIM(E.ly_do_ng), 
         D.slconlai, '' AS SL_SE_NHAP, 
-        CASE WHEN ISNULL(D.Satus, 0) = 1 THEN '1' ELSE '0' END AS KET_THUC_LOT
+        CASE WHEN ISNULL(D.Satus, 0) = 1 THEN '1' ELSE '0' END AS KET_THUC_LOT,
+        ISNULL(D.SLSX, 0) AS SLSX_DA_LUU
     FROM 
         Stocktp AS D
         INNER JOIN (
@@ -84,7 +88,8 @@ FROM (
         RTRIM(K.ngaysx) AS Docdate, K.SLSX AS Qty, 
         K.ngaynhap, K.slnhap, SUM(T.sltra) AS SL_DATRA, 
         '' AS ly_do_ng, K.slconlai, '' AS SL_SE_NHAP, 
-        CASE WHEN ISNULL(K.SATUS, 0) = 1 THEN '1' ELSE '0' END AS KET_THUC_LOT
+        CASE WHEN ISNULL(K.SATUS, 0) = 1 THEN '1' ELSE '0' END AS KET_THUC_LOT,
+        ISNULL(K.SLSX, 0) AS SLSX_DA_LUU
     FROM 
         STOCKTP AS K
         LEFT JOIN STOCKTPTRAHANG AS T ON K.LOT = T.LOT

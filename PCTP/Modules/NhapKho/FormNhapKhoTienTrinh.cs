@@ -132,6 +132,7 @@ namespace PCTP.Modules.NhapKho
             _gridView.OptionsView.ShowGroupPanel = false;
             _gridView.OptionsView.ColumnAutoWidth = true;
             _gridView.DoubleClick += (s, e) => MoFormScanNhap();
+            _gridView.RowStyle += WorklistRowStyle;
             mainLayout.Controls.Add(_grid, 0, 2);
 
             Controls.Add(mainLayout);
@@ -206,6 +207,19 @@ namespace PCTP.Modules.NhapKho
             Cap(nameof(PhieuNhapInfo.SlSanXuat), "SL sản xuất", 7);
             Cap(nameof(PhieuNhapInfo.SlDaNhap), "SL đã nhập", 8);
             Cap(nameof(PhieuNhapInfo.SlConThieu), "SL còn thiếu", 9);
+            Cap(nameof(PhieuNhapInfo.KetThucLot), "Lot đã kết thúc (cần mở lại)", 10);
+        }
+
+        /// <summary>Lot đã kết thúc nhưng SLSX tăng: tô cam để kho biết cần "Mở lại Lot" khi quét nhập tiếp.</summary>
+        private void WorklistRowStyle(object sender, RowStyleEventArgs e)
+        {
+            if (_activeStep != 1 || e.RowHandle < 0) return;
+            var row = _gridView.GetRow(e.RowHandle) as PhieuNhapInfo;
+            if (row != null && row.KetThucLot)
+            {
+                e.Appearance.BackColor = Color.FromArgb(255, 235, 205);
+                e.Appearance.ForeColor = Color.FromArgb(153, 76, 0);
+            }
         }
 
         /// <summary>Grid bước 2 (DataTable): cùng nhóm cột Model / Ca SX / Ngày SX như bước 1 để đối chiếu.</summary>

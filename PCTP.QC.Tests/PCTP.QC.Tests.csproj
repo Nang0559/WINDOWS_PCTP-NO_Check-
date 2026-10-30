@@ -59,6 +59,10 @@
     <None Include="../SQL/Usp_Qrcode_Take_LotYMVN2405.sql" Link="Usp_Qrcode_Take_LotYMVN2405.source.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/XuLyHangLoi/Repository/PhieuXuLyBatThuongRepository.cs" Link="PhieuXuLyBatThuongRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../SQL/sp_GetCurrentStockStatus.sql" Link="sp_GetCurrentStockStatus.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../SQL/PCTP_vNhapTP.sql" Link="PCTP_vNhapTP.source.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/NhapKho/ReceivingWorklistFilter.cs" Link="ReceivingWorklistFilter.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/NhapKho/NhapKhoDashboardRepository.cs" Link="NhapKhoDashboardRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/NhapKho/Repository/StockTpProductionRepository.cs" Link="StockTpProductionRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/GiaoHangKhach/Repositories/PhieuKhoRepository.cs" Link="PhieuKhoRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/GiaoHangKhach/Repositories/PhieuRepository.cs" Link="PhieuRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/GiaoHangKhach/Services/GiaoHangKhachFactory.cs" Link="GiaoHangKhachFactory.source.cs" CopyToOutputDirectory="PreserveNewest" />
