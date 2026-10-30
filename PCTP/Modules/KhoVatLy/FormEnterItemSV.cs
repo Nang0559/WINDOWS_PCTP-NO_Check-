@@ -192,7 +192,9 @@ namespace PCTP.Modules.KhoVatLy
             _gridPhieu = new GridControl { Dock = DockStyle.Fill };
             _gridViewPhieu = new GridView(_gridPhieu);
             _gridPhieu.MainView = _gridViewPhieu;
-            _gridViewPhieu.OptionsBehavior.Editable = false;
+            // Chỉ riêng cột "Kết Thúc" được tương tác (bỏ tick = yêu cầu Mở lại LOT); các cột khác read-only.
+            _gridViewPhieu.OptionsBehavior.Editable = true;
+            _gridViewPhieu.ShowingEditor += GridViewPhieu_ShowingEditor;
             _gridViewPhieu.OptionsView.ShowGroupPanel = false;
             _gridViewPhieu.RowStyle += GridViewPhieu_RowStyle;
 
@@ -205,7 +207,11 @@ namespace PCTP.Modules.KhoVatLy
             _gridViewPhieu.Columns.Add(new GridColumn { FieldName = "NgaySX", Caption = "Ngày SX", Width = 90, VisibleIndex = 6 });
             _gridViewPhieu.Columns.Add(new GridColumn { FieldName = "SlSanXuat", Caption = "SL Sản Xuất", Width = 90, VisibleIndex = 7 });
             _gridViewPhieu.Columns.Add(new GridColumn { FieldName = "SlDaNhap", Caption = "SL Đã Nhập", Width = 90, VisibleIndex = 8 });
-            _gridViewPhieu.Columns.Add(new GridColumn { FieldName = "KetThucLot", Caption = "Kết Thúc", Width = 70, VisibleIndex = 9 });
+            var chkKetThuc = new DevExpress.XtraEditors.Repository.RepositoryItemCheckEdit();
+            chkKetThuc.EditValueChanging += KetThucLot_EditValueChanging;
+            _gridViewPhieu.Columns.Add(new GridColumn { FieldName = "KetThucLot", Caption = "Kết Thúc", Width = 70, VisibleIndex = 9, ColumnEdit = chkKetThuc });
+            foreach (GridColumn c in _gridViewPhieu.Columns)
+                c.OptionsColumn.AllowEdit = c.FieldName == "KetThucLot";
 
             // ── QUAN TRỌNG: add _gridPhieu TRƯỚC, panelTop SAU ───────────────────
             // Vì trong Controls collection, control add sau sẽ "chiếm chỗ trước"
@@ -244,6 +250,40 @@ namespace PCTP.Modules.KhoVatLy
             }
         }
 
+
+        /// <summary>Chỉ mở editor ở ô "Kết Thúc" của dòng đang bị khoá (đang tick) — các ô khác/dòng khác không sửa được.</summary>
+        private void GridViewPhieu_ShowingEditor(object sender, CancelEventArgs e)
+        {
+            var view = (GridView)sender;
+            var row = view.GetFocusedRow() as PhieuNhapInfo;
+            e.Cancel = row == null
+                       || view.FocusedColumn == null
+                       || view.FocusedColumn.FieldName != "KetThucLot"
+                       || !row.KetThucLot;
+        }
+
+        /// <summary>
+        /// Bỏ tick "Kết Thúc" = người dùng yêu cầu MỞ LẠI LOT. Chỉ ghi nhận ý định vào _pendingReopen;
+        /// mutation DB vẫn nằm trong transaction của NhapTpVaoSlot (xem NhapTpReceivingService.MoLaiLot).
+        /// </summary>
+        private void KetThucLot_EditValueChanging(object sender, DevExpress.XtraEditors.Controls.ChangingEventArgs e)
+        {
+            var row = _gridViewPhieu.GetFocusedRow() as PhieuNhapInfo;
+            bool newValue = e.NewValue is bool b && b;
+
+            // Chỉ cho bỏ tick; không cho tự đánh dấu kết thúc từ ô này.
+            if (row == null || newValue || !row.KetThucLot) { e.Cancel = true; return; }
+
+            var confirm = XtraMessageBox.Show(
+                $"MỞ LẠI LOT [{row.LotNo}] (đã nhập {row.SlDaNhap}/{row.SlSanXuat}) để tiếp tục nhập kho?",
+                "Mở lại LOT", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+            if (confirm != DialogResult.Yes) { e.Cancel = true; return; }
+
+            _pendingReopen = row;
+            lblBulkStatus.Text = $"🔓 Đã chọn mở lại LOT {row.LotNo} — quét tem TỔNG của LOT này để nhập tiếp.";
+            lblBulkStatus.Appearance.ForeColor = Color.DarkOrange;
+            txtQRCode.Focus();
+        }
 
         private void GridViewPhieu_RowStyle(object sender, RowStyleEventArgs e)
         {
@@ -382,8 +422,14 @@ namespace PCTP.Modules.KhoVatLy
             _worklist.Sync(phieu);
             FocusRow(phieu);
 
+            bool daDuyetMoLaiTuGrid = _pendingReopen != null &&
+                string.Equals(_pendingReopen.Find, phieu.Find, StringComparison.OrdinalIgnoreCase);
             _pendingReopen = null;
-            if (phieu.KetThucLot)
+            if (phieu.KetThucLot && daDuyetMoLaiTuGrid)
+            {
+                _pendingReopen = phieu;   // đã bỏ tick ở grid → không hỏi lại
+            }
+            else if (phieu.KetThucLot)
             {
                 var confirmMoLai = XtraMessageBox.Show(
                     $"LOT [{phieu.LotNo}] đã được đánh dấu KẾT THÚC (đã nhập {phieu.SlDaNhap}/{phieu.SlSanXuat}).\n" +
