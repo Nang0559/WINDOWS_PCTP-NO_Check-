@@ -311,6 +311,39 @@ public sealed class DeliveryQrAllocationSourceContractTests
         }
     }
 
+
+    [Fact]
+    public void HvnMp_RealFccAndCustomerQrSamples_AreRoutedToDifferentScanStages()
+    {
+        const string fccQr = "231115010090-25,231116010090-50:22660-K90-VM10-M1:16/00/2023:75";
+        const string hvnQr = "24061106007225:23010K1Y J510M1:23010K1Y J510M1ZZZ:5:4R62:";
+
+        var fccParts = fccQr.Trim().ToUpperInvariant().Split(':');
+        var hvnParts = hvnQr.Trim().ToUpperInvariant().Split(':');
+        Assert.Equal(4, fccParts.Length);
+        Assert.Equal(5, hvnParts.Length); // .NET string.Split(char) drops trailing empty entries.
+        Assert.Equal("231115010090-25,231116010090-50", fccParts[0]);
+        Assert.Equal("22660-K90-VM10-M1", fccParts[1]);
+        Assert.Equal("75", fccParts[3]);
+        Assert.Equal("24061106007225", hvnParts[0]);
+        Assert.Equal("23010K1Y J510M1", hvnParts[1]);
+        Assert.Equal("23010K1Y J510M1ZZZ", hvnParts[2]);
+        Assert.Equal("5", hvnParts[3]);
+        Assert.Equal("4R62", hvnParts[4]);
+
+        var engine = Read("DocQRScanEngine.source.cs");
+        var process = MethodBody(engine, "public ScanResult ProcessScan(", "private string MapMaHang(");
+        Assert.Contains("string[] parts = rawQr.Split(':')", process);
+        Assert.Contains("if (parts.Length == 4)", process);
+        Assert.Contains("return ScanFCC(parts", process);
+        Assert.Contains("return ScanHVN(parts)", process);
+
+        var hvn = MethodBody(engine, "private ScanResult ScanHVN(", "private ScanResult ScanFCC_YMVN(");
+        Assert.Contains("string lotHvn = parts[0]", hvn);
+        Assert.Contains("string maHvn = parts[1].Replace(\" \", \"\")", hvn);
+        Assert.Contains("int.TryParse(parts[3], out int slTem)", hvn);
+    }
+
     private static string MethodBody(string source, string start, string end)
     {
         var from = source.IndexOf(start, StringComparison.Ordinal);
