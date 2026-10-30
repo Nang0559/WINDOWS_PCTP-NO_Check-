@@ -23,6 +23,7 @@ namespace PCTP
         private AccordionControlElement _menuKhoTonTP;
         private AccordionControlElement _menuBcLichSuKho;
         private AccordionControlElement _menuBcLichSuQC;
+        private AccordionControlElement _menuXuLyLot;
 
         private void BuildStandardMenus()
         {
@@ -51,7 +52,20 @@ namespace PCTP
             _menuKhoTonTP = CreateMenuItem("menuKhoTonTP", "Tồn kho thành phẩm", OpenTonKhoThanhPham);
             _menuKho.Elements.Add(_menuKhoTonTP);
 
-            // ── 3. Tra Cứu & Báo Cáo ────────────────────────────────────
+            // ── 3. Xử lý LOT ───────────────────────────────────────────
+            // Tách LOT là luồng nghiệp vụ; form tự chọn mẫu in Ghép LOT theo CustomerCode.
+            _menuXuLyLot = new AccordionControlElement(ElementStyle.Group)
+            {
+                Name = "menuXuLyLot",
+                Text = "Xử lý LOT",
+                Expanded = true
+            };
+            _menuXuLyLot.Elements.Add(CreateMenuItem(
+                "menuTachLot",
+                "Tách LOT / In tem Ghép LOT",
+                OpenTachLot));
+            
+            // ── 4. Tra Cứu & Báo Cáo ────────────────────────────────────
             // "Tra cứu LOT" / "Thống kê / báo cáo" (E_Tracuulotno / E_TKTK) nối ở handler.
             _menuBcLichSuKho = CreateMenuItem("menuBcLichSuKho", "Lịch sử kho / Tồn hiện tại", OpenBaoCaoLichSuKho);
             _menuBcLichSuQC = CreateMenuItem("menuBcLichSuQC", "Lịch sử QC / Inspection", OpenBaoCaoLichSuQC);
@@ -63,6 +77,7 @@ namespace PCTP
             mainAccordionGroup.Elements.Add(NHAccordionControlElement);   // Nhập Kho
             mainAccordionGroup.Elements.Add(_menuKho);                    // Kho
             mainAccordionGroup.Elements.Add(accordionControlElement22);   // Giao Hàng
+            mainAccordionGroup.Elements.Add(_menuXuLyLot);                // Tách / Ghép LOT
             mainAccordionGroup.Elements.Add(E_Trahang);                   // Xử lý hàng lỗi
             mainAccordionGroup.Elements.Add(accordionControlElement28);   // Tra Cứu & Báo Cáo
             mainAccordionGroup.Elements.Add(accordionControlElement20);   // Công Cụ
@@ -102,6 +117,15 @@ namespace PCTP
         private void OpenNhapThanhPhamQr()
         {
             OpenFromMenu(OpenNhapKhoFromDashboard, "Nhập kho");
+        }
+
+        private void OpenTachLot(object sender, EventArgs e)
+        {
+            OpenFromMenu(() =>
+            {
+                using (var form = new UF_TACHLOT())
+                    form.ShowDialog(this);
+            }, "Tách LOT / In tem Ghép LOT");
         }
 
         private void OpenTraCuuLot()
