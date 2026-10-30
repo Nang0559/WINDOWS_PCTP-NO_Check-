@@ -1,4 +1,5 @@
 using System;
+using PCTP.Common;
 using PCTP.Shared.Helpers;
 using Xunit;
 
@@ -76,6 +77,17 @@ public sealed class QrLotFormatContractTests
         Assert.Equal(total.NgaySX, box.NgaySX);
         Assert.Equal(2000, total.Quantity);
         Assert.Equal(20, box.Quantity);
+    }
+
+    [Fact]
+    public void ReceivingLotNormalization_UsesProductionLotCodeHelperForBothConfirmedLabels()
+    {
+        const string totalToken = "2610300027230077170007512000";
+        const string boxToken = "2610300027230077170007520020";
+        const string expectedStockLot = "26103000272300771700";
+
+        Assert.Equal(expectedStockLot, LotCodeHelper.StripCounterAndQty(totalToken));
+        Assert.Equal(expectedStockLot, LotCodeHelper.StripCounterAndQty(boxToken));
     }
 
     [Theory]
