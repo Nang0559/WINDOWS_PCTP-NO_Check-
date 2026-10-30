@@ -34,6 +34,14 @@ public sealed class SqlDefaultConnectionSafetyTests
     }
 
     [Fact]
+    public void AutoWhAlias_UsesTheSharedExternalDatabaseSetting()
+    {
+        var line = CodeLines().SingleOrDefault(l => l.StartsWith("public string AutoWH =", StringComparison.Ordinal));
+        Assert.NotNull(line);
+        Assert.Contains("GetConfiguredConnection(\"B7R2_FCCdb\")", line);
+    }
+
+    [Fact]
     public void ConfiguredConnections_GoThroughQcSqlOverride()
     {
         var lines = CodeLines();
