@@ -14,6 +14,9 @@ namespace PCTP
         [STAThread]
         static void Main()
         {
+            // Load mutable configuration from %ProgramData% before any SQL/EF/XPO settings are read.
+            PCTP.Infrastructure.Configuration.RuntimeConfigurationBootstrap.Initialize();
+
             OfficeOpenXml.ExcelPackage.License.SetNonCommercialOrganization("YMVN_APP");
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
