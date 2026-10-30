@@ -329,15 +329,25 @@ public sealed class DeliveryQrAllocationSourceContractTests
         var fccParts = fccQr.Trim().ToUpperInvariant().Split(':');
         var hvnParts = hvnQr.Trim().ToUpperInvariant().Split(':');
         Assert.Equal(4, fccParts.Length);
-        Assert.Equal(5, hvnParts.Length); // .NET string.Split(char) drops trailing empty entries.
+        Assert.Equal(6, hvnParts.Length); // Split preserves the trailing empty field.
         Assert.Equal("231115010090-25,231116010090-50", fccParts[0]);
         Assert.Equal("22660-K90-VM10-M1", fccParts[1]);
         Assert.Equal("75", fccParts[3]);
+
+        // Customer-label fields used by the HVN handler:
+        // [0] HVN label/LOT (duplicate check), [1] item code, [3] quantity.
         Assert.Equal("24061106007225", hvnParts[0]);
         Assert.Equal("23010K1Y J510M1", hvnParts[1]);
-        Assert.Equal("23010K1Y J510M1ZZZ", hvnParts[2]);
         Assert.Equal("5", hvnParts[3]);
-        Assert.Equal("4R62", hvnParts[4]);
+        // [2], [4], and the trailing empty [5] are deliberately ignored.
+
+        var engine = Read("DocQRScanEngine.source.cs");
+        var hvn = MethodBody(engine, "private ScanResult ScanHVN(", "private ScanResult ScanFCC_YMVN(");
+        Assert.Contains("string lotHvn = parts[0]", hvn);
+        Assert.Contains("string maHvn = parts[1].Replace(\" \", \"\")", hvn);
+        Assert.Contains("int.TryParse(parts[3], out int slTem)", hvn);
+        Assert.DoesNotContain("parts[2]", hvn);
+        Assert.DoesNotContain("parts[4]", hvn);
 
         var engine = Read("DocQRScanEngine.source.cs");
         var process = MethodBody(engine, "public ScanResult ProcessScan(", "private string MapMaHang(");
