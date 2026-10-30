@@ -1,5 +1,6 @@
 ﻿using DevExpress.XtraEditors;
 using DevExpress.XtraGrid;
+using DevExpress.XtraGrid.Views.Base;
 using DevExpress.XtraGrid.Views.Grid;
 using PCTP.ClassSQL;
 using PCTP.Modules.KhoVatLy;
@@ -133,6 +134,7 @@ namespace PCTP.Modules.NhapKho
             _gridView.OptionsView.ColumnAutoWidth = true;
             _gridView.DoubleClick += (s, e) => MoFormScanNhap();
             _gridView.RowStyle += WorklistRowStyle;
+            _gridView.CustomUnboundColumnData += WorklistUnboundData;
             mainLayout.Controls.Add(_grid, 0, 2);
 
             Controls.Add(mainLayout);
@@ -207,7 +209,25 @@ namespace PCTP.Modules.NhapKho
             Cap(nameof(PhieuNhapInfo.SlSanXuat), "SL sản xuất", 7);
             Cap(nameof(PhieuNhapInfo.SlDaNhap), "SL đã nhập", 8);
             Cap(nameof(PhieuNhapInfo.SlConThieu), "SL còn thiếu", 9);
-            Cap(nameof(PhieuNhapInfo.KetThucLot), "Lot đã kết thúc (cần mở lại)", 10);
+
+            // KetThucLot là bool: DevExpress vẽ ô checkbox ở MỌI dòng (kể cả dòng chưa nhập gì) nên không hiển thị cột này.
+            // Thay bằng cột chữ chỉ có giá trị khi lot đã kết thúc và đang chờ mở lại.
+            var colTrangThai = _gridView.Columns[WorklistStatusField] ?? _gridView.Columns.AddField(WorklistStatusField);
+            colTrangThai.Caption = "Trạng thái lot";
+            colTrangThai.UnboundType = DevExpress.Data.UnboundColumnType.String;
+            colTrangThai.OptionsColumn.AllowEdit = false;
+            colTrangThai.Visible = true;
+            colTrangThai.VisibleIndex = 10;
+        }
+
+        private const string WorklistStatusField = "TrangThaiLot";
+
+        private void WorklistUnboundData(object sender, CustomColumnDataEventArgs e)
+        {
+            if (_activeStep != 1 || !e.IsGetData || e.Column.FieldName != WorklistStatusField) return;
+            int i = e.ListSourceRowIndex;
+            if (i < 0 || i >= _worklist.Items.Count) return;
+            e.Value = _worklist.Items[i].KetThucLot ? "Cần mở lại (SLSX tăng)" : string.Empty;
         }
 
         /// <summary>Lot đã kết thúc nhưng SLSX tăng: tô cam để kho biết cần "Mở lại Lot" khi quét nhập tiếp.</summary>
