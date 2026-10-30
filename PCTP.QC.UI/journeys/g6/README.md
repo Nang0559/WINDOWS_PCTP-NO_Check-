@@ -65,4 +65,10 @@ The production QR LOT field layout and test contract are defined in `docs/PCTP_Q
 - HVN Gear = `0`; YMVN Gear = `1..5` mapped to A..E.
 - Box quantity is taken from the box QR's fourth field.
 
-**Acceptance remains BLOCKED for real box-label E2E:** the earlier example token is only 22 characters and does not match the confirmed layout. A corrected real box QR is required; do not synthesize or auto-correct a live barcode. The production `ParseTachLotQr` legacy 27-character assumption also remains an integration item. Contract/unit tests do not prove stock/ledger E2E.
+**The operator-confirmed QR pair is available and the sample discrepancy is closed:**
+
+- Total/receiving: `2610300027230077170007512000:2210A-K2C-V000:30/10/2026:2000:2:A010000000059140`
+- Box/issue: `2610300027230077170007520020:2210A-K2C-V000:30/10/2026:20`
+- Both 28-character LOTNO tokens resolve to stock LOT identity `26103000272300771700`; the box issue quantity is 20.
+
+Real box-label E2E is still **BLOCKED on production-path integration evidence**, not on QR input. The production `ParseTachLotQr` legacy 27-character assumption remains an integration item. Contract/unit tests do not prove stock/ledger E2E.
