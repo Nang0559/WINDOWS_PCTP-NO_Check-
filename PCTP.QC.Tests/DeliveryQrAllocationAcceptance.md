@@ -176,7 +176,7 @@ The source-contract suite now uses the following exact sample payloads (not synt
 - FCC: `231115010090-25,231116010090-50:22660-K90-VM10-M1:16/00/2023:75`
 - HVN customer label: `24061106007225:23010K1Y J510M1:23010K1Y J510M1ZZZ:5:4R62:`
 
-With the current .NET `rawQr.Split(':')` call, the FCC sample has 4 elements and routes to `ScanFCC`; the HVN sample has 5 elements because the trailing empty segment is omitted, and routes to `ScanHVN` for MP. The current HVN handler reads LOT from element 0, item code from element 1 (removing spaces), and quantity from element 3. It does not currently consume elements 2 or 4. Their business meaning and whether they require validation must be confirmed against the HVN label specification before asserting additional behavior.
+With the current .NET `rawQr.Split(':')` call, the FCC sample has 4 elements and routes to `ScanFCC`; the HVN sample has 6 elements, including the trailing empty element, and routes to `ScanHVN` for MP. The confirmed HVN handler contract uses only: element 0 as the HVN label/LOT for duplicate checking, element 1 as item code (spaces removed for comparison), and element 3 as quantity. Elements 2 and 4, plus the trailing empty element 5, are deliberately ignored; no validation or persistence is required for them.
 
 This is parser/routing characterization only. It does not establish that a full live HVN delivery succeeds. G6 remains BLOCKED until the journey pairs the actual FCC and customer-label formats in the required order and exercises the real completion/CNK action plus SQL postconditions.
 
