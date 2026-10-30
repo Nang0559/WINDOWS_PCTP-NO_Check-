@@ -33,3 +33,16 @@ BEGIN
     );
 END;
 GO
+
+-- Compatibility projection required by the checked-in dbo.vNhapTP definition.
+-- The production database exposes dbo.vB20Item; the disposable SQL2-derived schema
+-- has the canonical dbo.b20item table but intentionally does not import unrelated
+-- application views. Keep this adapter fixture-only and project only columns consumed
+-- by dbo.vNhapTP. Do not treat it as a replacement for the production view definition.
+IF OBJECT_ID(N'dbo.vB20Item', N'V') IS NULL
+BEGIN
+    EXEC(N'CREATE VIEW dbo.vB20Item AS
+          SELECT Id, Code, Name, Model
+          FROM dbo.b20item;');
+END;
+GO
