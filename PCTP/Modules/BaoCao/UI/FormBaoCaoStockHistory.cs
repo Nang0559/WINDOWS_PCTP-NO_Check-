@@ -174,7 +174,7 @@ namespace PCTP.Modules.BaoCao.UI
                 c.DisplayFormat.FormatType = DevExpress.Utils.FormatType.Custom;
                 c.DisplayFormat.FormatString = format;
             }
-            if (right) c.AppearanceCell.TextOptions.HorizontalAlignment = DevExpress.Utils.HorzAlignment.Far;
+            if (right) c.AppearanceCell.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Far;
             if (sum)
             {
                 c.SummaryItem.SummaryType = SummaryItemType.Sum;
