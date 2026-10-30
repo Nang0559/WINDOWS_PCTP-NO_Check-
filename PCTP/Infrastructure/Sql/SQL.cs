@@ -27,7 +27,7 @@ namespace PCTP.ClassSQL
         /// Reads the named connection string from the external PCTP.Database.config file.
         /// QcSqlOverride remains the final gate for isolated CI fixture redirection.
         /// </summary>
-        private static string GetConfiguredConnection(string key)
+        internal static string GetConfiguredConnection(string key)
         {
             var configured = ConfigurationManager.ConnectionStrings[key]?.ConnectionString;
             if (string.IsNullOrWhiteSpace(configured))
@@ -598,36 +598,61 @@ namespace PCTP.ClassSQL
     // Ket Nối WH 4W
     class WH4SQLPROVIDER
     {
+        // Dùng chung cấu hình B7R2_FCCdb với SQLPROVIDER.
+        // Có thể truyền connection string riêng qua overload tương thích bên dưới.
+        public string AutoWH { get; } = SQLPROVIDER.GetConfiguredConnection("B7R2_FCCdb");
 
-        public string AutoWH = GetConfiguredConnection("B7R2_FCCdb");
+        private string ResolveConnection(string connectionSTR)
+        {
+            return string.IsNullOrWhiteSpace(connectionSTR) ? AutoWH : QcSqlOverride.Resolve(connectionSTR);
+        }
+
+        private static void AddNamedParameters(SqlCommand command, string query, object[] values)
+        {
+            if (values == null || values.Length == 0) return;
+
+            var names = System.Text.RegularExpressions.Regex.Matches(query, @"@(?:\w+)")
+                .Cast<System.Text.RegularExpressions.Match>()
+                .Select(m => m.Value)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (names.Count != values.Length)
+                throw new ArgumentException(
+                    $"Số tham số truyền vào ({values.Length}) không khớp số tham số trong câu SQL ({names.Count}).");
+
+            for (var i = 0; i < names.Count; i++)
+                command.Parameters.AddWithValue(names[i], values[i] ?? DBNull.Value);
+        }
+
+        private static void AddParameters(SqlCommand command, IEnumerable<SqlParameter> parameters)
+        {
+            if (parameters == null) return;
+            foreach (var parameter in parameters)
+            {
+                if (parameter == null) continue;
+                var clone = (SqlParameter)((ICloneable)parameter).Clone();
+                command.Parameters.Add(clone);
+            }
+        }
+
+        public DataTable WH4ExecuteQuery(string query, List<SqlParameter> parameter = null)
+            => WH4ExecuteQuery(null, query, parameter);
+
         public DataTable WH4ExecuteQuery(string connectionSTR, string query, List<SqlParameter> parameter = null)
         {
-            DataTable data = new DataTable();
+            var data = new DataTable();
             try
             {
-                using (SqlConnection connection = new SqlConnection(connectionSTR))
+                using (var connection = new SqlConnection(ResolveConnection(connectionSTR)))
+                using (var command = new SqlCommand(query, connection))
+                using (var adapter = new SqlDataAdapter(command))
                 {
-                    connection.Open();
-
-                    SqlCommand command = new SqlCommand(query, connection);
-
-                    if (parameter != null)
-                    {
-                        command.CommandType = CommandType.StoredProcedure;
-                        command.CommandText = query;
-                        {
-                            foreach (SqlParameter param in parameter)
-                            {
-                                command.Parameters.Add(param);
-                            }
-                        }
-                    }
-
-                    SqlDataAdapter adapter = new SqlDataAdapter(command);
-
+                    command.CommandType = parameter != null && parameter.Count > 0
+                        ? CommandType.StoredProcedure
+                        : CommandType.Text;
+                    AddParameters(command, parameter);
                     adapter.Fill(data);
-
-                    connection.Close();
                 }
             }
             catch (Exception ex)
@@ -636,106 +661,45 @@ namespace PCTP.ClassSQL
             }
             return data;
         }
+
+        public string WH4ExecuteReader(string query) => WH4ExecuteReader(null, query);
+
         public string WH4ExecuteReader(string connectionSTR, string query)
         {
-            DataTable data = new DataTable();
-
-            string _value = "";
-            // try
-            // {
-            using (SqlConnection connection = new SqlConnection(connectionSTR))
+            var value = "";
+            using (var connection = new SqlConnection(ResolveConnection(connectionSTR)))
+            using (var command = new SqlCommand(query, connection))
             {
                 connection.Open();
-
-                SqlCommand command = new SqlCommand(query, connection);
-
-
-                SqlDataReader MyReader = command.ExecuteReader();
-
-
-
-                while (MyReader.Read())
-                {
-
-                    _value = String.Format("{0}", MyReader[0]);
-                }
-
-
-                connection.Close();
+                using (var reader = command.ExecuteReader())
+                    while (reader.Read())
+                        value = Convert.ToString(reader[0]);
             }
-            //}
-            //catch (Exception ex)
-            //{
-            //    MessageBox.Show(ex.Message, "Lỗi ExecuteQuery");
-            //}
-            return _value;
+            return value;
         }
+
+        public int WH4ExecuteReaderint(string query) => WH4ExecuteReaderint(null, query);
 
         public int WH4ExecuteReaderint(string connectionSTR, string query)
         {
-            DataTable data = new DataTable();
-
-            int _value = 0;
-            string value = "";
-            try
-            {
-                using (SqlConnection connection = new SqlConnection(connectionSTR))
-                {
-                    connection.Open();
-
-                    SqlCommand command = new SqlCommand(query, connection);
-
-
-                    SqlDataReader MyReader = command.ExecuteReader();
-
-
-
-                    while (MyReader.Read())
-                    {
-
-                        value = MyReader[0].ToString();
-                    }
-                    _value = Convert.ToInt32(value);
-
-                    connection.Close();
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show(ex.Message, "Lỗi ExecuteQueryint");
-            }
-            return _value;
+            var value = WH4ExecuteReader(connectionSTR, query);
+            return string.IsNullOrWhiteSpace(value) ? 0 : Convert.ToInt32(value);
         }
+
+        public DataSet WH4ExecuteQuery_Dataset(string query, object[] parameter = null)
+            => WH4ExecuteQuery_Dataset(null, query, parameter);
+
         public DataSet WH4ExecuteQuery_Dataset(string connectionSTR, string query, object[] parameter = null)
         {
-            DataSet data = new DataSet();
+            var data = new DataSet();
             try
             {
-                using (SqlConnection connection = new SqlConnection(connectionSTR))
+                using (var connection = new SqlConnection(ResolveConnection(connectionSTR)))
+                using (var command = new SqlCommand(query, connection))
+                using (var adapter = new SqlDataAdapter(command))
                 {
-                    connection.Open();
-
-                    SqlCommand command = new SqlCommand(query, connection);
-
-                    if (parameter != null)
-                    {
-                        string[] listPara = query.Split(' ');
-                        int i = 0;
-                        foreach (string item in listPara)
-                        {
-                            if (item.Contains('@'))
-                            {
-                                command.Parameters.AddWithValue(item, parameter[i]);
-                                i++;
-                            }
-                        }
-                    }
-
-                    SqlDataAdapter adapter = new SqlDataAdapter(command);
-
+                    AddNamedParameters(command, query, parameter);
                     adapter.Fill(data);
-
-                    connection.Close();
                 }
             }
             catch (Exception ex)
@@ -744,104 +708,71 @@ namespace PCTP.ClassSQL
             }
             return data;
         }
+
+        public DataSet WH4ExecuteProcedureReturnDataSet(string procName, params SqlParameter[] parameters)
+            => WH4ExecuteProcedureReturnDataSet(null, procName, parameters);
+
         public DataSet WH4ExecuteProcedureReturnDataSet(string connString, string procName,
-            params SqlParameter[] paramters)
+            params SqlParameter[] parameters)
         {
-            DataSet result = null;
-            using (var sqlConnection = new SqlConnection(connString))
+            using (var connection = new SqlConnection(ResolveConnection(connString)))
+            using (var command = connection.CreateCommand())
+            using (var adapter = new SqlDataAdapter(command))
             {
-                using (var command = sqlConnection.CreateCommand())
-                {
-                    using (SqlDataAdapter sda = new SqlDataAdapter(command))
-                    {
-                        command.CommandType = System.Data.CommandType.StoredProcedure;
-                        command.CommandText = procName;
-                        if (paramters != null)
-                        {
-                            command.Parameters.AddRange(paramters);
-                        }
-                        result = new DataSet();
-                        sda.Fill(result);
-                    }
-                }
+                command.CommandType = CommandType.StoredProcedure;
+                command.CommandText = procName;
+                command.CommandTimeout = 1200;
+                if (parameters != null && parameters.Length > 0)
+                    AddParameters(command, parameters);
+                var result = new DataSet();
+                adapter.Fill(result);
+                return result;
             }
-            return result;
         }
+
+        public int WH4ExecuteNonQuery(string query, object[] parameter = null)
+            => WH4ExecuteNonQuery(null, query, parameter);
+
         public int WH4ExecuteNonQuery(string connectionSTR, string query, object[] parameter = null)
         {
-            int data = 0;
             try
             {
-                using (SqlConnection connection = new SqlConnection(connectionSTR))
+                using (var connection = new SqlConnection(ResolveConnection(connectionSTR)))
+                using (var command = new SqlCommand(query, connection))
                 {
+                    AddNamedParameters(command, query, parameter);
                     connection.Open();
-
-                    SqlCommand command = new SqlCommand(query, connection);
-
-                    if (parameter != null)
-                    {
-                        string[] listPara = query.Split(' ');
-                        int i = 0;
-                        foreach (string item in listPara)
-                        {
-                            if (item.Contains('@'))
-                            {
-                                command.Parameters.AddWithValue(item, parameter[i]);
-                                i++;
-                            }
-                        }
-                    }
-
-                    data = command.ExecuteNonQuery();
-
-                    connection.Close();
+                    return command.ExecuteNonQuery();
                 }
             }
             catch (Exception ex)
             {
                 MessageBox.Show(ex.Message, "Lỗi ExecuteNonQuery AUTOWH");
-                data = -1;
+                return -1;
             }
-            return data;
         }
+
+        public object WH4ExecuteScalar(string query, object[] parameter = null)
+            => WH4ExecuteScalar(null, query, parameter);
 
         public object WH4ExecuteScalar(string connectionSTR, string query, object[] parameter = null)
         {
-            object data = 0;
             try
             {
-                using (SqlConnection connection = new SqlConnection(connectionSTR))
+                using (var connection = new SqlConnection(ResolveConnection(connectionSTR)))
+                using (var command = new SqlCommand(query, connection))
                 {
+                    AddNamedParameters(command, query, parameter);
                     connection.Open();
-
-                    SqlCommand command = new SqlCommand(query, connection);
-
-                    if (parameter != null)
-                    {
-                        string[] listPara = query.Split(' ');
-                        int i = 0;
-                        foreach (string item in listPara)
-                        {
-                            if (item.Contains('@'))
-                            {
-                                command.Parameters.AddWithValue(item, parameter[i]);
-                                i++;
-                            }
-                        }
-                    }
-
-                    data = command.ExecuteScalar();
-
-                    connection.Close();
+                    return command.ExecuteScalar() ?? DBNull.Value;
                 }
             }
             catch (Exception ex)
             {
                 MessageBox.Show(ex.Message, "Lỗi ExecuteScalar B7R2");
+                return DBNull.Value;
             }
-            return data;
         }
-
     }
     class WMSPROVIDER
     {
