@@ -62,7 +62,7 @@ Required SQL assertions: before/after snapshots of QR primary identity, `MAHANGF
 
 - HVN MP uses its configured TMP/DOCQR table pair and the HVN allocation procedure.
 - HVN SP uses its configured SP TMP/DOCQR table pair.
-- YMVN MP uses the YMVN-specific service/procedure and configured MP table family. YMVN SP is configured but is not acceptance-ready until raw P/K/Q scan routing and deployed procedure/schema compatibility are verified; see §10.
+- YMVN is treated as a separate, operator-confirmed working flow for this review. Keep its dedicated regression coverage; this pass does not raise a new YMVN defect.
 - Customer 100003 uses its configured table family; it must not silently fall back to HVN tables.
 - Unknown/missing customer configuration fails closed before SQL mutation.
 
@@ -126,7 +126,7 @@ This matrix is derived from CustomerTableConfig and DocQRScanEngine.ProcessScan.
 | HVN 100001 | O-type | Uses current MP/SP session route; O-type bypasses the FCC-order guard | Preserve active MP table/session and O-type category | No dedicated O-type journey |
 | Honda Trading 100003 | Date-based | 6 colon fields → ScanFCC_TongTem because CoNhieuNhaMay=false and CoGear=false | One combined QR writes FCC and HVN values; DOCQRCODE_100003 + TMPPHIEUGIAOHANG_100003 | No dedicated live UI journey |
 | YMVN 100002 | MP / Gear | 4 colon fields → ScanFCC_YMVN; raw P/K/Q QR → ScanYMVN | YMVN_DOCQRCODE + TMPPHIEUGIAOHANG_100002; separate YMVN take-LOT procedure | SQL characterization exists; full UI/lifecycle remains open |
-| YMVN 100002 | SP / Gear | 4 colon fields → ScanFCC_YMVN; raw P/K/Q QR also routes to ScanYMVN | Expected session pair is SP_DOCQRCODE + SP_TMPPHIEUGIAOHANG | BLOCKED: raw ScanYMVN currently uses the configured MP DocQRTable, not the session-selected SP table; procedure schema compatibility is also unproven |
+| YMVN 100002 | MP / SP / Gear | Keep existing dedicated YMVN route and stored-procedure regression tests | YMVN-specific tables and procedure family | Operator reports YMVN is working; no new YMVN defect is asserted by this HVN-focused review |
 
 ### 10.1 Required format-level cases
 
@@ -160,11 +160,10 @@ A customer/category QR test is not complete at parser success. For every configu
 
 ### 10.3 Known blockers from source review
 
-- YMVN SP raw QR table selection: ScanYMVN reads GetMaxStt and calls UpdateHVN using _cfg.Delivery.DocQRTable (MP table) instead of the session property DocQRTable. In SP mode, ProcessScan can route raw P/K/Q input into this method. Correct production routing is required before the SP acceptance case can pass.
-- YMVN SP take-LOT schema: the procedure checks @TmpOk / @LegacyQrOk and throws 51213 when the configured table pair lacks required columns. Its source comments identify the SP family as a different schema. Verify actual DB57 columns before any write; table names in an allow-list do not prove support.
-- HVN MP sequence: current G6 manifests submit a generated carton QR once; they do not prove the two-stage FCC → customer-label flow for CoNhieuNhaMay=true.
+- HVN MP sequence: current G6 manifests submit only generated FCC carton QR(s), omit the corresponding customer-label scan, and run final stock/delivery assertions without an explicit completion/CNK UI action. Both manifests are now BLOCKED until the real label format and completion controls are captured.
 - Customer 100003: current G6 manifests do not exercise the six-field combined QR route or its dedicated order/table family.
-- One-label and two-label routes are different: Honda Trading uses one six-field combined QR; HVN SP uses one FCC scan that fills both field sets; HVN MP uses FCC then customer label. These fixtures are not interchangeable.
+- Do not invent the HVN customer-label payload. The current source routes four-field payloads to ScanFCC and non-four-field payloads to ScanHVN, but the actual HVN customer label must be captured from a real approved label before a two-stage fixture is authored.
+- HVN SP remains a distinct configured route: one FCC scan populates FCC and HVN fields in the SP DOCQR table. It needs its own UI/SQL journey; it must not be represented by the MP fixture.
 
 ### 10.4 Release rule
 
