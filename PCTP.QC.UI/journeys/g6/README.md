@@ -1,32 +1,47 @@
-# G6 - journey nghiep vu co seed / reset
+# G6 - journey nghiệp vụ có seed / reset
 
-Moi journey gom 4 phan theo thu tu: `sql-seed` -> thao tac UI -> `sql-assert` -> `sql-cleanup`.
+Mỗi journey theo thứ tự: `sql-seed` -> thao tác UI thật -> `sql-assert` -> `sql-cleanup` -> verify cleanup.
 
-| Manifest | Trang thai | Ghi chu |
+## Ranh giới DB và quyền chạy test
+
+- **DB57 / 192.168.200.57 / B7R2_FCC là DB kiểm thử được phép ghi/xóa dữ liệu cho acceptance của dự án.** Chỉ chạy với `-LiveDb57`, tài khoản QC riêng, prefix duy nhất `QCUI_<8 ký tự>`, và cleanup có verify.
+- **DB14 / BRAVO tuyệt đối không dùng để seed, chạy giao dịch test hoặc cleanup.** DB14 chỉ là đích promotion sau khi DB57 có đủ bằng chứng.
+- Không được xem manifest `configured:true` là bằng chứng runtime. Chỉ Windows runner thực thi UI + SQL assertions + cleanup đầy đủ mới tạo evidence G6.
+
+## Trạng thái manifest
+
+| Manifest | Trạng thái hiện tại | Ghi chú |
 |---|---|---|
-| `g6-selftest.json` | San sang | Kiem chung co che (prefix, assert, cleanup ve 0) bang bang `#temp`, khong cham bang nghiep vu |
-| `g6-qc-direction.json` | **Chua cau hinh** | Mo rong `qc-direction-navigation.json` |
-| `g6-qc-final.json` | **Chua cau hinh** | Mo rong `qc-final-navigation.json` |
-| `g6-receive.json` | **UI scan + SQL assert + cleanup (chưa có run evidence)** | Capture 2 tem tổng, gửi qua `FormEnterItemSV.receive_qrInput` + Enter, đối chiếu STOCKTP/SlotLot/StockHistory. |
-| `g6-delivery-hvn.json` | **UI scan + SQL assert + cleanup (chưa có run evidence)** | Capture QR từ LOT/quantity, nhập vào `txt_DOCQRCODE`, gửi Enter, đối chiếu delivery/QR/stock. |
+| `g6-selftest.json` | Sẵn sàng về framework | Dùng bảng `#temp`, không ghi bảng nghiệp vụ |
+| `g6-qc-direction.json` | **BLOCKED / chưa cấu hình** | Chưa có seed/assert/cleanup nghiệp vụ đã xác minh |
+| `g6-qc-final.json` | **BLOCKED / chưa cấu hình** | Chưa có seed/assert/cleanup nghiệp vụ đã xác minh |
+| `g6-receive.json` | Configured, chưa có runtime evidence | Seed B20Item/B30AccDoc/kho-kệ-slot; scan 2 QR thật; assert STOCKTP/SlotLot/StockHistory |
+| `g6-delivery-hvn.json` | Configured nhưng cleanup chưa đầy đủ | Scan QR thật; hiện cleanup/verify chưa cover PCTPStockMovementGuard và FVN_DeliveryCommand* |
+| `g6-delivery-hvn-multilot.json` | Configured nhưng cleanup chưa đầy đủ | 3 dòng 1/2/3 LOT, 6 QR; cùng blocker ledger/guard như delivery đơn |
 
-Journey `"configured": false` bi runner tu choi chay; Gate bao `BLOCKED`. Khong co duong nao cho PASS gia.
+## Blocker an toàn phải đóng trước G6 PASS
 
-> **Lưu ý trạng thái:** việc thêm bước quét tự động vào manifest mới là implementation trên branch; chưa được coi là G6 PASS cho tới khi runner Windows thực thi trên DB57, xác nhận QR được chấp nhận bởi UI/procedure thật, assertion pass và cleanup trả Remaining = 0. Hai journey QC vẫn `configured: false`. Receive và cả hai journey delivery đã có bước quét QR tự động trong source nhưng chưa có runtime evidence.
+1. Delivery cleanup hiện ghi rõ chưa xử lý `PCTPStockMovementGuard` claims và `FVN_DeliveryCommand*` ledger rows. Verify hiện tại không đếm các bảng này nên `Remaining = 0` chưa chứng minh cleanup toàn phần.
+2. Phải truy ra khóa liên kết thực tế giữa ledger/guard với `@Prefix` hoặc `@RunId` từ schema và code runtime. Sau đó mới viết cleanup và verify chính xác; **không xóa theo suy đoán**.
+3. Receive cũng phải kiểm kê toàn bộ bảng/ledger mà receiving service thực sự ghi, rồi đảm bảo cleanup và verify bao phủ đủ.
+4. Chỉ chuyển QC direction/final sang `configured:true` sau khi xác định được bảng nguồn, khóa fixture, UI action thực và hậu điều kiện SQL.
+5. Export/Rework chưa có G6 business manifests; không tính là đã acceptance.
 
-## Can bo sung cho moi journey nghiep vu
-1. `sql/<journey>/seed.sql` - tao du lieu duy nhat, **moi khoa/ma phieu bat dau bang `@Prefix`** (`QCUI_<runId8>`).
-2. Cac buoc UI thao tac that (chon dong phieu, mo form chi tiet, bam nut) voi AutomationId lay tu file `*-tree.json` cua G5 hoac `CONTROL_CATALOG.md`.
-3. `sql/<journey>/assert.sql` + `expectColumns` - truy van hau dieu kien (ton kho, SlotLot, history, `PCTPStockMovementGuard`).
-4. `sql/<journey>/cleanup.sql` (xoa bang con truoc) va `verify.sql` tra ve cot `Remaining` (phai = 0). Sau do doi `"configured"` thanh `true`.
+## Guard của runner
 
-## Rang buoc an toan (runner tu kiem tra)
-- `-AllowMutations` bat buoc; moi buoc seed/cleanup phai khai bao `mutatesData: true`; manifest co seed bat buoc co cleanup.
-- Production `192.168.200.14` / `BRAVO` luon bi tu choi. Mac dinh chi `192.168.200.57/B7R2_FCC`; DB cach ly khac phai dat ro `PCTP_QC_ISOLATED_TARGET=server/database`.
-- Cau lenh seed/cleanup bat buoc tham chieu `@Prefix`, khong `TRUNCATE`, khong `DROP` bang that, khong `DELETE/UPDATE` thieu `WHERE`.
-- Runner khong the biet PCTP.exe dang tro vao DB nao: no doc `PCTP.exe.config`, tu choi neu thay production, neu khong xac minh duoc thi can `-ConfirmAppUsesIsolatedDb`.
-- Cleanup luon chay trong `finally`, ke ca khi buoc UI loi giua chung.
+- `-AllowMutations` bắt buộc cho journey có seed/cleanup.
+- SQL seed/cleanup phải tham chiếu `@Prefix`; cấm `TRUNCATE`, cấm DROP bảng thật, cấm DELETE/UPDATE không có WHERE.
+- DB target mặc định và live acceptance được pin ở DB57; SQL14/BRAVO bị từ chối.
+- App config được kiểm tra trước live run; khi chạy workflow DB57, connection strings được redirect/verify về DB57 bằng QC login.
+- Cleanup được thực hiện trong luồng kết thúc journey; nếu app/process chết cứng hoặc cleanup không hoàn tất, run phải FAIL và cần chạy cleanup thủ công với đúng prefix từ log/artifact.
+- Không coi `configured:true` là PASS nếu chưa có runtime artifact mới trên Windows runner.
 
-| `g6-delivery-hvn-multilot.json` | **UI scan + SQL assert + cleanup (chưa có run evidence)** | Seed 3 dòng pending (1/2/3 LOT), capture 6 QR trong bộ nhớ, nhập từng QR qua `txt_DOCQRCODE` và gửi Enter; đối chiếu delivery/QR/stock invariants. |
-Chạy: `.\PCTP.QC.UI\Invoke-PctpQcGates.ps1 -Gate G6 -ExePath <PCTP.exe> -SqlUser <user> -AllowMutations -ConfirmAppUsesIsolatedDb`
-PCTP.QC.UI\Invoke-PctpQcGates.ps1 -Gate G6 -ExePath <PCTP.exe> -SqlUser <user> -AllowMutations -ConfirmAppUsesIsolatedDb`
+## Evidence semantics
+
+- Navigation PASS chỉ chứng minh mở màn hình và tìm thấy control.
+- Business UI PASS cần thao tác thật và trạng thái UI sau thao tác.
+- Data PASS cần SQL postconditions đúng.
+- E2E PASS = Business UI PASS + Data PASS + cleanup toàn phần PASS.
+- Thiếu khóa cleanup an toàn hoặc thiếu runtime evidence => BLOCKED, không được nâng trạng thái.
+
+Chạy live acceptance trên DB57 từ workflow `.github/workflows/pctp-db57-acceptance.yml` với cả hai xác nhận ghi DB57 và cleanup. Không chạy workflow này khi target chưa được kiểm tra.
