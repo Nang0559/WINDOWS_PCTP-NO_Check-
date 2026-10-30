@@ -9,10 +9,15 @@ on:
         type: boolean
         default: false
       target_database:
-        description: 'SQL57 catalog; shared B7R2_FCC is metadata-only, QC catalog is preferred for writable tests'
+        description: 'SQL57 catalog used for the read-only comparison'
         required: true
         type: string
         default: B7R2_FCC
+      allow_privileged_target:
+        description: 'RUN 4/5: explicitly accept a privileged SQL57 login; catalog queries remain read-only'
+        required: true
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -23,9 +28,7 @@ jobs:
     runs-on: [self-hosted, windows, pctp-ui]
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.sha }}
-          clean: true
+        with: { ref: '${{ github.sha }}', clean: true }
       - name: Audit code and SQL references
         shell: powershell
         run: .\PCTP.QC.UI\Invoke-PctpSchemaAudit.ps1
@@ -46,13 +49,9 @@ jobs:
     runs-on: [self-hosted, windows, pctp-ui]
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.sha }}
-          clean: true
+        with: { ref: '${{ github.sha }}', clean: true }
       - uses: actions/download-artifact@v4
-        with:
-          name: pctp-schema-state
-          path: docs
+        with: { name: pctp-schema-state, path: docs }
       - name: Validate generated coverage is non-empty and scoped
         shell: powershell
         run: |
@@ -62,10 +61,7 @@ jobs:
           if($bad.Count){throw "Coverage contains $($bad.Count) invalid rows"}
           Write-Host "PASS: coverage contains $(@($c).Count) scoped objects."
       - uses: actions/upload-artifact@v4
-        with:
-          name: pctp-schema-state-validated
-          path: docs
-          if-no-files-found: error
+        with: { name: pctp-schema-state-validated, path: docs, if-no-files-found: error }
 
   run-3-gate:
     name: 'RUN 3 - fail-closed completeness gate'
@@ -73,13 +69,9 @@ jobs:
     runs-on: [self-hosted, windows, pctp-ui]
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.sha }}
-          clean: true
+        with: { ref: '${{ github.sha }}', clean: true }
       - uses: actions/download-artifact@v4
-        with:
-          name: pctp-schema-state-validated
-          path: docs
+        with: { name: pctp-schema-state-validated, path: docs }
       - name: Coverage completeness gate
         shell: powershell
         run: .\PCTP.QC.UI\Test-PctpSchemaCoverage.ps1
@@ -91,31 +83,23 @@ jobs:
     runs-on: [self-hosted, windows, pctp-ui]
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.sha }}
-          clean: true
+        with: { ref: '${{ github.sha }}', clean: true }
       - uses: actions/download-artifact@v4
-        with:
-          name: pctp-schema-state-validated
-          path: docs
-      - name: Validate target catalog
-        shell: powershell
-        env:
-          TARGET_DATABASE: ${{ inputs.target_database }}
-        run: |
-          if($env:TARGET_DATABASE -notmatch '^(B7R2_FCC|B7R2_FCC_QC[A-Za-z0-9_]*)$'){throw 'Invalid target catalog'}
+        with: { name: pctp-schema-state-validated, path: docs }
       - name: Run read-only live inventory
         shell: powershell
         env:
           PCTP_QC_SOURCE_SQL_CONNECTION: ${{ secrets.PCTP_QC_SOURCE_SQL_CONNECTION }}
           PCTP_QC_TARGET_SQL_CONNECTION: ${{ secrets.PCTP_QC_TARGET_SQL_CONNECTION }}
           TARGET_DATABASE: ${{ inputs.target_database }}
-        run: .\PCTP.QC.UI\Invoke-PctpLiveDataInventory.ps1 -OutputDirectory "$env:RUNNER_TEMP\pctp-live-data-inventory" -TargetDatabase $env:TARGET_DATABASE
+        run: |
+          if($env:TARGET_DATABASE -notmatch '^(B7R2_FCC|B7R2_FCC_QC[A-Za-z0-9_]*)$'){throw 'Invalid target catalog'}
+          $args=@('-OutputDirectory',"$env:RUNNER_TEMP\pctp-live-data-inventory",'-TargetDatabase',$env:TARGET_DATABASE)
+          if('${{ inputs.allow_privileged_target }}' -eq 'true'){$args += '-AllowPrivilegedTarget'}
+          & .\PCTP.QC.UI\Invoke-PctpLiveDataInventory.ps1 @args
+          if($LASTEXITCODE -ne 0){exit $LASTEXITCODE}
       - uses: actions/upload-artifact@v4
-        with:
-          name: pctp-live-inventory-${{ github.run_number }}
-          path: ${{ runner.temp }}/pctp-live-data-inventory
-          if-no-files-found: error
+        with: { name: pctp-live-inventory-${{ github.run_number }}, path: ${{ runner.temp }}/pctp-live-data-inventory, if-no-files-found: error }
 
   run-5-promotion-plan:
     name: 'RUN 5 - DB57 to DB14 promotion review plan'
@@ -124,21 +108,15 @@ jobs:
     runs-on: [self-hosted, windows, pctp-ui]
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.sha }}
-          clean: true
+        with: { ref: '${{ github.sha }}', clean: true }
       - uses: actions/download-artifact@v4
-        with:
-          name: pctp-schema-state-validated
-          path: docs
+        with: { name: pctp-schema-state-validated, path: docs }
       - name: Generate DB57 to DB14 review manifest
         shell: powershell
         env:
           PCTP_QC_SOURCE_SQL_CONNECTION: ${{ secrets.PCTP_QC_SOURCE_SQL_CONNECTION }}
           PCTP_QC_TARGET_SQL_CONNECTION: ${{ secrets.PCTP_QC_TARGET_SQL_CONNECTION }}
-        run: .\PCTP.QC.UI\Invoke-PctpDb57ToDb14PromotionPlan.ps1 -OutputDirectory "$env:RUNNER_TEMP\db57-to-db14-promotion"
+          TARGET_DATABASE: ${{ inputs.target_database }}
+        run: .\PCTP.QC.UI\Invoke-PctpDb57ToDb14PromotionPlan.ps1 -OutputDirectory "$env:RUNNER_TEMP\db57-to-db14-promotion" -TargetDatabase $env:TARGET_DATABASE
       - uses: actions/upload-artifact@v4
-        with:
-          name: pctp-db57-to-db14-promotion-${{ github.run_number }}
-          path: ${{ runner.temp }}/db57-to-db14-promotion
-          if-no-files-found: error
+        with: { name: pctp-db57-to-db14-promotion-${{ github.run_number }}, path: ${{ runner.temp }}/db57-to-db14-promotion, if-no-files-found: error }
