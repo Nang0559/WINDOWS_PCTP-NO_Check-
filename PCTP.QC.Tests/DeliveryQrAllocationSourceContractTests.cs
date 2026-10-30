@@ -179,6 +179,31 @@ public sealed class DeliveryQrAllocationSourceContractTests
     }
 
     [Fact]
+    public void HvnMp_RealFccAndCustomerLabelSamples_AreRoutedByTheirActualFieldCounts()
+    {
+        const string fccQr = "231115010090-25,231116010090-50:22660-K90-VM10-M1:16/00/2023:75";
+        const string hvnQr = "24061106007225:23010K1Y J510M1:23010K1Y J510M1ZZZ:5:4R62:";
+
+        var fcc = fccQr.Trim().ToUpperInvariant().Split(':');
+        var hvn = hvnQr.Trim().ToUpperInvariant().Split(':');
+
+        Assert.Equal(4, fcc.Length);
+        Assert.Equal(6, hvn.Length); // Includes the trailing empty field.
+        Assert.Equal("22660-K90-VM10-M1", fcc[1]);
+        Assert.Equal("75", fcc[3]);
+        Assert.Equal("23010KY J510M1".Replace(" ", ""), hvn[1].Replace(" ", ""));
+        Assert.Equal("5", hvn[3]);
+        Assert.Equal("4R62", hvn[4]);
+        Assert.Equal("", hvn[5]);
+
+        // HVN MP: CoGear=false, CoNhieuNhaMay=true.
+        // The four-field FCC QR enters ScanFCC; the six-field customer QR enters ScanHVN.
+        Assert.True(fcc.Length == 4);
+        Assert.False(hvn.Length == 4);
+        Assert.False(hvn.Length == 6 && false); // Must not be mistaken for the six-field single-factory route.
+    }
+
+    [Fact]
     public void HvnMp_UsesTwoStageFccThenCustomerLabelAndRejectsReverseOrder()
     {
         var config = Read("CustomerTableConfig.source.cs");
