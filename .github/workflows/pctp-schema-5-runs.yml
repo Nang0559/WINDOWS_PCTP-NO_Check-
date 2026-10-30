@@ -1,0 +1,144 @@
+name: PCTP schema 5-run pipeline
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_live_inventory:
+        description: 'RUN 4: allow read-only metadata inventory against SQL14 + SQL57'
+        required: true
+        type: boolean
+        default: false
+      target_database:
+        description: 'SQL57 catalog; shared B7R2_FCC is metadata-only, QC catalog is preferred for writable tests'
+        required: true
+        type: string
+        default: B7R2_FCC
+
+permissions:
+  contents: read
+
+jobs:
+  run-1-audit:
+    name: 'RUN 1 - full PCTP runtime SQL audit'
+    runs-on: [self-hosted, windows, pctp-ui]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          clean: true
+      - name: Audit code and SQL references
+        shell: powershell
+        run: .\PCTP.QC.UI\Invoke-PctpSchemaAudit.ps1
+      - name: Generate effective coverage
+        shell: powershell
+        run: .\PCTP.QC.UI\Build-PctpSchemaCoverage.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pctp-schema-state
+          path: |
+            docs/PCTP_SQL_Runtime_Inventory_EFFECTIVE.csv
+            docs/SCHEMA_COVERAGE_EFFECTIVE.csv
+          if-no-files-found: error
+
+  run-2-coverage:
+    name: 'RUN 2 - materialize and validate effective coverage'
+    needs: run-1-audit
+    runs-on: [self-hosted, windows, pctp-ui]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          clean: true
+      - uses: actions/download-artifact@v4
+        with:
+          name: pctp-schema-state
+          path: docs
+      - name: Validate generated coverage is non-empty and scoped
+        shell: powershell
+        run: |
+          $c=Import-Csv .\docs\SCHEMA_COVERAGE_EFFECTIVE.csv
+          if(@($c).Count -eq 0){throw 'SCHEMA_COVERAGE_EFFECTIVE.csv is empty'}
+          $bad=@($c | ? { $_.kind -notin @('table','proc','view','function') -or $_.object -notmatch '^[A-Za-z0-9_]+$' })
+          if($bad.Count){throw "Coverage contains $($bad.Count) invalid rows"}
+          Write-Host "PASS: coverage contains $(@($c).Count) scoped objects."
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pctp-schema-state-validated
+          path: docs
+          if-no-files-found: error
+
+  run-3-gate:
+    name: 'RUN 3 - fail-closed completeness gate'
+    needs: run-2-coverage
+    runs-on: [self-hosted, windows, pctp-ui]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          clean: true
+      - uses: actions/download-artifact@v4
+        with:
+          name: pctp-schema-state-validated
+          path: docs
+      - name: Coverage completeness gate
+        shell: powershell
+        run: .\PCTP.QC.UI\Test-PctpSchemaCoverage.ps1
+
+  run-4-inventory:
+    name: 'RUN 4 - live SQL14/SQL57 read-only inventory'
+    needs: run-3-gate
+    if: ${{ inputs.confirm_live_inventory }}
+    runs-on: [self-hosted, windows, pctp-ui]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          clean: true
+      - uses: actions/download-artifact@v4
+        with:
+          name: pctp-schema-state-validated
+          path: docs
+      - name: Validate target catalog
+        shell: powershell
+        env:
+          TARGET_DATABASE: ${{ inputs.target_database }}
+        run: |
+          if($env:TARGET_DATABASE -notmatch '^(B7R2_FCC|B7R2_FCC_QC[A-Za-z0-9_]*)$'){throw 'Invalid target catalog'}
+      - name: Run read-only live inventory
+        shell: powershell
+        env:
+          PCTP_QC_SOURCE_SQL_CONNECTION: ${{ secrets.PCTP_QC_SOURCE_SQL_CONNECTION }}
+          PCTP_QC_TARGET_SQL_CONNECTION: ${{ secrets.PCTP_QC_TARGET_SQL_CONNECTION }}
+          TARGET_DATABASE: ${{ inputs.target_database }}
+        run: .\PCTP.QC.UI\Invoke-PctpLiveDataInventory.ps1 -OutputDirectory "$env:RUNNER_TEMP\pctp-live-data-inventory" -TargetDatabase $env:TARGET_DATABASE
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pctp-live-inventory-${{ github.run_number }}
+          path: ${{ runner.temp }}/pctp-live-data-inventory
+          if-no-files-found: error
+
+  run-5-promotion-plan:
+    name: 'RUN 5 - DB57 to DB14 promotion review plan'
+    needs: run-4-inventory
+    if: ${{ inputs.confirm_live_inventory }}
+    runs-on: [self-hosted, windows, pctp-ui]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          clean: true
+      - uses: actions/download-artifact@v4
+        with:
+          name: pctp-schema-state-validated
+          path: docs
+      - name: Generate DB57 to DB14 review manifest
+        shell: powershell
+        env:
+          PCTP_QC_SOURCE_SQL_CONNECTION: ${{ secrets.PCTP_QC_SOURCE_SQL_CONNECTION }}
+          PCTP_QC_TARGET_SQL_CONNECTION: ${{ secrets.PCTP_QC_TARGET_SQL_CONNECTION }}
+        run: .\PCTP.QC.UI\Invoke-PctpDb57ToDb14PromotionPlan.ps1 -OutputDirectory "$env:RUNNER_TEMP\db57-to-db14-promotion"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pctp-db57-to-db14-promotion-${{ github.run_number }}
+          path: ${{ runner.temp }}/db57-to-db14-promotion
+          if-no-files-found: error
