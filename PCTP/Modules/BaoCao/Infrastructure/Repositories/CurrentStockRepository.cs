@@ -46,7 +46,19 @@ namespace PCTP.Modules.BaoCao.Infrastructure.Repositories
                     QrCode = ReadString(row, "QrData", "QRData", "QRCode", "QR"),
                     Quantity = ReadDecimal(row, "Quantity", "Qty", "SoLuong", "SL"),
                     LocationCode = ReadString(row, "LocationCode", "SlotCode", "SlotId", "Location"),
-                    Status = ReadString(row, "Status", "TrangThai")
+                    Status = ReadString(row, "Status", "TrangThai"),
+                    ItemName = ReadString(row, "ItemName", "TenSP", "NAME"),
+                    Model = ReadString(row, "Model", "MODEL"),
+                    ProductionDate = ReadDateTime(row, "NgaySX", "NGAYSX"),
+                    ShiftNo = ReadNullableInt(row, "CaSX", "CASX"),
+                    QtyProduced = ReadNullableDecimal(row, "SlSanXuat", "SLSX"),
+                    QtyReceived = ReadNullableDecimal(row, "SlDaNhap", "SLNHAP"),
+                    QtyIssued = ReadNullableDecimal(row, "SlDaXuat", "SLXUAT"),
+                    QtyOnHandLot = ReadNullableDecimal(row, "SlTonLot", "SLCONLAI"),
+                    ReceivedDate = ReadDateTime(row, "NgayNhap", "NGAYNHAP"),
+                    IssuedDate = ReadDateTime(row, "NgayXuat", "NGAYXUAT"),
+                    SlotImportDate = ReadDateTime(row, "SlotImportDate", "ImportDate"),
+                    DocumentNo = ReadString(row, "SlotMaPhieu", "MaPhieu")
                 });
             }
 
@@ -59,6 +71,33 @@ namespace PCTP.Modules.BaoCao.Infrastructure.Repositories
             {
                 if (row.Table.Columns.Contains(name) && row[name] != DBNull.Value)
                     return Convert.ToString(row[name]);
+            }
+            return null;
+        }
+
+        // Các cột mới là tuỳ chọn: SP cũ chưa deploy thì để trống chứ không lỗi.
+        private static decimal? ReadNullableDecimal(DataRow row, params string[] names)
+        {
+            foreach (var name in names)
+            {
+                if (row.Table.Columns.Contains(name) && row[name] != DBNull.Value)
+                    return Convert.ToDecimal(row[name]);
+            }
+            return null;
+        }
+
+        private static int? ReadNullableInt(DataRow row, params string[] names)
+        {
+            var value = ReadNullableDecimal(row, names);
+            return value.HasValue ? (int?)Convert.ToInt32(value.Value) : null;
+        }
+
+        private static DateTime? ReadDateTime(DataRow row, params string[] names)
+        {
+            foreach (var name in names)
+            {
+                if (row.Table.Columns.Contains(name) && row[name] != DBNull.Value)
+                    return Convert.ToDateTime(row[name]);
             }
             return null;
         }

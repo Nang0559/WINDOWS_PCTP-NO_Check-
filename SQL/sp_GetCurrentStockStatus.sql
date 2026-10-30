@@ -32,6 +32,8 @@ BEGIN
             stp.LOT AS StockLot,
             sl.ItemCode AS SlotItemCode,
             sl.Quantity AS SlotQuantity,
+            sl.ImportDate AS SlotImportDate,
+            sl.MaPhieu AS SlotMaPhieu,
             ISNULL(NULLIF(sl.QrData, N''), sl.TemCode) AS SlotQr,
             CASE WHEN s.SlotId IS NOT NULL
                  THEN w.Name + N'-' + r.RackName + N'-Slot' + CAST(s.SlotNumber AS NVARCHAR(20))
@@ -69,7 +71,19 @@ BEGIN
         u.QrData,
         u.Quantity,
         u.LocationCode,
-        u.Status
+        u.Status,
+        u.ItemName,
+        u.Model,
+        u.NgaySX,
+        u.CaSX,
+        u.SlSanXuat,
+        u.SlDaNhap,
+        u.SlDaXuat,
+        u.SlTonLot,
+        u.NgayNhap,
+        u.NgayXuat,
+        u.SlotImportDate,
+        u.SlotMaPhieu
     FROM
     (
         SELECT
@@ -79,6 +93,18 @@ BEGIN
             sd.SlotQuantity AS Quantity,
             sd.SlotLocation AS LocationCode,
             CASE WHEN stp.SATUS = 1 THEN N'Da ket thuc' ELSE N'Dang mo' END AS Status,
+            stp.NAME AS ItemName,
+            stp.MODEL AS Model,
+            stp.NGAYSX AS NgaySX,
+            stp.CASX AS CaSX,
+            stp.SLSX AS SlSanXuat,
+            stp.SLNHAP AS SlDaNhap,
+            stp.SLXUAT AS SlDaXuat,
+            stp.SLCONLAI AS SlTonLot,
+            stp.NGAYNHAP AS NgayNhap,
+            stp.NGAYXUAT AS NgayXuat,
+            sd.SlotImportDate AS SlotImportDate,
+            sd.SlotMaPhieu AS SlotMaPhieu,
             sd.WarehouseName AS SortWarehouse,
             sd.RackName AS SortRack,
             sd.SlotNumber AS SortSlot
@@ -95,6 +121,18 @@ BEGIN
             stp.SLCONLAI - ISNULL(st.SlotQty, 0) AS Quantity,
             N'Chua gan slot' AS LocationCode,
             CASE WHEN stp.SATUS = 1 THEN N'Da ket thuc' ELSE N'Dang mo' END AS Status,
+            stp.NAME AS ItemName,
+            stp.MODEL AS Model,
+            stp.NGAYSX AS NgaySX,
+            stp.CASX AS CaSX,
+            stp.SLSX AS SlSanXuat,
+            stp.SLNHAP AS SlDaNhap,
+            stp.SLXUAT AS SlDaXuat,
+            stp.SLCONLAI AS SlTonLot,
+            stp.NGAYNHAP AS NgayNhap,
+            stp.NGAYXUAT AS NgayXuat,
+            CAST(NULL AS DATETIME) AS SlotImportDate,
+            CAST(NULL AS NVARCHAR(100)) AS SlotMaPhieu,
             N'~' AS SortWarehouse,
             N'~' AS SortRack,
             2147483647 AS SortSlot

@@ -4,6 +4,8 @@ using DevExpress.XtraGrid.Views.Grid;
 using PCTP.Modules.BaoCao.Application.Contracts;
 using PCTP.Modules.BaoCao.Application.Contracts.Queries;
 using PCTP.Modules.BaoCao.Infrastructure.Queries;
+using DevExpress.Data;
+using DevExpress.XtraGrid.Columns;
 using PCTP.Shell.UI;
 using System;
 using System.ComponentModel;
@@ -84,6 +86,11 @@ namespace PCTP.Modules.BaoCao.UI
             _view = new GridView(_grid);
             _grid.MainView = _view;
             _grid.ViewCollection.Add(_view);
+            _view.OptionsBehavior.Editable = false;
+            _view.OptionsView.ColumnAutoWidth = false;      // nhiều cột -> cuộn ngang thay vì ép hẹp
+            _view.OptionsView.ShowAutoFilterRow = true;
+            _view.OptionsView.ShowFooter = true;
+            _view.RowStyle += ViewRowStyle;
             Controls.Add(_grid);
             Controls.Add(top);
         }
@@ -114,8 +121,7 @@ namespace PCTP.Modules.BaoCao.UI
                     PartNo = _lookupItemCode.EditValue == null ? null : _lookupItemCode.EditValue.ToString()
                 };
                 var rows = await _historyQuery.SearchAsync(criteria, _lifetime.Token);
-                _grid.DataSource = rows;
-                _view.BestFitColumns();
+                Bind(rows, ConfigureHistoryColumns);
             }
             catch (OperationCanceledException) { }
             catch (Exception ex)
@@ -130,13 +136,123 @@ namespace PCTP.Modules.BaoCao.UI
             {
                 _showingCurrentStock = true;
                 var rows = await _currentStockQuery.GetAsync(_lifetime.Token);
-                _grid.DataSource = rows;
-                _view.BestFitColumns();
+                Bind(rows, ConfigureCurrentStockColumns);
             }
             catch (OperationCanceledException) { }
             catch (Exception ex)
             {
                 XtraMessageBox.Show(this, ex.Message, "Không thể tải tồn kho hiện tại", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        /// <summary>Đổi bộ dữ liệu: xoá cột cũ để 2 chế độ (lịch sử / kho hiện tại) không dính cột của nhau.</summary>
+        private void Bind(object rows, Action configure)
+        {
+            _view.BeginUpdate();
+            try
+            {
+                _view.Columns.Clear();
+                _view.GroupSummary.Clear();
+                _grid.DataSource = rows;
+                _view.PopulateColumns();
+                configure();
+            }
+            finally { _view.EndUpdate(); }
+        }
+
+        private void Col(string field, string caption, int width, string format = null, bool sum = false, bool right = false)
+        {
+            var c = _view.Columns[field];
+            if (c == null) return;
+            c.Caption = caption;
+            c.Width = width;
+            c.Visible = true;
+            c.VisibleIndex = _colIndex++;
+            c.OptionsColumn.AllowEdit = false;
+            if (!string.IsNullOrEmpty(format))
+            {
+                c.DisplayFormat.FormatType = DevExpress.Utils.FormatType.Custom;
+                c.DisplayFormat.FormatString = format;
+            }
+            if (right) c.AppearanceCell.TextOptions.HorizontalAlignment = DevExpress.Utils.HorzAlignment.Far;
+            if (sum)
+            {
+                c.SummaryItem.SummaryType = SummaryItemType.Sum;
+                c.SummaryItem.DisplayFormat = "Σ {0:n0}";
+            }
+        }
+
+        private int _colIndex;
+
+        private void HideOthers(params string[] keep)
+        {
+            foreach (GridColumn c in _view.Columns)
+                if (Array.IndexOf(keep, c.FieldName) < 0) c.Visible = false;
+        }
+
+        private void ConfigureCurrentStockColumns()
+        {
+            _colIndex = 0;
+            // LotNo / QrCode là chuỗi -> không bị định dạng số; dạng "2.61E+19" nếu có là do dữ liệu gốc (xem cột Cảnh báo).
+            Col("ItemCode", "Mã hàng", 140);
+            Col("ItemName", "Tên sản phẩm", 190);
+            Col("Model", "Model", 70);
+            Col("LotNo", "LOT No", 190);
+            Col("QrCode", "QR Code", 300);
+            Col("LocationCode", "Vị trí (Kho-Rack-Slot)", 190);
+            Col("Quantity", "SL tại vị trí", 90, "n0", true, true);
+            Col("QtyProduced", "SL sản xuất", 90, "n0", false, true);
+            Col("QtyReceived", "SL đã nhập (LOT)", 105, "n0", false, true);
+            Col("QtyIssued", "SL đã xuất (LOT)", 105, "n0", false, true);
+            Col("QtyOnHandLot", "Tồn LOT", 80, "n0", false, true);
+            Col("Status", "Trạng thái LOT", 100);
+            Col("ProductionDate", "Ngày SX", 85, "dd/MM/yyyy");
+            Col("ShiftNo", "Ca SX", 50);
+            Col("ReceivedDate", "Ngày nhập LOT", 100, "dd/MM/yyyy");
+            Col("SlotImportDate", "Ngày nhập slot", 125, "dd/MM/yyyy HH:mm");
+            Col("IssuedDate", "Ngày xuất gần nhất", 115, "dd/MM/yyyy");
+            Col("DocumentNo", "Số phiếu", 120);
+            Col("Warning", "Cảnh báo", 300);
+            HideOthers("ItemCode", "ItemName", "Model", "LotNo", "QrCode", "LocationCode", "Quantity", "QtyProduced",
+                "QtyReceived", "QtyIssued", "QtyOnHandLot", "Status", "ProductionDate", "ShiftNo", "ReceivedDate",
+                "SlotImportDate", "IssuedDate", "DocumentNo", "Warning");
+            var item = _view.Columns["ItemCode"];
+            if (item != null) { item.SummaryItem.SummaryType = SummaryItemType.Count; item.SummaryItem.DisplayFormat = "{0:n0} dòng"; }
+        }
+
+        private void ConfigureHistoryColumns()
+        {
+            _colIndex = 0;
+            Col("EventTime", "Thời gian", 125, "dd/MM/yyyy HH:mm:ss");
+            Col("ActionType", "Loại giao dịch", 130);
+            Col("Direction", "Nhập/Xuất", 75);
+            Col("ItemCode", "Mã hàng", 140);
+            Col("LotNo", "LOT No", 190);
+            Col("QrCode", "QR Code", 300);
+            Col("QuantityIn", "SL nhập", 80, "n0;-n0;", true, true);   // 0 hiển thị trống
+            Col("QuantityOut", "SL xuất", 80, "n0;-n0;", true, true);
+            Col("Quantity", "SL giao dịch", 90, "n0", false, true);
+            Col("FromLocation", "Từ vị trí", 190);
+            Col("ToLocation", "Đến vị trí", 190);
+            Col("DocumentNo", "Số phiếu", 130);
+            Col("UserName", "Người thực hiện", 120);
+            HideOthers("EventTime", "ActionType", "Direction", "ItemCode", "LotNo", "QrCode", "QuantityIn", "QuantityOut",
+                "Quantity", "FromLocation", "ToLocation", "DocumentNo", "UserName");
+            var ev = _view.Columns["EventTime"];
+            if (ev != null) { ev.SummaryItem.SummaryType = SummaryItemType.Count; ev.SummaryItem.DisplayFormat = "{0:n0} giao dịch"; }
+            _view.SortInfo.Clear();
+            if (ev != null) ev.SortOrder = DevExpress.Data.ColumnSortOrder.Descending;
+        }
+
+        /// <summary>Tô đỏ nhạt dòng có LOT sai định dạng (2.61E+19) để người dùng biết đó là lỗi dữ liệu gốc.</summary>
+        private void ViewRowStyle(object sender, RowStyleEventArgs e)
+        {
+            if (e.RowHandle < 0) return;
+            var cur = _view.GetRow(e.RowHandle) as CurrentStockRow;
+            var his = _view.GetRow(e.RowHandle) as ItemHistoryRow;
+            if ((cur != null && cur.LotNoFormatError) || (his != null && his.LotNoFormatError))
+            {
+                e.Appearance.BackColor = System.Drawing.Color.FromArgb(255, 225, 225);
             }
         }
 

@@ -53,4 +53,25 @@ public sealed class ReceivingWorklistReopenContractTests
         Assert.Contains("stp.SLCONLAI - ISNULL(st.SlotQty, 0) > 0", sql, StringComparison.Ordinal);
         Assert.DoesNotContain("sl.TemCode AS QrData", sql, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void CurrentStockProcedure_ExposesReceivedIssuedAndLotDetailColumns()
+    {
+        var sql = Read("sp_GetCurrentStockStatus.sql");
+
+        // Mỗi cột LOT phải có ở CẢ nhánh có slot lẫn nhánh "Chua gan slot".
+        foreach (var col in new[]
+        {
+            "stp.SLNHAP AS SlDaNhap", "stp.SLXUAT AS SlDaXuat", "stp.SLCONLAI AS SlTonLot",
+            "stp.NAME AS ItemName", "stp.MODEL AS Model", "stp.NGAYSX AS NgaySX",
+            "stp.NGAYNHAP AS NgayNhap", "stp.NGAYXUAT AS NgayXuat"
+        })
+        {
+            Assert.Equal(2, Regex.Matches(sql, Regex.Escape(col)).Count);
+        }
+
+        Assert.Contains("sd.SlotImportDate AS SlotImportDate", sql, StringComparison.Ordinal);
+        Assert.Contains("CAST(NULL AS DATETIME) AS SlotImportDate", sql, StringComparison.Ordinal);
+        Assert.Contains("u.SlDaXuat", sql, StringComparison.Ordinal);
+    }
 }
