@@ -168,3 +168,15 @@ A customer/category QR test is not complete at parser success. For every configu
 ### 10.4 Release rule
 
 Do not set a route to configured:true or report E2E PASS until its exact customer/category/QR sequence has a real UI run, SQL before/after assertions, stock and delivery reconciliation, replay/negative-path coverage, and full cleanup. Source-contract PASS only proves the source still has the characterized route; it does not prove the customer flow works.
+
+## Real HVN/FCC QR format characterization (operator-provided samples)
+
+The source-contract suite now uses the following exact sample payloads (not synthetic QR values):
+
+- FCC: `231115010090-25,231116010090-50:22660-K90-VM10-M1:16/00/2023:75`
+- HVN customer label: `24061106007225:23010K1Y J510M1:23010K1Y J510M1ZZZ:5:4R62:`
+
+With the current .NET `rawQr.Split(':')` call, the FCC sample has 4 elements and routes to `ScanFCC`; the HVN sample has 5 elements because the trailing empty segment is omitted, and routes to `ScanHVN` for MP. The current HVN handler reads LOT from element 0, item code from element 1 (removing spaces), and quantity from element 3. It does not currently consume elements 2 or 4. Their business meaning and whether they require validation must be confirmed against the HVN label specification before asserting additional behavior.
+
+This is parser/routing characterization only. It does not establish that a full live HVN delivery succeeds. G6 remains BLOCKED until the journey pairs the actual FCC and customer-label formats in the required order and exercises the real completion/CNK action plus SQL postconditions.
+
