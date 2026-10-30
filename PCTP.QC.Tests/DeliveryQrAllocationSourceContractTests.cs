@@ -286,7 +286,7 @@ public sealed class DeliveryQrAllocationSourceContractTests
         var validation = Read("PhieuValidationRepository.source.cs");
         var singleSeed = Read("delivery-hvn-seed.source.sql");
         var multiSeed = Read("delivery-hvn-multilot-seed.source.sql");
-        var query = MethodBody(validation, "public DataTable GetDonHangChuaLot(", "public DataTable GetQcDongGoiBatch(");
+        var query = MethodBody(validation, "public DataTable GetDonHangChuaLot(", "public Dictionary<string, int> GetQcDongGoiBatch(");
         Assert.Contains("WHERE (LOT = '' OR LOT IS NULL)", query);
         Assert.Contains("KETQUA,'') <> 'DG'", query);
         Assert.Contains("VALUES (@Stt, @Prefix, @Prefix, @Item, N'QC fixture ' + @Prefix, N''", singleSeed);
