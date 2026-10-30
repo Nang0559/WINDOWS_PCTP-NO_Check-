@@ -55,10 +55,7 @@ namespace PCTP.Modules.KhoVatLy
                     }
         private void btnEnterItem_Click(object sender, EventArgs e)
                     {
-                        using (var form = new FormEnterItemSV(this))
-                        {
-                            form.ShowDialog(this);
-                        }
+                        FormEnterItemSV.ShowThenReturnToProgress(this, this);
                     }
        
     }

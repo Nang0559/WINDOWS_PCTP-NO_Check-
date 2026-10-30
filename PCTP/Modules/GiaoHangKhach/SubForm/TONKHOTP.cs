@@ -110,7 +110,9 @@ using System.Windows.Forms;
             var slotRepository = new SlotRepository(sql, uow);
             var movementService = new StockMovementService(
                 new StockExportRepositoryAdapter(new StockExportRepository(sql, uow)),
-                new LegacyStockSlotRepositoryAdapter(new SlotService(slotRepository)),
+                new LegacyStockSlotRepositoryAdapter(
+                    new SlotService(slotRepository),
+                    new BulkStockSlotRepository(sql, uow)),
                 new StockReceivingRepositoryAdapter(stockTpRepo),
                 uow);
 

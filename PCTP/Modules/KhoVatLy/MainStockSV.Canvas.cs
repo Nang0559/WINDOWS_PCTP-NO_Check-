@@ -38,8 +38,7 @@ namespace PCTP.Modules.KhoVatLy
                 }
                 else
                 {
-                    var enterForm = new FormEnterItemSV(this);
-                    enterForm.ShowDialog(this);
+                    FormEnterItemSV.ShowThenReturnToProgress(this, this);
                 }
             }
             catch (Exception ex)

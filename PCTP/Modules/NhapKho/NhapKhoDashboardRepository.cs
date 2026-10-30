@@ -31,6 +31,8 @@ namespace PCTP.Modules.NhapKho
         private string LotKeyStockTp => string.Format(NORMALIZE_LOT_EXPR, "s.LOT");
         private string LotKeySlotLot => string.Format(NORMALIZE_LOT_EXPR, "sl.LotNo");
 
+        private string LotKeyStockTpT => string.Format(NORMALIZE_LOT_EXPR, "t.LOT");
+
         private string LotKeyPending => string.Format(NORMALIZE_LOT_EXPR, "h.LotGoc");
 
         private string BuildSqlLech(string selectClause)
@@ -133,13 +135,28 @@ namespace PCTP.Modules.NhapKho
             return int.TryParse(kq?.ToString(), out int v) ? v : 0;
         }
 
-        public DataTable GetGridDaNhapHomNay() => LoadData(@"
-            SELECT sl.LotNo, sl.ItemCode, sl.Quantity, sl.TemCode, sl.CreatedDate,
+        public DataTable GetGridDaNhapHomNay() => LoadData($@"
+            SELECT sl.LotNo,
+                   COALESCE(NULLIF(RTRIM(it.Model), ''), NULLIF(RTRIM(st.MODEL), ''), '') AS Model,
+                   sl.ItemCode,
+                   COALESCE(NULLIF(RTRIM(it.Name), ''), RTRIM(st.NAME), '') AS TenSP,
+                   st.CASX AS CaSX,
+                   st.NGAYSX AS NgaySX,
+                   sl.Quantity, sl.TemCode, sl.CreatedDate,
                    s.SlotNumber, r.RackName, w.Name AS WarehouseName
             FROM SlotLot sl
             JOIN Slot s ON s.SlotId = sl.SlotId
             JOIN Rack r ON r.RackId = s.RackId
             JOIN Warehouse w ON w.WarehouseId = r.WarehouseId
+            -- OUTER APPLY TOP 1: mỗi SlotLot đúng 1 dòng (không nhân dòng khi STOCKTP/vB20Item có bản ghi trùng khoá).
+            OUTER APPLY (SELECT TOP (1) t.MODEL, t.NAME, t.CASX, t.NGAYSX
+                         FROM STOCKTP t
+                         WHERE {LotKeyStockTpT} = {LotKeySlotLot}
+                         ORDER BY CASE WHEN t.LOT = sl.LotNo THEN 0 ELSE 1 END) st
+            OUTER APPLY (SELECT TOP (1) i.Model, i.Name
+                         FROM dbo.vB20Item i
+                         WHERE i.Code = sl.ItemCode
+                         ORDER BY ISNULL(i.IsActive, 0) DESC, i.Id DESC) it
             WHERE sl.PhieuStatus = 0 AND CAST(sl.CreatedDate AS DATE) = CAST(GETDATE() AS DATE)
             ORDER BY sl.CreatedDate DESC");
 

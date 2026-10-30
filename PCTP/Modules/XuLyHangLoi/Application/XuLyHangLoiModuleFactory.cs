@@ -65,7 +65,11 @@ namespace PCTP.Modules.XuLyHangLoi.Application
             var qtChungRepo = new TraHangQTChungRepository(dbExecutor, uow);
 
             IStockBalanceRepository stockBalance = new ReworkStockBalanceAdapter(stockTpRepo);
-            IStockSlotRepository stockSlot = new ReworkStockSlotAdapter(slotService);
+            // Rework requests carry ReferenceType (QT_REWORK_*): the movement guard must share this UnitOfWork,
+            // otherwise the legacy adapter fails closed ("Stock movement idempotency requires ...").
+            IStockSlotRepository stockSlot = new ReworkStockSlotAdapter(
+                slotService,
+                new BulkStockSlotRepository(dbExecutor, uow));
             var stockMovement = new StockMovementService(stockBalance, stockSlot);
 
             // Phase 4 depends on InitialQC -> AffectedLotTrace -> ReworkStockService,

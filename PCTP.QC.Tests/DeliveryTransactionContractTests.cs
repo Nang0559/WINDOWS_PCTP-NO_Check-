@@ -180,6 +180,19 @@ public sealed class DeliveryTransactionContractTests
     }
 
     [Fact]
+    public void ReworkFactory_WiresTransactionalMovementGuardIntoLegacySlotAdapter()
+    {
+        var factory = ReadSource("XuLyHangLoiModuleFactory.source.cs");
+        var adapter = ReadSource("LegacyStockSlotRepositoryAdapter.source.cs");
+
+        Assert.Contains("new ReworkStockSlotAdapter(", factory);
+        Assert.Contains("new BulkStockSlotRepository(dbExecutor, uow)", factory);
+        Assert.Contains("_movementGuard.TryRegisterMovement(", adapter);
+        // Without a guard the adapter must still fail closed (never an in-memory idempotency claim).
+        Assert.Contains("NotSupportedException", adapter);
+    }
+
+    [Fact]
     public void DeliveryRepository_DoesNotConsumeRolledBackSuccessRowsWhenProcedureReturnsErrors()
     {
         var source = ReadSource("PhieuKhoRepository.source.cs");

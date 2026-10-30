@@ -21,10 +21,23 @@ namespace PCTP.Infrastructure.Stock
     public class LegacyStockSlotRepositoryAdapter : IStockSlotRepository
     {
         private readonly ISlotService _legacy;
+        private readonly IStockSlotRepository _movementGuard;
 
         public LegacyStockSlotRepositoryAdapter(ISlotService legacy)
+            : this(legacy, null)
+        {
+        }
+
+        /// <summary>
+        /// <paramref name="movementGuard"/> must be bound to the SAME UnitOfWork as <paramref name="legacy"/>
+        /// (e.g. BulkStockSlotRepository(db, uow)). Only TryRegisterMovement is delegated to it, so slot
+        /// reads/writes keep the legacy behaviour while the idempotency claim (dbo.PCTPStockMovementGuard)
+        /// is atomic with them. Without a guard the adapter still fails closed.
+        /// </summary>
+        public LegacyStockSlotRepositoryAdapter(ISlotService legacy, IStockSlotRepository movementGuard)
         {
             _legacy = legacy ?? throw new ArgumentNullException(nameof(legacy));
+            _movementGuard = movementGuard;
         }
 
         public int GetLotQuantity(int slotLotId)
@@ -100,6 +113,9 @@ namespace PCTP.Infrastructure.Stock
                 && string.IsNullOrWhiteSpace(qrData)
                 && string.IsNullOrWhiteSpace(temCode))
                 return true;
+
+            if (_movementGuard != null)
+                return _movementGuard.TryRegisterMovement(referenceType, referenceId, qrData, temCode, checkExistingQr);
 
             // The legacy ISlotService API does not expose the caller's SQL transaction.
             // Never emulate an idempotency claim in process memory: it would not be atomic

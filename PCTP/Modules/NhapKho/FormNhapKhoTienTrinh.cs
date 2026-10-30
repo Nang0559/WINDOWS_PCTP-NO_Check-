@@ -178,6 +178,7 @@ namespace PCTP.Modules.NhapKho
 
             _gridView.PopulateColumns();
             if (_activeStep == 1) ConfigureWorklistColumns();
+            else if (_activeStep == 2) ConfigureDaNhapColumns();
             _gridView.BestFitColumns();
         }
 
@@ -205,6 +206,31 @@ namespace PCTP.Modules.NhapKho
             Cap(nameof(PhieuNhapInfo.SlSanXuat), "SL sản xuất", 7);
             Cap(nameof(PhieuNhapInfo.SlDaNhap), "SL đã nhập", 8);
             Cap(nameof(PhieuNhapInfo.SlConThieu), "SL còn thiếu", 9);
+        }
+
+        /// <summary>Grid bước 2 (DataTable): cùng nhóm cột Model / Ca SX / Ngày SX như bước 1 để đối chiếu.</summary>
+        private void ConfigureDaNhapColumns()
+        {
+            void Cap(string field, string caption, int idx)
+            {
+                var c = _gridView.Columns[field];
+                if (c == null) return;
+                c.Caption = caption;
+                c.VisibleIndex = idx;
+            }
+
+            Cap("LotNo", "LOT", 0);
+            Cap("Model", "Model", 1);
+            Cap("TenSP", "Tên sản phẩm", 2);
+            Cap("ItemCode", "Mã SP", 3);
+            Cap("CaSX", "Ca SX", 4);
+            Cap("NgaySX", "Ngày SX", 5);
+            Cap("Quantity", "Số lượng", 6);
+            Cap("TemCode", "Mã tem", 7);
+            Cap("CreatedDate", "Ngày nhập", 8);
+            Cap("SlotNumber", "Slot", 9);
+            Cap("RackName", "Rack", 10);
+            Cap("WarehouseName", "Kho", 11);
         }
 
         private void MoFormScanNhap()

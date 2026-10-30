@@ -194,6 +194,7 @@ namespace PCTP.Modules.NhapKho.Services
                     LotNo = lotNo,
                     ItemCode = qr.ItemCode,
                     ItemName = nhapItem.Name,
+                    Model = phieuLive != null ? phieuLive.Model : null,
                     ProductionCase = caseNo,
                     ProductionDate = nhapItem.NgaySX,
                     ProductionQuantity = nhapItem.SlSanXuat,

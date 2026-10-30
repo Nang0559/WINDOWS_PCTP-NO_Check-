@@ -1,4 +1,5 @@
 using PCTP.Infrastructure.Stock;
+using PCTP.Modules.KhoCore.Application.Contracts.Stock;
 using PCTP.Modules.KhoVatLy.Application.Interfaces;
 
 namespace PCTP.Modules.NhapKho.Application.Adapters
@@ -12,6 +13,11 @@ namespace PCTP.Modules.NhapKho.Application.Adapters
     {
         public StockSlotRepositoryAdapter(ISlotService legacy)
             : base(legacy)
+        {
+        }
+
+        public StockSlotRepositoryAdapter(ISlotService legacy, IStockSlotRepository movementGuard)
+            : base(legacy, movementGuard)
         {
         }
     }

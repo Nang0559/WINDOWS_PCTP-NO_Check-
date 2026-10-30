@@ -78,9 +78,25 @@ namespace PCTP.Modules.KhoVatLy
         // LOT đã được người dùng xác nhận "mở lại" nhưng CHƯA lưu — chỉ áp dụng ngay trước khi lưu.
         private PhieuNhapInfo _pendingReopen;
         private LabelControl lblBulkStatus;
+        private SimpleButton btnVeTienTrinh;
 
         /// <summary>Mở độc lập (từ MainStockSV): tự tạo + nạp worklist riêng.</summary>
         public FormEnterItemSV(MainStockSV mainStockForm) : this(mainStockForm, null) { }
+
+        /// <summary>
+        /// Mở form quét nhập ĐỘC LẬP (từ bản đồ kho / nút Nhập hàng) và khi đóng thì tự quay về
+        /// màn hình <see cref="FormNhapKhoTienTrinh"/>. Khi form này được mở TỪ FormNhapKhoTienTrinh
+        /// (constructor có worklist) thì KHÔNG dùng hàm này — đóng form là tự về lại form cha,
+        /// tránh mở lồng 2 form tiến trình.
+        /// </summary>
+        public static void ShowThenReturnToProgress(MainStockSV mainStock, IWin32Window owner)
+        {
+            using (var f = new FormEnterItemSV(mainStock))
+                f.ShowDialog(owner);
+
+            if (mainStock == null || mainStock.IsDisposed) return;
+            global::PCTP.Common.WarehouseProcessNavigator.OpenNhapKhoTienTrinh(owner ?? mainStock, mainStock);
+        }
 
         /// <summary>
         /// Mở từ FormNhapKhoTienTrinh: nhận worklist ĐÃ NẠP của form cha, không nạp lại.
@@ -118,11 +134,12 @@ namespace PCTP.Modules.KhoVatLy
             var panelTop = new TableLayoutPanel
             {
                 Dock = DockStyle.Top,
-                RowCount = 3,
+                RowCount = 4,
                 ColumnCount = 1,
                 AutoSize = true,
                 AutoSizeMode = AutoSizeMode.GrowAndShrink
             };
+            panelTop.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));   // nút về màn hình Tiến trình
             panelTop.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));
             panelTop.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
             panelTop.RowStyles.Add(new RowStyle(SizeType.Absolute, 24));
@@ -153,9 +170,23 @@ namespace PCTP.Modules.KhoVatLy
                 Appearance = { Font = new Font("Tahoma", 9, FontStyle.Bold) }
             };
 
-            panelTop.Controls.Add(chkNhapHangLoat, 0, 0);
-            panelTop.Controls.Add(txtQRCode, 0, 1);
-            panelTop.Controls.Add(lblBulkStatus, 0, 2);
+            btnVeTienTrinh = new SimpleButton
+            {
+                Name = "receive_btnBackToProgress",
+                Text = "◀ Về màn hình Tiến trình nhập kho",
+                Width = 260,
+                Height = 30,
+                Anchor = AnchorStyles.Left | AnchorStyles.Top
+            };
+            btnVeTienTrinh.Appearance.Font = new Font("Tahoma", 9F, FontStyle.Bold);
+            // Đóng form: mở độc lập → ShowThenReturnToProgress tự mở FormNhapKhoTienTrinh;
+            // mở từ FormNhapKhoTienTrinh → ShowDialog trả quyền điều khiển về form cha.
+            btnVeTienTrinh.Click += (s, e) => Close();
+
+            panelTop.Controls.Add(btnVeTienTrinh, 0, 0);
+            panelTop.Controls.Add(chkNhapHangLoat, 0, 1);
+            panelTop.Controls.Add(txtQRCode, 0, 2);
+            panelTop.Controls.Add(lblBulkStatus, 0, 3);
 
             // ── Grid phiếu chiếm phần còn lại ────────────────────────────────────
             _gridPhieu = new GridControl { Dock = DockStyle.Fill };
@@ -167,13 +198,14 @@ namespace PCTP.Modules.KhoVatLy
 
             _gridViewPhieu.Columns.Add(new GridColumn { FieldName = "Find", Caption = "FIND", Width = 180, VisibleIndex = 0 });
             _gridViewPhieu.Columns.Add(new GridColumn { FieldName = "LotNo", Caption = "LotNo", Width = 150, VisibleIndex = 1 });
-            _gridViewPhieu.Columns.Add(new GridColumn { FieldName = "MaSP", Caption = "Mã SP", Width = 130, VisibleIndex = 2 });
-            _gridViewPhieu.Columns.Add(new GridColumn { FieldName = "TenSP", Caption = "Tên SP", Width = 180, VisibleIndex = 3 });
-            _gridViewPhieu.Columns.Add(new GridColumn { FieldName = "CaSX", Caption = "Ca SX", Width = 60, VisibleIndex = 4 });
-            _gridViewPhieu.Columns.Add(new GridColumn { FieldName = "NgaySX", Caption = "Ngày SX", Width = 90, VisibleIndex = 5 });
-            _gridViewPhieu.Columns.Add(new GridColumn { FieldName = "SlSanXuat", Caption = "SL Sản Xuất", Width = 90, VisibleIndex = 6 });
-            _gridViewPhieu.Columns.Add(new GridColumn { FieldName = "SlDaNhap", Caption = "SL Đã Nhập", Width = 90, VisibleIndex = 7 });
-            _gridViewPhieu.Columns.Add(new GridColumn { FieldName = "KetThucLot", Caption = "Kết Thúc", Width = 70, VisibleIndex = 8 });
+            _gridViewPhieu.Columns.Add(new GridColumn { FieldName = "Model", Caption = "Model", Width = 80, VisibleIndex = 2 });
+            _gridViewPhieu.Columns.Add(new GridColumn { FieldName = "MaSP", Caption = "Mã SP", Width = 130, VisibleIndex = 3 });
+            _gridViewPhieu.Columns.Add(new GridColumn { FieldName = "TenSP", Caption = "Tên SP", Width = 180, VisibleIndex = 4 });
+            _gridViewPhieu.Columns.Add(new GridColumn { FieldName = "CaSX", Caption = "Ca SX", Width = 60, VisibleIndex = 5 });
+            _gridViewPhieu.Columns.Add(new GridColumn { FieldName = "NgaySX", Caption = "Ngày SX", Width = 90, VisibleIndex = 6 });
+            _gridViewPhieu.Columns.Add(new GridColumn { FieldName = "SlSanXuat", Caption = "SL Sản Xuất", Width = 90, VisibleIndex = 7 });
+            _gridViewPhieu.Columns.Add(new GridColumn { FieldName = "SlDaNhap", Caption = "SL Đã Nhập", Width = 90, VisibleIndex = 8 });
+            _gridViewPhieu.Columns.Add(new GridColumn { FieldName = "KetThucLot", Caption = "Kết Thúc", Width = 70, VisibleIndex = 9 });
 
             // ── QUAN TRỌNG: add _gridPhieu TRƯỚC, panelTop SAU ───────────────────
             // Vì trong Controls collection, control add sau sẽ "chiếm chỗ trước"
