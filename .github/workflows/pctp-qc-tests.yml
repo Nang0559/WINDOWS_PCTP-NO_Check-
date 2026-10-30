@@ -259,7 +259,8 @@ jobs:
             --files SQL/QC_Schema/02_Generated_From_DB57.sql \
                     SQL/QC_Schema/03_Generated_From_DB57_Constraints.sql \
                     SQL/QC_Schema/05_Split.sql \
-                    SQL/QC_Schema/06_Fixture_NhapTP_SourceTables.sql SQL/PCTP_vNhapTP.sql \
+                    SQL/QC_Schema/06_Fixture_NhapTP_SourceTables.sql \\
+                    SQL/QC_Schema/07_B20Item_Catalog_Dependencies.sql SQL/PCTP_vNhapTP.sql \
                     SQL/Usp_Qrcode_Update_Stock2405.sql SQL/Usp_Qrcode_Update_Stock_SP.sql \
                     SQL/sp_GetCurrentStockStatus.sql \
                     "$RUNNER_TEMP/deploy/Usp_Qrcode_LOAD_PHIEU_DOCQR2405.sql" \
@@ -308,11 +309,7 @@ jobs:
             docker cp "$f" "$c:/tmp/$(basename "$f")"
             docker exec "$c" /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'PctpQc_CI_Only_2026!' -C -b -d PCTP_QC_CI -i "/tmp/$(basename "$f")"
           done
-          # vB20Item is a real DB14/DB57 module dependency, not a synthetic fixture.
-          # Its exact source definition must be added to the disposable deployment set before vNhapTP.
-          # Fail at the schema deployment boundary, not later in G3/G4/cleanup.
-          # The previous workflow printed PASS unconditionally and only discovered missing
-          # dbo tables inside DeliveryCommandSqlScenario after fixture seeding.
+          # The exact-source vB20Item view and catalog dependencies are deployed before vNhapTP.
           docker exec "$c" /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'PctpQc_CI_Only_2026!' -C -b -d PCTP_QC_CI -Q "
             SET NOCOUNT ON;
             SELECT name, type_desc
@@ -324,7 +321,11 @@ jobs:
             IF OBJECT_ID(N'dbo.LUUDOCQRCODE',N'U') IS NULL THROW 52103,N'Schema deploy missing dbo.LUUDOCQRCODE',1;
             IF OBJECT_ID(N'dbo.TMPPHIEUGIAOHANG',N'U') IS NULL THROW 52104,N'Schema deploy missing dbo.TMPPHIEUGIAOHANG',1;
             IF OBJECT_ID(N'dbo.DOCQRCODE',N'U') IS NULL THROW 52105,N'Schema deploy missing dbo.DOCQRCODE',1;
-            IF OBJECT_ID(N'dbo.vNhapTP',N'V') IS NULL THROW 52106,N'Schema deploy missing dbo.vNhapTP',1;
+            IF OBJECT_ID(N'dbo.B20Class',N'U') IS NULL THROW 52106,N'Schema deploy missing dbo.B20Class',1;
+            IF OBJECT_ID(N'dbo.B20ItemGroup',N'U') IS NULL THROW 52107,N'Schema deploy missing dbo.B20ItemGroup',1;
+            IF OBJECT_ID(N'dbo.vB20Item',N'V') IS NULL THROW 52108,N'Schema deploy missing dbo.vB20Item',1;
+            IF OBJECT_ID(N'dbo.vNhapTP',N'V') IS NULL THROW 52109,N'Schema deploy missing dbo.vNhapTP',1;
+            SELECT COUNT(*) AS vB20Item_rows FROM dbo.vB20Item;
             SELECT COUNT(*) AS vNhapTP_rows FROM dbo.vNhapTP;
             SELECT 'PASS: required delivery tables and catalog views verified in PCTP_QC_CI' AS Result;"
           echo "PASS: DB57-derived schema and the six checked-in WMS procedures deployed to PCTP_QC_CI"
