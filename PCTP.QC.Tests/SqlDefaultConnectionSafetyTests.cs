@@ -42,6 +42,15 @@ public sealed class SqlDefaultConnectionSafetyTests
     }
 
     [Fact]
+    public void MainAppConfig_ExternalizesConnectionStrings()
+    {
+        var root = FindRepositoryRoot();
+        var appConfig = File.ReadAllText(Path.Combine(root, "PCTP", "App.config"));
+        Assert.Contains("<connectionStrings configSource=\"PCTP.Database.config\" />", appConfig);
+        Assert.DoesNotContain("<add name=\"B7R2_FCCEntities", appConfig);
+    }
+
+    [Fact]
     public void ConfiguredConnections_GoThroughQcSqlOverride()
     {
         var lines = CodeLines();
@@ -55,7 +64,10 @@ public sealed class SqlDefaultConnectionSafetyTests
         var config = Path.Combine(root, "PCTP", "PCTP.Database.config");
         Assert.True(File.Exists(config), "PCTP.Database.config template is missing.");
         var content = File.ReadAllText(config);
+        Assert.Contains("<connectionStrings>", content);
         Assert.Contains("B7R2_FCCdb", content);
+        Assert.Contains("B7R2_FCCEntities", content);
+        Assert.Contains("localhost_B7R2_FCC_Connection", content);
         Assert.Contains("B7R2_FCCdbb", content);
         var lower = content.ToLowerInvariant();
         Assert.DoesNotContain("192.168.200.14", lower);
