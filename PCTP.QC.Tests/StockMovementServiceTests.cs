@@ -103,6 +103,45 @@ public sealed class StockMovementServiceTests
     }
 
     [Fact]
+    public void Receive_AllowsSecondTemOfSamePhieuWhenTemCodeIsGroupKey()
+    {
+        var slots = new FakeSlots();
+        var service = Create(slots);
+        StockMovementRequest Tem(string soPhieuTong, string qr) => new StockMovementRequest
+        {
+            MovementType = StockMovementRequest.Types.Receive, TargetSlotId = 7,
+            LotNo = "26103000272300771700", ItemCode = "2210A-K2C-V000", Quantity = 2000,
+            ReferenceType = "NHAP_TP", ReferenceId = "A010000000059140:" + soPhieuTong,
+            TemCode = "A010000000059140", TemCodeIsGroupKey = true, QrData = qr
+        };
+
+        var tem1 = service.Receive(Tem("1", "2610300027230077170007512000:2210A-K2C-V000:30/10/2026:2000:1:A010000000059140"));
+        var tem2 = service.Receive(Tem("2", "2610300027230077170007512000:2210A-K2C-V000:30/10/2026:2000:2:A010000000059140"));
+        var tem2Again = service.Receive(Tem("2", "2610300027230077170007512000:2210A-K2C-V000:30/10/2026:2000:2:A010000000059140"));
+
+        Assert.True(tem1.Success);
+        Assert.True(tem2.Success);
+        Assert.True(tem2Again.Duplicate);   // cùng số phiếu tổng + cùng phiếu = trùng
+        Assert.Equal(2, slots.AddedLots.Count);
+    }
+
+    [Fact]
+    public void Receive_StillRejectsSharedTemCodeWhenNotMarkedAsGroupKey()
+    {
+        var slots = new FakeSlots();
+        var service = Create(slots);
+        StockMovementRequest Req(string reference, string qr) => new StockMovementRequest
+        {
+            MovementType = StockMovementRequest.Types.Receive, TargetSlotId = 7,
+            LotNo = "LOT-TEM-01", ItemCode = "PART-01", Quantity = 4,
+            ReferenceType = "RECEIVING", ReferenceId = reference, TemCode = "TEM-SHARED", QrData = qr
+        };
+
+        Assert.True(service.Receive(Req("R1", "QR-1")).Success);
+        Assert.True(service.Receive(Req("R2", "QR-2")).Duplicate);   // hành vi mặc định giữ nguyên
+    }
+
+    [Fact]
     public void Receive_RejectsRepeatedQrEvenWhenReferenceDiffers()
     {
         var slots = new FakeSlots();

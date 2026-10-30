@@ -415,7 +415,8 @@ namespace PCTP.Modules.KhoCore.Application.Services
             bool hasReference = !string.IsNullOrWhiteSpace(request.ReferenceType)
                 || !string.IsNullOrWhiteSpace(request.ReferenceId);
             string qr = includeQr ? request.QrData : null;
-            string tem = includeQr ? request.TemCode : null;
+            // TemCode là mã phiếu nhóm (nhiều tem cùng 1 phiếu) thì không được coi là khoá duy nhất.
+            string tem = includeQr && !request.TemCodeIsGroupKey ? request.TemCode : null;
             if (!hasReference && string.IsNullOrWhiteSpace(qr) && string.IsNullOrWhiteSpace(tem))
                 return true;
 

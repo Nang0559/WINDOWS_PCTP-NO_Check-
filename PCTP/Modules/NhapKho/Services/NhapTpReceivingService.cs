@@ -84,6 +84,20 @@ namespace PCTP.Modules.NhapKho.Services
                 || _importGuard.ExistsImportedInHistory(qr.ItemCode, qr.RawQr);
         }
 
+        /// <summary>
+        /// Khoá chống trùng của 1 tem tổng = MaPhieu + ":" + SoPhieuTong (vd "A010000000059140:2").
+        /// Chỉ MaPhieu hoặc chỉ SoPhieuTong là chưa đủ: 1 phiếu nhập có nhiều tem tổng (1, 2, ...).
+        /// Thiếu 1 trong 2 → dùng nguyên văn QR.
+        /// </summary>
+        internal static string BuildReceiveReferenceId(QRCodeInfo qr)
+        {
+            string maPhieu = (qr.MaPhieu ?? string.Empty).Trim();
+            string soPhieu = (qr.SoPhieuTong ?? string.Empty).Trim();
+            if (maPhieu.Length > 0 && soPhieu.Length > 0)
+                return maPhieu + ":" + soPhieu;
+            return (qr.RawQr ?? string.Empty).Trim();
+        }
+
         public ScanResult NhapTpVaoSlot(QRCodeInfo qr, int slotId, PhieuNhapInfo matchedPhieu = null)
         {
             DateTime ngayNhapThucTe = DateTime.Now;
@@ -211,7 +225,9 @@ namespace PCTP.Modules.NhapKho.Services
                     ReceivingMaPhieu = PhieuNoHelper.NewMaPhieuNhap(lotNo),
                     ReceivingParentSoPhieu = null,
                     ReferenceType = "NHAP_TP",
-                    ReferenceId = qr.MaPhieu,
+                    // Trùng khi CÙNG số phiếu tổng (1/2/...) VÀ CÙNG mã phiếu nhập; một phiếu có nhiều tem tổng.
+                    ReferenceId = BuildReceiveReferenceId(qr),
+                    TemCodeIsGroupKey = true,
                     OccurredAt = ngayNhapThucTe,
                     Reason = "NHAP_TP_VAO_SLOT"
                 });
@@ -219,6 +235,8 @@ namespace PCTP.Modules.NhapKho.Services
                 if (!movement.Success)
                 {
                     _uow.Rollback();
+                    if (movement.Duplicate)
+                        return ScanResult.Trung("Tem này đã được nhập kho trước đó (Phiếu " + qr.MaPhieu + ", số " + qr.SoPhieuTong + ").");
                     return ScanResult.Fail(movement.Message);
                 }
 

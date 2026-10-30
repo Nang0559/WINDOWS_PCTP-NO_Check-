@@ -202,6 +202,13 @@ CREATE UNIQUE INDEX UX_QC_Tem ON {table}(TemHash) WHERE TemHash IS NOT NULL;", o
                 "Production guard rejected the first QR claim.");
             Require(!repository.TryRegisterMovement("RECEIVING", "QC-REF-3", "QC-QR-UNIQUE", null!, false),
                 "Production guard accepted a repeated QR with a different reference.");
+            // NHAP_TP: 1 phiếu nhập có nhiều tem tổng. Khoá = MaPhieu:SoPhieuTong, TemCode dùng chung không được claim.
+            Require(repository.TryRegisterMovement("NHAP_TP", "QC-PHIEU-1:1", "QC-PHIEU-1-QR-1", null!, false),
+                "Production guard rejected tem 1 of a shared phieu.");
+            Require(repository.TryRegisterMovement("NHAP_TP", "QC-PHIEU-1:2", "QC-PHIEU-1-QR-2", null!, false),
+                "Production guard rejected tem 2 of the same phieu (must be a different receipt).");
+            Require(!repository.TryRegisterMovement("NHAP_TP", "QC-PHIEU-1:2", "QC-PHIEU-1-QR-2-REPRINT", null!, false),
+                "Production guard accepted the same phieu + so phieu tong twice.");
             uow.Rollback();
             Console.WriteLine("PASS: production BulkStockSlotRepository rejects duplicate reference and QR claims in one rollback transaction.");
         }

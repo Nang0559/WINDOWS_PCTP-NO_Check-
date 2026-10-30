@@ -193,6 +193,16 @@ public sealed class DeliveryTransactionContractTests
     }
 
     [Fact]
+    public void Receiving_IdempotencyKeyIsPhieuPlusSoPhieuTongNotPhieuAlone()
+    {
+        var service = ReadSource("NhapTpReceivingService.source.cs");
+        Assert.Contains("ReferenceId = BuildReceiveReferenceId(qr)", service);
+        Assert.Contains("TemCodeIsGroupKey = true", service);
+        Assert.DoesNotContain("ReferenceId = qr.MaPhieu", service);
+        Assert.Contains("return maPhieu + \":\" + soPhieu;", service);
+    }
+
+    [Fact]
     public void Receiving_DoesNotSendLotPlusPhieuAsProductionCase()
     {
         var service = ReadSource("NhapTpReceivingService.source.cs");

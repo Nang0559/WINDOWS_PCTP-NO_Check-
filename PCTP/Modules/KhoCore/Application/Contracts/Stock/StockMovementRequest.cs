@@ -55,5 +55,12 @@ namespace PCTP.Modules.KhoCore.Application.Contracts.Stock
         /// New receiving workflows must leave this false so KhoCore writes the detail atomically.
         /// </summary>
         public bool SlotLotWrittenByCaller { get; set; }
+
+        /// <summary>
+        /// true khi <see cref="TemCode"/> là mã PHIẾU NHÓM dùng chung cho nhiều tem (vd phiếu A010000000059140
+        /// có tem tổng 1, 2, ...). Khi đó TemCode vẫn được lưu vào SlotLot nhưng KHÔNG được dùng làm khoá chống
+        /// trùng; chống trùng chỉ theo ReferenceType + ReferenceId (vd "MaPhieu:SoPhieuTong") và nguyên văn QR.
+        /// </summary>
+        public bool TemCodeIsGroupKey { get; set; }
     }
 }
