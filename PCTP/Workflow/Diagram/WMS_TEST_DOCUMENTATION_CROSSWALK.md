@@ -4,11 +4,14 @@ Branch kiểm thử: `feature/wms-live-data-test-harness`
 
 Đây là crosswalk chính thức giữa bộ thiết kế trong `PCTP/Workflow/Diagram` và `doc/PCTP_WMS_LIVE_DATA_ACCEPTANCE_MASTER_SPEC.md`. Nó không tự tạo PASS và không thay thế evidence chạy thật.
 
+**Normative amendment:** `PCTP/Workflow/Diagram/WMS_DOCUMENTATION_NORMATIVE_AMENDMENT_2026-10-30.md` giải thích việc quy đổi G7 legacy → G6 TestCaseId và là tài liệu bắt buộc khi đọc các section G7 cũ trong Master Spec.
+
 ## 1. Thứ bậc tài liệu
 
 | Lớp | Nguồn | Vai trò |
 |---|---|---|
 | A | `doc/PCTP_WMS_LIVE_DATA_ACCEPTANCE_MASTER_SPEC.md` | Safety boundary, DB14/DB57, fixture, UI/procedure, assertions, cleanup, promotion |
+| A+ | `WMS_DOCUMENTATION_NORMATIVE_AMENDMENT_2026-10-30.md` | Giải quyết legacy G7 wording, naming và precedence cho test documentation |
 | B | `PCTP/Workflow/Diagram/WMS_RELEASE_GATE.md` | **Nguồn định nghĩa duy nhất G1–G6** |
 | C | `WORKFLOW_WMS.md`, `WORKFLOW_NHAPKHO.md`, `WORKFLOW_KHOCORE.md`, `WORKFLOW_XUATKHO.md`, `WORKFLOW_GIAOHANGKHACH.md`, `WORKFLOW_HANGLOI.md`, `XULYHANGLOI_DESIGN.md` | Expected actor, transition, business outcome |
 | D | `ARCHITECTURE_DEPENDENCIES.md`, `WMS_MODULE_CONTRACTS.md`, `WMS_DATA_OWNERSHIP.md`, `WMS_STOCK_STATE_MACHINE.md`, `WMS_STOCK_TRANSACTION_RULES.md` | Data ownership, stock invariant, transaction/rollback/idempotency |
@@ -18,7 +21,7 @@ Branch kiểm thử: `feature/wms-live-data-test-harness`
 | H | `Dashboard.md`, `WMS_USER_GUIDE.md`, `XULYHANGLOI_USER_GUIDE.md` | UI operation/navigation |
 | I | `WMS_TEST_CASE_CATALOG.md`, `WMS_TEST_EXECUTION_STATUS.md` | TestCaseId, execution status, candidate-SHA evidence ledger |
 
-Khi tài liệu mâu thuẫn: giữ safety boundary của Master Spec → dùng workflow/contract làm expected behavior → inspect code/schema/procedure → ghi gap/decision → tạo test/evidence. Không lấy status từ branch/SHA khác.
+Khi tài liệu mâu thuẫn: giữ safety boundary của Master Spec → áp dụng amendment cho legacy naming → dùng workflow/contract làm expected behavior → inspect code/schema/procedure → ghi gap/decision → tạo test/evidence. Không lấy status từ branch/SHA khác.
 
 ## 2. Canonical G1–G6
 
@@ -32,6 +35,26 @@ Khi tài liệu mâu thuẫn: giữ safety boundary của Master Spec → dùng 
 | G6 | Full business E2E: real UI/procedure → DB/ledger/history assertions → cleanup | all `G6-*` below |
 
 **Important:** old execution scripts may use G5/G6 labels for navigation/phase names. Those labels are not gate definitions. Receiving is not canonical G5. `G7-*` is legacy naming and is retired below.
+
+## 2A. Design-source coverage contract
+
+The following design areas must have at least one explicit TestCaseId family and a runtime assertion path. A row without a testcase is a traceability gap.
+
+| Design area | Required source documents | Required TestCaseId family | Minimum assertion boundary |
+|---|---|---|---|
+| WMS orchestration | `WORKFLOW_WMS.md` | `G6-*` | actor/transition/outcome |
+| Receiving | `WORKFLOW_NHAPKHO.md`, `WORKFLOW_KHOCORE.md` | `G6-REC-*` | QR → stock → location → history |
+| Stock ownership | `WMS_DATA_OWNERSHIP.md`, `WMS_STOCK_TRANSACTION_RULES.md` | `G3-*`, `G5-*`, relevant `G6-*` | atomic mutation/rollback/audit |
+| Stock state machine | `WMS_STOCK_STATE_MACHINE.md` | `G6-PICK-*`, `G6-A0-*`, `G6-DEL-*`, `G6-DEF-*`, `G6-REP-*` | legal state transition |
+| Pickup/A0/export | `WORKFLOW_XUATKHO.md` | `G6-PICK-*`, `G6-A0-*`, `G6-FIFO-*` | location + quantity + history |
+| Customer delivery | `WORKFLOW_GIAOHANGKHACH.md`, `GIAOHANGKHACH_FUNCTIONAL_DESIGN.md` | `G6-DEL-*`, `G6-CFG-*` | customer/order/QR/LOT/quantity |
+| QR/label | `DOCQR_PHASE6_AUDIT.md` | `G6-MP-*`, `G6-SP-*`, relevant `G6-DEL-*` | QR and label rule actual vs expected |
+| Delivery parity | `WMS_B0_01_DELIVERY_PARITY.md` | `G6-FIFO-*`, `G6-DEL-*` | P1–P13 parity, idempotency, rollback |
+| Defect/QC | `WORKFLOW_HANGLOI.md`, `XULYHANGLOI_DESIGN.md` | `G6-QC-*`, `G6-DEF-*` | status/quantity/location/reference/history |
+| Replacement | defect + delivery workflows | `G6-REP-*` | original linkage + stock + delivery |
+| Reconciliation | Master Spec + stock/transaction contracts | `G6-RECNC-*` | stock/location/QR/delivery/history + cleanup |
+
+This table is a **coverage obligation**, not a claim that the current implementation is complete.
 
 ## 3. Scenario/TestCase crosswalk
 
@@ -81,7 +104,7 @@ Các mã cũ được quy đổi như sau:
 | `G7-A` / “Pickup → staging/A0 → delivery” | `G6-PICK-001` | G6 |
 | `G7-B` / “Direct A0 → delivery” | `G6-A0-001` | G6 |
 
-Từ change set này, tài liệu mới, report và artifact **không được tạo `G7-*`**. Nếu một legacy document còn chữ G7 thì phải hiểu theo bảng quy đổi trên cho đến khi tài liệu đó được sửa.
+Từ change set này, tài liệu mới, report và artifact **không được tạo `G7-*`**. Nếu một legacy document còn chữ G7 thì phải hiểu theo bảng quy đổi trên và `WMS_DOCUMENTATION_NORMATIVE_AMENDMENT_2026-10-30.md` cho đến khi tài liệu đó được sửa.
 
 ## 5. Chuẩn TestCase bắt buộc
 
