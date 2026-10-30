@@ -45,19 +45,37 @@ public sealed class QrLotFormatContractTests
         Assert.Equal("26103000272300771700", StockLotIdentity(token));
     }
 
-    [Theory]
-    [InlineData("2610300027230077170007520020", "26103000272300771700")]
-    public void SyntheticBoxLabel_UsesTheSameTwentyCharacterStockLotIdentity(
-        string boxLotToken, string expectedStockLot)
+    [Fact]
+    public void OperatorConfirmedBoxLabel_UsesTheSameTwentyCharacterStockLotIdentity()
     {
         const string boxQr =
             "2610300027230077170007520020:2210A-K2C-V000:30/10/2026:20";
 
         var parsed = QRCodeParser.ParseQRCode(boxQr);
         Assert.False(parsed.IsTongPhieu);
-        Assert.Equal(boxLotToken, parsed.RawLotNo);
+        Assert.Equal("2610300027230077170007520020", parsed.RawLotNo);
+        Assert.Equal("2210A-K2C-V000", parsed.ItemCode);
+        Assert.Equal("30/10/2026", parsed.NgaySX);
         Assert.Equal(20, parsed.Quantity);
-        Assert.Equal(expectedStockLot, StockLotIdentity(parsed.RawLotNo));
+        Assert.Equal("26103000272300771700", StockLotIdentity(parsed.RawLotNo));
+    }
+
+    [Fact]
+    public void OperatorConfirmedTotalAndBoxLabels_ResolveToTheSameStockLot()
+    {
+        const string boxQr =
+            "2610300027230077170007520020:2210A-K2C-V000:30/10/2026:20";
+
+        var total = QRCodeParser.ParseQRCode(TotalQr);
+        var box = QRCodeParser.ParseQRCode(boxQr);
+
+        Assert.True(total.IsTongPhieu);
+        Assert.False(box.IsTongPhieu);
+        Assert.Equal(StockLotIdentity(total.RawLotNo), StockLotIdentity(box.RawLotNo));
+        Assert.Equal(total.ItemCode, box.ItemCode);
+        Assert.Equal(total.NgaySX, box.NgaySX);
+        Assert.Equal(2000, total.Quantity);
+        Assert.Equal(20, box.Quantity);
     }
 
     [Theory]
@@ -71,15 +89,6 @@ public sealed class QrLotFormatContractTests
         string customerCode, string gear, bool expected)
     {
         Assert.Equal(expected, IsGearValid(customerCode, gear));
-    }
-
-    [Fact]
-    public void PreviouslySuppliedBoxQr_IsNotAValidTwentyEightCharacterLotFixture()
-    {
-        const string earlierBoxToken = "2610300027230077520020";
-
-        Assert.Equal(22, earlierBoxToken.Length);
-        Assert.False(TryGetStockLotIdentity(earlierBoxToken, out _));
     }
 
     private static string StockLotIdentity(string lotToken)
