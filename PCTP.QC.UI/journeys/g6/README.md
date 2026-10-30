@@ -72,3 +72,8 @@ The production QR LOT field layout and test contract are defined in `docs/PCTP_Q
 - Both 28-character LOTNO tokens resolve to stock LOT identity `26103000272300771700`; the box issue quantity is 20.
 
 Real box-label E2E is still **BLOCKED on production-path integration evidence**, not on QR input. The production `ParseTachLotQr` legacy 27-character assumption remains an integration item. Contract/unit tests do not prove stock/ledger E2E.
+
+
+### Additional source-level blockers identified
+
+The current parser leaves `QRCodeInfo.RawLotNoSL` empty, but `NhapTpReceivingService` uses null-coalescing (`RawLotNoSL ?? RawLotNo ?? LotNo`), which does not fall back from an empty string. Thus the no-matched-production-slip receiving path can derive an empty LOT. Separately, both `QRCodeWorkflowAdapter` methods forward the parser's unnormalized 28-character `LotNo` rather than the 20-character stock identity. Three skipped QC acceptance tests specify the expected parser/adapter behavior; they are not reported as PASS. Production source/SQL remains unchanged pending explicit authorization. The QR fixture is valid; the remaining blockers are integration defects, not missing QR data.
