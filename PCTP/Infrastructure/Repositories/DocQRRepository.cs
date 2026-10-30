@@ -17,7 +17,7 @@ namespace PCTP.Infrastructure.Repositories
     /// <summary>
     /// Toàn bộ thao tác DB cho bảng DOCQRCODE.
     /// </summary>
-    
+
     public class DocQRRepository : IDocQRRepository
     {
         private readonly SQLPROVIDER _sql;
@@ -316,7 +316,7 @@ namespace PCTP.Infrastructure.Repositories
         public void UpdateSlHvn(int stt, int slMoi, string docQrTable)
         {
             _sql.ExecuteNonQuery(_sql.B7R2_FCCdb,
-                $"UPDATE {Q(docQrTable)} SET SLHVN = {slMoi} WHERE STT = {stt}");
+                $"UPDATE {Q(docQrTable)} SET SLTEMHVN = {slMoi} WHERE STT = {stt}");
         }
 
         public void Delete(int stt, string docQrTable)

@@ -209,7 +209,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             if (KiemTraTrungTemTong(lotFcc, soPhieu)) return ScanResult.Fail($"Trùng phiếu!\nLot: [{lotFcc}]\nSố phiếu: [{soPhieu}]");
             if (!kiemTraSl(maHang, slTem)) return ScanResult.Fail("Tổng số lượng đã bắn vượt quá số lượng giao!");
             int sttBan = _repo.GetMaxStt(_cfg.Delivery.DocQRTable) + 1;
-            var item = new DocQRCode { STT = sttBan, LotFCC = lotFcc, MaHangFCC = maHang, MaFCC = maHang, SlTemFCC = slTem, LotHVN = lotFcc, MaHangHVN = maHang, SlTemHVN = slTem, KetQua = "OK", Gio = "" };
+            var item = new DocQRCode { STT = sttBan, LotFCC = lotFcc, MaHangFCC = maHang, MaFCC = maHang, SlTemFCC = slTem, LotHVN = lotFcc, MaHangHVN = maHang, SlTemHVN = slTem, KetQua = "OK", Gio = "", SoPhieu = soPhieu };
             _repo.InsertFCC(item, _cfg.Delivery.DocQRTable);
             _repo.UpdateHVN(item, _cfg.Delivery.DocQRTable);
             _bus.Publish(new QRScannedEvent(item, "FCC_TONG"));
