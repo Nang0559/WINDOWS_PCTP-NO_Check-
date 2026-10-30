@@ -62,7 +62,7 @@ Required SQL assertions: before/after snapshots of QR primary identity, `MAHANGF
 
 - HVN MP uses its configured TMP/DOCQR table pair and the HVN allocation procedure.
 - HVN SP uses its configured SP TMP/DOCQR table pair.
-- YMVN MP and SP continue through the YMVN-specific service/procedure and configured YMVN table family.
+- YMVN MP uses the YMVN-specific service/procedure and configured MP table family. YMVN SP is configured but is not acceptance-ready until raw P/K/Q scan routing and deployed procedure/schema compatibility are verified; see §10.
 - Customer 100003 uses its configured table family; it must not silently fall back to HVN tables.
 - Unknown/missing customer configuration fails closed before SQL mutation.
 
@@ -113,3 +113,59 @@ These are failing acceptance areas until fixed and verified with the evidence ab
 - Source-contract tests guard the production SQL transaction/selected-row update, repository transaction boundary, dialog instance state, unchanged duplicate key, and YMVN routing.
 - SQL Server 2022 CI executes the actual `Usp_Qrcode_Take_Lot2405` source against disposable dbo fixtures. Cases include 60+50+40 → 100 (select 60+40), no exact subset, excluding DG rows, caller rollback, and two-session concurrent claim.
 - The SQL integration fixture is deliberately minimal and isolated. It proves SQL Server execution and the stated column contract, not full compatibility with every DB57 table variation. DB57 acceptance remains a controlled, non-production step after comparing the live DOCQRCODE/TMP schemas and deployed procedure definitions.
+
+
+## 10. Customer × product category × QR-format acceptance matrix (source-derived)
+
+This matrix is derived from CustomerTableConfig and DocQRScanEngine.ProcessScan. It specifies routing; it is not proof that each route has passed on DB57. Do not substitute one generic QR string across all rows.
+
+| Customer | Mode | Source-derived QR route | Expected scan sequence / table family | Current gate |
+|---|---|---|---|---|
+| HVN 100001 | MP | 4 colon fields → ScanFCC; subsequent customer-label scan → ScanHVN | FCC scan first, then HVN/customer scan; DOCQRCODE + TMPPHIEUGIAOHANG | Current single-QR G6 does not prove the two-stage flow |
+| HVN 100001 | SP | 4 colon fields → ScanFCC_SP | One FCC scan populates both FCC and HVN fields; DOCQRCODE_SP + TMPPHIEUGIAOHANG_SP | No dedicated SP UI/SQL journey |
+| HVN 100001 | O-type | Uses current MP/SP session route; O-type bypasses the FCC-order guard | Preserve active MP table/session and O-type category | No dedicated O-type journey |
+| Honda Trading 100003 | Date-based | 6 colon fields → ScanFCC_TongTem because CoNhieuNhaMay=false and CoGear=false | One combined QR writes FCC and HVN values; DOCQRCODE_100003 + TMPPHIEUGIAOHANG_100003 | No dedicated live UI journey |
+| YMVN 100002 | MP / Gear | 4 colon fields → ScanFCC_YMVN; raw P/K/Q QR → ScanYMVN | YMVN_DOCQRCODE + TMPPHIEUGIAOHANG_100002; separate YMVN take-LOT procedure | SQL characterization exists; full UI/lifecycle remains open |
+| YMVN 100002 | SP / Gear | 4 colon fields → ScanFCC_YMVN; raw P/K/Q QR also routes to ScanYMVN | Expected session pair is SP_DOCQRCODE + SP_TMPPHIEUGIAOHANG | BLOCKED: raw ScanYMVN currently uses the configured MP DocQRTable, not the session-selected SP table; procedure schema compatibility is also unproven |
+
+### 10.1 Required format-level cases
+
+For each route, test valid and invalid samples using approved real label examples or masked DB14 read-only extraction. Never fabricate a customer barcode by rearranging fields.
+
+- Correct field count and field meaning; empty required field; whitespace; wrong delimiter; extra/missing field.
+- Positive integer quantity; zero, negative, non-numeric and overflow quantity.
+- Correct item in active delivery slip; item absent; mapped FCC item; wrong customer/item mapping.
+- Duplicate label / duplicate LOT / duplicate customer slip number as applicable.
+- Scan order: FCC then customer label where required; reverse order must fail without partial accepted scan.
+- Re-scan same QR; scan QR belonging to another STT/part/customer; preserve unrelated rows.
+- MP ↔ SP switch while a QR session exists; resume after reopening form; verify DOCQR/TMP pair remains consistent.
+- Gear/hour context switch during a YMVN QR session; prevent cross-hour mixing.
+- LOT normalization: legacy short LOT, 13-character root, 20-character LOT, LOT-counter/quantity suffix, comma-separated multi-LOT; compare with production LotCodeHelper and active procedure.
+- Quantity reconciliation: FCC quantity vs customer quantity (where both exist), selected QR total vs TMP SOLUONG, and LOT component sum vs allocated quantity.
+
+### 10.2 Mandatory end-to-end dimensions
+
+A customer/category QR test is not complete at parser success. For every configured route, capture and assert:
+
+1. Resolved customer number and exact active CustomerConfig.
+2. MP/SP/O-type, plant, delivery date, and Gear/hour context.
+3. Input format identifier and scan sequence; mask raw QR in logs.
+4. Exact DOCQR/TMP table pair and actual procedure invoked.
+5. QR row identity, item, LOT, FCC/customer quantities, status and ownership/linkage.
+6. Exact TMP delivery row (STT + item + quantity), LOT payload and completion status.
+7. STOCKTP and SlotLot before/after quantities, FIFO selection and reconciliation.
+8. Delivery slip/history/status and retry behavior.
+9. Negative paths leave all business rows unchanged.
+10. Cleanup covers every table written by the real path and reports zero remaining run-scoped rows.
+
+### 10.3 Known blockers from source review
+
+- YMVN SP raw QR table selection: ScanYMVN reads GetMaxStt and calls UpdateHVN using _cfg.Delivery.DocQRTable (MP table) instead of the session property DocQRTable. In SP mode, ProcessScan can route raw P/K/Q input into this method. Correct production routing is required before the SP acceptance case can pass.
+- YMVN SP take-LOT schema: the procedure checks @TmpOk / @LegacyQrOk and throws 51213 when the configured table pair lacks required columns. Its source comments identify the SP family as a different schema. Verify actual DB57 columns before any write; table names in an allow-list do not prove support.
+- HVN MP sequence: current G6 manifests submit a generated carton QR once; they do not prove the two-stage FCC → customer-label flow for CoNhieuNhaMay=true.
+- Customer 100003: current G6 manifests do not exercise the six-field combined QR route or its dedicated order/table family.
+- One-label and two-label routes are different: Honda Trading uses one six-field combined QR; HVN SP uses one FCC scan that fills both field sets; HVN MP uses FCC then customer label. These fixtures are not interchangeable.
+
+### 10.4 Release rule
+
+Do not set a route to configured:true or report E2E PASS until its exact customer/category/QR sequence has a real UI run, SQL before/after assertions, stock and delivery reconciliation, replay/negative-path coverage, and full cleanup. Source-contract PASS only proves the source still has the characterized route; it does not prove the customer flow works.
