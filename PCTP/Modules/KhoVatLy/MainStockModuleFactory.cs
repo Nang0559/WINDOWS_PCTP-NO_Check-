@@ -71,9 +71,10 @@ namespace PCTP.Modules.KhoVatLy
             var inspectionConfigService = new InspectionConfigService(inspectionConfigRepo);
 
             // Central stock mutation boundary.
-            // Adapters remain outside KhoCore so KhoCore never depends on legacy storage modules.
+            // BulkStockSlotRepository: export/pick requests carry ReferenceType, so the idempotency claim
+            // (dbo.PCTPStockMovementGuard) must share this UnitOfWork; LegacyStockSlotRepositoryAdapter fails closed.
             IStockSlotRepository stockSlotRepository =
-                new LegacyStockSlotRepositoryAdapter(slotService);
+                new BulkStockSlotRepository(dbExecutor, uow);
             IStockBalanceRepository stockBalanceRepository =
                 new StockExportRepositoryAdapter(stockExportRepo);
             IStockReceivingRepository stockReceivingRepository =

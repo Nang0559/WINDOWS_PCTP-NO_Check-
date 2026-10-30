@@ -166,6 +166,20 @@ public sealed class DeliveryTransactionContractTests
     }
 
     [Fact]
+    public void Receiving_And_MainStock_FactoriesUseTransactionalMovementGuardRepository()
+    {
+        var receivingFactory = ReadSource("NhapTpModuleFactory.source.cs");
+        var stockFactory = ReadSource("MainStockModuleFactory.source.cs");
+
+        // NHAP_TP / export requests carry a ReferenceType; the legacy adapter's TryRegisterMovement
+        // throws NotSupportedException, which surfaced as "Lỗi nhập tồn kho: Stock movement idempotency requires ...".
+        Assert.Contains("new BulkStockSlotRepository(dbExecutor, uow)", receivingFactory);
+        Assert.Contains("new BulkStockSlotRepository(dbExecutor, uow)", stockFactory);
+        Assert.DoesNotContain("new LegacyStockSlotRepositoryAdapter(", receivingFactory);
+        Assert.DoesNotContain("new LegacyStockSlotRepositoryAdapter(", stockFactory);
+    }
+
+    [Fact]
     public void DeliveryRepository_DoesNotConsumeRolledBackSuccessRowsWhenProcedureReturnsErrors()
     {
         var source = ReadSource("PhieuKhoRepository.source.cs");

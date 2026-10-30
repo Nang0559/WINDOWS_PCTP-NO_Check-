@@ -55,8 +55,12 @@ namespace PCTP.Modules.KhoVatLy
             var inspectionService = new InspectionService(inspectionLogRepo);
 
             // Central stock mutation boundary for NhapKho.
+            // BulkStockSlotRepository (NOT LegacyStockSlotRepositoryAdapter): NhapTpReceivingService
+            // sends ReferenceType="NHAP_TP", so the idempotency claim (TryRegisterMovement ->
+            // dbo.PCTPStockMovementGuard) must run in the SAME UnitOfWork transaction as the SlotLot write.
+            // The legacy adapter fails closed here by design. Requires SQL/PCTPStockMovementGuard.sql.
             IStockSlotRepository stockSlotRepository =
-                new LegacyStockSlotRepositoryAdapter(slotService);
+                new BulkStockSlotRepository(dbExecutor, uow);
             IStockBalanceRepository stockBalanceRepository =
                 new StockExportRepositoryAdapter(
                     new PCTP.Modules.XuatKho.Repositories.StockExportRepository(dbExecutor, uow));
