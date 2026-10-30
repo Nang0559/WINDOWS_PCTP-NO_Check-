@@ -44,9 +44,7 @@ namespace PCTP.ClassSQL
         // Mặc định KHÔNG trỏ Production. Môi trường khác (Production, CI fixture) phải được cấp rõ ràng:
         //   * CI/QC fixture : PCTP_QC_SQL_CONNECTION + PCTP_QC_ISOLATED_FIXTURE=1 (QcSqlOverride, fail-closed).
         //   * Production    : build/cấu hình riêng của bản phát hành — không commit vào mặc định này.
-        // Guard: PCTP.QC.Tests/SqlDefaultConnectionSafetyTests.cs fail nếu 2 field dưới trỏ 192.168.200.14 / BRAVO.
-        //public string B7R2_FCCdb = QcSqlOverride.Resolve(@"Data Source=192.168.200.14\BRAVO;Initial Catalog=B7R2_FCC;User ID=sa;Password=fccbrv");
-        //public string B7R2_FCCdbb = QcSqlOverride.Resolve(@"Data Source=192.168.200.14\BRAVO;Initial Catalog=B7R2_FCC;User ID=sa;Password=fccbrv");
+        // Các alias cũ phải dùng chung cấu hình, không tự chỉ định máy chủ riêng.
 
 
         #region ══ TRANSACTION LIFECYCLE ══════════════════════════════════════
@@ -601,8 +599,7 @@ namespace PCTP.ClassSQL
     class WH4SQLPROVIDER
     {
 
-        public string AutoWH = QcSqlOverride.Resolve(@"Data Source=192.168.200.14\BRAVO;Initial Catalog=B7R2_FCC;User ID=sa;Password=fccbrv");
-        //public string B7R2_FCCdb = @"Data Source=192.168.200.57;Initial Catalog=B7R2_FCC;User ID=sa;Password=fccbrv";
+        public string AutoWH = GetConfiguredConnection("B7R2_FCCdb");
         public DataTable WH4ExecuteQuery(string connectionSTR, string query, List<SqlParameter> parameter = null)
         {
             DataTable data = new DataTable();
