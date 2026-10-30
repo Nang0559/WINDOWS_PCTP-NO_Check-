@@ -259,6 +259,29 @@ The branch currently has an item-level switch in `FVN_ItemFifoConfig.EnforceFifo
 
 The current `ReworkStockService.GetLotsCanRework` returns positive STOCKTP/active SlotLot matches ordered by warehouse/rack/slot/LOT, and `XuatKhoRework` accepts a selected `slotLotId`/LOT. The inspected rework service does not resolve `FVN_ItemFifoConfig` or enforce the delivery FIFO rank. Therefore, the existing item switch is **not yet proven to govern rework export**. This is a real integration gap to cover; it is not permission to modify production code in this QC-only pass.
 
-Before a rework FIFO test can be finalized, confirm one business point: when a defect ticket has a specific affected `SoLoLoi`, should FIFO be enforced only among stock rows matching that affected LOT, or may the rework export select older eligible LOTs of the same item outside that affected LOT? The ticket's affected-LOT trace must never be silently lost.
+**Business decision confirmed by the operator (2026-10-30): Policy A — preserve the defect ticket's exact `SoLoLoi`.** FIFO applies only to eligible stock rows whose LOT equals that affected LOT. The rework export must never widen the candidate set to older/different LOTs of the same item to satisfy a shortage.
 
-NON_FIFO can use the existing explicit LOT/SlotLot selection only if that is the intended operator workflow. It must still validate item, affected-LOT policy, warehouse, active slot, available STOCKTP quantity, Phase 4 remaining quantity, concurrency, idempotency, rollback, and audit. Until the affected-LOT/FIFO interaction is confirmed and the rework service is wired/tested against the approved item-level switch, mark rework FIFO/NON_FIFO integration BLOCKED.
+Consequences:
+- Resolve the defect ticket's item code and exact affected `SoLoLoi` before querying stock. Candidate stock must match both values, the authorized warehouse, active SlotLot, and eligible stock status.
+- In FIFO mode, rank/consume only the eligible rows within that exact affected LOT using the actual production FIFO key. Do not compare or fall back to another LOT.
+- In NON_FIFO mode, an authorized explicit SlotLot selection may choose among eligible rows within that same affected LOT; it may not choose another LOT.
+- If the affected LOT has insufficient eligible quantity, fail with a shortage result and make no stock/ledger/request mutation. Do not auto-substitute another LOT. Any business-approved split across physical stock rows must remain within the same exact LOT.
+- A missing/blank affected LOT is not permission to search all LOTs. Reject or route to an explicitly approved exception workflow; do not infer a replacement LOT.
+- The execution evidence must record requested `SoLoLoi`, resolved item, selected SlotLot row(s), per-row quantity, FIFO policy, FIFO rank/key where applicable, and shortage/exception reason.
+
+#### 11.8 Affected-LOT constrained acceptance cases
+
+| Case | Setup / action | Expected |
+|---|---|---|
+| RL-LOT-001 | Ticket item A, `SoLoLoi=L1`; L1 and older L0 both have stock; FIFO enabled | Select only eligible L1 rows; L0 is never a candidate |
+| RL-LOT-002 | Same ticket; L1 has enough quantity across multiple eligible stock rows | Consume rows in FIFO order within L1 only; exact quantity and trace |
+| RL-LOT-003 | Same ticket; L1 is short but L0 has enough | Fail shortage; no fallback to L0; no writes |
+| RL-LOT-004 | FIFO disabled; L1 has multiple eligible SlotLot rows | Explicit selection may choose any eligible L1 row(s); never L0 |
+| RL-LOT-005 | FIFO disabled; operator selects a SlotLot belonging to L0 | Reject before mutation |
+| RL-LOT-006 | Ticket has blank/missing `SoLoLoi` | Fail closed or invoke separately approved exception flow; never query all LOTs |
+| RL-LOT-007 | Selected SlotLot has wrong item, warehouse, inactive status, or insufficient available quantity | Reject; no stock/ledger mutation |
+| RL-LOT-008 | Concurrent requests target the same ticket/LOT stock | No double allocation; transaction/locking and idempotency hold |
+| RL-LOT-009 | Failure after first stock/ledger write | Full rollback; all L1 and unrelated LOT rows unchanged |
+| RL-LOT-010 | Replay same business key after success | Return idempotent result; do not consume L1 twice |
+
+**Current implementation boundary:** the inspected `ReworkStockService` still does not resolve `FVN_ItemFifoConfig` or enforce this affected-LOT-constrained FIFO policy. This decision closes the business-rule ambiguity, not the implementation gap. The production service/SQL integration remains BLOCKED until the approved item-level switch is applied inside the same transaction/locking boundary and the above cases execute against real repositories on isolated SQL Server. This QC-only pass still does not authorize changes to centralized production C# or deployed business procedures.
