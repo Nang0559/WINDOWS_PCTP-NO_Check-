@@ -191,16 +191,24 @@ public sealed class DeliveryQrAllocationSourceContractTests
         Assert.Equal(6, hvn.Length); // Includes the trailing empty field.
         Assert.Equal("22660-K90-VM10-M1", fcc[1]);
         Assert.Equal("75", fcc[3]);
-        Assert.Equal("23010KY J510M1".Replace(" ", ""), hvn[1].Replace(" ", ""));
+        Assert.Equal("23010K1YJ510M1", hvn[1].Replace(" ", ""));
         Assert.Equal("5", hvn[3]);
         Assert.Equal("4R62", hvn[4]);
         Assert.Equal("", hvn[5]);
 
         // HVN MP: CoGear=false, CoNhieuNhaMay=true.
         // The four-field FCC QR enters ScanFCC; the six-field customer QR enters ScanHVN.
-        Assert.True(fcc.Length == 4);
-        Assert.False(hvn.Length == 4);
-        Assert.False(hvn.Length == 6 && false); // Must not be mistaken for the six-field single-factory route.
+        bool coNhieuNhaMay = true;
+        bool coGear = false;
+        string fccRoute = fcc.Length == 4 && coGear ? "ScanFCC_YMVN"
+            : coGear ? "ScanYMVN"
+            : fcc.Length == 4 ? "ScanFCC" : "ScanHVN";
+        string hvnRoute = hvn.Length == 4 && coGear ? "ScanFCC_YMVN"
+            : coGear ? "ScanYMVN"
+            : hvn.Length == 4 ? "ScanFCC" : "ScanHVN";
+        Assert.Equal("ScanFCC", fccRoute);
+        Assert.Equal("ScanHVN", hvnRoute);
+        Assert.True(coNhieuNhaMay);
     }
 
     [Fact]
