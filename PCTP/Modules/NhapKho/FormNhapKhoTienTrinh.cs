@@ -41,8 +41,8 @@ namespace PCTP.Modules.NhapKho
 
         public FormNhapKhoTienTrinh(MainStockSV mainStockForm, IWarehouseDashboardService dashboardService)
         {
-            _mainStockForm = mainStockForm
-            ?? throw new ArgumentNullException(nameof(mainStockForm));
+            // Tuỳ chọn: null khi mở từ Main_APP (không có bản đồ kho). FormEnterItemSV đã null-safe (?.OnSlotUpdated()).
+            _mainStockForm = mainStockForm;
 
             _dashboardService = dashboardService
        ?? throw new ArgumentNullException(nameof(dashboardService));

@@ -219,6 +219,24 @@ public sealed class DeliveryTransactionContractTests
     }
 
     [Fact]
+    public void MainApp_OpensReceivingProgressWithoutBuildingStockMap()
+    {
+        var mainApp = ReadSource("Main_APP.source.cs");
+        var navigator = ReadSource("WarehouseProcessNavigator.source.cs");
+        var form = ReadSource("FormNhapKhoTienTrinh.source.cs");
+
+        int start = mainApp.IndexOf("private void OpenNhapKhoFromDashboard()", StringComparison.Ordinal);
+        Assert.True(start >= 0);
+        int end = mainApp.IndexOf("public void RefreshDashboard()", start, StringComparison.Ordinal);
+        var body = mainApp.Substring(start, end - start);
+
+        Assert.Contains("WarehouseProcessNavigator.OpenNhapKhoTienTrinh(this);", body);
+        Assert.DoesNotContain("new MainStockSV", body);
+        Assert.Contains("MainStockSV mainStock = null", navigator);
+        Assert.DoesNotContain("ArgumentNullException(nameof(mainStockForm))", form);
+    }
+
+    [Fact]
     public void Receiving_DoesNotSendLotPlusPhieuAsProductionCase()
     {
         var service = ReadSource("NhapTpReceivingService.source.cs");

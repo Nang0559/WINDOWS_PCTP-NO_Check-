@@ -134,9 +134,8 @@ namespace PCTP
 
         private void OpenNhapKhoFromDashboard()
         {
-            MainStockSV mainStock = new MainStockSV();
-            mainStock.Show();
-            WarehouseProcessNavigator.OpenNhapKhoTienTrinh(this, mainStock);
+            // Mở thẳng màn hình tiến trình nhập kho — không dựng/hiện bản đồ kho (MainStockSV).
+            WarehouseProcessNavigator.OpenNhapKhoTienTrinh(this);
         }
 
         public void RefreshDashboard()

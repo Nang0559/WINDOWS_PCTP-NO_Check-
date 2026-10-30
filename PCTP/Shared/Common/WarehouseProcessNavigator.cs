@@ -47,10 +47,13 @@ namespace PCTP.Common
             f.Show();
         }
 
-        public static void OpenNhapKhoTienTrinh(IWin32Window owner, MainStockSV mainStock)
+        /// <summary>
+        /// Mở màn hình Tiến trình nhập kho. <paramref name="mainStock"/> là TUỲ CHỌN: chỉ truyền khi bản đồ kho
+        /// đang mở để nó được làm mới sau khi nhập (OnSlotUpdated). Mở từ Main_APP thì để null — không cần
+        /// dựng MainStockSV; form quét tự dựng service riêng qua NhapTpModuleFactory.
+        /// </summary>
+        public static void OpenNhapKhoTienTrinh(IWin32Window owner, MainStockSV mainStock = null)
         {
-            if (mainStock == null) throw new ArgumentNullException(nameof(mainStock));
-
             FormNhapKhoTienTrinh f = null;
             Action build = () =>
             {
