@@ -317,6 +317,7 @@
     <Compile Include="Modules\BaoCao\Application\Contracts\Queries\IQrTraceQuery.cs" />
     <Compile Include="Modules\BaoCao\Application\Contracts\Queries\IQualityHistoryQuery.cs" />
     <Compile Include="Modules\BaoCao\Application\Contracts\Queries\IStockHistoryQuery.cs" />
+    <Compile Include="Modules\BaoCao\Application\Contracts\Queries\StockOnHandSummary.cs" />
     <Compile Include="Modules\BaoCao\Application\Contracts\Queries\ItemHistoryRow.cs" />
     <Compile Include="Modules\BaoCao\Application\Contracts\Queries\QualityHistoryDetailRow.cs" />
     <Compile Include="Modules\BaoCao\Application\Contracts\Queries\QualityHistoryRow.cs" />
@@ -404,6 +405,10 @@
     </Compile>
     <Compile Include="Modules\GiaoHangKhach\SubForm\TONKHOTP.Designer.cs">
       <DependentUpon>TONKHOTP.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Modules\GiaoHangKhach\SubForm\TONKHOTP.TonKho.cs">
+      <DependentUpon>TONKHOTP.cs</DependentUpon>
+      <SubType>Form</SubType>
     </Compile>
     <Compile Include="Modules\GiaoHangKhach\SubForm\UF_TACHLOT.cs">
       <SubType>Form</SubType>

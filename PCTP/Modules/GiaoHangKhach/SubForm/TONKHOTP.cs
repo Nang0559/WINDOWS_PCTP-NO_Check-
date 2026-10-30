@@ -5,6 +5,8 @@ using DevExpress.XtraGrid.Views.Grid;
 using PCTP.ClassSQL;
 using PCTP.Common;
 using PCTP.Infrastructure.Stock;
+using PCTP.Modules.BaoCao.Application.Contracts.Queries;
+using PCTP.Modules.BaoCao.Infrastructure.Queries;
 using PCTP.Modules.KhoCore.Application.Contracts.Stock;
 using PCTP.Modules.KhoCore.Application.Services;
 using PCTP.Modules.KhoCore.Models;
@@ -33,6 +35,8 @@ using System.Windows.Forms;
         /// - TONKHOTP(services) -> xem toàn bộ tồn kho hiện tại (SLCONLAI > 0).
         /// - TONKHOTP(services, lotFilter) -> lọc theo 1 hoặc nhiều LOT.
         ///
+        /// - lotFilter rỗng + có ICurrentStockQuery -> màn XEM TỒN KHO mới (3 góc nhìn, chỉ đọc).
+        ///
         /// Khi lotFilter chỉ chứa ĐÚNG 1 LOT, form tự động bật thêm panel
         /// "Điều chỉnh tồn kho" để sửa lại SLCONLAI cho khớp thực tế, kèm
         /// bắt buộc nhập lý do và ghi lịch sử (StockHistory) để truy vết.
@@ -43,6 +47,10 @@ using System.Windows.Forms;
         /// </summary>
         public partial class TONKHOTP : DevExpress.XtraEditors.XtraForm
         {
+            // Có nguồn tồn kho + không lọc LOT => màn XEM TỒN KHO (TONKHOTP.TonKho.cs). Ngược lại giữ nguyên chế độ điều chỉnh 1 LOT.
+            private readonly ICurrentStockQuery _currentStockQuery;
+            private readonly bool _isOnHandViewMode;
+
             private readonly IStockTpLookupService _stockTpService;
             private readonly IStockHistoryService _historyService;
         private readonly IStockMovementService _movementService;
@@ -68,7 +76,8 @@ using System.Windows.Forms;
                 IStockHistoryService historyService,
                 IStockMovementService movementService,
         string lotFilter = "",
-        SlotRepository slotRepository = null)
+        SlotRepository slotRepository = null,
+        ICurrentStockQuery currentStockQuery = null)
             {
                 InitializeComponent();
                 _stockTpService = stockTpService ?? throw new ArgumentNullException(nameof(stockTpService));
@@ -78,11 +87,22 @@ using System.Windows.Forms;
             _lotList = ParseLotFilter(lotFilter);
                 _isSingleLotEditMode = _lotList.Count == 1;
 
-                Text = _isSingleLotEditMode
-                    ? $"Tồn kho — Điều chỉnh LOT [{_lotList[0]}]"
-                    : "Tồn kho hiện tại";
-                Size = new Size(1000, 620);
+                _currentStockQuery = currentStockQuery;
+                _isOnHandViewMode = _lotList.Count == 0 && _currentStockQuery != null;
+
+                Text = _isOnHandViewMode
+                    ? "Tồn kho thành phẩm"
+                    : _isSingleLotEditMode
+                        ? $"Tồn kho — Điều chỉnh LOT [{_lotList[0]}]"
+                        : "Tồn kho hiện tại";
+                Size = _isOnHandViewMode ? new Size(1280, 720) : new Size(1000, 620);
                 StartPosition = FormStartPosition.CenterParent;
+
+                if (_isOnHandViewMode)
+                {
+                    BuildOnHandUI();      // tải dữ liệu ở sự kiện Shown (không chặn UI)
+                    return;
+                }
 
                 BuildUI();
                 LoadData();
@@ -116,7 +136,10 @@ using System.Windows.Forms;
                 new StockReceivingRepositoryAdapter(stockTpRepo),
                 uow);
 
-            using (var f = new TONKHOTP(stockTpService, historyService, movementService, lotFilter, slotRepository))
+            // Xem tồn kho (lotFilter rỗng) dùng cùng nguồn sp_GetCurrentStockStatus với báo cáo "Kho hiện tại".
+            ICurrentStockQuery currentStockQuery = string.IsNullOrWhiteSpace(lotFilter) ? new CurrentStockQueryService() : null;
+
+            using (var f = new TONKHOTP(stockTpService, historyService, movementService, lotFilter, slotRepository, currentStockQuery))
             {
                 f.ShowDialog(owner);   // ✅ bỏ dấu ';' thừa, gọi ShowDialog trong thân using
             }

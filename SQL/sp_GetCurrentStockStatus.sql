@@ -141,5 +141,7 @@ BEGIN
         WHERE ISNULL(stp.SLCONLAI, 0) > 0
           AND stp.SLCONLAI - ISNULL(st.SlotQty, 0) > 0
     ) AS u
-    ORDER BY u.LotNo, u.SortWarehouse, u.SortRack, u.SortSlot;
+    -- Ngày nhập mới nhất lên trên (NULL xuống cuối); cùng ngày thì gom theo LOT rồi vị trí.
+    ORDER BY (SELECT MAX(d.v) FROM (VALUES (u.NgayNhap), (u.SlotImportDate)) AS d(v)) DESC,
+             u.LotNo, u.SortWarehouse, u.SortRack, u.SortSlot;
 END;

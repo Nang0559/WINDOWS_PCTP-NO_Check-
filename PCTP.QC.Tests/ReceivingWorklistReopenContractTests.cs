@@ -73,5 +73,6 @@ public sealed class ReceivingWorklistReopenContractTests
         Assert.Contains("sd.SlotImportDate AS SlotImportDate", sql, StringComparison.Ordinal);
         Assert.Contains("CAST(NULL AS DATETIME) AS SlotImportDate", sql, StringComparison.Ordinal);
         Assert.Contains("u.SlDaXuat", sql, StringComparison.Ordinal);
+        Assert.Contains("ORDER BY (SELECT MAX(d.v) FROM (VALUES (u.NgayNhap), (u.SlotImportDate)) AS d(v)) DESC", sql, StringComparison.Ordinal);
     }
 }

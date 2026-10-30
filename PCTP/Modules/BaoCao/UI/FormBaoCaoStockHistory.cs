@@ -194,6 +194,7 @@ namespace PCTP.Modules.BaoCao.UI
         {
             _colIndex = 0;
             // LotNo / QrCode là chuỗi -> không bị định dạng số; dạng "2.61E+19" nếu có là do dữ liệu gốc (xem cột Cảnh báo).
+            Col("LastReceivedDate", "Ngày nhập mới nhất", 125, "dd/MM/yyyy HH:mm");
             Col("ItemCode", "Mã hàng", 140);
             Col("ItemName", "Tên sản phẩm", 190);
             Col("Model", "Model", 70);
@@ -208,16 +209,23 @@ namespace PCTP.Modules.BaoCao.UI
             Col("Status", "Trạng thái LOT", 100);
             Col("ProductionDate", "Ngày SX", 85, "dd/MM/yyyy");
             Col("ShiftNo", "Ca SX", 50);
-            Col("ReceivedDate", "Ngày nhập LOT", 100, "dd/MM/yyyy");
+            Col("ReceivedDate", "Ngày nhập LOT", 120, "dd/MM/yyyy HH:mm");
             Col("SlotImportDate", "Ngày nhập slot", 125, "dd/MM/yyyy HH:mm");
             Col("IssuedDate", "Ngày xuất gần nhất", 115, "dd/MM/yyyy");
             Col("DocumentNo", "Số phiếu", 120);
             Col("Warning", "Cảnh báo", 300);
-            HideOthers("ItemCode", "ItemName", "Model", "LotNo", "QrCode", "LocationCode", "Quantity", "QtyProduced",
+            HideOthers("LastReceivedDate", "ItemCode", "ItemName", "Model", "LotNo", "QrCode", "LocationCode", "Quantity", "QtyProduced",
                 "QtyReceived", "QtyIssued", "QtyOnHandLot", "Status", "ProductionDate", "ShiftNo", "ReceivedDate",
                 "SlotImportDate", "IssuedDate", "DocumentNo", "Warning");
             var item = _view.Columns["ItemCode"];
             if (item != null) { item.SummaryItem.SummaryType = SummaryItemType.Count; item.SummaryItem.DisplayFormat = "{0:n0} dòng"; }
+
+            // Ngày nhập mới nhất lên trên (dòng chưa có ngày nhập xuống cuối), cùng ngày thì gom theo LOT.
+            _view.SortInfo.Clear();
+            var newest = _view.Columns["LastReceivedDate"];
+            var lot = _view.Columns["LotNo"];
+            if (newest != null) _view.SortInfo.Add(new GridColumnSortInfo(newest, DevExpress.Data.ColumnSortOrder.Descending));
+            if (lot != null) _view.SortInfo.Add(new GridColumnSortInfo(lot, DevExpress.Data.ColumnSortOrder.Ascending));
         }
 
         private void ConfigureHistoryColumns()

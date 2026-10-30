@@ -91,6 +91,8 @@
   <ItemGroup>
     <Compile Include="../PCTP/Infrastructure/Sql/QcSqlOverride.cs" Link="Sut/QcSqlOverride.cs" />
     <Compile Include="../PCTP/Shared/Helpers/QRCodeParser.cs" Link="Sut/QRCodeParser.cs" />
+    <Compile Include="../PCTP/Modules/BaoCao/Application/Contracts/Queries/CurrentStockRow.cs" Link="Sut/CurrentStockRow.cs" />
+    <Compile Include="../PCTP/Modules/BaoCao/Application/Contracts/Queries/StockOnHandSummary.cs" Link="Sut/StockOnHandSummary.cs" />
     <Compile Include="../PCTP/Shared/Helpers/QRCodeBuilder.cs" Link="Sut/QRCodeBuilder.cs" />
     <Compile Include="../PCTP/Shared/Helpers/QRCodeWorkflowAdapter.cs" Link="Sut/QRCodeWorkflowAdapter.cs" />
     <Compile Include="../PCTP/Shared/Models/QRCodeInfo.cs" Link="Sut/QRCodeInfo.cs" />

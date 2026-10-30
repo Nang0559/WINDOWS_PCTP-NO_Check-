@@ -26,6 +26,17 @@ namespace PCTP.Modules.BaoCao.Application.Contracts.Queries
         public DateTime? SlotImportDate { get; set; }  // ngày nhập vào slot
         public string DocumentNo { get; set; }         // MaPhieu của SlotLot
 
+        /// <summary>Ngày nhập mới nhất của dòng = max(ngày nhập LOT, ngày nhập slot). Dùng để xếp "mới nhất lên trên".</summary>
+        public DateTime? LastReceivedDate
+        {
+            get
+            {
+                if (!ReceivedDate.HasValue) return SlotImportDate;
+                if (!SlotImportDate.HasValue) return ReceivedDate;
+                return SlotImportDate.Value > ReceivedDate.Value ? SlotImportDate : ReceivedDate;
+            }
+        }
+
         /// <summary>LOT dạng số khoa học (vd 2.61021E+19): dữ liệu gốc đã bị Excel làm hỏng, không phải lỗi hiển thị.</summary>
         public bool LotNoFormatError { get { return IsScientificLot(LotNo); } }
 
