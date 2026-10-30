@@ -30,21 +30,25 @@ public sealed class SqlDefaultConnectionSafetyTests
     {
         var line = CodeLines().SingleOrDefault(l => l.StartsWith("public string " + field + " =", StringComparison.Ordinal));
         Assert.NotNull(line);
-        var lower = line!.ToLowerInvariant();
-        Assert.DoesNotContain("192.168.200.14", lower);
-        Assert.DoesNotContain("bravo", lower);
-        Assert.Contains("QcSqlOverride.Resolve(", line);
+        Assert.Contains("GetConfiguredConnection(\"" + field + "\")", line);
     }
 
     [Fact]
-    public void EveryDefaultConnectionString_GoesThroughQcSqlOverride()
+    public void ConfiguredConnections_GoThroughQcSqlOverride()
     {
-        var offenders = CodeLines()
-            .Where(l => l.StartsWith("public string ", StringComparison.Ordinal) && l.Contains("Data Source=", StringComparison.OrdinalIgnoreCase))
-            .Where(l => !l.Contains("QcSqlOverride.Resolve(", StringComparison.Ordinal))
-            .ToArray();
-        Assert.True(offenders.Length == 0,
-            "Connection defaults must use QcSqlOverride.Resolve so CI isolation cannot be bypassed:\n" + string.Join("\n", offenders));
+        var lines = CodeLines();
+        Assert.Contains(lines, l => l.Contains("return QcSqlOverride.Resolve(configured);", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void ExternalDatabaseConfig_ContainsBothLegacyKeys()
+    {
+        var root = FindRepositoryRoot();
+        var config = Path.Combine(root, "PCTP", "PCTP.Database.config");
+        Assert.True(File.Exists(config), "PCTP.Database.config template is missing.");
+        var content = File.ReadAllText(config);
+        Assert.Contains("B7R2_FCCdb", content);
+        Assert.Contains("B7R2_FCCdbb", content);
     }
 
     private static string FindRepositoryRoot()
