@@ -49,6 +49,7 @@
     <None Include="../PCTP/Modules/GiaoHangKhach/Services/PhieuLotService.cs" Link="PhieuLotService.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/GiaoHangKhach/Repositories/PhieuValidationRepository.cs" Link="PhieuValidationRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Shared/Models/CustomerTableConfig.cs" Link="CustomerTableConfig.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/GiaoHangKhach/Services/DocQRScanEngine.cs" Link="DocQRScanEngine.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/GiaoHangKhach/Services/PhieuYmvnService.cs" Link="PhieuYmvnService.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/GiaoHangKhach/SubForm/FRM_LISTRUNGMSL.cs" Link="FRM_LISTRUNGMSL.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/GiaoHangKhach/HVN/Controls/PhieuDialogControl.cs" Link="PhieuDialogControl.source.cs" CopyToOutputDirectory="PreserveNewest" />
