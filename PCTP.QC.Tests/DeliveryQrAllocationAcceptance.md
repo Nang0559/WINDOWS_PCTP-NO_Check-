@@ -192,9 +192,9 @@ FIFO must be an explicit policy, not an accidental consequence of query ordering
 
 - `FIFO`: require stock allocation in the configured FIFO order for the selected item/warehouse/stock scope. The allocation must identify the actual source LOT(s), quantities, and ordering evidence.
 - `NON_FIFO`: do not enforce FIFO ordering. The selected eligible stock/LOT may be used according to the existing authorized selection rule, but the allocation must still be deterministic, quantity-safe, and traceable.
-- The policy must be resolved before any stock mutation. Missing, invalid, or ambiguous policy must fail closed; it must never silently default from a missing configuration value.
-- The selected policy and resolved scope must be visible in the QC execution report. The policy must not be inferred from customer name, UI screen, or whichever LOT happens to be returned first.
-- The existing approved switch is item-level: `FVN_ItemFifoConfig.EnforceFifo` keyed by `ItemCode` (`1` = enforce, `0` = bypass), audited by `UpdatedAt`/`UpdatedBy` and `FVN_ItemFifoConfig_History`. Rework must resolve this same item-level setting for the product on the defect ticket. Do not create a competing customer-level default unless the business owner explicitly approves a new configuration model.
+- The existing approved switch is item-level: `FVN_ItemFifoConfig.EnforceFifo` keyed by `ItemCode` (`1` = enforce, `0` = bypass), audited by `UpdatedAt`/`UpdatedBy` and `FVN_ItemFifoConfig_History`. Rework should resolve this same item-level setting for the product on the defect ticket. Do not create a competing customer-level default unless the business owner explicitly approves a new configuration model.
+- **Observed current behavior:** `ItemFifoConfigRepository.GetEnforceFifo` returns `false` when no row exists, and the item-config UI initializes newly added items with `EnforceFifo = false`. Therefore, an absent row currently behaves as NON_FIFO rather than a distinct “not configured” state. This must be an explicit business decision and a tested contract; do not describe it as fail-closed.
+- The selected policy and resolved item code must be visible in the QC execution report. The policy must not be inferred from customer name, UI screen, or whichever LOT happens to be returned first.
 - Changing FIFO policy during an active allocation/session must not change the policy halfway through that transaction.
 
 ### 11.2 Shared invariants — both FIFO and NON_FIFO
