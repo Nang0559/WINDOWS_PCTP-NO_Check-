@@ -67,19 +67,26 @@ The final 8 characters (daily label sequence + embedded quantity) distinguish a 
 6. FIFO, when applicable, is evaluated only among eligible stock rows inside the already-resolved LOT. It cannot switch to another LOT.
 7. Invalid length/characters, invalid date, invalid customer Gear, mismatched item/date/LOT identity, duplicate/replayed label, shortage, or failed transaction must not create partial stock/ledger mutations.
 
-## 5. Important unresolved fixture discrepancy
+## 5. Operator-confirmed matching box-label fixture
 
-An earlier box-label example supplied in the conversation was:
+The operator-confirmed real box QR is:
 
 ```text
-2610300027230077520020:2210A-K2C-V000:30/10/2026:20
+2610300027230077170007520020:2210A-K2C-V000:30/10/2026:20
 ```
 
-Its LOTNO token is 22 characters, not 28, and its first 20 characters do not equal the confirmed total-label stock LOT identity. It therefore cannot be treated as a valid matching box-label fixture under this contract. Do not silently pad, repair, or reinterpret it. Obtain the corrected real box QR before enabling a box-label E2E journey.
+Its four fields are LOTNO token, item code, manufacturing date, and box quantity. The LOTNO token is exactly 28 characters. Its first 20 characters match the total-label token:
+
+| Label | LOTNO token | First 20 characters (stock LOT identity) | Quantity |
+|---|---|---|---:|
+| Total | `2610300027230077170007512000` | `26103000272300771700` | 2000 |
+| Box | `2610300027230077170007520020` | `26103000272300771700` | 20 |
+
+Therefore, the supplied total and box labels are a valid matching fixture for the confirmed LOT identity. There is no outstanding QR-sample discrepancy. The box issue quantity is 20, taken from field 4 of the box QR.
 
 ## 6. Test layers and production boundary
 
-- Contract tests validate the field positions, 20-character identity, total/box envelope shape, customer Gear mapping, and the known invalid sample.
+- Contract tests validate the field positions, 20-character identity, the exact operator-confirmed total/box QR pair, customer Gear mapping, and malformed-token rejection.
 - Production parser tests must execute the compiled production `QRCodeParser` and verify its parsed fields.
 - A contract-oracle test is not proof that production receiving/export services normalize the LOT correctly.
 - The current legacy `ParseTachLotQr` implementation documents a 27-character LOT and strips only the final four characters. That assumption does not match this 28-character / 20-character identity contract. Track it as a production integration blocker; do not change the production parser or central SQL in this QC-only change.
