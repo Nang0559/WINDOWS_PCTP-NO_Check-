@@ -54,6 +54,8 @@
     <None Include="../PCTP/Presentation/Presenters/DocQrPresenter.cs" Link="DocQrPresenter.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP.QC.UI/journeys/g6/g6-delivery-hvn.json" Link="g6-delivery-hvn.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP.QC.UI/journeys/g6/g6-delivery-hvn-multilot.json" Link="g6-delivery-hvn-multilot.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP.QC.UI/journeys/g6/sql/delivery-hvn/seed.sql" Link="delivery-hvn-seed.source.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP.QC.UI/journeys/g6/sql/delivery-hvn-multilot/seed.sql" Link="delivery-hvn-multilot-seed.source.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/GiaoHangKhach/Services/PhieuYmvnService.cs" Link="PhieuYmvnService.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/GiaoHangKhach/SubForm/FRM_LISTRUNGMSL.cs" Link="FRM_LISTRUNGMSL.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/GiaoHangKhach/HVN/Controls/PhieuDialogControl.cs" Link="PhieuDialogControl.source.cs" CopyToOutputDirectory="PreserveNewest" />
