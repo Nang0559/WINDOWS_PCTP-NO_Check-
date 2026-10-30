@@ -6,9 +6,9 @@ using Xunit;
 namespace PCTP.QC.Tests;
 
 /// <summary>
-/// Source guard: the compiled-in default connection strings of SQLPROVIDER must never point at Production
-/// (192.168.200.14 / BRAVO), and every default that mentions a real server must go through
-/// QcSqlOverride.Resolve so the isolated CI fixture can redirect it (and fail closed otherwise).
+/// Source/config guard: SQLPROVIDER reads its connections from the external config file,
+/// and every configured connection must pass through QcSqlOverride so isolated CI redirection
+/// remains fail-closed.
 /// </summary>
 public sealed class SqlDefaultConnectionSafetyTests
 {
@@ -26,7 +26,7 @@ public sealed class SqlDefaultConnectionSafetyTests
     [Theory]
     [InlineData("B7R2_FCCdb")]
     [InlineData("B7R2_FCCdbb")]
-    public void AppDefaultConnection_IsNotProduction(string field)
+    public void ConnectionField_UsesExternalConfig(string field)
     {
         var line = CodeLines().SingleOrDefault(l => l.StartsWith("public string " + field + " =", StringComparison.Ordinal));
         Assert.NotNull(line);
@@ -49,6 +49,10 @@ public sealed class SqlDefaultConnectionSafetyTests
         var content = File.ReadAllText(config);
         Assert.Contains("B7R2_FCCdb", content);
         Assert.Contains("B7R2_FCCdbb", content);
+        var lower = content.ToLowerInvariant();
+        Assert.DoesNotContain("192.168.200.14", lower);
+        Assert.DoesNotContain("bravo", lower);
+        Assert.DoesNotContain("fccbrv", lower);
     }
 
     private static string FindRepositoryRoot()
