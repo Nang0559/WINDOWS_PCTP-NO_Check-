@@ -54,6 +54,13 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
                 if (IsDisposed || !IsHandleCreated)
                     return;
 
+                // Presenter từ chối Hoàn thành (vẫn còn dòng QR chưa đóng gói)
+                // => phiên QR chưa kết thúc, phải giữ nguyên màn hình DocQR.
+                // Nếu vẫn chuyển sang Phiếu ở đây thì grid đơn hàng bị trống
+                // và radio/tab giờ xuất vẫn bị khóa.
+                if (_docQrDeliveryContextLocked)
+                    return;
+
                 // ========================================================
                 // Bước 1: đóng hoàn toàn vùng DocQR.
                 // Chỉ BringToFront Grid đơn hàng là chưa đủ vì DocQR
@@ -71,11 +78,22 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
                 if (_phieuHeaderControl != null)
                     _phieuHeaderControl.Visible = true;
 
+                // SwitchToDocQRView() đã set gridCtrDONHANG.Visible = false trên
+                // chính GridControl bên trong _phieuGridControl; chỉ bật container
+                // + BringToFront là grid vẫn ẩn => phải bật lại grid con.
+                if (gridCtrDOCQrCODE != null)
+                    gridCtrDOCQrCODE.Visible = false;
+
                 if (_phieuGridControl != null)
                 {
                     _phieuGridControl.Visible = true;
+                    if (gridCtrDONHANG != null)
+                        gridCtrDONHANG.Visible = true;
                     _phieuGridControl.BringToFrontGrid();
                 }
+
+                // Mở lại chọn giờ xuất (SwitchToDocQRView đã Disable cả RadioGroup).
+                SetGioXuatSelectionEnabled(true);
 
                 // ========================================================
                 // Bước 3: bảo đảm control phụ của màn hình Phiếu không
