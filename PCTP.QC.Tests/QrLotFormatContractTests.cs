@@ -31,6 +31,25 @@ public sealed class QrLotFormatContractTests
     }
 
     [Fact]
+    public void TotalLabel_SlipCodeAndItsSequenceAreIndependentFromDailyLotSequence()
+    {
+        var parsed = QRCodeParser.ParseQRCode(TotalQr);
+
+        // QR field 5 is the sequence belonging to field 6's A... slip code.
+        Assert.Equal("2", parsed.SoPhieuTong);
+        Assert.Equal("A010000000059140", parsed.MaPhieu);
+
+        // LOTNO positions 21-24 are a different, daily label sequence.
+        Assert.Equal("0751", parsed.RawLotNo.Substring(20, 4));
+        Assert.NotEqual(parsed.SoPhieuTong, parsed.RawLotNo.Substring(20, 4));
+
+        // The receiving reference is based on the slip code + its sequence,
+        // never on LOTNO's daily sequence.
+        var slipReference = parsed.MaPhieu + ":" + parsed.SoPhieuTong;
+        Assert.Equal("A010000000059140:2", slipReference);
+    }
+
+    [Fact]
     public void TotalLabel_LotTokenHasConfirmedFieldOffsets()
     {
         const string token = "2610300027230077170007512000";
