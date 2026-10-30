@@ -47,11 +47,17 @@ public sealed class QrLotFormatContractTests
 
     [Theory]
     [InlineData("2610300027230077170007520020", "26103000272300771700")]
-    public void BoxLabel_UsesTheSameTwentyCharacterStockLotIdentity(
+    public void SyntheticBoxLabel_UsesTheSameTwentyCharacterStockLotIdentity(
         string boxLotToken, string expectedStockLot)
     {
-        Assert.Equal(28, boxLotToken.Length);
-        Assert.Equal(expectedStockLot, StockLotIdentity(boxLotToken));
+        const string boxQr =
+            "2610300027230077170007520020:2210A-K2C-V000:30/10/2026:20";
+
+        var parsed = QRCodeParser.ParseQRCode(boxQr);
+        Assert.False(parsed.IsTongPhieu);
+        Assert.Equal(boxLotToken, parsed.RawLotNo);
+        Assert.Equal(20, parsed.Quantity);
+        Assert.Equal(expectedStockLot, StockLotIdentity(parsed.RawLotNo));
     }
 
     [Theory]
