@@ -310,6 +310,15 @@ Both LOTNO tokens are 28 characters and resolve to the same 20-character stock L
 
 `QrLotFormatContractTests` verifies the exact total and box parser fields, matching stock LOT identity, confirmed LOTNO offsets, customer Gear mapping, and malformed LOT-token rejection.
 
+### Confirmed blockers from source-level path tracing
+
+- **Receiving without a matched production slip:** the parser leaves `RawLotNoSL` at its default empty string. The service's null-coalescing fallback therefore selects empty instead of falling back to `RawLotNo`; LOT normalization returns empty and the receive path rejects the request.
+- **Central movement adapter:** both receiving and customer-delivery adapters forward the parser's current 28-character `LotNo` directly. The confirmed stock key is 20 characters.
+
+The intended correction is to separate raw QR token from normalized stock identity: preserve the raw 28-character token for QR/audit fields, set `LotNo` to the first 20-character stock identity using the production LOT helper, and make the receiving fallback ignore blank values. No production source or SQL was changed in this QC-only work.
+
+Three skipped acceptance tests now specify the required parser, receiving-adapter, and delivery-adapter behavior. They are deliberately skipped—not counted as passing—until production changes are explicitly authorized and made. The live QR sample itself is confirmed and is not a blocker.
+
 ### Remaining production integration blocker
 
 The production `QRCodeParser.ParseTachLotQr` still documents a legacy 27-character LOT assumption and strips only four trailing characters in that branch. The ordinary `ParseQRCode` path parses the four- and six-field envelopes but currently preserves the complete raw LOT token; these contract tests do not prove that receiving, box issue, stock persistence, or ledger paths normalize to the same 20-character stock LOT identity. Keep production parser/SQL unchanged in this QC-only commit. Report this as a production integration blocker until the actual service/repository/SQL path is executed and proven; it is not blocked on missing QR data.
