@@ -164,8 +164,21 @@ namespace PCTP.Presentation.Presenters
             {
                 DataTable t = _c.PhieuSvc.GetDonHangChuaLot(_c.QrSvc.IsBanSP);
                 if (t != null && t.Rows.Count > 0) _c.LotSvc.TinhTongLot(t, _c.TenBan, _c.Cfg.Delivery.GetDocQRTable(_c.QrSvc.IsBanSP), _c.Cfg.Delivery.GetTmpTable(_c.QrSvc.IsBanSP), rows => _v.ShowChonSttTrungMa(rows));
-                if (_c.QrSvc.CountChuaDG() > 0)
+                int conLai = _c.QrSvc.CountChuaDG();
+                if (conLai > 0)
+                {
+                    // Còn dòng QR chưa đóng gói: GIỮ khóa phiên QR (IsBanQR,
+                    // DeliverySession, khóa ngày/giờ/nhà máy) nhưng vẫn phải
+                    // quay về màn hình Phiếu + GridView Đơn hàng, giống nút HOME.
+                    // Trước đây chỗ này chỉ `return` nên màn hình kẹt ở DocQR.
+                    _v.SwitchToPhieuView();
+                    DataTable dangHien = _v.GetDonHangTable();
+                    DataTable moiNhat = _c.PhieuSvc.GetDonHangHienTai(_c.TenBan);
+                    MergeDocQrResultIntoOrderTable(dangHien, moiNhat);
+                    _v.BindDonHang(dangHien);
+                    _v.ShowInfo("Còn " + conLai + " dòng QR chưa đóng gói vào phiếu. Phiên đọc QR vẫn được giữ, bấm DOC QRCODE để quay lại đọc tiếp.");
                     return;
+                }
 
                 _c.IsBanQR = false;
                 _c.QrSvc.SetCheDoBan("");
