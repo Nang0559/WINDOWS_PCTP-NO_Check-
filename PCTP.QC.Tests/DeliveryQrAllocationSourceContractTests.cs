@@ -132,6 +132,81 @@ public sealed class DeliveryQrAllocationSourceContractTests
         Assert.Contains("@affected <> @expected", sql);
     }
 
+    [Fact]
+    public void ScanEngine_RoutesByFieldCountCustomerCapabilitiesAndMpSpMode()
+    {
+        var source = Read("DocQRScanEngine.source.cs");
+        var start = source.IndexOf("public ScanResult ProcessScan(", StringComparison.Ordinal);
+        var end = source.IndexOf("private string MapMaHang(", StringComparison.Ordinal);
+        Assert.True(start >= 0 && end > start);
+        var route = source.Substring(start, end - start);
+
+        Assert.Contains("parts.Length == 6 && !_cfg.Delivery.CoNhieuNhaMay && !_cfg.Delivery.CoGear", route);
+        Assert.Contains("parts.Length == 4 && _cfg.Delivery.CoGear", route);
+        Assert.Contains("if (_cfg.Delivery.CoGear)", route);
+        Assert.Contains("if (IsBanSP)", route);
+        Assert.Contains("return ScanHVN(parts)", route);
+
+        var hvnSp = MethodBody(source, "private ScanResult ScanFCC_SP(", "private ScanResult ScanFCC(");
+        Assert.Contains("LotHVN = lotFcc", hvnSp);
+        Assert.Contains("MaHangHVN = maHangThuc", hvnSp);
+        var hvnMpFcc = MethodBody(source, "private ScanResult ScanFCC(", "public ScanResult ProcessScanYMVN(");
+        Assert.Contains("_bus.Publish(new QRScannedEvent(item, \"FCC\"))", hvnMpFcc);
+        var hvnCustomer = MethodBody(source, "private ScanResult ScanHVN(", "private ScanResult ScanFCC_YMVN(");
+        Assert.Contains("_repo.UpdateHVN(item, DocQRTable)", hvnCustomer);
+    }
+
+    [Fact]
+    public void CustomerConfig_SeparatesHvnYmvNAndHondaTradingTableFamilies()
+    {
+        var config = Read("CustomerTableConfig.source.cs");
+        Assert.Contains("public const string HondaVietnam = \"100001\"", config);
+        Assert.Contains("public const string YamahaVietnam = \"100002\"", config);
+        Assert.Contains("public const string Customer100003 = \"100003\"", config);
+        Assert.Contains("DocQRTable = \"DOCQRCODE\"", config);
+        Assert.Contains("DocQRTableSP = \"DOCQRCODE_SP\"", config);
+        Assert.Contains("DocQRTable = \"YMVN_DOCQRCODE\"", config);
+        Assert.Contains("DocQRTableSP = \"SP_DOCQRCODE\"", config);
+        Assert.Contains("TmpTableSP = \"SP_TMPPHIEUGIAOHANG\"", config);
+        Assert.Contains("DocQRTable = \"DOCQRCODE_100003\"", config);
+        Assert.Contains("TmpTable = \"TMPPHIEUGIAOHANG_100003\"", config);
+        Assert.Contains("CoGear = true", config);
+        Assert.Contains("CoNhieuNhaMay = true", config);
+        Assert.Contains("LoadTheoNgay = true", config);
+        Assert.Contains("OrderTable = \"Purchase_Order_HTN\"", config);
+    }
+
+    [Fact]
+    public void YmvN_SpRawQrPathCurrentlyBypassesTheSessionDocQrTable()
+    {
+        // Characterization of a release blocker: raw P/K/Q QR routes to ScanYMVN,
+        // but this method reads/writes the configured MP table, not session SP_DOCQRCODE.
+        var source = Read("DocQRScanEngine.source.cs");
+        var method = MethodBody(source, "private ScanResult ScanYMVN(", "private ScanResult ScanFCC_TongTem(");
+        Assert.Contains("_cfg.Delivery.DocQRTable", method);
+        Assert.DoesNotContain("GetDocQRTable(IsBanSP)", method);
+        Assert.Contains("private string DocQRTable => _session.DocQrTable;", source);
+    }
+
+    [Fact]
+    public void YmvN_SpTakeLotRequiresLiveSchemaCompatibilityBeforeAcceptance()
+    {
+        var config = Read("CustomerTableConfig.source.cs");
+        var procedure = Read("Usp_Qrcode_Take_LotYMVN2405.sql");
+        Assert.Contains("DocQRTableSP = \"SP_DOCQRCODE\"", config);
+        Assert.Contains("TmpTableSP = \"SP_TMPPHIEUGIAOHANG\"", config);
+        Assert.Contains("IF @TmpOk = 0 OR @LegacyQrOk = 0", procedure);
+        Assert.Contains("THROW 51213", procedure);
+    }
+
+    private static string MethodBody(string source, string start, string end)
+    {
+        var from = source.IndexOf(start, StringComparison.Ordinal);
+        var to = source.IndexOf(end, from + start.Length, StringComparison.Ordinal);
+        Assert.True(from >= 0 && to > from, "Could not isolate source method: " + start);
+        return source.Substring(from, to - from);
+    }
+
     private static string ClaimSection(string sql)
     {
         var i = sql.IndexOf("CLAIM-MODE-BEGIN", StringComparison.Ordinal);
