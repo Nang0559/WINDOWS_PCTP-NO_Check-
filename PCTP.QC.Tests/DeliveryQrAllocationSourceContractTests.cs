@@ -349,7 +349,6 @@ public sealed class DeliveryQrAllocationSourceContractTests
         Assert.DoesNotContain("parts[2]", hvn);
         Assert.DoesNotContain("parts[4]", hvn);
 
-        var engine = Read("DocQRScanEngine.source.cs");
         var process = MethodBody(engine, "public ScanResult ProcessScan(", "private string MapMaHang(");
         Assert.Contains("string[] parts = rawQr.Split(':')", process);
         Assert.Contains("if (parts.Length == 4)", process);
