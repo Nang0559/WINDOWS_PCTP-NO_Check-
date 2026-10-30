@@ -214,7 +214,7 @@ namespace PCTP.ClassSQL
             int data;
             try
             {
-                using (var connection = new SqlConnection(connectionSTR))
+                using (var connection = CreateConnection(connectionSTR))
                 {
                     connection.Open();
                     using (var command = new SqlCommand(query, connection) { CommandType = CommandType.Text })
@@ -236,7 +236,7 @@ namespace PCTP.ClassSQL
         /// <summary>Trả về giá trị đơn, tự mở/đóng connection riêng (không transaction).</summary>
         public object ExecuteScalar(string connectionSTR, string query, SqlParameter[] parameters = null)
         {
-            using (var connection = new SqlConnection(connectionSTR))
+            using (var connection = CreateConnection(connectionSTR))
             using (var command = new SqlCommand(query, connection) { CommandType = CommandType.Text })
             {
                 if (parameters != null)
@@ -297,7 +297,7 @@ namespace PCTP.ClassSQL
         /// <summary>Đọc dữ liệu bằng stored procedure, tự mở/đóng connection riêng, trả DataTable. Log chi tiết lỗi nếu có.</summary>
         public DataTable LoadData(string connString, string procName, params SqlParameter[] paramList)
         {
-            using (var sqlConnection = new SqlConnection(connString))
+            using (var sqlConnection = CreateConnection(connString))
             using (var cmd = sqlConnection.CreateCommand())
             {
                 cmd.CommandType = CommandType.StoredProcedure;
@@ -330,7 +330,7 @@ namespace PCTP.ClassSQL
             params SqlParameter[] paramters)
         {
             DataSet result;
-            using (var sqlConnection = new SqlConnection(connString))
+            using (var sqlConnection = CreateConnection(connString))
             using (var command = sqlConnection.CreateCommand())
             using (var sda = new SqlDataAdapter(command))
             {
@@ -370,7 +370,7 @@ namespace PCTP.ClassSQL
         {
             string value = "";
 
-            using (var connection = new SqlConnection(connectionSTR))
+            using (var connection = CreateConnection(connectionSTR))
             using (var command = new SqlCommand(query, connection))
             {
                 command.CommandType = CommandType.Text;
@@ -689,7 +689,7 @@ namespace PCTP.ClassSQL
         public string WH4ExecuteReader(string connectionSTR, string query)
         {
             var value = "";
-            using (var connection = new SqlConnection(ResolveConnection(connectionSTR)))
+            using (var connection = CreateConnection(connectionSTR))
             using (var command = new SqlCommand(query, connection))
             {
                 connection.Open();
@@ -716,7 +716,7 @@ namespace PCTP.ClassSQL
             var data = new DataSet();
             try
             {
-                using (var connection = new SqlConnection(ResolveConnection(connectionSTR)))
+                using (var connection = CreateConnection(connectionSTR))
                 using (var command = new SqlCommand(query, connection))
                 using (var adapter = new SqlDataAdapter(command))
                 {
@@ -759,7 +759,7 @@ namespace PCTP.ClassSQL
         {
             try
             {
-                using (var connection = new SqlConnection(ResolveConnection(connectionSTR)))
+                using (var connection = CreateConnection(connectionSTR))
                 using (var command = new SqlCommand(query, connection))
                 {
                     AddNamedParameters(command, query, parameter);
@@ -781,7 +781,7 @@ namespace PCTP.ClassSQL
         {
             try
             {
-                using (var connection = new SqlConnection(ResolveConnection(connectionSTR)))
+                using (var connection = CreateConnection(connectionSTR))
                 using (var command = new SqlCommand(query, connection))
                 {
                     AddNamedParameters(command, query, parameter);
