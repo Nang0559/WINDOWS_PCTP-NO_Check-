@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using Xunit;
 
@@ -244,6 +245,21 @@ public sealed class DeliveryQrAllocationSourceContractTests
         Assert.Contains("SlTemHVN = slTem", method);
         Assert.Contains("_repo.InsertFCC(item, DocQRTable)", method);
         Assert.Contains("_repo.UpdateHVN(item, DocQRTable)", method);
+    }
+
+    [Fact]
+    public void HvnLiveFixtures_LeaveTmpLotBlankForTheProductionExactQrAllocator()
+    {
+        var validation = Read("PhieuValidationRepository.source.cs");
+        var singleSeed = Read("delivery-hvn-seed.source.sql");
+        var multiSeed = Read("delivery-hvn-multilot-seed.source.sql");
+        var query = MethodBody(validation, "public DataTable GetDonHangChuaLot(", "public DataTable GetQcDongGoiBatch(");
+        Assert.Contains("WHERE (LOT = '' OR LOT IS NULL)", query);
+        Assert.Contains("KETQUA,'') <> 'DG'", query);
+        Assert.Contains("VALUES (@Stt, @Prefix, @Prefix, @Item, N'QC fixture ' + @Prefix, N''", singleSeed);
+        Assert.Contains("VALUES (@Stt, @Prefix, @Prefix, @ItemA, N'QC fixture ' + @Prefix, N''", multiSeed);
+        Assert.Contains("VALUES (@Stt + 1, @Prefix, @Prefix, @ItemB, N'QC fixture ' + @Prefix, N''", multiSeed);
+        Assert.Contains("VALUES (@Stt + 2, @Prefix, @Prefix, @ItemC, N'QC fixture ' + @Prefix, N''", multiSeed);
     }
 
     [Fact]
