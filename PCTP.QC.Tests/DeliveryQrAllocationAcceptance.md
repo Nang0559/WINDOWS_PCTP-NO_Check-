@@ -194,7 +194,7 @@ FIFO must be an explicit policy, not an accidental consequence of query ordering
 - `NON_FIFO`: do not enforce FIFO ordering. The selected eligible stock/LOT may be used according to the existing authorized selection rule, but the allocation must still be deterministic, quantity-safe, and traceable.
 - The policy must be resolved before any stock mutation. Missing, invalid, or ambiguous policy must fail closed; it must never silently default from a missing configuration value.
 - The selected policy and resolved scope must be visible in the QC execution report. The policy must not be inferred from customer name, UI screen, or whichever LOT happens to be returned first.
-- Configuration must be scoped at least by the business route that sends stock to rework (customer + applicable category/warehouse context), unless the existing approved configuration model explicitly defines a narrower or broader scope. No global default should override a route-specific setting.
+- The existing approved switch is item-level: `FVN_ItemFifoConfig.EnforceFifo` keyed by `ItemCode` (`1` = enforce, `0` = bypass), audited by `UpdatedAt`/`UpdatedBy` and `FVN_ItemFifoConfig_History`. Rework must resolve this same item-level setting for the product on the defect ticket. Do not create a competing customer-level default unless the business owner explicitly approves a new configuration model.
 - Changing FIFO policy during an active allocation/session must not change the policy halfway through that transaction.
 
 ### 11.2 Shared invariants — both FIFO and NON_FIFO
@@ -253,6 +253,12 @@ For each cell, cover: success, insufficient stock, no eligible LOT, wrong item/w
 - DB57: controlled non-production acceptance only, with approved window, schema/procedure comparison, run-scoped seed, and zero-row cleanup report.
 - A source-contract PASS or isolated procedure PASS cannot establish customer E2E PASS. Each matrix cell needs its own evidence and report.
 
-### 11.7 Decisions that must not be guessed
+### 11.7 Source-review finding and decisions that must not be guessed
 
-Before enabling NON_FIFO in production, confirm the approved selection rule (operator-selected LOT, fixed priority, or another existing business rule) and where the policy is maintained (per customer, per category, per warehouse, or per route). Until confirmed, tests may verify fail-closed policy resolution and the FIFO path, but must keep NON_FIFO production activation BLOCKED.
+The branch currently has an item-level switch in `FVN_ItemFifoConfig.EnforceFifo`. `FifoSessionService` uses it for customer delivery: false skips RAM FIFO initialization; true loads stock and builds FIFO-ranked reservations. The existing functional design documents a second DB final validation before CNK.
+
+The current `ReworkStockService.GetLotsCanRework` returns positive STOCKTP/active SlotLot matches ordered by warehouse/rack/slot/LOT, and `XuatKhoRework` accepts a selected `slotLotId`/LOT. The inspected rework service does not resolve `FVN_ItemFifoConfig` or enforce the delivery FIFO rank. Therefore, the existing item switch is **not yet proven to govern rework export**. This is a real integration gap to cover; it is not permission to modify production code in this QC-only pass.
+
+Before a rework FIFO test can be finalized, confirm one business point: when a defect ticket has a specific affected `SoLoLoi`, should FIFO be enforced only among stock rows matching that affected LOT, or may the rework export select older eligible LOTs of the same item outside that affected LOT? The ticket's affected-LOT trace must never be silently lost.
+
+NON_FIFO can use the existing explicit LOT/SlotLot selection only if that is the intended operator workflow. It must still validate item, affected-LOT policy, warehouse, active slot, available STOCKTP quantity, Phase 4 remaining quantity, concurrency, idempotency, rollback, and audit. Until the affected-LOT/FIFO interaction is confirmed and the rework service is wired/tested against the approved item-level switch, mark rework FIFO/NON_FIFO integration BLOCKED.
