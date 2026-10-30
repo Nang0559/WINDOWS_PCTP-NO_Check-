@@ -299,10 +299,17 @@ The authoritative field layout is documented in `docs/PCTP_QR_LOT_FORMAT_CONTRAC
 - HVN Gear is `0`; YMVN Gear is `1=A, 2=B, 3=C, 4=D, 5=E`.
 - FIFO is constrained to the resolved stock LOT. It must not substitute a different LOT.
 
-### QR contract test coverage
+### Operator-confirmed QR fixtures and contract test coverage
 
-`QrLotFormatContractTests` verifies the confirmed offsets, 20-character identity, total-label production parser fields, customer Gear mapping, a synthetic 28-character box-token vector, and rejection of the earlier 22-character box token as a valid fixture.
+The exact confirmed QR pair is:
 
-### Known production integration blocker
+- Total/receiving: `2610300027230077170007512000:2210A-K2C-V000:30/10/2026:2000:2:A010000000059140`
+- Box/issue: `2610300027230077170007520020:2210A-K2C-V000:30/10/2026:20`
 
-The production `QRCodeParser.ParseTachLotQr` still documents a legacy 27-character LOT assumption. The new 28-character / 20-character stock identity contract is not yet proven end-to-end through receiving, box issue, stock persistence, and ledger. The contract tests are not a substitute for that integration. Keep the production parser/SQL unchanged in this QC-only commit; report this as BLOCKED until the business owner confirms the corrected real box QR and authorizes any necessary production-code change.
+Both LOTNO tokens are 28 characters and resolve to the same 20-character stock LOT identity: `26103000272300771700`. The box quantity is 20 from field 4. The sample discrepancy is closed; no further QR sample is required.
+
+`QrLotFormatContractTests` verifies the exact total and box parser fields, matching stock LOT identity, confirmed LOTNO offsets, customer Gear mapping, and malformed LOT-token rejection.
+
+### Remaining production integration blocker
+
+The production `QRCodeParser.ParseTachLotQr` still documents a legacy 27-character LOT assumption and strips only four trailing characters in that branch. The ordinary `ParseQRCode` path parses the four- and six-field envelopes but currently preserves the complete raw LOT token; these contract tests do not prove that receiving, box issue, stock persistence, or ledger paths normalize to the same 20-character stock LOT identity. Keep production parser/SQL unchanged in this QC-only commit. Report this as a production integration blocker until the actual service/repository/SQL path is executed and proven; it is not blocked on missing QR data.
