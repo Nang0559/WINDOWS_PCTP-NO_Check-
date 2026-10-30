@@ -78,11 +78,20 @@ VALUES (@Stt + 2, @Prefix, @Prefix, @ItemC, N'QC fixture ' + @Prefix, N'', N'PCS
     JOIN dbo.TMPPHIEUGIAOHANG t
       ON t.MAHANG = s.PART
      AND t.Note LIKE REPLACE(@Prefix, N'_', N'[_]') + N'%'
-     AND t.LOT LIKE N'%' + RTRIM(s.LOT) + N'-%'
-    CROSS APPLY (SELECT CHARINDEX(RTRIM(s.LOT) + N'-', t.LOT) AS P) p
-    CROSS APPLY (SELECT TRY_CAST(SUBSTRING(t.LOT, p.P + 21,
-                        CHARINDEX(N',', t.LOT + N',', p.P) - (p.P + 21)) AS int) AS Qty) x
+    CROSS APPLY
+    (
+        SELECT CASE
+            WHEN s.PART = @ItemA THEN 10
+            WHEN s.PART = @ItemB AND s.LOT = @LotB1 THEN 6
+            WHEN s.PART = @ItemB AND s.LOT = @LotB2 THEN 4
+            WHEN s.PART = @ItemC AND s.LOT = @LotC1 THEN 3
+            WHEN s.PART = @ItemC AND s.LOT = @LotC2 THEN 3
+            WHEN s.PART = @ItemC AND s.LOT = @LotC3 THEN 2
+            ELSE 0
+        END AS Qty
+    ) x
     WHERE s.PART LIKE REPLACE(@Prefix, N'_', N'[_]') + N'%'
+      AND x.Qty > 0
 ), Q AS (
     SELECT MAX(CASE WHEN rn = 1 THEN Qr END) AS Qr1,
            MAX(CASE WHEN rn = 2 THEN Qr END) AS Qr2,
