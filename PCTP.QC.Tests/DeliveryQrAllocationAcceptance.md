@@ -1,6 +1,6 @@
 # Delivery QR allocation — business acceptance specification
 
-Branch: `feature/pctp-qc-test-platform`
+Branch: `feature/wms-live-data-test-harness`
 
 This specification is the acceptance baseline for duplicate delivery-slip rows and QR-to-STT allocation. It is not evidence that the current implementation passes. Tests must execute the production C# service/repository and the active SQL procedure against an isolated SQL Server fixture.
 
@@ -162,7 +162,7 @@ A customer/category QR test is not complete at parser success. For every configu
 
 - HVN MP sequence: current G6 manifests submit only generated FCC carton QR(s), omit the corresponding customer-label scan, and run final stock/delivery assertions without an explicit completion/CNK UI action. Both manifests are now BLOCKED until the real label format and completion controls are captured.
 - Customer 100003: current G6 manifests do not exercise the six-field combined QR route or its dedicated order/table family.
-- Do not invent the HVN customer-label payload. The current source routes four-field payloads to ScanFCC and non-four-field payloads to ScanHVN, but the actual HVN customer label must be captured from a real approved label before a two-stage fixture is authored.
+- The operator-provided HVN customer-label sample is now recorded below. The current G6 manifests still submit FCC-only scans, so they do not yet exercise the real two-stage MP scan (FCC first, then customer label), completion/CNK, or final SQL state.
 - HVN SP remains a distinct configured route: one FCC scan populates FCC and HVN fields in the SP DOCQR table. It needs its own UI/SQL journey; it must not be represented by the MP fixture.
 
 ### 10.4 Release rule
@@ -180,3 +180,79 @@ With the current .NET `rawQr.Split(':')` call, the FCC sample has 4 elements and
 
 This is parser/routing characterization only. It does not establish that a full live HVN delivery succeeds. G6 remains BLOCKED until the journey pairs the actual FCC and customer-label formats in the required order and exercises the real completion/CNK action plus SQL postconditions.
 
+
+
+## 11. Defect/rework handoff — configurable FIFO policy
+
+This section extends delivery acceptance to the stock handoff used when goods are routed to defect/rework processing. It is a required configuration and test contract; it does not authorize changing production PCTP business code or deployed SQL in this QC-only pass.
+
+### 11.1 Configuration contract
+
+FIFO must be an explicit policy, not an accidental consequence of query ordering:
+
+- `FIFO`: require stock allocation in the configured FIFO order for the selected item/warehouse/stock scope. The allocation must identify the actual source LOT(s), quantities, and ordering evidence.
+- `NON_FIFO`: do not enforce FIFO ordering. The selected eligible stock/LOT may be used according to the existing authorized selection rule, but the allocation must still be deterministic, quantity-safe, and traceable.
+- The policy must be resolved before any stock mutation. Missing, invalid, or ambiguous policy must fail closed; it must never silently default from a missing configuration value.
+- The selected policy and resolved scope must be visible in the QC execution report. The policy must not be inferred from customer name, UI screen, or whichever LOT happens to be returned first.
+- Configuration must be scoped at least by the business route that sends stock to rework (customer + applicable category/warehouse context), unless the existing approved configuration model explicitly defines a narrower or broader scope. No global default should override a route-specific setting.
+- Changing FIFO policy during an active allocation/session must not change the policy halfway through that transaction.
+
+### 11.2 Shared invariants — both FIFO and NON_FIFO
+
+Regardless of policy:
+
+1. Only eligible stock for the requested item, warehouse, and source status may be allocated.
+2. Allocated quantity must equal the requested defect/rework quantity; partial allocation is allowed only where the existing approved business rule explicitly allows it.
+3. No LOT/stock row may be consumed twice by concurrent requests; use the production transaction/locking boundary.
+4. Source LOT and allocated quantity must remain traceable through the rework request, export, receipt/return, and stock ledger.
+5. Stock balances must not become negative; zero/negative requested quantities fail before writes.
+6. A failed validation, cancellation, exception, or partial write must roll back all stock, LOT, request, and ledger changes.
+7. Replay with the same business key must be idempotent; a different request must not inherit an earlier allocation.
+8. FIFO policy affects ordering only. It must not bypass item, warehouse, status, ownership, quantity, or authorization checks.
+9. Delivery completion and rework handoff are distinct state transitions; completing one must not implicitly complete the other.
+10. Cleanup and reports must include every table/ledger touched by the real production path.
+
+### 11.3 FIFO-specific acceptance
+
+- Select the oldest eligible LOT according to the actual production FIFO key; document that key from the production query/schema rather than assuming date or LOT lexical order.
+- When the oldest LOT is insufficient, continue to the next eligible LOT(s) in FIFO order until the requested quantity is met, subject to the approved partial-allocation rule.
+- Exclude blocked, quarantined, already-consumed, wrong-warehouse, wrong-item, and otherwise ineligible stock before ordering.
+- Persist the exact LOT-to-quantity breakdown; the total must reconcile to the rework request and stock ledger.
+- Concurrent handoffs must not allocate the same FIFO quantity twice.
+
+### 11.4 NON_FIFO-specific acceptance
+
+- Do not assert that the oldest LOT is selected.
+- Assert instead that the selected LOT(s) are eligible, belong to the requested item/warehouse, and cover the requested quantity exactly.
+- The selection mechanism must be explicit and reproducible (for example, operator-selected LOTs if that is the existing approved UX); do not silently substitute unordered SQL result order for an approved selection rule.
+- Persist the same LOT-to-quantity trace and ledger reconciliation required by FIFO mode.
+- Test that toggling NON_FIFO does not disable stock validation, concurrency protection, rollback, idempotency, or audit history.
+
+### 11.5 Required cross-product test matrix
+
+Run each applicable customer/category route under both FIFO policies. A route is not covered merely because another customer uses the same table names or QR parser.
+
+| Customer / route | Delivery type to cover | FIFO | NON_FIFO | Additional route-specific proof |
+|---|---|---|---|---|
+| HVN 100001 | MP | Required | Required | FCC then customer label; duplicate check on HVN element 0; item element 1; quantity element 3; exact TMP/DOCQR pair; completion/CNK |
+| HVN 100001 | SP | Required | Required | Single FCC scan populates FCC/HVN fields; SP table pair |
+| HVN 100001 | O-type | Required | Required | O-type session/category isolation and its actual MP/SP table family |
+| Honda Trading 100003 | Date-based combined QR | Required | Required | Six-field parser route, dedicated order/table family, date and quantity reconciliation |
+| YMVN 100002 | MP / Gear | Required | Required | Dedicated YMVN QR parser, Gear/hour context, YMVN take-LOT procedure |
+| YMVN 100002 | SP / Gear | Required | Required | Dedicated SP table family and YMVN procedure contract; retain operator-confirmed working behavior |
+| Any additional configured customer | Every configured category/type | Required | Required | Discover from live CustomerTableConfig; unknown config must fail closed |
+
+For each cell, cover: success, insufficient stock, no eligible LOT, wrong item/warehouse, duplicate/replay, concurrent allocation, exception after first write, cancellation, policy change during active session, and cleanup. Where a mode is not supported by an existing approved route, record it as NOT APPLICABLE with the exact configuration/source evidence; do not mark it PASS by omission.
+
+### 11.6 Evidence and release gate
+
+- Unit tests: policy resolution, FIFO ordering, NON_FIFO selection contract, exact quantity, invalid/missing config.
+- Production C# integration: execute the actual delivery/rework services and repositories with real SQL repositories; mocks alone are not acceptance evidence.
+- SQL integration: run the actual deployed-equivalent procedures on isolated SQL Server 2022; assert before/after stock, LOT, ledger, request, and status rows.
+- UI: exercise the actual customer/category route, policy selection/config display, delivery completion, and defect/rework handoff.
+- DB57: controlled non-production acceptance only, with approved window, schema/procedure comparison, run-scoped seed, and zero-row cleanup report.
+- A source-contract PASS or isolated procedure PASS cannot establish customer E2E PASS. Each matrix cell needs its own evidence and report.
+
+### 11.7 Decisions that must not be guessed
+
+Before enabling NON_FIFO in production, confirm the approved selection rule (operator-selected LOT, fixed priority, or another existing business rule) and where the policy is maintained (per customer, per category, per warehouse, or per route). Until confirmed, tests may verify fail-closed policy resolution and the FIFO path, but must keep NON_FIFO production activation BLOCKED.
