@@ -1,6 +1,6 @@
 name: PCTP schema 5-run pipeline
 
-on:
+'on':
   push:
     paths:
       - '.github/workflows/pctp-schema-5-runs.yml'
