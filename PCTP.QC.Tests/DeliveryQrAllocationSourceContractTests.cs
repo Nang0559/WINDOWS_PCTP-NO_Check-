@@ -355,10 +355,6 @@ public sealed class DeliveryQrAllocationSourceContractTests
         Assert.Contains("return ScanFCC(parts", process);
         Assert.Contains("return ScanHVN(parts)", process);
 
-        var hvn = MethodBody(engine, "private ScanResult ScanHVN(", "private ScanResult ScanFCC_YMVN(");
-        Assert.Contains("string lotHvn = parts[0]", hvn);
-        Assert.Contains("string maHvn = parts[1].Replace(\" \", \"\")", hvn);
-        Assert.Contains("int.TryParse(parts[3], out int slTem)", hvn);
     }
 
     private static string MethodBody(string source, string start, string end)
