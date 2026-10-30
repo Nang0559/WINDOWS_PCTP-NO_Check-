@@ -52,3 +52,17 @@ Mỗi journey theo thứ tự: `sql-seed` -> thao tác UI thật -> `sql-assert`
 - Thiếu khóa cleanup an toàn hoặc thiếu runtime evidence => BLOCKED, không được nâng trạng thái.
 
 Chạy live acceptance trên DB57 từ workflow `.github/workflows/pctp-db57-acceptance.yml` với cả hai xác nhận ghi DB57 và cleanup. Không chạy workflow này khi target chưa được kiểm tra.
+
+
+## QR LOT format baseline (operator-confirmed 2026-10-30)
+
+The production QR LOT field layout and test contract are defined in `docs/PCTP_QR_LOT_FORMAT_CONTRACT.md`:
+
+- Total label (6 colon fields) is used for receiving.
+- Box label (4 colon fields) is used for issue/delivery.
+- LOTNO token has 28 characters: date 6 + product 5 + shift 1 + Gear 1 + line 3 + department 4 + daily label sequence 4 + embedded quantity 4.
+- Stock LOT identity is the first 20 characters only. Label sequence and embedded quantity do not create a separate stock LOT.
+- HVN Gear = `0`; YMVN Gear = `1..5` mapped to A..E.
+- Box quantity is taken from the box QR's fourth field.
+
+**Acceptance remains BLOCKED for real box-label E2E:** the earlier example token is only 22 characters and does not match the confirmed layout. A corrected real box QR is required; do not synthesize or auto-correct a live barcode. The production `ParseTachLotQr` legacy 27-character assumption also remains an integration item. Contract/unit tests do not prove stock/ledger E2E.
