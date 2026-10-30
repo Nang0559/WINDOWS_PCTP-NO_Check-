@@ -1,20 +1,91 @@
-# Trạng thái 6 Gate — bằng chứng thực tế
+# Trạng thái 6 Gate — canonical gate mapping và evidence
 
-Nguyên tắc: Gate chỉ PASS khi có log chạy thật gắn với commit trong `artifacts\gates\<commit>\<Gate>\gate-summary.json`.
-Bảng dưới tách rõ **bằng chứng đã có** và **việc đã vá nhưng chưa chạy thật**.
+> **Nguồn định nghĩa duy nhất của G1–G6:** `PCTP/Workflow/Diagram/WMS_RELEASE_GATE.md`.
+> File này là dashboard/evidence index, không được tự định nghĩa lại ý nghĩa gate.
 
-Commit nền của bản vá này: `9bcf9c9`. Bằng chứng thật mới nhất (G2/G3/G4/G5) thuộc commit `9bcf9c9`, chạy ngày 2026-10-24 (xem bảng). Mọi thay đổi sau commit này cần chạy lại Gate trước khi công bố.
+## 1. Quy ước bắt buộc
 
-| Gate | Trạng thái | Bằng chứng / việc còn lại |
+`WMS_RELEASE_GATE.md` định nghĩa G1–G6 như sau:
+
+| Gate | Định nghĩa canonical | Không được dùng để thay thế |
 |---|---|---|
-| G1 | **FAIL (còn gap)** | Trước bản vá: 126 gap trên `9bcf9c9` (phân tích tĩnh). Sau bản vá tài liệu `TRANSACTION_BOUNDARIES.md` (mục "G1 repository transaction contracts") và phân loại `DELEGATES` trong `Build-TraceabilityMatrix.py`: **105 gap** (đo tĩnh ngoài máy Windows, chưa chạy lại bằng `-Gate G1` trên máy bạn). Còn lại: ~71 dòng thiếu test, 4 dòng chỉ có test giả, và các dòng ma trận/SQL script planned hoặc không tham chiếu. 6 finding F1-F6 đã có bản vá code (xem `TRANSACTION_BOUNDARIES.md`), test hợp đồng nguồn (G2) và scenario `InTransaction` (G3); đo tĩnh sau vá: gap `transaction-boundary(NONE)` của `TableOrderRepo` biến mất, các dòng khác chuyển từ `test` sang `sql-test(only-fakes)`; chưa chạy lại Gate trên máy Windows. PASS khi `gaps = 0` |
-| G2 | **PASS** (commit `9bcf9c9`) | `artifacts\gates\9bcf9c9\G2`: 225/225 pass, 0 fail, 0 skipped, có `.trx`, working tree sạch |
-| G3 | **PASS (phạm vi tempdb/fixture)** (commit `9bcf9c9`) | `artifacts\gates\9bcf9c9\G3`: preflight + toàn bộ scenario PASS, SQL 57 / `B7R2_FCC`, chỉ bảng tạm, working tree sạch |
-| G4 | **PASS (commit `9bcf9c9`)** | `artifacts\gates\9bcf9c9\G4`: preflight PASS, DEL-003/DEL-004/DEL-007 PASS trên `Usp_Qrcode_Update_Stock2405` thật (STT 32001, mọi ghi đều rollback), working tree sạch. Không phủ `PhieuKhoRepository` end-to-end. Sau khi chạy xong phải chạy `SQL\QC_G4_DeliveryFixture_Cleanup.sql` (cả hai cột phải = 0) |
-| G5 | **FAIL / chưa hoàn tất (commit `9bcf9c9`)** | Journey `receive-navigation` fail ở bước `receiving-screen-visible`: sau khi bấm menu "Nhập thành phẩm - QR", tiến trình PCTP thoát với exit code 0 trước khi thấy cửa sổ "Quản lý tiến trình Nhập kho" (45 s). Chưa có `gate-summary.json` và các journey còn lại chưa chạy xong. Chưa rõ nguyên nhân: cần `PCTP\bin\Debug\qc-ui-bridge.log`, Event Viewer, và kết quả bấm tay không bridge; build lại Debug đúng commit trước khi chạy lại |
-| G6 | **Có khung chạy, chưa có journey nghiệp vụ** | Runner có `sql-seed` / `sql-assert` / `sql-cleanup` (cleanup luôn chạy trong `finally`, kiểm tra `Remaining = 0`). `g6-selftest` kiểm cơ chế bằng bảng `#temp`. 4 journey nghiệp vụ là **khung chưa cấu hình** (`"configured": false`) nên Gate trả `BLOCKED/FAIL`, không thể PASS giả. Cần seed SQL theo schema thật + AutomationId thao tác UI (xem `journeys\g6\README.md`) |
+| G1 | Traceability/source ownership: requirement → code → SQL → transaction → test → evidence; gap phải được phân loại và đóng hoặc exception được duyệt | Chỉ có danh sách file/test |
+| G2 | Unit/regression trên đúng candidate SHA, gồm production project compile items | Build/test ở SHA khác |
+| G3 | SQL engine integration bằng implementation/repository code trên SQL Server cô lập, có assertions và rollback | Seed/protocol-only test |
+| G4 | Production-like schema/procedure compatibility trên DB cô lập, rollback-only | Static schema inspection |
+| G5 | **Hai session đồng thời** trên business key/quota dùng chung, serialization + rollback injection | Một session, UI navigation hoặc receiving journey |
+| G6 | Full business E2E: **UI thật → DB/ledger/history assertions → cleanup**, gồm delivery và reconciliation | Self-test, worklist, seed, build hoặc manifest tồn tại |
 
-Ghi chú G3: log của chính nó nêu rõ các phần còn lại là SP thật trên bản sao schema cô lập, `PhieuKhoRepository` đầy đủ và journey UI nghiệp vụ.
+### Quan trọng: số G5/G6 trong các script cũ không phải gate definition
 
-## CI cô lập (G3-G6)
-Xem `docs/CI_ISOLATION.md`. G4 trong CI kiểm tra procedure dựng từ source của commit đang test trên SQL Server container tạm; kết quả FAIL trên DB57 không chứng minh source thiếu marker. G5/G6 chạy trên DB fixture cục bộ qua `-Isolated`; journey G6 chưa cấu hình trả `BLOCKED`.
+Một số script/runbook lịch sử dùng mã G3–G6 cho các **execution phase** khác với gate canonical. Ví dụ một execution script có thể gọi journey nhập kho là “G5”. Điều đó **không có nghĩa canonical G5 là nhập kho**.
+
+Trong tài liệu/test case mới:
+
+- `Gate=G5` chỉ dùng cho concurrency two-session.
+- `Gate=G6` dùng cho business E2E.
+- Receiving, pickup, direct-A0, MP/SP, defect và replacement đều là **scenario thuộc G6**, không tạo gate mới.
+- Mọi mã `G7-*` cũ được xem là **legacy scenario naming** và không được dùng để suy ra một gate thứ bảy.
+
+## 2. Evidence status hiện tại
+
+| Gate | Status | Evidence / remaining |
+|---|---|---|
+| G1 | **FAIL / OPEN** | Candidate-SHA traceability artifact từ CI run `40910630446`, SHA `b1a807fbdcef599c734b8a8e77d7f12dbfd5a4c3`: 145 code rows, 99 code rows có gap, 68 SQL scripts, 229 gaps. Đây là static evidence; chưa phải PASS. |
+| G2 | **PASS LIMITED** | CI run `40910630446` thành công cho unit/regression và runner checks. Full WinForms production build trên exact candidate SHA vẫn cần evidence riêng trước khi gọi G2 đầy đủ. |
+| G3 | **PASS LIMITED — CI isolated SQL** | CI disposable SQL Server đã chạy thành công. Không được coi đây là live DB57 evidence. |
+| G4 | **PASS LIMITED — CI rollback/schema scope** | CI schema/procedure compatibility scope đã xanh trong database cô lập. Chưa thay thế representative DBA/live acceptance nếu gate yêu cầu thêm. |
+| G5 | **OPEN / NOT VERIFIED** | Chưa có evidence canonical two-session shared-key/quota + no-double-consumption + injected rollback cho candidate SHA hiện tại. |
+| G6 | **BLOCKED / NOT VERIFIED** | Receive và delivery single/multi-LOT đã có UI automation source, nhưng chưa có live Windows + DB57 evidence. QC direction/final vẫn chưa configured. Pickup/A0, MP/SP, defect/replacement chưa có complete runtime journeys. |
+
+## 3. CI allow-list status
+
+Workflow `.github/workflows/pctp-qc-tests.yml` đã allow-list:
+
+`pctp-db57-source-order-harness.yml`
+
+và vẫn giữ hai điều kiện an toàn:
+
+1. live workflow phải `workflow_dispatch` và không được tự chạy bởi `push`/`pull_request`;
+2. isolation guard của CI disposable SQL job tiếp tục loại workflow được allow-list khỏi static live-secret scan nhưng **không** tắt guard của chính live workflow.
+
+CI run `40910630446` đã chạy thành công sau thay đổi này. Vì vậy lỗi allow-list của run `40876969690` là **đã được sửa**, không còn là blocker hiện tại.
+
+## 4. Traceability numbers — không copy số giữa các SHA
+
+`docs/TRACEABILITY_MATRIX.md`, `PCTP.QC.UI/G1-gaps.csv` và CI artifact có thể được sinh ở các SHA khác nhau. Do đó các số như 105, 208 hoặc 229 **không được cộng/trộn hoặc xem là cùng một snapshot**.
+
+Canonical rule:
+
+> Mỗi candidate SHA phải sinh lại `gate-summary.json` và `gaps.csv`; report phải ghi đúng SHA và run ID. Chỉ artifact của đúng candidate mới được dùng để quyết định G1.
+
+CI hiện đã có step `Regenerate G1 traceability matrix` và upload artifact `pctp-g1-traceability-evidence`.
+
+## 5. TestCaseId convention
+
+Các testcase business dùng mã ổn định trong `PCTP/Workflow/Diagram/WMS_TEST_CASE_CATALOG.md`.
+
+- `G1-*`: traceability
+- `G2-*`: unit/regression/build
+- `G3-*`: isolated SQL implementation integration
+- `G4-*`: production-like schema/procedure compatibility
+- `G5-*`: two-session concurrency
+- `G6-REC-*`: receiving E2E
+- `G6-PICK-*`: slot → staging/A0 → delivery
+- `G6-A0-*`: direct A0 → delivery
+- `G6-MP-*`: MP/SP + label/configuration
+- `G6-DEF-*`: internal/customer defect
+- `G6-REP-*`: replacement/giao bù
+- `G6-RECNC-*`: final reconciliation/cleanup
+
+`G7-*` không còn là gate/scenario ID chuẩn.
+
+## 6. Rule cập nhật
+
+Khi có run mới:
+
+1. ghi exact candidate SHA;
+2. ghi workflow run ID;
+3. cập nhật evidence link/artifact;
+4. không chuyển status chỉ vì source file đã tồn tại;
+5. nếu G5/G6 thiếu runtime evidence, giữ `OPEN`/`BLOCKED`.
