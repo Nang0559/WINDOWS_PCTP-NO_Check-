@@ -3,6 +3,8 @@
 > **Nguồn định nghĩa duy nhất của G1–G6:** `PCTP/Workflow/Diagram/WMS_RELEASE_GATE.md`.
 > File này là dashboard/evidence index, không được tự định nghĩa lại ý nghĩa gate.
 
+> **Evidence snapshot note:** các run/SHA bên dưới là evidence lịch sử được ghi đúng theo candidate đã chạy. Sau các commit tài liệu mới, không được gọi chúng là evidence của branch HEAD hiện tại nếu chưa rerun.
+
 ## 1. Quy ước bắt buộc
 
 `WMS_RELEASE_GATE.md` định nghĩa G1–G6 như sau:
@@ -26,8 +28,9 @@ Trong tài liệu/test case mới:
 - `Gate=G6` dùng cho business E2E.
 - Receiving, pickup, direct-A0, MP/SP, defect và replacement đều là **scenario thuộc G6**, không tạo gate mới.
 - Mọi mã `G7-*` cũ được xem là **legacy scenario naming** và không được dùng để suy ra một gate thứ bảy.
+- Chi tiết quy đổi G7 legacy → G6 TestCaseId nằm trong `PCTP/Workflow/Diagram/WMS_DOCUMENTATION_NORMATIVE_AMENDMENT_2026-10-30.md`.
 
-## 2. Evidence status hiện tại
+## 2. Evidence status — snapshot lịch sử, không phải HEAD hiện tại
 
 | Gate | Status | Evidence / remaining |
 |---|---|---|
@@ -35,7 +38,7 @@ Trong tài liệu/test case mới:
 | G2 | **PASS LIMITED** | CI run `40910630446` thành công cho unit/regression và runner checks. Full WinForms production build trên exact candidate SHA vẫn cần evidence riêng trước khi gọi G2 đầy đủ. |
 | G3 | **PASS LIMITED — CI isolated SQL** | CI disposable SQL Server đã chạy thành công. Không được coi đây là live DB57 evidence. |
 | G4 | **PASS LIMITED — CI rollback/schema scope** | CI schema/procedure compatibility scope đã xanh trong database cô lập. Chưa thay thế representative DBA/live acceptance nếu gate yêu cầu thêm. |
-| G5 | **OPEN / NOT VERIFIED** | Chưa có evidence canonical two-session shared-key/quota + no-double-consumption + injected rollback cho candidate SHA hiện tại. |
+| G5 | **OPEN / NOT VERIFIED** | Chưa có evidence canonical two-session shared-key/quota + no-double-consumption + injected rollback cho candidate SHA hiện tại của snapshot. |
 | G6 | **BLOCKED / NOT VERIFIED** | Receive và delivery single/multi-LOT đã có UI automation source, nhưng chưa có live Windows + DB57 evidence. QC direction/final vẫn chưa configured. Pickup/A0, MP/SP, defect/replacement chưa có complete runtime journeys. |
 
 ## 3. CI allow-list status
@@ -49,7 +52,7 @@ và vẫn giữ hai điều kiện an toàn:
 1. live workflow phải `workflow_dispatch` và không được tự chạy bởi `push`/`pull_request`;
 2. isolation guard của CI disposable SQL job tiếp tục loại workflow được allow-list khỏi static live-secret scan nhưng **không** tắt guard của chính live workflow.
 
-CI run `40910630446` đã chạy thành công sau thay đổi này. Vì vậy lỗi allow-list của run `40876969690` là **đã được sửa**, không còn là blocker hiện tại.
+CI run `40910630446` đã chạy thành công sau thay đổi này. Vì vậy lỗi allow-list của run `40876969690` là **đã được sửa**, không còn là blocker hiện tại của snapshot đó.
 
 ## 4. Traceability numbers — không copy số giữa các SHA
 
@@ -73,7 +76,10 @@ Các testcase business dùng mã ổn định trong `PCTP/Workflow/Diagram/WMS_T
 - `G6-REC-*`: receiving E2E
 - `G6-PICK-*`: slot → staging/A0 → delivery
 - `G6-A0-*`: direct A0 → delivery
-- `G6-MP-*`: MP/SP + label/configuration
+- `G6-MP-*`, `G6-SP-*`: MP/SP + label/configuration
+- `G6-CFG-*`: CustomerTableConfig behavior
+- `G6-FIFO-*`: FIFO/multi-LOT/partial-LOT
+- `G6-QC-*`: QC direction/final QC
 - `G6-DEF-*`: internal/customer defect
 - `G6-REP-*`: replacement/giao bù
 - `G6-RECNC-*`: final reconciliation/cleanup
@@ -88,4 +94,5 @@ Khi có run mới:
 2. ghi workflow run ID;
 3. cập nhật evidence link/artifact;
 4. không chuyển status chỉ vì source file đã tồn tại;
-5. nếu G5/G6 thiếu runtime evidence, giữ `OPEN`/`BLOCKED`.
+5. nếu G5/G6 thiếu runtime evidence, giữ `OPEN`/`BLOCKED`;
+6. nếu branch HEAD đã thay đổi sau run, không gán evidence cũ cho HEAD mới.
