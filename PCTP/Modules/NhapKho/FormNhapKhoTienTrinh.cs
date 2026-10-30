@@ -5,6 +5,7 @@ using DevExpress.XtraGrid.Views.Grid;
 using PCTP.ClassSQL;
 using PCTP.Modules.KhoVatLy;
 using PCTP.Modules.NhapKho.Interfaces;
+using PCTP.Shared.Helpers;
 using PCTP.Shared.Models;
 using PCTP.UserControls;
 
@@ -34,6 +35,10 @@ namespace PCTP.Modules.NhapKho
         // ★ Danh sách chờ nhập: nạp 1 LẦN ở đây, truyền nguyên instance sang FormEnterItemSV.
         private readonly ReceivingWorklist _worklist;
 
+        // Wait form (SplashScreenManager) hiện khi chuyển bước / làm mới / mở màn hình quét nhập.
+        private readonly IWaitFormService _waitForm;
+        private int _waitDepth;   // chống mở lồng wait form (SplashScreenManager chỉ cho 1 form tại một thời điểm)
+
         public FormNhapKhoTienTrinh(MainStockSV mainStockForm, IWarehouseDashboardService dashboardService)
         {
             _mainStockForm = mainStockForm
@@ -46,9 +51,36 @@ namespace PCTP.Modules.NhapKho
             var nhapTpService = NhapTpModuleFactory.Build().NhapTpService;
             _worklist = new ReceivingWorklist(() => nhapTpService.GetPhieuChoNhap());
 
+            _waitForm = new WaitFormService(this);
+
+            // Trong constructor form CHƯA hiển thị → RunWithWait tự chạy thẳng (không bật wait form lên form chưa hiện).
+            // Wait form lúc mở được bật bởi WarehouseProcessNavigator.OpenNhapKhoTienTrinh (bọc quanh việc tạo form).
             BuildUI();
             RefreshBadges();
             SetActiveStep(1);
+        }
+
+        /// <summary>
+        /// Chạy <paramref name="work"/> (trên UI thread) trong lúc hiện wait form. Chạy thẳng, không bật wait form khi:
+        /// đang có wait form khác (gọi lồng), form chưa hiển thị (constructor) hoặc đã đóng.
+        /// </summary>
+        private void RunWithWait(string caption, Action work)
+        {
+            if (_waitDepth > 0 || IsDisposed || !IsHandleCreated || !Visible)
+            {
+                work();
+                return;
+            }
+
+            _waitDepth++;
+            try
+            {
+                _waitForm.Run(work, caption);
+            }
+            finally
+            {
+                _waitDepth--;
+            }
         }
 
         private void BuildUI()
@@ -156,6 +188,16 @@ namespace PCTP.Modules.NhapKho
         }
 
         private void RefreshDataByActiveStep(bool forceReload = false)
+        {
+            string caption =
+                _activeStep == 1 ? "Đang tải phiếu SX chờ nhập..." :
+                _activeStep == 2 ? "Đang tải danh sách đã nhập hôm nay..." :
+                                   "Đang đối chiếu lệch A0/Slot...";
+
+            RunWithWait(caption, () => LoadActiveStep(forceReload));
+        }
+
+        private void LoadActiveStep(bool forceReload)
         {
             switch (_activeStep)
             {
@@ -271,12 +313,22 @@ namespace PCTP.Modules.NhapKho
         {
             // Truyền CHÍNH worklist đang hiển thị: form quét chỉ cho nhập các dòng có trong grid này
             // và cập nhật SL ngay trên grid này — không nạp lại dữ liệu lần 2.
-            using (var f = new FormEnterItemSV(_mainStockForm, _worklist))
-                f.ShowDialog(this);
+            // Wait form chỉ bao quanh việc dựng form quét; phải đóng TRƯỚC khi ShowDialog (không để wait form chồng lên modal).
+            FormEnterItemSV scanForm = null;
+            RunWithWait("Đang mở màn hình quét nhập...", () =>
+            {
+                scanForm = new FormEnterItemSV(_mainStockForm, _worklist);
+            });
 
-            RefreshBadges();
+            using (scanForm)
+                scanForm.ShowDialog(this);
+
             // Quét xong: nạp lại từ DB để dòng đã nhập đủ biến mất khỏi danh sách chờ.
-            RefreshDataByActiveStep(true);
+            RunWithWait("Đang cập nhật tiến trình nhập kho...", () =>
+            {
+                RefreshBadges();
+                RefreshDataByActiveStep(true);
+            });
         }
     }
 }

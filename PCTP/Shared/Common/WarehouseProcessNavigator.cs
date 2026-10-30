@@ -50,8 +50,23 @@ namespace PCTP.Common
         public static void OpenNhapKhoTienTrinh(IWin32Window owner, MainStockSV mainStock)
         {
             if (mainStock == null) throw new ArgumentNullException(nameof(mainStock));
-            var module = MainStockModuleFactory.Build();
-            using (var f = new FormNhapKhoTienTrinh(mainStock, module.DashboardService))
+
+            FormNhapKhoTienTrinh f = null;
+            Action build = () =>
+            {
+                var module = MainStockModuleFactory.Build();
+                f = new FormNhapKhoTienTrinh(mainStock, module.DashboardService);
+            };
+
+            // Dựng form tiến trình = nạp 3 badge + danh sách chờ nhập → hiện wait form nếu form gọi đang hiển thị.
+            // Wait form đóng xong mới ShowDialog.
+            var ownerForm = owner as Form;
+            if (ownerForm != null && ownerForm.Visible && !ownerForm.IsDisposed)
+                new PCTP.Shared.Helpers.WaitFormService(ownerForm).Run(build, "Đang mở màn hình tiến trình nhập kho...");
+            else
+                build();
+
+            using (f)
                 f.ShowDialog(owner);
         }
 

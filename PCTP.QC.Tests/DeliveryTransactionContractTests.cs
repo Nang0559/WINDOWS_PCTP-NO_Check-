@@ -203,6 +203,22 @@ public sealed class DeliveryTransactionContractTests
     }
 
     [Fact]
+    public void ReceivingProgressForm_ShowsWaitFormWhenSwitchingStepsAndOpeningScan()
+    {
+        var form = ReadSource("FormNhapKhoTienTrinh.source.cs");
+        var navigator = ReadSource("WarehouseProcessNavigator.source.cs");
+
+        Assert.Contains("new WaitFormService(this)", form);
+        // chuyển bước 1/2/3 và Làm mới đều đi qua RefreshDataByActiveStep → wait form
+        Assert.Contains("RunWithWait(caption, () => LoadActiveStep(forceReload));", form);
+        Assert.Contains("RunWithWait(\"Đang mở màn hình quét nhập...\"", form);
+        // không bật wait form lồng nhau / lên form chưa hiển thị
+        Assert.Contains("_waitDepth > 0", form);
+        Assert.Contains("!Visible", form);
+        Assert.Contains("new PCTP.Shared.Helpers.WaitFormService(ownerForm).Run(build,", navigator);
+    }
+
+    [Fact]
     public void Receiving_DoesNotSendLotPlusPhieuAsProductionCase()
     {
         var service = ReadSource("NhapTpReceivingService.source.cs");
