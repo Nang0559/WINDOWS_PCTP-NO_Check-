@@ -2,6 +2,7 @@
 using DevExpress.XtraEditors;
 using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.Data;
 using Oracle.ManagedDataAccess.Client;
 using System.Data.SqlClient;
@@ -19,8 +20,24 @@ namespace PCTP.ClassSQL
         // CONNECTION STRINGS
         // ⚠ B7R2_FCCdb và B7R2_FCCdbb hiện trỏ CÙNG server + CÙNG catalog
         // (192.168.200.57 / B7R2_FCC) — KHÔNG phải 2 DB khác nhau, chỉ là 2 tên
-        public string B7R2_FCCdb = QcSqlOverride.Resolve(@"Data Source=192.168.200.57;Initial Catalog=B7R2_FCC;User ID=sa;Password=fccbrv");
-        public string B7R2_FCCdbb = QcSqlOverride.Resolve(@"Data Source=192.168.200.57;Initial Catalog=B7R2_FCC;User ID=sa;Password=fccbrv");
+        public string B7R2_FCCdb = GetConfiguredConnection("B7R2_FCCdb");
+        public string B7R2_FCCdbb = GetConfiguredConnection("B7R2_FCCdbb");
+
+        /// <summary>
+        /// Reads the connection string from the external PCTP.Database.config file.
+        /// QcSqlOverride remains the final gate for isolated CI fixture redirection.
+        /// </summary>
+        private static string GetConfiguredConnection(string key)
+        {
+            var configured = ConfigurationManager.AppSettings[key];
+            if (string.IsNullOrWhiteSpace(configured))
+            {
+                throw new InvalidOperationException(
+                    "Missing database setting '" + key + "'. Check PCTP.Database.config next to PCTP.exe.");
+            }
+
+            return QcSqlOverride.Resolve(configured);
+        }
         // lịch sử còn sót lại. Giữ cả 2 vì nhiều repository tham chiếu theo tên
         // cũ; đổi tên sẽ vỡ build hàng loạt.
         // ════════════════════════════════════════════════════════════════════
