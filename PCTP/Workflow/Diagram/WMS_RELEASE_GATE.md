@@ -1,155 +1,142 @@
 # WMS — AUTHORITATIVE RELEASE GATE / END-TO-END ACCEPTANCE CONTRACT
 
-> **Status: NOT READY / BLOCKED**  
-> Branch: `feature/wms-end-to-end-consistency`  
-> Gate owner: this document. `WMS_OVERALL_STATUS.md` is the operational dashboard and MUST use the same G1–G6 definitions below.  
-> Last source-review baseline: `fe73e91cf25737def51a85ab0642723e5711085f` (2026-10-26).  
-> CI run `40254095397`: SUCCESS, but workflow payload reports `head_sha=20de3005dca50f2fbcefe6698ba434d1095fdae8`; PR metadata references head `fe73e91…`. Treat as **not verified on the current code SHA** until a run explicitly reports that SHA.
+> **Canonical scope:** this file defines the meaning of G1–G6 only. It is **not** the execution ledger and must not contain status copied from another branch or old candidate SHA.
+>
+> **Current branch:** `feature/wms-live-data-test-harness`
+> **Current documentation baseline:** `3556cfc3729b7c776bdc09a91b4e5786f93d8475` (2026-10-30)
+> **Gate owner:** this document. `WMS_TEST_EXECUTION_STATUS.md` is the evidence/status ledger and MUST reference an exact candidate SHA + workflow run/artifact.
 
-No PASS may be inferred from class existence, source-contract tests, SQL-engine tests, or a successful build alone.
+No PASS may be inferred from class existence, source-contract tests, SQL seed success, isolated build success, or a UI runner build alone.
 
 ## 1. Canonical gate matrix
 
-| Gate | Single definition | Current |
+| Gate | Single authoritative definition | Required evidence boundary |
 |---|---|---|
-| G1 | Traceability/source ownership: requirement → code → SQL → transaction → test → evidence; all gaps classified and closed or approved exceptions | 🔴 OPEN — regenerated matrix (`docs/TRACEABILITY_MATRIX.md`, `PCTP.QC.UI/G1-gaps.csv`): 88 code rows (66 GAP), 17 SQL scripts, 22 non-implemented TestMatrix rows, 105 gaps. Classified in `docs/G1_GAP_TRIAGE.md`; owners/exceptions not yet assigned. A COMPLETE row means "referenced by a test", not "behaviour verified" (see triage §2) |
-| G2 | Unit/regression tests on exact candidate SHA, including production project compile items | 🟡 Last green baseline `a41d5df…`; current candidate `bb15a60…` CI CANCELLED (runs `40264579206`, `40264584779`); full WinForms build NOT VERIFIED |
-| G3 | SQL engine integration using implementation/repository code, isolated SQL Server, data assertions and rollback | 🟡 PASS LIMITED historically; does not prove representative DBA schema or full workflow rollback |
-| G4 | Representative production-like schema/procedure compatibility on isolated, rollback-only database | 🔴 BLOCKED — no current evidence; schema-from-Git inputs checked statically only (`docs/G4_SCHEMA_FROM_GIT.md`) |
-| G5 | Two-session SQL concurrency for shared business keys/quotas, including lock serialization and injected rollback | 🔴 OPEN — no SQL two-session evidence |
-| G6 | Full business E2E: real UI journey → DB/ledger/history assertions → cleanup, including delivery and reconciliation | 🔴 OPEN — UI runner build alone is not a business journey |
+| **G1** | Traceability/source ownership: requirement → design → code → SQL/procedure → transaction → TestCaseId → evidence; every gap has disposition | Exact candidate SHA, regenerated matrix, gap disposition/owner/approved exception, evidence links |
+| **G2** | Unit/regression tests on the exact candidate SHA, including required production project compile items | Exact-SHA test result and production build evidence |
+| **G3** | SQL-engine integration using implementation/repository code against an isolated SQL Server, with assertions and rollback | Code path executed, postconditions asserted, rollback verified; disposable CI DB only |
+| **G4** | Production-like schema/procedure compatibility on an isolated rollback-only database | Representative schema/procedure compatibility evidence; no production write |
+| **G5** | **Two-session concurrency** on shared business keys/quotas, including lock serialization, no-double-consumption and injected rollback | Two independent sessions, before/after assertions, lock/serialization evidence, rollback evidence |
+| **G6** | **Full business E2E:** real UI/procedure → real business mutation → DB/ledger/history assertions → reconciliation → cleanup | Live journey evidence on approved DB57 target, exact SHA/run, assertions and verified cleanup |
 
-**Release rule:** keep PR #3 Draft and release RED while any P0 blocker or G4/G5/G6 is open.
+### 1.1 Gate ownership rules
 
-### 1.1 Candidate `1300e22` — CI findings and fixes (unverified until rerun)
+1. G1–G6 are **gates**, not workflow phase names.
+2. Receiving, pickup, direct-A0 delivery, MP/SP, defect and replacement are **G6 scenarios**; they do not create new gates.
+3. `G7`, `G7-A`, `G7-B` are retired legacy scenario names. New documents and artifacts MUST NOT create `G7-*` IDs. Use `G6-REC-*`, `G6-PICK-*`, `G6-A0-*` as defined by the crosswalk.
+4. If an execution script uses a different numeric phase label, that label is navigation only and does not redefine G1–G6.
+5. A gate can be `PASS` only when its required evidence boundary is satisfied on the same candidate SHA. Historical evidence from another SHA is never inherited.
 
-CI on `1300e22` FAILED (run `40268627593`). Root causes found by source review, fixes in the follow-up patch; **none is a PASS until a run reports the new SHA**:
+## 2. Canonical TestCaseId families
 
-| Job | Failure | Root cause | Fix |
-|---|---|---|---|
-| unit-regression-tests | `ReworkFinalQc_TakesTicketLockAndRereadsStateBeforeAnyWrite` (1 of 317) | The test searched `phieu = GetRequired(phieuXuLyId)` from method start and matched the pre-lock `var phieu = GetRequired(...)`, so "re-read after lock" could never hold | Search the re-read and `GetReworkPlan` only after the `AcquireReworkTicketLock(` call; assertions not relaxed |
-| sql-engine-integration | `Could not find the lock resource prefix after a production sp_getapplock block` | `LoadProductionSql()` scanned every `sp_getapplock` block in the file; the `AcquireReworkTicketLock()` helper block has no literal resource prefix after it | Extract per method (`XuatKhoRework`, `GiaoHangRework`, `QCXacNhanCuoi` via helper + `TicketLockResource`); require one shared `QT_REWORK_TICKET:` resource, Exclusive, Transaction-owned, 15000 ms, `THROW 51000` |
+| Gate | TestCaseId family | Scope |
+|---|---|---|
+| G1 | `G1-TRC-*` | traceability and gap disposition |
+| G2 | `G2-UT-*`, `G2-BLD-*` | unit/regression and production compile |
+| G3 | `G3-SQL-*` | isolated implementation/repository SQL integration |
+| G4 | `G4-SCHEMA-*`, `G4-SP-*` | production-like schema/procedure compatibility |
+| G5 | `G5-CONC-*` | two-session concurrency, idempotency, rollback |
+| G6 | `G6-REC-*`, `G6-PICK-*`, `G6-A0-*`, `G6-DEL-*`, `G6-MP-*`, `G6-SP-*`, `G6-CFG-*`, `G6-FIFO-*`, `G6-DEF-*`, `G6-QC-*`, `G6-REP-*`, `G6-RECNC-*` | business E2E scenarios and final reconciliation |
 
-R1–R5 have still not run on SQL Server. The SQL fixture remains protocol-level: it does not call `GiaoHangRework()`/`XuatKhoRework()` directly.
+The authoritative scenario-to-design mapping is `WMS_TEST_DOCUMENTATION_CROSSWALK.md`; the authoritative execution state is `WMS_TEST_EXECUTION_STATUS.md`; the authoritative acceptance boundary is `doc/PCTP_WMS_LIVE_DATA_ACCEPTANCE_MASTER_SPEC.md`.
 
-## 2. P0 blockers
+## 3. Release blockers
 
-### B0-02 — Rework export quota
+The following are release blockers until exact-SHA evidence closes them:
 
-**Implementation: CLOSED. Verification: OPEN.**
+- **G1:** unresolved traceability gaps without owner/disposition/approved exception.
+- **G2:** missing exact-SHA production compile or regression evidence.
+- **G4:** missing representative schema/procedure compatibility evidence where required by the candidate.
+- **G5:** no real two-session evidence for shared quota/business-key concurrency and rollback.
+- **G6:** missing real business journey, reconciliation, or cleanup evidence.
+- **B0-01:** legacy customer-delivery stock writers remain until delivery parity/cutover is proven.
+- Any violation of the DB14 read-only / DB57-only-write safety boundary.
 
-Runtime sequence in `ReworkStockService.XuatKhoRework`:
-
-```text
-Begin transaction
- → idempotency(OperationId)
- → lock current Rework ticket row
- → EnsureCanExport
- → validate SlotLot / LOT / STOCKTP
- → IStockMovementService.Export
- → workflow ledger + history
- → Commit
-```
-
-The Phase-4 guard is resolved lazily to avoid the Initial QC / Rework dependency cycle. If it cannot be resolved, export fails closed.
-
-Required SQL evidence: over-limit rejected; exact-limit accepted; same OperationId mutates once; two sessions cannot consume the same remaining quota; failure after movement rolls back stock and ledger.
-
-### B0-03 — Rework delivery concurrency
-
-**Implementation: CLOSED. Verification: OPEN.**
-
-`QTChungService.GiaoHangRework` begins/joins the UoW, obtains a transaction-owned exclusive application lock for the ticket, reloads the ticket, and only then reads export/delivery ledgers. Delivery ledger and status changes are committed in the same transaction. Error paths call `SafeRollback`.
-
-The existing source-contract test proves source ordering only. It is not SQL concurrency evidence.
-
-Required SQL evidence: two sessions deliver against the same remaining quantity; combined committed delivery never exceeds approved/exported quantity; injected failure after first ledger insert leaves no partial ledger, status or stock mutation.
-
-### B0-01 — Customer Delivery stock owner
-
-**OPEN — legacy writer paths remain.**
-
-`PhieuKhoRepository` still calls:
-- `Usp_Qrcode_Update_Stock2405`;
-- `Usp_Qrcode_Update_Stock_SP`;
-- `TruStockTpFifo` (direct `STOCKTP` update).
-
-The repository constructor still allows `IStockMovementService = null`. Source review of `53af05d` found a single production construction path: `GiaoHangKhachModuleFactory.Build` passes a `StockMovementService` to `PhieuRepository`, which passes it to its one `PhieuKhoRepository`. `DeliveryLegacyWriterInventoryTests` pins that wiring and the exact set of legacy STOCKTP writers so neither can change silently. This does not close B0-01: STOCKTP is still written by the two stored procedures and by `TruStockTpFifo`; parity P1–P13 are not started (see `WMS_B0_01_DELIVERY_PARITY.md`).
-
-Do not simply replace the stored procedures with one `Export` call. First implement a delivery command that accepts validated QR/PART/FIFO allocation, resolves exact LOT/SlotLot quantities, and atomically applies `STOCKTP`, `SlotLot`, delivery ledger/history and pending-delivery state under the shared UoW. Preserve multi-LOT, partial-LOT, retry/idempotency and rollback behavior. Remove legacy writers only after parity tests pass.
-
-## 3. Mandatory invariants
+## 4. Mandatory stock and transaction invariants
 
 1. `STOCKTP` and active `SlotLot` quantities reconcile atomically.
-2. No approved workflow writes stock outside the KhoCore movement owner.
-3. Rework export ≤ Initial QC approved Rework quantity.
-4. Rework delivery ≤ approved Rework quantity and ≤ exported quantity.
-5. Same business operation cannot mutate stock twice.
-6. Failed operation rolls back stock, ledger, state and history together.
+2. Approved workflows do not write stock outside the authoritative stock-movement owner.
+3. Rework export never exceeds approved Rework quantity.
+4. Rework delivery never exceeds approved/exported quantity.
+5. The same business operation cannot mutate stock twice.
+6. Failure rolls back stock, ledger, state and history together.
 7. Quarantine/NG stock is never treated as active export stock.
-8. Every committed movement has one authoritative audit record.
+8. Every committed movement has one authoritative audit/history record.
+9. Customer delivery preserves QR/PART/FIFO, multi-LOT and partial-LOT semantics.
+10. Cleanup is limited to run-owned identities and is verified after execution.
 
-## 4. Required acceptance scenarios
+## 5. Evidence status vocabulary
 
-| Scenario | Required result |
+| Status | Meaning |
 |---|---|
-| Rework approved 10, export 11 | Reject, no mutation |
-| Two sessions export 8 against approved 10 | Total committed ≤ 10 |
-| Two sessions deliver 8 against approved 10 | Total committed ≤ 10 |
-| Same OperationId retried | One mutation |
-| Same QR delivered twice | One mutation |
-| Customer delivery spans 2+ LOT | FIFO and stock reconciliation preserved |
-| Movement/ledger failure | Full rollback |
+| `PASS` | Required evidence exists for the exact candidate SHA and all mandatory assertions pass |
+| `FAIL` | The required execution occurred and one or more assertions failed |
+| `INCOMPLETE` | The scenario exists but required steps/evidence are missing |
+| `BLOCKED` | Execution cannot proceed because a prerequisite or safety condition is unresolved |
+| `NOT VERIFIED` | Source/implementation exists, but runtime evidence for the required boundary is absent |
+| `NOT AVAILABLE IN SOURCE DATA` | The source shape does not exist in DB14; use an explicitly marked DB57 synthetic-input case if policy permits |
+| `PLANNED` | Not implemented |
 
-## 5. Evidence rules
+`IMPLEMENTED` is an implementation state, not a gate PASS state.
 
-- **VERIFIED:** exact candidate code SHA + test identifier + schema identity + successful execution are recorded.
-- **IMPLEMENTED / NOT VERIFIED:** code exists, but required runtime/business/concurrency evidence is incomplete.
-- **BLOCKED:** a release blocker remains.
-- **PLANNED:** not implemented.
+## 6. Safety boundary for live acceptance
 
-## 6. Canonical closure sequence
+The release gate follows the Master Spec without exception:
 
-1. Reconcile G1 traceability and classify all source/project compile gaps.
-2. Build the full WinForms solution on Windows at the exact candidate SHA; run G2.
-3. Add and execute SQL two-session + rollback tests for B0-02/B0-03 (G5).
-4. Design and implement the B0-01 delivery command; require movement service in the production composition root.
-5. Prove QR/PART/FIFO/multi-LOT/partial-LOT parity, idempotency and rollback.
-6. Run representative isolated DBA-schema tests (G4).
-7. Run full UI-to-database business journeys and reconciliation (G6).
-8. Update both gate documents from this canonical matrix only after evidence is attached.
+- DB14 (`192.168.200.14\\BRAVO / B7R2_FCC`) is **read-only**.
+- DB57 (`192.168.200.57 / B7R2_FCC`) is the only approved shared test-write target.
+- SQL may extract source data, create prerequisite input/configuration on DB57, observe/assert and perform run-scoped cleanup.
+- SQL MUST NOT fake scan/receive/delivery/QC/defect/replacement/history outcomes.
+- Live acceptance must use the real UI/procedure/service path.
+- No credentials or secrets may be written to source, logs or artifacts.
 
+## 7. Required closure sequence
 
-## 7. Current CI evidence snapshot (2026-10-26)
+1. Regenerate G1 traceability for the **current candidate SHA** and classify every gap.
+2. Run G2 on the same candidate SHA, including the required production compile.
+3. Run G3 isolated SQL implementation integration and retain assertions/rollback evidence.
+4. Run G4 representative schema/procedure compatibility where applicable.
+5. Run G5 two-session concurrency for shared quotas/business keys, including rollback injection.
+6. Complete B0-01 delivery ownership/parity before claiming customer-delivery E2E closure.
+7. Execute G6 real UI/procedure journeys: receive → pickup/direct-A0 → delivery → QC/defect → replacement → reconciliation → cleanup, according to the TestCase catalog and source-data availability.
+8. Update `WMS_TEST_EXECUTION_STATUS.md` with exact SHA, run ID, artifact and evidence links. Do not change this canonical definition merely to reflect a new status.
 
-| Run | Event | SHA | Result | Scope |
-|---|---|---|---|---|
-| [40262798818](https://github.com/Nang0559/WINDOWS_PCTP-NO_Check-/actions/runs/40262798818) | push | `a41d5df18ee7cb3920915d47548e1db7899eb2f1` | SUCCESS | PCTP QC Test Platform workflow (configured jobs) |
-| [40262804379](https://github.com/Nang0559/WINDOWS_PCTP-NO_Check-/actions/runs/40262804379) | pull_request | `a41d5df18ee7cb3920915d47548e1db7899eb2f1` | SUCCESS | PCTP QC Test Platform workflow (configured jobs) |
+## 8. Document governance
 
-Older CI snapshots are historical only and must not be combined with these exact-SHA runs as if they validated the same candidate. The workflow does not build the full legacy WinForms `PCTP.csproj`, does not execute SQL two-session tests, and does not perform UI-to-database G6 journeys.
+The WMS documentation chain is:
 
-## 8. SQL files under `Workflow/Diagram`
+```text
+Master Spec (safety / acceptance boundary)
+        ↓
+WMS_RELEASE_GATE.md (canonical G1–G6 definitions)
+        ↓
+WMS_TEST_DOCUMENTATION_CROSSWALK.md (design → TestCaseId → assertion/evidence)
+        ↓
+WMS_TEST_CASE_CATALOG.md (scenario inventory)
+        ↓
+WMS_TEST_EXECUTION_STATUS.md (exact-SHA execution/evidence ledger)
+        ↓
+CI / DB57 runtime artifacts (actual evidence)
+```
 
-Do not delete SQL files solely because they are stored under a documentation directory. Inventory each file by purpose: (a) authoritative deploy/migration script, (b) reproducible test fixture/seed, (c) diagnostic/query aid, or (d) obsolete snapshot. Only category (d) may be removed, and only after verifying there are no workflow, DBA, CI, or operator references. Move deployable scripts to a dedicated database/migrations location in a separate change with updated references; preserve content and history.
+Supporting design documents remain authoritative for expected business behavior, including workflow, data ownership, stock state machine, transaction rules, delivery/QR/FIFO, QC/defect and replacement documents. They are not replaced by the test documents.
 
+When documents conflict, apply this order:
 
-## 9. Latest candidate status
+1. Master Spec safety boundary.
+2. Workflow/functional design and data/transaction contracts for expected behavior.
+3. Current code/schema/procedure inspection.
+4. Crosswalk/TestCaseId mapping.
+5. Runtime evidence for PASS/FAIL.
 
-Candidate code SHA `bb15a604a292a75c61455d25094940ee80aa5671` contains the delivery command contract, shared Rework ticket lock and associated contract/source tests. Runs `40264579206` (push) and `40264584779` (PR) were cancelled before checkout while successive commits were pushed. No test result can be inferred from those runs. The last verified green baseline remains `a41d5df18ee7cb3920915d47548e1db7899eb2f1`.
+## 9. What this document intentionally does not contain
 
+This file MUST NOT contain:
 
-## 10. Ánh xạ gate trong tài liệu ↔ script chạy
+- a copied status snapshot from another branch;
+- a historical candidate SHA presented as the current candidate;
+- gap counts without an exact artifact/SHA;
+- claims that a manifest/worklist/build is G6 PASS;
+- a seventh gate.
 
-`Invoke-PctpQcGates.ps1` đánh số G3–G6 khác tài liệu này. Định nghĩa **chuẩn** là các dòng ở §1 của tài liệu này; script chỉ là công cụ chạy. Bảng ánh xạ và quy ước ghi bằng chứng nằm ở `docs/WMS_SQL_RUNBOOK.md` §1. Kịch bản hai session R1–R5 (B0-02/B0-03) chạy bên trong `-Gate G3` của script, nhưng bằng chứng được ghi dưới G5 của tài liệu này.
-
-## 11. Candidate `a49654018c302107399f0dffedd0611e388df6bb` — bằng chứng do chủ repo báo, chưa đính kèm
-
-| Mục | Nội dung | Trạng thái theo §5 |
-|---|---|---|
-| Build WinForms đầy đủ | Chủ repo báo build thành công | NOT VERIFIED (chưa có log gắn SHA) |
-| `PCTP.QC.Tests` | Chủ repo báo 339 test PASS | NOT VERIFIED (chưa có `.trx` gắn SHA) |
-| CI exact-SHA | Chưa có run báo SHA này | NOT VERIFIED |
-| G3–G6 | Chưa chạy trên SHA này | OPEN |
-
-Mục này chỉ ghi nhận lời báo cáo. Khi có `artifacts\gates\a496540\G2\` thì thay bằng bằng chứng thật.
+Dynamic status belongs in `WMS_TEST_EXECUTION_STATUS.md` and `docs/QC_GATE_STATUS.md`.
