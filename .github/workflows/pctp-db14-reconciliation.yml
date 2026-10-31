@@ -7,12 +7,6 @@ on:
         description: Enter GENERATE-DB14-SQL to confirm read-only compare and SQL artifact generation
         required: true
         type: string
-  push:
-    branches: [feature/wms-live-data-test-harness]
-    paths:
-      - docs/PCTP_SQL_Runtime_Inventory_A-K.csv
-      - SQL/QC_Schema/tools/db14_reconciliation.py
-      - .github/workflows/pctp-db14-reconciliation.yml
 
 permissions:
   contents: read
@@ -22,7 +16,7 @@ concurrency:
 
 jobs:
   generate:
-    if: github.event_name == 'push' || inputs.confirm == 'GENERATE-DB14-SQL'
+    if: github.event_name == 'workflow_dispatch' && inputs.confirm == 'GENERATE-DB14-SQL'
     runs-on: [self-hosted, windows]
     timeout-minutes: 30
     defaults:
