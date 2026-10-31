@@ -111,8 +111,8 @@ function Assert-LiveDb57Target {
     # Names are logical identifiers (some legacy names contain BRAVO); inspect values only.
     foreach ($cfgEntry in $entries) { [void]$cfgEntry.RemoveAttribute('name') }
     $cfgText = $cfgXml.OuterXml
-    if ($cfgText -match '192\\.168\\.200\\.14|BRAVO') { throw 'PCTP connectionStrings point to SQL14/BRAVO; refusing production.' }
-    if ($cfgText -notmatch '192\\.168\\.200\\.57') { throw 'PCTP connectionStrings must explicitly target SQL57 (192.168.200.57).' }
+    if ($cfgText -match '192\.168\.200\.14|BRAVO') { throw 'PCTP connectionStrings point to SQL14/BRAVO; refusing production.' }
+    if ($cfgText -notmatch '192\.168\.200\.57') { throw 'PCTP connectionStrings must explicitly target SQL57 (192.168.200.57).' }
     $env:PCTP_QC_LIVE_MODE = '1'
 }
 
