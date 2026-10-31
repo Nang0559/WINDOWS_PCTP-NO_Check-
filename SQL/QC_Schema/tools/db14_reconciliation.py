@@ -124,8 +124,8 @@ def main():
     sig=('ref_schema','ref_table','parent_cols','ref_cols','delete_action','update_action')
     if any((old[k] or '').casefold()!=(x[k] or '').casefold() for k in sig): blockers.append({'object':t,'constraint':n,'reason':'Existing FK definition differs.'})
     continue
-   if x['ref_schema'].casefold()!='dbo' or x['ref_table'].casefold() not in target_tables:
-    blockers.append({'object':t,'constraint':n,'reason':'Referenced table is outside runtime inventory or is not present/planned in DB14; FK omitted.'});continue
+   if x['ref_schema'].casefold()!='dbo' or x['ref_table'].casefold() not in scoped or x['ref_table'].casefold() not in target_tables:
+    blockers.append({'object':t,'constraint':n,'reason':'Referenced table is outside the approved runtime inventory or is not present/planned in DB14; FK omitted for manual dependency review.'});continue
    da='' if x['delete_action']=='NO_ACTION' else ' ON DELETE '+x['delete_action'].replace('_',' ')
    ua='' if x['update_action']=='NO_ACTION' else ' ON UPDATE '+x['update_action'].replace('_',' ')
    sql.append(f"IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name=N'{n.replace(chr(39),chr(39)*2)}') ALTER TABLE [dbo].{q(t)} WITH NOCHECK ADD CONSTRAINT {q(n)} FOREIGN KEY ({x['parent_cols']}) REFERENCES [dbo].{q(x['ref_table'])} ({x['ref_cols']}){da}{ua};")
