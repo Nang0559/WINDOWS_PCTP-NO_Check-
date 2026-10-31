@@ -60,7 +60,7 @@ def main():
   group=lambda rr:{k:sorted([x for x in rr if x['table_name'].casefold()==k],key=lambda x:x['column_id']) for k in {x['table_name'].casefold() for x in rr}}
   st,dt=group(src),group(dst);smod={x['object_name'].casefold():x for x in sm};dmod={x['object_name'].casefold():x for x in dm}
   sql=['/* DB57 authoritative source -> DB14 target. Generated for manual review only. */',f"/* DB57 {i57['server']} / {i57['database']} */",f"/* DB14 {i14['server']} / {i14['database']} */"]
-  changes=[];blockers=[];unverified=[]
+  changes=[];blockers=[];unverified=[];module_sql=[]
   for n in names:
    k=n.casefold()
    if k not in st and k not in smod: unverified.append({'object':n,'reason':'Not present in DB57 metadata; no SQL emitted.'});continue
@@ -84,7 +84,7 @@ def main():
     s=smod[k]
     if k not in dmod:
      if not s['definition']: blockers.append({'object':n,'reason':'DB57 module definition unavailable; VIEW DEFINITION permission required.'})
-     else: sql.append(s['definition'].rstrip().rstrip(';')+';');changes.append({'object':n,'change':'CREATE MODULE','type':s['object_type']})
+     else: module_sql.append(s['definition'].rstrip().rstrip(';')+';');changes.append({'object':n,'change':'CREATE MODULE','type':s['object_type']})
     elif not s['definition'] or not dmod[k]['definition'] or (s['definition'] or '').strip()!=(dmod[k]['definition'] or '').strip():
      blockers.append({'object':n,'reason':'Existing module definition differs; manual review required.'})
   scoped={x.casefold() for x in names}
@@ -147,6 +147,8 @@ def main():
    where=f" WHERE {x['filter_definition']}" if x['filter_definition'] else ''
    sql.append(f"IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID(N'dbo.{t}') AND name=N'{n.replace(chr(39),chr(39)*2)}') CREATE {unique}{x['type_desc']} INDEX {q(n)} ON [dbo].{q(t)} ({x['key_columns']}){include}{where};")
    changes.append({'object':t,'change':'CREATE INDEX','index':n})
+  # Create views/procedures/functions/triggers after their in-scope tables and constraints.
+  sql.extend(module_sql)
   # GO is required between module definitions and other statements. Every statement is idempotent; no transaction spans batches.
 
   report={'generated_utc':datetime.now(timezone.utc).isoformat(),'DB57_source':i57,'DB14_target':i14,'candidate_count':len(names),'changes':changes,'blockers':blockers,'unverified':unverified,'excluded':excluded}
