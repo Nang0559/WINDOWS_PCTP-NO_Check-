@@ -1,0 +1,50 @@
+import csv
+import importlib.util
+import tempfile
+import unittest
+from pathlib import Path
+
+MODULE_PATH = Path(__file__).with_name("db14_reconciliation.py")
+spec = importlib.util.spec_from_file_location("db14_reconciliation", MODULE_PATH)
+mod = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(mod)
+
+class ReconciliationGeneratorTests(unittest.TestCase):
+    def test_sql_type_preserves_unicode_length(self):
+        self.assertEqual(mod.typ({"type_name":"nvarchar","max_length":100}), "nvarchar(50)")
+
+    def test_sql_type_preserves_decimal_precision(self):
+        self.assertEqual(mod.typ({"type_name":"decimal","precision":18,"scale":4}), "decimal(18,4)")
+
+    def test_column_definition_preserves_identity_and_named_default(self):
+        col = {
+            "column_name":"RowId","type_name":"bigint","max_length":8,"precision":19,"scale":0,
+            "is_computed":False,"collation_name":None,"is_identity":True,
+            "seed_value":1,"increment_value":1,"is_nullable":False,
+            "default_definition":"((0))","default_constraint_name":"DF_Test_RowId"
+        }
+        self.assertEqual(
+            mod.colddl(col),
+            "[RowId] bigint IDENTITY(1,1) NOT NULL CONSTRAINT [DF_Test_RowId] DEFAULT ((0))"
+        )
+
+    def test_inventory_keeps_sql_runtime_and_excludes_legacy_external(self):
+        headers = ["Tên đối tượng","Loại đối tượng","Database/schema","Repository/caller",
+                   "SQL thao tác","Khách hàng","Được tạo bởi script nào","Có trên DB57?",
+                   "Có trong schema Git?","Runtime hay test-only","Trạng thái xác minh"]
+        rows = [
+            ["STOCKTP","Bảng","dbo","Repo","SELECT","","","","","Runtime","Caller đã thấy"],
+            ["OLD_TABLE","Bảng","dbo","Legacy","SELECT","","","","","Legacy-only","retired"],
+            ["IFS_TABLE","Đối tượng nguồn IFS","IFS","Repo","SELECT","","","","","Runtime external","External"],
+            ["TMP_{host}","Tên bảng động","dbo","Repo","SELECT","","","","","Runtime động","Chưa xác minh"],
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            path=Path(tmp)/"inventory.csv"
+            with path.open("w",encoding="utf-8-sig",newline="") as f:
+                writer=csv.writer(f);writer.writerow(headers);writer.writerows(rows)
+            names,excluded=mod.invnames(path)
+        self.assertEqual(names,["STOCKTP"])
+        self.assertIn("TMP_{host}",excluded)
+
+if __name__ == "__main__":
+    unittest.main()
