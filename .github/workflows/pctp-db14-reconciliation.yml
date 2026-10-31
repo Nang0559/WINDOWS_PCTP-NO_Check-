@@ -50,12 +50,15 @@ jobs:
           # (vd "py.exe: No installed Python found!") thành lỗi kết thúc -> job chết trước khi kịp thử `python`/cài mới.
           # Vì vậy phải ghi đè về 'Continue' trước mọi lệnh native; kiểm tra $LASTEXITCODE và dùng -ErrorAction Stop riêng.
           $ErrorActionPreference = 'Continue'
-          $probeCode = 'import sys; print(sys.executable if sys.version_info >= (3, 11) else "")'
+          # KHÔNG dùng dấu nháy kép trong mã -c: Windows PowerShell 5.1 làm mất dấu " khi truyền tham số cho lệnh native, khiến
+          # python nhận mã hỏng (SyntaxError) -> mọi Python hợp lệ đều bị loại. Chỉ in đường dẫn khi >= 3.11, ngược lại in rỗng.
+          $probeCode = 'import sys; print(sys.executable) if sys.version_info >= (3, 11) else None'
 
           function Test-Python([string]$exe, [string[]]$prefix) {
             $ErrorActionPreference = 'Continue'
             $found = & $exe @prefix '-c' $probeCode 2>$null
             if ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace("$found")) { return "$found".Trim() }
+            Write-Host "  [probe] $exe $($prefix -join ' ') -> exit $LASTEXITCODE, output '$found' (not usable)"
             return $null
           }
 
