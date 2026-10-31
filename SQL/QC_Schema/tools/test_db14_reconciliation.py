@@ -77,6 +77,22 @@ class ReconciliationGeneratorTests(unittest.TestCase):
         self.assertIn("UID=<EMPTY>", text)
         self.assertIn("PWD=<set>", text)
 
+    def test_metadata_queries_work_on_sql_server_before_2017(self):
+        # STRING_AGG is SQL Server 2017+; the live DB57/DB14 reported "'STRING_AGG' is not a recognized built-in function name".
+        for name in ("TABLES_SQL", "MODULES_SQL", "KEYS_SQL", "CHECKS_SQL", "INDEXES_SQL", "FKS_SQL"):
+            sql = getattr(mod, name)
+            self.assertNotIn("STRING_AGG", sql.upper(), name)
+        for name in ("KEYS_SQL", "INDEXES_SQL", "FKS_SQL"):
+            sql = getattr(mod, name)
+            self.assertIn("FOR XML PATH('')", sql, name)
+            self.assertEqual(sql.count("("), sql.count(")"), name + " has unbalanced parentheses")
+
+    def test_aggregated_column_lists_are_ordered_and_scoped(self):
+        self.assertIn("ORDER BY ic.key_ordinal FOR XML PATH('')", mod.KEYS_SQL)
+        self.assertIn("ic.is_included_column=1 ORDER BY ic.index_column_id", mod.INDEXES_SQL)
+        self.assertIn("ORDER BY fkc.constraint_column_id FOR XML PATH('')", mod.FKS_SQL)
+        self.assertNotIn("GROUP BY", mod.KEYS_SQL + mod.INDEXES_SQL + mod.FKS_SQL)
+
     def test_connection_string_maps_driver_18_secret_to_installed_driver_17(self):
         secret = "DRIVER={ODBC Driver 18 for SQL Server};SERVER=db;DATABASE=PCTP;Encrypt=yes;TrustServerCertificate=yes"
         actual = mod.resolve_driver_connection_string(secret, ["ODBC Driver 17 for SQL Server"])
