@@ -47,6 +47,8 @@ jobs:
             throw 'Install Microsoft ODBC Driver 18 for SQL Server on the self-hosted runner before running this workflow.'
           }
       - run: python -m pip install --disable-pip-version-check pyodbc
+      - name: Test generator
+        run: python -m unittest discover -s SQL/QC_Schema/tools -p 'test_db14_reconciliation.py' -v
       - name: Generate artifact (read-only; no database writes)
         run: python SQL/QC_Schema/tools/db14_reconciliation.py --out artifacts/db14-reconciliation
       - uses: actions/upload-artifact@v4
