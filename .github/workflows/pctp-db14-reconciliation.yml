@@ -33,19 +33,45 @@ jobs:
         run: |
           if ([string]::IsNullOrWhiteSpace($env:PCTP_QC_SOURCE_SQL_CONNECTION)) { throw 'Missing DB14 secret PCTP_QC_SOURCE_SQL_CONNECTION' }
           if ([string]::IsNullOrWhiteSpace($env:PCTP_QC_TARGET_SQL_CONNECTION)) { throw 'Missing DB57 secret PCTP_QC_TARGET_SQL_CONNECTION' }
+      - name: Normalize SQL ODBC boolean options
+        run: |
+          # ODBC Driver 17 rejects numeric Encrypt=0/1 with:
+          # "Invalid value specified for connection string attribute 'Encrypt' (0)".
+          # Keep the GitHub secrets unchanged; normalize only the process environment used by this job.
+          function Convert-OdbcBooleanOption([string]$connectionString, [string]$optionName) {
+            if ([string]::IsNullOrWhiteSpace($connectionString)) { return $connectionString }
+            $escaped = [regex]::Escape($optionName)
+            $connectionString = [regex]::Replace($connectionString, "(?i)(^|;)\s*$escaped\s*=\s*0\s*(?=;|$)", '$1' + $optionName + '=no')
+            $connectionString = [regex]::Replace($connectionString, "(?i)(^|;)\s*$escaped\s*=\s*1\s*(?=;|$)", '$1' + $optionName + '=yes')
+            return $connectionString
+          }
+
+          $source = $env:PCTP_QC_SOURCE_SQL_CONNECTION
+          $target = $env:PCTP_QC_TARGET_SQL_CONNECTION
+          foreach ($name in @('Encrypt', 'TrustServerCertificate')) {
+            $source = Convert-OdbcBooleanOption $source $name
+            $target = Convert-OdbcBooleanOption $target $name
+          }
+
+          # Do not print either connection string; they contain credentials.
+          $source | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          $target | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+          # The two lines above would not carry variable names when written directly.
+          # Rewrite GITHUB_ENV atomically with the normalized values and never log them.
+          $envFile = $env:GITHUB_ENV
+          $lines = @(
+            "PCTP_QC_SOURCE_SQL_CONNECTION=$source"
+            "PCTP_QC_TARGET_SQL_CONNECTION=$target"
+          )
+          Set-Content -Path $envFile -Value $lines -Encoding utf8
       # Không dùng actions/setup-python trên self-hosted Windows: action này tự chạy setup.ps1 (không có chữ ký số)
       # nên bị chính sách PowerShell AllSigned của máy runner chặn. Thay bằng: dùng Python 3.11+ cài sẵn trên runner;
       # nếu chưa có thì tự cài bản chính thức (python.org, per-user, không cần admin) vào tool cache của runner (chỉ lần đầu),
       # rồi tạo venv riêng cho mỗi lần chạy.
       - name: Prepare Python 3.11+
         run: |
-          # QUAN TRỌNG: runner tự chèn `$ErrorActionPreference = 'stop'` lên dòng 1 của file script (lỗi báo ở "line 8" dù
-          # script chỉ có `$found` ở dòng 7). Với Windows PowerShell 5.1, 'stop' + `2>$null` làm stderr của lệnh native
-          # (vd "py.exe: No installed Python found!") thành lỗi kết thúc -> job chết trước khi kịp thử `python`/cài mới.
-          # Vì vậy phải ghi đè về 'Continue' trước mọi lệnh native; kiểm tra $LASTEXITCODE và dùng -ErrorAction Stop riêng.
           $ErrorActionPreference = 'Continue'
-          # KHÔNG dùng dấu nháy kép trong mã -c: Windows PowerShell 5.1 làm mất dấu " khi truyền tham số cho lệnh native, khiến
-          # python nhận mã hỏng (SyntaxError) -> mọi Python hợp lệ đều bị loại. Chỉ in đường dẫn khi >= 3.11, ngược lại in rỗng.
           $probeCode = 'import sys; print(sys.executable) if sys.version_info >= (3, 11) else None'
 
           function Test-Python([string]$exe, [string[]]$prefix) {
@@ -60,27 +86,20 @@ jobs:
           $toolRoot = Join-Path $toolBase 'pctp-python\3.11.9'
           $cached = Join-Path $toolRoot 'python.exe'
           $python = $null
-
-          # 1) Bản đã tự cài ở lần chạy trước
           if (Test-Path $cached) { $python = Test-Python $cached @() }
 
-          # 2) Python có sẵn trên máy runner. Dịch vụ runner thường chạy bằng tài khoản KHÁC tài khoản đã cài Python
-          #    (Python cài "just for me" nằm trong profile/registry HKCU của người đó nên `py`/`python` không thấy).
-          #    Nên dò thêm: biến PCTP_PYTHON, `where.exe`, thư mục cài phổ biến và registry PythonCore.
           if (-not $python) {
             $candidates = New-Object System.Collections.Generic.List[string]
             if ($env:PCTP_PYTHON) { $candidates.Add($env:PCTP_PYTHON) }
-
             foreach ($probe in @(@('py', '-3.11'), @('py', '-3.12'), @('py', '-3.13'), @('py', '-3'))) {
               $cmd = Get-Command $probe[0] -ErrorAction SilentlyContinue
               if (-not $cmd) { continue }
               $python = Test-Python $cmd.Source @($probe | Select-Object -Skip 1)
               if ($python) { break }
             }
-
             if (-not $python) {
               foreach ($line in @(& where.exe python 2>$null)) {
-                if ($line -and "$line" -notmatch '\\WindowsApps\\') { $candidates.Add("$line".Trim()) }   # bỏ alias Microsoft Store
+                if ($line -and "$line" -notmatch '\\WindowsApps\\') { $candidates.Add("$line".Trim()) }
               }
               $globs = @()
               if ($env:ProgramFiles) { $globs += "$($env:ProgramFiles)\Python3*\python.exe" }
@@ -103,23 +122,8 @@ jobs:
                 if ($python) { break }
               }
             }
-
-            if (-not $python) {
-              # Báo cáo chẩn đoán: runner đang chạy bằng tài khoản nào và thấy gì -> biết ngay vì sao không thấy Python.
-              Write-Host "Runner account : $([Security.Principal.WindowsIdentity]::GetCurrent().Name)"
-              Write-Host "py launcher    : $((Get-Command py -ErrorAction SilentlyContinue).Source)"
-              Write-Host '--- py -0p ---';           & py -0p 2>&1 | ForEach-Object { Write-Host "$_" }
-              Write-Host '--- where python ---';     & where.exe python 2>&1 | ForEach-Object { Write-Host "$_" }
-              Write-Host '--- PATH entries mentioning python ---'
-              ($env:PATH -split ';') | Where-Object { $_ -match 'python' } | ForEach-Object { Write-Host $_ }
-              Write-Host '--- Python folders found ---'
-              Get-ChildItem 'C:\Program Files\Python*', 'C:\Python*', 'C:\Users\*\AppData\Local\Programs\Python\*' -ErrorAction SilentlyContinue | ForEach-Object { Write-Host $_.FullName }
-              Write-Host "PCTP_PYTHON    : $($env:PCTP_PYTHON)"
-            }
           }
 
-          # 3) Chưa có -> tải CPython 3.11.9 dạng gói NuGet (zip đầy đủ: python.exe + Lib + ensurepip) rồi giải nén vào tool cache.
-          #    KHÔNG dùng installer .exe/.msi: runner này trả lỗi 1601 (dịch vụ Windows Installer không truy cập được) khi cài.
           if (-not $python) {
             Write-Host 'No Python 3.11+ found on this runner. Downloading CPython 3.11.9 (NuGet package, no installer) ...'
             [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
@@ -134,7 +138,6 @@ jobs:
             if (-not (Test-Path (Join-Path $stage 'tools\python.exe'))) { throw 'NuGet package python 3.11.9 has no tools\python.exe (unexpected layout).' }
             Move-Item -LiteralPath (Join-Path $stage 'tools') -Destination $toolRoot -ErrorAction Stop
             Remove-Item -Recurse -Force $stage -ErrorAction SilentlyContinue
-            # Chỉ chấp nhận python.exe do Python Software Foundation ký số.
             $sig = Get-AuthenticodeSignature -FilePath $cached -ErrorAction Stop
             if ($sig.Status -ne 'Valid' -or "$($sig.SignerCertificate.Subject)" -notmatch 'Python Software Foundation') {
               Remove-Item -Recurse -Force $toolRoot -ErrorAction SilentlyContinue
@@ -142,7 +145,6 @@ jobs:
             }
             $python = Test-Python $cached @()
             if ($python) {
-              # venv cần ensurepip; kiểm tra sớm để báo lỗi rõ ràng thay vì lỗi khó hiểu ở bước tạo venv.
               & $python -c 'import venv, ensurepip' 2>$null
               if ($LASTEXITCODE -ne 0) { $python = $null; Write-Host 'Downloaded Python has no venv/ensurepip.' }
             }
@@ -158,14 +160,10 @@ jobs:
           if (Test-Path $venv) { Remove-Item -Recurse -Force $venv -ErrorAction Stop }
           & $python -m venv $venv
           if ($LASTEXITCODE -ne 0) { throw "Cannot create virtualenv at $venv" }
-          # Các bước sau gọi `python` -> trỏ vào venv này (không cần Activate.ps1, không bị AllSigned chặn).
           Join-Path $venv 'Scripts' | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append -ErrorAction Stop
           $global:LASTEXITCODE = 0
       - name: Verify SQL ODBC driver
         run: |
-          # Python/pyodbc trong job là 64-bit; kiểm tra đúng registry view tương ứng.
-          # Driver 17 và 18 đều hỗ trợ SQL Server; Python sẽ ưu tiên 18 nếu có,
-          # nếu không sẽ tự đổi DRIVER trong connection string sang 17.
           $drivers = @(Get-OdbcDriver -Platform '64-bit' -ErrorAction Stop |
             Where-Object { $_.Name -in @('ODBC Driver 18 for SQL Server', 'ODBC Driver 17 for SQL Server') } |
             Select-Object -ExpandProperty Name -Unique)
@@ -173,8 +171,6 @@ jobs:
             throw 'No supported 64-bit SQL Server ODBC driver found. Install Microsoft ODBC Driver 17 or 18 for SQL Server on the self-hosted runner.'
           }
           Write-Host ("Supported 64-bit SQL Server ODBC drivers: " + ($drivers -join ', '))
-      # Các bước dưới gọi lệnh native: hạ 'stop' (runner chèn) về 'Continue' và tự trả mã thoát để lỗi thật (pip/test/generator
-      # exit != 0) luôn làm fail job, còn stderr thường (unittest in kết quả ra stderr) không làm hỏng bước.
       - name: Install pyodbc
         run: |
           $ErrorActionPreference = 'Continue'
