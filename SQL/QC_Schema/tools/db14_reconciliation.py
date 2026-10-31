@@ -53,12 +53,12 @@ def resolve_driver_connection_string(connection_string, available_drivers=None):
   )
 
  # Rewrite only DRIVER. Preserve server, database, credentials, and encryption options.
- driver_pattern = re.compile(r'(?i)(\\bDRIVER\\s*=\\s*)(?:\\{([^}]*)\\}|([^;]*))')
+ driver_pattern = re.compile(r'(?i)(\bDRIVER\s*=\s*)(?:\{([^}]*)\}|([^;]*))')
  if driver_pattern.search(connection_string):
   return driver_pattern.sub(lambda m: m.group(1) + '{' + selected + '}', connection_string, count=1)
 
  # DSN-based strings resolve their driver through the Windows ODBC data source.
- if re.search(r'(?i)(?:^|;)\\s*DSN\\s*=', connection_string):
+ if re.search(r'(?i)(?:^|;)\s*DSN\s*=', connection_string):
   return connection_string
 
  return 'DRIVER={' + selected + '};' + connection_string
