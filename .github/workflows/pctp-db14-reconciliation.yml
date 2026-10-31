@@ -1,0 +1,57 @@
+name: PCTP DB57 to DB14 SQL artifact
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: Enter GENERATE-DB14-SQL to confirm read-only compare and SQL artifact generation
+        required: true
+        type: string
+  push:
+    branches: [feature/wms-live-data-test-harness]
+    paths:
+      - docs/PCTP_SQL_Runtime_Inventory_A-K.csv
+      - SQL/QC_Schema/tools/db14_reconciliation.py
+      - .github/workflows/pctp-db14-reconciliation.yml
+
+permissions:
+  contents: read
+concurrency:
+  group: pctp-db14-reconciliation
+  cancel-in-progress: false
+
+jobs:
+  generate:
+    if: github.event_name == 'push' || inputs.confirm == 'GENERATE-DB14-SQL'
+    runs-on: [self-hosted, windows, sql-network]
+    timeout-minutes: 30
+    env:
+      PCTP_QC_SOURCE_SQL_CONNECTION: ${{ secrets.PCTP_QC_SOURCE_SQL_CONNECTION }}
+      PCTP_QC_TARGET_SQL_CONNECTION: ${{ secrets.PCTP_QC_TARGET_SQL_CONNECTION }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/wms-live-data-test-harness
+      - name: Validate secrets exist
+        shell: pwsh
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:PCTP_QC_SOURCE_SQL_CONNECTION)) { throw 'Missing DB14 secret PCTP_QC_SOURCE_SQL_CONNECTION' }
+          if ([string]::IsNullOrWhiteSpace($env:PCTP_QC_TARGET_SQL_CONNECTION)) { throw 'Missing DB57 secret PCTP_QC_TARGET_SQL_CONNECTION' }
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install SQL ODBC driver
+        shell: pwsh
+        run: |
+          if (-not (Get-OdbcDriver | Where-Object Name -eq 'ODBC Driver 18 for SQL Server')) {
+            choco install sql-server-odbcdriver --no-progress -y
+          }
+      - run: python -m pip install --disable-pip-version-check pyodbc
+      - name: Generate artifact (read-only; no database writes)
+        run: python SQL/QC_Schema/tools/db14_reconciliation.py --out artifacts/db14-reconciliation
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DB14-Reconciliation-${{ github.run_number }}
+          path: artifacts/db14-reconciliation/
+          if-no-files-found: error
+          retention-days: 30
