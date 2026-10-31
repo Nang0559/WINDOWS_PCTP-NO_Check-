@@ -39,9 +39,28 @@ jobs:
         run: |
           if ([string]::IsNullOrWhiteSpace($env:PCTP_QC_SOURCE_SQL_CONNECTION)) { throw 'Missing DB14 secret PCTP_QC_SOURCE_SQL_CONNECTION' }
           if ([string]::IsNullOrWhiteSpace($env:PCTP_QC_TARGET_SQL_CONNECTION)) { throw 'Missing DB57 secret PCTP_QC_TARGET_SQL_CONNECTION' }
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
+      # Không dùng actions/setup-python trên self-hosted Windows: action này tự chạy setup.ps1 (không có chữ ký số)
+      # nên bị chính sách PowerShell AllSigned của máy runner chặn. Dùng Python cài sẵn trên runner + venv riêng cho mỗi lần chạy.
+      - name: Prepare Python 3.11+ (pre-installed on runner)
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $python = $null
+          foreach ($probe in @(@('py', '-3.11'), @('py', '-3.12'), @('py', '-3.13'), @('python'))) {
+            $cmd = Get-Command $probe[0] -ErrorAction SilentlyContinue
+            if (-not $cmd) { continue }
+            $probeArgs = @($probe | Select-Object -Skip 1) + @('-c', 'import sys; print(sys.executable if sys.version_info >= (3, 11) else "")')
+            $found = & $cmd.Source @probeArgs 2>$null
+            if ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace("$found")) { $python = "$found".Trim(); break }
+          }
+          if (-not $python) {
+            throw 'Python 3.11+ not found on this runner. Install it once on the runner machine (python.org installer, "Install for all users", tick "Add python.exe to PATH" / py launcher), then restart the runner service.'
+          }
+          & $python --version
+          $venv = Join-Path $env:RUNNER_TEMP 'pctp-db14-venv'
+          & $python -m venv $venv
+          if ($LASTEXITCODE -ne 0) { throw "Cannot create virtualenv at $venv" }
+          # Các bước sau gọi `python` -> trỏ vào venv này (không cần Activate.ps1, không bị AllSigned chặn).
+          Join-Path $venv 'Scripts' | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
       - name: Verify SQL ODBC driver
         run: |
           if (-not (Get-OdbcDriver | Where-Object Name -eq 'ODBC Driver 18 for SQL Server')) {
