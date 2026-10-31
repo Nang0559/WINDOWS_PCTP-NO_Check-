@@ -40,23 +40,65 @@ jobs:
           if ([string]::IsNullOrWhiteSpace($env:PCTP_QC_SOURCE_SQL_CONNECTION)) { throw 'Missing DB14 secret PCTP_QC_SOURCE_SQL_CONNECTION' }
           if ([string]::IsNullOrWhiteSpace($env:PCTP_QC_TARGET_SQL_CONNECTION)) { throw 'Missing DB57 secret PCTP_QC_TARGET_SQL_CONNECTION' }
       # Không dùng actions/setup-python trên self-hosted Windows: action này tự chạy setup.ps1 (không có chữ ký số)
-      # nên bị chính sách PowerShell AllSigned của máy runner chặn. Dùng Python cài sẵn trên runner + venv riêng cho mỗi lần chạy.
-      - name: Prepare Python 3.11+ (pre-installed on runner)
+      # nên bị chính sách PowerShell AllSigned của máy runner chặn. Thay bằng: dùng Python 3.11+ cài sẵn trên runner;
+      # nếu chưa có thì tự cài bản chính thức (python.org, per-user, không cần admin) vào tool cache của runner (chỉ lần đầu),
+      # rồi tạo venv riêng cho mỗi lần chạy.
+      - name: Prepare Python 3.11+
         run: |
-          $ErrorActionPreference = 'Stop'
+          $probeCode = 'import sys; print(sys.executable if sys.version_info >= (3, 11) else "")'
+
+          # Windows PowerShell 5.1: nếu $ErrorActionPreference = 'Stop' thì stderr của lệnh native (vd "py.exe: No installed
+          # Python found!") bị biến thành lỗi kết thúc dù đã 2>$null. Nên KHÔNG đặt 'Stop' toàn script; dò Python ở chế độ
+          # 'Continue' và kiểm tra $LASTEXITCODE; cmdlet quan trọng dùng -ErrorAction Stop riêng.
+          function Test-Python([string]$exe, [string[]]$prefix) {
+            $found = & $exe @prefix '-c' $probeCode 2>$null
+            if ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace("$found")) { return "$found".Trim() }
+            return $null
+          }
+
+          $toolBase = if ($env:RUNNER_TOOL_CACHE) { $env:RUNNER_TOOL_CACHE } else { $env:RUNNER_TEMP }
+          $toolRoot = Join-Path $toolBase 'pctp-python\3.11.9'
+          $cached = Join-Path $toolRoot 'python.exe'
           $python = $null
-          foreach ($probe in @(@('py', '-3.11'), @('py', '-3.12'), @('py', '-3.13'), @('python'))) {
-            $cmd = Get-Command $probe[0] -ErrorAction SilentlyContinue
-            if (-not $cmd) { continue }
-            $probeArgs = @($probe | Select-Object -Skip 1) + @('-c', 'import sys; print(sys.executable if sys.version_info >= (3, 11) else "")')
-            $found = & $cmd.Source @probeArgs 2>$null
-            if ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace("$found")) { $python = "$found".Trim(); break }
-          }
+
+          # 1) Bản đã tự cài ở lần chạy trước
+          if (Test-Path $cached) { $python = Test-Python $cached @() }
+
+          # 2) Python có sẵn trên máy runner
           if (-not $python) {
-            throw 'Python 3.11+ not found on this runner. Install it once on the runner machine (python.org installer, "Install for all users", tick "Add python.exe to PATH" / py launcher), then restart the runner service.'
+            foreach ($probe in @(@('py', '-3.11'), @('py', '-3.12'), @('py', '-3.13'), @('python'))) {
+              $cmd = Get-Command $probe[0] -ErrorAction SilentlyContinue
+              if (-not $cmd) { continue }
+              $python = Test-Python $cmd.Source @($probe | Select-Object -Skip 1)
+              if ($python) { break }
+            }
           }
+
+          # 3) Chưa có -> cài Python 3.11.9 chính thức (per-user, TargetDir riêng, không đụng PATH/registry hệ thống)
+          if (-not $python) {
+            Write-Host 'No Python 3.11+ found on this runner. Installing Python 3.11.9 from python.org (per-user) ...'
+            [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+            $ProgressPreference = 'SilentlyContinue'
+            $installer = Join-Path $env:RUNNER_TEMP 'python-3.11.9-amd64.exe'
+            Invoke-WebRequest -UseBasicParsing -Uri 'https://www.python.org/ftp/python/3.11.9/python-3.11.9-amd64.exe' -OutFile $installer -ErrorAction Stop
+            $sig = Get-AuthenticodeSignature -FilePath $installer -ErrorAction Stop
+            if ($sig.Status -ne 'Valid' -or "$($sig.SignerCertificate.Subject)" -notmatch 'Python Software Foundation') {
+              throw "Unexpected Python installer signature: $($sig.Status) / $($sig.SignerCertificate.Subject)"
+            }
+            $install = Start-Process -FilePath $installer -Wait -PassThru -ArgumentList @(
+              '/quiet', 'InstallAllUsers=0', 'PrependPath=0', 'Include_launcher=0', 'Include_test=0',
+              'Include_doc=0', 'Include_tcltk=0', 'Shortcuts=0', 'AssociateFiles=0', "TargetDir=`"$toolRoot`"")
+            if ($install.ExitCode -ne 0 -and $install.ExitCode -ne 3010) { throw "Python installer failed with exit code $($install.ExitCode)" }
+            if (Test-Path $cached) { $python = Test-Python $cached @() }
+          }
+
+          if (-not $python) {
+            throw 'Python 3.11+ is unavailable and automatic install failed. Install Python 3.11+ on the runner machine (python.org, "Install for all users", Add python.exe to PATH), then restart the runner service.'
+          }
+
           & $python --version
           $venv = Join-Path $env:RUNNER_TEMP 'pctp-db14-venv'
+          if (Test-Path $venv) { Remove-Item -Recurse -Force $venv -ErrorAction Stop }
           & $python -m venv $venv
           if ($LASTEXITCODE -ne 0) { throw "Cannot create virtualenv at $venv" }
           # Các bước sau gọi `python` -> trỏ vào venv này (không cần Activate.ps1, không bị AllSigned chặn).
