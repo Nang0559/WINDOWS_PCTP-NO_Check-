@@ -11,10 +11,10 @@ Actions → **PCTP DB57 to DB14 SQL artifact** → Run workflow → enter `GENER
 
 ## Runner
 
-The workflow requires a self-hosted Windows runner labelled `self-hosted`, `windows`, `sql-network` with network access to both SQL Server endpoints and ODBC Driver 18. It installs Python pyodbc.
+The workflow requires a self-hosted Windows runner labelled `self-hosted`, `windows`, with network access to both SQL Server endpoints and Microsoft ODBC Driver 18 installed. It installs Python pyodbc.
 
 ## Guardrails
 
-Inventory names are candidates only. The generator verifies each against live DB57 metadata; missing names are unverified, not assumed to exist. It emits additive CREATE TABLE, safe ADD COLUMN and missing programmable-module definitions only. Existing column incompatibilities and module drift are blockers. No DROP, TRUNCATE, DELETE, UPDATE, INSERT, data copy, table replacement, or automated deployment is generated.
+Inventory names are candidates only. The generator verifies each against live DB57 metadata; missing names are unverified, not assumed to exist. It emits additive CREATE TABLE, nullable ADD COLUMN, missing PK/UNIQUE constraints, CHECK/FK constraints (untrusted until manually validated), indexes, and missing programmable-module definitions. Existing column incompatibilities and module drift are blockers. PK/UNIQUE additions may fail if DB14 contains duplicates; the report flags these for pre-check. No DROP, TRUNCATE, DELETE, UPDATE, INSERT, data copy, table replacement, or automated deployment is generated. NOT NULL columns are not auto-added to existing tables because SQL Server may initialize existing rows.
 
 Configuration/dictionary row synchronization is deliberately not generated: the current inventory does not specify an approved natural key and exact column/value mapping. Copying these rows blindly could overwrite DB14-specific settings or operational data. This remains a manual verification item.
