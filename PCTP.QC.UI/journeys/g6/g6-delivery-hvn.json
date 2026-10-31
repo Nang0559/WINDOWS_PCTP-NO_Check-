@@ -1,7 +1,7 @@
 {
   "name": "g6-delivery-hvn",
-  "purpose": "G6 real UI journey: seed one pending delivery line and its stock LOT, capture the generated carton QR in memory, enter it through the real HVN_PGH QR control and Enter handler, assert delivery/QR/stock postconditions, then cleanup.",
-  "configured": true,
+  "purpose": "G6 real UI journey: seed one pending delivery line and its stock LOT, capture the generated carton QR in memory, enter it through the real HVN_PGH QR control and Enter handler, assert delivery/QR/stock postconditions, then cleanup. BLOCKED: current fixture scans only a generated FCC carton QR and asserts final delivery state without exercising the full FCC→customer-label and completion/CNK sequence.",
+  "configured": false,
   "dataMutation": true,
   "scenario": {
     "id": "G6-004",

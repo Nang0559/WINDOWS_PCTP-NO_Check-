@@ -1,5 +1,7 @@
 using System;
 using System.IO;
+using System.Linq;
+using System.Text.Json;
 using Xunit;
 
 namespace PCTP.QC.Tests;
@@ -130,6 +132,237 @@ public sealed class DeliveryQrAllocationSourceContractTests
         Assert.Contains("d.GIO    = CASE WHEN q.Owner > 0 THEN CONVERT(nvarchar(100), q.Owner) END", sql);
         // Optimistic check: a claim that did not touch exactly the expected rows must abort.
         Assert.Contains("@affected <> @expected", sql);
+    }
+
+    [Fact]
+    public void ScanEngine_RoutesByFieldCountCustomerCapabilitiesAndMpSpMode()
+    {
+        var source = Read("DocQRScanEngine.source.cs");
+        var start = source.IndexOf("public ScanResult ProcessScan(", StringComparison.Ordinal);
+        var end = source.IndexOf("private string MapMaHang(", StringComparison.Ordinal);
+        Assert.True(start >= 0 && end > start);
+        var route = source.Substring(start, end - start);
+
+        Assert.Contains("parts.Length == 6 && !_cfg.Delivery.CoNhieuNhaMay && !_cfg.Delivery.CoGear", route);
+        Assert.Contains("parts.Length == 4 && _cfg.Delivery.CoGear", route);
+        Assert.Contains("if (_cfg.Delivery.CoGear)", route);
+        Assert.Contains("if (IsBanSP)", route);
+        Assert.Contains("return ScanHVN(parts)", route);
+
+        var hvnSp = MethodBody(source, "private ScanResult ScanFCC_SP(", "private ScanResult ScanFCC(");
+        Assert.Contains("LotHVN = lotFcc", hvnSp);
+        Assert.Contains("MaHangHVN = maHangThuc", hvnSp);
+        var hvnMpFcc = MethodBody(source, "private ScanResult ScanFCC(", "public ScanResult ProcessScanYMVN(");
+        Assert.Contains("_bus.Publish(new QRScannedEvent(item, \"FCC\"))", hvnMpFcc);
+        var hvnCustomer = MethodBody(source, "private ScanResult ScanHVN(", "private ScanResult ScanFCC_YMVN(");
+        Assert.Contains("_repo.UpdateHVN(item, DocQRTable)", hvnCustomer);
+    }
+
+    [Fact]
+    public void CustomerConfig_SeparatesHvnYmvNAndHondaTradingTableFamilies()
+    {
+        var config = Read("CustomerTableConfig.source.cs");
+        Assert.Contains("public const string HondaVietnam = \"100001\"", config);
+        Assert.Contains("public const string YamahaVietnam = \"100002\"", config);
+        Assert.Contains("public const string Customer100003 = \"100003\"", config);
+        Assert.Contains("DocQRTable = \"DOCQRCODE\"", config);
+        Assert.Contains("DocQRTableSP = \"DOCQRCODE_SP\"", config);
+        Assert.Contains("DocQRTable = \"YMVN_DOCQRCODE\"", config);
+        Assert.Contains("DocQRTableSP = \"SP_DOCQRCODE\"", config);
+        Assert.Contains("TmpTableSP = \"SP_TMPPHIEUGIAOHANG\"", config);
+        Assert.Contains("DocQRTable = \"DOCQRCODE_100003\"", config);
+        Assert.Contains("TmpTable = \"TMPPHIEUGIAOHANG_100003\"", config);
+        Assert.Contains("CoGear = true", config);
+        Assert.Contains("CoNhieuNhaMay = true", config);
+        Assert.Contains("LoadTheoNgay = true", config);
+        Assert.Contains("OrderTable = \"Purchase_Order_HTN\"", config);
+    }
+
+    [Fact]
+    public void HvnMp_RealFccAndCustomerLabelSamples_AreRoutedByTheirActualFieldCounts()
+    {
+        const string fccQr = "231115010090-25,231116010090-50:22660-K90-VM10-M1:16/00/2023:75";
+        const string hvnQr = "24061106007225:23010K1Y J510M1:23010K1Y J510M1ZZZ:5:4R62:";
+
+        var fcc = fccQr.Trim().ToUpperInvariant().Split(':');
+        var hvn = hvnQr.Trim().ToUpperInvariant().Split(':');
+
+        Assert.Equal(4, fcc.Length);
+        Assert.Equal(6, hvn.Length); // Includes the trailing empty field.
+        Assert.Equal("22660-K90-VM10-M1", fcc[1]);
+        Assert.Equal("75", fcc[3]);
+        Assert.Equal("23010K1YJ510M1", hvn[1].Replace(" ", ""));
+        Assert.Equal("5", hvn[3]);
+        Assert.Equal("4R62", hvn[4]);
+        Assert.Equal("", hvn[5]);
+
+        // HVN MP: CoGear=false, CoNhieuNhaMay=true.
+        // The four-field FCC QR enters ScanFCC; the six-field customer QR enters ScanHVN.
+        bool coNhieuNhaMay = true;
+        bool coGear = false;
+        string fccRoute = fcc.Length == 4 && coGear ? "ScanFCC_YMVN"
+            : coGear ? "ScanYMVN"
+            : fcc.Length == 4 ? "ScanFCC" : "ScanHVN";
+        string hvnRoute = hvn.Length == 4 && coGear ? "ScanFCC_YMVN"
+            : coGear ? "ScanYMVN"
+            : hvn.Length == 4 ? "ScanFCC" : "ScanHVN";
+        Assert.Equal("ScanFCC", fccRoute);
+        Assert.Equal("ScanHVN", hvnRoute);
+        Assert.True(coNhieuNhaMay);
+    }
+
+    [Fact]
+    public void HvnMp_UsesTwoStageFccThenCustomerLabelAndRejectsReverseOrder()
+    {
+        var config = Read("CustomerTableConfig.source.cs");
+        var engine = Read("DocQRScanEngine.source.cs");
+        var fcc = MethodBody(engine, "private ScanResult ScanFCC(", "public ScanResult ProcessScanYMVN(");
+        var customer = MethodBody(engine, "private ScanResult ScanHVN(", "private ScanResult ScanFCC_YMVN(");
+
+        Assert.Contains("CoNhieuNhaMay = true", config);
+        Assert.Contains("LabelDocQR = \"Đọc QRCode theo thứ tự: FCC → HVN\"", config);
+        Assert.Contains("if (parts.Length == 4)", engine);
+        Assert.Contains("return ScanFCC(parts", engine);
+        Assert.Contains("return ScanHVN(parts)", engine);
+        Assert.Contains("if (!KiemTraThuTuFCC())", fcc);
+        Assert.Contains("private bool KiemTraThuTuHVN()", engine);
+        Assert.Contains("if (!KiemTraThuTuHVN())", customer);
+        Assert.Contains("return false;", MethodBody(engine, "private bool KiemTraThuTuHVN()", "private bool KiemTraTrungTem("));
+        Assert.Contains("return !string.IsNullOrEmpty(all[all.Count - 1].LotFCC)", MethodBody(engine, "private bool KiemTraThuTuHVN()", "private bool KiemTraTrungTem("));
+    }
+
+    [Fact]
+    public void HvnMp_CustomerLabelValidationUsesTheSingleUnpairedFccRow()
+    {
+        var engine = Read("DocQRScanEngine.source.cs");
+        var repo = Read("DocQRRepository.source.cs");
+        var fccOrder = MethodBody(engine, "private bool KiemTraThuTuFCC()", "private bool KiemTraThuTuHVN()");
+        var checkPart = MethodBody(repo, "public bool KiemTraTemMa(", "public bool KiemTraTemSoLuong(");
+        var checkQty = MethodBody(repo, "public bool KiemTraTemSoLuong(", "public int GetTongSlDaBan(");
+
+        Assert.Contains("if (!_cfg.Delivery.CoNhieuNhaMay || IsBanSP || IsBanOType) return true", fccOrder);
+        Assert.Contains("if (string.IsNullOrEmpty(item.LotHVN)) return false", fccOrder);
+        Assert.Contains("WHERE (LOTHVN IS NULL OR LOTHVN = '')", checkPart);
+        Assert.Contains("WHERE (LOTHVN IS NULL OR LOTHVN = '')", checkQty);
+        Assert.Contains("return mafcc.Replace(\"-\", \"\") == maHvn", checkPart);
+        Assert.Contains("return slFcc == slTemHvn", checkQty);
+        // These lookups depend on the engine's one-unpaired-row invariant; retain
+        // this test so future concurrency/order changes cannot silently remove it.
+    }
+
+    [Fact]
+    public void HvnMp_QuantityMismatchRequiresExplicitOperatorConfirmationAndKeepsFccQuantity()
+    {
+        var engine = Read("DocQRScanEngine.source.cs");
+        var presenter = Read("DocQrPresenter.source.cs");
+        var confirm = MethodBody(engine, "public ScanResult ConfirmSlKhacBiet(", "public bool KiemTraSlDaBan(");
+        var handler = MethodBody(presenter, "private void OnQRCodeSubmitted(", "private bool IsBlockingScanError(");
+
+        Assert.Contains("KetQua = \"KHAC SLTEM\"", confirm);
+        Assert.Contains("result.IsSlKhongKhop", handler);
+        Assert.Contains("DirectClickConfirmDialog.Show(", handler);
+        Assert.Contains("_c.QrSvc.ConfirmSlKhacBiet(result.Pending)", handler);
+        Assert.Contains("số lượng nghiệp vụ luôn lấy theo tem FCC", handler);
+    }
+
+    [Fact]
+    public void HvnSp_OneFccScanPopulatesBothCustomerAndFccColumns()
+    {
+        var config = Read("CustomerTableConfig.source.cs");
+        var engine = Read("DocQRScanEngine.source.cs");
+        var method = MethodBody(engine, "private ScanResult ScanFCC_SP(", "private ScanResult ScanFCC(");
+        Assert.Contains("DocQRTableSP = \"DOCQRCODE_SP\"", config);
+        Assert.Contains("TmpTableSP = \"TMPPHIEUGIAOHANG_SP\"", config);
+        Assert.Contains("LotHVN = lotFcc", method);
+        Assert.Contains("MaHangHVN = maHangThuc", method);
+        Assert.Contains("SlTemHVN = slTem", method);
+        Assert.Contains("_repo.InsertFCC(item, DocQRTable)", method);
+        Assert.Contains("_repo.UpdateHVN(item, DocQRTable)", method);
+    }
+
+    [Fact]
+    public void HvnLiveFixtures_LeaveTmpLotBlankForTheProductionExactQrAllocator()
+    {
+        var validation = Read("PhieuValidationRepository.source.cs");
+        var singleSeed = Read("delivery-hvn-seed.source.sql");
+        var multiSeed = Read("delivery-hvn-multilot-seed.source.sql");
+        var query = MethodBody(validation, "public DataTable GetDonHangChuaLot(", "public Dictionary<string, int> GetQcDongGoiBatch(");
+        Assert.Contains("WHERE (LOT = '' OR LOT IS NULL)", query);
+        Assert.Contains("KETQUA,'') <> 'DG'", query);
+        Assert.Contains("VALUES (@Stt, @Prefix, @Prefix, @Item, N'QC fixture ' + @Prefix, N''", singleSeed);
+        Assert.Contains("VALUES (@Stt, @Prefix, @Prefix, @ItemA, N'QC fixture ' + @Prefix, N''", multiSeed);
+        Assert.Contains("VALUES (@Stt + 1, @Prefix, @Prefix, @ItemB, N'QC fixture ' + @Prefix, N''", multiSeed);
+        Assert.Contains("VALUES (@Stt + 2, @Prefix, @Prefix, @ItemC, N'QC fixture ' + @Prefix, N''", multiSeed);
+        Assert.Contains("WHEN s.PART = @ItemB AND s.LOT = @LotB1 THEN 6", multiSeed);
+        Assert.Contains("WHEN s.PART = @ItemC AND s.LOT = @LotC3 THEN 2", multiSeed);
+        Assert.Contains("WHERE QrCount = 6", multiSeed);
+    }
+
+    [Fact]
+    public void HvnLiveJourneys_AreBlockedUntilTheyExerciseCustomerLabelAndCompletion()
+    {
+        foreach (var file in new[] { "g6-delivery-hvn.json", "g6-delivery-hvn-multilot.json" })
+        {
+            using var doc = JsonDocument.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, file)));
+            var root = doc.RootElement;
+            Assert.False(root.GetProperty("configured").GetBoolean(),
+                file + " must remain BLOCKED: generated FCC-only scans do not prove the full HVN MP workflow.");
+            var steps = root.GetProperty("steps").EnumerateArray().ToArray();
+            Assert.Contains(steps, s => s.GetProperty("id").GetString() == "assert-after-ui");
+            Assert.DoesNotContain(steps, s =>
+                s.TryGetProperty("action", out var action) &&
+                (action.GetString() == "click" || action.GetString() == "invoke") &&
+                s.TryGetProperty("automationId", out var id) &&
+                (id.GetString()?.IndexOf("complete", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                 id.GetString()?.IndexOf("hoanthanh", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                 id.GetString()?.IndexOf("capnhapkho", StringComparison.OrdinalIgnoreCase) >= 0));
+        }
+    }
+
+
+    [Fact]
+    public void HvnMp_RealFccAndCustomerQrSamples_AreRoutedToDifferentScanStages()
+    {
+        const string fccQr = "231115010090-25,231116010090-50:22660-K90-VM10-M1:16/00/2023:75";
+        const string hvnQr = "24061106007225:23010K1Y J510M1:23010K1Y J510M1ZZZ:5:4R62:";
+
+        var fccParts = fccQr.Trim().ToUpperInvariant().Split(':');
+        var hvnParts = hvnQr.Trim().ToUpperInvariant().Split(':');
+        Assert.Equal(4, fccParts.Length);
+        Assert.Equal(6, hvnParts.Length); // Split preserves the trailing empty field.
+        Assert.Equal("231115010090-25,231116010090-50", fccParts[0]);
+        Assert.Equal("22660-K90-VM10-M1", fccParts[1]);
+        Assert.Equal("75", fccParts[3]);
+
+        // Customer-label fields used by the HVN handler:
+        // [0] HVN label/LOT (duplicate check), [1] item code, [3] quantity.
+        Assert.Equal("24061106007225", hvnParts[0]);
+        Assert.Equal("23010K1Y J510M1", hvnParts[1]);
+        Assert.Equal("5", hvnParts[3]);
+        // [2], [4], and the trailing empty [5] are deliberately ignored.
+
+        var engine = Read("DocQRScanEngine.source.cs");
+        var hvn = MethodBody(engine, "private ScanResult ScanHVN(", "private ScanResult ScanFCC_YMVN(");
+        Assert.Contains("string lotHvn = parts[0]", hvn);
+        Assert.Contains("string maHvn = parts[1].Replace(\" \", \"\")", hvn);
+        Assert.Contains("int.TryParse(parts[3], out int slTem)", hvn);
+        Assert.DoesNotContain("parts[2]", hvn);
+        Assert.DoesNotContain("parts[4]", hvn);
+
+        var process = MethodBody(engine, "public ScanResult ProcessScan(", "private string MapMaHang(");
+        Assert.Contains("string[] parts = rawQr.Split(':')", process);
+        Assert.Contains("if (parts.Length == 4)", process);
+        Assert.Contains("return ScanFCC(parts", process);
+        Assert.Contains("return ScanHVN(parts)", process);
+
+    }
+
+    private static string MethodBody(string source, string start, string end)
+    {
+        var from = source.IndexOf(start, StringComparison.Ordinal);
+        var to = source.IndexOf(end, from + start.Length, StringComparison.Ordinal);
+        Assert.True(from >= 0 && to > from, "Could not isolate source method: " + start);
+        return source.Substring(from, to - from);
     }
 
     private static string ClaimSection(string sql)

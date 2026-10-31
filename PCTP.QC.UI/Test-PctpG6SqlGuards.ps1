@@ -48,7 +48,15 @@ if (Test-Path -LiteralPath $mlDir) {
     Check 'multilot seed: writes prerequisites only (no LUU*/DOCQRCODE inserts)' ($seedCode -notmatch '(?i)INSERT\s+INTO\s+dbo\.(LUUPHIEUGIAOHANG|LUUDOCQRCODE|DOCQRCODE)\b')
     Check 'multilot seed: SLCONLAITMP and SATUS stay at defaults'               ($seedCode -notmatch '(?i)SLCONLAITMP|\bSATUS\b')
     Check 'multilot seed: 3 pending lines, 6 lots'                              (([regex]::Matches($seedCode, '(?i)INSERT\s+INTO\s+dbo\.TMPPHIEUGIAOHANG')).Count -eq 3 -and ([regex]::Matches($seedCode, '(?i)INSERT\s+INTO\s+dbo\.STOCKTP')).Count -eq 6)
-    Check 'multilot seed: 2-LOT and 3-LOT lines use comma-separated LOT-qty'    (([regex]::Matches($seedCode, "N'-\d+,'")).Count -eq 3)
+    Check 'multilot seed: 2-LOT and 3-LOT QR quantities reconcile to their TMP lines' (
+        $seedCode -match '(?is)WHEN\s+s\.PART\s*=\s*@ItemB\s+AND\s+s\.LOT\s*=\s*@LotB1\s+THEN\s+6' -and
+        $seedCode -match '(?is)WHEN\s+s\.PART\s*=\s*@ItemB\s+AND\s+s\.LOT\s*=\s*@LotB2\s+THEN\s+4' -and
+        $seedCode -match '(?is)WHEN\s+s\.PART\s*=\s*@ItemC\s+AND\s+s\.LOT\s*=\s*@LotC1\s+THEN\s+3' -and
+        $seedCode -match '(?is)WHEN\s+s\.PART\s*=\s*@ItemC\s+AND\s+s\.LOT\s*=\s*@LotC2\s+THEN\s+3' -and
+        $seedCode -match '(?is)WHEN\s+s\.PART\s*=\s*@ItemC\s+AND\s+s\.LOT\s*=\s*@LotC3\s+THEN\s+2' -and
+        $seedCode -match '(?is)@ItemB.*?\b10\b' -and
+        $seedCode -match '(?is)@ItemC.*?\b8\b'
+    )
     foreach ($ro in @('qr', 'assert', 'assert-after-scan', 'verify')) {
         $code = Get-SqlCode (Join-Path $mlDir "$ro.sql")
         Check "multilot ${ro}.sql is read-only" ($code -notmatch '(?i)\b(INSERT|UPDATE|DELETE|DROP|TRUNCATE|ALTER|CREATE|EXEC)\b')

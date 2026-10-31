@@ -1,7 +1,7 @@
 {
   "name": "g6-delivery-hvn-multilot",
-  "purpose": "G6 real UI journey: seed run-scoped prerequisites, capture generated QR values without logging them, enter each QR through the real HVN_PGH control and Enter handler, assert delivery/QR/stock invariants, then cleanup.",
-  "configured": true,
+  "purpose": "G6 real UI journey: seed run-scoped prerequisites, capture generated QR values without logging them, enter each QR through the real HVN_PGH control and Enter handler, assert delivery/QR/stock invariants, then cleanup. BLOCKED: six generated FCC carton scans do not yet prove the HVN MP customer-label pairing and completion/CNK sequence.",
+  "configured": false,
   "dataMutation": true,
   "scenario": {
     "id": "G6-005",

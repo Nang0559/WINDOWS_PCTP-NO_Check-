@@ -259,8 +259,7 @@ jobs:
             --files SQL/QC_Schema/02_Generated_From_DB57.sql \
                     SQL/QC_Schema/03_Generated_From_DB57_Constraints.sql \
                     SQL/QC_Schema/05_Split.sql \
-                    SQL/QC_Schema/06_Fixture_NhapTP_SourceTables.sql \\
-                    SQL/QC_Schema/07_B20Item_Catalog_Dependencies.sql SQL/PCTP_vNhapTP.sql \
+                    SQL/QC_Schema/06_Fixture_NhapTP_SourceTables.sql \
                     SQL/Usp_Qrcode_Update_Stock2405.sql SQL/Usp_Qrcode_Update_Stock_SP.sql \
                     SQL/sp_GetCurrentStockStatus.sql \
                     "$RUNNER_TEMP/deploy/Usp_Qrcode_LOAD_PHIEU_DOCQR2405.sql" \
@@ -298,6 +297,7 @@ jobs:
             SQL/QC_Schema/03_Generated_From_DB57_Constraints.sql \
             SQL/QC_Schema/05_Split.sql \
             SQL/QC_Schema/06_Fixture_NhapTP_SourceTables.sql \
+            SQL/QC_Schema/07_B20Item_Catalog_Dependencies.sql \
             SQL/PCTP_vNhapTP.sql \
             SQL/Usp_Qrcode_Update_Stock2405.sql \
             SQL/Usp_Qrcode_Update_Stock_SP.sql \
