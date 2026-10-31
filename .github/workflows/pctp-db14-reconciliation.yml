@@ -169,9 +169,16 @@ jobs:
           $global:LASTEXITCODE = 0
       - name: Verify SQL ODBC driver
         run: |
-          if (-not (Get-OdbcDriver | Where-Object Name -eq 'ODBC Driver 18 for SQL Server')) {
-            throw 'Install Microsoft ODBC Driver 18 for SQL Server on the self-hosted runner before running this workflow.'
+          # Python/pyodbc trong job là 64-bit; kiểm tra đúng registry view tương ứng.
+          # Driver 17 và 18 đều hỗ trợ SQL Server; Python sẽ ưu tiên 18 nếu có,
+          # nếu không sẽ tự đổi DRIVER trong connection string sang 17.
+          $drivers = @(Get-OdbcDriver -Platform '64-bit' -ErrorAction Stop |
+            Where-Object { $_.Name -in @('ODBC Driver 18 for SQL Server', 'ODBC Driver 17 for SQL Server') } |
+            Select-Object -ExpandProperty Name -Unique)
+          if ($drivers.Count -eq 0) {
+            throw 'No supported 64-bit SQL Server ODBC driver found. Install Microsoft ODBC Driver 17 or 18 for SQL Server on the self-hosted runner.'
           }
+          Write-Host ("Supported 64-bit SQL Server ODBC drivers: " + ($drivers -join ', '))
       # Các bước dưới gọi lệnh native: hạ 'stop' (runner chèn) về 'Continue' và tự trả mã thoát để lỗi thật (pip/test/generator
       # exit != 0) luôn làm fail job, còn stderr thường (unittest in kết quả ra stderr) không làm hỏng bước.
       - name: Install pyodbc
