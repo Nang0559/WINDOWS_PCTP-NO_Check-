@@ -28,6 +28,35 @@ class ReconciliationGeneratorTests(unittest.TestCase):
             "[RowId] bigint IDENTITY(1,1) NOT NULL CONSTRAINT [DF_Test_RowId] DEFAULT ((0))"
         )
 
+    def test_connection_string_maps_driver_18_secret_to_installed_driver_17(self):
+        secret = "DRIVER={ODBC Driver 18 for SQL Server};SERVER=db;DATABASE=PCTP;Encrypt=yes;TrustServerCertificate=yes"
+        actual = mod.resolve_driver_connection_string(secret, ["ODBC Driver 17 for SQL Server"])
+        self.assertEqual(
+            actual,
+            "DRIVER={ODBC Driver 17 for SQL Server};SERVER=db;DATABASE=PCTP;Encrypt=yes;TrustServerCertificate=yes"
+        )
+
+    def test_connection_string_prefers_driver_18_when_both_are_installed(self):
+        secret = "Driver=ODBC Driver 17 for SQL Server;Server=db;Database=PCTP"
+        actual = mod.resolve_driver_connection_string(
+            secret, ["ODBC Driver 17 for SQL Server", "ODBC Driver 18 for SQL Server"]
+        )
+        self.assertTrue(actual.startswith("Driver={ODBC Driver 18 for SQL Server};"))
+
+    def test_connection_string_adds_driver_when_none_is_specified(self):
+        actual = mod.resolve_driver_connection_string(
+            "SERVER=db;DATABASE=PCTP", ["ODBC Driver 17 for SQL Server"]
+        )
+        self.assertEqual(actual, "DRIVER={ODBC Driver 17 for SQL Server};SERVER=db;DATABASE=PCTP")
+
+    def test_connection_string_preserves_dsn_and_rejects_missing_driver(self):
+        dsn = "DSN=PCTP-QC;UID=user"
+        self.assertEqual(
+            mod.resolve_driver_connection_string(dsn, ["ODBC Driver 17 for SQL Server"]), dsn
+        )
+        with self.assertRaisesRegex(RuntimeError, "No supported SQL Server ODBC driver"):
+            mod.resolve_driver_connection_string("SERVER=db;DATABASE=PCTP", ["SQL Server"])
+
     def test_inventory_keeps_sql_runtime_and_excludes_legacy_external(self):
         headers = ["Tên đối tượng","Loại đối tượng","Database/schema","Repository/caller",
                    "SQL thao tác","Khách hàng","Được tạo bởi script nào","Có trên DB57?",
