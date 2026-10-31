@@ -35,7 +35,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Validate DB57 acceptance credentials are configured
-        shell: powershell
+        shell: powershell -NoProfile -ExecutionPolicy Bypass -Command ". '{0}'"
         run: |
           if ([string]::IsNullOrWhiteSpace($env:PCTP_QC_SQL_USER) -or [string]::IsNullOrWhiteSpace($env:PCTP_QC_SQL_PASSWORD)) {
             throw 'Configure repository secrets PCTP_QC_TEST_USER and PCTP_QC_TEST_PASSWORD for DB57 acceptance.'
@@ -51,30 +51,30 @@ jobs:
           nuget-version: 6.x
 
       - name: Restore PCTP dependencies
-        shell: powershell
+        shell: powershell -NoProfile -ExecutionPolicy Bypass -Command ". '{0}'"
         run: |
           nuget restore PCTP\packages.config -PackagesDirectory packages -NonInteractive -Verbosity normal
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           if (-not (Test-Path 'packages\EntityFramework.6.6.0-preview1-final\build\EntityFramework.props')) { throw 'Required Entity Framework build props missing.' }
 
       - name: Build PCTP.exe
-        shell: powershell
+        shell: powershell -NoProfile -ExecutionPolicy Bypass -Command ". '{0}'"
         run: |
           msbuild PCTP\PCTP.csproj -p:Configuration=Debug -p:Platform=AnyCPU -p:SignManifests=false -p:GenerateManifests=false -p:ManifestCertificateThumbprint= -v:m
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           if (-not (Test-Path 'PCTP\bin\Debug\PCTP.exe')) { throw 'PCTP.exe was not produced.' }
 
       - name: Redirect all application SQL connections to DB57
-        shell: powershell
+        shell: powershell -NoProfile -ExecutionPolicy Bypass -Command ". '{0}'"
         run: .\PCTP.QC.UI\Set-PctpDb57ConnectionStrings.ps1 -ConfigPath "$PWD\PCTP\bin\Debug\PCTP.exe.config"
       - name: G5 - UI navigation against DB57
         id: g5
-        shell: powershell
+        shell: powershell -NoProfile -ExecutionPolicy Bypass -Command ". '{0}'"
         run: .\PCTP.QC.UI\Invoke-PctpQcGates.ps1 -Gate G5 -ExePath "$PWD\PCTP\bin\Debug\PCTP.exe" -LiveDb57 -SqlUser $env:PCTP_QC_SQL_USER
 
       - name: G6 - DB57 business journeys (seed -> UI -> SQL assert -> cleanup)
         id: g6
-        shell: powershell
+        shell: powershell -NoProfile -ExecutionPolicy Bypass -Command ". '{0}'"
         run: .\PCTP.QC.UI\Invoke-PctpQcGates.ps1 -Gate G6 -ExePath "$PWD\PCTP\bin\Debug\PCTP.exe" -LiveDb57 -SqlUser $env:PCTP_QC_SQL_USER -AllowMutations
 
       - name: Upload DB57 acceptance evidence
@@ -87,7 +87,7 @@ jobs:
 
       - name: Acceptance verdict
         if: always()
-        shell: powershell
+        shell: powershell -NoProfile -ExecutionPolicy Bypass -Command ". '{0}'"
         run: |
           $g5 = '${{ steps.g5.outcome }}'; $g6 = '${{ steps.g6.outcome }}'
           Get-ChildItem artifacts\gates -Recurse -Filter gate-summary.json -ErrorAction SilentlyContinue |
