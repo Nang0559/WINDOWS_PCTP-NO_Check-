@@ -25,6 +25,9 @@ jobs:
     if: github.event_name == 'push' || inputs.confirm == 'GENERATE-DB14-SQL'
     runs-on: [self-hosted, windows]
     timeout-minutes: 30
+    defaults:
+      run:
+        shell: powershell
     env:
       PCTP_QC_SOURCE_SQL_CONNECTION: ${{ secrets.PCTP_QC_SOURCE_SQL_CONNECTION }}
       PCTP_QC_TARGET_SQL_CONNECTION: ${{ secrets.PCTP_QC_TARGET_SQL_CONNECTION }}
@@ -33,7 +36,6 @@ jobs:
         with:
           ref: feature/wms-live-data-test-harness
       - name: Validate secrets exist
-        shell: pwsh
         run: |
           if ([string]::IsNullOrWhiteSpace($env:PCTP_QC_SOURCE_SQL_CONNECTION)) { throw 'Missing DB14 secret PCTP_QC_SOURCE_SQL_CONNECTION' }
           if ([string]::IsNullOrWhiteSpace($env:PCTP_QC_TARGET_SQL_CONNECTION)) { throw 'Missing DB57 secret PCTP_QC_TARGET_SQL_CONNECTION' }
@@ -41,7 +43,6 @@ jobs:
         with:
           python-version: '3.11'
       - name: Verify SQL ODBC driver
-        shell: pwsh
         run: |
           if (-not (Get-OdbcDriver | Where-Object Name -eq 'ODBC Driver 18 for SQL Server')) {
             throw 'Install Microsoft ODBC Driver 18 for SQL Server on the self-hosted runner before running this workflow.'
