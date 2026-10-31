@@ -45,12 +45,15 @@ jobs:
       # rồi tạo venv riêng cho mỗi lần chạy.
       - name: Prepare Python 3.11+
         run: |
+          # QUAN TRỌNG: runner tự chèn `$ErrorActionPreference = 'stop'` lên dòng 1 của file script (lỗi báo ở "line 8" dù
+          # script chỉ có `$found` ở dòng 7). Với Windows PowerShell 5.1, 'stop' + `2>$null` làm stderr của lệnh native
+          # (vd "py.exe: No installed Python found!") thành lỗi kết thúc -> job chết trước khi kịp thử `python`/cài mới.
+          # Vì vậy phải ghi đè về 'Continue' trước mọi lệnh native; kiểm tra $LASTEXITCODE và dùng -ErrorAction Stop riêng.
+          $ErrorActionPreference = 'Continue'
           $probeCode = 'import sys; print(sys.executable if sys.version_info >= (3, 11) else "")'
 
-          # Windows PowerShell 5.1: nếu $ErrorActionPreference = 'Stop' thì stderr của lệnh native (vd "py.exe: No installed
-          # Python found!") bị biến thành lỗi kết thúc dù đã 2>$null. Nên KHÔNG đặt 'Stop' toàn script; dò Python ở chế độ
-          # 'Continue' và kiểm tra $LASTEXITCODE; cmdlet quan trọng dùng -ErrorAction Stop riêng.
           function Test-Python([string]$exe, [string[]]$prefix) {
+            $ErrorActionPreference = 'Continue'
             $found = & $exe @prefix '-c' $probeCode 2>$null
             if ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace("$found")) { return "$found".Trim() }
             return $null
@@ -102,17 +105,30 @@ jobs:
           & $python -m venv $venv
           if ($LASTEXITCODE -ne 0) { throw "Cannot create virtualenv at $venv" }
           # Các bước sau gọi `python` -> trỏ vào venv này (không cần Activate.ps1, không bị AllSigned chặn).
-          Join-Path $venv 'Scripts' | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          Join-Path $venv 'Scripts' | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append -ErrorAction Stop
+          $global:LASTEXITCODE = 0
       - name: Verify SQL ODBC driver
         run: |
           if (-not (Get-OdbcDriver | Where-Object Name -eq 'ODBC Driver 18 for SQL Server')) {
             throw 'Install Microsoft ODBC Driver 18 for SQL Server on the self-hosted runner before running this workflow.'
           }
-      - run: python -m pip install --disable-pip-version-check pyodbc
+      # Các bước dưới gọi lệnh native: hạ 'stop' (runner chèn) về 'Continue' và tự trả mã thoát để lỗi thật (pip/test/generator
+      # exit != 0) luôn làm fail job, còn stderr thường (unittest in kết quả ra stderr) không làm hỏng bước.
+      - name: Install pyodbc
+        run: |
+          $ErrorActionPreference = 'Continue'
+          python -m pip install --disable-pip-version-check pyodbc
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Test generator
-        run: python -m unittest discover -s SQL/QC_Schema/tools -p 'test_db14_reconciliation.py' -v
+        run: |
+          $ErrorActionPreference = 'Continue'
+          python -m unittest discover -s SQL/QC_Schema/tools -p 'test_db14_reconciliation.py' -v
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Generate artifact (read-only; no database writes)
-        run: python SQL/QC_Schema/tools/db14_reconciliation.py --out artifacts/db14-reconciliation
+        run: |
+          $ErrorActionPreference = 'Continue'
+          python SQL/QC_Schema/tools/db14_reconciliation.py --out artifacts/db14-reconciliation
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - uses: actions/upload-artifact@v4
         with:
           name: DB14-Reconciliation-${{ github.run_number }}
