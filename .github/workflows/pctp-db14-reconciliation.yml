@@ -23,7 +23,7 @@ concurrency:
 jobs:
   generate:
     if: github.event_name == 'push' || inputs.confirm == 'GENERATE-DB14-SQL'
-    runs-on: [self-hosted, windows, sql-network]
+    runs-on: [self-hosted, windows]
     timeout-minutes: 30
     env:
       PCTP_QC_SOURCE_SQL_CONNECTION: ${{ secrets.PCTP_QC_SOURCE_SQL_CONNECTION }}
@@ -40,11 +40,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Install SQL ODBC driver
+      - name: Verify SQL ODBC driver
         shell: pwsh
         run: |
           if (-not (Get-OdbcDriver | Where-Object Name -eq 'ODBC Driver 18 for SQL Server')) {
-            choco install sql-server-odbcdriver --no-progress -y
+            throw 'Install Microsoft ODBC Driver 18 for SQL Server on the self-hosted runner before running this workflow.'
           }
       - run: python -m pip install --disable-pip-version-check pyodbc
       - name: Generate artifact (read-only; no database writes)
