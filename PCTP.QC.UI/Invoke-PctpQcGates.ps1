@@ -80,13 +80,39 @@ function Enter-Isolation {
 function Assert-LiveDb57Target {
     if ($SqlServer.Trim() -ne '192.168.200.57' -or $SqlDatabase.Trim() -ne 'B7R2_FCC') { throw 'Live DB57 acceptance is pinned to 192.168.200.57/B7R2_FCC.' }
     if (-not $ExePath -or -not (Test-Path -LiteralPath ($ExePath + '.config') -PathType Leaf)) { throw 'Live DB57 acceptance requires PCTP.exe.config.' }
-    # Connection-string entry NAMES are identifiers referenced by code (e.g. 'accfast\bravo.B7R2_FCC.dbo' used by report
-    # data sources); only their values can point at a server, so ignore the names when scanning for SQL14/BRAVO.
-    [xml]$cfgXml = Get-Content -LiteralPath ($ExePath + '.config') -Raw
-    foreach ($cfgEntry in @($cfgXml.SelectNodes('/configuration/connectionStrings/add'))) { [void]$cfgEntry.RemoveAttribute('name') }
+
+    # Resolve .NET external configSource: the connection strings are not embedded
+    # in PCTP.exe.config when App.config uses <connectionStrings configSource="..."/>.
+    $appConfigPath = (Resolve-Path -LiteralPath ($ExePath + '.config')).Path
+    [xml]$appXml = Get-Content -LiteralPath $appConfigPath -Raw -Encoding UTF8
+    $section = $appXml.SelectSingleNode('/configuration/connectionStrings')
+    if ($null -eq $section) { throw 'PCTP.exe.config has no /configuration/connectionStrings section.' }
+
+    $source = [string]$section.GetAttribute('configSource')
+    if ([string]::IsNullOrWhiteSpace($source)) {
+        $cfgXml = $appXml
+        $entries = @($cfgXml.SelectNodes('/configuration/connectionStrings/add'))
+    }
+    else {
+        if ([System.IO.Path]::IsPathRooted($source)) { throw 'connectionStrings configSource must be a relative path.' }
+        $baseDir = [System.IO.Path]::GetDirectoryName($appConfigPath)
+        $sourcePath = [System.IO.Path]::GetFullPath((Join-Path $baseDir $source))
+        $basePrefix = $baseDir.TrimEnd([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar) + [System.IO.Path]::DirectorySeparatorChar
+        if (-not $sourcePath.StartsWith($basePrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
+            throw 'connectionStrings configSource resolves outside the application config directory.'
+        }
+        if (-not (Test-Path -LiteralPath $sourcePath -PathType Leaf)) { throw 'PCTP.exe.config connectionStrings configSource file is missing.' }
+        [xml]$cfgXml = Get-Content -LiteralPath $sourcePath -Raw -Encoding UTF8
+        if ($cfgXml.DocumentElement.LocalName -ne 'connectionStrings') { throw 'External configSource root must be <connectionStrings>.' }
+        $entries = @($cfgXml.SelectNodes('/connectionStrings/add'))
+    }
+
+    if ($entries.Count -eq 0) { throw 'PCTP DB57 acceptance found no connectionStrings/add entries.' }
+    # Names are logical identifiers (some legacy names contain BRAVO); inspect values only.
+    foreach ($cfgEntry in $entries) { [void]$cfgEntry.RemoveAttribute('name') }
     $cfgText = $cfgXml.OuterXml
-    if ($cfgText -match '192\.168\.200\.14|BRAVO') { throw 'PCTP.exe.config points to SQL14/BRAVO; refusing production.' }
-    if ($cfgText -notmatch '192\.168\.200\.57') { throw 'PCTP.exe.config must explicitly target SQL57 (192.168.200.57).' }
+    if ($cfgText -match '192\\.168\\.200\\.14|BRAVO') { throw 'PCTP connectionStrings point to SQL14/BRAVO; refusing production.' }
+    if ($cfgText -notmatch '192\\.168\\.200\\.57') { throw 'PCTP connectionStrings must explicitly target SQL57 (192.168.200.57).' }
     $env:PCTP_QC_LIVE_MODE = '1'
 }
 
