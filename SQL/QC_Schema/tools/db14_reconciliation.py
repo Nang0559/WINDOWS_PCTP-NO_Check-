@@ -41,10 +41,33 @@ def invnames(path):
    if re.fullmatch(r'[A-Za-z_][A-Za-z0-9_]*',n): out.add(n)
    else: excluded[n]='Dynamic/non-SQL object; manual resolution required'
  return sorted(out,key=str.casefold),excluded
+def resolve_driver_connection_string(connection_string, available_drivers=None):
+ """Use an installed SQL Server ODBC driver without changing the stored GitHub secret."""
+ available = list(available_drivers if available_drivers is not None else pyodbc.drivers())
+ supported = ('ODBC Driver 18 for SQL Server', 'ODBC Driver 17 for SQL Server')
+ selected = next((name for name in supported if name in available), None)
+ if not selected:
+  raise RuntimeError(
+   'No supported SQL Server ODBC driver found. Install 64-bit ODBC Driver 17 or 18. '
+   f'Drivers visible to Python: {available}'
+  )
+
+ # Rewrite only DRIVER. Preserve server, database, credentials, and encryption options.
+ driver_pattern = re.compile(r'(?i)(\\bDRIVER\\s*=\\s*)(?:\\{([^}]*)\\}|([^;]*))')
+ if driver_pattern.search(connection_string):
+  return driver_pattern.sub(lambda m: m.group(1) + '{' + selected + '}', connection_string, count=1)
+
+ # DSN-based strings resolve their driver through the Windows ODBC data source.
+ if re.search(r'(?i)(?:^|;)\\s*DSN\\s*=', connection_string):
+  return connection_string
+
+ return 'DRIVER={' + selected + '};' + connection_string
+
+
 def connect(env):
  s=os.environ.get(env)
  if not s: raise RuntimeError('Missing secret '+env)
- return pyodbc.connect(s,timeout=20,readonly=True)
+ return pyodbc.connect(resolve_driver_connection_string(s),timeout=20,readonly=True)
 def main():
  p=argparse.ArgumentParser();p.add_argument('--out',type=Path,default=Path('artifacts/db14-reconciliation'));p.add_argument('--inventory',type=Path,default=INV);a=p.parse_args();a.out.mkdir(parents=True,exist_ok=True)
  # Fixed direction: SOURCE secret is DB14 (target); TARGET secret is DB57 (source).
