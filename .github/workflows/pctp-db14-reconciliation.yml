@@ -67,13 +67,57 @@ jobs:
           # 1) Bản đã tự cài ở lần chạy trước
           if (Test-Path $cached) { $python = Test-Python $cached @() }
 
-          # 2) Python có sẵn trên máy runner
+          # 2) Python có sẵn trên máy runner. Dịch vụ runner thường chạy bằng tài khoản KHÁC tài khoản đã cài Python
+          #    (Python cài "just for me" nằm trong profile/registry HKCU của người đó nên `py`/`python` không thấy).
+          #    Nên dò thêm: biến PCTP_PYTHON, `where.exe`, thư mục cài phổ biến và registry PythonCore.
           if (-not $python) {
-            foreach ($probe in @(@('py', '-3.11'), @('py', '-3.12'), @('py', '-3.13'), @('python'))) {
+            $candidates = New-Object System.Collections.Generic.List[string]
+            if ($env:PCTP_PYTHON) { $candidates.Add($env:PCTP_PYTHON) }
+
+            foreach ($probe in @(@('py', '-3.11'), @('py', '-3.12'), @('py', '-3.13'), @('py', '-3'))) {
               $cmd = Get-Command $probe[0] -ErrorAction SilentlyContinue
               if (-not $cmd) { continue }
               $python = Test-Python $cmd.Source @($probe | Select-Object -Skip 1)
               if ($python) { break }
+            }
+
+            if (-not $python) {
+              foreach ($line in @(& where.exe python 2>$null)) {
+                if ($line -and "$line" -notmatch '\\WindowsApps\\') { $candidates.Add("$line".Trim()) }   # bỏ alias Microsoft Store
+              }
+              $globs = @()
+              if ($env:ProgramFiles) { $globs += "$($env:ProgramFiles)\Python3*\python.exe" }
+              if (${env:ProgramFiles(x86)}) { $globs += "${env:ProgramFiles(x86)}\Python3*\python.exe" }
+              if ($env:SystemDrive) { $globs += "$($env:SystemDrive)\Python3*\python.exe" }
+              if ($env:LOCALAPPDATA) { $globs += "$($env:LOCALAPPDATA)\Programs\Python\Python3*\python.exe" }
+              $globs += 'C:\Users\*\AppData\Local\Programs\Python\Python3*\python.exe'
+              foreach ($glob in $globs) {
+                Get-ChildItem -Path $glob -ErrorAction SilentlyContinue | Sort-Object FullName -Descending | ForEach-Object { $candidates.Add($_.FullName) }
+              }
+              foreach ($key in @('HKLM:\SOFTWARE\Python\PythonCore', 'HKLM:\SOFTWARE\WOW6432Node\Python\PythonCore', 'HKCU:\SOFTWARE\Python\PythonCore')) {
+                foreach ($version in @(Get-ChildItem -Path $key -ErrorAction SilentlyContinue)) {
+                  $dir = (Get-ItemProperty -Path (Join-Path $version.PSPath 'InstallPath') -ErrorAction SilentlyContinue).'(default)'
+                  if ($dir) { $candidates.Add((Join-Path $dir 'python.exe')) }
+                }
+              }
+              foreach ($candidate in ($candidates | Select-Object -Unique)) {
+                if (-not (Test-Path -LiteralPath $candidate)) { continue }
+                $python = Test-Python $candidate @()
+                if ($python) { break }
+              }
+            }
+
+            if (-not $python) {
+              # Báo cáo chẩn đoán: runner đang chạy bằng tài khoản nào và thấy gì -> biết ngay vì sao không thấy Python.
+              Write-Host "Runner account : $([Security.Principal.WindowsIdentity]::GetCurrent().Name)"
+              Write-Host "py launcher    : $((Get-Command py -ErrorAction SilentlyContinue).Source)"
+              Write-Host '--- py -0p ---';           & py -0p 2>&1 | ForEach-Object { Write-Host "$_" }
+              Write-Host '--- where python ---';     & where.exe python 2>&1 | ForEach-Object { Write-Host "$_" }
+              Write-Host '--- PATH entries mentioning python ---'
+              ($env:PATH -split ';') | Where-Object { $_ -match 'python' } | ForEach-Object { Write-Host $_ }
+              Write-Host '--- Python folders found ---'
+              Get-ChildItem 'C:\Program Files\Python*', 'C:\Python*', 'C:\Users\*\AppData\Local\Programs\Python\*' -ErrorAction SilentlyContinue | ForEach-Object { Write-Host $_.FullName }
+              Write-Host "PCTP_PYTHON    : $($env:PCTP_PYTHON)"
             }
           }
 
@@ -111,6 +155,7 @@ jobs:
             throw 'Python 3.11+ is unavailable and the automatic download failed (needs access to www.nuget.org). Install Python 3.11+ on the runner machine (python.org, "Install for all users", Add python.exe to PATH; if the Windows Installer service is blocked, enable it first), then restart the runner service.'
           }
 
+          Write-Host "Using Python: $python"
           & $python --version
           $venv = Join-Path $env:RUNNER_TEMP 'pctp-db14-venv'
           if (Test-Path $venv) { Remove-Item -Recurse -Force $venv -ErrorAction Stop }
