@@ -35,6 +35,19 @@ class ReconciliationGeneratorTests(unittest.TestCase):
         self.assertIn("CONVERT(bigint,ic.seed_value) seed_value", mod.TABLES_SQL)
         self.assertIn("CONVERT(bigint,ic.increment_value) increment_value", mod.TABLES_SQL)
 
+    def test_numeric_odbc_boolean_options_become_yes_no_for_driver_17(self):
+        actual = mod.normalize_odbc_boolean_options(
+            "DRIVER={ODBC Driver 17 for SQL Server};SERVER=db;DATABASE=PCTP;Encrypt=0;TrustServerCertificate = 1;UID=u;PWD=p"
+        )
+        self.assertEqual(
+            actual,
+            "DRIVER={ODBC Driver 17 for SQL Server};SERVER=db;DATABASE=PCTP;Encrypt=no;TrustServerCertificate=yes;UID=u;PWD=p"
+        )
+
+    def test_odbc_boolean_normalization_leaves_other_values_alone(self):
+        s = "SERVER=db;Encrypt=yes;PWD=pass0;ApplicationIntent=ReadOnly;TrustServerCertificate=strict"
+        self.assertEqual(mod.normalize_odbc_boolean_options(s), s)
+
     def test_connection_string_maps_driver_18_secret_to_installed_driver_17(self):
         secret = "DRIVER={ODBC Driver 18 for SQL Server};SERVER=db;DATABASE=PCTP;Encrypt=yes;TrustServerCertificate=yes"
         actual = mod.resolve_driver_connection_string(secret, ["ODBC Driver 17 for SQL Server"])

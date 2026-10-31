@@ -64,10 +64,19 @@ def resolve_driver_connection_string(connection_string, available_drivers=None):
  return 'DRIVER={' + selected + '};' + connection_string
 
 
+def normalize_odbc_boolean_options(connection_string):
+ """ODBC Driver 17 rejects numeric Encrypt=0/1 (and TrustServerCertificate=0/1); yes/no works on 17 and 18.
+ Done here, in-process, because GITHUB_ENV cannot override env: values declared at job level in the workflow."""
+ for opt in ('Encrypt','TrustServerCertificate','MultiSubnetFailover'):
+  pat=re.compile(r'(?i)(^|;)(\s*'+opt+r'\s*=\s*)(0|1|true|false)\s*(?=;|$)')
+  connection_string=pat.sub(lambda m,o=opt:m.group(1)+o+'='+('yes' if m.group(3).lower() in ('1','true') else 'no'),connection_string)
+ return connection_string
+
+
 def connect(env):
  s=os.environ.get(env)
  if not s: raise RuntimeError('Missing secret '+env)
- return pyodbc.connect(resolve_driver_connection_string(s),timeout=20,readonly=True)
+ return pyodbc.connect(normalize_odbc_boolean_options(resolve_driver_connection_string(s)),timeout=20,readonly=True)
 def main():
  p=argparse.ArgumentParser();p.add_argument('--out',type=Path,default=Path('artifacts/db14-reconciliation'));p.add_argument('--inventory',type=Path,default=INV);a=p.parse_args();a.out.mkdir(parents=True,exist_ok=True)
  # Fixed direction: SOURCE secret is DB14 (target); TARGET secret is DB57 (source).
