@@ -141,7 +141,7 @@ def main():
     if any((old[k] or '').casefold()!=(x[k] or '').casefold() for k in sig) or bool(old['is_unique'])!=bool(x['is_unique']):
      blockers.append({'object':t,'index':n,'reason':'Existing index definition differs; no DROP/RECREATE generated.'})
     continue
-   if x['is_disabled'] or not x['key_columns']: unverified.append({'object':t,'index':n,'reason':'Disabled or unscriptable index; omitted.'});continue
+   if x['is_disabled'] or not x['key_columns'] or x['type_desc'] not in ('CLUSTERED','NONCLUSTERED'): unverified.append({'object':t,'index':n,'reason':'Disabled, non-rowstore, or unscriptable index; manual scripting required.'});continue
    unique='UNIQUE ' if x['is_unique'] else ''
    include=f" INCLUDE ({x['include_columns']})" if x['include_columns'] else ''
    where=f" WHERE {x['filter_definition']}" if x['filter_definition'] else ''
