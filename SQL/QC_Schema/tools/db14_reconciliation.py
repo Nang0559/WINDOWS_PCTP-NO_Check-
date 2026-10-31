@@ -5,11 +5,11 @@ from pathlib import Path
 from datetime import datetime,timezone
 import pyodbc
 
-ROOT=Path(__file__).resolve().parents[2]
+ROOT=Path(__file__).resolve().parents[3]
 INV=ROOT/'docs'/'PCTP_SQL_Runtime_Inventory_A-K.csv'
-TABLES_SQL="""SELECT s.name schema_name,t.name table_name,c.column_id,c.name column_name,ty.name type_name,c.max_length,c.precision,c.scale,c.is_nullable,c.is_identity,ic.seed_value,ic.increment_value,c.is_computed,cc.definition computed_definition,dc.definition default_definition,c.collation_name FROM sys.tables t JOIN sys.schemas s ON s.schema_id=t.schema_id JOIN sys.columns c ON c.object_id=t.object_id JOIN sys.types ty ON ty.user_type_id=c.user_type_id LEFT JOIN sys.identity_columns ic ON ic.object_id=t.object_id AND ic.column_id=c.column_id LEFT JOIN sys.computed_columns cc ON cc.object_id=t.object_id AND cc.column_id=c.column_id LEFT JOIN sys.default_constraints dc ON dc.parent_object_id=t.object_id AND dc.parent_column_id=c.column_id WHERE s.name='dbo' AND t.is_ms_shipped=0 ORDER BY t.name,c.column_id"""
+TABLES_SQL="""SELECT s.name schema_name,t.name table_name,c.column_id,c.name column_name,ty.name type_name,c.max_length,c.precision,c.scale,c.is_nullable,c.is_identity,ic.seed_value,ic.increment_value,c.is_computed,cc.definition computed_definition,dc.name default_constraint_name,dc.definition default_definition,c.collation_name FROM sys.tables t JOIN sys.schemas s ON s.schema_id=t.schema_id JOIN sys.columns c ON c.object_id=t.object_id JOIN sys.types ty ON ty.user_type_id=c.user_type_id LEFT JOIN sys.identity_columns ic ON ic.object_id=t.object_id AND ic.column_id=c.column_id LEFT JOIN sys.computed_columns cc ON cc.object_id=t.object_id AND cc.column_id=c.column_id LEFT JOIN sys.default_constraints dc ON dc.parent_object_id=t.object_id AND dc.parent_column_id=c.column_id WHERE s.name='dbo' AND t.is_ms_shipped=0 ORDER BY t.name,c.column_id"""
 MODULES_SQL="""SELECT o.name object_name,o.type object_type,OBJECT_DEFINITION(o.object_id) definition FROM sys.objects o JOIN sys.schemas s ON s.schema_id=o.schema_id WHERE s.name='dbo' AND o.type IN ('V','P','FN','IF','TF','TR') AND o.is_ms_shipped=0"""
-KEYS_SQL="""SELECT t.name table_name,k.name constraint_name,k.type, i.type_desc, STRING_AGG(QUOTENAME(c.name),',') WITHIN GROUP(ORDER BY ic.key_ordinal) columns_sql FROM sys.key_constraints k JOIN sys.tables t ON t.object_id=k.parent_object_id JOIN sys.indexes i ON i.object_id=t.object_id AND i.index_id=k.unique_index_id JOIN sys.index_columns ic ON ic.object_id=i.object_id AND ic.index_id=i.index_id AND ic.key_ordinal>0 JOIN sys.columns c ON c.object_id=ic.object_id AND c.column_id=ic.column_id JOIN sys.schemas s ON s.schema_id=t.schema_id WHERE s.name='dbo' GROUP BY t.name,k.name,k.type,i.type_desc"""
+KEYS_SQL="""SELECT t.name table_name,k.name constraint_name,k.type, i.type_desc, STRING_AGG(QUOTENAME(c.name)+CASE WHEN ic.is_descending_key=1 THEN ' DESC' ELSE ' ASC' END,',') WITHIN GROUP(ORDER BY ic.key_ordinal) columns_sql FROM sys.key_constraints k JOIN sys.tables t ON t.object_id=k.parent_object_id JOIN sys.indexes i ON i.object_id=t.object_id AND i.index_id=k.unique_index_id JOIN sys.index_columns ic ON ic.object_id=i.object_id AND ic.index_id=i.index_id AND ic.key_ordinal>0 JOIN sys.columns c ON c.object_id=ic.object_id AND c.column_id=ic.column_id JOIN sys.schemas s ON s.schema_id=t.schema_id WHERE s.name='dbo' GROUP BY t.name,k.name,k.type,i.type_desc"""
 CHECKS_SQL="""SELECT t.name table_name,cc.name constraint_name,cc.definition FROM sys.check_constraints cc JOIN sys.tables t ON t.object_id=cc.parent_object_id JOIN sys.schemas s ON s.schema_id=t.schema_id WHERE s.name='dbo'"""
 INDEXES_SQL="""SELECT t.name table_name,i.name index_name,i.type_desc,i.is_unique,i.is_disabled,i.filter_definition,STRING_AGG(CASE WHEN ic.is_included_column=0 THEN QUOTENAME(c.name) END,',') WITHIN GROUP(ORDER BY ic.key_ordinal) key_columns,STRING_AGG(CASE WHEN ic.is_included_column=1 THEN QUOTENAME(c.name) END,',') WITHIN GROUP(ORDER BY ic.index_column_id) include_columns FROM sys.indexes i JOIN sys.tables t ON t.object_id=i.object_id JOIN sys.schemas s ON s.schema_id=t.schema_id LEFT JOIN sys.index_columns ic ON ic.object_id=i.object_id AND ic.index_id=i.index_id LEFT JOIN sys.columns c ON c.object_id=ic.object_id AND c.column_id=ic.column_id WHERE s.name='dbo' AND i.index_id>0 AND i.is_primary_key=0 AND i.is_unique_constraint=0 GROUP BY t.name,i.name,i.type_desc,i.is_unique,i.is_disabled,i.filter_definition"""
 FKS_SQL="""SELECT pt.name parent_table,f.name fk_name,rs.name ref_schema,rt.name ref_table,STRING_AGG(QUOTENAME(pc.name),',') WITHIN GROUP(ORDER BY fkc.constraint_column_id) parent_cols,STRING_AGG(QUOTENAME(rc.name),',') WITHIN GROUP(ORDER BY fkc.constraint_column_id) ref_cols,f.delete_referential_action_desc delete_action,f.update_referential_action_desc update_action FROM sys.foreign_keys f JOIN sys.tables pt ON pt.object_id=f.parent_object_id JOIN sys.schemas ps ON ps.schema_id=pt.schema_id JOIN sys.tables rt ON rt.object_id=f.referenced_object_id JOIN sys.schemas rs ON rs.schema_id=rt.schema_id JOIN sys.foreign_key_columns fkc ON fkc.constraint_object_id=f.object_id JOIN sys.columns pc ON pc.object_id=pt.object_id AND pc.column_id=fkc.parent_column_id JOIN sys.columns rc ON rc.object_id=rt.object_id AND rc.column_id=fkc.referenced_column_id WHERE ps.name='dbo' GROUP BY pt.name,f.name,rs.name,rt.name,f.delete_referential_action_desc,f.update_referential_action_desc"""
@@ -29,7 +29,7 @@ def colddl(c):
  if c['collation_name'] and c['type_name'].lower() in ('varchar','char','nvarchar','nchar'): s+=f" COLLATE {c['collation_name']}"
  if c['is_identity']: s+=f" IDENTITY({int(c['seed_value'])},{int(c['increment_value'])})"
  s+=' NULL' if c['is_nullable'] else ' NOT NULL'
- if c['default_definition']: s+=f" DEFAULT {c['default_definition']}"
+ if c['default_definition']: s+=f" CONSTRAINT {q(c['default_constraint_name'])} DEFAULT {c['default_definition']}"
  return s
 def invnames(path):
  out=set(); excluded={}
@@ -72,20 +72,20 @@ def main():
     for c in st[k]:
      ck=c['column_name'].casefold()
      if ck not in existing:
-      if not c['is_nullable'] and not c['default_definition'] and not c['is_computed']:
-       blockers.append({'object':n,'column':c['column_name'],'reason':'NOT NULL column has no default; unsafe for existing DB14 rows.'});continue
+      if not c['is_nullable']:
+       blockers.append({'object':n,'column':c['column_name'],'reason':'NOT NULL column would initialize or constrain existing DB14 rows; manual migration required.'});continue
       sql.append(f"IF COL_LENGTH(N'dbo.{n}',N'{c['column_name']}') IS NULL ALTER TABLE [dbo].{q(n)} ADD {colddl(c)};")
       changes.append({'object':n,'change':'ADD COLUMN','column':c['column_name']})
      else:
       old=existing[ck]
-      if typ(c).casefold()!=typ(old).casefold() or bool(c['is_nullable'])!=bool(old['is_nullable']) or bool(c['is_identity'])!=bool(old['is_identity']):
+      if typ(c).casefold()!=typ(old).casefold() or bool(c['is_nullable'])!=bool(old['is_nullable']) or bool(c['is_identity'])!=bool(old['is_identity']) or (c['collation_name'] or '').casefold()!=(old['collation_name'] or '').casefold() or (c['default_definition'] or '').casefold()!=(old['default_definition'] or '').casefold() or (c['computed_definition'] or '').casefold()!=(old['computed_definition'] or '').casefold():
        blockers.append({'object':n,'column':c['column_name'],'reason':'Existing type/nullability/identity differs; no ALTER generated.','db57':typ(c),'db14':typ(old)})
    if k in smod:
     s=smod[k]
     if k not in dmod:
      if not s['definition']: blockers.append({'object':n,'reason':'DB57 module definition unavailable; VIEW DEFINITION permission required.'})
      else: sql.append(s['definition'].rstrip().rstrip(';')+';');changes.append({'object':n,'change':'CREATE MODULE','type':s['object_type']})
-    elif (s['definition'] or '').strip()!=(dmod[k]['definition'] or '').strip():
+    elif not s['definition'] or not dmod[k]['definition'] or (s['definition'] or '').strip()!=(dmod[k]['definition'] or '').strip():
      blockers.append({'object':n,'reason':'Existing module definition differs; manual review required.'})
   scoped={x.casefold() for x in names}
   target_tables={x['table_name'].casefold() for x in dst}
