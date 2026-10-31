@@ -64,10 +64,41 @@ function Set-Db57Connection([System.Data.Common.DbConnectionStringBuilder]$Build
     Set-BuilderValue $Builder 'Password' $SqlPassword
 }
 
-[xml]$xml = Get-Content -LiteralPath $ConfigPath -Raw -Encoding UTF8
-# Use XPath and explicit case-insensitive connection-string keyword lookup.
-$entries = @($xml.SelectNodes('/configuration/connectionStrings/add'))
-if ($entries.Count -eq 0) { throw 'Application config has no connectionStrings/add entries (XPath /configuration/connectionStrings/add).' }
+# .NET configSource keeps connection strings in a sibling file. Resolve that
+# external file explicitly; XPath /configuration/connectionStrings/add is empty
+# when the section is declared as <connectionStrings configSource="..."/>.
+[xml]$appConfig = Get-Content -LiteralPath $ConfigPath -Raw -Encoding UTF8
+$section = $appConfig.SelectSingleNode('/configuration/connectionStrings')
+if ($null -eq $section) {
+    throw 'Application config has no /configuration/connectionStrings section.'
+}
+
+$configSource = [string]$section.GetAttribute('configSource')
+if (-not [string]::IsNullOrWhiteSpace($configSource)) {
+    if ([System.IO.Path]::IsPathRooted($configSource)) {
+        throw 'connectionStrings configSource must be a relative path.'
+    }
+    $configDirectory = [System.IO.Path]::GetFullPath((Split-Path -Parent (Resolve-Path -LiteralPath $ConfigPath).Path))
+    $savePath = [System.IO.Path]::GetFullPath((Join-Path $configDirectory $configSource))
+    $prefix = $configDirectory.TrimEnd([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar) + [System.IO.Path]::DirectorySeparatorChar
+    if (-not $savePath.StartsWith($prefix, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw 'connectionStrings configSource resolves outside the application config directory.'
+    }
+    if (-not (Test-Path -LiteralPath $savePath -PathType Leaf)) {
+        throw "External connectionStrings configSource file not found: $savePath"
+    }
+    [xml]$xml = Get-Content -LiteralPath $savePath -Raw -Encoding UTF8
+    if ($xml.DocumentElement.LocalName -ne 'connectionStrings') {
+        throw 'External configSource root must be <connectionStrings>.'
+    }
+    $entries = @($xml.SelectNodes('/connectionStrings/add'))
+}
+else {
+    $xml = $appConfig
+    $savePath = (Resolve-Path -LiteralPath $ConfigPath).Path
+    $entries = @($xml.SelectNodes('/configuration/connectionStrings/add'))
+}
+if ($entries.Count -eq 0) { throw 'No connectionStrings/add entries found in the application config or its configSource file.' }
 
 $changed = 0
 foreach ($entry in $entries) {
@@ -139,5 +170,5 @@ foreach ($entry in $entries) {
     }
 }
 
-$xml.Save((Resolve-Path -LiteralPath $ConfigPath).Path)
-Write-Host "PASS: redirected and verified $changed application SQL connection string(s) to DB57/B7R2_FCC using the QC login. No credentials were printed."
+$xml.Save($savePath)
+Write-Host "PASS: redirected and verified $changed application SQL connection string(s) to DB57/B7R2_FCC using the QC login. Updated config file: $savePath. No credentials were printed."
