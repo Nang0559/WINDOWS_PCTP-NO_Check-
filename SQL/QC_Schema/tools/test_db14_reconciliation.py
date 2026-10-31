@@ -48,6 +48,35 @@ class ReconciliationGeneratorTests(unittest.TestCase):
         s = "SERVER=db;Encrypt=yes;PWD=pass0;ApplicationIntent=ReadOnly;TrustServerCertificate=strict"
         self.assertEqual(mod.normalize_odbc_boolean_options(s), s)
 
+    def test_ado_net_keywords_are_mapped_to_odbc(self):
+        ado = "Data Source=192.168.200.14;Initial Catalog=B7R2;User ID=pctp_ro;Password=p;w=1;Integrated Security=False;Connect Timeout=30;Persist Security Info=True;Encrypt=0"
+        actual = mod.normalize_connection_string_keywords(ado)
+        self.assertEqual(
+            actual,
+            "SERVER=192.168.200.14;DATABASE=B7R2;UID=pctp_ro;PWD=p;w=1;Trusted_Connection=no;Encrypt=0"
+        )
+
+    def test_ado_integrated_security_sspi_becomes_trusted_connection(self):
+        actual = mod.normalize_connection_string_keywords("Server=db;Database=x;Integrated Security=SSPI")
+        self.assertEqual(actual, "SERVER=db;DATABASE=x;Trusted_Connection=yes")
+
+    def test_quoted_and_braced_passwords_with_semicolons_survive(self):
+        for pwd_part in ('Password="a;b}c"', "Password='a;b}c'", "PWD={a;b}}c}"):
+            actual = mod.normalize_connection_string_keywords("Server=db;User ID=u;" + pwd_part)
+            self.assertEqual(actual, "SERVER=db;UID=u;PWD={a;b}}c}", pwd_part)
+
+    def test_driver_resolution_still_works_after_keyword_normalization(self):
+        norm = mod.normalize_connection_string_keywords("Driver={ODBC Driver 18 for SQL Server};Server=db;Uid=u;Pwd=p")
+        actual = mod.resolve_driver_connection_string(norm, ["ODBC Driver 17 for SQL Server"])
+        self.assertEqual(actual, "DRIVER={ODBC Driver 17 for SQL Server};SERVER=db;UID=u;PWD=p")
+
+    def test_diagnostic_never_prints_credentials_or_hosts(self):
+        text = mod.describe_connection_string("Server=secret-host;User ID=;Password=hunter2;Encrypt=0")
+        self.assertNotIn("hunter2", text)
+        self.assertNotIn("secret-host", text)
+        self.assertIn("UID=<EMPTY>", text)
+        self.assertIn("PWD=<set>", text)
+
     def test_connection_string_maps_driver_18_secret_to_installed_driver_17(self):
         secret = "DRIVER={ODBC Driver 18 for SQL Server};SERVER=db;DATABASE=PCTP;Encrypt=yes;TrustServerCertificate=yes"
         actual = mod.resolve_driver_connection_string(secret, ["ODBC Driver 17 for SQL Server"])

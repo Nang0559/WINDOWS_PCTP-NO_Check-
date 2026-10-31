@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Read-only DB57 -> DB14 comparison. Writes SQL artifacts only; never executes DDL."""
-import os,csv,json,re,argparse
+import os,sys,csv,json,re,argparse
 from pathlib import Path
 from datetime import datetime,timezone
 import pyodbc
@@ -73,10 +73,84 @@ def normalize_odbc_boolean_options(connection_string):
  return connection_string
 
 
+_ODBC_KEYWORDS={
+ 'server':'SERVER','data source':'SERVER','address':'SERVER','addr':'SERVER','network address':'SERVER',
+ 'database':'DATABASE','initial catalog':'DATABASE',
+ 'uid':'UID','user id':'UID','userid':'UID','user':'UID','username':'UID','user name':'UID',
+ 'pwd':'PWD','password':'PWD',
+ 'trusted_connection':'Trusted_Connection','trusted connection':'Trusted_Connection','integrated security':'Trusted_Connection',
+ 'encrypt':'Encrypt','trustservercertificate':'TrustServerCertificate','trust server certificate':'TrustServerCertificate',
+ 'multisubnetfailover':'MultiSubnetFailover','multi subnet failover':'MultiSubnetFailover',
+ 'application name':'APP','app':'APP','driver':'DRIVER','dsn':'DSN','applicationintent':'ApplicationIntent',
+}
+# ADO.NET-only keywords: ODBC would report "Invalid connection string attribute" and ignore them.
+_ADO_ONLY={'provider','persist security info','multipleactiveresultsets','connect timeout','connection timeout','pooling','min pool size','max pool size','connection lifetime','enlist','timeout'}
+
+def split_connection_string(cs):
+ """Tolerant parser for ODBC ({...}) and ADO.NET ('...' / "...") values. Returns [(key, value)]."""
+ out=[];i=0;n=len(cs)
+ while i<n:
+  while i<n and cs[i] in '; \t\r\n': i+=1
+  if i>=n: break
+  j=cs.find('=',i)
+  if j<0: break
+  key=cs[i:j].strip();i=j+1
+  while i<n and cs[i] in ' \t': i+=1
+  if i<n and cs[i]=='{':
+   i+=1;buf=[]
+   while i<n:
+    if cs[i]=='}':
+     if i+1<n and cs[i+1]=='}': buf.append('}');i+=2;continue
+     i+=1;break
+    buf.append(cs[i]);i+=1
+   val=''.join(buf)
+   while i<n and cs[i]!=';': i+=1
+  elif i<n and cs[i] in '"\'':
+   q=cs[i];i+=1;buf=[]
+   while i<n:
+    if cs[i]==q:
+     if i+1<n and cs[i+1]==q: buf.append(q);i+=2;continue
+     i+=1;break
+    buf.append(cs[i]);i+=1
+   val=''.join(buf)
+   while i<n and cs[i]!=';': i+=1
+  else:
+   k=cs.find(';',i);k=n if k<0 else k
+   val=cs[i:k].strip();i=k
+  out.append((key,val))
+ return out
+
+def _odbc_value(v):
+ return '{'+v.replace('}','}}')+'}' if (v!=v.strip() or any(ch in v for ch in ';{}')) else v
+
+def normalize_connection_string_keywords(cs):
+ """Map ADO.NET keywords (User ID, Password, Data Source, Initial Catalog, Integrated Security...) to ODBC ones.
+ Unknown keywords are kept as-is. Without this, e.g. 'User Id=...' is ignored by ODBC and the login is attempted with an empty user."""
+ parts=[]
+ for k,v in split_connection_string(cs):
+  lk=re.sub(r'\s+',' ',k.strip().lower())
+  if lk in _ADO_ONLY: continue
+  name=_ODBC_KEYWORDS.get(lk,k.strip())
+  if name=='Trusted_Connection': v='yes' if v.strip().lower() in ('1','true','yes','sspi') else 'no'
+  parts.append(name+'='+('{'+v+'}' if name=='DRIVER' else _odbc_value(v)))
+ return ';'.join(parts)
+
+def describe_connection_string(cs):
+ """Safe diagnostic: keyword names only; credentials/hosts are shown as <set>/<EMPTY>, never their values."""
+ shown={'DRIVER','Encrypt','TrustServerCertificate','Trusted_Connection','MultiSubnetFailover','ApplicationIntent'}
+ out=[]
+ for k,v in split_connection_string(normalize_connection_string_keywords(cs)):
+  out.append(k+'='+(v if k in shown else ('<set>' if v.strip() else '<EMPTY>')))
+ return '; '.join(out)
+
 def connect(env):
  s=os.environ.get(env)
  if not s: raise RuntimeError('Missing secret '+env)
- return pyodbc.connect(normalize_odbc_boolean_options(resolve_driver_connection_string(s)),timeout=20,readonly=True)
+ cs=normalize_odbc_boolean_options(resolve_driver_connection_string(normalize_connection_string_keywords(s)))
+ try: return pyodbc.connect(cs,timeout=20,readonly=True)
+ except pyodbc.Error:
+  print(f"[diagnostic] {env} -> connection keywords: {describe_connection_string(cs)}",file=sys.stderr)
+  raise
 def main():
  p=argparse.ArgumentParser();p.add_argument('--out',type=Path,default=Path('artifacts/db14-reconciliation'));p.add_argument('--inventory',type=Path,default=INV);a=p.parse_args();a.out.mkdir(parents=True,exist_ok=True)
  # Fixed direction: SOURCE secret is DB14 (target); TARGET secret is DB57 (source).
