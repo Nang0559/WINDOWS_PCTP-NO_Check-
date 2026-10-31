@@ -28,6 +28,13 @@ class ReconciliationGeneratorTests(unittest.TestCase):
             "[RowId] bigint IDENTITY(1,1) NOT NULL CONSTRAINT [DF_Test_RowId] DEFAULT ((0))"
         )
 
+    def test_metadata_queries_do_not_select_raw_sql_variant_columns(self):
+        # sys.identity_columns.seed_value/increment_value are sql_variant (ODBC type -150),
+        # which pyodbc cannot fetch ("ODBC SQL type -150 is not yet supported").
+        self.assertNotIn(",ic.seed_value,", mod.TABLES_SQL)
+        self.assertIn("CONVERT(bigint,ic.seed_value) seed_value", mod.TABLES_SQL)
+        self.assertIn("CONVERT(bigint,ic.increment_value) increment_value", mod.TABLES_SQL)
+
     def test_connection_string_maps_driver_18_secret_to_installed_driver_17(self):
         secret = "DRIVER={ODBC Driver 18 for SQL Server};SERVER=db;DATABASE=PCTP;Encrypt=yes;TrustServerCertificate=yes"
         actual = mod.resolve_driver_connection_string(secret, ["ODBC Driver 17 for SQL Server"])
