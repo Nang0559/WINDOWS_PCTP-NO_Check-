@@ -24,6 +24,10 @@ namespace PCTP.Infrastructure.Configuration
         private const string DatabaseConfigFileName = "PCTP.Database.config";
         // Set to 1 to back up and re-copy both runtime files from the shipped ones on the next start.
         private const string ResetEnvVar = "PCTP_RESET_RUNTIME_CONFIG";
+        // Set to 1 to keep the runtime PCTP.Database.config even when the shipped one is newer/different.
+        private const string KeepRuntimeEnvVar = "PCTP_KEEP_RUNTIME_DATABASE_CONFIG";
+        // A shipped file that still holds these template placeholders must never replace real credentials.
+        private const string TemplateMarker = "YOUR_SQL_";
 
         private static string _diagnostics = string.Empty;
 
@@ -62,6 +66,7 @@ namespace PCTP.Infrastructure.Configuration
                 // Copy the database file first because PCTP.exe.config references it via configSource.
                 CopyIfMissing(sourceDatabaseConfig, runtimeDatabaseConfig);
                 CopyIfMissing(sourceAppConfig, runtimeAppConfig);
+                FollowShippedDatabaseConfig(sourceDatabaseConfig, runtimeDatabaseConfig, notes);
                 RepairRuntimeFiles(sourceAppConfig, sourceDatabaseConfig, runtimeAppConfig, runtimeDatabaseConfig, notes);
                 _diagnostics = string.Join(Environment.NewLine, notes);
 
@@ -87,6 +92,47 @@ namespace PCTP.Infrastructure.Configuration
                     MessageBoxIcon.Error);
                 throw;
             }
+        }
+
+        /// <summary>
+        /// Keeps the runtime PCTP.Database.config in step with the shipped one (the file edited in the project
+        /// and copied next to PCTP.exe by the build). When the two differ, the runtime file is backed up
+        /// (.bak-timestamp) and replaced, so editing PCTP\PCTP.Database.config and rebuilding is enough.
+        /// Skipped when the shipped file is still the template (YOUR_SQL_* placeholders), so a published
+        /// template never wipes real credentials, and when PCTP_KEEP_RUNTIME_DATABASE_CONFIG=1.
+        /// </summary>
+        private static void FollowShippedDatabaseConfig(string source, string runtime, List<string> notes)
+        {
+            try
+            {
+                if (string.Equals(Environment.GetEnvironmentVariable(KeepRuntimeEnvVar), "1", StringComparison.Ordinal))
+                    return;
+                if (string.IsNullOrWhiteSpace(source) || !File.Exists(source) || !File.Exists(runtime))
+                    return;
+
+                string shipped = File.ReadAllText(source);
+                if (shipped.IndexOf(TemplateMarker, StringComparison.OrdinalIgnoreCase) >= 0)
+                    return;
+                if (string.Equals(NormalizeForCompare(shipped), NormalizeForCompare(File.ReadAllText(runtime)), StringComparison.Ordinal))
+                    return;
+
+                string backup = Backup(runtime);
+                File.Copy(source, runtime, true);
+                notes.Add("PCTP.Database.config runtime đã được cập nhật theo file đóng gói (" + source + "). Bản cũ lưu tại " + backup +
+                    ". Đặt " + KeepRuntimeEnvVar + "=1 nếu muốn giữ file runtime.");
+            }
+            catch (Exception ex) when (
+                ex is IOException ||
+                ex is UnauthorizedAccessException ||
+                ex is SecurityException)
+            {
+                notes.Add("Không đồng bộ được PCTP.Database.config runtime theo file đóng gói: " + ex.Message);
+            }
+        }
+
+        private static string NormalizeForCompare(string text)
+        {
+            return (text ?? string.Empty).Replace("\r\n", "\n").Trim();
         }
 
         /// <summary>
