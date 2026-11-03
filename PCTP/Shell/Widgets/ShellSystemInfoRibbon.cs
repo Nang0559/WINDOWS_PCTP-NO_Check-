@@ -3,12 +3,13 @@ using DevExpress.XtraBars.Ribbon;
 using System;
 using System.Data.SqlClient;
 using System.Drawing;
+using System.IO;
 
 namespace PCTP.Shell.Widgets
 {
     /// <summary>
-    /// Hiển thị trên Ribbon của Main_APP: máy đang chạy app, máy được phép bắn QR
-    /// và cơ sở dữ liệu app đang thao tác. Không bao giờ hiển thị mật khẩu.
+    /// Hiển thị trên Ribbon của Main_APP (sát mép phải): máy đang chạy app, máy được
+    /// phép bắn QR và cơ sở dữ liệu app đang thao tác. Không bao giờ hiển thị mật khẩu.
     /// </summary>
     internal sealed class ShellSystemInfoRibbon
     {
@@ -18,7 +19,6 @@ namespace PCTP.Shell.Widgets
 
         private readonly BarStaticItem _hostItem;
         private readonly BarStaticItem _qrItem;
-        private readonly BarStaticItem _serverItem;
         private readonly BarStaticItem _databaseItem;
 
         internal ShellSystemInfoRibbon(RibbonControl ribbon, RibbonPage page)
@@ -28,17 +28,17 @@ namespace PCTP.Shell.Widgets
 
             RibbonPageGroup group = new RibbonPageGroup("Hệ thống");
             group.Name = "ribbonPageGroupSystemInfo";
+            group.Alignment = RibbonPageGroupAlignment.Far; // sát mép phải Ribbon
 
             _hostItem = CreateItem(ribbon, group, "Máy này: ...");
             _qrItem = CreateItem(ribbon, group, "Máy bắn QR: ...");
-            _serverItem = CreateItem(ribbon, group, "SQL Server: ...");
             _databaseItem = CreateItem(ribbon, group, "Database: ...");
 
             page.Groups.Add(group);
         }
 
         /// <summary>
-        /// Cập nhật thông tin. hostName / qrMachine lấy từ Main_APP.hostname / Main_APP.TM_BANQR.
+        /// hostName / qrMachine lấy từ Main_APP.hostname / Main_APP.TM_BANQR.
         /// </summary>
         internal void Update(string hostName, string qrMachine)
         {
@@ -100,31 +100,80 @@ namespace PCTP.Shell.Widgets
                 }
             }
 
-            bool qcFixture = !string.IsNullOrWhiteSpace(
-                Environment.GetEnvironmentVariable(ClassSQL.QcSqlOverride.ConnectionEnvVar));
+            string configInfo = DescribeConfigFile();
 
-            if (error != null && server.Length == 0)
+            if (server.Length == 0)
             {
-                _serverItem.Caption = "SQL Server: (không đọc được cấu hình)";
-                _databaseItem.Caption = "Database: (lỗi)";
-                SetColor(_serverItem, LiveColor);
+                _databaseItem.Caption = "Database: (không đọc được cấu hình)";
                 SetColor(_databaseItem, LiveColor);
-                _databaseItem.Hint = error;
+                _databaseItem.Hint = (error ?? string.Empty) + Environment.NewLine + configInfo;
                 return;
             }
 
-            _serverItem.Caption = "SQL Server: " + Display(server);
-            SetColor(_serverItem, Color.Empty);
+            bool qcFixture = !string.IsNullOrWhiteSpace(
+                Environment.GetEnvironmentVariable(ClassSQL.QcSqlOverride.ConnectionEnvVar));
 
-            string env = qcFixture ? "QC FIXTURE" : "LIVE";
+            Color color;
+            string tag = Classify(server, qcFixture, out color);
             string state = error == null ? string.Empty : "  —  KHÔNG KẾT NỐI ĐƯỢC";
-            _databaseItem.Caption = "Database: " + Display(database) + "  [" + env + "]" + state;
-            SetColor(_databaseItem, error != null ? LiveColor : (qcFixture ? OkColor : LiveColor));
 
-            _serverItem.Hint = "Theo cấu hình PCTP.Database.config";
-            _databaseItem.Hint = error != null
-                ? error
-                : "SQL Server đang trả về (@@SERVERNAME | DB_NAME()): " + actual;
+            _databaseItem.Caption = "DB: " + Display(server) + " / " + Display(database) + "  [" + tag + "]" + state;
+            SetColor(_databaseItem, error != null ? LiveColor : color);
+
+            _databaseItem.Hint =
+                "File cấu hình đang dùng: " + configInfo + Environment.NewLine +
+                (error != null
+                    ? "Lỗi kết nối: " + error
+                    : "SQL Server trả về (@@SERVERNAME | DB_NAME()): " + actual);
+        }
+
+        /// <summary>
+        /// App copy PCTP.Database.config sang thư mục runtime (ProgramData\PCTP) ở lần chạy đầu và
+        /// KHÔNG ghi đè nữa, nên file đang có hiệu lực có thể khác file trong project/bin.
+        /// </summary>
+        private static string DescribeConfigFile()
+        {
+            try
+            {
+                string appConfig = AppDomain.CurrentDomain.GetData("APP_CONFIG_FILE") as string;
+                if (string.IsNullOrWhiteSpace(appConfig))
+                    appConfig = AppDomain.CurrentDomain.SetupInformation.ConfigurationFile;
+
+                string directory = Path.GetDirectoryName(appConfig);
+                string databaseConfig = Path.Combine(directory ?? string.Empty, "PCTP.Database.config");
+                string stamp = File.Exists(databaseConfig)
+                    ? File.GetLastWriteTime(databaseConfig).ToString("yyyy-MM-dd HH:mm:ss")
+                    : "không tồn tại";
+                return databaseConfig + " (sửa lần cuối: " + stamp + ")";
+            }
+            catch (Exception ex)
+            {
+                return "(không xác định được: " + ex.Message + ")";
+            }
+        }
+
+        private static string Classify(string server, bool qcFixture, out Color color)
+        {
+            if (qcFixture)
+            {
+                color = OkColor;
+                return "QC FIXTURE";
+            }
+
+            string s = (server ?? string.Empty).ToLowerInvariant();
+            if (s.Contains("192.168.200.14") || s.Contains("bravo"))
+            {
+                color = LiveColor;
+                return "DB14 · BRAVO";
+            }
+            if (s.Contains("192.168.200.57"))
+            {
+                color = WarnColor;
+                return "DB57 · TEST";
+            }
+
+            color = LiveColor;
+            return "LIVE";
         }
 
         private static BarStaticItem CreateItem(RibbonControl ribbon, RibbonPageGroup group, string caption)
