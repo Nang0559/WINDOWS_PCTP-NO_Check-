@@ -33,6 +33,7 @@ namespace PCTP
         private WmsWorklistBar _worklistBar;
         private MainAppDashboardFactory _dashboardFactory;
         private WmsControlCenterBar _controlCenter;
+        private ShellSystemInfoRibbon _systemInfo;
 
         public Main_APP()
         {
@@ -94,7 +95,9 @@ namespace PCTP
         {
             DevExpress.LookAndFeel.UserLookAndFeel.Default.SetSkinStyle("Caramel");
             InitializeShellComposition();
+            _systemInfo = new ShellSystemInfoRibbon(ribbonControl, ribbonPage);
             InitializeDashboard();
+            RefreshSystemInfo();
             InstallQcUiBridgeIfRequested(); // test-only; no-op unless PCTP_QC_UI_BRIDGE=1
         }
 
@@ -138,10 +141,18 @@ namespace PCTP
             WarehouseProcessNavigator.OpenNhapKhoTienTrinh(this);
         }
 
+        // Máy đang chạy / máy được bắn QR / DB đang thao tác — hiển thị trên Ribbon.
+        private void RefreshSystemInfo()
+        {
+            if (_systemInfo != null)
+                _systemInfo.Update(hostname, TM_BANQR);
+        }
+
         public void RefreshDashboard()
         {
             if (_dashboard != null)
                 _dashboard.Refresh();
+            RefreshSystemInfo();
             if (_dashboardBar != null)
                 _dashboardBar.Refresh();
             if (_worklistBar != null)
