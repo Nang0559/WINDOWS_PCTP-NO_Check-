@@ -17,6 +17,9 @@ namespace PCTP
             // Load mutable configuration from %ProgramData% before any SQL/EF/XPO settings are read.
             PCTP.Infrastructure.Configuration.RuntimeConfigurationBootstrap.Initialize();
 
+            // B7R2_FCCdb is the only SQL declaration; derive the XPO name used by the DevExpress reports from it.
+            PCTP.Infrastructure.Configuration.ReportConnectionAlias.Apply();
+
             OfficeOpenXml.ExcelPackage.License.SetNonCommercialOrganization("YMVN_APP");
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);

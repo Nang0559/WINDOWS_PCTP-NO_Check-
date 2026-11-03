@@ -10,8 +10,8 @@ namespace PCTP
     public class SqlTableCreator
     {
         #region Instance Variables
-        //public string B7R2_FCCdb = @"Data Source=192.168.200.14\BRAVO;Initial Catalog=B7R2_FCC;User ID=sa;Password=fccbrv";
-        public string B7R2_FCCdb = PCTP.ClassSQL.QcSqlOverride.Resolve(@"Data Source=192.168.200.57;Initial Catalog=B7R2_FCC;User ID=sa;Password=fccbrv");
+        // Same canonical connection as SQLPROVIDER (PCTP.Database.config -> B7R2_FCCdb, then QcSqlOverride).
+        public string B7R2_FCCdb = PCTP.ClassSQL.SQLPROVIDER.GetConfiguredConnection();
         private SqlConnection _connection;
         public SqlConnection Connection
         {

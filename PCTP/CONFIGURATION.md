@@ -22,9 +22,11 @@ Do **not** edit `PCTP.Database.config.deploy`, `PCTP.exe.manifest`, or any file 
 
 ## What to change
 
-Keep the XML structure and connection names. Update the server, catalog, authentication and related options in all required aliases in `PCTP.Database.config`. SQL Server, Entity Framework and XPO entries are kept in this one file.
+There is ONE SQL Server declaration: `B7R2_FCCdb`. Edit its server, catalog and login only. `SQLPROVIDER` (including the legacy `B7R2_FCCdbb` field), `SqlTableCreator` and all repositories read it.
 
-The canonical SQL Server connection is `B7R2_FCCdb`; the legacy names remain for older modules and generated EF/XPO contexts.
+The second entry, `accfast\bravo.B7R2_FCC.dbo`, exists only because four DevExpress report designers bind to that fixed name. It uses the XPO dialect and is rewritten from `B7R2_FCCdb` at every start-up (`ReportConnectionAlias`), so it cannot point at a different server. Keep it in the file but do not maintain it by hand.
+
+Entity Framework and `Settings.Default` connection strings were removed: nothing in the application used them.
 
 ## Operational cautions
 

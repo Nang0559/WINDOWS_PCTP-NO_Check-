@@ -728,6 +728,7 @@
     <Compile Include="LogIn.Designer.cs">
       <DependentUpon>LogIn.cs</DependentUpon>
     </Compile>
+    <Compile Include="Infrastructure\Configuration\ReportConnectionAlias.cs" />
     <Compile Include="Infrastructure\Configuration\RuntimeConfigurationBootstrap.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -1214,15 +1215,6 @@
     <None Include="FVN.IT Nang.pfx" />
     <None Include="packages.config" />
     <None Include="PCIT.pfx" />
-    <None Include="Properties\Settings.settings">
-      <Generator>SettingsSingleFileGenerator</Generator>
-      <LastGenOutput>Settings.Designer.cs</LastGenOutput>
-    </None>
-    <Compile Include="Properties\Settings.Designer.cs">
-      <AutoGen>True</AutoGen>
-      <DependentUpon>Settings.settings</DependentUpon>
-      <DesignTimeSharedInput>True</DesignTimeSharedInput>
-    </Compile>
     <None Include="Workflow\Diagram\WORKFLOW_XUATKHO.md" />
     <None Include="Workflow\Diagram\WORKFLOW_KHOCORE.md" />
     <None Include="Workflow\Diagram\WORKFLOW_HANGLOI.md" />
