@@ -1,5 +1,6 @@
 using DevExpress.XtraBars;
 using DevExpress.XtraBars.Ribbon;
+using PCTP.Infrastructure.Configuration;
 using System;
 using System.Data.SqlClient;
 using System.Drawing;
@@ -106,7 +107,7 @@ namespace PCTP.Shell.Widgets
             {
                 _databaseItem.Caption = "Database: (không đọc được cấu hình)";
                 SetColor(_databaseItem, LiveColor);
-                _databaseItem.Hint = (error ?? string.Empty) + Environment.NewLine + configInfo;
+                _databaseItem.Hint = (error ?? string.Empty) + Environment.NewLine + configInfo + ConfigDiagnostics();
                 return;
             }
 
@@ -117,20 +118,28 @@ namespace PCTP.Shell.Widgets
             string tag = Classify(server, qcFixture, out color);
             string state = error == null ? string.Empty : "  —  KHÔNG KẾT NỐI ĐƯỢC";
 
-            _databaseItem.Caption = "DB: " + Display(server) + " / " + Display(database) + "  [" + tag + "]" + state;
+            _databaseItem.Caption = "DB: " + Display(server) + " / " + Display(database) + "  [" + tag + "]" + state +
+                (RuntimeConfigurationBootstrap.Diagnostics.Length > 0 ? "  [!] xem tooltip" : string.Empty);
             SetColor(_databaseItem, error != null ? LiveColor : color);
 
             _databaseItem.Hint =
                 "File cấu hình đang dùng: " + configInfo + Environment.NewLine +
                 (error != null
                     ? "Lỗi kết nối: " + error
-                    : "SQL Server trả về (@@SERVERNAME | DB_NAME()): " + actual);
+                    : "SQL Server trả về (@@SERVERNAME | DB_NAME()): " + actual) +
+                ConfigDiagnostics();
         }
 
         /// <summary>
         /// App copy PCTP.Database.config sang thư mục runtime (ProgramData\PCTP) ở lần chạy đầu và
         /// KHÔNG ghi đè nữa, nên file đang có hiệu lực có thể khác file trong project/bin.
         /// </summary>
+        private static string ConfigDiagnostics()
+        {
+            string notes = RuntimeConfigurationBootstrap.Diagnostics;
+            return notes.Length == 0 ? string.Empty : Environment.NewLine + Environment.NewLine + notes;
+        }
+
         private static string DescribeConfigFile()
         {
             try

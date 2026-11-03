@@ -33,3 +33,11 @@ The canonical SQL Server connection is `B7R2_FCCdb`; the legacy names remain for
 - Do not put production credentials in Git or distribute them in an unrestricted shared folder.
 - DB14 production must remain read-only for the QC/test harness. Use approved isolated `B7R2_FCC_QC*` databases for writable QC tests.
 - ClickOnce manifests remain immutable. Always publish and copy the complete publish output; never hand-edit a deployed `.deploy` file.
+
+## Which file is really used, and how to check
+
+- PCTP **always** reads `%ProgramData%\PCTP\PCTP.Database.config` (also when started from Visual Studio). Editing `PCTP\PCTP.Database.config` in the project, or the copy in `bin\Debug`, has no effect on a machine that already has the runtime copy.
+- Hover the `DB:` item on the ribbon: the tooltip shows the file path, its last-modified time and the server SQL Server reports. A `[!]` after the caption means the startup check found something (below).
+- Startup check (never overwrites your values): an old `PCTP.exe.config` that holds `<connectionStrings>` inline (so `PCTP.Database.config` would be ignored) is replaced after a `.bak-<timestamp>` backup; connection names that exist in the shipped file but not in the runtime file are added (otherwise `Settings.Designer.cs` silently falls back to its own defaults); names whose server/database differ from the shipped file, and runtime files that point to several different servers, are reported in the tooltip.
+- To discard the runtime files and start again from the shipped ones, set the environment variable `PCTP_RESET_RUNTIME_CONFIG=1` for one start (both files are backed up first).
+
