@@ -1222,7 +1222,7 @@
   <ItemGroup>
     <None Include="App.config" />
     <Content Include="PCTP.Database.config">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
   <ItemGroup>
