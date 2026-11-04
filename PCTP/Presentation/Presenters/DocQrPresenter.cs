@@ -66,7 +66,7 @@ namespace PCTP.Presentation.Presenters
             _c.QrSvc.SetCheDoBanSP(isSP);
 
             DataTable dtPhieu = _c.Cfg.Delivery.LoadTuBangRieng ? _c.PhieuView.GetDonHangTable() : null;
-            string ngay = _c.PhieuView.SelectedDate.ToString("yyyy-MM-dd");
+            string ngay = _c.PhieuView.SelectedDate.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
             List<string> gios = _c.Cfg.Delivery.CoGear ? _c.YmvnView.GetCheckedGioXuat() : null;
             _c.IsBanQR = true;
             _c.BeginDeliverySession(
@@ -157,7 +157,7 @@ namespace PCTP.Presentation.Presenters
                 return true;
             }
 
-            if (!DateTime.TryParse(tt.NgayGiao, out DateTime ngay))
+            if (!PCTP.Shared.Helpers.DateText.TryParseApp(tt.NgayGiao, out DateTime ngay))
             {
                 _v.ShowError("Không xác định được Ngày Xuất Hàng của phiên DOCQRCODE đang tồn tại.");
                 return true;

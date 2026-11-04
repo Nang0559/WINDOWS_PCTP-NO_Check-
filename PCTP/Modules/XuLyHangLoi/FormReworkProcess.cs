@@ -705,7 +705,7 @@ namespace PCTP.Modules.XuLyHangLoi
                     return;
                 }
 
-                string ngayGiao = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                string ngayGiao = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture);
 
                 string nguoiNhan = XtraInputBox.Show(
                     "Nhập người nhận:",

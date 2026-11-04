@@ -71,7 +71,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         {
             SetTrangThaiBan(isBanQR, isLoaiSP);
             string ngayGiaoDate = string.IsNullOrEmpty(ngayGiao) ? string.Empty : (ngayGiao.Length >= 10 ? ngayGiao.Substring(0, 10) : ngayGiao);
-            if (!DateTime.TryParse(ngayGiaoDate, out DateTime dt) || dt.Year < 2000) { PublishEmptyPhieuLoaded(); return; }
+            if (!PCTP.Shared.Helpers.DateText.TryParseApp(ngayGiaoDate, out DateTime dt) || dt.Year < 2000) { PublishEmptyPhieuLoaded(); return; }
             try
             {
                 var context = CreateOrderLoadContext(dt, nhaMay, gioFcc, gioFccMoTa, addNm, isMayBanQR, isBanQR, checkedGios, isLoaiSP, loadRequestId);
@@ -100,9 +100,9 @@ namespace PCTP.Modules.GiaoHangKhach.Services
 
         public void SyncIfsPhieuChoDocQR(string ngayGiao, string nhaMay, string gioFcc, string gioFccMoTa, int addNm)
         {
-            if (!DateTime.TryParse(ngayGiao, out DateTime dt) || dt.Year < 2000) return;
+            if (!PCTP.Shared.Helpers.DateText.TryParseApp(ngayGiao, out DateTime dt) || dt.Year < 2000) return;
             bool isSP = _isLoaiSP;
-            string ngayXuat = dt.ToString("ddMMyyyy");
+            string ngayXuat = dt.ToString("ddMMyyyy", System.Globalization.CultureInfo.InvariantCulture);
 
             // SP là luồng ngày + nhà máy + dock, không phụ thuộc giờ đang chọn trên UI.
             string gioFccSP = isSP || _cfg.Delivery.LoadTheoNgay ? "" : gioFcc;

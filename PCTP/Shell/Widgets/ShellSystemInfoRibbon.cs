@@ -151,7 +151,7 @@ namespace PCTP.Shell.Widgets
                 string directory = Path.GetDirectoryName(appConfig);
                 string databaseConfig = Path.Combine(directory ?? string.Empty, "PCTP.Database.config");
                 string stamp = File.Exists(databaseConfig)
-                    ? File.GetLastWriteTime(databaseConfig).ToString("yyyy-MM-dd HH:mm:ss")
+                    ? File.GetLastWriteTime(databaseConfig).ToString("yyyy-MM-dd HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture)
                     : "không tồn tại";
                 return databaseConfig + " (sửa lần cuối: " + stamp + ")";
             }

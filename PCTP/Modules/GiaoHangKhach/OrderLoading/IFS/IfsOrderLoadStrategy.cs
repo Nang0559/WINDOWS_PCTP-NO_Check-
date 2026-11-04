@@ -38,7 +38,7 @@ namespace PCTP.Modules.GiaoHangKhach.OrderLoading.IFS
             int hinhThucIn = ctx.Category == OrderCategory.SP ? 2 : 1;
 
             return _ifsRepo.GetCustomerOrderJoin(
-                ctx.NgayGiao.ToString("ddMMyyyy"),
+                ctx.NgayGiao.ToString("ddMMyyyy", System.Globalization.CultureInfo.InvariantCulture),
                 ctx.GioFcc,
                 ctx.GioFccMoTa,
                 ctx.NhaMay,
@@ -50,7 +50,7 @@ namespace PCTP.Modules.GiaoHangKhach.OrderLoading.IFS
         public void MergeLotDaLuu(DataTable donHang, OrderLoadContext ctx)
         {
             var daLuu = _luuTruRepo.LoadLuuPhieu(ctx.NhaMay,
-                ctx.NgayGiao.ToString("yyyy-MM-dd"), ctx.GioFccMoTa);
+                ctx.NgayGiao.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture), ctx.GioFccMoTa);
 
             foreach (DataRow rDaLuu in daLuu.Rows)
             {
@@ -72,7 +72,7 @@ namespace PCTP.Modules.GiaoHangKhach.OrderLoading.IFS
             var d = ctx.Cfg.Delivery;
 
             _tmpRepo.LuuVaLoad(d.GetIfsTable(isSP), "Usp_Qrcode_LOAD_PHIEU_DOCQR2405",
-                donHang, ctx.NgayGiao.ToString("yyyy-MM-dd"), ctx.NhaMay,
+                donHang, ctx.NgayGiao.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture), ctx.NhaMay,
                 ctx.GioFccMoTa, ctx.AddNm, d.GetTmpTable(isSP), d.GetDocQRTable(isSP));
         }
 

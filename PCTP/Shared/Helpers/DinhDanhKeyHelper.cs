@@ -13,7 +13,7 @@ namespace PCTP.Shared.Helpers
         public static string Build(string nhaMay, DateTime? ngayGiao, string gioGiaoFcc, string poNo, short stt)
             => string.Join(SEP,
                 (nhaMay ?? "").Trim(),
-                ngayGiao?.ToString("yyyy-MM-dd") ?? "",
+                ngayGiao?.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture) ?? "",
                 (gioGiaoFcc ?? "").Trim(),
                 (poNo ?? "").Trim(),
                 stt.ToString());
@@ -27,7 +27,7 @@ namespace PCTP.Shared.Helpers
             if (parts.Length != 5) return false;
 
             nhaMay = parts[0];
-            ngayGiao = DateTime.TryParse(parts[1], out var d) ? d : (DateTime?)null;
+            ngayGiao = DateText.TryParseApp(parts[1], out var d) ? d : (DateTime?)null;
             gioGiaoFcc = parts[2];
             poNo = parts[3];
             return short.TryParse(parts[4], out stt);

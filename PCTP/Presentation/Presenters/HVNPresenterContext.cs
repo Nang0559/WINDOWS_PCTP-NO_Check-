@@ -160,10 +160,10 @@ namespace PCTP.Presentation.Presenters
 
         internal void LoadGioXuatYMVN()
         {
-            var danhSachGio = PhieuSvc.GetDanhSachGioYMVN(View.SelectedDate.ToString("MM/dd/yyyy"));
+            var danhSachGio = PhieuSvc.GetDanhSachGioYMVN(PCTP.Shared.Helpers.DateText.ToMdy(View.SelectedDate));
             View.BindGioXuatCheckList(danhSachGio);
 
-            var delivered = PhieuSvc.GetGioDaGiao(GetNhaMay(), View.SelectedDate.ToString("yyyy-MM-dd"));
+            var delivered = PhieuSvc.GetGioDaGiao(GetNhaMay(), PCTP.Shared.Helpers.DateText.ToIso(View.SelectedDate));
             var deliveredSet = new HashSet<string>(delivered ?? new List<string>(), StringComparer.OrdinalIgnoreCase);
             var deliveredDisplay = danhSachGio
                 .Where(g => deliveredSet.Contains(NormalizeHour(g)))
@@ -232,8 +232,8 @@ namespace PCTP.Presentation.Presenters
             Action readUiAction = () =>
             {
                 ngayGiao = Cfg.Delivery.CoGear
-                    ? View.SelectedDate.ToString("MM/dd/yyyy")
-                    : View.SelectedDate.ToString("yyyy-MM-dd");
+                    ? PCTP.Shared.Helpers.DateText.ToMdy(View.SelectedDate)
+                    : PCTP.Shared.Helpers.DateText.ToIso(View.SelectedDate);
 
                 if (Cfg.Delivery.CoGear)
                     checkedGios = View.GetCheckedGioXuat();

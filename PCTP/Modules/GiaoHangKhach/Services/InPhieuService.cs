@@ -95,7 +95,7 @@ namespace PCTP.Applications.Services
                 string ngayGiaoSql = DateTime.ParseExact(
                     ngayXuat, "ddMMyyyy",
                     System.Globalization.CultureInfo.InvariantCulture)
-                    .ToString("yyyy-MM-dd");
+                    .ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
                 string nm = shipNo == 1 ? "VP" : "HA NAM";
                 string gioHH = gio + "h";
                 row["LOT"] = _sqlRepo.GetSavedLot(
@@ -284,8 +284,8 @@ namespace PCTP.Applications.Services
 
         private static string ParseNgay(string ngayXuat)
         {
-            return DateTime.TryParse(ngayXuat, out DateTime dt)
-                ? dt.ToString("MM/dd/yyyy")
+            return PCTP.Shared.Helpers.DateText.TryParseApp(ngayXuat, out DateTime dt)
+                ? PCTP.Shared.Helpers.DateText.ToMdy(dt)
                 : ngayXuat;
         }
     }

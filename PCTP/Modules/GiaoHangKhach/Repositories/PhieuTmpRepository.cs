@@ -281,7 +281,7 @@ FROM
             result.DataKhongKhop = false;
             result.AddNM = row["ADDNM"] == DBNull.Value ? 1 : Convert.ToInt32(row["ADDNM"]);
             // NHAMAY is deliberately not part of the session identity. The factory is ADDNM.
-            result.NgayGiao = row["NGAYGIAO"] == DBNull.Value ? "" : Convert.ToDateTime(row["NGAYGIAO"]).ToString("yyyy-MM-dd");
+            result.NgayGiao = row["NGAYGIAO"] == DBNull.Value ? "" : Convert.ToDateTime(row["NGAYGIAO"]).ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
 
             string gioDon = row["GIOGIAO"] == DBNull.Value ? "" : row["GIOGIAO"].ToString().Trim();
             if (gioDon.Length == 1) gioDon = "0" + gioDon;
@@ -357,7 +357,7 @@ ORDER BY STT");
             result.AddNM = row["ADDNM"] == DBNull.Value ? 1 : Convert.ToInt32(row["ADDNM"]);
             result.NgayGiao = row["NGAYGIAO"] == DBNull.Value
                 ? ""
-                : Convert.ToDateTime(row["NGAYGIAO"]).ToString("yyyy-MM-dd");
+                : Convert.ToDateTime(row["NGAYGIAO"]).ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
             result.GioGiaoFCC = "";
             return result;
         }
@@ -431,7 +431,7 @@ ORDER BY STT");
                 string tempName = columnName + "_STR";
                 donHang.Columns.Add(tempName, typeof(string));
                 foreach (DataRow row in donHang.Rows)
-                    row[tempName] = row[columnName] == DBNull.Value ? "" : ((DateTime)row[columnName]).ToString("yyyy-MM-dd");
+                    row[tempName] = row[columnName] == DBNull.Value ? "" : ((DateTime)row[columnName]).ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
                 donHang.Columns.Remove(columnName);
                 donHang.Columns[tempName].ColumnName = columnName;
             }

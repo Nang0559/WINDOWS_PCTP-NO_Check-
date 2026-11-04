@@ -55,8 +55,8 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         private OrderLoadResult LoadFromIfs(OrderLoadContext context)
         {
             DateTime dt = context.NgayGiao;
-            string ngayGiaoSP = dt.ToString("yyyy-MM-dd");
-            string ngayXuat = dt.ToString("ddMMyyyy");
+            string ngayGiaoSP = dt.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
+            string ngayXuat = dt.ToString("ddMMyyyy", System.Globalization.CultureInfo.InvariantCulture);
             bool isSP = context.Category == OrderCategory.SP;
 
             // SP for 100001 is loaded by date only. MP's selected hour must
@@ -137,7 +137,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         private void PrepareIfsBaseline(OrderLoadContext context)
         {
             string ifsTable = _cfg.Delivery.GetIfsTable(context.Category == OrderCategory.SP);
-            string ngayXuatIFS = context.NgayGiao.ToString("ddMMyyyy");
+            string ngayXuatIFS = context.NgayGiao.ToString("ddMMyyyy", System.Globalization.CultureInfo.InvariantCulture);
             try
             {
                 DataTable ifsData = _ifsRepo.GetFullCustomerOrder(ngayXuatIFS, _cfg);

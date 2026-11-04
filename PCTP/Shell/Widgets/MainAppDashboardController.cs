@@ -155,7 +155,7 @@ order by CUSTOMER_PART_NO";
 
         private void EnrichTable(DataTable table)
         {
-            string today = DateTime.Now.ToString("MM/dd/yyyy");
+            string today = DateTime.Now.ToString("MM/dd/yyyy", System.Globalization.CultureInfo.InvariantCulture);
             foreach (DataRow row in table.Rows)
             {
                 string partNo = Convert.ToString(row["CUSTOMER_PART_NO"]);

@@ -182,7 +182,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
                 string gio = "";
                 if (row.Table.Columns.Contains("NGAYGIAO") &&
                     row["NGAYGIAO"] != DBNull.Value &&
-                    DateTime.TryParse(row["NGAYGIAO"].ToString(), out DateTime dt))
+                    PCTP.Shared.Helpers.DateText.TryParseDb(row["NGAYGIAO"], out DateTime dt))
                 {
                     gio = dt.ToString("HH:mm");
                 }
@@ -197,8 +197,8 @@ namespace PCTP.Modules.GiaoHangKhach.Services
 
                 string nxh = row.Table.Columns.Contains("NGAYGIAO") &&
                              row["NGAYGIAO"] != DBNull.Value &&
-                             DateTime.TryParse(row["NGAYGIAO"].ToString(), out DateTime ngay)
-                    ? ngay.ToString("yyyy-MM-dd HH:mm:ss")
+                             PCTP.Shared.Helpers.DateText.TryParseDb(row["NGAYGIAO"], out DateTime ngay)
+                    ? ngay.ToString("yyyy-MM-dd HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture)
                     : ngayGiao + " 00:00:00";
 
                 string Get(string col) => row.Table.Columns.Contains(col)

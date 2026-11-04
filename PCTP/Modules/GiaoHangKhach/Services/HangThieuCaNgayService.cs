@@ -58,7 +58,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
 
             // 2. Đã giao cả ngày — LUUPHIEUGIAOHANG là delivery ledger hiện tại.
             DataTable daGiaoNgay = _luuTruRepo.LoadLuuPhieuCaNgay(
-                nhaMay, ngayGiao.ToString("yyyy-MM-dd"));
+                nhaMay, ngayGiao.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture));
 
             // 3. Gộp đã giao theo (MAHANG, GIOGIAO) chuẩn hoá.
             var daGiaoMap = daGiaoNgay.AsEnumerable()

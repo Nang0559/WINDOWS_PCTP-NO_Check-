@@ -258,7 +258,7 @@ namespace PCTP.QRCODE_HVN.YMN
                 ODN= gridVDONHANG.GetRowCellValue(i, "PO").ToString();
                 MH = gridVDONHANG.GetRowCellValue(i, "CUSTOMER_PART_NO").ToString();
                 GG = DateTime.Parse(gridVDONHANG.GetRowCellValue(i, "WANTED_DELIVERY_DATE").ToString());
-                Gi = GG.ToString("yyyy-MM-dd HH:mm:ss");
+                Gi = GG.ToString("yyyy-MM-dd HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture);
                 GGGG = GG.ToString("HH:mm:ss");
                 Gear = gridVDONHANG.GetRowCellValue(i, "Gear");
                 if(Gear == null )
@@ -331,7 +331,7 @@ namespace PCTP.QRCODE_HVN.YMN
             object DCC;
             DateTime GIO;
             int QTY, QCDG,XE,DU=0;
-            string sql, N_XHSQL = dateNG.DateTime.ToString("MM/dd/yyyy");
+            string sql, N_XHSQL = dateNG.DateTime.ToString("MM/dd/yyyy", System.Globalization.CultureInfo.InvariantCulture);
             if (GX == "")
             {
                 if (YMVN_CHONGIAO.MP_SP == "MP")
@@ -682,7 +682,7 @@ namespace PCTP.QRCODE_HVN.YMN
         {
             CheckGX.Items.Clear();
             string GXH, sql;
-            string N_XHG = dateNG.DateTime.ToString("MM/dd/yyyy");
+            string N_XHG = dateNG.DateTime.ToString("MM/dd/yyyy", System.Globalization.CultureInfo.InvariantCulture);
             if (c_L != true)
             {     
               
@@ -706,7 +706,7 @@ namespace PCTP.QRCODE_HVN.YMN
 
         private void dateNG_EditValueChanged(object sender, EventArgs e)
         {
-            N_XH = dateNG.DateTime.ToString("ddMMyyyy");
+            N_XH = dateNG.DateTime.ToString("ddMMyyyy", System.Globalization.CultureInfo.InvariantCulture);
             c_L = false;
             DUYET = false;
             Da_DUYET = true;
@@ -796,7 +796,7 @@ namespace PCTP.QRCODE_HVN.YMN
             tblGL.Columns.Add("Gear", typeof(string));
 
             // Lay don hang theo gio
-            string N_XHSQL = dateNG.DateTime.ToString("MM/dd/yy");
+            string N_XHSQL = dateNG.DateTime.ToString("MM/dd/yy", System.Globalization.CultureInfo.InvariantCulture);
            
             //---------------------------------------------------------------------------------------------------------------------------------
             //string sqlTK = "select LOT,SLCONLAI from STOCKTP where SLCONLAI > 0 and PART = '" + MaHang + "' order by lot";
@@ -1261,7 +1261,7 @@ namespace PCTP.QRCODE_HVN.YMN
             for (int i = 0; i < gridVDONHANG.RowCount; i++)
             {
 
-                NXH = dateNG.DateTime.ToString("yyyy-MM-dd");
+                NXH = dateNG.DateTime.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
                 string MaHang = gridVDONHANG.GetRowCellValue(i, "CUSTOMER_PART_NO").ToString();
                 string GGV = gridVDONHANG.GetRowCellDisplayText(i, "WANTED_DELIVERY_DATE").ToString();
                 for (int j = 0; j < CheckGX.Items.Count; j++)
@@ -1575,7 +1575,7 @@ namespace PCTP.QRCODE_HVN.YMN
             }
             else
             {
-                string NGAYGIAO = dateNG.DateTime.ToString("MM/dd/yyyy");
+                string NGAYGIAO = dateNG.DateTime.ToString("MM/dd/yyyy", System.Globalization.CultureInfo.InvariantCulture);
                 string GIOGIAO = "";
                 string[] GGiao = GioXuat.Split(',');
                 for (int i = 0; i < GGiao.Length; i++)
@@ -1623,7 +1623,7 @@ namespace PCTP.QRCODE_HVN.YMN
                     }    
                     MAH = BANGTAM.Rows[i]["MAHANG"].ToString();
                     GG= BANGTAM.Rows[i]["GIOGIAO"].ToString();
-                    GG = dateNG.DateTime.ToString("yyyy-MM-dd") + " " + GG + ":00";
+                    GG = dateNG.DateTime.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture) + " " + GG + ":00";
                     if (YMVN_CHONGIAO.MP_SP == "MP")
                     {
                         TTLOTSL = BANGTAM.Rows[i]["LOT"].ToString();
@@ -1850,7 +1850,7 @@ namespace PCTP.QRCODE_HVN.YMN
         {
             Boolean KQ;
            
-            string NGAYGIAO = dateNG.DateTime.ToString("MM/dd/yyyy");
+            string NGAYGIAO = dateNG.DateTime.ToString("MM/dd/yyyy", System.Globalization.CultureInfo.InvariantCulture);
             string GIOGIAO = "";
             string[] GGiao = GioXuat.Split(',');
             for (int i = 0; i < GGiao.Length; i++)
@@ -2040,7 +2040,7 @@ namespace PCTP.QRCODE_HVN.YMN
             if (KTSP() == true)
             {
                 UploadMIKR();
-                N_XH = dateNG.DateTime.ToString("ddMMyyyy");
+                N_XH = dateNG.DateTime.ToString("ddMMyyyy", System.Globalization.CultureInfo.InvariantCulture);
                 c_L = false;
                 DUYET = false;
                 Da_DUYET = true;
@@ -2075,7 +2075,7 @@ namespace PCTP.QRCODE_HVN.YMN
         {
             string DOCK_CODE,POSP_NO,PSP_NO, PSP_NAME;
             string sql;
-            string SP_Ngay_Giao = dateNG.DateTime.ToString("yyyy-MM-dd 08:00:00");
+            string SP_Ngay_Giao = dateNG.DateTime.ToString("yyyy-MM-dd 08:00:00", System.Globalization.CultureInfo.InvariantCulture);
             int  SLSP_GIAO;
             for (int i = 0; i < gridVDONHANG.RowCount; i++)
             {

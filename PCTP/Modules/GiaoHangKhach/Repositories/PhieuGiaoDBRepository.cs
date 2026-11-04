@@ -81,7 +81,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             Db.CallPhieuSP(
                 Connection, Transaction,
                 "Usp_Qrcode_LOAD_PHIEU_DOCQR2405",
-                DateTime.Now.ToString("yyyy-MM-dd"),
+                DateTime.Now.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture),
                 nhaMay, gioFccMoTa, addNm, tables);
 
             string sql = $@"

@@ -116,6 +116,6 @@ namespace PCTP.Modules.GiaoHangKhach.OrderLoading.WorkingState
         }
 
         private static string NgayGiaoSp(OrderLoadContext context)
-            => context.NgayGiao.ToString("yyyy-MM-dd");
+            => context.NgayGiao.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
     }
 }

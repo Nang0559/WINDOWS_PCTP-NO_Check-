@@ -361,7 +361,7 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
                     continue;
 
                 string ngay = row["NgayGiao"] != DBNull.Value
-                    ? Convert.ToDateTime(row["NgayGiao"]).ToString("yyyy-MM-dd")
+                    ? Convert.ToDateTime(row["NgayGiao"]).ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture)
                     : "";
                 string gio = row["NgayGiao"] != DBNull.Value
                     ? Convert.ToDateTime(row["NgayGiao"]).ToString("HH")
@@ -403,7 +403,7 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
                 string poNo = row["Oder_no"]?.ToString().Trim() ?? "";
                 string maHang = row["Part_no"]?.ToString().Trim() ?? "";
                 string ngay = row["NgayGiao"] != DBNull.Value
-                    ? Convert.ToDateTime(row["NgayGiao"]).ToString("yyyy-MM-dd")
+                    ? Convert.ToDateTime(row["NgayGiao"]).ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture)
                     : "";
                 string gio = row["NgayGiao"] != DBNull.Value
                     ? Convert.ToDateTime(row["NgayGiao"]).ToString("HH")

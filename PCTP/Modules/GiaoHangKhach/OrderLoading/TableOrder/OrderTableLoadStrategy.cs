@@ -40,7 +40,7 @@ namespace PCTP.Modules.GiaoHangKhach.OrderLoading
             bool isSP = ctx.Category == OrderCategory.SP;
 
             var donHang = _phieuRepo.LoadPhieuTuBangRieng(
-                ctx.NgayGiao.ToString("yyyy-MM-dd"),
+                ctx.NgayGiao.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture),
                 string.Join(",", ctx.CheckedGios ?? new List<string>()),
                 isSP, d.DockCodeSP, ctx.Cfg);
 
@@ -49,7 +49,7 @@ namespace PCTP.Modules.GiaoHangKhach.OrderLoading
             // quy tắc như bản SoSanhDonHangVoiIFS cũ đã gặp).
             try
             {
-                string ngayXuatIFS = ctx.NgayGiao.ToString("ddMMyyyy");
+                string ngayXuatIFS = ctx.NgayGiao.ToString("ddMMyyyy", System.Globalization.CultureInfo.InvariantCulture);
                 DataTable ifsData = _ifsRepo.GetFullCustomerOrder(ngayXuatIFS, ctx.Cfg);
 
                 if (d.CoGear)
@@ -85,7 +85,7 @@ namespace PCTP.Modules.GiaoHangKhach.OrderLoading
                 docQRTable: d.DocQRTable);
 
             _phieuTmpRepo.LuuVaLoad(tables, "Usp_Qrcode_LOAD_PHIEU_DOCQR2405",
-                donHang, ctx.NgayGiao.ToString("yyyy-MM-dd"), ctx.NhaMay,
+                donHang, ctx.NgayGiao.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture), ctx.NhaMay,
                 ctx.GioFccMoTa, ctx.AddNm);
         }
 

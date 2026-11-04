@@ -64,7 +64,7 @@ namespace PCTP.Infrastructure.Repositories
                 string yyyy = ngayGiao.Substring(4, 4);
                 return $"{yyyy}-{mm}-{dd}";
             }
-            return DateTime.TryParse(ngayGiao, out DateTime dt) ? dt.ToString("yyyy-MM-dd") : ngayGiao;
+            return PCTP.Shared.Helpers.DateText.TryParseApp(ngayGiao, out DateTime dt) ? PCTP.Shared.Helpers.DateText.ToIso(dt) : ngayGiao;
         }
 
         // ── Ghép lot ─────────────────────────────────────────────────

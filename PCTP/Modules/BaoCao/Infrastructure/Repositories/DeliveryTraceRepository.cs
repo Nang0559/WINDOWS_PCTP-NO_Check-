@@ -494,7 +494,7 @@ ORDER BY P.NGAYGIAO DESC, P.STT DESC, D.STT DESC";
             return string.Join(
                 "|",
                 nhaMay ?? string.Empty,
-                ngayGiao.HasValue ? ngayGiao.Value.ToString("yyyy-MM-dd") : string.Empty,
+                ngayGiao.HasValue ? ngayGiao.Value.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture) : string.Empty,
                 gioGiao ?? string.Empty,
                 poNo ?? string.Empty,
                 stt.ToString());
