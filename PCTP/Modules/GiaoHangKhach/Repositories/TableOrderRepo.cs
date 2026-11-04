@@ -1,4 +1,5 @@
-﻿using PCTP.ClassSQL;
+﻿using System.Globalization;
+using PCTP.ClassSQL;
 using PCTP.Domain.Interfaces;
 using PCTP.FuctionMain;
 using PCTP.Infrastructure.Repositories;
@@ -78,35 +79,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             // Filter giờ
             // --------------------------------------------------------
 
-            string whereGio = "";
-
-            if (!string.IsNullOrWhiteSpace(gioFilter))
-            {
-                var gioList = gioFilter
-                    .Split(',')
-                    .Select(g => g.Trim().Trim('\''))
-                    .Where(g => !string.IsNullOrWhiteSpace(g))
-                    .Select(g =>
-                    {
-                        if (!int.TryParse(g, out int gio))
-                            throw new ArgumentException(
-                                $"Giờ giao không hợp lệ: '{g}'");
-
-                        if (gio < 0 || gio > 23)
-                            throw new ArgumentException(
-                                $"Giờ giao phải nằm trong khoảng 0-23: '{g}'");
-
-                        return gio.ToString();
-                    })
-                    .Distinct()
-                    .ToList();
-
-                if (gioList.Count > 0)
-                {
-                    whereGio =
-                        $"AND DATEPART(HH, o.NgayGiao) IN ({string.Join(",", gioList)}) ";
-                }
-            }
+            string whereGio = BuildWhereGio(gioFilter);
 
             // --------------------------------------------------------
             // Filter loại sản phẩm
@@ -181,6 +154,61 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                 cfg.Delivery.TenNhaMay);
 
             return dt;
+        }
+
+        /// <summary>
+        /// Dựng điều kiện lọc giờ từ danh sách đã chọn. Chấp nhận 2 dạng:
+        ///  - số nguyên "13"        : lọc theo giờ (DATEPART(HH) = 13)
+        ///  - "HH:mm" / "HH:mm:ss"  : lọc đúng khung giờ (ví dụ "11:20:00" của YMVN,
+        ///    lấy từ GetDanhSachGioYMVN) — khớp GioRowFilter vốn đã tách theo ':'.
+        /// Giá trị được parse rồi dựng lại, không nối chuỗi người dùng vào SQL.
+        /// </summary>
+        private static string BuildWhereGio(string gioFilter)
+        {
+            if (string.IsNullOrWhiteSpace(gioFilter))
+                return "";
+
+            var hours = new List<int>();
+            var slots = new List<string>();
+
+            foreach (string raw in gioFilter.Split(','))
+            {
+                string g = raw.Trim().Trim('\'');
+                if (string.IsNullOrWhiteSpace(g))
+                    continue;
+
+                if (g.IndexOf(':') >= 0)
+                {
+                    TimeSpan ts;
+                    if (!TimeSpan.TryParse(g, CultureInfo.InvariantCulture, out ts)
+                        || ts < TimeSpan.Zero || ts >= TimeSpan.FromHours(24))
+                        throw new ArgumentException($"Giờ giao không hợp lệ: '{g}'");
+
+                    string slot = ts.ToString(@"hh\:mm\:ss", CultureInfo.InvariantCulture);
+                    if (!slots.Contains(slot))
+                        slots.Add(slot);
+                    continue;
+                }
+
+                int gio;
+                if (!int.TryParse(g, NumberStyles.None, CultureInfo.InvariantCulture, out gio))
+                    throw new ArgumentException($"Giờ giao không hợp lệ: '{g}'");
+                if (gio < 0 || gio > 23)
+                    throw new ArgumentException($"Giờ giao phải nằm trong khoảng 0-23: '{g}'");
+                if (!hours.Contains(gio))
+                    hours.Add(gio);
+            }
+
+            var conditions = new List<string>();
+            if (hours.Count > 0)
+                conditions.Add($"DATEPART(HH, o.NgayGiao) IN ({string.Join(",", hours)})");
+            if (slots.Count > 0)
+                conditions.Add("CONVERT(VARCHAR(8), o.NgayGiao, 108) IN ("
+                    + string.Join(",", slots.Select(x => "'" + x + "'")) + ")");
+
+            return conditions.Count == 0
+                ? ""
+                : "AND (" + string.Join(" OR ", conditions) + ") ";
         }
 
         // ============================================================
