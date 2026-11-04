@@ -149,6 +149,9 @@ namespace PCTP.Presentation.Presenters
             if (!tt.DangBan)
                 return false;
 
+            if (!tt.DataKhongKhop && !_c.SessionHoursShareOneFrame(tt, isSP))
+                tt.DataKhongKhop = true;
+
             if (tt.DataKhongKhop)
             {
                 _v.ShowError(

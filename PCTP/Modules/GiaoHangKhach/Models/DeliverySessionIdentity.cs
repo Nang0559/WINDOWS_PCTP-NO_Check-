@@ -78,6 +78,28 @@ namespace PCTP.Modules.GiaoHangKhach.Models
             return group.Contains(target.First());
         }
 
+        /// <summary>
+        /// Mọi giờ giao cụ thể phải thuộc cùng MỘT nhóm giờ của Radio (ví dụ giờ 17 và 19
+        /// cùng thuộc "'17','18','19'").
+        /// </summary>
+        public static bool ContainsAllHours(string gioXuatMa, IEnumerable<string> concreteHours)
+        {
+            var group = ParseHours(gioXuatMa);
+            if (group.Count == 0 || concreteHours == null)
+                return false;
+
+            bool any = false;
+            foreach (string hour in concreteHours)
+            {
+                var target = ParseHours(hour);
+                if (target.Count != 1 || !group.Contains(target.First()))
+                    return false;
+                any = true;
+            }
+
+            return any;
+        }
+
         private static HashSet<string> ParseHours(string value)
         {
             var result = new HashSet<string>(StringComparer.OrdinalIgnoreCase);

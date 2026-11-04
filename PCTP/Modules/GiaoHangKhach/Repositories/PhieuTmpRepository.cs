@@ -248,16 +248,17 @@ ORDER BY TRY_CAST(STT AS INT), STT";
                 return result;
             }
 
-            // DOCQRCODE không lưu nhà máy/ngày/giờ. Vì vậy session identity phải
-            // được lấy từ TMP và phải đồng nhất trên toàn bộ TMP, không chỉ TOP 1.
+            // DOCQRCODE không lưu nhà máy/ngày/giờ nên session identity phải lấy từ TMP và
+            // phải đồng nhất trên toàn bộ TMP. Nhà máy (ADDNM) + ngày giao phải là DUY NHẤT.
+            // GIOGIAO có thể nhiều giá trị: một khung giờ như (17+18+19)H có dòng giờ 17 và 19.
+            // Việc các giờ đó thuộc cùng MỘT khung được presenter kiểm tra (cần danh sách khung).
             int demContext = DbValueHelper.ToInt(ExecuteScalar($@"
 SELECT COUNT(*)
 FROM
 (
     SELECT DISTINCT
            ISNULL(ADDNM, 1) AS ADDNM,
-           CONVERT(VARCHAR(10), NGAYGIAO, 120) AS NGAYGIAO,
-           ISNULL(GIOGIAO, '') AS GIOGIAO
+           CONVERT(VARCHAR(10), NGAYGIAO, 120) AS NGAYGIAO
     FROM [{tmpTable}]
 ) S"));
 
@@ -268,7 +269,28 @@ FROM
                 return result;
             }
 
-            DataTable dt = LoadData($"SELECT TOP 1 ADDNM, NGAYGIAO, GIOGIAO FROM [{tmpTable}]");
+            DataTable gioTable = LoadData($"SELECT DISTINCT ISNULL(GIOGIAO, '') AS GIOGIAO FROM [{tmpTable}]");
+            var gios = new System.Collections.Generic.List<string>();
+            bool coGioTrong = false;
+            foreach (DataRow g in gioTable.Rows)
+            {
+                string gio = Convert.ToString(g["GIOGIAO"]).Trim();
+                if (gio.Length == 0) { coGioTrong = true; continue; }
+                if (gio.Length == 1) gio = "0" + gio;
+                if (!gios.Contains(gio, StringComparer.OrdinalIgnoreCase))
+                    gios.Add(gio);
+            }
+            gios.Sort(StringComparer.OrdinalIgnoreCase);
+
+            // Trộn dòng có giờ với dòng không có giờ vẫn là context không đồng nhất.
+            if (coGioTrong && gios.Count > 0)
+            {
+                result.DangBan = true;
+                result.DataKhongKhop = true;
+                return result;
+            }
+
+            DataTable dt = LoadData($"SELECT TOP 1 ADDNM, NGAYGIAO FROM [{tmpTable}]");
             if (dt.Rows.Count == 0)
             {
                 result.DangBan = true;
@@ -283,9 +305,8 @@ FROM
             // NHAMAY is deliberately not part of the session identity. The factory is ADDNM.
             result.NgayGiao = row["NGAYGIAO"] == DBNull.Value ? "" : Convert.ToDateTime(row["NGAYGIAO"]).ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
 
-            string gioDon = row["GIOGIAO"] == DBNull.Value ? "" : row["GIOGIAO"].ToString().Trim();
-            if (gioDon.Length == 1) gioDon = "0" + gioDon;
-            result.GioGiaoFCC = gioDon;
+            result.GioGiaoTatCa = gios;
+            result.GioGiaoFCC = gios.Count > 0 ? gios[0] : "";
 
             return result;
         }

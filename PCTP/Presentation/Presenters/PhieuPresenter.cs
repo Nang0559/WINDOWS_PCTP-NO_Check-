@@ -310,6 +310,8 @@ namespace PCTP.Presentation.Presenters
                     _c.LoadPhieuHienTai();
                     return;
                 }
+                if (!tt.DataKhongKhop && !_c.SessionHoursShareOneFrame(tt, selectedIsSP))
+                    tt.DataKhongKhop = true;
                 if (tt.DataKhongKhop)
                 {
                     if (_c.DocQrView.HoiXoaDocQR()) _c.PhieuSvc.XoaDocQRCode(selectedIsSP); _c.IsBanQR = false;

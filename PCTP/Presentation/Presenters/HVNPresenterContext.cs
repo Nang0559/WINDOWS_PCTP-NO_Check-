@@ -32,6 +32,28 @@ namespace PCTP.Presentation.Presenters
         internal readonly IInPhieuService InPhieuSvc;
         internal readonly IHangThieuCaNgayService HangThieuCaNgayService;
         internal readonly IGioXuatRepository GioXuatRepo;
+
+        /// <summary>
+        /// Session QR có thể chứa nhiều giờ giao cụ thể (khung (17+18+19)H có dòng giờ 17 và 19).
+        /// Hợp lệ khi tất cả các giờ đó thuộc cùng MỘT khung giờ của nhà máy đang bắn.
+        /// </summary>
+        internal bool SessionHoursShareOneFrame(TrangThaiBan tt, bool isSP)
+        {
+            if (tt == null || tt.GioGiaoTatCa == null || tt.GioGiaoTatCa.Count <= 1)
+                return true;
+            if (isSP || Cfg.Delivery.CoGear || Cfg.Delivery.LoadTuBangRieng)
+                return true;
+
+            int addNm = Cfg.Delivery.CoNhieuNhaMay ? tt.AddNM : Cfg.Delivery.AddNmMacDinh;
+            var frames = addNm == 1 ? GioXuatRepo.GetDanhSachGioVP() : GioXuatRepo.GetDanhSachGioHN();
+            foreach (var frame in frames)
+            {
+                if (DeliverySessionIdentity.ContainsAllHours(frame.Ma, tt.GioGiaoTatCa))
+                    return true;
+            }
+
+            return false;
+        }
         internal readonly IEventBus Bus;
         internal readonly CustomerConfig Cfg;
         internal readonly IOrderCategoryResolver CategoryResolver;
