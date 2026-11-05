@@ -341,7 +341,7 @@ namespace PCTP
                     throw new InvalidOperationException("ItemCode không khớp PART trong STOCKTP.");
 
                 var rows = _slotRepo.GetAllActiveSlotLots()
-                    .Where(x => string.Equals((x.LotNo ?? string.Empty).Trim(), lot, StringComparison.OrdinalIgnoreCase))
+                    .Where(x => LotCodeHelper.AreLotKeysEquivalent((x.LotNo ?? string.Empty).Trim(), lot))
                     .ToList();
                 var otherItem = rows.FirstOrDefault(x => !string.Equals((x.ItemCode ?? string.Empty).Trim(), item, StringComparison.OrdinalIgnoreCase));
                 if (otherItem != null)
