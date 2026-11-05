@@ -44,16 +44,24 @@ ORDER BY l.LocationName, t.LotNo, t.CreatedAt, t.TransferId;";
             const string sql = @"
 SELECT s.SlotId,
        w.Name + N' / ' + r.RackName + N' / Slot ' + CONVERT(nvarchar(20), s.SlotNumber)
-       + N' | Tồn ' + CONVERT(nvarchar(20), ISNULL(s.Quantity, 0))
+       + N' | Tồn ' + CONVERT(nvarchar(20), ISNULL(x.Quantity, 0))
        + N' / ' + CONVERT(nvarchar(20), ISNULL(s.Capacity, 0)) AS DisplayText,
-       ISNULL(s.Quantity, 0) AS Quantity,
+       ISNULL(x.Quantity, 0) AS Quantity,
        ISNULL(s.Capacity, 0) AS Capacity,
-       s.ItemCode
+       ISNULL(x.ItemCode, ISNULL(s.ItemCode, N'')) AS ItemCode
 FROM Slot s
 JOIN Rack r ON r.RackId = s.RackId
 JOIN Warehouse w ON w.WarehouseId = r.WarehouseId
-WHERE ISNULL(s.ItemCode, N'') IN (N'', @ItemCode)
-  AND (ISNULL(s.Capacity, 0) <= 0 OR ISNULL(s.Quantity, 0) < ISNULL(s.Capacity, 0))
+OUTER APPLY
+(
+    SELECT SUM(Quantity) AS Quantity,
+           MAX(ItemCode) AS ItemCode,
+           MAX(CASE WHEN UPPER(LTRIM(RTRIM(ItemCode))) <> UPPER(LTRIM(RTRIM(@ItemCode))) THEN 1 ELSE 0 END) AS HasOtherItem
+    FROM SlotLot
+    WHERE SlotId = s.SlotId AND PhieuStatus = 0 AND Quantity > 0
+) x
+WHERE ISNULL(x.HasOtherItem, 0) = 0
+  AND (ISNULL(s.Capacity, 0) <= 0 OR ISNULL(x.Quantity, 0) < ISNULL(s.Capacity, 0))
 ORDER BY w.Name, r.RackName, s.SlotNumber;";
             return LoadData(sql,
                 new SqlParameter("@ItemCode", SqlDbType.NVarChar, 100) { Value = (itemCode ?? string.Empty).Trim() });
@@ -120,16 +128,26 @@ WHERE LocationId=@LocationId AND ItemCode=@ItemCode AND LotNo=@LotNo;",
 
                 slotService.LockSlotForUpdate(targetSlotId);
                 DataTable slot = LoadData(@"
-SELECT ISNULL(Quantity,0) AS Quantity, ISNULL(Capacity,0) AS Capacity, ISNULL(ItemCode,N'') AS ItemCode
-FROM Slot WITH (UPDLOCK, HOLDLOCK) WHERE SlotId=@SlotId;",
-                    new SqlParameter("@SlotId", SqlDbType.Int) { Value = targetSlotId });
+SELECT ISNULL(x.Quantity,0) AS Quantity, ISNULL(s.Capacity,0) AS Capacity,
+       ISNULL(x.ItemCode, ISNULL(s.ItemCode,N'')) AS ItemCode,
+       ISNULL(x.HasOtherItem,0) AS HasOtherItem
+FROM Slot s WITH (UPDLOCK, HOLDLOCK)
+OUTER APPLY
+(
+    SELECT SUM(Quantity) AS Quantity, MAX(ItemCode) AS ItemCode,
+           MAX(CASE WHEN UPPER(LTRIM(RTRIM(ItemCode))) <> UPPER(LTRIM(RTRIM(@ItemCode))) THEN 1 ELSE 0 END) AS HasOtherItem
+    FROM SlotLot WHERE SlotId=s.SlotId AND PhieuStatus=0 AND Quantity>0
+) x
+WHERE s.SlotId=@SlotId;",
+                    new SqlParameter("@SlotId", SqlDbType.Int) { Value = targetSlotId },
+                    new SqlParameter("@ItemCode", SqlDbType.NVarChar, 100) { Value = itemCode });
                 if (slot.Rows.Count != 1)
                     throw new InvalidOperationException("Không tìm thấy Slot nhận hàng.");
                 int slotQty = Convert.ToInt32(slot.Rows[0]["Quantity"]);
                 int capacity = Convert.ToInt32(slot.Rows[0]["Capacity"]);
                 string slotItem = Convert.ToString(slot.Rows[0]["ItemCode"]);
-                if (!string.IsNullOrWhiteSpace(slotItem) &&
-                    !string.Equals(slotItem.Trim(), itemCode.Trim(), StringComparison.OrdinalIgnoreCase))
+                if (Convert.ToInt32(slot.Rows[0]["HasOtherItem"]) != 0 || (!string.IsNullOrWhiteSpace(slotItem) &&
+                    !string.Equals(slotItem.Trim(), itemCode.Trim(), StringComparison.OrdinalIgnoreCase)))
                     throw new InvalidOperationException("Slot nhận đang chứa mã hàng khác.");
                 if (capacity > 0 && slotQty + quantity > capacity)
                     throw new InvalidOperationException("Slot nhận không đủ sức chứa cho số lượng thu hồi.");
