@@ -18,6 +18,12 @@
   </ItemGroup>
   <ItemGroup>
     <None Update="TestMatrix.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/XuatKho/Repositories/InternalTransferRepository.cs" Link="InternalTransferRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/XuatKho/Repositories/InternalTransferRecallRepository.cs" Link="InternalTransferRecallRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/XuatKho/FormChuyenHangNoiBo.cs" Link="FormChuyenHangNoiBo.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/XuatKho/FormThuHoiHangNoiBo.cs" Link="FormThuHoiHangNoiBo.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Shell/Main_APP.Menu.cs" Link="Main_APP.Menu.internal-transfer.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../SQL/PCTP_InternalTransfer.sql" Link="PCTP_InternalTransfer.source.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP.QC.UI/Invoke-PctpLiveDataInventory.ps1" Link="Invoke-PctpLiveDataInventory.source.ps1" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP.QC.UI/Invoke-PctpLiveDataProfile.ps1" Link="Invoke-PctpLiveDataProfile.source.ps1" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP.QC.UI/PctpLiveData.Common.ps1" Link="PctpLiveData.Common.source.ps1" CopyToOutputDirectory="PreserveNewest" />
