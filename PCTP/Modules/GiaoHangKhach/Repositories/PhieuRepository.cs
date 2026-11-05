@@ -98,6 +98,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         public void PushIfsSnapshot(string ifsTable, DataTable donHang) => _tmp.PushIfsSnapshot(ifsTable, donHang);
         public DataTable LoadTuTmpTable(string tmpTable) => _tmp.LoadTuTmpTable(tmpTable);
         public DataTable GetDonHangHienTai(string tenBan) => _tmp.GetDonHangHienTai(tenBan);
+        public DataTable LoadTmpOrderForGear(string tmpTable) => _tmp.LoadTmpOrderForGear(tmpTable);
         public void XoaTmpPhieu(string tenBan) => _tmp.XoaTmpPhieu(tenBan);
         public void XoaDocQRCode(string docQRTable) => _tmp.XoaDocQRCode(docQRTable);
         public TrangThaiBan GetTrangThaiDangBan(PhieuTableSet tables) => _tmp.GetTrangThaiDangBan(tables);

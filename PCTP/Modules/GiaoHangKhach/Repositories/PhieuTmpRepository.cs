@@ -206,6 +206,24 @@ ORDER BY TRY_CAST(STT AS INT), STT";
         }
 
         // ============================================================
+        // LoadTmpOrderForGear
+        // ============================================================
+        // Nguồn duy nhất để đối chiếu Gear/số lượng YMVN khi bắn QR và khi Hoàn thành:
+        // đúng tập dòng đã được SyncPhieuTuBangRiengChoDocQR ghi vào TMP (bỏ dòng
+        // STATUS = 'OK'). Không dùng lưới Phiếu / IFS / Purchase_Order_YMVN vì các nguồn
+        // đó có thể chứa dòng không nằm trong phiên bắn.
+        public DataTable LoadTmpOrderForGear(string tmpTable)
+        {
+            Db.ValidateTableName(tmpTable);
+            string sql = $@"
+SELECT STT, MAHANG, ISNULL(GEAR, '') AS GEAR, SOLUONG, STATUS, ISNULL(PO_NO, '') AS PO_NO
+FROM [{tmpTable}]
+WHERE ISNULL(RTRIM(STATUS), '') <> 'OK'
+ORDER BY TRY_CAST(STT AS INT), STT";
+            return LoadData(sql);
+        }
+
+        // ============================================================
         // XoaTmpPhieu / XoaDocQRCode
         // ============================================================
         public void XoaTmpPhieu(string tenBan)

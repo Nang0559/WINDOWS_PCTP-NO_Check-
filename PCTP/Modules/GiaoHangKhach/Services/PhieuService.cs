@@ -128,6 +128,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         public TrangThaiBan GetTrangThaiDangBanSP() { if (!_cfg.Delivery.CoConfigSP) return new TrangThaiBan { DangBan = false }; return _workingState.GetTrangThaiDangBan(new OrderLoadContext { Cfg = _cfg, Category = OrderCategory.SP }); }
         public bool XoaDocQRCode(bool isSP = false) { _phieuRepo.XoaDocQRCode(_cfg.Delivery.GetDocQRTable(isSP)); return true; }
         public DataTable GetDonHangHienTai(string tenbang) => _phieuRepo.GetDonHangHienTai(tenbang);
+        public DataTable GetDonHangYmvnTuTmp() => _phieuRepo.LoadTmpOrderForGear(GetTenBan());
         public DataTable GetDonHangChuaLot(bool isSP = false) => _phieuRepo.GetDonHangChuaLot(GetTenBan(isSP), _cfg.Delivery.GetDocQRTable(isSP));
 
         public DataTable LoadGhepLot()

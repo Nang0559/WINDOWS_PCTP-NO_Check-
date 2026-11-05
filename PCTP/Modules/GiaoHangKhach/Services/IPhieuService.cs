@@ -25,6 +25,8 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         TrangThaiBan GetTrangThaiDangBanSP();
         bool XoaDocQRCode(bool isSP = false);
         DataTable GetDonHangHienTai(string tenbang);
+        /// <summary>Dòng đơn YMVN của phiên bắn hiện tại đọc từ bảng TMP (MAHANG/GEAR/SOLUONG) để kiểm tra Gear/số lượng.</summary>
+        DataTable GetDonHangYmvnTuTmp();
         DataTable GetDonHangChuaLot(bool isSP = false);
         DataTable LoadGhepLot();
         void LayLaiLotNo(int stt, bool isSP = false);

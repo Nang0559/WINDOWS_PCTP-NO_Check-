@@ -15,6 +15,8 @@ namespace PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao
     {
         DataTable LoadTuTmpTable(string tmpTable);
         DataTable GetDonHangHienTai(string tenBan);
+        /// <summary>Dòng đơn của phiên đang bắn (STATUS &lt;&gt; 'OK') kèm GEAR/SOLUONG — nguồn đối chiếu Gear/số lượng YMVN.</summary>
+        DataTable LoadTmpOrderForGear(string tmpTable);
         DataTable LoadPhieuDocQR(string ngayGiao, string nhaMay, string gioFcc, int addNm, PhieuTableSet tables);
 
         void PushIfsSnapshot(string ifsTable, DataTable donHang);

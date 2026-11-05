@@ -61,8 +61,9 @@ namespace PCTP.Presentation.Presenters
                 }
 
                 string validationError;
+                // Đối chiếu với TMP của phiên (đúng tập dòng đã nạp để bắn QR), không dùng lưới Phiếu.
                 if (!YmvnGearQuantityValidator.ValidateCompletion(
-                    _c.PhieuView.GetDonHangTable(),
+                    _c.PhieuSvc.GetDonHangYmvnTuTmp(),
                     _c.QrSvc.LoadAll(),
                     out validationError,
                     code => _c.QrSvc.GetGearName(code)))

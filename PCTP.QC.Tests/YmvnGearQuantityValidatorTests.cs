@@ -82,6 +82,37 @@ public sealed class YmvnGearQuantityValidatorTests
         Assert.NotNull(error);
     }
 
+    // Regression: TMPPHIEUGIAOHANG_100002 chỉ có dòng B5V (GEAR = "Gear D :450pcs"). Hoàn thành phải
+    // đối chiếu đúng tập dòng TMP này, không đòi mã khác (vd 1FP-E6300-01-00-80) từ nguồn khác.
+    [Fact]
+    public void CompletionPassesWhenTmpRowsAreFullyScanned()
+    {
+        var tmp = new DataTable();
+        tmp.Columns.Add("MAHANG", typeof(string));
+        tmp.Columns.Add("GEAR", typeof(string));
+        tmp.Columns.Add("SOLUONG", typeof(int));
+        tmp.Rows.Add("B5V-E6300-00-00-80", "Gear D :450pcs", 450);
+
+        var scans = Scans();
+        for (int i = 0; i < 90; i++) scans.Rows.Add("B5V-E6300-00-00-80", Lot('3'), 5);
+
+        var ok = YmvnGearQuantityValidator.ValidateCompletion(tmp, scans, out var error);
+        Assert.True(ok, error);
+    }
+
+    [Fact]
+    public void CompletionDoesNotDemandPartMissingFromTmp()
+    {
+        // Nếu bảng đối chiếu có thêm 1FP (Gear D, 150) thì bị đòi — đây là lỗi cũ khi dùng lưới/nguồn khác TMP.
+        var wrong = Order(("B5V-E6300-00-00-80", "Gear D :450pcs", 450), ("1FP-E6300-01-00-80", "Gear D :150pcs", 150));
+        var scans = Scans();
+        for (int i = 0; i < 90; i++) scans.Rows.Add("B5V-E6300-00-00-80", Lot('3'), 5);
+
+        var ok = YmvnGearQuantityValidator.ValidateCompletion(wrong, scans, out var error);
+        Assert.False(ok);
+        Assert.Contains("1FP-E6300-01-00-80", error);
+    }
+
     // ── Real YMVN labels (photo IMG_5411: B5V-E6300-00-00-80, order #01289, Total Ordered 700) ──
     private const string GS = "\u001D";
     private const string YamahaCardWithSeparators =
