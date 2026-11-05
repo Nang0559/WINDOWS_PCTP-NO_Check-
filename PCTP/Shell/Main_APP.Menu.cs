@@ -386,8 +386,8 @@ namespace PCTP
                 IsSplitterFixed = false,
                 SplitterWidth = 7,
                 Panel1MinSize = 220,
-                Panel2MinSize = 205,
-                SplitterDistance = 390
+                Panel2MinSize = 270,
+                SplitterDistance = 320
             };
             root.Controls.Add(mainSplit, 0, 1);
 
@@ -441,7 +441,7 @@ namespace PCTP
             {
                 Text = "Số lượng đích và thông tin điều chỉnh LOT đang chọn",
                 Dock = DockStyle.Fill,
-                MinimumSize = new System.Drawing.Size(0, 150)
+                MinimumSize = new System.Drawing.Size(0, 205)
             };
             var adjustLayout = new TableLayoutPanel
             {
@@ -456,7 +456,7 @@ namespace PCTP
             adjustLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
             adjustLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
             adjustLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
-            adjustLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            adjustLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 78));
             AddField(adjustLayout, 0, 0, "Số lượng đích", _target);
             AddField(adjustLayout, 2, 0, "Slot nhận thêm", _destinationSlot);
             AddField(adjustLayout, 0, 1, "LOT đang chọn", _selectedLotLabel);
@@ -469,28 +469,30 @@ namespace PCTP
             _reason.Properties.NullValuePrompt = "Bắt buộc nhập lý do điều chỉnh";
             _reason.Properties.ScrollBars = ScrollBars.Vertical;
             _reason.Properties.WordWrap = true;
-            _reason.MinimumSize = new System.Drawing.Size(0, 68);
+            _reason.MinimumSize = new System.Drawing.Size(0, 72);
             adjustGroup.Controls.Add(adjustLayout);
             bottomLayout.Controls.Add(adjustGroup, 0, 0);
 
-            var footer = new FlowLayoutPanel
+            var footer = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
-                FlowDirection = FlowDirection.LeftToRight,
-                WrapContents = false,
-                Padding = new Padding(2)
+                Padding = new Padding(2),
+                ColumnCount = 2,
+                RowCount = 1
             };
+            footer.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 238));
+            footer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            footer.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
             _apply.Text = "Xác nhận điều chỉnh LOT đã chọn";
-            _apply.Width = 230;
-            _apply.Height = 34;
+            _apply.Dock = DockStyle.Fill;
             _apply.Enabled = false;
             _apply.Click += (s, e) => ApplyAdjustment();
-            footer.Controls.Add(_apply);
+            footer.Controls.Add(_apply, 0, 0);
             _summary.Dock = DockStyle.Fill;
             _summary.AutoSizeMode = LabelAutoSizeMode.None;
             _summary.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
             _summary.Appearance.TextOptions.WordWrap = DevExpress.Utils.WordWrap.Wrap;
-            footer.Controls.Add(_summary);
+            footer.Controls.Add(_summary, 1, 0);
             bottomLayout.Controls.Add(footer, 0, 1);
         }
 
