@@ -271,6 +271,21 @@ namespace PCTP.Modules.NhapKho.Repository
             return DateTime.TryParse(row[column].ToString(), out DateTime result) ? result : (DateTime?)null;
         }
 
+        /// <summary>
+        /// Danh sách ItemCode dùng cho lookup điều chỉnh LOT.
+        /// Không lọc SLCONLAI để vẫn chọn được mã hàng có LOT hiện đang bằng 0.
+        /// </summary>
+        public DataTable GetItemLookup()
+        {
+            string sql = $@"
+SELECT PART, MAX(NAME) AS NAME
+FROM {_tableName}
+WHERE NULLIF(LTRIM(RTRIM(PART)), '') IS NOT NULL
+GROUP BY PART
+ORDER BY PART;";
+            return LoadData(sql);
+        }
+
         public DataTable GetTonKhoHienTai()
         {
             string sql = $@"
