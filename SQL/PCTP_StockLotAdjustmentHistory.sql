@@ -1,6 +1,6 @@
 /*
     PCTP - audit history for manual LOT stock reconciliation.
-    Apply only to DB57 (QC/test database) before enabling the UI.
+    Apply this script to each configured database where the LOT adjustment feature will be used, before enabling the UI.
     This script creates metadata only; it does not alter STOCKTP or SlotLot data.
 */
 IF OBJECT_ID(N'dbo.PCTPStockLotAdjustmentHistory', N'U') IS NULL
