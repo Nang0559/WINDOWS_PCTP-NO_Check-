@@ -83,7 +83,8 @@ namespace PCTP.Modules.KhoVatLy
             var stockMovement = new StockMovementService(
                 stockBalanceRepository,
                 stockSlotRepository,
-                stockReceivingRepository);
+                stockReceivingRepository,
+                uow);
 
             var exportService = new StockExportService(
                 uow,
