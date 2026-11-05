@@ -359,8 +359,8 @@ namespace PCTP
             adjustLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
             AddField(adjustLayout, 0, 0, "Số lượng đích", _target);
             AddField(adjustLayout, 2, 0, "Slot nhận thêm", _destinationSlot);
-            AddField(adjustLayout, 0, 1, "LOT đang chọn", _selectedLotLabel = new LabelControl { Dock = DockStyle.Fill, AutoSizeMode = LabelAutoSizeMode.None });
-            AddField(adjustLayout, 2, 1, "Mã hàng", _selectedItemLabel = new LabelControl { Dock = DockStyle.Fill, AutoSizeMode = LabelAutoSizeMode.None });
+            AddField(adjustLayout, 0, 1, "LOT đang chọn", _selectedLotLabel);
+            AddField(adjustLayout, 2, 1, "Mã hàng", _selectedItemLabel);
             AddField(adjustLayout, 0, 2, "Lý do", _reason, 3);
             _target.Properties.MinValue = 0;
             _target.Properties.MaxValue = int.MaxValue;
@@ -619,5 +619,4 @@ namespace PCTP
             }
         }
     }
-}
 }
