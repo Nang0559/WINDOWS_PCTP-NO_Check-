@@ -7,6 +7,7 @@ using PCTP.Modules.KhoVatLy.Repositories;
 using PCTP.Modules.KhoCore.Application.Contracts.Stock;
 using PCTP.Modules.KhoVatLy.Application.Interfaces;
 using PCTP.Shared.Common;
+using PCTP.Shared.Models;
 
 namespace PCTP.Modules.XuatKho.Repositories
 {
@@ -90,6 +91,20 @@ namespace PCTP.Modules.XuatKho.Repositories
                 try { uow.Rollback(); } catch { }
                 throw;
             }
+        }
+
+
+        public DataTable GetInternalStock(string lotFilter)
+        {
+            const string sql = @"
+SELECT l.LocationName, s.ItemCode, s.LotNo, s.Quantity, s.UpdatedAt
+FROM PCTP_InternalStock s
+JOIN PCTP_InternalLocation l ON l.LocationId = s.LocationId
+WHERE s.Quantity > 0
+  AND (@LotNo = N'' OR LTRIM(RTRIM(s.LotNo)) = LTRIM(RTRIM(@LotNo)))
+ORDER BY l.LocationName, s.ItemCode, s.LotNo;";
+            return LoadData(sql,
+                new SqlParameter("@LotNo", SqlDbType.NVarChar, 200) { Value = (lotFilter ?? string.Empty).Trim() });
         }
 
         private int CreateTransfer(SlotLotViewInfo source, string destination, string reason, int quantity, string performedBy)
