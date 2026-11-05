@@ -222,6 +222,7 @@ namespace PCTP
         private readonly StockTpRepository _stockTp;
         private readonly SlotRepository _slotRepo;
         private readonly BulkStockSlotRepository _adjustmentRepo;
+        private readonly string _databaseTarget;
         private readonly TextEdit _item = new TextEdit();
         private readonly TextEdit _lot = new TextEdit();
         private readonly TextEdit _destinationSlot = new TextEdit();
@@ -244,12 +245,14 @@ namespace PCTP
             StartPosition = FormStartPosition.CenterParent;
 
             var provider = new SQLPROVIDER();
-            // LOT adjustment is a write operation: fail closed unless the configured
-            // application connection is explicitly DB57. Never permit DB14 writes.
+            // Use the application's active connection configuration. The target is
+            // displayed in the form and repeated in the write confirmation; no host
+            // or catalog is hard-coded so QC/staging/production profiles can be used.
             var connection = new System.Data.SqlClient.SqlConnectionStringBuilder(provider.B7R2_FCCdb);
-            if (!string.Equals(connection.InitialCatalog, "B7R2_FCC", StringComparison.OrdinalIgnoreCase) ||
-                connection.DataSource.IndexOf("192.168.200.57", StringComparison.OrdinalIgnoreCase) < 0)
-                throw new InvalidOperationException("Điều chỉnh tồn kho LOT chỉ được phép chạy trên DB57 (192.168.200.57 / B7R2_FCC). Cấu hình hiện tại không phải DB57; thao tác bị chặn.");
+            _databaseTarget = string.Format("{0} / {1}",
+                string.IsNullOrWhiteSpace(connection.DataSource) ? "(server chưa cấu hình)" : connection.DataSource,
+                string.IsNullOrWhiteSpace(connection.InitialCatalog) ? "(database chưa cấu hình)" : connection.InitialCatalog);
+            Text = "Điều chỉnh tồn kho LOT — " + _databaseTarget;
             var db = new PhieuSqlExecutor(provider);
             _uow = new UnitOfWork(provider);
             _stockTp = new StockTpRepository(db, _uow);
@@ -391,8 +394,8 @@ namespace PCTP
 
             int target = Convert.ToInt32(_target.Value);
             string prompt = string.Format(
-                "Xác nhận đưa LOT [{0}] / Item [{1}] về số lượng đích {2:n0}?\r\nSTOCKTP: {3:n0} → {2:n0}\r\nSlotLot: {4:n0} → {2:n0}\r\n\r\nThao tác sẽ ghi lịch sử và rollback toàn bộ nếu invariant không đạt.",
-                _lot.Text.Trim(), _item.Text.Trim(), target, _stockBefore, _slotBefore);
+                "CƠ SỞ DỮ LIỆU ĐÍCH: {5}\r\n\r\nXác nhận đưa LOT [{0}] / Item [{1}] về số lượng đích {2:n0}?\r\nSTOCKTP: {3:n0} → {2:n0}\r\nSlotLot: {4:n0} → {2:n0}\r\n\r\nĐây là thao tác ghi dữ liệu trên cơ sở dữ liệu đang cấu hình. Hệ thống sẽ ghi lịch sử và rollback toàn bộ nếu invariant không đạt.",
+                _lot.Text.Trim(), _item.Text.Trim(), target, _stockBefore, _slotBefore, _databaseTarget);
             if (XtraMessageBox.Show(this, prompt, Text, MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes)
                 return;
 
@@ -414,7 +417,7 @@ namespace PCTP
                 try { _uow.Rollback(); } catch { }
                 XtraMessageBox.Show(this,
                     "Điều chỉnh thất bại; transaction đã được rollback.\r\n\r\n" + ex.Message +
-                    "\r\n\r\nNếu lỗi thiếu bảng PCTPStockLotAdjustmentHistory, hãy chạy SQL/PCTP_StockLotAdjustmentHistory.sql trên DB57 trước khi sử dụng.",
+                    "\r\n\r\nNếu lỗi thiếu bảng PCTPStockLotAdjustmentHistory, hãy chạy SQL/PCTP_StockLotAdjustmentHistory.sql trên đúng cơ sở dữ liệu đang cấu hình trước khi sử dụng.",
                     Text, MessageBoxButtons.OK, MessageBoxIcon.Error);
                 _apply.Enabled = _hasPreview;
             }
