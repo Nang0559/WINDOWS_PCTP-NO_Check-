@@ -109,46 +109,16 @@ namespace PCTP.Applications.Services
         // In Ghép Lot — không liên quan CustomerConfig, giữ nguyên
         // ════════════════════════════════════════════════════════════════════
         /// <summary>
-        /// @MACHINE của Usp_gheplotPrint KHÔNG phải tên máy tính mà lấy từ dữ liệu truyền vào:
-        /// ký tự 14-16 (3 ký tự) của LOTNO (LotCodeHelper.GetGhepLotMachineCode). Các dòng chọn được
-        /// nhóm theo mã máy; mỗi nhóm được ghi vào TMPLOTGHEP.MachineName và in bằng một lần gọi SP,
-        /// kết quả được gộp lại. Tham số machineName (tên máy tính) giữ lại để tương thích, không còn dùng.
+        /// ✅ FIX: nhận thêm machineName — ISqlRepository.XoaVaInsertTmpLotGhep/
+        /// GetGhepLotPrint đã đổi sang lọc theo TMPLOTGHEP.MachineName (tránh 2
+        /// máy đá dữ liệu ghép lot của nhau), nên bắt buộc phải truyền vào đây.
         /// </summary>
         public DataTable InGhepLot(IEnumerable<GhepLotItem> selectedRows, string machineName)
         {
-            var rows = selectedRows == null
-                ? new List<GhepLotItem>()
-                : selectedRows.Where(r => r != null).ToList();
+            if (selectedRows != null && selectedRows.Any())
+                _sqlRepo.XoaVaInsertTmpLotGhep(selectedRows, machineName);
 
-            // Không chọn dòng nào: in lại dữ liệu đã ghi trước đó (không lọc máy).
-            if (rows.Count == 0)
-                return _sqlRepo.GetGhepLotPrint(null);
-
-            var groups = rows
-                .GroupBy(r => PCTP.Common.LotCodeHelper.GetGhepLotMachineCode(r.Lot))
-                .OrderBy(g => g.Key, StringComparer.Ordinal)
-                .ToList();
-
-            // Fail closed: không đoán máy khi LOT quá ngắn / sai chuẩn.
-            var unknown = groups.FirstOrDefault(g => string.IsNullOrEmpty(g.Key));
-            if (unknown != null)
-            {
-                string lots = string.Join(", ", unknown.Select(r => r.Lot).Distinct().Take(5));
-                throw new InvalidOperationException(
-                    "Không xác định được mã máy (ký tự 14-16) từ LOT: " + lots);
-            }
-
-            DataTable result = null;
-            foreach (var group in groups)
-            {
-                _sqlRepo.XoaVaInsertTmpLotGhep(group.ToList(), group.Key);
-                DataTable part = _sqlRepo.GetGhepLotPrint(group.Key);
-
-                if (result == null) result = part.Copy();
-                else result.Merge(part);
-            }
-
-            return result ?? new DataTable();
+            return _sqlRepo.GetGhepLotPrint(machineName);
         }
 
         // ════════════════════════════════════════════════════════════════════
