@@ -425,7 +425,7 @@ namespace PCTP
             }
             else if (itemCode != raw)
             {
-                XtraMessageBox.Show(this, "Không tìm thấy mã hàng [" + itemCode + "] trong danh sách STOCKTP còn tồn.", Text,
+                XtraMessageBox.Show(this, "Không tìm thấy mã hàng [" + itemCode + "] trong danh sách mã hàng STOCKTP.", Text,
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 _item.SelectAll();
                 _item.Focus();
