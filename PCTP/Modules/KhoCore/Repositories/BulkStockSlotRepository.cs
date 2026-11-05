@@ -479,7 +479,7 @@ VALUES
             {
                 bool useDefaultA0 = !destinationSlotId.HasValue || destinationSlotId.Value <= 0;
                 int targetSlot = useDefaultA0
-                    ? GetOrCreateVirtualSlotId(BulkImportConfig.WarehouseName, BulkImportConfig.RackName, BulkImportConfig.Capacity)
+                    ? GetOrCreateVirtualSlotId("KHO_AO_NHAP_LOAT", "RACK_AO", 999999999)
                     : destinationSlotId.Value;
                 LockSlotForUpdate(targetSlot);
 
