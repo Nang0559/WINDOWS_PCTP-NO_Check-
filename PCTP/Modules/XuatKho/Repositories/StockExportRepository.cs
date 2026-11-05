@@ -120,5 +120,48 @@ namespace PCTP.Modules.XuatKho.Repositories
                 SlConLai = r["SLCONLAI"] == DBNull.Value ? 0 : Convert.ToInt32(r["SLCONLAI"])
             }).ToList();
         }
+
+        /// <summary>Danh sách mã hàng có tồn STOCKTP và còn nằm trong Slot hoạt động.</summary>
+        public DataTable GetInternalTransferItemChoices()
+        {
+            return LoadData(@"
+SELECT UPPER(LTRIM(RTRIM(st.PART))) AS ItemCode,
+       SUM(ISNULL(st.SLCONLAI,0)) AS StockQuantity
+FROM STOCKTP st
+WHERE ISNULL(st.SLCONLAI,0) > 0
+  AND EXISTS
+  (
+      SELECT 1 FROM SlotLot sl
+      WHERE sl.PhieuStatus = 0 AND sl.Quantity > 0
+        AND UPPER(LTRIM(RTRIM(sl.ItemCode))) = UPPER(LTRIM(RTRIM(st.PART)))
+        AND LTRIM(RTRIM(sl.LotNo)) = LTRIM(RTRIM(st.LOT))
+  )
+GROUP BY UPPER(LTRIM(RTRIM(st.PART)))
+ORDER BY UPPER(LTRIM(RTRIM(st.PART)));");
+        }
+
+        /// <summary>LOT được chọn chỉ khi còn STOCKTP và có số dư trong SlotLot đang hoạt động.</summary>
+        public DataTable GetInternalTransferLotChoices(string itemCode)
+        {
+            return LoadData(@"
+SELECT UPPER(LTRIM(RTRIM(st.PART))) AS ItemCode,
+       LTRIM(RTRIM(st.LOT)) AS LotNo,
+       ISNULL(st.SLCONLAI,0) AS StockQuantity,
+       ISNULL(sl.SlotQuantity,0) AS SlotQuantity
+FROM STOCKTP st
+CROSS APPLY
+(
+    SELECT SUM(s.Quantity) AS SlotQuantity
+    FROM SlotLot s
+    WHERE s.PhieuStatus = 0 AND s.Quantity > 0
+      AND LTRIM(RTRIM(s.LotNo)) = LTRIM(RTRIM(st.LOT))
+      AND UPPER(LTRIM(RTRIM(s.ItemCode))) = UPPER(LTRIM(RTRIM(st.PART)))
+) sl
+WHERE UPPER(LTRIM(RTRIM(st.PART))) = UPPER(LTRIM(RTRIM(@ItemCode)))
+  AND ISNULL(st.SLCONLAI,0) > 0
+  AND ISNULL(sl.SlotQuantity,0) > 0
+ORDER BY LTRIM(RTRIM(st.LOT));",
+                new SqlParameter("@ItemCode", SqlDbType.NVarChar, 100) { Value = (itemCode ?? string.Empty).Trim() });
+        }
     }
 }
