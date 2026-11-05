@@ -117,7 +117,7 @@ public sealed class YmvnGearQuantityValidatorTests
     private const string GS = "\u001D";
     private const string YamahaCardWithSeparators =
         "[)>\u001E06" + GS + "9KY0E" + GS + "PB5VE6300000080" + GS + "V1073" + GS + "3L9204" + GS +
-        "K01289" + GS + "Q000700" + GS + "10K" + new string(' ', 16) + GS + "Z" + new string(' ', 7) + GS + "\u001E\u0004";
+        "K01289" + GS + "Q000700" + GS + "10K" + "                " + GS + "Z" + "       " + GS + "\u001E\u0004";
     private const string YamahaCardSeparatorsDropped =
         "[)>0699KY0EPB5VE6300000080V10733L9204K01289Q00070010K                Z       ";
 
