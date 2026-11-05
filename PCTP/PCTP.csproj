@@ -384,7 +384,6 @@
     <Compile Include="Modules\GiaoHangKhach\Services\IDocQRService.cs" />
     <Compile Include="Modules\GiaoHangKhach\Services\IInPhieuService.cs" />
     <Compile Include="Modules\GiaoHangKhach\Services\InPhieuService.cs" />
-    <Compile Include="Modules\GiaoHangKhach\Services\YmvnPrintHelpers.cs" />
     <Compile Include="Modules\GiaoHangKhach\Services\IPhieuGiaoDbService.cs" />
     <Compile Include="Modules\GiaoHangKhach\Services\IPhieuKhoService.cs" />
     <Compile Include="Modules\GiaoHangKhach\Services\IPhieuLoadService.cs" />
