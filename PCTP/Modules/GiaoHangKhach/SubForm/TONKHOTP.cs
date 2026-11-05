@@ -59,6 +59,10 @@ using System.Windows.Forms;
         private readonly List<string> _lotList;
             private readonly bool _isSingleLotEditMode;
 
+            // LOT vật lý (STOCKTP.LOT đầy đủ, chuẩn mới 20 ký tự) đang được điều chỉnh. Khóa nhập vào có thể
+            // là mã gốc 13 ký tự (chuẩn cũ) khớp nhiều LOT, nên mọi thao tác ghi dùng LOT này chứ không dùng _lotList[0].
+            private string _editLot;
+
             private GridControl _grid;
             private GridView _gridView;
 
@@ -273,16 +277,91 @@ using System.Windows.Forms;
 
                 if (!_isSingleLotEditMode) return;
 
+                string previousEditLot = _editLot;
+                _editLot = null;
+
                 if (dt.Rows.Count == 0)
                 {
                     _grpDieuChinh.Enabled = false;
-                    XtraMessageBox.Show($"Không tìm thấy LOT [{_lotList[0]}] trong STOCKTP.",
+                    XtraMessageBox.Show($"Không tìm thấy LOT [{_lotList[0]}] ({DescribeLotKind(_lotList[0])}) trong STOCKTP.",
                         "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     return;
                 }
 
-                FillEditPanel(dt.Rows[0]);
-                LoadLotLocations(_lotList[0]);
+                // Khóa 20 ký tự, hoặc mã gốc 13 ký tự chỉ ứng với 1 LOT vật lý: điều chỉnh luôn.
+                if (dt.Rows.Count == 1)
+                {
+                    SelectEditLot(dt.Rows[0]);
+                    return;
+                }
+
+                // Mã gốc chuẩn cũ 13 ký tự khớp nhiều LOT vật lý: bắt buộc chọn đúng 1 dòng, không đoán.
+                _grpDieuChinh.Enabled = false;
+                _gridView.FocusedRowChanged -= GridView_FocusedRowChanged;
+                _gridView.FocusedRowChanged += GridView_FocusedRowChanged;
+                _gridView.RowClick -= GridView_RowClick;
+                _gridView.RowClick += GridView_RowClick;
+
+                if (!string.IsNullOrWhiteSpace(previousEditLot))
+                {
+                    for (int i = 0; i < dt.Rows.Count; i++)
+                    {
+                        if (string.Equals(Convert.ToString(dt.Rows[i]["LOT"]).Trim(), previousEditLot, StringComparison.OrdinalIgnoreCase))
+                        {
+                            SelectEditLot(dt.Rows[i]);
+                            return;
+                        }
+                    }
+                }
+
+                XtraMessageBox.Show(
+                    $"Mã LOT [{_lotList[0]}] ({DescribeLotKind(_lotList[0])}) khớp {dt.Rows.Count} LOT vật lý.\n" +
+                    "Vui lòng chọn đúng 1 dòng trong danh sách bên dưới để điều chỉnh.",
+                    "Chọn LOT cần điều chỉnh", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+
+            private void SelectEditLot(DataRow row)
+            {
+                _editLot = Convert.ToString(row["LOT"])?.Trim();
+                Text = $"Tồn kho — Điều chỉnh LOT [{_editLot}]";
+                _grpDieuChinh.Enabled = true;
+                FillEditPanel(row);
+                LoadLotLocations(_editLot);
+            }
+
+            private void TrySelectEditLotAtRow(int rowHandle)
+            {
+                if (!_isSingleLotEditMode || _gridView == null || rowHandle < 0) return;
+
+                DataRow row = _gridView.GetDataRow(rowHandle);
+                if (row == null) return;
+
+                string lot = Convert.ToString(row["LOT"])?.Trim();
+                if (string.IsNullOrWhiteSpace(lot) ||
+                    string.Equals(lot, _editLot, StringComparison.OrdinalIgnoreCase))
+                    return;
+
+                SelectEditLot(row);
+            }
+
+            private void GridView_FocusedRowChanged(object sender, DevExpress.XtraGrid.Views.Base.FocusedRowChangedEventArgs e)
+            {
+                TrySelectEditLotAtRow(e.FocusedRowHandle);
+            }
+
+            private void GridView_RowClick(object sender, DevExpress.XtraGrid.Views.Grid.RowClickEventArgs e)
+            {
+                TrySelectEditLotAtRow(e.RowHandle);
+            }
+
+            private static string DescribeLotKind(string lot)
+            {
+                switch (LotCodeHelper.ClassifyLotKey(lot))
+                {
+                    case LotKeyKind.Full20: return "chuẩn mới 20 ký tự";
+                    case LotKeyKind.Legacy13: return "chuẩn cũ 13 ký tự";
+                    default: return "không đúng chuẩn 13/20 ký tự";
+                }
             }
 
             private void LoadLotLocations(string lot)
@@ -337,7 +416,14 @@ using System.Windows.Forms;
             // ════════════════════════════════════════════════════════════════
             private void BtnCapNhat_Click(object sender, EventArgs e)
             {
-                string lot = _lotList[0];
+                string lot = _editLot;
+                if (string.IsNullOrWhiteSpace(lot))
+                {
+                    XtraMessageBox.Show("Vui lòng chọn 1 LOT vật lý trong danh sách trước khi điều chỉnh.",
+                        "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
                 int slConLaiMoi = (int)_spinSlConLaiMoi.Value;
                 string lyDo = _txtLyDo.Text.Trim();
 

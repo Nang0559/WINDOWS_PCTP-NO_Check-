@@ -7,6 +7,17 @@ using System.Globalization;
 
 namespace PCTP.Common
 {
+    /// <summary>Chuẩn LOT của một chuỗi nhập vào.</summary>
+    public enum LotKeyKind
+    {
+        /// <summary>Quá ngắn hoặc rỗng, không nhận diện được.</summary>
+        Unknown = 0,
+        /// <summary>Chuẩn cũ: mã gốc 13 ký tự (YYMMDD + Id_Item + Ca + Gear). Có thể ứng với NHIỀU LOT vật lý.</summary>
+        Legacy13 = 1,
+        /// <summary>Chuẩn mới: 20 ký tự (mã gốc 13 + Line + Machine) = khóa duy nhất của STOCKTP.</summary>
+        Full20 = 2
+    }
+
     /// <summary>
     /// Nguồn xử lý DUY NHẤT cho cấu trúc chuỗi LOTNO, khớp 1-1 với SP SQL build LOT:
     ///
@@ -203,6 +214,36 @@ namespace PCTP.Common
                 k1.Substring(0, LEN_LEGACY_KEY),
                 k2.Substring(0, LEN_LEGACY_KEY),
                 StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
+        /// Phân loại chuẩn LOT, cùng quy ước với <see cref="AreLotKeysEquivalent"/>:
+        /// từ 20 ký tự trở lên (lấy 20 ký tự đầu) = chuẩn mới; 13..19 ký tự = chuẩn cũ (so 13 ký tự đầu);
+        /// ngắn hơn 13 = không nhận diện.
+        /// </summary>
+        public static LotKeyKind ClassifyLotKey(string lot)
+        {
+            if (string.IsNullOrWhiteSpace(lot)) return LotKeyKind.Unknown;
+            string key = TrimTo(lot.Trim(), LEN_HEAD_FIXED);
+            if (key.Length >= LEN_HEAD_FIXED) return LotKeyKind.Full20;
+            if (key.Length >= LEN_LEGACY_KEY) return LotKeyKind.Legacy13;
+            return LotKeyKind.Unknown;
+        }
+
+        /// <summary>Khóa 20 ký tự (chuẩn mới). Trả về rỗng nếu chuỗi ngắn hơn 20.</summary>
+        public static string GetFullKey(string lot)
+        {
+            if (string.IsNullOrWhiteSpace(lot)) return string.Empty;
+            string t = lot.Trim();
+            return t.Length >= LEN_HEAD_FIXED ? t.Substring(0, LEN_HEAD_FIXED) : string.Empty;
+        }
+
+        /// <summary>Khóa 13 ký tự (chuẩn cũ). Trả về rỗng nếu chuỗi ngắn hơn 13.</summary>
+        public static string GetLegacyKey(string lot)
+        {
+            if (string.IsNullOrWhiteSpace(lot)) return string.Empty;
+            string t = lot.Trim();
+            return t.Length >= LEN_LEGACY_KEY ? t.Substring(0, LEN_LEGACY_KEY) : string.Empty;
         }
 
         public static string BuildLotMatchSql(string columnExpr, string literalOrParam)

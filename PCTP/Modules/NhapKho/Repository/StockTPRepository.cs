@@ -288,24 +288,60 @@ ORDER BY NGAYNHAP DESC;";
         {
             if (lots == null || lots.Count == 0) return new DataTable();
 
+            // Hai chuẩn LOT cùng tồn tại (xem LotCodeHelper.AreLotKeysEquivalent):
+            //  - Chuẩn mới 20 ký tự: khớp CHÍNH XÁC khóa 20 ký tự; dòng STOCKTP cũ ngắn hơn 20 ký tự
+            //    được khớp theo 13 ký tự đầu.
+            //  - Chuẩn cũ 13 ký tự (mã gốc): khớp theo tiền tố 13 ký tự, có thể trả về NHIỀU LOT vật lý
+            //    (người gọi phải chọn đúng một LOT trước khi ghi).
             var parameters = new List<SqlParameter>();
-            var placeholders = new List<string>();
+            var conditions = new List<string>();
             for (int i = 0; i < lots.Count; i++)
             {
-                string name = "@lot" + i;
-                placeholders.Add(name);
-                parameters.Add(new SqlParameter(name, lots[i]));
+                string lot = (lots[i] ?? string.Empty).Trim();
+                if (lot.Length == 0) continue;
+
+                string exact = "@lot" + i;
+                string like = "@lotLike" + i;
+
+                switch (PCTP.Common.LotCodeHelper.ClassifyLotKey(lot))
+                {
+                    case PCTP.Common.LotKeyKind.Full20:
+                        parameters.Add(new SqlParameter(exact, PCTP.Common.LotCodeHelper.GetFullKey(lot)));
+                        parameters.Add(new SqlParameter(like, EscapeLike(PCTP.Common.LotCodeHelper.GetLegacyKey(lot)) + "%"));
+                        conditions.Add($"(LOT = {exact} OR (LEN(LOT) < {PCTP.Common.LotCodeHelper.LEN_HEAD_FIXED} AND LOT LIKE {like}))");
+                        break;
+
+                    case PCTP.Common.LotKeyKind.Legacy13:
+                        parameters.Add(new SqlParameter(like, EscapeLike(PCTP.Common.LotCodeHelper.GetLegacyKey(lot)) + "%"));
+                        conditions.Add($"LOT LIKE {like}");
+                        break;
+
+                    default:
+                        parameters.Add(new SqlParameter(exact, lot));
+                        conditions.Add($"LOT = {exact}");
+                        break;
+                }
             }
+
+            if (conditions.Count == 0) return new DataTable();
 
             string sql = $@"
             SELECT LOT, PART, NAME, CASX, NGAYSX, SLSX, NGAYNHAP, SLNHAP,
                    NGAYXUAT, SLXUAT, SLCONLAI, SATUS AS Satus
             FROM {_tableName}
-            WHERE LOT IN ({string.Join(", ", placeholders)})
+            WHERE {string.Join(" OR ", conditions)}
             ORDER BY NGAYNHAP DESC;";
             DataTable result = LoadData(sql, parameters.ToArray());
             EnsureUniqueLotRows(result, "GetTonKhoTheoLot");
             return result;
+        }
+
+        private static string EscapeLike(string value)
+        {
+            return (value ?? string.Empty)
+                .Replace("[", "[[]")
+                .Replace("%", "[%]")
+                .Replace("_", "[_]");
         }
 
         private static void EnsureUniqueLotRows(DataTable table, string operation)
