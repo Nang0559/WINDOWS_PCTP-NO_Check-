@@ -46,6 +46,7 @@ namespace PCTP
             // "Bản đồ kho" từng nằm ở Công Cụ và Giao Hàng (trùng) → gom về nhóm Kho.
             accordionControlElement20.Elements.Remove(cmdRackControl);
             accordionControlElement22.Elements.Remove(accordionControlElement36);
+            accordionControlElement22.Elements.Add(CreateMenuItem("menuChuyenHangNoiBo", "Chuyển hàng sang vị trí nội bộ", OpenChuyenHangNoiBo));
             accordionControlElement36.Visible = false;
             _menuKho.Elements.Add(cmdRackControl);
 
@@ -154,6 +155,15 @@ namespace PCTP
                 using (var f = new FormBaoCaoQualityHistory())
                     f.ShowDialog(this);
             }, "Lịch sử QC");
+        }
+
+        private void OpenChuyenHangNoiBo(object sender, EventArgs e)
+        {
+            OpenFromMenu(() =>
+            {
+                using (var f = new PCTP.Modules.XuatKho.FormChuyenHangNoiBo())
+                    f.ShowDialog(this);
+            }, "Chuyển hàng sang vị trí nội bộ");
         }
 
         private void OpenTonKhoThanhPham(object sender, EventArgs e)
