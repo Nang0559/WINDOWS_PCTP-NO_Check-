@@ -32,6 +32,10 @@ namespace PCTP.Modules.KhoVatLy.Repositories
         /// Dùng khi giao hàng khách trừ STOCKTP mà LOT không nằm (đủ) ở Slot ảo A0.
         /// </summary>
         List<BulkSlotLotLocation> FindSlotLotsByLot(string lotNo, int excludeSlotId);
+
+        /// <summary>Reconcile STOCKTP and all active SlotLot rows to one exact target in the active UnitOfWork transaction.</summary>
+        void AdjustLotToTarget(string itemCode, string lotNo, int targetQuantity,
+            int? destinationSlotId, string reason, string actor, System.Guid requestId);
     }
 
     public sealed class BulkSlotLotLocation
