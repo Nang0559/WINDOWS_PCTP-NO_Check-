@@ -163,8 +163,7 @@ WHERE LocationId=@LocationId AND ItemCode=@ItemCode AND LotNo=@LotNo AND Quantit
                     throw new InvalidOperationException(movementResult == null ? "Không nhận được kết quả nhập kho." : movementResult.Message);
 
                 // StockMovementService inserts SlotLot; synchronize the Slot header in this same transaction.
-                var slotRepository = new SlotRepository((PhieuSqlExecutor)null, uow);
-                slotRepository.RefreshSlotHeader(targetSlotId);
+                RefreshSlotHeader(targetSlotId);
 
                 history.SaveHistory(
                     "RETURN_INT",
@@ -190,6 +189,28 @@ WHERE LocationId=@LocationId AND ItemCode=@ItemCode AND LotNo=@LotNo AND Quantit
                 try { uow.Rollback(); } catch { }
                 throw;
             }
+        }
+
+        private void RefreshSlotHeader(int slotId)
+        {
+            ExecuteNonQuery(@"
+UPDATE s
+SET s.Quantity = ISNULL(x.TotalQty, 0),
+    s.IsOccupied = CASE WHEN ISNULL(x.TotalQty, 0) > 0 THEN 1 ELSE 0 END,
+    s.ItemCode = CASE WHEN ISNULL(x.TotalQty, 0) > 0 THEN l.ItemCode ELSE NULL END,
+    s.ImportDate = CASE WHEN ISNULL(x.TotalQty, 0) > 0 THEN x.MaxImportDate ELSE NULL END
+FROM Slot s
+OUTER APPLY (
+    SELECT SUM(Quantity) AS TotalQty, MAX(ImportDate) AS MaxImportDate
+    FROM SlotLot WHERE SlotId=s.SlotId AND PhieuStatus=0
+) x
+OUTER APPLY (
+    SELECT TOP 1 ItemCode FROM SlotLot
+    WHERE SlotId=s.SlotId AND PhieuStatus=0 AND Quantity>0
+    ORDER BY ImportDate DESC, SlotLotId DESC
+) l
+WHERE s.SlotId=@SlotId;",
+                new SqlParameter("@SlotId", SqlDbType.Int) { Value = slotId });
         }
 
         private int CreateReturn(Guid requestKey, int transferId, int targetSlotId, int quantity, string reason, string performedBy)
