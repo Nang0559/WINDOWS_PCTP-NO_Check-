@@ -406,5 +406,129 @@ VALUES
                   WHERE s.SlotId=@slot",
                 new SqlParameter("@slot", slotId));
         }
+
+        /// <summary>
+        /// Reconciles the authoritative STOCKTP quantity and all active SlotLot rows
+        /// for one ItemCode + LOT to an exact target in the caller-owned transaction.
+        /// Existing inbound rows are consumed FIFO; increases create a separate adjustment row.
+        /// </summary>
+        public void AdjustLotToTarget(string itemCode, string lotNo, int targetQuantity,
+            int? destinationSlotId, string reason, string actor, Guid requestId)
+        {
+            if (string.IsNullOrWhiteSpace(itemCode)) throw new ArgumentException("ItemCode không được rỗng.", nameof(itemCode));
+            if (string.IsNullOrWhiteSpace(lotNo)) throw new ArgumentException("LOT không được rỗng.", nameof(lotNo));
+            if (targetQuantity < 0) throw new ArgumentOutOfRangeException(nameof(targetQuantity));
+            if (string.IsNullOrWhiteSpace(reason)) throw new ArgumentException("Phải nhập lý do điều chỉnh.", nameof(reason));
+            if (requestId == Guid.Empty) throw new ArgumentException("RequestId không hợp lệ.", nameof(requestId));
+            if (!HasTransaction) throw new InvalidOperationException("Điều chỉnh LOT phải chạy trong UnitOfWork transaction.");
+
+            string item = itemCode.Trim();
+            string lot = lotNo.Trim();
+            string user = string.IsNullOrWhiteSpace(actor) ? Environment.UserName : actor.Trim();
+
+            DataTable stockRows = LoadData(
+                @"SELECT PART, ISNULL(SLCONLAI,0) AS SLCONLAI
+                  FROM STOCKTP WITH (UPDLOCK, HOLDLOCK)
+                  WHERE LTRIM(RTRIM(LOT))=@lot",
+                new SqlParameter("@lot", lot));
+            if (stockRows.Rows.Count != 1)
+                throw new InvalidOperationException("STOCKTP phải có đúng một dòng cho LOT [" + lot + "], hiện có " + stockRows.Rows.Count + ".");
+            string storedItem = Convert.ToString(stockRows.Rows[0]["PART"])?.Trim() ?? string.Empty;
+            if (!string.Equals(storedItem, item, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException("ItemCode không khớp STOCKTP; từ chối điều chỉnh chéo mã hàng.");
+            int stockBefore = Convert.ToInt32(stockRows.Rows[0]["SLCONLAI"]);
+
+            object duplicate = ExecuteScalar(
+                "SELECT COUNT(1) FROM dbo.PCTPStockLotAdjustmentHistory WITH (UPDLOCK,HOLDLOCK) WHERE RequestId=@id",
+                new SqlParameter("@id", requestId));
+            if (Convert.ToInt32(duplicate) > 0)
+                throw new InvalidOperationException("RequestId này đã được xử lý; không chạy lặp lại.");
+
+            List<BulkSlotLotLocation> locations = FindSlotLotsByLot(lot, -1);
+            foreach (BulkSlotLotLocation location in locations)
+                if (!string.Equals(location.ItemCode, item, StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidOperationException("LOT đang xuất hiện với ItemCode khác tại Slot " + location.SlotId + ".");
+            int slotBefore = locations.Sum(x => x.Quantity);
+            int slotDelta = targetQuantity - slotBefore;
+            int? actualDestination = null;
+
+            if (slotDelta < 0)
+            {
+                int remaining = -slotDelta;
+                foreach (BulkSlotLotLocation location in locations)
+                {
+                    if (remaining == 0) break;
+                    int take = Math.Min(remaining, location.Quantity);
+                    LockSlotForUpdate(location.SlotId);
+                    TakeLot(location.SlotId, lot, item, take);
+                    remaining -= take;
+                }
+                if (remaining != 0)
+                    throw new InvalidOperationException("Không thể giảm đủ SlotLot theo FIFO; rollback toàn bộ.");
+            }
+            else if (slotDelta > 0)
+            {
+                int targetSlot = destinationSlotId.HasValue && destinationSlotId.Value > 0
+                    ? destinationSlotId.Value
+                    : GetOrCreateVirtualSlotId(BulkImportConfig.WarehouseName, BulkImportConfig.RackName, BulkImportConfig.Capacity);
+                LockSlotForUpdate(targetSlot);
+
+                DataTable slotInfo = LoadData(
+                    @"SELECT s.Capacity, ISNULL(x.TotalQty,0) AS CurrentQty,
+                             ISNULL(x.OtherItemCount,0) AS OtherItemCount
+                      FROM Slot s WITH (UPDLOCK,ROWLOCK)
+                      OUTER APPLY (
+                          SELECT SUM(Quantity) AS TotalQty,
+                                 COUNT(DISTINCT CASE WHEN UPPER(LTRIM(RTRIM(ItemCode)))<>UPPER(@item) THEN ItemCode END) AS OtherItemCount
+                          FROM SlotLot WHERE SlotId=s.SlotId AND PhieuStatus=0 AND Quantity>0
+                      ) x WHERE s.SlotId=@slot",
+                    new SqlParameter("@item", item), new SqlParameter("@slot", targetSlot));
+                if (slotInfo.Rows.Count != 1) throw new InvalidOperationException("Không tìm thấy Slot đích " + targetSlot + ".");
+                int capacity = Convert.ToInt32(slotInfo.Rows[0]["Capacity"]);
+                int current = Convert.ToInt32(slotInfo.Rows[0]["CurrentQty"]);
+                if (Convert.ToInt32(slotInfo.Rows[0]["OtherItemCount"]) > 0)
+                    throw new InvalidOperationException("Slot đích đang chứa mã hàng khác.");
+                if ((long)current + slotDelta > capacity)
+                    throw new InvalidOperationException("Slot đích không đủ sức chứa.");
+                AddLot(targetSlot, new StockSlotLot {
+                    LotNo = lot, ItemCode = item, Quantity = slotDelta,
+                    TemCode = null, RawQr = null, ImportDate = DateTime.Now, PhieuStatus = 0
+                });
+                actualDestination = targetSlot;
+            }
+
+            int stockDelta = targetQuantity - stockBefore;
+            int updated = ExecuteNonQuery(
+                @"UPDATE STOCKTP SET SLCONLAI=@target
+                  WHERE LTRIM(RTRIM(LOT))=@lot AND UPPER(LTRIM(RTRIM(PART)))=UPPER(@item)",
+                new SqlParameter("@target", targetQuantity),
+                new SqlParameter("@lot", lot), new SqlParameter("@item", item));
+            if (updated != 1) throw new InvalidOperationException("Cập nhật STOCKTP không tác động đúng một dòng.");
+
+            int slotAfter = Convert.ToInt32(ExecuteScalar(
+                @"SELECT ISNULL(SUM(Quantity),0) FROM SlotLot WITH (UPDLOCK,HOLDLOCK)
+                  WHERE PhieuStatus=0 AND Quantity>0 AND LTRIM(RTRIM(LotNo))=@lot
+                    AND UPPER(LTRIM(RTRIM(ItemCode)))=UPPER(@item)",
+                new SqlParameter("@lot", lot), new SqlParameter("@item", item)));
+            int stockAfter = Convert.ToInt32(ExecuteScalar(
+                @"SELECT ISNULL(SLCONLAI,0) FROM STOCKTP WITH (UPDLOCK,HOLDLOCK)
+                  WHERE LTRIM(RTRIM(LOT))=@lot AND UPPER(LTRIM(RTRIM(PART)))=UPPER(@item)",
+                new SqlParameter("@lot", lot), new SqlParameter("@item", item)));
+            if (stockAfter != targetQuantity || slotAfter != targetQuantity)
+                throw new InvalidOperationException("Invariant không đạt: STOCKTP=" + stockAfter + ", SlotLot=" + slotAfter + ", target=" + targetQuantity + ".");
+
+            ExecuteNonQuery(
+                @"INSERT INTO dbo.PCTPStockLotAdjustmentHistory
+                    (RequestId,ItemCode,LotNo,StockBefore,StockAfter,SlotBefore,SlotAfter,
+                     StockDelta,SlotDelta,DestinationSlotId,Reason,Actor,CreatedAt)
+                  VALUES (@id,@item,@lot,@sb,@sa,@lb,@la,@sd,@ld,@dest,@reason,@actor,SYSUTCDATETIME())",
+                new SqlParameter("@id", requestId), new SqlParameter("@item", item), new SqlParameter("@lot", lot),
+                new SqlParameter("@sb", stockBefore), new SqlParameter("@sa", stockAfter),
+                new SqlParameter("@lb", slotBefore), new SqlParameter("@la", slotAfter),
+                new SqlParameter("@sd", stockDelta), new SqlParameter("@ld", slotDelta),
+                new SqlParameter("@dest", (object)actualDestination ?? DBNull.Value),
+                new SqlParameter("@reason", reason.Trim()), new SqlParameter("@actor", user));
+        }
+
     }
 }
