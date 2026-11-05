@@ -872,6 +872,8 @@
     <Compile Include="Shell\Help\WmsHelpTopic.cs" />
     <Compile Include="Modules\XuatKho\FormChuyenHangNoiBo.cs"><SubType>Form</SubType></Compile>
     <Compile Include="Modules\XuatKho\Repositories\InternalTransferRepository.cs" />
+    <Compile Include="Modules\XuatKho\Repositories\InternalTransferRecallRepository.cs" />
+    <Compile Include="Modules\XuatKho\FormThuHoiHangNoiBo.cs"><SubType>Form</SubType></Compile>
     <Compile Include="Shell\Main_APP.cs">
       <SubType>Form</SubType>
     </Compile>
