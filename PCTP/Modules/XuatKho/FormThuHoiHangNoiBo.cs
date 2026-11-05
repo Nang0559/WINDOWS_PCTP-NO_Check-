@@ -1,5 +1,6 @@
 using System;
 using System.Data;
+using System.Linq;
 using System.Windows.Forms;
 using DevExpress.XtraEditors;
 using DevExpress.XtraGrid;
@@ -70,7 +71,6 @@ namespace PCTP.Modules.XuatKho
             AddField(fields, 0, 1, "Số lượng", _spinQuantity);
             AddField(fields, 2, 1, "Lý do thu hồi", _memoReason);
             _txtLot.Properties.NullValuePrompt = "Tìm theo phiếu / vị trí nội bộ / mã hàng / LOT";
-            _txtLot.Properties.CharacterCasing = CharacterCasing.Normal;
             _lookSlot.Properties.TextEditStyle = DevExpress.XtraEditors.Controls.TextEditStyles.Standard;
             _lookSlot.Properties.SearchMode = DevExpress.XtraEditors.Controls.SearchMode.AutoFilter;
             _lookSlot.Properties.PopupFilterMode = DevExpress.XtraEditors.PopupFilterMode.Contains;
