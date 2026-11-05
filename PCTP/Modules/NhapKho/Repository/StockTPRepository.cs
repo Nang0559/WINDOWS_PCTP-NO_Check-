@@ -275,6 +275,23 @@ namespace PCTP.Modules.NhapKho.Repository
         /// Danh sách ItemCode dùng cho lookup điều chỉnh LOT.
         /// Không lọc SLCONLAI để vẫn chọn được mã hàng có LOT hiện đang bằng 0.
         /// </summary>
+        /// <summary>
+        /// Toàn bộ LOT trong STOCKTP phục vụ tra cứu điều chỉnh, kể cả LOT có SLCONLAI = 0.
+        /// </summary>
+        public DataTable GetAllLotsForAdjustment()
+        {
+            string sql = $@"
+SELECT LOT, PART, NAME, ISNULL(SLCONLAI,0) AS SLCONLAI,
+       ISNULL(SLNHAP,0) AS SLNHAP, ISNULL(SLXUAT,0) AS SLXUAT,
+       NGAYNHAP, SATUS
+FROM {_tableName}
+WHERE NULLIF(LTRIM(RTRIM(LOT)), '') IS NOT NULL
+ORDER BY NGAYNHAP DESC, LOT;";
+            DataTable result = LoadData(sql);
+            EnsureUniqueLotRows(result, "GetAllLotsForAdjustment");
+            return result;
+        }
+
         public DataTable GetItemLookup()
         {
             string sql = $@"
