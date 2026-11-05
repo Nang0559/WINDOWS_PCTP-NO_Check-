@@ -24,6 +24,7 @@ namespace PCTP
         private AccordionControlElement _menuBcLichSuKho;
         private AccordionControlElement _menuBcLichSuQC;
         private AccordionControlElement _menuXuLyLot;
+        private AccordionControlElement _menuDieuChuyenNoiBo;
 
         private void BuildStandardMenus()
         {
@@ -46,8 +47,14 @@ namespace PCTP
             // "Bản đồ kho" từng nằm ở Công Cụ và Giao Hàng (trùng) → gom về nhóm Kho.
             accordionControlElement20.Elements.Remove(cmdRackControl);
             accordionControlElement22.Elements.Remove(accordionControlElement36);
-            accordionControlElement22.Elements.Add(CreateMenuItem("menuChuyenHangNoiBo", "Chuyển hàng sang vị trí nội bộ", OpenChuyenHangNoiBo));
-            accordionControlElement22.Elements.Add(CreateMenuItem("menuThuHoiHangNoiBo", "Thu hồi hàng từ vị trí nội bộ về kho", OpenThuHoiHangNoiBo));
+            _menuDieuChuyenNoiBo = new AccordionControlElement(ElementStyle.Group)
+            {
+                Name = "menuDieuChuyenNoiBo",
+                Text = "Điều chuyển nội bộ",
+                Expanded = true
+            };
+            _menuDieuChuyenNoiBo.Elements.Add(CreateMenuItem("menuChuyenHangNoiBo", "Chuyển hàng sang vị trí nội bộ", OpenChuyenHangNoiBo));
+            _menuDieuChuyenNoiBo.Elements.Add(CreateMenuItem("menuThuHoiHangNoiBo", "Thu hồi hàng từ vị trí nội bộ về kho", OpenThuHoiHangNoiBo));
             accordionControlElement36.Visible = false;
             _menuKho.Elements.Add(cmdRackControl);
 
@@ -78,6 +85,7 @@ namespace PCTP
             mainAccordionGroup.Elements.Clear();
             mainAccordionGroup.Elements.Add(NHAccordionControlElement);   // Nhập Kho
             mainAccordionGroup.Elements.Add(_menuKho);                    // Kho
+            mainAccordionGroup.Elements.Add(_menuDieuChuyenNoiBo);         // Điều chuyển nội bộ
             mainAccordionGroup.Elements.Add(accordionControlElement22);   // Giao Hàng
             mainAccordionGroup.Elements.Add(_menuXuLyLot);                // Tách / Ghép LOT
             mainAccordionGroup.Elements.Add(E_Trahang);                   // Xử lý hàng lỗi
