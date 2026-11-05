@@ -69,7 +69,7 @@ namespace PCTP.Modules.XuatKho
             AddField(fields, 2, 1, "Lý do thu hồi", _memoReason);
             _txtLot.Properties.NullValuePrompt = "Để trống để xem tất cả tồn nội bộ";
             _lookSlot.Properties.NullText = "Chọn Slot nhận hàng";
-            _lookSlot.Properties.TextEditStyle = DevExpress.XtraEditors.Controls.TextEditStyles.Standard;
+            _lookSlot.Properties.TextEditStyle = DevExpress.XtraEditors.Controls.TextEditStyles.DisableTextEditor;
             _spinQuantity.Properties.MinValue = 1;
             _spinQuantity.Properties.MaxValue = int.MaxValue;
             _spinQuantity.Properties.IsFloatValue = false;
@@ -219,7 +219,6 @@ namespace PCTP.Modules.XuatKho
                     string.Format("Đã thu hồi {0:n0} sản phẩm LOT {1} về kho. Tồn nội bộ đã giảm, Slot và STOCKTP đã tăng. Phiếu {2}.",
                         quantity, row["LotNo"], result.ReturnNo),
                     Text, MessageBoxButtons.OK, MessageBoxIcon.Information);
-                LoadCandidates((_txtLot.Text ?? string.Empty).Trim());
             }
             catch (Exception ex)
             {
