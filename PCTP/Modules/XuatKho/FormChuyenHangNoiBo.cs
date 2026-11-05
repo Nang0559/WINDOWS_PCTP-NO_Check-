@@ -132,15 +132,21 @@ namespace PCTP.Modules.XuatKho
                     .ToList();
 
                 _grid.SetRows(_sourceRows);
-                int stock = _stockRepository.GetSlConLai(lot);
                 int slotTotal = _sourceRows.Sum(x => x.Quantity);
-                _sourceBalanceConsistent = _sourceRows.Count > 0 && stock == slotTotal;
+                var itemCodes = _sourceRows.Select(x => (x.ItemCode ?? string.Empty).Trim())
+                    .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+                var stockRows = itemCodes.Count == 1
+                    ? _stockRepository.FindLotsWithStock(itemCodes[0], lot)
+                    : new List<PCTP.Modules.XuatKho.Models.StockTpLotInfo>();
+                int stock = stockRows.Count == 1 ? stockRows[0].SlConLai : 0;
+                _sourceBalanceConsistent = _sourceRows.Count > 0 &&
+                    itemCodes.Count == 1 && stockRows.Count == 1 && stock == slotTotal;
                 _btnTransfer.Enabled = _sourceBalanceConsistent;
                 _lblStock.Text = string.Format("STOCKTP còn: {0:N0} | Tồn Slot khả dụng: {1:N0}", stock, slotTotal);
                 if (_sourceRows.Count == 0)
                     XtraMessageBox.Show(this, "Không tìm thấy LOT đang hoạt động trong Slot. Hàng cách ly không được phép chuyển.", Text);
-                else if (stock != slotTotal)
-                    XtraMessageBox.Show(this, "Cảnh báo: tổng tồn Slot khác STOCKTP. Không thực hiện chuyển cho đến khi đối soát.", Text);
+                else if (!_sourceBalanceConsistent)
+                    XtraMessageBox.Show(this, "LOT có nhiều mã hàng hoặc không khớp đúng một dòng STOCKTP / tổng Slot. Không thể chuyển cho đến khi đối soát.", Text);
             }
             catch (Exception ex)
             {
