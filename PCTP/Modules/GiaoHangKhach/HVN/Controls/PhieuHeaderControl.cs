@@ -430,7 +430,8 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
                     string gio = checkList.Items[i] == null ? string.Empty : checkList.Items[i].ToString();
                     bool delivered = _deliveredYmvnHours.Contains(gio);
                     checkList.SetItemChecked(i, delivered);
-                    checkList.Items[i].Enabled = !delivered && !_ymvnChecklistLocked;
+                    // Giờ đã giao vẫn được tích sẵn nhưng PHẢI chọn/bỏ chọn được để in lại phiếu theo giờ.
+                    checkList.Items[i].Enabled = !_ymvnChecklistLocked;
                 }
             }
             finally { WireCheckGxEvent(); }
@@ -466,7 +467,7 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
                     string gio = checkList.Items[i] == null ? string.Empty : checkList.Items[i].ToString();
                     bool delivered = _deliveredYmvnHours.Contains(gio);
                     checkList.SetItemChecked(i, delivered);
-                    checkList.Items[i].Enabled = !delivered;
+                    checkList.Items[i].Enabled = true;
                 }
             }
             finally { WireCheckGxEvent(); }

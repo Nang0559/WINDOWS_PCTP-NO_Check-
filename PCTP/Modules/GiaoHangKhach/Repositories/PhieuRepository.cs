@@ -107,7 +107,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         public TrangThaiBan GetTrangThaiDangBanYMVN(PhieuTableSet tables) => _tmp.GetTrangThaiDangBanYMVN(tables);
         public TrangThaiBan GetTrangThaiDangBanYMVN(string tmpTable, string docQRTable) => _tmp.GetTrangThaiDangBanYMVN(tmpTable, docQRTable);
         public void EnsureTablesExist() => _tmp.EnsureTablesExist();
-        public void InsertTmpRow(string tmpTable, string stt, string cua, string truyen, string maHang, string tenHang, string lot, string dv, int slXuat, string ngayGiao, string gear, string gioXuat, string poNo = "", string cusPoNo = "") => _tmp.InsertTmpRow(tmpTable, stt, cua, truyen, maHang, tenHang, lot, dv, slXuat, ngayGiao, gear, gioXuat, poNo, cusPoNo);
+        public void InsertTmpRow(string tmpTable, string stt, string cua, string truyen, string maHang, string tenHang, string lot, string dv, int slXuat, string ngayGiao, string gear, string gioXuat, string poNo = "", string cusPoNo = "", string poItem = "") => _tmp.InsertTmpRow(tmpTable, stt, cua, truyen, maHang, tenHang, lot, dv, slXuat, ngayGiao, gear, gioXuat, poNo, cusPoNo, poItem);
 
         public string GetLotNo(string maHang, int stt, int dem, int slGiao, PhieuTableSet tables) => _lot.GetLotNo(maHang, stt, dem, slGiao, tables);
         public string GetLotNo(string maHang, int stt, int dem, int slGiao, string docQRTable = "DOCQRCODE", string tmpTable = "TMPPHIEUGIAOHANG") => _lot.GetLotNo(maHang, stt, dem, slGiao, docQRTable, tmpTable);

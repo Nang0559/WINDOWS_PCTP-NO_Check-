@@ -135,24 +135,115 @@ namespace PCTP.Applications.Services
                 break;
             }
         }
-        // Thêm method riêng cho YMVN
+        // ════════════════════════════════════════════════════════════════════
+        // Nhánh YMVN — dựng dữ liệu RIÊNG cho mẫu rpPhieuGiaoHangYAM.
+        // Lưới phiếu hiện tại dùng tên cột chung (MAHANG, TENHANG, SOLUONG, NGAYGIAO,
+        // PO_ITEM, ...) còn mẫu in YMVN đọc [PO], [CUSTOMER_PART_NO], [CATALOG_DESC],
+        // [BUY_QTY_DUE], [WANTED_DELIVERY_DATE], [Gear], [XE], [HOP], [LOT] — nên phải
+        // ánh xạ lại tại đây thay vì đưa thẳng bảng lưới vào mẫu in.
+        // ════════════════════════════════════════════════════════════════════
         public DataTable BuildReportDataYMVN(DataTable donHang)
+            => BuildReportDataYMVN(donHang, null);
+
+        /// <summary>
+        /// <paramref name="checkedGios"/>: các giờ đang tích trong danh sách giờ xuất (dạng "HH:mm:ss"
+        /// hoặc "HH:mm"); khác rỗng thì chỉ in các dòng thuộc những giờ đó. Rỗng/null = in toàn bộ lưới.
+        /// </summary>
+        public DataTable BuildReportDataYMVN(DataTable donHang, IList<string> checkedGios)
         {
-            // YMVN: dùng data từ grid trực tiếp
-            // Tương đương CMD_INPHIEUGIAO_Click của form YMVN legacy
-            var tbl = donHang.Copy();
-            foreach (DataRow row in tbl.Rows)
+            var report = new DataTable("YMVN_PGH");
+            report.Columns.Add("STT", typeof(string));
+            report.Columns.Add("WANTED_DELIVERY_DATE", typeof(DateTime));
+            report.Columns.Add("PO", typeof(string));
+            report.Columns.Add("DOCK_CODE", typeof(string));
+            report.Columns.Add("CUSTOMER_PART_NO", typeof(string));
+            report.Columns.Add("Gear", typeof(string));
+            report.Columns.Add("CATALOG_DESC", typeof(string));
+            report.Columns.Add("DV", typeof(string));
+            report.Columns.Add("BUY_QTY_DUE", typeof(decimal));
+            report.Columns.Add("HOP", typeof(string));
+            report.Columns.Add("STATUS", typeof(string));
+            report.Columns.Add("LOT", typeof(string));
+            report.Columns.Add("XE", typeof(string));
+
+            if (donHang == null || donHang.Rows.Count == 0)
+                return report;
+
+            var gioFilter = YmvnGioMatcher.Create(checkedGios);
+            int stt = 0;
+
+            foreach (DataRow src in donHang.Rows)
             {
-                string po = row["CUSTOMER_PO_NO"]?.ToString() ?? "";
-                if (po.Length < 6)
-                {
-                    int padLen = 6 - po.Length;
-                    row["CUSTOMER_PO_NO"] = "#" + po.PadLeft(5, '0');
-                }
-                string status = row["STATUS"]?.ToString() ?? "";
-                row["LOT"] = status == "OK" ? "OK Check" : "Not Check";
+                DateTime ngay;
+                bool coNgay = TryGetDate(src, out ngay);
+                string gioGiao = YmvnRowValue(src, "GIOGIAO", "GIO");
+
+                if (!gioFilter.Matches(coNgay ? (DateTime?)ngay : null, gioGiao))
+                    continue;
+
+                string status = YmvnRowValue(src, "STATUS");
+                string hop = YmvnRowValue(src, "HOP");
+                string xe = "";
+                int soHop;
+                if (int.TryParse(hop, out soHop) && soHop > 0)
+                    xe = ((soHop + 9) / 10).ToString();
+
+                // Số PO của YMVN nằm ở PO_ITEM (đã chuyển từ CUA). Dòng cũ chưa có PO_ITEM thì
+                // mới lùi về PO_NO để không in trống.
+                string po = YmvnRowValue(src, "PO_ITEM");
+                if (string.IsNullOrWhiteSpace(po))
+                    po = YmvnRowValue(src, "PO_NO", "ORDER_NO");
+
+                decimal sl;
+                decimal.TryParse(YmvnRowValue(src, "SOLUONG", "BUY_QTY_DUE"),
+                    System.Globalization.NumberStyles.Any,
+                    System.Globalization.CultureInfo.InvariantCulture, out sl);
+
+                DataRow row = report.NewRow();
+                row["STT"] = (++stt).ToString();
+                if (coNgay) row["WANTED_DELIVERY_DATE"] = ngay;
+                row["PO"] = YmvnPoFormat.Format(po);
+                row["DOCK_CODE"] = YmvnRowValue(src, "TRUYEN", "DOCK_CODE", "CUA");
+                row["CUSTOMER_PART_NO"] = YmvnRowValue(src, "MAHANG", "CUSTOMER_PART_NO");
+                row["Gear"] = YmvnRowValue(src, "GEAR", "Gear");
+                row["CATALOG_DESC"] = YmvnRowValue(src, "TENHANG", "CATALOG_DESC");
+                row["DV"] = YmvnRowValue(src, "DV");
+                row["BUY_QTY_DUE"] = sl;
+                row["HOP"] = hop;
+                row["STATUS"] = status;
+                // Cột "LOT NO FCC" trên phiếu YMVN không in số LOT: chỉ in "OK Check" cho dòng đã có LOT
+                // (hoặc đã OK), dòng chưa có LOT in "Not Check" (giống phiếu legacy).
+                string lot = YmvnRowValue(src, "LOT", "LOTNO");
+                bool daCoLot = lot.Length > 0 && !string.Equals(lot, "Not Check", StringComparison.OrdinalIgnoreCase);
+                row["LOT"] = (daCoLot || string.Equals(status, "OK", StringComparison.OrdinalIgnoreCase))
+                    ? "OK Check" : "Not Check";
+                row["XE"] = xe;
+                report.Rows.Add(row);
             }
-            return tbl;
+
+            return report;
+        }
+
+        private static string YmvnRowValue(DataRow row, params string[] columns)
+        {
+            foreach (string c in columns)
+            {
+                if (!row.Table.Columns.Contains(c)) continue;
+                string v = SafeStr(row[c]).Trim();
+                if (v.Length > 0) return v;
+            }
+            return "";
+        }
+
+        private static bool TryGetDate(DataRow row, out DateTime value)
+        {
+            value = default(DateTime);
+            foreach (string c in new[] { "NGAYGIAO", "WANTED_DELIVERY_DATE" })
+            {
+                if (!row.Table.Columns.Contains(c) || row[c] == DBNull.Value) continue;
+                if (PCTP.Shared.Helpers.DateText.TryParseDb(row[c], out value)) return true;
+            }
+            return false;
         }
         // ════════════════════════════════════════════════════════════════════
         // Nhánh LoadTuBangRieng (HTN/YMVN) — dùng data từ grid, enrich thêm
@@ -289,5 +380,4 @@ namespace PCTP.Applications.Services
                 : ngayXuat;
         }
     }
-    
 }

@@ -17,6 +17,9 @@
     </PackageReference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="../PCTP/Modules/GiaoHangKhach/Services/YmvnPrintHelpers.cs" Link="YmvnPrintHelpers.source.cs" />
+  </ItemGroup>
+  <ItemGroup>
     <None Update="TestMatrix.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/XuatKho/Repositories/InternalTransferRepository.cs" Link="InternalTransferRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/XuatKho/Repositories/InternalTransferRecallRepository.cs" Link="InternalTransferRecallRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />

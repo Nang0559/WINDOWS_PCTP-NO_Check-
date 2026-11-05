@@ -41,7 +41,7 @@ namespace PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao
             string tmpTable,
             string stt, string cua, string truyen, string maHang, string tenHang,
             string lot, string dv, int slXuat, string ngayGiao, string gear,
-            string gioXuat, string poNo = "", string cusPoNo = "");
+            string gioXuat, string poNo = "", string cusPoNo = "", string poItem = "");
 
         // ── Overload cũ giữ tương thích ngược (wrapper) ──────────────────
         DataTable LoadPhieuDocQR(string ngayGiao, string nhaMay, string gioFcc, int addNm,

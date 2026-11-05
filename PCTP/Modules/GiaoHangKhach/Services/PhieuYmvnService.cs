@@ -206,6 +206,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
 
                 string gear = Get("GEAR");
                 string poNo = Get("PO_NO");
+                string poItem = Get("PO_ITEM");
                 string orderNo = Get("ORDER_NO");
                 string gioXuat = Get("GIO");
                 if (string.IsNullOrEmpty(gioXuat))
@@ -226,7 +227,8 @@ namespace PCTP.Modules.GiaoHangKhach.Services
                     gioXuat: gioXuat,
                     tmpTable: _cfg.Delivery.TmpTable,
                     poNo: poNo,
-                    cusPoNo: orderNo);
+                    cusPoNo: orderNo,
+                    poItem: poItem);
             }
         }
 

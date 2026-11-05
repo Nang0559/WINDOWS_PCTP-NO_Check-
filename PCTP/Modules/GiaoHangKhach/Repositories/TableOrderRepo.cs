@@ -107,9 +107,16 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             // Một record nguồn = một dòng đơn. Không GROUP BY / SUM / MAX:
             // nếu gộp theo PO + Part + phút sẽ làm biến mất dòng nguồn và khiến
             // trạng thái giao/LOT không còn ánh xạ được về đúng dòng đơn.
+            // Số PO hiển thị/in của YMVN (CoGear) nằm ở PO_ITEM (đã chuyển từ CUA); CUA/TRUYEN
+            // giờ là cửa (dock). Chỉ YMVN mới thêm cột này để không đổi dữ liệu TMP của khách khác (HTN).
+            string poItemSelect = cfg.Delivery.CoGear
+                ? "    o.Oder_no                            AS PO_ITEM, "
+                : "";
+
             string sql =
                 "SELECT " +
                 "    o.Oder_no                            AS PO_NO, " +
+                poItemSelect +
                 "    CONVERT(VARCHAR(5), o.NgayGiao, 108) AS GIO, " +
                 "    o.CUA                                AS CUA, " +
                 "    o.CUA                                AS TRUYEN, " +
@@ -506,7 +513,8 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             string gioXuat,
             string tmpTable,
             string poNo = "",
-            string cusPoNo = "")
+            string cusPoNo = "",
+            string poItem = "")
         {
             // Uỷ quyền cho IPhieuTmpRepository — cùng schema bảng TMP, không tự viết
             // lại SQL INSERT ở đây nữa (xem ghi chú tại field _phieuTmpRepo).
@@ -514,7 +522,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                 tmpTable,
                 stt, cua, truyen, maHang, tenHang,
                 lot, dv, slXuat, ngayGiao, gear,
-                gioXuat, poNo, cusPoNo);
+                gioXuat, poNo, cusPoNo, poItem);
         }
 
         // ============================================================

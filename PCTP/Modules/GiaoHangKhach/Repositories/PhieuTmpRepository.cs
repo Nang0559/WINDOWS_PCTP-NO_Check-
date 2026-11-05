@@ -148,24 +148,30 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             string tmpTable,
             string stt, string cua, string truyen, string maHang, string tenHang,
             string lot, string dv, int slXuat, string ngayGiao, string gear,
-            string gioXuat, string poNo = "", string cusPoNo = "")
+            string gioXuat, string poNo = "", string cusPoNo = "", string poItem = "")
         {
             Db.ValidateTableName(tmpTable);
+
+            // Số PO của YMVN nằm ở cột PO_ITEM (đã chuyển từ CUA). Chỉ ghi cột này khi có
+            // giá trị để không phụ thuộc bảng TMP khác (không có PO_ITEM) khi gọi không truyền poItem.
+            bool coPoItem = !string.IsNullOrWhiteSpace(poItem);
+            string poItemCol = coPoItem ? ", PO_ITEM" : "";
+            string poItemVal = coPoItem ? ", @PO_ITEM" : "";
 
             string sql = $@"
                 INSERT INTO [{tmpTable}]
                 (
                     STT, CUA, TRUYEN, MAHANG, TENHANG, LOT, DV, SOLUONG,
-                    NGAYGIAO, GEAR, GIOGIAO, STATUS, PO_NO, TTPHIEU
+                    NGAYGIAO, GEAR, GIOGIAO, STATUS, PO_NO, TTPHIEU{poItemCol}
                 )
                 VALUES
                 (
                     @STT, @CUA, @TRUYEN, @MAHANG, @TENHANG, @LOT, @DV, @SOLUONG,
-                    @NGAYGIAO, @GEAR, @GIOGIAO, 'NG', @PO_NO, @CUSPO
+                    @NGAYGIAO, @GEAR, @GIOGIAO, 'NG', @PO_NO, @CUSPO{poItemVal}
                 )";
 
-            ExecuteNonQuery(
-                sql,
+            var prms = new System.Collections.Generic.List<SqlParameter>
+            {
                 new SqlParameter("@STT", stt),
                 new SqlParameter("@CUA", cua),
                 new SqlParameter("@TRUYEN", truyen),
@@ -178,7 +184,12 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                 new SqlParameter("@GEAR", gear),
                 new SqlParameter("@GIOGIAO", gioXuat),
                 new SqlParameter("@PO_NO", poNo ?? ""),
-                new SqlParameter("@CUSPO", cusPoNo ?? ""));
+                new SqlParameter("@CUSPO", cusPoNo ?? "")
+            };
+            if (coPoItem)
+                prms.Add(new SqlParameter("@PO_ITEM", poItem.Trim()));
+
+            ExecuteNonQuery(sql, prms.ToArray());
         }
 
         // ============================================================

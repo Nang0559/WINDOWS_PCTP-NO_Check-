@@ -32,7 +32,7 @@ namespace PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao
 
         void InsertTmpYMVN(string stt, string cua, string truyen, string maHang, string tenHang,
             string lot, string dv, int slXuat, string ngayGiao, string gear, string gioXuat,
-            string tmpTable, string poNo = "", string cusPoNo = "");
+            string tmpTable, string poNo = "", string cusPoNo = "", string poItem = "");
 
         /// <summary>Đối chiếu bảng riêng với IFS thật — phát hiện lệch/thiếu PO giữa 2 nguồn.</summary>
         DataTable SoSanhDonHangVoiIFS(
