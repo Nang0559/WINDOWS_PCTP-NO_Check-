@@ -168,6 +168,8 @@ namespace PCTP.Modules.XuatKho
                     .OrderBy(x => x.WarehouseName).ThenBy(x => x.RackName).ThenBy(x => x.SlotNumber)
                     .ToList();
                 _grid.DataSource = rows;
+                _view.Columns.Clear();
+                ConfigureSourceColumns();
 
                 int slotTotal = rows.Sum(x => x.Quantity);
                 var itemCodes = rows.Select(x => (x.ItemCode ?? string.Empty).Trim())
