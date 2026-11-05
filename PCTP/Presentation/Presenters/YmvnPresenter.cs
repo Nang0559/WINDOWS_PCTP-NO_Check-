@@ -67,7 +67,16 @@ namespace PCTP.Presentation.Presenters
                     out validationError,
                     code => _c.QrSvc.GetGearName(code)))
                 {
-                    _c.UiContext.Post(_ => _v.ShowError(validationError), null);
+                    // Thiếu/sai số lượng theo Gear: hiện thông báo (OK) rồi quay về màn
+                    // hình Phiếu như HVN (100001). GIỮ phiên đọc QR (checklist giờ vẫn
+                    // khóa, _qrSessionLocked không đổi) để bấm DOC QRCODE đọc tiếp.
+                    // Trước đây chỉ ShowError + return nên màn hình kẹt ở DocQRCode.
+                    _c.UiContext.Post(_ =>
+                    {
+                        _v.ShowWarning(validationError +
+                            "\r\n\r\nPhiên đọc QR vẫn được giữ, bấm DOC QRCODE để quay lại đọc tiếp.");
+                        _c.PhieuView.SwitchToPhieuView();
+                    }, null);
                     return;
                 }
 
