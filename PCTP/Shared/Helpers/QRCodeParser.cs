@@ -108,7 +108,15 @@ namespace PCTP.Shared.Helpers
             string ngaySx = parts[2].Trim();
             string slTemRaw = parts[3].Trim();
 
-            string lot = rawLotToken.Length == 27
+            // Đuôi LOT là SL tem đã đệm 0 thành 4 số (Dien0tolot: 300 -> "0300"). Nếu 4 số cuối
+            // đúng bằng SL tem thì luôn cắt 4 ký tự, không phụ thuộc độ dài LOT. Trước đây chỉ cắt
+            // slTemRaw.Length (3 với "300") khi LOT dài 28 ký tự, để sót số 0 và tem tách bị thừa số 0.
+            bool tailIsPaddedQty = rawLotToken.Length >= 4
+                && int.TryParse(rawLotToken.Substring(rawLotToken.Length - 4), out int tailQty)
+                && int.TryParse(slTemRaw, out int slTem)
+                && tailQty == slTem;
+
+            string lot = (tailIsPaddedQty || rawLotToken.Length == 27)
                 ? rawLotToken.Substring(0, rawLotToken.Length - 4)
                 : rawLotToken.Substring(0, Math.Max(0, rawLotToken.Length - slTemRaw.Length));
 
