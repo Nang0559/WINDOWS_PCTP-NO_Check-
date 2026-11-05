@@ -270,7 +270,7 @@ jobs:
                     "$RUNNER_TEMP/deploy/Usp_Qrcode_LOAD_PHIEU_DOCQR2405.sql" \
                     "$RUNNER_TEMP/deploy/Usp_Qrcode_Take_Lot2405.sql" \
                     "$RUNNER_TEMP/deploy/Usp_Qrcode_Take_LotYMVN2405.sql" \
-                    SQL/QC_G4_DeliveryFixture_Seed.sql SQL/QC_G4_DeliveryFixture_Cleanup.sql \\
+                    SQL/QC_G4_DeliveryFixture_Seed.sql SQL/QC_G4_DeliveryFixture_Cleanup.sql \
                     SQL/PCTP_InternalTransfer.sql
           if [ "$coverage_status" -ne 0 ]; then
             echo "ERROR: SQL2 code/schema mismatches remain; generated DDL was checked but deployment is blocked."
