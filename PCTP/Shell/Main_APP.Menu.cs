@@ -244,6 +244,12 @@ namespace PCTP
             StartPosition = FormStartPosition.CenterParent;
 
             var provider = new SQLPROVIDER();
+            // LOT adjustment is a write operation: fail closed unless the configured
+            // application connection is explicitly DB57. Never permit DB14 writes.
+            var connection = new System.Data.SqlClient.SqlConnectionStringBuilder(provider.B7R2_FCCdb);
+            if (!string.Equals(connection.InitialCatalog, "B7R2_FCC", StringComparison.OrdinalIgnoreCase) ||
+                connection.DataSource.IndexOf("192.168.200.57", StringComparison.OrdinalIgnoreCase) < 0)
+                throw new InvalidOperationException("Điều chỉnh tồn kho LOT chỉ được phép chạy trên DB57 (192.168.200.57 / B7R2_FCC). Cấu hình hiện tại không phải DB57; thao tác bị chặn.");
             var db = new PhieuSqlExecutor(provider);
             _uow = new UnitOfWork(provider);
             _stockTp = new StockTpRepository(db, _uow);
