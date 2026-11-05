@@ -380,6 +380,7 @@ namespace PCTP
             var mainSplit = new SplitContainer
             {
                 Dock = DockStyle.Fill,
+                Size = new System.Drawing.Size(1100, 600),
                 Orientation = Orientation.Horizontal,
                 FixedPanel = FixedPanel.Panel2,
                 IsSplitterFixed = false,
@@ -394,6 +395,7 @@ namespace PCTP
             var listSplit = new SplitContainer
             {
                 Dock = DockStyle.Fill,
+                Size = new System.Drawing.Size(1100, 400),
                 Orientation = Orientation.Horizontal,
                 IsSplitterFixed = false,
                 SplitterWidth = 6,
