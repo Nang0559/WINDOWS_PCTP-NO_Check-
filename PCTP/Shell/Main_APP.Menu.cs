@@ -1,9 +1,12 @@
 using DevExpress.XtraBars.Navigation;
 using DevExpress.XtraEditors;
+using DevExpress.XtraEditors.Controls;
+using DevExpress.XtraGrid.Views.Grid;
 using PCTP.Common;
 using PCTP.Modules.BaoCao.UI;
 using PCTP.Modules.GiaoHangKhach.SubForm;
 using System;
+using System.Data;
 using System.Windows.Forms;
 using System.Linq;
 using PCTP.ClassSQL;
@@ -223,7 +226,8 @@ namespace PCTP
         private readonly SlotRepository _slotRepo;
         private readonly BulkStockSlotRepository _adjustmentRepo;
         private readonly string _databaseTarget;
-        private readonly TextEdit _item = new TextEdit();
+        private readonly GridLookUpEdit _item = new GridLookUpEdit();
+        private DataTable _itemLookupData;
         private readonly TextEdit _lot = new TextEdit();
         private readonly TextEdit _destinationSlot = new TextEdit();
         private readonly SpinEdit _target = new SpinEdit();
@@ -283,8 +287,8 @@ namespace PCTP
             AddField(fields, 0, 1, "Số lượng đích", _target);
             AddField(fields, 2, 1, "Slot nhận thêm", _destinationSlot);
             AddField(fields, 0, 2, "Lý do", _reason, 3);
-            _item.Properties.NullValuePrompt = "ItemCode trong STOCKTP";
-            _lot.Properties.NullValuePrompt = "Nhập chính xác LOT";
+            ConfigureItemLookup();
+            _lot.Properties.NullValuePrompt = "Nhập LOT hoặc quét QR 4/6 trường";
             _destinationSlot.Properties.NullValuePrompt = "Để trống = A0 mặc định";
             _target.Properties.MinValue = 0;
             _target.Properties.MaxValue = int.MaxValue;
@@ -312,6 +316,140 @@ namespace PCTP
             root.Controls.Add(footer, 0, 2);
         }
 
+
+        private void ConfigureItemLookup()
+        {
+            _item.Properties.NullText = string.Empty;
+            _item.Properties.TextEditStyle = TextEditStyles.Standard;
+            _item.Properties.ImmediatePopup = true;
+            _item.Properties.PopupFormSize = new System.Drawing.Size(560, 360);
+            _item.Properties.DataSource = BuildItemLookupData();
+            _item.Properties.DisplayMember = "PART";
+            _item.Properties.ValueMember = "PART";
+
+            GridView view = _item.Properties.View as GridView;
+            if (view != null)
+            {
+                view.OptionsView.ShowGroupPanel = false;
+                view.OptionsView.ShowAutoFilterRow = true;
+                view.OptionsBehavior.Editable = false;
+                view.Columns.Clear();
+                view.Columns.AddVisible("PART", "Mã hàng");
+                view.Columns.AddVisible("NAME", "Tên hàng");
+                view.BestFitColumns();
+            }
+
+            _item.TextChanged += ItemLookup_TextChanged;
+            _item.KeyDown += ItemLookup_KeyDown;
+        }
+
+        private DataTable BuildItemLookupData()
+        {
+            DataTable source = _stockTp.GetTonKhoHienTai();
+            var result = new DataTable();
+            result.Columns.Add("PART", typeof(string));
+            result.Columns.Add("NAME", typeof(string));
+            var seen = new System.Collections.Generic.HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (DataRow row in source.Rows)
+            {
+                string part = Convert.ToString(row["PART"])?.Trim();
+                if (string.IsNullOrWhiteSpace(part) || !seen.Add(part)) continue;
+                string name = source.Columns.Contains("NAME") ? Convert.ToString(row["NAME"]) : string.Empty;
+                result.Rows.Add(part, name ?? string.Empty);
+            }
+
+            result.DefaultView.Sort = "PART ASC";
+            _itemLookupData = result;
+            return result;
+        }
+
+        private void ItemLookup_TextChanged(object sender, EventArgs e)
+        {
+            GridView view = _item.Properties.View as GridView;
+            if (view == null) return;
+            string keyword = (_item.Text ?? string.Empty).Trim();
+
+            if (keyword.IndexOf(':') >= 0)
+            {
+                _item.ClosePopup();
+                return;
+            }
+            if (keyword.Length == 0)
+            {
+                view.ActiveFilterString = string.Empty;
+                return;
+            }
+
+            string escaped = keyword.Replace("'", "''");
+            view.ActiveFilterString = string.Format("[PART] LIKE '%{0}%' OR [NAME] LIKE '%{0}%'", escaped);
+            if (!_item.IsPopupOpen) _item.ShowPopup();
+        }
+
+        private void ItemLookup_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode != Keys.Enter) return;
+            string raw = (_item.Text ?? string.Empty).Trim();
+            string itemCode = raw;
+            string[] parts = raw.Split(':');
+
+            // Align with existing scanner routing: FCC QR = 4 fields;
+            // legacy customer QR = 6 or more fields.
+            if ((parts.Length == 4 || parts.Length >= 6) &&
+                !string.IsNullOrWhiteSpace(parts[0]) && !string.IsNullOrWhiteSpace(parts[1]))
+            {
+                itemCode = parts[1].Trim();
+                _lot.Text = parts[0].Trim();
+            }
+
+            DataRow match = null;
+            if (_itemLookupData != null)
+            {
+                match = _itemLookupData.AsEnumerable().FirstOrDefault(row =>
+                    string.Equals(Convert.ToString(row["PART"])?.Trim(), itemCode, StringComparison.OrdinalIgnoreCase));
+                if (match == null && itemCode != raw)
+                {
+                    string normalized = NormalizeLookupCode(itemCode);
+                    match = _itemLookupData.AsEnumerable().FirstOrDefault(row =>
+                        NormalizeLookupCode(Convert.ToString(row["PART"])) == normalized);
+                }
+            }
+
+            if (match != null)
+            {
+                _item.EditValue = Convert.ToString(match["PART"]);
+                _item.ClosePopup();
+                _lot.Focus();
+                _lot.SelectAll();
+            }
+            else if (itemCode != raw)
+            {
+                XtraMessageBox.Show(this, "Không tìm thấy mã hàng [" + itemCode + "] trong danh sách STOCKTP còn tồn.", Text,
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                _item.SelectAll();
+                _item.Focus();
+            }
+            else
+            {
+                GridView view = _item.Properties.View as GridView;
+                if (view != null && view.FocusedRowHandle >= 0)
+                {
+                    DataRow row = view.GetDataRow(view.FocusedRowHandle);
+                    if (row != null) _item.EditValue = Convert.ToString(row["PART"]);
+                }
+                _item.ClosePopup();
+            }
+
+            e.Handled = true;
+            e.SuppressKeyPress = true;
+        }
+
+        private static string NormalizeLookupCode(string value)
+        {
+            return (value ?? string.Empty).Replace("-", string.Empty)
+                .Replace(" ", string.Empty).Trim().ToUpperInvariant();
+        }
+
         private static void AddField(TableLayoutPanel layout, int col, int row, string caption, Control editor, int span = 1)
         {
             var label = new LabelControl { Text = caption, Dock = DockStyle.Fill, AutoSizeMode = LabelAutoSizeMode.None };
@@ -324,7 +462,8 @@ namespace PCTP
 
         private void PreviewLot()
         {
-            string item = (_item.Text ?? string.Empty).Trim();
+            string item = Convert.ToString(_item.EditValue)?.Trim();
+            if (string.IsNullOrWhiteSpace(item)) item = (_item.Text ?? string.Empty).Trim();
             string lot = (_lot.Text ?? string.Empty).Trim();
             _hasPreview = false;
             _apply.Enabled = false;
@@ -395,7 +534,7 @@ namespace PCTP
             int target = Convert.ToInt32(_target.Value);
             string prompt = string.Format(
                 "CƠ SỞ DỮ LIỆU ĐÍCH: {5}\r\n\r\nXác nhận đưa LOT [{0}] / Item [{1}] về số lượng đích {2:n0}?\r\nSTOCKTP: {3:n0} → {2:n0}\r\nSlotLot: {4:n0} → {2:n0}\r\n\r\nĐây là thao tác ghi dữ liệu trên cơ sở dữ liệu đang cấu hình. Hệ thống sẽ ghi lịch sử và rollback toàn bộ nếu invariant không đạt.",
-                _lot.Text.Trim(), _item.Text.Trim(), target, _stockBefore, _slotBefore, _databaseTarget);
+                _lot.Text.Trim(), (Convert.ToString(_item.EditValue) ?? _item.Text).Trim(), target, _stockBefore, _slotBefore, _databaseTarget);
             if (XtraMessageBox.Show(this, prompt, Text, MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes)
                 return;
 
@@ -404,7 +543,7 @@ namespace PCTP
             {
                 _uow.Begin();
                 _adjustmentRepo.AdjustLotToTarget(
-                    _item.Text.Trim(), _lot.Text.Trim(), target, destination,
+                    (Convert.ToString(_item.EditValue) ?? _item.Text).Trim(), _lot.Text.Trim(), target, destination,
                     reason, Environment.UserName, _requestId);
                 _uow.Commit();
                 XtraMessageBox.Show(this, "Đã điều chỉnh LOT và xác minh STOCKTP = tổng SlotLot = " + target.ToString("n0") + ".", Text, MessageBoxButtons.OK, MessageBoxIcon.Information);
