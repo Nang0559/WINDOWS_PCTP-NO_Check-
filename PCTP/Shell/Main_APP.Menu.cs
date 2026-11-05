@@ -387,7 +387,7 @@ namespace PCTP
                 SplitterWidth = 7,
                 Panel1MinSize = 220,
                 Panel2MinSize = 270,
-                SplitterDistance = 320
+                SplitterDistance = 310
             };
             root.Controls.Add(mainSplit, 0, 1);
 
@@ -401,7 +401,7 @@ namespace PCTP
                 SplitterWidth = 6,
                 Panel1MinSize = 120,
                 Panel2MinSize = 90,
-                SplitterDistance = 235
+                SplitterDistance = 190
             };
             mainSplit.Panel1.Controls.Add(listSplit);
 
