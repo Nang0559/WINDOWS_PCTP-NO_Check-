@@ -68,14 +68,32 @@ namespace PCTP.Presentation.Presenters
                     code => _c.QrSvc.GetGearName(code)))
                 {
                     // Thiếu/sai số lượng theo Gear: hiện thông báo (OK) rồi quay về màn
-                    // hình Phiếu như HVN (100001). GIỮ phiên đọc QR (checklist giờ vẫn
-                    // khóa, _qrSessionLocked không đổi) để bấm DOC QRCODE đọc tiếp.
-                    // Trước đây chỉ ShowError + return nên màn hình kẹt ở DocQRCode.
+                    // hình Phiếu như HVN (100001).
+                    //  - Chưa có tem nào trong phiên QR: nhả phiên (mở lại chọn giờ/ngày),
+                    //    giống "Xóa Toàn Bộ Dữ Liệu" nhưng không xóa gì.
+                    //  - Đã có tem: GIỮ phiên QR (checklist giờ vẫn khóa) vì đổi giờ sẽ làm
+                    //    lệch dữ liệu đã bắn; bấm DOC QRCODE đọc tiếp hoặc xóa toàn bộ để nhả.
+                    bool coDuLieuQr = _c.QrSvc.CoDocQRNao();
                     _c.UiContext.Post(_ =>
                     {
+                        if (coDuLieuQr)
+                        {
+                            _v.ShowWarning(validationError +
+                                "\r\n\r\nPhiên đọc QR vẫn được giữ, bấm DOC QRCODE để quay lại đọc tiếp.");
+                            _c.PhieuView.SwitchToPhieuView();
+                            return;
+                        }
+
                         _v.ShowWarning(validationError +
-                            "\r\n\r\nPhiên đọc QR vẫn được giữ, bấm DOC QRCODE để quay lại đọc tiếp.");
+                            "\r\n\r\nChưa có tem nào được đọc, quay lại màn hình Phiếu.");
                         _c.PhieuView.SwitchToPhieuView();
+                        _c.IsBanQR = false;
+                        _c.QrSvc.SetCheDoBan("");
+                        _c.ClearDeliverySession();
+                        _c.DocQrView.UnlockDocQrDeliveryContext();
+                        UnlockQrSession();
+                        _c.PhieuView.UnlockAllRadio();
+                        _c.PhieuView.UnlockDatePicker();
                     }, null);
                     return;
                 }
