@@ -121,6 +121,21 @@ namespace PCTP.Common
                 : "";
         }
 
+        /// <summary>
+        /// Mã máy dùng cho In Ghép Lot = ký tự thứ 14-16 (3 ký tự) của LOTNO.
+        /// Nhận cả chuỗi ghép "LOT-SL,LOT-SL,..." (lấy LOT đầu tiên). Trả về rỗng nếu LOT quá ngắn.
+        /// </summary>
+        public static string GetGhepLotMachineCode(string lotOrComposite)
+        {
+            if (string.IsNullOrWhiteSpace(lotOrComposite)) return string.Empty;
+
+            string first = lotOrComposite.Split(',')[0].Trim();
+            int dash = first.IndexOf('-');
+            if (dash > 0) first = first.Substring(0, dash).Trim();
+
+            return GetLineCodePart(first);
+        }
+
         public static string GetMachineCodePart(string lot)
         {
             int startIdx = LEN_DATE + LEN_ID_ITEM + LEN_SHIFT + LEN_GEAR + LEN_LinesCode;

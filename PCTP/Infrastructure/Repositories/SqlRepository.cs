@@ -89,11 +89,15 @@ namespace PCTP.Infrastructure.Repositories
             }
         }
 
+        /// <param name="machineName">
+        /// Mã máy = ký tự 14-16 của LOT (không phải tên máy tính). Rỗng/null = không lọc máy
+        /// (SP chỉ nhận @MACHINE sau khi chạy SQL/Usp_gheplotPrint_MachineFromLot.sql).
+        /// </param>
         public DataTable GetGhepLotPrint(string machineName)
         {
-            DataSet ds = Db.ExecuteStoredProcedureDataSet(
-                "Usp_gheplotPrint",
-                new SqlParameter("@MACHINE", machineName));
+            DataSet ds = string.IsNullOrWhiteSpace(machineName)
+                ? Db.ExecuteStoredProcedureDataSet("Usp_gheplotPrint")
+                : Db.ExecuteStoredProcedureDataSet("Usp_gheplotPrint", new SqlParameter("@MACHINE", machineName.Trim()));
             return ds != null && ds.Tables.Count > 0 ? ds.Tables[0] : new DataTable();
         }
 
