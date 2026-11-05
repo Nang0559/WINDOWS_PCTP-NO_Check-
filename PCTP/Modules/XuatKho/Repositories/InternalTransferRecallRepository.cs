@@ -95,6 +95,23 @@ ORDER BY w.Name, r.RackName, s.SlotNumber;";
             uow.Begin();
             try
             {
+                DataTable priorRequest = LoadData(@"
+SELECT ReturnId, ReturnNo
+FROM PCTP_InternalReturn WITH (UPDLOCK, HOLDLOCK)
+WHERE RequestKey = @RequestKey;",
+                    new SqlParameter("@RequestKey", SqlDbType.UniqueIdentifier) { Value = requestKey });
+                if (priorRequest.Rows.Count == 1)
+                {
+                    int priorId = Convert.ToInt32(priorRequest.Rows[0]["ReturnId"]);
+                    string priorNo = Convert.ToString(priorRequest.Rows[0]["ReturnNo"]);
+                    uow.Rollback();
+                    return new ReturnResult
+                    {
+                        ReturnId = priorId,
+                        ReturnNo = string.IsNullOrWhiteSpace(priorNo) ? "IR-" + priorId.ToString("D10") : priorNo
+                    };
+                }
+
                 DataTable transfer = LoadData(@"
 SELECT TransferId, LocationId, ItemCode, LotNo, Quantity
 FROM PCTP_InternalTransfer WITH (UPDLOCK, HOLDLOCK)
