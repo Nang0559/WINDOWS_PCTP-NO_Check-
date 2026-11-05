@@ -519,7 +519,7 @@ VALUES
 
             int slotAfter = Convert.ToInt32(ExecuteScalar(
                 @"SELECT ISNULL(SUM(Quantity),0) FROM SlotLot WITH (UPDLOCK,HOLDLOCK)
-                  WHERE PhieuStatus=0 AND Quantity>0 AND LTRIM(RTRIM(LotNo))=@lot
+                  WHERE PhieuStatus=0 AND Quantity>0 AND " + LotCodeHelper.BuildLotMatchSql("LotNo", "@lot") + @"
                     AND UPPER(LTRIM(RTRIM(ItemCode)))=UPPER(@item)",
                 new SqlParameter("@lot", lot), new SqlParameter("@item", item)));
             int stockAfter = Convert.ToInt32(ExecuteScalar(
