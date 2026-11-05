@@ -66,7 +66,7 @@ namespace PCTP.Modules.XuatKho
             fields.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 60));
             fields.RowStyles.Add(new RowStyle(SizeType.Absolute, 38));
             fields.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
-            AddField(fields, 0, 0, "Lọc theo LOT", _txtLot);
+            AddField(fields, 0, 0, "Tìm lần chuyển", _txtLot);
             AddField(fields, 2, 0, "Slot nhận", _lookSlot);
             AddField(fields, 0, 1, "Số lượng", _spinQuantity);
             AddField(fields, 2, 1, "Lý do thu hồi", _memoReason);
@@ -79,8 +79,7 @@ namespace PCTP.Modules.XuatKho
             _lookSlot.Properties.ShowHeader = true;
             _lookSlot.Properties.ShowFooter = false;
             _lookSlot.EditValueChanged += (s, e) => UpdateReturnButtonState();
-            _lookSlot.Properties.NullText = "Chọn Slot nhận hàng";
-            _lookSlot.Properties.TextEditStyle = DevExpress.XtraEditors.Controls.TextEditStyles.DisableTextEditor;
+            _lookSlot.Properties.NullText = "Tìm / chọn Slot nhận hàng";
             _spinQuantity.Properties.MinValue = 1;
             _spinQuantity.Properties.MaxValue = int.MaxValue;
             _spinQuantity.Properties.IsFloatValue = false;
