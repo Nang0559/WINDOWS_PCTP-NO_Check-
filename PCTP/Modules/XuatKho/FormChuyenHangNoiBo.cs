@@ -32,6 +32,8 @@ namespace PCTP.Modules.XuatKho
         private readonly SimpleButton _btnTransfer = new SimpleButton();
         private readonly SimpleButton _btnInternalStock = new SimpleButton();
         private List<SlotLotViewInfo> _sourceRows = new List<SlotLotViewInfo>();
+        private Guid _requestKey = Guid.NewGuid();
+        private bool _transferCompleted;
 
         public FormChuyenHangNoiBo()
         {
@@ -119,6 +121,9 @@ namespace PCTP.Modules.XuatKho
 
             try
             {
+                _requestKey = Guid.NewGuid();
+                _transferCompleted = false;
+                _btnTransfer.Enabled = true;
                 _sourceRows = _slotRepository.GetAllActiveSlotLots()
                     .Where(x => string.Equals((x.LotNo ?? string.Empty).Trim(), lot, StringComparison.OrdinalIgnoreCase))
                     .OrderBy(x => x.WarehouseName).ThenBy(x => x.RackName).ThenBy(x => x.SlotNumber)
@@ -176,7 +181,8 @@ namespace PCTP.Modules.XuatKho
                     destination,
                     reason,
                     quantity,
-                    Environment.UserName);
+                    Environment.UserName,
+                    _requestKey);
 
                 if (!result.Success)
                     throw new InvalidOperationException(result.Message);
@@ -186,7 +192,9 @@ namespace PCTP.Modules.XuatKho
                         quantity, source.LotNo, source.SlotId, destination),
                     Text, MessageBoxButtons.OK, MessageBoxIcon.Information);
 
-                SearchLot();
+                _transferCompleted = true;
+                _btnTransfer.Enabled = false;
+                _lblStock.Text = "Đã chuyển thành công. Bấm Tìm LOT để bắt đầu một giao dịch mới.";
             }
             catch (Exception ex)
             {
