@@ -237,6 +237,7 @@ namespace PCTP.QC.Tests
             public void LockSlotForUpdate(int slotId) { }
             public List<LotInfo> GetLots(int slotId) => VirtualLots;
             public List<BulkSlotLotLocation> FindSlotLotsByLot(string lotNo, int excludeSlotId) => PhysicalLots;
+            public void AdjustLotToTarget(string itemCode, string lotNo, int targetQuantity, int? destinationSlotId, string reason, string actor, Guid requestId) { }
         }
 
         private sealed class FakeHistory : IStockHistoryRepository
