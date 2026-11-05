@@ -5,7 +5,7 @@ using PCTP.Modules.KhoCore.Models;
 using PCTP.Modules.KhoVatLy.Kho.Models;
 using PCTP.Modules.KhoVatLy.Repositories;
 using PCTP.Modules.KhoCore.Application.Contracts.Stock;
-using PCTP.Modules.XuLyHangLoi.Services;
+using PCTP.Modules.KhoVatLy.Application.Interfaces;
 using PCTP.Shared.Common;
 
 namespace PCTP.Modules.XuatKho.Repositories
