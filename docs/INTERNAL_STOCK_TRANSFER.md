@@ -14,7 +14,7 @@
 - RequestKey và ReferenceType/ReferenceId bảo vệ gửi lặp. Nếu bất kỳ bước nào lỗi, rollback cả sổ nội bộ, SlotLot, Slot header, STOCKTP và lịch sử.
 
 ## UI
-Hai màn hình riêng trong nhóm Giao Hàng:
+Hai màn hình riêng trong nhóm menu **Điều chuyển nội bộ** (đặt cạnh nhóm Kho và Giao Hàng):
 - Chuyển hàng sang vị trí nội bộ.
 - Thu hồi hàng từ vị trí nội bộ về kho.
 
