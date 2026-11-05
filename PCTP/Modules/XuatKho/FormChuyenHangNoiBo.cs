@@ -214,7 +214,10 @@ namespace PCTP.Modules.XuatKho
             }
             string itemCode = parts[1].Trim();
             int quantity;
-            if (itemCode.Length == 0 || !int.TryParse(parts[3].Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out quantity) || quantity <= 0)
+            DateTime labelDate;
+            if (itemCode.Length == 0 ||
+                !DateTime.TryParseExact(parts[2].Trim(), new[] { "dd/MM/yyyy", "dd/MM/yy" }, CultureInfo.InvariantCulture, DateTimeStyles.None, out labelDate) ||
+                !int.TryParse(parts[3].Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out quantity) || quantity <= 0)
             {
                 XtraMessageBox.Show(this, "QR thiếu mã hàng hoặc số lượng không hợp lệ. Không tự suy diễn LOT từ mã QR.", Text);
                 return;
@@ -258,6 +261,7 @@ namespace PCTP.Modules.XuatKho
                 _view.Columns.Clear();
                 ConfigureSourceColumns();
 
+                string selectedItem = Convert.ToString(_lookItemCode.EditValue)?.Trim() ?? string.Empty;
                 int slotTotal = rows.Sum(x => x.Quantity);
                 var itemCodes = rows.Select(x => (x.ItemCode ?? string.Empty).Trim())
                     .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
@@ -266,6 +270,7 @@ namespace PCTP.Modules.XuatKho
                     : new List<StockTpLotInfo>();
                 int stock = stockRows.Count == 1 ? stockRows[0].SlConLai : 0;
                 _sourceBalanceConsistent = rows.Count > 0 && itemCodes.Count == 1 &&
+                    string.Equals(itemCodes[0], selectedItem, StringComparison.OrdinalIgnoreCase) &&
                     stockRows.Count == 1 && stock == slotTotal;
                 _btnTransfer.Enabled = _sourceBalanceConsistent;
                 _lblSummary.Text = string.Format("STOCKTP: {0:n0} | Tổng Slot khả dụng: {1:n0}", stock, slotTotal);
