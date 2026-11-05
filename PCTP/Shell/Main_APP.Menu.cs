@@ -320,6 +320,7 @@ namespace PCTP
         private void ConfigureItemLookup()
         {
             _item.Properties.NullText = string.Empty;
+            _item.Properties.NullValuePrompt = "Chọn mã hàng hoặc quét mã vạch / QR";
             _item.Properties.TextEditStyle = TextEditStyles.Standard;
             _item.Properties.ImmediatePopup = true;
             _item.Properties.PopupFormSize = new System.Drawing.Size(560, 360);
@@ -345,7 +346,7 @@ namespace PCTP
 
         private DataTable BuildItemLookupData()
         {
-            DataTable source = _stockTp.GetTonKhoHienTai();
+            DataTable source = _stockTp.GetItemLookup();
             var result = new DataTable();
             result.Columns.Add("PART", typeof(string));
             result.Columns.Add("NAME", typeof(string));
@@ -444,6 +445,22 @@ namespace PCTP
             e.SuppressKeyPress = true;
         }
 
+        private string GetCurrentItemCode()
+        {
+            string typed = (_item.Text ?? string.Empty).Trim();
+            if (_itemLookupData != null && _itemLookupData.AsEnumerable().Any(row =>
+                string.Equals(Convert.ToString(row["PART"])?.Trim(), typed, StringComparison.OrdinalIgnoreCase)))
+                return typed;
+
+            string selected = Convert.ToString(_item.EditValue)?.Trim();
+            if (!string.IsNullOrWhiteSpace(selected) && _itemLookupData != null &&
+                _itemLookupData.AsEnumerable().Any(row =>
+                    string.Equals(Convert.ToString(row["PART"])?.Trim(), selected, StringComparison.OrdinalIgnoreCase)))
+                return selected;
+
+            return typed;
+        }
+
         private static string NormalizeLookupCode(string value)
         {
             return (value ?? string.Empty).Replace("-", string.Empty)
@@ -462,8 +479,7 @@ namespace PCTP
 
         private void PreviewLot()
         {
-            string item = Convert.ToString(_item.EditValue)?.Trim();
-            if (string.IsNullOrWhiteSpace(item)) item = (_item.Text ?? string.Empty).Trim();
+            string item = GetCurrentItemCode();
             string lot = (_lot.Text ?? string.Empty).Trim();
             _hasPreview = false;
             _apply.Enabled = false;
@@ -534,7 +550,7 @@ namespace PCTP
             int target = Convert.ToInt32(_target.Value);
             string prompt = string.Format(
                 "CƠ SỞ DỮ LIỆU ĐÍCH: {5}\r\n\r\nXác nhận đưa LOT [{0}] / Item [{1}] về số lượng đích {2:n0}?\r\nSTOCKTP: {3:n0} → {2:n0}\r\nSlotLot: {4:n0} → {2:n0}\r\n\r\nĐây là thao tác ghi dữ liệu trên cơ sở dữ liệu đang cấu hình. Hệ thống sẽ ghi lịch sử và rollback toàn bộ nếu invariant không đạt.",
-                _lot.Text.Trim(), (Convert.ToString(_item.EditValue) ?? _item.Text).Trim(), target, _stockBefore, _slotBefore, _databaseTarget);
+                _lot.Text.Trim(), GetCurrentItemCode(), target, _stockBefore, _slotBefore, _databaseTarget);
             if (XtraMessageBox.Show(this, prompt, Text, MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes)
                 return;
 
