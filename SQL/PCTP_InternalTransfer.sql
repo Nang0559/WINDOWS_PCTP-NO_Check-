@@ -20,6 +20,7 @@ BEGIN
     CREATE TABLE dbo.PCTP_InternalTransfer
     (
         TransferId int IDENTITY(1,1) NOT NULL CONSTRAINT PK_PCTP_InternalTransfer PRIMARY KEY,
+        RequestKey uniqueidentifier NOT NULL,
         TransferNo nvarchar(40) NULL,
         LocationId int NOT NULL,
         LotNo nvarchar(200) NOT NULL,
@@ -33,7 +34,16 @@ BEGIN
         CONSTRAINT FK_PCTP_InternalTransfer_Location FOREIGN KEY(LocationId) REFERENCES dbo.PCTP_InternalLocation(LocationId)
     );
     CREATE UNIQUE INDEX UX_PCTP_InternalTransfer_TransferNo ON dbo.PCTP_InternalTransfer(TransferNo) WHERE TransferNo IS NOT NULL;
+    CREATE UNIQUE INDEX UX_PCTP_InternalTransfer_RequestKey ON dbo.PCTP_InternalTransfer(RequestKey);
     CREATE INDEX IX_PCTP_InternalTransfer_Lot_Date ON dbo.PCTP_InternalTransfer(LotNo, CreatedAt DESC);
+END;
+GO
+IF COL_LENGTH(N'dbo.PCTP_InternalTransfer', N'RequestKey') IS NULL
+BEGIN
+    ALTER TABLE dbo.PCTP_InternalTransfer ADD RequestKey uniqueidentifier NULL;
+    UPDATE dbo.PCTP_InternalTransfer SET RequestKey = NEWID() WHERE RequestKey IS NULL;
+    ALTER TABLE dbo.PCTP_InternalTransfer ALTER COLUMN RequestKey uniqueidentifier NOT NULL;
+    CREATE UNIQUE INDEX UX_PCTP_InternalTransfer_RequestKey ON dbo.PCTP_InternalTransfer(RequestKey);
 END;
 GO
 IF OBJECT_ID(N'dbo.PCTP_InternalStock', N'U') IS NULL
