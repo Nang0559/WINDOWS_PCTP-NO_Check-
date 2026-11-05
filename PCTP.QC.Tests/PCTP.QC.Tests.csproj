@@ -122,6 +122,7 @@
     <Compile Include="../PCTP/Modules/GiaoHangKhach/Models/OrderLineKey.cs" Link="Sut/OrderLineKey.cs" />
     <Compile Include="../PCTP/Modules/GiaoHangKhach/Models/OrderLotMerger.cs" Link="Sut/OrderLotMerger.cs" />
     <Compile Include="../PCTP/Modules/GiaoHangKhach/Services/YmvnGearQuantityValidator.cs" Link="Sut/YmvnGearQuantityValidator.cs" />
+    <Compile Include="../PCTP/Modules/GiaoHangKhach/Services/YmvnPrintHelpers.cs" Link="Sut/YmvnPrintHelpers.cs" />
     <Compile Include="../PCTP/Modules/KhoCore/Application/Services/StockMovementService.cs" Link="Sut/StockMovementService.cs" />
     <Compile Include="../PCTP/Modules/KhoCore/Application/Services/QuarantineReleaseService.cs" Link="Sut/QuarantineReleaseService.cs" />
     <Compile Include="../PCTP/Modules/KhoCore/Application/Contracts/Stock/IStockMovementService.cs" Link="Sut/IStockMovementService.cs" />

@@ -412,7 +412,8 @@ namespace PCTP.Presentation.Presenters
                     try
                     {
                         _c.YmvnView.SetCheckedGiosYMVN(gs);
-                        _c.YmvnView.LockCheckListYMVN();
+                        // Phiếu đã giao: không khóa danh sách giờ nữa — cho chọn giờ để IN phiếu theo giờ.
+                        _c.YmvnView.EnablePrintHourSelectionYMVN();
                     }
                     finally { _v.ResumeGioXuatChanged(); }
 

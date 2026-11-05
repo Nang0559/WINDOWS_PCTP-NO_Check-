@@ -28,6 +28,8 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
         private CustomerConfig _cfg;
         private HashSet<string> _deliveredYmvnHours = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         private bool _ymvnChecklistLocked;
+        // Phiếu đã giao: danh sách giờ chỉ dùng để chọn giờ IN (lọc phiếu), không tải lại lưới theo giờ.
+        private bool _ymvnPrintOnly;
         private bool _qrDeliveryContextLocked;
         private bool _qrDeliveryPlantLocked;
 
@@ -402,6 +404,7 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
             checkList.Items.Clear();
             if (danhSachGio != null) foreach (var gio in danhSachGio) checkList.Items.Add(gio, true);
             _deliveredYmvnHours.Clear();
+            _ymvnPrintOnly = false;
             WireCheckGxEvent();
         }
 
@@ -448,8 +451,26 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
             if (checkList == null) return;
             if (checkList.InvokeRequired) { checkList.Invoke(new Action(LockCheckListYMVN)); return; }
             _ymvnChecklistLocked = true;
+            _ymvnPrintOnly = false;
             UnwireCheckGxEvent();
             checkList.Enabled = false;
+        }
+
+        /// <summary>
+        /// Sau khi phiếu đã giao: cho phép tích/bỏ tích từng giờ ĐỂ IN phiếu theo giờ.
+        /// Đổi tích giờ không tải lại lưới đơn hàng (lưới giữ đủ các giờ đã giao, bộ lọc giờ áp dụng lúc in).
+        /// </summary>
+        public void EnablePrintHourSelectionYMVN()
+        {
+            var checkList = FindControl<CheckedListBoxControl>("CheckGX");
+            if (checkList == null) return;
+            if (checkList.InvokeRequired) { checkList.Invoke(new Action(EnablePrintHourSelectionYMVN)); return; }
+            _ymvnChecklistLocked = false;
+            _ymvnPrintOnly = true;
+            checkList.Enabled = true;
+            for (int i = 0; i < checkList.Items.Count; i++)
+                checkList.Items[i].Enabled = true;
+            WireCheckGxEvent();
         }
 
         public void UnlockCheckListYMVN()
@@ -459,6 +480,13 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
             if (checkList.InvokeRequired) { checkList.Invoke(new Action(UnlockCheckListYMVN)); return; }
             _ymvnChecklistLocked = false;
             checkList.Enabled = true;
+            if (_ymvnPrintOnly)
+            {
+                // Đang ở chế độ chọn giờ in: giữ nguyên các giờ người dùng đã tích.
+                for (int i = 0; i < checkList.Items.Count; i++) checkList.Items[i].Enabled = true;
+                WireCheckGxEvent();
+                return;
+            }
             UnwireCheckGxEvent();
             try
             {
@@ -523,6 +551,7 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
         private void HeaderCheckGxItemCheck(object sender, DevExpress.XtraEditors.Controls.ItemCheckEventArgs e)
         {
             if (_ymvnChecklistLocked) return;
+            if (_ymvnPrintOnly) return; // chỉ đổi bộ lọc giờ in, không tải lại lưới
             var checkList = sender as CheckedListBoxControl;
             if (checkList != null && checkList.IsHandleCreated)
             {

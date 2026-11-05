@@ -12,6 +12,7 @@ namespace PCTP.Presentation.Views
         void SetupGridDonHangYMVN(bool coGear);
         void LockCheckListYMVN();
         void UnlockCheckListYMVN();
+        void EnablePrintHourSelectionYMVN();
         void BindHoanThanhYMVN(DataTable dt);
         void BindGioXuatCheckList(List<string> danhSachGio);
         List<string> GetCheckedGioXuat();

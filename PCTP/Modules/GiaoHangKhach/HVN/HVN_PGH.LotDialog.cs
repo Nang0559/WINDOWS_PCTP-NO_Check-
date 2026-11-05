@@ -94,6 +94,12 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
                 _phieuHeaderControl.LockCheckListYMVN();
         }
 
+        public void EnablePrintHourSelectionYMVN()
+        {
+            if (_phieuHeaderControl != null)
+                _phieuHeaderControl.EnablePrintHourSelectionYMVN();
+        }
+
         public void UnlockCheckListYMVN()
         {
             if (_phieuHeaderControl != null)
