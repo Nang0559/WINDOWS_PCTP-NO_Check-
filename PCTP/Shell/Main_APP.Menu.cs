@@ -287,7 +287,6 @@ namespace PCTP
             _target.Properties.MaxValue = int.MaxValue;
             _target.Properties.IsFloatValue = false;
             _reason.Properties.NullValuePrompt = "Bắt buộc nhập lý do điều chỉnh";
-            _reason.Properties.NullValuePromptShowForEmptyValue = true;
             group.Controls.Add(fields);
             root.Controls.Add(group, 0, 0);
 
