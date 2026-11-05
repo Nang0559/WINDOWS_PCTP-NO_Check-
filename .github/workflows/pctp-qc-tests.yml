@@ -270,7 +270,8 @@ jobs:
                     "$RUNNER_TEMP/deploy/Usp_Qrcode_LOAD_PHIEU_DOCQR2405.sql" \
                     "$RUNNER_TEMP/deploy/Usp_Qrcode_Take_Lot2405.sql" \
                     "$RUNNER_TEMP/deploy/Usp_Qrcode_Take_LotYMVN2405.sql" \
-                    SQL/QC_G4_DeliveryFixture_Seed.sql SQL/QC_G4_DeliveryFixture_Cleanup.sql
+                    SQL/QC_G4_DeliveryFixture_Seed.sql SQL/QC_G4_DeliveryFixture_Cleanup.sql \\
+                    SQL/PCTP_InternalTransfer.sql
           if [ "$coverage_status" -ne 0 ]; then
             echo "ERROR: SQL2 code/schema mismatches remain; generated DDL was checked but deployment is blocked."
             exit "$coverage_status"
@@ -309,7 +310,8 @@ jobs:
             SQL/sp_GetCurrentStockStatus.sql \
             "$RUNNER_TEMP/deploy/Usp_Qrcode_LOAD_PHIEU_DOCQR2405.sql" \
             "$RUNNER_TEMP/deploy/Usp_Qrcode_Take_Lot2405.sql" \
-            "$RUNNER_TEMP/deploy/Usp_Qrcode_Take_LotYMVN2405.sql"; do
+            "$RUNNER_TEMP/deploy/Usp_Qrcode_Take_LotYMVN2405.sql" \\
+            SQL/PCTP_InternalTransfer.sql; do
             echo "INFO: deploying $f"
             docker cp "$f" "$c:/tmp/$(basename "$f")"
             docker exec "$c" /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'PctpQc_CI_Only_2026!' -C -b -d PCTP_QC_CI -i "/tmp/$(basename "$f")"
@@ -382,7 +384,11 @@ jobs:
             IF OBJECT_ID(N'dbo.Warehouse',N'U') IS NULL THROW 52004,N'Warehouse missing',1;
             IF OBJECT_ID(N'dbo.Rack',N'U') IS NULL THROW 52005,N'Rack missing',1;
             IF OBJECT_ID(N'dbo.sp_GetCurrentStockStatus',N'P') IS NULL THROW 52006,N'sp_GetCurrentStockStatus missing',1;
-            SELECT 'PASS: G6 schema contract' AS Result;"
+            IF OBJECT_ID(N'dbo.PCTP_InternalLocation',N'U') IS NULL THROW 52007,N'PCTP_InternalLocation missing',1;
+            IF OBJECT_ID(N'dbo.PCTP_InternalTransfer',N'U') IS NULL THROW 52008,N'PCTP_InternalTransfer missing',1;
+            IF OBJECT_ID(N'dbo.PCTP_InternalStock',N'U') IS NULL THROW 52009,N'PCTP_InternalStock missing',1;
+            IF OBJECT_ID(N'dbo.PCTP_InternalReturn',N'U') IS NULL THROW 52010,N'PCTP_InternalReturn missing',1;
+            SELECT 'PASS: G6 stock/slot/internal-transfer schema contract' AS Result;"
 
       - name: Cleanup deterministic G4 fixture
         if: always()
