@@ -1,6 +1,7 @@
 using DevExpress.XtraBars.Navigation;
 using DevExpress.XtraEditors;
 using DevExpress.XtraEditors.Controls;
+using DevExpress.XtraGrid;
 using DevExpress.XtraGrid.Views.Grid;
 using PCTP.Common;
 using PCTP.Modules.BaoCao.UI;
@@ -226,37 +227,43 @@ namespace PCTP
         private readonly SlotRepository _slotRepo;
         private readonly BulkStockSlotRepository _adjustmentRepo;
         private readonly string _databaseTarget;
-        private readonly GridLookUpEdit _item = new GridLookUpEdit();
-        private DataTable _itemLookupData;
-        private readonly TextEdit _lot = new TextEdit();
-        private readonly TextEdit _destinationSlot = new TextEdit();
+
+        private readonly TextEdit _lookupKey = new TextEdit();
+        private readonly SimpleButton _search = new SimpleButton();
+        private readonly GridControl _lotGrid = new GridControl();
+        private readonly GridView _lotView = new GridView();
+        private readonly GridControl _slotGrid = new GridControl();
+        private readonly GridView _slotView = new GridView();
         private readonly SpinEdit _target = new SpinEdit();
+        private readonly TextEdit _destinationSlot = new TextEdit();
         private readonly MemoEdit _reason = new MemoEdit();
         private readonly LabelControl _summary = new LabelControl();
-        private readonly SimpleButton _preview = new SimpleButton();
         private readonly SimpleButton _apply = new SimpleButton();
-        private Guid _requestId = Guid.NewGuid();
+
+        private DataTable _searchResults;
+        private List<PCTP.Modules.KhoCore.Models.SlotLotViewInfo> _activeSlotLots;
+        private string _selectedItemCode;
+        private string _selectedLot;
         private int _stockBefore;
         private int _slotBefore;
         private bool _hasPreview;
+        private Guid _requestId = Guid.NewGuid();
 
         public FormDieuChinhTonKhoLot()
         {
             Text = "Điều chỉnh tồn kho LOT";
-            Width = 920;
-            Height = 510;
-            MinimumSize = new System.Drawing.Size(780, 430);
+            Width = 1180;
+            Height = 780;
+            MinimumSize = new System.Drawing.Size(980, 680);
             StartPosition = FormStartPosition.CenterParent;
 
             var provider = new SQLPROVIDER();
-            // Use the application's active connection configuration. The target is
-            // displayed in the form and repeated in the write confirmation; no host
-            // or catalog is hard-coded so QC/staging/production profiles can be used.
             var connection = new System.Data.SqlClient.SqlConnectionStringBuilder(provider.B7R2_FCCdb);
             _databaseTarget = string.Format("{0} / {1}",
                 string.IsNullOrWhiteSpace(connection.DataSource) ? "(server chưa cấu hình)" : connection.DataSource,
                 string.IsNullOrWhiteSpace(connection.InitialCatalog) ? "(database chưa cấu hình)" : connection.InitialCatalog);
             Text = "Điều chỉnh tồn kho LOT — " + _databaseTarget;
+
             var db = new PhieuSqlExecutor(provider);
             _uow = new UnitOfWork(provider);
             _stockTp = new StockTpRepository(db, _uow);
@@ -269,202 +276,131 @@ namespace PCTP
 
         private void BuildUi()
         {
-            var root = new TableLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(12), ColumnCount = 1, RowCount = 3 };
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 190));
-            root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 52));
+            var root = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill, Padding = new Padding(10),
+                ColumnCount = 1, RowCount = 5
+            };
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 104));
+            root.RowStyles.Add(new RowStyle(SizeType.Percent, 48));
+            root.RowStyles.Add(new RowStyle(SizeType.Percent, 27));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 126));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
             Controls.Add(root);
 
-            var group = new GroupControl { Text = "Thông tin LOT và số lượng đích", Dock = DockStyle.Fill };
-            var fields = new TableLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(8), ColumnCount = 4, RowCount = 4 };
-            fields.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 110));
-            fields.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
-            fields.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 125));
-            fields.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
-            for (int i = 0; i < 4; i++) fields.RowStyles.Add(new RowStyle(SizeType.Absolute, i == 3 ? 54 : 36));
-            AddField(fields, 0, 0, "Mã hàng", _item);
-            AddField(fields, 2, 0, "LOT", _lot);
-            AddField(fields, 0, 1, "Số lượng đích", _target);
-            AddField(fields, 2, 1, "Slot nhận thêm", _destinationSlot);
-            AddField(fields, 0, 2, "Lý do", _reason, 3);
-            ConfigureItemLookup();
-            _lot.Properties.NullValuePrompt = "Nhập LOT hoặc quét QR 4/6 trường";
-            _destinationSlot.Properties.NullValuePrompt = "Để trống = A0 mặc định";
+            var searchGroup = new GroupControl { Text = "Tra cứu mã hàng / LOT / QR", Dock = DockStyle.Fill };
+            var searchLayout = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill, Padding = new Padding(8),
+                ColumnCount = 3, RowCount = 2
+            };
+            searchLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 110));
+            searchLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            searchLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 145));
+            searchLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 38));
+            searchLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            var keyLabel = new LabelControl { Text = "LookupKey", Dock = DockStyle.Fill, AutoSizeMode = LabelAutoSizeMode.None };
+            keyLabel.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
+            _lookupKey.Dock = DockStyle.Fill;
+            _lookupKey.Properties.NullValuePrompt = "Nhập mã hàng / LOT hoặc bắn QR 4 / 6 trường rồi Enter";
+            _lookupKey.KeyDown += (s, e) =>
+            {
+                if (e.KeyCode == Keys.Enter)
+                {
+                    SearchLots();
+                    e.Handled = true;
+                    e.SuppressKeyPress = true;
+                }
+            };
+            _search.Text = "Tra cứu";
+            _search.Dock = DockStyle.Fill;
+            _search.Click += (s, e) => SearchLots();
+            searchLayout.Controls.Add(keyLabel, 0, 0);
+            searchLayout.Controls.Add(_lookupKey, 1, 0);
+            searchLayout.Controls.Add(_search, 2, 0);
+            var help = new LabelControl
+            {
+                Text = "Nhập mã hàng để xem các LOT; nhập LOT để tìm trực tiếp; QR sẽ tự tách LOT và mã hàng. Chọn một LOT ở danh sách bên dưới để điều chỉnh.",
+                Dock = DockStyle.Fill,
+                AutoSizeMode = LabelAutoSizeMode.None
+            };
+            help.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
+            help.Appearance.TextOptions.WordWrap = DevExpress.Utils.WordWrap.Wrap;
+            searchLayout.Controls.Add(help, 0, 1);
+            searchLayout.SetColumnSpan(help, 3);
+            searchGroup.Controls.Add(searchLayout);
+            root.Controls.Add(searchGroup, 0, 0);
+
+            var lotGroup = new GroupControl { Text = "Danh sách LOT tìm được — chọn đúng LOT cần điều chỉnh", Dock = DockStyle.Fill };
+            ConfigureGrid(_lotGrid, _lotView);
+            _lotView.FocusedRowChanged += (s, e) => LoadSelectedLot();
+            _lotView.RowClick += (s, e) => LoadSelectedLot();
+            lotGroup.Controls.Add(_lotGrid);
+            root.Controls.Add(lotGroup, 0, 1);
+
+            var slotGroup = new GroupControl { Text = "Vị trí SlotLot đang chứa LOT được chọn", Dock = DockStyle.Fill };
+            ConfigureGrid(_slotGrid, _slotView);
+            slotGroup.Controls.Add(_slotGrid);
+            root.Controls.Add(slotGroup, 0, 2);
+
+            var adjustGroup = new GroupControl { Text = "Số lượng đích và thông tin điều chỉnh LOT đang chọn", Dock = DockStyle.Fill };
+            var adjustLayout = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill, Padding = new Padding(8),
+                ColumnCount = 4, RowCount = 3
+            };
+            adjustLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 120));
+            adjustLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+            adjustLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 125));
+            adjustLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+            adjustLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
+            adjustLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
+            adjustLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            AddField(adjustLayout, 0, 0, "Số lượng đích", _target);
+            AddField(adjustLayout, 2, 0, "Slot nhận thêm", _destinationSlot);
+            AddField(adjustLayout, 0, 1, "LOT đang chọn", _selectedLotLabel = new LabelControl { Dock = DockStyle.Fill, AutoSizeMode = LabelAutoSizeMode.None });
+            AddField(adjustLayout, 2, 1, "Mã hàng", _selectedItemLabel = new LabelControl { Dock = DockStyle.Fill, AutoSizeMode = LabelAutoSizeMode.None });
+            AddField(adjustLayout, 0, 2, "Lý do", _reason, 3);
             _target.Properties.MinValue = 0;
             _target.Properties.MaxValue = int.MaxValue;
             _target.Properties.IsFloatValue = false;
+            _destinationSlot.Properties.NullValuePrompt = "Để trống = A0 mặc định";
             _reason.Properties.NullValuePrompt = "Bắt buộc nhập lý do điều chỉnh";
-            group.Controls.Add(fields);
-            root.Controls.Add(group, 0, 0);
+            adjustGroup.Controls.Add(adjustLayout);
+            root.Controls.Add(adjustGroup, 0, 3);
 
+            var footer = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight,
+                Padding = new Padding(2)
+            };
+            _apply.Text = "Xác nhận điều chỉnh LOT đã chọn";
+            _apply.Width = 230;
+            _apply.Enabled = false;
+            _apply.Click += (s, e) => ApplyAdjustment();
+            footer.Controls.Add(_apply);
             _summary.Dock = DockStyle.Fill;
             _summary.AutoSizeMode = LabelAutoSizeMode.None;
             _summary.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
             _summary.Appearance.TextOptions.WordWrap = DevExpress.Utils.WordWrap.Wrap;
-            root.Controls.Add(_summary, 0, 1);
-
-            var footer = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight, Padding = new Padding(2) };
-            _preview.Text = "Đối soát LOT";
-            _preview.Width = 140;
-            _preview.Click += (s, e) => PreviewLot();
-            _apply.Text = "Xác nhận điều chỉnh";
-            _apply.Width = 170;
-            _apply.Enabled = false;
-            _apply.Click += (s, e) => ApplyAdjustment();
-            footer.Controls.Add(_preview);
-            footer.Controls.Add(_apply);
-            root.Controls.Add(footer, 0, 2);
+            footer.Controls.Add(_summary);
+            root.Controls.Add(footer, 0, 4);
         }
 
+        private readonly LabelControl _selectedLotLabel = new LabelControl();
+        private readonly LabelControl _selectedItemLabel = new LabelControl();
 
-        private void ConfigureItemLookup()
+        private static void ConfigureGrid(GridControl grid, GridView view)
         {
-            _item.Properties.NullText = string.Empty;
-            _item.Properties.NullValuePrompt = "Chọn mã hàng hoặc quét mã vạch / QR";
-            _item.Properties.TextEditStyle = TextEditStyles.Standard;
-            _item.Properties.ImmediatePopup = true;
-            _item.Properties.PopupFormSize = new System.Drawing.Size(560, 360);
-            _item.Properties.DataSource = BuildItemLookupData();
-            _item.Properties.DisplayMember = "PART";
-            _item.Properties.ValueMember = "PART";
-
-            GridView view = _item.Properties.View as GridView;
-            if (view != null)
-            {
-                view.OptionsView.ShowGroupPanel = false;
-                view.OptionsView.ShowAutoFilterRow = true;
-                view.OptionsBehavior.Editable = false;
-                view.Columns.Clear();
-                view.Columns.AddVisible("PART", "Mã hàng");
-                view.Columns.AddVisible("NAME", "Tên hàng");
-                view.BestFitColumns();
-            }
-
-            _item.TextChanged += ItemLookup_TextChanged;
-            _item.KeyDown += ItemLookup_KeyDown;
-        }
-
-        private DataTable BuildItemLookupData()
-        {
-            DataTable source = _stockTp.GetItemLookup();
-            var result = new DataTable();
-            result.Columns.Add("PART", typeof(string));
-            result.Columns.Add("NAME", typeof(string));
-            var seen = new System.Collections.Generic.HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-            foreach (DataRow row in source.Rows)
-            {
-                string part = Convert.ToString(row["PART"])?.Trim();
-                if (string.IsNullOrWhiteSpace(part) || !seen.Add(part)) continue;
-                string name = source.Columns.Contains("NAME") ? Convert.ToString(row["NAME"]) : string.Empty;
-                result.Rows.Add(part, name ?? string.Empty);
-            }
-
-            result.DefaultView.Sort = "PART ASC";
-            _itemLookupData = result;
-            return result;
-        }
-
-        private void ItemLookup_TextChanged(object sender, EventArgs e)
-        {
-            GridView view = _item.Properties.View as GridView;
-            if (view == null) return;
-            string keyword = (_item.Text ?? string.Empty).Trim();
-
-            if (keyword.IndexOf(':') >= 0)
-            {
-                _item.ClosePopup();
-                return;
-            }
-            if (keyword.Length == 0)
-            {
-                view.ActiveFilterString = string.Empty;
-                return;
-            }
-
-            string escaped = keyword.Replace("'", "''");
-            view.ActiveFilterString = string.Format("[PART] LIKE '%{0}%' OR [NAME] LIKE '%{0}%'", escaped);
-            if (!_item.IsPopupOpen) _item.ShowPopup();
-        }
-
-        private void ItemLookup_KeyDown(object sender, KeyEventArgs e)
-        {
-            if (e.KeyCode != Keys.Enter) return;
-            string raw = (_item.Text ?? string.Empty).Trim();
-            string itemCode = raw;
-            string[] parts = raw.Split(':');
-
-            // Align with existing scanner routing: FCC QR = 4 fields;
-            // legacy customer QR = 6 or more fields.
-            if ((parts.Length == 4 || parts.Length >= 6) &&
-                !string.IsNullOrWhiteSpace(parts[0]) && !string.IsNullOrWhiteSpace(parts[1]))
-            {
-                itemCode = parts[1].Trim();
-                _lot.Text = parts[0].Trim();
-            }
-
-            DataRow match = null;
-            if (_itemLookupData != null)
-            {
-                match = _itemLookupData.AsEnumerable().FirstOrDefault(row =>
-                    string.Equals(Convert.ToString(row["PART"])?.Trim(), itemCode, StringComparison.OrdinalIgnoreCase));
-                if (match == null && itemCode != raw)
-                {
-                    string normalized = NormalizeLookupCode(itemCode);
-                    match = _itemLookupData.AsEnumerable().FirstOrDefault(row =>
-                        NormalizeLookupCode(Convert.ToString(row["PART"])) == normalized);
-                }
-            }
-
-            if (match != null)
-            {
-                _item.EditValue = Convert.ToString(match["PART"]);
-                _item.ClosePopup();
-                _lot.Focus();
-                _lot.SelectAll();
-            }
-            else if (itemCode != raw)
-            {
-                XtraMessageBox.Show(this, "Không tìm thấy mã hàng [" + itemCode + "] trong danh sách mã hàng STOCKTP.", Text,
-                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                _item.SelectAll();
-                _item.Focus();
-            }
-            else
-            {
-                GridView view = _item.Properties.View as GridView;
-                if (view != null && view.FocusedRowHandle >= 0)
-                {
-                    DataRow row = view.GetDataRow(view.FocusedRowHandle);
-                    if (row != null) _item.EditValue = Convert.ToString(row["PART"]);
-                }
-                _item.ClosePopup();
-            }
-
-            e.Handled = true;
-            e.SuppressKeyPress = true;
-        }
-
-        private string GetCurrentItemCode()
-        {
-            string typed = (_item.Text ?? string.Empty).Trim();
-            if (_itemLookupData != null && _itemLookupData.AsEnumerable().Any(row =>
-                string.Equals(Convert.ToString(row["PART"])?.Trim(), typed, StringComparison.OrdinalIgnoreCase)))
-                return typed;
-
-            string selected = Convert.ToString(_item.EditValue)?.Trim();
-            if (!string.IsNullOrWhiteSpace(selected) && _itemLookupData != null &&
-                _itemLookupData.AsEnumerable().Any(row =>
-                    string.Equals(Convert.ToString(row["PART"])?.Trim(), selected, StringComparison.OrdinalIgnoreCase)))
-                return selected;
-
-            return typed;
-        }
-
-        private static string NormalizeLookupCode(string value)
-        {
-            return (value ?? string.Empty).Replace("-", string.Empty)
-                .Replace(" ", string.Empty).Trim().ToUpperInvariant();
+            grid.Dock = DockStyle.Fill;
+            grid.MainView = view;
+            grid.ViewCollection.Add(view);
+            view.OptionsBehavior.Editable = false;
+            view.OptionsSelection.EnableAppearanceFocusedCell = false;
+            view.FocusRectStyle = DrawFocusRectStyle.RowFocus;
+            view.OptionsView.ShowGroupPanel = false;
+            view.OptionsView.ShowAutoFilterRow = true;
+            view.OptionsView.ColumnAutoWidth = false;
         }
 
         private static void AddField(TableLayoutPanel layout, int col, int row, string caption, Control editor, int span = 1)
@@ -477,56 +413,158 @@ namespace PCTP
             if (span > 1) layout.SetColumnSpan(editor, span);
         }
 
-        private void PreviewLot()
+        private void SearchLots()
         {
-            string item = GetCurrentItemCode();
-            string lot = (_lot.Text ?? string.Empty).Trim();
-            _hasPreview = false;
-            _apply.Enabled = false;
-            if (item.Length == 0 || lot.Length == 0)
+            string raw = (_lookupKey.Text ?? string.Empty).Trim();
+            if (raw.Length == 0)
             {
-                XtraMessageBox.Show(this, "Phải nhập cả ItemCode và LOT.", Text);
+                XtraMessageBox.Show(this, "Nhập mã hàng, LOT hoặc quét QR trước khi tra cứu.", Text);
+                _lookupKey.Focus();
                 return;
             }
 
             try
             {
-                var stock = _stockTp.GetByLot(lot);
-                if (stock == null)
-                    throw new InvalidOperationException("Không tìm thấy LOT trong STOCKTP.");
-                if (!string.Equals((stock.Part ?? string.Empty).Trim(), item, StringComparison.OrdinalIgnoreCase))
-                    throw new InvalidOperationException("ItemCode không khớp PART trong STOCKTP.");
+                string itemKey = null;
+                string lotKey = null;
+                string[] qrParts = raw.Split(':');
+                if (qrParts.Length == 4 || qrParts.Length >= 6)
+                {
+                    lotKey = qrParts[0].Trim();
+                    itemKey = qrParts[1].Replace(" ", string.Empty).Trim();
+                }
 
-                var rows = _slotRepo.GetAllActiveSlotLots()
-                    .Where(x => LotCodeHelper.AreLotKeysEquivalent((x.LotNo ?? string.Empty).Trim(), lot))
-                    .ToList();
-                var otherItem = rows.FirstOrDefault(x => !string.Equals((x.ItemCode ?? string.Empty).Trim(), item, StringComparison.OrdinalIgnoreCase));
-                if (otherItem != null)
-                    throw new InvalidOperationException("LOT đang có SlotLot thuộc ItemCode khác tại Slot " + otherItem.SlotId + ".");
+                DataTable stockRows = _stockTp.GetAllLotsForAdjustment();
+                _activeSlotLots = _slotRepo.GetAllActiveSlotLots();
+                _searchResults = new DataTable();
+                _searchResults.Columns.Add("LOT", typeof(string));
+                _searchResults.Columns.Add("ItemCode", typeof(string));
+                _searchResults.Columns.Add("TenHang", typeof(string));
+                _searchResults.Columns.Add("STOCKTP", typeof(int));
+                _searchResults.Columns.Add("TongSlotLot", typeof(int));
+                _searchResults.Columns.Add("ChenhLech", typeof(int));
+                _searchResults.Columns.Add("SoSlot", typeof(int));
+                _searchResults.Columns.Add("ViTri", typeof(string));
 
-                _stockBefore = stock.SlConLai ?? 0;
-                _slotBefore = rows.Where(x => string.Equals((x.ItemCode ?? string.Empty).Trim(), item, StringComparison.OrdinalIgnoreCase)).Sum(x => x.Quantity);
-                _target.Value = _stockBefore;
-                _summary.Text = string.Format(
-                    "STOCKTP hiện tại: {0:n0}\r\nTổng SlotLot khả dụng: {1:n0}\r\nChênh lệch hiện tại (STOCKTP - SlotLot): {2:+#;-#;0}\r\n\r\nKhi xác nhận: hệ thống sẽ đưa cả hai về số lượng đích; nếu cần giảm SlotLot sẽ trừ FIFO qua các Slot. Nếu cần tăng SlotLot, mặc định thêm vào A0 khi không chọn Slot nhận.",
-                    _stockBefore, _slotBefore, _stockBefore - _slotBefore);
-                _hasPreview = true;
-                _apply.Enabled = true;
+                foreach (DataRow stock in stockRows.Rows)
+                {
+                    string lot = Convert.ToString(stock["LOT"])?.Trim() ?? string.Empty;
+                    string item = Convert.ToString(stock["PART"])?.Trim() ?? string.Empty;
+                    string name = Convert.ToString(stock["NAME"]) ?? string.Empty;
+                    bool match;
+
+                    if (lotKey != null)
+                    {
+                        match = string.Equals(item, itemKey, StringComparison.OrdinalIgnoreCase)
+                            && LotCodeHelper.AreLotKeysEquivalent(lot, lotKey);
+                    }
+                    else
+                    {
+                        match = item.IndexOf(raw, StringComparison.OrdinalIgnoreCase) >= 0
+                            || lot.IndexOf(raw, StringComparison.OrdinalIgnoreCase) >= 0
+                            || LotCodeHelper.AreLotKeysEquivalent(lot, raw);
+                    }
+                    if (!match) continue;
+
+                    var locations = _activeSlotLots
+                        .Where(x => LotCodeHelper.AreLotKeysEquivalent((x.LotNo ?? string.Empty).Trim(), lot))
+                        .ToList();
+                    int slotQty = locations.Where(x => string.Equals((x.ItemCode ?? string.Empty).Trim(), item, StringComparison.OrdinalIgnoreCase)).Sum(x => x.Quantity);
+                    string locationText = string.Join(", ", locations.Select(x =>
+                        string.Format("{0}/{1}/{2} (SlotId:{3})", x.WarehouseName, x.RackName, x.SlotNumber, x.SlotId)).Distinct());
+                    _searchResults.Rows.Add(lot, item, name, Convert.ToInt32(stock["SLCONLAI"]),
+                        slotQty, Convert.ToInt32(stock["SLCONLAI"]) - slotQty,
+                        locations.Select(x => x.SlotId).Distinct().Count(), locationText);
+                }
+
+                _lotGrid.DataSource = _searchResults;
+                _lotView.PopulateColumns();
+                _lotView.Columns["LOT"].Caption = "LOT";
+                _lotView.Columns["ItemCode"].Caption = "Mã hàng";
+                _lotView.Columns["TenHang"].Caption = "Tên hàng";
+                _lotView.Columns["STOCKTP"].Caption = "Tồn STOCKTP";
+                _lotView.Columns["TongSlotLot"].Caption = "Tổng SlotLot";
+                _lotView.Columns["ChenhLech"].Caption = "Chênh lệch";
+                _lotView.Columns["SoSlot"].Caption = "Số Slot";
+                _lotView.Columns["ViTri"].Caption = "Các vị trí";
+                _lotView.BestFitColumns();
+
+                _hasPreview = false;
+                _apply.Enabled = false;
+                _slotGrid.DataSource = null;
+                _selectedLot = null;
+                _selectedItemCode = null;
+                _selectedLotLabel.Text = string.Empty;
+                _selectedItemLabel.Text = string.Empty;
+
+                if (_searchResults.Rows.Count == 0)
+                {
+                    _summary.Text = "Không tìm thấy LOT phù hợp trong STOCKTP.";
+                    return;
+                }
+
+                _lotView.FocusedRowHandle = 0;
+                LoadSelectedLot();
+                _summary.Text = "Tìm thấy " + _searchResults.Rows.Count + " LOT. Chọn LOT cụ thể để xem các SlotLot và điều chỉnh.";
             }
             catch (Exception ex)
             {
-                _summary.Text = "Không thể đối soát LOT: " + ex.Message;
+                _summary.Text = "Tra cứu thất bại: " + ex.Message;
                 XtraMessageBox.Show(this, _summary.Text, Text, MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
         }
 
+        private void LoadSelectedLot()
+        {
+            if (_lotView.FocusedRowHandle < 0) return;
+            DataRow row = _lotView.GetDataRow(_lotView.FocusedRowHandle);
+            if (row == null) return;
+
+            _selectedLot = Convert.ToString(row["LOT"])?.Trim();
+            _selectedItemCode = Convert.ToString(row["ItemCode"])?.Trim();
+            _stockBefore = Convert.ToInt32(row["STOCKTP"]);
+            _slotBefore = Convert.ToInt32(row["TongSlotLot"]);
+            _selectedLotLabel.Text = _selectedLot;
+            _selectedItemLabel.Text = _selectedItemCode;
+            _target.Value = _stockBefore;
+
+            var details = (_activeSlotLots ?? new List<PCTP.Modules.KhoCore.Models.SlotLotViewInfo>())
+                .Where(x => LotCodeHelper.AreLotKeysEquivalent((x.LotNo ?? string.Empty).Trim(), _selectedLot))
+                .Where(x => string.Equals((x.ItemCode ?? string.Empty).Trim(), _selectedItemCode, StringComparison.OrdinalIgnoreCase))
+                .Select(x => new
+                {
+                    x.LotNo, x.ItemCode, x.WarehouseName, x.RackName, x.SlotNumber,
+                    x.SlotId, x.SlotLotId, x.Quantity, x.TemCode
+                }).ToList();
+
+            _slotGrid.DataSource = details;
+            _slotView.PopulateColumns();
+            if (_slotView.Columns["LotNo"] != null) _slotView.Columns["LotNo"].Caption = "LOT";
+            if (_slotView.Columns["ItemCode"] != null) _slotView.Columns["ItemCode"].Caption = "Mã hàng";
+            if (_slotView.Columns["WarehouseName"] != null) _slotView.Columns["WarehouseName"].Caption = "Kho";
+            if (_slotView.Columns["RackName"] != null) _slotView.Columns["RackName"].Caption = "Kệ";
+            if (_slotView.Columns["SlotNumber"] != null) _slotView.Columns["SlotNumber"].Caption = "Ô";
+            if (_slotView.Columns["SlotId"] != null) _slotView.Columns["SlotId"].Caption = "SlotId";
+            if (_slotView.Columns["SlotLotId"] != null) _slotView.Columns["SlotLotId"].Caption = "SlotLotId";
+            if (_slotView.Columns["Quantity"] != null) _slotView.Columns["Quantity"].Caption = "Số lượng";
+            if (_slotView.Columns["TemCode"] != null) _slotView.Columns["TemCode"].Caption = "Mã tem";
+            _slotView.BestFitColumns();
+
+            _summary.Text = string.Format(
+                "LOT {0} / Mã hàng {1} — STOCKTP: {2:n0}; tổng SlotLot: {3:n0}; chênh lệch: {4:+#;-#;0}.",
+                _selectedLot, _selectedItemCode, _stockBefore, _slotBefore, _stockBefore - _slotBefore);
+            _hasPreview = true;
+            _apply.Enabled = true;
+        }
+
         private void ApplyAdjustment()
         {
-            if (!_hasPreview)
+            if (!_hasPreview || string.IsNullOrWhiteSpace(_selectedLot) || string.IsNullOrWhiteSpace(_selectedItemCode))
             {
-                XtraMessageBox.Show(this, "Hãy đối soát LOT trước khi điều chỉnh.", Text);
+                XtraMessageBox.Show(this, "Hãy tra cứu và chọn một LOT cụ thể trước khi điều chỉnh.", Text);
                 return;
             }
+
             string reason = (_reason.Text ?? string.Empty).Trim();
             if (reason.Length == 0)
             {
@@ -534,12 +572,12 @@ namespace PCTP
                 _reason.Focus();
                 return;
             }
+
             int? destination = null;
             string destinationText = (_destinationSlot.Text ?? string.Empty).Trim();
             if (destinationText.Length > 0)
             {
-                int parsed;
-                if (!int.TryParse(destinationText, out parsed) || parsed <= 0)
+                if (!int.TryParse(destinationText, out int parsed) || parsed <= 0)
                 {
                     XtraMessageBox.Show(this, "Slot nhận phải là SlotId nguyên dương; để trống nếu dùng A0.", Text);
                     return;
@@ -549,8 +587,8 @@ namespace PCTP
 
             int target = Convert.ToInt32(_target.Value);
             string prompt = string.Format(
-                "CƠ SỞ DỮ LIỆU ĐÍCH: {5}\r\n\r\nXác nhận đưa LOT [{0}] / Item [{1}] về số lượng đích {2:n0}?\r\nSTOCKTP: {3:n0} → {2:n0}\r\nSlotLot: {4:n0} → {2:n0}\r\n\r\nĐây là thao tác ghi dữ liệu trên cơ sở dữ liệu đang cấu hình. Hệ thống sẽ ghi lịch sử và rollback toàn bộ nếu invariant không đạt.",
-                _lot.Text.Trim(), GetCurrentItemCode(), target, _stockBefore, _slotBefore, _databaseTarget);
+                "CƠ SỞ DỮ LIỆU ĐÍCH: {5}\r\n\r\nXác nhận điều chỉnh LOT [{0}] / Item [{1}] về số lượng đích {2:n0}?\r\nSTOCKTP: {3:n0} → {2:n0}\r\nSlotLot: {4:n0} → {2:n0}\r\n\r\nHệ thống sẽ ghi lịch sử và rollback toàn bộ nếu invariant không đạt.",
+                _selectedLot, _selectedItemCode, target, _stockBefore, _slotBefore, _databaseTarget);
             if (XtraMessageBox.Show(this, prompt, Text, MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes)
                 return;
 
@@ -559,13 +597,15 @@ namespace PCTP
             {
                 _uow.Begin();
                 _adjustmentRepo.AdjustLotToTarget(
-                    (Convert.ToString(_item.EditValue) ?? _item.Text).Trim(), _lot.Text.Trim(), target, destination,
+                    _selectedItemCode, _selectedLot, target, destination,
                     reason, Environment.UserName, _requestId);
                 _uow.Commit();
-                XtraMessageBox.Show(this, "Đã điều chỉnh LOT và xác minh STOCKTP = tổng SlotLot = " + target.ToString("n0") + ".", Text, MessageBoxButtons.OK, MessageBoxIcon.Information);
+                XtraMessageBox.Show(this,
+                    "Đã điều chỉnh LOT và xác minh STOCKTP = tổng SlotLot = " + target.ToString("n0") + ".",
+                    Text, MessageBoxButtons.OK, MessageBoxIcon.Information);
                 _requestId = Guid.NewGuid();
                 _reason.Text = string.Empty;
-                PreviewLot();
+                SearchLots();
             }
             catch (Exception ex)
             {
@@ -578,4 +618,5 @@ namespace PCTP
             }
         }
     }
+}
 }
