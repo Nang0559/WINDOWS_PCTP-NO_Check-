@@ -30,6 +30,7 @@ namespace PCTP.Modules.XuatKho
         private readonly LabelControl _lblStock = new LabelControl();
         private readonly SimpleButton _btnSearch = new SimpleButton();
         private readonly SimpleButton _btnTransfer = new SimpleButton();
+        private readonly SimpleButton _btnInternalStock = new SimpleButton();
         private List<SlotLotViewInfo> _sourceRows = new List<SlotLotViewInfo>();
 
         public FormChuyenHangNoiBo()
@@ -89,6 +90,10 @@ namespace PCTP.Modules.XuatKho
             _lblStock.AutoSize = true;
             footer.Controls.Add(_btnSearch);
             footer.Controls.Add(_btnTransfer);
+            _btnInternalStock.Text = "Xem tồn nội bộ";
+            _btnInternalStock.Width = 130;
+            _btnInternalStock.Click += (s, e) => ShowInternalStock();
+            footer.Controls.Add(_btnInternalStock);
             footer.Controls.Add(_lblStock);
             layout.Controls.Add(footer, 0, 5);
             layout.SetColumnSpan(footer, 2);
@@ -131,6 +136,19 @@ namespace PCTP.Modules.XuatKho
             catch (Exception ex)
             {
                 XtraMessageBox.Show(this, "Không thể tra cứu LOT: " + ex.Message, Text);
+            }
+        }
+
+        private void ShowInternalStock()
+        {
+            try
+            {
+                _grid.SetTable(_transferRepository.GetInternalStock((_txtLot.Text ?? string.Empty).Trim()));
+                _lblStock.Text = "Tồn tại vị trí nội bộ (lọc theo LOT nếu đã nhập).";
+            }
+            catch (Exception ex)
+            {
+                XtraMessageBox.Show(this, "Không thể đọc tồn nội bộ: " + ex.Message, Text);
             }
         }
 
@@ -198,6 +216,7 @@ namespace PCTP.Modules.XuatKho
                 get { return _view.CurrentRow == null ? null : _view.CurrentRow.DataBoundItem as SlotLotViewInfo; }
             }
             public void SetRows(List<SlotLotViewInfo> rows) { _view.DataSource = null; _view.DataSource = rows; }
+            public void SetTable(System.Data.DataTable table) { _view.DataSource = null; _view.DataSource = table; }
         }
     }
 }
