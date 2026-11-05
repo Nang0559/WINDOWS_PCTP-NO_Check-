@@ -151,7 +151,19 @@ namespace PCTP.Presentation.Presenters
         private void OnInPhieu(object sender, EventArgs e)
         {
             int hinhThucIn = 0; if (!_c.Cfg.Delivery.CoGear && !_c.Cfg.Delivery.LoadTuBangRieng && _c.GioXuatHienTai.Ma != "#") { hinhThucIn = _v.ShowChonHinhThucIn(); if (hinhThucIn == -1) return; }
-            _c.RunWithLoadingSync(() => { if (_c.Cfg.Delivery.CoGear) { _c.YmvnView.ShowReportYMVN(_c.InPhieuSvc.BuildReportDataYMVN(_v.GetDonHangTable(), _c.YmvnView.GetCheckedGioXuat())); return; } if (_c.Cfg.Delivery.LoadTuBangRieng) { DataTable d = _c.InPhieuSvc.BuildReportDataTuBangRieng(_v.GetDonHangTable(), _v.GetAddressTable(), _v.SelectedDate.ToString("ddMMyyyy", System.Globalization.CultureInfo.InvariantCulture)); _v.ShowReportWithGioHeader(d, _c.Cfg.Delivery.LoadTheoNgay ? "PO No" : "Giờ"); return; } if (_c.GioXuatHienTai.Ma == "#") { _v.ShowReport(_c.InPhieuSvc.BuildReportDataGiaoDB(_v.GetDonHangTable())); return; } _v.ShowReport(_c.InPhieuSvc.BuildReportData(_v.SelectedDate.ToString("ddMMyyyy", System.Globalization.CultureInfo.InvariantCulture), _c.GioXuatHienTai.Ma, _c.GioXuatHienTai.MoTa, _c.GetNhaMay(), _c.AddNM, hinhThucIn, _v.GetAddressTable())); }, "Đang khởi tạo biểu mẫu in...");
+            // Preview là dialog modal (ShowPreviewDialog chặn tới khi đóng) nên KHÔNG được mở bên trong RunWithLoadingSync:
+            // wait form "Đang khởi tạo biểu mẫu in..." chỉ đóng ở finally => treo trên phiếu. Dựng dữ liệu trong loading, mở preview sau.
+            Action showReport = null;
+            _c.RunWithLoadingSync(() =>
+            {
+                string ngayDdMMyyyy = _v.SelectedDate.ToString("ddMMyyyy", System.Globalization.CultureInfo.InvariantCulture);
+                if (_c.Cfg.Delivery.CoGear) { DataTable d = _c.InPhieuSvc.BuildReportDataYMVN(_v.GetDonHangTable(), _c.YmvnView.GetCheckedGioXuat()); showReport = () => _c.YmvnView.ShowReportYMVN(d); return; }
+                if (_c.Cfg.Delivery.LoadTuBangRieng) { DataTable d = _c.InPhieuSvc.BuildReportDataTuBangRieng(_v.GetDonHangTable(), _v.GetAddressTable(), ngayDdMMyyyy); string cot = _c.Cfg.Delivery.LoadTheoNgay ? "PO No" : "Giờ"; showReport = () => _v.ShowReportWithGioHeader(d, cot); return; }
+                if (_c.GioXuatHienTai.Ma == "#") { DataTable d = _c.InPhieuSvc.BuildReportDataGiaoDB(_v.GetDonHangTable()); showReport = () => _v.ShowReport(d); return; }
+                DataTable r = _c.InPhieuSvc.BuildReportData(ngayDdMMyyyy, _c.GioXuatHienTai.Ma, _c.GioXuatHienTai.MoTa, _c.GetNhaMay(), _c.AddNM, hinhThucIn, _v.GetAddressTable());
+                showReport = () => _v.ShowReport(r);
+            }, "Đang khởi tạo biểu mẫu in...");
+            if (showReport != null) showReport();
         }
         private void OnInGhepLot(object sender, EventArgs e) { var selectedRows = _v.GetSelectedGhepLotRows(); DataTable reportData = null; _c.RunWithLoadingSync(() => reportData = _c.InPhieuSvc.InGhepLot(selectedRows.Any() ? selectedRows : null, Environment.MachineName), "Đang tổng hợp dữ liệu ghép LOT..."); if (reportData != null) new ReportPrintTool(new GHEPLOT { DataSource = reportData }).ShowPreviewDialog(); }
         private void OnInTachLot(object sender, EventArgs e) => _v.ShowTachLot();
