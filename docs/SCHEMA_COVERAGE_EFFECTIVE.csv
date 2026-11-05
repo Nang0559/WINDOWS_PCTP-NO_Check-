@@ -37,6 +37,10 @@ inspectionlog,table,có,,InspectionLogRepository.cs; QualityHistoryRepository.cs
 luudocqrcode,table,có,,DeliveryTraceRepository.cs; GIAOHANGYMN.cs; PhieuKhoRepository.cs,INTO/JOIN,có,"SQL/QC_Schema/01_Tables.sql, SQL/QC_Schema/02_Generated_From_DB57.sql",có,có,OK-testable
 luuphieugiaohang,table,có,,DeliveryTraceRepository.cs; GIAOHANGYMN.cs; MainAppDashboardController.cs; PhieuGiaoRepository.cs; PhieuKhoRepository.cs; PhieuLuuTruRepository.cs; SqlRepository.cs; TableOrderRepo.cs,FROM/INTO/UPDATE,có,"SQL/QC_Schema/01_Tables.sql, SQL/QC_Schema/02_Generated_From_DB57.sql",có,có,OK-testable
 purchase_order_htn,table,không thấy literal SQL,,,,có,SQL/QC_Schema/02_Generated_From_DB57.sql,có,có,OK-testable
+pctp_internallocation,table,có,,InternalTransferRepository.cs; InternalTransferRecallRepository.cs,FROM/INTO,có,SQL/PCTP_InternalTransfer.sql,có,không,PENDING-DB57-MIGRATION
+pctp_internalreturn,table,có,,InternalTransferRecallRepository.cs,FROM/INTO/UPDATE,có,SQL/PCTP_InternalTransfer.sql,có,không,PENDING-DB57-MIGRATION
+pctp_internalstock,table,có,,InternalTransferRepository.cs; InternalTransferRecallRepository.cs,FROM/INTO/UPDATE,có,SQL/PCTP_InternalTransfer.sql,có,không,PENDING-DB57-MIGRATION
+pctp_internaltransfer,table,có,,InternalTransferRepository.cs; InternalTransferRecallRepository.cs,FROM/INTO/UPDATE,có,SQL/PCTP_InternalTransfer.sql,có,không,PENDING-DB57-MIGRATION
 purchase_order_ymvn,table,có,,GIAOHANGYMN.cs; GioXuatRepository.cs; TableOrderRepo.cs,FROM/INTO,có,SQL/QC_Schema/02_Generated_From_DB57.sql,có,có,OK-testable
 qrcode_changetime,table,có,,GioXuatRepository.cs; UF_CHANGETIME.cs,FROM/UPDATE,có,SQL/QC_Schema/02_Generated_From_DB57.sql,có,có,OK-testable
 rack,table,có,slot,BulkStockSlotRepository.cs; CheckInfor.cs; LotLocationRepository.cs; NhapKhoDashboardRepository.cs; PhieuTrackingReadRepository.cs; PhieuTrackingRepository.cs; RackRepository.cs; SlotRepository.cs; WarehouseRepository.cs,DELETE/FROM/INTO/JOIN/UPDATE,có,"SQL/QC_Schema/01_Tables.sql, SQL/QC_Schema/02_Generated_From_DB57.sql",có,có,OK-testable
