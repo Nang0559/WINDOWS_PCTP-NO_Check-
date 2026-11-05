@@ -5,6 +5,13 @@ using PCTP.Modules.BaoCao.UI;
 using PCTP.Modules.GiaoHangKhach.SubForm;
 using System;
 using System.Windows.Forms;
+using System.Linq;
+using PCTP.ClassSQL;
+using PCTP.Modules.GiaoHangKhach;
+using PCTP.Modules.KhoVatLy.Repositories;
+using PCTP.Modules.KhoCore.Repositories;
+using PCTP.Modules.NhapKho.Repository;
+using PCTP.Shared.Common;
 
 namespace PCTP
 {
@@ -60,6 +67,11 @@ namespace PCTP
 
             _menuKhoTonTP = CreateMenuItem("menuKhoTonTP", "Tồn kho thành phẩm", OpenTonKhoThanhPham);
             _menuKho.Elements.Add(_menuKhoTonTP);
+
+            _menuKho.Elements.Add(CreateMenuItem(
+                "menuDieuChinhTonKhoLot",
+                "Điều chỉnh tồn kho LOT",
+                OpenDieuChinhTonKhoLot));
 
             // ── 3. Xử lý LOT ───────────────────────────────────────────
             // Tách LOT là luồng nghiệp vụ; form tự chọn mẫu in Ghép LOT theo CustomerCode.
@@ -188,6 +200,219 @@ namespace PCTP
         {
             // lotFilter rỗng → chế độ xem "Tồn kho hiện tại" (không phải điều chỉnh 1 LOT).
             OpenFromMenu(() => TONKHOTP.ShowForLot(this, string.Empty), "Tồn kho thành phẩm");
+        }
+
+        private void OpenDieuChinhTonKhoLot(object sender, EventArgs e)
+        {
+            OpenFromMenu(() =>
+            {
+                using (var form = new FormDieuChinhTonKhoLot())
+                    form.ShowDialog(this);
+            }, "Điều chỉnh tồn kho LOT");
+        }
+    }
+
+    /// <summary>
+    /// Màn hình điều chỉnh số lượng đích của một ItemCode + LOT.
+    /// STOCKTP là số chuẩn; toàn bộ SlotLot đang hoạt động được cân đối trong một transaction.
+    /// </summary>
+    public sealed class FormDieuChinhTonKhoLot : XtraForm
+    {
+        private readonly UnitOfWork _uow;
+        private readonly StockTpRepository _stockTp;
+        private readonly SlotRepository _slotRepo;
+        private readonly BulkStockSlotRepository _adjustmentRepo;
+        private readonly TextEdit _item = new TextEdit();
+        private readonly TextEdit _lot = new TextEdit();
+        private readonly TextEdit _destinationSlot = new TextEdit();
+        private readonly SpinEdit _target = new SpinEdit();
+        private readonly MemoEdit _reason = new MemoEdit();
+        private readonly LabelControl _summary = new LabelControl();
+        private readonly SimpleButton _preview = new SimpleButton();
+        private readonly SimpleButton _apply = new SimpleButton();
+        private Guid _requestId = Guid.NewGuid();
+        private int _stockBefore;
+        private int _slotBefore;
+        private bool _hasPreview;
+
+        public FormDieuChinhTonKhoLot()
+        {
+            Text = "Điều chỉnh tồn kho LOT";
+            Width = 920;
+            Height = 510;
+            MinimumSize = new System.Drawing.Size(780, 430);
+            StartPosition = FormStartPosition.CenterParent;
+
+            var provider = new SQLPROVIDER();
+            var db = new PhieuSqlExecutor(provider);
+            _uow = new UnitOfWork(provider);
+            _stockTp = new StockTpRepository(db, _uow);
+            _slotRepo = new SlotRepository(db, _uow);
+            _adjustmentRepo = new BulkStockSlotRepository(db, _uow);
+
+            BuildUi();
+            FormClosed += (s, e) => _uow.Dispose();
+        }
+
+        private void BuildUi()
+        {
+            var root = new TableLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(12), ColumnCount = 1, RowCount = 3 };
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 190));
+            root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 52));
+            Controls.Add(root);
+
+            var group = new GroupControl { Text = "Thông tin LOT và số lượng đích", Dock = DockStyle.Fill };
+            var fields = new TableLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(8), ColumnCount = 4, RowCount = 4 };
+            fields.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 110));
+            fields.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+            fields.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 125));
+            fields.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+            for (int i = 0; i < 4; i++) fields.RowStyles.Add(new RowStyle(SizeType.Absolute, i == 3 ? 54 : 36));
+            AddField(fields, 0, 0, "Mã hàng", _item);
+            AddField(fields, 2, 0, "LOT", _lot);
+            AddField(fields, 0, 1, "Số lượng đích", _target);
+            AddField(fields, 2, 1, "Slot nhận thêm", _destinationSlot);
+            AddField(fields, 0, 2, "Lý do", _reason, 3);
+            _item.Properties.NullValuePrompt = "ItemCode trong STOCKTP";
+            _lot.Properties.NullValuePrompt = "Nhập chính xác LOT";
+            _destinationSlot.Properties.NullValuePrompt = "Để trống = A0 mặc định";
+            _target.Properties.MinValue = 0;
+            _target.Properties.MaxValue = int.MaxValue;
+            _target.Properties.IsFloatValue = false;
+            _reason.Properties.NullValuePrompt = "Bắt buộc nhập lý do điều chỉnh";
+            _reason.Properties.NullValuePromptShowForEmptyValue = true;
+            group.Controls.Add(fields);
+            root.Controls.Add(group, 0, 0);
+
+            _summary.Dock = DockStyle.Fill;
+            _summary.AutoSizeMode = LabelAutoSizeMode.None;
+            _summary.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
+            _summary.Appearance.TextOptions.WordWrap = DevExpress.Utils.WordWrap.Wrap;
+            root.Controls.Add(_summary, 0, 1);
+
+            var footer = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight, Padding = new Padding(2) };
+            _preview.Text = "Đối soát LOT";
+            _preview.Width = 140;
+            _preview.Click += (s, e) => PreviewLot();
+            _apply.Text = "Xác nhận điều chỉnh";
+            _apply.Width = 170;
+            _apply.Enabled = false;
+            _apply.Click += (s, e) => ApplyAdjustment();
+            footer.Controls.Add(_preview);
+            footer.Controls.Add(_apply);
+            root.Controls.Add(footer, 0, 2);
+        }
+
+        private static void AddField(TableLayoutPanel layout, int col, int row, string caption, Control editor, int span = 1)
+        {
+            var label = new LabelControl { Text = caption, Dock = DockStyle.Fill, AutoSizeMode = LabelAutoSizeMode.None };
+            label.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
+            editor.Dock = DockStyle.Fill;
+            layout.Controls.Add(label, col, row);
+            layout.Controls.Add(editor, col + 1, row);
+            if (span > 1) layout.SetColumnSpan(editor, span);
+        }
+
+        private void PreviewLot()
+        {
+            string item = (_item.Text ?? string.Empty).Trim();
+            string lot = (_lot.Text ?? string.Empty).Trim();
+            _hasPreview = false;
+            _apply.Enabled = false;
+            if (item.Length == 0 || lot.Length == 0)
+            {
+                XtraMessageBox.Show(this, "Phải nhập cả ItemCode và LOT.", Text);
+                return;
+            }
+
+            try
+            {
+                var stock = _stockTp.GetByLot(lot);
+                if (stock == null)
+                    throw new InvalidOperationException("Không tìm thấy LOT trong STOCKTP.");
+                if (!string.Equals((stock.Part ?? string.Empty).Trim(), item, StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidOperationException("ItemCode không khớp PART trong STOCKTP.");
+
+                var rows = _slotRepo.GetAllActiveSlotLots()
+                    .Where(x => string.Equals((x.LotNo ?? string.Empty).Trim(), lot, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+                var otherItem = rows.FirstOrDefault(x => !string.Equals((x.ItemCode ?? string.Empty).Trim(), item, StringComparison.OrdinalIgnoreCase));
+                if (otherItem != null)
+                    throw new InvalidOperationException("LOT đang có SlotLot thuộc ItemCode khác tại Slot " + otherItem.SlotId + ".");
+
+                _stockBefore = stock.SlConLai ?? 0;
+                _slotBefore = rows.Where(x => string.Equals((x.ItemCode ?? string.Empty).Trim(), item, StringComparison.OrdinalIgnoreCase)).Sum(x => x.Quantity);
+                _target.Value = _stockBefore;
+                _summary.Text = string.Format(
+                    "STOCKTP hiện tại: {0:n0}\r\nTổng SlotLot khả dụng: {1:n0}\r\nChênh lệch hiện tại (STOCKTP - SlotLot): {2:+#;-#;0}\r\n\r\nKhi xác nhận: hệ thống sẽ đưa cả hai về số lượng đích; nếu cần giảm SlotLot sẽ trừ FIFO qua các Slot. Nếu cần tăng SlotLot, mặc định thêm vào A0 khi không chọn Slot nhận.",
+                    _stockBefore, _slotBefore, _stockBefore - _slotBefore);
+                _hasPreview = true;
+                _apply.Enabled = true;
+            }
+            catch (Exception ex)
+            {
+                _summary.Text = "Không thể đối soát LOT: " + ex.Message;
+                XtraMessageBox.Show(this, _summary.Text, Text, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        }
+
+        private void ApplyAdjustment()
+        {
+            if (!_hasPreview)
+            {
+                XtraMessageBox.Show(this, "Hãy đối soát LOT trước khi điều chỉnh.", Text);
+                return;
+            }
+            string reason = (_reason.Text ?? string.Empty).Trim();
+            if (reason.Length == 0)
+            {
+                XtraMessageBox.Show(this, "Phải nhập lý do điều chỉnh.", Text);
+                _reason.Focus();
+                return;
+            }
+            int? destination = null;
+            string destinationText = (_destinationSlot.Text ?? string.Empty).Trim();
+            if (destinationText.Length > 0)
+            {
+                int parsed;
+                if (!int.TryParse(destinationText, out parsed) || parsed <= 0)
+                {
+                    XtraMessageBox.Show(this, "Slot nhận phải là SlotId nguyên dương; để trống nếu dùng A0.", Text);
+                    return;
+                }
+                destination = parsed;
+            }
+
+            int target = Convert.ToInt32(_target.Value);
+            string prompt = string.Format(
+                "Xác nhận đưa LOT [{0}] / Item [{1}] về số lượng đích {2:n0}?\r\nSTOCKTP: {3:n0} → {2:n0}\r\nSlotLot: {4:n0} → {2:n0}\r\n\r\nThao tác sẽ ghi lịch sử và rollback toàn bộ nếu invariant không đạt.",
+                _lot.Text.Trim(), _item.Text.Trim(), target, _stockBefore, _slotBefore);
+            if (XtraMessageBox.Show(this, prompt, Text, MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes)
+                return;
+
+            _apply.Enabled = false;
+            try
+            {
+                _uow.Begin();
+                _adjustmentRepo.AdjustLotToTarget(
+                    _item.Text.Trim(), _lot.Text.Trim(), target, destination,
+                    reason, Environment.UserName, _requestId);
+                _uow.Commit();
+                XtraMessageBox.Show(this, "Đã điều chỉnh LOT và xác minh STOCKTP = tổng SlotLot = " + target.ToString("n0") + ".", Text, MessageBoxButtons.OK, MessageBoxIcon.Information);
+                _requestId = Guid.NewGuid();
+                _reason.Text = string.Empty;
+                PreviewLot();
+            }
+            catch (Exception ex)
+            {
+                try { _uow.Rollback(); } catch { }
+                XtraMessageBox.Show(this,
+                    "Điều chỉnh thất bại; transaction đã được rollback.\r\n\r\n" + ex.Message +
+                    "\r\n\r\nNếu lỗi thiếu bảng PCTPStockLotAdjustmentHistory, hãy chạy SQL/PCTP_StockLotAdjustmentHistory.sql trên DB57 trước khi sử dụng.",
+                    Text, MessageBoxButtons.OK, MessageBoxIcon.Error);
+                _apply.Enabled = _hasPreview;
+            }
         }
     }
 }
