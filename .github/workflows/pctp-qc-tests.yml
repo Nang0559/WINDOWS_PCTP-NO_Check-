@@ -238,6 +238,19 @@ jobs:
           done
           ls -l "$RUNNER_TEMP/deploy"
 
+      - name: Verify internal transfer migration path
+        shell: bash
+        run: |
+          set -euo pipefail
+          migration="$GITHUB_WORKSPACE/SQL/PCTP_InternalTransfer.sql"
+          if [[ ! -f "$migration" ]]; then
+            echo "ERROR: required migration is missing from checkout: $migration"
+            echo "Workspace: $GITHUB_WORKSPACE"
+            find "$GITHUB_WORKSPACE" -maxdepth 3 -iname '*PCTP*Internal*Transfer*.sql' -print
+            exit 1
+          fi
+          echo "PASS: found $migration"
+
       - name: SQL2-driven schema generation and static checks
         shell: bash
         run: |
@@ -271,7 +284,7 @@ jobs:
                     "$RUNNER_TEMP/deploy/Usp_Qrcode_Take_Lot2405.sql" \
                     "$RUNNER_TEMP/deploy/Usp_Qrcode_Take_LotYMVN2405.sql" \
                     SQL/QC_G4_DeliveryFixture_Seed.sql SQL/QC_G4_DeliveryFixture_Cleanup.sql \
-                    SQL/PCTP_InternalTransfer.sql
+                    "$GITHUB_WORKSPACE/SQL/PCTP_InternalTransfer.sql"
           if [ "$coverage_status" -ne 0 ]; then
             echo "ERROR: SQL2 code/schema mismatches remain; generated DDL was checked but deployment is blocked."
             exit "$coverage_status"
@@ -311,7 +324,7 @@ jobs:
             "$RUNNER_TEMP/deploy/Usp_Qrcode_LOAD_PHIEU_DOCQR2405.sql" \
             "$RUNNER_TEMP/deploy/Usp_Qrcode_Take_Lot2405.sql" \
             "$RUNNER_TEMP/deploy/Usp_Qrcode_Take_LotYMVN2405.sql" \
-            SQL/PCTP_InternalTransfer.sql; do
+            "$GITHUB_WORKSPACE/SQL/PCTP_InternalTransfer.sql"; do
             echo "INFO: deploying $f"
             docker cp "$f" "$c:/tmp/$(basename "$f")"
             docker exec "$c" /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'PctpQc_CI_Only_2026!' -C -b -d PCTP_QC_CI -i "/tmp/$(basename "$f")"
