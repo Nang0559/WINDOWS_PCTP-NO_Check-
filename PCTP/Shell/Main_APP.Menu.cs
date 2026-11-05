@@ -47,6 +47,7 @@ namespace PCTP
             accordionControlElement20.Elements.Remove(cmdRackControl);
             accordionControlElement22.Elements.Remove(accordionControlElement36);
             accordionControlElement22.Elements.Add(CreateMenuItem("menuChuyenHangNoiBo", "Chuyển hàng sang vị trí nội bộ", OpenChuyenHangNoiBo));
+            accordionControlElement22.Elements.Add(CreateMenuItem("menuThuHoiHangNoiBo", "Thu hồi hàng từ vị trí nội bộ về kho", OpenThuHoiHangNoiBo));
             accordionControlElement36.Visible = false;
             _menuKho.Elements.Add(cmdRackControl);
 
@@ -164,6 +165,15 @@ namespace PCTP
                 using (var f = new PCTP.Modules.XuatKho.FormChuyenHangNoiBo())
                     f.ShowDialog(this);
             }, "Chuyển hàng sang vị trí nội bộ");
+        }
+
+        private void OpenThuHoiHangNoiBo(object sender, EventArgs e)
+        {
+            OpenFromMenu(() =>
+            {
+                using (var f = new PCTP.Modules.XuatKho.FormThuHoiHangNoiBo())
+                    f.ShowDialog(this);
+            }, "Thu hồi hàng từ vị trí nội bộ về kho");
         }
 
         private void OpenTonKhoThanhPham(object sender, EventArgs e)
