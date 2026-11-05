@@ -77,6 +77,8 @@ OUTER APPLY
     WHERE SlotId = s.SlotId AND PhieuStatus = 0 AND Quantity > 0
 ) x
 WHERE ISNULL(x.HasOtherItem, 0) = 0
+  AND (NULLIF(LTRIM(RTRIM(s.ItemCode)), N'') IS NULL
+       OR UPPER(LTRIM(RTRIM(s.ItemCode))) = UPPER(LTRIM(RTRIM(@ItemCode))))
   AND (ISNULL(s.Capacity, 0) <= 0 OR ISNULL(x.Quantity, 0) < ISNULL(s.Capacity, 0))
 ORDER BY w.Name, r.RackName, s.SlotNumber;";
             return LoadData(sql,
