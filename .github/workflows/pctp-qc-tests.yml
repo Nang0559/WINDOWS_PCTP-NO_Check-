@@ -310,7 +310,7 @@ jobs:
             SQL/sp_GetCurrentStockStatus.sql \
             "$RUNNER_TEMP/deploy/Usp_Qrcode_LOAD_PHIEU_DOCQR2405.sql" \
             "$RUNNER_TEMP/deploy/Usp_Qrcode_Take_Lot2405.sql" \
-            "$RUNNER_TEMP/deploy/Usp_Qrcode_Take_LotYMVN2405.sql" \\
+            "$RUNNER_TEMP/deploy/Usp_Qrcode_Take_LotYMVN2405.sql" \
             SQL/PCTP_InternalTransfer.sql; do
             echo "INFO: deploying $f"
             docker cp "$f" "$c:/tmp/$(basename "$f")"
