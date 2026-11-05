@@ -8,6 +8,7 @@ using PCTP.Modules.BaoCao.UI;
 using PCTP.Modules.GiaoHangKhach.SubForm;
 using System;
 using System.Data;
+using System.Collections.Generic;
 using System.Windows.Forms;
 using System.Linq;
 using PCTP.ClassSQL;
