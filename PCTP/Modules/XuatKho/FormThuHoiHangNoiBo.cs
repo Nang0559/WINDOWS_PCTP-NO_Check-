@@ -9,6 +9,7 @@ using PCTP.Modules.XuLyHangLoi.Application;
 using PCTP.Modules.XuatKho.Repositories;
 using PCTP.Modules.KhoVatLy.Repositories;
 using PCTP.Shared.Common;
+using PCTP.Modules.GiaoHangKhach;
 
 namespace PCTP.Modules.XuatKho
 {

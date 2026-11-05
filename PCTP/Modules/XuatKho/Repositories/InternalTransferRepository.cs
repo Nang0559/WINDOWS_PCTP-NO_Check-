@@ -8,6 +8,7 @@ using PCTP.Modules.KhoCore.Application.Contracts.Stock;
 using PCTP.Modules.KhoVatLy.Application.Interfaces;
 using PCTP.Shared.Common;
 using PCTP.Shared.Models;
+using PCTP.Modules.GiaoHangKhach;
 
 namespace PCTP.Modules.XuatKho.Repositories
 {
