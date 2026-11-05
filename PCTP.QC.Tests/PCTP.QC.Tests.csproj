@@ -17,7 +17,6 @@
     </PackageReference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="../PCTP/Modules/GiaoHangKhach/Services/YmvnPrintHelpers.cs" Link="YmvnPrintHelpers.source.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Update="TestMatrix.json" CopyToOutputDirectory="PreserveNewest" />
