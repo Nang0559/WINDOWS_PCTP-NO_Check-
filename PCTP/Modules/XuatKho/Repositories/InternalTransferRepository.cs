@@ -34,7 +34,8 @@ namespace PCTP.Modules.XuatKho.Repositories
             string destinationName,
             string reason,
             int quantity,
-            string performedBy)
+            string performedBy,
+            Guid requestKey)
         {
             if (uow == null || movement == null || history == null || slotService == null)
                 throw new ArgumentNullException("Thiếu dependency điều chuyển kho.");
@@ -49,7 +50,7 @@ namespace PCTP.Modules.XuatKho.Repositories
             try
             {
                 slotService.LockSlotForUpdate(source.SlotId);
-                int transferId = CreateTransfer(source, destinationName.Trim(), reason.Trim(), quantity, performedBy);
+                int transferId = CreateTransfer(source, destinationName.Trim(), reason.Trim(), quantity, performedBy, requestKey);
                 var result = movement.Export(new StockMovementRequest
                 {
                     MovementType = StockMovementRequest.Types.Export,
@@ -107,7 +108,7 @@ ORDER BY l.LocationName, s.ItemCode, s.LotNo;";
                 new SqlParameter("@LotNo", SqlDbType.NVarChar, 200) { Value = (lotFilter ?? string.Empty).Trim() });
         }
 
-        private int CreateTransfer(SlotLotViewInfo source, string destination, string reason, int quantity, string performedBy)
+        private int CreateTransfer(SlotLotViewInfo source, string destination, string reason, int quantity, string performedBy, Guid requestKey)
         {
             object id = ExecuteScalar(@"
 DECLARE @LocationId int;
@@ -121,10 +122,11 @@ BEGIN
     SET @LocationId = CONVERT(int, SCOPE_IDENTITY());
 END;
 INSERT INTO PCTP_InternalTransfer
-    (LocationId, LotNo, ItemCode, Quantity, SourceSlotId, Reason, PerformedBy, CreatedAt)
+    (RequestKey, LocationId, LotNo, ItemCode, Quantity, SourceSlotId, Reason, PerformedBy, CreatedAt)
 OUTPUT INSERTED.TransferId
 VALUES
-    (@LocationId, @LotNo, @ItemCode, @Quantity, @SourceSlotId, @Reason, @PerformedBy, GETDATE());",
+    (@RequestKey, @LocationId, @LotNo, @ItemCode, @Quantity, @SourceSlotId, @Reason, @PerformedBy, GETDATE());",
+                new SqlParameter("@RequestKey", SqlDbType.UniqueIdentifier) { Value = requestKey },
                 new SqlParameter("@LocationName", SqlDbType.NVarChar, 150) { Value = destination },
                 new SqlParameter("@LotNo", SqlDbType.NVarChar, 200) { Value = source.LotNo },
                 new SqlParameter("@ItemCode", SqlDbType.NVarChar, 100) { Value = source.ItemCode },
