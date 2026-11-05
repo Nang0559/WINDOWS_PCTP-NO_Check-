@@ -265,13 +265,17 @@ namespace PCTP.Infrastructure.Repositories
         {
             if (string.IsNullOrWhiteSpace(order) || string.IsNullOrWhiteSpace(tmpTable)) return false;
             string raw = order.Trim();
-            string noZero = raw.TrimStart('0');          // "01289" is stored as CUA = '1289'
+            string noZero = raw.TrimStart('0');          // "01289" is stored as PO_NO = '1289'
             if (noZero.Length == 0) noZero = "0";
 
+            // Order No on the Yamaha item card is the PO number of the phieu, i.e. column
+            // PO_NO ("So PO" in the grid). CUA/TRUYEN hold the door/route (e.g. GA06) and
+            // are NOT the order number. Compare without leading zeros on both sides so
+            // '01290' (card) matches '1290' (PO_NO) and the other way round.
             object kq = _sql.ExecuteScalar(_sql.B7R2_FCCdb,
-                $"SELECT COUNT(*) FROM {Q(tmpTable)} WHERE RTRIM(CUA) IN (@raw, @noZero)",
+                $"SELECT COUNT(*) FROM {Q(tmpTable)} " +
+                "WHERE SUBSTRING(LTRIM(RTRIM(PO_NO)), PATINDEX('%[^0]%', LTRIM(RTRIM(PO_NO)) + '.'), 100) = @noZero",
                 new SqlParameter[] {
-                    new SqlParameter("@raw", raw),
                     new SqlParameter("@noZero", noZero)
                 });
             return int.TryParse(kq?.ToString(), out int v) && v > 0;
