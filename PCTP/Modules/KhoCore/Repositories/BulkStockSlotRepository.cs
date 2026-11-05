@@ -444,6 +444,15 @@ VALUES
             if (Convert.ToInt32(duplicate) > 0)
                 throw new InvalidOperationException("RequestId này đã được xử lý; không chạy lặp lại.");
 
+            object invalidIdentityRows = ExecuteScalar(
+                @"SELECT COUNT(1) FROM SlotLot WITH (UPDLOCK,HOLDLOCK)
+                  WHERE PhieuStatus=0 AND Quantity>0
+                    AND " + LotCodeHelper.BuildLotMatchSql("LotNo", "@lot") + @"
+                    AND (ItemCode IS NULL OR UPPER(LTRIM(RTRIM(ItemCode)))<>UPPER(@item))",
+                new SqlParameter("@lot", lot), new SqlParameter("@item", item));
+            if (Convert.ToInt32(invalidIdentityRows) > 0)
+                throw new InvalidOperationException("Có SlotLot của LOT này thiếu ItemCode hoặc thuộc mã hàng khác; từ chối điều chỉnh.");
+
             List<BulkSlotLotLocation> locations = FindSlotLotsByLot(lot, -1);
             foreach (BulkSlotLotLocation location in locations)
                 if (!string.Equals(location.ItemCode, item, StringComparison.OrdinalIgnoreCase))
@@ -468,9 +477,10 @@ VALUES
             }
             else if (slotDelta > 0)
             {
-                int targetSlot = destinationSlotId.HasValue && destinationSlotId.Value > 0
-                    ? destinationSlotId.Value
-                    : GetOrCreateVirtualSlotId(BulkImportConfig.WarehouseName, BulkImportConfig.RackName, BulkImportConfig.Capacity);
+                bool useDefaultA0 = !destinationSlotId.HasValue || destinationSlotId.Value <= 0;
+                int targetSlot = useDefaultA0
+                    ? GetOrCreateVirtualSlotId(BulkImportConfig.WarehouseName, BulkImportConfig.RackName, BulkImportConfig.Capacity)
+                    : destinationSlotId.Value;
                 LockSlotForUpdate(targetSlot);
 
                 DataTable slotInfo = LoadData(
@@ -486,7 +496,9 @@ VALUES
                 if (slotInfo.Rows.Count != 1) throw new InvalidOperationException("Không tìm thấy Slot đích " + targetSlot + ".");
                 int capacity = Convert.ToInt32(slotInfo.Rows[0]["Capacity"]);
                 int current = Convert.ToInt32(slotInfo.Rows[0]["CurrentQty"]);
-                if (Convert.ToInt32(slotInfo.Rows[0]["OtherItemCount"]) > 0)
+                // A0 is the shared virtual bulk slot and intentionally contains many ItemCodes.
+                // A manually selected physical Slot remains single-item.
+                if (!useDefaultA0 && Convert.ToInt32(slotInfo.Rows[0]["OtherItemCount"]) > 0)
                     throw new InvalidOperationException("Slot đích đang chứa mã hàng khác.");
                 if ((long)current + slotDelta > capacity)
                     throw new InvalidOperationException("Slot đích không đủ sức chứa.");
