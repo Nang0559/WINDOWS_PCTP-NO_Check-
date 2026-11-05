@@ -278,30 +278,48 @@ namespace PCTP
 
         private void BuildUi()
         {
+            // Form co giãn được; khu vực điều chỉnh luôn có chiều cao tối thiểu để không mất ô Lý do.
+            FormBorderStyle = FormBorderStyle.Sizable;
+            MaximizeBox = true;
+            MinimizeBox = true;
+            MinimumSize = new System.Drawing.Size(1080, 760);
+            AutoScaleMode = AutoScaleMode.Font;
+
             var root = new TableLayoutPanel
             {
-                Dock = DockStyle.Fill, Padding = new Padding(10),
-                ColumnCount = 1, RowCount = 5
+                Dock = DockStyle.Fill,
+                Padding = new Padding(10),
+                ColumnCount = 1,
+                RowCount = 2
             };
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 104));
-            root.RowStyles.Add(new RowStyle(SizeType.Percent, 48));
-            root.RowStyles.Add(new RowStyle(SizeType.Percent, 27));
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 126));
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
+            root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
             Controls.Add(root);
 
-            var searchGroup = new GroupControl { Text = "Tra cứu mã hàng / LOT / QR", Dock = DockStyle.Fill };
+            var searchGroup = new GroupControl
+            {
+                Text = "Tra cứu mã hàng / LOT / QR",
+                Dock = DockStyle.Fill
+            };
             var searchLayout = new TableLayoutPanel
             {
-                Dock = DockStyle.Fill, Padding = new Padding(8),
-                ColumnCount = 3, RowCount = 2
+                Dock = DockStyle.Fill,
+                Padding = new Padding(8),
+                ColumnCount = 3,
+                RowCount = 2
             };
             searchLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 110));
             searchLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
             searchLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 145));
             searchLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 38));
             searchLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-            var keyLabel = new LabelControl { Text = "LookupKey", Dock = DockStyle.Fill, AutoSizeMode = LabelAutoSizeMode.None };
+
+            var keyLabel = new LabelControl
+            {
+                Text = "LookupKey",
+                Dock = DockStyle.Fill,
+                AutoSizeMode = LabelAutoSizeMode.None
+            };
             keyLabel.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
             _lookupKey.Dock = DockStyle.Fill;
             _lookupKey.Properties.NullValuePrompt = "Chọn / nhập mã hàng, nhập LOT hoặc bắn QR 4 / 6 trường";
@@ -337,12 +355,14 @@ namespace PCTP
                     e.SuppressKeyPress = true;
                 }
             };
+
             _search.Text = "Tra cứu";
             _search.Dock = DockStyle.Fill;
             _search.Click += (s, e) => SearchLots();
             searchLayout.Controls.Add(keyLabel, 0, 0);
             searchLayout.Controls.Add(_lookupKey, 1, 0);
             searchLayout.Controls.Add(_search, 2, 0);
+
             var help = new LabelControl
             {
                 Text = "Nhập mã hàng để xem các LOT; nhập LOT để tìm trực tiếp; QR sẽ tự tách LOT và mã hàng. Chọn một LOT ở danh sách bên dưới để điều chỉnh.",
@@ -356,23 +376,77 @@ namespace PCTP
             searchGroup.Controls.Add(searchLayout);
             root.Controls.Add(searchGroup, 0, 0);
 
-            var lotGroup = new GroupControl { Text = "Danh sách LOT tìm được — chọn đúng LOT cần điều chỉnh", Dock = DockStyle.Fill };
+            // Splitter ngoài cho phép kéo thay đổi diện tích khu vực danh sách và khu vực điều chỉnh.
+            var mainSplit = new SplitContainer
+            {
+                Dock = DockStyle.Fill,
+                Orientation = Orientation.Horizontal,
+                FixedPanel = FixedPanel.Panel2,
+                IsSplitterFixed = false,
+                SplitterWidth = 7,
+                Panel1MinSize = 220,
+                Panel2MinSize = 205,
+                SplitterDistance = 390
+            };
+            root.Controls.Add(mainSplit, 0, 1);
+
+            // Splitter trong cho phép kéo tăng/giảm chiều cao bảng LOT và SlotLot.
+            var listSplit = new SplitContainer
+            {
+                Dock = DockStyle.Fill,
+                Orientation = Orientation.Horizontal,
+                IsSplitterFixed = false,
+                SplitterWidth = 6,
+                Panel1MinSize = 120,
+                Panel2MinSize = 90,
+                SplitterDistance = 235
+            };
+            mainSplit.Panel1.Controls.Add(listSplit);
+
+            var lotGroup = new GroupControl
+            {
+                Text = "Danh sách LOT tìm được — chọn đúng LOT cần điều chỉnh",
+                Dock = DockStyle.Fill
+            };
             ConfigureGrid(_lotGrid, _lotView);
             _lotView.FocusedRowChanged += (s, e) => LoadSelectedLot();
             _lotView.RowClick += (s, e) => LoadSelectedLot();
             lotGroup.Controls.Add(_lotGrid);
-            root.Controls.Add(lotGroup, 0, 1);
+            listSplit.Panel1.Controls.Add(lotGroup);
 
-            var slotGroup = new GroupControl { Text = "Vị trí SlotLot đang chứa LOT được chọn", Dock = DockStyle.Fill };
+            var slotGroup = new GroupControl
+            {
+                Text = "Vị trí SlotLot đang chứa LOT được chọn",
+                Dock = DockStyle.Fill
+            };
             ConfigureGrid(_slotGrid, _slotView);
             slotGroup.Controls.Add(_slotGrid);
-            root.Controls.Add(slotGroup, 0, 2);
+            listSplit.Panel2.Controls.Add(slotGroup);
 
-            var adjustGroup = new GroupControl { Text = "Số lượng đích và thông tin điều chỉnh LOT đang chọn", Dock = DockStyle.Fill };
+            // Khu vực điều chỉnh luôn nằm trong Panel2; ô Lý do có chiều cao tối thiểu 68px.
+            var bottomLayout = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 1,
+                RowCount = 2,
+                Padding = new Padding(0)
+            };
+            bottomLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            bottomLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
+            mainSplit.Panel2.Controls.Add(bottomLayout);
+
+            var adjustGroup = new GroupControl
+            {
+                Text = "Số lượng đích và thông tin điều chỉnh LOT đang chọn",
+                Dock = DockStyle.Fill,
+                MinimumSize = new System.Drawing.Size(0, 150)
+            };
             var adjustLayout = new TableLayoutPanel
             {
-                Dock = DockStyle.Fill, Padding = new Padding(8),
-                ColumnCount = 4, RowCount = 3
+                Dock = DockStyle.Fill,
+                Padding = new Padding(8),
+                ColumnCount = 4,
+                RowCount = 3
             };
             adjustLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 120));
             adjustLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
@@ -391,16 +465,22 @@ namespace PCTP
             _target.Properties.IsFloatValue = false;
             _destinationSlot.Properties.NullValuePrompt = "Để trống = A0 mặc định";
             _reason.Properties.NullValuePrompt = "Bắt buộc nhập lý do điều chỉnh";
+            _reason.Properties.ScrollBars = ScrollBars.Vertical;
+            _reason.Properties.WordWrap = true;
+            _reason.MinimumSize = new System.Drawing.Size(0, 68);
             adjustGroup.Controls.Add(adjustLayout);
-            root.Controls.Add(adjustGroup, 0, 3);
+            bottomLayout.Controls.Add(adjustGroup, 0, 0);
 
             var footer = new FlowLayoutPanel
             {
-                Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight,
+                Dock = DockStyle.Fill,
+                FlowDirection = FlowDirection.LeftToRight,
+                WrapContents = false,
                 Padding = new Padding(2)
             };
             _apply.Text = "Xác nhận điều chỉnh LOT đã chọn";
             _apply.Width = 230;
+            _apply.Height = 34;
             _apply.Enabled = false;
             _apply.Click += (s, e) => ApplyAdjustment();
             footer.Controls.Add(_apply);
@@ -409,7 +489,7 @@ namespace PCTP
             _summary.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
             _summary.Appearance.TextOptions.WordWrap = DevExpress.Utils.WordWrap.Wrap;
             footer.Controls.Add(_summary);
-            root.Controls.Add(footer, 0, 4);
+            bottomLayout.Controls.Add(footer, 0, 1);
         }
 
         private readonly LabelControl _selectedLotLabel = new LabelControl();
