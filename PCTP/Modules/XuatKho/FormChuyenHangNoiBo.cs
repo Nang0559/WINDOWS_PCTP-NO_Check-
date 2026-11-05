@@ -34,6 +34,7 @@ namespace PCTP.Modules.XuatKho
         private List<SlotLotViewInfo> _sourceRows = new List<SlotLotViewInfo>();
         private Guid _requestKey = Guid.NewGuid();
         private bool _transferCompleted;
+        private bool _sourceBalanceConsistent;
 
         public FormChuyenHangNoiBo()
         {
@@ -123,7 +124,8 @@ namespace PCTP.Modules.XuatKho
             {
                 _requestKey = Guid.NewGuid();
                 _transferCompleted = false;
-                _btnTransfer.Enabled = true;
+                _sourceBalanceConsistent = false;
+                _btnTransfer.Enabled = false;
                 _sourceRows = _slotRepository.GetAllActiveSlotLots()
                     .Where(x => string.Equals((x.LotNo ?? string.Empty).Trim(), lot, StringComparison.OrdinalIgnoreCase))
                     .OrderBy(x => x.WarehouseName).ThenBy(x => x.RackName).ThenBy(x => x.SlotNumber)
@@ -132,6 +134,8 @@ namespace PCTP.Modules.XuatKho
                 _grid.SetRows(_sourceRows);
                 int stock = _stockRepository.GetSlConLai(lot);
                 int slotTotal = _sourceRows.Sum(x => x.Quantity);
+                _sourceBalanceConsistent = _sourceRows.Count > 0 && stock == slotTotal;
+                _btnTransfer.Enabled = _sourceBalanceConsistent;
                 _lblStock.Text = string.Format("STOCKTP còn: {0:N0} | Tồn Slot khả dụng: {1:N0}", stock, slotTotal);
                 if (_sourceRows.Count == 0)
                     XtraMessageBox.Show(this, "Không tìm thấy LOT đang hoạt động trong Slot. Hàng cách ly không được phép chuyển.", Text);
@@ -148,6 +152,8 @@ namespace PCTP.Modules.XuatKho
         {
             try
             {
+                _btnTransfer.Enabled = false;
+                _sourceBalanceConsistent = false;
                 _grid.SetTable(_transferRepository.GetInternalStock((_txtLot.Text ?? string.Empty).Trim()));
                 _lblStock.Text = "Tồn tại vị trí nội bộ (lọc theo LOT nếu đã nhập).";
             }
@@ -164,6 +170,7 @@ namespace PCTP.Modules.XuatKho
             string reason = (_txtReason.Text ?? string.Empty).Trim();
             int quantity = Convert.ToInt32(_numQuantity.Value);
 
+            if (!_sourceBalanceConsistent) { XtraMessageBox.Show(this, "Chưa có kết quả LOT hợp lệ hoặc tổng Slot không khớp STOCKTP. Không thể chuyển.", Text); return; }
             if (source == null) { XtraMessageBox.Show(this, "Chọn một dòng LOT/Slot nguồn.", Text); return; }
             if (destination.Length == 0) { XtraMessageBox.Show(this, "Nhập vị trí nội bộ đích.", Text); return; }
             if (reason.Length == 0) { XtraMessageBox.Show(this, "Nhập lý do chuyển hàng.", Text); return; }
@@ -201,7 +208,7 @@ namespace PCTP.Modules.XuatKho
                 XtraMessageBox.Show(this, "Chuyển hàng thất bại; transaction đã rollback.\r\n" + ex.Message,
                     Text, MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
-            finally { _btnTransfer.Enabled = true; }
+            finally { _btnTransfer.Enabled = !_transferCompleted && _sourceBalanceConsistent; }
         }
 
         /// <summary>Small DataGridView wrapper to keep this screen independent of a designer file.</summary>
