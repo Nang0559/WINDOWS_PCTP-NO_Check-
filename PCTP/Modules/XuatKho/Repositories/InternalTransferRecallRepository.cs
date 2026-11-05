@@ -33,22 +33,38 @@ LEFT JOIN PCTP_InternalStock s
   ON s.LocationId = t.LocationId AND s.ItemCode = t.ItemCode AND s.LotNo = t.LotNo
 WHERE t.Quantity > ISNULL(r.ReturnedQuantity, 0)
   AND ISNULL(s.Quantity, 0) > 0
-  AND (@LotNo = N'' OR LTRIM(RTRIM(t.LotNo)) = LTRIM(RTRIM(@LotNo)))
-ORDER BY l.LocationName, t.LotNo, t.CreatedAt, t.TransferId;";
+  AND
+  (
+      @Search = N''
+      OR t.TransferNo LIKE N'%' + @Search + N'%'
+      OR l.LocationName LIKE N'%' + @Search + N'%'
+      OR t.ItemCode LIKE N'%' + @Search + N'%'
+      OR t.LotNo LIKE N'%' + @Search + N'%'
+  )
+ORDER BY l.LocationName, t.LotNo, t.CreatedAt DESC, t.TransferId DESC;";
             return LoadData(sql,
-                new SqlParameter("@LotNo", SqlDbType.NVarChar, 200) { Value = (lotFilter ?? string.Empty).Trim() });
+                new SqlParameter("@Search", SqlDbType.NVarChar, 200) { Value = (lotFilter ?? string.Empty).Trim() });
         }
 
         public DataTable GetReturnSlots(string itemCode)
         {
             const string sql = @"
 SELECT s.SlotId,
-       w.Name + N' / ' + r.RackName + N' / Slot ' + CONVERT(nvarchar(20), s.SlotNumber)
-       + N' | Tồn ' + CONVERT(nvarchar(20), ISNULL(x.Quantity, 0))
-       + N' / ' + CONVERT(nvarchar(20), ISNULL(s.Capacity, 0)) AS DisplayText,
+       w.Name AS WarehouseName,
+       r.RackName,
+       s.SlotNumber,
        ISNULL(x.Quantity, 0) AS Quantity,
        ISNULL(s.Capacity, 0) AS Capacity,
-       ISNULL(x.ItemCode, ISNULL(s.ItemCode, N'')) AS ItemCode
+       ISNULL(x.ItemCode, ISNULL(s.ItemCode, N'')) AS ItemCode,
+       CASE
+           WHEN ISNULL(x.Quantity, 0) <= 0 THEN N'Trống'
+           WHEN ISNULL(s.Capacity, 0) > 0 THEN N'Đang chứa - còn ' + CONVERT(nvarchar(20), s.Capacity - x.Quantity)
+           ELSE N'Đang chứa - không giới hạn cấu hình'
+       END AS SlotState,
+       w.Name + N' / ' + r.RackName + N' / Slot ' + CONVERT(nvarchar(20), s.SlotNumber)
+       + N' | Tồn ' + CONVERT(nvarchar(20), ISNULL(x.Quantity, 0))
+       + N' / ' + CASE WHEN ISNULL(s.Capacity, 0) <= 0 THEN N'∞' ELSE CONVERT(nvarchar(20), s.Capacity) END
+       + N' | ' + CASE WHEN ISNULL(x.Quantity, 0) <= 0 THEN N'Trống' ELSE N'Đang chứa' END AS DisplayText
 FROM Slot s
 JOIN Rack r ON r.RackId = s.RackId
 JOIN Warehouse w ON w.WarehouseId = r.WarehouseId
@@ -61,6 +77,8 @@ OUTER APPLY
     WHERE SlotId = s.SlotId AND PhieuStatus = 0 AND Quantity > 0
 ) x
 WHERE ISNULL(x.HasOtherItem, 0) = 0
+  AND (NULLIF(LTRIM(RTRIM(s.ItemCode)), N'') IS NULL
+       OR UPPER(LTRIM(RTRIM(s.ItemCode))) = UPPER(LTRIM(RTRIM(@ItemCode))))
   AND (ISNULL(s.Capacity, 0) <= 0 OR ISNULL(x.Quantity, 0) < ISNULL(s.Capacity, 0))
 ORDER BY w.Name, r.RackName, s.SlotNumber;";
             return LoadData(sql,
