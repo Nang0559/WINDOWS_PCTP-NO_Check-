@@ -54,10 +54,39 @@ namespace PCTP.Modules.XuLyHangLoi.Repository
         // HEADER
         // ============================================================
 
+        // ============================================================
+        // SCHEMA GUARD: FVN_PhieuTraHang.CustomerNo (PHASE10)
+        // DB chưa chạy PHASE10_PhieuTraHang_CustomerNo.sql sẽ báo "Invalid column name 'CustomerNo'"
+        // khi lưu phiếu. Tự thêm cột (idempotent, chạy 1 lần/process) bằng connection RIÊNG của
+        // PhieuSqlExecutor — nằm ngoài transaction của UnitOfWork nên không giữ lock schema.
+        // ============================================================
+        private static readonly object _schemaLock = new object();
+        private static bool _customerNoEnsured;
+
+        private void EnsureCustomerNoColumn()
+        {
+            if (_customerNoEnsured) return;
+            lock (_schemaLock)
+            {
+                if (_customerNoEnsured) return;
+                _sql.ExecuteScalar(@"
+IF COL_LENGTH(N'dbo.FVN_PhieuTraHang', N'CustomerNo') IS NULL
+    ALTER TABLE dbo.FVN_PhieuTraHang ADD CustomerNo NVARCHAR(20) NULL;
+IF COL_LENGTH(N'dbo.FVN_PhieuTraHang', N'NguonKhachTra') IS NOT NULL
+    EXEC(N'UPDATE dbo.FVN_PhieuTraHang
+           SET CustomerNo = CASE NguonKhachTra WHEN 1 THEN N''100001'' WHEN 2 THEN N''100002'' WHEN 3 THEN N''100003'' END
+           WHERE CustomerNo IS NULL AND NguonKhachTra IS NOT NULL');
+SELECT 1;");
+                _customerNoEnsured = true;
+            }
+        }
+
         public int Insert(PhieuTraHang e)
         {
             if (e == null)
                 throw new ArgumentNullException(nameof(e));
+
+            EnsureCustomerNoColumn();
 
             const string sql = @"
 INSERT INTO FVN_PhieuTraHang
@@ -339,6 +368,8 @@ ORDER BY CreatedAt DESC, Id DESC;";
         {
             if (e == null)
                 throw new ArgumentNullException(nameof(e));
+
+            EnsureCustomerNoColumn();
 
             const string sql = @"
 UPDATE FVN_PhieuTraHang
