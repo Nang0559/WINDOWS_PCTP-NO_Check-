@@ -36,5 +36,8 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         ScanResult ConfirmSlKhacBiet(DocQRCode pending);
 
         bool KiemTraSlDaBan(string maHang, int slBan);
+
+        /// <summary>Gear name from the B20Gear catalog for the gear code in the LOT (13th char).</summary>
+        string GetGearName(int gearCode);
     }
 }

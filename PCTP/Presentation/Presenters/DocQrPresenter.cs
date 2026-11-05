@@ -264,7 +264,7 @@ namespace PCTP.Presentation.Presenters
                 DataTable orderRows = _c.PhieuView.GetDonHangTable();
                 DataTable scannedRows = _c.QrSvc.LoadAll();
                 string ymvnError;
-                if (!YmvnGearQuantityValidator.ValidateScan(rawQr, orderRows, scannedRows, out ymvnError))
+                if (!YmvnGearQuantityValidator.ValidateScan(rawQr, orderRows, scannedRows, out ymvnError, code => _c.QrSvc.GetGearName(code)))
                 {
                     ShowBlockingScanError(ymvnError);
                     return;

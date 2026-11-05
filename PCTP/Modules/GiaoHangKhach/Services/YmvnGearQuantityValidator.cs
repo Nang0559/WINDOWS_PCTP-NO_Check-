@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Text.RegularExpressions;
 
 namespace PCTP.Modules.GiaoHangKhach.Services
 {
@@ -30,21 +31,29 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             string rawQr,
             DataTable orderRows,
             DataTable scannedRows,
-            out string error)
+            out string error,
+            Func<int, string> gearNameByCode = null)
         {
             error = null;
+
+            // Yamaha item card (PDF417: P..K..Q..) carries no LOT/Gear. Order No and part pairing
+            // with the preceding FCC tem are checked by DocQRScanEngine.
+            string temPart, temOrder;
+            int temQty;
+            if (YmvnTemParser.TryParse(rawQr, out temPart, out temOrder, out temQty))
+                return true;
 
             string part;
             string gear;
             int quantity;
-            if (!TryParseQr(rawQr, out part, out gear, out quantity, out error))
+            if (!TryParseQr(rawQr, gearNameByCode, out part, out gear, out quantity, out error))
                 return false;
 
             int required;
             if (!TryGetRequiredQuantity(orderRows, part, gear, out required, out error))
                 return false;
 
-            int alreadyScanned = SumScannedQuantity(scannedRows, part, gear);
+            int alreadyScanned = SumScannedQuantity(scannedRows, part, gear, gearNameByCode);
             if (alreadyScanned + quantity > required)
             {
                 error = string.Format(
@@ -60,7 +69,8 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         public static bool ValidateCompletion(
             DataTable orderRows,
             DataTable scannedRows,
-            out string error)
+            out string error,
+            Func<int, string> gearNameByCode = null)
         {
             error = null;
 
@@ -68,7 +78,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             if (required == null)
                 return false;
 
-            Dictionary<string, int> actual = AggregateScanned(scannedRows);
+            Dictionary<string, int> actual = AggregateScanned(scannedRows, gearNameByCode);
 
             foreach (KeyValuePair<string, int> pair in required)
             {
@@ -101,6 +111,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
 
         private static bool TryParseQr(
             string rawQr,
+            Func<int, string> gearNameByCode,
             out string part,
             out string gear,
             out int quantity,
@@ -117,8 +128,9 @@ namespace PCTP.Modules.GiaoHangKhach.Services
                 return false;
             }
 
+            // FCC tem = 4 parts (lot:part:date:qty). A customer tem with 6+ parts is still accepted.
             string[] parts = rawQr.Trim().Split(':');
-            if (parts.Length < 6)
+            if (parts.Length < 4)
             {
                 error = "Mã QR không đúng định dạng YMVN!";
                 return false;
@@ -139,17 +151,13 @@ namespace PCTP.Modules.GiaoHangKhach.Services
                 return false;
             }
 
-            char gearCode = lot[12];
-            switch (gearCode)
+            gear = GearFromChar(lot[12], gearNameByCode);
+            if (string.IsNullOrEmpty(gear))
             {
-                case '1': gear = "A"; break;
-                case '2': gear = "B"; break;
-                case '3': gear = "D"; break;
-                default:
-                    error = string.Format(
-                        "Gear của LOT [{0}] không hợp lệ. Ký tự thứ 13 phải là 1(A), 2(B) hoặc 3(D).",
-                        lot);
-                    return false;
+                error = string.Format(
+                    "Gear của LOT [{0}] không hợp lệ. Ký tự thứ 13 là [{1}] không có trong danh mục Gear.",
+                    lot, lot[12]);
+                return false;
             }
 
             if (parts.Length > 6 && !string.IsNullOrWhiteSpace(parts[6]))
@@ -242,7 +250,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             return result;
         }
 
-        private static Dictionary<string, int> AggregateScanned(DataTable table)
+        private static Dictionary<string, int> AggregateScanned(DataTable table, Func<int, string> gearNameByCode)
         {
             var result = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             if (table == null) return result;
@@ -265,7 +273,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
                 if (!TryGetInt(row[quantityColumn], out quantity) || quantity <= 0)
                     continue;
 
-                string gear = GearFromLot(lot);
+                string gear = GearFromLot(lot, gearNameByCode);
                 if (string.IsNullOrEmpty(gear))
                     continue;
 
@@ -278,17 +286,34 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             return result;
         }
 
-        private static int SumScannedQuantity(DataTable table, string part, string gear)
+        private static int SumScannedQuantity(DataTable table, string part, string gear, Func<int, string> gearNameByCode)
         {
-            Dictionary<string, int> actual = AggregateScanned(table);
+            Dictionary<string, int> actual = AggregateScanned(table, gearNameByCode);
             int value;
             return actual.TryGetValue(MakeKey(part, gear), out value) ? value : 0;
         }
 
-        private static string GearFromLot(string lot)
+        private static string GearFromLot(string lot, Func<int, string> gearNameByCode)
         {
             if (string.IsNullOrEmpty(lot) || lot.Length < 13) return string.Empty;
-            switch (lot[12])
+            return GearFromChar(lot[12], gearNameByCode);
+        }
+
+        /// <summary>
+        /// Gear code char of the FCC LOT. The B20Gear catalog (via <paramref name="gearNameByCode"/>) is the
+        /// source of truth; the built-in 1/2/3 table is only the fallback when no catalog is supplied.
+        /// </summary>
+        private static string GearFromChar(char code, Func<int, string> gearNameByCode)
+        {
+            if (gearNameByCode != null && code >= '0' && code <= '9')
+            {
+                string fromCatalog = null;
+                try { fromCatalog = NormalizeGear(gearNameByCode(code - '0')); }
+                catch { fromCatalog = null; }
+                if (!string.IsNullOrEmpty(fromCatalog)) return fromCatalog;
+            }
+
+            switch (code)
             {
                 case '1': return "A";
                 case '2': return "B";
@@ -301,6 +326,9 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         {
             if (value == null || value == DBNull.Value) return string.Empty;
             string raw = value.ToString().Trim().ToUpperInvariant();
+            // Order text such as "GEAR D :200PCS" -> "D".
+            Match gm = Regex.Match(raw, @"^GEAR\s*([A-Z0-9])(?![A-Z0-9])");
+            if (gm.Success) raw = gm.Groups[1].Value;
             if (raw == "1" || raw == "A" || raw == "GEAR A") return "A";
             if (raw == "2" || raw == "B" || raw == "GEAR B") return "B";
             if (raw == "3" || raw == "D" || raw == "GEAR D") return "D";
@@ -336,6 +364,73 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             result = 0;
             if (value == null || value == DBNull.Value) return false;
             return int.TryParse(value.ToString().Trim(), out result);
+        }
+    }
+
+    /// <summary>
+    /// Yamaha (YMVN) item-card barcode: PDF417, ISO/IEC 15434 envelope with MH10 data identifiers:
+    /// [)&gt;RS06 GS 9K.. GS P&lt;part,14&gt; GS V&lt;supplier&gt; GS 3L&lt;user&gt; GS K&lt;order,5&gt; GS Q&lt;total ordered,6&gt; ...
+    /// Scanners often drop the GS/RS separators, so a positional fallback (P+14, K+5, Q+6, as the legacy
+    /// YMVNDOCQRCODE.TachQRYMVN did) is used when no separator survives.
+    /// </summary>
+    internal static class YmvnTemParser
+    {
+        private static readonly char[] Separators = { '\u001D', '\u001E', '\u0004', '\u241D', '\u241E', '\u2404' };
+
+        public static bool TryParse(string raw, out string part, out string order, out int quantity)
+        {
+            part = string.Empty;
+            order = string.Empty;
+            quantity = 0;
+
+            if (string.IsNullOrWhiteSpace(raw)) return false;
+            string s = raw.Trim().ToUpperInvariant();
+
+            // FCC tems / customer tems with ':' are handled elsewhere (and part names may contain P/K/Q).
+            if (s.IndexOf(':') >= 0) return false;
+
+            string[] fields = s.Split(Separators, StringSplitOptions.RemoveEmptyEntries);
+            if (fields.Length > 1)
+            {
+                foreach (string field in fields)
+                {
+                    string f = field.Trim();
+                    if (f.Length < 2) continue;
+                    if (f[0] == 'P' && part.Length == 0) part = f.Substring(1).Trim();
+                    else if (f[0] == 'K' && order.Length == 0 && IsDigits(f, 1)) order = f.Substring(1);
+                    else if (f[0] == 'Q' && quantity == 0 && IsDigits(f, 1)) int.TryParse(f.Substring(1), out quantity);
+                }
+            }
+
+            if (part.Length == 0 || order.Length == 0 || quantity <= 0)
+            {
+                part = string.Empty;
+                order = string.Empty;
+                quantity = 0;
+
+                Match mp = Regex.Match(s, @"P([A-Z0-9]{14})");
+                if (!mp.Success) return false;
+                string rest = s.Substring(mp.Index + mp.Length);
+                Match mk = Regex.Match(rest, @"K(\d{5})");
+                if (!mk.Success) return false;
+                rest = rest.Substring(mk.Index + mk.Length);
+                Match mq = Regex.Match(rest, @"Q(\d{6})");
+                if (!mq.Success) return false;
+
+                part = mp.Groups[1].Value;
+                order = mk.Groups[1].Value;
+                int.TryParse(mq.Groups[1].Value, out quantity);
+            }
+
+            return part.Length >= 8 && order.Length > 0 && quantity > 0;
+        }
+
+        private static bool IsDigits(string value, int start)
+        {
+            if (value.Length <= start) return false;
+            for (int i = start; i < value.Length; i++)
+                if (value[i] < '0' || value[i] > '9') return false;
+            return true;
         }
     }
 }

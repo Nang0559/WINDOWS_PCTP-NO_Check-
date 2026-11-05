@@ -410,6 +410,7 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
             var result = new List<string>();
             var checkList = FindControl<CheckedListBoxControl>("CheckGX");
             if (checkList == null) return result;
+            if (checkList.InvokeRequired) return (List<string>)checkList.Invoke(new Func<List<string>>(GetCheckedGioXuat));
             foreach (object item in checkList.CheckedItems) result.Add(item.ToString());
             return result;
         }
@@ -418,6 +419,8 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
         {
             var checkList = FindControl<CheckedListBoxControl>("CheckGX");
             if (checkList == null) return;
+            // Called from RunWithLoading (Task.Run) -> must touch CheckGX on the UI thread.
+            if (checkList.InvokeRequired) { checkList.Invoke(new Action(() => SetCheckedGiosYMVN(checkedGios))); return; }
             _deliveredYmvnHours = new HashSet<string>(checkedGios ?? new List<string>(), StringComparer.OrdinalIgnoreCase);
             UnwireCheckGxEvent();
             try
@@ -442,6 +445,7 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
         {
             var checkList = FindControl<CheckedListBoxControl>("CheckGX");
             if (checkList == null) return;
+            if (checkList.InvokeRequired) { checkList.Invoke(new Action(LockCheckListYMVN)); return; }
             _ymvnChecklistLocked = true;
             UnwireCheckGxEvent();
             checkList.Enabled = false;
@@ -451,6 +455,7 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
         {
             var checkList = FindControl<CheckedListBoxControl>("CheckGX");
             if (checkList == null) return;
+            if (checkList.InvokeRequired) { checkList.Invoke(new Action(UnlockCheckListYMVN)); return; }
             _ymvnChecklistLocked = false;
             checkList.Enabled = true;
             UnwireCheckGxEvent();

@@ -169,13 +169,13 @@ public sealed class YmvnDeliverySpecContractTests
     }
 
     [Fact]
-    public void Ymvn_ScanRowsAreArchivedAndDeletedByPartNotBySttCurrentBehaviour()
+    public void Ymvn_ScanRowsAreArchivedAndDeletedByOwningTmpStt()
     {
-        // FINDING F-Y1 (needs product-owner confirmation): the DG scan rows of EVERY STT of the same part
-        // are archived and deleted when one STT is delivered. Frozen as current behaviour.
+        // F-Y1 fixed: DG scan rows are owned by the TMP line via DOCQRCODE.STTBAN (set by the take-lot SP).
+        // Only rows owned by this STT (or legacy unowned rows, STTBAN NULL/0) may be archived and deleted.
         var body = YmvnMethod();
         Assert.Contains("WHERE MAHANGFCC = @maHang AND KETQUA = 'DG'", body);
-        Assert.DoesNotContain("MAHANGFCC = @maHang AND KETQUA = 'DG' AND STT", body);
+        Assert.Equal(2, Count(body, "AND (STTBAN = @stt OR ISNULL(STTBAN, 0) = 0)"));
     }
 
     [Fact]

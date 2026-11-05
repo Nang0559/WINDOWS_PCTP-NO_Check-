@@ -118,7 +118,67 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             return ScanResult.OK(item);
         }
 
+        public string GetGearName(int gearCode) => _repo.GetGearName(gearCode);
+
+        /// <summary>
+        /// YMVN scan router. Real YMVN labels are:
+        ///  - FCC tem, 4 ':' parts  (lot:part:date:qty)            -> ScanFCC_YMVN
+        ///  - Yamaha item card PDF417 (P..K..Q.., no ':')           -> ScanTemYamaha (pairs with the last FCC row)
+        ///  - 6+ ':' parts customer tem (legacy Phase-B format)     -> ScanYMVN_SixParts (unchanged)
+        /// </summary>
         public ScanResult ProcessScanYMVN(string rawQr, Func<string, bool> kiemTraMaTrongPhieu, Func<string, int, bool> kiemTraSlDaBan)
+        {
+            if (string.IsNullOrWhiteSpace(rawQr)) return ScanResult.Fail("Mã QR rỗng!");
+            string normalized = rawQr.Trim().ToUpperInvariant();
+
+            var fccParts = normalized.Split(':');
+            if (fccParts.Length == 4) return ScanFCC_YMVN(fccParts, kiemTraMaTrongPhieu, kiemTraSlDaBan);
+
+            if (YmvnTemParser.TryParse(normalized, out string temPart, out string temOrder, out int temQty))
+                return ScanTemYamaha(temPart, temOrder, temQty);
+
+            return ScanYMVN_SixParts(rawQr, kiemTraMaTrongPhieu, kiemTraSlDaBan);
+        }
+
+        private ScanResult ScanTemYamaha(string part, string order, int qty)
+        {
+            string table = _cfg.Delivery.GetDocQRTable(IsBanSP);
+            var all = _repo.GetAll(table);
+            if (all.Count == 0) return ScanResult.Fail("Sai Thứ tự bắn!");
+
+            DocQRCode last = all[all.Count - 1];
+            if (string.IsNullOrWhiteSpace(last.LotFCC)) return ScanResult.Fail("Sai Thứ tự bắn!");
+            // The last FCC tem already has its Yamaha tem -> scan the next FCC tem first.
+            if (!string.IsNullOrWhiteSpace(last.LotHVN)) return ScanResult.Fail("Sai Thứ tự bắn!");
+
+            if (!_repo.KiemTraOrderTrongPhieu(order, TmpTable))
+                return ScanResult.Fail($"Không tồn tại Order No [{order}] trên phiếu đã chọn! Kiểm tra lại!");
+
+            string fccPart = (last.MaHangFCC ?? "").Replace("-", "").Replace(" ", "").Trim().ToUpperInvariant();
+            string temPart = (part ?? "").Replace("-", "").Replace(" ", "").Trim().ToUpperInvariant();
+            if (fccPart != temPart) return ScanResult.Fail("Mã Hàng HVN không khớp với FCC!");
+
+            // Q on the Yamaha card is the TOTAL ORDERED quantity (e.g. 700), not the box quantity (e.g. 5),
+            // so it is stored but not compared with the FCC tem quantity (same as legacy YMVNDOCQRCODE).
+            // The FCC columns are carried over so the FIFO re-consume for this STT stays identical.
+            var item = new DocQRCode
+            {
+                STT = last.STT,
+                LotFCC = last.LotFCC,
+                MaHangFCC = last.MaHangFCC,
+                MaFCC = last.MaFCC,
+                SlTemFCC = last.SlTemFCC,
+                LotHVN = order,
+                MaHangHVN = part,
+                SlTemHVN = qty,
+                KetQua = "OK"
+            };
+            _repo.UpdateHVN(item, table);
+            _bus.Publish(new QRScannedEvent(item, "YMVN"));
+            return ScanResult.OK(item);
+        }
+
+        private ScanResult ScanYMVN_SixParts(string rawQr, Func<string, bool> kiemTraMaTrongPhieu, Func<string, int, bool> kiemTraSlDaBan)
         {
             var parts = rawQr.Split(':');
             if (parts.Length < 6) return ScanResult.Fail("Mã QR không đúng định dạng YMVN!");
@@ -168,14 +228,26 @@ namespace PCTP.Modules.GiaoHangKhach.Services
 
         private ScanResult ScanFCC_YMVN(string[] parts, Func<string, bool> kiemTraMa, Func<string, int, bool> kiemTraSl)
         {
-            string lotSl = parts[0];
-            string maHang = parts[1];
-            if (!int.TryParse(parts[3], out int slTem)) return ScanResult.Fail("Số lượng tem không hợp lệ.");
+            string lotSl = parts[0].Trim();
+            string maHang = parts[1].Trim();
+            if (!int.TryParse(parts[3].Trim(), out int slTem)) return ScanResult.Fail("Số lượng tem không hợp lệ.");
+
+            // A new FCC tem is only allowed once the previous FCC tem has its Yamaha tem (legacy KIEMTRATHUTUBANFCC).
+            var existing = _repo.GetAll(DocQRTable);
+            if (existing.Count > 0 && string.IsNullOrWhiteSpace(existing[existing.Count - 1].LotHVN))
+                return ScanResult.Fail("Sai Thứ tự bắn!");
+
             string lotFcc = NormalizeLotFCC_YMVN(lotSl, out string gear);
+
+            // Duplicate-tem guard: counter part of the full lot is stored in SOPHIEU.
+            string counter = (lotSl.IndexOf(',') < 0 && lotSl.Length >= LotCodeHelper.MIN_TOTAL_LEN) ? LotCodeHelper.GetCounterPart(lotSl) : "";
+            if (!string.IsNullOrEmpty(counter) && _repo.KiemTraTrungTemTong(lotFcc, counter, DocQRTable))
+                return ScanResult.Fail("Trùng Tem!");
+
             if (!kiemTraMa(maHang)) return ScanResult.Fail("Không tồn tại mã trong phiếu giao!");
             if (!kiemTraSl(maHang, slTem)) return ScanResult.Fail("Số lượng bắn vượt quá số lượng giao!");
             int sttBan = _repo.GetMaxStt(DocQRTable) + 1;
-            var item = new DocQRCode { STT = sttBan, LotFCC = lotFcc, MaHangFCC = maHang, MaFCC = maHang.Replace("-", ""), SlTemFCC = slTem, Gear = gear, Gio = "" };
+            var item = new DocQRCode { STT = sttBan, LotFCC = lotFcc, MaHangFCC = maHang, MaFCC = maHang.Replace("-", ""), SlTemFCC = slTem, Gear = gear, Gio = "", SoPhieu = counter };
             _repo.InsertFCC(item, DocQRTable, _cfg.Delivery.CoGear);
             _bus.Publish(new QRScannedEvent(item, "FCC_YMVN"));
             return ScanResult.OK(item);

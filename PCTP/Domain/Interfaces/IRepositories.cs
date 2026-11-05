@@ -58,6 +58,8 @@ namespace PCTP.Domain.Interfaces
         bool KiemTraTemMa(string maHvn);
         bool KiemTraTemSoLuong(string maHvn, int slTemHvn);
         bool KiemTraTrungTemTong(string lotFcc, string soPhieu, string docQrTable);
+        /// <summary>YMVN: Order No printed on the Yamaha tem must exist as CUA on the selected delivery sheet.</summary>
+        bool KiemTraOrderTrongPhieu(string order, string tmpTable);
 
         // ── SL đã bắn ────────────────────────────────────────────────────────
         int GetTongSlDaBan(string maHang);

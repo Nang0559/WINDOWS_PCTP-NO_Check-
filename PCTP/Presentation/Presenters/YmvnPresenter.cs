@@ -64,7 +64,8 @@ namespace PCTP.Presentation.Presenters
                 if (!YmvnGearQuantityValidator.ValidateCompletion(
                     _c.PhieuView.GetDonHangTable(),
                     _c.QrSvc.LoadAll(),
-                    out validationError))
+                    out validationError,
+                    code => _c.QrSvc.GetGearName(code)))
                 {
                     _c.UiContext.Post(_ => _v.ShowError(validationError), null);
                     return;

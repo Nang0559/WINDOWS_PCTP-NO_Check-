@@ -182,10 +182,15 @@ namespace PCTP.Presentation.Presenters
 
         internal void LoadGioXuatYMVN()
         {
-            var danhSachGio = PhieuSvc.GetDanhSachGioYMVN(PCTP.Shared.Helpers.DateText.ToMdy(View.SelectedDate));
+            // This method may run on a Task.Run thread (RunWithLoading): read UI state on the UI thread.
+            DateTime selectedDate = DateTime.MinValue;
+            if (UiContext == SynchronizationContext.Current) selectedDate = View.SelectedDate;
+            else UiContext.Send(_ => selectedDate = View.SelectedDate, null);
+
+            var danhSachGio = PhieuSvc.GetDanhSachGioYMVN(PCTP.Shared.Helpers.DateText.ToMdy(selectedDate));
             View.BindGioXuatCheckList(danhSachGio);
 
-            var delivered = PhieuSvc.GetGioDaGiao(GetNhaMay(), PCTP.Shared.Helpers.DateText.ToIso(View.SelectedDate));
+            var delivered = PhieuSvc.GetGioDaGiao(GetNhaMay(), PCTP.Shared.Helpers.DateText.ToIso(selectedDate));
             var deliveredSet = new HashSet<string>(delivered ?? new List<string>(), StringComparer.OrdinalIgnoreCase);
             var deliveredDisplay = danhSachGio
                 .Where(g => deliveredSet.Contains(NormalizeHour(g)))

@@ -296,7 +296,9 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                            STATUS, LEFT(MAFCC, 50), STT, KETQUA,
                            @ngayGiao, @gioGiao, @nhaMay
                     FROM [" + docQRTable + @"]
-                    WHERE MAHANGFCC = @maHang AND KETQUA = 'DG'",
+                    WHERE MAHANGFCC = @maHang AND KETQUA = 'DG'
+                      AND (STTBAN = @stt OR ISNULL(STTBAN, 0) = 0)",
+                    new SqlParameter("@stt", SqlDbType.Int) { Value = stt },
                     new SqlParameter("@ngayGiao", SqlDbType.NVarChar, 50) { Value = ngayGiao ?? "" },
                     new SqlParameter("@gioGiao", SqlDbType.NVarChar, 50) { Value = gioGiao ?? "" },
                     new SqlParameter("@nhaMay", SqlDbType.NVarChar, 200) { Value = nhaMay ?? "" },
@@ -317,7 +319,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                 int updatedTmp = ExecuteNonQuery($"UPDATE [{tmpTable}] SET STATUS = 'OK' WHERE STT = @stt AND STATUS = 'NG'", new SqlParameter("@stt", SqlDbType.Int) { Value = stt });
                 if (updatedTmp != 1)
                     throw new InvalidOperationException($"Không thể xác nhận phiếu giao STT={stt}: trạng thái đã thay đổi hoặc không còn tồn tại.");
-                ExecuteNonQuery($"DELETE FROM [{docQRTable}] WHERE MAHANGFCC = @maHang AND KETQUA = 'DG'", new SqlParameter("@maHang", SqlDbType.NVarChar, 100) { Value = maHang ?? "" });
+                ExecuteNonQuery($"DELETE FROM [{docQRTable}] WHERE MAHANGFCC = @maHang AND KETQUA = 'DG' AND (STTBAN = @stt OR ISNULL(STTBAN, 0) = 0)", new SqlParameter("@maHang", SqlDbType.NVarChar, 100) { Value = maHang ?? "" }, new SqlParameter("@stt", SqlDbType.Int) { Value = stt });
 
                 HoanTatSauKhiTruKho(lotsDaXuatThanhCong, SYSTEM_PERFORMED_BY);
 

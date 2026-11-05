@@ -171,5 +171,6 @@ namespace PCTP.Modules.GiaoHangKhach.Services
 
         private void OnKhoUpdated(KhoUpdatedEvent e) => ResetFifo();
         public bool KiemTraSlDaBan(string maHang, int slBan) => _engine.KiemTraSlDaBan(maHang, slBan);
+        public string GetGearName(int gearCode) => _engine.GetGearName(gearCode);
     }
 }

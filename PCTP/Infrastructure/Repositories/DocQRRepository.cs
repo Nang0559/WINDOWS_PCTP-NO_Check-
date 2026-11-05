@@ -261,6 +261,22 @@ namespace PCTP.Infrastructure.Repositories
             return int.TryParse(raw, out int v) ? v : 0;
         }
 
+        public bool KiemTraOrderTrongPhieu(string order, string tmpTable)
+        {
+            if (string.IsNullOrWhiteSpace(order) || string.IsNullOrWhiteSpace(tmpTable)) return false;
+            string raw = order.Trim();
+            string noZero = raw.TrimStart('0');          // "01289" is stored as CUA = '1289'
+            if (noZero.Length == 0) noZero = "0";
+
+            object kq = _sql.ExecuteScalar(_sql.B7R2_FCCdb,
+                $"SELECT COUNT(*) FROM {Q(tmpTable)} WHERE RTRIM(CUA) IN (@raw, @noZero)",
+                new SqlParameter[] {
+                    new SqlParameter("@raw", raw),
+                    new SqlParameter("@noZero", noZero)
+                });
+            return int.TryParse(kq?.ToString(), out int v) && v > 0;
+        }
+
         public bool KiemTraTrungTemTong(string lotFcc, string soPhieu, string docQrTable)
         {
             string matchCondition = LotCodeHelper.BuildLotMatchSql("LOTFCC", "@lot");

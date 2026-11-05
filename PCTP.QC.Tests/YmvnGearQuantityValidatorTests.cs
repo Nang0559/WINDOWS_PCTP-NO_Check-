@@ -81,4 +81,55 @@ public sealed class YmvnGearQuantityValidatorTests
         Assert.False(ok);
         Assert.NotNull(error);
     }
+
+    // ── Real YMVN labels (photo IMG_5411: B5V-E6300-00-00-80, order #01289, Total Ordered 700) ──
+    private const string GS = "\u001D";
+    private const string YamahaCardWithSeparators =
+        "[)>\u001E06" + GS + "9KY0E" + GS + "PB5VE6300000080" + GS + "V1073" + GS + "3L9204" + GS +
+        "K01289" + GS + "Q000700" + GS + "10K" + new string(' ', 16) + GS + "Z" + new string(' ', 7) + GS + "\u001E\u0004";
+    private const string YamahaCardSeparatorsDropped =
+        "[)>0699KY0EPB5VE6300000080V10733L9204K01289Q00070010K                Z       ";
+
+    [Theory]
+    [InlineData(YamahaCardWithSeparators)]
+    [InlineData(YamahaCardSeparatorsDropped)]
+    public void YamahaItemCardIsParsedIntoPartOrderAndTotalQuantity(string raw)
+    {
+        Assert.True(YmvnTemParser.TryParse(raw, out var part, out var order, out var qty));
+        Assert.Equal("B5VE6300000080", part);
+        Assert.Equal("01289", order);
+        Assert.Equal(700, qty);
+    }
+
+    [Fact]
+    public void FccTemIsNeverTreatedAsYamahaCard()
+    {
+        // Part names such as 1FP-... contain P/K/Q but the FCC tem has ':' separators.
+        Assert.False(YmvnTemParser.TryParse("2610290059924081170005730005:1FP-E6300-01-00-80:29/10/2026:5", out _, out _, out _));
+    }
+
+    [Fact]
+    public void YamahaItemCardPassesScanValidationWithoutLotOrGear()
+    {
+        var ok = YmvnGearQuantityValidator.ValidateScan(
+            YamahaCardSeparatorsDropped, Order(("B5V-E6300-00-00-80", "D", 200)), Scans(), out var error);
+        Assert.True(ok, error);
+    }
+
+    [Fact]
+    public void FourPartFccTemIsAcceptedAndGearComesFromCatalog()
+    {
+        const string fcc = "2610290059924081170005730005:B5V-E6300-00-00-80:29/10/2026:5";
+        // Lot gear char is '4': without the catalog it is unknown ...
+        var withoutCatalog = YmvnGearQuantityValidator.ValidateScan(
+            fcc, Order(("B5V-E6300-00-00-80", "Gear D :200pcs", 200)), Scans(), out var err1);
+        Assert.False(withoutCatalog);
+        Assert.Contains("Gear", err1);
+
+        // ... and resolved through B20Gear when the catalog is supplied (order text "Gear D :200pcs" -> D).
+        var withCatalog = YmvnGearQuantityValidator.ValidateScan(
+            fcc, Order(("B5V-E6300-00-00-80", "Gear D :200pcs", 200)), Scans(), out var err2,
+            code => code == 4 ? "Gear D" : "");
+        Assert.True(withCatalog, err2);
+    }
 }
