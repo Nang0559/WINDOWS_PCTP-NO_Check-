@@ -539,9 +539,11 @@ namespace PCTP
                 string itemKey = null;
                 string lotKey = null;
                 string[] qrParts = raw.Split(':');
-                if (qrParts.Length == 4 || qrParts.Length >= 6)
+                if (qrParts.Length == 4 || qrParts.Length == 6)
                 {
-                    lotKey = qrParts[0].Trim();
+                    // QR FCC có dạng LOT:PART:NGAYSX:SLTEM hoặc thêm 2 trường tem tổng.
+                    // STOCKTP lưu LOT khóa gốc; QR có thể mang cả counter + quantity ở 8 ký tự cuối.
+                    lotKey = PCTP.Common.LotCodeHelper.StripCounterAndQty(qrParts[0].Trim());
                     itemKey = qrParts[1].Replace(" ", string.Empty).Trim();
                 }
 
@@ -566,8 +568,12 @@ namespace PCTP
 
                     if (lotKey != null)
                     {
-                        match = string.Equals(item, itemKey, StringComparison.OrdinalIgnoreCase)
-                            && LotCodeHelper.AreLotKeysEquivalent(lot, lotKey);
+                        match = string.Equals(
+                                item.Replace("-", string.Empty).Replace(" ", string.Empty),
+                                itemKey.Replace("-", string.Empty).Replace(" ", string.Empty),
+                                StringComparison.OrdinalIgnoreCase)
+                            && (LotCodeHelper.AreLotKeysEquivalent(lot, lotKey)
+                                || LotCodeHelper.AreLotKeysEquivalent(lot, qrParts[0].Trim()));
                     }
                     else
                     {
@@ -582,7 +588,7 @@ namespace PCTP
                         .ToList();
                     int slotQty = locations.Where(x => string.Equals((x.ItemCode ?? string.Empty).Trim(), item, StringComparison.OrdinalIgnoreCase)).Sum(x => x.Quantity);
                     string locationText = string.Join(", ", locations.Select(x =>
-                        string.Format("{0}/{1}/{2} (SlotId:{3})", x.WarehouseName, x.RackName, x.SlotNumber, x.SlotId)).Distinct());
+                        string.Format("{0}/{1}/{2} (SlotId:{3}, SL:{4:n0})", x.WarehouseName, x.RackName, x.SlotNumber, x.SlotId, x.Quantity)).Distinct());
                     _searchResults.Rows.Add(lot, item, name, Convert.ToInt32(stock["SLCONLAI"]),
                         slotQty, Convert.ToInt32(stock["SLCONLAI"]) - slotQty,
                         locations.Select(x => x.SlotId).Distinct().Count(), locationText);
