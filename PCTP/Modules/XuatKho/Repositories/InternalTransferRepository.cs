@@ -15,7 +15,7 @@ namespace PCTP.Modules.XuatKho.Repositories
     /// Persists non-Slot internal locations and their independent LOT balance.
     /// All writes join the caller's UnitOfWork; no customer/delivery document is created.
     /// </summary>
-    public sealed class InternalTransferRepository : SqlRepositoryBase
+    public sealed partial class InternalTransferRepository : SqlRepositoryBase
     {
         public sealed class TransferResult
         {
