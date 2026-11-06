@@ -17,6 +17,19 @@ public sealed class QrCodeFormatContractTests
     public const string CustomerCartonLabel =
         "260807008581007817008000:22110-K2T-V000:07/08/2026:1000";
 
+    [Theory]
+    [InlineData("2610290059924081170005730005:B5V-E6300-00-00-80:29/10/2026:5", "26102900599240811700", "B5V-E6300-00-00-80")]
+    [InlineData("2611050340930124150021060627:22102-K1A-N800:05/11/2026:627:2:A010000000129585", "26110503409301241500", "22102-K1A-N800")]
+    public void ProductionParser_ExtractsCanonicalLot20FromBothQrFormats(
+        string rawQr, string expectedLot20, string expectedItemCode)
+    {
+        var parsed = QRCodeParser.ParseQRCode(rawQr);
+
+        Assert.Equal(expectedItemCode, parsed.ItemCode);
+        Assert.Equal(expectedLot20, PCTP.Common.LotCodeHelper.GetFullKey(parsed.LotNo));
+        Assert.Equal(rawQr, parsed.RawQr);
+    }
+
     [Fact]
     public void ProductionParser_ParsesReceivingMasterLabel()
     {
