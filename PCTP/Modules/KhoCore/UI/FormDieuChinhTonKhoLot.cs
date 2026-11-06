@@ -115,7 +115,7 @@ namespace PCTP.Modules.KhoCore.UI
             var keyLabel = new LabelControl { Text = "LookupKey", Dock = DockStyle.Fill, AutoSizeMode = LabelAutoSizeMode.None };
             keyLabel.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
             _stockLookup.Dock = DockStyle.Fill;
-            _stockLookup.SetItemSuggestions(_stockTp.GetItemLookup());
+            // Lookup là ô nhập tự do: không nạp danh sách PART cố định vì sẽ chặn LOT/QR.
             _stockLookup.SearchRequested += (s, e) => SearchLots();
             searchLayout.Controls.Add(keyLabel, 0, 0);
             searchLayout.Controls.Add(_stockLookup, 1, 0);
