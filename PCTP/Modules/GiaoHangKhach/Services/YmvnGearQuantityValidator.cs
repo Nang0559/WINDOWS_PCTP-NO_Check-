@@ -227,7 +227,13 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             foreach (DataRow row in table.Rows)
             {
                 string part = NormalizePart(row[partColumn]);
-                string gear = NormalizeGear(row[gearColumn]);
+                // Phiếu giao có GEAR NULL/rỗng là Gear mặc định Code 0 trong B20Gear.
+                // Dùng sentinel "0" nội bộ để vẫn phân biệt được nhóm Gear trống khi cộng số lượng.
+                object rawGear = row[gearColumn];
+                string gear = rawGear == null || rawGear == DBNull.Value ||
+                              string.IsNullOrWhiteSpace(rawGear.ToString())
+                    ? "0"
+                    : NormalizeGear(rawGear);
                 int quantity;
 
                 if (string.IsNullOrEmpty(part) || string.IsNullOrEmpty(gear))
@@ -305,6 +311,10 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         /// </summary>
         private static string GearFromChar(char code, Func<int, string> gearNameByCode)
         {
+            // B20Gear.Code = 0 có Name rỗng theo thiết kế: đây là "không phân loại Gear",
+            // không phải mã Gear thiếu trong danh mục.
+            if (code == '0') return "0";
+
             if (gearNameByCode != null && code >= '0' && code <= '9')
             {
                 string fromCatalog = null;
