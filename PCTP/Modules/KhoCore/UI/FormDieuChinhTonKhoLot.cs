@@ -90,47 +90,41 @@ namespace PCTP.Modules.KhoCore.UI
                 ColumnCount = 1,
                 RowCount = 2
             };
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 104));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 132));
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
             Controls.Add(root);
 
             var searchGroup = new GroupControl
             {
-                Text = "Tra cứu mã hàng / LOT / QR",
+                Text = "Tra cứu tồn kho",
                 Dock = DockStyle.Fill
             };
             var searchLayout = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
                 Padding = new Padding(8),
-                ColumnCount = 3,
+                ColumnCount = 1,
                 RowCount = 2
             };
-            searchLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 110));
             searchLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            searchLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 145));
-            searchLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 38));
+            searchLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 82));
             searchLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
-            var keyLabel = new LabelControl { Text = "LookupKey", Dock = DockStyle.Fill, AutoSizeMode = LabelAutoSizeMode.None };
-            keyLabel.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
             _stockLookup.Dock = DockStyle.Fill;
-            // Lookup là ô nhập tự do: không nạp danh sách PART cố định vì sẽ chặn LOT/QR.
+            _stockLookup.SetItemSuggestions(_stockTp.GetItemLookup());
             _stockLookup.SearchRequested += (s, e) => SearchLots();
-            searchLayout.Controls.Add(keyLabel, 0, 0);
-            searchLayout.Controls.Add(_stockLookup, 1, 0);
-            searchLayout.SetColumnSpan(_stockLookup, 2);
+            _stockLookup.SelectionCleared += (s, e) => ResetSearchSelection();
+            searchLayout.Controls.Add(_stockLookup, 0, 0);
 
             var help = new LabelControl
             {
-                Text = "Nhập mã hàng để xem các LOT; nhập LOT để tìm trực tiếp; QR sẽ tự tách LOT và mã hàng. Chọn một LOT ở danh sách bên dưới để điều chỉnh.",
+                Text = "Tab Tìm theo mã có popup đề xuất mã/tên hàng; tab Tìm theo LOT / QR nhận chuỗi LOT hoặc QR độc lập.",
                 Dock = DockStyle.Fill,
                 AutoSizeMode = LabelAutoSizeMode.None
             };
             help.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
             help.Appearance.TextOptions.WordWrap = DevExpress.Utils.WordWrap.Wrap;
             searchLayout.Controls.Add(help, 0, 1);
-            searchLayout.SetColumnSpan(help, 3);
             searchGroup.Controls.Add(searchLayout);
             root.Controls.Add(searchGroup, 0, 0);
 
@@ -278,6 +272,21 @@ namespace PCTP.Modules.KhoCore.UI
             layout.Controls.Add(label, col, row);
             layout.Controls.Add(editor, col + 1, row);
             if (span > 1) layout.SetColumnSpan(editor, span);
+        }
+
+        private void ResetSearchSelection()
+        {
+            _lotGrid.DataSource = null;
+            _slotGrid.DataSource = null;
+            _searchResults = null;
+            _activeSlotLots = null;
+            _selectedLot = null;
+            _selectedItemCode = null;
+            _hasPreview = false;
+            _apply.Enabled = false;
+            _selectedLotLabel.Text = string.Empty;
+            _selectedItemLabel.Text = string.Empty;
+            _summary.Text = "Chọn phương thức tra cứu và nhập điều kiện mới.";
         }
 
         private void SearchLots()
