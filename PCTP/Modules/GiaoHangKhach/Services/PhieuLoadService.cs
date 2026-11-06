@@ -101,8 +101,11 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         private OrderLoadResult LoadFromTableOrder(OrderLoadContext context)
         {
             PrepareIfsBaseline(context);
-            if (_cfg.Delivery.CoGear && (context.CheckedGios == null || context.CheckedGios.Count == 0)) return OrderLoadResult.Empty(context);
-            string gioMoTa = context.CheckedGios != null && context.CheckedGios.Count > 0 ? string.Join("+", context.CheckedGios) + "H" : string.Empty;
+            bool noSelectedYmvHours = _cfg.Delivery.CoGear &&
+                (context.CheckedGios == null || context.CheckedGios.Count == 0);
+            string gioMoTa = context.CheckedGios != null && context.CheckedGios.Count > 0
+                ? string.Join("+", context.CheckedGios) + "H"
+                : string.Empty;
             bool isSP = context.Category == OrderCategory.SP;
             string docQRTable = _cfg.Delivery.GetDocQRTable(isSP);
             bool isQrMachine = context.MachineRole == MachineRole.DuocBanQR;
@@ -114,18 +117,26 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             OrderSourceResult sourceResult = _orderSourceFactory.GetSource(context).Load(context);
             DataTable donHang = sourceResult.Orders ?? new DataTable();
 
-            // YMVN view terminals must have an isolated, machine-specific snapshot.
-            // QR terminals continue to use the shared configured TMP table; never
-            // write a read-only/view terminal's data into the live QR TMP session.
-            if (_cfg.Delivery.CoGear && !isQrMachine)
+            // Selected time slots are the authoritative scope. An empty selection
+            // produces an empty snapshot, never an unfiltered/all-hours order set.
+            if (noSelectedYmvHours)
+                donHang.Clear();
+
+            if (_cfg.Delivery.CoGear && isQrMachine)
             {
+                // QR/Hoàn thành/Gear validator must all consume the same exact
+                // selected rows displayed in the grid. Replace atomically so a
+                // previous checkbox selection cannot remain in TMP.
+                _phieuRepo.ReplaceTmpRows(_cfg.Delivery.GetTmpTable(isSP), donHang);
+            }
+            else if (_cfg.Delivery.CoGear)
+            {
+                // View terminals keep their own machine-specific snapshot and
+                // must never modify the shared QR TMP table.
                 if (string.IsNullOrWhiteSpace(_tenBan))
                     throw new InvalidOperationException(
                         "YMVN máy VIEW chưa được cấp tên bảng snapshot theo máy (TMPPHIEUGIAOHANGView_*).");
 
-                // PushIfsSnapshot performs DROP/CREATE + BULK INSERT in one UOW
-                // transaction, so the machine view table is created and refreshed
-                // from the same filtered order set shown by this terminal.
                 _phieuRepo.PushIfsSnapshot(_tenBan, donHang);
             }
 
