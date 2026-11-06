@@ -10,6 +10,7 @@ using PCTP.Modules.XuLyHangLoi.Services;
 using PCTP.Common;
 using PCTP.Shared.Helpers;
 using PCTP.Shared.Models;
+using PCTP.Shared.Lookup;
 
 using System;
 using System.Collections.Generic;
@@ -47,7 +48,7 @@ namespace PCTP.Modules.KhoVatLy
 
         private GridControl _grid;
         private GridView _gridView;
-        private TextEdit _txtSearch;
+        private StockLookupControl _stockLookup;
         private LabelControl _lblInfo;
         private SimpleButton _btnThem;
         private SimpleButton _btnRefresh;
@@ -109,7 +110,7 @@ namespace PCTP.Modules.KhoVatLy
             StartPosition = FormStartPosition.CenterParent;
 
             var main = new TableLayoutPanel { Dock = DockStyle.Fill, RowCount = 4, ColumnCount = 1, Padding = new Padding(10) };
-            main.RowStyles.Add(new RowStyle(SizeType.Absolute, 38));   // search
+            main.RowStyles.Add(new RowStyle(SizeType.Absolute, 86));   // shared stock search
             main.RowStyles.Add(new RowStyle(SizeType.Percent, 100));   // grid
             main.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));   // info
             main.RowStyles.Add(new RowStyle(SizeType.Absolute, 50));   // buttons
@@ -119,16 +120,14 @@ namespace PCTP.Modules.KhoVatLy
             searchPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
             searchPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 110));
 
-            _txtSearch = new TextEdit
-            {
-                Dock = DockStyle.Fill,
-                Properties = { NullValuePrompt = "🔍 Lọc theo Mã hàng / LOT / Kho / Rack..." }
-            };
-            _txtSearch.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) ApplyFilter(); };
-            searchPanel.Controls.Add(_txtSearch, 0, 0);
+            _stockLookup = new StockLookupControl { Dock = DockStyle.Fill };
+            _stockLookup.SetLotQrPlaceholder("Nhập LOT / QR / Kho / Rack / TemCode...");
+            _stockLookup.SearchRequested += (s, e) => HandleStockSearch();
+            _stockLookup.SelectionCleared += (s, e) => ApplyTextFilter(string.Empty);
+            searchPanel.Controls.Add(_stockLookup, 0, 0);
 
             _btnRefresh = new SimpleButton { Text = "🔄 Làm mới", Dock = DockStyle.Fill };
-            _btnRefresh.Click += (s, e) => { LoadData(); _txtSearch.Text = ""; };
+            _btnRefresh.Click += (s, e) => { _stockLookup.ClearInput(); LoadData(); };
             searchPanel.Controls.Add(_btnRefresh, 1, 0);
 
             main.Controls.Add(searchPanel, 0, 0);
@@ -229,6 +228,7 @@ namespace PCTP.Modules.KhoVatLy
                 .ToList();
 
             var list = _chiXem ? LocTheoLot(_loadedRows) : _loadedRows;
+            BindItemSuggestions(list);
             _grid.DataSource = ToDataTable(list);
             _gridView.ClearSelection();
             _gridView.BestFitColumns();
@@ -268,12 +268,73 @@ namespace PCTP.Modules.KhoVatLy
             return kq;
         }
 
-        private void ApplyFilter()
+        private void BindItemSuggestions(IEnumerable<SlotLotViewInfo> rows)
         {
-            string input = (_txtSearch.Text ?? string.Empty).Trim();
+            var items = new DataTable();
+            items.Columns.Add("ItemCode", typeof(string));
+
+            foreach (string code in (rows ?? Enumerable.Empty<SlotLotViewInfo>())
+                .Select(x => (x.ItemCode ?? string.Empty).Trim())
+                .Where(x => x.Length > 0)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(x => x, StringComparer.OrdinalIgnoreCase))
+            {
+                items.Rows.Add(code);
+            }
+
+            _stockLookup.SetItemSuggestions(items, "ItemCode", null);
+        }
+
+        private void HandleStockSearch()
+        {
+            string input = _stockLookup.InputText;
+            if (_stockLookup.IsItemSearch)
+            {
+                string itemCode = _stockLookup.SelectedItemCode;
+                if (string.IsNullOrWhiteSpace(itemCode))
+                {
+                    itemCode = _loadedRows
+                        .Select(x => (x.ItemCode ?? string.Empty).Trim())
+                        .FirstOrDefault(x => string.Equals(x, input, StringComparison.OrdinalIgnoreCase));
+                }
+
+                if (string.IsNullOrWhiteSpace(itemCode))
+                {
+                    XtraMessageBox.Show(this, "Hãy chọn mã hàng trong popup đề xuất.", Text,
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    _stockLookup.FocusInput();
+                    return;
+                }
+
+                var scope = _chiXem ? LocTheoLot(_loadedRows) : _loadedRows;
+                var filteredByItem = scope.Where(x =>
+                    string.Equals((x.ItemCode ?? string.Empty).Trim(), itemCode, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+                _grid.DataSource = ToDataTable(filteredByItem);
+                _gridView.ClearSelection();
+                _gridView.BestFitColumns();
+                _lblInfo.Text = filteredByItem.Count == 0
+                    ? "Không tìm thấy mã hàng trong danh sách Slot phù hợp."
+                    : string.Format("Mã {0}: {1:n0} sản phẩm tại {2:n0} Slot ({3:n0} dòng).",
+                        itemCode, filteredByItem.Sum(x => x.Quantity),
+                        filteredByItem.Select(x => x.SlotId).Distinct().Count(), filteredByItem.Count);
+                if (!_chiXem) CapNhatThongTin();
+                return;
+            }
+
+            ApplyTextFilter(input);
+        }
+
+        private void ApplyTextFilter(string input)
+        {
+            input = (input ?? string.Empty).Trim();
             if (string.IsNullOrEmpty(input))
             {
                 _grid.DataSource = ToDataTable(_chiXem ? LocTheoLot(_loadedRows) : _loadedRows);
+                _gridView.ClearSelection();
+                _gridView.BestFitColumns();
+                if (!_chiXem) CapNhatThongTin();
+                else _lblInfo.Text = _tomTat;
                 return;
             }
 
@@ -296,7 +357,8 @@ namespace PCTP.Modules.KhoVatLy
 
                 _tomTat = filtered.Count == 0
                     ? "Không tìm thấy LOT trong Slot."
-                    : $"Tìm thấy {filtered.Sum(x => x.Quantity):n0} tại {filtered.Select(x => x.SlotId).Distinct().Count()} slot ({filtered.Count} dòng).";
+                    : string.Format("Tìm thấy {0:n0} tại {1:n0} slot ({2:n0} dòng).",
+                        filtered.Sum(x => x.Quantity), filtered.Select(x => x.SlotId).Distinct().Count(), filtered.Count);
                 _lblInfo.Text = _tomTat;
             }
             else
@@ -309,12 +371,19 @@ namespace PCTP.Modules.KhoVatLy
                     ContainsText(x.TemCode, input)).ToList();
             }
 
+            if (_chiXem)
+                filtered = LocTheoLot(filtered);
+
             _grid.DataSource = ToDataTable(filtered);
             _gridView.ClearSelection();
             _gridView.BestFitColumns();
             if (qr != null && filtered.Count == 1)
                 _gridView.FocusedRowHandle = 0;
-            if (qr == null) CapNhatThongTin();
+            if (qr == null)
+            {
+                if (_chiXem) _lblInfo.Text = string.Format("Tìm thấy {0:n0} dòng trong phạm vi LOT của phiếu.", filtered.Count);
+                else CapNhatThongTin();
+            }
         }
 
         private static bool ContainsText(string value, string keyword)
