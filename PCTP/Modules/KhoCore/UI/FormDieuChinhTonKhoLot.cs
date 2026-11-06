@@ -29,9 +29,7 @@ namespace PCTP.Modules.KhoCore.UI
         private readonly BulkStockSlotRepository _adjustmentRepo;
         private readonly string _databaseTarget;
 
-        private readonly GridLookUpEdit _lookupKey = new GridLookUpEdit();
-        private DataTable _itemLookup;
-        private readonly SimpleButton _search = new SimpleButton();
+        private readonly PCTP.Shared.Lookup.StockLookupControl _stockLookup = new PCTP.Shared.Lookup.StockLookupControl();
         private readonly GridControl _lotGrid = new GridControl();
         private readonly GridView _lotView = new GridView();
         private readonly GridControl _slotGrid = new GridControl();
@@ -114,54 +112,14 @@ namespace PCTP.Modules.KhoCore.UI
             searchLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 38));
             searchLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
-            var keyLabel = new LabelControl
-            {
-                Text = "LookupKey",
-                Dock = DockStyle.Fill,
-                AutoSizeMode = LabelAutoSizeMode.None
-            };
+            var keyLabel = new LabelControl { Text = "LookupKey", Dock = DockStyle.Fill, AutoSizeMode = LabelAutoSizeMode.None };
             keyLabel.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
-            _lookupKey.Dock = DockStyle.Fill;
-            _lookupKey.Properties.NullValuePrompt = "Chọn / nhập mã hàng, nhập LOT hoặc bắn QR 4 / 6 trường";
-            _lookupKey.Properties.TextEditStyle = DevExpress.XtraEditors.Controls.TextEditStyles.Standard;
-            _lookupKey.Properties.PopupFilterMode = DevExpress.XtraEditors.PopupFilterMode.Contains;
-            _lookupKey.Properties.ImmediatePopup = true;
-            _lookupKey.Properties.AllowNullInput = DevExpress.Utils.DefaultBoolean.True;
-            _lookupKey.Properties.DisplayMember = "PART";
-            _lookupKey.Properties.ValueMember = "PART";
-            _lookupKey.Properties.View.OptionsView.ShowAutoFilterRow = true;
-            _lookupKey.Properties.View.OptionsView.ShowGroupPanel = false;
-            _lookupKey.Properties.View.OptionsBehavior.Editable = false;
-            _itemLookup = _stockTp.GetItemLookup();
-            _lookupKey.Properties.DataSource = _itemLookup;
-            _lookupKey.Properties.PopulateViewColumns();
-            if (_lookupKey.Properties.View.Columns["PART"] != null)
-            {
-                _lookupKey.Properties.View.Columns["PART"].Caption = "Mã hàng";
-                _lookupKey.Properties.View.Columns["PART"].Visible = true;
-            }
-            if (_lookupKey.Properties.View.Columns["NAME"] != null)
-            {
-                _lookupKey.Properties.View.Columns["NAME"].Caption = "Tên hàng";
-                _lookupKey.Properties.View.Columns["NAME"].Visible = true;
-            }
-            _lookupKey.Properties.View.BestFitColumns();
-            _lookupKey.KeyDown += (s, e) =>
-            {
-                if (e.KeyCode == Keys.Enter)
-                {
-                    SearchLots();
-                    e.Handled = true;
-                    e.SuppressKeyPress = true;
-                }
-            };
-
-            _search.Text = "Tra cứu";
-            _search.Dock = DockStyle.Fill;
-            _search.Click += (s, e) => SearchLots();
+            _stockLookup.Dock = DockStyle.Fill;
+            _stockLookup.SetItemSuggestions(_stockTp.GetItemLookup());
+            _stockLookup.SearchRequested += (s, e) => SearchLots();
             searchLayout.Controls.Add(keyLabel, 0, 0);
-            searchLayout.Controls.Add(_lookupKey, 1, 0);
-            searchLayout.Controls.Add(_search, 2, 0);
+            searchLayout.Controls.Add(_stockLookup, 1, 0);
+            searchLayout.SetColumnSpan(_stockLookup, 2);
 
             var help = new LabelControl
             {
