@@ -170,6 +170,23 @@ public sealed class ReworkExportIdempotencyContractTests
     }
 
     [Fact]
+    public void ReworkFinalQc_RejectsMultiLotOrMismatchedLotBeforeAnyWrite()
+    {
+        var qt = ReadSource("QTChungService.source.cs");
+        var start = qt.IndexOf("public ScanResult QCXacNhanCuoi(", StringComparison.Ordinal);
+        var end = qt.IndexOf("public void GhiNhanKiemTraTem(", start, StringComparison.Ordinal);
+        var method = qt.Substring(start, end - start);
+
+        var plan = method.IndexOf("_reworkStockService.GetReworkPlan(", StringComparison.Ordinal);
+        var guard = method.IndexOf("exportedLots.Count > 1", StringComparison.Ordinal);
+        var insert = method.IndexOf("_traHangQTChungRepository.InsertQC(", StringComparison.Ordinal);
+
+        Assert.True(plan >= 0 && guard > plan && insert > guard,
+            "LOT guard must run after the plan check and before any QC row or stock return is written.");
+        Assert.Contains("exportedLots[0]", method);
+    }
+
+    [Fact]
     public void ReworkForm_ExportAndDeliveryButtonsFollowPolicyAndShowQuantities()
     {
         var form = ReadSource("FormReworkProcess.source.cs");

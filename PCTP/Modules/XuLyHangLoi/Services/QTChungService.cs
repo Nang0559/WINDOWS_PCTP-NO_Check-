@@ -606,6 +606,28 @@ IF @result < 0 THROW 51000, 'Không lấy được khóa QC cuối Rework theo p
                     return ScanResult.Fail($"QC cuối phải phân loại đủ {plan.SoLuongReworkDuocPhep:n0}. Hiện OK+NG={soLuongOK + soLuongNG:n0}.");
                 }
 
+                // Guard LOT nhập lại: QC cuối chỉ ghi nhận về MỘT LOT. Nếu phiếu đã xuất rework từ
+                // nhiều LOT thì OK/NG sẽ bị gộp sai vào một LOT (lệch STOCKTP theo LOT), nên từ chối
+                // trước khi ghi bất kỳ dòng QC / tồn kho nào. LOT nhập lại phải là LOT đã xuất.
+                var exportedLots = (_traHangQTChungRepository.GetXuat(phieuXuLyId) ?? new List<TraHangQTChungXuat>())
+                    .Where(x => x != null && x.SoLuongXuat > 0 &&
+                                string.Equals(x.LoaiXuat, "Rework", StringComparison.OrdinalIgnoreCase))
+                    .Select(x => LotNoHelper.GetStockTpKey(x.LotXuat))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+                if (exportedLots.Count > 1)
+                {
+                    SafeRollback();
+                    return ScanResult.Fail($"Phiếu đã xuất rework từ {exportedLots.Count} LOT ({string.Join(", ", exportedLots)}). " +
+                        "QC cuối hiện chỉ nhập lại được một LOT; không thể gộp OK/NG nhiều LOT.");
+                }
+                if (exportedLots.Count == 1 &&
+                    !string.Equals(exportedLots[0], LotNoHelper.GetStockTpKey(lotNo), StringComparison.OrdinalIgnoreCase))
+                {
+                    SafeRollback();
+                    return ScanResult.Fail($"Lot nhập lại [{lotNo}] không khớp LOT đã xuất rework [{exportedLots[0]}].");
+                }
+
                 int qcId = _traHangQTChungRepository.InsertQC(new TraHangQTChungQC
                 {
                     PhieuXuLyBatThuongId = phieuXuLyId,
