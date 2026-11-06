@@ -38,7 +38,9 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
         private GridView _viewLot, _viewItem, _viewDetail;
         private ComboBoxEdit _cmbFilter;
         private TextEdit _txtUnifiedSearch;
-        private string _onHandSearchFilter;
+        private string _onHandLotSearchFilter;
+        private string _onHandItemSearchFilter;
+        private string _onHandDetailSearchFilter;
         private SimpleButton _btnRefresh, _btnExport;
         private LabelControl _lblSummary;
 
@@ -109,7 +111,9 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
             string input = Convert.ToString(_txtUnifiedSearch.EditValue)?.Trim();
             if (string.IsNullOrWhiteSpace(input))
             {
-                _onHandSearchFilter = null;
+                _onHandLotSearchFilter = null;
+                _onHandItemSearchFilter = null;
+                _onHandDetailSearchFilter = null;
                 ApplyOnHandFilter();
                 return;
             }
@@ -138,12 +142,17 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
                     }
                 }
 
-                var filters = new List<string>();
+                // Mỗi Grid có schema riêng: LotRow/CurrentStockRow có LotNo,
+                // nhưng StockOnHandItemRow chỉ có ItemCode. Không dùng chung Criteria
+                // [LotNo] cho grid mã hàng vì DevExpress sẽ báo "Can't find property LotNo".
                 string lotFilter = BuildInFilter("LotNo", lots);
                 string partFilter = BuildInFilter("ItemCode", parts);
-                if (!string.IsNullOrEmpty(lotFilter)) filters.Add(lotFilter);
-                if (!string.IsNullOrEmpty(partFilter)) filters.Add(partFilter);
-                _onHandSearchFilter = filters.Count == 0 ? "1 = 0" : "(" + string.Join(" Or ", filters) + ")";
+                _onHandLotSearchFilter = JoinOrFilters(lotFilter, partFilter);
+                _onHandItemSearchFilter = partFilter;
+                _onHandDetailSearchFilter = JoinOrFilters(lotFilter, partFilter);
+                if (string.IsNullOrEmpty(_onHandLotSearchFilter)) _onHandLotSearchFilter = "1 = 0";
+                if (string.IsNullOrEmpty(_onHandItemSearchFilter)) _onHandItemSearchFilter = "1 = 0";
+                if (string.IsNullOrEmpty(_onHandDetailSearchFilter)) _onHandDetailSearchFilter = "1 = 0";
                 ApplyOnHandFilter();
                 if (lots.Count == 1)
                 {
@@ -172,6 +181,12 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToArray();
             return safe.Length == 0 ? null : "[" + field + "] IN (" + string.Join(",", safe) + ")";
+        }
+
+        private static string JoinOrFilters(params string[] filters)
+        {
+            var active = filters.Where(x => !string.IsNullOrWhiteSpace(x)).ToArray();
+            return active.Length == 0 ? null : "(" + string.Join(" Or ", active) + ")";
         }
 
         private async Task LoadOnHandAsync()
@@ -372,9 +387,9 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
                     detailExpr = "[LotNoFormatError] = True Or [LocationCode] = '" + StockOnHandAggregator.UnslottedLocation + "'"; break;
             }
 
-            _viewLot.ActiveFilterString = CombineFilters(lotExpr, _onHandSearchFilter);
-            _viewItem.ActiveFilterString = CombineFilters(itemExpr, _onHandSearchFilter);
-            _viewDetail.ActiveFilterString = CombineFilters(detailExpr, _onHandSearchFilter);
+            _viewLot.ActiveFilterString = CombineFilters(lotExpr, _onHandLotSearchFilter);
+            _viewItem.ActiveFilterString = CombineFilters(itemExpr, _onHandItemSearchFilter);
+            _viewDetail.ActiveFilterString = CombineFilters(detailExpr, _onHandDetailSearchFilter);
         }
 
         private static string CombineFilters(string first, string second)
