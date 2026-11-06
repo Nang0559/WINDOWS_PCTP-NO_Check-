@@ -32,7 +32,7 @@ namespace PCTP.Modules.NhapKho.Services
                 return new DataTable();
 
             // Repository là nơi duy nhất phân loại và tạo điều kiện truy vấn QR/LOT/PART.
-            return _repository.GetTonKhoTheoLot(new List<string> { input.Trim() });
+            return _repository.SearchStock(input.Trim());
         }
     }
 }
