@@ -48,8 +48,9 @@ namespace PCTP.Shared.Lookup
         {
             get
             {
+                string selectedCode = Convert.ToString(_itemEditor.EditValue);
                 string value = IsItemSearch
-                    ? (Convert.ToString(_itemEditor.EditValue) ?? _itemEditor.Text)
+                    ? (string.IsNullOrWhiteSpace(selectedCode) ? _itemEditor.Text : selectedCode)
                     : _lotQrEditor.Text;
                 return (value ?? string.Empty).Trim();
             }
@@ -65,7 +66,7 @@ namespace PCTP.Shared.Lookup
             _itemEditor.Properties.DataSource = items;
             _itemEditor.Properties.DisplayMember = "PART";
             _itemEditor.Properties.ValueMember = "PART";
-            _itemEditor.Properties.NullText = "Gõ mã hoặc tên hàng để xem đề xuất...";
+            _itemEditor.Properties.NullText = "Gõ mã hàng để xem đề xuất...";
             _itemEditor.Properties.TextEditStyle = TextEditStyles.Standard;
             _itemEditor.Properties.PopupFilterMode = PopupFilterMode.Contains;
             _itemEditor.Properties.ImmediatePopup = true;
@@ -114,7 +115,7 @@ namespace PCTP.Shared.Lookup
         {
             var layout = CreateInputLayout();
             _itemEditor.Dock = DockStyle.Fill;
-            _itemEditor.Properties.NullValuePrompt = "Gõ mã hoặc tên hàng...";
+            _itemEditor.Properties.NullValuePrompt = "Gõ mã hàng...";
             _itemEditor.KeyDown += (s, e) => HandleEnter(e);
             _itemSearchButton.Text = "Tra cứu mã";
             _itemSearchButton.Dock = DockStyle.Fill;
