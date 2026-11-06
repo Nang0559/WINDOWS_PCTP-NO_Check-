@@ -329,11 +329,22 @@ ORDER BY NGAYNHAP DESC;";
             var conditions = new List<string>();
             for (int i = 0; i < lots.Count; i++)
             {
-                string lot = (lots[i] ?? string.Empty).Trim();
-                if (lot.Length == 0) continue;
+                string searchText = (lots[i] ?? string.Empty).Trim();
+                if (searchText.Length == 0) continue;
+
+                // Nhận diện QR 4/6 phần trước khi tra cứu LOT.
+                string lot = searchText;
+                string itemCodeFromQr = null;
+                if (searchText.IndexOf(':') >= 0)
+                {
+                    var qr = PCTP.Shared.Helpers.QRCodeParser.ParseQRCode(searchText);
+                    lot = qr.LotNo;
+                    itemCodeFromQr = qr.ItemCode;
+                }
 
                 string exact = "@lot" + i;
                 string like = "@lotLike" + i;
+                string item = "@item" + i;
 
                 switch (PCTP.Common.LotCodeHelper.ClassifyLotKey(lot))
                 {
@@ -341,16 +352,27 @@ ORDER BY NGAYNHAP DESC;";
                         parameters.Add(new SqlParameter(exact, PCTP.Common.LotCodeHelper.GetFullKey(lot)));
                         parameters.Add(new SqlParameter(like, EscapeLike(PCTP.Common.LotCodeHelper.GetLegacyKey(lot)) + "%"));
                         conditions.Add($"(LOT = {exact} OR (LEN(LOT) < {PCTP.Common.LotCodeHelper.LEN_HEAD_FIXED} AND LOT LIKE {like}))");
+                        if (!string.IsNullOrWhiteSpace(itemCodeFromQr))
+                        {
+                            parameters.Add(new SqlParameter(item, itemCodeFromQr));
+                            conditions[conditions.Count - 1] = $"({conditions[conditions.Count - 1]} OR PART = {item})";
+                        }
                         break;
 
                     case PCTP.Common.LotKeyKind.Legacy13:
                         parameters.Add(new SqlParameter(like, EscapeLike(PCTP.Common.LotCodeHelper.GetLegacyKey(lot)) + "%"));
                         conditions.Add($"LOT LIKE {like}");
+                        if (!string.IsNullOrWhiteSpace(itemCodeFromQr))
+                        {
+                            parameters.Add(new SqlParameter(item, itemCodeFromQr));
+                            conditions[conditions.Count - 1] = $"({conditions[conditions.Count - 1]} OR PART = {item})";
+                        }
                         break;
 
                     default:
                         parameters.Add(new SqlParameter(exact, lot));
-                        conditions.Add($"LOT = {exact}");
+                        parameters.Add(new SqlParameter(item, itemCodeFromQr ?? searchText));
+                        conditions.Add($"(LOT = {exact} OR PART = {item})");
                         break;
                 }
             }
