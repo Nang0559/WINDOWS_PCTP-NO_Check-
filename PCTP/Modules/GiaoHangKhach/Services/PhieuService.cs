@@ -140,7 +140,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
                 // Usp_Qrcode_gheplot chung là contract khác (HVN/IFS) và không tính Gear/quy cách YMVN.
                 // Legacy chỉ ghép cho hàng MP; bảng SP_* có schema khác nên trả lưới rỗng, không gọi SP.
                 if (_isLoaiSP) return CreateEmptyGhepLotTable();
-                return _phieuRepo.LoadGhepLotYMVN(tenBan);
+                return _phieuRepo.LoadGhepLotYMVN(tenBan, _cfg.Delivery.GetTmpTable(false), _cfg.Delivery.ViewTablePrefix);
             }
             if (_cfg.Delivery.LoadTuBangRieng) return _phieuRepo.LoadGhepLot(tenBan, tenBan);
             string ifsTable = _isMayBanQR ? _cfg.Delivery.GetIfsTable(_isLoaiSP) : _cfg.Delivery.GetIfsViewTable(_isLoaiSP);
