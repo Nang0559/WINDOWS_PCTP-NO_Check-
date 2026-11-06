@@ -362,9 +362,8 @@ namespace PCTP.Modules.XuLyHangLoi
                 var huong = phieu.HuongXuLy;
                 _lblHuongXuLy.Text = $"Hướng: {huong}";
 
-                // Nạp thông tin từ đúng phiếu đang mở. Trước đây hai ô tìm kiếm
-                // luôn để trống nên người dùng không biết form đang xử lý mã hàng/
-                // LOT nào; danh sách LOT cũng không được lọc theo phiếu.
+                // Giữ điều kiện mặc định theo đúng phiếu đang mở và chỉ đề xuất
+                // mã hàng của phiếu; người dùng có thể tra cứu thêm theo LOT hoặc QR.
                 _phieuItemCode = (phieu.MaSanPham ?? string.Empty).Trim();
                 _phieuLotNo = (phieu.SoLoLoi ?? phieu.SoLo ?? string.Empty).Trim();
                 _searchItemCode = _phieuItemCode;
