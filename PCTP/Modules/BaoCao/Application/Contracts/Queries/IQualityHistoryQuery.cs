@@ -7,6 +7,8 @@ namespace PCTP.Modules.BaoCao.Application.Contracts.Queries
 {
     public interface IQualityHistoryQuery
     {
+        Task<IReadOnlyList<string>> GetItemCodesAsync(CancellationToken cancellationToken);
+
         Task<IReadOnlyList<QualityHistoryRow>> SearchAsync(
             DateTime from,
             DateTime to,
