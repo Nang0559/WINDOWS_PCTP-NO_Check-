@@ -88,9 +88,7 @@ namespace PCTP.Modules.BaoCao.UI
             _result.SelectedIndex = 0;
             filter.Controls.Add(_result);
 
-            var search = new SimpleButton { Text = "Tìm", Width = 75 };
-            search.Click += async (s, e) => await LoadAsync();
-            filter.Controls.Add(search);
+            // Search is owned by StockLookupControl; keep only export as a form action.
             var export = new SimpleButton { Text = "Excel", Width = 75 };
             export.Click += ExportClick;
             filter.Controls.Add(export);
