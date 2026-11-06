@@ -37,25 +37,35 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
         private GridControl _gridLot, _gridItem, _gridDetail;
         private GridView _viewLot, _viewItem, _viewDetail;
         private ComboBoxEdit _cmbFilter;
+        private TextEdit _txtUnifiedSearch;
+        private string _onHandSearchFilter;
         private SimpleButton _btnRefresh, _btnExport;
         private LabelControl _lblSummary;
 
         private void BuildOnHandUI()
         {
             var top = new PanelControl { Dock = DockStyle.Top, Height = 46 };
-            _cmbFilter = new ComboBoxEdit { Left = 10, Top = 11, Width = 200 };
+            _txtUnifiedSearch = new TextEdit { Left = 10, Top = 11, Width = 300 };
+            _txtUnifiedSearch.Properties.NullValuePrompt = "Quét QR / nhập LOT / mã hàng rồi Enter";
+            _txtUnifiedSearch.KeyDown += async (s, e) =>
+            {
+                if (e.KeyCode != Keys.Enter) return;
+                e.SuppressKeyPress = true;
+                await ApplyUnifiedOnHandSearchAsync();
+            };
+            _cmbFilter = new ComboBoxEdit { Left = 320, Top = 11, Width = 200 };
             _cmbFilter.Properties.TextEditStyle = DevExpress.XtraEditors.Controls.TextEditStyles.DisableTextEditor;
             _cmbFilter.Properties.Items.AddRange(new object[] { AllFilter, UnslottedFilter, OpenFilter, ClosedFilter, CheckFilter });
             _cmbFilter.SelectedIndex = 0;
             _cmbFilter.SelectedIndexChanged += (s, e) => ApplyOnHandFilter();
 
-            _btnRefresh = new SimpleButton { Left = 220, Top = 9, Width = 90, Height = 27, Text = "Làm mới" };
+            _btnRefresh = new SimpleButton { Left = 530, Top = 9, Width = 90, Height = 27, Text = "Làm mới" };
             _btnRefresh.Click += async (s, e) => await LoadOnHandAsync();
-            _btnExport = new SimpleButton { Left = 316, Top = 9, Width = 100, Height = 27, Text = "Xuất Excel" };
+            _btnExport = new SimpleButton { Left = 626, Top = 9, Width = 100, Height = 27, Text = "Xuất Excel" };
             _btnExport.Click += (s, e) => ExportActiveOnHandView();
-            _lblSummary = new LabelControl { Left = 430, Top = 14, AutoSizeMode = LabelAutoSizeMode.None, Width = 800, Height = 20 };
+            _lblSummary = new LabelControl { Left = 740, Top = 14, AutoSizeMode = LabelAutoSizeMode.None, Width = 800, Height = 20 };
             _lblSummary.Appearance.Font = new Font("Tahoma", 9, FontStyle.Bold);
-            top.Controls.AddRange(new Control[] { _cmbFilter, _btnRefresh, _btnExport, _lblSummary });
+            top.Controls.AddRange(new Control[] { _txtUnifiedSearch, _cmbFilter, _btnRefresh, _btnExport, _lblSummary });
 
             _tabs = new XtraTabControl { Dock = DockStyle.Fill };
             var tabLot = new XtraTabPage { Text = "Theo LOT" };
@@ -92,6 +102,76 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
             view.OptionsView.ShowAutoFilterRow = true;
             view.OptionsFind.AlwaysVisible = true;                       // ô tìm nhanh: mã hàng / LOT / QR / vị trí
             view.OptionsFind.FindNullPrompt = "Tìm mã hàng / LOT / QR / vị trí...";
+        }
+
+        private async Task ApplyUnifiedOnHandSearchAsync()
+        {
+            string input = Convert.ToString(_txtUnifiedSearch.EditValue)?.Trim();
+            if (string.IsNullOrWhiteSpace(input))
+            {
+                _onHandSearchFilter = null;
+                ApplyOnHandFilter();
+                return;
+            }
+
+            try
+            {
+                var result = await Task.Run(() => _stockTpService.SearchStock(input));
+                if (IsDisposed) return;
+
+                var lots = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                var parts = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                if (result != null)
+                {
+                    foreach (System.Data.DataRow row in result.Rows)
+                    {
+                        if (result.Columns.Contains("LOT") && row["LOT"] != DBNull.Value)
+                        {
+                            string lot = Convert.ToString(row["LOT"])?.Trim();
+                            if (!string.IsNullOrEmpty(lot)) lots.Add(lot);
+                        }
+                        if (result.Columns.Contains("PART") && row["PART"] != DBNull.Value)
+                        {
+                            string part = Convert.ToString(row["PART"])?.Trim();
+                            if (!string.IsNullOrEmpty(part)) parts.Add(part);
+                        }
+                    }
+                }
+
+                var filters = new List<string>();
+                string lotFilter = BuildInFilter("LotNo", lots);
+                string partFilter = BuildInFilter("ItemCode", parts);
+                if (!string.IsNullOrEmpty(lotFilter)) filters.Add(lotFilter);
+                if (!string.IsNullOrEmpty(partFilter)) filters.Add(partFilter);
+                _onHandSearchFilter = filters.Count == 0 ? "1 = 0" : "(" + string.Join(" Or ", filters) + ")";
+                ApplyOnHandFilter();
+                if (lots.Count == 1)
+                {
+                    _tabs.SelectedTabPageIndex = 0;
+                    _viewLot.FocusedRowHandle = _viewLot.LocateByValue("LotNo", lots.First());
+                }
+                else if (parts.Count == 1)
+                {
+                    _tabs.SelectedTabPageIndex = 1;
+                    _viewItem.FocusedRowHandle = _viewItem.LocateByValue("ItemCode", parts.First());
+                }
+                _lblSummary.Text = result == null || result.Rows.Count == 0
+                    ? "Không tìm thấy mã hàng / LOT phù hợp."
+                    : string.Format("Tìm thấy {0:n0} LOT / {1:n0} mã hàng.", lots.Count, parts.Count);
+            }
+            catch (Exception ex)
+            {
+                XtraMessageBox.Show(this, ex.Message, "Tìm kiếm tồn kho", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        }
+
+        private static string BuildInFilter(string field, IEnumerable<string> values)
+        {
+            var safe = values.Where(x => !string.IsNullOrWhiteSpace(x))
+                .Select(x => "'" + x.Replace("'", "''") + "'")
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+            return safe.Length == 0 ? null : "[" + field + "] IN (" + string.Join(",", safe) + ")";
         }
 
         private async Task LoadOnHandAsync()
@@ -292,9 +372,16 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
                     detailExpr = "[LotNoFormatError] = True Or [LocationCode] = '" + StockOnHandAggregator.UnslottedLocation + "'"; break;
             }
 
-            _viewLot.ActiveFilterString = lotExpr ?? string.Empty;
-            _viewItem.ActiveFilterString = itemExpr ?? string.Empty;
-            _viewDetail.ActiveFilterString = detailExpr ?? string.Empty;
+            _viewLot.ActiveFilterString = CombineFilters(lotExpr, _onHandSearchFilter);
+            _viewItem.ActiveFilterString = CombineFilters(itemExpr, _onHandSearchFilter);
+            _viewDetail.ActiveFilterString = CombineFilters(detailExpr, _onHandSearchFilter);
+        }
+
+        private static string CombineFilters(string first, string second)
+        {
+            if (string.IsNullOrWhiteSpace(first)) return second ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(second)) return first;
+            return "(" + first + ") And (" + second + ")";
         }
 
         private void ExportActiveOnHandView()
