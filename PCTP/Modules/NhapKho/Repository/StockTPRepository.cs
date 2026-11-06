@@ -409,7 +409,7 @@ ORDER BY NGAYNHAP DESC;";
                     case PCTP.Common.LotKeyKind.Full20:
                         parameters.Add(new SqlParameter(exact, PCTP.Common.LotCodeHelper.GetFullKey(lot)));
                         parameters.Add(new SqlParameter(like, EscapeLike(PCTP.Common.LotCodeHelper.GetLegacyKey(lot)) + "%"));
-                        conditions.Add($"(LOT = {exact} OR (LEN(LOT) < {PCTP.Common.LotCodeHelper.LEN_HEAD_FIXED} AND LOT LIKE {like}))");
+                        conditions.Add($"(SUBSTRING(LTRIM(RTRIM(LOT)), 1, {PCTP.Common.LotCodeHelper.LEN_HEAD_FIXED}) = {exact} OR (LEN(LTRIM(RTRIM(LOT))) < {PCTP.Common.LotCodeHelper.LEN_HEAD_FIXED} AND LTRIM(RTRIM(LOT)) LIKE {like}))");
                         break;
 
                     case PCTP.Common.LotKeyKind.Legacy13:
