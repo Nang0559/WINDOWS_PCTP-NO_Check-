@@ -371,9 +371,6 @@ namespace PCTP.Modules.KhoVatLy
                     ContainsText(x.TemCode, input)).ToList();
             }
 
-            if (_chiXem)
-                filtered = LocTheoLot(filtered);
-
             _grid.DataSource = ToDataTable(filtered);
             _gridView.ClearSelection();
             _gridView.BestFitColumns();
