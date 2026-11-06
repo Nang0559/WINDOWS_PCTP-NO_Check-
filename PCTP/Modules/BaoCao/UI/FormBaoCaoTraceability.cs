@@ -255,11 +255,14 @@ namespace PCTP.Modules.BaoCao.UI
             {
                 Dock = DockStyle.Fill,
                 Orientation = Orientation.Vertical,
-                SplitterDistance = 590,
                 Margin = Padding.Empty,
-                Panel1MinSize = 350,
-                Panel2MinSize = 360
+                // Set minimum sizes and SplitterDistance only after the control
+                // has its real layout width. Its default width is too small.
+                Panel1MinSize = 0,
+                Panel2MinSize = 0
             };
+            workspace.SizeChanged += (s, e) => AdjustWorkspaceSplitter(workspace);
+            workspace.HandleCreated += (s, e) => AdjustWorkspaceSplitter(workspace);
 
             var left = new TableLayoutPanel
             {
@@ -586,6 +589,39 @@ namespace PCTP.Modules.BaoCao.UI
                 "Nguồn dữ liệu         : " + ValueOrDash(node.SourceName) + Environment.NewLine +
                 "Khóa tra cứu/đối chiếu : " + ValueOrDash(node.SourceKey) + Environment.NewLine +
                 Environment.NewLine + node.Note;
+        }
+
+        private static void AdjustWorkspaceSplitter(SplitContainer workspace)
+        {
+            if (workspace == null || workspace.IsDisposed || !workspace.IsHandleCreated)
+                return;
+
+            int available = workspace.ClientSize.Width - workspace.SplitterWidth;
+            if (available <= 0) return;
+
+            // Keep comfortable pane widths on normal windows, but never impose
+            // impossible minimums when the user opens a narrow/resized window.
+            int panel1Minimum = available >= 714 ? 350 : 0;
+            int panel2Minimum = available >= 714 ? 360 : 0;
+            int minimumDistance = panel1Minimum;
+            int maximumDistance = available - panel2Minimum;
+            if (maximumDistance < minimumDistance)
+            {
+                panel1Minimum = 0;
+                panel2Minimum = 0;
+                minimumDistance = 0;
+                maximumDistance = available;
+            }
+
+            if (workspace.Panel1MinSize != panel1Minimum)
+                workspace.Panel1MinSize = panel1Minimum;
+            if (workspace.Panel2MinSize != panel2Minimum)
+                workspace.Panel2MinSize = panel2Minimum;
+
+            int desiredDistance = 590;
+            int distance = Math.Max(minimumDistance, Math.Min(desiredDistance, maximumDistance));
+            if (workspace.SplitterDistance != distance)
+                workspace.SplitterDistance = distance;
         }
 
         private void ShowEmptyTimeline(string message)
