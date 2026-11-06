@@ -6,6 +6,7 @@ using DevExpress.XtraGrid.Views.Base;
 using DevExpress.XtraGrid.Views.Grid;
 using DevExpress.XtraTab;
 using PCTP.Modules.BaoCao.Application.Contracts.Queries;
+using PCTP.Shared.Lookup;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -37,7 +38,7 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
         private GridControl _gridLot, _gridItem, _gridDetail;
         private GridView _viewLot, _viewItem, _viewDetail;
         private ComboBoxEdit _cmbFilter;
-        private TextEdit _txtUnifiedSearch;
+        private StockLookupControl _stockLookup;
         private string _onHandLotSearchFilter;
         private string _onHandItemSearchFilter;
         private string _onHandDetailSearchFilter;
@@ -46,28 +47,47 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
 
         private void BuildOnHandUI()
         {
-            var top = new PanelControl { Dock = DockStyle.Top, Height = 46 };
-            _txtUnifiedSearch = new TextEdit { Left = 10, Top = 11, Width = 300 };
-            _txtUnifiedSearch.Properties.NullValuePrompt = "Quét QR / nhập LOT / mã hàng rồi Enter";
-            _txtUnifiedSearch.KeyDown += async (s, e) =>
+            var top = new PanelControl { Dock = DockStyle.Top, Height = 126 };
+            var topLayout = new TableLayoutPanel
             {
-                if (e.KeyCode != Keys.Enter) return;
-                e.SuppressKeyPress = true;
-                await ApplyUnifiedOnHandSearchAsync();
+                Dock = DockStyle.Fill,
+                ColumnCount = 1,
+                RowCount = 2,
+                Padding = new Padding(4)
             };
-            _cmbFilter = new ComboBoxEdit { Left = 320, Top = 11, Width = 200 };
+            topLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            topLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 80));
+            topLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+
+            _stockLookup = new StockLookupControl { Dock = DockStyle.Fill };
+            _stockLookup.SetItemSuggestions(_stockTpService.GetItemLookup());
+            _stockLookup.SearchRequested += async (s, e) => await ApplyUnifiedOnHandSearchAsync();
+            _stockLookup.SelectionCleared += (s, e) => ClearUnifiedOnHandSearch();
+            topLayout.Controls.Add(_stockLookup, 0, 0);
+
+            var tools = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                FlowDirection = FlowDirection.LeftToRight,
+                WrapContents = false,
+                Padding = new Padding(2, 4, 2, 0)
+            };
+            _cmbFilter = new ComboBoxEdit { Width = 200, Height = 27 };
             _cmbFilter.Properties.TextEditStyle = DevExpress.XtraEditors.Controls.TextEditStyles.DisableTextEditor;
             _cmbFilter.Properties.Items.AddRange(new object[] { AllFilter, UnslottedFilter, OpenFilter, ClosedFilter, CheckFilter });
             _cmbFilter.SelectedIndex = 0;
             _cmbFilter.SelectedIndexChanged += (s, e) => ApplyOnHandFilter();
 
-            _btnRefresh = new SimpleButton { Left = 530, Top = 9, Width = 90, Height = 27, Text = "Làm mới" };
+            _btnRefresh = new SimpleButton { Width = 90, Height = 27, Text = "Làm mới" };
             _btnRefresh.Click += async (s, e) => await LoadOnHandAsync();
-            _btnExport = new SimpleButton { Left = 626, Top = 9, Width = 100, Height = 27, Text = "Xuất Excel" };
+            _btnExport = new SimpleButton { Width = 100, Height = 27, Text = "Xuất Excel" };
             _btnExport.Click += (s, e) => ExportActiveOnHandView();
-            _lblSummary = new LabelControl { Left = 740, Top = 14, AutoSizeMode = LabelAutoSizeMode.None, Width = 800, Height = 20 };
+            _lblSummary = new LabelControl { AutoSizeMode = LabelAutoSizeMode.None, Width = 800, Height = 27 };
             _lblSummary.Appearance.Font = new Font("Tahoma", 9, FontStyle.Bold);
-            top.Controls.AddRange(new Control[] { _txtUnifiedSearch, _cmbFilter, _btnRefresh, _btnExport, _lblSummary });
+            _lblSummary.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
+            tools.Controls.AddRange(new Control[] { _cmbFilter, _btnRefresh, _btnExport, _lblSummary });
+            topLayout.Controls.Add(tools, 0, 1);
+            top.Controls.Add(topLayout);
 
             _tabs = new XtraTabControl { Dock = DockStyle.Fill };
             var tabLot = new XtraTabPage { Text = "Theo LOT" };
@@ -108,7 +128,7 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
 
         private async Task ApplyUnifiedOnHandSearchAsync()
         {
-            string input = Convert.ToString(_txtUnifiedSearch.EditValue)?.Trim();
+            string input = _stockLookup.InputText;
             if (string.IsNullOrWhiteSpace(input))
             {
                 _onHandLotSearchFilter = null;
@@ -172,6 +192,15 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
             {
                 XtraMessageBox.Show(this, ex.Message, "Tìm kiếm tồn kho", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
+        }
+
+        private void ClearUnifiedOnHandSearch()
+        {
+            _onHandLotSearchFilter = null;
+            _onHandItemSearchFilter = null;
+            _onHandDetailSearchFilter = null;
+            ApplyOnHandFilter();
+            _lblSummary.Text = "Đã xóa điều kiện tìm kiếm.";
         }
 
         private static string BuildInFilter(string field, IEnumerable<string> values)
