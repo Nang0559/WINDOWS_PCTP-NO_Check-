@@ -2,6 +2,7 @@ using PCTP.Modules.BaoCao.Application.Contracts.Models;
 using PCTP.Modules.BaoCao.Application.Contracts.Repositories;
 using PCTP.Modules.GiaoHangKhach;
 using PCTP.Shared.Common;
+using PCTP.Common;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -47,7 +48,7 @@ INNER JOIN Rack r
     ON r.RackId = s.RackId
 INNER JOIN Warehouse w
     ON w.WarehouseId = r.WarehouseId
-WHERE sl.LotNo = @LotNo
+WHERE " + LotCodeHelper.BuildLotMatchSql("sl.LotNo", "@LotNo") + "
 ORDER BY
     sl.PhieuStatus,
     sl.ImportDate;";
