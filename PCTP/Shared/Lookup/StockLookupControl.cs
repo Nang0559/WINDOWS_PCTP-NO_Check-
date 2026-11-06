@@ -63,10 +63,46 @@ namespace PCTP.Shared.Lookup
 
         public void SetItemSuggestions(DataTable items)
         {
-            _itemEditor.Properties.DataSource = items;
-            _itemEditor.Properties.DisplayMember = "PART";
-            _itemEditor.Properties.ValueMember = "PART";
-            _itemEditor.Properties.NullText = "Gõ mã hàng để xem đề xuất...";
+            SetItemSuggestions(items, "PART", "NAME");
+        }
+
+        /// <summary>
+        /// Binds item suggestions from any lookup schema. The selected value is always
+        /// the item-code field; the popup searches a combined code/name display value.
+        /// Additional source columns (for example stock quantity) remain visible.
+        /// </summary>
+        public void SetItemSuggestions(DataTable items, string codeField, string nameField)
+        {
+            if (items == null)
+            {
+                _itemEditor.Properties.DataSource = null;
+                _itemEditor.EditValue = null;
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(codeField) || !items.Columns.Contains(codeField))
+                throw new ArgumentException("Lookup data must contain the item-code column.", nameof(codeField));
+
+            if (!string.IsNullOrWhiteSpace(nameField) && !items.Columns.Contains(nameField))
+                nameField = null;
+
+            DataTable lookup = items.Copy();
+            if (!lookup.Columns.Contains("DisplayText"))
+                lookup.Columns.Add("DisplayText", typeof(string));
+
+            foreach (DataRow row in lookup.Rows)
+            {
+                string code = Convert.ToString(row[codeField])?.Trim() ?? string.Empty;
+                string name = string.IsNullOrWhiteSpace(nameField)
+                    ? string.Empty
+                    : Convert.ToString(row[nameField])?.Trim() ?? string.Empty;
+                row["DisplayText"] = string.IsNullOrEmpty(name) ? code : code + " — " + name;
+            }
+
+            _itemEditor.Properties.DataSource = lookup;
+            _itemEditor.Properties.DisplayMember = "DisplayText";
+            _itemEditor.Properties.ValueMember = codeField;
+            _itemEditor.Properties.NullText = "Gõ mã hoặc tên hàng để xem đề xuất...";
             _itemEditor.Properties.TextEditStyle = TextEditStyles.Standard;
             _itemEditor.Properties.PopupFilterMode = PopupFilterMode.Contains;
             _itemEditor.Properties.ImmediatePopup = true;
@@ -75,11 +111,22 @@ namespace PCTP.Shared.Lookup
             _itemEditor.Properties.View.OptionsView.ShowAutoFilterRow = true;
             _itemEditor.Properties.View.OptionsBehavior.Editable = false;
             _itemEditor.Properties.View.Columns.Clear();
-            if (items != null)
+            _itemEditor.Properties.View.Columns.AddVisible(codeField, "Mã hàng");
+
+            if (!string.IsNullOrWhiteSpace(nameField))
+                _itemEditor.Properties.View.Columns.AddVisible(nameField, "Tên hàng");
+
+            foreach (DataColumn column in lookup.Columns)
             {
-                _itemEditor.Properties.View.Columns.AddVisible("PART", "Mã hàng");
-                if (items.Columns.Contains("NAME"))
-                    _itemEditor.Properties.View.Columns.AddVisible("NAME", "Tên hàng");
+                if (column.ColumnName == codeField ||
+                    column.ColumnName == nameField ||
+                    column.ColumnName == "DisplayText")
+                    continue;
+
+                string caption = column.ColumnName == "StockQuantity"
+                    ? "Tồn khả dụng"
+                    : column.ColumnName;
+                _itemEditor.Properties.View.Columns.AddVisible(column.ColumnName, caption);
             }
         }
 
