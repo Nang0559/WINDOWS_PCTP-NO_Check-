@@ -39,9 +39,15 @@ namespace PCTP.Modules.GiaoHangKhach.OrderLoading
             var d = ctx.Cfg.Delivery;
             bool isSP = ctx.Category == OrderCategory.SP;
 
+            // Không có checkbox nào được chọn phải có nghĩa là KHÔNG lấy đơn,
+            // tuyệt đối không được hiểu chuỗi rỗng là "bỏ lọc giờ/lấy tất cả".
+            string gioFilter = ctx.CheckedGios == null || ctx.CheckedGios.Count == 0
+                ? "__NO_SELECTED_HOURS__"
+                : string.Join(",", ctx.CheckedGios);
+
             var donHang = _phieuRepo.LoadPhieuTuBangRieng(
                 ctx.NgayGiao.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture),
-                string.Join(",", ctx.CheckedGios ?? new List<string>()),
+                gioFilter,
                 isSP, d.DockCodeSP, ctx.Cfg);
 
             // ✅ MỚI — build sẵn ifsDataDaLoc ngay tại bước load, để SoSanhVoiIFS
