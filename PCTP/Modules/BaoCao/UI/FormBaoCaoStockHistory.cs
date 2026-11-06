@@ -10,6 +10,8 @@ using PCTP.Shell.UI;
 using PCTP.Common;
 using PCTP.Shared.Helpers;
 using PCTP.Shared.Models;
+using PCTP.Shared.Lookup;
+using System.Data;
 using System.Linq;
 using System;
 using System.ComponentModel;
@@ -27,9 +29,7 @@ namespace PCTP.Modules.BaoCao.UI
         private readonly CancellationTokenSource _lifetime = new CancellationTokenSource();
         private DateEdit _dateFrom;
         private DateEdit _dateTo;
-        private LookUpEdit _lookupItemCode;
-        private TextEdit _txtUnifiedSearch;
-        private SimpleButton _btnSearch;
+        private StockLookupControl _stockLookup;
         private SimpleButton _btnCurrentStock;
         private SimpleButton _btnExport;
         private SimpleButton _btnPrint;
@@ -57,24 +57,26 @@ namespace PCTP.Modules.BaoCao.UI
             ClientSize = new System.Drawing.Size(1184, 710);
             StartPosition = FormStartPosition.CenterScreen;
 
-            var top = new PanelControl { Dock = DockStyle.Top, Height = 108 };
+            var top = new PanelControl { Dock = DockStyle.Top, Height = 150 };
             var historyGroup = new GroupControl { Text = "Tra cứu lịch sử nhập xuất", Dock = DockStyle.Fill };
             var currentGroup = new GroupControl { Text = "Kho hiện tại", Dock = DockStyle.Left, Width = 190 };
             var actionPanel = new PanelControl { Dock = DockStyle.Right, Width = 205 };
 
-            _dateFrom = new DateEdit { Left = 12, Top = 32, Width = 145 };
+            _dateFrom = new DateEdit { Left = 12, Top = 28, Width = 145 };
             _dateFrom.Properties.NullText = "Từ ngày";
-            _dateTo = new DateEdit { Left = 164, Top = 32, Width = 145 };
+            _dateTo = new DateEdit { Left = 164, Top = 28, Width = 145 };
             _dateTo.Properties.NullText = "Đến ngày";
-            _lookupItemCode = new LookUpEdit { Left = 316, Top = 32, Width = 205 };
-            _lookupItemCode.Properties.NullText = "Mã hàng";
-            _lookupItemCode.Properties.DisplayMember = "ItemCode";
-            _lookupItemCode.Properties.ValueMember = "ItemCode";
-            _txtUnifiedSearch = new TextEdit { Left = 12, Top = 68, Width = 500 };
-            _txtUnifiedSearch.Properties.NullValuePrompt = "Quét QR / nhập LOT / mã hàng / số phiếu rồi Enter";
-            _txtUnifiedSearch.KeyDown += async (s, e) => { if (e.KeyCode != Keys.Enter) return; e.Handled = true; e.SuppressKeyPress = true; await SearchAsync(); };
-            _btnSearch = new SimpleButton { Left = 526, Top = 65, Width = 90, Text = "Tìm kiếm" };
-            _btnSearch.Click += async (s, e) => await SearchAsync();
+
+            _stockLookup = new StockLookupControl
+            {
+                Left = 12,
+                Top = 62,
+                Width = 560,
+                Height = 78,
+                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
+            };
+            _stockLookup.SetLotQrPlaceholder("Quét QR / nhập LOT / số phiếu để tra cứu...");
+            _stockLookup.SearchRequested += async (s, e) => await SearchAsync();
 
             _btnCurrentStock = new SimpleButton { Left = 10, Top = 29, Width = 165, Text = "Thống kê kho hiện tại" };
             _btnCurrentStock.Click += async (s, e) => await LoadCurrentStockAsync();
@@ -83,7 +85,7 @@ namespace PCTP.Modules.BaoCao.UI
             _btnPrint = new SimpleButton { Left = 105, Top = 22, Width = 90, Text = "In báo cáo" };
             _btnPrint.Click += PrintClick;
 
-            historyGroup.Controls.AddRange(new Control[] { _dateFrom, _dateTo, _lookupItemCode, _txtUnifiedSearch, _btnSearch });
+            historyGroup.Controls.AddRange(new Control[] { _dateFrom, _dateTo, _stockLookup });
             currentGroup.Controls.Add(_btnCurrentStock);
             actionPanel.Controls.AddRange(new Control[] { _btnExport, _btnPrint });
             top.Controls.Add(historyGroup);
@@ -108,7 +110,12 @@ namespace PCTP.Modules.BaoCao.UI
             try
             {
                 var codes = await _historyQuery.GetItemCodesAsync(_lifetime.Token);
-                _lookupItemCode.Properties.DataSource = codes;
+                var lookupRows = new DataTable();
+                lookupRows.Columns.Add("PART", typeof(string));
+                foreach (string code in codes ?? Array.Empty<string>())
+                    if (!string.IsNullOrWhiteSpace(code))
+                        lookupRows.Rows.Add(code);
+                _stockLookup.SetItemSuggestions(lookupRows, "PART", null);
             }
             catch (OperationCanceledException) { }
             catch (Exception ex)
@@ -126,9 +133,11 @@ namespace PCTP.Modules.BaoCao.UI
                 {
                     From = ToDate(_dateFrom.EditValue),
                     To = ToDate(_dateTo.EditValue),
-                    PartNo = _lookupItemCode.EditValue == null ? null : _lookupItemCode.EditValue.ToString()
+                    PartNo = _stockLookup.IsItemSearch && !string.IsNullOrWhiteSpace(_stockLookup.InputText)
+                        ? _stockLookup.InputText
+                        : null
                 };
-                string search = (_txtUnifiedSearch.Text ?? string.Empty).Trim();
+                string search = _stockLookup.IsItemSearch ? string.Empty : _stockLookup.InputText;
                 if (!string.IsNullOrEmpty(search))
                 {
                     if (search.IndexOf(':') >= 0)
@@ -157,9 +166,15 @@ namespace PCTP.Modules.BaoCao.UI
             {
                 _showingCurrentStock = true;
                 var rows = await _currentStockQuery.GetAsync(_lifetime.Token);
-                string search = (_txtUnifiedSearch.Text ?? string.Empty).Trim();
+                string search = _stockLookup.InputText;
                 if (!string.IsNullOrEmpty(search))
                 {
+                    if (_stockLookup.IsItemSearch)
+                    {
+                        rows = rows.Where(x => ContainsSearch(x.ItemCode, search)).ToList();
+                    }
+                    else
+                    {
                     QRCodeInfo qr = null;
                     if (search.IndexOf(':') >= 0) { try { qr = QRCodeParser.ParseQRCode(search.ToUpperInvariant()); } catch (FormatException) { } }
                     rows = qr != null
@@ -167,6 +182,7 @@ namespace PCTP.Modules.BaoCao.UI
                         : LotCodeHelper.ClassifyLotKey(search) != LotKeyKind.Unknown
                             ? rows.Where(x => LotCodeHelper.AreLotKeysEquivalent(x.LotNo, search)).ToList()
                             : rows.Where(x => ContainsSearch(x.ItemCode, search) || ContainsSearch(x.LotNo, search) || ContainsSearch(x.QrCode, search) || ContainsSearch(x.DocumentNo, search)).ToList();
+                    }
                 }
                 Bind(rows, ConfigureCurrentStockColumns);
             }
