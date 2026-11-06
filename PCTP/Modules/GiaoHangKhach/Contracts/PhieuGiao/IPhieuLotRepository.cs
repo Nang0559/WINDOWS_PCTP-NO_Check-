@@ -21,6 +21,12 @@ namespace PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao
         /// </summary>
         DataTable LoadGhepLot(
           string tenBan = "TMPPHIEUGIAOHANG", string ifsTable = "IFSPHIEUGIAOHANG");
+        /// <summary>
+        /// YMVN (CoGear): ghép LOT theo đúng thuật toán legacy Usp_Qrcode_gheplotYM1 (form GIAOHANGYMN)
+        /// nhưng đọc bảng TMP của phiên (Delivery.TmpTable), không phải YMVN_TMPPHIEUGIAOHANG.
+        /// Trả cột MH, GG, LG, GearName.
+        /// </summary>
+        DataTable LoadGhepLotYMVN(string tmpTable);
         DataTable GetDanhSachLotTuKho(string maHang);
 
         string GetLotNo(string maHang, int stt, int dem, int slGiao,

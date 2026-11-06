@@ -134,9 +134,26 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         public DataTable LoadGhepLot()
         {
             string tenBan = GetTenBan(_isLoaiSP);
+            if (_cfg.Delivery.CoGear)
+            {
+                // YMVN: ghép LOT theo thuật toán legacy (Usp_Qrcode_gheplotYM1) trên bảng TMP của phiên.
+                // Usp_Qrcode_gheplot chung là contract khác (HVN/IFS) và không tính Gear/quy cách YMVN.
+                // Legacy chỉ ghép cho hàng MP; bảng SP_* có schema khác nên trả lưới rỗng, không gọi SP.
+                if (_isLoaiSP) return CreateEmptyGhepLotTable();
+                return _phieuRepo.LoadGhepLotYMVN(tenBan);
+            }
             if (_cfg.Delivery.LoadTuBangRieng) return _phieuRepo.LoadGhepLot(tenBan, tenBan);
             string ifsTable = _isMayBanQR ? _cfg.Delivery.GetIfsTable(_isLoaiSP) : _cfg.Delivery.GetIfsViewTable(_isLoaiSP);
             return _phieuRepo.LoadGhepLot(tenBan, ifsTable);
+        }
+        private static DataTable CreateEmptyGhepLotTable()
+        {
+            var dt = new DataTable();
+            dt.Columns.Add("MH", typeof(string));
+            dt.Columns.Add("GG", typeof(string));
+            dt.Columns.Add("LG", typeof(string));
+            dt.Columns.Add("GearName", typeof(string));
+            return dt;
         }
         public void LayLaiLotNo(int stt, bool isSP = false) => _phieuRepo.LayLaiLotNo(stt, GetTenBan(isSP), _cfg.Delivery.GetDocQRTable(isSP));
         public DataTable GetDanhSachMaHangGiaoDB() => _giaoDbService.GetDanhSachMaHang();

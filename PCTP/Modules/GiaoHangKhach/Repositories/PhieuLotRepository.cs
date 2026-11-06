@@ -117,6 +117,13 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                 new SqlParameter("@TMPTABLE", tenBan),
                 new SqlParameter("@IFSTABLE", ifsTable));
 
+        public DataTable LoadGhepLotYMVN(string tmpTable)
+        {
+            Db.ValidateTableName(tmpTable);
+            return ExecuteStoredProcedure("Usp_Qrcode_gheplotYMVN",
+                new SqlParameter("@TMPTABLE", tmpTable));
+        }
+
         public DataTable GetDanhSachLotTuKho(string maHang)
         {
             const int keyLen = PCTP.Common.LotCodeHelper.LEN_LEGACY_KEY;

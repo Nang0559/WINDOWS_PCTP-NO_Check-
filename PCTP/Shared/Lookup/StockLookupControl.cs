@@ -115,7 +115,7 @@ namespace PCTP.Shared.Lookup
             _itemEditor.Properties.TextEditStyle = TextEditStyles.Standard;
             _itemEditor.Properties.PopupFilterMode = PopupFilterMode.Contains;
             _itemEditor.Properties.ImmediatePopup = true;
-            _itemEditor.Properties.SearchMode = DevExpress.XtraEditors.Repository.GridLookUpSearchMode.AutoFilter;
+            _itemEditor.Properties.SearchMode = DevExpress.XtraEditors.Repository.GridLookUpSearchMode.AutoSearch;
             _itemEditor.Properties.AllowNullInput = DevExpress.Utils.DefaultBoolean.True;
             _itemEditor.Properties.View.OptionsView.ShowGroupPanel = false;
             _itemEditor.Properties.View.OptionsView.ShowAutoFilterRow = true;
