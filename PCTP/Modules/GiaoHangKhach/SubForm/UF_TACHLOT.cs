@@ -126,6 +126,7 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
                 FixedPanel = FixedPanel.Panel1,
                 IsSplitterFixed = false,
                 SplitterWidth = 7,
+                Size = new Size(1280, 850),
                 Panel1MinSize = 118,
                 Panel2MinSize = 390,
                 SplitterDistance = 132
@@ -197,6 +198,7 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
                 Orientation = Orientation.Horizontal,
                 IsSplitterFixed = false,
                 SplitterWidth = 7,
+                Size = new Size(1280, 700),
                 Panel1MinSize = 180,
                 Panel2MinSize = 235,
                 SplitterDistance = 390
