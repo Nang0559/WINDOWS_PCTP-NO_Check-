@@ -220,14 +220,14 @@ namespace PCTP.Modules.BaoCao.UI
             _to.Margin = new Padding(3, 0, 3, 0);
             search.Controls.Add(_to, 3, 2);
 
-            var searchButton = new SimpleButton { Text = "Tra cứu", Dock = DockStyle.Fill, Margin = new Padding(3, 2, 3, 2) };
-            searchButton.Click += SearchButton_Click;
+            // Search is triggered only by the shared control's own button / Enter key.
+            // Keep one clear action beside the date/customer filters.
             _stockLookup.SearchRequested += SearchButton_Click;
-            search.Controls.Add(searchButton, 4, 2);
 
             var clearButton = new SimpleButton { Text = "Xóa điều kiện", Dock = DockStyle.Fill, Margin = new Padding(3, 2, 3, 2) };
             clearButton.Click += ClearButton_Click;
-            search.Controls.Add(clearButton, 5, 2);
+            search.Controls.Add(clearButton, 4, 2);
+            search.SetColumnSpan(clearButton, 2);
 
             _status.Text = "Đang chuẩn bị...";
             _status.Dock = DockStyle.Fill;
