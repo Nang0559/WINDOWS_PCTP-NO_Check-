@@ -570,8 +570,9 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
                         "insert into TMPLOTTACH (STT,LOT,MAHANG,SL,flag) values (" + i + ",'" + lotno + sl1 + "','" + MAHANG + "'," + sllot1 + " , 0)");
                     sqlBRV.ExecuteNonQuery(sqlBRV.B7R2_FCCdb,
                         "insert into TMPLOTTACH(STT,LOT,MAHANG,SL,flag) values ( " + (i + 1) + ",'" + lotno + sl2 + "','" + MAHANG + "'," + sllot2 + " , 0)");
-                    sqlBRV.ExecuteNonQuery(sqlBRV.B7R2_FCCdb,
-                        "insert into TMPLOTTACH(STT,LOT,MAHANG,SL,flag) values ( " + (i + 2) + ",'" + lotno + sl3 + "','" + MAHANG + "'," + sllot3 + " , 0)");
+                    if (sllot3 > 0)
+                        sqlBRV.ExecuteNonQuery(sqlBRV.B7R2_FCCdb,
+                            "insert into TMPLOTTACH(STT,LOT,MAHANG,SL,flag) values ( " + (i + 2) + ",'" + lotno + sl3 + "','" + MAHANG + "'," + sllot3 + " , 0)");
                 }
                 i++;
             }
@@ -626,6 +627,7 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
         private void ApplySplitMode()
         {
             bool three = RDO_3.Checked;
+            if (three) txt_sllot2.Tag = null;
             groupBox3.Text = three ? "LOT con 2 — có thể chỉnh" : "LOT con 2 — tự động";
             groupBox4.Enabled = three;
             txt_sllot2.ReadOnly = !three;
@@ -642,7 +644,10 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
 
         private void QuantityInput_TextChanged(object sender, EventArgs e)
         {
-            if (!_updatingQuantities) RecalculateSplitQuantities();
+            if (_updatingQuantities) return;
+            if (ReferenceEquals(sender, txt_sllot2) && RDO_3.Checked)
+                txt_sllot2.Tag = "user";
+            RecalculateSplitQuantities();
         }
 
         // 2 LOT: LOT 2 luôn là phần còn lại và khóa sửa.
@@ -700,9 +705,9 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
             int activeThird = RDO_3.Checked ? third : 0;
             bool valid = first > 0 && second > 0 && activeThird >= 0
                 && first + second + activeThird == total
-                && (!RDO_3.Checked || third > 0);
+                && third >= 0;
             if (!valid && showMessage)
-                MessageBox.Show("Không thể tạo tem LOT con có số lượng 0. Tổng số lượng LOT con phải bằng đúng số lượng tem gốc (" + total + "). Hãy kiểm tra lại các ô số lượng.",
+                MessageBox.Show("Không thể tách tem gốc có số lượng 0 hoặc tạo LOT con có số lượng âm. Tổng số lượng các LOT con phải bằng đúng số lượng tem gốc (" + total + "). LOT con có số lượng 0 sẽ không được tạo/in tem.",
                     "Số lượng tách LOT không hợp lệ", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             return valid;
         }
