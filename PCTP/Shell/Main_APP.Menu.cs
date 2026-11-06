@@ -97,7 +97,14 @@ namespace PCTP
                 OpenGhepLotThuCong));
             
             // ── 4. Tra Cứu & Báo Cáo ────────────────────────────────────
-            // "Tra cứu LOT" / "Thống kê / báo cáo" (E_Tracuulotno / E_TKTK) nối ở handler.
+            // Designer still contains the legacy E_Tracuulotno / E_TKTK entries.
+            // Remove them before adding the current screens, otherwise both navigation
+            // generations appear together and open different report entry points.
+            accordionControlElement28.Elements.Clear();
+            accordionControlElement28.Elements.Add(CreateMenuItem(
+                "menuBcTruyXuat",
+                "Truy xuất giao hàng (QR / LOT)",
+                (s, e) => OpenFromMenu(() => BaoCaoNavigator.OpenTraceability(this, null), "Truy xuất giao hàng")));
             _menuBcLichSuKho = CreateMenuItem("menuBcLichSuKho", "Lịch sử kho / Tồn hiện tại", OpenBaoCaoLichSuKho);
             _menuBcLichSuQC = CreateMenuItem("menuBcLichSuQC", "Lịch sử QC / Inspection", OpenBaoCaoLichSuQC);
             accordionControlElement28.Elements.Add(_menuBcLichSuKho);
