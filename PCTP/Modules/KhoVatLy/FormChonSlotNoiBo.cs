@@ -9,6 +9,7 @@ using PCTP.Modules.XuLyHangLoi.Models;
 using PCTP.Modules.XuLyHangLoi.Services;
 using PCTP.Common;
 using PCTP.Shared.Helpers;
+using PCTP.Shared.Models;
 
 using System;
 using System.Collections.Generic;
