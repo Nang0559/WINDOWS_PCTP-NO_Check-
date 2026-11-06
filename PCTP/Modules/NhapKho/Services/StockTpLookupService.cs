@@ -22,6 +22,8 @@ namespace PCTP.Modules.NhapKho.Services
             return _repository.GetByLot(lotNo);
         }
 
+        public DataTable GetItemLookup() => _repository.GetItemLookup();
+
         public DataTable GetTonKhoHienTai() => _repository.GetTonKhoHienTai();
 
         public DataTable GetTonKhoTheoLot(List<string> lots) => _repository.GetTonKhoTheoLot(lots);
