@@ -324,7 +324,19 @@ namespace PCTP.Presentation.Presenters
 
         internal void SetupPhieuButtonsDefault(bool showCapNhapKho = false, bool showKiemTraMaNG = false, bool showLayLaiLot = false, bool showStop = false)
         {
-            bool coMaNG = showKiemTraMaNG || PhieuSvc.CheckCoMaNG(); View.SetupPhieuButtons(showCapNhapKho && IsMayBanQR, coMaNG && IsMayBanQR, IsMayBanQR, IsMayBanQR, showLayLaiLot && IsMayBanQR && !IsBanQR, showStop, !Cfg.Delivery.LoadTuBangRieng);
+            bool coMaNG = showKiemTraMaNG || PhieuSvc.CheckCoMaNG();
+            // YMVN ghép LOT is a planning/check action, not a QR-scanner-only action.
+            // Keep it available for MP on read-only/view terminals as well; SP has
+            // a different schema and LoadGhepLot() intentionally returns an empty table.
+            bool showGhepLot = IsMayBanQR || (Cfg.Delivery.CoGear && !PhieuView.IsLoaiSP);
+            View.SetupPhieuButtons(
+                showCapNhapKho && IsMayBanQR,
+                coMaNG && IsMayBanQR,
+                showGhepLot,
+                IsMayBanQR,
+                showLayLaiLot && IsMayBanQR && !IsBanQR,
+                showStop,
+                !Cfg.Delivery.LoadTuBangRieng);
         }
 
         internal DataTable LoadPhieuGiaoDB()
