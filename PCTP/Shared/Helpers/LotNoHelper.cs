@@ -26,7 +26,19 @@ namespace PCTP.Shared.Helpers
         /// với STOCKTP đều PHẢI gọi qua hàm này — KHÔNG tự Substring riêng.
         /// </summary>
         public static string GetStockTpKey(string rawLotNo)
-            => PCTP.Common.LotCodeHelper.StripCounterAndQty(rawLotNo);
+        {
+            if (string.IsNullOrWhiteSpace(rawLotNo))
+                return rawLotNo;
+
+            string value = rawLotNo.Trim();
+            string full20 = PCTP.Common.LotCodeHelper.GetFullKey(value);
+            if (!string.IsNullOrEmpty(full20))
+                return full20;
+
+            // Tương thích dữ liệu LOT cũ: giữ khóa 13 ký tự khi chưa đủ 20.
+            string legacy13 = PCTP.Common.LotCodeHelper.GetLegacyKey(value);
+            return !string.IsNullOrEmpty(legacy13) ? legacy13 : value;
+        }
         // Giữ nguyên logic cũ từ NHAP_TP — build danh sách FIND để tìm grid
         public static List<string> BuildFindList(string lotNoSL, string idSP)
          => PCTP.Common.LotCodeHelper.BuildCandidateFinds(lotNoSL, idSP);
