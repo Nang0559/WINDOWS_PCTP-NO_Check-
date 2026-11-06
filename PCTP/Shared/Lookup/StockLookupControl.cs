@@ -1,86 +1,175 @@
 using DevExpress.XtraEditors;
+using DevExpress.XtraEditors.Controls;
 using System;
+using System.Data;
 using System.Drawing;
 using System.Windows.Forms;
 
 namespace PCTP.Shared.Lookup
 {
     /// <summary>
-    /// Ô nhập tìm kiếm thống nhất cho mã hàng, LOT và QR FCC (4/6 trường).
-    ///
-    /// Quan trọng: đây là ô nhập văn bản tự do, KHÔNG phải GridLookUpEdit.
-    /// Danh sách gợi ý PART cố định sẽ chặn LOT/QR trước khi SearchStock được gọi,
-    /// khiến người dùng gõ LOT nhưng popup vẫn chỉ lọc mã hàng.
-    /// Việc phân loại mã hàng/LOT/QR được thực hiện tại repository SearchStock.
+    /// Reusable stock lookup with two isolated modes:
+    /// item code suggestions (PART/NAME) and free-text LOT/QR input.
+    /// Repository queries and result presentation remain the responsibility of the host form.
     /// </summary>
     public sealed class StockLookupControl : UserControl
     {
-        private readonly TextEdit _editor = new TextEdit();
-        private readonly SimpleButton _searchButton = new SimpleButton();
+        private readonly TabControl _tabs = new TabControl();
+        private readonly TabPage _itemPage = new TabPage("Tìm theo mã");
+        private readonly TabPage _lotQrPage = new TabPage("Tìm theo LOT / QR");
+        private readonly GridLookUpEdit _itemEditor = new GridLookUpEdit();
+        private readonly TextEdit _lotQrEditor = new TextEdit();
+        private readonly SimpleButton _itemSearchButton = new SimpleButton();
+        private readonly SimpleButton _lotQrSearchButton = new SimpleButton();
 
         public event EventHandler SearchRequested;
+        public event EventHandler SelectionCleared;
 
         public StockLookupControl()
         {
-            MinimumSize = new Size(260, 30);
-            Height = 34;
+            MinimumSize = new Size(360, 74);
+            Height = 78;
+            _tabs.Dock = DockStyle.Fill;
+            _tabs.TabPages.Add(_itemPage);
+            _tabs.TabPages.Add(_lotQrPage);
+            BuildItemTab();
+            BuildLotQrTab();
+            Controls.Add(_tabs);
+            _tabs.SelectedIndexChanged += (s, e) =>
+            {
+                ClearEditors();
+                SelectionCleared?.Invoke(this, EventArgs.Empty);
+            };
+        }
 
+        public bool IsItemSearch { get { return _tabs.SelectedTab == _itemPage; } }
+
+        public string InputText
+        {
+            get
+            {
+                string value = IsItemSearch
+                    ? (Convert.ToString(_itemEditor.EditValue) ?? _itemEditor.Text)
+                    : _lotQrEditor.Text;
+                return (value ?? string.Empty).Trim();
+            }
+        }
+
+        public string SelectedItemCode
+        {
+            get { return (Convert.ToString(_itemEditor.EditValue) ?? string.Empty).Trim(); }
+        }
+
+        public void SetItemSuggestions(DataTable items)
+        {
+            _itemEditor.Properties.DataSource = items;
+            _itemEditor.Properties.DisplayMember = "PART";
+            _itemEditor.Properties.ValueMember = "PART";
+            _itemEditor.Properties.NullText = "Gõ mã hoặc tên hàng để xem đề xuất...";
+            _itemEditor.Properties.TextEditStyle = TextEditStyles.Standard;
+            _itemEditor.Properties.PopupFilterMode = PopupFilterMode.Contains;
+            _itemEditor.Properties.ImmediatePopup = true;
+            _itemEditor.Properties.AllowNullInput = DevExpress.Utils.DefaultBoolean.True;
+            _itemEditor.Properties.View.OptionsView.ShowGroupPanel = false;
+            _itemEditor.Properties.View.OptionsView.ShowAutoFilterRow = true;
+            _itemEditor.Properties.View.OptionsBehavior.Editable = false;
+            _itemEditor.Properties.View.Columns.Clear();
+            if (items != null)
+            {
+                _itemEditor.Properties.View.Columns.AddVisible("PART", "Mã hàng");
+                if (items.Columns.Contains("NAME"))
+                    _itemEditor.Properties.View.Columns.AddVisible("NAME", "Tên hàng");
+            }
+        }
+
+        public void SelectItemTab()
+        {
+            _tabs.SelectedTab = _itemPage;
+            FocusInput();
+        }
+
+        public void SelectLotQrTab()
+        {
+            _tabs.SelectedTab = _lotQrPage;
+            FocusInput();
+        }
+
+        public void FocusInput()
+        {
+            if (IsItemSearch)
+            {
+                _itemEditor.Focus();
+                _itemEditor.SelectAll();
+            }
+            else
+            {
+                _lotQrEditor.Focus();
+                _lotQrEditor.SelectAll();
+            }
+        }
+
+        public void ClearInput() { ClearEditors(); }
+
+        private void BuildItemTab()
+        {
+            var layout = CreateInputLayout();
+            _itemEditor.Dock = DockStyle.Fill;
+            _itemEditor.Properties.NullValuePrompt = "Gõ mã hoặc tên hàng...";
+            _itemEditor.KeyDown += (s, e) => HandleEnter(e);
+            _itemSearchButton.Text = "Tra cứu mã";
+            _itemSearchButton.Dock = DockStyle.Fill;
+            _itemSearchButton.Click += (s, e) => RequestSearch();
+            layout.Controls.Add(_itemEditor, 0, 0);
+            layout.Controls.Add(_itemSearchButton, 1, 0);
+            _itemPage.Controls.Add(layout);
+        }
+
+        private void BuildLotQrTab()
+        {
+            var layout = CreateInputLayout();
+            _lotQrEditor.Dock = DockStyle.Fill;
+            _lotQrEditor.Properties.NullValuePrompt = "Nhập LOT 13/20 ký tự hoặc quét QR 4/6 trường...";
+            _lotQrEditor.Properties.AllowNullInput = DevExpress.Utils.DefaultBoolean.True;
+            _lotQrEditor.KeyDown += (s, e) => HandleEnter(e);
+            _lotQrSearchButton.Text = "Tra cứu LOT / QR";
+            _lotQrSearchButton.Dock = DockStyle.Fill;
+            _lotQrSearchButton.Click += (s, e) => RequestSearch();
+            layout.Controls.Add(_lotQrEditor, 0, 0);
+            layout.Controls.Add(_lotQrSearchButton, 1, 0);
+            _lotQrPage.Controls.Add(layout);
+        }
+
+        private static TableLayoutPanel CreateInputLayout()
+        {
             var layout = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
                 ColumnCount = 2,
                 RowCount = 1,
-                Margin = new Padding(0),
-                Padding = new Padding(0)
+                Padding = new Padding(5, 8, 5, 5),
+                Margin = new Padding(0)
             };
             layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 112));
+            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 130));
             layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-
-            _editor.Dock = DockStyle.Fill;
-            _editor.Properties.NullValuePrompt = "Nhập mã hàng / LOT hoặc quét QR 4 / 6 trường";
-            _editor.Properties.AllowNullInput = DevExpress.Utils.DefaultBoolean.True;
-            _editor.KeyDown += (sender, args) =>
-            {
-                if (args.KeyCode != Keys.Enter) return;
-
-                RequestSearch();
-                args.Handled = true;
-                args.SuppressKeyPress = true;
-            };
-
-            _searchButton.Text = "Tra cứu";
-            _searchButton.Dock = DockStyle.Fill;
-            _searchButton.Click += (sender, args) => RequestSearch();
-
-            layout.Controls.Add(_editor, 0, 0);
-            layout.Controls.Add(_searchButton, 1, 0);
-            Controls.Add(layout);
+            return layout;
         }
 
-        /// <summary>
-        /// Trả về nguyên văn chuỗi người dùng nhập để repository tự phân loại.
-        /// Không đọc EditValue từ lookup mã hàng và không thay đổi chuỗi QR/LOT.
-        /// </summary>
-        public string InputText
+        private void HandleEnter(KeyEventArgs e)
         {
-            get { return (_editor.Text ?? string.Empty).Trim(); }
+            if (e.KeyCode != Keys.Enter) return;
+            RequestSearch();
+            e.Handled = true;
+            e.SuppressKeyPress = true;
         }
 
-        public void FocusInput()
-        {
-            _editor.Focus();
-            _editor.SelectAll();
-        }
+        private void RequestSearch() { SearchRequested?.Invoke(this, EventArgs.Empty); }
 
-        public void ClearInput()
+        private void ClearEditors()
         {
-            _editor.EditValue = null;
-        }
-
-        private void RequestSearch()
-        {
-            SearchRequested?.Invoke(this, EventArgs.Empty);
+            _itemEditor.EditValue = null;
+            _itemEditor.Text = string.Empty;
+            _lotQrEditor.EditValue = null;
         }
     }
 }
