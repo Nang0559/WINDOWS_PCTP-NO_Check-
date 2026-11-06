@@ -584,7 +584,7 @@ namespace PCTP.Modules.BaoCao.UI
                 "Chứng từ              : " + ValueOrDash(node.DocumentNo) + Environment.NewLine +
                 "Người thực hiện       : " + ValueOrDash(node.UserName) + Environment.NewLine +
                 "Nguồn dữ liệu         : " + ValueOrDash(node.SourceName) + Environment.NewLine +
-                "Khóa bản ghi          : " + ValueOrDash(node.SourceKey) + Environment.NewLine +
+                "Khóa tra cứu/đối chiếu : " + ValueOrDash(node.SourceKey) + Environment.NewLine +
                 Environment.NewLine + node.Note;
         }
 
