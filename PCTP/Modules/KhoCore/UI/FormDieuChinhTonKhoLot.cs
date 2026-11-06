@@ -282,30 +282,18 @@ namespace PCTP.Modules.KhoCore.UI
 
         private void SearchLots()
         {
-            string raw = (_lookupKey.Text ?? string.Empty).Trim();
-            if (raw.Length == 0 && _lookupKey.EditValue != null)
-                raw = Convert.ToString(_lookupKey.EditValue)?.Trim() ?? string.Empty;
+            string raw = _stockLookup.InputText;
             if (raw.Length == 0)
             {
                 XtraMessageBox.Show(this, "Nhập mã hàng, LOT hoặc quét QR trước khi tra cứu.", Text);
-                _lookupKey.Focus();
+                _stockLookup.FocusInput();
                 return;
             }
 
             try
             {
-                string itemKey = null;
-                string lotKey = null;
-                string[] qrParts = raw.Split(':');
-                if (qrParts.Length == 4 || qrParts.Length == 6)
-                {
-                    // QR FCC có dạng LOT:PART:NGAYSX:SLTEM hoặc thêm 2 trường tem tổng.
-                    // STOCKTP lưu LOT khóa gốc; QR có thể mang cả counter + quantity ở 8 ký tự cuối.
-                    lotKey = PCTP.Common.LotCodeHelper.StripCounterAndQty(qrParts[0].Trim());
-                    itemKey = qrParts[1].Replace(" ", string.Empty).Trim();
-                }
-
-                DataTable stockRows = _stockTp.GetAllLotsForAdjustment();
+                // Truy vấn có tham số tại SQL; không tải toàn bộ STOCKTP về UI để lọc trong bộ nhớ.
+                DataTable stockRows = _stockTp.SearchStock(raw);
                 _activeSlotLots = _slotRepo.GetAllActiveSlotLots();
                 _searchResults = new DataTable();
                 _searchResults.Columns.Add("LOT", typeof(string));
@@ -322,25 +310,6 @@ namespace PCTP.Modules.KhoCore.UI
                     string lot = Convert.ToString(stock["LOT"])?.Trim() ?? string.Empty;
                     string item = Convert.ToString(stock["PART"])?.Trim() ?? string.Empty;
                     string name = Convert.ToString(stock["NAME"]) ?? string.Empty;
-                    bool match;
-
-                    if (lotKey != null)
-                    {
-                        match = string.Equals(
-                                item.Replace("-", string.Empty).Replace(" ", string.Empty),
-                                itemKey.Replace("-", string.Empty).Replace(" ", string.Empty),
-                                StringComparison.OrdinalIgnoreCase)
-                            && (LotCodeHelper.AreLotKeysEquivalent(lot, lotKey)
-                                || LotCodeHelper.AreLotKeysEquivalent(lot, qrParts[0].Trim()));
-                    }
-                    else
-                    {
-                        match = item.IndexOf(raw, StringComparison.OrdinalIgnoreCase) >= 0
-                            || lot.IndexOf(raw, StringComparison.OrdinalIgnoreCase) >= 0
-                            || LotCodeHelper.AreLotKeysEquivalent(lot, raw);
-                    }
-                    if (!match) continue;
-
                     var locations = _activeSlotLots
                         .Where(x => LotCodeHelper.AreLotKeysEquivalent((x.LotNo ?? string.Empty).Trim(), lot))
                         .ToList();
