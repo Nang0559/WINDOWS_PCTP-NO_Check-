@@ -154,6 +154,8 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
             qtyLayout.Controls.Add(_spinQtyA, 1, 0);
             qtyLayout.Controls.Add(CreateCaption("SL cần ghép từ LOT B"), 2, 0);
             _spinQtyB = CreateQuantityEditor();
+            _spinQtyA.EditValueChanged += (s, e) => UpdateButtons();
+            _spinQtyB.EditValueChanged += (s, e) => UpdateButtons();
             qtyLayout.Controls.Add(_spinQtyB, 3, 0);
             qtyGroup.Controls.Add(qtyLayout);
             root.Controls.Add(qtyGroup, 0, 1);
@@ -213,7 +215,7 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
             _btnPrint = new SimpleButton { Text = "IN GHÉP LOT", Width = 140, Height = 36, Enabled = false };
             var btnRemove = new SimpleButton { Text = "XÓA DÒNG", Width = 110, Height = 36 };
             var btnClear = new SimpleButton { Text = "XÓA TẤT CẢ", Width = 110, Height = 36 };
-            _btnAdd = new SimpleButton { Text = "THÊM VÀO BẢNG", Width = 145, Height = 36 };
+            _btnAdd = new SimpleButton { Text = "THÊM VÀO BẢNG", Width = 145, Height = 36, Enabled = false };
             _btnAdd.Click += (s, e) => AddPair();
             _btnPrint.Click += (s, e) => PrintWorkRows();
             btnRemove.Click += (s, e) => RemoveSelectedRows();
@@ -586,7 +588,17 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
         private void UpdateButtons()
         {
             _btnPrint.Enabled = _workRows.Rows.Count > 0;
-            _btnAdd.Enabled = _lotA != null && _lotB != null;
+            bool valid = false;
+            try
+            {
+                ValidatePair(_lotA, _lotB, GetQuantity(_spinQtyA), GetQuantity(_spinQtyB));
+                valid = true;
+            }
+            catch
+            {
+                valid = false;
+            }
+            _btnAdd.Enabled = valid;
         }
 
         private static string FormatSelection(string title, StockLotSelection selection)
