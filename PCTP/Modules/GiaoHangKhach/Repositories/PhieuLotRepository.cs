@@ -122,9 +122,10 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             var parameters = new List<SqlParameter>
             {
                 new SqlParameter("@TMPTABLE", tmpTable),
-                new SqlParameter("@IFSTABLE", string.IsNullOrWhiteSpace(ifsTable) ? (object)DBNull.Value : ifsTable),
                 new SqlParameter("@USEGEAR", useGear)
             };
+            if (!string.IsNullOrWhiteSpace(ifsTable))
+                parameters.Add(new SqlParameter("@IFSTABLE", ifsTable));
             if (useGear)
             {
                 Db.ValidateTableName(configuredTmpTable);
