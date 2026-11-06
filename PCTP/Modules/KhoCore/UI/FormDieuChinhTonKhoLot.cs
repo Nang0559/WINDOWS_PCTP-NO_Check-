@@ -3,6 +3,8 @@ using DevExpress.XtraEditors.Controls;
 using DevExpress.XtraGrid;
 using DevExpress.XtraGrid.Views.Grid;
 using PCTP.ClassSQL;
+using PCTP.Common;
+using PCTP.Modules.GiaoHangKhach;
 using PCTP.Modules.KhoCore.Repositories;
 using PCTP.Modules.KhoVatLy.Repositories;
 using PCTP.Modules.NhapKho.Repository;
