@@ -8,6 +8,8 @@ using PCTP.Shell.UI;
 using System;
 using System.ComponentModel;
 using System.Drawing;
+using System.Data;
+using PCTP.Shared.Lookup;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -21,7 +23,7 @@ namespace PCTP.Modules.BaoCao.UI
         private readonly IQualityHistoryQuery _query;
         private DateEdit _from;
         private DateEdit _to;
-        private TextEdit _itemCode;
+        private StockLookupControl _itemLookup;
         private ComboBoxEdit _result;
         private GridControl _masterGrid;
         private GridView _masterView;
@@ -36,7 +38,7 @@ namespace PCTP.Modules.BaoCao.UI
             BuildUi();
             _from.DateTime = DateTime.Today.AddDays(-7);
             _to.DateTime = DateTime.Today;
-            _ = LoadAsync();   // ✅ fire-and-forget tường minh — constructor không await được
+            _ = InitializeAsync();
         }
 
         public FormBaoCaoQualityHistory() : this(new QualityHistoryQueryService()) { }
@@ -54,7 +56,7 @@ namespace PCTP.Modules.BaoCao.UI
                 RowCount = 4,
                 Padding = new Padding(6)
             };
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 72));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 92));
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 58));
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 42));
@@ -76,9 +78,10 @@ namespace PCTP.Modules.BaoCao.UI
             _to.Properties.DisplayFormat.FormatString = "dd/MM/yyyy";
             _to.Properties.EditFormat.FormatString = "dd/MM/yyyy";
             filter.Controls.Add(_to);
-            filter.Controls.Add(new LabelControl { Text = "Mã hàng:", Padding = new Padding(12, 7, 4, 0) });
-            _itemCode = new TextEdit { Width = 150 };
-            filter.Controls.Add(_itemCode);
+            _itemLookup = new StockLookupControl(false) { Width = 360, Height = 78 };
+            _itemLookup.SetLotQrPlaceholder("Chỉ tìm theo mã hàng");
+            _itemLookup.SearchRequested += async (s, e) => await LoadAsync();
+            filter.Controls.Add(_itemLookup);
             filter.Controls.Add(new LabelControl { Text = "Kết quả:", Padding = new Padding(12, 7, 4, 0) });
             _result = new ComboBoxEdit { Width = 90 };
             _result.Properties.Items.AddRange(new[] { "Tất cả", "PASS", "FAIL" });
@@ -142,6 +145,26 @@ namespace PCTP.Modules.BaoCao.UI
             _detailView.Columns.Add(new GridColumn { FieldName = field, Caption = caption, Width = width, Visible = true });
         }
 
+        private async Task InitializeAsync()
+        {
+            try
+            {
+                var codes = await _query.GetItemCodesAsync(CancellationToken.None);
+                var items = new DataTable();
+                items.Columns.Add("PART", typeof(string));
+                foreach (string code in codes ?? Array.Empty<string>())
+                    if (!string.IsNullOrWhiteSpace(code))
+                        items.Rows.Add(code);
+                _itemLookup.SetItemSuggestions(items, "PART", null);
+            }
+            catch (Exception ex)
+            {
+                XtraMessageBox.Show("Không thể tải danh sách mã hàng QC.\n" + ex.Message, "Lỗi");
+            }
+
+            await LoadAsync();
+        }
+
         private async Task LoadAsync()
         {
             try
@@ -158,7 +181,7 @@ namespace PCTP.Modules.BaoCao.UI
                 var rows = await _query.SearchAsync(
                     from,
                     to,
-                    _itemCode.Text.Trim(),
+                    _itemLookup.InputText,
                     _result.EditValue == null ? null : _result.EditValue.ToString(),
                     CancellationToken.None);
 
