@@ -15,6 +15,8 @@ namespace PCTP.Modules.XuLyHangLoi
     using PCTP.Modules.XuLyHangLoi.Repository;
     using PCTP.Modules.XuLyHangLoi.Models;
     using PCTP.Shared.Helpers;
+    using PCTP.Shared.Lookup;
+    using System.Data;
     using System;
     using System.Collections.Generic;
     using System.Drawing;
@@ -40,9 +42,11 @@ namespace PCTP.Modules.XuLyHangLoi
         private LabelControl _lblTrangThai;
         private LabelControl _lblHuongXuLy;
 
-        private TextEdit _txtMaHang;
-        private TextEdit _txtLotNo;
-        private SimpleButton _btnLoadLot;
+        private StockLookupControl _stockLookup;
+        private string _phieuItemCode;
+        private string _phieuLotNo;
+        private string _searchItemCode;
+        private string _searchLotNo;
         private SimpleButton _btnXuatKho;
         private SimpleButton _btnGiaoSX;
         private SimpleButton _btnDangRework;
@@ -100,7 +104,7 @@ namespace PCTP.Modules.XuLyHangLoi
             };
 
             main.RowStyles.Add(new RowStyle(SizeType.Absolute, 55));
-            main.RowStyles.Add(new RowStyle(SizeType.Absolute, 75));
+            main.RowStyles.Add(new RowStyle(SizeType.Absolute, 96));
             main.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
             main.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
             main.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
@@ -157,47 +161,30 @@ namespace PCTP.Modules.XuLyHangLoi
             var pnlSearch = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
-                ColumnCount = 6,
+                ColumnCount = 2,
                 RowCount = 2
             };
-            pnlSearch.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 80));
-            pnlSearch.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35));
-            pnlSearch.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 70));
-            pnlSearch.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35));
-            pnlSearch.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 130));
-            pnlSearch.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100));
+            pnlSearch.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            pnlSearch.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 110));
+            pnlSearch.RowStyles.Add(new RowStyle(SizeType.Absolute, 82));
+            pnlSearch.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
-            var lblMaHang = new LabelControl
-            {
-                Text = "Mã hàng:",
-                Dock = DockStyle.Fill,
-                Appearance = { Font = new Font("Tahoma", 9F, FontStyle.Bold) }
-            };
-            _txtMaHang = new TextEdit { Dock = DockStyle.Fill };
-
-            var lblLot = new LabelControl
-            {
-                Text = "LOT:",
-                Dock = DockStyle.Fill,
-                Appearance = { Font = new Font("Tahoma", 9F, FontStyle.Bold) }
-            };
-            _txtLotNo = new TextEdit { Dock = DockStyle.Fill };
-
-            _btnLoadLot = new SimpleButton { Text = "🔍 Tìm LOT", Dock = DockStyle.Fill };
+            _stockLookup = new StockLookupControl { Dock = DockStyle.Fill };
+            _stockLookup.SearchRequested += (s, e) => HandleReworkStockSearch();
+            _stockLookup.SelectionCleared += (s, e) => ResetReworkStockSearch();
             _btnRefresh = new SimpleButton { Text = "⟳ Làm mới", Dock = DockStyle.Fill };
-            _btnLoadLot.Click += BtnLoadLot_Click;
-            _btnRefresh.Click += (s, e) => LoadLots();
+            _btnRefresh.Click += (s, e) =>
+            {
+                _stockLookup.ClearInput();
+                ResetReworkStockSearch();
+            };
 
-            pnlSearch.Controls.Add(lblMaHang, 0, 0);
-            pnlSearch.Controls.Add(_txtMaHang, 1, 0);
-            pnlSearch.Controls.Add(lblLot, 2, 0);
-            pnlSearch.Controls.Add(_txtLotNo, 3, 0);
-            pnlSearch.Controls.Add(_btnLoadLot, 4, 0);
-            pnlSearch.Controls.Add(_btnRefresh, 5, 0);
+            pnlSearch.Controls.Add(_stockLookup, 0, 0);
+            pnlSearch.Controls.Add(_btnRefresh, 1, 0);
 
             var lblHuongDan = new LabelControl
             {
-                Text = "Rework / không Rework được QC quyết định tại bước 4. Bước 6 chỉ thao tác với phiếu đã có hướng CanRework; chỉ xuất đúng LOT tồn khả dụng.",
+                Text = "Chọn mã hàng của phiếu trong popup hoặc nhập LOT / quét QR. Rework chỉ thao tác với mã hàng của phiếu CanRework và LOT còn tồn khả dụng.",
                 Dock = DockStyle.Fill,
                 Appearance =
                 {
@@ -206,7 +193,7 @@ namespace PCTP.Modules.XuLyHangLoi
                 }
             };
             pnlSearch.Controls.Add(lblHuongDan, 0, 1);
-            pnlSearch.SetColumnSpan(lblHuongDan, 6);
+            pnlSearch.SetColumnSpan(lblHuongDan, 2);
 
             main.Controls.Add(pnlSearch, 0, 1);
 
@@ -378,8 +365,11 @@ namespace PCTP.Modules.XuLyHangLoi
                 // Nạp thông tin từ đúng phiếu đang mở. Trước đây hai ô tìm kiếm
                 // luôn để trống nên người dùng không biết form đang xử lý mã hàng/
                 // LOT nào; danh sách LOT cũng không được lọc theo phiếu.
-                _txtMaHang.Text = (phieu.MaSanPham ?? string.Empty).Trim();
-                _txtLotNo.Text = (phieu.SoLoLoi ?? phieu.SoLo ?? string.Empty).Trim();
+                _phieuItemCode = (phieu.MaSanPham ?? string.Empty).Trim();
+                _phieuLotNo = (phieu.SoLoLoi ?? phieu.SoLo ?? string.Empty).Trim();
+                _searchItemCode = _phieuItemCode;
+                _searchLotNo = _phieuLotNo;
+                BindReworkItemSuggestions(_phieuItemCode);
 
                 // ----------------------------------------------------
                 // REWORK CHỈ ĐƯỢC PHÉP CHO CanRework.
@@ -431,8 +421,8 @@ namespace PCTP.Modules.XuLyHangLoi
                     return;
                 }
 
-                string maHang = _txtMaHang.Text.Trim();
-                string lotNo = _txtLotNo.Text.Trim();
+                string maHang = (_searchItemCode ?? string.Empty).Trim();
+                string lotNo = (_searchLotNo ?? string.Empty).Trim();
 
                 List<LotInfo> lots;
                 if (!string.IsNullOrWhiteSpace(maHang) ||
@@ -451,9 +441,9 @@ namespace PCTP.Modules.XuLyHangLoi
 
                 if (lots == null || lots.Count == 0)
                 {
-                    string lot = string.IsNullOrWhiteSpace(_txtLotNo.Text)
+                    string lot = string.IsNullOrWhiteSpace(_searchLotNo)
                         ? "(chưa có LOT)"
-                        : _txtLotNo.Text.Trim();
+                        : _searchLotNo.Trim();
 
                     // Giữ nguyên hướng xử lý; không tự thay bằng LOT khác
                     // khi LOT nguồn không có tồn khả dụng.
@@ -484,7 +474,7 @@ namespace PCTP.Modules.XuLyHangLoi
                 .Select(g => new
                 {
                     Lot = g.Key,
-                    ItemCode = g.Select(x => x.MaHang).FirstOrDefault(x => !string.IsNullOrWhiteSpace(x)) ?? _txtMaHang.Text.Trim(),
+                    ItemCode = g.Select(x => x.MaHang).FirstOrDefault(x => !string.IsNullOrWhiteSpace(x)) ?? (_searchItemCode ?? _phieuItemCode ?? string.Empty).Trim(),
                     Exported = g.Sum(x => x.SoLuongXuat)
                 })
                 .ToList();
@@ -568,11 +558,82 @@ namespace PCTP.Modules.XuLyHangLoi
         }
 
         // ============================================================
-        // SEARCH
+        // SHARED STOCK SEARCH
         // ============================================================
-        private void BtnLoadLot_Click(object sender, EventArgs e)
+        private void BindReworkItemSuggestions(string itemCode)
         {
+            var items = new DataTable();
+            items.Columns.Add("ItemCode", typeof(string));
+            items.Columns.Add("ItemName", typeof(string));
+            if (!string.IsNullOrWhiteSpace(itemCode))
+                items.Rows.Add(itemCode.Trim(), "Mã hàng của phiếu hiện tại");
+
+            _stockLookup.SetItemSuggestions(items, "ItemCode", "ItemName");
+        }
+
+        private void HandleReworkStockSearch()
+        {
+            string input = _stockLookup.InputText;
+            if (string.IsNullOrWhiteSpace(input))
+            {
+                ShowWarning("Nhập mã hàng, LOT hoặc quét QR trước khi tra cứu.");
+                _stockLookup.FocusInput();
+                return;
+            }
+
+            if (_stockLookup.IsItemSearch)
+            {
+                string itemCode = _stockLookup.SelectedItemCode;
+                if (string.IsNullOrWhiteSpace(itemCode) &&
+                    string.Equals(input, _phieuItemCode, StringComparison.OrdinalIgnoreCase))
+                    itemCode = _phieuItemCode;
+
+                if (!string.Equals(itemCode, _phieuItemCode, StringComparison.OrdinalIgnoreCase))
+                {
+                    ShowWarning("Form Rework chỉ cho phép tìm mã hàng thuộc phiếu đang xử lý.");
+                    _stockLookup.FocusInput();
+                    return;
+                }
+
+                _searchItemCode = _phieuItemCode;
+                _searchLotNo = string.Empty;
+                LoadLots();
+                return;
+            }
+
+            string lotNo = input;
+            if (input.IndexOf(':') >= 0)
+            {
+                try
+                {
+                    var qr = QRCodeParser.ParseQRCode(input.ToUpperInvariant());
+                    if (!string.Equals(qr.ItemCode?.Trim(), _phieuItemCode, StringComparison.OrdinalIgnoreCase))
+                    {
+                        ShowWarning("Mã hàng trong QR không trùng mã hàng của phiếu Rework.");
+                        _stockLookup.FocusInput();
+                        return;
+                    }
+                    lotNo = qr.LotNo;
+                }
+                catch (FormatException ex)
+                {
+                    ShowWarning("QR không hợp lệ: " + ex.Message);
+                    _stockLookup.FocusInput();
+                    return;
+                }
+            }
+
+            _searchItemCode = _phieuItemCode;
+            _searchLotNo = (lotNo ?? string.Empty).Trim();
             LoadLots();
+        }
+
+        private void ResetReworkStockSearch()
+        {
+            _searchItemCode = _phieuItemCode;
+            _searchLotNo = _phieuLotNo;
+            if (!IsDisposed && _qtChungService != null)
+                LoadLots();
         }
 
         // ============================================================
