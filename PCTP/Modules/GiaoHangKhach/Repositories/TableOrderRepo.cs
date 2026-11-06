@@ -172,6 +172,9 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         /// </summary>
         private static string BuildWhereGio(string gioFilter)
         {
+            if (string.Equals(gioFilter.Trim(), "__NO_SELECTED_HOURS__", StringComparison.Ordinal))
+                return "AND 1 = 0 ";
+
             if (string.IsNullOrWhiteSpace(gioFilter))
                 return "";
 
@@ -355,12 +358,11 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                 (ngayXuatMDY ?? "").Replace("'", "''");
 
             string sql =
-                "SELECT " +
-                "    CONVERT(VARCHAR, NgayGiao, 108) AS TIMES " +
+                "SELECT DISTINCT " +
+                "    CONVERT(VARCHAR(8), NgayGiao, 108) AS TIMES " +
                 "FROM Purchase_Order_YMVN " +
                 $"WHERE CONVERT(VARCHAR(10), NgayGiao, 101) = '{safeDate}' " +
-                "GROUP BY NgayGiao " +
-                "ORDER BY NgayGiao";
+                "ORDER BY TIMES";
 
             DataTable dt = _db.LoadData(sql);
 
