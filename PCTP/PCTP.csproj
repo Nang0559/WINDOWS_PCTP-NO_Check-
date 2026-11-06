@@ -947,7 +947,9 @@
     </Compile>
     <Compile Include="Modules\KhoCore\Fuction\CheckInfor.cs" />
     <Compile Include="Shared\Helpers\LotNoHelper.cs" />
-    <Compile Include="Shared\Lookup\StockLookupControl.cs" />
+    <Compile Include="Shared\Lookup\StockLookupControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
     <Compile Include="Shared\Helpers\PhieuNoHelper.cs" />
     <Compile Include="Shared\Helpers\PrintHelper.cs" />
     <Compile Include="Shared\Helpers\QRCodeBuilder.cs" />
