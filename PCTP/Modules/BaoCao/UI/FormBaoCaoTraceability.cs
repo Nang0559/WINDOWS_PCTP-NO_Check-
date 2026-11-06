@@ -599,29 +599,26 @@ namespace PCTP.Modules.BaoCao.UI
             int available = workspace.ClientSize.Width - workspace.SplitterWidth;
             if (available <= 0) return;
 
-            // Keep comfortable pane widths on normal windows, but never impose
-            // impossible minimums when the user opens a narrow/resized window.
-            int panel1Minimum = available >= 714 ? 350 : 0;
-            int panel2Minimum = available >= 714 ? 360 : 0;
-            int minimumDistance = panel1Minimum;
-            int maximumDistance = available - panel2Minimum;
-            if (maximumDistance < minimumDistance)
-            {
-                panel1Minimum = 0;
-                panel2Minimum = 0;
-                minimumDistance = 0;
-                maximumDistance = available;
-            }
-
-            if (workspace.Panel1MinSize != panel1Minimum)
-                workspace.Panel1MinSize = panel1Minimum;
-            if (workspace.Panel2MinSize != panel2Minimum)
-                workspace.Panel2MinSize = panel2Minimum;
+            // Reset constraints first: a resize can make the previous distance
+            // incompatible with the new width/minimums.
+            if (workspace.Panel1MinSize != 0) workspace.Panel1MinSize = 0;
+            if (workspace.Panel2MinSize != 0) workspace.Panel2MinSize = 0;
 
             int desiredDistance = 590;
-            int distance = Math.Max(minimumDistance, Math.Min(desiredDistance, maximumDistance));
+            int distance = Math.Max(0, Math.Min(desiredDistance, available));
             if (workspace.SplitterDistance != distance)
                 workspace.SplitterDistance = distance;
+
+            // Comfortable minimum widths are enabled only when both panes fit.
+            if (available >= 714)
+            {
+                workspace.Panel1MinSize = 350;
+                workspace.Panel2MinSize = 360;
+                int maxDistance = available - 360;
+                distance = Math.Max(350, Math.Min(desiredDistance, maxDistance));
+                if (workspace.SplitterDistance != distance)
+                    workspace.SplitterDistance = distance;
+            }
         }
 
         private void ShowEmptyTimeline(string message)
