@@ -96,7 +96,7 @@ BEGIN
                 @ResolvedGearName nvarchar(100), @ResolvedGearCode nvarchar(10),
                 @ItemQty int, @ItemGearName nvarchar(100), @ItemGearCode nvarchar(10),
                 @LotKey nvarchar(13), @StockQty int, @Pending int, @Remainder int,
-                @LotList nvarchar(1000), @Need int, @ParsedQty int, @DigitStart int, @SLGHEP int,
+                @LotList nvarchar(1000), @Need int, @ParsedQty int, @DigitStart int, @GearPartialQty int,
                 @Digits nvarchar(40), @RowGearName nvarchar(100), @RowGearCode nvarchar(10);
 
         DECLARE GearOrderCur CURSOR LOCAL FAST_FORWARD FOR
@@ -215,13 +215,13 @@ BEGIN
                                 INSERT INTO #GearResult(MH,GG,LG,GearName)
                                 VALUES(@Part,@DeliveryTime,@LotList,@ItemGearName);
                                 SET @LotList = N'';
-                                SET @SLGHEP = (@StockQty - @Pending) % @PackQty;
-                                IF @SLGHEP = 0
+                                SET @GearPartialQty = (@StockQty - @Pending) % @PackQty;
+                                IF @GearPartialQty = 0
                                     SET @Pending = 0;
                                 ELSE
                                 BEGIN
-                                    SET @Pending = @PackQty - @SLGHEP;
-                                    SET @LotList = @LotKey + N'-' + CONVERT(nvarchar(20),@SLGHEP);
+                                    SET @Pending = @PackQty - @GearPartialQty;
+                                    SET @LotList = @LotKey + N'-' + CONVERT(nvarchar(20),@GearPartialQty);
                                 END;
                                 SET @Need = @Need - @StockQty;
                                 UPDATE #GearStock SET Qty=0 WHERE StockId=@StockId;
@@ -229,23 +229,23 @@ BEGIN
                         END
                         ELSE
                         BEGIN
-                            SET @SLGHEP = @StockQty % @PackQty;
-                            IF @SLGHEP = 0
+                            SET @GearPartialQty = @StockQty % @PackQty;
+                            IF @GearPartialQty = 0
                                 SET @Pending = 0;
                             ELSE
-                                SET @Pending = @PackQty - @SLGHEP;
+                                SET @Pending = @PackQty - @GearPartialQty;
 
-                            IF @SLGHEP > 0
+                            IF @GearPartialQty > 0
                             BEGIN
                                 IF @LotList = N''
                                 BEGIN
-                                    SET @LotList = @LotKey + N'-' + CONVERT(nvarchar(20),@SLGHEP);
+                                    SET @LotList = @LotKey + N'-' + CONVERT(nvarchar(20),@GearPartialQty);
                                     SET @Need = @Need - @StockQty;
                                 END
                                 ELSE
                                 BEGIN
                                     -- Preserve legacy YM1 allocation semantics for subsequent partial lots.
-                                    SET @LotList = @LotList + N',' + @LotKey + N'-' + CONVERT(nvarchar(20),@SLGHEP);
+                                    SET @LotList = @LotList + N',' + @LotKey + N'-' + CONVERT(nvarchar(20),@GearPartialQty);
                                 END;
                                 UPDATE #GearStock SET Qty=0 WHERE StockId=@StockId;
                             END
