@@ -625,8 +625,21 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
         private static int SafeInt(object value)
         {
             if (value == null || value == DBNull.Value) return 0;
-            return int.TryParse(Convert.ToString(value), NumberStyles.Integer, CultureInfo.InvariantCulture, out int result)
-                ? result : 0;
+            try
+            {
+                if (value is decimal || value is double || value is float || value is int || value is long || value is short)
+                    return Convert.ToInt32(value, CultureInfo.InvariantCulture);
+            }
+            catch (OverflowException)
+            {
+                return 0;
+            }
+
+            if (decimal.TryParse(Convert.ToString(value), NumberStyles.Number, CultureInfo.InvariantCulture, out decimal number)
+                && number == decimal.Truncate(number)
+                && number >= int.MinValue && number <= int.MaxValue)
+                return decimal.ToInt32(number);
+            return 0;
         }
 
         private static int GetQuantity(SpinEdit editor)
