@@ -8,6 +8,7 @@ using System.Data;
 using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
+using PCTP.Common;
 
 namespace PCTP.Modules.GiaoHangKhach.HVN.SubForm
 {
@@ -69,7 +70,16 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.SubForm
         {
             if (string.IsNullOrWhiteSpace(lot)) return string.Empty;
             lot = lot.Trim();
-            return lot.Length <= 13 ? lot : lot.Substring(0, 13);
+
+            // LOT chuẩn mới phải giữ đủ khóa 20 ký tự (Date + Item + Shift +
+            // Gear + Line + Machine). Chỉ LOT legacy mới dùng khóa 13 ký tự.
+            // Không cắt LOT chuẩn mới về 13 vì sẽ gộp nhầm các LOT vật lý khác nhau.
+            string fullKey = LotCodeHelper.GetFullKey(lot);
+            if (!string.IsNullOrEmpty(fullKey))
+                return fullKey;
+
+            string legacyKey = LotCodeHelper.GetLegacyKey(lot);
+            return !string.IsNullOrEmpty(legacyKey) ? legacyKey : lot;
         }
 
         private bool ValidateFifoSelection(List<Tuple<string, int>> selected, out string message)
