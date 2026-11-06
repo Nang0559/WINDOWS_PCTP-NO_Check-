@@ -225,7 +225,8 @@ namespace PCTP.Modules.BaoCao.UI
 
             var clearButton = new SimpleButton { Text = "Xóa điều kiện", Dock = DockStyle.Fill, Margin = new Padding(3, 2, 3, 2) };
             clearButton.Click += ClearButton_Click;
-            search.Controls.Add(clearButton, 5, 2);
+            search.Controls.Add(clearButton, 4, 2);
+            search.SetColumnSpan(clearButton, 2);
 
             _status.Text = "Đang chuẩn bị...";
             _status.Dock = DockStyle.Fill;
