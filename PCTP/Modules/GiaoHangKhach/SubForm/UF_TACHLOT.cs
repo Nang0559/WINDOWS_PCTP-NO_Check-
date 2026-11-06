@@ -154,7 +154,6 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
             this.TXT_QRCODE.Dock = DockStyle.Fill;
             this.TXT_QRCODE.Font = new Font("Tahoma", 12F, FontStyle.Bold);
             this.TXT_QRCODE.Name = "tachLot_qrInput";
-            this.TXT_QRCODE.PlaceholderText = "Bắn QR 4/6 trường rồi nhấn Enter";
             this.TXT_QRCODE.KeyDown += new KeyEventHandler(this.TXT_QRCODE_KeyDown);
             scanLayout.Controls.Add(this.label1, 0, 0);
             scanLayout.Controls.Add(this.TXT_QRCODE, 1, 0);
