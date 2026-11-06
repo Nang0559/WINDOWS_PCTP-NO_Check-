@@ -25,5 +25,14 @@ namespace PCTP.Modules.NhapKho.Services
         public DataTable GetTonKhoHienTai() => _repository.GetTonKhoHienTai();
 
         public DataTable GetTonKhoTheoLot(List<string> lots) => _repository.GetTonKhoTheoLot(lots);
+
+        public DataTable SearchStock(string input)
+        {
+            if (string.IsNullOrWhiteSpace(input))
+                return new DataTable();
+
+            // Repository là nơi duy nhất phân loại và tạo điều kiện truy vấn QR/LOT/PART.
+            return _repository.GetTonKhoTheoLot(new List<string> { input.Trim() });
+        }
     }
 }
