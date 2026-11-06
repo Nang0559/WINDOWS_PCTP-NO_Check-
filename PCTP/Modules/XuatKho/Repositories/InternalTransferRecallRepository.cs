@@ -6,6 +6,7 @@ using PCTP.Modules.KhoVatLy.Repositories;
 using PCTP.Modules.KhoVatLy.Application.Interfaces;
 using PCTP.Modules.KhoVatLy.Kho.Models;
 using PCTP.Shared.Common;
+using PCTP.Common;
 using PCTP.Shared.Models;
 
 namespace PCTP.Modules.XuatKho.Repositories
@@ -40,6 +41,7 @@ WHERE t.Quantity > ISNULL(r.ReturnedQuantity, 0)
       OR l.LocationName LIKE N'%' + @Search + N'%'
       OR t.ItemCode LIKE N'%' + @Search + N'%'
       OR t.LotNo LIKE N'%' + @Search + N'%'
+      OR (LEN(@Search) >= 13 AND " + LotCodeHelper.BuildLotMatchSql(\"t.LotNo\", \"@Search\") + ")
   )
 ORDER BY l.LocationName, t.LotNo, t.CreatedAt DESC, t.TransferId DESC;";
             return LoadData(sql,
