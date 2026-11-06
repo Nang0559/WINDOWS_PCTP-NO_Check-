@@ -62,6 +62,7 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
 
         private DXValidationProvider dxValidationProvider1;
         private bool _updatingQuantities;
+        private readonly ToolTip toolTipQuantity = new ToolTip();
 
         public UF_TACHLOT()
         {
@@ -256,6 +257,8 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
             ConfigureQuantityGroup(this.groupBox4, this.label4, this.txt_sllot3, "LOT con 3", "Số lượng LOT 3");
             this.txt_sllot1.TextChanged += new EventHandler(this.QuantityInput_TextChanged);
             this.txt_sllot2.TextChanged += new EventHandler(this.QuantityInput_TextChanged);
+            this.txt_sllot1.KeyPress += new KeyPressEventHandler(this.QuantityInput_KeyPress);
+            this.txt_sllot2.KeyPress += new KeyPressEventHandler(this.QuantityInput_KeyPress);
             editor.Controls.Add(this.groupBox2, 1, 0);
             editor.Controls.Add(this.groupBox3, 2, 0);
             editor.Controls.Add(this.groupBox4, 3, 0);
@@ -620,6 +623,10 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
         private void SplitMode_CheckedChanged(object sender, EventArgs e)
         {
             if (_updatingQuantities) return;
+            // CheckedChanged fires twice when switching radio buttons. Only
+            // process the radio that has become active; otherwise the old
+            // radio can re-lock LOT 2 after the new mode has unlocked it.
+            if (!(sender is RadioButton selectedMode) || !selectedMode.Checked) return;
             ApplySplitMode();
             RecalculateSplitQuantities();
         }
@@ -627,7 +634,6 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
         private void ApplySplitMode()
         {
             bool three = RDO_3.Checked;
-            if (three) txt_sllot2.Tag = null;
             groupBox3.Text = three ? "LOT con 2 — có thể chỉnh" : "LOT con 2 — tự động";
             groupBox4.Enabled = three;
             txt_sllot2.ReadOnly = !three;
@@ -642,11 +648,32 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
             }
         }
 
+        private void QuantityInput_KeyPress(object sender, KeyPressEventArgs e)
+        {
+            // Quantities are whole, non-negative integers only.
+            if (!char.IsControl(e.KeyChar) && !char.IsDigit(e.KeyChar))
+                e.Handled = true;
+        }
+
         private void QuantityInput_TextChanged(object sender, EventArgs e)
         {
             if (_updatingQuantities) return;
             if (ReferenceEquals(sender, txt_sllot2) && RDO_3.Checked)
                 txt_sllot2.Tag = "user";
+
+            // Do not allow a typed value greater than the scanned source quantity.
+            // Clamp immediately and inform the operator once for this edit.
+            if (ReferenceEquals(sender, txt_sllot1)
+                && int.TryParse(MaxVL.Text, out int total)
+                && int.TryParse(txt_sllot1.Text, out int first)
+                && first > total)
+            {
+                _updatingQuantities = true;
+                try { txt_sllot1.Text = total.ToString(); txt_sllot1.SelectionStart = txt_sllot1.TextLength; }
+                finally { _updatingQuantities = false; }
+                System.Media.SystemSounds.Exclamation.Play();
+                toolTipQuantity.Show("Số lượng LOT 1 không được lớn hơn số lượng tem gốc: " + total, txt_sllot1, 0, -45, 2500);
+            }
             RecalculateSplitQuantities();
         }
 
@@ -671,7 +698,7 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
                 else
                 {
                     // Khi đổi từ 2 LOT sang 3 LOT, mặc định dồn phần còn lại vào LOT 2.
-                    if (txt_sllot2.Text.Length == 0 || txt_sllot2.Tag == null)
+                    if (txt_sllot2.Tag == null)
                         txt_sllot2.Text = remainder.ToString();
                     if (!int.TryParse(txt_sllot2.Text, out int second) || second < 0 || second > remainder)
                     {
