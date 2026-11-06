@@ -142,39 +142,6 @@ GROUP BY UPPER(LTRIM(RTRIM(st.PART)))
 ORDER BY UPPER(LTRIM(RTRIM(st.PART)));");
         }
 
-        /// <summary>
-        /// Tra cứu trực tiếp theo LOT/khóa LOT legacy. Chỉ trả về LOT còn STOCKTP
-        /// và có SlotLot hoạt động; không tự chọn khi một khóa legacy khớp nhiều LOT vật lý.
-        /// </summary>
-        public DataTable GetInternalTransferLotChoicesByLot(string lotNo)
-        {
-            if (string.IsNullOrWhiteSpace(lotNo))
-                return new DataTable();
-
-            return LoadData(@"
-SELECT UPPER(LTRIM(RTRIM(st.PART))) AS ItemCode,
-       MAX(LTRIM(RTRIM(st.NAME))) AS ItemName,
-       LTRIM(RTRIM(st.LOT)) AS LotNo,
-       ISNULL(st.SLCONLAI,0) AS StockQuantity,
-       ISNULL(sl.SlotQuantity,0) AS SlotQuantity
-FROM STOCKTP st
-CROSS APPLY
-(
-    SELECT SUM(s.Quantity) AS SlotQuantity
-    FROM SlotLot s
-    WHERE s.PhieuStatus = 0 AND s.Quantity > 0
-      AND " + LotCodeHelper.BuildLotMatchSql("LTRIM(RTRIM(s.LotNo))", "LTRIM(RTRIM(st.LOT))") + @"
-      AND UPPER(LTRIM(RTRIM(s.ItemCode))) = UPPER(LTRIM(RTRIM(st.PART)))
-) sl
-WHERE " + LotCodeHelper.BuildLotMatchSql("LTRIM(RTRIM(st.LOT))", "@LotNo") + @"
-  AND ISNULL(st.SLCONLAI,0) > 0
-  AND ISNULL(sl.SlotQuantity,0) > 0
-GROUP BY UPPER(LTRIM(RTRIM(st.PART))), LTRIM(RTRIM(st.LOT)),
-         ISNULL(st.SLCONLAI,0), ISNULL(sl.SlotQuantity,0)
-ORDER BY LTRIM(RTRIM(st.LOT));",
-                new SqlParameter("@LotNo", SqlDbType.NVarChar, 100) { Value = lotNo.Trim() });
-        }
-
         /// <summary>LOT được chọn chỉ khi còn STOCKTP và có số dư trong SlotLot đang hoạt động.</summary>
         public DataTable GetInternalTransferLotChoices(string itemCode)
         {
