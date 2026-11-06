@@ -28,7 +28,7 @@ namespace PCTP.Modules.BaoCao.Infrastructure.Repositories
             if (string.IsNullOrWhiteSpace(lotNo))
                 return result;
 
-            string sql = @"
+            string sql = $@"
 SELECT
     sl.SlotId,
     sl.LotNo,
