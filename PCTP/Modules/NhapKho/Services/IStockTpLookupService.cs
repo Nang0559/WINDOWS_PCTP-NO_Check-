@@ -14,5 +14,11 @@ namespace PCTP.Modules.NhapKho.Services
         StockItem GetByLot(string lotNo);
         DataTable GetTonKhoHienTai();
         DataTable GetTonKhoTheoLot(List<string> lots);
+
+        /// <summary>
+        /// Cổng tra cứu tồn kho dùng chung cho UI: tự nhận diện QR, LOT hoặc mã hàng.
+        /// Chỉ đọc dữ liệu; không thực hiện cập nhật tồn kho.
+        /// </summary>
+        DataTable SearchStock(string input);
     }
 }
