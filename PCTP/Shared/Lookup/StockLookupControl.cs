@@ -25,15 +25,22 @@ namespace PCTP.Shared.Lookup
         public event EventHandler SearchRequested;
         public event EventHandler SelectionCleared;
 
-        public StockLookupControl()
+        public StockLookupControl() : this(true) { }
+
+        /// <summary>
+        /// Set enableLotQrTab=false for lookup screens that support item-code filtering only.
+        /// </summary>
+        public StockLookupControl(bool enableLotQrTab)
         {
             MinimumSize = new Size(360, 74);
             Height = 78;
             _tabs.Dock = DockStyle.Fill;
             _tabs.TabPages.Add(_itemPage);
-            _tabs.TabPages.Add(_lotQrPage);
+            if (enableLotQrTab)
+                _tabs.TabPages.Add(_lotQrPage);
             BuildItemTab();
-            BuildLotQrTab();
+            if (enableLotQrTab)
+                BuildLotQrTab();
             Controls.Add(_tabs);
             _tabs.SelectedIndexChanged += (s, e) =>
             {
@@ -160,6 +167,20 @@ namespace PCTP.Shared.Lookup
             {
                 _lotQrEditor.Focus();
                 _lotQrEditor.SelectAll();
+            }
+        }
+
+        public void SetInputText(string value)
+        {
+            string text = value ?? string.Empty;
+            if (IsItemSearch)
+            {
+                _itemEditor.EditValue = null;
+                _itemEditor.Text = text;
+            }
+            else
+            {
+                _lotQrEditor.Text = text;
             }
         }
 
