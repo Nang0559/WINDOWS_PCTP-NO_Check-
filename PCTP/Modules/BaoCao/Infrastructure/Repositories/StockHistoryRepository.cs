@@ -79,6 +79,24 @@ namespace PCTP.Modules.BaoCao.Infrastructure.Repositories
             var table = ExecuteStoredProcedure("sp_GetStockHistory", parameters);
             var slotNames = LoadSlotNames();
             var rows = table.AsEnumerable().Select(r => Map(r, slotNames)).ToList();
+
+            // Stored procedure contract remains unchanged for deployed DBs. Apply
+            // optional LOT/QR/document criteria to its read-only result set.
+            if (!string.IsNullOrWhiteSpace(criteria.LotNo))
+                rows = rows.Where(x => MatchesLot(x.LotNo, criteria.LotNo)).ToList();
+
+            if (!string.IsNullOrWhiteSpace(criteria.QrCode))
+            {
+                string keyword = criteria.QrCode.Trim();
+                rows = rows.Where(x =>
+                    Contains(x.QrCode, keyword) ||
+                    Contains(x.LotNo, keyword) ||
+                    Contains(x.DocumentNo, keyword)).ToList();
+            }
+
+            if (!string.IsNullOrWhiteSpace(criteria.DocumentNo))
+                rows = rows.Where(x => Contains(x.DocumentNo, criteria.DocumentNo.Trim())).ToList();
+
             return Task.FromResult<IReadOnlyList<ItemHistoryRow>>(rows);
         }
 
@@ -127,6 +145,32 @@ namespace PCTP.Modules.BaoCao.Infrastructure.Repositories
                 DocumentNo = ReadString(row, "MaPhieu", "DocumentNo", "PhieuNo"),
                 UserName = ReadString(row, "PerformedBy", "UserName", "CreatedBy")
             };
+        }
+
+        private static bool Contains(string value, string keyword)
+        {
+            return !string.IsNullOrEmpty(value) &&
+                value.IndexOf(keyword, StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        private static bool MatchesLot(string rawLot, string requestedLot)
+        {
+            if (string.IsNullOrWhiteSpace(rawLot) || string.IsNullOrWhiteSpace(requestedLot))
+                return false;
+
+            try
+            {
+                foreach (var item in LotCodeHelper.ParseCompositeLot(rawLot))
+                    if (LotCodeHelper.AreLotKeysEquivalent(item.Key, requestedLot.Trim()))
+                        return true;
+            }
+            catch (FormatException)
+            {
+                // Legacy history rows may store a plain LOT instead of LOT-Qty.
+            }
+
+            return LotCodeHelper.AreLotKeysEquivalent(rawLot.Trim(), requestedLot.Trim()) ||
+                Contains(rawLot, requestedLot.Trim());
         }
 
         private static string ReadString(DataRow row, params string[] names)
