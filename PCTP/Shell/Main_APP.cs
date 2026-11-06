@@ -1,4 +1,5 @@
 using DevExpress.XtraBars;
+using DevExpress.Utils.Svg;
 using DevExpress.XtraBars.Navigation;
 using DevExpress.XtraEditors;
 using DevExpress.XtraReports.UI;
@@ -16,6 +17,8 @@ using PCTP.Shell.Widgets;
 using PCTP.VIEWSTOCK;
 using System;
 using System.Drawing.Design;
+using System.IO;
+using System.Text;
 using System.Windows.Forms;
 
 namespace PCTP
@@ -60,6 +63,57 @@ namespace PCTP
 
             // Menu chuẩn: Nhập Kho → Kho → Giao Hàng → Xử lý hàng lỗi → Tra cứu & Báo cáo → Công cụ.
             BuildStandardMenus();
+            ApplyFluentMenuIcons();
+        }
+
+        // Fluent UI-inspired outline SVG icons; generated in-memory to avoid external image dependencies.
+        private static SvgImage CreateFluentIcon(string pathData)
+        {
+            string svg = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"20\" height=\"20\" viewBox=\"0 0 24 24\">" +
+                         "<path d=\"" + pathData + "\" fill=\"none\" stroke=\"#64748B\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg>";
+            using (var stream = new MemoryStream(Encoding.UTF8.GetBytes(svg)))
+                return SvgImage.FromStream(stream);
+        }
+
+        private static void SetFluentIcon(AccordionControlElement element, string pathData)
+        {
+            if (element != null)
+                element.ImageOptions.SvgImage = CreateFluentIcon(pathData);
+        }
+
+        private void ApplyFluentMenuIcons()
+        {
+            // Nhập kho & QC
+            SetFluentIcon(NHAccordionControlElement, "M3 7.5 12 3l9 4.5-9 4.5-9-4.5Z M3 12l9 4.5 9-4.5 M3 16.5 12 21l9-4.5");
+            SetFluentIcon(E_NhapTP, "M4 7.5 12 3l8 4.5v9L12 21l-8-4.5v-9Z M4 7.5l8 4.5 8-4.5 M12 12v9");
+            SetFluentIcon(E_NhapTP_0QR, "M4 4h16v16H4z M8 8h3v3H8z M14 8h2 M14 12h2 M8 14h8");
+            SetFluentIcon(accordionControlElement_QCDinhHuong, "M12 3 20 6v5c0 5-3.4 8.2-8 10-4.6-1.8-8-5-8-10V6l8-3Z M8.5 12l2.2 2.2 4.8-5");
+            SetFluentIcon(accordionControlElement_QCXacNhanCuoi, "M12 3 20 6v5c0 5-3.4 8.2-8 10-4.6-1.8-8-5-8-10V6l8-3Z M8.5 12l2.2 2.2 4.8-5");
+            // Xử lý hàng lỗi
+            SetFluentIcon(E_Trahang, "M12 3 21 19H3L12 3Z M12 9v4 M12 16.5h.01");
+            SetFluentIcon(trahangngPD, "M7 3h8l4 4v14H7z M15 3v5h4 M10 12h6 M10 16h6");
+            SetFluentIcon(trahangndHVN, "M4 5h16 M4 12h16 M4 19h16 M8 3v4 M8 10v4 M8 17v4");
+            // Công cụ
+            SetFluentIcon(accordionControlElement20, "M14 6a5 5 0 0 0-6.5 6.5L3 17l4 4 4.5-4.5A5 5 0 0 0 18 10l-3 3-4-4 3-3Z");
+            SetFluentIcon(accordionControlElement21, "M12 7v5l3 2 M12 3a9 9 0 1 0 9 9 9 9 0 0 0-9-9Z");
+            SetFluentIcon(accordionControlElement19, "M4 4h16v16H4z M8 8h8 M8 12h8 M8 16h5");
+            SetFluentIcon(accordionControlElement24, "M5 5h5v5H5z M14 14h5v5h-5z M10 7h4a3 3 0 0 1 3 3v4 M14 17h-4a3 3 0 0 1-3-3v-4");
+            SetFluentIcon(accordionControlElement29, "M4 5h16v14H4z M8 9h3 M8 13h8 M14 8l2 2-2 2");
+            SetFluentIcon(acrImageControl, "M4 5h16v14H4z M4 16l5-5 4 4 3-3 4 4 M9 9h.01");
+            SetFluentIcon(cmdRackControl, "M3 21V8l9-5 9 5v13 M3 8h18 M8 21v-7h8v7 M8 10h.01 M16 10h.01");
+            SetFluentIcon(accordionControlElement38, "M5 4h14v16H5z M8 8h8 M8 12h8 M8 16h5");
+            SetFluentIcon(accordionControlElement30, "M12 3 21 19H3L12 3Z M12 9v4 M12 16.5h.01");
+            // Giao hàng
+            SetFluentIcon(accordionControlElement22, "M3 7h11v10H3z M14 10h4l3 3v4h-7z M7 20a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z M18 20a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z");
+            SetFluentIcon(E_GHHVN_MP, "M3 7h11v10H3z M14 10h4l3 3v4h-7z M7 20a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z M18 20a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z");
+            SetFluentIcon(E_GHHVN_SP, "M3 7h11v10H3z M14 10h4l3 3v4h-7z M7 20a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z M18 20a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z");
+            SetFluentIcon(HTDelever, "M3 7h11v10H3z M14 10h4l3 3v4h-7z M7 20a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z M18 20a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z");
+            SetFluentIcon(accordionControlElement36, "M3 21V8l9-5 9 5v13 M3 8h18 M8 21v-7h8v7");
+            SetFluentIcon(accordionControlElement37, "M4 5h16 M4 12h16 M4 19h16 M8 3v4 M8 10v4 M8 17v4");
+            // Tra cứu & báo cáo
+            SetFluentIcon(accordionControlElement28, "M10 3a7 7 0 1 0 0 14 7 7 0 0 0 0-14Z M15 15l6 6");
+            SetFluentIcon(E_Tracuulotno, "M10 3a7 7 0 1 0 0 14 7 7 0 0 0 0-14Z M15 15l6 6 M7 10h6");
+            SetFluentIcon(E_TKTK, "M4 20V10 M10 20V4 M16 20v-7 M22 20H2");
         }
 
         private void NormalizeHangLoiNavigation()
