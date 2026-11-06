@@ -122,16 +122,16 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             if (noSelectedYmvHours)
                 donHang.Clear();
 
-            if (_cfg.Delivery.CoGear && isQrMachine)
+            if (_cfg.Delivery.CoGear && !isSP && isQrMachine)
             {
-                // QR/Hoàn thành/Gear validator must all consume the same exact
+                // MP QR/Hoàn thành/Gear validator must all consume the same exact
                 // selected rows displayed in the grid. Replace atomically so a
                 // previous checkbox selection cannot remain in TMP.
-                _phieuRepo.ReplaceTmpRows(_cfg.Delivery.GetTmpTable(isSP), donHang);
+                _phieuRepo.ReplaceTmpRows(_cfg.Delivery.GetTmpTable(false), donHang);
             }
-            else if (_cfg.Delivery.CoGear)
+            else if (_cfg.Delivery.CoGear && !isSP)
             {
-                // View terminals keep their own machine-specific snapshot and
+                // MP view terminals keep their own machine-specific snapshot and
                 // must never modify the shared QR TMP table.
                 if (string.IsNullOrWhiteSpace(_tenBan))
                     throw new InvalidOperationException(
