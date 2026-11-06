@@ -31,7 +31,7 @@ namespace PCTP.Modules.GiaoHangKhach.OrderLoading.Category
                 if (value.Length == 0) continue;
 
                 TimeSpan time;
-                if (TimeSpan.TryParse(value, out time))
+                if (value.IndexOf(':') >= 0 && TimeSpan.TryParse(value, out time))
                 {
                     selectedTimes.Add(time.ToString(@"hh\:mm\:ss", System.Globalization.CultureInfo.InvariantCulture));
                     selectedHours.Add(((int)time.TotalHours).ToString("00"));
@@ -56,7 +56,8 @@ namespace PCTP.Modules.GiaoHangKhach.OrderLoading.Category
                     DateTime dateTime;
                     if (DateTime.TryParse(Convert.ToString(row["NGAYGIAO"]),
                         System.Globalization.CultureInfo.InvariantCulture,
-                        System.Globalization.DateTimeStyles.AssumeLocal, out dateTime))
+                        System.Globalization.DateTimeStyles.AssumeLocal, out dateTime)
+                        && dateTime.TimeOfDay != TimeSpan.Zero)
                     {
                         rowTime = dateTime.ToString("HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture);
                         rowHour = dateTime.ToString("HH", System.Globalization.CultureInfo.InvariantCulture);
@@ -68,7 +69,7 @@ namespace PCTP.Modules.GiaoHangKhach.OrderLoading.Category
                     : string.Empty;
 
                 TimeSpan parsedGio;
-                if (TimeSpan.TryParse(gioGiao, out parsedGio))
+                if (gioGiao.IndexOf(':') >= 0 && TimeSpan.TryParse(gioGiao, out parsedGio))
                 {
                     if (rowTime.Length == 0)
                         rowTime = parsedGio.ToString(@"hh\:mm\:ss", System.Globalization.CultureInfo.InvariantCulture);
