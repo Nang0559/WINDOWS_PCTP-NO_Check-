@@ -2,6 +2,9 @@ using DevExpress.XtraEditors;
 using PCTP.Modules.BaoCao.Application.Contracts.Queries;
 using PCTP.Modules.BaoCao.Infrastructure.Queries;
 using PCTP.Shell.UI;
+using PCTP.Shared.Helpers;
+using PCTP.Shared.Lookup;
+using System.Data;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -19,10 +22,8 @@ namespace PCTP.Modules.BaoCao.UI
         private readonly IQrTraceQuery _qrQuery;
         private readonly ILotTraceQuery _lotQuery;
         private readonly ICustomerDeliveryQuery _customerQuery;
-        private readonly TextBox _txtQr = new TextBox();
+        private readonly StockLookupControl _stockLookup = new StockLookupControl();
         private readonly TextBox _txtCustomerLabel = new TextBox();
-        private readonly TextBox _txtLot = new TextBox();
-        private readonly LookUpEdit _txtPart = new LookUpEdit();
         private readonly LookUpEdit _txtCustomer = new LookUpEdit();
         private readonly DateTimePicker _from = new DateTimePicker();
         private readonly DateTimePicker _to = new DateTimePicker();
@@ -56,13 +57,25 @@ namespace PCTP.Modules.BaoCao.UI
             string keyword = (value ?? string.Empty).Trim();
             if (keyword.Length == 0) return;
             if (keyword.StartsWith("LOT:", StringComparison.OrdinalIgnoreCase))
-                _txtLot.Text = keyword.Substring(4).Trim();
+            {
+                _stockLookup.SelectLotQrTab();
+                _stockLookup.SetInputText(keyword.Substring(4).Trim());
+            }
             else if (keyword.StartsWith("QR:", StringComparison.OrdinalIgnoreCase))
-                _txtQr.Text = keyword.Substring(3).Trim();
+            {
+                _stockLookup.SelectLotQrTab();
+                _stockLookup.SetInputText(keyword.Substring(3).Trim());
+            }
             else if (keyword.StartsWith("PART:", StringComparison.OrdinalIgnoreCase))
-                _txtPart.Text = keyword.Substring(5).Trim();
+            {
+                _stockLookup.SelectItemTab();
+                _stockLookup.SetInputText(keyword.Substring(5).Trim());
+            }
             else
-                _txtQr.Text = keyword;
+            {
+                _stockLookup.SelectLotQrTab();
+                _stockLookup.SetInputText(keyword);
+            }
         }
 
         private async Task LoadLookupsAsync()
@@ -76,7 +89,12 @@ namespace PCTP.Modules.BaoCao.UI
                 Task<IReadOnlyList<string>> customerTask = _customerQuery.GetCustomersAsync(CancellationToken.None);
                 await Task.WhenAll(itemTask, customerTask);
 
-                ConfigureLookup(_txtPart, itemTask.Result, "Mã hàng");
+                var itemRows = new DataTable();
+                itemRows.Columns.Add("PART", typeof(string));
+                foreach (string itemCode in itemTask.Result ?? new string[0])
+                    if (!string.IsNullOrWhiteSpace(itemCode))
+                        itemRows.Rows.Add(itemCode);
+                _stockLookup.SetItemSuggestions(itemRows, "PART", null);
                 ConfigureLookup(_txtCustomer, customerTask.Result, "Khách hàng");
                 _status.Text = "Sẵn sàng";
             }
@@ -142,11 +160,23 @@ namespace PCTP.Modules.BaoCao.UI
             search.RowStyles.Add(new RowStyle(SizeType.Absolute, 38));
             search.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
-            AddField(search, "QR / Carton", _txtQr, 0);
-            AddField(search, "Customer label", _txtCustomerLabel, 1);
-            AddField(search, "LOT", _txtLot, 2);
-            AddField(search, "Mã hàng", _txtPart, 3);
-            AddField(search, "Khách hàng", _txtCustomer, 4);
+            var stockLabel = new Label
+            {
+                Text = "Mã hàng / LOT / QR",
+                Dock = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft,
+                ForeColor = Color.FromArgb(35, 35, 35),
+                BackColor = Color.Transparent,
+                Margin = new Padding(3, 0, 3, 0)
+            };
+            search.Controls.Add(stockLabel, 0, 0);
+            search.SetColumnSpan(stockLabel, 3);
+            _stockLookup.Dock = DockStyle.Fill;
+            _stockLookup.Margin = new Padding(3, 0, 3, 0);
+            search.Controls.Add(_stockLookup, 0, 1);
+            search.SetColumnSpan(_stockLookup, 3);
+            AddField(search, "Customer label", _txtCustomerLabel, 3);
+            AddFieldSpan(search, "Khách hàng", _txtCustomer, 4, 2);
 
             _from.Format = DateTimePickerFormat.Short;
             _to.Format = DateTimePickerFormat.Short;
@@ -183,6 +213,7 @@ namespace PCTP.Modules.BaoCao.UI
 
             var searchButton = new SimpleButton { Text = "Tra cứu", Dock = DockStyle.Fill, Margin = new Padding(3, 2, 3, 2) };
             searchButton.Click += SearchButton_Click;
+            _stockLookup.SearchRequested += SearchButton_Click;
             search.Controls.Add(searchButton, 4, 2);
 
             var clearButton = new SimpleButton { Text = "Xóa điều kiện", Dock = DockStyle.Fill, Margin = new Padding(3, 2, 3, 2) };
@@ -241,6 +272,28 @@ namespace PCTP.Modules.BaoCao.UI
             panel.Controls.Add(editor, column, 1);
         }
 
+        private static void AddFieldSpan(TableLayoutPanel panel, string caption, Control editor, int column, int span)
+        {
+            var label = new Label
+            {
+                Text = caption,
+                Dock = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft,
+                ForeColor = Color.FromArgb(35, 35, 35),
+                BackColor = Color.Transparent,
+                Font = new Font("Segoe UI", 9F, FontStyle.Regular),
+                AutoEllipsis = true,
+                Margin = new Padding(3, 0, 3, 0)
+            };
+            editor.Dock = DockStyle.None;
+            editor.Anchor = AnchorStyles.Left | AnchorStyles.Right;
+            editor.Margin = new Padding(3, 0, 3, 0);
+            panel.Controls.Add(label, column, 0);
+            panel.SetColumnSpan(label, span);
+            panel.Controls.Add(editor, column, 1);
+            panel.SetColumnSpan(editor, span);
+        }
+
         private static void ConfigureGrid(DataGridView grid)
         {
             grid.Dock = DockStyle.Fill;
@@ -274,10 +327,20 @@ namespace PCTP.Modules.BaoCao.UI
 
                 DateTime? from = _from.Value.Date;
                 DateTime? to = _to.Value.Date;
-                string qr = _txtQr.Text.Trim();
+                string stockSearch = _stockLookup.InputText;
+                string qr = string.Empty;
+                string lot = string.Empty;
+                string part = string.Empty;
+                if (_stockLookup.IsItemSearch)
+                    part = stockSearch;
+                else if (!string.IsNullOrWhiteSpace(stockSearch))
+                {
+                    if (LotCodeHelper.ClassifyLotKey(stockSearch) != LotKeyKind.Unknown)
+                        lot = stockSearch;
+                    else
+                        qr = stockSearch;
+                }
                 string customerLabel = _txtCustomerLabel.Text.Trim();
-                string lot = _txtLot.Text.Trim();
-                string part = GetLookupText(_txtPart);
                 string customer = GetLookupText(_txtCustomer);
 
                 IReadOnlyList<DeliveryTraceRow> rows;
@@ -338,11 +401,9 @@ namespace PCTP.Modules.BaoCao.UI
 
         private void ClearButton_Click(object sender, EventArgs e)
         {
-            _txtQr.Clear();
+            _stockLookup.ClearInput();
+            _stockLookup.SelectItemTab();
             _txtCustomerLabel.Clear();
-            _txtLot.Clear();
-            _txtPart.EditValue = null;
-            _txtPart.Text = string.Empty;
             _txtCustomer.EditValue = null;
             _txtCustomer.Text = string.Empty;
             _from.Value = DateTime.Today.AddDays(-30);
@@ -355,10 +416,8 @@ namespace PCTP.Modules.BaoCao.UI
 
         private void ToggleSearch(bool enabled)
         {
-            _txtQr.Enabled = enabled;
+            _stockLookup.Enabled = enabled;
             _txtCustomerLabel.Enabled = enabled;
-            _txtLot.Enabled = enabled;
-            _txtPart.Enabled = enabled;
             _txtCustomer.Enabled = enabled;
             _from.Enabled = enabled;
             _to.Enabled = enabled;
