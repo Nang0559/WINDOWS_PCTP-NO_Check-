@@ -12,6 +12,7 @@ namespace PCTP.Modules.NhapKho.Services
     public interface IStockTpLookupService
     {
         StockItem GetByLot(string lotNo);
+        DataTable GetItemLookup();
         DataTable GetTonKhoHienTai();
         DataTable GetTonKhoTheoLot(List<string> lots);
 
