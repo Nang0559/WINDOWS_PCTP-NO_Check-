@@ -191,9 +191,11 @@ namespace PCTP.Presentation.Presenters
             View.BindGioXuatCheckList(danhSachGio);
 
             var delivered = PhieuSvc.GetGioDaGiao(GetNhaMay(), PCTP.Shared.Helpers.DateText.ToIso(selectedDate));
-            var deliveredSet = new HashSet<string>(delivered ?? new List<string>(), StringComparer.OrdinalIgnoreCase);
+            var deliveredSet = new HashSet<string>(
+                (delivered ?? new List<string>()).Select(NormalizeYmvTime).Where(g => !string.IsNullOrEmpty(g)),
+                StringComparer.OrdinalIgnoreCase);
             var deliveredDisplay = danhSachGio
-                .Where(g => deliveredSet.Contains(NormalizeHour(g)))
+                .Where(g => deliveredSet.Contains(NormalizeYmvTime(g)))
                 .ToList();
             View.SetCheckedGiosYMVN(deliveredDisplay);
 
@@ -206,14 +208,40 @@ namespace PCTP.Presentation.Presenters
 
         internal void UpdateGioXuatFromCheckList(List<string> danhSachGio)
         {
-            var hours = danhSachGio.Select(g => NormalizeHour(g)).Where(h => !string.IsNullOrEmpty(h)).Distinct().OrderBy(h => h).ToList();
-            GioXuatHienTai = new GioXuat(string.Join(",", hours.Select(h => $"'{h}'")), string.Join("+", danhSachGio) + "H");
+            // YMVN checkbox represents a concrete delivery slot (HH:mm), not
+            // only an integer hour. Preserve minutes in the QR session identity
+            // so two slots such as 11:20 and 11:40 cannot be treated as one.
+            var slots = (danhSachGio ?? new List<string>())
+                .Select(NormalizeYmvTime)
+                .Where(h => !string.IsNullOrEmpty(h))
+                .Distinct()
+                .OrderBy(h => h, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            GioXuatHienTai = new GioXuat(
+                string.Join(",", slots.Select(h => $"'{h}'")),
+                slots.Count == 0 ? string.Empty : string.Join("+", slots) + "H");
         }
 
         internal List<string> ParseGioYMVN(string gioDonTuDB)
         {
             if (string.IsNullOrWhiteSpace(gioDonTuDB)) return new List<string>();
             return gioDonTuDB.Replace("H", "").Split(new[] { ',', '+' }, StringSplitOptions.RemoveEmptyEntries).Select(g => g.Trim()).Where(g => !string.IsNullOrEmpty(g)).ToList();
+        }
+
+        private static string NormalizeYmvTime(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return string.Empty;
+
+            string text = value.Replace("H", string.Empty).Trim().Trim('\'');
+            TimeSpan time;
+            if (text.IndexOf(':') >= 0 && TimeSpan.TryParse(text, out time))
+                return time.ToString(@"hh\:mm", System.Globalization.CultureInfo.InvariantCulture);
+
+            int hour;
+            return int.TryParse(text, out hour) && hour >= 0 && hour <= 23
+                ? hour.ToString("00")
+                : string.Empty;
         }
 
         private static string NormalizeHour(string value)
