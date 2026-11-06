@@ -117,11 +117,15 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                 new SqlParameter("@TMPTABLE", tenBan),
                 new SqlParameter("@IFSTABLE", ifsTable));
 
-        public DataTable LoadGhepLotYMVN(string tmpTable)
+        public DataTable LoadGhepLotYMVN(string tmpTable, string configuredTmpTable, string viewTablePrefix)
         {
             Db.ValidateTableName(tmpTable);
+            Db.ValidateTableName(configuredTmpTable);
+            Db.ValidateTableName(viewTablePrefix);
             return ExecuteStoredProcedure("Usp_Qrcode_gheplotYMVN",
-                new SqlParameter("@TMPTABLE", tmpTable));
+                new SqlParameter("@TMPTABLE", tmpTable),
+                new SqlParameter("@EXPECTEDTMPTABLE", configuredTmpTable),
+                new SqlParameter("@VIEWTABLEPREFIX", viewTablePrefix));
         }
 
         public DataTable GetDanhSachLotTuKho(string maHang)
