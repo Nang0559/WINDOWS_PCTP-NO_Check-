@@ -26,9 +26,10 @@ namespace PCTP.Modules.XuatKho
         private readonly SlotRepository _slotRepository;
         private readonly StockExportRepository _stockRepository;
         private readonly InternalTransferRepository _transferRepository;
-        private readonly LookUpEdit _lookItemCode = new LookUpEdit();
+        private readonly PCTP.Shared.Lookup.StockLookupControl _stockLookup = new PCTP.Shared.Lookup.StockLookupControl();
         private readonly LookUpEdit _lookLot = new LookUpEdit();
-        private readonly TextEdit _txtQrScan = new TextEdit();
+        private DataTable _itemChoices;
+        private string _selectedItemCode;
         private readonly TextEdit _txtDestination = new TextEdit();
         private readonly MemoEdit _memoReason = new MemoEdit();
         private readonly SpinEdit _spinQuantity = new SpinEdit();
@@ -65,7 +66,7 @@ namespace PCTP.Modules.XuatKho
         private void BuildUi()
         {
             var root = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3, Padding = new Padding(10) };
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 164));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 174));
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 54));
             Controls.Add(root);
@@ -76,20 +77,21 @@ namespace PCTP.Modules.XuatKho
             fields.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 42));
             fields.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 115));
             fields.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 58));
-            fields.RowStyles.Add(new RowStyle(SizeType.Absolute, 38));
+            fields.RowStyles.Add(new RowStyle(SizeType.Absolute, 82));
             fields.RowStyles.Add(new RowStyle(SizeType.Absolute, 38));
             fields.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
-            AddField(fields, 0, 0, "Mã hàng", _lookItemCode);
-            AddField(fields, 2, 0, "LOT có tồn", _lookLot);
-            AddField(fields, 0, 1, "Quét QR", _txtQrScan);
+
+            _stockLookup.Dock = DockStyle.Fill;
+            _stockLookup.SearchRequested += (s, e) => HandleStockLookupSearch();
+            _stockLookup.SelectionCleared += (s, e) => ResetStockLookupSelection();
+            fields.Controls.Add(_stockLookup, 0, 0);
+            fields.SetColumnSpan(_stockLookup, 4);
+
+            AddField(fields, 0, 1, "LOT có tồn", _lookLot);
             AddField(fields, 2, 1, "Vị trí nội bộ đích", _txtDestination);
             AddField(fields, 0, 2, "Số lượng", _spinQuantity);
             AddField(fields, 2, 2, "Lý do", _memoReason);
-            ConfigureLookup(_lookItemCode, "ItemCode", "Mã hàng");
             ConfigureLookup(_lookLot, "LotNo", "LOT");
-            _lookItemCode.EditValueChanged += (s, e) => LoadLotChoices();
-            _txtQrScan.Properties.NullValuePrompt = "Quét QR 4 hoặc 6 phần, phân cách bằng dấu :";
-            _txtQrScan.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) { e.Handled = true; ApplyQrScan(); } };
             _txtDestination.Properties.NullValuePrompt = "Ví dụ: LINE-A / QC-INTERNAL";
             _memoReason.Properties.NullValuePrompt = "Nhập lý do điều chuyển";
             _spinQuantity.Properties.MinValue = 1;
@@ -177,36 +179,124 @@ namespace PCTP.Modules.XuatKho
 
         private void LoadItemChoices()
         {
-            DataTable items = _stockRepository.GetInternalTransferItemChoices();
-            _lookItemCode.Properties.DataSource = items;
-            _lookItemCode.Properties.ValueMember = "ItemCode";
-            _lookItemCode.Properties.DisplayMember = "ItemCode";
-            _lookItemCode.Properties.Columns.Clear();
-            _lookItemCode.Properties.Columns.Add(new DevExpress.XtraEditors.Controls.LookUpColumnInfo("ItemCode", "Mã hàng"));
-            _lookItemCode.Properties.Columns.Add(new DevExpress.XtraEditors.Controls.LookUpColumnInfo("StockQuantity", "Tồn STOCKTP"));
-            _lookItemCode.EditValue = null;
-            LoadLotChoices();
+            _itemChoices = _stockRepository.GetInternalTransferItemChoices();
+            _stockLookup.SetItemSuggestions(_itemChoices, "ItemCode", "ItemName");
+            _selectedItemCode = null;
+            _lookLot.EditValue = null;
+            _lookLot.Properties.DataSource = null;
         }
 
-        private void LoadLotChoices()
+        private void HandleStockLookupSearch()
         {
-            string itemCode = Convert.ToString(_lookItemCode.EditValue)?.Trim() ?? string.Empty;
+            string raw = _stockLookup.InputText;
+            if (string.IsNullOrWhiteSpace(raw))
+            {
+                XtraMessageBox.Show(this, "Nhập mã hàng, LOT hoặc quét QR trước khi tra cứu.", Text);
+                _stockLookup.FocusInput();
+                return;
+            }
+
+            if (_stockLookup.IsItemSearch)
+            {
+                string itemCode = _stockLookup.SelectedItemCode;
+                if (string.IsNullOrWhiteSpace(itemCode))
+                {
+                    var exact = _itemChoices == null ? null : _itemChoices.AsEnumerable()
+                        .FirstOrDefault(x => string.Equals(
+                            Convert.ToString(x["ItemCode"])?.Trim(), raw, StringComparison.OrdinalIgnoreCase));
+                    itemCode = exact == null ? string.Empty : Convert.ToString(exact["ItemCode"]).Trim();
+                }
+
+                if (string.IsNullOrWhiteSpace(itemCode))
+                {
+                    XtraMessageBox.Show(this, "Hãy chọn một mã hàng trong popup đề xuất. Không tự dùng mã nhập dở.", Text);
+                    _stockLookup.FocusInput();
+                    return;
+                }
+
+                _selectedItemCode = itemCode;
+                LoadLotChoices(itemCode);
+                _lblSummary.Text = string.Format("Đã chọn mã {0}. Chọn LOT có tồn rồi bấm Tìm LOT trong kho.", itemCode);
+                return;
+            }
+
+            if (raw.IndexOf(':') >= 0)
+                ApplyQrScan(raw);
+            else
+                SearchByLot(raw);
+        }
+
+        private void ResetStockLookupSelection()
+        {
+            _selectedItemCode = null;
             _lookLot.EditValue = null;
-            if (itemCode.Length == 0) { _lookLot.Properties.DataSource = null; return; }
-            DataTable lots = _stockRepository.GetInternalTransferLotChoices(itemCode);
+            _lookLot.Properties.DataSource = null;
+            _grid.DataSource = null;
+            _sourceBalanceConsistent = false;
+            _btnTransfer.Enabled = false;
+            _lblSummary.Text = "Chọn tab tra cứu và nhập điều kiện mới.";
+        }
+
+        private void LoadLotChoices(string itemCode)
+        {
+            _selectedItemCode = (itemCode ?? string.Empty).Trim();
+            _lookLot.EditValue = null;
+            if (_selectedItemCode.Length == 0) { _lookLot.Properties.DataSource = null; return; }
+            DataTable lots = _stockRepository.GetInternalTransferLotChoices(_selectedItemCode);
+            BindLotChoices(lots);
+        }
+
+        private void BindLotChoices(DataTable lots)
+        {
             _lookLot.Properties.DataSource = lots;
             _lookLot.Properties.ValueMember = "LotNo";
             _lookLot.Properties.DisplayMember = "LotNo";
             _lookLot.Properties.Columns.Clear();
             _lookLot.Properties.Columns.Add(new DevExpress.XtraEditors.Controls.LookUpColumnInfo("LotNo", "LOT"));
+            if (lots.Columns.Contains("ItemCode"))
+                _lookLot.Properties.Columns.Add(new DevExpress.XtraEditors.Controls.LookUpColumnInfo("ItemCode", "Mã hàng"));
             _lookLot.Properties.Columns.Add(new DevExpress.XtraEditors.Controls.LookUpColumnInfo("StockQuantity", "STOCKTP"));
             _lookLot.Properties.Columns.Add(new DevExpress.XtraEditors.Controls.LookUpColumnInfo("SlotQuantity", "Tồn Slot"));
-            if (lots.Rows.Count == 1) _lookLot.EditValue = Convert.ToString(lots.Rows[0]["LotNo"]);
+            if (lots.Rows.Count == 1)
+                _lookLot.EditValue = Convert.ToString(lots.Rows[0]["LotNo"]);
         }
 
-        private void ApplyQrScan()
+        private void SearchByLot(string lotNo)
         {
-            string raw = (_txtQrScan.Text ?? string.Empty).Trim();
+            try
+            {
+                DataTable lots = _stockRepository.GetInternalTransferLotChoicesByLot(lotNo);
+                if (lots == null || lots.Rows.Count == 0)
+                {
+                    _selectedItemCode = null;
+                    _lookLot.Properties.DataSource = null;
+                    _lookLot.EditValue = null;
+                    _lblSummary.Text = "Không tìm thấy LOT còn tồn khả dụng trong Slot.";
+                    return;
+                }
+
+                var itemCodes = lots.AsEnumerable()
+                    .Select(x => Convert.ToString(x["ItemCode"])?.Trim() ?? string.Empty)
+                    .Where(x => x.Length > 0)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+                if (itemCodes.Count != 1)
+                    throw new InvalidOperationException("Khóa LOT này đang khớp nhiều mã hàng. Cần đối soát dữ liệu trước khi điều chuyển.");
+
+                _selectedItemCode = itemCodes[0];
+                BindLotChoices(lots);
+                _lblSummary.Text = lots.Rows.Count == 1
+                    ? "Đã nhận diện LOT và mã hàng " + _selectedItemCode + ". Bấm Tìm LOT trong kho để kiểm tra cân bằng Slot/STOCKTP."
+                    : string.Format("Khóa LOT khớp {0} LOT vật lý. Hãy chọn đúng LOT 20 ký tự trong danh sách.", lots.Rows.Count);
+            }
+            catch (Exception ex)
+            {
+                XtraMessageBox.Show(this, "Không thể tra cứu LOT: " + ex.Message, Text, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        }
+
+        private void ApplyQrScan(string raw)
+        {
             string[] parts = raw.Split(':');
             if (parts.Length != 4 && parts.Length != 6)
             {
@@ -223,7 +313,7 @@ namespace PCTP.Modules.XuatKho
                 XtraMessageBox.Show(this, "QR thiếu mã hàng hoặc số lượng không hợp lệ. Không tự suy diễn LOT từ mã QR.", Text);
                 return;
             }
-            DataTable items = _lookItemCode.Properties.DataSource as DataTable;
+            DataTable items = _itemChoices;
             bool exists = items != null && items.AsEnumerable().Any(x =>
                 string.Equals(Convert.ToString(x["ItemCode"]).Trim(), itemCode, StringComparison.OrdinalIgnoreCase));
             if (!exists)
@@ -231,12 +321,12 @@ namespace PCTP.Modules.XuatKho
                 XtraMessageBox.Show(this, "Mã hàng trong QR không có tồn khả dụng trong Slot/STOCKTP: " + itemCode, Text);
                 return;
             }
-            _lookItemCode.EditValue = itemCode;
-            LoadLotChoices();
+            _selectedItemCode = itemCode;
+            LoadLotChoices(itemCode);
             _spinQuantity.Value = Math.Max(1, quantity);
             _lblSummary.Text = string.Format("Đã đọc QR {0} phần; mã hàng {1}, SL {2:n0}. Chọn đúng LOT trong danh sách tồn.",
                 parts.Length, itemCode, quantity);
-            _txtQrScan.SelectAll();
+            _stockLookup.FocusInput();
         }
 
         private void SearchLot()
@@ -262,7 +352,7 @@ namespace PCTP.Modules.XuatKho
                 _view.Columns.Clear();
                 ConfigureSourceColumns();
 
-                string selectedItem = Convert.ToString(_lookItemCode.EditValue)?.Trim() ?? string.Empty;
+                string selectedItem = (_selectedItemCode ?? string.Empty).Trim();
                 int slotTotal = rows.Sum(x => x.Quantity);
                 var itemCodes = rows.Select(x => (x.ItemCode ?? string.Empty).Trim())
                     .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
