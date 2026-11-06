@@ -295,17 +295,6 @@ ORDER BY NGAYNHAP DESC, LOT;";
         public DataTable GetItemLookup()
         {
             string sql = $@"
-SELECT PART, MAX(NAME) AS NAME
-FROM {_tableName}
-WHERE NULLIF(LTRIM(RTRIM(PART)), '') IS NOT NULL
-GROUP BY PART
-ORDER BY PART;";
-            return LoadData(sql);
-        }
-
-        public DataTable GetItemLookup()
-        {
-            string sql = $@"
 SELECT LTRIM(RTRIM(PART)) AS PART, MAX(LTRIM(RTRIM(NAME))) AS NAME
 FROM {_tableName}
 WHERE NULLIF(LTRIM(RTRIM(PART)), '') IS NOT NULL
