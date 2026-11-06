@@ -303,6 +303,18 @@ ORDER BY PART;";
             return LoadData(sql);
         }
 
+        public DataTable GetItemLookup()
+        {
+            string sql = $@"
+SELECT LTRIM(RTRIM(PART)) AS PART, MAX(LTRIM(RTRIM(NAME))) AS NAME
+FROM {_tableName}
+WHERE NULLIF(LTRIM(RTRIM(PART)), '') IS NOT NULL
+  AND ISNULL(SLCONLAI, 0) > 0
+GROUP BY LTRIM(RTRIM(PART))
+ORDER BY LTRIM(RTRIM(PART));";
+            return LoadData(sql);
+        }
+
         public DataTable GetTonKhoHienTai()
         {
             string sql = $@"
