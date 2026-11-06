@@ -387,6 +387,7 @@ namespace PCTP.Modules.XuLyHangLoi
                     _btnXuatKho.Enabled = false;
                     _btnGiaoSX.Enabled = false;
                     _btnDangRework.Enabled = false;
+                    _stockLookup.Enabled = false;
                     return;
                 }
 
@@ -408,6 +409,7 @@ namespace PCTP.Modules.XuLyHangLoi
                 var phieuHienTai = _qtChungService.GetById(_phieuXuLyId);
                 if (phieuHienTai != null && phieuHienTai.Status == QTChungStatus.DaGiaoSanXuat)
                 {
+                    _stockLookup.Enabled = false;
                     if (_qtChungRepo == null)
                         throw new InvalidOperationException("Chưa cấu hình repository để tải lịch sử giao Rework.");
 
@@ -421,6 +423,7 @@ namespace PCTP.Modules.XuLyHangLoi
                     return;
                 }
 
+                _stockLookup.Enabled = true;
                 string maHang = (_searchItemCode ?? string.Empty).Trim();
                 string lotNo = (_searchLotNo ?? string.Empty).Trim();
 
