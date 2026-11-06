@@ -522,6 +522,7 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
                 lots.Add(ReadText(row, "LOTB"));
             }
 
+            var currentStock = new Dictionary<string, Tuple<string, int>>(StringComparer.OrdinalIgnoreCase);
             foreach (string lot in lots.Where(x => !string.IsNullOrWhiteSpace(x)))
             {
                 DataTable current = _stockRepository.GetTonKhoTheoLot(new List<string> { lot });
@@ -530,31 +531,31 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
                     .ToList();
                 if (matches.Count != 1)
                     throw new InvalidOperationException("Không còn xác định duy nhất LOT " + lot + " trong STOCKTP. Hãy đọc lại QR.");
+
+                currentStock[lot] = Tuple.Create(
+                    ReadText(matches[0], "PART"),
+                    SafeInt(matches[0]["SLCONLAI"]));
             }
 
             foreach (DataRow row in _workRows.Rows)
             {
+                string itemCode = ReadText(row, "MAHANG");
                 string lotA = ReadText(row, "LOTA");
                 string lotB = ReadText(row, "LOTB");
                 int qtyA = SafeInt(row["SLA"]);
                 int qtyB = SafeInt(row["SLB"]);
-                int stockA = GetCurrentAvailable(lotA);
-                int stockB = GetCurrentAvailable(lotB);
-                if (stockA < qtyA)
-                    throw new InvalidOperationException("LOT A " + lotA + " hiện chỉ còn " + stockA + ", thấp hơn số lượng cần lấy " + qtyA + ".");
-                if (stockB < qtyB)
-                    throw new InvalidOperationException("LOT B " + lotB + " hiện chỉ còn " + stockB + ", thấp hơn số lượng cần ghép " + qtyB + ".");
-            }
-        }
+                Tuple<string, int> stockA = currentStock[lotA];
+                Tuple<string, int> stockB = currentStock[lotB];
 
-        private int GetCurrentAvailable(string lot)
-        {
-            DataTable current = _stockRepository.GetTonKhoTheoLot(new List<string> { lot });
-            var matches = current.AsEnumerable()
-                .Where(row => string.Equals(ReadText(row, "LOT"), lot, StringComparison.OrdinalIgnoreCase))
-                .ToList();
-            if (matches.Count != 1) return 0;
-            return SafeInt(matches[0]["SLCONLAI"]);
+                if (!string.Equals(NormalizeItem(stockA.Item1), NormalizeItem(itemCode), StringComparison.OrdinalIgnoreCase)
+                    || !string.Equals(NormalizeItem(stockB.Item1), NormalizeItem(itemCode), StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidOperationException("Mã hàng của LOT đã thay đổi so với dòng ghép " + itemCode + ". Hãy đọc lại QR.");
+
+                if (stockA.Item2 < qtyA)
+                    throw new InvalidOperationException("LOT A " + lotA + " hiện chỉ còn " + stockA.Item2 + ", thấp hơn số lượng cần lấy " + qtyA + ".");
+                if (stockB.Item2 < qtyB)
+                    throw new InvalidOperationException("LOT B " + lotB + " hiện chỉ còn " + stockB.Item2 + ", thấp hơn số lượng cần ghép " + qtyB + ".");
+            }
         }
 
         private void RemoveSelectedRows()
