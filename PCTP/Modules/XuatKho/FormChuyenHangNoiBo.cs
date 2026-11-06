@@ -12,6 +12,7 @@ using PCTP.Modules.KhoCore.Models;
 using PCTP.Modules.XuLyHangLoi.Application;
 using PCTP.Modules.XuatKho.Repositories;
 using PCTP.Modules.XuatKho.Models;
+using PCTP.Common;
 using PCTP.Modules.KhoVatLy.Repositories;
 using PCTP.Shared.Common;
 using PCTP.Modules.GiaoHangKhach;
@@ -254,7 +255,7 @@ namespace PCTP.Modules.XuatKho
                 _sourceBalanceConsistent = false;
                 _btnTransfer.Enabled = false;
                 var rows = _slotRepository.GetAllActiveSlotLots()
-                    .Where(x => string.Equals((x.LotNo ?? string.Empty).Trim(), lot, StringComparison.OrdinalIgnoreCase))
+                    .Where(x => LotCodeHelper.AreLotKeysEquivalent(x.LotNo, lot))
                     .OrderBy(x => x.WarehouseName).ThenBy(x => x.RackName).ThenBy(x => x.SlotNumber)
                     .ToList();
                 _grid.DataSource = rows;
