@@ -110,32 +110,36 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
             this.Text = "IN TÁCH LOT";
             this.StartPosition = FormStartPosition.CenterParent;
             this.FormBorderStyle = FormBorderStyle.Sizable;
-            this.MinimumSize = new Size(1000, 680);
-            this.Size = new Size(1320, 820);
+            this.MinimumSize = new Size(1000, 760);
+            this.Size = new Size(1320, 900);
             this.AutoScaleDimensions = new SizeF(8F, 16F);
             this.AutoScaleMode = AutoScaleMode.Font;
             this.AllowDrop = true;
             this.KeyPreview = true;
 
-            var root = new TableLayoutPanel
+            // Resizable shell: drag the splitters to resize scan / worklist / editor.
+            var root = new SplitContainer
             {
                 Name = "tachLot_root",
                 Dock = DockStyle.Fill,
-                Padding = new Padding(12),
-                ColumnCount = 1,
-                RowCount = 3
+                Orientation = Orientation.Horizontal,
+                FixedPanel = FixedPanel.Panel1,
+                IsSplitterFixed = false,
+                SplitterWidth = 7,
+                Panel1MinSize = 118,
+                Panel2MinSize = 390,
+                SplitterDistance = 132
             };
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 92));
-            root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 246));
             this.Controls.Add(root);
 
             // Scan toolbar.
             var scanGroup = new DevExpress.XtraEditors.GroupControl
             {
-                Text = "QUÉT QR TEM GỐC",
+                Text = "TEM GỐC — QUÉT QR",
                 Dock = DockStyle.Fill
             };
+            scanGroup.AppearanceCaption.Font = new Font("Tahoma", 10F, FontStyle.Bold);
+            scanGroup.AppearanceCaption.Options.UseFont = true;
             var scanLayout = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
@@ -167,7 +171,7 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
             scanLayout.Controls.Add(scanHint, 0, 1);
             scanLayout.SetColumnSpan(scanHint, 2);
             scanGroup.Controls.Add(scanLayout);
-            root.Controls.Add(scanGroup, 0, 0);
+            root.Panel1.Controls.Add(scanGroup);
 
             // Worklist grid. Keep the existing ListView data contract to avoid changing QR/print behavior.
             var listGroup = new DevExpress.XtraEditors.GroupControl
@@ -186,7 +190,19 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
             this.lw_qrcode.UseCompatibleStateImageBehavior = false;
             this.lw_qrcode.SelectedIndexChanged += new EventHandler(this.lw_qrcode_SelectedIndexChanged);
             listGroup.Controls.Add(this.lw_qrcode);
-            root.Controls.Add(listGroup, 0, 1);
+            var workArea = new SplitContainer
+            {
+                Name = "tachLot_workArea",
+                Dock = DockStyle.Fill,
+                Orientation = Orientation.Horizontal,
+                IsSplitterFixed = false,
+                SplitterWidth = 7,
+                Panel1MinSize = 180,
+                Panel2MinSize = 235,
+                SplitterDistance = 390
+            };
+            workArea.Panel1.Controls.Add(listGroup);
+            root.Panel2.Controls.Add(workArea);
 
             // Bottom editor: split mode + three quantity cards + actions.
             var editorGroup = new DevExpress.XtraEditors.GroupControl
@@ -255,7 +271,7 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
             editorRoot.Controls.Add(editor, 0, 0);
             editorRoot.Controls.Add(actionBar, 0, 1);
             editorGroup.Controls.Add(editorRoot);
-            root.Controls.Add(editorGroup, 0, 2);
+            workArea.Panel2.Controls.Add(editorGroup);
 
             this.MaxVL.Visible = false;
             this.MaxVL.Name = "tachLot_originalQuantity";
