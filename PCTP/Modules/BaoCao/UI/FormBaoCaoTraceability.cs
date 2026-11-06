@@ -156,7 +156,7 @@ namespace PCTP.Modules.BaoCao.UI
                 search.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 16.6667f));
 
             search.RowStyles.Add(new RowStyle(SizeType.Absolute, 24));
-            search.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));
+            search.RowStyles.Add(new RowStyle(SizeType.Absolute, 82));
             search.RowStyles.Add(new RowStyle(SizeType.Absolute, 38));
             search.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
