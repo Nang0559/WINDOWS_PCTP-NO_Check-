@@ -102,7 +102,7 @@ BEGIN
                 @ResolvedGearName nvarchar(100), @ResolvedGearCode nvarchar(10),
                 @ItemQty int, @ItemGearName nvarchar(100), @ItemGearCode nvarchar(10),
                 @LotKey nvarchar(13), @StockQty int, @Pending int, @Remainder int,
-                @LotList nvarchar(1000), @Need int, @ParsedQty int, @DigitStart int,
+                @LotList nvarchar(1000), @Need int, @ParsedQty int, @DigitStart int, @SLGHEP int,
                 @Digits nvarchar(40), @RowGearName nvarchar(100), @RowGearCode nvarchar(10);
 
         DECLARE GearOrderCur CURSOR LOCAL FAST_FORWARD FOR
@@ -202,38 +202,84 @@ BEGIN
                 DECLARE @StockId int;
                 OPEN GearLotCur;
                 FETCH NEXT FROM GearLotCur INTO @StockId,@LotKey,@StockQty;
-                WHILE @@FETCH_STATUS=0 AND @Need>0
+                WHILE @@FETCH_STATUS=0
                 BEGIN
                     IF @StockQty < @Need
                     BEGIN
-                        SET @Remainder = @StockQty % @PackQty;
-                        IF @Remainder=0
+                        IF @Pending > 0
                         BEGIN
-                            SET @Need = @Need - @StockQty;
-                            UPDATE #GearStock SET Qty=0 WHERE StockId=@StockId;
+                            IF @StockQty < @Pending
+                            BEGIN
+                                SET @LotList = @LotList + N',' + @LotKey + N'-' + CONVERT(nvarchar(20),@StockQty);
+                                SET @Pending = @Pending - @StockQty;
+                                SET @Need = @Need - @StockQty;
+                                UPDATE #GearStock SET Qty=0 WHERE StockId=@StockId;
+                            END
+                            ELSE
+                            BEGIN
+                                SET @LotList = @LotList + N',' + @LotKey + N'-' + CONVERT(nvarchar(20),@Pending);
+                                INSERT INTO #GearResult(MH,GG,LG,GearName)
+                                VALUES(@Part,@DeliveryTime,@LotList,@ItemGearName);
+                                SET @LotList = N'';
+                                SET @SLGHEP = (@StockQty - @Pending) % @PackQty;
+                                IF @SLGHEP = 0
+                                    SET @Pending = 0;
+                                ELSE
+                                BEGIN
+                                    SET @Pending = @PackQty - @SLGHEP;
+                                    SET @LotList = @LotKey + N'-' + CONVERT(nvarchar(20),@SLGHEP);
+                                END;
+                                SET @Need = @Need - @StockQty;
+                                UPDATE #GearStock SET Qty=0 WHERE StockId=@StockId;
+                            END;
                         END
                         ELSE
                         BEGIN
-                            SET @Pending = @PackQty - @Remainder;
-                            SET @LotList = CASE WHEN @LotList=N'' THEN N'' ELSE @LotList+N',' END
-                                          + @LotKey+N'-'+CONVERT(nvarchar(20),@Remainder);
-                            SET @Need = @Need - @StockQty;
-                            UPDATE #GearStock SET Qty=0 WHERE StockId=@StockId;
+                            SET @SLGHEP = @StockQty % @PackQty;
+                            IF @SLGHEP = 0
+                                SET @Pending = 0;
+                            ELSE
+                                SET @Pending = @PackQty - @SLGHEP;
+
+                            IF @SLGHEP > 0
+                            BEGIN
+                                IF @LotList = N''
+                                BEGIN
+                                    SET @LotList = @LotKey + N'-' + CONVERT(nvarchar(20),@SLGHEP);
+                                    SET @Need = @Need - @StockQty;
+                                END
+                                ELSE
+                                BEGIN
+                                    -- Preserve legacy YM1 allocation semantics for subsequent partial lots.
+                                    SET @LotList = @LotList + N',' + @LotKey + N'-' + CONVERT(nvarchar(20),@SLGHEP);
+                                END;
+                                UPDATE #GearStock SET Qty=0 WHERE StockId=@StockId;
+                            END
+                            ELSE
+                            BEGIN
+                                SET @Pending = 0;
+                                SET @Need = @Need - @StockQty;
+                            END;
                         END;
                     END
                     ELSE
                     BEGIN
-                        IF @Pending>0
+                        IF @Pending > 0
                         BEGIN
-                            SET @LotList = CASE WHEN @LotList=N'' THEN N'' ELSE @LotList+N',' END
-                                          + @LotKey+N'-'+CONVERT(nvarchar(20),@Pending);
+                            SET @LotList = @LotList + N',' + @LotKey + N'-' + CONVERT(nvarchar(20),@Pending);
                             INSERT INTO #GearResult(MH,GG,LG,GearName)
                             VALUES(@Part,@DeliveryTime,@LotList,@ItemGearName);
-                            SET @LotList=N'';
-                            SET @Pending=0;
+                            SET @LotList = N'';
+                            SET @Pending = 0;
+                            UPDATE #GearStock SET Qty=@StockQty-@Need WHERE StockId=@StockId;
+                            SET @Need = 0;
+                            BREAK;
+                        END
+                        ELSE
+                        BEGIN
+                            UPDATE #GearStock SET Qty=@StockQty-@Need WHERE StockId=@StockId;
+                            BREAK;
                         END;
-                        UPDATE #GearStock SET Qty=Qty-@Need WHERE StockId=@StockId;
-                        SET @Need=0;
                     END;
 
                     FETCH NEXT FROM GearLotCur INTO @StockId,@LotKey,@StockQty;
