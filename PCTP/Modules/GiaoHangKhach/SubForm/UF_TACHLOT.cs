@@ -116,6 +116,7 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
             this.AutoScaleMode = AutoScaleMode.Font;
             this.AllowDrop = true;
             this.KeyPreview = true;
+            this.Load += new EventHandler(this.UF_TACHLOT_Load);
 
             // Resizable shell: drag the splitters to resize scan / worklist / editor.
             var root = new SplitContainer
@@ -363,6 +364,13 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
             lw_qrcode.Columns.Add("SL LOT 1", 100);
             lw_qrcode.Columns.Add("SL LOT 2", 100);
             lw_qrcode.Columns.Add("SL LOT 3", 100);
+            lw_qrcode.Columns[1].Width = 220;
+            lw_qrcode.Columns[2].Width = 190;
+            lw_qrcode.Columns[3].Width = 125;
+            lw_qrcode.Columns[4].Width = 90;
+            lw_qrcode.Columns[5].Width = 90;
+            lw_qrcode.Columns[6].Width = 90;
+            lw_qrcode.Columns[7].Width = 90;
             lw_qrcode.GridLines = true;
             lw_qrcode.FullRowSelect = true;
             lw_qrcode.View = View.Details;
@@ -373,15 +381,26 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
         {
             if (e.KeyCode != Keys.Enter) return;
 
+            // Barcode scanners commonly append Enter; consume it so the form does not beep
+            // or trigger a default button before the scanned row is committed.
+            e.Handled = true;
+            e.SuppressKeyPress = true;
+
+            string rawQr = TXT_QRCODE.Text.Trim();
+            if (rawQr.Length == 0) return;
+
             try
             {
-                var info = QRCodeParser.ParseTachLotQr(TXT_QRCODE.Text);
+                var info = QRCodeParser.ParseTachLotQr(rawQr);
                 ADDTOLIST(info.LotNo, info.ItemCode, info.NgaySX, info.SlTemFccRaw, "0", "0", "0");
-                TXT_QRCODE.Text = "";
+                TXT_QRCODE.Clear();
+                TXT_QRCODE.Focus();
             }
             catch (FormatException ex)
             {
-                MessageBox.Show(ex.Message, "THÔNG BÁO", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(ex.Message, "QR TÁCH LOT KHÔNG HỢP LỆ", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                TXT_QRCODE.SelectAll();
+                TXT_QRCODE.Focus();
             }
         }
 
