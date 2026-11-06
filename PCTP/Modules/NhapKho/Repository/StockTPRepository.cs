@@ -423,9 +423,19 @@ ORDER BY NGAYNHAP DESC;";
                         break;
                 }
 
-                // Mã hàng được tìm song song với LOT cho mọi độ dài.
-                parameters.Add(new SqlParameter(item, itemCodeFromQr ?? searchText));
-                conditions[conditions.Count - 1] = $"({conditions[conditions.Count - 1]} OR PART = {item})";
+                // QR phải khớp đồng thời LOT và mã hàng; không trả về mọi LOT khác cùng PART.
+                if (!string.IsNullOrWhiteSpace(itemCodeFromQr))
+                {
+                    string normalizedItem = itemCodeFromQr.Replace("-", string.Empty).Replace(" ", string.Empty);
+                    parameters.Add(new SqlParameter(item, normalizedItem));
+                    conditions[conditions.Count - 1] =
+                        $"({conditions[conditions.Count - 1]} AND REPLACE(REPLACE(LTRIM(RTRIM(PART)), '-', ''), ' ', '') = {item})";
+                }
+                else
+                {
+                    parameters.Add(new SqlParameter(item, searchText));
+                    conditions[conditions.Count - 1] = $"({conditions[conditions.Count - 1]} OR PART = {item})";
+                }
             }
 
             if (conditions.Count == 0) return new DataTable();
