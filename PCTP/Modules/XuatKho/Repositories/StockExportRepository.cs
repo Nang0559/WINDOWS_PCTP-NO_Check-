@@ -1,4 +1,5 @@
 ﻿using PCTP.Modules.GiaoHangKhach;
+using PCTP.Common;
 using PCTP.Modules.XuatKho.Interfaces;
 using PCTP.Modules.XuatKho.Models;
 using PCTP.Shared.Common;
@@ -95,7 +96,7 @@ namespace PCTP.Modules.XuatKho.Repositories
                 : @"SELECT LOT, PART, SLCONLAI
                     FROM STOCKTP
                     WHERE UPPER(LTRIM(RTRIM(PART))) = UPPER(LTRIM(RTRIM(@ma)))
-                      AND LTRIM(RTRIM(LOT)) = LTRIM(RTRIM(@lot))
+                      AND " + LotCodeHelper.BuildLotMatchSql("LTRIM(RTRIM(LOT))", "@lot") + @"
                       AND ISNULL(SLCONLAI, 0) > 0";
 
             var pars = string.IsNullOrWhiteSpace(lotNo)
@@ -134,7 +135,7 @@ WHERE ISNULL(st.SLCONLAI,0) > 0
       SELECT 1 FROM SlotLot sl
       WHERE sl.PhieuStatus = 0 AND sl.Quantity > 0
         AND UPPER(LTRIM(RTRIM(sl.ItemCode))) = UPPER(LTRIM(RTRIM(st.PART)))
-        AND LTRIM(RTRIM(sl.LotNo)) = LTRIM(RTRIM(st.LOT))
+        AND " + LotCodeHelper.BuildLotMatchSql("LTRIM(RTRIM(sl.LotNo))", "LTRIM(RTRIM(st.LOT))") + @"
   )
 GROUP BY UPPER(LTRIM(RTRIM(st.PART)))
 ORDER BY UPPER(LTRIM(RTRIM(st.PART)));");
@@ -154,7 +155,7 @@ CROSS APPLY
     SELECT SUM(s.Quantity) AS SlotQuantity
     FROM SlotLot s
     WHERE s.PhieuStatus = 0 AND s.Quantity > 0
-      AND LTRIM(RTRIM(s.LotNo)) = LTRIM(RTRIM(st.LOT))
+      AND " + LotCodeHelper.BuildLotMatchSql("LTRIM(RTRIM(s.LotNo))", "LTRIM(RTRIM(st.LOT))") + @"
       AND UPPER(LTRIM(RTRIM(s.ItemCode))) = UPPER(LTRIM(RTRIM(st.PART)))
 ) sl
 WHERE UPPER(LTRIM(RTRIM(st.PART))) = UPPER(LTRIM(RTRIM(@ItemCode)))
