@@ -130,6 +130,13 @@ namespace PCTP.Shared.Lookup
             }
         }
 
+        public void SetLotQrPlaceholder(string text)
+        {
+            _lotQrEditor.Properties.NullValuePrompt = string.IsNullOrWhiteSpace(text)
+                ? "Nhập LOT 13/20 ký tự hoặc quét QR 4/6 trường..."
+                : text;
+        }
+
         public void SelectItemTab()
         {
             _tabs.SelectedTab = _itemPage;
