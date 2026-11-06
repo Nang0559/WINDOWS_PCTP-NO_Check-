@@ -265,7 +265,9 @@ using System.Windows.Forms;
             {
                 DataTable dt = _lotList.Count == 0
                     ? _stockTpService.GetTonKhoHienTai()
-                    : _stockTpService.GetTonKhoTheoLot(_lotList);
+                    : _lotList.Count == 1
+                        ? _stockTpService.SearchStock(_lotList[0])
+                        : _stockTpService.GetTonKhoTheoLot(_lotList);
 
                 _grid.DataSource = dt;
 
