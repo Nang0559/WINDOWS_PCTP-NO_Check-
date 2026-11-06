@@ -7,6 +7,8 @@ using PCTP.Modules.KhoCore.Models;
 using PCTP.Modules.KhoVatLy.Application.Interfaces;
 using PCTP.Modules.XuLyHangLoi.Models;
 using PCTP.Modules.XuLyHangLoi.Services;
+using PCTP.Common;
+using PCTP.Shared.Helpers;
 
 using System;
 using System.Collections.Generic;
@@ -50,6 +52,7 @@ namespace PCTP.Modules.KhoVatLy
         private SimpleButton _btnRefresh;
         private SimpleButton _btnCancel;
         private RepositoryItemSpinEdit _repoSoLuong;
+        private List<SlotLotViewInfo> _loadedRows = new List<SlotLotViewInfo>();
 
         /// <summary>Các dòng đã chọn (hợp lệ) — chỉ có giá trị khi DialogResult = OK.</summary>
         public List<SlotNguonChon> KetQua { get; private set; } = new List<SlotNguonChon>();
@@ -220,13 +223,11 @@ namespace PCTP.Modules.KhoVatLy
         {
             // Cùng tiêu chí với lookup của FormTaoPhieuTraNoiBo: chỉ Slot/LOT còn tồn (> 0),
             // và bỏ những SlotLot đã có trong phiếu.
-            var list = (_slotSvc.GetAllActiveSlotLots() ?? new List<SlotLotViewInfo>())
+            _loadedRows = (_slotSvc.GetAllActiveSlotLots() ?? new List<SlotLotViewInfo>())
                 .Where(x => x.Quantity > 0 && !_daCo.Contains(x.SlotLotId))
                 .ToList();
 
-            if (_chiXem)
-                list = LocTheoLot(list);
-
+            var list = _chiXem ? LocTheoLot(_loadedRows) : _loadedRows;
             _grid.DataSource = ToDataTable(list);
             _gridView.ClearSelection();
             _gridView.BestFitColumns();
@@ -268,11 +269,57 @@ namespace PCTP.Modules.KhoVatLy
 
         private void ApplyFilter()
         {
-            string kw = _txtSearch.Text.Trim().Replace("'", "''");
-            _gridView.ActiveFilterString = string.IsNullOrEmpty(kw)
-                ? ""
-                : $"Contains([ItemCode], '{kw}') Or Contains([LotNo], '{kw}') Or " +
-                  $"Contains([WarehouseName], '{kw}') Or Contains([RackName], '{kw}')";
+            string input = (_txtSearch.Text ?? string.Empty).Trim();
+            if (string.IsNullOrEmpty(input))
+            {
+                _grid.DataSource = ToDataTable(_chiXem ? LocTheoLot(_loadedRows) : _loadedRows);
+                return;
+            }
+
+            // QR lookup is read-only. Parse both box (4-part) and master (6-part)
+            // formats, then resolve by item + canonical LOT key against live SlotLot rows.
+            QRCodeInfo qr = null;
+            if (input.IndexOf(':') >= 0)
+            {
+                try { qr = QRCodeParser.ParseQRCode(input.ToUpperInvariant()); }
+                catch (FormatException) { /* Treat malformed QR as ordinary text search. */ }
+            }
+
+            List<SlotLotViewInfo> filtered;
+            if (qr != null)
+            {
+                filtered = _loadedRows.Where(x =>
+                    string.Equals((x.ItemCode ?? string.Empty).Trim(), qr.ItemCode,
+                        StringComparison.OrdinalIgnoreCase) &&
+                    LotCodeHelper.AreLotKeysEquivalent(x.LotNo, qr.LotNo)).ToList();
+
+                _tomTat = filtered.Count == 0
+                    ? "Không tìm thấy LOT trong Slot."
+                    : $"Tìm thấy {filtered.Sum(x => x.Quantity):n0} tại {filtered.Select(x => x.SlotId).Distinct().Count()} slot ({filtered.Count} dòng).";
+                _lblInfo.Text = _tomTat;
+            }
+            else
+            {
+                filtered = _loadedRows.Where(x =>
+                    ContainsText(x.ItemCode, input) ||
+                    ContainsText(x.LotNo, input) ||
+                    ContainsText(x.WarehouseName, input) ||
+                    ContainsText(x.RackName, input) ||
+                    ContainsText(x.TemCode, input)).ToList();
+            }
+
+            _grid.DataSource = ToDataTable(filtered);
+            _gridView.ClearSelection();
+            _gridView.BestFitColumns();
+            if (qr != null && filtered.Count == 1)
+                _gridView.FocusedRowHandle = 0;
+            if (qr == null) CapNhatThongTin();
+        }
+
+        private static bool ContainsText(string value, string keyword)
+        {
+            return !string.IsNullOrEmpty(value) &&
+                value.IndexOf(keyword, StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
         // ════════════════════════════════════════════════════════════════
