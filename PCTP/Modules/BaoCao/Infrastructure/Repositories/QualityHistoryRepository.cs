@@ -31,6 +31,29 @@ namespace PCTP.Modules.BaoCao.Infrastructure.Repositories
         {
         }
 
+        public Task<IReadOnlyList<string>> GetItemCodesAsync(CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            const string sql = @"
+SELECT DISTINCT ItemCode
+FROM InspectionLog
+WHERE ItemCode IS NOT NULL AND LTRIM(RTRIM(ItemCode)) <> ''
+ORDER BY ItemCode";
+            var table = LoadData(sql);
+            var values = new List<string>(table.Rows.Count);
+            foreach (DataRow row in table.Rows)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (row[0] != DBNull.Value)
+                {
+                    string value = Convert.ToString(row[0]);
+                    if (!string.IsNullOrWhiteSpace(value))
+                        values.Add(value.Trim());
+                }
+            }
+            return Task.FromResult<IReadOnlyList<string>>(values);
+        }
+
         public Task<IReadOnlyList<QualityHistoryRow>> SearchAsync(
             DateTime from,
             DateTime to,
