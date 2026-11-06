@@ -23,26 +23,50 @@ GO
       - Bỏ LEFT JOIN B20ItemQuyCach (không dùng cột nào; chỉ có thể nhân đôi dòng tồn).
 */
 CREATE OR ALTER PROC [dbo].[Usp_Qrcode_gheplotYMVN]
-    @TMPTABLE nvarchar(100) = N'TMPPHIEUGIAOHANG_100002'
+    @TMPTABLE nvarchar(100) = N'TMPPHIEUGIAOHANG_100002',
+    @EXPECTEDTMPTABLE nvarchar(100) = N'TMPPHIEUGIAOHANG_100002',
+    @VIEWTABLEPREFIX nvarchar(100) = N'TMPPHIEUGIAOHANGView_100002'
 AS
 BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
 
-    IF @TMPTABLE IS NULL
-       OR (@TMPTABLE NOT IN (N'TMPPHIEUGIAOHANG_100002', N'YMVN_TMPPHIEUGIAOHANG')
-           AND @TMPTABLE NOT LIKE N'TMPPHIEUGIAOHANGView[_]100002[_]%')
-        THROW 51221, N'Tên bảng TMP YMVN không hợp lệ cho Usp_Qrcode_gheplotYMVN.', 1;
+    -- Expected TMP and view prefix are supplied by CustomerTableConfig.
+    -- The view-mode name is machine-scoped (prefix + '_' + sanitized host name).
+    IF @TMPTABLE IS NULL OR @EXPECTEDTMPTABLE IS NULL OR @VIEWTABLEPREFIX IS NULL
+       OR (@TMPTABLE <> @EXPECTEDTMPTABLE
+           AND @TMPTABLE <> N'YMVN_TMPPHIEUGIAOHANG'
+           AND LEFT(@TMPTABLE, LEN(@VIEWTABLEPREFIX) + 1) <> @VIEWTABLEPREFIX + N'_')
+    BEGIN
+        DECLARE @invalidName nvarchar(2048) =
+            N'Tên bảng TMP YMVN không khớp CustomerTableConfig: ' + ISNULL(@TMPTABLE, N'<NULL>');
+        THROW 51221, @invalidName, 1;
+    END;
 
     DECLARE @tbl nvarchar(300) = N'dbo.' + QUOTENAME(@TMPTABLE);
-    IF OBJECT_ID(@tbl, N'U') IS NULL
-        THROW 51222, N'Bảng TMP YMVN không tồn tại.', 1;
+    DECLARE @objectId int = OBJECT_ID(@tbl);
+    -- View-only terminals use TMPPHIEUGIAOHANGView_<customer>_<machine>.
+    -- That object may be a SQL VIEW, not a user table. Both are valid read sources.
+    IF @objectId IS NULL OR NOT EXISTS
+       (SELECT 1 FROM sys.objects WHERE object_id = @objectId AND type IN (N'U', N'V'))
+    BEGIN
+        DECLARE @missingObject nvarchar(2048) =
+            N'Không tìm thấy bảng/VIEW TMP YMVN trong dbo: ' + @TMPTABLE;
+        THROW 51222, @missingObject, 1;
+    END;
 
     DECLARE @gearCol sysname = CASE WHEN @TMPTABLE = N'YMVN_TMPPHIEUGIAOHANG' THEN N'TTPHIEU' ELSE N'GEAR' END;
-    IF COL_LENGTH(@tbl, N'MAHANG') IS NULL OR COL_LENGTH(@tbl, N'SOLUONG') IS NULL
-       OR COL_LENGTH(@tbl, N'NGAYGIAO') IS NULL OR COL_LENGTH(@tbl, N'GIOGIAO') IS NULL
-       OR COL_LENGTH(@tbl, @gearCol) IS NULL
-        THROW 51223, N'Bảng TMP YMVN thiếu cột MAHANG/SOLUONG/NGAYGIAO/GIOGIAO/Gear.', 1;
+    IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = @objectId AND name = N'MAHANG')
+       OR NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = @objectId AND name = N'SOLUONG')
+       OR NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = @objectId AND name = N'NGAYGIAO')
+       OR NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = @objectId AND name = N'GIOGIAO')
+       OR NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = @objectId AND name = @gearCol)
+    BEGIN
+        DECLARE @missingColumns nvarchar(2048) =
+            N'Bảng/VIEW TMP YMVN thiếu cột MAHANG/SOLUONG/NGAYGIAO/GIOGIAO/' + @gearCol
+            + N'. Object: ' + @TMPTABLE;
+        THROW 51223, @missingColumns, 1;
+    END;
 
     -- ── Nguồn: đúng tập dòng của phiên (đã lọc giờ + bỏ dòng OK khi nạp TMP) ─────────────
     CREATE TABLE #Src (MAHANG nvarchar(56) NULL, SOLUONG int NOT NULL, NGAYGIAO datetime NULL,
