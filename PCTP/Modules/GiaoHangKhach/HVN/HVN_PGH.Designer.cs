@@ -195,20 +195,22 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
             this.splitBottomLeftRight.Dock = System.Windows.Forms.DockStyle.Fill;
             this.splitBottomLeftRight.Location = new System.Drawing.Point(0, 1);
             this.splitBottomLeftRight.Name = "splitBottomLeftRight";
+            this.splitBottomLeftRight.Size = new System.Drawing.Size(1767, 133);
             this.splitBottomLeftRight.Orientation = System.Windows.Forms.Orientation.Vertical;
-            this.splitBottomLeftRight.SplitterDistance = 391;
             this.splitBottomLeftRight.Panel1MinSize = 220;
             this.splitBottomLeftRight.Panel2MinSize = 420;
+            this.splitBottomLeftRight.SplitterDistance = 391;
             this.splitBottomLeftRight.Panel1.Controls.Add(this._phieuBottomStateControl);
             this.splitBottomLeftRight.Panel2.Controls.Add(this.splitBottomActionsHangThieu);
 
             this.splitBottomActionsHangThieu.Dock = System.Windows.Forms.DockStyle.Fill;
             this.splitBottomActionsHangThieu.Location = new System.Drawing.Point(0, 0);
             this.splitBottomActionsHangThieu.Name = "splitBottomActionsHangThieu";
+            this.splitBottomActionsHangThieu.Size = new System.Drawing.Size(1370, 133);
             this.splitBottomActionsHangThieu.Orientation = System.Windows.Forms.Orientation.Vertical;
-            this.splitBottomActionsHangThieu.SplitterDistance = 892;
             this.splitBottomActionsHangThieu.Panel1MinSize = 260;
             this.splitBottomActionsHangThieu.Panel2MinSize = 300;
+            this.splitBottomActionsHangThieu.SplitterDistance = 892;
             this.splitBottomActionsHangThieu.Panel1.Controls.Add(this.UIButton);
             this.splitBottomActionsHangThieu.Panel2.Controls.Add(this.sidePanel5);
 
