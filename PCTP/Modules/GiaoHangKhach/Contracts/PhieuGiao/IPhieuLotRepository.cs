@@ -27,6 +27,7 @@ namespace PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao
         /// không hard-code tên bảng khách hàng trong tầng repository/SQL.
         /// Trả cột MH, GG, LG, GearName.
         /// </summary>
+        DataTable LoadGhepLot(string tmpTable, string ifsTable, bool useGear, string configuredTmpTable = null, string viewTablePrefix = null);
         DataTable LoadGhepLotYMVN(string tmpTable, string configuredTmpTable, string viewTablePrefix);
         DataTable GetDanhSachLotTuKho(string maHang);
 
