@@ -222,9 +222,18 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                     if (rawDate != null && rawDate != DBNull.Value)
                     {
                         DateTime dt;
-                        if (DateTime.TryParse(Convert.ToString(rawDate),
-                            System.Globalization.CultureInfo.InvariantCulture,
-                            System.Globalization.DateTimeStyles.AssumeLocal, out dt))
+                        bool parsedDate = rawDate is DateTime;
+                        if (parsedDate)
+                            dt = (DateTime)rawDate;
+                        else
+                            parsedDate = DateTime.TryParse(Convert.ToString(rawDate),
+                                System.Globalization.CultureInfo.CurrentCulture,
+                                System.Globalization.DateTimeStyles.AssumeLocal, out dt)
+                                || DateTime.TryParse(Convert.ToString(rawDate),
+                                    System.Globalization.CultureInfo.InvariantCulture,
+                                    System.Globalization.DateTimeStyles.AssumeLocal, out dt);
+
+                        if (parsedDate)
                         {
                             ngayGiao = dt.ToString("yyyy-MM-dd HH:mm:ss",
                                 System.Globalization.CultureInfo.InvariantCulture);
