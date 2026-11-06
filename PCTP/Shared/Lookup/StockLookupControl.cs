@@ -55,10 +55,10 @@ namespace PCTP.Shared.Lookup
         {
             get
             {
-                string selectedCode = Convert.ToString(_itemEditor.EditValue);
-                string value = IsItemSearch
-                    ? (string.IsNullOrWhiteSpace(selectedCode) ? _itemEditor.Text : selectedCode)
-                    : _lotQrEditor.Text;
+                // DisplayMember is the item-code field, so Text is always the actual
+                // search key (typed text or selected code). Do not prefer EditValue:
+                // GridLookUpEdit can retain an old EditValue while the user edits text.
+                string value = IsItemSearch ? _itemEditor.Text : _lotQrEditor.Text;
                 return (value ?? string.Empty).Trim();
             }
         }
@@ -107,12 +107,15 @@ namespace PCTP.Shared.Lookup
             }
 
             _itemEditor.Properties.DataSource = lookup;
-            _itemEditor.Properties.DisplayMember = "DisplayText";
+            // Keep the editor text equal to the code. The popup still shows code/name
+            // as separate columns, while the host form receives a clean search key.
+            _itemEditor.Properties.DisplayMember = codeField;
             _itemEditor.Properties.ValueMember = codeField;
             _itemEditor.Properties.NullText = "Gõ mã hoặc tên hàng để xem đề xuất...";
             _itemEditor.Properties.TextEditStyle = TextEditStyles.Standard;
             _itemEditor.Properties.PopupFilterMode = PopupFilterMode.Contains;
             _itemEditor.Properties.ImmediatePopup = true;
+            _itemEditor.Properties.SearchMode = DevExpress.XtraEditors.Controls.SearchMode.AutoFilter;
             _itemEditor.Properties.AllowNullInput = DevExpress.Utils.DefaultBoolean.True;
             _itemEditor.Properties.View.OptionsView.ShowGroupPanel = false;
             _itemEditor.Properties.View.OptionsView.ShowAutoFilterRow = true;
