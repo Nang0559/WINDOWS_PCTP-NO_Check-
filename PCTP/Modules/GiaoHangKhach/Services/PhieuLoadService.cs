@@ -112,7 +112,24 @@ namespace PCTP.Modules.GiaoHangKhach.Services
                 if (demQR > 0) return BuildTableResult(context, _workingState.LoadCurrentOrder(context), gioMoTa, false);
             }
             OrderSourceResult sourceResult = _orderSourceFactory.GetSource(context).Load(context);
-            return BuildTableResult(context, sourceResult.Orders ?? new DataTable(), gioMoTa, HasRows(sourceResult.Difference), sourceResult.Warning);
+            DataTable donHang = sourceResult.Orders ?? new DataTable();
+
+            // YMVN view terminals must have an isolated, machine-specific snapshot.
+            // QR terminals continue to use the shared configured TMP table; never
+            // write a read-only/view terminal's data into the live QR TMP session.
+            if (_cfg.Delivery.CoGear && !isQrMachine)
+            {
+                if (string.IsNullOrWhiteSpace(_tenBan))
+                    throw new InvalidOperationException(
+                        "YMVN máy VIEW chưa được cấp tên bảng snapshot theo máy (TMPPHIEUGIAOHANGView_*).");
+
+                // PushIfsSnapshot performs DROP/CREATE + BULK INSERT in one UOW
+                // transaction, so the machine view table is created and refreshed
+                // from the same filtered order set shown by this terminal.
+                _phieuRepo.PushIfsSnapshot(_tenBan, donHang);
+            }
+
+            return BuildTableResult(context, donHang, gioMoTa, HasRows(sourceResult.Difference), sourceResult.Warning);
         }
 
         private OrderLoadResult BuildTableResult(OrderLoadContext context, DataTable donHang, string gioMoTa, bool hasDifference, string warning = null)
