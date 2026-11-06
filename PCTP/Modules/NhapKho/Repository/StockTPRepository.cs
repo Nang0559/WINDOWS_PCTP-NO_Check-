@@ -316,6 +316,49 @@ ORDER BY NGAYNHAP DESC;";
             return result;
         }
 
+        /// <summary>
+        /// Cổng tìm kiếm thống nhất cho UI: nhận QR, LOT hoặc mã hàng.
+        /// QR/LOT chuẩn được chuyển về luồng tra cứu LOT hiện có; chuỗi ngắn
+        /// được tìm theo tiền tố PART và LOT để phục vụ lọc danh sách khi nhập.
+        /// Chỉ đọc STOCKTP, tuyệt đối không cập nhật tồn kho.
+        /// </summary>
+        public DataTable SearchStock(string input)
+        {
+            if (string.IsNullOrWhiteSpace(input))
+                return new DataTable();
+
+            string value = input.Trim();
+
+            if (value.IndexOf(':') >= 0)
+            {
+                try
+                {
+                    PCTP.Shared.Helpers.QRCodeParser.ParseQRCode(value);
+                    return GetTonKhoTheoLot(new List<string> { value });
+                }
+                catch (FormatException)
+                {
+                    // Không phải QR hợp lệ; tiếp tục phân loại LOT/mã hàng.
+                }
+            }
+
+            PCTP.Common.LotKeyKind kind = PCTP.Common.LotCodeHelper.ClassifyLotKey(value);
+            if (kind == PCTP.Common.LotKeyKind.Full20 ||
+                kind == PCTP.Common.LotKeyKind.Legacy13)
+                return GetTonKhoTheoLot(new List<string> { value });
+
+            string prefix = EscapeLike(value) + "%";
+            string sql = $@"
+SELECT LOT, PART, NAME, CASX, NGAYSX, SLSX, NGAYNHAP, SLNHAP,
+       NGAYXUAT, SLXUAT, SLCONLAI, SATUS AS Satus
+FROM {_tableName}
+WHERE PART LIKE @prefix OR LOT LIKE @prefix
+ORDER BY NGAYNHAP DESC;";
+            DataTable result = LoadData(sql, new SqlParameter("@prefix", prefix));
+            EnsureUniqueLotRows(result, "SearchStock");
+            return result;
+        }
+
         public DataTable GetTonKhoTheoLot(List<string> lots)
         {
             if (lots == null || lots.Count == 0) return new DataTable();
