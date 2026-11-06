@@ -420,7 +420,7 @@ namespace PCTP.Modules.BaoCao.UI
 
                 _currentRows = rows == null ? new List<DeliveryTraceRow>() : rows.ToList();
                 _grid.DataSource = new BindingList<DeliveryTraceRow>(_currentRows);
-                ClearTimeline("Đã xóa điều kiện tra cứu.");
+                ClearTimeline("Chọn một dòng giao hàng để dựng timeline theo LOT.");
                 _status.Text = "Tìm thấy " + _currentRows.Count + " dòng.";
             }
             catch (Exception ex)
@@ -704,7 +704,7 @@ namespace PCTP.Modules.BaoCao.UI
             _from.Value = DateTime.Today.AddDays(-30);
             _to.Value = DateTime.Today;
             _grid.DataSource = null;
-            _lotGrid.DataSource = null;
+            ClearTimeline("Đã xóa điều kiện tra cứu.");
             _currentRows.Clear();
             _status.Text = "Sẵn sàng";
         }
