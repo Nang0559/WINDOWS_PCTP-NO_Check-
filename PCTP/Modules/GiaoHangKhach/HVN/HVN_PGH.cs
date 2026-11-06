@@ -176,7 +176,7 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
             _phieuBottomStateControl.ShowGhepLot();
             _phieuBottomStateControl.HideLech();
             TXT_FCCTU.Text = ""; TXT_FCCTHANH.Text = ""; TXT_HVNTU.Text = ""; TXT_HVNTHANH.Text = ""; _sttSuaSl = 0;
-            _phieuActionBarControl.ConfigurePhieuView(_cfg.Delivery.LoadTuBangRieng ? "Show Thông Tin Lệch IFS" : "Kiểm Tra Ghep Lot", imageBT);
+            _phieuActionBarControl.ConfigurePhieuView(_cfg.Delivery.CoGear ? "Kiểm tra ghép LOT" : (_cfg.Delivery.LoadTuBangRieng ? "Show Thông Tin Lệch IFS" : "Kiểm Tra Ghep Lot"), imageBT);
         }
         public void BindGioXuatVP(IReadOnlyList<GioXuat> danhSach) { if (_phieuHeaderControl != null) _phieuHeaderControl.BindGioXuatVP(danhSach); }
         public bool SelectGioXuatByConcreteHour(string gioGiao) => _phieuHeaderControl != null && _phieuHeaderControl.SelectGioXuatByConcreteHour(gioGiao);
@@ -184,7 +184,7 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
         public void SwitchToPhieuDBView() => _phieuActionBarControl.ConfigureGiaoDb();
         public void SetupPhieuButtons(bool showCapNhapKho, bool showKiemTraMaNG, bool showGhepLot, bool showDocQRCode, bool showLayLaiLot = false, bool showStop = false, bool showHangThieuCaNgay = true)
         {
-            _phieuActionBarControl.ConfigureNormal(_cfg.Delivery.LoadTuBangRieng ? "Show Thông Tin Lệch IFS" : "Kiểm Tra Ghep Lot", showCapNhapKho, showKiemTraMaNG, showGhepLot, showDocQRCode, showLayLaiLot, showStop, showHangThieuCaNgay, imageBT);
+            _phieuActionBarControl.ConfigureNormal(_cfg.Delivery.CoGear ? "Kiểm tra ghép LOT" : (_cfg.Delivery.LoadTuBangRieng ? "Show Thông Tin Lệch IFS" : "Kiểm Tra Ghep Lot"), showCapNhapKho, showKiemTraMaNG, showGhepLot, showDocQRCode, showLayLaiLot, showStop, showHangThieuCaNgay, imageBT);
         }
         public DateTime SelectedDate => _phieuHeaderControl != null ? _phieuHeaderControl.SelectedDate : DateTime.MinValue;
         public int SelectedTabAddNM => _phieuHeaderControl != null ? _phieuHeaderControl.SelectedTabAddNM : _cfg.Delivery.AddNmMacDinh;
