@@ -37,6 +37,13 @@ namespace PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao
         /// (vốn dành cho nguồn nạp nguyên khối kèm gọi SP xử lý QR) — tránh mỗi nơi tự viết lại
         /// SQL INSERT trên bảng TMP.
         /// </summary>
+        /// <summary>
+        /// Thay toàn bộ snapshot đơn YMVN trong TMP bằng đúng tập dòng đã lọc.
+        /// DELETE và INSERT nằm trong cùng transaction; DataTable rỗng có nghĩa là
+        /// xóa sạch snapshot khi người dùng bỏ chọn toàn bộ giờ.
+        /// </summary>
+        void ReplaceTmpRows(string tmpTable, DataTable orders);
+
         void InsertTmpRow(
             string tmpTable,
             string stt, string cua, string truyen, string maHang, string tenHang,
