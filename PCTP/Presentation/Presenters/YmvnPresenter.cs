@@ -44,8 +44,9 @@ namespace PCTP.Presentation.Presenters
             if (_qrSessionLocked)
                 return;
 
+            // Bỏ chọn toàn bộ là một lựa chọn hợp lệ: phải tải tập rỗng và
+            // đồng bộ xóa TMP cũ, không được giữ lại phiên giờ trước.
             var list = _v.GetCheckedGioXuat();
-            if (list.Count == 0) return;
             _c.UpdateGioXuatFromCheckList(list);
             _c.LoadPhieuHienTai();
         }
