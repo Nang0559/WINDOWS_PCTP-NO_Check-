@@ -352,29 +352,22 @@ ORDER BY NGAYNHAP DESC;";
                         parameters.Add(new SqlParameter(exact, PCTP.Common.LotCodeHelper.GetFullKey(lot)));
                         parameters.Add(new SqlParameter(like, EscapeLike(PCTP.Common.LotCodeHelper.GetLegacyKey(lot)) + "%"));
                         conditions.Add($"(LOT = {exact} OR (LEN(LOT) < {PCTP.Common.LotCodeHelper.LEN_HEAD_FIXED} AND LOT LIKE {like}))");
-                        if (!string.IsNullOrWhiteSpace(itemCodeFromQr))
-                        {
-                            parameters.Add(new SqlParameter(item, itemCodeFromQr));
-                            conditions[conditions.Count - 1] = $"({conditions[conditions.Count - 1]} OR PART = {item})";
-                        }
                         break;
 
                     case PCTP.Common.LotKeyKind.Legacy13:
                         parameters.Add(new SqlParameter(like, EscapeLike(PCTP.Common.LotCodeHelper.GetLegacyKey(lot)) + "%"));
                         conditions.Add($"LOT LIKE {like}");
-                        if (!string.IsNullOrWhiteSpace(itemCodeFromQr))
-                        {
-                            parameters.Add(new SqlParameter(item, itemCodeFromQr));
-                            conditions[conditions.Count - 1] = $"({conditions[conditions.Count - 1]} OR PART = {item})";
-                        }
                         break;
 
                     default:
                         parameters.Add(new SqlParameter(exact, lot));
-                        parameters.Add(new SqlParameter(item, itemCodeFromQr ?? searchText));
-                        conditions.Add($"(LOT = {exact} OR PART = {item})");
+                        conditions.Add($"LOT = {exact}");
                         break;
                 }
+
+                // Mã hàng được tìm song song với LOT cho mọi độ dài.
+                parameters.Add(new SqlParameter(item, itemCodeFromQr ?? searchText));
+                conditions[conditions.Count - 1] = $"({conditions[conditions.Count - 1]} OR PART = {item})";
             }
 
             if (conditions.Count == 0) return new DataTable();
