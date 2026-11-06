@@ -31,6 +31,7 @@ namespace PCTP.Modules.BaoCao.UI
         private readonly DataGridView _lotGrid = new DataGridView();
         private readonly Label _status = new Label();
         private List<DeliveryTraceRow> _currentRows = new List<DeliveryTraceRow>();
+        private string _pendingQuickSearch;
 
         public FormBaoCaoTraceability() : this(new DeliveryTraceReadService()) { }
 
@@ -54,8 +55,14 @@ namespace PCTP.Modules.BaoCao.UI
 
         private void ApplyQuickSearch(string value)
         {
-            string keyword = (value ?? string.Empty).Trim();
-            if (keyword.Length == 0) return;
+            _pendingQuickSearch = (value ?? string.Empty).Trim();
+            ApplyPendingQuickSearch();
+        }
+
+        private void ApplyPendingQuickSearch()
+        {
+            string keyword = _pendingQuickSearch;
+            if (string.IsNullOrWhiteSpace(keyword)) return;
             if (keyword.StartsWith("LOT:", StringComparison.OrdinalIgnoreCase))
             {
                 _stockLookup.SelectLotQrTab();
@@ -95,6 +102,7 @@ namespace PCTP.Modules.BaoCao.UI
                     if (!string.IsNullOrWhiteSpace(itemCode))
                         itemRows.Rows.Add(itemCode);
                 _stockLookup.SetItemSuggestions(itemRows, "PART", null);
+                ApplyPendingQuickSearch();
                 ConfigureLookup(_txtCustomer, customerTask.Result, "Khách hàng");
                 _status.Text = "Sẵn sàng";
             }
