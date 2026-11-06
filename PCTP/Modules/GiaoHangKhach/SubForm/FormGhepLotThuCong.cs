@@ -124,6 +124,8 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
             btnReadB.Click += (s, e) => ReadLot(false);
             _txtQrA.KeyDown += (s, e) => ReadOnEnter(e, true);
             _txtQrB.KeyDown += (s, e) => ReadOnEnter(e, false);
+            _txtQrA.EditValueChanged += (s, e) => InvalidateScannedLot(true);
+            _txtQrB.EditValueChanged += (s, e) => InvalidateScannedLot(false);
             AddScanControls(groupA, _txtQrA, btnReadA, _lblLotA);
             AddScanControls(groupB, _txtQrB, btnReadB, _lblLotB);
             scanRow.Controls.Add(groupA, 0, 0);
@@ -311,6 +313,21 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
                 VisibleIndex = _view.Columns.Count,
                 Width = width
             });
+        }
+
+        private void InvalidateScannedLot(bool isLotA)
+        {
+            if (isLotA)
+            {
+                _lotA = null;
+                if (_lblLotA != null) _lblLotA.Text = "QR đã thay đổi — cần đọc lại LOT A";
+            }
+            else
+            {
+                _lotB = null;
+                if (_lblLotB != null) _lblLotB.Text = "QR đã thay đổi — cần đọc lại LOT B";
+            }
+            UpdateButtons();
         }
 
         private void ReadOnEnter(KeyEventArgs e, bool isLotA)
