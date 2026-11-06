@@ -475,17 +475,24 @@ namespace PCTP.Modules.BaoCao.UI
                         IReadOnlyList<ItemHistoryRow> history = await _stockHistoryQuery.SearchAsync(
                             criteria, CancellationToken.None);
 
-                        if (history == null) continue;
-                        foreach (ItemHistoryRow item in history)
+                        int matchedHistoryCount = 0;
+                        if (history != null)
                         {
-                            if (item == null) continue;
-                            // A stock-history row is included only when its LOT matches
-                            // the allocation being traced. The query's LIKE is narrowed
-                            // again here to avoid prefix/suffix cross-matches.
-                            if (!LotCodeHelper.AreLotKeysEquivalent(item.LotNo, lot.LotNo))
-                                continue;
-                            nodes.Add(TraceNode.ForStock(item, lot.LotNo));
+                            foreach (ItemHistoryRow item in history)
+                            {
+                                if (item == null) continue;
+                                // A stock-history row is included only when its LOT matches
+                                // the allocation being traced. The query's LIKE is narrowed
+                                // again here to avoid prefix/suffix cross-matches.
+                                if (!LotCodeHelper.AreLotKeysEquivalent(item.LotNo, lot.LotNo))
+                                    continue;
+                                nodes.Add(TraceNode.ForStock(item, lot.LotNo));
+                                matchedHistoryCount++;
+                            }
                         }
+
+                        if (matchedHistoryCount == 0)
+                            nodes.Add(TraceNode.MissingStockHistory(row, lot));
                     }
                 }
 
@@ -637,9 +644,9 @@ namespace PCTP.Modules.BaoCao.UI
                     DocumentNo = row.DocumentNo,
                     SourceName = "dbo.LUUPHIEUGIAOHANG + dbo.LUUDOCQRCODE",
                     SourceKey = row.DeliveryKey,
-                    EvidenceStatus = "Có bằng chứng giao hàng",
+                    EvidenceStatus = "Có phiếu giao; liên kết QR cần đối soát",
                     Subtitle = "Phiếu: " + ValueOrDash(row.DocumentNo) + " | KH: " + ValueOrDash(row.CustomerName),
-                    Note = "Bản ghi giao hàng đã lưu. Ngày giao lấy từ NGAYGIAO; không suy diễn giờ nếu nguồn không cung cấp.",
+                    Note = "Bản ghi phiếu giao được lưu trong LUUPHIEUGIAOHANG. QR/tem được lấy từ LUUDOCQRCODE qua điều kiện nhà máy, mã hàng, ngày và giờ giao; đây chưa phải khóa ngoại duy nhất nên cần đối soát nếu có nhiều bản ghi trùng điều kiện. Ngày giao lấy từ NGAYGIAO; không suy diễn giờ nếu nguồn không cung cấp.",
                     SortOrder = 30
                 };
             }
@@ -664,6 +671,29 @@ namespace PCTP.Modules.BaoCao.UI
                     Subtitle = "SL: " + lot.Quantity.ToString("N0") + " | QR: " + ValueOrDash(lot.QRCode),
                     Note = "LOT và số lượng được parse từ trường LOT composite của bản ghi giao hàng.",
                     SortOrder = 31
+                };
+            }
+
+            public static TraceNode MissingStockHistory(DeliveryTraceRow delivery, DeliveryLotTraceRow lot)
+            {
+                return new TraceNode
+                {
+                    Title = "Chưa tìm thấy lịch sử kho",
+                    EventType = "MISSING_STOCK_HISTORY",
+                    EventTime = delivery.DeliveryDate,
+                    LotNo = lot.LotNo,
+                    PartNo = delivery.PartNo,
+                    Quantity = lot.Quantity,
+                    QrCode = lot.QRCode,
+                    CustomerLabel = delivery.CustomerLabelData,
+                    CustomerName = delivery.CustomerName,
+                    DocumentNo = delivery.DocumentNo,
+                    SourceName = "dbo.StockHistory (sp_GetStockHistory)",
+                    SourceKey = "LOT=" + lot.LotNo,
+                    EvidenceStatus = "Thiếu bằng chứng lịch sử",
+                    Subtitle = "Chưa truy xuất được bản ghi nhập/xuất kho cho LOT này",
+                    Note = "Đây là cảnh báo thiếu bằng chứng, không phải một giao dịch kho. Không suy diễn từ STOCKTP hoặc tồn kho hiện tại.",
+                    SortOrder = 20
                 };
             }
 
