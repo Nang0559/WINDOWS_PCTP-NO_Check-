@@ -16,7 +16,7 @@ namespace PCTP.Modules.XuatKho.Repositories
     {
         public DataTable GetReturnCandidates(string lotFilter)
         {
-            const string sql = @"
+            string sql = @"
 SELECT t.TransferId, t.TransferNo, t.LocationId, l.LocationName,
        t.ItemCode, t.LotNo, t.Quantity AS TransferQuantity,
        ISNULL(r.ReturnedQuantity, 0) AS ReturnedQuantity,
@@ -41,7 +41,7 @@ WHERE t.Quantity > ISNULL(r.ReturnedQuantity, 0)
       OR l.LocationName LIKE N'%' + @Search + N'%'
       OR t.ItemCode LIKE N'%' + @Search + N'%'
       OR t.LotNo LIKE N'%' + @Search + N'%'
-      OR (LEN(@Search) >= 13 AND " + LotCodeHelper.BuildLotMatchSql(\"t.LotNo\", \"@Search\") + ")
+      OR (LEN(@Search) >= 13 AND " + LotCodeHelper.BuildLotMatchSql("t.LotNo", "@Search") + ")
   )
 ORDER BY l.LocationName, t.LotNo, t.CreatedAt DESC, t.TransferId DESC;";
             return LoadData(sql,
