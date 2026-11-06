@@ -162,8 +162,8 @@ namespace PCTP.Infrastructure.Repositories
         //YMVN
         public string GetGearName(int gearCode)
         {
-            // Tra B20Gear — dùng cho NormalizeLotFCC_YMVN (QR có mã số)
-            if (gearCode <= 0) return "";
+            // Tra B20Gear — Code 0 là dòng hợp lệ có Name rỗng (phiếu không phân loại Gear).
+            // Không chặn gearCode <= 0 trước khi query vì sẽ loại nhầm Code 0.
             string raw = _sql.ExecuteReader(_sql.B7R2_FCCdb,
                 $"SELECT ISNULL(Name,'') FROM B20Gear WHERE Code = {gearCode}");
             return raw.Trim();
