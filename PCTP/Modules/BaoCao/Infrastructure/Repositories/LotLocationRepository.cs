@@ -48,7 +48,7 @@ INNER JOIN Rack r
     ON r.RackId = s.RackId
 INNER JOIN Warehouse w
     ON w.WarehouseId = r.WarehouseId
-WHERE " + LotCodeHelper.BuildLotMatchSql("sl.LotNo", "@LotNo") + "
+WHERE {LotCodeHelper.BuildLotMatchSql("sl.LotNo", "@LotNo")}
 ORDER BY
     sl.PhieuStatus,
     sl.ImportDate;";
