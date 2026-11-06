@@ -33,5 +33,6 @@ namespace PCTP.Modules.NhapKho.Interfaces
 
         DataTable GetTonKhoHienTai();
         DataTable GetTonKhoTheoLot(List<string> lots);
+        DataTable SearchStock(string input);
     }
 }
