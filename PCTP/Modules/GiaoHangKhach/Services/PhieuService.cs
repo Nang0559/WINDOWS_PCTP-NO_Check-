@@ -136,11 +136,15 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             string tenBan = GetTenBan(_isLoaiSP);
             if (_cfg.Delivery.CoGear)
             {
-                // YMVN: ghép LOT theo thuật toán legacy (Usp_Qrcode_gheplotYM1) trên bảng TMP của phiên.
-                // Usp_Qrcode_gheplot chung là contract khác (HVN/IFS) và không tính Gear/quy cách YMVN.
-                // Legacy chỉ ghép cho hàng MP; bảng SP_* có schema khác nên trả lưới rỗng, không gọi SP.
+                // YMVN MP uses the Gear branch inside the same Usp_Qrcode_gheplot.
+                // SP keeps its separate schema/flow and is intentionally not passed to the MP Gear allocator.
                 if (_isLoaiSP) return CreateEmptyGhepLotTable();
-                return _phieuRepo.LoadGhepLotYMVN(tenBan, _cfg.Delivery.GetTmpTable(false), _cfg.Delivery.ViewTablePrefix);
+                return _phieuRepo.LoadGhepLot(
+                    tenBan,
+                    _cfg.Delivery.GetIfsTable(false),
+                    true,
+                    _cfg.Delivery.GetTmpTable(false),
+                    _cfg.Delivery.ViewTablePrefix);
             }
             if (_cfg.Delivery.LoadTuBangRieng) return _phieuRepo.LoadGhepLot(tenBan, tenBan);
             string ifsTable = _isMayBanQR ? _cfg.Delivery.GetIfsTable(_isLoaiSP) : _cfg.Delivery.GetIfsViewTable(_isLoaiSP);
