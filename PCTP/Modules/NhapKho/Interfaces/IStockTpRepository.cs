@@ -31,6 +31,7 @@ namespace PCTP.Modules.NhapKho.Interfaces
         int GetSlDaNhap(
             string lot);
 
+        DataTable GetItemLookup();
         DataTable GetTonKhoHienTai();
         DataTable GetTonKhoTheoLot(List<string> lots);
         DataTable SearchStock(string input);
