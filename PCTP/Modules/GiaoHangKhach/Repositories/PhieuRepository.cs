@@ -115,7 +115,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         public void LayLaiLotNo(int stt, PhieuTableSet tables) => _lot.LayLaiLotNo(stt, tables);
         public void LayLaiLotNo(int stt, string tenBan, string docQRTable) => _lot.LayLaiLotNo(stt, tenBan, docQRTable);
         public DataTable LoadGhepLot(string tenBan = "TMPPHIEUGIAOHANG", string ifsTable = "IFSPHIEUGIAOHANG") => _lot.LoadGhepLot(tenBan, ifsTable);
-        public DataTable LoadGhepLotYMVN(string tmpTable) => _lot.LoadGhepLotYMVN(tmpTable);
+        public DataTable LoadGhepLotYMVN(string tmpTable, string configuredTmpTable, string viewTablePrefix) => _lot.LoadGhepLotYMVN(tmpTable, configuredTmpTable, viewTablePrefix);
         public DataTable GetDanhSachLotTuKho(string maHang) => _lot.GetDanhSachLotTuKho(maHang);
 
         public int CapNhapKho(string gioGiaoFcc, string nhaMay, PhieuTableSet tables, out DataTable errors) => _kho.CapNhapKho(gioGiaoFcc, nhaMay, tables, out errors);
