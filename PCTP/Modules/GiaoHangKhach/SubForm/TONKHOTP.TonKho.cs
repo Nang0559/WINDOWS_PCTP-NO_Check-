@@ -7,6 +7,7 @@ using DevExpress.XtraGrid.Views.Grid;
 using DevExpress.XtraTab;
 using PCTP.Modules.BaoCao.Application.Contracts.Queries;
 using PCTP.Shared.Lookup;
+using PCTP.Shared.Helpers;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -108,7 +109,7 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
             _viewItem.RowStyle += OnHandRowStyle;
 
             FormClosed += (s, e) => { if (_onHandCts != null) { _onHandCts.Cancel(); _onHandCts.Dispose(); _onHandCts = null; } };
-            Shown += async (s, e) => await LoadOnHandAsync();
+            Shown += async (s, e) => await LoadInitialOnHandWithWaitAsync();
         }
 
         private static void CreateOnHandGrid(out GridControl grid, out GridView view)
@@ -216,6 +217,25 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
         {
             var active = filters.Where(x => !string.IsNullOrWhiteSpace(x)).ToArray();
             return active.Length == 0 ? null : "(" + string.Join(" Or ", active) + ")";
+        }
+
+        /// <summary>
+        /// Hiển thị WaitForm chuẩn của toàn hệ thống trong lần mở màn hình tồn kho.
+        /// Việc tải dữ liệu vẫn chạy nền; WaitForm chỉ được đóng sau khi bind dữ liệu
+        /// hoặc khi truy vấn kết thúc/lỗi.
+        /// </summary>
+        private async Task LoadInitialOnHandWithWaitAsync()
+        {
+            var waitForm = new WaitFormService(this);
+            try
+            {
+                waitForm.Show("Đang tải dữ liệu tồn kho thành phẩm...");
+                await LoadOnHandAsync();
+            }
+            finally
+            {
+                waitForm.Close();
+            }
         }
 
         private async Task LoadOnHandAsync()
