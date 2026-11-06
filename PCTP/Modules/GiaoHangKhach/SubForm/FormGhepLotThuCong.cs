@@ -9,6 +9,7 @@ using PCTP.Domain.Entities;
 using PCTP.Infrastructure.Repositories;
 using PCTP.Modules.GiaoHangKhach;
 using PCTP.Modules.NhapKho.Repository;
+using PCTP.QRCODE_HVN.Report;
 using PCTP.Shared.Common;
 using PCTP.Shared.Helpers;
 using System;
@@ -371,14 +372,12 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
                 if (isLotA)
                 {
                     _lotA = selection;
-                    _spinQtyA.Properties.MaxValue = available;
                     _spinQtyA.EditValue = 1;
                     label.Text = FormatSelection("LOT A", selection);
                 }
                 else
                 {
                     _lotB = selection;
-                    _spinQtyB.Properties.MaxValue = available;
                     _spinQtyB.EditValue = qr.Quantity;
                     label.Text = FormatSelection("LOT B", selection);
                 }
