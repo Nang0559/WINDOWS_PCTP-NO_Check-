@@ -332,15 +332,30 @@ ORDER BY NGAYNHAP DESC;";
                 string searchText = (lots[i] ?? string.Empty).Trim();
                 if (searchText.Length == 0) continue;
 
-                // Nhận diện QR 4/6 phần trước khi tra cứu LOT.
+                // QR chỉ được nhận diện khi parse đúng cấu trúc 4/6 phần.
+                // Chuỗi có dấu ':' nhưng không phải QR hợp lệ không được làm hỏng
+                // thao tác tìm kiếm; khi đó vẫn được xử lý như đầu vào thông thường.
                 string lot = searchText;
                 string itemCodeFromQr = null;
                 if (searchText.IndexOf(':') >= 0)
                 {
-                    var qr = PCTP.Shared.Helpers.QRCodeParser.ParseQRCode(searchText);
-                    lot = qr.LotNo;
-                    itemCodeFromQr = qr.ItemCode;
+                    try
+                    {
+                        var qr = PCTP.Shared.Helpers.QRCodeParser.ParseQRCode(searchText);
+                        lot = qr.LotNo;
+                        itemCodeFromQr = qr.ItemCode;
+                    }
+                    catch (FormatException)
+                    {
+                        // Không phải QR hợp lệ: giữ nguyên searchText để tìm chính xác.
+                    }
                 }
+
+                // STOCKTP sử dụng khóa LOT chuẩn 20 ký tự đầu tiên.
+                // Không dùng StripCounterAndQty tại điểm tra cứu vì LOT có thể có
+                // định dạng độ dài khác nhau nhưng cùng khóa 20 ký tự.
+                if (PCTP.Common.LotCodeHelper.ClassifyLotKey(lot) == PCTP.Common.LotKeyKind.Full20)
+                    lot = PCTP.Common.LotCodeHelper.GetFullKey(lot);
 
                 string exact = "@lot" + i;
                 string like = "@lotLike" + i;
