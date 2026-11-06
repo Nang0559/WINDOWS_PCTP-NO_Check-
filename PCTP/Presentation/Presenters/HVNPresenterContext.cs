@@ -197,14 +197,11 @@ namespace PCTP.Presentation.Presenters
                 .ToList();
             View.SetCheckedGiosYMVN(deliveredDisplay);
 
-            var selectable = danhSachGio
-                .Where(g => !deliveredSet.Contains(NormalizeHour(g)))
-                .ToList();
-
-            if (selectable.Count > 0)
-                UpdateGioXuatFromCheckList(selectable);
-            else
-                GioXuatHienTai = new GioXuat("", "");
+            // Keep the internal hour context in sync with the actual checked
+            // items. The UI checklist is the single source of truth; do not
+            // calculate a different set by excluding delivered slots here.
+            var selected = View.GetCheckedGioXuat();
+            UpdateGioXuatFromCheckList(selected);
         }
 
         internal void UpdateGioXuatFromCheckList(List<string> danhSachGio)
