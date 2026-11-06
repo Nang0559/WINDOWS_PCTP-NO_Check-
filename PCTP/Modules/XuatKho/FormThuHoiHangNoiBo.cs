@@ -102,8 +102,8 @@ namespace PCTP.Modules.XuatKho
             var footer = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight, Padding = new Padding(2) };
             _btnSearch.Text = "Tìm nhanh lần chuyển";
             _btnSearch.Width = 165;
-            _btnSearch.Click += (s, e) => LoadCandidates((_txtLot.Text ?? string.Empty).Trim());
-            _txtLot.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) { e.Handled = true; LoadCandidates((_txtLot.Text ?? string.Empty).Trim()); } };
+            _btnSearch.Click += (s, e) => SearchCandidates();
+            _txtLot.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) { e.Handled = true; e.SuppressKeyPress = true; SearchCandidates(); } };
             _btnReturn.Text = "Xác nhận thu hồi về kho";
             _btnReturn.Width = 190;
             _btnReturn.Enabled = false;
@@ -124,6 +124,24 @@ namespace PCTP.Modules.XuatKho
             editor.Dock = DockStyle.Fill;
             layout.Controls.Add(label, col, row);
             layout.Controls.Add(editor, col + 1, row);
+        }
+
+        private void SearchCandidates()
+        {
+            string input = (_txtLot.Text ?? string.Empty).Trim();
+            if (input.IndexOf(':') >= 0)
+            {
+                try
+                {
+                    var qr = QRCodeParser.ParseQRCode(input.ToUpperInvariant());
+                    input = qr.LotNo;
+                }
+                catch (FormatException)
+                {
+                    // Keep malformed input as a text search; do not start a stock mutation.
+                }
+            }
+            LoadCandidates(input);
         }
 
         private void LoadCandidates(string lot)
