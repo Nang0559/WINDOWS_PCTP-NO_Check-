@@ -103,232 +103,195 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
             this.dxValidationProvider1 = new DXValidationProvider(this.components);
 
             ((ISupportInitialize)(this.dxValidationProvider1)).BeginInit();
-            this.groupBox1.SuspendLayout();
-            this.groupBox2.SuspendLayout();
-            this.groupBox3.SuspendLayout();
-            this.groupBox4.SuspendLayout();
             this.SuspendLayout();
 
-            // label1
-            this.label1.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-            this.label1.AutoSize = true;
-            this.label1.Font = new Font("Arial", 12F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            this.label1.Location = new Point(118, 36);
-            this.label1.Name = "label1";
-            this.label1.Size = new Size(324, 24);
-            this.label1.TabIndex = 0;
-            this.label1.Text = "ĐỌC QRCODE TEM MUỐN TÁCH";
-
-            // TXT_QRCODE
-            this.TXT_QRCODE.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-            this.TXT_QRCODE.Font = new Font("Microsoft Sans Serif", 13.8F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            this.TXT_QRCODE.Location = new Point(501, 36);
-            this.TXT_QRCODE.Name = "TXT_QRCODE";
-            this.TXT_QRCODE.Size = new Size(485, 34);
-            this.TXT_QRCODE.TabIndex = 1;
-            this.TXT_QRCODE.KeyDown += new KeyEventHandler(this.TXT_QRCODE_KeyDown);
-
-            // groupBox1 (chọn hình thức tách)
-            this.groupBox1.Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
-            this.groupBox1.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
-            this.groupBox1.BackColor = SystemColors.InactiveCaption;
-            this.groupBox1.Controls.Add(this.RDO_3);
-            this.groupBox1.Controls.Add(this.RDO_2);
-            this.groupBox1.Font = new Font("Microsoft Sans Serif", 7.8F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            this.groupBox1.Location = new Point(12, 357);
-            this.groupBox1.Name = "groupBox1";
-            this.groupBox1.Size = new Size(201, 120);
-            this.groupBox1.TabIndex = 4;
-            this.groupBox1.TabStop = false;
-            this.groupBox1.Text = "CHỌN HÌNH THỨC TÁCH";
-
-            // RDO_3
-            this.RDO_3.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
-            this.RDO_3.AutoSize = true;
-            this.RDO_3.BackColor = Color.YellowGreen;
-            this.RDO_3.Location = new Point(17, 78);
-            this.RDO_3.Name = "RDO_3";
-            this.RDO_3.Size = new Size(178, 21);
-            this.RDO_3.TabIndex = 4;
-            this.RDO_3.TabStop = true;
-            this.RDO_3.Text = "TÁCH THÀNH 3 LOT";
-            this.RDO_3.UseVisualStyleBackColor = false;
-
-            // RDO_2
-            this.RDO_2.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
-            this.RDO_2.AutoSize = true;
-            this.RDO_2.BackColor = Color.PeachPuff;
-            this.RDO_2.Location = new Point(17, 36);
-            this.RDO_2.Name = "RDO_2";
-            this.RDO_2.Size = new Size(178, 21);
-            this.RDO_2.TabIndex = 5;
-            this.RDO_2.TabStop = true;
-            this.RDO_2.Text = "TÁCH THÀNH 2 LOT";
-            this.RDO_2.UseVisualStyleBackColor = false;
-
-            // label2 / txt_sllot1 / groupBox2 (thông tin LOT 1)
-            this.label2.AutoSize = true;
-            this.label2.Location = new Point(8, 44);
-            this.label2.Name = "label2";
-            this.label2.Size = new Size(140, 17);
-            this.label2.TabIndex = 5;
-            this.label2.Text = "SỐ LƯỢNG LOT 1";
-
-            this.txt_sllot1.Location = new Point(154, 41);
-            this.txt_sllot1.Name = "txt_sllot1";
-            this.txt_sllot1.Size = new Size(80, 22);
-            this.txt_sllot1.TabIndex = 6;
-            this.txt_sllot1.TextChanged += new EventHandler(this.txt_sllot1_TextChanged);
-
-            this.groupBox2.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
-            this.groupBox2.BackColor = Color.MistyRose;
-            this.groupBox2.Controls.Add(this.txt_sllot1);
-            this.groupBox2.Controls.Add(this.label2);
-            this.groupBox2.Font = new Font("Microsoft Sans Serif", 7.8F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            this.groupBox2.Location = new Point(242, 378);
-            this.groupBox2.Name = "groupBox2";
-            this.groupBox2.Size = new Size(263, 78);
-            this.groupBox2.TabIndex = 7;
-            this.groupBox2.TabStop = false;
-            this.groupBox2.Text = "THÔNG TIN LOT 1";
-
-            // label3 / txt_sllot2 / groupBox3 (thông tin LOT 2)
-            this.label3.AutoSize = true;
-            this.label3.Location = new Point(8, 44);
-            this.label3.Name = "label3";
-            this.label3.Size = new Size(140, 17);
-            this.label3.TabIndex = 5;
-            this.label3.Text = "SỐ LƯỢNG LOT 2";
-
-            this.txt_sllot2.Location = new Point(154, 41);
-            this.txt_sllot2.Name = "txt_sllot2";
-            this.txt_sllot2.Size = new Size(80, 22);
-            this.txt_sllot2.TabIndex = 6;
-            this.txt_sllot2.TextChanged += new EventHandler(this.txt_sllot2_TextChanged);
-
-            this.groupBox3.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
-            this.groupBox3.BackColor = Color.MistyRose;
-            this.groupBox3.Controls.Add(this.txt_sllot2);
-            this.groupBox3.Controls.Add(this.label3);
-            this.groupBox3.Font = new Font("Microsoft Sans Serif", 7.8F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            this.groupBox3.Location = new Point(511, 378);
-            this.groupBox3.Name = "groupBox3";
-            this.groupBox3.Size = new Size(263, 78);
-            this.groupBox3.TabIndex = 7;
-            this.groupBox3.TabStop = false;
-            this.groupBox3.Text = "THÔNG TIN LOT 2";
-
-            // label4 / txt_sllot3 / groupBox4 (thông tin LOT 3 — chỉ dùng khi RDO_3)
-            this.label4.AutoSize = true;
-            this.label4.Location = new Point(8, 44);
-            this.label4.Name = "label4";
-            this.label4.Size = new Size(140, 17);
-            this.label4.TabIndex = 5;
-            this.label4.Text = "SỐ LƯỢNG LOT 3";
-
-            this.txt_sllot3.Location = new Point(154, 41);
-            this.txt_sllot3.Name = "txt_sllot3";
-            this.txt_sllot3.Size = new Size(80, 22);
-            this.txt_sllot3.TabIndex = 6;
-            this.txt_sllot3.TextChanged += new EventHandler(this.txt_sllot3_TextChanged);
-
-            this.groupBox4.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
-            this.groupBox4.BackColor = Color.MistyRose;
-            this.groupBox4.Controls.Add(this.txt_sllot3);
-            this.groupBox4.Controls.Add(this.label4);
-            this.groupBox4.Font = new Font("Microsoft Sans Serif", 7.8F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            this.groupBox4.Location = new Point(780, 378);
-            this.groupBox4.Name = "groupBox4";
-            this.groupBox4.Size = new Size(263, 78);
-            this.groupBox4.TabIndex = 7;
-            this.groupBox4.TabStop = false;
-            this.groupBox4.Text = "THÔNG TIN LOT 3";
-
-            // lw_qrcode (danh sách tem đã bắn)
-            this.lw_qrcode.AllowDrop = true;
-            this.lw_qrcode.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
-            this.lw_qrcode.Font = new Font("Microsoft Sans Serif", 9F, FontStyle.Regular, GraphicsUnit.Point, 0);
-            this.lw_qrcode.GridLines = true;
-            this.lw_qrcode.HideSelection = false;
-            this.lw_qrcode.Location = new Point(36, 115);
-            this.lw_qrcode.Name = "lw_qrcode";
-            this.lw_qrcode.Size = new Size(985, 183);
-            this.lw_qrcode.TabIndex = 8;
-            this.lw_qrcode.UseCompatibleStateImageBehavior = false;
-            this.lw_qrcode.SelectedIndexChanged += new EventHandler(this.lw_qrcode_SelectedIndexChanged);
-
-            // CMD_XUATDS (in tem)
-            this.CMD_XUATDS.Anchor = AnchorStyles.Bottom;
-            this.CMD_XUATDS.Location = new Point(430, 475);
-            this.CMD_XUATDS.Name = "CMD_XUATDS";
-            this.CMD_XUATDS.Size = new Size(190, 43);
-            this.CMD_XUATDS.TabIndex = 10;
-            this.CMD_XUATDS.Text = "IN TEM";
-            this.CMD_XUATDS.UseVisualStyleBackColor = true;
-            this.CMD_XUATDS.Click += new EventHandler(this.CMD_XUATDS_Click);
-
-            // CMD_XOA
-            this.CMD_XOA.Anchor = AnchorStyles.Bottom;
-            this.CMD_XOA.Image = global::PCTP.Properties.Resources.delete_16x16;
-            this.CMD_XOA.ImageAlign = ContentAlignment.MiddleLeft;
-            this.CMD_XOA.Location = new Point(635, 317);
-            this.CMD_XOA.Name = "CMD_XOA";
-            this.CMD_XOA.Size = new Size(139, 36);
-            this.CMD_XOA.TabIndex = 11;
-            this.CMD_XOA.Text = "XÓA";
-            this.CMD_XOA.UseVisualStyleBackColor = true;
-            this.CMD_XOA.Click += new EventHandler(this.CMD_XOA_Click);
-
-            // CMD_SUA
-            this.CMD_SUA.Anchor = AnchorStyles.Bottom;
-            this.CMD_SUA.Image = global::PCTP.Properties.Resources.edit_16x16;
-            this.CMD_SUA.ImageAlign = ContentAlignment.MiddleLeft;
-            this.CMD_SUA.Location = new Point(368, 317);
-            this.CMD_SUA.Name = "CMD_SUA";
-            this.CMD_SUA.Size = new Size(136, 40);
-            this.CMD_SUA.TabIndex = 9;
-            this.CMD_SUA.Text = "SUA";
-            this.CMD_SUA.UseVisualStyleBackColor = true;
-            this.CMD_SUA.Click += new EventHandler(this.CMD_SUA_Click);
-
-            // MaxVL (ẩn — chỉ lưu SL LOT gốc của dòng đang chọn)
-            this.MaxVL.Location = new Point(749, 484);
-            this.MaxVL.Name = "MaxVL";
-            this.MaxVL.Size = new Size(116, 22);
-            this.MaxVL.TabIndex = 12;
-            this.MaxVL.Visible = false;
-
-            // UF_TACHLOT (form)
-            this.AllowDrop = true;
-            this.AutoScaleDimensions = new SizeF(8F, 16F);
-            this.AutoScaleMode = AutoScaleMode.Font;
-            this.ClientSize = new Size(1073, 530);
-            this.Controls.Add(this.MaxVL);
-            this.Controls.Add(this.CMD_XOA);
-            this.Controls.Add(this.CMD_XUATDS);
-            this.Controls.Add(this.CMD_SUA);
-            this.Controls.Add(this.lw_qrcode);
-            this.Controls.Add(this.groupBox4);
-            this.Controls.Add(this.groupBox3);
-            this.Controls.Add(this.groupBox2);
-            this.Controls.Add(this.groupBox1);
-            this.Controls.Add(this.TXT_QRCODE);
-            this.Controls.Add(this.label1);
+            // Form shell — responsive layout, same sizing conventions as WMS forms.
             this.Name = "UF_TACHLOT";
             this.Text = "IN TÁCH LOT";
-            this.Load += new EventHandler(this.UF_TACHLOT_Load);
+            this.StartPosition = FormStartPosition.CenterParent;
+            this.FormBorderStyle = FormBorderStyle.Sizable;
+            this.MinimumSize = new Size(1000, 680);
+            this.Size = new Size(1320, 820);
+            this.AutoScaleDimensions = new SizeF(8F, 16F);
+            this.AutoScaleMode = AutoScaleMode.Font;
+            this.AllowDrop = true;
+            this.KeyPreview = true;
+
+            var root = new TableLayoutPanel
+            {
+                Name = "tachLot_root",
+                Dock = DockStyle.Fill,
+                Padding = new Padding(12),
+                ColumnCount = 1,
+                RowCount = 3
+            };
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 92));
+            root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 246));
+            this.Controls.Add(root);
+
+            // Scan toolbar.
+            var scanGroup = new DevExpress.XtraEditors.GroupControl
+            {
+                Text = "QUÉT QR TEM GỐC",
+                Dock = DockStyle.Fill
+            };
+            var scanLayout = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                Padding = new Padding(10, 4, 10, 8),
+                ColumnCount = 2,
+                RowCount = 2
+            };
+            scanLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 205));
+            scanLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            scanLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 38));
+            scanLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            this.label1.Text = "ĐỌC QRCODE TEM MUỐN TÁCH";
+            this.label1.Dock = DockStyle.Fill;
+            this.label1.TextAlign = ContentAlignment.MiddleLeft;
+            this.label1.Font = new Font("Tahoma", 9F, FontStyle.Bold);
+            this.TXT_QRCODE.Dock = DockStyle.Fill;
+            this.TXT_QRCODE.Font = new Font("Tahoma", 12F, FontStyle.Bold);
+            this.TXT_QRCODE.Name = "tachLot_qrInput";
+            this.TXT_QRCODE.PlaceholderText = "Bắn QR 4/6 trường rồi nhấn Enter";
+            this.TXT_QRCODE.KeyDown += new KeyEventHandler(this.TXT_QRCODE_KeyDown);
+            scanLayout.Controls.Add(this.label1, 0, 0);
+            scanLayout.Controls.Add(this.TXT_QRCODE, 1, 0);
+            var scanHint = new Label
+            {
+                Text = "Quét tem gốc để đưa vào danh sách. Chọn một dòng để chia số lượng thành 2 hoặc 3 LOT con.",
+                Dock = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft,
+                ForeColor = SystemColors.GrayText
+            };
+            scanLayout.Controls.Add(scanHint, 0, 1);
+            scanLayout.SetColumnSpan(scanHint, 2);
+            scanGroup.Controls.Add(scanLayout);
+            root.Controls.Add(scanGroup, 0, 0);
+
+            // Worklist grid. Keep the existing ListView data contract to avoid changing QR/print behavior.
+            var listGroup = new DevExpress.XtraEditors.GroupControl
+            {
+                Text = "DANH SÁCH TEM ĐÃ QUÉT — CHỌN DÒNG ĐỂ CHỈNH SỐ LƯỢNG",
+                Dock = DockStyle.Fill
+            };
+            this.lw_qrcode.Name = "tachLot_worklist";
+            this.lw_qrcode.Dock = DockStyle.Fill;
+            this.lw_qrcode.Font = new Font("Tahoma", 9F);
+            this.lw_qrcode.View = View.Details;
+            this.lw_qrcode.FullRowSelect = true;
+            this.lw_qrcode.GridLines = true;
+            this.lw_qrcode.HideSelection = false;
+            this.lw_qrcode.MultiSelect = false;
+            this.lw_qrcode.UseCompatibleStateImageBehavior = false;
+            this.lw_qrcode.SelectedIndexChanged += new EventHandler(this.lw_qrcode_SelectedIndexChanged);
+            listGroup.Controls.Add(this.lw_qrcode);
+            root.Controls.Add(listGroup, 0, 1);
+
+            // Bottom editor: split mode + three quantity cards + actions.
+            var editorGroup = new DevExpress.XtraEditors.GroupControl
+            {
+                Text = "THÔNG TIN TÁCH LOT",
+                Dock = DockStyle.Fill
+            };
+            var editorRoot = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                Padding = new Padding(8),
+                ColumnCount = 1,
+                RowCount = 2
+            };
+            editorRoot.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            editorRoot.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
+
+            var editor = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 4,
+                RowCount = 1
+            };
+            editor.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 210));
+            editor.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.333F));
+            editor.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.333F));
+            editor.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.333F));
+
+            this.groupBox1.Text = "HÌNH THỨC TÁCH";
+            this.groupBox1.Dock = DockStyle.Fill;
+            this.groupBox1.Padding = new Padding(8);
+            this.groupBox1.Controls.Add(this.RDO_2);
+            this.groupBox1.Controls.Add(this.RDO_3);
+            this.RDO_2.Text = "Tách thành 2 LOT";
+            this.RDO_2.AutoSize = true;
+            this.RDO_2.Location = new Point(14, 32);
+            this.RDO_2.Checked = true;
+            this.RDO_3.Text = "Tách thành 3 LOT";
+            this.RDO_3.AutoSize = true;
+            this.RDO_3.Location = new Point(14, 66);
+            editor.Controls.Add(this.groupBox1, 0, 0);
+
+            ConfigureQuantityGroup(this.groupBox2, this.label2, this.txt_sllot1, "LOT con 1", "Số lượng LOT 1");
+            ConfigureQuantityGroup(this.groupBox3, this.label3, this.txt_sllot2, "LOT con 2", "Số lượng LOT 2");
+            ConfigureQuantityGroup(this.groupBox4, this.label4, this.txt_sllot3, "LOT con 3", "Số lượng LOT 3");
+            editor.Controls.Add(this.groupBox2, 1, 0);
+            editor.Controls.Add(this.groupBox3, 2, 0);
+            editor.Controls.Add(this.groupBox4, 3, 0);
+
+            var actionBar = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                FlowDirection = FlowDirection.RightToLeft,
+                WrapContents = false,
+                Padding = new Padding(0, 5, 0, 0)
+            };
+            StyleActionButton(this.CMD_XUATDS, "IN TEM", 150);
+            this.CMD_XUATDS.Click += new EventHandler(this.CMD_XUATDS_Click);
+            StyleActionButton(this.CMD_XOA, "XÓA DÒNG", 120);
+            this.CMD_XOA.Click += new EventHandler(this.CMD_XOA_Click);
+            StyleActionButton(this.CMD_SUA, "CẬP NHẬT SỐ LƯỢNG", 190);
+            this.CMD_SUA.Click += new EventHandler(this.CMD_SUA_Click);
+            actionBar.Controls.Add(this.CMD_XUATDS);
+            actionBar.Controls.Add(this.CMD_XOA);
+            actionBar.Controls.Add(this.CMD_SUA);
+            editorRoot.Controls.Add(editor, 0, 0);
+            editorRoot.Controls.Add(actionBar, 0, 1);
+            editorGroup.Controls.Add(editorRoot);
+            root.Controls.Add(editorGroup, 0, 2);
+
+            this.MaxVL.Visible = false;
+            this.MaxVL.Name = "tachLot_originalQuantity";
+            this.Controls.Add(this.MaxVL);
 
             ((ISupportInitialize)(this.dxValidationProvider1)).EndInit();
-            this.groupBox1.ResumeLayout(false);
-            this.groupBox1.PerformLayout();
-            this.groupBox2.ResumeLayout(false);
-            this.groupBox2.PerformLayout();
-            this.groupBox3.ResumeLayout(false);
-            this.groupBox3.PerformLayout();
-            this.groupBox4.ResumeLayout(false);
-            this.groupBox4.PerformLayout();
             this.ResumeLayout(false);
-            this.PerformLayout();
+        }
+
+        private static void ConfigureQuantityGroup(GroupBox group, Label label, TextBox editor, string title, string caption)
+        {
+            group.Text = title;
+            group.Dock = DockStyle.Fill;
+            group.Padding = new Padding(8);
+            label.Text = caption;
+            label.Dock = DockStyle.Top;
+            label.Height = 24;
+            label.Font = new Font("Tahoma", 9F, FontStyle.Bold);
+            editor.Dock = DockStyle.Top;
+            editor.Font = new Font("Tahoma", 13F, FontStyle.Bold);
+            editor.TextAlign = HorizontalAlignment.Center;
+            editor.Height = 34;
+            group.Controls.Add(editor);
+            group.Controls.Add(label);
+        }
+
+        private static void StyleActionButton(Button button, string text, int width)
+        {
+            button.Text = text;
+            button.Width = width;
+            button.Height = 36;
+            button.Margin = new Padding(6, 0, 0, 0);
+            button.Font = new Font("Tahoma", 9F, FontStyle.Bold);
+            button.FlatStyle = FlatStyle.Flat;
+            button.UseVisualStyleBackColor = true;
         }
 
         // ============================================================
