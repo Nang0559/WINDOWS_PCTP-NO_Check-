@@ -66,7 +66,7 @@ namespace PCTP.Modules.XuatKho
         private void BuildUi()
         {
             var root = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3, Padding = new Padding(10) };
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 174));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 210));
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 54));
             Controls.Add(root);
