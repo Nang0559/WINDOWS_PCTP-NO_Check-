@@ -192,6 +192,90 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             ExecuteNonQuery(sql, prms.ToArray());
         }
 
+        /// <summary>
+        /// Thay thế snapshot YMVN trong TMP theo đúng các dòng đang được chọn ở UI.
+        /// Giữ schema TMP hiện hữu; không DROP/CREATE bảng vì TMP có thể đang được
+        /// các procedure QR và Gear tham chiếu.
+        /// </summary>
+        public void ReplaceTmpRows(string tmpTable, DataTable orders)
+        {
+            if (orders == null) throw new ArgumentNullException(nameof(orders));
+            Db.ValidateTableName(tmpTable);
+
+            bool ownTransaction = !HasTransaction;
+            if (ownTransaction) Uow.Begin();
+            try
+            {
+                XoaTmpPhieu(tmpTable);
+
+                foreach (DataRow row in orders.Rows)
+                {
+                    string status = GetColumnText(row, "STATUS");
+                    if (string.Equals(status, "OK", StringComparison.OrdinalIgnoreCase))
+                        continue;
+
+                    object rawDate = row.Table.Columns.Contains("NGAYGIAO")
+                        ? row["NGAYGIAO"] : DBNull.Value;
+                    string ngayGiao = "";
+                    string gioGiao = GetColumnText(row, "GIO");
+
+                    if (rawDate != null && rawDate != DBNull.Value)
+                    {
+                        DateTime dt;
+                        if (DateTime.TryParse(Convert.ToString(rawDate),
+                            System.Globalization.CultureInfo.InvariantCulture,
+                            System.Globalization.DateTimeStyles.AssumeLocal, out dt))
+                        {
+                            ngayGiao = dt.ToString("yyyy-MM-dd HH:mm:ss",
+                                System.Globalization.CultureInfo.InvariantCulture);
+                            if (string.IsNullOrWhiteSpace(gioGiao))
+                                gioGiao = dt.ToString("HH:mm:ss",
+                                    System.Globalization.CultureInfo.InvariantCulture);
+                        }
+                        else
+                        {
+                            ngayGiao = Convert.ToString(rawDate);
+                        }
+                    }
+
+                    string orderNo = GetColumnText(row, "ORDER_NO");
+                    string poNo = GetColumnText(row, "PO_NO");
+                    string poItem = GetColumnText(row, "PO_ITEM");
+
+                    InsertTmpRow(
+                        tmpTable,
+                        GetColumnText(row, "STT"),
+                        GetColumnText(row, "CUA"),
+                        GetColumnText(row, "TRUYEN"),
+                        GetColumnText(row, "MAHANG"),
+                        GetColumnText(row, "TENHANG"),
+                        GetColumnText(row, "LOT"),
+                        string.IsNullOrWhiteSpace(GetColumnText(row, "DV")) ? "PCS" : GetColumnText(row, "DV"),
+                        DbValueHelper.ToInt(row.Table.Columns.Contains("SOLUONG") ? row["SOLUONG"] : DBNull.Value),
+                        ngayGiao,
+                        GetColumnText(row, "GEAR"),
+                        gioGiao,
+                        poNo,
+                        orderNo,
+                        poItem);
+                }
+
+                if (ownTransaction) Uow.Commit();
+            }
+            catch
+            {
+                if (ownTransaction) Uow.Rollback();
+                throw;
+            }
+        }
+
+        private static string GetColumnText(DataRow row, string column)
+        {
+            return row != null && row.Table.Columns.Contains(column) && row[column] != DBNull.Value
+                ? Convert.ToString(row[column]).Trim()
+                : string.Empty;
+        }
+
         // ============================================================
         // LoadTuTmpTable
         // ============================================================
