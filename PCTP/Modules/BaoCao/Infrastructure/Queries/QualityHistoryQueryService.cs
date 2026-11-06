@@ -26,6 +26,12 @@ namespace PCTP.Modules.BaoCao.Infrastructure.Queries
             _repository = repository ?? throw new ArgumentNullException("repository");
         }
 
+        public Task<IReadOnlyList<string>> GetItemCodesAsync(CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return _repository.GetItemCodesAsync(cancellationToken);
+        }
+
         public Task<IReadOnlyList<QualityHistoryRow>> SearchAsync(
             DateTime from,
             DateTime to,
