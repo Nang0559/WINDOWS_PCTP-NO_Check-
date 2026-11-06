@@ -49,11 +49,18 @@ namespace PCTP.Modules.BaoCao.UI
         }
 
         public FormBaoCaoTraceability(DeliveryTraceReadService query)
+            : this(query, new StockHistoryQueryService())
+        {
+        }
+
+        public FormBaoCaoTraceability(DeliveryTraceReadService query, IStockHistoryQuery stockHistoryQuery)
         {
             if (query == null) throw new ArgumentNullException("query");
+            if (stockHistoryQuery == null) throw new ArgumentNullException("stockHistoryQuery");
             _qrQuery = query;
             _lotQuery = query;
-            _customerQuery = query;\n            _stockHistoryQuery = stockHistoryQuery ?? throw new ArgumentNullException("stockHistoryQuery");
+            _customerQuery = query;
+            _stockHistoryQuery = stockHistoryQuery;
             Text = "Báo cáo - Tra cứu truy xuất giao hàng";
             ClientSize = new Size(1250, 720);
             StartPosition = FormStartPosition.CenterParent;
