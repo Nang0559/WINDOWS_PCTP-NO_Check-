@@ -61,6 +61,7 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
         private TextBox MaxVL;
 
         private DXValidationProvider dxValidationProvider1;
+        private bool _updatingQuantities;
 
         public UF_TACHLOT()
         {
@@ -246,11 +247,15 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
             this.RDO_3.Text = "Tách thành 3 LOT";
             this.RDO_3.AutoSize = true;
             this.RDO_3.Location = new Point(14, 66);
+            this.RDO_2.CheckedChanged += new EventHandler(this.SplitMode_CheckedChanged);
+            this.RDO_3.CheckedChanged += new EventHandler(this.SplitMode_CheckedChanged);
             editor.Controls.Add(this.groupBox1, 0, 0);
 
             ConfigureQuantityGroup(this.groupBox2, this.label2, this.txt_sllot1, "LOT con 1", "Số lượng LOT 1");
             ConfigureQuantityGroup(this.groupBox3, this.label3, this.txt_sllot2, "LOT con 2", "Số lượng LOT 2");
             ConfigureQuantityGroup(this.groupBox4, this.label4, this.txt_sllot3, "LOT con 3", "Số lượng LOT 3");
+            this.txt_sllot1.TextChanged += new EventHandler(this.QuantityInput_TextChanged);
+            this.txt_sllot2.TextChanged += new EventHandler(this.QuantityInput_TextChanged);
             editor.Controls.Add(this.groupBox2, 1, 0);
             editor.Controls.Add(this.groupBox3, 2, 0);
             editor.Controls.Add(this.groupBox4, 3, 0);
@@ -276,6 +281,8 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
             editorGroup.Controls.Add(editorRoot);
             workArea.Panel2.Controls.Add(editorGroup);
 
+            this.txt_sllot3.ReadOnly = true;
+            this.txt_sllot3.BackColor = SystemColors.Control;
             this.MaxVL.Visible = false;
             this.MaxVL.Name = "tachLot_originalQuantity";
             this.Controls.Add(this.MaxVL);
@@ -354,6 +361,7 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
         private void UF_TACHLOT_Load(object sender, EventArgs e)
         {
             RDO_2.Checked = true;
+            ApplySplitMode();
             lw_qrcode.Items.Clear();
             lw_qrcode.View = View.Details;
             lw_qrcode.Columns.Add("STT", 50);
@@ -430,6 +438,7 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
                     txt_sllot2.Text = item.SubItems[6].Text;
                     STT = Convert.ToInt32(item.SubItems[0].Text);
                     MaxVL.Text = item.SubItems[4].Text;
+                    RecalculateSplitQuantities();
                 }
                 else
                 {
@@ -455,17 +464,13 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
                     txt_sllot3.Text = string.Empty;
                 }
             }
+            ApplySplitMode();
         }
 
         /// <summary>Lưu số lượng vừa nhập — validate qua DXValidationProvider (KTTEXT()).</summary>
         private void CMD_SUA_Click(object sender, EventArgs e)
         {
-            if (!ValidateAll())
-            {
-                MessageBox.Show("Không thể nhập số lượng lớn hơn số lượng hiện tại của TEM",
-                    "Thông báo!", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return;
-            }
+            if (!ValidateSplitQuantities(showMessage: true)) return;
 
             if (lw_qrcode.SelectedItems.Count == 0)
             {
@@ -478,8 +483,7 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
             ListViewItem item = lw_qrcode.SelectedItems[0];
             item.SubItems[5].Text = txt_sllot1.Text;
             item.SubItems[6].Text = txt_sllot2.Text;
-            if (!RDO_2.Checked)
-                item.SubItems[7].Text = txt_sllot3.Text;
+            item.SubItems[7].Text = RDO_2.Checked ? "0" : txt_sllot3.Text;
 
             STT = Convert.ToInt32(item.SubItems[0].Text);
         }
@@ -497,7 +501,9 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
             ListViewItem item = lw_qrcode.SelectedItems[0];
             int SLL = Convert.ToInt32(item.SubItems[4].Text);
 
-            return SL1 + SL2 + SL3 <= SLL;
+            return SLL > 0 && SL1 >= 0 && SL2 >= 0 && SL3 >= 0
+                && SL1 + SL2 + SL3 == SLL
+                && SL1 > 0 && SL2 > 0 && (RDO_2.Checked || SL3 > 0);
         }
 
         private string Dien0tolot(int sllot)
@@ -541,6 +547,15 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
                 string sl2 = Dien0tolot(sllot2);
                 int sllot3 = Convert.ToInt32(it.SubItems[7].Text);
                 string sl3 = Dien0tolot(sllot3);
+
+                if (Convert.ToInt32(it.SubItems[4].Text) <= 0 || sllot1 < 0 || sllot2 < 0 || sllot3 < 0
+                    || sllot1 + sllot2 + (RDO_2.Checked ? 0 : sllot3) != Convert.ToInt32(it.SubItems[4].Text)
+                    || sllot1 <= 0 || sllot2 <= 0 || (!RDO_2.Checked && sllot3 <= 0))
+                {
+                    MessageBox.Show("Không thể tách tem có số lượng 0 hoặc số lượng các LOT con không hợp lệ. Vui lòng cập nhật lại thông tin tách.",
+                        "Không thể in tem tách LOT", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
 
                 if (RDO_2.Checked)
                 {
@@ -599,6 +614,97 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
             {
                 MessageBox.Show("CHƯA CÓ ITEM NÀO ĐƯỢC CHỌN", "THÔNG BÁO");
             }
+        }
+
+        private void SplitMode_CheckedChanged(object sender, EventArgs e)
+        {
+            if (_updatingQuantities) return;
+            ApplySplitMode();
+            RecalculateSplitQuantities();
+        }
+
+        private void ApplySplitMode()
+        {
+            bool three = RDO_3.Checked;
+            groupBox3.Text = three ? "LOT con 2 — có thể chỉnh" : "LOT con 2 — tự động";
+            groupBox4.Enabled = three;
+            txt_sllot2.ReadOnly = !three;
+            txt_sllot2.BackColor = three ? SystemColors.Window : SystemColors.Control;
+            txt_sllot3.ReadOnly = true;
+            txt_sllot3.BackColor = SystemColors.Control;
+            if (!three)
+            {
+                _updatingQuantities = true;
+                try { txt_sllot3.Text = "0"; }
+                finally { _updatingQuantities = false; }
+            }
+        }
+
+        private void QuantityInput_TextChanged(object sender, EventArgs e)
+        {
+            if (!_updatingQuantities) RecalculateSplitQuantities();
+        }
+
+        // 2 LOT: LOT 2 luôn là phần còn lại và khóa sửa.
+        // 3 LOT: LOT 2 khởi tạo bằng phần còn lại, người dùng được chỉnh;
+        //        LOT 3 tự nhận phần còn lại cuối cùng và luôn khóa sửa.
+        private void RecalculateSplitQuantities()
+        {
+            if (_updatingQuantities || lw_qrcode.SelectedItems.Count == 0) return;
+            if (!int.TryParse(MaxVL.Text, out int total) || total < 0) return;
+            if (!int.TryParse(txt_sllot1.Text, out int first) || first < 0 || first > total) return;
+
+            _updatingQuantities = true;
+            try
+            {
+                int remainder = total - first;
+                if (!RDO_3.Checked)
+                {
+                    txt_sllot2.Text = remainder.ToString();
+                    txt_sllot3.Text = "0";
+                }
+                else
+                {
+                    // Khi đổi từ 2 LOT sang 3 LOT, mặc định dồn phần còn lại vào LOT 2.
+                    if (txt_sllot2.Text.Length == 0 || txt_sllot2.Tag == null)
+                        txt_sllot2.Text = remainder.ToString();
+                    if (!int.TryParse(txt_sllot2.Text, out int second) || second < 0 || second > remainder)
+                    {
+                        txt_sllot2.Text = remainder.ToString();
+                        second = remainder;
+                    }
+                    txt_sllot3.Text = (remainder - second).ToString();
+                }
+            }
+            finally { _updatingQuantities = false; }
+        }
+
+        private bool ValidateSplitQuantities(bool showMessage)
+        {
+            if (lw_qrcode.SelectedItems.Count == 0)
+            {
+                if (showMessage) MessageBox.Show("Vui lòng chọn một tem gốc trong danh sách.", "Thiếu tem gốc", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return false;
+            }
+            if (!int.TryParse(MaxVL.Text, out int total) || total <= 0)
+            {
+                if (showMessage) MessageBox.Show("Tem gốc có số lượng 0 hoặc không hợp lệ nên không thể tách.", "Không thể tách tem", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return false;
+            }
+            if (!int.TryParse(txt_sllot1.Text, out int first) || !int.TryParse(txt_sllot2.Text, out int second)
+                || !int.TryParse(txt_sllot3.Text, out int third))
+            {
+                if (showMessage) MessageBox.Show("Vui lòng nhập số lượng hợp lệ cho các LOT con.", "Số lượng không hợp lệ", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return false;
+            }
+            int activeThird = RDO_3.Checked ? third : 0;
+            bool valid = first > 0 && second > 0 && activeThird >= 0
+                && first + second + activeThird == total
+                && (!RDO_3.Checked || third > 0);
+            if (!valid && showMessage)
+                MessageBox.Show("Không thể tạo tem LOT con có số lượng 0. Tổng số lượng LOT con phải bằng đúng số lượng tem gốc (" + total + "). Hãy kiểm tra lại các ô số lượng.",
+                    "Số lượng tách LOT không hợp lệ", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return valid;
         }
 
         private void txt_sllot1_TextChanged(object sender, EventArgs e) { }
