@@ -8,6 +8,8 @@ namespace PCTP.Modules.BaoCao.Application.Contracts.Repositories
 {
     public interface IQualityHistoryRepository
     {
+        Task<IReadOnlyList<string>> GetItemCodesAsync(CancellationToken cancellationToken);
+
         Task<IReadOnlyList<QualityHistoryRow>> SearchAsync(
             DateTime from,
             DateTime to,
