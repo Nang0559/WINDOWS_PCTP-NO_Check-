@@ -113,20 +113,31 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         }
 
         public DataTable LoadGhepLot(string tenBan, string ifsTable)
-            => ExecuteStoredProcedure("Usp_Qrcode_gheplot",
-                new SqlParameter("@TMPTABLE", tenBan),
-                new SqlParameter("@IFSTABLE", ifsTable));
+            => LoadGhepLot(tenBan, ifsTable, false);
 
-        public DataTable LoadGhepLotYMVN(string tmpTable, string configuredTmpTable, string viewTablePrefix)
+        public DataTable LoadGhepLot(string tmpTable, string ifsTable, bool useGear, string configuredTmpTable = null, string viewTablePrefix = null)
         {
             Db.ValidateTableName(tmpTable);
-            Db.ValidateTableName(configuredTmpTable);
-            Db.ValidateTableName(viewTablePrefix);
-            return ExecuteStoredProcedure("Usp_Qrcode_gheplotYMVN",
+            if (!useGear) Db.ValidateTableName(ifsTable);
+            var parameters = new List<SqlParameter>
+            {
                 new SqlParameter("@TMPTABLE", tmpTable),
-                new SqlParameter("@EXPECTEDTMPTABLE", configuredTmpTable),
-                new SqlParameter("@VIEWTABLEPREFIX", viewTablePrefix));
+                new SqlParameter("@IFSTABLE", string.IsNullOrWhiteSpace(ifsTable) ? (object)DBNull.Value : ifsTable),
+                new SqlParameter("@USEGEAR", useGear)
+            };
+            if (useGear)
+            {
+                Db.ValidateTableName(configuredTmpTable);
+                Db.ValidateTableName(viewTablePrefix);
+                parameters.Add(new SqlParameter("@EXPECTEDTMPTABLE", configuredTmpTable));
+                parameters.Add(new SqlParameter("@VIEWTABLEPREFIX", viewTablePrefix));
+            }
+            return ExecuteStoredProcedure("Usp_Qrcode_gheplot", parameters.ToArray());
         }
+
+        // Compatibility adapter: all Gear requests now execute the unified procedure.
+        public DataTable LoadGhepLotYMVN(string tmpTable, string configuredTmpTable, string viewTablePrefix)
+            => LoadGhepLot(tmpTable, null, true, configuredTmpTable, viewTablePrefix);
 
         public DataTable GetDanhSachLotTuKho(string maHang)
         {
