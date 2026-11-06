@@ -91,6 +91,10 @@ namespace PCTP
                 "menuTachLot",
                 "Tách LOT / In tem Ghép LOT",
                 OpenTachLot));
+            _menuXuLyLot.Elements.Add(CreateMenuItem(
+                "menuGhepLotThuCong",
+                "Ghép LOT thủ công",
+                OpenGhepLotThuCong));
             
             // ── 4. Tra Cứu & Báo Cáo ────────────────────────────────────
             // "Tra cứu LOT" / "Thống kê / báo cáo" (E_Tracuulotno / E_TKTK) nối ở handler.
@@ -154,6 +158,15 @@ namespace PCTP
                 using (var form = new UF_TACHLOT())
                     form.ShowDialog(this);
             }, "Tách LOT / In tem Ghép LOT");
+        }
+
+        private void OpenGhepLotThuCong(object sender, EventArgs e)
+        {
+            OpenFromMenu(() =>
+            {
+                using (var form = new FormGhepLotThuCong())
+                    form.ShowDialog(this);
+            }, "Ghép LOT thủ công");
         }
 
         private void OpenTraCuuLot()
