@@ -37,6 +37,30 @@ public sealed class YmvnGearQuantityValidatorTests
     }
 
     [Fact]
+    public void LotGearCodeZeroMatchesBlankGearOnDeliveryOrder()
+    {
+        const string fcc = "261102009410008217000860010:PART01:02/11/2026:5";
+        var order = Order(("PART01", "", 5));
+
+        var ok = YmvnGearQuantityValidator.ValidateScan(
+            fcc, order, Scans(), out var error, code => code == 0 ? "" : null);
+
+        Assert.True(ok, error);
+    }
+
+    [Fact]
+    public void CompletionTreatsBlankOrderGearAsB20GearCodeZero()
+    {
+        var order = Order(("PART01", "", 5));
+        var scans = Scans(("PART01", Lot('0'), 5));
+
+        var ok = YmvnGearQuantityValidator.ValidateCompletion(
+            order, scans, out var error, code => code == 0 ? "" : null);
+
+        Assert.True(ok, error);
+    }
+
+    [Fact]
     public void ScanCannotExceedPartAndGearOrderQuantity()
     {
         var ok = YmvnGearQuantityValidator.ValidateScan(
