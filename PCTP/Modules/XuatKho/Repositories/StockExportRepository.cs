@@ -178,8 +178,9 @@ ORDER BY LTRIM(RTRIM(st.LOT));",
         /// <summary>LOT được chọn chỉ khi còn STOCKTP và có số dư trong SlotLot đang hoạt động.</summary>
         public DataTable GetInternalTransferLotChoices(string itemCode)
         {
-            return LoadData(@"
+            DataTable rows = LoadData(@"
 SELECT UPPER(LTRIM(RTRIM(st.PART))) AS ItemCode,
+       LTRIM(RTRIM(st.NAME)) AS ItemName,
        LTRIM(RTRIM(st.LOT)) AS LotNo,
        ISNULL(st.SLCONLAI,0) AS StockQuantity,
        ISNULL(sl.SlotQuantity,0) AS SlotQuantity
@@ -197,6 +198,52 @@ WHERE UPPER(LTRIM(RTRIM(st.PART))) = UPPER(LTRIM(RTRIM(@ItemCode)))
   AND ISNULL(sl.SlotQuantity,0) > 0
 ORDER BY LTRIM(RTRIM(st.LOT));",
                 new SqlParameter("@ItemCode", SqlDbType.NVarChar, 100) { Value = (itemCode ?? string.Empty).Trim() });
+            return EnsureUniqueInternalTransferLots(rows);
+        }
+
+        /// <summary>
+        /// Tra cứu trực tiếp theo LOT/khóa LOT legacy. Chỉ trả về LOT còn STOCKTP
+        /// và có SlotLot hoạt động; không tự chọn khi một khóa legacy khớp nhiều LOT vật lý.
+        /// </summary>
+        public DataTable GetInternalTransferLotChoicesByLot(string lotNo)
+        {
+            if (string.IsNullOrWhiteSpace(lotNo))
+                return new DataTable();
+
+            DataTable rows = LoadData(@"
+SELECT UPPER(LTRIM(RTRIM(st.PART))) AS ItemCode,
+       LTRIM(RTRIM(st.NAME)) AS ItemName,
+       LTRIM(RTRIM(st.LOT)) AS LotNo,
+       ISNULL(st.SLCONLAI,0) AS StockQuantity,
+       ISNULL(sl.SlotQuantity,0) AS SlotQuantity
+FROM STOCKTP st
+CROSS APPLY
+(
+    SELECT SUM(s.Quantity) AS SlotQuantity
+    FROM SlotLot s
+    WHERE s.PhieuStatus = 0 AND s.Quantity > 0
+      AND " + LotCodeHelper.BuildLotMatchSql("LTRIM(RTRIM(s.LotNo))", "LTRIM(RTRIM(st.LOT))") + @"
+      AND UPPER(LTRIM(RTRIM(s.ItemCode))) = UPPER(LTRIM(RTRIM(st.PART)))
+) sl
+WHERE " + LotCodeHelper.BuildLotMatchSql("LTRIM(RTRIM(st.LOT))", "@LotNo") + @"
+  AND ISNULL(st.SLCONLAI,0) > 0
+  AND ISNULL(sl.SlotQuantity,0) > 0
+ORDER BY LTRIM(RTRIM(st.LOT));",
+                new SqlParameter("@LotNo", SqlDbType.NVarChar, 100) { Value = lotNo.Trim() });
+            return EnsureUniqueInternalTransferLots(rows);
+        }
+
+        private static DataTable EnsureUniqueInternalTransferLots(DataTable rows)
+        {
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (DataRow row in rows.Rows)
+            {
+                string lot = Convert.ToString(row["LotNo"])?.Trim() ?? string.Empty;
+                if (!seen.Add(lot))
+                    throw new InvalidOperationException(
+                        "STOCKTP vi phạm khóa LOT duy nhất khi tra cứu điều chuyển nội bộ: " + lot);
+            }
+            return rows;
         }
     }
 }
