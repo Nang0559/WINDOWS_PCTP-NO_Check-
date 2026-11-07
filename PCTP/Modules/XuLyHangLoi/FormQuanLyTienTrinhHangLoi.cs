@@ -832,6 +832,22 @@ namespace PCTP.Modules.XuLyHangLoi
                     RefreshAfterAction();
                     break;
                 case HuongXuLyBatThuong.CanRework:
+                    // Initial QC xác nhận 100% OK (không có NG/Rework) → không còn gì để rework hay giao bù: hoàn tất luôn.
+                    // Phiếu còn ở DaDinhHuong nên cần transition QT_CHUNG 20 → 100 (xem PHASE7_WorkflowSeed.sql).
+                    if (p.Status == QTChungStatus.DaDinhHuong)
+                    {
+                        var initial = _initialQCService == null ? null : _initialQCService.Get(p.Id);
+                        if (initial == null) { ShowWarning("Chưa xác nhận Initial QC."); break; }
+                        if (initial.SoLuongRework > 0 || initial.SoLuongNG > 0)
+                        {
+                            ShowWarning("Phiếu còn số lượng NG/Rework sau Initial QC; hãy xử lý ở Bước 6 (Rework) trước.");
+                            break;
+                        }
+                        var allOk = _qtChungService.HoanTat(p.Id, Environment.UserName);
+                        ShowScanResult(allOk);
+                        RefreshAfterAction();
+                        break;
+                    }
                     var qc = _qtChungRepo.GetQC(p.Id);
                     if (qc != null && qc.SoLuongNG > 0)
                     {

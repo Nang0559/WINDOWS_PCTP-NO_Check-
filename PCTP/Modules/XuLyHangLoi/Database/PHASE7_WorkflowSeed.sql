@@ -23,6 +23,12 @@ IF NOT EXISTS(SELECT 1 FROM dbo.FVN_sys_WorkflowTransitions WHERE ProcessCode='Q
     INSERT INTO dbo.FVN_sys_WorkflowTransitions(ProcessCode,FromStatus,ToStatus,ActionName,Description,IsActive)
     VALUES('QT_CHUNG',25,100,'HOAN_TAT','Khiếu nại không có căn cứ, kết thúc không giao bù',1);
 
+/* DaDinhHuong -> HoanTat: Initial QC 100% OK (không NG/Rework) nên không còn nghĩa vụ xử lý.
+   Thiếu dòng này thì Bước 8 báo "Không thể chuyển QT Chung DaDinhHuong → HoanTat". */
+IF NOT EXISTS(SELECT 1 FROM dbo.FVN_sys_WorkflowTransitions WHERE ProcessCode='QT_CHUNG' AND FromStatus=20 AND ToStatus=100 AND IsActive=1)
+    INSERT INTO dbo.FVN_sys_WorkflowTransitions(ProcessCode,FromStatus,ToStatus,ActionName,Description,IsActive)
+    VALUES('QT_CHUNG',20,100,'HOAN_TAT','Initial QC 100% OK, không NG/Rework, hoàn tất',1);
+
 /* Compensation */
 IF NOT EXISTS(SELECT 1 FROM dbo.FVN_sys_WorkflowTransitions WHERE ProcessCode='QT_CHUNG' AND FromStatus=30 AND ToStatus=35 AND IsActive=1)
     INSERT INTO dbo.FVN_sys_WorkflowTransitions(ProcessCode,FromStatus,ToStatus,ActionName,Description,IsActive)
