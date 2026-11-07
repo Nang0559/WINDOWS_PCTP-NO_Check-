@@ -184,41 +184,48 @@ namespace PCTP.Modules.BaoCao.UI
             Controls.Add(root);
             Action applySplitLayout = () =>
             {
-                if (split.IsDisposed || !split.IsHandleCreated || split.Height <= 0)
+                if (split == null || split.IsDisposed || !split.IsHandleCreated)
                     return;
+
+                // Horizontal SplitContainer uses ClientSize.Height, not Width.
+                int available = split.ClientSize.Height - split.SplitterWidth;
+                if (available <= 0)
+                    return;
+
+                // Same proven sequence used by FormBaoCaoTraceability:
+                // remove stale constraints first, position the splitter safely,
+                // then enable minimum sizes only when both panels can fit.
+                if (split.Panel1MinSize != 0) split.Panel1MinSize = 0;
+                if (split.Panel2MinSize != 0) split.Panel2MinSize = 0;
 
                 const int panel1Minimum = 150;
                 const int panel2Minimum = 230;
-                int available = split.Height - split.SplitterWidth;
+                int preferredDistance = (int)(available * 0.43);
+                int distance = Math.Max(0, Math.Min(preferredDistance, available));
 
-                // When the form is temporarily too small during startup/resize,
-                // release the minimum constraints rather than assigning an invalid distance.
-                if (available < panel1Minimum + panel2Minimum)
+                if (available >= panel1Minimum + panel2Minimum)
                 {
-                    split.Panel1MinSize = 0;
-                    split.Panel2MinSize = 0;
-                    split.SplitterDistance = Math.Max(0, available / 2);
-                    return;
+                    int maximumDistance = available - panel2Minimum;
+                    distance = Math.Max(panel1Minimum,
+                        Math.Min(preferredDistance, maximumDistance));
                 }
 
-                int minimumDistance = panel1Minimum;
-                int maximumDistance = available - panel2Minimum;
-                int preferredDistance = (int)(available * 0.43);
-                int safeDistance = Math.Max(minimumDistance,
-                    Math.Min(preferredDistance, maximumDistance));
+                if (split.SplitterDistance != distance)
+                    split.SplitterDistance = distance;
 
-                // Establish a valid splitter position while constraints are still zero,
-                // then apply the panel minimums.
-                split.SplitterDistance = safeDistance;
-                split.Panel1MinSize = panel1Minimum;
-                split.Panel2MinSize = panel2Minimum;
+                if (available >= panel1Minimum + panel2Minimum)
+                {
+                    split.Panel1MinSize = panel1Minimum;
+                    split.Panel2MinSize = panel2Minimum;
+                }
             };
 
             split.SizeChanged += (s, e) => applySplitLayout();
+            split.HandleCreated += (s, e) => applySplitLayout();
             Shown += (s, e) =>
             {
-                // Run after WinForms has performed the first complete layout.
-                BeginInvoke(new Action(applySplitLayout));
+                if (!IsDisposed && IsHandleCreated)
+                    BeginInvoke(new Action(applySplitLayout));
             };
         }
 
