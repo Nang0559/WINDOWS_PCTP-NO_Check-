@@ -1146,6 +1146,35 @@ namespace PCTP.Modules.BaoCao.UI
                 WriteValues(deliverySheet, rowIndex++, values);
             }
 
+            Worksheet lotSheet = workbook.Worksheets.Add("Phan bo LOT");
+            string[] lotHeaders = { "DeliveryKey", "Chứng từ", "Mã hàng", "LOT ghép nguyên bản", "LOT thành phần", "Số lượng phân bổ", "Trạng thái phân tích" };
+            WriteHeaders(lotSheet, lotHeaders);
+            rowIndex = 1;
+            foreach (DeliveryTraceRow delivery in deliveries ?? new List<DeliveryTraceRow>())
+            {
+                if (delivery == null || string.IsNullOrWhiteSpace(delivery.LotNoRaw)) continue;
+                try
+                {
+                    List<KeyValuePair<string, decimal>> allocations = LotCodeHelper.ParseCompositeLot(delivery.LotNoRaw);
+                    foreach (KeyValuePair<string, decimal> allocation in allocations)
+                    {
+                        WriteValues(lotSheet, rowIndex++, new object[]
+                        {
+                            delivery.DeliveryKey, delivery.DocumentNo, delivery.PartNo,
+                            delivery.LotNoRaw, allocation.Key, allocation.Value, "Hợp lệ"
+                        });
+                    }
+                }
+                catch (FormatException ex)
+                {
+                    WriteValues(lotSheet, rowIndex++, new object[]
+                    {
+                        delivery.DeliveryKey, delivery.DocumentNo, delivery.PartNo,
+                        delivery.LotNoRaw, string.Empty, null, "Không phân tích được: " + ex.Message
+                    });
+                }
+            }
+
             Worksheet qrSheet = workbook.Worksheets.Add("Doc QR");
             string[] qrHeaders =
             {
@@ -1184,7 +1213,9 @@ namespace PCTP.Modules.BaoCao.UI
             foreach (Worksheet sheet in workbook.Worksheets)
             {
                 sheet.FreezePanes(1, 0);
-                sheet.Columns.AutoFit(0, sheet.GetUsedRange().RightColumnIndex);
+                var usedRange = sheet.GetUsedRange();
+                if (usedRange != null && usedRange.RightColumnIndex >= 0)
+                    sheet.Columns.AutoFit(0, usedRange.RightColumnIndex);
             }
             workbook.SaveDocument(filePath, DocumentFormat.Xlsx);
         }
@@ -1240,6 +1271,7 @@ namespace PCTP.Modules.BaoCao.UI
             _qrRows.Clear();
             ClearTimeline("Đã xóa điều kiện tra cứu.");
             _currentRows.Clear();
+            if (_exportButton != null) _exportButton.Enabled = false;
             _status.Text = "Sẵn sàng";
         }
 
