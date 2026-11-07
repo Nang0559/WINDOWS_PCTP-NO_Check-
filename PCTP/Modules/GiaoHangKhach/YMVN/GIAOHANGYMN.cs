@@ -330,7 +330,7 @@ namespace PCTP.QRCODE_HVN.YMN
             string PO,DC, PNO, PN, DV, Gear, QCDG_BRV;
             object DCC;
             DateTime GIO;
-            int QTY, QCDG, XE, DU = 0;
+            int QTY, QCDG, XE;
             int truckCapacity;
             string sql, N_XHSQL = dateNG.DateTime.ToString("MM/dd/yyyy", System.Globalization.CultureInfo.InvariantCulture);
             if (GX == "")
@@ -381,7 +381,6 @@ namespace PCTP.QRCODE_HVN.YMN
                 for (int t = 0; t < TB_SQL.Rows.Count; t++)
                 {
                     XE = 0;
-                    DU = 0;
                     #region TMP2
                     int STT = tbl.Rows.Count;
                     row = tbl.NewRow();
