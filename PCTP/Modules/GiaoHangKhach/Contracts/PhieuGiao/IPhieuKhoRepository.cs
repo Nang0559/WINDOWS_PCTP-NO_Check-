@@ -19,6 +19,7 @@ namespace PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao
         int CapNhapKho(string gioGiaoFcc, string nhaMay, PhieuTableSet tables, out DataTable errors);
         int CapNhapKhoHTN(string nhaMay, PhieuTableSet tables, out DataTable errors);
         int CapNhapKhoSP(string gioGiaoFcc, string nhaMay, out DataTable errors);
+        int CapNhapKhoSP(string gioGiaoFcc, string nhaMay, string tmpTable, string docQRTable, out DataTable errors);
         bool CapNhapKhoYMVN(int stt, string lotSl, string maHang, string ngayGiao,
             string gioGiao, string nhaMay, out DS_ERR_CNK error);
         /// <summary>
