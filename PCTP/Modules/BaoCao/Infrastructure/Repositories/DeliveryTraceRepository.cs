@@ -123,17 +123,24 @@ ORDER BY P.MAHANG";
 
             AddDateFilter(where, parameters, from, to);
             AddLikeFilter(where, parameters, "P.MAHANG", partNo, "@PartNo");
+            List<string> requestedLots = ParseRequestedLots(lotNo);
             if (!string.IsNullOrWhiteSpace(lotNo))
             {
-                // A LOT can be stored on the delivery row as a composite allocation
-                // (LOT1-qty,LOT2-qty), while older searches may identify it through
-                // the QR evidence LOTFCC. Search both sources; do not make either one
-                // replace the other in the mapped result.
-                where.Add(@"(
-                    ISNULL(P.LOT, '') LIKE @LotNo
-                    OR ISNULL(D.LOTFCC, '') LIKE @LotNo
-                )");
-                parameters.Add(new SqlParameter("@LotNo", "%" + lotNo.Trim() + "%"));
+                var lotPredicates = new List<string>();
+                lotPredicates.Add("ISNULL(P.LOT, '') LIKE @LotComposite");
+                parameters.Add(new SqlParameter("@LotComposite", "%" + lotNo.Trim() + "%"));
+
+                // QR LOTFCC stores one physical LOT per scan, not the complete
+                // "LOT1-qty,LOT2-qty" allocation string. Search each component
+                // separately so composite input still returns every matching QR row.
+                for (int i = 0; i < requestedLots.Count; i++)
+                {
+                    string parameterName = "@LotPart" + i;
+                    lotPredicates.Add("ISNULL(D.LOTFCC, '') LIKE " + parameterName);
+                    parameters.Add(new SqlParameter(parameterName, "%" + requestedLots[i] + "%"));
+                }
+
+                where.Add("(" + string.Join(" OR ", lotPredicates) + ")");
             }
             AddCustomerFilter(where, parameters, customerName);
 
@@ -146,10 +153,9 @@ ORDER BY P.MAHANG";
                 DeliveryTraceRow mapped = Map(row);
 
                 if (!string.IsNullOrWhiteSpace(lotNo) &&
-                    !ContainsLot(mapped.LotNoRaw, lotNo) &&
-                    !ContainsLot(mapped.QrLotNo, lotNo) &&
                     !ContainsText(mapped.LotNoRaw, lotNo) &&
-                    !ContainsText(mapped.QrLotNo, lotNo))
+                    !ContainsAnyLot(mapped.LotNoRaw, requestedLots) &&
+                    !ContainsAnyLot(mapped.QrLotNo, requestedLots))
                 {
                     continue;
                 }
@@ -480,6 +486,38 @@ ORDER BY P.NGAYGIAO DESC, P.STT DESC, D.STT DESC";
 
             where.Add("ISNULL(" + column + ", '') LIKE " + parameterName);
             parameters.Add(new SqlParameter(parameterName, "%" + value.Trim() + "%"));
+        }
+
+        private static List<string> ParseRequestedLots(string rawLot)
+        {
+            if (string.IsNullOrWhiteSpace(rawLot))
+                return new List<string>();
+
+            try
+            {
+                List<KeyValuePair<string, decimal>> parsed = LotCodeHelper.ParseCompositeLot(rawLot);
+                if (parsed.Count > 0)
+                    return parsed.Select(x => x.Key).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            }
+            catch (FormatException)
+            {
+                // A single LOT does not carry a quantity suffix. Keep it as a search key.
+            }
+
+            return new List<string> { rawLot.Trim() };
+        }
+
+        private static bool ContainsAnyLot(string rawValue, IList<string> requestedLots)
+        {
+            if (string.IsNullOrWhiteSpace(rawValue) || requestedLots == null || requestedLots.Count == 0)
+                return false;
+
+            foreach (string requested in requestedLots)
+            {
+                if (ContainsLot(rawValue, requested) || ContainsText(rawValue, requested))
+                    return true;
+            }
+            return false;
         }
 
         private static bool ContainsText(string source, string value)
