@@ -160,6 +160,7 @@ namespace PCTP.Modules.BaoCao.UI
             _timelineView.SelectedNodeChanged += (s2, e2) =>
             {
                 TraceTimelineNode node = _timelineView.SelectedNode;
+                if (_detailText == null) return;
                 _detailText.Text = node == null ? string.Empty : node.Title + System.Environment.NewLine +
                     System.Environment.NewLine + node.DetailText();
             };
@@ -404,7 +405,7 @@ namespace PCTP.Modules.BaoCao.UI
                 _deliveryRows.Clear();
                 if (rows != null) _deliveryRows.AddRange(rows);
                 BindDeliveryRows();
-                _ = BuildTimelineForLotAsync(lot, part);
+                await BuildTimelineForLotAsync(lot, part);
                 if (_deliveryRows.Count == 0)
                 {
                     XtraMessageBox.Show(this,
@@ -445,8 +446,9 @@ namespace PCTP.Modules.BaoCao.UI
             try
             {
                 if (version != _timelineVersion || IsDisposed) return;
-                TraceTimelineResult result = await Task.Run(
-                    () => _timelineBuilder.BuildForLotAsync(lot, part, null, null, _lifetime.Token), _lifetime.Token);
+                TraceTimelineResult result = await _waitForm.RunAsync(
+                    () => Task.Run(() => _timelineBuilder.BuildForLotAsync(lot, part, null, null, _lifetime.Token), _lifetime.Token),
+                    "Đang dựng timeline LOT: sản xuất, lịch sử kho và giao hàng...");
                 if (version != _timelineVersion || IsDisposed) return;
                 _timelineView.SetNodes(result.Nodes, result.Summary ?? "Không có sự kiện cho LOT này.");
                 if (result.Nodes.Count == 0) _detailText.Text = result.Summary ?? string.Empty;

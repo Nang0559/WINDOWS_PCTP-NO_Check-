@@ -683,8 +683,9 @@ namespace PCTP.Modules.BaoCao.UI
             try
             {
                 if (version != _timelineVersion || IsDisposed) return; // đã chọn dòng khác
-                TraceTimelineResult result = await Task.Run(
-                    () => _timelineBuilder.BuildForDeliveryAsync(row, CancellationToken.None));
+                TraceTimelineResult result = await _waitForm.RunAsync(
+                    () => Task.Run(() => _timelineBuilder.BuildForDeliveryAsync(row, CancellationToken.None)),
+                    "Đang dựng timeline theo toàn bộ LOT ghép: sản xuất và lịch sử kho...");
                 if (version != _timelineVersion || IsDisposed) return;
 
                 _timelineNodes.Clear();
