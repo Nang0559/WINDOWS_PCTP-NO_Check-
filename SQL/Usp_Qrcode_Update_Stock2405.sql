@@ -193,7 +193,9 @@ BEGIN
               AND (STATUS <> ''OK'' OR STATUS IS NULL);  
         ';  
   
-        EXEC sp_executesql @sql;  
+        EXEC sp_executesql @sql,
+            N'@LOTRESOLUTIONMODE NVARCHAR(20)',
+            @LOTRESOLUTIONMODE = @LOTRESOLUTIONMODE;  
   
         ----------------------------------------------------------------  
         -- Không có phiếu  
@@ -396,10 +398,15 @@ BEGIN
                         THROW 51036, N'Không tìm được một LOT FIFO đủ tồn cho mã hàng SP.', 1;
 
                     SET @_LOT = @FifoLot + N'-' + CONVERT(NVARCHAR(20), @FifoQty);
+                    DECLARE @FifoTmpRows INT = 0;
                     SET @sql = N'UPDATE [' + @TMPTABLE + N'] SET LOT=@Lot
-                                 WHERE STT=@STT AND (STATUS <> ''OK'' OR STATUS IS NULL);';
-                    EXEC sp_executesql @sql, N'@STT INT, @Lot NVARCHAR(500)',
-                        @STT=@STT, @Lot=@FifoLot;
+                                 WHERE STT=@STT AND (STATUS <> ''OK'' OR STATUS IS NULL);
+                                 SET @Rows = @@ROWCOUNT;';
+                    EXEC sp_executesql @sql,
+                        N'@STT INT, @Lot NVARCHAR(500), @Rows INT OUTPUT',
+                        @STT=@STT, @Lot=@FifoLot, @Rows=@FifoTmpRows OUTPUT;
+                    IF @FifoTmpRows <> 1
+                        THROW 51037, N'Phiếu TMP đã thay đổi; không thể gán LOT FIFO.', 1;
                 END;
 
                 -- 6.3. TÁCH LOT-SL  
