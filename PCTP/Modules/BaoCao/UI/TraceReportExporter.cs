@@ -3,6 +3,7 @@ using DevExpress.XtraGrid;
 using DevExpress.XtraGrid.Columns;
 using DevExpress.XtraGrid.Views.Grid;
 using DevExpress.XtraPrinting;
+using DevExpress.XtraPrintingLinks;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
