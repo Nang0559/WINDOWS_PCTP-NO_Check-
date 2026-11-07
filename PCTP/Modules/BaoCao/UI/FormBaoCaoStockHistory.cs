@@ -154,7 +154,7 @@ namespace PCTP.Modules.BaoCao.UI
             {
                 ToggleBusy(false);
                 var codes = await _waitForm.RunAsync(
-                    () => _historyQuery.GetItemCodesAsync(_lifetime.Token),
+                    () => Task.Run(() => _historyQuery.GetItemCodesAsync(_lifetime.Token), _lifetime.Token),
                     "Đang tải danh sách mã hàng...");
                 var lookupRows = new DataTable();
                 lookupRows.Columns.Add("PART", typeof(string));
@@ -167,6 +167,7 @@ namespace PCTP.Modules.BaoCao.UI
             catch (OperationCanceledException) { }
             catch (Exception ex)
             {
+                ToggleBusy(true);
                 XtraMessageBox.Show(this, ex.Message, "Không thể tải mã hàng", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
@@ -198,7 +199,7 @@ namespace PCTP.Modules.BaoCao.UI
                     else criteria.QrCode = search;
                 }
                 var rows = await _waitForm.RunAsync(
-                    () => _historyQuery.SearchAsync(criteria, _lifetime.Token),
+                    () => Task.Run(() => _historyQuery.SearchAsync(criteria, _lifetime.Token), _lifetime.Token),
                     "Đang truy vấn lịch sử nhập xuất kho...");
                 Bind(rows, ConfigureHistoryColumns);
                 _deliveryRows.Clear();
@@ -217,7 +218,7 @@ namespace PCTP.Modules.BaoCao.UI
             {
                 _showingCurrentStock = true;
                 var rows = await _waitForm.RunAsync(
-                    () => _currentStockQuery.GetAsync(_lifetime.Token),
+                    () => Task.Run(() => _currentStockQuery.GetAsync(_lifetime.Token), _lifetime.Token),
                     "Đang tải dữ liệu sản xuất và tồn kho...");
                 string search = _stockLookup.InputText;
                 if (!string.IsNullOrEmpty(search))
@@ -287,8 +288,8 @@ namespace PCTP.Modules.BaoCao.UI
                 }
 
                 IReadOnlyList<DeliveryTraceRow> rows = await _waitForm.RunAsync(
-                    () => _deliveryTraceQuery.SearchAsync(
-                        lot, part, null, ToDate(_dateFrom.EditValue), ToDate(_dateTo.EditValue), _lifetime.Token),
+                    () => Task.Run(() => _deliveryTraceQuery.SearchAsync(
+                        lot, part, null, ToDate(_dateFrom.EditValue), ToDate(_dateTo.EditValue), _lifetime.Token), _lifetime.Token),
                     "Đang truy vết LOT từ sản xuất/kho sang phiếu giao hàng và dữ liệu đọc QR...");
 
                 _deliveryRows.Clear();
@@ -492,7 +493,7 @@ namespace PCTP.Modules.BaoCao.UI
             }
         }
 
-        private void ExportClick(object sender, EventArgs e)
+        private async void ExportClick(object sender, EventArgs e)
         {
             if (_grid.DataSource == null) return;
             using (var dialog = new SaveFileDialog())
@@ -500,20 +501,26 @@ namespace PCTP.Modules.BaoCao.UI
                 dialog.Filter = "Excel File (*.xlsx)|*.xlsx";
                 dialog.FileName = (_showingCurrentStock ? "KhoHienTai_" : "LichSuNhapXuat_") + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".xlsx";
                 if (dialog.ShowDialog(this) != DialogResult.OK) return;
-                var workbook = new Workbook();
-                Worksheet sourceSheet = workbook.Worksheets[0];
-                sourceSheet.Name = _showingCurrentStock ? "San xuat va ton" : "Lich su kho";
-                ExportGridRows(sourceSheet, _grid.DataSource);
-                Worksheet deliverySheet = workbook.Worksheets.Add("Giao hang va QR");
-                ExportGridRows(deliverySheet, _deliveryRows);
-                foreach (Worksheet sheet in workbook.Worksheets)
+                object sourceRows = _grid.DataSource;
+                List<DeliveryTraceRow> deliveryRows = _deliveryRows.ToList();
+                string fileName = dialog.FileName;
+                await _waitForm.RunAsync(() => Task.Run(() =>
                 {
-                    sheet.FreezePanes(1, 0);
-                    var used = sheet.GetUsedRange();
-                    if (used != null && used.RightColumnIndex >= 0)
-                        sheet.Columns.AutoFit(0, used.RightColumnIndex);
-                }
-                workbook.SaveDocument(dialog.FileName, DocumentFormat.Xlsx);
+                    var workbook = new Workbook();
+                    Worksheet sourceSheet = workbook.Worksheets[0];
+                    sourceSheet.Name = _showingCurrentStock ? "San xuat va ton" : "Lich su kho";
+                    ExportGridRows(sourceSheet, sourceRows);
+                    Worksheet deliverySheet = workbook.Worksheets.Add("Giao hang va QR");
+                    ExportGridRows(deliverySheet, deliveryRows);
+                    foreach (Worksheet sheet in workbook.Worksheets)
+                    {
+                        sheet.FreezePanes(1, 0);
+                        var used = sheet.GetUsedRange();
+                        if (used != null && used.RightColumnIndex >= 0)
+                            sheet.Columns.AutoFit(0, used.RightColumnIndex);
+                    }
+                    workbook.SaveDocument(fileName, DocumentFormat.Xlsx);
+                }), "Đang tạo file Excel truy vết xuôi...");
                 XtraMessageBox.Show(this, "Xuất Excel thành công. File gồm dữ liệu sản xuất/lịch sử kho và phiếu giao hàng/QR đã truy vết.",
                     "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
