@@ -204,8 +204,8 @@ namespace PCTP.Modules.XuLyHangLoi
             for (int i = 0; i < _stepButtons.Length; i++) _stepButtons[i].BackColor = i + 1 == _activeStep ? Color.LightSteelBlue : Color.White;
             switch (_activeStep)
             {
-                case 1: _btnSecondary.Visible = true; _btnPrimary.Text = "Tiếp nhận phiếu khách"; _lblHint.Text = "Bước 1: danh sách phiếu đã tiếp nhận (khách trả / nội bộ) chưa tạo phiếu bất thường. Bấm đúp để mở phiếu; chọn dòng rồi 'Tạo phiếu bất thường' để sang bước 2."; break;
-                case 2: _btnSecondary.Visible = true; _btnPrimary.Text = "Tạo phiếu bất thường"; _lblHint.Text = "Bước 2: phiếu trả còn dòng chưa tạo PhieuXuLyBatThuong (đã tạo một phần). Chọn dòng rồi 'Tạo phiếu bất thường'."; break;
+                case 1: _btnSecondary.Visible = true; _btnPrimary.Text = "Tiếp nhận phiếu khách"; _lblHint.Text = "Bước 1: danh sách phiếu đã tiếp nhận (khách trả / nội bộ) chưa tạo phiếu bất thường. Bấm đúp để mở phiếu; chọn dòng rồi bấm 'Tạo phiếu bất thường' để chuyển thẳng sang bước 3 (Truy vết LOT). Bước 2 chỉ hiện khi phiếu mới được tạo một phần."; break;
+                case 2: _btnSecondary.Visible = true; _btnPrimary.Text = "Tạo phiếu bất thường"; _lblHint.Text = "Bước 2: phiếu trả còn dòng chưa tạo PhieuXuLyBatThuong (đã tạo một phần). Chọn dòng rồi bấm 'Tạo phiếu bất thường'; phiếu vừa tạo sẽ nằm ở bước 3."; break;
                 case 3: _btnSecondary.Visible = false; _btnPrimary.Text = "Truy vết LOT"; _lblHint.Text = "Bước 3: truy vết kho thành phẩm, WIP/sản xuất và khách trả; snapshot trước khi QC."; break;
                 case 4: _btnSecondary.Visible = false; _btnPrimary.Text = "QC định hướng"; _lblHint.Text = "Bước 4: QC chọn Từ chối giao bù / Chỉ giao bù / Có Rework."; break;
                 case 5: _btnSecondary.Visible = false; _btnPrimary.Text = "Initial QC"; _lblHint.Text = "Bước 5: kiểm đủ snapshot. DaKiemTra = OK + NG; NG = Rework + LoaiBoBanDau."; break;
@@ -604,20 +604,46 @@ namespace PCTP.Modules.XuLyHangLoi
 
             try
             {
+                List<int> createdIds;
                 if (row.HeaderStep == 2)
                 {
                     if (!row.PhieuTraHangCTId.HasValue)
                         throw new InvalidOperationException("Dòng bước 2 không có PhieuTraHangCTId; hãy tải lại danh sách.");
                     int id = _qtChungService.TaoPhieuXuLyBatThuong(
                         row.PhieuTraHangCTId.Value, model, "Hàng lỗi", null, Environment.UserName);
-                    XtraMessageBox.Show(this, $"Đã tạo 1 phiếu xử lý bất thường (Id={id}) cho dòng hàng của phiếu {row.SoPhieu}.", "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    createdIds = new List<int> { id };
                 }
                 else
                 {
-                    var ids = _qtChungService.TaoPhieuXuLyTuPhieuTra(row.PhieuTraHangId, model, "Hàng lỗi", Environment.UserName);
-                    XtraMessageBox.Show(this, $"Đã tạo {ids.Count} phiếu xử lý bất thường cho phiếu {row.SoPhieu}.", "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    createdIds = _qtChungService.TaoPhieuXuLyTuPhieuTra(row.PhieuTraHangId, model, "Hàng lỗi", Environment.UserName)
+                                 ?? new List<int>();
                 }
-                RefreshAfterAction();
+
+                // Dòng bước 1/2 chưa có PhieuXuLyId nên RefreshAfterAction() không biết phải nhảy đi đâu
+                // (người dùng bị kẹt ở bước 1). Chuyển sang đúng bước của phiếu vừa tạo và chọn sẵn dòng đó.
+                int targetStep = 0;
+                int? firstId = createdIds.Count > 0 ? (int?)createdIds[0] : null;
+                if (firstId.HasValue)
+                {
+                    var created = _qtChungService.GetById(firstId.Value);
+                    if (created != null) targetStep = ResolveStep(created);
+                }
+
+                RefreshBadges();
+                if (targetStep >= 1 && targetStep <= 8)
+                {
+                    _searchMode = false;
+                    _txtSearch.Text = string.Empty;
+                    SetActiveStep(targetStep);
+                    var handle = _gridView.LocateByValue("PhieuXuLyId", firstId.Value);
+                    if (handle >= 0) _gridView.FocusedRowHandle = handle;
+                    XtraMessageBox.Show(this, $"Đã tạo {createdIds.Count} phiếu xử lý bất thường cho phiếu {row.SoPhieu}.\r\nPhiếu đã chuyển sang Bước {targetStep}: {_stepButtons[targetStep - 1].Text.Split('\r')[0].Substring(3).Trim()}.", "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+                else
+                {
+                    LoadCurrentStep();
+                    XtraMessageBox.Show(this, $"Đã tạo {createdIds.Count} phiếu xử lý bất thường cho phiếu {row.SoPhieu}.", "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
             }
             catch (Exception ex) { ShowWarning("Không thể tạo phiếu xử lý bất thường.\r\n\r\n" + ex.Message); }
         }
