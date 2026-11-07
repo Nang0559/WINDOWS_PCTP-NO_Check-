@@ -2,7 +2,8 @@ CREATE OR ALTER PROC [dbo].[Usp_Qrcode_Update_Stock2405]
     @GIOGIAOFCC  NVARCHAR(250) = N'',  
     @NHAMAY      NVARCHAR(250) = N'',  
     @TMPTABLE    NVARCHAR(128) = N'TMPPHIEUGIAOHANG',  
-    @DOCQRTABLE  NVARCHAR(128) = N'DOCQRCODE'  
+    @DOCQRTABLE  NVARCHAR(128) = N'DOCQRCODE',
+    @LOTRESOLUTIONMODE NVARCHAR(20) = N'INPUT'  
 AS  
 BEGIN  
     SET NOCOUNT ON;  
@@ -28,7 +29,9 @@ BEGIN
     IF @TMPTABLE NOT IN  
     (  
         N'TMPPHIEUGIAOHANG',  
-        N'TMPPHIEUGIAOHANG_SP',  
+        N'TMPPHIEUGIAOHANG_SP',
+        N'SP_TMPPHIEUGIAOHANG',
+        N'TMPPHIEUGIAOHANG_100002',
         N'TMPPHIEUGIAOHANG_100003'  
     )  
     BEGIN  
@@ -44,7 +47,10 @@ BEGIN
     IF @DOCQRTABLE NOT IN  
     (  
         N'DOCQRCODE',  
-        N'DOCQRCODE_SP',  
+        N'DOCQRCODE_SP',
+        N'SP_DOCQRCODE',
+        N'YMVN_DOCQRCODE',
+        N'DOCQRCODE_100002',
         N'DOCQRCODE_100003'  
     )  
     BEGIN  
@@ -57,6 +63,12 @@ BEGIN
         RETURN;  
     END;  
   
+    IF @LOTRESOLUTIONMODE NOT IN (N'INPUT', N'FIFO_SP')
+    BEGIN
+        RAISERROR(N'LOTRESOLUTIONMODE không hợp lệ: %s', 16, 1, @LOTRESOLUTIONMODE);
+        RETURN;
+    END;
+
     --------------------------------------------------------------------  
     -- 2. KHAI BÁO BIẾN  
     --------------------------------------------------------------------  
@@ -177,7 +189,7 @@ BEGIN
                 LOT,  
                 MAHANG  
             FROM [' + @TMPTABLE + N']  
-            WHERE ISNULL(LOT, '''') <> ''''  
+            WHERE (ISNULL(LOT, '''') <> '''' OR @LOTRESOLUTIONMODE = N''FIFO_SP'')
               AND (STATUS <> ''OK'' OR STATUS IS NULL);  
         ';  
   
@@ -345,6 +357,51 @@ BEGIN
             BEGIN  
   
                 --------------------------------------------------------  
+
+                --------------------------------------------------------
+                -- 6.2a. FIFO_SP: chọn một LOT vật lý đủ tồn trong cùng transaction.
+                --------------------------------------------------------
+                IF @LOTRESOLUTIONMODE = N'FIFO_SP'
+                BEGIN
+                    DECLARE @FifoLot NVARCHAR(500) = NULL;
+                    DECLARE @FifoQty INT = NULL;
+
+                    SET @sql = N'
+                        SELECT @Qty = TRY_CONVERT(INT, SOLUONG)
+                        FROM [' + @TMPTABLE + N'] WITH (UPDLOCK, HOLDLOCK)
+                        WHERE STT = @STT
+                          AND (STATUS <> ''OK'' OR STATUS IS NULL);
+
+                        SELECT TOP (1) @Lot = s.LOT
+                        FROM STOCKTP s WITH (UPDLOCK, HOLDLOCK, ROWLOCK)
+                        WHERE s.SP = @MaHang
+                          AND ISNULL(s.SLCONLAI, 0) >= @Qty
+                          AND LEN(ISNULL(s.LOT, N'''')) >= 7
+                          AND TRY_CONVERT(DATE, LEFT(s.LOT, 6), 12) IS NOT NULL
+                          AND SUBSTRING(s.LOT, 7, 1) IN (N''0'', N''1'', N''2'', N''3'')
+                        ORDER BY LEFT(s.LOT, 6) ASC,
+                            CASE SUBSTRING(s.LOT, 7, 1)
+                                WHEN N''0'' THEN 0 WHEN N''1'' THEN 1
+                                WHEN N''2'' THEN 2 WHEN N''3'' THEN 3
+                            END ASC, s.LOT ASC;';
+
+                    EXEC sp_executesql @sql,
+                        N'@STT INT, @MaHang NVARCHAR(60), @Qty INT OUTPUT, @Lot NVARCHAR(500) OUTPUT',
+                        @STT=@STT, @MaHang=@MH,
+                        @Qty=@FifoQty OUTPUT, @Lot=@FifoLot OUTPUT;
+
+                    IF @FifoQty IS NULL OR @FifoQty <= 0
+                        THROW 51035, N'Số lượng giao SP phải lớn hơn 0.', 1;
+                    IF @FifoLot IS NULL
+                        THROW 51036, N'Không tìm được một LOT FIFO đủ tồn cho mã hàng SP.', 1;
+
+                    SET @_LOT = @FifoLot + N'-' + CONVERT(NVARCHAR(20), @FifoQty);
+                    SET @sql = N'UPDATE [' + @TMPTABLE + N'] SET LOT=@Lot
+                                 WHERE STT=@STT AND (STATUS <> ''OK'' OR STATUS IS NULL);';
+                    EXEC sp_executesql @sql, N'@STT INT, @Lot NVARCHAR(500)',
+                        @STT=@STT, @Lot=@FifoLot;
+                END;
+
                 -- 6.3. TÁCH LOT-SL  
                 --------------------------------------------------------  
                 IF OBJECT_ID('TempDb..#SplitResult') IS NOT NULL  
