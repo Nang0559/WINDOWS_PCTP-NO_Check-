@@ -146,8 +146,14 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         #region CapNhapKhoSP
         public int CapNhapKhoSP(string gioGiaoFcc, string nhaMay, out DataTable errors)
         {
-            string tmpTable = _cfg != null ? _cfg.Delivery.TmpTable : "TMPPHIEUGIAOHANG";
-            string docQRTable = _cfg != null ? _cfg.Delivery.DocQRTable : "DOCQRCODE";
+            // SP uses the customer-specific SP staging/QR tables when configured.
+            // Fall back to the legacy base tables only for older customer configs.
+            string tmpTable = _cfg != null && !string.IsNullOrWhiteSpace(_cfg.Delivery.TmpTableSP)
+                ? _cfg.Delivery.TmpTableSP
+                : (_cfg != null ? _cfg.Delivery.TmpTable : "TMPPHIEUGIAOHANG");
+            string docQRTable = _cfg != null && !string.IsNullOrWhiteSpace(_cfg.Delivery.DocQRTableSP)
+                ? _cfg.Delivery.DocQRTableSP
+                : (_cfg != null ? _cfg.Delivery.DocQRTable : "DOCQRCODE");
             Db.ValidateTableName(tmpTable);
             Db.ValidateTableName(docQRTable);
 
@@ -159,9 +165,12 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             try
             {
                 DataSet ds = ExecuteStoredProcedureDataSet(
-                    "Usp_Qrcode_Update_Stock_SP",
+                    "Usp_Qrcode_Update_Stock2405",
                     new SqlParameter("@GIOGIAOFCC", SqlDbType.NVarChar, 200) { Value = (object)(gioGiaoFcc ?? "") },
-                    new SqlParameter("@NHAMAY", SqlDbType.NVarChar, 200) { Value = (object)(nhaMay ?? "") }
+                    new SqlParameter("@NHAMAY", SqlDbType.NVarChar, 200) { Value = (object)(nhaMay ?? "") },
+                    new SqlParameter("@TMPTABLE", SqlDbType.NVarChar, 128) { Value = tmpTable },
+                    new SqlParameter("@DOCQRTABLE", SqlDbType.NVarChar, 128) { Value = docQRTable },
+                    new SqlParameter("@LOTRESOLUTIONMODE", SqlDbType.NVarChar, 20) { Value = "FIFO_SP" }
                 );
                 stok = ds != null && ds.Tables.Count > 0 ? ds.Tables[0] : new DataTable();
                 errors = ds != null && ds.Tables.Count > 1 ? ds.Tables[1] : new DataTable();
