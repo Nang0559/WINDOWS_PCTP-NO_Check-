@@ -376,7 +376,10 @@ BEGIN
 
                         SELECT TOP (1) @Lot = s.LOT
                         FROM STOCKTP s WITH (UPDLOCK, HOLDLOCK, ROWLOCK)
-                        WHERE s.SP = @MaHang
+                        WHERE COALESCE(
+                              NULLIF(LTRIM(RTRIM(s.SP)), N''),
+                              NULLIF(LTRIM(RTRIM(s.PART)), N'')
+                          ) = LTRIM(RTRIM(@MaHang))
                           AND ISNULL(s.SLCONLAI, 0) >= @Qty
                           AND LEN(ISNULL(s.LOT, N'''')) >= 7
                           AND TRY_CONVERT(DATE, LEFT(s.LOT, 6), 12) IS NOT NULL
