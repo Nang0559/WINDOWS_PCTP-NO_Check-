@@ -2,6 +2,7 @@ using DevExpress.XtraEditors;
 using DevExpress.XtraGrid;
 using DevExpress.XtraGrid.Views.Grid;
 using DevExpress.XtraGrid.Columns;
+using DevExpress.Spreadsheet;
 using PCTP.Modules.BaoCao.Application.Contracts;
 using PCTP.Modules.BaoCao.Application.Contracts.Queries;
 using PCTP.Modules.BaoCao.Infrastructure.Queries;
@@ -50,6 +51,7 @@ namespace PCTP.Modules.BaoCao.UI
         private readonly Label _timelineCaption = new Label();
         private readonly List<TraceNode> _timelineNodes = new List<TraceNode>();
         private readonly Label _status = new Label();
+        private SimpleButton _exportButton;
         private List<DeliveryTraceRow> _currentRows = new List<DeliveryTraceRow>();
         private string _pendingQuickSearch;
 
@@ -272,13 +274,34 @@ namespace PCTP.Modules.BaoCao.UI
             search.Controls.Add(clearButton, 4, 2);
             search.SetColumnSpan(clearButton, 2);
 
+            var statusBar = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 2,
+                RowCount = 1,
+                Margin = Padding.Empty,
+                Padding = Padding.Empty
+            };
+            statusBar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            statusBar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 150));
             _status.Text = "Đang chuẩn bị...";
             _status.Dock = DockStyle.Fill;
             _status.TextAlign = ContentAlignment.MiddleLeft;
             _status.ForeColor = Color.FromArgb(35, 35, 35);
             _status.BackColor = Color.Transparent;
-            search.Controls.Add(_status, 0, 3);
-            search.SetColumnSpan(_status, 6);
+            statusBar.Controls.Add(_status, 0, 0);
+            var exportButton = new SimpleButton
+            {
+                Text = "Xuất Excel",
+                Dock = DockStyle.Fill,
+                Margin = new Padding(3, 1, 3, 1),
+                Enabled = false
+            };
+            exportButton.Click += ExportExcel_Click;
+            statusBar.Controls.Add(exportButton, 1, 0);
+            _exportButton = exportButton;
+            search.Controls.Add(statusBar, 0, 3);
+            search.SetColumnSpan(statusBar, 6);
 
             var workspace = new SplitContainer
             {
@@ -602,6 +625,7 @@ namespace PCTP.Modules.BaoCao.UI
                 ClearTimeline("Chọn một dòng giao hàng để xem QR và dựng timeline theo toàn bộ LOT ghép.");
                 _status.Text = "Tìm thấy " + _deliveryRows.Count + " dòng giao hàng / " + _currentRows.Count + " dòng QR." +
                     (_deliveryRows.Count == 0 ? " Kiểm tra khoảng ngày (theo NGAYGIAO) và ô Khách hàng." : string.Empty);
+                if (_exportButton != null) _exportButton.Enabled = _currentRows.Count > 0;
             }
             catch (Exception ex)
             {
@@ -1029,6 +1053,175 @@ namespace PCTP.Modules.BaoCao.UI
                     Note = "Sự kiện lấy từ read model lịch sử kho. Không coi tồn kho hiện tại là bằng chứng lịch sử.",
                     SortOrder = 10
                 };
+            }
+        }
+
+        private async void ExportExcel_Click(object sender, EventArgs e)
+        {
+            if (_currentRows == null || _currentRows.Count == 0)
+            {
+                XtraMessageBox.Show(this, "Chưa có dữ liệu tra cứu để xuất.", "Xuất Excel",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            using (var dialog = new SaveFileDialog())
+            {
+                dialog.Filter = "Excel Workbook (*.xlsx)|*.xlsx";
+                dialog.DefaultExt = "xlsx";
+                dialog.AddExtension = true;
+                dialog.FileName = "TruyXuatGiaoHang_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".xlsx";
+                if (dialog.ShowDialog(this) != DialogResult.OK) return;
+
+                try
+                {
+                    var deliveryRows = _deliveryRows.ToList();
+                    var qrRows = _currentRows.ToList();
+                    var timelineRows = _timelineNodes.ToList();
+                    string searchText = _stockLookup.InputText;
+                    string customer = GetLookupText(_txtCustomer);
+                    string customerLabel = _txtCustomerLabel.Text.Trim();
+                    DateTime from = _from.Value.Date;
+                    DateTime to = _to.Value.Date;
+
+                    await _waitForm.RunAsync(() => Task.Run(() =>
+                        WriteTraceabilityWorkbook(dialog.FileName, deliveryRows, qrRows,
+                            timelineRows, searchText, customer, customerLabel, from, to)),
+                        "Đang xuất toàn bộ dữ liệu tra cứu ra Excel...");
+
+                    XtraMessageBox.Show(this, "Đã xuất file Excel gồm thông tin tra cứu, giao hàng, QR và Timeline hiện tại.",
+                        "Xuất Excel", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+                catch (Exception ex)
+                {
+                    XtraMessageBox.Show(this, "Không thể xuất Excel: " + ex.Message, "Xuất Excel",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+        }
+
+        private static void WriteTraceabilityWorkbook(
+            string filePath,
+            IList<DeliveryTraceRow> deliveries,
+            IList<DeliveryTraceRow> qrRows,
+            IList<TraceNode> timelineRows,
+            string searchText,
+            string customer,
+            string customerLabel,
+            DateTime from,
+            DateTime to)
+        {
+            var workbook = new Workbook();
+            Worksheet info = workbook.Worksheets[0];
+            info.Name = "Dieu kien tra cuu";
+            string[,] criteria =
+            {
+                { "Thông tin", "Giá trị" },
+                { "Từ khóa mã hàng / LOT / QR", searchText ?? string.Empty },
+                { "Khách hàng", customer ?? string.Empty },
+                { "Customer label", customerLabel ?? string.Empty },
+                { "Từ ngày", from.ToString("dd/MM/yyyy") },
+                { "Đến ngày", to.ToString("dd/MM/yyyy") },
+                { "Số dòng giao hàng", (deliveries == null ? 0 : deliveries.Count).ToString() },
+                { "Số dòng đọc QR", (qrRows == null ? 0 : qrRows.Count).ToString() },
+                { "Số node Timeline", (timelineRows == null ? 0 : timelineRows.Count).ToString() },
+                { "Ghi chú", "Timeline là dữ liệu của dòng giao hàng đang được chọn trên form tại thời điểm xuất." }
+            };
+            WriteMatrix(info, criteria);
+
+            Worksheet deliverySheet = workbook.Worksheets.Add("Giao hang");
+            string[] deliveryHeaders =
+            {
+                "DeliveryKey", "STT", "Cửa", "Truyền", "Chứng từ", "Ngày giao", "Giờ giao",
+                "Mã khách hàng", "Khách hàng", "Mã hàng", "Tên hàng", "LOT ghép nguyên bản",
+                "Số lượng", "Đơn vị", "Nhà máy", "Trạng thái"
+            };
+            WriteHeaders(deliverySheet, deliveryHeaders);
+            int rowIndex = 1;
+            foreach (DeliveryTraceRow x in deliveries ?? new List<DeliveryTraceRow>())
+            {
+                object[] values = { x.DeliveryKey, x.DeliveryStt, x.Door, x.Conveyor, x.DocumentNo,
+                    x.DeliveryDate, x.DeliveryTime, x.CustomerCode, x.CustomerName, x.PartNo, x.PartName,
+                    x.LotNoRaw, x.Quantity, x.Unit, x.Factory, x.Status };
+                WriteValues(deliverySheet, rowIndex++, values);
+            }
+
+            Worksheet qrSheet = workbook.Worksheets.Add("Doc QR");
+            string[] qrHeaders =
+            {
+                "DeliveryKey", "STT đọc QR", "Ngày đọc", "Giờ đọc", "QR FCC", "LOT QR FCC",
+                "LOT tem khách hàng", "Trạng thái QR", "Mã hàng", "Tên hàng", "LOT giao ghép",
+                "Số lượng", "Khách hàng", "Chứng từ"
+            };
+            WriteHeaders(qrSheet, qrHeaders);
+            rowIndex = 1;
+            foreach (DeliveryTraceRow x in qrRows ?? new List<DeliveryTraceRow>())
+            {
+                object[] values = { x.DeliveryKey, x.QrScanOrder, x.QrScanDate, x.QrScanTime,
+                    x.QRCode, x.QrLotNo, x.CustomerLabelData, x.QrStatus, x.PartNo, x.PartName,
+                    x.LotNoRaw, x.Quantity, x.CustomerName, x.DocumentNo };
+                WriteValues(qrSheet, rowIndex++, values);
+            }
+
+            Worksheet timelineSheet = workbook.Worksheets.Add("Timeline");
+            string[] timelineHeaders =
+            {
+                "STT", "Sự kiện", "Loại sự kiện", "Thời gian", "LOT", "Mã hàng", "Số lượng",
+                "Vị trí từ", "Vị trí đến", "QR", "Customer label", "Khách hàng", "Chứng từ",
+                "Người thực hiện", "Nguồn dữ liệu", "Khóa nguồn", "Trạng thái bằng chứng", "Mô tả", "Ghi chú"
+            };
+            WriteHeaders(timelineSheet, timelineHeaders);
+            rowIndex = 1;
+            int sequence = 1;
+            foreach (TraceNode x in timelineRows ?? new List<TraceNode>())
+            {
+                object[] values = { sequence++, x.Title, x.EventType, x.EventTime, x.LotNo, x.PartNo,
+                    x.Quantity, x.FromLocation, x.ToLocation, x.QrCode, x.CustomerLabel, x.CustomerName,
+                    x.DocumentNo, x.UserName, x.SourceName, x.SourceKey, x.EvidenceStatus, x.Subtitle, x.Note };
+                WriteValues(timelineSheet, rowIndex++, values);
+            }
+
+            foreach (Worksheet sheet in workbook.Worksheets)
+            {
+                sheet.FreezePanes(1, 0);
+                sheet.Columns.AutoFit(0, sheet.GetUsedRange().RightColumnIndex);
+            }
+            workbook.SaveDocument(filePath, DocumentFormat.Xlsx);
+        }
+
+        private static void WriteMatrix(Worksheet sheet, string[,] values)
+        {
+            for (int r = 0; r < values.GetLength(0); r++)
+                for (int c = 0; c < values.GetLength(1); c++)
+                    sheet.Cells[r, c].Value = values[r, c];
+            sheet.Range["A1:B1"].Font.Bold = true;
+            sheet.Range["A1:B1"].Fill.BackgroundColor = System.Drawing.Color.LightSteelBlue;
+        }
+
+        private static void WriteHeaders(Worksheet sheet, string[] headers)
+        {
+            for (int c = 0; c < headers.Length; c++)
+                sheet.Cells[0, c].Value = headers[c];
+            var header = sheet.Range.FromLTRB(0, 0, headers.Length - 1, 0);
+            header.Font.Bold = true;
+            header.Fill.BackgroundColor = System.Drawing.Color.LightSteelBlue;
+        }
+
+        private static void WriteValues(Worksheet sheet, int rowIndex, object[] values)
+        {
+            for (int c = 0; c < values.Length; c++)
+            {
+                object value = values[c];
+                if (value == null || value == DBNull.Value)
+                    sheet.Cells[rowIndex, c].Value = string.Empty;
+                else if (value is DateTime)
+                    sheet.Cells[rowIndex, c].Value = (DateTime)value;
+                else if (value is decimal)
+                    sheet.Cells[rowIndex, c].Value = Convert.ToDouble(value);
+                else if (value is int)
+                    sheet.Cells[rowIndex, c].Value = (int)value;
+                else
+                    sheet.Cells[rowIndex, c].Value = Convert.ToString(value);
             }
         }
 
