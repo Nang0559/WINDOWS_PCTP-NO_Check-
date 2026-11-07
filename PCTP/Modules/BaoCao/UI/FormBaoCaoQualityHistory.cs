@@ -201,14 +201,17 @@ namespace PCTP.Modules.BaoCao.UI
                     return;
                 }
 
-                split.Panel1MinSize = panel1Minimum;
-                split.Panel2MinSize = panel2Minimum;
-
                 int minimumDistance = panel1Minimum;
                 int maximumDistance = available - panel2Minimum;
                 int preferredDistance = (int)(available * 0.43);
-                split.SplitterDistance = Math.Max(minimumDistance,
+                int safeDistance = Math.Max(minimumDistance,
                     Math.Min(preferredDistance, maximumDistance));
+
+                // Establish a valid splitter position while constraints are still zero,
+                // then apply the panel minimums.
+                split.SplitterDistance = safeDistance;
+                split.Panel1MinSize = panel1Minimum;
+                split.Panel2MinSize = panel2Minimum;
             };
 
             split.SizeChanged += (s, e) => applySplitLayout();
