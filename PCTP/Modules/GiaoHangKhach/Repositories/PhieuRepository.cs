@@ -67,7 +67,8 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             // This prevents unscanned/unrelated rows from consuming FIFO allocation.
             return EvaluateCurrentQrFifoViolations(tmpTable, docQRTable);
         }
-
+        public void ReplaceTmpRows(string tmpTable, DataTable orders)
+    => _tmp.ReplaceTmpRows(tmpTable, orders);
         public void ReleaseFifoViolations(string tmpTable, string docQRTable, IReadOnlyList<FifoViolation> violations)
         {
             _db.ValidateTableName(tmpTable);
