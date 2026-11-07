@@ -5,7 +5,7 @@ using DevExpress.XtraGrid.Views.Grid;
 using PCTP.Modules.BaoCao.Application.Contracts.Queries;
 using PCTP.Modules.BaoCao.Infrastructure.Queries;
 using PCTP.Shell.UI;
-using PCTP.Common;
+using PCTP.Shared.Helpers;
 using PCTP.Shared.Lookup;
 using System;
 using System.Collections.Generic;
@@ -81,7 +81,6 @@ namespace PCTP.Modules.BaoCao.UI
             {
                 date.Properties.DisplayFormat.FormatString = "dd/MM/yyyy";
                 date.Properties.EditFormat.FormatString = "dd/MM/yyyy";
-                date.Properties.CalendarTimeEditing = DevExpress.Utils.DefaultBoolean.False;
             }
             _from.DateTime = DateTime.Today.AddDays(-7);
             _to.DateTime = DateTime.Today;
