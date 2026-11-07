@@ -55,6 +55,7 @@ namespace PCTP.Modules.BaoCao.UI
         private readonly List<TraceTimelineNode> _timelineNodes = new List<TraceTimelineNode>();
         private readonly Label _status = new Label();
         private SimpleButton _exportButton;
+        private SimpleButton _printButton;
         private List<DeliveryTraceRow> _currentRows = new List<DeliveryTraceRow>();
         private string _pendingQuickSearch;
 
@@ -283,12 +284,13 @@ namespace PCTP.Modules.BaoCao.UI
             var statusBar = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
-                ColumnCount = 2,
+                ColumnCount = 3,
                 RowCount = 1,
                 Margin = Padding.Empty,
                 Padding = Padding.Empty
             };
             statusBar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            statusBar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 150));
             statusBar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 150));
             _status.Text = "Đang chuẩn bị...";
             _status.Dock = DockStyle.Fill;
@@ -306,6 +308,16 @@ namespace PCTP.Modules.BaoCao.UI
             exportButton.Click += ExportExcel_Click;
             statusBar.Controls.Add(exportButton, 1, 0);
             _exportButton = exportButton;
+            var printButton = new SimpleButton
+            {
+                Text = "In báo cáo",
+                Dock = DockStyle.Fill,
+                Margin = new Padding(3, 1, 3, 1),
+                Enabled = false
+            };
+            printButton.Click += PrintReport_Click;
+            statusBar.Controls.Add(printButton, 2, 0);
+            _printButton = printButton;
             search.Controls.Add(statusBar, 0, 3);
             search.SetColumnSpan(statusBar, 6);
 
@@ -642,6 +654,7 @@ namespace PCTP.Modules.BaoCao.UI
                 _status.Text = "Tìm thấy " + _deliveryRows.Count + " dòng giao hàng / " + _currentRows.Count + " dòng QR." +
                     (_deliveryRows.Count == 0 ? " Kiểm tra khoảng ngày (theo NGAYGIAO) và ô Khách hàng." : string.Empty);
                 if (_exportButton != null) _exportButton.Enabled = _currentRows.Count > 0;
+                if (_printButton != null) _printButton.Enabled = _currentRows.Count > 0;
             }
             catch (Exception ex)
             {
@@ -749,11 +762,40 @@ namespace PCTP.Modules.BaoCao.UI
             _detailText.Text = message;
         }
 
-        private async void ExportExcel_Click(object sender, EventArgs e)
+        private List<ReportOverviewRow> BuildReportOverview()
         {
-            if ((_deliveryRows == null || _deliveryRows.Count == 0) &&
-                (_currentRows == null || _currentRows.Count == 0) &&
-                (_timelineNodes == null || _timelineNodes.Count == 0))
+            List<ReportOverviewRow> rows = TraceReportExporter.NewOverview("Báo cáo - Truy xuất giao hàng");
+            rows.AddRow(_stockLookup.IsItemSearch ? "Tra cứu theo mã hàng" : "Tra cứu theo LOT / QR", _stockLookup.InputText);
+            rows.AddRow("LOT tem khách hàng", _txtCustomerLabel.Text.Trim());
+            rows.AddRow("Khách hàng", _txtCustomer.Text);
+            rows.AddRow("Từ ngày", _from.Value.ToString("dd/MM/yyyy"));
+            rows.AddRow("Đến ngày", _to.Value.ToString("dd/MM/yyyy"));
+            rows.AddRow("Số dòng giao hàng", _deliveryView.RowCount.ToString());
+            rows.AddRow("Số dòng đọc QR", _qrView.RowCount.ToString());
+            rows.AddRow("Số node timeline", _timelineNodes.Count.ToString());
+            return rows;
+        }
+
+        private List<ReportGridSection> BuildReportSections()
+        {
+            var sections = new List<ReportGridSection>();
+            if (_deliveryGrid.DataSource != null)
+                sections.Add(new ReportGridSection("Giao hàng", "DANH SÁCH GIAO HÀNG", _deliveryGrid, _deliveryView));
+            if (_qrGrid.DataSource != null)
+                sections.Add(new ReportGridSection("Đọc QR", "DỮ LIỆU ĐỌC QR", _qrGrid, _qrView));
+            return sections;
+        }
+
+        private bool HasReportData()
+        {
+            return (_deliveryRows != null && _deliveryRows.Count > 0) ||
+                   (_currentRows != null && _currentRows.Count > 0) ||
+                   (_timelineNodes != null && _timelineNodes.Count > 0);
+        }
+
+        private void ExportExcel_Click(object sender, EventArgs e)
+        {
+            if (!HasReportData())
             {
                 XtraMessageBox.Show(this, "Chưa có dữ liệu tra cứu để xuất.", "Xuất Excel",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -770,65 +812,42 @@ namespace PCTP.Modules.BaoCao.UI
 
                 try
                 {
-                    string basePath = System.IO.Path.Combine(
-                        System.IO.Path.GetDirectoryName(dialog.FileName),
-                        System.IO.Path.GetFileNameWithoutExtension(dialog.FileName));
-                    string deliveryPath = basePath + "_GiaoHang.xlsx";
-                    string qrPath = basePath + "_DocQR.xlsx";
-                    string timelinePath = basePath + "_Timeline.csv";
+                    Cursor = Cursors.WaitCursor;
+                    // 1 file duy nhất, nhiều sheet: Tổng quan | Giao hàng | Đọc QR | Timeline (kèm chi tiết từng node).
+                    TraceReportExporter.ExportWorkbook(dialog.FileName, BuildReportOverview(), BuildReportSections(), _timelineNodes);
+                    Cursor = Cursors.Default;
 
-                    await _waitForm.RunAsync(() => Task.Run(() =>
-                    {
-                        if (_deliveryGrid.DataSource != null)
-                            _deliveryGrid.ExportToXlsx(deliveryPath);
-                        if (_qrGrid.DataSource != null)
-                            _qrGrid.ExportToXlsx(qrPath);
-                        WriteTimelineCsv(timelinePath, _timelineNodes);
-                    }), "Đang xuất dữ liệu giao hàng, QR và Timeline...");
-
-                    XtraMessageBox.Show(this,
-                        "Đã xuất dữ liệu bằng bộ Export DevExpress hiện có:\r\n" +
-                        deliveryPath + "\r\n" + qrPath + "\r\n" + timelinePath +
-                        "\r\nTimeline ở định dạng CSV để mở trực tiếp bằng Excel.",
-                        "Xuất Excel", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    if (XtraMessageBox.Show(this, "Đã xuất báo cáo đầy đủ (Tổng quan, Giao hàng, Đọc QR, Timeline):\r\n" +
+                            dialog.FileName + "\r\n\r\nMở file ngay?", "Xuất Excel",
+                            MessageBoxButtons.YesNo, MessageBoxIcon.Information) == DialogResult.Yes)
+                        System.Diagnostics.Process.Start(dialog.FileName);
                 }
                 catch (Exception ex)
                 {
+                    Cursor = Cursors.Default;
                     XtraMessageBox.Show(this, "Không thể xuất dữ liệu: " + ex.Message, "Xuất Excel",
                         MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
         }
 
-        private static void WriteTimelineCsv(string filePath, IList<TraceTimelineNode> rows)
+        private void PrintReport_Click(object sender, EventArgs e)
         {
-            var lines = new List<string>();
-            lines.Add(string.Join(",", new[]
+            if (!HasReportData())
             {
-                "STT", "Su kien", "Loai su kien", "Thoi gian", "LOT", "Ma hang", "So luong",
-                "Vi tri tu", "Vi tri den", "QR", "Customer label", "Khach hang", "Chung tu",
-                "Nguoi thuc hien", "Nguon du lieu", "Khoa nguon", "Trang thai bang chung", "Mo ta", "Ghi chu"
-            }.Select(CsvEscape)));
-
-            int sequence = 1;
-            foreach (TraceTimelineNode x in rows ?? new List<TraceTimelineNode>())
-            {
-                lines.Add(string.Join(",", new[]
-                {
-                    (sequence++).ToString(), x.Title, x.EventType,
-                    x.EventTime.HasValue ? x.EventTime.Value.ToString("yyyy-MM-dd HH:mm:ss") : string.Empty,
-                    x.LotNo, x.PartNo, x.Quantity == null ? string.Empty : Convert.ToString(x.Quantity),
-                    x.FromLocation, x.ToLocation, x.QrCode, x.CustomerLabel, x.CustomerName,
-                    x.DocumentNo, x.UserName, x.SourceName, x.SourceKey, x.EvidenceStatus, x.Subtitle, x.Note
-                }.Select(CsvEscape)));
+                XtraMessageBox.Show(this, "Chưa có dữ liệu tra cứu để in.", "In báo cáo",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
             }
-            System.IO.File.WriteAllLines(filePath, lines, new System.Text.UTF8Encoding(true));
-        }
-
-        private static string CsvEscape(string value)
-        {
-            string text = value ?? string.Empty;
-            return "\"" + text.Replace("\"", "\"\"") + "\"";
+            try
+            {
+                TraceReportExporter.ShowPrintPreview(BuildReportOverview(), BuildReportSections(), _timelineNodes);
+            }
+            catch (Exception ex)
+            {
+                XtraMessageBox.Show(this, "Không thể tạo bản in: " + ex.Message, "In báo cáo",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
         private void ClearButton_Click(object sender, EventArgs e)
@@ -847,6 +866,7 @@ namespace PCTP.Modules.BaoCao.UI
             ClearTimeline("Đã xóa điều kiện tra cứu.");
             _currentRows.Clear();
             if (_exportButton != null) _exportButton.Enabled = false;
+            if (_printButton != null) _printButton.Enabled = false;
             _status.Text = "Sẵn sàng";
         }
 
