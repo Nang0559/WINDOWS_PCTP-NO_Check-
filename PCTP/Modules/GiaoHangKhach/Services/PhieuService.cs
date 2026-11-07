@@ -139,8 +139,13 @@ namespace PCTP.Modules.GiaoHangKhach.Services
                 // YMVN MP uses the Gear branch inside the same Usp_Qrcode_gheplot.
                 // SP keeps its separate schema/flow and is intentionally not passed to the MP Gear allocator.
                 if (_isLoaiSP) return CreateEmptyGhepLotTable();
+                // QR terminal reads the shared live TMP. A view-only terminal
+                // reads the machine-specific snapshot populated by PhieuLoadService.
+                string gearTmpTable = _isMayBanQR
+                    ? _cfg.Delivery.GetTmpTable(false)
+                    : tenBan;
                 return _phieuRepo.LoadGhepLot(
-                    tenBan,
+                    gearTmpTable,
                     _cfg.Delivery.GetIfsTable(false),
                     true,
                     _cfg.Delivery.GetTmpTable(false),
