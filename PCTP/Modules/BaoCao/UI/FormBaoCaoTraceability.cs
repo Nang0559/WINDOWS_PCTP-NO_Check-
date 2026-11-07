@@ -461,6 +461,7 @@ namespace PCTP.Modules.BaoCao.UI
             AddGridColumn(_deliveryView, "Quantity", "Số lượng", 85);
             AddGridColumn(_deliveryView, "Unit", "ĐVT", 55);
             AddGridColumn(_deliveryView, "DeliveryDate", "Ngày giao", 100);
+            AddGridColumn(_deliveryView, "DeliveryTime", "Giờ giao", 85);
             AddGridColumn(_deliveryView, "DocumentNo", "Chứng từ", 110);
             AddGridColumn(_deliveryView, "CustomerName", "Khách hàng", 150);
             AddGridColumn(_deliveryView, "DeliveryKey", "DeliveryKey", 220).Visible = false;
