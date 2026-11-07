@@ -72,8 +72,30 @@ ORDER BY ItemCode";
 
             if (!string.IsNullOrWhiteSpace(itemCode))
             {
-                where += " AND ItemCode = @ItemCode";
-                parameters.Add(new SqlParameter("@ItemCode", SqlDbType.NVarChar, 100) { Value = itemCode });
+                // The shared lookup sends an exact item code in item mode and free text
+                // in LOT/QR mode. InspectionLog currently stores LOT values, not a QR
+                // payload column, so LOT/QR mode searches the session LOT and box LOT.
+                if (itemCode.StartsWith("LOTQR:", StringComparison.OrdinalIgnoreCase))
+                {
+                    string keyword = itemCode.Substring(6).Trim();
+                    where += @" AND (
+                        LotNoTong LIKE @LotSearch
+                        OR EXISTS (
+                            SELECT 1 FROM InspectionLog detail
+                            WHERE detail.InspectionCode = InspectionLog.InspectionCode
+                              AND detail.BoxLotNo LIKE @LotSearch
+                        )
+                        OR InspectionCode LIKE @LotSearch
+                    )";
+                    parameters.Add(new SqlParameter("@LotSearch", SqlDbType.NVarChar, 200)
+                    { Value = "%" + keyword + "%" });
+                }
+                else
+                {
+                    where += " AND ItemCode = @ItemCode";
+                    parameters.Add(new SqlParameter("@ItemCode", SqlDbType.NVarChar, 100)
+                    { Value = itemCode.Trim() });
+                }
             }
 
             if (!string.IsNullOrWhiteSpace(result) && !string.Equals(result, "Tất cả", StringComparison.OrdinalIgnoreCase))
