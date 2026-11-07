@@ -1004,9 +1004,11 @@ namespace PCTP.Modules.BaoCao.UI
         protected override void Dispose(bool disposing)
         {
             if (disposing)
+            {
                 _deliveryView.FocusedRowChanged -= DeliveryView_FocusedRowChanged;
                 _deliveryView.DoubleClick -= DeliveryGrid_DoubleClick;
                 _qrView.DoubleClick -= DeliveryGrid_DoubleClick;
+            }
             base.Dispose(disposing);
         }
     }
