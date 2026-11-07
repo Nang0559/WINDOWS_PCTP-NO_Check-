@@ -63,11 +63,15 @@ ORDER BY ItemCode";
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var where = "WHERE CheckedAt BETWEEN @From AND @To";
+            // "Đến ngày" thường là 23:59:59.9999999. SQL DateTime làm tròn giá trị này sang 00:00:00 của NGÀY SAU
+            // nên BETWEEN lấy nhầm phiên đầu ngày hôm sau. Với cuối ngày thì dùng cận trên loại trừ (ngày sau, <).
+            bool endOfDay = to.TimeOfDay >= new TimeSpan(23, 59, 59);
+            DateTime upper = endOfDay ? to.Date.AddDays(1) : to;
+            var where = "WHERE CheckedAt >= @From AND CheckedAt " + (endOfDay ? "<" : "<=") + " @To";
             var parameters = new List<SqlParameter>
             {
                 new SqlParameter("@From", SqlDbType.DateTime) { Value = from },
-                new SqlParameter("@To", SqlDbType.DateTime) { Value = to }
+                new SqlParameter("@To", SqlDbType.DateTime) { Value = upper }
             };
 
             if (!string.IsNullOrWhiteSpace(itemCode))
@@ -78,17 +82,29 @@ ORDER BY ItemCode";
                 if (itemCode.StartsWith("LOTQR:", StringComparison.OrdinalIgnoreCase))
                 {
                     string keyword = itemCode.Substring(6).Trim();
-                    where += @" AND (
-                        LotNoTong LIKE @LotSearch
+
+                    // LOT ghép "LOT1-SL1,LOT2-SL2" được tách thành từng LOT; mỗi LOT tra riêng bằng khóa
+                    // 20 ký tự (hoặc 13 ký tự với chuẩn cũ) rồi OR lại. LOT in đầy đủ dài hơn 20 ký tự
+                    // cũng quy về khóa nên vẫn khớp LOT tổng / LOT thùng đã lưu.
+                    List<string> keys = BuildLotSearchKeys(keyword);
+                    var lotPredicates = new List<string>();
+                    for (int i = 0; i < keys.Count; i++)
+                    {
+                        string name = "@LotSearch" + i;
+                        lotPredicates.Add(@"(
+                        LotNoTong LIKE " + name + @"
                         OR EXISTS (
                             SELECT 1 FROM InspectionLog detail
                             WHERE detail.InspectionCode = InspectionLog.InspectionCode
-                              AND detail.BoxLotNo LIKE @LotSearch
+                              AND detail.BoxLotNo LIKE " + name + @"
                         )
-                        OR InspectionCode LIKE @LotSearch
-                    )";
-                    parameters.Add(new SqlParameter("@LotSearch", SqlDbType.NVarChar, 200)
-                    { Value = "%" + keyword + "%" });
+                        OR InspectionCode LIKE " + name + @"
+                    )");
+                        parameters.Add(new SqlParameter(name, SqlDbType.NVarChar, 200)
+                        { Value = "%" + keys[i] + "%" });
+                    }
+                    if (lotPredicates.Count > 0)
+                        where += " AND (" + string.Join(" OR ", lotPredicates) + ")";
                 }
                 else
                 {
@@ -128,6 +144,41 @@ ORDER BY MIN(CheckedAt) DESC";
             var table = LoadData(sql, parameters.ToArray());
             var rows = table.AsEnumerable().Select(MapMaster).ToList();
             return Task.FromResult<IReadOnlyList<QualityHistoryRow>>(rows);
+        }
+
+        /// <summary>
+        /// Tách chuỗi nhập (LOT đơn, LOT in đầy đủ, LOT ghép hoặc mã phiên) thành các khóa tra cứu.
+        /// Chuỗi không phải LOT (vd mã phiên) được giữ nguyên.
+        /// </summary>
+        internal static List<string> BuildLotSearchKeys(string keyword)
+        {
+            var keys = new List<string>();
+            if (string.IsNullOrWhiteSpace(keyword)) return keys;
+
+            IEnumerable<string> lots;
+            try
+            {
+                List<KeyValuePair<string, decimal>> parsed = keyword.IndexOf(',') >= 0
+                    ? LotCodeHelper.ParseCompositeLot(keyword)
+                    : new List<KeyValuePair<string, decimal>>();
+                lots = parsed.Count > 0 ? parsed.Select(x => x.Key) : new[] { keyword.Trim() };
+            }
+            catch (FormatException)
+            {
+                lots = new[] { keyword.Trim() };
+            }
+
+            foreach (string lot in lots)
+            {
+                // Chỉ cắt về 20 ký tự khi LOT dài hơn khóa (LOT in đầy đủ). Chuỗi ngắn hơn giữ nguyên
+                // như người dùng gõ để vẫn tra được theo một phần LOT / mã phiên.
+                string key = LotCodeHelper.ClassifyLotKey(lot) == LotKeyKind.Full20
+                    ? LotCodeHelper.GetFullKey(lot)
+                    : (lot ?? string.Empty).Trim();
+                if (key.Length > 0 && !keys.Contains(key, StringComparer.OrdinalIgnoreCase))
+                    keys.Add(key);
+            }
+            return keys;
         }
 
         public Task<IReadOnlyList<QualityHistoryDetailRow>> GetDetailsAsync(
