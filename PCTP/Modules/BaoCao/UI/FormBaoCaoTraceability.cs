@@ -516,11 +516,9 @@ namespace PCTP.Modules.BaoCao.UI
                     : _currentRows
                         .Where(x => x != null && string.Equals(x.DeliveryKey, deliveryKey, StringComparison.OrdinalIgnoreCase))
                         .Where(x => !string.IsNullOrWhiteSpace(x.QRCode))
-                        .GroupBy(x => x.QrScanOrder.HasValue
-                            ? "STT:" + x.QrScanOrder.Value.ToString()
-                            : "QR:" + x.QRCode, StringComparer.OrdinalIgnoreCase)
-                        .Select(g => g.First())
                         .OrderBy(x => x.QrScanOrder ?? int.MaxValue)
+                        .ThenBy(x => x.QrScanDate ?? DateTime.MinValue)
+                        .ThenBy(x => x.QrScanTime ?? string.Empty)
                         .ToList();
 
                 _qrGrid.DataSource = new BindingList<DeliveryTraceRow>(_qrRows);
