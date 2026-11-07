@@ -1,4 +1,7 @@
 using DevExpress.XtraEditors;
+using DevExpress.XtraGrid;
+using DevExpress.XtraGrid.Views.Grid;
+using DevExpress.XtraGrid.Columns;
 using PCTP.Modules.BaoCao.Application.Contracts;
 using PCTP.Modules.BaoCao.Application.Contracts.Queries;
 using PCTP.Modules.BaoCao.Infrastructure.Queries;
@@ -30,7 +33,13 @@ namespace PCTP.Modules.BaoCao.UI
         private readonly LookUpEdit _txtCustomer = new LookUpEdit();
         private readonly DateTimePicker _from = new DateTimePicker();
         private readonly DateTimePicker _to = new DateTimePicker();
-        private readonly DataGridView _grid = new DataGridView();
+        private readonly GridControl _deliveryGrid = new GridControl();
+        private readonly GridView _deliveryView = new GridView();
+        private readonly GridControl _qrGrid = new GridControl();
+        private readonly GridView _qrView = new GridView();
+        private List<DeliveryTraceRow> _deliveryRows = new List<DeliveryTraceRow>();
+        private List<DeliveryTraceRow> _qrRows = new List<DeliveryTraceRow>();
+        private bool _bindingQrGrid;
         private readonly IStockHistoryQuery _stockHistoryQuery;
         private readonly IProductionLotTraceQuery _productionQuery;
         private readonly FlowLayoutPanel _timeline = new FlowLayoutPanel();
@@ -286,9 +295,37 @@ namespace PCTP.Modules.BaoCao.UI
             };
             left.RowStyles.Add(new RowStyle(SizeType.Percent, 48));
             left.RowStyles.Add(new RowStyle(SizeType.Percent, 52));
-            ConfigureGrid(_grid);
-            _grid.CellDoubleClick += DeliveryGrid_CellDoubleClick;
-            left.Controls.Add(_grid, 0, 0);
+
+            var deliveryQrHost = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 2,
+                RowCount = 2,
+                BackColor = Color.White,
+                Margin = Padding.Empty,
+                Padding = Padding.Empty
+            };
+            deliveryQrHost.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+            deliveryQrHost.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+            deliveryQrHost.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
+            deliveryQrHost.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+
+            var deliveryCaption = CreateGridCaption("THÔNG TIN ĐƠN HÀNG (LUUPHIEUGIAOHANG)");
+            var qrCaption = CreateGridCaption("THÔNG TIN ĐỌC QR");
+            deliveryQrHost.Controls.Add(deliveryCaption, 0, 0);
+            deliveryQrHost.Controls.Add(qrCaption, 1, 0);
+
+            ConfigureDevExpressGrid(_deliveryGrid, _deliveryView);
+            ConfigureDevExpressGrid(_qrGrid, _qrView);
+            ConfigureDeliveryColumns();
+            ConfigureQrColumns();
+            _deliveryView.FocusedRowChanged += DeliveryView_FocusedRowChanged;
+            _deliveryView.DoubleClick += DeliveryGrid_DoubleClick;
+            _qrView.DoubleClick += DeliveryGrid_DoubleClick;
+
+            deliveryQrHost.Controls.Add(_deliveryGrid, 0, 1);
+            deliveryQrHost.Controls.Add(_qrGrid, 1, 1);
+            left.Controls.Add(deliveryQrHost, 0, 0);
 
             var timelineHost = new Panel { Dock = DockStyle.Fill, BackColor = Color.White, Padding = new Padding(6) };
             _timelineCaption.Text = "TIMELINE GIAO DỊCH";
@@ -376,28 +413,144 @@ namespace PCTP.Modules.BaoCao.UI
             panel.SetColumnSpan(editor, span);
         }
 
-        private static void ConfigureGrid(DataGridView grid)
+        private static Label CreateGridCaption(string text)
+        {
+            return new Label
+            {
+                Text = text,
+                Dock = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(35, 65, 95),
+                BackColor = Color.White,
+                Padding = new Padding(6, 0, 0, 0),
+                Margin = Padding.Empty
+            };
+        }
+
+        private static void ConfigureDevExpressGrid(GridControl grid, GridView view)
         {
             grid.Dock = DockStyle.Fill;
-            grid.BackgroundColor = Color.White;
-            grid.ForeColor = Color.FromArgb(35, 35, 35);
-            grid.GridColor = Color.FromArgb(220, 220, 220);
-            grid.BorderStyle = BorderStyle.FixedSingle;
-            grid.EnableHeadersVisualStyles = false;
-            grid.ColumnHeadersVisible = true;
-            grid.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(235, 230, 216);
-            grid.ColumnHeadersDefaultCellStyle.ForeColor = Color.FromArgb(35, 35, 35);
-            grid.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-            grid.DefaultCellStyle.BackColor = Color.White;
-            grid.DefaultCellStyle.ForeColor = Color.FromArgb(35, 35, 35);
-            grid.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(248, 248, 248);
-            grid.ReadOnly = true;
-            grid.AllowUserToAddRows = false;
-            grid.AllowUserToDeleteRows = false;
-            grid.AutoGenerateColumns = true;
-            grid.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
-            grid.MultiSelect = false;
-            grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.DisplayedCells;
+            grid.MainView = view;
+            grid.ViewCollection.Add(view);
+            grid.UseEmbeddedNavigator = false;
+            view.OptionsBehavior.Editable = false;
+            view.OptionsBehavior.ReadOnly = true;
+            view.OptionsView.ShowGroupPanel = false;
+            view.OptionsView.ShowIndicator = true;
+            view.OptionsView.ColumnAutoWidth = false;
+            view.OptionsView.EnableAppearanceEvenRow = true;
+            view.OptionsView.EnableAppearanceOddRow = true;
+            view.OptionsSelection.EnableAppearanceFocusedCell = false;
+            view.FocusRectStyle = DrawFocusRectStyle.RowFocus;
+            view.OptionsSelection.MultiSelect = false;
+            view.OptionsCustomization.AllowFilter = true;
+            view.OptionsView.ShowAutoFilterRow = true;
+            view.Appearance.HeaderPanel.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            view.Appearance.Row.Font = new Font("Segoe UI", 9F);
+            view.Appearance.HeaderPanel.Options.UseFont = true;
+            view.Appearance.Row.Options.UseFont = true;
+        }
+
+        private void ConfigureDeliveryColumns()
+        {
+            AddGridColumn(_deliveryView, "DeliveryStt", "STT", 55);
+            AddGridColumn(_deliveryView, "Door", "Cửa", 65);
+            AddGridColumn(_deliveryView, "Conveyor", "Truyền", 70);
+            AddGridColumn(_deliveryView, "LotNoRaw", "LOT giao (có thể ghép)", 260);
+            AddGridColumn(_deliveryView, "Quantity", "Số lượng", 85);
+            AddGridColumn(_deliveryView, "Unit", "ĐVT", 55);
+            AddGridColumn(_deliveryView, "DeliveryDate", "Ngày giao", 100);
+            AddGridColumn(_deliveryView, "DocumentNo", "Chứng từ", 110);
+            AddGridColumn(_deliveryView, "CustomerName", "Khách hàng", 150);
+            AddGridColumn(_deliveryView, "DeliveryKey", "DeliveryKey", 220).Visible = false;
+        }
+
+        private void ConfigureQrColumns()
+        {
+            AddGridColumn(_qrView, "QrScanOrder", "Dòng", 55);
+            AddGridColumn(_qrView, "QRCode", "QR FCC", 210);
+            AddGridColumn(_qrView, "CustomerLabelData", "LOT tem KH", 160);
+            AddGridColumn(_qrView, "QrLotNo", "LOT QR", 160);
+            AddGridColumn(_qrView, "QrScanDate", "Ngày đọc", 100);
+            AddGridColumn(_qrView, "QrScanTime", "Giờ đọc", 85);
+            AddGridColumn(_qrView, "QrStatus", "Kết quả", 85);
+        }
+
+        private static GridColumn AddGridColumn(GridView view, string field, string caption, int width)
+        {
+            GridColumn column = view.Columns.AddVisible(field, caption);
+            column.Width = width;
+            column.OptionsColumn.AllowEdit = false;
+            column.OptionsColumn.ReadOnly = true;
+            return column;
+        }
+
+        private void BindDeliveryRows()
+        {
+            _deliveryRows = _currentRows
+                .Where(x => x != null)
+                .GroupBy(x => x.DeliveryKey ?? string.Empty, StringComparer.OrdinalIgnoreCase)
+                .Select(g => g.First())
+                .ToList();
+
+            _deliveryGrid.DataSource = new BindingList<DeliveryTraceRow>(_deliveryRows);
+            if (_deliveryRows.Count > 0)
+            {
+                _deliveryView.FocusedRowHandle = 0;
+                BindQrRows(_deliveryRows[0].DeliveryKey);
+            }
+            else
+            {
+                BindQrRows(null);
+            }
+        }
+
+        private void BindQrRows(string deliveryKey)
+        {
+            _bindingQrGrid = true;
+            try
+            {
+                _qrRows = string.IsNullOrWhiteSpace(deliveryKey)
+                    ? new List<DeliveryTraceRow>()
+                    : _currentRows
+                        .Where(x => x != null && string.Equals(x.DeliveryKey, deliveryKey, StringComparison.OrdinalIgnoreCase))
+                        .Where(x => !string.IsNullOrWhiteSpace(x.QRCode))
+                        .GroupBy(x => x.QrScanOrder.HasValue
+                            ? "STT:" + x.QrScanOrder.Value.ToString()
+                            : "QR:" + x.QRCode, StringComparer.OrdinalIgnoreCase)
+                        .Select(g => g.First())
+                        .OrderBy(x => x.QrScanOrder ?? int.MaxValue)
+                        .ToList();
+
+                _qrGrid.DataSource = new BindingList<DeliveryTraceRow>(_qrRows);
+                if (_qrRows.Count > 0) _qrView.FocusedRowHandle = 0;
+            }
+            finally { _bindingQrGrid = false; }
+        }
+
+        private DeliveryTraceRow GetFocusedDelivery()
+        {
+            return _deliveryView.GetFocusedRow() as DeliveryTraceRow;
+        }
+
+        private DeliveryTraceRow GetFocusedQr()
+        {
+            return _qrView.GetFocusedRow() as DeliveryTraceRow;
+        }
+
+        private void DeliveryView_FocusedRowChanged(object sender, DevExpress.XtraGrid.Views.Base.FocusedRowChangedEventArgs e)
+        {
+            if (_bindingQrGrid) return;
+            DeliveryTraceRow row = GetFocusedDelivery();
+            BindQrRows(row == null ? null : row.DeliveryKey);
+        }
+
+        private void DeliveryGrid_DoubleClick(object sender, EventArgs e)
+        {
+            DeliveryTraceRow row = sender == _qrGrid ? GetFocusedQr() : GetFocusedDelivery();
+            if (row == null) row = GetFocusedDelivery();
+            if (row != null) _ = BuildTimelineAsync(row);
         }
 
         private async void SearchButton_Click(object sender, EventArgs e)
@@ -434,8 +587,8 @@ namespace PCTP.Modules.BaoCao.UI
                     rows = await _qrQuery.SearchAsync(qr, customerLabel, part, customer, from, to, CancellationToken.None);
 
                 _currentRows = rows == null ? new List<DeliveryTraceRow>() : rows.ToList();
-                _grid.DataSource = new BindingList<DeliveryTraceRow>(_currentRows);
-                ClearTimeline("Chọn một dòng giao hàng để dựng timeline theo LOT.");
+                BindDeliveryRows();
+                ClearTimeline("Chọn một dòng giao hàng để xem QR và dựng timeline theo toàn bộ LOT ghép.");
                 _status.Text = "Tìm thấy " + _currentRows.Count + " dòng." +
                     (_currentRows.Count == 0 ? " Kiểm tra khoảng ngày (theo NGAYGIAO) và ô Khách hàng." : string.Empty);
             }
@@ -465,14 +618,12 @@ namespace PCTP.Modules.BaoCao.UI
             return text;
         }
 
-        private async void DeliveryGrid_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
+        private async Task BuildTimelineAsync(DeliveryTraceRow row)
         {
-            if (e.RowIndex < 0 || e.RowIndex >= _currentRows.Count) return;
-
-            DeliveryTraceRow row = _currentRows[e.RowIndex];
+            if (row == null) return;
             try
             {
-                _status.Text = "Đang dựng timeline theo bằng chứng LOT...";
+                _status.Text = "Đang dựng timeline theo toàn bộ LOT ghép...";
                 _timeline.Enabled = false;
                 IReadOnlyList<DeliveryLotTraceRow> lots = await _qrQuery.GetLotsAsync(
                     row.DeliveryKey, row.QRCode, CancellationToken.None);
@@ -495,10 +646,7 @@ namespace PCTP.Modules.BaoCao.UI
                             foreach (ProductionLotTraceRow prod in production)
                                 nodes.Add(TraceNode.ForProduction(row, lot, prod));
                         }
-                        else
-                        {
-                            nodes.Add(TraceNode.MissingProduction(row, lot));
-                        }
+                        else nodes.Add(TraceNode.MissingProduction(row, lot));
 
                         var criteria = new HistorySearchCriteria
                         {
@@ -507,27 +655,19 @@ namespace PCTP.Modules.BaoCao.UI
                             From = null,
                             To = null
                         };
-                        IReadOnlyList<ItemHistoryRow> history = await _stockHistoryQuery.SearchAsync(
-                            criteria, CancellationToken.None);
-
+                        IReadOnlyList<ItemHistoryRow> history = await _stockHistoryQuery.SearchAsync(criteria, CancellationToken.None);
                         int matchedHistoryCount = 0;
                         if (history != null)
                         {
                             foreach (ItemHistoryRow item in history)
                             {
-                                if (item == null) continue;
-                                // A stock-history row is included only when its LOT matches
-                                // the allocation being traced. The query's LIKE is narrowed
-                                // again here to avoid prefix/suffix cross-matches.
-                                if (!LotCodeHelper.AreLotKeysEquivalent(item.LotNo, lot.LotNo))
+                                if (item == null || !LotCodeHelper.AreLotKeysEquivalent(item.LotNo, lot.LotNo))
                                     continue;
                                 nodes.Add(TraceNode.ForStock(item, lot.LotNo));
                                 matchedHistoryCount++;
                             }
                         }
-
-                        if (matchedHistoryCount == 0)
-                            nodes.Add(TraceNode.MissingStockHistory(row, lot));
+                        if (matchedHistoryCount == 0) nodes.Add(TraceNode.MissingStockHistory(row, lot));
                     }
                 }
 
@@ -537,9 +677,8 @@ namespace PCTP.Modules.BaoCao.UI
                     .ThenBy(x => x.SortOrder)
                     .ToList());
                 RenderTimeline();
-                _status.Text = "Timeline có " + _timelineNodes.Count +
-                    " node. " + (lots == null ? 0 : lots.Count) + " phân bổ LOT; " +
-                    "chỉ gồm chứng từ giao hàng và lịch sử kho truy vấn được.";
+                _status.Text = "Timeline có " + _timelineNodes.Count + " node; " +
+                    (lots == null ? 0 : lots.Count) + " phân bổ LOT được truy xuất riêng.";
             }
             catch (Exception ex)
             {
@@ -547,10 +686,7 @@ namespace PCTP.Modules.BaoCao.UI
                 _status.Text = "Lỗi dựng timeline.";
                 XtraMessageBox.Show(this, ex.Message, "Báo cáo truy xuất", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
-            finally
-            {
-                _timeline.Enabled = true;
-            }
+            finally { _timeline.Enabled = true; }
         }
 
         private void RenderTimeline()
@@ -847,7 +983,10 @@ namespace PCTP.Modules.BaoCao.UI
             _txtCustomer.Text = string.Empty;
             _from.Value = DateTime.Today.AddDays(-30);
             _to.Value = DateTime.Today;
-            _grid.DataSource = null;
+            _deliveryGrid.DataSource = null;
+            _qrGrid.DataSource = null;
+            _deliveryRows.Clear();
+            _qrRows.Clear();
             ClearTimeline("Đã xóa điều kiện tra cứu.");
             _currentRows.Clear();
             _status.Text = "Sẵn sàng";
@@ -865,7 +1004,9 @@ namespace PCTP.Modules.BaoCao.UI
         protected override void Dispose(bool disposing)
         {
             if (disposing)
-                _grid.CellDoubleClick -= DeliveryGrid_CellDoubleClick;
+                _deliveryView.FocusedRowChanged -= DeliveryView_FocusedRowChanged;
+                _deliveryView.DoubleClick -= DeliveryGrid_DoubleClick;
+                _qrView.DoubleClick -= DeliveryGrid_DoubleClick;
             base.Dispose(disposing);
         }
     }
