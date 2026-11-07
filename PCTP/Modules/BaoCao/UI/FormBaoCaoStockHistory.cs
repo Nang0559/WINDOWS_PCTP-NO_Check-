@@ -42,6 +42,7 @@ namespace PCTP.Modules.BaoCao.UI
         private GridView _deliveryView;
         private readonly List<DeliveryTraceRow> _deliveryRows = new List<DeliveryTraceRow>();
         private TraceTimelineControl _timelineView;
+        private SplitContainer _bottomSplit;
         private TextBox _detailText;
         private LotTraceTimelineBuilder _timelineBuilder;
         private readonly SemaphoreSlim _timelineGate = new SemaphoreSlim(1, 1);
@@ -194,8 +195,11 @@ namespace PCTP.Modules.BaoCao.UI
                 Orientation = Orientation.Vertical,
                 SplitterWidth = 5
             };
+            _bottomSplit = bottom;
             bottom.Panel1.Controls.Add(deliveryPanel);
             bottom.Panel2.Controls.Add(timelinePanel);
+            // Lưới "Truy vết xuôi" chỉ hiện khi có phiếu giao/QR; chưa có thì timeline chiếm toàn bộ chiều ngang.
+            bottom.Panel1Collapsed = true;
             // Đặt splitter SAU khi control có kích thước thật, luôn kẹp trong giới hạn hợp lệ
             // (đặt trong initializer gây "SplitterDistance must be between Panel1MinSize and Width - Panel2MinSize").
             split.SizeChanged += (s2, e2) => ApplySplit(split, 260, 120, 220);
@@ -218,6 +222,7 @@ namespace PCTP.Modules.BaoCao.UI
         private static void ApplySplit(SplitContainer sc, int desired, int min1, int min2)
         {
             if (sc == null || sc.IsDisposed || !sc.IsHandleCreated) return;
+            if (sc.Panel1Collapsed || sc.Panel2Collapsed) return;
             int total = sc.Orientation == Orientation.Horizontal ? sc.Height : sc.Width;
             int available = total - sc.SplitterWidth;
             if (available <= 0) return;
@@ -294,6 +299,7 @@ namespace PCTP.Modules.BaoCao.UI
                 Bind(rows, ConfigureHistoryColumns);
                 _deliveryRows.Clear();
                 _deliveryGrid.DataSource = null;
+                SetDeliveryPanelVisible(false);
                 _timelineVersion++;
                 _timelineView.Clear(rows == null || rows.Count == 0
                     ? "Không có giao dịch kho phù hợp. Kiểm tra khoảng ngày (Từ ngày/Đến ngày) và mã hàng/LOT."
@@ -473,6 +479,15 @@ namespace PCTP.Modules.BaoCao.UI
                 ConfigureDeliveryColumns();
             }
             finally { _deliveryView.EndUpdate(); }
+            SetDeliveryPanelVisible(_deliveryRows.Count > 0);
+        }
+
+        private void SetDeliveryPanelVisible(bool visible)
+        {
+            if (_bottomSplit == null || _bottomSplit.IsDisposed) return;
+            if (_bottomSplit.Panel1Collapsed == !visible) return;
+            _bottomSplit.Panel1Collapsed = !visible;
+            if (visible) ApplySplit(_bottomSplit, _bottomSplit.Width * 45 / 100, 200, 260);
         }
 
         private void ConfigureDeliveryColumns()
@@ -617,8 +632,8 @@ namespace PCTP.Modules.BaoCao.UI
             Col("ItemCode", "Mã hàng", 140);
             Col("LotNo", "LOT No", 190);
             Col("QrCode", "QR Code", 300);
-            Col("QuantityIn", "SL nhập", 80, "n0;-n0;", true, true);   // 0 hiển thị trống
-            Col("QuantityOut", "SL xuất", 80, "n0;-n0;", true, true);
+            Col("QuantityIn", "SL nhập", 80, "#,##0;-#,##0;", true, true);   // 0 hiển thị trống (không dùng "n0;-n0;": chuỗi có dấu ; là custom format nên "n0" bị in nguyên văn)
+            Col("QuantityOut", "SL xuất", 80, "#,##0;-#,##0;", true, true);
             Col("Quantity", "SL giao dịch", 90, "n0", false, true);
             Col("FromLocation", "Từ vị trí", 190);
             Col("ToLocation", "Đến vị trí", 190);
