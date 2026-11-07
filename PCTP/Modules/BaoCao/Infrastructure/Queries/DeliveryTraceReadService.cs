@@ -95,11 +95,32 @@ namespace PCTP.Modules.BaoCao.Infrastructure.Queries
                     });
                 }
             }
-            catch (FormatException)
+            catch (FormatException ex)
             {
-                // Invalid composite allocations are not silently converted into a
-                // single LOT with an invented quantity. The caller can show the raw
-                // delivery LOT as an unresolved evidence issue.
+                // A legacy single LOT may be stored without "-quantity". In that
+                // case use the delivery row quantity only when the value itself is
+                // a recognized LOT key. Never apply this fallback to a malformed
+                // comma-separated composite value.
+                if (source.LotNoRaw.IndexOf(',') < 0 &&
+                    LotCodeHelper.ClassifyLotKey(source.LotNoRaw) != LotKeyKind.Unknown &&
+                    source.Quantity.HasValue && source.Quantity.Value > 0)
+                {
+                    result.Add(new DeliveryLotTraceRow
+                    {
+                        DeliveryKey = source.DeliveryKey,
+                        QRCode = string.IsNullOrWhiteSpace(qrCode) ? string.Empty : qrCode.Trim(),
+                        LotNo = source.LotNoRaw.Trim(),
+                        Quantity = source.Quantity.Value
+                    });
+                }
+                else
+                {
+                    result.Add(new DeliveryLotTraceRow
+                    {
+                        DeliveryKey = source.DeliveryKey,
+                        ParseError = ex.Message
+                    });
+                }
             }
 
             return result;
