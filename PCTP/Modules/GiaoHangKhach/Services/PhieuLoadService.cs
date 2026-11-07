@@ -117,6 +117,11 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             OrderSourceResult sourceResult = _orderSourceFactory.GetSource(context).Load(context);
             DataTable donHang = sourceResult.Orders ?? new DataTable();
 
+            // YMVN: QCDG từ Purchase_Order_YMVN là sức chứa theo xe, không phải
+            // quy cách hộp. HOP phải được tính lại từ B20Item.MinCloseQty giống master.
+            if (_cfg.Delivery.CoGear && donHang.Rows.Count > 0)
+                SWLog.Measure($"EnrichSttHop YMVN ({donHang.Rows.Count})", () => EnrichSttHop(donHang));
+
             // Selected time slots are the authoritative scope. An empty selection
             // produces an empty snapshot, never an unfiltered/all-hours order set.
             if (noSelectedYmvHours)
