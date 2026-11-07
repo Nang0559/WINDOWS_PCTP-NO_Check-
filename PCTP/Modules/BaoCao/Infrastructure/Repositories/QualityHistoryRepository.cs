@@ -92,9 +92,12 @@ ORDER BY ItemCode";
                 }
                 else
                 {
-                    where += " AND ItemCode = @ItemCode";
-                    parameters.Add(new SqlParameter("@ItemCode", SqlDbType.NVarChar, 100)
-                    { Value = itemCode.Trim() });
+                    // Match the shared lookup behavior: allow a complete code or
+                    // a partial code typed into the item tab. Trim stored values too,
+                    // because older inspection rows may contain padded ItemCode data.
+                    where += " AND LTRIM(RTRIM(ISNULL(ItemCode, N''))) LIKE @ItemCode";
+                    parameters.Add(new SqlParameter("@ItemCode", SqlDbType.NVarChar, 202)
+                    { Value = "%" + itemCode.Trim() + "%" });
                 }
             }
 
