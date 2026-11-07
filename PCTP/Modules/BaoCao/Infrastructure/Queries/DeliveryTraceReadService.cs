@@ -68,46 +68,38 @@ namespace PCTP.Modules.BaoCao.Infrastructure.Queries
                 ? await _repository.FindByDeliveryKeyAsync(deliveryKey, cancellationToken)
                 : await _repository.FindByQrAsync(qrCode, cancellationToken);
 
-            var result = new List<DeliveryLotTraceRow>();
             string requestedDeliveryKey = deliveryKey.Trim();
+            DeliveryTraceRow source = (rows ?? new List<DeliveryTraceRow>())
+                .FirstOrDefault(x => x != null && string.Equals(
+                    x.DeliveryKey, requestedDeliveryKey, StringComparison.OrdinalIgnoreCase));
 
-            foreach (DeliveryTraceRow delivery in rows)
+            if (source == null || string.IsNullOrWhiteSpace(source.LotNoRaw))
+                return new List<DeliveryLotTraceRow>();
+
+            // LUUPHIEUGIAOHANG.LOT is one delivery-row allocation list. The QR join
+            // can return N rows for N scans, but must not multiply the same LOT allocations.
+            // QR is only attached as the currently selected carton context; it is not
+            // treated as a proven per-LOT foreign key.
+            var result = new List<DeliveryLotTraceRow>();
+            try
             {
-                cancellationToken.ThrowIfCancellationRequested();
-                if (!string.Equals(
-                    delivery.DeliveryKey,
-                    requestedDeliveryKey,
-                    StringComparison.OrdinalIgnoreCase))
+                foreach (var lot in LotCodeHelper.ParseCompositeLot(source.LotNoRaw))
                 {
-                    continue;
-                }
-
-                try
-                {
-                    foreach (var lot in LotCodeHelper.ParseCompositeLot(delivery.LotNoRaw))
+                    cancellationToken.ThrowIfCancellationRequested();
+                    result.Add(new DeliveryLotTraceRow
                     {
-                        result.Add(new DeliveryLotTraceRow
-                        {
-                            DeliveryKey = delivery.DeliveryKey,
-                            QRCode = delivery.QRCode,
-                            LotNo = lot.Key,
-                            Quantity = lot.Value
-                        });
-                    }
+                        DeliveryKey = source.DeliveryKey,
+                        QRCode = string.IsNullOrWhiteSpace(qrCode) ? string.Empty : qrCode.Trim(),
+                        LotNo = lot.Key,
+                        Quantity = lot.Value
+                    });
                 }
-                catch (FormatException)
-                {
-                    if (!string.IsNullOrWhiteSpace(delivery.LotNoRaw))
-                    {
-                        result.Add(new DeliveryLotTraceRow
-                        {
-                            DeliveryKey = delivery.DeliveryKey,
-                            QRCode = delivery.QRCode,
-                            LotNo = delivery.LotNoRaw.Trim(),
-                            Quantity = delivery.Quantity ?? 0m
-                        });
-                    }
-                }
+            }
+            catch (FormatException)
+            {
+                // Invalid composite allocations are not silently converted into a
+                // single LOT with an invented quantity. The caller can show the raw
+                // delivery LOT as an unresolved evidence issue.
             }
 
             return result;
