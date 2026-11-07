@@ -498,72 +498,39 @@ namespace PCTP.Modules.BaoCao.UI
             if (_grid.DataSource == null) return;
             using (var dialog = new SaveFileDialog())
             {
-                dialog.Filter = "Excel File (*.xlsx)|*.xlsx";
-                dialog.FileName = (_showingCurrentStock ? "KhoHienTai_" : "LichSuNhapXuat_") + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".xlsx";
+                dialog.Filter = "Excel Workbook (*.xlsx)|*.xlsx";
+                dialog.DefaultExt = "xlsx";
+                dialog.AddExtension = true;
+                dialog.FileName = (_showingCurrentStock ? "KhoHienTai_" : "LichSuNhapXuat_") +
+                    DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".xlsx";
                 if (dialog.ShowDialog(this) != DialogResult.OK) return;
-                object sourceRows = _grid.DataSource;
-                List<DeliveryTraceRow> deliveryRows = _deliveryRows.ToList();
-                string fileName = dialog.FileName;
-                await _waitForm.RunAsync(() => Task.Run(() =>
-                {
-                    var workbook = new Workbook();
-                    Worksheet sourceSheet = workbook.Worksheets[0];
-                    sourceSheet.Name = _showingCurrentStock ? "San xuat va ton" : "Lich su kho";
-                    ExportGridRows(sourceSheet, sourceRows);
-                    Worksheet deliverySheet = workbook.Worksheets.Add("Giao hang va QR");
-                    ExportGridRows(deliverySheet, deliveryRows);
-                    foreach (Worksheet sheet in workbook.Worksheets)
-                    {
-                        sheet.FreezePanes(1, 0);
-                        var used = sheet.GetUsedRange();
-                        if (used != null && used.RightColumnIndex >= 0)
-                            sheet.Columns.AutoFit(0, used.RightColumnIndex);
-                    }
-                    workbook.SaveDocument(fileName, DocumentFormat.Xlsx);
-                }), "Đang tạo file Excel truy vết xuôi...");
-                XtraMessageBox.Show(this, "Xuất Excel thành công. File gồm dữ liệu sản xuất/lịch sử kho và phiếu giao hàng/QR đã truy vết.",
-                    "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
-        }
 
-        private static void ExportGridRows(Worksheet sheet, object dataSource)
-        {
-            if (dataSource == null) return;
-            var rows = dataSource as System.Collections.IEnumerable;
-            if (rows == null) return;
-            var properties = dataSource.GetType().GetGenericArguments().FirstOrDefault();
-            Type rowType = properties;
-            if (rowType == null)
-            {
-                object first = rows.Cast<object>().FirstOrDefault();
-                if (first == null) return;
-                rowType = first.GetType();
-            }
-            PropertyInfo[] columns = rowType.GetProperties(BindingFlags.Public | BindingFlags.Instance)
-                .Where(p => p.CanRead && p.GetIndexParameters().Length == 0)
-                .ToArray();
-            for (int c = 0; c < columns.Length; c++)
-            {
-                sheet.Cells[0, c].Value = columns[c].Name;
-                sheet.Cells[0, c].Font.Bold = true;
-            }
-            int r = 1;
-            foreach (object item in rows)
-            {
-                if (item == null) continue;
-                for (int c = 0; c < columns.Length; c++)
+                try
                 {
-                    object value = columns[c].GetValue(item, null);
-                    if (value == null) sheet.Cells[r, c].Value = string.Empty;
-                    else if (value is DateTime) sheet.Cells[r, c].Value = (DateTime)value;
-                    else if (value is decimal) sheet.Cells[r, c].Value = Convert.ToDouble(value);
-                    else if (value is int) sheet.Cells[r, c].Value = (int)value;
-                    else sheet.Cells[r, c].Value = Convert.ToString(value);
+                    string basePath = System.IO.Path.Combine(
+                        System.IO.Path.GetDirectoryName(dialog.FileName),
+                        System.IO.Path.GetFileNameWithoutExtension(dialog.FileName));
+                    string sourcePath = basePath + "_SanXuatTonKho.xlsx";
+                    string deliveryPath = basePath + "_GiaoHangQR.xlsx";
+
+                    await _waitForm.RunAsync(() => Task.Run(() =>
+                    {
+                        _grid.ExportToXlsx(sourcePath);
+                        if (_deliveryGrid.DataSource != null)
+                            _deliveryGrid.ExportToXlsx(deliveryPath);
+                    }), "Đang xuất dữ liệu sản xuất/kho và giao hàng/QR...");
+
+                    string message = "Đã xuất dữ liệu bằng DevExpress Export:\r\n" + sourcePath;
+                    if (_deliveryGrid.DataSource != null) message += "\r\n" + deliveryPath;
+                    XtraMessageBox.Show(this, message, "Xuất Excel",
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
-                r++;
+                catch (Exception ex)
+                {
+                    XtraMessageBox.Show(this, "Không thể xuất Excel: " + ex.Message, "Xuất Excel",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
             }
-            if (columns.Length > 0)
-                sheet.Range.FromLTRB(0, 0, columns.Length - 1, 0).Font.Bold = true;
         }
 
         private void PrintClick(object sender, EventArgs e)
