@@ -208,7 +208,7 @@ namespace PCTP.Modules.XuLyHangLoi
                 case 2: _btnSecondary.Visible = true; _btnPrimary.Text = "Tạo phiếu bất thường"; _lblHint.Text = "Bước 2: gồm dòng phiếu trả CHƯA tạo phiếu bất thường (mới tạo một phần; chọn rồi bấm 'Tạo phiếu bất thường') và các phiếu bất thường ĐÃ TẠO để theo dõi (chọn dòng + bấm nút hoặc bấm đúp để nhảy tới bước hiện tại của phiếu)."; break;
                 case 3: _btnSecondary.Visible = false; _btnPrimary.Text = "Truy vết LOT"; _lblHint.Text = "Bước 3: truy vết kho thành phẩm, WIP/sản xuất và khách trả; snapshot trước khi QC."; break;
                 case 4: _btnSecondary.Visible = false; _btnPrimary.Text = "QC định hướng"; _lblHint.Text = "Bước 4: QC chọn Từ chối giao bù / Chỉ giao bù / Có Rework."; break;
-                case 5: _btnSecondary.Visible = false; _btnPrimary.Text = "Initial QC"; _lblHint.Text = "Bước 5: kiểm đủ snapshot. DaKiemTra = OK + NG; NG = Rework + LoaiBoBanDau."; break;
+                case 5: _btnSecondary.Visible = false; _btnPrimary.Text = "Initial QC"; _lblHint.Text = "Bước 5: kiểm đủ snapshot. Chỉ nhập Đã kiểm tra, Rework, Loại bỏ; NG = Rework + Loại bỏ và OK = Đã kiểm tra - NG được tự tính. Hàng cần rework thì nhập vào cột Rework (không nhập vào OK)."; break;
                 case 6: _btnSecondary.Visible = false; _btnPrimary.Text = "Xuất / Giao Rework"; _lblHint.Text = "Bước 6: chỉ nhánh CanRework; xuất không vượt Initial QC Rework, giao sản xuất. 'Ghi nhận tiến độ Rework' chỉ ghi chú, không xác nhận sửa xong. Sửa xong thì đóng form Rework và chọn bước 7."; break;
                 case 7: _btnSecondary.Visible = false; _btnPrimary.Text = "QC Rework / Disposition"; _lblHint.Text = "Bước 7: QC Rework OK + NG = lượng Rework; NG Rework cộng vào loại bỏ cuối."; break;
                 case 8: _btnSecondary.Visible = false; _btnPrimary.Text = "Giao bù / Hoàn tất"; _lblHint.Text = "Bước 8: phiếu còn chờ giao bù / hoàn tất nằm trên; phiếu ĐÃ HOÀN TẤT (" + SoNgayHienThiPhieuHoanTat + " ngày gần nhất) nằm dưới, chọn dòng và bấm nút để xem kết quả. Giao bù là nghĩa vụ độc lập; không suy ra từ NG/Rework."; break;
@@ -963,12 +963,14 @@ namespace PCTP.Modules.XuLyHangLoi
             AddTextColumn("LotNo", "LOT", 120, true);
             AddTextColumn("MaSanPham", "Mã hàng", 130, true);
             AddTextColumn("SoLuongAnhHuong", "Ảnh hưởng", 90, true);
+            // Chỉ nhập: Đã kiểm tra, Rework, Loại bỏ. NG = Rework + Loại bỏ; OK = Đã kiểm tra - NG (tự tính, không cho sửa)
+            // để không thể nhập sai quy tắc "NG = Rework + Loại bỏ ban đầu" và "Đã kiểm tra = OK + NG".
             AddNumberColumn("SoLuongDaKiemTra", "Đã kiểm tra", 95);
-            AddNumberColumn("SoLuongOK", "OK", 80);
-            AddNumberColumn("SoLuongNG", "NG", 80);
+            AddNumberColumn("SoLuongOK", "OK (tự tính)", 95, true);
+            AddNumberColumn("SoLuongNG", "NG (tự tính)", 95, true);
             AddNumberColumn("SoLuongRework", "Rework", 90);
             AddNumberColumn("SoLuongLoaiBo", "Loại bỏ", 90);
-            _grid.CellEndEdit += (s, e) => UpdateSummary();
+            _grid.CellEndEdit += (s, e) => { if (e.RowIndex >= 0) RecalcRow(e.RowIndex); UpdateSummary(); };
             root.Controls.Add(_grid, 0, 1);
             _txtNoiDung = new TextEdit { Dock = DockStyle.Fill };
             _txtNoiDung.Properties.NullValuePrompt = "Nội dung kiểm tra...";
@@ -990,14 +992,34 @@ namespace PCTP.Modules.XuLyHangLoi
         }
 
         private void AddTextColumn(string name, string caption, int width, bool visible) { _grid.Columns.Add(new DataGridViewTextBoxColumn { Name = name, HeaderText = caption, Width = width, Visible = visible, ReadOnly = true }); }
-        private void AddNumberColumn(string name, string caption, int width) { _grid.Columns.Add(new DataGridViewTextBoxColumn { Name = name, HeaderText = caption, Width = width, ValueType = typeof(int) }); }
+        private void AddNumberColumn(string name, string caption, int width, bool readOnly = false)
+        {
+            var column = new DataGridViewTextBoxColumn { Name = name, HeaderText = caption, Width = width, ValueType = typeof(int), ReadOnly = readOnly };
+            if (readOnly) column.DefaultCellStyle.BackColor = Color.WhiteSmoke;
+            _grid.Columns.Add(column);
+        }
+
+        private void RecalcRow(int rowIndex)
+        {
+            var row = _grid.Rows[rowIndex];
+            int affected = Convert.ToInt32(row.Cells["SoLuongAnhHuong"].Value);
+            int inspected = CellInt(rowIndex, "SoLuongDaKiemTra");
+            int rework = CellInt(rowIndex, "SoLuongRework");
+            int scrap = CellInt(rowIndex, "SoLuongLoaiBo");
+            int ng = rework + scrap;
+            row.Cells["SoLuongNG"].Value = ng;
+            row.Cells["SoLuongOK"].Value = inspected - ng;
+            if (inspected > affected) row.ErrorText = "Đã kiểm tra vượt số lượng ảnh hưởng.";
+            else if (ng > inspected) row.ErrorText = "Rework + Loại bỏ vượt số đã kiểm tra.";
+            else row.ErrorText = string.Empty;
+        }
 
         private void LoadSnapshot()
         {
             if (_initialQCService.Get(_phieuXuLyId) != null) throw new InvalidOperationException("Phiếu đã có Initial QC; không cho ghi đè kết quả đã xác nhận.");
             var snapshot = _traceService.GetSnapshot(_phieuXuLyId);
             if (snapshot == null || snapshot.Count == 0) throw new InvalidOperationException("Chưa có snapshot LOT. Hãy thực hiện Truy vết LOT trước.");
-            foreach (var item in snapshot) _grid.Rows.Add(item.Id, item.SourceType.ToString(), item.LotNo, item.MaSanPham, item.SoLuongAnhHuong, 0, 0, 0, 0, 0);
+            foreach (var item in snapshot) _grid.Rows.Add(item.Id, item.SourceType.ToString(), item.LotNo, item.MaSanPham, item.SoLuongAnhHuong, item.SoLuongAnhHuong, item.SoLuongAnhHuong, 0, 0, 0);
             UpdateSummary();
         }
 
@@ -1027,6 +1049,12 @@ namespace PCTP.Modules.XuLyHangLoi
             try
             {
                 var list = new List<InitialQCLotResult>();
+                foreach (DataGridViewRow row in _grid.Rows)
+                    RecalcRow(row.Index);
+                foreach (DataGridViewRow row in _grid.Rows)
+                    if (!string.IsNullOrEmpty(row.ErrorText))
+                        throw new InvalidOperationException("LOT " + Convert.ToString(row.Cells["LotNo"].Value) + ": " + row.ErrorText);
+                UpdateSummary();
                 foreach (DataGridViewRow row in _grid.Rows)
                     list.Add(new InitialQCLotResult { AffectedLotId = Convert.ToInt32(row.Cells["AffectedLotId"].Value), SoLuongDaKiemTra = CellInt(row.Index, "SoLuongDaKiemTra"), SoLuongOK = CellInt(row.Index, "SoLuongOK"), SoLuongNG = CellInt(row.Index, "SoLuongNG"), SoLuongRework = CellInt(row.Index, "SoLuongRework"), SoLuongLoaiBo = CellInt(row.Index, "SoLuongLoaiBo") });
 
