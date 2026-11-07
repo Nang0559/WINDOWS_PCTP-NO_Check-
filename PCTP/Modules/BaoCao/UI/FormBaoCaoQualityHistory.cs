@@ -5,11 +5,12 @@ using DevExpress.XtraGrid.Views.Grid;
 using PCTP.Modules.BaoCao.Application.Contracts.Queries;
 using PCTP.Modules.BaoCao.Infrastructure.Queries;
 using PCTP.Shell.UI;
-using System;
-using System.ComponentModel;
-using System.Drawing;
-using System.Data;
 using PCTP.Shared.Lookup;
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -21,221 +22,441 @@ namespace PCTP.Modules.BaoCao.UI
     public sealed class FormBaoCaoQualityHistory : WmsTitleBarForm
     {
         private readonly IQualityHistoryQuery _query;
-        private DateEdit _from;
-        private DateEdit _to;
-        private StockLookupControl _itemLookup;
-        private ComboBoxEdit _result;
-        private GridControl _masterGrid;
-        private GridView _masterView;
-        private GridControl _detailGrid;
-        private GridView _detailView;
-        private LabelControl _summary;
+        private readonly IWaitFormService _waitForm;
+        private readonly StockLookupControl _lookup = new StockLookupControl();
+        private readonly DateEdit _from = new DateEdit();
+        private readonly DateEdit _to = new DateEdit();
+        private readonly ComboBoxEdit _result = new ComboBoxEdit();
+        private readonly GridControl _masterGrid = new GridControl();
+        private readonly GridView _masterView;
+        private readonly GridControl _detailGrid = new GridControl();
+        private readonly GridView _detailView;
+        private readonly TraceTimelineControl _timeline = new TraceTimelineControl();
+        private readonly TextBox _timelineDetail = new TextBox();
+        private readonly LabelControl _summary = new LabelControl();
+        private readonly SimpleButton _export = new SimpleButton();
+        private readonly SimpleButton _print = new SimpleButton();
+        private readonly CancellationTokenSource _lifetime = new CancellationTokenSource();
+        private List<QualityHistoryRow> _rows = new List<QualityHistoryRow>();
+        private List<QualityHistoryDetailRow> _details = new List<QualityHistoryDetailRow>();
+        private List<TraceTimelineNode> _timelineNodes = new List<TraceTimelineNode>();
+        private bool _loading;
 
         public FormBaoCaoQualityHistory(IQualityHistoryQuery query)
         {
-            if (query == null) throw new ArgumentNullException("query");
-            _query = query;
+            _query = query ?? throw new ArgumentNullException(nameof(query));
+            _waitForm = new WaitFormService(this);
+            _masterView = new GridView(_masterGrid);
+            _detailView = new GridView(_detailGrid);
+            Text = "Báo cáo - Lịch sử kiểm tra chất lượng";
+            ClientSize = new Size(1280, 780);
+            MinimumSize = new Size(1050, 650);
+            StartPosition = FormStartPosition.CenterParent;
             BuildUi();
-            _from.DateTime = DateTime.Today.AddDays(-7);
-            _to.DateTime = DateTime.Today;
-            _ = InitializeAsync();
+            Shown += async (s, e) => await InitializeAsync();
         }
 
         public FormBaoCaoQualityHistory() : this(new QualityHistoryQueryService()) { }
 
         private void BuildUi()
         {
-            Text = "Lịch sử kiểm tra chất lượng";
-            Size = new Size(1150, 720);
-            StartPosition = FormStartPosition.CenterParent;
-
             var root = new TableLayoutPanel
             {
-                Dock = DockStyle.Fill,
-                ColumnCount = 1,
-                RowCount = 4,
+                Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3,
                 Padding = new Padding(6)
             };
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 92));
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
-            root.RowStyles.Add(new RowStyle(SizeType.Percent, 58));
-            root.RowStyles.Add(new RowStyle(SizeType.Percent, 42));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 100));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));
+            root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
             var filter = new FlowLayoutPanel
             {
-                Dock = DockStyle.Fill,
-                Padding = new Padding(4),
-                WrapContents = false
+                Dock = DockStyle.Fill, WrapContents = false,
+                AutoScroll = true, Padding = new Padding(4)
             };
-
+            _from.Width = 105;
+            _to.Width = 105;
+            foreach (DateEdit date in new[] { _from, _to })
+            {
+                date.Properties.DisplayFormat.FormatString = "dd/MM/yyyy";
+                date.Properties.EditFormat.FormatString = "dd/MM/yyyy";
+                date.Properties.CalendarTimeEditing = DevExpress.Utils.DefaultBoolean.False;
+            }
+            _from.DateTime = DateTime.Today.AddDays(-7);
+            _to.DateTime = DateTime.Today;
             filter.Controls.Add(new LabelControl { Text = "Từ ngày:", Padding = new Padding(0, 7, 4, 0) });
-            _from = new DateEdit { Width = 105 };
-            _from.Properties.DisplayFormat.FormatString = "dd/MM/yyyy";
-            _from.Properties.EditFormat.FormatString = "dd/MM/yyyy";
             filter.Controls.Add(_from);
-            filter.Controls.Add(new LabelControl { Text = "Đến ngày:", Padding = new Padding(12, 7, 4, 0) });
-            _to = new DateEdit { Width = 105 };
-            _to.Properties.DisplayFormat.FormatString = "dd/MM/yyyy";
-            _to.Properties.EditFormat.FormatString = "dd/MM/yyyy";
+            filter.Controls.Add(new LabelControl { Text = "Đến ngày:", Padding = new Padding(10, 7, 4, 0) });
             filter.Controls.Add(_to);
-            _itemLookup = new StockLookupControl(false) { Width = 360, Height = 78 };
-            _itemLookup.SetLotQrPlaceholder("Chỉ tìm theo mã hàng");
-            _itemLookup.SearchRequested += async (s, e) => await LoadAsync();
-            filter.Controls.Add(_itemLookup);
-            filter.Controls.Add(new LabelControl { Text = "Kết quả:", Padding = new Padding(12, 7, 4, 0) });
-            _result = new ComboBoxEdit { Width = 90 };
+
+            _lookup.Width = 390;
+            _lookup.Height = 78;
+            _lookup.SetLotQrPlaceholder("Nhập LOT hoặc quét QR có chứa LOT...");
+            _lookup.SearchRequested += async (s, e) => await LoadAsync();
+            _lookup.SelectionCleared += (s, e) => ClearResults();
+            filter.Controls.Add(_lookup);
+
+            filter.Controls.Add(new LabelControl { Text = "Kết quả:", Padding = new Padding(8, 7, 4, 0) });
+            _result.Width = 90;
             _result.Properties.Items.AddRange(new[] { "Tất cả", "PASS", "FAIL" });
             _result.SelectedIndex = 0;
             filter.Controls.Add(_result);
 
-            // Search is owned by StockLookupControl; keep only export as a form action.
-            var export = new SimpleButton { Text = "Excel", Width = 75 };
-            export.Click += ExportClick;
-            filter.Controls.Add(export);
+            _export.Text = "Xuất Excel";
+            _export.Width = 95;
+            _export.Click += ExportClick;
+            filter.Controls.Add(_export);
+            _print.Text = "In";
+            _print.Width = 55;
+            _print.Click += PrintClick;
+            filter.Controls.Add(_print);
             root.Controls.Add(filter, 0, 0);
 
-            _summary = new LabelControl { Dock = DockStyle.Fill, Padding = new Padding(4, 5, 0, 0) };
+            _summary.Dock = DockStyle.Fill;
+            _summary.Padding = new Padding(4, 5, 0, 0);
             root.Controls.Add(_summary, 0, 1);
 
+            var split = new SplitContainer
+            {
+                Dock = DockStyle.Fill, Orientation = Orientation.Horizontal,
+                SplitterWidth = 7, Panel1MinSize = 150, Panel2MinSize = 230
+            };
             var masterGroup = new GroupControl { Text = "Danh sách phiên kiểm tra", Dock = DockStyle.Fill };
-            _masterGrid = new GridControl { Dock = DockStyle.Fill };
-            _masterView = new GridView(_masterGrid);
+            _masterGrid.Dock = DockStyle.Fill;
             _masterGrid.MainView = _masterView;
-            _masterView.OptionsBehavior.Editable = false;
-            _masterView.OptionsView.ShowGroupPanel = false;
-            AddColumn("InspectionCode", "Mã phiên", 150);
-            AddColumn("ItemCode", "Mã hàng", 120);
-            AddColumn("LotNo", "Lot tổng", 170);
-            AddColumn("ProductionDate", "Ngày SX", 90);
-            AddColumn("TotalQuantity", "SL tổng", 70);
-            AddColumn("TotalBox", "Số thùng", 75);
-            AddColumn("PassCount", "Đạt", 55);
-            AddColumn("FailCount", "Không đạt", 75);
-            AddColumn("FinalResult", "Kết quả", 75);
-            AddColumn("CheckedAt", "Thời gian", 135);
-            _masterView.FocusedRowChanged += MasterFocusedRowChanged;
+            _masterGrid.ViewCollection.Add(_masterView);
+            ConfigureView(_masterView);
+            AddColumn(_masterView, "InspectionCode", "Mã phiên", 145);
+            AddColumn(_masterView, "ItemCode", "Mã hàng", 135);
+            AddColumn(_masterView, "LotNo", "LOT tổng", 190);
+            AddColumn(_masterView, "ProductionDate", "Ngày SX", 95);
+            AddColumn(_masterView, "DocumentNo", "Chứng từ", 120);
+            AddColumn(_masterView, "TotalQuantity", "SL tổng", 75, "n0");
+            AddColumn(_masterView, "TotalBox", "Số thùng", 75, "n0");
+            AddColumn(_masterView, "PassCount", "Đạt", 60, "n0");
+            AddColumn(_masterView, "FailCount", "Không đạt", 80, "n0");
+            AddColumn(_masterView, "FinalResult", "Kết quả", 80);
+            AddColumn(_masterView, "CheckedAt", "Thời gian kiểm", 145, "dd/MM/yyyy HH:mm:ss");
+            _masterView.FocusedRowChanged += async (s, e) => await LoadFocusedSessionAsync();
             masterGroup.Controls.Add(_masterGrid);
-            root.Controls.Add(masterGroup, 0, 2);
+            split.Panel1.Controls.Add(masterGroup);
 
-            var detailGroup = new GroupControl { Text = "Chi tiết thùng kiểm tra", Dock = DockStyle.Fill };
-            _detailGrid = new GridControl { Dock = DockStyle.Fill };
-            _detailView = new GridView(_detailGrid);
+            var lowerTabs = new TabControl { Dock = DockStyle.Fill };
+            var detailPage = new TabPage("Chi tiết thùng");
+            var timelinePage = new TabPage("Timeline chất lượng");
+            _detailGrid.Dock = DockStyle.Fill;
             _detailGrid.MainView = _detailView;
-            _detailView.OptionsBehavior.Editable = false;
-            _detailView.OptionsView.ShowGroupPanel = false;
-            AddDetailColumn("BoxLotNo", "Lot thùng", 220);
-            AddDetailColumn("BoxProductionDate", "Ngày SX", 100);
-            AddDetailColumn("IsMatch", "Khớp", 60);
-            AddDetailColumn("MismatchFields", "Trường sai", 320);
-            AddDetailColumn("CheckedAt", "Thời gian", 140);
-            detailGroup.Controls.Add(_detailGrid);
-            root.Controls.Add(detailGroup, 0, 3);
+            _detailGrid.ViewCollection.Add(_detailView);
+            ConfigureView(_detailView);
+            AddColumn(_detailView, "BoxLotNo", "LOT thùng", 230);
+            AddColumn(_detailView, "BoxProductionDate", "Ngày SX", 105);
+            AddColumn(_detailView, "IsMatch", "Khớp", 65);
+            AddColumn(_detailView, "MismatchFields", "Trường sai", 350);
+            AddColumn(_detailView, "CheckedAt", "Thời gian", 145, "dd/MM/yyyy HH:mm:ss");
+            detailPage.Controls.Add(_detailGrid);
+
+            var timelineLayout = new TableLayoutPanel { Dock = DockStyle.Fill, RowCount = 2, ColumnCount = 1 };
+            timelineLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 68));
+            timelineLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 32));
+            _timeline.Dock = DockStyle.Fill;
+            _timeline.SelectedNodeChanged += (s, e) =>
+            {
+                TraceTimelineNode node = _timeline.SelectedNode;
+                _timelineDetail.Text = node == null ? string.Empty : node.DetailText();
+            };
+            _timelineDetail.Dock = DockStyle.Fill;
+            _timelineDetail.Multiline = true;
+            _timelineDetail.ReadOnly = true;
+            _timelineDetail.ScrollBars = ScrollBars.Vertical;
+            _timelineDetail.Font = new Font("Consolas", 9F);
+            timelineLayout.Controls.Add(_timeline, 0, 0);
+            timelineLayout.Controls.Add(_timelineDetail, 0, 1);
+            timelinePage.Controls.Add(timelineLayout);
+            lowerTabs.TabPages.Add(detailPage);
+            lowerTabs.TabPages.Add(timelinePage);
+            split.Panel2.Controls.Add(lowerTabs);
+            root.Controls.Add(split, 0, 2);
             Controls.Add(root);
+            Shown += (s, e) =>
+            {
+                try { split.SplitterDistance = Math.Max(split.Panel1MinSize, (int)(split.Height * 0.43)); }
+                catch (InvalidOperationException) { }
+            };
         }
 
-        private void AddColumn(string field, string caption, int width)
+        private static void ConfigureView(GridView view)
         {
-            _masterView.Columns.Add(new GridColumn { FieldName = field, Caption = caption, Width = width, Visible = true });
+            view.OptionsBehavior.Editable = false;
+            view.OptionsView.ShowGroupPanel = false;
+            view.OptionsView.ColumnAutoWidth = false;
+            view.OptionsView.EnableAppearanceEvenRow = true;
+            view.OptionsSelection.EnableAppearanceFocusedCell = false;
         }
 
-        private void AddDetailColumn(string field, string caption, int width)
+        private static void AddColumn(GridView view, string field, string caption, int width, string format = null)
         {
-            _detailView.Columns.Add(new GridColumn { FieldName = field, Caption = caption, Width = width, Visible = true });
+            var column = new GridColumn
+            {
+                FieldName = field, Caption = caption, Width = width, Visible = true
+            };
+            column.OptionsColumn.AllowEdit = false;
+            if (!string.IsNullOrWhiteSpace(format))
+            {
+                column.DisplayFormat.FormatType = field == "CheckedAt"
+                    ? DevExpress.Utils.FormatType.DateTime : DevExpress.Utils.FormatType.Numeric;
+                column.DisplayFormat.FormatString = format;
+            }
+            view.Columns.Add(column);
         }
 
         private async Task InitializeAsync()
         {
             try
             {
-                var codes = await _query.GetItemCodesAsync(CancellationToken.None);
+                IReadOnlyList<string> codes = await _waitForm.RunAsync(
+                    () => _query.GetItemCodesAsync(_lifetime.Token),
+                    "Đang tải danh sách mã hàng QC...");
                 var items = new DataTable();
                 items.Columns.Add("PART", typeof(string));
-                foreach (string code in codes ?? Array.Empty<string>())
-                    if (!string.IsNullOrWhiteSpace(code))
-                        items.Rows.Add(code);
-                _itemLookup.SetItemSuggestions(items, "PART", null);
+                foreach (string code in codes ?? new string[0])
+                    if (!string.IsNullOrWhiteSpace(code)) items.Rows.Add(code);
+                _lookup.SetItemSuggestions(items, "PART", null);
+                await LoadAsync();
             }
+            catch (OperationCanceledException) { }
             catch (Exception ex)
             {
-                XtraMessageBox.Show("Không thể tải danh sách mã hàng QC.\n" + ex.Message, "Lỗi");
+                XtraMessageBox.Show(this, "Không thể khởi tạo lịch sử chất lượng.\r\n" + ex.Message,
+                    "Lịch sử chất lượng", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
-
-            await LoadAsync();
         }
 
         private async Task LoadAsync()
         {
+            if (_loading || IsDisposed) return;
+            DateTime from = _from.DateTime.Date;
+            DateTime to = _to.DateTime.Date.AddDays(1).AddTicks(-1);
+            if (from > to)
+            {
+                XtraMessageBox.Show(this, "Khoảng ngày không hợp lệ.", "Tra cứu",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+            string keyword = _lookup.InputText;
+            string search = _lookup.IsItemSearch ? keyword : (string.IsNullOrWhiteSpace(keyword) ? null : "LOTQR:" + keyword);
+            _loading = true;
+            ToggleBusy(false);
             try
             {
-                UseWaitCursor = true;
-                var from = _from.DateTime.Date;
-                var to = _to.DateTime.Date.AddDays(1).AddTicks(-1);
-                if (from > to)
-                {
-                    XtraMessageBox.Show("Khoảng ngày không hợp lệ.", "Tra cứu");
-                    return;
-                }
-
-                var rows = await _query.SearchAsync(
-                    from,
-                    to,
-                    _itemLookup.InputText,
-                    _result.EditValue == null ? null : _result.EditValue.ToString(),
-                    CancellationToken.None);
-
-                _masterGrid.DataSource = rows.ToList();
+                IReadOnlyList<QualityHistoryRow> found = await _waitForm.RunAsync(
+                    () => _query.SearchAsync(from, to, search,
+                        Convert.ToString(_result.EditValue), _lifetime.Token),
+                    "Đang tra cứu lịch sử kiểm tra chất lượng...");
+                _rows = (found ?? new List<QualityHistoryRow>()).ToList();
+                _masterGrid.DataSource = _rows;
                 _detailGrid.DataSource = null;
-                var pass = rows.Count(r => string.Equals(r.FinalResult, "PASS", StringComparison.OrdinalIgnoreCase));
-                var fail = rows.Count(r => string.Equals(r.FinalResult, "FAIL", StringComparison.OrdinalIgnoreCase));
-                _summary.Text = string.Format("Tổng phiên: {0} | PASS: {1} | FAIL: {2}", rows.Count, pass, fail);
+                _details.Clear();
+                _timelineNodes.Clear();
+                _timeline.SetNodes(null, "Chọn một phiên kiểm tra để xem timeline.");
+                _timelineDetail.Clear();
+                int pass = _rows.Count(x => string.Equals(x.FinalResult, "PASS", StringComparison.OrdinalIgnoreCase));
+                int fail = _rows.Count(x => string.Equals(x.FinalResult, "FAIL", StringComparison.OrdinalIgnoreCase));
+                _summary.Text = string.Format("Tổng phiên: {0} | PASS: {1} | FAIL: {2} | Tra cứu: {3}",
+                    _rows.Count, pass, fail, string.IsNullOrWhiteSpace(keyword) ? "Tất cả" : keyword);
+                if (_rows.Count > 0) await LoadFocusedSessionAsync();
             }
+            catch (OperationCanceledException) { }
             catch (Exception ex)
             {
-                XtraMessageBox.Show("Không thể tải lịch sử kiểm tra.\n" + ex.Message, "Lỗi");
+                XtraMessageBox.Show(this, "Không thể tải lịch sử kiểm tra.\r\n" + ex.Message,
+                    "Lịch sử chất lượng", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
             finally
             {
-                UseWaitCursor = false;
+                _loading = false;
+                ToggleBusy(true);
             }
         }
 
-        private async void MasterFocusedRowChanged(object sender, DevExpress.XtraGrid.Views.Base.FocusedRowChangedEventArgs e)
+        private async Task LoadFocusedSessionAsync()
         {
+            if (_loading || IsDisposed) return;
             var row = _masterView.GetFocusedRow() as QualityHistoryRow;
             if (row == null || string.IsNullOrWhiteSpace(row.InspectionCode))
             {
                 _detailGrid.DataSource = null;
+                _timeline.SetNodes(null, "Chưa chọn phiên kiểm tra.");
                 return;
             }
-
             try
             {
-                var details = await _query.GetDetailsAsync(row.InspectionCode, CancellationToken.None);
-                _detailGrid.DataSource = details.ToList();
+                IReadOnlyList<QualityHistoryDetailRow> found = await _waitForm.RunAsync(
+                    () => _query.GetDetailsAsync(row.InspectionCode, _lifetime.Token),
+                    "Đang tải chi tiết phiên kiểm tra...");
+                _details = (found ?? new List<QualityHistoryDetailRow>()).ToList();
+                _detailGrid.DataSource = _details;
+                BuildTimeline(row, _details);
             }
+            catch (OperationCanceledException) { }
             catch (Exception ex)
             {
-                XtraMessageBox.Show("Không thể tải chi tiết phiên kiểm tra.\n" + ex.Message, "Lỗi");
+                XtraMessageBox.Show(this, "Không thể tải chi tiết phiên kiểm tra.\r\n" + ex.Message,
+                    "Lịch sử chất lượng", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+        }
+
+        private void BuildTimeline(QualityHistoryRow session, IList<QualityHistoryDetailRow> details)
+        {
+            var nodes = new List<TraceTimelineNode>();
+            DateTime at = session.CheckedAt ?? DateTime.MinValue;
+            nodes.Add(new TraceTimelineNode
+            {
+                Kind = TraceNodeKind.StockOther,
+                Title = "Bắt đầu / tổng hợp kiểm tra",
+                EventType = "QUALITY_INSPECTION",
+                EventTime = session.CheckedAt,
+                SortTime = at,
+                SortOrder = 0,
+                LotNo = session.LotNo,
+                PartNo = session.ItemCode,
+                Quantity = session.TotalQuantity,
+                DocumentNo = session.DocumentNo,
+                SourceName = "dbo.InspectionLog",
+                SourceKey = "InspectionCode=" + session.InspectionCode,
+                EvidenceStatus = session.FinalResult,
+                Subtitle = "Phiên " + session.InspectionCode + " | " + session.TotalBox + " thùng | Đạt " +
+                    session.PassCount + " | Không đạt " + session.FailCount,
+                Note = "Kết quả tổng hợp của phiên kiểm tra chất lượng."
+            });
+            int index = 0;
+            foreach (QualityHistoryDetailRow detail in details ?? new List<QualityHistoryDetailRow>())
+            {
+                bool pass = detail.IsMatch;
+                DateTime moment = detail.CheckedAt ?? session.CheckedAt ?? DateTime.MinValue;
+                nodes.Add(new TraceTimelineNode
+                {
+                    Kind = pass ? TraceNodeKind.StockIn : TraceNodeKind.Missing,
+                    Title = pass ? "QC PASS - thùng " + (index + 1) : "QC FAIL - thùng " + (index + 1),
+                    EventType = pass ? "QC_PASS" : "QC_FAIL",
+                    EventTime = detail.CheckedAt ?? session.CheckedAt,
+                    SortTime = moment,
+                    SortOrder = index + 1,
+                    LotNo = detail.BoxLotNo,
+                    PartNo = session.ItemCode,
+                    Quantity = null,
+                    DocumentNo = session.DocumentNo,
+                    SourceName = "dbo.InspectionLog",
+                    SourceKey = "InspectionCode=" + session.InspectionCode + "; BoxLotNo=" + detail.BoxLotNo,
+                    EvidenceStatus = pass ? "Đạt" : "Không đạt",
+                    Subtitle = "LOT thùng: " + TraceTimelineNode.ValueOrDash(detail.BoxLotNo) +
+                        " | NSX: " + TraceTimelineNode.ValueOrDash(detail.BoxProductionDate) +
+                        (pass ? string.Empty : " | Sai: " + TraceTimelineNode.ValueOrDash(detail.MismatchFields)),
+                    Note = pass ? "Thùng khớp thông tin kiểm tra." :
+                        "Các trường sai lệch: " + TraceTimelineNode.ValueOrDash(detail.MismatchFields)
+                });
+                index++;
+            }
+            _timelineNodes = nodes.OrderBy(x => x.SortTime).ThenBy(x => x.SortOrder).ToList();
+            _timeline.SetNodes(_timelineNodes, "Phiên này chưa có sự kiện chi tiết.");
+        }
+
+        private void ClearResults()
+        {
+            if (_loading) return;
+            _masterGrid.DataSource = null;
+            _detailGrid.DataSource = null;
+            _rows.Clear();
+            _details.Clear();
+            _timelineNodes.Clear();
+            _timeline.SetNodes(null, "Nhập điều kiện rồi tra cứu.");
+            _timelineDetail.Clear();
+            _summary.Text = "Đã xóa điều kiện tra cứu.";
+        }
+
+        private void ToggleBusy(bool enabled)
+        {
+            _lookup.Enabled = enabled;
+            _from.Enabled = enabled;
+            _to.Enabled = enabled;
+            _result.Enabled = enabled;
+            _export.Enabled = enabled;
+            _print.Enabled = enabled;
+        }
+
+        private List<ReportOverviewRow> BuildOverview()
+        {
+            var overview = TraceReportExporter.NewOverview("Lịch sử kiểm tra chất lượng");
+            overview.AddRow("Từ ngày", _from.DateTime.ToString("dd/MM/yyyy"));
+            overview.AddRow("Đến ngày", _to.DateTime.ToString("dd/MM/yyyy"));
+            overview.AddRow(_lookup.IsItemSearch ? "Mã hàng" : "LOT / QR", _lookup.InputText);
+            overview.AddRow("Kết quả", Convert.ToString(_result.EditValue));
+            overview.AddRow("Số phiên", _rows.Count.ToString());
+            overview.AddRow("Số chi tiết phiên đang chọn", _details.Count.ToString());
+            overview.AddRow("Số node timeline phiên đang chọn", _timelineNodes.Count.ToString());
+            return overview;
+        }
+
+        private List<ReportGridSection> BuildSections()
+        {
+            var sections = new List<ReportGridSection>();
+            if (_masterGrid.DataSource != null)
+                sections.Add(new ReportGridSection("Phiên kiểm tra", "DANH SÁCH PHIÊN KIỂM TRA", _masterGrid, _masterView));
+            if (_detailGrid.DataSource != null)
+                sections.Add(new ReportGridSection("Chi tiết thùng", "CHI TIẾT THÙNG CỦA PHIÊN ĐANG CHỌN", _detailGrid, _detailView));
+            return sections;
         }
 
         private void ExportClick(object sender, EventArgs e)
         {
+            if (_rows.Count == 0)
+            {
+                XtraMessageBox.Show(this, "Chưa có dữ liệu để xuất. Hãy tra cứu trước.", "Xuất Excel",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
             using (var dialog = new SaveFileDialog())
             {
-                dialog.Filter = "Excel|*.xlsx";
-                dialog.FileName = "LichSuKiemTra_" + DateTime.Now.ToString("yyyyMMdd") + ".xlsx";
-                if (dialog.ShowDialog() != DialogResult.OK) return;
+                dialog.Filter = "Excel Workbook (*.xlsx)|*.xlsx";
+                dialog.DefaultExt = "xlsx";
+                dialog.AddExtension = true;
+                dialog.FileName = "LichSuQuality_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".xlsx";
+                if (dialog.ShowDialog(this) != DialogResult.OK) return;
                 try
                 {
-                    _masterGrid.ExportToXlsx(dialog.FileName);
-                    XtraMessageBox.Show("Xuất Excel thành công.", "OK");
+                    Cursor = Cursors.WaitCursor;
+                    TraceReportExporter.ExportWorkbook(dialog.FileName, BuildOverview(), BuildSections(), _timelineNodes);
+                    Cursor = Cursors.Default;
+                    XtraMessageBox.Show(this, "Đã xuất Excel gồm Tổng quan, phiên kiểm tra, chi tiết phiên đang chọn và Timeline.", "Xuất Excel",
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
                 catch (Exception ex)
                 {
-                    XtraMessageBox.Show("Lỗi xuất Excel.\n" + ex.Message, "Lỗi");
+                    Cursor = Cursors.Default;
+                    XtraMessageBox.Show(this, "Không thể xuất Excel: " + ex.Message, "Xuất Excel",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
+        }
+
+        private void PrintClick(object sender, EventArgs e)
+        {
+            if (_rows.Count == 0) return;
+            try { TraceReportExporter.ShowPrintPreview(BuildOverview(), BuildSections(), _timelineNodes); }
+            catch (Exception ex)
+            {
+                XtraMessageBox.Show(this, "Không thể tạo bản in: " + ex.Message, "In báo cáo",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                _lifetime.Cancel();
+                _lifetime.Dispose();
+            }
+            base.Dispose(disposing);
         }
     }
 }
