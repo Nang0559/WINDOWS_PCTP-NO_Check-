@@ -82,7 +82,15 @@ namespace PCTP.Modules.BaoCao.Infrastructure.Repositories
                 new SqlParameter("@ItemCode", string.IsNullOrWhiteSpace(criteria.PartNo) ? (object)DBNull.Value : criteria.PartNo)
             };
 
-            var table = ExecuteStoredProcedure("sp_GetStockHistory", parameters);
+            // sp_GetStockHistory (không có định nghĩa đầy đủ trong Git) không trả QrData / MaPhieu / FromSlotId / ToSlotId
+            // nên QR bị rơi về TemCode và vị trí/số phiếu trống. Đọc thẳng StockHistory (+ bổ sung từ SlotLot);
+            // nếu truy vấn trực tiếp lỗi (schema khác) thì quay về SP như cũ.
+            DataTable table;
+            try { table = LoadData(HistorySql, CloneParameters(parameters)); }
+            catch (SqlException)
+            {
+                table = ExecuteStoredProcedure("sp_GetStockHistory", CloneParameters(parameters));
+            }
             var slotNames = LoadSlotNames();
             var rows = table.AsEnumerable().Select(r => Map(r, slotNames)).ToList();
 
@@ -119,6 +127,46 @@ namespace PCTP.Modules.BaoCao.Infrastructure.Repositories
             return Task.FromResult<IReadOnlyList<ItemHistoryRow>>(rows);
         }
 
+        private static SqlParameter[] CloneParameters(SqlParameter[] source)
+        {
+            return source.Select(p => new SqlParameter(p.ParameterName, p.Value)).ToArray();
+        }
+
+        // QR: ưu tiên QrData của chính dòng lịch sử, thiếu thì lấy QrData của SlotLot khớp (Slot + Item + LOT + Tem,
+        // gần thời điểm giao dịch nhất). SlotLot cũng bổ sung SlotId để ra tên vị trí khi lịch sử không lưu From/ToSlotId.
+        // Không bao giờ dùng TemCode làm QR.
+        private const string HistorySql = @"
+            SELECT SH.Id,
+                   SH.ActionType,
+                   SH.ItemCode,
+                   SH.TemCode,
+                   SH.LotNo,
+                   SH.Quantity,
+                   SH.[Date],
+                   SH.PerformedBy,
+                   SH.MaPhieu,
+                   SH.FromSlotId,
+                   SH.ToSlotId,
+                   COALESCE(SH.SlotId, SL.SlotId) AS SlotId,
+                   COALESCE(NULLIF(SH.QrData, N''), SL.QrData) AS QrData
+            FROM dbo.StockHistory AS SH
+            OUTER APPLY (
+                SELECT TOP 1 sl.SlotId, sl.QrData
+                FROM dbo.SlotLot AS sl
+                WHERE (NULLIF(SH.QrData, N'') IS NULL
+                       OR COALESCE(SH.ToSlotId, SH.FromSlotId, SH.SlotId) IS NULL)
+                  AND sl.LotNo = SH.LotNo
+                  AND sl.ItemCode = SH.ItemCode
+                  AND (SH.TemCode IS NULL OR sl.TemCode = SH.TemCode)
+                  AND (COALESCE(SH.ToSlotId, SH.FromSlotId, SH.SlotId) IS NULL
+                       OR sl.SlotId = COALESCE(SH.ToSlotId, SH.FromSlotId, SH.SlotId))
+                ORDER BY ABS(DATEDIFF(SECOND, sl.CreatedDate, SH.[Date]))
+            ) AS SL
+            WHERE (@FromDate IS NULL OR SH.[Date] >= @FromDate)
+              AND (@ToDate IS NULL OR SH.[Date] <= @ToDate)
+              AND (@ItemCode IS NULL OR SH.ItemCode = @ItemCode)
+            ORDER BY SH.[Date] DESC, SH.Id DESC";
+
         /// <summary>SlotId -> "Kho-Rack-SlotN" (cùng định dạng với sp_GetCurrentStockStatus). Lỗi/thiếu bảng thì trả rỗng, báo cáo vẫn chạy.</summary>
         private Dictionary<int, string> LoadSlotNames()
         {
@@ -151,19 +199,32 @@ namespace PCTP.Modules.BaoCao.Infrastructure.Repositories
 
         private static ItemHistoryRow Map(DataRow row, Dictionary<int, string> slotNames)
         {
-            return new ItemHistoryRow
+            var item = new ItemHistoryRow
             {
                 ItemCode = ReadString(row, "ItemCode", "PartNo"),
-                QrCode = ReadString(row, "QrData", "QRData", "QRCode", "QR", "TemCode"),
+                QrCode = ReadString(row, "QrData", "QRData", "QRCode", "QR"),
+                TemCode = ReadString(row, "TemCode"),
                 LotNo = ReadString(row, "LotNo", "LOTNo", "LOT"),
                 ActionType = ReadString(row, "ActionType", "Action", "EventType"),
                 Quantity = ReadDecimal(row, "Quantity", "Qty", "SoLuong", "SL"),
                 EventTime = ReadDateTime(row, "Date", "EventTime", "CreatedAt", "Ngay"),
                 FromLocation = ResolveLocation(ReadString(row, "FromLocation", "FromSlot", "FromSlotId"), slotNames),
-                ToLocation = ResolveLocation(ReadString(row, "ToLocation", "ToSlot", "ToSlotId", "SlotId"), slotNames),
+                ToLocation = ResolveLocation(ReadString(row, "ToLocation", "ToSlot", "ToSlotId"), slotNames),
                 DocumentNo = ReadString(row, "MaPhieu", "DocumentNo", "PhieuNo"),
                 UserName = ReadString(row, "PerformedBy", "UserName", "CreatedBy")
             };
+
+            // Lịch sử không lưu From/ToSlotId: dùng SlotId (từ StockHistory hoặc SlotLot) theo chiều nhập/xuất.
+            if (string.IsNullOrEmpty(item.FromLocation) && string.IsNullOrEmpty(item.ToLocation))
+            {
+                string slot = ResolveLocation(ReadString(row, "SlotId"), slotNames);
+                if (!string.IsNullOrEmpty(slot))
+                {
+                    if (item.Direction == "Xuất") item.FromLocation = slot;
+                    else item.ToLocation = slot;
+                }
+            }
+            return item;
         }
 
         private static bool Contains(string value, string keyword)

@@ -24,6 +24,8 @@ namespace PCTP.Modules.BaoCao.Application.Contracts.Queries
 
         public string ItemCode { get; set; }
         public string QrCode { get; set; }
+        /// <summary>Mã tem / mã phiếu (StockHistory.TemCode) - KHÁC với QR đầy đủ (QrCode).</summary>
+        public string TemCode { get; set; }
         public string LotNo { get; set; }
         public string ActionType { get; set; }
         public decimal Quantity { get; set; }

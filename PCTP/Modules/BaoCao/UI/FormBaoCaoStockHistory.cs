@@ -665,6 +665,7 @@ namespace PCTP.Modules.BaoCao.UI
             Col("ItemCode", "Mã hàng", 140);
             Col("LotNo", "LOT No", 190);
             Col("QrCode", "QR Code", 300);
+            Col("TemCode", "Mã tem", 130);
             Col("QuantityIn", "SL nhập", 80, "#,##0;-#,##0;", true, true);   // 0 hiển thị trống (không dùng "n0;-n0;": chuỗi có dấu ; là custom format nên "n0" bị in nguyên văn)
             Col("QuantityOut", "SL xuất", 80, "#,##0;-#,##0;", true, true);
             Col("Quantity", "SL giao dịch", 90, "n0", false, true);
@@ -672,7 +673,7 @@ namespace PCTP.Modules.BaoCao.UI
             Col("ToLocation", "Đến vị trí", 190);
             Col("DocumentNo", "Số phiếu", 130);
             Col("UserName", "Người thực hiện", 120);
-            HideOthers("EventTime", "ActionType", "Direction", "ItemCode", "LotNo", "QrCode", "QuantityIn", "QuantityOut",
+            HideOthers("EventTime", "ActionType", "Direction", "ItemCode", "LotNo", "QrCode", "TemCode", "QuantityIn", "QuantityOut",
                 "Quantity", "FromLocation", "ToLocation", "DocumentNo", "UserName");
             var ev = _view.Columns["EventTime"];
             if (ev != null) { ev.SummaryItem.SummaryType = SummaryItemType.Count; ev.SummaryItem.DisplayFormat = "{0:n0} giao dịch"; }
