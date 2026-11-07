@@ -146,19 +146,22 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         #region CapNhapKhoSP
         public int CapNhapKhoSP(string gioGiaoFcc, string nhaMay, out DataTable errors)
         {
-            // SP uses the customer-specific SP staging/QR tables when configured.
-            // Fall back to the legacy base tables only for older customer configs.
             string tmpTable = _cfg != null && !string.IsNullOrWhiteSpace(_cfg.Delivery.TmpTableSP)
                 ? _cfg.Delivery.TmpTableSP
                 : (_cfg != null ? _cfg.Delivery.TmpTable : "TMPPHIEUGIAOHANG");
             string docQRTable = _cfg != null && !string.IsNullOrWhiteSpace(_cfg.Delivery.DocQRTableSP)
                 ? _cfg.Delivery.DocQRTableSP
                 : (_cfg != null ? _cfg.Delivery.DocQRTable : "DOCQRCODE");
+            return CapNhapKhoSP(gioGiaoFcc, nhaMay, tmpTable, docQRTable, out errors);
+        }
+
+        public int CapNhapKhoSP(
+            string gioGiaoFcc, string nhaMay,
+            string tmpTable, string docQRTable, out DataTable errors)
+        {
             Db.ValidateTableName(tmpTable);
             Db.ValidateTableName(docQRTable);
 
-            // The same DB FIFO gate is executed by PhieuKhoService before this repository call.
-            // This method must only execute the stock SP with the already-released TMP rows.
             DataTable stok;
             bool coAnhHuongA0 = false;
             Uow.Begin();
@@ -172,13 +175,10 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                     new SqlParameter("@DOCQRTABLE", SqlDbType.NVarChar, 128) { Value = docQRTable },
                     new SqlParameter("@LOTRESOLUTIONMODE", SqlDbType.NVarChar, 20) { Value = "FIFO_SP" }
                 );
+
                 stok = ds != null && ds.Tables.Count > 0 ? ds.Tables[0] : new DataTable();
                 errors = ds != null && ds.Tables.Count > 1 ? ds.Tables[1] : new DataTable();
 
-                // The stock procedure rolls back its stock writes when it reports any
-                // validation/business error. Never consume its #STOK success resultset
-                // as if those rows had committed: doing so would deduct SlotLot and close
-                // pending-delivery records after STOCKTP was rolled back.
                 if (errors.Rows.Count > 0)
                 {
                     Uow.Rollback();
