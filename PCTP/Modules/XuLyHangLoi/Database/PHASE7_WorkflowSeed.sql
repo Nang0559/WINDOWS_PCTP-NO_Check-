@@ -3,6 +3,12 @@ IF OBJECT_ID(N'dbo.FVN_sys_WorkflowTransitions', N'U') IS NULL
     THROW 51000, 'FVN_sys_WorkflowTransitions chưa tồn tại. Chạy migration workflow core trước.', 1;
 GO
 
+/* DaTaoPhieuBatThuong -> DaDinhHuong (QC định hướng). Thiếu dòng này thì QCDinhHuong báo
+   "Không thể chuyển DaTaoPhieuBatThuong → DaDinhHuong". */
+IF NOT EXISTS(SELECT 1 FROM dbo.FVN_sys_WorkflowTransitions WHERE ProcessCode='QT_CHUNG' AND FromStatus=10 AND ToStatus=20 AND IsActive=1)
+    INSERT INTO dbo.FVN_sys_WorkflowTransitions(ProcessCode,FromStatus,ToStatus,ActionName,Description,IsActive)
+    VALUES('QT_CHUNG',10,20,'QC_DINH_HUONG','QC xác định hướng xử lý (từ chối giao bù / chỉ giao bù / rework)',1);
+
 /* DaDinhHuong -> branches */
 IF NOT EXISTS(SELECT 1 FROM dbo.FVN_sys_WorkflowTransitions WHERE ProcessCode='QT_CHUNG' AND FromStatus=20 AND ToStatus=25 AND IsActive=1)
     INSERT INTO dbo.FVN_sys_WorkflowTransitions(ProcessCode,FromStatus,ToStatus,ActionName,Description,IsActive)
