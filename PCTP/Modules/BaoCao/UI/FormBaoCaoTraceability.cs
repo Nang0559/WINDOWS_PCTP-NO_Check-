@@ -2,6 +2,7 @@ using DevExpress.XtraEditors;
 using PCTP.Modules.BaoCao.Application.Contracts;
 using PCTP.Modules.BaoCao.Application.Contracts.Queries;
 using PCTP.Modules.BaoCao.Infrastructure.Queries;
+using PCTP.Modules.BaoCao.Infrastructure.Repositories;
 using PCTP.Shell.UI;
 using PCTP.Shared.Helpers;
 using PCTP.Shared.Lookup;
@@ -31,6 +32,7 @@ namespace PCTP.Modules.BaoCao.UI
         private readonly DateTimePicker _to = new DateTimePicker();
         private readonly DataGridView _grid = new DataGridView();
         private readonly IStockHistoryQuery _stockHistoryQuery;
+        private readonly IProductionLotTraceQuery _productionQuery;
         private readonly FlowLayoutPanel _timeline = new FlowLayoutPanel();
         private readonly Panel _detailPanel = new Panel();
         private readonly Label _detailTitle = new Label();
@@ -54,9 +56,19 @@ namespace PCTP.Modules.BaoCao.UI
         }
 
         public FormBaoCaoTraceability(DeliveryTraceReadService query, IStockHistoryQuery stockHistoryQuery)
+            : this(query, stockHistoryQuery, new ProductionLotTraceRepository())
+        {
+        }
+
+        public FormBaoCaoTraceability(
+            DeliveryTraceReadService query,
+            IStockHistoryQuery stockHistoryQuery,
+            IProductionLotTraceQuery productionQuery)
         {
             if (query == null) throw new ArgumentNullException("query");
             if (stockHistoryQuery == null) throw new ArgumentNullException("stockHistoryQuery");
+            if (productionQuery == null) throw new ArgumentNullException("productionQuery");
+            _productionQuery = productionQuery;
             _qrQuery = query;
             _lotQuery = query;
             _customerQuery = query;
@@ -424,7 +436,8 @@ namespace PCTP.Modules.BaoCao.UI
                 _currentRows = rows == null ? new List<DeliveryTraceRow>() : rows.ToList();
                 _grid.DataSource = new BindingList<DeliveryTraceRow>(_currentRows);
                 ClearTimeline("Chọn một dòng giao hàng để dựng timeline theo LOT.");
-                _status.Text = "Tìm thấy " + _currentRows.Count + " dòng.";
+                _status.Text = "Tìm thấy " + _currentRows.Count + " dòng." +
+                    (_currentRows.Count == 0 ? " Kiểm tra khoảng ngày (theo NGAYGIAO) và ô Khách hàng." : string.Empty);
             }
             catch (Exception ex)
             {
@@ -439,10 +452,17 @@ namespace PCTP.Modules.BaoCao.UI
 
         private static string GetLookupText(LookUpEdit lookup)
         {
+            // Chưa chọn gì (EditValue null) = không lọc. Không đọc lookup.Text vì khi rỗng nó có thể
+            // trả về chính NullText ("Khách hàng"); chuỗi đó bị coi là tên khách lạ => điều kiện 1 = 0
+            // => luôn "Tìm thấy 0 dòng".
             object value = lookup.EditValue;
-            if (value != null && value != DBNull.Value)
-                return Convert.ToString(value).Trim();
-            return (lookup.Text ?? string.Empty).Trim();
+            if (value == null || value == DBNull.Value)
+                return string.Empty;
+            string text = Convert.ToString(value).Trim();
+            string nullText = (lookup.Properties.NullText ?? string.Empty).Trim();
+            if (text.Length == 0 || string.Equals(text, nullText, StringComparison.OrdinalIgnoreCase))
+                return string.Empty;
+            return text;
         }
 
         private async void DeliveryGrid_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
@@ -467,6 +487,18 @@ namespace PCTP.Modules.BaoCao.UI
                         if (lot == null || string.IsNullOrWhiteSpace(lot.LotNo)) continue;
 
                         nodes.Add(TraceNode.ForDeliveryLot(row, lot));
+
+                        IReadOnlyList<ProductionLotTraceRow> production = await _productionQuery.FindByLotAsync(
+                            lot.LotNo, row.PartNo, CancellationToken.None);
+                        if (production != null && production.Count > 0)
+                        {
+                            foreach (ProductionLotTraceRow prod in production)
+                                nodes.Add(TraceNode.ForProduction(row, lot, prod));
+                        }
+                        else
+                        {
+                            nodes.Add(TraceNode.MissingProduction(row, lot));
+                        }
 
                         var criteria = new HistorySearchCriteria
                         {
@@ -704,6 +736,55 @@ namespace PCTP.Modules.BaoCao.UI
                     Subtitle = "SL: " + lot.Quantity.ToString("N0") + " | QR: " + ValueOrDash(lot.QRCode),
                     Note = "LOT và số lượng được parse từ trường LOT composite của bản ghi giao hàng.",
                     SortOrder = 31
+                };
+            }
+
+            public static TraceNode ForProduction(DeliveryTraceRow delivery, DeliveryLotTraceRow lot, ProductionLotTraceRow prod)
+            {
+                return new TraceNode
+                {
+                    Title = "Thông tin sản xuất",
+                    EventType = "PRODUCTION",
+                    EventTime = prod.ProductionDate,
+                    LotNo = prod.Lot,
+                    PartNo = prod.PartNo,
+                    Quantity = prod.ProducedQty,
+                    QrCode = lot.QRCode,
+                    CustomerName = delivery.CustomerName,
+                    DocumentNo = delivery.DocumentNo,
+                    SourceName = "dbo.STOCKTP (cột sản xuất)",
+                    SourceKey = "LOT=" + prod.Lot,
+                    EvidenceStatus = "Có bản ghi sản xuất cho LOT",
+                    Subtitle = "Ca: " + (prod.Shift.HasValue ? prod.Shift.Value.ToString() : "-") +
+                        " | Line: " + ValueOrDash(prod.LineCode) +
+                        " | SL SX: " + (prod.ProducedQty.HasValue ? prod.ProducedQty.Value.ToString("N0") : "-") +
+                        " | Nhập TP: " + (prod.ReceivedDate.HasValue ? prod.ReceivedDate.Value.ToString("dd/MM/yyyy") : "-") +
+                        " (" + (prod.ReceivedQty.HasValue ? prod.ReceivedQty.Value.ToString("N0") : "-") + ")",
+                    Note = "Dữ kiện sản xuất lấy từ STOCKTP theo khóa LOT (13/20 ký tự). Chỉ dùng ngày/ca/SL sản xuất, ngày/SL nhập TP, line và bộ phận; không dùng tồn hiện tại làm bằng chứng lịch sử. Model: " +
+                        ValueOrDash(prod.Model) + " | Bộ phận: " + ValueOrDash(prod.DeptCode),
+                    SortOrder = 5
+                };
+            }
+
+            public static TraceNode MissingProduction(DeliveryTraceRow delivery, DeliveryLotTraceRow lot)
+            {
+                return new TraceNode
+                {
+                    Title = "Chưa tìm thấy thông tin sản xuất",
+                    EventType = "MISSING_PRODUCTION",
+                    EventTime = delivery.DeliveryDate,
+                    LotNo = lot.LotNo,
+                    PartNo = delivery.PartNo,
+                    Quantity = lot.Quantity,
+                    QrCode = lot.QRCode,
+                    CustomerName = delivery.CustomerName,
+                    DocumentNo = delivery.DocumentNo,
+                    SourceName = "dbo.STOCKTP (cột sản xuất)",
+                    SourceKey = "LOT=" + lot.LotNo,
+                    EvidenceStatus = "Thiếu bằng chứng sản xuất",
+                    Subtitle = "Không có bản ghi STOCKTP khớp LOT này (khóa 13/20 ký tự)",
+                    Note = "Đây là cảnh báo thiếu bằng chứng, không phải một sự kiện sản xuất.",
+                    SortOrder = 19
                 };
             }
 

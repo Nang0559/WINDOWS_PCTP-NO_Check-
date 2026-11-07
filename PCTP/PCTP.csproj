@@ -33,7 +33,7 @@
     <MinimumRequiredVersion>1.0.1.274</MinimumRequiredVersion>
     <CreateWebPageOnPublish>true</CreateWebPageOnPublish>
     <WebPage>publish.htm</WebPage>
-    <ApplicationRevision>232</ApplicationRevision>
+    <ApplicationRevision>234</ApplicationRevision>
     <ApplicationVersion>2.0.0.%2a</ApplicationVersion>
     <UseApplicationTrust>false</UseApplicationTrust>
     <CreateDesktopShortcut>true</CreateDesktopShortcut>
@@ -336,6 +336,7 @@
     <Compile Include="Modules\BaoCao\Infrastructure\Repositories\DeliveryTraceRepository.cs" />
     <Compile Include="Modules\BaoCao\Infrastructure\Repositories\LotLocationRepository.cs" />
     <Compile Include="Modules\BaoCao\Infrastructure\Repositories\QualityHistoryRepository.cs" />
+    <Compile Include="Modules\BaoCao\Infrastructure\Repositories\ProductionLotTraceRepository.cs" />
     <Compile Include="Modules\BaoCao\Infrastructure\Repositories\StockHistoryRepository.cs" />
     <Compile Include="Modules\BaoCao\UI\BaoCaoNavigator.cs" />
     <Compile Include="Modules\BaoCao\UI\FormBaoCaoMain.cs" />
