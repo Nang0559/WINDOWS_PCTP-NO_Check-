@@ -82,7 +82,7 @@ namespace PCTP.Modules.BaoCao.UI
                 date.Properties.DisplayFormat.FormatString = "dd/MM/yyyy";
                 date.Properties.EditFormat.FormatString = "dd/MM/yyyy";
             }
-            _from.DateTime = DateTime.Today.AddDays(-7);
+            _from.DateTime = DateTime.Today.AddDays(-30);
             _to.DateTime = DateTime.Today;
             filter.Controls.Add(new LabelControl { Text = "Từ ngày:", Padding = new Padding(0, 7, 4, 0) });
             filter.Controls.Add(_from);
