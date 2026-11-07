@@ -243,7 +243,17 @@ namespace PCTP.Modules.BaoCao.UI
                 return;
             }
             string keyword = _lookup.InputText;
-            string search = _lookup.IsItemSearch ? keyword : (string.IsNullOrWhiteSpace(keyword) ? null : "LOTQR:" + keyword);
+            string search = keyword;
+            if (!_lookup.IsItemSearch && !string.IsNullOrWhiteSpace(keyword))
+            {
+                // Standard QR tem thùng/tổng: LOT:PART:NGAYSX:QTY[:...].
+                // Quality history stores LOT, not the complete QR payload.
+                string[] qrFields = keyword.Split(':');
+                string lotKey = (qrFields.Length == 4 || qrFields.Length == 6)
+                    ? (qrFields[0] ?? string.Empty).Trim()
+                    : keyword;
+                search = string.IsNullOrWhiteSpace(lotKey) ? null : "LOTQR:" + lotKey;
+            }
             _loading = true;
             ToggleBusy(false);
             try
