@@ -589,8 +589,8 @@ namespace PCTP.Modules.BaoCao.UI
                 _currentRows = rows == null ? new List<DeliveryTraceRow>() : rows.ToList();
                 BindDeliveryRows();
                 ClearTimeline("Chọn một dòng giao hàng để xem QR và dựng timeline theo toàn bộ LOT ghép.");
-                _status.Text = "Tìm thấy " + _currentRows.Count + " dòng." +
-                    (_currentRows.Count == 0 ? " Kiểm tra khoảng ngày (theo NGAYGIAO) và ô Khách hàng." : string.Empty);
+                _status.Text = "Tìm thấy " + _deliveryRows.Count + " dòng giao hàng / " + _currentRows.Count + " dòng QR." +
+                    (_deliveryRows.Count == 0 ? " Kiểm tra khoảng ngày (theo NGAYGIAO) và ô Khách hàng." : string.Empty);
             }
             catch (Exception ex)
             {
@@ -635,7 +635,13 @@ namespace PCTP.Modules.BaoCao.UI
                 {
                     foreach (DeliveryLotTraceRow lot in lots)
                     {
-                        if (lot == null || string.IsNullOrWhiteSpace(lot.LotNo)) continue;
+                        if (lot == null) continue;
+                        if (!string.IsNullOrWhiteSpace(lot.ParseError))
+                        {
+                            nodes.Add(TraceNode.InvalidCompositeLot(row, lot.ParseError));
+                            continue;
+                        }
+                        if (string.IsNullOrWhiteSpace(lot.LotNo)) continue;
 
                         nodes.Add(TraceNode.ForDeliveryLot(row, lot));
 
@@ -849,6 +855,27 @@ namespace PCTP.Modules.BaoCao.UI
                     Subtitle = "Phiếu: " + ValueOrDash(row.DocumentNo) + " | KH: " + ValueOrDash(row.CustomerName),
                     Note = "Bản ghi phiếu giao được lưu trong LUUPHIEUGIAOHANG. QR/tem được lấy từ LUUDOCQRCODE qua điều kiện nhà máy, mã hàng, ngày và giờ giao; đây chưa phải khóa ngoại duy nhất nên cần đối soát nếu có nhiều bản ghi trùng điều kiện. Ngày giao lấy từ NGAYGIAO; không suy diễn giờ nếu nguồn không cung cấp.",
                     SortOrder = 30
+                };
+            }
+
+            public static TraceNode InvalidCompositeLot(DeliveryTraceRow row, string error)
+            {
+                return new TraceNode
+                {
+                    Title = "LOT ghép không hợp lệ",
+                    EventType = "INVALID_DELIVERY_LOT",
+                    EventTime = row.DeliveryDate,
+                    LotNo = row.LotNoRaw,
+                    PartNo = row.PartNo,
+                    Quantity = row.Quantity,
+                    CustomerName = row.CustomerName,
+                    DocumentNo = row.DocumentNo,
+                    SourceName = "dbo.LUUPHIEUGIAOHANG.LOT",
+                    SourceKey = row.DeliveryKey,
+                    EvidenceStatus = "Không thể phân rã phân bổ LOT",
+                    Subtitle = error,
+                    Note = "Không truy vấn sản xuất/lịch sử kho bằng chuỗi LOT ghép chưa parse được. Cần kiểm tra dữ liệu LOT và số lượng trên phiếu giao.",
+                    SortOrder = 29
                 };
             }
 
