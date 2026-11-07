@@ -126,6 +126,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         public int CapNhapKhoHTN(string nhaMay, PhieuTableSet tables, out DataTable errors) => _kho.CapNhapKhoHTN(nhaMay, tables, out errors);
         public int CapNhapKhoHTN(string nhaMay, string tmpTable, string docQRTable, out DataTable errors) => _kho.CapNhapKhoHTN(nhaMay, tmpTable, docQRTable, out errors);
         public int CapNhapKhoSP(string gioGiaoFcc, string nhaMay, out DataTable errors) => _kho.CapNhapKhoSP(gioGiaoFcc, nhaMay, out errors);
+        public int CapNhapKhoSP(string gioGiaoFcc, string nhaMay, string tmpTable, string docQRTable, out DataTable errors) => _kho.CapNhapKhoSP(gioGiaoFcc, nhaMay, tmpTable, docQRTable, out errors);
         public bool CapNhapKhoYMVN(int stt, string lotSl, string maHang, string ngayGiao, string gioGiao, string nhaMay, out DS_ERR_CNK error) => _kho.CapNhapKhoYMVN(stt, lotSl, maHang, ngayGiao, gioGiao, nhaMay, out error);
         public int DanhDauDaGiao(OrderLineKey key, CustomerConfig cfg) => _kho.DanhDauDaGiao(key, cfg);
 
