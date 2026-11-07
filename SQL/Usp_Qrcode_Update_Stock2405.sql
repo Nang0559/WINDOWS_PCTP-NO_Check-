@@ -937,7 +937,11 @@ BEGIN
                 UPDATE STOCKTP
                 SET
                     SLCONLAI = ISNULL(SLCONLAI, 0) - @_SLUD,
-                    SLXUAT = ISNULL(SLXUAT, 0) + @_SLUD
+                    SLXUAT = ISNULL(SLXUAT, 0) + @_SLUD,
+                    NGAYXUAT = CASE
+                        WHEN @LOTRESOLUTIONMODE = N'FIFO_SP' THEN GETDATE()
+                        ELSE NGAYXUAT
+                    END
                 WHERE LOT = @LotThuc
                   AND ISNULL(SLCONLAI, 0) >= @_SLUD;
 
