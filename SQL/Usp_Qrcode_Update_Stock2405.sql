@@ -60,7 +60,6 @@ BEGIN
     --------------------------------------------------------------------  
     -- 2. KHAI BÁO BIẾN  
     --------------------------------------------------------------------  
-    DECLARE @NgayGiao SMALLDATETIME = CAST(GETDATE() AS SMALLDATETIME);  
     DECLARE @sql NVARCHAR(MAX);
     DECLARE @StartedTransaction BIT = 0;
     DECLARE @SavepointCreated BIT = 0;  
@@ -1071,7 +1070,7 @@ BEGIN
                     LEFT(DQ.MAFCC, 50),  
                     DQ.STT,  
                     LEFT(DQ.KETQUA, 30),  
-                    @NgayGiao,  
+                    PG.NGAYGIAO,  
                     LEFT(@GIOGIAOFCC, 30),  
                     LEFT(@NHAMAY, 60)  
                 FROM [' + @DOCQRTABLE + N'] DQ  
@@ -1113,7 +1112,7 @@ BEGIN
                     LEFT(DQ.MAFCC, 50),  
                     DQ.STT,  
                     LEFT(DQ.KETQUA, 30),  
-                    @NgayGiao,  
+                    PG.NGAYGIAO,  
                     LEFT(@GIOGIAOFCC, 30),  
                     LEFT(@NHAMAY, 60)  
                 FROM [' + @DOCQRTABLE + N'] DQ  
@@ -1131,10 +1130,9 @@ BEGIN
   
             EXEC sp_executesql  
                 @sql,  
-                N'@NgayGiao SMALLDATETIME,  
+                N'  
                   @GIOGIAOFCC NVARCHAR(250),  
                   @NHAMAY NVARCHAR(250)',  
-                @NgayGiao,  
                 @GIOGIAOFCC,  
                 @NHAMAY;  
   
