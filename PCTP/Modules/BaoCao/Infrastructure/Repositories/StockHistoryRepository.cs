@@ -69,16 +69,28 @@ namespace PCTP.Modules.BaoCao.Infrastructure.Repositories
 
             cancellationToken.ThrowIfCancellationRequested();
 
+            // "Đến ngày" chọn từ DateEdit là 00:00 -> SP (so sánh Date <= @ToDate) sẽ bỏ sót cả ngày cuối.
+            // Quy về cuối ngày (23:59:59.997, độ chính xác của DATETIME).
+            DateTime? toInclusive = criteria.To;
+            if (toInclusive.HasValue && toInclusive.Value.TimeOfDay == TimeSpan.Zero)
+                toInclusive = toInclusive.Value.Date.AddDays(1).AddMilliseconds(-3);
+
             var parameters = new[]
             {
                 new SqlParameter("@FromDate", criteria.From.HasValue ? (object)criteria.From.Value : DBNull.Value),
-                new SqlParameter("@ToDate", criteria.To.HasValue ? (object)criteria.To.Value : DBNull.Value),
+                new SqlParameter("@ToDate", toInclusive.HasValue ? (object)toInclusive.Value : DBNull.Value),
                 new SqlParameter("@ItemCode", string.IsNullOrWhiteSpace(criteria.PartNo) ? (object)DBNull.Value : criteria.PartNo)
             };
 
             var table = ExecuteStoredProcedure("sp_GetStockHistory", parameters);
             var slotNames = LoadSlotNames();
             var rows = table.AsEnumerable().Select(r => Map(r, slotNames)).ToList();
+
+            // Không phụ thuộc cách SP lọc ngày: lọc lại khoảng ngày ở đây (dòng không có ngày thì giữ lại).
+            if (criteria.From.HasValue)
+                rows = rows.Where(x => !x.EventTime.HasValue || x.EventTime.Value >= criteria.From.Value).ToList();
+            if (toInclusive.HasValue)
+                rows = rows.Where(x => !x.EventTime.HasValue || x.EventTime.Value <= toInclusive.Value).ToList();
 
             // Stored procedure contract remains unchanged for deployed DBs. Apply
             // optional LOT/QR/document criteria to its read-only result set.

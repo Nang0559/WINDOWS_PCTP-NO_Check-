@@ -98,7 +98,7 @@ namespace PCTP.Modules.BaoCao.UI
                 Top = 62,
                 Width = 560,
                 Height = 78,
-                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
+                Anchor = AnchorStyles.Top | AnchorStyles.Left
             };
             _stockLookup.SetLotQrPlaceholder("Quét QR / nhập LOT / số phiếu để tra cứu...");
             _stockLookup.SearchRequested += async (s, e) => await SearchAsync();
@@ -113,6 +113,17 @@ namespace PCTP.Modules.BaoCao.UI
             _btnTraceDelivery.Click += async (s, e) => await TraceDeliveryAsync();
 
             historyGroup.Controls.AddRange(new Control[] { _dateFrom, _dateTo, _stockLookup });
+            // Anchor Right tính theo kích thước LÚC TẠO (group chưa dock xong) nên ô tra cứu bị tràn ra ngoài,
+            // nút "Tra cứu mã" / "Tra cứu LOT / QR" nằm ngoài vùng nhìn thấy. Co giãn thủ công theo group.
+            EventHandler fitLookup = (s2, e2) =>
+            {
+                Size client = historyGroup.ClientSize;
+                if (client.Width <= 0 || client.Height <= 0) return;
+                _stockLookup.Width = Math.Max(320, client.Width - _stockLookup.Left - 12);
+                _stockLookup.Height = Math.Max(60, client.Height - _stockLookup.Top - 6);
+            };
+            historyGroup.SizeChanged += fitLookup;
+            historyGroup.HandleCreated += fitLookup;
             currentGroup.Controls.Add(_btnCurrentStock);
             actionPanel.Controls.AddRange(new Control[] { _btnExport, _btnPrint, _btnTraceDelivery });
             top.Controls.Add(historyGroup);
