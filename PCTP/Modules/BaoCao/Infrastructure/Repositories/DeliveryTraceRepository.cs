@@ -123,7 +123,18 @@ ORDER BY P.MAHANG";
 
             AddDateFilter(where, parameters, from, to);
             AddLikeFilter(where, parameters, "P.MAHANG", partNo, "@PartNo");
-            AddLikeFilter(where, parameters, "P.LOT", lotNo, "@LotNo");
+            if (!string.IsNullOrWhiteSpace(lotNo))
+            {
+                // A LOT can be stored on the delivery row as a composite allocation
+                // (LOT1-qty,LOT2-qty), while older searches may identify it through
+                // the QR evidence LOTFCC. Search both sources; do not make either one
+                // replace the other in the mapped result.
+                where.Add(@"(
+                    ISNULL(P.LOT, '') LIKE @LotNo
+                    OR ISNULL(D.LOTFCC, '') LIKE @LotNo
+                )");
+                parameters.Add(new SqlParameter("@LotNo", "%" + lotNo.Trim() + "%"));
+            }
             AddCustomerFilter(where, parameters, customerName);
 
             DataTable table = Load(where, parameters);
@@ -135,7 +146,10 @@ ORDER BY P.MAHANG";
                 DeliveryTraceRow mapped = Map(row);
 
                 if (!string.IsNullOrWhiteSpace(lotNo) &&
-                    !ContainsLot(mapped.LotNoRaw, lotNo))
+                    !ContainsLot(mapped.LotNoRaw, lotNo) &&
+                    !ContainsLot(mapped.QrLotNo, lotNo) &&
+                    !ContainsText(mapped.LotNoRaw, lotNo) &&
+                    !ContainsText(mapped.QrLotNo, lotNo))
                 {
                     continue;
                 }
@@ -466,6 +480,13 @@ ORDER BY P.NGAYGIAO DESC, P.STT DESC, D.STT DESC";
 
             where.Add("ISNULL(" + column + ", '') LIKE " + parameterName);
             parameters.Add(new SqlParameter(parameterName, "%" + value.Trim() + "%"));
+        }
+
+        private static bool ContainsText(string source, string value)
+        {
+            return !string.IsNullOrWhiteSpace(source) &&
+                   !string.IsNullOrWhiteSpace(value) &&
+                   source.IndexOf(value.Trim(), StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
         private static bool ContainsLot(string rawLot, string requestedLot)
