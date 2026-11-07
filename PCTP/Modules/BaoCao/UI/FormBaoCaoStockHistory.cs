@@ -180,8 +180,7 @@ namespace PCTP.Modules.BaoCao.UI
             _timelineView.Clear("Chọn một dòng LOT trong lưới trên (hoặc bấm \"Truy vết giao hàng →\") để xem timeline.");
             _detailText = new TextBox
             {
-                Dock = DockStyle.Bottom,
-                Height = 130,
+                Dock = DockStyle.Fill,
                 Multiline = true,
                 ReadOnly = true,
                 ScrollBars = ScrollBars.Vertical,
@@ -197,8 +196,30 @@ namespace PCTP.Modules.BaoCao.UI
                 Height = 28,
                 Padding = new Padding(8, 5, 0, 0)
             };
-            timelinePanel.Controls.Add(_timelineView);
-            timelinePanel.Controls.Add(_detailText);
+            // Timeline (trái) | Chi tiết node (phải): chia ngang thay vì chồng trên-dưới.
+            var detailPanel = new Panel { Dock = DockStyle.Fill };
+            var detailCaption = new LabelControl
+            {
+                Text = "CHI TIẾT NODE ĐANG CHỌN",
+                Dock = DockStyle.Top,
+                Height = 24,
+                Padding = new Padding(8, 3, 0, 0)
+            };
+            detailPanel.Controls.Add(_detailText);
+            detailPanel.Controls.Add(detailCaption);
+
+            var timelineSplit = new SplitContainer
+            {
+                Dock = DockStyle.Fill,
+                Orientation = Orientation.Vertical,
+                SplitterWidth = 5
+            };
+            timelineSplit.Panel1.Controls.Add(_timelineView);
+            timelineSplit.Panel2.Controls.Add(detailPanel);
+            timelineSplit.SizeChanged += (s2, e2) => ApplySplit(timelineSplit, timelineSplit.Width * 60 / 100, 320, 260);
+            timelineSplit.HandleCreated += (s2, e2) => ApplySplit(timelineSplit, timelineSplit.Width * 60 / 100, 320, 260);
+
+            timelinePanel.Controls.Add(timelineSplit);
             timelinePanel.Controls.Add(timelineCaption);
 
             var bottom = new SplitContainer
