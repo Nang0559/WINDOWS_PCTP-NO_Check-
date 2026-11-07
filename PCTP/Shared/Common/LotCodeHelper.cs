@@ -19,6 +19,19 @@ namespace PCTP.Common
     }
 
     /// <summary>
+    /// Một phần của LOT ghép: "LOT-SL". Parse từng token độc lập, token lỗi không làm hỏng các token khác.
+    /// </summary>
+    public sealed class LotAllocation
+    {
+        public string RawToken { get; set; }
+        public string LotNo { get; set; }
+        public decimal Quantity { get; set; }
+        public bool HasQuantity { get; set; }
+        public string Error { get; set; }
+        public bool IsValid { get { return string.IsNullOrEmpty(Error) && !string.IsNullOrWhiteSpace(LotNo); } }
+    }
+
+    /// <summary>
     /// Nguồn xử lý DUY NHẤT cho cấu trúc chuỗi LOTNO, khớp 1-1 với SP SQL build LOT:
     ///
     ///   YY(2) + MM(2) + DD(2)                       -- LEN_DATE = 6
@@ -307,6 +320,68 @@ namespace PCTP.Common
             }
 
             return result;
+        }
+
+        /// <summary>
+        /// Parse LOT ghép "LOT1-1,LOT2-2,..." theo từng token (tolerant): mỗi LOT trả về 1 <see cref="LotAllocation"/>.
+        /// - Phân tách bằng ',' ';' '|' hoặc xuống dòng.
+        /// - Số lượng = phần sau dấu '-' CUỐI CÙNG nếu là số dương; nếu không thì cả token là LOT (không có SL).
+        /// - Nếu chỉ có 1 LOT và không có SL thì dùng <paramref name="fallbackQuantity"/>.
+        /// - Token có LOT quá ngắn (&lt; 13 ký tự) được đánh dấu Error nhưng không chặn các token còn lại.
+        /// </summary>
+        public static List<LotAllocation> ParseCompositeLotTolerant(string rawLot, decimal? fallbackQuantity)
+        {
+            var result = new List<LotAllocation>();
+            if (string.IsNullOrWhiteSpace(rawLot)) return result;
+
+            string[] tokens = rawLot.Split(new[] { ',', ';', '|', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+            foreach (string t in tokens)
+            {
+                string token = t.Trim();
+                if (token.Length == 0) continue;
+
+                var item = new LotAllocation { RawToken = token, LotNo = token };
+                int sep = token.LastIndexOf('-');
+                if (sep > 0 && sep < token.Length - 1)
+                {
+                    string qtyText = token.Substring(sep + 1).Trim();
+                    decimal qty;
+                    if ((decimal.TryParse(qtyText, NumberStyles.Number, CultureInfo.InvariantCulture, out qty) ||
+                         decimal.TryParse(qtyText, NumberStyles.Number, CultureInfo.CurrentCulture, out qty)) && qty > 0)
+                    {
+                        item.LotNo = token.Substring(0, sep).Trim();
+                        item.Quantity = qty;
+                        item.HasQuantity = true;
+                    }
+                }
+
+                if (ClassifyLotKey(item.LotNo) == LotKeyKind.Unknown)
+                    item.Error = "LOT '" + item.LotNo + "' không nhận diện được (ngắn hơn " + LEN_LEGACY_KEY + " ký tự).";
+                result.Add(item);
+            }
+
+            if (result.Count == 1 && !result[0].HasQuantity && fallbackQuantity.HasValue && fallbackQuantity.Value > 0)
+            {
+                result[0].Quantity = fallbackQuantity.Value;
+                result[0].HasQuantity = true;
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// Khóa dùng để tìm LOT trong SQL/so khớp: 20 ký tự đầu (chuẩn mới) hoặc 13 ký tự đầu (chuẩn cũ).
+        /// LOT in đầy đủ (kèm Counter+Qty) cũng quy về khóa 20 ký tự.
+        /// </summary>
+        public static string GetSearchKey(string lot)
+        {
+            if (string.IsNullOrWhiteSpace(lot)) return string.Empty;
+            string t = lot.Trim();
+            switch (ClassifyLotKey(t))
+            {
+                case LotKeyKind.Full20: return t.Substring(0, LEN_HEAD_FIXED);
+                case LotKeyKind.Legacy13: return t.Substring(0, LEN_LEGACY_KEY);
+                default: return t;
+            }
         }
     }
 }

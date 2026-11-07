@@ -43,12 +43,16 @@ namespace PCTP.Modules.BaoCao.UI
         private readonly IStockHistoryQuery _stockHistoryQuery;
         private readonly IWaitFormService _waitForm;
         private readonly IProductionLotTraceQuery _productionQuery;
-        private readonly FlowLayoutPanel _timeline = new FlowLayoutPanel();
+        private readonly TraceTimelineControl _timelineView = new TraceTimelineControl();
+        private readonly LotTraceTimelineBuilder _timelineBuilder;
+        private readonly SemaphoreSlim _timelineGate = new SemaphoreSlim(1, 1);
+        private readonly System.Windows.Forms.Timer _timelineDebounce = new System.Windows.Forms.Timer { Interval = 250 };
+        private int _timelineVersion;
         private readonly Panel _detailPanel = new Panel();
         private readonly Label _detailTitle = new Label();
         private readonly TextBox _detailText = new TextBox();
         private readonly Label _timelineCaption = new Label();
-        private readonly List<TraceNode> _timelineNodes = new List<TraceNode>();
+        private readonly List<TraceTimelineNode> _timelineNodes = new List<TraceTimelineNode>();
         private readonly Label _status = new Label();
         private SimpleButton _exportButton;
         private List<DeliveryTraceRow> _currentRows = new List<DeliveryTraceRow>();
@@ -85,6 +89,9 @@ namespace PCTP.Modules.BaoCao.UI
             _customerQuery = query;
             _stockHistoryQuery = stockHistoryQuery;
             _waitForm = new WaitFormService(this);
+            _timelineBuilder = new LotTraceTimelineBuilder(query, query, productionQuery, stockHistoryQuery);
+            _timelineDebounce.Tick += TimelineDebounce_Tick;
+            _timelineView.SelectedNodeChanged += TimelineView_SelectedNodeChanged;
             Text = "Báo cáo - Tra cứu truy xuất giao hàng";
             ClientSize = new Size(1250, 720);
             StartPosition = FormStartPosition.CenterParent;
@@ -189,13 +196,14 @@ namespace PCTP.Modules.BaoCao.UI
                 GrowStyle = TableLayoutPanelGrowStyle.FixedSize
             };
             root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 174));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 200));
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
             var search = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
-                Height = 174,
+                Height = 200,
+                MinimumSize = new Size(0, 200),
                 ColumnCount = 6,
                 RowCount = 4,
                 Padding = new Padding(8),
@@ -322,8 +330,8 @@ namespace PCTP.Modules.BaoCao.UI
                 Padding = new Padding(6),
                 BackColor = SystemColors.Control
             };
-            left.RowStyles.Add(new RowStyle(SizeType.Percent, 48));
-            left.RowStyles.Add(new RowStyle(SizeType.Percent, 52));
+            left.RowStyles.Add(new RowStyle(SizeType.Percent, 38));
+            left.RowStyles.Add(new RowStyle(SizeType.Percent, 62));
 
             var deliveryQrHost = new TableLayoutPanel
             {
@@ -357,17 +365,13 @@ namespace PCTP.Modules.BaoCao.UI
             left.Controls.Add(deliveryQrHost, 0, 0);
 
             var timelineHost = new Panel { Dock = DockStyle.Fill, BackColor = Color.White, Padding = new Padding(6) };
-            _timelineCaption.Text = "TIMELINE GIAO DỊCH";
+            _timelineCaption.Text = "TIMELINE TRUY VẾT (chọn dòng giao hàng để dựng theo toàn bộ LOT ghép)";
             _timelineCaption.Dock = DockStyle.Top;
             _timelineCaption.Height = 28;
             _timelineCaption.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
             _timelineCaption.ForeColor = Color.FromArgb(35, 65, 95);
-            _timeline.Dock = DockStyle.Fill;
-            _timeline.FlowDirection = FlowDirection.TopDown;
-            _timeline.WrapContents = false;
-            _timeline.AutoScroll = true;
-            _timeline.BackColor = Color.White;
-            timelineHost.Controls.Add(_timeline);
+            _timelineView.Dock = DockStyle.Fill;
+            timelineHost.Controls.Add(_timelineView);
             timelineHost.Controls.Add(_timelineCaption);
             left.Controls.Add(timelineHost, 0, 1);
 
@@ -390,7 +394,7 @@ namespace PCTP.Modules.BaoCao.UI
 
             workspace.Panel1.Controls.Add(left);
             workspace.Panel2.Controls.Add(_detailPanel);
-            ShowEmptyTimeline("Chọn một dòng giao hàng để dựng timeline theo LOT.");
+            ClearTimeline("Chọn một dòng giao hàng để dựng timeline theo LOT.");
 
             root.Controls.Add(search, 0, 0);
             root.Controls.Add(workspace, 0, 1);
@@ -571,6 +575,21 @@ namespace PCTP.Modules.BaoCao.UI
             if (_bindingQrGrid) return;
             DeliveryTraceRow row = GetFocusedDelivery();
             BindQrRows(row == null ? null : row.DeliveryKey);
+            _timelineDebounce.Stop();
+            if (row != null) _timelineDebounce.Start();
+        }
+
+        private void TimelineDebounce_Tick(object sender, EventArgs e)
+        {
+            _timelineDebounce.Stop();
+            DeliveryTraceRow row = GetFocusedDelivery();
+            if (row != null) _ = BuildTimelineAsync(row);
+        }
+
+        private void TimelineView_SelectedNodeChanged(object sender, EventArgs e)
+        {
+            TraceTimelineNode node = _timelineView.SelectedNode;
+            if (node != null) ShowNodeDetail(node);
         }
 
         private void DeliveryGrid_DoubleClick(object sender, EventArgs e)
@@ -597,8 +616,8 @@ namespace PCTP.Modules.BaoCao.UI
                     part = stockSearch;
                 else if (!string.IsNullOrWhiteSpace(stockSearch))
                 {
-                    if (LotCodeHelper.ClassifyLotKey(stockSearch) != LotKeyKind.Unknown ||
-                        IsCompositeLotSearch(stockSearch))
+                    // Chuỗi QR có dấu ':'; còn lại nếu chứa LOT hợp lệ (LOT đơn / LOT in đủ / LOT ghép) thì tra theo LOT.
+                    if (stockSearch.IndexOf(':') < 0 && IsLotSearch(stockSearch))
                         lot = stockSearch;
                     else
                         qr = stockSearch;
@@ -635,21 +654,9 @@ namespace PCTP.Modules.BaoCao.UI
             }
         }
 
-        private static bool IsCompositeLotSearch(string value)
+        private static bool IsLotSearch(string value)
         {
-            if (string.IsNullOrWhiteSpace(value) || value.IndexOf(',') < 0)
-                return false;
-
-            try
-            {
-                List<KeyValuePair<string, decimal>> parts = LotCodeHelper.ParseCompositeLot(value);
-                return parts.Count > 0 && parts.All(x =>
-                    LotCodeHelper.ClassifyLotKey(x.Key) != LotKeyKind.Unknown);
-            }
-            catch (FormatException)
-            {
-                return false;
-            }
+            return LotCodeHelper.ParseCompositeLotTolerant(value, null).Any(x => x.IsValid);
         }
 
         private static string GetLookupText(LookUpEdit lookup)
@@ -670,150 +677,36 @@ namespace PCTP.Modules.BaoCao.UI
         private async Task BuildTimelineAsync(DeliveryTraceRow row)
         {
             if (row == null) return;
+            int version = ++_timelineVersion;
+            _status.Text = "Đang dựng timeline theo toàn bộ LOT ghép...";
+            await _timelineGate.WaitAsync();
             try
             {
-                _status.Text = "Đang dựng timeline theo toàn bộ LOT ghép...";
-                _timeline.Enabled = false;
-                await _waitForm.RunAsync(async () =>
-                {
-                    IReadOnlyList<DeliveryLotTraceRow> lots = await _qrQuery.GetLotsAsync(
-                        row.DeliveryKey, row.QRCode, CancellationToken.None);
+                if (version != _timelineVersion || IsDisposed) return; // đã chọn dòng khác
+                TraceTimelineResult result = await Task.Run(
+                    () => _timelineBuilder.BuildForDeliveryAsync(row, CancellationToken.None));
+                if (version != _timelineVersion || IsDisposed) return;
 
-                    var nodes = new List<TraceNode>();
-                    nodes.Add(TraceNode.ForDelivery(row));
-
-                    if (lots != null)
-                    {
-                        foreach (DeliveryLotTraceRow lot in lots)
-                        {
-                            if (lot == null) continue;
-                            if (!string.IsNullOrWhiteSpace(lot.ParseError))
-                            {
-                                nodes.Add(TraceNode.InvalidCompositeLot(row, lot.ParseError));
-                                continue;
-                            }
-                            if (string.IsNullOrWhiteSpace(lot.LotNo)) continue;
-
-                            nodes.Add(TraceNode.ForDeliveryLot(row, lot));
-
-                            IReadOnlyList<ProductionLotTraceRow> production = await _productionQuery.FindByLotAsync(
-                                lot.LotNo, row.PartNo, CancellationToken.None);
-                            if (production != null && production.Count > 0)
-                            {
-                                foreach (ProductionLotTraceRow prod in production)
-                                    nodes.Add(TraceNode.ForProduction(row, lot, prod));
-                            }
-                            else nodes.Add(TraceNode.MissingProduction(row, lot));
-
-                            var criteria = new HistorySearchCriteria
-                            {
-                                LotNo = lot.LotNo,
-                                PartNo = row.PartNo,
-                                From = null,
-                                To = null
-                            };
-                            IReadOnlyList<ItemHistoryRow> history = await _stockHistoryQuery.SearchAsync(criteria, CancellationToken.None);
-                            int matchedHistoryCount = 0;
-                            if (history != null)
-                            {
-                                foreach (ItemHistoryRow item in history)
-                                {
-                                    if (item == null || !LotCodeHelper.AreLotKeysEquivalent(item.LotNo, lot.LotNo))
-                                        continue;
-                                    nodes.Add(TraceNode.ForStock(item, lot.LotNo));
-                                    matchedHistoryCount++;
-                                }
-                            }
-                            if (matchedHistoryCount == 0) nodes.Add(TraceNode.MissingStockHistory(row, lot));
-                        }
-                    }
-
-                    _timelineNodes.Clear();
-                    _timelineNodes.AddRange(nodes
-                        .OrderBy(x => x.EventTime.HasValue ? x.EventTime.Value : DateTime.MinValue)
-                        .ThenBy(x => x.SortOrder)
-                        .ToList());
-                    RenderTimeline();
-                    _status.Text = "Timeline có " + _timelineNodes.Count + " node; " +
-                        (lots == null ? 0 : lots.Count) + " phân bổ LOT được truy xuất riêng.";
-                }, "Đang truy xuất sản xuất và lịch sử kho cho từng LOT ghép...");
+                _timelineNodes.Clear();
+                _timelineNodes.AddRange(result.Nodes);
+                _timelineView.SetNodes(_timelineNodes, "Không có sự kiện phù hợp với LOT đã chọn.");
+                _status.Text = result.Summary;
             }
             catch (Exception ex)
             {
-                ClearTimeline("Không dựng được timeline do lỗi truy vấn.");
-                _status.Text = "Lỗi dựng timeline.";
-                XtraMessageBox.Show(this, ex.Message, "Báo cáo truy xuất", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-            finally { _timeline.Enabled = true; }
-        }
-        private void RenderTimeline()
-        {
-            _timeline.SuspendLayout();
-            try
-            {
-                _timeline.Controls.Clear();
-                if (_timelineNodes.Count == 0)
+                if (version == _timelineVersion && !IsDisposed)
                 {
-                    ShowEmptyTimeline("Không có sự kiện lịch sử phù hợp với LOT đã chọn.");
-                    return;
+                    ClearTimeline("Không dựng được timeline do lỗi truy vấn.");
+                    _status.Text = "Lỗi dựng timeline: " + ex.Message;
                 }
-
-                for (int i = 0; i < _timelineNodes.Count; i++)
-                {
-                    TraceNode node = _timelineNodes[i];
-                    var button = new Button
-                    {
-                        Width = Math.Max(300, _timeline.ClientSize.Width - 34),
-                        Height = 76,
-                        TextAlign = ContentAlignment.MiddleLeft,
-                        FlatStyle = FlatStyle.Flat,
-                        BackColor = Color.White,
-                        ForeColor = Color.FromArgb(35, 35, 35),
-                        Font = new Font("Segoe UI", 9F, FontStyle.Regular),
-                        Tag = node,
-                        Margin = new Padding(4, 3, 4, 3),
-                        Text = (i + 1).ToString("00") + "  " + node.Title + Environment.NewLine +
-                            (node.EventTime.HasValue ? node.EventTime.Value.ToString("dd/MM/yyyy HH:mm:ss") : "Không có thời gian") +
-                            "   |   LOT: " + (node.LotNo ?? "-") + Environment.NewLine +
-                            node.Subtitle
-                    };
-                    button.FlatAppearance.BorderColor = Color.FromArgb(205, 215, 225);
-                    button.Click += TimelineNode_Click;
-                    _timeline.Controls.Add(button);
-                }
-                if (_timelineNodes.Count > 0)
-                    ShowNodeDetail(_timelineNodes[0]);
             }
-            finally { _timeline.ResumeLayout(); }
+            finally { _timelineGate.Release(); }
         }
 
-        private void TimelineNode_Click(object sender, EventArgs e)
-        {
-            var button = sender as Button;
-            var node = button == null ? null : button.Tag as TraceNode;
-            if (node != null) ShowNodeDetail(node);
-        }
-
-        private void ShowNodeDetail(TraceNode node)
+        private void ShowNodeDetail(TraceTimelineNode node)
         {
             _detailTitle.Text = node.Title;
-            _detailText.Text =
-                "Trạng thái bằng chứng : " + node.EvidenceStatus + Environment.NewLine +
-                "Loại sự kiện         : " + node.EventType + Environment.NewLine +
-                "Thời gian             : " + (node.EventTime.HasValue ? node.EventTime.Value.ToString("dd/MM/yyyy HH:mm:ss") : "Không có dữ liệu") + Environment.NewLine +
-                "LOT                   : " + ValueOrDash(node.LotNo) + Environment.NewLine +
-                "Mã hàng               : " + ValueOrDash(node.PartNo) + Environment.NewLine +
-                "Số lượng              : " + (node.Quantity.HasValue ? node.Quantity.Value.ToString("N0") : "-") + Environment.NewLine +
-                "Vị trí từ              : " + ValueOrDash(node.FromLocation) + Environment.NewLine +
-                "Vị trí đến             : " + ValueOrDash(node.ToLocation) + Environment.NewLine +
-                "QR                    : " + ValueOrDash(node.QrCode) + Environment.NewLine +
-                "Tem khách hàng        : " + ValueOrDash(node.CustomerLabel) + Environment.NewLine +
-                "Khách hàng            : " + ValueOrDash(node.CustomerName) + Environment.NewLine +
-                "Chứng từ              : " + ValueOrDash(node.DocumentNo) + Environment.NewLine +
-                "Người thực hiện       : " + ValueOrDash(node.UserName) + Environment.NewLine +
-                "Nguồn dữ liệu         : " + ValueOrDash(node.SourceName) + Environment.NewLine +
-                "Khóa tra cứu/đối chiếu : " + ValueOrDash(node.SourceKey) + Environment.NewLine +
-                Environment.NewLine + node.Note;
+            _detailText.Text = node.DetailText();
         }
 
         private static void AdjustWorkspaceSplitter(SplitContainer workspace)
@@ -846,209 +739,13 @@ namespace PCTP.Modules.BaoCao.UI
             }
         }
 
-        private void ShowEmptyTimeline(string message)
-        {
-            _timeline.Controls.Clear();
-            _detailTitle.Text = "Chi tiết sự kiện";
-            _detailText.Text = message;
-        }
-
         private void ClearTimeline(string message)
         {
+            _timelineVersion++;
             _timelineNodes.Clear();
-            ShowEmptyTimeline(message);
-        }
-
-        private static string ValueOrDash(string value)
-        {
-            return string.IsNullOrWhiteSpace(value) ? "-" : value.Trim();
-        }
-
-        private sealed class TraceNode
-        {
-            public string Title;
-            public string EventType;
-            public DateTime? EventTime;
-            public string LotNo;
-            public string PartNo;
-            public decimal? Quantity;
-            public string FromLocation;
-            public string ToLocation;
-            public string QrCode;
-            public string CustomerLabel;
-            public string CustomerName;
-            public string DocumentNo;
-            public string UserName;
-            public string SourceName;
-            public string SourceKey;
-            public string EvidenceStatus;
-            public string Subtitle;
-            public string Note;
-            public int SortOrder;
-
-            public static TraceNode ForDelivery(DeliveryTraceRow row)
-            {
-                return new TraceNode
-                {
-                    Title = "Giao hàng đã lưu",
-                    EventType = "DELIVERY",
-                    EventTime = row.DeliveryDate,
-                    LotNo = row.LotNoRaw,
-                    PartNo = row.PartNo,
-                    Quantity = row.Quantity,
-                    QrCode = row.QRCode,
-                    CustomerLabel = row.CustomerLabelData,
-                    CustomerName = row.CustomerName,
-                    DocumentNo = row.DocumentNo,
-                    SourceName = "dbo.LUUPHIEUGIAOHANG + dbo.LUUDOCQRCODE",
-                    SourceKey = row.DeliveryKey,
-                    EvidenceStatus = "Có phiếu giao; liên kết QR cần đối soát",
-                    Subtitle = "Phiếu: " + ValueOrDash(row.DocumentNo) + " | KH: " + ValueOrDash(row.CustomerName),
-                    Note = "Bản ghi phiếu giao được lưu trong LUUPHIEUGIAOHANG. QR/tem được lấy từ LUUDOCQRCODE qua điều kiện nhà máy, mã hàng, ngày và giờ giao; đây chưa phải khóa ngoại duy nhất nên cần đối soát nếu có nhiều bản ghi trùng điều kiện. Ngày giao lấy từ NGAYGIAO; không suy diễn giờ nếu nguồn không cung cấp.",
-                    SortOrder = 30
-                };
-            }
-
-            public static TraceNode InvalidCompositeLot(DeliveryTraceRow row, string error)
-            {
-                return new TraceNode
-                {
-                    Title = "LOT ghép không hợp lệ",
-                    EventType = "INVALID_DELIVERY_LOT",
-                    EventTime = row.DeliveryDate,
-                    LotNo = row.LotNoRaw,
-                    PartNo = row.PartNo,
-                    Quantity = row.Quantity,
-                    CustomerName = row.CustomerName,
-                    DocumentNo = row.DocumentNo,
-                    SourceName = "dbo.LUUPHIEUGIAOHANG.LOT",
-                    SourceKey = row.DeliveryKey,
-                    EvidenceStatus = "Không thể phân rã phân bổ LOT",
-                    Subtitle = error,
-                    Note = "Không truy vấn sản xuất/lịch sử kho bằng chuỗi LOT ghép chưa parse được. Cần kiểm tra dữ liệu LOT và số lượng trên phiếu giao.",
-                    SortOrder = 29
-                };
-            }
-
-            public static TraceNode ForDeliveryLot(DeliveryTraceRow row, DeliveryLotTraceRow lot)
-            {
-                return new TraceNode
-                {
-                    Title = "Phân bổ LOT trên giao hàng",
-                    EventType = "DELIVERY_LOT",
-                    EventTime = row.DeliveryDate,
-                    LotNo = lot.LotNo,
-                    PartNo = row.PartNo,
-                    Quantity = lot.Quantity,
-                    QrCode = lot.QRCode,
-                    CustomerLabel = row.CustomerLabelData,
-                    CustomerName = row.CustomerName,
-                    DocumentNo = row.DocumentNo,
-                    SourceName = "LOT composite trong dữ liệu giao hàng",
-                    SourceKey = row.DeliveryKey + " / " + lot.LotNo,
-                    EvidenceStatus = "Có bằng chứng phân bổ LOT",
-                    Subtitle = "SL: " + lot.Quantity.ToString("N0") + " | QR: " + ValueOrDash(lot.QRCode),
-                    Note = "LOT và số lượng được parse từ trường LOT composite của bản ghi giao hàng.",
-                    SortOrder = 31
-                };
-            }
-
-            public static TraceNode ForProduction(DeliveryTraceRow delivery, DeliveryLotTraceRow lot, ProductionLotTraceRow prod)
-            {
-                return new TraceNode
-                {
-                    Title = "Thông tin sản xuất",
-                    EventType = "PRODUCTION",
-                    EventTime = prod.ProductionDate,
-                    LotNo = prod.Lot,
-                    PartNo = prod.PartNo,
-                    Quantity = prod.ProducedQty,
-                    QrCode = lot.QRCode,
-                    CustomerName = delivery.CustomerName,
-                    DocumentNo = delivery.DocumentNo,
-                    SourceName = "dbo.STOCKTP (cột sản xuất)",
-                    SourceKey = "LOT=" + prod.Lot,
-                    EvidenceStatus = "Có bản ghi sản xuất cho LOT",
-                    Subtitle = "Ca: " + (prod.Shift.HasValue ? prod.Shift.Value.ToString() : "-") +
-                        " | Line: " + ValueOrDash(prod.LineCode) +
-                        " | SL SX: " + (prod.ProducedQty.HasValue ? prod.ProducedQty.Value.ToString("N0") : "-") +
-                        " | Nhập TP: " + (prod.ReceivedDate.HasValue ? prod.ReceivedDate.Value.ToString("dd/MM/yyyy") : "-") +
-                        " (" + (prod.ReceivedQty.HasValue ? prod.ReceivedQty.Value.ToString("N0") : "-") + ")",
-                    Note = "Dữ kiện sản xuất lấy từ STOCKTP theo khóa LOT (13/20 ký tự). Chỉ dùng ngày/ca/SL sản xuất, ngày/SL nhập TP, line và bộ phận; không dùng tồn hiện tại làm bằng chứng lịch sử. Model: " +
-                        ValueOrDash(prod.Model) + " | Bộ phận: " + ValueOrDash(prod.DeptCode),
-                    SortOrder = 5
-                };
-            }
-
-            public static TraceNode MissingProduction(DeliveryTraceRow delivery, DeliveryLotTraceRow lot)
-            {
-                return new TraceNode
-                {
-                    Title = "Chưa tìm thấy thông tin sản xuất",
-                    EventType = "MISSING_PRODUCTION",
-                    EventTime = delivery.DeliveryDate,
-                    LotNo = lot.LotNo,
-                    PartNo = delivery.PartNo,
-                    Quantity = lot.Quantity,
-                    QrCode = lot.QRCode,
-                    CustomerName = delivery.CustomerName,
-                    DocumentNo = delivery.DocumentNo,
-                    SourceName = "dbo.STOCKTP (cột sản xuất)",
-                    SourceKey = "LOT=" + lot.LotNo,                    EvidenceStatus = "Thiếu bằng chứng sản xuất",
-                    Subtitle = "Không có bản ghi STOCKTP khớp LOT này (khóa 13/20 ký tự)",
-                    Note = "Đây là cảnh báo thiếu bằng chứng, không phải một sự kiện sản xuất.",
-                    SortOrder = 19
-                };
-            }
-
-            public static TraceNode MissingStockHistory(DeliveryTraceRow delivery, DeliveryLotTraceRow lot)
-            {
-                return new TraceNode
-                {
-                    Title = "Chưa tìm thấy lịch sử kho",
-                    EventType = "MISSING_STOCK_HISTORY",
-                    EventTime = delivery.DeliveryDate,
-                    LotNo = lot.LotNo,
-                    PartNo = delivery.PartNo,
-                    Quantity = lot.Quantity,
-                    QrCode = lot.QRCode,
-                    CustomerLabel = delivery.CustomerLabelData,
-                    CustomerName = delivery.CustomerName,
-                    DocumentNo = delivery.DocumentNo,
-                    SourceName = "dbo.StockHistory (sp_GetStockHistory)",
-                    SourceKey = "LOT=" + lot.LotNo,
-                    EvidenceStatus = "Thiếu bằng chứng lịch sử",
-                    Subtitle = "Chưa truy xuất được bản ghi nhập/xuất kho cho LOT này",
-                    Note = "Đây là cảnh báo thiếu bằng chứng, không phải một giao dịch kho. Không suy diễn từ STOCKTP hoặc tồn kho hiện tại.",
-                    SortOrder = 20
-                };
-            }
-
-            public static TraceNode ForStock(ItemHistoryRow row, string requestedLot)
-            {
-                return new TraceNode
-                {
-                    Title = "Lịch sử kho: " + ValueOrDash(row.ActionType),
-                    EventType = row.ActionType,
-                    EventTime = row.EventTime,
-                    LotNo = row.LotNo,
-                    PartNo = row.ItemCode,
-                    Quantity = row.Quantity,
-                    FromLocation = row.FromLocation,
-                    ToLocation = row.ToLocation,
-                    QrCode = row.QrCode,
-                    DocumentNo = row.DocumentNo,
-                    UserName = row.UserName,
-                    SourceName = "dbo.StockHistory (sp_GetStockHistory)",
-                    SourceKey = "LOT=" + requestedLot + " | Phiếu=" + ValueOrDash(row.DocumentNo) +
-                        " | " + (row.EventTime.HasValue ? row.EventTime.Value.ToString("O") : "no-time"),
-                    EvidenceStatus = "Có bản ghi lịch sử kho",
-                    Subtitle = "SL: " + row.Quantity.ToString("N0") + " | " +
-                        ValueOrDash(row.FromLocation) + " → " + ValueOrDash(row.ToLocation),
-                    Note = "Sự kiện lấy từ read model lịch sử kho. Không coi tồn kho hiện tại là bằng chứng lịch sử.",
-                    SortOrder = 10
-                };
-            }
+            _timelineView.Clear(message);
+            _detailTitle.Text = "Chi tiết sự kiện";
+            _detailText.Text = message;
         }
 
         private async void ExportExcel_Click(object sender, EventArgs e)
@@ -1102,7 +799,7 @@ namespace PCTP.Modules.BaoCao.UI
             }
         }
 
-        private static void WriteTimelineCsv(string filePath, IList<TraceNode> rows)
+        private static void WriteTimelineCsv(string filePath, IList<TraceTimelineNode> rows)
         {
             var lines = new List<string>();
             lines.Add(string.Join(",", new[]
@@ -1113,7 +810,7 @@ namespace PCTP.Modules.BaoCao.UI
             }.Select(CsvEscape)));
 
             int sequence = 1;
-            foreach (TraceNode x in rows ?? new List<TraceNode>())
+            foreach (TraceTimelineNode x in rows ?? new List<TraceTimelineNode>())
             {
                 lines.Add(string.Join(",", new[]
                 {
@@ -1168,6 +865,11 @@ namespace PCTP.Modules.BaoCao.UI
                 _deliveryView.FocusedRowChanged -= DeliveryView_FocusedRowChanged;
                 _deliveryView.DoubleClick -= DeliveryGrid_DoubleClick;
                 _qrView.DoubleClick -= DeliveryGrid_DoubleClick;
+                _timelineDebounce.Stop();
+                _timelineDebounce.Tick -= TimelineDebounce_Tick;
+                _timelineDebounce.Dispose();
+                _timelineView.SelectedNodeChanged -= TimelineView_SelectedNodeChanged;
+                _timelineGate.Dispose();
             }
             base.Dispose(disposing);
         }

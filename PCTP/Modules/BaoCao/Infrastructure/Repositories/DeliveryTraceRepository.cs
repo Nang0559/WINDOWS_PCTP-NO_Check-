@@ -128,8 +128,14 @@ ORDER BY P.MAHANG";
             if (!string.IsNullOrWhiteSpace(lotNo))
             {
                 var lotPredicates = new List<string>();
-                lotPredicates.Add("ISNULL(P.LOT, '') LIKE @LotComposite");
-                parameters.Add(new SqlParameter("@LotComposite", "%" + lotNo.Trim() + "%"));
+                // Mỗi LOT trong LOT ghép là một khóa riêng (20/13 ký tự đầu). KHÔNG LIKE cả chuỗi ghép,
+                // vì LOT in đầy đủ (kèm counter+qty) hoặc thứ tự LOT khác sẽ không khớp.
+                for (int i = 0; i < requestedLots.Count; i++)
+                {
+                    string orderParam = "@OrderLot" + i;
+                    lotPredicates.Add("ISNULL(P.LOT, '') LIKE " + orderParam);
+                    parameters.Add(new SqlParameter(orderParam, "%" + requestedLots[i] + "%"));
+                }
 
                 // QR LOTFCC stores one physical LOT per scan, not the complete
                 // "LOT1-qty,LOT2-qty" allocation string. Search each component
@@ -153,8 +159,7 @@ ORDER BY P.MAHANG";
                 cancellationToken.ThrowIfCancellationRequested();
                 DeliveryTraceRow mapped = Map(row);
 
-                if (!string.IsNullOrWhiteSpace(lotNo) &&
-                    !ContainsText(mapped.LotNoRaw, lotNo) &&
+                if (requestedLots.Count > 0 &&
                     !ContainsAnyLot(mapped.LotNoRaw, requestedLots) &&
                     !ContainsAnyLot(mapped.QrLotNo, requestedLots))
                 {
@@ -489,23 +494,23 @@ ORDER BY P.NGAYGIAO DESC, P.STT DESC, D.STT DESC";
             parameters.Add(new SqlParameter(parameterName, "%" + value.Trim() + "%"));
         }
 
+        /// <summary>
+        /// Chuẩn hoá chuỗi nhập (1 LOT, LOT in đầy đủ, hoặc LOT ghép "LOT1-1,LOT2-2") thành danh sách
+        /// khóa LOT (20 ký tự đầu hoặc 13 ký tự đầu) để tra cứu từng LOT riêng.
+        /// </summary>
         private static List<string> ParseRequestedLots(string rawLot)
         {
+            var keys = new List<string>();
             if (string.IsNullOrWhiteSpace(rawLot))
-                return new List<string>();
+                return keys;
 
-            try
+            foreach (LotAllocation part in LotCodeHelper.ParseCompositeLotTolerant(rawLot, null))
             {
-                List<KeyValuePair<string, decimal>> parsed = LotCodeHelper.ParseCompositeLot(rawLot);
-                if (parsed.Count > 0)
-                    return parsed.Select(x => x.Key).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+                string key = LotCodeHelper.GetSearchKey(part.LotNo);
+                if (key.Length > 0 && !keys.Contains(key, StringComparer.OrdinalIgnoreCase))
+                    keys.Add(key);
             }
-            catch (FormatException)
-            {
-                // A single LOT does not carry a quantity suffix. Keep it as a search key.
-            }
-
-            return new List<string> { rawLot.Trim() };
+            return keys;
         }
 
         private static bool ContainsAnyLot(string rawValue, IList<string> requestedLots)
@@ -533,24 +538,13 @@ ORDER BY P.NGAYGIAO DESC, P.STT DESC, D.STT DESC";
             if (string.IsNullOrWhiteSpace(rawLot) || string.IsNullOrWhiteSpace(requestedLot))
                 return false;
 
-            try
+            // Duyệt từng LOT của LOT ghép; một token lỗi không làm mất các LOT còn lại.
+            foreach (LotAllocation part in LotCodeHelper.ParseCompositeLotTolerant(rawLot, null))
             {
-                foreach (var item in LotCodeHelper.ParseCompositeLot(rawLot))
-                {
-                    if (LotCodeHelper.AreLotKeysEquivalent(item.Key, requestedLot.Trim()))
-                        return true;
-                }
+                if (LotCodeHelper.AreLotKeysEquivalent(part.LotNo, requestedLot.Trim()))
+                    return true;
             }
-            catch (Exception)
-            {
-                // Keep the read path fail-safe: a malformed composite LOT
-                // must not make the whole trace screen fail.
-            }
-
-            return string.Equals(
-                rawLot.Trim(),
-                requestedLot.Trim(),
-                StringComparison.OrdinalIgnoreCase);
+            return false;
         }
 
         private static string BuildDeliveryKey(

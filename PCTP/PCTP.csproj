@@ -343,6 +343,9 @@
     <Compile Include="Modules\BaoCao\UI\FormBaoCaoQualityHistory.cs" />
     <Compile Include="Modules\BaoCao\UI\FormBaoCaoStockHistory.cs" />
     <Compile Include="Modules\BaoCao\UI\FormBaoCaoTraceability.cs" />
+    <Compile Include="Modules\BaoCao\UI\Timeline\LotTraceTimelineBuilder.cs" />
+    <Compile Include="Modules\BaoCao\UI\Timeline\TraceTimelineControl.cs" />
+    <Compile Include="Modules\BaoCao\UI\Timeline\TraceTimelineNode.cs" />
     <Compile Include="Modules\GiaoHangKhach\Configuration\GiaoHangKhachConfiguration.cs" />
     <Compile Include="Modules\GiaoHangKhach\HVN\HVN_PGH.DocQrUi.cs">
       <SubType>Form</SubType>

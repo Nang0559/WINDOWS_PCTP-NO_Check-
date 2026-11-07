@@ -81,49 +81,22 @@ namespace PCTP.Modules.BaoCao.Infrastructure.Queries
             // can return N rows for N scans, but must not multiply the same LOT allocations.
             // QR is only attached as the currently selected carton context; it is not
             // treated as a proven per-LOT foreign key.
+            // Tách TỪNG LOT trong LOT ghép "LOT1-1,LOT2-2,...": mỗi LOT là một khóa tra cứu riêng
+            // (20 ký tự đầu). Token lỗi chỉ đánh dấu ParseError cho token đó, không chặn các LOT còn lại.
             var result = new List<DeliveryLotTraceRow>();
-            try
+            string qrText = string.IsNullOrWhiteSpace(qrCode) ? string.Empty : qrCode.Trim();
+            foreach (LotAllocation part in LotCodeHelper.ParseCompositeLotTolerant(source.LotNoRaw, source.Quantity))
             {
-                foreach (var lot in LotCodeHelper.ParseCompositeLot(source.LotNoRaw))
+                cancellationToken.ThrowIfCancellationRequested();
+                result.Add(new DeliveryLotTraceRow
                 {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    result.Add(new DeliveryLotTraceRow
-                    {
-                        DeliveryKey = source.DeliveryKey,
-                        QRCode = string.IsNullOrWhiteSpace(qrCode) ? string.Empty : qrCode.Trim(),
-                        LotNo = lot.Key,
-                        Quantity = lot.Value
-                    });
-                }
+                    DeliveryKey = source.DeliveryKey,
+                    QRCode = qrText,
+                    LotNo = part.LotNo,
+                    Quantity = part.HasQuantity ? part.Quantity : 0m,
+                    ParseError = part.Error
+                });
             }
-            catch (FormatException ex)
-            {
-                // A legacy single LOT may be stored without "-quantity". In that
-                // case use the delivery row quantity only when the value itself is
-                // a recognized LOT key. Never apply this fallback to a malformed
-                // comma-separated composite value.
-                if (source.LotNoRaw.IndexOf(',') < 0 &&
-                    LotCodeHelper.ClassifyLotKey(source.LotNoRaw) != LotKeyKind.Unknown &&
-                    source.Quantity.HasValue && source.Quantity.Value > 0)
-                {
-                    result.Add(new DeliveryLotTraceRow
-                    {
-                        DeliveryKey = source.DeliveryKey,
-                        QRCode = string.IsNullOrWhiteSpace(qrCode) ? string.Empty : qrCode.Trim(),
-                        LotNo = source.LotNoRaw.Trim(),
-                        Quantity = source.Quantity.Value
-                    });
-                }
-                else
-                {
-                    result.Add(new DeliveryLotTraceRow
-                    {
-                        DeliveryKey = source.DeliveryKey,
-                        ParseError = ex.Message
-                    });
-                }
-            }
-
             return result;
         }
 

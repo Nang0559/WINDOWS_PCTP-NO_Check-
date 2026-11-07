@@ -41,6 +41,12 @@ namespace PCTP.Modules.BaoCao.UI
         private GridControl _deliveryGrid;
         private GridView _deliveryView;
         private readonly List<DeliveryTraceRow> _deliveryRows = new List<DeliveryTraceRow>();
+        private TraceTimelineControl _timelineView;
+        private TextBox _detailText;
+        private LotTraceTimelineBuilder _timelineBuilder;
+        private readonly SemaphoreSlim _timelineGate = new SemaphoreSlim(1, 1);
+        private System.Windows.Forms.Timer _timelineDebounce;
+        private int _timelineVersion;
         private GridControl _grid;
         private GridView _view;
         private bool _showingCurrentStock;
@@ -54,7 +60,12 @@ namespace PCTP.Modules.BaoCao.UI
             if (currentStockQuery == null) throw new ArgumentNullException("currentStockQuery");
             _historyQuery = historyQuery;
             _currentStockQuery = currentStockQuery;
-            _deliveryTraceQuery = new DeliveryTraceReadService();
+            var deliveryService = new DeliveryTraceReadService();
+            _deliveryTraceQuery = deliveryService;
+            _timelineBuilder = new LotTraceTimelineBuilder(
+                deliveryService, deliveryService,
+                new PCTP.Modules.BaoCao.Infrastructure.Repositories.ProductionLotTraceRepository(),
+                historyQuery);
             _waitForm = new WaitFormService(this);
             InitializeComponent();
             Shown += async (s, e) => await LoadItemCodesAsync();
@@ -76,6 +87,9 @@ namespace PCTP.Modules.BaoCao.UI
             _dateFrom.Properties.NullText = "Từ ngày";
             _dateTo = new DateEdit { Left = 164, Top = 28, Width = 145 };
             _dateTo.Properties.NullText = "Đến ngày";
+            // Mặc định 30 ngày gần nhất (trước đây để trống/1 ngày nên tra theo mã hàng thường ra 0 dòng).
+            _dateFrom.EditValue = DateTime.Today.AddDays(-30);
+            _dateTo.EditValue = DateTime.Today;
 
             _stockLookup = new StockLookupControl
             {
@@ -127,11 +141,12 @@ namespace PCTP.Modules.BaoCao.UI
             {
                 Dock = DockStyle.Fill,
                 Orientation = Orientation.Horizontal,
-                SplitterDistance = 300,
-                Panel1MinSize = 150,
-                Panel2MinSize = 150
+                SplitterDistance = 260,
+                Panel1MinSize = 120,
+                Panel2MinSize = 220
             };
             split.Panel1.Controls.Add(_grid);
+
             var deliveryPanel = new PanelControl { Dock = DockStyle.Fill };
             var deliveryCaption = new LabelControl
             {
@@ -142,7 +157,56 @@ namespace PCTP.Modules.BaoCao.UI
             };
             deliveryPanel.Controls.Add(_deliveryGrid);
             deliveryPanel.Controls.Add(deliveryCaption);
-            split.Panel2.Controls.Add(deliveryPanel);
+
+            _timelineView = new TraceTimelineControl { Dock = DockStyle.Fill };
+            _timelineView.SelectedNodeChanged += (s2, e2) =>
+            {
+                TraceTimelineNode node = _timelineView.SelectedNode;
+                _detailText.Text = node == null ? string.Empty : node.Title + System.Environment.NewLine +
+                    System.Environment.NewLine + node.DetailText();
+            };
+            _timelineView.Clear("Chọn một dòng LOT trong lưới trên (hoặc bấm \"Truy vết giao hàng →\") để xem timeline.");
+            _detailText = new TextBox
+            {
+                Dock = DockStyle.Bottom,
+                Height = 130,
+                Multiline = true,
+                ReadOnly = true,
+                ScrollBars = ScrollBars.Vertical,
+                BorderStyle = BorderStyle.FixedSingle,
+                Font = new System.Drawing.Font("Consolas", 9F),
+                BackColor = System.Drawing.Color.White
+            };
+            var timelinePanel = new PanelControl { Dock = DockStyle.Fill };
+            var timelineCaption = new LabelControl
+            {
+                Text = "TIMELINE LOT: SẢN XUẤT → KHO → GIAO HÀNG (theo từng LOT)",
+                Dock = DockStyle.Top,
+                Height = 28,
+                Padding = new Padding(8, 5, 0, 0)
+            };
+            timelinePanel.Controls.Add(_timelineView);
+            timelinePanel.Controls.Add(_detailText);
+            timelinePanel.Controls.Add(timelineCaption);
+
+            var bottom = new SplitContainer
+            {
+                Dock = DockStyle.Fill,
+                Orientation = Orientation.Vertical,
+                SplitterWidth = 5
+            };
+            bottom.Panel1.Controls.Add(deliveryPanel);
+            bottom.Panel2.Controls.Add(timelinePanel);
+            bottom.HandleCreated += (s2, e2) => { try { bottom.SplitterDistance = Math.Max(200, bottom.Width * 45 / 100); } catch (Exception) { } };
+            split.Panel2.Controls.Add(bottom);
+
+            _timelineDebounce = new System.Windows.Forms.Timer { Interval = 250 };
+            _timelineDebounce.Tick += async (s2, e2) =>
+            {
+                _timelineDebounce.Stop();
+                await BuildTimelineForFocusedRowAsync();
+            };
+            _view.FocusedRowChanged += (s2, e2) => { _timelineDebounce.Stop(); _timelineDebounce.Start(); };
             Controls.Add(split);
             Controls.Add(top);
         }
@@ -203,6 +267,11 @@ namespace PCTP.Modules.BaoCao.UI
                 Bind(rows, ConfigureHistoryColumns);
                 _deliveryRows.Clear();
                 _deliveryGrid.DataSource = null;
+                _timelineVersion++;
+                _timelineView.Clear(rows == null || rows.Count == 0
+                    ? "Không có giao dịch kho phù hợp. Kiểm tra khoảng ngày (Từ ngày/Đến ngày) và mã hàng/LOT."
+                    : "Chọn một dòng LOT trong lưới trên để xem timeline.");
+                _detailText.Text = string.Empty;
             }
             catch (OperationCanceledException) { }
             catch (Exception ex)
@@ -280,8 +349,23 @@ namespace PCTP.Modules.BaoCao.UI
 
                 if (string.IsNullOrWhiteSpace(lot))
                 {
+                    // Chưa chọn dòng: dùng LOT đầu tiên đang có trong lưới (nếu có) thay vì bắt người dùng làm lại.
+                    var first = _grid.DataSource as System.Collections.IEnumerable;
+                    if (first != null)
+                    {
+                        foreach (object o in first)
+                        {
+                            var h = o as ItemHistoryRow; var c = o as CurrentStockRow;
+                            string l = h != null ? h.LotNo : c != null ? c.LotNo : null;
+                            if (!string.IsNullOrWhiteSpace(l)) { lot = l; part = h != null ? h.ItemCode : c.ItemCode; break; }
+                        }
+                    }
+                }
+
+                if (string.IsNullOrWhiteSpace(lot))
+                {
                     XtraMessageBox.Show(this,
-                        "Hãy chọn một dòng có LOT trong grid sản xuất/lịch sử kho hoặc nhập LOT/QR ở ô tra cứu.",
+                        "Hãy tra cứu lịch sử kho trước, rồi chọn một dòng có LOT (hoặc nhập LOT/QR ở ô tra cứu).",
                         "Truy vết giao hàng", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     return;
                 }
@@ -294,6 +378,7 @@ namespace PCTP.Modules.BaoCao.UI
                 _deliveryRows.Clear();
                 if (rows != null) _deliveryRows.AddRange(rows);
                 BindDeliveryRows();
+                _ = BuildTimelineForLotAsync(lot, part);
                 if (_deliveryRows.Count == 0)
                 {
                     XtraMessageBox.Show(this,
@@ -308,6 +393,45 @@ namespace PCTP.Modules.BaoCao.UI
                 XtraMessageBox.Show(this, ex.Message, "Không thể truy vết giao hàng",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+        }
+
+        private async Task BuildTimelineForFocusedRowAsync()
+        {
+            int handle = _view.FocusedRowHandle;
+            if (handle < 0) return;
+            string lot = null, part = null;
+            var history = _view.GetRow(handle) as ItemHistoryRow;
+            var stock = _view.GetRow(handle) as CurrentStockRow;
+            if (history != null) { lot = history.LotNo; part = history.ItemCode; }
+            else if (stock != null) { lot = stock.LotNo; part = stock.ItemCode; }
+            if (string.IsNullOrWhiteSpace(lot)) return;
+            await BuildTimelineForLotAsync(lot, part);
+        }
+
+        /// <summary>
+        /// Timeline xuôi cho 1 LOT: sản xuất → lịch sử kho → các phiếu giao chứa LOT (đã tách LOT ghép).
+        /// Không giới hạn ngày giao để không bỏ sót phiếu giao sau khoảng ngày đang lọc.
+        /// </summary>
+        private async Task BuildTimelineForLotAsync(string lot, string part)
+        {
+            int version = ++_timelineVersion;
+            await _timelineGate.WaitAsync();
+            try
+            {
+                if (version != _timelineVersion || IsDisposed) return;
+                TraceTimelineResult result = await Task.Run(
+                    () => _timelineBuilder.BuildForLotAsync(lot, part, null, null, _lifetime.Token), _lifetime.Token);
+                if (version != _timelineVersion || IsDisposed) return;
+                _timelineView.SetNodes(result.Nodes, result.Summary ?? "Không có sự kiện cho LOT này.");
+                if (result.Nodes.Count == 0) _detailText.Text = result.Summary ?? string.Empty;
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception ex)
+            {
+                if (version == _timelineVersion && !IsDisposed)
+                    _timelineView.Clear("Không dựng được timeline: " + ex.Message);
+            }
+            finally { _timelineGate.Release(); }
         }
 
         private void BindDeliveryRows()
@@ -557,6 +681,7 @@ namespace PCTP.Modules.BaoCao.UI
             if (disposing)
             {
                 _lifetime.Cancel();
+                if (_timelineDebounce != null) { _timelineDebounce.Stop(); _timelineDebounce.Dispose(); }
                 _lifetime.Dispose();
             }
             base.Dispose(disposing);

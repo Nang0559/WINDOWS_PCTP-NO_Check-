@@ -85,6 +85,13 @@ namespace PCTP.Modules.BaoCao.Infrastructure.Repositories
             if (!string.IsNullOrWhiteSpace(criteria.LotNo))
                 rows = rows.Where(x => MatchesLot(x.LotNo, criteria.LotNo)).ToList();
 
+            if (criteria.LotNos != null && criteria.LotNos.Count > 0)
+            {
+                // Một lần gọi SP cho toàn bộ LOT của LOT ghép (thay vì N lần gọi / N LOT).
+                var wanted = criteria.LotNos.Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim()).ToList();
+                rows = rows.Where(r => wanted.Any(w => MatchesLot(r.LotNo, w))).ToList();
+            }
+
             if (!string.IsNullOrWhiteSpace(criteria.QrCode))
             {
                 string keyword = criteria.QrCode.Trim();
@@ -158,19 +165,14 @@ namespace PCTP.Modules.BaoCao.Infrastructure.Repositories
             if (string.IsNullOrWhiteSpace(rawLot) || string.IsNullOrWhiteSpace(requestedLot))
                 return false;
 
-            try
-            {
-                foreach (var item in LotCodeHelper.ParseCompositeLot(rawLot))
-                    if (LotCodeHelper.AreLotKeysEquivalent(item.Key, requestedLot.Trim()))
-                        return true;
-            }
-            catch (FormatException)
-            {
-                // Legacy history rows may store a plain LOT instead of LOT-Qty.
-            }
+            string wanted = requestedLot.Trim();
+            // LOT trong lịch sử có thể là LOT đơn, LOT in đầy đủ (kèm counter+qty) hoặc LOT ghép.
+            foreach (LotAllocation part in LotCodeHelper.ParseCompositeLotTolerant(rawLot, null))
+                if (LotCodeHelper.AreLotKeysEquivalent(part.LotNo, wanted))
+                    return true;
 
-            return LotCodeHelper.AreLotKeysEquivalent(rawLot.Trim(), requestedLot.Trim()) ||
-                Contains(rawLot, requestedLot.Trim());
+            return LotCodeHelper.AreLotKeysEquivalent(rawLot.Trim(), wanted) ||
+                Contains(rawLot, wanted);
         }
 
         private static string ReadString(DataRow row, params string[] names)
