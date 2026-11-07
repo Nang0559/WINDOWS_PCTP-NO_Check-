@@ -118,8 +118,13 @@ namespace PCTP.Modules.BaoCao.UI
 
             var split = new SplitContainer
             {
-                Dock = DockStyle.Fill, Orientation = Orientation.Horizontal,
-                SplitterWidth = 7, Panel1MinSize = 150, Panel2MinSize = 230
+                Dock = DockStyle.Fill,
+                Orientation = Orientation.Horizontal,
+                SplitterWidth = 7,
+                // Min sizes are applied only after the parent has completed layout.
+                // Setting them in the initializer can throw while the control is still tiny.
+                Panel1MinSize = 0,
+                Panel2MinSize = 0
             };
             var masterGroup = new GroupControl { Text = "Danh sách phiên kiểm tra", Dock = DockStyle.Fill };
             _masterGrid.Dock = DockStyle.Fill;
@@ -177,10 +182,40 @@ namespace PCTP.Modules.BaoCao.UI
             split.Panel2.Controls.Add(lowerTabs);
             root.Controls.Add(split, 0, 2);
             Controls.Add(root);
+            Action applySplitLayout = () =>
+            {
+                if (split.IsDisposed || !split.IsHandleCreated || split.Height <= 0)
+                    return;
+
+                const int panel1Minimum = 150;
+                const int panel2Minimum = 230;
+                int available = split.Height - split.SplitterWidth;
+
+                // When the form is temporarily too small during startup/resize,
+                // release the minimum constraints rather than assigning an invalid distance.
+                if (available < panel1Minimum + panel2Minimum)
+                {
+                    split.Panel1MinSize = 0;
+                    split.Panel2MinSize = 0;
+                    split.SplitterDistance = Math.Max(0, available / 2);
+                    return;
+                }
+
+                split.Panel1MinSize = panel1Minimum;
+                split.Panel2MinSize = panel2Minimum;
+
+                int minimumDistance = panel1Minimum;
+                int maximumDistance = available - panel2Minimum;
+                int preferredDistance = (int)(available * 0.43);
+                split.SplitterDistance = Math.Max(minimumDistance,
+                    Math.Min(preferredDistance, maximumDistance));
+            };
+
+            split.SizeChanged += (s, e) => applySplitLayout();
             Shown += (s, e) =>
             {
-                try { split.SplitterDistance = Math.Max(split.Panel1MinSize, (int)(split.Height * 0.43)); }
-                catch (InvalidOperationException) { }
+                // Run after WinForms has performed the first complete layout.
+                BeginInvoke(new Action(applySplitLayout));
             };
         }
 
