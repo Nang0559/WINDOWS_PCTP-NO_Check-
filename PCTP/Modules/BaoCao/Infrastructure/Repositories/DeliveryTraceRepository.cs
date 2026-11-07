@@ -359,6 +359,7 @@ ORDER BY P.NGAYGIAO DESC, P.STT DESC, D.STT DESC";
                 Conveyor = DbValueHelper.GetString(row, "TRUYEN"),
                 DocumentNo = poNo,
                 DeliveryDate = ngayGiao,
+                DeliveryTime = gioGiao,
                 CustomerCode = GetCustomerCode(nhaMay),
                 CustomerName = GetCustomerName(nhaMay),
                 PartNo = DbValueHelper.GetString(row, "MAHANG"),
