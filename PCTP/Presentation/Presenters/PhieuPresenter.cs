@@ -174,8 +174,21 @@ namespace PCTP.Presentation.Presenters
             int n = _c.QrSvc.CountChuaDG();
             if (n > 0)
             {
-                DataTable t = _c.PhieuSvc.GetDonHangChuaLot(_c.QrSvc.IsBanSP);
-                if (t != null && t.Rows.Count > 0) _c.LotSvc.TinhTongLot(t, _c.TenBan, _c.Cfg.Delivery.GetDocQRTable(_c.QrSvc.IsBanSP), _c.Cfg.Delivery.GetTmpTable(_c.QrSvc.IsBanSP), rows => _v.ShowChonSttTrungMa(rows));
+                // Resolve the active category's physical TMP/DOCQR pair once.
+                // _c.TenBan is the MP/view binding and must not be used for SP:
+                // SP candidates live in TMPPHIEUGIAOHANG_SP.
+                bool isSp = _c.QrSvc.IsBanSP;
+                string activeTmpTable = _c.Cfg.Delivery.GetTmpTable(isSp);
+                string activeDocQrTable = _c.Cfg.Delivery.GetDocQRTable(isSp);
+
+                DataTable t = _c.PhieuSvc.GetDonHangChuaLot(isSp);
+                if (t != null && t.Rows.Count > 0)
+                    _c.LotSvc.TinhTongLot(
+                        t,
+                        activeTmpTable,
+                        activeDocQrTable,
+                        activeTmpTable,
+                        rows => _v.ShowChonSttTrungMa(rows));
                 int conLai = _c.QrSvc.CountChuaDG();
                 if (conLai > 0)
                 {
@@ -185,7 +198,7 @@ namespace PCTP.Presentation.Presenters
                     // Trước đây chỗ này chỉ `return` nên màn hình kẹt ở DocQR.
                     _v.SwitchToPhieuView();
                     DataTable dangHien = _v.GetDonHangTable();
-                    DataTable moiNhat = _c.PhieuSvc.GetDonHangHienTai(_c.TenBan);
+                    DataTable moiNhat = _c.PhieuSvc.GetDonHangHienTai(activeTmpTable);
                     MergeDocQrResultIntoOrderTable(dangHien, moiNhat);
                     _v.BindDonHang(dangHien);
                     _v.ShowInfo("Còn " + conLai + " dòng QR chưa đóng gói vào phiếu. Phiên đọc QR vẫn được giữ, bấm DOC QRCODE để quay lại đọc tiếp.");
@@ -202,7 +215,7 @@ namespace PCTP.Presentation.Presenters
                 _v.UnlockDatePicker();
                 _v.SwitchToPhieuView();
                 DataTable current = _v.GetDonHangTable();
-                DataTable latest = _c.PhieuSvc.GetDonHangHienTai(_c.TenBan);
+                DataTable latest = _c.PhieuSvc.GetDonHangHienTai(_c.Cfg.Delivery.GetTmpTable(_c.QrSvc.IsBanSP));
                 MergeDocQrResultIntoOrderTable(current, latest);
                 _v.BindDonHang(current);
                 _c.SetupPhieuButtonsDefault(true, false, _c.PhieuSvc.CheckCoLotChuaCNK(current));
