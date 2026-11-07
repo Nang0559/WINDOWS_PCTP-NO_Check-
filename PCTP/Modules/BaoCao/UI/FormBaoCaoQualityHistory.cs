@@ -5,6 +5,7 @@ using DevExpress.XtraGrid.Views.Grid;
 using PCTP.Modules.BaoCao.Application.Contracts.Queries;
 using PCTP.Modules.BaoCao.Infrastructure.Queries;
 using PCTP.Shell.UI;
+using PCTP.Common;
 using PCTP.Shared.Lookup;
 using System;
 using System.Collections.Generic;
@@ -263,7 +264,14 @@ namespace PCTP.Modules.BaoCao.UI
                 int fail = _rows.Count(x => string.Equals(x.FinalResult, "FAIL", StringComparison.OrdinalIgnoreCase));
                 _summary.Text = string.Format("Tổng phiên: {0} | PASS: {1} | FAIL: {2} | Tra cứu: {3}",
                     _rows.Count, pass, fail, string.IsNullOrWhiteSpace(keyword) ? "Tất cả" : keyword);
-                if (_rows.Count > 0) await LoadFocusedSessionAsync();
+                if (_rows.Count > 0)
+                {
+                    // Binding the master grid raises FocusedRowChanged while loading;
+                    // release the guard before explicitly loading the selected session.
+                    _loading = false;
+                    await LoadFocusedSessionAsync();
+                    _loading = true;
+                }
             }
             catch (OperationCanceledException) { }
             catch (Exception ex)
