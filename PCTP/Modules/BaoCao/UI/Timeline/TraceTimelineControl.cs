@@ -151,8 +151,8 @@ namespace PCTP.Modules.BaoCao.UI
 
             if (_nodes.Count == 0)
             {
-                TextRenderer.DrawText(g, _emptyText, _bodyFont, ClientRectangle, Color.Gray,
-                    TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.WordBreak);
+                DrawText(g, _emptyText, _bodyFont, ClientRectangle, Color.Gray,
+                    StringAlignment.Center, StringAlignment.Center, true);
                 return;
             }
 
@@ -204,9 +204,32 @@ namespace PCTP.Modules.BaoCao.UI
                     g.FillEllipse(white, circle);
                 using (var ring = new Pen(color, 3.5F))
                     g.DrawEllipse(ring, circle);
-                TextRenderer.DrawText(g, (i + 1).ToString(), _numberFont, circle, color,
-                    TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
+                DrawText(g, (i + 1).ToString(), _numberFont, circle, color,
+                    StringAlignment.Center, StringAlignment.Center, false);
             }
+        }
+
+
+        // Graphics.DrawString (không dùng TextRenderer) vì TextRenderer bỏ qua TranslateTransform:
+        // chữ bị lệch khỏi thẻ/vòng tròn và mất khi cuộn.
+        private static void DrawText(Graphics g, string text, Font font, Rectangle rect, Color color,
+            StringAlignment h, StringAlignment v, bool wrap)
+        {
+            using (var brush = new SolidBrush(color))
+            using (var fmt = new StringFormat())
+            {
+                fmt.Alignment = h;
+                fmt.LineAlignment = v;
+                fmt.Trimming = StringTrimming.EllipsisCharacter;
+                fmt.FormatFlags = wrap ? StringFormatFlags.LineLimit : (StringFormatFlags.NoWrap | StringFormatFlags.LineLimit);
+                g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
+                g.DrawString(text ?? string.Empty, font, brush, new RectangleF(rect.X, rect.Y, rect.Width, rect.Height), fmt);
+            }
+        }
+
+        private static int TextWidth(Graphics g, string text, Font font)
+        {
+            return (int)Math.Ceiling(g.MeasureString(text ?? string.Empty, font, 10000).Width);
         }
 
         private void DrawCardText(Graphics g, Rectangle card, TraceTimelineNode node, Color color)
@@ -215,26 +238,25 @@ namespace PCTP.Modules.BaoCao.UI
             int innerWidth = card.Width - pad * 2;
 
             // Nhãn (pill) tiêu đề.
-            Size titleSize = TextRenderer.MeasureText(node.Title ?? string.Empty, _titleFont);
-            int pillWidth = Math.Min(innerWidth, titleSize.Width + 16);
+            int pillWidth = Math.Min(innerWidth, TextWidth(g, node.Title, _titleFont) + 18);
             var pill = new Rectangle(card.Left + pad, card.Top + 7, pillWidth, 20);
             using (var path = RoundedRect(pill, 10))
             using (var brush = new SolidBrush(Color.FromArgb(46, color)))
                 g.FillPath(brush, path);
-            TextRenderer.DrawText(g, node.Title ?? string.Empty, _titleFont, pill, Darken(color),
-                TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPadding);
+            DrawText(g, node.Title, _titleFont, pill, Darken(color),
+                StringAlignment.Center, StringAlignment.Center, false);
 
             // Thời gian (nổi bật như năm trong mẫu timeline).
             string time = node.EventTime.HasValue ? node.EventTime.Value.ToString("dd/MM/yyyy HH:mm") : "Không có thời gian";
             var timeRect = new Rectangle(card.Left + pad, card.Top + 30, innerWidth, 20);
-            TextRenderer.DrawText(g, time, _timeFont, timeRect, Darken(color),
-                TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPadding);
+            DrawText(g, time, _timeFont, timeRect, Darken(color),
+                StringAlignment.Near, StringAlignment.Center, false);
 
             // Mô tả: LOT + chi tiết.
             string body = "LOT: " + TraceTimelineNode.ValueOrDash(node.LotNo) + Environment.NewLine + (node.Subtitle ?? string.Empty);
             var bodyRect = new Rectangle(card.Left + pad, card.Top + 51, innerWidth, card.Height - 55);
-            TextRenderer.DrawText(g, body, _bodyFont, bodyRect, Color.FromArgb(60, 60, 60),
-                TextFormatFlags.Left | TextFormatFlags.Top | TextFormatFlags.EndEllipsis | TextFormatFlags.WordBreak | TextFormatFlags.NoPadding);
+            DrawText(g, body, _bodyFont, bodyRect, Color.FromArgb(60, 60, 60),
+                StringAlignment.Near, StringAlignment.Near, true);
         }
 
         protected override void OnMouseClick(MouseEventArgs e)

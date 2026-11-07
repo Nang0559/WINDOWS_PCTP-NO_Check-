@@ -141,9 +141,7 @@ namespace PCTP.Modules.BaoCao.UI
             {
                 Dock = DockStyle.Fill,
                 Orientation = Orientation.Horizontal,
-                SplitterDistance = 260,
-                Panel1MinSize = 120,
-                Panel2MinSize = 220
+                SplitterWidth = 5
             };
             split.Panel1.Controls.Add(_grid);
 
@@ -197,7 +195,12 @@ namespace PCTP.Modules.BaoCao.UI
             };
             bottom.Panel1.Controls.Add(deliveryPanel);
             bottom.Panel2.Controls.Add(timelinePanel);
-            bottom.HandleCreated += (s2, e2) => { try { bottom.SplitterDistance = Math.Max(200, bottom.Width * 45 / 100); } catch (Exception) { } };
+            // Đặt splitter SAU khi control có kích thước thật, luôn kẹp trong giới hạn hợp lệ
+            // (đặt trong initializer gây "SplitterDistance must be between Panel1MinSize and Width - Panel2MinSize").
+            split.SizeChanged += (s2, e2) => ApplySplit(split, 260, 120, 220);
+            split.HandleCreated += (s2, e2) => ApplySplit(split, 260, 120, 220);
+            bottom.SizeChanged += (s2, e2) => ApplySplit(bottom, bottom.Width * 45 / 100, 200, 260);
+            bottom.HandleCreated += (s2, e2) => ApplySplit(bottom, bottom.Width * 45 / 100, 200, 260);
             split.Panel2.Controls.Add(bottom);
 
             _timelineDebounce = new System.Windows.Forms.Timer { Interval = 250 };
@@ -209,6 +212,29 @@ namespace PCTP.Modules.BaoCao.UI
             _view.FocusedRowChanged += (s2, e2) => { _timelineDebounce.Stop(); _timelineDebounce.Start(); };
             Controls.Add(split);
             Controls.Add(top);
+        }
+
+        private static void ApplySplit(SplitContainer sc, int desired, int min1, int min2)
+        {
+            if (sc == null || sc.IsDisposed || !sc.IsHandleCreated) return;
+            int total = sc.Orientation == Orientation.Horizontal ? sc.Height : sc.Width;
+            int available = total - sc.SplitterWidth;
+            if (available <= 0) return;
+            try
+            {
+                sc.Panel1MinSize = 0;
+                sc.Panel2MinSize = 0;
+                if (available >= min1 + min2)
+                {
+                    sc.Panel1MinSize = min1;
+                    sc.Panel2MinSize = min2;
+                    desired = Math.Max(min1, Math.Min(desired, available - min2));
+                }
+                else desired = Math.Max(0, Math.Min(desired, available));
+                if (sc.SplitterDistance != desired) sc.SplitterDistance = desired;
+            }
+            catch (InvalidOperationException) { }
+            catch (ArgumentException) { }
         }
 
         private async Task LoadItemCodesAsync()
