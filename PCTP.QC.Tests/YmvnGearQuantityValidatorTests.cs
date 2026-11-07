@@ -137,6 +137,69 @@ public sealed class YmvnGearQuantityValidatorTests
         Assert.Contains("1FP-E6300-01-00-80", error);
     }
 
+    [Fact]
+    public void CombinedGearOrderAllowsGearDOnlyUpToItsOwnQuantity()
+    {
+        var order = Order(
+            ("B5V-E6300-00-00-80", "Gear E :400pcs, Gear D :100pcs", 500));
+
+        var withinLimit = YmvnGearQuantityValidator.ValidateScan(
+            "ABCDEFGHIJKL4:B5V-E6300-00-00-80:07/11/2026:100",
+            order, Scans(), out var error, code => code == 4 ? "Gear D" : code == 5 ? "Gear E" : "");
+
+        Assert.True(withinLimit, error);
+
+        var overLimit = YmvnGearQuantityValidator.ValidateScan(
+            "ABCDEFGHIJKL4:B5V-E6300-00-00-80:07/11/2026:101",
+            order, Scans(), out error, code => code == 4 ? "Gear D" : code == 5 ? "Gear E" : "");
+
+        Assert.False(overLimit);
+        Assert.Contains("vượt", error);
+        Assert.Contains("100", error);
+    }
+
+    [Fact]
+    public void CombinedGearOrderAllowsGearEOnlyUpToItsOwnQuantity()
+    {
+        var order = Order(
+            ("B5V-E6300-00-00-80", "Gear E :400pcs, Gear D :100pcs", 500));
+
+        var ok = YmvnGearQuantityValidator.ValidateScan(
+            "ABCDEFGHIJKL5:B5V-E6300-00-00-80:07/11/2026:400",
+            order, Scans(), out var error, code => code == 4 ? "Gear D" : code == 5 ? "Gear E" : "");
+
+        Assert.True(ok, error);
+    }
+
+    [Fact]
+    public void CombinedGearCompletionAggregatesEachGearSeparately()
+    {
+        var order = Order(
+            ("B5V-E6300-00-00-80", "Gear E :400pcs, Gear D :100pcs", 500));
+        var scans = Scans(
+            ("B5V-E6300-00-00-80", Lot('4'), 100),
+            ("B5V-E6300-00-00-80", Lot('5'), 400));
+
+        var ok = YmvnGearQuantityValidator.ValidateCompletion(
+            order, scans, out var error,
+            code => code == 4 ? "Gear D" : code == 5 ? "Gear E" : "");
+
+        Assert.True(ok, error);
+    }
+
+    [Fact]
+    public void CombinedGearBreakdownMustEqualOrderLineQuantity()
+    {
+        var order = Order(
+            ("B5V-E6300-00-00-80", "Gear E :400pcs, Gear D :100pcs", 600));
+
+        var ok = YmvnGearQuantityValidator.ValidateCompletion(
+            order, Scans(), out var error);
+
+        Assert.False(ok);
+        Assert.Contains("không khớp SOLUONG", error);
+    }
+
     // ── Real YMVN labels (photo IMG_5411: B5V-E6300-00-00-80, order #01289, Total Ordered 700) ──
     private const string GS = "\u001D";
     private const string YamahaCardWithSeparators =
