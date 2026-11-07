@@ -548,7 +548,7 @@ namespace PCTP.Modules.BaoCao.UI
 
         private void DeliveryGrid_DoubleClick(object sender, EventArgs e)
         {
-            DeliveryTraceRow row = sender == _qrGrid ? GetFocusedQr() : GetFocusedDelivery();
+            DeliveryTraceRow row = sender == _qrView ? GetFocusedQr() : GetFocusedDelivery();
             if (row == null) row = GetFocusedDelivery();
             if (row != null) _ = BuildTimelineAsync(row);
         }
