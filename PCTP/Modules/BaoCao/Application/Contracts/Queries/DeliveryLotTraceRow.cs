@@ -10,5 +10,6 @@ namespace PCTP.Modules.BaoCao.Application.Contracts.Queries
         public string QRCode { get; set; }
         public string LotNo { get; set; }
         public decimal Quantity { get; set; }
+        public string ParseError { get; set; }
     }
 }
