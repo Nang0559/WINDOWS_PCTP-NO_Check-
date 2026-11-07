@@ -184,9 +184,19 @@ namespace PCTP.Applications.Services
                 string status = YmvnRowValue(src, "STATUS");
                 string hop = YmvnRowValue(src, "HOP");
                 string xe = "";
-                int soHop;
-                if (int.TryParse(hop, out soHop) && soHop > 0)
-                    xe = ((soHop + 9) / 10).ToString();
+
+                // XE tính độc lập theo sức chứa xe từ Purchase_Order_YMVN.QCDG.
+                // HOP đã được tính ở PhieuLoadService từ B20Item.MinCloseQty.
+                int soLuongGiao;
+                int sucChuaXe;
+                if (int.TryParse(YmvnRowValue(src, "SOLUONG", "BUY_QTY_DUE"), out soLuongGiao) &&
+                    int.TryParse(YmvnRowValue(src, "QCDG"), out sucChuaXe) &&
+                    sucChuaXe > 0)
+                {
+                    int soXe = soLuongGiao / sucChuaXe;
+                    if (soLuongGiao % sucChuaXe > 0) soXe++;
+                    xe = soXe.ToString();
+                }
 
                 // Số PO của YMVN nằm ở PO_ITEM (đã chuyển từ CUA). Dòng cũ chưa có PO_ITEM thì
                 // mới lùi về PO_NO để không in trống.
