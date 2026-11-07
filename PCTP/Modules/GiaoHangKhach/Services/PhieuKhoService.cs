@@ -66,7 +66,14 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             int soLot;
             DataTable errors;
 
-            if (_cfg.Delivery.LoadTuBangRieng && !_cfg.Delivery.CoGear)
+            if (isSP)
+            {
+                // SP rows do not carry a user-selected physical LOT. Resolve FIFO
+                // inside the common stock procedure, then run the same QR/ledger/TMP
+                // pipeline and the same C# SlotLot movement service.
+                soLot = _phieuRepo.CapNhapKhoSP(gioGiaoFcc, nhaMay, tmpTable, docQrTable, out errors);
+            }
+            else if (_cfg.Delivery.LoadTuBangRieng && !_cfg.Delivery.CoGear)
             {
                 soLot = _phieuRepo.CapNhapKhoHTN(nhaMay, tmpTable, docQrTable, out errors);
             }
