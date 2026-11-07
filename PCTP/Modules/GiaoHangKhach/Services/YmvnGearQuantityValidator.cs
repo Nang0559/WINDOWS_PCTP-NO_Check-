@@ -362,7 +362,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         }
 
         private static readonly Regex GearBreakdownPattern = new Regex(
-            @"GEAR\\s*([A-Z0-9])\\s*[:：]\\s*([0-9]+)\\s*(?:PCS?|PIECES?)?",
+            @"GEAR\s*([A-Z0-9])\s*[:：]\s*([0-9]+)\s*(?:PCS?|PIECES?)?",
             RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
 
         private static bool TryParseGearBreakdown(
@@ -383,7 +383,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
 
             // Không âm thầm bỏ sót một Gear token nếu chuỗi bị sai định dạng.
             int declaredGearCount = Regex.Matches(
-                raw, @"GEAR\\s*[A-Z0-9]", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant).Count;
+                raw, @"GEAR\s*[A-Z0-9]", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant).Count;
             if (declaredGearCount != matches.Count)
                 return false;
 
