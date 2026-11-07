@@ -205,7 +205,7 @@ namespace PCTP.Modules.XuLyHangLoi
             switch (_activeStep)
             {
                 case 1: _btnSecondary.Visible = true; _btnPrimary.Text = "Tiếp nhận phiếu khách"; _lblHint.Text = "Bước 1: danh sách phiếu đã tiếp nhận (khách trả / nội bộ) chưa tạo phiếu bất thường. Bấm đúp để mở phiếu; chọn dòng rồi bấm 'Tạo phiếu bất thường' để chuyển thẳng sang bước 3 (Truy vết LOT). Bước 2 chỉ hiện khi phiếu mới được tạo một phần."; break;
-                case 2: _btnSecondary.Visible = true; _btnPrimary.Text = "Tạo phiếu bất thường"; _lblHint.Text = "Bước 2: phiếu trả còn dòng chưa tạo PhieuXuLyBatThuong (đã tạo một phần). Chọn dòng rồi bấm 'Tạo phiếu bất thường'; phiếu vừa tạo sẽ nằm ở bước 3."; break;
+                case 2: _btnSecondary.Visible = true; _btnPrimary.Text = "Tạo phiếu bất thường"; _lblHint.Text = "Bước 2: gồm dòng phiếu trả CHƯA tạo phiếu bất thường (mới tạo một phần; chọn rồi bấm 'Tạo phiếu bất thường') và các phiếu bất thường ĐÃ TẠO để theo dõi (chọn dòng + bấm nút hoặc bấm đúp để nhảy tới bước hiện tại của phiếu)."; break;
                 case 3: _btnSecondary.Visible = false; _btnPrimary.Text = "Truy vết LOT"; _lblHint.Text = "Bước 3: truy vết kho thành phẩm, WIP/sản xuất và khách trả; snapshot trước khi QC."; break;
                 case 4: _btnSecondary.Visible = false; _btnPrimary.Text = "QC định hướng"; _lblHint.Text = "Bước 4: QC chọn Từ chối giao bù / Chỉ giao bù / Có Rework."; break;
                 case 5: _btnSecondary.Visible = false; _btnPrimary.Text = "Initial QC"; _lblHint.Text = "Bước 5: kiểm đủ snapshot. DaKiemTra = OK + NG; NG = Rework + LoaiBoBanDau."; break;
@@ -235,21 +235,69 @@ namespace PCTP.Modules.XuLyHangLoi
         {
             try
             {
-                var counts = new int[8];
-                int hoanTat8 = 0;
+                // Mỗi bước hiển thị: (mới | đang xử lý) + đã chuyển sang bước sau.
+                //  - mới       : đang nằm ở bước, chưa có thao tác dở.
+                //  - đang xử lý: đang nằm ở bước nhưng đã có thao tác dở (đã xuất rework, đã giao SX, chờ giao bù).
+                //  - đã chuyển : đã đi qua bước này (đang ở bước sau hoặc đã hoàn tất). Bước 1 đếm theo phiếu trả,
+                //                các bước còn lại đếm theo phiếu xử lý bất thường. Bước 8: đã xong = hoàn tất.
+                var moi = new int[8];
+                var dang = new int[8];
+                var chuyen = new int[8];
+                var phieuTraDaTao = new HashSet<int>();
+
                 foreach (var row in BuildWorkflowRows())
                 {
                     var step = ResolveRowStep(row);
-                    if (step == 8 && row.DaHoanTat) { hoanTat8++; continue; }
-                    if (step >= 1 && step <= 8) counts[step - 1]++;
+                    bool hoanTat = row.DaHoanTat;
+
+                    if (row.PhieuXuLyId.HasValue)
+                    {
+                        phieuTraDaTao.Add(row.PhieuTraHangId);
+                        int eff = hoanTat ? 9 : step;           // 0 = đã hủy/ẩn → không tính
+                        for (int k = 2; k <= 8; k++)
+                            if (eff > k) chuyen[k - 1]++;
+                    }
+
+                    if (hoanTat) continue;
+                    if (step >= 1 && step <= 8)
+                    {
+                        if (IsInProgress(row)) dang[step - 1]++; else moi[step - 1]++;
+                    }
                 }
+                chuyen[0] = phieuTraDaTao.Count;
+
                 var labels = new[] { "1. Tiếp nhận", "2. Tạo phiếu", "3. Truy vết LOT", "4. QC định hướng", "5. Initial QC", "6. Rework", "7. QC Rework / Disposition", "8. Giao bù / Hoàn tất" };
                 for (int i = 0; i < 8; i++)
-                    _stepButtons[i].Text = i == 7
-                        ? labels[i] + "\r\n(chờ " + counts[i] + " | xong " + hoanTat8 + ")"
-                        : labels[i] + "\r\n(" + counts[i] + ")";
+                    _stepButtons[i].Text = labels[i] + "\r\n(mới " + moi[i] + " | đang " + dang[i] + ")\r\n"
+                                         + (i == 7 ? "đã xong " : "đã chuyển ") + chuyen[i];
             }
             catch (Exception ex) { ShowWarning("Không thể cập nhật tiến trình.\r\n\r\n" + ex.Message); }
+        }
+
+        private static bool IsInProgress(WorkflowRow row)
+        {
+            return row.PhieuXuLyId.HasValue
+                && (row.QTStatus == QTChungStatus.DaXuatKhoRework
+                    || row.QTStatus == QTChungStatus.DaGiaoSanXuat
+                    || row.QTStatus == QTChungStatus.ChoGiaoBu);
+        }
+
+        /// <summary>Phiếu bất thường đã tạo và còn đang xử lý (bước 3..8, chưa hoàn tất) → hiện ở bước 2 như danh sách theo dõi.</summary>
+        private static bool IsCreatedInfoRow(WorkflowRow row, int step)
+        {
+            return row.PhieuXuLyId.HasValue && step >= 3 && step <= 8 && !row.DaHoanTat;
+        }
+
+        private void GoToCurrentStepOf(WorkflowRow row)
+        {
+            if (row == null || !row.PhieuXuLyId.HasValue) return;
+            int step = ResolveRowStep(row);
+            if (step < 1 || step > 8) { ShowWarning("Phiếu này không còn trong hàng đợi xử lý."); return; }
+            _searchMode = false;
+            _txtSearch.Text = string.Empty;
+            SetActiveStep(step);
+            var handle = _gridView.LocateByValue("PhieuXuLyId", row.PhieuXuLyId.Value);
+            if (handle >= 0) _gridView.FocusedRowHandle = handle;
         }
 
         private int ResolveRowStep(WorkflowRow row)
@@ -271,7 +319,11 @@ namespace PCTP.Modules.XuLyHangLoi
 
             try
             {
-                _rows = BuildWorkflowRows().Where(x => ResolveRowStep(x) == _activeStep).ToList();
+                _rows = BuildWorkflowRows().Where(x =>
+                {
+                    int st = ResolveRowStep(x);
+                    return st == _activeStep || (_activeStep == 2 && IsCreatedInfoRow(x, st));
+                }).ToList();
                 // Bước 8: phiếu còn việc phải làm lên trước, phiếu đã hoàn tất (mới nhất trước) xếp sau.
                 if (_activeStep == 8)
                     _rows = _rows.OrderBy(x => x.DaHoanTat ? 1 : 0)
@@ -589,7 +641,8 @@ namespace PCTP.Modules.XuLyHangLoi
 
             if (row.PhieuXuLyId.HasValue)
             {
-                ShowWarning("Dòng này đã là phiếu xử lý bất thường. Hãy chọn dòng phiếu trả còn ở Bước 1/2.");
+                // Phiếu đã tạo (xem ở bước 2) → chuyển tới bước hiện tại của phiếu thay vì báo lỗi.
+                GoToCurrentStepOf(row);
                 return;
             }
 
