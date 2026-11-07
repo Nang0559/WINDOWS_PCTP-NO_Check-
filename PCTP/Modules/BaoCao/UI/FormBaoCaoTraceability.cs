@@ -41,6 +41,7 @@ namespace PCTP.Modules.BaoCao.UI
         private List<DeliveryTraceRow> _qrRows = new List<DeliveryTraceRow>();
         private bool _bindingQrGrid;
         private readonly IStockHistoryQuery _stockHistoryQuery;
+        private readonly IWaitFormService _waitForm;
         private readonly IProductionLotTraceQuery _productionQuery;
         private readonly FlowLayoutPanel _timeline = new FlowLayoutPanel();
         private readonly Panel _detailPanel = new Panel();
@@ -82,6 +83,7 @@ namespace PCTP.Modules.BaoCao.UI
             _lotQuery = query;
             _customerQuery = query;
             _stockHistoryQuery = stockHistoryQuery;
+            _waitForm = new WaitFormService(this);
             Text = "Báo cáo - Tra cứu truy xuất giao hàng";
             ClientSize = new Size(1250, 720);
             StartPosition = FormStartPosition.CenterParent;
@@ -578,13 +580,16 @@ namespace PCTP.Modules.BaoCao.UI
                 string customerLabel = _txtCustomerLabel.Text.Trim();
                 string customer = GetLookupText(_txtCustomer);
 
-                IReadOnlyList<DeliveryTraceRow> rows;
-                if (!string.IsNullOrWhiteSpace(lot))
-                    rows = await _lotQuery.SearchAsync(lot, part, customer, from, to, CancellationToken.None);
-                else if (!string.IsNullOrWhiteSpace(customer) && string.IsNullOrWhiteSpace(qr) && string.IsNullOrWhiteSpace(customerLabel))
-                    rows = await _customerQuery.SearchAsync(customer, part, from, to, CancellationToken.None);
-                else
-                    rows = await _qrQuery.SearchAsync(qr, customerLabel, part, customer, from, to, CancellationToken.None);
+                IReadOnlyList<DeliveryTraceRow> rows = await _waitForm.RunAsync(
+                    async () =>
+                    {
+                        if (!string.IsNullOrWhiteSpace(lot))
+                            return await _lotQuery.SearchAsync(lot, part, customer, from, to, CancellationToken.None);
+                        if (!string.IsNullOrWhiteSpace(customer) && string.IsNullOrWhiteSpace(qr) && string.IsNullOrWhiteSpace(customerLabel))
+                            return await _customerQuery.SearchAsync(customer, part, from, to, CancellationToken.None);
+                        return await _qrQuery.SearchAsync(qr, customerLabel, part, customer, from, to, CancellationToken.None);
+                    },
+                    "Đang tra cứu giao hàng, LOT và dữ liệu đọc QR...");
 
                 _currentRows = rows == null ? new List<DeliveryTraceRow>() : rows.ToList();
                 BindDeliveryRows();
@@ -642,66 +647,69 @@ namespace PCTP.Modules.BaoCao.UI
             {
                 _status.Text = "Đang dựng timeline theo toàn bộ LOT ghép...";
                 _timeline.Enabled = false;
-                IReadOnlyList<DeliveryLotTraceRow> lots = await _qrQuery.GetLotsAsync(
-                    row.DeliveryKey, row.QRCode, CancellationToken.None);
-
-                var nodes = new List<TraceNode>();
-                nodes.Add(TraceNode.ForDelivery(row));
-
-                if (lots != null)
+                await _waitForm.RunAsync(async () =>
                 {
-                    foreach (DeliveryLotTraceRow lot in lots)
+                    IReadOnlyList<DeliveryLotTraceRow> lots = await _qrQuery.GetLotsAsync(
+                        row.DeliveryKey, row.QRCode, CancellationToken.None);
+
+                    var nodes = new List<TraceNode>();
+                    nodes.Add(TraceNode.ForDelivery(row));
+
+                    if (lots != null)
                     {
-                        if (lot == null) continue;
-                        if (!string.IsNullOrWhiteSpace(lot.ParseError))
+                        foreach (DeliveryLotTraceRow lot in lots)
                         {
-                            nodes.Add(TraceNode.InvalidCompositeLot(row, lot.ParseError));
-                            continue;
-                        }
-                        if (string.IsNullOrWhiteSpace(lot.LotNo)) continue;
-
-                        nodes.Add(TraceNode.ForDeliveryLot(row, lot));
-
-                        IReadOnlyList<ProductionLotTraceRow> production = await _productionQuery.FindByLotAsync(
-                            lot.LotNo, row.PartNo, CancellationToken.None);
-                        if (production != null && production.Count > 0)
-                        {
-                            foreach (ProductionLotTraceRow prod in production)
-                                nodes.Add(TraceNode.ForProduction(row, lot, prod));
-                        }
-                        else nodes.Add(TraceNode.MissingProduction(row, lot));
-
-                        var criteria = new HistorySearchCriteria
-                        {
-                            LotNo = lot.LotNo,
-                            PartNo = row.PartNo,
-                            From = null,
-                            To = null
-                        };
-                        IReadOnlyList<ItemHistoryRow> history = await _stockHistoryQuery.SearchAsync(criteria, CancellationToken.None);
-                        int matchedHistoryCount = 0;
-                        if (history != null)
-                        {
-                            foreach (ItemHistoryRow item in history)
+                            if (lot == null) continue;
+                            if (!string.IsNullOrWhiteSpace(lot.ParseError))
                             {
-                                if (item == null || !LotCodeHelper.AreLotKeysEquivalent(item.LotNo, lot.LotNo))
-                                    continue;
-                                nodes.Add(TraceNode.ForStock(item, lot.LotNo));
-                                matchedHistoryCount++;
+                                nodes.Add(TraceNode.InvalidCompositeLot(row, lot.ParseError));
+                                continue;
                             }
-                        }
-                        if (matchedHistoryCount == 0) nodes.Add(TraceNode.MissingStockHistory(row, lot));
-                    }
-                }
+                            if (string.IsNullOrWhiteSpace(lot.LotNo)) continue;
 
-                _timelineNodes.Clear();
-                _timelineNodes.AddRange(nodes
-                    .OrderBy(x => x.EventTime.HasValue ? x.EventTime.Value : DateTime.MinValue)
-                    .ThenBy(x => x.SortOrder)
-                    .ToList());
-                RenderTimeline();
-                _status.Text = "Timeline có " + _timelineNodes.Count + " node; " +
-                    (lots == null ? 0 : lots.Count) + " phân bổ LOT được truy xuất riêng.";
+                            nodes.Add(TraceNode.ForDeliveryLot(row, lot));
+
+                            IReadOnlyList<ProductionLotTraceRow> production = await _productionQuery.FindByLotAsync(
+                                lot.LotNo, row.PartNo, CancellationToken.None);
+                            if (production != null && production.Count > 0)
+                            {
+                                foreach (ProductionLotTraceRow prod in production)
+                                    nodes.Add(TraceNode.ForProduction(row, lot, prod));
+                            }
+                            else nodes.Add(TraceNode.MissingProduction(row, lot));
+
+                            var criteria = new HistorySearchCriteria
+                            {
+                                LotNo = lot.LotNo,
+                                PartNo = row.PartNo,
+                                From = null,
+                                To = null
+                            };
+                            IReadOnlyList<ItemHistoryRow> history = await _stockHistoryQuery.SearchAsync(criteria, CancellationToken.None);
+                            int matchedHistoryCount = 0;
+                            if (history != null)
+                            {
+                                foreach (ItemHistoryRow item in history)
+                                {
+                                    if (item == null || !LotCodeHelper.AreLotKeysEquivalent(item.LotNo, lot.LotNo))
+                                        continue;
+                                    nodes.Add(TraceNode.ForStock(item, lot.LotNo));
+                                    matchedHistoryCount++;
+                                }
+                            }
+                            if (matchedHistoryCount == 0) nodes.Add(TraceNode.MissingStockHistory(row, lot));
+                        }
+                    }
+
+                    _timelineNodes.Clear();
+                    _timelineNodes.AddRange(nodes
+                        .OrderBy(x => x.EventTime.HasValue ? x.EventTime.Value : DateTime.MinValue)
+                        .ThenBy(x => x.SortOrder)
+                        .ToList());
+                    RenderTimeline();
+                    _status.Text = "Timeline có " + _timelineNodes.Count + " node; " +
+                        (lots == null ? 0 : lots.Count) + " phân bổ LOT được truy xuất riêng.";
+                }, "Đang truy xuất sản xuất và lịch sử kho cho từng LOT ghép...");
             }
             catch (Exception ex)
             {
