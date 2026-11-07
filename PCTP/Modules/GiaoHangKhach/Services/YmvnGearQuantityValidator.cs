@@ -263,6 +263,21 @@ namespace PCTP.Modules.GiaoHangKhach.Services
                     continue;
                 }
 
+                string rawGearText = rawGear == null || rawGear == DBNull.Value
+                    ? string.Empty
+                    : rawGear.ToString();
+                if (rawGearText.IndexOf("GEAR", StringComparison.OrdinalIgnoreCase) >= 0 &&
+                    (rawGearText.IndexOf(',') >= 0 ||
+                     rawGearText.IndexOf(';') >= 0 ||
+                     rawGearText.IndexOf(':') >= 0 ||
+                     rawGearText.IndexOf("PCS", StringComparison.OrdinalIgnoreCase) >= 0))
+                {
+                    error = string.Format(
+                        "Định dạng GEAR ghép không hợp lệ trong Order YMVN. Mã hàng [{0}], GEAR=[{1}].",
+                        part, rawGearText);
+                    return null;
+                }
+
                 // Phiếu giao có GEAR NULL/rỗng là Gear mặc định Code 0 trong B20Gear.
                 // Dùng sentinel "0" nội bộ để vẫn phân biệt được nhóm Gear trống.
                 string gear = rawGear == null || rawGear == DBNull.Value ||
