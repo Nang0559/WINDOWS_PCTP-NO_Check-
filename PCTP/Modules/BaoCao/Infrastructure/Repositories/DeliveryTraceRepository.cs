@@ -349,11 +349,14 @@ ORDER BY P.NGAYGIAO DESC, P.STT DESC, D.STT DESC";
             string gioGiao = DbValueHelper.GetString(row, "GIOGIAO");
             string poNo = DbValueHelper.GetString(row, "PO_NO");
             int stt = DbValueHelper.GetInt(row, "STT");
-            string lotFcc = DbValueHelper.GetString(row, "LOTFCC");
+            string orderLot = DbValueHelper.GetString(row, "LOT");
 
             return new DeliveryTraceRow
             {
                 DeliveryKey = BuildDeliveryKey(nhaMay, ngayGiao, gioGiao, poNo, stt),
+                DeliveryStt = stt,
+                Door = DbValueHelper.GetString(row, "CUA"),
+                Conveyor = DbValueHelper.GetString(row, "TRUYEN"),
                 DocumentNo = poNo,
                 DeliveryDate = ngayGiao,
                 CustomerCode = GetCustomerCode(nhaMay),
@@ -361,10 +364,15 @@ ORDER BY P.NGAYGIAO DESC, P.STT DESC, D.STT DESC";
                 PartNo = DbValueHelper.GetString(row, "MAHANG"),
                 PartName = DbValueHelper.GetString(row, "TENHANG"),
                 QRCode = DbValueHelper.GetString(row, "MAFCC"),
+                QrScanOrder = row["DOC_STT"] == DBNull.Value ? (int?)null : DbValueHelper.GetInt(row, "DOC_STT"),
+                QrScanDate = DbValueHelper.GetNullableDateTime(row, "NGAYXUAT"),
+                QrScanTime = DbValueHelper.GetString(row, "GIOXUAT"),
+                QrLotNo = DbValueHelper.GetString(row, "LOTFCC"),
+                QrStatus = DbValueHelper.GetString(row, "DOC_STATUS"),
                 CustomerLabelData = DbValueHelper.GetString(row, "LOTHVN"),
-                LotNoRaw = string.IsNullOrWhiteSpace(lotFcc)
-                    ? DbValueHelper.GetString(row, "LOT")
-                    : lotFcc,
+                // LUUPHIEUGIAOHANG.LOT is the authoritative delivery allocation.
+                // LOTFCC belongs to QR evidence and must never replace the composite order LOT.
+                LotNoRaw = orderLot,
                 Quantity = DbValueHelper.ToDecimal(row["SOLUONG"]),
                 Unit = DbValueHelper.GetString(row, "DV"),
                 Factory = nhaMay,
