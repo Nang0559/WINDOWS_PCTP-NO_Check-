@@ -130,18 +130,24 @@ namespace PCTP.Modules.BaoCao.UI
                 ToggleSearch(false);
                 _status.Text = "Đang tải danh sách mã hàng/khách hàng...";
 
-                Task<IReadOnlyList<string>> itemTask = _customerQuery.GetItemCodesAsync(CancellationToken.None);
-                Task<IReadOnlyList<string>> customerTask = _customerQuery.GetCustomersAsync(CancellationToken.None);
-                await Task.WhenAll(itemTask, customerTask);
+                IReadOnlyList<string>[] lookupRows = await _waitForm.RunAsync(
+                    async () =>
+                    {
+                        Task<IReadOnlyList<string>> itemTask = _customerQuery.GetItemCodesAsync(CancellationToken.None);
+                        Task<IReadOnlyList<string>> customerTask = _customerQuery.GetCustomersAsync(CancellationToken.None);
+                        await Task.WhenAll(itemTask, customerTask);
+                        return new[] { itemTask.Result, customerTask.Result };
+                    },
+                    "Đang tải danh sách mã hàng và khách hàng...");
 
                 var itemRows = new DataTable();
                 itemRows.Columns.Add("PART", typeof(string));
-                foreach (string itemCode in itemTask.Result ?? new string[0])
+                foreach (string itemCode in lookupRows[0] ?? new string[0])
                     if (!string.IsNullOrWhiteSpace(itemCode))
                         itemRows.Rows.Add(itemCode);
                 _stockLookup.SetItemSuggestions(itemRows, "PART", null);
                 ApplyPendingQuickSearch();
-                ConfigureLookup(_txtCustomer, customerTask.Result, "Khách hàng");
+                ConfigureLookup(_txtCustomer, lookupRows[1], "Khách hàng");
                 _status.Text = "Sẵn sàng";
             }
             catch (Exception ex)
