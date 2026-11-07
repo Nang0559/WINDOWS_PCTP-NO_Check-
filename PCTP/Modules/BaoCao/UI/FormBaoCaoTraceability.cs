@@ -2,7 +2,6 @@ using DevExpress.XtraEditors;
 using DevExpress.XtraGrid;
 using DevExpress.XtraGrid.Views.Grid;
 using DevExpress.XtraGrid.Columns;
-using DevExpress.Spreadsheet;
 using PCTP.Modules.BaoCao.Application.Contracts;
 using PCTP.Modules.BaoCao.Application.Contracts.Queries;
 using PCTP.Modules.BaoCao.Infrastructure.Queries;
@@ -1166,7 +1165,7 @@ namespace PCTP.Modules.BaoCao.UI
             {
                 lines.Add(string.Join(",", new[]
                 {
-                    sequence++.ToString(), x.Title, x.EventType,
+                    (sequence++).ToString(), x.Title, x.EventType,
                     x.EventTime.HasValue ? x.EventTime.Value.ToString("yyyy-MM-dd HH:mm:ss") : string.Empty,
                     x.LotNo, x.PartNo, x.Quantity == null ? string.Empty : Convert.ToString(x.Quantity),
                     x.FromLocation, x.ToLocation, x.QrCode, x.CustomerLabel, x.CustomerName,
