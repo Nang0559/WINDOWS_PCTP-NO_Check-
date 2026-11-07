@@ -258,7 +258,7 @@ namespace PCTP.QRCODE_HVN.YMN
                 ODN= gridVDONHANG.GetRowCellValue(i, "PO").ToString();
                 MH = gridVDONHANG.GetRowCellValue(i, "CUSTOMER_PART_NO").ToString();
                 GG = DateTime.Parse(gridVDONHANG.GetRowCellValue(i, "WANTED_DELIVERY_DATE").ToString());
-                Gi = GG.ToString("yyyy-MM-dd HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture);
+                Gi = GG.ToString("yyyy-MM-dd HH:mm:ss");
                 GGGG = GG.ToString("HH:mm:ss");
                 Gear = gridVDONHANG.GetRowCellValue(i, "Gear");
                 if(Gear == null )
@@ -330,9 +330,8 @@ namespace PCTP.QRCODE_HVN.YMN
             string PO,DC, PNO, PN, DV, Gear, QCDG_BRV;
             object DCC;
             DateTime GIO;
-            int QTY, QCDG, XE;
-            int truckCapacity;
-            string sql, N_XHSQL = dateNG.DateTime.ToString("MM/dd/yyyy", System.Globalization.CultureInfo.InvariantCulture);
+            int QTY, QCDG,XE,DU=0;
+            string sql, N_XHSQL = dateNG.DateTime.ToString("MM/dd/yyyy");
             if (GX == "")
             {
                 if (YMVN_CHONGIAO.MP_SP == "MP")
@@ -381,6 +380,7 @@ namespace PCTP.QRCODE_HVN.YMN
                 for (int t = 0; t < TB_SQL.Rows.Count; t++)
                 {
                     XE = 0;
+                    DU = 0;
                     #region TMP2
                     int STT = tbl.Rows.Count;
                     row = tbl.NewRow();
@@ -453,40 +453,25 @@ namespace PCTP.QRCODE_HVN.YMN
                     
                     QTY = TB_SQL.Rows[t].Field<int>("Slgiao");
                     row["BUY_QTY_DUE"] = QTY;
-
-                    // HOP: quy cách đóng gói lấy từ B20Item.MinCloseQty.
-                    // XE: sức chứa xe lấy độc lập từ Purchase_Order_YMVN.QCDG.
-                    int minCloseQty = QCDG;
-                    truckCapacity = TB_SQL.Rows[t]["QCDG"] == DBNull.Value
-                        ? 0
-                        : Convert.ToInt32(TB_SQL.Rows[t]["QCDG"]);
-
-                    if (minCloseQty <= 0)
+                    if(QCDG > 1)
                     {
-                        throw new InvalidOperationException(
-                            $"MinCloseQty không hợp lệ (<= 0) cho mã hàng {PNO}.");
+                        DU = QTY % QCDG;
+                        QCDG = QTY / QCDG;
                     }
-
-                    if (truckCapacity <= 0)
+                    if (DU > 0)
                     {
-                        throw new InvalidOperationException(
-                            $"QCDG xe không hợp lệ (<= 0) cho mã hàng {PNO}, PO {PO}.");
+                        QCDG = QCDG + 1;
                     }
+                    //QCDG = TB_SQL.Rows[t].Field<int>("QCDG");
 
-                    // Làm tròn lên để không thiếu hộp khi số lượng không chia hết quy cách.
-                    int boxCount = QTY / minCloseQty;
-                    if (QTY % minCloseQty > 0)
-                    {
-                        boxCount++;
-                    }
-                    row["HOP"] = boxCount;
 
-                    // Số xe tính theo tổng số lượng giao / sức chứa QCDG của một xe.
-                    XE = QTY / truckCapacity;
-                    if (QTY % truckCapacity > 0)
+                    row["HOP"] = QCDG;
+                    DU = QCDG % 10;
+                    XE = QCDG / 10;
+                    if(DU>0)
                     {
-                        XE++;
-                    }
+                        XE = XE + 1;
+                    }    
                     row["XE"] = XE;
                     row["STATUS"] = "NG";
                     if (PO_PART == "")
@@ -697,7 +682,7 @@ namespace PCTP.QRCODE_HVN.YMN
         {
             CheckGX.Items.Clear();
             string GXH, sql;
-            string N_XHG = dateNG.DateTime.ToString("MM/dd/yyyy", System.Globalization.CultureInfo.InvariantCulture);
+            string N_XHG = dateNG.DateTime.ToString("MM/dd/yyyy");
             if (c_L != true)
             {     
               
@@ -721,7 +706,7 @@ namespace PCTP.QRCODE_HVN.YMN
 
         private void dateNG_EditValueChanged(object sender, EventArgs e)
         {
-            N_XH = dateNG.DateTime.ToString("ddMMyyyy", System.Globalization.CultureInfo.InvariantCulture);
+            N_XH = dateNG.DateTime.ToString("ddMMyyyy");
             c_L = false;
             DUYET = false;
             Da_DUYET = true;
@@ -811,7 +796,7 @@ namespace PCTP.QRCODE_HVN.YMN
             tblGL.Columns.Add("Gear", typeof(string));
 
             // Lay don hang theo gio
-            string N_XHSQL = dateNG.DateTime.ToString("MM/dd/yy", System.Globalization.CultureInfo.InvariantCulture);
+            string N_XHSQL = dateNG.DateTime.ToString("MM/dd/yy");
            
             //---------------------------------------------------------------------------------------------------------------------------------
             //string sqlTK = "select LOT,SLCONLAI from STOCKTP where SLCONLAI > 0 and PART = '" + MaHang + "' order by lot";
@@ -1276,7 +1261,7 @@ namespace PCTP.QRCODE_HVN.YMN
             for (int i = 0; i < gridVDONHANG.RowCount; i++)
             {
 
-                NXH = dateNG.DateTime.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
+                NXH = dateNG.DateTime.ToString("yyyy-MM-dd");
                 string MaHang = gridVDONHANG.GetRowCellValue(i, "CUSTOMER_PART_NO").ToString();
                 string GGV = gridVDONHANG.GetRowCellDisplayText(i, "WANTED_DELIVERY_DATE").ToString();
                 for (int j = 0; j < CheckGX.Items.Count; j++)
@@ -1590,7 +1575,7 @@ namespace PCTP.QRCODE_HVN.YMN
             }
             else
             {
-                string NGAYGIAO = dateNG.DateTime.ToString("MM/dd/yyyy", System.Globalization.CultureInfo.InvariantCulture);
+                string NGAYGIAO = dateNG.DateTime.ToString("MM/dd/yyyy");
                 string GIOGIAO = "";
                 string[] GGiao = GioXuat.Split(',');
                 for (int i = 0; i < GGiao.Length; i++)
@@ -1638,7 +1623,7 @@ namespace PCTP.QRCODE_HVN.YMN
                     }    
                     MAH = BANGTAM.Rows[i]["MAHANG"].ToString();
                     GG= BANGTAM.Rows[i]["GIOGIAO"].ToString();
-                    GG = dateNG.DateTime.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture) + " " + GG + ":00";
+                    GG = dateNG.DateTime.ToString("yyyy-MM-dd") + " " + GG + ":00";
                     if (YMVN_CHONGIAO.MP_SP == "MP")
                     {
                         TTLOTSL = BANGTAM.Rows[i]["LOT"].ToString();
@@ -1865,7 +1850,7 @@ namespace PCTP.QRCODE_HVN.YMN
         {
             Boolean KQ;
            
-            string NGAYGIAO = dateNG.DateTime.ToString("MM/dd/yyyy", System.Globalization.CultureInfo.InvariantCulture);
+            string NGAYGIAO = dateNG.DateTime.ToString("MM/dd/yyyy");
             string GIOGIAO = "";
             string[] GGiao = GioXuat.Split(',');
             for (int i = 0; i < GGiao.Length; i++)
@@ -2055,7 +2040,7 @@ namespace PCTP.QRCODE_HVN.YMN
             if (KTSP() == true)
             {
                 UploadMIKR();
-                N_XH = dateNG.DateTime.ToString("ddMMyyyy", System.Globalization.CultureInfo.InvariantCulture);
+                N_XH = dateNG.DateTime.ToString("ddMMyyyy");
                 c_L = false;
                 DUYET = false;
                 Da_DUYET = true;
@@ -2090,7 +2075,7 @@ namespace PCTP.QRCODE_HVN.YMN
         {
             string DOCK_CODE,POSP_NO,PSP_NO, PSP_NAME;
             string sql;
-            string SP_Ngay_Giao = dateNG.DateTime.ToString("yyyy-MM-dd 08:00:00", System.Globalization.CultureInfo.InvariantCulture);
+            string SP_Ngay_Giao = dateNG.DateTime.ToString("yyyy-MM-dd 08:00:00");
             int  SLSP_GIAO;
             for (int i = 0; i < gridVDONHANG.RowCount; i++)
             {
