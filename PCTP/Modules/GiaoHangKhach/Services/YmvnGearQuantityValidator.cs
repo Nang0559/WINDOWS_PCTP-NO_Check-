@@ -227,24 +227,53 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             foreach (DataRow row in table.Rows)
             {
                 string part = NormalizePart(row[partColumn]);
-                // Phiếu giao có GEAR NULL/rỗng là Gear mặc định Code 0 trong B20Gear.
-                // Dùng sentinel "0" nội bộ để vẫn phân biệt được nhóm Gear trống khi cộng số lượng.
                 object rawGear = row[gearColumn];
-                string gear = rawGear == null || rawGear == DBNull.Value ||
-                              string.IsNullOrWhiteSpace(rawGear.ToString())
-                    ? "0"
-                    : NormalizeGear(rawGear);
                 int quantity;
 
-                if (string.IsNullOrEmpty(part) || string.IsNullOrEmpty(gear))
+                if (string.IsNullOrEmpty(part))
                     continue;
                 if (!TryGetInt(row[quantityColumn], out quantity) || quantity <= 0)
                     continue;
 
-                string key = MakeKey(part, gear);
-                int old;
-                result.TryGetValue(key, out old);
-                result[key] = old + quantity;
+                // GEAR đơn: "D", "E", "Gear D" -> toàn bộ SOLUONG thuộc Gear đó.
+                // GEAR ghép: "Gear E :400pcs, Gear D :100pcs" -> tách thành
+                // hai nhóm PART+GEAR độc lập, không gán tổng 500 cho cả hai Gear.
+                List<KeyValuePair<string, int>> gearBreakdown;
+                if (TryParseGearBreakdown(rawGear, out gearBreakdown))
+                {
+                    int breakdownTotal = 0;
+                    foreach (KeyValuePair<string, int> item in gearBreakdown)
+                    {
+                        if (item.Value <= 0)
+                            continue;
+
+                        AddQuantity(result, MakeKey(part, item.Key), item.Value);
+                        breakdownTotal += item.Value;
+                    }
+
+                    if (breakdownTotal != quantity)
+                    {
+                        error = string.Format(
+                            "Tổng số lượng GEAR ghép không khớp SOLUONG trong Order YMVN. Mã hàng [{0}], GEAR=[{1}], tổng chi tiết={2}, SOLUONG={3}.",
+                            part, rawGear == null ? string.Empty : rawGear.ToString(),
+                            breakdownTotal, quantity);
+                        return null;
+                    }
+
+                    continue;
+                }
+
+                // Phiếu giao có GEAR NULL/rỗng là Gear mặc định Code 0 trong B20Gear.
+                // Dùng sentinel "0" nội bộ để vẫn phân biệt được nhóm Gear trống.
+                string gear = rawGear == null || rawGear == DBNull.Value ||
+                              string.IsNullOrWhiteSpace(rawGear.ToString())
+                    ? "0"
+                    : NormalizeGear(rawGear);
+
+                if (string.IsNullOrEmpty(gear))
+                    continue;
+
+                AddQuantity(result, MakeKey(part, gear), quantity);
             }
 
             if (result.Count == 0)
@@ -330,6 +359,60 @@ namespace PCTP.Modules.GiaoHangKhach.Services
                 case '3': return "D";
                 default: return string.Empty;
             }
+        }
+
+        private static readonly Regex GearBreakdownPattern = new Regex(
+            @"GEAR\\s*([A-Z0-9])\\s*[:：]\\s*([0-9]+)\\s*(?:PCS?|PIECES?)?",
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+
+        private static bool TryParseGearBreakdown(
+            object rawValue,
+            out List<KeyValuePair<string, int>> items)
+        {
+            items = new List<KeyValuePair<string, int>>();
+            if (rawValue == null || rawValue == DBNull.Value)
+                return false;
+
+            string raw = rawValue.ToString();
+            if (string.IsNullOrWhiteSpace(raw))
+                return false;
+
+            MatchCollection matches = GearBreakdownPattern.Matches(raw);
+            if (matches.Count == 0)
+                return false;
+
+            // Không âm thầm bỏ sót một Gear token nếu chuỗi bị sai định dạng.
+            int declaredGearCount = Regex.Matches(
+                raw, @"GEAR\\s*[A-Z0-9]", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant).Count;
+            if (declaredGearCount != matches.Count)
+                return false;
+
+            foreach (Match match in matches)
+            {
+                string gear = NormalizeGear(match.Groups[1].Value);
+                int qty;
+                if (string.IsNullOrEmpty(gear) ||
+                    !int.TryParse(match.Groups[2].Value, out qty) ||
+                    qty <= 0)
+                {
+                    items.Clear();
+                    return false;
+                }
+
+                items.Add(new KeyValuePair<string, int>(gear, qty));
+            }
+
+            return items.Count > 0;
+        }
+
+        private static void AddQuantity(
+            Dictionary<string, int> target,
+            string key,
+            int quantity)
+        {
+            int existing;
+            target.TryGetValue(key, out existing);
+            target[key] = checked(existing + quantity);
         }
 
         private static string NormalizeGear(object value)
