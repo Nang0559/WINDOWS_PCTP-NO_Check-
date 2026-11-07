@@ -3,7 +3,7 @@ using System;
 namespace PCTP.Modules.BaoCao.Application.Contracts.Queries
 {
     /// <summary>
-    /// Master record for one delivered carton/QRCode.
+    /// Delivery order row with QR scan evidence projected as child rows in the UI.
     /// BaoCao is read-only; this model is a projection of delivery evidence.
     /// </summary>
     public sealed class DeliveryTraceRow
@@ -14,6 +14,7 @@ namespace PCTP.Modules.BaoCao.Application.Contracts.Queries
         public string Conveyor { get; set; }
         public string DocumentNo { get; set; }
         public DateTime? DeliveryDate { get; set; }
+        public string DeliveryTime { get; set; }
         public string CustomerCode { get; set; }
         public string CustomerName { get; set; }
         public string PartNo { get; set; }
