@@ -362,7 +362,7 @@ namespace PCTP.Modules.BaoCao.UI
             {
                 var composite = new CompositeLink(ps);
                 composite.Landscape = true;
-                composite.PaperKind = System.Drawing.Printing.PaperKind.A4;
+                composite.PaperKind = DevExpress.Drawing.Printing.DXPaperKind.A4;
 
                 GridControl overviewGrid = CreatePrintGrid(overview.ToList(), false);
                 temps.Add(overviewGrid);
