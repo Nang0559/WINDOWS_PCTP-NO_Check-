@@ -247,8 +247,7 @@ namespace PCTP.Modules.BaoCao.UI
             }, 0, 2);
             _from.Dock = DockStyle.None;
             _from.Anchor = AnchorStyles.Left | AnchorStyles.Right;
-            _from.Margin = new Padding(3, 0, 3, 0);
-            search.Controls.Add(_from, 1, 2);
+            _from.Margin = new Padding(3, 0, 3, 0);            search.Controls.Add(_from, 1, 2);
 
             search.Controls.Add(new Label
             {
@@ -497,8 +496,7 @@ namespace PCTP.Modules.BaoCao.UI
             AddGridColumn(_deliveryView, "DeliveryKey", "DeliveryKey", 220).Visible = false;
         }
 
-        private void ConfigureQrColumns()
-        {
+        private void ConfigureQrColumns()        {
             AddGridColumn(_qrView, "QrScanOrder", "Dòng", 55);
             AddGridColumn(_qrView, "QRCode", "QR FCC", 210);
             AddGridColumn(_qrView, "CustomerLabelData", "LOT tem KH", 160);
@@ -748,7 +746,6 @@ namespace PCTP.Modules.BaoCao.UI
             }
             finally { _timeline.Enabled = true; }
         }
-
         private void RenderTimeline()
         {
             _timeline.SuspendLayout();
@@ -997,8 +994,7 @@ namespace PCTP.Modules.BaoCao.UI
                     CustomerName = delivery.CustomerName,
                     DocumentNo = delivery.DocumentNo,
                     SourceName = "dbo.STOCKTP (cột sản xuất)",
-                    SourceKey = "LOT=" + lot.LotNo,
-                    EvidenceStatus = "Thiếu bằng chứng sản xuất",
+                    SourceKey = "LOT=" + lot.LotNo,                    EvidenceStatus = "Thiếu bằng chứng sản xuất",
                     Subtitle = "Không có bản ghi STOCKTP khớp LOT này (khóa 13/20 ký tự)",
                     Note = "Đây là cảnh báo thiếu bằng chứng, không phải một sự kiện sản xuất.",
                     SortOrder = 19
@@ -1052,50 +1048,6 @@ namespace PCTP.Modules.BaoCao.UI
                     Note = "Sự kiện lấy từ read model lịch sử kho. Không coi tồn kho hiện tại là bằng chứng lịch sử.",
                     SortOrder = 10
                 };
-            }
-        }
-
-        private async void ExportExcel_Click(object sender, EventArgs e)
-        {
-            if (_currentRows == null || _currentRows.Count == 0)
-            {
-                XtraMessageBox.Show(this, "Chưa có dữ liệu tra cứu để xuất.", "Xuất Excel",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return;
-            }
-
-            using (var dialog = new SaveFileDialog())
-            {
-                dialog.Filter = "Excel Workbook (*.xlsx)|*.xlsx";
-                dialog.DefaultExt = "xlsx";
-                dialog.AddExtension = true;
-                dialog.FileName = "TruyXuatGiaoHang_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".xlsx";
-                if (dialog.ShowDialog(this) != DialogResult.OK) return;
-
-                try
-                {
-                    var deliveryRows = _deliveryRows.ToList();
-                    var qrRows = _currentRows.ToList();
-                    var timelineRows = _timelineNodes.ToList();
-                    string searchText = _stockLookup.InputText;
-                    string customer = GetLookupText(_txtCustomer);
-                    string customerLabel = _txtCustomerLabel.Text.Trim();
-                    DateTime from = _from.Value.Date;
-                    DateTime to = _to.Value.Date;
-
-                    await _waitForm.RunAsync(() => Task.Run(() =>
-                        WriteTraceabilityWorkbook(dialog.FileName, deliveryRows, qrRows,
-                            timelineRows, searchText, customer, customerLabel, from, to)),
-                        "Đang xuất toàn bộ dữ liệu tra cứu ra Excel...");
-
-                    XtraMessageBox.Show(this, "Đã xuất file Excel gồm thông tin tra cứu, giao hàng, QR và Timeline hiện tại.",
-                        "Xuất Excel", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                }
-                catch (Exception ex)
-                {
-                    XtraMessageBox.Show(this, "Không thể xuất Excel: " + ex.Message, "Xuất Excel",
-                        MessageBoxButtons.OK, MessageBoxIcon.Error);
-                }
             }
         }
 
