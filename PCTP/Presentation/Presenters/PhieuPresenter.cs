@@ -215,7 +215,7 @@ namespace PCTP.Presentation.Presenters
                 _v.UnlockDatePicker();
                 _v.SwitchToPhieuView();
                 DataTable current = _v.GetDonHangTable();
-                DataTable latest = _c.PhieuSvc.GetDonHangHienTai(_c.Cfg.Delivery.GetTmpTable(_c.QrSvc.IsBanSP));
+                DataTable latest = _c.PhieuSvc.GetDonHangHienTai(activeTmpTable);
                 MergeDocQrResultIntoOrderTable(current, latest);
                 _v.BindDonHang(current);
                 _c.SetupPhieuButtonsDefault(true, false, _c.PhieuSvc.CheckCoLotChuaCNK(current));
