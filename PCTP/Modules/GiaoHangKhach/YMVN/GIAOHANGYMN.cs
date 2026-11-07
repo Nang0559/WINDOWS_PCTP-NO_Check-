@@ -330,7 +330,8 @@ namespace PCTP.QRCODE_HVN.YMN
             string PO,DC, PNO, PN, DV, Gear, QCDG_BRV;
             object DCC;
             DateTime GIO;
-            int QTY, QCDG,XE,DU=0;
+            int QTY, QCDG, XE, DU = 0;
+            int truckCapacity;
             string sql, N_XHSQL = dateNG.DateTime.ToString("MM/dd/yyyy", System.Globalization.CultureInfo.InvariantCulture);
             if (GX == "")
             {
@@ -453,25 +454,40 @@ namespace PCTP.QRCODE_HVN.YMN
                     
                     QTY = TB_SQL.Rows[t].Field<int>("Slgiao");
                     row["BUY_QTY_DUE"] = QTY;
-                    if(QCDG > 1)
-                    {
-                        DU = QTY % QCDG;
-                        QCDG = QTY / QCDG;
-                    }
-                    if (DU > 0)
-                    {
-                        QCDG = QCDG + 1;
-                    }
-                    //QCDG = TB_SQL.Rows[t].Field<int>("QCDG");
 
+                    // HOP: quy cách đóng gói lấy từ B20Item.MinCloseQty.
+                    // XE: sức chứa xe lấy độc lập từ Purchase_Order_YMVN.QCDG.
+                    int minCloseQty = QCDG;
+                    truckCapacity = TB_SQL.Rows[t]["QCDG"] == DBNull.Value
+                        ? 0
+                        : Convert.ToInt32(TB_SQL.Rows[t]["QCDG"]);
 
-                    row["HOP"] = QCDG;
-                    DU = QCDG % 10;
-                    XE = QCDG / 10;
-                    if(DU>0)
+                    if (minCloseQty <= 0)
                     {
-                        XE = XE + 1;
-                    }    
+                        throw new InvalidOperationException(
+                            $"MinCloseQty không hợp lệ (<= 0) cho mã hàng {PNO}.");
+                    }
+
+                    if (truckCapacity <= 0)
+                    {
+                        throw new InvalidOperationException(
+                            $"QCDG xe không hợp lệ (<= 0) cho mã hàng {PNO}, PO {PO}.");
+                    }
+
+                    // Làm tròn lên để không thiếu hộp khi số lượng không chia hết quy cách.
+                    int boxCount = QTY / minCloseQty;
+                    if (QTY % minCloseQty > 0)
+                    {
+                        boxCount++;
+                    }
+                    row["HOP"] = boxCount;
+
+                    // Số xe tính theo tổng số lượng giao / sức chứa QCDG của một xe.
+                    XE = QTY / truckCapacity;
+                    if (QTY % truckCapacity > 0)
+                    {
+                        XE++;
+                    }
                     row["XE"] = XE;
                     row["STATUS"] = "NG";
                     if (PO_PART == "")
