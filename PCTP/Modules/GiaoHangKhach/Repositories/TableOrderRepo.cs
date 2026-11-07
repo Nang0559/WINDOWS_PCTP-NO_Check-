@@ -125,7 +125,8 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                 "    ''                                   AS LOT, " +
                 "    'PCS'                                AS DV, " +
                 "    o.Slgiao                             AS SOLUONG, " +
-                "    o.QCDG                               AS HOP, " +
+                "    o.QCDG                               AS QCDG, " +
+                "    ''                                   AS HOP, " +
                 "    ISNULL(o.Gear, '')                   AS GEAR, " +
                 "    'NG'                                 AS STATUS, " +
                 "    'NG'                                 AS STATUSDOC, " +
