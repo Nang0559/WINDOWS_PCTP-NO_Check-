@@ -427,7 +427,12 @@ namespace PCTP.Modules.BaoCao.UI
                 foreach (string code in codes ?? new string[0])
                     if (!string.IsNullOrWhiteSpace(code)) items.Rows.Add(code);
                 _lookup.SetItemSuggestions(items, "PART", null);
+                // Danh sách mã hàng lấy từ DISTINCT InspectionLog.ItemCode của DB đang kết nối.
+                // Rỗng nghĩa là DB này chưa có phiên QC nào (hoặc ItemCode toàn NULL), không phải lỗi giao diện.
                 await LoadAsync();
+                if (items.Rows.Count == 0 && !IsDisposed)
+                    _status.Text = "Bảng InspectionLog trên DB hiện tại chưa có mã hàng nào nên ô gợi ý trống. " +
+                        "Kiểm tra DB đang kết nối và dữ liệu phiên QC (xem SELECT COUNT(*), COUNT(ItemCode) FROM dbo.InspectionLog).";
             }
             catch (OperationCanceledException) { }
             catch (Exception ex)
