@@ -569,7 +569,8 @@ namespace PCTP.Modules.BaoCao.UI
                     part = stockSearch;
                 else if (!string.IsNullOrWhiteSpace(stockSearch))
                 {
-                    if (LotCodeHelper.ClassifyLotKey(stockSearch) != LotKeyKind.Unknown)
+                    if (LotCodeHelper.ClassifyLotKey(stockSearch) != LotKeyKind.Unknown ||
+                        IsCompositeLotSearch(stockSearch))
                         lot = stockSearch;
                     else
                         qr = stockSearch;
@@ -599,6 +600,23 @@ namespace PCTP.Modules.BaoCao.UI
             finally
             {
                 ToggleSearch(true);
+            }
+        }
+
+        private static bool IsCompositeLotSearch(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value) || value.IndexOf(',') < 0)
+                return false;
+
+            try
+            {
+                List<KeyValuePair<string, decimal>> parts = LotCodeHelper.ParseCompositeLot(value);
+                return parts.Count > 0 && parts.All(x =>
+                    LotCodeHelper.ClassifyLotKey(x.Key) != LotKeyKind.Unknown);
+            }
+            catch (FormatException)
+            {
+                return false;
             }
         }
 
