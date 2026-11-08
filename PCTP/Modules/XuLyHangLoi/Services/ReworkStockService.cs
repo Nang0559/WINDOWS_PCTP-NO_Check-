@@ -32,6 +32,13 @@ namespace PCTP.Modules.XuLyHangLoi.Services
     {
         private const string MovementReworkNgReceive = "REWORK_NG_RECEIVE";
 
+        private static string XlbtRef(int phieuXuLyId)
+        {
+            return StockExportReferenceFormatter.Format(
+                StockExportReferenceType.PhieuXuLyBatThuong,
+                phieuXuLyId);
+        }
+
         private readonly IUnitOfWork _uow;
         private readonly ISlotService _slotService;
         private readonly IStockExportRepository _stockTpRepo;
@@ -301,9 +308,8 @@ namespace PCTP.Modules.XuLyHangLoi.Services
                     {
                         LotNo = lotChuan,
                         Quantity = soLuong,
-                        TemCode = StockExportReferenceFormatter.Format(
-                            StockExportReferenceType.PhieuXuLyBatThuong,
-                            phieuXuLyId)
+                        TemCode = XlbtRef(phieuXuLyId),
+                        MaPhieuKho = XlbtRef(phieuXuLyId)
                     },
                     fromSlotId: slotLot.SlotVatLyId,
                     toSlotId: null,
@@ -427,9 +433,8 @@ namespace PCTP.Modules.XuLyHangLoi.Services
                     {
                         LotNo = lotChuan,
                         Quantity = soLuongNG,
-                        TemCode = StockExportReferenceFormatter.Format(
-                            StockExportReferenceType.PhieuXuLyBatThuong,
-                            phieuXuLyId)
+                        TemCode = XlbtRef(phieuXuLyId),
+                        MaPhieuKho = XlbtRef(phieuXuLyId)
                     },
                     fromSlotId: null,
                     toSlotId: slotIdNG.Value,
@@ -512,9 +517,8 @@ namespace PCTP.Modules.XuLyHangLoi.Services
                     {
                         LotNo = lotChuan,
                         Quantity = soLuongOK,
-                        TemCode = StockExportReferenceFormatter.Format(
-                            StockExportReferenceType.PhieuXuLyBatThuong,
-                            phieuXuLyId)
+                        TemCode = XlbtRef(phieuXuLyId),
+                        MaPhieuKho = XlbtRef(phieuXuLyId)
                     },
                     fromSlotId: null,
                     toSlotId: slotIdOK,
@@ -612,9 +616,8 @@ namespace PCTP.Modules.XuLyHangLoi.Services
                         {
                             LotNo = lotChuan,
                             Quantity = conTreo,
-                            TemCode = StockExportReferenceFormatter.Format(
-                                StockExportReferenceType.PhieuXuLyBatThuong,
-                                phieuXuLyId)
+                            TemCode = XlbtRef(phieuXuLyId),
+                            MaPhieuKho = XlbtRef(phieuXuLyId)
                         },
                         fromSlotId: null,
                         toSlotId: nhom.SlotId,
