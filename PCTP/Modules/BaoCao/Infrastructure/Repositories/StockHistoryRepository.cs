@@ -10,6 +10,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -93,6 +94,7 @@ namespace PCTP.Modules.BaoCao.Infrastructure.Repositories
             }
             var slotNames = LoadSlotNames();
             var rows = table.AsEnumerable().Select(r => Map(r, slotNames)).ToList();
+            EnrichDefectDocuments(rows);
 
             // Không phụ thuộc cách SP lọc ngày: lọc lại khoảng ngày ở đây (dòng không có ngày thì giữ lại).
             if (criteria.From.HasValue)
@@ -125,6 +127,66 @@ namespace PCTP.Modules.BaoCao.Infrastructure.Repositories
                 rows = rows.Where(x => Contains(x.DocumentNo, criteria.DocumentNo.Trim())).ToList();
 
             return Task.FromResult<IReadOnlyList<ItemHistoryRow>>(rows);
+        }
+
+        private static readonly Regex DefectDocumentRef =
+            new Regex(@"^XLBT#(\d+)$", RegexOptions.IgnoreCase);
+
+        /// <summary>
+        /// Dòng kho do xử lý hàng lỗi có MaPhieu dạng "XLBT#<id>" (id nội bộ, khó đọc).
+        /// Bổ sung số phiếu thật để hiển thị và hỗ trợ tra cứu theo số phiếu.
+        /// Nếu bảng xử lý hàng lỗi chưa tồn tại hoặc không đọc được, giữ nguyên số phiếu gốc.
+        /// </summary>
+        private void EnrichDefectDocuments(List<ItemHistoryRow> rows)
+        {
+            try
+            {
+                var ids = new HashSet<int>();
+                foreach (ItemHistoryRow row in rows)
+                {
+                    Match match;
+                    int id;
+                    if (TryParseDefectRef(row.DocumentNo, out match) &&
+                        int.TryParse(match.Groups[1].Value, out id))
+                        ids.Add(id);
+                }
+
+                if (ids.Count == 0)
+                    return;
+
+                var names = new Dictionary<int, string>();
+                string sql = "SELECT Id, SoPhieu FROM dbo.FVN_PhieuXuLyBatThuong WHERE Id IN (" +
+                    string.Join(",", ids) + ")";
+                foreach (DataRow data in LoadData(sql).Rows)
+                {
+                    if (data["SoPhieu"] != DBNull.Value)
+                        names[Convert.ToInt32(data["Id"])] = Convert.ToString(data["SoPhieu"]);
+                }
+
+                foreach (ItemHistoryRow row in rows)
+                {
+                    Match match;
+                    int id;
+                    string soPhieu;
+                    if (TryParseDefectRef(row.DocumentNo, out match) &&
+                        int.TryParse(match.Groups[1].Value, out id) &&
+                        names.TryGetValue(id, out soPhieu) &&
+                        !string.IsNullOrWhiteSpace(soPhieu))
+                    {
+                        row.DocumentNo = row.DocumentNo.Trim() + " (" + soPhieu.Trim() + ")";
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                // Bổ sung số phiếu chỉ là thông tin hỗ trợ; không làm hỏng báo cáo lịch sử kho.
+            }
+        }
+
+        private static bool TryParseDefectRef(string documentNo, out Match match)
+        {
+            match = DefectDocumentRef.Match((documentNo ?? string.Empty).Trim());
+            return match.Success;
         }
 
         private static SqlParameter[] CloneParameters(SqlParameter[] source)
