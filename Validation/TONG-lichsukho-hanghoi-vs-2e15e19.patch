@@ -1,0 +1,178 @@
+diff --git a/PCTP/Modules/BaoCao/Infrastructure/Repositories/StockHistoryRepository.cs b/PCTP/Modules/BaoCao/Infrastructure/Repositories/StockHistoryRepository.cs
+index c2618b5..86757fe 100644
+--- a/PCTP/Modules/BaoCao/Infrastructure/Repositories/StockHistoryRepository.cs
++++ b/PCTP/Modules/BaoCao/Infrastructure/Repositories/StockHistoryRepository.cs
+@@ -10,6 +10,7 @@ using System.Collections.Generic;
+ using System.Data;
+ using System.Data.SqlClient;
+ using System.Linq;
++using System.Text.RegularExpressions;
+ using System.Threading;
+ using System.Threading.Tasks;
+ 
+@@ -93,6 +94,7 @@ namespace PCTP.Modules.BaoCao.Infrastructure.Repositories
+             }
+             var slotNames = LoadSlotNames();
+             var rows = table.AsEnumerable().Select(r => Map(r, slotNames)).ToList();
++            EnrichDefectDocuments(rows);
+ 
+             // Không phụ thuộc cách SP lọc ngày: lọc lại khoảng ngày ở đây (dòng không có ngày thì giữ lại).
+             if (criteria.From.HasValue)
+@@ -127,6 +129,52 @@ namespace PCTP.Modules.BaoCao.Infrastructure.Repositories
+             return Task.FromResult<IReadOnlyList<ItemHistoryRow>>(rows);
+         }
+ 
++        private static readonly System.Text.RegularExpressions.Regex DefectDocumentRef =
++            new System.Text.RegularExpressions.Regex(@"^XLBT#(\d+)$", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
++
++        /// <summary>
++        /// Dòng kho do xử lý hàng lỗi có MaPhieu dạng "XLBT#&lt;id&gt;" (id nội bộ, khó đọc). Bổ sung số phiếu thật:
++        /// "XLBT#12 (15-15-071126-2-1)" để đọc được trong lưới/timeline/Excel và tra theo số phiếu được.
++        /// Lỗi đọc (DB chưa có bảng xử lý hàng lỗi...) thì giữ nguyên số phiếu gốc.
++        /// </summary>
++        private void EnrichDefectDocuments(List<ItemHistoryRow> rows)
++        {
++            try
++            {
++                var ids = new HashSet<int>();
++                foreach (ItemHistoryRow r in rows)
++                {
++                    Match m;
++                    int id;
++                    if (TryParseDefectRef(r.DocumentNo, out m) && int.TryParse(m.Groups[1].Value, out id)) ids.Add(id);
++                }
++                if (ids.Count == 0) return;
++
++                var names = new Dictionary<int, string>();
++                foreach (DataRow d in LoadData("SELECT Id, SoPhieu FROM FVN_PhieuXuLyBatThuong WHERE Id IN (" + string.Join(",", ids) + ")").Rows)
++                    if (d["SoPhieu"] != DBNull.Value) names[Convert.ToInt32(d["Id"])] = Convert.ToString(d["SoPhieu"]);
++
++                foreach (ItemHistoryRow r in rows)
++                {
++                    Match m;
++                    int id;
++                    string soPhieu;
++                    if (TryParseDefectRef(r.DocumentNo, out m) && int.TryParse(m.Groups[1].Value, out id) && names.TryGetValue(id, out soPhieu))
++                        r.DocumentNo = r.DocumentNo.Trim() + " (" + soPhieu + ")";
++                }
++            }
++            catch (Exception)
++            {
++                // Không làm hỏng báo cáo vì phần bổ sung số phiếu.
++            }
++        }
++
++        private static bool TryParseDefectRef(string documentNo, out Match match)
++        {
++            match = DefectDocumentRef.Match((documentNo ?? string.Empty).Trim());
++            return match.Success;
++        }
++
+         private static SqlParameter[] CloneParameters(SqlParameter[] source)
+         {
+             return source.Select(p => new SqlParameter(p.ParameterName, p.Value)).ToArray();
+diff --git a/PCTP/Modules/XuLyHangLoi/Database/07_BACKFILL_StockHistory_MaPhieu_XLBT.sql b/PCTP/Modules/XuLyHangLoi/Database/07_BACKFILL_StockHistory_MaPhieu_XLBT.sql
+new file mode 100644
+index 0000000..a0d88e0
+--- /dev/null
++++ b/PCTP/Modules/XuLyHangLoi/Database/07_BACKFILL_StockHistory_MaPhieu_XLBT.sql
+@@ -0,0 +1,27 @@
++/*
++  Bù MaPhieu cho các dòng StockHistory do xử lý hàng lỗi (rework) đã ghi TRƯỚC khi sửa code.
++  Trước đây số phiếu tham chiếu (XLBT#<id>) chỉ nằm ở cột TemCode, MaPhieu để trống nên báo cáo
++  Lịch sử kho / Truy vết không có "Số phiếu" cho các dòng này. Script chép TemCode -> MaPhieu.
++  - Chỉ đụng dòng: ActionType thuộc nhóm rework, TemCode dạng 'XLBT#<số>', MaPhieu đang NULL/rỗng.
++  - Chạy lại an toàn. Chạy trên đúng DB app đang dùng. Backup trước khi chạy.
++*/
++SET XACT_ABORT ON;
++GO
++SELECT DB_NAME() AS DangChayTrenDB;
++
++SELECT ActionType, COUNT(*) AS SoDongSeDuocBu
++FROM dbo.StockHistory
++WHERE ActionType IN ('REWORK_EXPORT','REWORK_NG_IMPORT','NHAP_LAI_SAU_REWORK','REWORK_CANCEL_RETURN')
++  AND TemCode LIKE 'XLBT#%'
++  AND (MaPhieu IS NULL OR LTRIM(RTRIM(MaPhieu)) = '')
++GROUP BY ActionType;
++
++BEGIN TRAN;
++UPDATE dbo.StockHistory
++SET MaPhieu = TemCode
++WHERE ActionType IN ('REWORK_EXPORT','REWORK_NG_IMPORT','NHAP_LAI_SAU_REWORK','REWORK_CANCEL_RETURN')
++  AND TemCode LIKE 'XLBT#%'
++  AND (MaPhieu IS NULL OR LTRIM(RTRIM(MaPhieu)) = '');
++PRINT CONCAT(N'Đã cập nhật ', @@ROWCOUNT, N' dòng.');
++COMMIT;
++GO
+diff --git a/PCTP/Modules/XuLyHangLoi/Services/ReworkStockService.cs b/PCTP/Modules/XuLyHangLoi/Services/ReworkStockService.cs
+index 4b92cde..420ec46 100644
+--- a/PCTP/Modules/XuLyHangLoi/Services/ReworkStockService.cs
++++ b/PCTP/Modules/XuLyHangLoi/Services/ReworkStockService.cs
+@@ -32,6 +32,11 @@ namespace PCTP.Modules.XuLyHangLoi.Services
+     {
+         private const string MovementReworkNgReceive = "REWORK_NG_RECEIVE";
+ 
++        private static string XlbtRef(int phieuXuLyId)
++        {
++            return StockExportReferenceFormatter.Format(StockExportReferenceType.PhieuXuLyBatThuong, phieuXuLyId);
++        }
++
+         private readonly IUnitOfWork _uow;
+         private readonly ISlotService _slotService;
+         private readonly IStockExportRepository _stockTpRepo;
+@@ -301,9 +306,10 @@ namespace PCTP.Modules.XuLyHangLoi.Services
+                     {
+                         LotNo = lotChuan,
+                         Quantity = soLuong,
+-                        TemCode = StockExportReferenceFormatter.Format(
+-                            StockExportReferenceType.PhieuXuLyBatThuong,
+-                            phieuXuLyId)
++                        TemCode = XlbtRef(phieuXuLyId),
++                        // MaPhieu của StockHistory = số phiếu tham chiếu (cột "DocumentNo" của báo cáo), cùng định dạng XLBT#<id>
++                        // với đường Giao bù (StockExportService) để Lịch sử kho tra theo phiếu xử lý hàng lỗi được.
++                        MaPhieuKho = XlbtRef(phieuXuLyId)
+                     },
+                     fromSlotId: slotLot.SlotVatLyId,
+                     toSlotId: null,
+@@ -427,9 +433,10 @@ namespace PCTP.Modules.XuLyHangLoi.Services
+                     {
+                         LotNo = lotChuan,
+                         Quantity = soLuongNG,
+-                        TemCode = StockExportReferenceFormatter.Format(
+-                            StockExportReferenceType.PhieuXuLyBatThuong,
+-                            phieuXuLyId)
++                        TemCode = XlbtRef(phieuXuLyId),
++                        // MaPhieu của StockHistory = số phiếu tham chiếu (cột "DocumentNo" của báo cáo), cùng định dạng XLBT#<id>
++                        // với đường Giao bù (StockExportService) để Lịch sử kho tra theo phiếu xử lý hàng lỗi được.
++                        MaPhieuKho = XlbtRef(phieuXuLyId)
+                     },
+                     fromSlotId: null,
+                     toSlotId: slotIdNG.Value,
+@@ -512,9 +519,10 @@ namespace PCTP.Modules.XuLyHangLoi.Services
+                     {
+                         LotNo = lotChuan,
+                         Quantity = soLuongOK,
+-                        TemCode = StockExportReferenceFormatter.Format(
+-                            StockExportReferenceType.PhieuXuLyBatThuong,
+-                            phieuXuLyId)
++                        TemCode = XlbtRef(phieuXuLyId),
++                        // MaPhieu của StockHistory = số phiếu tham chiếu (cột "DocumentNo" của báo cáo), cùng định dạng XLBT#<id>
++                        // với đường Giao bù (StockExportService) để Lịch sử kho tra theo phiếu xử lý hàng lỗi được.
++                        MaPhieuKho = XlbtRef(phieuXuLyId)
+                     },
+                     fromSlotId: null,
+                     toSlotId: slotIdOK,
+@@ -612,9 +620,10 @@ namespace PCTP.Modules.XuLyHangLoi.Services
+                         {
+                             LotNo = lotChuan,
+                             Quantity = conTreo,
+-                            TemCode = StockExportReferenceFormatter.Format(
+-                                StockExportReferenceType.PhieuXuLyBatThuong,
+-                                phieuXuLyId)
++                            TemCode = XlbtRef(phieuXuLyId),
++                            // MaPhieu của StockHistory = số phiếu tham chiếu (cột "DocumentNo" của báo cáo), cùng định dạng XLBT#<id>
++                            // với đường Giao bù (StockExportService) để Lịch sử kho tra theo phiếu xử lý hàng lỗi được.
++                            MaPhieuKho = XlbtRef(phieuXuLyId)
+                         },
+                         fromSlotId: null,
+                         toSlotId: nhom.SlotId,
