@@ -3,6 +3,7 @@
 namespace PCTP.Modules.XuLyHangLoi
 {
     using DevExpress.XtraEditors;
+    using DevExpress.XtraEditors.Repository;
     using DevExpress.XtraGrid;
     using DevExpress.XtraGrid.Columns;
     using DevExpress.XtraGrid.Views.Grid;
@@ -13,9 +14,11 @@ namespace PCTP.Modules.XuLyHangLoi
     using PCTP.Modules.XuLyHangLoi.Repository;
     using PCTP.Modules.XuLyHangLoi.Services;
     using PCTP.Shared.Enums;
+    using PCTP.Shared.Lookup;
     using PCTP.Shared.Models;
     using System;
     using System.Collections.Generic;
+    using System.Data;
     using System.Linq;
     using System.Windows.Forms;
 
@@ -78,8 +81,16 @@ namespace PCTP.Modules.XuLyHangLoi
         // Đã có PhieuXuLyBatThuong → chỉ sửa thông tin chung.
         private bool _choSuaChiTiet = true;
 
-        private TextEdit _txtQr;
+        // Tra cứu dùng chung (Tìm theo mã / Tìm theo LOT-QR) thay cho ô "Quét QR thêm dòng".
+        private StockLookupControl _stockLookup;
         private LabelControl _lblQrStatus;
+
+        // Danh mục mã hàng đầy đủ (vB20Item): nguồn DUY NHẤT cho Mã hàng của phiếu khách trả.
+        // Không lấy từ tồn kho vì hàng khách trả có thể đã hết kho / LOT không còn.
+        private List<ItemLookupItem> _itemCatalog = new List<ItemLookupItem>();
+        private readonly Dictionary<string, ItemLookupItem> _itemByCode =
+            new Dictionary<string, ItemLookupItem>(StringComparer.OrdinalIgnoreCase);
+        private string _catalogLoadError;
 
         // ============================================================
         // CONSTRUCTOR
@@ -156,6 +167,9 @@ namespace PCTP.Modules.XuLyHangLoi
             Width = 1400;
             Height = 800;
 
+            // Danh mục mã hàng phải sẵn sàng trước khi dựng lưới / ô tra cứu.
+            NapDanhMucMaHang();
+
             // ========================================================
             // MAIN
             // ========================================================
@@ -173,10 +187,11 @@ namespace PCTP.Modules.XuLyHangLoi
                     SizeType.Absolute,
                     205));
 
+            // Hàng tra cứu: StockLookupControl cần ~78px (2 tab).
             mainLayout.RowStyles.Add(
                 new RowStyle(
                     SizeType.Absolute,
-                    40));
+                    84));
 
             mainLayout.RowStyles.Add(
                 new RowStyle(
@@ -202,7 +217,7 @@ namespace PCTP.Modules.XuLyHangLoi
                 0);
 
             mainLayout.Controls.Add(
-                TaoQrPanel(),
+                TaoTraCuuPanel(),
                 0,
                 1);
 
@@ -694,7 +709,10 @@ namespace PCTP.Modules.XuLyHangLoi
 
             colMaHang.Visible = true;
             colMaHang.VisibleIndex = 0;
-            colMaHang.Width = 150;
+            colMaHang.Width = 170;
+
+            // Chọn từ danh mục mã hàng chung (gõ để lọc), không nhập tay tự do.
+            colMaHang.ColumnEdit = TaoEditorMaHang();
 
             // ========================================================
             // TÊN HÀNG
@@ -711,6 +729,9 @@ namespace PCTP.Modules.XuLyHangLoi
             colTenHang.VisibleIndex = 1;
             colTenHang.Width = 220;
 
+            // Tên hàng tự điền theo Mã hàng đã chọn.
+            colTenHang.OptionsColumn.AllowEdit = false;
+
             // ========================================================
             // LOT
             // ========================================================
@@ -720,7 +741,7 @@ namespace PCTP.Modules.XuLyHangLoi
                     nameof(PhieuTraHangCT.LotNo));
 
             colLot.Caption =
-                "Lot No";
+                "Lot No (nếu có)";
 
             colLot.Visible = true;
             colLot.VisibleIndex = 2;
@@ -738,7 +759,7 @@ namespace PCTP.Modules.XuLyHangLoi
                 "Số lượng";
 
             colSoLuong.Visible = true;
-            colSoLuong.VisibleIndex = 3;
+            colSoLuong.VisibleIndex = 4;
             colSoLuong.Width = 90;
 
             colSoLuong.DisplayFormat.FormatType =
@@ -759,7 +780,7 @@ namespace PCTP.Modules.XuLyHangLoi
                 "Lý do NG";
 
             colLyDo.Visible = true;
-            colLyDo.VisibleIndex = 4;
+            colLyDo.VisibleIndex = 5;
             colLyDo.Width = 250;
 
             // ========================================================
@@ -787,14 +808,19 @@ namespace PCTP.Modules.XuLyHangLoi
 
             colPo.Visible = false;
 
+            // Khách có thể chỉ báo "mã hàng + ngày giao" (không có LOT):
+            // dùng để khoanh vùng và đối chiếu phiếu giao gốc ở bước sau.
             var colNgayGiao =
                 _gridView.Columns.AddField(
                     nameof(PhieuTraHangCT.NgayGiao));
 
             colNgayGiao.Caption =
-                "Ngày giao";
+                "Ngày giao (khách báo)";
 
-            colNgayGiao.Visible = false;
+            colNgayGiao.Visible = true;
+            colNgayGiao.VisibleIndex = 3;
+            colNgayGiao.Width = 130;
+            colNgayGiao.ColumnEdit = TaoEditorNgay();
 
             var colNhaMay =
                 _gridView.Columns.AddField(
@@ -804,6 +830,169 @@ namespace PCTP.Modules.XuLyHangLoi
                 "Nhà máy";
 
             colNhaMay.Visible = false;
+
+            _gridView.ValidatingEditor += GridView_ValidatingEditor;
+            _gridView.CellValueChanged += GridView_CellValueChanged;
+        }
+
+        // ============================================================
+        // DANH MỤC MÃ HÀNG + EDITOR TRONG LƯỚI
+        // ============================================================
+
+        private void NapDanhMucMaHang()
+        {
+            _itemByCode.Clear();
+            _catalogLoadError = null;
+
+            try
+            {
+                _itemCatalog = (_lookupRepo != null
+                    ? _lookupRepo.GetItemCatalog()
+                    : null) ?? new List<ItemLookupItem>();
+            }
+            catch (Exception ex)
+            {
+                _itemCatalog = new List<ItemLookupItem>();
+                _catalogLoadError = ex.Message;
+            }
+
+            foreach (var item in _itemCatalog)
+            {
+                if (item == null || string.IsNullOrWhiteSpace(item.ItemCode))
+                    continue;
+
+                item.ItemCode = item.ItemCode.Trim();
+                item.ItemName = (item.ItemName ?? string.Empty).Trim();
+                _itemByCode[item.ItemCode] = item;
+            }
+        }
+
+        private ItemLookupItem TimItem(string maHang)
+        {
+            if (string.IsNullOrWhiteSpace(maHang))
+                return null;
+
+            ItemLookupItem item;
+            return _itemByCode.TryGetValue(maHang.Trim(), out item) ? item : null;
+        }
+
+        private DataTable TaoBangGoiYMaHang()
+        {
+            var table = new DataTable();
+            table.Columns.Add("ItemCode", typeof(string));
+            table.Columns.Add("ItemName", typeof(string));
+
+            foreach (var item in _itemCatalog)
+            {
+                if (item == null || string.IsNullOrWhiteSpace(item.ItemCode))
+                    continue;
+
+                table.Rows.Add(item.ItemCode, item.ItemName ?? string.Empty);
+            }
+
+            return table;
+        }
+
+        private RepositoryItem TaoEditorMaHang()
+        {
+            // Không có danh mục (chưa cấu hình repo / lỗi DB) → ô nhập thường, vẫn lập được phiếu.
+            if (_itemByCode.Count == 0)
+                return new RepositoryItemTextEdit();
+
+            var repo = new RepositoryItemGridLookUpEdit
+            {
+                DataSource = _itemCatalog,
+                ValueMember = nameof(ItemLookupItem.ItemCode),
+                DisplayMember = nameof(ItemLookupItem.ItemCode),
+                NullText = string.Empty,
+                TextEditStyle = DevExpress.XtraEditors.Controls.TextEditStyles.Standard,
+                PopupFilterMode = DevExpress.XtraEditors.PopupFilterMode.Contains,
+                ImmediatePopup = true,
+                PopupFormMinSize = new System.Drawing.Size(520, 300)
+            };
+
+            repo.View.OptionsView.ShowGroupPanel = false;
+            repo.View.OptionsView.ShowAutoFilterRow = true;
+            repo.View.OptionsBehavior.Editable = false;
+            repo.View.Columns.Clear();
+            repo.View.Columns.AddVisible(nameof(ItemLookupItem.ItemCode), "Mã hàng");
+            repo.View.Columns.AddVisible(nameof(ItemLookupItem.ItemName), "Tên hàng");
+
+            _grid.RepositoryItems.Add(repo);
+
+            return repo;
+        }
+
+        private RepositoryItem TaoEditorNgay()
+        {
+            var repo = new RepositoryItemDateEdit
+            {
+                NullText = string.Empty
+            };
+
+            repo.DisplayFormat.FormatType = DevExpress.Utils.FormatType.DateTime;
+            repo.DisplayFormat.FormatString = "dd/MM/yyyy";
+            repo.EditFormat.FormatType = DevExpress.Utils.FormatType.DateTime;
+            repo.EditFormat.FormatString = "dd/MM/yyyy";
+            repo.Mask.EditMask = "dd/MM/yyyy";
+            repo.Mask.UseMaskAsDisplayFormat = true;
+
+            _grid.RepositoryItems.Add(repo);
+
+            return repo;
+        }
+
+        // Chặn mã hàng không có trong danh mục (gõ sai) ngay khi rời ô.
+        private void GridView_ValidatingEditor(
+            object sender,
+            DevExpress.XtraEditors.Controls.BaseContainerValidateEditorEventArgs e)
+        {
+            var view = sender as GridView;
+
+            if (view == null ||
+                view.FocusedColumn == null ||
+                view.FocusedColumn.FieldName != nameof(PhieuTraHangCT.MaHang))
+                return;
+
+            if (_itemByCode.Count == 0)
+                return;
+
+            string typed = Convert.ToString(e.Value)?.Trim();
+
+            if (string.IsNullOrEmpty(typed) && view.ActiveEditor != null)
+                typed = view.ActiveEditor.Text?.Trim();
+
+            if (string.IsNullOrEmpty(typed))
+                return; // xóa ô: ValidateForm sẽ báo thiếu khi lưu
+
+            var item = TimItem(typed);
+
+            if (item == null)
+            {
+                e.Valid = false;
+                e.ErrorText = $"Mã hàng '{typed}' không có trong danh mục. Hãy chọn từ danh sách.";
+                return;
+            }
+
+            e.Value = item.ItemCode; // chuẩn hóa đúng mã của danh mục
+        }
+
+        private void GridView_CellValueChanged(
+            object sender,
+            DevExpress.XtraGrid.Views.Base.CellValueChangedEventArgs e)
+        {
+            if (e.Column.FieldName != nameof(PhieuTraHangCT.MaHang))
+                return;
+
+            var row = _gridView.GetRow(e.RowHandle) as PhieuTraHangCT;
+
+            if (row == null)
+                return;
+
+            var item = TimItem(row.MaHang);
+            row.TenHang = item != null ? item.ItemName : string.Empty;
+
+            _gridView.RefreshRow(e.RowHandle);
         }
 
         // Ô nhập căn giữa theo chiều dọc ô (thay Dock Fill) để thẳng hàng với nhãn.
@@ -820,67 +1009,56 @@ namespace PCTP.Modules.XuLyHangLoi
             }
         }
 
-        private TableLayoutPanel TaoQrPanel()
+        // ============================================================
+        // TRA CỨU / QUÉT TEM  (StockLookupControl dùng chung)
+        //
+        // Tab "Tìm theo mã"      : chọn mã hàng từ danh mục (vB20Item) → thêm dòng khoanh vùng.
+        // Tab "Tìm theo LOT / QR": quét tem QR (Lot:Mã hàng:Ngày:SL:...) → thêm dòng đầy đủ;
+        //                          hoặc nhập LOT thô → tự suy ra mã hàng (kho + lịch sử).
+        //
+        // Không yêu cầu LOT còn tồn kho: hàng khách trả có thể đã xuất hết.
+        // ============================================================
+
+        private TableLayoutPanel TaoTraCuuPanel()
         {
-            var qrPanel = new TableLayoutPanel
+            var panel = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
-                ColumnCount = 3,
+                ColumnCount = 2,
                 RowCount = 1
             };
 
-            qrPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 145));
-            qrPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
-            qrPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+            panel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 600));
+            panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
 
-            var lbl = new LabelControl
+            _stockLookup = new StockLookupControl { Dock = DockStyle.Fill };
+            _stockLookup.SetItemSuggestions(TaoBangGoiYMaHang(), "ItemCode", "ItemName");
+            _stockLookup.SetLotQrPlaceholder("Quét tem QR (4/6 trường) hoặc nhập LOT rồi Enter...");
+            _stockLookup.SearchRequested += (s, e) => XuLyTraCuu();
+            _stockLookup.SelectionCleared += (s, e) =>
             {
-                Text = "Quét QR thêm dòng",
-                Dock = DockStyle.Fill,
-                AutoSizeMode = LabelAutoSizeMode.None,
-                Padding = new Padding(5, 0, 0, 0)
+                if (_lblQrStatus != null)
+                    _lblQrStatus.Text = string.Empty;
             };
-            lbl.Appearance.TextOptions.VAlignment =
-                DevExpress.Utils.VertAlignment.Center;
-
-            _txtQr = new TextEdit
-            {
-                Anchor = AnchorStyles.Left | AnchorStyles.Right,
-                Margin = new Padding(3, 3, 8, 3)
-            };
-            _txtQr.Properties.NullValuePrompt =
-                "Quét tem QR (Lot:Mã hàng:Ngày:SL:...) rồi Enter";
-            _txtQr.KeyDown += TxtQr_KeyDown;
 
             _lblQrStatus = new LabelControl
             {
                 Dock = DockStyle.Fill,
-                AutoSizeMode = LabelAutoSizeMode.None
+                AutoSizeMode = LabelAutoSizeMode.None,
+                Padding = new Padding(8, 0, 0, 0)
             };
             _lblQrStatus.Appearance.TextOptions.VAlignment =
                 DevExpress.Utils.VertAlignment.Center;
 
-            qrPanel.Controls.Add(lbl, 0, 0);
-            qrPanel.Controls.Add(_txtQr, 1, 0);
-            qrPanel.Controls.Add(_lblQrStatus, 2, 0);
+            panel.Controls.Add(_stockLookup, 0, 0);
+            panel.Controls.Add(_lblQrStatus, 1, 0);
 
-            return qrPanel;
-        }
+            if (!string.IsNullOrEmpty(_catalogLoadError))
+                BaoQr("Không tải được danh mục mã hàng: " + _catalogLoadError, false);
+            else if (_itemByCode.Count == 0)
+                BaoQr("Chưa có danh mục mã hàng: nhập mã hàng thủ công trong lưới.", false);
 
-        private void TxtQr_KeyDown(object sender, KeyEventArgs e)
-        {
-            if (e.KeyCode != Keys.Enter)
-                return;
-
-            e.Handled = true;
-            e.SuppressKeyPress = true;
-
-            string raw = _txtQr.Text;
-            _txtQr.Text = string.Empty;
-
-            XuLyQr(raw);
-
-            _txtQr.Focus();
+            return panel;
         }
 
         private void BaoQr(string text, bool ok)
@@ -890,6 +1068,129 @@ namespace PCTP.Modules.XuLyHangLoi
                 ok ? System.Drawing.Color.ForestGreen : System.Drawing.Color.Firebrick;
         }
 
+        private List<PhieuTraHangCT> LayDanhSachDong()
+        {
+            var data = _grid.DataSource as List<PhieuTraHangCT>;
+
+            if (data == null)
+            {
+                data = new List<PhieuTraHangCT>();
+                _grid.DataSource = data;
+            }
+
+            return data;
+        }
+
+        /// <summary>
+        /// Thêm dòng (hoặc cộng dồn SL nếu đã có cùng Mã hàng + LOT).
+        /// soLuong = 0 → dòng khoanh vùng, người dùng nhập SL sau.
+        /// </summary>
+        private PhieuTraHangCT ThemHoacCongDon(string maHang, string tenHang, string lot, int soLuong)
+        {
+            var data = LayDanhSachDong();
+
+            string ma = (maHang ?? string.Empty).Trim();
+            string lotChuan = (lot ?? string.Empty).Trim();
+
+            var exist = data.FirstOrDefault(d =>
+                string.Equals((d.MaHang ?? string.Empty).Trim(), ma, StringComparison.OrdinalIgnoreCase)
+                && string.Equals((d.LotNo ?? string.Empty).Trim(), lotChuan, StringComparison.OrdinalIgnoreCase));
+
+            if (exist != null)
+            {
+                if (soLuong > 0)
+                    exist.SoLuong += soLuong;
+
+                return exist;
+            }
+
+            var item = new PhieuTraHangCT
+            {
+                SlotIdNguon = null,
+                MaHang = ma,
+                TenHang = tenHang ?? string.Empty,
+                LotNo = lotChuan,
+                SoLuong = soLuong,
+                LyDoNg = string.Empty
+            };
+
+            data.Add(item);
+
+            return item;
+        }
+
+        private void FocusO(PhieuTraHangCT item, string fieldName)
+        {
+            var data = _grid.DataSource as List<PhieuTraHangCT>;
+
+            if (data == null || item == null)
+                return;
+
+            _grid.RefreshDataSource();
+
+            int rowHandle = _gridView.GetRowHandle(data.IndexOf(item));
+
+            if (rowHandle < 0)
+                return;
+
+            _gridView.FocusedRowHandle = rowHandle;
+            _gridView.FocusedColumn = _gridView.Columns[fieldName];
+            _gridView.ShowEditor();
+        }
+
+        private void XuLyTraCuu()
+        {
+            string input = _stockLookup.InputText;
+
+            if (string.IsNullOrWhiteSpace(input))
+            {
+                BaoQr("Chọn mã hàng, nhập LOT hoặc quét tem QR trước khi tra cứu.", false);
+                _stockLookup.FocusInput();
+                return;
+            }
+
+            if (_stockLookup.IsItemSearch)
+            {
+                XuLyChonMaHang(input);
+                return;
+            }
+
+            if (input.IndexOf(':') >= 0)
+                XuLyQr(input);
+            else
+                XuLyLotThuan(input);
+
+            _stockLookup.ClearInput();
+            _stockLookup.FocusInput();
+        }
+
+        // Tab "Tìm theo mã": khách chỉ báo mã hàng (kèm ngày giao) → dòng khoanh vùng.
+        private void XuLyChonMaHang(string input)
+        {
+            string code = _stockLookup.SelectedItemCode;
+
+            if (string.IsNullOrWhiteSpace(code))
+                code = input;
+
+            var item = TimItem(code);
+
+            if (item == null)
+            {
+                BaoQr($"Mã hàng '{input}' không có trong danh mục. Hãy chọn từ danh sách gợi ý.", false);
+                _stockLookup.FocusInput();
+                return;
+            }
+
+            var row = ThemHoacCongDon(item.ItemCode, item.ItemName, string.Empty, 0);
+
+            _stockLookup.ClearInput();
+
+            BaoQr($"Đã thêm {item.ItemCode} (chưa có LOT). Nhập số lượng, ngày giao / LOT nếu khách có báo.", true);
+
+            FocusO(row, nameof(PhieuTraHangCT.SoLuong));
+        }
+
+        // Tab "LOT / QR" – QR đầy đủ (Lot:Mã hàng:Ngày:SL:...).
         private void XuLyQr(string raw)
         {
             if (string.IsNullOrWhiteSpace(raw))
@@ -904,53 +1205,93 @@ namespace PCTP.Modules.XuLyHangLoi
                 return;
             }
 
-            // Mã hàng phải có trong danh mục hàng (vB20Item).
-            string tenHang = string.Empty;
+            // Mã hàng phải có trong danh mục (vB20Item) – KHÔNG cần còn tồn kho.
+            string tenHang;
+            string maHang = ChuanHoaMaHang(info.ItemCode, out tenHang);
 
-            if (_lookupRepo != null)
+            if (maHang == null)
             {
-                tenHang = _lookupRepo.GetItemName(info.ItemCode);
-
-                if (tenHang == null)
-                {
-                    BaoQr($"Mã hàng {info.ItemCode} không có trong danh mục.", false);
-                    return;
-                }
-            }
-
-            var data = _grid.DataSource as List<PhieuTraHangCT>;
-
-            if (data == null)
-            {
-                data = new List<PhieuTraHangCT>();
-                _grid.DataSource = data;
+                BaoQr($"Mã hàng {info.ItemCode} không có trong danh mục.", false);
+                return;
             }
 
             // Cùng Mã hàng + Lot (quét nhiều tem) → cộng dồn số lượng.
-            var exist = data.FirstOrDefault(d =>
-                string.Equals(d.MaHang?.Trim(), info.ItemCode, StringComparison.OrdinalIgnoreCase)
-                && string.Equals(d.LotNo?.Trim(), info.Lot, StringComparison.OrdinalIgnoreCase));
-
-            if (exist != null)
-            {
-                exist.SoLuong += info.Quantity;
-            }
-            else
-            {
-                data.Add(new PhieuTraHangCT
-                {
-                    SlotIdNguon = null,
-                    MaHang = info.ItemCode,
-                    TenHang = tenHang,
-                    LotNo = info.Lot,
-                    SoLuong = info.Quantity,
-                    LyDoNg = string.Empty
-                });
-            }
+            ThemHoacCongDon(maHang, tenHang, info.Lot, info.Quantity);
 
             _grid.RefreshDataSource();
 
-            BaoQr($"Đã thêm {info.ItemCode} / Lot {info.Lot} / SL {info.Quantity}.", true);
+            BaoQr($"Đã thêm {maHang} / Lot {info.Lot} / SL {info.Quantity}.", true);
+        }
+
+        // Tab "LOT / QR" – chỉ có LOT (13/20 ký tự): suy mã hàng từ kho + lịch sử.
+        private void XuLyLotThuan(string lotNhap)
+        {
+            string lot = lotNhap.Trim();
+
+            List<ItemLookupItem> items = null;
+
+            try
+            {
+                if (_lookupRepo != null)
+                    items = _lookupRepo.FindItemsByLot(lot);
+            }
+            catch (Exception ex)
+            {
+                BaoQr("Không tra được mã hàng theo LOT: " + ex.Message, false);
+            }
+
+            int n = items == null ? 0 : items.Count;
+
+            if (n == 1)
+            {
+                var it = items[0];
+                var row = ThemHoacCongDon(it.ItemCode, it.ItemName, lot, 0);
+
+                BaoQr($"LOT {lot} thuộc mã {it.ItemCode}. Nhập số lượng khách trả.", true);
+                FocusO(row, nameof(PhieuTraHangCT.SoLuong));
+                return;
+            }
+
+            // Không tìm thấy (LOT lạ / đã xóa) hoặc thuộc nhiều mã → để người dùng chọn đúng mã trong lưới.
+            var rowMoi = ThemHoacCongDon(string.Empty, string.Empty, lot, 0);
+
+            BaoQr(
+                n == 0
+                    ? $"LOT {lot} chưa có trong kho/lịch sử: chọn mã hàng đúng trong lưới."
+                    : $"LOT {lot} thuộc {n} mã hàng: chọn mã hàng đúng trong lưới.",
+                false);
+
+            FocusO(rowMoi, nameof(PhieuTraHangCT.MaHang));
+        }
+
+        /// <summary>Trả mã chuẩn của danh mục (và tên); null nếu mã không tồn tại.</summary>
+        private string ChuanHoaMaHang(string maHang, out string tenHang)
+        {
+            tenHang = string.Empty;
+
+            if (_itemByCode.Count > 0)
+            {
+                var item = TimItem(maHang);
+
+                if (item == null)
+                    return null;
+
+                tenHang = item.ItemName;
+                return item.ItemCode;
+            }
+
+            // Chưa tải được danh mục → hỏi thẳng repo (nếu có); không có repo thì chấp nhận mã quét.
+            if (_lookupRepo != null)
+            {
+                string ten = _lookupRepo.GetItemName(maHang);
+
+                if (ten == null)
+                    return null;
+
+                tenHang = ten;
+            }
+
+            return (maHang ?? string.Empty).Trim();
         }
 
         // ============================================================
@@ -1026,7 +1367,7 @@ namespace PCTP.Modules.XuLyHangLoi
 
             _gridView.OptionsBehavior.Editable = suaChiTiet;
 
-            _txtQr.Enabled = suaChiTiet;
+            _stockLookup.Enabled = suaChiTiet;
             _btnThem.Visible = suaChiTiet;
             _btnXoa.Visible = suaChiTiet;
 
@@ -1197,6 +1538,10 @@ namespace PCTP.Modules.XuLyHangLoi
             {
                 _gridView.FocusedRowHandle =
                     rowHandle;
+
+                // Bắt đầu từ ô Mã hàng (chọn từ danh mục).
+                _gridView.FocusedColumn =
+                    _gridView.Columns[nameof(PhieuTraHangCT.MaHang)];
 
                 _gridView.ShowEditor();
             }
@@ -1394,12 +1739,17 @@ namespace PCTP.Modules.XuLyHangLoi
                     return false;
                 }
 
-                if (string.IsNullOrWhiteSpace(
-                    item.LotNo))
+                // Lot No KHÔNG bắt buộc: khách có thể chỉ báo mã hàng / ngày giao,
+                // hoặc LOT đã không còn trong kho. Dòng không LOT khoanh vùng theo
+                // toàn bộ tồn của mã (AffectedLotTraceService.Trace).
+                item.LotNo = (item.LotNo ?? string.Empty).Trim();
+
+                if (_itemByCode.Count > 0 && TimItem(item.MaHang) == null)
                 {
                     XtraMessageBox.Show(
-                        $"Dòng {i + 1}: chưa nhập Lot No.",
-                        "Thiếu dữ liệu",
+                        $"Dòng {i + 1}: mã hàng '{item.MaHang}' không có trong danh mục.\r\n" +
+                        "Hãy chọn lại mã hàng từ danh sách.",
+                        "Dữ liệu không hợp lệ",
                         MessageBoxButtons.OK,
                         MessageBoxIcon.Warning);
 
@@ -1626,14 +1976,41 @@ namespace PCTP.Modules.XuLyHangLoi
                 var phieu =
                     BuildPhieu(items);
 
-                // Bước 1 của quy trình khách trả: hàng lỗi phải được NHẬP VỀ KHO dưới dạng NG (có StockHistory).
+                // Bước 1 của quy trình khách trả: hàng khách trả về thật (có LOT) được NHẬP KHO NG (có StockHistory).
+                // Nhưng phiếu khách trả còn có thể chỉ là KHOANH VÙNG (khách chỉ báo mã hàng / ngày giao,
+                // hoặc hàng chưa về / LOT đã hết kho) → luôn cho lập phiếu mà không nhập kho NG.
                 // Chọn Slot NG TRƯỚC khi tạo phiếu để hủy là không tạo gì.
+                int soDongCoLot = items.Count(x => !string.IsNullOrWhiteSpace(x.LotNo));
+                int soDongKhongLot = items.Count - soDongCoLot;
+
                 int? slotNG = null;
-                if (_reworkStockService != null && _slotService != null)
+                bool chuaNhapKhoNG = true;
+
+                if (_reworkStockService != null && _slotService != null && soDongCoLot > 0)
                 {
-                    slotNG = SlotNhapNGPicker.Chon(this, _slotService, "Nhập kho NG hàng khách trả");
-                    if (!slotNG.HasValue)
+                    var chon = XtraMessageBox.Show(
+                        $"Có {soDongCoLot} dòng có LOT.\r\n\r\n" +
+                        "• Có: hàng đã được trả về kho → chọn Slot và NHẬP KHO NG.\r\n" +
+                        "• Không: chỉ lập phiếu khoanh vùng (hàng chưa về / chưa nhận / LOT đã hết kho), KHÔNG nhập kho.\r\n" +
+                        "• Hủy: quay lại chỉnh sửa." +
+                        (soDongKhongLot > 0
+                            ? $"\r\n\r\n{soDongKhongLot} dòng không có LOT luôn chỉ khoanh vùng theo toàn bộ tồn của mã (không nhập kho)."
+                            : string.Empty),
+                        "Nhập kho NG hàng khách trả",
+                        MessageBoxButtons.YesNoCancel,
+                        MessageBoxIcon.Question);
+
+                    if (chon == DialogResult.Cancel)
                         return;
+
+                    if (chon == DialogResult.Yes)
+                    {
+                        slotNG = SlotNhapNGPicker.Chon(this, _slotService, "Nhập kho NG hàng khách trả");
+                        if (!slotNG.HasValue)
+                            return;
+
+                        chuaNhapKhoNG = false;
+                    }
                 }
 
                 // ====================================================
@@ -1646,7 +2023,9 @@ namespace PCTP.Modules.XuLyHangLoi
 
                 if (slotNG.HasValue)
                 {
+                    // Chỉ dòng có LOT mới tạo được SlotLot NG; dòng khoanh vùng bỏ qua.
                     var lines = phieu.ChiTiet
+                        .Where(ct => !string.IsNullOrWhiteSpace(ct.LotNo))
                         .Select(ct => new KhachTraNhapNGLine
                         {
                             PhieuTraHangCTId = ct.Id,
@@ -1684,7 +2063,10 @@ namespace PCTP.Modules.XuLyHangLoi
                     $"Số phiếu: {phieu.SoPhieu}\r\n" +
                     $"ID: {id}\r\n" +
                     $"Số dòng: {phieu.ChiTiet.Count}\r\n" +
-                    $"Tổng số lượng: {phieu.TongSoLuongNhan}",
+                    $"Tổng số lượng: {phieu.TongSoLuongNhan}" +
+                    (chuaNhapKhoNG
+                        ? "\r\n\r\nLưu ý: chưa nhập kho NG (phiếu khoanh vùng / hàng chưa về)."
+                        : string.Empty),
                     "Thành công",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Information);
