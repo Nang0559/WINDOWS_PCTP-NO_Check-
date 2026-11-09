@@ -156,7 +156,7 @@ namespace PCTP.QRCODE_HVN.ComaprePart
             this.LuKToPart.Properties.SearchMode = DevExpress.XtraEditors.Controls.SearchMode.AutoSuggest;
             this.LuKToPart.Properties.ValueMember = "code";
             this.LuKToPart.Size = new System.Drawing.Size(214, 22);
-            this.LuKToPart.TabIndex = 0;
+            this.LuKToPart.TabIndex = 1;
             // 
             // lup_Ma
             // 
@@ -166,7 +166,7 @@ namespace PCTP.QRCODE_HVN.ComaprePart
             new DevExpress.XtraEditors.Controls.EditorButton(DevExpress.XtraEditors.Controls.ButtonPredefines.Combo)});
             this.lup_Ma.Properties.DisplayMember = "code";
             this.lup_Ma.Properties.SearchMode = DevExpress.XtraEditors.Controls.SearchMode.AutoSuggest;
-            this.lup_Ma.Properties.ValueMember = "name";
+            this.lup_Ma.Properties.ValueMember = "code";
             this.lup_Ma.Size = new System.Drawing.Size(214, 22);
             this.lup_Ma.TabIndex = 0;
             this.lup_Ma.EditValueChanged += new System.EventHandler(this.lup_Ma_EditValueChanged);
@@ -188,8 +188,9 @@ namespace PCTP.QRCODE_HVN.ComaprePart
             this.cmd_Huy.Location = new System.Drawing.Point(589, 30);
             this.cmd_Huy.Name = "cmd_Huy";
             this.cmd_Huy.Size = new System.Drawing.Size(158, 35);
-            this.cmd_Huy.TabIndex = 0;
+            this.cmd_Huy.TabIndex = 1;
             this.cmd_Huy.Text = "Hủy Thao Tác";
+            this.cmd_Huy.Click += new System.EventHandler(this.cmd_Huy_Click);
             // 
             // cmd_Tao
             // 
@@ -234,12 +235,8 @@ namespace PCTP.QRCODE_HVN.ComaprePart
             this.GCT});
             this.GV_ListPart.GridControl = this.GT_ListPart;
             this.GV_ListPart.Name = "GV_ListPart";
-            this.GV_ListPart.NewItemRowText = "i";
-            this.GV_ListPart.OptionsBehavior.EditorShowMode = DevExpress.Utils.EditorShowMode.Click;
             this.GV_ListPart.OptionsSelection.MultiSelect = true;
-           // this.GV_ListPart.ShowingPopupEditForm += new DevExpress.XtraGrid.Views.Grid.ShowingPopupEditFormEventHandler(this.GV_ListPart_ShowingPopupEditForm);
             this.GV_ListPart.PopupMenuShowing += new DevExpress.XtraGrid.Views.Grid.PopupMenuShowingEventHandler(this.GV_ListPart_PopupMenuShowing);
-            this.GV_ListPart.RowUpdated += new DevExpress.XtraGrid.Views.Base.RowObjectEventHandler(this.GV_ListPart_RowUpdated);
             // 
             // gCT_STT
             // 
@@ -294,6 +291,8 @@ namespace PCTP.QRCODE_HVN.ComaprePart
             // GC_DateApprov
             // 
             this.GC_DateApprov.Caption = "Date Create";
+            this.GC_DateApprov.DisplayFormat.FormatString = "dd/MM/yyyy HH:mm";
+            this.GC_DateApprov.DisplayFormat.FormatType = DevExpress.Utils.FormatType.DateTime;
             this.GC_DateApprov.FieldName = "timeSet";
             this.GC_DateApprov.MinWidth = 25;
             this.GC_DateApprov.Name = "GC_DateApprov";
@@ -314,8 +313,8 @@ namespace PCTP.QRCODE_HVN.ComaprePart
             // imageCollection1
             // 
             this.imageCollection1.ImageStream = ((DevExpress.Utils.ImageCollectionStreamer)(resources.GetObject("imageCollection1.ImageStream")));
-            this.imageCollection1.Images.SetKeyName(1, "deletelist_16x16.png");
-            this.imageCollection1.Images.SetKeyName(2, "reset_32x32.png");
+            this.imageCollection1.Images.SetKeyName(0, "deletelist_16x16.png");
+            this.imageCollection1.Images.SetKeyName(1, "reset_16x16.png");
             // 
             // ComaparePart
             // 
@@ -326,7 +325,8 @@ namespace PCTP.QRCODE_HVN.ComaprePart
             this.Controls.Add(this.sidePanel2);
             this.Controls.Add(this.sidePanel1);
             this.Name = "ComaparePart";
-            this.Text = "ComaparePart";
+            this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
+            this.Text = "Quy đổi mã hàng HVN - FCC";
             this.sidePanel1.ResumeLayout(false);
             this.sidePanel1.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.DateE_NgayAPP.Properties.CalendarTimeProperties)).EndInit();

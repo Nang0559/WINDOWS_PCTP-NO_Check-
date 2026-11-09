@@ -1,32 +1,57 @@
 ﻿using DevExpress.Utils.Menu;
 using DevExpress.XtraEditors;
-using DevExpress.XtraGrid.Localization;
-using DevExpress.XtraGrid.Views.Base;
+using DevExpress.XtraEditors.Controls;
 using DevExpress.XtraGrid.Views.Grid;
 using PCTP.ClassSQL;
+using PCTP.Modules.GiaoHangKhach;
+using PCTP.Modules.GiaoHangKhach.Intefaces;
+using PCTP.Modules.GiaoHangKhach.Repositories;
+using PCTP.Shared.Common;
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Data;
-using System.Data.Linq;
-using System.Data.SqlClient;
 using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace PCTP.QRCODE_HVN.ComaprePart
 {
+    /// <summary>
+    /// Quản lý mapping mã hàng HVN (PartNo) -> mã FCC (PartNoCompare) trong tbl_QR_ComparePart.
+    /// Form chỉ lo giao diện; mọi truy cập SQL đi qua IComparePartRepository.
+    /// </summary>
     public partial class ComaparePart : DevExpress.XtraEditors.XtraForm
     {
-        private readonly SQLPROVIDER _sql = new SQLPROVIDER();
+        // timeSet là smalldatetime -> chỉ nhận 1900-01-01 .. 2079-06-06.
+        private static readonly DateTime MinTimeSet = new DateTime(1900, 1, 1);
+        private static readonly DateTime MaxTimeSet = new DateTime(2079, 6, 6);
 
-        private DataTable _listPart;
-        private DataTable _compareParts;
+        // Vị trí ảnh trong imageCollection1 (xem ComaparePart.resx).
+        private const int IconDelete = 0;
+        private const int IconRefresh = 1;
 
+        private readonly IComparePartRepository _repo;
+
+        // ── Ctor mặc định: tự dựng dependency, dùng khi mở form từ menu ─────
         public ComaparePart()
+            : this(CreateDefaultRepo())
         {
+        }
+
+        // Dùng CHUNG 1 SQLPROVIDER cho PhieuSqlExecutor và UnitOfWork
+        // (đúng nguyên tắc "1 phiên làm việc = 1 kết nối logic" của project).
+        private static IComparePartRepository CreateDefaultRepo()
+        {
+            var provider = new SQLPROVIDER();
+            return new ComparePartRepository(
+                new PhieuSqlExecutor(provider),
+                new UnitOfWork(provider));
+        }
+
+        // ── Ctor cho phép inject repo (test/tái sử dụng) ─────────────────────
+        public ComaparePart(IComparePartRepository repo)
+        {
+            _repo = repo ?? throw new ArgumentNullException(nameof(repo));
+
             InitializeComponent();
 
             ConfigureGrid();
@@ -58,7 +83,7 @@ namespace PCTP.QRCODE_HVN.ComaprePart
 
             GV_ListPart.OptionsSelection.MultiSelect = true;
             GV_ListPart.OptionsSelection.MultiSelectMode =
-                DevExpress.XtraGrid.Views.Grid.GridMultiSelectMode.RowSelect;
+                GridMultiSelectMode.RowSelect;
 
             GV_ListPart.OptionsBehavior.Editable = false;
 
@@ -69,10 +94,55 @@ namespace PCTP.QRCODE_HVN.ComaprePart
 
         private void ConfigureControls()
         {
-            lup_Ma.Properties.NullText = "";
-            LuKToPart.Properties.NullText = "";
+            ConfigureLookUp(lup_Ma);
+            ConfigureLookUp(LuKToPart);
 
+            DateE_NgayAPP.Properties.MinValue = MinTimeSet;
+            DateE_NgayAPP.Properties.MaxValue = MaxTimeSet;
             DateE_NgayAPP.EditValue = DateTime.Now;
+        }
+
+        private static void ConfigureLookUp(LookUpEdit edit)
+        {
+            edit.Properties.NullText = "";
+            edit.Properties.ValueMember = "code";
+            edit.Properties.DisplayMember = "code";
+
+            // Hiện cả mã lẫn tên để chọn đúng mã hàng.
+            edit.Properties.Columns.Clear();
+            edit.Properties.Columns.Add(new LookUpColumnInfo("code", "Mã hàng", 120));
+            edit.Properties.Columns.Add(new LookUpColumnInfo("name", "Tên hàng", 260));
+        }
+
+        #endregion
+
+        #region MESSAGES
+
+        private static void ShowWarning(string message)
+        {
+            XtraMessageBox.Show(
+                message,
+                "Thông báo",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Warning);
+        }
+
+        private static void ShowInfo(string message)
+        {
+            XtraMessageBox.Show(
+                message,
+                "Thông báo",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Information);
+        }
+
+        private static void ShowError(string action, Exception ex)
+        {
+            XtraMessageBox.Show(
+                $"{action}: {ex.Message}",
+                "Lỗi",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Error);
         }
 
         #endregion
@@ -81,49 +151,25 @@ namespace PCTP.QRCODE_HVN.ComaprePart
 
         private void LoadData()
         {
-            LoadSourcePart();
-            LoadComparePart();
+            try
+            {
+                LoadSourcePart();
+                LoadComparePart();
+            }
+            catch (Exception ex)
+            {
+                ShowError("Lỗi tải dữ liệu mã hàng", ex);
+            }
         }
 
         private void LoadSourcePart()
         {
-            const string sql = @"
-            SELECT DISTINCT
-                code,
-                name
-            FROM B20Item
-            WHERE ISNULL(code, '') <> ''
-            ORDER BY code";
-
-            DataTable dt = _sql.LoadData1(
-                _sql.B7R2_FCCdb,
-                sql);
-
-            lup_Ma.Properties.DataSource = dt;
-            lup_Ma.Properties.ValueMember = "code";
-            lup_Ma.Properties.DisplayMember = "code";
+            lup_Ma.Properties.DataSource = _repo.GetSourceParts();
         }
 
         private void LoadComparePart()
         {
-            const string sql = @"
-            SELECT
-                STT,
-                PartNo,
-                PartName,
-                PartNoCompare AS ToPartNo,
-                PartName AS ToPartName,
-                timeSet,
-                IsActive,
-                timeSet AS DateApp
-            FROM tbl_QR_ComparePart
-            ORDER BY STT DESC";
-
-            _compareParts = _sql.LoadData1(
-                _sql.B7R2_FCCdb,
-                sql);
-
-            GT_ListPart.DataSource = _compareParts;
+            GT_ListPart.DataSource = _repo.GetAll();
         }
 
         #endregion
@@ -134,41 +180,32 @@ namespace PCTP.QRCODE_HVN.ComaprePart
             object sender,
             EventArgs e)
         {
+            // Đổi mã gốc thì mã thay thế đã chọn trước đó không còn hợp lệ:
+            // nếu không xóa, EditValue cũ vẫn còn dù không hiển thị trong danh sách mới.
+            LuKToPart.EditValue = null;
+
             string maHang = Convert.ToString(lup_Ma.EditValue)?.Trim();
 
             if (string.IsNullOrWhiteSpace(maHang))
             {
                 LuKToPart.Properties.DataSource = null;
-                LuKToPart.EditValue = null;
                 return;
             }
 
-            LoadTargetParts(maHang);
+            try
+            {
+                LoadTargetParts(maHang);
+            }
+            catch (Exception ex)
+            {
+                LuKToPart.Properties.DataSource = null;
+                ShowError("Lỗi tải danh sách mã thay thế", ex);
+            }
         }
 
         private void LoadTargetParts(string maHang)
         {
-            const string sql = @"
-            SELECT DISTINCT
-                code,
-                name
-            FROM B20Item
-            WHERE code LIKE @Code
-            ORDER BY code";
-
-            DataTable dt = _sql.LoadData1(
-                _sql.B7R2_FCCdb,
-                sql,
-                new SqlParameter("@Code", SqlDbType.NVarChar, 100)
-                {
-                    Value = maHang + "%"
-                });
-
-            _listPart = dt;
-
-            LuKToPart.Properties.DataSource = _listPart;
-            LuKToPart.Properties.ValueMember = "code";
-            LuKToPart.Properties.DisplayMember = "code";
+            LuKToPart.Properties.DataSource = _repo.GetTargetParts(maHang);
         }
 
         #endregion
@@ -182,24 +219,14 @@ namespace PCTP.QRCODE_HVN.ComaprePart
 
             if (string.IsNullOrWhiteSpace(partNo))
             {
-                XtraMessageBox.Show(
-                    "Vui lòng chọn mã hàng gốc.",
-                    "Thông báo",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Warning);
-
+                ShowWarning("Vui lòng chọn mã hàng gốc.");
                 lup_Ma.Focus();
                 return;
             }
 
             if (string.IsNullOrWhiteSpace(partNoCompare))
             {
-                XtraMessageBox.Show(
-                    "Vui lòng chọn mã hàng thay thế.",
-                    "Thông báo",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Warning);
-
+                ShowWarning("Vui lòng chọn mã hàng thay thế.");
                 LuKToPart.Focus();
                 return;
             }
@@ -209,77 +236,68 @@ namespace PCTP.QRCODE_HVN.ComaprePart
                 partNoCompare,
                 StringComparison.OrdinalIgnoreCase))
             {
-                XtraMessageBox.Show(
-                    "Mã hàng gốc và mã hàng thay thế không được giống nhau.",
-                    "Thông báo",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Warning);
-
+                ShowWarning("Mã hàng gốc và mã hàng thay thế không được giống nhau.");
                 return;
             }
 
-            if (TryInsertComparePart(partNo, partNoCompare))
+            DateTime timeSet = DateE_NgayAPP.DateTime;
+
+            if (DateE_NgayAPP.EditValue == null
+                || timeSet < MinTimeSet
+                || timeSet > MaxTimeSet)
             {
-                XtraMessageBox.Show(
-                    "Đã tạo mapping mã hàng thành công.",
-                    "Thông báo",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Information);
-                LoadComparePart();
+                ShowWarning("Vui lòng chọn ngày áp dụng hợp lệ.");
+                DateE_NgayAPP.Focus();
+                return;
+            }
+
+            bool inserted;
+
+            cmd_Tao.Enabled = false;
+            try
+            {
+                inserted = _repo.TryInsert(partNo, partNoCompare, timeSet);
+            }
+            catch (Exception ex)
+            {
+                ShowError("Lỗi tạo mapping mã hàng", ex);
+                return;
+            }
+            finally
+            {
+                cmd_Tao.Enabled = true;
+            }
+
+            if (inserted)
+            {
+                ShowInfo("Đã tạo mapping mã hàng thành công.");
+                RefreshCompareList();
             }
             else
             {
-                XtraMessageBox.Show(
-                    "Mapping mã hàng này đã tồn tại.",
-                    "Thông báo",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Information);
+                ShowInfo("Mapping mã hàng này đã tồn tại.");
             }
         }
 
-        private bool TryInsertComparePart(string partNo, string partNoCompare)
+        private void cmd_Huy_Click(object sender, EventArgs e)
         {
-            // The existence check and INSERT must share a serializable transaction;
-            // otherwise two users can both pass the old check-then-insert sequence.
-            using (SqlConnection connection = new SqlConnection(_sql.B7R2_FCCdb))
+            // Đặt lại vùng nhập liệu; đổi lup_Ma sẽ tự xóa mã thay thế (xem lup_Ma_EditValueChanged).
+            lup_Ma.EditValue = null;
+            LuKToPart.EditValue = null;
+            DateE_NgayAPP.EditValue = DateTime.Now;
+
+            lup_Ma.Focus();
+        }
+
+        private void RefreshCompareList()
+        {
+            try
             {
-                connection.Open();
-                using (SqlTransaction transaction = connection.BeginTransaction(IsolationLevel.Serializable))
-                {
-                    try
-                    {
-                        const string sql = @"
-IF EXISTS
-(
-    SELECT 1
-    FROM tbl_QR_ComparePart WITH (UPDLOCK, HOLDLOCK)
-    WHERE PartNo = @PartNo AND PartNoCompare = @PartNoCompare
-)
-    SELECT CAST(0 AS int);
-ELSE
-BEGIN
-    INSERT INTO tbl_QR_ComparePart (PartNo, PartNoCompare, timeSet, IsActive)
-    VALUES (@PartNo, @PartNoCompare, @TimeSet, 1);
-    SELECT CAST(1 AS int);
-END";
-                        int inserted;
-                        using (SqlCommand command = new SqlCommand(sql, connection, transaction))
-                        {
-                            command.Parameters.Add("@PartNo", SqlDbType.NVarChar, 100).Value = partNo;
-                            command.Parameters.Add("@PartNoCompare", SqlDbType.NVarChar, 100).Value = partNoCompare;
-                            command.Parameters.Add("@TimeSet", SqlDbType.DateTime).Value = DateE_NgayAPP.DateTime;
-                            inserted = Convert.ToInt32(command.ExecuteScalar());
-                        }
-                        transaction.Commit();
-                        return inserted == 1;
-                    }
-                    catch
-                    {
-                        try { transaction.Rollback(); }
-                        catch { /* Preserve the original exception. */ }
-                        throw;
-                    }
-                }
+                LoadComparePart();
+            }
+            catch (Exception ex)
+            {
+                ShowError("Lỗi tải danh sách mapping", ex);
             }
         }
 
@@ -315,7 +333,7 @@ END";
                 OnDeleteClick);
 
             item.Tag = view;
-            item.ImageOptions.Image = imageCollection1.Images[0];
+            item.ImageOptions.Image = GetMenuImage(IconDelete);
 
             return item;
         }
@@ -327,9 +345,17 @@ END";
                 OnRefreshClick);
 
             item.Tag = view;
-            item.ImageOptions.Image = imageCollection1.Images[1];
+            item.ImageOptions.Image = GetMenuImage(IconRefresh);
 
             return item;
+        }
+
+        private Image GetMenuImage(int index)
+        {
+            if (index < 0 || index >= imageCollection1.Images.Count)
+                return null;
+
+            return imageCollection1.Images[index];
         }
 
         private void OnRefreshClick(object sender, EventArgs e)
@@ -351,12 +377,7 @@ END";
 
             if (selectedRows == null || selectedRows.Length == 0)
             {
-                XtraMessageBox.Show(
-                    "Vui lòng chọn ít nhất một dòng cần xóa.",
-                    "Thông báo",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Warning);
-
+                ShowWarning("Vui lòng chọn ít nhất một dòng cần xóa.");
                 return;
             }
 
@@ -369,68 +390,53 @@ END";
             if (confirm != DialogResult.Yes)
                 return;
 
-            var ids = new List<int>();
+            var keys = new List<ComparePartKey>();
             foreach (int rowHandle in selectedRows)
             {
+                // rowHandle < 0: dòng group / auto-filter / new-item, không phải dữ liệu.
                 if (rowHandle < 0)
                     continue;
-                object sttValue = view.GetRowCellValue(rowHandle, "STT");
-                if (sttValue == null || sttValue == DBNull.Value)
-                    continue;
-                if (int.TryParse(sttValue.ToString(), out int stt) && stt > 0)
-                    ids.Add(stt);
+
+                keys.Add(ReadKey(view, rowHandle));
             }
 
-            DeleteCompareParts(ids);
-            LoadComparePart();
-        }
-
-        private void DeleteCompareParts(IList<int> ids)
-        {
-            if (ids == null || ids.Count == 0)
-                return;
-
-            using (SqlConnection connection = new SqlConnection(_sql.B7R2_FCCdb))
+            if (keys.Count == 0)
             {
-                connection.Open();
-                using (SqlTransaction transaction = connection.BeginTransaction())
-                {
-                    try
-                    {
-                        const string sql = "DELETE FROM tbl_QR_ComparePart WHERE STT = @STT";
-                        foreach (int id in ids.Distinct())
-                        {
-                            using (SqlCommand command = new SqlCommand(sql, connection, transaction))
-                            {
-                                command.Parameters.Add("@STT", SqlDbType.Int).Value = id;
-                                command.ExecuteNonQuery();
-                            }
-                        }
-                        transaction.Commit();
-                    }
-                    catch
-                    {
-                        try { transaction.Rollback(); }
-                        catch { /* Preserve the original exception. */ }
-                        throw;
-                    }
-                }
+                ShowWarning("Không có dòng dữ liệu hợp lệ để xóa.");
+                return;
+            }
+
+            try
+            {
+                int deleted = _repo.Delete(keys);
+
+                RefreshCompareList();
+
+                if (deleted == 0)
+                    ShowWarning("Không có dòng nào được xóa (dữ liệu có thể đã bị người khác thay đổi). Danh sách đã được làm mới.");
+            }
+            catch (Exception ex)
+            {
+                ShowError("Lỗi xóa mapping mã hàng", ex);
             }
         }
 
-        #endregion
-
-        #region GRID
-
-        private void GV_ListPart_RowUpdated(
-            object sender,
-            RowObjectEventArgs e)
+        private static ComparePartKey ReadKey(GridView view, int rowHandle)
         {
-            // Không sử dụng SqlDataAdapter.Update ở đây.
-            //
-            // Form này đang sử dụng SQLPROVIDER để thao tác DB.
-            // Nếu cần cho phép sửa trực tiếp trên Grid,
-            // hãy viết UPDATE có parameter riêng.
+            int? stt = null;
+            object sttValue = view.GetRowCellValue(rowHandle, "STT");
+
+            if (sttValue != null
+                && sttValue != DBNull.Value
+                && int.TryParse(Convert.ToString(sttValue), out int parsed))
+            {
+                stt = parsed;
+            }
+
+            return new ComparePartKey(
+                stt,
+                Convert.ToString(view.GetRowCellValue(rowHandle, "PartNo")),
+                Convert.ToString(view.GetRowCellValue(rowHandle, "ToPartNo")));
         }
 
         #endregion

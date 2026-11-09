@@ -41,18 +41,51 @@ public sealed class LegacyTransactionBoundarySourceContractTests
     [Fact]
     public void ComparePart_CreateAndDeleteAreAtomicAndRaceSafe()
     {
-        string source = Read("ComaparePart.source.cs");
-        string insert = Method(source, "private bool TryInsertComparePart(");
+        string source = Read("ComparePartRepository.source.cs");
+        string insert = Method(source, "public bool TryInsert(");
         Assert.Contains("IsolationLevel.Serializable", insert, StringComparison.Ordinal);
         Assert.Contains("UPDLOCK, HOLDLOCK", insert, StringComparison.Ordinal);
         Assert.Contains("transaction.Commit()", insert, StringComparison.Ordinal);
         Assert.Contains("transaction.Rollback()", insert, StringComparison.Ordinal);
 
-        string delete = Method(source, "private void DeleteCompareParts(");
+        string delete = Method(source, "public int Delete(");
         Assert.Contains("BeginTransaction()", delete, StringComparison.Ordinal);
         Assert.Contains("transaction.Commit()", delete, StringComparison.Ordinal);
         Assert.Contains("transaction.Rollback()", delete, StringComparison.Ordinal);
-        Assert.Contains("ids.Distinct()", delete, StringComparison.Ordinal);
+        Assert.Contains("keys.Distinct()", delete, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ComparePart_InsertAllocatesSttAndStoresPartName()
+    {
+        // tbl_QR_ComparePart.STT is int NULL (not identity): without MAX(STT)+1 every new row has a NULL STT
+        // and can no longer be selected for delete. PartName must be stored too (nvarchar(30)).
+        string insert = Method(Read("ComparePartRepository.source.cs"), "public bool TryInsert(");
+        Assert.Contains("MAX(STT)", insert, StringComparison.Ordinal);
+        Assert.Contains("COLUMNPROPERTY", insert, StringComparison.Ordinal);
+        Assert.Contains("LEFT(Name, 30)", insert, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ComparePart_DeleteMatchesFullKeyAndIsNullSafe()
+    {
+        string delete = Method(Read("ComparePartRepository.source.cs"), "public int Delete(");
+        Assert.Contains("ISNULL(PartNo, '') = @PartNo", delete, StringComparison.Ordinal);
+        Assert.Contains("ISNULL(PartNoCompare, '') = @PartNoCompare", delete, StringComparison.Ordinal);
+        Assert.Contains("@STT IS NULL AND STT IS NULL", delete, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ComparePart_FormUsesRepositoryOnly()
+    {
+        string form = Read("ComaparePart.source.cs");
+        Assert.Contains("IComparePartRepository", form, StringComparison.Ordinal);
+        Assert.DoesNotContain("SqlConnection", form, StringComparison.Ordinal);
+        Assert.DoesNotContain("SQLPROVIDER _sql", form, StringComparison.Ordinal);
+        Assert.Contains("private void cmd_Huy_Click(", form, StringComparison.Ordinal);
+        // Changing the source part must clear the previously chosen target part.
+        string changed = Method(form, "private void lup_Ma_EditValueChanged(");
+        Assert.Contains("LuKToPart.EditValue = null", changed, StringComparison.Ordinal);
     }
 
     [Fact]

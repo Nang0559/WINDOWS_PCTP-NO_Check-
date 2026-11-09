@@ -254,8 +254,10 @@ namespace PCTP
 
         private void accordionControlElement29_Click(object sender, EventArgs e)
         {
-            ComaparePart form = new ComaparePart();
-            form.ShowDialog(this);
+            using (ComaparePart form = new ComaparePart())
+            {
+                form.ShowDialog(this);
+            }
         }
 
         private void InGhepLot_Click(object sender, EventArgs e) { }

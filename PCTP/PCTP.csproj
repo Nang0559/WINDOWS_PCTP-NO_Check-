@@ -366,6 +366,7 @@
     <Compile Include="Modules\GiaoHangKhach\Models\OrderSourceKind.cs" />
     <Compile Include="Modules\GiaoHangKhach\FifoViolation.cs" />
     <Compile Include="Modules\GiaoHangKhach\Contracts\IItemFifoConfigRepository.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Contracts\IComparePartRepository.cs" />
     <Compile Include="Modules\GiaoHangKhach\Contracts\IHangThieuCaNgayService.cs" />
     <Compile Include="Modules\GiaoHangKhach\Models\OrderSourceResult.cs" />
     <Compile Include="Modules\GiaoHangKhach\OrderLoading\Category\DockCodeRowCategoryFilter.cs" />
@@ -381,6 +382,7 @@
     <Compile Include="Modules\GiaoHangKhach\OrderLoading\OrderSourceFactory.cs" />
     <Compile Include="Modules\GiaoHangKhach\OrderLoading\TableOrder\TableOrderSource.cs" />
     <Compile Include="Modules\GiaoHangKhach\Repositories\ItemFifoConfigRepository.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Repositories\ComparePartRepository.cs" />
     <Compile Include="Modules\GiaoHangKhach\Services\DocQRScanEngine.cs" />
     <Compile Include="Modules\GiaoHangKhach\Services\DocQRService.cs" />
     <Compile Include="Modules\GiaoHangKhach\Services\DocQRSessionState.cs" />
