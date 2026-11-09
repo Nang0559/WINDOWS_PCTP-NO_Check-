@@ -1,13 +1,19 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.Text.RegularExpressions;
 
 namespace PCTP.Modules.KhoVatLy.Application.Helpers
 {
+    /// <summary>
+    /// Parse chuỗi hiển thị Slot: "WH : {wh} - Rack : {rack} - Slot : {n} - Capacity : {cap}".
+    /// KHÔNG tách theo '-' vì tên Rack/Kho có thể chứa '-' (vd "22201-KYHN-A400").
+    /// Neo theo các nhãn "WH :", "Rack :", "Slot :", "Capacity :".
+    /// </summary>
     public static class SlotParser
     {
+        private static readonly Regex _rx = new Regex(
+            @"^\s*WH\s*:\s*(?<wh>.+?)\s+-\s+Rack\s*:\s*(?<rack>.+?)\s+-\s+Slot\s*:\s*(?<slot>\d+)(?:\s+-\s+Capacity\s*:\s*(?<cap>\d+))?\s*$",
+            RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+
         public static bool TryParse(
             string text,
             out string warehouse,
@@ -23,42 +29,22 @@ namespace PCTP.Modules.KhoVatLy.Application.Helpers
             if (string.IsNullOrWhiteSpace(text))
                 return false;
 
-            string[] parts =
-                text.Split('-');
-
-            if (parts.Length < 3)
+            var m = _rx.Match(text);
+            if (!m.Success)
                 return false;
 
-            warehouse = parts[0]
-                .Replace("WH :", "")
-                .Trim();
+            warehouse = m.Groups["wh"].Value.Trim();
+            rack = m.Groups["rack"].Value.Trim();
 
-            rack = parts[1]
-                .Replace("Rack :", "")
-                .Trim();
-
-            if (!int.TryParse(
-                parts[2]
-                    .Replace("Slot :", "")
-                    .Trim(),
-                out slot))
-            {
+            if (!int.TryParse(m.Groups["slot"].Value, out slot))
                 return false;
-            }
 
-            if (parts.Length >= 4)
-            {
-                int.TryParse(
-                    parts[3]
-                        .Replace("Capacity :", "")
-                        .Trim(),
-                    out capacity);
-            }
+            if (m.Groups["cap"].Success)
+                int.TryParse(m.Groups["cap"].Value, out capacity);
 
-            return
-                !string.IsNullOrWhiteSpace(warehouse) &&
-                !string.IsNullOrWhiteSpace(rack) &&
-                slot > 0;
+            return !string.IsNullOrWhiteSpace(warehouse)
+                && !string.IsNullOrWhiteSpace(rack)
+                && slot > 0;
         }
     }
 }
