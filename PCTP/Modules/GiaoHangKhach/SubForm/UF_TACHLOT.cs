@@ -58,6 +58,7 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
         private Button CMD_SUA;
         private Button CMD_XUATDS;
         private Button CMD_XOA;
+        private Button CMD_INGOC;
         private TextBox MaxVL;
 
         private DXValidationProvider dxValidationProvider1;
@@ -100,6 +101,7 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
             this.lw_qrcode = new ListView();
             this.CMD_XUATDS = new Button();
             this.CMD_XOA = new Button();
+            this.CMD_INGOC = new Button();
             this.CMD_SUA = new Button();
             this.MaxVL = new TextBox();
             this.dxValidationProvider1 = new DXValidationProvider(this.components);
@@ -278,7 +280,10 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
             this.CMD_SUA.Click += new EventHandler(this.CMD_SUA_Click);
             actionBar.Controls.Add(this.CMD_XUATDS);
             actionBar.Controls.Add(this.CMD_XOA);
+            StyleActionButton(this.CMD_INGOC, "IN LẠI TEM GỐC", 170);
+            this.CMD_INGOC.Click += new EventHandler(this.CMD_INGOC_Click);
             actionBar.Controls.Add(this.CMD_SUA);
+            actionBar.Controls.Add(this.CMD_INGOC);
             editorRoot.Controls.Add(editor, 0, 0);
             editorRoot.Controls.Add(actionBar, 0, 1);
             editorGroup.Controls.Add(editorRoot);
@@ -580,8 +585,16 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
                 i++;
             }
 
+            InTemTuTmpLotTach(MAHANG);
+        }
+
+        /// <summary>
+        /// Hiển thị/in report từ bảng TMPLOTTACH (dùng chung cho in tem tách LOT và in lại tem gốc).
+        /// </summary>
+        private void InTemTuTmpLotTach(string MAHANG)
+        {
             string customerCode = sqlBRV.ExecuteReader(sqlBRV.B7R2_FCCdb,
-                "select CustomerCode from B20ItemQuyCach where itemcode = '" + MAHANG + "'");
+                "select CustomerCode from B20ItemQuyCach where itemcode = '" + MAHANG.Replace("'", "''") + "'");
 
             if (customerCode == "0100002")
             {
@@ -596,6 +609,48 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
                 report.DataSource = loadDATArt();
                 ReportPrintTool printTool = new ReportPrintTool(report);
                 printTool.ShowPreviewDialog();
+            }
+        }
+
+        /// <summary>
+        /// IN LẠI TEM GỐC: in 1 tem có LOT và số lượng đúng như tem gốc đã quét
+        /// (dùng khi tem gốc bị rách/hỏng), không tách LOT.
+        /// Chọn dòng trong danh sách; nếu chưa chọn mà chỉ có 1 dòng thì tự lấy dòng đó.
+        /// </summary>
+        private void CMD_INGOC_Click(object sender, EventArgs e)
+        {
+            ListViewItem item = null;
+            if (lw_qrcode.SelectedItems.Count > 0) item = lw_qrcode.SelectedItems[0];
+            else if (lw_qrcode.Items.Count == 1) item = lw_qrcode.Items[0];
+
+            if (item == null)
+            {
+                MessageBox.Show("Vui lòng quét và chọn một tem gốc trong danh sách để in lại.",
+                    "Chưa chọn tem gốc", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            string lotno = item.SubItems[1].Text;
+            string mahang = item.SubItems[2].Text;
+            if (!int.TryParse(item.SubItems[4].Text, out int slGoc) || slGoc <= 0)
+            {
+                MessageBox.Show("Tem gốc có số lượng 0 hoặc không hợp lệ nên không thể in lại.",
+                    "Không thể in lại tem gốc", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            try
+            {
+                sqlBRV.ExecuteNonQuery(sqlBRV.B7R2_FCCdb, "delete from TMPLOTTACH");
+                // Giữ nguyên LOT gốc (không nối hậu tố số lượng như khi tách) và số lượng gốc.
+                sqlBRV.ExecuteNonQuery(sqlBRV.B7R2_FCCdb,
+                    "insert into TMPLOTTACH (STT,LOT,MAHANG,SL,flag) values (1,'"
+                    + lotno.Replace("'", "''") + "','" + mahang.Replace("'", "''") + "'," + slGoc + ", 0)");
+                InTemTuTmpLotTach(mahang);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message, "Không thể in lại tem gốc", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 

@@ -33,12 +33,21 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         {
             Db.ValidateTableName(tenBan);
 
+            // Bảng TMPPHIEUGIAOHANGDB ở một số DB chưa có Note / PO_NO / PO_ITEM (HOP, STATUSDOC cũng
+            // có thể thiếu) -> chỉ SELECT cột có thật, cột thiếu trả về '' để lưới vẫn bind được.
+            string Cot(string name, bool isText = true)
+            {
+                bool co = TonTaiCot(tenBan, name);
+                if (co) return isText ? $"ISNULL([{name}], '') AS [{name}]" : $"[{name}]";
+                return isText ? $"CAST('' AS NVARCHAR(200)) AS [{name}]" : $"CAST(NULL AS NVARCHAR(50)) AS [{name}]";
+            }
+
             string sql = $@"
             SELECT
                 '' AS IDP, STT, CUA, TRUYEN, MAHANG, TENHANG, LOT, DV,
                 SOLUONG, NGAYGIAO, GIOGIAO, STATUS, TTPHIEU, NHAMAY, ADDNM,
-                HOP, STATUSDOC, ISNULL(Note, '') AS Note,
-                ISNULL(PO_NO, '') AS PO_NO, ISNULL(PO_ITEM, '') AS PO_ITEM
+                {Cot("HOP", false)}, {Cot("STATUSDOC", false)}, {Cot("Note")},
+                {Cot("PO_NO")}, {Cot("PO_ITEM")}
             FROM [{tenBan}]
             WHERE CAST(NGAYGIAO AS DATE) = @ngayGiao
               AND ADDNM = @addNm";
@@ -46,6 +55,16 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             return LoadData(sql,
                 new SqlParameter("@ngayGiao", ngayGiao.Date),
                 new SqlParameter("@addNm", addNm));
+        }
+
+        // Kiểm tra cột có tồn tại trong bảng không (tránh "Invalid column name" khi schema DB khác nhau).
+        private bool TonTaiCot(string tenBang, string tenCot)
+        {
+            object r = ExecuteScalar(
+                "SELECT CASE WHEN COL_LENGTH(@tbl, @col) IS NULL THEN 0 ELSE 1 END",
+                new SqlParameter("@tbl", tenBang),
+                new SqlParameter("@col", tenCot));
+            return r != null && r != DBNull.Value && Convert.ToInt32(r) == 1;
         }
 
         public void LuuGiaoDB(
