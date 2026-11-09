@@ -23,32 +23,38 @@ using System.Windows.Forms;
 namespace PCTP.Modules.GiaoHangKhach.SubForm
 {
     /// <summary>
-    /// Ghép LOT thủ công: đọc hai QR tem thùng (4 phần), xác minh hai LOT
+    /// Ghép LOT thủ công: đọc QR tem thùng (4 phần) của TỪ 2 LOT TRỞ LÊN, xác minh từng LOT
     /// trong STOCKTP, cho nhập lượng lấy từ từng LOT và tạo payload in dùng
-    /// chung TMPLOTGHEP -> Usp_gheplotPrint -> GHEPLOT như luồng tự động.
+    /// chung TMPLOTGHEP -> Usp_gheplotPrint -> GHEPLOT như luồng tự động
+    /// (LOT1-SL1,LOT2-SL2,LOT3-SL3,...).
     ///
     /// Form chỉ kiểm tra tồn và chuẩn bị dữ liệu in; không cập nhật STOCKTP.
     /// </summary>
     public sealed class FormGhepLotThuCong : XtraForm
     {
+        private const int MinLots = 2;
+        private const int MaxLots = 10;
+
+        // Giới hạn của Usp_gheplotPrint: @_LOT NVARCHAR(25) cho mỗi token "LOT-SL",
+        // @_LOTTMP NVARCHAR(600) cho cả chuỗi, @_QRCODE NVARCHAR(256) cho "chuỗi:mã hàng:ngày:tổng SL",
+        // @_ReceiptItemCode NVARCHAR(24). Vượt giới hạn thì SQL cắt cụt âm thầm => in sai tổng SL / QR.
+        private const int SpMaxTokenLength = 25;
+        private const int SpMaxPayloadLength = 600;
+        private const int SpMaxQrLength = 256;
+        private const int SpMaxItemLength = 24;
+
         private readonly StockTpRepository _stockRepository;
         private readonly InPhieuService _printService;
         private readonly DataTable _workRows;
+        private readonly List<LotSlot> _slots = new List<LotSlot>();
 
-        private TextEdit _txtQrA;
-        private TextEdit _txtQrB;
-        private LabelControl _lblLotA;
-        private LabelControl _lblLotB;
+        private FlowLayoutPanel _slotHost;
         private LabelControl _lblStatus;
-        private SpinEdit _spinQtyA;
-        private SpinEdit _spinQtyB;
         private GridControl _grid;
         private GridView _view;
+        private SimpleButton _btnAddLot;
         private SimpleButton _btnAdd;
         private SimpleButton _btnPrint;
-
-        private StockLotSelection _lotA;
-        private StockLotSelection _lotB;
 
         public FormGhepLotThuCong()
         {
@@ -69,10 +75,8 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
         {
             var table = new DataTable("ManualGhepLot");
             table.Columns.Add("MAHANG", typeof(string));
-            table.Columns.Add("LOTA", typeof(string));
-            table.Columns.Add("SLA", typeof(int));
-            table.Columns.Add("LOTB", typeof(string));
-            table.Columns.Add("SLB", typeof(int));
+            table.Columns.Add("SOLOT", typeof(int));
+            table.Columns.Add("CHITIET", typeof(string));
             table.Columns.Add("TONGSL", typeof(int));
             table.Columns.Add("LOTGHEP", typeof(string));
             return table;
@@ -91,74 +95,59 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
             var root = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
-                Padding = new Padding(10),
+                Padding = new Padding(10, 10, 10, 14),
                 ColumnCount = 1,
                 RowCount = 4
             };
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 190));
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 105));
-            root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 58));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 44));
+            root.RowStyles.Add(new RowStyle(SizeType.Percent, 48));
+            root.RowStyles.Add(new RowStyle(SizeType.Percent, 52));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 66));
             Controls.Add(root);
 
-            var scanRow = new TableLayoutPanel
+            // --- Thanh công cụ danh sách LOT
+            var toolbar = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
                 ColumnCount = 2,
                 RowCount = 1,
-                Padding = new Padding(0, 0, 0, 8)
+                Padding = new Padding(0, 0, 0, 6)
             };
-            scanRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
-            scanRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
-            root.Controls.Add(scanRow, 0, 0);
-
-            var groupA = CreateScanGroup("LOT A — LOT NGUỒN");
-            var groupB = CreateScanGroup("LOT B — LOT CẦN GHÉP");
-            _txtQrA = CreateQrEditor("Quét QR tem thùng 4 phần của LOT A...");
-            _txtQrB = CreateQrEditor("Quét QR tem thùng 4 phần của LOT B...");
-            _lblLotA = CreateInfoLabel("Chưa đọc LOT A");
-            _lblLotB = CreateInfoLabel("Chưa đọc LOT B");
-            var btnReadA = new SimpleButton { Text = "ĐỌC LOT A", Dock = DockStyle.Fill, Height = 34 };
-            var btnReadB = new SimpleButton { Text = "ĐỌC LOT B", Dock = DockStyle.Fill, Height = 34 };
-            btnReadA.Click += (s, e) => ReadLot(true);
-            btnReadB.Click += (s, e) => ReadLot(false);
-            _txtQrA.KeyDown += (s, e) => ReadOnEnter(e, true);
-            _txtQrB.KeyDown += (s, e) => ReadOnEnter(e, false);
-            _txtQrA.EditValueChanged += (s, e) => InvalidateScannedLot(true);
-            _txtQrB.EditValueChanged += (s, e) => InvalidateScannedLot(false);
-            AddScanControls(groupA, _txtQrA, btnReadA, _lblLotA);
-            AddScanControls(groupB, _txtQrB, btnReadB, _lblLotB);
-            scanRow.Controls.Add(groupA, 0, 0);
-            scanRow.Controls.Add(groupB, 1, 0);
-
-            var qtyGroup = new GroupControl
+            toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 150));
+            toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            _btnAddLot = new SimpleButton { Text = "+ THÊM LOT", Dock = DockStyle.Fill };
+            _btnAddLot.Click += (s, e) => AddSlot();
+            toolbar.Controls.Add(_btnAddLot, 0, 0);
+            var hint = new LabelControl
             {
-                Text = "SỐ LƯỢNG LẤY TỪ TỪNG LOT — KHÔNG ĐƯỢC VƯỢT TỒN STOCKTP",
+                Text = "Ghép từ " + MinLots + " đến " + MaxLots + " LOT cùng mã hàng. Quét QR tem thùng 4 phần của từng LOT, nhập số lượng lấy rồi bấm THÊM VÀO BẢNG.",
+                Dock = DockStyle.Fill,
+                AutoSizeMode = LabelAutoSizeMode.None
+            };
+            hint.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
+            toolbar.Controls.Add(hint, 1, 0);
+            root.Controls.Add(toolbar, 0, 0);
+
+            // --- Danh sách LOT (mỗi LOT một dòng: QR + đọc + SL + xóa)
+            var slotGroup = new GroupControl
+            {
+                Text = "DANH SÁCH LOT CẦN GHÉP — SỐ LƯỢNG LẤY TỪ TỪNG LOT KHÔNG ĐƯỢC VƯỢT TỒN STOCKTP",
                 Dock = DockStyle.Fill
             };
-            qtyGroup.AppearanceCaption.Font = new Font("Tahoma", 9F, FontStyle.Bold);
-            qtyGroup.AppearanceCaption.Options.UseFont = true;
-            var qtyLayout = new TableLayoutPanel
+            slotGroup.AppearanceCaption.Font = new Font("Tahoma", 9F, FontStyle.Bold);
+            slotGroup.AppearanceCaption.Options.UseFont = true;
+            _slotHost = new FlowLayoutPanel
             {
                 Dock = DockStyle.Fill,
-                ColumnCount = 4,
-                RowCount = 1,
-                Padding = new Padding(8, 4, 8, 4)
+                FlowDirection = FlowDirection.TopDown,
+                WrapContents = false,
+                AutoScroll = true,
+                Padding = new Padding(4)
             };
-            qtyLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 175));
-            qtyLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
-            qtyLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 190));
-            qtyLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
-            qtyLayout.Controls.Add(CreateCaption("SL lấy từ LOT A"), 0, 0);
-            _spinQtyA = CreateQuantityEditor();
-            qtyLayout.Controls.Add(_spinQtyA, 1, 0);
-            qtyLayout.Controls.Add(CreateCaption("SL cần ghép từ LOT B"), 2, 0);
-            _spinQtyB = CreateQuantityEditor();
-            _spinQtyA.EditValueChanged += (s, e) => UpdateButtons();
-            _spinQtyB.EditValueChanged += (s, e) => UpdateButtons();
-            qtyLayout.Controls.Add(_spinQtyB, 3, 0);
-            qtyGroup.Controls.Add(qtyLayout);
-            root.Controls.Add(qtyGroup, 0, 1);
+            _slotHost.SizeChanged += (s, e) => ResizeSlots();
+            slotGroup.Controls.Add(_slotHost);
+            root.Controls.Add(slotGroup, 0, 1);
+            for (int i = 0; i < MinLots; i++) AddSlot();
 
             var gridGroup = new GroupControl
             {
@@ -178,12 +167,10 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
             _view.OptionsSelection.MultiSelect = true;
             _view.OptionsSelection.MultiSelectMode = GridMultiSelectMode.RowSelect;
             AddGridColumn("MAHANG", "Mã hàng", 150);
-            AddGridColumn("LOTA", "LOT A", 210);
-            AddGridColumn("SLA", "SL lấy A", 90);
-            AddGridColumn("LOTB", "LOT B", 210);
-            AddGridColumn("SLB", "SL ghép B", 100);
+            AddGridColumn("SOLOT", "Số LOT", 70);
+            AddGridColumn("CHITIET", "Chi tiết (LOT: SL)", 520);
             AddGridColumn("TONGSL", "Tổng SL in", 100);
-            AddGridColumn("LOTGHEP", "Dữ liệu LOT ghép đưa đi in", 430);
+            AddGridColumn("LOTGHEP", "Dữ liệu LOT ghép đưa đi in", 600);
             gridGroup.Controls.Add(_grid);
             root.Controls.Add(gridGroup, 0, 2);
 
@@ -194,10 +181,10 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
                 RowCount = 1
             };
             footer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            footer.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 470));
+            footer.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 580));
             _lblStatus = new LabelControl
             {
-                Text = "Quét đủ hai QR, kiểm tra tồn, nhập số lượng rồi bấm THÊM VÀO BẢNG.",
+                Text = "Quét đủ QR của ít nhất hai LOT, kiểm tra tồn, nhập số lượng rồi bấm THÊM VÀO BẢNG.",
                 Dock = DockStyle.Fill,
                 AutoSizeMode = LabelAutoSizeMode.None
             };
@@ -210,13 +197,13 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
                 Dock = DockStyle.Fill,
                 FlowDirection = FlowDirection.RightToLeft,
                 WrapContents = false,
-                Padding = new Padding(0, 8, 0, 0)
+                Padding = new Padding(0, 6, 0, 6)
             };
             _btnPrint = new SimpleButton { Text = "IN GHÉP LOT", Width = 140, Height = 36, Enabled = false };
             var btnRemove = new SimpleButton { Text = "XÓA DÒNG", Width = 110, Height = 36 };
             var btnClear = new SimpleButton { Text = "XÓA TẤT CẢ", Width = 110, Height = 36 };
             _btnAdd = new SimpleButton { Text = "THÊM VÀO BẢNG", Width = 145, Height = 36, Enabled = false };
-            _btnAdd.Click += (s, e) => AddPair();
+            _btnAdd.Click += (s, e) => AddSet();
             _btnPrint.Click += (s, e) => PrintWorkRows();
             btnRemove.Click += (s, e) => RemoveSelectedRows();
             btnClear.Click += (s, e) => ClearRows();
@@ -228,12 +215,110 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
             root.Controls.Add(footer, 0, 3);
         }
 
-        private static GroupControl CreateScanGroup(string title)
+        // ------------------------------------------------------------------ kích thước cửa sổ
+        // Form 1420x900 lớn hơn vùng làm việc của màn hình nhỏ/DPI cao nên phần dưới (thanh trạng thái, nút)
+        // bị tràn ra ngoài màn hình. Ép form nằm gọn trong WorkingArea (không che taskbar).
+        protected override void OnLoad(EventArgs e)
         {
-            var group = new GroupControl { Text = title, Dock = DockStyle.Fill };
-            group.AppearanceCaption.Font = new Font("Tahoma", 9F, FontStyle.Bold);
-            group.AppearanceCaption.Options.UseFont = true;
-            return group;
+            base.OnLoad(e);
+            Rectangle area = Screen.FromPoint(Cursor.Position).WorkingArea;
+            int width = Math.Min(Width, area.Width - 16);
+            int height = Math.Min(Height, area.Height - 16);
+            MinimumSize = new Size(Math.Min(MinimumSize.Width, width), Math.Min(MinimumSize.Height, height));
+            Size = new Size(width, height);
+        }
+
+        protected override void OnShown(EventArgs e)
+        {
+            base.OnShown(e);
+            Rectangle area = Screen.FromControl(this).WorkingArea;
+            int left = Math.Max(area.Left, Math.Min(Left, area.Right - Width));
+            int top = Math.Max(area.Top, Math.Min(Top, area.Bottom - Height));
+            if (left != Left || top != Top) Location = new Point(left, top);
+        }
+
+        // ------------------------------------------------------------------ LOT slots
+        private void AddSlot()
+        {
+            if (_slots.Count >= MaxLots)
+            {
+                XtraMessageBox.Show("Tối đa " + MaxLots + " LOT cho một lần ghép.", "Ghép LOT",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            var slot = new LotSlot();
+            slot.Host = new TableLayoutPanel
+            {
+                Height = 78,
+                Margin = new Padding(0, 0, 0, 6),
+                ColumnCount = 6,
+                RowCount = 2
+            };
+            slot.Host.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 70));
+            slot.Host.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            slot.Host.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 110));
+            slot.Host.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 40));
+            slot.Host.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 120));
+            slot.Host.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 80));
+            slot.Host.RowStyles.Add(new RowStyle(SizeType.Absolute, 38));
+            slot.Host.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+
+            slot.Title = CreateCaption("LOT");
+            slot.Qr = CreateQrEditor("Quét QR tem thùng 4 phần của LOT...");
+            slot.Read = new SimpleButton { Text = "ĐỌC LOT", Dock = DockStyle.Fill };
+            slot.Qty = CreateQuantityEditor();
+            slot.Remove = new SimpleButton { Text = "XÓA", Dock = DockStyle.Fill };
+            slot.Info = CreateInfoLabel("Chưa đọc LOT");
+
+            slot.Read.Click += (s, e) => ReadLot(slot);
+            slot.Qr.KeyDown += (s, e) => ReadOnEnter(e, slot);
+            slot.Qr.EditValueChanged += (s, e) => InvalidateSlot(slot);
+            slot.Qty.EditValueChanged += (s, e) => UpdateButtons();
+            slot.Remove.Click += (s, e) => RemoveSlot(slot);
+
+            slot.Host.Controls.Add(slot.Title, 0, 0);
+            slot.Host.Controls.Add(slot.Qr, 1, 0);
+            slot.Host.Controls.Add(slot.Read, 2, 0);
+            slot.Host.Controls.Add(CreateCaption("SL"), 3, 0);
+            slot.Host.Controls.Add(slot.Qty, 4, 0);
+            slot.Host.Controls.Add(slot.Remove, 5, 0);
+            slot.Host.Controls.Add(slot.Info, 1, 1);
+            slot.Host.SetColumnSpan(slot.Info, 5);
+
+            _slots.Add(slot);
+            _slotHost.Controls.Add(slot.Host);
+            RenumberSlots();
+            ResizeSlots();
+            UpdateButtons();
+            slot.Qr.Focus();
+        }
+
+        private void RemoveSlot(LotSlot slot)
+        {
+            if (_slots.Count <= MinLots) return;
+            _slots.Remove(slot);
+            _slotHost.Controls.Remove(slot.Host);
+            slot.Host.Dispose();
+            RenumberSlots();
+            UpdateButtons();
+        }
+
+        private void RenumberSlots()
+        {
+            for (int i = 0; i < _slots.Count; i++)
+            {
+                _slots[i].Title.Text = "LOT " + (i + 1);
+                // Hai LOT đầu là bắt buộc; chỉ các LOT thêm sau mới được xóa.
+                _slots[i].Remove.Enabled = _slots.Count > MinLots && i >= MinLots;
+            }
+            if (_btnAddLot != null) _btnAddLot.Enabled = _slots.Count < MaxLots;
+        }
+
+        private void ResizeSlots()
+        {
+            int width = Math.Max(_slotHost.ClientSize.Width - _slotHost.Padding.Horizontal - 2, 400);
+            foreach (LotSlot slot in _slots) slot.Host.Width = width;
         }
 
         private static TextEdit CreateQrEditor(string placeholder)
@@ -284,27 +369,6 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
             return editor;
         }
 
-        private static void AddScanControls(GroupControl group, TextEdit qr, SimpleButton read, LabelControl info)
-        {
-            var layout = new TableLayoutPanel
-            {
-                Dock = DockStyle.Fill,
-                Padding = new Padding(8),
-                ColumnCount = 2,
-                RowCount = 3
-            };
-            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 125));
-            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 38));
-            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 38));
-            layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-            layout.Controls.Add(qr, 0, 0);
-            layout.Controls.Add(read, 1, 0);
-            layout.Controls.Add(info, 0, 1);
-            layout.SetColumnSpan(info, 2);
-            group.Controls.Add(layout);
-        }
-
         private void AddGridColumn(string field, string caption, int width)
         {
             _view.Columns.Add(new GridColumn
@@ -317,33 +381,25 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
             });
         }
 
-        private void InvalidateScannedLot(bool isLotA)
+        private void InvalidateSlot(LotSlot slot)
         {
-            if (isLotA)
-            {
-                _lotA = null;
-                if (_lblLotA != null) _lblLotA.Text = "QR đã thay đổi — cần đọc lại LOT A";
-            }
-            else
-            {
-                _lotB = null;
-                if (_lblLotB != null) _lblLotB.Text = "QR đã thay đổi — cần đọc lại LOT B";
-            }
+            slot.Lot = null;
+            if (slot.Info != null) slot.Info.Text = "QR đã thay đổi — cần đọc lại " + slot.Title.Text;
             UpdateButtons();
         }
 
-        private void ReadOnEnter(KeyEventArgs e, bool isLotA)
+        private void ReadOnEnter(KeyEventArgs e, LotSlot slot)
         {
             if (e.KeyCode != Keys.Enter) return;
             e.Handled = true;
             e.SuppressKeyPress = true;
-            ReadLot(isLotA);
+            ReadLot(slot);
         }
 
-        private void ReadLot(bool isLotA)
+        private void ReadLot(LotSlot slot)
         {
-            TextEdit editor = isLotA ? _txtQrA : _txtQrB;
-            LabelControl label = isLotA ? _lblLotA : _lblLotB;
+            TextEdit editor = slot.Qr;
+            string title = slot.Title.Text;
             try
             {
                 string rawQr = (editor.Text ?? string.Empty).Trim();
@@ -378,6 +434,15 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
                 if (available <= 0)
                     throw new InvalidOperationException("LOT đã hết tồn trong STOCKTP; không cho phép ghép.");
 
+                // Một LOT chỉ được xuất hiện một lần trong cùng lần ghép.
+                string key = LotNoHelper.GetStockTpKey(storedLot);
+                foreach (LotSlot other in _slots)
+                {
+                    if (ReferenceEquals(other, slot) || other.Lot == null) continue;
+                    if (string.Equals(LotNoHelper.GetStockTpKey(other.Lot.LotNo), key, StringComparison.OrdinalIgnoreCase))
+                        throw new InvalidOperationException("LOT này đã được đọc ở " + other.Title.Text + ". Mỗi LOT chỉ ghép một lần.");
+                }
+
                 var selection = new StockLotSelection
                 {
                     LotNo = storedLot,
@@ -388,26 +453,22 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
                     RawQr = rawQr
                 };
 
-                if (isLotA)
-                {
-                    _lotA = selection;
-                    _spinQtyA.EditValue = 1;
-                    label.Text = FormatSelection("LOT A", selection);
-                }
-                else
-                {
-                    _lotB = selection;
-                    _spinQtyB.EditValue = qr.Quantity;
-                    label.Text = FormatSelection("LOT B", selection);
-                }
+                slot.Lot = selection;
+                // LOT đầu là LOT nguồn (mặc định lấy 1); các LOT sau mặc định lấy theo số lượng trên QR.
+                slot.Qty.EditValue = _slots.IndexOf(slot) == 0 ? 1 : qr.Quantity;
+                slot.Info.Text = FormatSelection(title, selection);
 
-                _lblStatus.Text = "Đã đọc LOT. Tiếp tục đọc LOT còn lại và nhập số lượng cần ghép.";
+                _lblStatus.Text = "Đã đọc " + title + ". Tiếp tục đọc các LOT còn lại hoặc bấm + THÊM LOT.";
                 UpdateButtons();
+
+                // Quét liên tục: chuyển sang ô QR kế tiếp chưa đọc.
+                LotSlot next = _slots.FirstOrDefault(x => x.Lot == null);
+                if (next != null) next.Qr.Focus();
             }
             catch (Exception ex)
             {
-                if (isLotA) _lotA = null; else _lotB = null;
-                label.Text = "Không đọc được LOT: " + ex.Message;
+                slot.Lot = null;
+                slot.Info.Text = "Không đọc được LOT: " + ex.Message;
                 _lblStatus.Text = "Không đạt validation — chưa có dữ liệu nào được thêm vào bảng.";
                 UpdateButtons();
                 XtraMessageBox.Show(ex.Message, "Không thể đọc LOT", MessageBoxButtons.OK, MessageBoxIcon.Warning);
@@ -416,31 +477,43 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
             }
         }
 
-        private void AddPair()
+        // ------------------------------------------------------------------ thêm bộ LOT vào bảng
+        private void AddSet()
         {
             try
             {
-                ValidatePair(_lotA, _lotB, GetQuantity(_spinQtyA), GetQuantity(_spinQtyB));
+                List<StockLotSelection> lots;
+                List<int> quantities;
+                CollectSlots(out lots, out quantities);
+                ValidateSet(lots, quantities);
 
-                string lotPayload = _lotA.LotNo + "-" + GetQuantity(_spinQtyA).ToString(CultureInfo.InvariantCulture)
-                    + "," + _lotB.LotNo + "-" + GetQuantity(_spinQtyB).ToString(CultureInfo.InvariantCulture);
+                string lotPayload = BuildPayload(lots, quantities);
+                string itemCode = lots[0].ItemCode;
+                int total = quantities.Sum();
 
                 bool duplicate = _workRows.AsEnumerable().Any(row =>
                     string.Equals(ReadText(row, "LOTGHEP"), lotPayload, StringComparison.OrdinalIgnoreCase));
                 if (duplicate)
-                    throw new InvalidOperationException("Cặp LOT và số lượng này đã có trong bảng.");
+                    throw new InvalidOperationException("Bộ LOT và số lượng này đã có trong bảng.");
+
+                // Cùng một LOT ở nhiều dòng bảng: tổng lượng lấy không được vượt tồn.
+                for (int i = 0; i < lots.Count; i++)
+                {
+                    int already = SumQuantityForLot(lots[i].LotNo);
+                    if (already + quantities[i] > lots[i].Available)
+                        throw new InvalidOperationException("LOT " + lots[i].LotNo + " đã được lấy " + already
+                            + " ở các dòng trước; thêm " + quantities[i] + " sẽ vượt tồn " + lots[i].Available + ".");
+                }
 
                 _workRows.Rows.Add(
-                    _lotA.ItemCode,
-                    _lotA.LotNo,
-                    GetQuantity(_spinQtyA),
-                    _lotB.LotNo,
-                    GetQuantity(_spinQtyB),
-                    GetQuantity(_spinQtyA) + GetQuantity(_spinQtyB),
+                    itemCode,
+                    lots.Count,
+                    string.Join(" | ", lots.Select((l, i) => l.LotNo + ": " + quantities[i].ToString(CultureInfo.InvariantCulture))),
+                    total,
                     lotPayload);
 
                 _view.MoveLast();
-                _lblStatus.Text = "Đã thêm một cặp LOT hợp lệ vào bảng. STOCKTP chưa bị thay đổi.";
+                _lblStatus.Text = "Đã thêm một bộ " + lots.Count + " LOT hợp lệ vào bảng. STOCKTP chưa bị thay đổi.";
                 UpdateButtons();
             }
             catch (Exception ex)
@@ -450,30 +523,105 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
             }
         }
 
-        private static void ValidatePair(StockLotSelection lotA, StockLotSelection lotB, int qtyA, int qtyB)
+        private int SumQuantityForLot(string lotNo)
         {
-            if (lotA == null || lotB == null)
-                throw new InvalidOperationException("Phải đọc đủ QR của LOT A và LOT B.");
-
-            if (!string.Equals(NormalizeItem(lotA.ItemCode), NormalizeItem(lotB.ItemCode), StringComparison.OrdinalIgnoreCase))
-                throw new InvalidOperationException("Hai LOT phải cùng mã hàng. Mã hàng A: " + lotA.ItemCode + "; mã hàng B: " + lotB.ItemCode + ".");
-
-            string keyA = LotNoHelper.GetStockTpKey(lotA.LotNo);
-            string keyB = LotNoHelper.GetStockTpKey(lotB.LotNo);
-            if (string.Equals(keyA, keyB, StringComparison.OrdinalIgnoreCase))
-                throw new InvalidOperationException("LOT A và LOT B phải khác LOTNO.");
-
-            if (qtyA <= 0 || qtyA > lotA.Available)
-                throw new InvalidOperationException("Số lượng lấy từ LOT A phải lớn hơn 0 và không vượt tồn STOCKTP. Tồn A: " + lotA.Available + ".");
-            if (qtyB <= 0 || qtyB > lotB.Available)
-                throw new InvalidOperationException("Số lượng ghép từ LOT B phải lớn hơn 0 và không vượt tồn STOCKTP. Tồn B: " + lotB.Available + ".");
+            int sum = 0;
+            foreach (DataRow row in _workRows.Rows)
+                foreach (KeyValuePair<string, decimal> token in ParsePayload(ReadText(row, "LOTGHEP")))
+                    if (string.Equals(token.Key, lotNo, StringComparison.OrdinalIgnoreCase))
+                        sum += (int)token.Value;
+            return sum;
         }
 
+        private void CollectSlots(out List<StockLotSelection> lots, out List<int> quantities)
+        {
+            lots = new List<StockLotSelection>();
+            quantities = new List<int>();
+            for (int i = 0; i < _slots.Count; i++)
+            {
+                if (_slots[i].Lot == null)
+                    throw new InvalidOperationException("Phải đọc QR của " + _slots[i].Title.Text
+                        + " (hoặc bấm XÓA nếu không dùng LOT này).");
+                lots.Add(_slots[i].Lot);
+                quantities.Add(GetQuantity(_slots[i].Qty));
+            }
+        }
+
+        private static string BuildPayload(IList<StockLotSelection> lots, IList<int> quantities)
+        {
+            var tokens = new List<string>(lots.Count);
+            for (int i = 0; i < lots.Count; i++)
+                tokens.Add(lots[i].LotNo + "-" + quantities[i].ToString(CultureInfo.InvariantCulture));
+            return string.Join(",", tokens);
+        }
+
+        private static IEnumerable<KeyValuePair<string, decimal>> ParsePayload(string payload)
+        {
+            if (string.IsNullOrWhiteSpace(payload)) return new List<KeyValuePair<string, decimal>>();
+            // Dùng đúng bộ tách LOT ghép dùng chung toàn hệ thống (LOT-SL, ngăn bởi dấu phẩy).
+            return PCTP.Common.LotCodeHelper.ParseCompositeLot(payload);
+        }
+
+        private static void ValidateSet(IList<StockLotSelection> lots, IList<int> quantities)
+        {
+            if (lots == null || lots.Count < MinLots)
+                throw new InvalidOperationException("Phải ghép từ " + MinLots + " LOT trở lên.");
+            if (lots.Count > MaxLots)
+                throw new InvalidOperationException("Tối đa " + MaxLots + " LOT cho một lần ghép.");
+
+            string firstItem = NormalizeItem(lots[0].ItemCode);
+            var keys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            for (int i = 0; i < lots.Count; i++)
+            {
+                StockLotSelection lot = lots[i];
+                if (lot == null)
+                    throw new InvalidOperationException("Phải đọc đủ QR của tất cả các LOT.");
+                if (!string.Equals(NormalizeItem(lot.ItemCode), firstItem, StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidOperationException("Tất cả LOT phải cùng mã hàng. LOT 1: " + lots[0].ItemCode
+                        + "; LOT " + (i + 1) + ": " + lot.ItemCode + ".");
+                if (!keys.Add(LotNoHelper.GetStockTpKey(lot.LotNo)))
+                    throw new InvalidOperationException("Các LOT phải khác LOTNO. LOT " + (i + 1) + " bị trùng với một LOT khác.");
+                if (quantities[i] <= 0 || quantities[i] > lot.Available)
+                    throw new InvalidOperationException("Số lượng lấy từ LOT " + (i + 1)
+                        + " phải lớn hơn 0 và không vượt tồn STOCKTP. Tồn: " + lot.Available + ".");
+            }
+
+            CheckPrintLimits(lots[0].ItemCode, BuildPayload(lots, quantities), quantities.Sum());
+        }
+
+        /// <summary>
+        /// Chặn trước các trường hợp Usp_gheplotPrint sẽ cắt cụt dữ liệu (token LOT-SL, chuỗi ghép, chuỗi QR).
+        /// </summary>
+        private static void CheckPrintLimits(string itemCode, string payload, int totalQuantity)
+        {
+            string item = (itemCode ?? string.Empty).Trim();
+            if (item.Length > SpMaxItemLength)
+                throw new InvalidOperationException("Mã hàng dài " + item.Length + " ký tự, vượt giới hạn " + SpMaxItemLength + " của chức năng in ghép LOT.");
+
+            foreach (string token in payload.Split(','))
+            {
+                if (token.Length > SpMaxTokenLength)
+                    throw new InvalidOperationException("Mục '" + token + "' dài " + token.Length + " ký tự, vượt giới hạn "
+                        + SpMaxTokenLength + " (LOT-SL) của chức năng in ghép LOT. Số lượng quá nhiều chữ số.");
+            }
+
+            if (payload.Length > SpMaxPayloadLength)
+                throw new InvalidOperationException("Chuỗi LOT ghép dài " + payload.Length + " ký tự, vượt giới hạn " + SpMaxPayloadLength + ". Giảm số LOT.");
+
+            // QR in ra: "<chuỗi LOT>:<mã hàng>:<dd/MM/yy>:<tổng SL>"
+            int qrLength = payload.Length + 1 + item.Length + 1 + 8 + 1
+                + totalQuantity.ToString(CultureInfo.InvariantCulture).Length;
+            if (qrLength > SpMaxQrLength)
+                throw new InvalidOperationException("Chuỗi QR của tem ghép dài " + qrLength + " ký tự, vượt giới hạn "
+                    + SpMaxQrLength + ". Giảm số LOT ghép trong một tem.");
+        }
+
+        // ------------------------------------------------------------------ in
         private void PrintWorkRows()
         {
             if (_workRows.Rows.Count == 0)
             {
-                XtraMessageBox.Show("Chưa có cặp LOT hợp lệ trong bảng để in.", "Ghép LOT", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                XtraMessageBox.Show("Chưa có bộ LOT hợp lệ trong bảng để in.", "Ghép LOT", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
@@ -515,15 +663,25 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
 
         private void RevalidateWorkRows()
         {
-            var lots = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            // Tổng lượng cần lấy theo từng LOT trên TẤT CẢ các dòng bảng.
+            var required = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            var itemByRow = new List<Tuple<string, List<KeyValuePair<string, decimal>>>>();
             foreach (DataRow row in _workRows.Rows)
             {
-                lots.Add(ReadText(row, "LOTA"));
-                lots.Add(ReadText(row, "LOTB"));
+                var tokens = ParsePayload(ReadText(row, "LOTGHEP")).ToList();
+                if (tokens.Count < MinLots)
+                    throw new InvalidOperationException("Dòng ghép LOT '" + ReadText(row, "LOTGHEP") + "' có ít hơn " + MinLots + " LOT.");
+                itemByRow.Add(Tuple.Create(ReadText(row, "MAHANG"), tokens));
+                foreach (KeyValuePair<string, decimal> token in tokens)
+                {
+                    int existing;
+                    required.TryGetValue(token.Key, out existing);
+                    required[token.Key] = existing + (int)token.Value;
+                }
             }
 
             var currentStock = new Dictionary<string, Tuple<string, int>>(StringComparer.OrdinalIgnoreCase);
-            foreach (string lot in lots.Where(x => !string.IsNullOrWhiteSpace(x)))
+            foreach (string lot in required.Keys.Where(x => !string.IsNullOrWhiteSpace(x)))
             {
                 DataTable current = _stockRepository.GetTonKhoTheoLot(new List<string> { lot });
                 var matches = current.AsEnumerable()
@@ -537,24 +695,22 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
                     SafeInt(matches[0]["SLCONLAI"]));
             }
 
-            foreach (DataRow row in _workRows.Rows)
+            foreach (Tuple<string, List<KeyValuePair<string, decimal>>> row in itemByRow)
             {
-                string itemCode = ReadText(row, "MAHANG");
-                string lotA = ReadText(row, "LOTA");
-                string lotB = ReadText(row, "LOTB");
-                int qtyA = SafeInt(row["SLA"]);
-                int qtyB = SafeInt(row["SLB"]);
-                Tuple<string, int> stockA = currentStock[lotA];
-                Tuple<string, int> stockB = currentStock[lotB];
+                foreach (KeyValuePair<string, decimal> token in row.Item2)
+                {
+                    Tuple<string, int> stock = currentStock[token.Key];
+                    if (!string.Equals(NormalizeItem(stock.Item1), NormalizeItem(row.Item1), StringComparison.OrdinalIgnoreCase))
+                        throw new InvalidOperationException("Mã hàng của LOT " + token.Key + " đã thay đổi so với dòng ghép " + row.Item1 + ". Hãy đọc lại QR.");
+                }
+            }
 
-                if (!string.Equals(NormalizeItem(stockA.Item1), NormalizeItem(itemCode), StringComparison.OrdinalIgnoreCase)
-                    || !string.Equals(NormalizeItem(stockB.Item1), NormalizeItem(itemCode), StringComparison.OrdinalIgnoreCase))
-                    throw new InvalidOperationException("Mã hàng của LOT đã thay đổi so với dòng ghép " + itemCode + ". Hãy đọc lại QR.");
-
-                if (stockA.Item2 < qtyA)
-                    throw new InvalidOperationException("LOT A " + lotA + " hiện chỉ còn " + stockA.Item2 + ", thấp hơn số lượng cần lấy " + qtyA + ".");
-                if (stockB.Item2 < qtyB)
-                    throw new InvalidOperationException("LOT B " + lotB + " hiện chỉ còn " + stockB.Item2 + ", thấp hơn số lượng cần ghép " + qtyB + ".");
+            foreach (KeyValuePair<string, int> need in required)
+            {
+                int available = currentStock[need.Key].Item2;
+                if (available < need.Value)
+                    throw new InvalidOperationException("LOT " + need.Key + " hiện chỉ còn " + available
+                        + ", thấp hơn tổng số lượng cần lấy " + need.Value + " trong bảng ghép.");
             }
         }
 
@@ -588,11 +744,15 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
 
         private void UpdateButtons()
         {
+            if (_btnPrint == null || _btnAdd == null) return;
             _btnPrint.Enabled = _workRows.Rows.Count > 0;
             bool valid = false;
             try
             {
-                ValidatePair(_lotA, _lotB, GetQuantity(_spinQtyA), GetQuantity(_spinQtyB));
+                List<StockLotSelection> lots;
+                List<int> quantities;
+                CollectSlots(out lots, out quantities);
+                ValidateSet(lots, quantities);
                 valid = true;
             }
             catch
@@ -645,6 +805,18 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
         private static int GetQuantity(SpinEdit editor)
         {
             return SafeInt(editor.EditValue);
+        }
+
+        private sealed class LotSlot
+        {
+            public TableLayoutPanel Host;
+            public LabelControl Title;
+            public TextEdit Qr;
+            public SimpleButton Read;
+            public SpinEdit Qty;
+            public SimpleButton Remove;
+            public LabelControl Info;
+            public StockLotSelection Lot;
         }
 
         private sealed class StockLotSelection
