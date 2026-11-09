@@ -605,7 +605,7 @@ namespace PCTP.Modules.XuLyHangLoi
 
         private void TiepNhanKhach()
         {
-            using (var f = new FormTiepNhanPhieuKhachTra(_khachTraHangService, _noiBoLookupRepo, _slotService)) if (f.ShowDialog(this) == DialogResult.OK) RefreshAfterIntake();
+            using (var f = new FormTiepNhanPhieuKhachTra(_khachTraHangService, _noiBoLookupRepo, _slotService, _reworkStockService)) if (f.ShowDialog(this) == DialogResult.OK) RefreshAfterIntake();
         }
 
         private void TaoPhieuNoiBo()

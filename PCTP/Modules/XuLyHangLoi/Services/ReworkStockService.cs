@@ -39,6 +39,13 @@ namespace PCTP.Modules.XuLyHangLoi.Services
                 phieuXuLyId);
         }
 
+        private static string KtrRef(int phieuTraHangId)
+        {
+            return StockExportReferenceFormatter.Format(
+                StockExportReferenceType.PhieuKhachTra,
+                phieuTraHangId);
+        }
+
         private readonly IUnitOfWork _uow;
         private readonly ISlotService _slotService;
         private readonly IStockExportRepository _stockTpRepo;
@@ -449,6 +456,109 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             {
                 SafeRollback();
                 return ScanResult.Fail("Lỗi nhập lại hàng NG: " + ex.Message);
+            }
+        }
+
+        public ScanResult NhapKhoNGKhachTra(
+            int phieuTraHangId,
+            int slotIdNG,
+            IList<KhachTraNhapNGLine> lines,
+            string nguoiNhap)
+        {
+            if (phieuTraHangId <= 0)
+                return ScanResult.Fail("phieuTraHangId không hợp lệ.");
+            if (slotIdNG <= 0)
+                return ScanResult.Fail("Chưa chọn Slot nhập NG.");
+            if (lines == null || lines.Count == 0)
+                return ScanResult.Fail("Không có dòng hàng khách trả để nhập kho NG.");
+            if (string.IsNullOrWhiteSpace(nguoiNhap))
+                return ScanResult.Fail("Chưa xác định người nhập.");
+
+            var slotLoi = KiemTraSlotTonTai(slotIdNG, "Slot NG");
+            if (slotLoi != null)
+                return slotLoi;
+
+            // Kiểm tra + chuẩn hoá toàn bộ dòng TRƯỚC khi mở transaction.
+            var lotChuan = new string[lines.Count];
+            for (int i = 0; i < lines.Count; i++)
+            {
+                var line = lines[i];
+                if (line == null || string.IsNullOrWhiteSpace(line.MaHang))
+                    return ScanResult.Fail(string.Format("Dòng {0}: MaHang không được rỗng.", i + 1));
+                if (string.IsNullOrWhiteSpace(line.LotNo))
+                    return ScanResult.Fail(string.Format("Dòng {0}: LotNo không được rỗng.", i + 1));
+                if (line.SoLuong <= 0)
+                    return ScanResult.Fail(string.Format("Dòng {0}: SoLuong phải lớn hơn 0.", i + 1));
+                try
+                {
+                    lotChuan[i] = LotNoHelper.GetStockTpKey(line.LotNo);
+                }
+                catch (Exception ex)
+                {
+                    return ScanResult.Fail(string.Format("Dòng {0}: LOT không hợp lệ: {1}", i + 1, ex.Message));
+                }
+            }
+
+            _uow.Begin();
+            try
+            {
+                int daNhap = 0, boQua = 0, tongSl = 0;
+                for (int i = 0; i < lines.Count; i++)
+                {
+                    var line = lines[i];
+                    string referenceId = line.PhieuTraHangCTId > 0
+                        ? line.PhieuTraHangCTId.ToString()
+                        : phieuTraHangId + ":" + (i + 1);
+
+                    // NG cách ly: SlotLot riêng PhieuStatus=3, KHÔNG cộng STOCKTP (xem StockMovementService.AddToSlot).
+                    var movement = _stockMovement.Receive(new StockMovementRequest
+                    {
+                        MovementType = MovementReworkNgReceive,
+                        TargetSlotId = slotIdNG,
+                        LotNo = lotChuan[i],
+                        ItemCode = line.MaHang.Trim(),
+                        Quantity = line.SoLuong,
+                        ReferenceType = "KHACH_TRA_NG_RECEIVE",
+                        ReferenceId = referenceId,
+                        PerformedBy = nguoiNhap,
+                        Reason = "Nhập kho NG hàng khách trả"
+                    });
+
+                    if (movement.Duplicate)
+                    {
+                        boQua++; // dòng này đã nhập trước đó
+                        continue;
+                    }
+                    if (!movement.Success)
+                        return FailAndRollback(movement.Message);
+
+                    _historyRepo.SaveHistory(
+                        actionType: "KHACH_TRA_NHAP_NG",
+                        itemCode: line.MaHang.Trim(),
+                        lot: new LotInfo
+                        {
+                            LotNo = lotChuan[i],
+                            Quantity = line.SoLuong,
+                            TemCode = KtrRef(phieuTraHangId),
+                            MaPhieuKho = KtrRef(phieuTraHangId)
+                        },
+                        fromSlotId: null,
+                        toSlotId: slotIdNG,
+                        performedBy: nguoiNhap);
+
+                    daNhap++;
+                    tongSl += line.SoLuong;
+                }
+
+                _uow.Commit();
+                return ScanResult.OK(string.Format(
+                    "Đã nhập kho NG {0} dòng ({1:n0} cái){2}.",
+                    daNhap, tongSl, boQua > 0 ? "; bỏ qua " + boQua + " dòng đã nhập trước đó" : string.Empty));
+            }
+            catch (Exception ex)
+            {
+                SafeRollback();
+                return ScanResult.Fail("Lỗi nhập kho NG hàng khách trả: " + ex.Message);
             }
         }
 

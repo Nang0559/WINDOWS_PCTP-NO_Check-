@@ -45,12 +45,31 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             int slotIdOK,
             string nguoiNhap);
 
+        /// <summary>
+        /// Khách trả hàng lỗi: nhập hàng về kho dưới dạng NG cách ly (SlotLot PhieuStatus=3, không cộng STOCKTP)
+        /// và ghi StockHistory (KHACH_TRA_NHAP_NG, MaPhieu = KTR#id). Idempotent theo từng dòng phiếu.
+        /// </summary>
+        ScanResult NhapKhoNGKhachTra(
+            int phieuTraHangId,
+            int slotIdNG,
+            IList<KhachTraNhapNGLine> lines,
+            string nguoiNhap);
+
         ScanResult HoanTraKhoKhiHuy(
             int phieuXuLyId,
             string nguoiThucHien);
 
         /// <summary>Approved/exported/delivered quantities; throws when the Phase 4 guard is not configured (fail-closed).</summary>
         ReworkPhase4Plan GetReworkPlan(int phieuXuLyId);
+    }
+
+    /// <summary>Một dòng hàng khách trả được nhập kho NG.</summary>
+    public sealed class KhachTraNhapNGLine
+    {
+        public int PhieuTraHangCTId { get; set; }
+        public string MaHang { get; set; }
+        public string LotNo { get; set; }
+        public int SoLuong { get; set; }
     }
 
     /// <summary>

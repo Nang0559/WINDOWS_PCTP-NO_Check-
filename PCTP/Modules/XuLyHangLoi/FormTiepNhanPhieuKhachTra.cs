@@ -68,6 +68,10 @@ namespace PCTP.Modules.XuLyHangLoi
         private readonly IPhieuTraHangRepository _phieuRepo;
         private readonly INoiBoLookupRepository _lookupRepo;
         private readonly ISlotService _slotService; // null → ẩn nút tra cứu Slot
+        private readonly IReworkStockService _reworkStockService; // null → không nhập kho NG khi tiếp nhận
+
+        /// <summary>Id phiếu vừa tiếp nhận (chế độ tạo mới); null nếu chưa lưu.</summary>
+        public int? CreatedPhieuId { get; private set; }
         private readonly int _phieuId;
         private PhieuTraHang _editPhieu;
 
@@ -84,7 +88,8 @@ namespace PCTP.Modules.XuLyHangLoi
         public FormTiepNhanPhieuKhachTra(
             IKhachTraHangService khachTraHangService,
             INoiBoLookupRepository lookupRepo = null,
-            ISlotService slotService = null)
+            ISlotService slotService = null,
+            IReworkStockService reworkStockService = null)
         {
             _khachTraHangService =
                 khachTraHangService
@@ -93,6 +98,7 @@ namespace PCTP.Modules.XuLyHangLoi
 
             _lookupRepo = lookupRepo;
             _slotService = slotService;
+            _reworkStockService = reworkStockService;
 
             BuidIU();
 
@@ -1620,6 +1626,16 @@ namespace PCTP.Modules.XuLyHangLoi
                 var phieu =
                     BuildPhieu(items);
 
+                // Bước 1 của quy trình khách trả: hàng lỗi phải được NHẬP VỀ KHO dưới dạng NG (có StockHistory).
+                // Chọn Slot NG TRƯỚC khi tạo phiếu để hủy là không tạo gì.
+                int? slotNG = null;
+                if (_reworkStockService != null && _slotService != null)
+                {
+                    slotNG = SlotNhapNGPicker.Chon(this, _slotService, "Nhập kho NG hàng khách trả");
+                    if (!slotNG.HasValue)
+                        return;
+                }
+
                 // ====================================================
                 // SERVICE DUY NHẤT XỬ LÝ NGHIỆP VỤ
                 // ====================================================
@@ -1627,6 +1643,41 @@ namespace PCTP.Modules.XuLyHangLoi
                 int id =
                     _khachTraHangService
                         .TiepNhanPhieuKhachTra(phieu);
+
+                if (slotNG.HasValue)
+                {
+                    var lines = phieu.ChiTiet
+                        .Select(ct => new KhachTraNhapNGLine
+                        {
+                            PhieuTraHangCTId = ct.Id,
+                            MaHang = ct.MaHang,
+                            LotNo = ct.LotNo,
+                            SoLuong = ct.SoLuong
+                        })
+                        .ToList();
+
+                    var ng = _reworkStockService.NhapKhoNGKhachTra(id, slotNG.Value, lines, Environment.UserName);
+                    if (!ng.IsOK)
+                    {
+                        // Nhập kho thất bại (đã rollback) → gỡ phiếu vừa tạo để không còn phiếu "mồ côi" chưa có tồn NG.
+                        string xoaLoi = null;
+                        try { _khachTraHangService.XoaPhieu(id, Environment.UserName); }
+                        catch (Exception exXoa) { xoaLoi = exXoa.Message; }
+
+                        XtraMessageBox.Show(
+                            "Không thể nhập kho NG nên chưa tiếp nhận phiếu.\r\n\r\n" + ng.Message +
+                            (xoaLoi == null
+                                ? string.Empty
+                                : "\r\n\r\nPhiếu Id=" + id + " đã được tạo nhưng chưa gỡ được: " + xoaLoi +
+                                  "\r\nHãy xóa phiếu này thủ công rồi tiếp nhận lại."),
+                            "Lỗi",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Error);
+                        return;
+                    }
+                }
+
+                CreatedPhieuId = id;
 
                 XtraMessageBox.Show(
                     $"Đã tiếp nhận phiếu khách trả thành công.\r\n\r\n" +

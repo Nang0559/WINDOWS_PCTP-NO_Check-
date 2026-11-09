@@ -11,7 +11,7 @@ namespace PCTP.Modules.BaoCao.Application.Contracts.Queries
         {
             "RECEIVE", "IMPORT",
             "REWORK_OK_RECEIVE", "REWORK_NG_RECEIVE", "REWORK_NG_IMPORT", "NHAP_LAI_SAU_REWORK",
-            "REWORK_CANCEL_RETURN", "RETURN_INT"
+            "REWORK_CANCEL_RETURN", "RETURN_INT", "KHACH_TRA_NHAP_NG"
         };
         private static readonly HashSet<string> OutTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
