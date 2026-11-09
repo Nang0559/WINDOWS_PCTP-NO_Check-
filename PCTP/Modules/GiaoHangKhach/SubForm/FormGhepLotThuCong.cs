@@ -1,4 +1,6 @@
 using DevExpress.XtraEditors;
+using DevExpress.XtraEditors.Controls;
+using DevExpress.XtraEditors.Repository;
 using DevExpress.XtraGrid;
 using DevExpress.XtraGrid.Columns;
 using DevExpress.XtraGrid.Views.Grid;
@@ -23,10 +25,14 @@ using System.Windows.Forms;
 namespace PCTP.Modules.GiaoHangKhach.SubForm
 {
     /// <summary>
-    /// Ghép LOT thủ công: đọc QR tem thùng (4 phần) của TỪ 2 LOT TRỞ LÊN, xác minh từng LOT
-    /// trong STOCKTP, cho nhập lượng lấy từ từng LOT và tạo payload in dùng
-    /// chung TMPLOTGHEP -> Usp_gheplotPrint -> GHEPLOT như luồng tự động
-    /// (LOT1-SL1,LOT2-SL2,LOT3-SL3,...).
+    /// Ghép LOT thủ công theo từng TEM:
+    ///  - Một ô quét QR duy nhất (QR tem thùng 4 phần). Mỗi lần quét xong, ô được xóa trống để chờ QR kế tiếp.
+    ///  - Mỗi lần quét thêm MỘT LOT vào TEM ĐANG GHÉP (một dòng ở lưới tem). Số LOT của tem không bị cố định:
+    ///    quét 2, 3, 4... LOT rồi bấm KẾT THÚC TEM (F2) để chốt tem.
+    ///  - Tem khác (kể cả cùng mã hàng) là một DÒNG MỚI ở lưới tem, không thêm cột; các LOT của tem nằm ở lưới chi tiết,
+    ///    cột "SL lấy" sửa trực tiếp được.
+    ///  - Chỉ những tem được tích "In tem" mới được in, qua TMPLOTGHEP -> Usp_gheplotPrint -> GHEPLOT (YMVN: GHEPLOT_YMVN + Gear)
+    ///    như luồng tự động (LOT1-SL1,LOT2-SL2,...).
     ///
     /// Form chỉ kiểm tra tồn và chuẩn bị dữ liệu in; không cập nhật STOCKTP.
     /// </summary>
@@ -45,19 +51,25 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
 
         private readonly StockTpRepository _stockRepository;
         private readonly InPhieuService _printService;
-        private readonly DataTable _workRows;
         private readonly SQLPROVIDER _sql;
-        private readonly List<LotSlot> _slots = new List<LotSlot>();
-        // payload LOT ghép -> tên Gear. Chỉ chứa các dòng hàng YMVN (có Gear); dòng khách khác không có khóa.
-        private readonly Dictionary<string, string> _gearByPayload = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        private readonly DataTable _temTable;   // mỗi dòng = một TEM ghép
+        private readonly DataTable _lineTable;  // mỗi dòng = một LOT thuộc một tem
+        private readonly DataView _lineData;
 
-        private FlowLayoutPanel _slotHost;
+        private TextEdit _txtQr;
+        private LabelControl _lblCurrent;
         private LabelControl _lblStatus;
-        private GridControl _grid;
-        private GridView _view;
-        private SimpleButton _btnAddLot;
-        private SimpleButton _btnAdd;
+        private GridControl _temGrid;
+        private GridView _temView;
+        private GridControl _lineGrid;
+        private GridView _lineView;
+        private SimpleButton _btnRead;
+        private SimpleButton _btnClose;
+        private SimpleButton _btnReopen;
         private SimpleButton _btnPrint;
+
+        private int _temSeq;
+        private int _currentTemId; // 0 = chưa có tem đang ghép
 
         public FormGhepLotThuCong()
         {
@@ -71,19 +83,38 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
             // InGhepLot chỉ dùng ISqlRepository nên tái sử dụng đúng service in hiện hành.
             _printService = new InPhieuService(null, null, sqlRepository, null, null, null);
 
-            _workRows = CreateWorkTable();
+            _temTable = CreateTemTable();
+            _lineTable = CreateLineTable();
+            _lineData = new DataView(_lineTable) { RowFilter = "TEMID = 0" };
             InitializeUi();
         }
 
-        private static DataTable CreateWorkTable()
+        private static DataTable CreateTemTable()
         {
-            var table = new DataTable("ManualGhepLot");
+            var table = new DataTable("GhepLotTem");
+            table.Columns.Add("TEMID", typeof(int));
+            table.Columns.Add("IN", typeof(bool));
             table.Columns.Add("MAHANG", typeof(string));
             table.Columns.Add("GEAR", typeof(string));
             table.Columns.Add("SOLOT", typeof(int));
-            table.Columns.Add("CHITIET", typeof(string));
             table.Columns.Add("TONGSL", typeof(int));
+            table.Columns.Add("TRANGTHAI", typeof(string));
             table.Columns.Add("LOTGHEP", typeof(string));
+            table.Columns.Add("OPEN", typeof(bool));
+            return table;
+        }
+
+        private static DataTable CreateLineTable()
+        {
+            var table = new DataTable("GhepLotLine");
+            table.Columns.Add("TEMID", typeof(int));
+            table.Columns.Add("LOT", typeof(string));
+            table.Columns.Add("MAHANG", typeof(string));
+            table.Columns.Add("GEAR", typeof(string));
+            table.Columns.Add("TON", typeof(int));
+            table.Columns.Add("QRSL", typeof(int));
+            table.Columns.Add("SL", typeof(int));
+            table.Columns.Add("SEL", typeof(object));
             return table;
         }
 
@@ -104,82 +135,150 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
                 ColumnCount = 1,
                 RowCount = 4
             };
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 44));
-            root.RowStyles.Add(new RowStyle(SizeType.Percent, 48));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 112));
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 52));
+            root.RowStyles.Add(new RowStyle(SizeType.Percent, 48));
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 66));
             Controls.Add(root);
 
-            // --- Thanh công cụ danh sách LOT
-            var toolbar = new TableLayoutPanel
+            // --- Ô quét QR duy nhất + điều khiển tem
+            var scanGroup = CreateGroup("QUÉT QR TEM THÙNG (4 PHẦN) — MỖI LẦN QUÉT THÊM MỘT LOT VÀO TEM ĐANG GHÉP");
+            var scan = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
-                ColumnCount = 2,
-                RowCount = 1,
-                Padding = new Padding(0, 0, 0, 6)
+                Padding = new Padding(8, 4, 8, 4),
+                ColumnCount = 4,
+                RowCount = 2
             };
-            toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 150));
-            toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            _btnAddLot = new SimpleButton { Text = "+ THÊM LOT", Dock = DockStyle.Fill };
-            _btnAddLot.Click += (s, e) => AddSlot();
-            toolbar.Controls.Add(_btnAddLot, 0, 0);
-            var hint = new LabelControl
+            scan.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            scan.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 110));
+            scan.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 190));
+            scan.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 130));
+            scan.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
+            scan.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+
+            _txtQr = new TextEdit
             {
-                Text = "Ghép từ " + MinLots + " đến " + MaxLots + " LOT cùng mã hàng. Quét QR tem thùng 4 phần của từng LOT, nhập số lượng lấy rồi bấm THÊM VÀO BẢNG.",
+                Dock = DockStyle.Fill,
+                Font = new Font("Tahoma", 11F, FontStyle.Bold),
+                Properties =
+                {
+                    NullValuePrompt = "Quét QR tem thùng 4 phần của LOT cần ghép rồi nhấn Enter...",
+                    NullValuePromptShowForEmptyValue = true
+                }
+            };
+            _txtQr.KeyDown += (s, e) =>
+            {
+                if (e.KeyCode != Keys.Enter) return;
+                e.Handled = true;
+                e.SuppressKeyPress = true;
+                ReadLot();
+            };
+            _btnRead = new SimpleButton { Text = "ĐỌC LOT", Dock = DockStyle.Fill };
+            _btnRead.Click += (s, e) => ReadLot();
+            _btnClose = new SimpleButton { Text = "KẾT THÚC TEM (F2)", Dock = DockStyle.Fill, Enabled = false };
+            _btnClose.Click += (s, e) => CloseCurrentTem();
+            _btnReopen = new SimpleButton { Text = "MỞ LẠI TEM", Dock = DockStyle.Fill, Enabled = false };
+            _btnReopen.Click += (s, e) => ReopenFocusedTem();
+            _lblCurrent = new LabelControl
+            {
+                Text = "Chưa có tem đang ghép. Quét QR của LOT đầu tiên để bắt đầu tem mới.",
                 Dock = DockStyle.Fill,
                 AutoSizeMode = LabelAutoSizeMode.None
             };
-            hint.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
-            toolbar.Controls.Add(hint, 1, 0);
-            root.Controls.Add(toolbar, 0, 0);
+            _lblCurrent.Appearance.Font = new Font("Tahoma", 9F, FontStyle.Bold);
+            _lblCurrent.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
+            scan.Controls.Add(_txtQr, 0, 0);
+            scan.Controls.Add(_btnRead, 1, 0);
+            scan.Controls.Add(_btnClose, 2, 0);
+            scan.Controls.Add(_btnReopen, 3, 0);
+            scan.Controls.Add(_lblCurrent, 0, 1);
+            scan.SetColumnSpan(_lblCurrent, 4);
+            scanGroup.Controls.Add(scan);
+            root.Controls.Add(scanGroup, 0, 0);
 
-            // --- Danh sách LOT (mỗi LOT một dòng: QR + đọc + SL + xóa)
-            var slotGroup = new GroupControl
+            // --- Lưới tem (mỗi tem một dòng) với cột "In tem"
+            var temGroup = CreateGroup("DANH SÁCH TEM GHÉP — TÍCH \"IN TEM\" Ở CÁC TEM CẦN IN (MỖI TEM LÀ MỘT DÒNG)");
+            _temGrid = new GridControl { Dock = DockStyle.Fill, DataSource = _temTable };
+            _temView = new GridView(_temGrid);
+            ConfigureView(_temGrid, _temView);
+            var checkEdit = new RepositoryItemCheckEdit();
+            checkEdit.EditValueChanged += (s, e) => _temView.PostEditor();
+            _temGrid.RepositoryItems.Add(checkEdit);
+            AddColumn(_temView, "IN", "In tem", 70, true, checkEdit);
+            AddColumn(_temView, "TEMID", "Tem", 60);
+            AddColumn(_temView, "MAHANG", "Mã hàng", 150);
+            AddColumn(_temView, "GEAR", "Gear (YMVN)", 110);
+            AddColumn(_temView, "SOLOT", "Số LOT", 70);
+            AddColumn(_temView, "TONGSL", "Tổng SL in", 90);
+            AddColumn(_temView, "TRANGTHAI", "Trạng thái", 420);
+            AddColumn(_temView, "LOTGHEP", "Dữ liệu LOT ghép đưa đi in", 560);
+            _temView.OptionsSelection.MultiSelect = false;
+            _temView.FocusedRowChanged += (s, e) => OnFocusedTemChanged();
+            _temView.RowStyle += (s, e) =>
             {
-                Text = "DANH SÁCH LOT CẦN GHÉP — SỐ LƯỢNG LẤY TỪ TỪNG LOT KHÔNG ĐƯỢC VƯỢT TỒN STOCKTP",
-                Dock = DockStyle.Fill
+                if (e.RowHandle < 0) return;
+                DataRow row = _temView.GetDataRow(e.RowHandle);
+                if (row == null) return;
+                if (Convert.ToBoolean(row["OPEN"])) e.Appearance.BackColor = Color.FromArgb(255, 248, 205);
+                else if (ReadText(row, "TRANGTHAI").StartsWith("Lỗi", StringComparison.Ordinal)) e.Appearance.BackColor = Color.FromArgb(255, 225, 225);
+                else if (Convert.ToBoolean(row["IN"])) e.Appearance.BackColor = Color.FromArgb(225, 245, 225);
             };
-            slotGroup.AppearanceCaption.Font = new Font("Tahoma", 9F, FontStyle.Bold);
-            slotGroup.AppearanceCaption.Options.UseFont = true;
-            _slotHost = new FlowLayoutPanel
+            _temView.ValidatingEditor += (s, e) =>
             {
-                Dock = DockStyle.Fill,
-                FlowDirection = FlowDirection.TopDown,
-                WrapContents = false,
-                AutoScroll = true,
-                Padding = new Padding(4)
+                if (_temView.FocusedColumn == null || _temView.FocusedColumn.FieldName != "IN") return;
+                if (!(e.Value is bool) || !(bool)e.Value) return;
+                DataRow row = _temView.GetFocusedDataRow();
+                string reason = row == null ? "Không xác định tem." : GetPrintBlockReason(row);
+                if (reason != null)
+                {
+                    e.Valid = false;
+                    e.ErrorText = reason;
+                }
             };
-            _slotHost.SizeChanged += (s, e) => ResizeSlots();
-            slotGroup.Controls.Add(_slotHost);
-            root.Controls.Add(slotGroup, 0, 1);
-            for (int i = 0; i < MinLots; i++) AddSlot();
+            temGroup.Controls.Add(_temGrid);
+            root.Controls.Add(temGroup, 0, 1);
 
-            var gridGroup = new GroupControl
+            // --- Lưới chi tiết LOT của tem đang chọn (sửa "SL lấy" tại đây)
+            var lineGroup = CreateGroup("CÁC LOT CỦA TEM ĐANG CHỌN — SỬA CỘT \"SL LẤY\" ĐỂ CHIA SỐ LƯỢNG (KHÔNG VƯỢT TỒN STOCKTP)");
+            _lineGrid = new GridControl { Dock = DockStyle.Fill, DataSource = _lineData };
+            _lineView = new GridView(_lineGrid);
+            ConfigureView(_lineGrid, _lineView);
+            var spin = new RepositoryItemSpinEdit();
+            spin.IsFloatValue = false;
+            spin.MinValue = 1;
+            spin.MaxValue = 100000000;
+            spin.Increment = 1;
+            _lineGrid.RepositoryItems.Add(spin);
+            AddColumn(_lineView, "LOT", "LOT", 230);
+            AddColumn(_lineView, "MAHANG", "Mã hàng", 150);
+            AddColumn(_lineView, "GEAR", "Gear (YMVN)", 110);
+            AddColumn(_lineView, "TON", "Tồn STOCKTP", 110);
+            AddColumn(_lineView, "QRSL", "SL trên QR", 100);
+            AddColumn(_lineView, "SL", "SL lấy (sửa)", 120, true, spin);
+            _lineView.ValidatingEditor += (s, e) =>
             {
-                Text = "DANH SÁCH GHÉP LOT THỦ CÔNG — DỮ LIỆU SẼ ĐƯỢC GỬI SANG CHỨC NĂNG IN GHÉP LOT",
-                Dock = DockStyle.Fill
+                if (_lineView.FocusedColumn == null || _lineView.FocusedColumn.FieldName != "SL") return;
+                DataRow row = _lineView.GetFocusedDataRow();
+                if (row == null) return;
+                int qty = SafeInt(e.Value);
+                int available = SafeInt(row["TON"]);
+                if (qty <= 0 || qty > available)
+                {
+                    e.Valid = false;
+                    e.ErrorText = "Số lượng phải lớn hơn 0 và không vượt tồn STOCKTP (" + available + ").";
+                }
             };
-            gridGroup.AppearanceCaption.Font = new Font("Tahoma", 9F, FontStyle.Bold);
-            gridGroup.AppearanceCaption.Options.UseFont = true;
-            _grid = new GridControl { Dock = DockStyle.Fill, DataSource = _workRows };
-            _view = new GridView(_grid);
-            _grid.MainView = _view;
-            _grid.ViewCollection.Add(_view);
-            _view.OptionsBehavior.Editable = false;
-            _view.OptionsView.ShowGroupPanel = false;
-            _view.OptionsView.ColumnAutoWidth = false;
-            _view.OptionsView.ShowIndicator = true;
-            _view.OptionsSelection.MultiSelect = true;
-            _view.OptionsSelection.MultiSelectMode = GridMultiSelectMode.RowSelect;
-            AddGridColumn("MAHANG", "Mã hàng", 150);
-            AddGridColumn("GEAR", "Gear (YMVN)", 95);
-            AddGridColumn("SOLOT", "Số LOT", 70);
-            AddGridColumn("CHITIET", "Chi tiết (LOT: SL)", 520);
-            AddGridColumn("TONGSL", "Tổng SL in", 100);
-            AddGridColumn("LOTGHEP", "Dữ liệu LOT ghép đưa đi in", 600);
-            gridGroup.Controls.Add(_grid);
-            root.Controls.Add(gridGroup, 0, 2);
+            _lineView.CellValueChanged += (s, e) =>
+            {
+                if (e.Column == null || e.Column.FieldName != "SL") return;
+                DataRow row = _lineView.GetDataRow(e.RowHandle);
+                if (row != null) RecomputeTem(SafeInt(row["TEMID"]));
+            };
+            lineGroup.Controls.Add(_lineGrid);
+            root.Controls.Add(lineGroup, 0, 2);
 
+            // --- Chân trang
             var footer = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
@@ -187,10 +286,10 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
                 RowCount = 1
             };
             footer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            footer.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 580));
+            footer.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 760));
             _lblStatus = new LabelControl
             {
-                Text = "Quét đủ QR của ít nhất hai LOT, kiểm tra tồn, nhập số lượng rồi bấm THÊM VÀO BẢNG.",
+                Text = "Quét QR từng LOT; bấm KẾT THÚC TEM khi đủ số LOT cần ghép; tích \"In tem\" rồi bấm IN.",
                 Dock = DockStyle.Fill,
                 AutoSizeMode = LabelAutoSizeMode.None
             };
@@ -205,20 +304,59 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
                 WrapContents = false,
                 Padding = new Padding(0, 6, 0, 6)
             };
-            _btnPrint = new SimpleButton { Text = "IN GHÉP LOT", Width = 140, Height = 36, Enabled = false };
-            var btnRemove = new SimpleButton { Text = "XÓA DÒNG", Width = 110, Height = 36 };
+            _btnPrint = new SimpleButton { Text = "IN CÁC TEM ĐÃ CHỌN", Width = 190, Height = 36, Enabled = false };
             var btnClear = new SimpleButton { Text = "XÓA TẤT CẢ", Width = 110, Height = 36 };
-            _btnAdd = new SimpleButton { Text = "THÊM VÀO BẢNG", Width = 145, Height = 36, Enabled = false };
-            _btnAdd.Click += (s, e) => AddSet();
-            _btnPrint.Click += (s, e) => PrintWorkRows();
-            btnRemove.Click += (s, e) => RemoveSelectedRows();
-            btnClear.Click += (s, e) => ClearRows();
+            var btnRemoveTem = new SimpleButton { Text = "XÓA TEM", Width = 100, Height = 36 };
+            var btnRemoveLot = new SimpleButton { Text = "XÓA LOT", Width = 100, Height = 36 };
+            var btnCheckAll = new SimpleButton { Text = "TÍCH/BỎ TÍCH TẤT CẢ", Width = 170, Height = 36 };
+            _btnPrint.Click += (s, e) => PrintSelectedTems();
+            btnClear.Click += (s, e) => ClearAll();
+            btnRemoveTem.Click += (s, e) => RemoveFocusedTem();
+            btnRemoveLot.Click += (s, e) => RemoveFocusedLine();
+            btnCheckAll.Click += (s, e) => ToggleCheckAll();
             actions.Controls.Add(_btnPrint);
-            actions.Controls.Add(btnRemove);
             actions.Controls.Add(btnClear);
-            actions.Controls.Add(_btnAdd);
+            actions.Controls.Add(btnRemoveTem);
+            actions.Controls.Add(btnRemoveLot);
+            actions.Controls.Add(btnCheckAll);
             footer.Controls.Add(actions, 1, 0);
             root.Controls.Add(footer, 0, 3);
+        }
+
+        private static GroupControl CreateGroup(string title)
+        {
+            var group = new GroupControl { Text = title, Dock = DockStyle.Fill };
+            group.AppearanceCaption.Font = new Font("Tahoma", 9F, FontStyle.Bold);
+            group.AppearanceCaption.Options.UseFont = true;
+            return group;
+        }
+
+        private static void ConfigureView(GridControl grid, GridView view)
+        {
+            grid.MainView = view;
+            grid.ViewCollection.Add(view);
+            view.OptionsBehavior.AutoPopulateColumns = false;
+            view.OptionsBehavior.Editable = true; // chỉ các cột được bật AllowEdit mới sửa được
+            view.OptionsView.ShowGroupPanel = false;
+            view.OptionsView.ColumnAutoWidth = false;
+            view.OptionsView.ShowIndicator = true;
+        }
+
+        private static void AddColumn(GridView view, string field, string caption, int width,
+            bool editable = false, RepositoryItem editor = null)
+        {
+            var column = new GridColumn
+            {
+                FieldName = field,
+                Caption = caption,
+                Visible = true,
+                VisibleIndex = view.Columns.Count,
+                Width = width
+            };
+            column.OptionsColumn.AllowEdit = editable;
+            column.OptionsColumn.ReadOnly = !editable;
+            if (editor != null) column.ColumnEdit = editor;
+            view.Columns.Add(column);
         }
 
         // ------------------------------------------------------------------ kích thước cửa sổ
@@ -241,174 +379,25 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
             int left = Math.Max(area.Left, Math.Min(Left, area.Right - Width));
             int top = Math.Max(area.Top, Math.Min(Top, area.Bottom - Height));
             if (left != Left || top != Top) Location = new Point(left, top);
+            _txtQr.Focus();
         }
 
-        // ------------------------------------------------------------------ LOT slots
-        private void AddSlot()
+        protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
         {
-            if (_slots.Count >= MaxLots)
+            if (keyData == Keys.F2)
             {
-                XtraMessageBox.Show("Tối đa " + MaxLots + " LOT cho một lần ghép.", "Ghép LOT",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return;
+                CloseCurrentTem();
+                return true;
             }
-
-            var slot = new LotSlot();
-            slot.Host = new TableLayoutPanel
-            {
-                Height = 78,
-                Margin = new Padding(0, 0, 0, 6),
-                ColumnCount = 6,
-                RowCount = 2
-            };
-            slot.Host.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 70));
-            slot.Host.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            slot.Host.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 110));
-            slot.Host.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 40));
-            slot.Host.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 120));
-            slot.Host.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 80));
-            slot.Host.RowStyles.Add(new RowStyle(SizeType.Absolute, 38));
-            slot.Host.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-
-            slot.Title = CreateCaption("LOT");
-            slot.Qr = CreateQrEditor("Quét QR tem thùng 4 phần của LOT...");
-            slot.Read = new SimpleButton { Text = "ĐỌC LOT", Dock = DockStyle.Fill };
-            slot.Qty = CreateQuantityEditor();
-            slot.Remove = new SimpleButton { Text = "XÓA", Dock = DockStyle.Fill };
-            slot.Info = CreateInfoLabel("Chưa đọc LOT");
-
-            slot.Read.Click += (s, e) => ReadLot(slot);
-            slot.Qr.KeyDown += (s, e) => ReadOnEnter(e, slot);
-            slot.Qr.EditValueChanged += (s, e) => InvalidateSlot(slot);
-            slot.Qty.EditValueChanged += (s, e) => UpdateButtons();
-            slot.Remove.Click += (s, e) => RemoveSlot(slot);
-
-            slot.Host.Controls.Add(slot.Title, 0, 0);
-            slot.Host.Controls.Add(slot.Qr, 1, 0);
-            slot.Host.Controls.Add(slot.Read, 2, 0);
-            slot.Host.Controls.Add(CreateCaption("SL"), 3, 0);
-            slot.Host.Controls.Add(slot.Qty, 4, 0);
-            slot.Host.Controls.Add(slot.Remove, 5, 0);
-            slot.Host.Controls.Add(slot.Info, 1, 1);
-            slot.Host.SetColumnSpan(slot.Info, 5);
-
-            _slots.Add(slot);
-            _slotHost.Controls.Add(slot.Host);
-            RenumberSlots();
-            ResizeSlots();
-            UpdateButtons();
-            slot.Qr.Focus();
+            return base.ProcessCmdKey(ref msg, keyData);
         }
 
-        private void RemoveSlot(LotSlot slot)
+        // ------------------------------------------------------------------ đọc QR và thêm LOT vào tem đang ghép
+        private void ReadLot()
         {
-            if (_slots.Count <= MinLots) return;
-            _slots.Remove(slot);
-            _slotHost.Controls.Remove(slot.Host);
-            slot.Host.Dispose();
-            RenumberSlots();
-            UpdateButtons();
-        }
-
-        private void RenumberSlots()
-        {
-            for (int i = 0; i < _slots.Count; i++)
-            {
-                _slots[i].Title.Text = "LOT " + (i + 1);
-                // Hai LOT đầu là bắt buộc; chỉ các LOT thêm sau mới được xóa.
-                _slots[i].Remove.Enabled = _slots.Count > MinLots && i >= MinLots;
-            }
-            if (_btnAddLot != null) _btnAddLot.Enabled = _slots.Count < MaxLots;
-        }
-
-        private void ResizeSlots()
-        {
-            int width = Math.Max(_slotHost.ClientSize.Width - _slotHost.Padding.Horizontal - 2, 400);
-            foreach (LotSlot slot in _slots) slot.Host.Width = width;
-        }
-
-        private static TextEdit CreateQrEditor(string placeholder)
-        {
-            return new TextEdit
-            {
-                Dock = DockStyle.Fill,
-                Font = new Font("Tahoma", 11F, FontStyle.Bold),
-                Properties =
-                {
-                    NullValuePrompt = placeholder,
-                    NullValuePromptShowForEmptyValue = true
-                }
-            };
-        }
-
-        private static LabelControl CreateInfoLabel(string text)
-        {
-            return new LabelControl
-            {
-                Text = text,
-                Dock = DockStyle.Fill,
-                AutoSizeMode = LabelAutoSizeMode.None
-            };
-        }
-
-        private static LabelControl CreateCaption(string text)
-        {
-            var label = new LabelControl
-            {
-                Text = text,
-                Dock = DockStyle.Fill,
-                AutoSizeMode = LabelAutoSizeMode.None
-            };
-            label.Appearance.Font = new Font("Tahoma", 9F, FontStyle.Bold);
-            label.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
-            return label;
-        }
-
-        private static SpinEdit CreateQuantityEditor()
-        {
-            var editor = new SpinEdit { Dock = DockStyle.Fill, Height = 32 };
-            editor.Properties.IsFloatValue = false;
-            editor.Properties.MinValue = 1;
-            editor.Properties.MaxValue = 100000000;
-            editor.Properties.Increment = 1;
-            editor.EditValue = 1;
-            return editor;
-        }
-
-        private void AddGridColumn(string field, string caption, int width)
-        {
-            _view.Columns.Add(new GridColumn
-            {
-                FieldName = field,
-                Caption = caption,
-                Visible = true,
-                VisibleIndex = _view.Columns.Count,
-                Width = width
-            });
-        }
-
-        private void InvalidateSlot(LotSlot slot)
-        {
-            slot.Lot = null;
-            if (slot.Info != null) slot.Info.Text = "QR đã thay đổi — cần đọc lại " + slot.Title.Text;
-            UpdateButtons();
-        }
-
-        private void ReadOnEnter(KeyEventArgs e, LotSlot slot)
-        {
-            if (e.KeyCode != Keys.Enter) return;
-            e.Handled = true;
-            e.SuppressKeyPress = true;
-            ReadLot(slot);
-        }
-
-        private void ReadLot(LotSlot slot)
-        {
-            TextEdit editor = slot.Qr;
-            string title = slot.Title.Text;
             try
             {
-                string rawQr = (editor.Text ?? string.Empty).Trim();
+                string rawQr = (_txtQr.Text ?? string.Empty).Trim();
                 if (string.IsNullOrWhiteSpace(rawQr))
                     throw new InvalidOperationException("Vui lòng quét QR trước khi đọc LOT.");
 
@@ -440,15 +429,6 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
                 if (available <= 0)
                     throw new InvalidOperationException("LOT đã hết tồn trong STOCKTP; không cho phép ghép.");
 
-                // Một LOT chỉ được xuất hiện một lần trong cùng lần ghép.
-                string key = LotNoHelper.GetStockTpKey(storedLot);
-                foreach (LotSlot other in _slots)
-                {
-                    if (ReferenceEquals(other, slot) || other.Lot == null) continue;
-                    if (string.Equals(LotNoHelper.GetStockTpKey(other.Lot.LotNo), key, StringComparison.OrdinalIgnoreCase))
-                        throw new InvalidOperationException("LOT này đã được đọc ở " + other.Title.Text + ". Mỗi LOT chỉ ghép một lần.");
-                }
-
                 var selection = new StockLotSelection
                 {
                     LotNo = storedLot,
@@ -471,110 +451,304 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
                     selection.GearName = GetGearName(gearCode);
                 }
 
-                slot.Lot = selection;
-                // LOT đầu là LOT nguồn (mặc định lấy 1); các LOT sau mặc định lấy theo số lượng trên QR.
-                slot.Qty.EditValue = _slots.IndexOf(slot) == 0 ? 1 : qr.Quantity;
-                slot.Info.Text = FormatSelection(title, selection);
+                AddLotToCurrentTem(selection);
 
-                _lblStatus.Text = "Đã đọc " + title + ". Tiếp tục đọc các LOT còn lại hoặc bấm + THÊM LOT.";
-                CheckGearConsistency(); // ghi đè thanh trạng thái nếu các LOT YMVN khác Gear
-                UpdateButtons();
-
-                // Quét liên tục: chuyển sang ô QR kế tiếp chưa đọc.
-                LotSlot next = _slots.FirstOrDefault(x => x.Lot == null);
-                if (next != null) next.Qr.Focus();
+                // Xóa ô để chờ QR kế tiếp.
+                _txtQr.EditValue = null;
+                _txtQr.Focus();
             }
             catch (Exception ex)
             {
-                slot.Lot = null;
-                slot.Info.Text = "Không đọc được LOT: " + ex.Message;
-                _lblStatus.Text = "Không đạt validation — chưa có dữ liệu nào được thêm vào bảng.";
-                UpdateButtons();
+                _lblStatus.Text = "Không đạt validation — LOT chưa được thêm vào tem.";
                 XtraMessageBox.Show(ex.Message, "Không thể đọc LOT", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                editor.Focus();
-                editor.SelectAll();
+                _txtQr.Focus();
+                _txtQr.SelectAll(); // quét lại sẽ ghi đè mã lỗi
             }
         }
 
-        // ------------------------------------------------------------------ thêm bộ LOT vào bảng
-        private void AddSet()
+        private void AddLotToCurrentTem(StockLotSelection selection)
         {
+            DataRow tem = FindTem(_currentTemId);
+            List<StockLotSelection> existing = tem == null
+                ? new List<StockLotSelection>()
+                : GetLines(_currentTemId).Select(x => (StockLotSelection)x["SEL"]).ToList();
+
+            if (existing.Count > 0)
+            {
+                if (!string.Equals(NormalizeItem(existing[0].ItemCode), NormalizeItem(selection.ItemCode), StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidOperationException("Tem đang ghép là mã hàng " + existing[0].ItemCode
+                        + ", còn LOT vừa quét thuộc mã hàng " + selection.ItemCode
+                        + ". Bấm KẾT THÚC TEM (F2) để chốt tem hiện tại rồi quét lại để bắt đầu tem mới.");
+                string key = LotNoHelper.GetStockTpKey(selection.LotNo);
+                if (existing.Any(x => string.Equals(LotNoHelper.GetStockTpKey(x.LotNo), key, StringComparison.OrdinalIgnoreCase)))
+                    throw new InvalidOperationException("LOT " + selection.LotNo + " đã có trong tem đang ghép. Mỗi LOT chỉ ghép một lần trong một tem.");
+                if (existing.Count >= MaxLots)
+                    throw new InvalidOperationException("Một tem ghép tối đa " + MaxLots + " LOT. Bấm KẾT THÚC TEM (F2) để chốt tem.");
+                var candidate = new List<StockLotSelection>(existing) { selection };
+                CheckGearSet(candidate);
+            }
+
+            if (tem == null)
+            {
+                _temSeq++;
+                _currentTemId = _temSeq;
+                tem = _temTable.NewRow();
+                tem["TEMID"] = _currentTemId;
+                tem["IN"] = false;
+                tem["MAHANG"] = selection.ItemCode;
+                tem["GEAR"] = string.Empty;
+                tem["SOLOT"] = 0;
+                tem["TONGSL"] = 0;
+                tem["TRANGTHAI"] = string.Empty;
+                tem["LOTGHEP"] = string.Empty;
+                tem["OPEN"] = true;
+                _temTable.Rows.Add(tem);
+            }
+
+            // Số lượng mặc định = số lượng trên QR (không vượt tồn); sửa lại ở lưới chi tiết nếu chỉ lấy một phần.
+            int defaultQty = Math.Max(1, Math.Min(selection.QrQuantity, selection.Available));
+            DataRow line = _lineTable.NewRow();
+            line["TEMID"] = _currentTemId;
+            line["LOT"] = selection.LotNo;
+            line["MAHANG"] = selection.ItemCode;
+            line["GEAR"] = selection.IsYmvn ? FormatGear(selection) : string.Empty;
+            line["TON"] = selection.Available;
+            line["QRSL"] = selection.QrQuantity;
+            line["SL"] = defaultQty;
+            line["SEL"] = selection;
+            _lineTable.Rows.Add(line);
+
+            RecomputeTem(_currentTemId);
+            FocusTem(_currentTemId);
+            _lblStatus.Text = "Đã thêm LOT " + selection.LotNo + " vào tem #" + _currentTemId
+                + ". Quét tiếp LOT khác hoặc bấm KẾT THÚC TEM (F2).";
+        }
+
+        // ------------------------------------------------------------------ tem
+        private DataRow FindTem(int temId)
+        {
+            if (temId <= 0) return null;
+            DataRow[] rows = _temTable.Select("TEMID = " + temId.ToString(CultureInfo.InvariantCulture));
+            return rows.Length == 0 ? null : rows[0];
+        }
+
+        private List<DataRow> GetLines(int temId)
+        {
+            return _lineTable.Select("TEMID = " + temId.ToString(CultureInfo.InvariantCulture)).ToList();
+        }
+
+        private void FocusTem(int temId)
+        {
+            for (int i = 0; i < _temView.DataRowCount; i++)
+            {
+                DataRow row = _temView.GetDataRow(i);
+                if (row != null && SafeInt(row["TEMID"]) == temId)
+                {
+                    _temView.FocusedRowHandle = i;
+                    break;
+                }
+            }
+            OnFocusedTemChanged();
+        }
+
+        private void OnFocusedTemChanged()
+        {
+            DataRow row = _temView.GetFocusedDataRow();
+            int id = row == null ? 0 : SafeInt(row["TEMID"]);
+            _lineData.RowFilter = "TEMID = " + id.ToString(CultureInfo.InvariantCulture);
+            UpdateButtons();
+        }
+
+        /// <summary>Tính lại số LOT, tổng SL, payload và trạng thái của một tem sau khi thêm/sửa/xóa LOT.</summary>
+        private void RecomputeTem(int temId)
+        {
+            DataRow tem = FindTem(temId);
+            if (tem == null) return;
+
+            List<DataRow> lines = GetLines(temId);
+            var lots = lines.Select(x => (StockLotSelection)x["SEL"]).ToList();
+            var quantities = lines.Select(x => SafeInt(x["SL"])).ToList();
+            bool open = Convert.ToBoolean(tem["OPEN"]);
+
+            tem["SOLOT"] = lines.Count;
+            tem["TONGSL"] = quantities.Sum();
+            tem["LOTGHEP"] = lots.Count == 0 ? string.Empty : BuildPayload(lots, quantities);
+            tem["MAHANG"] = lots.Count == 0 ? string.Empty : lots[0].ItemCode;
+            tem["GEAR"] = lots.Count > 0 && lots[0].IsYmvn ? FormatGear(lots[0]) : string.Empty;
+
+            if (open)
+            {
+                tem["TRANGTHAI"] = "Đang ghép — " + lines.Count + " LOT" + (lines.Count < MinLots ? " (cần ít nhất " + MinLots + " LOT)" : string.Empty);
+                tem["IN"] = false;
+            }
+            else
+            {
+                string error = EvaluateTem(temId);
+                tem["TRANGTHAI"] = error == null ? "Hợp lệ" : "Lỗi: " + error;
+                if (error != null) tem["IN"] = false;
+            }
+            UpdateButtons();
+        }
+
+        /// <summary>Trả về null nếu tem hợp lệ để in, ngược lại là lý do.</summary>
+        private string EvaluateTem(int temId)
+        {
+            List<DataRow> lines = GetLines(temId);
             try
             {
-                List<StockLotSelection> lots;
-                List<int> quantities;
-                CollectSlots(out lots, out quantities);
-                ValidateSet(lots, quantities);
-
-                string lotPayload = BuildPayload(lots, quantities);
-                string itemCode = lots[0].ItemCode;
-                int total = quantities.Sum();
-
-                bool duplicate = _workRows.AsEnumerable().Any(row =>
-                    string.Equals(ReadText(row, "LOTGHEP"), lotPayload, StringComparison.OrdinalIgnoreCase));
-                if (duplicate)
-                    throw new InvalidOperationException("Bộ LOT và số lượng này đã có trong bảng.");
-
-                // Cùng một LOT ở nhiều dòng bảng: tổng lượng lấy không được vượt tồn.
-                for (int i = 0; i < lots.Count; i++)
-                {
-                    int already = SumQuantityForLot(lots[i].LotNo);
-                    if (already + quantities[i] > lots[i].Available)
-                        throw new InvalidOperationException("LOT " + lots[i].LotNo + " đã được lấy " + already
-                            + " ở các dòng trước; thêm " + quantities[i] + " sẽ vượt tồn " + lots[i].Available + ".");
-                }
-
-                string gearText = string.Empty;
-                if (lots[0].IsYmvn)
-                {
-                    string gearName = lots[0].GearName ?? string.Empty;
-                    _gearByPayload[lotPayload] = gearName;
-                    gearText = FormatGear(lots[0]);
-                }
-
-                _workRows.Rows.Add(
-                    itemCode,
-                    gearText,
-                    lots.Count,
-                    string.Join(" | ", lots.Select((l, i) => l.LotNo + ": " + quantities[i].ToString(CultureInfo.InvariantCulture))),
-                    total,
-                    lotPayload);
-
-                _view.MoveLast();
-                _lblStatus.Text = "Đã thêm một bộ " + lots.Count + " LOT hợp lệ vào bảng. STOCKTP chưa bị thay đổi.";
-                UpdateButtons();
+                ValidateSet(
+                    lines.Select(x => (StockLotSelection)x["SEL"]).ToList(),
+                    lines.Select(x => SafeInt(x["SL"])).ToList());
+                return null;
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
-                _lblStatus.Text = "Không đạt validation — không thêm dòng.";
-                XtraMessageBox.Show(ex.Message, "Không thể ghép LOT", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return ex.Message;
             }
         }
 
-        private int SumQuantityForLot(string lotNo)
+        private string GetPrintBlockReason(DataRow tem)
         {
-            int sum = 0;
-            foreach (DataRow row in _workRows.Rows)
-                foreach (KeyValuePair<string, decimal> token in ParsePayload(ReadText(row, "LOTGHEP")))
-                    if (string.Equals(token.Key, lotNo, StringComparison.OrdinalIgnoreCase))
-                        sum += (int)token.Value;
-            return sum;
+            if (Convert.ToBoolean(tem["OPEN"]))
+                return "Tem #" + tem["TEMID"] + " đang ghép. Bấm KẾT THÚC TEM (F2) trước khi tích in.";
+            return EvaluateTem(SafeInt(tem["TEMID"]));
         }
 
-        private void CollectSlots(out List<StockLotSelection> lots, out List<int> quantities)
+        private void CloseCurrentTem()
         {
-            lots = new List<StockLotSelection>();
-            quantities = new List<int>();
-            for (int i = 0; i < _slots.Count; i++)
+            DataRow tem = FindTem(_currentTemId);
+            if (tem == null)
             {
-                if (_slots[i].Lot == null)
-                    throw new InvalidOperationException("Phải đọc QR của " + _slots[i].Title.Text
-                        + " (hoặc bấm XÓA nếu không dùng LOT này).");
-                lots.Add(_slots[i].Lot);
-                quantities.Add(GetQuantity(_slots[i].Qty));
+                _lblStatus.Text = "Chưa có tem đang ghép. Quét QR để bắt đầu tem mới.";
+                _txtQr.Focus();
+                return;
             }
+
+            int temId = _currentTemId;
+            if (GetLines(temId).Count < MinLots)
+            {
+                if (XtraMessageBox.Show("Tem #" + temId + " mới có " + GetLines(temId).Count + " LOT, chưa đủ " + MinLots
+                    + " LOT để ghép.\r\nXóa tem này và bắt đầu lại?", "Kết thúc tem",
+                    MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+                {
+                    DeleteTem(temId);
+                    _lblStatus.Text = "Đã xóa tem #" + temId + " (chưa đủ LOT).";
+                }
+                _txtQr.Focus();
+                return;
+            }
+
+            tem["OPEN"] = false;
+            _currentTemId = 0;
+            RecomputeTem(temId);
+            string error = EvaluateTem(temId);
+            if (error == null)
+            {
+                tem["IN"] = true; // tem hợp lệ mặc định được tích in; bỏ tích nếu chưa muốn in
+                _lblStatus.Text = "Đã kết thúc tem #" + temId + ". Quét QR LOT tiếp theo để bắt đầu tem mới.";
+            }
+            else
+            {
+                _lblStatus.Text = "Tem #" + temId + " chưa hợp lệ: " + error + " Sửa ở lưới chi tiết hoặc bấm MỞ LẠI TEM.";
+            }
+            UpdateButtons();
+            _txtQr.Focus();
         }
 
+        private void ReopenFocusedTem()
+        {
+            DataRow tem = _temView.GetFocusedDataRow();
+            if (tem == null) return;
+            if (_currentTemId != 0)
+            {
+                XtraMessageBox.Show("Đang có tem #" + _currentTemId + " đang ghép. Bấm KẾT THÚC TEM (F2) trước khi mở lại tem khác.",
+                    "Mở lại tem", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            int temId = SafeInt(tem["TEMID"]);
+            tem["OPEN"] = true;
+            tem["IN"] = false;
+            _currentTemId = temId;
+            RecomputeTem(temId);
+            _lblStatus.Text = "Đã mở lại tem #" + temId + ". Quét QR để thêm LOT hoặc sửa số lượng rồi KẾT THÚC TEM.";
+            _txtQr.Focus();
+        }
+
+        private void DeleteTem(int temId)
+        {
+            foreach (DataRow line in GetLines(temId)) _lineTable.Rows.Remove(line);
+            DataRow tem = FindTem(temId);
+            if (tem != null) _temTable.Rows.Remove(tem);
+            if (_currentTemId == temId) _currentTemId = 0;
+            OnFocusedTemChanged();
+        }
+
+        private void RemoveFocusedTem()
+        {
+            DataRow tem = _temView.GetFocusedDataRow();
+            if (tem == null) return;
+            int temId = SafeInt(tem["TEMID"]);
+            if (XtraMessageBox.Show("Xóa tem #" + temId + " cùng các LOT của tem?", "Xác nhận",
+                MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
+                return;
+            DeleteTem(temId);
+            _lblStatus.Text = "Đã xóa tem #" + temId + ".";
+        }
+
+        private void RemoveFocusedLine()
+        {
+            DataRow line = _lineView.GetFocusedDataRow();
+            if (line == null) return;
+            int temId = SafeInt(line["TEMID"]);
+            _lineTable.Rows.Remove(line);
+            if (GetLines(temId).Count == 0) DeleteTem(temId);
+            else RecomputeTem(temId);
+            _lblStatus.Text = "Đã xóa LOT khỏi tem #" + temId + ".";
+        }
+
+        private void ClearAll()
+        {
+            if (_temTable.Rows.Count == 0) return;
+            if (XtraMessageBox.Show("Xóa toàn bộ các tem ghép đang lập?", "Xác nhận",
+                MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
+                return;
+            _lineTable.Clear();
+            _temTable.Clear();
+            _currentTemId = 0;
+            OnFocusedTemChanged();
+            _lblStatus.Text = "Đã xóa tất cả tem.";
+            _txtQr.Focus();
+        }
+
+        private void ToggleCheckAll()
+        {
+            var eligible = _temTable.AsEnumerable()
+                .Where(r => !Convert.ToBoolean(r["OPEN"]) && EvaluateTem(SafeInt(r["TEMID"])) == null)
+                .ToList();
+            if (eligible.Count == 0) return;
+            bool setTo = eligible.Any(r => !Convert.ToBoolean(r["IN"]));
+            foreach (DataRow row in eligible) row["IN"] = setTo;
+            UpdateButtons();
+        }
+
+        private void UpdateButtons()
+        {
+            if (_btnClose == null || _btnReopen == null || _btnPrint == null || _lblCurrent == null) return;
+            _btnClose.Enabled = _currentTemId != 0;
+            DataRow focused = _temView == null ? null : _temView.GetFocusedDataRow();
+            _btnReopen.Enabled = _currentTemId == 0 && focused != null && !Convert.ToBoolean(focused["OPEN"]);
+            _btnPrint.Enabled = _temTable.Rows.Count > 0;
+
+            DataRow current = FindTem(_currentTemId);
+            _lblCurrent.Text = current == null
+                ? "Chưa có tem đang ghép. Quét QR của LOT đầu tiên để bắt đầu tem mới."
+                : "Tem đang ghép #" + _currentTemId + " — mã hàng " + ReadText(current, "MAHANG")
+                    + " — " + SafeInt(current["SOLOT"]) + " LOT — tổng SL " + SafeInt(current["TONGSL"])
+                    + ". Quét tiếp LOT hoặc bấm KẾT THÚC TEM (F2).";
+        }
+
+        // ------------------------------------------------------------------ payload và kiểm tra
         private static string BuildPayload(IList<StockLotSelection> lots, IList<int> quantities)
         {
             var tokens = new List<string>(lots.Count);
@@ -595,7 +769,7 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
             if (lots == null || lots.Count < MinLots)
                 throw new InvalidOperationException("Phải ghép từ " + MinLots + " LOT trở lên.");
             if (lots.Count > MaxLots)
-                throw new InvalidOperationException("Tối đa " + MaxLots + " LOT cho một lần ghép.");
+                throw new InvalidOperationException("Tối đa " + MaxLots + " LOT cho một tem.");
 
             string firstItem = NormalizeItem(lots[0].ItemCode);
             var keys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -603,22 +777,21 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
             {
                 StockLotSelection lot = lots[i];
                 if (lot == null)
-                    throw new InvalidOperationException("Phải đọc đủ QR của tất cả các LOT.");
+                    throw new InvalidOperationException("Thiếu dữ liệu LOT của tem.");
                 if (!string.Equals(NormalizeItem(lot.ItemCode), firstItem, StringComparison.OrdinalIgnoreCase))
                     throw new InvalidOperationException("Tất cả LOT phải cùng mã hàng. LOT 1: " + lots[0].ItemCode
                         + "; LOT " + (i + 1) + ": " + lot.ItemCode + ".");
                 if (!keys.Add(LotNoHelper.GetStockTpKey(lot.LotNo)))
                     throw new InvalidOperationException("Các LOT phải khác LOTNO. LOT " + (i + 1) + " bị trùng với một LOT khác.");
                 if (quantities[i] <= 0 || quantities[i] > lot.Available)
-                    throw new InvalidOperationException("Số lượng lấy từ LOT " + (i + 1)
-                        + " phải lớn hơn 0 và không vượt tồn STOCKTP. Tồn: " + lot.Available + ".");
+                    throw new InvalidOperationException("Số lượng lấy từ LOT " + lot.LotNo
+                        + " phải lớn hơn 0 và không vượt tồn STOCKTP (" + lot.Available + ").");
             }
 
             CheckGearSet(lots);
             CheckPrintLimits(lots[0].ItemCode, BuildPayload(lots, quantities), quantities.Sum());
         }
 
-        // ------------------------------------------------------------------ YMVN / Gear
         private static string Esc(string value)
         {
             return (value ?? string.Empty).Replace("'", "''");
@@ -656,19 +829,6 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
             return string.IsNullOrWhiteSpace(lot.GearName)
                 ? "(không Gear, mã " + lot.GearCode + ")"
                 : lot.GearName + " (mã " + lot.GearCode + ")";
-        }
-
-        /// <summary>Báo ngay trên thanh trạng thái khi các LOT YMVN đã đọc khác Gear nhau.</summary>
-        private void CheckGearConsistency()
-        {
-            try
-            {
-                CheckGearSet(_slots.Where(x => x.Lot != null).Select(x => x.Lot).ToList());
-            }
-            catch (InvalidOperationException ex)
-            {
-                _lblStatus.Text = ex.Message;
-            }
         }
 
         private static void CheckGearSet(IList<StockLotSelection> lots)
@@ -714,42 +874,52 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
         }
 
         // ------------------------------------------------------------------ in
-        private void PrintWorkRows()
+        private void PrintSelectedTems()
         {
-            if (_workRows.Rows.Count == 0)
+            List<DataRow> picked = _temTable.AsEnumerable()
+                .Where(r => Convert.ToBoolean(r["IN"]))
+                .ToList();
+            if (picked.Count == 0)
             {
-                XtraMessageBox.Show("Chưa có bộ LOT hợp lệ trong bảng để in.", "Ghép LOT", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                XtraMessageBox.Show("Chưa có tem nào được tích \"In tem\". Kết thúc tem hợp lệ rồi tích chọn các tem cần in.",
+                    "Ghép LOT", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
             try
             {
-                var printRows = new List<GhepLotItem>();
-                foreach (DataRow row in _workRows.Rows)
+                // 1) Mọi tem được tích phải còn hợp lệ ở thời điểm in.
+                foreach (DataRow tem in picked)
                 {
-                    string item = ReadText(row, "MAHANG");
-                    string lotPayload = ReadText(row, "LOTGHEP");
-                    if (string.IsNullOrWhiteSpace(item) || string.IsNullOrWhiteSpace(lotPayload))
-                        throw new InvalidOperationException("Bảng ghép LOT có dòng thiếu mã hàng hoặc dữ liệu LOT.");
-
-                    printRows.Add(new GhepLotItem
-                    {
-                        MaHang = item,
-                        GioXuat = 0,
-                        Lot = lotPayload
-                    });
+                    string reason = GetPrintBlockReason(tem);
+                    if (reason != null)
+                        throw new InvalidOperationException("Tem #" + tem["TEMID"] + " không hợp lệ: " + reason);
                 }
 
-                // Recheck live stock immediately before staging/printing to prevent stale validation.
-                RevalidateWorkRows();
+                // 2) Usp_gheplotPrint dùng SELECT DISTINCT LOT, MAHANG: hai tem trùng payload chỉ in một tem.
+                var payloads = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (DataRow tem in picked)
+                    if (!payloads.Add(ReadText(tem, "LOTGHEP")))
+                        throw new InvalidOperationException("Hai tem được tích có cùng LOT và số lượng (" + ReadText(tem, "LOTGHEP")
+                            + "). Bỏ tích một tem, hoặc đổi số lượng, nếu không hệ thống chỉ in một tem.");
+
+                // 3) Kiểm tra lại tồn thực tế, cộng dồn lượng lấy của cùng một LOT qua các tem được in.
+                RevalidateStock(picked);
+
+                var printRows = picked.Select(tem => new GhepLotItem
+                {
+                    MaHang = ReadText(tem, "MAHANG"),
+                    GioXuat = 0,
+                    Lot = ReadText(tem, "LOTGHEP")
+                }).ToList();
 
                 DataTable reportData = _printService.InGhepLot(printRows, Environment.MachineName);
                 if (reportData == null || reportData.Rows.Count == 0)
                     throw new InvalidOperationException("Usp_gheplotPrint không trả dữ liệu tem. Không mở màn hình in.");
 
-                XtraReport report = BuildReport(reportData);
+                XtraReport report = BuildReport(reportData, picked);
                 new ReportPrintTool(report).ShowPreviewDialog();
-                _lblStatus.Text = "Đã dựng dữ liệu in ghép LOT bằng luồng in hiện có.";
+                _lblStatus.Text = "Đã dựng dữ liệu in " + picked.Count + " tem ghép LOT bằng luồng in hiện có.";
             }
             catch (Exception ex)
             {
@@ -763,12 +933,18 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
         /// đọc [Model]); Usp_gheplotPrint chỉ trả B20Item.model nên nếu không thay thì tem in sai Gear.
         /// Khách khác: giữ nguyên mẫu GHEPLOT.
         /// </summary>
-        private XtraReport BuildReport(DataTable reportData)
+        private XtraReport BuildReport(DataTable reportData, IList<DataRow> picked)
         {
-            int ymvnRows = _workRows.AsEnumerable().Count(r => _gearByPayload.ContainsKey(ReadText(r, "LOTGHEP")));
-            if (ymvnRows == 0) return new GHEPLOT { DataSource = reportData };
-            if (ymvnRows != _workRows.Rows.Count)
-                throw new InvalidOperationException("Bảng đang lẫn dòng YMVN (có Gear) và dòng khách khác. Hãy in riêng từng loại.");
+            var gearByPayload = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (DataRow tem in picked)
+            {
+                StockLotSelection first = GetLines(SafeInt(tem["TEMID"])).Select(x => (StockLotSelection)x["SEL"]).First();
+                if (first.IsYmvn) gearByPayload[ReadText(tem, "LOTGHEP")] = first.GearName ?? string.Empty;
+            }
+
+            if (gearByPayload.Count == 0) return new GHEPLOT { DataSource = reportData };
+            if (gearByPayload.Count != picked.Count)
+                throw new InvalidOperationException("Các tem được tích đang lẫn tem YMVN (có Gear) và tem khách khác. Hãy in riêng từng loại.");
             if (!reportData.Columns.Contains("Model") || !reportData.Columns.Contains("ItemLotCode"))
                 throw new InvalidOperationException("Dữ liệu in thiếu cột Model/ItemLotCode nên không điền được Gear.");
 
@@ -776,121 +952,47 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
             {
                 string payload = Convert.ToString(row["ItemLotCode"]).Trim();
                 string gear;
-                if (!_gearByPayload.TryGetValue(payload, out gear))
-                    throw new InvalidOperationException("Không tìm thấy Gear cho tem LOT '" + payload + "'. Hãy lập lại dòng ghép.");
+                if (!gearByPayload.TryGetValue(payload, out gear))
+                    throw new InvalidOperationException("Không tìm thấy Gear cho tem LOT '" + payload + "'. Hãy lập lại tem.");
                 row["Model"] = gear;
             }
             return new GHEPLOT_YMVN { DataSource = reportData };
         }
 
-        private void RevalidateWorkRows()
+        private void RevalidateStock(IList<DataRow> picked)
         {
-            // Tổng lượng cần lấy theo từng LOT trên TẤT CẢ các dòng bảng.
+            // Tổng lượng cần lấy theo từng LOT trên TẤT CẢ các tem được in.
             var required = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-            var itemByRow = new List<Tuple<string, List<KeyValuePair<string, decimal>>>>();
-            foreach (DataRow row in _workRows.Rows)
+            var itemByLot = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (DataRow tem in picked)
             {
-                var tokens = ParsePayload(ReadText(row, "LOTGHEP")).ToList();
-                if (tokens.Count < MinLots)
-                    throw new InvalidOperationException("Dòng ghép LOT '" + ReadText(row, "LOTGHEP") + "' có ít hơn " + MinLots + " LOT.");
-                itemByRow.Add(Tuple.Create(ReadText(row, "MAHANG"), tokens));
-                foreach (KeyValuePair<string, decimal> token in tokens)
+                string item = ReadText(tem, "MAHANG");
+                foreach (KeyValuePair<string, decimal> token in ParsePayload(ReadText(tem, "LOTGHEP")))
                 {
                     int existing;
                     required.TryGetValue(token.Key, out existing);
                     required[token.Key] = existing + (int)token.Value;
-                }
-            }
-
-            var currentStock = new Dictionary<string, Tuple<string, int>>(StringComparer.OrdinalIgnoreCase);
-            foreach (string lot in required.Keys.Where(x => !string.IsNullOrWhiteSpace(x)))
-            {
-                DataTable current = _stockRepository.GetTonKhoTheoLot(new List<string> { lot });
-                var matches = current.AsEnumerable()
-                    .Where(row => string.Equals(ReadText(row, "LOT"), lot, StringComparison.OrdinalIgnoreCase))
-                    .ToList();
-                if (matches.Count != 1)
-                    throw new InvalidOperationException("Không còn xác định duy nhất LOT " + lot + " trong STOCKTP. Hãy đọc lại QR.");
-
-                currentStock[lot] = Tuple.Create(
-                    ReadText(matches[0], "PART"),
-                    SafeInt(matches[0]["SLCONLAI"]));
-            }
-
-            foreach (Tuple<string, List<KeyValuePair<string, decimal>>> row in itemByRow)
-            {
-                foreach (KeyValuePair<string, decimal> token in row.Item2)
-                {
-                    Tuple<string, int> stock = currentStock[token.Key];
-                    if (!string.Equals(NormalizeItem(stock.Item1), NormalizeItem(row.Item1), StringComparison.OrdinalIgnoreCase))
-                        throw new InvalidOperationException("Mã hàng của LOT " + token.Key + " đã thay đổi so với dòng ghép " + row.Item1 + ". Hãy đọc lại QR.");
+                    itemByLot[token.Key] = item;
                 }
             }
 
             foreach (KeyValuePair<string, int> need in required)
             {
-                int available = currentStock[need.Key].Item2;
+                DataTable current = _stockRepository.GetTonKhoTheoLot(new List<string> { need.Key });
+                var matches = current.AsEnumerable()
+                    .Where(row => string.Equals(ReadText(row, "LOT"), need.Key, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+                if (matches.Count != 1)
+                    throw new InvalidOperationException("Không còn xác định duy nhất LOT " + need.Key + " trong STOCKTP. Hãy đọc lại QR.");
+
+                if (!string.Equals(NormalizeItem(ReadText(matches[0], "PART")), NormalizeItem(itemByLot[need.Key]), StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidOperationException("Mã hàng của LOT " + need.Key + " đã thay đổi so với tem. Hãy đọc lại QR.");
+
+                int available = SafeInt(matches[0]["SLCONLAI"]);
                 if (available < need.Value)
                     throw new InvalidOperationException("LOT " + need.Key + " hiện chỉ còn " + available
-                        + ", thấp hơn tổng số lượng cần lấy " + need.Value + " trong bảng ghép.");
+                        + ", thấp hơn tổng số lượng cần lấy " + need.Value + " trong các tem được in.");
             }
-        }
-
-        private void RemoveSelectedRows()
-        {
-            int[] handles = _view.GetSelectedRows();
-            var indices = handles.Where(handle => handle >= 0)
-                .Select(handle => _view.GetDataSourceRowIndex(handle))
-                .Where(index => index >= 0)
-                .Distinct()
-                .OrderByDescending(index => index)
-                .ToList();
-
-            foreach (int index in indices)
-                if (index < _workRows.Rows.Count)
-                    _workRows.Rows.RemoveAt(index);
-
-            UpdateButtons();
-        }
-
-        private void ClearRows()
-        {
-            if (_workRows.Rows.Count == 0) return;
-            if (XtraMessageBox.Show("Xóa toàn bộ danh sách ghép LOT đang lập?", "Xác nhận",
-                MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
-                return;
-
-            _workRows.Clear();
-            UpdateButtons();
-        }
-
-        private void UpdateButtons()
-        {
-            if (_btnPrint == null || _btnAdd == null) return;
-            _btnPrint.Enabled = _workRows.Rows.Count > 0;
-            bool valid = false;
-            try
-            {
-                List<StockLotSelection> lots;
-                List<int> quantities;
-                CollectSlots(out lots, out quantities);
-                ValidateSet(lots, quantities);
-                valid = true;
-            }
-            catch
-            {
-                valid = false;
-            }
-            _btnAdd.Enabled = valid;
-        }
-
-        private static string FormatSelection(string title, StockLotSelection selection)
-        {
-            return title + ": " + selection.LotNo
-                + " | " + selection.ItemCode
-                + " | Tồn STOCKTP: " + selection.Available.ToString(CultureInfo.InvariantCulture)
-                + " | SL trên QR: " + selection.QrQuantity.ToString(CultureInfo.InvariantCulture)
-                + (selection.IsYmvn ? " | YMVN Gear: " + FormatGear(selection) : string.Empty);
         }
 
         private static string NormalizeItem(string value)
@@ -925,22 +1027,6 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
             return 0;
         }
 
-        private static int GetQuantity(SpinEdit editor)
-        {
-            return SafeInt(editor.EditValue);
-        }
-
-        private sealed class LotSlot
-        {
-            public TableLayoutPanel Host;
-            public LabelControl Title;
-            public TextEdit Qr;
-            public SimpleButton Read;
-            public SpinEdit Qty;
-            public SimpleButton Remove;
-            public LabelControl Info;
-            public StockLotSelection Lot;
-        }
 
         private sealed class StockLotSelection
         {
