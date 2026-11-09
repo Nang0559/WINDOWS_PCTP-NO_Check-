@@ -6,6 +6,7 @@ using DevExpress.XtraGrid.Views.Grid;
 using PCTP.Modules.BaoCao.Infrastructure.Queries;
 using PCTP.Modules.BaoCao.Infrastructure.Repositories;
 using PCTP.Modules.BaoCao.UI;
+using PCTP.Shared.Lookup;
 using PCTP.Modules.XuLyHangLoi.Models;
 using PCTP.Modules.XuLyHangLoi.Services;
 using System;
@@ -153,6 +154,7 @@ namespace PCTP.Modules.XuLyHangLoi
         private int _traceVersion;
         private bool _dangNapLuoi;
 
+        private StockLookupControl _lookup; // chế độ ChiXemLuongDi: ô tìm chung với báo cáo
         private TextEdit _txtMaHang;
         private TextEdit _txtLot;
         private DateEdit _dtTu;
@@ -239,7 +241,10 @@ namespace PCTP.Modules.XuLyHangLoi
                 if (_mode == ChedoDoiChieuPhieuGiao.DoiChieuVaGan)
                     TimKiem();
                 else
+                {
                     TraCuuLuongDi();
+                    var _ = NapGoiYMaHangAsync();
+                }
             };
         }
 
@@ -315,6 +320,24 @@ namespace PCTP.Modules.XuLyHangLoi
                 _lblDen.Visible = false;
                 _dtTu.Visible = false;
                 _dtDen.Visible = false;
+            }
+
+            if (chiXem)
+            {
+                // Dùng chung StockLookupControl với các báo cáo (Lịch sử kho / Truy xuất): chọn mã hàng từ danh mục thật,
+                // hoặc nhập LOT / quét tem QR. Các ô nhập tay cũ chỉ còn giữ giá trị (ẩn) cho phần truy vết bên dưới.
+                foreach (Control c in top.Controls)
+                    c.Visible = false;
+
+                _lookup = new StockLookupControl { Left = 12, Top = 2, Width = 640, Height = 80 };
+                _lookup.SearchRequested += (s, e) => LookupTimKiem();
+                top.Controls.Add(_lookup);
+
+                if (_txtLot.Text.Length > 0)
+                {
+                    _lookup.SelectLotQrTab();
+                    _lookup.SetInputText(_txtLot.Text);
+                }
             }
 
             _lblKetQua = new LabelControl { Left = 12, Top = 84, Width = 1100, AutoSizeMode = LabelAutoSizeMode.None };
@@ -535,6 +558,67 @@ namespace PCTP.Modules.XuLyHangLoi
                 TraCuuLuongDi();
         }
 
+        // Nạp danh mục mã hàng cho ô tìm chung (cùng nguồn với báo cáo Lịch sử kho).
+        private async Task NapGoiYMaHangAsync()
+        {
+            if (_lookup == null)
+                return;
+
+            try
+            {
+                var codes = await Task.Run(() => new StockHistoryQueryService().GetItemCodesAsync(CancellationToken.None));
+
+                if (IsDisposed)
+                    return;
+
+                var rows = new System.Data.DataTable();
+                rows.Columns.Add("PART", typeof(string));
+                foreach (string code in codes ?? new string[0])
+                    if (!string.IsNullOrWhiteSpace(code))
+                        rows.Rows.Add(code);
+
+                _lookup.SetItemSuggestions(rows, "PART", null);
+            }
+            catch (Exception)
+            {
+                // Không có danh sách gợi ý vẫn nhập tay được.
+            }
+        }
+
+        // Tab "Tìm theo mã": chỉ chọn mã hàng. Tab "LOT / QR": tem QR (Lot:Mã hàng:...) hoặc LOT thuần.
+        private void LookupTimKiem()
+        {
+            string input = _lookup.InputText;
+
+            if (input.Length == 0)
+                return;
+
+            if (_lookup.IsItemSearch)
+            {
+                _txtMaHang.Text = input;
+                _lblKetQua.Text = "Đã chọn mã hàng " + input + ". Nhập LOT hoặc quét tem QR ở tab \"Tìm theo LOT / QR\" để xem luồng đi.";
+                _lblKetQua.Appearance.ForeColor = Color.DimGray;
+                _lookup.SelectLotQrTab();
+                _lookup.FocusInput();
+                return;
+            }
+
+            QrItemInfo info;
+            string error;
+
+            if (QrItemParser.TryParse(input, out info, out error))
+            {
+                _txtMaHang.Text = info.ItemCode ?? string.Empty;
+                _txtLot.Text = info.Lot ?? string.Empty;
+            }
+            else
+            {
+                _txtLot.Text = input;
+            }
+
+            ChayTraCuu();
+        }
+
         private void TraCuuLuongDi()
         {
             CapNhatLuongDiAsync(LotChoTruyVet());
@@ -585,15 +669,7 @@ namespace PCTP.Modules.XuLyHangLoi
         private LotTraceTimelineBuilder LayTimelineBuilder()
         {
             if (_timelineBuilder == null)
-            {
-                var delivery = new DeliveryTraceReadService();
-
-                _timelineBuilder = new LotTraceTimelineBuilder(
-                    delivery,
-                    delivery,
-                    new ProductionLotTraceRepository(),
-                    new StockHistoryQueryService());
-            }
+                _timelineBuilder = LotTraceTimelineBuilderFactory.CreateDefault();
 
             return _timelineBuilder;
         }

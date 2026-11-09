@@ -1,6 +1,7 @@
 using PCTP.Common;
 using PCTP.Modules.BaoCao.Application.Contracts;
 using PCTP.Modules.BaoCao.Application.Contracts.Queries;
+using PCTP.Modules.BaoCao.Infrastructure.Queries;
 using PCTP.Modules.BaoCao.Infrastructure.Repositories;
 using System;
 using System.Collections.Generic;
@@ -10,6 +11,23 @@ using System.Threading.Tasks;
 
 namespace PCTP.Modules.BaoCao.UI
 {
+    /// <summary>
+    /// Dựng LotTraceTimelineBuilder với các nguồn dữ liệu mặc định (giao hàng, sản xuất, lịch sử kho).
+    /// Các form ngoài BaoCao (vd. FormDoiChieuPhieuGiao) dùng chung để khỏi lặp cách ghép nguồn.
+    /// </summary>
+    public static class LotTraceTimelineBuilderFactory
+    {
+        public static LotTraceTimelineBuilder CreateDefault()
+        {
+            var delivery = new DeliveryTraceReadService();
+            return new LotTraceTimelineBuilder(
+                delivery,
+                delivery,
+                new ProductionLotTraceRepository(),
+                new StockHistoryQueryService());
+        }
+    }
+
     public sealed class TraceTimelineResult
     {
         public List<TraceTimelineNode> Nodes = new List<TraceTimelineNode>();
