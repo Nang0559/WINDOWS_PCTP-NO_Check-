@@ -201,11 +201,30 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             if (ownTransaction) Uow.Begin();
             try
             {
-                object idpObj = ExecuteScalar(@"
+                // IDP là IDENTITY ở một số DB nhưng chỉ là INT NOT NULL (không identity) ở DB khác
+                // (vd DB B7R2_FCC đang chạy) -> kiểm tra rồi chọn cách sinh IDP phù hợp.
+                bool idpLaIdentity = false;
+                object idCheck = ExecuteScalar(
+                    "SELECT ISNULL(COLUMNPROPERTY(OBJECT_ID(N'dbo.TMPPHIEUGIAODBHD'), N'IDP', 'IsIdentity'), 0)");
+                if (idCheck != null && idCheck != DBNull.Value)
+                    idpLaIdentity = Convert.ToInt32(idCheck) == 1;
+
+                string sqlHeader = idpLaIdentity
+                    ? @"
                 INSERT INTO TMPPHIEUGIAODBHD
                     (NAME, TRANGTHAIGIAO, Note, NGAYLAP, NHAMAY, NHAMAYNAME)
                 OUTPUT INSERTED.IDP
-                VALUES (@ten, 0, @note, @ngayLap, @nhaMay, @nhaMayName)",
+                VALUES (@ten, 0, @note, @ngayLap, @nhaMay, @nhaMayName)"
+                    // Không identity: tự cấp IDP = MAX+1 trong CÙNG câu lệnh, khóa UPDLOCK/HOLDLOCK
+                    // để 2 máy lưu cùng lúc không trùng IDP (nằm trong transaction của Uow).
+                    : @"
+                INSERT INTO TMPPHIEUGIAODBHD
+                    (IDP, NAME, TRANGTHAIGIAO, Note, NGAYLAP, NHAMAY, NHAMAYNAME)
+                OUTPUT INSERTED.IDP
+                SELECT ISNULL(MAX(IDP), 0) + 1, @ten, 0, @note, @ngayLap, @nhaMay, @nhaMayName
+                FROM TMPPHIEUGIAODBHD WITH (UPDLOCK, HOLDLOCK)";
+
+                object idpObj = ExecuteScalar(sqlHeader,
                     new SqlParameter("@ten", (object)ten ?? DBNull.Value),
                     new SqlParameter("@note", (object)note ?? DBNull.Value),
                     new SqlParameter("@ngayLap", ngayLap),
@@ -214,13 +233,28 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
 
                 int idp = Convert.ToInt32(idpObj);
 
-                foreach (DataRow row in chiTiet.Rows)
-                {
-                    ExecuteNonQuery(@"
+                // Bảng chi tiết cũng có thể có ID INT NOT NULL (không identity) -> tự cấp ID = MAX+1.
+                bool idCtLaIdentity = false;
+                object idCtCheck = ExecuteScalar(
+                    "SELECT ISNULL(COLUMNPROPERTY(OBJECT_ID(N'dbo.TMPPHIEUGIAOHANGDBCT'), N'ID', 'IsIdentity'), 0)");
+                if (idCtCheck != null && idCtCheck != DBNull.Value)
+                    idCtLaIdentity = Convert.ToInt32(idCtCheck) == 1;
+
+                string sqlChiTiet = idCtLaIdentity
+                    ? @"
                     INSERT INTO TMPPHIEUGIAOHANGDBCT
                         (IDP, MAHANG, TENHANG, SOLUONG, GIOGIAO, NHAMAY, CUA, TRUYEN, STATUS, TTNHAN)
                     VALUES
-                        (@idp, @ma, @ten, @sl, @gio, @nm, @cua, @tr, 'NG', 1)",
+                        (@idp, @ma, @ten, @sl, @gio, @nm, @cua, @tr, 'NG', 1)"
+                    : @"
+                    INSERT INTO TMPPHIEUGIAOHANGDBCT
+                        (ID, IDP, MAHANG, TENHANG, SOLUONG, GIOGIAO, NHAMAY, CUA, TRUYEN, STATUS, TTNHAN)
+                    SELECT ISNULL(MAX(ID), 0) + 1, @idp, @ma, @ten, @sl, @gio, @nm, @cua, @tr, 'NG', 1
+                    FROM TMPPHIEUGIAOHANGDBCT WITH (UPDLOCK, HOLDLOCK)";
+
+                foreach (DataRow row in chiTiet.Rows)
+                {
+                    ExecuteNonQuery(sqlChiTiet,
                         new SqlParameter("@idp", idp),
                         new SqlParameter("@ma", row["MaHang"]),
                         new SqlParameter("@ten", row["TenHang"]),
