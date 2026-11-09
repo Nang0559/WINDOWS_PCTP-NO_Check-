@@ -46,7 +46,10 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
         private readonly StockTpRepository _stockRepository;
         private readonly InPhieuService _printService;
         private readonly DataTable _workRows;
+        private readonly SQLPROVIDER _sql;
         private readonly List<LotSlot> _slots = new List<LotSlot>();
+        // payload LOT ghép -> tên Gear. Chỉ chứa các dòng hàng YMVN (có Gear); dòng khách khác không có khóa.
+        private readonly Dictionary<string, string> _gearByPayload = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
         private FlowLayoutPanel _slotHost;
         private LabelControl _lblStatus;
@@ -59,6 +62,7 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
         public FormGhepLotThuCong()
         {
             var sql = new SQLPROVIDER();
+            _sql = sql;
             var executor = new PhieuSqlExecutor(sql);
             var unitOfWork = new UnitOfWork(sql);
 
@@ -75,6 +79,7 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
         {
             var table = new DataTable("ManualGhepLot");
             table.Columns.Add("MAHANG", typeof(string));
+            table.Columns.Add("GEAR", typeof(string));
             table.Columns.Add("SOLOT", typeof(int));
             table.Columns.Add("CHITIET", typeof(string));
             table.Columns.Add("TONGSL", typeof(int));
@@ -167,6 +172,7 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
             _view.OptionsSelection.MultiSelect = true;
             _view.OptionsSelection.MultiSelectMode = GridMultiSelectMode.RowSelect;
             AddGridColumn("MAHANG", "Mã hàng", 150);
+            AddGridColumn("GEAR", "Gear (YMVN)", 95);
             AddGridColumn("SOLOT", "Số LOT", 70);
             AddGridColumn("CHITIET", "Chi tiết (LOT: SL)", 520);
             AddGridColumn("TONGSL", "Tổng SL in", 100);
@@ -453,12 +459,25 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
                     RawQr = rawQr
                 };
 
+                // Hàng YMVN: Gear là ký tự thứ 13 của LOT (B20Gear.Code). LOT khác Gear không được ghép chung
+                // vì luồng ghép tự động cũng cấp phát riêng theo từng Gear.
+                selection.IsYmvn = IsYmvnItem(selection.ItemCode);
+                if (selection.IsYmvn)
+                {
+                    int gearCode;
+                    if (!TryGetGearCode(storedLot, out gearCode))
+                        throw new InvalidOperationException("LOT YMVN " + storedLot + " không có ký tự Gear hợp lệ ở vị trí thứ 13.");
+                    selection.GearCode = gearCode;
+                    selection.GearName = GetGearName(gearCode);
+                }
+
                 slot.Lot = selection;
                 // LOT đầu là LOT nguồn (mặc định lấy 1); các LOT sau mặc định lấy theo số lượng trên QR.
                 slot.Qty.EditValue = _slots.IndexOf(slot) == 0 ? 1 : qr.Quantity;
                 slot.Info.Text = FormatSelection(title, selection);
 
                 _lblStatus.Text = "Đã đọc " + title + ". Tiếp tục đọc các LOT còn lại hoặc bấm + THÊM LOT.";
+                CheckGearConsistency(); // ghi đè thanh trạng thái nếu các LOT YMVN khác Gear
                 UpdateButtons();
 
                 // Quét liên tục: chuyển sang ô QR kế tiếp chưa đọc.
@@ -505,8 +524,17 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
                             + " ở các dòng trước; thêm " + quantities[i] + " sẽ vượt tồn " + lots[i].Available + ".");
                 }
 
+                string gearText = string.Empty;
+                if (lots[0].IsYmvn)
+                {
+                    string gearName = lots[0].GearName ?? string.Empty;
+                    _gearByPayload[lotPayload] = gearName;
+                    gearText = FormatGear(lots[0]);
+                }
+
                 _workRows.Rows.Add(
                     itemCode,
+                    gearText,
                     lots.Count,
                     string.Join(" | ", lots.Select((l, i) => l.LotNo + ": " + quantities[i].ToString(CultureInfo.InvariantCulture))),
                     total,
@@ -586,7 +614,76 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
                         + " phải lớn hơn 0 và không vượt tồn STOCKTP. Tồn: " + lot.Available + ".");
             }
 
+            CheckGearSet(lots);
             CheckPrintLimits(lots[0].ItemCode, BuildPayload(lots, quantities), quantities.Sum());
+        }
+
+        // ------------------------------------------------------------------ YMVN / Gear
+        private static string Esc(string value)
+        {
+            return (value ?? string.Empty).Replace("'", "''");
+        }
+
+        private bool IsYmvnItem(string itemCode)
+        {
+            // Cùng điều kiện với UF_TACHLOT: hàng thuộc khách YMVN (CustomerCode 0100002) theo B20ItemQuyCach.
+            string raw = _sql.ExecuteReader(_sql.B7R2_FCCdb,
+                "SELECT COUNT(*) FROM B20ItemQuyCach WHERE REPLACE(ItemCode, '-', '') = REPLACE(N'"
+                + Esc(itemCode) + "', '-', '') AND CustomerCode = '0100002'");
+            int count;
+            return int.TryParse((raw ?? string.Empty).Trim(), out count) && count > 0;
+        }
+
+        private string GetGearName(int gearCode)
+        {
+            // Code 0 là dòng hợp lệ có Name rỗng (không phân loại Gear).
+            string raw = _sql.ExecuteReader(_sql.B7R2_FCCdb,
+                "SELECT ISNULL(Name,'') FROM B20Gear WHERE Code = " + gearCode.ToString(CultureInfo.InvariantCulture));
+            return (raw ?? string.Empty).Trim();
+        }
+
+        private static bool TryGetGearCode(string lot, out int gearCode)
+        {
+            gearCode = 0;
+            string text = (lot ?? string.Empty).Trim();
+            if (text.Length < 13 || !char.IsDigit(text[12])) return false;
+            gearCode = text[12] - '0';
+            return true;
+        }
+
+        private static string FormatGear(StockLotSelection lot)
+        {
+            return string.IsNullOrWhiteSpace(lot.GearName)
+                ? "(không Gear, mã " + lot.GearCode + ")"
+                : lot.GearName + " (mã " + lot.GearCode + ")";
+        }
+
+        /// <summary>Báo ngay trên thanh trạng thái khi các LOT YMVN đã đọc khác Gear nhau.</summary>
+        private void CheckGearConsistency()
+        {
+            try
+            {
+                CheckGearSet(_slots.Where(x => x.Lot != null).Select(x => x.Lot).ToList());
+            }
+            catch (InvalidOperationException ex)
+            {
+                _lblStatus.Text = ex.Message;
+            }
+        }
+
+        private static void CheckGearSet(IList<StockLotSelection> lots)
+        {
+            if (lots == null || lots.Count == 0 || !lots.Any(x => x != null && x.IsYmvn)) return;
+            if (lots.Any(x => x != null && !x.IsYmvn))
+                throw new InvalidOperationException("Không ghép chung LOT YMVN (có Gear) với LOT của khách khác.");
+
+            StockLotSelection first = lots[0];
+            for (int i = 1; i < lots.Count; i++)
+            {
+                if (lots[i].GearCode != first.GearCode)
+                    throw new InvalidOperationException("YMVN: các LOT ghép phải cùng Gear. LOT 1: Gear "
+                        + FormatGear(first) + "; LOT " + (i + 1) + ": Gear " + FormatGear(lots[i]) + ".");
+            }
         }
 
         /// <summary>
@@ -650,7 +747,7 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
                 if (reportData == null || reportData.Rows.Count == 0)
                     throw new InvalidOperationException("Usp_gheplotPrint không trả dữ liệu tem. Không mở màn hình in.");
 
-                var report = new GHEPLOT { DataSource = reportData };
+                XtraReport report = BuildReport(reportData);
                 new ReportPrintTool(report).ShowPreviewDialog();
                 _lblStatus.Text = "Đã dựng dữ liệu in ghép LOT bằng luồng in hiện có.";
             }
@@ -659,6 +756,31 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
                 XtraMessageBox.Show(ex.Message, "Không thể in ghép LOT", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 _lblStatus.Text = "In không thành công. Kiểm tra tồn và dữ liệu ghép LOT trước khi thử lại.";
             }
+        }
+
+        /// <summary>
+        /// Hàng YMVN: dùng mẫu tem GHEPLOT_YMVN và điền Gear vào cột Model (ô dưới nhãn "Gear" của mẫu tem YMVN
+        /// đọc [Model]); Usp_gheplotPrint chỉ trả B20Item.model nên nếu không thay thì tem in sai Gear.
+        /// Khách khác: giữ nguyên mẫu GHEPLOT.
+        /// </summary>
+        private XtraReport BuildReport(DataTable reportData)
+        {
+            int ymvnRows = _workRows.AsEnumerable().Count(r => _gearByPayload.ContainsKey(ReadText(r, "LOTGHEP")));
+            if (ymvnRows == 0) return new GHEPLOT { DataSource = reportData };
+            if (ymvnRows != _workRows.Rows.Count)
+                throw new InvalidOperationException("Bảng đang lẫn dòng YMVN (có Gear) và dòng khách khác. Hãy in riêng từng loại.");
+            if (!reportData.Columns.Contains("Model") || !reportData.Columns.Contains("ItemLotCode"))
+                throw new InvalidOperationException("Dữ liệu in thiếu cột Model/ItemLotCode nên không điền được Gear.");
+
+            foreach (DataRow row in reportData.Rows)
+            {
+                string payload = Convert.ToString(row["ItemLotCode"]).Trim();
+                string gear;
+                if (!_gearByPayload.TryGetValue(payload, out gear))
+                    throw new InvalidOperationException("Không tìm thấy Gear cho tem LOT '" + payload + "'. Hãy lập lại dòng ghép.");
+                row["Model"] = gear;
+            }
+            return new GHEPLOT_YMVN { DataSource = reportData };
         }
 
         private void RevalidateWorkRows()
@@ -767,7 +889,8 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
             return title + ": " + selection.LotNo
                 + " | " + selection.ItemCode
                 + " | Tồn STOCKTP: " + selection.Available.ToString(CultureInfo.InvariantCulture)
-                + " | SL trên QR: " + selection.QrQuantity.ToString(CultureInfo.InvariantCulture);
+                + " | SL trên QR: " + selection.QrQuantity.ToString(CultureInfo.InvariantCulture)
+                + (selection.IsYmvn ? " | YMVN Gear: " + FormatGear(selection) : string.Empty);
         }
 
         private static string NormalizeItem(string value)
@@ -827,6 +950,9 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
             public int Available { get; set; }
             public int QrQuantity { get; set; }
             public string RawQr { get; set; }
+            public bool IsYmvn { get; set; }
+            public int GearCode { get; set; }
+            public string GearName { get; set; }
         }
     }
 }
