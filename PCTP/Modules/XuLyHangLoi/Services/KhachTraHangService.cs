@@ -102,6 +102,12 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             // Chuẩn hoá + chặn khách chưa cấu hình (ném KeyNotFoundException).
             phieu.CustomerNo = CustomerTableConfig.Get(phieu.CustomerNo).CustomerNo;
 
+            // Khách trả BẮT BUỘC đối chiếu được với lần giao gốc (thông tin hàng đã giao):
+            // cùng mã hàng, đúng khách. SL khách trả được phép KHÁC SL đã giao
+            // (trả một phần / trả gộp nhiều lần giao) nên KHÔNG chặn theo số lượng.
+            foreach (var ct in phieu.ChiTiet)
+                XacThucVaDienPhieuGiaoGoc(phieu, ct);
+
             phieu.TongSoLuongNhan =
                 phieu.ChiTiet.Sum(x => x.SoLuong);
 
@@ -144,6 +150,146 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             throw new ArgumentException(
                 "Phải cung cấp LotNo, hoặc cả MaHang và NgayGiao " +
                 "để tìm phiếu giao ứng viên.");
+        }
+
+        // ============================================================
+        // 2b. ĐỐI CHIẾU THEO KHOẢNG THỜI GIAN
+        //
+        // Cùng một mã hàng / LOT có thể được giao nhiều lần: trả về tất cả các
+        // lần giao trong khoảng thời gian để người tiếp nhận chọn đúng phiếu.
+        // ============================================================
+
+        public List<PhieuGiaoUngVienInfo> TimPhieuGiaoTheoKhoang(
+            string customerNo,
+            string maHang,
+            string lotNo,
+            DateTime tuNgay,
+            DateTime denNgay)
+        {
+            if (string.IsNullOrWhiteSpace(maHang))
+                throw new ArgumentException(
+                    "Phải có Mã hàng để tìm phiếu giao.",
+                    nameof(maHang));
+
+            if (tuNgay.Date > denNgay.Date)
+                throw new ArgumentException(
+                    "Từ ngày phải nhỏ hơn hoặc bằng Đến ngày.");
+
+            string[] patterns = null;
+
+            if (!string.IsNullOrWhiteSpace(customerNo))
+            {
+                // Ném KeyNotFoundException nếu khách chưa cấu hình (giống TiepNhanPhieuKhachTra).
+                var cfg = CustomerTableConfig.Get(customerNo);
+
+                if (cfg.NhaMayMatchPatterns != null && cfg.NhaMayMatchPatterns.Length > 0)
+                    patterns = cfg.NhaMayMatchPatterns;
+            }
+
+            var list = _phieuGiaoRepo.TimTheoKhoang(
+                maHang, lotNo, tuNgay, denNgay, patterns)
+                ?? new List<PhieuGiaoUngVienInfo>();
+
+            foreach (var slip in list)
+                slip.SoLuongLot = TinhSoLuongLot(slip, lotNo);
+
+            return list;
+        }
+
+        public int? LaySoLuongDaGiao(string dinhDanhPhieuGiao, string lotNo)
+        {
+            if (string.IsNullOrWhiteSpace(dinhDanhPhieuGiao))
+                return null;
+
+            var slip = _phieuGiaoRepo.GetByDinhDanhKey(dinhDanhPhieuGiao.Trim());
+
+            if (slip == null)
+                return null;
+
+            return TinhSoLuongLot(slip, lotNo) ?? slip.SOLUONG;
+        }
+
+        /// <summary>
+        /// SL của đúng LOT trong cột LOT ghép của phiếu giao ("LOT1-100,LOT2-50").
+        /// Null nếu không có LOT cần tra hoặc LOT không nằm trong phiếu.
+        /// </summary>
+        private static int? TinhSoLuongLot(PhieuGiaoUngVienInfo slip, string lotNo)
+        {
+            if (slip == null || string.IsNullOrWhiteSpace(lotNo))
+                return null;
+
+            decimal tong = 0;
+            bool thay = false;
+
+            foreach (var part in PCTP.Common.LotCodeHelper.ParseCompositeLotTolerant(
+                         slip.LOT, slip.SOLUONG))
+            {
+                if (!part.IsValid || !part.HasQuantity)
+                    continue;
+
+                if (!PCTP.Common.LotCodeHelper.AreLotKeysEquivalent(part.LotNo, lotNo))
+                    continue;
+
+                tong += part.Quantity;
+                thay = true;
+            }
+
+            return thay ? (int?)decimal.ToInt32(tong) : null;
+        }
+
+        /// <summary>
+        /// Phiếu giao gốc của dòng khách trả phải tồn tại, đúng mã hàng và đúng khách;
+        /// PO / Ngày giao / Nhà máy lấy từ chính phiếu giao (không tin dữ liệu form gửi lên).
+        /// </summary>
+        private void XacThucVaDienPhieuGiaoGoc(PhieuTraHang phieu, PhieuTraHangCT ct)
+        {
+            if (string.IsNullOrWhiteSpace(ct.DinhDanhPhieuGiao))
+                throw new ArgumentException(
+                    $"Mã hàng {ct.MaHang}: phải xác định phiếu giao gốc " +
+                    "(thông tin hàng đã giao) khi tiếp nhận phiếu khách trả.");
+
+            var slip = _phieuGiaoRepo.GetByDinhDanhKey(ct.DinhDanhPhieuGiao.Trim());
+
+            if (slip == null)
+                throw new InvalidOperationException(
+                    $"Mã hàng {ct.MaHang}: phiếu giao gốc " +
+                    $"'{ct.DinhDanhPhieuGiao}' không còn tồn tại.");
+
+            if (!string.Equals(
+                    (slip.MAHANG ?? string.Empty).Trim(),
+                    ct.MaHang.Trim(),
+                    StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException(
+                    $"Phiếu giao gốc thuộc mã {slip.MAHANG}, " +
+                    $"không phải mã {ct.MaHang} của dòng khách trả.");
+
+            var khachCuaPhieuGiao = CustomerTableConfig.ResolveByNhaMay(slip.NHAMAY);
+
+            if (khachCuaPhieuGiao != null &&
+                !string.Equals(
+                    khachCuaPhieuGiao.CustomerNo,
+                    phieu.CustomerNo,
+                    StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException(
+                    $"Phiếu giao gốc (nhà máy {slip.NHAMAY}) thuộc khách " +
+                    $"{khachCuaPhieuGiao.CustomerNo}, không phải khách " +
+                    $"{phieu.CustomerNo} đang trả hàng.");
+
+            ct.DinhDanhPhieuGiao = slip.DinhDanhKey;
+            // FVN_PhieuTraHangCT.PoNo nvarchar(50) / NhaMay nvarchar(100); PO_NO phiếu giao dài tới 200.
+            ct.PoNo = CatChuoi(slip.PO_NO, 50);
+            ct.NgayGiao = slip.NGAYGIAO;
+            ct.NhaMay = CatChuoi(slip.NHAMAY, 100);
+        }
+
+        private static string CatChuoi(string value, int maxLen)
+        {
+            if (string.IsNullOrEmpty(value))
+                return value;
+
+            value = value.Trim();
+
+            return value.Length <= maxLen ? value : value.Substring(0, maxLen);
         }
 
         // ============================================================

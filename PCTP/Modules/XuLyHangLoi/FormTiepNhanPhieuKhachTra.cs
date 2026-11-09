@@ -60,6 +60,7 @@ namespace PCTP.Modules.XuLyHangLoi
         private SimpleButton _btnHuy;
         private SimpleButton _btnXoaPhieu;
         private SimpleButton _btnTraSlot;
+        private SimpleButton _btnDoiChieu;
 
         // ============================================================
         // MỞ LẠI PHIẾU / QR
@@ -303,6 +304,16 @@ namespace PCTP.Modules.XuLyHangLoi
             _btnTraSlot.Click +=
                 (s, e) => TraSlotTheoLot();
 
+            // Khách trả phải đối chiếu được với lần giao gốc (hàng đã giao).
+            _btnDoiChieu = new SimpleButton
+            {
+                Text = "🔗 Đối chiếu phiếu giao",
+                Width = 190
+            };
+
+            _btnDoiChieu.Click +=
+                (s, e) => DoiChieuPhieuGiao();
+
             _btnHuy.Click +=
                 (s, e) =>
                 {
@@ -326,6 +337,7 @@ namespace PCTP.Modules.XuLyHangLoi
             buttonPanel.Controls.Add(_btnXoaPhieu);
             buttonPanel.Controls.Add(_btnXoa);
             buttonPanel.Controls.Add(_btnThem);
+            buttonPanel.Controls.Add(_btnDoiChieu);
             buttonPanel.Controls.Add(_btnTraSlot);
 
             mainLayout.Controls.Add(
@@ -780,7 +792,7 @@ namespace PCTP.Modules.XuLyHangLoi
                 "Lý do NG";
 
             colLyDo.Visible = true;
-            colLyDo.VisibleIndex = 5;
+            colLyDo.VisibleIndex = 8;
             colLyDo.Width = 250;
 
             // ========================================================
@@ -790,6 +802,7 @@ namespace PCTP.Modules.XuLyHangLoi
             // Service sẽ xử lý sau.
             // ========================================================
 
+            // Phiếu giao gốc đã đối chiếu: khóa định danh (ẩn) + PO / Nhà máy / SL đã giao (hiện, chỉ đọc).
             var colDinhDanh =
                 _gridView.Columns.AddField(
                     nameof(PhieuTraHangCT.DinhDanhPhieuGiao));
@@ -806,7 +819,10 @@ namespace PCTP.Modules.XuLyHangLoi
             colPo.Caption =
                 "PO";
 
-            colPo.Visible = false;
+            colPo.Visible = true;
+            colPo.VisibleIndex = 6;
+            colPo.Width = 110;
+            colPo.OptionsColumn.AllowEdit = false;
 
             // Khách có thể chỉ báo "mã hàng + ngày giao" (không có LOT):
             // dùng để khoanh vùng và đối chiếu phiếu giao gốc ở bước sau.
@@ -829,8 +845,29 @@ namespace PCTP.Modules.XuLyHangLoi
             colNhaMay.Caption =
                 "Nhà máy";
 
-            colNhaMay.Visible = false;
+            colNhaMay.Visible = true;
+            colNhaMay.VisibleIndex = 7;
+            colNhaMay.Width = 170;
+            colNhaMay.OptionsColumn.AllowEdit = false;
 
+            var colDaGiao =
+                _gridView.Columns.AddField(
+                    nameof(PhieuTraHangCT.SoLuongDaGiao));
+
+            colDaGiao.Caption =
+                "SL đã giao";
+
+            colDaGiao.Visible = true;
+            colDaGiao.VisibleIndex = 5;
+            colDaGiao.Width = 90;
+            colDaGiao.OptionsColumn.AllowEdit = false;
+            colDaGiao.DisplayFormat.FormatType =
+                DevExpress.Utils.FormatType.Numeric;
+            colDaGiao.DisplayFormat.FormatString =
+                "n0";
+
+            _gridView.ShowingEditor += GridView_ShowingEditor;
+            _gridView.RowCellStyle += GridView_RowCellStyle;
             _gridView.ValidatingEditor += GridView_ValidatingEditor;
             _gridView.CellValueChanged += GridView_CellValueChanged;
         }
@@ -995,6 +1032,195 @@ namespace PCTP.Modules.XuLyHangLoi
             _gridView.RefreshRow(e.RowHandle);
         }
 
+        // Dòng đã gắn phiếu giao gốc: khóa Mã hàng / Lot / Ngày giao để không lệch với lần giao đã đối chiếu.
+        // Muốn đổi → bấm "Đối chiếu phiếu giao" lại (chọn lần giao khác) hoặc xóa dòng.
+        private void GridView_ShowingEditor(object sender, System.ComponentModel.CancelEventArgs e)
+        {
+            var row = _gridView.GetFocusedRow() as PhieuTraHangCT;
+            var field = _gridView.FocusedColumn?.FieldName;
+
+            if (row == null || string.IsNullOrWhiteSpace(row.DinhDanhPhieuGiao))
+                return;
+
+            if (field == nameof(PhieuTraHangCT.MaHang) ||
+                field == nameof(PhieuTraHangCT.LotNo) ||
+                field == nameof(PhieuTraHangCT.NgayGiao))
+                e.Cancel = true;
+        }
+
+        // SL khách trả lớn hơn SL đã giao → tô đỏ (cho phép, chỉ cảnh báo).
+        private void GridView_RowCellStyle(object sender, RowCellStyleEventArgs e)
+        {
+            if (e.Column.FieldName != nameof(PhieuTraHangCT.SoLuong))
+                return;
+
+            var row = _gridView.GetRow(e.RowHandle) as PhieuTraHangCT;
+
+            if (row != null &&
+                row.SoLuongDaGiao.HasValue &&
+                row.SoLuong > row.SoLuongDaGiao.Value)
+                e.Appearance.ForeColor = System.Drawing.Color.Firebrick;
+        }
+
+        // ============================================================
+        // ĐỐI CHIẾU PHIẾU GIAO GỐC
+        //
+        // Khách trả → phải biết hàng đó đã giao lần nào (ngày/PO/nhà máy) và giao bao nhiêu.
+        // Cùng mã/LOT có thể giao nhiều lần nên chọn theo khoảng thời gian giao; một dòng khách
+        // trả có thể tách thành nhiều dòng, mỗi dòng gắn một lần giao với SL trả riêng.
+        // ============================================================
+
+        private void DoiChieuPhieuGiao()
+        {
+            _gridView.CloseEditor();
+            _gridView.UpdateCurrentRow();
+
+            var row = _gridView.GetFocusedRow() as PhieuTraHangCT;
+
+            if (row == null)
+            {
+                XtraMessageBox.Show(
+                    "Chọn dòng hàng cần đối chiếu phiếu giao.",
+                    "Chưa chọn dòng",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(row.MaHang))
+            {
+                XtraMessageBox.Show(
+                    "Dòng chưa có Mã hàng. Hãy chọn mã hàng trước khi đối chiếu.",
+                    "Thiếu dữ liệu",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+                return;
+            }
+
+            string customerNo = (_cboNguonKhachTra.EditValue as string ?? string.Empty).Trim();
+
+            if (customerNo.Length == 0)
+            {
+                XtraMessageBox.Show(
+                    "Vui lòng chọn khách hàng trả trước khi đối chiếu phiếu giao.",
+                    "Thiếu thông tin",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+                return;
+            }
+
+            try
+            {
+                using (var f = new FormDoiChieuPhieuGiao(
+                    _khachTraHangService,
+                    customerNo,
+                    row.MaHang,
+                    row.TenHang,
+                    row.LotNo,
+                    row.NgayGiao,
+                    row.SoLuong))
+                {
+                    if (f.ShowDialog(this) != DialogResult.OK)
+                        return;
+
+                    GanPhieuGiaoVaoDong(row, f.LotNo, f.KetQua);
+                }
+            }
+            catch (Exception ex)
+            {
+                XtraMessageBox.Show(
+                    "Không thể đối chiếu phiếu giao.\r\n\r\n" + ex.Message,
+                    "Lỗi",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+            }
+        }
+
+        // Lần giao đầu tiên gán vào dòng đang chọn; các lần giao còn lại thành dòng mới ngay bên dưới
+        // (cùng mã/LOT/lý do NG). Trùng (mã + LOT + lần giao) với dòng có sẵn → cộng dồn SL.
+        private void GanPhieuGiaoVaoDong(PhieuTraHangCT row, string lotNo, List<PhieuGiaoChon> chon)
+        {
+            if (chon == null || chon.Count == 0)
+                return;
+
+            var data = LayDanhSachDong();
+            string lot = (lotNo ?? string.Empty).Trim();
+            int viTriChen = data.IndexOf(row) + 1;
+
+            for (int i = 0; i < chon.Count; i++)
+            {
+                var c = chon[i];
+                var slip = c.Phieu;
+
+                var trung = data.FirstOrDefault(d =>
+                    !ReferenceEquals(d, row)
+                    && string.Equals(d.DinhDanhPhieuGiao, slip.DinhDanhKey, StringComparison.Ordinal)
+                    && string.Equals(d.MaHang?.Trim(), row.MaHang?.Trim(), StringComparison.OrdinalIgnoreCase)
+                    && string.Equals((d.LotNo ?? string.Empty).Trim(), lot, StringComparison.OrdinalIgnoreCase));
+
+                if (trung != null)
+                {
+                    trung.SoLuong += c.SoLuongTra;
+                    continue;
+                }
+
+                PhieuTraHangCT dich;
+
+                if (i == 0)
+                {
+                    dich = row;
+                }
+                else
+                {
+                    dich = new PhieuTraHangCT
+                    {
+                        SlotIdNguon = null,
+                        MaHang = row.MaHang,
+                        TenHang = row.TenHang,
+                        LyDoNg = row.LyDoNg
+                    };
+
+                    data.Insert(viTriChen++, dich);
+                }
+
+                dich.LotNo = lot;
+                dich.SoLuong = c.SoLuongTra;
+                dich.SoLuongDaGiao = c.SoLuongDaGiao;
+                dich.DinhDanhPhieuGiao = slip.DinhDanhKey;
+                dich.PoNo = slip.PO_NO;
+                dich.NgayGiao = slip.NGAYGIAO;
+                dich.NhaMay = slip.NHAMAY;
+            }
+
+            _grid.RefreshDataSource();
+
+            int tong = chon.Sum(x => x.SoLuongTra);
+            BaoQr($"Đã gắn {chon.Count} lần giao cho {row.MaHang} (tổng SL trả {tong:n0}).", true);
+        }
+
+        // Phiếu mở lại: điền SL đã giao cho từng dòng đã gắn phiếu giao.
+        private void NapSoLuongDaGiao(List<PhieuTraHangCT> items)
+        {
+            if (items == null)
+                return;
+
+            foreach (var ct in items)
+            {
+                if (string.IsNullOrWhiteSpace(ct.DinhDanhPhieuGiao))
+                    continue;
+
+                try
+                {
+                    ct.SoLuongDaGiao = _khachTraHangService.LaySoLuongDaGiao(
+                        ct.DinhDanhPhieuGiao, ct.LotNo);
+                }
+                catch
+                {
+                    ct.SoLuongDaGiao = null; // không tra được: chỉ mất cột đối chiếu, vẫn xem được phiếu
+                }
+            }
+        }
+
         // Ô nhập căn giữa theo chiều dọc ô (thay Dock Fill) để thẳng hàng với nhãn.
         private static void CanGiuaOCuaHeader(TableLayoutPanel header)
         {
@@ -1094,7 +1320,8 @@ namespace PCTP.Modules.XuLyHangLoi
 
             var exist = data.FirstOrDefault(d =>
                 string.Equals((d.MaHang ?? string.Empty).Trim(), ma, StringComparison.OrdinalIgnoreCase)
-                && string.Equals((d.LotNo ?? string.Empty).Trim(), lotChuan, StringComparison.OrdinalIgnoreCase));
+                && string.Equals((d.LotNo ?? string.Empty).Trim(), lotChuan, StringComparison.OrdinalIgnoreCase)
+                && string.IsNullOrWhiteSpace(d.DinhDanhPhieuGiao)); // dòng đã gắn lần giao thì không cộng dồn thêm
 
             if (exist != null)
             {
@@ -1335,8 +1562,12 @@ namespace PCTP.Modules.XuLyHangLoi
                 _dangNapDuLieu = false;
             }
 
-            _grid.DataSource =
+            var chiTiet =
                 _phieuRepo.GetItems(_phieuId) ?? new List<PhieuTraHangCT>();
+
+            NapSoLuongDaGiao(chiTiet);
+
+            _grid.DataSource = chiTiet;
 
             _choSuaChiTiet = !_khachTraHangService.CoPhieuXuLy(_phieuId);
         }
@@ -1369,6 +1600,7 @@ namespace PCTP.Modules.XuLyHangLoi
 
             _stockLookup.Enabled = suaChiTiet;
             _btnThem.Visible = suaChiTiet;
+            _btnDoiChieu.Visible = suaChiTiet;
             _btnXoa.Visible = suaChiTiet;
 
             // Đã mở lại phiếu → không còn "Tiếp nhận phiếu", chỉ Lưu thay đổi / Xóa.
@@ -1744,6 +1976,24 @@ namespace PCTP.Modules.XuLyHangLoi
                 // toàn bộ tồn của mã (AffectedLotTraceService.Trace).
                 item.LotNo = (item.LotNo ?? string.Empty).Trim();
 
+                // Khách trả BẮT BUỘC có thông tin hàng đã giao (lần giao gốc).
+                // Phiếu cũ (đang sửa) chưa từng gắn phiếu giao thì không chặn việc sửa.
+                if (_mode == FormMode.Create &&
+                    string.IsNullOrWhiteSpace(item.DinhDanhPhieuGiao))
+                {
+                    XtraMessageBox.Show(
+                        $"Dòng {i + 1} ({item.MaHang}): chưa đối chiếu phiếu giao gốc.\r\n\r\n" +
+                        "Chọn dòng rồi bấm \"Đối chiếu phiếu giao\" để chọn lần giao " +
+                        "(theo mã hàng / LOT / khoảng thời gian giao).",
+                        "Thiếu thông tin hàng đã giao",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+
+                    _gridView.FocusedRowHandle = _gridView.GetRowHandle(i);
+
+                    return false;
+                }
+
                 if (_itemByCode.Count > 0 && TimItem(item.MaHang) == null)
                 {
                     XtraMessageBox.Show(
@@ -1965,6 +2215,20 @@ namespace PCTP.Modules.XuLyHangLoi
                 }
 
                 if (!ValidateForm(items))
+                    return;
+
+                // SL trả được phép khác SL đã giao (trả một phần / gộp nhiều lần giao) → chỉ cảnh báo.
+                var vuot = items
+                    .Where(x => x.SoLuongDaGiao.HasValue && x.SoLuong > x.SoLuongDaGiao.Value)
+                    .ToList();
+
+                if (vuot.Count > 0 &&
+                    XtraMessageBox.Show(
+                        $"{vuot.Count} dòng có SL khách trả LỚN HƠN SL đã giao của lần giao gốc.\r\n" +
+                        "Vẫn tiếp tục lưu phiếu?",
+                        "SL trả lớn hơn SL đã giao",
+                        MessageBoxButtons.YesNo,
+                        MessageBoxIcon.Warning) != DialogResult.Yes)
                     return;
 
                 if (_mode == FormMode.Edit)

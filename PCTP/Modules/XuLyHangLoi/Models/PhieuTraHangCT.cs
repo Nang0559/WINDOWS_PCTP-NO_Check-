@@ -93,5 +93,11 @@ namespace PCTP.Modules.XuLyHangLoi.Models
         /// Nhà máy nhận hàng của phiếu giao gốc được xác định.
         /// </summary>
         public string NhaMay { get; set; }
+
+        /// <summary>
+        /// CHỈ DÙNG TRÊN UI: số lượng đã giao của lần giao gốc (SL của LOT trong phiếu giao,
+        /// hoặc tổng SL dòng giao) để đối chiếu với SoLuong khách trả. Không lưu xuống DB.
+        /// </summary>
+        public int? SoLuongDaGiao { get; set; }
     }
 }

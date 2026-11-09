@@ -25,6 +25,22 @@ namespace PCTP.Modules.XuLyHangLoi.Repository
             DateTime ngayGiao);
 
         // ============================================================
+        // TÌM THEO KHOẢNG THỜI GIAN GIAO (cùng một mã/LOT có thể giao nhiều lần)
+        // ============================================================
+
+        /// <summary>
+        /// Các lần giao của một mã hàng trong [tuNgay, denNgay] (theo ngày, gồm cả hai đầu).
+        /// lotNo (tuỳ chọn): chỉ lấy phiếu có chứa LOT này. nhaMayPatterns (tuỳ chọn):
+        /// chỉ lấy phiếu có NHAMAY chứa một trong các chuỗi (lọc theo khách hàng).
+        /// </summary>
+        List<PhieuGiaoUngVienInfo> TimTheoKhoang(
+            string maHang,
+            string lotNo,
+            DateTime tuNgay,
+            DateTime denNgay,
+            string[] nhaMayPatterns);
+
+        // ============================================================
         // TÌM PHIẾU CỤ THỂ
         // ============================================================
 

@@ -48,6 +48,13 @@ namespace PCTP.Modules.XuLyHangLoi.Models
         /// </summary>
         public int SOLUONG { get; set; }
 
+        /// <summary>
+        /// Số lượng của ĐÚNG LOT đang tra cứu trong phiếu giao này (cột LOT có thể ghép
+        /// nhiều LOT: "LOT1-100,LOT2-50"). Null nếu không tra theo LOT hoặc không tách được.
+        /// Do service tính, repository không điền.
+        /// </summary>
+        public int? SoLuongLot { get; set; }
+
 
         // ============================================================
         // THỜI GIAN GIAO

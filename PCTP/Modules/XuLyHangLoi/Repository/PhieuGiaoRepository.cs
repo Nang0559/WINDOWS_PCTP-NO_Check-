@@ -135,6 +135,99 @@ ORDER BY GIOGIAO;";
 
 
         // ============================================================
+        // TÌM THEO KHOẢNG THỜI GIAN GIAO
+        // ============================================================
+
+        /// <summary>
+        /// Khách trả thường chỉ báo mã hàng / LOT và một khoảng thời gian giao,
+        /// còn cùng mã/LOT có thể đã giao nhiều lần. Hàm trả TẤT CẢ các lần giao
+        /// khớp để người tiếp nhận chọn đúng (một hoặc nhiều) phiếu giao gốc.
+        /// </summary>
+        public List<PhieuGiaoUngVienInfo> TimTheoKhoang(
+            string maHang,
+            string lotNo,
+            DateTime tuNgay,
+            DateTime denNgay,
+            string[] nhaMayPatterns)
+        {
+            if (string.IsNullOrWhiteSpace(maHang))
+                return new List<PhieuGiaoUngVienInfo>();
+
+            var parameters = new List<SqlParameter>
+            {
+                new SqlParameter("@ma", DbValueHelper.DbValue(maHang.Trim())),
+                new SqlParameter("@tu", tuNgay.Date),
+                new SqlParameter("@den", denNgay.Date)
+            };
+
+            string where = @"g.MAHANG = @ma
+  AND g.NGAYGIAO >= @tu
+  AND g.NGAYGIAO < DATEADD(DAY, 1, @den)";
+
+            // Lọc theo khách: NHAMAY chứa một trong các pattern của CustomerConfig.
+            var patterns = (nhaMayPatterns ?? new string[0])
+                .Where(p => !string.IsNullOrWhiteSpace(p))
+                .Select(p => p.Trim())
+                .ToList();
+
+            if (patterns.Count > 0)
+            {
+                var likes = new List<string>();
+
+                for (int i = 0; i < patterns.Count; i++)
+                {
+                    string name = "@nm" + i;
+                    likes.Add("g.NHAMAY LIKE " + name);
+                    parameters.Add(new SqlParameter(name, "%" + EscapeLike(patterns[i]) + "%"));
+                }
+
+                where += "\n  AND (" + string.Join(" OR ", likes) + ")";
+            }
+
+            // Lọc theo LOT trong cột LOT ghép "LOT1-100,LOT2-50" (cùng quy ước TimTheoLot).
+            if (!string.IsNullOrWhiteSpace(lotNo))
+            {
+                const string lotValueExpr =
+                    "LTRIM(RTRIM(LEFT(part.value, CHARINDEX('-', part.value + '-') - 1)))";
+
+                string match = LotCodeHelper.BuildLotMatchSql(lotValueExpr, "@lot");
+
+                where += "\n  AND EXISTS (SELECT 1 FROM STRING_SPLIT(g.LOT, ',') part WHERE " + match + ")";
+                parameters.Add(new SqlParameter("@lot", DbValueHelper.DbValue(lotNo.Trim())));
+            }
+
+            string sql = $@"
+SELECT TOP (500)
+       g.STT,
+       g.LOT,
+       g.MAHANG,
+       g.TENHANG,
+       g.SOLUONG,
+       g.NGAYGIAO,
+       g.GIOGIAO,
+       g.GIOGIAOFCC,
+       g.NHAMAY,
+       g.CUA,
+       g.TRUYEN,
+       ISNULL(g.PO_NO, '') AS PO_NO,
+       ISNULL(g.Note, '') AS Note
+FROM LUUPHIEUGIAOHANG g
+WHERE {where}
+ORDER BY g.NGAYGIAO DESC, g.GIOGIAOFCC DESC, g.STT;";
+
+            return Map(LoadData(sql, parameters.ToArray()));
+        }
+
+        private static string EscapeLike(string value)
+        {
+            return (value ?? string.Empty)
+                .Replace("[", "[[]")
+                .Replace("%", "[%]")
+                .Replace("_", "[_]");
+        }
+
+
+        // ============================================================
         // TÌM PHIẾU CỤ THỂ THEO DINH DANH KEY
         // ============================================================
 
