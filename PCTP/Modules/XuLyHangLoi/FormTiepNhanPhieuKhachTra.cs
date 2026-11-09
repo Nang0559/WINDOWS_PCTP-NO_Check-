@@ -1477,13 +1477,65 @@ namespace PCTP.Modules.XuLyHangLoi
                 return;
             }
 
-            var row = ThemHoacCongDon(item.ItemCode, item.ItemName, string.Empty, 0);
+            // Khách chỉ báo mã hàng (+ ngày giao): đối chiếu phiếu giao TRƯỚC, chỉ thêm dòng khi có phiếu hợp lệ.
+            if (MoDoiChieuVaThemDong(item.ItemCode, item.ItemName, string.Empty, null, 0))
+                _stockLookup.ClearInput();
+        }
 
-            _stockLookup.ClearInput();
+        /// <summary>
+        /// Cổng duy nhất đưa hàng khách trả vào lưới: chuyển thông tin tra cứu sang form đối chiếu phiếu giao,
+        /// CHỈ khi người dùng chọn được lần giao hợp lệ mới thêm dòng (đã gắn phiếu giao). Hủy / không chọn → không thêm gì.
+        /// </summary>
+        private bool MoDoiChieuVaThemDong(string maHang, string tenHang, string lot, DateTime? ngayGiao, int soLuong)
+        {
+            string customerNo = (_cboNguonKhachTra.EditValue as string ?? string.Empty).Trim();
 
-            BaoQr($"Đã thêm {item.ItemCode} (chưa có LOT). Nhập số lượng, ngày giao / LOT nếu khách có báo.", true);
+            if (customerNo.Length == 0)
+            {
+                BaoQr("Chọn Khách hàng trả (Nguồn khách trả) trước khi tra cứu phiếu giao.", false);
+                _cboNguonKhachTra.Focus();
+                return false;
+            }
 
-            FocusO(row, nameof(PhieuTraHangCT.SoLuong));
+            try
+            {
+                using (var f = new FormDoiChieuPhieuGiao(
+                    _khachTraHangService, customerNo, maHang, tenHang, lot, ngayGiao, soLuong))
+                {
+                    if (f.ShowDialog(this) != DialogResult.OK || f.KetQua == null || f.KetQua.Count == 0)
+                    {
+                        BaoQr("Chưa có phiếu giao hợp lệ nên chưa thêm dòng hàng.", false);
+                        return false;
+                    }
+
+                    var row = new PhieuTraHangCT
+                    {
+                        SlotIdNguon = null,
+                        MaHang = (maHang ?? string.Empty).Trim(),
+                        TenHang = tenHang ?? string.Empty,
+                        LotNo = (f.LotNo ?? string.Empty).Trim(),
+                        SoLuong = 0,
+                        LyDoNg = string.Empty
+                    };
+
+                    var data = LayDanhSachDong();
+                    data.Add(row);
+
+                    GanPhieuGiaoVaoDong(row, f.LotNo, f.KetQua, f.LuongDiTomTat);
+
+                    // Lần giao đã có sẵn trong lưới → số lượng được cộng vào dòng cũ, bỏ dòng trống vừa tạo.
+                    if (string.IsNullOrWhiteSpace(row.DinhDanhPhieuGiao))
+                        data.Remove(row);
+
+                    _grid.RefreshDataSource();
+                    return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                BaoQr("Không thể đối chiếu phiếu giao: " + ex.Message, false);
+                return false;
+            }
         }
 
         // Tab "LOT / QR" – QR đầy đủ (Lot:Mã hàng:Ngày:SL:...).
@@ -1511,12 +1563,8 @@ namespace PCTP.Modules.XuLyHangLoi
                 return;
             }
 
-            // Cùng Mã hàng + Lot (quét nhiều tem) → cộng dồn số lượng.
-            ThemHoacCongDon(maHang, tenHang, info.Lot, info.Quantity);
-
-            _grid.RefreshDataSource();
-
-            BaoQr($"Đã thêm {maHang} / Lot {info.Lot} / SL {info.Quantity}.", true);
+            // Tem QR là thông tin khoanh vùng: phải đối chiếu được phiếu giao mới thêm dòng.
+            MoDoiChieuVaThemDong(maHang, tenHang, info.Lot, null, info.Quantity);
         }
 
         // Tab "LOT / QR" – chỉ có LOT (13/20 ký tự): suy mã hàng từ kho + lịch sử.
@@ -1541,23 +1589,17 @@ namespace PCTP.Modules.XuLyHangLoi
             if (n == 1)
             {
                 var it = items[0];
-                var row = ThemHoacCongDon(it.ItemCode, it.ItemName, lot, 0);
-
-                BaoQr($"LOT {lot} thuộc mã {it.ItemCode}. Nhập số lượng khách trả.", true);
-                FocusO(row, nameof(PhieuTraHangCT.SoLuong));
+                MoDoiChieuVaThemDong(it.ItemCode, it.ItemName, lot, null, 0);
                 return;
             }
 
-            // Không tìm thấy (LOT lạ / đã xóa) hoặc thuộc nhiều mã → để người dùng chọn đúng mã trong lưới.
-            var rowMoi = ThemHoacCongDon(string.Empty, string.Empty, lot, 0);
-
+            // Không xác định được duy nhất một mã từ LOT (LOT lạ / đã xóa / thuộc nhiều mã):
+            // KHÔNG thêm dòng trống. Chọn mã hàng ở tab "Tìm theo mã" rồi nhập LOT trong form đối chiếu.
             BaoQr(
                 n == 0
-                    ? $"LOT {lot} chưa có trong kho/lịch sử: chọn mã hàng đúng trong lưới."
-                    : $"LOT {lot} thuộc {n} mã hàng: chọn mã hàng đúng trong lưới.",
+                    ? $"LOT {lot} chưa có trong kho/lịch sử: chọn mã hàng ở tab \"Tìm theo mã\" rồi nhập LOT ở form đối chiếu."
+                    : $"LOT {lot} thuộc {n} mã hàng: chọn mã hàng ở tab \"Tìm theo mã\" để đối chiếu đúng mã.",
                 false);
-
-            FocusO(rowMoi, nameof(PhieuTraHangCT.MaHang));
         }
 
         /// <summary>Trả mã chuẩn của danh mục (và tên); null nếu mã không tồn tại.</summary>
