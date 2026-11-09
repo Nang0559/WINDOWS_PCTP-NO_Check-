@@ -133,19 +133,19 @@ namespace PCTP.Presentation.Presenters
         /// </summary>
         private bool TryRestoreExistingQrSession()
         {
-            var tt = _c.PhieuSvc.GetTrangThaiDangBan();
-            bool isSP = false;
+            // MP and SP each own a separate DOCQR/TMP session. Only restore the
+            // session of the category currently shown in the header; never fall
+            // back from MP to SP (or SP to MP). Otherwise clicking DOC QRCODE on
+            // the MP view while an SP session still has data would reopen the SP
+            // grid. This mirrors PhieuPresenter.XetTrangThai.
+            bool selectedIsSP = _c.Cfg.Delivery.CoConfigSP && _c.PhieuView.IsLoaiSP;
+            var tt = selectedIsSP
+                ? _c.PhieuSvc.GetTrangThaiDangBanSP()
+                : _c.PhieuSvc.GetTrangThaiDangBan();
+            bool isSP = selectedIsSP;
 
-            if (!tt.DangBan && _c.Cfg.Delivery.CoConfigSP)
-            {
-                var sp = _c.PhieuSvc.GetTrangThaiDangBanSP();
-                if (sp.DangBan)
-                {
-                    tt = sp;
-                    isSP = true;
-                }
-            }
-
+            // No session in the selected category: let OnDocQRCode start a new
+            // session for this category; the other category's data is untouched.
             if (!tt.DangBan)
                 return false;
 
