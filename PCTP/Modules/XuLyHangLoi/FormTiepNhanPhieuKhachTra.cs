@@ -61,6 +61,7 @@ namespace PCTP.Modules.XuLyHangLoi
         private SimpleButton _btnXoaPhieu;
         private SimpleButton _btnTraSlot;
         private SimpleButton _btnDoiChieu;
+        private SimpleButton _btnLuongDi;
 
         // ============================================================
         // MỞ LẠI PHIẾU / QR
@@ -314,6 +315,16 @@ namespace PCTP.Modules.XuLyHangLoi
             _btnDoiChieu.Click +=
                 (s, e) => DoiChieuPhieuGiao();
 
+            // Hàng báo lỗi: xem đủ luồng đi (SX → kho → giao) để xác định đúng nguồn gốc lịch sử.
+            _btnLuongDi = new SimpleButton
+            {
+                Text = "🧭 Luồng đi LOT",
+                Width = 150
+            };
+
+            _btnLuongDi.Click +=
+                (s, e) => XemLuongDi();
+
             _btnHuy.Click +=
                 (s, e) =>
                 {
@@ -338,6 +349,7 @@ namespace PCTP.Modules.XuLyHangLoi
             buttonPanel.Controls.Add(_btnXoa);
             buttonPanel.Controls.Add(_btnThem);
             buttonPanel.Controls.Add(_btnDoiChieu);
+            buttonPanel.Controls.Add(_btnLuongDi);
             buttonPanel.Controls.Add(_btnTraSlot);
 
             mainLayout.Controls.Add(
@@ -866,6 +878,18 @@ namespace PCTP.Modules.XuLyHangLoi
             colDaGiao.DisplayFormat.FormatString =
                 "n0";
 
+            var colLuongDi =
+                _gridView.Columns.AddField(
+                    nameof(PhieuTraHangCT.LuongDiTomTat));
+
+            colLuongDi.Caption =
+                "Luồng đi (nguồn gốc)";
+
+            colLuongDi.Visible = true;
+            colLuongDi.VisibleIndex = 8;
+            colLuongDi.Width = 380;
+            colLuongDi.OptionsColumn.AllowEdit = false;
+
             _gridView.ShowingEditor += GridView_ShowingEditor;
             _gridView.RowCellStyle += GridView_RowCellStyle;
             _gridView.ValidatingEditor += GridView_ValidatingEditor;
@@ -1123,7 +1147,7 @@ namespace PCTP.Modules.XuLyHangLoi
                     if (f.ShowDialog(this) != DialogResult.OK)
                         return;
 
-                    GanPhieuGiaoVaoDong(row, f.LotNo, f.KetQua);
+                    GanPhieuGiaoVaoDong(row, f.LotNo, f.KetQua, f.LuongDiTomTat);
                 }
             }
             catch (Exception ex)
@@ -1136,9 +1160,51 @@ namespace PCTP.Modules.XuLyHangLoi
             }
         }
 
+        // Xem luồng đi của LOT (SX → nhập/xuất kho → giao khách) của dòng đang chọn.
+        // Dùng chung FormDoiChieuPhieuGiao với bước đối chiếu; truy vấn trực tiếp nên phiếu đã lưu
+        // mở lại vẫn xem được, và chế độ chỉ xem không sửa dữ liệu kho.
+        private void XemLuongDi()
+        {
+            _gridView.CloseEditor();
+            _gridView.UpdateCurrentRow();
+
+            var row = _gridView.GetFocusedRow() as PhieuTraHangCT;
+
+            if (row == null)
+            {
+                XtraMessageBox.Show(
+                    "Chọn dòng hàng cần xem luồng đi.",
+                    "Chưa chọn dòng",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+                return;
+            }
+
+            try
+            {
+                using (var f = FormDoiChieuPhieuGiao.ChoXemLuongDi(row.MaHang, row.TenHang, row.LotNo))
+                {
+                    if (f.ShowDialog(this) != DialogResult.OK
+                        || string.IsNullOrWhiteSpace(f.LuongDiTomTat))
+                        return;
+
+                    row.LuongDiTomTat = f.LuongDiTomTat;
+                    _grid.RefreshDataSource();
+                }
+            }
+            catch (Exception ex)
+            {
+                XtraMessageBox.Show(
+                    "Không thể xem luồng đi.\r\n\r\n" + ex.Message,
+                    "Lỗi",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+            }
+        }
+
         // Lần giao đầu tiên gán vào dòng đang chọn; các lần giao còn lại thành dòng mới ngay bên dưới
         // (cùng mã/LOT/lý do NG). Trùng (mã + LOT + lần giao) với dòng có sẵn → cộng dồn SL.
-        private void GanPhieuGiaoVaoDong(PhieuTraHangCT row, string lotNo, List<PhieuGiaoChon> chon)
+        private void GanPhieuGiaoVaoDong(PhieuTraHangCT row, string lotNo, List<PhieuGiaoChon> chon, string luongDiTomTat = null)
         {
             if (chon == null || chon.Count == 0)
                 return;
@@ -1190,6 +1256,9 @@ namespace PCTP.Modules.XuLyHangLoi
                 dich.PoNo = slip.PO_NO;
                 dich.NgayGiao = slip.NGAYGIAO;
                 dich.NhaMay = slip.NHAMAY;
+
+                if (!string.IsNullOrWhiteSpace(luongDiTomTat))
+                    dich.LuongDiTomTat = luongDiTomTat;
             }
 
             _grid.RefreshDataSource();

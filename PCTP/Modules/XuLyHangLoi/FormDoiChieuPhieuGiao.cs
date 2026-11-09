@@ -3,6 +3,9 @@ using DevExpress.XtraEditors.Repository;
 using DevExpress.XtraGrid;
 using DevExpress.XtraGrid.Columns;
 using DevExpress.XtraGrid.Views.Grid;
+using PCTP.Modules.BaoCao.Infrastructure.Queries;
+using PCTP.Modules.BaoCao.Infrastructure.Repositories;
+using PCTP.Modules.BaoCao.UI;
 using PCTP.Modules.XuLyHangLoi.Models;
 using PCTP.Modules.XuLyHangLoi.Services;
 using System;
@@ -10,6 +13,8 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Drawing;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace PCTP.Modules.XuLyHangLoi
@@ -24,6 +29,81 @@ namespace PCTP.Modules.XuLyHangLoi
 
         /// <summary>SL khách trả thuộc lần giao này (có thể khác SL đã giao).</summary>
         public int SoLuongTra { get; set; }
+    }
+
+    public enum ChedoDoiChieuPhieuGiao
+    {
+        /// <summary>Khách trả: tìm các lần giao gốc, tick + nhập SL trả, đồng thời xem luồng đi của LOT.</summary>
+        DoiChieuVaGan,
+
+        /// <summary>Trả nội bộ / xem lại: chỉ xem luồng đi của LOT (SX → kho → giao), không có phiếu giao để gán.</summary>
+        ChiXemLuongDi
+    }
+
+    /// <summary>
+    /// Tóm tắt luồng đi của LOT (timeline truy vết dùng chung với báo cáo truy xuất).
+    /// Chỉ đọc; chỉ dùng cho hiển thị trên phiếu, không lưu xuống DB.
+    /// </summary>
+    public static class LuongHangLoiTomTat
+    {
+        private const int ToiDaSuKien = 12;
+
+        public static string TomTat(IEnumerable<TraceTimelineNode> nodes)
+        {
+            if (nodes == null)
+                return string.Empty;
+
+            var parts = new List<string>();
+
+            foreach (var n in nodes)
+            {
+                if (n == null || n.Kind == TraceNodeKind.DeliveryLot || n.Kind == TraceNodeKind.Invalid)
+                    continue;
+
+                string ngay = n.EventTime.HasValue ? n.EventTime.Value.ToString("dd/MM/yy") : "?";
+                string sl = n.Quantity.HasValue ? " SL " + n.Quantity.Value.ToString("N0") : string.Empty;
+
+                switch (n.Kind)
+                {
+                    case TraceNodeKind.Production:
+                        parts.Add("SX " + ngay + sl);
+                        break;
+                    case TraceNodeKind.StockIn:
+                        parts.Add("Nhập kho " + ngay + sl + DenViTri(n));
+                        break;
+                    case TraceNodeKind.StockOut:
+                        parts.Add("Xuất kho " + ngay + sl + (string.IsNullOrWhiteSpace(n.DocumentNo) ? string.Empty : " (" + n.DocumentNo.Trim() + ")"));
+                        break;
+                    case TraceNodeKind.StockOther:
+                        parts.Add((string.IsNullOrWhiteSpace(n.EventType) ? "Kho" : n.EventType.Trim()) + " " + ngay + sl);
+                        break;
+                    case TraceNodeKind.Delivery:
+                        parts.Add("Giao " + ngay + sl +
+                            (string.IsNullOrWhiteSpace(n.CustomerName) ? string.Empty : " (" + n.CustomerName.Trim() + ")"));
+                        break;
+                    case TraceNodeKind.Missing:
+                        parts.Add("⚠ " + n.Title);
+                        break;
+                }
+            }
+
+            if (parts.Count == 0)
+                return string.Empty;
+
+            if (parts.Count > ToiDaSuKien)
+            {
+                int con = parts.Count - ToiDaSuKien;
+                parts = parts.Take(ToiDaSuKien).ToList();
+                parts.Add("… (+" + con + " sự kiện)");
+            }
+
+            return string.Join(" → ", parts);
+        }
+
+        private static string DenViTri(TraceTimelineNode n)
+        {
+            return string.IsNullOrWhiteSpace(n.ToLocation) ? string.Empty : " → " + n.ToLocation.Trim();
+        }
     }
 
     /// <summary>
@@ -58,6 +138,20 @@ namespace PCTP.Modules.XuLyHangLoi
         private readonly string _customerNo;
         private readonly string _maHang;
         private readonly int _soLuongKhachBao;
+        private readonly ChedoDoiChieuPhieuGiao _mode;
+
+        // Luồng đi của LOT (timeline truy vết dùng chung với báo cáo truy xuất giao hàng).
+        private LotTraceTimelineBuilder _timelineBuilder;
+        private SplitContainer _split;
+        private TraceTimelineControl _timeline;
+        private MemoEdit _memoChiTiet;
+        private LabelControl _lblLuong;
+        private LabelControl _lblTu;
+        private LabelControl _lblDen;
+        private SimpleButton _btnTim;
+        private SimpleButton _btnOk;
+        private int _traceVersion;
+        private bool _dangNapLuoi;
 
         private TextEdit _txtMaHang;
         private TextEdit _txtLot;
@@ -74,6 +168,12 @@ namespace PCTP.Modules.XuLyHangLoi
         /// <summary>LOT dùng để đối chiếu (người dùng có thể sửa trong form).</summary>
         public string LotNo { get; private set; }
 
+        /// <summary>Tóm tắt luồng đi (SX → nhập kho → xuất → giao) của LOT vừa truy vết. Rỗng nếu chưa truy vết được.</summary>
+        public string LuongDiTomTat { get; private set; } = string.Empty;
+
+        /// <summary>Các node timeline của LOT vừa truy vết (chỉ đọc).</summary>
+        public IReadOnlyList<TraceTimelineNode> LuongDi { get; private set; } = new List<TraceTimelineNode>();
+
         public FormDoiChieuPhieuGiao(
             IKhachTraHangService service,
             string customerNo,
@@ -82,30 +182,82 @@ namespace PCTP.Modules.XuLyHangLoi
             string lotNo,
             DateTime? ngayGiaoKhachBao,
             int soLuongKhachBao)
+            : this(
+                ChedoDoiChieuPhieuGiao.DoiChieuVaGan,
+                service,
+                customerNo,
+                maHang,
+                tenHang,
+                lotNo,
+                ngayGiaoKhachBao,
+                soLuongKhachBao)
         {
-            _service = service ?? throw new ArgumentNullException(nameof(service));
+        }
+
+        /// <summary>
+        /// Chỉ xem luồng đi của LOT (dùng cho phiếu trả nội bộ hoặc xem lại phiếu khách trả):
+        /// sản xuất → nhập/xuất/chuyển kho → các lần giao khách. Không gán phiếu giao.
+        /// </summary>
+        public static FormDoiChieuPhieuGiao ChoXemLuongDi(string maHang, string tenHang, string lotNo)
+        {
+            return new FormDoiChieuPhieuGiao(
+                ChedoDoiChieuPhieuGiao.ChiXemLuongDi,
+                null,
+                null,
+                maHang,
+                tenHang,
+                lotNo,
+                null,
+                0);
+        }
+
+        private FormDoiChieuPhieuGiao(
+            ChedoDoiChieuPhieuGiao mode,
+            IKhachTraHangService service,
+            string customerNo,
+            string maHang,
+            string tenHang,
+            string lotNo,
+            DateTime? ngayGiaoKhachBao,
+            int soLuongKhachBao)
+        {
+            _mode = mode;
+
+            if (mode == ChedoDoiChieuPhieuGiao.DoiChieuVaGan)
+                _service = service ?? throw new ArgumentNullException(nameof(service));
+
             _customerNo = customerNo;
             _maHang = (maHang ?? string.Empty).Trim();
             _soLuongKhachBao = soLuongKhachBao;
 
             BuildUi(tenHang, lotNo, ngayGiaoKhachBao);
 
-            Shown += (s, e) => TimKiem();
+            Load += (s, e) => DatViTriSplitter();
+
+            Shown += (s, e) =>
+            {
+                if (_mode == ChedoDoiChieuPhieuGiao.DoiChieuVaGan)
+                    TimKiem();
+                else
+                    TraCuuLuongDi();
+            };
         }
 
         private void BuildUi(string tenHang, string lotNo, DateTime? ngayGiaoKhachBao)
         {
-            Text = "Đối chiếu phiếu giao gốc";
+            Text = _mode == ChedoDoiChieuPhieuGiao.DoiChieuVaGan
+                ? "Đối chiếu phiếu giao gốc"
+                : "Luồng đi của hàng (nguồn gốc lịch sử)";
             StartPosition = FormStartPosition.CenterParent;
             Width = 1180;
-            Height = 640;
+            Height = 820;
 
             var top = new Panel { Dock = DockStyle.Top, Height = 108 };
 
             top.Controls.Add(new LabelControl { Text = "Mã hàng", Left = 12, Top = 16, Width = 70 });
             _txtMaHang = new TextEdit { Left = 86, Top = 12, Width = 230 };
             _txtMaHang.Text = _maHang;
-            _txtMaHang.Properties.ReadOnly = true;
+            _txtMaHang.Properties.ReadOnly = _mode == ChedoDoiChieuPhieuGiao.DoiChieuVaGan || _maHang.Length > 0;
             top.Controls.Add(_txtMaHang);
 
             top.Controls.Add(new LabelControl
@@ -118,14 +270,16 @@ namespace PCTP.Modules.XuLyHangLoi
             _txtLot = new TextEdit { Left = 86, Top = 48, Width = 230 };
             _txtLot.Text = (lotNo ?? string.Empty).Trim();
             _txtLot.Properties.NullValuePrompt = "Để trống = mọi LOT của mã";
-            _txtLot.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) { e.Handled = true; e.SuppressKeyPress = true; TimKiem(); } };
+            _txtLot.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) { e.Handled = true; e.SuppressKeyPress = true; ChayTraCuu(); } };
             top.Controls.Add(_txtLot);
 
-            top.Controls.Add(new LabelControl { Text = "Giao từ ngày", Left = 340, Top = 52, Width = 80 });
+            _lblTu = new LabelControl { Text = "Giao từ ngày", Left = 340, Top = 52, Width = 80 };
+            top.Controls.Add(_lblTu);
             _dtTu = TaoDateEdit(424, 48);
             top.Controls.Add(_dtTu);
 
-            top.Controls.Add(new LabelControl { Text = "đến ngày", Left = 548, Top = 52, Width = 60 });
+            _lblDen = new LabelControl { Text = "đến ngày", Left = 548, Top = 52, Width = 60 };
+            top.Controls.Add(_lblDen);
             _dtDen = TaoDateEdit(612, 48);
             top.Controls.Add(_dtDen);
 
@@ -143,12 +297,31 @@ namespace PCTP.Modules.XuLyHangLoi
                 _dtDen.EditValue = DateTime.Today;
             }
 
-            var btnTim = new SimpleButton { Text = "🔎 Tìm lần giao", Left = 740, Top = 46, Width = 130 };
-            btnTim.Click += (s, e) => TimKiem();
-            top.Controls.Add(btnTim);
+            bool chiXem = _mode == ChedoDoiChieuPhieuGiao.ChiXemLuongDi;
+
+            _btnTim = new SimpleButton
+            {
+                Text = chiXem ? "🔎 Tra cứu luồng đi" : "🔎 Tìm lần giao",
+                Left = chiXem ? 340 : 740,
+                Top = 46,
+                Width = chiXem ? 160 : 130
+            };
+            _btnTim.Click += (s, e) => ChayTraCuu();
+            top.Controls.Add(_btnTim);
+
+            if (chiXem)
+            {
+                _lblTu.Visible = false;
+                _lblDen.Visible = false;
+                _dtTu.Visible = false;
+                _dtDen.Visible = false;
+            }
 
             _lblKetQua = new LabelControl { Left = 12, Top = 84, Width = 1100, AutoSizeMode = LabelAutoSizeMode.None };
             top.Controls.Add(_lblKetQua);
+
+            if (_mode == ChedoDoiChieuPhieuGiao.ChiXemLuongDi)
+                _lblKetQua.Text = "Nhập LOT (13/20 ký tự, hoặc LOT ghép) rồi Enter để xem luồng đi: sản xuất → kho → giao khách.";
 
             // ---- grid
             _grid = new GridControl { Dock = DockStyle.Fill };
@@ -166,8 +339,9 @@ namespace PCTP.Modules.XuLyHangLoi
 
             var colChon = ThemCot(nameof(DongDoiChieu.Chon), "Chọn", 55, true);
             colChon.ColumnEdit = chk;
-            ThemCot(nameof(DongDoiChieu.NgayGiao), "Ngày giao", 90, false)
-                .DisplayFormat.SetFormat(DevExpress.Utils.FormatType.DateTime, "dd/MM/yyyy");
+            var colNgayGiao = ThemCot(nameof(DongDoiChieu.NgayGiao), "Ngày giao", 90, false);
+            colNgayGiao.DisplayFormat.FormatType = DevExpress.Utils.FormatType.DateTime;
+            colNgayGiao.DisplayFormat.FormatString = "dd/MM/yyyy";
             ThemCot(nameof(DongDoiChieu.GioGiao), "Giờ giao", 80, false);
             ThemCot(nameof(DongDoiChieu.NhaMay), "Nhà máy", 200, false);
             ThemCot(nameof(DongDoiChieu.PoNo), "PO", 110, false);
@@ -180,20 +354,72 @@ namespace PCTP.Modules.XuLyHangLoi
 
             _view.CellValueChanged += View_CellValueChanged;
             _view.RowCellStyle += View_RowCellStyle;
+            _view.FocusedRowChanged += View_FocusedRowChanged;
 
             // ---- bottom
             var bottom = new Panel { Dock = DockStyle.Bottom, Height = 52 };
 
             _lblTong = new LabelControl { Left = 12, Top = 8, Width = 760, Height = 36, AutoSizeMode = LabelAutoSizeMode.None };
             bottom.Controls.Add(_lblTong);
+            _lblTong.Visible = _mode == ChedoDoiChieuPhieuGiao.DoiChieuVaGan;
 
-            var btnOk = new SimpleButton { Text = "✔ Gán vào dòng khách trả", Left = 800, Top = 10, Width = 190 };
-            btnOk.Click += (s, e) => XacNhan();
-            var btnHuy = new SimpleButton { Text = "Hủy", Left = 1000, Top = 10, Width = 90, DialogResult = DialogResult.Cancel };
-            bottom.Controls.Add(btnOk);
+            _btnOk = new SimpleButton
+            {
+                Text = _mode == ChedoDoiChieuPhieuGiao.DoiChieuVaGan
+                    ? "✔ Gán vào dòng khách trả"
+                    : "✔ Ghi luồng đi vào dòng",
+                Left = 800,
+                Top = 10,
+                Width = 190
+            };
+            _btnOk.Click += (s, e) => XacNhan();
+            var btnHuy = new SimpleButton
+            {
+                Text = _mode == ChedoDoiChieuPhieuGiao.DoiChieuVaGan ? "Hủy" : "Đóng",
+                Left = 1000,
+                Top = 10,
+                Width = 90,
+                DialogResult = DialogResult.Cancel
+            };
+            bottom.Controls.Add(_btnOk);
             bottom.Controls.Add(btnHuy);
 
-            Controls.Add(_grid);
+            // ---- luồng đi của LOT: sản xuất → kho → giao (cùng nguồn với báo cáo truy xuất)
+            _split = new SplitContainer
+            {
+                Dock = DockStyle.Fill,
+                Orientation = System.Windows.Forms.Orientation.Horizontal
+            };
+
+            _split.Panel1.Controls.Add(_grid);
+
+            _timeline = new TraceTimelineControl { Dock = DockStyle.Fill };
+            _timeline.SelectedNodeChanged += (s, e) =>
+            {
+                var node = _timeline.SelectedNode;
+                _memoChiTiet.Text = node == null ? string.Empty : node.DetailText();
+            };
+
+            _memoChiTiet = new MemoEdit { Dock = DockStyle.Bottom, Height = 120 };
+            _memoChiTiet.Properties.ReadOnly = true;
+
+            _lblLuong = new LabelControl
+            {
+                Dock = DockStyle.Top,
+                Height = 26,
+                AutoSizeMode = LabelAutoSizeMode.None,
+                Padding = new Padding(6, 4, 0, 0)
+            };
+            _lblLuong.Appearance.ForeColor = Color.DimGray;
+
+            _split.Panel2.Controls.Add(_timeline);
+            _split.Panel2.Controls.Add(_memoChiTiet);
+            _split.Panel2.Controls.Add(_lblLuong);
+
+            if (chiXem)
+                _split.Panel1Collapsed = true;
+
+            Controls.Add(_split);
             Controls.Add(top);
             Controls.Add(bottom);
 
@@ -259,6 +485,7 @@ namespace PCTP.Modules.XuLyHangLoi
                     Note = p.Note
                 }).ToList();
 
+                _dangNapLuoi = true;
                 _grid.DataSource = _rows;
 
                 if (_rows.Count == 1)
@@ -273,15 +500,158 @@ namespace PCTP.Modules.XuLyHangLoi
                     : $"Tìm thấy {_rows.Count} lần giao. Tick các lần giao khách đã trả và nhập SL trả của từng lần.";
                 _lblKetQua.Appearance.ForeColor = _rows.Count == 0 ? Color.Firebrick : Color.DimGray;
 
+                _dangNapLuoi = false;
+
                 CapNhatTong();
+
+                // Luồng đi của LOT (không chặn việc đối chiếu nếu truy vết lỗi).
+                CapNhatLuongDiAsync(LotChoTruyVet());
             }
             catch (Exception ex)
             {
+                _dangNapLuoi = false;
+
                 XtraMessageBox.Show(
                     "Không thể tra cứu phiếu giao.\r\n\r\n" + ex.Message,
                     "Lỗi",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Error);
+            }
+        }
+
+        // ============================================================
+        // LUỒNG ĐI CỦA LOT  (sản xuất → nhập/xuất kho → giao khách)
+        //
+        // Dùng chung timeline với báo cáo truy xuất giao hàng để phiếu tiếp nhận /
+        // phiếu trả nội bộ thấy đúng nguồn gốc lịch sử của hàng đang báo lỗi.
+        // Chỉ đọc; khóa tra cứu là từng LOT (13/20 ký tự), không dùng chuỗi LOT ghép.
+        // ============================================================
+
+        private void ChayTraCuu()
+        {
+            if (_mode == ChedoDoiChieuPhieuGiao.DoiChieuVaGan)
+                TimKiem();
+            else
+                TraCuuLuongDi();
+        }
+
+        private void TraCuuLuongDi()
+        {
+            CapNhatLuongDiAsync(LotChoTruyVet());
+        }
+
+        private void DatViTriSplitter()
+        {
+            if (_split == null || _split.Panel1Collapsed)
+                return;
+
+            try
+            {
+                _split.SplitterDistance = Math.Max(120, Math.Min(230, _split.Height - 260));
+            }
+            catch (InvalidOperationException)
+            {
+                // Kích thước form quá nhỏ: giữ vị trí mặc định.
+            }
+        }
+
+        private void View_FocusedRowChanged(object sender, DevExpress.XtraGrid.Views.Base.FocusedRowChangedEventArgs e)
+        {
+            if (_dangNapLuoi || _mode != ChedoDoiChieuPhieuGiao.DoiChieuVaGan)
+                return;
+
+            // Người dùng đã gõ LOT cụ thể → luồng đi theo LOT đó, không đổi theo dòng đang chọn.
+            if (_txtLot.Text.Trim().Length > 0)
+                return;
+
+            CapNhatLuongDiAsync(LotChoTruyVet());
+        }
+
+        private string LotChoTruyVet()
+        {
+            string lot = _txtLot.Text.Trim();
+
+            if (lot.Length > 0)
+                return lot;
+
+            var row = _view.GetFocusedRow() as DongDoiChieu;
+
+            if (row == null && _rows.Count == 1)
+                row = _rows[0];
+
+            return row == null ? string.Empty : (row.Lot ?? string.Empty).Trim();
+        }
+
+        private LotTraceTimelineBuilder LayTimelineBuilder()
+        {
+            if (_timelineBuilder == null)
+            {
+                var delivery = new DeliveryTraceReadService();
+
+                _timelineBuilder = new LotTraceTimelineBuilder(
+                    delivery,
+                    delivery,
+                    new ProductionLotTraceRepository(),
+                    new StockHistoryQueryService());
+            }
+
+            return _timelineBuilder;
+        }
+
+        private async Task CapNhatLuongDiAsync(string lot)
+        {
+            int version = ++_traceVersion;
+            lot = (lot ?? string.Empty).Trim();
+
+            LuongDiTomTat = string.Empty;
+            LuongDi = new List<TraceTimelineNode>();
+
+            if (lot.Length == 0)
+            {
+                _timeline.Clear("Chưa có LOT: nhập LOT hoặc chọn một lần giao để xem luồng đi.");
+                _lblLuong.Text = "Chưa có LOT để truy vết luồng đi.";
+                _lblLuong.Appearance.ForeColor = Color.DimGray;
+                return;
+            }
+
+            string maHang = _txtMaHang.Text.Trim();
+
+            _lblLuong.Text = "Đang truy vết luồng đi của LOT " + lot + "...";
+            _lblLuong.Appearance.ForeColor = Color.DimGray;
+
+            Cursor previous = Cursor;
+            Cursor = Cursors.WaitCursor;
+
+            try
+            {
+                // Không giới hạn ngày giao: cần thấy ĐỦ các lần giao của LOT để xác định đúng nguồn gốc.
+                TraceTimelineResult result = await LayTimelineBuilder()
+                    .BuildForLotAsync(lot, string.IsNullOrWhiteSpace(maHang) ? null : maHang, null, null, CancellationToken.None);
+
+                // Có yêu cầu truy vết mới hơn (đổi dòng / đổi LOT) hoặc form đã đóng → bỏ kết quả cũ.
+                if (version != _traceVersion || IsDisposed)
+                    return;
+
+                _timeline.SetNodes(result.Nodes, result.Summary ?? "Không có dữ liệu luồng đi cho LOT này.");
+                LuongDi = result.Nodes;
+                LuongDiTomTat = LuongHangLoiTomTat.TomTat(result.Nodes);
+
+                _lblLuong.Text = result.Summary;
+                _lblLuong.Appearance.ForeColor = result.Nodes.Count == 0 ? Color.Firebrick : Color.DimGray;
+            }
+            catch (Exception ex)
+            {
+                if (version != _traceVersion || IsDisposed)
+                    return;
+
+                _timeline.Clear("Không truy vết được luồng đi.");
+                _lblLuong.Text = "Không truy vết được luồng đi của LOT " + lot + ": " + ex.Message;
+                _lblLuong.Appearance.ForeColor = Color.Firebrick;
+            }
+            finally
+            {
+                if (!IsDisposed)
+                    Cursor = previous;
             }
         }
 
@@ -354,6 +724,24 @@ namespace PCTP.Modules.XuLyHangLoi
 
         private void XacNhan()
         {
+            if (_mode == ChedoDoiChieuPhieuGiao.ChiXemLuongDi)
+            {
+                if (string.IsNullOrWhiteSpace(LuongDiTomTat))
+                {
+                    XtraMessageBox.Show(
+                        "Chưa có luồng đi của LOT để ghi vào dòng. Nhập LOT rồi tra cứu trước.",
+                        "Chưa có luồng đi",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Information);
+                    return;
+                }
+
+                LotNo = _txtLot.Text.Trim();
+                DialogResult = DialogResult.OK;
+                Close();
+                return;
+            }
+
             _view.CloseEditor();
             _view.UpdateCurrentRow();
 

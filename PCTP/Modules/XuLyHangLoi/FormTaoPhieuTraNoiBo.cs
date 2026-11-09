@@ -16,6 +16,7 @@ namespace PCTP.Modules.XuLyHangLoi
     using PCTP.Modules.XuLyHangLoi.Models;
     using PCTP.Modules.XuLyHangLoi.Services;
     using PCTP.Shared.Enums;
+    using PCTP.Shared.Lookup;
     using System;
     using System.Collections.Generic;
     using System.Linq;
@@ -47,9 +48,9 @@ namespace PCTP.Modules.XuLyHangLoi
         private readonly Dictionary<PhieuTraHangCT, int> _soLuongGoc =
             new Dictionary<PhieuTraHangCT, int>();
 
-        private TextEdit _txtQr;
+        private StockLookupControl _stockLookup;
         private LabelControl _lblQrStatus;
-        private LabelControl _lblQr;
+        private SimpleButton _btnLuongDi;
         private SimpleButton _btnXoaPhieu;
         private SimpleButton _btnChonSlot;
 
@@ -186,6 +187,8 @@ namespace PCTP.Modules.XuLyHangLoi
                 _repoMaHang.DataSource = _items;
                 _repoMaHang.PopulateViewColumns();
                 CauHinhCotMaHangLookup();
+
+                NapGoiYMaHang();
             }
             catch (Exception ex)
             {
@@ -271,7 +274,7 @@ namespace PCTP.Modules.XuLyHangLoi
             };
 
             main.RowStyles.Add(new RowStyle(SizeType.Absolute, 150)); // header
-            main.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));  // QR
+            main.RowStyles.Add(new RowStyle(SizeType.Absolute, 82));  // tra cứu (StockLookupControl)
             main.RowStyles.Add(new RowStyle(SizeType.Percent, 100));  // grid
             main.RowStyles.Add(new RowStyle(SizeType.Absolute, 45));  // buttons
 
@@ -358,44 +361,34 @@ namespace PCTP.Modules.XuLyHangLoi
             var qrPanel = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
-                ColumnCount = 3,
+                ColumnCount = 2,
                 RowCount = 1
             };
 
-            qrPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 140));
-            qrPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
-            qrPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+            qrPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 600));
+            qrPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
 
-            _lblQr = new LabelControl
+            // Tab "Tìm theo mã": mã hàng đang có trong Slot. Tab "LOT / QR": quét tem hoặc nhập LOT.
+            _stockLookup = new StockLookupControl { Dock = DockStyle.Fill };
+            _stockLookup.SetLotQrPlaceholder("Quét tem QR (4/6 trường) hoặc nhập LOT rồi Enter...");
+            _stockLookup.SearchRequested += (s, e) => XuLyTraCuu();
+            _stockLookup.SelectionCleared += (s, e) =>
             {
-                Text = "Quét QR thêm dòng",
-                Dock = DockStyle.Fill,
-                AutoSizeMode = LabelAutoSizeMode.None
+                if (_lblQrStatus != null)
+                    _lblQrStatus.Text = string.Empty;
             };
-            _lblQr.Appearance.TextOptions.VAlignment =
-                DevExpress.Utils.VertAlignment.Center;
-            _lblQr.Padding = new Padding(5, 0, 0, 0);
-
-            _txtQr = new TextEdit
-            {
-                Anchor = AnchorStyles.Left | AnchorStyles.Right,
-                Margin = new Padding(3, 3, 8, 3)
-            };
-            _txtQr.Properties.NullValuePrompt =
-                "Quét tem QR (Lot:Mã hàng:Ngày:SL:...) rồi Enter";
-            _txtQr.KeyDown += TxtQr_KeyDown;
 
             _lblQrStatus = new LabelControl
             {
                 Dock = DockStyle.Fill,
-                AutoSizeMode = LabelAutoSizeMode.None
+                AutoSizeMode = LabelAutoSizeMode.None,
+                Padding = new Padding(8, 0, 0, 0)
             };
             _lblQrStatus.Appearance.TextOptions.VAlignment =
                 DevExpress.Utils.VertAlignment.Center;
 
-            qrPanel.Controls.Add(_lblQr, 0, 0);
-            qrPanel.Controls.Add(_txtQr, 1, 0);
-            qrPanel.Controls.Add(_lblQrStatus, 2, 0);
+            qrPanel.Controls.Add(_stockLookup, 0, 0);
+            qrPanel.Controls.Add(_lblQrStatus, 1, 0);
 
             main.Controls.Add(qrPanel, 0, 1);
 
@@ -471,6 +464,13 @@ namespace PCTP.Modules.XuLyHangLoi
                 Width = 130
             };
 
+            // Xem luồng đi (SX → kho → giao) của LOT trên dòng đang chọn.
+            _btnLuongDi = new SimpleButton
+            {
+                Text = "🧭 Luồng đi LOT",
+                Width = 130
+            };
+
             _btnHuy.Click += (s, e) =>
             {
                 DialogResult = DialogResult.Cancel;
@@ -485,6 +485,8 @@ namespace PCTP.Modules.XuLyHangLoi
 
             _btnChonSlot.Click += (s, e) => MoChonSlot();
 
+            _btnLuongDi.Click += (s, e) => XemLuongDi();
+
             _btnXoa.Click += (s, e) => XoaDong();
 
             buttons.Controls.Add(_btnHuy);
@@ -493,6 +495,7 @@ namespace PCTP.Modules.XuLyHangLoi
             buttons.Controls.Add(_btnXoa);
             buttons.Controls.Add(_btnThem);
             buttons.Controls.Add(_btnChonSlot);
+            buttons.Controls.Add(_btnLuongDi);
 
             main.Controls.Add(buttons, 0, 3);
 
@@ -608,6 +611,12 @@ namespace PCTP.Modules.XuLyHangLoi
             colLyDo.Caption = "Lý do NG";
             colLyDo.Visible = true;
             colLyDo.Width = 220;
+
+            var colLuongDi = _gridView.Columns.AddField(nameof(PhieuTraHangCT.LuongDiTomTat));
+            colLuongDi.Caption = "Luồng đi (nguồn gốc)";
+            colLuongDi.Visible = true;
+            colLuongDi.Width = 380;
+            colLuongDi.OptionsColumn.AllowEdit = false;
 
             // Các cột đối chiếu phiếu giao:
             var colDinhDanh = _gridView.Columns.AddField(
@@ -1098,7 +1107,7 @@ namespace PCTP.Modules.XuLyHangLoi
 
             _gridView.OptionsBehavior.Editable = suaChiTiet;
 
-            _txtQr.Enabled = suaChiTiet;
+            _stockLookup.Enabled = suaChiTiet;
             _btnThem.Visible = suaChiTiet;
             _btnXoa.Visible = suaChiTiet;
             _btnChonSlot.Visible = suaChiTiet;
@@ -1126,20 +1135,180 @@ namespace PCTP.Modules.XuLyHangLoi
         // QUÉT QR → THÊM DÒNG NHANH
         // ============================================================
 
-        private void TxtQr_KeyDown(object sender, KeyEventArgs e)
+        // Gợi ý mã hàng cho tab "Tìm theo mã": chỉ mã đang có hàng trong Slot, kèm tồn.
+        private void NapGoiYMaHang()
         {
-            if (e.KeyCode != Keys.Enter)
+            var table = new System.Data.DataTable();
+            table.Columns.Add("ItemCode", typeof(string));
+            table.Columns.Add("ItemName", typeof(string));
+            table.Columns.Add("StockQuantity", typeof(int));
+
+            foreach (var g in _slotItems
+                .Where(x => !string.IsNullOrWhiteSpace(x.ItemCode))
+                .GroupBy(x => x.ItemCode.Trim(), StringComparer.OrdinalIgnoreCase))
+            {
+                table.Rows.Add(g.Key, g.First().TenHang ?? string.Empty, g.Sum(x => x.Quantity));
+            }
+
+            _stockLookup.SetItemSuggestions(table, "ItemCode", "ItemName");
+        }
+
+        private void XuLyTraCuu()
+        {
+            string input = _stockLookup.InputText;
+
+            if (string.IsNullOrWhiteSpace(input))
+            {
+                BaoQr("Chọn mã hàng, nhập LOT hoặc quét tem QR trước khi tra cứu.", false);
+                _stockLookup.FocusInput();
                 return;
+            }
 
-            e.Handled = true;
-            e.SuppressKeyPress = true;
+            if (_stockLookup.IsItemSearch)
+            {
+                XuLyChonMaHang(input);
+                return;
+            }
 
-            string raw = _txtQr.Text;
-            _txtQr.Text = string.Empty;
+            if (input.IndexOf(':') >= 0)
+                XuLyQr(input);
+            else
+                XuLyLotThuan(input);
 
-            XuLyQr(raw);
+            _stockLookup.ClearInput();
+            _stockLookup.FocusInput();
+        }
 
-            _txtQr.Focus();
+        private List<PhieuTraHangCT> LayDanhSachDong()
+        {
+            var data = _grid.DataSource as List<PhieuTraHangCT>;
+
+            if (data == null)
+            {
+                data = new List<PhieuTraHangCT>();
+                _grid.DataSource = data;
+            }
+
+            return data;
+        }
+
+        private HashSet<int> SlotLotDaCoTrongPhieu()
+        {
+            return new HashSet<int>(
+                LayDanhSachDong()
+                    .Where(d => d.SlotLotIdNguon.HasValue)
+                    .Select(d => d.SlotLotIdNguon.Value));
+        }
+
+        // Tab "Tìm theo mã": chỉ lấy các Slot đang chứa mã đó (hàng nội bộ phải còn trong Slot).
+        private void XuLyChonMaHang(string input)
+        {
+            string code = _stockLookup.SelectedItemCode;
+
+            if (string.IsNullOrWhiteSpace(code))
+                code = input;
+
+            code = code.Trim();
+
+            var daCo = SlotLotDaCoTrongPhieu();
+
+            var slots = _slotItems
+                .Where(x => x.SlotLotId > 0
+                    && !daCo.Contains(x.SlotLotId)
+                    && string.Equals((x.ItemCode ?? string.Empty).Trim(), code, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            ThemTuKetQuaTraCuu(slots, "mã " + code);
+        }
+
+        // Tab "LOT / QR" – chỉ có LOT: tìm Slot đang chứa LOT đó.
+        private void XuLyLotThuan(string lotNhap)
+        {
+            string lot = lotNhap.Trim();
+            var daCo = SlotLotDaCoTrongPhieu();
+
+            var slots = _slotItems
+                .Where(x => x.SlotLotId > 0
+                    && !daCo.Contains(x.SlotLotId)
+                    && QrItemParser.LotKhop(x.LotNo, lot))
+                .ToList();
+
+            ThemTuKetQuaTraCuu(slots, "LOT " + lot);
+        }
+
+        // 0 Slot → báo; 1 Slot → thêm dòng (SL để trống cho người dùng nhập); nhiều Slot → mở danh sách chọn.
+        private void ThemTuKetQuaTraCuu(List<SlotNguonLookupItem> slots, string nhan)
+        {
+            if (slots.Count == 0)
+            {
+                BaoQr($"Không có Slot nào đang chứa {nhan} (hoặc đã có trong phiếu).", false);
+                _stockLookup.FocusInput();
+                return;
+            }
+
+            if (slots.Count > 1)
+            {
+                BaoQr($"{nhan} nằm ở {slots.Count} vị trí: chọn trong danh sách.", true);
+                MoChonSlot();
+                return;
+            }
+
+            var slot = slots[0];
+            var dong = ThemDongTuSlotItem(slot, 0, string.Empty);
+
+            _stockLookup.ClearInput();
+            _grid.RefreshDataSource();
+
+            BaoQr($"Đã thêm {slot.ItemCode} / Lot {slot.LotNo} ({slot.ViTri}, tồn {slot.Quantity:n0}). Nhập số lượng trả.", true);
+
+            int rowHandle = _gridView.GetRowHandle(LayDanhSachDong().IndexOf(dong));
+
+            if (rowHandle >= 0)
+            {
+                _gridView.FocusedRowHandle = rowHandle;
+                _gridView.FocusedColumn = _gridView.Columns[nameof(PhieuTraHangCT.SoLuong)];
+                _gridView.ShowEditor();
+            }
+        }
+
+        // Luồng đi (SX → kho → giao) của LOT trên dòng đang chọn – dùng chung FormDoiChieuPhieuGiao.
+        private void XemLuongDi()
+        {
+            _gridView.CloseEditor();
+            _gridView.UpdateCurrentRow();
+
+            var row = _gridView.GetFocusedRow() as PhieuTraHangCT;
+
+            if (row == null)
+            {
+                XtraMessageBox.Show(
+                    "Chọn dòng hàng cần xem luồng đi.",
+                    "Chưa chọn dòng",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+                return;
+            }
+
+            try
+            {
+                using (var f = FormDoiChieuPhieuGiao.ChoXemLuongDi(row.MaHang, row.TenHang, row.LotNo))
+                {
+                    if (f.ShowDialog(this) != DialogResult.OK
+                        || string.IsNullOrWhiteSpace(f.LuongDiTomTat))
+                        return;
+
+                    row.LuongDiTomTat = f.LuongDiTomTat;
+                    _grid.RefreshDataSource();
+                }
+            }
+            catch (Exception ex)
+            {
+                XtraMessageBox.Show(
+                    "Không thể xem luồng đi.\r\n\r\n" + ex.Message,
+                    "Lỗi",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+            }
         }
 
         private void BaoQr(string text, bool ok)

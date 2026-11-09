@@ -99,5 +99,12 @@ namespace PCTP.Modules.XuLyHangLoi.Models
         /// hoặc tổng SL dòng giao) để đối chiếu với SoLuong khách trả. Không lưu xuống DB.
         /// </summary>
         public int? SoLuongDaGiao { get; set; }
+
+        /// <summary>
+        /// CHỈ DÙNG TRÊN UI: tóm tắt luồng đi của LOT (sản xuất → nhập/xuất kho → giao khách)
+        /// lấy từ timeline truy vết, để người tiếp nhận thấy nguồn gốc lịch sử của hàng báo lỗi.
+        /// Không lưu xuống DB; xem lại đầy đủ bằng nút "Luồng đi LOT" (truy vấn trực tiếp).
+        /// </summary>
+        public string LuongDiTomTat { get; set; }
     }
 }
