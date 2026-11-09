@@ -55,6 +55,8 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
         private readonly DataTable _temTable;   // mỗi dòng = một TEM ghép
         private readonly DataTable _lineTable;  // mỗi dòng = một LOT thuộc một tem
         private readonly DataView _lineData;
+        // Quy cách đóng gói (B20Item.MinCloseQty) theo mã hàng; tránh truy vấn lại mỗi lần quét/sửa.
+        private readonly Dictionary<string, int> _packCache = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
         private TextEdit _txtQr;
         private LabelControl _lblCurrent;
@@ -240,7 +242,7 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
             root.Controls.Add(temGroup, 0, 1);
 
             // --- Lưới chi tiết LOT của tem đang chọn (sửa "SL lấy" tại đây)
-            var lineGroup = CreateGroup("CÁC LOT CỦA TEM ĐANG CHỌN — SỬA CỘT \"SL LẤY\" ĐỂ CHIA SỐ LƯỢNG (KHÔNG VƯỢT TỒN STOCKTP)");
+            var lineGroup = CreateGroup("CÁC LOT CỦA TEM ĐANG CHỌN — SỬA CỘT \"SL LẤY\" ĐỂ CHIA SỐ LƯỢNG (KHÔNG VƯỢT TỒN STOCKTP VÀ QUY CÁCH ĐÓNG GÓI)");
             _lineGrid = new GridControl { Dock = DockStyle.Fill, DataSource = _lineData };
             _lineView = new GridView(_lineGrid);
             ConfigureView(_lineGrid, _lineView);
@@ -267,6 +269,15 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
                 {
                     e.Valid = false;
                     e.ErrorText = "Số lượng phải lớn hơn 0 và không vượt tồn STOCKTP (" + available + ").";
+                    return;
+                }
+
+                // Tổng SL in của tem không được vượt quy cách đóng gói (B20Item.MinCloseQty).
+                string packError = CheckPackLimit(SafeInt(row["TEMID"]), row, qty);
+                if (packError != null)
+                {
+                    e.Valid = false;
+                    e.ErrorText = packError;
                 }
             };
             _lineView.CellValueChanged += (s, e) =>
@@ -488,6 +499,17 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
                 CheckGearSet(candidate);
             }
 
+            // Quy cách đóng gói: tổng SL của tem không được vượt B20Item.MinCloseQty.
+            int pack = GetPackQty(selection.ItemCode);
+            if (pack <= 0)
+                throw new InvalidOperationException("Mã hàng " + selection.ItemCode
+                    + " chưa khai báo quy cách đóng gói (B20Item.MinCloseQty), không thể ghép LOT.");
+            int usedQty = tem == null ? 0 : GetLines(_currentTemId).Sum(x => SafeInt(x["SL"]));
+            int remaining = pack - usedQty;
+            if (remaining <= 0)
+                throw new InvalidOperationException("Tem #" + _currentTemId + " đã đủ quy cách đóng gói (" + pack
+                    + "). Bấm KẾT THÚC TEM (F2) để chốt tem rồi quét LOT cho tem mới.");
+
             if (tem == null)
             {
                 _temSeq++;
@@ -505,8 +527,9 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
                 _temTable.Rows.Add(tem);
             }
 
-            // Số lượng mặc định = số lượng trên QR (không vượt tồn); sửa lại ở lưới chi tiết nếu chỉ lấy một phần.
-            int defaultQty = Math.Max(1, Math.Min(selection.QrQuantity, selection.Available));
+            // Số lượng mặc định = số lượng trên QR (không vượt tồn và không vượt phần còn lại của quy cách đóng gói);
+            // sửa lại ở lưới chi tiết nếu chỉ lấy một phần.
+            int defaultQty = Math.Max(1, Math.Min(Math.Min(selection.QrQuantity, selection.Available), remaining));
             DataRow line = _lineTable.NewRow();
             line["TEMID"] = _currentTemId;
             line["LOT"] = selection.LotNo;
@@ -596,9 +619,11 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
             List<DataRow> lines = GetLines(temId);
             try
             {
+                var lots = lines.Select(x => (StockLotSelection)x["SEL"]).ToList();
                 ValidateSet(
-                    lines.Select(x => (StockLotSelection)x["SEL"]).ToList(),
-                    lines.Select(x => SafeInt(x["SL"])).ToList());
+                    lots,
+                    lines.Select(x => SafeInt(x["SL"])).ToList(),
+                    lots.Count == 0 ? 0 : GetPackQty(lots[0].ItemCode));
                 return null;
             }
             catch (InvalidOperationException ex)
@@ -764,7 +789,7 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
             return PCTP.Common.LotCodeHelper.ParseCompositeLot(payload);
         }
 
-        private static void ValidateSet(IList<StockLotSelection> lots, IList<int> quantities)
+        private static void ValidateSet(IList<StockLotSelection> lots, IList<int> quantities, int packQty)
         {
             if (lots == null || lots.Count < MinLots)
                 throw new InvalidOperationException("Phải ghép từ " + MinLots + " LOT trở lên.");
@@ -788,8 +813,45 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
                         + " phải lớn hơn 0 và không vượt tồn STOCKTP (" + lot.Available + ").");
             }
 
+            if (packQty <= 0)
+                throw new InvalidOperationException("Mã hàng " + lots[0].ItemCode
+                    + " chưa khai báo quy cách đóng gói (B20Item.MinCloseQty).");
+            if (quantities.Sum() > packQty)
+                throw new InvalidOperationException("Tổng SL in (" + quantities.Sum()
+                    + ") vượt quy cách đóng gói của mã hàng " + lots[0].ItemCode + " (" + packQty + ").");
+
             CheckGearSet(lots);
             CheckPrintLimits(lots[0].ItemCode, BuildPayload(lots, quantities), quantities.Sum());
+        }
+
+        /// <summary>Quy cách đóng gói của mã hàng = B20Item.MinCloseQty (0 nếu chưa khai báo).</summary>
+        private int GetPackQty(string itemCode)
+        {
+            string key = NormalizeItem(itemCode);
+            if (string.IsNullOrEmpty(key)) return 0;
+            int cached;
+            if (_packCache.TryGetValue(key, out cached)) return cached;
+
+            string raw = _sql.ExecuteReader(_sql.B7R2_FCCdb,
+                "SELECT TOP 1 CAST(ISNULL(MinCloseQty, 0) AS INT) FROM B20Item WHERE REPLACE(Code, '-', '') = REPLACE(N'"
+                + Esc(itemCode) + "', '-', '')");
+            int pack;
+            if (!int.TryParse((raw ?? string.Empty).Trim(), out pack) || pack < 0) pack = 0;
+            _packCache[key] = pack;
+            return pack;
+        }
+
+        /// <summary>Kiểm tra tổng SL của tem nếu dòng <paramref name="row"/> đổi thành <paramref name="newQty"/>. Null = hợp lệ.</summary>
+        private string CheckPackLimit(int temId, DataRow row, int newQty)
+        {
+            int pack = GetPackQty(ReadText(row, "MAHANG"));
+            if (pack <= 0)
+                return "Mã hàng " + ReadText(row, "MAHANG") + " chưa khai báo quy cách đóng gói (B20Item.MinCloseQty).";
+            int others = GetLines(temId).Where(x => !ReferenceEquals(x, row)).Sum(x => SafeInt(x["SL"]));
+            if (others + newQty > pack)
+                return "Tổng SL in của tem không được vượt quy cách đóng gói (" + pack + "). Tối đa cho LOT này: "
+                    + Math.Max(0, pack - others) + ".";
+            return null;
         }
 
         private static string Esc(string value)
