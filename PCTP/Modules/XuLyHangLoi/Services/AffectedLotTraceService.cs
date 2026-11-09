@@ -205,7 +205,6 @@ namespace PCTP.Modules.XuLyHangLoi.Services
         public AffectedLotTraceResult Trace(string maSanPham, string lotNo, string nguoiThucHien)
         {
             if (string.IsNullOrWhiteSpace(maSanPham)) throw new ArgumentException("MaSanPham không được rỗng.", nameof(maSanPham));
-            if (string.IsNullOrWhiteSpace(lotNo)) throw new ArgumentException("LotNo không được rỗng.", nameof(lotNo));
             if (string.IsNullOrWhiteSpace(nguoiThucHien)) throw new ArgumentException("NguoiThucHien không được rỗng.", nameof(nguoiThucHien));
 
             var result = new AffectedLotTraceResult
@@ -215,7 +214,11 @@ namespace PCTP.Modules.XuLyHangLoi.Services
                 IsComplete = true
             };
 
-            var stockLots = _stockService.GetLotsCanRework(result.MaSanPham, result.LotNo);
+            // LotNo trống (khách chỉ báo mã hàng): khoanh vùng = TOÀN BỘ tồn kho của mã.
+            // GetLotsCanRework(maHang, null/"") liệt kê mọi LOT còn tồn của mã → mỗi LOT thành một dòng snapshot
+            // để QC định hướng/Initial QC kiểm từng LOT.
+            bool chiCoMaHang = string.IsNullOrWhiteSpace(result.LotNo);
+            var stockLots = _stockService.GetLotsCanRework(result.MaSanPham, chiCoMaHang ? null : result.LotNo);
             if (stockLots != null)
             {
                 foreach (var lot in stockLots)
@@ -235,7 +238,12 @@ namespace PCTP.Modules.XuLyHangLoi.Services
                 }
             }
 
-            if (_productionProvider != null)
+            if (chiCoMaHang)
+            {
+                // Provider WIP/khách trả truy vết theo LOT nên không áp dụng khi chỉ có mã hàng.
+                result.Warnings.Add("Phiếu chỉ có mã hàng (không có LOT): khoanh vùng theo toàn bộ tồn kho của mã; chưa truy vết WIP/khách trả theo LOT.");
+            }
+            else if (_productionProvider != null)
                 AddRows(result, _productionProvider.Trace(result.MaSanPham, result.LotNo), AffectedLotSourceType.SanXuat, nguoiThucHien);
             else
             {
@@ -243,7 +251,8 @@ namespace PCTP.Modules.XuLyHangLoi.Services
                 result.Warnings.Add("Chưa cấu hình provider truy vết LOT tại Sản xuất/WIP.");
             }
 
-            if (_customerReturnProvider != null)
+            if (chiCoMaHang) { /* đã ghi cảnh báo ở trên */ }
+            else if (_customerReturnProvider != null)
                 AddRows(result, _customerReturnProvider.Trace(result.MaSanPham, result.LotNo), AffectedLotSourceType.KhachTra, nguoiThucHien);
             else
             {

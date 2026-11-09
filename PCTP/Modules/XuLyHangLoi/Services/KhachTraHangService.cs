@@ -85,9 +85,9 @@ namespace PCTP.Modules.XuLyHangLoi.Services
                     throw new ArgumentException(
                         "MaHang không được rỗng.");
 
-                if (string.IsNullOrWhiteSpace(ct.LotNo))
-                    throw new ArgumentException(
-                        "LotNo không được rỗng.");
+                // Khách có thể chỉ báo MÃ HÀNG mà không có LOT: khi đó để trống LOT (không bắt buộc);
+                // phạm vi ảnh hưởng sẽ là toàn bộ tồn của mã (xem AffectedLotTraceService.Trace).
+                ct.LotNo = string.IsNullOrWhiteSpace(ct.LotNo) ? string.Empty : ct.LotNo.Trim();
 
                 if (ct.SoLuong <= 0)
                     throw new ArgumentException(

@@ -485,10 +485,15 @@ namespace PCTP.Modules.XuLyHangLoi.Services
                 var line = lines[i];
                 if (line == null || string.IsNullOrWhiteSpace(line.MaHang))
                     return ScanResult.Fail(string.Format("Dòng {0}: MaHang không được rỗng.", i + 1));
-                if (string.IsNullOrWhiteSpace(line.LotNo))
-                    return ScanResult.Fail(string.Format("Dòng {0}: LotNo không được rỗng.", i + 1));
                 if (line.SoLuong <= 0)
                     return ScanResult.Fail(string.Format("Dòng {0}: SoLuong phải lớn hơn 0.", i + 1));
+                // Dòng chỉ có mã hàng (không LOT) không thể tạo SlotLot (kho quản lý theo LOT): bỏ qua ở bước nhập,
+                // phạm vi cách ly/kiểm tra là toàn bộ tồn của mã (xem AffectedLotTraceService.Trace).
+                if (string.IsNullOrWhiteSpace(line.LotNo))
+                {
+                    lotChuan[i] = null;
+                    continue;
+                }
                 try
                 {
                     lotChuan[i] = LotNoHelper.GetStockTpKey(line.LotNo);
@@ -502,10 +507,15 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             _uow.Begin();
             try
             {
-                int daNhap = 0, boQua = 0, tongSl = 0;
+                int daNhap = 0, boQua = 0, tongSl = 0, khongLot = 0;
                 for (int i = 0; i < lines.Count; i++)
                 {
                     var line = lines[i];
+                    if (lotChuan[i] == null)
+                    {
+                        khongLot++;
+                        continue;
+                    }
                     string referenceId = line.PhieuTraHangCTId > 0
                         ? line.PhieuTraHangCTId.ToString()
                         : phieuTraHangId + ":" + (i + 1);
@@ -552,8 +562,10 @@ namespace PCTP.Modules.XuLyHangLoi.Services
 
                 _uow.Commit();
                 return ScanResult.OK(string.Format(
-                    "Đã nhập kho NG {0} dòng ({1:n0} cái){2}.",
-                    daNhap, tongSl, boQua > 0 ? "; bỏ qua " + boQua + " dòng đã nhập trước đó" : string.Empty));
+                    "Đã nhập kho NG {0} dòng ({1:n0} cái){2}{3}.",
+                    daNhap, tongSl,
+                    boQua > 0 ? "; bỏ qua " + boQua + " dòng đã nhập trước đó" : string.Empty,
+                    khongLot > 0 ? "; " + khongLot + " dòng chỉ có mã hàng (không LOT) chưa nhập SlotLot, khoanh vùng theo toàn bộ tồn của mã" : string.Empty));
             }
             catch (Exception ex)
             {
