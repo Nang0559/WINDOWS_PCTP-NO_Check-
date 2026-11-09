@@ -307,6 +307,9 @@ namespace PCTP
 
         private void accordionControlElement38_Click(object sender, EventArgs e)
         {
+            // Màn hình quản trị: yêu cầu đăng nhập trước khi mở
+            if (!LogIn.XacThuc(this)) return;
+
             FormItemFifoConfig form = new FormItemFifoConfig();
             form.Show(this);
         }

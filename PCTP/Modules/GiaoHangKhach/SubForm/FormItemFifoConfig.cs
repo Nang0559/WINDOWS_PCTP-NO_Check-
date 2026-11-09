@@ -1,4 +1,5 @@
-﻿using DevExpress.XtraEditors;
+﻿using DevExpress.Data.Filtering;
+using DevExpress.XtraEditors;
 using DevExpress.XtraEditors.Repository;
 using DevExpress.XtraGrid;
 using DevExpress.XtraGrid.Columns;
@@ -216,39 +217,47 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
         {
             try
             {
-                // ★ SỬA — qua repository thay vì tự new SQLPROVIDER() query trực tiếp
-                // trong Form (vi phạm Form → Service/Repository). Thêm method mới
-                // GetDanhSachMaHangKhaDung() vào IItemFifoConfigRepository.
+                // Qua repository (Form -> Repository), không query trực tiếp trong Form.
                 DataTable dsMaHang = _repo.GetDanhSachMaHangKhaDung();
 
                 using (var frm = new FormChonMaHang(dsMaHang))
                 {
                     if (frm.ShowDialog() != DialogResult.OK) return;
-                    if (string.IsNullOrWhiteSpace(frm.SelectedItemCode)) return;
+                    if (frm.SelectedItems.Count == 0) return;
 
-                    string ma = frm.SelectedItemCode.Trim();
+                    // Tập mã đã có trong lưới, dùng để bỏ qua mã trùng
+                    var daCo = new HashSet<string>(
+                        _dt.AsEnumerable()
+                           .Where(r => r.RowState != DataRowState.Deleted)
+                           .Select(r => (r["ItemCode"]?.ToString() ?? "").Trim()),
+                        StringComparer.OrdinalIgnoreCase);
 
-                    // Không cho thêm trùng
-                    bool trung = _dt.AsEnumerable()
-                        .Any(r => string.Equals(
-                            r["ItemCode"].ToString().Trim(), ma,
-                            StringComparison.OrdinalIgnoreCase));
-
-                    if (trung)
+                    int soThem = 0, soTrung = 0;
+                    foreach (var item in frm.SelectedItems)
                     {
-                        XtraMessageBox.Show("Mã hàng này đã có trong danh sách.",
-                            "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                        return;
+                        string ma = (item.Key ?? "").Trim();
+                        if (ma.Length == 0) continue;
+
+                        if (!daCo.Add(ma)) { soTrung++; continue; }
+
+                        DataRow row = _dt.NewRow();
+                        row["ItemCode"] = ma;
+                        row["TenHang"] = item.Value ?? "";
+                        row["EnforceFifo"] = false;
+                        row["_IsNew"] = true;
+                        _dt.Rows.Add(row);
+                        soThem++;
                     }
 
-                    DataRow row = _dt.NewRow();
-                    row["ItemCode"] = ma;
-                    row["TenHang"] = frm.SelectedItemName ?? "";
-                    row["EnforceFifo"] = false;
-                    row["_IsNew"] = true;
-
-                    _dt.Rows.Add(row);
                     _gridView.RefreshData();
+
+                    if (soTrung > 0)
+                    {
+                        XtraMessageBox.Show(
+                            $"Đã thêm {soThem} mã hàng. Bỏ qua {soTrung} mã đã có trong danh sách.\n" +
+                            "Bấm \"Lưu\" để ghi vào cơ sở dữ liệu.",
+                            "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
                 }
             }
             catch (Exception ex)
@@ -329,57 +338,232 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
     }
 
     // ════════════════════════════════════════════════════════════════════
-    // Dialog chọn mã hàng đơn giản — dùng cho nút "Thêm Mã Hàng"
-    // (giữ nguyên 100%, không có thay đổi gì liên quan)
+    // Dialog chọn mã hàng — cho phép TICK chọn NHIỀU mã.
+    // Lọc bằng ActiveFilterCriteria của GridView (không dựng lại DataTable) nên các
+    // mã đã tick vẫn được giữ khi đổi từ khóa tìm kiếm.
     // ════════════════════════════════════════════════════════════════════
     internal sealed class FormChonMaHang : XtraForm
     {
+        private const string ColChon = "_Chon";
+
+        private readonly DataTable _dt;
         private readonly GridControl _grid;
         private readonly GridView _gridView;
+        private readonly LabelControl _lblDem;
+        private readonly SimpleButton _btnOk;
 
-        public string SelectedItemCode { get; private set; }
-        public string SelectedItemName { get; private set; }
+        /// <summary>Danh sách (Code, Name) đã chọn.</summary>
+        public List<KeyValuePair<string, string>> SelectedItems { get; private set; }
+            = new List<KeyValuePair<string, string>>();
+
+        // Giữ tương thích code cũ: mã đầu tiên được chọn.
+        public string SelectedItemCode => SelectedItems.Count > 0 ? SelectedItems[0].Key : null;
+        public string SelectedItemName => SelectedItems.Count > 0 ? SelectedItems[0].Value : null;
 
         public FormChonMaHang(DataTable dsMaHang)
         {
-            this.Text = "Chọn Mã Hàng";
-            this.Size = new Size(480, 520);
+            _dt = dsMaHang ?? new DataTable();
+            if (!_dt.Columns.Contains("Code")) _dt.Columns.Add("Code", typeof(string));
+            if (!_dt.Columns.Contains("Name")) _dt.Columns.Add("Name", typeof(string));
+            if (!_dt.Columns.Contains(ColChon))
+            {
+                var c = _dt.Columns.Add(ColChon, typeof(bool));
+                c.DefaultValue = false;
+                foreach (DataRow r in _dt.Rows) r[ColChon] = false;
+            }
+
+            this.Text = "Chọn Mã Hàng (tick để chọn nhiều)";
+            this.Size = new Size(560, 600);
             this.StartPosition = FormStartPosition.CenterParent;
 
+            // ── Ô tìm kiếm ──────────────────────────────────────────
             var txtSearch = new TextEdit { Dock = DockStyle.Top };
-            txtSearch.EditValueChanged += (s, e) =>
-            {
-                string kw = txtSearch.Text?.Trim() ?? "";
-                _grid.DataSource = string.IsNullOrEmpty(kw)
-                    ? dsMaHang
-                    : dsMaHang.AsEnumerable()
-                        .Where(r => r["Code"].ToString().IndexOf(kw, StringComparison.OrdinalIgnoreCase) >= 0
-                                 || r["Name"].ToString().IndexOf(kw, StringComparison.OrdinalIgnoreCase) >= 0)
-                        .CopyToDataTable2();
-            };
+            txtSearch.Properties.NullValuePrompt = "Nhập mã hoặc tên hàng để lọc...";
+            txtSearch.Properties.NullValuePromptShowForEmptyValue = true;
+            txtSearch.EditValueChanged += (s, e) => ApDungLoc(txtSearch.Text);
 
-            _grid = new GridControl { Dock = DockStyle.Fill, DataSource = dsMaHang };
+            // ── Thanh nút chọn nhanh ────────────────────────────────
+            var panelTools = new PanelControl { Dock = DockStyle.Top, Height = 40 };
+            var btnChonLoc = new SimpleButton
+            {
+                Text = "Chọn tất cả (đang lọc)",
+                Location = new Point(8, 6),
+                Width = 160
+            };
+            btnChonLoc.Click += (s, e) => DatCheckDangLoc(true);
+            var btnBoChon = new SimpleButton
+            {
+                Text = "Bỏ chọn tất cả",
+                Location = new Point(btnChonLoc.Right + 8, 6),
+                Width = 120
+            };
+            btnBoChon.Click += (s, e) => DatCheckTatCa(false);
+            _lblDem = new LabelControl
+            {
+                Location = new Point(btnBoChon.Right + 12, 12),
+                Text = "Đã chọn: 0"
+            };
+            panelTools.Controls.AddRange(new Control[] { btnChonLoc, btnBoChon, _lblDem });
+
+            // ── Lưới ────────────────────────────────────────────────
+            _grid = new GridControl { Dock = DockStyle.Fill, DataSource = _dt };
             _gridView = new GridView(_grid);
             _grid.MainView = _gridView;
             _grid.ViewCollection.Add(_gridView);
-            _gridView.OptionsBehavior.Editable = false;
             _gridView.OptionsView.ShowGroupPanel = false;
-            _gridView.OptionsBehavior.ReadOnly = true;
-            _gridView.DoubleClick += (s, e) => ChonDongHienTai();
+            _gridView.OptionsView.ColumnAutoWidth = false;
+            _gridView.OptionsBehavior.Editable = true;   // chỉ cột tick được sửa
 
-            var btnOk = new SimpleButton { Text = "Chọn", Dock = DockStyle.Bottom, Height = 32 };
-            btnOk.Click += (s, e) => ChonDongHienTai();
+            var colChon = _gridView.Columns.AddField(ColChon);
+            colChon.Caption = "Chọn";
+            colChon.Visible = true;
+            colChon.VisibleIndex = 0;
+            colChon.Width = 60;
+            var riCheck = new RepositoryItemCheckEdit();
+            riCheck.CheckedChanged += (s, e) => { _gridView.PostEditor(); CapNhatDem(); };
+            _grid.RepositoryItems.Add(riCheck);
+            colChon.ColumnEdit = riCheck;
+
+            var colCode = _gridView.Columns.AddField("Code");
+            colCode.Caption = "Mã Hàng";
+            colCode.Visible = true;
+            colCode.VisibleIndex = 1;
+            colCode.Width = 180;
+            colCode.OptionsColumn.AllowEdit = false;
+
+            var colName = _gridView.Columns.AddField("Name");
+            colName.Caption = "Tên Hàng";
+            colName.Visible = true;
+            colName.VisibleIndex = 2;
+            colName.Width = 280;
+            colName.OptionsColumn.AllowEdit = false;
+
+            // Bấm đúp vào dòng = đổi trạng thái tick
+            _gridView.DoubleClick += (s, e) =>
+            {
+                int h = _gridView.FocusedRowHandle;
+                if (h < 0) return;
+                bool cur = Convert.ToBoolean(_gridView.GetRowCellValue(h, ColChon));
+                _gridView.SetRowCellValue(h, ColChon, !cur);
+                _gridView.PostEditor();
+                CapNhatDem();
+            };
+
+            // ── Nút dưới ────────────────────────────────────────────
+            var panelBottom = new PanelControl { Dock = DockStyle.Bottom, Height = 44 };
+            _btnOk = new SimpleButton
+            {
+                Text = "Thêm đã chọn",
+                Anchor = AnchorStyles.Top | AnchorStyles.Right,
+                Width = 140,
+                Height = 30
+            };
+            _btnOk.Click += (s, e) => XacNhan();
+            var btnHuy = new SimpleButton
+            {
+                Text = "Hủy",
+                Anchor = AnchorStyles.Top | AnchorStyles.Right,
+                Width = 90,
+                Height = 30,
+                DialogResult = DialogResult.Cancel
+            };
+            panelBottom.Controls.AddRange(new Control[] { _btnOk, btnHuy });
+            panelBottom.Resize += (s, e) =>
+            {
+                btnHuy.Location = new Point(panelBottom.Width - btnHuy.Width - 10, 7);
+                _btnOk.Location = new Point(btnHuy.Left - _btnOk.Width - 8, 7);
+            };
+            btnHuy.Location = new Point(panelBottom.Width - btnHuy.Width - 10, 7);
+            _btnOk.Location = new Point(btnHuy.Left - _btnOk.Width - 8, 7);
+            this.CancelButton = btnHuy;
 
             this.Controls.Add(_grid);
-            this.Controls.Add(btnOk);
+            this.Controls.Add(panelBottom);
+            this.Controls.Add(panelTools);
             this.Controls.Add(txtSearch);
+            CapNhatDem();
         }
 
-        private void ChonDongHienTai()
+        // ── Lọc theo mã/tên, KHÔNG đụng tới trạng thái tick ───────────
+        private void ApDungLoc(string keyword)
         {
-            if (_gridView.FocusedRowHandle < 0) return;
-            SelectedItemCode = _gridView.GetFocusedRowCellDisplayText("Code");
-            SelectedItemName = _gridView.GetFocusedRowCellDisplayText("Name");
+            string kw = (keyword ?? "").Trim();
+            if (kw.Length == 0)
+            {
+                _gridView.ActiveFilterCriteria = null;
+                return;
+            }
+
+            _gridView.ActiveFilterCriteria = new GroupOperator(
+                GroupOperatorType.Or,
+                new FunctionOperator(FunctionOperatorType.Contains,
+                    new OperandProperty("Code"), new OperandValue(kw)),
+                new FunctionOperator(FunctionOperatorType.Contains,
+                    new OperandProperty("Name"), new OperandValue(kw)));
+        }
+
+        // Tick/bỏ tick mọi dòng đang HIỂN THỊ sau khi lọc
+        private void DatCheckDangLoc(bool value)
+        {
+            _gridView.CloseEditor();
+            _gridView.BeginUpdate();
+            try
+            {
+                for (int i = 0; i < _gridView.DataRowCount; i++)
+                {
+                    int src = _gridView.GetDataSourceRowIndex(i);
+                    if (src >= 0) _dt.Rows[src][ColChon] = value;
+                }
+            }
+            finally { _gridView.EndUpdate(); }
+            CapNhatDem();
+        }
+
+        private void DatCheckTatCa(bool value)
+        {
+            _gridView.CloseEditor();
+            _gridView.BeginUpdate();
+            try { foreach (DataRow r in _dt.Rows) r[ColChon] = value; }
+            finally { _gridView.EndUpdate(); }
+            CapNhatDem();
+        }
+
+        private void CapNhatDem()
+        {
+            int n = _dt.AsEnumerable().Count(r => r[ColChon] != DBNull.Value && (bool)r[ColChon]);
+            _lblDem.Text = $"Đã chọn: {n}";
+            _btnOk.Text = n > 0 ? $"Thêm đã chọn ({n})" : "Thêm đã chọn";
+        }
+
+        private void XacNhan()
+        {
+            _gridView.CloseEditor();
+            _gridView.UpdateCurrentRow();
+
+            var ds = _dt.AsEnumerable()
+                .Where(r => r[ColChon] != DBNull.Value && (bool)r[ColChon])
+                .Select(r => new KeyValuePair<string, string>(
+                    Convert.ToString(r["Code"]).Trim(),
+                    Convert.ToString(r["Name"]).Trim()))
+                .Where(kv => kv.Key.Length > 0)
+                .ToList();
+
+            // Chưa tick gì nhưng đang đứng ở 1 dòng -> coi như chọn dòng đó (giữ hành vi cũ)
+            if (ds.Count == 0 && _gridView.FocusedRowHandle >= 0)
+            {
+                string code = (_gridView.GetFocusedRowCellDisplayText("Code") ?? "").Trim();
+                string name = (_gridView.GetFocusedRowCellDisplayText("Name") ?? "").Trim();
+                if (code.Length > 0) ds.Add(new KeyValuePair<string, string>(code, name));
+            }
+
+            if (ds.Count == 0)
+            {
+                XtraMessageBox.Show("Vui lòng tick chọn ít nhất một mã hàng.",
+                    "Chưa chọn", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            SelectedItems = ds;
             this.DialogResult = DialogResult.OK;
             this.Close();
         }
