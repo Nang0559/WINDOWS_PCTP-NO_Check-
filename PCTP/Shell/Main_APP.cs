@@ -234,8 +234,7 @@ namespace PCTP
 
         private void accordionControlElement21_Click(object sender, EventArgs e)
         {
-            UF_CHANGETIME form = new UF_CHANGETIME();
-            form.ShowDialog(this);
+            FormWindowManager.ShowSingle(this, () => new UF_CHANGETIME());
         }
 
         private void accordionControlElement23_Click(object sender, EventArgs e) { }
@@ -254,10 +253,7 @@ namespace PCTP
 
         private void accordionControlElement29_Click(object sender, EventArgs e)
         {
-            using (ComaparePart form = new ComaparePart())
-            {
-                form.ShowDialog(this);
-            }
+            FormWindowManager.ShowSingle(this, () => new ComaparePart());
         }
 
         private void InGhepLot_Click(object sender, EventArgs e) { }
@@ -269,8 +265,7 @@ namespace PCTP
 
         private void acrImageControl_Click(object sender, EventArgs e)
         {
-            FrmImageControl form = new FrmImageControl();
-            form.Show(this);
+            FormWindowManager.ShowSingle(this, () => new FrmImageControl());
         }
 
         private void cmdRackControl_Click(object sender, EventArgs e) { WarehouseProcessNavigator.OpenBanDoKho(this); }
@@ -310,8 +305,7 @@ namespace PCTP
             // Màn hình quản trị: yêu cầu đăng nhập trước khi mở
             if (!LogIn.XacThuc(this)) return;
 
-            FormItemFifoConfig form = new FormItemFifoConfig();
-            form.Show(this);
+            FormWindowManager.ShowSingle(this, () => new FormItemFifoConfig());
         }
 
         private void accordionControlElement37_Click(object sender, EventArgs e) { WarehouseProcessNavigator.OpenQuanLyTienTrinhHangLoi(this); }
