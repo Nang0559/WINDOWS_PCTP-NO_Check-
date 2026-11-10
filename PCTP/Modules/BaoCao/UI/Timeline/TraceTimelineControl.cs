@@ -15,20 +15,34 @@ namespace PCTP.Modules.BaoCao.UI
     [DesignerCategory("Code")]
     public sealed class TraceTimelineControl : ScrollableControl
     {
-        private const int RowHeight = 100;
-        private const int CardHeight = 84;
-        private const int CircleRadius = 17;
-        private const int TopPadding = 14;
-        private const int NarrowWidth = 640;
+        private const int BaseRowHeight = 100;
+        private const int BaseCardHeight = 84;
+        private const int BaseCircleRadius = 17;
+        private const int BaseTopPadding = 14;
+        private const int BaseNarrowWidth = 640;
+
+        // Zoom: Ctrl + lăn chuột, Ctrl + (+/-), Ctrl + 0 để đặt lại 100%.
+        public const float MinZoom = 0.5F;
+        public const float MaxZoom = 3.0F;
+        private const float ZoomStep = 1.15F;
+        private float _zoom = 1F;
+
+        private int RowHeight { get { return S(BaseRowHeight); } }
+        private int CardHeight { get { return S(BaseCardHeight); } }
+        private int CircleRadius { get { return S(BaseCircleRadius); } }
+        private int TopPadding { get { return S(BaseTopPadding); } }
+        private int NarrowWidth { get { return S(BaseNarrowWidth); } }
+
+        private int S(int value) { return (int)Math.Round(value * _zoom); }
 
         private readonly List<TraceTimelineNode> _nodes = new List<TraceTimelineNode>();
         private readonly List<Rectangle> _cards = new List<Rectangle>();
         private readonly List<Point> _centers = new List<Point>();
         private readonly List<bool> _cardOnRight = new List<bool>();
-        private readonly Font _titleFont = new Font("Segoe UI", 8.5F, FontStyle.Bold);
-        private readonly Font _timeFont = new Font("Segoe UI", 10F, FontStyle.Bold);
-        private readonly Font _bodyFont = new Font("Segoe UI", 8.5F, FontStyle.Regular);
-        private readonly Font _numberFont = new Font("Segoe UI", 10F, FontStyle.Bold);
+        private Font _titleFont;
+        private Font _timeFont;
+        private Font _bodyFont;
+        private Font _numberFont;
         private int _selected = -1;
         private string _emptyText = string.Empty;
 
@@ -41,6 +55,75 @@ namespace PCTP.Modules.BaoCao.UI
                      ControlStyles.Selectable, true);
             BackColor = Color.White;
             AutoScroll = true;
+            BuildFonts();
+        }
+
+        /// <summary>Hệ số zoom (1 = 100%). Giới hạn trong [MinZoom, MaxZoom].</summary>
+        [Browsable(false), DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        public float ZoomFactor
+        {
+            get { return _zoom; }
+            set { SetZoom(value, null); }
+        }
+
+        public void ZoomIn() { SetZoom(_zoom * ZoomStep, null); }
+        public void ZoomOut() { SetZoom(_zoom / ZoomStep, null); }
+        public void ResetZoom() { SetZoom(1F, null); }
+
+        private void BuildFonts()
+        {
+            DisposeFonts();
+            _titleFont = new Font("Segoe UI", 8.5F * _zoom, FontStyle.Bold);
+            _timeFont = new Font("Segoe UI", 10F * _zoom, FontStyle.Bold);
+            _bodyFont = new Font("Segoe UI", 8.5F * _zoom, FontStyle.Regular);
+            _numberFont = new Font("Segoe UI", 10F * _zoom, FontStyle.Bold);
+        }
+
+        private void DisposeFonts()
+        {
+            if (_titleFont != null) _titleFont.Dispose();
+            if (_timeFont != null) _timeFont.Dispose();
+            if (_bodyFont != null) _bodyFont.Dispose();
+            if (_numberFont != null) _numberFont.Dispose();
+        }
+
+        // anchor: điểm (toạ độ client) giữ nguyên vị trí nội dung khi zoom; null = giữa khung nhìn.
+        private void SetZoom(float value, Point? anchor)
+        {
+            float newZoom = Math.Max(MinZoom, Math.Min(MaxZoom, (float)Math.Round(value, 3)));
+            if (Math.Abs(newZoom - _zoom) < 0.001F) return;
+
+            Point a = anchor ?? new Point(ClientSize.Width / 2, ClientSize.Height / 2);
+            // Vị trí dọc (theo toạ độ nội dung chưa zoom) dưới con trỏ, để zoom xong vẫn nhìn đúng chỗ đó.
+            double logicalY = (-AutoScrollPosition.Y + a.Y) / _zoom;
+
+            _zoom = newZoom;
+            BuildFonts();
+            RecomputeLayout();
+
+            int newTop = (int)Math.Round(logicalY * _zoom) - a.Y;
+            AutoScrollPosition = new Point(0, Math.Max(0, newTop));
+            Invalidate();
+        }
+
+        protected override void OnMouseWheel(MouseEventArgs e)
+        {
+            if ((ModifierKeys & Keys.Control) == Keys.Control)
+            {
+                SetZoom(e.Delta > 0 ? _zoom * ZoomStep : _zoom / ZoomStep, e.Location);
+                var handled = e as HandledMouseEventArgs;
+                if (handled != null) handled.Handled = true;
+                return; // không cuộn khi đang zoom
+            }
+            base.OnMouseWheel(e);
+        }
+
+        protected override void OnMouseEnter(EventArgs e)
+        {
+            base.OnMouseEnter(e);
+            // Cần focus để nhận Ctrl + lăn chuột (WinForms gửi wheel cho control đang focus).
+            Form form = FindForm();
+            if (!Focused && form != null && form == Form.ActiveForm) Focus();
         }
 
         public TraceTimelineNode SelectedNode
@@ -97,10 +180,10 @@ namespace PCTP.Modules.BaoCao.UI
             _centers.Clear();
             _cardOnRight.Clear();
 
-            int width = Math.Max(240, ClientSize.Width);
+            int width = Math.Max(S(240), ClientSize.Width);
             bool narrow = width < NarrowWidth;
-            int lineX = narrow ? 34 : width / 2;
-            int gap = 34;
+            int lineX = narrow ? S(34) : width / 2;
+            int gap = S(34);
 
             for (int i = 0; i < _nodes.Count; i++)
             {
@@ -113,13 +196,13 @@ namespace PCTP.Modules.BaoCao.UI
                 if (right)
                 {
                     int x = lineX + CircleRadius + gap;
-                    card = new Rectangle(x, cy - CardHeight / 2, Math.Max(160, width - x - 14), CardHeight);
+                    card = new Rectangle(x, cy - CardHeight / 2, Math.Max(S(160), width - x - S(14)), CardHeight);
                 }
                 else
                 {
                     int right0 = lineX - CircleRadius - gap;
-                    int x = 14;
-                    card = new Rectangle(x, cy - CardHeight / 2, Math.Max(160, right0 - x), CardHeight);
+                    int x = S(14);
+                    card = new Rectangle(x, cy - CardHeight / 2, Math.Max(S(160), right0 - x), CardHeight);
                 }
                 _cards.Add(card);
             }
@@ -161,7 +244,7 @@ namespace PCTP.Modules.BaoCao.UI
             // Đường dọc nối các node.
             if (_centers.Count > 1)
             {
-                using (var pen = new Pen(Color.FromArgb(176, 184, 196), 3F))
+                using (var pen = new Pen(Color.FromArgb(176, 184, 196), 3F * _zoom))
                     g.DrawLine(pen, _centers[0], _centers[_centers.Count - 1]);
             }
 
@@ -180,7 +263,7 @@ namespace PCTP.Modules.BaoCao.UI
                 bool onRight = _cardOnRight[i];
 
                 // Nét đứt nối vòng tròn -> thẻ.
-                using (var dash = new Pen(color, 1.6F) { DashStyle = DashStyle.Dash })
+                using (var dash = new Pen(color, 1.6F * _zoom) { DashStyle = DashStyle.Dash })
                 {
                     int x1 = onRight ? c.X + CircleRadius : c.X - CircleRadius;
                     int x2 = onRight ? card.Left : card.Right;
@@ -188,11 +271,11 @@ namespace PCTP.Modules.BaoCao.UI
                 }
 
                 // Thẻ nội dung.
-                using (var path = RoundedRect(card, 8))
+                using (var path = RoundedRect(card, S(8)))
                 {
                     using (var fill = new SolidBrush(selected ? Color.FromArgb(255, 248, 235) : Color.White))
                         g.FillPath(fill, path);
-                    using (var border = new Pen(selected ? color : Color.FromArgb(214, 220, 228), selected ? 2F : 1F))
+                    using (var border = new Pen(selected ? color : Color.FromArgb(214, 220, 228), (selected ? 2F : 1F) * _zoom))
                         g.DrawPath(border, path);
                 }
 
@@ -202,10 +285,25 @@ namespace PCTP.Modules.BaoCao.UI
                 var circle = new Rectangle(c.X - CircleRadius, c.Y - CircleRadius, CircleRadius * 2, CircleRadius * 2);
                 using (var white = new SolidBrush(Color.White))
                     g.FillEllipse(white, circle);
-                using (var ring = new Pen(color, 3.5F))
+                using (var ring = new Pen(color, 3.5F * _zoom))
                     g.DrawEllipse(ring, circle);
                 DrawText(g, (i + 1).ToString(), _numberFont, circle, color,
                     StringAlignment.Center, StringAlignment.Center, false);
+            }
+
+            // Nhãn zoom (cố định góc phải dưới, không cuộn theo nội dung).
+            g.ResetTransform();
+            if (Math.Abs(_zoom - 1F) > 0.001F)
+            {
+                string label = "Zoom " + Math.Round(_zoom * 100) + "%  (Ctrl+0: đặt lại)";
+                using (var font = new Font("Segoe UI", 8F, FontStyle.Regular))
+                {
+                    int w = TextWidth(g, label, font) + 12;
+                    var box = new Rectangle(ClientSize.Width - w - 6, ClientSize.Height - 24, w, 18);
+                    using (var bg = new SolidBrush(Color.FromArgb(200, 40, 48, 60)))
+                        g.FillRectangle(bg, box);
+                    DrawText(g, label, font, box, Color.White, StringAlignment.Center, StringAlignment.Center, false);
+                }
             }
         }
 
@@ -234,13 +332,13 @@ namespace PCTP.Modules.BaoCao.UI
 
         private void DrawCardText(Graphics g, Rectangle card, TraceTimelineNode node, Color color)
         {
-            int pad = 9;
+            int pad = S(9);
             int innerWidth = card.Width - pad * 2;
 
             // Nhãn (pill) tiêu đề.
-            int pillWidth = Math.Min(innerWidth, TextWidth(g, node.Title, _titleFont) + 18);
-            var pill = new Rectangle(card.Left + pad, card.Top + 7, pillWidth, 20);
-            using (var path = RoundedRect(pill, 10))
+            int pillWidth = Math.Min(innerWidth, TextWidth(g, node.Title, _titleFont) + S(18));
+            var pill = new Rectangle(card.Left + pad, card.Top + S(7), pillWidth, S(20));
+            using (var path = RoundedRect(pill, S(10)))
             using (var brush = new SolidBrush(Color.FromArgb(46, color)))
                 g.FillPath(brush, path);
             DrawText(g, node.Title, _titleFont, pill, Darken(color),
@@ -248,13 +346,13 @@ namespace PCTP.Modules.BaoCao.UI
 
             // Thời gian (nổi bật như năm trong mẫu timeline).
             string time = node.EventTime.HasValue ? node.EventTime.Value.ToString("dd/MM/yyyy HH:mm") : "Không có thời gian";
-            var timeRect = new Rectangle(card.Left + pad, card.Top + 30, innerWidth, 20);
+            var timeRect = new Rectangle(card.Left + pad, card.Top + S(30), innerWidth, S(20));
             DrawText(g, time, _timeFont, timeRect, Darken(color),
                 StringAlignment.Near, StringAlignment.Center, false);
 
             // Mô tả: LOT + chi tiết.
             string body = "LOT: " + TraceTimelineNode.ValueOrDash(node.LotNo) + Environment.NewLine + (node.Subtitle ?? string.Empty);
-            var bodyRect = new Rectangle(card.Left + pad, card.Top + 51, innerWidth, card.Height - 55);
+            var bodyRect = new Rectangle(card.Left + pad, card.Top + S(51), innerWidth, card.Height - S(55));
             DrawText(g, body, _bodyFont, bodyRect, Color.FromArgb(60, 60, 60),
                 StringAlignment.Near, StringAlignment.Near, true);
         }
@@ -281,6 +379,12 @@ namespace PCTP.Modules.BaoCao.UI
         protected override void OnKeyDown(KeyEventArgs e)
         {
             base.OnKeyDown(e);
+            if (e.Control)
+            {
+                if (e.KeyCode == Keys.Oemplus || e.KeyCode == Keys.Add) { ZoomIn(); e.Handled = true; return; }
+                if (e.KeyCode == Keys.OemMinus || e.KeyCode == Keys.Subtract) { ZoomOut(); e.Handled = true; return; }
+                if (e.KeyCode == Keys.D0 || e.KeyCode == Keys.NumPad0) { ResetZoom(); e.Handled = true; return; }
+            }
             if (e.KeyCode == Keys.Down) { SelectNode(Math.Min(_nodes.Count - 1, _selected + 1)); EnsureVisible(_selected); e.Handled = true; }
             else if (e.KeyCode == Keys.Up) { SelectNode(Math.Max(0, _selected - 1)); EnsureVisible(_selected); e.Handled = true; }
         }
@@ -290,8 +394,8 @@ namespace PCTP.Modules.BaoCao.UI
             if (index < 0 || index >= _cards.Count) return;
             Rectangle card = _cards[index];
             int top = -AutoScrollPosition.Y;
-            if (card.Top < top) AutoScrollPosition = new Point(0, Math.Max(0, card.Top - 8));
-            else if (card.Bottom > top + ClientSize.Height) AutoScrollPosition = new Point(0, card.Bottom - ClientSize.Height + 8);
+            if (card.Top < top) AutoScrollPosition = new Point(0, Math.Max(0, card.Top - S(8)));
+            else if (card.Bottom > top + ClientSize.Height) AutoScrollPosition = new Point(0, card.Bottom - ClientSize.Height + S(8));
         }
 
         private int HitTest(Point clientPoint)
@@ -327,10 +431,7 @@ namespace PCTP.Modules.BaoCao.UI
         {
             if (disposing)
             {
-                _titleFont.Dispose();
-                _timeFont.Dispose();
-                _bodyFont.Dispose();
-                _numberFont.Dispose();
+                DisposeFonts();
             }
             base.Dispose(disposing);
         }
