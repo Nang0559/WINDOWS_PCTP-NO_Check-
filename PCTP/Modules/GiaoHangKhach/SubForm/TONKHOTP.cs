@@ -19,6 +19,7 @@ using PCTP.Modules.NhapKho.Repository;
 using PCTP.Modules.NhapKho.Services;
 using PCTP.Modules.XuatKho.Application.Adapters;
 using PCTP.Modules.XuatKho.Repositories;
+using PCTP.Modules.XuLyHangLoi.Repository;
 using PCTP.Shared.Common;
 using PCTP.Shared.Helpers;
 using System;
@@ -50,6 +51,8 @@ using System.Windows.Forms;
         {
             // Có nguồn tồn kho + không lọc LOT => màn XEM TỒN KHO (TONKHOTP.TonKho.cs). Ngược lại giữ nguyên chế độ điều chỉnh 1 LOT.
             private readonly ICurrentStockQuery _currentStockQuery;
+            // Nguồn dữ liệu cho kiểu lọc ngày cần DB (ngày xuất hàng / ngày lập phiếu xử lý) của ô tra cứu chung.
+            private readonly INoiBoLookupRepository _lookupRepo;
             private readonly bool _isOnHandViewMode;
 
             private readonly IStockTpLookupService _stockTpService;
@@ -82,7 +85,8 @@ using System.Windows.Forms;
                 IStockMovementService movementService,
         string lotFilter = "",
         SlotRepository slotRepository = null,
-        ICurrentStockQuery currentStockQuery = null)
+        ICurrentStockQuery currentStockQuery = null,
+        INoiBoLookupRepository lookupRepo = null)
             {
                 InitializeComponent();
                 _stockTpService = stockTpService ?? throw new ArgumentNullException(nameof(stockTpService));
@@ -93,6 +97,7 @@ using System.Windows.Forms;
                 _isSingleLotEditMode = _lotList.Count == 1;
 
                 _currentStockQuery = currentStockQuery;
+                _lookupRepo = lookupRepo;
                 _isOnHandViewMode = _lotList.Count == 0 && _currentStockQuery != null;
 
                 Text = _isOnHandViewMode
@@ -143,9 +148,10 @@ using System.Windows.Forms;
 
             // Xem tồn kho (lotFilter rỗng) dùng cùng nguồn sp_GetCurrentStockStatus với báo cáo "Kho hiện tại".
             ICurrentStockQuery currentStockQuery = string.IsNullOrWhiteSpace(lotFilter) ? new CurrentStockQueryService() : null;
+            INoiBoLookupRepository lookupRepo = new NoiBoLookupRepository(sql, uow);
 
             FormWindowManager.ShowSingle(owner,
-                () => new TONKHOTP(stockTpService, historyService, movementService, lotFilter, slotRepository, currentStockQuery));
+                () => new TONKHOTP(stockTpService, historyService, movementService, lotFilter, slotRepository, currentStockQuery, lookupRepo));
         }
         // ════════════════════════════════════════════════════════════════
         // UI

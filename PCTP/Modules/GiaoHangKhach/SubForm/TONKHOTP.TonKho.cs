@@ -5,6 +5,9 @@ using DevExpress.XtraGrid.Columns;
 using DevExpress.XtraGrid.Views.Base;
 using DevExpress.XtraGrid.Views.Grid;
 using DevExpress.XtraTab;
+using PCTP.Common;
+using PCTP.Modules.XuLyHangLoi.Services;
+using PCTP.Shared.Models;
 using PCTP.Modules.BaoCao.Application.Contracts.Queries;
 using PCTP.Shared.Lookup;
 using PCTP.Shared.Helpers;
@@ -40,15 +43,18 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
         private GridView _viewLot, _viewItem, _viewDetail;
         private ComboBoxEdit _cmbFilter;
         private StockLookupControl _stockLookup;
-        private string _onHandLotSearchFilter;
-        private string _onHandItemSearchFilter;
-        private string _onHandDetailSearchFilter;
+        // Dữ liệu tồn kho gốc đã tải + tiêu chí tra cứu đang áp dụng (null = xem tất cả).
+        // Mọi lưới (LOT / mã hàng / vị trí) được dựng lại từ CÙNG tập dòng đã lọc nên tổng tồn luôn khớp nhau.
+        private IReadOnlyList<CurrentStockRow> _onHandRows;
+        private StockLookupCriteria _onHandCriteria;
         private SimpleButton _btnRefresh, _btnExport;
         private LabelControl _lblSummary;
 
         private void BuildOnHandUI()
         {
-            var top = new PanelControl { Dock = DockStyle.Top, Height = 126 };
+            // Có khối "Lọc theo ngày" (ô tra cứu cao ~136px) khi có nguồn dữ liệu cho kiểu lọc theo phiếu.
+            bool showDate = _lookupRepo != null;
+            var top = new PanelControl { Dock = DockStyle.Top, Height = showDate ? 190 : 126 };
             var topLayout = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
@@ -57,13 +63,15 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
                 Padding = new Padding(4)
             };
             topLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            topLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 80));
+            topLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, showDate ? 140 : 80));
             topLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
             _stockLookup = new StockLookupControl { Dock = DockStyle.Fill };
             _stockLookup.SetItemSuggestions(_stockTpService.GetItemLookup());
-            _stockLookup.SearchRequested += async (s, e) => await ApplyUnifiedOnHandSearchAsync();
-            _stockLookup.SelectionCleared += (s, e) => ClearUnifiedOnHandSearch();
+            _stockLookup.SetLotQrPlaceholder("Nhập LOT / QR / vị trí...");
+            _stockLookup.ShowDateRange = showDate;
+            _stockLookup.SearchRequested += async (s, e) => await ApplyOnHandSearchAsync();
+            _stockLookup.SelectionCleared += async (s, e) => await ClearOnHandSearchAsync();
             topLayout.Controls.Add(_stockLookup, 0, 0);
 
             var tools = new FlowLayoutPanel
@@ -127,96 +135,164 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
             view.OptionsFind.FindNullPrompt = "Tìm mã hàng / LOT / QR / vị trí...";
         }
 
-        private async Task ApplyUnifiedOnHandSearchAsync()
+        /// <summary>
+        /// Tra cứu theo chuẩn chung của ô <see cref="StockLookupControl"/> (cùng cách hiểu với FormChonSlotNoiBo,
+        /// các form xử lý hàng lỗi và báo cáo): tab mã = đúng mã đã chọn; tab LOT/QR = QR → Mã + khóa LOT, còn lại tìm theo chữ;
+        /// khối "Lọc theo ngày" đi qua <see cref="StockLookupFilter"/>.
+        /// </summary>
+        private async Task ApplyOnHandSearchAsync()
         {
-            string input = _stockLookup.InputText;
-            if (string.IsNullOrWhiteSpace(input))
+            if (_onHandRows == null) return;   // dữ liệu chưa tải xong
+
+            StockLookupCriteria c = _stockLookup.GetCriteria();
+
+            if (c.IsItemSearch && c.HasText && string.IsNullOrWhiteSpace(c.ItemCode))
             {
-                _onHandLotSearchFilter = null;
-                _onHandItemSearchFilter = null;
-                _onHandDetailSearchFilter = null;
-                ApplyOnHandFilter();
+                string hit = _onHandRows
+                    .Select(x => (x.ItemCode ?? string.Empty).Trim())
+                    .FirstOrDefault(x => string.Equals(x, c.Text, StringComparison.OrdinalIgnoreCase));
+
+                if (string.IsNullOrWhiteSpace(hit))
+                {
+                    XtraMessageBox.Show(this, "Hãy chọn mã hàng trong popup đề xuất.", Text,
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    _stockLookup.FocusInput();
+                    return;
+                }
+
+                c.ItemCode = hit;
+            }
+
+            _onHandCriteria = c.IsEmpty ? null : c;
+            await RenderOnHandAsync(true);
+        }
+
+        private async Task ClearOnHandSearchAsync()
+        {
+            _onHandCriteria = null;
+            await RenderOnHandAsync(false);
+        }
+
+        /// <summary>Lọc các dòng tồn theo tiêu chí chung (không đụng DB; matcher ngày đã dựng sẵn).</summary>
+        private static List<CurrentStockRow> FilterOnHandRows(
+            IEnumerable<CurrentStockRow> rows, StockLookupCriteria c, Func<string, string, bool> dateOk)
+        {
+            IEnumerable<CurrentStockRow> q = rows;
+            string text = (c.Text ?? string.Empty).Trim();
+
+            if (c.HasText)
+            {
+                if (c.IsItemSearch)
+                {
+                    string code = c.EffectiveItemCode;
+                    q = q.Where(x => string.Equals(
+                        (x.ItemCode ?? string.Empty).Trim(), code, StringComparison.OrdinalIgnoreCase));
+                }
+                else
+                {
+                    // QR (4 hoặc 6 trường) → khớp Mã hàng + khóa LOT chuẩn; còn lại tìm theo chữ.
+                    QRCodeInfo qr = null;
+                    if (text.IndexOf(':') >= 0)
+                    {
+                        try { qr = QRCodeParser.ParseQRCode(text.ToUpperInvariant()); }
+                        catch (FormatException) { /* QR sai định dạng: tìm theo chữ thường. */ }
+                    }
+
+                    if (qr != null)
+                    {
+                        q = q.Where(x =>
+                            string.Equals((x.ItemCode ?? string.Empty).Trim(), qr.ItemCode, StringComparison.OrdinalIgnoreCase)
+                            && LotCodeHelper.AreLotKeysEquivalent(x.LotNo, qr.LotNo));
+                    }
+                    else
+                    {
+                        q = q.Where(x =>
+                            ContainsText(x.ItemCode, text) ||
+                            ContainsText(x.LotNo, text) ||
+                            ContainsText(x.QrCode, text) ||
+                            ContainsText(x.LocationCode, text));
+                    }
+                }
+            }
+
+            return q.Where(x => dateOk(x.ItemCode, x.LotNo)).ToList();
+        }
+
+        private static bool ContainsText(string value, string keyword)
+        {
+            return !string.IsNullOrEmpty(value) &&
+                value.IndexOf(keyword, StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        /// <summary>Dựng lại 3 lưới từ dữ liệu đã tải + tiêu chí đang áp dụng.</summary>
+        private async Task RenderOnHandAsync(bool focusResult)
+        {
+            IReadOnlyList<CurrentStockRow> all = _onHandRows;
+            if (all == null || IsDisposed) return;
+
+            StockLookupCriteria c = _onHandCriteria;
+            IReadOnlyList<CurrentStockRow> rows = all;
+            string error = null;
+
+            if (c != null)
+            {
+                try
+                {
+                    // Kiểu lọc cần DB chỉ truy vấn MỘT lần ở đây, chạy nền để form không bị đơ.
+                    Func<string, string, bool> dateOk =
+                        await Task.Run(() => StockLookupFilter.CreateDateMatcher(c, _lookupRepo));
+                    if (IsDisposed) return;
+                    rows = FilterOnHandRows(all, c, dateOk);
+                }
+                catch (Exception ex)
+                {
+                    error = "Không lọc được theo ngày: " + ex.Message;
+                    rows = new List<CurrentStockRow>();
+                }
+            }
+
+            var lots = StockOnHandAggregator.BuildLotRows(rows);
+            var items = StockOnHandAggregator.BuildItemRows(lots);
+            var detail = rows.OrderByDescending(r => r.SlotImportDate.HasValue || r.ReceivedDate.HasValue)
+                             .ThenByDescending(r => r.SlotImportDate ?? r.ReceivedDate)
+                             .ThenBy(r => r.LotNo, StringComparer.OrdinalIgnoreCase)
+                             .ToList();
+
+            BindOnHand(_viewLot, _gridLot, lots, ConfigureLotColumns);
+            BindOnHand(_viewItem, _gridItem, items, ConfigureItemColumns);
+            BindOnHand(_viewDetail, _gridDetail, detail, ConfigureDetailColumns);
+            ApplyOnHandFilter();
+
+            if (error != null)
+            {
+                _lblSummary.Text = error;
                 return;
             }
 
-            try
+            decimal onHand = lots.Sum(l => l.QtyOnHand), unslotted = lots.Sum(l => l.QtyUnslotted);
+            string summary = string.Format(
+                "{0:n0} mã hàng | {1:n0} LOT | Tổng tồn: {2:n0} | Chưa gán slot: {3:n0} ({4:n0} LOT) | Cần đối chiếu: {5:n0} LOT",
+                items.Count, lots.Count, onHand, unslotted,
+                lots.Count(l => l.QtyUnslotted > 0), lots.Count(l => l.Check != "OK"));
+
+            if (c != null)
+                summary = lots.Count == 0 ? "Không có tồn kho khớp: " + c.Describe() : c.Describe() + " → " + summary;
+
+            _lblSummary.Text = summary;
+
+            if (focusResult && c != null)
             {
-                var result = await Task.Run(() => _stockTpService.SearchStock(input));
-                if (IsDisposed) return;
-
-                var lots = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                var parts = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                if (result != null)
-                {
-                    foreach (System.Data.DataRow row in result.Rows)
-                    {
-                        if (result.Columns.Contains("LOT") && row["LOT"] != DBNull.Value)
-                        {
-                            string lot = Convert.ToString(row["LOT"])?.Trim();
-                            if (!string.IsNullOrEmpty(lot)) lots.Add(lot);
-                        }
-                        if (result.Columns.Contains("PART") && row["PART"] != DBNull.Value)
-                        {
-                            string part = Convert.ToString(row["PART"])?.Trim();
-                            if (!string.IsNullOrEmpty(part)) parts.Add(part);
-                        }
-                    }
-                }
-
-                // Mỗi Grid có schema riêng: LotRow/CurrentStockRow có LotNo,
-                // nhưng StockOnHandItemRow chỉ có ItemCode. Không dùng chung Criteria
-                // [LotNo] cho grid mã hàng vì DevExpress sẽ báo "Can't find property LotNo".
-                string lotFilter = BuildInFilter("LotNo", lots);
-                string partFilter = BuildInFilter("ItemCode", parts);
-                _onHandLotSearchFilter = JoinOrFilters(lotFilter, partFilter);
-                _onHandItemSearchFilter = partFilter;
-                _onHandDetailSearchFilter = JoinOrFilters(lotFilter, partFilter);
-                if (string.IsNullOrEmpty(_onHandLotSearchFilter)) _onHandLotSearchFilter = "1 = 0";
-                if (string.IsNullOrEmpty(_onHandItemSearchFilter)) _onHandItemSearchFilter = "1 = 0";
-                if (string.IsNullOrEmpty(_onHandDetailSearchFilter)) _onHandDetailSearchFilter = "1 = 0";
-                ApplyOnHandFilter();
                 if (lots.Count == 1)
                 {
                     _tabs.SelectedTabPageIndex = 0;
-                    _viewLot.FocusedRowHandle = _viewLot.LocateByValue("LotNo", lots.First());
+                    _viewLot.FocusedRowHandle = _viewLot.LocateByValue("LotNo", lots[0].LotNo);
                 }
-                else if (parts.Count == 1)
+                else if (items.Count == 1)
                 {
                     _tabs.SelectedTabPageIndex = 1;
-                    _viewItem.FocusedRowHandle = _viewItem.LocateByValue("ItemCode", parts.First());
+                    _viewItem.FocusedRowHandle = _viewItem.LocateByValue("ItemCode", items[0].ItemCode);
                 }
-                _lblSummary.Text = result == null || result.Rows.Count == 0
-                    ? "Không tìm thấy mã hàng / LOT phù hợp."
-                    : string.Format("Tìm thấy {0:n0} LOT / {1:n0} mã hàng.", lots.Count, parts.Count);
             }
-            catch (Exception ex)
-            {
-                XtraMessageBox.Show(this, ex.Message, "Tìm kiếm tồn kho", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            }
-        }
-
-        private void ClearUnifiedOnHandSearch()
-        {
-            _onHandLotSearchFilter = null;
-            _onHandItemSearchFilter = null;
-            _onHandDetailSearchFilter = null;
-            ApplyOnHandFilter();
-            _lblSummary.Text = "Đã xóa điều kiện tìm kiếm.";
-        }
-
-        private static string BuildInFilter(string field, IEnumerable<string> values)
-        {
-            var safe = values.Where(x => !string.IsNullOrWhiteSpace(x))
-                .Select(x => "'" + x.Replace("'", "''") + "'")
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToArray();
-            return safe.Length == 0 ? null : "[" + field + "] IN (" + string.Join(",", safe) + ")";
-        }
-
-        private static string JoinOrFilters(params string[] filters)
-        {
-            var active = filters.Where(x => !string.IsNullOrWhiteSpace(x)).ToArray();
-            return active.Length == 0 ? null : "(" + string.Join(" Or ", active) + ")";
         }
 
         /// <summary>
@@ -253,23 +329,9 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
                 var rows = await Task.Run(() => query.GetAsync(token), token);
                 if (token.IsCancellationRequested || IsDisposed) return;
 
-                var lots = StockOnHandAggregator.BuildLotRows(rows);
-                var items = StockOnHandAggregator.BuildItemRows(lots);
-                var detail = rows.OrderByDescending(r => r.SlotImportDate.HasValue || r.ReceivedDate.HasValue)
-                                 .ThenByDescending(r => r.SlotImportDate ?? r.ReceivedDate)
-                                 .ThenBy(r => r.LotNo, StringComparer.OrdinalIgnoreCase)
-                                 .ToList();
-
-                BindOnHand(_viewLot, _gridLot, lots, ConfigureLotColumns);
-                BindOnHand(_viewItem, _gridItem, items, ConfigureItemColumns);
-                BindOnHand(_viewDetail, _gridDetail, detail, ConfigureDetailColumns);
-                ApplyOnHandFilter();
-
-                decimal onHand = lots.Sum(l => l.QtyOnHand), unslotted = lots.Sum(l => l.QtyUnslotted);
-                _lblSummary.Text = string.Format(
-                    "{0:n0} mã hàng | {1:n0} LOT | Tổng tồn: {2:n0} | Chưa gán slot: {3:n0} ({4:n0} LOT) | Cần đối chiếu: {5:n0} LOT",
-                    items.Count, lots.Count, onHand, unslotted,
-                    lots.Count(l => l.QtyUnslotted > 0), lots.Count(l => l.Check != "OK"));
+                // Giữ tiêu chí tra cứu đang áp dụng khi "Làm mới" — dựng lại lưới từ dữ liệu mới.
+                _onHandRows = rows;
+                await RenderOnHandAsync(false);
             }
             catch (OperationCanceledException) { }
             catch (Exception ex)
@@ -436,16 +498,10 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
                     detailExpr = "[LotNoFormatError] = True Or [LocationCode] = '" + StockOnHandAggregator.UnslottedLocation + "'"; break;
             }
 
-            _viewLot.ActiveFilterString = CombineFilters(lotExpr, _onHandLotSearchFilter);
-            _viewItem.ActiveFilterString = CombineFilters(itemExpr, _onHandItemSearchFilter);
-            _viewDetail.ActiveFilterString = CombineFilters(detailExpr, _onHandDetailSearchFilter);
-        }
-
-        private static string CombineFilters(string first, string second)
-        {
-            if (string.IsNullOrWhiteSpace(first)) return second ?? string.Empty;
-            if (string.IsNullOrWhiteSpace(second)) return first;
-            return "(" + first + ") And (" + second + ")";
+            // Tiêu chí của ô tra cứu đã áp lên DỮ LIỆU (RenderOnHandAsync); ở đây chỉ còn bộ lọc nhanh của combo.
+            _viewLot.ActiveFilterString = lotExpr ?? string.Empty;
+            _viewItem.ActiveFilterString = itemExpr ?? string.Empty;
+            _viewDetail.ActiveFilterString = detailExpr ?? string.Empty;
         }
 
         private void ExportActiveOnHandView()
