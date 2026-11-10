@@ -55,6 +55,54 @@ namespace PCTP.Modules.BaoCao.UI
             return list.Where(r => RowMatches(r, matcher, itemOf, lotSources)).ToList();
         }
 
+        /// <summary>Số ngày gần nhất dùng khi người dùng KHÔNG tick "Lọc theo ngày" (giữ hành vi mặc định cũ).</summary>
+        public const int DefaultDays = 30;
+
+        /// <summary>
+        /// Khoảng ngày gửi xuống truy vấn gốc của báo cáo, suy ra từ khối "Lọc theo ngày" (không còn ô From/To riêng):
+        ///  - không tick lọc ngày        : <paramref name="defaultDays"/> ngày gần nhất (0 = không giới hạn);
+        ///  - "Ngày xuất hàng" và truy vấn gốc tính theo NGAYGIAO (<paramref name="deliveryIsNative"/>): đúng khoảng đã chọn;
+        ///  - còn lại                    : không giới hạn (null), vì ngày của truy vấn gốc không cùng nghĩa
+        ///    với kiểu ngày đã chọn — việc khoanh vùng do bộ lọc sau truy vấn đảm nhiệm.
+        /// </summary>
+        public static void ResolveRange(
+            StockLookupCriteria criteria, bool deliveryIsNative, int defaultDays,
+            out DateTime? from, out DateTime? to)
+        {
+            from = null;
+            to = null;
+
+            if (criteria == null || !criteria.DateEnabled)
+            {
+                if (defaultDays > 0)
+                {
+                    from = DateTime.Today.AddDays(-defaultDays);
+                    to = DateTime.Today;
+                }
+                return;
+            }
+
+            if (deliveryIsNative && criteria.DateMode == StockLookupDateMode.NgayXuatHang)
+            {
+                from = criteria.From.Date;
+                to = criteria.To.Date;
+            }
+        }
+
+        /// <summary>Có cần lọc thêm sau truy vấn không (false khi truy vấn gốc đã lọc đúng kiểu ngày đó rồi).</summary>
+        public static bool NeedsPostFilter(StockLookupCriteria criteria, bool deliveryIsNative)
+        {
+            return criteria != null && criteria.DateEnabled
+                && !(deliveryIsNative && criteria.DateMode == StockLookupDateMode.NgayXuatHang);
+        }
+
+        /// <summary>Mô tả khoảng ngày thực sự áp dụng, dùng cho trạng thái / file xuất.</summary>
+        public static string DescribeApplied(StockLookupCriteria criteria)
+        {
+            string d = Describe(criteria);
+            return d.Length > 0 ? d : "Không lọc ngày (mặc định " + DefaultDays + " ngày gần nhất)";
+        }
+
         /// <summary>Mô tả ngắn cho dòng trạng thái / phần đầu file xuất. Rỗng nếu không lọc ngày.</summary>
         public static string Describe(StockLookupCriteria criteria)
         {

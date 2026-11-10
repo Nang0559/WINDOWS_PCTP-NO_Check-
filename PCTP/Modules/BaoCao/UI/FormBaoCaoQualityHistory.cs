@@ -25,8 +25,6 @@ namespace PCTP.Modules.BaoCao.UI
         private readonly IQualityHistoryQuery _query;
         private readonly IWaitFormService _waitForm;
         private readonly StockLookupControl _lookup = new StockLookupControl();
-        private readonly DateEdit _from = new DateEdit();
-        private readonly DateEdit _to = new DateEdit();
         private readonly ComboBoxEdit _result = new ComboBoxEdit();
         private readonly GridControl _masterGrid = new GridControl();
         private readonly GridView _masterView;
@@ -138,26 +136,10 @@ namespace PCTP.Modules.BaoCao.UI
             _result.SelectedIndex = 0;
             AddField(search, "Kết quả", _result, 3, 2);
 
-            foreach (DateEdit date in new[] { _from, _to })
-            {
-                date.Properties.DisplayFormat.FormatString = "dd/MM/yyyy";
-                date.Properties.DisplayFormat.FormatType = DevExpress.Utils.FormatType.DateTime;
-                date.Properties.EditFormat.FormatString = "dd/MM/yyyy";
-                date.Properties.EditFormat.FormatType = DevExpress.Utils.FormatType.DateTime;
-                date.Dock = DockStyle.None;
-                date.Anchor = AnchorStyles.Left | AnchorStyles.Right;
-                date.Margin = new Padding(3, 0, 3, 0);
-            }
-            _from.DateTime = DateTime.Today.AddDays(-30);
-            _to.DateTime = DateTime.Today;
-            search.Controls.Add(CreateFieldLabel("From"), 0, 2);
-            search.Controls.Add(_from, 1, 2);
-            search.Controls.Add(CreateFieldLabel("To"), 2, 2);
-            search.Controls.Add(_to, 3, 2);
-
+            // Khoảng ngày do khối "Lọc theo ngày" của ô tra cứu quyết định (đã bỏ ô From/To riêng).
             var clearButton = new SimpleButton { Text = "Xóa điều kiện", Dock = DockStyle.Fill, Margin = new Padding(3, 2, 3, 2) };
             clearButton.Click += (s, e) => ResetConditions();
-            search.Controls.Add(clearButton, 4, 2);
+            search.Controls.Add(clearButton, 0, 2);
             search.SetColumnSpan(clearButton, 2);
 
             var statusBar = new TableLayoutPanel
@@ -447,16 +429,13 @@ namespace PCTP.Modules.BaoCao.UI
         private async Task LoadAsync()
         {
             if (_busy || IsDisposed) return;
-            DateTime from = _from.DateTime.Date;
-            DateTime to = _to.DateTime.Date.AddDays(1).AddTicks(-1);
-            if (from > to)
-            {
-                XtraMessageBox.Show(this, "Khoảng ngày không hợp lệ.", "Tra cứu",
-                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
-
             StockLookupCriteria lookupCriteria = _lookup.GetCriteria();
+            // Ngày kiểm tra (CheckedAt) không cùng nghĩa với 3 kiểu ngày của ô tra cứu: khi tick lọc ngày thì
+            // truy vấn gốc để rộng (từ 2000) và việc khoanh vùng do ReportLookupDateFilter đảm nhiệm.
+            DateTime? rangeFrom, rangeTo;
+            ReportLookupDateFilter.ResolveRange(lookupCriteria, false, ReportLookupDateFilter.DefaultDays, out rangeFrom, out rangeTo);
+            DateTime from = (rangeFrom ?? new DateTime(2000, 1, 1)).Date;
+            DateTime to = (rangeTo ?? DateTime.Today).Date.AddDays(1).AddTicks(-1);
             string keyword = _lookup.InputText;
             string search = keyword;
             if (!_lookup.IsItemSearch && !string.IsNullOrWhiteSpace(keyword))
@@ -656,8 +635,6 @@ namespace PCTP.Modules.BaoCao.UI
             _lookup.ClearInput();
             _lookup.SelectItemTab();
             _result.SelectedIndex = 0;
-            _from.DateTime = DateTime.Today.AddDays(-30);
-            _to.DateTime = DateTime.Today;
             _lookup.SetDateRange(StockLookupDateMode.NgaySanXuat, DateTime.Today.AddDays(-30), DateTime.Today, false);
             ClearResults();
             _status.Text = "Sẵn sàng";
@@ -672,8 +649,6 @@ namespace PCTP.Modules.BaoCao.UI
         private void ToggleBusy(bool enabled)
         {
             _lookup.Enabled = enabled;
-            _from.Enabled = enabled;
-            _to.Enabled = enabled;
             _result.Enabled = enabled;
             // Xuất/In chỉ bật khi có dữ liệu (không bật lại mù quáng sau mỗi lần tra cứu).
             _export.Enabled = enabled && _rows.Count > 0;
@@ -683,11 +658,8 @@ namespace PCTP.Modules.BaoCao.UI
         private List<ReportOverviewRow> BuildOverview()
         {
             var overview = TraceReportExporter.NewOverview("Lịch sử kiểm tra chất lượng");
-            overview.AddRow("Từ ngày", _from.DateTime.ToString("dd/MM/yyyy"));
-            overview.AddRow("Đến ngày", _to.DateTime.ToString("dd/MM/yyyy"));
             overview.AddRow(_lookup.IsItemSearch ? "Mã hàng" : "LOT / QR", _lookup.InputText);
-            overview.AddRow("Lọc theo ngày", string.IsNullOrEmpty(ReportLookupDateFilter.Describe(_lookup.GetCriteria()))
-                ? "Không" : ReportLookupDateFilter.Describe(_lookup.GetCriteria()));
+            overview.AddRow("Lọc theo ngày", ReportLookupDateFilter.DescribeApplied(_lookup.GetCriteria()));
             overview.AddRow("Kết quả", Convert.ToString(_result.EditValue));
             overview.AddRow("Số phiên", _rows.Count.ToString());
             overview.AddRow("Số chi tiết phiên đang chọn", _details.Count.ToString());

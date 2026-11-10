@@ -32,8 +32,6 @@ namespace PCTP.Modules.BaoCao.UI
         private readonly ILotTraceQuery _deliveryTraceQuery;
         private readonly IWaitFormService _waitForm;
         private readonly CancellationTokenSource _lifetime = new CancellationTokenSource();
-        private DateEdit _dateFrom;
-        private DateEdit _dateTo;
         private StockLookupControl _stockLookup;
         private SimpleButton _btnCurrentStock;
         private SimpleButton _btnExport;
@@ -81,23 +79,17 @@ namespace PCTP.Modules.BaoCao.UI
             ClientSize = new System.Drawing.Size(1184, 710);
             StartPosition = FormStartPosition.CenterScreen;
 
-            var top = new PanelControl { Dock = DockStyle.Top, Height = 232 }; // +58px cho khối "Lọc theo ngày"
+            var top = new PanelControl { Dock = DockStyle.Top, Height = 198 }; // ô tra cứu cao ~136px (đã gồm khối "Lọc theo ngày")
             var historyGroup = new GroupControl { Text = "Tra cứu lịch sử nhập xuất", Dock = DockStyle.Fill };
             var currentGroup = new GroupControl { Text = "Kho hiện tại", Dock = DockStyle.Left, Width = 190 };
             var actionPanel = new PanelControl { Dock = DockStyle.Right, Width = 205 };
 
-            _dateFrom = new DateEdit { Left = 12, Top = 28, Width = 145 };
-            _dateFrom.Properties.NullText = "Từ ngày";
-            _dateTo = new DateEdit { Left = 164, Top = 28, Width = 145 };
-            _dateTo.Properties.NullText = "Đến ngày";
             // Mặc định 30 ngày gần nhất (trước đây để trống/1 ngày nên tra theo mã hàng thường ra 0 dòng).
-            _dateFrom.EditValue = DateTime.Today.AddDays(-30);
-            _dateTo.EditValue = DateTime.Today;
 
             _stockLookup = new StockLookupControl
             {
                 Left = 12,
-                Top = 62,
+                Top = 28,
                 Width = 560,
                 Height = 136,
                 Anchor = AnchorStyles.Top | AnchorStyles.Left,
@@ -115,7 +107,7 @@ namespace PCTP.Modules.BaoCao.UI
             _btnTraceDelivery = new SimpleButton { Left = 8, Top = 62, Width = 187, Text = "Truy vết giao hàng →" };
             _btnTraceDelivery.Click += async (s, e) => await TraceDeliveryAsync();
 
-            historyGroup.Controls.AddRange(new Control[] { _dateFrom, _dateTo, _stockLookup });
+            historyGroup.Controls.Add(_stockLookup);
             // Anchor Right tính theo kích thước LÚC TẠO (group chưa dock xong) nên ô tra cứu bị tràn ra ngoài,
             // nút "Tra cứu mã" / "Tra cứu LOT / QR" nằm ngoài vùng nhìn thấy. Co giãn thủ công theo group.
             EventHandler fitLookup = (s2, e2) =>
@@ -307,10 +299,15 @@ namespace PCTP.Modules.BaoCao.UI
             try
             {
                 _showingCurrentStock = false;
+                StockLookupCriteria lookupCriteria = _stockLookup.GetCriteria();
+                // Ngày giao dịch kho không cùng nghĩa với 3 kiểu ngày của ô tra cứu: khi tick lọc ngày thì
+                // truy vấn gốc để rộng (null) và việc khoanh vùng do ReportLookupDateFilter đảm nhiệm.
+                DateTime? rangeFrom, rangeTo;
+                ReportLookupDateFilter.ResolveRange(lookupCriteria, false, ReportLookupDateFilter.DefaultDays, out rangeFrom, out rangeTo);
                 var criteria = new HistorySearchCriteria
                 {
-                    From = ToDate(_dateFrom.EditValue),
-                    To = ToDate(_dateTo.EditValue),
+                    From = rangeFrom,
+                    To = rangeTo,
                     PartNo = _stockLookup.IsItemSearch && !string.IsNullOrWhiteSpace(_stockLookup.InputText)
                         ? _stockLookup.InputText
                         : null
@@ -328,7 +325,6 @@ namespace PCTP.Modules.BaoCao.UI
                     else if (LotCodeHelper.ClassifyLotKey(search) != LotKeyKind.Unknown) criteria.LotNo = search;
                     else criteria.QrCode = search;
                 }
-                StockLookupCriteria lookupCriteria = _stockLookup.GetCriteria();
                 var rows = await _waitForm.RunAsync(
                     async () =>
                     {
@@ -457,9 +453,13 @@ namespace PCTP.Modules.BaoCao.UI
                     return;
                 }
 
+                // Truy vết một LOT cụ thể: chỉ giới hạn theo NGAYGIAO khi người dùng chọn "Ngày xuất hàng"; còn lại để rộng.
+                DateTime? traceFrom, traceTo;
+                ReportLookupDateFilter.ResolveRange(_stockLookup.GetCriteria(), true, 0, out traceFrom, out traceTo);
+
                 IReadOnlyList<DeliveryTraceRow> rows = await _waitForm.RunAsync(
                     () => Task.Run(() => _deliveryTraceQuery.SearchAsync(
-                        lot, part, null, ToDate(_dateFrom.EditValue), ToDate(_dateTo.EditValue), _lifetime.Token), _lifetime.Token),
+                        lot, part, null, traceFrom, traceTo, _lifetime.Token), _lifetime.Token),
                     "Đang truy vết LOT từ sản xuất/kho sang phiếu giao hàng và dữ liệu đọc QR...");
 
                 _deliveryRows.Clear();
@@ -588,8 +588,6 @@ namespace PCTP.Modules.BaoCao.UI
         private void ToggleBusy(bool enabled)
         {
             if (_stockLookup != null) _stockLookup.Enabled = enabled;
-            if (_dateFrom != null) _dateFrom.Enabled = enabled;
-            if (_dateTo != null) _dateTo.Enabled = enabled;
             if (_btnCurrentStock != null) _btnCurrentStock.Enabled = enabled;
             if (_btnTraceDelivery != null) _btnTraceDelivery.Enabled = enabled;
             if (_btnExport != null) _btnExport.Enabled = enabled;
@@ -723,12 +721,9 @@ namespace PCTP.Modules.BaoCao.UI
             rows.AddRow("Chế độ", _showingCurrentStock ? "Thống kê kho hiện tại" : "Tra cứu lịch sử nhập xuất");
             if (!_showingCurrentStock)
             {
-                rows.AddRow("Từ ngày", _dateFrom.EditValue == null ? null : ToDate(_dateFrom.EditValue).Value.ToString("dd/MM/yyyy"));
-                rows.AddRow("Đến ngày", _dateTo.EditValue == null ? null : ToDate(_dateTo.EditValue).Value.ToString("dd/MM/yyyy"));
             }
             rows.AddRow(_stockLookup.IsItemSearch ? "Tra cứu theo mã hàng" : "Tra cứu theo LOT / QR", _stockLookup.InputText);
-            string dateFilter = ReportLookupDateFilter.Describe(_stockLookup.GetCriteria());
-            rows.AddRow("Lọc theo ngày", string.IsNullOrEmpty(dateFilter) ? "Không" : dateFilter);
+            rows.AddRow("Lọc theo ngày", ReportLookupDateFilter.DescribeApplied(_stockLookup.GetCriteria()));
             rows.AddRow("Số dòng lưới chính", _view.RowCount.ToString());
             if (!_showingCurrentStock)
             {
@@ -828,12 +823,6 @@ namespace PCTP.Modules.BaoCao.UI
         private static bool ContainsSearch(string value, string search)
         {
             return !string.IsNullOrEmpty(value) && value.IndexOf(search, StringComparison.OrdinalIgnoreCase) >= 0;
-        }
-
-        private static DateTime? ToDate(object value)
-        {
-            if (value == null || value == DBNull.Value) return null;
-            return Convert.ToDateTime(value);
         }
 
         protected override void Dispose(bool disposing)
