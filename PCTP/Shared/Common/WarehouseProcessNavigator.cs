@@ -17,6 +17,7 @@ using PCTP.Modules.XuLyHangLoi.Services;
 using PCTP.Shared.Common;
 using PCTP.Shared.Models;
 using PCTP.Shared.UiMd;
+using PCTP.Shared.Helpers;
 using PCTP.YMN;
 using System;
 using System.Windows.Forms;
@@ -43,8 +44,7 @@ namespace PCTP.Common
 
         public static void OpenBanDoKho(IWin32Window owner)
         {
-            var f = new MainStockSV();
-            f.Show();
+            FormWindowManager.ShowSingle(owner, () => new MainStockSV());
         }
 
         /// <summary>
@@ -54,23 +54,24 @@ namespace PCTP.Common
         /// </summary>
         public static void OpenNhapKhoTienTrinh(IWin32Window owner, MainStockSV mainStock = null)
         {
-            FormNhapKhoTienTrinh f = null;
-            Action build = () =>
+            FormWindowManager.ShowSingle(owner, () =>
             {
-                var module = MainStockModuleFactory.Build();
-                f = new FormNhapKhoTienTrinh(mainStock, module.DashboardService);
-            };
+                FormNhapKhoTienTrinh form = null;
+                Action build = () =>
+                {
+                    var module = MainStockModuleFactory.Build();
+                    form = new FormNhapKhoTienTrinh(mainStock, module.DashboardService);
+                };
 
-            // Dựng form tiến trình = nạp 3 badge + danh sách chờ nhập → hiện wait form nếu form gọi đang hiển thị.
-            // Wait form đóng xong mới ShowDialog.
-            var ownerForm = owner as Form;
-            if (ownerForm != null && ownerForm.Visible && !ownerForm.IsDisposed)
-                new PCTP.Shared.Helpers.WaitFormService(ownerForm).Run(build, "Đang mở màn hình tiến trình nhập kho...");
-            else
-                build();
+                // Chỉ dựng service khi chưa có cửa sổ nhập kho đang mở.
+                var ownerForm = owner as Form;
+                if (ownerForm != null && ownerForm.Visible && !ownerForm.IsDisposed)
+                    new WaitFormService(ownerForm).Run(build, "Đang mở màn hình tiến trình nhập kho...");
+                else
+                    build();
 
-            using (f)
-                f.ShowDialog(owner);
+                return form;
+            });
         }
 
         public static void OpenQCDinhHuong(IWin32Window owner, int? preselectId = null)
@@ -114,8 +115,8 @@ namespace PCTP.Common
 
         public static void OpenQuanLyTienTrinhHangLoi(IWin32Window owner, int? preselectPhieuXuLyId = null)
         {
-            using (var f = CreateFormQuanLyTienTrinhHangLoi(preselectPhieuXuLyId))
-                f.ShowDialog(owner);
+            FormWindowManager.ShowSingle(owner,
+                () => CreateFormQuanLyTienTrinhHangLoi(preselectPhieuXuLyId));
         }
 
         private static Modules.XuLyHangLoi.FormQuanLyTienTrinhHangLoi CreateFormQuanLyTienTrinhHangLoi(int? preselectPhieuXuLyId = null)
@@ -193,8 +194,14 @@ namespace PCTP.Common
                 throw new ArgumentException("CustomerNo không được để trống.", nameof(customerNo));
 
             CustomerTableConfig.GetForDelivery(customerNo);
-            var frm = new HVN_PGH(customerNo);
-            frm.Show();
+            string normalizedCustomerNo = CustomerTableConfig.NormalizeCustomerNo(customerNo);
+            string instanceKey = typeof(HVN_PGH).FullName + ":" + normalizedCustomerNo;
+
+            // Mỗi khách hàng có một cửa sổ Phiếu giao hàng riêng; cùng khách không mở trùng.
+            FormWindowManager.ShowSingle<HVN_PGH>(
+                null,
+                () => new HVN_PGH(normalizedCustomerNo),
+                instanceKey);
         }
     }
 }
