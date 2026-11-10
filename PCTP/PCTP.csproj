@@ -335,6 +335,7 @@
     <Compile Include="Modules\BaoCao\Infrastructure\Queries\StockHistoryQueryService.cs" />
     <Compile Include="Modules\BaoCao\Infrastructure\Repositories\CurrentStockRepository.cs" />
     <Compile Include="Modules\BaoCao\Infrastructure\Repositories\DeliveryTraceRepository.cs" />
+    <Compile Include="Modules\BaoCao\Infrastructure\Repositories\DefectTicketHistoryReader.cs" />
     <Compile Include="Modules\BaoCao\Infrastructure\Repositories\LotLocationRepository.cs" />
     <Compile Include="Modules\BaoCao\Infrastructure\Repositories\QualityHistoryRepository.cs" />
     <Compile Include="Modules\BaoCao\Infrastructure\Repositories\ProductionLotTraceRepository.cs" />

@@ -694,8 +694,9 @@ namespace PCTP.Modules.BaoCao.UI
             Col("ToLocation", "Đến vị trí", 190);
             Col("DocumentNo", "Số phiếu", 130);
             Col("UserName", "Người thực hiện", 120);
+            Col("Note", "Ghi chú / nội dung phiếu", 260);
             HideOthers("EventTime", "ActionType", "Direction", "ItemCode", "LotNo", "QrCode", "TemCode", "QuantityIn", "QuantityOut",
-                "Quantity", "FromLocation", "ToLocation", "DocumentNo", "UserName");
+                "Quantity", "FromLocation", "ToLocation", "DocumentNo", "UserName", "Note");
             var ev = _view.Columns["EventTime"];
             if (ev != null) { ev.SummaryItem.SummaryType = SummaryItemType.Count; ev.SummaryItem.DisplayFormat = "{0:n0} giao dịch"; }
             _view.SortInfo.Clear();

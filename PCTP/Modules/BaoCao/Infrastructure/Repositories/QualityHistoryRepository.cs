@@ -19,6 +19,10 @@ namespace PCTP.Modules.BaoCao.Infrastructure.Repositories
     /// </summary>
     public sealed class QualityHistoryRepository : SqlRepositoryBase, IQualityHistoryRepository
     {
+        // QC của luồng xử lý hàng lỗi (phiếu XLBT#) không ghi vào InspectionLog nên được đọc từ các bảng QC của phiếu
+        // và gộp vào cùng danh sách phiên (mã phiên dạng XLBT#<id>-QC1|QCR|QC2#<id dòng QC>).
+        private readonly DefectTicketHistoryReader _defectReader;
+
         public QualityHistoryRepository()
             : this(new SQLPROVIDER())
         {
@@ -29,6 +33,7 @@ namespace PCTP.Modules.BaoCao.Infrastructure.Repositories
                 new PhieuSqlExecutor(sql ?? throw new ArgumentNullException("sql")),
                 new UnitOfWork(sql ?? throw new ArgumentNullException("sql")))
         {
+            _defectReader = new DefectTicketHistoryReader(sql);
         }
 
         public Task<IReadOnlyList<string>> GetItemCodesAsync(CancellationToken cancellationToken)
@@ -143,7 +148,64 @@ ORDER BY MIN(CheckedAt) DESC";
 
             var table = LoadData(sql, parameters.ToArray());
             var rows = table.AsEnumerable().Select(MapMaster).ToList();
+
+            // Bổ sung các lần QC của phiếu hàng lỗi (cùng khoảng ngày / mã hàng / LOT / kết quả).
+            var defectRows = FilterDefectSessions(
+                _defectReader.LoadQcSessions(from, upper, endOfDay), itemCode, result);
+            if (defectRows.Count > 0)
+            {
+                rows.AddRange(defectRows);
+                rows = rows.OrderByDescending(x => x.CheckedAt ?? DateTime.MinValue).ToList();
+            }
             return Task.FromResult<IReadOnlyList<QualityHistoryRow>>(rows);
+        }
+
+        /// <summary>
+        /// Áp cùng điều kiện tra cứu của truy vấn InspectionLog lên các phiên QC hàng lỗi:
+        /// mã hàng (chứa, không phân biệt hoa thường), LOT/QR (LOT chính, LOT liên quan, mã phiên, số phiếu), kết quả.
+        /// </summary>
+        internal static List<QualityHistoryRow> FilterDefectSessions(
+            IReadOnlyList<QualityHistoryRow> sessions, string itemCode, string result)
+        {
+            var filtered = new List<QualityHistoryRow>();
+            if (sessions == null) return filtered;
+
+            bool lotMode = !string.IsNullOrWhiteSpace(itemCode) &&
+                itemCode.StartsWith("LOTQR:", StringComparison.OrdinalIgnoreCase);
+            List<string> lotKeys = lotMode ? BuildLotSearchKeys(itemCode.Substring(6).Trim()) : new List<string>();
+            string itemText = !lotMode && !string.IsNullOrWhiteSpace(itemCode) ? itemCode.Trim() : null;
+            bool filterResult = !string.IsNullOrWhiteSpace(result) &&
+                !string.Equals(result, "Tất cả", StringComparison.OrdinalIgnoreCase);
+
+            foreach (QualityHistoryRow row in sessions)
+            {
+                if (row == null) continue;
+                if (itemText != null && !ContainsText(row.ItemCode, itemText)) continue;
+                if (lotMode)
+                {
+                    // Chuỗi nhập rỗng/không nhận diện được LOT thì không lọc (giống truy vấn InspectionLog).
+                    bool hit = lotKeys.Count == 0;
+                    foreach (string key in lotKeys)
+                    {
+                        if (ContainsText(row.LotNo, key) || ContainsText(row.RelatedLots, key) ||
+                            ContainsText(row.InspectionCode, key) || ContainsText(row.DocumentNo, key))
+                        {
+                            hit = true;
+                            break;
+                        }
+                    }
+                    if (!hit) continue;
+                }
+                if (filterResult && !string.Equals(row.FinalResult, result, StringComparison.OrdinalIgnoreCase)) continue;
+                filtered.Add(row);
+            }
+            return filtered;
+        }
+
+        private static bool ContainsText(string value, string keyword)
+        {
+            return !string.IsNullOrEmpty(value) && !string.IsNullOrEmpty(keyword) &&
+                value.IndexOf(keyword, StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
         /// <summary>
@@ -189,6 +251,12 @@ ORDER BY MIN(CheckedAt) DESC";
                 return Task.FromResult<IReadOnlyList<QualityHistoryDetailRow>>(new List<QualityHistoryDetailRow>());
 
             cancellationToken.ThrowIfCancellationRequested();
+
+            // Phiên QC của phiếu hàng lỗi (XLBT#...) không nằm trong InspectionLog.
+            int defectTicketId, defectQcRowId;
+            string defectKind;
+            if (DefectTicketHistoryReader.TryParseQcCode(inspectionCode, out defectTicketId, out defectKind, out defectQcRowId))
+                return Task.FromResult(_defectReader.LoadQcDetails(inspectionCode));
 
             const string sql = @"
 SELECT BoxLotNo, BoxNSX, IsMatch, MismatchFields, CheckedAt

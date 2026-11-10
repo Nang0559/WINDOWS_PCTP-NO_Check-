@@ -15,5 +15,11 @@ namespace PCTP.Modules.BaoCao.Application.Contracts.Queries
         public int FailCount { get; set; }
         public string FinalResult { get; set; }
         public DateTime? CheckedAt { get; set; }
+
+        /// <summary>
+        /// Danh sách LOT liên quan của phiên QC hàng lỗi (các LOT bị ảnh hưởng của phiếu), phân tách bằng dấu phẩy.
+        /// Chỉ dùng để lọc theo LOT; phiên InspectionLog để trống.
+        /// </summary>
+        public string RelatedLots { get; set; }
     }
 }

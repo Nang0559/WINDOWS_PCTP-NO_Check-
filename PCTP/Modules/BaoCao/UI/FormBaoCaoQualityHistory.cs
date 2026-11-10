@@ -4,6 +4,7 @@ using DevExpress.XtraGrid.Columns;
 using DevExpress.XtraGrid.Views.Grid;
 using PCTP.Modules.BaoCao.Application.Contracts.Queries;
 using PCTP.Modules.BaoCao.Infrastructure.Queries;
+using PCTP.Modules.BaoCao.Infrastructure.Repositories;
 using PCTP.Shell.UI;
 using PCTP.Shared.Helpers;
 using PCTP.Shared.Lookup;
@@ -560,11 +561,21 @@ namespace PCTP.Modules.BaoCao.UI
         {
             var nodes = new List<TraceTimelineNode>();
             DateTime at = session.CheckedAt ?? DateTime.MinValue;
+
+            // Phiên QC của phiếu xử lý hàng lỗi (mã XLBT#...) đọc từ các bảng QC của phiếu, không phải dbo.InspectionLog;
+            // "thùng" ở đây là từng dòng LOT bị ảnh hưởng của phiếu.
+            int defectTicketId, defectQcRowId;
+            string defectKind;
+            bool isDefect = DefectTicketHistoryReader.TryParseQcCode(
+                session.InspectionCode, out defectTicketId, out defectKind, out defectQcRowId);
+            string sourceName = isDefect ? "dbo.FVN_* (QC phiếu xử lý hàng lỗi)" : "dbo.InspectionLog";
+            string unit = isDefect ? "LOT" : "thùng";
+
             nodes.Add(new TraceTimelineNode
             {
                 Kind = TraceNodeKind.StockOther,
-                Title = "Bắt đầu / tổng hợp kiểm tra",
-                EventType = "QUALITY_INSPECTION",
+                Title = isDefect ? DefectTicketHistoryReader.QcKindLabel(defectKind) : "Bắt đầu / tổng hợp kiểm tra",
+                EventType = isDefect ? "XLBT_QC" : "QUALITY_INSPECTION",
                 EventTime = session.CheckedAt,
                 SortTime = at,
                 SortOrder = 0,
@@ -572,12 +583,15 @@ namespace PCTP.Modules.BaoCao.UI
                 PartNo = session.ItemCode,
                 Quantity = session.TotalQuantity,
                 DocumentNo = session.DocumentNo,
-                SourceName = "dbo.InspectionLog",
+                SourceName = sourceName,
                 SourceKey = "InspectionCode=" + session.InspectionCode,
                 EvidenceStatus = session.FinalResult,
-                Subtitle = "Phiên " + session.InspectionCode + " | " + session.TotalBox + " thùng | Đạt " +
+                Subtitle = "Phiên " + session.InspectionCode + " | " + session.TotalBox + " " + unit + " | Đạt " +
                     session.PassCount + " | Không đạt " + session.FailCount,
-                Note = "Kết quả tổng hợp của phiên kiểm tra chất lượng."
+                Note = isDefect
+                    ? "Kết quả QC của phiếu xử lý hàng lỗi " + TraceTimelineNode.ValueOrDash(session.DocumentNo) +
+                      ". Số lượng OK/NG từng LOT xem ở cột \"Trường sai\" của chi tiết."
+                    : "Kết quả tổng hợp của phiên kiểm tra chất lượng."
             });
             int index = 0;
             foreach (QualityHistoryDetailRow detail in details ?? new List<QualityHistoryDetailRow>())
@@ -587,7 +601,7 @@ namespace PCTP.Modules.BaoCao.UI
                 nodes.Add(new TraceTimelineNode
                 {
                     Kind = pass ? TraceNodeKind.StockIn : TraceNodeKind.Missing,
-                    Title = pass ? "QC PASS - thùng " + (index + 1) : "QC FAIL - thùng " + (index + 1),
+                    Title = pass ? "QC PASS - " + unit + " " + (index + 1) : "QC FAIL - " + unit + " " + (index + 1),
                     EventType = pass ? "QC_PASS" : "QC_FAIL",
                     EventTime = detail.CheckedAt ?? session.CheckedAt,
                     SortTime = moment,
@@ -596,13 +610,15 @@ namespace PCTP.Modules.BaoCao.UI
                     PartNo = session.ItemCode,
                     Quantity = null,
                     DocumentNo = session.DocumentNo,
-                    SourceName = "dbo.InspectionLog",
+                    SourceName = sourceName,
                     SourceKey = "InspectionCode=" + session.InspectionCode + "; BoxLotNo=" + detail.BoxLotNo,
                     EvidenceStatus = pass ? "Đạt" : "Không đạt",
-                    Subtitle = "LOT thùng: " + TraceTimelineNode.ValueOrDash(detail.BoxLotNo) +
-                        " | NSX: " + TraceTimelineNode.ValueOrDash(detail.BoxProductionDate) +
-                        (pass ? string.Empty : " | Sai: " + TraceTimelineNode.ValueOrDash(detail.MismatchFields)),
-                    Note = pass ? "Thùng khớp thông tin kiểm tra." :
+                    Subtitle = (isDefect ? "LOT: " : "LOT thùng: ") + TraceTimelineNode.ValueOrDash(detail.BoxLotNo) +
+                        (isDefect ? string.Empty : " | NSX: " + TraceTimelineNode.ValueOrDash(detail.BoxProductionDate)) +
+                        (isDefect ? " | " + TraceTimelineNode.ValueOrDash(detail.MismatchFields)
+                            : (pass ? string.Empty : " | Sai: " + TraceTimelineNode.ValueOrDash(detail.MismatchFields))),
+                    Note = isDefect ? "Kết quả QC của LOT: " + TraceTimelineNode.ValueOrDash(detail.MismatchFields) :
+                        pass ? "Thùng khớp thông tin kiểm tra." :
                         "Các trường sai lệch: " + TraceTimelineNode.ValueOrDash(detail.MismatchFields)
                 });
                 index++;

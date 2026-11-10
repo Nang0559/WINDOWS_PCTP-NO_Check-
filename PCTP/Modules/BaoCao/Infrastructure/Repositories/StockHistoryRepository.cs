@@ -22,6 +22,10 @@ namespace PCTP.Modules.BaoCao.Infrastructure.Repositories
     /// </summary>
     public sealed class StockHistoryRepository : SqlRepositoryBase, IStockHistoryRepository
     {
+        // Các bước của phiếu hàng lỗi không đổi tồn kho (lập phiếu, truy vết LOT, QC, giao sản xuất, hủy) không có dòng
+        // StockHistory; đọc thêm từ chính các bảng phiếu để Lịch sử kho / Truy vết hiển thị đủ vòng đời phiếu.
+        private readonly DefectTicketHistoryReader _defectReader;
+
         public StockHistoryRepository()
             : this(new SQLPROVIDER())
         {
@@ -32,6 +36,7 @@ namespace PCTP.Modules.BaoCao.Infrastructure.Repositories
                 new PhieuSqlExecutor(sql ?? throw new ArgumentNullException("sql")),
                 new UnitOfWork(sql ?? throw new ArgumentNullException("sql")))
         {
+            _defectReader = new DefectTicketHistoryReader(sql);
         }
 
         public Task<IReadOnlyList<string>> GetItemCodesAsync(CancellationToken cancellationToken)
@@ -95,6 +100,7 @@ namespace PCTP.Modules.BaoCao.Infrastructure.Repositories
             var slotNames = LoadSlotNames();
             var rows = table.AsEnumerable().Select(r => Map(r, slotNames)).ToList();
             EnrichDefectDocuments(rows);
+            AppendDefectTicketEvents(rows, criteria, toInclusive, slotNames);
 
             // Không phụ thuộc cách SP lọc ngày: lọc lại khoảng ngày ở đây (dòng không có ngày thì giữ lại).
             if (criteria.From.HasValue)
@@ -129,48 +135,86 @@ namespace PCTP.Modules.BaoCao.Infrastructure.Repositories
             return Task.FromResult<IReadOnlyList<ItemHistoryRow>>(rows);
         }
 
+        /// <summary>
+        /// Chen sự kiện của phiếu hàng lỗi (ItemHistoryRow.IsDefectTicketEvent) vào kết quả lịch sử kho.
+        /// Các dòng này luôn có hướng "Khác" nên không cộng vào SL nhập/xuất. Áp cùng bộ lọc mã hàng như StockHistory
+        /// (khoảng ngày / LOT / QR / số phiếu do các bước lọc phía sau xử lý chung cho cả hai nguồn).
+        /// Lỗi đọc nguồn phiếu không làm hỏng báo cáo lịch sử kho.
+        /// </summary>
+        private void AppendDefectTicketEvents(
+            List<ItemHistoryRow> rows, HistorySearchCriteria criteria, DateTime? toInclusive, Dictionary<int, string> slotNames)
+        {
+            try
+            {
+                IReadOnlyList<ItemHistoryRow> events = _defectReader.LoadTicketEvents(criteria.From, toInclusive);
+                if (events == null || events.Count == 0)
+                    return;
+
+                string part = string.IsNullOrWhiteSpace(criteria.PartNo) ? null : criteria.PartNo.Trim();
+                int added = 0;
+                foreach (ItemHistoryRow ev in events)
+                {
+                    if (ev == null) continue;
+                    if (part != null && !string.Equals((ev.ItemCode ?? string.Empty).Trim(), part, StringComparison.OrdinalIgnoreCase))
+                        continue;
+                    ev.FromLocation = ResolveLocation(ev.FromLocation, slotNames);
+                    ev.ToLocation = ResolveLocation(ev.ToLocation, slotNames);
+                    rows.Add(ev);
+                    added++;
+                }
+
+                if (added == 0)
+                    return;
+
+                // Giữ thứ tự mới nhất trước như truy vấn gốc (sắp xếp ổn định nên các dòng cùng thời điểm giữ nguyên thứ tự).
+                List<ItemHistoryRow> ordered = rows
+                    .OrderByDescending(x => x.EventTime.HasValue)
+                    .ThenByDescending(x => x.EventTime)
+                    .ToList();
+                rows.Clear();
+                rows.AddRange(ordered);
+            }
+            catch (Exception)
+            {
+                // Sự kiện phiếu chỉ là thông tin bổ sung; không làm hỏng báo cáo lịch sử kho.
+            }
+        }
+
         private static readonly Regex DefectDocumentRef =
-            new Regex(@"^XLBT#(\d+)$", RegexOptions.IgnoreCase);
+            new Regex(@"^(XLBT|KTR)#(\d+)$", RegexOptions.IgnoreCase);
 
         /// <summary>
-        /// Dòng kho do xử lý hàng lỗi có MaPhieu dạng "XLBT#<id>" (id nội bộ, khó đọc).
-        /// Bổ sung số phiếu thật để hiển thị và hỗ trợ tra cứu theo số phiếu.
-        /// Nếu bảng xử lý hàng lỗi chưa tồn tại hoặc không đọc được, giữ nguyên số phiếu gốc.
+        /// Dòng kho do xử lý hàng lỗi có MaPhieu dạng "XLBT#<id>" (phiếu xử lý bất thường) hoặc "KTR#<id>" (phiếu trả hàng) -
+        /// id nội bộ, khó đọc. Bổ sung số phiếu thật để hiển thị và hỗ trợ tra cứu theo số phiếu.
+        /// Nếu bảng phiếu chưa tồn tại hoặc không đọc được, giữ nguyên số phiếu gốc.
         /// </summary>
         private void EnrichDefectDocuments(List<ItemHistoryRow> rows)
         {
             try
             {
-                var ids = new HashSet<int>();
+                var xlbtIds = new HashSet<int>();
+                var ktrIds = new HashSet<int>();
                 foreach (ItemHistoryRow row in rows)
                 {
-                    Match match;
+                    string type;
                     int id;
-                    if (TryParseDefectRef(row.DocumentNo, out match) &&
-                        int.TryParse(match.Groups[1].Value, out id))
-                        ids.Add(id);
+                    if (TryReadDefectRef(row.DocumentNo, out type, out id))
+                        (type == "KTR" ? ktrIds : xlbtIds).Add(id);
                 }
 
-                if (ids.Count == 0)
+                if (xlbtIds.Count == 0 && ktrIds.Count == 0)
                     return;
 
-                var names = new Dictionary<int, string>();
-                string sql = "SELECT Id, SoPhieu FROM dbo.FVN_PhieuXuLyBatThuong WHERE Id IN (" +
-                    string.Join(",", ids) + ")";
-                foreach (DataRow data in LoadData(sql).Rows)
-                {
-                    if (data["SoPhieu"] != DBNull.Value)
-                        names[Convert.ToInt32(data["Id"])] = Convert.ToString(data["SoPhieu"]);
-                }
+                Dictionary<int, string> xlbtNames = LoadDocumentNumbers("dbo.FVN_PhieuXuLyBatThuong", xlbtIds);
+                Dictionary<int, string> ktrNames = LoadDocumentNumbers("dbo.FVN_PhieuTraHang", ktrIds);
 
                 foreach (ItemHistoryRow row in rows)
                 {
-                    Match match;
+                    string type;
                     int id;
                     string soPhieu;
-                    if (TryParseDefectRef(row.DocumentNo, out match) &&
-                        int.TryParse(match.Groups[1].Value, out id) &&
-                        names.TryGetValue(id, out soPhieu) &&
+                    if (TryReadDefectRef(row.DocumentNo, out type, out id) &&
+                        (type == "KTR" ? ktrNames : xlbtNames).TryGetValue(id, out soPhieu) &&
                         !string.IsNullOrWhiteSpace(soPhieu))
                     {
                         row.DocumentNo = row.DocumentNo.Trim() + " (" + soPhieu.Trim() + ")";
@@ -183,10 +227,38 @@ namespace PCTP.Modules.BaoCao.Infrastructure.Repositories
             }
         }
 
-        private static bool TryParseDefectRef(string documentNo, out Match match)
+        /// <summary>Id -> SoPhieu của một bảng phiếu; bảng lỗi/thiếu thì trả rỗng. ids là số nguyên nên ghép thẳng vào IN().</summary>
+        private Dictionary<int, string> LoadDocumentNumbers(string table, HashSet<int> ids)
         {
-            match = DefectDocumentRef.Match((documentNo ?? string.Empty).Trim());
-            return match.Success;
+            var names = new Dictionary<int, string>();
+            if (ids.Count == 0)
+                return names;
+
+            try
+            {
+                string sql = "SELECT Id, SoPhieu FROM " + table + " WHERE Id IN (" + string.Join(",", ids) + ")";
+                foreach (DataRow data in LoadData(sql).Rows)
+                {
+                    if (data["SoPhieu"] != DBNull.Value)
+                        names[Convert.ToInt32(data["Id"])] = Convert.ToString(data["SoPhieu"]);
+                }
+            }
+            catch (Exception)
+            {
+                // Thiếu bảng phiếu: giữ nguyên số phiếu gốc.
+            }
+            return names;
+        }
+
+        private static bool TryReadDefectRef(string documentNo, out string type, out int id)
+        {
+            type = null;
+            id = 0;
+            Match match = DefectDocumentRef.Match((documentNo ?? string.Empty).Trim());
+            if (!match.Success || !int.TryParse(match.Groups[2].Value, out id))
+                return false;
+            type = match.Groups[1].Value.ToUpperInvariant();
+            return true;
         }
 
         private static SqlParameter[] CloneParameters(SqlParameter[] source)

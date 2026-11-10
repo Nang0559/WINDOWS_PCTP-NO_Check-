@@ -209,7 +209,8 @@ namespace PCTP.Modules.BaoCao.UI
                 {
                     if (!LotCodeHelper.AreLotKeysEquivalent(item.LotNo, lot.LotNo)) continue;
                     nodes.Add(TraceTimelineNode.ForStock(item, lot.LotNo, customer, document));
-                    matched++;
+                    // Sự kiện phiếu hàng lỗi không phải giao dịch kho: không được che cảnh báo "Thiếu lịch sử kho".
+                    if (!item.IsDefectTicketEvent) matched++;
                 }
                 if (matched == 0)
                     nodes.Add(TraceTimelineNode.MissingStockHistory(lot.LotNo, partNo, lot.Quantity, qr, customer, document));

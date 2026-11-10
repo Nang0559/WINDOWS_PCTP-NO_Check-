@@ -35,6 +35,49 @@ namespace PCTP.Modules.BaoCao.Application.Contracts.Queries
         public string DocumentNo { get; set; }
         public string UserName { get; set; }
 
+        /// <summary>
+        /// Nội dung diễn giải của sự kiện phiếu xử lý hàng lỗi (hướng xử lý, kết quả QC, bộ phận nhận...).
+        /// Dòng StockHistory thật không có nội dung này nên để trống.
+        /// </summary>
+        public string Note { get; set; }
+
+        /// <summary>Tiền tố ActionType của sự kiện phiếu (không phải giao dịch kho) do báo cáo tự bổ sung.</summary>
+        public const string DefectEventPrefix = "XLBT_";
+
+        /// <summary>
+        /// true = dòng này là sự kiện của phiếu trả / phiếu xử lý bất thường (lập phiếu, truy vết LOT, QC, giao sản xuất...),
+        /// KHÔNG phải một giao dịch nhập/xuất kho. Luôn có Direction = "Khác" nên không cộng vào SL nhập/xuất.
+        /// </summary>
+        public bool IsDefectTicketEvent
+        {
+            get
+            {
+                return ActionType != null &&
+                    ActionType.Trim().StartsWith(DefectEventPrefix, StringComparison.OrdinalIgnoreCase);
+            }
+        }
+
+        /// <summary>Tên tiếng Việt của sự kiện phiếu; null nếu không phải sự kiện phiếu.</summary>
+        public string DefectEventLabel
+        {
+            get
+            {
+                if (!IsDefectTicketEvent) return null;
+                switch (ActionType.Trim().ToUpperInvariant())
+                {
+                    case "XLBT_LAP_PHIEU_TRA": return "Lập phiếu trả hàng";
+                    case "XLBT_LAP_PHIEU": return "Lập phiếu xử lý bất thường";
+                    case "XLBT_TRUY_VET_LOT": return "Truy vết LOT ảnh hưởng";
+                    case "XLBT_DINH_HUONG": return "QC định hướng";
+                    case "XLBT_QC_BAN_DAU": return "QC phân loại ban đầu";
+                    case "XLBT_GIAO_SX": return "Giao hàng rework cho sản xuất";
+                    case "XLBT_QC_CUOI": return "QC xác nhận cuối";
+                    case "XLBT_HUY": return "Hủy phiếu xử lý";
+                    default: return ActionType.Trim();
+                }
+            }
+        }
+
         public string Direction
         {
             get

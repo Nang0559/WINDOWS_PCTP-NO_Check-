@@ -239,8 +239,60 @@ namespace PCTP.Modules.BaoCao.UI
             };
         }
 
+        /// <summary>Bảng nguồn của từng loại sự kiện phiếu hàng lỗi (hiển thị ở chi tiết node để đối chiếu).</summary>
+        private static string DefectEventSource(string actionType)
+        {
+            switch ((actionType ?? string.Empty).Trim().ToUpperInvariant())
+            {
+                case "XLBT_LAP_PHIEU_TRA": return "dbo.FVN_PhieuTraHang / FVN_PhieuTraHangCT";
+                case "XLBT_TRUY_VET_LOT": return "dbo.FVN_PhieuXuLyBatThuongAffectedLot";
+                case "XLBT_QC_BAN_DAU": return "dbo.FVN_PhieuXuLyBatThuongQCInitial";
+                case "XLBT_GIAO_SX": return "dbo.FVN_TraHangQTChungGiao";
+                case "XLBT_QC_CUOI": return "dbo.FVN_TraHangQTChungQC";
+                default: return "dbo.FVN_PhieuXuLyBatThuong";
+            }
+        }
+
+        /// <summary>
+        /// Sự kiện của phiếu trả / phiếu xử lý bất thường (lập phiếu, truy vết LOT, QC, giao sản xuất, hủy).
+        /// Đây KHÔNG phải giao dịch nhập/xuất kho nên không gắn nhãn "Kho:" và không có vị trí nhập/xuất.
+        /// </summary>
+        private static TraceTimelineNode ForDefectTicket(ItemHistoryRow row, string requestedLot, string customer, string document)
+        {
+            string label = row.DefectEventLabel;
+            return new TraceTimelineNode
+            {
+                Kind = TraceNodeKind.StockOther,
+                Title = "Phiếu hàng lỗi: " + ValueOrDash(label),
+                EventType = row.ActionType,
+                EventTime = row.EventTime,
+                LotNo = row.LotNo,
+                PartNo = row.ItemCode,
+                Quantity = row.Quantity,
+                FromLocation = row.FromLocation,
+                ToLocation = row.ToLocation,
+                QrCode = row.QrCode,
+                CustomerName = customer,
+                DocumentNo = string.IsNullOrWhiteSpace(row.DocumentNo) ? document : row.DocumentNo,
+                UserName = row.UserName,
+                SourceName = DefectEventSource(row.ActionType),
+                SourceKey = "LOT=" + requestedLot + " | Phiếu=" + ValueOrDash(row.DocumentNo) +
+                    " | " + (row.EventTime.HasValue ? row.EventTime.Value.ToString("O") : "no-time"),
+                EvidenceStatus = "Có bản ghi phiếu xử lý hàng lỗi",
+                Subtitle = "Phiếu: " + ValueOrDash(row.DocumentNo) + " | SL: " + row.Quantity.ToString("N0") +
+                    (string.IsNullOrWhiteSpace(row.Note) ? string.Empty : " | " + row.Note.Trim()),
+                Note = "Sự kiện của phiếu xử lý hàng lỗi (không phải giao dịch nhập/xuất kho)." +
+                    (string.IsNullOrWhiteSpace(row.Note) ? string.Empty : Environment.NewLine + row.Note.Trim()),
+                SortTime = row.EventTime ?? DateTime.MaxValue,
+                SortOrder = 10
+            };
+        }
+
         public static TraceTimelineNode ForStock(ItemHistoryRow row, string requestedLot, string customer, string document)
         {
+            if (row.IsDefectTicketEvent)
+                return ForDefectTicket(row, requestedLot, customer, document);
+
             TraceNodeKind kind = row.Direction == "Nhập" ? TraceNodeKind.StockIn
                 : row.Direction == "Xuất" ? TraceNodeKind.StockOut
                 : TraceNodeKind.StockOther;
