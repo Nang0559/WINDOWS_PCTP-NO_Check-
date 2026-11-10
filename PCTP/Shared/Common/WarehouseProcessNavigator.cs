@@ -178,7 +178,8 @@ namespace PCTP.Common
                 preselectPhieuXuLyId,
                 module.AffectedLotTraceService,
                 module.InitialQCService,
-                noiBoLookupRepo);
+                noiBoLookupRepo,
+                module.Phase5To9Service);
         }
 
         public static void OpenGiaoHangHVN(string customerNo)

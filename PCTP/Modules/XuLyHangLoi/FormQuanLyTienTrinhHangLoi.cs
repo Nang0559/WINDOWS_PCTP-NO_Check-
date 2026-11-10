@@ -33,6 +33,7 @@ namespace PCTP.Modules.XuLyHangLoi
         private readonly IAffectedLotTraceService _affectedLotTraceService;
         private readonly IInitialQCService _initialQCService;
         private readonly INoiBoLookupRepository _noiBoLookupRepo;
+        private readonly IHangLoiPhase5To9Service _phase5To9Service;
         private readonly Button[] _stepButtons = new Button[8];
         private int _activeStep = 1;
         private GridControl _grid;
@@ -61,7 +62,8 @@ namespace PCTP.Modules.XuLyHangLoi
             int? preselectPhieuXuLyId,
             IAffectedLotTraceService affectedLotTraceService = null,
             IInitialQCService initialQCService = null,
-            INoiBoLookupRepository noiBoLookupRepo = null)
+            INoiBoLookupRepository noiBoLookupRepo = null,
+            IHangLoiPhase5To9Service phase5To9Service = null)
         {
             _khachTraHangService = khachTraHangService ?? throw new ArgumentNullException(nameof(khachTraHangService));
             _traNoiBoService = traNoiBoService ?? throw new ArgumentNullException(nameof(traNoiBoService));
@@ -77,6 +79,7 @@ namespace PCTP.Modules.XuLyHangLoi
             _affectedLotTraceService = affectedLotTraceService;
             _initialQCService = initialQCService;
             _noiBoLookupRepo = noiBoLookupRepo;
+            _phase5To9Service = phase5To9Service;
             BuildUI();
             RefreshAll();
             SetActiveStep(ResolveInitialStep());
@@ -810,7 +813,7 @@ namespace PCTP.Modules.XuLyHangLoi
 
         private int TongCanScrap(PhieuXuLyBatThuong p)
         {
-            var disposition = _qtChungService.GetDisposition(p.Id);
+            var disposition = _phase5To9Service == null ? null : _phase5To9Service.GetDisposition(p.Id);
             if (disposition != null)
                 return disposition.SoLuongLoaiBoCuoi;
 
