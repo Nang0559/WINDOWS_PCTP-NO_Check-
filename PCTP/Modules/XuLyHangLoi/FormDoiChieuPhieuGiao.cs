@@ -6,6 +6,7 @@ using DevExpress.XtraGrid.Views.Grid;
 using PCTP.Modules.BaoCao.Infrastructure.Queries;
 using PCTP.Modules.BaoCao.Infrastructure.Repositories;
 using PCTP.Modules.BaoCao.UI;
+using PCTP.Shared.Helpers;
 using PCTP.Shared.Lookup;
 using PCTP.Modules.XuLyHangLoi.Models;
 using PCTP.Modules.XuLyHangLoi.Services;
@@ -154,6 +155,10 @@ namespace PCTP.Modules.XuLyHangLoi
         private int _traceVersion;
         private bool _dangNapLuoi;
 
+        // Wait form chuẩn của hệ thống (cùng WaitFormExp với các form báo cáo) + cờ chống chạy chồng truy vấn.
+        private readonly IWaitFormService _waitForm;
+        private bool _dangBan;
+
         private StockLookupControl _lookup; // chế độ ChiXemLuongDi: ô tìm chung với báo cáo
         private TextEdit _txtMaHang;
         private TextEdit _txtLot;
@@ -231,19 +236,21 @@ namespace PCTP.Modules.XuLyHangLoi
             _customerNo = customerNo;
             _maHang = (maHang ?? string.Empty).Trim();
             _soLuongKhachBao = soLuongKhachBao;
+            _waitForm = new WaitFormService(this);
 
             BuildUi(tenHang, lotNo, ngayGiaoKhachBao);
 
             Load += (s, e) => DatViTriSplitter();
 
-            Shown += (s, e) =>
+            Shown += async (s, e) =>
             {
                 if (_mode == ChedoDoiChieuPhieuGiao.DoiChieuVaGan)
-                    TimKiem();
+                    await TimKiemAsync();
                 else
                 {
-                    TraCuuLuongDi();
-                    var _ = NapGoiYMaHangAsync();
+                    var goiY = NapGoiYMaHangAsync();
+                    await TraCuuLuongDiAsync();
+                    await goiY;
                 }
             };
         }
@@ -275,7 +282,7 @@ namespace PCTP.Modules.XuLyHangLoi
             _txtLot = new TextEdit { Left = 86, Top = 48, Width = 230 };
             _txtLot.Text = (lotNo ?? string.Empty).Trim();
             _txtLot.Properties.NullValuePrompt = "Để trống = mọi LOT của mã";
-            _txtLot.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) { e.Handled = true; e.SuppressKeyPress = true; ChayTraCuu(); } };
+            _txtLot.KeyDown += async (s, e) => { if (e.KeyCode == Keys.Enter) { e.Handled = true; e.SuppressKeyPress = true; await ChayTraCuuAsync(); } };
             top.Controls.Add(_txtLot);
 
             _lblTu = new LabelControl { Text = "Giao từ ngày", Left = 340, Top = 52, Width = 80 };
@@ -311,7 +318,7 @@ namespace PCTP.Modules.XuLyHangLoi
                 Top = 46,
                 Width = chiXem ? 160 : 130
             };
-            _btnTim.Click += (s, e) => ChayTraCuu();
+            _btnTim.Click += async (s, e) => await ChayTraCuuAsync();
             top.Controls.Add(_btnTim);
 
             if (chiXem)
@@ -330,7 +337,7 @@ namespace PCTP.Modules.XuLyHangLoi
                     c.Visible = false;
 
                 _lookup = new StockLookupControl { Left = 12, Top = 2, Width = 640, Height = 80 };
-                _lookup.SearchRequested += (s, e) => LookupTimKiem();
+                _lookup.SearchRequested += async (s, e) => await LookupTimKiemAsync();
                 top.Controls.Add(_lookup);
 
                 if (_txtLot.Text.Length > 0)
@@ -395,7 +402,7 @@ namespace PCTP.Modules.XuLyHangLoi
                 Top = 10,
                 Width = 190
             };
-            _btnOk.Click += (s, e) => XacNhan();
+            _btnOk.Click += (s, e) => { if (!_dangBan) XacNhan(); };
             var btnHuy = new SimpleButton
             {
                 Text = _mode == ChedoDoiChieuPhieuGiao.DoiChieuVaGan ? "Hủy" : "Đóng",
@@ -471,8 +478,11 @@ namespace PCTP.Modules.XuLyHangLoi
             return col;
         }
 
-        private void TimKiem()
+        private async Task TimKiemAsync()
         {
+            if (_dangBan)
+                return;
+
             _view.CloseEditor();
 
             DateTime tu = (_dtTu.EditValue as DateTime?) ?? DateTime.Today.AddDays(-30);
@@ -489,10 +499,19 @@ namespace PCTP.Modules.XuLyHangLoi
             }
 
             string lot = _txtLot.Text.Trim();
+            Exception loi = null;
+
+            DatBan(true);
+            _waitForm.Show("Đang tìm các lần giao...");
 
             try
             {
-                var list = _service.TimPhieuGiaoTheoKhoang(_customerNo, _maHang, lot, tu, den);
+                // Truy vấn LUUPHIEUGIAOHANG chạy nền; UI thread chỉ vẽ wait form + bind kết quả.
+                List<PhieuGiaoUngVienInfo> list = await Task.Run(
+                    () => _service.TimPhieuGiaoTheoKhoang(_customerNo, _maHang, lot, tu, den));
+
+                if (IsDisposed)
+                    return;
 
                 _rows = list.Select(p => new DongDoiChieu
                 {
@@ -509,37 +528,61 @@ namespace PCTP.Modules.XuLyHangLoi
                 }).ToList();
 
                 _dangNapLuoi = true;
-                _grid.DataSource = _rows;
-
-                if (_rows.Count == 1)
+                try
                 {
-                    _rows[0].Chon = true;
-                    _rows[0].SoLuongTra = MacDinhSoLuongTra(_rows[0]);
-                    _grid.RefreshDataSource();
+                    _grid.DataSource = _rows;
+
+                    if (_rows.Count == 1)
+                    {
+                        _rows[0].Chon = true;
+                        _rows[0].SoLuongTra = MacDinhSoLuongTra(_rows[0]);
+                        _grid.RefreshDataSource();
+                    }
+
+                    _lblKetQua.Text = _rows.Count == 0
+                        ? "Không có lần giao nào khớp trong khoảng thời gian này. Mở rộng khoảng ngày hoặc bỏ trống LOT."
+                        : $"Tìm thấy {_rows.Count} lần giao. Tick các lần giao khách đã trả và nhập SL trả của từng lần.";
+                    _lblKetQua.Appearance.ForeColor = _rows.Count == 0 ? Color.Firebrick : Color.DimGray;
                 }
-
-                _lblKetQua.Text = _rows.Count == 0
-                    ? "Không có lần giao nào khớp trong khoảng thời gian này. Mở rộng khoảng ngày hoặc bỏ trống LOT."
-                    : $"Tìm thấy {_rows.Count} lần giao. Tick các lần giao khách đã trả và nhập SL trả của từng lần.";
-                _lblKetQua.Appearance.ForeColor = _rows.Count == 0 ? Color.Firebrick : Color.DimGray;
-
-                _dangNapLuoi = false;
+                finally
+                {
+                    _dangNapLuoi = false;
+                }
 
                 CapNhatTong();
 
-                // Luồng đi của LOT (không chặn việc đối chiếu nếu truy vết lỗi).
-                CapNhatLuongDiAsync(LotChoTruyVet());
+                // Luồng đi của LOT (không chặn việc đối chiếu nếu truy vết lỗi); dùng chung wait form đang mở.
+                _waitForm.SetCaption("Đang truy vết luồng đi của LOT...");
+                await CapNhatLuongDiAsync(LotChoTruyVet());
             }
             catch (Exception ex)
             {
-                _dangNapLuoi = false;
+                loi = ex;
+            }
+            finally
+            {
+                _waitForm.Close();
+                if (!IsDisposed)
+                    DatBan(false);
+            }
 
+            // Hiện thông báo lỗi SAU khi đã đóng wait form.
+            if (loi != null && !IsDisposed)
+            {
                 XtraMessageBox.Show(
-                    "Không thể tra cứu phiếu giao.\r\n\r\n" + ex.Message,
+                    "Không thể tra cứu phiếu giao.\r\n\r\n" + loi.Message,
                     "Lỗi",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Error);
             }
+        }
+
+        // Khóa các điều khiển tra cứu trong lúc đang truy vấn nền (tránh chạy chồng, tránh đóng dữ liệu đang nạp).
+        private void DatBan(bool ban)
+        {
+            _dangBan = ban;
+            _btnTim.Enabled = !ban;
+            _btnOk.Enabled = !ban;
         }
 
         // ============================================================
@@ -550,12 +593,11 @@ namespace PCTP.Modules.XuLyHangLoi
         // Chỉ đọc; khóa tra cứu là từng LOT (13/20 ký tự), không dùng chuỗi LOT ghép.
         // ============================================================
 
-        private void ChayTraCuu()
+        private Task ChayTraCuuAsync()
         {
-            if (_mode == ChedoDoiChieuPhieuGiao.DoiChieuVaGan)
-                TimKiem();
-            else
-                TraCuuLuongDi();
+            return _mode == ChedoDoiChieuPhieuGiao.DoiChieuVaGan
+                ? TimKiemAsync()
+                : TraCuuLuongDiAsync();
         }
 
         // Nạp danh mục mã hàng cho ô tìm chung (cùng nguồn với báo cáo Lịch sử kho).
@@ -586,7 +628,7 @@ namespace PCTP.Modules.XuLyHangLoi
         }
 
         // Tab "Tìm theo mã": chỉ chọn mã hàng. Tab "LOT / QR": tem QR (Lot:Mã hàng:...) hoặc LOT thuần.
-        private void LookupTimKiem()
+        private async Task LookupTimKiemAsync()
         {
             string input = _lookup.InputText;
 
@@ -616,12 +658,28 @@ namespace PCTP.Modules.XuLyHangLoi
                 _txtLot.Text = input;
             }
 
-            ChayTraCuu();
+            await ChayTraCuuAsync();
         }
 
-        private void TraCuuLuongDi()
+        // Chế độ chỉ xem luồng đi: truy vết nền + wait form chuẩn.
+        private async Task TraCuuLuongDiAsync()
         {
-            CapNhatLuongDiAsync(LotChoTruyVet());
+            if (_dangBan)
+                return;
+
+            DatBan(true);
+            _waitForm.Show("Đang truy vết luồng đi của LOT...");
+
+            try
+            {
+                await CapNhatLuongDiAsync(LotChoTruyVet());
+            }
+            finally
+            {
+                _waitForm.Close();
+                if (!IsDisposed)
+                    DatBan(false);
+            }
         }
 
         private void DatViTriSplitter()
@@ -641,14 +699,15 @@ namespace PCTP.Modules.XuLyHangLoi
 
         private void View_FocusedRowChanged(object sender, DevExpress.XtraGrid.Views.Base.FocusedRowChangedEventArgs e)
         {
-            if (_dangNapLuoi || _mode != ChedoDoiChieuPhieuGiao.DoiChieuVaGan)
+            if (_dangNapLuoi || _dangBan || _mode != ChedoDoiChieuPhieuGiao.DoiChieuVaGan)
                 return;
 
             // Người dùng đã gõ LOT cụ thể → luồng đi theo LOT đó, không đổi theo dòng đang chọn.
             if (_txtLot.Text.Trim().Length > 0)
                 return;
 
-            CapNhatLuongDiAsync(LotChoTruyVet());
+            // Đổi dòng: truy vết nền, hiển thị trạng thái ngay trên panel (không bật wait form mỗi lần đổi dòng).
+            var _ = CapNhatLuongDiAsync(LotChoTruyVet());
         }
 
         private string LotChoTruyVet()
@@ -701,8 +760,12 @@ namespace PCTP.Modules.XuLyHangLoi
             try
             {
                 // Không giới hạn ngày giao: cần thấy ĐỦ các lần giao của LOT để xác định đúng nguồn gốc.
-                TraceTimelineResult result = await LayTimelineBuilder()
-                    .BuildForLotAsync(lot, string.IsNullOrWhiteSpace(maHang) ? null : maHang, null, null, CancellationToken.None);
+                // Các repository truy vết chạy SQL đồng bộ (Task.FromResult) → bắt buộc đẩy sang thread nền,
+                // nếu không toàn bộ truy vấn chạy trên UI thread và gây ContextSwitchDeadlock.
+                LotTraceTimelineBuilder builder = LayTimelineBuilder();
+                string partNo = string.IsNullOrWhiteSpace(maHang) ? null : maHang;
+                TraceTimelineResult result = await Task.Run(
+                    () => builder.BuildForLotAsync(lot, partNo, null, null, CancellationToken.None));
 
                 // Có yêu cầu truy vết mới hơn (đổi dòng / đổi LOT) hoặc form đã đóng → bỏ kết quả cũ.
                 if (version != _traceVersion || IsDisposed)
