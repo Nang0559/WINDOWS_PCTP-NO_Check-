@@ -944,6 +944,9 @@
     </Compile>
     <Compile Include="Modules\KhoVatLy\CanVas\RackLayoutInfo.cs" />
     <Compile Include="Modules\KhoVatLy\CanVas\SlotLayoutInfo.cs" />
+    <Compile Include="Modules\KhoVatLy\FormHangChoGiao.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="Modules\KhoVatLy\ExportFormSV.cs">
       <SubType>Form</SubType>
     </Compile>

@@ -80,6 +80,12 @@ namespace PCTP
                 "Điều chỉnh tồn kho LOT",
                 OpenDieuChinhTonKhoLot));
 
+            // Danh sách hàng đã pick chờ giao (+ huỷ để hàng quay về kho khi giao lỗi / huỷ giao).
+            _menuKho.Elements.Add(CreateMenuItem(
+                "menuHangChoGiao",
+                "Hàng chờ giao",
+                OpenHangChoGiao));
+
             // ── 3. Xử lý LOT ───────────────────────────────────────────
             // Tách LOT là luồng nghiệp vụ; form tự chọn mẫu in Ghép LOT theo CustomerCode.
             _menuXuLyLot = new AccordionControlElement(ElementStyle.Group)
@@ -203,6 +209,15 @@ namespace PCTP
         {
             // lotFilter rỗng → chế độ xem "Tồn kho hiện tại" (không phải điều chỉnh 1 LOT).
             OpenFromMenu(() => TONKHOTP.ShowForLot(this, string.Empty), "Tồn kho thành phẩm");
+        }
+
+        private void OpenHangChoGiao(object sender, EventArgs e)
+        {
+            OpenFromMenu(() => FormWindowManager.ShowSingle(
+                this,
+                () => new PCTP.Modules.KhoVatLy.FormHangChoGiao(
+                    PCTP.Modules.KhoVatLy.MainStockModuleFactory.Build().ExportService)),
+                "Hàng chờ giao");
         }
 
         private void OpenDieuChinhTonKhoLot(object sender, EventArgs e)
