@@ -379,7 +379,8 @@ namespace PCTP.Modules.XuLyHangLoi
             ThemCot(nameof(DongDoiChieu.SoLuongPhieu), "SL dòng giao", 90, false);
             ThemCot(nameof(DongDoiChieu.SoLuongLot), "SL của LOT", 80, false);
             ThemCot(nameof(DongDoiChieu.SoLuongDaGiao), "SL đã giao", 85, false);
-            ThemCot(nameof(DongDoiChieu.SoLuongTra), "SL khách trả", 95, true);
+            // SL khách trả = SL truy vết của lần giao (SL của LOT trên phiếu giao, hoặc SL dòng giao): tự động, không cho nhập.
+            ThemCot(nameof(DongDoiChieu.SoLuongTra), "SL khách trả (tự động)", 130, false);
             ThemCot(nameof(DongDoiChieu.Note), "Ghi chú phiếu giao", 160, false);
 
             _view.CellValueChanged += View_CellValueChanged;
@@ -541,7 +542,7 @@ namespace PCTP.Modules.XuLyHangLoi
 
                     _lblKetQua.Text = _rows.Count == 0
                         ? "Không có lần giao nào khớp trong khoảng thời gian này. Mở rộng khoảng ngày hoặc bỏ trống LOT."
-                        : $"Tìm thấy {_rows.Count} lần giao. Tick các lần giao khách đã trả và nhập SL trả của từng lần.";
+                        : $"Tìm thấy {_rows.Count} lần giao. Tick các lần giao khách đã trả; SL trả tự động lấy theo SL truy vết của lần giao.";
                     _lblKetQua.Appearance.ForeColor = _rows.Count == 0 ? Color.Firebrick : Color.DimGray;
                 }
                 finally
@@ -794,16 +795,11 @@ namespace PCTP.Modules.XuLyHangLoi
             }
         }
 
-        // SL mặc định khi tick: phần khách báo còn chưa phân bổ, tối đa bằng SL đã giao của lần đó.
+        // SL trả của lần giao được CỐ ĐỊNH theo kết quả truy vết (SL của LOT trên phiếu giao, hoặc SL dòng giao);
+        // không lấy theo SL khách báo và không cho nhập tay. SL khách báo chỉ còn dùng để cảnh báo chênh lệch.
         private int MacDinhSoLuongTra(DongDoiChieu row)
         {
-            if (_soLuongKhachBao <= 0)
-                return row.SoLuongDaGiao;
-
-            int daPhanBo = _rows.Where(r => r != row && r.Chon).Sum(r => r.SoLuongTra);
-            int conLai = _soLuongKhachBao - daPhanBo;
-
-            return conLai > 0 ? Math.Min(row.SoLuongDaGiao, conLai) : 0;
+            return row.SoLuongDaGiao;
         }
 
         private void View_CellValueChanged(object sender, DevExpress.XtraGrid.Views.Base.CellValueChangedEventArgs e)

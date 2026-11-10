@@ -413,6 +413,7 @@ namespace PCTP.Modules.XuLyHangLoi
 
             TaoCotGrid();
 
+            _gridView.ShowingEditor += GridView_ShowingEditor;
             _gridView.ShownEditor += GridView_ShownEditor;
             _gridView.CellValueChanged += GridView_CellValueChanged;
 
@@ -678,6 +679,17 @@ namespace PCTP.Modules.XuLyHangLoi
             if (c2 != null) { c2.Caption = "Tên hàng"; c2.Width = 360; }
         }
 
+        // Dòng được tự động truy vết theo LOT/QR: Số lượng = tồn khả dụng của Slot, khóa không cho nhập tay.
+        private void GridView_ShowingEditor(object sender, System.ComponentModel.CancelEventArgs e)
+        {
+            var row = _gridView.GetFocusedRow() as PhieuTraHangCT;
+
+            if (row != null
+                && row.SoLuongCoDinh
+                && _gridView.FocusedColumn?.FieldName == nameof(PhieuTraHangCT.SoLuong))
+                e.Cancel = true;
+        }
+
         // Khi mở editor: lọc Slot theo Mã hàng của dòng, giới hạn Số lượng theo tồn.
         private void GridView_ShownEditor(object sender, EventArgs e)
         {
@@ -720,6 +732,11 @@ namespace PCTP.Modules.XuLyHangLoi
 
             try
             {
+                // Đổi Slot / Mã hàng thủ công → không còn là SL tự động truy vết theo LOT.
+                if (e.Column.FieldName == nameof(PhieuTraHangCT.SlotLotIdNguon)
+                    || e.Column.FieldName == nameof(PhieuTraHangCT.MaHang))
+                    row.SoLuongCoDinh = false;
+
                 if (e.Column.FieldName == nameof(PhieuTraHangCT.SlotLotIdNguon))
                 {
                     var slot = TimSlotItem(row.SlotLotIdNguon);
@@ -1309,14 +1326,15 @@ namespace PCTP.Modules.XuLyHangLoi
                         Quantity = r.TonKho
                     };
 
-                ThemDongTuSlotItem(slot, r.KhaDung, string.Empty);
+                var dong = ThemDongTuSlotItem(slot, r.KhaDung, string.Empty);
+                dong.SoLuongCoDinh = true; // SL tự động truy vết theo LOT: khóa, không cho nhập tay
                 them++;
                 tong += r.KhaDung;
             }
 
             _grid.RefreshDataSource();
 
-            string msg = $"{nhan}: thêm {them} vị trí, tổng {tong:n0} (tồn khả dụng).";
+            string msg = $"{nhan}: thêm {them} vị trí, tổng {tong:n0} (tồn khả dụng, SL tự động - không nhập tay).";
             if (daCo > 0) msg += $" {daCo} vị trí đã có trong phiếu.";
             if (daGiuHet.Count > 0) msg += " Không thêm: " + string.Join("; ", daGiuHet) + ".";
 

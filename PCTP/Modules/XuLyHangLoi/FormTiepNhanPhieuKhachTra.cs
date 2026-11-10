@@ -1056,7 +1056,8 @@ namespace PCTP.Modules.XuLyHangLoi
             _gridView.RefreshRow(e.RowHandle);
         }
 
-        // Dòng đã gắn phiếu giao gốc: khóa Mã hàng / Lot / Ngày giao để không lệch với lần giao đã đối chiếu.
+        // Dòng đã gắn phiếu giao gốc: khóa Mã hàng / Lot / Ngày giao / Số lượng để không lệch với lần giao đã đối chiếu
+        // (Số lượng = SL truy vết của lần giao, tự động điền, không cho nhập tay).
         // Muốn đổi → bấm "Đối chiếu phiếu giao" lại (chọn lần giao khác) hoặc xóa dòng.
         private void GridView_ShowingEditor(object sender, System.ComponentModel.CancelEventArgs e)
         {
@@ -1068,7 +1069,8 @@ namespace PCTP.Modules.XuLyHangLoi
 
             if (field == nameof(PhieuTraHangCT.MaHang) ||
                 field == nameof(PhieuTraHangCT.LotNo) ||
-                field == nameof(PhieuTraHangCT.NgayGiao))
+                field == nameof(PhieuTraHangCT.NgayGiao) ||
+                field == nameof(PhieuTraHangCT.SoLuong))
                 e.Cancel = true;
         }
 

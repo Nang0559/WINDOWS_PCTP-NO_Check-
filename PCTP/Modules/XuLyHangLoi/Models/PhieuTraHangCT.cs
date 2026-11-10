@@ -106,5 +106,11 @@ namespace PCTP.Modules.XuLyHangLoi.Models
         /// Không lưu xuống DB; xem lại đầy đủ bằng nút "Luồng đi LOT" (truy vấn trực tiếp).
         /// </summary>
         public string LuongDiTomTat { get; set; }
+
+        /// <summary>
+        /// CHỈ DÙNG TRÊN UI (FormTaoPhieuTraNoiBo): true khi SoLuong được tự động truy vết theo LOT
+        /// (tồn khả dụng của Slot) → ô Số lượng bị khóa, không cho nhập tay. Không lưu xuống DB.
+        /// </summary>
+        public bool SoLuongCoDinh { get; set; }
     }
 }
