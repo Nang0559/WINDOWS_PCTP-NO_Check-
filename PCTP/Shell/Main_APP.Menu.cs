@@ -18,6 +18,7 @@ using PCTP.Modules.KhoCore.Repositories;
 using PCTP.Modules.KhoCore.UI;
 using PCTP.Modules.NhapKho.Repository;
 using PCTP.Shared.Common;
+using PCTP.Shared.Helpers;
 
 namespace PCTP
 {
@@ -160,20 +161,12 @@ namespace PCTP
 
         private void OpenTachLot(object sender, EventArgs e)
         {
-            OpenFromMenu(() =>
-            {
-                using (var form = new UF_TACHLOT())
-                    form.ShowDialog(this);
-            }, "Tách LOT / In tem Ghép LOT");
+            OpenFromMenu(() => FormWindowManager.ShowSingle(this, () => new UF_TACHLOT()), "Tách LOT / In tem Ghép LOT");
         }
 
         private void OpenGhepLotThuCong(object sender, EventArgs e)
         {
-            OpenFromMenu(() =>
-            {
-                using (var form = new FormGhepLotThuCong())
-                    form.ShowDialog(this);
-            }, "Ghép LOT thủ công");
+            OpenFromMenu(() => FormWindowManager.ShowSingle(this, () => new FormGhepLotThuCong()), "Ghép LOT thủ công");
         }
 
         private void OpenTraCuuLot()
@@ -188,38 +181,22 @@ namespace PCTP
 
         private void OpenBaoCaoLichSuKho(object sender, EventArgs e)
         {
-            OpenFromMenu(() =>
-            {
-                using (var f = new FormBaoCaoStockHistory())
-                    f.ShowDialog(this);
-            }, "Lịch sử kho");
+            OpenFromMenu(() => FormWindowManager.ShowSingle(this, () => new FormBaoCaoStockHistory()), "Lịch sử kho");
         }
 
         private void OpenBaoCaoLichSuQC(object sender, EventArgs e)
         {
-            OpenFromMenu(() =>
-            {
-                using (var f = new FormBaoCaoQualityHistory())
-                    f.ShowDialog(this);
-            }, "Lịch sử QC");
+            OpenFromMenu(() => FormWindowManager.ShowSingle(this, () => new FormBaoCaoQualityHistory()), "Lịch sử QC");
         }
 
         private void OpenChuyenHangNoiBo(object sender, EventArgs e)
         {
-            OpenFromMenu(() =>
-            {
-                using (var f = new PCTP.Modules.XuatKho.FormChuyenHangNoiBo())
-                    f.ShowDialog(this);
-            }, "Chuyển hàng sang vị trí nội bộ");
+            OpenFromMenu(() => FormWindowManager.ShowSingle(this, () => new PCTP.Modules.XuatKho.FormChuyenHangNoiBo()), "Chuyển hàng sang vị trí nội bộ");
         }
 
         private void OpenThuHoiHangNoiBo(object sender, EventArgs e)
         {
-            OpenFromMenu(() =>
-            {
-                using (var f = new PCTP.Modules.XuatKho.FormThuHoiHangNoiBo())
-                    f.ShowDialog(this);
-            }, "Thu hồi hàng từ vị trí nội bộ về kho");
+            OpenFromMenu(() => FormWindowManager.ShowSingle(this, () => new PCTP.Modules.XuatKho.FormThuHoiHangNoiBo()), "Thu hồi hàng từ vị trí nội bộ về kho");
         }
 
         private void OpenTonKhoThanhPham(object sender, EventArgs e)
@@ -230,11 +207,7 @@ namespace PCTP
 
         private void OpenDieuChinhTonKhoLot(object sender, EventArgs e)
         {
-            OpenFromMenu(() =>
-            {
-                using (var form = new FormDieuChinhTonKhoLot())
-                    form.ShowDialog(this);
-            }, "Điều chỉnh tồn kho LOT");
+            OpenFromMenu(() => FormWindowManager.ShowSingle(this, () => new FormDieuChinhTonKhoLot()), "Điều chỉnh tồn kho LOT");
         }
     }
 
