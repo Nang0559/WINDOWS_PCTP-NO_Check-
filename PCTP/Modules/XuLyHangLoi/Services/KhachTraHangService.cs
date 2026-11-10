@@ -241,6 +241,40 @@ namespace PCTP.Modules.XuLyHangLoi.Services
         /// Phiếu giao gốc của dòng khách trả phải tồn tại, đúng mã hàng và đúng khách;
         /// PO / Ngày giao / Nhà máy lấy từ chính phiếu giao (không tin dữ liệu form gửi lên).
         /// </summary>
+        protected override void KiemTraSoLuongTheoPhieuGiao(PhieuTraHang phieu, int? boQuaPhieuTraHangId)
+        {
+            var loi = new List<string>();
+
+            foreach (var ct in phieu.ChiTiet)
+            {
+                if (ct == null || string.IsNullOrWhiteSpace(ct.DinhDanhPhieuGiao))
+                    continue;
+
+                int? daGiao = LaySoLuongDaGiao(ct.DinhDanhPhieuGiao, ct.LotNo);
+                if (!daGiao.HasValue)
+                    continue;
+
+                int daTra = Repo.TongSoLuongDaTraTheoPhieuGiao(
+                    ct.DinhDanhPhieuGiao, ct.MaHang, ct.LotNo, boQuaPhieuTraHangId);
+
+                int conLai = daGiao.Value - daTra;
+                string nhan = (ct.MaHang ?? string.Empty).Trim() + " / LOT " + (ct.LotNo ?? string.Empty).Trim();
+
+                if (conLai <= 0)
+                    loi.Add("- " + nhan + ": lần giao này đã giao " + daGiao.Value.ToString("n0")
+                        + ", các phiếu trước đã nhận trả " + daTra.ToString("n0")
+                        + " → không thể tạo phiếu trả tiếp.");
+                else if (ct.SoLuong > conLai)
+                    loi.Add("- " + nhan + ": SL trả " + ct.SoLuong.ToString("n0")
+                        + " vượt phần còn lại " + conLai.ToString("n0")
+                        + " (đã giao " + daGiao.Value.ToString("n0") + ", phiếu trước đã nhận " + daTra.ToString("n0") + ").");
+            }
+
+            if (loi.Count > 0)
+                throw new InvalidOperationException(
+                    "Số lượng khách trả vượt số lượng đã giao của lần giao gốc:\n" + string.Join("\n", loi));
+        }
+
         private void XacThucVaDienPhieuGiaoGoc(PhieuTraHang phieu, PhieuTraHangCT ct)
         {
             if (string.IsNullOrWhiteSpace(ct.DinhDanhPhieuGiao))

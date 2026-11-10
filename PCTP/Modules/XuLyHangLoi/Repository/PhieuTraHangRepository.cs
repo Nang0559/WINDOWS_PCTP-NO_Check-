@@ -663,6 +663,97 @@ WHERE PhieuTraHangId = @PhieuTraHangId;";
             return r != null && r != DBNull.Value && Convert.ToInt32(r) > 0;
         }
 
+        public List<LotDangXuLyInfo> TimLotDangXuLy(string maHang, string lotNo)
+        {
+            const string sql = @"
+SELECT h.Id AS PhieuTraHangId, h.SoPhieu, h.Nguon,
+       ct.Id AS CTId, ct.MaHang, ct.LotNo, ct.SlotIdNguon, ct.DinhDanhPhieuGiao, ct.SoLuong,
+       px.Id AS PhieuXuLyId
+FROM FVN_PhieuTraHangCT ct
+JOIN FVN_PhieuTraHang h ON h.Id = ct.PhieuTraHangId
+LEFT JOIN FVN_PhieuXuLyBatThuong px ON px.PhieuTraHangCTId = ct.Id
+WHERE LTRIM(RTRIM(ct.MaHang)) = @MaHang
+  AND LTRIM(RTRIM(ct.LotNo)) = @LotNo
+  AND h.Status NOT IN (@TraHoanTat, @TraLoi)
+  AND (px.Id IS NULL OR px.Status NOT IN (@QtHoanTat, @QtHuy))
+ORDER BY h.Id, ct.Id;";
+
+            DataTable dt = LoadData(
+                sql,
+                new SqlParameter("@MaHang", (maHang ?? string.Empty).Trim()),
+                new SqlParameter("@LotNo", (lotNo ?? string.Empty).Trim()),
+                new SqlParameter("@TraHoanTat", (int)PhieuTraHangStatus.HoanTat),
+                new SqlParameter("@TraLoi", (int)PhieuTraHangStatus.Loi),
+                new SqlParameter("@QtHoanTat", (int)QTChungStatus.HoanTat),
+                new SqlParameter("@QtHuy", (int)QTChungStatus.Huy));
+
+            var list = new List<LotDangXuLyInfo>(dt.Rows.Count);
+            foreach (DataRow row in dt.Rows)
+            {
+                list.Add(new LotDangXuLyInfo
+                {
+                    PhieuTraHangId = Convert.ToInt32(row["PhieuTraHangId"]),
+                    SoPhieu = row["SoPhieu"] == DBNull.Value ? null : Convert.ToString(row["SoPhieu"]),
+                    Nguon = (NguonXuLyBatThuong)Convert.ToInt32(row["Nguon"]),
+                    PhieuTraHangCTId = Convert.ToInt32(row["CTId"]),
+                    PhieuXuLyId = row["PhieuXuLyId"] == DBNull.Value ? (int?)null : Convert.ToInt32(row["PhieuXuLyId"]),
+                    MaHang = row["MaHang"] == DBNull.Value ? null : Convert.ToString(row["MaHang"]),
+                    LotNo = row["LotNo"] == DBNull.Value ? null : Convert.ToString(row["LotNo"]),
+                    SlotIdNguon = row["SlotIdNguon"] == DBNull.Value ? (int?)null : Convert.ToInt32(row["SlotIdNguon"]),
+                    DinhDanhPhieuGiao = row["DinhDanhPhieuGiao"] == DBNull.Value ? null : Convert.ToString(row["DinhDanhPhieuGiao"]),
+                    SoLuong = row["SoLuong"] == DBNull.Value ? 0 : Convert.ToInt32(row["SoLuong"])
+                });
+            }
+
+            return list;
+        }
+
+        public int TongSoLuongDaTraTheoPhieuGiao(string dinhDanhPhieuGiao, string maHang, string lotNo, int? boQuaPhieuTraHangId)
+        {
+            const string sql = @"
+SELECT ISNULL(SUM(ct.SoLuong), 0)
+FROM FVN_PhieuTraHangCT ct
+JOIN FVN_PhieuTraHang h ON h.Id = ct.PhieuTraHangId
+WHERE ct.DinhDanhPhieuGiao = @DinhDanh
+  AND LTRIM(RTRIM(ct.MaHang)) = @MaHang
+  AND LTRIM(RTRIM(ct.LotNo)) = @LotNo
+  AND h.Status <> @TraLoi
+  AND (@BoQua IS NULL OR h.Id <> @BoQua);";
+
+            object r = ExecuteScalar(
+                sql,
+                new SqlParameter("@DinhDanh", (dinhDanhPhieuGiao ?? string.Empty).Trim()),
+                new SqlParameter("@MaHang", (maHang ?? string.Empty).Trim()),
+                new SqlParameter("@LotNo", (lotNo ?? string.Empty).Trim()),
+                new SqlParameter("@TraLoi", (int)PhieuTraHangStatus.Loi),
+                new SqlParameter("@BoQua", SqlDbType.Int) { Value = (object)boQuaPhieuTraHangId ?? DBNull.Value });
+
+            return r == null || r == DBNull.Value ? 0 : Convert.ToInt32(r);
+        }
+
+        public void KhoaLot(string maHang, string lotNo)
+        {
+            if (!HasTransaction)
+                throw new InvalidOperationException(
+                    "KhoaLot phải được gọi trong transaction (sau Uow.Begin) để khóa theo LOT.");
+
+            string res = "FVN_LOT|" + (maHang ?? string.Empty).Trim().ToUpperInvariant()
+                       + "|" + (lotNo ?? string.Empty).Trim().ToUpperInvariant();
+            if (res.Length > 250) res = res.Substring(0, 250);
+
+            object r = ExecuteScalar(
+                @"DECLARE @r int;
+EXEC @r = sp_getapplock @Resource = @Res, @LockMode = 'Exclusive', @LockOwner = 'Transaction', @LockTimeout = 15000;
+SELECT @r;",
+                new SqlParameter("@Res", SqlDbType.NVarChar, 255) { Value = res });
+
+            int code = r == null || r == DBNull.Value ? -999 : Convert.ToInt32(r);
+            if (code < 0)
+                throw new InvalidOperationException(
+                    "Không khóa được LOT " + (lotNo ?? string.Empty).Trim() + " (mã " + (maHang ?? string.Empty).Trim()
+                    + "): có người khác đang tạo/sửa phiếu cho LOT này. Thử lại sau vài giây. (applock=" + code + ")");
+        }
+
         public List<int> GetItemIdsChuaCoPhieuXuLy(int phieuTraHangId)
         {
             const string sql = @"

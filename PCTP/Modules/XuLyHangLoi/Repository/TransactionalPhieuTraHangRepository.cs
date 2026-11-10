@@ -150,6 +150,15 @@ WHERE Id = @Id;",
                 ngayGiao,
                 nhaMay);
 
+        public List<LotDangXuLyInfo> TimLotDangXuLy(string maHang, string lotNo)
+            => _inner.TimLotDangXuLy(maHang, lotNo);
+
+        public int TongSoLuongDaTraTheoPhieuGiao(string dinhDanhPhieuGiao, string maHang, string lotNo, int? boQuaPhieuTraHangId)
+            => _inner.TongSoLuongDaTraTheoPhieuGiao(dinhDanhPhieuGiao, maHang, lotNo, boQuaPhieuTraHangId);
+
+        public void KhoaLot(string maHang, string lotNo)
+            => _inner.KhoaLot(maHang, lotNo);
+
         public bool ConChoXuLy(int phieuTraHangId)
         {
             if (!HasTransaction)

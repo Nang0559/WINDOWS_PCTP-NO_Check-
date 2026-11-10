@@ -38,6 +38,21 @@ namespace PCTP.Modules.XuLyHangLoi.Repository
     /// </summary>
     /// 
 
+    /// <summary>Một dòng phiếu trả (mọi nguồn) mà xử lý CHƯA kết thúc — dùng để tính số lượng đang bị giữ.</summary>
+    public sealed class LotDangXuLyInfo
+    {
+        public int PhieuTraHangId { get; set; }
+        public string SoPhieu { get; set; }
+        public NguonXuLyBatThuong Nguon { get; set; }
+        public int PhieuTraHangCTId { get; set; }
+        public int? PhieuXuLyId { get; set; }
+        public string MaHang { get; set; }
+        public string LotNo { get; set; }
+        public int? SlotIdNguon { get; set; }
+        public string DinhDanhPhieuGiao { get; set; }
+        public int SoLuong { get; set; }
+    }
+
     public interface IPhieuTraHangRepository
     {
 
@@ -262,6 +277,24 @@ namespace PCTP.Modules.XuLyHangLoi.Repository
 
         /// <summary>Xóa toàn bộ dòng chi tiết của phiếu.</summary>
         void DeleteItems(int phieuTraHangId);
+
+        /// <summary>
+        /// Các dòng phiếu trả (mọi nguồn) chứa đúng MaHang + LotNo mà xử lý CHƯA kết thúc:
+        /// header chưa HoanTat/Loi và (dòng chưa có phiếu xử lý hoặc phiếu xử lý chưa HoanTat/Huy).
+        /// </summary>
+        List<LotDangXuLyInfo> TimLotDangXuLy(string maHang, string lotNo);
+
+        /// <summary>
+        /// Tổng SL đã nhận trả cho đúng lần giao (DinhDanhPhieuGiao) + MaHang + LotNo
+        /// trên mọi phiếu chưa Loi, trừ phiếu <paramref name="boQuaPhieuTraHangId"/> (phiếu đang sửa).
+        /// </summary>
+        int TongSoLuongDaTraTheoPhieuGiao(string dinhDanhPhieuGiao, string maHang, string lotNo, int? boQuaPhieuTraHangId);
+
+        /// <summary>
+        /// Khóa độc quyền theo MaHang + LotNo (sp_getapplock, owner = Transaction) cho tới khi
+        /// transaction hiện tại Commit/Rollback. PHẢI gọi sau Uow.Begin(). Ném lỗi nếu không khóa được.
+        /// </summary>
+        void KhoaLot(string maHang, string lotNo);
 
         /// <summary>Xóa header (gọi sau DeleteItems, trong transaction).</summary>
         void Delete(int id); // true nếu còn ≥1 PhieuXuLyBatThuong con chưa HoanTat/Huy

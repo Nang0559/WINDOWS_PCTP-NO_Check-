@@ -162,6 +162,11 @@ namespace PCTP.Common
                 uow,
                 workflow);
 
+            // Gác tồn kho + số lượng đang bị phiếu chưa hoàn tất giữ (dùng chung cho nội bộ và khách trả).
+            var lotClaimGuard = new LotClaimGuard(phieuTraHangRepo, slotService, qtChungRepo);
+            khachTraHangService.LotGuard = lotClaimGuard;
+            traNoiBoService.LotGuard = lotClaimGuard;
+
             var noiBoLookupRepo = new NoiBoLookupRepository(sql, uow);
 
             return new FormQuanLyTienTrinhHangLoi(

@@ -1221,19 +1221,106 @@ namespace PCTP.Modules.XuLyHangLoi
             ThemTuKetQuaTraCuu(slots, "mã " + code);
         }
 
-        // Tab "LOT / QR" – chỉ có LOT: tìm Slot đang chứa LOT đó.
+        // Tab "LOT / QR" – chỉ có LOT: rà TOÀN BỘ Slot đang chứa LOT, thêm mỗi Slot một dòng với SL khả dụng.
         private void XuLyLotThuan(string lotNhap)
         {
             string lot = lotNhap.Trim();
-            var daCo = SlotLotDaCoTrongPhieu();
 
-            var slots = _slotItems
-                .Where(x => x.SlotLotId > 0
-                    && !daCo.Contains(x.SlotLotId)
-                    && QrItemParser.LotKhop(x.LotNo, lot))
+            var maCuaLot = _slotItems
+                .Where(x => x.SlotLotId > 0 && QrItemParser.LotKhop(x.LotNo, lot))
+                .Select(x => (x.ItemCode ?? string.Empty).Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
-            ThemTuKetQuaTraCuu(slots, "LOT " + lot);
+            if (maCuaLot.Count == 0)
+            {
+                BaoQr($"Không có Slot nào đang chứa LOT {lot}.", false);
+                _stockLookup.FocusInput();
+                return;
+            }
+
+            if (maCuaLot.Count > 1)
+            {
+                BaoQr($"LOT {lot} thuộc {maCuaLot.Count} mã hàng ({string.Join(", ", maCuaLot)}): chọn trong danh sách.", true);
+                MoChonSlot();
+                return;
+            }
+
+            ThemTatCaSlotCuaLot(maCuaLot[0], lot, "LOT " + lot);
+        }
+
+        /// <summary>
+        /// Rà tồn kho theo MaHang + LOT (giống "Truy tìm LOT") và đưa vào lưới MỖI Slot một dòng.
+        /// SL mặc định = tồn khả dụng của Slot (tồn − phần phiếu chưa hoàn tất khác đang giữ),
+        /// KHÔNG lấy SL trên tem QR. Slot đã bị phiếu trước lấy hết thì không thêm.
+        /// </summary>
+        private void ThemTatCaSlotCuaLot(string maHang, string lot, string nhan)
+        {
+            List<LotKhaDungInfo> kq;
+
+            try
+            {
+                kq = _traNoiBoService.TraCuuLotTrongKho(maHang, lot, _phieuId > 0 ? (int?)_phieuId : null);
+            }
+            catch (Exception ex)
+            {
+                BaoQr("Không rà được tồn kho theo LOT: " + ex.Message, false);
+                return;
+            }
+
+            if (kq == null || kq.Count == 0)
+            {
+                BaoQr($"Không có Slot nào đang chứa {nhan}.", false);
+                return;
+            }
+
+            var data = LayDanhSachDong();
+            int them = 0, daCo = 0, tong = 0;
+            var daGiuHet = new List<string>();
+
+            foreach (var r in kq)
+            {
+                bool trung = data.Any(d =>
+                    d.SlotIdNguon == r.SlotId
+                    && string.Equals((d.MaHang ?? string.Empty).Trim(), r.MaHang, StringComparison.OrdinalIgnoreCase)
+                    && string.Equals((d.LotNo ?? string.Empty).Trim(), r.LotNo, StringComparison.OrdinalIgnoreCase));
+
+                if (trung)
+                {
+                    daCo++;
+                    continue;
+                }
+
+                if (r.KhaDung <= 0)
+                {
+                    daGiuHet.Add($"{r.ViTri} (tồn {r.TonKho:n0}, phiếu {r.PhieuDangGiu} đã giữ hết)");
+                    continue;
+                }
+
+                var slot = TimSlotItem(r.SlotLotId)
+                    ?? new SlotNguonLookupItem
+                    {
+                        SlotLotId = r.SlotLotId,
+                        SlotId = r.SlotId,
+                        ViTri = r.ViTri,
+                        ItemCode = r.MaHang,
+                        TenHang = string.Empty,
+                        LotNo = r.LotNo,
+                        Quantity = r.TonKho
+                    };
+
+                ThemDongTuSlotItem(slot, r.KhaDung, string.Empty);
+                them++;
+                tong += r.KhaDung;
+            }
+
+            _grid.RefreshDataSource();
+
+            string msg = $"{nhan}: thêm {them} vị trí, tổng {tong:n0} (tồn khả dụng).";
+            if (daCo > 0) msg += $" {daCo} vị trí đã có trong phiếu.";
+            if (daGiuHet.Count > 0) msg += " Không thêm: " + string.Join("; ", daGiuHet) + ".";
+
+            BaoQr(msg, them > 0 || daCo > 0);
         }
 
         // 0 Slot → báo; 1 Slot → thêm dòng (SL để trống cho người dùng nhập); nhiều Slot → mở danh sách chọn.
@@ -1332,40 +1419,8 @@ namespace PCTP.Modules.XuLyHangLoi
                 return;
             }
 
-            // Item phải khớp với Slot đang chứa hàng (lookup của grid).
-            var matches = QrItemParser.TimSlotKhop(_slotItems.Where(x => x.SlotLotId > 0), info);
-
-            if (matches.Count == 0)
-            {
-                BaoQr($"Không có Slot nào đang chứa {info.ItemCode} / Lot {info.Lot}.", false);
-                return;
-            }
-
-            var data = _grid.DataSource as List<PhieuTraHangCT>;
-
-            if (data == null)
-            {
-                data = new List<PhieuTraHangCT>();
-                _grid.DataSource = data;
-            }
-
-            var slot = matches.FirstOrDefault(m =>
-                !data.Any(d => d.SlotLotIdNguon == m.SlotLotId));
-
-            if (slot == null)
-            {
-                BaoQr($"Slot/LOT của {info.ItemCode} đã có trong phiếu.", false);
-                return;
-            }
-
-            // Dùng chung 1 hàm dựng dòng với "Chọn từ Slot" → cùng định dạng dòng.
-            ThemDongTuSlotItem(slot, Math.Min(info.Quantity, slot.Quantity), string.Empty);
-
-            _grid.RefreshDataSource();
-
-            BaoQr(
-                $"Đã thêm {slot.ItemCode} / Lot {slot.LotNo} / SL {Math.Min(info.Quantity, slot.Quantity)} ({slot.ViTri}).",
-                true);
+            // SL trên tem QR (vd. 200) CHỈ để nhận diện mã + LOT; SL phiếu lấy từ tồn kho của LOT.
+            ThemTatCaSlotCuaLot(info.ItemCode, info.Lot, $"{info.ItemCode} / Lot {info.Lot}");
         }
 
         // ============================================================

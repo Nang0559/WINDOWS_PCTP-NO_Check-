@@ -57,6 +57,96 @@ namespace PCTP.Modules.XuLyHangLoi.Services
         /// </summary>
         protected abstract NguonXuLyBatThuong Nguon { get; }
 
+        /// <summary>Gác tồn kho / số lượng đang bị phiếu khác giữ (gán ở nơi dựng service).</summary>
+        public ILotClaimGuard LotGuard { get; set; }
+
+        public List<LotKhaDungInfo> TraCuuLotTrongKho(string maHang, string lotNo, int? boQuaPhieuTraHangId)
+        {
+            if (LotGuard == null)
+                return new List<LotKhaDungInfo>();
+
+            return LotGuard.TraCuuLotTrongKho(maHang, lotNo, boQuaPhieuTraHangId);
+        }
+
+        /// <summary>
+        /// Khóa chặt + kiểm tra trước khi ghi dòng chi tiết. Gọi NGAY SAU Uow.Begin():
+        /// 1) khóa applock theo từng MaHang+LOT (thứ tự cố định, tránh deadlock);
+        /// 2) mỗi LOT chỉ một dòng cho mỗi Slot (nội bộ) / mỗi lần giao (khách trả);
+        /// 3) nội bộ: SL không vượt tồn khả dụng của Slot (tồn − phần phiếu khác đang giữ);
+        /// 4) khách trả: SL không vượt phần còn lại của lần giao (SL giao − các phiếu trước đã nhận).
+        /// </summary>
+        protected void KiemTraLotTruocKhiLuu(PhieuTraHang phieu, int? boQuaPhieuTraHangId)
+        {
+            var items = phieu == null ? null : phieu.ChiTiet;
+            if (items == null || items.Count == 0)
+                return;
+
+            var keys = items
+                .Where(x => x != null && !string.IsNullOrWhiteSpace(x.MaHang))
+                .Select(x => Tuple.Create(
+                    x.MaHang.Trim().ToUpperInvariant(),
+                    (x.LotNo ?? string.Empty).Trim().ToUpperInvariant()))
+                .Distinct()
+                .OrderBy(t => t.Item1, StringComparer.Ordinal)
+                .ThenBy(t => t.Item2, StringComparer.Ordinal)
+                .ToList();
+
+            foreach (var k in keys)
+                Repo.KhoaLot(k.Item1, k.Item2);
+
+            if (Nguon == NguonXuLyBatThuong.TraNoiBo)
+            {
+                var trungSlot = items
+                    .Where(x => x != null)
+                    .GroupBy(x => new
+                    {
+                        Ma = (x.MaHang ?? string.Empty).Trim().ToUpperInvariant(),
+                        Lot = (x.LotNo ?? string.Empty).Trim().ToUpperInvariant(),
+                        Slot = x.SlotIdNguon ?? 0
+                    })
+                    .Where(g => g.Count() > 1)
+                    .Select(g => "- " + g.Key.Ma + " / LOT " + g.Key.Lot + " (SlotId " + g.Key.Slot + ")")
+                    .ToList();
+
+                if (trungSlot.Count > 0)
+                    throw new InvalidOperationException(
+                        "Cùng một LOT chỉ được có nhiều dòng khi KHÁC Slot. Dòng trùng LOT + Slot:\n"
+                        + string.Join("\n", trungSlot));
+
+                if (LotGuard == null)
+                    throw new InvalidOperationException(
+                        "Chưa cấu hình LotGuard cho nghiệp vụ trả nội bộ nên không kiểm tra được tồn khả dụng.");
+
+                LotGuard.KiemTraTonKhaDung(items, boQuaPhieuTraHangId);
+            }
+            else
+            {
+                var trungGiao = items
+                    .Where(x => x != null)
+                    .GroupBy(x => new
+                    {
+                        Ma = (x.MaHang ?? string.Empty).Trim().ToUpperInvariant(),
+                        Lot = (x.LotNo ?? string.Empty).Trim().ToUpperInvariant(),
+                        Giao = (x.DinhDanhPhieuGiao ?? string.Empty).Trim()
+                    })
+                    .Where(g => g.Count() > 1)
+                    .Select(g => "- " + g.Key.Ma + " / LOT " + g.Key.Lot)
+                    .ToList();
+
+                if (trungGiao.Count > 0)
+                    throw new InvalidOperationException(
+                        "Cùng một LOT chỉ được có nhiều dòng khi KHÁC lần giao. Dòng trùng LOT + lần giao:\n"
+                        + string.Join("\n", trungGiao));
+
+                KiemTraSoLuongTheoPhieuGiao(phieu, boQuaPhieuTraHangId);
+            }
+        }
+
+        /// <summary>Khách trả override: chặn tổng SL trả vượt SL đã giao của từng lần giao.</summary>
+        protected virtual void KiemTraSoLuongTheoPhieuGiao(PhieuTraHang phieu, int? boQuaPhieuTraHangId)
+        {
+        }
+
         /// <summary>
         /// ProcessCode của state machine PhieuTraHangStatus.
         ///
@@ -256,6 +346,8 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             {
                 Uow.Begin();
 
+                KiemTraLotTruocKhiLuu(phieu, null);
+
 
                 // ----------------------------------------------------
                 // 1. INSERT HEADER
@@ -341,6 +433,9 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             try
             {
                 Uow.Begin();
+
+                if (thayChiTiet)
+                    KiemTraLotTruocKhiLuu(phieu, phieu.Id);
 
                 Repo.Update(phieu);
 

@@ -1528,6 +1528,9 @@ namespace PCTP.Modules.XuLyHangLoi
                         data.Remove(row);
 
                     _grid.RefreshDataSource();
+
+                    // Đối chiếu phần 2: lấy toàn bộ LOT của các lần giao vừa chọn, rà tồn kho theo LOT đó.
+                    HienTonKhoTheoLotDaGiao(f.KetQua, (maHang ?? string.Empty).Trim());
                     return true;
                 }
             }
@@ -1535,6 +1538,62 @@ namespace PCTP.Modules.XuLyHangLoi
             {
                 BaoQr("Không thể đối chiếu phiếu giao: " + ex.Message, false);
                 return false;
+            }
+        }
+
+        /// <summary>
+        /// Phần 2 của đối chiếu khách trả: từ dữ liệu giao đã lưu (LUUPHIEUGIAOHANG) lấy toàn bộ LOT đã xuất
+        /// của các lần giao được chọn (kể cả LOT ghép), rồi rà hàng còn trong kho theo từng LOT đó.
+        /// </summary>
+        private void HienTonKhoTheoLotDaGiao(List<PhieuGiaoChon> ketQua, string maHang)
+        {
+            if (_slotService == null || ketQua == null || ketQua.Count == 0 || string.IsNullOrWhiteSpace(maHang))
+                return;
+
+            var lots = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var c in ketQua)
+            {
+                if (c == null || c.Phieu == null || string.IsNullOrWhiteSpace(c.Phieu.LOT))
+                    continue;
+
+                var parts = PCTP.Common.LotCodeHelper.ParseCompositeLotTolerant(c.Phieu.LOT, null);
+                if (parts == null)
+                    continue;
+
+                foreach (var p in parts)
+                {
+                    if (p != null && p.IsValid)
+                        lots.Add(p.LotNo.Trim());
+                }
+            }
+
+            foreach (var d in LayDanhSachDong())
+            {
+                if (d != null
+                    && !string.IsNullOrWhiteSpace(d.LotNo)
+                    && string.Equals((d.MaHang ?? string.Empty).Trim(), maHang, StringComparison.OrdinalIgnoreCase))
+                    lots.Add(d.LotNo.Trim());
+            }
+
+            if (lots.Count == 0)
+            {
+                BaoQr("Lần giao được chọn chưa có LOT để rà tồn kho.", false);
+                return;
+            }
+
+            var keys = lots
+                .Select(l => new KeyValuePair<string, string>(maHang, l))
+                .ToList();
+
+            try
+            {
+                using (var f = FormChonSlotNoiBo.TraCuuTheoLot(_slotService, keys))
+                    f.ShowDialog(this);
+            }
+            catch (Exception ex)
+            {
+                BaoQr("Không rà được tồn kho theo LOT đã giao: " + ex.Message, false);
             }
         }
 

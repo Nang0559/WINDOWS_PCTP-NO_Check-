@@ -76,5 +76,11 @@ namespace PCTP.Modules.XuLyHangLoi.Services
         /// hoặc đã có PhieuXuLyBatThuong.
         /// </summary>
         void XoaPhieu(int id, string nguoiThucHien);
+
+        /// <summary>
+        /// Rà TOÀN BỘ tồn kho của MaHang + LOT (mọi Slot), kèm số lượng đang bị các phiếu chưa hoàn tất giữ
+        /// và số còn khả dụng. SL của phiếu lấy từ đây — không lấy từ SL trên tem QR.
+        /// </summary>
+        List<LotKhaDungInfo> TraCuuLotTrongKho(string maHang, string lotNo, int? boQuaPhieuTraHangId);
     }
 }
