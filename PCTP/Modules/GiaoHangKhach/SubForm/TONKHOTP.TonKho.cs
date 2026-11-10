@@ -54,16 +54,18 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
         {
             // Có khối "Lọc theo ngày" (ô tra cứu cao ~136px) khi có nguồn dữ liệu cho kiểu lọc theo phiếu.
             bool showDate = _lookupRepo != null;
-            var top = new PanelControl { Dock = DockStyle.Top, Height = showDate ? 190 : 126 };
+            // = padding 8 + ô tra cứu (140 / 80) + hàng nút 34 + hàng tóm tắt 44 (tối đa 2 dòng).
+            var top = new PanelControl { Dock = DockStyle.Top, Height = showDate ? 226 : 166 };
             var topLayout = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
                 ColumnCount = 1,
-                RowCount = 2,
+                RowCount = 3,
                 Padding = new Padding(4)
             };
             topLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
             topLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, showDate ? 140 : 80));
+            topLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
             topLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
             _stockLookup = new StockLookupControl { Dock = DockStyle.Fill };
@@ -91,11 +93,15 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
             _btnRefresh.Click += async (s, e) => await LoadOnHandAsync();
             _btnExport = new SimpleButton { Width = 100, Height = 27, Text = "Xuất Excel" };
             _btnExport.Click += (s, e) => ExportActiveOnHandView();
-            _lblSummary = new LabelControl { AutoSizeMode = LabelAutoSizeMode.None, Width = 800, Height = 27 };
+            // Dòng tóm tắt nằm hàng riêng, giãn theo bề rộng form và tự xuống dòng — không cố định chiều rộng
+            // nên chuỗi dài (mô tả tiêu chí + số liệu) không còn bị cắt khuất.
+            _lblSummary = new LabelControl { AutoSizeMode = LabelAutoSizeMode.None, Dock = DockStyle.Fill };
             _lblSummary.Appearance.Font = new Font("Tahoma", 9, FontStyle.Bold);
-            _lblSummary.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
-            tools.Controls.AddRange(new Control[] { _cmbFilter, _btnRefresh, _btnExport, _lblSummary });
+            _lblSummary.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Top;
+            _lblSummary.Appearance.TextOptions.WordWrap = DevExpress.Utils.WordWrap.Wrap;
+            tools.Controls.AddRange(new Control[] { _cmbFilter, _btnRefresh, _btnExport });
             topLayout.Controls.Add(tools, 0, 1);
+            topLayout.Controls.Add(_lblSummary, 0, 2);
             top.Controls.Add(topLayout);
 
             _tabs = new XtraTabControl { Dock = DockStyle.Fill };
