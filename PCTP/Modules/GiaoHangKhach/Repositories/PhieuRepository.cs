@@ -27,6 +27,8 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         private readonly IPhieuLuuTruRepository _luuTru;
         private readonly IPhieuGiaoDBRepository _giaoDB;
         private readonly PhieuSqlExecutor _db;
+        // YMVN (CoGear): FIFO tách theo Gear (ký tự thứ 13 của LOT), mỗi Gear một hàng đợi riêng.
+        private readonly bool _fifoPerGear;
 
         public PhieuRepository(
             PhieuSqlExecutor db,
@@ -39,6 +41,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             IStockMovementService stockMovement = null)
         {
             _db = db ?? throw new ArgumentNullException(nameof(db));
+            _fifoPerGear = cfg != null && cfg.Delivery != null && cfg.Delivery.CoGear;
             _validation = new PhieuValidationRepository(db, uow);
             _tmp = new PhieuTmpRepository(db, uow);
             _lot = new PhieuLotRepository(db, uow);
@@ -119,7 +122,14 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         public DataTable LoadGhepLot(string tenBan = "TMPPHIEUGIAOHANG", string ifsTable = "IFSPHIEUGIAOHANG") => _lot.LoadGhepLot(tenBan, ifsTable);
         public DataTable LoadGhepLot(string tmpTable, string ifsTable, bool useGear, string configuredTmpTable = null, string viewTablePrefix = null) => _lot.LoadGhepLot(tmpTable, ifsTable, useGear, configuredTmpTable, viewTablePrefix);
         public DataTable LoadGhepLotYMVN(string tmpTable, string configuredTmpTable, string viewTablePrefix) => _lot.LoadGhepLotYMVN(tmpTable, configuredTmpTable, viewTablePrefix);
-        public DataTable GetDanhSachLotTuKho(string maHang) => _lot.GetDanhSachLotTuKho(maHang);
+        public DataTable GetDanhSachLotTuKho(string maHang)
+        {
+            DataTable dt = _lot.GetDanhSachLotTuKho(maHang);
+            // Báo cho hộp thoại chọn LOT biết FIFO tính theo Gear (không thêm cột để lưới không đổi).
+            if (_fifoPerGear && dt != null)
+                dt.ExtendedProperties["FIFO_PER_GEAR"] = true;
+            return dt;
+        }
 
         public int CapNhapKho(string gioGiaoFcc, string nhaMay, PhieuTableSet tables, out DataTable errors) => _kho.CapNhapKho(gioGiaoFcc, nhaMay, tables, out errors);
         public int CapNhapKho(string gioGiaoFcc, string nhaMay, string tmpTable, string docQRTable, out DataTable errors) => _kho.CapNhapKho(gioGiaoFcc, nhaMay, tmpTable, docQRTable, out errors);
@@ -231,8 +241,27 @@ ORDER BY
                     .OrderBy(x => x.Stt)
                     .ToList();
 
-                int totalSelectedQty = selectionsByRow.Sum(x => x.Selections.Sum(s => s.Quantity));
-                var allowedByLot = BuildAllowedAllocation(fifo, totalSelectedQty);
+                Dictionary<string, int> allowedByLot;
+                if (_fifoPerGear)
+                {
+                    // Mỗi Gear là một hàng đợi FIFO riêng: cấp phát theo từng Gear,
+                    // chỉ tính số lượng các LOT được chọn thuộc Gear đó.
+                    allowedByLot = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+                    foreach (var gearQueue in fifo.GroupBy(x => GearOf(x.Key), StringComparer.OrdinalIgnoreCase))
+                    {
+                        string queueGear = gearQueue.Key;
+                        int qtyOfGear = selectionsByRow.Sum(x => x.Selections
+                            .Where(s => string.Equals(GearOf(s.LotKey), queueGear, StringComparison.OrdinalIgnoreCase))
+                            .Sum(s => s.Quantity));
+                        foreach (var kv in BuildAllowedAllocation(gearQueue.ToList(), qtyOfGear))
+                            allowedByLot[kv.Key] = kv.Value;
+                    }
+                }
+                else
+                {
+                    int totalSelectedQty = selectionsByRow.Sum(x => x.Selections.Sum(s => s.Quantity));
+                    allowedByLot = BuildAllowedAllocation(fifo, totalSelectedQty);
+                }
 
                 foreach (RowSelection row in selectionsByRow)
                 {
@@ -246,7 +275,12 @@ ORDER BY
                         if (!trial.TryGetValue(selection.LotKey, out remaining) || remaining < selection.Quantity)
                         {
                             rowValid = false;
-                            requiredLot = FindRequiredLot(fifo, trial);
+                            string selectionGear = GearOf(selection.LotKey);
+                            requiredLot = FindRequiredLot(
+                                _fifoPerGear
+                                    ? fifo.Where(f => string.Equals(GearOf(f.Key), selectionGear, StringComparison.OrdinalIgnoreCase)).ToList()
+                                    : fifo,
+                                trial);
                             break;
                         }
                         trial[selection.LotKey] = remaining - selection.Quantity;
@@ -274,6 +308,11 @@ ORDER BY
                 .GroupBy(x => new { x.Stt, x.MaHang, x.LotDaChon })
                 .Select(g => g.First())
                 .ToList();
+        }
+
+        private static string GearOf(string lotKey)
+        {
+            return PCTP.Common.LotCodeHelper.GetGearFromKey(lotKey);
         }
 
         private static Dictionary<string, int> BuildAllowedAllocation(List<FifoStockLine> fifo, int requiredQty)

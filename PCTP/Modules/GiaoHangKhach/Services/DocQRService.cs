@@ -32,7 +32,8 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             _fifoService = fifoService ?? throw new ArgumentNullException(nameof(fifoService));
             _bus = bus;
             _session = new DocQRSessionState(cfg);
-            _fifoState = new FifoSessionState();
+            // YMVN (CoGear): mỗi Gear có hàng đợi FIFO riêng.
+            _fifoState = new FifoSessionState { PerGear = cfg.Delivery.CoGear };
             _engine = new DocQRScanEngine(repo, bus, cfg, _session);
             _bus.Subscribe<KhoUpdatedEvent>(OnKhoUpdated);
         }

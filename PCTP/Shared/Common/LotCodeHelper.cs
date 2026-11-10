@@ -126,6 +126,18 @@ namespace PCTP.Common
                 ? lot.Substring(LEN_DATE + LEN_ID_ITEM + LEN_SHIFT, LEN_GEAR)
                 : "";
 
+        /// <summary>
+        /// Gear = ký tự thứ 13 của LOT (index 12), dùng được cho cả khóa 13 ký tự lẫn LOT đầy đủ.
+        /// Trả "" nếu LOT ngắn hơn 13 ký tự. Dùng để tách hàng đợi FIFO theo Gear.
+        /// </summary>
+        public static string GetGearFromKey(string lot)
+        {
+            if (string.IsNullOrWhiteSpace(lot)) return "";
+            string t = lot.Trim();
+            int idx = LEN_DATE + LEN_ID_ITEM + LEN_SHIFT;   // 12 (0-based) = ký tự thứ 13
+            return t.Length > idx ? t.Substring(idx, LEN_GEAR) : "";
+        }
+
         public static string GetLineCodePart(string lot)
         {
             int startIdx = LEN_DATE + LEN_ID_ITEM + LEN_SHIFT + LEN_GEAR;

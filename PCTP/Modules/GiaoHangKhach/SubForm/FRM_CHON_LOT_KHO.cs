@@ -118,6 +118,42 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.SubForm
                 return false;
             }
 
+            // YMVN (CoGear): mỗi Gear (ký tự 13 của LOT) là một hàng đợi FIFO riêng.
+            bool perGear = _danhSachLot.ExtendedProperties.ContainsKey("FIFO_PER_GEAR");
+            if (!perGear)
+                return ValidateFifoQueue(selected, selectedMap, fifoRows, out message);
+
+            foreach (string gear in selectedMap.Keys
+                .Select(k => LotCodeHelper.GetGearFromKey(k))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList())
+            {
+                var gearSelectedMap = selectedMap
+                    .Where(kv => string.Equals(LotCodeHelper.GetGearFromKey(kv.Key), gear, StringComparison.OrdinalIgnoreCase))
+                    .ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.OrdinalIgnoreCase);
+                var gearSelected = selected
+                    .Where(x => string.Equals(LotCodeHelper.GetGearFromKey(LotKey(x.Item1)), gear, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+                var gearFifoRows = fifoRows
+                    .Where(r => string.Equals(LotCodeHelper.GetGearFromKey(LotKey(Convert.ToString(r["LOT"]))), gear, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+
+                if (!ValidateFifoQueue(gearSelected, gearSelectedMap, gearFifoRows, out message))
+                    return false;
+            }
+
+            return true;
+        }
+
+        /// <summary>Kiểm tra FIFO cho một hàng đợi (toàn bộ mã hàng, hoặc một Gear nếu PerGear).</summary>
+        private bool ValidateFifoQueue(
+            List<Tuple<string, int>> selected,
+            Dictionary<string, int> selectedMap,
+            List<DataRow> fifoRows,
+            out string message)
+        {
+            message = null;
+
             int remainingSelected = selectedMap.Values.Sum();
             var consumedKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 

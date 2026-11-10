@@ -1,3 +1,4 @@
+using PCTP.Common;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -8,6 +9,22 @@ namespace PCTP.Modules.GiaoHangKhach.Services
     {
         private readonly Dictionary<string, FifoPartState> _parts = new Dictionary<string, FifoPartState>(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<int, FifoReservation> _reservations = new Dictionary<int, FifoReservation>();
+
+        /// <summary>
+        /// true = mỗi Gear (ký tự thứ 13 của LOT) có hàng đợi FIFO riêng (YMVN).
+        /// LOT gear 4 chỉ bị so với các LOT gear 4 của cùng mã hàng, gear 0 không chặn gear 4.
+        /// </summary>
+        public bool PerGear { get; set; }
+
+        private static string GearOf(string lotKey)
+        {
+            return LotCodeHelper.GetGearFromKey(lotKey);
+        }
+
+        private bool SameQueue(string gearA, string gearB)
+        {
+            return !PerGear || string.Equals(gearA, gearB, StringComparison.OrdinalIgnoreCase);
+        }
 
         public void Reset()
         {
@@ -27,23 +44,34 @@ namespace PCTP.Modules.GiaoHangKhach.Services
                 .ToList();
 
             var state = new FifoPartState { ItemCode = part, NeedQty = Math.Max(soLuongCanGiao, 0) };
-            int remainingNeed = state.NeedQty;
 
-            foreach (FifoStockLine row in stock)
+            // PerGear: mỗi Gear là một hàng đợi FIFO độc lập (nhu cầu tính riêng cho từng Gear).
+            // Không PerGear: một hàng đợi chung như cũ.
+            IEnumerable<IGrouping<string, FifoStockLine>> queues = PerGear
+                ? stock.GroupBy(x => GearOf(x.LotKey), StringComparer.OrdinalIgnoreCase)
+                : stock.GroupBy(x => string.Empty);
+
+            foreach (IGrouping<string, FifoStockLine> queue in queues)
             {
-                if (remainingNeed <= 0) break;
-                int allowed = Math.Min(remainingNeed, row.AvailableQty);
-                if (allowed <= 0) continue;
+                int remainingNeed = state.NeedQty;
 
-                state.Lots.Add(new FifoLotState
+                foreach (FifoStockLine row in queue)
                 {
-                    LotKey = NormalizeLot(row.LotKey),
-                    DisplayLot = row.DisplayLot,
-                    OriginalAvailableQty = row.AvailableQty,
-                    RemainingAllowedQty = allowed,
-                    FifoRank = row.FifoRank
-                });
-                remainingNeed -= allowed;
+                    if (remainingNeed <= 0) break;
+                    int allowed = Math.Min(remainingNeed, row.AvailableQty);
+                    if (allowed <= 0) continue;
+
+                    state.Lots.Add(new FifoLotState
+                    {
+                        LotKey = NormalizeLot(row.LotKey),
+                        DisplayLot = row.DisplayLot,
+                        Gear = GearOf(row.LotKey),
+                        OriginalAvailableQty = row.AvailableQty,
+                        RemainingAllowedQty = allowed,
+                        FifoRank = row.FifoRank
+                    });
+                    remainingNeed -= allowed;
+                }
             }
 
             _parts[part] = state;
@@ -84,8 +112,9 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             {
                 FifoLotState allowedLot = state.Lots.FirstOrDefault(x => string.Equals(x.LotKey, selection.LotKey, StringComparison.OrdinalIgnoreCase));
                 int remaining;
+                string selectionGear = GearOf(selection.LotKey);
                 FifoLotState required = state.Lots
-                    .Where(x => trial.ContainsKey(x.LotKey) && trial[x.LotKey] > 0)
+                    .Where(x => trial.ContainsKey(x.LotKey) && trial[x.LotKey] > 0 && SameQueue(x.Gear, selectionGear))
                     .OrderBy(x => x.FifoRank)
                     .ThenBy(x => x.LotKey, StringComparer.OrdinalIgnoreCase)
                     .FirstOrDefault();
@@ -93,9 +122,16 @@ namespace PCTP.Modules.GiaoHangKhach.Services
                 if (allowedLot == null || !trial.TryGetValue(selection.LotKey, out remaining) || remaining < selection.Quantity ||
                     required == null || !string.Equals(required.LotKey, selection.LotKey, StringComparison.OrdinalIgnoreCase))
                 {
+                    FifoLotState firstOfQueue = state.Lots
+                        .Where(x => SameQueue(x.Gear, selectionGear))
+                        .OrderBy(x => x.FifoRank)
+                        .ThenBy(x => x.LotKey, StringComparer.OrdinalIgnoreCase)
+                        .FirstOrDefault();
                     string requiredLot = required != null
                         ? required.DisplayLot
-                        : (state.Lots.Count == 0 ? "(không còn LOT FIFO hợp lệ)" : state.Lots[0].DisplayLot);
+                        : (firstOfQueue == null ? "(không còn LOT FIFO hợp lệ)" : firstOfQueue.DisplayLot);
+                    if (PerGear && selectionGear.Length > 0)
+                        requiredLot += " (Gear " + selectionGear + ")";
                     int allowedQty = required != null && trial.ContainsKey(required.LotKey) ? trial[required.LotKey] : 0;
                     message = string.Format("CẢNH BÁO FIFO\n\nMã hàng: {0}\nLOT đang quét: {1}\nLOT thành phần sai FIFO: {2}\nSố lượng LOT thành phần: {3}\nLOT FIFO hiện tại: {4}\nSố lượng còn được phép: {5}\n\nKhông thể xuất LOT này vì chưa đúng thứ tự FIFO.", part, lot.Trim(), selection.Lot, selection.Quantity, requiredLot, allowedQty);
                     return false;
@@ -236,6 +272,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         {
             public string LotKey { get; set; }
             public string DisplayLot { get; set; }
+            public string Gear { get; set; }
             public int OriginalAvailableQty { get; set; }
             public int RemainingAllowedQty { get; set; }
             public int FifoRank { get; set; }
