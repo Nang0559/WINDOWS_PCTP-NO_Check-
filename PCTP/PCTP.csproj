@@ -723,6 +723,7 @@
     <Compile Include="Shared\Enums\StockTransactionType.cs" />
     <Compile Include="Shared\Helpers\DinhDanhKeyHelper.cs" />
     <Compile Include="Shared\Helpers\DateText.cs" />
+    <Compile Include="Shared\Helpers\FormWindowManager.cs" />
     <Compile Include="Shared\Helpers\IWaitFormService.cs" />
     <Compile Include="Shared\Helpers\WaitFormHelper.cs" />
     <Compile Include="Shared\Models\LichSuGiaoHangInfo.cs" />
