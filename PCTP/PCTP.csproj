@@ -344,6 +344,7 @@
     <Compile Include="Modules\BaoCao\UI\FormBaoCaoQualityHistory.cs" />
     <Compile Include="Modules\BaoCao\UI\FormBaoCaoStockHistory.cs" />
     <Compile Include="Modules\BaoCao\UI\FormBaoCaoTraceability.cs" />
+    <Compile Include="Modules\BaoCao\UI\ReportLookupDateFilter.cs" />
     <Compile Include="Modules\BaoCao\UI\TraceReportExporter.cs" />
     <Compile Include="Modules\BaoCao\UI\Timeline\LotTraceTimelineBuilder.cs" />
     <Compile Include="Modules\BaoCao\UI\Timeline\TraceTimelineControl.cs" />

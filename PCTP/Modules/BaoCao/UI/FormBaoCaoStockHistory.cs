@@ -81,7 +81,7 @@ namespace PCTP.Modules.BaoCao.UI
             ClientSize = new System.Drawing.Size(1184, 710);
             StartPosition = FormStartPosition.CenterScreen;
 
-            var top = new PanelControl { Dock = DockStyle.Top, Height = 150 };
+            var top = new PanelControl { Dock = DockStyle.Top, Height = 232 }; // +58px cho khối "Lọc theo ngày"
             var historyGroup = new GroupControl { Text = "Tra cứu lịch sử nhập xuất", Dock = DockStyle.Fill };
             var currentGroup = new GroupControl { Text = "Kho hiện tại", Dock = DockStyle.Left, Width = 190 };
             var actionPanel = new PanelControl { Dock = DockStyle.Right, Width = 205 };
@@ -99,8 +99,9 @@ namespace PCTP.Modules.BaoCao.UI
                 Left = 12,
                 Top = 62,
                 Width = 560,
-                Height = 78,
-                Anchor = AnchorStyles.Top | AnchorStyles.Left
+                Height = 136,
+                Anchor = AnchorStyles.Top | AnchorStyles.Left,
+                ShowDateRange = true
             };
             _stockLookup.SetLotQrPlaceholder("Quét QR / nhập LOT / số phiếu để tra cứu...");
             _stockLookup.SearchRequested += async (s, e) => await SearchAsync();
@@ -327,8 +328,20 @@ namespace PCTP.Modules.BaoCao.UI
                     else if (LotCodeHelper.ClassifyLotKey(search) != LotKeyKind.Unknown) criteria.LotNo = search;
                     else criteria.QrCode = search;
                 }
+                StockLookupCriteria lookupCriteria = _stockLookup.GetCriteria();
                 var rows = await _waitForm.RunAsync(
-                    () => Task.Run(() => _historyQuery.SearchAsync(criteria, _lifetime.Token), _lifetime.Token),
+                    async () =>
+                    {
+                        IReadOnlyList<ItemHistoryRow> list = await Task.Run(
+                            () => _historyQuery.SearchAsync(criteria, _lifetime.Token), _lifetime.Token);
+                        if (!lookupCriteria.DateEnabled)
+                            return list;
+
+                        // Lọc thêm theo "Lọc theo ngày" của ô tra cứu chung (cùng định nghĩa với các form khác).
+                        var matcher = await ReportLookupDateFilter.BuildMatcherAsync(lookupCriteria);
+                        return (IReadOnlyList<ItemHistoryRow>)ReportLookupDateFilter.Apply(
+                            list, lookupCriteria, matcher, x => x.ItemCode, x => x.LotNo);
+                    },
                     "Đang truy vấn lịch sử nhập xuất kho...");
                 Bind(rows, ConfigureHistoryColumns);
                 _deliveryRows.Clear();
@@ -373,6 +386,12 @@ namespace PCTP.Modules.BaoCao.UI
                             ? rows.Where(x => LotCodeHelper.AreLotKeysEquivalent(x.LotNo, search)).ToList()
                             : rows.Where(x => ContainsSearch(x.ItemCode, search) || ContainsSearch(x.LotNo, search) || ContainsSearch(x.QrCode, search) || ContainsSearch(x.DocumentNo, search)).ToList();
                     }
+                }
+                StockLookupCriteria dateCriteria = _stockLookup.GetCriteria();
+                if (dateCriteria.DateEnabled)
+                {
+                    var matcher = await ReportLookupDateFilter.BuildMatcherAsync(dateCriteria);
+                    rows = ReportLookupDateFilter.Apply(rows, dateCriteria, matcher, x => x.ItemCode, x => x.LotNo);
                 }
                 Bind(rows, ConfigureCurrentStockColumns);
             }
@@ -708,6 +727,8 @@ namespace PCTP.Modules.BaoCao.UI
                 rows.AddRow("Đến ngày", _dateTo.EditValue == null ? null : ToDate(_dateTo.EditValue).Value.ToString("dd/MM/yyyy"));
             }
             rows.AddRow(_stockLookup.IsItemSearch ? "Tra cứu theo mã hàng" : "Tra cứu theo LOT / QR", _stockLookup.InputText);
+            string dateFilter = ReportLookupDateFilter.Describe(_stockLookup.GetCriteria());
+            rows.AddRow("Lọc theo ngày", string.IsNullOrEmpty(dateFilter) ? "Không" : dateFilter);
             rows.AddRow("Số dòng lưới chính", _view.RowCount.ToString());
             if (!_showingCurrentStock)
             {

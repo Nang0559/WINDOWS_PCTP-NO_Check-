@@ -79,7 +79,7 @@ namespace PCTP.Modules.BaoCao.UI
                 GrowStyle = TableLayoutPanelGrowStyle.FixedSize
             };
             root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 200));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 260)); // +60px cho khối "Lọc theo ngày" của ô tra cứu
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
             root.Controls.Add(BuildSearchPanel(), 0, 0);
             root.Controls.Add(BuildWorkspace(), 0, 1);
@@ -103,8 +103,8 @@ namespace PCTP.Modules.BaoCao.UI
             var search = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
-                Height = 200,
-                MinimumSize = new Size(0, 200),
+                Height = 260,
+                MinimumSize = new Size(0, 260),
                 ColumnCount = 6,
                 RowCount = 4,
                 Padding = new Padding(8),
@@ -116,7 +116,7 @@ namespace PCTP.Modules.BaoCao.UI
             for (int i = 0; i < 6; i++)
                 search.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 16.6667f));
             search.RowStyles.Add(new RowStyle(SizeType.Absolute, 24));
-            search.RowStyles.Add(new RowStyle(SizeType.Absolute, 82));
+            search.RowStyles.Add(new RowStyle(SizeType.Absolute, 142));
             search.RowStyles.Add(new RowStyle(SizeType.Absolute, 38));
             search.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
 
@@ -126,6 +126,8 @@ namespace PCTP.Modules.BaoCao.UI
             _lookup.Dock = DockStyle.Fill;
             _lookup.Margin = new Padding(3, 0, 3, 0);
             _lookup.SetLotQrPlaceholder("Nhập LOT (hoặc LOT ghép LOT1-SL1,LOT2-SL2) hoặc quét QR có chứa LOT...");
+            // Khối "Lọc theo ngày" (ngày sản xuất / xuất hàng / lập phiếu xử lý hàng lỗi) — lọc qua StockLookupFilter.
+            _lookup.ShowDateRange = true;
             _lookup.SearchRequested += async (s, e) => await LoadAsync();
             _lookup.SelectionCleared += (s, e) => ClearResults();
             search.Controls.Add(_lookup, 0, 1);
@@ -454,6 +456,7 @@ namespace PCTP.Modules.BaoCao.UI
                 return;
             }
 
+            StockLookupCriteria lookupCriteria = _lookup.GetCriteria();
             string keyword = _lookup.InputText;
             string search = keyword;
             if (!_lookup.IsItemSearch && !string.IsNullOrWhiteSpace(keyword))
@@ -473,8 +476,18 @@ namespace PCTP.Modules.BaoCao.UI
             {
                 _status.Text = "Đang tra cứu...";
                 IReadOnlyList<QualityHistoryRow> found = await _waitForm.RunAsync(
-                    () => _query.SearchAsync(from, to, search,
-                        Convert.ToString(_result.EditValue), _lifetime.Token),
+                    async () =>
+                    {
+                        IReadOnlyList<QualityHistoryRow> list = await _query.SearchAsync(from, to, search,
+                            Convert.ToString(_result.EditValue), _lifetime.Token);
+                        if (!lookupCriteria.DateEnabled)
+                            return list;
+
+                        // Lọc thêm theo "Lọc theo ngày" của ô tra cứu chung (cùng định nghĩa với các form khác).
+                        var matcher = await ReportLookupDateFilter.BuildMatcherAsync(lookupCriteria);
+                        return (IReadOnlyList<QualityHistoryRow>)ReportLookupDateFilter.Apply(
+                            list, lookupCriteria, matcher, x => x.ItemCode, x => x.LotNo);
+                    },
                     "Đang tra cứu lịch sử kiểm tra chất lượng...");
 
                 Interlocked.Increment(ref _detailVersion); // bỏ mọi lần tải chi tiết đang chờ của kết quả cũ
@@ -496,8 +509,9 @@ namespace PCTP.Modules.BaoCao.UI
                 {
                     _timeline.Clear("Không có phiên kiểm tra phù hợp.");
                     _status.Text = string.Format(
-                        "Không có phiên kiểm tra trong khoảng {0:dd/MM/yyyy} - {1:dd/MM/yyyy}. Thử nới khoảng ngày hoặc kiểm tra LOT/mã hàng.",
-                        from, to);
+                        "Không có phiên kiểm tra trong khoảng {0:dd/MM/yyyy} - {1:dd/MM/yyyy}{2}. Thử nới khoảng ngày hoặc kiểm tra LOT/mã hàng.",
+                        from, to,
+                        lookupCriteria.DateEnabled ? " (" + ReportLookupDateFilter.Describe(lookupCriteria) + ")" : string.Empty);
                 }
                 else
                 {
@@ -644,6 +658,7 @@ namespace PCTP.Modules.BaoCao.UI
             _result.SelectedIndex = 0;
             _from.DateTime = DateTime.Today.AddDays(-30);
             _to.DateTime = DateTime.Today;
+            _lookup.SetDateRange(StockLookupDateMode.NgaySanXuat, DateTime.Today.AddDays(-30), DateTime.Today, false);
             ClearResults();
             _status.Text = "Sẵn sàng";
         }
@@ -671,6 +686,8 @@ namespace PCTP.Modules.BaoCao.UI
             overview.AddRow("Từ ngày", _from.DateTime.ToString("dd/MM/yyyy"));
             overview.AddRow("Đến ngày", _to.DateTime.ToString("dd/MM/yyyy"));
             overview.AddRow(_lookup.IsItemSearch ? "Mã hàng" : "LOT / QR", _lookup.InputText);
+            overview.AddRow("Lọc theo ngày", string.IsNullOrEmpty(ReportLookupDateFilter.Describe(_lookup.GetCriteria()))
+                ? "Không" : ReportLookupDateFilter.Describe(_lookup.GetCriteria()));
             overview.AddRow("Kết quả", Convert.ToString(_result.EditValue));
             overview.AddRow("Số phiên", _rows.Count.ToString());
             overview.AddRow("Số chi tiết phiên đang chọn", _details.Count.ToString());

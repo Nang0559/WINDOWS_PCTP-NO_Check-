@@ -197,14 +197,14 @@ namespace PCTP.Modules.BaoCao.UI
                 GrowStyle = TableLayoutPanelGrowStyle.FixedSize
             };
             root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 200));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 260)); // +60px cho khối "Lọc theo ngày" của ô tra cứu
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
             var search = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
-                Height = 200,
-                MinimumSize = new Size(0, 200),
+                Height = 260,
+                MinimumSize = new Size(0, 260),
                 ColumnCount = 6,
                 RowCount = 4,
                 Padding = new Padding(8),
@@ -218,7 +218,7 @@ namespace PCTP.Modules.BaoCao.UI
                 search.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 16.6667f));
 
             search.RowStyles.Add(new RowStyle(SizeType.Absolute, 24));
-            search.RowStyles.Add(new RowStyle(SizeType.Absolute, 82));
+            search.RowStyles.Add(new RowStyle(SizeType.Absolute, 142));
             search.RowStyles.Add(new RowStyle(SizeType.Absolute, 38));
             search.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
@@ -235,6 +235,8 @@ namespace PCTP.Modules.BaoCao.UI
             search.SetColumnSpan(stockLabel, 3);
             _stockLookup.Dock = DockStyle.Fill;
             _stockLookup.Margin = new Padding(3, 0, 3, 0);
+            // Khối "Lọc theo ngày" (ngày sản xuất / xuất hàng / lập phiếu xử lý hàng lỗi) — lọc qua StockLookupFilter.
+            _stockLookup.ShowDateRange = true;
             search.Controls.Add(_stockLookup, 0, 1);
             search.SetColumnSpan(_stockLookup, 3);
             AddField(search, "Customer label", _txtCustomerLabel, 3);
@@ -648,10 +650,19 @@ namespace PCTP.Modules.BaoCao.UI
                     },
                     "Đang tra cứu giao hàng, LOT và dữ liệu đọc QR...");
 
+                StockLookupCriteria lookupCriteria = _stockLookup.GetCriteria();
                 _currentRows = rows == null ? new List<DeliveryTraceRow>() : rows.ToList();
+                if (lookupCriteria.DateEnabled)
+                {
+                    // Lọc thêm theo "Lọc theo ngày" của ô tra cứu chung; LOT ghép ở LotNoRaw được tách trước khi so.
+                    var matcher = await ReportLookupDateFilter.BuildMatcherAsync(lookupCriteria);
+                    _currentRows = ReportLookupDateFilter.Apply(
+                        _currentRows, lookupCriteria, matcher, x => x.PartNo, x => x.QrLotNo, x => x.LotNoRaw);
+                }
                 BindDeliveryRows();
                 ClearTimeline("Chọn một dòng giao hàng để xem QR và dựng timeline theo toàn bộ LOT ghép.");
                 _status.Text = "Tìm thấy " + _deliveryRows.Count + " dòng giao hàng / " + _currentRows.Count + " dòng QR." +
+                    (lookupCriteria.DateEnabled ? " Đang lọc thêm: " + ReportLookupDateFilter.Describe(lookupCriteria) + "." : string.Empty) +
                     (_deliveryRows.Count == 0 ? " Kiểm tra khoảng ngày (theo NGAYGIAO) và ô Khách hàng." : string.Empty);
                 if (_exportButton != null) _exportButton.Enabled = _currentRows.Count > 0;
                 if (_printButton != null) _printButton.Enabled = _currentRows.Count > 0;
@@ -768,6 +779,8 @@ namespace PCTP.Modules.BaoCao.UI
             rows.AddRow(_stockLookup.IsItemSearch ? "Tra cứu theo mã hàng" : "Tra cứu theo LOT / QR", _stockLookup.InputText);
             rows.AddRow("LOT tem khách hàng", _txtCustomerLabel.Text.Trim());
             rows.AddRow("Khách hàng", _txtCustomer.Text);
+            string dateFilter = ReportLookupDateFilter.Describe(_stockLookup.GetCriteria());
+            rows.AddRow("Lọc theo ngày", string.IsNullOrEmpty(dateFilter) ? "Không" : dateFilter);
             rows.AddRow("Từ ngày", _from.Value.ToString("dd/MM/yyyy"));
             rows.AddRow("Đến ngày", _to.Value.ToString("dd/MM/yyyy"));
             rows.AddRow("Số dòng giao hàng", _deliveryView.RowCount.ToString());
@@ -859,6 +872,7 @@ namespace PCTP.Modules.BaoCao.UI
             _txtCustomer.Text = string.Empty;
             _from.Value = DateTime.Today.AddDays(-30);
             _to.Value = DateTime.Today;
+            _stockLookup.SetDateRange(StockLookupDateMode.NgaySanXuat, DateTime.Today.AddDays(-30), DateTime.Today, false);
             _deliveryGrid.DataSource = null;
             _qrGrid.DataSource = null;
             _deliveryRows.Clear();
