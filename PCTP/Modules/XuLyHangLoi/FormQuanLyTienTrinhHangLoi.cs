@@ -489,7 +489,7 @@ namespace PCTP.Modules.XuLyHangLoi
                 if (_initialQCService != null)
                 {
                     var initial = _initialQCService.Get(p.Id);
-                    if (initial != null) row.InitialQC = $"QC {initial.SoLuongDaKiemTra:n0}/{initial.SoLuongAnhHuong:n0} | OK {initial.SoLuongOK:n0} | NG {initial.SoLuongNG:n0} | RW {initial.SoLuongRework:n0} | Loại bỏ {initial.SoLuongLoaiBoBanDau:n0}";
+                    if (initial != null) row.InitialQC = $"Báo lỗi {p.SoLuongLoi:n0} | QC {initial.SoLuongDaKiemTra:n0}/{initial.SoLuongAnhHuong:n0} | OK {initial.SoLuongOK:n0} | NG {initial.SoLuongNG:n0} | RW {initial.SoLuongRework:n0} | Loại bỏ {initial.SoLuongLoaiBoBanDau:n0}";
                 }
                 rows.Add(row);
             }
@@ -838,7 +838,10 @@ namespace PCTP.Modules.XuLyHangLoi
             var row = GetFocusedRow();
             if (row == null || !row.PhieuXuLyId.HasValue) return;
             if (_initialQCService == null || _affectedLotTraceService == null) { ShowWarning("MainApp chưa inject InitialQCService/AffectedLotTraceService."); return; }
-            using (var f = new FormInitialQC(_initialQCService, _affectedLotTraceService, row.PhieuXuLyId.Value)) if (f.ShowDialog(this) == DialogResult.OK) RefreshAfterAction();
+            var phieu = _qtChungService.GetById(row.PhieuXuLyId.Value);
+            using (var f = new FormInitialQC(_initialQCService, _affectedLotTraceService, row.PhieuXuLyId.Value,
+                phieu == null ? 0 : phieu.SoLuongLoi, phieu == null ? HuongXuLyBatThuong.ChuaXacDinh : phieu.HuongXuLy))
+                if (f.ShowDialog(this) == DialogResult.OK) RefreshAfterAction();
         }
 
         private void XuLyRework()
@@ -893,6 +896,13 @@ namespace PCTP.Modules.XuLyHangLoi
                 {
                     if (p.HuongXuLy == HuongXuLyBatThuong.TuChoiGiaoBu) parts.Add("Từ chối giao bù");
                     else if (p.HuongXuLy == HuongXuLyBatThuong.ChiGiaoBu) parts.Add("Giao bù");
+                    else if (p.HuongXuLy == HuongXuLyBatThuong.CanRework && _initialQCService != null)
+                    {
+                        // Hoàn tất ngay sau Initial QC (không Rework): nói rõ để không bị hiểu là sót bước xuất/nhập kho.
+                        var ini = _initialQCService.Get(p.Id);
+                        if (ini != null)
+                            parts.Add($"Initial QC: OK {ini.SoLuongOK:n0} | NG {ini.SoLuongNG:n0} (Rework {ini.SoLuongRework:n0}, Loại bỏ {ini.SoLuongLoaiBoBanDau:n0}) — không có Rework, không phát sinh giao dịch kho");
+                    }
                 }
 
                 return string.Join(" | ", parts);
@@ -1011,9 +1021,11 @@ namespace PCTP.Modules.XuLyHangLoi
                     {
                         var initial = _initialQCService == null ? null : _initialQCService.Get(p.Id);
                         if (initial == null) { ShowWarning("Chưa xác nhận Initial QC."); break; }
-                        if (initial.SoLuongRework > 0 || initial.SoLuongNG > 0)
+                        // Chỉ chặn khi còn Rework. Phiếu chỉ có NG loại bỏ (Rework = 0) không có bước 6 nào để làm:
+                        // phần loại bỏ đã được ghi nhận ở EnsureScrapRecorded phía trên nên được phép hoàn tất.
+                        if (initial.SoLuongRework > 0)
                         {
-                            ShowWarning("Phiếu còn số lượng NG/Rework sau Initial QC; hãy xử lý ở Bước 6 (Rework) trước.");
+                            ShowWarning("Phiếu còn " + initial.SoLuongRework.ToString("n0") + " hàng Rework sau Initial QC; hãy xử lý ở Bước 6 (xuất/giao Rework) và Bước 7 (QC + nhập lại OK/NG) trước.");
                             break;
                         }
                         var allOk = _qtChungService.HoanTat(p.Id, Environment.UserName);
@@ -1128,9 +1140,14 @@ namespace PCTP.Modules.XuLyHangLoi
         private readonly TextEdit _txtNoiDung;
         private readonly TextEdit _txtKetLuan;
         private readonly LabelControl _lblSummary;
+        private readonly int _soLuongLoiBaoCao;
+        private readonly HuongXuLyBatThuong _huongXuLy;
 
-        public FormInitialQC(IInitialQCService initialQCService, IAffectedLotTraceService traceService, int phieuXuLyId)
+        public FormInitialQC(IInitialQCService initialQCService, IAffectedLotTraceService traceService, int phieuXuLyId,
+            int soLuongLoiBaoCao = 0, HuongXuLyBatThuong huongXuLy = HuongXuLyBatThuong.ChuaXacDinh)
         {
+            _soLuongLoiBaoCao = soLuongLoiBaoCao;
+            _huongXuLy = huongXuLy;
             _initialQCService = initialQCService ?? throw new ArgumentNullException(nameof(initialQCService));
             _traceService = traceService ?? throw new ArgumentNullException(nameof(traceService));
             if (phieuXuLyId <= 0) throw new ArgumentException("PhieuXuLyId không hợp lệ.", nameof(phieuXuLyId));
@@ -1232,7 +1249,7 @@ namespace PCTP.Modules.XuLyHangLoi
                 rework += CellInt(row.Index, "SoLuongRework");
                 scrap += CellInt(row.Index, "SoLuongLoaiBo");
             }
-            _lblSummary.Text = $"Ảnh hưởng: {affected:n0} | Đã kiểm tra: {inspected:n0} | OK: {ok:n0} | NG: {ng:n0} | Rework: {rework:n0} | Loại bỏ ban đầu: {scrap:n0}";
+            _lblSummary.Text = $"Báo lỗi: {_soLuongLoiBaoCao:n0} | Ảnh hưởng: {affected:n0} | Đã kiểm tra: {inspected:n0} | OK: {ok:n0} | NG: {ng:n0} | Rework: {rework:n0} | Loại bỏ ban đầu: {scrap:n0}";
         }
 
         private void Confirm_Click(object sender, EventArgs e)
@@ -1246,6 +1263,17 @@ namespace PCTP.Modules.XuLyHangLoi
                     if (!string.IsNullOrEmpty(row.ErrorText))
                         throw new InvalidOperationException("LOT " + Convert.ToString(row.Cells["LotNo"].Value) + ": " + row.ErrorText);
                 UpdateSummary();
+
+                int tongNg = 0;
+                foreach (DataGridViewRow row in _grid.Rows) tongNg += CellInt(row.Index, "SoLuongNG");
+                if (tongNg == 0 && _huongXuLy == HuongXuLyBatThuong.CanRework && _soLuongLoiBaoCao > 0)
+                {
+                    if (string.IsNullOrWhiteSpace(_txtKetLuan.Text))
+                        throw new InvalidOperationException("Phiếu báo lỗi " + _soLuongLoiBaoCao.ToString("n0") + " (hướng Rework) nhưng bạn đang ghi 0 NG / 100% OK.\r\nNếu có hàng lỗi: nhập vào cột Rework hoặc Loại bỏ.\r\nNếu thật sự không phát hiện lỗi: nhập 'Kết luận QC' giải thích.");
+                    if (XtraMessageBox.Show(this, "QC ghi 0 NG trong khi phiếu báo lỗi " + _soLuongLoiBaoCao.ToString("n0") + ".\r\nPhiếu sẽ KHÔNG có Rework, KHÔNG xuất/nhập kho và hoàn tất ngay.\r\n\r\nXác nhận?", "Kiểm tra lại Initial QC", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes)
+                        return;
+                }
+
                 foreach (DataGridViewRow row in _grid.Rows)
                     list.Add(new InitialQCLotResult { AffectedLotId = Convert.ToInt32(row.Cells["AffectedLotId"].Value), SoLuongDaKiemTra = CellInt(row.Index, "SoLuongDaKiemTra"), SoLuongOK = CellInt(row.Index, "SoLuongOK"), SoLuongNG = CellInt(row.Index, "SoLuongNG"), SoLuongRework = CellInt(row.Index, "SoLuongRework"), SoLuongLoaiBo = CellInt(row.Index, "SoLuongLoaiBo") });
 

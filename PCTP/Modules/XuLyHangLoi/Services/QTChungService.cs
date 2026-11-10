@@ -768,6 +768,18 @@ IF @result < 0 THROW 51000, 'Không lấy được khóa QC cuối Rework theo p
             ValidateNguoiThucHien(nguoiThucHien);
             var phieu = GetRequired(phieuXuLyId);
             if (!_workflow.CanTransition(ProcessCodeQTChung, (int)phieu.Status, (int)QTChungStatus.HoanTat)) return ScanResult.Fail($"Không thể chuyển QT Chung {phieu.Status} → {QTChungStatus.HoanTat}.");
+
+            // Đường tắt DaDinhHuong → HoanTat chỉ hợp lệ khi Initial QC không phân bổ Rework. Chặn ở service (không chỉ ở UI)
+            // để không thể hoàn tất phiếu còn nghĩa vụ xuất/giao/QC Rework và nhập lại OK/NG.
+            if (phieu.Status == QTChungStatus.DaDinhHuong && phieu.HuongXuLy == HuongXuLyBatThuong.CanRework)
+            {
+                ReworkPhase4Plan plan;
+                try { plan = _reworkStockService.GetReworkPlan(phieuXuLyId); }
+                catch (Exception ex) { return ScanResult.Fail("Không thể hoàn tất: " + ex.Message); }
+                if (plan.SoLuongReworkDuocPhep > 0)
+                    return ScanResult.Fail($"Không thể hoàn tất: Initial QC đã phân bổ Rework {plan.SoLuongReworkDuocPhep:n0} (đã xuất {plan.SoLuongDaXuatRework:n0}, đã giao {plan.SoLuongDaGiaoSanXuat:n0}). Phải xuất/giao Rework (Bước 6), QC Rework và nhập lại OK/NG (Bước 7) trước.");
+            }
+
             try
             {
                 _uow.Begin();

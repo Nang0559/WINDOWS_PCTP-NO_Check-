@@ -72,6 +72,7 @@ namespace PCTP.Modules.BaoCao.Application.Contracts.Queries
                     case "XLBT_QC_BAN_DAU": return "QC phân loại ban đầu";
                     case "XLBT_GIAO_SX": return "Giao hàng rework cho sản xuất";
                     case "XLBT_QC_CUOI": return "QC xác nhận cuối";
+                    case "XLBT_HOAN_TAT": return "Hoàn tất xử lý";
                     case "XLBT_HUY": return "Hủy phiếu xử lý";
                     default: return ActionType.Trim();
                 }

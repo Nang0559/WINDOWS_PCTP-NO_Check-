@@ -185,6 +185,21 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             if (ng != rework + scrap)
                 throw new InvalidOperationException("NG phải bằng Rework + Loại bỏ ban đầu.");
 
+            // Đối chiếu SL lỗi báo cáo (phiếu trả) với phạm vi ảnh hưởng (snapshot): KHÔNG bắt buộc bằng nhau
+            // (ảnh hưởng = toàn bộ LOT cần kiểm; lỗi báo cáo chỉ là một phần), nhưng phạm vi kiểm phải bao được số lỗi đã báo.
+            if (phieu.SoLuongLoi > totalAffected)
+                throw new InvalidOperationException(
+                    $"SL lỗi báo cáo ({phieu.SoLuongLoi:n0}) lớn hơn tổng số lượng ảnh hưởng đã truy vết ({totalAffected:n0}). " +
+                    "Phạm vi kiểm không bao hết số lỗi đã báo; hãy Truy vết LOT lại trước khi QC ban đầu.");
+
+            // Hướng CanRework nhưng QC kết luận 0 NG nghĩa là QC không tái hiện được lỗi đã báo: phải ghi rõ lý do,
+            // tránh bấm xác nhận mặc định (OK = 100%) làm phiếu hoàn tất mà không có Rework/nhập lại kho nào.
+            if (phieu.HuongXuLy == HuongXuLyBatThuong.CanRework && ng == 0 && phieu.SoLuongLoi > 0 &&
+                string.IsNullOrWhiteSpace(ketLuan))
+                throw new InvalidOperationException(
+                    $"Phiếu báo lỗi {phieu.SoLuongLoi:n0} và hướng xử lý là Rework nhưng QC ban đầu ghi 0 NG. " +
+                    "Nếu đúng là không phát hiện lỗi, hãy nhập 'Kết luận QC' giải thích; nếu có hàng lỗi, nhập vào cột Rework / Loại bỏ.");
+
             if (phieu.HuongXuLy == HuongXuLyBatThuong.TuChoiGiaoBu && ng > 0)
                 throw new InvalidOperationException("Hướng Từ chối giao bù không thể có NG sau QC ban đầu.");
             if (phieu.HuongXuLy != HuongXuLyBatThuong.CanRework && rework > 0)

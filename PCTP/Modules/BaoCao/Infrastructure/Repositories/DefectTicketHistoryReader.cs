@@ -384,6 +384,22 @@ JOIN dbo.FVN_PhieuXuLyBatThuong p ON p.Id = q.PhieuXuLyBatThuongId
 WHERE (@From IS NULL OR q.ThoiGian >= @From) AND (@To IS NULL OR q.ThoiGian <= @To)",
                 range);
 
+            // 7b) Hoàn tất phiếu xử lý (kể cả hoàn tất ngay sau Initial QC): ghi rõ có/không có giao dịch kho
+            //     để người xem biết phiếu kết thúc mà không Rework là do QC, không phải do sót bước.
+            AddEvents(events, @"
+SELECT N'XLBT' AS RefType, p.Id AS RefId, p.SoPhieu, N'XLBT_HOAN_TAT' AS ActionType, p.UpdatedAt AS EventTime,
+       p.MaSanPham AS ItemCode, " + LotOfTicket + @" AS LotNo, p.SoLuongLoi AS Qty, p.UpdatedBy AS UserName,
+       CONCAT(N'Hoàn tất xử lý',
+              CASE WHEN qi.Id IS NULL THEN N'' ELSE CONCAT(N' | Initial QC: OK ', qi.SoLuongOK, N', NG ', qi.SoLuongNG, N' (Rework ', qi.SoLuongRework, N', Loại bỏ ', qi.SoLuongLoaiBoBanDau, N')') END,
+              CASE WHEN EXISTS(SELECT 1 FROM dbo.FVN_TraHangQTChungXuat x WHERE x.PhieuXuLyBatThuongId = p.Id)
+                   THEN N' | Có xuất kho Rework/Scrap' ELSE N' | Không phát sinh giao dịch kho' END) AS Detail,
+       CAST(NULL AS INT) AS SlotId
+FROM dbo.FVN_PhieuXuLyBatThuong p
+LEFT JOIN dbo.FVN_PhieuXuLyBatThuongQCInitial qi ON qi.PhieuXuLyBatThuongId = p.Id
+WHERE p.Status = 100 AND p.UpdatedAt IS NOT NULL
+  AND (@From IS NULL OR p.UpdatedAt >= @From) AND (@To IS NULL OR p.UpdatedAt <= @To)",
+                range);
+
             // 8) Hủy phiếu xử lý
             AddEvents(events, @"
 SELECT N'XLBT' AS RefType, p.Id AS RefId, p.SoPhieu, N'XLBT_HUY' AS ActionType, p.NgayHuy AS EventTime,
