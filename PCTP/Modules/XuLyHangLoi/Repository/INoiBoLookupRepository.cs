@@ -12,6 +12,12 @@ namespace PCTP.Modules.XuLyHangLoi.Repository
         /// <summary>Mã hàng (kèm tên) đang có hàng trong Slot.</summary>
         List<ItemLookupItem> GetItemsInSlots();
 
+        /// <summary>
+        /// SlotLot còn hàng của mã (và LOT nếu có; LOT rỗng = mọi LOT của mã) ở trạng thái hoạt động hoặc NG cách ly,
+        /// dùng để chọn nguồn ghi nhận loại bỏ (scrap). NG cách ly xếp trước.
+        /// </summary>
+        List<ScrapSourceLot> FindScrapSourceLots(string itemCode, string lotNo);
+
         /// <summary>Tên hàng theo mã (vB20Item). Null nếu mã không có trong danh mục.</summary>
         string GetItemName(string itemCode);
 

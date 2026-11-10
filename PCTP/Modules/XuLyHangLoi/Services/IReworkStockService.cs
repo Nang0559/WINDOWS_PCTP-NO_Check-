@@ -55,6 +55,21 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             IList<KhachTraNhapNGLine> lines,
             string nguoiNhap);
 
+        /// <summary>
+        /// Ghi nhận LOẠI BỎ (scrap) khỏi kho: lấy hàng ra khỏi SlotLot đang hoạt động hoặc NG cách ly,
+        /// ghi StockHistory (SCRAP, MaPhieu = XLBT#id) và dòng xuất LoaiXuat = "Scrap" của phiếu.
+        /// Idempotent theo operationId; tổng đã scrap của phiếu không được vượt tongCanScrap.
+        /// </summary>
+        ScanResult GhiNhanScrap(
+            int phieuXuLyId,
+            int slotLotId,
+            string lotNo,
+            int soLuong,
+            int tongCanScrap,
+            string lyDo,
+            string nguoiThucHien,
+            Guid operationId);
+
         ScanResult HoanTraKhoKhiHuy(
             int phieuXuLyId,
             string nguoiThucHien);

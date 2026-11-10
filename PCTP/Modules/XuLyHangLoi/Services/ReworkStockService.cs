@@ -459,6 +459,163 @@ namespace PCTP.Modules.XuLyHangLoi.Services
             }
         }
 
+        public ScanResult GhiNhanScrap(
+            int phieuXuLyId,
+            int slotLotId,
+            string lotNo,
+            int soLuong,
+            int tongCanScrap,
+            string lyDo,
+            string nguoiThucHien,
+            Guid operationId)
+        {
+            if (phieuXuLyId <= 0)
+                return ScanResult.Fail("phieuXuLyId không hợp lệ.");
+            if (slotLotId <= 0)
+                return ScanResult.Fail("slotLotId không hợp lệ.");
+            if (string.IsNullOrWhiteSpace(lotNo))
+                return ScanResult.Fail("LotNo không được rỗng.");
+            if (soLuong <= 0)
+                return ScanResult.Fail("Số lượng loại bỏ phải lớn hơn 0.");
+            if (tongCanScrap <= 0)
+                return ScanResult.Fail("Phiếu không có số lượng cần loại bỏ.");
+            if (string.IsNullOrWhiteSpace(nguoiThucHien))
+                return ScanResult.Fail("Chưa xác định người thực hiện.");
+            if (operationId == Guid.Empty)
+                return ScanResult.Fail("OperationId không hợp lệ.");
+
+            string lotChuan;
+            try
+            {
+                lotChuan = LotNoHelper.GetStockTpKey(lotNo);
+            }
+            catch (Exception ex)
+            {
+                return ScanResult.Fail("LOT không hợp lệ: " + ex.Message);
+            }
+
+            _uow.Begin();
+            try
+            {
+                var existing = _qtChungRepo.GetXuatByOperationId(operationId);
+                if (existing != null)
+                {
+                    SafeRollback();
+                    return ScanResult.OK(string.Format(
+                        "Yêu cầu loại bỏ OperationId={0} đã được xử lý trước đó (XuatId={1}).", operationId, existing.Id));
+                }
+
+                var phieu = _phieuXuLyRepo.GetById(phieuXuLyId);
+                if (phieu == null)
+                    return FailAndRollback(string.Format("Không tìm thấy phiếu xử lý bất thường Id={0}.", phieuXuLyId));
+
+                // Khóa phiếu như XuatKhoRework để hai phiên không cùng vượt hạn mức scrap.
+                if (!_phieuXuLyRepo.UpdateStatusIfCurrentIs(phieuXuLyId, phieu.Status, phieu.Status, nguoiThucHien))
+                    return FailAndRollback(string.Format(
+                        "Phiếu Id={0} vừa được cập nhật bởi thao tác khác; vui lòng thử lại.", phieuXuLyId));
+
+                int daScrap = (_qtChungRepo.GetXuat(phieuXuLyId) ?? new List<TraHangQTChungXuat>())
+                    .Where(x => x != null && string.Equals(x.LoaiXuat, "Scrap", StringComparison.OrdinalIgnoreCase))
+                    .Sum(x => Math.Max(0, x.SoLuongXuat));
+
+                if (daScrap + soLuong > tongCanScrap)
+                    return FailAndRollback(string.Format(
+                        "Loại bỏ vượt hạn mức: cần {0:n0}, đã ghi nhận {1:n0}, yêu cầu thêm {2:n0}.",
+                        tongCanScrap, daScrap, soLuong));
+
+                var slotLot = _slotService.GetLotsBySlotLotId(slotLotId);
+                if (slotLot == null)
+                    return FailAndRollback(string.Format("Không tìm thấy SlotLot Id={0}.", slotLotId));
+
+                bool hoatDong = slotLot.PhieuStatus == (byte)PhieuStatus.Active;
+                bool cachLy = slotLot.PhieuStatus == (byte)3;
+                if (!hoatDong && !cachLy)
+                    return FailAndRollback(string.Format(
+                        "SlotLot {0} có trạng thái {1}: chỉ loại bỏ được hàng đang hoạt động hoặc NG cách ly.",
+                        slotLotId, slotLot.PhieuStatus));
+
+                if (!LotCodeHelper.AreLotKeysEquivalent(slotLot.LotNo, lotChuan))
+                    return FailAndRollback(string.Format(
+                        "SlotLot {0} chứa LOT [{1}], không khớp [{2}].", slotLotId, slotLot.LotNo, lotChuan));
+
+                if (!string.IsNullOrWhiteSpace(phieu.MaSanPham) &&
+                    !string.Equals((slotLot.ItemCode ?? string.Empty).Trim(), phieu.MaSanPham.Trim(), StringComparison.OrdinalIgnoreCase))
+                    return FailAndRollback(string.Format(
+                        "SlotLot {0} thuộc mã [{1}], không phải mã của phiếu [{2}].", slotLotId, slotLot.ItemCode, phieu.MaSanPham));
+
+                if (slotLot.Quantity < soLuong)
+                    return FailAndRollback(string.Format(
+                        "SlotLot {0} chỉ còn {1}, không đủ {2}.", slotLotId, slotLot.Quantity, soLuong));
+
+                // Hàng NG cách ly không nằm trong STOCKTP; chỉ hàng đang hoạt động mới trừ tồn khả dụng.
+                int tonTruoc = hoatDong ? _stockTpRepo.GetSlConLai(lotChuan) : 0;
+                if (hoatDong && tonTruoc < soLuong)
+                    return FailAndRollback(string.Format(
+                        "STOCKTP LOT [{0}] không đủ tồn để loại bỏ {1} (hiện có: {2}).", lotChuan, soLuong, tonTruoc));
+
+                var movement = _stockMovement.Export(new StockMovementRequest
+                {
+                    MovementType = "SCRAP",
+                    SlotLotId = slotLotId,
+                    LotNo = lotChuan,
+                    ItemCode = slotLot.ItemCode,
+                    Quantity = soLuong,
+                    ReferenceType = "QT_SCRAP",
+                    ReferenceId = operationId.ToString("D"),
+                    PerformedBy = nguoiThucHien,
+                    Reason = string.IsNullOrWhiteSpace(lyDo) ? "Loại bỏ (scrap)" : lyDo.Trim()
+                });
+
+                if (movement.Duplicate)
+                {
+                    SafeRollback();
+                    return ScanResult.OK("Yêu cầu loại bỏ đã được xử lý trước đó.");
+                }
+                if (!movement.Success)
+                    return FailAndRollback(movement.Message);
+
+                int xuatId = _qtChungRepo.InsertXuat(new TraHangQTChungXuat
+                {
+                    OperationId = operationId,
+                    PhieuXuLyBatThuongId = phieuXuLyId,
+                    SlotIdNguon = slotLot.SlotVatLyId,
+                    LotXuat = lotChuan,
+                    LoaiXuat = "Scrap",
+                    MaHang = slotLot.ItemCode,
+                    SoLuongXuat = soLuong,
+                    TonTruoc = tonTruoc,
+                    TonSau = hoatDong ? tonTruoc - soLuong : tonTruoc,
+                    NgayXuat = DateTime.Now,
+                    NguoiXuat = nguoiThucHien,
+                    LyDo = string.IsNullOrWhiteSpace(lyDo) ? "Loại bỏ (scrap)" : lyDo.Trim()
+                });
+
+                _historyRepo.SaveHistory(
+                    actionType: "SCRAP",
+                    itemCode: slotLot.ItemCode,
+                    lot: new LotInfo
+                    {
+                        LotNo = lotChuan,
+                        Quantity = soLuong,
+                        TemCode = XlbtRef(phieuXuLyId),
+                        MaPhieuKho = XlbtRef(phieuXuLyId)
+                    },
+                    fromSlotId: slotLot.SlotVatLyId,
+                    toSlotId: null,
+                    performedBy: nguoiThucHien);
+
+                _uow.Commit();
+                return ScanResult.OK(string.Format(
+                    "Đã ghi nhận loại bỏ {0:n0} LOT [{1}] ({2}) (XuatId={3}).",
+                    soLuong, lotChuan, cachLy ? "NG cách ly" : "hàng đang hoạt động", xuatId));
+            }
+            catch (Exception ex)
+            {
+                SafeRollback();
+                return ScanResult.Fail("Lỗi ghi nhận loại bỏ: " + ex.Message);
+            }
+        }
+
         public ScanResult NhapKhoNGKhachTra(
             int phieuTraHangId,
             int slotIdNG,

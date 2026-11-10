@@ -19,6 +19,8 @@ namespace PCTP.Modules.XuLyHangLoi
     {
         private readonly IQTChungService _qtChungService;
         private readonly int _phieuXuLyId;
+        private readonly IReworkStockService _reworkStockService; // null → chỉ dùng SL lỗi của phiếu
+        private int _soLuongCanQC;                                  // SL QC cuối phải phân loại đủ (khớp service)
 
         // ============================================================
         // UI
@@ -58,8 +60,11 @@ namespace PCTP.Modules.XuLyHangLoi
         public FormQCXacNhanCuoi(
             IQTChungService qtChungService,
             int phieuXuLyId,
-            ISlotService slotService)
+            ISlotService slotService,
+            IReworkStockService reworkStockService = null)
         {
+            _reworkStockService = reworkStockService;
+
             _qtChungService = qtChungService
                 ?? throw new ArgumentNullException(nameof(qtChungService));
 
@@ -158,7 +163,7 @@ namespace PCTP.Modules.XuLyHangLoi
             AddRow(main, 2, "Model:", _lblModel);
             AddRow(main, 3, "Mã sản phẩm:", _lblMaSanPham);
             AddRow(main, 4, "Lot:", _lblLot);
-            AddRow(main, 5, "SL lỗi ban đầu:", _lblSoLuongLoi);
+            AddRow(main, 5, "SL cần QC cuối:", _lblSoLuongLoi);
             AddRow(main, 6, "Trạng thái:", _lblTrangThai);
 
             // ========================================================
@@ -378,7 +383,27 @@ namespace PCTP.Modules.XuLyHangLoi
                 _lblModel.Text = p.Model ?? "";
                 _lblMaSanPham.Text = p.MaSanPham ?? "";
                 _lblLot.Text = p.SoLo ?? "";
-                _lblSoLuongLoi.Text = p.SoLuongLoi.ToString("n0");
+                // SL QC cuối phải bằng SL Rework được duyệt ở Initial QC (QTChungService.QCXacNhanCuoi kiểm theo
+                // plan.SoLuongReworkDuocPhep), KHÔNG phải SL lỗi của riêng phiếu: LOT nằm ở nhiều SlotLot
+                // (vd. 200 + 800) thì phiếu chỉ ghi 1 phần nhưng truy vết/Initial QC tính cả LOT (1000).
+                int canQC = p.SoLuongLoi;
+                if (_reworkStockService != null)
+                {
+                    try
+                    {
+                        var plan = _reworkStockService.GetReworkPlan(_phieuXuLyId);
+                        if (plan != null && plan.SoLuongReworkDuocPhep > 0)
+                            canQC = plan.SoLuongReworkDuocPhep;
+                    }
+                    catch (Exception)
+                    {
+                        // Không đọc được kế hoạch rework → dùng SL lỗi của phiếu; service vẫn kiểm tra lại khi lưu.
+                    }
+                }
+
+                _soLuongCanQC = canQC;
+                _lblSoLuongLoi.Text = canQC.ToString("n0") +
+                    (canQC != p.SoLuongLoi ? "   (SL lỗi ban đầu của phiếu: " + p.SoLuongLoi.ToString("n0") + ")" : string.Empty);
 
                 // ── ĐÃ SỬA ──────────────────────────────────────────────
                 // IQTChungService.GetTrangThai(int) đã bị bỏ khỏi
@@ -465,11 +490,7 @@ namespace PCTP.Modules.XuLyHangLoi
 
         private int GetSoLuongLoi()
         {
-            string text = _lblSoLuongLoi.Text
-                .Replace(",", "")
-                .Replace(".", "")
-                .Trim();
-            return int.TryParse(text, out int value) ? value : 0;
+            return _soLuongCanQC;
         }
 
         // ============================================================

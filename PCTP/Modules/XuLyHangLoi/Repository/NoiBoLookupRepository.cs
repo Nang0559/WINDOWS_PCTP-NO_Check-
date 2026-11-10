@@ -134,6 +134,45 @@ ORDER BY x.ItemCode;";
             return list;
         }
 
+        public List<ScrapSourceLot> FindScrapSourceLots(string itemCode, string lotNo)
+        {
+            const string sql = @"
+SELECT sl.SlotLotId, sl.SlotId, w.Name AS WarehouseName, r.RackName, s.SlotNumber,
+       sl.ItemCode, sl.LotNo, sl.Quantity, sl.PhieuStatus
+FROM SlotLot sl
+JOIN Slot s      ON s.SlotId = sl.SlotId
+JOIN Rack r      ON r.RackId = s.RackId
+JOIN Warehouse w ON w.WarehouseId = r.WarehouseId
+WHERE sl.Quantity > 0
+  AND sl.PhieuStatus IN (0, 3)
+  AND LTRIM(RTRIM(sl.ItemCode)) = @Item
+  AND (@Lot = N'' OR sl.LotNo LIKE @Lot + N'%')
+ORDER BY sl.PhieuStatus DESC, w.Name, r.RackName, s.SlotNumber, sl.LotNo;";
+
+            DataTable dt = LoadData(
+                sql,
+                new System.Data.SqlClient.SqlParameter("@Item", SqlDbType.NVarChar, 100) { Value = (itemCode ?? string.Empty).Trim() },
+                new System.Data.SqlClient.SqlParameter("@Lot", SqlDbType.NVarChar, 100) { Value = (lotNo ?? string.Empty).Trim() });
+
+            var list = new List<ScrapSourceLot>(dt.Rows.Count);
+
+            foreach (DataRow row in dt.Rows)
+            {
+                list.Add(new ScrapSourceLot
+                {
+                    SlotLotId = Convert.ToInt32(row["SlotLotId"]),
+                    SlotId = Convert.ToInt32(row["SlotId"]),
+                    ViTri = Convert.ToString(row["WarehouseName"]) + " / " + Convert.ToString(row["RackName"]) + " / " + Convert.ToString(row["SlotNumber"]),
+                    ItemCode = Convert.ToString(row["ItemCode"])?.Trim(),
+                    LotNo = Convert.ToString(row["LotNo"])?.Trim(),
+                    Quantity = Convert.ToInt32(row["Quantity"]),
+                    PhieuStatus = Convert.ToByte(row["PhieuStatus"])
+                });
+            }
+
+            return list;
+        }
+
         public List<ItemLookupItem> GetItemsInSlots()
         {
             // Mã hàng lấy từ Slot/SlotLot đang chứa hàng; tên lấy từ vB20Item (nếu có).

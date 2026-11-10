@@ -372,7 +372,9 @@ namespace PCTP.Modules.KhoCore.Application.Services
                     return StockMovementResult.Fail("SlotLotId không hợp lệ.");
 
                 byte sourceStatus = _slots.GetPhieuStatus(request.SlotLotId.Value);
-                if (sourceStatus != 0)
+                // SCRAP là ngoại lệ DUY NHẤT được lấy hàng ra khỏi SlotLot NG cách ly (PhieuStatus = 3).
+                bool isScrap = string.Equals(request.MovementType, "SCRAP", StringComparison.OrdinalIgnoreCase);
+                if (sourceStatus != 0 && !(isScrap && sourceStatus == 3))
                     return StockMovementResult.Fail($"Không thể xuất/pick SlotLot {request.SlotLotId.Value}: trạng thái {sourceStatus} không phải Active; hàng NG cách ly không được tính là tồn khả dụng.");
 
                 string sourceLotNo = _slots.GetLotNo(request.SlotLotId.Value);
@@ -394,7 +396,8 @@ namespace PCTP.Modules.KhoCore.Application.Services
                 if (!TryClaimRequest(request, false))
                     return StockMovementResult.AlreadyProcessed("Mã tham chiếu xuất/pick kho đã được xử lý trước đó.");
 
-                if (adjustAvailable &&
+                // Hàng NG cách ly không nằm trong STOCKTP nên không trừ tồn khả dụng.
+                if (adjustAvailable && sourceStatus == 0 &&
                     !_balance.TryDecreaseAvailableQuantity(request.LotNo, request.Quantity))
                     return StockMovementResult.Fail(
                         string.Format("STOCKTP LOT [{0}] không đủ hoặc đã thay đổi.", request.LotNo));

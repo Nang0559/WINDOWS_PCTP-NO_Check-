@@ -2,6 +2,18 @@ using System;
 
 namespace PCTP.Modules.XuLyHangLoi.Models
 {
+    /// <summary>SlotLot có thể bị loại bỏ (scrap): hàng đang hoạt động (0) hoặc NG cách ly (3).</summary>
+    public sealed class ScrapSourceLot
+    {
+        public int SlotLotId { get; set; }
+        public int SlotId { get; set; }
+        public string ViTri { get; set; }
+        public string ItemCode { get; set; }
+        public string LotNo { get; set; }
+        public int Quantity { get; set; }
+        public byte PhieuStatus { get; set; }
+    }
+
     /// <summary>Bộ phận lấy từ B7R2_FCC.dbo.B20Dept — dùng cho LookupEdit (Code + Name).</summary>
     public sealed class DeptLookupItem
     {

@@ -747,7 +747,7 @@ namespace PCTP.Modules.XuLyHangLoi
             var qc = _qtChungRepo.GetQC(p.Id);
             if (qc == null)
             {
-                using (var f = new FormQCXacNhanCuoi(_qtChungService, p.Id, _slotService)) if (f.ShowDialog(this) == DialogResult.OK) RefreshAfterAction();
+                using (var f = new FormQCXacNhanCuoi(_qtChungService, p.Id, _slotService, _reworkStockService)) if (f.ShowDialog(this) == DialogResult.OK) RefreshAfterAction();
                 return;
             }
             if (qc.SoLuongNG > 0)
@@ -808,6 +808,61 @@ namespace PCTP.Modules.XuLyHangLoi
             XtraMessageBox.Show(this, string.Join("\r\n", lines), "Phiếu đã hoàn tất", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
+        private int TongCanScrap(PhieuXuLyBatThuong p)
+        {
+            var disposition = _qtChungService.GetDisposition(p.Id);
+            if (disposition != null)
+                return disposition.SoLuongLoaiBoCuoi;
+
+            var initial = _initialQCService == null ? null : _initialQCService.Get(p.Id);
+            return initial == null ? 0 : initial.SoLuongLoaiBoBanDau;
+        }
+
+        private int DaScrap(int phieuXuLyId)
+        {
+            return (_qtChungRepo.GetXuat(phieuXuLyId) ?? new List<TraHangQTChungXuat>())
+                .Where(x => x != null && string.Equals(x.LoaiXuat, "Scrap", StringComparison.OrdinalIgnoreCase))
+                .Sum(x => Math.Max(0, x.SoLuongXuat));
+        }
+
+        /// <summary>
+        /// Trước khi hoàn tất: số lượng loại bỏ theo kết luận QC phải được ghi nhận ra khỏi kho. Còn thiếu thì mở hộp thoại
+        /// ghi nhận scrap; người dùng vẫn có thể hoàn tất không ghi nhận kho nhưng phải xác nhận rõ.
+        /// </summary>
+        private bool EnsureScrapRecorded(PhieuXuLyBatThuong p)
+        {
+            int tong, da;
+            try
+            {
+                tong = TongCanScrap(p);
+                if (tong <= 0 || _reworkStockService == null || _noiBoLookupRepo == null)
+                    return true;
+                da = DaScrap(p.Id);
+            }
+            catch (Exception)
+            {
+                return true; // không đọc được dữ liệu: không chặn thao tác hoàn tất
+            }
+
+            if (da >= tong)
+                return true;
+
+            using (var f = new FormGhiNhanScrap(_reworkStockService, _noiBoLookupRepo, p, tong, da))
+                f.ShowDialog(this);
+
+            try { da = DaScrap(p.Id); } catch (Exception) { }
+
+            if (da >= tong)
+                return true;
+
+            return XtraMessageBox.Show(
+                this,
+                string.Format("Còn {0:n0} chưa ghi nhận loại bỏ khỏi kho (cần {1:n0}, đã ghi nhận {2:n0}).\r\n\r\nVẫn hoàn tất mà KHÔNG ghi nhận kho?", tong - da, tong, da),
+                "Chưa ghi nhận loại bỏ",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Warning) == DialogResult.Yes;
+        }
+
         private void XuLyBuocCuoi()
         {
             var row = GetFocusedRow();
@@ -822,6 +877,10 @@ namespace PCTP.Modules.XuLyHangLoi
                 ShowKetQuaPhieuHoanTat(row, p);
                 return;
             }
+
+            // Kết quả cuối chỉ có OK hoặc loại bỏ: phần loại bỏ phải được ghi nhận khỏi kho (cả phiếu nội bộ lẫn khách trả).
+            if (!EnsureScrapRecorded(p))
+                return;
 
             switch (p.HuongXuLy)
             {
@@ -1079,6 +1138,157 @@ namespace PCTP.Modules.XuLyHangLoi
                 DialogResult = DialogResult.OK;
             }
             catch (Exception ex) { XtraMessageBox.Show(this, ex.Message, "Không thể xác nhận Initial QC", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
+        }
+    }
+
+    /// <summary>Hộp thoại ghi nhận loại bỏ (scrap) khỏi kho: chọn SlotLot nguồn (NG cách ly / đang hoạt động) và số lượng.</summary>
+    internal sealed class FormGhiNhanScrap : XtraForm
+    {
+        private sealed class DongScrap
+        {
+            public int SlotLotId { get; set; }
+            public string ViTri { get; set; }
+            public string LotNo { get; set; }
+            public string TrangThai { get; set; }
+            public int TonKho { get; set; }
+            public int SoLuongScrap { get; set; }
+        }
+
+        private readonly IReworkStockService _stock;
+        private readonly PhieuXuLyBatThuong _phieu;
+        private readonly int _tongCanScrap;
+        private int _daScrap;
+        private readonly List<DongScrap> _rows = new List<DongScrap>();
+        private readonly GridControl _grid;
+        private readonly GridView _view;
+        private readonly LabelControl _lblInfo;
+        private readonly TextEdit _txtLyDo;
+
+        public FormGhiNhanScrap(
+            IReworkStockService stock,
+            INoiBoLookupRepository lookup,
+            PhieuXuLyBatThuong phieu,
+            int tongCanScrap,
+            int daScrap)
+        {
+            _stock = stock;
+            _phieu = phieu;
+            _tongCanScrap = tongCanScrap;
+            _daScrap = daScrap;
+
+            Text = "Ghi nhận loại bỏ (scrap)";
+            StartPosition = FormStartPosition.CenterParent;
+            ClientSize = new Size(900, 480);
+
+            _lblInfo = new LabelControl { Dock = DockStyle.Top, Height = 50, AutoSizeMode = LabelAutoSizeMode.None, Padding = new Padding(10, 8, 0, 0) };
+
+            _grid = new GridControl { Dock = DockStyle.Fill };
+            _view = new GridView(_grid);
+            _grid.MainView = _view;
+            _grid.ViewCollection.Add(_view);
+            _view.OptionsView.ShowGroupPanel = false;
+            _view.OptionsBehavior.Editable = true;
+
+            var pnl = new Panel { Dock = DockStyle.Bottom, Height = 80 };
+            _txtLyDo = new TextEdit { Left = 12, Top = 8, Width = 876 };
+            _txtLyDo.Properties.NullValuePrompt = "Lý do loại bỏ (không bắt buộc)";
+            var btnGhi = new SimpleButton { Text = "Ghi nhận loại bỏ", Left = 640, Top = 40, Width = 150 };
+            var btnDong = new SimpleButton { Text = "Đóng", Left = 800, Top = 40, Width = 88, DialogResult = DialogResult.Cancel };
+            btnGhi.Click += (s, e) => Ghi();
+            pnl.Controls.AddRange(new Control[] { _txtLyDo, btnGhi, btnDong });
+
+            Controls.Add(_grid);
+            Controls.Add(pnl);
+            Controls.Add(_lblInfo);
+            CancelButton = btnDong;
+
+            List<ScrapSourceLot> nguon = null;
+            try { nguon = lookup.FindScrapSourceLots(phieu.MaSanPham, phieu.SoLo); }
+            catch (Exception ex) { XtraMessageBox.Show(this, "Không tải được danh sách hàng để loại bỏ: " + ex.Message, "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
+
+            foreach (var n in nguon ?? new List<ScrapSourceLot>())
+                _rows.Add(new DongScrap
+                {
+                    SlotLotId = n.SlotLotId,
+                    ViTri = n.ViTri,
+                    LotNo = n.LotNo,
+                    TrangThai = n.PhieuStatus == 3 ? "NG cách ly" : "Đang hoạt động",
+                    TonKho = n.Quantity,
+                    SoLuongScrap = 0
+                });
+
+            _grid.DataSource = _rows;
+            _view.PopulateColumns();
+            _view.Columns["SlotLotId"].Visible = false;
+            _view.Columns["ViTri"].Caption = "Vị trí";
+            _view.Columns["LotNo"].Caption = "LOT";
+            _view.Columns["TrangThai"].Caption = "Trạng thái";
+            _view.Columns["TonKho"].Caption = "Tồn";
+            _view.Columns["SoLuongScrap"].Caption = "SL loại bỏ";
+            foreach (DevExpress.XtraGrid.Columns.GridColumn c in _view.Columns)
+                c.OptionsColumn.AllowEdit = c.FieldName == "SoLuongScrap";
+
+            CapNhatThongTin();
+        }
+
+        private void CapNhatThongTin()
+        {
+            _lblInfo.Text = string.Format(
+                "Phiếu {0} | Mã {1} | LOT {2}\r\nCần loại bỏ: {3:n0} | Đã ghi nhận: {4:n0} | Còn lại: {5:n0}  (nhập SL loại bỏ ở cột cuối của dòng muốn lấy hàng)",
+                _phieu.SoPhieu, _phieu.MaSanPham, string.IsNullOrWhiteSpace(_phieu.SoLo) ? "(toàn bộ LOT của mã)" : _phieu.SoLo,
+                _tongCanScrap, _daScrap, Math.Max(0, _tongCanScrap - _daScrap));
+        }
+
+        private void Ghi()
+        {
+            _view.CloseEditor();
+            _view.UpdateCurrentRow();
+
+            var chon = _rows.Where(r => r.SoLuongScrap > 0).ToList();
+            if (chon.Count == 0)
+            {
+                XtraMessageBox.Show(this, "Nhập số lượng loại bỏ ở ít nhất một dòng.", "Thiếu thông tin", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            int tong = chon.Sum(r => r.SoLuongScrap);
+            if (tong > _tongCanScrap - _daScrap)
+            {
+                XtraMessageBox.Show(this, string.Format("Tổng {0:n0} vượt số còn phải loại bỏ ({1:n0}).", tong, _tongCanScrap - _daScrap), "Vượt hạn mức", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            string lyDo = (_txtLyDo.Text ?? string.Empty).Trim();
+            if (lyDo.Length == 0) lyDo = "Loại bỏ theo kết luận QC";
+
+            string loi = null;
+            foreach (var r in chon)
+            {
+                var kq = _stock.GhiNhanScrap(_phieu.Id, r.SlotLotId, r.LotNo, r.SoLuongScrap, _tongCanScrap, lyDo, Environment.UserName, Guid.NewGuid());
+                if (!kq.IsOK)
+                {
+                    loi = "LOT " + r.LotNo + " (" + r.ViTri + "): " + kq.Message;
+                    break;
+                }
+                _daScrap += r.SoLuongScrap;
+                r.TonKho -= r.SoLuongScrap;
+                r.SoLuongScrap = 0;
+            }
+
+            _grid.RefreshDataSource();
+            CapNhatThongTin();
+
+            if (loi != null)
+            {
+                XtraMessageBox.Show(this, loi, "Không ghi nhận được", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            if (_daScrap >= _tongCanScrap)
+            {
+                DialogResult = DialogResult.OK;
+                Close();
+            }
         }
     }
 }

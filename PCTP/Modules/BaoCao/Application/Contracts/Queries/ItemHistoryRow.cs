@@ -15,7 +15,7 @@ namespace PCTP.Modules.BaoCao.Application.Contracts.Queries
         };
         private static readonly HashSet<string> OutTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            "EXPORT", "PICK", "REWORK", "REWORK_EXPORT", "CHO_GIAO",
+            "EXPORT", "PICK", "REWORK", "REWORK_EXPORT", "SCRAP", "CHO_GIAO",
             "EXPORT_AUTO_HVN", "EXPORT_SHORTFALL", "EXPORT_CONFIRMED_HVN"
         };
         // Điều chỉnh tồn: Quantity là số chênh lệch có dấu (+ = tăng tồn -> Nhập, - = giảm tồn -> Xuất).
