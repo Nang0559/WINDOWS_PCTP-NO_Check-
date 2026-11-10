@@ -45,6 +45,16 @@ namespace PCTP.Modules.XuLyHangLoi
         private SimpleButton _btnExport;
         private LabelControl _lblHint;
         private List<WorkflowRow> _rows = new List<WorkflowRow>();
+        // Toàn bộ dòng của mọi bước (đọc DB một lần mỗi lần làm mới); đổi bước / đổi bộ lọc chỉ lọc lại trên bộ nhớ.
+        private List<WorkflowRow> _allRows;
+        private readonly IWaitFormService _waitForm;
+        // Bộ lọc trạng thái phiếu (dưới ô tìm kiếm). Mặc định chỉ hiện phiếu MỚI TẠO.
+        private FlowLayoutPanel _pnlLoc;
+        private CheckEdit _chkMoi;
+        private CheckEdit _chkDang;
+        private CheckEdit _chkHoanTat;
+        private LabelControl _lblLoc;
+        private bool _dangDatLoc;
         // Đang hiển thị kết quả quét/tìm (mọi bước) → double-click mở phiếu đã tạo.
         private bool _searchMode;
 
@@ -80,9 +90,21 @@ namespace PCTP.Modules.XuLyHangLoi
             _initialQCService = initialQCService;
             _noiBoLookupRepo = noiBoLookupRepo;
             _phase5To9Service = phase5To9Service;
+            _waitForm = new WaitFormService(this);
             BuildUI();
-            RefreshAll();
+
+            // Tự động tải danh sách phiếu khi form hiện (có wait form), không cần nhập tìm kiếm.
+            Shown += (s, e) => NapDuLieuBanDau();
+        }
+
+        private void NapDuLieuBanDau()
+        {
+            RefreshBadges();
             SetActiveStep(ResolveInitialStep());
+
+            if (_preselectPhieuXuLyId.HasValue)
+                HienThiDongNeuBiLoc(_preselectPhieuXuLyId.Value);
+
             FocusPreselectedRow();
         }
 
@@ -91,9 +113,10 @@ namespace PCTP.Modules.XuLyHangLoi
             Text = "Quản lý tiến trình Xử lý hàng lỗi";
             Size = new Size(1500, 850);
             StartPosition = FormStartPosition.CenterParent;
-            var root = new TableLayoutPanel { Name = "rework_rootLayout", Dock = DockStyle.Fill, RowCount = 4, ColumnCount = 1 };
+            var root = new TableLayoutPanel { Name = "rework_rootLayout", Dock = DockStyle.Fill, RowCount = 5, ColumnCount = 1 };
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 115));
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
 
@@ -103,7 +126,7 @@ namespace PCTP.Modules.XuLyHangLoi
             {
                 int step = i + 1;
                 var button = new Button { Name = "rework_step_" + step.ToString("00"), Width = 160, Height = 80, Text = labels[i] + "\r\n(0)", Tag = step, FlatStyle = FlatStyle.Flat, Margin = new Padding(3), Font = new Font("Tahoma", 9F, FontStyle.Bold), BackColor = Color.White };
-                button.Click += (s, e) => { _searchMode = false; _txtSearch.Text = string.Empty; SetActiveStep((int)((Button)s).Tag); };
+                button.Click += (s, e) => { _searchMode = false; _txtSearch.Text = string.Empty; RefreshBadges(); SetActiveStep((int)((Button)s).Tag); };
                 _stepButtons[i] = button;
                 timeline.Controls.Add(button);
                 if (i < labels.Length - 1)
@@ -140,6 +163,17 @@ namespace PCTP.Modules.XuLyHangLoi
             toolbar.Controls.Add(_btnExport, 5, 0);
             root.Controls.Add(toolbar, 0, 1);
 
+            // Bộ lọc trạng thái phiếu ngay dưới ô tìm kiếm.
+            _pnlLoc = new FlowLayoutPanel { Name = "rework_statusFilter", Dock = DockStyle.Fill, WrapContents = false, Padding = new Padding(6, 3, 3, 0) };
+            _pnlLoc.Controls.Add(new LabelControl { Text = "Lọc trạng thái phiếu:", AutoSizeMode = LabelAutoSizeMode.Horizontal, Margin = new Padding(3, 5, 8, 0) });
+            _chkMoi = TaoCheckLoc("rework_chkMoi", "Mới tạo (chờ xử lý)", 150);
+            _chkDang = TaoCheckLoc("rework_chkDang", "Đang xử lý", 110);
+            _chkHoanTat = TaoCheckLoc("rework_chkHoanTat", "Đã hoàn tất", 110);
+            _lblLoc = new LabelControl { Name = "rework_statusFilterInfo", AutoSizeMode = LabelAutoSizeMode.Horizontal, Margin = new Padding(16, 5, 0, 0), Appearance = { ForeColor = Color.DimGray } };
+            _pnlLoc.Controls.Add(_lblLoc);
+            DatLocMacDinh();
+            root.Controls.Add(_pnlLoc, 0, 2);
+
             _grid = new GridControl { Name = "rework_worklistGrid", Dock = DockStyle.Fill };
             _gridView = new GridView(_grid);
             _grid.MainView = _gridView;
@@ -147,10 +181,55 @@ namespace PCTP.Modules.XuLyHangLoi
             _gridView.OptionsView.ShowGroupPanel = false;
             _gridView.OptionsView.RowAutoHeight = true;
             _gridView.DoubleClick += (s, e) => OnGridDoubleClick();
-            root.Controls.Add(_grid, 0, 2);
+            root.Controls.Add(_grid, 0, 3);
             _lblHint = new LabelControl { Name = "rework_workflowHint", Dock = DockStyle.Fill, Padding = new Padding(10, 5, 0, 0), Appearance = { Font = new Font("Tahoma", 9F, FontStyle.Italic), ForeColor = Color.DimGray } };
-            root.Controls.Add(_lblHint, 0, 3);
+            root.Controls.Add(_lblHint, 0, 4);
             Controls.Add(root);
+        }
+
+        private CheckEdit TaoCheckLoc(string name, string caption, int width)
+        {
+            var chk = new CheckEdit { Name = name, Width = width, Margin = new Padding(3, 0, 3, 0) };
+            chk.Properties.Caption = caption;
+            chk.CheckedChanged += (s, e) => { if (!_dangDatLoc) LoadCurrentStep(); };
+            _pnlLoc.Controls.Add(chk);
+            return chk;
+        }
+
+        // Mặc định mỗi bước: chỉ phiếu MỚI TẠO. 'Đang xử lý' chỉ có ở bước 2 và 6-8; 'Đã hoàn tất' chỉ ở bước 8.
+        private void DatLocMacDinh()
+        {
+            _dangDatLoc = true;
+            try
+            {
+                _chkMoi.Checked = true;
+                _chkDang.Checked = false;
+                _chkHoanTat.Checked = false;
+                _chkDang.Visible = _activeStep == 2 || _activeStep >= 6;
+                _chkHoanTat.Visible = _activeStep == 8;
+            }
+            finally { _dangDatLoc = false; }
+        }
+
+        private bool TrangThaiDuocChon(WorkflowRow row)
+        {
+            if (row.DaHoanTat) return _chkHoanTat.Checked;
+            if (IsInProgress(row)) return _chkDang.Checked;
+            return _chkMoi.Checked;
+        }
+
+        // Phiếu cần chọn sẵn (mở từ nơi khác / vừa tạo) đang bị bộ lọc ẩn → tự bật đúng nhóm trạng thái của nó.
+        private void HienThiDongNeuBiLoc(int phieuXuLyId)
+        {
+            if (_allRows == null || _searchMode) return;
+            if (_rows.Any(r => r.PhieuXuLyId == phieuXuLyId)) return;
+
+            var row = _allRows.FirstOrDefault(r => r.PhieuXuLyId == phieuXuLyId);
+            if (row == null) return;
+
+            CheckEdit chk = row.DaHoanTat ? _chkHoanTat : (IsInProgress(row) ? _chkDang : _chkMoi);
+            chk.Visible = true;
+            chk.Checked = true; // CheckedChanged → LoadCurrentStep()
         }
 
         private int ResolveInitialStep()
@@ -217,10 +296,9 @@ namespace PCTP.Modules.XuLyHangLoi
                 case 8: _btnSecondary.Visible = false; _btnPrimary.Text = "Giao bù / Hoàn tất"; _lblHint.Text = "Bước 8: phiếu còn chờ giao bù / hoàn tất nằm trên; phiếu ĐÃ HOÀN TẤT (" + SoNgayHienThiPhieuHoanTat + " ngày gần nhất) nằm dưới, chọn dòng và bấm nút để xem kết quả. Giao bù là nghĩa vụ độc lập; không suy ra từ NG/Rework."; break;
             }
             _btnCreateXuLy.Visible = _activeStep == 1 || _activeStep == 2;
+            DatLocMacDinh();
             LoadCurrentStep();
         }
-
-        private void RefreshAll() { RefreshBadges(); LoadCurrentStep(); }
 
         private List<PhieuTraHang> GetHeaders()
         {
@@ -248,9 +326,12 @@ namespace PCTP.Modules.XuLyHangLoi
                 var chuyen = new int[8];
                 var phieuTraDaTao = new HashSet<int>();
 
-                foreach (var row in BuildWorkflowRows())
+                // Đọc DB một lần (wait form chuẩn), các bước/bộ lọc dùng lại bộ nhớ đệm này.
+                _allRows = _waitForm.Run(() => { return BuildWorkflowRows(); }, "Đang tải danh sách phiếu xử lý hàng lỗi...");
+
+                foreach (var row in _allRows)
                 {
-                    var step = ResolveRowStep(row);
+                    var step = StepOf(row);
                     bool hoanTat = row.DaHoanTat;
 
                     if (row.PhieuXuLyId.HasValue)
@@ -299,8 +380,15 @@ namespace PCTP.Modules.XuLyHangLoi
             _searchMode = false;
             _txtSearch.Text = string.Empty;
             SetActiveStep(step);
+            HienThiDongNeuBiLoc(row.PhieuXuLyId.Value);
             var handle = _gridView.LocateByValue("PhieuXuLyId", row.PhieuXuLyId.Value);
             if (handle >= 0) _gridView.FocusedRowHandle = handle;
+        }
+
+        // Bước đã tính sẵn lúc nạp dữ liệu (không truy vấn lại DB); dòng cấp phiếu trả dùng HeaderStep.
+        private int StepOf(WorkflowRow row)
+        {
+            return row.BuocDaTinh ?? ResolveRowStep(row);
         }
 
         private int ResolveRowStep(WorkflowRow row)
@@ -319,14 +407,21 @@ namespace PCTP.Modules.XuLyHangLoi
             }
 
             _searchMode = false;
+            _pnlLoc.Enabled = true;
 
             try
             {
-                _rows = BuildWorkflowRows().Where(x =>
+                // Tự động nạp phiếu của bước đang chọn (từ bộ nhớ đệm), lọc theo trạng thái được tích.
+                if (_allRows == null)
+                    _allRows = _waitForm.Run(() => { return BuildWorkflowRows(); }, "Đang tải danh sách phiếu xử lý hàng lỗi...");
+
+                var thuocBuoc = _allRows.Where(x =>
                 {
-                    int st = ResolveRowStep(x);
+                    int st = StepOf(x);
                     return st == _activeStep || (_activeStep == 2 && IsCreatedInfoRow(x, st));
                 }).ToList();
+
+                _rows = thuocBuoc.Where(TrangThaiDuocChon).ToList();
                 // Bước 8: phiếu còn việc phải làm lên trước, phiếu đã hoàn tất (mới nhất trước) xếp sau.
                 if (_activeStep == 8)
                     _rows = _rows.OrderBy(x => x.DaHoanTat ? 1 : 0)
@@ -335,6 +430,10 @@ namespace PCTP.Modules.XuLyHangLoi
                 _grid.DataSource = _rows;
                 ConfigureGrid();
                 ApplyFilter();
+
+                _lblLoc.Text = !_chkMoi.Checked && !_chkDang.Checked && !_chkHoanTat.Checked
+                    ? "Chưa chọn trạng thái nào."
+                    : $"Hiển thị {_rows.Count}/{thuocBuoc.Count} phiếu ở bước này";
             }
             catch (Exception ex) { ShowWarning("Không thể tải dữ liệu tiến trình.\r\n\r\n" + ex.Message); }
         }
@@ -373,6 +472,7 @@ namespace PCTP.Modules.XuLyHangLoi
                 row.MaSanPham = p.MaSanPham;
                 row.SoLo = p.SoLo;
                 row.SoPhieuXuLy = p.SoPhieu;
+                row.BuocDaTinh = ResolveStep(p);
                 if (row.QTStatus == QTChungStatus.DaQCXacNhanCuoi || row.QTStatus == QTChungStatus.DaNhapLaiKho || row.QTStatus == QTChungStatus.HoanTat)
                 {
                     row.KetQuaCuoi = BuildKetQuaCuoi(p);
@@ -479,6 +579,8 @@ namespace PCTP.Modules.XuLyHangLoi
 
         private void ShowSearchResults()
         {
+            _pnlLoc.Enabled = false; // kết quả tìm kiếm gồm cả phiếu đã đóng, không áp dụng bộ lọc trạng thái
+            _lblLoc.Text = "Đang hiển thị kết quả tìm kiếm (không áp dụng bộ lọc trạng thái). Xóa ô tìm kiếm và Enter để quay lại danh sách.";
             try
             {
                 var kw = _txtSearch.Text.Trim();
@@ -691,6 +793,7 @@ namespace PCTP.Modules.XuLyHangLoi
                     _searchMode = false;
                     _txtSearch.Text = string.Empty;
                     SetActiveStep(targetStep);
+                    HienThiDongNeuBiLoc(firstId.Value);
                     var handle = _gridView.LocateByValue("PhieuXuLyId", firstId.Value);
                     if (handle >= 0) _gridView.FocusedRowHandle = handle;
                     XtraMessageBox.Show(this, $"Đã tạo {createdIds.Count} phiếu xử lý bất thường cho phiếu {row.SoPhieu}.\r\nPhiếu đã chuyển sang Bước {targetStep}: {_stepButtons[targetStep - 1].Text.Split('\r')[0].Substring(3).Trim()}.", "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -1000,6 +1103,8 @@ namespace PCTP.Modules.XuLyHangLoi
             public bool DaHoanTat { get { return PhieuXuLyId.HasValue && QTStatus == QTChungStatus.HoanTat; } }
             // Dòng cấp phiếu trả (chưa có PhieuXuLyId): 1 = Tiếp nhận, 2 = đã tạo một phần.
             public int HeaderStep { get; set; } = 1;
+            /// <summary>Bước hiện tại của phiếu xử lý, tính một lần lúc nạp dữ liệu (null với dòng cấp phiếu trả).</summary>
+            public int? BuocDaTinh { get; set; }
         }
     }
 
