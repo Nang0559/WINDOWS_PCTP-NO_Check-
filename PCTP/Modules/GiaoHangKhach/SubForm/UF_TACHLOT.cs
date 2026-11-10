@@ -543,9 +543,9 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
             string MAHANG = "";
             sqlBRV.ExecuteNonQuery(sqlBRV.B7R2_FCCdb, "delete from TMPLOTTACH");
 
+            int i = 1; // STT dùng chung toàn bộ lần in: SP đánh dấu flag theo STT nên không được trùng giữa các dòng
             foreach (ListViewItem it in lw_qrcode.Items)
             {
-                int i = 1;
                 string lotno = it.SubItems[1].Text;
                 MAHANG = it.SubItems[2].Text;
 
@@ -582,7 +582,7 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
                         sqlBRV.ExecuteNonQuery(sqlBRV.B7R2_FCCdb,
                             "insert into TMPLOTTACH(STT,LOT,MAHANG,SL,flag) values ( " + (i + 2) + ",'" + lotno + sl3 + "','" + MAHANG + "'," + sllot3 + " , 0)");
                 }
-                i++;
+                i += RDO_2.Checked ? 2 : 3;
             }
 
             InTemTuTmpLotTach(MAHANG);
@@ -614,7 +614,7 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
 
         /// <summary>
         /// IN LẠI TEM GỐC: in 1 tem có LOT và số lượng đúng như tem gốc đã quét
-        /// (dùng khi tem gốc bị rách/hỏng), không tách LOT.
+        /// (dùng khi tem gốc bị rách/hỏng), không tách LOT. LOT ghi vào TMPLOTTACH = LOT gốc + 4 số SL.
         /// Chọn dòng trong danh sách; nếu chưa chọn mà chỉ có 1 dòng thì tự lấy dòng đó.
         /// </summary>
         private void CMD_INGOC_Click(object sender, EventArgs e)
@@ -642,10 +642,14 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
             try
             {
                 sqlBRV.ExecuteNonQuery(sqlBRV.B7R2_FCCdb, "delete from TMPLOTTACH");
-                // Giữ nguyên LOT gốc (không nối hậu tố số lượng như khi tách) và số lượng gốc.
+                // Giữ nguyên LOT gốc và số lượng gốc, nhưng PHẢI nối 4 số SL đệm 0 vào cuối LOT
+                // (cùng chuẩn LOT 27 ký tự như nhánh tách). Usp_BarCodeView_ThongKe_Tmp5 luôn cắt
+                // 4 ký tự cuối rồi mới tách Ca (ký tự 12); thiếu hậu tố thì SP rơi vào nhánh LOT ngắn
+                // và lấy sai Ca/ItemLotCode. SP YMVN dùng nguyên LOT nên cũng cần đủ hậu tố cho QR.
+                string lotFull = lotno + Dien0tolot(slGoc);
                 sqlBRV.ExecuteNonQuery(sqlBRV.B7R2_FCCdb,
                     "insert into TMPLOTTACH (STT,LOT,MAHANG,SL,flag) values (1,'"
-                    + lotno.Replace("'", "''") + "','" + mahang.Replace("'", "''") + "'," + slGoc + ", 0)");
+                    + lotFull.Replace("'", "''") + "','" + mahang.Replace("'", "''") + "'," + slGoc + ", 0)");
                 InTemTuTmpLotTach(mahang);
             }
             catch (Exception ex)

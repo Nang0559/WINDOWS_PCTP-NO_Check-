@@ -75,10 +75,16 @@ Không chuyển giờ trong khi session QR đang chạy.
 Gear của FCC LOT được suy ra từ ký tự thứ 13:
 
 ```text
+0 -> (không phân loại Gear, để trống)
 1 -> A
 2 -> B
-3 -> D
+3 -> C
+4 -> D
+5 -> E
+6 -> F
 ```
+
+Bảng trên theo `B20Gear` (Code -> Name); SP in tem tra trực tiếp bảng này, không hard-code.
 
 Nếu QR YMVN có Gear, Gear phải khớp Gear suy ra từ FCC LOT.
 
