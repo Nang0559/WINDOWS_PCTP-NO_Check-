@@ -190,6 +190,11 @@ namespace PCTP.Common
 
         public static void OpenGiaoHangHVN(string customerNo)
         {
+            OpenGiaoHangHVN(null, customerNo);
+        }
+
+        public static void OpenGiaoHangHVN(IWin32Window owner, string customerNo)
+        {
             if (string.IsNullOrWhiteSpace(customerNo))
                 throw new ArgumentException("CustomerNo không được để trống.", nameof(customerNo));
 
@@ -199,7 +204,7 @@ namespace PCTP.Common
 
             // Mỗi khách hàng có một cửa sổ Phiếu giao hàng riêng; cùng khách không mở trùng.
             FormWindowManager.ShowSingle<HVN_PGH>(
-                null,
+                owner,
                 () => new HVN_PGH(normalizedCustomerNo),
                 instanceKey);
         }
