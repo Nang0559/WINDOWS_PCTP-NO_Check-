@@ -225,9 +225,9 @@ namespace PCTP
         private void trahangndHVN_Click(object sender, EventArgs e) { WarehouseProcessNavigator.OpenQuanLyTienTrinhHangLoi(this); }
         private void E_NhapTP_Click(object sender, EventArgs e) { OpenNhapThanhPhamQr(); }
         private void E_NhapTP_0QR_Click(object sender, EventArgs e) { }
-        private void E_GHHVN_MP_Click(object sender, EventArgs e) { WarehouseProcessNavigator.OpenGiaoHangHVN("100001"); }
-        private void E_GHHVN_SP_Click(object sender, EventArgs e) { WarehouseProcessNavigator.OpenGiaoHangHVN("100002"); }
-        private void HTDelever_Click(object sender, EventArgs e) { WarehouseProcessNavigator.OpenGiaoHangHVN("100003"); }
+        private void E_GHHVN_MP_Click(object sender, EventArgs e) { WarehouseProcessNavigator.OpenGiaoHangHVN(this, "100001"); }
+        private void E_GHHVN_SP_Click(object sender, EventArgs e) { WarehouseProcessNavigator.OpenGiaoHangHVN(this, "100002"); }
+        private void HTDelever_Click(object sender, EventArgs e) { WarehouseProcessNavigator.OpenGiaoHangHVN(this, "100003"); }
         private void E_Tracuulotno_Click(object sender, EventArgs e) { OpenTraCuuLot(); }
         private void E_In_Le_Click(object sender, EventArgs e) { }
         private void E_TKTK_Click(object sender, EventArgs e) { OpenBaoCaoTongHop(); }
