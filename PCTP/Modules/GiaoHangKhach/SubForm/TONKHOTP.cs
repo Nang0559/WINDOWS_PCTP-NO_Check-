@@ -20,6 +20,7 @@ using PCTP.Modules.NhapKho.Services;
 using PCTP.Modules.XuatKho.Application.Adapters;
 using PCTP.Modules.XuatKho.Repositories;
 using PCTP.Shared.Common;
+using PCTP.Shared.Helpers;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -143,10 +144,8 @@ using System.Windows.Forms;
             // Xem tồn kho (lotFilter rỗng) dùng cùng nguồn sp_GetCurrentStockStatus với báo cáo "Kho hiện tại".
             ICurrentStockQuery currentStockQuery = string.IsNullOrWhiteSpace(lotFilter) ? new CurrentStockQueryService() : null;
 
-            using (var f = new TONKHOTP(stockTpService, historyService, movementService, lotFilter, slotRepository, currentStockQuery))
-            {
-                f.ShowDialog(owner);   // ✅ bỏ dấu ';' thừa, gọi ShowDialog trong thân using
-            }
+            FormWindowManager.ShowSingle(owner,
+                () => new TONKHOTP(stockTpService, historyService, movementService, lotFilter, slotRepository, currentStockQuery));
         }
         // ════════════════════════════════════════════════════════════════
         // UI
