@@ -47,6 +47,17 @@ namespace PCTP.Modules.XuatKho.Services
 
         public StockExportResult PickToChoGiao(StockExportRequest request)
         {
+            // ItemCode thiếu: lấy từ chính SlotLot của LOT cần pick (nguồn sự thật), không bắt người dùng/caller đoán.
+            if (request != null && string.IsNullOrWhiteSpace(request.ItemCode) &&
+                request.SlotId.HasValue && request.SlotId.Value > 0 && !string.IsNullOrWhiteSpace(request.LotNo))
+            {
+                var lots = _slotService.GetLots(request.SlotId.Value) ?? new List<LotInfo>();
+                var lot = lots.FirstOrDefault(x => x != null &&
+                    string.Equals((x.LotNo ?? string.Empty).Trim(), request.LotNo.Trim(), StringComparison.OrdinalIgnoreCase));
+                string item = lot == null ? null : (lot.QRInfo != null && !string.IsNullOrWhiteSpace(lot.QRInfo.ItemCode) ? lot.QRInfo.ItemCode : lot.ItemCode);
+                if (!string.IsNullOrWhiteSpace(item)) request.ItemCode = item.Trim();
+            }
+
             var validation = _validationService.ValidatePickToChoGiao(request);
             if (!validation.IsValid)
                 return MapFail(validation);

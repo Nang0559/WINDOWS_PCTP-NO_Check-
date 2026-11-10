@@ -384,16 +384,41 @@ namespace PCTP.Modules.KhoVatLy
             return selected;
         }
 
-        private bool ExportToSameSlot(int qty, string lotNo)
+        /// <summary>
+        /// Mã hàng của LOT đang pick. Nguồn đúng là SlotLot/QR của chính LOT (cũng là nguồn form đang hiển thị),
+        /// KHÔNG phải cột Slot.ItemCode: cột đó có thể rỗng khi slot được ghi bằng đường khác (di chuyển, hoàn kho,
+        /// đăng ký rack...) và một Slot có thể chứa nhiều mã hàng. Slot.ItemCode chỉ là phương án cuối.
+        /// </summary>
+        private string ResolveItemCodeForPick(string lotNo)
         {
-            var result = _exportService.PickToChoGiao(new StockExportRequest
+            var lot = (slot?.Lots ?? new System.Collections.Generic.List<LotInfo>())
+                .FirstOrDefault(x => x != null && string.Equals((x.LotNo ?? "").Trim(), (lotNo ?? "").Trim(), StringComparison.OrdinalIgnoreCase));
+
+            string item = lot?.QRInfo?.ItemCode;
+            if (string.IsNullOrWhiteSpace(item)) item = lot?.ItemCode;
+            if (string.IsNullOrWhiteSpace(item)) item = slot?.ItemCode;
+            if (string.IsNullOrWhiteSpace(item)) item = lblItemCode.Text;
+            return string.IsNullOrWhiteSpace(item) ? null : item.Trim();
+        }
+
+        private StockExportRequest BuildPickRequest(int qty, string lotNo)
+        {
+            return new StockExportRequest
             {
+                Source = StockExportSource.Slot,
+                Purpose = PCTP.Shared.Enums.StockTransactionType.XuatChoGiao,
                 SlotId = slot.SlotId,
                 LotNo = lotNo,
                 Quantity = qty,
-                ItemCode = slot.ItemCode,
-                PhieuGiaoId = _phieuGiaoId
-            });
+                ItemCode = ResolveItemCodeForPick(lotNo),
+                PhieuGiaoId = _phieuGiaoId,
+                NguoiThucHien = Environment.UserName
+            };
+        }
+
+        private bool ExportToSameSlot(int qty, string lotNo)
+        {
+            var result = _exportService.PickToChoGiao(BuildPickRequest(qty, lotNo));
 
             if (!result.IsOK) { MessageBox.Show(result.Message); return false; }
 
@@ -408,14 +433,7 @@ namespace PCTP.Modules.KhoVatLy
         {
             if (listBoxSlots.SelectedItem == null) { MessageBox.Show("Vui lòng chọn vị trí."); return false; }
 
-            var pickResult = _exportService.PickToChoGiao(new StockExportRequest
-            {
-                SlotId = slot.SlotId,
-                LotNo = lotNo,
-                Quantity = qty,
-                ItemCode = slot.ItemCode,
-                PhieuGiaoId = _phieuGiaoId
-            });
+            var pickResult = _exportService.PickToChoGiao(BuildPickRequest(qty, lotNo));
 
             if (!pickResult.IsOK) { MessageBox.Show(pickResult.Message); return false; }
 
