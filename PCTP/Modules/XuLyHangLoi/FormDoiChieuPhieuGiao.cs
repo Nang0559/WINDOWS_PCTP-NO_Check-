@@ -205,6 +205,39 @@ namespace PCTP.Modules.XuLyHangLoi
         /// Chỉ xem luồng đi của LOT (dùng cho phiếu trả nội bộ hoặc xem lại phiếu khách trả):
         /// sản xuất → nhập/xuất/chuyển kho → các lần giao khách. Không gán phiếu giao.
         /// </summary>
+        // Bộ lọc LOT do form mẹ đặt từ ô tra cứu chung (ngày sản xuất / ngày lập phiếu xử lý hàng lỗi):
+        // chỉ giữ các lần giao có ÍT NHẤT MỘT LOT thỏa bộ lọc.
+        private Func<string, bool> _boLocLot;
+        private string _moTaBoLoc = string.Empty;
+
+        /// <summary>Đặt sẵn khoảng ngày giao (ô tra cứu chung, kiểu "Ngày xuất hàng") — gọi trước ShowDialog.</summary>
+        public void DatKhoangNgayGiao(DateTime tu, DateTime den)
+        {
+            _dtTu.EditValue = tu.Date;
+            _dtDen.EditValue = den.Date;
+        }
+
+        /// <summary>Chỉ giữ lần giao có LOT thỏa <paramref name="lotOk"/>; moTa hiện trên thông báo kết quả.</summary>
+        public void DatBoLocLot(Func<string, bool> lotOk, string moTa)
+        {
+            _boLocLot = lotOk;
+            _moTaBoLoc = moTa ?? string.Empty;
+        }
+
+        private bool PhieuCoLotThoaBoLoc(PhieuGiaoUngVienInfo p)
+        {
+            if (_boLocLot == null)
+                return true;
+
+            foreach (var part in PCTP.Common.LotCodeHelper.ParseCompositeLotTolerant(p.LOT, null))
+            {
+                if (part.IsValid && _boLocLot(part.LotNo))
+                    return true;
+            }
+
+            return false;
+        }
+
         public static FormDoiChieuPhieuGiao ChoXemLuongDi(string maHang, string tenHang, string lotNo)
         {
             return new FormDoiChieuPhieuGiao(
@@ -514,6 +547,14 @@ namespace PCTP.Modules.XuLyHangLoi
                 if (IsDisposed)
                     return;
 
+                string ghiChuLoc = string.Empty;
+
+                if (_boLocLot != null)
+                {
+                    list = list.Where(PhieuCoLotThoaBoLoc).ToList();
+                    ghiChuLoc = " (chỉ lấy lô thuộc " + _moTaBoLoc + ")";
+                }
+
                 _rows = list.Select(p => new DongDoiChieu
                 {
                     Phieu = p,
@@ -541,8 +582,8 @@ namespace PCTP.Modules.XuLyHangLoi
                     }
 
                     _lblKetQua.Text = _rows.Count == 0
-                        ? "Không có lần giao nào khớp trong khoảng thời gian này. Mở rộng khoảng ngày hoặc bỏ trống LOT."
-                        : $"Tìm thấy {_rows.Count} lần giao. Tick các lần giao khách đã trả; SL trả tự động lấy theo SL truy vết của lần giao.";
+                        ? "Không có lần giao nào khớp trong khoảng thời gian này" + ghiChuLoc + ". Mở rộng khoảng ngày hoặc bỏ trống LOT."
+                        : $"Tìm thấy {_rows.Count} lần giao{ghiChuLoc}. Tick các lần giao khách đã trả; SL trả tự động lấy theo SL truy vết của lần giao.";
                     _lblKetQua.Appearance.ForeColor = _rows.Count == 0 ? Color.Firebrick : Color.DimGray;
                 }
                 finally

@@ -660,6 +660,7 @@
     <Compile Include="Modules\XuLyHangLoi\Repository\INoiBoLookupRepository.cs" />
     <Compile Include="Modules\XuLyHangLoi\Repository\NoiBoLookupRepository.cs" />
     <Compile Include="Modules\XuLyHangLoi\Services\QrItemParser.cs" />
+    <Compile Include="Modules\XuLyHangLoi\Services\StockLookupFilter.cs" />
     <Compile Include="Modules\XuLyHangLoi\Models\NoiBoLookupModels.cs" />
     <Compile Include="Modules\XuLyHangLoi\Repository\IPhieuTraHangRepository.cs" />
     <Compile Include="Modules\XuLyHangLoi\Repository\IPhieuXuLyBatThuongRepository.cs" />
@@ -963,6 +964,7 @@
     <Compile Include="Shared\Lookup\StockLookupControl.cs">
       <SubType>UserControl</SubType>
     </Compile>
+    <Compile Include="Shared\Lookup\StockLookupCriteria.cs" />
     <Compile Include="Shared\Helpers\PhieuNoHelper.cs" />
     <Compile Include="Shared\Helpers\PrintHelper.cs" />
     <Compile Include="Shared\Helpers\QRCodeBuilder.cs" />

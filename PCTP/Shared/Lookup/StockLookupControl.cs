@@ -1,4 +1,4 @@
-using DevExpress.XtraEditors;
+﻿using DevExpress.XtraEditors;
 using DevExpress.XtraEditors.Controls;
 using System;
 using System.Data;
@@ -11,6 +11,11 @@ namespace PCTP.Shared.Lookup
     /// Reusable stock lookup with two isolated modes:
     /// item code suggestions (PART/NAME) and free-text LOT/QR input.
     /// Repository queries and result presentation remain the responsibility of the host form.
+    ///
+    /// Optional date-range block (<see cref="ShowDateRange"/>, off by default so existing hosts are unchanged):
+    /// a checkbox plus three radio options — production date / delivery date / defect-document date —
+    /// and a from/to range. The control only COLLECTS the choice; <see cref="GetCriteria"/> snapshots it
+    /// and the host applies it (see StockLookupFilter) so every form interprets the dates identically.
     /// </summary>
     public sealed class StockLookupControl : UserControl
     {
@@ -21,6 +26,17 @@ namespace PCTP.Shared.Lookup
         private readonly TextEdit _lotQrEditor = new TextEdit();
         private readonly SimpleButton _itemSearchButton = new SimpleButton();
         private readonly SimpleButton _lotQrSearchButton = new SimpleButton();
+
+        // Khối lọc theo khoảng ngày (tuỳ chọn).
+        private const int DateBlockHeight = 58;
+        private readonly Panel _datePanel = new Panel();
+        private readonly CheckBox _chkDate = new CheckBox();
+        private readonly RadioButton _radProduction = new RadioButton();
+        private readonly RadioButton _radDelivery = new RadioButton();
+        private readonly RadioButton _radDefectDoc = new RadioButton();
+        private readonly DateEdit _dateFrom = new DateEdit();
+        private readonly DateEdit _dateTo = new DateEdit();
+        private bool _showDateRange;
 
         public event EventHandler SearchRequested;
         public event EventHandler SelectionCleared;
@@ -41,7 +57,9 @@ namespace PCTP.Shared.Lookup
             BuildItemTab();
             if (enableLotQrTab)
                 BuildLotQrTab();
+            BuildDatePanel();
             Controls.Add(_tabs);
+            Controls.Add(_datePanel);
             _tabs.SelectedIndexChanged += (s, e) =>
             {
                 ClearEditors();
@@ -50,6 +68,85 @@ namespace PCTP.Shared.Lookup
         }
 
         public bool IsItemSearch { get { return _tabs.SelectedTab == _itemPage; } }
+
+        /// <summary>
+        /// Hiện khối lọc theo khoảng ngày (mặc định ẩn). Bật thì control cao hơn
+        /// (~136px): form chứa phải chừa đủ chiều cao.
+        /// </summary>
+        public bool ShowDateRange
+        {
+            get { return _showDateRange; }
+            set
+            {
+                _showDateRange = value;
+                _datePanel.Visible = value;
+                int tabsHeight = 78;
+                MinimumSize = new Size(360, value ? tabsHeight + DateBlockHeight - 4 : 74);
+                Height = value ? tabsHeight + DateBlockHeight : tabsHeight;
+            }
+        }
+
+        /// <summary>Đang bật lọc ngày (ô "Lọc theo ngày" được tick).</summary>
+        public bool DateRangeEnabled
+        {
+            get { return _showDateRange && _chkDate.Checked; }
+        }
+
+        public StockLookupDateMode DateMode
+        {
+            get
+            {
+                if (_radDelivery.Checked) return StockLookupDateMode.NgayXuatHang;
+                if (_radDefectDoc.Checked) return StockLookupDateMode.NgayLapPhieuXuLy;
+                return StockLookupDateMode.NgaySanXuat;
+            }
+        }
+
+        public DateTime DateFrom
+        {
+            get { return ((_dateFrom.EditValue as DateTime?) ?? DateTime.Today.AddDays(-30)).Date; }
+        }
+
+        public DateTime DateTo
+        {
+            get { return ((_dateTo.EditValue as DateTime?) ?? DateTime.Today).Date; }
+        }
+
+        public void SetDateRange(StockLookupDateMode mode, DateTime from, DateTime to, bool enabled)
+        {
+            _radProduction.Checked = mode == StockLookupDateMode.NgaySanXuat;
+            _radDelivery.Checked = mode == StockLookupDateMode.NgayXuatHang;
+            _radDefectDoc.Checked = mode == StockLookupDateMode.NgayLapPhieuXuLy;
+            _dateFrom.EditValue = from.Date;
+            _dateTo.EditValue = to.Date;
+            _chkDate.Checked = enabled;
+            SyncDateEnabledState();
+        }
+
+        /// <summary>
+        /// Ảnh chụp toàn bộ tiêu chí hiện tại (tab, chữ nhập, mã đã chọn, khoảng ngày + kiểu ngày).
+        /// Khoảng ngày bị nhập ngược (Từ &gt; Đến) được tự đảo lại.
+        /// </summary>
+        public StockLookupCriteria GetCriteria()
+        {
+            DateTime from = DateFrom;
+            DateTime to = DateTo;
+            if (from > to)
+            {
+                DateTime t = from; from = to; to = t;
+            }
+
+            return new StockLookupCriteria
+            {
+                IsItemSearch = IsItemSearch,
+                Text = InputText,
+                ItemCode = IsItemSearch ? SelectedItemCode : string.Empty,
+                DateEnabled = DateRangeEnabled,
+                DateMode = DateMode,
+                From = from,
+                To = to
+            };
+        }
 
         public string InputText
         {
@@ -216,6 +313,88 @@ namespace PCTP.Shared.Lookup
             layout.Controls.Add(_lotQrEditor, 0, 0);
             layout.Controls.Add(_lotQrSearchButton, 1, 0);
             _lotQrPage.Controls.Add(layout);
+        }
+
+        private void BuildDatePanel()
+        {
+            _datePanel.Dock = DockStyle.Bottom;
+            _datePanel.Height = DateBlockHeight;
+            _datePanel.Visible = false;
+
+            var row1 = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Top,
+                Height = 28,
+                WrapContents = false,
+                Padding = new Padding(3, 2, 0, 0)
+            };
+
+            _chkDate.Text = "Lọc theo ngày";
+            _chkDate.AutoSize = true;
+            _chkDate.Margin = new Padding(3, 4, 12, 0);
+            _chkDate.CheckedChanged += (s, e) => SyncDateEnabledState();
+
+            ConfigureRadio(_radProduction, "Ngày sản xuất", true);
+            ConfigureRadio(_radDelivery, "Ngày xuất hàng", false);
+            ConfigureRadio(_radDefectDoc, "Ngày lập phiếu xử lý hàng lỗi", false);
+
+            row1.Controls.Add(_chkDate);
+            row1.Controls.Add(_radProduction);
+            row1.Controls.Add(_radDelivery);
+            row1.Controls.Add(_radDefectDoc);
+
+            var row2 = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                WrapContents = false,
+                Padding = new Padding(3, 0, 0, 0)
+            };
+
+            ConfigureDateEdit(_dateFrom, DateTime.Today.AddDays(-30));
+            ConfigureDateEdit(_dateTo, DateTime.Today);
+
+            row2.Controls.Add(new Label { Text = "Từ ngày", AutoSize = true, Margin = new Padding(3, 6, 4, 0) });
+            row2.Controls.Add(_dateFrom);
+            row2.Controls.Add(new Label { Text = "đến ngày", AutoSize = true, Margin = new Padding(12, 6, 4, 0) });
+            row2.Controls.Add(_dateTo);
+
+            _datePanel.Controls.Add(row2);
+            _datePanel.Controls.Add(row1);
+
+            SyncDateEnabledState();
+        }
+
+        private void ConfigureRadio(RadioButton radio, string text, bool isChecked)
+        {
+            radio.Text = text;
+            radio.AutoSize = true;
+            radio.Checked = isChecked;
+            radio.Margin = new Padding(3, 4, 10, 0);
+        }
+
+        private void ConfigureDateEdit(DateEdit edit, DateTime value)
+        {
+            edit.Width = 120;
+            edit.Margin = new Padding(3, 2, 3, 0);
+            edit.EditValue = value;
+            edit.Properties.DisplayFormat.FormatType = DevExpress.Utils.FormatType.DateTime;
+            edit.Properties.DisplayFormat.FormatString = "dd/MM/yyyy";
+            edit.Properties.EditFormat.FormatType = DevExpress.Utils.FormatType.DateTime;
+            edit.Properties.EditFormat.FormatString = "dd/MM/yyyy";
+            edit.Properties.Mask.EditMask = "dd/MM/yyyy";
+            edit.Properties.Mask.UseMaskAsDisplayFormat = true;
+            edit.KeyDown += (s, e) => HandleEnter(e);
+        }
+
+        // Chưa tick "Lọc theo ngày" thì các lựa chọn bên dưới bị khóa (nhìn là biết đang không lọc).
+        private void SyncDateEnabledState()
+        {
+            bool on = _chkDate.Checked;
+            _radProduction.Enabled = on;
+            _radDelivery.Enabled = on;
+            _radDefectDoc.Enabled = on;
+            _dateFrom.Enabled = on;
+            _dateTo.Enabled = on;
         }
 
         private static TableLayoutPanel CreateInputLayout()

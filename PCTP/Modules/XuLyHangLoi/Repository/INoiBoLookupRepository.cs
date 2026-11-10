@@ -32,5 +32,18 @@ namespace PCTP.Modules.XuLyHangLoi.Repository
         /// Trả danh sách rỗng nếu LOT chưa từng xuất hiện.
         /// </summary>
         List<ItemLookupItem> FindItemsByLot(string lotNo);
+
+        /// <summary>
+        /// Các (Mã hàng, LOT) đã XUẤT/GIAO trong [tuNgay, denNgay] (LUUPHIEUGIAOHANG.NGAYGIAO),
+        /// LOT ghép "LOT1-100,LOT2-50" đã được tách. itemCode rỗng = mọi mã.
+        /// </summary>
+        List<ItemLotRef> GetLotsDeliveredBetween(System.DateTime tuNgay, System.DateTime denNgay, string itemCode);
+
+        /// <summary>
+        /// Các (Mã hàng, LOT) nằm trên phiếu xử lý hàng lỗi được LẬP trong [tuNgay, denNgay]:
+        /// phiếu trả hàng (FVN_PhieuTraHang.CreatedAt) hoặc phiếu xử lý bất thường
+        /// (FVN_PhieuXuLyBatThuong.CreatedAt) của dòng đó. itemCode rỗng = mọi mã.
+        /// </summary>
+        List<ItemLotRef> GetLotsOfDefectDocsBetween(System.DateTime tuNgay, System.DateTime denNgay, string itemCode);
     }
 }

@@ -274,7 +274,7 @@ namespace PCTP.Modules.XuLyHangLoi
             };
 
             main.RowStyles.Add(new RowStyle(SizeType.Absolute, 150)); // header
-            main.RowStyles.Add(new RowStyle(SizeType.Absolute, 82));  // tra cứu (StockLookupControl)
+            main.RowStyles.Add(new RowStyle(SizeType.Absolute, 142)); // tra cứu (StockLookupControl + khoảng ngày)
             main.RowStyles.Add(new RowStyle(SizeType.Percent, 100));  // grid
             main.RowStyles.Add(new RowStyle(SizeType.Absolute, 45));  // buttons
 
@@ -370,6 +370,9 @@ namespace PCTP.Modules.XuLyHangLoi
 
             // Tab "Tìm theo mã": mã hàng đang có trong Slot. Tab "LOT / QR": quét tem hoặc nhập LOT.
             _stockLookup = new StockLookupControl { Dock = DockStyle.Fill };
+            // Khoảng ngày theo 3 kiểu (ngày sản xuất / xuất hàng / lập phiếu xử lý hàng lỗi);
+            // tiêu chí này được truyền nguyên sang màn hình "Chọn nhanh từ Slot".
+            _stockLookup.ShowDateRange = true;
             _stockLookup.SetLotQrPlaceholder("Quét tem QR (4/6 trường) hoặc nhập LOT rồi Enter...");
             _stockLookup.SearchRequested += (s, e) => XuLyTraCuu();
             _stockLookup.SelectionCleared += (s, e) =>
@@ -1172,25 +1175,45 @@ namespace PCTP.Modules.XuLyHangLoi
 
         private void XuLyTraCuu()
         {
-            string input = _stockLookup.InputText;
+            // Chụp toàn bộ tiêu chí (tab, chữ nhập, khoảng ngày + kiểu ngày) một lần.
+            StockLookupCriteria crit = _stockLookup.GetCriteria();
 
-            if (string.IsNullOrWhiteSpace(input))
+            if (!crit.HasText)
             {
-                BaoQr("Chọn mã hàng, nhập LOT hoặc quét tem QR trước khi tra cứu.", false);
+                if (crit.DateEnabled)
+                {
+                    // Chỉ có khoảng ngày: mở danh sách Slot khớp ngày để chọn.
+                    MoChonSlot(crit);
+                    return;
+                }
+
+                BaoQr("Chọn mã hàng, nhập LOT / quét tem QR hoặc bật lọc theo ngày trước khi tra cứu.", false);
                 _stockLookup.FocusInput();
                 return;
             }
 
-            if (_stockLookup.IsItemSearch)
+            Func<string, string, bool> dateOk;
+
+            try
             {
-                XuLyChonMaHang(input);
+                dateOk = StockLookupFilter.CreateDateMatcher(crit, _lookupRepo);
+            }
+            catch (Exception ex)
+            {
+                BaoQr("Không lọc được theo ngày: " + ex.Message, false);
                 return;
             }
 
-            if (input.IndexOf(':') >= 0)
-                XuLyQr(input);
+            if (crit.IsItemSearch)
+            {
+                XuLyChonMaHang(crit, dateOk);
+                return;
+            }
+
+            if (crit.Text.IndexOf(':') >= 0)
+                XuLyQr(crit.Text, crit, dateOk);
             else
-                XuLyLotThuan(input);
+                XuLyLotThuan(crit.Text, crit, dateOk);
 
             _stockLookup.ClearInput();
             _stockLookup.FocusInput();
@@ -1217,41 +1240,49 @@ namespace PCTP.Modules.XuLyHangLoi
                     .Select(d => d.SlotLotIdNguon.Value));
         }
 
-        // Tab "Tìm theo mã": chỉ lấy các Slot đang chứa mã đó (hàng nội bộ phải còn trong Slot).
-        private void XuLyChonMaHang(string input)
+        // Tab "Tìm theo mã": chỉ lấy các Slot đang chứa mã đó (hàng nội bộ phải còn trong Slot),
+        // và nằm trong khoảng ngày đã chọn (nếu bật lọc ngày).
+        private void XuLyChonMaHang(StockLookupCriteria crit, Func<string, string, bool> dateOk)
         {
-            string code = _stockLookup.SelectedItemCode;
-
-            if (string.IsNullOrWhiteSpace(code))
-                code = input;
-
-            code = code.Trim();
+            string code = crit.EffectiveItemCode;
 
             var daCo = SlotLotDaCoTrongPhieu();
 
             var slots = _slotItems
                 .Where(x => x.SlotLotId > 0
                     && !daCo.Contains(x.SlotLotId)
-                    && string.Equals((x.ItemCode ?? string.Empty).Trim(), code, StringComparison.OrdinalIgnoreCase))
+                    && string.Equals((x.ItemCode ?? string.Empty).Trim(), code, StringComparison.OrdinalIgnoreCase)
+                    && dateOk(x.ItemCode, x.LotNo))
                 .ToList();
 
-            ThemTuKetQuaTraCuu(slots, "mã " + code);
+            ThemTuKetQuaTraCuu(slots, "mã " + code + MoTaNgay(crit), crit);
+        }
+
+        // Hậu tố mô tả khoảng ngày để thông báo rõ kết quả đang được lọc theo kiểu ngày nào.
+        private static string MoTaNgay(StockLookupCriteria crit)
+        {
+            return crit.DateEnabled
+                ? string.Format(" ({0} {1:dd/MM/yyyy}–{2:dd/MM/yyyy})",
+                    StockLookupCriteria.DateModeLabel(crit.DateMode), crit.From, crit.To)
+                : string.Empty;
         }
 
         // Tab "LOT / QR" – chỉ có LOT: rà TOÀN BỘ Slot đang chứa LOT, thêm mỗi Slot một dòng với SL khả dụng.
-        private void XuLyLotThuan(string lotNhap)
+        private void XuLyLotThuan(string lotNhap, StockLookupCriteria crit, Func<string, string, bool> dateOk)
         {
             string lot = lotNhap.Trim();
 
             var maCuaLot = _slotItems
-                .Where(x => x.SlotLotId > 0 && QrItemParser.LotKhop(x.LotNo, lot))
+                .Where(x => x.SlotLotId > 0
+                    && QrItemParser.LotKhop(x.LotNo, lot)
+                    && dateOk(x.ItemCode, x.LotNo))
                 .Select(x => (x.ItemCode ?? string.Empty).Trim())
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
             if (maCuaLot.Count == 0)
             {
-                BaoQr($"Không có Slot nào đang chứa LOT {lot}.", false);
+                BaoQr($"Không có Slot nào đang chứa LOT {lot}{MoTaNgay(crit)}.", false);
                 _stockLookup.FocusInput();
                 return;
             }
@@ -1259,7 +1290,7 @@ namespace PCTP.Modules.XuLyHangLoi
             if (maCuaLot.Count > 1)
             {
                 BaoQr($"LOT {lot} thuộc {maCuaLot.Count} mã hàng ({string.Join(", ", maCuaLot)}): chọn trong danh sách.", true);
-                MoChonSlot();
+                MoChonSlot(crit);
                 return;
             }
 
@@ -1342,7 +1373,7 @@ namespace PCTP.Modules.XuLyHangLoi
         }
 
         // 0 Slot → báo; 1 Slot → thêm dòng (SL để trống cho người dùng nhập); nhiều Slot → mở danh sách chọn.
-        private void ThemTuKetQuaTraCuu(List<SlotNguonLookupItem> slots, string nhan)
+        private void ThemTuKetQuaTraCuu(List<SlotNguonLookupItem> slots, string nhan, StockLookupCriteria crit)
         {
             if (slots.Count == 0)
             {
@@ -1354,7 +1385,7 @@ namespace PCTP.Modules.XuLyHangLoi
             if (slots.Count > 1)
             {
                 BaoQr($"{nhan} nằm ở {slots.Count} vị trí: chọn trong danh sách.", true);
-                MoChonSlot();
+                MoChonSlot(crit);
                 return;
             }
 
@@ -1423,7 +1454,7 @@ namespace PCTP.Modules.XuLyHangLoi
                 ok ? System.Drawing.Color.ForestGreen : System.Drawing.Color.Firebrick;
         }
 
-        private void XuLyQr(string raw)
+        private void XuLyQr(string raw, StockLookupCriteria crit, Func<string, string, bool> dateOk)
         {
             if (string.IsNullOrWhiteSpace(raw))
                 return;
@@ -1434,6 +1465,12 @@ namespace PCTP.Modules.XuLyHangLoi
             if (!QrItemParser.TryParse(raw, out info, out error))
             {
                 BaoQr(error, false);
+                return;
+            }
+
+            if (!dateOk(info.ItemCode, info.Lot))
+            {
+                BaoQr($"{info.ItemCode} / Lot {info.Lot} nằm ngoài khoảng ngày đã chọn{MoTaNgay(crit)}.", false);
                 return;
             }
 
@@ -1505,7 +1542,9 @@ namespace PCTP.Modules.XuLyHangLoi
             return added;
         }
 
-        private void MoChonSlot()
+        /// <param name="criteria">Tiêu chí từ ô tra cứu (null → lấy hiện trạng ô tra cứu). Có chữ/ngày thì form con
+        /// nhận thẳng, không bắt nhập lại; rỗng thì form con tự có ô tra cứu.</param>
+        private void MoChonSlot(StockLookupCriteria criteria = null)
         {
             _gridView.CloseEditor();
             _gridView.UpdateCurrentRow();
@@ -1515,7 +1554,7 @@ namespace PCTP.Modules.XuLyHangLoi
                 .Select(x => x.SlotLotIdNguon.Value)
                 .ToList();
 
-            using (var f = new FormChonSlotNoiBo(_slotService, daCo))
+            using (var f = new FormChonSlotNoiBo(_slotService, daCo, criteria ?? _stockLookup.GetCriteria(), _lookupRepo))
             {
                 if (f.ShowDialog(this) != DialogResult.OK)
                     return;

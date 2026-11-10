@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 
 namespace PCTP.Modules.XuLyHangLoi.Models
 {
@@ -83,5 +83,12 @@ namespace PCTP.Modules.XuLyHangLoi.Models
         {
             get { return string.IsNullOrWhiteSpace(TenKhachHang) ? CustomerNo : CustomerNo + " - " + TenKhachHang; }
         }
+    }
+
+    /// <summary>Một cặp (Mã hàng, LOT) lấy từ chứng từ (phiếu giao / phiếu xử lý hàng lỗi).</summary>
+    public sealed class ItemLotRef
+    {
+        public string ItemCode { get; set; }
+        public string LotNo { get; set; }
     }
 }

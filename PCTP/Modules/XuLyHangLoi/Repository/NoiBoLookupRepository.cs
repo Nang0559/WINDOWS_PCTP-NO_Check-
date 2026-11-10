@@ -116,6 +116,97 @@ ORDER BY x.ItemCode;";
                 }));
         }
 
+        public List<ItemLotRef> GetLotsDeliveredBetween(DateTime tuNgay, DateTime denNgay, string itemCode)
+        {
+            var ps = new List<System.Data.SqlClient.SqlParameter>
+            {
+                new System.Data.SqlClient.SqlParameter("@tu", SqlDbType.Date) { Value = tuNgay.Date },
+                new System.Data.SqlClient.SqlParameter("@den", SqlDbType.Date) { Value = denNgay.Date }
+            };
+
+            string itemFilter = string.Empty;
+            if (!string.IsNullOrWhiteSpace(itemCode))
+            {
+                itemFilter = "  AND MAHANG = @ma\n";
+                ps.Add(new System.Data.SqlClient.SqlParameter("@ma", SqlDbType.NVarChar, 100) { Value = itemCode.Trim() });
+            }
+
+            string sql = @"
+SELECT MAHANG, LOT
+FROM LUUPHIEUGIAOHANG
+WHERE NGAYGIAO >= @tu
+  AND NGAYGIAO < DATEADD(DAY, 1, @den)
+  AND LOT IS NOT NULL
+" + itemFilter + ";";
+
+            var result = new List<ItemLotRef>();
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (DataRow row in LoadData(sql, ps.ToArray()).Rows)
+            {
+                string ma = Convert.ToString(row["MAHANG"])?.Trim();
+                if (string.IsNullOrEmpty(ma)) continue;
+
+                // Cột LOT có thể ghép nhiều LOT: tách bằng helper dùng chung.
+                foreach (var part in PCTP.Common.LotCodeHelper.ParseCompositeLotTolerant(
+                    Convert.ToString(row["LOT"]), null))
+                {
+                    if (!part.IsValid) continue;
+                    if (seen.Add(ma + "|" + part.LotNo.Trim()))
+                        result.Add(new ItemLotRef { ItemCode = ma, LotNo = part.LotNo.Trim() });
+                }
+            }
+
+            return result;
+        }
+
+        public List<ItemLotRef> GetLotsOfDefectDocsBetween(DateTime tuNgay, DateTime denNgay, string itemCode)
+        {
+            var ps = new List<System.Data.SqlClient.SqlParameter>
+            {
+                new System.Data.SqlClient.SqlParameter("@tu", SqlDbType.Date) { Value = tuNgay.Date },
+                new System.Data.SqlClient.SqlParameter("@den", SqlDbType.Date) { Value = denNgay.Date }
+            };
+
+            string itemFilter = string.Empty;
+            if (!string.IsNullOrWhiteSpace(itemCode))
+            {
+                itemFilter = "  AND ct.MaHang = @ma\n";
+                ps.Add(new System.Data.SqlClient.SqlParameter("@ma", SqlDbType.NVarChar, 100) { Value = itemCode.Trim() });
+            }
+
+            string sql = @"
+SELECT DISTINCT LTRIM(RTRIM(ct.MaHang)) AS MaHang, LTRIM(RTRIM(ct.LotNo)) AS LotNo
+FROM FVN_PhieuTraHangCT ct
+JOIN FVN_PhieuTraHang h ON h.Id = ct.PhieuTraHangId
+WHERE ct.MaHang IS NOT NULL
+  AND ct.LotNo IS NOT NULL
+  AND LTRIM(RTRIM(ct.LotNo)) <> N''
+  AND (
+        (h.CreatedAt >= @tu AND h.CreatedAt < DATEADD(DAY, 1, @den))
+     OR EXISTS (
+            SELECT 1
+            FROM FVN_PhieuXuLyBatThuong x
+            WHERE x.PhieuTraHangCTId = ct.Id
+              AND x.CreatedAt >= @tu
+              AND x.CreatedAt < DATEADD(DAY, 1, @den))
+      )
+" + itemFilter + ";";
+
+            var result = new List<ItemLotRef>();
+
+            foreach (DataRow row in LoadData(sql, ps.ToArray()).Rows)
+            {
+                result.Add(new ItemLotRef
+                {
+                    ItemCode = Convert.ToString(row["MaHang"]),
+                    LotNo = Convert.ToString(row["LotNo"])
+                });
+            }
+
+            return result;
+        }
+
         private static List<ItemLookupItem> MapItems(DataTable dt)
         {
             var list = new List<ItemLookupItem>(dt.Rows.Count);

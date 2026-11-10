@@ -93,6 +93,19 @@ namespace PCTP.Common
         public static string GetDatePart(string lot)
             => lot != null && lot.Length >= LEN_DATE ? lot.Substring(0, LEN_DATE) : "";
 
+        /// <summary>
+        /// Ngày sản xuất = 6 ký tự đầu của LOT theo YYMMDD (cả LOT chuẩn mới và LOT cũ).
+        /// Trả false nếu LOT quá ngắn hoặc 6 ký tự đầu không phải ngày hợp lệ.
+        /// </summary>
+        public static bool TryGetProductionDate(string lot, out DateTime date)
+        {
+            date = default(DateTime);
+            if (string.IsNullOrWhiteSpace(lot)) return false;
+            string head = GetDatePart(lot.Trim());
+            if (head.Length != LEN_DATE) return false;
+            return DateTime.TryParseExact(head, "yyMMdd", CultureInfo.InvariantCulture, DateTimeStyles.None, out date);
+        }
+
         public static string GetIdItemPart(string lot)
             => lot != null && lot.Length >= LEN_DATE + LEN_ID_ITEM
                 ? lot.Substring(LEN_DATE, LEN_ID_ITEM)

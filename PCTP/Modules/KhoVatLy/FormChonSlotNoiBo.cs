@@ -6,6 +6,7 @@ using DevExpress.XtraGrid.Views.Grid;
 using PCTP.Modules.KhoCore.Models;
 using PCTP.Modules.KhoVatLy.Application.Interfaces;
 using PCTP.Modules.XuLyHangLoi.Models;
+using PCTP.Modules.XuLyHangLoi.Repository;
 using PCTP.Modules.XuLyHangLoi.Services;
 using PCTP.Common;
 using PCTP.Shared.Helpers;
@@ -30,6 +31,11 @@ namespace PCTP.Modules.KhoVatLy
     ///
     /// Kết quả: <see cref="KetQua"/> (SlotLotId + Số lượng + Lý do NG) khi DialogResult = OK.
     ///
+    /// Hai cách mở:
+    ///  - THEO TIÊU CHÍ (<see cref="StockLookupCriteria"/> từ form mẹ, không rỗng): form con KHÔNG có ô tra cứu
+    ///    riêng, nhận thẳng mã / LOT / QR và khoảng ngày (kèm kiểu ngày) mà người dùng đã nhập ở form mẹ.
+    ///  - Không có tiêu chí: giữ ô tra cứu riêng (có thêm lọc ngày nếu truyền repo).
+    ///
     /// Chế độ TRA CỨU (<see cref="TraCuuTheoLot"/>): dùng cho phiếu KHÁCH TRẢ — khách báo lỗi
     /// 1 mã hàng thì luôn kèm LotNo lỗi; form liệt kê toàn bộ Slot trong nhà máy còn tồn đúng
     /// mã hàng + LOT đó để có hướng xử lý. Chỉ xem, không thêm dòng vào phiếu.
@@ -41,6 +47,12 @@ namespace PCTP.Modules.KhoVatLy
 
         // Chế độ tra cứu theo LOT (phiếu khách trả): danh sách (Mã hàng, LotNo) cần tìm trong Slot.
         private readonly bool _chiXem;
+
+        // Tiêu chí nhận từ form mẹ (null/rỗng → dùng ô tra cứu riêng).
+        private readonly StockLookupCriteria _criteria;
+        private readonly INoiBoLookupRepository _lookupRepo;
+        private readonly bool _theoTieuChi;
+        private string _tomTatLoc = string.Empty;
         private readonly List<KeyValuePair<string, string>> _keys;
         private string _tomTat = string.Empty;
         private GridColumn _colSlLoi;
@@ -62,9 +74,23 @@ namespace PCTP.Modules.KhoVatLy
         /// <param name="slotSvc">Nguồn dữ liệu Slot/LOT (cùng nguồn với lookup của form tạo phiếu).</param>
         /// <param name="slotLotIdDaCo">SlotLotId đã có trong phiếu — ẩn khỏi danh sách để không chọn trùng.</param>
         public FormChonSlotNoiBo(ISlotService slotSvc, IEnumerable<int> slotLotIdDaCo = null)
+            : this(slotSvc, slotLotIdDaCo, null, null)
+        {
+        }
+
+        /// <param name="criteria">Tiêu chí tra cứu từ form mẹ. Không rỗng → nhận thẳng, bỏ ô tra cứu của form con.</param>
+        /// <param name="lookupRepo">Nguồn dữ liệu để lọc theo ngày xuất hàng / ngày lập phiếu xử lý (không cần cho ngày sản xuất).</param>
+        public FormChonSlotNoiBo(
+            ISlotService slotSvc,
+            IEnumerable<int> slotLotIdDaCo,
+            StockLookupCriteria criteria,
+            INoiBoLookupRepository lookupRepo)
         {
             _slotSvc = slotSvc ?? throw new ArgumentNullException(nameof(slotSvc));
             _daCo = new HashSet<int>(slotLotIdDaCo ?? Enumerable.Empty<int>());
+            _lookupRepo = lookupRepo;
+            _criteria = criteria;
+            _theoTieuChi = criteria != null && !criteria.IsEmpty;
 
             InitializeComponent();
             BuildUI();
@@ -110,7 +136,10 @@ namespace PCTP.Modules.KhoVatLy
             StartPosition = FormStartPosition.CenterParent;
 
             var main = new TableLayoutPanel { Dock = DockStyle.Fill, RowCount = 4, ColumnCount = 1, Padding = new Padding(10) };
-            main.RowStyles.Add(new RowStyle(SizeType.Absolute, 86));   // shared stock search
+            // Theo tiêu chí: chỉ 1 dòng tóm tắt; ô tra cứu riêng (có lọc ngày nếu có repo) cao hơn.
+            bool lookupRiengCoNgay = !_theoTieuChi && !_chiXem && _lookupRepo != null;
+            main.RowStyles.Add(new RowStyle(SizeType.Absolute,
+                _theoTieuChi ? 48 : (lookupRiengCoNgay ? 142 : 86)));   // shared stock search
             main.RowStyles.Add(new RowStyle(SizeType.Percent, 100));   // grid
             main.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));   // info
             main.RowStyles.Add(new RowStyle(SizeType.Absolute, 50));   // buttons
@@ -120,14 +149,32 @@ namespace PCTP.Modules.KhoVatLy
             searchPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
             searchPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 110));
 
-            _stockLookup = new StockLookupControl { Dock = DockStyle.Fill };
-            _stockLookup.SetLotQrPlaceholder("Nhập LOT / QR / Kho / Rack / TemCode...");
-            _stockLookup.SearchRequested += (s, e) => HandleStockSearch();
-            _stockLookup.SelectionCleared += (s, e) => ApplyTextFilter(string.Empty);
-            searchPanel.Controls.Add(_stockLookup, 0, 0);
+            if (_theoTieuChi)
+            {
+                // Nhận thẳng tiêu chí từ form mẹ: không có ô chọn tra cứu ở đây.
+                var lblTieuChi = new LabelControl
+                {
+                    Dock = DockStyle.Fill,
+                    AutoSizeMode = LabelAutoSizeMode.None,
+                    Text = "Tiêu chí từ form tạo phiếu:  " + _criteria.Describe(),
+                    Appearance = { Font = new Font("Tahoma", 9.5F, FontStyle.Bold), ForeColor = Color.SteelBlue }
+                };
+                lblTieuChi.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
+                searchPanel.Controls.Add(lblTieuChi, 0, 0);
+            }
+            else
+            {
+                _stockLookup = new StockLookupControl { Dock = DockStyle.Fill };
+                _stockLookup.SetLotQrPlaceholder("Nhập LOT / QR / Kho / Rack / TemCode...");
+                if (lookupRiengCoNgay)
+                    _stockLookup.ShowDateRange = true;
+                _stockLookup.SearchRequested += (s, e) => HandleStockSearch();
+                _stockLookup.SelectionCleared += (s, e) => ApplyCriteria(null);
+                searchPanel.Controls.Add(_stockLookup, 0, 0);
+            }
 
             _btnRefresh = new SimpleButton { Text = "🔄 Làm mới", Dock = DockStyle.Fill };
-            _btnRefresh.Click += (s, e) => { _stockLookup.ClearInput(); LoadData(); };
+            _btnRefresh.Click += (s, e) => { if (_stockLookup != null) _stockLookup.ClearInput(); LoadData(); };
             searchPanel.Controls.Add(_btnRefresh, 1, 0);
 
             main.Controls.Add(searchPanel, 0, 0);
@@ -227,12 +274,8 @@ namespace PCTP.Modules.KhoVatLy
                 .Where(x => x.Quantity > 0 && !_daCo.Contains(x.SlotLotId))
                 .ToList();
 
-            var list = _chiXem ? LocTheoLot(_loadedRows) : _loadedRows;
-            BindItemSuggestions(list);
-            _grid.DataSource = ToDataTable(list);
-            _gridView.ClearSelection();
-            _gridView.BestFitColumns();
-            CapNhatThongTin();
+            BindItemSuggestions(_chiXem ? LocTheoLot(_loadedRows) : _loadedRows);
+            ApplyCriteria(_theoTieuChi ? _criteria : null);
         }
 
         // Tra cứu: giữ Slot/LOT khớp (Mã hàng + LotNo) với từng dòng phiếu; báo LOT không còn tồn.
@@ -270,6 +313,8 @@ namespace PCTP.Modules.KhoVatLy
 
         private void BindItemSuggestions(IEnumerable<SlotLotViewInfo> rows)
         {
+            if (_stockLookup == null) return; // theo tiêu chí: không có ô tra cứu riêng
+
             var items = new DataTable();
             items.Columns.Add("ItemCode", typeof(string));
 
@@ -285,20 +330,18 @@ namespace PCTP.Modules.KhoVatLy
             _stockLookup.SetItemSuggestions(items, "ItemCode", null);
         }
 
+        // Ô tra cứu riêng (không theo tiêu chí): chụp tiêu chí rồi áp dụng chung một đường.
         private void HandleStockSearch()
         {
-            string input = _stockLookup.InputText;
-            if (_stockLookup.IsItemSearch)
-            {
-                string itemCode = _stockLookup.SelectedItemCode;
-                if (string.IsNullOrWhiteSpace(itemCode))
-                {
-                    itemCode = _loadedRows
-                        .Select(x => (x.ItemCode ?? string.Empty).Trim())
-                        .FirstOrDefault(x => string.Equals(x, input, StringComparison.OrdinalIgnoreCase));
-                }
+            var c = _stockLookup.GetCriteria();
 
-                if (string.IsNullOrWhiteSpace(itemCode))
+            if (c.IsItemSearch && c.HasText && string.IsNullOrWhiteSpace(c.ItemCode))
+            {
+                string hit = _loadedRows
+                    .Select(x => (x.ItemCode ?? string.Empty).Trim())
+                    .FirstOrDefault(x => string.Equals(x, c.Text, StringComparison.OrdinalIgnoreCase));
+
+                if (string.IsNullOrWhiteSpace(hit))
                 {
                     XtraMessageBox.Show(this, "Hãy chọn mã hàng trong popup đề xuất.", Text,
                         MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -306,81 +349,103 @@ namespace PCTP.Modules.KhoVatLy
                     return;
                 }
 
-                var scope = _chiXem ? LocTheoLot(_loadedRows) : _loadedRows;
-                var filteredByItem = scope.Where(x =>
-                    string.Equals((x.ItemCode ?? string.Empty).Trim(), itemCode, StringComparison.OrdinalIgnoreCase))
-                    .ToList();
-                _grid.DataSource = ToDataTable(filteredByItem);
-                _gridView.ClearSelection();
-                _gridView.BestFitColumns();
-                _lblInfo.Text = filteredByItem.Count == 0
-                    ? "Không tìm thấy mã hàng trong danh sách Slot phù hợp."
-                    : string.Format("Mã {0}: {1:n0} sản phẩm tại {2:n0} Slot ({3:n0} dòng).",
-                        itemCode, filteredByItem.Sum(x => x.Quantity),
-                        filteredByItem.Select(x => x.SlotId).Distinct().Count(), filteredByItem.Count);
-                if (!_chiXem) CapNhatThongTin();
-                return;
+                c.ItemCode = hit;
             }
 
-            ApplyTextFilter(input);
+            ApplyCriteria(c);
         }
 
-        private void ApplyTextFilter(string input)
+        /// <summary>
+        /// Điểm áp dụng DUY NHẤT cho mọi kiểu tra cứu (ô riêng hoặc tiêu chí từ form mẹ):
+        /// phạm vi (tra cứu theo LOT của phiếu khách trả, nếu có) → mã/LOT/QR → khoảng ngày.
+        /// criteria = null → hiện toàn bộ phạm vi.
+        /// </summary>
+        private void ApplyCriteria(StockLookupCriteria criteria)
         {
-            input = (input ?? string.Empty).Trim();
-            if (string.IsNullOrEmpty(input))
-            {
-                _grid.DataSource = ToDataTable(_chiXem ? LocTheoLot(_loadedRows) : _loadedRows);
-                _gridView.ClearSelection();
-                _gridView.BestFitColumns();
-                if (!_chiXem) CapNhatThongTin();
-                else _lblInfo.Text = _tomTat;
-                return;
-            }
-
-            // QR lookup is read-only. Parse both box (4-part) and master (6-part)
-            // formats, then resolve by item + canonical LOT key against live SlotLot rows.
-            QRCodeInfo qr = null;
-            if (input.IndexOf(':') >= 0)
-            {
-                try { qr = QRCodeParser.ParseQRCode(input.ToUpperInvariant()); }
-                catch (FormatException) { /* Treat malformed QR as ordinary text search. */ }
-            }
-
-            List<SlotLotViewInfo> filtered;
-            if (qr != null)
-            {
-                filtered = _loadedRows.Where(x =>
-                    string.Equals((x.ItemCode ?? string.Empty).Trim(), qr.ItemCode,
-                        StringComparison.OrdinalIgnoreCase) &&
-                    LotCodeHelper.AreLotKeysEquivalent(x.LotNo, qr.LotNo)).ToList();
-
-                _tomTat = filtered.Count == 0
-                    ? "Không tìm thấy LOT trong Slot."
-                    : string.Format("Tìm thấy {0:n0} tại {1:n0} slot ({2:n0} dòng).",
-                        filtered.Sum(x => x.Quantity), filtered.Select(x => x.SlotId).Distinct().Count(), filtered.Count);
-                _lblInfo.Text = _tomTat;
-            }
-            else
-            {
-                filtered = _loadedRows.Where(x =>
-                    ContainsText(x.ItemCode, input) ||
-                    ContainsText(x.LotNo, input) ||
-                    ContainsText(x.WarehouseName, input) ||
-                    ContainsText(x.RackName, input) ||
-                    ContainsText(x.TemCode, input)).ToList();
-            }
+            var scope = _chiXem ? LocTheoLot(_loadedRows) : _loadedRows;
+            var filtered = LocTheoTieuChi(scope, criteria, out _tomTatLoc);
 
             _grid.DataSource = ToDataTable(filtered);
             _gridView.ClearSelection();
             _gridView.BestFitColumns();
-            if (qr != null && filtered.Count == 1)
+
+            if (_gridView.DataRowCount == 1 && criteria != null && !criteria.IsEmpty)
                 _gridView.FocusedRowHandle = 0;
-            if (qr == null)
+
+            CapNhatThongTin();
+        }
+
+        private List<SlotLotViewInfo> LocTheoTieuChi(
+            List<SlotLotViewInfo> scope, StockLookupCriteria c, out string info)
+        {
+            info = string.Empty;
+
+            if (c == null || c.IsEmpty)
+                return scope.ToList();
+
+            Func<string, string, bool> dateOk;
+
+            try
             {
-                if (_chiXem) _lblInfo.Text = string.Format("Tìm thấy {0:n0} dòng trong phạm vi LOT của phiếu.", filtered.Count);
-                else CapNhatThongTin();
+                dateOk = StockLookupFilter.CreateDateMatcher(c, _lookupRepo);
             }
+            catch (Exception ex)
+            {
+                info = "Không lọc được theo ngày: " + ex.Message;
+                return new List<SlotLotViewInfo>();
+            }
+
+            IEnumerable<SlotLotViewInfo> q = scope;
+            string text = (c.Text ?? string.Empty).Trim();
+
+            if (c.HasText)
+            {
+                if (c.IsItemSearch)
+                {
+                    string code = c.EffectiveItemCode;
+                    q = q.Where(x => string.Equals(
+                        (x.ItemCode ?? string.Empty).Trim(), code, StringComparison.OrdinalIgnoreCase));
+                }
+                else
+                {
+                    // QR (4 hoặc 6 trường) → khớp Mã hàng + khóa LOT chuẩn; còn lại tìm theo chữ.
+                    QRCodeInfo qr = null;
+                    if (text.IndexOf(':') >= 0)
+                    {
+                        try { qr = QRCodeParser.ParseQRCode(text.ToUpperInvariant()); }
+                        catch (FormatException) { /* QR sai định dạng: tìm theo chữ thường. */ }
+                    }
+
+                    if (qr != null)
+                    {
+                        q = q.Where(x =>
+                            string.Equals((x.ItemCode ?? string.Empty).Trim(), qr.ItemCode,
+                                StringComparison.OrdinalIgnoreCase)
+                            && LotCodeHelper.AreLotKeysEquivalent(x.LotNo, qr.LotNo));
+                    }
+                    else
+                    {
+                        q = q.Where(x =>
+                            ContainsText(x.ItemCode, text) ||
+                            ContainsText(x.LotNo, text) ||
+                            ContainsText(x.WarehouseName, text) ||
+                            ContainsText(x.RackName, text) ||
+                            ContainsText(x.TemCode, text));
+                    }
+                }
+            }
+
+            var list = q.Where(x => dateOk(x.ItemCode, x.LotNo)).ToList();
+
+            info = list.Count == 0
+                ? "Không có Slot nào khớp: " + c.Describe()
+                : string.Format("{0}: {1:n0} sản phẩm tại {2:n0} slot ({3:n0} dòng).",
+                    c.Describe(),
+                    list.Sum(x => x.Quantity),
+                    list.Select(x => x.SlotId).Distinct().Count(),
+                    list.Count);
+
+            return list;
         }
 
         private static bool ContainsText(string value, string keyword)
@@ -425,13 +490,20 @@ namespace PCTP.Modules.KhoVatLy
 
         private void CapNhatThongTin()
         {
-            if (_chiXem) { _lblInfo.Text = _tomTat; return; }
+            if (_chiXem)
+            {
+                _lblInfo.Text = string.IsNullOrEmpty(_tomTatLoc) ? _tomTat : _tomTatLoc;
+                return;
+            }
 
             int n = _gridView.GetSelectedRows().Count(h => h >= 0);
             _btnThem.Enabled = n > 0;
-            _lblInfo.Text = n == 0
+
+            string tail = n == 0
                 ? "Tick các dòng Slot/LOT cần đưa vào phiếu (sửa SL lỗi / Lý do NG ngay trên lưới)."
                 : $"Đã chọn {n} dòng.";
+
+            _lblInfo.Text = string.IsNullOrEmpty(_tomTatLoc) ? tail : _tomTatLoc + "  |  " + tail;
         }
 
         // ════════════════════════════════════════════════════════════════

@@ -189,11 +189,11 @@ namespace PCTP.Modules.XuLyHangLoi
                     SizeType.Absolute,
                     205));
 
-            // Hàng tra cứu: StockLookupControl cần ~78px (2 tab).
+            // Hàng tra cứu: StockLookupControl (2 tab) + khối lọc theo khoảng ngày ~136px.
             mainLayout.RowStyles.Add(
                 new RowStyle(
                     SizeType.Absolute,
-                    84));
+                    142));
 
             mainLayout.RowStyles.Add(
                 new RowStyle(
@@ -1096,6 +1096,33 @@ namespace PCTP.Modules.XuLyHangLoi
         // trả có thể tách thành nhiều dòng, mỗi dòng gắn một lần giao với SL trả riêng.
         // ============================================================
 
+        /// <summary>
+        /// Khoảng ngày ở ô tra cứu chung → màn hình đối chiếu phiếu giao, theo đúng kiểu ngày đang chọn:
+        ///  - Ngày xuất hàng: đặt thẳng khoảng ngày giao để tìm phiếu giao;
+        ///  - Ngày sản xuất / Ngày lập phiếu xử lý hàng lỗi: chỉ giữ lần giao có LOT thuộc khoảng đó.
+        /// </summary>
+        private void ApDungKhoangNgayVaoDoiChieu(FormDoiChieuPhieuGiao f, string maHang)
+        {
+            StockLookupCriteria crit = _stockLookup.GetCriteria();
+
+            if (!crit.DateEnabled)
+                return;
+
+            if (crit.DateMode == StockLookupDateMode.NgayXuatHang)
+            {
+                f.DatKhoangNgayGiao(crit.From, crit.To);
+                return;
+            }
+
+            var khop = StockLookupFilter.CreateDateMatcher(crit, _lookupRepo);
+            string ma = (maHang ?? string.Empty).Trim();
+
+            f.DatBoLocLot(
+                lot => khop(ma, lot),
+                string.Format("{0} {1:dd/MM/yyyy}–{2:dd/MM/yyyy}",
+                    StockLookupCriteria.DateModeLabel(crit.DateMode), crit.From, crit.To));
+        }
+
         private void DoiChieuPhieuGiao()
         {
             _gridView.CloseEditor();
@@ -1146,6 +1173,8 @@ namespace PCTP.Modules.XuLyHangLoi
                     row.NgayGiao,
                     row.SoLuong))
                 {
+                    ApDungKhoangNgayVaoDoiChieu(f, row.MaHang);
+
                     if (f.ShowDialog(this) != DialogResult.OK)
                         return;
 
@@ -1329,6 +1358,8 @@ namespace PCTP.Modules.XuLyHangLoi
             panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
 
             _stockLookup = new StockLookupControl { Dock = DockStyle.Fill };
+            // Khoảng ngày (sản xuất / xuất hàng / lập phiếu xử lý) được chuyển sang màn hình đối chiếu phiếu giao.
+            _stockLookup.ShowDateRange = true;
             _stockLookup.SetItemSuggestions(TaoBangGoiYMaHang(), "ItemCode", "ItemName");
             _stockLookup.SetLotQrPlaceholder("Quét tem QR (4/6 trường) hoặc nhập LOT rồi Enter...");
             _stockLookup.SearchRequested += (s, e) => XuLyTraCuu();
@@ -1504,6 +1535,8 @@ namespace PCTP.Modules.XuLyHangLoi
                 using (var f = new FormDoiChieuPhieuGiao(
                     _khachTraHangService, customerNo, maHang, tenHang, lot, ngayGiao, soLuong))
                 {
+                    ApDungKhoangNgayVaoDoiChieu(f, maHang);
+
                     if (f.ShowDialog(this) != DialogResult.OK || f.KetQua == null || f.KetQua.Count == 0)
                     {
                         BaoQr("Chưa có phiếu giao hợp lệ nên chưa thêm dòng hàng.", false);

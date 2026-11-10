@@ -1,4 +1,4 @@
-using DevExpress.XtraEditors;
+﻿using DevExpress.XtraEditors;
 using DevExpress.XtraGrid;
 using DevExpress.XtraGrid.Views.Grid;
 using PCTP.Modules.KhoVatLy;
@@ -211,8 +211,16 @@ namespace PCTP.Modules.XuLyHangLoi
             finally { _dangDatLoc = false; }
         }
 
+        // Các ô trạng thái là bộ lọc THU HẸP: không tích ô nào = không lọc = hiện TOÀN BỘ phiếu của bước.
+        private bool CoLocTrangThai()
+        {
+            return _chkMoi.Checked || _chkDang.Checked || _chkHoanTat.Checked;
+        }
+
         private bool TrangThaiDuocChon(WorkflowRow row)
         {
+            if (!CoLocTrangThai()) return true;
+
             if (row.DaHoanTat) return _chkHoanTat.Checked;
             if (IsInProgress(row)) return _chkDang.Checked;
             return _chkMoi.Checked;
@@ -431,8 +439,8 @@ namespace PCTP.Modules.XuLyHangLoi
                 ConfigureGrid();
                 ApplyFilter();
 
-                _lblLoc.Text = !_chkMoi.Checked && !_chkDang.Checked && !_chkHoanTat.Checked
-                    ? "Chưa chọn trạng thái nào."
+                _lblLoc.Text = !CoLocTrangThai()
+                    ? $"Không lọc trạng thái: hiển thị toàn bộ {_rows.Count} phiếu ở bước này"
                     : $"Hiển thị {_rows.Count}/{thuocBuoc.Count} phiếu ở bước này";
             }
             catch (Exception ex) { ShowWarning("Không thể tải dữ liệu tiến trình.\r\n\r\n" + ex.Message); }
