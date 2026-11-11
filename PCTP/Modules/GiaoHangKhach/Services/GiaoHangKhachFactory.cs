@@ -75,8 +75,8 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             bool isMayBanQR = machinePermissionService.IsRegisteredForAnyMode();
             string tenBan = isMayBanQR ? cfg.Delivery.TmpTable : cfg.Delivery.GetTmpViewTable(Environment.MachineName);
 
-            // Role đã giành khoá đọc QR của khách này: nếu bước dựng phía sau lỗi thì phải nhả khoá,
-            // nếu không heartbeat sẽ giữ khoá của một form chưa từng mở được.
+            // Chỉ kiểm tra máy đã đăng ký ít nhất một chế độ; KHÔNG giành khoá ở bước dựng form.
+            // Khóa MP/SP chỉ được lấy sau khi người dùng chọn đúng chế độ và mở DOCQRCODE.
             try
             {
                 var ifsRepo = IFSRepository.Create();
