@@ -60,6 +60,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         /// <summary>Nhả khoá — chỉ có tác dụng nếu máy này đang là chủ.</summary>
         void Release(string customerNo);
         void Release(string customerNo, string scanMode);
+        bool IsRegistered(string customerNo);
 
         /// <summary>Trạng thái khoá của mọi khách đang có chủ.</summary>
         IList<QrLockInfo> ListAll();
