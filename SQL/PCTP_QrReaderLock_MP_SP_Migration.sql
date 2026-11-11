@@ -216,3 +216,18 @@ BEGIN
     WHERE CustomerNo = @CustomerNo AND ScanMode = @mode AND ClientIp = @ClientIp;
 END;
 GO
+
+CREATE OR ALTER PROCEDURE dbo.Usp_QrReaderMachine_CanReadAnyMode
+    @CustomerNo NVARCHAR(50)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DECLARE @ip NVARCHAR(64) = CONVERT(NVARCHAR(64), CONNECTIONPROPERTY('client_net_address'));
+    SELECT CAST(CASE WHEN @ip IS NOT NULL AND EXISTS
+        (SELECT 1 FROM dbo.FVN_QrReaderMachine
+         WHERE IsActive = 1 AND ClientIp = @ip
+           AND CustomerNo IN (@CustomerNo, N'*')
+           AND ScanMode IN (N'MP', N'SP'))
+        THEN 1 ELSE 0 END AS BIT) AS Registered;
+END;
+GO
