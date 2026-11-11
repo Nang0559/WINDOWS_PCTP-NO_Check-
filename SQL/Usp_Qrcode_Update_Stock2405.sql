@@ -1,4 +1,4 @@
-CREATE OR ALTER PROC [dbo].[Usp_Qrcode_Update_Stock2405]  
+ ALTER PROC [dbo].[Usp_Qrcode_Update_Stock2405]  
     @GIOGIAOFCC  NVARCHAR(250) = N'',  
     @NHAMAY      NVARCHAR(250) = N'',  
     @TMPTABLE    NVARCHAR(128) = N'TMPPHIEUGIAOHANG',  
@@ -1358,4 +1358,4 @@ BEGIN
         STATUS  
     FROM #STNG;  
   
-END;  
+END;

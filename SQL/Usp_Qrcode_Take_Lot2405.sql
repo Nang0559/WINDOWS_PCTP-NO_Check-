@@ -4,7 +4,7 @@ SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
 GO
-CREATE OR ALTER PROC [dbo].[Usp_Qrcode_Take_Lot2405]
+ ALTER PROC [dbo].[Usp_Qrcode_Take_Lot2405]
     @_MaFCC NVARCHAR(50)=N'',
     @_STTP INT=0,
     @_DeM INT=0,
