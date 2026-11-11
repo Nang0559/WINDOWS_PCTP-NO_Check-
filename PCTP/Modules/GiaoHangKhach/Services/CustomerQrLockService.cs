@@ -26,9 +26,10 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         public QrLockInfo TryAcquire(string customerNo, string scanMode, bool force = false)
         {
             string key = CustomerTableConfig.NormalizeCustomerNo(customerNo);
-            string mode = NormalizeMode(scanMode);
+            string mode = (scanMode ?? "MP").Trim().ToUpperInvariant();
             try
             {
+                mode = NormalizeMode(scanMode); // chế độ sai => fail-closed, không throw ra ngoài
                 DataTable dt = Query(
                     "dbo.Usp_QrReaderLock_Acquire",
                     new SqlParameter("@CustomerNo", key),

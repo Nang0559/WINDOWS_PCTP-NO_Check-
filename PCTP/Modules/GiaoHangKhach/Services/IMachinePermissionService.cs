@@ -25,6 +25,13 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         /// </summary>
         MachineRole GetCurrentRole();
         void SetScanMode(string scanMode);
+
+        /// <summary>
+        /// Nhả khoá đọc QR của chế độ MP/SP hiện tại khi phiên đọc kết thúc (xoá hết QR, hoàn thành phiếu,
+        /// lỗi chuẩn bị dữ liệu...). Chỉ có tác dụng nếu instance này đang giữ khoá. Lần GetCurrentRole /
+        /// EnsureCanBanQR kế tiếp sẽ giành lại khoá.
+        /// </summary>
+        void ReleaseScanLock();
         bool IsRegisteredForAnyMode();
 
         /// <summary>

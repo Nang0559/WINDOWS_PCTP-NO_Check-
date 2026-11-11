@@ -59,7 +59,7 @@ namespace PCTP.Presentation.Presenters
 
             // Category của phiếu hiện tại là source of truth.
             // Không suy diễn SP từ giờ xuất hiện tại vì SP không phải luồng theo giờ.
-            bool isSP = _c.Cfg.Delivery.CoLoaiSP && _c.PhieuView.IsLoaiSP;
+            bool isSP = _c.Cfg.Delivery.CoConfigSP && _c.PhieuView.IsLoaiSP;
             _c.MachinePermission?.SetScanMode(isSP ? "SP" : "MP");
             if (!EnsureQrLockOwnership()) return;
 

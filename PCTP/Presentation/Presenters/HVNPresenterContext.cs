@@ -125,6 +125,10 @@ namespace PCTP.Presentation.Presenters
         internal void ClearDeliverySession()
         {
             DeliverySession = null;
+
+            // Phiên đọc QR kết thúc => nhả khoá MP/SP để máy khác (đã đăng ký) đọc được khách này.
+            // Chỉ có tác dụng nếu máy này đang giữ khoá; lỗi DB đã được CustomerQrLockService nuốt (TTL sẽ tự hết hạn).
+            MachinePermission?.ReleaseScanLock();
         }
 
         internal bool IsCurrentDeliverySessionValid()

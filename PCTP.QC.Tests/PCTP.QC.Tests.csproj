@@ -36,6 +36,8 @@
     <None Include="../SQL/Usp_Qrcode_LOAD_PHIEU_DOCQR2405.sql" Link="Usp_Qrcode_LOAD_PHIEU_DOCQR2405.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../SQL/Usp_Qrcode_Take_Lot2405.sql" Link="Usp_Qrcode_Take_Lot2405.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../SQL/PCTP_QrReaderLock.sql" Link="PCTP_QrReaderLock.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../SQL/PCTP_QrReaderLock_MP_SP_Migration.sql" Link="PCTP_QrReaderLock_MP_SP_Migration.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Presentation/Presenters/HVNPresenterContext.cs" Link="HVNPresenterContext.qrlock.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/GiaoHangKhach/Services/CustomerQrLockService.cs" Link="CustomerQrLockService.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/GiaoHangKhach/Services/MachinePermissionService.cs" Link="MachinePermissionService.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/GiaoHangKhach/Services/QrReaderMachineService.cs" Link="QrReaderMachineService.source.cs" CopyToOutputDirectory="PreserveNewest" />

@@ -65,6 +65,24 @@ namespace PCTP.Modules.GiaoHangKhach.Services
 
         public bool IsRegisteredForAnyMode() => _locks.IsRegistered(_customerNo);
 
+        public void ReleaseScanLock()
+        {
+            string mode;
+            lock (_gate)
+            {
+                // Máy chỉ-xem (không giữ khoá) không được đụng gì: tránh xoá cache/khoá của máy khác.
+                if (!_holdsLock) return;
+                mode = _scanMode;
+                _heartbeat?.Dispose();
+                _heartbeat = null;
+                _holdsLock = false;
+                _owner = string.Empty;
+                _cachedRole = null; // lần dùng kế tiếp sẽ giành lại khoá
+            }
+
+            _locks.Release(_customerNo, mode);
+        }
+
         public bool IsRegistered
         {
             get { lock (_gate) return _registered; }
@@ -80,12 +98,18 @@ namespace PCTP.Modules.GiaoHangKhach.Services
                 _owner = info.HasOwner ? info.OwnerDisplay : (info.Error ?? string.Empty);
                 _holdsLock = info.IsOwnedByMe;
                 _registered = info.Registered;
-                _cachedRole = info.IsOwnedByMe ? MachineRole.DuocBanQR : MachineRole.ChiXem;
+                MachineRole role = info.IsOwnedByMe ? MachineRole.DuocBanQR : MachineRole.ChiXem;
 
                 if (_holdsLock && _heartbeat == null)
                     _heartbeat = new Timer(OnHeartbeat, _scanMode, HeartbeatIntervalMs, HeartbeatIntervalMs);
 
-                return _cachedRole.Value;
+                // Chỉ cache khi đã giành được khoá, hoặc máy chưa đăng ký (kết quả không đổi cho tới khi
+                // admin đăng ký). Máy đã đăng ký nhưng khoá đang do máy khác giữ / lỗi DB thì KHÔNG cache,
+                // để khi máy kia nhả khoá (kết thúc phiên) thì lần mở DOC QRCODE kế tiếp giành lại được.
+                if (info.IsOwnedByMe || (!info.Registered && info.Error == null))
+                    _cachedRole = role;
+
+                return role;
             }
         }
 
