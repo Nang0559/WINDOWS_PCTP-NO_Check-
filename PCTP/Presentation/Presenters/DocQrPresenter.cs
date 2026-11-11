@@ -42,6 +42,9 @@ namespace PCTP.Presentation.Presenters
                 return;
             }
 
+            if (!EnsureQrLockOwnership())
+                return;
+
             // DOCQRCODE/TMP luôn là source of truth khi đã có phiên QR.
             // Không được lấy ngày/nhà máy/giờ hiện tại trên UI để mở lại một
             // phiên đang tồn tại. Trường hợp điển hình: TMP/DOCQRCODE đang là
@@ -251,6 +254,26 @@ namespace PCTP.Presentation.Presenters
             return true;
         }
 
+        /// <summary>
+        /// Chốt chặn cuối: ngay trước khi ghi, xác nhận lại với DB rằng máy này vẫn là chủ khoá
+        /// đọc QR của khách. Máy khác đã chiếm quyền (hoặc khoá hết hạn) => chặn, không ghi.
+        /// </summary>
+        private bool EnsureQrLockOwnership()
+        {
+            if (_c.MachinePermission == null) return true;
+            try
+            {
+                _c.MachinePermission.EnsureCanBanQR();
+                return true;
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                _v.ClearQRInput();
+                ShowBlockingScanError(ex.Message);
+                return false;
+            }
+        }
+
         private void OnQRCodeSubmitted(object sender, string rawQr)
         {
             if (_awaitingSlMismatchConfirmation || _scanBlocking)
@@ -258,6 +281,9 @@ namespace PCTP.Presentation.Presenters
                 _v.ClearQRInput();
                 return;
             }
+
+            if (!EnsureQrLockOwnership())
+                return;
 
             if (_c.Cfg.Delivery.CoGear)
             {

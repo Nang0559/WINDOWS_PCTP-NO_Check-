@@ -2,6 +2,7 @@ using DevExpress.XtraCharts;
 using DevExpress.XtraEditors;
 using PCTP.Common;
 using PCTP.Shared.Helpers;
+using PCTP.Shell.Services;
 using System;
 using System.Data;
 using System.Drawing;
@@ -110,11 +111,13 @@ namespace PCTP.Shell.Widgets
             IPHostEntry entry = Dns.GetHostEntry(hostname);
             _hostLabel.Text = "Tên của host này là: " + entry.HostName;
 
-            string machineSql = "select TenMay from tbl_QR_MAY_DOCQR where TT = 1";
-            string qrMachine = _sql.ExecuteReader(_sql.B7R2_FCCdb, machineSql);
+            // Quyền đọc QR giờ theo từng khách hàng (FVN_QrReaderLock): hiển thị máy đang đọc của từng khách.
+            bool hostOwnsAny;
+            string qrSummary = QrLockSummary.Build(hostname, out hostOwnsAny);
             Main_APP.hostname = hostname;
-            Main_APP.TM_BANQR = qrMachine ?? string.Empty;
-            _qrMachineLabel.Text = "Máy được phép bắn QRcode là: " + Main_APP.TM_BANQR;
+            Main_APP.TM_BANQR = qrSummary;
+            Main_APP.QrHostOwnsAny = hostOwnsAny;
+            _qrMachineLabel.Text = "Máy đang đọc QRcode theo khách hàng: " + qrSummary;
 
             _hvnData = LoadCustomerOrders("100001", true);
             _ymvnData = LoadCustomerOrders("100002", false);

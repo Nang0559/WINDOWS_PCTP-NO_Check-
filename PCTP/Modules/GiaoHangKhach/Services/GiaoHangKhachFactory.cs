@@ -39,6 +39,10 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             public IEventBus Bus { get; set; }
             public bool IsMayBanQR { get; set; }
             public string TenBan { get; set; }
+            /// <summary>Máy đang giữ quyền đọc QR của khách này (chính máy này nếu IsMayBanQR).</summary>
+            public string QrOwnerMachine { get; set; }
+            /// <summary>Máy này có được đăng ký đọc QR cho khách này không.</summary>
+            public bool QrRegistered { get; set; }
         }
 
         public static Module Build(string customerNo)
@@ -67,54 +71,66 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             var sqlRepo = new SqlRepository(phieuDb, phieuUow);
             var luuTruRepo = new PhieuLuuTruRepository(phieuDb, phieuUow);
 
-            var machinePermissionService = new MachinePermissionService(sql);
+            var machinePermissionService = new MachinePermissionService(sql, cfg.CustomerNo);
             bool isMayBanQR = machinePermissionService.GetCurrentRole() == MachineRole.DuocBanQR;
             string tenBan = isMayBanQR ? cfg.Delivery.TmpTable : cfg.Delivery.GetTmpViewTable(Environment.MachineName);
 
-            var ifsRepo = IFSRepository.Create();
-            var customerAddressService = new CustomerAddressService(ifsRepo);
-            var rowCategoryFilter = new DockCodeRowCategoryFilter();
-            var categoryResolver = new GioMoTaCategoryResolver();
-            var ifsStrategy = new IfsOrderLoadStrategy(ifsRepo, luuTruRepo, phieuTmpRepo);
-            var tableOrderStrategy = new OrderTableLoadStrategy(tableOrderRepo, phieuTmpRepo, ifsRepo, rowCategoryFilter);
-            var giaoDbStrategy = new GiaoDbOrderLoadStrategy(phieugiaDBRepo);
-            var ifsSource = new IfsOrderSource(ifsStrategy);
-            var tableOrderSource = new TableOrderSource(tableOrderStrategy);
-            var giaoDbSource = new GiaoDbOrderSource(giaoDbStrategy);
-            var orderSourceFactory = new OrderSourceFactory(ifsSource, tableOrderSource, giaoDbSource);
-
-            var fifoConfigRepo = new ItemFifoConfigRepository(phieuDb, phieuUow);
-            var fifoLotRepo = new PhieuLotRepository(phieuDb, phieuUow);
-            var fifoSessionService = new FifoSessionService(fifoConfigRepo, fifoLotRepo, phieuDb);
-            var qrSvc = new DocQRService(qrRepo, bus, cfg, categoryResolver, fifoSessionService);
-
-            var phieuSvc = new PhieuService(
-                phieuRepo, ifsRepo, bus, gioRepo, tenBan, cfg, isMayBanQR,
-                tableOrderRepo, phieugiaDBRepo, orderSourceFactory, rowCategoryFilter);
-
-            var lotSvc = new PhieuLotService(phieuRepo, phieuRepo, bus);
-            var hangThieuCaNgaySvc = new HangThieuCaNgayService(ifsRepo, luuTruRepo, phieuDb, orderSourceFactory);
-            var gioVP = gioRepo.GetDictGioVP();
-            var gioHN = gioRepo.GetDictGioHN();
-            var inPhieuSvc = new InPhieuService(ifsRepo, phieuRepo, sqlRepo, gioVP, gioHN, cfg);
-
-            return new Module
+            // Role đã giành khoá đọc QR của khách này: nếu bước dựng phía sau lỗi thì phải nhả khoá,
+            // nếu không heartbeat sẽ giữ khoá của một form chưa từng mở được.
+            try
             {
-                Cfg = cfg,
-                PhieuService = phieuSvc,
-                PhieuLotService = lotSvc,
-                DocQRService = qrSvc,
-                InPhieuService = inPhieuSvc,
-                HangThieuCaNgayService = hangThieuCaNgaySvc,
-                GioXuatRepo = gioRepo,
-                IfsRepo = ifsRepo,
-                CustomerAddressService = customerAddressService,
-                MachinePermissionService = machinePermissionService,
-                CategoryResolver = categoryResolver,
-                Bus = bus,
-                IsMayBanQR = isMayBanQR,
-                TenBan = tenBan,
-            };
+                var ifsRepo = IFSRepository.Create();
+                var customerAddressService = new CustomerAddressService(ifsRepo);
+                var rowCategoryFilter = new DockCodeRowCategoryFilter();
+                var categoryResolver = new GioMoTaCategoryResolver();
+                var ifsStrategy = new IfsOrderLoadStrategy(ifsRepo, luuTruRepo, phieuTmpRepo);
+                var tableOrderStrategy = new OrderTableLoadStrategy(tableOrderRepo, phieuTmpRepo, ifsRepo, rowCategoryFilter);
+                var giaoDbStrategy = new GiaoDbOrderLoadStrategy(phieugiaDBRepo);
+                var ifsSource = new IfsOrderSource(ifsStrategy);
+                var tableOrderSource = new TableOrderSource(tableOrderStrategy);
+                var giaoDbSource = new GiaoDbOrderSource(giaoDbStrategy);
+                var orderSourceFactory = new OrderSourceFactory(ifsSource, tableOrderSource, giaoDbSource);
+
+                var fifoConfigRepo = new ItemFifoConfigRepository(phieuDb, phieuUow);
+                var fifoLotRepo = new PhieuLotRepository(phieuDb, phieuUow);
+                var fifoSessionService = new FifoSessionService(fifoConfigRepo, fifoLotRepo, phieuDb);
+                var qrSvc = new DocQRService(qrRepo, bus, cfg, categoryResolver, fifoSessionService);
+
+                var phieuSvc = new PhieuService(
+                    phieuRepo, ifsRepo, bus, gioRepo, tenBan, cfg, isMayBanQR,
+                    tableOrderRepo, phieugiaDBRepo, orderSourceFactory, rowCategoryFilter);
+
+                var lotSvc = new PhieuLotService(phieuRepo, phieuRepo, bus);
+                var hangThieuCaNgaySvc = new HangThieuCaNgayService(ifsRepo, luuTruRepo, phieuDb, orderSourceFactory);
+                var gioVP = gioRepo.GetDictGioVP();
+                var gioHN = gioRepo.GetDictGioHN();
+                var inPhieuSvc = new InPhieuService(ifsRepo, phieuRepo, sqlRepo, gioVP, gioHN, cfg);
+
+                return new Module
+                {
+                    Cfg = cfg,
+                    PhieuService = phieuSvc,
+                    PhieuLotService = lotSvc,
+                    DocQRService = qrSvc,
+                    InPhieuService = inPhieuSvc,
+                    HangThieuCaNgayService = hangThieuCaNgaySvc,
+                    GioXuatRepo = gioRepo,
+                    IfsRepo = ifsRepo,
+                    CustomerAddressService = customerAddressService,
+                    MachinePermissionService = machinePermissionService,
+                    CategoryResolver = categoryResolver,
+                    Bus = bus,
+                    IsMayBanQR = isMayBanQR,
+                    TenBan = tenBan,
+                    QrOwnerMachine = machinePermissionService.OwnerMachine,
+                    QrRegistered = machinePermissionService.IsRegistered,
+                };
+            }
+            catch
+            {
+                machinePermissionService.Dispose();
+                throw;
+            }
         }
     }
 }

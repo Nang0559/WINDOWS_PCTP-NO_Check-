@@ -78,7 +78,9 @@ use the `UnitOfWork` connection and transaction when `Uow.IsInTransaction` is tr
 | `PhieuLuuTruRepository` | `LUUPHIEUGIAOHANG` | `LuuPhieuSP` OWNS-IF-NO-AMBIENT via `InTransaction` | See finding F3. |
 | `PhieuTmpRepository` | TMP/DOCQR/IFS tables | OWNS-IF-NO-AMBIENT (`PushIfsSnapshot`, `LuuVaLoad`: drop/create, bulk insert, guard DELETE and load SP in one transaction); JOIN-OR-AUTOCOMMIT for `InsertTmpRow`, `XoaTmpPhieu`, `XoaDocQRCode` | Single-statement writes. |
 | `TableOrderRepo` | `Purchase_Order_YMVN` | OWNS (`UploadMilkrunSP`: own connection + transaction; no `UnitOfWork`) | See finding F1. |
-| `MachinePermissionService` | `tbl_QR_MAY_DOCQR` | OWNS | `ChuyenMayBan` opens `_sql.BeginTransaction`, resets TT, then updates or inserts the target machine; commit, rollback on exception. |
+| `CustomerQrLockService` | `FVN_QrReaderLock`, `FVN_QrReaderMachine` | STATEMENT-ATOMIC (SP) | Mỗi thao tác là một stored procedure: `Usp_QrReaderLock_Acquire` tự mở transaction với `UPDLOCK, HOLDLOCK` (một khách tối đa một máy giữ khoá); Heartbeat/Release/List là câu lệnh đơn. Định danh máy = IP do SQL Server đọc (`CONNECTIONPROPERTY('client_net_address')`), không nhận từ tham số client. Dùng `SqlConnection` riêng, không tham gia `UnitOfWork`. |
+| `MachinePermissionService` | none directly | DELEGATES | Gắn với một `customerNo`; giành khoá qua `CustomerQrLockService`, heartbeat nền, `EnsureCanBanQR` xác nhận lại với DB ngay trước khi ghi. |
+| `QrReaderMachineService` | `FVN_QrReaderMachine`, `FVN_QrReaderLock` | STATEMENT-ATOMIC (SP) | `Usp_QrReaderMachine_Upsert` tự mở transaction; `Remove` và `ForceRelease` là câu lệnh đơn. |
 | `PhieuLoadService` | none directly | DELEGATES | No SQL execution call; passes the load SP name to `_workingState.SaveFromSource` / `_phieuRepo.LuuVaLoad`, which own the transaction. |
 | `PhieuService` | none directly | DELEGATES | No SQL execution call; forwards to `_phieuRepo`, `_khoService`, `_ymvnService`, `_giaoDbService`. |
 | `InspectionConfigRepository` | `InspectionConfig` | JOIN-OR-AUTOCOMMIT | Single-statement `Insert` / `Update` / `Delete`. |

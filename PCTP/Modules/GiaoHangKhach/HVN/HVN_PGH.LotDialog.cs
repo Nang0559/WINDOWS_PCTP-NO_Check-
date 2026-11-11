@@ -373,6 +373,8 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
                 btnUploadMilkrun.Click -= btnUploadMilkrun_Click;
 
             _presenter.Dispose();
+            // Nhả khoá đọc QR của khách này để máy khác có thể đọc (chỉ có tác dụng nếu máy này là chủ).
+            if (_machinePermission != null) { _machinePermission.Dispose(); _machinePermission = null; }
             base.OnFormClosed(e);
         }
 

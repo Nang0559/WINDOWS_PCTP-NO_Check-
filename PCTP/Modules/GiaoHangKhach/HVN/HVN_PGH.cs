@@ -28,6 +28,10 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
         private CustomerConfig _cfg;
         private readonly string _customerNo;
         private CustomerAddressService _customerAddressService;
+        private IMachinePermissionService _machinePermission;
+        private string _qrOwnerMachine = string.Empty;
+        private bool _isMayBanQR;
+        private bool _qrRegistered;
         private bool _isLoading = false;
         public bool IsLoaiSP => _phieuHeaderControl != null && _phieuHeaderControl.IsLoaiSP;
         public GioXuat CurrentGioXuat => _phieuHeaderControl != null ? _phieuHeaderControl.CurrentGioXuat : null;
@@ -41,6 +45,7 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
             _waitForm = new WaitFormService(this);
             _customerNo = CustomerTableConfig.NormalizeCustomerNo(customerNo);
             _presenter = BuildPresenter();
+            Shown += HVN_PGH_ShownQrLockNotice;
         }
 
         public void ShowReportWithGioHeader(DataTable reportData, string gioHeader) => _phieuDialogControl.ShowReportWithGioHeader(reportData, gioHeader);
@@ -50,10 +55,30 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
         private HVN_Presenter BuildPresenter()
         {
             var module = GiaoHangKhachModuleFactory.Build(_customerNo);
-            _cfg = module.Cfg;
-            _customerAddressService = module.CustomerAddressService;
-            _gioRepo = (GioXuatRepository)module.GioXuatRepo;
+            _machinePermission = module.MachinePermissionService;
+            _qrOwnerMachine = module.QrOwnerMachine ?? string.Empty;
+            _isMayBanQR = module.IsMayBanQR;
+            _qrRegistered = module.QrRegistered;
 
+            try
+            {
+                _cfg = module.Cfg;
+                _customerAddressService = module.CustomerAddressService;
+                _gioRepo = (GioXuatRepository)module.GioXuatRepo;
+
+                return CreatePresenter(module);
+            }
+            catch
+            {
+                // Khoá đọc QR đã giành ở Build — không được để rò khi dựng presenter lỗi.
+                _machinePermission.Dispose();
+                _machinePermission = null;
+                throw;
+            }
+        }
+
+        private HVN_Presenter CreatePresenter(GiaoHangKhachModuleFactory.Module module)
+        {
             return new HVN_Presenter(
                 this,
                 module.PhieuService,
@@ -66,7 +91,32 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
                 module.IsMayBanQR,
                 module.TenBan,
                 module.Cfg,
-                module.CategoryResolver);
+                module.CategoryResolver,
+                module.MachinePermissionService);
+        }
+
+        /// <summary>
+        /// Mỗi khách chỉ có một máy đọc QR. Máy mở sau (không giành được khoá) chỉ ở chế độ XEM —
+        /// báo rõ cho người dùng biết máy nào đang đọc, tránh tưởng nút bị lỗi.
+        /// </summary>
+        private void HVN_PGH_ShownQrLockNotice(object sender, EventArgs e)
+        {
+            Shown -= HVN_PGH_ShownQrLockNotice;
+            if (_isMayBanQR) return;
+
+            string name = _cfg != null ? _cfg.DisplayName : _customerNo;
+            if (!_qrRegistered)
+            {
+                ShowWarning(
+                    "Máy này chưa được đăng ký đọc QR cho khách hàng " + name + ".\r\n" +
+                    "Máy chỉ có thể XEM phiếu giao hàng của khách này.");
+                return;
+            }
+
+            string owner = string.IsNullOrWhiteSpace(_qrOwnerMachine) ? "(không xác định)" : _qrOwnerMachine;
+            ShowWarning(
+                "Khách hàng " + name + " đang được máy [" + owner + "] đọc QR.\r\n" +
+                "Máy này chỉ có thể XEM phiếu giao hàng của khách này.");
         }
 
         public void BindDonHang(DataTable dt) => _phieuGridControl.Bind(dt);

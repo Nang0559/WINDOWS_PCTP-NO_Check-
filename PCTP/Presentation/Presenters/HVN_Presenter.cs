@@ -25,9 +25,9 @@ namespace PCTP.Presentation.Presenters
         public bool IsBanQR => _context.IsBanQR;
         public GioXuat GioXuatHienTai => _context.GioXuatHienTai;
 
-        public HVN_Presenter(IHVNView view, IPhieuService phieuSvc, IPhieuLotService lotSvc, IDocQRService qrSvc, IInPhieuService inPhieuSvc, IHangThieuCaNgayService hangThieuCaNgayService, IGioXuatRepository gioXuatRepo, IEventBus bus, bool isMayBanQR, string tenBan, CustomerConfig cfg, IOrderCategoryResolver categoryResolver)
+        public HVN_Presenter(IHVNView view, IPhieuService phieuSvc, IPhieuLotService lotSvc, IDocQRService qrSvc, IInPhieuService inPhieuSvc, IHangThieuCaNgayService hangThieuCaNgayService, IGioXuatRepository gioXuatRepo, IEventBus bus, bool isMayBanQR, string tenBan, CustomerConfig cfg, IOrderCategoryResolver categoryResolver, IMachinePermissionService machinePermission = null)
         {
-            _context = new HVNPresenterContext(view, phieuSvc, lotSvc, qrSvc, inPhieuSvc, hangThieuCaNgayService, gioXuatRepo, bus, isMayBanQR, tenBan, cfg, categoryResolver);
+            _context = new HVNPresenterContext(view, phieuSvc, lotSvc, qrSvc, inPhieuSvc, hangThieuCaNgayService, gioXuatRepo, bus, isMayBanQR, tenBan, cfg, categoryResolver, machinePermission);
             _phieuPresenter = new PhieuPresenter(_context);
             _docQrPresenter = new DocQrPresenter(_context);
             _giaoDbPresenter = new GiaoDbPresenter(_context);

@@ -41,26 +41,26 @@ namespace PCTP.Shell.Widgets
         /// <summary>
         /// hostName / qrMachine lấy từ Main_APP.hostname / Main_APP.TM_BANQR.
         /// </summary>
-        internal void Update(string hostName, string qrMachine)
+        internal void Update(string hostName, string qrSummary, bool hostOwnsAny)
         {
             hostName = (hostName ?? string.Empty).Trim();
-            qrMachine = (qrMachine ?? string.Empty).Trim();
+            qrSummary = (qrSummary ?? string.Empty).Trim();
 
             _hostItem.Caption = "Máy này: " + Display(hostName);
 
-            if (qrMachine.Length == 0)
+            if (qrSummary.Length == 0)
             {
                 _qrItem.Caption = "Máy bắn QR: (chưa cấu hình)";
                 SetColor(_qrItem, WarnColor);
             }
-            else if (string.Equals(hostName, qrMachine, StringComparison.OrdinalIgnoreCase))
+            else if (hostOwnsAny)
             {
-                _qrItem.Caption = "Máy bắn QR: " + qrMachine + "  —  MÁY NÀY ĐƯỢC BẮN QR";
+                _qrItem.Caption = "Máy bắn QR theo khách — " + qrSummary + "  —  MÁY NÀY ĐANG ĐỌC QR";
                 SetColor(_qrItem, OkColor);
             }
             else
             {
-                _qrItem.Caption = "Máy bắn QR: " + qrMachine + "  —  máy này chỉ XEM";
+                _qrItem.Caption = "Máy bắn QR theo khách — " + qrSummary;
                 SetColor(_qrItem, WarnColor);
             }
 

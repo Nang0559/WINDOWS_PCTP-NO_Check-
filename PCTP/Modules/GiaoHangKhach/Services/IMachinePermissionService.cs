@@ -1,30 +1,39 @@
 ﻿using PCTP.Shared.Enums;
 using PCTP.Shared.Models;
-using PCTP.VIEWSTOCK.Models;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace PCTP.Modules.GiaoHangKhach.Services
 {
-    public interface IMachinePermissionService
+    /// <summary>
+    /// Quyền bắn QR của máy hiện tại TRÊN MỘT KHÁCH HÀNG cụ thể.
+    /// Mỗi khách có tối đa một máy giữ quyền (FVN_QrReaderLock); khách khác nhau độc lập.
+    /// Instance gắn với đúng một customerNo — Dispose để nhả khoá.
+    /// </summary>
+    public interface IMachinePermissionService : IDisposable
     {
-        /// <summary>Role của máy đang thao tác hiện tại (so tên máy với TT=1 trong tbl_QR_MAY_DOCQR).</summary>
-        MachineRole GetCurrentRole();
+        string CustomerNo { get; }
 
-        /// <summary>Kiểm tra bắt buộc trước hành động ghi (bắn QR/CNK) — throw nếu không đủ quyền.</summary>
-        void EnsureCanBanQR();
+        /// <summary>Máy đang giữ quyền đọc QR của khách này, dạng "TÊN (IP)" (rỗng nếu không có).</summary>
+        string OwnerMachine { get; }
+
+        /// <summary>Máy này có được đăng ký đọc QR cho khách này không (sau lần GetCurrentRole đầu).</summary>
+        bool IsRegistered { get; }
 
         /// <summary>
-        /// Tên "bàn/trạm" hiển thị trên UI, tuỳ theo role hiện tại. Với máy bắn QR,
-        /// trả về tên bàn theo cấu hình khách hàng (cfg)/loại SP; với máy chỉ xem,
-        /// trả về tenBanView kèm nhãn "(chỉ xem)".
+        /// Role của máy này với khách này. Lần gọi đầu tiên sẽ giành khoá (first-come);
+        /// máy giành được => DuocBanQR, ngược lại => ChiXem.
         /// </summary>
-        string GetTenBanTheoRole(CustomerConfig cfg, bool isSP, string tenBanView);
+        MachineRole GetCurrentRole();
 
-        /// <summary>Đổi máy bắn QR — có xác nhận, ghi lại thông tin lần đổi gần nhất vào LichSu.</summary>
-        void ChuyenMayBan(string tenMayMoi);
+        /// <summary>
+        /// Kiểm tra bắt buộc ngay trước hành động ghi (bắn QR/CNK): xác nhận lại với DB rằng máy này
+        /// vẫn là chủ khoá. Throw UnauthorizedAccessException nếu không (hoặc không xác nhận được).
+        /// </summary>
+        void EnsureCanBanQR();
+
+        /// <summary>Phát ra (thread nền) khi heartbeat phát hiện máy khác đã chiếm quyền.</summary>
+        event EventHandler LockLost;
+
+        string GetTenBanTheoRole(CustomerConfig cfg, bool isSP, string tenBanView);
     }
 }

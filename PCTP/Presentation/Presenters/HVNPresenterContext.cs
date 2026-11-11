@@ -59,6 +59,8 @@ namespace PCTP.Presentation.Presenters
         internal readonly IOrderCategoryResolver CategoryResolver;
         internal readonly CustomerDeliveryBehavior CustomerBehavior;
         internal readonly bool IsMayBanQR;
+        /// <summary>Khoá đọc QR theo khách; null khi dựng presenter trong test/không có khoá.</summary>
+        internal readonly IMachinePermissionService MachinePermission;
         internal readonly string TenBan;
         internal readonly SynchronizationContext UiContext;
         internal GioXuat GioXuatHienTai = new GioXuat("'06'", "(6H)");
@@ -87,7 +89,7 @@ namespace PCTP.Presentation.Presenters
 
         private int _busy;
 
-        internal HVNPresenterContext(IHVNView view, IPhieuService phieuSvc, IPhieuLotService lotSvc, IDocQRService qrSvc, IInPhieuService inPhieuSvc, IHangThieuCaNgayService hangThieuCaNgayService, IGioXuatRepository gioXuatRepo, IEventBus bus, bool isMayBanQR, string tenBan, CustomerConfig cfg, IOrderCategoryResolver categoryResolver)
+        internal HVNPresenterContext(IHVNView view, IPhieuService phieuSvc, IPhieuLotService lotSvc, IDocQRService qrSvc, IInPhieuService inPhieuSvc, IHangThieuCaNgayService hangThieuCaNgayService, IGioXuatRepository gioXuatRepo, IEventBus bus, bool isMayBanQR, string tenBan, CustomerConfig cfg, IOrderCategoryResolver categoryResolver, IMachinePermissionService machinePermission = null)
         {
             View = view ?? throw new ArgumentNullException(nameof(view));
             PhieuView = View;
@@ -105,6 +107,7 @@ namespace PCTP.Presentation.Presenters
             CategoryResolver = categoryResolver ?? throw new ArgumentNullException(nameof(categoryResolver));
             CustomerBehavior = new CustomerDeliveryBehavior(cfg);
             IsMayBanQR = isMayBanQR;
+            MachinePermission = machinePermission;
             TenBan = tenBan;
             UiContext = SynchronizationContext.Current ?? new WindowsFormsSynchronizationContext();
         }

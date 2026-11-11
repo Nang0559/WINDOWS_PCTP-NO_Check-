@@ -150,7 +150,8 @@ Giới hạn: static inventory bằng regex, không phải compiler hay SQL pars
 | G1-138 | PCTP | Repository | `PCTP/Shared/UiMd/WorkflowRepository.cs` | — | — | PARTICIPANT | — | — | **GAP**: test |
 | G1-139 | PCTP | Service | `PCTP/Shared/UiMd/WorkflowTransitionService.cs` | — | — | DELEGATES | — | — | **GAP**: test |
 | G1-140 | PCTP | Service | `PCTP/Shell/Help/WmsHelpService.cs` | — | — | DELEGATES | — | — | **GAP**: test |
-| G1-141 | PCTP | Service | `PCTP/Shell/Services/QrMachineSwitchService.cs` | — | tbl_QR_MAY_DOCQR | OWNS | — | — | **GAP**: transaction-boundary(not-documented); test |
+| G1-141 | PCTP | Service | `PCTP/Modules/GiaoHangKhach/Services/CustomerQrLockService.cs` | — | FVN_QrReaderLock | STATEMENT-ATOMIC (SP) | QrReaderLockSourceContractTests.cs | — | **GAP**: sql-test(only-source-contract) |
+| G1-141b | PCTP | Service | `PCTP/Modules/GiaoHangKhach/Services/QrReaderMachineService.cs` | — | FVN_QrReaderMachine | STATEMENT-ATOMIC (SP) | QrReaderLockSourceContractTests.cs | — | **GAP**: sql-test(only-source-contract) |
 | G1-142 | PCTP | SQL caller | `PCTP/Shell/Widgets/MainAppDashboardController.cs` | — | — | NONE | — | — | **GAP**: test |
 | G1-143 | PCTP | SQL caller | `PCTP/UF_CHANGETIME.cs` | — | QRCODE_CHANGETIME | STATEMENT-ATOMIC (doc) | LegacyTransactionBoundarySourceContractTests.cs | — | **GAP**: sql-test(only-fakes) |
 | G1-144 | WINDOWS_PCTP | SQL caller | `WINDOWS_PCTP/MAIN.cs` | — | — | NONE | — | — | **GAP**: test |

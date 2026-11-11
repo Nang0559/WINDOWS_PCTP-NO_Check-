@@ -18,6 +18,7 @@ using PCTP.VIEWSTOCK;
 using System;
 using System.Drawing.Design;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Windows.Forms;
 
@@ -26,10 +27,10 @@ namespace PCTP
     public partial class Main_APP : DevExpress.XtraBars.Ribbon.RibbonForm
     {
         public static string hostname = string.Empty;
-        public static string TM_BANQR = string.Empty;
+        public static string TM_BANQR = string.Empty; // tóm tắt "khách: máy đang đọc QR" (Dashboard/Ribbon)
+        public static bool QrHostOwnsAny = false;      // máy này đang giữ quyền đọc QR của ít nhất 1 khách
 
         private readonly IWaitFormService _waitForm;
-        private readonly QrMachineSwitchService _qrMachineSwitch;
         private readonly WmsHelpService _wmsHelp;
         private MainAppDashboardController _dashboard;
         private WarehouseDashboardBar _dashboardBar;
@@ -42,7 +43,6 @@ namespace PCTP
         {
             InitializeComponent();
             _waitForm = new WaitFormService(this);
-            _qrMachineSwitch = new QrMachineSwitchService();
             _wmsHelp = new WmsHelpService();
             EnsureShellNavigation();
             accordionControl.SelectedElement = NHAccordionControlElement;
@@ -63,6 +63,7 @@ namespace PCTP
 
             // Menu chuẩn: Nhập Kho → Kho → Giao Hàng → Xử lý hàng lỗi → Tra cứu & Báo cáo → Công cụ.
             BuildStandardMenus();
+            accordionControlElement24.Text = "Quản lý máy đọc QR";
             ApplyFluentMenuIcons();
         }
 
@@ -199,7 +200,7 @@ namespace PCTP
         private void RefreshSystemInfo()
         {
             if (_systemInfo != null)
-                _systemInfo.Update(hostname, TM_BANQR);
+                _systemInfo.Update(hostname, TM_BANQR, QrHostOwnsAny);
         }
 
         public void RefreshDashboard()
@@ -240,15 +241,11 @@ namespace PCTP
         private void accordionControlElement23_Click(object sender, EventArgs e) { }
         private void accordionControlElement27_Click(object sender, EventArgs e) { }
 
+        // Quản lý quyền đọc QR theo từng khách hàng: xem máy nào đang đọc khách nào, chiếm quyền / nhả khoá,
+        // và đăng ký máy được phép đọc. Quyền đọc được giành tự động khi mở màn hình giao hàng.
         private void accordionControlElement24_Click(object sender, EventArgs e)
         {
-            if (string.Equals(hostname, TM_BANQR, StringComparison.OrdinalIgnoreCase)) return;
-            DialogResult result = XtraMessageBox.Show(
-                string.Format("Bạn có muốn chuyển máy bắn QRcode từ: {0} sang máy: {1}?", TM_BANQR, hostname),
-                "Cảnh Báo!", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
-            if (result != DialogResult.Yes) return;
-            _qrMachineSwitch.Switch(TM_BANQR, hostname);
-            Application.Restart();
+            FormWindowManager.ShowSingle(this, () => new PCTP.Shell.UI.FormQuanLyMayDocQR());
         }
 
         private void accordionControlElement29_Click(object sender, EventArgs e)
