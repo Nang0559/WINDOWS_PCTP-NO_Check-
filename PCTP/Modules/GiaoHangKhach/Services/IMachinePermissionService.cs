@@ -25,6 +25,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         /// </summary>
         MachineRole GetCurrentRole();
         void SetScanMode(string scanMode);
+        bool IsRegisteredForAnyMode();
 
         /// <summary>
         /// Kiểm tra bắt buộc ngay trước hành động ghi (bắn QR/CNK): xác nhận lại với DB rằng máy này
