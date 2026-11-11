@@ -88,6 +88,23 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             }
         }
 
+        public bool IsRegistered(string customerNo)
+        {
+            string key = CustomerTableConfig.NormalizeCustomerNo(customerNo);
+            try
+            {
+                DataTable dt = Query(
+                    "dbo.Usp_QrReaderMachine_CanReadAnyMode",
+                    new SqlParameter("@CustomerNo", key));
+                return dt.Rows.Count > 0 && Convert.ToBoolean(dt.Rows[0]["Registered"]);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("[QrLock.IsRegistered] " + ex.Message);
+                return false;
+            }
+        }
+
         public IList<QrLockInfo> ListAll()
         {
             var result = new List<QrLockInfo>();
