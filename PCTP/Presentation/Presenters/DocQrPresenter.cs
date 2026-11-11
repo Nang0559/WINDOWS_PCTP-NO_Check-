@@ -154,9 +154,6 @@ namespace PCTP.Presentation.Presenters
             if (!tt.DataKhongKhop && !_c.SessionHoursShareOneFrame(tt, isSP))
                 tt.DataKhongKhop = true;
 
-            _c.MachinePermission?.SetScanMode(isSP ? "SP" : "MP");
-            if (!EnsureQrLockOwnership()) return true;
-
             if (tt.DataKhongKhop)
             {
                 _v.ShowError(
@@ -186,6 +183,9 @@ namespace PCTP.Presentation.Presenters
                     new OrderLoadContext { GioFccMoTa = tt.GioGiaoFCC }) == OrderCategory.SP;
                 isSP = gearSp;
             }
+
+            _c.MachinePermission?.SetScanMode(isSP ? "SP" : "MP");
+            if (!EnsureQrLockOwnership()) return true;
 
             string ma = string.Empty;
             string mota = string.Empty;
