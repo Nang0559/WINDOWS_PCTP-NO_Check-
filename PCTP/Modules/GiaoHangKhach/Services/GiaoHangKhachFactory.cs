@@ -72,7 +72,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             var luuTruRepo = new PhieuLuuTruRepository(phieuDb, phieuUow);
 
             var machinePermissionService = new MachinePermissionService(sql, cfg.CustomerNo);
-            bool isMayBanQR = machinePermissionService.GetCurrentRole() == MachineRole.DuocBanQR;
+            bool isMayBanQR = machinePermissionService.IsRegisteredForAnyMode();
             string tenBan = isMayBanQR ? cfg.Delivery.TmpTable : cfg.Delivery.GetTmpViewTable(Environment.MachineName);
 
             // Role đã giành khoá đọc QR của khách này: nếu bước dựng phía sau lỗi thì phải nhả khoá,
@@ -123,7 +123,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
                     IsMayBanQR = isMayBanQR,
                     TenBan = tenBan,
                     QrOwnerMachine = machinePermissionService.OwnerMachine,
-                    QrRegistered = machinePermissionService.IsRegistered,
+                    QrRegistered = isMayBanQR,
                 };
             }
             catch
