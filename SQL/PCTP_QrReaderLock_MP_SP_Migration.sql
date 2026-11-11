@@ -184,8 +184,8 @@ END;
 GO
 
 CREATE OR ALTER PROCEDURE dbo.Usp_QrReaderMachine_Upsert
-    @CustomerNo NVARCHAR(50), @ScanMode NVARCHAR(2) = N'MP',
-    @ClientIp NVARCHAR(64), @MachineName NVARCHAR(100) = NULL,
+    @CustomerNo NVARCHAR(50), @ClientIp NVARCHAR(64), @ScanMode NVARCHAR(2) = N'MP',
+    @MachineName NVARCHAR(100) = NULL,
     @IsActive BIT = 1, @Note NVARCHAR(200) = NULL
 AS
 BEGIN
@@ -206,7 +206,7 @@ END;
 GO
 
 CREATE OR ALTER PROCEDURE dbo.Usp_QrReaderMachine_Remove
-    @CustomerNo NVARCHAR(50), @ScanMode NVARCHAR(2) = N'MP', @ClientIp NVARCHAR(64)
+    @CustomerNo NVARCHAR(50), @ClientIp NVARCHAR(64), @ScanMode NVARCHAR(2) = N'MP'
 AS
 BEGIN
     SET NOCOUNT ON;
