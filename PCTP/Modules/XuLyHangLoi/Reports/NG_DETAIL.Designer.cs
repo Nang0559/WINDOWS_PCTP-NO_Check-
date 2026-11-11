@@ -486,7 +486,9 @@
             this.sqlDataSource1.ConnectionName = "accfast\\bravo.B7R2_FCC.dbo";
             this.sqlDataSource1.Name = "sqlDataSource1";
             columnExpression1.ColumnName = "ID";
-            table1.Name = "TMPPHIEUGIAOHANGDBCT";
+            // Bảng nghiệp vụ (đã đổi tên từ TMPPHIEUGIAOHANGDBCT). selectQuery1.Name/DataMember giữ nguyên
+            // vì là tên dataset logic gắn với ResultSchemaSerializable trong NG_DETAIL.resx.
+            table1.Name = "FVN_Purchase_Order_DB_CT";
             columnExpression1.Table = table1;
             column1.Expression = columnExpression1;
             columnExpression2.ColumnName = "IDP";

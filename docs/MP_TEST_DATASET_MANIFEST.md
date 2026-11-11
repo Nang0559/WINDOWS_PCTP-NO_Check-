@@ -21,7 +21,7 @@ Approximate counts from the inventory (not an assertion that every row is valid/
 | `STOCKTP` | 70,379 | 66,248 | Candidate source for positive-stock lots; validate quantity semantics |
 | `Purchase_Order_YMVN` | 34,770 | 4 | Candidate order reference; select only a few matching lines |
 | `TMPPHIEUGIAOHANG` | 23 | 9 | Optional transaction evidence; inspect status/linkage before using |
-| `TMPPHIEUGIAOHANGDBCT` | 18 | 1 | Optional child transaction evidence |
+| `FVN_Purchase_Order_DB_CT` | 18 | 1 | Optional child transaction evidence |
 | `LUUDOCQRCODE` | 4,326,610 | 4,169,928 | Historical trace only; exact LOT/QR filtering is mandatory |
 | `Warehouse / Rack / Slot` | 1 / 1 / 1 | 5 / 14 / 375 | Do not copy source location IDs into the target fixture |
 | `SlotLot` | 8,653 | 147 | Generate target allocations for selected lots; do not bulk-copy legacy allocation rows |

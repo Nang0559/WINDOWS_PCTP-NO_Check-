@@ -167,17 +167,25 @@ namespace PCTP.Presentation.Presenters
             });
         }
 
-        internal void RunWithLoadingSync(Action action, string caption = "Đang xử lý...")
+        /// <returns>true nếu action đã chạy xong không lỗi; false nếu bị bỏ qua (đang bận) hoặc có lỗi
+        /// (cả hai trường hợp đều đã báo cho người dùng).</returns>
+        internal bool RunWithLoadingSync(Action action, string caption = "Đang xử lý...")
         {
             if (Interlocked.CompareExchange(ref _busy, 1, 0) != 0)
-                return; // đang có thao tác khác chạy dở -> bỏ qua để tránh chồng lệnh SQL
+            {
+                // đang có thao tác khác chạy dở -> bỏ qua để tránh chồng lệnh SQL, nhưng PHẢI báo
+                // (trước đây im lặng nên người dùng tưởng thao tác đã chạy).
+                View.ShowWarning("Đang có thao tác khác chạy dở, thao tác này chưa được thực hiện. Vui lòng thử lại sau ít giây.");
+                return false;
+            }
 
             try
             {
                 View.ShowLoading(true, caption);
                 action();
+                return true;
             }
-            catch (Exception ex) { View.ShowError("Lỗi: " + ex.Message); }
+            catch (Exception ex) { View.ShowError("Lỗi: " + ex.Message); return false; }
             finally
             {
                 Interlocked.Exchange(ref _busy, 0);

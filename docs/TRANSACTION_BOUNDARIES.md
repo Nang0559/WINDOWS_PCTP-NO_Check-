@@ -73,7 +73,7 @@ use the `UnitOfWork` connection and transaction when `Uow.IsInTransaction` is tr
 |---|---|---|---|
 | `CurrentStockRepository` | none in C# | READ via SP | Calls `sp_GetCurrentStockStatus` only. The SP body is in `SQL\sp_GetCurrentStockStatus.sql`; `AtomicityFindingsSourceContractTests` asserts the script has no INSERT/UPDATE/DELETE/MERGE/EXEC and keeps the column aliases this repository reads. That checks the script in the repo, not the deployed procedure: confirm the deployed body with `sp_helptext sp_GetCurrentStockStatus` on the test DB. |
 | `ItemFifoConfigRepository` | `FVN_ItemFifoConfig`, `FVN_ItemFifoConfig_History` | OWNS-IF-NO-AMBIENT | `Upsert` and `Delete` write config + history in one transaction; commit on success, rollback on exception. |
-| `PhieuGiaoDBRepository` | `TMPPHIEUGIAODBHD`, `TMPPHIEUGIAOHANGDBCT` | OWNS-IF-NO-AMBIENT (`TaoPhieuVaChiTietGiaoDB`, `LuuGiaoDB` via `InTransaction`) | See finding F4. |
+| `PhieuGiaoDBRepository` | `FVN_Purchase_Order_DB_HD`, `FVN_Purchase_Order_DB_CT` | OWNS-IF-NO-AMBIENT (`TaoPhieuVaChiTietGiaoDB`, `LuuGiaoDB` via `InTransaction`) | See finding F4. |
 | `PhieuLotRepository` | `[tenBan]`, `[docQRTable]` via `Usp_Qrcode_Take_Lot*` / `Usp_Qrcode_gheplot` | JOIN-OR-AUTOCOMMIT for the SP and `CapNhapLotTmpPhieu`; `LayLaiLotNo` OWNS-IF-NO-AMBIENT via `InTransaction` | See finding F2. |
 | `PhieuLuuTruRepository` | `LUUPHIEUGIAOHANG` | `LuuPhieuSP` OWNS-IF-NO-AMBIENT via `InTransaction` | See finding F3. |
 | `PhieuTmpRepository` | TMP/DOCQR/IFS tables | OWNS-IF-NO-AMBIENT (`PushIfsSnapshot`, `LuuVaLoad`: drop/create, bulk insert, guard DELETE and load SP in one transaction); JOIN-OR-AUTOCOMMIT for `InsertTmpRow`, `XoaTmpPhieu`, `XoaDocQRCode` | Single-statement writes. |

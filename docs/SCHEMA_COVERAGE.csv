@@ -34,8 +34,8 @@ QRCODE_CHANGETIME,table,có,GioXuatRepository.cs; UF_CHANGETIME.cs,FROM/UPDATE,c
 StockHistory,table,có,StockExportHistoryRepository.cs; StockHistoryRepository.cs; StockHistoryRepository.cs; StockTpImportGuardRepository.cs,FROM/INTO,có,không,không,có,GAP-no-git-ddl
 sys_WorkflowTransitions,table,có,WorkflowRepository.cs,FROM,có,không,không,có,GAP-no-git-ddl
 tbl_QR_ComparePart,table,có,ComaparePart.cs; DocQRRepository.cs,DELETE/FROM/INTO,có,không,không,có,GAP-no-git-ddl
-TMPPHIEUGIAODBHD,table,có,PhieuGiaoDBRepository.cs,INTO/JOIN,có,không,không,có,GAP-no-git-ddl
-TMPPHIEUGIAOHANGDBCT,table,có,PhieuGiaoDBRepository.cs,FROM/INTO/JOIN,có,không,không,có,GAP-no-git-ddl
+FVN_Purchase_Order_DB_HD,table,có,PhieuGiaoDBRepository.cs,INTO/JOIN,có,không,không,có,GAP-no-git-ddl
+FVN_Purchase_Order_DB_CT,table,có,PhieuGiaoDBRepository.cs,FROM/INTO/JOIN,có,không,không,có,GAP-no-git-ddl
 vB20Item,view,có,FormInspectionConfig.cs; InspectionConfigRepository.cs; NoiBoLookupRepository.cs; WarehouseRepository.cs,FROM/JOIN,có,không,không,có,GAP-no-git-ddl
 vNhapTP,view,có,IAffectedLotTraceService.cs; NhapKhoDashboardRepository.cs; StockTpProductionRepository.cs,FROM,có,không,không,có,GAP-no-git-ddl
 YMVN_DOCQRCODE,table,có,GIAOHANGYMN.cs; YMVNDOCQRCODE.cs,DELETE/FROM/INTO/UPDATE,có,không,không,có,GAP-no-git-ddl

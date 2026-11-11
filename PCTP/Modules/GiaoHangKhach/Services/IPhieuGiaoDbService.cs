@@ -25,5 +25,11 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         DataTable LoadTmpPhieuGiaoDB(DateTime ngayGiao, int addNm);
 
         void XuLySauUpload();
+
+        /// <summary>
+        /// Gọi khi lưới Giao DB rỗng sau upload. Trả về thông báo giải thích lý do (lệch ngày/nhà máy
+        /// hoặc đơn chưa nạp lên lưới); null nếu không có đơn chờ nào cần báo.
+        /// </summary>
+        string CanhBaoLuoiRong(DateTime ngayGiao, int addNm);
     }
 }

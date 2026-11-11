@@ -7,7 +7,7 @@ namespace PCTP.Modules.GiaoHangKhach.OrderLoading.GiaoDB
 {
     /// <summary>
     /// Business scenario "Giao đặc biệt" (roadmap mục 2.3) — đơn hàng KHÔNG đến từ IFS,
-    /// mà từ Upload Excel/nhập tay (FRM_UploadGiaoDB) → TMPPHIEUGIAOHANGDBCT → xử lý qua
+    /// mà từ Upload Excel/nhập tay (FRM_UploadGiaoDB) → FVN_Purchase_Order_DB_HD/CT (bảng nghiệp vụ) → xử lý qua
     /// Usp_Qrcode_LOAD_PHIEU_DOCQR2405 → TMPPHIEUGIAOHANGDB (bảng output đã có LOT/STATUS).
     /// Độc lập với TableOrder (mục 2.4): không có bước so sánh IFS baseline.
     /// </summary>

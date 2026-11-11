@@ -13,6 +13,8 @@ namespace PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao
         DataTable GetDanhSachMaHang();
         DataTable LoadTmpPhieuGiaoDB(string tenBan, DateTime ngayGiao, int addNm);
         DataTable BuildDonHangTuUpload();
+        /// <summary>Đơn chờ xử lý (STATUS='NG') theo ngày + nhà máy: NGAYGIAO, ADDNM, SODONG.</summary>
+        DataTable ThongKeDonChoXuLy();
         void LuuGiaoDB(DataTable donHang, string gioFccMoTa, int addNm,
             string tmpTable, string ifsTable, string nhaMayOverride = "",
             string docQrTable = "DOCQRCODE_DB");

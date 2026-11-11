@@ -1427,8 +1427,8 @@ IFS baseline
 ```text
 Upload / Manual
  ↓
-TMPPHIEUGIAODBHD
-TMPPHIEUGIAOHANGDBCT
+FVN_Purchase_Order_DB_HD
+FVN_Purchase_Order_DB_CT
  ↓
 GiaoDbOrderSource
  ↓

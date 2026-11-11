@@ -83,27 +83,53 @@ namespace PCTP.Modules.GiaoHangKhach.Services
 
         public void XuLySauUpload()
         {
+            // Đơn chờ = mọi dòng STATUS='NG' của bảng nghiệp vụ FVN_Purchase_Order_DB_CT.
             DataTable donHang = _phieuRepo.BuildDonHangTuUpload();
             if (donHang == null || donHang.Rows.Count == 0)
                 return;
 
-            var nhomTheoNhaMay = donHang.AsEnumerable()
-                .GroupBy(r => DbValueHelper.SafeInt(r["ADDNM"]));
+            // NẠP MỘT LẦN cho TẤT CẢ nhà máy. Trước đây lặp theo từng nhà máy, nhưng nhánh
+            // (GIAO DB) của Usp_Qrcode_LOAD_PHIEU_DOCQR2405 DELETE toàn bộ TMPPHIEUGIAOHANGDB
+            // rồi chép nguyên _IFS => nhóm xử lý sau xóa mất nhóm trước, lưới của nhà máy kia trống.
+            // Mỗi dòng đã mang ADDNM riêng nên SP chép đúng về từng nhà máy; tham số addNm chỉ
+            // phục vụ bước chuẩn hóa đầu SP và không ảnh hưởng nhánh (GIAO DB).
+            int addNmThamChieu = DbValueHelper.SafeInt(donHang.Rows[0]["ADDNM"]);
 
-            foreach (var nhom in nhomTheoNhaMay)
-            {
-                DataTable phanNhom = donHang.Clone();
-                foreach (DataRow r in nhom)
-                    phanNhom.ImportRow(r);
+            _phieuRepo.LuuGiaoDB(
+                donHang,
+                "(GIAO DB)",
+                addNm: addNmThamChieu,
+                tmpTable: TmpTableGiaoDB,
+                ifsTable: IfsTableGiaoDB,
+                docQrTable: DocQrTableGiaoDB);
+        }
 
-                _phieuRepo.LuuGiaoDB(
-                    phanNhom,
-                    "(GIAO DB)",
-                    addNm: nhom.Key,
-                    tmpTable: TmpTableGiaoDB,
-                    ifsTable: IfsTableGiaoDB,
-                    docQrTable: DocQrTableGiaoDB);
-            }
+        public string CanhBaoLuoiRong(DateTime ngayGiao, int addNm)
+        {
+            DataTable thongKe = _giaoDbRepo.ThongKeDonChoXuLy();
+            if (thongKe == null || thongKe.Rows.Count == 0)
+                return null;
+
+            string TenNm(int nm) => nm == 2 ? "Hà Nam" : "Vĩnh Phúc";
+            string FmtNgay(DateTime d) => d.ToString("dd/MM/yyyy", System.Globalization.CultureInfo.InvariantCulture);
+
+            var dong = thongKe.AsEnumerable()
+                .Select(r => new
+                {
+                    Ngay = Convert.ToDateTime(r["NGAYGIAO"]).Date,
+                    Nm = DbValueHelper.SafeInt(r["ADDNM"]),
+                    So = DbValueHelper.SafeInt(r["SODONG"])
+                })
+                .ToList();
+
+            var khop = dong.FirstOrDefault(x => x.Ngay == ngayGiao.Date && x.Nm == addNm);
+            if (khop != null)
+                return $"Có {khop.So} dòng Giao DB đang chờ ở ngày {FmtNgay(ngayGiao)} - {TenNm(addNm)} " +
+                       "nhưng chưa nạp lên lưới. Hãy thử Upload lại hoặc báo bộ phận IT kiểm tra.";
+
+            string ds = string.Join("\n", dong.Select(x => $"  • {FmtNgay(x.Ngay)} - {TenNm(x.Nm)}: {x.So} dòng"));
+            return $"Lưới trống vì không có đơn Giao DB nào ở ngày {FmtNgay(ngayGiao)} - {TenNm(addNm)}.\n" +
+                   "Đơn Giao DB đang chờ ở:\n" + ds + "\nHãy đổi Ngày xuất hàng / Nhà máy cho khớp.";
         }
     }
 }

@@ -111,7 +111,7 @@
             this.checkEdit2.EditValue = true;
             this.checkEdit2.Location = new System.Drawing.Point(12, 71);
             this.checkEdit2.Name = "checkEdit2";
-            this.checkEdit2.Properties.Caption = "TMPPHIEUGIAOHANGDBCT";
+            this.checkEdit2.Properties.Caption = "FVN_Purchase_Order_DB_CT";
             this.checkEdit2.Size = new System.Drawing.Size(145, 21);
             this.checkEdit2.TabIndex = 1;
             // 

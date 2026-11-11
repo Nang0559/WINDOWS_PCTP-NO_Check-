@@ -35,6 +35,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         void LuuGiaoDB(DataTable donHang, GioXuat gioXuat, int addNm);
         DataTable LoadTmpPhieuGiaoDB(DateTime ngayGiao, int addNm);
         void XuLySauUploadGiaoDB();
+        string CanhBaoLuoiRongGiaoDB(DateTime ngayGiao, int addNm);
         int LuuPhieuSP(string nhaMay, string ngayGiao, string gioGiaoFcc, string loaiPhieu);
         void CapNhapTTPHIEU(string nhaMay, string ngayGiao, string gioGiaoFcc, int stt, string ghiChu);
         void CapNhapKho(string gioGiaoFcc, string nhaMay, string gioMa = "");

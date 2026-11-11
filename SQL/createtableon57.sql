@@ -11,7 +11,7 @@ INSERT INTO @Tables (TableName) VALUES
 ('FVN_PhieuTraHangCT'), ('FVN_PhieuTraHang'), ('FVN_PXLB_WorkflowAudit'), ('FVN_PXLB_ReworkMovement'), 
 ('FVN_PXLB_CompensationMovement'), ('FVN_PXLB_Compensation'), ('FVN_PXLB_Disposition'), ('FVN_PXLB_ReworkQC'), 
 ('FVN_PXLB_ReworkPlan'), ('FVN_PhieuXuLyBatThuongQCInitial'), ('FVN_PhieuXuLyBatThuongAffectedLot'), 
-('TMPPHIEUGIAOHANGDB_IFS'), ('TMPPHIEUGIAODBHD'), ('TMPPHIEUGIAOHANGDBCT'), ('TMPPHIEUGIAOHANGDB'), 
+('TMPPHIEUGIAOHANGDB_IFS'), ('FVN_Purchase_Order_DB_HD'), ('FVN_Purchase_Order_DB_CT'), ('TMPPHIEUGIAOHANGDB'), 
 ('FVN_ItemFifoConfig_History'), ('FVN_ItemFifoConfig'), ('TMPLOTGHEP'), ('FVN_TraHangQTChung_NhapNG'), 
 ('FVN_TraHangQTChung_QC'), ('FVN_TraHangQTChung_Giao'), ('FVN_TraHangQTChung_Xuat'), ('PhieuXuLyBatThuong');
 

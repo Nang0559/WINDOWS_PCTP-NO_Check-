@@ -174,6 +174,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         public void LuuGiaoDB(DataTable donHang, GioXuat gioXuat, int addNm) => _giaoDbService.LuuGiaoDB(donHang, gioXuat, addNm);
         public DataTable LoadTmpPhieuGiaoDB(DateTime ngayGiao, int addNm) { _isGiaoDb = true; return _giaoDbService.LoadTmpPhieuGiaoDB(ngayGiao, addNm); }
         public void XuLySauUploadGiaoDB() => _giaoDbService.XuLySauUpload();
+        public string CanhBaoLuoiRongGiaoDB(DateTime ngayGiao, int addNm) => _giaoDbService.CanhBaoLuoiRong(ngayGiao, addNm);
         public int LuuPhieuSP(string nhaMay, string ngayGiao, string gioGiaoFcc, string loaiPhieu) => _phieuRepo.LuuPhieuSP(nhaMay, ngayGiao, gioGiaoFcc, loaiPhieu);
         public void CapNhapTTPHIEU(string nhaMay, string ngayGiao, string gioGiaoFcc, int stt, string ghiChu) => _phieuRepo.CapNhapTTPHIEU(nhaMay, ngayGiao, gioGiaoFcc, stt, ghiChu);
         public void CapNhapKho(string gioGiaoFcc, string nhaMay, string gioMa = "") => _khoService.CapNhapKho(gioGiaoFcc, nhaMay, gioMa, _isLoaiSP, _isGiaoDb);

@@ -29,11 +29,33 @@ namespace PCTP.Presentation.Presenters
             if (_ui.ShowUploadDialog() != System.Windows.Forms.DialogResult.OK)
                 return;
 
-            _c.RunWithLoadingSync(
+            bool daXuLy = _c.RunWithLoadingSync(
                 () => _c.PhieuSvc.XuLySauUploadGiaoDB(),
                 "Đang xử lý đơn hàng GIAO DB...");
 
-            _c.UiContext.Post(_ => _c.LoadPhieuGiaoDB(), null);
+            // Bị bỏ qua (đang bận) hoặc lỗi: đã báo cho người dùng, không load lưới như thể đã thành công.
+            if (!daXuLy) return;
+
+            _c.UiContext.Post(_ => LoadLuoiSauUpload(), null);
+        }
+
+        // Load lưới sau upload. Chạy qua UiContext.Post nên PHẢI tự bắt lỗi (nếu không sẽ rơi vào
+        // handler toàn cục của WinForms và người dùng không thấy gì). Lưới rỗng thì giải thích lý do.
+        private void LoadLuoiSauUpload()
+        {
+            try
+            {
+                var dt = _c.LoadPhieuGiaoDB();
+                if (dt != null && dt.Rows.Count > 0) return;
+
+                string canhBao = _c.PhieuSvc.CanhBaoLuoiRongGiaoDB(_c.View.SelectedDate, _c.AddNM);
+                if (!string.IsNullOrEmpty(canhBao))
+                    _v.ShowWarning(canhBao);
+            }
+            catch (Exception ex)
+            {
+                _v.ShowError("Lỗi khi tải lưới GIAO DB: " + ex.Message);
+            }
         }
 
         private void OnLuuGiaoDB(object sender, EventArgs e)

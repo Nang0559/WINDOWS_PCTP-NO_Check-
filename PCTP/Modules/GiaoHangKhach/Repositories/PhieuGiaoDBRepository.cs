@@ -12,6 +12,12 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
 {
     public sealed class PhieuGiaoDBRepository : SqlRepositoryBase, IPhieuGiaoDBRepository
     {
+        // Bảng NGHIỆP VỤ (lưu lâu dài, nguồn gốc của đơn Giao DB) — KHÔNG phải bảng tạm.
+        // Tên cũ TMPPHIEUGIAODBHD / TMPPHIEUGIAOHANGDBCT dễ nhầm với bảng làm việc
+        // TMPPHIEUGIAOHANGDB (bị SP xóa và dựng lại mỗi lần upload).
+        public const string TableHd = "FVN_Purchase_Order_DB_HD";
+        public const string TableCt = "FVN_Purchase_Order_DB_CT";
+
         public PhieuGiaoDBRepository(PhieuSqlExecutor db, IUnitOfWork uow) : base(db, uow) { }
 
         // ============================================================
@@ -67,6 +73,25 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             return r != null && r != DBNull.Value && Convert.ToInt32(r) == 1;
         }
 
+        /// <summary>
+        /// Đơn Giao DB đang chờ xử lý (STATUS='NG') gom theo ngày lập + nhà máy của phiếu.
+        /// Dùng để báo rõ lý do khi lưới rỗng (lệch ngày / lệch nhà máy / chưa nạp lên lưới).
+        /// Cột: NGAYGIAO (date), ADDNM (int), SODONG (int).
+        /// </summary>
+        public DataTable ThongKeDonChoXuLy()
+        {
+            string sql = $@"
+            SELECT CAST(H.NGAYLAP AS date) AS NGAYGIAO,
+                   H.NHAMAY               AS ADDNM,
+                   COUNT(*)               AS SODONG
+            FROM [{TableCt}] D
+            INNER JOIN [{TableHd}] H ON H.IDP = D.IDP
+            WHERE D.STATUS = 'NG'
+            GROUP BY CAST(H.NGAYLAP AS date), H.NHAMAY
+            ORDER BY CAST(H.NGAYLAP AS date), H.NHAMAY";
+            return LoadData(sql);
+        }
+
         public void LuuGiaoDB(
             DataTable donHang, string gioFccMoTa, int addNm,
             string tmpTable, string ifsTable, string nhaMayOverride = "",
@@ -109,7 +134,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             UPDATE D
             SET D.GGFCC = T.GIOGIAO, D.LOT = T.LOT, D.NGAYGIAO = T.NGAYGIAO, D.STATUS = 'OK'
             FROM [{tmpTable}] T
-            INNER JOIN TMPPHIEUGIAOHANGDBCT D
+            INNER JOIN [{TableCt}] D
                 ON D.MAHANG = T.MAHANG
                AND D.IDP = SUBSTRING(T.TTPHIEU, CHARINDEX('-', T.TTPHIEU) + 1, LEN(T.TTPHIEU))
                AND D.STATUS = 'NG'
@@ -118,10 +143,10 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             ExecuteNonQuery(sql);
         }
 
-        // ✅ ĐÃ ĐỔI tên bảng TMPPHIEUNHANDB → TMPPHIEUGIAODBHD
+        // Đơn chờ xử lý = các dòng STATUS='NG' của bảng nghiệp vụ FVN_Purchase_Order_DB_CT.
         public DataTable BuildDonHangTuUpload()
         {
-            const string sql = @"
+            string sql = $@"
             SELECT
                 D.IDP,
                 H.NGAYLAP,
@@ -133,8 +158,8 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                 D.NhaMay  AS NHAMAY,
                 D.CUA,
                 D.TRUYEN
-            FROM TMPPHIEUGIAOHANGDBCT D
-            INNER JOIN TMPPHIEUGIAODBHD H ON H.IDP = D.IDP
+            FROM [{TableCt}] D
+            INNER JOIN [{TableHd}] H ON H.IDP = D.IDP
             WHERE D.STATUS = 'NG'";
 
             DataTable raw = LoadData(sql);
@@ -207,24 +232,24 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                 // (vd DB B7R2_FCC đang chạy) -> kiểm tra rồi chọn cách sinh IDP phù hợp.
                 bool idpLaIdentity = false;
                 object idCheck = ExecuteScalar(
-                    "SELECT ISNULL(COLUMNPROPERTY(OBJECT_ID(N'dbo.TMPPHIEUGIAODBHD'), N'IDP', 'IsIdentity'), 0)");
+                    $"SELECT ISNULL(COLUMNPROPERTY(OBJECT_ID(N'dbo.{TableHd}'), N'IDP', 'IsIdentity'), 0)");
                 if (idCheck != null && idCheck != DBNull.Value)
                     idpLaIdentity = Convert.ToInt32(idCheck) == 1;
 
                 string sqlHeader = idpLaIdentity
-                    ? @"
-                INSERT INTO TMPPHIEUGIAODBHD
+                    ? $@"
+                INSERT INTO [{TableHd}]
                     (NAME, TRANGTHAIGIAO, Note, NGAYLAP, NHAMAY, NHAMAYNAME)
                 OUTPUT INSERTED.IDP
                 VALUES (@ten, 0, @note, @ngayLap, @nhaMay, @nhaMayName)"
                     // Không identity: tự cấp IDP = MAX+1 trong CÙNG câu lệnh, khóa UPDLOCK/HOLDLOCK
                     // để 2 máy lưu cùng lúc không trùng IDP (nằm trong transaction của Uow).
-                    : @"
-                INSERT INTO TMPPHIEUGIAODBHD
+                    : $@"
+                INSERT INTO [{TableHd}]
                     (IDP, NAME, TRANGTHAIGIAO, Note, NGAYLAP, NHAMAY, NHAMAYNAME)
                 OUTPUT INSERTED.IDP
                 SELECT ISNULL(MAX(IDP), 0) + 1, @ten, 0, @note, @ngayLap, @nhaMay, @nhaMayName
-                FROM TMPPHIEUGIAODBHD WITH (UPDLOCK, HOLDLOCK)";
+                FROM [{TableHd}] WITH (UPDLOCK, HOLDLOCK)";
 
                 object idpObj = ExecuteScalar(sqlHeader,
                     new SqlParameter("@ten", (object)ten ?? DBNull.Value),
@@ -238,21 +263,21 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                 // Bảng chi tiết cũng có thể có ID INT NOT NULL (không identity) -> tự cấp ID = MAX+1.
                 bool idCtLaIdentity = false;
                 object idCtCheck = ExecuteScalar(
-                    "SELECT ISNULL(COLUMNPROPERTY(OBJECT_ID(N'dbo.TMPPHIEUGIAOHANGDBCT'), N'ID', 'IsIdentity'), 0)");
+                    $"SELECT ISNULL(COLUMNPROPERTY(OBJECT_ID(N'dbo.{TableCt}'), N'ID', 'IsIdentity'), 0)");
                 if (idCtCheck != null && idCtCheck != DBNull.Value)
                     idCtLaIdentity = Convert.ToInt32(idCtCheck) == 1;
 
                 string sqlChiTiet = idCtLaIdentity
-                    ? @"
-                    INSERT INTO TMPPHIEUGIAOHANGDBCT
+                    ? $@"
+                    INSERT INTO [{TableCt}]
                         (IDP, MAHANG, TENHANG, SOLUONG, GIOGIAO, NHAMAY, CUA, TRUYEN, STATUS, TTNHAN)
                     VALUES
                         (@idp, @ma, @ten, @sl, @gio, @nm, @cua, @tr, 'NG', 1)"
-                    : @"
-                    INSERT INTO TMPPHIEUGIAOHANGDBCT
+                    : $@"
+                    INSERT INTO [{TableCt}]
                         (ID, IDP, MAHANG, TENHANG, SOLUONG, GIOGIAO, NHAMAY, CUA, TRUYEN, STATUS, TTNHAN)
                     SELECT ISNULL(MAX(ID), 0) + 1, @idp, @ma, @ten, @sl, @gio, @nm, @cua, @tr, 'NG', 1
-                    FROM TMPPHIEUGIAOHANGDBCT WITH (UPDLOCK, HOLDLOCK)";
+                    FROM [{TableCt}] WITH (UPDLOCK, HOLDLOCK)";
 
                 foreach (DataRow row in chiTiet.Rows)
                 {

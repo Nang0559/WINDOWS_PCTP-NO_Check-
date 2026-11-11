@@ -55,12 +55,12 @@ tbl_qr_may_docqr,table,có,,ISqlRepository.cs; MachinePermissionService.cs; Main
 tmplotghep,table,có,,SqlRepository.cs,DELETE/INTO,có,SQL/QC_Schema/02_Generated_From_DB57.sql,có,có,OK-testable
 tmplotgheptest,table,có,,GIAOHANGYMN.cs,DELETE/INTO,có,SQL/QC_Schema/02_Generated_From_DB57.sql,có,có,OK-testable
 tmplottach,table,có,,UF_TACHLOT.cs,DELETE/INTO,có,SQL/QC_Schema/02_Generated_From_DB57.sql,có,có,OK-testable
-tmpphieugiaodbhd,table,có,tmpphieugiaohangdbct,PhieuGiaoDBRepository.cs,INTO/JOIN,có,SQL/QC_Schema/02_Generated_From_DB57.sql,có,có,OK-testable
+FVN_Purchase_Order_DB_HD,table,có,FVN_Purchase_Order_DB_CT,PhieuGiaoDBRepository.cs,INTO/JOIN,có,SQL/QC_Schema/02_Generated_From_DB57.sql,có,có,OK-testable
 tmpphieugiaohang,table,có,,Edit_DH.cs; FRM_SUALOTHVN.cs,UPDATE,có,"SQL/QC_Schema/01_Tables.sql, SQL/QC_Schema/02_Generated_From_DB57.sql",có,có,OK-testable
 tmpphieugiaohang_100002,table,không thấy literal SQL,,,,có,SQL/QC_Schema/02_Generated_From_DB57.sql,có,có,OK-testable
 tmpphieugiaohang_100003,table,không thấy literal SQL,,,,có,SQL/QC_Schema/02_Generated_From_DB57.sql,có,có,OK-testable
 tmpphieugiaohang_sp,table,không thấy literal SQL,,,,có,"SQL/QC_Schema/01_Tables.sql, SQL/QC_Schema/02_Generated_From_DB57.sql",có,có,OK-testable
-tmpphieugiaohangdbct,table,có,,PhieuGiaoDBRepository.cs,FROM/INTO/JOIN,có,SQL/QC_Schema/02_Generated_From_DB57.sql,có,có,OK-testable
+FVN_Purchase_Order_DB_CT,table,có,,PhieuGiaoDBRepository.cs,FROM/INTO/JOIN,có,SQL/QC_Schema/02_Generated_From_DB57.sql,có,có,OK-testable
 warehouse,table,có,rack,BulkStockSlotRepository.cs; CheckInfor.cs; LotLocationRepository.cs; NhapKhoDashboardRepository.cs; PhieuTrackingReadRepository.cs; PhieuTrackingRepository.cs; RackRepository.cs; SlotRepository.cs; WarehouseRepository.cs,FROM/INTO/JOIN,có,"SQL/QC_Schema/01_Tables.sql, SQL/QC_Schema/02_Generated_From_DB57.sql",có,có,OK-testable
 ymvn_docqrcode,table,có,,GIAOHANGYMN.cs; YMVNDOCQRCODE.cs,DELETE/FROM/INTO/UPDATE,có,SQL/QC_Schema/02_Generated_From_DB57.sql,có,có,OK-testable
 ymvn_tmpphieugiaohang,table,có,,GIAOHANGYMN.cs; YMVNDOCQRCODE.cs,FROM/INTO/UPDATE,có,SQL/QC_Schema/02_Generated_From_DB57.sql,có,có,OK-testable
