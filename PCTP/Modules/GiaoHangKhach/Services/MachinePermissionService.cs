@@ -63,6 +63,8 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             if (release) _locks.Release(_customerNo, oldMode);
         }
 
+        public bool IsRegisteredForAnyMode() => _locks.IsRegistered(_customerNo);
+
         public bool IsRegistered
         {
             get { lock (_gate) return _registered; }
