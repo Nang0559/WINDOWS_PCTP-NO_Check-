@@ -35,6 +35,15 @@ public sealed class QrReaderLockMpSpContractTests
     }
 
     [Fact]
+    public void Migration_MustNotCallFunctionsInsideExecParentheses()
+    {
+        // T-SQL: EXEC(N'...' + QUOTENAME(x)) là lỗi cú pháp (Msg 102). Phải dựng câu lệnh vào biến rồi EXEC (@sql).
+        var sql = Read("PCTP_QrReaderLock_MP_SP_Migration.sql");
+        Assert.False(Regex.IsMatch(sql, @"EXEC\s*\(\s*N'[^']*'\s*\+\s*QUOTENAME", RegexOptions.IgnoreCase),
+            "Do not call QUOTENAME inside EXEC(...); build @sql first.");
+    }
+
+    [Fact]
     public void Migration_RegistrationTable_MustBeKeyedByCustomerIpAndScanMode()
     {
         var sql = Read("PCTP_QrReaderLock_MP_SP_Migration.sql");

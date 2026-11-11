@@ -11,28 +11,52 @@ IF COL_LENGTH(N'dbo.FVN_QrReaderLock', N'ScanMode') IS NULL
     ALTER TABLE dbo.FVN_QrReaderLock ADD ScanMode NVARCHAR(2) NOT NULL
         CONSTRAINT DF_FVN_QrReaderLock_ScanMode DEFAULT (N'MP') WITH VALUES;
 GO
-DECLARE @lockPk SYSNAME;
-SELECT @lockPk = kc.name
-FROM sys.key_constraints kc
-WHERE kc.parent_object_id = OBJECT_ID(N'dbo.FVN_QrReaderLock') AND kc.type = 'PK';
-IF @lockPk IS NOT NULL
-    EXEC(N'ALTER TABLE dbo.FVN_QrReaderLock DROP CONSTRAINT ' + QUOTENAME(@lockPk));
-ALTER TABLE dbo.FVN_QrReaderLock
-    ADD CONSTRAINT PK_FVN_QrReaderLock PRIMARY KEY (CustomerNo, ScanMode);
+DECLARE @sql NVARCHAR(MAX), @lockPk SYSNAME;
+-- Chỉ đổi khoá chính khi khoá hiện tại CHƯA có cột ScanMode (chạy lại script không đụng bảng đang dùng).
+IF NOT EXISTS (SELECT 1
+               FROM sys.indexes i
+               JOIN sys.index_columns ic ON ic.object_id = i.object_id AND ic.index_id = i.index_id
+               JOIN sys.columns c ON c.object_id = ic.object_id AND c.column_id = ic.column_id
+               WHERE i.object_id = OBJECT_ID(N'dbo.FVN_QrReaderLock') AND i.is_primary_key = 1 AND c.name = N'ScanMode')
+BEGIN
+    SELECT @lockPk = kc.name
+    FROM sys.key_constraints kc
+    WHERE kc.parent_object_id = OBJECT_ID(N'dbo.FVN_QrReaderLock') AND kc.type = 'PK';
+    IF @lockPk IS NOT NULL
+    BEGIN
+        -- EXEC(...) không cho gọi hàm (QUOTENAME) trong ngoặc => dựng câu lệnh vào biến trước.
+        SET @sql = N'ALTER TABLE dbo.FVN_QrReaderLock DROP CONSTRAINT ' + QUOTENAME(@lockPk) + N';';
+        EXEC (@sql);
+    END;
+    ALTER TABLE dbo.FVN_QrReaderLock
+        ADD CONSTRAINT PK_FVN_QrReaderLock PRIMARY KEY (CustomerNo, ScanMode);
+END;
 GO
 
 IF COL_LENGTH(N'dbo.FVN_QrReaderMachine', N'ScanMode') IS NULL
     ALTER TABLE dbo.FVN_QrReaderMachine ADD ScanMode NVARCHAR(2) NOT NULL
         CONSTRAINT DF_FVN_QrReaderMachine_ScanMode DEFAULT (N'MP') WITH VALUES;
 GO
-DECLARE @machinePk SYSNAME;
-SELECT @machinePk = kc.name
-FROM sys.key_constraints kc
-WHERE kc.parent_object_id = OBJECT_ID(N'dbo.FVN_QrReaderMachine') AND kc.type = 'PK';
-IF @machinePk IS NOT NULL
-    EXEC(N'ALTER TABLE dbo.FVN_QrReaderMachine DROP CONSTRAINT ' + QUOTENAME(@machinePk));
-ALTER TABLE dbo.FVN_QrReaderMachine
-    ADD CONSTRAINT PK_FVN_QrReaderMachine PRIMARY KEY (CustomerNo, ClientIp, ScanMode);
+DECLARE @sql NVARCHAR(MAX), @machinePk SYSNAME;
+-- Chỉ đổi khoá chính khi khoá hiện tại CHƯA có cột ScanMode (chạy lại script không đụng bảng đang dùng).
+IF NOT EXISTS (SELECT 1
+               FROM sys.indexes i
+               JOIN sys.index_columns ic ON ic.object_id = i.object_id AND ic.index_id = i.index_id
+               JOIN sys.columns c ON c.object_id = ic.object_id AND c.column_id = ic.column_id
+               WHERE i.object_id = OBJECT_ID(N'dbo.FVN_QrReaderMachine') AND i.is_primary_key = 1 AND c.name = N'ScanMode')
+BEGIN
+    SELECT @machinePk = kc.name
+    FROM sys.key_constraints kc
+    WHERE kc.parent_object_id = OBJECT_ID(N'dbo.FVN_QrReaderMachine') AND kc.type = 'PK';
+    IF @machinePk IS NOT NULL
+    BEGIN
+        -- EXEC(...) không cho gọi hàm (QUOTENAME) trong ngoặc => dựng câu lệnh vào biến trước.
+        SET @sql = N'ALTER TABLE dbo.FVN_QrReaderMachine DROP CONSTRAINT ' + QUOTENAME(@machinePk) + N';';
+        EXEC (@sql);
+    END;
+    ALTER TABLE dbo.FVN_QrReaderMachine
+        ADD CONSTRAINT PK_FVN_QrReaderMachine PRIMARY KEY (CustomerNo, ClientIp, ScanMode);
+END;
 GO
 
 CREATE OR ALTER PROCEDURE dbo.Usp_QrReaderLock_Acquire
