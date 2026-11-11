@@ -24,5 +24,10 @@ namespace PCTP.Modules.GiaoHangKhach.OrderLoading.Category
         // IOrderCategoryResolver. Đặt cạnh đây vì cùng đọc chung 1 nhãn "giờ mô tả".
         public static bool IsLoaiOType(string gioMoTa)
             => !string.IsNullOrEmpty(gioMoTa) && gioMoTa.Contains("O TYPE");
+
+        // Giao DB (giao đặc biệt) dùng nhãn "(GIAO DB)" — cũng độc lập với MP/SP.
+        public static bool IsLoaiGiaoDB(string gioMoTa)
+            => !string.IsNullOrEmpty(gioMoTa) &&
+               gioMoTa.IndexOf("GIAO DB", System.StringComparison.OrdinalIgnoreCase) >= 0;
     }
 }

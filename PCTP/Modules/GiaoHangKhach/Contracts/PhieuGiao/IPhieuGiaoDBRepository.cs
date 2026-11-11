@@ -14,7 +14,8 @@ namespace PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao
         DataTable LoadTmpPhieuGiaoDB(string tenBan, DateTime ngayGiao, int addNm);
         DataTable BuildDonHangTuUpload();
         void LuuGiaoDB(DataTable donHang, string gioFccMoTa, int addNm,
-            string tmpTable, string ifsTable, string nhaMayOverride = "");
+            string tmpTable, string ifsTable, string nhaMayOverride = "",
+            string docQrTable = "DOCQRCODE_DB");
         int TaoPhieuVaChiTietGiaoDB(
             string ten, DateTime ngayLap, int nhaMay, string nhaMayName,
             string note, DataTable chiTiet);

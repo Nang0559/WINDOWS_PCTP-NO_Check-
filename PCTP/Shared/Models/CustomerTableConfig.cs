@@ -36,6 +36,11 @@ namespace PCTP.Shared.Models
                         TmpTableSP = "TMPPHIEUGIAOHANG_SP",
                         IfsTableSP = "IFSPHIEUGIAOHANG_SP",
                         DocQRTableSP = "DOCQRCODE_SP",
+                        // Giao DB: đơn nạp vào TMPPHIEUGIAOHANGDB nên phiên đọc QR
+                        // cũng dùng bảng QR riêng DOCQRCODE_DB.
+                        TmpTableGiaoDB = "TMPPHIEUGIAOHANGDB",
+                        IfsTableGiaoDB = "TMPPHIEUGIAOHANGDB_IFS",
+                        DocQRTableGiaoDB = "DOCQRCODE_DB",
                         CoNhieuNhaMay = true,
                         AddNmMacDinh = 1,
                         TenNhaMay = "",

@@ -77,6 +77,11 @@ CREATE TABLE [dbo].[DOCQRCODE_SP](
 ) ON [PRIMARY]
 GO
 
+CREATE TABLE [dbo].[DOCQRCODE_DB](
+	[LOTFCC] [nvarchar](500) NULL,[MAHANGFCC] [nvarchar](60) NULL,[SLTEMFCC] [smallint] NULL,[LOTHVN] [nvarchar](500) NULL,[MAHANGHVN] [nvarchar](60) NULL,[SLTEMHVN] [smallint] NULL,[STATUS] [smallint] NULL,[MAFCC] [nvarchar](50) NULL,[STT] [smallint] NULL,[KETQUA] [nvarchar](30) NULL,[CUA] [nvarchar](10) NULL,[TRUYEN] [nvarchar](50) NULL,[GIO] [nvarchar](50) NULL,[STTBAN] [int] NULL,[SUALOTHVN] [nchar](30) NULL,[TGLUU] [timestamp] NULL,[FindTem] [nvarchar](50) NULL
+) ON [PRIMARY]
+GO
+
 -- DOCQRCODE_100003 is customer-specific; generated from the DB57 SQL2 inventory in 02_Generated_From_DB57.sql.
 
 

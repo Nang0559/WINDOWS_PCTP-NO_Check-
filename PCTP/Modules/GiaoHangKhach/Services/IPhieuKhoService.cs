@@ -7,6 +7,6 @@
     /// </summary>
     public interface IPhieuKhoService
     {
-        void CapNhapKho(string gioGiaoFcc, string nhaMay, string gioMa, bool isSP);
+        void CapNhapKho(string gioGiaoFcc, string nhaMay, string gioMa, bool isSP, bool isGiaoDb = false);
     }
 }

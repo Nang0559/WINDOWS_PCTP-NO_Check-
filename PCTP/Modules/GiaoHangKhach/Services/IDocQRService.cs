@@ -9,6 +9,8 @@ namespace PCTP.Modules.GiaoHangKhach.Services
     {
         bool IsBanSP { get; }
         bool IsBanOType { get; }
+        /// <summary>Phiên đọc QR của Giao DB: dùng TMPPHIEUGIAOHANGDB + DOCQRCODE_DB.</summary>
+        bool IsGiaoDB { get; }
 
         void SetCheDoBanSP(bool isSP);
         void SetCheDoBan(string gioMoTa);

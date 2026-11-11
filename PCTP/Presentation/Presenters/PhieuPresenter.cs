@@ -178,8 +178,10 @@ namespace PCTP.Presentation.Presenters
                 // _c.TenBan is the MP/view binding and must not be used for SP:
                 // SP candidates live in TMPPHIEUGIAOHANG_SP.
                 bool isSp = _c.QrSvc.IsBanSP;
-                string activeTmpTable = _c.Cfg.Delivery.GetTmpTable(isSp);
-                string activeDocQrTable = _c.Cfg.Delivery.GetDocQRTable(isSp);
+                // Giao DB: TMPPHIEUGIAOHANGDB + DOCQRCODE_DB (phiên QR riêng).
+                bool isGiaoDb = _c.QrSvc.IsGiaoDB;
+                string activeTmpTable = _c.Cfg.Delivery.GetTmpTable(isSp, isGiaoDb);
+                string activeDocQrTable = _c.Cfg.Delivery.GetDocQRTable(isSp, isGiaoDb);
 
                 DataTable t = _c.PhieuSvc.GetDonHangChuaLot(isSp);
                 if (t != null && t.Rows.Count > 0)

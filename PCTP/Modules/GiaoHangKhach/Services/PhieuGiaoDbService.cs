@@ -36,6 +36,11 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             _isLoaiSP = isLoaiSP ?? throw new ArgumentNullException(nameof(isLoaiSP));
         }
 
+        // Bộ bảng Giao DB lấy từ config khách (HVN: TMPPHIEUGIAOHANGDB/_IFS/DOCQRCODE_DB).
+        private string TmpTableGiaoDB => _cfg.Delivery.CoConfigGiaoDB ? _cfg.Delivery.TmpTableGiaoDB : "TMPPHIEUGIAOHANGDB";
+        private string IfsTableGiaoDB => !string.IsNullOrWhiteSpace(_cfg.Delivery.IfsTableGiaoDB) ? _cfg.Delivery.IfsTableGiaoDB : "TMPPHIEUGIAOHANGDB_IFS";
+        private string DocQrTableGiaoDB => _cfg.Delivery.CoConfigGiaoDB ? _cfg.Delivery.DocQRTableGiaoDB : "DOCQRCODE_DB";
+
         public DataTable GetDanhSachMaHang() => _phieuRepo.GetDanhSachMaHang();
 
         public int TaoPhieuVaChiTiet(
@@ -56,8 +61,9 @@ namespace PCTP.Modules.GiaoHangKhach.Services
                 donHang,
                 gioXuat.MoTa,
                 addNm,
-                "TMPPHIEUGIAOHANGDB",
-                "TMPPHIEUGIAOHANGDB_IFS");
+                TmpTableGiaoDB,
+                IfsTableGiaoDB,
+                docQrTable: DocQrTableGiaoDB);
         }
 
         public DataTable LoadTmpPhieuGiaoDB(DateTime ngayGiao, int addNm)
@@ -94,8 +100,9 @@ namespace PCTP.Modules.GiaoHangKhach.Services
                     phanNhom,
                     "(GIAO DB)",
                     addNm: nhom.Key,
-                    tmpTable: "TMPPHIEUGIAOHANGDB",
-                    ifsTable: "TMPPHIEUGIAOHANGDB_IFS");
+                    tmpTable: TmpTableGiaoDB,
+                    ifsTable: IfsTableGiaoDB,
+                    docQrTable: DocQrTableGiaoDB);
             }
         }
     }

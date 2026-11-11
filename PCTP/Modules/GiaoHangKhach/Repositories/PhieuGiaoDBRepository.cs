@@ -69,22 +69,24 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
 
         public void LuuGiaoDB(
             DataTable donHang, string gioFccMoTa, int addNm,
-            string tmpTable, string ifsTable, string nhaMayOverride = "")
+            string tmpTable, string ifsTable, string nhaMayOverride = "",
+            string docQrTable = "DOCQRCODE_DB")
         {
             if (donHang == null) throw new ArgumentNullException(nameof(donHang));
 
             Db.ValidateTableName(tmpTable);
             Db.ValidateTableName(ifsTable);
+            Db.ValidateTableName(docQrTable);
 
             // DropCreate + BulkInsert + SP + UPDATE cuối: một transaction duy nhất.
             // Trước đây 3 bước đầu tự mở connection riêng (auto-commit), chỉ UPDATE cuối
             // tham gia Uow → lỗi giữa chừng để lại bảng IFS/TMP ở trạng thái dở.
-            InTransaction(() => LuuGiaoDBCore(donHang, gioFccMoTa, addNm, tmpTable, ifsTable, nhaMayOverride));
+            InTransaction(() => LuuGiaoDBCore(donHang, gioFccMoTa, addNm, tmpTable, ifsTable, nhaMayOverride, docQrTable));
         }
 
         private void LuuGiaoDBCore(
             DataTable donHang, string gioFccMoTa, int addNm,
-            string tmpTable, string ifsTable, string nhaMayOverride)
+            string tmpTable, string ifsTable, string nhaMayOverride, string docQrTable)
         {
             Db.DropCreate(Connection, Transaction, ifsTable, donHang);
             Db.BulkInsert(Connection, Transaction, ifsTable, donHang);
@@ -95,7 +97,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                     ? "HON DA - VIET NAM(NHA MAY VP)"
                     : "HON DA - VIET NAM(NHA MAY HA NAM)");
 
-            var tables = new PhieuTableSet(tmpTable, ifsTable, "DOCQRCODE");
+            var tables = new PhieuTableSet(tmpTable, ifsTable, docQrTable);
 
             Db.CallPhieuSP(
                 Connection, Transaction,

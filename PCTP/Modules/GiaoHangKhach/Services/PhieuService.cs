@@ -41,6 +41,8 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         private readonly IPhieuYmvnService _ymvnService;
         private bool _isBanQR;
         private bool _isLoaiSP;
+        // Phiếu đang hiển thị là Giao DB (nạp từ TMPPHIEUGIAOHANGDB). LoadPhieu() (giao thường) xoá cờ này.
+        private bool _isGiaoDb;
         private DataTable _ifsDataCache;
         private string _ifsLoadWarning;
 
@@ -65,11 +67,13 @@ namespace PCTP.Modules.GiaoHangKhach.Services
 
         public void SetTrangThaiBan(bool isBanQR, bool isLoaiSP) { _isBanQR = isBanQR; _isLoaiSP = isLoaiSP; }
         private string GetTenBan() => GetTenBan(_isLoaiSP);
-        private string GetTenBan(bool isSP) => _isMayBanQR ? _cfg.Delivery.GetTmpTable(isSP) : _tenBan;
+        private string GetTenBan(bool isSP) => _isMayBanQR ? _cfg.Delivery.GetTmpTable(isSP, _isGiaoDb) : _tenBan;
+        private string GetDocQrTableActive(bool isSP) => _cfg.Delivery.GetDocQRTable(isSP, _isGiaoDb);
 
         public void LoadPhieu(string ngayGiao, string nhaMay, string gioFcc, string gioFccMoTa, int addNm, bool isMayBanQR, bool isBanQR, List<string> checkedGios = null, bool isLoaiSP = false, long loadRequestId = 0)
         {
             SetTrangThaiBan(isBanQR, isLoaiSP);
+            _isGiaoDb = false;
             string ngayGiaoDate = string.IsNullOrEmpty(ngayGiao) ? string.Empty : (ngayGiao.Length >= 10 ? ngayGiao.Substring(0, 10) : ngayGiao);
             if (!PCTP.Shared.Helpers.DateText.TryParseApp(ngayGiaoDate, out DateTime dt) || dt.Year < 2000) { PublishEmptyPhieuLoaded(); return; }
             try
@@ -126,10 +130,10 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         public DataTable TinhLechIFS(DataTable donHangBangRieng, string ngayXuatIFS) { if (!_cfg.Delivery.LoadTuBangRieng || _ifsDataCache == null) return new DataTable(); return _phieuRepo.SoSanhLechIFS(donHangBangRieng, _ifsDataCache); }
         public TrangThaiBan GetTrangThaiDangBan() => _workingState.GetTrangThaiDangBan(new OrderLoadContext { Cfg = _cfg, Category = OrderCategory.MP });
         public TrangThaiBan GetTrangThaiDangBanSP() { if (!_cfg.Delivery.CoConfigSP) return new TrangThaiBan { DangBan = false }; return _workingState.GetTrangThaiDangBan(new OrderLoadContext { Cfg = _cfg, Category = OrderCategory.SP }); }
-        public bool XoaDocQRCode(bool isSP = false) { _phieuRepo.XoaDocQRCode(_cfg.Delivery.GetDocQRTable(isSP)); return true; }
+        public bool XoaDocQRCode(bool isSP = false) { _phieuRepo.XoaDocQRCode(GetDocQrTableActive(isSP)); return true; }
         public DataTable GetDonHangHienTai(string tenbang) => _phieuRepo.GetDonHangHienTai(tenbang);
         public DataTable GetDonHangYmvnTuTmp() => _phieuRepo.LoadTmpOrderForGear(GetTenBan());
-        public DataTable GetDonHangChuaLot(bool isSP = false) => _phieuRepo.GetDonHangChuaLot(GetTenBan(isSP), _cfg.Delivery.GetDocQRTable(isSP));
+        public DataTable GetDonHangChuaLot(bool isSP = false) => _phieuRepo.GetDonHangChuaLot(GetTenBan(isSP), GetDocQrTableActive(isSP));
 
         public DataTable LoadGhepLot()
         {
@@ -164,15 +168,15 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             dt.Columns.Add("GearName", typeof(string));
             return dt;
         }
-        public void LayLaiLotNo(int stt, bool isSP = false) => _phieuRepo.LayLaiLotNo(stt, GetTenBan(isSP), _cfg.Delivery.GetDocQRTable(isSP));
+        public void LayLaiLotNo(int stt, bool isSP = false) => _phieuRepo.LayLaiLotNo(stt, GetTenBan(isSP), GetDocQrTableActive(isSP));
         public DataTable GetDanhSachMaHangGiaoDB() => _giaoDbService.GetDanhSachMaHang();
         public int TaoPhieuVaChiTietGiaoDB(string ten, DateTime ngayLap, int nhaMay, string nhaMayName, string note, DataTable chiTiet) => _giaoDbService.TaoPhieuVaChiTiet(ten, ngayLap, nhaMay, nhaMayName, note, chiTiet);
         public void LuuGiaoDB(DataTable donHang, GioXuat gioXuat, int addNm) => _giaoDbService.LuuGiaoDB(donHang, gioXuat, addNm);
-        public DataTable LoadTmpPhieuGiaoDB(DateTime ngayGiao, int addNm) => _giaoDbService.LoadTmpPhieuGiaoDB(ngayGiao, addNm);
+        public DataTable LoadTmpPhieuGiaoDB(DateTime ngayGiao, int addNm) { _isGiaoDb = true; return _giaoDbService.LoadTmpPhieuGiaoDB(ngayGiao, addNm); }
         public void XuLySauUploadGiaoDB() => _giaoDbService.XuLySauUpload();
         public int LuuPhieuSP(string nhaMay, string ngayGiao, string gioGiaoFcc, string loaiPhieu) => _phieuRepo.LuuPhieuSP(nhaMay, ngayGiao, gioGiaoFcc, loaiPhieu);
         public void CapNhapTTPHIEU(string nhaMay, string ngayGiao, string gioGiaoFcc, int stt, string ghiChu) => _phieuRepo.CapNhapTTPHIEU(nhaMay, ngayGiao, gioGiaoFcc, stt, ghiChu);
-        public void CapNhapKho(string gioGiaoFcc, string nhaMay, string gioMa = "") => _khoService.CapNhapKho(gioGiaoFcc, nhaMay, gioMa, _isLoaiSP);
+        public void CapNhapKho(string gioGiaoFcc, string nhaMay, string gioMa = "") => _khoService.CapNhapKho(gioGiaoFcc, nhaMay, gioMa, _isLoaiSP, _isGiaoDb);
         public void CapNhapKhoYMVN(string ngayGiao, string gioXuat, string nhaMay, DataTable donHang) => _ymvnService.CapNhapKho(ngayGiao, gioXuat, nhaMay, donHang);
         public void HoanThanhYMVN(bool isLoaiSP = false) => _ymvnService.HoanThanh(isLoaiSP);
         public List<string> GetDanhSachGioYMVN(string ngayXuatMDY) => _ymvnService.GetDanhSachGio(ngayXuatMDY);

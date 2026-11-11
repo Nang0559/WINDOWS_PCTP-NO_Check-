@@ -57,6 +57,9 @@ namespace PCTP.Domain.Interfaces
         // ── Kiểm tra khi quét HVN ───────────────────────────────────────────
         bool KiemTraTemMa(string maHvn);
         bool KiemTraTemSoLuong(string maHvn, int slTemHvn);
+        // Bản chỉ định bảng QR của phiên (MP/SP/Giao DB) — không mặc định về DOCQRCODE.
+        bool KiemTraTemMa(string maHvn, string docQrTable);
+        bool KiemTraTemSoLuong(string maHvn, int slTemHvn, string docQrTable);
         bool KiemTraTrungTemTong(string lotFcc, string soPhieu, string docQrTable);
         /// <summary>YMVN: Order No printed on the Yamaha tem must exist as CUA on the selected delivery sheet.</summary>
         bool KiemTraOrderTrongPhieu(string order, string tmpTable);

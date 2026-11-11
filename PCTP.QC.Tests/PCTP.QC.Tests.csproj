@@ -66,6 +66,15 @@
     <None Include="../PCTP/Modules/GiaoHangKhach/Repositories/PhieuValidationRepository.cs" Link="PhieuValidationRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Shared/Models/CustomerTableConfig.cs" Link="CustomerTableConfig.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/GiaoHangKhach/Services/DocQRScanEngine.cs" Link="DocQRScanEngine.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/GiaoHangKhach/Configuration/GiaoHangKhachConfiguration.cs" Link="GiaoHangKhachConfiguration.giaodb.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/GiaoHangKhach/Services/DocQRSessionState.cs" Link="DocQRSessionState.giaodb.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/GiaoHangKhach/Services/DocQRService.cs" Link="DocQRService.giaodb.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/GiaoHangKhach/Services/PhieuService.cs" Link="PhieuService.giaodb.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/GiaoHangKhach/Services/PhieuKhoService.cs" Link="PhieuKhoService.giaodb.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/GiaoHangKhach/Services/PhieuGiaoDbService.cs" Link="PhieuGiaoDbService.giaodb.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/GiaoHangKhach/Repositories/PhieuGiaoDBRepository.cs" Link="PhieuGiaoDBRepository.giaodb.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Presentation/Presenters/PhieuPresenter.cs" Link="PhieuPresenter.giaodb.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../SQL/PCTP_GiaoDB_DocQrCode_DB.sql" Link="PCTP_GiaoDB_DocQrCode_DB.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Infrastructure/Repositories/DocQRRepository.cs" Link="DocQRRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Presentation/Presenters/DocQrPresenter.cs" Link="DocQrPresenter.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP.QC.UI/journeys/g6/g6-delivery-hvn.json" Link="g6-delivery-hvn.json" CopyToOutputDirectory="PreserveNewest" />

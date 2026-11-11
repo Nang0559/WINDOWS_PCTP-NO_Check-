@@ -22,10 +22,15 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             _cfg = cfg ?? throw new ArgumentNullException(nameof(cfg));
         }
 
-        public void CapNhapKho(string gioGiaoFcc, string nhaMay, string gioMa, bool isSP)
+        public void CapNhapKho(string gioGiaoFcc, string nhaMay, string gioMa, bool isSP, bool isGiaoDb = false)
         {
-            string tmpTable = _cfg.Delivery.GetTmpTable(isSP);
-            string docQrTable = _cfg.Delivery.GetDocQRTable(isSP);
+            // Giao DB có bộ bảng riêng (TMPPHIEUGIAOHANGDB + DOCQRCODE_DB) và đi nhánh
+            // MP (không phải SP). Không có config Giao DB -> giữ nguyên bảng MP/SP.
+            bool useGiaoDbTables = isGiaoDb && _cfg.Delivery.CoConfigGiaoDB;
+            if (useGiaoDbTables) isSP = false;
+
+            string tmpTable = _cfg.Delivery.GetTmpTable(isSP, useGiaoDbTables);
+            string docQrTable = _cfg.Delivery.GetDocQRTable(isSP, useGiaoDbTables);
 
             // PHASE 1: FIFO is a hard business gate. Nothing that can update stock
             // is allowed to execute before this phase has completed successfully.

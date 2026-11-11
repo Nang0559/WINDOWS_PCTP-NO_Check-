@@ -221,10 +221,10 @@ namespace PCTP.Infrastructure.Repositories
             return raw.Trim(); // luôn "00123"
         }
 
-        public bool KiemTraTemMa(string maHvn)
+        public bool KiemTraTemMa(string maHvn) => KiemTraTemMa(maHvn, GetDocQRTable());
+
+        public bool KiemTraTemMa(string maHvn, string docQrTable)
         {
-            // ── Dùng docQRTable từ config ────────────────────────────────────
-            string docQrTable = GetDocQRTable();
             string mafcc = _sql.ExecuteReader(_sql.B7R2_FCCdb,
                 $"SELECT ISNULL(MAHANGFCC,'') " +
                 $"FROM {Q(docQrTable)} " +
@@ -241,9 +241,10 @@ namespace PCTP.Infrastructure.Repositories
             return mafcc.Replace("-", "") == maHvn;
         }
 
-        public bool KiemTraTemSoLuong(string maHvn, int slTemHvn)
+        public bool KiemTraTemSoLuong(string maHvn, int slTemHvn) => KiemTraTemSoLuong(maHvn, slTemHvn, GetDocQRTable());
+
+        public bool KiemTraTemSoLuong(string maHvn, int slTemHvn, string docQrTable)
         {
-            string docQrTable = GetDocQRTable();
             string raw = _sql.ExecuteReader(_sql.B7R2_FCCdb,
                 $"SELECT ISNULL(SLTEMFCC,0) " +
                 $"FROM {Q(docQrTable)} " +

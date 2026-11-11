@@ -22,6 +22,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
 
         public bool IsBanSP => _session.IsBanSP;
         public bool IsBanOType => _session.IsBanOType;
+        public bool IsGiaoDB => _session.IsGiaoDB;
 
         public DocQRService(IDocQRRepository repo, IEventBus bus, CustomerConfig cfg, IOrderCategoryResolver categoryResolver, FifoSessionService fifoService)
         {
@@ -44,7 +45,9 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         {
             bool isSp = _categoryResolver.Resolve(new OrderLoadContext { GioFccMoTa = gioMoTa }) == OrderCategory.SP;
             bool isOType = GioMoTaCategoryResolver.IsLoaiOType(gioMoTa);
-            _session.SetCategory(isSp, isOType);
+            // Giao DB chọn theo nhãn "(GIAO DB)"; SetCheDoBan("") (kết thúc phiên) sẽ xoá cờ này.
+            bool isGiaoDb = GioMoTaCategoryResolver.IsLoaiGiaoDB(gioMoTa);
+            _session.SetCategory(isSp, isOType, isGiaoDb);
         }
 
         public int CountChuaDG() => _engine.CountChuaDG();

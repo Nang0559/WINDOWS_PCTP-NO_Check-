@@ -17,20 +17,32 @@ namespace PCTP.Modules.GiaoHangKhach.Services
 
         public bool IsBanSP { get; private set; }
         public bool IsBanOType { get; private set; }
+        public bool IsGiaoDB { get; private set; }
 
-        public string DocQrTable => _tables.GetDocQrTable(IsBanSP);
-        public string TmpTable => _tables.GetTmpTable(IsBanSP);
+        public string DocQrTable => _tables.GetDocQrTable(IsBanSP, IsGiaoDB);
+        public string TmpTable => _tables.GetTmpTable(IsBanSP, IsGiaoDB);
 
+        /// <summary>
+        /// MP/SP/O-TYPE category. Giao DB mode is intentionally preserved here:
+        /// SetCheDoBanSP() is called after SetCheDoBan() and must not drop it.
+        /// </summary>
         public void SetCategory(bool isSp, bool isOType)
         {
             IsBanSP = isSp;
             IsBanOType = isOType;
         }
 
+        public void SetCategory(bool isSp, bool isOType, bool isGiaoDb)
+        {
+            SetCategory(isSp, isOType);
+            IsGiaoDB = isGiaoDb;
+        }
+
         public void Reset()
         {
             IsBanSP = false;
             IsBanOType = false;
+            IsGiaoDB = false;
         }
     }
 }

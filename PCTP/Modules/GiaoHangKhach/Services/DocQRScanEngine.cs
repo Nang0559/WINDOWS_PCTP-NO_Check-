@@ -142,7 +142,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
 
         private ScanResult ScanTemYamaha(string part, string order, int qty)
         {
-            string table = _cfg.Delivery.GetDocQRTable(IsBanSP);
+            string table = DocQRTable;
             var all = _repo.GetAll(table);
             if (all.Count == 0) return ScanResult.Fail("Sai Thứ tự bắn!");
 
@@ -192,7 +192,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             if (!int.TryParse(slStr, out int slTem)) return ScanResult.Fail("Số lượng TEM không hợp lệ!");
             if (!kiemTraMaTrongPhieu(maHang)) return ScanResult.Fail($"Mã hàng [{maHang}] không có trong phiếu!");
             string gearName = parts.Length > 6 ? _repo.GetGearName(parts[6].Trim()) : "";
-            string docQRTable = _cfg.Delivery.GetDocQRTable(IsBanSP);
+            string docQRTable = DocQRTable;
             bool trung = _repo.KiemTraTrungTemTong(lotFcc, soTT, docQRTable);
             if (trung) return ScanResult.Fail($"TEM [{temCode}] đã được quét!");
             int maxStt = _repo.GetMaxStt(docQRTable);
@@ -216,9 +216,9 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             string maHvn = parts[1].Replace(" ", "");
             if (!int.TryParse(parts[3], out int slTem)) return ScanResult.Fail("Số lượng tem không hợp lệ.");
             if (!KiemTraTrungTem(lotHvn)) return ScanResult.Fail("Trùng Tem!");
-            if (!_repo.KiemTraTemMa(maHvn)) return ScanResult.Fail("Mã Hàng HVN không khớp với FCC!");
+            if (!_repo.KiemTraTemMa(maHvn, DocQRTable)) return ScanResult.Fail("Mã Hàng HVN không khớp với FCC!");
             int sttBan = _repo.GetMaxStt(DocQRTable);
-            if (!_repo.KiemTraTemSoLuong(maHvn, slTem))
+            if (!_repo.KiemTraTemSoLuong(maHvn, slTem, DocQRTable))
                 return ScanResult.SlKhongKhop(new DocQRCode { STT = sttBan, LotHVN = lotHvn, MaHangHVN = maHvn, SlTemHVN = slTem });
             var item = new DocQRCode { STT = sttBan, LotHVN = lotHvn, MaHangHVN = maHvn, SlTemHVN = slTem, KetQua = "OK" };
             _repo.UpdateHVN(item, DocQRTable);

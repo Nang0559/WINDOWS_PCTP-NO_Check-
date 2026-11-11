@@ -4,7 +4,8 @@ namespace PCTP.Modules.GiaoHangKhach.Services
 {
     /// <summary>
     /// Centralizes DOCQRCODE/TMP table selection for the QR working session.
-    /// MP/O TYPE share the normal tables; SP uses the SP tables.
+    /// MP/O TYPE share the normal tables; SP uses the SP tables;
+    /// Giao DB uses its own TMPPHIEUGIAOHANGDB/DOCQRCODE_DB pair.
     /// </summary>
     public sealed class DocQRTableResolver
     {
@@ -23,6 +24,17 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         public string GetTmpTable(bool isSp)
         {
             return _cfg.Delivery.GetTmpTable(isSp);
+        }
+
+        // Giao DB có bộ bảng riêng (TMPPHIEUGIAOHANGDB + DOCQRCODE_DB).
+        public string GetDocQrTable(bool isSp, bool isGiaoDb)
+        {
+            return _cfg.Delivery.GetDocQRTable(isSp, isGiaoDb);
+        }
+
+        public string GetTmpTable(bool isSp, bool isGiaoDb)
+        {
+            return _cfg.Delivery.GetTmpTable(isSp, isGiaoDb);
         }
     }
 }

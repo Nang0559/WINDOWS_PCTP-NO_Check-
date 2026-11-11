@@ -25,6 +25,28 @@ namespace PCTP.Modules.GiaoHangKhach.Configuration
         public string GetTmpTable(bool isSP) => isSP && CoConfigSP ? TmpTableSP : TmpTable;
         public string GetIfsTable(bool isSP) => isSP && CoConfigSP ? IfsTableSP : IfsTable;
 
+        // ── Config riêng cho phiên GIAO DB (giao đặc biệt) ───────────────
+        // Giao DB có bảng đơn hàng riêng (TMPPHIEUGIAOHANGDB) nên phiên đọc QR
+        // phải kiểm tra đơn và ghi QR trên bộ bảng riêng, không dùng chung
+        // TMPPHIEUGIAOHANG/DOCQRCODE của giao thường. Khách không khai báo
+        // DocQRTableGiaoDB thì tự động dùng bộ bảng MP/SP như cũ.
+        public string TmpTableGiaoDB { get; set; } = "";
+        public string IfsTableGiaoDB { get; set; } = "";
+        public string DocQRTableGiaoDB { get; set; } = "";
+        public bool CoConfigGiaoDB =>
+            !string.IsNullOrWhiteSpace(TmpTableGiaoDB) &&
+            !string.IsNullOrWhiteSpace(DocQRTableGiaoDB);
+
+        /// <summary>Giao DB (nếu khách có config) được ưu tiên hơn SP.</summary>
+        public string GetDocQRTable(bool isSP, bool isGiaoDB) =>
+            isGiaoDB && CoConfigGiaoDB ? DocQRTableGiaoDB : GetDocQRTable(isSP);
+        public string GetTmpTable(bool isSP, bool isGiaoDB) =>
+            isGiaoDB && CoConfigGiaoDB ? TmpTableGiaoDB : GetTmpTable(isSP);
+        public string GetIfsTable(bool isSP, bool isGiaoDB) =>
+            isGiaoDB && CoConfigGiaoDB && !string.IsNullOrWhiteSpace(IfsTableGiaoDB)
+                ? IfsTableGiaoDB
+                : GetIfsTable(isSP);
+
         public string NhaMayCase { get; set; }
         public string ViewTablePrefix { get; set; }
 
