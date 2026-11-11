@@ -76,6 +76,9 @@ BEGIN
     --------------------------------------------------------------------  
     DECLARE @sql NVARCHAR(MAX);
     DECLARE @StartedTransaction BIT = 0;
+    DECLARE @ErrMH NVARCHAR(60) = NULL;   -- mã hàng đang xử lý khi lỗi nghiệp vụ FIFO_SP
+    DECLARE @ErrQty INT = NULL;           -- số lượng cần giao của dòng đó
+    DECLARE @ErrTon INT = NULL;           -- tổng tồn khả dụng của mã hàng (chỉ để hiển thị)
     DECLARE @SavepointCreated BIT = 0;  
   
     DECLARE  
@@ -398,9 +401,17 @@ BEGIN
                         @Qty=@FifoQty OUTPUT, @Lot=@FifoLot OUTPUT;
 
                     IF @FifoQty IS NULL OR @FifoQty <= 0
+                    BEGIN
+                        SET @ErrMH = @MH;
+                        SET @ErrQty = @FifoQty;
                         THROW 51035, N'Số lượng giao SP phải lớn hơn 0.', 1;
+                    END;
                     IF @FifoLot IS NULL
-                        THROW 51036, N'Không tìm được một LOT FIFO đủ tồn cho mã hàng SP.', 1;
+                    BEGIN
+                        SET @ErrMH = @MH;
+                        SET @ErrQty = @FifoQty;
+                        THROW 51036, N'Không tìm được một LOT FIFO đủ tồn cho mã hàng SP (cần đủ trong MỘT LOT, đúng định dạng yyMMdd + [0-3]).', 1;
+                    END;
 
                     SET @_LOT = @FifoLot + N'-' + CONVERT(NVARCHAR(20), @FifoQty);
                     DECLARE @FifoTmpRows INT = 0;
@@ -1310,33 +1321,46 @@ BEGIN
             DEALLOCATE UPDATETMP;  
         END;  
   
-        INSERT INTO #STNG  
-        (  
-            MH,  
-            LOT,  
-            SLCAN,  
-            SLCO,  
-            SLTHIEU,  
-            STATUS  
-        )  
-        VALUES  
-        (  
-            N'SYSTEM ERROR',  
-            N'Line ' +  
-                CAST(ERROR_LINE() AS NVARCHAR(10)),  
-            0,  
-            0,  
-            0,  
-            LEFT  
-            (  
-                N'Lỗi dòng ' +  
-                CAST(ERROR_LINE() AS NVARCHAR(10)) +  
-                N': ' +  
-                ERROR_MESSAGE(),  
-                500  
-            )  
-        );  
-  
+        IF @ErrMH IS NOT NULL
+        BEGIN
+            SELECT @ErrTon = SUM(ISNULL(s.SLCONLAI, 0))
+            FROM STOCKTP s
+            WHERE COALESCE(
+                    NULLIF(LTRIM(RTRIM(s.SP)), N''),
+                    NULLIF(LTRIM(RTRIM(s.PART)), N'')
+                  ) = LTRIM(RTRIM(@ErrMH))
+              AND ISNULL(s.SLCONLAI, 0) > 0;
+        END;
+
+        INSERT INTO #STNG
+        (
+            MH,
+            LOT,
+            SLCAN,
+            SLCO,
+            SLTHIEU,
+            STATUS
+        )
+        VALUES
+        (
+            ISNULL(@ErrMH, N'SYSTEM ERROR'),
+            CASE WHEN @ErrMH IS NOT NULL
+                 THEN N'(chưa chọn được LOT)'
+                 ELSE N'Line ' + CAST(ERROR_LINE() AS NVARCHAR(10)) END,
+            ISNULL(@ErrQty, 0),
+            ISNULL(@ErrTon, 0),
+            CASE WHEN @ErrMH IS NOT NULL AND ISNULL(@ErrQty, 0) > ISNULL(@ErrTon, 0)
+                 THEN @ErrQty - ISNULL(@ErrTon, 0) ELSE 0 END,
+            LEFT
+            (
+                N'Lỗi dòng ' +
+                CAST(ERROR_LINE() AS NVARCHAR(10)) +
+                N': ' +
+                ERROR_MESSAGE(),
+                500
+            )
+        );
+
     END CATCH;  
   
     --------------------------------------------------------------------  
