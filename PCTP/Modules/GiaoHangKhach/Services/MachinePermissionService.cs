@@ -12,6 +12,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
 
         private readonly ICustomerQrLockService _locks;
         private readonly string _customerNo;
+        private string _scanMode = "MP";
 
         private MachineRole? _cachedRole;
         private string _owner = string.Empty;
@@ -40,6 +41,28 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             get { lock (_gate) return _owner; }
         }
 
+        public void SetScanMode(string scanMode)
+        {
+            string mode = (scanMode ?? "MP").Trim().ToUpperInvariant();
+            if (mode != "MP" && mode != "SP") throw new ArgumentException("Chế độ đọc QR chỉ nhận MP hoặc SP.", nameof(scanMode));
+            bool release;
+            string oldMode;
+            lock (_gate)
+            {
+                if (_scanMode == mode) return;
+                oldMode = _scanMode;
+                release = _holdsLock;
+                _heartbeat?.Dispose();
+                _heartbeat = null;
+                _holdsLock = false;
+                _registered = false;
+                _owner = string.Empty;
+                _cachedRole = null;
+                _scanMode = mode;
+            }
+            if (release) _locks.Release(_customerNo, oldMode);
+        }
+
         public bool IsRegistered
         {
             get { lock (_gate) return _registered; }
@@ -51,14 +74,14 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             {
                 if (_cachedRole.HasValue) return _cachedRole.Value;
 
-                QrLockInfo info = _locks.TryAcquire(_customerNo);
+                QrLockInfo info = _locks.TryAcquire(_customerNo, _scanMode);
                 _owner = info.HasOwner ? info.OwnerDisplay : (info.Error ?? string.Empty);
                 _holdsLock = info.IsOwnedByMe;
                 _registered = info.Registered;
                 _cachedRole = info.IsOwnedByMe ? MachineRole.DuocBanQR : MachineRole.ChiXem;
 
                 if (_holdsLock && _heartbeat == null)
-                    _heartbeat = new Timer(OnHeartbeat, null, HeartbeatIntervalMs, HeartbeatIntervalMs);
+                    _heartbeat = new Timer(OnHeartbeat, _scanMode, HeartbeatIntervalMs, HeartbeatIntervalMs);
 
                 return _cachedRole.Value;
             }
@@ -68,15 +91,15 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         {
             if (GetCurrentRole() != MachineRole.DuocBanQR)
                 throw new UnauthorizedAccessException(IsRegistered
-                    ? $"Khách {_customerNo} đang được máy [{OwnerMachine}] đọc QR. Máy [{Environment.MachineName}] chỉ được xem."
-                    : $"Máy [{Environment.MachineName}] chưa được đăng ký đọc QR cho khách {_customerNo}.");
+                    ? $"Khách {_customerNo} chế độ {_scanMode} đang được máy [{OwnerMachine}] đọc QR. Máy [{Environment.MachineName}] chỉ được xem."
+                    : $"Máy [{Environment.MachineName}] chưa được đăng ký đọc QR cho khách {_customerNo} chế độ {_scanMode}.");
 
             // Xác nhận lại với DB ngay lúc ghi: chặn trường hợp máy khác vừa chiếm quyền
             // trong khoảng giữa hai lần heartbeat. Lỗi DB => fail-closed.
             bool stillOwner;
             try
             {
-                stillOwner = _locks.Heartbeat(_customerNo);
+                stillOwner = _locks.Heartbeat(_customerNo, _scanMode);
             }
             catch (Exception ex)
             {
@@ -95,9 +118,10 @@ namespace PCTP.Modules.GiaoHangKhach.Services
 
         public string GetTenBanTheoRole(CustomerConfig cfg, bool isSP, string tenBanView)
         {
+            SetScanMode(isSP ? "SP" : "MP");
             if (GetCurrentRole() == MachineRole.DuocBanQR)
             {
-                string loai = isSP ? "SP" : "BTP";
+                string loai = isSP ? "SP" : "MP";
                 return $"Bàn bắn QR — {cfg?.DisplayName} ({loai})";
             }
 
@@ -119,14 +143,19 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             // Chỉ nhả khi chính instance này đã giành khoá — form chỉ-xem đóng lại không được
             // đụng vào khoá của máy khác (và Release ở DB cũng chỉ xoá khi đúng MachineName).
             if (release)
-                _locks.Release(_customerNo);
+                _locks.Release(_customerNo, _scanMode);
         }
 
         private void OnHeartbeat(object state)
         {
+            string mode = Convert.ToString(state);
+            lock (_gate)
+            {
+                if (!_holdsLock || !string.Equals(mode, _scanMode, StringComparison.OrdinalIgnoreCase)) return;
+            }
             try
             {
-                if (!_locks.Heartbeat(_customerNo))
+                if (!_locks.Heartbeat(_customerNo, mode))
                     MarkLost();
             }
             catch

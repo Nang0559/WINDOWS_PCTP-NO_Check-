@@ -42,9 +42,6 @@ namespace PCTP.Presentation.Presenters
                 return;
             }
 
-            if (!EnsureQrLockOwnership())
-                return;
-
             // DOCQRCODE/TMP luôn là source of truth khi đã có phiên QR.
             // Không được lấy ngày/nhà máy/giờ hiện tại trên UI để mở lại một
             // phiên đang tồn tại. Trường hợp điển hình: TMP/DOCQRCODE đang là
@@ -63,6 +60,8 @@ namespace PCTP.Presentation.Presenters
             // Category của phiếu hiện tại là source of truth.
             // Không suy diễn SP từ giờ xuất hiện tại vì SP không phải luồng theo giờ.
             bool isSP = _c.Cfg.Delivery.CoLoaiSP && _c.PhieuView.IsLoaiSP;
+            _c.MachinePermission?.SetScanMode(isSP ? "SP" : "MP");
+            if (!EnsureQrLockOwnership()) return;
 
             // SP dùng phạm vi ngày + nhà máy + dock, không dùng giờ hiện tại.
             _c.QrSvc.SetCheDoBan(isSP || _c.Cfg.Delivery.LoadTuBangRieng ? "" : _c.GioXuatHienTai.MoTa);
@@ -154,6 +153,9 @@ namespace PCTP.Presentation.Presenters
 
             if (!tt.DataKhongKhop && !_c.SessionHoursShareOneFrame(tt, isSP))
                 tt.DataKhongKhop = true;
+
+            _c.MachinePermission?.SetScanMode(isSP ? "SP" : "MP");
+            if (!EnsureQrLockOwnership()) return true;
 
             if (tt.DataKhongKhop)
             {

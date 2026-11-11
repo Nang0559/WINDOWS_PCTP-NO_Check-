@@ -21,18 +21,19 @@ namespace PCTP.Shell.Services
             {
                 if (cfg.Delivery == null) continue;
 
-                QrLockInfo info = locks.FirstOrDefault(l =>
-                    string.Equals(l.CustomerNo, cfg.CustomerNo, StringComparison.OrdinalIgnoreCase));
-
-                string owner = "(trống)";
-                if (info != null && info.HasOwner)
+                foreach (string mode in new[] { "MP", "SP" })
                 {
-                    owner = info.OwnerDisplay + (info.IsStale ? " (không phản hồi)" : string.Empty);
-                    if (info.IsOwnedByMe && !info.IsStale)
-                        hostOwnsAny = true;
+                    QrLockInfo info = locks.FirstOrDefault(l =>
+                        string.Equals(l.CustomerNo, cfg.CustomerNo, StringComparison.OrdinalIgnoreCase)
+                        && string.Equals(l.ScanMode, mode, StringComparison.OrdinalIgnoreCase));
+                    string owner = "(trống)";
+                    if (info != null && info.HasOwner)
+                    {
+                        owner = info.OwnerDisplay + (info.IsStale ? " (không phản hồi)" : string.Empty);
+                        if (info.IsOwnedByMe && !info.IsStale) hostOwnsAny = true;
+                    }
+                    parts.Add(cfg.DisplayName + " " + mode + ": " + owner);
                 }
-
-                parts.Add(cfg.DisplayName + ": " + owner);
             }
 
             return parts.Count == 0 ? "(chưa cấu hình)" : string.Join("  |  ", parts);

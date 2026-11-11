@@ -7,6 +7,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
     public sealed class QrLockInfo
     {
         public string CustomerNo { get; set; }
+        public string ScanMode { get; set; } = "MP";
         /// <summary>IP (server đọc) của máy đang giữ khoá. Rỗng nếu khách chưa có máy nào đọc.</summary>
         public string OwnerClientIp { get; set; }
         /// <summary>Tên máy do chủ khoá khai báo — CHỈ để hiển thị, không dùng phân quyền.</summary>
@@ -50,12 +51,15 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         /// Không bao giờ throw khi lỗi DB — trả IsOwnedByMe=false (fail-closed: chỉ xem).
         /// </summary>
         QrLockInfo TryAcquire(string customerNo, bool force = false);
+        QrLockInfo TryAcquire(string customerNo, string scanMode, bool force = false);
 
         /// <summary>true nếu máy này vẫn là chủ khoá. Throw khi lỗi DB để caller tự quyết định.</summary>
         bool Heartbeat(string customerNo);
+        bool Heartbeat(string customerNo, string scanMode);
 
         /// <summary>Nhả khoá — chỉ có tác dụng nếu máy này đang là chủ.</summary>
         void Release(string customerNo);
+        void Release(string customerNo, string scanMode);
 
         /// <summary>Trạng thái khoá của mọi khách đang có chủ.</summary>
         IList<QrLockInfo> ListAll();

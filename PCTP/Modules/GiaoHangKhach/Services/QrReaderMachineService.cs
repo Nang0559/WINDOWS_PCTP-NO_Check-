@@ -61,27 +61,44 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         }
 
         public void Upsert(string customerNo, string clientIp, string machineName, bool isActive, string note)
+            => Upsert(customerNo, "MP", clientIp, machineName, isActive, note);
+
+        public void Upsert(string customerNo, string scanMode, string clientIp, string machineName, bool isActive, string note)
         {
             Run("dbo.Usp_QrReaderMachine_Upsert",
                 new SqlParameter("@CustomerNo", NormalizeScope(customerNo)),
+                new SqlParameter("@ScanMode", NormalizeMode(scanMode)),
                 new SqlParameter("@ClientIp", NormalizeIp(clientIp)),
                 new SqlParameter("@MachineName", Nullable(machineName, 100)),
                 new SqlParameter("@IsActive", isActive),
                 new SqlParameter("@Note", Nullable(note, 200)));
         }
 
-        public void Remove(string customerNo, string clientIp)
+        public void Remove(string customerNo, string clientIp) => Remove(customerNo, "MP", clientIp);
+
+        public void Remove(string customerNo, string scanMode, string clientIp)
         {
             Run("dbo.Usp_QrReaderMachine_Remove",
                 new SqlParameter("@CustomerNo", NormalizeScope(customerNo)),
+                new SqlParameter("@ScanMode", NormalizeMode(scanMode)),
                 new SqlParameter("@ClientIp", NormalizeIp(clientIp)));
         }
 
         /// <summary>Admin nhả khoá của một khách. Máy đang giữ mất quyền ở lần quét kế tiếp.</summary>
-        public void ForceRelease(string customerNo)
+        public void ForceRelease(string customerNo) => ForceRelease(customerNo, "MP");
+
+        public void ForceRelease(string customerNo, string scanMode)
         {
             Run("dbo.Usp_QrReaderLock_ForceRelease",
-                new SqlParameter("@CustomerNo", CustomerTableConfig.GetForDelivery(customerNo).CustomerNo));
+                new SqlParameter("@CustomerNo", CustomerTableConfig.GetForDelivery(customerNo).CustomerNo),
+                new SqlParameter("@ScanMode", NormalizeMode(scanMode)));
+        }
+
+        private static string NormalizeMode(string mode)
+        {
+            string value = (mode ?? "MP").Trim().ToUpperInvariant();
+            if (value != "MP" && value != "SP") throw new ArgumentException("Chế độ đọc QR chỉ nhận MP hoặc SP.", nameof(mode));
+            return value;
         }
 
         private static object Nullable(string value, int max)

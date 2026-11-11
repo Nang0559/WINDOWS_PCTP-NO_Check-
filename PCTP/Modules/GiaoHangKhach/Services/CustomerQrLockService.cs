@@ -21,23 +21,27 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             _machine = Environment.MachineName;
         }
 
-        public QrLockInfo TryAcquire(string customerNo, bool force = false)
+        public QrLockInfo TryAcquire(string customerNo, bool force = false) => TryAcquire(customerNo, "MP", force);
+
+        public QrLockInfo TryAcquire(string customerNo, string scanMode, bool force = false)
         {
             string key = CustomerTableConfig.NormalizeCustomerNo(customerNo);
+            string mode = NormalizeMode(scanMode);
             try
             {
                 DataTable dt = Query(
                     "dbo.Usp_QrReaderLock_Acquire",
                     new SqlParameter("@CustomerNo", key),
+                    new SqlParameter("@ScanMode", mode),
                     new SqlParameter("@MachineName", _machine), // chỉ để hiển thị; định danh là IP server đọc
                     new SqlParameter("@UserName", Environment.UserName),
                     new SqlParameter("@TtlSeconds", TtlSeconds),
                     new SqlParameter("@Force", force));
 
                 if (dt.Rows.Count == 0)
-                    return NoOwner(key);
+                    return NoOwner(key, mode);
 
-                return Map(dt.Rows[0], key);
+                return Map(dt.Rows[0], key, mode);
             }
             catch (Exception ex)
             {
@@ -46,29 +50,36 @@ namespace PCTP.Modules.GiaoHangKhach.Services
                 return new QrLockInfo
                 {
                     CustomerNo = key,
+                    ScanMode = mode,
                     Error = "không đọc được trạng thái khoá: " + ex.Message,
                     IsOwnedByMe = false
                 };
             }
         }
 
-        public bool Heartbeat(string customerNo)
+        public bool Heartbeat(string customerNo) => Heartbeat(customerNo, "MP");
+
+        public bool Heartbeat(string customerNo, string scanMode)
         {
             string key = CustomerTableConfig.NormalizeCustomerNo(customerNo);
             DataTable dt = Query(
                 "dbo.Usp_QrReaderLock_Heartbeat",
-                new SqlParameter("@CustomerNo", key));
+                new SqlParameter("@CustomerNo", key),
+                new SqlParameter("@ScanMode", NormalizeMode(scanMode)));
             return dt.Rows.Count > 0 && Convert.ToBoolean(dt.Rows[0]["Owned"]);
         }
 
-        public void Release(string customerNo)
+        public void Release(string customerNo) => Release(customerNo, "MP");
+
+        public void Release(string customerNo, string scanMode)
         {
             string key = CustomerTableConfig.NormalizeCustomerNo(customerNo);
             try
             {
                 Query(
                     "dbo.Usp_QrReaderLock_Release",
-                    new SqlParameter("@CustomerNo", key));
+                    new SqlParameter("@CustomerNo", key),
+                    new SqlParameter("@ScanMode", NormalizeMode(scanMode)));
             }
             catch (Exception ex)
             {
@@ -86,7 +97,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
                     "dbo.Usp_QrReaderLock_List",
                     new SqlParameter("@TtlSeconds", TtlSeconds));
                 foreach (DataRow r in dt.Rows)
-                    result.Add(Map(r, Convert.ToString(r["CustomerNo"])));
+                    result.Add(Map(r, Convert.ToString(r["CustomerNo"]), Convert.ToString(r["ScanMode"])));
             }
             catch (Exception ex)
             {
@@ -113,11 +124,12 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             }
         }
 
-        private QrLockInfo Map(DataRow r, string customerNo)
+        private QrLockInfo Map(DataRow r, string customerNo, string scanMode)
         {
             return new QrLockInfo
             {
                 CustomerNo = customerNo,
+                ScanMode = Has(r, "ScanMode") ? Str(r, "ScanMode") : NormalizeMode(scanMode),
                 OwnerClientIp = Str(r, "OwnerClientIp"),
                 OwnerMachine = Str(r, "OwnerMachine"),
                 OwnerUser = Str(r, "OwnerUser"),
@@ -135,7 +147,14 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         private static bool Bool(DataRow r, string col) => Has(r, col) && Convert.ToBoolean(r[col]);
         private static DateTime? Dt(DataRow r, string col) => Has(r, col) ? Convert.ToDateTime(r[col]) : (DateTime?)null;
 
-        private static QrLockInfo NoOwner(string customerNo)
-            => new QrLockInfo { CustomerNo = customerNo, IsOwnedByMe = false };
+        private static string NormalizeMode(string mode)
+        {
+            string value = (mode ?? "MP").Trim().ToUpperInvariant();
+            if (value != "MP" && value != "SP") throw new ArgumentException("Chế độ đọc QR chỉ nhận MP hoặc SP.", nameof(mode));
+            return value;
+        }
+
+        private static QrLockInfo NoOwner(string customerNo, string mode)
+            => new QrLockInfo { CustomerNo = customerNo, ScanMode = mode, IsOwnedByMe = false };
     }
 }

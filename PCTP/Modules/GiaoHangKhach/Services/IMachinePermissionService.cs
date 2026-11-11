@@ -24,6 +24,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         /// máy giành được => DuocBanQR, ngược lại => ChiXem.
         /// </summary>
         MachineRole GetCurrentRole();
+        void SetScanMode(string scanMode);
 
         /// <summary>
         /// Kiểm tra bắt buộc ngay trước hành động ghi (bắn QR/CNK): xác nhận lại với DB rằng máy này
