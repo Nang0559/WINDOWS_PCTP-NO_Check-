@@ -73,9 +73,9 @@ namespace PCTP.Modules.GiaoHangKhach.Services
 
             if (isSP)
             {
-                // SP rows do not carry a user-selected physical LOT. Resolve FIFO
-                // inside the common stock procedure, then run the same QR/ledger/TMP
-                // pipeline and the same C# SlotLot movement service.
+                // SP chỉ cập nhật kho cho các dòng ĐÃ có LOT (đã thống kê QR). Dòng chưa
+                // có LOT bị proc bỏ qua, không tự gán LOT FIFO và không ghi đè LOT đã có.
+                // Phần còn lại dùng chung pipeline QR/ledger/TMP và SlotLot movement service.
                 soLot = _phieuRepo.CapNhapKhoSP(gioGiaoFcc, nhaMay, tmpTable, docQrTable, out errors);
             }
             else if (_cfg.Delivery.LoadTuBangRieng && !_cfg.Delivery.CoGear)

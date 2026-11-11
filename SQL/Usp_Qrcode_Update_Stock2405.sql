@@ -194,7 +194,7 @@ BEGIN
                 LOT,  
                 MAHANG  
             FROM [' + @TMPTABLE + N']  
-            WHERE (ISNULL(LOT, '''') <> '''' OR @LOTRESOLUTIONMODE = N''FIFO_SP'')
+            WHERE ISNULL(LOT, '''') <> ''''   -- chỉ xử lý dòng ĐÃ có LOT (đã thống kê); dòng chưa có LOT bỏ qua, kể cả FIFO_SP
               AND (STATUS <> ''OK'' OR STATUS IS NULL);  
         ';  
   
@@ -368,7 +368,7 @@ BEGIN
                 --------------------------------------------------------
                 -- 6.2a. FIFO_SP: chọn một LOT vật lý đủ tồn trong cùng transaction.
                 --------------------------------------------------------
-                IF @LOTRESOLUTIONMODE = N'FIFO_SP'
+                IF @LOTRESOLUTIONMODE = N'FIFO_SP' AND ISNULL(@_LOT, N'') = N''   -- không ghi đè LOT đã thống kê
                 BEGIN
                     DECLARE @FifoLot NVARCHAR(500) = NULL;
                     DECLARE @FifoQty INT = NULL;
