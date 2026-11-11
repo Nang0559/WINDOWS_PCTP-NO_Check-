@@ -132,6 +132,7 @@ namespace PCTP.Shell.UI
             var infos = _locks.ListAll();
             var dt = new DataTable();
             dt.Columns.Add("CustomerNo");
+            dt.Columns.Add("ScanMode");
             dt.Columns.Add("Khách hàng");
             dt.Columns.Add("Máy đang đọc QR");
             dt.Columns.Add("IP máy đọc");
@@ -144,8 +145,11 @@ namespace PCTP.Shell.UI
             foreach (CustomerConfig cfg in CustomerTableConfig.All)
             {
                 if (cfg.Delivery == null) continue;
+                foreach (string mode in new[] { "MP", "SP" })
+                {
                 QrLockInfo i = infos.FirstOrDefault(x =>
-                    string.Equals(x.CustomerNo, cfg.CustomerNo, StringComparison.OrdinalIgnoreCase));
+                    string.Equals(x.CustomerNo, cfg.CustomerNo, StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(x.ScanMode, mode, StringComparison.OrdinalIgnoreCase));
                 bool hasOwner = i != null && i.HasOwner;
 
                 string state = "Trống";
@@ -156,7 +160,8 @@ namespace PCTP.Shell.UI
 
                 DataRow r = dt.NewRow();
                 r["CustomerNo"] = cfg.CustomerNo;
-                r["Khách hàng"] = cfg.DisplayName;
+                r["ScanMode"] = mode;
+                r["Khách hàng"] = cfg.DisplayName + " (" + mode + ")";
                 r["Máy đang đọc QR"] = hasOwner ? i.OwnerMachine : string.Empty;
                 r["IP máy đọc"] = hasOwner ? i.OwnerClientIp : string.Empty;
                 r["Người dùng"] = hasOwner ? i.OwnerUser : string.Empty;
@@ -165,6 +170,7 @@ namespace PCTP.Shell.UI
                 r["Trạng thái"] = state;
                 r["IsMine"] = hasOwner && i.IsOwnedByMe;
                 dt.Rows.Add(r);
+                }
             }
 
             _gridLocks.DataSource = dt;
@@ -201,6 +207,7 @@ namespace PCTP.Shell.UI
             DataRow row = FocusedLock();
             if (row == null) return;
             string customerNo = Convert.ToString(row["CustomerNo"]);
+            string scanMode = Convert.ToString(row["ScanMode"]);
             string name = Convert.ToString(row["Khách hàng"]);
             string owner = Convert.ToString(row["Máy đang đọc QR"]);
             string ownerIp = Convert.ToString(row["IP máy đọc"]);
@@ -219,7 +226,7 @@ namespace PCTP.Shell.UI
                     "Xác nhận", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
                 return;
 
-            QrLockInfo info = _locks.TryAcquire(customerNo, true);
+            QrLockInfo info = _locks.TryAcquire(customerNo, scanMode, true);
             if (info.Error != null)
                 XtraMessageBox.Show("Lỗi: " + info.Error, "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
             else if (!info.Registered)
@@ -241,6 +248,7 @@ namespace PCTP.Shell.UI
             DataRow row = FocusedLock();
             if (row == null) return;
             string customerNo = Convert.ToString(row["CustomerNo"]);
+            string scanMode = Convert.ToString(row["ScanMode"]);
             string name = Convert.ToString(row["Khách hàng"]);
             string owner = Convert.ToString(row["Máy đang đọc QR"]);
             string ownerIp = Convert.ToString(row["IP máy đọc"]);
@@ -257,7 +265,7 @@ namespace PCTP.Shell.UI
                     "Xác nhận", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes)
                 return;
 
-            Try(() => _machines.ForceRelease(customerNo));
+            Try(() => _machines.ForceRelease(customerNo, scanMode));
             RefreshAll();
         }
 
@@ -296,7 +304,7 @@ namespace PCTP.Shell.UI
             using (var dlg = new RegistrationDialog(ip, thisMachine ? Environment.MachineName : string.Empty, thisMachine))
             {
                 if (dlg.ShowDialog(this) != DialogResult.OK) return;
-                Try(() => _machines.Upsert(dlg.CustomerScope, dlg.ClientIp, dlg.MachineName, true, dlg.Note));
+                Try(() => _machines.Upsert(dlg.CustomerScope, dlg.ScanMode, dlg.ClientIp, dlg.MachineName, true, dlg.Note));
             }
             RefreshAll();
         }
@@ -307,6 +315,7 @@ namespace PCTP.Shell.UI
             if (row == null) return;
             bool active = Convert.ToBoolean(row["IsActive"]);
             string scope = Convert.ToString(row["CustomerNo"]);
+            string mode = Convert.ToString(row["ScanMode"]);
             string ip = Convert.ToString(row["ClientIp"]);
 
             if (active && XtraMessageBox.Show(
@@ -314,7 +323,7 @@ namespace PCTP.Shell.UI
                     "Xác nhận", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes)
                 return;
 
-            Try(() => _machines.Upsert(scope, ip, null, !active, null));
+            Try(() => _machines.Upsert(scope, mode, ip, null, !active, null));
             RefreshAll();
         }
 
@@ -323,6 +332,7 @@ namespace PCTP.Shell.UI
             DataRow row = FocusedReg();
             if (row == null) return;
             string scope = Convert.ToString(row["CustomerNo"]);
+            string mode = Convert.ToString(row["ScanMode"]);
             string ip = Convert.ToString(row["ClientIp"]);
 
             if (XtraMessageBox.Show(
@@ -330,7 +340,7 @@ namespace PCTP.Shell.UI
                     "Xác nhận", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes)
                 return;
 
-            Try(() => _machines.Remove(scope, ip));
+            Try(() => _machines.Remove(scope, mode, ip));
             RefreshAll();
         }
 
@@ -348,6 +358,7 @@ namespace PCTP.Shell.UI
         private sealed class RegistrationDialog : XtraForm
         {
             private readonly ComboBoxEdit _customer = new ComboBoxEdit();
+            private readonly ComboBoxEdit _mode = new ComboBoxEdit();
             private readonly TextEdit _ip = new TextEdit();
             private readonly TextEdit _machine = new TextEdit();
             private readonly TextEdit _note = new TextEdit();
@@ -362,6 +373,7 @@ namespace PCTP.Shell.UI
                 }
             }
 
+            public string ScanMode => (_mode.Text ?? "MP").Trim().ToUpperInvariant();
             public string ClientIp => (_ip.Text ?? string.Empty).Trim();
             public string MachineName => (_machine.Text ?? string.Empty).Trim();
             public string Note => (_note.Text ?? string.Empty).Trim();
@@ -373,7 +385,7 @@ namespace PCTP.Shell.UI
                 FormBorderStyle = FormBorderStyle.FixedDialog;
                 MaximizeBox = false;
                 MinimizeBox = false;
-                ClientSize = new Size(480, 230);
+                ClientSize = new Size(480, 270);
 
                 _customer.Properties.TextEditStyle = DevExpress.XtraEditors.Controls.TextEditStyles.DisableTextEditor;
                 _customer.Properties.Items.Add("* (tất cả khách hàng, kể cả khách thêm sau)");
@@ -381,18 +393,22 @@ namespace PCTP.Shell.UI
                     if (cfg.Delivery != null)
                         _customer.Properties.Items.Add(cfg.CustomerNo + " - " + cfg.DisplayName);
                 _customer.SelectedIndex = 0;
+                _mode.Properties.TextEditStyle = DevExpress.XtraEditors.Controls.TextEditStyles.DisableTextEditor;
+                _mode.Properties.Items.AddRange(new object[] { "MP", "SP" });
+                _mode.SelectedIndex = 0;
 
                 _ip.Text = defaultIp ?? string.Empty;
                 _ip.Properties.ReadOnly = ipLocked; // "Đăng ký máy này": IP lấy từ server, không cho sửa
                 _machine.Text = defaultMachine ?? string.Empty;
 
                 Add("Khách hàng", _customer, 14);
-                Add("IP máy", _ip, 54);
-                Add("Tên máy", _machine, 94);
-                Add("Ghi chú", _note, 134);
+                Add("Chế độ", _mode, 54);
+                Add("IP máy", _ip, 94);
+                Add("Tên máy", _machine, 134);
+                Add("Ghi chú", _note, 174);
 
-                var ok = new SimpleButton { Text = "Lưu", DialogResult = DialogResult.OK, Location = new Point(290, 184), Width = 80 };
-                var cancel = new SimpleButton { Text = "Huỷ", DialogResult = DialogResult.Cancel, Location = new Point(380, 184), Width = 80 };
+                var ok = new SimpleButton { Text = "Lưu", DialogResult = DialogResult.OK, Location = new Point(290, 224), Width = 80 };
+                var cancel = new SimpleButton { Text = "Huỷ", DialogResult = DialogResult.Cancel, Location = new Point(380, 224), Width = 80 };
                 Controls.Add(ok);
                 Controls.Add(cancel);
                 AcceptButton = ok;
