@@ -161,7 +161,7 @@ namespace PCTP.Shell.UI
                 DataRow r = dt.NewRow();
                 r["CustomerNo"] = cfg.CustomerNo;
                 r["ScanMode"] = mode;
-                r["Khách hàng"] = cfg.DisplayName + " (" + mode + ")";
+                r["Khách hàng"] = cfg.DisplayName;
                 r["Máy đang đọc QR"] = hasOwner ? i.OwnerMachine : string.Empty;
                 r["IP máy đọc"] = hasOwner ? i.OwnerClientIp : string.Empty;
                 r["Người dùng"] = hasOwner ? i.OwnerUser : string.Empty;
@@ -174,6 +174,7 @@ namespace PCTP.Shell.UI
             }
 
             _gridLocks.DataSource = dt;
+            Caption(_viewLocks, "ScanMode", "Chế độ");
             var isMine = _viewLocks.Columns["IsMine"];
             if (isMine != null) isMine.Visible = false;
             _viewLocks.BestFitColumns();
@@ -184,6 +185,7 @@ namespace PCTP.Shell.UI
             DataTable dt = _machines.ListRegistrations();
             _gridRegs.DataSource = dt;
             Caption(_viewRegs, "CustomerNo", "Khách hàng (* = tất cả)");
+            Caption(_viewRegs, "ScanMode", "Chế độ");
             Caption(_viewRegs, "ClientIp", "IP máy");
             Caption(_viewRegs, "MachineName", "Tên máy (hiển thị)");
             Caption(_viewRegs, "IsActive", "Hiệu lực");
