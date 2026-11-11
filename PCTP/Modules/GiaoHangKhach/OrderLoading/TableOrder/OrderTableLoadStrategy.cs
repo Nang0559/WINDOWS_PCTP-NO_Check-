@@ -41,9 +41,16 @@ namespace PCTP.Modules.GiaoHangKhach.OrderLoading
 
             // Không có checkbox nào được chọn phải có nghĩa là KHÔNG lấy đơn,
             // tuyệt đối không được hiểu chuỗi rỗng là "bỏ lọc giờ/lấy tất cả".
-            string gioFilter = ctx.CheckedGios == null || ctx.CheckedGios.Count == 0
-                ? "__NO_SELECTED_HOURS__"
-                : string.Join(",", ctx.CheckedGios);
+            // CHỈ khách có checklist giờ xuất (CoGear = YMVN) mới áp quy tắc này.
+            // HTN (LoadTheoNgay, CoGear=false) ẩn checklist giờ → CheckedGios luôn rỗng,
+            // phải load cả ngày (gioFilter rỗng = không lọc giờ), nếu không sẽ ra AND 1 = 0.
+            string gioFilter;
+            if (!d.CoGear)
+                gioFilter = string.Empty;
+            else if (ctx.CheckedGios == null || ctx.CheckedGios.Count == 0)
+                gioFilter = "__NO_SELECTED_HOURS__";
+            else
+                gioFilter = string.Join(",", ctx.CheckedGios);
 
             var donHang = _phieuRepo.LoadPhieuTuBangRieng(
                 ctx.NgayGiao.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture),
