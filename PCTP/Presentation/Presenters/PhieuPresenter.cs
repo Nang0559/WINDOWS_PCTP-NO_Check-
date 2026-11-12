@@ -190,7 +190,15 @@ namespace PCTP.Presentation.Presenters
                         activeTmpTable,
                         activeDocQrTable,
                         activeTmpTable,
-                        rows => _v.ShowChonSttTrungMa(rows));
+                        rows =>
+                        {
+                            // Đóng wait form TRƯỚC khi mở popup chọn dòng trùng (ShowDialog chặn luồng
+                            // UI nên wait form nếu còn mở sẽ đè lên popup); xong thì bật lại để tiếp tục
+                            // tổng hợp. ShowLoading(false) cũng hủy timer auto-close 30s trong lúc chờ chọn.
+                            _v.ShowLoading(false);
+                            try { return _v.ShowChonSttTrungMa(rows); }
+                            finally { _v.ShowLoading(true, "Đang tổng hợp dữ liệu hoàn thành..."); }
+                        });
                 int conLai = _c.QrSvc.CountChuaDG();
                 if (conLai > 0)
                 {
