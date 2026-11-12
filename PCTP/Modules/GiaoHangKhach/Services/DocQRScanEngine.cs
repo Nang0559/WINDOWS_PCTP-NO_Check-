@@ -76,16 +76,11 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             return ScanHVN(parts);
         }
 
-        private string MapMaHang(string maHang)
-        {
-            string mapped = _repo.GetMaHangMapped(maHang);
-            return string.IsNullOrEmpty(mapped) ? maHang : mapped;
-        }
-
         private ScanResult ScanFCC_SP(string[] parts, Func<string, bool> kiemTraMa, Func<string, int, bool> kiemTraSl)
         {
-            string maFcc = parts[1].Trim();
-            string maHangThuc = MapMaHang(maFcc);
+            // MAHANG trên phiếu là mã FCC cần giao. Không map ở bước đọc FCC:
+            // phải giữ nguyên mã tem để phân biệt A và A-FU chính xác.
+            string maHangThuc = parts[1].Trim();
             if (!int.TryParse(parts[3], out int slTem))
                 return ScanResult.Fail("Số lượng tem không hợp lệ.");
             string lotFcc = NormalizeLotFCC(parts[0], maHangThuc);
@@ -229,6 +224,8 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         private ScanResult ScanFCC_YMVN(string[] parts, Func<string, bool> kiemTraMa, Func<string, int, bool> kiemTraSl)
         {
             string lotSl = parts[0].Trim();
+            // Mã FCC phải được đối chiếu nguyên bản với MAHANG trên phiếu.
+            // ComparePart chỉ được dùng ở bước kiểm tra tem HVN ghép với FCC.
             string maHang = parts[1].Trim();
             if (!int.TryParse(parts[3].Trim(), out int slTem)) return ScanResult.Fail("Số lượng tem không hợp lệ.");
 
