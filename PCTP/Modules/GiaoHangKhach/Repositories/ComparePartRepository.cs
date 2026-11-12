@@ -27,21 +27,15 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                 WHERE ISNULL(Code, '') <> ''
                 ORDER BY code");
 
-        public DataTable GetTargetParts(string partNoPrefix)
+        public DataTable GetTargetParts()
         {
-            if (string.IsNullOrWhiteSpace(partNoPrefix))
-                return new DataTable();
-
-            // Escape %, _, [ để mã hàng chứa ký tự này không bị hiểu thành wildcard.
+            // Không lọc theo tiền tố PartNo: mã khách và mã kho có thể hoàn toàn khác nhau.
+            // Danh sách đầy đủ cho phép một PartNo ánh xạ tới nhiều PartNoCompare.
             return LoadData(@"
                 SELECT DISTINCT Code AS code, Name AS name
                 FROM B20Item
-                WHERE Code LIKE @Code ESCAPE '\'
-                ORDER BY code",
-                new SqlParameter("@Code", SqlDbType.NVarChar, 200)
-                {
-                    Value = EscapeLike(partNoPrefix.Trim()) + "%"
-                });
+                WHERE ISNULL(Code, '') <> ''
+                ORDER BY code");
         }
 
         public DataTable GetAll()
@@ -176,11 +170,5 @@ WHERE ISNULL(PartNo, '') = @PartNo
                 }
             }
         }
-
-        private static string EscapeLike(string value)
-            => value.Replace("\\", "\\\\")
-                    .Replace("%", "\\%")
-                    .Replace("_", "\\_")
-                    .Replace("[", "\\[");
     }
 }
