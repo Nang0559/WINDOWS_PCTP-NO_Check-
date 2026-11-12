@@ -79,29 +79,32 @@ namespace PCTP.Modules.GiaoHangKhach.Services
                 return false;
 
             Dictionary<string, int> actual = AggregateScanned(scannedRows, gearNameByCode);
-
-            foreach (KeyValuePair<string, int> pair in required)
+            if (actual.Count == 0)
             {
-                int actualQty;
-                actual.TryGetValue(pair.Key, out actualQty);
-                if (actualQty != pair.Value)
-                {
-                    string[] key = pair.Key.Split('|');
-                    error = string.Format(
-                        "Chưa đủ số lượng YMVN theo Gear.\r\n\r\nMã hàng: [{0}]\r\nGear: {1}\r\nĐã bắn: {2}\r\nPhải giao: {3}",
-                        key[0], key[1], actualQty, pair.Value);
-                    return false;
-                }
+                error = "Chưa đọc QR YMVN hợp lệ nào. Không có dòng nào để tổng hợp LOT.";
+                return false;
             }
 
+            // Hoàn thành một phần: chỉ xác thực các nhóm PART+GEAR thực sự đã đọc.
+            // Dòng chưa đọc không phải lỗi và không được ngăn LOT của dòng khác được tổng hợp.
             foreach (KeyValuePair<string, int> pair in actual)
             {
-                if (!required.ContainsKey(pair.Key))
+                int requiredQty;
+                if (!required.TryGetValue(pair.Key, out requiredQty))
                 {
                     string[] key = pair.Key.Split('|');
                     error = string.Format(
-                        "QR YMVN có Gear không tồn tại trong Order.\r\n\r\nMã hàng: [{0}]\r\nGear: {1}.",
+                        "QR YMVN có Gear không tồn tại trong Order.\\r\\n\\r\\nMã hàng: [{0}]\\r\\nGear: {1}.",
                         key[0], key[1]);
+                    return false;
+                }
+
+                if (pair.Value > requiredQty)
+                {
+                    string[] key = pair.Key.Split('|');
+                    error = string.Format(
+                        "Số lượng QR YMVN vượt số lượng giao.\\r\\n\\r\\nMã hàng: [{0}]\\r\\nGear: {1}\\r\\nĐã bắn: {2}\\r\\nĐược giao: {3}",
+                        key[0], key[1], pair.Value, requiredQty);
                     return false;
                 }
             }
