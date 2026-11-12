@@ -125,16 +125,54 @@ public sealed class YmvnGearQuantityValidatorTests
     }
 
     [Fact]
-    public void CompletionDoesNotDemandPartMissingFromTmp()
+    public void CompletionAllowsScannedLineWhenOtherOrderLinesAreUnread()
     {
-        // Nếu bảng đối chiếu có thêm 1FP (Gear D, 150) thì bị đòi — đây là lỗi cũ khi dùng lưới/nguồn khác TMP.
-        var wrong = Order(("B5V-E6300-00-00-80", "Gear D :450pcs", 450), ("1FP-E6300-01-00-80", "Gear D :150pcs", 150));
+        // Dòng 1FP chưa đọc không được chặn tổng hợp LOT của dòng B5V đã đọc đủ.
+        var order = Order(("B5V-E6300-00-00-80", "Gear D :450pcs", 450), ("1FP-E6300-01-00-80", "Gear D :150pcs", 150));
         var scans = Scans();
         for (int i = 0; i < 90; i++) scans.Rows.Add("B5V-E6300-00-00-80", Lot('3'), 5);
 
-        var ok = YmvnGearQuantityValidator.ValidateCompletion(wrong, scans, out var error);
+        var ok = YmvnGearQuantityValidator.ValidateCompletion(order, scans, out var error);
+        Assert.True(ok, error);
+    }
+
+    [Fact]
+    public void CompletionAllowsPartialQuantityForScannedLine()
+    {
+        // Có 5 dòng trong phiếu; chỉ dòng 4/5 có QR. Hai dòng đã đọc vẫn phải được tổng hợp LOT.
+        var order = Order(
+            ("PART01", "A", 10),
+            ("PART02", "A", 10),
+            ("PART03", "A", 10),
+            ("PART04", "A", 10),
+            ("PART05", "B", 10));
+        var scans = Scans(
+            ("PART04", Lot('1'), 5),
+            ("PART05", Lot('2'), 7));
+
+        var ok = YmvnGearQuantityValidator.ValidateCompletion(order, scans, out var error);
+        Assert.True(ok, error);
+    }
+
+    [Fact]
+    public void CompletionRejectsWhenNoQrWasScanned()
+    {
+        var ok = YmvnGearQuantityValidator.ValidateCompletion(
+            Order(("PART01", "A", 5)), Scans(), out var error);
+
         Assert.False(ok);
-        Assert.Contains("1FP-E6300-01-00-80", error);
+        Assert.Contains("Chưa đọc QR", error);
+    }
+
+    [Fact]
+    public void CompletionRejectsPartialScanThatExceedsDeliveryQuantity()
+    {
+        var ok = YmvnGearQuantityValidator.ValidateCompletion(
+            Order(("PART01", "A", 5)),
+            Scans(("PART01", Lot('1'), 6)), out var error);
+
+        Assert.False(ok);
+        Assert.Contains("vượt", error);
     }
 
     [Fact]
