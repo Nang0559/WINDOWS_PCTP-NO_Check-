@@ -316,9 +316,9 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                 ExecuteNonQuery(
                     @"INSERT INTO LUUPHIEUGIAOHANG
                     (STT, CUA, TRUYEN, MAHANG, TENHANG, LOT, DV, SOLUONG,
-                     NGAYGIAO, GIOGIAO, STATUS, GearYMVN, NHAMAY, GIOGIAOFCC, PO_NO, TTPHIEU)
+                     NGAYGIAO, GIOGIAO, STATUS, STATUSDOC, GearYMVN, NHAMAY, GIOGIAOFCC, PO_NO, TTPHIEU)
                     SELECT STT, CUA, TRUYEN, MAHANG, TENHANG, LOT, DV, SOLUONG,
-                           NGAYGIAO, GIOGIAO, 'OK', ISNULL(GEAR,''), @nhaMay,
+                           NGAYGIAO, GIOGIAO, 'OK', ISNULL(STATUSDOC, ''), ISNULL(GEAR,''), @nhaMay,
                            CONVERT(VARCHAR(8), GETDATE(), 108), ISNULL(PO_NO,''), ISNULL(TTPHIEU,'')
                     FROM [" + tmpTable + @"]
                     WHERE STT = @stt AND STATUS = 'NG'",
