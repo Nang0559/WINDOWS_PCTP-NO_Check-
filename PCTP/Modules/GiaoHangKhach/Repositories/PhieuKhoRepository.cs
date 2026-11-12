@@ -307,8 +307,10 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                     lotsDaXuatThanhCong.Add(lotKey);
                 }
 
-                ExecuteNonQuery(
-                    @"INSERT INTO LUUDOCQRCODE
+                try
+                {
+                    ExecuteNonQuery(
+                        @"INSERT INTO LUUDOCQRCODE
                     (LOTFCC, MAHANGFCC, SLTEMFCC, LOTHVN, MAHANGHVN, SLTEMHVN,
                      STATUS, MAFCC, STT, KETQUA, NGAYXUAT, GIOXUAT, NHAMAY)
                     SELECT LEFT(LOTFCC, 500), LEFT(MAHANGFCC, 60), SLTEMFCC,
@@ -318,14 +320,36 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                     FROM [" + docQRTable + @"]
                     WHERE MAHANGFCC = @maHang AND KETQUA = 'DG'
                       AND (STTBAN = @stt OR ISNULL(STTBAN, 0) = 0)",
-                    new SqlParameter("@stt", SqlDbType.Int) { Value = stt },
-                    new SqlParameter("@ngayGiao", SqlDbType.NVarChar, 50) { Value = ngayGiao ?? "" },
-                    new SqlParameter("@gioGiao", SqlDbType.NVarChar, 50) { Value = gioGiao ?? "" },
-                    new SqlParameter("@nhaMay", SqlDbType.NVarChar, 200) { Value = nhaMay ?? "" },
-                    new SqlParameter("@maHang", SqlDbType.NVarChar, 100) { Value = maHang ?? "" });
+                        new SqlParameter("@stt", SqlDbType.Int) { Value = stt },
+                        new SqlParameter("@ngayGiao", SqlDbType.NVarChar, 50) { Value = ngayGiao ?? "" },
+                        new SqlParameter("@gioGiao", SqlDbType.NVarChar, 50) { Value = gioGiao ?? "" },
+                        new SqlParameter("@nhaMay", SqlDbType.NVarChar, 200) { Value = nhaMay ?? "" },
+                        new SqlParameter("@maHang", SqlDbType.NVarChar, 100) { Value = maHang ?? "" });
+                }
+                catch (SqlException ex) when (ex.Number == 8152)
+                {
+                    throw new InvalidOperationException(
+                        DiagnoseTruncation(ex, docQRTable, "LUUDOCQRCODE",
+                            "MAHANGFCC = @maHang AND KETQUA = 'DG' AND (STTBAN = @stt OR ISNULL(STTBAN, 0) = 0)",
+                            new[]
+                            {
+                                new TruncMap("LOTFCC", "LOTFCC", 500), new TruncMap("MAHANGFCC", "MAHANGFCC", 60),
+                                new TruncMap("LOTHVN", "LOTHVN", 500), new TruncMap("MAHANGHVN", "MAHANGHVN", 60),
+                                new TruncMap("STATUS", "STATUS", 0), new TruncMap("MAFCC", "MAFCC", 50),
+                                new TruncMap("KETQUA", "KETQUA", 0)
+                            },
+                            new[]
+                            {
+                                new TruncParam("@nhaMay -> NHAMAY", "NHAMAY", (nhaMay ?? "").Length),
+                                new TruncParam("@gioGiao -> GIOXUAT", "GIOXUAT", (gioGiao ?? "").Length)
+                            },
+                            maHang, stt), ex);
+                }
 
-                ExecuteNonQuery(
-                    @"INSERT INTO LUUPHIEUGIAOHANG
+                try
+                {
+                    ExecuteNonQuery(
+                        @"INSERT INTO LUUPHIEUGIAOHANG
                     (STT, CUA, TRUYEN, MAHANG, TENHANG, LOT, DV, SOLUONG,
                      NGAYGIAO, GIOGIAO, STATUS, STATUSDOC, GearYMVN, NHAMAY, GIOGIAOFCC, PO_NO, TTPHIEU)
                     SELECT STT, CUA, TRUYEN, MAHANG, TENHANG, LOT, DV, SOLUONG,
@@ -333,8 +357,31 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                            CONVERT(VARCHAR(8), GETDATE(), 108), ISNULL(PO_NO,''), ISNULL(TTPHIEU,'')
                     FROM [" + tmpTable + @"]
                     WHERE STT = @stt AND STATUS = 'NG'",
-                    new SqlParameter("@nhaMay", SqlDbType.NVarChar, 200) { Value = nhaMay ?? "" },
-                    new SqlParameter("@stt", SqlDbType.Int) { Value = stt });
+                        new SqlParameter("@nhaMay", SqlDbType.NVarChar, 200) { Value = nhaMay ?? "" },
+                        new SqlParameter("@stt", SqlDbType.Int) { Value = stt });
+                }
+                catch (SqlException ex) when (ex.Number == 8152)
+                {
+                    throw new InvalidOperationException(
+                        DiagnoseTruncation(ex, tmpTable, "LUUPHIEUGIAOHANG",
+                            "STT = @stt AND STATUS = 'NG'",
+                            new[]
+                            {
+                                new TruncMap("CUA", "CUA", 0), new TruncMap("TRUYEN", "TRUYEN", 0),
+                                new TruncMap("MAHANG", "MAHANG", 0), new TruncMap("TENHANG", "TENHANG", 0),
+                                new TruncMap("LOT", "LOT", 0), new TruncMap("DV", "DV", 0),
+                                new TruncMap("GIOGIAO", "GIOGIAO", 0), new TruncMap("STATUSDOC", "STATUSDOC", 0),
+                                new TruncMap("GEAR", "GearYMVN", 0), new TruncMap("PO_NO", "PO_NO", 0),
+                                new TruncMap("TTPHIEU", "TTPHIEU", 0)
+                            },
+                            new[]
+                            {
+                                new TruncParam("@nhaMay -> NHAMAY", "NHAMAY", (nhaMay ?? "").Length),
+                                new TruncParam("'OK' -> STATUS", "STATUS", 2),
+                                new TruncParam("GETDATE() hh:mm:ss -> GIOGIAOFCC", "GIOGIAOFCC", 8)
+                            },
+                            maHang, stt), ex);
+                }
 
                 int updatedTmp = ExecuteNonQuery($"UPDATE [{tmpTable}] SET STATUS = 'OK' WHERE STT = @stt AND STATUS = 'NG'", new SqlParameter("@stt", SqlDbType.Int) { Value = stt });
                 if (updatedTmp != 1)
@@ -363,6 +410,90 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
 
             if (coAnhHuongA0) StockChangedNotifier.RaiseStockChanged();
             return true;
+        }
+        #endregion
+
+        #region Chẩn đoán lỗi "String or binary data would be truncated" (SQL 2016 RTM không báo tên cột)
+        private sealed class TruncMap
+        {
+            public readonly string Src, Dst; public readonly int Cap;
+            public TruncMap(string src, string dst, int cap) { Src = src; Dst = dst; Cap = cap; }
+        }
+
+        private sealed class TruncParam
+        {
+            public readonly string Label, Dst; public readonly int Len;
+            public TruncParam(string label, string dst, int len) { Label = label; Dst = dst; Len = len; }
+        }
+
+        /// <summary>
+        /// Chỉ chạy khi INSERT vừa lỗi 8152. So độ dài lớn nhất của dữ liệu nguồn (đúng điều kiện WHERE
+        /// của INSERT) với độ dài cột đích và trả về thông báo nêu rõ bảng/cột bị tràn.
+        /// Không làm hỏng lỗi gốc: nếu chẩn đoán thất bại thì trả lại thông báo gốc.
+        /// </summary>
+        private string DiagnoseTruncation(SqlException original, string srcTable, string dstTable,
+            string whereClause, TruncMap[] maps, TruncParam[] extras, string maHang, int stt)
+        {
+            string head = "Dữ liệu quá dài so với cột trong bảng " + dstTable + ". ";
+            try
+            {
+                // 1) Độ dài cột đích (ký tự). -1 = MAX
+                DataTable dst = LoadData(
+                    @"SELECT c.name AS COTEN,
+                             CASE WHEN c.max_length = -1 THEN 2147483647
+                                  WHEN ty.name IN ('nvarchar','nchar') THEN c.max_length / 2
+                                  ELSE c.max_length END AS DSTLEN
+                      FROM sys.columns c
+                      JOIN sys.types ty ON ty.user_type_id = c.user_type_id
+                      WHERE c.object_id = OBJECT_ID(@tbl)",
+                    new SqlParameter("@tbl", SqlDbType.NVarChar, 300) { Value = "dbo." + dstTable });
+
+                var dstLen = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+                foreach (DataRow r in dst.Rows)
+                    dstLen[Convert.ToString(r["COTEN"])] = Convert.ToInt32(r["DSTLEN"]);
+
+                // 2) Độ dài lớn nhất của từng cột nguồn
+                var parts = new List<string>();
+                foreach (TruncMap m in maps)
+                    parts.Add("SELECT '" + m.Src + "' AS COTEN, MAX(LEN(CONVERT(nvarchar(max), [" + m.Src + "]))) AS SRCLEN FROM ["
+                              + srcTable + "] WHERE " + whereClause);
+
+                DataTable src = LoadData(string.Join(" UNION ALL ", parts.ToArray()),
+                    new SqlParameter("@stt", SqlDbType.Int) { Value = stt },
+                    new SqlParameter("@maHang", SqlDbType.NVarChar, 100) { Value = maHang ?? "" });
+
+                var errors = new List<string>();
+                foreach (TruncMap m in maps)
+                {
+                    DataRow[] rows = src.Select("COTEN = '" + m.Src + "'");
+                    if (rows.Length == 0 || rows[0]["SRCLEN"] == DBNull.Value) continue;
+                    int len = Convert.ToInt32(rows[0]["SRCLEN"]);
+                    if (m.Cap > 0 && len > m.Cap) len = m.Cap;          // đã bị LEFT() cắt
+                    int max;
+                    if (!dstLen.TryGetValue(m.Dst, out max))
+                    { errors.Add("Cột " + m.Dst + " không tồn tại trong " + dstTable); continue; }
+                    if (len > max)
+                        errors.Add(dstTable + "." + m.Dst + ": dữ liệu dài " + len + " ký tự > cột đích " + max
+                                   + " (nguồn: " + srcTable + "." + m.Src + ")");
+                }
+                foreach (TruncParam e in extras)
+                {
+                    int max;
+                    if (dstLen.TryGetValue(e.Dst, out max) && e.Len > max)
+                        errors.Add(dstTable + "." + e.Dst + ": giá trị " + e.Label + " dài " + e.Len + " > cột đích " + max);
+                }
+
+                if (errors.Count > 0)
+                    return head + "Cột bị tràn:\r\n- " + string.Join("\r\n- ", errors.ToArray())
+                           + "\r\n(Mã hàng " + maHang + ", STT " + stt + ")";
+
+                return head + "Không tìm thấy cột tràn trong các cột đã kiểm tra (MAHANG=" + maHang + ", STT=" + stt
+                       + "); có thể là trigger hoặc cột khác. Lỗi gốc: " + original.Message;
+            }
+            catch (Exception diagEx)
+            {
+                return original.Message + " [không chẩn đoán được cột: " + diagEx.Message + "]";
+            }
         }
         #endregion
 

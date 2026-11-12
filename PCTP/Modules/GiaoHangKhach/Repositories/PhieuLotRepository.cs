@@ -58,12 +58,20 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                 }
 
                 string lot = string.Join(",", parts);
-                int updated = ExecuteNonQuery(
-                    $"UPDATE [{tmpTable}] SET LOT = @lot WHERE STT = @stt AND MAHANG = @ma AND SOLUONG = @qty AND ISNULL(LOT, '') = ''",
-                    new SqlParameter("@lot", lot),
-                    new SqlParameter("@stt", stt),
-                    new SqlParameter("@ma", maHang),
-                    new SqlParameter("@qty", slGiao));
+                int updated;
+                try
+                {
+                    updated = ExecuteNonQuery(
+                        $"UPDATE [{tmpTable}] SET LOT = @lot WHERE STT = @stt AND MAHANG = @ma AND SOLUONG = @qty AND ISNULL(LOT, '') = ''",
+                        new SqlParameter("@lot", lot),
+                        new SqlParameter("@stt", stt),
+                        new SqlParameter("@ma", maHang),
+                        new SqlParameter("@qty", slGiao));
+                }
+                catch (SqlException ex) when (ex.Number == 8152)
+                {
+                    throw new InvalidOperationException(DiagnoseLotTruncation(ex, tmpTable, lot, stt, maHang), ex);
+                }
 
                 if (updated != 1)
                     throw new InvalidOperationException(
@@ -71,6 +79,40 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
 
                 return lot;
             });
+        }
+
+        /// <summary>
+        /// SQL Server 2016 RTM không báo tên cột khi lỗi 8152, nên tự tra độ dài cột LOT của bảng TMP
+        /// và so với chuỗi LOT ghép vừa tính để người dùng thấy ngay cột nào bị tràn.
+        /// </summary>
+        private string DiagnoseLotTruncation(SqlException original, string tmpTable, string lot, int stt, string maHang)
+        {
+            try
+            {
+                DataTable dt = LoadData(
+                    @"SELECT CASE WHEN c.max_length = -1 THEN 2147483647
+                                  WHEN ty.name IN ('nvarchar','nchar') THEN c.max_length / 2
+                                  ELSE c.max_length END AS DSTLEN
+                      FROM sys.columns c
+                      JOIN sys.types ty ON ty.user_type_id = c.user_type_id
+                      WHERE c.object_id = OBJECT_ID(@tbl) AND c.name = 'LOT'",
+                    new SqlParameter("@tbl", SqlDbType.NVarChar, 300) { Value = "dbo." + tmpTable });
+
+                if (dt.Rows.Count > 0)
+                {
+                    int max = Convert.ToInt32(dt.Rows[0]["DSTLEN"]);
+                    if (lot.Length > max)
+                        return "Cột bị tràn: " + tmpTable + ".LOT" + Environment.NewLine +
+                               "Chuỗi LOT ghép dài " + lot.Length + " ký tự > độ dài cột " + max + "." + Environment.NewLine +
+                               "(Mã hàng " + maHang + ", STT " + stt + ", LOT = " + lot + ")";
+                }
+                return original.Message + " [" + tmpTable + ".LOT: LOT dài " + lot.Length +
+                       " ký tự, không vượt cột LOT; lỗi có thể do trigger hoặc cột khác trong bảng. MAHANG=" + maHang + ", STT=" + stt + "]";
+            }
+            catch (Exception diagEx)
+            {
+                return original.Message + " [không chẩn đoán được cột: " + diagEx.Message + "]";
+            }
         }
 
         public void CapNhapLotTmpPhieu(int stt, string lot, string tenBan)

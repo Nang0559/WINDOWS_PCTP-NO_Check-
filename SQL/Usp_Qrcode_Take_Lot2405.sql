@@ -4,8 +4,15 @@ SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
 GO
- ALTER PROC [dbo].[Usp_Qrcode_Take_Lot2405]
-    @_MaFCC NVARCHAR(50)=N'',
+/*
+    FIX "String or binary data would be truncated" khi bam Hoan thanh:
+    - #QRData.LOTFCC la nvarchar(56) nhung DOCQRCODE.LOTFCC la nvarchar(1000).
+      Dong QR co LOTFCC da la lot ghep (vd: LOT1-32,LOT2-55,LOT3-13 ~ 71 ky tu) => INSERT #QRData bi cat => loi 8152.
+    - Mo rong dong bo: #QRData.LOTFCC, @qrLot, @token, @lotPart, @_MaFCC / @ma.
+      Bien nvarchar(56)/(30) chi cat NGAM (khong bao loi) nen neu de nguyen se lam sai lot ma khong ai biet.
+*/
+ALTER PROC [dbo].[Usp_Qrcode_Take_Lot2405]
+    @_MaFCC NVARCHAR(100)=N'',
     @_STTP INT=0,
     @_DeM INT=0,
     @_SLGIAO INT=0,
@@ -40,20 +47,21 @@ BEGIN
    IF NOT EXISTS(SELECT 1 FROM dbo.'+QUOTENAME(@TMPTABLE)+N' WITH(UPDLOCK,HOLDLOCK)
     WHERE STT=@stt AND MAHANG=@ma AND SOLUONG=@qty AND ISNULL(LOT,N'''')=N'''')
     THROW 51104,N''Dòng phiếu không còn hợp lệ hoặc đã được xử lý.'',1;';
-  EXEC sys.sp_executesql @sql,N'@stt int,@ma nvarchar(50),@qty int',@_STTP,@_MaFCC,@_SLGIAO;
+  EXEC sys.sp_executesql @sql,N'@stt int,@ma nvarchar(100),@qty int',@_STTP,@_MaFCC,@_SLGIAO;
 
-  CREATE TABLE #QRData(STT int NOT NULL PRIMARY KEY,LOTFCC nvarchar(56),SLTEMFCC int NOT NULL,SLTEMHVN int NOT NULL);
+  -- FIX: LOTFCC nvarchar(56) -> nvarchar(1000) cho khop DOCQRCODE.LOTFCC
+  CREATE TABLE #QRData(STT int NOT NULL PRIMARY KEY,LOTFCC nvarchar(1000),SLTEMFCC int NOT NULL,SLTEMHVN int NOT NULL);
   SET @sql=N'INSERT #QRData(STT,LOTFCC,SLTEMFCC,SLTEMHVN)
    SELECT STT,LOTFCC,ISNULL(SLTEMFCC,0),ISNULL(SLTEMHVN,0)
    FROM dbo.'+QUOTENAME(@DOCQRTABLE)+N' WITH(UPDLOCK,HOLDLOCK)
    WHERE MAHANGFCC=@ma AND ISNULL(KETQUA,N'''')<>N''DG'' AND ISNULL(SLTEMFCC,0)>0
      AND NULLIF(LTRIM(RTRIM(LOTFCC)),N'''') IS NOT NULL;';
-  EXEC sys.sp_executesql @sql,N'@ma nvarchar(50)',@_MaFCC;
+  EXEC sys.sp_executesql @sql,N'@ma nvarchar(100)',@_MaFCC;
 
   CREATE TABLE #DP(Qty int NOT NULL PRIMARY KEY,Path nvarchar(max) NOT NULL);
   CREATE TABLE #DPPrev(Qty int NOT NULL PRIMARY KEY,Path nvarchar(max) NOT NULL);
   INSERT #DP VALUES(0,N',');
-  DECLARE @qrStt int,@qrQty int,@qrLot nvarchar(56),@qrHvn int;
+  DECLARE @qrStt int,@qrQty int,@qrLot nvarchar(1000),@qrHvn int;
   DECLARE QrCursor CURSOR LOCAL FAST_FORWARD FOR SELECT STT,SLTEMFCC,LOTFCC,SLTEMHVN FROM #QRData ORDER BY STT;
   OPEN QrCursor;
   FETCH NEXT FROM QrCursor INTO @qrStt,@qrQty,@qrLot,@qrHvn;
@@ -88,8 +96,9 @@ BEGIN
   IF @chosenCount=0 THROW 51105,N'Danh sách QR phân bổ rỗng.',1;
 
   SELECT TOP 0 LOTFCC,SLTEMFCC,SLTEMHVN INTO #CtTmp FROM dbo.DOCQRCODE;
-  DECLARE @lot nvarchar(56),@fcc int,@hvn int,@pos int,@next int,@token nvarchar(56),
-          @hyphen int,@lotPart nvarchar(30),@qtyPart int;
+  -- FIX: @token nvarchar(56) -> (1000), @lotPart nvarchar(30) -> (100): tranh cat ngam
+  DECLARE @lot nvarchar(1000),@fcc int,@hvn int,@pos int,@next int,@token nvarchar(1000),
+          @hyphen int,@lotPart nvarchar(100),@qtyPart int;
   DECLARE ChosenCursor CURSOR LOCAL FAST_FORWARD FOR
    SELECT q.LOTFCC,q.SLTEMFCC,q.SLTEMHVN FROM #QRData q JOIN #Chosen c ON c.STT=q.STT ORDER BY q.STT;
   OPEN ChosenCursor;
@@ -138,7 +147,7 @@ BEGIN
     FROM dbo.'+QUOTENAME(@DOCQRTABLE)+N' q JOIN #Chosen c ON c.STT=q.STT
     WHERE q.MAHANGFCC=@ma AND ISNULL(q.KETQUA,N'''')<>N''DG'';
     SET @n=@@ROWCOUNT;';
-  EXEC sys.sp_executesql @sql,N'@stt int,@ma nvarchar(50),@n int OUTPUT',@_STTP,@_MaFCC,@affected OUTPUT;
+  EXEC sys.sp_executesql @sql,N'@stt int,@ma nvarchar(100),@n int OUTPUT',@_STTP,@_MaFCC,@affected OUTPUT;
   IF @affected<>@chosenCount
   BEGIN
    DECLARE @claimError nvarchar(2048)=CONCAT(N'QR đã bị tiến trình khác nhận; expected=',@chosenCount,N', actual=',@affected,N'.');
@@ -150,7 +159,7 @@ BEGIN
     WHERE STT=@stt AND MAHANG=@ma AND SOLUONG=@qty AND ISNULL(LOT,N'''')=N'''';
     SELECT @n=@@ROWCOUNT;';
   SET @affected=0;
-  EXEC sys.sp_executesql @sql,N'@stt int,@ma nvarchar(50),@qty int,@n int OUTPUT',@_STTP,@_MaFCC,@_SLGIAO,@affected OUTPUT;
+  EXEC sys.sp_executesql @sql,N'@stt int,@ma nvarchar(100),@qty int,@n int OUTPUT',@_STTP,@_MaFCC,@_SLGIAO,@affected OUTPUT;
   IF @affected<>1 THROW 51107,N'Dòng phiếu thay đổi trong lúc cấp phát; hủy toàn bộ.',1;
 
   SELECT LOTFCC,SUM(SLTEMFCC) AS FCC,SUM(SLTEMHVN) AS HVN FROM #CtTmp GROUP BY LOTFCC ORDER BY LOTFCC;
