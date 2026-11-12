@@ -73,13 +73,20 @@ namespace PCTP.QRCODE_HVN.ComaprePart
 
         private void ConfigureGrid()
         {
-            GV_ListPart.Appearance.FocusedRow.BackColor =
-                Color.FromArgb(255, 255, 192);
+            // Dùng chữ đen trên nền vàng cho cả dòng focus và dòng được chọn.
+            // Phải bật UseBackColor/UseForeColor để không bị DevExpress skin ghi đè.
+            Color focusedBackColor = Color.FromArgb(255, 255, 192);
+            Color focusedForeColor = Color.FromArgb(32, 32, 32);
 
-            GV_ListPart.Appearance.SelectedRow.BackColor =
-                Color.FromArgb(255, 255, 192);
+            GV_ListPart.Appearance.FocusedRow.BackColor = focusedBackColor;
+            GV_ListPart.Appearance.FocusedRow.ForeColor = focusedForeColor;
+            GV_ListPart.Appearance.FocusedRow.Options.UseBackColor = true;
+            GV_ListPart.Appearance.FocusedRow.Options.UseForeColor = true;
 
+            GV_ListPart.Appearance.SelectedRow.BackColor = focusedBackColor;
+            GV_ListPart.Appearance.SelectedRow.ForeColor = focusedForeColor;
             GV_ListPart.Appearance.SelectedRow.Options.UseBackColor = true;
+            GV_ListPart.Appearance.SelectedRow.Options.UseForeColor = true;
 
             GV_ListPart.OptionsSelection.MultiSelect = true;
             GV_ListPart.OptionsSelection.MultiSelectMode =
@@ -194,7 +201,7 @@ namespace PCTP.QRCODE_HVN.ComaprePart
 
             try
             {
-                LoadTargetParts(maHang);
+                LoadTargetParts();
             }
             catch (Exception ex)
             {
@@ -203,9 +210,11 @@ namespace PCTP.QRCODE_HVN.ComaprePart
             }
         }
 
-        private void LoadTargetParts(string maHang)
+        private void LoadTargetParts()
         {
-            LuKToPart.Properties.DataSource = _repo.GetTargetParts(maHang);
+            // Mã kho không bắt buộc cùng tiền tố với mã khách.
+            // Một mã khách có thể được ánh xạ tới nhiều mã kho khác nhau.
+            LuKToPart.Properties.DataSource = _repo.GetTargetParts();
         }
 
         #endregion
