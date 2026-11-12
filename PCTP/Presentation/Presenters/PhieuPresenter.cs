@@ -167,7 +167,16 @@ namespace PCTP.Presentation.Presenters
         }
         private void OnInGhepLot(object sender, EventArgs e) { var selectedRows = _v.GetSelectedGhepLotRows(); DataTable reportData = null; _c.RunWithLoadingSync(() => reportData = _c.InPhieuSvc.InGhepLot(selectedRows.Any() ? selectedRows : null, Environment.MachineName), "Đang tổng hợp dữ liệu ghép LOT..."); if (reportData != null) new ReportPrintTool(new GHEPLOT { DataSource = reportData }).ShowPreviewDialog(); }
         private void OnInTachLot(object sender, EventArgs e) => _v.ShowTachLot();
-        private void OnKiemTraGhepLot(object sender, EventArgs e) => _c.RunWithLoading(() => { DataTable dt = _c.PhieuSvc.LoadGhepLot(); _c.UiContext.Post(_ => _v.BindGhepLot(dt), null); }, "Đang kiểm tra ghép LOT...");
+        private void OnKiemTraGhepLot(object sender, EventArgs e) => _c.RunWithLoading(() =>
+        {
+            DataTable dt = _c.PhieuSvc.LoadGhepLot();
+            _c.UiContext.Post(_ =>
+            {
+                _v.BindGhepLot(dt);
+                if (dt == null || dt.Rows.Count == 0)
+                    _v.ShowInfo("Không có dòng LOT cần ghép được procedure trả về. Nếu bạn đang chờ ghép nhiều LOT, cần kiểm tra dữ liệu tồn kho và nguồn IFS/TMP của phiếu.");
+            }, null);
+        }, "Đang kiểm tra ghép LOT...");
         private void OnKiemTraMaNG(object sender, EventArgs e) { string ma = _v.GetFocusedDonHangMaHang(); if (!string.IsNullOrWhiteSpace(ma)) _v.ShowKiemTraMaNG(ma); }
         private void OnHoanThanh(object sender, EventArgs e) => _c.RunWithLoadingSync(() =>
         {
