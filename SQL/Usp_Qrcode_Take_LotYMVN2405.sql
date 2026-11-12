@@ -271,20 +271,17 @@ BEGIN
             FROM #Qr
             WHERE MAHANG = @mh AND (Owner = @stt OR Owner = 0);
 
-            IF @need > 0 AND @avail >= @need
+            IF @need > 0 AND @avail > 0
             BEGIN
-                -- QR đã thuộc dòng này được ưu tiên (chạy lại không đổi kết quả),
-                -- sau đó QR tự do theo thứ tự STT; dừng khi vừa đủ.
-                ;WITH c AS (
-                    SELECT Rid, SLHVN,
-                           SUM(SLHVN) OVER (
-                               ORDER BY CASE WHEN Owner = @stt THEN 0 ELSE 1 END, QSTT, Rid
-                               ROWS UNBOUNDED PRECEDING) AS Cum
-                    FROM #Qr
-                    WHERE MAHANG = @mh AND (Owner = @stt OR Owner = 0)
-                )
+                -- Tổng hợp cả khi mới đọc một phần: dòng có QR luôn nhận LOT_GHEP.
+                -- Không đủ số lượng chỉ khiến IsOK=0/STATUSDOC=NG, không xóa LOT.
+                IF @avail > @need
+                    THROW 51215, N'Số lượng QR YMVN đã đọc vượt số lượng giao của dòng phiếu.', 1;
+
                 INSERT INTO #Pick (Rid)
-                SELECT Rid FROM c WHERE Cum - SLHVN < @need;
+                SELECT Rid
+                FROM #Qr
+                WHERE MAHANG = @mh AND (Owner = @stt OR Owner = 0);
 
                 UPDATE q SET Owner = 0
                 FROM #Qr q
@@ -306,11 +303,12 @@ BEGIN
                 ).value(N'(./text())[1]', N'nvarchar(max)'), 1, 1, N'');
 
                 INSERT INTO #Res (STT, MAHANG, LOT_GHEP, TONG_SLHVN, SL_GIAO, IsOK)
-                VALUES (@stt, @mh, @lot, @claimed, @need, 1);
+                VALUES (@stt, @mh, @lot, @claimed, @need,
+                        CASE WHEN @claimed >= @need THEN 1 ELSE 0 END);
             END
             ELSE
             BEGIN
-                -- Không đủ QR: không claim gì; trả lại QR từng giữ cho dòng này.
+                -- Không có QR cho dòng này: không tạo LOT và không claim dữ liệu.
                 UPDATE #Qr SET Owner = 0 WHERE MAHANG = @mh AND Owner = @stt;
 
                 INSERT INTO #Res (STT, MAHANG, LOT_GHEP, TONG_SLHVN, SL_GIAO, IsOK)
@@ -342,7 +340,7 @@ BEGIN
         -- ── 5. Ghi kết quả vào TMP (chỉ dòng đạt mới đổi LOT) ──────────────────
         SET @sql = N'
         UPDATE t
-        SET t.LOT       = CASE WHEN r.IsOK = 1 THEN r.LOT_GHEP ELSE t.LOT END,
+        SET t.LOT       = CASE WHEN NULLIF(r.LOT_GHEP, N'''') IS NOT NULL THEN r.LOT_GHEP ELSE t.LOT END,
             t.STATUSDOC = CASE WHEN r.IsOK = 1 THEN N''OK'' ELSE N''NG'' END,
             t.TTPHIEU   = CASE WHEN r.IsOK = 1 THEN N''DG'' ELSE N'''' END
         FROM ' + @tmpTbl + N' t
