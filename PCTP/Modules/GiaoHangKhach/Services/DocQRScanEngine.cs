@@ -99,8 +99,9 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         private ScanResult ScanFCC(string[] parts, Func<string, bool> kiemTraMa, Func<string, int, bool> kiemTraSl)
         {
             if (!KiemTraThuTuFCC()) return ScanResult.Fail("Sai Thứ tự bắn!");
-            string maFcc = parts[1].Trim();
-            string maHangThuc = MapMaHang(maFcc);
+            // Dùng nguyên mã FCC trên tem để so với mã yêu cầu của phiếu.
+            // Không ánh xạ PartNo -> PartNoCompare ở chiều FCC.
+            string maHangThuc = parts[1].Trim();
             if (!int.TryParse(parts[3], out int slTem))
                 return ScanResult.Fail("Số lượng tem không hợp lệ.");
             string lotFcc = NormalizeLotFCC(parts[0], maHangThuc);
