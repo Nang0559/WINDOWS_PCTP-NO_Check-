@@ -139,7 +139,7 @@ public sealed class DeliveryQrAllocationSourceContractTests
     {
         var source = Read("DocQRScanEngine.source.cs");
         var start = source.IndexOf("public ScanResult ProcessScan(", StringComparison.Ordinal);
-        var end = source.IndexOf("private string MapMaHang(", StringComparison.Ordinal);
+        var end = source.IndexOf("public ScanResult ProcessScanYMVN(", StringComparison.Ordinal);
         Assert.True(start >= 0 && end > start);
         var route = source.Substring(start, end - start);
 
@@ -244,7 +244,9 @@ public sealed class DeliveryQrAllocationSourceContractTests
         Assert.Contains("if (string.IsNullOrEmpty(item.LotHVN)) return false", fccOrder);
         Assert.Contains("WHERE (LOTHVN IS NULL OR LOTHVN = '')", checkPart);
         Assert.Contains("WHERE (LOTHVN IS NULL OR LOTHVN = '')", checkQty);
-        Assert.Contains("return mafcc.Replace(\"-\", \"\") == maHvn", checkPart);
+        Assert.Contains("PartNoCompare = @Fcc", checkPart);
+        Assert.Contains("REPLACE(LTRIM(RTRIM(PartNo)), '-', '') = @Hvn", checkPart);
+        Assert.Contains("return maFcc.Replace(\"-\", \"\").Replace(\" \", \"\")", checkPart);
         Assert.Contains("return slFcc == slTemHvn", checkQty);
         // These lookups depend on the engine's one-unpaired-row invariant; retain
         // this test so future concurrency/order changes cannot silently remove it.
@@ -349,12 +351,34 @@ public sealed class DeliveryQrAllocationSourceContractTests
         Assert.DoesNotContain("parts[2]", hvn);
         Assert.DoesNotContain("parts[4]", hvn);
 
-        var process = MethodBody(engine, "public ScanResult ProcessScan(", "private string MapMaHang(");
+        var process = MethodBody(engine, "public ScanResult ProcessScan(", "public ScanResult ProcessScanYMVN(");
         Assert.Contains("string[] parts = rawQr.Split(':')", process);
         Assert.Contains("if (parts.Length == 4)", process);
         Assert.Contains("return ScanFCC(parts", process);
         Assert.Contains("return ScanHVN(parts)", process);
 
+    }
+
+
+    [Fact]
+    public void HvnMp_FccScanUsesExactOrderPartAndHvnScanUsesExactConfiguredPair()
+    {
+        var engine = Read("DocQRScanEngine.source.cs");
+        var repo = Read("DocQRRepository.source.cs");
+        var compareForm = Read("ComaparePart.source.cs");
+
+        var fcc = MethodBody(engine, "private ScanResult ScanFCC(", "public ScanResult ProcessScanYMVN(");
+        var hvn = MethodBody(engine, "private ScanResult ScanHVN(", "private ScanResult ScanFCC_YMVN(");
+        var check = MethodBody(repo, "public bool KiemTraTemMa(string maHvn, string docQrTable)", "public bool KiemTraTemSoLuong(");
+
+        Assert.Contains("string maHangThuc = parts[1].Trim()", fcc);
+        Assert.DoesNotContain("MapMaHang(", fcc);
+        Assert.Contains("if (!kiemTraMa(maHangThuc))", fcc);
+        Assert.Contains("PartNoCompare = @Fcc", check);
+        Assert.Contains("REPLACE(LTRIM(RTRIM(PartNo)), '-', '') = @Hvn", check);
+        Assert.Contains("if (count > 0)", check);
+        Assert.Contains("Mã hàng gốc và mã hàng thay thế không được giống nhau", compareForm) == false;
+        Assert.Contains("Cho phép mapping đồng mã", compareForm);
     }
 
     private static string MethodBody(string source, string start, string end)
