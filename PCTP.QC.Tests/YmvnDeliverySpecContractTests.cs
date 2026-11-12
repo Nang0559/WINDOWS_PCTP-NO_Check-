@@ -169,6 +169,20 @@ public sealed class YmvnDeliverySpecContractTests
     }
 
     [Fact]
+    public void Ymvn_PersistsQrReadStatusIntoDeliveryHistoryForReload()
+    {
+        // The reload procedure reads STATUSDOC from LUUPHIEUGIAOHANG.
+        // Omitting this column here makes a successfully read QR appear blank/red after stock update.
+        var body = YmvnMethod();
+        var insertStart = IndexOf(body, "INSERT INTO LUUPHIEUGIAOHANG");
+        var insertEnd = IndexOf(body, "FROM [\" + tmpTable + @\"]", insertStart);
+        var insert = body.Substring(insertStart, insertEnd - insertStart);
+
+        Assert.Contains("STATUS, STATUSDOC, GearYMVN", insert);
+        Assert.Contains("'OK', ISNULL(STATUSDOC, '')", insert);
+    }
+
+    [Fact]
     public void Ymvn_ScanRowsAreArchivedAndDeletedByOwningTmpStt()
     {
         // F-Y1 fixed: DG scan rows are owned by the TMP line via DOCQRCODE.STTBAN (set by the take-lot SP).
