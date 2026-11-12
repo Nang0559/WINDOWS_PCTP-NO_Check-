@@ -240,8 +240,14 @@ namespace PCTP.QRCODE_HVN.ComaprePart
                 return;
             }
 
-            // Cho phép mapping đồng mã (ví dụ A -> A) song song với
-            // mapping khác mã (A -> A-FU). Cặp mapping vẫn được chống trùng ở repository.
+            // Mã giống nhau được kiểm tra trực tiếp theo mặc định khi đọc QR.
+            // ComparePart chỉ dành cho mã FCC khác mã HVN, tránh khai báo mapping A -> A.
+            if (string.Equals(partNo, partNoCompare, StringComparison.OrdinalIgnoreCase))
+            {
+                ShowWarning("Mã hàng gốc và mã hàng thay thế giống nhau. Trường hợp này không cần khai báo ComparePart.");
+                LuKToPart.Focus();
+                return;
+            }
 
             DateTime timeSet = DateE_NgayAPP.DateTime;
 
