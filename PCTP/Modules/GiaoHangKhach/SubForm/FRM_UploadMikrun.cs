@@ -32,7 +32,7 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
                               txtDongBD, txtDongKT;
         private ComboBoxEdit cboSheet;
         private CheckEdit chkXoaCu;
-        private SimpleButton btnChonFile, btnXemTruoc, btnUpload, btnDong;
+        private SimpleButton btnChonFile, btnXemTruoc, btnUpload, btnDong, btnQuanLy;
         private GridControl gridPreview;
         private GridView gridViewPreview;
 
@@ -148,6 +148,10 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
             btnDong = Btn("✕ Đóng", 740, y, 100, 32);
             btnDong.Click += (s, e) => this.Close();
 
+            // Xem lại / sửa / xóa các đơn ĐÃ upload (kèm trạng thái đã giao / chưa giao).
+            btnQuanLy = Btn("📋 Đơn đã upload", 850, y, 125, 32);
+            btnQuanLy.Click += BtnQuanLy_Click;
+
             lblSoDong = new LabelControl
             {
                 Text = "",
@@ -173,7 +177,7 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
             lblFile, txtDuongDan, btnChonFile,
             lblSheet, cboSheet,
             grp, lblHint,
-            chkXoaCu, btnXemTruoc, btnUpload, btnDong, lblSoDong,
+            chkXoaCu, btnXemTruoc, btnUpload, btnDong, btnQuanLy, lblSoDong,
             gridPreview
             });
         }
@@ -334,6 +338,16 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
                 chkXoaCu.Enabled = true;
             }
             catch (Exception ex) { ShowErr($"Lỗi Upload: {ex.Message}"); }
+        }
+
+        private void BtnQuanLy_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                using (var frm = new FRM_QuanLyDonUpload(_sql, _targetTable, $"Đơn đã upload — {_targetTable}"))
+                    frm.ShowDialog(this);
+            }
+            catch (Exception ex) { ShowErr($"Lỗi mở danh sách đơn: {ex.Message}"); }
         }
 
         // ── Kiểm tra bảng có cột IsDelivered không ───────────────────────────────

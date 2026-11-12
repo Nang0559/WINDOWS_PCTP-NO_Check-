@@ -369,21 +369,41 @@ namespace PCTP.Presentation.Presenters
             // Keep it available for MP on read-only/view terminals as well; SP has
             // a different schema and LoadGhepLot() intentionally returns an empty table.
             bool showGhepLot = IsMayBanQR || (Cfg.Delivery.CoGear && !PhieuView.IsLoaiSP);
-            View.SetupPhieuButtons(
+            // Có thể được gọi từ thread nền → đổi nút phải chạy trên UI thread.
+            RunOnUi(() => View.SetupPhieuButtons(
                 showCapNhapKho && IsMayBanQR,
                 coMaNG && IsMayBanQR,
                 showGhepLot,
                 IsMayBanQR,
                 showLayLaiLot && IsMayBanQR && !IsBanQR,
                 showStop,
-                !Cfg.Delivery.LoadTuBangRieng);
+                !Cfg.Delivery.LoadTuBangRieng));
         }
 
+        /// <summary>Chạy action trên UI thread: gọi thẳng nếu đang ở UI thread, ngược lại Send (đồng bộ, lỗi được ném lại cho bên gọi).</summary>
+        internal void RunOnUi(Action action)
+        {
+            if (UiContext == SynchronizationContext.Current) action();
+            else UiContext.Send(_ => action(), null);
+        }
+
+        /// <summary>
+        /// Có thể được gọi từ thread nền (RunWithLoading = Task.Run, vd đổi ngày khi đang ở giờ GIAO DB):
+        /// DB đọc ở thread hiện tại, còn đọc ngày chọn + nạp lưới + đổi thanh nút PHẢI chạy trên UI thread
+        /// (nếu không sẽ lỗi "Cross-thread operation not valid ... gridCtrDONHANG").
+        /// </summary>
         internal DataTable LoadPhieuGiaoDB()
         {
-            DataTable dt = PhieuSvc.LoadTmpPhieuGiaoDB(View.SelectedDate, AddNM);
-            View.BindDonHang(dt);
-            GiaoDbView.SwitchToPhieuDBView();
+            DateTime ngay = DateTime.MinValue;
+            RunOnUi(() => ngay = View.SelectedDate);
+
+            DataTable dt = PhieuSvc.LoadTmpPhieuGiaoDB(ngay, AddNM);
+
+            RunOnUi(() =>
+            {
+                View.BindDonHang(dt);
+                GiaoDbView.SwitchToPhieuDBView();
+            });
             return dt;
         }
     }

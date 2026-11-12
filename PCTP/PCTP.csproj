@@ -356,6 +356,13 @@
     </Compile>
     <Compile Include="Modules\GiaoHangKhach\Models\DeliverySessionIdentity.cs" />
     <Compile Include="Modules\GiaoHangKhach\Models\OrderLineKey.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Repositories\UploadedOrderRepository.cs" />
+    <Compile Include="Modules\GiaoHangKhach\Controls\UploadedOrderManagerControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Modules\GiaoHangKhach\SubForm\FRM_QuanLyDonUpload.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="Modules\GiaoHangKhach\Models\OrderLotMerger.cs" />
     <Compile Include="Modules\GiaoHangKhach\Repositories\PhieuCurrentQrFifoValidationRepository.cs" />
     <Compile Include="Modules\GiaoHangKhach\Services\CustomerAddressService.cs" />
