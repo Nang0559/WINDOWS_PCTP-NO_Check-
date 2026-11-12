@@ -377,7 +377,7 @@ public sealed class DeliveryQrAllocationSourceContractTests
         Assert.Contains("PartNoCompare = @Fcc", check);
         Assert.Contains("REPLACE(LTRIM(RTRIM(PartNo)), '-', '') = @Hvn", check);
         Assert.Contains("if (count > 0)", check);
-        Assert.Contains("Mã hàng gốc và mã hàng thay thế không được giống nhau", compareForm) == false;
+        Assert.DoesNotContain("Mã hàng gốc và mã hàng thay thế không được giống nhau", compareForm);
         Assert.Contains("Cho phép mapping đồng mã", compareForm);
     }
 
