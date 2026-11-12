@@ -95,6 +95,14 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
                 // Mở lại chọn giờ xuất (SwitchToDocQRView đã Disable cả RadioGroup).
                 SetGioXuatSelectionEnabled(true);
 
+                // Rời DocQR: mở lại grid Ghép lot của màn hình Phiếu.
+                if (_phieuBottomStateControl != null)
+                {
+                    _phieuBottomStateControl.SetDocQrMode(false);
+                    _phieuBottomStateControl.HideSuaSoLuong();
+                    _phieuBottomStateControl.ShowGhepLot();
+                }
+
                 // ========================================================
                 // Bước 3: bảo đảm control phụ của màn hình Phiếu không
                 // bị vùng DocQR cũ che lên.

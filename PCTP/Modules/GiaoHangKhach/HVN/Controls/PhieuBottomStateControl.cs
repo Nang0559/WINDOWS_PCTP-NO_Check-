@@ -25,6 +25,10 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
 
         public event FocusedRowChangedEventHandler SuaSlFocusedRowChanged = delegate { };
 
+        // true = đang ở màn hình DocQR: grid "Thông tin LOT cần ghép" và grid "Lệch IFS"
+        // chỉ thuộc màn hình Phiếu giao nên không được phép hiện, bất kể ai gọi ShowGhepLot/ShowLech.
+        private bool _docQrMode;
+
         public GridControl LechGrid { get { return gridCLECH; } }
         public GridControl GhepLotGrid { get { return gridCTTGL; } }
         public GridControl SuaSlGrid { get { return gridCtrSUASL; } }
@@ -319,8 +323,25 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
             return rows.ToArray();
         }
 
+        /// <summary>
+        /// Bật/tắt chế độ DocQR. Ở chế độ DocQR, grid Ghép lot và Lệch IFS bị ẩn và
+        /// mọi lệnh Show* của hai grid này bị bỏ qua cho tới khi quay lại màn Phiếu.
+        /// </summary>
+        public void SetDocQrMode(bool docQrMode)
+        {
+            _docQrMode = docQrMode;
+            if (docQrMode)
+            {
+                gridCTTGL.Visible = false;
+                gridCLECH.Visible = false;
+            }
+        }
+
         public void ShowLech()
         {
+            if (_docQrMode)
+                return;
+
             gridCLECH.Visible = true;
             gridCTTGL.Visible = false;
             gridCtrSUASL.Visible = false;
@@ -329,6 +350,9 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
 
         public void ShowGhepLot()
         {
+            if (_docQrMode)
+                return;
+
             gridCLECH.Visible = false;
             gridCTTGL.Visible = true;
             gridCtrSUASL.Visible = false;
@@ -352,6 +376,9 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
 
         public void ToggleLechGhepLot()
         {
+            if (_docQrMode)
+                return;
+
             if (gridCLECH.Visible)
                 ShowGhepLot();
             else

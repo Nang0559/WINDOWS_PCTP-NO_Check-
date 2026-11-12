@@ -202,8 +202,10 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
             catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[SwitchToDocQRView] Lỗi set Visible: {ex.Message}"); }
             if (!IsDisposed && IsHandleCreated)
                 BeginInvoke(new Action(() => { lblDocQrcode.Text = _cfg.Delivery?.LabelDocQR ?? "Đọc QRCode theo thứ tự: FCC → HVN"; }));
+            _phieuBottomStateControl.SetDocQrMode(true);
             _phieuBottomStateControl.HideSuaSoLuong();
             _phieuBottomStateControl.HideGhepLot();
+            _phieuBottomStateControl.HideLech();
             _phieuActionBarControl.ConfigureDocQr();
             _docQrInputControl.FocusInput();
         }
@@ -222,6 +224,7 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
             _phieuGridControl.BringToFrontGrid();
             try { PN_DOCQR_SUASL1.Visible = false; _hangThieuControl.Visible = true; _hangThieuControl.BringToFront(); }
             catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[SwitchToPhieuView] Lỗi set Visible: {ex.Message}"); }
+            _phieuBottomStateControl.SetDocQrMode(false);
             _phieuBottomStateControl.HideSuaSoLuong();
             _phieuBottomStateControl.ShowGhepLot();
             _phieuBottomStateControl.HideLech();
