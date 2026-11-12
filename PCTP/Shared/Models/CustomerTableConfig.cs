@@ -78,6 +78,7 @@ namespace PCTP.Shared.Models
                         RequirePoRelNo = false,
                         NhaMayCase = "'NHA MAY 100003'",
                         OrderTable = "Purchase_Order_HTN",
+                        BatBuocPickChoGiao = true,
                     },
                 },
 

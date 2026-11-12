@@ -61,6 +61,13 @@ namespace PCTP.Modules.GiaoHangKhach.Configuration
         public string OrderTable { get; set; } = "";
         public bool LoadTuBangRieng => !string.IsNullOrEmpty(OrderTable);
 
+        /// <summary>
+        /// true = Cập Nhập Kho BẮT BUỘC hàng đã được PICK vào FVN_HangChoGiao (đúng LOT, đủ số lượng).
+        /// CNK chỉ trừ STOCKTP (SP) và đóng chờ giao, KHÔNG trừ SlotLot nữa (SlotLot đã trừ lúc pick).
+        /// Thiếu/sai/không pick -> rollback toàn phiếu và báo lỗi theo từng LOT. Mặc định false (xuất thẳng từ slot).
+        /// </summary>
+        public bool BatBuocPickChoGiao { get; set; } = false;
+
         public bool CoNhieuNhaMay { get; set; }
         public int AddNmMacDinh { get; set; }
         public string TenNhaMay { get; set; }
