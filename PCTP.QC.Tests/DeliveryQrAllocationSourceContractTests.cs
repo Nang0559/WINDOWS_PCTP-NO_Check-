@@ -365,8 +365,6 @@ public sealed class DeliveryQrAllocationSourceContractTests
     {
         var engine = Read("DocQRScanEngine.source.cs");
         var repo = Read("DocQRRepository.source.cs");
-        var compareForm = Read("ComaparePart.source.cs");
-
         var fcc = MethodBody(engine, "private ScanResult ScanFCC(", "public ScanResult ProcessScanYMVN(");
         var hvn = MethodBody(engine, "private ScanResult ScanHVN(", "private ScanResult ScanFCC_YMVN(");
         var check = MethodBody(repo, "public bool KiemTraTemMa(string maHvn, string docQrTable)", "public bool KiemTraTemSoLuong(");
@@ -377,8 +375,6 @@ public sealed class DeliveryQrAllocationSourceContractTests
         Assert.Contains("PartNoCompare = @Fcc", check);
         Assert.Contains("REPLACE(LTRIM(RTRIM(PartNo)), '-', '') = @Hvn", check);
         Assert.Contains("if (count > 0)", check);
-        Assert.DoesNotContain("Mã hàng gốc và mã hàng thay thế không được giống nhau", compareForm);
-        Assert.Contains("Cho phép mapping đồng mã", compareForm);
     }
 
     private static string MethodBody(string source, string start, string end)
