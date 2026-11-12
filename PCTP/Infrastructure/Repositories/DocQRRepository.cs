@@ -31,43 +31,6 @@ namespace PCTP.Infrastructure.Repositories
 
         private static string Q(string table) => "[dbo].[" + table + "]";
 
-        // ── Helper: lấy tên bảng đúng theo loại SP/MP ────────────────────────
-        public string GetMaHangMapped(string maHang)
-        {
-            if (string.IsNullOrWhiteSpace(maHang))
-                return "";
-
-            const string query = @"
-        SELECT TOP 1 PartNoCompare
-        FROM tbl_QR_ComparePart
-        WHERE IsActive = 1
-          AND PartNo = @Ma;";
-
-            try
-            {
-                object result = _sql.ExecuteScalar(
-                    _sql.B7R2_FCCdb,
-                    query,
-                    new[]
-                    {
-                new SqlParameter("@Ma", SqlDbType.NVarChar, 100)
-                {
-                    Value = maHang.Trim()
-                }
-                    });
-
-                return result == null || result == DBNull.Value
-                    ? ""
-                    : result.ToString().Trim();
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine(
-                    $"[GetMaHangMapped] PartNo={maHang}, Error={ex.Message}");
-
-                return "";
-            }
-        }
         private string GetDocQRTable(bool isSP = false)
             => isSP && !string.IsNullOrEmpty(_cfg.Delivery.DocQRTableSP)
                 ? _cfg.Delivery.DocQRTableSP
@@ -225,20 +188,55 @@ namespace PCTP.Infrastructure.Repositories
 
         public bool KiemTraTemMa(string maHvn, string docQrTable)
         {
-            string mafcc = _sql.ExecuteReader(_sql.B7R2_FCCdb,
-                $"SELECT ISNULL(MAHANGFCC,'') " +
-                $"FROM {Q(docQrTable)} " +
-                $"WHERE (LOTHVN IS NULL OR LOTHVN = '')").Trim();
+            if (string.IsNullOrWhiteSpace(maHvn)) return false;
 
-            if (string.IsNullOrEmpty(mafcc)) return false;
+            // Chỉ ghép HVN với tem FCC đang chờ trên cùng phiên QR.
+            object pending = _sql.ExecuteScalar(
+                _sql.B7R2_FCCdb,
+                $@"SELECT TOP 1 ISNULL(MAHANGFCC, '')
+                   FROM {Q(docQrTable)}
+                   WHERE (LOTHVN IS NULL OR LOTHVN = '')
+                   ORDER BY STT DESC");
 
-            string alias = _sql.ExecuteReader(_sql.B7R2_FCCdb,
-                $"SELECT ISNULL(PartNo,'') FROM tbl_QR_ComparePart " +
-                $"WHERE PartNoCompare = '{Esc(mafcc)}' AND Isactive = 1").Trim();
+            string maFcc = pending == null || pending == DBNull.Value
+                ? string.Empty
+                : pending.ToString().Trim();
+            if (string.IsNullOrWhiteSpace(maFcc)) return false;
 
-            if (!string.IsNullOrEmpty(alias)) mafcc = alias;
+            // Nếu mã FCC có ComparePart đang hoạt động, chỉ chấp nhận một trong
+            // các PartNo được ánh xạ chính xác tới FCC đó. Không dùng TOP 1 vì
+            // một PartNo có thể có nhiều mã FCC và một FCC có thể có nhiều alias.
+            object mappedCount = _sql.ExecuteScalar(
+                _sql.B7R2_FCCdb,
+                @"SELECT COUNT(*)
+                  FROM tbl_QR_ComparePart
+                  WHERE IsActive = 1 AND PartNoCompare = @Fcc",
+                new[] { new SqlParameter("@Fcc", SqlDbType.NVarChar, 100) { Value = maFcc } });
+            int count = mappedCount == null || mappedCount == DBNull.Value
+                ? 0
+                : Convert.ToInt32(mappedCount);
 
-            return mafcc.Replace("-", "") == maHvn;
+            if (count > 0)
+            {
+                object exactMapping = _sql.ExecuteScalar(
+                    _sql.B7R2_FCCdb,
+                    @"SELECT COUNT(*)
+                      FROM tbl_QR_ComparePart
+                      WHERE IsActive = 1
+                        AND PartNoCompare = @Fcc
+                        AND REPLACE(LTRIM(RTRIM(PartNo)), '-', '') = @Hvn",
+                    new[]
+                    {
+                        new SqlParameter("@Fcc", SqlDbType.NVarChar, 100) { Value = maFcc },
+                        new SqlParameter("@Hvn", SqlDbType.NVarChar, 100) { Value = maHvn.Trim().Replace("-", "") }
+                    });
+                return exactMapping != null && exactMapping != DBNull.Value
+                    && Convert.ToInt32(exactMapping) > 0;
+            }
+
+            // Tương thích dữ liệu cũ chưa cấu hình ComparePart: so khớp trực tiếp.
+            return maFcc.Replace("-", "").Replace(" ", "")
+                .Equals(maHvn.Trim().Replace("-", "").Replace(" ", ""), StringComparison.OrdinalIgnoreCase);
         }
 
         public bool KiemTraTemSoLuong(string maHvn, int slTemHvn) => KiemTraTemSoLuong(maHvn, slTemHvn, GetDocQRTable());
