@@ -52,8 +52,8 @@ namespace PCTP.Modules.GiaoHangKhach.Intefaces
         /// <summary>Danh sách mã gốc (B20Item): cột code, name.</summary>
         DataTable GetSourceParts();
 
-        /// <summary>Danh sách mã thay thế bắt đầu bằng <paramref name="partNoPrefix"/>: cột code, name.</summary>
-        DataTable GetTargetParts(string partNoPrefix);
+        /// <summary>Toàn bộ danh mục mã kho có thể ánh xạ: cột code, name.</summary>
+        DataTable GetTargetParts();
 
         /// <summary>Danh sách mapping: STT, PartNo, PartName, ToPartNo, ToPartName, timeSet, IsActive.</summary>
         DataTable GetAll();
