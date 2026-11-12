@@ -38,7 +38,6 @@ namespace PCTP.Domain.Interfaces
         DataTable GetAllAsTable();
         DataTable GetAllAsTable(bool isSP);
         DataTable GetAllAsTable(string docQrTable);
-        string GetMaHangMapped(string maHang);
         int Count();
         int Count(bool isSP);
         int Count(string docQrTable);
