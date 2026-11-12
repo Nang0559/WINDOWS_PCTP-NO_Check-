@@ -10,10 +10,12 @@ namespace PCTP.Shared.Helpers
     /// Mặc định mỗi loại Form chỉ có một instance; các màn hình cần nhiều phiên
     /// (ví dụ Phiếu giao hàng) truyền instanceKey riêng theo khách hàng.
     ///
-    /// Mọi cửa sổ modeless đều được gắn cùng MỘT owner (Shell Main_APP). Windows luôn giữ form
-    /// được sở hữu (owned) nằm trên owner của nó, nên nếu form B được mở với owner là form A thì
-    /// bấm vào A không bao giờ đưa A lên trên B. Gắn chung owner Shell thì các form là "anh em":
-    /// bấm/focus vào form nào, form đó nổi lên trên các form còn lại.
+    /// Cửa sổ modeless được mở KHÔNG có owner (top-level độc lập). Windows luôn giữ form được sở hữu
+    /// (owned) nằm trên owner của nó: nếu gắn owner (dù là form khác hay Shell Main_APP) thì bấm vào
+    /// owner không bao giờ đưa owner lên trên form con, người dùng phải hạ form con xuống mới thấy.
+    /// Không owner thì mọi form (kể cả Shell) là "anh em": bấm vào form nào, form đó nổi lên trên.
+    /// Chỉ khi form đang mở từ một hộp thoại MODAL (ShowDialog) mới giữ owner là hộp thoại đó,
+    /// nếu không form mới sẽ nằm dưới/bị khoá bởi hộp thoại.
     /// </summary>
     public static class FormWindowManager
     {
@@ -58,11 +60,11 @@ namespace PCTP.Shared.Helpers
 
             try
             {
-                IWin32Window shellOwner = ResolveSharedOwner(owner);
-                if (shellOwner != null)
-                    form.Show(shellOwner);
+                IWin32Window modalOwner = ResolveModalOwner(owner);
+                if (modalOwner != null)
+                    form.Show(modalOwner);   // mở từ hộp thoại modal: phải nằm trên hộp thoại đó
                 else
-                    form.Show();
+                    form.Show();             // không owner: click vào form nào form đó nổi lên trên
 
                 BringToFront(form);
                 return form;
@@ -81,11 +83,10 @@ namespace PCTP.Shared.Helpers
         }
 
         /// <summary>
-        /// Chuẩn hoá owner của cửa sổ modeless về Shell (Main_APP) để mọi form cùng cấp, không lồng nhau.
-        /// - Owner là form MODAL đang mở (ShowDialog) thì giữ nguyên, nếu không form mới sẽ bị khoá bởi hộp thoại đó.
-        /// - Còn lại: đi ngược chuỗi Owner lên gốc rồi dùng Shell nếu có.
+        /// Owner cho cửa sổ modeless: chỉ trả về form MODAL đang mở (đi ngược chuỗi Owner lên gốc),
+        /// còn lại trả null để form mới là top-level độc lập (không lồng, không bị kẹt dưới form khác).
         /// </summary>
-        private static IWin32Window ResolveSharedOwner(IWin32Window owner)
+        private static IWin32Window ResolveModalOwner(IWin32Window owner)
         {
             Form start = owner as Form;
             if (start == null)
@@ -96,23 +97,13 @@ namespace PCTP.Shared.Helpers
             }
 
             if (start == null || start.IsDisposed)
-                return FindShell() ?? owner;
+                return null;
 
             Form top = start;
             while (!top.Modal && top.Owner != null && !top.Owner.IsDisposed)
                 top = top.Owner;
 
-            if (top.Modal)
-                return top;
-
-            return FindShell() ?? top;
-        }
-
-        private static Form FindShell()
-        {
-            return Application.OpenForms
-                .Cast<Form>()
-                .FirstOrDefault(f => f is Main_APP && !f.IsDisposed);
+            return top.Modal ? top : null;
         }
 
         private static void BringToFront(Form form)
