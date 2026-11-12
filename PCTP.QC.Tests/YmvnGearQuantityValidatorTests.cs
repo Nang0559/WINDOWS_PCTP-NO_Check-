@@ -79,13 +79,14 @@ public sealed class YmvnGearQuantityValidatorTests
     }
 
     [Fact]
-    public void CompletionRequiresExactPartGearQuantities()
+    public void CompletionAllowsPartialPartGearQuantitiesButKeepsGearValidation()
     {
+        // Gear A đủ; Gear B mới đọc một phần. Chỉ Gear A/B đã đọc được tổng hợp,
+        // không yêu cầu phần còn thiếu của Gear B phải được đọc trong lần hoàn thành này.
         var ok = YmvnGearQuantityValidator.ValidateCompletion(
             Order(("PART01", "A", 5), ("PART01", "B", 3)),
             Scans(("PART01", Lot('1'), 5), ("PART01", Lot('2'), 2)), out var error);
-        Assert.False(ok);
-        Assert.Contains("Chưa đủ", error);
+        Assert.True(ok, error);
     }
 
     [Fact]
