@@ -214,9 +214,60 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             return dt;
         }
 
-        // ✅ THAY THẾ HOÀN TOÀN SinhIDPMoi() + UploadChiTietGiaoDB() cũ.
-        // Header tạo TRƯỚC (IDENTITY tự sinh, không tính tay MAX+1 nữa),
-        // Detail tạo SAU cùng đúng IDP vừa sinh — tất cả trong 1 Uow transaction.
+        // ============================================================
+        // PHIẾU GIAO DB: 1 NGÀY LẬP + 1 NHÀ MÁY (khách hàng HVN) = TỐI ĐA 1 PHIẾU (header)
+        // + 1..n chi tiết, chi tiết có thể thêm ở nhiều thời điểm.
+        // Dòng "CHƯA GIAO" (STATUS = 'NG' hoặc NULL) mới được sửa / xóa; dòng đã xử lý
+        // (STATUS <> 'NG', do LuuGiaoDB đặt 'OK' sau khi gán LOT) bị KHÓA.
+        // ============================================================
+
+        // Điều kiện "chưa giao" dùng chung cho mọi câu lệnh sửa/xóa (đổi ở MỘT chỗ nếu nghiệp vụ đổi).
+        private const string ChuaGiao = "ISNULL(D.STATUS, 'NG') = 'NG'";
+
+        private static SqlParameter PNgay(DateTime ngay) =>
+            new SqlParameter("@ngay", SqlDbType.Date) { Value = ngay.Date };
+
+        /// <summary>
+        /// Header của phiếu theo ngày + nhà máy (0 hoặc 1 dòng): IDP, NAME, Note, NGAYLAP, NHAMAY,
+        /// NHAMAYNAME, SOPHIEU (số header trùng khóa — bình thường = 1; &gt;1 là dữ liệu cũ bị trùng,
+        /// khi đó lấy header có IDP nhỏ nhất làm phiếu chính).
+        /// </summary>
+        public DataTable GetHeaderGiaoDB(DateTime ngayLap, int nhaMay)
+        {
+            string sql = $@"
+            SELECT TOP (1) H.IDP, H.NAME, H.Note, H.NGAYLAP, H.NHAMAY, H.NHAMAYNAME,
+                   (SELECT COUNT(*) FROM [{TableHd}] X
+                    WHERE CAST(X.NGAYLAP AS date) = @ngay AND X.NHAMAY = @nm) AS SOPHIEU
+            FROM [{TableHd}] H
+            WHERE CAST(H.NGAYLAP AS date) = @ngay AND H.NHAMAY = @nm
+            ORDER BY H.IDP";
+            return LoadData(sql, PNgay(ngayLap), new SqlParameter("@nm", nhaMay));
+        }
+
+        /// <summary>
+        /// Chi tiết của phiếu theo ngày + nhà máy (gộp cả header trùng khóa nếu có):
+        /// ID, IDP, MaHang, TenHang, SoLuong, GioGiao, CUA, TRUYEN, DaGiao (bit: 1 = đã xử lý, bị khóa).
+        /// </summary>
+        public DataTable GetChiTietGiaoDB(DateTime ngayLap, int nhaMay)
+        {
+            string sql = $@"
+            SELECT D.ID, D.IDP,
+                   ISNULL(D.MAHANG, '')  AS MaHang,
+                   ISNULL(D.TENHANG, '') AS TenHang,
+                   CAST(ISNULL(D.SOLUONG, 0) AS int) AS SoLuong,
+                   ISNULL(D.GIOGIAO, '') AS GioGiao,
+                   ISNULL(D.CUA, '')     AS CUA,
+                   ISNULL(D.TRUYEN, '')  AS TRUYEN,
+                   CAST(CASE WHEN {ChuaGiao} THEN 0 ELSE 1 END AS bit) AS DaGiao
+            FROM [{TableCt}] D
+            INNER JOIN [{TableHd}] H ON H.IDP = D.IDP
+            WHERE CAST(H.NGAYLAP AS date) = @ngay AND H.NHAMAY = @nm
+            ORDER BY D.ID";
+            return LoadData(sql, PNgay(ngayLap), new SqlParameter("@nm", nhaMay));
+        }
+
+        // Giữ tên cũ cho code gọi cũ: nay cũng theo quy tắc 1 ngày + 1 nhà máy = 1 phiếu
+        // (đã có phiếu thì THÊM chi tiết vào phiếu đó, không tạo header thứ hai).
         public int TaoPhieuVaChiTietGiaoDB(
             string ten, DateTime ngayLap, int nhaMay, string nhaMayName,
             string note, DataTable chiTiet)
@@ -224,72 +275,77 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             if (chiTiet == null || chiTiet.Rows.Count == 0)
                 throw new ArgumentException("Chi tiết phiếu không được rỗng.", nameof(chiTiet));
 
+            return LuuPhieuGiaoDB(ten, ngayLap, nhaMay, nhaMayName, note, chiTiet);
+        }
+
+        /// <summary>
+        /// Tạo mới HOẶC cập nhật phiếu Giao DB của (ngày lập, nhà máy) trong MỘT transaction.
+        /// <para>chiTiet theo RowState: Added (ID null) → thêm; Modified → sửa; Deleted → xóa;
+        /// Unchanged → bỏ qua. Sửa/xóa dòng đã giao (hoặc không còn thuộc phiếu) → ném
+        /// <see cref="InvalidOperationException"/> và rollback toàn bộ.</para>
+        /// Cột bắt buộc: MaHang, TenHang, SoLuong, GioGiao, CUA, TRUYEN; cột ID (nếu có) = ID dòng DB.
+        /// </summary>
+        public int LuuPhieuGiaoDB(
+            string ten, DateTime ngayLap, int nhaMay, string nhaMayName,
+            string note, DataTable chiTiet)
+        {
+            if (chiTiet == null) throw new ArgumentNullException(nameof(chiTiet));
+
             bool ownTransaction = !HasTransaction;
             if (ownTransaction) Uow.Begin();
             try
             {
-                // IDP là IDENTITY ở một số DB nhưng chỉ là INT NOT NULL (không identity) ở DB khác
-                // (vd DB B7R2_FCC đang chạy) -> kiểm tra rồi chọn cách sinh IDP phù hợp.
-                bool idpLaIdentity = false;
-                object idCheck = ExecuteScalar(
-                    $"SELECT ISNULL(COLUMNPROPERTY(OBJECT_ID(N'dbo.{TableHd}'), N'IDP', 'IsIdentity'), 0)");
-                if (idCheck != null && idCheck != DBNull.Value)
-                    idpLaIdentity = Convert.ToInt32(idCheck) == 1;
+                DateTime ngay = ngayLap.Date;
 
-                string sqlHeader = idpLaIdentity
-                    ? $@"
-                INSERT INTO [{TableHd}]
-                    (NAME, TRANGTHAIGIAO, Note, NGAYLAP, NHAMAY, NHAMAYNAME)
-                OUTPUT INSERTED.IDP
-                VALUES (@ten, 0, @note, @ngayLap, @nhaMay, @nhaMayName)"
-                    // Không identity: tự cấp IDP = MAX+1 trong CÙNG câu lệnh, khóa UPDLOCK/HOLDLOCK
-                    // để 2 máy lưu cùng lúc không trùng IDP (nằm trong transaction của Uow).
-                    : $@"
-                INSERT INTO [{TableHd}]
-                    (IDP, NAME, TRANGTHAIGIAO, Note, NGAYLAP, NHAMAY, NHAMAYNAME)
-                OUTPUT INSERTED.IDP
-                SELECT ISNULL(MAX(IDP), 0) + 1, @ten, 0, @note, @ngayLap, @nhaMay, @nhaMayName
-                FROM [{TableHd}] WITH (UPDLOCK, HOLDLOCK)";
+                // Khóa (UPDLOCK/HOLDLOCK) rồi tìm header của khóa nghiệp vụ -> 2 máy lưu cùng lúc
+                // không thể cùng tạo 2 phiếu cho một ngày + nhà máy.
+                object found = ExecuteScalar($@"
+                    SELECT TOP (1) IDP FROM [{TableHd}] WITH (UPDLOCK, HOLDLOCK)
+                    WHERE CAST(NGAYLAP AS date) = @ngay AND NHAMAY = @nm
+                    ORDER BY IDP",
+                    PNgay(ngay), new SqlParameter("@nm", nhaMay));
 
-                object idpObj = ExecuteScalar(sqlHeader,
-                    new SqlParameter("@ten", (object)ten ?? DBNull.Value),
-                    new SqlParameter("@note", (object)note ?? DBNull.Value),
-                    new SqlParameter("@ngayLap", ngayLap),
-                    new SqlParameter("@nhaMay", nhaMay),
-                    new SqlParameter("@nhaMayName", (object)nhaMayName ?? DBNull.Value));
+                int idp;
+                if (found == null || found == DBNull.Value)
+                {
+                    idp = TaoHeader(ten, ngay, nhaMay, nhaMayName, note);
+                }
+                else
+                {
+                    idp = Convert.ToInt32(found);
+                    ExecuteNonQuery($@"
+                        UPDATE [{TableHd}]
+                        SET NAME = @ten, Note = @note, NHAMAYNAME = @nhaMayName
+                        WHERE CAST(NGAYLAP AS date) = @ngay AND NHAMAY = @nm",
+                        new SqlParameter("@ten", (object)ten ?? DBNull.Value),
+                        new SqlParameter("@note", (object)note ?? DBNull.Value),
+                        new SqlParameter("@nhaMayName", (object)nhaMayName ?? DBNull.Value),
+                        PNgay(ngay), new SqlParameter("@nm", nhaMay));
+                }
 
-                int idp = Convert.ToInt32(idpObj);
+                KiemTraDongSuaXoa(chiTiet, ngay, nhaMay);
 
-                // Bảng chi tiết cũng có thể có ID INT NOT NULL (không identity) -> tự cấp ID = MAX+1.
                 bool idCtLaIdentity = false;
                 object idCtCheck = ExecuteScalar(
                     $"SELECT ISNULL(COLUMNPROPERTY(OBJECT_ID(N'dbo.{TableCt}'), N'ID', 'IsIdentity'), 0)");
                 if (idCtCheck != null && idCtCheck != DBNull.Value)
                     idCtLaIdentity = Convert.ToInt32(idCtCheck) == 1;
 
-                string sqlChiTiet = idCtLaIdentity
-                    ? $@"
-                    INSERT INTO [{TableCt}]
-                        (IDP, MAHANG, TENHANG, SOLUONG, GIOGIAO, NHAMAY, CUA, TRUYEN, STATUS, TTNHAN)
-                    VALUES
-                        (@idp, @ma, @ten, @sl, @gio, @nm, @cua, @tr, 'NG', 1)"
-                    : $@"
-                    INSERT INTO [{TableCt}]
-                        (ID, IDP, MAHANG, TENHANG, SOLUONG, GIOGIAO, NHAMAY, CUA, TRUYEN, STATUS, TTNHAN)
-                    SELECT ISNULL(MAX(ID), 0) + 1, @idp, @ma, @ten, @sl, @gio, @nm, @cua, @tr, 'NG', 1
-                    FROM [{TableCt}] WITH (UPDLOCK, HOLDLOCK)";
-
                 foreach (DataRow row in chiTiet.Rows)
                 {
-                    ExecuteNonQuery(sqlChiTiet,
-                        new SqlParameter("@idp", idp),
-                        new SqlParameter("@ma", row["MaHang"]),
-                        new SqlParameter("@ten", row["TenHang"]),
-                        new SqlParameter("@sl", row["SoLuong"]),
-                        new SqlParameter("@gio", row["GioGiao"]),
-                        new SqlParameter("@nm", nhaMayName),
-                        new SqlParameter("@cua", row["CUA"]),
-                        new SqlParameter("@tr", row["TRUYEN"]));
+                    switch (row.RowState)
+                    {
+                        case DataRowState.Added:
+                        case DataRowState.Detached:
+                            ThemChiTiet(idp, row, nhaMayName, idCtLaIdentity);
+                            break;
+                        case DataRowState.Modified:
+                            SuaChiTiet(row);
+                            break;
+                        case DataRowState.Deleted:
+                            XoaChiTiet(row);
+                            break;
+                    }
                 }
 
                 if (ownTransaction) Uow.Commit();
@@ -300,6 +356,207 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                 if (ownTransaction) Uow.Rollback();
                 throw;
             }
+        }
+
+        /// <summary>
+        /// Xóa cả phiếu (header + toàn bộ chi tiết) của ngày + nhà máy.
+        /// Chỉ cho xóa khi KHÔNG còn dòng nào đã giao. Trả về số chi tiết đã xóa.
+        /// </summary>
+        public int XoaPhieuGiaoDB(DateTime ngayLap, int nhaMay)
+        {
+            bool ownTransaction = !HasTransaction;
+            if (ownTransaction) Uow.Begin();
+            try
+            {
+                var pNm = new SqlParameter("@nm", nhaMay);
+
+                object daGiao = ExecuteScalar($@"
+                    SELECT COUNT(*) FROM [{TableCt}] D WITH (UPDLOCK, HOLDLOCK)
+                    INNER JOIN [{TableHd}] H ON H.IDP = D.IDP
+                    WHERE CAST(H.NGAYLAP AS date) = @ngay AND H.NHAMAY = @nm
+                      AND NOT ({ChuaGiao})",
+                    PNgay(ngayLap), pNm);
+                int soDaGiao = Convert.ToInt32(daGiao);
+                if (soDaGiao > 0)
+                    throw new InvalidOperationException(
+                        $"Phiếu có {soDaGiao} dòng đã giao nên không thể xóa cả phiếu. " +
+                        "Chỉ xóa được từng dòng chưa giao.");
+
+                int soCt = ExecuteNonQuery($@"
+                    DELETE D FROM [{TableCt}] D
+                    INNER JOIN [{TableHd}] H ON H.IDP = D.IDP
+                    WHERE CAST(H.NGAYLAP AS date) = @ngay AND H.NHAMAY = @nm",
+                    PNgay(ngayLap), new SqlParameter("@nm", nhaMay));
+
+                ExecuteNonQuery($@"
+                    DELETE FROM [{TableHd}]
+                    WHERE CAST(NGAYLAP AS date) = @ngay AND NHAMAY = @nm",
+                    PNgay(ngayLap), new SqlParameter("@nm", nhaMay));
+
+                if (ownTransaction) Uow.Commit();
+                return soCt;
+            }
+            catch
+            {
+                if (ownTransaction) Uow.Rollback();
+                throw;
+            }
+        }
+
+        // ------------------------------------------------------------------
+        // Helpers
+        // ------------------------------------------------------------------
+
+        private int TaoHeader(string ten, DateTime ngay, int nhaMay, string nhaMayName, string note)
+        {
+            // IDP là IDENTITY ở một số DB nhưng chỉ là INT NOT NULL (không identity) ở DB khác
+            // (vd DB B7R2_FCC đang chạy) -> kiểm tra rồi chọn cách sinh IDP phù hợp.
+            bool idpLaIdentity = false;
+            object idCheck = ExecuteScalar(
+                $"SELECT ISNULL(COLUMNPROPERTY(OBJECT_ID(N'dbo.{TableHd}'), N'IDP', 'IsIdentity'), 0)");
+            if (idCheck != null && idCheck != DBNull.Value)
+                idpLaIdentity = Convert.ToInt32(idCheck) == 1;
+
+            string sqlHeader = idpLaIdentity
+                ? $@"
+                INSERT INTO [{TableHd}]
+                    (NAME, TRANGTHAIGIAO, Note, NGAYLAP, NHAMAY, NHAMAYNAME)
+                OUTPUT INSERTED.IDP
+                VALUES (@ten, 0, @note, @ngayLap, @nhaMay, @nhaMayName)"
+                // Không identity: tự cấp IDP = MAX+1 trong CÙNG câu lệnh, khóa UPDLOCK/HOLDLOCK
+                // để 2 máy lưu cùng lúc không trùng IDP (nằm trong transaction của Uow).
+                : $@"
+                INSERT INTO [{TableHd}]
+                    (IDP, NAME, TRANGTHAIGIAO, Note, NGAYLAP, NHAMAY, NHAMAYNAME)
+                OUTPUT INSERTED.IDP
+                SELECT ISNULL(MAX(IDP), 0) + 1, @ten, 0, @note, @ngayLap, @nhaMay, @nhaMayName
+                FROM [{TableHd}] WITH (UPDLOCK, HOLDLOCK)";
+
+            object idpObj = ExecuteScalar(sqlHeader,
+                new SqlParameter("@ten", (object)ten ?? DBNull.Value),
+                new SqlParameter("@note", (object)note ?? DBNull.Value),
+                new SqlParameter("@ngayLap", ngay),
+                new SqlParameter("@nhaMay", nhaMay),
+                new SqlParameter("@nhaMayName", (object)nhaMayName ?? DBNull.Value));
+
+            return Convert.ToInt32(idpObj);
+        }
+
+        private static object GiaTri(DataRow r, string col)
+        {
+            object v = r.RowState == DataRowState.Deleted ? r[col, DataRowVersion.Original] : r[col];
+            return v;
+        }
+
+        private static int? IdDong(DataRow r)
+        {
+            if (!r.Table.Columns.Contains("ID")) return null;
+            object v = GiaTri(r, "ID");
+            if (v == null || v == DBNull.Value) return null;
+            return Convert.ToInt32(v);
+        }
+
+        // Dòng sửa/xóa phải (1) còn thuộc phiếu này và (2) chưa giao. Kiểm tra TRƯỚC khi ghi để báo
+        // lỗi rõ ràng; câu UPDATE/DELETE bên dưới vẫn kèm điều kiện chưa giao (chống đua giữa 2 máy).
+        private void KiemTraDongSuaXoa(DataTable chiTiet, DateTime ngay, int nhaMay)
+        {
+            var ids = new List<int>();
+            foreach (DataRow r in chiTiet.Rows)
+            {
+                if (r.RowState != DataRowState.Modified && r.RowState != DataRowState.Deleted) continue;
+                int? id = IdDong(r);
+                if (id == null)
+                    throw new InvalidOperationException("Dòng cần sửa/xóa không có ID (dữ liệu form không hợp lệ).");
+                ids.Add(id.Value);
+            }
+            if (ids.Count == 0) return;
+
+            // ids là int → ghép chuỗi an toàn.
+            DataTable db = LoadData($@"
+                SELECT D.ID, D.MAHANG, CAST(CASE WHEN {ChuaGiao} THEN 0 ELSE 1 END AS bit) AS DaGiao
+                FROM [{TableCt}] D
+                INNER JOIN [{TableHd}] H ON H.IDP = D.IDP
+                WHERE D.ID IN ({string.Join(",", ids)})
+                  AND CAST(H.NGAYLAP AS date) = @ngay AND H.NHAMAY = @nm",
+                PNgay(ngay), new SqlParameter("@nm", nhaMay));
+
+            var trangThai = new Dictionary<int, bool>();
+            var tenMa = new Dictionary<int, string>();
+            foreach (DataRow d in db.Rows)
+            {
+                int id = Convert.ToInt32(d["ID"]);
+                trangThai[id] = Convert.ToBoolean(d["DaGiao"]);
+                tenMa[id] = Convert.ToString(d["MAHANG"]);
+            }
+
+            foreach (int id in ids)
+            {
+                if (!trangThai.TryGetValue(id, out bool daGiao))
+                    throw new InvalidOperationException(
+                        $"Dòng chi tiết #{id} không còn thuộc phiếu này (có thể đã bị xóa ở máy khác). " +
+                        "Hãy chọn lại ngày/nhà máy để tải lại phiếu.");
+                if (daGiao)
+                    throw new InvalidOperationException(
+                        $"Dòng {tenMa[id]} (#{id}) đã giao nên không được sửa/xóa. Hãy tải lại phiếu.");
+            }
+        }
+
+        private void ThemChiTiet(int idp, DataRow row, string nhaMayName, bool idCtLaIdentity)
+        {
+            string sql = idCtLaIdentity
+                ? $@"
+                INSERT INTO [{TableCt}]
+                    (IDP, MAHANG, TENHANG, SOLUONG, GIOGIAO, NHAMAY, CUA, TRUYEN, STATUS, TTNHAN)
+                VALUES
+                    (@idp, @ma, @ten, @sl, @gio, @nm, @cua, @tr, 'NG', 1)"
+                : $@"
+                INSERT INTO [{TableCt}]
+                    (ID, IDP, MAHANG, TENHANG, SOLUONG, GIOGIAO, NHAMAY, CUA, TRUYEN, STATUS, TTNHAN)
+                SELECT ISNULL(MAX(ID), 0) + 1, @idp, @ma, @ten, @sl, @gio, @nm, @cua, @tr, 'NG', 1
+                FROM [{TableCt}] WITH (UPDLOCK, HOLDLOCK)";
+
+            ExecuteNonQuery(sql,
+                new SqlParameter("@idp", idp),
+                new SqlParameter("@ma", row["MaHang"]),
+                new SqlParameter("@ten", row["TenHang"]),
+                new SqlParameter("@sl", row["SoLuong"]),
+                new SqlParameter("@gio", row["GioGiao"]),
+                new SqlParameter("@nm", (object)nhaMayName ?? DBNull.Value),
+                new SqlParameter("@cua", row["CUA"]),
+                new SqlParameter("@tr", row["TRUYEN"]));
+        }
+
+        private void SuaChiTiet(DataRow row)
+        {
+            int id = IdDong(row).Value;
+            int n = ExecuteNonQuery($@"
+                UPDATE D
+                SET D.MAHANG = @ma, D.TENHANG = @ten, D.SOLUONG = @sl,
+                    D.GIOGIAO = @gio, D.CUA = @cua, D.TRUYEN = @tr
+                FROM [{TableCt}] D
+                WHERE D.ID = @id AND {ChuaGiao}",
+                new SqlParameter("@id", id),
+                new SqlParameter("@ma", row["MaHang"]),
+                new SqlParameter("@ten", row["TenHang"]),
+                new SqlParameter("@sl", row["SoLuong"]),
+                new SqlParameter("@gio", row["GioGiao"]),
+                new SqlParameter("@cua", row["CUA"]),
+                new SqlParameter("@tr", row["TRUYEN"]));
+            if (n == 0)
+                throw new InvalidOperationException(
+                    $"Dòng #{id} vừa được xử lý/giao ở máy khác nên không sửa được. Hãy tải lại phiếu.");
+        }
+
+        private void XoaChiTiet(DataRow row)
+        {
+            int id = IdDong(row).Value;
+            int n = ExecuteNonQuery($@"
+                DELETE D FROM [{TableCt}] D
+                WHERE D.ID = @id AND {ChuaGiao}",
+                new SqlParameter("@id", id));
+            if (n == 0)
+                throw new InvalidOperationException(
+                    $"Dòng #{id} vừa được xử lý/giao ở máy khác nên không xóa được. Hãy tải lại phiếu.");
         }
     }
 }

@@ -86,6 +86,17 @@ END;
 ------------------------------------------------------------------------------
 -- 1. Đổi tên bảng
 ------------------------------------------------------------------------------
+-- Ghi nhớ DB này CÓ khóa ngoại CT -> HD hay không (một số DB, vd B7R2_FCC, vốn không có FK này).
+-- Chỉ đòi hỏi FK còn nguyên sau khi đổi nếu trước đó nó đã có; KHÔNG tự tạo FK mới
+-- (tạo FK có thể lỗi vì dữ liệu mồ côi và làm thay đổi hành vi).
+DECLARE @hadFk bit = 0;
+IF EXISTS (SELECT 1 FROM sys.foreign_keys
+           WHERE (parent_object_id = OBJECT_ID(N'dbo.TMPPHIEUGIAOHANGDBCT')
+              AND referenced_object_id = OBJECT_ID(N'dbo.TMPPHIEUGIAODBHD'))
+              OR (parent_object_id = OBJECT_ID(N'dbo.FVN_Purchase_Order_DB_CT')
+              AND referenced_object_id = OBJECT_ID(N'dbo.FVN_Purchase_Order_DB_HD')))
+    SET @hadFk = 1;
+
 IF OBJECT_ID(N'dbo.TMPPHIEUGIAODBHD', N'U') IS NOT NULL
     EXEC sp_rename N'dbo.TMPPHIEUGIAODBHD', N'FVN_Purchase_Order_DB_HD', N'OBJECT';
 
@@ -144,10 +155,13 @@ END;
 ------------------------------------------------------------------------------
 IF OBJECT_ID(N'dbo.FVN_Purchase_Order_DB_HD', N'U') IS NULL THROW 53010, N'Sau khi đổi: thiếu FVN_Purchase_Order_DB_HD.', 1;
 IF OBJECT_ID(N'dbo.FVN_Purchase_Order_DB_CT', N'U') IS NULL THROW 53011, N'Sau khi đổi: thiếu FVN_Purchase_Order_DB_CT.', 1;
-IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys
-               WHERE parent_object_id     = OBJECT_ID(N'dbo.FVN_Purchase_Order_DB_CT')
-                 AND referenced_object_id = OBJECT_ID(N'dbo.FVN_Purchase_Order_DB_HD'))
+IF @hadFk = 1
+   AND NOT EXISTS (SELECT 1 FROM sys.foreign_keys
+                   WHERE parent_object_id     = OBJECT_ID(N'dbo.FVN_Purchase_Order_DB_CT')
+                     AND referenced_object_id = OBJECT_ID(N'dbo.FVN_Purchase_Order_DB_HD'))
     THROW 53012, N'Sau khi đổi: mất liên kết khóa ngoại CT -> HD.', 1;
+IF @hadFk = 0
+    PRINT N'Lưu ý: DB này vốn KHÔNG có khóa ngoại CT -> HD; script không tạo thêm.';
 
 COMMIT TRANSACTION;
 

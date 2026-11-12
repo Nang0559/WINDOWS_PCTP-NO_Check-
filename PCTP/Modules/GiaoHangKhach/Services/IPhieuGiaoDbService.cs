@@ -20,6 +20,11 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             string note,
             DataTable chiTiet);
 
+        DataTable GetHeaderGiaoDB(DateTime ngayLap, int nhaMay);
+        DataTable GetChiTietGiaoDB(DateTime ngayLap, int nhaMay);
+        int LuuPhieuGiaoDB(string ten, DateTime ngayLap, int nhaMay, string nhaMayName, string note, DataTable chiTiet);
+        int XoaPhieuGiaoDB(DateTime ngayLap, int nhaMay);
+
         void LuuGiaoDB(DataTable donHang, GioXuat gioXuat, int addNm);
 
         DataTable LoadTmpPhieuGiaoDB(DateTime ngayGiao, int addNm);

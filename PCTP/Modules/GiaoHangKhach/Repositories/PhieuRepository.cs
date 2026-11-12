@@ -93,6 +93,10 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         public DataTable LoadTmpPhieuGiaoDB(string tenBan, DateTime ngayGiao, int addNm) => _giaoDB.LoadTmpPhieuGiaoDB(tenBan, ngayGiao, addNm);
         public DataTable BuildDonHangTuUpload() => _giaoDB.BuildDonHangTuUpload();
         public DataTable ThongKeDonChoXuLy() => _giaoDB.ThongKeDonChoXuLy();
+        public DataTable GetHeaderGiaoDB(DateTime ngayLap, int nhaMay) => _giaoDB.GetHeaderGiaoDB(ngayLap, nhaMay);
+        public DataTable GetChiTietGiaoDB(DateTime ngayLap, int nhaMay) => _giaoDB.GetChiTietGiaoDB(ngayLap, nhaMay);
+        public int LuuPhieuGiaoDB(string ten, DateTime ngayLap, int nhaMay, string nhaMayName, string note, DataTable chiTiet) => _giaoDB.LuuPhieuGiaoDB(ten, ngayLap, nhaMay, nhaMayName, note, chiTiet);
+        public int XoaPhieuGiaoDB(DateTime ngayLap, int nhaMay) => _giaoDB.XoaPhieuGiaoDB(ngayLap, nhaMay);
         public void LuuGiaoDB(DataTable donHang, string gioFccMoTa, int addNm, string tmpTable, string ifsTable, string nhaMayOverride = "", string docQrTable = "DOCQRCODE_DB") => _giaoDB.LuuGiaoDB(donHang, gioFccMoTa, addNm, tmpTable, ifsTable, nhaMayOverride, docQrTable);
         public int TaoPhieuVaChiTietGiaoDB(string ten, DateTime ngayLap, int nhaMay, string nhaMayName, string note, DataTable chiTiet) => _giaoDB.TaoPhieuVaChiTietGiaoDB(ten, ngayLap, nhaMay, nhaMayName, note, chiTiet);
 

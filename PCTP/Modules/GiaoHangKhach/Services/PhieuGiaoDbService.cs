@@ -55,6 +55,12 @@ namespace PCTP.Modules.GiaoHangKhach.Services
                 ten, ngayLap, nhaMay, nhaMayName, note, chiTiet);
         }
 
+        public DataTable GetHeaderGiaoDB(DateTime ngayLap, int nhaMay) => _phieuRepo.GetHeaderGiaoDB(ngayLap, nhaMay);
+        public DataTable GetChiTietGiaoDB(DateTime ngayLap, int nhaMay) => _phieuRepo.GetChiTietGiaoDB(ngayLap, nhaMay);
+        public int LuuPhieuGiaoDB(string ten, DateTime ngayLap, int nhaMay, string nhaMayName, string note, DataTable chiTiet)
+            => _phieuRepo.LuuPhieuGiaoDB(ten, ngayLap, nhaMay, nhaMayName, note, chiTiet);
+        public int XoaPhieuGiaoDB(DateTime ngayLap, int nhaMay) => _phieuRepo.XoaPhieuGiaoDB(ngayLap, nhaMay);
+
         public void LuuGiaoDB(DataTable donHang, GioXuat gioXuat, int addNm)
         {
             _giaoDbRepo.LuuGiaoDB(
@@ -85,15 +91,16 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         {
             // Đơn chờ = mọi dòng STATUS='NG' của bảng nghiệp vụ FVN_Purchase_Order_DB_CT.
             DataTable donHang = _phieuRepo.BuildDonHangTuUpload();
-            if (donHang == null || donHang.Rows.Count == 0)
+            if (donHang == null)
                 return;
+            // Rỗng (vd vừa xóa hết dòng chưa giao) vẫn phải nạp để lưới không còn giữ dòng của đơn đã xóa.
 
             // NẠP MỘT LẦN cho TẤT CẢ nhà máy. Trước đây lặp theo từng nhà máy, nhưng nhánh
             // (GIAO DB) của Usp_Qrcode_LOAD_PHIEU_DOCQR2405 DELETE toàn bộ TMPPHIEUGIAOHANGDB
             // rồi chép nguyên _IFS => nhóm xử lý sau xóa mất nhóm trước, lưới của nhà máy kia trống.
             // Mỗi dòng đã mang ADDNM riêng nên SP chép đúng về từng nhà máy; tham số addNm chỉ
             // phục vụ bước chuẩn hóa đầu SP và không ảnh hưởng nhánh (GIAO DB).
-            int addNmThamChieu = DbValueHelper.SafeInt(donHang.Rows[0]["ADDNM"]);
+            int addNmThamChieu = donHang.Rows.Count > 0 ? DbValueHelper.SafeInt(donHang.Rows[0]["ADDNM"]) : 1;
 
             _phieuRepo.LuuGiaoDB(
                 donHang,

@@ -21,6 +21,14 @@ namespace PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao
         int TaoPhieuVaChiTietGiaoDB(
             string ten, DateTime ngayLap, int nhaMay, string nhaMayName,
             string note, DataTable chiTiet);
+        /// <summary>Header phiếu Giao DB theo ngày lập + nhà máy (0/1 dòng; cột SOPHIEU = số header trùng khóa).</summary>
+        DataTable GetHeaderGiaoDB(DateTime ngayLap, int nhaMay);
+        /// <summary>Chi tiết phiếu theo ngày + nhà máy; cột DaGiao = dòng đã xử lý (khóa, không sửa/xóa).</summary>
+        DataTable GetChiTietGiaoDB(DateTime ngayLap, int nhaMay);
+        /// <summary>Tạo mới hoặc cập nhật phiếu (1 ngày + 1 nhà máy = 1 phiếu); chi tiết theo RowState Added/Modified/Deleted.</summary>
+        int LuuPhieuGiaoDB(string ten, DateTime ngayLap, int nhaMay, string nhaMayName, string note, DataTable chiTiet);
+        /// <summary>Xóa cả phiếu của ngày + nhà máy; chỉ khi không còn dòng đã giao. Trả về số chi tiết đã xóa.</summary>
+        int XoaPhieuGiaoDB(DateTime ngayLap, int nhaMay);
         //void UploadChiTietGiaoDB(DataTable chiTiet, bool xoaCuTruoc);
     }
 }

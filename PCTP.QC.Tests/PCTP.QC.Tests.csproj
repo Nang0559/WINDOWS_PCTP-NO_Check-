@@ -73,6 +73,8 @@
     <None Include="../PCTP/Modules/GiaoHangKhach/Services/PhieuKhoService.cs" Link="PhieuKhoService.giaodb.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/GiaoHangKhach/Services/PhieuGiaoDbService.cs" Link="PhieuGiaoDbService.giaodb.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/GiaoHangKhach/Repositories/PhieuGiaoDBRepository.cs" Link="PhieuGiaoDBRepository.giaodb.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/GiaoHangKhach/SubForm/FRM_UploadGiaoDB.cs" Link="FRM_UploadGiaoDB.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Modules/GiaoHangKhach/Contracts/PhieuGiao/IPhieuGiaoDBRepository.cs" Link="IPhieuGiaoDBRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Presentation/Presenters/PhieuPresenter.cs" Link="PhieuPresenter.giaodb.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../SQL/PCTP_GiaoDB_DocQrCode_DB.sql" Link="PCTP_GiaoDB_DocQrCode_DB.sql" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Infrastructure/Repositories/DocQRRepository.cs" Link="DocQRRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />

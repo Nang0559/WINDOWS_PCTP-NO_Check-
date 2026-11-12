@@ -172,6 +172,10 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         public DataTable GetDanhSachMaHangGiaoDB() => _giaoDbService.GetDanhSachMaHang();
         public int TaoPhieuVaChiTietGiaoDB(string ten, DateTime ngayLap, int nhaMay, string nhaMayName, string note, DataTable chiTiet) => _giaoDbService.TaoPhieuVaChiTiet(ten, ngayLap, nhaMay, nhaMayName, note, chiTiet);
         public void LuuGiaoDB(DataTable donHang, GioXuat gioXuat, int addNm) => _giaoDbService.LuuGiaoDB(donHang, gioXuat, addNm);
+        public DataTable GetHeaderGiaoDB(DateTime ngayLap, int nhaMay) => _giaoDbService.GetHeaderGiaoDB(ngayLap, nhaMay);
+        public DataTable GetChiTietGiaoDB(DateTime ngayLap, int nhaMay) => _giaoDbService.GetChiTietGiaoDB(ngayLap, nhaMay);
+        public int LuuPhieuGiaoDB(string ten, DateTime ngayLap, int nhaMay, string nhaMayName, string note, DataTable chiTiet) => _giaoDbService.LuuPhieuGiaoDB(ten, ngayLap, nhaMay, nhaMayName, note, chiTiet);
+        public int XoaPhieuGiaoDB(DateTime ngayLap, int nhaMay) => _giaoDbService.XoaPhieuGiaoDB(ngayLap, nhaMay);
         public DataTable LoadTmpPhieuGiaoDB(DateTime ngayGiao, int addNm) { _isGiaoDb = true; return _giaoDbService.LoadTmpPhieuGiaoDB(ngayGiao, addNm); }
         public void XuLySauUploadGiaoDB() => _giaoDbService.XuLySauUpload();
         public string CanhBaoLuoiRongGiaoDB(DateTime ngayGiao, int addNm) => _giaoDbService.CanhBaoLuoiRong(ngayGiao, addNm);

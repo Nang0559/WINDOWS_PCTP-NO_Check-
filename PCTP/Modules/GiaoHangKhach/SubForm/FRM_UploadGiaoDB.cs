@@ -50,8 +50,17 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
         private ComboBoxEdit cboNhaMay;
         private MemoEdit txtGhiChu;
 
-        // Controls chế độ nhập tay
-        private SimpleButton btnThemDong, btnXoaDong;
+        // Controls thêm/xóa dòng (dùng cho cả 2 chế độ) + xóa cả phiếu
+        private SimpleButton btnThemDong, btnXoaDong, btnXoaPhieu;
+
+        // ── Trạng thái phiếu đang mở: 1 ngày lập + 1 nhà máy = tối đa 1 phiếu ──
+        private bool _coPhieu;                 // đã có phiếu trong DB cho (ngày, nhà máy) đang chọn
+        private int _idpHienTai;
+        private DateTime _keyNgay;             // khóa của phiếu đang nạp (để hoàn tác khi người dùng từ chối đổi)
+        private int _keyNhaMay;
+        private string _headerTen = "", _headerNote = "";   // giá trị header lúc nạp, để biết có sửa header không
+        private bool _dangNap;                 // chặn event đệ quy khi nạp/hoàn tác
+        private RepositoryItemLookUpEdit _riMaHang;
 
         public FRM_UploadGiaoDB(IPhieuService phieuSvc)
         {
@@ -68,20 +77,22 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
         {
             if (gridViewPreview.Columns["MaHang"] == null) return;
 
-            var riLookup = new RepositoryItemLookUpEdit
+            if (_riMaHang == null)
             {
-                DataSource = _danhSachMaHang,
-                ValueMember = "Code",
-                DisplayMember = "Code",
-                BestFitMode = BestFitMode.BestFitResizePopup,
-                SearchMode = SearchMode.AutoSuggest,
-                NullText = ""
-            };
-            riLookup.Columns.Add(new LookUpColumnInfo("Code", "Mã Hàng"));
-            riLookup.Columns.Add(new LookUpColumnInfo("Name", "Tên Hàng"));
-
-            gridPreview.RepositoryItems.Add(riLookup);
-            gridViewPreview.Columns["MaHang"].ColumnEdit = riLookup;
+                _riMaHang = new RepositoryItemLookUpEdit
+                {
+                    DataSource = _danhSachMaHang,
+                    ValueMember = "Code",
+                    DisplayMember = "Code",
+                    BestFitMode = BestFitMode.BestFitResizePopup,
+                    SearchMode = SearchMode.AutoSuggest,
+                    NullText = ""
+                };
+                _riMaHang.Columns.Add(new LookUpColumnInfo("Code", "Mã Hàng"));
+                _riMaHang.Columns.Add(new LookUpColumnInfo("Name", "Tên Hàng"));
+                gridPreview.RepositoryItems.Add(_riMaHang);
+            }
+            gridViewPreview.Columns["MaHang"].ColumnEdit = _riMaHang;
         }
 
         private void BuildUI()
@@ -179,16 +190,18 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
 
             btnThemDong = Btn("➕ Thêm Dòng", 295, y, 120, 32);
             btnThemDong.Click += BtnThemDong_Click;
-            btnThemDong.Visible = false;
 
             btnXoaDong = Btn("➖ Xóa Dòng", 425, y, 110, 32);
             btnXoaDong.Click += BtnXoaDong_Click;
-            btnXoaDong.Visible = false;
+
+            btnXoaPhieu = Btn("🗑 Xóa Phiếu", 545, y, 110, 32);
+            btnXoaPhieu.Click += BtnXoaPhieu_Click;
+            btnXoaPhieu.Enabled = false;
 
             btnDong = Btn("✕ Đóng", 830, y, 100, 32);
             btnDong.Click += (s, e) => this.Close();
 
-            lblSoDong = new LabelControl { Text = "", Location = new System.Drawing.Point(550, y + 8) };
+            lblSoDong = new LabelControl { Text = "", Location = new System.Drawing.Point(665, y + 8) };
             lblSoDong.Appearance.ForeColor = System.Drawing.Color.DarkGreen;
             y += 45;
 
@@ -203,12 +216,14 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
             };
             gridViewPreview.GridControl = gridPreview;
             gridViewPreview.CellValueChanged += GridViewPreview_CellValueChanged;
+            gridViewPreview.ShowingEditor += GridViewPreview_ShowingEditor;
+            gridViewPreview.RowStyle += GridViewPreview_RowStyle;
 
             this.Controls.AddRange(new Control[]
             {
                 rdoCheDo, lblFile, txtDuongDan, btnChonFile, btnTaiFileMau,
                 lblSheet, cboSheet, lblHint, grpHeaderNhap,
-                btnXemTruoc, btnUpload, btnThemDong, btnXoaDong,
+                btnXemTruoc, btnUpload, btnThemDong, btnXoaDong, btnXoaPhieu,
                 btnDong, lblSoDong, gridPreview
             });
 
@@ -216,6 +231,12 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
             // dòng dưới đây thực ra không bắt buộc nữa, giữ lại cho rõ ý & an toàn
             // nếu sau này có ai đổi lại thứ tự wiring.
             RdoCheDo_SelectedIndexChanged(this, EventArgs.Empty);
+
+            // Nạp phiếu đã có của (ngày, nhà máy) đang chọn; wire event SAU để các lệnh gán giá trị
+            // ban đầu ở trên không kích hoạt nạp.
+            NapPhieuDaCo(hoiNeuCoThayDoi: false);
+            dateNgayLap.EditValueChanged += (s, e) => NapPhieuDaCo(hoiNeuCoThayDoi: true);
+            cboNhaMay.SelectedIndexChanged += (s, e) => NapPhieuDaCo(hoiNeuCoThayDoi: true);
         }
 
         // ══════════════════ Chuyển chế độ ══════════════════
@@ -228,23 +249,149 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
             lblSheet.Visible = laExcel; cboSheet.Visible = laExcel; lblHint.Visible = laExcel;
             btnXemTruoc.Visible = laExcel;
 
-            btnThemDong.Visible = !laExcel;
-            btnXoaDong.Visible = !laExcel;
-            gridViewPreview.OptionsBehavior.Editable = !laExcel;
+            // Cả 2 chế độ đều xem/sửa/xóa được chi tiết của phiếu đã có; chế độ Excel chỉ thêm
+            // nguồn dòng mới từ file. Dòng đã giao bị khóa ở ShowingEditor/Xóa Dòng.
+            gridViewPreview.OptionsBehavior.Editable = true;
+        }
 
-            if (!laExcel)
+        // ══════════════════ Phiếu đã có: 1 ngày + 1 nhà máy = 1 phiếu ══════════════════
+        private int NhaMayHienTai() => (cboNhaMay.Text ?? "").Contains("HA NAM") ? 2 : 1;
+
+        private IEnumerable<DataRow> DongHienCo() =>
+            _previewDt == null
+                ? Enumerable.Empty<DataRow>()
+                : _previewDt.Rows.Cast<DataRow>().Where(r => r.RowState != DataRowState.Deleted);
+
+        private static bool DongDaGiao(DataRow r) =>
+            r.RowState != DataRowState.Deleted
+            && r.Table.Columns.Contains("DaGiao")
+            && r["DaGiao"] != DBNull.Value && Convert.ToBoolean(r["DaGiao"]);
+
+        private bool HeaderDaSua() =>
+            (txtName.Text ?? "").Trim() != _headerTen
+            || (txtGhiChu.Text ?? "").Trim() != _headerNote;
+
+        private bool CoThayDoiChuaLuu() =>
+            (_previewDt != null && _previewDt.GetChanges() != null) || HeaderDaSua();
+
+        /// <summary>
+        /// Nạp phiếu của (ngày lập, nhà máy) đang chọn: có rồi → đổ header + chi tiết lên form để SỬA / THÊM;
+        /// chưa có → form trống, Lưu sẽ tạo phiếu mới.
+        /// </summary>
+        private void NapPhieuDaCo(bool hoiNeuCoThayDoi)
+        {
+            if (_dangNap) return;
+
+            if (hoiNeuCoThayDoi && CoThayDoiChuaLuu())
             {
-                _previewDt = TaoBang();
+                if (XtraMessageBox.Show(
+                        "Có thay đổi CHƯA LƯU trên phiếu đang mở.\nĐổi ngày/nhà máy sẽ bỏ các thay đổi đó. Tiếp tục?",
+                        "Xác nhận", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
+                {
+                    _dangNap = true;
+                    try
+                    {
+                        dateNgayLap.DateTime = _keyNgay;
+                        cboNhaMay.SelectedIndex = _keyNhaMay == 2 ? 1 : 0;
+                    }
+                    finally { _dangNap = false; }
+                    return;
+                }
+            }
+
+            _dangNap = true;
+            try
+            {
+                DateTime ngay = dateNgayLap.DateTime.Date;
+                int nhaMay = NhaMayHienTai();
+
+                DataTable hd = _phieuSvc.GetHeaderGiaoDB(ngay, nhaMay);
+                DataTable ct = _phieuSvc.GetChiTietGiaoDB(ngay, nhaMay);
+
+                var dt = TaoBang();
+                foreach (DataRow src in ct.Rows)
+                {
+                    var r = dt.NewRow();
+                    r["ID"] = src["ID"];
+                    r["MaHang"] = src["MaHang"];
+                    r["TenHang"] = src["TenHang"];
+                    r["SoLuong"] = Convert.ToInt32(src["SoLuong"]);
+                    r["GioGiao"] = src["GioGiao"];
+                    r["CUA"] = src["CUA"];
+                    r["TRUYEN"] = src["TRUYEN"];
+                    bool daGiao = Convert.ToBoolean(src["DaGiao"]);
+                    r["DaGiao"] = daGiao;
+                    r["TrangThai"] = daGiao ? "Đã giao" : "Chưa giao";
+                    dt.Rows.Add(r);
+                }
+                dt.AcceptChanges();   // dòng nạp từ DB = Unchanged; dòng thêm sau mới là Added
+
+                _coPhieu = hd.Rows.Count > 0;
+                _keyNgay = ngay;
+                _keyNhaMay = nhaMay;
+                _idpHienTai = _coPhieu ? Convert.ToInt32(hd.Rows[0]["IDP"]) : 0;
+                _headerTen = _coPhieu ? (hd.Rows[0]["NAME"]?.ToString() ?? "").Trim() : "";
+                _headerNote = _coPhieu ? (hd.Rows[0]["Note"]?.ToString() ?? "").Trim() : "";
+                txtName.Text = _headerTen;
+                txtGhiChu.Text = _headerNote;
+
+                _previewDt = dt;
                 gridPreview.DataSource = _previewDt;
+                CauHinhCotLuoi();
                 SetupMaHangLookup();
-                lblSoDong.Text = "";
+
+                int soDaGiao = dt.Rows.Cast<DataRow>().Count(DongDaGiao);
+                int soTrung = _coPhieu ? Convert.ToInt32(hd.Rows[0]["SOPHIEU"]) : 0;
+
+                grpHeaderNhap.Text = _coPhieu
+                    ? $"Phiếu #{_idpHienTai} đã có ({dt.Rows.Count} dòng, {soDaGiao} đã giao) — đang SỬA / THÊM dòng"
+                    : "Chưa có phiếu cho ngày + nhà máy này — Lưu sẽ TẠO MỚI";
+                btnXoaPhieu.Enabled = _coPhieu;
+                CapNhatSoDong();
+
+                if (soTrung > 1)
+                    ShowWarn($"Ngày + nhà máy này đang có {soTrung} phiếu trùng (dữ liệu cũ). " +
+                             $"Form hiển thị gộp; dòng mới sẽ vào phiếu #{_idpHienTai}. " +
+                             "Nên nhờ IT gộp các phiếu trùng.");
             }
-            else
-            {
-                _previewDt = null;
-                gridPreview.DataSource = null;
-                lblSoDong.Text = "";
-            }
+            catch (Exception ex) { ShowErr($"Lỗi tải phiếu: {ex.Message}"); }
+            finally { _dangNap = false; }
+        }
+
+        private void CauHinhCotLuoi()
+        {
+            if (gridViewPreview.Columns["ID"] != null) gridViewPreview.Columns["ID"].Visible = false;
+            if (gridViewPreview.Columns["DaGiao"] != null) gridViewPreview.Columns["DaGiao"].Visible = false;
+            if (gridViewPreview.Columns["TrangThai"] != null)
+                gridViewPreview.Columns["TrangThai"].Caption = "Trạng thái";
+        }
+
+        private void CapNhatSoDong()
+        {
+            int tong = DongHienCo().Count();
+            int soLoi = DongHienCo().Count(r => !DongDaGiao(r) && r.RowState != DataRowState.Unchanged
+                                                && !string.IsNullOrEmpty(r.GetColumnError("MaHang")));
+            lblSoDong.Text = soLoi > 0 ? $"⚠ {tong} dòng, {soLoi} sai mã" : $"✅ {tong} dòng";
+            lblSoDong.Appearance.ForeColor = soLoi > 0
+                ? System.Drawing.Color.Red : System.Drawing.Color.DarkGreen;
+        }
+
+        // Dòng đã giao: khóa toàn bộ ô (và cột Trạng thái luôn chỉ đọc).
+        private void GridViewPreview_ShowingEditor(object sender, System.ComponentModel.CancelEventArgs e)
+        {
+            var view = (GridView)sender;
+            if (view.FocusedColumn != null && view.FocusedColumn.FieldName == "TrangThai") { e.Cancel = true; return; }
+            DataRow row = view.GetDataRow(view.FocusedRowHandle);
+            if (row != null && DongDaGiao(row)) e.Cancel = true;
+        }
+
+        private void GridViewPreview_RowStyle(object sender,
+            DevExpress.XtraGrid.Views.Grid.RowStyleEventArgs e)
+        {
+            if (e.RowHandle < 0) return;
+            DataRow row = ((GridView)sender).GetDataRow(e.RowHandle);
+            if (row != null && DongDaGiao(row))
+                e.Appearance.BackColor = System.Drawing.Color.Gainsboro;
         }
 
         private void GridViewPreview_CellValueChanged(object sender,
@@ -261,6 +408,7 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
 
             row["TenHang"] = found?["Name"]?.ToString() ?? "";
             ValidateRowMaHang(row);
+            CapNhatSoDong();
         }
 
         // ══════════════════ Tải file mẫu Excel ══════════════════
@@ -358,18 +506,9 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
         {
             try
             {
-                _previewDt = DocDuLieu();
-                if (_previewDt == null) return;
-                gridPreview.DataSource = _previewDt;
-
-                int soLoi = _previewDt.AsEnumerable()
-                    .Count(r => !string.IsNullOrEmpty(r.GetColumnError("MaHang")));
-
-                lblSoDong.Text = soLoi > 0
-                    ? $"⚠ {_previewDt.Rows.Count} dòng — {soLoi} dòng SAI mã hàng"
-                    : $"✅ {_previewDt.Rows.Count} dòng — tất cả mã hàng hợp lệ";
-                lblSoDong.Appearance.ForeColor = soLoi > 0
-                    ? System.Drawing.Color.Red : System.Drawing.Color.DarkGreen;
+                // Dòng đọc từ file được THÊM vào lưới (cạnh các dòng đã có của phiếu), không thay thế.
+                if (DocDuLieu() == null) return;
+                CapNhatSoDong();
             }
             catch (Exception ex) { ShowErr($"Lỗi xem trước: {ex.Message}"); }
         }
@@ -380,7 +519,8 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
             var ws = _excelPkg.Workbook.Worksheets[cboSheet.Text];
             if (ws == null) { ShowWarn("Không tìm thấy sheet!"); return null; }
 
-            var dt = TaoBang();
+            XoaDongMoi();            // xem trước lại → bỏ các dòng mới đọc lần trước, giữ dòng đã có trong DB
+            var dt = _previewDt;
             int rEnd = ws.Dimension?.End.Row ?? 1;
 
             for (int r = 2; r <= rEnd; r++)   // bỏ dòng header
@@ -395,6 +535,7 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
                 row["GioGiao"] = Trunc(G(4), 10);    // cột 4
                 row["CUA"] = Trunc(G(5), 20);    // cột 5
                 row["TRUYEN"] = Trunc(G(6), 20);    // cột 6
+                row["DaGiao"] = false; row["TrangThai"] = "Mới";
                 dt.Rows.Add(row);
                 ValidateRowMaHang(row);
             }
@@ -409,27 +550,77 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
             var row = _previewDt.NewRow();
             row["MaHang"] = ""; row["TenHang"] = ""; row["SoLuong"] = 0;
             row["GioGiao"] = ""; row["CUA"] = ""; row["TRUYEN"] = "";
+            row["DaGiao"] = false; row["TrangThai"] = "Mới";
             _previewDt.Rows.Add(row);
             ValidateRowMaHang(row);
-            lblSoDong.Text = $"✅ {_previewDt.Rows.Count} dòng";
+            CapNhatSoDong();
+        }
+
+        // Bỏ các dòng MỚI (chưa lưu) khỏi lưới; dòng đã có trong DB giữ nguyên.
+        private void XoaDongMoi()
+        {
+            if (_previewDt == null) return;
+            foreach (DataRow r in _previewDt.Rows.Cast<DataRow>()
+                         .Where(r => r.RowState == DataRowState.Added).ToList())
+                r.Delete();   // dòng Added bị xóa hẳn khỏi bảng
         }
 
         private void BtnXoaDong_Click(object sender, EventArgs e)
         {
-            if (gridViewPreview.FocusedRowHandle < 0) return;
+            if (_previewDt == null || gridViewPreview.FocusedRowHandle < 0) return;
+
+            DataRow row = gridViewPreview.GetDataRow(gridViewPreview.FocusedRowHandle);
+            if (row != null && DongDaGiao(row))
+            { ShowWarn("Dòng này đã giao nên không được xóa."); return; }
+
             gridViewPreview.DeleteRow(gridViewPreview.FocusedRowHandle);
-            lblSoDong.Text = $"✅ {_previewDt.Rows.Count} dòng";
+            CapNhatSoDong();
+        }
+
+        // ══════════════════ Xóa cả phiếu ══════════════════
+        private void BtnXoaPhieu_Click(object sender, EventArgs e)
+        {
+            if (!_coPhieu) return;
+
+            if (XtraMessageBox.Show(
+                    $"Xóa CẢ phiếu GIAO DB #{_idpHienTai} và toàn bộ chi tiết?\n" +
+                    "Chỉ xóa được khi chưa có dòng nào đã giao. Không thể hoàn tác.",
+                    "Xác nhận xóa phiếu", MessageBoxButtons.YesNo, MessageBoxIcon.Warning)
+                != DialogResult.Yes) return;
+
+            try
+            {
+                Cursor = Cursors.WaitCursor;
+                int n = _phieuSvc.XoaPhieuGiaoDB(_keyNgay, _keyNhaMay);
+                XtraMessageBox.Show($"Đã xóa phiếu #{_idpHienTai} ({n} dòng chi tiết).",
+                    "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                this.DialogResult = DialogResult.OK;   // để lưới Giao DB nạp lại, bỏ đơn vừa xóa
+                this.Close();
+            }
+            catch (Exception ex) { ShowErr($"Lỗi xóa phiếu: {ex.Message}"); }
+            finally { Cursor = Cursors.Default; }
         }
 
         // ══════════════════ Lưu — qua Repository, không còn SQL trong form ══════════════════
+        // 1 ngày + 1 nhà máy = 1 phiếu: chưa có → TẠO; đã có → THÊM / SỬA / XÓA dòng chưa giao
+        // và cập nhật header. Dòng đã giao bị khóa (cả ở form lẫn ở repository).
         private void BtnUpload_Click(object sender, EventArgs e)
         {
-            bool laNhapTay = rdoCheDo.SelectedIndex == MODE_NHAPTAY;
+            if (_previewDt == null) return;
 
-            if (_previewDt == null || _previewDt.Rows.Count == 0)
+            var dongMoi = _previewDt.Rows.Cast<DataRow>().Where(r => r.RowState == DataRowState.Added).ToList();
+            var dongSua = _previewDt.Rows.Cast<DataRow>().Where(r => r.RowState == DataRowState.Modified).ToList();
+            int soXoa = _previewDt.Rows.Cast<DataRow>().Count(r => r.RowState == DataRowState.Deleted);
+            bool doiDong = dongMoi.Count + dongSua.Count + soXoa > 0;
+            bool doiHeader = _coPhieu && HeaderDaSua();
+
+            if (!_coPhieu && dongMoi.Count == 0)
             { ShowWarn("Chưa có dữ liệu. Bấm Xem Trước (hoặc Thêm Dòng) trước!"); return; }
 
-            int soLoi = _previewDt.AsEnumerable()
+            if (_coPhieu && !doiDong && !doiHeader)
+            { ShowWarn("Không có thay đổi nào để lưu."); return; }
+
+            int soLoi = dongMoi.Concat(dongSua)
                 .Count(r => !string.IsNullOrEmpty(r.GetColumnError("MaHang")));
             if (soLoi > 0)
             {
@@ -438,22 +629,21 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
                 return;
             }
 
-            if (laNhapTay)
-            {
-                bool thieuMaHang = _previewDt.AsEnumerable()
-                    .Any(r => string.IsNullOrWhiteSpace(r["MaHang"]?.ToString()));
-                if (thieuMaHang) { ShowWarn("Có dòng chưa nhập Mã Hàng!"); return; }
-            }
-
             if (string.IsNullOrWhiteSpace(txtName.Text))
             { ShowWarn("Vui lòng nhập Tên phiếu!"); return; }
 
             if (cboNhaMay.SelectedIndex < 0)
             { ShowWarn("Vui lòng chọn Nhà máy!"); return; }
 
-            if (XtraMessageBox.Show(
-                    $"Tạo phiếu GIAO DB với {_previewDt.Rows.Count} dòng?",
-                    "Xác nhận", MessageBoxButtons.YesNo, MessageBoxIcon.Question)
+            string hoi = _coPhieu
+                ? $"Cập nhật phiếu GIAO DB #{_idpHienTai}: thêm {dongMoi.Count}, sửa {dongSua.Count}, xóa {soXoa} dòng" +
+                  (doiHeader ? ", sửa thông tin phiếu" : "") + "?"
+                : $"Tạo phiếu GIAO DB với {dongMoi.Count} dòng?";
+            if (doiDong)
+                hoi += "\n\nSau khi lưu, lưới Giao DB được nạp lại: LOT đã quét mà chưa bấm " +
+                       "'Lưu giao DB' sẽ bị xóa.";
+
+            if (XtraMessageBox.Show(hoi, "Xác nhận", MessageBoxButtons.YesNo, MessageBoxIcon.Question)
                 != DialogResult.Yes) return;
 
             try
@@ -461,25 +651,29 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
                 Cursor = Cursors.WaitCursor;
 
                 string nhaMayName = cboNhaMay.Text;
-                int nhaMay = nhaMayName.Contains("HA NAM") ? 2 : 1;
+                int nhaMay = NhaMayHienTai();
                 string ghiChu = string.IsNullOrWhiteSpace(txtGhiChu.Text) ? null : txtGhiChu.Text.Trim();
+                bool taoMoi = !_coPhieu;
 
-                int idp = _phieuSvc.TaoPhieuVaChiTietGiaoDB(
+                int idp = _phieuSvc.LuuPhieuGiaoDB(
                     txtName.Text.Trim(),
-                    dateNgayLap.DateTime,
+                    dateNgayLap.DateTime.Date,
                     nhaMay,
                     nhaMayName,
                     note: ghiChu,
                     chiTiet: _previewDt);
 
                 XtraMessageBox.Show(
-                    $"✅ Tạo phiếu GIAO DB #{idp} thành công với {_previewDt.Rows.Count} dòng!",
+                    taoMoi
+                        ? $"✅ Tạo phiếu GIAO DB #{idp} thành công với {dongMoi.Count} dòng!"
+                        : $"✅ Đã cập nhật phiếu GIAO DB #{idp} (thêm {dongMoi.Count}, sửa {dongSua.Count}, xóa {soXoa}).",
                     "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
-                this.DialogResult = DialogResult.OK;
+                // Chỉ sửa header thì không cần nạp lại lưới (tránh xóa LOT đã quét) → Cancel.
+                this.DialogResult = doiDong ? DialogResult.OK : DialogResult.Cancel;
                 this.Close();
             }
-            catch (Exception ex) { ShowErr($"Lỗi tạo phiếu: {ex.Message}"); }
+            catch (Exception ex) { ShowErr($"Lỗi lưu phiếu: {ex.Message}"); }
             finally { Cursor = Cursors.Default; }
         }
 
@@ -487,12 +681,15 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
         private static DataTable TaoBang()
         {
             var dt = new DataTable();
+            dt.Columns.Add("ID", typeof(int));              // ID dòng trong DB; null = dòng mới
             dt.Columns.Add("MaHang", typeof(string));
             dt.Columns.Add("TenHang", typeof(string));
             dt.Columns.Add("SoLuong", typeof(int));
             dt.Columns.Add("GioGiao", typeof(string));
             dt.Columns.Add("CUA", typeof(string));
             dt.Columns.Add("TRUYEN", typeof(string));
+            dt.Columns.Add("TrangThai", typeof(string));    // Mới / Chưa giao / Đã giao (chỉ để hiển thị)
+            dt.Columns.Add("DaGiao", typeof(bool));         // true = dòng đã giao → khóa
             return dt;
         }
 
