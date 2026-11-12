@@ -240,14 +240,8 @@ namespace PCTP.QRCODE_HVN.ComaprePart
                 return;
             }
 
-            if (string.Equals(
-                partNo,
-                partNoCompare,
-                StringComparison.OrdinalIgnoreCase))
-            {
-                ShowWarning("Mã hàng gốc và mã hàng thay thế không được giống nhau.");
-                return;
-            }
+            // Cho phép mapping đồng mã (ví dụ A -> A) song song với
+            // mapping khác mã (A -> A-FU). Cặp mapping vẫn được chống trùng ở repository.
 
             DateTime timeSet = DateE_NgayAPP.DateTime;
 
