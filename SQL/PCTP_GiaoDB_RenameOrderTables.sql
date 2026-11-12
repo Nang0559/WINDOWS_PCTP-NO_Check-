@@ -30,6 +30,27 @@ BEGIN TRANSACTION;
 ------------------------------------------------------------------------------
 -- 0. Kiểm tra trước khi đổi
 ------------------------------------------------------------------------------
+-- 0a. Bảng TÊN MỚI đã có sẵn nhưng RỖNG (vd bị tạo nhầm từ 02_Generated_From_DB57.sql, cột hẹp
+--     hơn bảng thật -> lỗi "String or binary data would be truncated"): xóa bảng rỗng đó để đổi tên
+--     bảng cũ (còn dữ liệu) sang. Nếu bảng mới đã có dòng dữ liệu thì KHÔNG tự xóa (xem 53001/53002).
+IF OBJECT_ID(N'dbo.TMPPHIEUGIAODBHD', N'U') IS NOT NULL
+   AND OBJECT_ID(N'dbo.TMPPHIEUGIAOHANGDBCT', N'U') IS NOT NULL
+   AND OBJECT_ID(N'dbo.FVN_Purchase_Order_DB_HD', N'U') IS NOT NULL
+   AND OBJECT_ID(N'dbo.FVN_Purchase_Order_DB_CT', N'U') IS NOT NULL
+BEGIN
+    DECLARE @newRows int;
+    EXEC sp_executesql
+        N'SELECT @n = (SELECT COUNT(*) FROM dbo.FVN_Purchase_Order_DB_HD) + (SELECT COUNT(*) FROM dbo.FVN_Purchase_Order_DB_CT)',
+        N'@n int OUTPUT', @newRows OUTPUT;
+
+    IF @newRows = 0
+    BEGIN
+        EXEC (N'DROP TABLE dbo.FVN_Purchase_Order_DB_CT');
+        EXEC (N'DROP TABLE dbo.FVN_Purchase_Order_DB_HD');
+        PRINT N'Đã xóa 2 bảng tên mới RỖNG (tạo nhầm); sẽ đổi tên bảng cũ còn dữ liệu.';
+    END;
+END;
+
 IF OBJECT_ID(N'dbo.TMPPHIEUGIAODBHD', N'U') IS NOT NULL
    AND OBJECT_ID(N'dbo.FVN_Purchase_Order_DB_HD', N'U') IS NOT NULL
     THROW 53001, N'HD: cả bảng cũ TMPPHIEUGIAODBHD và bảng mới FVN_Purchase_Order_DB_HD cùng tồn tại. Kiểm tra thủ công, script không tự gộp dữ liệu.', 1;
