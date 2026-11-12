@@ -103,17 +103,28 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                 {
                     foreach (DataRow row in stok.Rows)
                     {
-                        string maHang = row["MH"]?.ToString() ?? "";
+                        // Resultset #STOK của Usp_Qrcode_Update_Stock2405 chỉ có STT/LOT/SOLUONG/STATUS,
+                        // KHÔNG có cột MH -> trước đây row["MH"] ném
+                        // "Column 'MH' does not belong to table Table." (HTN - 100003).
+                        // Khoá dòng đơn được dựng từ chính dòng TMP theo STT.
                         int stt = 0;
                         if (row.Table.Columns.Contains("STT") && row["STT"] != DBNull.Value)
                             int.TryParse(row["STT"].ToString(), out stt);
-                        if (string.IsNullOrEmpty(maHang)) continue;
+                        if (stt <= 0) continue;
 
-                        string whereClause = stt > 0 ? $"STT={stt}" : $"MAHANG='{SqlHelper.Esc(maHang)}' AND STATUS='OK'";
-                        // Một dòng TMP duy nhất cho cả PO/NGAYGIAO(có giờ)/GIOGIAO: lấy cùng một lần để
+                        // SP cũ/khác có thể trả MH; nếu có thì dùng, không có thì lấy MAHANG từ TMP.
+                        string maHang = row.Table.Columns.Contains("MH") && row["MH"] != DBNull.Value
+                            ? row["MH"].ToString().Trim()
+                            : "";
+
+                        // Một dòng TMP duy nhất cho cả PO/NGAYGIAO(có giờ)/GIOGIAO/MAHANG: lấy cùng một lần để
                         // không ghép PO của dòng này với giờ của dòng khác.
                         DataTable tmpRow = LoadData(
-                            $"SELECT TOP 1 ISNULL(PO_NO,'') AS PO_NO, NGAYGIAO, ISNULL(GIOGIAO,'') AS GIOGIAO FROM [{tmpTable}] WHERE {whereClause} ORDER BY STT");
+                            $"SELECT TOP 1 ISNULL(PO_NO,'') AS PO_NO, NGAYGIAO, ISNULL(GIOGIAO,'') AS GIOGIAO, ISNULL(MAHANG,'') AS MAHANG FROM [{tmpTable}] WHERE STT={stt} ORDER BY STT");
+                        if (string.IsNullOrEmpty(maHang) && tmpRow != null && tmpRow.Rows.Count > 0)
+                            maHang = Convert.ToString(tmpRow.Rows[0]["MAHANG"])?.Trim() ?? "";
+                        if (string.IsNullOrEmpty(maHang)) continue;
+
                         OrderLineKey key = BuildOrderLineKeyFromTmp(tmpRow, maHang);
                         if (key != null)
                             DanhDauDaGiao(key, _cfg);
