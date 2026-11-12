@@ -113,8 +113,17 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             DataTable donHang, string gioFccMoTa, int addNm,
             string tmpTable, string ifsTable, string nhaMayOverride, string docQrTable)
         {
-            Db.DropCreate(Connection, Transaction, ifsTable, donHang);
-            Db.BulkInsert(Connection, Transaction, ifsTable, donHang);
+            // ID_CT (khóa dòng FVN_Purchase_Order_DB_CT) chỉ dùng để ghi STT về bảng chi tiết, không đưa vào bảng IFS.
+            bool coIdCt = donHang.Columns.Contains("ID_CT");
+            DataTable ifsData = donHang;
+            if (coIdCt)
+            {
+                ifsData = donHang.Copy();
+                ifsData.Columns.Remove("ID_CT");
+            }
+
+            Db.DropCreate(Connection, Transaction, ifsTable, ifsData);
+            Db.BulkInsert(Connection, Transaction, ifsTable, ifsData);
 
             string nhaMay = !string.IsNullOrWhiteSpace(nhaMayOverride)
                 ? nhaMayOverride
@@ -136,14 +145,61 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             FROM [{tmpTable}] T
             INNER JOIN [{TableCt}] D
                 ON D.MAHANG = T.MAHANG
-               AND D.IDP = SUBSTRING(T.TTPHIEU, CHARINDEX('-', T.TTPHIEU) + 1, LEN(T.TTPHIEU))
+               AND D.IDP = TRY_CAST(SUBSTRING(T.TTPHIEU, CHARINDEX('-', T.TTPHIEU) + 1, LEN(T.TTPHIEU)) AS int)
                AND D.STATUS = 'NG'
                AND T.LOT <> ''";
 
             ExecuteNonQuery(sql);
+
+            // Ghi STT của TMP vừa dựng về các dòng CHƯA GIAO của bảng chi tiết: sau khi đọc QR, TTPHIEU của TMP bị
+            // đổi thành 'Đã Thống Kê QR' nên không còn khóa nào khác để biết dòng TMP nào ứng với dòng chi tiết nào.
+            if (coIdCt)
+            {
+                foreach (DataRow r in donHang.Rows)
+                {
+                    int id, stt;
+                    if (!int.TryParse(Convert.ToString(r["ID_CT"]), out id) || id <= 0) continue;
+                    if (!int.TryParse(Convert.ToString(r["STT"]), out stt) || stt < 0 || stt > short.MaxValue) continue;
+
+                    ExecuteNonQuery(
+                        $"UPDATE [{TableCt}] SET STT = @stt WHERE ID = @id AND ISNULL(STATUS, 'NG') = 'NG'",
+                        new SqlParameter("@stt", SqlDbType.SmallInt) { Value = (short)stt },
+                        new SqlParameter("@id", SqlDbType.Int) { Value = id });
+                }
+            }
         }
 
-        // Đơn chờ xử lý = các dòng STATUS='NG' của bảng nghiệp vụ FVN_Purchase_Order_DB_CT.
+        /// <summary>
+        /// Sau Cập nhật kho Giao DB: dòng TMP đã STATUS='OK' + có LOT được ghi về đúng dòng CHƯA GIAO của
+        /// FVN_Purchase_Order_DB_CT (nối bằng STT đã ghi lúc nạp + mã hàng) → STATUS='OK', LOT, NGAYGIAO, GGFCC.
+        /// Chạy lại nhiều lần an toàn (dòng đã OK không bị chọn nữa). Trả về số dòng chi tiết đã ghi.
+        /// </summary>
+        public int DongBoDaGiaoVaoDonGiaoDB(string tmpTable)
+        {
+            Db.ValidateTableName(tmpTable);
+
+            string sql = $@"
+            UPDATE D
+            SET D.STATUS = 'OK',
+                D.LOT = LEFT(T.LOT, 100),
+                D.NGAYGIAO = T.NGAYGIAO,
+                D.GGFCC = LEFT(T.GIOGIAO, 25)
+            FROM [{tmpTable}] T
+            INNER JOIN [{TableCt}] D
+                ON D.STT = T.STT
+               AND D.MAHANG = T.MAHANG
+               AND ISNULL(D.STATUS, 'NG') = 'NG'
+            WHERE T.STATUS = 'OK'
+              AND ISNULL(T.LOT, '') <> ''";
+
+            return InTransaction(() => ExecuteNonQuery(sql));
+        }
+
+        // Dựng bảng nguồn cho TMPPHIEUGIAOHANGDB từ FVN_Purchase_Order_DB_CT:
+        //  - dòng STATUS='NG' (chưa giao): LOT trống, chờ đọc QR / cập nhật kho;
+        //  - dòng STATUS='OK' (đã giao): giữ LOT + STATUS='OK' để nạp lại vẫn thấy đã giao (SP cập nhật kho
+        //    bỏ qua dòng STATUS='OK' nên không trừ kho lần hai).
+        // Cột ID_CT (khóa dòng chi tiết) chỉ để ghi lại STT sau khi nạp, KHÔNG đưa vào bảng IFS (xem LuuGiaoDBCore).
         public DataTable BuildDonHangTuUpload()
         {
             string sql = $@"
@@ -157,10 +213,14 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                 D.GioGiao AS GIOGIAO,
                 D.NhaMay  AS NHAMAY,
                 D.CUA,
-                D.TRUYEN
+                D.TRUYEN,
+                D.ID      AS ID_CT,
+                D.LOT     AS LOT_CT,
+                CAST(CASE WHEN ISNULL(D.STATUS, 'NG') = 'NG' THEN 0 ELSE 1 END AS bit) AS DA_GIAO
             FROM [{TableCt}] D
             INNER JOIN [{TableHd}] H ON H.IDP = D.IDP
-            WHERE D.STATUS = 'NG'";
+            WHERE ISNULL(D.STATUS, 'NG') IN ('NG', 'OK')
+            ORDER BY H.NGAYLAP, D.ID";
 
             DataTable raw = LoadData(sql);
 
@@ -184,6 +244,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             dt.Columns.Add("Note", typeof(string));
             dt.Columns.Add("PO_NO", typeof(string));
             dt.Columns.Add("PO_ITEM", typeof(string));
+            dt.Columns.Add("ID_CT", typeof(int));
 
             int stt = 1;
             foreach (DataRow r in raw.Rows)
@@ -195,20 +256,22 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                 row["TRUYEN"] = r["TRUYEN"]?.ToString() ?? "";
                 row["MAHANG"] = r["MAHANG"]?.ToString() ?? "";
                 row["TENHANG"] = r["TENHANG"]?.ToString() ?? "";
-                row["LOT"] = "";
+                bool daGiao = r["DA_GIAO"] != DBNull.Value && Convert.ToBoolean(r["DA_GIAO"]);
+                row["LOT"] = daGiao ? (r["LOT_CT"]?.ToString() ?? "") : "";
                 row["DV"] = "PCS";
                 row["SOLUONG"] = DbValueHelper.SafeInt(r["SOLUONG"]);
                 row["NGAYGIAO"] = r["NGAYLAP"] == DBNull.Value ? (object)DateTime.Now : r["NGAYLAP"];
                 row["GIOGIAO"] = r["GIOGIAO"]?.ToString() ?? "";
-                row["STATUS"] = "NG";
-                row["TTPHIEU"] = $"GIAODB-{idp}";
+                row["STATUS"] = daGiao ? "OK" : "NG";
+                row["TTPHIEU"] = daGiao ? "Đã Thống Kê QR" : $"GIAODB-{idp}";
                 row["NHAMAY"] = r["NHAMAY"]?.ToString() ?? "";
                 row["ADDNM"] = DbValueHelper.SafeInt(r["ADDNM_HEADER"]);
                 row["HOP"] = "";
-                row["STATUSDOC"] = "NG";
+                row["STATUSDOC"] = daGiao ? "OK" : "NG";
                 row["Note"] = "";
                 row["PO_NO"] = "";
                 row["PO_ITEM"] = "";
+                row["ID_CT"] = DbValueHelper.SafeInt(r["ID_CT"]);
                 dt.Rows.Add(row);
             }
             return dt;

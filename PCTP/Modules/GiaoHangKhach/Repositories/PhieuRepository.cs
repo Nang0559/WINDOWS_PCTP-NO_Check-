@@ -92,6 +92,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         public DataTable GetDanhSachMaHang() => _giaoDB.GetDanhSachMaHang();
         public DataTable LoadTmpPhieuGiaoDB(string tenBan, DateTime ngayGiao, int addNm) => _giaoDB.LoadTmpPhieuGiaoDB(tenBan, ngayGiao, addNm);
         public DataTable BuildDonHangTuUpload() => _giaoDB.BuildDonHangTuUpload();
+        public int DongBoDaGiaoVaoDonGiaoDB(string tmpTable) => _giaoDB.DongBoDaGiaoVaoDonGiaoDB(tmpTable);
         public DataTable ThongKeDonChoXuLy() => _giaoDB.ThongKeDonChoXuLy();
         public DataTable GetHeaderGiaoDB(DateTime ngayLap, int nhaMay) => _giaoDB.GetHeaderGiaoDB(ngayLap, nhaMay);
         public DataTable GetChiTietGiaoDB(DateTime ngayLap, int nhaMay) => _giaoDB.GetChiTietGiaoDB(ngayLap, nhaMay);

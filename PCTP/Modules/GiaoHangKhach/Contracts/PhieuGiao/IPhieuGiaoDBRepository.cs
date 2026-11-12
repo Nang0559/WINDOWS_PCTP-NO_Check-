@@ -13,6 +13,8 @@ namespace PCTP.Modules.GiaoHangKhach.Intefaces.PhieuGiao
         DataTable GetDanhSachMaHang();
         DataTable LoadTmpPhieuGiaoDB(string tenBan, DateTime ngayGiao, int addNm);
         DataTable BuildDonHangTuUpload();
+        /// <summary>Sau Cập nhật kho Giao DB: ghi LOT/STATUS='OK' của các dòng đã giao từ bảng TMP về FVN_Purchase_Order_DB_CT để lần nạp lại không dựng lại chúng thành NG. Trả về số dòng ghi.</summary>
+        int DongBoDaGiaoVaoDonGiaoDB(string tmpTable);
         /// <summary>Đơn chờ xử lý (STATUS='NG') theo ngày + nhà máy: NGAYGIAO, ADDNM, SODONG.</summary>
         DataTable ThongKeDonChoXuLy();
         void LuuGiaoDB(DataTable donHang, string gioFccMoTa, int addNm,

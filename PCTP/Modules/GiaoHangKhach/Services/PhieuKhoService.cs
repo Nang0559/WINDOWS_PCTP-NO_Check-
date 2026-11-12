@@ -87,6 +87,18 @@ namespace PCTP.Modules.GiaoHangKhach.Services
                 soLot = _phieuRepo.CapNhapKho(gioGiaoFcc, nhaMay, tmpTable, docQrTable, out errors);
             }
 
+            // Giao DB: đơn nguồn là FVN_Purchase_Order_DB_CT (STATUS='NG' = chưa giao). Dòng vừa giao phải được
+            // ghi 'OK' + LOT về đó, nếu không lần Upload/nạp lại sau sẽ dựng lại nó thành NG, LOT trống.
+            if (useGiaoDbTables)
+            {
+                try { _phieuRepo.DongBoDaGiaoVaoDonGiaoDB(tmpTable); }
+                catch (Exception ex)
+                {
+                    throw new InvalidOperationException(
+                        "Đã cập nhật kho nhưng chưa ghi được trạng thái đã giao vào đơn Giao DB: " + ex.Message, ex);
+                }
+            }
+
             _bus.Publish(new KhoUpdatedEvent(soLot, errors));
         }
     }
