@@ -280,7 +280,25 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
 
         public void BindGhepLot(DataTable data)
         {
-            gridCTTGL.DataSource = data;
+            // LOT preview is a detail list, not a grouped summary. The designer's
+            // GroupCount=1 can leave the BandedGridView displaying collapsed groups
+            // after a new DataTable is rebound, which looks like an empty result.
+            gridCTTGL.BeginUpdate();
+            try
+            {
+                GridVTTGL.ClearGrouping();
+                GridVTTGL.OptionsView.ShowGroupPanel = false;
+                GridVTTGL.OptionsView.ShowColumnHeaders = true;
+                gridCTTGL.DataSource = null;
+                gridCTTGL.DataSource = data;
+                gridCTTGL.RefreshDataSource();
+                GridVTTGL.RefreshData();
+                GridVTTGL.BestFitColumns();
+            }
+            finally
+            {
+                gridCTTGL.EndUpdate();
+            }
         }
 
         public void BindSuaSoLuong(DataTable data)
