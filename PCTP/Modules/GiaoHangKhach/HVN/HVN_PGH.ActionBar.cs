@@ -18,15 +18,19 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
                     break;
 
                 case PhieuActionBarAction.KiemTraGhepLot:
-                    if (string.Equals(e.Button.Tag as string,
-                        "ACTION:GhepLotToggle",
-                        StringComparison.Ordinal))
+                    // Chỉ khách có bảng đơn hàng riêng (LoadTuBangRieng) mới có 2 grid Lệch IFS / Ghép lot
+                    // để đảo qua lại. Khách thường (HVN) chỉ có grid Ghép lot: luôn hiện grid này.
+                    if (_cfg.Delivery.LoadTuBangRieng
+                        && string.Equals(e.Button.Tag as string,
+                            "ACTION:GhepLotToggle",
+                            StringComparison.Ordinal))
                     {
                         _phieuBottomStateControl?.ToggleLechGhepLot();
                         KiemTraGhepLotClicked.Invoke(this, EventArgs.Empty);
                     }
                     else
                     {
+                        _phieuBottomStateControl?.ShowGhepLot();
                         KiemTraGhepLotClicked.Invoke(this, EventArgs.Empty);
                     }
                     break;
