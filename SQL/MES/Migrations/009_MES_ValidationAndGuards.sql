@@ -15,7 +15,7 @@ BEGIN
  IF EXISTS(
   SELECT 1 FROM inserted i
   JOIN MES.MaterialReceipt r ON r.MaterialReceiptId=i.MaterialReceiptId
-  WHERE ISNULL(i.PurchaseOrderId,-1)<>ISNULL(r.PurchaseOrderId,-1))
+  WHERE ISNULL(i.PurchaseOrderId,-1)<>ISNULL(r.PurchaseOrderId,-1) OR i.SiteCode<>r.SiteCode)
   THROW 51900,''Receipt line PurchaseOrderId must match its receipt header.'',1;
  IF EXISTS(
   SELECT 1 FROM inserted i
