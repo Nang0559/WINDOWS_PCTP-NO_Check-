@@ -6,6 +6,7 @@ SET NOCOUNT ON;
 SET XACT_ABORT ON;
 IF NOT EXISTS(SELECT 1 FROM MES.SchemaMigration WHERE MigrationVersion='010') THROW 51000,'Run migration 010 first.',1;
 IF EXISTS(SELECT 1 FROM MES.SchemaMigration WHERE MigrationVersion='011') RETURN;
+BEGIN TRANSACTION;
 IF OBJECT_ID(N'MES.usp_PostInventoryMovementBatch',N'P') IS NULL EXEC(N'CREATE PROCEDURE MES.usp_PostInventoryMovementBatch
  @Rows MES.TVP_InventoryMovement READONLY
 AS
@@ -33,6 +34,7 @@ BEGIN
    @ReferenceLineNo,@IdempotencyKey,@TransactionAtUtc,@ActorCode;
   WHILE @@FETCH_STATUS=0
   BEGIN
+   SET @MaterialLotId=NULL;
    SELECT @MaterialLotId=MaterialLotId FROM MES.MaterialLot
     WHERE SiteCode=@SiteCode AND PartNo=@PartNo AND LotNo=@LotNo;
    IF @MaterialLotId IS NULL THROW 52102,''Batch contains a LotNo not found in MES.MaterialLot.'',1;
@@ -63,4 +65,5 @@ BEGIN
  END CATCH
 END');
 INSERT MES.SchemaMigration(MigrationVersion,MigrationName) VALUES('011',N'Atomic TVP inventory movement batch posting');
+COMMIT TRANSACTION;
 GO
