@@ -4,9 +4,9 @@
     Branch: feature/mes-product-genealogy-timeline
 
     IMPORTANT
-    - Additive MES tables only. No duplicate Part, Warehouse, Location, Rack or Slot master.
-    - PartNo + Site are external natural keys. Resolve them against existing PCTP masters
-      in application code until the exact existing table/key constraints are verified.
+    - IFS9 is the sole master for Part Catalog, Inventory Part, BOM and inventory locations.
+    - MES.Ifs* tables are synchronized read models; do not maintain them manually in PCTP.
+    - Existing PCTP warehouse/location masters are not authoritative for MES stock locations.
     - No price, currency, cost, valuation or accounting columns.
     - IFS is read-only and authoritative for Part Catalog, Inventory Part and BOM source data.
     - This script is a schema proposal/baseline. Review names/types against the target DB
@@ -38,6 +38,115 @@ BEGIN
         CONSTRAINT CK_MES_IfsSyncBatch_Mode CHECK (SyncMode IN ('FULL','INCREMENTAL')),
         CONSTRAINT CK_MES_IfsSyncBatch_Status CHECK (Status IN ('RUNNING','SUCCEEDED','PARTIAL','FAILED'))
     );
+END;
+
+
+IF OBJECT_ID(N'MES.IfsPartCatalog', N'U') IS NULL
+BEGIN
+    CREATE TABLE MES.IfsPartCatalog
+    (
+        PartNo             nvarchar(60) NOT NULL CONSTRAINT PK_MES_IfsPartCatalog PRIMARY KEY,
+        Description        nvarchar(200) NOT NULL,
+        InventoryUom       nvarchar(20) NOT NULL,
+        PartType           nvarchar(30) NULL,
+        LotTrackingCode    nvarchar(30) NULL,
+        SerialTrackingCode nvarchar(30) NULL,
+        PartStatus         nvarchar(30) NULL,
+        IsActive           bit NOT NULL CONSTRAINT DF_MES_IfsPartCatalog_Active DEFAULT(1),
+        SourceModifiedAt   datetime2(3) NULL,
+        SourceRowKey       nvarchar(200) NULL,
+        SourceHash         varbinary(32) NULL,
+        SyncBatchId        bigint NULL,
+        SyncedAt           datetime2(3) NOT NULL CONSTRAINT DF_MES_IfsPartCatalog_Synced DEFAULT(SYSUTCDATETIME()),
+        CONSTRAINT FK_MES_IfsPartCatalog_Sync FOREIGN KEY (SyncBatchId) REFERENCES MES.IfsSyncBatch(SyncBatchId)
+    );
+END;
+
+IF OBJECT_ID(N'MES.IfsInventoryPart', N'U') IS NULL
+BEGIN
+    CREATE TABLE MES.IfsInventoryPart
+    (
+        SiteCode           nvarchar(30) NOT NULL,
+        PartNo             nvarchar(60) NOT NULL,
+        Description        nvarchar(200) NULL,
+        InventoryUom       nvarchar(20) NOT NULL,
+        PartType           nvarchar(30) NULL,
+        PartStatus         nvarchar(30) NULL,
+        LotTrackingCode    nvarchar(30) NULL,
+        SerialTrackingCode nvarchar(30) NULL,
+        IsActive           bit NOT NULL CONSTRAINT DF_MES_IfsInventoryPart_Active DEFAULT(1),
+        SourceModifiedAt   datetime2(3) NULL,
+        SourceRowKey       nvarchar(200) NULL,
+        SourceHash         varbinary(32) NULL,
+        SyncBatchId        bigint NULL,
+        SyncedAt           datetime2(3) NOT NULL CONSTRAINT DF_MES_IfsInventoryPart_Synced DEFAULT(SYSUTCDATETIME()),
+        CONSTRAINT PK_MES_IfsInventoryPart PRIMARY KEY (SiteCode, PartNo),
+        CONSTRAINT FK_MES_IfsInventoryPart_Catalog FOREIGN KEY (PartNo) REFERENCES MES.IfsPartCatalog(PartNo),
+        CONSTRAINT FK_MES_IfsInventoryPart_Sync FOREIGN KEY (SyncBatchId) REFERENCES MES.IfsSyncBatch(SyncBatchId)
+    );
+    CREATE INDEX IX_MES_IfsInventoryPart_Part ON MES.IfsInventoryPart(PartNo, SiteCode, IsActive);
+END;
+
+IF OBJECT_ID(N'MES.IfsWarehouse', N'U') IS NULL
+BEGIN
+    CREATE TABLE MES.IfsWarehouse
+    (
+        SiteCode           nvarchar(30) NOT NULL,
+        WarehouseCode      nvarchar(30) NOT NULL,
+        Description        nvarchar(200) NULL,
+        IsActive           bit NOT NULL CONSTRAINT DF_MES_IfsWarehouse_Active DEFAULT(1),
+        SourceModifiedAt   datetime2(3) NULL,
+        SourceRowKey       nvarchar(200) NULL,
+        SourceHash         varbinary(32) NULL,
+        SyncBatchId        bigint NULL,
+        CONSTRAINT PK_MES_IfsWarehouse PRIMARY KEY (SiteCode, WarehouseCode),
+        CONSTRAINT FK_MES_IfsWarehouse_Sync FOREIGN KEY (SyncBatchId) REFERENCES MES.IfsSyncBatch(SyncBatchId)
+    );
+END;
+
+IF OBJECT_ID(N'MES.IfsLocationGroup', N'U') IS NULL
+BEGIN
+    CREATE TABLE MES.IfsLocationGroup
+    (
+        SiteCode           nvarchar(30) NOT NULL,
+        LocationGroupCode  nvarchar(30) NOT NULL,
+        Description        nvarchar(200) NULL,
+        LocationType       nvarchar(30) NOT NULL,
+        IsActive           bit NOT NULL CONSTRAINT DF_MES_IfsLocationGroup_Active DEFAULT(1),
+        SourceModifiedAt   datetime2(3) NULL,
+        SourceHash         varbinary(32) NULL,
+        SyncBatchId        bigint NULL,
+        CONSTRAINT PK_MES_IfsLocationGroup PRIMARY KEY (SiteCode, LocationGroupCode),
+        CONSTRAINT FK_MES_IfsLocationGroup_Sync FOREIGN KEY (SyncBatchId) REFERENCES MES.IfsSyncBatch(SyncBatchId)
+    );
+END;
+
+IF OBJECT_ID(N'MES.IfsInventoryLocation', N'U') IS NULL
+BEGIN
+    CREATE TABLE MES.IfsInventoryLocation
+    (
+        SiteCode           nvarchar(30) NOT NULL,
+        LocationNo         nvarchar(60) NOT NULL,
+        WarehouseCode      nvarchar(30) NOT NULL,
+        LocationGroupCode  nvarchar(30) NOT NULL,
+        LocationType       nvarchar(30) NOT NULL,
+        BayNo              nvarchar(30) NULL,
+        RowNo              nvarchar(30) NULL,
+        TierNo             nvarchar(30) NULL,
+        BinNo              nvarchar(30) NULL,
+        Description        nvarchar(200) NULL,
+        IsActive           bit NOT NULL CONSTRAINT DF_MES_IfsInventoryLocation_Active DEFAULT(1),
+        SourceModifiedAt   datetime2(3) NULL,
+        SourceRowKey       nvarchar(200) NULL,
+        SourceHash         varbinary(32) NULL,
+        SyncBatchId        bigint NULL,
+        SyncedAt           datetime2(3) NOT NULL CONSTRAINT DF_MES_IfsInventoryLocation_Synced DEFAULT(SYSUTCDATETIME()),
+        CONSTRAINT PK_MES_IfsInventoryLocation PRIMARY KEY (SiteCode, LocationNo),
+        CONSTRAINT FK_MES_IfsInventoryLocation_Warehouse FOREIGN KEY (SiteCode, WarehouseCode) REFERENCES MES.IfsWarehouse(SiteCode, WarehouseCode),
+        CONSTRAINT FK_MES_IfsInventoryLocation_Group FOREIGN KEY (SiteCode, LocationGroupCode) REFERENCES MES.IfsLocationGroup(SiteCode, LocationGroupCode),
+        CONSTRAINT FK_MES_IfsInventoryLocation_Sync FOREIGN KEY (SyncBatchId) REFERENCES MES.IfsSyncBatch(SyncBatchId)
+    );
+    CREATE INDEX IX_MES_IfsInventoryLocation_Warehouse ON MES.IfsInventoryLocation(SiteCode, WarehouseCode, LocationGroupCode, IsActive);
 END;
 
 IF OBJECT_ID(N'MES.BomHeader', N'U') IS NULL
