@@ -47,15 +47,33 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
 
                 if (dt == null || dt.Rows.Count == 0) return string.Empty;
 
-                var parts = new List<string>();
+                // Cộng dồn theo LOT: nhiều lần đọc QR cùng một LOT phải ra MỘT thành phần "LOT-tổng SL"
+                // (vd 3 tem x 100 -> LOT-300), giữ thứ tự xuất hiện đầu tiên. Làm ở đây (sau Trim) để vẫn
+                // đúng khi SP trả mỗi dòng QR riêng hoặc LOTFCC chỉ khác nhau ký tự ẩn (CR/LF/TAB).
+                var lotOrder = new List<string>();
+                var lotQty = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
                 foreach (DataRow row in dt.Rows)
                 {
-                    string lotFcc = row["LOTFCC"]?.ToString()?.Trim() ?? string.Empty;
-                    string fcc = row["FCC"]?.ToString()?.Trim() ?? string.Empty;
-                    if (string.IsNullOrWhiteSpace(lotFcc) || string.IsNullOrWhiteSpace(fcc))
+                    string lotFcc = NormalizeLotKey(row["LOTFCC"]?.ToString());
+                    string fccText = row["FCC"]?.ToString()?.Trim() ?? string.Empty;
+                    if (string.IsNullOrWhiteSpace(lotFcc) || string.IsNullOrWhiteSpace(fccText)
+                        || !long.TryParse(fccText, System.Globalization.NumberStyles.Integer,
+                                          System.Globalization.CultureInfo.InvariantCulture, out long fcc))
                         throw new InvalidOperationException("Stored procedure returned an invalid LOT component.");
-                    parts.Add($"{lotFcc}-{fcc}");
+
+                    long current;
+                    if (lotQty.TryGetValue(lotFcc, out current))
+                        lotQty[lotFcc] = current + fcc;
+                    else
+                    {
+                        lotQty[lotFcc] = fcc;
+                        lotOrder.Add(lotFcc);
+                    }
                 }
+
+                var parts = new List<string>();
+                foreach (string key in lotOrder)
+                    parts.Add(key + "-" + lotQty[key].ToString(System.Globalization.CultureInfo.InvariantCulture));
 
                 string lot = string.Join(",", parts);
                 int updated;
@@ -79,6 +97,13 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
 
                 return lot;
             });
+        }
+
+        /// <summary>Bỏ khoảng trắng và ký tự điều khiển (CR/LF/TAB) do máy đọc QR để lại ở đầu/cuối LOT.</summary>
+        private static string NormalizeLotKey(string lot)
+        {
+            if (string.IsNullOrEmpty(lot)) return string.Empty;
+            return lot.Replace("\r", string.Empty).Replace("\n", string.Empty).Replace("\t", string.Empty).Trim();
         }
 
         /// <summary>
