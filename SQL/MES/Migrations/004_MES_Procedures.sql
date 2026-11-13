@@ -10,11 +10,11 @@ IF EXISTS(SELECT 1 FROM MES.SchemaMigration WHERE MigrationVersion='004') RETURN
 IF OBJECT_ID(N'MES.usp_PostInventoryMovement',N'P') IS NULL EXEC(N'CREATE PROCEDURE MES.usp_PostInventoryMovement
  @SiteCode nvarchar(30), @PartNo nvarchar(100), @MaterialLotId bigint,
  @MovementType varchar(20), @Quantity decimal(19,6), @UomCode nvarchar(30),
+ @ReferenceType varchar(30), @IdempotencyKey nvarchar(180), @TransactionAtUtc datetime2(3),
+ @ActorCode nvarchar(100), @InventoryTransactionId bigint OUTPUT,
  @FromLocationNo nvarchar(100)=NULL, @ToLocationNo nvarchar(100)=NULL,
  @FromStockState varchar(16)=NULL, @ToStockState varchar(16)=NULL,
- @ReferenceType varchar(30), @ReferenceNo nvarchar(100)=NULL, @ReferenceLineNo int=NULL,
- @IdempotencyKey nvarchar(180), @TransactionAtUtc datetime2(3), @ActorCode nvarchar(100),
- @InventoryTransactionId bigint OUTPUT
+ @ReferenceNo nvarchar(100)=NULL, @ReferenceLineNo int=NULL
 AS
 BEGIN
  SET NOCOUNT ON;
