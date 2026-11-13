@@ -60,7 +60,6 @@ BEGIN
         IsCurrent         bit NOT NULL CONSTRAINT DF_MES_BomHeader_Current DEFAULT(1),
         CreatedAt         datetime2(3) NOT NULL CONSTRAINT DF_MES_BomHeader_Created DEFAULT(SYSUTCDATETIME()),
         CONSTRAINT FK_MES_BomHeader_Sync FOREIGN KEY (SyncBatchId) REFERENCES MES.IfsSyncBatch(SyncBatchId),
-        CONSTRAINT UQ_MES_BomHeader_Source UNIQUE (SiteCode, ParentPartNo, RevisionCode, StructureType, AlternateNo, SourceHash)
     );
     CREATE INDEX IX_MES_BomHeader_Resolve ON MES.BomHeader(SiteCode, ParentPartNo, StructureType, BomStatus, EffectiveFrom, EffectiveTo);
 END;
@@ -84,9 +83,8 @@ BEGIN
         SourceModifiedAt   datetime2(3) NULL,
         CONSTRAINT FK_MES_BomLine_Header FOREIGN KEY (BomHeaderId) REFERENCES MES.BomHeader(BomHeaderId),
         CONSTRAINT UQ_MES_BomLine_Source UNIQUE (BomHeaderId, SourceLineNo),
-        CONSTRAINT CK_MES_BomLine_Qty CHECK (QtyPerAssembly >= 0),
         CONSTRAINT CK_MES_BomLine_Type CHECK (LineType IN ('COMPONENT','BYPRODUCT','COPRODUCT','DISASSEMBLY')),
-        CONSTRAINT CK_MES_BomLine_Scrap CHECK (ScrapFactor IS NULL OR (ScrapFactor >= 0 AND ScrapFactor <= 1))
+        CONSTRAINT CK_MES_BomLine_Scrap CHECK (ScrapFactor IS NULL OR ScrapFactor >= 0)
     );
     CREATE INDEX IX_MES_BomLine_Component ON MES.BomLine(ComponentPartNo, BomHeaderId);
 END;
@@ -183,6 +181,29 @@ BEGIN
         CONSTRAINT FK_MES_ReceiptLine_Lot FOREIGN KEY (MaterialLotId) REFERENCES MES.MaterialLot(MaterialLotId),
         CONSTRAINT CK_MES_ReceiptLine_Qty CHECK (ReceivedQty > 0 AND AcceptedQty >= 0 AND QuarantineQty >= 0 AND AcceptedQty + QuarantineQty <= ReceivedQty)
     );
+END;
+
+
+IF OBJECT_ID(N'MES.InventoryBalance', N'U') IS NULL
+BEGIN
+    CREATE TABLE MES.InventoryBalance
+    (
+        InventoryBalanceId bigint IDENTITY(1,1) NOT NULL CONSTRAINT PK_MES_InventoryBalance PRIMARY KEY,
+        SiteCode           nvarchar(30) NOT NULL,
+        PartNo             nvarchar(60) NOT NULL,
+        MaterialLotId      bigint NOT NULL,
+        LocationCode       nvarchar(60) NOT NULL,
+        StockState         varchar(16) NOT NULL,
+        OnHandQty          decimal(19,6) NOT NULL CONSTRAINT DF_MES_Balance_OnHand DEFAULT(0),
+        ReservedQty        decimal(19,6) NOT NULL CONSTRAINT DF_MES_Balance_Reserved DEFAULT(0),
+        UpdatedAt          datetime2(3) NOT NULL CONSTRAINT DF_MES_Balance_Updated DEFAULT(SYSUTCDATETIME()),
+        RowVersion         rowversion NOT NULL,
+        CONSTRAINT FK_MES_Balance_Lot FOREIGN KEY (MaterialLotId) REFERENCES MES.MaterialLot(MaterialLotId),
+        CONSTRAINT UQ_MES_Balance_Stock UNIQUE (SiteCode, PartNo, MaterialLotId, LocationCode, StockState),
+        CONSTRAINT CK_MES_Balance_State CHECK (StockState IN ('AVAILABLE','QUARANTINE','WIP','FG','BLOCKED')),
+        CONSTRAINT CK_MES_Balance_Qty CHECK (OnHandQty >= 0 AND ReservedQty >= 0 AND ReservedQty <= OnHandQty)
+    );
+    CREATE INDEX IX_MES_Balance_PartLocation ON MES.InventoryBalance(SiteCode, PartNo, LocationCode, StockState);
 END;
 
 IF OBJECT_ID(N'MES.ProductionPlan', N'U') IS NULL
