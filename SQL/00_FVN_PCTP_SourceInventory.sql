@@ -13,9 +13,14 @@
 SET NOCOUNT ON;
 SET XACT_ABORT ON;
 
-IF DB_NAME() <> N'B7R2_FCC'
+-- Evaluate DB_NAME() once into a variable. RAISERROR arguments must be
+-- constants or variables on SQL Server; passing DB_NAME() directly can fail.
+DECLARE @CurrentDatabase sysname;
+SET @CurrentDatabase = DB_NAME();
+
+IF @CurrentDatabase <> N'B7R2_FCC'
 BEGIN
-    RAISERROR(N'Safety stop: this inventory must run against B7R2_FCC. Current database: %s', 16, 1, DB_NAME());
+    RAISERROR(N'Safety stop: this inventory must run against B7R2_FCC. Current database: %s', 16, 1, @CurrentDatabase);
     RETURN;
 END;
 
