@@ -9,6 +9,7 @@ using PCTP.Modules.KhoVatLy.Repositories;
 using PCTP.Modules.XuatKho.Interfaces;
 using PCTP.Modules.XuLyHangLoi.Models;
 using PCTP.Shared.Common;
+using PCTP.Shared.Enums;
 using PCTP.Shared.Models;
 using PCTP.Shared.Notifiers;
 using PCTP.YMN;
@@ -95,8 +96,24 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                     return 0;
                 }
 
-                coAnhHuongA0 = TruKhoAoTuKetQuaSP(stok, out List<string> lotsDaXuatThanhCong);
-                HoanTatSauKhiTruKho(lotsDaXuatThanhCong, SYSTEM_PERFORMED_BY);
+                if (_cfg != null && _cfg.Delivery.BatBuocPickChoGiao)
+                {
+                    // Khách bắt buộc pick trước (HTN 100003): hàng đã được trừ SlotLot lúc pick vào
+                    // FVN_HangChoGiao. CNK chỉ trừ STOCKTP (SP vừa chạy) + đóng chờ giao, KHÔNG trừ SlotLot.
+                    // Thiếu/sai/không pick -> rollback cả phiếu (kể cả phần STOCKTP SP đã trừ) và báo lỗi từng LOT.
+                    DataTable pickErrors = XacNhanTheoChoGiao(stok, tmpTable);
+                    if (pickErrors.Rows.Count > 0)
+                    {
+                        Uow.Rollback();
+                        errors = pickErrors;
+                        return 0;
+                    }
+                }
+                else
+                {
+                    coAnhHuongA0 = TruKhoAoTuKetQuaSP(stok, out List<string> lotsDaXuatThanhCong);
+                    HoanTatSauKhiTruKho(lotsDaXuatThanhCong, SYSTEM_PERFORMED_BY);
+                }
 
                 if (_cfg != null && _cfg.Delivery.LoadTuBangRieng &&
                     !string.IsNullOrEmpty(_cfg.Delivery.OrderTable) && stok.Rows.Count > 0)
@@ -543,6 +560,162 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             Db.ValidateTableName(tenBan);
             return ExecuteStoredProcedure("Usp_Qrcode_LOAD_HANGTHIEUView", new SqlParameter("@TENBAN", tenBan));
         }
+
+        #region Bắt buộc pick chờ giao (HTN)
+        private sealed class PickNeed
+        {
+            public string Lot;
+            public int SoLuong;
+            public int Stt;
+        }
+
+        private static DataTable TaoBangLoiPick()
+        {
+            var t = new DataTable("Table");
+            t.Columns.Add("MH", typeof(string));
+            t.Columns.Add("LOT", typeof(string));
+            t.Columns.Add("SLC", typeof(int));    // cần giao
+            t.Columns.Add("SLTK", typeof(int));   // đã pick (đang chờ giao)
+            t.Columns.Add("SLT", typeof(int));    // thiếu
+            t.Columns.Add("STATUS", typeof(string));
+            return t;
+        }
+
+        /// <summary>
+        /// Với mỗi LOT SP đã trừ STOCKTP: phải có các dòng FVN_HangChoGiao (ChoGiao, GiaoHang) khớp LOT
+        /// (LotCodeHelper) với tổng số lượng ĐÚNG BẰNG số lượng cần giao. Đủ -> đóng các dòng đó (DaGiao) +
+        /// ghi EXPORT_CONFIRMED_HVN. Không đụng SlotLot. Thiếu/sai -> trả bảng lỗi (cột như bảng lỗi của SP:
+        /// MH, LOT, SLC, SLTK, SLT, STATUS) và KHÔNG đóng dòng nào; caller phải rollback.
+        /// </summary>
+        private DataTable XacNhanTheoChoGiao(DataTable stok, string tmpTable)
+        {
+            DataTable err = TaoBangLoiPick();
+            if (stok == null || stok.Rows.Count == 0) return err;
+            if (!Uow.IsInTransaction)
+                throw new InvalidOperationException("XacNhanTheoChoGiao phải chạy trong transaction giao hàng hiện tại.");
+            if (!stok.Columns.Contains("LOT") || !stok.Columns.Contains("SOLUONG"))
+                throw new InvalidOperationException(
+                    "Stored procedure trả về dữ liệu xuất kho nhưng thiếu cột LOT/SOLUONG; huỷ giao dịch.");
+
+            // 1) Gom nhu cầu theo LOT (LOT cũ 13 ký tự / mới 20 ký tự coi là cùng khoá).
+            var needs = new List<PickNeed>();
+            foreach (DataRow row in stok.Rows)
+            {
+                string lot = LotCodeHelper.TrimTo(row["LOT"]?.ToString(), LotCodeHelper.LEN_HEAD_FIXED);
+                int sl;
+                try { sl = row["SOLUONG"] == DBNull.Value ? 0 : Convert.ToInt32(row["SOLUONG"]); }
+                catch (Exception ex)
+                { throw new InvalidOperationException("Stored procedure trả về SOLUONG không hợp lệ; huỷ giao dịch.", ex); }
+                if (string.IsNullOrWhiteSpace(lot) || sl <= 0)
+                    throw new InvalidOperationException(
+                        $"Stored procedure trả về LOT/SOLUONG không hợp lệ (LOT='{lot}', SOLUONG={sl}); huỷ giao dịch.");
+
+                int stt = 0;
+                if (stok.Columns.Contains("STT") && row["STT"] != DBNull.Value)
+                    int.TryParse(row["STT"].ToString(), out stt);
+
+                PickNeed n = needs.FirstOrDefault(x => LotCodeHelper.AreLotKeysEquivalent(x.Lot, lot));
+                if (n == null) needs.Add(new PickNeed { Lot = lot, SoLuong = sl, Stt = stt });
+                else n.SoLuong += sl;
+            }
+
+            // 2) Đối chiếu từng LOT với hàng chờ giao đã pick.
+            var toClose = new List<DataRow>();
+            foreach (PickNeed need in needs)
+            {
+                string maHang = "";
+                if (need.Stt > 0)
+                {
+                    DataTable mh = LoadData($"SELECT TOP 1 ISNULL(MAHANG,'') AS MAHANG FROM [{tmpTable}] WHERE STT=@stt",
+                        new SqlParameter("@stt", SqlDbType.Int) { Value = need.Stt });
+                    if (mh.Rows.Count > 0) maHang = Convert.ToString(mh.Rows[0]["MAHANG"])?.Trim() ?? "";
+                }
+
+                DataTable rows = LoadData(
+                    @"SELECT Id, MaHang, LotGoc, LotThung, SoLuong, SlotIdNguon
+                      FROM FVN_HangChoGiao WITH (UPDLOCK, ROWLOCK)
+                      WHERE TrangThai = @cg AND LoaiYeuCauGiao = @loai AND "
+                    + LotCodeHelper.BuildLotMatchSql("LotGoc", "@lot") + @"
+                      ORDER BY Id",
+                    new SqlParameter("@cg", SqlDbType.NVarChar, 60) { Value = HangChoGiaoStatus.ChoGiao.ToString() },
+                    new SqlParameter("@loai", SqlDbType.NVarChar, 60) { Value = HangChoGiaoLoai.GiaoHang.ToString() },
+                    new SqlParameter("@lot", SqlDbType.NVarChar, 200) { Value = need.Lot });
+
+                int tongPick = 0;
+                foreach (DataRow r in rows.Rows) tongPick += Convert.ToInt32(r["SoLuong"]);
+
+                if (tongPick < need.SoLuong)
+                {
+                    DataRow e = err.NewRow();
+                    e["MH"] = maHang; e["LOT"] = need.Lot;
+                    e["SLC"] = need.SoLuong; e["SLTK"] = tongPick; e["SLT"] = need.SoLuong - tongPick;
+                    e["STATUS"] = tongPick == 0
+                        ? "LOT chưa được pick vào hàng chờ giao. Hãy pick đúng LOT rồi cập nhật kho lại."
+                        : "Pick chưa đủ hàng chờ giao. Hãy pick bổ sung rồi cập nhật kho lại.";
+                    err.Rows.Add(e);
+                    continue;
+                }
+
+                // Lấy nguyên từng dòng chờ giao (không tách dòng) cho tới khi đúng bằng số lượng cần giao.
+                int daLay = 0;
+                var chon = new List<DataRow>();
+                foreach (DataRow r in rows.Rows)
+                {
+                    if (daLay >= need.SoLuong) break;
+                    daLay += Convert.ToInt32(r["SoLuong"]);
+                    chon.Add(r);
+                }
+
+                if (daLay != need.SoLuong)
+                {
+                    DataRow e = err.NewRow();
+                    e["MH"] = maHang; e["LOT"] = need.Lot;
+                    e["SLC"] = need.SoLuong; e["SLTK"] = tongPick; e["SLT"] = 0;
+                    e["STATUS"] = "Số lượng pick không khớp số lượng giao (các dòng chờ giao: "
+                        + string.Join(" + ", rows.AsEnumerable().Select(x => Convert.ToString(x["SoLuong"])).ToArray())
+                        + " = " + tongPick + ", cần giao " + need.SoLuong + "). Hãy huỷ chờ giao/pick lại cho khớp.";
+                    err.Rows.Add(e);
+                    continue;
+                }
+
+                toClose.AddRange(chon);
+            }
+
+            if (err.Rows.Count > 0) return err;
+
+            // 3) Đủ và khớp tất cả LOT -> đóng chờ giao + lịch sử. KHÔNG trừ SlotLot (đã trừ lúc pick).
+            foreach (DataRow r in toClose)
+            {
+                int id = Convert.ToInt32(r["Id"]);
+                int affected = ExecuteNonQuery(
+                    @"UPDATE FVN_HangChoGiao
+                      SET TrangThai = @dg, NgayGiao = GETDATE(), NguoiGiao = @ng
+                      WHERE Id = @id AND TrangThai = @cg",
+                    new SqlParameter("@dg", SqlDbType.NVarChar, 60) { Value = HangChoGiaoStatus.DaGiao.ToString() },
+                    new SqlParameter("@ng", SqlDbType.NVarChar, 100) { Value = SYSTEM_PERFORMED_BY },
+                    new SqlParameter("@id", SqlDbType.Int) { Value = id },
+                    new SqlParameter("@cg", SqlDbType.NVarChar, 60) { Value = HangChoGiaoStatus.ChoGiao.ToString() });
+                if (affected != 1)
+                    throw new InvalidOperationException(
+                        $"Hàng chờ giao Id={id} đã thay đổi trạng thái trong lúc cập nhật kho; huỷ giao dịch.");
+
+                if (r["SlotIdNguon"] != DBNull.Value)
+                {
+                    _historyRepo.SaveHistory(
+                        "EXPORT_CONFIRMED_HVN", Convert.ToString(r["MaHang"]),
+                        new LotInfo
+                        {
+                            LotNo = Convert.ToString(r["LotGoc"]),
+                            Quantity = Convert.ToInt32(r["SoLuong"]),
+                            TemCode = r["LotThung"] == DBNull.Value ? null : Convert.ToString(r["LotThung"])
+                        },
+                        fromSlotId: Convert.ToInt32(r["SlotIdNguon"]), toSlotId: null, performedBy: SYSTEM_PERFORMED_BY);
+                }
+            }
+
+            return err;
+        }
+        #endregion
 
         #region Private Helpers
         private bool TruKhoAoTuKetQuaSP(DataTable stok, out List<string> lotsDaXuatThanhCong)
