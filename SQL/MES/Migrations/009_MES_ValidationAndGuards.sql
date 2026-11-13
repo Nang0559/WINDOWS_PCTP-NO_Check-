@@ -27,6 +27,17 @@ BEGIN
   THROW 51901,''Receipt line PO line, SiteCode and PartNo must match.'',1;
 END');
 
+
+IF OBJECT_ID(N'MES.trg_MES_PurchaseOrderLine_ValidateSite',N'TR') IS NULL EXEC(N'CREATE TRIGGER MES.trg_MES_PurchaseOrderLine_ValidateSite
+ON MES.PurchaseOrderLine
+AFTER INSERT,UPDATE
+AS
+BEGIN
+ SET NOCOUNT ON;
+ IF EXISTS(SELECT 1 FROM inserted i JOIN MES.PurchaseOrder p ON p.PurchaseOrderId=i.PurchaseOrderId WHERE p.SiteCode<>i.SiteCode)
+  THROW 51902,''Purchase order line SiteCode must match purchase order header.'',1;
+END');
+
 IF OBJECT_ID(N'MES.usp_ValidateInventoryBalance',N'P') IS NULL EXEC(N'CREATE PROCEDURE MES.usp_ValidateInventoryBalance
  @SiteCode nvarchar(30)=NULL
 AS
