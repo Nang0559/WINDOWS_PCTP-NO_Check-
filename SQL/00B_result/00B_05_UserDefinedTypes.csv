@@ -1,0 +1,11 @@
+﻿dbo,CodeType,1,0,nvarchar,32,0,0
+dbo,DateType,1,0,smalldatetime,4,16,0
+dbo,ExchangeRateType,1,0,numeric,9,15,5
+dbo,LongCodeType,1,0,nvarchar,48,0,0
+dbo,MoneyType,1,0,numeric,9,18,2
+dbo,PercentageType,1,0,numeric,5,8,4
+dbo,PriceType,1,0,numeric,9,18,5
+dbo,QuantityType,1,0,numeric,9,15,4
+dbo,SlotLotTableType,1,1,table type,-1,0,0
+dbo,TableNameType,1,0,varchar,32,0,0
+dbo,UniqueKeyType,1,0,varchar,16,0,0
