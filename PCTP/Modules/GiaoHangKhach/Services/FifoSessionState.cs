@@ -105,6 +105,11 @@ namespace PCTP.Modules.GiaoHangKhach.Services
                 return false;
             }
 
+            // Thứ tự thành phần trong chuỗi LOT ghép không nhất thiết theo FIFO (vd tem "LOT_MOI-8,LOT_CU-62").
+            // Kiểm tra theo thứ tự FIFO của hàng đợi (LOT cũ trước) thay vì thứ tự trong chuỗi, nếu không
+            // tem ghép hợp lệ về tổng (LOT cũ còn 62 + 8 ở LOT sau) bị từ chối chỉ vì vị trí trong chuỗi.
+            selections = OrderByFifo(state, selections);
+
             var trial = state.Lots.ToDictionary(x => x.LotKey, x => x.RemainingAllowedQty, StringComparer.OrdinalIgnoreCase);
             var consumed = new List<FifoReservationLine>();
 
@@ -149,6 +154,61 @@ namespace PCTP.Modules.GiaoHangKhach.Services
 
             _reservations[stt] = new FifoReservation { Stt = stt, ItemCode = part, Lines = consumed };
             return true;
+        }
+
+        /// <summary>
+        /// Trừ vào ngân sách FIFO lượng LOT ĐÃ dùng nhưng kho chưa trừ (tem đã đọc chưa Hoàn thành, hoặc dòng
+        /// phiếu đã có LOT nhưng chưa Cập nhật kho). Không kiểm tra thứ tự vì các dòng này đã được duyệt khi
+        /// phát sinh; chỉ ghi nhận để lượng còn lại của từng LOT đúng khi mở lại form / khởi tạo phiên.
+        /// </summary>
+        public void ConsumeExisting(int stt, string maHang, string lot, int quantity)
+        {
+            string part = Normalize(maHang);
+            if (string.IsNullOrEmpty(part) || string.IsNullOrWhiteSpace(lot) || quantity <= 0)
+                return;
+
+            FifoPartState state;
+            if (!_parts.TryGetValue(part, out state))
+                return;
+
+            Release(stt);
+
+            List<LotSelection> selections;
+            string parseError;
+            if (!TryParseLotSelections(lot, quantity, out selections, out parseError))
+                return;
+
+            var consumed = new List<FifoReservationLine>();
+            foreach (LotSelection selection in OrderByFifo(state, selections))
+            {
+                FifoLotState row = state.Lots.FirstOrDefault(x => string.Equals(x.LotKey, selection.LotKey, StringComparison.OrdinalIgnoreCase));
+                if (row == null) continue;
+
+                int take = Math.Min(row.RemainingAllowedQty, selection.Quantity);
+                if (take <= 0) continue;
+
+                row.RemainingAllowedQty -= take;
+                consumed.Add(new FifoReservationLine { LotKey = row.LotKey, Quantity = take });
+            }
+
+            if (consumed.Count > 0)
+                _reservations[stt] = new FifoReservation { Stt = stt, ItemCode = part, Lines = consumed };
+        }
+
+        private static List<LotSelection> OrderByFifo(FifoPartState state, List<LotSelection> selections)
+        {
+            return selections
+                .Select((selection, index) => new
+                {
+                    Selection = selection,
+                    Index = index,
+                    Lot = state.Lots.FirstOrDefault(x => string.Equals(x.LotKey, selection.LotKey, StringComparison.OrdinalIgnoreCase))
+                })
+                .OrderBy(x => x.Lot == null ? int.MaxValue : x.Lot.FifoRank)
+                .ThenBy(x => x.Selection.LotKey, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(x => x.Index)
+                .Select(x => x.Selection)
+                .ToList();
         }
 
         public void Release(int stt)

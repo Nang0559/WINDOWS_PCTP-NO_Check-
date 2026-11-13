@@ -50,6 +50,12 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             _db.ValidateTableName(tmpTable);
             _db.ValidateTableName(docQrTable);
 
+            // TMP có cột STATUS ('OK' = đã Cập nhật kho, SLCONLAI đã trừ) thì mới nhận biết được dòng
+            // đã có LOT nhưng kho CHƯA trừ.
+            DataTable statusProbe = _db.LoadData($"SELECT COL_LENGTH(N'dbo.[{tmpTable}]', N'STATUS') AS L");
+            bool hasStatus = statusProbe.Rows.Count > 0 && statusProbe.Rows[0]["L"] != DBNull.Value;
+
+            // Dòng chưa có LOT (còn phải giao).
             DataTable orders = _db.LoadData($@"
 SELECT t.MAHANG, SUM(ISNULL(t.SOLUONG, 0)) AS SOLUONG
 FROM [{tmpTable}] t
@@ -63,18 +69,44 @@ WHERE (t.LOT = '' OR t.LOT IS NULL)
   )
 GROUP BY t.MAHANG");
 
-            DataTable scanned = _db.LoadData($@"
-SELECT MAHANGFCC, SUM(ISNULL(SLTEMFCC, 0)) AS SLDAQUET
+            // Tem đã đọc nhưng chưa Hoàn thành (chưa DG).
+            DataTable scannedRows = _db.LoadData($@"
+SELECT STT, MAHANGFCC, LOTFCC, SLTEMFCC
 FROM [{docQrTable}]
-WHERE ISNULL(KETQUA, '') <> 'DG'
-GROUP BY MAHANGFCC");
+WHERE ISNULL(KETQUA, '') <> 'DG'");
+
+            // Dòng đã có LOT nhưng chưa Cập nhật kho: kho vẫn còn tính lượng này.
+            DataTable allocatedRows = hasStatus
+                ? _db.LoadData($@"
+SELECT t.STT, t.MAHANG, t.LOT, t.SOLUONG
+FROM [{tmpTable}] t
+WHERE t.LOT IS NOT NULL AND t.LOT <> ''
+  AND UPPER(LTRIM(RTRIM(ISNULL(t.[STATUS], '')))) <> 'OK'
+  AND t.MAHANG IN
+  (
+      SELECT q.MAHANGFCC
+      FROM [{docQrTable}] q
+      WHERE ISNULL(q.KETQUA, '') <> 'DG'
+      GROUP BY q.MAHANGFCC
+  )")
+                : new DataTable();
 
             var scannedMap = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-            foreach (DataRow row in scanned.Rows)
+            foreach (DataRow row in scannedRows.Rows)
             {
                 string part = row["MAHANGFCC"]?.ToString()?.Trim() ?? string.Empty;
                 if (string.IsNullOrEmpty(part)) continue;
-                scannedMap[part] = row["SLDAQUET"] == DBNull.Value ? 0 : Convert.ToInt32(row["SLDAQUET"]);
+                int qty = row["SLTEMFCC"] == DBNull.Value ? 0 : Convert.ToInt32(row["SLTEMFCC"]);
+                scannedMap[part] = (scannedMap.TryGetValue(part, out int current) ? current : 0) + qty;
+            }
+
+            var allocatedMap = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            foreach (DataRow row in allocatedRows.Rows)
+            {
+                string part = row["MAHANG"]?.ToString()?.Trim() ?? string.Empty;
+                if (string.IsNullOrEmpty(part)) continue;
+                int qty = row["SOLUONG"] == DBNull.Value ? 0 : Convert.ToInt32(row["SOLUONG"]);
+                allocatedMap[part] = (allocatedMap.TryGetValue(part, out int current) ? current : 0) + qty;
             }
 
             var orderLines = new List<FifoOrderLine>();
@@ -85,13 +117,35 @@ GROUP BY MAHANGFCC");
 
                 int orderQty = row["SOLUONG"] == DBNull.Value ? 0 : Convert.ToInt32(row["SOLUONG"]);
                 int scannedQty = scannedMap.TryGetValue(part, out int scannedValue) ? scannedValue : 0;
-                int remaining = Math.Max(orderQty - scannedQty, 0);
-                if (remaining > 0)
-                    orderLines.Add(new FifoOrderLine { ItemCode = part, NeedQty = remaining });
+                int allocatedQty = allocatedMap.TryGetValue(part, out int allocatedValue) ? allocatedValue : 0;
+
+                // Còn phải đọc thêm?
+                if (Math.Max(orderQty - scannedQty, 0) <= 0) continue;
+
+                // Hàng đợi FIFO phải tính trên TOÀN BỘ nhu cầu chưa trừ kho (chưa có LOT + đã có LOT chưa trừ kho),
+                // rồi mới trừ phần đã dùng. Nếu chỉ tính phần còn lại thì LOT cũ (vd tồn 262) vẫn được cấp đủ 262
+                // dù tem đã đọc trước đó đã lấy mất 200 của nó.
+                orderLines.Add(new FifoOrderLine { ItemCode = part, NeedQty = orderQty + allocatedQty });
             }
 
             state.Reset();
             InitializeParts(state, orderLines);
+
+            // Trừ lượng LOT mà các dòng đã có LOT (chưa Cập nhật kho) đã dùng. STT âm để không trùng STT tem QR.
+            foreach (DataRow row in allocatedRows.Rows)
+            {
+                int stt = row["STT"] == DBNull.Value ? 0 : Convert.ToInt32(row["STT"]);
+                int qty = row["SOLUONG"] == DBNull.Value ? 0 : Convert.ToInt32(row["SOLUONG"]);
+                state.ConsumeExisting(-Math.Abs(stt), row["MAHANG"]?.ToString(), row["LOT"]?.ToString(), qty);
+            }
+
+            // Trừ lượng LOT của các tem đã đọc (chưa DG) trước đó.
+            foreach (DataRow row in scannedRows.Rows)
+            {
+                int stt = row["STT"] == DBNull.Value ? 0 : Convert.ToInt32(row["STT"]);
+                int qty = row["SLTEMFCC"] == DBNull.Value ? 0 : Convert.ToInt32(row["SLTEMFCC"]);
+                state.ConsumeExisting(stt, row["MAHANGFCC"]?.ToString(), row["LOTFCC"]?.ToString(), qty);
+            }
         }
 
         public IReadOnlyList<FifoRamEntry> GetRamSnapshot(FifoSessionState state)

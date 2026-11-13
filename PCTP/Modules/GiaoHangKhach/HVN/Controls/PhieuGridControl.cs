@@ -249,8 +249,13 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
 
         public void SetupForCustomer(bool usePrivateOrderTable)
         {
+            // PO_NO (IFS: MANUFACTURING_DEPARTMENT) và PO_ITEM (IFS: PATTERN_DESCRIPTION)
+            // luôn hiển thị cạnh nhau cho mọi khách, không phụ thuộc bảng order riêng.
+            // Trước đây PO_NO bị ẩn khi LoadTuBangRieng = false (HVN) nên grid chỉ thấy PO_ITEM.
+            SetColumnVisible("PO_NO", true);
+            SetColumnCaption("PO_NO", "Số PO");
+
             SetColumnVisible("GEAR", usePrivateOrderTable);
-            SetColumnVisible("PO_NO", usePrivateOrderTable);
 
             if (!usePrivateOrderTable)
                 return;
@@ -259,7 +264,6 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
             SetColumnCaption("CUA", "Cửa");
             SetColumnCaption("TRUYEN", "Truyền");
             SetColumnCaption("GIOGIAO", "Giờ");
-            SetColumnCaption("PO_NO", "Số PO");
         }
 
         private void SetColumnVisible(string fieldName, bool visible)

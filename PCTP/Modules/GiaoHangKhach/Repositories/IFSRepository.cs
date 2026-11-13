@@ -140,155 +140,78 @@ namespace PCTP.Infrastructure.Repositories
 
 
             string sql =
-                "SELECT " +
-                "    '' AS STT, " +
+            "SELECT " +
+            "    '' AS STT, " +
+            "    (col.CUSTOMER_PART_NO || TO_CHAR(col.BUY_QTY_DUE)) AS FIND, " +
+            "    col.CUSTOMER_NO, " +
+            "    TO_CHAR(col.WANTED_DELIVERY_DATE, 'HH24') AS GIOGIAO, " +
+            "    col.BUY_QTY_DUE AS SOLUONG, " +
+            "    col.CUSTOMER_PART_UNIT_MEAS AS DV, " +
+            "    col.SHIP_ADDR_NO AS ADDNM, " +
+            "    col.SUB_DOCK_CODE AS CUA, " +
+            "    col.CUSTOMER_PART_NO AS MAHANG, " +
+            "    col.CATALOG_DESC AS TENHANG, " +
+            "    col.CUSTOMER_PO_REL_NO, " +
+            "    col.DOCK_CODE AS TRUYEN, " +
+            "    col.ORDER_NO, " +
+            "    col.CATALOG_NO, " +
+            "    TO_CHAR(col.WANTED_DELIVERY_DATE, 'YYYY-MM-DD') AS NGAYGIAO, " +
+            "    col.CUSTOMER_PO_NO, " +
+            "    '' AS HOP, " +
+            "    '' AS LOT, " +
+            "    '' AS DIA_CHI, " +
+            "    '' AS KGX, " +
+            "    'NG' AS STATUS, " +
+            "    'NG' AS STATUSDOC, " +
+            "    '' AS TTPHIEU, " +
+            $"    '{EscapeOracle(gioXuatH)}' AS GIOGIAOFCC, " +
+            "    col.SHIP_ADDR_NO AS SHIP_ADDR_NO, " +
+            $"    {nhaMayCase} AS NHAMAY, " +
+            "    '' AS NOTE, " +
+            "    csl.MANUFACTURING_DEPARTMENT AS PO_NO, " +
+            "    csl.PATTERN_DESCRIPTION AS PO_ITEM " +
 
-                "    (col.CUSTOMER_PART_NO || " +
-                "     TO_CHAR(col.BUY_QTY_DUE)) AS FIND, " +
+            "FROM CUSTOMER_ORDER_JOIN col " +
 
-                "    col.CUSTOMER_NO, " +
+            "LEFT JOIN " +
+            "( " +
+            "    SELECT x.* " +
+            "    FROM ( " +
+            "        SELECT " +
+            "            s.CUSTOMER_NO, " +
+            "            s.SHIP_ADDR_NO, " +
+            "            s.CUSTOMER_PART_NO, " +
+            "            s.CUSTOMER_PO_NO, " +
+            "            TRUNC(s.DUE_DATE) AS DUE_DAY, " +
+            "            s.QTY_DUE, " +
+            "            s.MANUFACTURING_DEPARTMENT, " +
+            "            s.PATTERN_DESCRIPTION, " +
+            "            ROW_NUMBER() OVER ( " +
+            "                PARTITION BY s.CUSTOMER_NO, s.SHIP_ADDR_NO, " +
+            "                             s.CUSTOMER_PART_NO, s.CUSTOMER_PO_NO, " +
+            "                             TRUNC(s.DUE_DATE), s.QTY_DUE " +
+            "                ORDER BY s.DOC_NO DESC) AS RN " +
+            "        FROM CUST_SCHED_LINE_TAB s " +
+            "        WHERE s.MANUFACTURING_DEPARTMENT IS NOT NULL " +
+            $"         AND s.CUSTOMER_NO = '{EscapeOracle(customerNo)}' " +
+            "    ) x " +
+            "    WHERE x.RN = 1 " +
+            ") csl " +
 
-                "    TO_CHAR(" +
-                "        col.WANTED_DELIVERY_DATE," +
-                "        'HH24') AS GIOGIAO, " +
+            "ON  csl.CUSTOMER_NO      = col.CUSTOMER_NO " +
+            "AND csl.SHIP_ADDR_NO     = col.SHIP_ADDR_NO " +
+            "AND csl.CUSTOMER_PART_NO = col.CUSTOMER_PART_NO " +
+            "AND csl.CUSTOMER_PO_NO   = col.CUSTOMER_PO_NO " +
+            "AND csl.DUE_DAY          = TRUNC(col.WANTED_DELIVERY_DATE) " +
+            "AND csl.QTY_DUE          = col.BUY_QTY_DUE " +
 
-                "    col.BUY_QTY_DUE AS SOLUONG, " +
-
-                "    col.CUSTOMER_PART_UNIT_MEAS AS DV, " +
-
-                "    col.SHIP_ADDR_NO AS ADDNM, " +
-
-                "    col.SUB_DOCK_CODE AS CUA, " +
-
-                "    col.CUSTOMER_PART_NO AS MAHANG, " +
-
-                "    col.CATALOG_DESC AS TENHANG, " +
-
-                "    col.CUSTOMER_PO_REL_NO, " +
-
-                "    col.DOCK_CODE AS TRUYEN, " +
-
-                "    col.ORDER_NO, " +
-
-                "    col.CATALOG_NO, " +
-
-                "    TO_CHAR(" +
-                "        col.WANTED_DELIVERY_DATE," +
-                "        'YYYY-MM-DD') AS NGAYGIAO, " +
-
-                "    col.CUSTOMER_PO_NO, " +
-
-                "    '' AS HOP, " +
-                "    '' AS LOT, " +
-                "    '' AS DIA_CHI, " +
-                "    '' AS KGX, " +
-
-                "    'NG' AS STATUS, " +
-                "    'NG' AS STATUSDOC, " +
-                "    '' AS TTPHIEU, " +
-
-                $"    '{EscapeOracle(gioXuatH)}' AS GIOGIAOFCC, " +
-
-                "    col.SHIP_ADDR_NO AS SHIP_ADDR_NO, " +
-
-                $"    {nhaMayCase} AS NHAMAY, " +
-
-                "    '' AS NOTE, " +
-
-                "    csl.MANUFACTURING_DEPARTMENT AS PO_NO, " +
-
-                "    csl.PATTERN_DESCRIPTION AS PO_ITEM " +
-
-                "FROM CUSTOMER_ORDER_JOIN col " +
-
-                "LEFT JOIN " +
-                "( " +
-
-                "    SELECT " +
-                "        CUSTOMER_NO, " +
-                "        SHIP_ADDR_NO, " +
-                "        CUSTOMER_PART_NO, " +
-                "        CUSTOMER_PO_NO, " +
-
-                "        MAX(MANUFACTURING_DEPARTMENT) " +
-                "            AS MANUFACTURING_DEPARTMENT, " +
-
-                "        MAX(PATTERN_DESCRIPTION) " +
-                "            AS PATTERN_DESCRIPTION " +
-
-                "    FROM CUST_SCHED_LINE_TAB " +
-
-                "    WHERE MANUFACTURING_DEPARTMENT IS NOT NULL " +
-
-                "      AND " +
-                "      ( " +
-                "          DOC_NO, " +
-                "          CUSTOMER_NO, " +
-                "          SHIP_ADDR_NO, " +
-                "          CUSTOMER_PART_NO, " +
-                "          CUSTOMER_PO_NO " +
-                "      ) IN " +
-                "      ( " +
-
-                "          SELECT " +
-                "              MAX(s.DOC_NO), " +
-                "              s.CUSTOMER_NO, " +
-                "              s.SHIP_ADDR_NO, " +
-                "              s.CUSTOMER_PART_NO, " +
-                "              s.CUSTOMER_PO_NO " +
-
-                "          FROM CUST_SCHED_LINE_TAB s " +
-
-                "          WHERE s.MANUFACTURING_DEPARTMENT " +
-                "                IS NOT NULL " +
-
-                "          GROUP BY " +
-                "              s.CUSTOMER_NO, " +
-                "              s.SHIP_ADDR_NO, " +
-                "              s.CUSTOMER_PART_NO, " +
-                "              s.CUSTOMER_PO_NO " +
-
-                "      ) " +
-
-                "    GROUP BY " +
-                "        CUSTOMER_NO, " +
-                "        SHIP_ADDR_NO, " +
-                "        CUSTOMER_PART_NO, " +
-                "        CUSTOMER_PO_NO " +
-
-                ") csl " +
-
-                "ON  csl.CUSTOMER_NO = col.CUSTOMER_NO " +
-                "AND csl.SHIP_ADDR_NO = col.SHIP_ADDR_NO " +
-                "AND csl.CUSTOMER_PART_NO = col.CUSTOMER_PART_NO " +
-                "AND csl.CUSTOMER_PO_NO = col.CUSTOMER_PO_NO " +
-
-                $"WHERE col.CUSTOMER_NO = '{customerNo}' " +
-
-                "AND " +
-                "( " +
-                "    col.OBJSTATE = " +
-                "    ( " +
-                "        SELECT " +
-                "            CUSTOMER_ORDER_LINE_API." +
-                "            FINITE_STATE_ENCODE__('Released') " +
-                "        FROM DUAL " +
-                "    ) " +
-
-                "    OR " +
-
-                "    col.OBJSTATE = " +
-                "    ( " +
-                "        SELECT " +
-                "            CUSTOMER_ORDER_LINE_API." +
-                "            FINITE_STATE_ENCODE__('Partially Delivered') " +
-                "        FROM DUAL " +
-                "    ) " +
-                ") " +
-
-                $"AND TO_CHAR(" +
-                $"    col.WANTED_DELIVERY_DATE," +
-                $"'ddmmyyyy') = '{EscapeOracle(ngayXuat)}' ";
+            $"WHERE col.CUSTOMER_NO = '{EscapeOracle(customerNo)}' " +
+            "AND ( " +
+            "    col.OBJSTATE = (SELECT CUSTOMER_ORDER_LINE_API.FINITE_STATE_ENCODE__('Released') FROM DUAL) " +
+            "    OR " +
+            "    col.OBJSTATE = (SELECT CUSTOMER_ORDER_LINE_API.FINITE_STATE_ENCODE__('Partially Delivered') FROM DUAL) " +
+            ") " +
+            $"AND TO_CHAR(col.WANTED_DELIVERY_DATE, 'ddmmyyyy') = '{EscapeOracle(ngayXuat)}' ";
 
 
             // ============================================================
