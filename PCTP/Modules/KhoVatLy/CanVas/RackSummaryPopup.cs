@@ -155,7 +155,11 @@ using System.Windows.Forms;
                 for (int i = 0; i < _gridView.RowCount; i++)
                     _gridView.SelectRow(i);
 
+                // Nút "Copy bảng" chủ động copy cả bảng nên vẫn giữ tiêu đề cột.
+                var oldHeaders = _gridView.OptionsClipboard.CopyColumnHeaders;
+                _gridView.OptionsClipboard.CopyColumnHeaders = DevExpress.Utils.DefaultBoolean.True;
                 _gridView.CopyToClipboard(); // ← copy chuẩn TSV, dán Excel/Word đúng cột
+                _gridView.OptionsClipboard.CopyColumnHeaders = oldHeaders;
 
                 _btnCopy.Text = "✅ Đã copy!";
                 var t = new Timer { Interval = 1200 };
