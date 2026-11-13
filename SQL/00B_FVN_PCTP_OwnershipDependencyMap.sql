@@ -144,7 +144,7 @@ SELECT
         WHEN o.name IN (N'SlotLot', N'STOCKTP', N'StockHistory',
                         N'DOCQRCODE', N'DOCQRCODE_SP', N'SP_DOCQRCODE',
                         N'YMVN_DOCQRCODE', N'LUUPHIEUGIAOHANG',
-                        N'IFSPHIEUGIAOHANG', N'IFSPHIEUGIAHANG_SP')
+                        N'IFSPHIEUGIAOHANG', N'IFSPHIEUGIAOHANG_SP')
             THEN N'Legacy PCTP candidate; trace actual writers/readers and BRAVO7 dependencies'
         ELSE N'No reliable ownership evidence from object name alone'
     END AS EvidenceNote
