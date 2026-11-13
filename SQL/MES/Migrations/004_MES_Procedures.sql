@@ -42,6 +42,12 @@ BEGIN
   WHERE IdempotencyKey=@IdempotencyKey;
   IF @InventoryTransactionId IS NOT NULL
   BEGIN
+   IF EXISTS(SELECT 1 FROM MES.InventoryTransaction WHERE IdempotencyKey=@IdempotencyKey
+    AND (SiteCode<>@SiteCode OR PartNo<>@PartNo OR MaterialLotId<>@MaterialLotId
+     OR MovementType<>@MovementType OR Quantity<>@Quantity
+     OR ISNULL(FromLocationNo,N'''')<>ISNULL(@FromLocationNo,N'''')
+     OR ISNULL(ToLocationNo,N'''')<>ISNULL(@ToLocationNo,N'''')))
+    THROW 51109,''IdempotencyKey was already used with different movement data.'',1;
    COMMIT TRANSACTION;
    RETURN;
   END;
@@ -170,6 +176,8 @@ BEGIN
    THROW 51201,''BOM revision is not in an approvable state.'',1;
   IF NOT EXISTS(SELECT 1 FROM MES.BomComponent WHERE BomRevisionId=@BomRevisionId)
    THROW 51202,''Cannot approve an empty BOM.'',1;
+  IF EXISTS(SELECT 1 FROM MES.BomRevision WHERE BomRevisionId=@BomRevisionId AND SourceKind=''IFS_VERIFIED'')
+   THROW 51203,''IFS BOM activation requires the dedicated source-verification mapping gate; it is not enabled in this migration.'',1;
   UPDATE MES.BomRevision
     SET BomStatus=''APPROVED'',ApprovedAtUtc=SYSUTCDATETIME(),ApprovedBy=@ApprovedBy
     WHERE BomRevisionId=@BomRevisionId;
