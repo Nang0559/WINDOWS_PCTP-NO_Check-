@@ -89,7 +89,7 @@ The UI should be separate menu groups, but all stock mutations must pass through
 The implementation must preserve the distinction between current balance and event history.
 
 ### Master and planning
-- `MesPart`: canonical PartNo, description, UOM, active flag, IFS source key, last sync.
+- **Existing PCTP Inventory Part master (reuse; no new MES Part table):** canonical PartNo and existing description/UOM/status fields; add only missing IFS source identity and sync metadata after auditing the current schema and consumers. Natural synchronization key is Site + PartNo where the existing model is site-scoped.
 - `MesBomHeader`: parent PartNo, IFS BOM identity/revision, effective dates, sync metadata.
 - `MesBomLine`: parent BOM revision, component PartNo, quantity per, UOM, scrap/yield factor only when defined by IFS.
 - `MesPurchaseOrder` / `MesPurchaseOrderLine`: PO identity, supplier, PartNo, ordered quantity, due date, received quantity derived from receipts.
@@ -107,7 +107,7 @@ The implementation must preserve the distinction between current balance and eve
 - `MesMaterialReturn` / `MesMaterialScrap`: explicit disposition events; do not edit issue/consumption history.
 - `MesQrScanEvent`: raw QR, parsed profile/version, event purpose, resolution outcome and link to the resulting business event. A duplicate scan must be idempotent within a documented scope.
 
-The above are logical entities, not approved physical SQL names. Physical DDL is deferred until existing database schema, keys, data types, uniqueness and deployment conventions are inspected.
+The logical entities are implemented as an additive SQL Server baseline in `SQL/MES/01_MES_Quantity_Core.sql`. It deliberately does not create a duplicate Part/Warehouse/Location master and does not add foreign keys to existing PCTP masters until their exact physical keys are verified. Treat the DDL as a reviewed baseline, not production-approved deployment: run the read-only discovery script and validate against the target database before applying.
 
 ## 5. Required stock state equations
 
