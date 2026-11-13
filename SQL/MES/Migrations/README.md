@@ -19,6 +19,7 @@ Run one file at a time, in order:
 | 007 | 007_MES_IntegrityAndReservations.sql | Cross-site/BOM/PO integrity and reservation table |
 | 008 | 008_MES_ReservationAndGenealogyProcedures.sql | Reserve, consume, release and link actual consumption to finished Lot |
 | 009 | 009_MES_ValidationAndGuards.sql | PO receipt consistency trigger and ledger-vs-balance reconciliation |
+| 010 | 010_MES_SecurityRoles.sql | Least-privilege database roles and object grants |
 
 The applied versions are recorded in MES.SchemaMigration. Verify with:
 SELECT MigrationVersion,MigrationName,AppliedAtUtc,AppliedBy FROM MES.SchemaMigration ORDER BY MigrationVersion;
@@ -36,7 +37,7 @@ SELECT MigrationVersion,MigrationName,AppliedAtUtc,AppliedBy FROM MES.SchemaMigr
 
 ## Important deployment limitation
 
-These are schema migrations and core posting/query routines. They are **not yet the legacy data migration** from B7R2_FCC/PCTP. That migration must be built only after source-to-target mapping for STOCKTP, SlotLot, StockHistory, LUUPHIEUGIAOHANG, IFSPHIEUGIAOHANG and IFSPHIEUGIAHANG_SP, including the Slot/Rack/Warehouse dependency closure, is reconciled against the live source metadata and application usage.
+These are schema migrations and core posting/query routines. They are **not yet the legacy data migration** from B7R2_FCC/PCTP. That migration must be built only after source-to-target mapping for STOCKTP, SlotLot, StockHistory, LUUPHIEUGIAOHANG, IFSPHIEUGIAHANG and IFSPHIEUGIAHANG_SP, including the Slot/Rack/Warehouse dependency closure, is reconciled against the live source metadata and application usage.
 
 ## Required validation before production
 
@@ -44,11 +45,12 @@ These are schema migrations and core posting/query routines. They are **not yet 
 2. Confirm IFS9 PartNo, SiteCode, warehouse and location key semantics and maximum lengths.
 3. Confirm receipt acceptance/quarantine workflow, unit conversion, negative-stock policy, return and adjustment approval.
 4. Confirm FIFO priority (expiry-first vs manufacture-date-first) with operations.
-5. Confirm the approved Engineering BOM source. Until verified, do not promote cost bucket snapshots.
+5. Confirm the approved Engineering BOM source. Until verified, do not promote cost bucket snapshots. The approval procedure intentionally blocks SourceKind=IFS_VERIFIED pending a dedicated source-mapping gate.
 6. Run migration scripts in a clean non-production database first.
 7. Run MES.usp_ValidateInventoryBalance after test movements; it must return no rows.
 8. Test duplicate idempotency keys, simultaneous reservations, simultaneous issues, rollback, split/merge and genealogy allocation.
-9. Do not give application users direct INSERT/UPDATE/DELETE permission on inventory ledger or balance tables. Grant EXECUTE on approved procedures and SELECT on approved views/functions.
+9. Map actual database users into MES_Reader, MES_Operator and MES_BOMApprover only after role review. Migration 010 creates roles; it does not create users or logins.
+10. Do not give application users direct INSERT/UPDATE/DELETE permission on inventory ledger or balance tables. Grant EXECUTE on approved procedures and SELECT on approved views/functions.
 
 ## Known next build items
 
@@ -56,5 +58,6 @@ These are schema migrations and core posting/query routines. They are **not yet 
 - PO receipt posting procedure with over-receipt and duplicate-document policy.
 - Production order create/release procedure validating approved BOM, effective dates, site and product.
 - Finished Lot receipt procedure and QR/document binding.
+- IFS synchronization upsert procedures and source-watermark policy.
 - Data migration scripts with source/target counts, rejected-row staging, reconciliation and restart checkpoints.
-- Security roles, grants, audit trail and deployment smoke tests.
+- Deployment smoke tests, concurrency tests and rollback rehearsal.
