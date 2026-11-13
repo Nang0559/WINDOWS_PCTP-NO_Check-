@@ -59,7 +59,7 @@ BEGIN
         SyncBatchId       bigint NULL,
         IsCurrent         bit NOT NULL CONSTRAINT DF_MES_BomHeader_Current DEFAULT(1),
         CreatedAt         datetime2(3) NOT NULL CONSTRAINT DF_MES_BomHeader_Created DEFAULT(SYSUTCDATETIME()),
-        CONSTRAINT FK_MES_BomHeader_Sync FOREIGN KEY (SyncBatchId) REFERENCES MES.IfsSyncBatch(SyncBatchId),
+        CONSTRAINT FK_MES_BomHeader_Sync FOREIGN KEY (SyncBatchId) REFERENCES MES.IfsSyncBatch(SyncBatchId)
     );
     CREATE INDEX IX_MES_BomHeader_Resolve ON MES.BomHeader(SiteCode, ParentPartNo, StructureType, BomStatus, EffectiveFrom, EffectiveTo);
 END;
