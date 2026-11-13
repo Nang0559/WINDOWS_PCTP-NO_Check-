@@ -74,3 +74,52 @@ The above placement column is a design review, not a final migration instruction
 ## 6. Safety boundary
 
 This review is documentation only. It does not rename, copy, delete, or modify any database object or data, and it does not change application connection strings.
+
+
+## 7. SQL evidence collection (run this now)
+
+Run `SQL/00C_ApplicationUsageOwnershipEvidence.sql` in SSMS while connected to
+`B7R2_FCC`. The script checks the database name and stops if the connection is
+pointing elsewhere. It is read-only and is compatible with SQL Server 2012+
+syntax; it does not use `STRING_AGG`.
+
+Export each result set in order to `SQL/00C_result/`:
+
+| Result | Suggested file name | Content |
+|---|---|---|
+| 00 manifest + target list | `00C_00_RunManifest.csv` and `00C_00_TargetList.csv` | Source snapshot identity and six target tables |
+| 01 | `00C_01_TargetTables.csv` | Existence, approximate row counts and table properties |
+| 02 | `00C_02_TargetColumns.csv` | Full column contract |
+| 03a | `00C_03a_TargetIndexes.csv` | Indexes, PK and unique-index details |
+| 03b | `00C_03b_TargetForeignKeys.csv` | FK relationships in either direction |
+| 04a | `00C_04a_CheckConstraints.csv` | Check constraints |
+| 04b | `00C_04b_TargetTriggers.csv` | Trigger definitions attached to target tables |
+| 05 | `00C_05_ModuleReferences.csv` | SQL module text hits and full definitions |
+| 06 | `00C_06_StaticDependencies.csv` | Static dependency edges in either direction |
+| 07 | `00C_07_SqlAgentJobSteps.csv` | SQL Agent job steps that mention target names |
+| 08a | `00C_08a_Synonyms.csv` | Relevant synonyms |
+| 08b | `00C_08b_UserDefinedTypes.csv` | User-defined types/table types |
+
+If the SQL Agent result reports `UNAVAILABLE`, preserve that result and ask the
+DBA to export matching `msdb` job steps. Do not interpret an inaccessible result
+as an empty job list. If a result set is empty, export its headers or record
+explicitly that it returned zero rows. Do not combine different result sets into
+one CSV.
+
+The result folder is evidence for review only. Do not place credentials,
+connection strings, personal data, or business-row extracts in it.
+
+## 8. How 00C evidence is used
+
+The SQL output supplements, but does not replace, the application-code evidence
+in sections 1–3 and the existing 00B dependency export. In particular:
+
+- SQL text keyword flags are triage hints, not proof that a module writes a
+  target table; inspect the complete module definition and its callers.
+- Static dependencies do not discover every dynamic SQL or client-side query.
+- SQL Agent job text search is a literal-name search and may miss indirect calls.
+- The six tables are confirmed as PCTP operationally used; their final database
+  placement remains unresolved where the workflow crosses production/warehouse
+  boundaries.
+- Do not generate DDL, copy data, or change connection strings based only on
+  this evidence package.
