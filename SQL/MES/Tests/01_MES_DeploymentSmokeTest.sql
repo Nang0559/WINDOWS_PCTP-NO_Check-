@@ -25,7 +25,7 @@ INSERT @Expected(ObjectName,ObjectType) VALUES
 ('usp_GetForwardGenealogy','P'),('usp_GetBackwardGenealogy','P'),('usp_ReserveMaterial','P'),
 ('usp_ConsumeMaterialReservation','P'),('usp_ReleaseMaterialReservation','P'),
 ('usp_LinkConsumedLotToFinishedLot','P'),('usp_ValidateInventoryBalance','P'),
-('usp_ApproveBomRevision','P'),('fn_AvailableStockByPart','IF'),('fn_LotMovementTimeline','IF');
+('usp_ApproveBomRevision','P'),('usp_PostInventoryMovementBatch','P'),('fn_AvailableStockByPart','IF'),('fn_LotMovementTimeline','IF');
 SELECT e.ObjectName,e.ObjectType
 FROM @Expected e
 WHERE OBJECT_ID(N'MES.'+e.ObjectName,e.ObjectType) IS NULL
