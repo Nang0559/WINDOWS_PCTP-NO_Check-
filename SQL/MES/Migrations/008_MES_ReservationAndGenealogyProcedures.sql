@@ -24,7 +24,7 @@ BEGIN
    FROM MES.ProductionOrderMaterial WITH(HOLDLOCK)
    WHERE ProductionOrderMaterialId=@ProductionOrderMaterialId;
   IF @SiteCode IS NULL THROW 51801,''Production order material not found.'',1;
-  IF NOT EXISTS(SELECT 1 FROM MES.MaterialLot WHERE MaterialLotId=@MaterialLotId AND SiteCode=@SiteCode AND PartNo=@PartNo AND LotStatus=''AVAILABLE'')
+  IF NOT EXISTS(SELECT 1 FROM MES.MaterialLot WHERE MaterialLotId=@MaterialLotId AND SiteCode=@SiteCode AND PartNo=@PartNo AND LotStatus IN(''RECEIVED'',''AVAILABLE''))
    THROW 51802,''Lot is not available for this production component.'',1;
   UPDATE MES.InventoryBalance WITH(UPDLOCK,HOLDLOCK)
    SET ReservedQty=ReservedQty+@Quantity,UpdatedAtUtc=SYSUTCDATETIME()
