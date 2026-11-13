@@ -64,6 +64,8 @@ BEGIN
   THROW;
  END CATCH
 END');
+GRANT EXECUTE ON OBJECT::MES.usp_PostInventoryMovementBatch TO MES_Operator;
+GRANT EXECUTE, REFERENCES ON TYPE::MES.TVP_InventoryMovement TO MES_Operator;
 INSERT MES.SchemaMigration(MigrationVersion,MigrationName) VALUES('011',N'Atomic TVP inventory movement batch posting');
 COMMIT TRANSACTION;
 GO
