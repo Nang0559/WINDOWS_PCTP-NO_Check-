@@ -136,12 +136,11 @@ BEGIN
         SupplierLotNo      nvarchar(100) NOT NULL,
         InternalLotNo      nvarchar(100) NULL,
         SupplierCode       nvarchar(50) NULL,
-        SiteCode           nvarchar(30) NOT NULL,
         ManufacturedDate   date NULL,
         ExpiryDate         date NULL,
         LotStatus          nvarchar(20) NOT NULL CONSTRAINT DF_MES_Lot_Status DEFAULT(N'RECEIVED'),
         CreatedAt          datetime2(3) NOT NULL CONSTRAINT DF_MES_Lot_Created DEFAULT(SYSUTCDATETIME()),
-        CONSTRAINT UQ_MES_MaterialLot UNIQUE (SiteCode, PartNo, SupplierLotNo)
+        CONSTRAINT UQ_MES_MaterialLot UNIQUE (PartNo, SupplierLotNo)
     );
 END;
 
