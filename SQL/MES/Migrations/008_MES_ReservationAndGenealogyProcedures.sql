@@ -170,7 +170,7 @@ BEGIN
     MaterialExecutionEventId,ConsumedQty,UomCode)
    VALUES(@SiteCode,@ProductionOrderId,@FinishedLotId,@ComponentLotId,
     @MaterialExecutionEventId,@ConsumedQty,@UomCode);
-  IF EXISTS(SELECT 1 FROM MES.FinishedLotGenealogy WHERE MaterialExecutionEventId=@MaterialExecutionEventId AND ConsumedQty>@EventQty)
+  IF EXISTS(SELECT 1 FROM MES.FinishedLotGenealogy WHERE MaterialExecutionEventId=@MaterialExecutionEventId GROUP BY MaterialExecutionEventId HAVING SUM(ConsumedQty)>@EventQty)
    THROW 51834,''Total genealogy allocation exceeds the consumption event quantity.'',1;
   COMMIT;
  END TRY
