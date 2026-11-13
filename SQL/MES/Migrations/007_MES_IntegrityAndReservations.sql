@@ -60,7 +60,7 @@ IF OBJECT_ID(N'MES.MaterialReservation',N'U') IS NULL
 CREATE TABLE MES.MaterialReservation(
  MaterialReservationId bigint IDENTITY(1,1) NOT NULL CONSTRAINT PK_MES_MaterialReservation PRIMARY KEY,
  ProductionOrderMaterialId bigint NOT NULL, SiteCode nvarchar(30) NOT NULL,
- PartNo nvarchar(100) NOT NULL, MaterialLotId bigint NOT NULL, LocationNo nvarchar(100) NOT NULL,
+ PartNo nvarchar(100) NOT NULL, MaterialLotId bigint NOT NULL, LocationNo nvarchar(100) NOT NULL, StockState varchar(16) NOT NULL CONSTRAINT DF_MES_Reservation_StockState DEFAULT('AVAILABLE'),
  ReservedQty decimal(19,6) NOT NULL, ConsumedQty decimal(19,6) NOT NULL CONSTRAINT DF_MES_Reservation_Consumed DEFAULT(0),
  ReleasedQty decimal(19,6) NOT NULL CONSTRAINT DF_MES_Reservation_Released DEFAULT(0),
  Status varchar(16) NOT NULL CONSTRAINT DF_MES_Reservation_Status DEFAULT('ACTIVE'),
@@ -69,10 +69,10 @@ CREATE TABLE MES.MaterialReservation(
  CONSTRAINT UQ_MES_Reservation_Idempotency UNIQUE(IdempotencyKey),
  CONSTRAINT FK_MES_Reservation_OrderMaterial FOREIGN KEY(ProductionOrderMaterialId) REFERENCES MES.ProductionOrderMaterial(ProductionOrderMaterialId),
  CONSTRAINT FK_MES_Reservation_Lot FOREIGN KEY(SiteCode,PartNo,MaterialLotId) REFERENCES MES.MaterialLot(SiteCode,PartNo,MaterialLotId),
- CONSTRAINT FK_MES_Reservation_Balance FOREIGN KEY(SiteCode,PartNo,MaterialLotId,LocationNo,StatusBalanceKey) REFERENCES MES.InventoryBalance(SiteCode,PartNo,MaterialLotId,LocationNo,StockState),
+ CONSTRAINT FK_MES_Reservation_Balance FOREIGN KEY(SiteCode,PartNo,MaterialLotId,LocationNo,StockState) REFERENCES MES.InventoryBalance(SiteCode,PartNo,MaterialLotId,LocationNo,StockState),
  CONSTRAINT CK_MES_Reservation_Qty CHECK(ReservedQty>0 AND ConsumedQty>=0 AND ReleasedQty>=0 AND ConsumedQty+ReleasedQty<=ReservedQty),
  CONSTRAINT CK_MES_Reservation_Status CHECK(Status IN('ACTIVE','PARTIAL','CONSUMED','RELEASED','CANCELLED')),
- StatusBalanceKey AS (CONVERT(varchar(16),'AVAILABLE')) PERSISTED
+ CONSTRAINT CK_MES_Reservation_StockState CHECK(StockState='AVAILABLE')
 );
 
 INSERT MES.SchemaMigration(MigrationVersion,MigrationName) VALUES('007',N'Cross-entity integrity and material reservations');
