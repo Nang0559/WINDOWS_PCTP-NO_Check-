@@ -28,6 +28,9 @@ namespace PCTP
             // need to duplicate the same button/event wiring.
             WmsHelpOverlay.Start();
 
+            // Ctrl+C trên mọi GridView chỉ copy giá trị cell, không kèm tiêu đề cột.
+            GridViewSettings.Start();
+
             //Application.Run(new UF_TACHLOT());
             //Application.Run(new YAMAHAQRCDE_SP());
             //Application.Run(new FrmTEST());

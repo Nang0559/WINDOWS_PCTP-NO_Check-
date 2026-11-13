@@ -107,6 +107,31 @@ namespace PCTP.Workflow.Tests
             AssertTrue(state.TryConsume(2, "PART01", "PART01A-5", 5, out message), "released reservation must be reusable");
         }
 
+        private static void CompoundLotMayListNewerComponentFirst()
+        {
+            FifoSessionState state = CreateState(10);
+            string message;
+            AssertTrue(state.TryConsume(1, "PART01", "PART01B-2,PART01A-5", 7, out message), "compound LOT listed newer-first must pass when totals follow FIFO");
+            AssertTrue(state.TryConsume(2, "PART01", "PART01B-3", 3, out message), "remaining B must pass after the compound LOT");
+        }
+
+        private static void CompoundLotListedNewerFirstStillCannotSkipOlderLot()
+        {
+            FifoSessionState state = CreateState(10);
+            string message;
+            AssertTrue(!state.TryConsume(1, "PART01", "PART01B-2,PART01A-3", 5, out message), "A would keep 2 unused so B must still be rejected");
+            AssertTrue(state.TryConsume(2, "PART01", "PART01A-5", 5, out message), "A must remain untouched after rejection");
+        }
+
+        private static void ExistingScansReduceOlderLotBudget()
+        {
+            FifoSessionState state = CreateState(10);
+            string message;
+            state.ConsumeExisting(101, "PART01", "PART01A-5", 5);
+            AssertTrue(!state.TryConsume(1, "PART01", "PART01A-5", 5, out message), "A already consumed by earlier scans must not be available again");
+            AssertTrue(state.TryConsume(2, "PART01", "PART01B-5", 5, out message), "B must pass once A is consumed by earlier scans");
+        }
+
         public static int RunAll()
         {
             _passed = 0;
@@ -119,6 +144,9 @@ namespace PCTP.Workflow.Tests
             RejectedScanDoesNotConsumeStockBudget();
             RescanSameSttIsAtomic();
             ReleaseRestoresReservation();
+            CompoundLotMayListNewerComponentFirst();
+            CompoundLotListedNewerFirstStillCannotSkipOlderLot();
+            ExistingScansReduceOlderLotBudget();
             return _passed;
         }
 
