@@ -17,6 +17,8 @@ IF NOT EXISTS(SELECT 1 FROM sys.key_constraints WHERE parent_object_id=OBJECT_ID
 IF NOT EXISTS(SELECT 1 FROM sys.foreign_keys WHERE parent_object_id=OBJECT_ID(N'MES.BomComponent') AND name=N'FK_MES_BomComponent_RevisionSite')
  ALTER TABLE MES.BomComponent ADD CONSTRAINT FK_MES_BomComponent_RevisionSite
  FOREIGN KEY(BomRevisionId,SiteCode) REFERENCES MES.BomRevision(BomRevisionId,SiteCode);
+IF NOT EXISTS(SELECT 1 FROM sys.key_constraints WHERE parent_object_id=OBJECT_ID(N'MES.ProductionOrderMaterial') AND name=N'UQ_MES_OrderMaterial_IdSitePart')
+ ALTER TABLE MES.ProductionOrderMaterial ADD CONSTRAINT UQ_MES_OrderMaterial_IdSitePart UNIQUE(ProductionOrderMaterialId,SiteCode,ComponentPartNo);
 IF NOT EXISTS(SELECT 1 FROM sys.key_constraints WHERE parent_object_id=OBJECT_ID(N'MES.ProductionOrder') AND name=N'UQ_MES_ProductionOrder_IdBom')
  ALTER TABLE MES.ProductionOrder ADD CONSTRAINT UQ_MES_ProductionOrder_IdBom UNIQUE(ProductionOrderId,BomRevisionId);
 IF NOT EXISTS(SELECT 1 FROM sys.foreign_keys WHERE parent_object_id=OBJECT_ID(N'MES.ProductionOrder') AND name=N'FK_MES_ProductionOrder_BomProduct')
@@ -65,9 +67,9 @@ CREATE TABLE MES.MaterialReservation(
  ReleasedQty decimal(19,6) NOT NULL CONSTRAINT DF_MES_Reservation_Released DEFAULT(0),
  Status varchar(16) NOT NULL CONSTRAINT DF_MES_Reservation_Status DEFAULT('ACTIVE'),
  IdempotencyKey nvarchar(180) NOT NULL, CreatedAtUtc datetime2(3) NOT NULL CONSTRAINT DF_MES_Reservation_Created DEFAULT(SYSUTCDATETIME()),
- CreatedBy nvarchar(100) NOT NULL,
+ CreatedBy nvarchar(100) NOT NULL, ReleasedAtUtc datetime2(3) NULL, ReleasedBy nvarchar(100) NULL,
  CONSTRAINT UQ_MES_Reservation_Idempotency UNIQUE(IdempotencyKey),
- CONSTRAINT FK_MES_Reservation_OrderMaterial FOREIGN KEY(ProductionOrderMaterialId) REFERENCES MES.ProductionOrderMaterial(ProductionOrderMaterialId),
+ CONSTRAINT FK_MES_Reservation_OrderMaterial FOREIGN KEY(ProductionOrderMaterialId,SiteCode,PartNo) REFERENCES MES.ProductionOrderMaterial(ProductionOrderMaterialId,SiteCode,ComponentPartNo),
  CONSTRAINT FK_MES_Reservation_Lot FOREIGN KEY(SiteCode,PartNo,MaterialLotId) REFERENCES MES.MaterialLot(SiteCode,PartNo,MaterialLotId),
  CONSTRAINT FK_MES_Reservation_Balance FOREIGN KEY(SiteCode,PartNo,MaterialLotId,LocationNo,StockState) REFERENCES MES.InventoryBalance(SiteCode,PartNo,MaterialLotId,LocationNo,StockState),
  CONSTRAINT CK_MES_Reservation_Qty CHECK(ReservedQty>0 AND ConsumedQty>=0 AND ReleasedQty>=0 AND ConsumedQty+ReleasedQty<=ReservedQty),
