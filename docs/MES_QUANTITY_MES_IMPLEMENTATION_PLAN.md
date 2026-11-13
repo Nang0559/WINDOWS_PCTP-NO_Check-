@@ -40,8 +40,8 @@ Business rules:
 |---|---|---|
 | IFS access | `PCTP/Modules/GiaoHangKhach/Repositories/IFSRepository.cs`, `OrderLoading/IFS/IfsOrderLoadStrategy.cs`, `IfsOrderSource.cs` | Reuse provider/connectivity patterns only. Existing query is customer delivery order data; it does not yet prove access to Part Master or BOM. Add a dedicated read-only IFS master-data adapter after confirming IFS views/API and key columns. |
 | QR parsing | `PCTP/Shared/Helpers/QRCodeParser.cs`, `QRCodeBuilder.cs`, `QRCodeWorkflowAdapter.cs`, `Modules/GiaoHangKhach/Services/DocQRScanEngine.cs` | Reuse parser infrastructure where QR contracts match. Add explicit raw-material label profiles; do not assume finished-goods/customer QR has the same payload. |
-| Slot/LOT inventory | `Modules/KhoCore`, `Modules/KhoVatLy`, `StockSlotRepository`, `BulkStockSlotRepository` | Reuse location/slot concepts and proven movement guards only after auditing whether current slot tables can distinguish raw material from finished goods. Do not mix raw-material quantities into STOCKTP. |
-| Central stock movement | `IStockMovementService`, `StockMovementService`, `StockMovementRequest` | Existing central boundary is useful, but `Reserve()` currently returns “not implemented”. It is not yet a complete reservation ledger. Extend with explicit raw-material commands and transaction/idempotency rules; do not pretend Reserve is functional. |
+| Warehouse / Location / Slot | `Modules/KhoCore`, `Modules/KhoVatLy`, `WarehouseRepository`, `SlotRepository`, `RackRepository`, `SlotLocation` | Reuse the existing warehouse/location definitions. User confirms `Part`, `WIP`, and `FG` are already defined. Do not create duplicate masters; map existing codes/IDs in Phase 0. |
+| Inventory Part | Existing Inventory Part definition and active item lookup through `B20Item` | Reuse the existing Inventory Part catalog and synchronize it from IFS; do not create a parallel `MesPart` catalog unless schema audit proves the existing definition cannot support the required fields. |\n| Central stock movement | `IStockMovementService`, `StockMovementService`, `StockMovementRequest` | Existing central boundary is useful, but `Reserve()` currently returns “not implemented”. It is not yet a complete reservation ledger. Extend with explicit raw-material commands and transaction/idempotency rules; do not pretend Reserve is functional. |
 | Finished-goods receipt | `Modules/NhapKho/Services/NhapTpReceivingService.cs`, `INhapTpReceivingService.cs`, `SQL/PCTP_vNhapTP.sql` | Reuse for finished goods only. Service comment and view logic show this is the existing FG/Slot receipt flow, not raw-material receiving. Keep it as the downstream FG receipt boundary. |
 | LOT history / traceability | `Modules/BaoCao/Infrastructure/Repositories/ProductionLotTraceRepository.cs`, `LotTraceTimelineBuilder.cs`, `FormBaoCaoTraceability.cs` | Reuse the read-only timeline and delivery/stock evidence composition. Current production query reads STOCKTP production facts; it does not establish component issue/consumption genealogy. Add material genealogy as a new evidence source only after source keys are verified. |
 | Existing genealogy design | `docs/MES_PRODUCT_GENEALOGY_TRACEABILITY_DESIGN.md` | Keep as the product genealogy read-model design. It explicitly marks source joins and quantity semantics as TBD; do not bypass its verification gates. |
@@ -49,7 +49,7 @@ Business rules:
 
 ### 2.2 Confirmed gaps
 
-1. No dedicated raw-material domain/module for PO receipt, supplier LOT inventory, material reservation, WIP issue, actual consumption, return and scrap was found in the current project tree.
+1. No complete MES workflow was found for PO receipt, supplier LOT receiving, material reservation, WIP issue, actual consumption, return and scrap. This is a workflow gap, not a reason to recreate existing Warehouse/Location or Inventory Part masters.
 2. The current `NhapTpReceivingService` is specifically for finished goods.
 3. The current `vNhapTP` view is built around `B30AccDoc` finished-goods receipt fields and `STOCKTP`; it is not a raw-material receiving model.
 4. Existing `StockMovementService.Reserve()` is a stub and returns a failure result.
@@ -57,11 +57,21 @@ Business rules:
 6. Current production LOT timeline reads finished-goods `STOCKTP` fields. It cannot prove which component LOTs were issued or consumed.
 7. The repository targets .NET Framework 4.7.2 / WinForms / DevExpress 25.2 in `PCTP/PCTP.csproj`; new runtime code must follow this compatibility target. Unit tests target .NET 8 and can link/source-test compatible domain logic.
 
+## 2.3 Reuse existing Inventory Part and warehouse/location definitions
+
+The user confirms that the current inventory feature already defines the warehouse/location categories `Part`, `WIP`, and `FG`, and already has an Inventory Part definition. This changes the implementation decision:
+
+- Reuse the existing Warehouse, Location, Rack/Slot and Inventory Part masters. Do not create duplicate MES warehouse/location or Part master tables.
+- Synchronize the existing Inventory Part catalog from IFS. PartNo remains the common key; synchronize description, UOM, active/status, IFS source identity and change metadata as supported by the existing schema.
+- Use the existing location categories: `Part` for raw-material warehouse stock, `WIP` for quantities issued to production, and `FG` for finished goods. Phase 0 must map actual database codes/IDs, not assume display labels are keys.
+- Add only MES transaction capabilities that are missing: PO upload, material receipt/LOT events, BOM snapshots, production plan/order, reservation, issue, consumption, return, scrap and genealogy.
+- If Inventory Part needs additional IFS sync fields, extend its existing schema only after checking current consumers and migration/deployment conventions.
+
 ## 3. Target module boundaries
 
-Create a separate `PCTP/Modules/Mes` feature area (or equivalent naming aligned with repository conventions) with these subdomains:
+Create a separate `PCTP/Modules/Mes` feature area (or equivalent naming aligned with repository conventions) with these subdomains. It must consume the existing Inventory Part and Warehouse/Location masters rather than creating duplicates:
 
-- **MasterData:** synchronized Part Master, UOM, BOM header/detail, source revision and sync history.
+- **MasterData:** synchronize the existing Inventory Part catalog from IFS; add BOM header/detail snapshots, source revision and sync history. Do not create a duplicate Part master.
 - **Purchasing:** uploaded PO header/lines and import batch/error rows. Quantity only.
 - **MaterialReceiving:** receipt document/lines, QR scan records, supplier LOT identity, inspection/hold status.
 - **MaterialInventory:** warehouse/location/LOT balances and immutable inventory movements.
