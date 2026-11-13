@@ -78,6 +78,7 @@ ORDER BY TableName;
 -------------------------------------------------------------------------------
 SELECT
     DB_NAME() AS SourceDatabase,
+    x.TableName AS RequestedTableName,
     s.name AS SchemaName,
     t.name AS TableName,
     t.object_id AS ObjectId,
@@ -92,7 +93,7 @@ FROM @Targets AS x
 LEFT JOIN sys.tables AS t ON t.name = x.TableName
 LEFT JOIN sys.schemas AS s ON s.schema_id = t.schema_id
 LEFT JOIN sys.partitions AS p ON p.object_id = t.object_id
-GROUP BY s.name, t.name, t.object_id, t.create_date, t.modify_date,
+GROUP BY x.TableName, s.name, t.name, t.object_id, t.create_date, t.modify_date,
          t.temporal_type_desc, t.is_memory_optimized, t.is_tracked_by_cdc
 ORDER BY x.TableName, s.name;
 
