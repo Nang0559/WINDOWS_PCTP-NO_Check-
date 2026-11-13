@@ -55,8 +55,9 @@ END');
 
 IF OBJECT_ID(N'MES.usp_ConsumeMaterialReservation',N'P') IS NULL EXEC(N'CREATE PROCEDURE MES.usp_ConsumeMaterialReservation
  @MaterialReservationId bigint,@Quantity decimal(19,6),@EventAtUtc datetime2(3),
- @OperatorCode nvarchar(100),@IdempotencyKey nvarchar(180),@QrRawValue nvarchar(1000)=NULL,
- @InventoryTransactionId bigint OUTPUT,@MaterialExecutionEventId bigint OUTPUT
+ @OperatorCode nvarchar(100),@IdempotencyKey nvarchar(180),
+ @InventoryTransactionId bigint OUTPUT,@MaterialExecutionEventId bigint OUTPUT,
+ @QrRawValue nvarchar(1000)=NULL
 AS
 BEGIN
  SET NOCOUNT ON; SET XACT_ABORT ON;
