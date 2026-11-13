@@ -3,7 +3,7 @@ B7R2_FCC,dbo,B00BackupLog,USER_TABLE,101,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,P
 B7R2_FCC,dbo,B00Cache,USER_TABLE,25,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
 B7R2_FCC,dbo,B00ColumnGroup,USER_TABLE,5,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
 B7R2_FCC,dbo,B00Command,USER_TABLE,1410,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
-B7R2_FCC,dbo,B00CommandLog,USER_TABLE,57618,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
+B7R2_FCC,dbo,B00CommandLog,USER_TABLE,57626,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
 B7R2_FCC,dbo,B00Config,USER_TABLE,71,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
 B7R2_FCC,dbo,B00CtTmp,USER_TABLE,0,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
 B7R2_FCC,dbo,B00Dependency,USER_TABLE,1,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
@@ -14,7 +14,7 @@ B7R2_FCC,dbo,B00DmFile,USER_TABLE,454,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PEND
 B7R2_FCC,dbo,B00DmFileLog,USER_TABLE,320,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
 B7R2_FCC,dbo,B00DmStt,USER_TABLE,10,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
 B7R2_FCC,dbo,B00DocStatus,USER_TABLE,7,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
-B7R2_FCC,dbo,B00EventLog,USER_TABLE,3020738,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
+B7R2_FCC,dbo,B00EventLog,USER_TABLE,3022101,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
 B7R2_FCC,dbo,B00EventLog2,USER_TABLE,0,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
 B7R2_FCC,dbo,B00FileUpdate,USER_TABLE,0,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
 B7R2_FCC,dbo,B00HrmEmailProfile,USER_TABLE,6,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
@@ -229,7 +229,7 @@ B7R2_FCC,dbo,B20HrmTaxIncomePara,USER_TABLE,9,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_
 B7R2_FCC,dbo,B20HrmTimesheetType,USER_TABLE,10,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
 B7R2_FCC,dbo,B20HrmVacation,USER_TABLE,5,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
 B7R2_FCC,dbo,B20ImageStore,USER_TABLE,38,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
-B7R2_FCC,dbo,B20Item,USER_TABLE,3451,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
+B7R2_FCC,dbo,B20Item,USER_TABLE,3453,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
 B7R2_FCC,dbo,B20ItemBarcode,USER_TABLE,0,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
 B7R2_FCC,dbo,B20ItemCatg,USER_TABLE,1,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
 B7R2_FCC,dbo,B20ItemClass,USER_TABLE,0,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
@@ -237,12 +237,12 @@ B7R2_FCC,dbo,B20ItemClassDetail,USER_TABLE,0,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_F
 B7R2_FCC,dbo,B20ItemDiscount,USER_TABLE,0,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
 B7R2_FCC,dbo,B20ItemGroup,USER_TABLE,6,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
 B7R2_FCC,dbo,B20ItemGroupDiscount,USER_TABLE,0,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
-B7R2_FCC,dbo,B20ItemLot,USER_TABLE,283648,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
+B7R2_FCC,dbo,B20ItemLot,USER_TABLE,283677,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
 B7R2_FCC,dbo,B20ItemLotDetail,USER_TABLE,0,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
 B7R2_FCC,dbo,B20ItemNorm,USER_TABLE,0,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
 B7R2_FCC,dbo,B20ItemPrice,USER_TABLE,0,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
 B7R2_FCC,dbo,B20ItemPriceDealer,USER_TABLE,0,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
-B7R2_FCC,dbo,B20ItemQuyCach,USER_TABLE,1206,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
+B7R2_FCC,dbo,B20ItemQuyCach,USER_TABLE,1208,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
 B7R2_FCC,dbo,B20ItemsSetDef,USER_TABLE,0,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
 B7R2_FCC,dbo,B20Lines,USER_TABLE,48,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
 B7R2_FCC,dbo,B20ListPhoneErrors,USER_TABLE,0,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
@@ -279,14 +279,14 @@ B7R2_FCC,dbo,B20ZAllocation2,USER_TABLE,5,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,
 B7R2_FCC,dbo,B20ZAllocation3,USER_TABLE,6,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
 B7R2_FCC,dbo,B20ZAllocation4,USER_TABLE,28,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
 B7R2_FCC,dbo,B20ZAllocationC,USER_TABLE,13,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
-B7R2_FCC,dbo,B30AccDoc,USER_TABLE,100753,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
+B7R2_FCC,dbo,B30AccDoc,USER_TABLE,100767,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
 B7R2_FCC,dbo,B30AccDocApplyDiscount,USER_TABLE,0,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
 B7R2_FCC,dbo,B30AccDocApplyPrepayment,USER_TABLE,0,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
 B7R2_FCC,dbo,B30AccDocAtchDoc,USER_TABLE,0,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
 B7R2_FCC,dbo,B30AccDocAtchEntry,USER_TABLE,0,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
 B7R2_FCC,dbo,B30AccDocCashPayment,USER_TABLE,0,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
 B7R2_FCC,dbo,B30AccDocCashReceipt,USER_TABLE,0,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
-B7R2_FCC,dbo,B30AccDocInventory,USER_TABLE,349538,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
+B7R2_FCC,dbo,B30AccDocInventory,USER_TABLE,349596,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
 B7R2_FCC,dbo,B30AccDocInventoryDetail,USER_TABLE,0,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
 B7R2_FCC,dbo,B30AccDocInventoryPhys,USER_TABLE,0,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
 B7R2_FCC,dbo,B30AccDocJournalEntry,USER_TABLE,0,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
@@ -304,9 +304,9 @@ B7R2_FCC,dbo,B30AccDocSalesReturn,USER_TABLE,0,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2
 B7R2_FCC,dbo,B30AccDocSetDetail,USER_TABLE,0,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
 B7R2_FCC,dbo,B30AccDocThongKe,USER_TABLE,13,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
 B7R2_FCC,dbo,B30AssetDoc,USER_TABLE,3,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
-B7R2_FCC,dbo,B30BizDoc,USER_TABLE,7809,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
+B7R2_FCC,dbo,B30BizDoc,USER_TABLE,7813,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
 B7R2_FCC,dbo,B30BizDocBOM,USER_TABLE,0,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
-B7R2_FCC,dbo,B30BizDocDetail,USER_TABLE,101430,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
+B7R2_FCC,dbo,B30BizDocDetail,USER_TABLE,101440,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
 B7R2_FCC,dbo,B30BizDocDetail_Web,USER_TABLE,0,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
 B7R2_FCC,dbo,B30BizDocInterestRate,USER_TABLE,0,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
 B7R2_FCC,dbo,B30BizDocItemDiscount,USER_TABLE,0,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
@@ -319,10 +319,10 @@ B7R2_FCC,dbo,B30BizDocPayment,USER_TABLE,0,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC
 B7R2_FCC,dbo,B30BizDocPriceTable,USER_TABLE,0,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
 B7R2_FCC,dbo,B30BizDocPriceTableDealer,USER_TABLE,0,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
 B7R2_FCC,dbo,B30BizDocReturn,USER_TABLE,3389,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
-B7R2_FCC,dbo,B30BizDocReturnDetail,USER_TABLE,73487,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
+B7R2_FCC,dbo,B30BizDocReturnDetail,USER_TABLE,73520,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
 B7R2_FCC,dbo,B30BizDocSaleDiscount,USER_TABLE,0,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
 B7R2_FCC,dbo,B30BizDocSalesman,USER_TABLE,0,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
-B7R2_FCC,dbo,B30BizDocTemLot,USER_TABLE,1869442,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
+B7R2_FCC,dbo,B30BizDocTemLot,USER_TABLE,1869586,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
 B7R2_FCC,dbo,B30BizDocTradeDiscount,USER_TABLE,0,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
 B7R2_FCC,dbo,B30BizDocTransDiscount,USER_TABLE,0,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
 B7R2_FCC,dbo,B30Budget,USER_TABLE,4901,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
@@ -331,16 +331,16 @@ B7R2_FCC,dbo,B30CashInventory,USER_TABLE,0,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC
 B7R2_FCC,dbo,B30CdZ,USER_TABLE,0,0,0,2,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
 B7R2_FCC,dbo,B30CrmCustomerProfile,USER_TABLE,0,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
 B7R2_FCC,dbo,B30CtVat,USER_TABLE,0,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
-B7R2_FCC,dbo,B30CurrentInventory,USER_TABLE,2544,0,0,4,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
+B7R2_FCC,dbo,B30CurrentInventory,USER_TABLE,2545,0,0,4,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
 B7R2_FCC,dbo,B30CurrentInventoryPhys,USER_TABLE,0,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
 B7R2_FCC,dbo,B30DocProcess,USER_TABLE,0,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
 B7R2_FCC,dbo,B30Export,USER_TABLE,13200,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
 B7R2_FCC,dbo,B30ExportDetail,USER_TABLE,47463,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
-B7R2_FCC,dbo,B30ExportPD,USER_TABLE,20091,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
-B7R2_FCC,dbo,B30ExportPDCompensation,USER_TABLE,183,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
-B7R2_FCC,dbo,B30ExportPDDetail,USER_TABLE,196719,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
+B7R2_FCC,dbo,B30ExportPD,USER_TABLE,20109,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
+B7R2_FCC,dbo,B30ExportPDCompensation,USER_TABLE,184,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
+B7R2_FCC,dbo,B30ExportPDDetail,USER_TABLE,196879,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
 B7R2_FCC,dbo,B30ExportPDLine,USER_TABLE,3,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
-B7R2_FCC,dbo,B30GeneralLedger,USER_TABLE,697598,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
+B7R2_FCC,dbo,B30GeneralLedger,USER_TABLE,697714,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
 B7R2_FCC,dbo,B30HistoryTrans,USER_TABLE,0,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
 B7R2_FCC,dbo,B30HrmAppointed,USER_TABLE,6,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
 B7R2_FCC,dbo,B30HrmAssignShift,USER_TABLE,0,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
@@ -395,8 +395,8 @@ B7R2_FCC,dbo,B30OpenInventory,USER_TABLE,0,0,0,4,BRAVO7_OWNED_CANDIDATE,B7R2_FCC
 B7R2_FCC,dbo,B30OpenInventoryPhys,USER_TABLE,0,0,0,4,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
 B7R2_FCC,dbo,B30OpenItemLot,USER_TABLE,5540,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
 B7R2_FCC,dbo,B30OpenOutsideAccount,USER_TABLE,0,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
-B7R2_FCC,dbo,B30PDRequest,USER_TABLE,22182,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
-B7R2_FCC,dbo,B30PDRequestDetail,USER_TABLE,147431,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
+B7R2_FCC,dbo,B30PDRequest,USER_TABLE,22200,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
+B7R2_FCC,dbo,B30PDRequestDetail,USER_TABLE,147489,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
 B7R2_FCC,dbo,B30PDRequestLine,USER_TABLE,14,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
 B7R2_FCC,dbo,B30PhysicalInventory,USER_TABLE,0,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
 B7R2_FCC,dbo,B30PhysicalInventory0,USER_TABLE,0,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
@@ -410,12 +410,12 @@ B7R2_FCC,dbo,B30PosDocStampLabel,USER_TABLE,0,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_
 B7R2_FCC,dbo,B30PosDocStampLabelDetail,USER_TABLE,0,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
 B7R2_FCC,dbo,B30Prepayment,USER_TABLE,0,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
 B7R2_FCC,dbo,B30RecurringEntry,USER_TABLE,0,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
-B7R2_FCC,dbo,B30SplitTemLot,USER_TABLE,91133,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
-B7R2_FCC,dbo,B30SplitTemLotDetail,USER_TABLE,225740,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
-B7R2_FCC,dbo,B30StockLedger,USER_TABLE,449109,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
+B7R2_FCC,dbo,B30SplitTemLot,USER_TABLE,91169,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
+B7R2_FCC,dbo,B30SplitTemLotDetail,USER_TABLE,225822,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
+B7R2_FCC,dbo,B30StockLedger,USER_TABLE,449181,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
 B7R2_FCC,dbo,B30StockLedgerPhys,USER_TABLE,0,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
 B7R2_FCC,dbo,B30Task,USER_TABLE,4,0,0,2,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
-B7R2_FCC,dbo,B30TemCounter,USER_TABLE,96077,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
+B7R2_FCC,dbo,B30TemCounter,USER_TABLE,96102,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
 B7R2_FCC,dbo,B30ZDetail,USER_TABLE,0,0,0,2,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
 B7R2_FCC,dbo,B30ZExpense,USER_TABLE,0,0,0,2,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
 B7R2_FCC,dbo,B30ZUnfinishedProduct,USER_TABLE,0,0,0,0,BRAVO7_OWNED_CANDIDATE,B7R2_FCC,PENDING_REVIEW,BRAVO7 naming convention; confirm application write ownership
@@ -450,14 +450,14 @@ B7R2_FCC,dbo,DOCQRCODETMPTEST,USER_TABLE,1,0,0,0,DERIVED_OR_TEST_CANDIDATE,UNDEC
 B7R2_FCC,dbo,test,USER_TABLE,19,0,0,0,DERIVED_OR_TEST_CANDIDATE,UNDECIDED,PENDING_REVIEW,"Temporary/test-like name; verify retention, replay and runtime use"
 B7R2_FCC,dbo,test1,USER_TABLE,0,0,0,0,DERIVED_OR_TEST_CANDIDATE,UNDECIDED,PENDING_REVIEW,"Temporary/test-like name; verify retention, replay and runtime use"
 B7R2_FCC,dbo,TMPCHOGIAO,USER_TABLE,0,0,0,0,DERIVED_OR_TEST_CANDIDATE,UNDECIDED,PENDING_REVIEW,"Temporary/test-like name; verify retention, replay and runtime use"
-B7R2_FCC,dbo,TMPLOTGHEP,USER_TABLE,3,0,0,0,DERIVED_OR_TEST_CANDIDATE,UNDECIDED,PENDING_REVIEW,"Temporary/test-like name; verify retention, replay and runtime use"
+B7R2_FCC,dbo,TMPLOTGHEP,USER_TABLE,4,0,0,0,DERIVED_OR_TEST_CANDIDATE,UNDECIDED,PENDING_REVIEW,"Temporary/test-like name; verify retention, replay and runtime use"
 B7R2_FCC,dbo,TMPLOTGHEPTEST,USER_TABLE,4,0,0,0,DERIVED_OR_TEST_CANDIDATE,UNDECIDED,PENDING_REVIEW,"Temporary/test-like name; verify retention, replay and runtime use"
 B7R2_FCC,dbo,TMPLOTGIAOHANG,USER_TABLE,0,0,0,0,DERIVED_OR_TEST_CANDIDATE,UNDECIDED,PENDING_REVIEW,"Temporary/test-like name; verify retention, replay and runtime use"
 B7R2_FCC,dbo,TMPLOTTACH,USER_TABLE,2,0,0,0,DERIVED_OR_TEST_CANDIDATE,UNDECIDED,PENDING_REVIEW,"Temporary/test-like name; verify retention, replay and runtime use"
-B7R2_FCC,dbo,TMPPHIEUGIAOHANG,USER_TABLE,7,0,0,0,DERIVED_OR_TEST_CANDIDATE,UNDECIDED,PENDING_REVIEW,"Temporary/test-like name; verify retention, replay and runtime use"
-B7R2_FCC,dbo,TMPPHIEUGIAOHANG_100002,USER_TABLE,0,0,0,0,DERIVED_OR_TEST_CANDIDATE,UNDECIDED,PENDING_REVIEW,"Temporary/test-like name; verify retention, replay and runtime use"
+B7R2_FCC,dbo,TMPPHIEUGIAOHANG,USER_TABLE,13,0,0,0,DERIVED_OR_TEST_CANDIDATE,UNDECIDED,PENDING_REVIEW,"Temporary/test-like name; verify retention, replay and runtime use"
+B7R2_FCC,dbo,TMPPHIEUGIAOHANG_100002,USER_TABLE,4,0,0,0,DERIVED_OR_TEST_CANDIDATE,UNDECIDED,PENDING_REVIEW,"Temporary/test-like name; verify retention, replay and runtime use"
 B7R2_FCC,dbo,TMPPHIEUGIAOHANG_100003,USER_TABLE,2,0,0,0,DERIVED_OR_TEST_CANDIDATE,UNDECIDED,PENDING_REVIEW,"Temporary/test-like name; verify retention, replay and runtime use"
-B7R2_FCC,dbo,TMPPHIEUGIAOHANG_PHONG,USER_TABLE,1,0,0,0,DERIVED_OR_TEST_CANDIDATE,UNDECIDED,PENDING_REVIEW,"Temporary/test-like name; verify retention, replay and runtime use"
+B7R2_FCC,dbo,TMPPHIEUGIAOHANG_PHONG,USER_TABLE,2,0,0,0,DERIVED_OR_TEST_CANDIDATE,UNDECIDED,PENDING_REVIEW,"Temporary/test-like name; verify retention, replay and runtime use"
 B7R2_FCC,dbo,TMPPHIEUGIAOHANG_SP,USER_TABLE,42,0,0,0,DERIVED_OR_TEST_CANDIDATE,UNDECIDED,PENDING_REVIEW,"Temporary/test-like name; verify retention, replay and runtime use"
 B7R2_FCC,dbo,TMPPHIEUGIAOHANGDB,USER_TABLE,1,0,0,0,DERIVED_OR_TEST_CANDIDATE,UNDECIDED,PENDING_REVIEW,"Temporary/test-like name; verify retention, replay and runtime use"
 B7R2_FCC,dbo,TMPPHIEUGIAOHANGDB_IFS,USER_TABLE,1,0,0,0,DERIVED_OR_TEST_CANDIDATE,UNDECIDED,PENDING_REVIEW,"Temporary/test-like name; verify retention, replay and runtime use"
@@ -478,9 +478,9 @@ B7R2_FCC,dbo,TMPPHIEUGIAOHANGView_100003_LT_PC08,USER_TABLE,5,0,0,0,DERIVED_OR_T
 B7R2_FCC,dbo,TMPPHIEUGIAOHANGView_100003_LT_PC16,USER_TABLE,2,0,0,0,DERIVED_OR_TEST_CANDIDATE,UNDECIDED,PENDING_REVIEW,"Temporary/test-like name; verify retention, replay and runtime use"
 B7R2_FCC,dbo,TMPPHIEUGIAOHANGView_DK_PC21,USER_TABLE,88,0,0,0,DERIVED_OR_TEST_CANDIDATE,UNDECIDED,PENDING_REVIEW,"Temporary/test-like name; verify retention, replay and runtime use"
 B7R2_FCC,dbo,TMPPHIEUGIAOHANGView_DK_PC24,USER_TABLE,6,0,0,0,DERIVED_OR_TEST_CANDIDATE,UNDECIDED,PENDING_REVIEW,"Temporary/test-like name; verify retention, replay and runtime use"
-B7R2_FCC,dbo,TMPPHIEUGIAOHANGView_FCCIT,USER_TABLE,8,0,0,0,DERIVED_OR_TEST_CANDIDATE,UNDECIDED,PENDING_REVIEW,"Temporary/test-like name; verify retention, replay and runtime use"
-B7R2_FCC,dbo,TMPPHIEUGIAOHANGView_LT_IT03,USER_TABLE,17,0,0,0,DERIVED_OR_TEST_CANDIDATE,UNDECIDED,PENDING_REVIEW,"Temporary/test-like name; verify retention, replay and runtime use"
-B7R2_FCC,dbo,TMPPHIEUGIAOHANGView_LT_PC08,USER_TABLE,6,0,0,0,DERIVED_OR_TEST_CANDIDATE,UNDECIDED,PENDING_REVIEW,"Temporary/test-like name; verify retention, replay and runtime use"
+B7R2_FCC,dbo,TMPPHIEUGIAOHANGView_FCCIT,USER_TABLE,43,0,0,0,DERIVED_OR_TEST_CANDIDATE,UNDECIDED,PENDING_REVIEW,"Temporary/test-like name; verify retention, replay and runtime use"
+B7R2_FCC,dbo,TMPPHIEUGIAOHANGView_LT_IT03,USER_TABLE,1,0,0,0,DERIVED_OR_TEST_CANDIDATE,UNDECIDED,PENDING_REVIEW,"Temporary/test-like name; verify retention, replay and runtime use"
+B7R2_FCC,dbo,TMPPHIEUGIAOHANGView_LT_PC08,USER_TABLE,88,0,0,0,DERIVED_OR_TEST_CANDIDATE,UNDECIDED,PENDING_REVIEW,"Temporary/test-like name; verify retention, replay and runtime use"
 B7R2_FCC,dbo,TMPPHIEUGIAOHANGView_LT_PC16,USER_TABLE,13,0,0,0,DERIVED_OR_TEST_CANDIDATE,UNDECIDED,PENDING_REVIEW,"Temporary/test-like name; verify retention, replay and runtime use"
 B7R2_FCC,dbo,TMPPHIEUGIAOHANGView_LT_PC29,USER_TABLE,7,0,0,0,DERIVED_OR_TEST_CANDIDATE,UNDECIDED,PENDING_REVIEW,"Temporary/test-like name; verify retention, replay and runtime use"
 B7R2_FCC,dbo,TMPPHIEUNHANDB,USER_TABLE,1,0,0,0,DERIVED_OR_TEST_CANDIDATE,UNDECIDED,PENDING_REVIEW,"Temporary/test-like name; verify retention, replay and runtime use"
@@ -510,15 +510,15 @@ B7R2_FCC,dbo,F03TripActual,USER_TABLE,0,1,0,0,FVN_PLATFORM_SCOPE_REVIEW,UNDECIDE
 B7R2_FCC,dbo,F03TripRequests,USER_TABLE,0,0,1,0,FVN_PLATFORM_SCOPE_REVIEW,UNDECIDED,PENDING_REVIEW,FVN platform namespace; determine PCTP vs shared platform ownership
 B7R2_FCC,dbo,DOCQRCODE,USER_TABLE,0,0,0,0,PCTP_LEGACY_SCOPE_REVIEW,UNDECIDED,PENDING_REVIEW,Legacy PCTP candidate; trace actual writers/readers and BRAVO7 dependencies
 B7R2_FCC,dbo,DOCQRCODE_SP,USER_TABLE,0,0,0,0,PCTP_LEGACY_SCOPE_REVIEW,UNDECIDED,PENDING_REVIEW,Legacy PCTP candidate; trace actual writers/readers and BRAVO7 dependencies
-B7R2_FCC,dbo,IFSPHIEUGIAOHANG,USER_TABLE,7,0,0,0,PCTP_LEGACY_SCOPE_REVIEW,UNDECIDED,PENDING_REVIEW,Legacy PCTP candidate; trace actual writers/readers and BRAVO7 dependencies
+B7R2_FCC,dbo,IFSPHIEUGIAOHANG,USER_TABLE,13,0,0,0,PCTP_LEGACY_SCOPE_REVIEW,UNDECIDED,PENDING_REVIEW,Legacy PCTP candidate; trace actual writers/readers and BRAVO7 dependencies
 B7R2_FCC,dbo,IFSPHIEUGIAOHANG_100002,USER_TABLE,0,0,0,0,PCTP_LEGACY_SCOPE_REVIEW,UNDECIDED,PENDING_REVIEW,No reliable ownership evidence from object name alone
 B7R2_FCC,dbo,IFSPHIEUGIAOHANG_100003,USER_TABLE,0,0,0,0,PCTP_LEGACY_SCOPE_REVIEW,UNDECIDED,PENDING_REVIEW,No reliable ownership evidence from object name alone
 B7R2_FCC,dbo,IFSPHIEUGIAOHANG_SP,USER_TABLE,42,0,0,0,PCTP_LEGACY_SCOPE_REVIEW,UNDECIDED,PENDING_REVIEW,Legacy PCTP candidate; trace actual writers/readers and BRAVO7 dependencies
-B7R2_FCC,dbo,LUUPHIEUGIAOHANG,USER_TABLE,283917,0,0,0,PCTP_LEGACY_SCOPE_REVIEW,UNDECIDED,PENDING_REVIEW,Legacy PCTP candidate; trace actual writers/readers and BRAVO7 dependencies
-B7R2_FCC,dbo,SlotLot,USER_TABLE,9244,1,0,0,PCTP_LEGACY_SCOPE_REVIEW,UNDECIDED,PENDING_REVIEW,Legacy PCTP candidate; trace actual writers/readers and BRAVO7 dependencies
+B7R2_FCC,dbo,LUUPHIEUGIAOHANG,USER_TABLE,283975,0,0,0,PCTP_LEGACY_SCOPE_REVIEW,UNDECIDED,PENDING_REVIEW,Legacy PCTP candidate; trace actual writers/readers and BRAVO7 dependencies
+B7R2_FCC,dbo,SlotLot,USER_TABLE,9285,1,0,0,PCTP_LEGACY_SCOPE_REVIEW,UNDECIDED,PENDING_REVIEW,Legacy PCTP candidate; trace actual writers/readers and BRAVO7 dependencies
 B7R2_FCC,dbo,SP_DOCQRCODE,USER_TABLE,0,0,0,0,PCTP_LEGACY_SCOPE_REVIEW,UNDECIDED,PENDING_REVIEW,Legacy PCTP candidate; trace actual writers/readers and BRAVO7 dependencies
-B7R2_FCC,dbo,StockHistory,USER_TABLE,3053,0,0,0,PCTP_LEGACY_SCOPE_REVIEW,UNDECIDED,PENDING_REVIEW,Legacy PCTP candidate; trace actual writers/readers and BRAVO7 dependencies
-B7R2_FCC,dbo,STOCKTP,USER_TABLE,70940,0,0,0,PCTP_LEGACY_SCOPE_REVIEW,UNDECIDED,PENDING_REVIEW,Legacy PCTP candidate; trace actual writers/readers and BRAVO7 dependencies
+B7R2_FCC,dbo,StockHistory,USER_TABLE,3157,0,0,0,PCTP_LEGACY_SCOPE_REVIEW,UNDECIDED,PENDING_REVIEW,Legacy PCTP candidate; trace actual writers/readers and BRAVO7 dependencies
+B7R2_FCC,dbo,STOCKTP,USER_TABLE,70959,0,0,0,PCTP_LEGACY_SCOPE_REVIEW,UNDECIDED,PENDING_REVIEW,Legacy PCTP candidate; trace actual writers/readers and BRAVO7 dependencies
 B7R2_FCC,dbo,YMVN_DOCQRCODE,USER_TABLE,0,0,0,0,PCTP_LEGACY_SCOPE_REVIEW,UNDECIDED,PENDING_REVIEW,Legacy PCTP candidate; trace actual writers/readers and BRAVO7 dependencies
 B7R2_FCC,dbo,FVN_DeliveryCommandLedger,USER_TABLE,0,0,1,0,PCTP_OWNED_CANDIDATE,UNDECIDED,PENDING_REVIEW,"FVN custom prefix; inspect feature owner, callers and SQL writes"
 B7R2_FCC,dbo,FVN_DeliveryCommandQr,USER_TABLE,0,1,0,0,PCTP_OWNED_CANDIDATE,UNDECIDED,PENDING_REVIEW,"FVN custom prefix; inspect feature owner, callers and SQL writes"
@@ -529,11 +529,11 @@ B7R2_FCC,dbo,FVN_ItemFifoConfig_History,USER_TABLE,25,0,0,0,PCTP_OWNED_CANDIDATE
 B7R2_FCC,dbo,FVN_PCTPQuarantineReleaseAudit,USER_TABLE,0,0,0,0,PCTP_OWNED_CANDIDATE,UNDECIDED,PENDING_REVIEW,"FVN custom prefix; inspect feature owner, callers and SQL writes"
 B7R2_FCC,dbo,FVN_PhieuKhachTra,USER_TABLE,0,0,1,1,PCTP_OWNED_CANDIDATE,UNDECIDED,PENDING_REVIEW,"FVN custom prefix; inspect feature owner, callers and SQL writes"
 B7R2_FCC,dbo,FVN_PhieuKhachTraItem,USER_TABLE,0,1,0,0,PCTP_OWNED_CANDIDATE,UNDECIDED,PENDING_REVIEW,"FVN custom prefix; inspect feature owner, callers and SQL writes"
-B7R2_FCC,dbo,FVN_PhieuTraHang,USER_TABLE,6,0,1,0,PCTP_OWNED_CANDIDATE,UNDECIDED,PENDING_REVIEW,"FVN custom prefix; inspect feature owner, callers and SQL writes"
-B7R2_FCC,dbo,FVN_PhieuTraHangCT,USER_TABLE,6,1,0,0,PCTP_OWNED_CANDIDATE,UNDECIDED,PENDING_REVIEW,"FVN custom prefix; inspect feature owner, callers and SQL writes"
-B7R2_FCC,dbo,FVN_PhieuXuLyBatThuong,USER_TABLE,6,0,8,0,PCTP_OWNED_CANDIDATE,UNDECIDED,PENDING_REVIEW,"FVN custom prefix; inspect feature owner, callers and SQL writes"
-B7R2_FCC,dbo,FVN_PhieuXuLyBatThuongAffectedLot,USER_TABLE,6,1,0,0,PCTP_OWNED_CANDIDATE,UNDECIDED,PENDING_REVIEW,"FVN custom prefix; inspect feature owner, callers and SQL writes"
-B7R2_FCC,dbo,FVN_PhieuXuLyBatThuongQCInitial,USER_TABLE,6,1,0,0,PCTP_OWNED_CANDIDATE,UNDECIDED,PENDING_REVIEW,"FVN custom prefix; inspect feature owner, callers and SQL writes"
+B7R2_FCC,dbo,FVN_PhieuTraHang,USER_TABLE,7,0,1,0,PCTP_OWNED_CANDIDATE,UNDECIDED,PENDING_REVIEW,"FVN custom prefix; inspect feature owner, callers and SQL writes"
+B7R2_FCC,dbo,FVN_PhieuTraHangCT,USER_TABLE,7,1,0,0,PCTP_OWNED_CANDIDATE,UNDECIDED,PENDING_REVIEW,"FVN custom prefix; inspect feature owner, callers and SQL writes"
+B7R2_FCC,dbo,FVN_PhieuXuLyBatThuong,USER_TABLE,7,0,8,0,PCTP_OWNED_CANDIDATE,UNDECIDED,PENDING_REVIEW,"FVN custom prefix; inspect feature owner, callers and SQL writes"
+B7R2_FCC,dbo,FVN_PhieuXuLyBatThuongAffectedLot,USER_TABLE,7,1,0,0,PCTP_OWNED_CANDIDATE,UNDECIDED,PENDING_REVIEW,"FVN custom prefix; inspect feature owner, callers and SQL writes"
+B7R2_FCC,dbo,FVN_PhieuXuLyBatThuongQCInitial,USER_TABLE,7,1,0,0,PCTP_OWNED_CANDIDATE,UNDECIDED,PENDING_REVIEW,"FVN custom prefix; inspect feature owner, callers and SQL writes"
 B7R2_FCC,dbo,FVN_PXLB_Compensation,USER_TABLE,0,1,1,0,PCTP_OWNED_CANDIDATE,UNDECIDED,PENDING_REVIEW,"FVN custom prefix; inspect feature owner, callers and SQL writes"
 B7R2_FCC,dbo,FVN_PXLB_CompensationMovement,USER_TABLE,0,1,0,0,PCTP_OWNED_CANDIDATE,UNDECIDED,PENDING_REVIEW,"FVN custom prefix; inspect feature owner, callers and SQL writes"
 B7R2_FCC,dbo,FVN_PXLB_Disposition,USER_TABLE,0,1,0,0,PCTP_OWNED_CANDIDATE,UNDECIDED,PENDING_REVIEW,"FVN custom prefix; inspect feature owner, callers and SQL writes"
@@ -554,7 +554,7 @@ B7R2_FCC,dbo,PCTP_InternalLocation,USER_TABLE,2,0,2,0,PCTP_OWNED_CANDIDATE,FVN_P
 B7R2_FCC,dbo,PCTP_InternalReturn,USER_TABLE,0,1,0,1,PCTP_OWNED_CANDIDATE,FVN_PCTP_CANDIDATE,PENDING_REVIEW,No reliable ownership evidence from object name alone
 B7R2_FCC,dbo,PCTP_InternalStock,USER_TABLE,2,1,0,0,PCTP_OWNED_CANDIDATE,FVN_PCTP_CANDIDATE,PENDING_REVIEW,No reliable ownership evidence from object name alone
 B7R2_FCC,dbo,PCTP_InternalTransfer,USER_TABLE,2,1,1,1,PCTP_OWNED_CANDIDATE,FVN_PCTP_CANDIDATE,PENDING_REVIEW,No reliable ownership evidence from object name alone
-B7R2_FCC,dbo,PCTPStockMovementGuard,USER_TABLE,1222,0,0,4,PCTP_OWNED_CANDIDATE,FVN_PCTP_CANDIDATE,PENDING_REVIEW,No reliable ownership evidence from object name alone
+B7R2_FCC,dbo,PCTPStockMovementGuard,USER_TABLE,1268,0,0,4,PCTP_OWNED_CANDIDATE,FVN_PCTP_CANDIDATE,PENDING_REVIEW,No reliable ownership evidence from object name alone
 B7R2_FCC,dbo,Rack,USER_TABLE,5,2,1,0,SHARED_REFERENCE_CANDIDATE,UNDECIDED,PENDING_REVIEW,Warehouse/Rack/Slot FK chain; confirm source-of-truth and write owner
 B7R2_FCC,dbo,Slot,USER_TABLE,102,1,1,0,SHARED_REFERENCE_CANDIDATE,UNDECIDED,PENDING_REVIEW,Warehouse/Rack/Slot FK chain; confirm source-of-truth and write owner
 B7R2_FCC,dbo,Warehouse,USER_TABLE,3,0,2,0,SHARED_REFERENCE_CANDIDATE,UNDECIDED,PENDING_REVIEW,Warehouse/Rack/Slot FK chain; confirm source-of-truth and write owner
@@ -860,6 +860,8 @@ B7R2_FCC,dbo,sp_upgraddiagrams,SQL_STORED_PROCEDURE,NULL,0,0,2,UNCLASSIFIED_REVI
 B7R2_FCC,dbo,SqlQueryNotificationStoredProcedure-0244b73e-8c37-4d4d-8e29-b3d813da82bb,SQL_STORED_PROCEDURE,NULL,0,0,1,UNCLASSIFIED_REVIEW,UNDECIDED,PENDING_REVIEW,No reliable ownership evidence from object name alone
 B7R2_FCC,dbo,SqlQueryNotificationStoredProcedure-17ad1153-5c68-479b-b3e8-79d5ba9594a1,SQL_STORED_PROCEDURE,NULL,0,0,1,UNCLASSIFIED_REVIEW,UNDECIDED,PENDING_REVIEW,No reliable ownership evidence from object name alone
 B7R2_FCC,dbo,SqlQueryNotificationStoredProcedure-1ec71438-93c4-48ae-a8d3-5d4b3fa7eac9,SQL_STORED_PROCEDURE,NULL,0,0,1,UNCLASSIFIED_REVIEW,UNDECIDED,PENDING_REVIEW,No reliable ownership evidence from object name alone
+B7R2_FCC,dbo,SqlQueryNotificationStoredProcedure-20b43530-6665-474b-8e19-3f580b40e1bc,SQL_STORED_PROCEDURE,NULL,0,0,1,UNCLASSIFIED_REVIEW,UNDECIDED,PENDING_REVIEW,No reliable ownership evidence from object name alone
+B7R2_FCC,dbo,SqlQueryNotificationStoredProcedure-24f53762-b5af-4304-a48e-274993cc0596,SQL_STORED_PROCEDURE,NULL,0,0,1,UNCLASSIFIED_REVIEW,UNDECIDED,PENDING_REVIEW,No reliable ownership evidence from object name alone
 B7R2_FCC,dbo,SqlQueryNotificationStoredProcedure-25e9b918-027c-4225-b07d-a3620ee5d798,SQL_STORED_PROCEDURE,NULL,0,0,1,UNCLASSIFIED_REVIEW,UNDECIDED,PENDING_REVIEW,No reliable ownership evidence from object name alone
 B7R2_FCC,dbo,SqlQueryNotificationStoredProcedure-32bee31e-e85e-4599-8671-c9093e31c5c5,SQL_STORED_PROCEDURE,NULL,0,0,1,UNCLASSIFIED_REVIEW,UNDECIDED,PENDING_REVIEW,No reliable ownership evidence from object name alone
 B7R2_FCC,dbo,SqlQueryNotificationStoredProcedure-3afa1a72-7c7e-4a26-896e-959ad689a254,SQL_STORED_PROCEDURE,NULL,0,0,1,UNCLASSIFIED_REVIEW,UNDECIDED,PENDING_REVIEW,No reliable ownership evidence from object name alone
@@ -871,7 +873,7 @@ B7R2_FCC,dbo,SqlQueryNotificationStoredProcedure-7f104e9c-bbb4-4ebf-8605-371a0c8
 B7R2_FCC,dbo,SqlQueryNotificationStoredProcedure-9724a418-0498-4518-816f-3a12ad77cb3b,SQL_STORED_PROCEDURE,NULL,0,0,1,UNCLASSIFIED_REVIEW,UNDECIDED,PENDING_REVIEW,No reliable ownership evidence from object name alone
 B7R2_FCC,dbo,SqlQueryNotificationStoredProcedure-9a38c5a3-1e46-4374-a822-fc8e98bc5526,SQL_STORED_PROCEDURE,NULL,0,0,1,UNCLASSIFIED_REVIEW,UNDECIDED,PENDING_REVIEW,No reliable ownership evidence from object name alone
 B7R2_FCC,dbo,SqlQueryNotificationStoredProcedure-a62841ad-07d9-41ec-98f3-fffc8a1e87e0,SQL_STORED_PROCEDURE,NULL,0,0,1,UNCLASSIFIED_REVIEW,UNDECIDED,PENDING_REVIEW,No reliable ownership evidence from object name alone
-B7R2_FCC,dbo,SqlQueryNotificationStoredProcedure-d07475f0-cefe-4510-aa16-bdc279c868fb,SQL_STORED_PROCEDURE,NULL,0,0,1,UNCLASSIFIED_REVIEW,UNDECIDED,PENDING_REVIEW,No reliable ownership evidence from object name alone
+B7R2_FCC,dbo,SqlQueryNotificationStoredProcedure-dd6bc564-fe65-4266-b01d-17135fe016b8,SQL_STORED_PROCEDURE,NULL,0,0,1,UNCLASSIFIED_REVIEW,UNDECIDED,PENDING_REVIEW,No reliable ownership evidence from object name alone
 B7R2_FCC,dbo,SqlQueryNotificationStoredProcedure-fc4d2ce4-19f5-40d9-940a-95ed038969f6,SQL_STORED_PROCEDURE,NULL,0,0,1,UNCLASSIFIED_REVIEW,UNDECIDED,PENDING_REVIEW,No reliable ownership evidence from object name alone
 B7R2_FCC,dbo,sys_Create_Db_B7R2,SQL_STORED_PROCEDURE,NULL,0,0,0,UNCLASSIFIED_REVIEW,UNDECIDED,PENDING_REVIEW,No reliable ownership evidence from object name alone
 B7R2_FCC,dbo,Training_Detail_Report,SQL_STORED_PROCEDURE,NULL,0,0,3,UNCLASSIFIED_REVIEW,UNDECIDED,PENDING_REVIEW,No reliable ownership evidence from object name alone
@@ -2355,13 +2357,13 @@ B7R2_FCC,dbo,GHEPLOT,USER_TABLE,0,0,0,0,UNCLASSIFIED_REVIEW,UNDECIDED,PENDING_RE
 B7R2_FCC,dbo,GIAO_HANG,USER_TABLE,78661,0,0,0,UNCLASSIFIED_REVIEW,UNDECIDED,PENDING_REVIEW,No reliable ownership evidence from object name alone
 B7R2_FCC,dbo,HT_DOCQRCODE,USER_TABLE,0,0,0,0,UNCLASSIFIED_REVIEW,UNDECIDED,PENDING_REVIEW,No reliable ownership evidence from object name alone
 B7R2_FCC,dbo,IFSPHIEUGIAOHANG_100003View,USER_TABLE,0,0,0,0,UNCLASSIFIED_REVIEW,UNDECIDED,PENDING_REVIEW,No reliable ownership evidence from object name alone
-B7R2_FCC,dbo,IFSPHIEUGIAOHANG_PHONG,USER_TABLE,1,0,0,0,UNCLASSIFIED_REVIEW,UNDECIDED,PENDING_REVIEW,No reliable ownership evidence from object name alone
-B7R2_FCC,dbo,IFSPHIEUGIAOHANGView,USER_TABLE,17,0,0,0,UNCLASSIFIED_REVIEW,UNDECIDED,PENDING_REVIEW,No reliable ownership evidence from object name alone
+B7R2_FCC,dbo,IFSPHIEUGIAOHANG_PHONG,USER_TABLE,2,0,0,0,UNCLASSIFIED_REVIEW,UNDECIDED,PENDING_REVIEW,No reliable ownership evidence from object name alone
+B7R2_FCC,dbo,IFSPHIEUGIAOHANGView,USER_TABLE,43,0,0,0,UNCLASSIFIED_REVIEW,UNDECIDED,PENDING_REVIEW,No reliable ownership evidence from object name alone
 B7R2_FCC,dbo,InputDL170424,USER_TABLE,3246,0,0,0,UNCLASSIFIED_REVIEW,UNDECIDED,PENDING_REVIEW,No reliable ownership evidence from object name alone
 B7R2_FCC,dbo,InspectionConfig,USER_TABLE,2,0,0,0,UNCLASSIFIED_REVIEW,UNDECIDED,PENDING_REVIEW,No reliable ownership evidence from object name alone
-B7R2_FCC,dbo,InspectionLog,USER_TABLE,71,0,0,0,UNCLASSIFIED_REVIEW,UNDECIDED,PENDING_REVIEW,No reliable ownership evidence from object name alone
+B7R2_FCC,dbo,InspectionLog,USER_TABLE,91,0,0,0,UNCLASSIFIED_REVIEW,UNDECIDED,PENDING_REVIEW,No reliable ownership evidence from object name alone
 B7R2_FCC,dbo,ITEM_NO_QRCODE,USER_TABLE,527,0,0,0,UNCLASSIFIED_REVIEW,UNDECIDED,PENDING_REVIEW,No reliable ownership evidence from object name alone
-B7R2_FCC,dbo,LUUDOCQRCODE,USER_TABLE,4360669,0,0,0,UNCLASSIFIED_REVIEW,UNDECIDED,PENDING_REVIEW,No reliable ownership evidence from object name alone
+B7R2_FCC,dbo,LUUDOCQRCODE,USER_TABLE,4361495,0,0,0,UNCLASSIFIED_REVIEW,UNDECIDED,PENDING_REVIEW,No reliable ownership evidence from object name alone
 B7R2_FCC,dbo,NHAP_TP_HIS,USER_TABLE,215034,0,0,0,UNCLASSIFIED_REVIEW,UNDECIDED,PENDING_REVIEW,No reliable ownership evidence from object name alone
 B7R2_FCC,dbo,PCT,USER_TABLE,3234,0,0,0,UNCLASSIFIED_REVIEW,UNDECIDED,PENDING_REVIEW,No reliable ownership evidence from object name alone
 B7R2_FCC,dbo,PCTPStockLotAdjustmentHistory,USER_TABLE,154,0,0,0,UNCLASSIFIED_REVIEW,UNDECIDED,PENDING_REVIEW,No reliable ownership evidence from object name alone
@@ -2385,13 +2387,13 @@ B7R2_FCC,dbo,STOCKTPNHANTRA,USER_TABLE,4173,0,0,0,UNCLASSIFIED_REVIEW,UNDECIDED,
 B7R2_FCC,dbo,STOCKTPTRAHANG,USER_TABLE,1178,0,0,0,UNCLASSIFIED_REVIEW,UNDECIDED,PENDING_REVIEW,No reliable ownership evidence from object name alone
 B7R2_FCC,dbo,SupplierforPurchaseParts,USER_TABLE,1128,0,0,0,UNCLASSIFIED_REVIEW,UNDECIDED,PENDING_REVIEW,No reliable ownership evidence from object name alone
 B7R2_FCC,dbo,sysdiagrams,USER_TABLE,0,0,0,0,UNCLASSIFIED_REVIEW,UNDECIDED,PENDING_REVIEW,No reliable ownership evidence from object name alone
-B7R2_FCC,dbo,tbl_DocTem,USER_TABLE,2722833,0,0,0,UNCLASSIFIED_REVIEW,UNDECIDED,PENDING_REVIEW,No reliable ownership evidence from object name alone
+B7R2_FCC,dbo,tbl_DocTem,USER_TABLE,2723157,0,0,0,UNCLASSIFIED_REVIEW,UNDECIDED,PENDING_REVIEW,No reliable ownership evidence from object name alone
 B7R2_FCC,dbo,tbl_QR_ComparePart,USER_TABLE,3,0,0,0,UNCLASSIFIED_REVIEW,UNDECIDED,PENDING_REVIEW,No reliable ownership evidence from object name alone
 B7R2_FCC,dbo,tbl_QR_MAY_DOCQR,USER_TABLE,201,0,0,0,UNCLASSIFIED_REVIEW,UNDECIDED,PENDING_REVIEW,No reliable ownership evidence from object name alone
 B7R2_FCC,dbo,tbl_QRCodeUser,USER_TABLE,0,0,0,0,UNCLASSIFIED_REVIEW,UNDECIDED,PENDING_REVIEW,No reliable ownership evidence from object name alone
 B7R2_FCC,dbo,TBL_TT_MA,USER_TABLE,21,0,0,0,UNCLASSIFIED_REVIEW,UNDECIDED,PENDING_REVIEW,No reliable ownership evidence from object name alone
 B7R2_FCC,dbo,TBL_TT_MAView,USER_TABLE,0,0,0,0,UNCLASSIFIED_REVIEW,UNDECIDED,PENDING_REVIEW,No reliable ownership evidence from object name alone
-B7R2_FCC,dbo,TEM_COUNTER,USER_TABLE,51623,0,0,0,UNCLASSIFIED_REVIEW,UNDECIDED,PENDING_REVIEW,No reliable ownership evidence from object name alone
+B7R2_FCC,dbo,TEM_COUNTER,USER_TABLE,51638,0,0,0,UNCLASSIFIED_REVIEW,UNDECIDED,PENDING_REVIEW,No reliable ownership evidence from object name alone
 B7R2_FCC,dbo,TP,USER_TABLE,1833,0,0,0,UNCLASSIFIED_REVIEW,UNDECIDED,PENDING_REVIEW,No reliable ownership evidence from object name alone
 B7R2_FCC,dbo,YMVN_TMPPHIEUGIAOHANG,USER_TABLE,1,0,0,0,UNCLASSIFIED_REVIEW,UNDECIDED,PENDING_REVIEW,No reliable ownership evidence from object name alone
 B7R2_FCC,dbo,_StoredProc_DmHD,VIEW,NULL,0,0,0,UNCLASSIFIED_REVIEW,UNDECIDED,PENDING_REVIEW,No reliable ownership evidence from object name alone
