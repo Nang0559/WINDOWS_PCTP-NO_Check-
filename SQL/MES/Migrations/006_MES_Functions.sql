@@ -29,7 +29,7 @@ RETURN
  WHERE b.SiteCode=@SiteCode AND b.PartNo=@PartNo
   AND (@LocationNo IS NULL OR b.LocationNo=@LocationNo)
   AND b.StockState=''AVAILABLE'' AND b.OnHandQty>b.ReservedQty
-  AND l.LotStatus=''AVAILABLE''
+  AND l.LotStatus IN(''RECEIVED'',''AVAILABLE'')
 )');
 
 IF OBJECT_ID(N'MES.fn_LotMovementTimeline',N'IF') IS NULL EXEC(N'CREATE FUNCTION MES.fn_LotMovementTimeline
