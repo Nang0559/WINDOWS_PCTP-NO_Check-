@@ -89,9 +89,9 @@ The UI should be separate menu groups, but all stock mutations must pass through
 The implementation must preserve the distinction between current balance and event history.
 
 ### Master and planning
-- **Existing PCTP Inventory Part master (reuse; no new MES Part table):** canonical PartNo and existing description/UOM/status fields; add only missing IFS source identity and sync metadata after auditing the current schema and consumers. Natural synchronization key is Site + PartNo where the existing model is site-scoped.
-- `MesBomHeader`: parent PartNo, IFS BOM identity/revision, effective dates, sync metadata.
-- `MesBomLine`: parent BOM revision, component PartNo, quantity per, UOM, scrap/yield factor only when defined by IFS.
+- **IFS9 Part Catalog + Inventory Part:** IFS9 is the sole authority. PCTP mirrors only required attributes into `MES.IfsPartCatalog` and `MES.IfsInventoryPart`, keyed by PartNo and SiteCode + PartNo. Existing PCTP item master may remain for legacy modules, but MES must resolve parts through the IFS mirror; it is not an MES master source.
+- `MES.BomHeader`: synchronized IFS9 structure header/alternate, keyed by Site + parent PartNo + revision + structure type + alternate.
+- `MES.BomLine`: synchronized IFS9 structure line, component PartNo, quantity per, UOM and operation/consumption attributes only where IFS9 provides them.
 - `MesPurchaseOrder` / `MesPurchaseOrderLine`: PO identity, supplier, PartNo, ordered quantity, due date, received quantity derived from receipts.
 - `MesProductionPlan` / `MesProductionPlanLine`: imported plan identity, FG PartNo, planned quantity and schedule.
 - `MesProductionOrder` / `MesProductionOrderMaterial`: released order, BOM snapshot/revision, planned FG quantity and required component quantity.
@@ -107,7 +107,7 @@ The implementation must preserve the distinction between current balance and eve
 - `MesMaterialReturn` / `MesMaterialScrap`: explicit disposition events; do not edit issue/consumption history.
 - `MesQrScanEvent`: raw QR, parsed profile/version, event purpose, resolution outcome and link to the resulting business event. A duplicate scan must be idempotent within a documented scope.
 
-The logical entities are implemented as an additive SQL Server baseline in `SQL/MES/01_MES_Quantity_Core.sql`. It deliberately does not create a duplicate Part/Warehouse/Location master and does not add foreign keys to existing PCTP masters until their exact physical keys are verified. Treat the DDL as a reviewed baseline, not production-approved deployment: run the read-only discovery script and validate against the target database before applying.
+The logical entities are implemented as an additive SQL Server baseline in `SQL/MES/01_MES_Quantity_Core.sql`. `MES.Ifs*` tables are read models synchronized from IFS9 and are not manually maintained. Existing PCTP masters may remain for legacy features but are not authoritative for MES Part/BOM/Location. Treat the DDL as a reviewed baseline, not production-approved deployment: validate IFS9 source fields and target DB constraints before applying.
 
 ## 5. Required stock state equations
 
