@@ -14,11 +14,19 @@ AS
 BEGIN
  SET NOCOUNT ON; SET XACT_ABORT ON;
  IF @Quantity<=0 THROW 51800,''Reservation quantity must be positive.'',1;
+ IF NULLIF(LTRIM(RTRIM(@IdempotencyKey)),N'''') IS NULL THROW 51804,''Reservation IdempotencyKey is required.'',1;
  BEGIN TRY
   BEGIN TRANSACTION;
   SELECT @MaterialReservationId=MaterialReservationId
    FROM MES.MaterialReservation WITH(UPDLOCK,HOLDLOCK) WHERE IdempotencyKey=@IdempotencyKey;
-  IF @MaterialReservationId IS NOT NULL BEGIN COMMIT; RETURN; END;
+  IF @MaterialReservationId IS NOT NULL
+  BEGIN
+   IF EXISTS(SELECT 1 FROM MES.MaterialReservation WHERE MaterialReservationId=@MaterialReservationId
+    AND (ProductionOrderMaterialId<>@ProductionOrderMaterialId OR MaterialLotId<>@MaterialLotId
+     OR LocationNo<>@LocationNo OR ReservedQty<>@Quantity))
+    THROW 51805,''Reservation IdempotencyKey was reused with different input.'',1;
+   COMMIT; RETURN;
+  END;
   DECLARE @SiteCode nvarchar(30),@PartNo nvarchar(100);
   SELECT @SiteCode=SiteCode,@PartNo=ComponentPartNo
    FROM MES.ProductionOrderMaterial WITH(HOLDLOCK)
@@ -58,8 +66,12 @@ BEGIN
    FROM MES.InventoryTransaction WITH(UPDLOCK,HOLDLOCK) WHERE IdempotencyKey=@IdempotencyKey;
   IF @InventoryTransactionId IS NOT NULL
   BEGIN
+   IF NOT EXISTS(SELECT 1 FROM MES.InventoryTransaction WHERE InventoryTransactionId=@InventoryTransactionId
+     AND MovementType=''ISSUE'' AND Quantity=@Quantity)
+    THROW 51814,''Consumption IdempotencyKey was reused with different input.'',1;
    SELECT @MaterialExecutionEventId=MaterialExecutionEventId
-    FROM MES.MaterialExecutionEvent WHERE InventoryTransactionId=@InventoryTransactionId;
+    FROM MES.MaterialExecutionEvent WHERE InventoryTransactionId=@InventoryTransactionId AND EventType=''CONSUME'';
+   IF @MaterialExecutionEventId IS NULL THROW 51815,''Existing issue transaction has no consumption event.'',1;
    COMMIT; RETURN;
   END;
   DECLARE @ProductionOrderMaterialId bigint,@SiteCode nvarchar(30),@PartNo nvarchar(100),
