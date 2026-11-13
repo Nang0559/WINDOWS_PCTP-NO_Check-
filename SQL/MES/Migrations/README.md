@@ -20,6 +20,7 @@ Run one file at a time, in order:
 | 008 | 008_MES_ReservationAndGenealogyProcedures.sql | Reserve, consume, release and link actual consumption to finished Lot |
 | 009 | 009_MES_ValidationAndGuards.sql | PO receipt consistency trigger and ledger-vs-balance reconciliation |
 | 010 | 010_MES_SecurityRoles.sql | Least-privilege database roles and object grants |
+| 011 | 011_MES_BatchPostingProcedure.sql | Atomic TVP inventory movement batch (maximum 500 rows) |
 
 The applied versions are recorded in MES.SchemaMigration. Verify with:
 SELECT MigrationVersion,MigrationName,AppliedAtUtc,AppliedBy FROM MES.SchemaMigration ORDER BY MigrationVersion;
@@ -54,7 +55,6 @@ These are schema migrations and core posting/query routines. They are **not yet 
 
 ## Known next build items
 
-- Bulk posting procedure that consumes MES.TVP_InventoryMovement atomically with per-row result diagnostics.
 - PO receipt posting procedure with over-receipt and duplicate-document policy.
 - Production order create/release procedure validating approved BOM, effective dates, site and product.
 - Finished Lot receipt procedure and QR/document binding.
