@@ -31,7 +31,7 @@ BEGIN
  IF @MovementType IN(''MOVE'',''QUARANTINE'',''RELEASE'') AND (@FromLocationNo IS NULL OR @ToLocationNo IS NULL)
   THROW 51106,''Both source and destination locations are required.'',1;
 
- SET @FromStockState=ISNULL(@FromStockState,''AVAILABLE'');
+ SET @FromStockState=ISNULL(@FromStockState,CASE WHEN @MovementType=''RELEASE'' THEN ''QUARANTINE'' ELSE ''AVAILABLE'' END);
  SET @ToStockState=ISNULL(@ToStockState,CASE WHEN @MovementType=''QUARANTINE'' THEN ''QUARANTINE'' ELSE ''AVAILABLE'' END);
  SET @TransactionAtUtc=ISNULL(@TransactionAtUtc,SYSUTCDATETIME());
 
@@ -106,7 +106,7 @@ BEGIN
  WHERE b.SiteCode=@SiteCode AND b.PartNo=@PartNo
    AND (@LocationNo IS NULL OR b.LocationNo=@LocationNo)
    AND b.StockState=''AVAILABLE'' AND b.OnHandQty>b.ReservedQty
-   AND l.LotStatus=''AVAILABLE''
+   AND l.LotStatus IN(''RECEIVED'',''AVAILABLE'')
    AND (@IncludeExpired=1 OR l.ExpiryDate IS NULL OR l.ExpiryDate>=@AsOfDate)
  ORDER BY CASE WHEN l.ExpiryDate IS NULL THEN 1 ELSE 0 END,
           l.ExpiryDate,
