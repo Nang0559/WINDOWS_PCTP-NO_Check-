@@ -32,7 +32,7 @@ GRANT EXECUTE ON OBJECT::MES.usp_LinkConsumedLotToFinishedLot TO MES_Operator;
 GRANT EXECUTE ON OBJECT::MES.usp_GetFifoCandidates TO MES_Reader;
 GRANT EXECUTE ON OBJECT::MES.usp_GetForwardGenealogy TO MES_Reader;
 GRANT EXECUTE ON OBJECT::MES.usp_GetBackwardGenealogy TO MES_Reader;
-GRANT EXECUTE ON OBJECT::MES.usp_ValidateInventoryBalance TO MES_BOMApprover;
+GRANT EXECUTE ON OBJECT::MES.usp_ValidateInventoryBalance TO MES_Reader;
 GRANT EXECUTE ON OBJECT::MES.usp_ApproveBomRevision TO MES_BOMApprover;
 
 INSERT MES.SchemaMigration(MigrationVersion,MigrationName) VALUES('010',N'Least privilege MES database roles');
