@@ -14,6 +14,7 @@ AS
 BEGIN
  SET NOCOUNT ON; SET XACT_ABORT ON;
  IF @Quantity<=0 THROW 51800,''Reservation quantity must be positive.'',1;
+ IF NULLIF(LTRIM(RTRIM(@CreatedBy)),N'''') IS NULL THROW 51806,''CreatedBy is required.'',1;
  IF NULLIF(LTRIM(RTRIM(@IdempotencyKey)),N'''') IS NULL THROW 51804,''Reservation IdempotencyKey is required.'',1;
  BEGIN TRY
   BEGIN TRANSACTION;
@@ -125,12 +126,13 @@ BEGIN
  BEGIN TRY
   BEGIN TRANSACTION;
   DECLARE @SiteCode nvarchar(30),@PartNo nvarchar(100),@LotId bigint,@LocationNo nvarchar(100),
-   @Remaining decimal(19,6);
+   @Remaining decimal(19,6),@CurrentStatus varchar(16);
   SELECT @SiteCode=SiteCode,@PartNo=PartNo,@LotId=MaterialLotId,@LocationNo=LocationNo,
-   @Remaining=ReservedQty-ConsumedQty-ReleasedQty
+   @Remaining=ReservedQty-ConsumedQty-ReleasedQty,@CurrentStatus=Status
   FROM MES.MaterialReservation WITH(UPDLOCK,HOLDLOCK)
-  WHERE MaterialReservationId=@MaterialReservationId AND Status IN(''ACTIVE'',''PARTIAL'');
-  IF @SiteCode IS NULL THROW 51820,''Active reservation not found.'',1;
+  WHERE MaterialReservationId=@MaterialReservationId;
+  IF @CurrentStatus=''RELEASED'' BEGIN COMMIT; RETURN; END;
+  IF @SiteCode IS NULL OR @CurrentStatus NOT IN(''ACTIVE'',''PARTIAL'') THROW 51820,''Active reservation not found.'',1;
   IF @Remaining>0
   BEGIN
    UPDATE MES.InventoryBalance WITH(UPDLOCK,HOLDLOCK)
@@ -140,7 +142,7 @@ BEGIN
    IF @@ROWCOUNT<>1 THROW 51821,''Reserved balance reconciliation failed.'',1;
   END;
   UPDATE MES.MaterialReservation
-   SET ReleasedQty=ReleasedQty+@Remaining,Status=''RELEASED''
+   SET ReleasedQty=ReleasedQty+@Remaining,Status=''RELEASED'',ReleasedAtUtc=SYSUTCDATETIME(),ReleasedBy=@ReleasedBy
    WHERE MaterialReservationId=@MaterialReservationId;
   COMMIT;
  END TRY
