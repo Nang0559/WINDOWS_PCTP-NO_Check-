@@ -24,7 +24,7 @@
         application-generated SQL, external schedulers and linked servers may hide it).
       - Export every result set separately and retain the exact source snapshot date.
 
-    SQL Server compatibility: SQL Server 2012+ (no STRING_AGG).
+    SQL Server compatibility: SQL Server 2016+ (no STRING_AGG).
 */
 SET NOCOUNT ON;
 
