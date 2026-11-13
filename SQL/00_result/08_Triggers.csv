@@ -1,0 +1,43 @@
+﻿dbo,B00DmFile,CK_B00DmFile_EventLog,"([EventLog]=(0) OR left([Table_Name],(1))='B')",0,0
+dbo,B20ContactRelation,CK_B20ContactRelation_NotEmptyContactCodeAndCustomer,"(isnull([ContactCode],'')<>'' AND isnull([CustomerCode],'')<>'')",0,1
+dbo,B20CustomerClassDetail,CK_B20CustomerClassDetail_NotEmptyClassCodeAndCustomer,"(isnull([CustomerClassCode],'')<>'' AND isnull([CustomerCode],'')<>'')",0,1
+dbo,B20ItemClassDetail,CK_B20ItemClassDetail_NotEmptyClassCodeAndCustomer,"(isnull([ItemClassCode],'')<>'' AND isnull([ItemCode],'')<>'')",0,1
+dbo,B30AccDocInventory,CK_B30CtVt_SerialNo1LessThanSerialNo2,"(CONVERT([int],[SerialNo1],(0))<=CONVERT([int],[SerialNo2],(0)))",0,1
+dbo,B30BizDocDetail,CK_B30BizDocDetail_SerialNo1LessThanSerialNo2,"(CONVERT([int],[SerialNo1],(0))<=CONVERT([int],[SerialNo2],(0)))",0,1
+dbo,B30Task,CK_B30Task_CompletedPercent,([CompletedPercent]>=(0) AND [CompletedPercent]<=(1)),0,0
+dbo,F03ExecutionConfirmationEvidence,CK_F03ExecutionEvidence_ReviewStatus,([ReviewStatus]=N'NeedMoreEvidence' OR [ReviewStatus]=N'Rejected' OR [ReviewStatus]=N'Approved' OR [ReviewStatus]=N'Pending'),0,1
+dbo,F03ExecutionConfirmations,CK_F03ExecutionConfirmations_Status,([Status]=N'NeedMoreEvidence' OR [Status]=N'Rejected' OR [Status]=N'Approved' OR [Status]=N'Pending'),0,1
+dbo,F03ExecutionCorrections,CK_F03ExecutionCorrections_Status,([Status]=N'Cancelled' OR [Status]=N'Failed' OR [Status]=N'Applied' OR [Status]=N'Pending'),0,0
+dbo,F03ExecutionReconciliations,CK_F03ExecutionReconciliations_Status,([ReconciliationStatus]=N'Resolved' OR [ReconciliationStatus]=N'AwaitingConfirmation' OR [ReconciliationStatus]=N'Mismatch' OR [ReconciliationStatus]=N'Matched' OR [ReconciliationStatus]=N'None'),0,1
+dbo,F03ExecutionResolutions,CK_F03ExecutionResolutions_CalendarAction,([CalendarAction]=N'CANCEL' OR [CalendarAction]=N'REFRESH' OR [CalendarAction]=N'KEEP'),0,0
+dbo,F03ExecutionResolutions,CK_F03ExecutionResolutions_Decision,([Decision]=N'NG' OR [Decision]=N'OK'),0,0
+dbo,F03TripActual,CK_F03TripActual_DateRange,([ActualEndDate]>=[ActualStartDate]),0,0
+dbo,F03TripActual,CK_F03TripActual_Status,([Status]=N'Cancelled' OR [Status]=N'Completed' OR [Status]=N'InProgress' OR [Status]=N'Scheduled'),0,0
+dbo,F03TripRequests,CK_F03TripRequests_DateRange,([EndDate]>=[StartDate]),0,0
+dbo,FVN_DeliveryCommandLedger,CK_FVN_DeliveryCommandLedger_Qty,([TotalQuantity]>(0)),0,0
+dbo,FVN_HangChoGiaoPickDetail,CK_FVN_HangChoGiaoPickDetail_Quantity,([Quantity]>(0)),0,0
+dbo,FVN_PCTPQuarantineReleaseAudit,CK_FVN_PCTPQuarantineReleaseAudit_Quantity,([Quantity]>(0)),0,0
+dbo,FVN_PhieuXuLyBatThuong,CK_FVN_PhieuXuLyBatThuong_Nguon,([Nguon]=(2) OR [Nguon]=(1)),1,1
+dbo,FVN_PhieuXuLyBatThuong,CK_FVN_PhieuXuLyBatThuong_SoLuongLoi,([SoLuongLoi]>=(0)),1,1
+dbo,FVN_PhieuXuLyBatThuongAffectedLot,CK_FVN_PXLBTAffectedLot_NonNegative,([SoLuongAnhHuong]>=(0) AND [SoLuongDaKiemTra]>=(0) AND [SoLuongOK]>=(0) AND [SoLuongNG]>=(0) AND [SoLuongRework]>=(0) AND [SoLuongLoaiBo]>=(0)),0,0
+dbo,FVN_PhieuXuLyBatThuongQCInitial,CK_FVN_PXLB_QCInitial_OK_NG,([SoLuongDaKiemTra]=([SoLuongOK]+[SoLuongNG])),0,0
+dbo,FVN_PhieuXuLyBatThuongQCInitial,CK_FVN_PXLB_QCInitial_Qty_NonNegative,([SoLuongAnhHuong]>=(0) AND [SoLuongDaKiemTra]>=(0) AND [SoLuongOK]>=(0) AND [SoLuongNG]>=(0) AND [SoLuongRework]>=(0) AND [SoLuongLoaiBoBanDau]>=(0)),0,0
+dbo,FVN_PhieuXuLyBatThuongQCInitial,CK_FVN_PXLB_QCInitial_Rework_Disposition,([SoLuongNG]=([SoLuongRework]+[SoLuongLoaiBoBanDau])),0,0
+dbo,FVN_PXLB_Compensation,CK_FVN_PXLB_Compensation_Qty,([SoLuongYeuCau]>=(0) AND [SoLuongDaGiao]>=(0) AND [SoLuongDaGiao]<=[SoLuongYeuCau]),0,0
+dbo,FVN_PXLB_CompensationMovement,CK_FVN_PXLB_CompMove_Qty,([SoLuong]>(0)),0,0
+dbo,FVN_PXLB_Disposition,CK_FVN_PXLB_Disposition_Qty,([SoLuongLoaiBoBanDau]>=(0) AND [SoLuongNGRework]>=(0) AND [SoLuongLoaiBoCuoi]>=(0) AND [SoLuongLoaiBoCuoi]=([SoLuongLoaiBoBanDau]+[SoLuongNGRework])),0,0
+dbo,FVN_PXLB_ReworkMovement,CK_FVN_PXLB_ReworkMovement_Qty,([SoLuong]>(0)),0,0
+dbo,FVN_PXLB_ReworkMovement,CK_FVN_PXLB_ReworkMovement_Type,([MovementType]=(2) OR [MovementType]=(1)),0,0
+dbo,FVN_PXLB_ReworkPlan,CK_FVN_PXLB_ReworkPlan_Qty,([SoLuongKeHoach]>=(0) AND [SoLuongDaXuat]>=(0) AND [SoLuongDaGiao]>=(0) AND [SoLuongDaXuat]<=[SoLuongKeHoach] AND [SoLuongDaGiao]<=[SoLuongDaXuat]),0,0
+dbo,FVN_PXLB_ReworkQC,CK_FVN_PXLB_ReworkQC_Qty,([SoLuongRework]>=(0) AND [SoLuongOK]>=(0) AND [SoLuongNG]>=(0) AND [SoLuongRework]=([SoLuongOK]+[SoLuongNG])),0,0
+dbo,FVN_TraHangQTChung_Xuat,CK_FVN_Xuat_LoaiXuat,([LoaiXuat]='GiaoBuNG' OR [LoaiXuat]='Rework'),0,0
+dbo,FVN_TraHangQTChungGiao,CK_FVN_TraHangQTChungGiao_SoLuong,([SoLuongGiao]>(0)),0,0
+dbo,FVN_TraHangQTChungNhapNG,CK_FVN_TraHangQTChungNhapNG_SoLuong,([SoLuongNG]>(0)),0,0
+dbo,FVN_TraHangQTChungQC,CK_FVN_TraHangQTChungQC_SoLuong,([SoLuongDaRework]>=(0) AND [SoLuongOK]>=(0) AND [SoLuongNG]>=(0)),0,0
+dbo,FVN_TraHangQTChungXuat,CK_FVN_TraHangQTChungXuat_SoLuong,([SoLuongXuat]>(0)),0,0
+dbo,PCTP_InternalReturn,CK_PCTP_InternalReturn_Quantity,([Quantity]>(0)),0,0
+dbo,PCTP_InternalStock,CK_PCTP_InternalStock_Quantity,([Quantity]>=(0)),0,0
+dbo,PCTP_InternalTransfer,CK_PCTP_InternalTransfer_Quantity,([Quantity]>(0)),0,0
+dbo,PCTPStockMovementGuard,CK_PCTPStockMovementGuard_ReferencePair,([ReferenceType] IS NULL AND [ReferenceId] IS NULL OR [ReferenceType] IS NOT NULL AND [ReferenceId] IS NOT NULL),0,0
+dbo,PhieuXuLyBatThuong,CK_PhieuXuLyBatThuong_Nguon,([Nguon]=(1) AND [PhieuLoiKhachTraCTId] IS NOT NULL OR [Nguon]=(2) AND [PhieuLoiKhachTraCTId] IS NULL),0,0
+dbo,STOCKTP,constraint_name,([SLCONLAI]>=(0)),0,0
