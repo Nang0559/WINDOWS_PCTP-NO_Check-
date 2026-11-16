@@ -24,11 +24,14 @@ Run one file at a time, in order:
 | 012 | 012_IFS_MasterDataSync.sql | IFS one-way Part Catalog, Inventory Part and BOM snapshots with staging/apply |
 | 013 | 013_FVN_TablePrefixStandardization.sql | Renames physical MES/IFS tables to FVN_* and creates legacy-name synonyms for compatibility |
 
-The applied versions are recorded in the physical table MES.FVN_SchemaMigration after migration 013. The legacy name MES.SchemaMigration remains a compatibility synonym. Verify with:
-SELECT MigrationVersion,MigrationName,AppliedAtUtc,AppliedBy FROM MES.FVN_SchemaMigration ORDER BY MigrationVersion;
+The applied versions are recorded in `MES.FVN_SchemaMigration` after migration 013. Before migration 013, query `MES.SchemaMigration`; after migration 013, use the physical table:
 
-Before migration 013, the ledger is named MES.SchemaMigration. Run 013 only after 000–012 have completed successfully.
-SELECT MigrationVersion,MigrationName,AppliedAtUtc,AppliedBy FROM MES.SchemaMigration ORDER BY MigrationVersion;
+```sql
+SELECT MigrationVersion,MigrationName,AppliedAtUtc,AppliedBy
+FROM MES.FVN_SchemaMigration ORDER BY MigrationVersion;
+```
+
+Run migration 013 only after 000–012 have completed successfully.
 
 ## Architecture rules
 
