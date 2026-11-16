@@ -20,6 +20,12 @@ prevents a folder listing from being mistaken for an executable installer.
 | 8 | `08_Security` | Placeholder; no user/login mapping |
 | 9 | `09_Tests` | Isolated tests/fixtures only |
 
+The XuLyHangLoi source scripts remain under
+`PCTP/Modules/XuLyHangLoi/Database` for traceability. They are not a separate
+deployment stage and must not be run directly. See
+`00_Governance/00F_PCTP_CurrentSqlConsolidationAudit.md` for their disposition
+and missing base-table prerequisites.
+
 ## Database object naming standard
 
 Every physical table created in `FVN_PCTP` must use the `FVN_` prefix, regardless of schema: examples `dbo.FVN_LUUPHIEUGIAOHANG`, `MES.FVN_MaterialLot`, and `IFS.FVN_InventoryPart`. Schema names continue to express domain ownership (`dbo`, `MES`, `IFS`); the prefix identifies ownership by the FVN_PCTP database. Views, procedures, functions, triggers, types, constraints and indexes are not tables and keep their own naming conventions. Legacy-name synonyms may be retained temporarily for compatibility, but new application code and bulk-load targets must use physical `FVN_` table names.
