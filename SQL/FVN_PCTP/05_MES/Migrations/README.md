@@ -22,7 +22,7 @@ Run one file at a time, in order:
 | 010 | 010_MES_SecurityRoles.sql | Least-privilege database roles and object grants |
 | 011 | 011_MES_BatchPostingProcedure.sql | Atomic TVP inventory movement batch (maximum 500 rows) |
 | 012 | 012_IFS_MasterDataSync.sql | IFS one-way Part Catalog, Inventory Part and BOM snapshots with staging/apply |
-| 013 | 013_FVN_TablePrefixStandardization.sql | Renames physical MES/IFS tables to FVN_* and creates legacy-name synonyms for compatibility |
+| 013 | 013_FVN_TablePrefixStandardization.sql | Renames every physical user table in FVN_PCTP to FVN_* and creates legacy-name synonyms for compatibility |
 
 The applied versions are recorded in `MES.FVN_SchemaMigration` after migration 013. Before migration 013, query `MES.SchemaMigration`; after migration 013, use the physical table:
 
@@ -42,7 +42,7 @@ Run migration 013 only after 000–012 have completed successfully.
 - MES.MaterialExecutionEvent records production execution and references the stock movement; it is not a second stock ledger.
 - MES.FinishedLotGenealogy must be linked from actual CONSUME events, never inferred from BOM quantities or planned quantities.
 - No price, cost, currency, valuation, GL/AP/AR or accounting posting columns are introduced.
-- Migration 013 applies the FVN_ prefix to every physical table in schemas MES and IFS. It preserves the former two-part names as synonyms for SQL compatibility; all new physical PCTP tables in dbo or other domain schemas must be created as dbo.FVN_<Name> (or <Schema>.FVN_<Name>). Synonyms are compatibility aliases, not physical tables.
+- Migration 013 applies the FVN_ prefix to every physical user table in every schema in FVN_PCTP. It preserves the former two-part names as synonyms for SQL compatibility; all new physical PCTP tables in dbo or other domain schemas must be created as dbo.FVN_<Name> (or <Schema>.FVN_<Name>). Synonyms are compatibility aliases, not physical tables.
 - Direct bulk-load APIs such as SqlBulkCopy must target the physical FVN_ table name, not a compatibility synonym.
 - Migrations 000–012 create the initial unprefixed MES/IFS tables; migration 013 normalizes their physical names after those migrations have run.
 
