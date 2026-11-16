@@ -224,3 +224,21 @@ The owner has explicitly clarified that PCTP must rebuild its former Bravo item-
 - PCTP rows that currently carry only PartNo need a deterministic IFS SiteCode resolution before composite FKs can be created.
 
 The uploaded 00H export has been analyzed. It contains 449 full module definitions matching the extraction allowlist; 87 reference PCTP candidate objects, and 40 of those also reference B20 master tables. The large `trgupdatetblDoctem` definition is not portable and must be decomposed, not copied.
+
+
+## 10. Implementation update — migrations 014–025 (2026-11-16)
+
+The owner approved `(SiteCode, PartNo)` as the canonical part key. The source export 00H was supplied and analyzed, and current PCTP models/repositories were reviewed for the return/QT Chung base tables. The following schema artifacts are now in the ordered package:
+
+- `014`: `FVN_PCTPSite`, IFS-backed part extensions, Warehouse/Rack/Slot and explicit Slot→MES location mapping.
+- `015`: `FVN_STOCKTP`, `FVN_SlotLot`, `FVN_StockHistory` and IFS/MES-backed TP LOT view. The view reads SLCONLAI from MES balance; table quantity fields are legacy evidence only.
+- `016–017`: MP/SP snapshots, delivery history, QR streams, delivery command idempotency, quarantine audit and internal transfer/return documents.
+- `018`: return header/detail, abnormal processing, affected LOT, QC, rework, disposition, compensation and QT Chung workflow tables; source enum values and quantity invariants are represented.
+- `019`: `FVN_SlotLotTableType` and `usp_FVN_Slot_SaveLots`; replacement is atomic and allowed only when aggregate slot projection equals MES on-hand at the mapped location.
+- `020–023`: queued delivery/pick details, per-site FIFO policy/history, special DB purchase-order snapshots, FIFO/slot views, customer LOT normalization, QR insert and InspectionLog.
+- `024` (optional): explicit source-to-target site/part/LOT/factory/document maps plus read-only B7R2_FCC preflight. It does not copy data.
+- `025`: PCTP slot-aware adapter to `MES.usp_PostInventoryMovement`.
+
+The previous section 8 described missing source definitions before the user ran 00H. That evidence gap is now closed for the 00H allowlist. It does **not** mean every legacy module has been ported: high-priority QR/LOT/TP-stock/delivery procedures and `trgupdatetblDoctem` still need selective rewrite against FVN_ physical tables and MES posting. The full source definitions are evidence, not deployable scripts.
+
+Remaining release gates: C# repositories must pass SiteCode/PartNo and use the new FVN_ objects; site, warehouse and Slot-to-MES location mappings must be seeded; the source-to-target data migration must be written and reconciled; all remaining active procedures/views/triggers must be converted; and the full 000–023 + 025 chain must pass fresh-install/rerun/rollback/concurrency/workflow tests on SQL Server 2016. None of these SQL scripts has been executed by this repository operation.
