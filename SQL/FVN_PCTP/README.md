@@ -2,87 +2,67 @@
 
 **Repository:** `Nang0559/WINDOWS_PCTP-NO_Check-`  
 **Branch:** `feature/mes-product-genealogy-timeline`  
-**Target:** `FVN_PCTP` (SQL Server 2016 compatible)
+**Target database:** `FVN_PCTP` (SQL Server 2016 compatibility)
 
-This folder is the intended canonical home for reviewed SQL that builds, upgrades,
-validates, migrates, and operates the new FVN_PCTP database.
+This is now the canonical SQL workspace for the FVN_PCTP rebuild. The former
+loose SQL files have been organized into domain folders. Source files were moved
+with their original Git blobs; they were not silently rewritten or deleted.
 
-## Important status
+## Folder map
 
-This is a controlled consolidation, not a bulk copy of the old `/SQL` folder.
-The source scripts remain in their original locations until each one has been
-reviewed for callers, object dependencies, source ownership, SQL Server version,
-idempotency, and data-loss risk. Do not delete or execute old scripts merely
-because they are not yet listed here.
-
-## Target structure
-
-| Folder | Responsibility |
+| Folder | Contents |
 |---|---|
-| `00_Governance` | Scope, source inventory, ownership, migration decisions, dependency register |
-| `01_Baseline` | Database baseline, schemas, migration ledger, core types |
-| `02_MasterData` | PCTP-owned reference/master data and one-way IFS staging contracts |
-| `03_Warehouse` | Warehouse, rack, slot, LOT, stock balance and movement |
-| `04_Delivery` | Customer orders, delivery documents, QR binding and delivery trace |
-| `05_MES` | Production orders, BOM, material issue/return, WIP, finished LOT and genealogy |
-| `06_Programmability` | Reviewed views, functions, procedures and triggers, ordered by dependency |
-| `07_DataMigration` | Source-to-target mappings, staged loads, checkpoints, rejects and reconciliation |
-| `08_Security` | Roles, grants and permission verification |
-| `09_Tests` | Smoke, integrity, workflow, concurrency and rollback tests |
-| `90_Archive` | Superseded scripts retained for traceability; never part of deployment |
+| `00_Governance` | Source inventory, ownership decisions, evidence exports, schema tooling |
+| `01_Baseline` | Baseline candidates; approved clean-install baseline is still a gate |
+| `02_MasterData` | Reserved for normalized master data and one-way IFS staging |
+| `03_Warehouse` | Warehouse candidates, diagnostics, stock/LOT review |
+| `04_Delivery` | Delivery/QR/order candidates and repair scripts |
+| `05_MES` | Versioned MES schema migrations and legacy source-review scripts |
+| `06_Programmability` | Legacy procedures, views, triggers and index candidates awaiting review |
+| `07_DataMigration` | Reserved for controlled source-to-target migration |
+| `08_Security` | Reserved for approved FVN_PCTP roles and grants |
+| `09_Tests` | MES smoke test, isolated fixtures and legacy regression scripts |
+| `90_Archive` | Retirement candidates and superseded source retained for traceability |
 
-## Rules for this package
+## Deployment status
 
-1. Every deployable SQL file must state its target database/schema assumptions,
-   SQL Server minimum version, purpose, prerequisites, and whether it changes data.
-2. Deployments must be ordered and recorded in a migration ledger. A file must
-   be safe to re-run or explicitly fail with a clear already-applied guard.
-3. No script in this package may depend at runtime on `B7R2_FCC`, BRAVO, or write
-   to IFS. IFS is a one-way read-only source.
-4. Do not clone BRAVO accounting/GL/AP/AR objects just because the legacy PCTP
-   application reads them.
-5. Do not create two authoritative stock ledgers. Warehouse stock, production
-   LOT and stock movement ownership must be explicit before a table is moved.
-6. Preserve source traceability: original path, source commit, review decision,
-   and replacement path must be recorded before an old script is retired.
-7. SQL Server 2016 compatibility is mandatory; do not use `STRING_AGG`.
-8. Test destructive/data-changing scripts only on a disposable database or
-   approved test copy. No script here is assumed deployed merely because it is
-   committed.
+**This is a standardized and classified SQL package, not yet a production-ready
+one-click installer.** No source SQL Server has been changed and no target SQL
+script has been executed by this repository operation.
 
-## Current source decisions
+- The MES migrations `05_MES/Migrations/000..011` are an ordered schema
+  foundation. They have not been runtime-tested against the user's SQL Server.
+- Files in `LegacyCandidates`, `Diagnostics`, `IndexCandidates`,
+  `SourceReview`, `SchemaEvidence` and `SchemaTooling` are not deployment steps.
+- `01_Baseline/Candidates/FVN_PCTP_RuntimeTables.sql` is not an approved
+  baseline; promote it only after its full contracts and callers are verified.
+- `07_DataMigration` intentionally has no data-copy scripts yet. Source/target
+  mapping, checkpointing, rejects and reconciliation must be designed first.
+- Nothing in `90_Archive` is approved for irreversible deletion.
 
-- The six operational tables identified in `../00E_SourceInventory_Findings.md`
-  are confirmed as actively used by PCTP, but their final physical placement
-  between PCTP and MES still needs dependency closure.
-- `STOCKTP`, `SlotLot`, `StockHistory`, and the Slot/Rack/Warehouse hierarchy
-  must be treated as one stock-ownership design problem, not copied independently.
-- `LUUPHIEUGIAOHANG` and IFS MP/SP snapshots are PCTP operational scope; their
-  normalized target contracts and migration mapping still need review.
-- The current `../MES/Migrations` package is a committed MES schema foundation,
-  not a completed legacy-data migration and not runtime-tested against SQL Server.
-  It must be reconciled with the final FVN_PCTP/FVN_MES boundary before promotion
-  into this canonical package.
+## Non-negotiable design rules
 
-## Promotion workflow
+1. SQL Server 2016 syntax only; do not use `STRING_AGG`.
+2. No runtime dependency on `B7R2_FCC` or BRAVO and no write-back to IFS.
+3. IFS is a one-way read-only source; preserve source provenance and sync identity.
+4. Do not clone BRAVO accounting/GL/AP/AR objects because PCTP happens to read them.
+5. Do not create duplicate stock ledgers. Decide the authority for LOT, warehouse
+   balance and stock movement across PCTP/MES before promoting tables.
+6. Preserve MP/SP/customer-specific behavior where evidence proves it is distinct.
+7. Every deployable migration needs prerequisites, idempotency, transaction/error
+   behavior, rollback notes and a ledger entry.
+8. No old patch is production-ready merely because it has been moved into a
+   domain folder.
 
-1. Inventory each source script and identify the database/object it targets.
-2. Classify it as `KEEP_AS_IS`, `REWRITE`, `MERGE`, `ARCHIVE`,
-   `EXCLUDE_WITH_EVIDENCE`, or `PENDING_REVIEW`.
-3. Resolve dependencies and ownership, including dynamic SQL, application SQL,
-   SQL Agent jobs, synonyms and external integrations.
-4. Add or rewrite the reviewed script in the appropriate folder above.
-5. Run static checks and SQL Server 2016 syntax checks; then test on a disposable
-   SQL Server database with deployment, rerun, rollback and concurrency cases.
-6. Only after replacement and verification, move the superseded source to
-   `90_Archive` or delete it in a separate reviewed cleanup commit.
+## Evidence and review
 
-## Source evidence
+Start with:
+- `00_Governance/00_PhaseStatus.md`
+- `00_Governance/SourceDisposition.md`
+- `00_Governance/00E_SourceInventory_Findings.md`
+- `00_Governance/00C_ApplicationUsageOwnershipReview.md`
+- `00_Governance/README.md`
+- `05_MES/Migrations/README.md`
 
-- `../00E_SourceInventory_Findings.md`
-- `../00C_ApplicationUsageOwnershipReview.md`
-- `../00B_FVN_PCTP_OwnershipDependencyMap.sql`
-- `../MES/Migrations/README.md`
-
-These are evidence and design inputs, not blanket approval to migrate every
-listed object.
+Use `00_Governance/Evidence` as a dated snapshot, not as proof of the live
+source catalog today. SQL Agent job-step and synonym evidence is still incomplete.
