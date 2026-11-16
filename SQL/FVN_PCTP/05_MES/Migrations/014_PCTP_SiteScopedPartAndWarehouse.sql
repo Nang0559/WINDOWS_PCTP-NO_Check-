@@ -44,14 +44,13 @@ BEGIN TRY
         );
     END;
 
-    /* Preserve the source numeric keys: WarehouseId, RackId and SlotId were
-       application keys, not IDENTITY-generated values in the source schema. */
+    /* Preserve source numeric identity keys for WarehouseId, RackId and SlotId. */
     IF OBJECT_ID(N'dbo.FVN_Warehouse', N'U') IS NULL
     BEGIN
         CREATE TABLE dbo.FVN_Warehouse
         (
             SiteCode nvarchar(30) NOT NULL,
-            WarehouseId int NOT NULL,
+            WarehouseId int IDENTITY(1,1) NOT NULL,
             Name nvarchar(200) NOT NULL,
             IsActive bit NOT NULL CONSTRAINT DF_FVN_Warehouse_IsActive DEFAULT (1),
             CreatedAtUtc datetime2(3) NOT NULL CONSTRAINT DF_FVN_Warehouse_Created DEFAULT (SYSUTCDATETIME()),
@@ -69,7 +68,7 @@ BEGIN TRY
         CREATE TABLE dbo.FVN_Rack
         (
             SiteCode nvarchar(30) NOT NULL,
-            RackId int NOT NULL,
+            RackId int IDENTITY(1,1) NOT NULL,
             WarehouseId int NOT NULL,
             RackName nvarchar(200) NOT NULL,
             RackRowCount int NULL,
@@ -88,7 +87,7 @@ BEGIN TRY
         CREATE TABLE dbo.FVN_Slot
         (
             SiteCode nvarchar(30) NOT NULL,
-            SlotId int NOT NULL,
+            SlotId int IDENTITY(1,1) NOT NULL,
             RackId int NOT NULL,
             SlotNumber int NOT NULL,
             IsOccupied bit NOT NULL CONSTRAINT DF_FVN_Slot_IsOccupied DEFAULT (0),
