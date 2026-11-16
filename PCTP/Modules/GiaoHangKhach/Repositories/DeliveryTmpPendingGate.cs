@@ -12,7 +12,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
     /// <summary>
     /// Closes the pending-delivery rows of a delivery command inside the handler's transaction.
     /// Mirrors the legacy CapNhapKhoYMVN steps, per STT, in the same order:
-    ///   1. archive the TMP row (STATUS='NG') into LUUPHIEUGIAOHANG,
+    ///   1. archive the TMP row (STATUS='NG') into dbo.FVN_LUUPHIEUGIAOHANG,
     ///   2. TMP STATUS NG -> OK, exactly one row (otherwise throw: replay/changed state),
     ///   3. P13 (F-Y1 = part-scoped): archive the part's DG scan rows into LUUDOCQRCODE, delete them,
     ///      and require archived == deleted (history is saved before the source rows disappear).

@@ -180,7 +180,7 @@ namespace PCTP.Infrastructure.Repositories
         {
             string raw = _sql.ExecuteReader(_sql.B7R2_FCCdb,
                 "SELECT STUFF('00000', 5-LEN(id)+1, LEN(id), id) " +
-                $"FROM B20Item WHERE code = '{Esc(maHang)}'");
+                $"FROM dbo.vFVN_PCTP_ItemCatalog WHERE code = '{Esc(maHang)}'");
             return raw.Trim(); // luôn "00123"
         }
 

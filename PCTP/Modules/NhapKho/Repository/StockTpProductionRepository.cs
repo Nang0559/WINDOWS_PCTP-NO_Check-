@@ -214,7 +214,7 @@ SELECT
         LEN(ID),
         ID
     )
-FROM B20Item
+FROM dbo.vFVN_PCTP_ItemCatalog
 WHERE CODE = @MaHang;";
 
             object idResult = ExecuteScalar(

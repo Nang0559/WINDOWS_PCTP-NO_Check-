@@ -20,7 +20,7 @@ namespace PCTP.Modules.XuatKho.Repositories
         public int GetSlConLai(string lotNo)
         {
             DataTable rows = LoadData(
-                "SELECT ISNULL(SLCONLAI,0) AS SLCONLAI FROM STOCKTP WHERE LOT = @lot",
+                "SELECT ISNULL(SLCONLAI,0) AS SLCONLAI FROM dbo.vFVN_STOCKTP WHERE LOT = @lot",
                 new SqlParameter("@lot", lotNo));
             if (rows == null || rows.Rows.Count == 0) return 0;
             if (rows.Rows.Count != 1)
@@ -36,7 +36,7 @@ namespace PCTP.Modules.XuatKho.Repositories
                     "DecreaseStockTp phải chạy trong transaction (Uow.Begin() trước).");
 
             int rows = ExecuteNonQuery(
-                @"UPDATE STOCKTP SET
+                @"UPDATE dbo.FVN_STOCKTP SET
                       SLXUAT   = ISNULL(SLXUAT,0)   + @sl,
                       SLCONLAI = ISNULL(SLCONLAI,0) - @sl,
                       NGAYXUAT = CAST(GETDATE() AS smalldatetime)
@@ -54,7 +54,7 @@ namespace PCTP.Modules.XuatKho.Repositories
                 throw new InvalidOperationException("AdjustSlConLai phải chạy trong transaction.");
 
             int rows = ExecuteNonQuery(
-                "UPDATE STOCKTP SET SLCONLAI = ISNULL(SLCONLAI,0) + @delta WHERE LOT = @lot",
+                "UPDATE dbo.FVN_STOCKTP SET SLCONLAI = ISNULL(SLCONLAI,0) + @delta WHERE LOT = @lot",
                 new SqlParameter("@delta", delta),
                 new SqlParameter("@lot", lotNo));
 
@@ -73,7 +73,7 @@ namespace PCTP.Modules.XuatKho.Repositories
                 throw new InvalidOperationException("TryDecreaseSlConLai phải chạy trong transaction.");
 
             int rows = ExecuteNonQuery(
-                "UPDATE STOCKTP SET SLCONLAI = SLCONLAI - @sl " +
+                "UPDATE dbo.FVN_STOCKTP SET SLCONLAI = SLCONLAI - @sl " +
                 "WHERE LOT = @lot AND SLCONLAI >= @sl",
                 new SqlParameter("@sl", soLuong),
                 new SqlParameter("@lot", lotNo));
@@ -89,12 +89,12 @@ namespace PCTP.Modules.XuatKho.Repositories
             // đúng mã hàng và đúng LOT, không nới điều kiện sang mặt hàng khác.
             string sql = string.IsNullOrWhiteSpace(lotNo)
                 ? @"SELECT LOT, PART, SLCONLAI
-                    FROM STOCKTP
+                    FROM dbo.vFVN_STOCKTP
                     WHERE UPPER(LTRIM(RTRIM(PART))) = UPPER(LTRIM(RTRIM(@ma)))
                       AND ISNULL(SLCONLAI, 0) > 0
                     ORDER BY LOT"
                 : @"SELECT LOT, PART, SLCONLAI
-                    FROM STOCKTP
+                    FROM dbo.vFVN_STOCKTP
                     WHERE UPPER(LTRIM(RTRIM(PART))) = UPPER(LTRIM(RTRIM(@ma)))
                       AND " + LotCodeHelper.BuildLotMatchSql("LTRIM(RTRIM(LOT))", "@lot") + @"
                       AND ISNULL(SLCONLAI, 0) > 0";
@@ -129,11 +129,11 @@ namespace PCTP.Modules.XuatKho.Repositories
 SELECT UPPER(LTRIM(RTRIM(st.PART))) AS ItemCode,
        MAX(LTRIM(RTRIM(st.NAME))) AS ItemName,
        SUM(ISNULL(st.SLCONLAI,0)) AS StockQuantity
-FROM STOCKTP st
+FROM dbo.vFVN_STOCKTP st
 WHERE ISNULL(st.SLCONLAI,0) > 0
   AND EXISTS
   (
-      SELECT 1 FROM SlotLot sl
+      SELECT 1 FROM dbo.FVN_SlotLot sl
       WHERE sl.PhieuStatus = 0 AND sl.Quantity > 0
         AND UPPER(LTRIM(RTRIM(sl.ItemCode))) = UPPER(LTRIM(RTRIM(st.PART)))
         AND " + LotCodeHelper.BuildLotMatchSql("LTRIM(RTRIM(sl.LotNo))", "LTRIM(RTRIM(st.LOT))") + @"
@@ -151,11 +151,11 @@ SELECT UPPER(LTRIM(RTRIM(st.PART))) AS ItemCode,
        LTRIM(RTRIM(st.LOT)) AS LotNo,
        ISNULL(st.SLCONLAI,0) AS StockQuantity,
        ISNULL(sl.SlotQuantity,0) AS SlotQuantity
-FROM STOCKTP st
+FROM dbo.vFVN_STOCKTP st
 CROSS APPLY
 (
     SELECT SUM(s.Quantity) AS SlotQuantity
-    FROM SlotLot s
+    FROM dbo.FVN_SlotLot s
     WHERE s.PhieuStatus = 0 AND s.Quantity > 0
       AND " + LotCodeHelper.BuildLotMatchSql("LTRIM(RTRIM(s.LotNo))", "LTRIM(RTRIM(st.LOT))") + @"
       AND UPPER(LTRIM(RTRIM(s.ItemCode))) = UPPER(LTRIM(RTRIM(st.PART)))
@@ -183,11 +183,11 @@ SELECT UPPER(LTRIM(RTRIM(st.PART))) AS ItemCode,
        LTRIM(RTRIM(st.LOT)) AS LotNo,
        ISNULL(st.SLCONLAI,0) AS StockQuantity,
        ISNULL(sl.SlotQuantity,0) AS SlotQuantity
-FROM STOCKTP st
+FROM dbo.vFVN_STOCKTP st
 CROSS APPLY
 (
     SELECT SUM(s.Quantity) AS SlotQuantity
-    FROM SlotLot s
+    FROM dbo.FVN_SlotLot s
     WHERE s.PhieuStatus = 0 AND s.Quantity > 0
       AND " + LotCodeHelper.BuildLotMatchSql("LTRIM(RTRIM(s.LotNo))", "LTRIM(RTRIM(st.LOT))") + @"
       AND UPPER(LTRIM(RTRIM(s.ItemCode))) = UPPER(LTRIM(RTRIM(st.PART)))

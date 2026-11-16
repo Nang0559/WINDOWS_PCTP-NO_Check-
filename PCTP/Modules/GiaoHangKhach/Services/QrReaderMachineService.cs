@@ -49,7 +49,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         /// <summary>IP mà SERVER thấy cho kết nối của máy này (null nếu server không xác định được).</summary>
         public string GetMyClientIp()
         {
-            DataTable dt = Run("dbo.Usp_QrReaderMachine_WhoAmI");
+            DataTable dt = Run("dbo.usp_FVN_QrReaderMachine_WhoAmI");
             if (dt.Rows.Count == 0 || dt.Rows[0]["ClientIp"] == DBNull.Value) return null;
             string ip = Convert.ToString(dt.Rows[0]["ClientIp"]);
             return string.IsNullOrWhiteSpace(ip) ? null : ip.Trim();
@@ -57,7 +57,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
 
         public DataTable ListRegistrations()
         {
-            return Run("dbo.Usp_QrReaderMachine_List");
+            return Run("dbo.usp_FVN_QrReaderMachine_List");
         }
 
         public void Upsert(string customerNo, string clientIp, string machineName, bool isActive, string note)
@@ -65,7 +65,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
 
         public void Upsert(string customerNo, string scanMode, string clientIp, string machineName, bool isActive, string note)
         {
-            Run("dbo.Usp_QrReaderMachine_Upsert",
+            Run("dbo.usp_FVN_QrReaderMachine_Upsert",
                 new SqlParameter("@CustomerNo", NormalizeScope(customerNo)),
                 new SqlParameter("@ScanMode", NormalizeMode(scanMode)),
                 new SqlParameter("@ClientIp", NormalizeIp(clientIp)),
@@ -78,7 +78,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
 
         public void Remove(string customerNo, string scanMode, string clientIp)
         {
-            Run("dbo.Usp_QrReaderMachine_Remove",
+            Run("dbo.usp_FVN_QrReaderMachine_Remove",
                 new SqlParameter("@CustomerNo", NormalizeScope(customerNo)),
                 new SqlParameter("@ScanMode", NormalizeMode(scanMode)),
                 new SqlParameter("@ClientIp", NormalizeIp(clientIp)));
@@ -89,7 +89,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
 
         public void ForceRelease(string customerNo, string scanMode)
         {
-            Run("dbo.Usp_QrReaderLock_ForceRelease",
+            Run("dbo.usp_FVN_QrReaderLock_ForceRelease",
                 new SqlParameter("@CustomerNo", CustomerTableConfig.GetForDelivery(customerNo).CustomerNo),
                 new SqlParameter("@ScanMode", NormalizeMode(scanMode)));
         }

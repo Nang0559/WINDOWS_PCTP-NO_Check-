@@ -87,7 +87,7 @@ namespace PCTP.Modules.XuLyHangLoi
         private StockLookupControl _stockLookup;
         private LabelControl _lblQrStatus;
 
-        // Danh mục mã hàng đầy đủ (vB20Item): nguồn DUY NHẤT cho Mã hàng của phiếu khách trả.
+        // Danh mục mã hàng đầy đủ (dbo.vFVN_PCTP_ItemCatalog): nguồn DUY NHẤT cho Mã hàng của phiếu khách trả.
         // Không lấy từ tồn kho vì hàng khách trả có thể đã hết kho / LOT không còn.
         private List<ItemLookupItem> _itemCatalog = new List<ItemLookupItem>();
         private readonly Dictionary<string, ItemLookupItem> _itemByCode =
@@ -1338,7 +1338,7 @@ namespace PCTP.Modules.XuLyHangLoi
         // ============================================================
         // TRA CỨU / QUÉT TEM  (StockLookupControl dùng chung)
         //
-        // Tab "Tìm theo mã"      : chọn mã hàng từ danh mục (vB20Item) → thêm dòng khoanh vùng.
+        // Tab "Tìm theo mã"      : chọn mã hàng từ danh mục (dbo.vFVN_PCTP_ItemCatalog) → thêm dòng khoanh vùng.
         // Tab "Tìm theo LOT / QR": quét tem QR (Lot:Mã hàng:Ngày:SL:...) → thêm dòng đầy đủ;
         //                          hoặc nhập LOT thô → tự suy ra mã hàng (kho + lịch sử).
         //
@@ -1647,7 +1647,7 @@ namespace PCTP.Modules.XuLyHangLoi
                 return;
             }
 
-            // Mã hàng phải có trong danh mục (vB20Item) – KHÔNG cần còn tồn kho.
+            // Mã hàng phải có trong danh mục (dbo.vFVN_PCTP_ItemCatalog) – KHÔNG cần còn tồn kho.
             string tenHang;
             string maHang = ChuanHoaMaHang(info.ItemCode, out tenHang);
 

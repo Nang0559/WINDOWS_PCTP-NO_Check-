@@ -47,7 +47,7 @@ namespace PCTP.QRCODE_HVN.PGH
         {
             const string sql = @"
 SELECT LOT, slconlai
-FROM stocktp
+FROM dbo.vFVN_STOCKTP
 WHERE part = @Part AND slconlai > 0;";
             DataTable DML = sqlBRV.LoadData1(
                 sqlBRV.B7R2_FCCdb,

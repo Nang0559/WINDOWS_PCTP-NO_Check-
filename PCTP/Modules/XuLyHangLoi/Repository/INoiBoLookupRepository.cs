@@ -18,11 +18,11 @@ namespace PCTP.Modules.XuLyHangLoi.Repository
         /// </summary>
         List<ScrapSourceLot> FindScrapSourceLots(string itemCode, string lotNo);
 
-        /// <summary>Tên hàng theo mã (vB20Item). Null nếu mã không có trong danh mục.</summary>
+        /// <summary>Tên hàng theo mã (dbo.vFVN_PCTP_ItemCatalog). Null nếu mã không có trong danh mục.</summary>
         string GetItemName(string itemCode);
 
         /// <summary>
-        /// Danh mục mã hàng đầy đủ (vB20Item), KHÔNG phụ thuộc tồn kho.
+        /// Danh mục mã hàng đầy đủ (dbo.vFVN_PCTP_ItemCatalog), KHÔNG phụ thuộc tồn kho.
         /// Dùng cho phiếu khách trả: hàng khách trả có thể không còn trong kho.
         /// </summary>
         List<ItemLookupItem> GetItemCatalog();

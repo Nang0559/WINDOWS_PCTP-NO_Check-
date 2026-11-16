@@ -134,9 +134,9 @@ INSERT dbo.B20ITEM(Id,code) VALUES(1,N'QC-QR-EXACT-PART');");
         await WriteLotAsync(connection, transaction, 101, 100, string.Join(",", result.Select(x => x.Lot + "-" + x.Fcc)));
         await transaction.CommitAsync();
 
-        Require(await ScalarAsync<int>(connection, "SELECT COUNT(*) FROM dbo.DOCQRCODE WHERE STT IN(1,3) AND KETQUA=N'DG' AND STTBAN=101;") == 2,
+        Require(await ScalarAsync<int>(connection, "SELECT COUNT(*) FROM dbo.FVN_DocQrCode WHERE STT IN(1,3) AND KETQUA=N'DG' AND STTBAN=101;") == 2,
             "The exact selected QR rows were not marked DG and linked to STT 101.");
-        Require(await ScalarAsync<int>(connection, "SELECT COUNT(*) FROM dbo.DOCQRCODE WHERE STT=2 AND ISNULL(KETQUA,N'')<>N'DG' AND STTBAN IS NULL;") == 1,
+        Require(await ScalarAsync<int>(connection, "SELECT COUNT(*) FROM dbo.FVN_DocQrCode WHERE STT=2 AND ISNULL(KETQUA,N'')<>N'DG' AND STTBAN IS NULL;") == 1,
             "The unused QR row was incorrectly consumed.");
         Require(!string.IsNullOrWhiteSpace(await ScalarAsync<string>(connection, "SELECT LOT FROM dbo.TMPPHIEUGIAOHANG WHERE STT=101;")),
             "Selected TMP row did not persist LOT.");
@@ -147,7 +147,7 @@ INSERT dbo.B20ITEM(Id,code) VALUES(1,N'QC-QR-EXACT-PART');");
         await ResetAsync(connection, (102, 100), new[] { (11, "QR-60", 60), (12, "QR-50", 50) });
         var result = await TakeLotAsync(connection, null, 102, 100);
         Require(result.Count == 0, "Procedure returned LOT despite no exact QR subset.");
-        Require(await ScalarAsync<int>(connection, "SELECT COUNT(*) FROM dbo.DOCQRCODE WHERE ISNULL(KETQUA,N'')=N'DG' OR STTBAN IS NOT NULL;") == 0,
+        Require(await ScalarAsync<int>(connection, "SELECT COUNT(*) FROM dbo.FVN_DocQrCode WHERE ISNULL(KETQUA,N'')=N'DG' OR STTBAN IS NOT NULL;") == 0,
             "No-exact-subset path changed QR DG/STTBAN state.");
         Require(await ScalarAsync<int>(connection, "SELECT COUNT(*) FROM dbo.TMPPHIEUGIAOHANG WHERE STT=102 AND ISNULL(STATUSDOC,N'')=N'' AND ISNULL(LOT,N'')=N'';") == 1,
             "No-exact-subset path changed TMP status or LOT.");
@@ -156,12 +156,12 @@ INSERT dbo.B20ITEM(Id,code) VALUES(1,N'QC-QR-EXACT-PART');");
     private static async Task VerifyAlreadyAggregatedQrIsExcludedAsync(SqlConnection connection)
     {
         await ResetAsync(connection, (103, 100), new[] { (21, "QR-DG-60", 60), (22, "QR-60", 60), (23, "QR-40", 40) });
-        await ExecuteAsync(connection, "UPDATE dbo.DOCQRCODE SET KETQUA=N'DG',STTBAN=999 WHERE STT=21;");
+        await ExecuteAsync(connection, "UPDATE dbo.FVN_DocQrCode SET KETQUA=N'DG',STTBAN=999 WHERE STT=21;");
         var result = await TakeLotAsync(connection, null, 103, 100);
         Require(result.Sum(x => x.Fcc) == 100, "Eligible QR rows did not exactly fill the target after excluding DG.");
-        Require(await ScalarAsync<int>(connection, "SELECT COUNT(*) FROM dbo.DOCQRCODE WHERE STT=21 AND STTBAN=999 AND KETQUA=N'DG';") == 1,
+        Require(await ScalarAsync<int>(connection, "SELECT COUNT(*) FROM dbo.FVN_DocQrCode WHERE STT=21 AND STTBAN=999 AND KETQUA=N'DG';") == 1,
             "Previously aggregated QR was overwritten.");
-        Require(await ScalarAsync<int>(connection, "SELECT COUNT(*) FROM dbo.DOCQRCODE WHERE STT IN(22,23) AND KETQUA=N'DG' AND STTBAN=103;") == 2,
+        Require(await ScalarAsync<int>(connection, "SELECT COUNT(*) FROM dbo.FVN_DocQrCode WHERE STT IN(22,23) AND KETQUA=N'DG' AND STTBAN=103;") == 2,
             "The two eligible exact-sum QR rows were not claimed.");
     }
 
@@ -174,7 +174,7 @@ INSERT dbo.B20ITEM(Id,code) VALUES(1,N'QC-QR-EXACT-PART');");
         await WriteLotAsync(connection, transaction, 104, 100, string.Join(",", result.Select(x => x.Lot + "-" + x.Fcc)));
         await transaction.RollbackAsync();
 
-        Require(await ScalarAsync<int>(connection, "SELECT COUNT(*) FROM dbo.DOCQRCODE WHERE ISNULL(KETQUA,N'')=N'DG' OR STTBAN IS NOT NULL;") == 0,
+        Require(await ScalarAsync<int>(connection, "SELECT COUNT(*) FROM dbo.FVN_DocQrCode WHERE ISNULL(KETQUA,N'')=N'DG' OR STTBAN IS NOT NULL;") == 0,
             "Outer rollback did not restore QR status and STTBAN.");
         Require(await ScalarAsync<int>(connection, "SELECT COUNT(*) FROM dbo.TMPPHIEUGIAOHANG WHERE STT=104 AND ISNULL(STATUSDOC,N'')=N'' AND ISNULL(LOT,N'')=N'';") == 1,
             "Outer rollback did not restore TMP status and LOT.");
@@ -221,7 +221,7 @@ INSERT dbo.B20ITEM(Id,code) VALUES(1,N'QC-QR-EXACT-PART');");
         var secondRows = await second;
         Require(secondRows == 0, "Second concurrent request reused QR rows already claimed by the first request.");
         Require(await ScalarOnNewConnectionAsync<int>(connectionString,
-            "SELECT COUNT(*) FROM dbo.DOCQRCODE WHERE KETQUA=N'DG' AND STTBAN=105;") == 2,
+            "SELECT COUNT(*) FROM dbo.FVN_DocQrCode WHERE KETQUA=N'DG' AND STTBAN=105;") == 2,
             "Concurrent test did not leave exactly one STT owning both QR rows.");
     }
 
@@ -261,7 +261,7 @@ INSERT dbo.B20ITEM(Id,code) VALUES(1,N'QC-QR-EXACT-PART');");
 
     private static async Task ResetAsync(SqlConnection connection, (int Stt, int Qty) tmp, (int Stt, string Lot, int Qty)[] qr)
     {
-        await ExecuteAsync(connection, "DELETE dbo.DOCQRCODE; DELETE dbo.TMPPHIEUGIAOHANG;");
+        await ExecuteAsync(connection, "DELETE dbo.FVN_DocQrCode; DELETE dbo.TMPPHIEUGIAOHANG;");
         await using (var insertTmp = new SqlCommand(
             "INSERT dbo.TMPPHIEUGIAOHANG(STT,MAHANG,SOLUONG) VALUES(@stt,@ma,@qty);", connection))
         {

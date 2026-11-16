@@ -151,7 +151,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
 
             DataTable tonDt = _db.LoadData(
                 $"SELECT PART, ISNULL(SUM(SLCONLAI),0) AS TONG_TON " +
-                $"FROM STOCKTP WHERE PART IN ({inClause}) GROUP BY PART");
+                $"FROM dbo.vFVN_STOCKTP WHERE PART IN ({inClause}) GROUP BY PART");
 
             var map = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             foreach (DataRow row in tonDt.Rows)

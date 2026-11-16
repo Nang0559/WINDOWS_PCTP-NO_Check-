@@ -46,7 +46,7 @@ ORDER BY Code;";
 
             const string sql = @"
 SELECT TOP (1) Name
-FROM B7R2_FCC.dbo.vB20Item
+FROM dbo.vFVN_PCTP_ItemCatalog
 WHERE Code = @ItemCode;";
 
             DataTable dt = LoadData(
@@ -68,7 +68,7 @@ WHERE Code = @ItemCode;";
         {
             const string sql = @"
 SELECT LTRIM(RTRIM(Code)) AS ItemCode, Name AS ItemName
-FROM B7R2_FCC.dbo.vB20Item
+FROM dbo.vFVN_PCTP_ItemCatalog
 WHERE Code IS NOT NULL
   AND LTRIM(RTRIM(Code)) <> N''
 ORDER BY Code;";
@@ -94,16 +94,16 @@ ORDER BY Code;";
 SELECT x.ItemCode, MAX(i.Name) AS ItemName
 FROM (
     SELECT LTRIM(RTRIM(sl.ItemCode)) AS ItemCode
-    FROM SlotLot sl
+    FROM dbo.FVN_SlotLot sl
     WHERE sl.LotNo LIKE @Lot + N'%' ESCAPE N'\'
       AND sl.ItemCode IS NOT NULL
     UNION
     SELECT LTRIM(RTRIM(sh.ItemCode))
-    FROM StockHistory sh
+    FROM dbo.FVN_StockHistory sh
     WHERE sh.LotNo LIKE @Lot + N'%' ESCAPE N'\'
       AND sh.ItemCode IS NOT NULL
 ) x
-LEFT JOIN B7R2_FCC.dbo.vB20Item i ON i.Code = x.ItemCode
+LEFT JOIN dbo.vFVN_PCTP_ItemCatalog i ON i.Code = x.ItemCode
 WHERE x.ItemCode <> N''
 GROUP BY x.ItemCode
 ORDER BY x.ItemCode;";
@@ -133,7 +133,7 @@ ORDER BY x.ItemCode;";
 
             string sql = @"
 SELECT MAHANG, LOT
-FROM LUUPHIEUGIAOHANG
+FROM dbo.FVN_LUUPHIEUGIAOHANG
 WHERE NGAYGIAO >= @tu
   AND NGAYGIAO < DATEADD(DAY, 1, @den)
   AND LOT IS NOT NULL
@@ -230,10 +230,10 @@ WHERE ct.MaHang IS NOT NULL
             const string sql = @"
 SELECT sl.SlotLotId, sl.SlotId, w.Name AS WarehouseName, r.RackName, s.SlotNumber,
        sl.ItemCode, sl.LotNo, sl.Quantity, sl.PhieuStatus
-FROM SlotLot sl
-JOIN Slot s      ON s.SlotId = sl.SlotId
-JOIN Rack r      ON r.RackId = s.RackId
-JOIN Warehouse w ON w.WarehouseId = r.WarehouseId
+FROM dbo.FVN_SlotLot sl
+JOIN dbo.FVN_Slot s      ON s.SlotId = sl.SlotId
+JOIN dbo.FVN_Rack r      ON r.RackId = s.RackId
+JOIN dbo.FVN_Warehouse w ON w.WarehouseId = r.WarehouseId
 WHERE sl.Quantity > 0
   AND sl.PhieuStatus IN (0, 3)
   AND LTRIM(RTRIM(sl.ItemCode)) = @Item
@@ -266,18 +266,18 @@ ORDER BY sl.PhieuStatus DESC, w.Name, r.RackName, s.SlotNumber, sl.LotNo;";
 
         public List<ItemLookupItem> GetItemsInSlots()
         {
-            // Mã hàng lấy từ Slot/SlotLot đang chứa hàng; tên lấy từ vB20Item (nếu có).
+            // Mã hàng lấy từ Slot/SlotLot đang chứa hàng; tên lấy từ dbo.vFVN_PCTP_ItemCatalog (nếu có).
             const string sql = @"
 SELECT x.ItemCode, MAX(i.Name) AS ItemName
 FROM (
     SELECT DISTINCT LTRIM(RTRIM(sl.ItemCode)) AS ItemCode
-    FROM SlotLot sl
+    FROM dbo.FVN_SlotLot sl
     WHERE sl.Quantity > 0
       AND sl.PhieuStatus = 0          -- loại hàng NG cách ly (PhieuStatus = 3)
       AND sl.ItemCode IS NOT NULL
       AND LTRIM(RTRIM(sl.ItemCode)) <> ''
 ) x
-LEFT JOIN B7R2_FCC.dbo.vB20Item i ON i.Code = x.ItemCode
+LEFT JOIN dbo.vFVN_PCTP_ItemCatalog i ON i.Code = x.ItemCode
 GROUP BY x.ItemCode
 ORDER BY x.ItemCode;";
 

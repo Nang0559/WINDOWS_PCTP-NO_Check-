@@ -33,7 +33,7 @@ namespace PCTP.Modules.KhoVatLy.Repositories
             string performedBy)
         {
             const string sql = @"
-            INSERT INTO StockHistory
+            INSERT INTO dbo.FVN_StockHistory
             (
                 ActionType,
                 ItemCode,

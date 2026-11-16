@@ -52,7 +52,7 @@ namespace PCTP.Modules.XuatKho.Repositories
         {
             string maPhieu = StockExportReferenceKey.Build(referenceType, referenceId);
             object kq = ExecuteScalar(   // ✅ giờ gọi được trực tiếp vì đã kế thừa SqlRepositoryBase
-                "SELECT COUNT(*) FROM StockHistory WHERE ActionType = @at AND MaPhieu = @mp",
+                "SELECT COUNT(*) FROM dbo.FVN_StockHistory WHERE ActionType = @at AND MaPhieu = @mp",
                 new SqlParameter("@at", actionType),
                 new SqlParameter("@mp", maPhieu));
             return kq != null && kq != DBNull.Value && Convert.ToInt32(kq) > 0;

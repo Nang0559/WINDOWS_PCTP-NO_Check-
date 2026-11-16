@@ -40,10 +40,10 @@ SELECT
     s.SlotNumber,
     r.RackName,
     w.Name AS WarehouseName
-FROM SlotLot sl
-INNER JOIN Slot s ON s.SlotId = sl.SlotId
-INNER JOIN Rack r ON r.RackId = s.RackId
-INNER JOIN Warehouse w ON w.WarehouseId = r.WarehouseId
+FROM dbo.FVN_SlotLot sl
+INNER JOIN dbo.FVN_Slot s ON s.SlotId = sl.SlotId
+INNER JOIN dbo.FVN_Rack r ON r.RackId = s.RackId
+INNER JOIN dbo.FVN_Warehouse w ON w.WarehouseId = r.WarehouseId
 WHERE sl.LotNo = @LotNo
 ORDER BY sl.PhieuStatus, sl.ImportDate;";
 
@@ -87,7 +87,7 @@ ORDER BY sl.PhieuStatus, sl.ImportDate;";
 
             const string sql = @"
 SELECT ISNULL(SUM(Quantity), 0)
-FROM SlotLot
+FROM dbo.FVN_SlotLot
 WHERE LotNo = @LotNo
   AND PhieuStatus = 0;";
 
@@ -107,7 +107,7 @@ WHERE LotNo = @LotNo
 
             const string sql = @"
 SELECT COUNT(*)
-FROM SlotLot
+FROM dbo.FVN_SlotLot
 WHERE QrData = @QrData;";
 
             object result = ExecuteScalar(sql,

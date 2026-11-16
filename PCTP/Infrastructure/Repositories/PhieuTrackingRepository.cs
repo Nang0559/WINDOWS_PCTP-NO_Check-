@@ -46,12 +46,12 @@ SELECT
     s.SlotNumber,
     r.RackName,
     w.Name AS WarehouseName
-FROM SlotLot sl
-INNER JOIN Slot s
+FROM dbo.FVN_SlotLot sl
+INNER JOIN dbo.FVN_Slot s
     ON s.SlotId = sl.SlotId
-INNER JOIN Rack r
+INNER JOIN dbo.FVN_Rack r
     ON r.RackId = s.RackId
-INNER JOIN Warehouse w
+INNER JOIN dbo.FVN_Warehouse w
     ON w.WarehouseId = r.WarehouseId
 WHERE sl.LotNo = @LotNo
 ORDER BY
@@ -132,7 +132,7 @@ ORDER BY
 
             const string sql = @"
 SELECT ISNULL(SUM(Quantity), 0)
-FROM SlotLot
+FROM dbo.FVN_SlotLot
 WHERE LotNo = @LotNo
   AND PhieuStatus = 0;";
 
@@ -161,7 +161,7 @@ WHERE LotNo = @LotNo
 
             const string sql = @"
 SELECT COUNT(*)
-FROM SlotLot
+FROM dbo.FVN_SlotLot
 WHERE QrData = @QrData;";
 
             object result = ExecuteScalar(
@@ -211,7 +211,7 @@ WHERE QrData = @QrData;";
                     nameof(lotNo));
 
             const string sql = @"
-INSERT INTO SlotLot
+INSERT INTO dbo.FVN_SlotLot
 (
     SlotId,
     ItemCode,
@@ -372,7 +372,7 @@ VALUES
                     nameof(maPhieu));
 
             const string sql = @"
-UPDATE SlotLot
+UPDATE dbo.FVN_SlotLot
 SET PhieuStatus = @Status
 WHERE MaPhieu = @MaPhieu;";
 
@@ -420,7 +420,7 @@ WHERE MaPhieu = @MaPhieu;";
                     nameof(quantityMoi));
 
             const string sql = @"
-UPDATE SlotLot
+UPDATE dbo.FVN_SlotLot
 SET Quantity = @Quantity
 WHERE MaPhieu = @MaPhieu;";
 

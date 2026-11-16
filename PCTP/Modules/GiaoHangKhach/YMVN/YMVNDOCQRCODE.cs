@@ -756,7 +756,7 @@ namespace PCTP.YMN
             //{
             //    object  STTP = DH.Rows[i].Field<Int16>("STT");
             //    object MH = DH.Rows[i].Field<string>("MAHANG");
-            //    string IDMH = "select ID from B20Item where code = '" + MH.ToString() + "'";
+            //    string IDMH = "select ID from dbo.vFVN_PCTP_ItemCatalog where code = '" + MH.ToString() + "'";
             //    if (MH.ToString()== "BBN-E7601-00-00-80")
             //    { int checkii = 1; }    
             //    object SLG = DH.Rows[i].Field<Int16>("SOLUONG");
@@ -845,7 +845,7 @@ namespace PCTP.YMN
             //            //    int dd = QRCODE.Rows[j].Field<string>("LOTFCC").Trim().Length;
             //            //    if (dd < 13)
             //            //    {
-            //            //        string sqlidmh = "select STUFF('00000', 5-LEN(Id)+1, LEN(Id), Id) from B20Item where Code = '" + MH.ToString() + "'";
+            //            //        string sqlidmh = "select STUFF('00000', 5-LEN(Id)+1, LEN(Id), Id) from dbo.vFVN_PCTP_ItemCatalog where Code = '" + MH.ToString() + "'";
             //            //        sqlidmh = sqlBRV.ExecuteReader(sqlBRV.B7R2_FCCdb, sqlidmh);
             //            //        LOTFCC = QRCODE.Rows[j].Field<string>("LOTFCC").Trim().Substring(0, 6) + sqlidmh + QRCODE.Rows[j].Field<string>("LOTFCC").Trim().Substring(dd - 2, 2);
             //            //    }

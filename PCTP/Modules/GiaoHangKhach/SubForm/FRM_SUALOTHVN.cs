@@ -40,7 +40,7 @@ namespace PCTP.QRCODE_HVN
         private void LoadData()
         {
             const string sql =
-                "SELECT * FROM DOCQRCODE WHERE MAHANGFCC = @MaHang ORDER BY LOTHVN";
+                "SELECT * FROM dbo.FVN_DocQrCode WHERE MAHANGFCC = @MaHang ORDER BY LOTHVN";
 
             DataTable table = sqlBRV.LoadData1(sqlBRV.B7R2_FCCdb, sql,
                 new SqlParameter("@MaHang", SqlDbType.NVarChar, 100) { Value = _MH ?? "" });
@@ -105,7 +105,7 @@ SELECT @Result;", connection, transaction))
                         }
 
                         using (SqlCommand resetQr = new SqlCommand(
-                            "UPDATE DOCQRCODE SET KETQUA = 'OK' WHERE KETQUA = 'DG' AND MAHANGFCC = @MaHang",
+                            "UPDATE dbo.FVN_DocQrCode SET KETQUA = 'OK' WHERE KETQUA = 'DG' AND MAHANGFCC = @MaHang",
                             connection, transaction))
                         {
                             resetQr.Parameters.Add("@MaHang", SqlDbType.NVarChar, 100).Value = _MH ?? string.Empty;
@@ -118,7 +118,7 @@ SELECT @Result;", connection, transaction))
                             int stt = Convert.ToInt32(gridVSUALOTHVN.GetRowCellValue(i, "STT"));
                             lot += 1;
                             using (SqlCommand updateQr = new SqlCommand(
-                                "UPDATE DOCQRCODE SET SUALOTHVN = @LotMoi, KETQUA = 'OK' WHERE STT = @Stt AND MAHANGFCC = @MaHang",
+                                "UPDATE dbo.FVN_DocQrCode SET SUALOTHVN = @LotMoi, KETQUA = 'OK' WHERE STT = @Stt AND MAHANGFCC = @MaHang",
                                 connection, transaction))
                             {
                                 updateQr.Parameters.Add("@LotMoi", SqlDbType.NVarChar, 50).Value = lot.ToString();

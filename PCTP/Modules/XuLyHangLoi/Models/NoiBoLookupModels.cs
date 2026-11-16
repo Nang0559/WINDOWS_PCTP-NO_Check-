@@ -32,7 +32,7 @@ namespace PCTP.Modules.XuLyHangLoi.Models
         }
     }
 
-    /// <summary>Mã hàng đang có trong Slot (kèm tên từ vB20Item).</summary>
+    /// <summary>Mã hàng đang có trong Slot (kèm tên từ dbo.vFVN_PCTP_ItemCatalog).</summary>
     public sealed class ItemLookupItem
     {
         public string ItemCode { get; set; }

@@ -49,7 +49,7 @@ namespace PCTP.Modules.KhoVatLy
             // TODO: tách ra IItemRepository khi có domain Item
             var sql = new SQLPROVIDER();
             _dtItems = sql.LoadData1(sql.B7R2_FCCdb,
-                "SELECT Code, Name FROM vB20Item " +
+                "SELECT Code, Name FROM dbo.vFVN_PCTP_ItemCatalog " +
                 "WHERE IsActive=1 AND IsGroup=0 ORDER BY Code");
         }
 

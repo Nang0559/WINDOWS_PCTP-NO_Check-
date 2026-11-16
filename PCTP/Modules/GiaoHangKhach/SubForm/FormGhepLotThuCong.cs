@@ -833,7 +833,7 @@ namespace PCTP.Modules.GiaoHangKhach.SubForm
             if (_packCache.TryGetValue(key, out cached)) return cached;
 
             string raw = _sql.ExecuteReader(_sql.B7R2_FCCdb,
-                "SELECT TOP 1 CAST(ISNULL(MinCloseQty, 0) AS INT) FROM B20Item WHERE REPLACE(Code, '-', '') = REPLACE(N'"
+                "SELECT TOP 1 CAST(ISNULL(MinCloseQty, 0) AS INT) FROM dbo.vFVN_PCTP_ItemCatalog WHERE REPLACE(Code, '-', '') = REPLACE(N'"
                 + Esc(itemCode) + "', '-', '')");
             int pack;
             if (!int.TryParse((raw ?? string.Empty).Trim(), out pack) || pack < 0) pack = 0;

@@ -55,7 +55,7 @@ namespace PCTP.ImagesControl
                 
 
                 DataTable dt = _sql.LoadData1(_sql.B7R2_FCCdb,
-                    "SELECT id, code, name, model FROM B20item ORDER BY code");
+                    "SELECT id, code, name, model FROM dbo.vFVN_PCTP_ItemCatalog ORDER BY code");
 
                 gridControl1.DataSource = dt;
                 lokupItemCode.Properties.DataSource = dt;

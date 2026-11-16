@@ -15,9 +15,9 @@ namespace PCTP.QC.SqlIntegration;
 /// What runs on SQL Server: the three STOCKTP statements below are extracted AT RUN TIME from the
 /// production source (PhieuKhoRepository.cs), so a change to them breaks this scenario instead of
 /// drifting silently:
-///   1. the lock-read   SELECT ISNULL(SUM(SLCONLAI),0) FROM STOCKTP WITH (UPDLOCK, HOLDLOCK) WHERE {matchCondition}
-///   2. the FIFO select SELECT LOT, SLCONLAI FROM STOCKTP WITH (UPDLOCK, HOLDLOCK) WHERE ... ORDER BY NGAYNHAP, LOT
-///   3. the guarded     UPDATE STOCKTP SET SLXUAT = ..., SLCONLAI = SLCONLAI - @sl ... AND SLCONLAI >= @sl
+///   1. the lock-read   SELECT ISNULL(SUM(SLCONLAI),0) FROM dbo.FVN_STOCKTP WITH (UPDLOCK, HOLDLOCK) WHERE {matchCondition}
+///   2. the FIFO select SELECT LOT, SLCONLAI FROM dbo.FVN_STOCKTP WITH (UPDLOCK, HOLDLOCK) WHERE ... ORDER BY NGAYNHAP, LOT
+///   3. the guarded     UPDATE dbo.FVN_STOCKTP SET SLXUAT = ..., SLCONLAI = SLCONLAI - @sl ... AND SLCONLAI >= @sl
 /// The LOT match predicate is the real LotCodeHelper.BuildLotMatchSql (compiled into this harness).
 ///
 /// What does NOT run here: the C# method CapNhapKhoYMVN itself and BulkStockAdjustService (they need the
@@ -537,9 +537,9 @@ ORDER BY CASE WHEN SlotId = 1 THEN 0 ELSE 1 END, ImportDate, SlotLotId", c, tx) 
 
         var result = new ProdSql
         {
-            LockRead = Pick(@"\$""(?<sql>SELECT ISNULL\(SUM\(SLCONLAI\),0\) FROM STOCKTP[^""]*)""", "YMVN STOCKTP lock-read"),
-            FifoSelect = Pick(@"\$""(?<sql>SELECT LOT, SLCONLAI FROM STOCKTP[^""]*)""", "TruStockTpFifo select"),
-            FifoUpdate = Pick(@"(?<![\$@])""(?<sql>UPDATE STOCKTP SET SLXUAT[^""]*)""", "TruStockTpFifo update")
+            LockRead = Pick(@"\$""(?<sql>SELECT ISNULL\(SUM\(SLCONLAI\),0\) FROM dbo.vFVN_STOCKTP[^""]*)""", "YMVN STOCKTP lock-read"),
+            FifoSelect = Pick(@"\$""(?<sql>SELECT LOT, SLCONLAI FROM dbo.vFVN_STOCKTP[^""]*)""", "TruStockTpFifo select"),
+            FifoUpdate = Pick(@"(?<![\$@])""(?<sql>UPDATE dbo.FVN_STOCKTP SET SLXUAT[^""]*)""", "TruStockTpFifo update")
         };
 
         Require(result.LockRead.Contains("WITH (UPDLOCK, HOLDLOCK)") && result.LockRead.Contains("{matchCondition}"),

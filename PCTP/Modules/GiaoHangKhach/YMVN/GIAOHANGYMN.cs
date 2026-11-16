@@ -266,7 +266,7 @@ namespace PCTP.QRCODE_HVN.YMN
                     Ger = "";
                 }
                 SLG = gridVDONHANG.GetRowCellValue(i, "BUY_QTY_DUE").ToString();
-                sql = "select lot from LUUPHIEUGIAOHANG where rtrim(CUA) = '" + ODN + "' and MAHANG =  '" + MH + "' and NGAYGIAO = '" + Gi + "' and GearYMVN = '"+Gear+"' ";
+                sql = "select lot from dbo.FVN_LUUPHIEUGIAOHANG where rtrim(CUA) = '" + ODN + "' and MAHANG =  '" + MH + "' and NGAYGIAO = '" + Gi + "' and GearYMVN = '"+Gear+"' ";
                 _l = sqlBRV.ExecuteReader(sqlBRV.B7R2_FCCdb, sql);
                 if (_l != "" )
                 {
@@ -393,7 +393,7 @@ namespace PCTP.QRCODE_HVN.YMN
                     row["WANTED_DELIVERY_DATE"] = GIO;
                     PNO = TB_SQL.Rows[t].Field<string>("Part_no");
                     row["CUSTOMER_PART_NO"] = PNO;
-                    QCDG_BRV = "select CAST(MinCloseQty as int) from B20Item where Code = '" + PNO +"'";
+                    QCDG_BRV = "select CAST(MinCloseQty as int) from dbo.vFVN_PCTP_ItemCatalog where Code = '" + PNO +"'";
                     QCDG_BRV = sqlBRV.ExecuteReader(sqlBRV.B7R2_FCCdb, QCDG_BRV);
                     if(QCDG_BRV == "")
                     {
@@ -799,7 +799,7 @@ namespace PCTP.QRCODE_HVN.YMN
             string N_XHSQL = dateNG.DateTime.ToString("MM/dd/yy");
            
             //---------------------------------------------------------------------------------------------------------------------------------
-            //string sqlTK = "select LOT,SLCONLAI from STOCKTP where SLCONLAI > 0 and PART = '" + MaHang + "' order by lot";
+            //string sqlTK = "select LOT,SLCONLAI from dbo.vFVN_STOCKTP where SLCONLAI > 0 and PART = '" + MaHang + "' order by lot";
             DataTable TBTK = new DataTable();
 
             if (T_B.Rows.Count > 0)
@@ -824,7 +824,7 @@ namespace PCTP.QRCODE_HVN.YMN
 
 
                             // Lấy tiêu chuẩn đóng gói .của mã hàng .
-                            sql = "SELECT cast(isnull(MinCloseQty,0) as int)  from B20Item where Code= '" + PartNo + "'";
+                            sql = "SELECT cast(isnull(MinCloseQty,0) as int)  from dbo.vFVN_PCTP_ItemCatalog where Code= '" + PartNo + "'";
                             string sTCDG = sqlBRV.ExecuteReader(sqlBRV.B7R2_FCCdb, sql);
                             if (sTCDG == "")
                             {
@@ -854,7 +854,7 @@ namespace PCTP.QRCODE_HVN.YMN
                                 else
                                 { SLGIAO = 0; }
 
-                                sqlsltk = "select lot,part,isnull(slconlai,0) as slconlai ,isnull(slconlaitmp,0) as  slconlaitmp  from stocktp where part = '" + PartNo + "' and slconlai > 0 order by lot";
+                                sqlsltk = "select lot,part,isnull(slconlai,0) as slconlai ,isnull(slconlaitmp,0) as  slconlaitmp  from dbo.vFVN_STOCKTP where part = '" + PartNo + "' and slconlai > 0 order by lot";
                                 DuyetTONKHO_GHEP(tblGL, sqlsltk, SLGIAO, TCDG, GioGiao, PartNo, "", 0);
                             }
                             else
@@ -869,7 +869,7 @@ namespace PCTP.QRCODE_HVN.YMN
                                         SLGIAO = int.Parse(G_SL[1].Trim().Substring(0, G_SL[1].Trim().Length - 3));
                                         if (PartNo == "1FP-E6611-11-00-80")
                                             PartNo = "1FP-E6611-11-00-80";
-                                        sqlsltk = "select lot,part,isnull(slconlai,0) as slconlai ,isnull(slconlaitmp,0) as  slconlaitmp  from stocktp where part = '" + PartNo + "' and slconlai > 0 and right(substring(LOT,1,13),1) = '" + In_Gear.ToString() + "' order by lot";
+                                        sqlsltk = "select lot,part,isnull(slconlai,0) as slconlai ,isnull(slconlaitmp,0) as  slconlaitmp  from dbo.vFVN_STOCKTP where part = '" + PartNo + "' and slconlai > 0 and right(substring(LOT,1,13),1) = '" + In_Gear.ToString() + "' order by lot";
                                         DuyetTONKHO_GHEP(tblGL, sqlsltk, SLGIAO, TCDG, GioGiao, PartNo, G_SL[0].Trim().Substring(G_SL[0].Trim().Length - 1, 1), In_Gear);
                                     }
                                 }
@@ -878,7 +878,7 @@ namespace PCTP.QRCODE_HVN.YMN
                                     G_SL = A_Gear[0].Split(':');
                                     In_Gear = F_Gear(G_SL[0].Trim().Substring(G_SL[0].Trim().Length - 1, 1));
                                     SLGIAO = int.Parse(G_SL[1].Trim().Substring(0, G_SL[1].Trim().Length - 3));
-                                    sqlsltk = "select lot,part,isnull(slconlai,0) as slconlai ,isnull(slconlaitmp,0) as  slconlaitmp  from stocktp where part = '" + PartNo + "' and slconlai > 0 and right(substring(LOT,1,13),1) = '" + In_Gear.ToString() + "'order by lot";
+                                    sqlsltk = "select lot,part,isnull(slconlai,0) as slconlai ,isnull(slconlaitmp,0) as  slconlaitmp  from dbo.vFVN_STOCKTP where part = '" + PartNo + "' and slconlai > 0 and right(substring(LOT,1,13),1) = '" + In_Gear.ToString() + "'order by lot";
                                     DuyetTONKHO_GHEP(tblGL, sqlsltk, SLGIAO, TCDG, GioGiao, PartNo, G_SL[0].Trim().Substring(G_SL[0].Trim().Length - 1, 1), In_Gear);
                                 }
                             }
@@ -946,11 +946,11 @@ namespace PCTP.QRCODE_HVN.YMN
                 string sqlTMP;
                 if (In_Gear != 0)
                 {
-                    sqlTMP = "select lot,part,isnull(slconlai,0) as slconlai ,isnull(slconlaitmp,0) as slconlaitmp  from stocktp where part = '" + PartNo + "' and slconlaitmp > 0 and slconlai >0 and right(substring(LOT,0,14),1) = '" + In_Gear.ToString() + "' order by lot";
+                    sqlTMP = "select lot,part,isnull(slconlai,0) as slconlai ,isnull(slconlaitmp,0) as slconlaitmp  from dbo.vFVN_STOCKTP where part = '" + PartNo + "' and slconlaitmp > 0 and slconlai >0 and right(substring(LOT,0,14),1) = '" + In_Gear.ToString() + "' order by lot";
                 }
                 else
                 {
-                    sqlTMP = "select lot,part,isnull(slconlai,0) as slconlai ,isnull(slconlaitmp,0) as slconlaitmp  from stocktp where part = '" + PartNo + "' and slconlai > 0  order by lot";
+                    sqlTMP = "select lot,part,isnull(slconlai,0) as slconlai ,isnull(slconlaitmp,0) as slconlaitmp  from dbo.vFVN_STOCKTP where part = '" + PartNo + "' and slconlai > 0  order by lot";
                 }    
                 TONKHOTHEOMATMP = sqlBRV.LoadData1(sqlBRV.B7R2_FCCdb, sqlTMP);
                 // Duyệt Hàng theo TMP tồn kho .
@@ -1066,7 +1066,7 @@ namespace PCTP.QRCODE_HVN.YMN
         }
         private void CAPNHAPTMP(string LOT, int SLCONLAITMP)
         {
-            string SQL = "update stocktp set slconlaitmp = " + SLCONLAITMP + " where lot like '" + LOT + "' and part in (select ItemCode from B20ItemQuyCach where CustomerCode = '0100002') and slconlai >0 ";
+            string SQL = "update dbo.FVN_STOCKTP set slconlaitmp = " + SLCONLAITMP + " where lot like '" + LOT + "' and part in (select ItemCode from B20ItemQuyCach where CustomerCode = '0100002') and slconlai >0 ";
             sqlBRV.ExecuteNonQuery(sqlBRV.B7R2_FCCdb, SQL);
         }
         #endregion
@@ -1096,7 +1096,7 @@ namespace PCTP.QRCODE_HVN.YMN
                 object TLg = Tb_HT.Rows[i][1];
                 TT_GIAO = Convert.ToInt32(TLg);
                 // Lấy tổng tồn kho theo mã 
-                sql = "select isnull(sum(slconlai),0) as TT_TK from stocktp where part = '" + Mahang + "' and slconlai > 0 ";
+                sql = "select isnull(sum(slconlai),0) as TT_TK from dbo.vFVN_STOCKTP where part = '" + Mahang + "' and slconlai > 0 ";
                 TONGTON_THEOMA = int.Parse(sqlBRV.ExecuteReader(sqlBRV.B7R2_FCCdb, sql));
                 // Tìm giờ thiếu hàng .
   
@@ -1704,13 +1704,13 @@ namespace PCTP.QRCODE_HVN.YMN
                         /// lưu và xóa phiếu
                             if (YMVN_CHONGIAO.MP_SP == "MP")
                             {
-                                sql = "INSERT INTO LUUPHIEUGIAOHANG (STT,CUA,TRUYEN,MAHANG,TENHANG,LOT,DV,SOLUONG,NGAYGIAO,GIOGIAO,STATUS,GearYMVN,NHAMAY,GIOGIAOFCC)" +
+                                sql = "INSERT INTO dbo.FVN_LUUPHIEUGIAOHANG (STT,CUA,TRUYEN,MAHANG,TENHANG,LOT,DV,SOLUONG,NGAYGIAO,GIOGIAO,STATUS,GearYMVN,NHAMAY,GIOGIAOFCC)" +
                               " SELECT STT,CUA,TRUYEN,MAHANG,TENHANG,LOT,DV,SOLUONG,NGAYGIAO,GIOGIAO,'OK' as STATUS,TTPHIEU,'" + NHAMAY + "', CONVERT(VARCHAR(8), GETDATE(), 108)" +
                                 " FROM YMVN_TMPPHIEUGIAOHANG where STT = " + STT + " and STATUS = 'NG'";
                             }
                             else
                             {
-                                sql = "INSERT INTO LUUPHIEUGIAOHANG (STT,CUA,TRUYEN,MAHANG,TENHANG,LOT,DV,SOLUONG,NGAYGIAO,GIOGIAO,STATUS,GearYMVN,NHAMAY,GIOGIAOFCC)" +
+                                sql = "INSERT INTO dbo.FVN_LUUPHIEUGIAOHANG (STT,CUA,TRUYEN,MAHANG,TENHANG,LOT,DV,SOLUONG,NGAYGIAO,GIOGIAO,STATUS,GearYMVN,NHAMAY,GIOGIAOFCC)" +
                                   " SELECT STT,PO_NO,CUA,MAHANG,TENHANG,LOTNO,'pcs' as DV,SLGIAO,NGAYGIAO,GIOGIAO,'OK' as STATUS,'','" + NHAMAY + "', CONVERT(VARCHAR(8), GETDATE(), 108) " +
                                     " FROM SP_TMPPHIEUGIAOHANG where STT = " + STT + " and STATUS = 'NG'";
                             }
@@ -1840,7 +1840,7 @@ namespace PCTP.QRCODE_HVN.YMN
               LOT=  LOT.Substring(0, 13); 
             else LOT = LOT;
             sql = "update t set t.ngayxuat  = '"+ GG +"' ,t.slxuat = slxuat +" + SL + ",t.slconlai = slconlai - " + SL + " from "+
-                   " ( select top 1 * from STOCKTP where LOT = '" + LOT + "' or substring(LOT,1,13) = '"+ LOT + "') t";
+                   " ( select top 1 * from dbo.vFVN_STOCKTP where LOT = '" + LOT + "' or substring(LOT,1,13) = '"+ LOT + "') t";
             
             return sql;
 
@@ -1925,7 +1925,7 @@ namespace PCTP.QRCODE_HVN.YMN
                 LOT = LOT.Substring(0, 13);
 
             else LOT = LOT;
-            string sql = "select slconlai from STOCKTP where  substring(LOT,1,13) = '"+ LOT + "' "; 
+            string sql = "select slconlai from dbo.vFVN_STOCKTP where  substring(LOT,1,13) = '"+ LOT + "' "; 
                 //" like '" + LOT.Substring(0,(LOT.Length -1)) + "%' or  
             _SL = sqlBRV.ExecuteReader(sqlBRV.B7R2_FCCdb, sql);
             if (_SL == "")

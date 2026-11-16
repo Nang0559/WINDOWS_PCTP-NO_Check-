@@ -208,7 +208,7 @@ internal static class ProductionStockTpRepositoryScenario
                 // The disposable engine-only CI database intentionally has no business
                 // schema; never turn a tempdb-only test into an implicit dbo dependency.
                 using var verifyConnection = new SqlConnection(connectionString);
-                using var verify = new SqlCommand("SELECT COUNT(1) FROM dbo.STOCKTP WHERE LOT = @lot;", verifyConnection);
+                using var verify = new SqlCommand("SELECT COUNT(1) FROM dbo.vFVN_STOCKTP WHERE LOT = @lot;", verifyConnection);
                 verify.Parameters.Add(new SqlParameter("@lot", fixtureLot));
                 verify.CommandTimeout = 5;
                 verifyConnection.Open();

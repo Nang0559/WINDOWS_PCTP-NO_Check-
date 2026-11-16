@@ -21,7 +21,7 @@ namespace PCTP.Modules.KhoCore.Fuction
         }
         public bool IsWarehouseExists(string warehouseName)
         {
-            string query = "SELECT COUNT(*) FROM Warehouse WHERE Name = @Name";
+            string query = "SELECT COUNT(*) FROM dbo.FVN_Warehouse WHERE Name = @Name";
             SqlParameter[] parameters = {
                 new SqlParameter("@Name", warehouseName)
             };
@@ -33,8 +33,8 @@ namespace PCTP.Modules.KhoCore.Fuction
         {
             string query = @"
                 SELECT w.WarehouseId, r.RackName 
-                FROM Warehouse w
-                LEFT JOIN Rack r ON r.WarehouseId = w.WarehouseId
+                FROM dbo.FVN_Warehouse w
+                LEFT JOIN dbo.FVN_Rack r ON r.WarehouseId = w.WarehouseId
                 WHERE w.Name = @Name";
 
             SqlParameter[] parameters = { new SqlParameter("@Name", warehouseName) };
@@ -74,7 +74,7 @@ namespace PCTP.Modules.KhoCore.Fuction
                         int warehouseId;
                         using (SqlCommand find = new SqlCommand(@"
 SELECT WarehouseId
-FROM Warehouse WITH (UPDLOCK, HOLDLOCK)
+FROM dbo.FVN_Warehouse WITH (UPDLOCK, HOLDLOCK)
 WHERE Name = @Name;", conn, transaction))
                         {
                             find.Parameters.Add("@Name", SqlDbType.NVarChar, 255).Value = warehouseName.Trim();
@@ -86,7 +86,7 @@ WHERE Name = @Name;", conn, transaction))
 
                         int newRackId;
                         using (SqlCommand insertRack = new SqlCommand(@"
-INSERT INTO Rack (RackName, WarehouseId)
+INSERT INTO dbo.FVN_Rack (RackName, WarehouseId)
 VALUES (@RackName, @WarehouseId);
 SELECT CAST(SCOPE_IDENTITY() AS int);", conn, transaction))
                         {
@@ -109,7 +109,7 @@ SELECT CAST(SCOPE_IDENTITY() AS int);", conn, transaction))
                                 throw new InvalidOperationException("Capacity không được âm.");
 
                             using (SqlCommand insertSlot = new SqlCommand(@"
-INSERT INTO Slot
+INSERT INTO dbo.FVN_Slot
     (SlotNumber, IsOccupied, RackId, Capacity, ItemCode, Quantity, ImportDate)
 VALUES
     (@SlotNumber, 0, @RackId, @Capacity, NULL, 0, NULL);", conn, transaction))
@@ -171,13 +171,13 @@ VALUES
                            s.IsOccupied, s.Quantity, s.Capacity,
                            STUFF((
                                SELECT ',' + sl.TemCode
-                               FROM SlotLot sl
+                               FROM dbo.FVN_SlotLot sl
                                WHERE sl.SlotId = s.SlotId
                                FOR XML PATH(''), TYPE
                            ).value('.', 'NVARCHAR(MAX)'), 1, 1, '') AS TemCode
-                    FROM Slot s
-                    JOIN Rack r     ON s.RackId      = r.RackId
-                    JOIN Warehouse w ON r.WarehouseId = w.WarehouseId
+                    FROM dbo.FVN_Slot s
+                    JOIN dbo.FVN_Rack r     ON s.RackId      = r.RackId
+                    JOIN dbo.FVN_Warehouse w ON r.WarehouseId = w.WarehouseId
                     WHERE w.Name <> @BulkWh   -- ✅ THÊM: loại bỏ Slot ảo khỏi kết quả chọn thường
                       AND (
                         (s.ItemCode = @ItemCode AND (s.Capacity - s.Quantity) >= @SoLuongNhap)

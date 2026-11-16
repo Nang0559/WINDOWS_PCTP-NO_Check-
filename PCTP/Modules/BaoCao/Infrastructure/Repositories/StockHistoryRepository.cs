@@ -45,7 +45,7 @@ namespace PCTP.Modules.BaoCao.Infrastructure.Repositories
 
             const string sql = @"
             SELECT DISTINCT ItemCode
-            FROM StockHistory
+            FROM dbo.FVN_StockHistory
             WHERE ItemCode IS NOT NULL
             ORDER BY ItemCode";
 
@@ -283,10 +283,10 @@ namespace PCTP.Modules.BaoCao.Infrastructure.Repositories
                    SH.ToSlotId,
                    COALESCE(SH.SlotId, SL.SlotId) AS SlotId,
                    COALESCE(NULLIF(SH.QrData, N''), SL.QrData) AS QrData
-            FROM dbo.StockHistory AS SH
+            FROM dbo.FVN_StockHistory AS SH
             OUTER APPLY (
                 SELECT TOP 1 sl.SlotId, sl.QrData
-                FROM dbo.SlotLot AS sl
+                FROM dbo.FVN_SlotLot AS sl
                 WHERE (NULLIF(SH.QrData, N'') IS NULL
                        OR COALESCE(SH.ToSlotId, SH.FromSlotId, SH.SlotId) IS NULL)
                   AND sl.LotNo = SH.LotNo
@@ -310,9 +310,9 @@ namespace PCTP.Modules.BaoCao.Infrastructure.Repositories
                 const string sql = @"
                 SELECT s.SlotId,
                        ISNULL(w.Name, N'?') + N'-' + ISNULL(r.RackName, N'?') + N'-Slot' + CAST(s.SlotNumber AS NVARCHAR(20)) AS SlotName
-                FROM dbo.Slot AS s
-                LEFT JOIN dbo.Rack AS r ON r.RackId = s.RackId
-                LEFT JOIN dbo.Warehouse AS w ON w.WarehouseId = r.WarehouseId";
+                FROM dbo.FVN_Slot AS s
+                LEFT JOIN dbo.FVN_Rack AS r ON r.RackId = s.RackId
+                LEFT JOIN dbo.FVN_Warehouse AS w ON w.WarehouseId = r.WarehouseId";
                 foreach (DataRow row in LoadData(sql).Rows)
                     map[Convert.ToInt32(row["SlotId"])] = Convert.ToString(row["SlotName"]);
             }

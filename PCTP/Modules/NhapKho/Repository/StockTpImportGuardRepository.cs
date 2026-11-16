@@ -26,7 +26,7 @@ namespace PCTP.Modules.NhapKho.Repository
 
             const string sql = @"
 SELECT COUNT(1)
-FROM StockHistory
+FROM dbo.FVN_StockHistory
 WHERE ActionType = 'IMPORT'
   AND ItemCode = @ItemCode
   AND QrData = @QrData;";

@@ -29,7 +29,7 @@ namespace PCTP.Modules.KhoVatLy.Repositories
                 throw new ArgumentException("Tên Rack không được rỗng.", nameof(rackName));
 
             const string sql = @"
-        INSERT INTO Rack (WarehouseId, RackName, RackRowCount, ColumnCount)
+        INSERT INTO dbo.FVN_Rack (WarehouseId, RackName, RackRowCount, ColumnCount)
         OUTPUT INSERTED.RackId
         VALUES (@WarehouseId, @RackName, @RowCount, @ColumnCount);";
 
@@ -61,7 +61,7 @@ namespace PCTP.Modules.KhoVatLy.Repositories
                 RackName,
                 RackRowCount,
                 ColumnCount
-            FROM Rack
+            FROM dbo.FVN_Rack
             WHERE RackId = @RackId;";
 
             DataTable dt = LoadData(
@@ -93,7 +93,7 @@ namespace PCTP.Modules.KhoVatLy.Repositories
                 RackName,
                 RackRowCount,
                 ColumnCount
-            FROM Rack
+            FROM dbo.FVN_Rack
             WHERE WarehouseId = @WarehouseId
             ORDER BY RackId;";
 
@@ -135,7 +135,7 @@ namespace PCTP.Modules.KhoVatLy.Repositories
                     nameof(rack));
 
             const string sql = @"
-            INSERT INTO Rack
+            INSERT INTO dbo.FVN_Rack
             (
                 WarehouseId,
                 RackName,
@@ -193,7 +193,7 @@ namespace PCTP.Modules.KhoVatLy.Repositories
                     nameof(rack));
 
             const string sql = @"
-            UPDATE Rack
+            UPDATE dbo.FVN_Rack
             SET
                 WarehouseId = @WarehouseId,
                 RackName = @RackName,
@@ -241,7 +241,7 @@ namespace PCTP.Modules.KhoVatLy.Repositories
                     nameof(rackId));
 
             const string sql = @"
-            DELETE FROM Rack
+            DELETE FROM dbo.FVN_Rack
             WHERE RackId = @RackId;";
 
             ExecuteNonQuery(
@@ -266,7 +266,7 @@ namespace PCTP.Modules.KhoVatLy.Repositories
 
             const string sql = @"
             SELECT COUNT(1)
-            FROM Rack
+            FROM dbo.FVN_Rack
             WHERE WarehouseId = @WarehouseId
               AND RackName = @RackName;";
 
@@ -301,7 +301,7 @@ namespace PCTP.Modules.KhoVatLy.Repositories
             const string sql = @"
             SELECT TOP (1)
                 RackId
-            FROM Rack
+            FROM dbo.FVN_Rack
             WHERE WarehouseId = @WarehouseId
               AND RackName = @RackName
             ORDER BY RackId;";
@@ -345,7 +345,7 @@ namespace PCTP.Modules.KhoVatLy.Repositories
                     nameof(columnCount));
 
             const string sql = @"
-            UPDATE Rack
+            UPDATE dbo.FVN_Rack
             SET
                 RackRowCount = @RackRowCount,
                 ColumnCount = @ColumnCount
@@ -372,7 +372,7 @@ namespace PCTP.Modules.KhoVatLy.Repositories
                 throw new ArgumentException("RackId không hợp lệ.", nameof(rackId));
 
             const string sql = @"
-        INSERT INTO Slot (RackId, SlotNumber, IsOccupied, Capacity, Quantity)
+        INSERT INTO dbo.FVN_Slot (RackId, SlotNumber, IsOccupied, Capacity, Quantity)
         VALUES (@RackId, @SlotNumber, 0, @Capacity, 0);";
 
             ExecuteNonQuery(sql,
@@ -391,10 +391,10 @@ namespace PCTP.Modules.KhoVatLy.Repositories
             sl.LotNo, sl.ItemCode AS LotItemCode, sl.Quantity AS LotQuantity,
             sl.TemCode AS LotTemCode, sl.QrData, sl.ImportDate AS LotImportDate,
             sl.NgaySX, sl.SoPhieuTong, sl.MaPhieu
-        FROM Warehouse w
-        INNER JOIN Rack r ON r.WarehouseId = w.WarehouseId
-        LEFT JOIN Slot s ON s.RackId = r.RackId
-        LEFT JOIN SlotLot sl ON sl.SlotId = s.SlotId AND sl.PhieuStatus <> 3
+        FROM dbo.FVN_Warehouse w
+        INNER JOIN dbo.FVN_Rack r ON r.WarehouseId = w.WarehouseId
+        LEFT JOIN dbo.FVN_Slot s ON s.RackId = r.RackId
+        LEFT JOIN dbo.FVN_SlotLot sl ON sl.SlotId = s.SlotId AND sl.PhieuStatus <> 3
         ORDER BY w.Name, r.RackName, s.SlotNumber, sl.LotNo";
 
             DataTable dt = LoadData(sql);
@@ -492,9 +492,9 @@ namespace PCTP.Modules.KhoVatLy.Repositories
             // Xoá Slot rồi Rack phải atomic: không để lại Rack mất Slot (hoặc ngược lại).
             InTransaction(() =>
             {
-                ExecuteNonQuery("DELETE FROM Slot WHERE RackId = @RackId",
+                ExecuteNonQuery("DELETE FROM dbo.FVN_Slot WHERE RackId = @RackId",
                     new SqlParameter("@RackId", SqlDbType.Int) { Value = rackId });
-                ExecuteNonQuery("DELETE FROM Rack WHERE RackId = @RackId",
+                ExecuteNonQuery("DELETE FROM dbo.FVN_Rack WHERE RackId = @RackId",
                     new SqlParameter("@RackId", SqlDbType.Int) { Value = rackId });
             });
         }

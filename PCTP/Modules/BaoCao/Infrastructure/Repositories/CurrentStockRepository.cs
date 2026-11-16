@@ -33,7 +33,7 @@ namespace PCTP.Modules.BaoCao.Infrastructure.Repositories
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var table = ExecuteStoredProcedure("sp_GetCurrentStockStatus");
+            var table = ExecuteStoredProcedure("usp_FVN_Report_CurrentStock");
 
             var rows = new List<CurrentStockRow>(table.Rows.Count);
             foreach (DataRow row in table.Rows)

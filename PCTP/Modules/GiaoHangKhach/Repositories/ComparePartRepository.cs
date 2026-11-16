@@ -23,7 +23,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         public DataTable GetSourceParts()
             => LoadData(@"
                 SELECT DISTINCT Code AS code, Name AS name
-                FROM B20Item
+                FROM dbo.vFVN_PCTP_ItemCatalog
                 WHERE ISNULL(Code, '') <> ''
                 ORDER BY code");
 
@@ -33,7 +33,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             // Danh sách đầy đủ cho phép một PartNo ánh xạ tới nhiều PartNoCompare.
             return LoadData(@"
                 SELECT DISTINCT Code AS code, Name AS name
-                FROM B20Item
+                FROM dbo.vFVN_PCTP_ItemCatalog
                 WHERE ISNULL(Code, '') <> ''
                 ORDER BY code");
         }
@@ -49,8 +49,8 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                     c.timeSet,
                     c.IsActive
                 FROM tbl_QR_ComparePart c
-                OUTER APPLY (SELECT TOP 1 Name FROM B20Item WHERE Code = c.PartNo) a
-                OUTER APPLY (SELECT TOP 1 Name FROM B20Item WHERE Code = c.PartNoCompare) b
+                OUTER APPLY (SELECT TOP 1 Name FROM dbo.vFVN_PCTP_ItemCatalog WHERE Code = c.PartNo) a
+                OUTER APPLY (SELECT TOP 1 Name FROM dbo.vFVN_PCTP_ItemCatalog WHERE Code = c.PartNoCompare) b
                 ORDER BY c.STT DESC, c.timeSet DESC");
 
         public bool TryInsert(string partNo, string partNoCompare, DateTime timeSet)
@@ -84,7 +84,7 @@ IF EXISTS
     SELECT CAST(0 AS int);
 ELSE
 BEGIN
-    SELECT TOP 1 @PartName = LEFT(Name, 30) FROM B20Item WHERE Code = @PartNo;
+    SELECT TOP 1 @PartName = LEFT(Name, 30) FROM dbo.vFVN_PCTP_ItemCatalog WHERE Code = @PartNo;
 
     IF COLUMNPROPERTY(OBJECT_ID(N'tbl_QR_ComparePart'), 'STT', 'IsIdentity') = 1
     BEGIN

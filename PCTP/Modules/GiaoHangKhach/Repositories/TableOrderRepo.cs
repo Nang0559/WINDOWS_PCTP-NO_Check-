@@ -319,7 +319,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
 
                 object result = _db.ExecuteScalar(
                     @"SELECT ISNULL(SUM(slconlai), 0)
-                  FROM STOCKTP
+                  FROM dbo.vFVN_STOCKTP
                   WHERE part = @MaHang
                     AND slconlai > 0",
                     new SqlParameter(
@@ -645,7 +645,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                 "    ISNULL(PO_NO,'') AS PO_NO, " +
                 "    ISNULL(SOLUONG,0) AS SOLUONG, " +
                 "    ISNULL(GearYMVN,'') AS GEAR " +
-                "FROM LUUPHIEUGIAOHANG " +
+                "FROM dbo.FVN_LUUPHIEUGIAOHANG " +
                 $"WHERE CAST(NGAYGIAO AS DATE) = '{safeNgay}' " +
                 $"AND NHAMAY = '{safeNhaMay}'";
 

@@ -309,7 +309,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                     int sl = item.SoLuong;
                     string matchCondition = LotCodeHelper.BuildLotMatchSql("LOT", $"'{SqlHelper.Esc(lotKey)}'");
                     object slConlaiRaw = ExecuteScalar(
-                        $"SELECT ISNULL(SUM(SLCONLAI),0) FROM STOCKTP WITH (UPDLOCK, HOLDLOCK) WHERE {matchCondition}");
+                        $"SELECT ISNULL(SUM(SLCONLAI),0) FROM dbo.FVN_STOCKTP WITH (UPDLOCK, HOLDLOCK) WHERE {matchCondition}");
                     int slConlai = slConlaiRaw == null || slConlaiRaw == DBNull.Value ? 0 : Convert.ToInt32(slConlaiRaw);
                     if (slConlai < sl)
                     {
@@ -366,7 +366,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                 try
                 {
                     ExecuteNonQuery(
-                        @"INSERT INTO LUUPHIEUGIAOHANG
+                        @"INSERT INTO dbo.FVN_LUUPHIEUGIAOHANG
                     (STT, CUA, TRUYEN, MAHANG, TENHANG, LOT, DV, SOLUONG,
                      NGAYGIAO, GIOGIAO, STATUS, STATUSDOC, GearYMVN, NHAMAY, GIOGIAOFCC, PO_NO, TTPHIEU)
                     SELECT STT, CUA, TRUYEN, MAHANG, TENHANG, LOT, DV, SOLUONG,
@@ -755,7 +755,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
 
         private bool TruStockTpFifo(string matchCondition, int slCan)
         {
-            DataTable rows = LoadData($"SELECT LOT, SLCONLAI FROM STOCKTP WITH (UPDLOCK, HOLDLOCK) WHERE {matchCondition} AND SLCONLAI > 0 ORDER BY NGAYNHAP ASC, LOT ASC");
+            DataTable rows = LoadData($"SELECT LOT, SLCONLAI FROM dbo.FVN_STOCKTP WITH (UPDLOCK, HOLDLOCK) WHERE {matchCondition} AND SLCONLAI > 0 ORDER BY NGAYNHAP ASC, LOT ASC");
             int conLaiCanTru = slCan;
             foreach (DataRow row in rows.Rows)
             {
@@ -764,7 +764,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                 int slDongNay = Convert.ToInt32(row["SLCONLAI"]);
                 int slTruDongNay = Math.Min(slDongNay, conLaiCanTru);
                 int affected = ExecuteNonQuery(
-                    "UPDATE STOCKTP SET SLXUAT = ISNULL(SLXUAT,0) + @sl, SLCONLAI = SLCONLAI - @sl, NGAYXUAT = GETDATE() WHERE LOT = @lot AND SLCONLAI >= @sl",
+                    "UPDATE dbo.FVN_STOCKTP SET SLXUAT = ISNULL(SLXUAT,0) + @sl, SLCONLAI = SLCONLAI - @sl, NGAYXUAT = GETDATE() WHERE LOT = @lot AND SLCONLAI >= @sl",
                     new SqlParameter("@sl", slTruDongNay), new SqlParameter("@lot", lotThat));
                 if (affected != 1) return false;
                 conLaiCanTru -= slTruDongNay;

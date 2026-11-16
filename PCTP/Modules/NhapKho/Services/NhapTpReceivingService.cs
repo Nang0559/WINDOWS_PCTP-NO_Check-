@@ -274,7 +274,7 @@ namespace PCTP.Modules.NhapKho.Services
             if (string.IsNullOrWhiteSpace(lot))
                 throw new ArgumentException("LOT không được rỗng.", nameof(lot));
 
-            // Không UPDATE STOCKTP tại đây.
+            // Không UPDATE dbo.FVN_STOCKTP tại đây.
             // Đây chỉ là approval từ UI; mutation thật nằm trong NhapTpVaoSlot().
             _reopenApprovedLots.Add(lot.Trim());
         }

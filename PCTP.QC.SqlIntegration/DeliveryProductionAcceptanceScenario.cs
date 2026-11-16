@@ -108,8 +108,8 @@ ORDER BY t.NGAYGIAO, t.STT;";
     private static async Task<(int LotCount, long Remaining)> ReadStockAsync(SqlConnection connection, string lotInput)
     {
         var sql = lotInput.Length > 13
-            ? "SELECT COUNT(DISTINCT RTRIM(LOT)), ISNULL(SUM(CAST(SLCONLAI AS bigint)),0) FROM dbo.STOCKTP WHERE LOT = @lot"
-            : "SELECT COUNT(DISTINCT RTRIM(LOT)), ISNULL(SUM(CAST(SLCONLAI AS bigint)),0) FROM dbo.STOCKTP WHERE LEFT(RTRIM(LOT),13) = @lot";
+            ? "SELECT COUNT(DISTINCT RTRIM(LOT)), ISNULL(SUM(CAST(SLCONLAI AS bigint)),0) FROM dbo.vFVN_STOCKTP WHERE LOT = @lot"
+            : "SELECT COUNT(DISTINCT RTRIM(LOT)), ISNULL(SUM(CAST(SLCONLAI AS bigint)),0) FROM dbo.vFVN_STOCKTP WHERE LEFT(RTRIM(LOT),13) = @lot";
         await using var command = new SqlCommand(sql, connection) { CommandTimeout = 30 };
         command.Parameters.Add(new SqlParameter("@lot", SqlDbType.NVarChar, 100) { Value = lotInput.Length > 13 ? lotInput : lotInput[..Math.Min(13, lotInput.Length)] });
         await using var reader = await command.ExecuteReaderAsync();
@@ -121,7 +121,7 @@ ORDER BY t.NGAYGIAO, t.STT;";
     {
         const string sql = @"
 SELECT COUNT(*)
-FROM dbo.LUUPHIEUGIAOHANG l
+FROM dbo.FVN_LUUPHIEUGIAOHANG l
 WHERE l.MAHANG = @mahang
   AND l.NGAYGIAO >= @d AND l.NGAYGIAO < DATEADD(day, 1, @d)
   AND ISNULL(l.CUA,N'') = @cua
@@ -236,15 +236,15 @@ WHERE l.MAHANG = @mahang
         var lot = (dash > 0 ? lotExpression[..dash] : lotExpression).Trim();
         var status = await ScalarStringAsync(connection, tx, "SELECT ISNULL(STATUS,N'') FROM dbo.TMPPHIEUGIAOHANG WHERE STT=@stt", new SqlParameter("@stt", stt)) ?? string.Empty;
         var stockSql = lot.Length > 13
-            ? "SELECT ISNULL(SUM(s.SLCONLAI),0) FROM dbo.STOCKTP s WHERE s.LOT = @lot"
+            ? "SELECT ISNULL(SUM(s.SLCONLAI),0) FROM dbo.vFVN_STOCKTP s WHERE s.LOT = @lot"
             : @"SELECT ISNULL(SUM(s.SLCONLAI),0)
-FROM dbo.STOCKTP s
+FROM dbo.vFVN_STOCKTP s
 WHERE RTRIM(s.LOT)=RTRIM(@lot)
    OR (LEFT(RTRIM(s.LOT),13)=LEFT(RTRIM(@lot),13)
-       AND (SELECT COUNT(DISTINCT RTRIM(s2.LOT)) FROM dbo.STOCKTP s2
+       AND (SELECT COUNT(DISTINCT RTRIM(s2.LOT)) FROM dbo.vFVN_STOCKTP s2
             WHERE LEFT(RTRIM(s2.LOT),13)=LEFT(RTRIM(@lot),13))=1)";
         var stock = await ScalarIntAsync(connection, tx, stockSql, new SqlParameter("@lot", lot));
-        var ledger = await ScalarIntAsync(connection, tx, @"SELECT COUNT(*) FROM dbo.LUUPHIEUGIAOHANG l JOIN dbo.TMPPHIEUGIAOHANG t ON t.STT=@stt
+        var ledger = await ScalarIntAsync(connection, tx, @"SELECT COUNT(*) FROM dbo.FVN_LUUPHIEUGIAOHANG l JOIN dbo.TMPPHIEUGIAOHANG t ON t.STT=@stt
 WHERE RTRIM(l.MAHANG)=RTRIM(t.MAHANG) AND CAST(l.NGAYGIAO AS date)=CAST(t.NGAYGIAO AS date)
   AND RTRIM(ISNULL(l.CUA,N''))=RTRIM(ISNULL(t.CUA,N'')) AND RTRIM(ISNULL(l.TRUYEN,N''))=RTRIM(ISNULL(t.TRUYEN,N''))
   AND l.SOLUONG=t.SOLUONG AND RTRIM(ISNULL(l.GIOGIAO,N''))=RTRIM(ISNULL(t.GIOGIAO,N''))

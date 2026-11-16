@@ -166,8 +166,8 @@ order by CUSTOMER_PART_NO";
                     continue;
 
                 string safePartNo = partNo.Replace("'", "''");
-                string stockSql = "select sum(slconlai) from stocktp where PART = '" + safePartNo + "'";
-                string deliverySql = @"select sum(SOLUONG) from luuphieugiaohang
+                string stockSql = "select sum(slconlai) from dbo.vFVN_STOCKTP where PART = '" + safePartNo + "'";
+                string deliverySql = @"select sum(SOLUONG) from dbo.FVN_LUUPHIEUGIAOHANG
 where MAHANG = '" + safePartNo + @"'
   and CONVERT(VARCHAR(10),NGAYGIAO,101) = '" + today + "'";
 

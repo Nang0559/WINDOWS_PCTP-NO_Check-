@@ -44,7 +44,7 @@ namespace PCTP.Modules.NhapKho.Repository
                     nameof(lot));
 
             const string sql = @"
-UPDATE STOCKTP
+UPDATE dbo.FVN_STOCKTP
 SET Satus = 0
 WHERE LOT = @Lot;";
 
@@ -111,7 +111,7 @@ WHERE LOT = @Lot;";
 SELECT
     Satus,
     ISNULL(SLSX, 0) AS SLSX
-FROM STOCKTP
+FROM dbo.vFVN_STOCKTP
 WHERE LOT = @Lot;";
 
             DataTable dt = LoadData(
@@ -145,7 +145,7 @@ WHERE LOT = @Lot;";
                 return false;
 
             const string updateSql = @"
-UPDATE STOCKTP
+UPDATE dbo.FVN_STOCKTP
 SET
     Satus = 0,
     SLSX = @SLSXMoi

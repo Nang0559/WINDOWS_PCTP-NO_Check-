@@ -28,7 +28,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         {
             return LoadData(
                 @"SELECT MAHANG, GIOGIAO, SOLUONG " +
-                "FROM LUUPHIEUGIAOHANG " +
+                "FROM dbo.FVN_LUUPHIEUGIAOHANG " +
                 "WHERE NHAMAY = @nm AND CAST(NGAYGIAO AS DATE) = @ng",
                 new SqlParameter("@nm", nhaMay),
                 new SqlParameter("@ng", ngayGiao));
@@ -65,7 +65,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                     Note,
                     ISNULL(PO_NO, '')   AS PO_NO,
                     ISNULL(PO_ITEM, '') AS PO_ITEM
-                FROM LUUPHIEUGIAOHANG
+                FROM dbo.FVN_LUUPHIEUGIAOHANG
                 WHERE NHAMAY = @nm
                   AND NGAYGIAO = @ng
                   AND GIOGIAOFCC = @gg";
@@ -131,7 +131,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             // loaiPhieu hiện chưa được sử dụng trong implementation cũ.
 
             const string updateSql = @"
-                    UPDATE LUUPHIEUGIAOHANG
+                    UPDATE dbo.FVN_LUUPHIEUGIAOHANG
                     SET LOT = ISNULL(PO_NO, '') + '-' + ISNULL(PO_ITEM, '')
                     WHERE NHAMAY = @nm
                       AND NGAYGIAO = @ng
@@ -156,7 +156,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
 
             const string countSql = @"
                     SELECT COUNT(*)
-                    FROM LUUPHIEUGIAOHANG
+                    FROM dbo.FVN_LUUPHIEUGIAOHANG
                     WHERE NHAMAY = @nm
                       AND NGAYGIAO = @ng
                       AND GIOGIAOFCC = @gg
@@ -201,7 +201,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                     : "";
 
             const string sql = @"
-            UPDATE LUUPHIEUGIAOHANG
+            UPDATE dbo.FVN_LUUPHIEUGIAOHANG
             SET TTPHIEU = @gc
             WHERE NHAMAY = @nm
               AND NGAYGIAO = @ng
@@ -238,7 +238,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
 
             DataTable tonDt = Db.LoadData(
                 $"SELECT PART, ISNULL(SUM(SLCONLAI),0) AS TONG_TON " +
-                $"FROM STOCKTP WHERE PART IN ({inClause}) GROUP BY PART");
+                $"FROM dbo.vFVN_STOCKTP WHERE PART IN ({inClause}) GROUP BY PART");
 
             var map = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             foreach (DataRow row in tonDt.Rows)

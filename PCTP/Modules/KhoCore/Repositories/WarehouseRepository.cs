@@ -33,7 +33,7 @@ namespace PCTP.Modules.KhoVatLy.Repository
             const string sql = @"
             SELECT TOP (1)
                 Name
-            FROM B7R2_FCC.dbo.vB20Item
+            FROM dbo.vFVN_PCTP_ItemCatalog
             WHERE Code = @ItemCode;";
 
             object result = ExecuteScalar(
@@ -111,7 +111,7 @@ namespace PCTP.Modules.KhoVatLy.Repository
         {
             if (string.IsNullOrWhiteSpace(warehouseName)) return false;
 
-            const string sql = "SELECT COUNT(1) FROM Warehouse WHERE Name = @Name;";
+            const string sql = "SELECT COUNT(1) FROM dbo.FVN_Warehouse WHERE Name = @Name;";
 
             object result = ExecuteScalar(sql,
                 new SqlParameter("@Name", SqlDbType.NVarChar, 100) { Value = warehouseName.Trim() });
@@ -123,7 +123,7 @@ namespace PCTP.Modules.KhoVatLy.Repository
         {
             if (string.IsNullOrWhiteSpace(warehouseName)) return 0;
 
-            const string sql = "SELECT TOP (1) WarehouseId FROM Warehouse WHERE Name = @Name;";
+            const string sql = "SELECT TOP (1) WarehouseId FROM dbo.FVN_Warehouse WHERE Name = @Name;";
 
             object result = ExecuteScalar(sql,
                 new SqlParameter("@Name", SqlDbType.NVarChar, 100) { Value = warehouseName.Trim() });
@@ -138,8 +138,8 @@ namespace PCTP.Modules.KhoVatLy.Repository
 
             const string sql = @"
         SELECT r.RackName
-        FROM Rack r
-        INNER JOIN Warehouse w ON w.WarehouseId = r.WarehouseId
+        FROM dbo.FVN_Rack r
+        INNER JOIN dbo.FVN_Warehouse w ON w.WarehouseId = r.WarehouseId
         WHERE w.Name = @Name
         ORDER BY r.RackName;";
 
@@ -165,7 +165,7 @@ namespace PCTP.Modules.KhoVatLy.Repository
             SELECT
                 WarehouseId,
                 Name
-            FROM Warehouse
+            FROM dbo.FVN_Warehouse
             ORDER BY WarehouseId;";
 
             DataTable dt = LoadData(sql);
@@ -196,7 +196,7 @@ namespace PCTP.Modules.KhoVatLy.Repository
         {
             const string sql = @"
             SELECT Code, Name 
-            FROM   B20Item
+            FROM   dbo.vFVN_PCTP_ItemCatalog
             WHERE  IsActive = 1 AND IsGroup = 0
             ORDER  BY Code";
             return LoadData(sql);
@@ -207,7 +207,7 @@ namespace PCTP.Modules.KhoVatLy.Repository
                 throw new ArgumentException("Tên Warehouse không được rỗng.", nameof(warehouseName));
 
             const string sql = @"
-        INSERT INTO Warehouse (Name)
+        INSERT INTO dbo.FVN_Warehouse (Name)
         OUTPUT INSERTED.WarehouseId
         VALUES (@Name);";
 

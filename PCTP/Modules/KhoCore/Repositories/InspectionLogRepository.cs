@@ -20,7 +20,7 @@ namespace PCTP.Modules.KhoCore.Repositories
         public void SaveLog(InspectionLogEntry e)
         {
             const string sql = @"
-            INSERT INTO InspectionLog
+            INSERT INTO dbo.FVN_InspectionLog
                 (InspectionCode, ItemCode, TemCodeTong, LotNoTong, NSXTong,
                  SoLuongTong, BoxTemCode, BoxLotNo, BoxNSX,
                  IsMatch, CheckedAt, FinalResult, MaPhieu)
@@ -61,7 +61,7 @@ namespace PCTP.Modules.KhoCore.Repositories
         public List<InspectionLogEntry> GetByInspectionCode(string code)
         {
             DataTable dt = LoadData(
-                "SELECT * FROM InspectionLog WHERE InspectionCode = @Code",
+                "SELECT * FROM dbo.FVN_InspectionLog WHERE InspectionCode = @Code",
                 new SqlParameter("@Code", SqlDbType.NVarChar, 50) { Value = code });
 
             var list = new List<InspectionLogEntry>();
@@ -124,7 +124,7 @@ namespace PCTP.Modules.KhoCore.Repositories
                     SUM(CASE WHEN IsMatch = 0 THEN 1 ELSE 0 END) AS FailCount,
                     MAX(FinalResult) AS FinalResult,
                     MIN(CheckedAt)   AS CheckedAt
-                FROM InspectionLog
+                FROM dbo.FVN_InspectionLog
                 {where}
                 GROUP BY InspectionCode
                 ORDER BY MIN(CheckedAt) DESC";
@@ -136,7 +136,7 @@ namespace PCTP.Modules.KhoCore.Repositories
         {
             const string sql = @"
                 SELECT BoxLotNo, BoxNSX, IsMatch, MismatchFields, CheckedAt
-                FROM   InspectionLog
+                FROM   dbo.FVN_InspectionLog
                 WHERE  InspectionCode = @Code
                 ORDER  BY LogId";
 

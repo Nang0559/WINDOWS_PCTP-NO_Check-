@@ -26,8 +26,8 @@ namespace PCTP.Infrastructure.Repositories
         public int GetMinCloseQty(string maHang)
         {
             object kq = ExecuteScalar(
-                "IF EXISTS (SELECT 1 FROM B20Item WHERE Code = @ma) " +
-                "  SELECT CAST(MinCloseQty AS INT) FROM B20Item WHERE Code = @ma " +
+                "IF EXISTS (SELECT 1 FROM dbo.vFVN_PCTP_ItemCatalog WHERE Code = @ma) " +
+                "  SELECT CAST(MinCloseQty AS INT) FROM dbo.vFVN_PCTP_ItemCatalog WHERE Code = @ma " +
                 "ELSE SELECT 0",
                 new SqlParameter("@ma", maHang ?? ""));
             return int.TryParse(kq?.ToString(), out int result) ? result : 0;
@@ -39,7 +39,7 @@ namespace PCTP.Infrastructure.Repositories
             string ngayGiaoSql = NormalizeNgayGiao(ngayGiao);
 
             object kq = ExecuteScalar(
-                "SELECT LOT FROM LUUPHIEUGIAOHANG " +
+                "SELECT LOT FROM dbo.FVN_LUUPHIEUGIAOHANG " +
                 "WHERE CUA=@cua AND TRUYEN=@truyen AND MAHANG=@maHang AND SOLUONG=@sl " +
                 "  AND NGAYGIAO=@ngayGiao AND GIOGIAO=@gioGiao AND NHAMAY LIKE @nhaMayLike",
                 new SqlParameter("@cua", cua ?? ""),
@@ -113,7 +113,7 @@ namespace PCTP.Infrastructure.Repositories
         public PhieuMeta GetPhieuMeta()
         {
             DataTable dt = LoadData(
-                "SELECT TOP 1 ADDNM, NGAYGIAO, GIOGIAOFCC, NHAMAY FROM IFSPHIEUGIAOHANG");
+                "SELECT TOP 1 ADDNM, NGAYGIAO, GIOGIAOFCC, NHAMAY FROM dbo.FVN_IFSPHIEUGIAOHANG");
 
             if (dt == null || dt.Rows.Count == 0) return null;
 

@@ -63,7 +63,7 @@ namespace PCTP.Modules.BaoCao.Infrastructure.Repositories
 SELECT TOP (50)
     S.LOT, S.PART, S.NAME, S.MODEL, S.CASX, S.NGAYSX, S.SLSX,
     S.NGAYNHAP, S.SLNHAP, S.LineCodes, S.DeptCode
-FROM dbo.STOCKTP S
+FROM dbo.vFVN_STOCKTP S
 WHERE " + LotCodeHelper.BuildLotMatchSql("S.LOT", "@Lot") + @"
   AND (@Part IS NULL OR LTRIM(RTRIM(S.PART)) = @Part)
 ORDER BY S.NGAYSX DESC, S.LOT";

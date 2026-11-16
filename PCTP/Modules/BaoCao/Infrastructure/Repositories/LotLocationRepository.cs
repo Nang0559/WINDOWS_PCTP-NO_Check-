@@ -41,12 +41,12 @@ SELECT
     s.SlotNumber,
     r.RackName,
     w.Name AS WarehouseName
-FROM SlotLot sl
-INNER JOIN Slot s
+FROM dbo.FVN_SlotLot sl
+INNER JOIN dbo.FVN_Slot s
     ON s.SlotId = sl.SlotId
-INNER JOIN Rack r
+INNER JOIN dbo.FVN_Rack r
     ON r.RackId = s.RackId
-INNER JOIN Warehouse w
+INNER JOIN dbo.FVN_Warehouse w
     ON w.WarehouseId = r.WarehouseId
 WHERE {LotCodeHelper.BuildLotMatchSql("sl.LotNo", "@LotNo")}
 ORDER BY

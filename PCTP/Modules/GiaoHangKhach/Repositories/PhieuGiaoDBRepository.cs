@@ -28,7 +28,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         {
             const string sql = @"
             SELECT ID, Code, Name
-            FROM B20Item
+            FROM dbo.vFVN_PCTP_ItemCatalog
             WHERE LEN(Code) > 10
             GROUP BY ID, Code, Name
             ORDER BY ID";

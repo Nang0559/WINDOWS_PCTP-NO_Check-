@@ -41,7 +41,7 @@ namespace PCTP.Modules.BaoCao.Infrastructure.Repositories
             cancellationToken.ThrowIfCancellationRequested();
             const string sql = @"
 SELECT DISTINCT ItemCode
-FROM InspectionLog
+FROM dbo.FVN_InspectionLog
 WHERE ItemCode IS NOT NULL AND LTRIM(RTRIM(ItemCode)) <> ''
 ORDER BY ItemCode";
             var table = LoadData(sql);
@@ -99,7 +99,7 @@ ORDER BY ItemCode";
                         lotPredicates.Add(@"(
                         LotNoTong LIKE " + name + @"
                         OR EXISTS (
-                            SELECT 1 FROM InspectionLog detail
+                            SELECT 1 FROM dbo.FVN_InspectionLog detail
                             WHERE detail.InspectionCode = InspectionLog.InspectionCode
                               AND detail.BoxLotNo LIKE " + name + @"
                         )
@@ -141,7 +141,7 @@ SELECT
     SUM(CASE WHEN IsMatch = 0 THEN 1 ELSE 0 END) AS FailCount,
     MAX(FinalResult) AS FinalResult,
     MIN(CheckedAt) AS CheckedAt
-FROM InspectionLog
+FROM dbo.FVN_InspectionLog
 " + where + @"
 GROUP BY InspectionCode
 ORDER BY MIN(CheckedAt) DESC";
@@ -260,7 +260,7 @@ ORDER BY MIN(CheckedAt) DESC";
 
             const string sql = @"
 SELECT BoxLotNo, BoxNSX, IsMatch, MismatchFields, CheckedAt
-FROM InspectionLog
+FROM dbo.FVN_InspectionLog
 WHERE InspectionCode = @Code
 ORDER BY LogId";
 

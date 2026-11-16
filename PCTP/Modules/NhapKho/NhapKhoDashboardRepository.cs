@@ -45,7 +45,7 @@ namespace PCTP.Modules.NhapKho
                        MAX(s.PART) AS ItemCode,
                        MAX(s.NAME) AS ItemName,
                        SUM(ISNULL(s.SLCONLAI,0)) AS Qty
-                FROM STOCKTP s
+                FROM dbo.vFVN_STOCKTP s
                 GROUP BY {LotKeyStockTp}
             ),
             ActiveSlot AS
@@ -54,7 +54,7 @@ namespace PCTP.Modules.NhapKho
                        MAX(sl.LotNo) AS LotNo,
                        MAX(sl.ItemCode) AS ItemCode,
                        SUM(ISNULL(sl.Quantity,0)) AS Qty
-                FROM SlotLot sl
+                FROM dbo.FVN_SlotLot sl
                 WHERE sl.PhieuStatus = 0
                 GROUP BY {LotKeySlotLot}
             ),
@@ -127,7 +127,7 @@ namespace PCTP.Modules.NhapKho
         public int DemDaNhapHomNay()
         {
             object kq = ExecuteScalar(
-                "SELECT COUNT(*) FROM SlotLot WHERE PhieuStatus = 0 AND CAST(CreatedDate AS DATE) = CAST(GETDATE() AS DATE)");
+                "SELECT COUNT(*) FROM dbo.FVN_SlotLot WHERE PhieuStatus = 0 AND CAST(CreatedDate AS DATE) = CAST(GETDATE() AS DATE)");
             return int.TryParse(kq?.ToString(), out int v) ? v : 0;
         }
 
@@ -140,17 +140,17 @@ namespace PCTP.Modules.NhapKho
                    st.NGAYSX AS NgaySX,
                    sl.Quantity, sl.TemCode, sl.CreatedDate,
                    s.SlotNumber, r.RackName, w.Name AS WarehouseName
-            FROM SlotLot sl
-            JOIN Slot s ON s.SlotId = sl.SlotId
-            JOIN Rack r ON r.RackId = s.RackId
-            JOIN Warehouse w ON w.WarehouseId = r.WarehouseId
-            -- OUTER APPLY TOP 1: mỗi SlotLot đúng 1 dòng (không nhân dòng khi STOCKTP/vB20Item có bản ghi trùng khoá).
+            FROM dbo.FVN_SlotLot sl
+            JOIN dbo.FVN_Slot s ON s.SlotId = sl.SlotId
+            JOIN dbo.FVN_Rack r ON r.RackId = s.RackId
+            JOIN dbo.FVN_Warehouse w ON w.WarehouseId = r.WarehouseId
+            -- OUTER APPLY TOP 1: mỗi SlotLot đúng 1 dòng (không nhân dòng khi STOCKTP/dbo.vFVN_PCTP_ItemCatalog có bản ghi trùng khoá).
             OUTER APPLY (SELECT TOP (1) t.MODEL, t.NAME, t.CASX, t.NGAYSX
-                         FROM STOCKTP t
+                         FROM dbo.vFVN_STOCKTP t
                          WHERE {LotKeyStockTpT} = {LotKeySlotLot}
                          ORDER BY CASE WHEN t.LOT = sl.LotNo THEN 0 ELSE 1 END) st
             OUTER APPLY (SELECT TOP (1) i.Model, i.Name
-                         FROM dbo.vB20Item i
+                         FROM dbo.vFVN_PCTP_ItemCatalog i
                          WHERE i.Code = sl.ItemCode
                          ORDER BY ISNULL(i.IsActive, 0) DESC, i.Id DESC) it
             WHERE sl.PhieuStatus = 0 AND CAST(sl.CreatedDate AS DATE) = CAST(GETDATE() AS DATE)
@@ -159,17 +159,17 @@ namespace PCTP.Modules.NhapKho
         public int GetTongTonStockTp()
         {
             object kq = ExecuteScalar(
-                "SELECT ISNULL(SUM(SLCONLAI),0) FROM STOCKTP WHERE ISNULL(SLCONLAI,0) > 0");
+                "SELECT ISNULL(SUM(SLCONLAI),0) FROM dbo.vFVN_STOCKTP WHERE ISNULL(SLCONLAI,0) > 0");
             return int.TryParse(kq?.ToString(), out int v) ? v : 0;
         }
 
         public int GetTongTonRackThat()
         {
             object kq = ExecuteScalar(@"
-        SELECT ISNULL(SUM(sl.Quantity),0) FROM SlotLot sl
-        JOIN Slot s ON s.SlotId = sl.SlotId
-        JOIN Rack r ON r.RackId = s.RackId
-        JOIN Warehouse w ON w.WarehouseId = r.WarehouseId
+        SELECT ISNULL(SUM(sl.Quantity),0) FROM dbo.FVN_SlotLot sl
+        JOIN dbo.FVN_Slot s ON s.SlotId = sl.SlotId
+        JOIN dbo.FVN_Rack r ON r.RackId = s.RackId
+        JOIN dbo.FVN_Warehouse w ON w.WarehouseId = r.WarehouseId
         WHERE sl.PhieuStatus = 0 AND w.Name <> @BulkWarehouseName",
                 new SqlParameter("@BulkWarehouseName", BulkImportConfig.WarehouseName));
             return int.TryParse(kq?.ToString(), out int v) ? v : 0;
@@ -178,10 +178,10 @@ namespace PCTP.Modules.NhapKho
         public int GetTongTonKhoTam()
         {
             object kq = ExecuteScalar(@"
-        SELECT ISNULL(SUM(sl.Quantity),0) FROM SlotLot sl
-        JOIN Slot s ON s.SlotId = sl.SlotId
-        JOIN Rack r ON r.RackId = s.RackId
-        JOIN Warehouse w ON w.WarehouseId = r.WarehouseId
+        SELECT ISNULL(SUM(sl.Quantity),0) FROM dbo.FVN_SlotLot sl
+        JOIN dbo.FVN_Slot s ON s.SlotId = sl.SlotId
+        JOIN dbo.FVN_Rack r ON r.RackId = s.RackId
+        JOIN dbo.FVN_Warehouse w ON w.WarehouseId = r.WarehouseId
         WHERE sl.PhieuStatus = 0 AND w.Name = @BulkWarehouseName",
                 new SqlParameter("@BulkWarehouseName", BulkImportConfig.WarehouseName));
             return int.TryParse(kq?.ToString(), out int v) ? v : 0;

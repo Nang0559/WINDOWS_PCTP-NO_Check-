@@ -21,7 +21,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             SELECT c.ItemCode, ISNULL(b.Name,'') AS TenHang, c.EnforceFifo,
                    c.UpdatedAt, c.UpdatedBy
             FROM FVN_ItemFifoConfig c
-            LEFT JOIN B20Item b ON b.Code = c.ItemCode
+            LEFT JOIN dbo.vFVN_PCTP_ItemCatalog b ON b.Code = c.ItemCode
             ORDER BY c.ItemCode");
 
         public bool GetEnforceFifo(string itemCode)
@@ -140,7 +140,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         public DataTable GetDanhSachMaHangKhaDung()
        => 
             LoadData(
-                "SELECT Code, Name FROM B20Item WHERE LEN(Code) > 0 ORDER BY Code");
+                "SELECT Code, Name FROM dbo.vFVN_PCTP_ItemCatalog WHERE LEN(Code) > 0 ORDER BY Code");
         
     }
 }

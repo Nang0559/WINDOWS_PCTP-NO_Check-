@@ -88,25 +88,25 @@ CREATE TABLE dbo.StockHistory
 
                         repository.SaveHistory("MOVE", "QC-ITEM", lot, 11, 22, "QC-OPERATOR");
 
-                        Require(Convert.ToInt32(Scalar(uow, "SELECT COUNT(*) FROM dbo.StockHistory")) == 1,
+                        Require(Convert.ToInt32(Scalar(uow, "SELECT COUNT(*) FROM dbo.FVN_StockHistory")) == 1,
                             "Production repository did not insert exactly one history row.");
-                        Require(Convert.ToInt32(Scalar(uow, "SELECT Quantity FROM dbo.StockHistory")) == 17,
+                        Require(Convert.ToInt32(Scalar(uow, "SELECT Quantity FROM dbo.FVN_StockHistory")) == 17,
                             "Production repository did not persist Quantity.");
-                        Require(Convert.ToString(Scalar(uow, "SELECT ItemCode FROM dbo.StockHistory")) == "QC-ITEM",
+                        Require(Convert.ToString(Scalar(uow, "SELECT ItemCode FROM dbo.FVN_StockHistory")) == "QC-ITEM",
                             "Production repository did not persist ItemCode.");
-                        Require(Convert.ToString(Scalar(uow, "SELECT TemCode FROM dbo.StockHistory")) == "QC-TEM-HISTORY",
+                        Require(Convert.ToString(Scalar(uow, "SELECT TemCode FROM dbo.FVN_StockHistory")) == "QC-TEM-HISTORY",
                             "Production repository did not persist TemCode.");
-                        Require(Convert.ToString(Scalar(uow, "SELECT LotNo FROM dbo.StockHistory")) == "QC-LOT-HISTORY",
+                        Require(Convert.ToString(Scalar(uow, "SELECT LotNo FROM dbo.FVN_StockHistory")) == "QC-LOT-HISTORY",
                             "Production repository did not persist LotNo.");
-                        Require(Convert.ToString(Scalar(uow, "SELECT QrData FROM dbo.StockHistory")) == "QC-RAW-QR",
+                        Require(Convert.ToString(Scalar(uow, "SELECT QrData FROM dbo.FVN_StockHistory")) == "QC-RAW-QR",
                             "Production repository did not preserve RawQr.");
-                        Require(Convert.ToString(Scalar(uow, "SELECT MaPhieu FROM dbo.StockHistory")) == "QC-PHIEU-HISTORY",
+                        Require(Convert.ToString(Scalar(uow, "SELECT MaPhieu FROM dbo.FVN_StockHistory")) == "QC-PHIEU-HISTORY",
                             "Production repository did not persist MaPhieu.");
-                        Require(Convert.ToString(Scalar(uow, "SELECT PerformedBy FROM dbo.StockHistory")) == "QC-OPERATOR",
+                        Require(Convert.ToString(Scalar(uow, "SELECT PerformedBy FROM dbo.FVN_StockHistory")) == "QC-OPERATOR",
                             "Production repository did not persist PerformedBy.");
-                        Require(Convert.ToInt32(Scalar(uow, "SELECT FromSlotId FROM dbo.StockHistory")) == 11,
+                        Require(Convert.ToInt32(Scalar(uow, "SELECT FromSlotId FROM dbo.FVN_StockHistory")) == 11,
                             "Production repository did not persist FromSlotId.");
-                        Require(Convert.ToInt32(Scalar(uow, "SELECT ToSlotId FROM dbo.StockHistory")) == 22,
+                        Require(Convert.ToInt32(Scalar(uow, "SELECT ToSlotId FROM dbo.FVN_StockHistory")) == 22,
                             "Production repository did not persist ToSlotId.");
 
                         uow.Rollback();

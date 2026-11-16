@@ -67,15 +67,15 @@ SELECT s.SlotId,
        + N' | Tồn ' + CONVERT(nvarchar(20), ISNULL(x.Quantity, 0))
        + N' / ' + CASE WHEN ISNULL(s.Capacity, 0) <= 0 THEN N'∞' ELSE CONVERT(nvarchar(20), s.Capacity) END
        + N' | ' + CASE WHEN ISNULL(x.Quantity, 0) <= 0 THEN N'Trống' ELSE N'Đang chứa' END AS DisplayText
-FROM Slot s
-JOIN Rack r ON r.RackId = s.RackId
-JOIN Warehouse w ON w.WarehouseId = r.WarehouseId
+FROM dbo.FVN_Slot s
+JOIN dbo.FVN_Rack r ON r.RackId = s.RackId
+JOIN dbo.FVN_Warehouse w ON w.WarehouseId = r.WarehouseId
 OUTER APPLY
 (
     SELECT SUM(Quantity) AS Quantity,
            MAX(ItemCode) AS ItemCode,
            MAX(CASE WHEN UPPER(LTRIM(RTRIM(ItemCode))) <> UPPER(LTRIM(RTRIM(@ItemCode))) THEN 1 ELSE 0 END) AS HasOtherItem
-    FROM SlotLot
+    FROM dbo.FVN_SlotLot
     WHERE SlotId = s.SlotId AND PhieuStatus = 0 AND Quantity > 0
 ) x
 WHERE ISNULL(x.HasOtherItem, 0) = 0
@@ -168,12 +168,12 @@ WHERE LocationId=@LocationId AND ItemCode=@ItemCode AND LotNo=@LotNo;",
 SELECT ISNULL(x.Quantity,0) AS Quantity, ISNULL(s.Capacity,0) AS Capacity,
        ISNULL(x.ItemCode, ISNULL(s.ItemCode,N'')) AS ItemCode,
        ISNULL(x.HasOtherItem,0) AS HasOtherItem
-FROM Slot s WITH (UPDLOCK, HOLDLOCK)
+FROM dbo.FVN_Slot s WITH (UPDLOCK, HOLDLOCK)
 OUTER APPLY
 (
     SELECT SUM(Quantity) AS Quantity, MAX(ItemCode) AS ItemCode,
            MAX(CASE WHEN UPPER(LTRIM(RTRIM(ItemCode))) <> UPPER(LTRIM(RTRIM(@ItemCode))) THEN 1 ELSE 0 END) AS HasOtherItem
-    FROM SlotLot WHERE SlotId=s.SlotId AND PhieuStatus=0 AND Quantity>0
+    FROM dbo.FVN_SlotLot WHERE SlotId=s.SlotId AND PhieuStatus=0 AND Quantity>0
 ) x
 WHERE s.SlotId=@SlotId;",
                     new SqlParameter("@SlotId", SqlDbType.Int) { Value = targetSlotId },
@@ -254,13 +254,13 @@ SET s.Quantity = ISNULL(x.TotalQty, 0),
     s.IsOccupied = CASE WHEN ISNULL(x.TotalQty, 0) > 0 THEN 1 ELSE 0 END,
     s.ItemCode = CASE WHEN ISNULL(x.TotalQty, 0) > 0 THEN l.ItemCode ELSE NULL END,
     s.ImportDate = CASE WHEN ISNULL(x.TotalQty, 0) > 0 THEN x.MaxImportDate ELSE NULL END
-FROM Slot s
+FROM dbo.FVN_Slot s
 OUTER APPLY (
     SELECT SUM(Quantity) AS TotalQty, MAX(ImportDate) AS MaxImportDate
-    FROM SlotLot WHERE SlotId=s.SlotId AND PhieuStatus=0
+    FROM dbo.FVN_SlotLot WHERE SlotId=s.SlotId AND PhieuStatus=0
 ) x
 OUTER APPLY (
-    SELECT TOP 1 ItemCode FROM SlotLot
+    SELECT TOP 1 ItemCode FROM dbo.FVN_SlotLot
     WHERE SlotId=s.SlotId AND PhieuStatus=0 AND Quantity>0
     ORDER BY ImportDate DESC, SlotLotId DESC
 ) l

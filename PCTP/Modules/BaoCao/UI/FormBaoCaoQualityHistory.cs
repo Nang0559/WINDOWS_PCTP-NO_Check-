@@ -417,7 +417,7 @@ namespace PCTP.Modules.BaoCao.UI
                 await LoadAsync();
                 if (items.Rows.Count == 0 && !IsDisposed)
                     _status.Text = "Bảng InspectionLog trên DB hiện tại chưa có mã hàng nào nên ô gợi ý trống. " +
-                        "Kiểm tra DB đang kết nối và dữ liệu phiên QC (xem SELECT COUNT(*), COUNT(ItemCode) FROM dbo.InspectionLog).";
+                        "Kiểm tra DB đang kết nối và dữ liệu phiên QC (xem SELECT COUNT(*), COUNT(ItemCode) FROM dbo.FVN_InspectionLog).";
             }
             catch (OperationCanceledException) { }
             catch (Exception ex)

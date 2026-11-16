@@ -29,7 +29,7 @@ namespace PCTP.Modules.KhoVatLy.Repositories
         int GetQuantityWithLock(int slotId);
 
         // ============================================================
-        // UPDATE SLOT
+        // UPDATE dbo.FVN_Slot
         // ============================================================
 
         void LockSlotForUpdate(int slotId);
@@ -120,7 +120,7 @@ namespace PCTP.Modules.KhoVatLy.Repositories
         List<string> GetEmptySlots(string itemCode, int soLuongNhap);
         string GetOrCreateNamedSlot(string warehouseName, string rackName, int capacity);
         // ============================================================
-        // UPDATE SLOT HEADER
+        // UPDATE dbo.FVN_Slot HEADER
         // ============================================================
 
         void UpdateHeader(

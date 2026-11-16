@@ -31,7 +31,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             {
                 mode = NormalizeMode(scanMode); // chế độ sai => fail-closed, không throw ra ngoài
                 DataTable dt = Query(
-                    "dbo.Usp_QrReaderLock_Acquire",
+                    "dbo.usp_FVN_QrReaderLock_Acquire",
                     new SqlParameter("@CustomerNo", key),
                     new SqlParameter("@ScanMode", mode),
                     new SqlParameter("@MachineName", _machine), // chỉ để hiển thị; định danh là IP server đọc
@@ -64,7 +64,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         {
             string key = CustomerTableConfig.NormalizeCustomerNo(customerNo);
             DataTable dt = Query(
-                "dbo.Usp_QrReaderLock_Heartbeat",
+                "dbo.usp_FVN_QrReaderLock_Heartbeat",
                 new SqlParameter("@CustomerNo", key),
                 new SqlParameter("@ScanMode", NormalizeMode(scanMode)));
             return dt.Rows.Count > 0 && Convert.ToBoolean(dt.Rows[0]["Owned"]);
@@ -78,7 +78,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             try
             {
                 Query(
-                    "dbo.Usp_QrReaderLock_Release",
+                    "dbo.usp_FVN_QrReaderLock_Release",
                     new SqlParameter("@CustomerNo", key),
                     new SqlParameter("@ScanMode", NormalizeMode(scanMode)));
             }
@@ -95,7 +95,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             try
             {
                 DataTable dt = Query(
-                    "dbo.Usp_QrReaderMachine_CanReadAnyMode",
+                    "dbo.usp_FVN_QrReaderMachine_CanReadAnyMode",
                     new SqlParameter("@CustomerNo", key));
                 return dt.Rows.Count > 0 && Convert.ToBoolean(dt.Rows[0]["Registered"]);
             }
@@ -112,7 +112,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             try
             {
                 DataTable dt = Query(
-                    "dbo.Usp_QrReaderLock_List",
+                    "dbo.usp_FVN_QrReaderLock_List",
                     new SqlParameter("@TtlSeconds", TtlSeconds));
                 foreach (DataRow r in dt.Rows)
                     result.Add(Map(r, Convert.ToString(r["CustomerNo"]), Convert.ToString(r["ScanMode"])));

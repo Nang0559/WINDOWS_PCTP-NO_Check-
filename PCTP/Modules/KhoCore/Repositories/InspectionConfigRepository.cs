@@ -25,7 +25,7 @@ namespace PCTP.Modules.KhoCore.Repositories
                    c.CheckNSX, c.IsActive, c.Note,
                    ISNULL(i.Name, '') AS ItemName
             FROM InspectionConfig c
-            LEFT JOIN vB20Item i ON i.Code = c.ItemCode
+            LEFT JOIN dbo.vFVN_PCTP_ItemCatalog i ON i.Code = c.ItemCode
             ORDER BY c.ItemCode;";
 
             DataTable dt = LoadData(sql);
@@ -42,7 +42,7 @@ namespace PCTP.Modules.KhoCore.Repositories
                    c.CheckNSX, c.IsActive, c.Note,
                    ISNULL(i.Name, '') AS ItemName
             FROM InspectionConfig c
-            LEFT JOIN vB20Item i ON i.Code = c.ItemCode
+            LEFT JOIN dbo.vFVN_PCTP_ItemCatalog i ON i.Code = c.ItemCode
             WHERE c.ItemCode = @ItemCode AND c.IsActive = 1;";
 
             DataTable dt = LoadData(sql,

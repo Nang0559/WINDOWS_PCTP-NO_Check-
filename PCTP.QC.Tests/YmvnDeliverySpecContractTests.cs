@@ -91,7 +91,7 @@ public sealed class YmvnDeliverySpecContractTests
         var markers = new[]
         {
             "Uow.Begin();",
-            "FROM STOCKTP WITH (UPDLOCK, HOLDLOCK) WHERE {matchCondition}",
+            "FROM dbo.FVN_STOCKTP WITH (UPDLOCK, HOLDLOCK) WHERE {matchCondition}",
             "Không đủ tồn kho",
             "TruStockTpFifo(matchCondition, sl)",
             "bulkService.TruKhoAoTheoLot(lotKey, sl, manageTransaction: false)",
@@ -153,7 +153,7 @@ public sealed class YmvnDeliverySpecContractTests
     {
         var body = FifoMethod();
 
-        Assert.Contains("FROM STOCKTP WITH (UPDLOCK, HOLDLOCK) WHERE {matchCondition} AND SLCONLAI > 0 ORDER BY NGAYNHAP ASC, LOT ASC", body);
+        Assert.Contains("FROM dbo.FVN_STOCKTP WITH (UPDLOCK, HOLDLOCK) WHERE {matchCondition} AND SLCONLAI > 0 ORDER BY NGAYNHAP ASC, LOT ASC", body);
         Assert.Contains("Math.Min(slDongNay, conLaiCanTru)", body);
         Assert.Contains("SLXUAT = ISNULL(SLXUAT,0) + @sl, SLCONLAI = SLCONLAI - @sl", body);
         Assert.Contains("WHERE LOT = @lot AND SLCONLAI >= @sl", body);

@@ -50,7 +50,7 @@ SELECT
     LEFT(LOT, {keyLen}) AS LOTKEY,
     MIN(LOT) AS LOTDISPLAY,
     SUM(ISNULL(SLCONLAI, 0)) AS SLCONLAI
-FROM STOCKTP
+FROM dbo.vFVN_STOCKTP
 WHERE PART = @ma
   AND ISNULL(SLCONLAI, 0) > 0
   AND LEN(ISNULL(LOT, '')) >= {keyLen}
@@ -349,7 +349,7 @@ ORDER BY
             var result = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             if (maHangList == null || maHangList.Count == 0) return result;
             string inClause = string.Join(",", maHangList.Select(m => $"'{m.Replace("'", "''")}'"));
-            DataTable dt = Db.LoadData($"SELECT Code, ISNULL(CAST(MinCloseQty AS INT), 0) AS QC FROM B20Item WHERE Code IN ({inClause})");
+            DataTable dt = Db.LoadData($"SELECT Code, ISNULL(CAST(MinCloseQty AS INT), 0) AS QC FROM dbo.vFVN_PCTP_ItemCatalog WHERE Code IN ({inClause})");
             foreach (DataRow row in dt.Rows) result[row["Code"].ToString().Trim()] = Convert.ToInt32(row["QC"]);
             return result;
         }
@@ -378,7 +378,7 @@ ORDER BY
 
             var maHangList = rows.Select(r => r.MaHang).Distinct().ToList();
             string inClause = string.Join(",", maHangList.Select(m => $"'{SqlHelper.Esc(m)}'"));
-            DataTable tonDt = LoadData($"SELECT PART, ISNULL(SUM(SLCONLAI),0) AS TONG_TON FROM STOCKTP WHERE PART IN ({inClause}) GROUP BY PART");
+            DataTable tonDt = LoadData($"SELECT PART, ISNULL(SUM(SLCONLAI),0) AS TONG_TON FROM dbo.vFVN_STOCKTP WHERE PART IN ({inClause}) GROUP BY PART");
             var tonMap = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             foreach (DataRow row in tonDt.Rows) tonMap[row["PART"].ToString().Trim()] = Convert.ToInt32(row["TONG_TON"]);
 

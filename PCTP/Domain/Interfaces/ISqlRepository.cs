@@ -64,7 +64,7 @@ namespace PCTP.Domain.Interfaces
         /// <summary>
         /// Metadata phiếu đang dở khi DOCQRCODE đã có data.
         /// Form gốc LoadDL(): "select top(1) ADDNM,NGAYGIAO,GIOGIAOFCC,NHAMAY
-        ///                      from IFSPHIEUGIAOHANG"
+        ///                      from dbo.FVN_IFSPHIEUGIAOHANG"
         /// </summary>
         PhieuMeta GetPhieuMeta();
     }
