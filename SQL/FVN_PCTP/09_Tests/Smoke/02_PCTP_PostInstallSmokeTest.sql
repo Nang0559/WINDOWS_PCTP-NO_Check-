@@ -72,6 +72,7 @@ VALUES
 ('dbo','usp_FVN_Slot_SaveLots','P'),
 ('dbo','usp_FVN_ItemFifoConfig_Upsert','P'),
 ('dbo','usp_FVN_DocQrCode_Insert','P'),
+('dbo','ufn_FVN_NormalizeCustomerLot','FN'),
 ('dbo','usp_FVN_PCTP_PostStockMovement','P');
 
 SELECT e.ObjectSchema,e.ObjectName,e.ObjectType
