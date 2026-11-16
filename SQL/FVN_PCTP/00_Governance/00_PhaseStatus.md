@@ -122,3 +122,10 @@ See `ADR_001_PCTP_PreservingWorkflows_UnifiedInventoryLedger.md`.
 Added `00G_PCTP_ObjectBuildRegister.md` as the implementation register for the full PCTP rebuild. It maps all 61 SQL2-generated table definitions to FVN_ target names, excludes blind cloning of shared B20* masters, identifies additional runtime tables outside the generated allowlist, inventories PCTP-linked views/procedures/functions/trigger from static dependency evidence, and defines the ordered deployment phases.
 
 This commit is a schema/programming scope artifact. It does not claim that the complete table/view/procedure migrations have been generated or executed. Exact module definitions, missing runtime table DDL, shared master mapping, and the MES stock projection/posting contract remain explicit gates. No SQL Server execution, source database modification, C# cutover or application build was performed.
+
+
+## 10. Full source module extraction (2026-11-16)
+
+Added `00G_PCTP_ObjectBuildRegister.md` and read-only source export `00H_Export_PCTP_RuntimeObjectDefinitions.sql`. Inspection of the 6.58 MB SQL2 export confirmed that its module-definition section is truncated to short previews; the 00C module-reference CSV is empty. 00H collects full SQL module definitions, target-table columns, keys/indexes, foreign keys, check constraints, table types, triggers and relevant synonyms from `B7R2_FCC`, with a hard database-name guard and SELECT-only behavior.
+
+This is an evidence-collection step. The full PCTP view/procedure/function/trigger migration cannot be completed accurately until these definitions and table-type contracts are available. No SQL Server execution or source database modification was performed.
