@@ -15,7 +15,7 @@ SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 
 IF DB_NAME() <> N'B7R2_FCC'
 BEGIN
-    THROW 51000, '00H must be run while connected to B7R2_FCC. No changes were made.', 1;
+    ;THROW 51000, '00H must be run while connected to B7R2_FCC. No changes were made.', 1;
 END;
 
 DECLARE @TargetObjects TABLE
