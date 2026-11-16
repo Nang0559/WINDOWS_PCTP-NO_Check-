@@ -23,13 +23,13 @@ CREATE TABLE MES.PurchaseOrder(
 IF OBJECT_ID(N'MES.PurchaseOrderLine',N'U') IS NULL
 CREATE TABLE MES.PurchaseOrderLine(
  PurchaseOrderLineId bigint IDENTITY(1,1) NOT NULL CONSTRAINT PK_MES_PurchaseOrderLine PRIMARY KEY,
- PurchaseOrderId bigint NOT NULL, LineNo int NOT NULL,
+ PurchaseOrderId bigint NOT NULL, [LineNo] int NOT NULL,
  SiteCode nvarchar(30) NOT NULL, PartNo nvarchar(100) NOT NULL,
  OrderedQty decimal(19,6) NOT NULL, UomCode nvarchar(30) NOT NULL,
  DueDate date NULL, CreatedAtUtc datetime2(3) NOT NULL CONSTRAINT DF_MES_POL_Created DEFAULT(SYSUTCDATETIME()),
  CONSTRAINT FK_MES_POL_Header FOREIGN KEY(PurchaseOrderId) REFERENCES MES.PurchaseOrder(PurchaseOrderId),
  CONSTRAINT FK_MES_POL_Part FOREIGN KEY(SiteCode,PartNo) REFERENCES MES.IfsInventoryPart(SiteCode,PartNo),
- CONSTRAINT UQ_MES_POL_Line UNIQUE(PurchaseOrderId,LineNo),
+ CONSTRAINT UQ_MES_POL_Line UNIQUE(PurchaseOrderId,[LineNo]),
  CONSTRAINT CK_MES_POL_Qty CHECK(OrderedQty>0));
 
 IF OBJECT_ID(N'MES.MaterialLot',N'U') IS NULL
@@ -103,7 +103,7 @@ CREATE TABLE MES.MaterialReceipt(
 IF OBJECT_ID(N'MES.MaterialReceiptLine',N'U') IS NULL
 CREATE TABLE MES.MaterialReceiptLine(
  MaterialReceiptLineId bigint IDENTITY(1,1) NOT NULL CONSTRAINT PK_MES_MaterialReceiptLine PRIMARY KEY,
- MaterialReceiptId bigint NOT NULL, LineNo int NOT NULL, PurchaseOrderLineId bigint NULL,
+ MaterialReceiptId bigint NOT NULL, [LineNo] int NOT NULL, PurchaseOrderLineId bigint NULL,
  SiteCode nvarchar(30) NOT NULL, PartNo nvarchar(100) NOT NULL, MaterialLotId bigint NOT NULL,
  ReceivedQty decimal(19,6) NOT NULL, AcceptedQty decimal(19,6) NOT NULL CONSTRAINT DF_MES_Receipt_Accepted DEFAULT(0),
  QuarantineQty decimal(19,6) NOT NULL CONSTRAINT DF_MES_Receipt_Quarantine DEFAULT(0),
@@ -114,7 +114,7 @@ CREATE TABLE MES.MaterialReceiptLine(
  CONSTRAINT FK_MES_ReceiptLine_Lot FOREIGN KEY(SiteCode,PartNo,MaterialLotId) REFERENCES MES.MaterialLot(SiteCode,PartNo,MaterialLotId),
  CONSTRAINT FK_MES_ReceiptLine_Loc FOREIGN KEY(SiteCode,TargetLocationNo) REFERENCES MES.IfsInventoryLocation(SiteCode,LocationNo),
  CONSTRAINT FK_MES_ReceiptLine_Txn FOREIGN KEY(InventoryTransactionId) REFERENCES MES.InventoryTransaction(InventoryTransactionId),
- CONSTRAINT UQ_MES_ReceiptLine UNIQUE(MaterialReceiptId,LineNo),
+ CONSTRAINT UQ_MES_ReceiptLine UNIQUE(MaterialReceiptId,[LineNo]),
  CONSTRAINT CK_MES_ReceiptLine_Qty CHECK(ReceivedQty>0 AND AcceptedQty>=0 AND QuarantineQty>=0 AND AcceptedQty+QuarantineQty<=ReceivedQty));
 
 IF OBJECT_ID(N'MES.ProductionPlan',N'U') IS NULL
@@ -130,13 +130,13 @@ CREATE TABLE MES.ProductionPlan(
 IF OBJECT_ID(N'MES.ProductionPlanLine',N'U') IS NULL
 CREATE TABLE MES.ProductionPlanLine(
  ProductionPlanLineId bigint IDENTITY(1,1) NOT NULL CONSTRAINT PK_MES_ProductionPlanLine PRIMARY KEY,
- ProductionPlanId bigint NOT NULL, LineNo int NOT NULL,
+ ProductionPlanId bigint NOT NULL, [LineNo] int NOT NULL,
  SiteCode nvarchar(30) NOT NULL, ProductPartNo nvarchar(100) NOT NULL,
  PlannedQty decimal(19,6) NOT NULL, UomCode nvarchar(30) NOT NULL,
  PlannedStartUtc datetime2(0) NULL, PlannedEndUtc datetime2(0) NULL,
  CONSTRAINT FK_MES_PlanLine_Header FOREIGN KEY(ProductionPlanId) REFERENCES MES.ProductionPlan(ProductionPlanId),
  CONSTRAINT FK_MES_PlanLine_Part FOREIGN KEY(SiteCode,ProductPartNo) REFERENCES MES.IfsInventoryPart(SiteCode,PartNo),
- CONSTRAINT UQ_MES_PlanLine UNIQUE(ProductionPlanId,LineNo),
+ CONSTRAINT UQ_MES_PlanLine UNIQUE(ProductionPlanId,[LineNo]),
  CONSTRAINT CK_MES_PlanLine_Qty CHECK(PlannedQty>0),
  CONSTRAINT CK_MES_PlanLine_Dates CHECK(PlannedEndUtc IS NULL OR PlannedStartUtc IS NULL OR PlannedEndUtc>=PlannedStartUtc));
 
