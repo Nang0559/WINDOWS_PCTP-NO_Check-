@@ -1,110 +1,96 @@
-# Source SQL disposition register (initial pass)
+# Source SQL disposition register — consolidated layout
 
-**Reviewed branch head before this register:** `98fd90247b4c7a98ce72e9a78422621b390730e8`  
-**Canonical package introduced at:** `SQL/FVN_PCTP/`  
-**Status:** initial repository-path and evidence review; not yet a statement-by-statement approval.
+**Branch:** `feature/mes-product-genealogy-timeline`  
+**Consolidation commit:** `41874d21ea731cb5ee9c49db11527e2f2f4ec373` plus follow-up move  
+**Status:** paths consolidated; individual legacy SQL behavior is not yet approved for deployment.
 
-This register separates deployable business SQL from inventory evidence, generators,
-fixtures, diagnostics and legacy patches. It is intentionally conservative.
+The original files were moved into this package using their existing Git blobs.
+The original source path is shown below for traceability. Moving a script is not
+approval to execute it.
 
-## A. Keep as migration evidence / governance inputs
+## 1. Governance and source evidence
 
-| Existing path | Decision | Reason / next action |
+| Original source | Current destination | Disposition |
 |---|---|---|
-| `SQL/00_FVN_PCTP_SourceInventory.sql` | KEEP_AS_EVIDENCE | Read-only source inventory; retain under 00_Governance after path move is prepared. |
-| `SQL/00_PCTP_Source_Inventory.sql` | COMPARE_THEN_ARCHIVE | Earlier inventory variant; compare result coverage with the FVN-specific version before retiring. |
-| `SQL/00B_FVN_PCTP_OwnershipDependencyMap.sql` | KEEP_AS_EVIDENCE | Read-only ownership/FK/dependency map; heuristic labels must not override application evidence. |
-| `SQL/00C_ApplicationUsageOwnershipEvidence.sql` | KEEP_AS_EVIDENCE | Read-only application-usage evidence; rerun/export missing SQL Agent and synonym result sets. |
-| `SQL/00C_ApplicationUsageOwnershipReview.md` | KEEP_AS_EVIDENCE | Confirms six active PCTP operational tables and explains dynamic table usage. |
-| `SQL/00D_SQLModuleEvidence_CrossDomainReview.md` | KEEP_AS_EVIDENCE | Cross-domain coupling analysis. |
-| `SQL/00E_SourceInventory_Findings.md` | KEEP_AS_EVIDENCE | Current source inventory findings and migration gates. |
-| `SQL/00_result/`, `SQL/00B_result/`, `SQL/00C_result/` | KEEP_AS_EVIDENCE | Captured evidence; retain with run manifest and source snapshot date. |
-| `SQL/List_SQL_ON57.csv` | KEEP_AS_EVIDENCE | Change/object inventory, not executable DDL. |
-| `SQL/Result_Export_SQL2_Complete_DDL_Metadata.txt` | KEEP_AS_EVIDENCE | Large metadata export; reconcile against fresh catalog before generating DDL. |
-| `SQL/README_FVN_PCTP_REBUILD.md` | KEEP_AS_EVIDENCE | Earlier rebuild plan; supersede its planned package map with this folder's structure after review. |
+| `SQL/00_FVN_PCTP_SourceInventory.sql` | `00_Governance/00_FVN_PCTP_SourceInventory.sql` | Read-only source inventory |
+| `SQL/00_PCTP_Source_Inventory.sql` | `00_Governance/00_PCTP_Source_Inventory.sql` | Earlier inventory; compare before retiring |
+| `SQL/00B_FVN_PCTP_OwnershipDependencyMap.sql` | `00_Governance/00B_FVN_PCTP_OwnershipDependencyMap.sql` | Read-only ownership/FK/dependency evidence |
+| `SQL/00C_ApplicationUsageOwnershipEvidence.sql` | `00_Governance/00C_ApplicationUsageOwnershipEvidence.sql` | Read-only application evidence |
+| `SQL/00C_ApplicationUsageOwnershipReview.md` | `00_Governance/00C_ApplicationUsageOwnershipReview.md` | Active application-use review |
+| `SQL/00D_SQLModuleEvidence_CrossDomainReview.md` | `00_Governance/00D_SQLModuleEvidence_CrossDomainReview.md` | Cross-domain dependency review |
+| `SQL/00E_SourceInventory_Findings.md` | `00_Governance/00E_SourceInventory_Findings.md` | Source findings and migration gates |
+| `SQL/00_result/*`, `SQL/00B_result/*`, `SQL/00C_result/*` | `00_Governance/Evidence/{00_result,00B_result,00C_result}/*` | Historical source evidence snapshots |
+| `SQL/Result_Export_SQL2_Complete_DDL_Metadata.txt` | `00_Governance/Result_Export_SQL2_Complete_DDL_Metadata.txt` | Metadata export, not executable target DDL |
+| `SQL/List_SQL_ON57.csv` | `00_Governance/List_SQL_ON57.csv` | Object/change inventory |
+| `SQL/README_FVN_PCTP_REBUILD.md` | `00_Governance/README_FVN_PCTP_REBUILD.md` | Historical rebuild plan |
+| `SQL/QC_Schema/tools/*` | `00_Governance/SchemaTooling/tools/*` | Generators and tests; tooling only |
+| `SQL/QC_Schema/01..07, README, metadata reports` | `00_Governance/SchemaEvidence/*` and `SchemaTooling/*` | Fixture/generated evidence; stale outputs must be regenerated before use |
+| `SQL/createpsfunon57.sql`, `createtableon57.sql`, `lis_sql_change_on57.sql` | `00_Governance/SourceExtractionTools/*` | Source extraction helpers only |
 
-## B. Existing runtime SQL: review individually before promotion
+## 2. Baseline and warehouse
 
-| Existing path | Initial decision | Review requirement |
+| Original source | Current destination | Disposition |
 |---|---|---|
-| `SQL/FVN_PCTP_RuntimeTables.sql` | REWRITE_OR_PROMOTE_PENDING | Confirm application callers, complete table contracts, keys, FKs and seed requirements. |
-| `SQL/FVN_PhieuTraHangCT_LotGuard_Index.sql` | KEEP_CANDIDATE | Validate target table/index existence, duplicate data and deployment guard. |
-| `SQL/NHAP_TP_HIS_Retire.sql` | PENDING_REVIEW | Potentially destructive/retirement operation; never include in baseline. |
-| `SQL/PCTPQuarantineRelease.sql` | KEEP_CANDIDATE | Reconcile with MES inventory/quality state model; avoid duplicate quarantine authority. |
-| `SQL/PCTPStockMovementGuard.sql` | KEEP_CANDIDATE | Reconcile with immutable stock ledger and concurrency rules. |
-| `SQL/PCTP_DeliveryCommandLedger.sql` | KEEP_CANDIDATE | Delivery idempotency/command history; map to new delivery model. |
-| `SQL/PCTP_EnforceUniqueStockTpLot.sql` | REVIEW_AND_REWRITE | Verify source duplicates, actual key semantics and new LOT identity. |
-| `SQL/PCTP_GiaoDB_DocQrCode_DB.sql` | KEEP_CANDIDATE | Preserve Giao DB QR/document relationship; review against current delivery workflow. |
-| `SQL/PCTP_GiaoDB_RenameOrderTables.sql` | ARCHIVE_CANDIDATE | Historical rename patch; inspect whether target naming has already been adopted. |
-| `SQL/PCTP_GiaoDB_RepairDeliveredLines.sql` | PENDING_REVIEW | Data repair, not clean-install DDL; require a separately approved repair plan. |
-| `SQL/PCTP_InternalTransfer.sql` | KEEP_CANDIDATE | Warehouse transfer behavior; reconcile with stock movement ledger. |
-| `SQL/PCTP_LuuPhieuGiaoHang_CustomerIsolation.sql` | KEEP_CANDIDATE | Preserve customer isolation and delivery transaction semantics. |
-| `SQL/PCTP_OrderTables_AddIsDelivered.sql` | MERGE_CANDIDATE | Fold final column/state contract into delivery baseline after caller review. |
-| `SQL/PCTP_QrReaderLock.sql` | KEEP_CANDIDATE | QR reader concurrency; inspect lock scope and MP/SP behavior. |
-| `SQL/PCTP_QrReaderLock_MP_SP_Migration.sql` | MERGE_OR_ARCHIVE_PENDING | Compare with current QR reader lock implementation and MP/SP schema. |
-| `SQL/PCTP_StockLotAdjustmentHistory.sql` | KEEP_CANDIDATE | Preserve adjustment audit; align with immutable movement history. |
-| `SQL/PCTP_StockTpIdentityAudit.sql` | KEEP_CANDIDATE | Audit/identity evidence; determine whether permanent runtime object or one-time diagnostic. |
-| `SQL/PCTP_Ymvn_DocQr_AddSoPhieu.sql` | CUSTOMER_VARIANT_REVIEW | Keep only if YMVN workflow remains supported; map to common document key model. |
-| `SQL/PCTP_vNhapTP.sql` | REWRITE_CANDIDATE | View currently coupled to STOCKTP production quantity; resolve MES ownership first. |
-| `SQL/Usp_BarCodeView_ThongKe_Tmp5.sql` | PENDING_REVIEW | Determine if current production caller exists; TMP naming alone is not proof of obsolete. |
-| `SQL/Usp_BarCodeView_ThongKe_Tmp5_YMVN.sql` | CUSTOMER_VARIANT_REVIEW | Verify YMVN runtime configuration and schema compatibility. |
-| `SQL/Usp_Qrcode_LOAD_PHIEU_DOCQR2405.sql` | REWRITE_CANDIDATE | Legacy QR load procedure; map callers and document/QR target model. |
-| `SQL/Usp_Qrcode_LUU_PHIEU_RetireUnsafeLegacy.sql` | RETIREMENT_REVIEW | Explicit retirement candidate; preserve history and prove no caller before removal. |
-| `SQL/Usp_Qrcode_Take_Lot2405.sql` | REWRITE_CANDIDATE | Legacy LOT allocation; compare with FIFO/lot reservation semantics. |
-| `SQL/Usp_Qrcode_Take_LotYMVN2405.sql` | CUSTOMER_VARIANT_REVIEW | Compare YMVN behavior with common allocation contract. |
-| `SQL/Usp_Qrcode_Update_Stock2405.sql` | REWRITE_CANDIDATE | Legacy stock update; do not transplant as a second stock ledger. |
-| `SQL/Usp_Qrcode_Update_Stock_SP.sql` | CUSTOMER_VARIANT_REVIEW | Determine if SP path differs materially or can use a common procedure. |
-| `SQL/Usp_Qrcode_gheplot.sql` | REWRITE_CANDIDATE | LOT merge/trace; preserve genealogy and quantity invariants. |
-| `SQL/Usp_Qrcode_gheplotYMVN.sql` | CUSTOMER_VARIANT_REVIEW | Verify current YMVN use and merge with common genealogy model if equivalent. |
-| `SQL/sp_GetCurrentStockStatus.sql` | REWRITE_CANDIDATE | Reconcile SlotLot and STOCKTP against one authoritative balance projection. |
+| `SQL/FVN_PCTP_RuntimeTables.sql` | `01_Baseline/Candidates/FVN_PCTP_RuntimeTables.sql` | Candidate only; not approved baseline |
+| `SQL/PCTPQuarantineRelease.sql` | `03_Warehouse/LegacyCandidates/*` | Reconcile with MES quality/stock states |
+| `SQL/PCTPStockMovementGuard.sql` | `03_Warehouse/LegacyCandidates/*` | Reconcile with one immutable movement ledger |
+| `SQL/PCTP_InternalTransfer.sql` | `03_Warehouse/LegacyCandidates/*` | Transfer semantics to be reviewed |
+| `SQL/PCTP_StockLotAdjustmentHistory.sql` | `03_Warehouse/LegacyCandidates/*` | Align audit with movement ledger |
+| `SQL/PCTP_EnforceUniqueStockTpLot.sql` | `03_Warehouse/LegacyCandidates/*` | Verify uniqueness semantics and existing duplicates |
+| `SQL/PHASE14_SlotLot_NgQuarantine.sql` | `03_Warehouse/LegacyCandidates/*` | Legacy phase patch |
+| `SQL/A0_SlotLot_Diagnose_Repair.sql`, `diag_StockTpScientificLot.sql`, `PCTP_StockTpIdentityAudit.sql` | `03_Warehouse/Diagnostics/*` | Diagnostics/repair only; never clean-install scripts |
+| `SQL/sp_GetCurrentStockStatus.sql` | `06_Programmability/LegacyCandidates/Warehouse/*` | Rewrite after balance authority is decided |
 
-## C. Diagnostics, generated metadata, fixtures and tooling
+## 3. Delivery and QR
 
-| Existing path | Decision | Reason |
+| Original source | Current destination | Disposition |
 |---|---|---|
-| `SQL/A0_SlotLot_Diagnose_Repair.sql` | KEEP_OUT_OF_DEPLOYMENT | Diagnostic/repair utility; do not run as a clean-install migration. |
-| `SQL/diag_StockTpScientificLot.sql` | KEEP_OUT_OF_DEPLOYMENT | Diagnostic query; preserve for investigation only. |
-| `SQL/QC_G4_DeliveryFixture_Seed.sql` | TEST_ONLY | Test fixture seed; never production baseline. |
-| `SQL/QC_G4_DeliveryFixture_Cleanup.sql` | TEST_ONLY | Test fixture cleanup; destructive outside isolated test database. |
-| `SQL/QC_Schema/01_Tables.sql` | FIXTURE_ONLY | Historical test schema, explicitly not a production baseline. |
-| `SQL/QC_Schema/02_Generated_From_DB57.sql` | STALE_GENERATED | Regenerate from current approved PCTP runtime scope before use. |
-| `SQL/QC_Schema/03_Generated_From_DB57_Constraints.sql` | STALE_GENERATED | Regenerate with the same fresh scope as table DDL. |
-| `SQL/QC_Schema/03_Generated_From_DB57_Constraints.sql` (and similarly named generated constraints artifact) | STALE_GENERATED | Resolve duplicate historical naming and generator output before promotion. |
-| `SQL/QC_Schema/04_SQL2_Metadata_Gaps.md` | KEEP_AS_EVIDENCE | Metadata gap report; regenerate with current source evidence. |
-| `SQL/QC_Schema/05_Split.sql` | REVIEW_DEPENDENCY | Shared helper used by legacy procedures; retain only if promoted callers still require it. |
-| `SQL/QC_Schema/06_Fixture_NhapTP_SourceTables.sql` | TEST_ONLY | Fixture source tables, not target production schema. |
-| `SQL/QC_Schema/07_B20Item_Catalog_Dependencies.sql` | REVIEW_ONLY | BRAVO catalog dependency evidence; do not clone B20 domain. |
-| `SQL/QC_Schema/Export_SQL2_Complete_DDL_Metadata.sql` | TOOLING | Source metadata export helper; not deployable target DDL. |
-| `SQL/QC_Schema/SQL2_Metadata_Review_Report.json` | GENERATED_EVIDENCE | Retain as evidence with source snapshot identity. |
-| `SQL/QC_Schema/tools/` | TOOLING_AND_TESTS | Keep only as engineering tooling; do not put in deployment sequence. |
+| `SQL/PCTP_DeliveryCommandLedger.sql` | `04_Delivery/LegacyCandidates/*` | Idempotency candidate; map to normalized delivery |
+| `SQL/PCTP_GiaoDB_DocQrCode_DB.sql` | `04_Delivery/LegacyCandidates/*` | Preserve document/QR relationship; review contract |
+| `SQL/PCTP_LuuPhieuGiaoHang_CustomerIsolation.sql` | `04_Delivery/LegacyCandidates/*` | Preserve customer isolation and transaction semantics |
+| `SQL/PCTP_OrderTables_AddIsDelivered.sql` | `04_Delivery/LegacyCandidates/*` | Merge final state into delivery baseline |
+| `SQL/PCTP_GiaoDB_RenameOrderTables.sql` | `04_Delivery/LegacyCandidates/*` | Historical rename patch; compare current schema |
+| `SQL/PHASE15_HangChoGiaoPickDetails.sql` | `04_Delivery/LegacyCandidates/*` | Pick-detail candidate |
+| `SQL/PCTP_GiaoDB_RepairDeliveredLines.sql` | `04_Delivery/Diagnostics/*` | Data repair only; separately approve and backup |
+| QR reader and `Usp_Qrcode_*` scripts | `06_Programmability/LegacyCandidates/QR/*` | Preserve as source behavior; rewrite before deployment |
+| Barcode report procedures | `06_Programmability/LegacyCandidates/Reports/*` | Confirm live callers and customer variants |
 
-## D. MES package already present
+## 4. MES and test assets
 
-| Existing path | Initial decision | Next action |
+| Original source | Current destination | Disposition |
 |---|---|---|
-| `SQL/MES/00_MES_SourceDiscovery_ReadOnly.sql` | KEEP_AS_EVIDENCE | Retain as read-only source discovery; ensure it cannot write to source. |
-| `SQL/MES/01_MES_Quantity_Core.sql` | SUPERSEDED_CANDIDATE | Do not deploy beside `SQL/MES/Migrations/000..011`; compare definitions and callers, then archive if confirmed duplicate. |
-| `SQL/MES/Migrations/000..011` | KEEP_AS_VERSIONED_CANDIDATE | Current ordered schema foundation; statically review and reconcile PCTP/MES boundary before moving under this folder. |
-| `SQL/MES/Migrations/README.md` | KEEP_AS_DOCUMENTATION | Preserve current deployment order and explicit runtime-test caveat. |
-| `SQL/MES/Tests/01_MES_DeploymentSmokeTest.sql` | TEST_ONLY | Move/copy to `09_Tests` only after package path is finalized. |
+| `SQL/MES/Migrations/000..011` | `05_MES/Migrations/000..011` | Ordered schema foundation; not runtime-tested |
+| `SQL/MES/Migrations/README.md` | `05_MES/Migrations/README.md` | Deployment notes |
+| `SQL/MES/00_MES_SourceDiscovery_ReadOnly.sql` | `05_MES/SourceReview/*` | Source discovery evidence |
+| `SQL/MES/01_MES_Quantity_Core.sql` | `05_MES/SourceReview/*` | Superseded candidate; do not deploy beside migrations 000..011 |
+| `SQL/MES/Tests/01_MES_DeploymentSmokeTest.sql` | `09_Tests/MES/*` | Disposable database test only |
+| `SQL/QC_G4_DeliveryFixture_Seed.sql`, `Cleanup.sql` | `09_Tests/Fixtures/*` | Isolated test fixtures |
+| `SQL/PHASE16_QC_Final_ExecutionTimeout_Fix.sql` | `09_Tests/LegacyRegression/*` | Regression artifact; inspect before use |
+| `SQL/NHAP_TP_HIS_Retire.sql` | `90_Archive/PendingRetirement/*` | Retirement candidate; not approved to execute |
 
-## E. Non-SQL artifacts
+## 5. Deletion policy
 
-- `SQL/QC_Schema/tools/*.py`: generators and unit tests; retain under tooling, not as database deployment scripts.
-- `SQL/00*_result/*.csv`: source catalog evidence; preserve snapshots and manifest.
-- `SQL/Result_Export_SQL2_Complete_DDL_Metadata.txt`: source catalog export, not a deployment script.
-- `SQL/List_SQL_ON57.csv`: inventory evidence, not executable SQL.
+**No script has been permanently deleted in this consolidation.** The Git move
+preserves each source blob and its history. The following evidence is still
+missing or incomplete: SQL Agent job steps, synonyms, external integrations and
+some dynamic SQL/runtime call paths. Therefore no global "unused" determination
+can yet be made.
 
-## F. Not yet safe to delete
+Permanent deletion requires all of:
+1. application and dynamic SQL caller search;
+2. SQL Agent, synonym, linked server and external integration review;
+3. verified replacement and regression tests;
+4. data/audit retention decision;
+5. rollback/retirement plan.
 
-Nothing is approved for permanent deletion in this initial pass.
+## 6. Outstanding phase gates
 
-Before cleanup, verify at minimum:
-1. no application repository or dynamic SQL caller references the object;
-2. no SQL Agent job, synonym, linked server, external integration or manual runbook depends on it;
-3. its behavior is replaced and tested in FVN_PCTP;
-4. source data/audit history is retained or intentionally migrated;
-5. the replacement has a rollback/retirement plan.
+- Refresh the source inventory and export missing SQL Agent/synonym results.
+- Decide one authoritative owner for LOT, Slot/Rack/Warehouse, stock balance and movement.
+- Resolve the FVN_PCTP versus MES domain boundary for `STOCKTP`, `SlotLot`, `StockHistory`.
+- Review each candidate script's complete definition and caller chain before promotion.
+- Build approved baseline and master-data scripts.
+- Build delivery/warehouse normalized model and controlled data migration.
+- Run SQL Server 2016 deployment, rerun, rollback, integrity and concurrency tests.
 
-The current evidence package is missing SQL Agent job-step and synonym result exports.
-Therefore, a "no dependency" conclusion is not yet available for affected objects.
+This register is a repository organization record, not approval to execute SQL.
