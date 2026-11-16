@@ -209,7 +209,7 @@ namespace PCTP.Presentation.Presenters
                     _v.SwitchToPhieuView();
                     DataTable dangHien = _v.GetDonHangTable();
                     DataTable moiNhat = _c.PhieuSvc.GetDonHangHienTai(activeTmpTable);
-                    MergeDocQrResultIntoOrderTable(dangHien, moiNhat);
+                    dangHien = MergeDocQrResultIntoOrderTable(dangHien, moiNhat);
                     _v.BindDonHang(dangHien);
                     _v.ShowInfo("Còn " + conLai + " dòng QR chưa đóng gói vào phiếu. Phiên đọc QR vẫn được giữ, bấm DOC QRCODE để quay lại đọc tiếp.");
                     return;
@@ -226,7 +226,7 @@ namespace PCTP.Presentation.Presenters
                 _v.SwitchToPhieuView();
                 DataTable current = _v.GetDonHangTable();
                 DataTable latest = _c.PhieuSvc.GetDonHangHienTai(activeTmpTable);
-                MergeDocQrResultIntoOrderTable(current, latest);
+                current = MergeDocQrResultIntoOrderTable(current, latest);
                 _v.BindDonHang(current);
                 _c.SetupPhieuButtonsDefault(true, false, _c.PhieuSvc.CheckCoLotChuaCNK(current));
                 return;
@@ -251,10 +251,16 @@ namespace PCTP.Presentation.Presenters
             }
         }, "Đang tổng hợp dữ liệu hoàn thành...");
 
-        private static void MergeDocQrResultIntoOrderTable(DataTable current, DataTable latest)
+        private static DataTable MergeDocQrResultIntoOrderTable(DataTable current, DataTable latest)
         {
-            if (current == null || latest == null || current.Rows.Count == 0 || latest.Rows.Count == 0)
-                return;
+            if (latest == null || latest.Rows.Count == 0)
+                return current;
+            // Lưới chưa có bảng nào: dùng luôn bảng TMP đầy đủ cột thay vì bind bảng rỗng.
+            if (current == null)
+                return latest;
+            if (current.Rows.Count == 0)
+                return current;
+
             foreach (DataRow source in latest.Rows)
             {
                 string stt = source.Table.Columns.Contains("STT") ? source["STT"]?.ToString().Trim() : "";
@@ -264,6 +270,36 @@ namespace PCTP.Presentation.Presenters
                 CopyIfBothColumnsExist(source, target, "LOT");
                 CopyIfBothColumnsExist(source, target, "STATUS");
                 CopyIfBothColumnsExist(source, target, "STATUSDOC");
+                FillMissingFromTmp(source, target);
+            }
+            return current;
+        }
+
+        // Bảng đang bind lên lưới có thể thiếu cột hoặc trống (vd được nạp lại từ bản rút gọn trong lúc đọc QR).
+        // TMP luôn giữ đủ thông tin dòng (GIOGIAO/CUA/TRUYEN/TENHANG/GEAR/DV/SOLUONG/PO_NO/...), nên chỉ điền
+        // vào cột chưa có hoặc ô đang trống; không bao giờ ghi đè ô đã có giá trị.
+        private static void FillMissingFromTmp(DataRow source, DataRow target)
+        {
+            foreach (DataColumn column in source.Table.Columns)
+            {
+                object value = source[column];
+                if (value == null || value == DBNull.Value) continue;
+                if (string.IsNullOrWhiteSpace(Convert.ToString(value))) continue;
+
+                string name = column.ColumnName;
+                if (!target.Table.Columns.Contains(name))
+                    target.Table.Columns.Add(name, column.DataType);
+
+                object existing = target[name];
+                if (existing != null && existing != DBNull.Value && !string.IsNullOrWhiteSpace(Convert.ToString(existing)))
+                    continue;
+
+                try { target[name] = value; }
+                catch (Exception)
+                {
+                    try { target[name] = Convert.ChangeType(value, target.Table.Columns[name].DataType, System.Globalization.CultureInfo.InvariantCulture); }
+                    catch (Exception) { /* kiểu không tương thích: bỏ qua ô này */ }
+                }
             }
         }
 
