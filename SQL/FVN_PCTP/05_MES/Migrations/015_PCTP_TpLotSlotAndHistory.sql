@@ -101,6 +101,7 @@ BEGIN TRY
             PhieuStatus tinyint NOT NULL CONSTRAINT DF_FVN_SlotLot_PhieuStatus DEFAULT (0),
             MaterialLotId bigint NULL,
             CONSTRAINT PK_FVN_SlotLot PRIMARY KEY (SlotLotId),
+            CONSTRAINT UQ_FVN_SlotLot_SiteId UNIQUE (SiteCode, SlotLotId),
             CONSTRAINT FK_FVN_SlotLot_Slot FOREIGN KEY (SiteCode, SlotId)
                 REFERENCES dbo.FVN_Slot (SiteCode, SlotId),
             CONSTRAINT FK_FVN_SlotLot_IFSPart FOREIGN KEY (SiteCode, ItemCode)
