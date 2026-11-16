@@ -32,6 +32,7 @@ Run one file at a time, in order:
 | 020 | 020_PCTP_QueuedDeliveryFifoAndPurchaseOrders.sql | Queued delivery/pick details, per-site FIFO configuration and special DB purchase-order snapshots |
 | 021 | 021_PCTP_FifoPolicyAndSlotInventoryViews.sql | Site-scoped FIFO upsert and MES-backed slot inventory view |
 | 022 | 022_PCTP_CustomerLotNormalizationAndQrWrite.sql | Customer-specific LOT normalization and site-aware QR insert contract |
+| 023 | 023_PCTP_InspectionLog.sql | Site-scoped inspection/tem reconciliation history |
 
 The applied versions are recorded in `MES.FVN_SchemaMigration` after migration 013. Before migration 013, query `MES.SchemaMigration`; after migration 013, use the physical table:
 
@@ -40,7 +41,7 @@ SELECT MigrationVersion,MigrationName,AppliedAtUtc,AppliedBy
 FROM MES.FVN_SchemaMigration ORDER BY MigrationVersion;
 ```
 
-Run migration 013 only after 000–012 have completed successfully. Run 014–022 only after 013, in strict order.
+Run migration 013 only after 000–012 have completed successfully. Run 014–023 only after 013, in strict order.
 
 ## Architecture rules
 
