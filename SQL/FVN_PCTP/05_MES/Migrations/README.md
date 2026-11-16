@@ -23,6 +23,13 @@ Run one file at a time, in order:
 | 011 | 011_MES_BatchPostingProcedure.sql | Atomic TVP inventory movement batch (maximum 500 rows) |
 | 012 | 012_IFS_MasterDataSync.sql | IFS one-way Part Catalog, Inventory Part and BOM snapshots with staging/apply |
 | 013 | 013_FVN_TablePrefixStandardization.sql | Renames every physical user table in FVN_PCTP to FVN_* and creates legacy-name synonyms for compatibility |
+| 014 | 014_PCTP_SiteScopedPartAndWarehouse.sql | Explicit PCTP site allow-list, (SiteCode, PartNo) extensions, Warehouse/Rack/Slot hierarchy and Slot→MES location mapping |
+| 015 | 015_PCTP_TpLotSlotAndHistory.sql | TP LOT attributes, SlotLot projection and StockHistory evidence; no duplicate quantity ledger |
+| 016 | 016_PCTP_IFSOrderSnapshotsAndDelivery.sql | IFS MP/SP delivery-order snapshots and PCTP delivery history |
+| 017 | 017_PCTP_QrDeliveryAndInternalTransfers.sql | QR/delivery idempotency, quarantine audit and internal transfer/return documents |
+| 018 | 018_PCTP_ReturnAndAbnormalWorkflow.sql | Return header/detail, QT Chung, affected LOT, initial QC, rework, disposition, compensation and workflow transitions |
+| 019 | 019_PCTP_SlotLotProjectionContract.sql | Site-aware SlotLot TVP and atomic replacement guarded by MES balance reconciliation |
+| 020 | 020_PCTP_QueuedDeliveryFifoAndPurchaseOrders.sql | Queued delivery/pick details, per-site FIFO configuration and special DB purchase-order snapshots |
 
 The applied versions are recorded in `MES.FVN_SchemaMigration` after migration 013. Before migration 013, query `MES.SchemaMigration`; after migration 013, use the physical table:
 
@@ -31,7 +38,7 @@ SELECT MigrationVersion,MigrationName,AppliedAtUtc,AppliedBy
 FROM MES.FVN_SchemaMigration ORDER BY MigrationVersion;
 ```
 
-Run migration 013 only after 000–012 have completed successfully.
+Run migration 013 only after 000–012 have completed successfully. Run 014–020 only after 013, in strict order.
 
 ## Architecture rules
 
@@ -48,7 +55,7 @@ Run migration 013 only after 000–012 have completed successfully.
 
 ## Important deployment limitation
 
-These are schema migrations and core posting/query routines. They are **not yet the legacy data migration** from B7R2_FCC/PCTP. That migration must be built only after source-to-target mapping for STOCKTP, SlotLot, StockHistory, LUUPHIEUGIAOHANG, IFSPHIEUGIAHANG and IFSPHIEUGIAHANG_SP, including the Slot/Rack/Warehouse dependency closure, is reconciled against the live source metadata and application usage.
+These migrations now provide the PCTP site-scoped schema foundation and several business document/workflow tables. They are **not yet the complete production installer or legacy data migration** from B7R2_FCC/PCTP. That migration must be built only after source-to-target mapping for STOCKTP, SlotLot, StockHistory, LUUPHIEUGIAOHANG, IFSPHIEUGIAHANG and IFSPHIEUGIAHANG_SP, including the Slot/Rack/Warehouse dependency closure, is reconciled against the live source metadata and application usage.
 
 ## Required validation before production
 
@@ -65,6 +72,8 @@ These are schema migrations and core posting/query routines. They are **not yet 
 
 ## Known next build items
 
+- Reviewed conversion of the remaining PCTP QR/LOT/stock/delivery stored procedures and triggers to physical FVN_ names and MES ledger posting.
+- PCTP C# repository conversion to pass SiteCode/PartNo and call the new FVN_ procedures/TVPs.
 - PO receipt posting procedure with over-receipt and duplicate-document policy.
 - Production order create/release procedure validating approved BOM, effective dates, site and product.
 - Finished Lot receipt procedure and QR/document binding.
@@ -81,3 +90,12 @@ snapshots and `IFS.usp_ApplySyncBatch`. It also refreshes the compatibility
 projection `MES.IfsInventoryPart` used by existing MES foreign keys.
 No Oracle connection is made by SQL Server; the PCTP C# service performs the
 read-only Oracle extraction and SQL Server bulk staging.
+
+
+## PCTP site setup after migration 020
+
+Before creating PCTP warehouses or writing PCTP documents, register only the IFS sites that PCTP is authorized to use in `dbo.FVN_PCTPSite`. Then create each `dbo.FVN_Warehouse` with its `SiteCode`, preserve/assign its numeric `WarehouseId`, and create Rack/Slot rows. Map every active Slot to exactly one primary `MES.FVN_IfsInventoryLocation` using `dbo.FVN_SlotMesLocation`. Do not infer SiteCode from PartNo or equate SlotId with LocationNo.
+
+PCTP part-extension records (`FVN_PartIdentity`, `FVN_PartOperationalProfile`, `FVN_PartCustomerRule`, FIFO configuration) must reference `IFS.FVN_InventoryPart` with both SiteCode and PartNo. New return/abnormal/delivery C# writes must supply SiteCode and the canonical PartNo; the current source repositories do not yet do so.
+
+`019` intentionally makes `usp_FVN_Slot_SaveLots` a projection-only operation: it replaces QR/LOT rows only when aggregate quantities equal MES on-hand at the mapped location. It does not post stock movements. Post stock changes through the MES inventory posting contract first.
