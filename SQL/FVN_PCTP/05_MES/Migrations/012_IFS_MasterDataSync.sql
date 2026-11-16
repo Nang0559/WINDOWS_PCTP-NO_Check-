@@ -117,7 +117,6 @@ CREATE TABLE IFS.InventoryPart(
     LastSeenBatchId bigint NOT NULL,
     SyncedAtUtc datetime2(3) NOT NULL,
     CONSTRAINT PK_IFS_InventoryPart PRIMARY KEY(SiteCode,PartNo),
-    CONSTRAINT FK_IFS_InventoryPart_Catalog FOREIGN KEY(PartNo) REFERENCES IFS.PartCatalog(PartNo),
     CONSTRAINT FK_IFS_InventoryPart_Batch FOREIGN KEY(LastSeenBatchId) REFERENCES IFS.SyncBatch(SyncBatchId)
 );
 
@@ -138,7 +137,6 @@ CREATE TABLE IFS.BomHeader(
     LastSeenBatchId bigint NOT NULL,
     SyncedAtUtc datetime2(3) NOT NULL,
     CONSTRAINT PK_IFS_BomHeader PRIMARY KEY(SiteCode,PartNo,EngChgLevel,BomTypeDb),
-    CONSTRAINT FK_IFS_BomHeader_Part FOREIGN KEY(SiteCode,PartNo) REFERENCES IFS.InventoryPart(SiteCode,PartNo),
     CONSTRAINT FK_IFS_BomHeader_Batch FOREIGN KEY(LastSeenBatchId) REFERENCES IFS.SyncBatch(SyncBatchId)
 );
 
@@ -197,7 +195,15 @@ CREATE TABLE IFS.BomComponent(
         REFERENCES IFS.BomAlternative(SiteCode,PartNo,EngChgLevel,BomTypeDb,AlternativeNo),
     CONSTRAINT FK_IFS_BomComponent_Batch FOREIGN KEY(LastSeenBatchId) REFERENCES IFS.SyncBatch(SyncBatchId)
 );
+CREATE INDEX IX_IFS_InventoryPart_PartNo ON IFS.InventoryPart(PartNo,SiteCode);
+CREATE INDEX IX_IFS_BomHeader_PartNo ON IFS.BomHeader(PartNo,SiteCode);
 CREATE INDEX IX_IFS_BomComponent_Component ON IFS.BomComponent(ComponentContract,ComponentPartNo);
+
+-- Widen the legacy MES projection to the source lengths before copying IFS values.
+ALTER TABLE MES.IfsInventoryPart ALTER COLUMN Description nvarchar(800) NULL;
+ALTER TABLE MES.IfsInventoryPart ALTER COLUMN InventoryUom nvarchar(120) NULL;
+ALTER TABLE MES.IfsInventoryPart ALTER COLUMN LotTrackingCode nvarchar(120) NULL;
+ALTER TABLE MES.IfsInventoryPart ALTER COLUMN SerialTrackingCode nvarchar(120) NULL;
 
 EXEC(N'
 CREATE PROCEDURE IFS.usp_ApplySyncBatch
@@ -424,18 +430,23 @@ BEGIN
         OUTPUT ''BOM_COMPONENT'',$action INTO @Changes;
 
         MERGE MES.IfsInventoryPart AS T
-        USING IFS.InventoryPart AS S
+        USING (
+          SELECT ip.*,pc.LotTrackingCodeDb,pc.SerialTrackingCodeDb
+          FROM IFS.InventoryPart ip
+          LEFT JOIN IFS.PartCatalog pc ON pc.PartNo=ip.PartNo
+        ) AS S
           ON T.SiteCode=S.SiteCode AND T.PartNo=S.PartNo
         WHEN MATCHED THEN UPDATE SET
           Description=S.Description,InventoryUom=S.UnitMeas,PartType=S.TypeCodeDb,PartStatus=S.PartStatus,
+          LotTrackingCode=S.LotTrackingCodeDb,SerialTrackingCode=S.SerialTrackingCodeDb,
           SourceModifiedAt=S.LastActivityDate,SourceRowKey=S.SourceRowKey,SourceHash=S.SourceHash,
           SyncedAtUtc=SYSUTCDATETIME(),IsActive=1
         WHEN NOT MATCHED THEN INSERT
-          (SiteCode,PartNo,Description,InventoryUom,PartType,PartStatus,IsActive,SourceModifiedAt,
-           SourceRowKey,SourceHash,SyncedAtUtc)
+          (SiteCode,PartNo,Description,InventoryUom,PartType,PartStatus,LotTrackingCode,SerialTrackingCode,
+           IsActive,SourceModifiedAt,SourceRowKey,SourceHash,SyncedAtUtc)
         VALUES
-          (S.SiteCode,S.PartNo,S.Description,S.UnitMeas,S.TypeCodeDb,S.PartStatus,1,S.LastActivityDate,
-           S.SourceRowKey,S.SourceHash,SYSUTCDATETIME())
+          (S.SiteCode,S.PartNo,S.Description,S.UnitMeas,S.TypeCodeDb,S.PartStatus,S.LotTrackingCodeDb,
+           S.SerialTrackingCodeDb,1,S.LastActivityDate,S.SourceRowKey,S.SourceHash,SYSUTCDATETIME())
         OUTPUT ''MES_IFS_INVENTORY_PART'',$action INTO @Changes;
 
         UPDATE IFS.SyncBatch
@@ -457,9 +468,4 @@ END
 INSERT MES.SchemaMigration(MigrationVersion,MigrationName)
 VALUES('012',N'IFS one-way master data and BOM synchronization');
 COMMIT TRANSACTION;
-GO
-
-/* Post-deployment reconciliation. Missing source rows are reported, never deleted. */
-CREATE OR ALTER VIEW IFS.vw_SyncLatestBatch AS
-SELECT TOP (1) * FROM IFS.SyncBatch ORDER BY SyncBatchId DESC;
 GO

@@ -47,6 +47,9 @@ namespace PCTP.Modules.IfsSync
             if (string.IsNullOrWhiteSpace(targetSqlConnectionString))
                 throw new InvalidOperationException("Thiếu connection string FVN_PCTP.");
 
+            if (targetSqlConnectionString.IndexOf("YOUR_SQL_", StringComparison.OrdinalIgnoreCase) >= 0)
+                throw new InvalidOperationException("Chưa cấu hình connection string FVN_PCTP trong PCTP.Database.config.");
+
             var target = new SqlConnectionStringBuilder(targetSqlConnectionString);
             if (!string.Equals(target.InitialCatalog, "FVN_PCTP", StringComparison.OrdinalIgnoreCase))
                 throw new InvalidOperationException(
@@ -208,6 +211,21 @@ VALUES ('FULL', 'RUNNING', SYSUTCDATETIME(), @InitiatedBy);", connection))
                     throw new InvalidOperationException(entityName + " có dòng thiếu PART_NO.");
 
                 object lineItem = DBNull.Value;
+                string siteCode = ReadString(row, "CONTRACT");
+                if (entityName != "PART_CATALOG" && string.IsNullOrWhiteSpace(siteCode))
+                    throw new InvalidOperationException(entityName + " có dòng thiếu CONTRACT.");
+
+                if (entityName.StartsWith("BOM_", StringComparison.Ordinal))
+                {
+                    if (string.IsNullOrWhiteSpace(ReadString(row, "ENG_CHG_LEVEL")) ||
+                        string.IsNullOrWhiteSpace(ReadString(row, "BOM_TYPE_DB")))
+                        throw new InvalidOperationException(entityName + " thiếu ENG_CHG_LEVEL hoặc BOM_TYPE_DB.");
+                }
+                if (entityName == "BOM_ALTERNATIVE" || entityName == "BOM_COMPONENT")
+                {
+                    if (string.IsNullOrWhiteSpace(ReadString(row, "ALTERNATIVE_NO")))
+                        throw new InvalidOperationException(entityName + " có dòng thiếu ALTERNATIVE_NO.");
+                }
                 if (entityName == "BOM_COMPONENT")
                 {
                     object value = ReadValue(row, "LINE_ITEM_NO");
@@ -219,7 +237,7 @@ VALUES ('FULL', 'RUNNING', SYSUTCDATETIME(), @InitiatedBy);", connection))
                 table.Rows.Add(
                     batchId,
                     entityName,
-                    DbValue(ReadString(row, "CONTRACT")),
+                    DbValue(siteCode),
                     partNo,
                     DbValue(ReadString(row, "ENG_CHG_LEVEL")),
                     DbValue(ReadString(row, "BOM_TYPE_DB")),
