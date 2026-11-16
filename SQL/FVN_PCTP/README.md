@@ -86,3 +86,13 @@ missing PCTP delivery/warehouse/XuLyHangLoi base tables.
 **Current instruction:** do not run the legacy XuLyHangLoi, Warehouse, or
 Delivery candidates against a clean `FVN_PCTP` database. First approve and
 generate the missing baseline and domain migrations.
+
+
+## Complete PCTP object build register
+
+The approved architecture is now translated into a single object build register:
+`00_Governance/00G_PCTP_ObjectBuildRegister.md`.
+
+It inventories the 61 SQL2-generated table definitions, maps physical target names to the FVN_ standard, separates shared B20* master dependencies from PCTP-owned tables, lists the PCTP-linked views/procedures/functions/trigger found in the static dependency evidence, and defines the ordered build phases and release gates.
+
+The register is an implementation contract, not a deployable SQL script. The complete module definitions, missing runtime-table DDL, shared master-data mapping and MES stock projection/posting contracts must be closed before the clean-install migrations are promoted.
