@@ -9,7 +9,7 @@
 - Consolidated the loose SQL root into `SQL/FVN_PCTP/`.
 - Moved 124 source/evidence/tooling/test SQL-related files while preserving their Git blob content.
 - Created the canonical domain folders: Governance, Baseline, MasterData, Warehouse, Delivery, MES, Programmability, DataMigration, Security, Tests and Archive.
-- Moved the versioned MES migration package 000–011 and its smoke test under the FVN_PCTP package.
+- Moved the versioned MES migration package 000–011 and its smoke test under the FVN_PCTP package; added migrations 012–013 for IFS synchronization and database-wide physical table prefix standardization.
 - Separated legacy candidates, diagnostics, test fixtures, source extraction tools and generated metadata from deployable migration folders.
 - Added/updated package README and source disposition register.
 - No source database objects or business data were changed by this repository work.
@@ -75,6 +75,8 @@ Added on this branch:
 - `09_Tests/IFS_SyncSmokeTest.sql`: read-only batch and BOM relationship check.
 - The SQL target catalog is validated as `FVN_PCTP`; the service does not use
   the legacy SQL connection factory pinned to B7R2_FCC.
+
+Migration 013 now standardizes every physical user table in FVN_PCTP to `FVN_<Name>`, retains old two-part names as compatibility synonyms, and repoints the IFS synchronization MERGE targets and SqlBulkCopy destination to physical FVN_ tables. This is a forward migration for databases where 000–012 have already run.
 
 This implementation is a deployment candidate. It has **not** been built or
 executed against the user's Oracle IFS or SQL Server. It performs full snapshot
