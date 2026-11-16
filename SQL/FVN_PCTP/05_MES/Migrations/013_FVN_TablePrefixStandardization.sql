@@ -1,5 +1,5 @@
 /*
- Migration 013: standardize every physical MES/IFS table name with FVN_ prefix.
+ Migration 013: standardize every physical user table in FVN_PCTP with FVN_ prefix.
  Run after 000..012. SQL Server 2016 compatible.
  Existing module/application references keep working through same-schema synonyms.
  New code and bulk-load APIs must use physical FVN_ table names.
@@ -35,8 +35,7 @@ BEGIN TRY
         SELECT s.name, t.name
         FROM sys.tables AS t
         INNER JOIN sys.schemas AS s ON s.schema_id = t.schema_id
-        WHERE s.name IN (N'MES', N'IFS')
-          AND UPPER(LEFT(t.name, 4)) <> N'FVN_'
+        WHERE UPPER(LEFT(t.name, 4)) <> N'FVN_'
         ORDER BY s.name, t.name;
 
     OPEN TableCursor;
@@ -123,20 +122,18 @@ BEGIN CATCH
 END CATCH;
 GO
 
-/* Verification: every physical table in MES and IFS must now start with FVN_. */
+/* Verification: every physical user table in FVN_PCTP must now start with FVN_. */
 SELECT s.name AS SchemaName, t.name AS PhysicalTableName
 FROM sys.tables AS t
 INNER JOIN sys.schemas AS s ON s.schema_id = t.schema_id
-WHERE s.name IN (N'MES', N'IFS')
-  AND UPPER(LEFT(t.name, 4)) <> N'FVN_';
+WHERE UPPER(LEFT(t.name, 4)) <> N'FVN_';
 
 IF EXISTS
 (
     SELECT 1
     FROM sys.tables AS t
     INNER JOIN sys.schemas AS s ON s.schema_id = t.schema_id
-    WHERE s.name IN (N'MES', N'IFS')
-      AND UPPER(LEFT(t.name, 4)) <> N'FVN_'
+    WHERE UPPER(LEFT(t.name, 4)) <> N'FVN_'
 )
     THROW 51306, 'FVN_ naming verification failed.', 1;
 
@@ -144,6 +141,5 @@ SELECT s.name AS SchemaName, sy.name AS CompatibilitySynonym,
        sy.base_object_name AS PhysicalTarget
 FROM sys.synonyms AS sy
 INNER JOIN sys.schemas AS s ON s.schema_id = sy.schema_id
-WHERE s.name IN (N'MES', N'IFS')
 ORDER BY s.name, sy.name;
 GO
