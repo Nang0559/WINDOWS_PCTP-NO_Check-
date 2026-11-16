@@ -14,11 +14,15 @@ prevents a folder listing from being mistaken for an executable installer.
 | 2 | `02_MasterData` | IFS one-way sync contract and SQL migration 012 added; target deployment not tested |
 | 3 | `03_Warehouse` | Legacy candidates only; ownership gate open |
 | 4 | `04_Delivery` | Legacy candidates only; normalized model not generated |
-| 5 | `05_MES/Migrations/000..012` | MES schema candidate sequence plus IFS master/BOM snapshot sync; requires SQL Server 2016 test |
+| 5 | `05_MES/Migrations/000..013` | MES schema + IFS sync + physical table FVN_ prefix normalization; requires SQL Server 2016 test |
 | 6 | `06_Programmability` | Legacy candidates only; not an install sequence |
 | 7 | `07_DataMigration` | Not generated |
 | 8 | `08_Security` | Placeholder; no user/login mapping |
 | 9 | `09_Tests` | Isolated tests/fixtures only |
+
+## Database object naming standard
+
+Every physical table created in `FVN_PCTP` must use the `FVN_` prefix, regardless of schema: examples `dbo.FVN_LUUPHIEUGIAOHANG`, `MES.FVN_MaterialLot`, and `IFS.FVN_InventoryPart`. Schema names continue to express domain ownership (`dbo`, `MES`, `IFS`); the prefix identifies ownership by the FVN_PCTP database. Views, procedures, functions, triggers, types, constraints and indexes are not tables and keep their own naming conventions. Legacy-name synonyms may be retained temporarily for compatibility, but new application code and bulk-load targets must use physical `FVN_` table names.
 
 ## Release gates
 
