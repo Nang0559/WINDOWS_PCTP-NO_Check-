@@ -45,8 +45,7 @@ BEGIN TRY
             CreatedBy nvarchar(100) NULL,
             ModifiedAtUtc datetime2(3) NULL,
             ModifiedBy nvarchar(100) NULL,
-            CONSTRAINT PK_FVN_Warehouse PRIMARY KEY (SiteCode, WarehouseCode),
-            CONSTRAINT UQ_FVN_Warehouse_LegacyId UNIQUE (LegacyWarehouseId)
+            CONSTRAINT PK_FVN_Warehouse PRIMARY KEY (SiteCode, WarehouseCode)
         );
     END;
 
@@ -64,8 +63,7 @@ BEGIN TRY
             IsActive bit NOT NULL CONSTRAINT DF_FVN_Rack_IsActive DEFAULT (1),
             CONSTRAINT PK_FVN_Rack PRIMARY KEY (RackId),
             CONSTRAINT UQ_FVN_Rack_SiteRack UNIQUE (SiteCode, RackId),
-            CONSTRAINT UQ_FVN_Rack_LegacyId UNIQUE (LegacyRackId),
-            CONSTRAINT FK_FVN_Rack_Warehouse FOREIGN KEY (SiteCode, WarehouseCode)
+             CONSTRAINT FK_FVN_Rack_Warehouse FOREIGN KEY (SiteCode, WarehouseCode)
                 REFERENCES dbo.FVN_Warehouse (SiteCode, WarehouseCode),
             CONSTRAINT CK_FVN_Rack_Dimensions CHECK
                 ((RackRowCount IS NULL OR RackRowCount >= 0) AND (ColumnCount IS NULL OR ColumnCount >= 0))
@@ -89,8 +87,7 @@ BEGIN TRY
             CONSTRAINT PK_FVN_Slot PRIMARY KEY (SlotId),
             CONSTRAINT UQ_FVN_Slot_SiteSlot UNIQUE (SiteCode, SlotId),
             CONSTRAINT UQ_FVN_Slot_RackNumber UNIQUE (RackId, SlotNumber),
-            CONSTRAINT UQ_FVN_Slot_LegacyId UNIQUE (LegacySlotId),
-            CONSTRAINT FK_FVN_Slot_Rack FOREIGN KEY (SiteCode, RackId)
+             CONSTRAINT FK_FVN_Slot_Rack FOREIGN KEY (SiteCode, RackId)
                 REFERENCES dbo.FVN_Rack (SiteCode, RackId),
             CONSTRAINT CK_FVN_Slot_Number CHECK (SlotNumber >= 0),
             CONSTRAINT CK_FVN_Slot_Capacity CHECK (Capacity IS NULL OR Capacity >= 0)
@@ -135,10 +132,14 @@ BEGIN TRY
             CONSTRAINT PK_FVN_PartIdentity PRIMARY KEY (SiteCode, PartNo),
             CONSTRAINT FK_FVN_PartIdentity_IFSPart FOREIGN KEY (SiteCode, PartNo)
                 REFERENCES IFS.FVN_InventoryPart (SiteCode, PartNo),
-            CONSTRAINT UQ_FVN_PartIdentity_LegacyId UNIQUE (LegacyB20ItemId),
-            CONSTRAINT UQ_FVN_PartIdentity_QrCode UNIQUE (LegacyQrItemCode)
-        );
+         );
     END;
+
+    CREATE UNIQUE INDEX UX_FVN_Warehouse_LegacyId ON dbo.FVN_Warehouse(LegacyWarehouseId) WHERE LegacyWarehouseId IS NOT NULL;
+    CREATE UNIQUE INDEX UX_FVN_Rack_LegacyId ON dbo.FVN_Rack(LegacyRackId) WHERE LegacyRackId IS NOT NULL;
+    CREATE UNIQUE INDEX UX_FVN_Slot_LegacyId ON dbo.FVN_Slot(LegacySlotId) WHERE LegacySlotId IS NOT NULL;
+    CREATE UNIQUE INDEX UX_FVN_PartIdentity_LegacyId ON dbo.FVN_PartIdentity(LegacyB20ItemId) WHERE LegacyB20ItemId IS NOT NULL;
+    CREATE UNIQUE INDEX UX_FVN_PartIdentity_QrCode ON dbo.FVN_PartIdentity(LegacyQrItemCode) WHERE LegacyQrItemCode IS NOT NULL;
 
     /* Only PCTP-owned attributes absent from the IFS master belong here. */
     IF OBJECT_ID(N'dbo.FVN_PartOperationalProfile', N'U') IS NULL
@@ -220,7 +221,7 @@ BEGIN TRY
 
     /* Read-only part lookup: IFS owns description, UOM and status. */
     EXEC(N'
-    CREATE OR ALTER VIEW dbo.vFVN_PCTP_Part
+    CREATE VIEW dbo.vFVN_PCTP_Part
     AS
     SELECT
         ip.SiteCode,
