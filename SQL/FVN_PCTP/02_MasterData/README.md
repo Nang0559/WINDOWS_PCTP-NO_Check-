@@ -39,8 +39,9 @@ SQL Server database. It does not use Linked Server or write to IFS.
    `PCTP.Database.config`. The SQL target catalog must be exactly `FVN_PCTP`.
 3. Build PCTP and call `new IfsSyncService().SyncAll()` from an authorized
    administrative workflow. Do not call it on ordinary form/page load.
-4. Check `IFS.SyncBatch`, `IFS.SyncStageRow`, `IFS.PartCatalog`,
-   `IFS.InventoryPart`, and the three `IFS.Bom*` tables.
+4. Check `IFS.SyncBatch`, `IFS.SyncError`, `IFS.SyncStageRow`,
+   `IFS.PartCatalog`, `IFS.InventoryPart`, and the three `IFS.Bom*` tables.
+5. Run the read-only verification script `09_Tests/IFS_SyncSmokeTest.sql`.
 
 This is a FULL snapshot/upsert implementation. It intentionally does not yet
 claim incremental sync or automatic retirement; those require validated IFS

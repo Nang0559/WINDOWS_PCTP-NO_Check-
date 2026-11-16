@@ -87,9 +87,9 @@ CREATE TABLE IFS.PartCatalog(
     LotQuantityRuleDb nvarchar(80) NULL,
     MultilevelTrackingDb nvarchar(80) NULL,
     ComponentLotRuleDb nvarchar(80) NULL,
-    WeightNet decimal(19,6) NULL,
+    WeightNet decimal(28,10) NULL,
     WeightUom nvarchar(120) NULL,
-    VolumeNet decimal(19,6) NULL,
+    VolumeNet decimal(28,10) NULL,
     VolumeUom nvarchar(120) NULL,
     SourceRowKey nvarchar(200) NULL,
     SourceObjVersion nvarchar(30) NULL,
@@ -184,11 +184,11 @@ CREATE TABLE IFS.BomComponent(
     LineSequence decimal(18,0) NOT NULL,
     ComponentPartNo nvarchar(100) NOT NULL,
     ComponentContract nvarchar(20) NOT NULL,
-    QtyPerAssembly decimal(19,6) NOT NULL,
-    ComponentScrap decimal(19,6) NULL,
-    ShrinkageFactor decimal(19,6) NULL,
+    QtyPerAssembly decimal(28,10) NOT NULL,
+    ComponentScrap decimal(28,10) NULL,
+    ShrinkageFactor decimal(28,10) NULL,
     OperationNo decimal(18,0) NULL,
-    LeadtimeOffset decimal(19,6) NULL,
+    LeadtimeOffset decimal(28,10) NULL,
     IssueTypeDb nvarchar(100) NULL,
     ConsumptionItem nvarchar(80) NULL,
     PhantomConsume nvarchar(80) NULL,
@@ -196,7 +196,7 @@ CREATE TABLE IFS.BomComponent(
     EffectiveInDate datetime2(0) NOT NULL,
     EffectiveOutDate datetime2(0) NULL,
     DrawPosNo nvarchar(40) NULL,
-    QtyKg decimal(19,6) NULL,
+    QtyKg decimal(28,10) NULL,
     SourceRowKey nvarchar(200) NULL,
     SourceObjVersion nvarchar(30) NULL,
     SourceHash varbinary(32) NOT NULL,
@@ -293,9 +293,9 @@ BEGIN
               JSON_VALUE(s.PayloadJson,''$.LOT_QUANTITY_RULE_DB'') AS LotQuantityRuleDb,
               JSON_VALUE(s.PayloadJson,''$.MULTILEVEL_TRACKING_DB'') AS MultilevelTrackingDb,
               JSON_VALUE(s.PayloadJson,''$.COMPONENT_LOT_RULE_DB'') AS ComponentLotRuleDb,
-              TRY_CONVERT(decimal(19,6),JSON_VALUE(s.PayloadJson,''$.WEIGHT_NET'')) AS WeightNet,
+              TRY_CONVERT(decimal(28,10),JSON_VALUE(s.PayloadJson,''$.WEIGHT_NET'')) AS WeightNet,
               JSON_VALUE(s.PayloadJson,''$.UOM_FOR_WEIGHT_NET'') AS WeightUom,
-              TRY_CONVERT(decimal(19,6),JSON_VALUE(s.PayloadJson,''$.VOLUME_NET'')) AS VolumeNet,
+              TRY_CONVERT(decimal(28,10),JSON_VALUE(s.PayloadJson,''$.VOLUME_NET'')) AS VolumeNet,
               JSON_VALUE(s.PayloadJson,''$.UOM_FOR_VOLUME_NET'') AS VolumeUom
             FROM IFS.SyncStageRow s
             WHERE s.SyncBatchId=@SyncBatchId AND s.EntityName=''PART_CATALOG''
@@ -415,11 +415,11 @@ BEGIN
             TRY_CONVERT(decimal(18,0),JSON_VALUE(s.PayloadJson,''$.LINE_SEQUENCE'')) LineSequence,
             JSON_VALUE(s.PayloadJson,''$.COMPONENT_PART'') ComponentPartNo,
             JSON_VALUE(s.PayloadJson,''$.COMPONENT_CONTRACT'') ComponentContract,
-            TRY_CONVERT(decimal(19,6),JSON_VALUE(s.PayloadJson,''$.QTY_PER_ASSEMBLY'')) QtyPerAssembly,
-            TRY_CONVERT(decimal(19,6),JSON_VALUE(s.PayloadJson,''$.COMPONENT_SCRAP'')) ComponentScrap,
-            TRY_CONVERT(decimal(19,6),JSON_VALUE(s.PayloadJson,''$.SHRINKAGE_FACTOR'')) ShrinkageFactor,
+            TRY_CONVERT(decimal(28,10),JSON_VALUE(s.PayloadJson,''$.QTY_PER_ASSEMBLY'')) QtyPerAssembly,
+            TRY_CONVERT(decimal(28,10),JSON_VALUE(s.PayloadJson,''$.COMPONENT_SCRAP'')) ComponentScrap,
+            TRY_CONVERT(decimal(28,10),JSON_VALUE(s.PayloadJson,''$.SHRINKAGE_FACTOR'')) ShrinkageFactor,
             TRY_CONVERT(decimal(18,0),JSON_VALUE(s.PayloadJson,''$.OPERATION_NO'')) OperationNo,
-            TRY_CONVERT(decimal(19,6),JSON_VALUE(s.PayloadJson,''$.LEADTIME_OFFSET'')) LeadtimeOffset,
+            TRY_CONVERT(decimal(28,10),JSON_VALUE(s.PayloadJson,''$.LEADTIME_OFFSET'')) LeadtimeOffset,
             JSON_VALUE(s.PayloadJson,''$.ISSUE_TYPE_DB'') IssueTypeDb,
             JSON_VALUE(s.PayloadJson,''$.CONSUMPTION_ITEM'') ConsumptionItem,
             JSON_VALUE(s.PayloadJson,''$.PHANTOM_CONSUME'') PhantomConsume,
@@ -427,7 +427,7 @@ BEGIN
             TRY_CONVERT(datetime2(0),JSON_VALUE(s.PayloadJson,''$.EFF_PHASE_IN_DATE''),127) EffectiveInDate,
             TRY_CONVERT(datetime2(0),JSON_VALUE(s.PayloadJson,''$.EFF_PHASE_OUT_DATE''),127) EffectiveOutDate,
             JSON_VALUE(s.PayloadJson,''$.DRAW_POS_NO'') DrawPosNo,
-            TRY_CONVERT(decimal(19,6),JSON_VALUE(s.PayloadJson,''$.QTY_KG'')) QtyKg
+            TRY_CONVERT(decimal(28,10),JSON_VALUE(s.PayloadJson,''$.QTY_KG'')) QtyKg
           FROM IFS.SyncStageRow s WHERE s.SyncBatchId=@SyncBatchId AND s.EntityName=''BOM_COMPONENT''
         ) S ON T.SiteCode=S.SiteCode AND T.PartNo=S.PartNo AND T.EngChgLevel=S.EngChgLevel
            AND T.BomTypeDb=S.BomTypeDb AND T.AlternativeNo=S.AlternativeNo AND T.LineItemNo=S.LineItemNo

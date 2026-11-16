@@ -162,7 +162,7 @@ OUTPUT INSERTED.SyncBatchId
 VALUES ('FULL', 'RUNNING', SYSUTCDATETIME(), @InitiatedBy);", connection))
             {
                 command.Parameters.Add("@InitiatedBy", SqlDbType.NVarChar, 128).Value =
-                    Environment.UserDomainName + "\" + Environment.UserName;
+                    Environment.UserDomainName + "\\" + Environment.UserName;
                 return Convert.ToInt64(command.ExecuteScalar(), CultureInfo.InvariantCulture);
             }
         }
