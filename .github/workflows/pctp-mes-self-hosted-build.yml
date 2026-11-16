@@ -34,7 +34,7 @@ jobs:
           ref: ${{ github.ref }}
 
       - name: Show runner and toolchain
-        shell: pwsh
+        shell: powershell
         run: |
           Write-Host "Runner: $env:RUNNER_NAME"
           Write-Host "OS: $env:RUNNER_OS"
@@ -48,13 +48,13 @@ jobs:
         uses: NuGet/setup-nuget@v2
 
       - name: Restore solution packages
-        shell: pwsh
+        shell: powershell
         run: |
           nuget restore "WINDOWS_PCTP(NO_Check).sln" -NonInteractive
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Build PCTP WinForms application
-        shell: pwsh
+        shell: powershell
         run: |
           msbuild "PCTP/PCTP.csproj" /m /p:Configuration=Release /p:Platform=AnyCPU /p:RestorePackages=false /verbosity:minimal
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
