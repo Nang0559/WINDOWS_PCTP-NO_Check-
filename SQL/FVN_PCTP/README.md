@@ -43,7 +43,7 @@ script has been executed by this repository operation.
 ## Non-negotiable design rules
 
 1. SQL Server 2016 syntax only; do not use `STRING_AGG`.
-2. Every physical table in `FVN_PCTP` must be named `FVN_<BusinessName>` in its domain schema (for example `dbo.FVN_LUUPHIEUGIAOHANG`, `MES.FVN_MaterialLot`, `IFS.FVN_InventoryPart`). Schema names remain domain-oriented; do not prefix procedures/views/functions/types as if they were tables.
+2. Every physical table in `FVN_PCTP` must be named `FVN_<BusinessName>` in its domain schema (for example `dbo.FVN_LUUPHIEUGIAOHANG`, `MES.FVN_MaterialLot`, `IFS.FVN_InventoryPart`). Schema names remain domain-oriented. Procedures/views/functions use `usp_FVN_` / `vFVN_` / `ufn_FVN_` in `dbo` (see `00_Governance/00K_PCTP_ProgrammabilityCutoverMap.md`); do not name them like tables (`FVN_<Name>`).
 3. No runtime dependency on `B7R2_FCC` or BRAVO and no write-back to IFS.
 4. IFS is a one-way read-only source; preserve source provenance and sync identity.
 5. Do not clone BRAVO accounting/GL/AP/AR objects because PCTP happens to read them.

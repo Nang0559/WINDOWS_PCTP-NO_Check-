@@ -10,7 +10,7 @@ namespace PCTP
     public class SqlTableCreator
     {
         #region Instance Variables
-        // Same canonical connection as SQLPROVIDER (PCTP.Database.config -> B7R2_FCCdb, then QcSqlOverride).
+        // Same canonical connection as SQLPROVIDER (PCTP.Database.config -> FVN_PCTP (alias B7R2_FCCdb), then QcSqlOverride).
         public string B7R2_FCCdb = PCTP.ClassSQL.SQLPROVIDER.GetConfiguredConnection();
         private SqlConnection _connection;
         public SqlConnection Connection

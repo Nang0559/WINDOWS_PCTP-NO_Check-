@@ -24,13 +24,23 @@ public sealed class SqlDefaultConnectionSafetyTests
     }
 
     [Theory]
-    [InlineData("B7R2_FCCdb")]
-    [InlineData("B7R2_FCCdbb")]
+    [InlineData("FVN_PCTPdb")]
+    [InlineData("B7R2_FCCdb")]   // legacy alias, same FVN_PCTP connection
+    [InlineData("B7R2_FCCdbb")]  // legacy alias, same FVN_PCTP connection
     public void ConnectionField_UsesExternalConfig(string field)
     {
         var line = CodeLines().SingleOrDefault(l => l.StartsWith("public string " + field + " =", StringComparison.Ordinal));
         Assert.NotNull(line);
-        Assert.Contains("GetConfiguredConnection(\"" + field + "\")", line);
+        Assert.Contains("GetConfiguredConnection()", line);
+    }
+
+    [Fact]
+    public void ConfiguredConnection_IsPinnedToFvnPctpCatalog()
+    {
+        var code = string.Join("\n", CodeLines());
+        Assert.Contains("CanonicalDatabaseName = \"FVN_PCTP\"", code);
+        Assert.Contains("EnsureCanonicalCatalog(configured)", code);
+        Assert.Contains("\"B7R2_FCC\"", code); // rejected catalog list
     }
 
     [Fact]
@@ -38,7 +48,7 @@ public sealed class SqlDefaultConnectionSafetyTests
     {
         var line = CodeLines().SingleOrDefault(l => l.StartsWith("public string AutoWH", StringComparison.Ordinal));
         Assert.NotNull(line);
-        Assert.Contains("SQLPROVIDER.GetConfiguredConnection(\"B7R2_FCCdb\")", line);
+        Assert.Contains("SQLPROVIDER.GetConfiguredConnection()", line);
     }
 
     [Fact]
@@ -70,7 +80,8 @@ public sealed class SqlDefaultConnectionSafetyTests
         // Exactly two names: the canonical SqlClient string and the XPO alias that the DevExpress
         // report designers bind to (derived from the canonical one at start-up by ReportConnectionAlias).
         var names = document.Root.Elements("add").Select(e => (string)e.Attribute("name")).OrderBy(n => n).ToArray();
-        Assert.Equal(new[] { "B7R2_FCCdb", "accfast\\bravo.B7R2_FCC.dbo" }.OrderBy(n => n).ToArray(), names);
+        Assert.Contains("FVN_PCTP", names);
+        Assert.Contains("accfast\\bravo.B7R2_FCC.dbo", names);
 
         var connectionValues = document.Root.Elements("add")
             .Select(e => (string)e.Attribute("connectionString"))

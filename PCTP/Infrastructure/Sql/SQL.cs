@@ -17,57 +17,91 @@ namespace PCTP.ClassSQL
         public static List<string> c_Ns = new List<string>();
 
         // ════════════════════════════════════════════════════════════════════
-        // CONNECTION STRINGS
-        // ⚠ B7R2_FCCdb và B7R2_FCCdbb hiện trỏ CÙNG server + CÙNG catalog
-        // (192.168.200.57 / B7R2_FCC) — KHÔNG phải 2 DB khác nhau, chỉ là 2 tên
-        public string B7R2_FCCdb = GetConfiguredConnection("B7R2_FCCdb");
-        public string B7R2_FCCdbb = GetConfiguredConnection("B7R2_FCCdbb");
+        // CONNECTION STRINGS — ONE database: FVN_PCTP
+        //
+        // Nguồn cấu hình duy nhất là PCTP.Database.config (không commit secret):
+        //   1) <add name="FVN_PCTP" .../>   ← tên chuẩn (Initial Catalog PHẢI = FVN_PCTP)
+        //   2) <add name="B7R2_FCCdb" .../> ← tên cũ, chỉ còn là alias tương thích cho
+        //                                     file cấu hình runtime đã triển khai; dùng
+        //                                     khi mục FVN_PCTP thiếu hoặc còn placeholder.
+        // Mọi tên field bên dưới trỏ CÙNG một connection string. B7R2_FCCdb /
+        // B7R2_FCCdbb giữ lại chỉ để không vỡ build hàng trăm call-site cũ; code mới
+        // dùng FVN_PCTPdb (hoặc truyền null/"" cho tham số connection của provider).
+        // Chuỗi trỏ vào catalog B7R2_FCC / BRAVO bị TỪ CHỐI (fail-closed).
+        public string FVN_PCTPdb = GetConfiguredConnection();
+        public string B7R2_FCCdb = GetConfiguredConnection();    // legacy alias → FVN_PCTP
+        public string B7R2_FCCdbb = GetConfiguredConnection();   // legacy alias → FVN_PCTP
+
+        /// <summary>Tên database nghiệp vụ duy nhất của ứng dụng.</summary>
+        public const string CanonicalDatabaseName = "FVN_PCTP";
+        /// <summary>Tên connection string chuẩn trong PCTP.Database.config.</summary>
+        public const string CanonicalConnectionName = "FVN_PCTP";
+        /// <summary>Tên cũ — chỉ còn là alias đọc cấu hình.</summary>
+        public const string LegacyConnectionName = "B7R2_FCCdb";
+
+        private static readonly string[] ForbiddenCatalogs = { "B7R2_FCC", "BRAVO" };
 
         /// <summary>
-        /// Reads the named connection string from the external PCTP.Database.config file.
-        /// QcSqlOverride remains the final gate for isolated CI fixture redirection.
+        /// Single source of truth for the application's SQL Server connection.
+        /// Resolution order: FVN_PCTP → B7R2_FCCdb (legacy alias). The catalog must be
+        /// FVN_PCTP. <see cref="QcSqlOverride"/> remains the final gate that may redirect
+        /// the result to an isolated PCTP_QC_* CI fixture (the catalog check is skipped
+        /// only when that override variable is present; QcSqlOverride then validates it).
         /// </summary>
-        /// <summary>
-        /// Single source of truth for the application's SQL Server database.
-        /// Legacy callers may still pass an old connection-string alias; all
-        /// aliases are normalized to the canonical B7R2_FCCdb setting.
-        /// QcSqlOverride remains able to redirect this connection to an
-        /// isolated CI fixture.
-        /// </summary>
-        internal static string GetConfiguredConnection(string key = "B7R2_FCCdb")
+        /// <param name="legacyAlias">Ignored. Kept so old callers that pass "B7R2_FCCdb"/"B7R2_FCCdbb" still compile.</param>
+        internal static string GetConfiguredConnection(string legacyAlias = null)
         {
-            var configured = ConfigurationManager.ConnectionStrings["B7R2_FCCdb"]?.ConnectionString;
-            if (string.IsNullOrWhiteSpace(configured))
+            var configured = ReadUsableConnection(CanonicalConnectionName)
+                             ?? ReadUsableConnection(LegacyConnectionName);
+
+            if (configured == null)
             {
                 throw new InvalidOperationException(
-                    "Missing canonical SQL setting 'B7R2_FCCdb'. Check PCTP.Database.config next to PCTP.exe.");
+                    "Chưa cấu hình connection string '" + CanonicalConnectionName +
+                    "' (hoặc alias cũ '" + LegacyConnectionName +
+                    "') trong PCTP.Database.config cạnh PCTP.exe, hoặc vẫn còn placeholder YOUR_SQL_*.");
             }
 
-            if (configured.IndexOf("YOUR_SQL_USER", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                configured.IndexOf("YOUR_SQL_PASSWORD", StringComparison.OrdinalIgnoreCase) >= 0)
-            {
-                throw new InvalidOperationException(
-                    "SQL credentials are not configured. Set the local B7R2_FCCdb connection in PCTP.Database.config.");
-            }
+            if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(QcSqlOverride.ConnectionEnvVar)))
+                EnsureCanonicalCatalog(configured);
 
             return QcSqlOverride.Resolve(configured);
         }
 
-        /// <summary>Creates SQL connections through the canonical DB configuration.</summary>
+        /// <summary>Returns the named connection string, or null when missing / still a YOUR_SQL_* placeholder.</summary>
+        private static string ReadUsableConnection(string name)
+        {
+            var value = ConfigurationManager.ConnectionStrings[name]?.ConnectionString;
+            if (string.IsNullOrWhiteSpace(value)) return null;
+            if (value.IndexOf("YOUR_SQL_", StringComparison.OrdinalIgnoreCase) >= 0) return null;
+            return value;
+        }
+
+        private static void EnsureCanonicalCatalog(string connectionString)
+        {
+            string catalog;
+            try { catalog = new SqlConnectionStringBuilder(connectionString).InitialCatalog; }
+            catch (ArgumentException ex)
+            {
+                throw new InvalidOperationException("Connection string SQL không hợp lệ: " + ex.Message, ex);
+            }
+
+            if (ForbiddenCatalogs.Any(f => string.Equals(catalog, f, StringComparison.OrdinalIgnoreCase)))
+                throw new InvalidOperationException(
+                    "Từ chối kết nối: Initial Catalog '" + catalog + "' là DB cũ. Ứng dụng chỉ dùng " +
+                    CanonicalDatabaseName + ".");
+
+            if (!string.Equals(catalog, CanonicalDatabaseName, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException(
+                    "Initial Catalog phải là " + CanonicalDatabaseName + " (đang là '" + catalog + "').");
+        }
+
+        /// <summary>Creates SQL connections through the canonical FVN_PCTP configuration.</summary>
+        /// <param name="legacyConnectionString">Ignored on purpose: every SQL Server module uses the one FVN_PCTP database.</param>
         internal static SqlConnection CreateConnection(string legacyConnectionString = null)
         {
-            // Explicit legacy strings are intentionally ignored: all SQL Server
-            // modules in this application use the same B7R2_FCC database.
             return new SqlConnection(GetConfiguredConnection());
         }
-        // lịch sử còn sót lại. Giữ cả 2 vì nhiều repository tham chiếu theo tên
-        // cũ; đổi tên sẽ vỡ build hàng loạt.
-        // ════════════════════════════════════════════════════════════════════
-        // Mặc định KHÔNG trỏ Production. Môi trường khác (Production, CI fixture) phải được cấp rõ ràng:
-        //   * CI/QC fixture : PCTP_QC_SQL_CONNECTION + PCTP_QC_ISOLATED_FIXTURE=1 (QcSqlOverride, fail-closed).
-        //   * Production    : build/cấu hình riêng của bản phát hành — không commit vào mặc định này.
-        // Các alias cũ phải dùng chung cấu hình, không tự chỉ định máy chủ riêng.
-
 
         #region ══ TRANSACTION LIFECYCLE ══════════════════════════════════════
 
@@ -669,9 +703,9 @@ namespace PCTP.ClassSQL
     // Ket Nối WH 4W
     class WH4SQLPROVIDER
     {
-        // Dùng chung cấu hình B7R2_FCCdb với SQLPROVIDER.
+        // Dùng chung connection FVN_PCTP với SQLPROVIDER (alias AutoWH giữ lại cho call-site cũ).
         // Có thể truyền connection string riêng qua overload tương thích bên dưới.
-        public string AutoWH { get; } = SQLPROVIDER.GetConfiguredConnection("B7R2_FCCdb");
+        public string AutoWH { get; } = SQLPROVIDER.GetConfiguredConnection();
 
         private string ResolveConnection(string connectionSTR)
         {
