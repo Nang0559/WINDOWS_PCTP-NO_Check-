@@ -126,6 +126,6 @@ This commit is a schema/programming scope artifact. It does not claim that the c
 
 ## 10. Full source module extraction (2026-11-16)
 
-Added `00G_PCTP_ObjectBuildRegister.md` and read-only source export `00H_Export_PCTP_RuntimeObjectDefinitions.sql`. Inspection of the 6.58 MB SQL2 export confirmed that its module-definition section is truncated to short previews; the 00C module-reference CSV is empty. 00H collects full SQL module definitions, target-table columns, keys/indexes, foreign keys, check constraints, table types, triggers and relevant synonyms from `B7R2_FCC`, with a hard database-name guard and SELECT-only behavior.
+Added `00G_PCTP_ObjectBuildRegister.md` and read-only source export `00H_Export_PCTP_RuntimeObjectDefinitions.sql`. Inspection of the 6.58 MB SQL2 export confirmed that its module-definition section is truncated to short previews; the 00C module-reference CSV is empty. 00H collects full SQL module definitions (result 5), target-table columns (result 1), indexes (result 2), foreign keys (result 3), check constraints (result 4), table types (result 6), triggers (result 7) and relevant synonyms (result 8) from `B7R2_FCC`, with a hard database-name guard and SELECT-only behavior.
 
 This is an evidence-collection step. The full PCTP view/procedure/function/trigger migration cannot be completed accurately until these definitions and table-type contracts are available. No SQL Server execution or source database modification was performed.
