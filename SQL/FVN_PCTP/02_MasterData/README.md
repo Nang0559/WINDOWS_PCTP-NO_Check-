@@ -1,20 +1,38 @@
 # IFS master data and synchronization
 
-The deployable IFS mirror and synchronization contract is introduced by
-`05_MES/Migrations/012_IFS_MasterDataSync.sql` (after migrations 000 and 001).
+The IFS mirror and synchronization contract is introduced by
+`05_MES/Migrations/012_IFS_MasterDataSync.sql` and normalized by migration 013.
+
+## Physical target tables
+
+All physical tables carry the `FVN_` prefix:
+
+- `IFS.FVN_PartCatalog`
+- `IFS.FVN_InventoryPart`
+- `IFS.FVN_BomHeader`
+- `IFS.FVN_BomAlternative`
+- `IFS.FVN_BomComponent`
+- `IFS.FVN_SyncBatch`, `IFS.FVN_SyncError`, `IFS.FVN_SyncStageRow`
+- MES compatibility projection: `MES.FVN_IfsInventoryPart`
+
+Migration 013 retains the former unprefixed two-part names as synonyms for
+ordinary SQL compatibility. New code must use the physical FVN_ names.
+`SqlBulkCopy` specifically targets `IFS.FVN_SyncStageRow`; it must not target
+the compatibility synonym.
 
 ## Source views (read-only)
 
-- `IFSAPP.PART_CATALOG` -> `IFS.PartCatalog`
-- `IFSAPP.INVENTORY_PART` -> `IFS.InventoryPart` and the MES compatibility projection `MES.IfsInventoryPart`
-- `IFSAPP.MANUF_STRUCTURE_HEAD` -> `IFS.BomHeader`
-- `IFSAPP.MANUF_STRUCT_ALTERNATE` -> `IFS.BomAlternative`
-- `IFSAPP.MANUF_STRUCTURE` -> `IFS.BomComponent`
+- `IFSAPP.PART_CATALOG` -> `IFS.FVN_PartCatalog`
+- `IFSAPP.INVENTORY_PART` -> `IFS.FVN_InventoryPart` and
+  `MES.FVN_IfsInventoryPart`
+- `IFSAPP.MANUF_STRUCTURE_HEAD` -> `IFS.FVN_BomHeader`
+- `IFSAPP.MANUF_STRUCT_ALTERNATE` -> `IFS.FVN_BomAlternative`
+- `IFSAPP.MANUF_STRUCTURE` -> `IFS.FVN_BomComponent`
 
-The C# service is `PCTP/Modules/IfsSync/IfsSyncService.cs`. It uses the existing
-Oracle Managed Data Access provider through `IFSPROVIDER`, then bulk-loads
-JSON-preserving rows into `IFS.SyncStageRow` in the dedicated `FVN_PCTP`
-SQL Server database. It does not use Linked Server or write to IFS.
+The C# service is `PCTP/Modules/IfsSync/IfsSyncService.cs`. It uses the
+existing Oracle Managed Data Access provider through `IFSPROVIDER`, then
+bulk-loads JSON-preserving rows into `IFS.FVN_SyncStageRow` in the dedicated
+`FVN_PCTP` SQL Server database. It does not use Linked Server or write to IFS.
 
 ## Data rules
 
@@ -34,13 +52,15 @@ SQL Server database. It does not use Linked Server or write to IFS.
 
 ## Deployment and configuration
 
-1. Deploy migrations 000 and 001, then 012.
+1. Deploy migrations 000 through 012, then run migration 013 to apply the
+   physical table prefix.
 2. Add `IFS_ORACLE` and `FVN_PCTP` connection strings to the protected runtime
    `PCTP.Database.config`. The SQL target catalog must be exactly `FVN_PCTP`.
 3. Build PCTP and call `new IfsSyncService().SyncAll()` from an authorized
    administrative workflow. Do not call it on ordinary form/page load.
-4. Check `IFS.SyncBatch`, `IFS.SyncError`, `IFS.SyncStageRow`,
-   `IFS.PartCatalog`, `IFS.InventoryPart`, and the three `IFS.Bom*` tables.
+4. Check the physical tables `IFS.FVN_SyncBatch`, `IFS.FVN_SyncError`,
+   `IFS.FVN_SyncStageRow`, `IFS.FVN_PartCatalog`, `IFS.FVN_InventoryPart`,
+   and the three `IFS.FVN_Bom*` tables.
 5. Run the read-only verification script `09_Tests/IFS_SyncSmokeTest.sql`.
 
 This is a FULL snapshot/upsert implementation. It intentionally does not yet
