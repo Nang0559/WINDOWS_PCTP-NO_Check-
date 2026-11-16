@@ -275,6 +275,7 @@ BEGIN TRY
             UpdatedAt datetime NULL,
             UpdatedBy nvarchar(100) NULL,
             CONSTRAINT PK_FVN_PXLB_ReworkPlan PRIMARY KEY (Id),
+            CONSTRAINT UQ_FVN_PXLB_ReworkPlan_SiteId UNIQUE (SiteCode, Id),
             CONSTRAINT FK_FVN_PXLB_ReworkPlan_Phieu FOREIGN KEY (SiteCode, PhieuXuLyBatThuongId)
                 REFERENCES dbo.FVN_PhieuXuLyBatThuong (SiteCode, Id),
             CONSTRAINT UQ_FVN_PXLB_ReworkPlan_Phieu UNIQUE (SiteCode, PhieuXuLyBatThuongId),
@@ -305,8 +306,8 @@ BEGIN TRY
             CONSTRAINT PK_FVN_PXLB_ReworkMovement PRIMARY KEY (Id),
             CONSTRAINT FK_FVN_PXLB_ReworkMovement_Phieu FOREIGN KEY (SiteCode, PhieuXuLyBatThuongId)
                 REFERENCES dbo.FVN_PhieuXuLyBatThuong (SiteCode, Id),
-            CONSTRAINT FK_FVN_PXLB_ReworkMovement_Plan FOREIGN KEY (ReworkPlanId)
-                REFERENCES dbo.FVN_PXLB_ReworkPlan (Id),
+            CONSTRAINT FK_FVN_PXLB_ReworkMovement_Plan FOREIGN KEY (SiteCode, ReworkPlanId)
+                REFERENCES dbo.FVN_PXLB_ReworkPlan (SiteCode, Id),
             CONSTRAINT FK_FVN_PXLB_ReworkMovement_Part FOREIGN KEY (SiteCode, PartNo)
                 REFERENCES IFS.FVN_InventoryPart (SiteCode, PartNo),
             CONSTRAINT FK_FVN_PXLB_ReworkMovement_MESLot FOREIGN KEY (SiteCode, PartNo, MaterialLotId)
@@ -387,6 +388,7 @@ BEGIN TRY
             CompletedAt datetime NULL,
             CompletedBy nvarchar(100) NULL,
             CONSTRAINT PK_FVN_PXLB_Compensation PRIMARY KEY (Id),
+            CONSTRAINT UQ_FVN_PXLB_Compensation_SiteId UNIQUE (SiteCode, Id),
             CONSTRAINT FK_FVN_PXLB_Compensation_Phieu FOREIGN KEY (SiteCode, PhieuXuLyBatThuongId)
                 REFERENCES dbo.FVN_PhieuXuLyBatThuong (SiteCode, Id),
             CONSTRAINT UQ_FVN_PXLB_Compensation_Phieu UNIQUE (SiteCode, PhieuXuLyBatThuongId),
@@ -411,8 +413,8 @@ BEGIN TRY
             NguoiThucHien nvarchar(100) NOT NULL,
             InventoryTransactionId bigint NULL,
             CONSTRAINT PK_FVN_PXLB_CompensationMovement PRIMARY KEY (Id),
-            CONSTRAINT FK_FVN_PXLB_CompMove_Comp FOREIGN KEY (CompensationId)
-                REFERENCES dbo.FVN_PXLB_Compensation (Id),
+            CONSTRAINT FK_FVN_PXLB_CompMove_Comp FOREIGN KEY (SiteCode, CompensationId)
+                REFERENCES dbo.FVN_PXLB_Compensation (SiteCode, Id),
             CONSTRAINT FK_FVN_PXLB_CompMove_Part FOREIGN KEY (SiteCode, PartNo)
                 REFERENCES IFS.FVN_InventoryPart (SiteCode, PartNo),
             CONSTRAINT FK_FVN_PXLB_CompMove_MESLot FOREIGN KEY (SiteCode, PartNo, MaterialLotId)
