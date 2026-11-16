@@ -171,3 +171,8 @@ Added `023_PCTP_InspectionLog.sql`, based on the current `06_CREATE_InspectionLo
 ## 15. Optional legacy site mapping/preflight 024 (2026-11-16)
 
 Added `024_PCTP_LegacySiteMappingAndPreflight.sql` with explicit warehouse→SiteCode/target warehouse, legacy part→IFS part, legacy LOT→MES MaterialLot, factory→SiteCode and document→SiteCode mapping tables. It adds `dbo.usp_FVN_PCTP_LegacyPreflight`, which reads `B7R2_FCC` and returns unresolved rows without modifying the source. Migration 024 is optional for an empty FVN_PCTP schema and is run only when preparing source data migration on an instance where B7R2_FCC is visible. It does not perform the copy.
+
+
+## 16. MES posting adapter and canonical TP stock view 025 (2026-11-16)
+
+Added `025_PCTP_MESInventoryPostingAdapter.sql`. `dbo.usp_FVN_PCTP_PostStockMovement` validates `(SiteCode, PartNo, MaterialLotId)`, resolves PCTP SlotId to MES LocationNo, and calls `MES.usp_PostInventoryMovement`; callers must persist the returned InventoryTransactionId on the business document. Updated `vFVN_STOCKTP` so displayed `SLCONLAI` is aggregated from `MES.FVN_InventoryBalance`, not the retained legacy quantity column. The adapter requires MES migration 004 and schema migrations through 023; optional preflight 024 is not required.
