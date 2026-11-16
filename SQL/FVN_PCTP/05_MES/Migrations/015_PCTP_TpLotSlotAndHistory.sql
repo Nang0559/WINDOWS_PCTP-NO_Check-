@@ -84,7 +84,7 @@ BEGIN TRY
     BEGIN
         CREATE TABLE dbo.FVN_SlotLot
         (
-            SlotLotId int IDENTITY(1,1) NOT NULL,
+            SlotLotId int NOT NULL,
             SiteCode nvarchar(30) NOT NULL,
             SlotId int NOT NULL,
             ItemCode nvarchar(100) NOT NULL,
@@ -118,7 +118,7 @@ BEGIN TRY
     BEGIN
         CREATE TABLE dbo.FVN_StockHistory
         (
-            Id int IDENTITY(1,1) NOT NULL,
+            Id int NOT NULL,
             SiteCode nvarchar(30) NOT NULL,
             ActionType varchar(30) NOT NULL,
             ItemCode nvarchar(100) NULL,
