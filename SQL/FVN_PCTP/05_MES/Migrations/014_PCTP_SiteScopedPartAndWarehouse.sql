@@ -30,6 +30,20 @@ IF EXISTS (SELECT 1 FROM MES.FVN_SchemaMigration WHERE MigrationVersion = '014')
 BEGIN TRY
     BEGIN TRANSACTION;
 
+    /* Explicit PCTP site allow-list. Do not auto-enable every IFS site. */
+    IF OBJECT_ID(N'dbo.FVN_PCTPSite', N'U') IS NULL
+    BEGIN
+        CREATE TABLE dbo.FVN_PCTPSite
+        (
+            SiteCode nvarchar(30) NOT NULL,
+            SiteName nvarchar(120) NULL,
+            IsActive bit NOT NULL CONSTRAINT DF_FVN_PCTPSite_Active DEFAULT (1),
+            CreatedAtUtc datetime2(3) NOT NULL CONSTRAINT DF_FVN_PCTPSite_Created DEFAULT (SYSUTCDATETIME()),
+            CreatedBy nvarchar(100) NULL,
+            CONSTRAINT PK_FVN_PCTPSite PRIMARY KEY (SiteCode)
+        );
+    END;
+
     /* Preserve the source numeric keys: WarehouseId, RackId and SlotId were
        application keys, not IDENTITY-generated values in the source schema. */
     IF OBJECT_ID(N'dbo.FVN_Warehouse', N'U') IS NULL
@@ -44,7 +58,9 @@ BEGIN TRY
             CreatedBy nvarchar(100) NULL,
             ModifiedAtUtc datetime2(3) NULL,
             ModifiedBy nvarchar(100) NULL,
-            CONSTRAINT PK_FVN_Warehouse PRIMARY KEY (SiteCode, WarehouseId)
+            CONSTRAINT PK_FVN_Warehouse PRIMARY KEY (SiteCode, WarehouseId),
+            CONSTRAINT FK_FVN_Warehouse_Site FOREIGN KEY (SiteCode)
+                REFERENCES dbo.FVN_PCTPSite (SiteCode)
         );
     END;
 
