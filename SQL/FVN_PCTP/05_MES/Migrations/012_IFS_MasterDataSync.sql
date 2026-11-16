@@ -7,6 +7,7 @@
 SET NOCOUNT ON;
 SET XACT_ABORT ON;
 IF OBJECT_ID(N'MES.SchemaMigration',N'U') IS NULL
+   AND OBJECT_ID(N'MES.SchemaMigration',N'SN') IS NULL
     THROW 51000,'Run MES migration 000 first.',1;
 IF EXISTS(SELECT 1 FROM MES.SchemaMigration WHERE MigrationVersion='012') RETURN;
 IF OBJECT_ID(N'MES.IfsInventoryPart',N'U') IS NULL
