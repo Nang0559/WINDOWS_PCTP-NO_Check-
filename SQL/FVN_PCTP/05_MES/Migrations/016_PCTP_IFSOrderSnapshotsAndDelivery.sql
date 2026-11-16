@@ -84,6 +84,7 @@ BEGIN TRY
             ADDNM nvarchar(500) NULL,
             CUA nvarchar(500) NULL,
             MAHANG nvarchar(500) NULL,
+            PartNo nvarchar(100) NULL,
             TENHANG nvarchar(500) NULL,
             CUSTOMER_PO_REL_NO nvarchar(500) NULL,
             TRUYEN nvarchar(500) NULL,
