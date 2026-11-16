@@ -35,6 +35,7 @@ BEGIN TRY
             ADDNM nvarchar(500) NULL,
             CUA nvarchar(500) NULL,
             MAHANG nvarchar(500) NULL,
+            PartNo nvarchar(100) NULL,
             TENHANG nvarchar(500) NULL,
             CUSTOMER_PO_REL_NO nvarchar(500) NULL,
             TRUYEN nvarchar(500) NULL,
@@ -59,6 +60,7 @@ BEGIN TRY
             SourceCapturedAtUtc datetime2(3) NOT NULL CONSTRAINT DF_FVN_IFSPHIEU_Captured DEFAULT (SYSUTCDATETIME()),
             CONSTRAINT PK_FVN_IFSPHIEUGIAOHANG PRIMARY KEY (SnapshotRowId),
             CONSTRAINT FK_FVN_IFSPHIEUGIAOHANG_Site FOREIGN KEY (SiteCode) REFERENCES dbo.FVN_PCTPSite (SiteCode),
+            CONSTRAINT FK_FVN_IFSPHIEUGIAOHANG_Part FOREIGN KEY (SiteCode, PartNo) REFERENCES IFS.FVN_InventoryPart (SiteCode, PartNo),
             CONSTRAINT CK_FVN_IFSPHIEU_Qty CHECK (SOLUONG IS NULL OR SOLUONG >= 0)
         );
         CREATE INDEX IX_FVN_IFSPHIEUGIAOHANG_Order
@@ -106,6 +108,7 @@ BEGIN TRY
             SourceCapturedAtUtc datetime2(3) NOT NULL CONSTRAINT DF_FVN_IFSPHIEUSP_Captured DEFAULT (SYSUTCDATETIME()),
             CONSTRAINT PK_FVN_IFSPHIEUGIAOHANG_SP PRIMARY KEY (SnapshotRowId),
             CONSTRAINT FK_FVN_IFSPHIEUGIAOHANG_SP_Site FOREIGN KEY (SiteCode) REFERENCES dbo.FVN_PCTPSite (SiteCode),
+            CONSTRAINT FK_FVN_IFSPHIEUGIAOHANG_SP_Part FOREIGN KEY (SiteCode, PartNo) REFERENCES IFS.FVN_InventoryPart (SiteCode, PartNo),
             CONSTRAINT CK_FVN_IFSPHIEU_SP_Qty CHECK (SOLUONG IS NULL OR SOLUONG >= 0)
         );
         CREATE INDEX IX_FVN_IFSPHIEUGIAOHANG_SP_Order
