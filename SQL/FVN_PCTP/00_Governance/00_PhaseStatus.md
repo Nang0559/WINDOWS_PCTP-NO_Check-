@@ -115,3 +115,10 @@ The project owner accepted ADR-001:
 This is an accepted architecture decision, not evidence that the migrations or application code have already been converted. Column-level mapping, SQL migrations, C# caller conversion, data migration, SQL Server 2016 testing and cutover remain to be completed. No source database changes or SQL Server execution were performed by this documentation commit.
 
 See `ADR_001_PCTP_PreservingWorkflows_UnifiedInventoryLedger.md`.
+
+
+## 9. Complete PCTP object build register (2026-11-16)
+
+Added `00G_PCTP_ObjectBuildRegister.md` as the implementation register for the full PCTP rebuild. It maps all 61 SQL2-generated table definitions to FVN_ target names, excludes blind cloning of shared B20* masters, identifies additional runtime tables outside the generated allowlist, inventories PCTP-linked views/procedures/functions/trigger from static dependency evidence, and defines the ordered deployment phases.
+
+This commit is a schema/programming scope artifact. It does not claim that the complete table/view/procedure migrations have been generated or executed. Exact module definitions, missing runtime table DDL, shared master mapping, and the MES stock projection/posting contract remain explicit gates. No SQL Server execution, source database modification, C# cutover or application build was performed.
