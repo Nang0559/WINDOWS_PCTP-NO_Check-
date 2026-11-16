@@ -63,7 +63,7 @@ BEGIN TRY
             SELECT 1 FROM MES.FVN_MaterialLot
             WHERE SiteCode=@SiteCode AND PartNo=@PartNo AND MaterialLotId=@MaterialLotId
         )
-            THROW 52513, ''MaterialLotId does not belong to the supplied (SiteCode, PartNo).' ', 1;
+            THROW 52513, ''MaterialLotId does not belong to the supplied (SiteCode, PartNo).'', 1;
 
         IF @FromSlotId IS NOT NULL
         BEGIN
