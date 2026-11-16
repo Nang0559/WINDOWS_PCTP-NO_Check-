@@ -136,3 +136,20 @@ This is an evidence-collection step. The full PCTP view/procedure/function/trigg
 Owner clarification: do not recreate the Bravo B20 master tables. Use IFS-synchronized `IFS.FVN_InventoryPart` as PCTP's site-specific part master, `IFS.FVN_PartCatalog` for global catalog attributes where appropriate, and keep `MES.FVN_IfsInventoryPart` as the MES projection. Added `00I_PCTP_IFS_PartMaster_Replacement.md` based on the uploaded 00H source export. It records exact observed B20 source columns, actual PCTP module references, technical extension needs and the non-portable 580 KB trigger.
 
 The 00H export analysis found 449 matching SQL module definitions, 87 with PCTP candidate references and 40 that also reference B20 master objects. This is static evidence, not proof of active callers. No B20 clone or PCTP DDL was created in this step. Final schema generation is blocked on the PCTP-to-IFS SiteCode/warehouse mapping and the approved HRM department source.
+
+
+## 12. PCTP site-scoped schema implementation 014–020 (2026-11-16)
+
+Owner decision: all PCTP part references use the composite key `(SiteCode, PartNo)`. This is not restricted to a single IFS site. Added ordered migrations:
+
+- `014_PCTP_SiteScopedPartAndWarehouse.sql`: PCTP site allow-list, IFS-backed part identity/extensions, warehouse/rack/slot and explicit Slot-to-MES location mapping.
+- `015_PCTP_TpLotSlotAndHistory.sql`: TP LOT attributes, SlotLot projection and StockHistory evidence; legacy quantity columns are not stock authority.
+- `016_PCTP_IFSOrderSnapshotsAndDelivery.sql`: MP/SP IFS order snapshots and delivery history.
+- `017_PCTP_QrDeliveryAndInternalTransfers.sql`: QR command idempotency, separate DB QR, quarantine audit and internal transfer/return documents.
+- `018_PCTP_ReturnAndAbnormalWorkflow.sql`: return header/detail, QT Chung, affected LOT, initial QC, rework, disposition, compensation and workflow transitions, based on current PCTP models/repositories and the reviewed legacy workflow scripts.
+- `019_PCTP_SlotLotProjectionContract.sql`: new site-aware TVP and atomic SlotLot projection replacement; it rejects projection quantities that differ from MES on-hand.
+- `020_PCTP_QueuedDeliveryFifoAndPurchaseOrders.sql`: queued delivery/pick details, per-site FIFO settings and special DB purchase-order snapshots.
+
+The scripts are ordered after 000–013 and use physical FVN_ table names. They are repository changes only: **no SQL Server execution, SQL compilation, data migration, C# repository conversion, app build, or production cutover was performed**. The 014–020 scripts still require a disposable SQL Server 2016 install/rerun/rollback test. Runtime activation remains blocked until the PCTP SiteCode allow-list and Warehouse/Slot-to-MES location mappings are seeded, all C# writes pass SiteCode/PartNo, remaining QR/LOT/stock stored procedures and triggers are converted, and the legacy data is reconciled.
+
+The `019` SlotLot save contract is deliberately projection-only. It does not create or remove MES stock; every stock-affecting command must post through the canonical MES movement ledger before saving the slot projection.
