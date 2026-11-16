@@ -199,3 +199,14 @@ The deployment package will be built in these phases, with migration numbers con
 - No new C# SQL references legacy table names or compatibility synonyms.
 - Fresh install and rerun pass on disposable SQL Server 2016; source `B7R2_FCC` remains unchanged.
 - Cutover is not approved until reconciliation and rollback evidence is recorded.
+
+
+## 8. Full source-definition extraction
+
+The checked-in `Result_Export_SQL2_Complete_DDL_Metadata.txt` contains useful schema metadata, but its programmable-object section is only a short SQL-definition preview (the stored-procedure/view bodies are truncated). The 00C module-reference CSV in this branch is empty. Therefore, the exact production definitions for all legacy PCTP views/procedures/functions/triggers are not yet available as deployable source.
+
+A read-only export script has been added:
+
+`00_Governance/SourceExtractionTools/00H_Export_PCTP_RuntimeObjectDefinitions.sql`
+
+Run it only while connected to `B7R2_FCC`. It checks the database name and performs SELECT-only metadata extraction. Export all seven result sets, especially Result 4 (`FullSqlDefinition`), Result 5 (table-valued types) and Result 6 (trigger bodies). Do not execute any generated DDL from the export. This is the missing source evidence required to rewrite the PCTP views and stored procedures safely.
