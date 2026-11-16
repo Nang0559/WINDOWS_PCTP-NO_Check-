@@ -37,6 +37,8 @@ VALUES
 ('dbo','FVN_DeliveryCommandQr','U'),
 ('dbo','FVN_DocQrCode','U'),
 ('dbo','FVN_DocQrCodeDb','U'),
+('dbo','FVN_PCTPQuarantineReleaseAudit','U'),
+('dbo','FVN_InternalLocation','U'),
 ('dbo','FVN_InternalTransfer','U'),
 ('dbo','FVN_InternalReturn','U'),
 ('dbo','FVN_PhieuTraHang','U'),
