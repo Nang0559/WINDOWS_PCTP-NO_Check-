@@ -70,6 +70,7 @@ BEGIN TRY
             MaterialLotId bigint NULL,
             CreatedAtUtc datetime2(3) NOT NULL CONSTRAINT DF_FVN_STOCKTP_Created DEFAULT (SYSUTCDATETIME()),
             CONSTRAINT PK_FVN_STOCKTP PRIMARY KEY (SiteCode, LOT),
+            CONSTRAINT FK_FVN_STOCKTP_Site FOREIGN KEY (SiteCode) REFERENCES dbo.FVN_PCTPSite (SiteCode),
             CONSTRAINT FK_FVN_STOCKTP_IFSPart FOREIGN KEY (SiteCode, PART)
                 REFERENCES IFS.FVN_InventoryPart (SiteCode, PartNo),
             CONSTRAINT FK_FVN_STOCKTP_MESLot FOREIGN KEY (SiteCode, PART, MaterialLotId)
@@ -102,6 +103,7 @@ BEGIN TRY
             MaterialLotId bigint NULL,
             CONSTRAINT PK_FVN_SlotLot PRIMARY KEY (SlotLotId),
             CONSTRAINT UQ_FVN_SlotLot_SiteId UNIQUE (SiteCode, SlotLotId),
+            CONSTRAINT FK_FVN_SlotLot_Site FOREIGN KEY (SiteCode) REFERENCES dbo.FVN_PCTPSite (SiteCode),
             CONSTRAINT FK_FVN_SlotLot_Slot FOREIGN KEY (SiteCode, SlotId)
                 REFERENCES dbo.FVN_Slot (SiteCode, SlotId),
             CONSTRAINT FK_FVN_SlotLot_IFSPart FOREIGN KEY (SiteCode, ItemCode)
@@ -137,6 +139,7 @@ BEGIN TRY
             InventoryTransactionId bigint NULL,
             LegacySourceId int NULL,
             CONSTRAINT PK_FVN_StockHistory PRIMARY KEY (Id),
+            CONSTRAINT FK_FVN_StockHistory_Site FOREIGN KEY (SiteCode) REFERENCES dbo.FVN_PCTPSite (SiteCode),
             CONSTRAINT FK_FVN_StockHistory_IFSPart FOREIGN KEY (SiteCode, ItemCode)
                 REFERENCES IFS.FVN_InventoryPart (SiteCode, PartNo),
             CONSTRAINT FK_FVN_StockHistory_MESLot FOREIGN KEY (SiteCode, ItemCode, MaterialLotId)
