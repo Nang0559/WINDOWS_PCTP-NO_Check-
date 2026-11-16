@@ -437,6 +437,24 @@ namespace PCTP.ClassSQL
         /// Strict read path for controlled synchronization. Unlike legacy ExecuteQuery,
         /// this method never converts Oracle errors into an empty DataTable.
         /// </summary>
+        public void ExecuteReaderStrict(string query, Action<OracleDataReader> consume)
+        {
+            if (string.IsNullOrWhiteSpace(query))
+                throw new ArgumentException("Oracle SQL không được rỗng.", nameof(query));
+            if (consume == null)
+                throw new ArgumentNullException(nameof(consume));
+
+            using (var connection = new OracleConnection(connectionSTR))
+            using (var command = new OracleCommand(query, connection))
+            {
+                command.BindByName = true;
+                command.CommandTimeout = 1800;
+                connection.Open();
+                using (var reader = command.ExecuteReader(CommandBehavior.SequentialAccess))
+                    consume(reader);
+            }
+        }
+
         public DataTable ExecuteQueryStrict(string query, params OracleParameter[] parameters)
         {
             if (string.IsNullOrWhiteSpace(query))
