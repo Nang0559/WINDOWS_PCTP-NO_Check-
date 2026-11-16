@@ -145,6 +145,7 @@ BEGIN TRY
             SourceDocumentNo nvarchar(100) NULL,
             CreatedAtUtc datetime2(3) NOT NULL CONSTRAINT DF_FVN_LUU_Created DEFAULT (SYSUTCDATETIME()),
             CONSTRAINT PK_FVN_LUUPHIEUGIAOHANG PRIMARY KEY (DeliveryRowId),
+            CONSTRAINT UQ_FVN_LUU_SiteDelivery UNIQUE (SiteCode, DeliveryRowId),
             CONSTRAINT FK_FVN_LUU_IFSPart FOREIGN KEY (SiteCode, PartNo)
                 REFERENCES IFS.FVN_InventoryPart (SiteCode, PartNo),
             CONSTRAINT FK_FVN_LUU_MESLot FOREIGN KEY (SiteCode, PartNo, MaterialLotId)
