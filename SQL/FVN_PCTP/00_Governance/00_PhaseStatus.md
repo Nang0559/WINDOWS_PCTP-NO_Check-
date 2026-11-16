@@ -181,3 +181,8 @@ Added `025_PCTP_MESInventoryPostingAdapter.sql`. `dbo.usp_FVN_PCTP_PostStockMove
 ## 17. Read-only post-install smoke test
 
 Added `09_Tests/Smoke/02_PCTP_PostInstallSmokeTest.sql`. It checks the expected physical FVN_ objects, required views/procedures/TVP, migration ledger entries, the composite IFS part FK, and absence of forbidden B20 master tables. It also reports active PCTP site/warehouse/slot-location mapping counts. The test has not been executed against SQL Server.
+
+
+## 18. Fix migration 014 missing legacy ID columns (2026-11-16)
+
+Fixed `014_PCTP_SiteScopedPartAndWarehouse.sql`: added nullable `LegacyWarehouseId`, `LegacyRackId`, and `LegacySlotId` columns to their respective FVN tables before creating the filtered unique indexes that reference them. Also removed a trailing comma from the `FVN_PartIdentity` table definition. The correction is committed as `a33d463cc59cf35899d8c9a5b81fce234c9173e4`. SQL Server execution is still pending; rerun the complete corrected migration 014 after confirming its migration ledger row is absent.
