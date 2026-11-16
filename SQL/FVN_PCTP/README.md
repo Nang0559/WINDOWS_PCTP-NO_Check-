@@ -120,3 +120,5 @@ Migrations 021–022 additionally provide a per-site FIFO policy upsert, MES-bac
 Migration 023 adds `dbo.FVN_InspectionLog` for QC/tem reconciliation, retaining the original inspection payload while adding SiteCode and optional IFS/MES lot identity links.
 
 `05_MES/Migrations/024_PCTP_LegacySiteMappingAndPreflight.sql` is optional for the empty-schema install. Run it only when preparing legacy data migration and when `B7R2_FCC` is visible on the same SQL Server instance; it creates mapping tables and read-only diagnostics, not a data copy.
+
+Migration 025 adds `dbo.usp_FVN_PCTP_PostStockMovement`, which resolves SlotId through the explicit Slot-to-MES location map and calls the canonical MES posting procedure. The `vFVN_STOCKTP` view now exposes MES on-hand rather than the retained legacy `SLCONLAI` table value.
