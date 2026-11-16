@@ -176,3 +176,8 @@ Added `024_PCTP_LegacySiteMappingAndPreflight.sql` with explicit warehouse→Sit
 ## 16. MES posting adapter and canonical TP stock view 025 (2026-11-16)
 
 Added `025_PCTP_MESInventoryPostingAdapter.sql`. `dbo.usp_FVN_PCTP_PostStockMovement` validates `(SiteCode, PartNo, MaterialLotId)`, resolves PCTP SlotId to MES LocationNo, and calls `MES.usp_PostInventoryMovement`; callers must persist the returned InventoryTransactionId on the business document. Updated `vFVN_STOCKTP` so displayed `SLCONLAI` is aggregated from `MES.FVN_InventoryBalance`, not the retained legacy quantity column. The adapter requires MES migration 004 and schema migrations through 023; optional preflight 024 is not required.
+
+
+## 17. Read-only post-install smoke test
+
+Added `09_Tests/Smoke/02_PCTP_PostInstallSmokeTest.sql`. It checks the expected physical FVN_ objects, required views/procedures/TVP, migration ledger entries, the composite IFS part FK, and absence of forbidden B20 master tables. It also reports active PCTP site/warehouse/slot-location mapping counts. The test has not been executed against SQL Server.
