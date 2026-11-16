@@ -30,7 +30,7 @@ with their original Git blobs; they were not silently rewritten or deleted.
 one-click installer.** No source SQL Server has been changed and no target SQL
 script has been executed by this repository operation.
 
-- The MES migrations `05_MES/Migrations/000..012` are an ordered schema
+- The MES migrations `05_MES/Migrations/000..013` are an ordered schema
   foundation. They have not been runtime-tested against the user's SQL Server.
 - Files in `LegacyCandidates`, `Diagnostics`, `IndexCandidates`,
   `SourceReview`, `SchemaEvidence` and `SchemaTooling` are not deployment steps.
@@ -43,15 +43,16 @@ script has been executed by this repository operation.
 ## Non-negotiable design rules
 
 1. SQL Server 2016 syntax only; do not use `STRING_AGG`.
-2. No runtime dependency on `B7R2_FCC` or BRAVO and no write-back to IFS.
-3. IFS is a one-way read-only source; preserve source provenance and sync identity.
-4. Do not clone BRAVO accounting/GL/AP/AR objects because PCTP happens to read them.
-5. Do not create duplicate stock ledgers. Decide the authority for LOT, warehouse
+2. Every physical table in `FVN_PCTP` must be named `FVN_<BusinessName>` in its domain schema (for example `dbo.FVN_LUUPHIEUGIAOHANG`, `MES.FVN_MaterialLot`, `IFS.FVN_InventoryPart`). Schema names remain domain-oriented; do not prefix procedures/views/functions/types as if they were tables.
+3. No runtime dependency on `B7R2_FCC` or BRAVO and no write-back to IFS.
+4. IFS is a one-way read-only source; preserve source provenance and sync identity.
+5. Do not clone BRAVO accounting/GL/AP/AR objects because PCTP happens to read them.
+6. Do not create duplicate stock ledgers. Decide the authority for LOT, warehouse
    balance and stock movement across PCTP/MES before promoting tables.
-6. Preserve MP/SP/customer-specific behavior where evidence proves it is distinct.
-7. Every deployable migration needs prerequisites, idempotency, transaction/error
+7. Preserve MP/SP/customer-specific behavior where evidence proves it is distinct.
+8. Every deployable migration needs prerequisites, idempotency, transaction/error
    behavior, rollback notes and a ledger entry.
-8. No old patch is production-ready merely because it has been moved into a
+9. No old patch is production-ready merely because it has been moved into a
    domain folder.
 
 ## Evidence and review
