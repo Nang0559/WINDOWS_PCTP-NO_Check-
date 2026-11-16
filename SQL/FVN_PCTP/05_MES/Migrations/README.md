@@ -34,6 +34,7 @@ Run one file at a time, in order:
 | 022 | 022_PCTP_CustomerLotNormalizationAndQrWrite.sql | Customer-specific LOT normalization and site-aware QR insert contract |
 | 023 | 023_PCTP_InspectionLog.sql | Site-scoped inspection/tem reconciliation history |
 | 024 | 024_PCTP_LegacySiteMappingAndPreflight.sql | Optional data-migration mapping tables and read-only B7R2_FCC preflight; requires source DB on the same SQL Server |
+| 025 | 025_PCTP_MESInventoryPostingAdapter.sql | PCTP slot-aware adapter to the canonical MES inventory posting procedure |
 
 The applied versions are recorded in `MES.FVN_SchemaMigration` after migration 013. Before migration 013, query `MES.SchemaMigration`; after migration 013, use the physical table:
 
@@ -107,3 +108,5 @@ PCTP part-extension records (`FVN_PartIdentity`, `FVN_PartOperationalProfile`, `
 `021` adds `dbo.usp_FVN_ItemFifoConfig_Upsert` and `dbo.vFVN_PCTP_SlotInventory`; `022` adds `dbo.ufn_FVN_NormalizeCustomerLot` and `dbo.usp_FVN_DocQrCode_Insert`. The customer LOT rule is data-driven. Configure it only for confirmed customer/part combinations after mapping source codes to IFS `(SiteCode, PartNo)`.
 
 Migration 024 is **not required to create the empty FVN_PCTP schema**. It creates explicit mapping tables and a read-only preflight procedure; it does not copy or update any B7R2_FCC data.
+
+Migration 025 requires the MES posting procedure from migration 004. It does not depend on optional data-migration preflight 024.
