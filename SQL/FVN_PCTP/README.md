@@ -30,8 +30,8 @@ with their original Git blobs; they were not silently rewritten or deleted.
 one-click installer.** No source SQL Server has been changed and no target SQL
 script has been executed by this repository operation.
 
-- The MES/PCTP migrations `05_MES/Migrations/000..020` are an ordered schema
-  foundation. Migrations 014–020 add the PCTP site-scoped schema and workflow tables. They have not been runtime-tested against the user's SQL Server.
+- The MES/PCTP migrations `05_MES/Migrations/000..022` are an ordered schema
+  foundation. Migrations 014–022 add the PCTP site-scoped schema, workflow tables, FIFO policy and QR/LOT write contracts. They have not been runtime-tested against the user's SQL Server.
 - Files in `LegacyCandidates`, `Diagnostics`, `IndexCandidates`,
   `SourceReview`, `SchemaEvidence` and `SchemaTooling` are not deployment steps.
 - `01_Baseline/Candidates/FVN_PCTP_RuntimeTables.sql` is not an approved
@@ -78,7 +78,7 @@ corrections, and the remaining blockers are recorded in
 contains a README pointing to that canonical audit.
 
 The six application-confirmed operational tables are documented in the audit.
-The physical placement of `STOCKTP`, `SlotLot`, and `StockHistory` is now represented by PCTP extension/evidence tables linked to the MES ledger. Their retained quantity columns are not authoritative balances. Migrations 014–020 create the initial warehouse, delivery, QR, return and QT Chung schema. They do not yet port every legacy QR/LOT/stock procedure or perform source data migration.
+The physical placement of `STOCKTP`, `SlotLot`, and `StockHistory` is now represented by PCTP extension/evidence tables linked to the MES ledger. Their retained quantity columns are not authoritative balances. Migrations 014–022 create the initial warehouse, delivery, QR, return and QT Chung schema, FIFO policy and site-aware QR/LOT contracts. They do not yet port every legacy QR/LOT/stock procedure or perform source data migration.
 
 **Current instruction:** do not run the legacy XuLyHangLoi, Warehouse, or
 Delivery candidates against a clean `FVN_PCTP` database. First approve and
@@ -114,3 +114,5 @@ PCTP's authoritative part master is now explicitly `IFS.FVN_InventoryPart`, keye
 The owner approved the composite part identity `(SiteCode, PartNo)`. The ordered migrations now include the explicit `dbo.FVN_PCTPSite` allow-list, PCTP warehouse/rack/slot hierarchy, Slot-to-MES location map, IFS-backed part extensions, TP LOT/SlotLot/StockHistory, MP/SP order snapshots, delivery/QR/idempotency, internal transfer, return/QT Chung, FIFO configuration, queued delivery and special DB purchase-order snapshots.
 
 The current SQL package is still a **schema foundation**, not a cutover-ready application release. Before enabling runtime writes, the application repositories must pass SiteCode/PartNo and use the physical FVN_ tables. Remaining PCTP SQL modules (especially QR/LOT allocation and old STOCKTP/SlotLot procedures), source-to-target data migration, view/trigger conversion, permissions, and SQL Server 2016 execution/regression evidence remain open. Do not run against production or switch the app connection until those gates pass.
+
+Migrations 021–022 additionally provide a per-site FIFO policy upsert, MES-backed slot inventory view, customer-specific LOT normalization function and site-aware QR insert procedure.
