@@ -1,7 +1,7 @@
 /*
  Migration 013: standardize every physical user table in FVN_PCTP with FVN_ prefix.
  Run after 000..012. SQL Server 2016 compatible.
- Existing module/application references keep working through same-schema synonyms.
+ Ordinary SQL references keep working through same-schema synonyms; MERGE and bulk-load targets are updated to physical names.
  New code and bulk-load APIs must use physical FVN_ table names.
 */
 SET NOCOUNT ON;
@@ -103,6 +103,14 @@ BEGIN TRY
        OR CHARINDEX(N'MERGE IFS.BomComponent AS T', @ApplyProcedure) > 0
        OR CHARINDEX(N'MERGE MES.IfsInventoryPart AS T', @ApplyProcedure) > 0
         THROW 51308, 'Could not rewrite every IFS/MES MERGE target to its FVN_ physical table.', 1;
+
+    IF CHARINDEX(N'MERGE IFS.FVN_PartCatalog AS T', @ApplyProcedure) = 0
+       OR CHARINDEX(N'MERGE IFS.FVN_InventoryPart AS T', @ApplyProcedure) = 0
+       OR CHARINDEX(N'MERGE IFS.FVN_BomHeader AS T', @ApplyProcedure) = 0
+       OR CHARINDEX(N'MERGE IFS.FVN_BomAlternative AS T', @ApplyProcedure) = 0
+       OR CHARINDEX(N'MERGE IFS.FVN_BomComponent AS T', @ApplyProcedure) = 0
+       OR CHARINDEX(N'MERGE MES.FVN_IfsInventoryPart AS T', @ApplyProcedure) = 0
+        THROW 51310, 'The IFS/MES MERGE procedure does not contain all six FVN_ physical targets.', 1;
 
     EXEC sys.sp_executesql @ApplyProcedure;
 
