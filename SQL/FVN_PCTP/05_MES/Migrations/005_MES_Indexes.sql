@@ -55,12 +55,12 @@ IF NOT EXISTS(SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID(N'MES.Finished
 IF NOT EXISTS(SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID(N'MES.MaterialReceiptLine') AND name=N'IX_MES_ReceiptLine_Lot')
  CREATE NONCLUSTERED INDEX IX_MES_ReceiptLine_Lot
  ON MES.MaterialReceiptLine(SiteCode,PartNo,MaterialLotId)
- INCLUDE(MaterialReceiptId,LineNo,ReceivedQty,AcceptedQty,QuarantineQty);
+ INCLUDE(MaterialReceiptId,[LineNo],ReceivedQty,AcceptedQty,QuarantineQty);
 
 IF NOT EXISTS(SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID(N'MES.BomComponent') AND name=N'IX_MES_BomComponent_Component')
  CREATE NONCLUSTERED INDEX IX_MES_BomComponent_Component
  ON MES.BomComponent(SiteCode,ComponentPartNo,BomRevisionId)
- INCLUDE(LineNo,QtyPer,UomCode,OperationNo);
+ INCLUDE([LineNo],QtyPer,UomCode,OperationNo);
 
 IF NOT EXISTS(SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID(N'MES.IfsInventoryPart') AND name=N'IX_MES_IfsPart_Active')
  CREATE NONCLUSTERED INDEX IX_MES_IfsPart_Active

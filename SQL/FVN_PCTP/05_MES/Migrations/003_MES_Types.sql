@@ -44,7 +44,7 @@ IF TYPE_ID(N'MES.TVP_InventoryMovement') IS NULL
 
 IF TYPE_ID(N'MES.TVP_BomComponent') IS NULL
  EXEC(N'CREATE TYPE MES.TVP_BomComponent AS TABLE(
-  LineNo int NOT NULL,
+  [LineNo] int NOT NULL,
   ParentLineNo int NULL,
   SiteCode nvarchar(30) NOT NULL,
   ComponentPartNo nvarchar(100) NOT NULL,
