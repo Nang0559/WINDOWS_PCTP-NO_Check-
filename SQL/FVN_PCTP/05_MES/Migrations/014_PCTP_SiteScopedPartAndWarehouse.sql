@@ -30,22 +30,21 @@ IF EXISTS (SELECT 1 FROM MES.FVN_SchemaMigration WHERE MigrationVersion = '014')
 BEGIN TRY
     BEGIN TRANSACTION;
 
-    /* Warehouse is the PCTP physical hierarchy root. SiteCode is mandatory.
-       WarehouseCode is a PCTP stable code; LegacyWarehouseId preserves the old numeric key. */
+    /* Preserve the source numeric keys: WarehouseId, RackId and SlotId were
+       application keys, not IDENTITY-generated values in the source schema. */
     IF OBJECT_ID(N'dbo.FVN_Warehouse', N'U') IS NULL
     BEGIN
         CREATE TABLE dbo.FVN_Warehouse
         (
             SiteCode nvarchar(30) NOT NULL,
-            WarehouseCode nvarchar(60) NOT NULL,
-            WarehouseName nvarchar(200) NOT NULL,
-            LegacyWarehouseId int NULL,
+            WarehouseId int NOT NULL,
+            Name nvarchar(200) NOT NULL,
             IsActive bit NOT NULL CONSTRAINT DF_FVN_Warehouse_IsActive DEFAULT (1),
             CreatedAtUtc datetime2(3) NOT NULL CONSTRAINT DF_FVN_Warehouse_Created DEFAULT (SYSUTCDATETIME()),
             CreatedBy nvarchar(100) NULL,
             ModifiedAtUtc datetime2(3) NULL,
             ModifiedBy nvarchar(100) NULL,
-            CONSTRAINT PK_FVN_Warehouse PRIMARY KEY (SiteCode, WarehouseCode)
+            CONSTRAINT PK_FVN_Warehouse PRIMARY KEY (SiteCode, WarehouseId)
         );
     END;
 
@@ -53,18 +52,16 @@ BEGIN TRY
     BEGIN
         CREATE TABLE dbo.FVN_Rack
         (
-            RackId int IDENTITY(1,1) NOT NULL,
             SiteCode nvarchar(30) NOT NULL,
-            WarehouseCode nvarchar(60) NOT NULL,
+            RackId int NOT NULL,
+            WarehouseId int NOT NULL,
             RackName nvarchar(200) NOT NULL,
             RackRowCount int NULL,
             ColumnCount int NULL,
-            LegacyRackId int NULL,
             IsActive bit NOT NULL CONSTRAINT DF_FVN_Rack_IsActive DEFAULT (1),
-            CONSTRAINT PK_FVN_Rack PRIMARY KEY (RackId),
-            CONSTRAINT UQ_FVN_Rack_SiteRack UNIQUE (SiteCode, RackId),
-             CONSTRAINT FK_FVN_Rack_Warehouse FOREIGN KEY (SiteCode, WarehouseCode)
-                REFERENCES dbo.FVN_Warehouse (SiteCode, WarehouseCode),
+            CONSTRAINT PK_FVN_Rack PRIMARY KEY (SiteCode, RackId),
+            CONSTRAINT FK_FVN_Rack_Warehouse FOREIGN KEY (SiteCode, WarehouseId)
+                REFERENCES dbo.FVN_Warehouse (SiteCode, WarehouseId),
             CONSTRAINT CK_FVN_Rack_Dimensions CHECK
                 ((RackRowCount IS NULL OR RackRowCount >= 0) AND (ColumnCount IS NULL OR ColumnCount >= 0))
         );
@@ -74,20 +71,18 @@ BEGIN TRY
     BEGIN
         CREATE TABLE dbo.FVN_Slot
         (
-            SlotId int IDENTITY(1,1) NOT NULL,
             SiteCode nvarchar(30) NOT NULL,
+            SlotId int NOT NULL,
             RackId int NOT NULL,
             SlotNumber int NOT NULL,
             IsOccupied bit NOT NULL CONSTRAINT DF_FVN_Slot_IsOccupied DEFAULT (0),
             Capacity int NULL,
             RowIndex int NULL,
             ColumnIndex int NULL,
-            LegacySlotId int NULL,
             IsActive bit NOT NULL CONSTRAINT DF_FVN_Slot_IsActive DEFAULT (1),
-            CONSTRAINT PK_FVN_Slot PRIMARY KEY (SlotId),
-            CONSTRAINT UQ_FVN_Slot_SiteSlot UNIQUE (SiteCode, SlotId),
-            CONSTRAINT UQ_FVN_Slot_RackNumber UNIQUE (RackId, SlotNumber),
-             CONSTRAINT FK_FVN_Slot_Rack FOREIGN KEY (SiteCode, RackId)
+            CONSTRAINT PK_FVN_Slot PRIMARY KEY (SiteCode, SlotId),
+            CONSTRAINT UQ_FVN_Slot_RackNumber UNIQUE (SiteCode, RackId, SlotNumber),
+            CONSTRAINT FK_FVN_Slot_Rack FOREIGN KEY (SiteCode, RackId)
                 REFERENCES dbo.FVN_Rack (SiteCode, RackId),
             CONSTRAINT CK_FVN_Slot_Number CHECK (SlotNumber >= 0),
             CONSTRAINT CK_FVN_Slot_Capacity CHECK (Capacity IS NULL OR Capacity >= 0)
