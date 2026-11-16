@@ -107,28 +107,39 @@ BEGIN TRY
 
             /* Compare the entire new slot projection with canonical MES on-hand.
                Compare aggregate by (SiteCode, PartNo, MaterialLotId), not QR rows. */
-            ;WITH NewProjection AS
+            DECLARE @NewProjection TABLE
             (
-                SELECT l.ItemCode AS PartNo, ml.MaterialLotId,
-                       SUM(CONVERT(decimal(19,6),l.Quantity)) AS Qty
-                FROM @Lots l
-                INNER JOIN MES.FVN_MaterialLot ml
-                    ON ml.SiteCode=@SiteCode AND ml.PartNo=l.ItemCode AND ml.LotNo=l.LotNo
-                GROUP BY l.ItemCode, ml.MaterialLotId
-            ),
-            MesProjection AS
+                PartNo nvarchar(100) NOT NULL,
+                MaterialLotId bigint NOT NULL,
+                Qty decimal(19,6) NOT NULL,
+                PRIMARY KEY (PartNo, MaterialLotId)
+            );
+            DECLARE @MesProjection TABLE
             (
-                SELECT b.PartNo, b.MaterialLotId,
-                       SUM(b.OnHandQty) AS Qty
-                FROM MES.FVN_InventoryBalance b WITH (UPDLOCK,HOLDLOCK)
-                WHERE b.SiteCode=@SiteCode AND b.LocationNo=@LocationNo
-                GROUP BY b.PartNo, b.MaterialLotId
-            )
+                PartNo nvarchar(100) NOT NULL,
+                MaterialLotId bigint NOT NULL,
+                Qty decimal(19,6) NOT NULL,
+                PRIMARY KEY (PartNo, MaterialLotId)
+            );
+
+            INSERT INTO @NewProjection (PartNo, MaterialLotId, Qty)
+            SELECT l.ItemCode, ml.MaterialLotId, SUM(CONVERT(decimal(19,6),l.Quantity))
+            FROM @Lots l
+            INNER JOIN MES.FVN_MaterialLot ml
+                ON ml.SiteCode=@SiteCode AND ml.PartNo=l.ItemCode AND ml.LotNo=l.LotNo
+            GROUP BY l.ItemCode, ml.MaterialLotId;
+
+            INSERT INTO @MesProjection (PartNo, MaterialLotId, Qty)
+            SELECT b.PartNo, b.MaterialLotId, SUM(b.OnHandQty)
+            FROM MES.FVN_InventoryBalance b WITH (UPDLOCK,HOLDLOCK)
+            WHERE b.SiteCode=@SiteCode AND b.LocationNo=@LocationNo
+            GROUP BY b.PartNo, b.MaterialLotId;
+
             IF EXISTS
             (
                 SELECT 1
-                FROM NewProjection n
-                FULL OUTER JOIN MesProjection m
+                FROM @NewProjection n
+                FULL OUTER JOIN @MesProjection m
                     ON m.PartNo=n.PartNo AND m.MaterialLotId=n.MaterialLotId
                 WHERE ISNULL(n.Qty,0) <> ISNULL(m.Qty,0)
             )
