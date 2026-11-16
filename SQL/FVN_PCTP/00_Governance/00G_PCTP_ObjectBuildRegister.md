@@ -209,4 +209,4 @@ A read-only export script has been added:
 
 `00_Governance/SourceExtractionTools/00H_Export_PCTP_RuntimeObjectDefinitions.sql`
 
-Run it only while connected to `B7R2_FCC`. It checks the database name and performs SELECT-only metadata extraction. Export all seven result sets, especially Result 4 (`FullSqlDefinition`), Result 5 (table-valued types) and Result 6 (trigger bodies). Do not execute any generated DDL from the export. This is the missing source evidence required to rewrite the PCTP views and stored procedures safely.
+Run it only while connected to `B7R2_FCC`. It checks the database name and performs SELECT-only metadata extraction. Export all seven result sets, especially Result 5 (`FullSqlDefinition`), Result 6 (table-valued types) and Result 7 (trigger bodies). Export Results 1–4 as well for exact columns, indexes, foreign keys and CHECK constraints. Do not execute any generated DDL from the export. This is the missing source evidence required to rewrite the PCTP views and stored procedures safely.
