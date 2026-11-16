@@ -82,3 +82,22 @@ This implementation is a deployment candidate. It has **not** been built or
 executed against the user's Oracle IFS or SQL Server. It performs full snapshot
 upserts, not incremental watermark sync. Source rows missing in a run are not
 deleted or deactivated. Validate on a disposable FVN_PCTP database before use.
+
+
+## 7. Current PCTP application SQL audit (2026-11-16)
+
+Added `00F_PCTP_CurrentSqlConsolidationAudit.md` after reviewing both
+`PCTP/Modules/XuLyHangLoi/Database` and the Warehouse, Delivery, MES, and
+Programmability folders under `SQL/FVN_PCTP`.
+
+The audit confirms that the repository still has no complete PCTP clean-install
+baseline. The XuLyHangLoi folder contains incremental table patches, workflow
+seeds, a data backfill, and an IDENTITY repair script; several depend on core
+tables not defined in that folder. Warehouse and Delivery remain candidate
+scripts. The active application evidence confirms six operational tables,
+while ownership of `STOCKTP`, `SlotLot`, and `StockHistory` remains unresolved.
+
+A README was added to the old XuLyHangLoi SQL folder to mark it as historical
+source and direct future target SQL work to `SQL/FVN_PCTP`. No old SQL file was
+deleted or executed. This audit is documentation/static inspection only; no SQL
+Server execution or application build was performed.
