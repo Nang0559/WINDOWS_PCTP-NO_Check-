@@ -1,4 +1,4 @@
-/*
+﻿/*
  Migration 007: cross-entity integrity, PO receipt consistency and material reservations.
 */
 SET NOCOUNT ON;
@@ -6,6 +6,8 @@ SET XACT_ABORT ON;
 IF NOT EXISTS(SELECT 1 FROM MES.SchemaMigration WHERE MigrationVersion='006') THROW 51000,'Run migration 006 first.',1;
 IF EXISTS(SELECT 1 FROM MES.SchemaMigration WHERE MigrationVersion='007') RETURN;
 BEGIN TRANSACTION;
+
+DECLARE @UnresolvedCount int;
 
 /* BOM site/product consistency */
 IF NOT EXISTS(SELECT 1 FROM sys.key_constraints WHERE parent_object_id=OBJECT_ID(N'MES.BomRevision') AND name=N'UQ_MES_BomRevision_IdSite')
@@ -27,11 +29,19 @@ IF NOT EXISTS(SELECT 1 FROM sys.foreign_keys WHERE parent_object_id=OBJECT_ID(N'
 
 IF COL_LENGTH(N'MES.ProductionOrderMaterial',N'BomRevisionId') IS NULL
  ALTER TABLE MES.ProductionOrderMaterial ADD BomRevisionId bigint NULL;
+
+/* Cột BomRevisionId vừa được thêm trong cùng batch => phải dùng dynamic SQL để compile sau khi cột tồn tại */
+EXEC sp_executesql N'
 UPDATE om SET BomRevisionId=o.BomRevisionId
  FROM MES.ProductionOrderMaterial om JOIN MES.ProductionOrder o ON o.ProductionOrderId=om.ProductionOrderId
- WHERE om.BomRevisionId IS NULL;
-IF EXISTS(SELECT 1 FROM MES.ProductionOrderMaterial WHERE BomRevisionId IS NULL)
+ WHERE om.BomRevisionId IS NULL;';
+
+EXEC sp_executesql
+ N'SELECT @cnt=COUNT(*) FROM MES.ProductionOrderMaterial WHERE BomRevisionId IS NULL;',
+ N'@cnt int OUTPUT', @cnt=@UnresolvedCount OUTPUT;
+IF @UnresolvedCount>0
  THROW 51700,'ProductionOrderMaterial has no parent BOM revision; resolve rows before migration 007.',1;
+
 ALTER TABLE MES.ProductionOrderMaterial ALTER COLUMN BomRevisionId bigint NOT NULL;
 IF NOT EXISTS(SELECT 1 FROM sys.foreign_keys WHERE parent_object_id=OBJECT_ID(N'MES.ProductionOrderMaterial') AND name=N'FK_MES_OrderMaterial_OrderBom')
  ALTER TABLE MES.ProductionOrderMaterial ADD CONSTRAINT FK_MES_OrderMaterial_OrderBom
@@ -47,9 +57,13 @@ IF NOT EXISTS(SELECT 1 FROM sys.key_constraints WHERE parent_object_id=OBJECT_ID
  ALTER TABLE MES.MaterialReceipt ADD CONSTRAINT UQ_MES_Receipt_IdPO UNIQUE(MaterialReceiptId,PurchaseOrderId);
 IF COL_LENGTH(N'MES.MaterialReceiptLine',N'PurchaseOrderId') IS NULL
  ALTER TABLE MES.MaterialReceiptLine ADD PurchaseOrderId bigint NULL;
+
+/* Tương tự: cột PurchaseOrderId vừa thêm => dynamic SQL */
+EXEC sp_executesql N'
 UPDATE rl SET PurchaseOrderId=r.PurchaseOrderId
  FROM MES.MaterialReceiptLine rl JOIN MES.MaterialReceipt r ON r.MaterialReceiptId=rl.MaterialReceiptId
- WHERE rl.PurchaseOrderId IS NULL;
+ WHERE rl.PurchaseOrderId IS NULL;';
+
 IF NOT EXISTS(SELECT 1 FROM sys.foreign_keys WHERE parent_object_id=OBJECT_ID(N'MES.MaterialReceiptLine') AND name=N'FK_MES_ReceiptLine_HeaderPO')
  ALTER TABLE MES.MaterialReceiptLine ADD CONSTRAINT FK_MES_ReceiptLine_HeaderPO
  FOREIGN KEY(MaterialReceiptId,PurchaseOrderId) REFERENCES MES.MaterialReceipt(MaterialReceiptId,PurchaseOrderId);
