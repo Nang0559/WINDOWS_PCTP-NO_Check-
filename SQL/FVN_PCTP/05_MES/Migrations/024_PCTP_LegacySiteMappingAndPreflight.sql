@@ -73,7 +73,7 @@ BEGIN TRY
             MappedAtUtc datetime2(3) NOT NULL CONSTRAINT DF_FVN_LegacyLotSiteMap_Mapped DEFAULT (SYSUTCDATETIME()),
             MappedBy nvarchar(100) NOT NULL,
             MappingNote nvarchar(500) NULL,
-            CONSTRAINT PK_FVN_LegacyLotSiteMap PRIMARY KEY (SourceObject, LegacyLotNo, SiteCode, PartNo),
+            CONSTRAINT PK_FVN_LegacyLotSiteMap PRIMARY KEY NONCLUSTERED (SourceObject, LegacyLotNo, SiteCode, PartNo),
             CONSTRAINT FK_FVN_LegacyLotSiteMap_MESLot FOREIGN KEY (SiteCode, PartNo, MaterialLotId)
                 REFERENCES MES.FVN_MaterialLot (SiteCode, PartNo, MaterialLotId),
             CONSTRAINT CK_FVN_LegacyLotSiteMap_Source CHECK
@@ -183,14 +183,21 @@ BEGIN TRY
         ORDER BY st.LOT;
 
         /* Result 6: StockHistory without a slot-derived or explicit LOT map. */
-        SELECT h.Id, h.SlotId, h.ItemCode, h.LotNo
+        SELECT h.Id, h.SlotId, h.ItemCode, h.LotNo,
+               wm.SiteCode AS SlotSiteCode, lm.SiteCode AS LotSiteCode, pm.PartNo, lm.MaterialLotId
         FROM B7R2_FCC.dbo.StockHistory h
         LEFT JOIN B7R2_FCC.dbo.Slot s ON s.SlotId=h.SlotId
         LEFT JOIN B7R2_FCC.dbo.Rack r ON r.RackId=s.RackId
         LEFT JOIN dbo.FVN_LegacyWarehouseSiteMap wm ON wm.LegacyWarehouseId=r.WarehouseId
         LEFT JOIN dbo.FVN_LegacyLotSiteMap lm
             ON lm.SourceObject=''StockHistory'' AND lm.LegacyLotNo=h.LotNo
-        WHERE (wm.SiteCode IS NULL AND lm.SiteCode IS NULL)
+        LEFT JOIN dbo.FVN_LegacyPartSiteMap pm
+            ON pm.SourceObject=''StockHistory'' AND pm.LegacyPartNo=h.ItemCode
+           AND pm.SiteCode=COALESCE(wm.SiteCode,lm.SiteCode)
+        WHERE COALESCE(wm.SiteCode,lm.SiteCode) IS NULL
+           OR (wm.SiteCode IS NOT NULL AND lm.SiteCode IS NOT NULL AND wm.SiteCode<>lm.SiteCode)
+           OR (h.ItemCode IS NOT NULL AND pm.PartNo IS NULL)
+           OR (h.LotNo IS NOT NULL AND lm.MaterialLotId IS NULL)
         ORDER BY h.Id;
 
         /* Result 7: delivery/return records still need document/factory site mapping. */
@@ -200,10 +207,27 @@ BEGIN TRY
         WHERE fm.SiteCode IS NULL
         ORDER BY d.NGAYGIAO, d.STT;
 
+        SELECT N''IFSPHIEUGIAOHANG'' AS SourceObject, d.STT, d.ORDER_NO, d.PO_NO, d.NHAMAY
+        FROM B7R2_FCC.dbo.IFSPHIEUGIAOHANG d
+        LEFT JOIN dbo.FVN_LegacyFactorySiteMap fm ON fm.LegacyFactoryKey=LTRIM(RTRIM(d.NHAMAY))
+        WHERE fm.SiteCode IS NULL
+        UNION ALL
+        SELECT N''IFSPHIEUGIAOHANG_SP'', d.STT, d.ORDER_NO, d.PO_NO, d.NHAMAY
+        FROM B7R2_FCC.dbo.IFSPHIEUGIAOHANG_SP d
+        LEFT JOIN dbo.FVN_LegacyFactorySiteMap fm ON fm.LegacyFactoryKey=LTRIM(RTRIM(d.NHAMAY))
+        WHERE fm.SiteCode IS NULL;
+
         SELECT N''FVN_PhieuTraHang'' AS SourceObject, p.Id, p.SoPhieu
         FROM B7R2_FCC.dbo.FVN_PhieuTraHang p
         LEFT JOIN dbo.FVN_LegacyDocumentSiteMap dm
             ON dm.SourceObject=''FVN_PhieuTraHang'' AND dm.LegacyDocumentNo=p.SoPhieu
+        WHERE dm.SiteCode IS NULL
+        ORDER BY p.Id;
+
+        SELECT N''FVN_PhieuXuLyBatThuong'' AS SourceObject, p.Id, p.SoPhieu
+        FROM B7R2_FCC.dbo.FVN_PhieuXuLyBatThuong p
+        LEFT JOIN dbo.FVN_LegacyDocumentSiteMap dm
+            ON dm.SourceObject=''FVN_PhieuXuLyBatThuong'' AND dm.LegacyDocumentNo=p.SoPhieu
         WHERE dm.SiteCode IS NULL
         ORDER BY p.Id;
     END;
