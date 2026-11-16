@@ -55,7 +55,7 @@ BEGIN TRY
             CONSTRAINT FK_FVN_LegacyPartSiteMap_Part FOREIGN KEY (SiteCode, PartNo)
                 REFERENCES IFS.FVN_InventoryPart (SiteCode, PartNo),
             CONSTRAINT CK_FVN_LegacyPartSiteMap_Source CHECK
-                (SourceObject IN ('SlotLot','StockHistory','STOCKTP','Delivery','ReturnDetail','Abnormal'))
+                (SourceObject IN ('SlotLot','StockHistory','STOCKTP','Delivery','ReturnDetail','Abnormal','PurchaseOrder','QrCode','QrCodeDb'))
         );
         CREATE INDEX IX_FVN_LegacyPartSiteMap_Target
             ON dbo.FVN_LegacyPartSiteMap (SiteCode, PartNo);
@@ -77,7 +77,7 @@ BEGIN TRY
             CONSTRAINT FK_FVN_LegacyLotSiteMap_MESLot FOREIGN KEY (SiteCode, PartNo, MaterialLotId)
                 REFERENCES MES.FVN_MaterialLot (SiteCode, PartNo, MaterialLotId),
             CONSTRAINT CK_FVN_LegacyLotSiteMap_Source CHECK
-                (SourceObject IN ('SlotLot','StockHistory','STOCKTP','Delivery','ReturnDetail','Abnormal','InspectionLog'))
+                (SourceObject IN ('SlotLot','StockHistory','STOCKTP','Delivery','ReturnDetail','Abnormal','InspectionLog','PurchaseOrder','QrCode','QrCodeDb'))
         );
         CREATE INDEX IX_FVN_LegacyLotSiteMap_Target
             ON dbo.FVN_LegacyLotSiteMap (SiteCode, PartNo, MaterialLotId);
@@ -113,7 +113,7 @@ BEGIN TRY
                 REFERENCES dbo.FVN_PCTPSite (SiteCode),
             CONSTRAINT CK_FVN_LegacyDocumentSiteMap_Source CHECK
                 (SourceObject IN ('IFSPHIEUGIAOHANG','IFSPHIEUGIAOHANG_SP','LUUPHIEUGIAOHANG',
-                                  'FVN_PhieuTraHang','FVN_PhieuXuLyBatThuong','FVN_Purchase_Order_DB_HD'))
+                                  'FVN_PhieuTraHang','FVN_PhieuXuLyBatThuong','FVN_Purchase_Order_DB_HD','FVN_Purchase_Order_HVNDB'))
         );
     END;
 
@@ -229,6 +229,26 @@ BEGIN TRY
         LEFT JOIN dbo.FVN_LegacyDocumentSiteMap dm
             ON dm.SourceObject=''FVN_PhieuXuLyBatThuong'' AND dm.LegacyDocumentNo=p.SoPhieu
         WHERE dm.SiteCode IS NULL
+        ORDER BY p.Id;
+
+        /* Result 8: part code mapping for return/abnormal detail rows. */
+        SELECT N''ReturnDetail'' AS SourceObject, d.Id, d.MaHang, h.SoPhieu
+        FROM B7R2_FCC.dbo.FVN_PhieuTraHangCT d
+        INNER JOIN B7R2_FCC.dbo.FVN_PhieuTraHang h ON h.Id=d.PhieuTraHangId
+        LEFT JOIN dbo.FVN_LegacyDocumentSiteMap dm
+            ON dm.SourceObject=''FVN_PhieuTraHang'' AND dm.LegacyDocumentNo=h.SoPhieu
+        LEFT JOIN dbo.FVN_LegacyPartSiteMap pm
+            ON pm.SourceObject=''ReturnDetail'' AND pm.LegacyPartNo=d.MaHang AND pm.SiteCode=dm.SiteCode
+        WHERE dm.SiteCode IS NULL OR pm.PartNo IS NULL
+        ORDER BY d.Id;
+
+        SELECT N''Abnormal'' AS SourceObject, p.Id, p.MaSanPham, p.SoPhieu
+        FROM B7R2_FCC.dbo.FVN_PhieuXuLyBatThuong p
+        LEFT JOIN dbo.FVN_LegacyDocumentSiteMap dm
+            ON dm.SourceObject=''FVN_PhieuXuLyBatThuong'' AND dm.LegacyDocumentNo=p.SoPhieu
+        LEFT JOIN dbo.FVN_LegacyPartSiteMap pm
+            ON pm.SourceObject=''Abnormal'' AND pm.LegacyPartNo=p.MaSanPham AND pm.SiteCode=dm.SiteCode
+        WHERE dm.SiteCode IS NULL OR pm.PartNo IS NULL
         ORDER BY p.Id;
     END;
     ');
