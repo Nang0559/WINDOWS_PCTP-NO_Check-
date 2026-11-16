@@ -51,6 +51,7 @@ BEGIN TRY
         (
             SiteCode nvarchar(30) NOT NULL,
             WarehouseId int IDENTITY(1,1) NOT NULL,
+            LegacyWarehouseId int NULL,
             Name nvarchar(200) NOT NULL,
             IsActive bit NOT NULL CONSTRAINT DF_FVN_Warehouse_IsActive DEFAULT (1),
             CreatedAtUtc datetime2(3) NOT NULL CONSTRAINT DF_FVN_Warehouse_Created DEFAULT (SYSUTCDATETIME()),
@@ -69,6 +70,7 @@ BEGIN TRY
         (
             SiteCode nvarchar(30) NOT NULL,
             RackId int IDENTITY(1,1) NOT NULL,
+            LegacyRackId int NULL,
             WarehouseId int NOT NULL,
             RackName nvarchar(200) NOT NULL,
             RackRowCount int NULL,
@@ -88,6 +90,7 @@ BEGIN TRY
         (
             SiteCode nvarchar(30) NOT NULL,
             SlotId int IDENTITY(1,1) NOT NULL,
+            LegacySlotId int NULL,
             RackId int NOT NULL,
             SlotNumber int NOT NULL,
             IsOccupied bit NOT NULL CONSTRAINT DF_FVN_Slot_IsOccupied DEFAULT (0),
@@ -141,7 +144,7 @@ BEGIN TRY
             CreatedBy nvarchar(100) NULL,
             CONSTRAINT PK_FVN_PartIdentity PRIMARY KEY (SiteCode, PartNo),
             CONSTRAINT FK_FVN_PartIdentity_IFSPart FOREIGN KEY (SiteCode, PartNo)
-                REFERENCES IFS.FVN_InventoryPart (SiteCode, PartNo),
+                REFERENCES IFS.FVN_InventoryPart (SiteCode, PartNo)
          );
     END;
 
