@@ -86,6 +86,12 @@ namespace PCTP
                 "Hàng chờ giao",
                 OpenHangChoGiao));
 
+            // Đồng bộ dữ liệu IFS là công cụ quản trị, đặt trong nhóm Công Cụ.
+            accordionControlElement20.Elements.Add(CreateMenuItem(
+                "menuIfsMasterDataSync",
+                "Đồng bộ dữ liệu IFS → FVN_PCTP",
+                OpenIfsMasterDataSync));
+
             // ── 3. Xử lý LOT ───────────────────────────────────────────
             // Tách LOT là luồng nghiệp vụ; form tự chọn mẫu in Ghép LOT theo CustomerCode.
             _menuXuLyLot = new AccordionControlElement(ElementStyle.Group)
@@ -223,6 +229,15 @@ namespace PCTP
         private void OpenDieuChinhTonKhoLot(object sender, EventArgs e)
         {
             OpenFromMenu(() => FormWindowManager.ShowSingle(this, () => new FormDieuChinhTonKhoLot()), "Điều chỉnh tồn kho LOT");
+        }
+
+        private void OpenIfsMasterDataSync(object sender, EventArgs e)
+        {
+            OpenFromMenu(
+                () => FormWindowManager.ShowSingle(
+                    this,
+                    () => new PCTP.Modules.IfsSync.FormIfsSync()),
+                "Đồng bộ dữ liệu IFS");
         }
     }
 
