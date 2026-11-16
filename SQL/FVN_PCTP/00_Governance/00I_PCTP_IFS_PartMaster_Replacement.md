@@ -127,3 +127,21 @@ The 40-module overlap also includes generic Bravo inventory/report procedures su
 ## 8. Required decision before final DDL
 
 Confirm whether PCTP uses exactly one IFS `SiteCode`, or multiple sites. If multiple, provide the mapping from each PCTP warehouse to IFS SiteCode. This determines the composite part key for STOCKTP, SlotLot, delivery, return and abnormal-processing references and is a hard prerequisite for final FK/index design.
+
+
+## 9. Additional Bravo dependencies exposed by full module bodies
+
+The full definitions also reference Bravo objects that were not included in the 00H target-object metadata list. They must not be cloned automatically, but they must be resolved when rewriting the corresponding PCTP procedure:
+
+| Referenced source object | Observed use | Required replacement/review |
+|---|---|---|
+| `B20Model` | `getTonStockTPNew` joins `B20Item.Model` to obtain `ModelType` | Obtain exact source definition/data and decide IFS attribute mapping vs PCTP-owned model lookup |
+| `B20ItemGroup` | Generic `usp_Vcd_*` reports filter by `ItemAccount` | Do not port generic Bravo accounting reports unless current PCTP caller proves need; otherwise replace only required PCTP classification |
+| `B20Employee` | Barcode routines display employee/department information | Use approved HRM/FVN employee source; no Bravo employee clone |
+| `B20ItemLot` | `usp_Trculotnoxuat_linhkien_na` resolves item name/model from a LOT prefix | Prefer MES LOT/part genealogy; preserve only required PCTP output contract |
+| `B20Lines` | Generic Bravo trigger/report logic resolves line names | Use approved FVN/HRM production-line source if a current PCTP caller requires it |
+| `tbl_DocTem` | Large `trgupdatetblDoctem` label side effects | Define an explicit FVN label-generation contract only if PCTP still needs it |
+| `B20ItemCatg`, `B20ItemClass`, `B20ItemBarcode`, `B20ItemLotDetail`, `B20ItemsSetDef`, and other Bravo DML dependencies | Occur in the large legacy trigger and Bravo framework code | Exclude unless an independently verified PCTP workflow requires a specific behavior |
+
+The 00H module-definition result returned 449 matching definitions: 378 stored procedures, 58 triggers, 11 scalar functions and 2 table-valued functions. No view definition row appeared in that result set. This does not prove that PCTP has no views; the previously inventoried view candidates still need exact source definitions and caller verification before being rewritten.
+
