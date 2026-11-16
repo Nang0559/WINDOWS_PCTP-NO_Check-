@@ -227,6 +227,7 @@ BEGIN TRY
             CUA nvarchar(50) NULL,
             TRUYEN nvarchar(50) NULL,
             MAHANG nvarchar(50) NULL,
+            PartNo nvarchar(100) NULL,
             TENHANG nvarchar(50) NULL,
             LOT nvarchar(200) NULL,
             DV nvarchar(50) NULL,
@@ -245,6 +246,8 @@ BEGIN TRY
             CONSTRAINT PK_FVN_Purchase_Order_DB_CT PRIMARY KEY (ID),
             CONSTRAINT FK_FVN_Purchase_Order_DB_CT_Header FOREIGN KEY (SiteCode, IDP)
                 REFERENCES dbo.FVN_Purchase_Order_DB_HD (SiteCode, IDP),
+            CONSTRAINT FK_FVN_Purchase_Order_DB_CT_Part FOREIGN KEY (SiteCode, PartNo)
+                REFERENCES IFS.FVN_InventoryPart (SiteCode, PartNo),
             CONSTRAINT FK_FVN_Purchase_Order_DB_CT_Site FOREIGN KEY (SiteCode)
                 REFERENCES dbo.FVN_PCTPSite (SiteCode)
         );
