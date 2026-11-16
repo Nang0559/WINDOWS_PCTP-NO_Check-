@@ -168,7 +168,8 @@ BEGIN TRY
     AS
     SELECT
         s.LOT, s.PART, ip.Description AS NAME, s.CASX, s.NGAYSX, s.SLSX,
-        s.NGAYNHAP, s.SLNHAP, s.NGAYXUAT, s.SLXUAT, s.SLCONLAI,
+        s.NGAYNHAP, s.SLNHAP, s.NGAYXUAT, s.SLXUAT,
+        CASE WHEN s.MaterialLotId IS NULL THEN NULL ELSE ISNULL(b.OnHandQty,0) END AS SLCONLAI,
         pp.ModelCode AS MODEL, s.SLCONLAITMP, s.SATUS,
         s.NGAYNHAP1, s.SLNHAP1, s.NGAYNHAP2, s.SLNHAP2,
         s.NGAYNHAP3, s.SLNHAP3, s.NGAYNHAP4, s.SLNHAP4,
@@ -178,7 +179,14 @@ BEGIN TRY
     LEFT JOIN IFS.FVN_InventoryPart AS ip
         ON ip.SiteCode = s.SiteCode AND ip.PartNo = s.PART
     LEFT JOIN dbo.FVN_PartOperationalProfile AS pp
-        ON pp.SiteCode = s.SiteCode AND pp.PartNo = s.PART;
+        ON pp.SiteCode = s.SiteCode AND pp.PartNo = s.PART
+    LEFT JOIN
+    (
+        SELECT SiteCode, PartNo, MaterialLotId, SUM(OnHandQty) AS OnHandQty
+        FROM MES.FVN_InventoryBalance
+        GROUP BY SiteCode, PartNo, MaterialLotId
+    ) AS b
+        ON b.SiteCode=s.SiteCode AND b.PartNo=s.PART AND b.MaterialLotId=s.MaterialLotId;
     ');
 
     INSERT INTO MES.FVN_SchemaMigration (MigrationVersion, MigrationName)
