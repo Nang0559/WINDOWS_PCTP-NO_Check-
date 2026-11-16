@@ -306,7 +306,10 @@ ORDER BY TRY_CAST(STT AS INT), STT";
         public DataTable GetDonHangHienTai(string tenBan)
         {
             Db.ValidateTableName(tenBan);
-            return LoadData($"SELECT STT, MAHANG, LOT, STATUS, STATUSDOC FROM [{tenBan}] ORDER BY STT");
+            // Lấy ĐẦY ĐỦ cột của bảng TMP (không chỉ STT/MAHANG/LOT/STATUS/STATUSDOC): phiên đang đọc QR bind thẳng
+            // kết quả này vào lưới Đơn hàng, nếu thiếu GIOGIAO/CUA/TRUYEN/TENHANG/GEAR/DV/SOLUONG/PO_NO/PO_ITEM
+            // thì các cột đó trống và "Hàng thiếu" không tính được. Bảng TMP của khách không có PO_ITEM vẫn dùng được.
+            return LoadData($"SELECT * FROM [{tenBan}] ORDER BY TRY_CAST(STT AS INT), STT");
         }
 
         // ============================================================
