@@ -540,6 +540,30 @@ VALUES
                 new SqlParameter("@sd", stockDelta), new SqlParameter("@ld", slotDelta),
                 new SqlParameter("@dest", (object)actualDestination ?? DBNull.Value),
                 new SqlParameter("@reason", reason.Trim()), new SqlParameter("@actor", user));
+
+            // Ghi vào StockHistory để báo cáo "Lịch sử kho" / timeline thấy được điều chỉnh.
+            // CORRECT = Quantity có dấu (+ tăng tồn -> Nhập, - giảm tồn -> Xuất), xem ItemHistoryRow.SignedTypes.
+            // Ưu tiên chênh lệch STOCKTP (số liệu gốc); nếu STOCKTP không đổi mà SlotLot đổi thì ghi chênh lệch SlotLot.
+            int historyQty = stockDelta != 0 ? stockDelta : slotDelta;
+            if (historyQty != 0)
+            {
+                int? histSlot = actualDestination;
+                if (!histSlot.HasValue && locations.Count > 0) histSlot = locations[0].SlotId;
+                string userShort = user.Length > 50 ? user.Substring(0, 50) : user;
+                ExecuteNonQuery(
+                    @"INSERT INTO StockHistory
+                        (ActionType, ItemCode, TemCode, LotNo, Quantity, [Date], FromSlotId, ToSlotId, QrData, MaPhieu, PerformedBy)
+                      VALUES
+                        (@act, @item, NULL, @lot, @q, GETDATE(), @from, @to, NULL, @maPhieu, @user)",
+                    new SqlParameter("@act", "CORRECT"),
+                    new SqlParameter("@item", item),
+                    new SqlParameter("@lot", lot),
+                    new SqlParameter("@q", historyQty),
+                    new SqlParameter("@from", historyQty < 0 && histSlot.HasValue ? (object)histSlot.Value : DBNull.Value),
+                    new SqlParameter("@to", historyQty > 0 && histSlot.HasValue ? (object)histSlot.Value : DBNull.Value),
+                    new SqlParameter("@maPhieu", "ADJ#" + requestId.ToString("N").Substring(0, 12)),
+                    new SqlParameter("@user", userShort));
+            }
         }
 
     }

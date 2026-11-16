@@ -699,18 +699,18 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                     throw new InvalidOperationException(
                         $"Hàng chờ giao Id={id} đã thay đổi trạng thái trong lúc cập nhật kho; huỷ giao dịch.");
 
-                if (r["SlotIdNguon"] != DBNull.Value)
-                {
-                    _historyRepo.SaveHistory(
-                        "EXPORT_CONFIRMED_HVN", Convert.ToString(r["MaHang"]),
-                        new LotInfo
-                        {
-                            LotNo = Convert.ToString(r["LotGoc"]),
-                            Quantity = Convert.ToInt32(r["SoLuong"]),
-                            TemCode = r["LotThung"] == DBNull.Value ? null : Convert.ToString(r["LotThung"])
-                        },
-                        fromSlotId: Convert.ToInt32(r["SlotIdNguon"]), toSlotId: null, performedBy: SYSTEM_PERFORMED_BY);
-                }
+                // Luôn ghi lịch sử xuất kho, kể cả khi dòng chờ giao không có SlotIdNguon
+                // (trước đây bỏ qua -> STOCKTP đã trừ nhưng báo cáo Lịch sử kho không thấy dòng xuất).
+                _historyRepo.SaveHistory(
+                    "EXPORT_CONFIRMED_HVN", Convert.ToString(r["MaHang"]),
+                    new LotInfo
+                    {
+                        LotNo = Convert.ToString(r["LotGoc"]),
+                        Quantity = Convert.ToInt32(r["SoLuong"]),
+                        TemCode = r["LotThung"] == DBNull.Value ? null : Convert.ToString(r["LotThung"])
+                    },
+                    fromSlotId: r["SlotIdNguon"] == DBNull.Value ? (int?)null : Convert.ToInt32(r["SlotIdNguon"]),
+                    toSlotId: null, performedBy: SYSTEM_PERFORMED_BY);
             }
 
             return err;
@@ -784,7 +784,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                 Connection, Transaction, lotsDaXuatThanhCong, performedBy);
             if (closedItems == null) return;
 
-            foreach (var it in closedItems.Where(x => x.SlotIdNguon.HasValue))
+            foreach (var it in closedItems)
             {
                 _historyRepo.SaveHistory(
                     "EXPORT_CONFIRMED_HVN", it.MaHang,

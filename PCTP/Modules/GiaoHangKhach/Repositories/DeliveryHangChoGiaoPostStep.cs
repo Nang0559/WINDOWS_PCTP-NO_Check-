@@ -36,7 +36,7 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
             var closed = _hangChoGiao.CloseChoGiaoTheoLotAndReturn(_uow.Connection, _uow.Transaction, lots, command.PerformedBy);
             if (closed == null) return;
 
-            foreach (var it in closed.Where(x => x.SlotIdNguon.HasValue))
+            foreach (var it in closed)
                 _history.SaveHistory(
                     "EXPORT_CONFIRMED_HVN", it.MaHang,
                     new LotInfo { LotNo = it.LotGoc, Quantity = it.SoLuong, TemCode = it.LotThung },
