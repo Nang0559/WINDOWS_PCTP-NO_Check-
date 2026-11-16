@@ -168,7 +168,7 @@ WHERE i.index_id > 0
 ORDER BY s.name, t.name, i.index_id, ic.key_ordinal, ic.index_column_id;
 
 -------------------------------------------------------------------------------
--- RESULT 3 — Foreign keys and CHECK constraints (including external references)
+-- RESULT 3 — Foreign keys (including external references)
 -------------------------------------------------------------------------------
 SELECT
     ps.name AS ParentSchema,
@@ -209,8 +209,9 @@ WHERE EXISTS (SELECT 1 FROM @TargetObjects AS x WHERE x.ObjectName = t.name)
 ORDER BY s.name, t.name, chk.name;
 
 -------------------------------------------------------------------------------
--- RESULT 4 — Full SQL definitions for PCTP-linked views/procedures/functions/
---            triggers. This is the full sys.sql_modules.definition, not the
+-- RESULT 4 — CHECK constraints
+-- RESULT 5 — Full SQL definitions for PCTP-linked views/procedures/functions/
+--            and triggers. This is the full sys.sql_modules.definition, not the
 --            200-character SQL2 metadata preview.
 -------------------------------------------------------------------------------
 SELECT
@@ -235,7 +236,7 @@ WHERE o.type IN ('P', 'V', 'FN', 'IF', 'TF', 'TR')
 ORDER BY o.type_desc, s.name, o.name;
 
 -------------------------------------------------------------------------------
--- RESULT 5 — User-defined table types and their exact column contracts
+-- RESULT 6 — User-defined table types and their exact column contracts
 -------------------------------------------------------------------------------
 SELECT
     s.name AS SchemaName,
@@ -257,7 +258,7 @@ WHERE tt.name LIKE N'%SlotLot%'
 ORDER BY s.name, tt.name, c.column_id;
 
 -------------------------------------------------------------------------------
--- RESULT 6 — Triggers attached to PCTP target tables (full definitions)
+-- RESULT 7 — Triggers attached to PCTP target tables (full definitions)
 -------------------------------------------------------------------------------
 SELECT
     s.name AS SchemaName,
@@ -274,7 +275,7 @@ WHERE EXISTS (SELECT 1 FROM @TargetObjects AS x WHERE x.ObjectName = t.name)
 ORDER BY s.name, t.name, tr.name;
 
 -------------------------------------------------------------------------------
--- RESULT 7 — Relevant synonyms (read-only inventory)
+-- RESULT 8 — Relevant synonyms (read-only inventory)
 -------------------------------------------------------------------------------
 SELECT
     s.name AS SchemaName,
