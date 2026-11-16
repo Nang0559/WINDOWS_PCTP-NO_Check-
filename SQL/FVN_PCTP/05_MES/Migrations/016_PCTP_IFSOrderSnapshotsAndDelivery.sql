@@ -58,6 +58,7 @@ BEGIN TRY
             SourceBatchId bigint NULL,
             SourceCapturedAtUtc datetime2(3) NOT NULL CONSTRAINT DF_FVN_IFSPHIEU_Captured DEFAULT (SYSUTCDATETIME()),
             CONSTRAINT PK_FVN_IFSPHIEUGIAOHANG PRIMARY KEY (SnapshotRowId),
+            CONSTRAINT FK_FVN_IFSPHIEUGIAOHANG_Site FOREIGN KEY (SiteCode) REFERENCES dbo.FVN_PCTPSite (SiteCode),
             CONSTRAINT CK_FVN_IFSPHIEU_Qty CHECK (SOLUONG IS NULL OR SOLUONG >= 0)
         );
         CREATE INDEX IX_FVN_IFSPHIEUGIAOHANG_Order
@@ -104,6 +105,7 @@ BEGIN TRY
             SourceBatchId bigint NULL,
             SourceCapturedAtUtc datetime2(3) NOT NULL CONSTRAINT DF_FVN_IFSPHIEUSP_Captured DEFAULT (SYSUTCDATETIME()),
             CONSTRAINT PK_FVN_IFSPHIEUGIAOHANG_SP PRIMARY KEY (SnapshotRowId),
+            CONSTRAINT FK_FVN_IFSPHIEUGIAOHANG_SP_Site FOREIGN KEY (SiteCode) REFERENCES dbo.FVN_PCTPSite (SiteCode),
             CONSTRAINT CK_FVN_IFSPHIEU_SP_Qty CHECK (SOLUONG IS NULL OR SOLUONG >= 0)
         );
         CREATE INDEX IX_FVN_IFSPHIEUGIAOHANG_SP_Order
@@ -145,6 +147,7 @@ BEGIN TRY
             SourceDocumentNo nvarchar(100) NULL,
             CreatedAtUtc datetime2(3) NOT NULL CONSTRAINT DF_FVN_LUU_Created DEFAULT (SYSUTCDATETIME()),
             CONSTRAINT PK_FVN_LUUPHIEUGIAOHANG PRIMARY KEY (DeliveryRowId),
+            CONSTRAINT FK_FVN_LUU_Site FOREIGN KEY (SiteCode) REFERENCES dbo.FVN_PCTPSite (SiteCode),
             CONSTRAINT UQ_FVN_LUU_SiteDelivery UNIQUE (SiteCode, DeliveryRowId),
             CONSTRAINT FK_FVN_LUU_IFSPart FOREIGN KEY (SiteCode, PartNo)
                 REFERENCES IFS.FVN_InventoryPart (SiteCode, PartNo),
