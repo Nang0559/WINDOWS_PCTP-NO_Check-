@@ -161,3 +161,8 @@ The `019` SlotLot save contract is deliberately projection-only. It does not cre
 - `022_PCTP_CustomerLotNormalizationAndQrWrite.sql`: customer-specific LOT normalization is configured per `(SiteCode, PartNo, CustomerCode)`; QR insert validates optional FCC/HVN part references against IFS.
 - No global customer trim rule is hard-coded. The legacy customer `0100002` trim-six behavior is an example only and must be seeded only for the source-confirmed part/customer combinations.
 - Updated ordered migration index to 000–022. Still no SQL Server execution or C# integration test.
+
+
+## 14. Inspection/tem reconciliation history 023 (2026-11-16)
+
+Added `023_PCTP_InspectionLog.sql`, based on the current `06_CREATE_InspectionLog.sql` candidate. The physical target is `dbo.FVN_InspectionLog`, with site-scoped optional IFS part and MES LOT links. The ordered migration index is now 000–023. SQL execution and application repository conversion remain pending.
