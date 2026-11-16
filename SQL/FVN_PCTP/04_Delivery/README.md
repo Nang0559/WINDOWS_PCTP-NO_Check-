@@ -1,3 +1,3 @@
 # Delivery
 
-Reserved for normalized customer orders, MP/SP source snapshots, delivery documents, QR/document bindings, pick details, posting and trace. `LegacyCandidates/` are historical patches that require caller and dependency review; `Diagnostics/` may contain data-changing repairs and must never run as install scripts.
+All physical delivery tables must use the `FVN_` prefix (for example `dbo.FVN_LUUPHIEUGIAOHANG`, `dbo.FVN_IFSPHIEUGIAOHANG`, `dbo.FVN_IFSPHIEUGIAOHANG_SP`, and the approved QR/pick-detail tables). Keep source/customer mode in columns or domain metadata; do not create unprefixed physical tables. Reserved for normalized customer orders, MP/SP source snapshots, delivery documents, QR/document bindings, pick details, posting and trace. `LegacyCandidates/` are historical patches that require caller and dependency review; `Diagnostics/` may contain data-changing repairs and must never run as install scripts.
