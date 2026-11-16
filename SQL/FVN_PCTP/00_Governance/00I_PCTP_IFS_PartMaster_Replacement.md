@@ -4,7 +4,7 @@
 **Branch:** `feature/mes-product-genealogy-timeline`  
 **Target:** `FVN_PCTP`, SQL Server 2016  
 **Source evidence:** user-provided `00H_Export_PCTP_RuntimeObjectDefinitions_result.csv` (170,812,932 bytes; eight concatenated result sets)  
-**Status:** approved architecture direction; detailed site mapping and final DDL remain gated
+**Status:** approved architecture direction; composite key `(SiteCode, PartNo)` implemented in migrations 014–020; live site/warehouse/location seed mapping remains a deployment gate
 
 ## 1. Owner clarification
 
@@ -145,3 +145,12 @@ The full definitions also reference Bravo objects that were not included in the 
 
 The 00H module-definition result returned 449 matching definitions: 378 stored procedures, 58 triggers, 11 scalar functions and 2 table-valued functions. No view definition row appeared in that result set. This does not prove that PCTP has no views; the previously inventoried view candidates still need exact source definitions and caller verification before being rewritten.
 
+
+
+## 7. Owner approval and implemented DDL (2026-11-16)
+
+The owner explicitly selected `(SiteCode, PartNo)` as the canonical part key. This removes the previous single-site-versus-multi-site design blocker: the schema is site-aware in either case. Migration 014 introduces `dbo.FVN_PCTPSite` as an explicit allow-list; do not auto-enable every IFS site. `dbo.FVN_Warehouse.SiteCode` is required, and every Slot has an explicit primary mapping to `MES.FVN_IfsInventoryLocation` through `dbo.FVN_SlotMesLocation`.
+
+Migrations 014–020 now create the PCTP extensions and business tables using the composite key for every known part reference. The IFS description/UOM/status remain sourced from `IFS.FVN_InventoryPart`; `dbo.FVN_PartIdentity`, `dbo.FVN_PartOperationalProfile`, `dbo.FVN_PartCustomerRule`, and `dbo.FVN_Gear` contain only PCTP-owned identity/rule data.
+
+Deployment still requires the actual SiteCode values and the mapping from each PCTP Warehouse/Rack/Slot to the correct MES location. The schema does not guess these values. The C# repositories also still need to pass SiteCode/PartNo; the existing source code is not yet compatible with the new required columns.
