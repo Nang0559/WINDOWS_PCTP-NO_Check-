@@ -101,3 +101,17 @@ A README was added to the old XuLyHangLoi SQL folder to mark it as historical
 source and direct future target SQL work to `SQL/FVN_PCTP`. No old SQL file was
 deleted or executed. This audit is documentation/static inspection only; no SQL
 Server execution or application build was performed.
+
+
+## 8. Approved PCTP workflow preservation and unified inventory ownership (2026-11-16)
+
+The project owner accepted ADR-001:
+- Preserve the current PCTP TP receipt, issue, FIFO, QR, delivery and abnormal-processing business contracts and operational behavior.
+- Standardize physical table names to `FVN_<BusinessName>`; do not use legacy table names in new code.
+- Use `MES.FVN_MaterialLot`, `MES.FVN_InventoryBalance`, and `MES.FVN_InventoryTransaction` as the single canonical LOT, stock-balance and movement ledger.
+- Keep PCTP business documents and workflow tables distinct; post exactly-once ledger movements when documents are confirmed.
+- Preserve source trace fields and use explicit SlotId-to-MES-location mapping.
+
+This is an accepted architecture decision, not evidence that the migrations or application code have already been converted. Column-level mapping, SQL migrations, C# caller conversion, data migration, SQL Server 2016 testing and cutover remain to be completed. No source database changes or SQL Server execution were performed by this documentation commit.
+
+See `ADR_001_PCTP_PreservingWorkflows_UnifiedInventoryLedger.md`.
