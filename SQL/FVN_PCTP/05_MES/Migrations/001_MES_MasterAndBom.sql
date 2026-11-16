@@ -4,7 +4,8 @@
 */
 SET NOCOUNT ON;
 SET XACT_ABORT ON;
-IF OBJECT_ID(N'MES.SchemaMigration',N'U') IS NULL THROW 51000,'Run migration 000 first.',1;
+IF OBJECT_ID(N'MES.SchemaMigration',N'U') IS NULL
+   AND OBJECT_ID(N'MES.SchemaMigration',N'SN') IS NULL THROW 51000,'Run migration 000 first.',1;
 IF EXISTS(SELECT 1 FROM MES.SchemaMigration WHERE MigrationVersion='001') RETURN;
 BEGIN TRANSACTION;
 
