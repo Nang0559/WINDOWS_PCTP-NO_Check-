@@ -22,8 +22,12 @@ Run one file at a time, in order:
 | 010 | 010_MES_SecurityRoles.sql | Least-privilege database roles and object grants |
 | 011 | 011_MES_BatchPostingProcedure.sql | Atomic TVP inventory movement batch (maximum 500 rows) |
 | 012 | 012_IFS_MasterDataSync.sql | IFS one-way Part Catalog, Inventory Part and BOM snapshots with staging/apply |
+| 013 | 013_FVN_TablePrefixStandardization.sql | Renames physical MES/IFS tables to FVN_* and creates legacy-name synonyms for compatibility |
 
-The applied versions are recorded in MES.SchemaMigration. Verify with:
+The applied versions are recorded in the physical table MES.FVN_SchemaMigration after migration 013. The legacy name MES.SchemaMigration remains a compatibility synonym. Verify with:
+SELECT MigrationVersion,MigrationName,AppliedAtUtc,AppliedBy FROM MES.FVN_SchemaMigration ORDER BY MigrationVersion;
+
+Before migration 013, the ledger is named MES.SchemaMigration. Run 013 only after 000–012 have completed successfully.
 SELECT MigrationVersion,MigrationName,AppliedAtUtc,AppliedBy FROM MES.SchemaMigration ORDER BY MigrationVersion;
 
 ## Architecture rules
@@ -35,7 +39,9 @@ SELECT MigrationVersion,MigrationName,AppliedAtUtc,AppliedBy FROM MES.SchemaMigr
 - MES.MaterialExecutionEvent records production execution and references the stock movement; it is not a second stock ledger.
 - MES.FinishedLotGenealogy must be linked from actual CONSUME events, never inferred from BOM quantities or planned quantities.
 - No price, cost, currency, valuation, GL/AP/AR or accounting posting columns are introduced.
-- The scripts create new objects only. They do not drop, rename or alter existing PCTP objects.
+- Migration 013 applies the FVN_ prefix to every physical table in schemas MES and IFS. It preserves the former two-part names as synonyms for SQL compatibility; all new physical PCTP tables in dbo or other domain schemas must be created as dbo.FVN_<Name> (or <Schema>.FVN_<Name>). Synonyms are compatibility aliases, not physical tables.
+- Direct bulk-load APIs such as SqlBulkCopy must target the physical FVN_ table name, not a compatibility synonym.
+- Migrations 000–012 create the initial unprefixed MES/IFS tables; migration 013 normalizes their physical names after those migrations have run.
 
 ## Important deployment limitation
 
