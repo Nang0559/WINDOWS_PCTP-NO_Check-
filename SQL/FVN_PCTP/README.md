@@ -30,8 +30,8 @@ with their original Git blobs; they were not silently rewritten or deleted.
 one-click installer.** No source SQL Server has been changed and no target SQL
 script has been executed by this repository operation.
 
-- The MES migrations `05_MES/Migrations/000..013` are an ordered schema
-  foundation. They have not been runtime-tested against the user's SQL Server.
+- The MES/PCTP migrations `05_MES/Migrations/000..020` are an ordered schema
+  foundation. Migrations 014–020 add the PCTP site-scoped schema and workflow tables. They have not been runtime-tested against the user's SQL Server.
 - Files in `LegacyCandidates`, `Diagnostics`, `IndexCandidates`,
   `SourceReview`, `SchemaEvidence` and `SchemaTooling` are not deployment steps.
 - `01_Baseline/Candidates/FVN_PCTP_RuntimeTables.sql` is not an approved
@@ -78,10 +78,7 @@ corrections, and the remaining blockers are recorded in
 contains a README pointing to that canonical audit.
 
 The six application-confirmed operational tables are documented in the audit.
-The final physical placement of `STOCKTP`, `SlotLot`, and `StockHistory`
-remains unresolved; do not create a second stock balance or movement ledger.
-Migration 013 only renames tables that already exist and does not create the
-missing PCTP delivery/warehouse/XuLyHangLoi base tables.
+The physical placement of `STOCKTP`, `SlotLot`, and `StockHistory` is now represented by PCTP extension/evidence tables linked to the MES ledger. Their retained quantity columns are not authoritative balances. Migrations 014–020 create the initial warehouse, delivery, QR, return and QT Chung schema. They do not yet port every legacy QR/LOT/stock procedure or perform source data migration.
 
 **Current instruction:** do not run the legacy XuLyHangLoi, Warehouse, or
 Delivery candidates against a clean `FVN_PCTP` database. First approve and
@@ -110,3 +107,10 @@ Run it only against `B7R2_FCC`, export every result set, and provide Results 1�
 ## IFS part master replaces Bravo B20Item
 
 PCTP's authoritative part master is now explicitly `IFS.FVN_InventoryPart`, keyed by `(SiteCode, PartNo)`. Do not recreate Bravo B20 master tables or maintain a duplicate part master. See `00_Governance/00I_PCTP_IFS_PartMaster_Replacement.md` for the uploaded B7R2 source-export analysis, field mapping, PCTP module dependencies and the SiteCode decision required before DDL.
+
+
+## PCTP schema build 014–020
+
+The owner approved the composite part identity `(SiteCode, PartNo)`. The ordered migrations now include the explicit `dbo.FVN_PCTPSite` allow-list, PCTP warehouse/rack/slot hierarchy, Slot-to-MES location map, IFS-backed part extensions, TP LOT/SlotLot/StockHistory, MP/SP order snapshots, delivery/QR/idempotency, internal transfer, return/QT Chung, FIFO configuration, queued delivery and special DB purchase-order snapshots.
+
+The current SQL package is still a **schema foundation**, not a cutover-ready application release. Before enabling runtime writes, the application repositories must pass SiteCode/PartNo and use the physical FVN_ tables. Remaining PCTP SQL modules (especially QR/LOT allocation and old STOCKTP/SlotLot procedures), source-to-target data migration, view/trigger conversion, permissions, and SQL Server 2016 execution/regression evidence remain open. Do not run against production or switch the app connection until those gates pass.
