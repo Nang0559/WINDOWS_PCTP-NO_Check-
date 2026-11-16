@@ -96,3 +96,12 @@ The approved architecture is now translated into a single object build register:
 It inventories the 61 SQL2-generated table definitions, maps physical target names to the FVN_ standard, separates shared B20* master dependencies from PCTP-owned tables, lists the PCTP-linked views/procedures/functions/trigger found in the static dependency evidence, and defines the ordered build phases and release gates.
 
 The register is an implementation contract, not a deployable SQL script. The complete module definitions, missing runtime-table DDL, shared master-data mapping and MES stock projection/posting contracts must be closed before the clean-install migrations are promoted.
+
+
+## Full PCTP SQL module source export
+
+The SQL2 module section in the checked-in metadata export contains truncated definitions, and the 00C module-reference CSV is empty. To collect the full definitions needed for safe rewriting, run the read-only script:
+
+`00_Governance/SourceExtractionTools/00H_Export_PCTP_RuntimeObjectDefinitions.sql`
+
+Run it only against `B7R2_FCC`, export every result set, and provide Result 4 (full view/procedure/function/trigger definitions), Result 5 (table-valued types) and Result 6 (trigger bodies). It does not modify source data or schema.
