@@ -210,3 +210,17 @@ A read-only export script has been added:
 `00_Governance/SourceExtractionTools/00H_Export_PCTP_RuntimeObjectDefinitions.sql`
 
 Run it only while connected to `B7R2_FCC`. It checks the database name and performs SELECT-only metadata extraction. Export all seven result sets, especially Result 5 (`FullSqlDefinition`), Result 6 (table-valued types) and Result 7 (trigger bodies). Export Results 1–4 as well for exact columns, indexes, foreign keys and CHECK constraints. Do not execute any generated DDL from the export. This is the missing source evidence required to rewrite the PCTP views and stored procedures safely.
+
+
+## 9. Owner correction — Bravo B20 master replacement
+
+The owner has explicitly clarified that PCTP must rebuild its former Bravo item-master linkage around IFS-synchronized InventoryPart, not recreate the Bravo B20 master tables. The detailed source-to-target and module review is recorded in `00I_PCTP_IFS_PartMaster_Replacement.md`.
+
+- Authoritative site-specific part source: `IFS.FVN_InventoryPart` (composite key `SiteCode, PartNo`).
+- Global catalog attributes where needed: `IFS.FVN_PartCatalog`.
+- MES projection: `MES.FVN_IfsInventoryPart`, not a second PCTP master.
+- Do not create `B20Item`, `B20Dept`, `B20Gear`, `B20ImageStore` or `B20ItemQuyCach` physical tables.
+- Preserve only PCTP-owned extensions proven necessary: legacy QR identity mapping, packaging/customer LOT rules, Model/production attributes and Gear lookup. Department data must come from the approved HRM/FVN source. B20ImageStore is excluded unless a current PCTP UI proves it is needed.
+- PCTP rows that currently carry only PartNo need a deterministic IFS SiteCode resolution before composite FKs can be created.
+
+The uploaded 00H export has been analyzed. It contains 449 full module definitions matching the extraction allowlist; 87 reference PCTP candidate objects, and 40 of those also reference B20 master tables. The large `trgupdatetblDoctem` definition is not portable and must be decomposed, not copied.
