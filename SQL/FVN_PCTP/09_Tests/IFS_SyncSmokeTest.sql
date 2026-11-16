@@ -63,12 +63,13 @@ SELECT
     a.SiteCode,
     a.BomTypeDb,
     COUNT(*) AlternativeCount,
-    SUM(CASE WHEN c.PartNo IS NULL THEN 1 ELSE 0 END) AlternativesWithoutComponents
+    SUM(CASE WHEN NOT EXISTS(
+        SELECT 1 FROM IFS.BomComponent c
+        WHERE c.SiteCode=a.SiteCode AND c.PartNo=a.PartNo
+          AND c.EngChgLevel=a.EngChgLevel AND c.BomTypeDb=a.BomTypeDb
+          AND c.AlternativeNo=a.AlternativeNo
+    ) THEN 1 ELSE 0 END) AlternativesWithoutComponents
 FROM IFS.BomAlternative a
-LEFT JOIN IFS.BomComponent c
-  ON c.SiteCode=a.SiteCode AND c.PartNo=a.PartNo
- AND c.EngChgLevel=a.EngChgLevel AND c.BomTypeDb=a.BomTypeDb
- AND c.AlternativeNo=a.AlternativeNo
 GROUP BY a.SiteCode,a.BomTypeDb
 ORDER BY a.SiteCode,a.BomTypeDb;
 

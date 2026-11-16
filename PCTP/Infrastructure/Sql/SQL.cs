@@ -450,7 +450,7 @@ namespace PCTP.ClassSQL
                 command.BindByName = true;
                 command.CommandTimeout = 1800;
                 connection.Open();
-                using (var reader = command.ExecuteReader(CommandBehavior.SequentialAccess))
+                using (var reader = command.ExecuteReader())
                     consume(reader);
             }
         }
