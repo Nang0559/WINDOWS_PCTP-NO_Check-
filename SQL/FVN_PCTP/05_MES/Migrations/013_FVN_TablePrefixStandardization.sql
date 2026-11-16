@@ -85,10 +85,10 @@ BEGIN TRY
     IF @ApplyProcedure IS NULL
         THROW 51307, 'IFS.usp_ApplySyncBatch is missing or its definition is not visible.', 1;
 
-    SET @ApplyProcedure = REPLACE(
-        @ApplyProcedure,
-        N'CREATE PROCEDURE IFS.usp_ApplySyncBatch',
-        N'ALTER PROCEDURE IFS.usp_ApplySyncBatch');
+    SET @ApplyProcedure = REPLACE(@ApplyProcedure, N'CREATE PROCEDURE', N'ALTER PROCEDURE');
+
+    IF CHARINDEX(N'CREATE PROCEDURE', @ApplyProcedure) > 0
+        THROW 51309, 'Could not convert IFS.usp_ApplySyncBatch to ALTER PROCEDURE.', 1;
 
     SET @ApplyProcedure = REPLACE(@ApplyProcedure, N'MERGE IFS.PartCatalog AS T', N'MERGE IFS.FVN_PartCatalog AS T');
     SET @ApplyProcedure = REPLACE(@ApplyProcedure, N'MERGE IFS.InventoryPart AS T', N'MERGE IFS.FVN_InventoryPart AS T');
