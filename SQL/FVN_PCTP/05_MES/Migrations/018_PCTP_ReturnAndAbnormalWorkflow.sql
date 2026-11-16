@@ -470,6 +470,7 @@ BEGIN TRY
             Note nvarchar(max) NULL,
             MaterialLotId bigint NULL,
             InventoryTransactionId bigint NULL,
+            OperationId uniqueidentifier NULL,
             CONSTRAINT PK_FVN_TraHangQTChungXuat PRIMARY KEY (Id),
             CONSTRAINT FK_FVN_TraHangQTChungXuat_Phieu FOREIGN KEY (SiteCode, PhieuXuLyBatThuongId)
                 REFERENCES dbo.FVN_PhieuXuLyBatThuong (SiteCode, Id),
@@ -485,6 +486,8 @@ BEGIN TRY
         );
         CREATE INDEX IX_FVN_TraHangQTChungXuat_Phieu_Ngay
             ON dbo.FVN_TraHangQTChungXuat (SiteCode, PhieuXuLyBatThuongId, NgayXuat, Id);
+        CREATE UNIQUE INDEX UX_FVN_TraHangQTChungXuat_OperationId
+            ON dbo.FVN_TraHangQTChungXuat (OperationId) WHERE OperationId IS NOT NULL;
     END;
 
     IF OBJECT_ID(N'dbo.FVN_TraHangQTChungGiao', N'U') IS NULL
