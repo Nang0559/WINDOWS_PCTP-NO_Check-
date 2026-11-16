@@ -104,4 +104,4 @@ The SQL2 module section in the checked-in metadata export contains truncated def
 
 `00_Governance/SourceExtractionTools/00H_Export_PCTP_RuntimeObjectDefinitions.sql`
 
-Run it only against `B7R2_FCC`, export every result set, and provide Result 4 (full view/procedure/function/trigger definitions), Result 5 (table-valued types) and Result 6 (trigger bodies). It does not modify source data or schema.
+Run it only against `B7R2_FCC`, export every result set, and provide Results 1–4 (table columns, indexes, foreign keys and CHECK constraints), Result 5 (full view/procedure/function/trigger definitions), Result 6 (table-valued types), Result 7 (trigger bodies) and Result 8 (synonyms). It does not modify source data or schema.
