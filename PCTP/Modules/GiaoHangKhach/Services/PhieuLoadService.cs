@@ -112,7 +112,13 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             if (isQrMachine && context.IsBanQR)
             {
                 int demQR = _phieuRepo.CountDocQRCode(docQRTable);
-                if (demQR > 0) return BuildTableResult(context, _workingState.LoadCurrentOrder(context), gioMoTa, false);
+                if (demQR > 0)
+                {
+                    DataTable dangDoc = _workingState.LoadCurrentOrder(context);
+                    // TMP không lưu HOP (tính lúc nạp đơn) → tính lại, KHÔNG đổi STT để còn khớp dòng trong TMP.
+                    if (_cfg.Delivery.CoGear) FillHopTuQuyCach(dangDoc);
+                    return BuildTableResult(context, dangDoc, gioMoTa, false);
+                }
             }
             OrderSourceResult sourceResult = _orderSourceFactory.GetSource(context).Load(context);
             DataTable donHang = sourceResult.Orders ?? new DataTable();
@@ -186,6 +192,27 @@ namespace PCTP.Modules.GiaoHangKhach.Services
                 System.Diagnostics.Debug.WriteLine($"[PhieuLoadService] Lỗi đồng bộ IFS snapshot: {ex.Message}");
                 context.IfsDataDaLoc = null;
                 context.IfsLoadError = "⚠ Không kết nối được IFS để so sánh lệch (dữ liệu đơn hàng chính vẫn hiển thị bình thường). Chi tiết: " + ex.Message;
+            }
+        }
+
+        // Chỉ tính cột HOP theo B20Item.MinCloseQty (cùng công thức EnrichSttHop), giữ nguyên STT của dòng.
+        private void FillHopTuQuyCach(DataTable donHang)
+        {
+            if (donHang == null || donHang.Rows.Count == 0 || !donHang.Columns.Contains("MAHANG") || !donHang.Columns.Contains("SOLUONG")) return;
+            if (!donHang.Columns.Contains("HOP")) donHang.Columns.Add("HOP", typeof(string));
+
+            var maHangList = donHang.AsEnumerable().Select(r => Convert.ToString(r["MAHANG"]).Trim()).Where(m => m.Length > 0).Distinct().ToList();
+            Dictionary<string, int> qcDict = _phieuRepo.GetQcDongGoiBatch(maHangList);
+
+            foreach (DataRow row in donHang.Rows)
+            {
+                int slGiao;
+                if (!int.TryParse(Convert.ToString(row["SOLUONG"]), out slGiao)) continue;
+                int qcDg;
+                if (!qcDict.TryGetValue(Convert.ToString(row["MAHANG"]).Trim(), out qcDg) || qcDg <= 0) continue;
+                int hop = slGiao / qcDg;
+                if (slGiao % qcDg > 0) hop++;
+                row["HOP"] = hop.ToString();
             }
         }
 
