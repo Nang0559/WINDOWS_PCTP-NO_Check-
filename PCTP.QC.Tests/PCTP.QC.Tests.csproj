@@ -58,7 +58,7 @@
     <None Include="../PCTP/Shell/Main_APP.cs" Link="Main_APP.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/KhoVatLy/MainStockModuleFactory.cs" Link="MainStockModuleFactory.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/XuLyHangLoi/Application/XuLyHangLoiModuleFactory.cs" Link="XuLyHangLoiModuleFactory.source.cs" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="../PCTP/Infrastructure/Stock/LegacyStockBalanceRepositoryAdapter.cs" Link="LegacyStockBalanceRepositoryAdapter.source.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../PCTP/Infrastructure/Stock/MesStockBalanceRepository.cs" Link="MesStockBalanceRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/GiaoHangKhach/Repositories/TableOrderRepo.cs" Link="TableOrderRepo.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Shared/Common/SqlRepositoryBase.cs" Link="SqlRepositoryBase.source.cs" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../PCTP/Modules/GiaoHangKhach/Repositories/PhieuLotRepository.cs" Link="PhieuLotRepository.source.cs" CopyToOutputDirectory="PreserveNewest" />

@@ -57,7 +57,7 @@ namespace PCTP.Modules.GiaoHangKhach.Services
             var historyRepo = new StockHistoryRepository(phieuDb, phieuUow);
             var hangChoGiaoRepo = new HangChoGiaoRepository(phieuDb, phieuUow);
             var phieugiaDBRepo = new PhieuGiaoDBRepository(phieuDb, phieuUow);
-            var stockBalanceRepo = new LegacyStockBalanceRepositoryAdapter(phieuDb, phieuUow);
+            var stockBalanceRepo = new MesStockBalanceRepository(phieuDb, phieuUow);
             var stockMovement = new StockMovementService(stockBalanceRepo, bulkStockSlotRepo);
 
             var phieuRepo = new PhieuRepository(

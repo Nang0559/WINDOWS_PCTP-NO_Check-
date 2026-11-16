@@ -17,7 +17,6 @@ using PCTP.Modules.KhoVatLy.Repositories;
 using PCTP.Modules.NhapKho.Application.Adapters;
 using PCTP.Modules.NhapKho.Repository;
 using PCTP.Modules.NhapKho.Services;
-using PCTP.Modules.XuatKho.Application.Adapters;
 using PCTP.Modules.XuatKho.Repositories;
 using PCTP.Modules.XuLyHangLoi.Repository;
 using PCTP.Shared.Common;
@@ -139,11 +138,11 @@ using System.Windows.Forms;
             // ShowForLot — thêm khởi tạo StockMovementService
             var slotRepository = new SlotRepository(sql, uow);
             var movementService = new StockMovementService(
-                new StockExportRepositoryAdapter(new StockExportRepository(sql, uow)),
+                new MesStockBalanceRepository(sql, uow),
                 new LegacyStockSlotRepositoryAdapter(
                     new SlotService(slotRepository),
                     new BulkStockSlotRepository(sql, uow)),
-                new StockReceivingRepositoryAdapter(stockTpRepo),
+                new StockReceivingRepository(sql, uow),
                 uow);
 
             // Xem tồn kho (lotFilter rỗng) dùng cùng nguồn sp_GetCurrentStockStatus với báo cáo "Kho hiện tại".

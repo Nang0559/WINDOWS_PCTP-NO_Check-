@@ -9,6 +9,15 @@ namespace PCTP.Modules.KhoCore.Application.Contracts.Stock
         public string Message { get; private set; }
         public IList<StockSlotLot> ConsumedLots { get; private set; }
 
+        /// <summary>MES InventoryTransactionId của phát sinh vừa ghi; caller phải lưu vào chứng từ/audit.</summary>
+        public long? InventoryTransactionId { get; private set; }
+
+        public StockMovementResult WithTransaction(long inventoryTransactionId)
+        {
+            InventoryTransactionId = inventoryTransactionId;
+            return this;
+        }
+
         private StockMovementResult(bool success, bool duplicate, string message)
         {
             Success = success;

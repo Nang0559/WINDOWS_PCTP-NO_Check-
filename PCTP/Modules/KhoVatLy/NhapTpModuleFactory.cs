@@ -13,7 +13,6 @@ using PCTP.Modules.KhoVatLy.Repositories;
 using PCTP.Modules.KhoVatLy.Repository;
 using PCTP.Modules.NhapKho.Repository;
 using PCTP.Modules.NhapKho.Services;
-using PCTP.Modules.XuatKho.Application.Adapters;
 using PCTP.Shared.Common;
 
 using System;
@@ -62,8 +61,7 @@ namespace PCTP.Modules.KhoVatLy
             IStockSlotRepository stockSlotRepository =
                 new BulkStockSlotRepository(dbExecutor, uow);
             IStockBalanceRepository stockBalanceRepository =
-                new StockExportRepositoryAdapter(
-                    new PCTP.Modules.XuatKho.Repositories.StockExportRepository(dbExecutor, uow));
+                new MesStockBalanceRepository(dbExecutor, uow);
             IStockReceivingRepository stockReceivingRepository =
                 new StockReceivingRepository(dbExecutor, uow);
 

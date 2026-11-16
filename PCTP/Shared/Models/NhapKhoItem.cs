@@ -5,6 +5,9 @@ namespace PCTP.Shared.Models
 {
     public class NhapKhoItem
     {
+        /// <summary>MES.FVN_MaterialLot.MaterialLotId của LOT; bắt buộc khi ghi FVN_STOCKTP.</summary>
+        public long? MaterialLotId { get; set; }
+
         public string Lot { get; set; }
         public string Find { get; set; }        // 20 ký tự LOT (khớp PhieuNhapInfo.Find)
         public string Part { get; set; }        // MaSP

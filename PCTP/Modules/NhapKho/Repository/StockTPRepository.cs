@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
 using System.Linq;
+using PCTP.Modules.KhoCore.Application.Contracts.Stock;
 
 // C# 7.3 legacy repository uses null to signal that a LOT was not found.
 #pragma warning disable CS8600, CS8603
@@ -17,20 +18,35 @@ namespace PCTP.Modules.NhapKho.Repository
 {
     public sealed class StockTpRepository : SqlRepositoryBase, IStockTpRepository
     {
-        private readonly string _tableName;
+        // Đọc qua dbo.vFVN_STOCKTP (SLCONLAI = tồn MES ledger, NAME/MODEL từ IFS); ghi vào dbo.FVN_STOCKTP.
+        // Fixture tích hợp có thể dùng #STOCKTP (phải có cột SiteCode) cho cả đọc lẫn ghi.
+        // Whitelist định danh vì tham số SQL không bind được tên bảng.
+        private readonly string _tableName;      // nguồn đọc
+        private readonly string _writeTable;     // đích ghi
+        private readonly ISiteContext _site;
 
-        // Production callers use STOCKTP. SQL integration tests may explicitly target
-        // a session-local #STOCKTP table so tests cannot mutate shared dbo business data.
-        // Deliberately whitelist identifiers; SQL parameters cannot bind table names.
-        public StockTpRepository(PhieuSqlExecutor db, IUnitOfWork uow, string tableName = "STOCKTP")
+        public StockTpRepository(PhieuSqlExecutor db, IUnitOfWork uow, string tableName = "STOCKTP", ISiteContext site = null)
             : base(db, uow)
         {
-            if (string.Equals(tableName, "STOCKTP", StringComparison.OrdinalIgnoreCase))
-                _tableName = "STOCKTP";
+            _site = site ?? AppSettingsSiteContext.Default;
+            if (string.Equals(tableName, "STOCKTP", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(tableName, "FVN_STOCKTP", StringComparison.OrdinalIgnoreCase))
+            {
+                _tableName = "dbo.vFVN_STOCKTP";
+                _writeTable = "dbo.FVN_STOCKTP";
+            }
             else if (string.Equals(tableName, "#STOCKTP", StringComparison.OrdinalIgnoreCase))
+            {
                 _tableName = "#STOCKTP";
+                _writeTable = "#STOCKTP";
+            }
             else
-                throw new ArgumentException("Table name must be STOCKTP or #STOCKTP.", nameof(tableName));
+                throw new ArgumentException("Table name must be STOCKTP, FVN_STOCKTP or #STOCKTP.", nameof(tableName));
+        }
+
+        private SqlParameter SiteParam()
+        {
+            return new SqlParameter("@site", SqlDbType.NVarChar, 30) { Value = _site.SiteCode };
         }
 
         public bool ExistsStockTp(string lot)
@@ -41,9 +57,9 @@ namespace PCTP.Modules.NhapKho.Repository
             string sql = $@"
         SELECT COUNT(1)
         FROM {_tableName}
-        WHERE LOT = @lot;";
+        WHERE SiteCode = @site AND LOT = @lot;";
 
-            object result = ExecuteScalar(sql, new SqlParameter("@lot", lot));
+            object result = ExecuteScalar(sql, SiteParam(), new SqlParameter("@lot", lot));
             int count = ToInt(result);
             if (count > 1)
                 throw new InvalidOperationException($"STOCKTP vi phạm khóa nghiệp vụ: LOT '{lot}' có {count} dòng.");
@@ -59,9 +75,9 @@ namespace PCTP.Modules.NhapKho.Repository
         SELECT LOT, PART, NAME, MODEL, SLNHAP, SLCONLAI, SLXUAT,
                SATUS, CASX, NGAYSX, NGAYNHAP
         FROM {_tableName}
-        WHERE LOT = @lot;";
+        WHERE SiteCode = @site AND LOT = @lot;";
 
-            DataTable dt = LoadData(sql, new SqlParameter("@lot", lot));
+            DataTable dt = LoadData(sql, SiteParam(), new SqlParameter("@lot", lot));
             if (dt == null || dt.Rows.Count == 0)
                 return null;
             if (dt.Rows.Count != 1)
@@ -78,9 +94,9 @@ namespace PCTP.Modules.NhapKho.Repository
             string sql = $@"
         SELECT ISNULL(SLCONLAI, 0)
         FROM {_tableName}
-        WHERE LOT = @lot;";
+        WHERE SiteCode = @site AND LOT = @lot;";
 
-            DataTable dt = LoadData(sql, new SqlParameter("@lot", lot));
+            DataTable dt = LoadData(sql, SiteParam(), new SqlParameter("@lot", lot));
             if (dt == null || dt.Rows.Count == 0) return 0;
             if (dt.Rows.Count != 1)
                 throw new InvalidOperationException($"STOCKTP vi phạm khóa nghiệp vụ: LOT '{lot}' có {dt.Rows.Count} dòng.");
@@ -95,9 +111,9 @@ namespace PCTP.Modules.NhapKho.Repository
             string sql = $@"
         SELECT ISNULL(SLNHAP, 0)
         FROM {_tableName}
-        WHERE LOT = @lot;";
+        WHERE SiteCode = @site AND LOT = @lot;";
 
-            DataTable dt = LoadData(sql, new SqlParameter("@lot", lot));
+            DataTable dt = LoadData(sql, SiteParam(), new SqlParameter("@lot", lot));
             if (dt == null || dt.Rows.Count == 0) return 0;
             if (dt.Rows.Count != 1)
                 throw new InvalidOperationException($"STOCKTP vi phạm khóa nghiệp vụ: LOT '{lot}' có {dt.Rows.Count} dòng.");
@@ -116,23 +132,29 @@ namespace PCTP.Modules.NhapKho.Repository
             if (ExistsStockTp(item.Lot))
                 throw new InvalidOperationException($"LOT '{item.Lot}' đã tồn tại trong STOCKTP; không được tạo dòng thứ hai.");
 
+            if (string.IsNullOrWhiteSpace(item.Part))
+                throw new ArgumentException("PartNo không được để trống.", nameof(item));
+            if (!item.MaterialLotId.HasValue || item.MaterialLotId.Value <= 0)
+                throw new ArgumentException("MaterialLotId (MES.FVN_MaterialLot) là bắt buộc để ghi FVN_STOCKTP.", nameof(item));
+
+            // NAME/MODEL do IFS/PartOperationalProfile cung cấp qua vFVN_STOCKTP; SLCONLAI là projection legacy
+            // và KHÔNG được tăng tại đây: tồn chỉ đổi khi ghi MES ledger (usp_FVN_PCTP_PostStockMovement).
             string sql = $@"
-        INSERT INTO {_tableName}
-        (LOT, MODEL, PART, NAME, CASX, NGAYSX, SLSX, NGAYNHAP, SLNHAP, NGAYXUAT, SLXUAT, SLCONLAI, SATUS)
+        INSERT INTO {_writeTable}
+        (SiteCode, LOT, PART, CASX, NGAYSX, SLSX, NGAYNHAP, SLNHAP, NGAYXUAT, SLXUAT, SLCONLAI, SATUS, MaterialLotId)
         VALUES
-        (@lot, @model, @part, @name, @casx, @ngaysx, @slsx, GETDATE(), @slnhap, GETDATE(), 0, @slconlai, @status);";
+        (@site, @lot, @part, @casx, @ngaysx, @slsx, GETDATE(), @slnhap, GETDATE(), 0, 0, @status, @materialLotId);";
 
             ExecuteNonQuery(sql,
+                SiteParam(),
                 new SqlParameter("@lot", item.Lot),
-                new SqlParameter("@model", (object)item.Model ?? DBNull.Value),
-                new SqlParameter("@part", (object)item.Part ?? DBNull.Value),
-                new SqlParameter("@name", (object)item.Name ?? DBNull.Value),
+                new SqlParameter("@part", item.Part.Trim()),
                 new SqlParameter("@casx", item.CaSX),
                 new SqlParameter("@ngaysx", (object)item.NgaySX ?? DBNull.Value),
                 new SqlParameter("@slsx", item.SlSanXuat),
                 new SqlParameter("@slnhap", item.SlNhap),
-                new SqlParameter("@slconlai", item.SlNhap),
-                new SqlParameter("@status", status));
+                new SqlParameter("@status", status),
+                new SqlParameter("@materialLotId", SqlDbType.BigInt) { Value = item.MaterialLotId.Value });
         }
 
         public void UpdateStockTp(string lot, int slSeNhap, int status)
@@ -143,14 +165,14 @@ namespace PCTP.Modules.NhapKho.Repository
                 throw new ArgumentOutOfRangeException(nameof(slSeNhap), "Số lượng nhập phải lớn hơn 0.");
 
             string sql = $@"
-        UPDATE {_tableName}
+        UPDATE {_writeTable}
         SET SLNHAP = ISNULL(SLNHAP, 0) + @sl,
-            SLCONLAI = ISNULL(SLCONLAI, 0) + @sl,
             NGAYNHAP = GETDATE(),
             SATUS = @status
-        WHERE LOT = @lot;";
+        WHERE SiteCode = @site AND LOT = @lot;";
 
             int affected = ExecuteNonQuery(sql,
+                SiteParam(),
                 new SqlParameter("@sl", slSeNhap),
                 new SqlParameter("@status", status),
                 new SqlParameter("@lot", lot));
@@ -164,10 +186,10 @@ namespace PCTP.Modules.NhapKho.Repository
             string sql = $@"
         SELECT LOT, ISNULL(SLCONLAI, 0) AS SLCONLAI
         FROM {_tableName}
-        WHERE ISNULL(SLCONLAI, 0) > 0
+        WHERE SiteCode = @site AND ISNULL(SLCONLAI, 0) > 0
         ORDER BY LOT;";
 
-            DataTable dt = LoadData(sql);
+            DataTable dt = LoadData(sql, SiteParam());
             var result = new List<(string Lot, int SlConLai)>();
             if (dt == null) return result;
 
@@ -206,8 +228,9 @@ namespace PCTP.Modules.NhapKho.Repository
             string sql = $@"
         SELECT LOT, ISNULL(SLCONLAI, 0) AS SLCONLAI
         FROM {_tableName}
-        WHERE LOT IN ({string.Join(", ", placeholders)});";
+        WHERE SiteCode = @site AND LOT IN ({string.Join(", ", placeholders)});";
 
+            parameters.Add(SiteParam());
             DataTable dt = LoadData(sql, parameters.ToArray());
             if (dt == null) return result;
 
@@ -285,9 +308,9 @@ SELECT LOT, PART, NAME, ISNULL(SLCONLAI,0) AS SLCONLAI,
        ISNULL(SLNHAP,0) AS SLNHAP, ISNULL(SLXUAT,0) AS SLXUAT,
        NGAYNHAP, SATUS
 FROM {_tableName}
-WHERE NULLIF(LTRIM(RTRIM(LOT)), '') IS NOT NULL
+WHERE SiteCode = @site AND NULLIF(LTRIM(RTRIM(LOT)), '') IS NOT NULL
 ORDER BY NGAYNHAP DESC, LOT;";
-            DataTable result = LoadData(sql);
+            DataTable result = LoadData(sql, SiteParam());
             EnsureUniqueLotRows(result, "GetAllLotsForAdjustment");
             return result;
         }
@@ -297,10 +320,10 @@ ORDER BY NGAYNHAP DESC, LOT;";
             string sql = $@"
 SELECT LTRIM(RTRIM(PART)) AS PART, MAX(LTRIM(RTRIM(NAME))) AS NAME
 FROM {_tableName}
-WHERE NULLIF(LTRIM(RTRIM(PART)), '') IS NOT NULL
+WHERE SiteCode = @site AND NULLIF(LTRIM(RTRIM(PART)), '') IS NOT NULL
 GROUP BY LTRIM(RTRIM(PART))
 ORDER BY LTRIM(RTRIM(PART));";
-            return LoadData(sql);
+            return LoadData(sql, SiteParam());
         }
 
         public DataTable GetTonKhoHienTai()
@@ -309,9 +332,9 @@ ORDER BY LTRIM(RTRIM(PART));";
 SELECT LOT, PART, NAME, CASX, NGAYSX, SLSX, NGAYNHAP, SLNHAP,
        NGAYXUAT, SLXUAT, SLCONLAI, SATUS AS Satus
 FROM {_tableName}
-WHERE ISNULL(SLCONLAI,0) > 0
+WHERE SiteCode = @site AND ISNULL(SLCONLAI,0) > 0
 ORDER BY NGAYNHAP DESC;";
-            DataTable result = LoadData(sql);
+            DataTable result = LoadData(sql, SiteParam());
             EnsureUniqueLotRows(result, "GetTonKhoHienTai");
             return result;
         }
@@ -352,9 +375,9 @@ ORDER BY NGAYNHAP DESC;";
 SELECT LOT, PART, NAME, CASX, NGAYSX, SLSX, NGAYNHAP, SLNHAP,
        NGAYXUAT, SLXUAT, SLCONLAI, SATUS AS Satus
 FROM {_tableName}
-WHERE PART LIKE @prefix OR LOT LIKE @prefix
+WHERE SiteCode = @site AND (PART LIKE @prefix OR LOT LIKE @prefix)
 ORDER BY NGAYNHAP DESC;";
-            DataTable result = LoadData(sql, new SqlParameter("@prefix", prefix));
+            DataTable result = LoadData(sql, SiteParam(), new SqlParameter("@prefix", prefix));
             EnsureUniqueLotRows(result, "SearchStock");
             return result;
         }
@@ -444,8 +467,9 @@ ORDER BY NGAYNHAP DESC;";
             SELECT LOT, PART, NAME, CASX, NGAYSX, SLSX, NGAYNHAP, SLNHAP,
                    NGAYXUAT, SLXUAT, SLCONLAI, SATUS AS Satus
             FROM {_tableName}
-            WHERE {string.Join(" OR ", conditions)}
+            WHERE SiteCode = @site AND ({string.Join(" OR ", conditions)})
             ORDER BY NGAYNHAP DESC;";
+            parameters.Add(SiteParam());
             DataTable result = LoadData(sql, parameters.ToArray());
             EnsureUniqueLotRows(result, "GetTonKhoTheoLot");
             return result;

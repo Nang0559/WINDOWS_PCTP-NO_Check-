@@ -301,8 +301,8 @@
     <Compile Include="ALLVAR.cs" />
     <Compile Include="Domain\Events\FifoReleaseConfirmationRequestedEvent.cs" />
     <Compile Include="Domain\Events\HoanThanhYMVNCompletedEvent.cs" />
-    <Compile Include="Infrastructure\Stock\LegacyStockBalanceRepositoryAdapter.cs" />
     <Compile Include="Infrastructure\Stock\LegacyStockSlotRepositoryAdapter.cs" />
+    <Compile Include="Infrastructure\Stock\MesStockBalanceRepository.cs" />
     <Compile Include="Infrastructure\Stock\StockReceivingRepository.cs" />
     <Compile Include="Modules\BaoCao\Application\Contracts\HistorySearchCriteria.cs" />
     <Compile Include="Modules\BaoCao\Application\Contracts\Models\HangChoGiaoRow.cs" />
@@ -444,6 +444,7 @@
     <Compile Include="Modules\KhoCore\Application\Contracts\Stock\IStockSlotRepository.cs" />
     <Compile Include="Modules\KhoCore\Application\Contracts\Stock\StockMovementRequest.cs" />
     <Compile Include="Modules\KhoCore\Application\Contracts\Stock\StockMovementResult.cs" />
+    <Compile Include="Modules\KhoCore\Application\Contracts\Stock\StockLotKey.cs" />
     <Compile Include="Modules\KhoCore\Application\Contracts\Stock\StockSlotLot.cs" />
     <Compile Include="Modules\KhoCore\Application\Contracts\Stock\StockSlotTakeResult.cs" />
     <Compile Include="Modules\KhoCore\Application\Contracts\Tracking\IPhieuTrackingReadRepository.cs" />
@@ -488,7 +489,6 @@
     <Compile Include="Modules\KhoVatLy\NhapTpModuleFactory.cs" />
     <Compile Include="Modules\KhoCore\Repositories\BulkStockSlotRepository.cs" />
     <Compile Include="Modules\KhoCore\Repositories\IBulkStockSlotRepository.cs" />
-    <Compile Include="Modules\NhapKho\Application\Adapters\StockReceivingRepositoryAdapter.cs" />
     <Compile Include="Modules\NhapKho\Application\Adapters\StockSlotRepositoryAdapter.cs" />
     <Compile Include="Modules\NhapKho\Interfaces\IWarehouseDashboardService.cs" />
     <Compile Include="Modules\NhapKho\Models\StockImportPurpose.cs" />
@@ -581,7 +581,6 @@
     <Compile Include="Modules\NhapKho\Services\IStockTpLookupService.cs" />
     <Compile Include="Modules\NhapKho\Services\StockTpLookupService.cs" />
     <Compile Include="Modules\NhapKho\Services\WarehouseDashboardService.cs" />
-    <Compile Include="Modules\XuatKho\Application\Adapters\StockExportRepositoryAdapter.cs" />
     <Compile Include="Modules\XuatKho\Interfaces\IHangChoGiaoRepository.cs" />
     <Compile Include="Modules\XuatKho\Interfaces\IStockExportHistoryRepository.cs" />
     <Compile Include="Modules\XuatKho\Interfaces\IStockExportRepository.cs" />
@@ -603,7 +602,6 @@
     <Compile Include="Modules\XuatKho\Repositories\StockExportRepository.cs" />
     <Compile Include="Modules\XuatKho\Services\StockExportValidationService.cs" />
     <Compile Include="Modules\XuatKho\Services\StockExportService.cs" />
-    <Compile Include="Modules\XuLyHangLoi\Application\Adapters\ReworkStockBalanceAdapter.cs" />
     <Compile Include="Modules\XuLyHangLoi\Application\Adapters\ReworkStockSlotAdapter.cs" />
     <Compile Include="Modules\XuLyHangLoi\Application\XuLyHangLoiModuleFactory.cs" />
     <Compile Include="Modules\XuLyHangLoi\Enums\HuongXuLyBatThuong.cs" />
@@ -705,6 +703,7 @@
     <Compile Include="Shared\Common\LotCodeHelper.cs" />
     <Compile Include="Shared\Common\PhieuValueObject.cs" />
     <Compile Include="Shared\Common\SqlRepositoryBase.cs" />
+    <Compile Include="Shared\Common\ISiteContext.cs" />
     <Compile Include="Shared\Common\SqlConnectionRetryPolicy.cs" />
     <Compile Include="Shared\Common\TemFccParseResult.cs" />
     <Compile Include="Shared\Common\UnitOfWork.cs" />

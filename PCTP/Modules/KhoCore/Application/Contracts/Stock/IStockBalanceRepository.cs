@@ -1,17 +1,28 @@
 namespace PCTP.Modules.KhoCore.Application.Contracts.Stock
 {
     /// <summary>
-    /// Minimal stock-balance port used by the central stock-movement application layer.
-    /// Implementations may temporarily delegate to legacy storage during migration.
+    /// Cổng tồn kho trên MES ledger (MES.FVN_InventoryBalance / FVN_InventoryTransaction).
+    /// Không có API "cộng/trừ SLCONLAI": mọi thay đổi tồn phải là một <see cref="StockLedgerEntry"/>
+    /// đi qua dbo.usp_FVN_PCTP_PostStockMovement. Implementation tham gia UnitOfWork của caller.
     /// </summary>
     public interface IStockBalanceRepository
     {
-        int GetAvailableQuantity(string lotNo);
+        /// <summary>SiteCode đang dùng cho mọi thao tác của repository này.</summary>
+        string SiteCode { get; }
 
-        void DecreaseAvailableQuantity(string lotNo, int quantity);
+        /// <summary>
+        /// Tìm MaterialLotId theo (SiteCode, itemCode, lotNo). createIfMissing=true tạo LOT FG mới
+        /// (chỉ dùng ở nhập kho / điều chỉnh tăng). Trả null nếu không có và không được tạo.
+        /// </summary>
+        StockLotKey ResolveLot(string itemCode, string lotNo, bool createIfMissing);
 
-        void AdjustAvailableQuantity(string lotNo, int delta);
+        /// <summary>Tồn AVAILABLE (OnHand - Reserved) của LOT trên toàn site.</summary>
+        decimal GetAvailableQuantity(StockLotKey lot);
 
-        bool TryDecreaseAvailableQuantity(string lotNo, int quantity);
+        /// <summary>Tồn AVAILABLE của LOT tại location MES chính của Slot.</summary>
+        decimal GetAvailableQuantity(StockLotKey lot, int slotId);
+
+        /// <summary>Ghi một phát sinh vào ledger, trả InventoryTransactionId.</summary>
+        long Post(StockLedgerEntry entry);
     }
 }

@@ -180,12 +180,9 @@ public sealed class AtomicityFindingsSourceContractTests
         Assert.Contains("rows != 1", Method(export, "public void DecreaseStockTp("), StringComparison.Ordinal);
         Assert.Contains("rows != 1", Method(export, "public void AdjustSlConLai("), StringComparison.Ordinal);
         Assert.Contains("rows > 1", Method(export, "public bool TryDecreaseSlConLai("), StringComparison.Ordinal);
-        var balance = ReadSource("LegacyStockBalanceRepositoryAdapter.source.cs");
-        var getBalance = Method(balance, "public int GetAvailableQuantity(");
-        Assert.Contains("rows.Rows.Count != 1", getBalance, StringComparison.Ordinal);
-        Assert.DoesNotContain("SUM(SLCONLAI)", getBalance, StringComparison.Ordinal);
-        Assert.Contains("affected > 1", Method(balance, "public bool TryDecreaseAvailableQuantity("), StringComparison.Ordinal);
-        Assert.Contains("affected != 1", Method(balance, "public void AdjustAvailableQuantity("), StringComparison.Ordinal);
+        var balance = ReadSource("MesStockBalanceRepository.source.cs");
+        Assert.Contains("usp_FVN_PCTP_PostStockMovement", Method(balance, "public long Post("), StringComparison.Ordinal);
+        Assert.DoesNotContain("UPDATE", Method(balance, "public long Post("), StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

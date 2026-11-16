@@ -134,16 +134,25 @@ public sealed class QuarantineReleaseServiceTests
 
     private sealed class FakeBalance : IStockBalanceRepository
     {
+        public string SiteCode => "TEST";
         public bool Throw { get; set; }
         public int AdjustCount { get; private set; }
-        public int GetAvailableQuantity(string lotNo) => 0;
-        public void DecreaseAvailableQuantity(string lotNo, int quantity) { }
-        public void AdjustAvailableQuantity(string lotNo, int delta)
+        public int ResolveCalls { get; private set; }
+        public System.Collections.Generic.List<StockLedgerEntry> Posted { get; } = new System.Collections.Generic.List<StockLedgerEntry>();
+        public StockLotKey ResolveLot(string itemCode, string lotNo, bool createIfMissing)
+        {
+            ResolveCalls++;
+            return new StockLotKey(SiteCode, itemCode, lotNo, 1);
+        }
+        public decimal GetAvailableQuantity(StockLotKey lot) => decimal.MaxValue;
+        public decimal GetAvailableQuantity(StockLotKey lot, int slotId) => decimal.MaxValue;
+        public long Post(StockLedgerEntry entry)
         {
             if (Throw) throw new InvalidOperationException("Injected balance failure");
-            AdjustCount++;
+            if (entry.MovementType == "RELEASE") AdjustCount++;
+            Posted.Add(entry);
+            return Posted.Count;
         }
-        public bool TryDecreaseAvailableQuantity(string lotNo, int quantity) => true;
     }
 
     private sealed class FakeSlots : IStockSlotRepository

@@ -359,16 +359,28 @@ public sealed class StockMovementServiceTests
 
     private sealed class FakeBalance : IStockBalanceRepository
     {
+        public string SiteCode => "TEST";
         public bool AllowDecrease { get; set; } = true;
-        public int AdjustCalls { get; private set; }
-        public int TryDecreaseCalls { get; private set; }
-        public int GetAvailableQuantity(string lotNo) => 0;
-        public void DecreaseAvailableQuantity(string lotNo, int quantity) { }
-        public void AdjustAvailableQuantity(string lotNo, int delta) => AdjustCalls++;
-        public bool TryDecreaseAvailableQuantity(string lotNo, int quantity)
+        public int ResolveCalls { get; private set; }
+        // Ledger-era equivalents of the old counters: positive postings vs. ISSUE/SCRAP postings.
+        public int AdjustCalls => System.Linq.Enumerable.Count(Posted,
+            e => e.MovementType == "PROD_RECEIPT" || e.MovementType == "RETURN" || e.MovementType == "ADJUST_IN" || e.MovementType == "ADJUST_OUT");
+        public int TryDecreaseCalls => System.Linq.Enumerable.Count(Posted,
+            e => e.MovementType == "ISSUE" || e.MovementType == "SCRAP");
+        public System.Collections.Generic.List<StockLedgerEntry> Posted { get; } = new System.Collections.Generic.List<StockLedgerEntry>();
+        public StockLotKey ResolveLot(string itemCode, string lotNo, bool createIfMissing)
         {
-            TryDecreaseCalls++;
-            return AllowDecrease;
+            ResolveCalls++;
+            return new StockLotKey(SiteCode, itemCode, lotNo, 1);
+        }
+        public decimal GetAvailableQuantity(StockLotKey lot) => decimal.MaxValue;
+        public decimal GetAvailableQuantity(StockLotKey lot, int slotId) => decimal.MaxValue;
+        public long Post(StockLedgerEntry entry)
+        {
+            if (!AllowDecrease && (entry.MovementType == "ISSUE" || entry.MovementType == "SCRAP"))
+                throw new InvalidOperationException("Injected insufficient MES balance");
+            Posted.Add(entry);
+            return Posted.Count;
         }
     }
 

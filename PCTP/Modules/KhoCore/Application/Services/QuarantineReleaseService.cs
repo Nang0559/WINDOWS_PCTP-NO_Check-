@@ -94,7 +94,25 @@ namespace PCTP.Modules.KhoCore.Application.Services
                     ImportDate = details.ImportDate,
                     PhieuStatus = ActiveStatus
                 });
-                _balance.AdjustAvailableQuantity(details.LotNo, details.Quantity);
+                // MES ledger: RELEASE chuyển StockState QUARANTINE -> AVAILABLE tại cùng Slot (không còn cộng SLCONLAI).
+                StockLotKey releaseKey = _balance.ResolveLot(details.ItemCode, details.LotNo, false);
+                if (releaseKey == null)
+                    throw new InvalidOperationException("LOT cách ly [" + details.LotNo + "] chưa có trong MES.FVN_MaterialLot.");
+                _balance.Post(new StockLedgerEntry
+                {
+                    MovementType = "RELEASE",
+                    Lot = releaseKey,
+                    Quantity = details.Quantity,
+                    FromSlotId = slotId.Value,
+                    ToSlotId = slotId.Value,
+                    FromStockState = "QUARANTINE",
+                    ToStockState = "AVAILABLE",
+                    ReferenceType = "QC_RELEASE",
+                    ReferenceNo = request.ReferenceId,
+                    IdempotencyKey = "PCTP|" + releaseKey.SiteCode + "|QC_RELEASE|" + request.SlotLotId + "|" +
+                        (string.IsNullOrWhiteSpace(request.ReferenceId) ? Guid.NewGuid().ToString("N") : request.ReferenceId.Trim()),
+                    ActorCode = request.PerformedBy.Trim()
+                });
                 _audit.RecordRelease(
                     request.SlotLotId,
                     slotId.Value,

@@ -137,6 +137,27 @@ namespace PCTP.Modules.KhoCore.Application.Services
                 if (string.IsNullOrWhiteSpace(lotNo))
                     lotNo = sourceLotNo;
 
+                // MES ledger là nguồn tồn: MOVE (SiteCode, PartNo, MaterialLotId) từ Slot nguồn sang Slot đích.
+                var moveKey = _balance.ResolveLot(itemCode, sourceLotNo, false);
+                if (moveKey == null)
+                    return StockMovementResult.Fail($"LOT [{sourceLotNo}] của mã [{itemCode}] chưa có trong MES.FVN_MaterialLot tại site {_balance.SiteCode}.");
+                int? moveFromSlot = _slots.GetSlotId(request.SlotLotId.Value);
+                if (!moveFromSlot.HasValue || moveFromSlot.Value <= 0)
+                    return StockMovementResult.Fail("Không xác định được Slot nguồn của SlotLot.");
+                long moveTxn = _balance.Post(new StockLedgerEntry
+                {
+                    MovementType = "MOVE",
+                    Lot = moveKey,
+                    Quantity = request.Quantity,
+                    FromSlotId = moveFromSlot,
+                    ToSlotId = request.TargetSlotId,
+                    ReferenceType = LedgerReferenceType(request, "MOVE"),
+                    ReferenceNo = request.ReferenceId,
+                    IdempotencyKey = LedgerIdempotencyKey(request, "MOVE", moveKey, moveFromSlot, request.TargetSlotId),
+                    ActorCode = LedgerActor(request),
+                    OccurredAtUtc = ToUtc(request.OccurredAt)
+                });
+
                 _slots.DecreaseLotQuantity(request.SlotLotId.Value, request.Quantity);
 
                 if (!string.IsNullOrWhiteSpace(lotNo))
@@ -158,7 +179,7 @@ namespace PCTP.Modules.KhoCore.Application.Services
                     _slots.AddQuantity(request.TargetSlotId.Value, request.Quantity, itemCode);
                 }
 
-                return StockMovementResult.Ok("Đã di chuyển tồn kho.");
+                return StockMovementResult.Ok("Đã di chuyển tồn kho.").WithTransaction(moveTxn);
             }
             catch (Exception ex)
             {
@@ -214,9 +235,25 @@ namespace PCTP.Modules.KhoCore.Application.Services
                     _slots.TakeLot(request.SlotId.Value, request.LotNo, request.ItemCode, Math.Abs(request.Quantity));
                 }
 
-                _balance.AdjustAvailableQuantity(request.LotNo, request.Quantity);
+                StockLotKey adjustKey = _balance.ResolveLot(request.ItemCode, request.LotNo, request.Quantity > 0);
+                if (adjustKey == null)
+                    throw new InvalidOperationException($"LOT [{request.LotNo}] chưa có trong MES.FVN_MaterialLot; không thể điều chỉnh giảm.");
+                bool adjustIn = request.Quantity > 0;
+                long adjustTxn = _balance.Post(new StockLedgerEntry
+                {
+                    MovementType = adjustIn ? "ADJUST_IN" : "ADJUST_OUT",
+                    Lot = adjustKey,
+                    Quantity = Math.Abs(request.Quantity),
+                    FromSlotId = adjustIn ? (int?)null : request.SlotId,
+                    ToSlotId = adjustIn ? request.SlotId : (int?)null,
+                    ReferenceType = LedgerReferenceType(request, "ADJUST"),
+                    ReferenceNo = request.ReferenceId,
+                    IdempotencyKey = LedgerIdempotencyKey(request, adjustIn ? "ADJUST_IN" : "ADJUST_OUT", adjustKey, request.SlotId, request.SlotId),
+                    ActorCode = LedgerActor(request),
+                    OccurredAtUtc = ToUtc(request.OccurredAt)
+                });
                 _uow.Commit();
-                return StockMovementResult.Ok("Đã điều chỉnh đồng bộ STOCKTP và SlotLot trong cùng transaction.");
+                return StockMovementResult.Ok("Đã điều chỉnh MES ledger và SlotLot trong cùng transaction.").WithTransaction(adjustTxn);
             }
             catch (Exception ex)
             {
@@ -278,6 +315,11 @@ namespace PCTP.Modules.KhoCore.Application.Services
                     StockMovementRequest.Types.Receive,
                     StringComparison.OrdinalIgnoreCase);
 
+                // Mọi lệnh nhập đều cần (SiteCode, PartNo, MaterialLotId): không còn nhập "chỉ có LotNo".
+                if (string.IsNullOrWhiteSpace(request.LotNo))
+                    return StockMovementResult.Fail("LotNo không được rỗng; MES ledger yêu cầu MaterialLotId.");
+                StockLotKey receiveKey = _balance.ResolveLot(request.ItemCode, request.LotNo, true);
+
                 if (isNormalReceive && _receiving != null)
                 {
                     if (string.IsNullOrWhiteSpace(request.LotNo))
@@ -297,7 +339,8 @@ namespace PCTP.Modules.KhoCore.Application.Services
                             ProductionDate = request.ProductionDate,
                             ProductionQuantity = request.ProductionQuantity,
                             ReceivedQuantity = request.Quantity,
-                            Status = status
+                            Status = status,
+                            MaterialLotId = receiveKey.MaterialLotId
                         });
                 }
 
@@ -326,15 +369,24 @@ namespace PCTP.Modules.KhoCore.Application.Services
                     _slots.AddQuantity(request.TargetSlotId.Value, request.Quantity, request.ItemCode);
                 }
 
-                if (adjustAvailable &&
-                    !isQuarantineReceive &&
-                    !(isNormalReceive && _receiving != null) &&
-                    !string.IsNullOrWhiteSpace(request.LotNo))
+                // Nhập thành phẩm từ sản xuất = PROD_RECEIPT; hàng quay lại từ rework/huỷ pick = RETURN.
+                // NG cách ly vào cùng ledger nhưng ở StockState QUARANTINE (không tính tồn AVAILABLE).
+                string receiveMovement = isNormalReceive ? "PROD_RECEIPT" : "RETURN";
+                long receiveTxn = _balance.Post(new StockLedgerEntry
                 {
-                    _balance.AdjustAvailableQuantity(request.LotNo, request.Quantity);
-                }
+                    MovementType = receiveMovement,
+                    Lot = receiveKey,
+                    Quantity = request.Quantity,
+                    ToSlotId = request.TargetSlotId,
+                    ToStockState = isQuarantineReceive ? "QUARANTINE" : "AVAILABLE",
+                    ReferenceType = LedgerReferenceType(request, receiveMovement),
+                    ReferenceNo = request.ReferenceId,
+                    IdempotencyKey = LedgerIdempotencyKey(request, receiveMovement, receiveKey, null, request.TargetSlotId),
+                    ActorCode = LedgerActor(request),
+                    OccurredAtUtc = ToUtc(request.OccurredAt)
+                });
 
-                return StockMovementResult.Ok("Đã nhập tồn kho.");
+                return StockMovementResult.Ok("Đã nhập tồn kho.").WithTransaction(receiveTxn);
             }
             catch (Exception ex)
             {
@@ -358,14 +410,24 @@ namespace PCTP.Modules.KhoCore.Application.Services
                     if (!adjustAvailable)
                         return StockMovementResult.Fail("Pick cần SlotLotId hoặc SlotId + LotNo.");
 
+                    // MES ledger phát sinh ISSUE theo Slot: caller (hàng chờ giao) phải mang SlotId nơi hàng nằm.
+                    if (!request.SlotId.HasValue || request.SlotId.Value <= 0)
+                        return StockMovementResult.Fail("Xuất kho theo MES ledger cần SlotId (hoặc SlotLotId); không còn trừ tồn chỉ theo LOT.");
+                    if (string.IsNullOrWhiteSpace(request.ItemCode))
+                        return StockMovementResult.Fail("ItemCode (PartNo) không được rỗng khi xuất kho.");
+
                     if (!TryClaimRequest(request, false))
                         return StockMovementResult.AlreadyProcessed("Mã tham chiếu xuất kho đã được xử lý trước đó.");
 
-                    if (!_balance.TryDecreaseAvailableQuantity(request.LotNo, request.Quantity))
+                    StockLotKey issueKeyNoLot = _balance.ResolveLot(request.ItemCode, request.LotNo, false);
+                    if (issueKeyNoLot == null)
+                        return StockMovementResult.Fail(string.Format("LOT [{0}] chưa có trong MES.FVN_MaterialLot.", request.LotNo));
+                    if (_balance.GetAvailableQuantity(issueKeyNoLot, request.SlotId.Value) < request.Quantity)
                         return StockMovementResult.Fail(
-                            string.Format("STOCKTP LOT [{0}] không đủ hoặc đã thay đổi.", request.LotNo));
+                            string.Format("MES ledger LOT [{0}] tại Slot {1} không đủ {2}.", request.LotNo, request.SlotId.Value, request.Quantity));
 
-                    return StockMovementResult.Ok("Đã xuất tồn STOCKTP.");
+                    long issueTxnNoLot = _balance.Post(BuildIssueEntry(request, issueKeyNoLot, request.SlotId.Value, false));
+                    return StockMovementResult.Ok("Đã xuất tồn trên MES ledger.").WithTransaction(issueTxnNoLot);
                 }
 
                 if (request.SlotLotId.Value <= 0)
@@ -396,19 +458,81 @@ namespace PCTP.Modules.KhoCore.Application.Services
                 if (!TryClaimRequest(request, false))
                     return StockMovementResult.AlreadyProcessed("Mã tham chiếu xuất/pick kho đã được xử lý trước đó.");
 
-                // Hàng NG cách ly không nằm trong STOCKTP nên không trừ tồn khả dụng.
-                if (adjustAvailable && sourceStatus == 0 &&
-                    !_balance.TryDecreaseAvailableQuantity(request.LotNo, request.Quantity))
-                    return StockMovementResult.Fail(
-                        string.Format("STOCKTP LOT [{0}] không đủ hoặc đã thay đổi.", request.LotNo));
+                long? removeTxn = null;
+                if (adjustAvailable)
+                {
+                    int? sourceSlot = _slots.GetSlotId(request.SlotLotId.Value);
+                    if (!sourceSlot.HasValue || sourceSlot.Value <= 0)
+                        return StockMovementResult.Fail("Không xác định được Slot của SlotLot nguồn.");
+                    string ledgerItem = string.IsNullOrWhiteSpace(request.ItemCode) ? sourceItemCode : request.ItemCode;
+                    StockLotKey issueKey = _balance.ResolveLot(ledgerItem, sourceLotNo, false);
+                    if (issueKey == null)
+                        return StockMovementResult.Fail(string.Format("LOT [{0}] chưa có trong MES.FVN_MaterialLot.", sourceLotNo));
+                    // Hàng NG cách ly nằm trong ledger ở StockState QUARANTINE; chỉ SCRAP được lấy ra.
+                    bool fromQuarantine = sourceStatus == 3;
+                    removeTxn = _balance.Post(BuildIssueEntry(request, issueKey, sourceSlot.Value, fromQuarantine));
+                }
 
                 _slots.DecreaseLotQuantity(request.SlotLotId.Value, request.Quantity);
-                return StockMovementResult.Ok("Đã xuất tồn kho.");
+                var removed = StockMovementResult.Ok("Đã xuất tồn kho.");
+                return removeTxn.HasValue ? removed.WithTransaction(removeTxn.Value) : removed;
             }
             catch (Exception ex)
             {
                 return StockMovementResult.Fail("Lỗi xuất tồn kho: " + ex.Message);
             }
+        }
+
+        private StockLedgerEntry BuildIssueEntry(StockMovementRequest request, StockLotKey key, int fromSlotId, bool fromQuarantine)
+        {
+            bool scrap = string.Equals(request.MovementType, "SCRAP", StringComparison.OrdinalIgnoreCase);
+            string movement = scrap ? "SCRAP" : "ISSUE";
+            return new StockLedgerEntry
+            {
+                MovementType = movement,
+                Lot = key,
+                Quantity = request.Quantity,
+                FromSlotId = fromSlotId,
+                FromStockState = fromQuarantine ? "QUARANTINE" : "AVAILABLE",
+                ReferenceType = LedgerReferenceType(request, movement),
+                ReferenceNo = request.ReferenceId,
+                IdempotencyKey = LedgerIdempotencyKey(request, movement, key, fromSlotId, null),
+                ActorCode = LedgerActor(request),
+                OccurredAtUtc = ToUtc(request.OccurredAt)
+            };
+        }
+
+        private static string LedgerReferenceType(StockMovementRequest request, string fallback)
+        {
+            string value = string.IsNullOrWhiteSpace(request.ReferenceType) ? "PCTP_" + fallback : request.ReferenceType.Trim();
+            return value.Length > 30 ? value.Substring(0, 30) : value;
+        }
+
+        private static string LedgerActor(StockMovementRequest request)
+        {
+            return string.IsNullOrWhiteSpace(request.PerformedBy) ? Environment.UserName : request.PerformedBy.Trim();
+        }
+
+        private static DateTime? ToUtc(DateTime? local)
+        {
+            return local.HasValue ? local.Value.ToUniversalTime() : (DateTime?)null;
+        }
+
+        /// <summary>
+        /// Khoá idempotency của ledger. Có ReferenceId nghiệp vụ → khoá ổn định (retry an toàn, không ghi đôi).
+        /// Không có ReferenceId → Guid mới: KHÔNG chống trùng được, caller nên luôn truyền ReferenceId.
+        /// </summary>
+        private static string LedgerIdempotencyKey(
+            StockMovementRequest request, string movement, StockLotKey key, int? fromSlot, int? toSlot)
+        {
+            string reference = string.IsNullOrWhiteSpace(request.ReferenceId)
+                ? Guid.NewGuid().ToString("N")
+                : request.ReferenceId.Trim();
+            return string.Join("|",
+                "PCTP", key.SiteCode, string.IsNullOrWhiteSpace(request.ReferenceType) ? movement : request.ReferenceType.Trim(),
+                reference, movement, key.PartNo, key.MaterialLotId,
+                fromSlot.HasValue ? fromSlot.Value.ToString() : "-",
+                toSlot.HasValue ? toSlot.Value.ToString() : "-");
         }
 
         private bool TryClaimRequest(StockMovementRequest request, bool includeQr)

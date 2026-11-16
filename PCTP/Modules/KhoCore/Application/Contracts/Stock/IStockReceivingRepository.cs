@@ -25,5 +25,7 @@ namespace PCTP.Modules.KhoCore.Application.Contracts.Stock
         public string ProductionCase { get; set; }
         public DateTime? ProductionDate { get; set; }
         public int ProductionQuantity { get; set; }
+        /// <summary>Bắt buộc: FVN_STOCKTP.MaterialLotId (FK tới MES.FVN_MaterialLot).</summary>
+        public long MaterialLotId { get; set; }
     }
 }

@@ -362,3 +362,6 @@ MigrationBackup/
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
 /artifacts.zip
+
+# Large local PCTP runtime export
+/SQL/FVN_PCTP/00_Governance/00H_Export_PCTP_RuntimeObjectDefinitions_result.csv
