@@ -14,7 +14,7 @@ with their original Git blobs; they were not silently rewritten or deleted.
 |---|---|
 | `00_Governance` | Source inventory, ownership decisions, evidence exports, schema tooling |
 | `01_Baseline` | Baseline candidates; approved clean-install baseline is still a gate |
-| `02_MasterData` | Reserved for normalized master data and one-way IFS staging |
+| `02_MasterData` | IFS one-way master data and BOM synchronization contract |
 | `03_Warehouse` | Warehouse candidates, diagnostics, stock/LOT review |
 | `04_Delivery` | Delivery/QR/order candidates and repair scripts |
 | `05_MES` | Versioned MES schema migrations and legacy source-review scripts |
@@ -30,7 +30,7 @@ with their original Git blobs; they were not silently rewritten or deleted.
 one-click installer.** No source SQL Server has been changed and no target SQL
 script has been executed by this repository operation.
 
-- The MES migrations `05_MES/Migrations/000..011` are an ordered schema
+- The MES migrations `05_MES/Migrations/000..012` are an ordered schema
   foundation. They have not been runtime-tested against the user's SQL Server.
 - Files in `LegacyCandidates`, `Diagnostics`, `IndexCandidates`,
   `SourceReview`, `SchemaEvidence` and `SchemaTooling` are not deployment steps.

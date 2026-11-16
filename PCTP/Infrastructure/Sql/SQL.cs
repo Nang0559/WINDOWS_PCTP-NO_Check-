@@ -414,18 +414,49 @@ namespace PCTP.ClassSQL
 
     class IFSPROVIDER
     {
+        private readonly string connectionSTR;
 
-        static string host = "192.168.200.12";
-        static int port = 1521;
-        static string sid = "fccprod";
-        //static string sid = "FCCSTG"; // Tét 
-        static string user = "IFSAPP";
-        static string password = "fccifs";
-        //static string password = "IFSAPP";
+        public IFSPROVIDER()
+            : this(ConfigurationManager.ConnectionStrings["IFS_ORACLE"]?.ConnectionString)
+        {
+        }
 
-        private string connectionSTR = @"Data Source=(DESCRIPTION =(ADDRESS = (PROTOCOL = TCP)(HOST = "
-                 + host + ")(PORT = " + port + "))(CONNECT_DATA = (SERVER = DEDICATED)(SERVICE_NAME = "
-                 + sid + ")));Password=" + password + ";User ID=" + user;
+        public IFSPROVIDER(string oracleConnectionString)
+        {
+            if (string.IsNullOrWhiteSpace(oracleConnectionString) ||
+                oracleConnectionString.IndexOf("YOUR_IFS_", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                throw new InvalidOperationException(
+                    "Chưa cấu hình IFS_ORACLE trong PCTP.Database.config.");
+            }
+
+            connectionSTR = oracleConnectionString;
+        }
+
+        /// <summary>
+        /// Strict read path for controlled synchronization. Unlike legacy ExecuteQuery,
+        /// this method never converts Oracle errors into an empty DataTable.
+        /// </summary>
+        public DataTable ExecuteQueryStrict(string query, params OracleParameter[] parameters)
+        {
+            if (string.IsNullOrWhiteSpace(query))
+                throw new ArgumentException("Oracle SQL không được rỗng.", nameof(query));
+
+            var data = new DataTable();
+            using (var connection = new OracleConnection(connectionSTR))
+            using (var command = new OracleCommand(query, connection))
+            using (var adapter = new OracleDataAdapter(command))
+            {
+                command.BindByName = true;
+                command.CommandTimeout = 600;
+                if (parameters != null && parameters.Length > 0)
+                    command.Parameters.AddRange(parameters);
+                connection.Open();
+                adapter.Fill(data);
+            }
+            return data;
+        }
+
         public DataTable ExecuteQuery(string query, object[] parameter = null)
         {
             DataTable data = new DataTable();

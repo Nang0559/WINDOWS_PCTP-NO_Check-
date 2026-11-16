@@ -43,3 +43,20 @@ Entity Framework and `Settings.Default` connection strings were removed: nothing
 - Startup check (never overwrites your values): an old `PCTP.exe.config` that holds `<connectionStrings>` inline (so `PCTP.Database.config` would be ignored) is replaced after a `.bak-<timestamp>` backup; connection names that exist in the shipped file but not in the runtime file are added (otherwise `Settings.Designer.cs` silently falls back to its own defaults); names whose server/database differ from the shipped file, and runtime files that point to several different servers, are reported in the tooltip.
 - To discard the runtime files and start again from the shipped ones, set the environment variable `PCTP_RESET_RUNTIME_CONFIG=1` for one start (both files are backed up first).
 
+
+
+## IFS synchronization connections
+
+The one-way IFS synchronization service uses two separate named connections in
+`%ProgramData%\PCTP\PCTP.Database.config`:
+
+- `IFS_ORACLE`: Oracle Managed Data Access connection to the read-only IFS account.
+- `FVN_PCTP`: SQL Server connection whose Initial Catalog must be exactly
+  `FVN_PCTP`. The sync service deliberately does not use the legacy
+  `SQLPROVIDER.CreateConnection`, because that method normalizes connections
+  to the legacy B7R2_FCC database.
+
+Replace the `YOUR_IFS_*` and `YOUR_SQL_*` placeholders on the runtime machine.
+Do not commit credentials. Keep the IFS account read-only. The synchronization
+service fails closed if either connection is missing or if the SQL catalog is
+not FVN_PCTP.

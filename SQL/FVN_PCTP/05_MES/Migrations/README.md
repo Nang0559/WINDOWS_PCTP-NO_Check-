@@ -61,3 +61,13 @@ These are schema migrations and core posting/query routines. They are **not yet 
 - IFS synchronization upsert procedures and source-watermark policy.
 - Data migration scripts with source/target counts, rejected-row staging, reconciliation and restart checkpoints.
 - Deployment smoke tests, concurrency tests and rollback rehearsal.
+
+
+## Migration 012 — IFS synchronization
+
+Run `012_IFS_MasterDataSync.sql` after 000 and 001. It creates the
+`IFS` schema, raw-payload staging, typed Part Catalog / Inventory Part / BOM
+snapshots and `IFS.usp_ApplySyncBatch`. It also refreshes the compatibility
+projection `MES.IfsInventoryPart` used by existing MES foreign keys.
+No Oracle connection is made by SQL Server; the PCTP C# service performs the
+read-only Oracle extraction and SQL Server bulk staging.
