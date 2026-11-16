@@ -118,3 +118,5 @@ The current SQL package is still a **schema foundation**, not a cutover-ready ap
 Migrations 021–022 additionally provide a per-site FIFO policy upsert, MES-backed slot inventory view, customer-specific LOT normalization function and site-aware QR insert procedure.
 
 Migration 023 adds `dbo.FVN_InspectionLog` for QC/tem reconciliation, retaining the original inspection payload while adding SiteCode and optional IFS/MES lot identity links.
+
+`05_MES/Migrations/024_PCTP_LegacySiteMappingAndPreflight.sql` is optional for the empty-schema install. Run it only when preparing legacy data migration and when `B7R2_FCC` is visible on the same SQL Server instance; it creates mapping tables and read-only diagnostics, not a data copy.
