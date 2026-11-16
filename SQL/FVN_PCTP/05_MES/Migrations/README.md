@@ -30,6 +30,8 @@ Run one file at a time, in order:
 | 018 | 018_PCTP_ReturnAndAbnormalWorkflow.sql | Return header/detail, QT Chung, affected LOT, initial QC, rework, disposition, compensation and workflow transitions |
 | 019 | 019_PCTP_SlotLotProjectionContract.sql | Site-aware SlotLot TVP and atomic replacement guarded by MES balance reconciliation |
 | 020 | 020_PCTP_QueuedDeliveryFifoAndPurchaseOrders.sql | Queued delivery/pick details, per-site FIFO configuration and special DB purchase-order snapshots |
+| 021 | 021_PCTP_FifoPolicyAndSlotInventoryViews.sql | Site-scoped FIFO upsert and MES-backed slot inventory view |
+| 022 | 022_PCTP_CustomerLotNormalizationAndQrWrite.sql | Customer-specific LOT normalization and site-aware QR insert contract |
 
 The applied versions are recorded in `MES.FVN_SchemaMigration` after migration 013. Before migration 013, query `MES.SchemaMigration`; after migration 013, use the physical table:
 
@@ -38,7 +40,7 @@ SELECT MigrationVersion,MigrationName,AppliedAtUtc,AppliedBy
 FROM MES.FVN_SchemaMigration ORDER BY MigrationVersion;
 ```
 
-Run migration 013 only after 000–012 have completed successfully. Run 014–020 only after 013, in strict order.
+Run migration 013 only after 000–012 have completed successfully. Run 014–022 only after 013, in strict order.
 
 ## Architecture rules
 
@@ -99,3 +101,5 @@ Before creating PCTP warehouses or writing PCTP documents, register only the IFS
 PCTP part-extension records (`FVN_PartIdentity`, `FVN_PartOperationalProfile`, `FVN_PartCustomerRule`, FIFO configuration) must reference `IFS.FVN_InventoryPart` with both SiteCode and PartNo. New return/abnormal/delivery C# writes must supply SiteCode and the canonical PartNo; the current source repositories do not yet do so.
 
 `019` intentionally makes `usp_FVN_Slot_SaveLots` a projection-only operation: it replaces QR/LOT rows only when aggregate quantities equal MES on-hand at the mapped location. It does not post stock movements. Post stock changes through the MES inventory posting contract first.
+
+`021` adds `dbo.usp_FVN_ItemFifoConfig_Upsert` and `dbo.vFVN_PCTP_SlotInventory`; `022` adds `dbo.ufn_FVN_NormalizeCustomerLot` and `dbo.usp_FVN_DocQrCode_Insert`. The customer LOT rule is data-driven. Configure it only for confirmed customer/part combinations after mapping source codes to IFS `(SiteCode, PartNo)`.
