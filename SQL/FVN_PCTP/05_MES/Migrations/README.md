@@ -21,6 +21,7 @@ Run one file at a time, in order:
 | 009 | 009_MES_ValidationAndGuards.sql | PO receipt consistency trigger and ledger-vs-balance reconciliation |
 | 010 | 010_MES_SecurityRoles.sql | Least-privilege database roles and object grants |
 | 011 | 011_MES_BatchPostingProcedure.sql | Atomic TVP inventory movement batch (maximum 500 rows) |
+| 012 | 012_IFS_MasterDataSync.sql | IFS one-way Part Catalog, Inventory Part and BOM snapshots with staging/apply |
 
 The applied versions are recorded in MES.SchemaMigration. Verify with:
 SELECT MigrationVersion,MigrationName,AppliedAtUtc,AppliedBy FROM MES.SchemaMigration ORDER BY MigrationVersion;
@@ -58,14 +59,14 @@ These are schema migrations and core posting/query routines. They are **not yet 
 - PO receipt posting procedure with over-receipt and duplicate-document policy.
 - Production order create/release procedure validating approved BOM, effective dates, site and product.
 - Finished Lot receipt procedure and QR/document binding.
-- IFS synchronization upsert procedures and source-watermark policy.
+- Incremental IFS watermark policy after validating source change semantics; migration 012 currently performs full snapshot upserts.
 - Data migration scripts with source/target counts, rejected-row staging, reconciliation and restart checkpoints.
 - Deployment smoke tests, concurrency tests and rollback rehearsal.
 
 
 ## Migration 012 — IFS synchronization
 
-Run `012_IFS_MasterDataSync.sql` after 000 and 001. It creates the
+Run `012_IFS_MasterDataSync.sql` after the preceding migrations 000–011 (it checks that 000 and 001 prerequisites exist). It creates the
 `IFS` schema, raw-payload staging, typed Part Catalog / Inventory Part / BOM
 snapshots and `IFS.usp_ApplySyncBatch`. It also refreshes the compatibility
 projection `MES.IfsInventoryPart` used by existing MES foreign keys.

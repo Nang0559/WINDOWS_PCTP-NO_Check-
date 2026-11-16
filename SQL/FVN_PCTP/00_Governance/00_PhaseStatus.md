@@ -59,3 +59,24 @@ The next phase is complete only when:
 - the application cutover and rollback plan are approved.
 
 This report records repository consolidation, not database deployment.
+
+
+## 6. IFS one-way synchronization implementation (2026-11-16)
+
+Added on this branch:
+- `PCTP/Modules/IfsSync/IfsSyncService.cs`: streams the five approved IFSAPP
+  Views through the existing Oracle Managed Data Access provider, stages in
+  bounded 2,000-row chunks and applies one full batch to FVN_PCTP.
+- `IFSPROVIDER` reads `IFS_ORACLE` from protected configuration and exposes
+  strict reader/query paths that propagate Oracle errors instead of returning
+  an empty DataTable.
+- `012_IFS_MasterDataSync.sql`: creates IFS source snapshots, raw JSON payload
+  preservation, batch/error logs, BOM key constraints and transactional apply.
+- `09_Tests/IFS_SyncSmokeTest.sql`: read-only batch and BOM relationship check.
+- The SQL target catalog is validated as `FVN_PCTP`; the service does not use
+  the legacy SQL connection factory pinned to B7R2_FCC.
+
+This implementation is a deployment candidate. It has **not** been built or
+executed against the user's Oracle IFS or SQL Server. It performs full snapshot
+upserts, not incremental watermark sync. Source rows missing in a run are not
+deleted or deactivated. Validate on a disposable FVN_PCTP database before use.

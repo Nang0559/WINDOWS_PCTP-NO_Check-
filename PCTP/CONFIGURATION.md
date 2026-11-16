@@ -60,3 +60,13 @@ Replace the `YOUR_IFS_*` and `YOUR_SQL_*` placeholders on the runtime machine.
 Do not commit credentials. Keep the IFS account read-only. The synchronization
 service fails closed if either connection is missing or if the SQL catalog is
 not FVN_PCTP.
+
+
+## Credential rotation notice
+
+Earlier Git revisions contained connection credentials. Replacing the current
+template does not erase historical Git objects. Rotate credentials that were
+committed, update the protected runtime configuration, and do not reuse
+previously committed passwords. The shipped config now contains placeholders;
+the runtime bootstrap preserves existing runtime files because the template
+marker is present.

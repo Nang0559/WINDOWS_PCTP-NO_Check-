@@ -11,10 +11,10 @@ prevents a folder listing from being mistaken for an executable installer.
 |---:|---|---|
 | 0 | `00_Governance` | Review/evidence only; never run as target install |
 | 1 | `01_Baseline` | Not approved; candidate file is not the full baseline |
-| 2 | `02_MasterData` | Not generated |
+| 2 | `02_MasterData` | IFS one-way sync contract and SQL migration 012 added; target deployment not tested |
 | 3 | `03_Warehouse` | Legacy candidates only; ownership gate open |
 | 4 | `04_Delivery` | Legacy candidates only; normalized model not generated |
-| 5 | `05_MES/Migrations/000..011` | Existing MES schema candidate sequence; requires boundary decision and SQL Server 2016 test |
+| 5 | `05_MES/Migrations/000..012` | MES schema candidate sequence plus IFS master/BOM snapshot sync; requires SQL Server 2016 test |
 | 6 | `06_Programmability` | Legacy candidates only; not an install sequence |
 | 7 | `07_DataMigration` | Not generated |
 | 8 | `08_Security` | Placeholder; no user/login mapping |
