@@ -26,7 +26,7 @@ BEGIN TRY
     DECLARE
         @SchemaName sysname,
         @OldName sysname,
-        @NewName sysname,
+        @NewName nvarchar(260),
         @OldQualified nvarchar(517),
         @NewQualified nvarchar(517),
         @Sql nvarchar(max);
