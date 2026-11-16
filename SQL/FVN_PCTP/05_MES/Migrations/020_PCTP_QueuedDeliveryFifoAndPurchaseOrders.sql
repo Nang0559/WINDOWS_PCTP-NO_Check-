@@ -67,8 +67,12 @@ BEGIN TRY
     /* Align the special DB QR stream to the complete DOCQRCODE payload. */
     IF COL_LENGTH(N'dbo.FVN_DocQrCodeDb', N'SOPHIEU') IS NULL
         ALTER TABLE dbo.FVN_DocQrCodeDb ADD SOPHIEU nvarchar(50) NULL;
+    IF EXISTS (SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID(N'dbo.FVN_DocQrCodeDb') AND name=N'IX_FVN_DocQrCodeDb_Lot')
+        DROP INDEX IX_FVN_DocQrCodeDb_Lot ON dbo.FVN_DocQrCodeDb;
     IF COL_LENGTH(N'dbo.FVN_DocQrCodeDb', N'LOTFCC') IS NOT NULL
         ALTER TABLE dbo.FVN_DocQrCodeDb ALTER COLUMN LOTFCC nvarchar(1000) NULL;
+    IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID(N'dbo.FVN_DocQrCodeDb') AND name=N'IX_FVN_DocQrCodeDb_Lot')
+        CREATE INDEX IX_FVN_DocQrCodeDb_Lot ON dbo.FVN_DocQrCodeDb (SiteCode, LOTFCC, LOTHVN);
 
     IF OBJECT_ID(N'dbo.FVN_HangChoGiao', N'U') IS NULL
     BEGIN
