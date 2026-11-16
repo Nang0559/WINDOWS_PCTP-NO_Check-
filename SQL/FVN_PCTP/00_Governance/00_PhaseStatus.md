@@ -153,3 +153,11 @@ Owner decision: all PCTP part references use the composite key `(SiteCode, PartN
 The scripts are ordered after 000–013 and use physical FVN_ table names. They are repository changes only: **no SQL Server execution, SQL compilation, data migration, C# repository conversion, app build, or production cutover was performed**. The 014–020 scripts still require a disposable SQL Server 2016 install/rerun/rollback test. Runtime activation remains blocked until the PCTP SiteCode allow-list and Warehouse/Slot-to-MES location mappings are seeded, all C# writes pass SiteCode/PartNo, remaining QR/LOT/stock stored procedures and triggers are converted, and the legacy data is reconciled.
 
 The `019` SlotLot save contract is deliberately projection-only. It does not create or remove MES stock; every stock-affecting command must post through the canonical MES movement ledger before saving the slot projection.
+
+
+## 13. FIFO, Slot inventory and QR/LOT contracts 021–022 (2026-11-16)
+
+- `021_PCTP_FifoPolicyAndSlotInventoryViews.sql`: site-aware FIFO upsert preserves the no-op/no-history behavior when a value is unchanged; `vFVN_PCTP_SlotInventory` reads on-hand/reserved/available quantities from `MES.FVN_InventoryBalance`.
+- `022_PCTP_CustomerLotNormalizationAndQrWrite.sql`: customer-specific LOT normalization is configured per `(SiteCode, PartNo, CustomerCode)`; QR insert validates optional FCC/HVN part references against IFS.
+- No global customer trim rule is hard-coded. The legacy customer `0100002` trim-six behavior is an example only and must be seeded only for the source-confirmed part/customer combinations.
+- Updated ordered migration index to 000–022. Still no SQL Server execution or C# integration test.
