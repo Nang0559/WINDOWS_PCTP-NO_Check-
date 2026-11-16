@@ -1,6 +1,6 @@
 /*
  IFS synchronization smoke test.
- Read-only: run after migration 012 and at least one successful sync.
+ Read-only: run after migrations 012–013 and at least one successful sync. Legacy object names below resolve through compatibility synonyms; physical tables use FVN_ names.
 */
 SET NOCOUNT ON;
 
