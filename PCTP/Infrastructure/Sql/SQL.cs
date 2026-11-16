@@ -457,6 +457,24 @@ namespace PCTP.ClassSQL
             return data;
         }
 
+        public void ExecuteReaderStrict(string query, Action<OracleDataReader> consume)
+        {
+            if (string.IsNullOrWhiteSpace(query))
+                throw new ArgumentException("Oracle SQL không được rỗng.", nameof(query));
+            if (consume == null)
+                throw new ArgumentNullException(nameof(consume));
+
+            using (var connection = new OracleConnection(connectionSTR))
+            using (var command = new OracleCommand(query, connection))
+            {
+                command.BindByName = true;
+                command.CommandTimeout = 1800;
+                connection.Open();
+                using (var reader = command.ExecuteReader(CommandBehavior.SequentialAccess))
+                    consume(reader);
+            }
+        }
+
         public DataTable ExecuteQuery(string query, object[] parameter = null)
         {
             DataTable data = new DataTable();

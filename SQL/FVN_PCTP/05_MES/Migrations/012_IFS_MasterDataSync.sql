@@ -35,6 +35,19 @@ CREATE TABLE IFS.SyncBatch(
     CONSTRAINT CK_IFS_Batch_Status CHECK(Status IN('RUNNING','STAGED','APPLIED','FAILED'))
 );
 
+IF OBJECT_ID(N'IFS.SyncError',N'U') IS NULL
+CREATE TABLE IFS.SyncError(
+    SyncErrorId bigint IDENTITY(1,1) NOT NULL CONSTRAINT PK_IFS_SyncError PRIMARY KEY,
+    SyncBatchId bigint NOT NULL,
+    EntityName varchar(30) NULL,
+    SourceBusinessKey nvarchar(1000) NULL,
+    ErrorCode varchar(40) NOT NULL,
+    ErrorMessage nvarchar(2000) NOT NULL,
+    ErrorDetails nvarchar(max) NULL,
+    LoggedAtUtc datetime2(3) NOT NULL,
+    CONSTRAINT FK_IFS_SyncError_Batch FOREIGN KEY(SyncBatchId) REFERENCES IFS.SyncBatch(SyncBatchId)
+);
+
 IF OBJECT_ID(N'IFS.SyncStageRow',N'U') IS NULL
 CREATE TABLE IFS.SyncStageRow(
     SyncStageRowId bigint IDENTITY(1,1) NOT NULL CONSTRAINT PK_IFS_SyncStageRow PRIMARY KEY,
@@ -216,6 +229,14 @@ BEGIN
 
     BEGIN TRY
         BEGIN TRANSACTION;
+        DECLARE @LockResult int;
+        EXEC @LockResult=sys.sp_getapplock
+            @Resource=''IFS_MASTER_BOM_FULL_SYNC'',
+            @LockMode=''Exclusive'',
+            @LockOwner=''Transaction'',
+            @LockTimeout=0;
+        IF @LockResult<0 THROW 51205,''Another IFS synchronization is already applying.'',1;
+
         IF NOT EXISTS(SELECT 1 FROM IFS.SyncBatch WITH(UPDLOCK,HOLDLOCK)
                       WHERE SyncBatchId=@SyncBatchId AND Status=''STAGED'')
             THROW 51200,''Sync batch must be STAGED before apply.'',1;

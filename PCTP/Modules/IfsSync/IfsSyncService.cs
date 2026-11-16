@@ -6,9 +6,9 @@ using System.Configuration;
 using System.Data;
 using System.Data.SqlClient;
 using System.Globalization;
-using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
+using Oracle.ManagedDataAccess.Client;
 
 namespace PCTP.Modules.IfsSync
 {
@@ -133,6 +133,16 @@ WHERE SyncBatchId=@SyncBatchId AND Status<>'APPLIED';", connection))
                             command.Parameters.AddWithValue("@SyncBatchId", batchId);
                             command.ExecuteNonQuery();
                         }
+                        using (var error = new SqlCommand(@"
+INSERT IFS.SyncError(SyncBatchId, ErrorCode, ErrorMessage, ErrorDetails, LoggedAtUtc)
+VALUES(@SyncBatchId, 'SYNC_FAILED', @ErrorMessage, @ErrorDetails, SYSUTCDATETIME());", connection))
+                        {
+                            error.Parameters.AddWithValue("@SyncBatchId", batchId);
+                            error.Parameters.Add("@ErrorMessage", SqlDbType.NVarChar, 2000).Value =
+                                ex.Message.Length > 2000 ? ex.Message.Substring(0, 2000) : ex.Message;
+                            error.Parameters.Add("@ErrorDetails", SqlDbType.NVarChar, -1).Value = ex.ToString();
+                            error.ExecuteNonQuery();
+                        }
                     }
                     catch
                     {
@@ -159,27 +169,41 @@ VALUES ('FULL', 'RUNNING', SYSUTCDATETIME(), @InitiatedBy);", connection))
 
         private int StageEntity(SqlConnection connection, long batchId, string entityName, string oracleSql)
         {
-            // Strict method throws on Oracle errors. Empty results are rejected so an
-            // unavailable/unauthorized IFS view cannot masquerade as a successful sync.
-            DataTable source = _ifs.ExecuteQueryStrict(oracleSql);
-            if (source.Rows.Count == 0)
+            var stage = CreateStageTable();
+            int count = 0;
+            try
+            {
+                // Stream Oracle rows in bounded chunks. A large INVENTORY_PART view
+                // therefore does not have to fit into one in-memory DataTable.
+                _ifs.ExecuteReaderStrict(oracleSql, reader =>
+                {
+                    while (reader.Read())
+                    {
+                        AddStageRow(stage, batchId, entityName, reader);
+                        count++;
+                        if (stage.Rows.Count >= 2000)
+                        {
+                            BulkStage(connection, stage);
+                            stage.Clear();
+                        }
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException("Đọc/stage IFS entity " + entityName + " thất bại: " + ex.Message, ex);
+            }
+
+            if (count == 0)
                 throw new InvalidOperationException("IFS view " + entityName +
                     " trả về 0 dòng. Batch bị dừng để tránh hiểu nhầm lỗi quyền/kết nối là dữ liệu rỗng.");
 
-            DataTable stage = BuildStageRows(batchId, entityName, source);
-            using (var bulk = new SqlBulkCopy(connection, SqlBulkCopyOptions.TableLock, null))
-            {
-                bulk.DestinationTableName = "IFS.SyncStageRow";
-                bulk.BatchSize = 2000;
-                bulk.BulkCopyTimeout = 1800;
-                foreach (DataColumn column in stage.Columns)
-                    bulk.ColumnMappings.Add(column.ColumnName, column.ColumnName);
-                bulk.WriteToServer(stage);
-            }
-            return source.Rows.Count;
+            if (stage.Rows.Count > 0)
+                BulkStage(connection, stage);
+            return count;
         }
 
-        private static DataTable BuildStageRows(long batchId, string entityName, DataTable source)
+        private static DataTable CreateStageTable()
         {
             var table = new DataTable();
             table.Columns.Add("SyncBatchId", typeof(long));
@@ -194,73 +218,77 @@ VALUES ('FULL', 'RUNNING', SYSUTCDATETIME(), @InitiatedBy);", connection))
             table.Columns.Add("SourceObjVersion", typeof(string));
             table.Columns.Add("PayloadJson", typeof(string));
             table.Columns.Add("SourceHash", typeof(byte[]));
-
-            foreach (DataRow row in source.Rows)
-            {
-                var payload = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
-                foreach (DataColumn column in source.Columns)
-                    payload[column.ColumnName] = row[column] == DBNull.Value ? null : row[column];
-
-                string json = JsonConvert.SerializeObject(payload, Formatting.None);
-                byte[] hash;
-                using (SHA256 sha = SHA256.Create())
-                    hash = sha.ComputeHash(Encoding.UTF8.GetBytes(json));
-
-                string partNo = ReadString(row, "PART_NO");
-                if (string.IsNullOrWhiteSpace(partNo))
-                    throw new InvalidOperationException(entityName + " có dòng thiếu PART_NO.");
-
-                object lineItem = DBNull.Value;
-                string siteCode = ReadString(row, "CONTRACT");
-                if (entityName != "PART_CATALOG" && string.IsNullOrWhiteSpace(siteCode))
-                    throw new InvalidOperationException(entityName + " có dòng thiếu CONTRACT.");
-
-                if (entityName.StartsWith("BOM_", StringComparison.Ordinal))
-                {
-                    if (string.IsNullOrWhiteSpace(ReadString(row, "ENG_CHG_LEVEL")) ||
-                        string.IsNullOrWhiteSpace(ReadString(row, "BOM_TYPE_DB")))
-                        throw new InvalidOperationException(entityName + " thiếu ENG_CHG_LEVEL hoặc BOM_TYPE_DB.");
-                }
-                if (entityName == "BOM_ALTERNATIVE" || entityName == "BOM_COMPONENT")
-                {
-                    if (string.IsNullOrWhiteSpace(ReadString(row, "ALTERNATIVE_NO")))
-                        throw new InvalidOperationException(entityName + " có dòng thiếu ALTERNATIVE_NO.");
-                }
-                if (entityName == "BOM_COMPONENT")
-                {
-                    object value = ReadValue(row, "LINE_ITEM_NO");
-                    if (value == null)
-                        throw new InvalidOperationException("MANUF_STRUCTURE có dòng thiếu LINE_ITEM_NO.");
-                    lineItem = Convert.ToDecimal(value, CultureInfo.InvariantCulture);
-                }
-
-                table.Rows.Add(
-                    batchId,
-                    entityName,
-                    DbValue(siteCode),
-                    partNo,
-                    DbValue(ReadString(row, "ENG_CHG_LEVEL")),
-                    DbValue(ReadString(row, "BOM_TYPE_DB")),
-                    DbValue(ReadString(row, "ALTERNATIVE_NO")),
-                    lineItem,
-                    DbValue(ReadString(row, "OBJKEY")),
-                    DbValue(ReadString(row, "OBJVERSION")),
-                    json,
-                    hash);
-            }
             return table;
         }
 
-        private static object ReadValue(DataRow row, string column)
+        private static void BulkStage(SqlConnection connection, DataTable stage)
         {
-            return row.Table.Columns.Contains(column) && row[column] != DBNull.Value
-                ? row[column] : null;
+            using (var bulk = new SqlBulkCopy(connection, SqlBulkCopyOptions.TableLock, null))
+            {
+                bulk.DestinationTableName = "IFS.SyncStageRow";
+                bulk.BatchSize = 2000;
+                bulk.BulkCopyTimeout = 1800;
+                foreach (DataColumn column in stage.Columns)
+                    bulk.ColumnMappings.Add(column.ColumnName, column.ColumnName);
+                bulk.WriteToServer(stage);
+            }
         }
 
-        private static string ReadString(DataRow row, string column)
+        private static void AddStageRow(DataTable stage, long batchId, string entityName, OracleDataReader reader)
         {
-            object value = ReadValue(row, column);
-            return value == null ? null : Convert.ToString(value, CultureInfo.InvariantCulture);
+            var payload = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+            for (int i = 0; i < reader.FieldCount; i++)
+                payload[reader.GetName(i)] = reader.IsDBNull(i) ? null : reader.GetValue(i);
+
+            string json = JsonConvert.SerializeObject(payload, Formatting.None);
+            byte[] hash;
+            using (SHA256 sha = SHA256.Create())
+                hash = sha.ComputeHash(Encoding.UTF8.GetBytes(json));
+
+            string partNo = ReadString(reader, "PART_NO");
+            if (string.IsNullOrWhiteSpace(partNo))
+                throw new InvalidOperationException(entityName + " có dòng thiếu PART_NO.");
+
+            string siteCode = entityName == "PART_CATALOG" ? null : ReadString(reader, "CONTRACT");
+            if (entityName != "PART_CATALOG" && string.IsNullOrWhiteSpace(siteCode))
+                throw new InvalidOperationException(entityName + " có dòng thiếu CONTRACT.");
+
+            string engChgLevel = ReadString(reader, "ENG_CHG_LEVEL");
+            string bomTypeDb = ReadString(reader, "BOM_TYPE_DB");
+            string alternativeNo = ReadString(reader, "ALTERNATIVE_NO");
+            object lineItem = DBNull.Value;
+
+            if (entityName.StartsWith("BOM_", StringComparison.Ordinal) &&
+                (string.IsNullOrWhiteSpace(engChgLevel) || string.IsNullOrWhiteSpace(bomTypeDb)))
+                throw new InvalidOperationException(entityName + " thiếu ENG_CHG_LEVEL hoặc BOM_TYPE_DB.");
+
+            if ((entityName == "BOM_ALTERNATIVE" || entityName == "BOM_COMPONENT") &&
+                string.IsNullOrWhiteSpace(alternativeNo))
+                throw new InvalidOperationException(entityName + " có dòng thiếu ALTERNATIVE_NO.");
+
+            if (entityName == "BOM_COMPONENT")
+            {
+                string lineItemText = ReadString(reader, "LINE_ITEM_NO");
+                if (string.IsNullOrWhiteSpace(lineItemText))
+                    throw new InvalidOperationException("MANUF_STRUCTURE có dòng thiếu LINE_ITEM_NO.");
+                lineItem = Convert.ToDecimal(reader.GetValue(reader.GetOrdinal("LINE_ITEM_NO")), CultureInfo.InvariantCulture);
+            }
+
+            stage.Rows.Add(
+                batchId, entityName, DbValue(siteCode), partNo,
+                DbValue(engChgLevel), DbValue(bomTypeDb), DbValue(alternativeNo),
+                lineItem, DbValue(ReadString(reader, "OBJKEY")),
+                DbValue(ReadString(reader, "OBJVERSION")), json, hash);
+        }
+
+        private static string ReadString(OracleDataReader reader, string column)
+        {
+            int ordinal;
+            try { ordinal = reader.GetOrdinal(column); }
+            catch (IndexOutOfRangeException) { return null; }
+            return reader.IsDBNull(ordinal)
+                ? null
+                : Convert.ToString(reader.GetValue(ordinal), CultureInfo.InvariantCulture);
         }
 
         private static object DbValue(string value)
