@@ -36,8 +36,9 @@ BEGIN TRY
             InventoryTransactionId bigint NULL,
             CreatedAt datetime2(0) NOT NULL CONSTRAINT DF_FVN_DeliveryCommandLedger_CreatedAt DEFAULT (SYSUTCDATETIME()),
             CONSTRAINT PK_FVN_DeliveryCommandLedger PRIMARY KEY (Id),
-            CONSTRAINT FK_FVN_DeliveryCommandLedger_Delivery FOREIGN KEY (DeliveryRowId)
-                REFERENCES dbo.FVN_LUUPHIEUGIAOHANG (DeliveryRowId),
+            CONSTRAINT UQ_FVN_DeliveryCommandLedger_SiteId UNIQUE (SiteCode, Id),
+            CONSTRAINT FK_FVN_DeliveryCommandLedger_Delivery FOREIGN KEY (SiteCode, DeliveryRowId)
+                REFERENCES dbo.FVN_LUUPHIEUGIAOHANG (SiteCode, DeliveryRowId),
             CONSTRAINT FK_FVN_DeliveryCommandLedger_Txn FOREIGN KEY (InventoryTransactionId)
                 REFERENCES MES.FVN_InventoryTransaction (InventoryTransactionId),
             CONSTRAINT CK_FVN_DeliveryCommandLedger_Qty CHECK (TotalQuantity > 0)
@@ -63,8 +64,8 @@ BEGIN TRY
             DeliveryRowId bigint NULL,
             CreatedAt datetime2(0) NOT NULL CONSTRAINT DF_FVN_DeliveryCommandQr_CreatedAt DEFAULT (SYSUTCDATETIME()),
             CONSTRAINT PK_FVN_DeliveryCommandQr PRIMARY KEY (Id),
-            CONSTRAINT FK_FVN_DeliveryCommandQr_Ledger FOREIGN KEY (LedgerId)
-                REFERENCES dbo.FVN_DeliveryCommandLedger (Id),
+            CONSTRAINT FK_FVN_DeliveryCommandQr_Ledger FOREIGN KEY (SiteCode, LedgerId)
+                REFERENCES dbo.FVN_DeliveryCommandLedger (SiteCode, Id),
             CONSTRAINT FK_FVN_DeliveryCommandQr_IFSPart FOREIGN KEY (SiteCode, PartNo)
                 REFERENCES IFS.FVN_InventoryPart (SiteCode, PartNo),
             CONSTRAINT FK_FVN_DeliveryCommandQr_Delivery FOREIGN KEY (DeliveryRowId)
@@ -131,8 +132,8 @@ BEGIN TRY
             Reason nvarchar(1000) NOT NULL,
             ReleasedAtUtc datetime2(3) NOT NULL CONSTRAINT DF_FVN_PCTPQuarantineReleaseAudit_ReleasedAtUtc DEFAULT (SYSUTCDATETIME()),
             CONSTRAINT PK_FVN_PCTPQuarantineReleaseAudit PRIMARY KEY (Id),
-            CONSTRAINT FK_FVN_QuarantineRelease_SlotLot FOREIGN KEY (SlotLotId)
-                REFERENCES dbo.FVN_SlotLot (SlotLotId),
+            CONSTRAINT FK_FVN_QuarantineRelease_SlotLot FOREIGN KEY (SiteCode, SlotLotId)
+                REFERENCES dbo.FVN_SlotLot (SiteCode, SlotLotId),
             CONSTRAINT FK_FVN_QuarantineRelease_Slot FOREIGN KEY (SiteCode, SlotId)
                 REFERENCES dbo.FVN_Slot (SiteCode, SlotId),
             CONSTRAINT FK_FVN_QuarantineRelease_IFSPart FOREIGN KEY (SiteCode, PartNo)
@@ -162,6 +163,7 @@ BEGIN TRY
             IsActive bit NOT NULL CONSTRAINT DF_FVN_InternalLocation_Active DEFAULT (1),
             CreatedAt datetime2(0) NOT NULL CONSTRAINT DF_FVN_InternalLocation_Created DEFAULT (SYSUTCDATETIME()),
             CONSTRAINT PK_FVN_InternalLocation PRIMARY KEY (LocationId),
+            CONSTRAINT UQ_FVN_InternalLocation_SiteId UNIQUE (SiteCode, LocationId),
             CONSTRAINT UQ_FVN_InternalLocation_Code UNIQUE (SiteCode, LocationCode),
             CONSTRAINT FK_FVN_InternalLocation_MESLocation FOREIGN KEY (SiteCode, MESLocationNo)
                 REFERENCES MES.FVN_IfsInventoryLocation (SiteCode, LocationNo)
@@ -187,8 +189,9 @@ BEGIN TRY
             PerformedBy nvarchar(100) NOT NULL,
             CreatedAt datetime2(0) NOT NULL,
             CONSTRAINT PK_FVN_InternalTransfer PRIMARY KEY (TransferId),
-            CONSTRAINT FK_FVN_InternalTransfer_Location FOREIGN KEY (LocationId)
-                REFERENCES dbo.FVN_InternalLocation (LocationId),
+            CONSTRAINT UQ_FVN_InternalTransfer_SiteId UNIQUE (SiteCode, TransferId),
+            CONSTRAINT FK_FVN_InternalTransfer_Location FOREIGN KEY (SiteCode, LocationId)
+                REFERENCES dbo.FVN_InternalLocation (SiteCode, LocationId),
             CONSTRAINT FK_FVN_InternalTransfer_IFSPart FOREIGN KEY (SiteCode, PartNo)
                 REFERENCES IFS.FVN_InventoryPart (SiteCode, PartNo),
             CONSTRAINT FK_FVN_InternalTransfer_MESLot FOREIGN KEY (SiteCode, PartNo, MaterialLotId)
@@ -224,8 +227,8 @@ BEGIN TRY
             PerformedBy nvarchar(100) NOT NULL,
             CreatedAt datetime2(0) NOT NULL,
             CONSTRAINT PK_FVN_InternalReturn PRIMARY KEY (ReturnId),
-            CONSTRAINT FK_FVN_InternalReturn_Transfer FOREIGN KEY (TransferId)
-                REFERENCES dbo.FVN_InternalTransfer (TransferId),
+            CONSTRAINT FK_FVN_InternalReturn_Transfer FOREIGN KEY (SiteCode, TransferId)
+                REFERENCES dbo.FVN_InternalTransfer (SiteCode, TransferId),
             CONSTRAINT FK_FVN_InternalReturn_TargetSlot FOREIGN KEY (SiteCode, TargetSlotId)
                 REFERENCES dbo.FVN_Slot (SiteCode, SlotId),
             CONSTRAINT FK_FVN_InternalReturn_Txn FOREIGN KEY (InventoryTransactionId)
