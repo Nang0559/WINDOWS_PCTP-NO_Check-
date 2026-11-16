@@ -129,3 +129,10 @@ This commit is a schema/programming scope artifact. It does not claim that the c
 Added `00G_PCTP_ObjectBuildRegister.md` and read-only source export `00H_Export_PCTP_RuntimeObjectDefinitions.sql`. Inspection of the 6.58 MB SQL2 export confirmed that its module-definition section is truncated to short previews; the 00C module-reference CSV is empty. 00H collects full SQL module definitions (result 5), target-table columns (result 1), indexes (result 2), foreign keys (result 3), check constraints (result 4), table types (result 6), triggers (result 7) and relevant synonyms (result 8) from `B7R2_FCC`, with a hard database-name guard and SELECT-only behavior.
 
 This is an evidence-collection step. The full PCTP view/procedure/function/trigger migration cannot be completed accurately until these definitions and table-type contracts are available. No SQL Server execution or source database modification was performed.
+
+
+## 11. PCTP part master source correction (2026-11-16)
+
+Owner clarification: do not recreate the Bravo B20 master tables. Use IFS-synchronized `IFS.FVN_InventoryPart` as PCTP's site-specific part master, `IFS.FVN_PartCatalog` for global catalog attributes where appropriate, and keep `MES.FVN_IfsInventoryPart` as the MES projection. Added `00I_PCTP_IFS_PartMaster_Replacement.md` based on the uploaded 00H source export. It records exact observed B20 source columns, actual PCTP module references, technical extension needs and the non-portable 580 KB trigger.
+
+The 00H export analysis found 449 matching SQL module definitions, 87 with PCTP candidate references and 40 that also reference B20 master objects. This is static evidence, not proof of active callers. No B20 clone or PCTP DDL was created in this step. Final schema generation is blocked on the PCTP-to-IFS SiteCode/warehouse mapping and the approved HRM department source.
