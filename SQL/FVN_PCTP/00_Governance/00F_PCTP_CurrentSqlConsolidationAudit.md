@@ -26,6 +26,44 @@ The application-usage review identifies these six tables as actively used by the
 
 Do not create independent duplicate balances or movement ledgers for `STOCKTP`, `SlotLot`, or `StockHistory`. Resolve the single authoritative owner and all writers before promoting warehouse migrations.
 
+
+## 2A. Source snapshot details (evidence export dated 2026-11-13)
+
+The checked-in read-only evidence snapshot identifies the source as
+`B7R2_FCC` and reports these six tables as present:
+
+| Table | Approx. rows in snapshot | Columns |
+|---|---:|---:|
+| `IFSPHIEUGIAOHANG` | 13 | 29 |
+| `IFSPHIEUGIAOHANG_SP` | 42 | 29 |
+| `LUUPHIEUGIAOHANG` | 283,975 | 21 |
+| `SlotLot` | 9,285 | 14 |
+| `StockHistory` | 3,157 | 13 |
+| `STOCKTP` | 70,959 | 28 |
+
+These are approximate row counts from the checked-in source snapshot, not live
+counts from the current database. The two IFS order snapshot tables have matching
+29-column layouts in this export. Preserve their customer/order staging behavior;
+do not replace them with MES IFS part/BOM master tables.
+
+Additional migration-critical evidence:
+
+- `SlotLot` has FK `FK_SlotLot_Slot` to `dbo.Slot`; its columns include
+  `QrData`, `MaPhieu`, `NgaySX`, `SoPhieuTong`, and
+  `ParentSoPhieu`. These fields are trace evidence and must survive migration.
+- `dbo.SlotLotTableType` exists. The reviewed `usp_Slot_SaveLots` path uses
+  this TVP to replace all rows for one SlotId in a transaction. Migrate the TVP
+  and procedure contract together, or replace them with a versioned equivalent.
+- `STOCKTP` has a CHECK constraint requiring `SLCONLAI >= 0`, indexes on LOT
+  and stock quantities, and trigger `trgupdatetblDoctem`.
+- The exported trigger body explicitly updates
+  `[B7R2_FCC].[dbo].[STOCKTP]` and references `B20Item` and `tbl_DocTem`.
+  It cannot be copied unchanged into `FVN_PCTP`; its cross-database reference and
+  side effects must be redesigned and tested.
+- The checked-in evidence folder contains no `00C_07_SqlAgentJobSteps.csv` and
+  no `00C_08a_Synonyms.csv`. SQL Agent and synonym evidence therefore remains
+  incomplete.
+
 ## 3. XuLyHangLoi / QT Chung source scripts
 
 There are 13 source scripts in `PCTP/Modules/XuLyHangLoi/Database`:
