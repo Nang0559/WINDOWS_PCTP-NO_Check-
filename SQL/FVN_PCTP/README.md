@@ -30,8 +30,8 @@ with their original Git blobs; they were not silently rewritten or deleted.
 one-click installer.** No source SQL Server has been changed and no target SQL
 script has been executed by this repository operation.
 
-- The MES/PCTP migrations `05_MES/Migrations/000..022` are an ordered schema
-  foundation. Migrations 014–022 add the PCTP site-scoped schema, workflow tables, FIFO policy and QR/LOT write contracts. They have not been runtime-tested against the user's SQL Server.
+- The MES/PCTP migrations `05_MES/Migrations/000..023` are an ordered schema
+  foundation. Migrations 014–023 add the PCTP site-scoped schema, workflow tables, FIFO policy, QR/LOT write contracts and inspection history. They have not been runtime-tested against the user's SQL Server.
 - Files in `LegacyCandidates`, `Diagnostics`, `IndexCandidates`,
   `SourceReview`, `SchemaEvidence` and `SchemaTooling` are not deployment steps.
 - `01_Baseline/Candidates/FVN_PCTP_RuntimeTables.sql` is not an approved
@@ -116,3 +116,5 @@ The owner approved the composite part identity `(SiteCode, PartNo)`. The ordered
 The current SQL package is still a **schema foundation**, not a cutover-ready application release. Before enabling runtime writes, the application repositories must pass SiteCode/PartNo and use the physical FVN_ tables. Remaining PCTP SQL modules (especially QR/LOT allocation and old STOCKTP/SlotLot procedures), source-to-target data migration, view/trigger conversion, permissions, and SQL Server 2016 execution/regression evidence remain open. Do not run against production or switch the app connection until those gates pass.
 
 Migrations 021–022 additionally provide a per-site FIFO policy upsert, MES-backed slot inventory view, customer-specific LOT normalization function and site-aware QR insert procedure.
+
+Migration 023 adds `dbo.FVN_InspectionLog` for QC/tem reconciliation, retaining the original inspection payload while adding SiteCode and optional IFS/MES lot identity links.
