@@ -1,0 +1,69 @@
+name: PCTP MES - Self-hosted Windows Build
+
+on:
+  push:
+    branches:
+      - feature/mes-product-genealogy-timeline
+    paths:
+      - 'PCTP/**'
+      - 'CONNECTSQL/**'
+      - 'WINDOWS_PCTP/**'
+      - 'WINDOWS_PCTP(NO_Check).sln'
+      - 'packages.config'
+      - '.github/workflows/pctp-mes-self-hosted-build.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pctp-mes-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-pctp:
+    # Uses the Windows machine where the repository owner installed the self-hosted runner.
+    # Keep this job compile-only: do not connect to live DB57, DB14, IFS, or FVN_PCTP.
+    runs-on: [self-hosted, Windows]
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Show runner and toolchain
+        shell: pwsh
+        run: |
+          Write-Host "Runner: $env:RUNNER_NAME"
+          Write-Host "OS: $env:RUNNER_OS"
+          Write-Host "Workspace: $env:GITHUB_WORKSPACE"
+          if ($env:RUNNER_OS -ne 'Windows') { throw 'This build requires the Windows self-hosted runner.' }
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Setup NuGet
+        uses: NuGet/setup-nuget@v2
+
+      - name: Restore solution packages
+        shell: pwsh
+        run: |
+          nuget restore "WINDOWS_PCTP(NO_Check).sln" -NonInteractive
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Build PCTP WinForms application
+        shell: pwsh
+        run: |
+          msbuild "PCTP/PCTP.csproj" /m /p:Configuration=Release /p:Platform=AnyCPU /p:RestorePackages=false /verbosity:minimal
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Upload build output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pctp-mes-build-${{ github.run_number }}
+          path: PCTP/bin/Release/**
+          if-no-files-found: warn
+          retention-days: 7
