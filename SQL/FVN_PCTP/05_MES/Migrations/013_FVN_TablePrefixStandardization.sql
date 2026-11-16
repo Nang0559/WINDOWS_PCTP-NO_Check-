@@ -74,6 +74,39 @@ BEGIN TRY
     CLOSE TableCursor;
     DEALLOCATE TableCursor;
 
+    /*
+       MERGE targets cannot rely on a compatibility synonym. Repoint the IFS
+       synchronization MERGE targets to their physical FVN_ tables. Other
+       ordinary SELECT/INSERT/UPDATE references may continue using synonyms.
+    */
+    DECLARE @ApplyProcedure nvarchar(max);
+    SET @ApplyProcedure = OBJECT_DEFINITION(OBJECT_ID(N'IFS.usp_ApplySyncBatch', N'P'));
+
+    IF @ApplyProcedure IS NULL
+        THROW 51307, 'IFS.usp_ApplySyncBatch is missing or its definition is not visible.', 1;
+
+    SET @ApplyProcedure = REPLACE(
+        @ApplyProcedure,
+        N'CREATE PROCEDURE IFS.usp_ApplySyncBatch',
+        N'ALTER PROCEDURE IFS.usp_ApplySyncBatch');
+
+    SET @ApplyProcedure = REPLACE(@ApplyProcedure, N'MERGE IFS.PartCatalog AS T', N'MERGE IFS.FVN_PartCatalog AS T');
+    SET @ApplyProcedure = REPLACE(@ApplyProcedure, N'MERGE IFS.InventoryPart AS T', N'MERGE IFS.FVN_InventoryPart AS T');
+    SET @ApplyProcedure = REPLACE(@ApplyProcedure, N'MERGE IFS.BomHeader AS T', N'MERGE IFS.FVN_BomHeader AS T');
+    SET @ApplyProcedure = REPLACE(@ApplyProcedure, N'MERGE IFS.BomAlternative AS T', N'MERGE IFS.FVN_BomAlternative AS T');
+    SET @ApplyProcedure = REPLACE(@ApplyProcedure, N'MERGE IFS.BomComponent AS T', N'MERGE IFS.FVN_BomComponent AS T');
+    SET @ApplyProcedure = REPLACE(@ApplyProcedure, N'MERGE MES.IfsInventoryPart AS T', N'MERGE MES.FVN_IfsInventoryPart AS T');
+
+    IF CHARINDEX(N'MERGE IFS.PartCatalog AS T', @ApplyProcedure) > 0
+       OR CHARINDEX(N'MERGE IFS.InventoryPart AS T', @ApplyProcedure) > 0
+       OR CHARINDEX(N'MERGE IFS.BomHeader AS T', @ApplyProcedure) > 0
+       OR CHARINDEX(N'MERGE IFS.BomAlternative AS T', @ApplyProcedure) > 0
+       OR CHARINDEX(N'MERGE IFS.BomComponent AS T', @ApplyProcedure) > 0
+       OR CHARINDEX(N'MERGE MES.IfsInventoryPart AS T', @ApplyProcedure) > 0
+        THROW 51308, 'Could not rewrite every IFS/MES MERGE target to its FVN_ physical table.', 1;
+
+    EXEC sys.sp_executesql @ApplyProcedure;
+
     INSERT INTO MES.FVN_SchemaMigration(MigrationVersion, MigrationName)
     VALUES ('013', N'FVN_ physical table name standardization');
 
