@@ -35,6 +35,10 @@ BEGIN TRY
         ALTER TABLE dbo.FVN_Slot ADD TemCode nvarchar(max) NULL;
     IF COL_LENGTH(N'dbo.FVN_Slot', N'QrData') IS NULL
         ALTER TABLE dbo.FVN_Slot ADD QrData nvarchar(max) NULL;
+    IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name=N'FK_FVN_Slot_IFSPart')
+        ALTER TABLE dbo.FVN_Slot
+            ADD CONSTRAINT FK_FVN_Slot_IFSPart
+            FOREIGN KEY (SiteCode, ItemCode) REFERENCES IFS.FVN_InventoryPart (SiteCode, PartNo);
 
     IF OBJECT_ID(N'dbo.FVN_STOCKTP', N'U') IS NULL
     BEGIN
