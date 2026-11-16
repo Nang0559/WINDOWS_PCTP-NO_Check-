@@ -30,7 +30,7 @@ with their original Git blobs; they were not silently rewritten or deleted.
 one-click installer.** No source SQL Server has been changed and no target SQL
 script has been executed by this repository operation.
 
-- The MES/PCTP migrations `05_MES/Migrations/000..023` are an ordered schema
+- The MES/PCTP migrations `05_MES/Migrations/000..023` plus `025` (with optional data preflight `024`) are an ordered schema
   foundation. Migrations 014–023 add the PCTP site-scoped schema, workflow tables, FIFO policy, QR/LOT write contracts and inspection history. They have not been runtime-tested against the user's SQL Server.
 - Files in `LegacyCandidates`, `Diagnostics`, `IndexCandidates`,
   `SourceReview`, `SchemaEvidence` and `SchemaTooling` are not deployment steps.
@@ -122,3 +122,5 @@ Migration 023 adds `dbo.FVN_InspectionLog` for QC/tem reconciliation, retaining 
 `05_MES/Migrations/024_PCTP_LegacySiteMappingAndPreflight.sql` is optional for the empty-schema install. Run it only when preparing legacy data migration and when `B7R2_FCC` is visible on the same SQL Server instance; it creates mapping tables and read-only diagnostics, not a data copy.
 
 Migration 025 adds `dbo.usp_FVN_PCTP_PostStockMovement`, which resolves SlotId through the explicit Slot-to-MES location map and calls the canonical MES posting procedure. The `vFVN_STOCKTP` view now exposes MES on-hand rather than the retained legacy `SLCONLAI` table value.
+
+Post-install verification script: `09_Tests/Smoke/02_PCTP_PostInstallSmokeTest.sql`. It is read-only and checks the expected FVN_ schema objects, the composite part FK and the migration ledger; it does not replace SQL Server deployment testing or business regression tests.
