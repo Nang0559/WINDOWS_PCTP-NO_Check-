@@ -105,3 +105,8 @@ The SQL2 module section in the checked-in metadata export contains truncated def
 `00_Governance/SourceExtractionTools/00H_Export_PCTP_RuntimeObjectDefinitions.sql`
 
 Run it only against `B7R2_FCC`, export every result set, and provide Results 1–4 (table columns, indexes, foreign keys and CHECK constraints), Result 5 (full view/procedure/function/trigger definitions), Result 6 (table-valued types), Result 7 (trigger bodies) and Result 8 (synonyms). It does not modify source data or schema.
+
+
+## IFS part master replaces Bravo B20Item
+
+PCTP's authoritative part master is now explicitly `IFS.FVN_InventoryPart`, keyed by `(SiteCode, PartNo)`. Do not recreate Bravo B20 master tables or maintain a duplicate part master. See `00_Governance/00I_PCTP_IFS_PartMaster_Replacement.md` for the uploaded B7R2 source-export analysis, field mapping, PCTP module dependencies and the SiteCode decision required before DDL.
