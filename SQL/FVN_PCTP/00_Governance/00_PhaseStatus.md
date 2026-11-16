@@ -166,3 +166,8 @@ The `019` SlotLot save contract is deliberately projection-only. It does not cre
 ## 14. Inspection/tem reconciliation history 023 (2026-11-16)
 
 Added `023_PCTP_InspectionLog.sql`, based on the current `06_CREATE_InspectionLog.sql` candidate. The physical target is `dbo.FVN_InspectionLog`, with site-scoped optional IFS part and MES LOT links. The ordered migration index is now 000–023. SQL execution and application repository conversion remain pending.
+
+
+## 15. Optional legacy site mapping/preflight 024 (2026-11-16)
+
+Added `024_PCTP_LegacySiteMappingAndPreflight.sql` with explicit warehouse→SiteCode/target warehouse, legacy part→IFS part, legacy LOT→MES MaterialLot, factory→SiteCode and document→SiteCode mapping tables. It adds `dbo.usp_FVN_PCTP_LegacyPreflight`, which reads `B7R2_FCC` and returns unresolved rows without modifying the source. Migration 024 is optional for an empty FVN_PCTP schema and is run only when preparing source data migration on an instance where B7R2_FCC is visible. It does not perform the copy.
