@@ -110,3 +110,5 @@ PCTP part-extension records (`FVN_PartIdentity`, `FVN_PartOperationalProfile`, `
 Migration 024 is **not required to create the empty FVN_PCTP schema**. It creates explicit mapping tables and a read-only preflight procedure; it does not copy or update any B7R2_FCC data.
 
 Migration 025 requires the MES posting procedure from migration 004. It does not depend on optional data-migration preflight 024.
+
+- `026_PCTP_StockMovementGuardAndLotAdjustmentHistory.sql`: creates `dbo.FVN_StockMovementGuard` and `dbo.FVN_StockLotAdjustmentHistory` (replace `PCTPStockMovementGuard` / `PCTPStockLotAdjustmentHistory`). Prerequisite: 025.

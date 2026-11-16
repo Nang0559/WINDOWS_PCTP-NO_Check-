@@ -465,7 +465,7 @@ namespace PCTP.Modules.KhoCore.UI
                 try { _uow.Rollback(); } catch { }
                 XtraMessageBox.Show(this,
                     "Điều chỉnh thất bại; transaction đã được rollback.\r\n\r\n" + ex.Message +
-                    "\r\n\r\nNếu lỗi thiếu bảng PCTPStockLotAdjustmentHistory, hãy chạy SQL/PCTP_StockLotAdjustmentHistory.sql trên đúng cơ sở dữ liệu đang cấu hình trước khi sử dụng.",
+                    "\r\n\r\nNếu lỗi thiếu bảng FVN_StockLotAdjustmentHistory, hãy chạy migration 026 (SQL/FVN_PCTP/05_MES/Migrations/026_PCTP_StockMovementGuardAndLotAdjustmentHistory.sql) trên FVN_PCTP trước khi sử dụng.",
                     Text, MessageBoxButtons.OK, MessageBoxIcon.Error);
                 _apply.Enabled = _hasPreview;
             }

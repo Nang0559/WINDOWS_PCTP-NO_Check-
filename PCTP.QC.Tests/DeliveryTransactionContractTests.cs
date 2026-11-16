@@ -128,7 +128,7 @@ public sealed class DeliveryTransactionContractTests
         Assert.Contains("SoPhieuTong = request.ReceivingSoPhieuTong", movement);
         Assert.Contains("ParentSoPhieu = request.ReceivingParentSoPhieu", movement);
         Assert.Contains("ImportDate = isNormalReceive", movement);
-        Assert.Contains("INSERT INTO SlotLot", slotRepository);
+        Assert.Contains("INSERT INTO dbo.FVN_SlotLot", slotRepository);
         Assert.Contains("AddLot phải chạy trong transaction", slotRepository);
         Assert.Contains("NgaySX, SoPhieuTong, MaPhieu, ParentSoPhieu, PhieuStatus", slotRepository);
         Assert.Contains("UpdateSlotHeaderBySlotId(slotId)", slotRepository);
