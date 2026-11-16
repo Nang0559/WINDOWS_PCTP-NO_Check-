@@ -67,3 +67,22 @@ Start with:
 
 Use `00_Governance/Evidence` as a dated snapshot, not as proof of the live
 source catalog today. SQL Agent job-step and synonym evidence is still incomplete.
+
+## Consolidation of the current PCTP application SQL
+
+The 13 XuLyHangLoi / QT Chung scripts still located under
+`PCTP/Modules/XuLyHangLoi/Database` are historical incremental patches, not a
+clean-install schema. Their audited classification, dependencies, naming
+corrections, and the remaining blockers are recorded in
+`00_Governance/00F_PCTP_CurrentSqlConsolidationAudit.md`. The old folder now
+contains a README pointing to that canonical audit.
+
+The six application-confirmed operational tables are documented in the audit.
+The final physical placement of `STOCKTP`, `SlotLot`, and `StockHistory`
+remains unresolved; do not create a second stock balance or movement ledger.
+Migration 013 only renames tables that already exist and does not create the
+missing PCTP delivery/warehouse/XuLyHangLoi base tables.
+
+**Current instruction:** do not run the legacy XuLyHangLoi, Warehouse, or
+Delivery candidates against a clean `FVN_PCTP` database. First approve and
+generate the missing baseline and domain migrations.
