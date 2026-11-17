@@ -372,14 +372,39 @@ namespace PCTP.Modules.KhoVatLy.Application.Services
                 .ToList();
         }
 
-  
+
         // SlotService — thêm
         public List<string> GetEmptySlots(string itemCode, int soLuongNhap)
         {
             if (string.IsNullOrWhiteSpace(itemCode) || soLuongNhap <= 0)
                 return new List<string>();
 
-            return _repository.GetEmptySlots(itemCode, soLuongNhap);
+            var candidates = _repository.GetEmptySlots(itemCode, soLuongNhap);
+            var result = new List<string>(candidates.Count);
+
+            foreach (var slotText in candidates)
+            {
+                // Không parse được thì giữ nguyên, tránh làm mất slot vì lỗi định dạng
+                if (!SlotParser.TryParse(slotText, out string wh, out string rack, out int slotNo, out int capacity))
+                {
+                    result.Add(slotText);
+                    continue;
+                }
+
+                int slotId = _repository.GetSlotId(wh, rack, slotNo);
+                if (slotId <= 0) continue;
+
+                if (capacity <= 0)
+                    capacity = _repository.GetCapacity(slotId);
+
+                // capacity <= 0: slot không giới hạn sức chứa → luôn giữ
+                if (capacity > 0 && _repository.GetQuantity(slotId) >= capacity)
+                    continue;   // slot đã đủ capacity → loại khỏi danh sách
+
+                result.Add(slotText);
+            }
+
+            return result;
         }
 
         public string GetOrCreateVirtualSlotText(string warehouseName, string rackName, int capacity)
