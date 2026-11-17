@@ -30,7 +30,6 @@ namespace PCTP.Modules.BaoCao.UI
         private readonly IStockHistoryQuery _historyQuery;
         private readonly ICurrentStockQuery _currentStockQuery;
         private readonly ILotTraceQuery _deliveryTraceQuery;
-        private readonly IQrTraceQuery _qrTraceQuery;
         private SimpleButton _btnBuildTimeline;
         private readonly IWaitFormService _waitForm;
         private readonly CancellationTokenSource _lifetime = new CancellationTokenSource();
@@ -141,7 +140,6 @@ namespace PCTP.Modules.BaoCao.UI
             _currentStockQuery = currentStockQuery;
             var deliveryService = new DeliveryTraceReadService();
             _deliveryTraceQuery = deliveryService;
-            _qrTraceQuery = deliveryService;
             _timelineBuilder = new LotTraceTimelineBuilder(
                 deliveryService, deliveryService,
                 new PCTP.Modules.BaoCao.Infrastructure.Repositories.ProductionLotTraceRepository(),
@@ -478,12 +476,10 @@ namespace PCTP.Modules.BaoCao.UI
                 decimal delivered = 0m;
                 foreach (DeliveryTraceRow d in deliveries)
                 {
-                    _lifetime.Token.ThrowIfCancellationRequested();
-                    IReadOnlyList<DeliveryLotTraceRow> allocations = await Task.Run(
-                        () => _qrTraceQuery.GetLotsAsync(d.DeliveryKey, null, _lifetime.Token), _lifetime.Token);
-                    foreach (DeliveryLotTraceRow a in (allocations ?? new List<DeliveryLotTraceRow>()))
+                    // LOT ghép đã nằm sẵn trong d.LotNoRaw: tách tại chỗ, KHÔNG truy vấn lại DB cho từng phiếu.
+                    foreach (LotAllocation a in LotCodeHelper.ParseCompositeLotTolerant(d.LotNoRaw, d.Quantity))
                     {
-                        if (a == null || !string.IsNullOrWhiteSpace(a.ParseError) || string.IsNullOrWhiteSpace(a.LotNo)) continue;
+                        if (a == null || !a.IsValid || !a.HasQuantity) continue;
                         if (!LotCodeHelper.AreLotKeysEquivalent(a.LotNo, lotKey)) continue;
                         delivered += a.Quantity;
                         recon.Add(new ItemHistoryRow
@@ -631,7 +627,7 @@ namespace PCTP.Modules.BaoCao.UI
                     await _waitForm.RunAsync(
                         () => ReconcileGridWithDeliveriesAsync(lot, part, rows),
                         "Đang đối soát SL giao với lịch sử kho...");
-                await BuildTimelineForLotAsync(lot, part);
+                // Không tự dựng timeline ở đây: đã có nút "Dựng timeline LOT" (hoặc nhấp đúp dòng) riêng.
                 if (_deliveryRows.Count == 0)
                 {
                     XtraMessageBox.Show(this,
