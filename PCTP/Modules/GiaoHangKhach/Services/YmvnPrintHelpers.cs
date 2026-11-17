@@ -31,6 +31,26 @@ namespace PCTP.Applications.Services
     }
 
     /// <summary>
+    /// Số xe của một dòng phiếu YMVN = làm tròn lên (SỐ LƯỢNG GIAO / QCDG), QCDG là sức chứa theo xe
+    /// lấy từ Purchase_Order_YMVN. Dùng CHUNG cho lưới và phiếu in để hai bên không bao giờ lệch nhau.
+    /// Trả về chuỗi rỗng khi thiếu số lượng, thiếu QCDG hoặc QCDG &lt;= 0.
+    /// </summary>
+    public static class YmvnXe
+    {
+        public static string Tinh(string soLuongGiao, string sucChuaXe)
+        {
+            int sl;
+            int qc;
+            if (!int.TryParse((soLuongGiao ?? string.Empty).Trim(), out sl)) return string.Empty;
+            if (!int.TryParse((sucChuaXe ?? string.Empty).Trim(), out qc) || qc <= 0) return string.Empty;
+
+            int soXe = sl / qc;
+            if (sl % qc > 0) soXe++;
+            return soXe.ToString();
+        }
+    }
+
+    /// <summary>
     /// So khớp giờ giao của dòng phiếu với các giờ đang tích trong danh sách giờ xuất.
     /// Chỉ so theo GIỜ (HH) vì TMP.GIOGIAO lưu "15" còn danh sách giờ là "15:00:00"/"15:00"/"15H".
     /// Danh sách giờ rỗng = không lọc (in toàn bộ).
