@@ -144,7 +144,7 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
             this.PN_MAIN_TOP.Location = new System.Drawing.Point(0, 0);
             this.PN_MAIN_TOP.Margin = new System.Windows.Forms.Padding(5, 5, 5, 5);
             this.PN_MAIN_TOP.Name = "PN_MAIN_TOP";
-            this.PN_MAIN_TOP.Size = new System.Drawing.Size(2024, 269);
+            this.PN_MAIN_TOP.Size = new System.Drawing.Size(2024, 178);
             this.PN_MAIN_TOP.TabIndex = 0;
             // 
             // PN_DOCQR_TOP
@@ -158,7 +158,7 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
             this.PN_DOCQR_TOP.Location = new System.Drawing.Point(2, 2);
             this.PN_DOCQR_TOP.Margin = new System.Windows.Forms.Padding(5, 2, 5, 2);
             this.PN_DOCQR_TOP.Name = "PN_DOCQR_TOP";
-            this.PN_DOCQR_TOP.Size = new System.Drawing.Size(2020, 265);
+            this.PN_DOCQR_TOP.Size = new System.Drawing.Size(2020, 174);
             this.PN_DOCQR_TOP.TabIndex = 3;
             // 
             // panelPhieu
@@ -168,7 +168,7 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
             this.panelPhieu.Dock = System.Windows.Forms.DockStyle.Fill;
             this.panelPhieu.Location = new System.Drawing.Point(242, 0);
             this.panelPhieu.Name = "panelPhieu";
-            this.panelPhieu.Size = new System.Drawing.Size(1778, 265);
+            this.panelPhieu.Size = new System.Drawing.Size(1778, 174);
             this.panelPhieu.TabIndex = 20;
             // 
             // sidePanel6
@@ -226,7 +226,7 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
             this.sidePanel1.Controls.Add(this.CheckGX);
             this.sidePanel1.Controls.Add(this.tabPaneHVN);
             this.sidePanel1.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.sidePanel1.Location = new System.Drawing.Point(2, 131);
+            this.sidePanel1.Location = new System.Drawing.Point(2, 40);
             this.sidePanel1.Name = "sidePanel1";
             this.sidePanel1.Size = new System.Drawing.Size(1774, 132);
             this.sidePanel1.TabIndex = 22;
@@ -325,7 +325,7 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
             this.UIButtonHOME.Location = new System.Drawing.Point(0, 0);
             this.UIButtonHOME.Margin = new System.Windows.Forms.Padding(5, 5, 5, 5);
             this.UIButtonHOME.Name = "UIButtonHOME";
-            this.UIButtonHOME.Size = new System.Drawing.Size(242, 265);
+            this.UIButtonHOME.Size = new System.Drawing.Size(242, 174);
             this.UIButtonHOME.TabIndex = 18;
             this.UIButtonHOME.Text = "windowsUIButtonPanel1";
             // 
@@ -459,7 +459,7 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
             this.gridCtrDONHANG.MainView = this.GridViewDONHANG;
             this.gridCtrDONHANG.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.gridCtrDONHANG.Name = "gridCtrDONHANG";
-            this.gridCtrDONHANG.Size = new System.Drawing.Size(2024, 111);
+            this.gridCtrDONHANG.Size = new System.Drawing.Size(2024, 332);
             this.gridCtrDONHANG.TabIndex = 4;
             this.gridCtrDONHANG.ViewCollection.AddRange(new DevExpress.XtraGrid.Views.Base.BaseView[] {
             this.GridViewDONHANG});
@@ -622,6 +622,7 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
             // XE
             // 
             this.XE.Caption = "Xe";
+            this.XE.FieldName = "XE";
             this.XE.MinWidth = 27;
             this.XE.Name = "XE";
             this.XE.Visible = true;
@@ -700,7 +701,7 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
             this.gridCtrDOCQrCODE.MainView = this.gridVDOCQRCODE;
             this.gridCtrDOCQrCODE.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.gridCtrDOCQrCODE.Name = "gridCtrDOCQrCODE";
-            this.gridCtrDOCQrCODE.Size = new System.Drawing.Size(2024, 111);
+            this.gridCtrDOCQrCODE.Size = new System.Drawing.Size(2024, 332);
             this.gridCtrDOCQrCODE.TabIndex = 3;
             this.gridCtrDOCQrCODE.ViewCollection.AddRange(new DevExpress.XtraGrid.Views.Base.BaseView[] {
             this.gridVDOCQRCODE});
@@ -942,7 +943,7 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
             // 
             this.sidePanel3.Controls.Add(this.splitBottomLeftRight);
             this.sidePanel3.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.sidePanel3.Location = new System.Drawing.Point(0, 500);
+            this.sidePanel3.Location = new System.Drawing.Point(0, 510);
             this.sidePanel3.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.sidePanel3.Name = "sidePanel3";
             this.sidePanel3.Size = new System.Drawing.Size(2024, 210);
@@ -1035,10 +1036,10 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
             this.sidePanel2.Controls.Add(this.gridCtrDONHANG);
             this.sidePanel2.Controls.Add(this.gridCtrDOCQrCODE);
             this.sidePanel2.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.sidePanel2.Location = new System.Drawing.Point(0, 269);
+            this.sidePanel2.Location = new System.Drawing.Point(0, 178);
             this.sidePanel2.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.sidePanel2.Name = "sidePanel2";
-            this.sidePanel2.Size = new System.Drawing.Size(2024, 111);
+            this.sidePanel2.Size = new System.Drawing.Size(2024, 332);
             this.sidePanel2.TabIndex = 4;
             this.sidePanel2.Text = "sidePanel2";
             // 

@@ -356,7 +356,7 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
             ConfigureColumn(dovi, "Đơn Vị", "DV", 90, 24);
             ConfigureColumn(soluong, "Số Lượng", "SOLUONG", 90, 24);
             soluong.DisplayFormat.FormatType = DevExpress.Utils.FormatType.Numeric;
-            ConfigureColumn(xe, "Xe", null, 79, 24);
+            ConfigureColumn(xe, "Xe", "XE", 79, 24);
             ConfigureColumn(Hop, "Hộp", "HOP", 89, 24);
             Hop.DisplayFormat.FormatString = "n";
             Hop.DisplayFormat.FormatType = DevExpress.Utils.FormatType.Numeric;
