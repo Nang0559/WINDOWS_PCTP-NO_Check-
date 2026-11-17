@@ -348,7 +348,6 @@ namespace PCTP.Modules.BaoCao.UI
                     {
                         IReadOnlyList<ItemHistoryRow> list = await Task.Run(
                             () => _historyQuery.SearchAsync(criteria, _lifetime.Token), _lifetime.Token);
-                        list = await AppendDeliveryReconciliationAsync(list, criteria);
                         if (!lookupCriteria.DateEnabled)
                             return list;
 
@@ -377,27 +376,27 @@ namespace PCTP.Modules.BaoCao.UI
         }
 
         /// <summary>
-        /// Tra cứu theo 1 LOT: so tổng SL giao theo phiếu giao (LUUPHIEUGIAOHANG, đã tách LOT ghép) với tổng SL xuất đã có
-        /// trong lịch sử kho. Nếu phiếu giao nhiều hơn thì thêm các dòng "DOI_SOAT_GIAO_HANG" (hướng "Khác", KHÔNG cộng vào
-        /// SL nhập/xuất) để thấy rõ từng lần giao (vd 93 pcs) mà lịch sử kho còn thiếu dòng xuất.
-        /// Lỗi đọc phiếu giao không làm hỏng tra cứu.
+        /// CHỈ chạy khi người dùng bấm "Truy vết giao hàng →" (đã có sẵn danh sách phiếu giao của LOT, không truy vấn lại):
+        /// so tổng SL giao theo phiếu giao (đã tách LOT ghép) với tổng SL xuất đã có trong lịch sử kho. Nếu phiếu giao nhiều hơn
+        /// thì thêm các dòng "DOI_SOAT_GIAO_HANG" (hướng "Khác", KHÔNG cộng vào SL nhập/xuất) vào lưới để thấy từng lần giao
+        /// (vd 93 pcs) mà lịch sử kho còn thiếu dòng xuất. Không nằm trong luồng tra cứu vì truy vấn phiếu giao chậm.
         /// </summary>
-        private async Task<IReadOnlyList<ItemHistoryRow>> AppendDeliveryReconciliationAsync(
-            IReadOnlyList<ItemHistoryRow> list, HistorySearchCriteria criteria)
+        private async Task ReconcileGridWithDeliveriesAsync(string lot, string part, IReadOnlyList<DeliveryTraceRow> hits)
         {
             try
             {
-                if (list == null || string.IsNullOrWhiteSpace(criteria.LotNo)) return list;
-                string lotKey = LotCodeHelper.GetSearchKey(criteria.LotNo);
-                if (string.IsNullOrWhiteSpace(lotKey)) return list;
+                string lotKey = LotCodeHelper.GetSearchKey(lot);
+                var current = _grid.DataSource as IEnumerable<ItemHistoryRow>;
+                if (string.IsNullOrWhiteSpace(lotKey) || current == null) return;
 
-                IReadOnlyList<DeliveryTraceRow> hits = await Task.Run(() => _deliveryTraceQuery.SearchAsync(
-                    lotKey, criteria.PartNo, null, null, null, _lifetime.Token), _lifetime.Token);
+                // Bỏ các dòng đối soát của lần trước (bấm truy vết nhiều lần không bị nhân đôi).
+                List<ItemHistoryRow> baseRows = current
+                    .Where(x => x != null && !string.Equals(x.ActionType, "DOI_SOAT_GIAO_HANG", StringComparison.OrdinalIgnoreCase)).ToList();
+
                 var deliveries = (hits ?? new List<DeliveryTraceRow>())
                     .Where(x => x != null)
                     .GroupBy(x => x.DeliveryKey ?? string.Empty, StringComparer.OrdinalIgnoreCase)
                     .Select(g => g.First()).ToList();
-                if (deliveries.Count == 0) return list;
 
                 var recon = new List<ItemHistoryRow>();
                 decimal delivered = 0m;
@@ -413,7 +412,7 @@ namespace PCTP.Modules.BaoCao.UI
                         delivered += a.Quantity;
                         recon.Add(new ItemHistoryRow
                         {
-                            ItemCode = d.PartNo ?? criteria.PartNo,
+                            ItemCode = d.PartNo ?? part,
                             LotNo = a.LotNo,
                             ActionType = "DOI_SOAT_GIAO_HANG",
                             Quantity = a.Quantity,
@@ -426,20 +425,21 @@ namespace PCTP.Modules.BaoCao.UI
                     }
                 }
 
-                decimal alreadyOut = list.Where(x => !x.IsDefectTicketEvent
+                decimal alreadyOut = baseRows.Where(x => !x.IsDefectTicketEvent
                         && LotCodeHelper.AreLotKeysEquivalent(x.LotNo, lotKey)).Sum(x => x.QuantityOut);
-                if (recon.Count == 0 || delivered <= alreadyOut) return list;
+                if (recon.Count == 0 || delivered <= alreadyOut) return;
 
                 string deficit = (delivered - alreadyOut).ToString("N0");
                 foreach (ItemHistoryRow r in recon)
                     r.Note += " | Phiếu giao tổng " + delivered.ToString("N0") + " > lịch sử kho đã xuất " +
                               alreadyOut.ToString("N0") + " (thiếu " + deficit + ")";
 
-                return list.Concat(recon)
+                List<ItemHistoryRow> merged = baseRows.Concat(recon)
                     .OrderByDescending(x => x.EventTime.HasValue).ThenByDescending(x => x.EventTime).ToList();
+                Bind(merged, ConfigureHistoryColumns);
             }
-            catch (OperationCanceledException) { throw; }
-            catch (Exception) { return list; }
+            catch (OperationCanceledException) { }
+            catch (Exception) { /* đối soát chỉ là thông tin bổ sung */ }
         }
 
         private async Task LoadCurrentStockAsync()
@@ -550,6 +550,10 @@ namespace PCTP.Modules.BaoCao.UI
                 _deliveryRows.Clear();
                 if (rows != null) _deliveryRows.AddRange(rows);
                 BindDeliveryRows();
+                if (_deliveryRows.Count > 0 && !_showingCurrentStock)
+                    await _waitForm.RunAsync(
+                        () => ReconcileGridWithDeliveriesAsync(lot, part, rows),
+                        "Đang đối soát SL giao với lịch sử kho...");
                 await BuildTimelineForLotAsync(lot, part);
                 if (_deliveryRows.Count == 0)
                 {
