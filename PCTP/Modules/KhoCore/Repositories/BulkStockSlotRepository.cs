@@ -1,5 +1,4 @@
-﻿using PCTP.Infrastructure.Stock;
-using PCTP.Modules.GiaoHangKhach;
+﻿using PCTP.Modules.GiaoHangKhach;
 using PCTP.Modules.KhoCore.Application.Contracts.Stock;
 using PCTP.Modules.KhoVatLy.Kho.Models;
 using PCTP.Common;
@@ -23,17 +22,10 @@ namespace PCTP.Modules.KhoVatLy.Repositories
         private readonly string _movementGuardTable = string.Empty;
         private readonly bool _useQcTempTables;
         private readonly string _qcTablePrefix = string.Empty;
-        private readonly ISiteContext _site;
 
-        private SqlParameter SiteParam()
-        {
-            return new SqlParameter("@site", SqlDbType.NVarChar, 30) { Value = _site.SiteCode };
-        }
-
-        public BulkStockSlotRepository(PhieuSqlExecutor db, IUnitOfWork uow, string movementGuardTable = "dbo.FVN_StockMovementGuard", bool useQcTempTables = false, string qcTablePrefix = null, ISiteContext site = null)
+        public BulkStockSlotRepository(PhieuSqlExecutor db, IUnitOfWork uow, string movementGuardTable = "dbo.PCTPStockMovementGuard", bool useQcTempTables = false, string qcTablePrefix = null)
             : base(db, uow)
         {
-            _site = site ?? AppSettingsSiteContext.Default;
             _useQcTempTables = useQcTempTables;
             if (!string.IsNullOrWhiteSpace(qcTablePrefix) &&
                 !System.Text.RegularExpressions.Regex.IsMatch(qcTablePrefix, @"^##PCTP_QC_[A-Fa-f0-9]{32}_$"))
@@ -41,7 +33,7 @@ namespace PCTP.Modules.KhoVatLy.Repositories
             if (!string.IsNullOrWhiteSpace(qcTablePrefix) && !useQcTempTables)
                 throw new ArgumentException("QC table prefix is valid only when useQcTempTables is enabled.", nameof(qcTablePrefix));
             _qcTablePrefix = qcTablePrefix ?? string.Empty;
-            if (string.Equals(movementGuardTable, "dbo.FVN_StockMovementGuard", StringComparison.OrdinalIgnoreCase)
+            if (string.Equals(movementGuardTable, "dbo.PCTPStockMovementGuard", StringComparison.OrdinalIgnoreCase)
                 || string.Equals(movementGuardTable, "#PCTPStockMovementGuard", StringComparison.OrdinalIgnoreCase))
                 _movementGuardTable = movementGuardTable;
             else if (System.Text.RegularExpressions.Regex.IsMatch(
@@ -49,7 +41,7 @@ namespace PCTP.Modules.KhoVatLy.Repositories
                 @"^##PCTPStockMovementGuard_[A-Fa-f0-9]{32}$"))
                 _movementGuardTable = movementGuardTable;
             else
-                throw new ArgumentException("Movement guard table must be dbo.FVN_StockMovementGuard or a QC temporary table.", nameof(movementGuardTable));
+                throw new ArgumentException("Movement guard table must be dbo.PCTPStockMovementGuard or a QC temporary table.", nameof(movementGuardTable));
         }
 
         // SQL integration runs the real repository against session-local fixtures. This flag is
@@ -59,8 +51,8 @@ namespace PCTP.Modules.KhoVatLy.Repositories
             if (!_useQcTempTables || string.IsNullOrEmpty(sql)) return sql;
             return System.Text.RegularExpressions.Regex.Replace(
                 sql,
-                @"(?<![@#\w])dbo\.FVN_(Warehouse|Rack|SlotLot|Slot)\b",
-                match => (string.IsNullOrEmpty(_qcTablePrefix) ? "#" : _qcTablePrefix) + match.Groups[1].Value,
+                @"(?<![@#\w])(Warehouse|Rack|SlotLot|Slot)\b",
+                match => (string.IsNullOrEmpty(_qcTablePrefix) ? "#" : _qcTablePrefix) + match.Value,
                 System.Text.RegularExpressions.RegexOptions.IgnoreCase);
         }
 
@@ -95,11 +87,10 @@ namespace PCTP.Modules.KhoVatLy.Repositories
 
             DataTable existing = LoadData(
                 @"SELECT TOP 1 s.SlotId, s.Capacity
-              FROM dbo.FVN_Slot s
-              JOIN dbo.FVN_Rack r ON r.SiteCode = s.SiteCode AND r.RackId = s.RackId
-              JOIN dbo.FVN_Warehouse w ON w.SiteCode = r.SiteCode AND w.WarehouseId = r.WarehouseId
-              WHERE s.SiteCode = @site AND w.Name = @wh AND r.RackName = @rack",
-                SiteParam(),
+              FROM Slot s
+              JOIN Rack r ON r.RackId = s.RackId
+              JOIN Warehouse w ON w.WarehouseId = r.WarehouseId
+              WHERE w.Name = @wh AND r.RackName = @rack",
                 new SqlParameter("@wh", warehouseName),
                 new SqlParameter("@rack", rackName));
 
@@ -107,35 +98,31 @@ namespace PCTP.Modules.KhoVatLy.Repositories
                 return Convert.ToInt32(existing.Rows[0]["SlotId"]);
 
             int whId = Convert.ToInt32(ExecuteScalar(
-                "INSERT INTO dbo.FVN_Warehouse (SiteCode, Name) OUTPUT INSERTED.WarehouseId VALUES (@site, @n)",
-                SiteParam(), new SqlParameter("@n", warehouseName)));
+                "INSERT INTO Warehouse (Name) OUTPUT INSERTED.WarehouseId VALUES (@n)",
+                new SqlParameter("@n", warehouseName)));
             int rackId = Convert.ToInt32(ExecuteScalar(
-                "INSERT INTO dbo.FVN_Rack (SiteCode, WarehouseId, RackName) OUTPUT INSERTED.RackId VALUES (@site, @w, @r)",
-                SiteParam(), new SqlParameter("@w", whId), new SqlParameter("@r", rackName)));
-            int newSlotId = Convert.ToInt32(ExecuteScalar(
-                @"INSERT INTO dbo.FVN_Slot (SiteCode, RackId, SlotNumber, IsOccupied, Capacity, Quantity)
+                "INSERT INTO Rack (WarehouseId, RackName) OUTPUT INSERTED.RackId VALUES (@w,@r)",
+                new SqlParameter("@w", whId), new SqlParameter("@r", rackName)));
+            return Convert.ToInt32(ExecuteScalar(
+                @"INSERT INTO Slot (RackId, SlotNumber, IsOccupied, Capacity, Quantity)
               OUTPUT INSERTED.SlotId
-              VALUES (@site, @rk, 1, 0, @cap, 0)",
-                SiteParam(), new SqlParameter("@rk", rackId), new SqlParameter("@cap", capacity)));
-
-            // Slot ảo chỉ ghi được tồn khi đã có ánh xạ MES location chính (FVN_SlotMesLocation).
-            // Mã không thể tự tạo location IFS/MES, nên báo rõ để quản trị viên cấp mapping.
-            return newSlotId;
+              VALUES (@rk, 1, 0, @cap, 0)",
+                new SqlParameter("@rk", rackId), new SqlParameter("@cap", capacity)));
         }
 
         public void LockSlotForUpdate(int slotId)
         {
             if (!HasTransaction)
                 throw new InvalidOperationException("LockSlotForUpdate phải chạy trong transaction (Uow.Begin() trước).");
-            ExecuteScalar("SELECT SlotId FROM dbo.FVN_Slot WITH (UPDLOCK, ROWLOCK) WHERE SiteCode = @site AND SlotId = @SlotId", SiteParam(), new SqlParameter("@SlotId", slotId));
+            ExecuteScalar("SELECT SlotId FROM Slot WITH (UPDLOCK, ROWLOCK) WHERE SlotId = @SlotId", new SqlParameter("@SlotId", slotId));
         }
 
         public List<LotInfo> GetLots(int slotId)
         {
             DataTable dt = LoadData(
                 @"SELECT ItemCode, LotNo, Quantity, TemCode, QrData, MaPhieu, ImportDate
-              FROM dbo.FVN_SlotLot WHERE SiteCode = @site AND SlotId = @SlotId AND PhieuStatus = 0 ORDER BY LotNo",
-                SiteParam(), new SqlParameter("@SlotId", slotId));
+              FROM SlotLot WHERE SlotId = @SlotId AND PhieuStatus = 0 ORDER BY LotNo",
+                new SqlParameter("@SlotId", slotId));
 
             var lots = new List<LotInfo>();
             foreach (DataRow row in dt.Rows)
@@ -185,12 +172,11 @@ namespace PCTP.Modules.KhoVatLy.Repositories
 
             DataTable dt = LoadData(
                 @"SELECT SlotId, ItemCode, SUM(Quantity) AS Qty, MIN(ImportDate) AS FirstImport
-                  FROM dbo.FVN_SlotLot WITH (UPDLOCK, ROWLOCK)
-                  WHERE SiteCode = @site AND PhieuStatus = 0 AND Quantity > 0 AND SlotId <> @ex
+                  FROM SlotLot WITH (UPDLOCK, ROWLOCK)
+                  WHERE PhieuStatus = 0 AND Quantity > 0 AND SlotId <> @ex
                     AND " + LotCodeHelper.BuildLotMatchSql("LotNo", "@lot") + @"
                   GROUP BY SlotId, ItemCode
                   ORDER BY MIN(ImportDate) ASC, SlotId ASC",
-                SiteParam(),
                 new SqlParameter("@ex", excludeSlotId),
                 new SqlParameter("@lot", lotNo.Trim()));
 
@@ -214,19 +200,19 @@ namespace PCTP.Modules.KhoVatLy.Repositories
         // ================================================================
 
         public int GetLotQuantity(int slotLotId)
-            => Convert.ToInt32(ExecuteScalar("SELECT ISNULL(Quantity,0) FROM dbo.FVN_SlotLot WHERE SiteCode=@site AND SlotLotId=@id", SiteParam(), new SqlParameter("@id", slotLotId)) ?? 0);
+            => Convert.ToInt32(ExecuteScalar("SELECT ISNULL(Quantity,0) FROM SlotLot WHERE SlotLotId=@id", new SqlParameter("@id", slotLotId)) ?? 0);
 
         public byte GetPhieuStatus(int slotLotId)
         {
-            object value = ExecuteScalar("SELECT PhieuStatus FROM dbo.FVN_SlotLot WHERE SiteCode=@site AND SlotLotId=@id", SiteParam(), new SqlParameter("@id", slotLotId));
+            object value = ExecuteScalar("SELECT PhieuStatus FROM SlotLot WHERE SlotLotId=@id", new SqlParameter("@id", slotLotId));
             return value == null || value == DBNull.Value ? (byte)255 : Convert.ToByte(value);
         }
 
         public StockSlotLot GetLotDetails(int slotLotId)
         {
             DataTable dt = LoadData(
-                @"SELECT LotNo, ItemCode, Quantity, TemCode, QrData, ImportDate, PhieuStatus FROM dbo.FVN_SlotLot WHERE SiteCode=@site AND SlotLotId=@id",
-                SiteParam(), new SqlParameter("@id", slotLotId));
+                @"SELECT LotNo, ItemCode, Quantity, TemCode, QrData, ImportDate, PhieuStatus FROM SlotLot WHERE SlotLotId=@id",
+                new SqlParameter("@id", slotLotId));
             if (dt.Rows.Count == 0) return null;
             DataRow r = dt.Rows[0];
             return new StockSlotLot
@@ -242,14 +228,14 @@ namespace PCTP.Modules.KhoVatLy.Repositories
         }
 
         public string GetLotNo(int slotLotId)
-            => Convert.ToString(ExecuteScalar("SELECT LotNo FROM dbo.FVN_SlotLot WHERE SiteCode=@site AND SlotLotId=@id", SiteParam(), new SqlParameter("@id", slotLotId)));
+            => Convert.ToString(ExecuteScalar("SELECT LotNo FROM SlotLot WHERE SlotLotId=@id", new SqlParameter("@id", slotLotId)));
 
         public string GetItemCode(int slotLotId)
-            => Convert.ToString(ExecuteScalar("SELECT ItemCode FROM dbo.FVN_SlotLot WHERE SiteCode=@site AND SlotLotId=@id", SiteParam(), new SqlParameter("@id", slotLotId)));
+            => Convert.ToString(ExecuteScalar("SELECT ItemCode FROM SlotLot WHERE SlotLotId=@id", new SqlParameter("@id", slotLotId)));
 
         public int? GetSlotId(int slotLotId)
         {
-            object value = ExecuteScalar("SELECT SlotId FROM dbo.FVN_SlotLot WHERE SiteCode=@site AND SlotLotId=@id", SiteParam(), new SqlParameter("@id", slotLotId));
+            object value = ExecuteScalar("SELECT SlotId FROM SlotLot WHERE SlotLotId=@id", new SqlParameter("@id", slotLotId));
             return value == null || value == DBNull.Value ? (int?)null : Convert.ToInt32(value);
         }
 
@@ -257,8 +243,8 @@ namespace PCTP.Modules.KhoVatLy.Repositories
         {
             if (quantity <= 0) throw new ArgumentOutOfRangeException(nameof(quantity));
             int affected = ExecuteNonQuery(
-                "UPDATE dbo.FVN_SlotLot SET Quantity = Quantity - @q WHERE SiteCode=@site AND SlotLotId=@id AND Quantity >= @q",
-                SiteParam(), new SqlParameter("@q", quantity), new SqlParameter("@id", slotLotId));
+                "UPDATE SlotLot SET Quantity = Quantity - @q WHERE SlotLotId=@id AND Quantity >= @q",
+                new SqlParameter("@q", quantity), new SqlParameter("@id", slotLotId));
             if (affected != 1) throw new InvalidOperationException($"SlotLot {slotLotId} không đủ tồn hoặc đã thay đổi.");
             UpdateSlotHeader(slotLotId);
         }
@@ -267,8 +253,8 @@ namespace PCTP.Modules.KhoVatLy.Repositories
         {
             if (quantity <= 0) throw new ArgumentOutOfRangeException(nameof(quantity));
             ExecuteNonQuery(
-                "UPDATE dbo.FVN_Slot SET Quantity = ISNULL(Quantity,0) + @q, IsOccupied = 1 WHERE SiteCode=@site AND SlotId=@id",
-                SiteParam(), new SqlParameter("@q", quantity), new SqlParameter("@id", slotId));
+                "UPDATE Slot SET Quantity = ISNULL(Quantity,0) + @q, IsOccupied = 1 WHERE SlotId=@id",
+                new SqlParameter("@q", quantity), new SqlParameter("@id", slotId));
         }
 
         public bool TryRegisterMovement(string referenceType, string referenceId, string qrData, string temCode, bool checkExistingQr)
@@ -290,11 +276,9 @@ namespace PCTP.Modules.KhoVatLy.Repositories
             {
                 object existing = ExecuteScalar(@"
 SELECT TOP (1) 1
-FROM dbo.FVN_SlotLot WITH (UPDLOCK, HOLDLOCK)
-WHERE SiteCode = @site
-  AND ((@qr IS NOT NULL AND QrData = @qr)
-    OR (@tem IS NOT NULL AND TemCode = @tem));",
-                    SiteParam(),
+FROM SlotLot WITH (UPDLOCK, HOLDLOCK)
+WHERE (@qr IS NOT NULL AND QrData = @qr)
+   OR (@tem IS NOT NULL AND TemCode = @tem);",
                     new SqlParameter("@qr", (object)qr ?? DBNull.Value),
                     new SqlParameter("@tem", (object)tem ?? DBNull.Value));
                 if (existing != null && existing != DBNull.Value)
@@ -331,15 +315,12 @@ VALUES
             if (!HasTransaction) throw new InvalidOperationException("AddLot phải chạy trong transaction để SlotLot và Slot header được cập nhật nguyên tử.");
 
             ExecuteNonQuery(
-                @"INSERT INTO dbo.FVN_SlotLot
-                  (SiteCode, SlotId, ItemCode, LotNo, Quantity, TemCode, QrData, ImportDate, CreatedDate,
-                   NgaySX, SoPhieuTong, MaPhieu, ParentSoPhieu, PhieuStatus, MaterialLotId)
+                @"INSERT INTO SlotLot
+                  (SlotId, ItemCode, LotNo, Quantity, TemCode, QrData, ImportDate, CreatedDate,
+                   NgaySX, SoPhieuTong, MaPhieu, ParentSoPhieu, PhieuStatus)
                   VALUES
-                  (@site,@slot,@item,@lot,@q,@tem,@qr,@date,GETDATE(),
-                   @ngaySx,@soPhieuTong,@maPhieu,@parentSoPhieu,@status,
-                   (SELECT ml.MaterialLotId FROM MES.FVN_MaterialLot ml
-                     WHERE ml.SiteCode=@site AND ml.PartNo=@item AND ml.LotNo=@lot))",
-                SiteParam(),
+                  (@slot,@item,@lot,@q,@tem,@qr,@date,GETDATE(),
+                   @ngaySx,@soPhieuTong,@maPhieu,@parentSoPhieu,@status)",
                 new SqlParameter("@slot", slotId),
                 new SqlParameter("@item", (object)lot.ItemCode ?? DBNull.Value),
                 new SqlParameter("@lot", lot.LotNo),
@@ -365,11 +346,10 @@ VALUES
 
             DataTable rows = LoadData(
                 @"SELECT SlotLotId, LotNo, ItemCode, Quantity, TemCode, QrData, ImportDate
-                  FROM dbo.FVN_SlotLot WITH (UPDLOCK, ROWLOCK)
-                  WHERE SiteCode=@site AND SlotId=@slot AND PhieuStatus=0 AND Quantity>0
+                  FROM SlotLot WITH (UPDLOCK, ROWLOCK)
+                  WHERE SlotId=@slot AND PhieuStatus=0 AND Quantity>0
                     AND " + LotCodeHelper.BuildLotMatchSql("LotNo", "@lot") + @" AND ItemCode=@item
                   ORDER BY ImportDate ASC, SlotLotId ASC",
-                SiteParam(),
                 new SqlParameter("@slot", slotId),
                 new SqlParameter("@lot", lotNo),
                 new SqlParameter("@item", itemCode));
@@ -384,8 +364,8 @@ VALUES
                 int take = Math.Min(remain, available);
 
                 int affected = ExecuteNonQuery(
-                    "UPDATE dbo.FVN_SlotLot SET Quantity = Quantity - @q WHERE SiteCode=@site AND SlotLotId=@id AND Quantity >= @q",
-                    SiteParam(), new SqlParameter("@q", take), new SqlParameter("@id", id));
+                    "UPDATE SlotLot SET Quantity = Quantity - @q WHERE SlotLotId=@id AND Quantity >= @q",
+                    new SqlParameter("@q", take), new SqlParameter("@id", id));
                 if (affected != 1)
                     throw new InvalidOperationException($"SlotLot {id} đã thay đổi trong lúc Pick.");
 
@@ -410,7 +390,7 @@ VALUES
 
         private void UpdateSlotHeader(int slotLotId)
         {
-            object slot = ExecuteScalar("SELECT SlotId FROM dbo.FVN_SlotLot WHERE SiteCode=@site AND SlotLotId=@id", SiteParam(), new SqlParameter("@id", slotLotId));
+            object slot = ExecuteScalar("SELECT SlotId FROM SlotLot WHERE SlotLotId=@id", new SqlParameter("@id", slotLotId));
             if (slot != null && slot != DBNull.Value)
                 UpdateSlotHeaderBySlotId(Convert.ToInt32(slot));
         }
@@ -421,19 +401,16 @@ VALUES
                 @"UPDATE s
                   SET s.Quantity = ISNULL(x.TotalQty,0),
                       s.IsOccupied = CASE WHEN ISNULL(x.TotalQty,0) > 0 THEN 1 ELSE 0 END
-                  FROM dbo.FVN_Slot s
-                  OUTER APPLY (SELECT SUM(Quantity) AS TotalQty FROM dbo.FVN_SlotLot
-                               WHERE SiteCode=@site AND SlotId=@slot AND PhieuStatus = 0) x
-                  WHERE s.SiteCode=@site AND s.SlotId=@slot",
-                SiteParam(), new SqlParameter("@slot", slotId));
+                  FROM Slot s
+                  OUTER APPLY (SELECT SUM(Quantity) AS TotalQty FROM SlotLot WHERE SlotId=@slot AND PhieuStatus = 0) x
+                  WHERE s.SlotId=@slot",
+                new SqlParameter("@slot", slotId));
         }
 
         /// <summary>
-        /// Reconciles one ItemCode + LOT to an exact target in the caller-owned transaction.
-        /// FVN_PCTP: the authority is MES.FVN_InventoryBalance. The difference is posted to the MES ledger
-        /// (ADJUST_IN / ADJUST_OUT via dbo.usp_FVN_PCTP_PostStockMovement), then the dbo.FVN_SlotLot projection
-        /// rows are brought to the same target (FIFO decrease, separate adjustment row on increase).
-        /// FVN_STOCKTP.SLCONLAI is never written.
+        /// Reconciles the authoritative STOCKTP quantity and all active SlotLot rows
+        /// for one ItemCode + LOT to an exact target in the caller-owned transaction.
+        /// Existing inbound rows are consumed FIFO; increases create a separate adjustment row.
         /// </summary>
         public void AdjustLotToTarget(string itemCode, string lotNo, int targetQuantity,
             int? destinationSlotId, string reason, string actor, Guid requestId)
@@ -448,30 +425,31 @@ VALUES
             string item = itemCode.Trim();
             string lot = lotNo.Trim();
             string user = string.IsNullOrWhiteSpace(actor) ? Environment.UserName : actor.Trim();
-            string requestKey = requestId.ToString("N");
+
+            DataTable stockRows = LoadData(
+                @"SELECT PART, ISNULL(SLCONLAI,0) AS SLCONLAI
+                  FROM STOCKTP WITH (UPDLOCK, HOLDLOCK)
+                  WHERE LTRIM(RTRIM(LOT))=@lot",
+                new SqlParameter("@lot", lot));
+            if (stockRows.Rows.Count != 1)
+                throw new InvalidOperationException("STOCKTP phải có đúng một dòng cho LOT [" + lot + "], hiện có " + stockRows.Rows.Count + ".");
+            string storedItem = Convert.ToString(stockRows.Rows[0]["PART"])?.Trim() ?? string.Empty;
+            if (!string.Equals(storedItem, item, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException("ItemCode không khớp STOCKTP; từ chối điều chỉnh chéo mã hàng.");
+            int stockBefore = Convert.ToInt32(stockRows.Rows[0]["SLCONLAI"]);
 
             object duplicate = ExecuteScalar(
-                "SELECT COUNT(1) FROM dbo.FVN_StockLotAdjustmentHistory WITH (UPDLOCK,HOLDLOCK) WHERE RequestId=@id",
+                "SELECT COUNT(1) FROM dbo.PCTPStockLotAdjustmentHistory WITH (UPDLOCK,HOLDLOCK) WHERE RequestId=@id",
                 new SqlParameter("@id", requestId));
             if (Convert.ToInt32(duplicate) > 0)
                 throw new InvalidOperationException("RequestId này đã được xử lý; không chạy lặp lại.");
 
-            // LOT phải có sẵn trong MES (không tự tạo LOT mới từ màn điều chỉnh, giữ đúng hành vi cũ:
-            // trước đây STOCKTP phải có đúng một dòng cho LOT).
-            var balance = new MesStockBalanceRepository(Db, Uow, _site);
-            StockLotKey key = balance.ResolveLot(item, lot, false);
-            if (key == null)
-                throw new InvalidOperationException("LOT [" + lot + "] của mã [" + item + "] chưa có trong MES.FVN_MaterialLot tại site "
-                    + _site.SiteCode + "; từ chối điều chỉnh chéo mã hàng/LOT lạ.");
-
-            int stockBefore = ReadMesOnHand(key);
-
             object invalidIdentityRows = ExecuteScalar(
-                @"SELECT COUNT(1) FROM dbo.FVN_SlotLot WITH (UPDLOCK,HOLDLOCK)
-                  WHERE SiteCode=@site AND PhieuStatus=0 AND Quantity>0
+                @"SELECT COUNT(1) FROM SlotLot WITH (UPDLOCK,HOLDLOCK)
+                  WHERE PhieuStatus=0 AND Quantity>0
                     AND " + LotCodeHelper.BuildLotMatchSql("LotNo", "@lot") + @"
                     AND (ItemCode IS NULL OR UPPER(LTRIM(RTRIM(ItemCode)))<>UPPER(@item))",
-                SiteParam(), new SqlParameter("@lot", lot), new SqlParameter("@item", item));
+                new SqlParameter("@lot", lot), new SqlParameter("@item", item));
             if (Convert.ToInt32(invalidIdentityRows) > 0)
                 throw new InvalidOperationException("Có SlotLot của LOT này thiếu ItemCode hoặc thuộc mã hàng khác; từ chối điều chỉnh.");
 
@@ -481,65 +459,8 @@ VALUES
                     throw new InvalidOperationException("LOT đang xuất hiện với ItemCode khác tại Slot " + location.SlotId + ".");
             int slotBefore = locations.Sum(x => x.Quantity);
             int slotDelta = targetQuantity - slotBefore;
-            int stockDelta = targetQuantity - stockBefore;
             int? actualDestination = null;
-            int ledgerSeq = 0;
 
-            // ---- 1) MES ledger (nguồn tồn) ----
-            if (stockDelta < 0)
-            {
-                int remainingOut = -stockDelta;
-                DataTable bySlot = LoadData(
-                    @"SELECT m.SlotId, SUM(b.OnHandQty - b.ReservedQty) AS Qty
-                      FROM MES.FVN_InventoryBalance b WITH (UPDLOCK, HOLDLOCK)
-                      JOIN dbo.FVN_SlotMesLocation m
-                        ON m.SiteCode = b.SiteCode AND m.LocationNo = b.LocationNo AND m.IsPrimary = 1 AND m.IsActive = 1
-                      WHERE b.SiteCode=@site AND b.PartNo=@item AND b.MaterialLotId=@lotId AND b.StockState='AVAILABLE'
-                      GROUP BY m.SlotId
-                      HAVING SUM(b.OnHandQty - b.ReservedQty) > 0
-                      ORDER BY m.SlotId",
-                    SiteParam(), new SqlParameter("@item", item), new SqlParameter("@lotId", key.MaterialLotId));
-                foreach (DataRow row in bySlot.Rows)
-                {
-                    if (remainingOut == 0) break;
-                    int take = (int)Math.Min((decimal)remainingOut, Convert.ToDecimal(row["Qty"]));
-                    if (take <= 0) continue;
-                    balance.Post(new StockLedgerEntry
-                    {
-                        MovementType = "ADJUST_OUT",
-                        Lot = key,
-                        Quantity = take,
-                        FromSlotId = Convert.ToInt32(row["SlotId"]),
-                        ReferenceType = "PCTP_LOT_ADJUST",
-                        ReferenceNo = requestKey,
-                        ReferenceLineNo = ++ledgerSeq,
-                        IdempotencyKey = "LOTADJ:" + _site.SiteCode + ":" + requestKey + ":" + ledgerSeq,
-                        ActorCode = user
-                    });
-                    remainingOut -= take;
-                }
-                if (remainingOut != 0)
-                    throw new InvalidOperationException("MES không đủ tồn AVAILABLE (chưa giữ chỗ) để giảm " + (-stockDelta) + "; rollback toàn bộ.");
-            }
-            else if (stockDelta > 0)
-            {
-                int ledgerSlot = ResolveAdjustmentDestination(destinationSlotId);
-                LockSlotForUpdate(ledgerSlot);
-                balance.Post(new StockLedgerEntry
-                {
-                    MovementType = "ADJUST_IN",
-                    Lot = key,
-                    Quantity = stockDelta,
-                    ToSlotId = ledgerSlot,
-                    ReferenceType = "PCTP_LOT_ADJUST",
-                    ReferenceNo = requestKey,
-                    ReferenceLineNo = ++ledgerSeq,
-                    IdempotencyKey = "LOTADJ:" + _site.SiteCode + ":" + requestKey + ":" + ledgerSeq,
-                    ActorCode = user
-                });
-            }
-
-            // ---- 2) FVN_SlotLot projection ----
             if (slotDelta < 0)
             {
                 int remaining = -slotDelta;
@@ -557,19 +478,21 @@ VALUES
             else if (slotDelta > 0)
             {
                 bool useDefaultA0 = !destinationSlotId.HasValue || destinationSlotId.Value <= 0;
-                int targetSlot = ResolveAdjustmentDestination(destinationSlotId);
+                int targetSlot = useDefaultA0
+                    ? GetOrCreateVirtualSlotId("KHO_AO_NHAP_LOAT", "RACK_AO", 999999999)
+                    : destinationSlotId.Value;
                 LockSlotForUpdate(targetSlot);
 
                 DataTable slotInfo = LoadData(
                     @"SELECT s.Capacity, ISNULL(x.TotalQty,0) AS CurrentQty,
                              ISNULL(x.OtherItemCount,0) AS OtherItemCount
-                      FROM dbo.FVN_Slot s WITH (UPDLOCK,ROWLOCK)
+                      FROM Slot s WITH (UPDLOCK,ROWLOCK)
                       OUTER APPLY (
                           SELECT SUM(Quantity) AS TotalQty,
                                  COUNT(DISTINCT CASE WHEN UPPER(LTRIM(RTRIM(ItemCode)))<>UPPER(@item) THEN ItemCode END) AS OtherItemCount
-                          FROM dbo.FVN_SlotLot WHERE SiteCode=s.SiteCode AND SlotId=s.SlotId AND PhieuStatus=0 AND Quantity>0
-                      ) x WHERE s.SiteCode=@site AND s.SlotId=@slot",
-                    SiteParam(), new SqlParameter("@item", item), new SqlParameter("@slot", targetSlot));
+                          FROM SlotLot WHERE SlotId=s.SlotId AND PhieuStatus=0 AND Quantity>0
+                      ) x WHERE s.SlotId=@slot",
+                    new SqlParameter("@item", item), new SqlParameter("@slot", targetSlot));
                 if (slotInfo.Rows.Count != 1) throw new InvalidOperationException("Không tìm thấy Slot đích " + targetSlot + ".");
                 int capacity = Convert.ToInt32(slotInfo.Rows[0]["Capacity"]);
                 int current = Convert.ToInt32(slotInfo.Rows[0]["CurrentQty"]);
@@ -586,33 +509,41 @@ VALUES
                 actualDestination = targetSlot;
             }
 
-            // ---- 3) Invariant: MES on-hand == FVN_SlotLot projection == target ----
+            int stockDelta = targetQuantity - stockBefore;
+            int updated = ExecuteNonQuery(
+                @"UPDATE STOCKTP SET SLCONLAI=@target
+                  WHERE LTRIM(RTRIM(LOT))=@lot AND UPPER(LTRIM(RTRIM(PART)))=UPPER(@item)",
+                new SqlParameter("@target", targetQuantity),
+                new SqlParameter("@lot", lot), new SqlParameter("@item", item));
+            if (updated != 1) throw new InvalidOperationException("Cập nhật STOCKTP không tác động đúng một dòng.");
+
             int slotAfter = Convert.ToInt32(ExecuteScalar(
-                @"SELECT ISNULL(SUM(Quantity),0) FROM dbo.FVN_SlotLot WITH (UPDLOCK,HOLDLOCK)
-                  WHERE SiteCode=@site AND PhieuStatus=0 AND Quantity>0 AND " + LotCodeHelper.BuildLotMatchSql("LotNo", "@lot") + @"
+                @"SELECT ISNULL(SUM(Quantity),0) FROM SlotLot WITH (UPDLOCK,HOLDLOCK)
+                  WHERE PhieuStatus=0 AND Quantity>0 AND " + LotCodeHelper.BuildLotMatchSql("LotNo", "@lot") + @"
                     AND UPPER(LTRIM(RTRIM(ItemCode)))=UPPER(@item)",
-                SiteParam(), new SqlParameter("@lot", lot), new SqlParameter("@item", item)));
-            int stockAfter = ReadMesOnHand(key);
+                new SqlParameter("@lot", lot), new SqlParameter("@item", item)));
+            int stockAfter = Convert.ToInt32(ExecuteScalar(
+                @"SELECT ISNULL(SLCONLAI,0) FROM STOCKTP WITH (UPDLOCK,HOLDLOCK)
+                  WHERE LTRIM(RTRIM(LOT))=@lot AND UPPER(LTRIM(RTRIM(PART)))=UPPER(@item)",
+                new SqlParameter("@lot", lot), new SqlParameter("@item", item)));
             if (stockAfter != targetQuantity || slotAfter != targetQuantity)
-                throw new InvalidOperationException("Invariant không đạt: MES=" + stockAfter + ", SlotLot=" + slotAfter + ", target=" + targetQuantity + ".");
+                throw new InvalidOperationException("Invariant không đạt: STOCKTP=" + stockAfter + ", SlotLot=" + slotAfter + ", target=" + targetQuantity + ".");
 
             ExecuteNonQuery(
-                @"INSERT INTO dbo.FVN_StockLotAdjustmentHistory
-                    (RequestId,SiteCode,ItemCode,LotNo,MaterialLotId,StockBefore,StockAfter,SlotBefore,SlotAfter,
+                @"INSERT INTO dbo.PCTPStockLotAdjustmentHistory
+                    (RequestId,ItemCode,LotNo,StockBefore,StockAfter,SlotBefore,SlotAfter,
                      StockDelta,SlotDelta,DestinationSlotId,Reason,Actor,CreatedAt)
-                  VALUES (@id,@site,@item,@lot,@mlot,@sb,@sa,@lb,@la,@sd,@ld,@dest,@reason,@actor,SYSUTCDATETIME())",
-                SiteParam(),
+                  VALUES (@id,@item,@lot,@sb,@sa,@lb,@la,@sd,@ld,@dest,@reason,@actor,SYSUTCDATETIME())",
                 new SqlParameter("@id", requestId), new SqlParameter("@item", item), new SqlParameter("@lot", lot),
-                new SqlParameter("@mlot", SqlDbType.BigInt) { Value = key.MaterialLotId },
                 new SqlParameter("@sb", stockBefore), new SqlParameter("@sa", stockAfter),
                 new SqlParameter("@lb", slotBefore), new SqlParameter("@la", slotAfter),
                 new SqlParameter("@sd", stockDelta), new SqlParameter("@ld", slotDelta),
                 new SqlParameter("@dest", (object)actualDestination ?? DBNull.Value),
                 new SqlParameter("@reason", reason.Trim()), new SqlParameter("@actor", user));
 
-            // Ghi vào FVN_StockHistory để báo cáo "Lịch sử kho" / timeline thấy được điều chỉnh.
+            // Ghi vào StockHistory để báo cáo "Lịch sử kho" / timeline thấy được điều chỉnh.
             // CORRECT = Quantity có dấu (+ tăng tồn -> Nhập, - giảm tồn -> Xuất), xem ItemHistoryRow.SignedTypes.
-            // Ưu tiên chênh lệch tồn MES; nếu MES không đổi mà SlotLot đổi thì ghi chênh lệch SlotLot.
+            // Ưu tiên chênh lệch STOCKTP (số liệu gốc); nếu STOCKTP không đổi mà SlotLot đổi thì ghi chênh lệch SlotLot.
             int historyQty = stockDelta != 0 ? stockDelta : slotDelta;
             if (historyQty != 0)
             {
@@ -620,8 +551,8 @@ VALUES
                 if (!histSlot.HasValue && locations.Count > 0) histSlot = locations[0].SlotId;
                 string userShort = user.Length > 50 ? user.Substring(0, 50) : user;
                 ExecuteNonQuery(
-                    @"INSERT INTO dbo.FVN_StockHistory
-                        (ActionType, ItemCode, TemCode, LotNo, Quantity, Date, FromSlotId, ToSlotId, QrData, MaPhieu, PerformedBy)
+                    @"INSERT INTO StockHistory
+                        (ActionType, ItemCode, TemCode, LotNo, Quantity, [Date], FromSlotId, ToSlotId, QrData, MaPhieu, PerformedBy)
                       VALUES
                         (@act, @item, NULL, @lot, @q, GETDATE(), @from, @to, NULL, @maPhieu, @user)",
                     new SqlParameter("@act", "CORRECT"),
@@ -630,36 +561,9 @@ VALUES
                     new SqlParameter("@q", historyQty),
                     new SqlParameter("@from", historyQty < 0 && histSlot.HasValue ? (object)histSlot.Value : DBNull.Value),
                     new SqlParameter("@to", historyQty > 0 && histSlot.HasValue ? (object)histSlot.Value : DBNull.Value),
-                    new SqlParameter("@maPhieu", "ADJ#" + requestKey.Substring(0, 12)),
+                    new SqlParameter("@maPhieu", "ADJ#" + requestId.ToString("N").Substring(0, 12)),
                     new SqlParameter("@user", userShort));
             }
-        }
-
-        private int ReadMesOnHand(StockLotKey key)
-        {
-            object v = ExecuteScalar(
-                @"SELECT ISNULL(SUM(OnHandQty),0) FROM MES.FVN_InventoryBalance WITH (UPDLOCK,HOLDLOCK)
-                  WHERE SiteCode=@site AND PartNo=@item AND MaterialLotId=@lotId",
-                SiteParam(), new SqlParameter("@item", key.PartNo),
-                new SqlParameter("@lotId", SqlDbType.BigInt) { Value = key.MaterialLotId });
-            return Convert.ToInt32(Convert.ToDecimal(v));
-        }
-
-        /// <summary>Slot đích của điều chỉnh tăng: Slot được chọn, hoặc Slot ảo A0. Phải có MES location chính.</summary>
-        private int ResolveAdjustmentDestination(int? destinationSlotId)
-        {
-            bool useDefaultA0 = !destinationSlotId.HasValue || destinationSlotId.Value <= 0;
-            int slotId = useDefaultA0
-                ? GetOrCreateVirtualSlotId("KHO_AO_NHAP_LOAT", "RACK_AO", 999999999)
-                : destinationSlotId.Value;
-            object mapped = ExecuteScalar(
-                @"SELECT COUNT(1) FROM dbo.FVN_SlotMesLocation
-                  WHERE SiteCode=@site AND SlotId=@slot AND IsPrimary=1 AND IsActive=1",
-                SiteParam(), new SqlParameter("@slot", slotId));
-            if (Convert.ToInt32(mapped) == 0)
-                throw new InvalidOperationException("Slot " + slotId + " chưa có ánh xạ MES location chính (dbo.FVN_SlotMesLocation); "
-                    + "quản trị viên cần cấp mapping trước khi điều chỉnh tăng vào Slot này.");
-            return slotId;
         }
 
     }
