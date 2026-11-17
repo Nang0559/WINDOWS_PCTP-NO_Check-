@@ -30,6 +30,8 @@ namespace PCTP.Modules.BaoCao.UI
         private readonly IStockHistoryQuery _historyQuery;
         private readonly ICurrentStockQuery _currentStockQuery;
         private readonly ILotTraceQuery _deliveryTraceQuery;
+        private readonly IQrTraceQuery _qrTraceQuery;
+        private SimpleButton _btnBuildTimeline;
         private readonly IWaitFormService _waitForm;
         private readonly CancellationTokenSource _lifetime = new CancellationTokenSource();
         private StockLookupControl _stockLookup;
@@ -63,6 +65,7 @@ namespace PCTP.Modules.BaoCao.UI
             _currentStockQuery = currentStockQuery;
             var deliveryService = new DeliveryTraceReadService();
             _deliveryTraceQuery = deliveryService;
+            _qrTraceQuery = deliveryService;
             _timelineBuilder = new LotTraceTimelineBuilder(
                 deliveryService, deliveryService,
                 new PCTP.Modules.BaoCao.Infrastructure.Repositories.ProductionLotTraceRepository(),
@@ -106,6 +109,9 @@ namespace PCTP.Modules.BaoCao.UI
             _btnPrint.Click += PrintClick;
             _btnTraceDelivery = new SimpleButton { Left = 8, Top = 62, Width = 187, Text = "Truy vết giao hàng →" };
             _btnTraceDelivery.Click += async (s, e) => await TraceDeliveryAsync();
+            // Timeline tách riêng: chỉ dựng khi người dùng bấm nút / nhấp đúp dòng LOT (không tự chạy theo dòng focus).
+            _btnBuildTimeline = new SimpleButton { Left = 8, Top = 102, Width = 187, Text = "Dựng timeline LOT" };
+            _btnBuildTimeline.Click += async (s, e) => await BuildTimelineForFocusedRowAsync(true);
 
             historyGroup.Controls.Add(_stockLookup);
             // Anchor Right tính theo kích thước LÚC TẠO (group chưa dock xong) nên ô tra cứu bị tràn ra ngoài,
@@ -120,7 +126,7 @@ namespace PCTP.Modules.BaoCao.UI
             historyGroup.SizeChanged += fitLookup;
             historyGroup.HandleCreated += fitLookup;
             currentGroup.Controls.Add(_btnCurrentStock);
-            actionPanel.Controls.AddRange(new Control[] { _btnExport, _btnPrint, _btnTraceDelivery });
+            actionPanel.Controls.AddRange(new Control[] { _btnExport, _btnPrint, _btnTraceDelivery, _btnBuildTimeline });
             top.Controls.Add(historyGroup);
             top.Controls.Add(currentGroup);
             top.Controls.Add(actionPanel);
@@ -236,12 +242,24 @@ namespace PCTP.Modules.BaoCao.UI
             split.Panel2.Controls.Add(bottom);
 
             _timelineDebounce = new System.Windows.Forms.Timer { Interval = 250 };
-            _timelineDebounce.Tick += async (s2, e2) =>
+            _timelineDebounce.Tick += (s2, e2) => _timelineDebounce.Stop();
+            // Không tự dựng timeline khi đổi dòng/focus: dựng timeline gọi nhiều truy vấn (sản xuất, kho, giao hàng) nên
+            // làm tra cứu bị chờ lâu. Chỉ huỷ timeline cũ (đang lệch dòng) và nhắc người dùng.
+            _view.FocusedRowChanged += (s2, e2) =>
             {
-                _timelineDebounce.Stop();
-                await BuildTimelineForFocusedRowAsync();
+                _timelineVersion++;
+                if (_timelineNodes.Count > 0)
+                {
+                    _timelineNodes.Clear();
+                    _timelineView.Clear("Bấm \"Dựng timeline LOT\" (hoặc nhấp đúp dòng LOT) để xem timeline của dòng đang chọn.");
+                    _detailText.Text = string.Empty;
+                }
             };
-            _view.FocusedRowChanged += (s2, e2) => { _timelineDebounce.Stop(); _timelineDebounce.Start(); };
+            _view.DoubleClick += async (s2, e2) =>
+            {
+                var hit = _view.CalcHitInfo(_view.GridControl.PointToClient(Control.MousePosition));
+                if (hit != null && hit.InRow) await BuildTimelineForFocusedRowAsync(true);
+            };
             Controls.Add(split);
             Controls.Add(top);
         }
@@ -330,6 +348,7 @@ namespace PCTP.Modules.BaoCao.UI
                     {
                         IReadOnlyList<ItemHistoryRow> list = await Task.Run(
                             () => _historyQuery.SearchAsync(criteria, _lifetime.Token), _lifetime.Token);
+                        list = await AppendDeliveryReconciliationAsync(list, criteria);
                         if (!lookupCriteria.DateEnabled)
                             return list;
 
@@ -347,7 +366,7 @@ namespace PCTP.Modules.BaoCao.UI
                 _timelineVersion++;
                 _timelineView.Clear(rows == null || rows.Count == 0
                     ? "Không có giao dịch kho phù hợp. Kiểm tra khoảng ngày (Từ ngày/Đến ngày) và mã hàng/LOT."
-                    : "Chọn một dòng LOT trong lưới trên để xem timeline.");
+                    : "Chọn một dòng LOT rồi bấm \"Dựng timeline LOT\" (hoặc nhấp đúp dòng) để xem timeline.");
                 _detailText.Text = string.Empty;
             }
             catch (OperationCanceledException) { }
@@ -355,6 +374,72 @@ namespace PCTP.Modules.BaoCao.UI
             {
                 XtraMessageBox.Show(this, ex.Message, "Không thể tra cứu lịch sử kho", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+        }
+
+        /// <summary>
+        /// Tra cứu theo 1 LOT: so tổng SL giao theo phiếu giao (LUUPHIEUGIAOHANG, đã tách LOT ghép) với tổng SL xuất đã có
+        /// trong lịch sử kho. Nếu phiếu giao nhiều hơn thì thêm các dòng "DOI_SOAT_GIAO_HANG" (hướng "Khác", KHÔNG cộng vào
+        /// SL nhập/xuất) để thấy rõ từng lần giao (vd 93 pcs) mà lịch sử kho còn thiếu dòng xuất.
+        /// Lỗi đọc phiếu giao không làm hỏng tra cứu.
+        /// </summary>
+        private async Task<IReadOnlyList<ItemHistoryRow>> AppendDeliveryReconciliationAsync(
+            IReadOnlyList<ItemHistoryRow> list, HistorySearchCriteria criteria)
+        {
+            try
+            {
+                if (list == null || string.IsNullOrWhiteSpace(criteria.LotNo)) return list;
+                string lotKey = LotCodeHelper.GetSearchKey(criteria.LotNo);
+                if (string.IsNullOrWhiteSpace(lotKey)) return list;
+
+                IReadOnlyList<DeliveryTraceRow> hits = await Task.Run(() => _deliveryTraceQuery.SearchAsync(
+                    lotKey, criteria.PartNo, null, null, null, _lifetime.Token), _lifetime.Token);
+                var deliveries = (hits ?? new List<DeliveryTraceRow>())
+                    .Where(x => x != null)
+                    .GroupBy(x => x.DeliveryKey ?? string.Empty, StringComparer.OrdinalIgnoreCase)
+                    .Select(g => g.First()).ToList();
+                if (deliveries.Count == 0) return list;
+
+                var recon = new List<ItemHistoryRow>();
+                decimal delivered = 0m;
+                foreach (DeliveryTraceRow d in deliveries)
+                {
+                    _lifetime.Token.ThrowIfCancellationRequested();
+                    IReadOnlyList<DeliveryLotTraceRow> allocations = await Task.Run(
+                        () => _qrTraceQuery.GetLotsAsync(d.DeliveryKey, null, _lifetime.Token), _lifetime.Token);
+                    foreach (DeliveryLotTraceRow a in (allocations ?? new List<DeliveryLotTraceRow>()))
+                    {
+                        if (a == null || !string.IsNullOrWhiteSpace(a.ParseError) || string.IsNullOrWhiteSpace(a.LotNo)) continue;
+                        if (!LotCodeHelper.AreLotKeysEquivalent(a.LotNo, lotKey)) continue;
+                        delivered += a.Quantity;
+                        recon.Add(new ItemHistoryRow
+                        {
+                            ItemCode = d.PartNo ?? criteria.PartNo,
+                            LotNo = a.LotNo,
+                            ActionType = "DOI_SOAT_GIAO_HANG",
+                            Quantity = a.Quantity,
+                            EventTime = d.DeliveryDate,
+                            DocumentNo = d.DocumentNo,
+                            UserName = "PHIẾU GIAO",
+                            Note = "Phiếu giao " + (d.DocumentNo ?? "-") + " - " + (d.CustomerName ?? "-") +
+                                   ": LOT này giao " + a.Quantity.ToString("N0")
+                        });
+                    }
+                }
+
+                decimal alreadyOut = list.Where(x => !x.IsDefectTicketEvent
+                        && LotCodeHelper.AreLotKeysEquivalent(x.LotNo, lotKey)).Sum(x => x.QuantityOut);
+                if (recon.Count == 0 || delivered <= alreadyOut) return list;
+
+                string deficit = (delivered - alreadyOut).ToString("N0");
+                foreach (ItemHistoryRow r in recon)
+                    r.Note += " | Phiếu giao tổng " + delivered.ToString("N0") + " > lịch sử kho đã xuất " +
+                              alreadyOut.ToString("N0") + " (thiếu " + deficit + ")";
+
+                return list.Concat(recon)
+                    .OrderByDescending(x => x.EventTime.HasValue).ThenByDescending(x => x.EventTime).ToList();
+            }
+            catch (OperationCanceledException) { throw; }
+            catch (Exception) { return list; }
         }
 
         private async Task LoadCurrentStockAsync()
@@ -482,16 +567,28 @@ namespace PCTP.Modules.BaoCao.UI
             }
         }
 
-        private async Task BuildTimelineForFocusedRowAsync()
+        private async Task BuildTimelineForFocusedRowAsync(bool explicitRequest)
         {
             int handle = _view.FocusedRowHandle;
-            if (handle < 0) return;
+            if (handle < 0)
+            {
+                if (explicitRequest)
+                    XtraMessageBox.Show(this, "Hãy chọn một dòng có LOT trong lưới trước.", "Dựng timeline",
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
             string lot = null, part = null;
             var history = _view.GetRow(handle) as ItemHistoryRow;
             var stock = _view.GetRow(handle) as CurrentStockRow;
             if (history != null) { lot = history.LotNo; part = history.ItemCode; }
             else if (stock != null) { lot = stock.LotNo; part = stock.ItemCode; }
-            if (string.IsNullOrWhiteSpace(lot)) return;
+            if (string.IsNullOrWhiteSpace(lot))
+            {
+                if (explicitRequest)
+                    XtraMessageBox.Show(this, "Dòng đang chọn không có LOT để dựng timeline.", "Dựng timeline",
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
             await BuildTimelineForLotAsync(lot, part);
         }
 
