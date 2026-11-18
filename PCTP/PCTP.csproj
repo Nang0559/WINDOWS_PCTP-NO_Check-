@@ -1048,6 +1048,10 @@
     <Compile Include="Modules\MesPlanning\IProductionExecutionRepository.cs" />
     <Compile Include="Modules\MesPlanning\ProductionExecutionRepository.cs" />
     <Compile Include="Modules\MesPlanning\IProductionExecutionService.cs" />
+    <Compile Include="Modules\MesPlanning\IProductionWorkflowRepository.cs" />
+    <Compile Include="Modules\MesPlanning\ProductionWorkflowRepository.cs" />
+    <Compile Include="Modules\MesPlanning\IProductionWorkflowService.cs" />
+    <Compile Include="Modules\MesPlanning\ProductionWorkflowService.cs" />
     <Compile Include="Modules\MesPlanning\ProductionExecutionService.cs" />
     <Compile Include="Modules\MesPlanning\UI\FormDieuHanhSanXuat.cs"><SubType>Form</SubType></Compile>
     <Compile Include="Modules\MesPlanning\IProductionTraceRepository.cs" />
