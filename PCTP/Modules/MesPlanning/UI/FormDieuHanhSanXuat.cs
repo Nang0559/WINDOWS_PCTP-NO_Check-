@@ -3,6 +3,7 @@ using System.Data;
 using System.Drawing;
 using System.Globalization;
 using System.Windows.Forms;
+using System.Drawing.Printing;
 
 namespace PCTP.Modules.MesPlanning.UI
 {
@@ -21,6 +22,10 @@ namespace PCTP.Modules.MesPlanning.UI
         private readonly DateTimePicker _productionDate = new DateTimePicker();
         private readonly Label _status = new Label();
         private readonly DataGridView _materials = new DataGridView();
+        private readonly DataGridView _labels = new DataGridView();
+        private readonly TextBox _labelQty = new TextBox(), _labelScan = new TextBox();
+        private DataTable _printRows;
+        private int _printIndex;
 
         public FormDieuHanhSanXuat()
             : this(new ProductionExecutionService(new ProductionExecutionRepository()))
@@ -72,6 +77,18 @@ namespace PCTP.Modules.MesPlanning.UI
             AddField(operationPanel, "InputSlotId (bắt buộc nếu công đoạn trước VIA_WIP)", _inputSlot);
             AddField(operationPanel, "OutputSlotId (bắt buộc nếu công đoạn này VIA_WIP)", _outputSlot);
             AddButton(operationPanel, "XÁC NHẬN HOÀN THÀNH CÔNG ĐOẠN", CompleteOperationClick);
+            AddField(operationPanel, "Số sản phẩm cần chuẩn bị tem", _labelQty);
+            AddButton(operationPanel, "1. CHUẨN BỊ / CẤP TEM", PrepareLabelsClick);
+            AddButton(operationPanel, "2. IN TEM CÔNG ĐOẠN", PrintLabelsClick);
+            _labels.Width = 980;
+            _labels.Height = 190;
+            _labels.ReadOnly = true;
+            _labels.AllowUserToAddRows = false;
+            _labels.AllowUserToDeleteRows = false;
+            _labels.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.DisplayedCells;
+            operationPanel.Controls.Add(_labels);
+            AddField(operationPanel, "Quét LabelCode để xác nhận dán tem", _labelScan);
+            AddButton(operationPanel, "XÁC NHẬN ĐÃ DÁN TEM", ApplyLabelClick);
             operationTab.Controls.Add(operationPanel);
 
             var consumePanel = Panel();
@@ -200,6 +217,81 @@ namespace PCTP.Modules.MesPlanning.UI
                     DecimalValue(_opNgQty, "NgQty", true), OptionalSlot(_inputSlot), OptionalSlot(_outputSlot),
                     Environment.UserName);
                 return "Đã ghi nhận hoàn thành công đoạn và bàn giao theo cấu hình DIRECT/VIA_WIP.";
+            });
+        }
+
+        private void PrepareLabelsClick(object sender, EventArgs e)
+        {
+            Run(() =>
+            {
+                int quantity;
+                if (!int.TryParse(_labelQty.Text.Trim(), out quantity) || quantity <= 0)
+                    throw new InvalidOperationException("Số tem phải là số nguyên dương.");
+                _labels.DataSource = _service.PrepareLabels(
+                    LongValue(_operationLotId, "ProductionLotId"), _operationNo.Text,
+                    quantity, Environment.UserName);
+                return "Đã cấp " + _labels.Rows.Count.ToString("N0") +
+                    " tem duy nhất cho công đoạn " + _operationNo.Text + ".";
+            });
+        }
+
+        private void PrintLabelsClick(object sender, EventArgs e)
+        {
+            Run(() =>
+            {
+                using (var document = new PrintDocument())
+                using (var dialog = new PrintDialog { Document = document, UseEXDialog = true })
+                {
+                    dialog.Document.DefaultPageSettings.Landscape = false;
+                    if (dialog.ShowDialog(this) != DialogResult.OK)
+                        return "Đã hủy lệnh in; chưa gửi dữ liệu in.";
+                    _printRows = _service.PrintLabels(
+                        LongValue(_operationLotId, "ProductionLotId"), _operationNo.Text,
+                        Environment.UserName, true);
+                    if (_printRows.Rows.Count == 0)
+                        throw new InvalidOperationException("Không có tem hợp lệ để in.");
+                    _printIndex = 0;
+                    document.PrintPage += (s, args) =>
+                    {
+                        if (_printIndex >= _printRows.Rows.Count) { args.HasMorePages = false; return; }
+                        var row = _printRows.Rows[_printIndex++];
+                        using (var titleFont = new Font("Arial", 13, FontStyle.Bold))
+                        using (var bodyFont = new Font("Arial", 9, FontStyle.Regular))
+                        {
+                            float y = 35;
+                            args.Graphics.DrawString("FVN MES - PRODUCT LABEL", titleFont, Brushes.Black, 25, y);
+                            y += 35;
+                            args.Graphics.DrawString("LABEL: " + Convert.ToString(row["LabelCode"]), titleFont, Brushes.Black, 25, y);
+                            y += 35;
+                            args.Graphics.DrawString("LOT: " + Convert.ToString(row["LotNo"]), bodyFont, Brushes.Black, 25, y);
+                            y += 24;
+                            args.Graphics.DrawString("PROCESS: " + Convert.ToString(row["OperationNo"]) +
+                                " - " + Convert.ToString(row["OperationName"]), bodyFont, Brushes.Black, 25, y);
+                            y += 24;
+                            args.Graphics.DrawString("QR PAYLOAD: " + Convert.ToString(row["QrPayload"]),
+                                bodyFont, Brushes.Black, new RectangleF(25, y, 360, 90));
+                            y += 100;
+                            args.Graphics.DrawString("Each label identifies one product. Scan the QR payload with MES.",
+                                bodyFont, Brushes.Black, 25, y);
+                        }
+                        args.HasMorePages = _printIndex < _printRows.Rows.Count;
+                    };
+                    document.Print();
+                    _labels.DataSource = _printRows;
+                    return "Đã gửi " + _printRows.Rows.Count.ToString("N0") +
+                        " tem tới máy in. QR payload được in kèm dưới dạng dữ liệu văn bản.";
+                }
+            });
+        }
+
+        private void ApplyLabelClick(object sender, EventArgs e)
+        {
+            Run(() =>
+            {
+                var result = _service.ApplyLabel(_labelScan.Text, _operationNo.Text, Environment.UserName);
+                _labelScan.Clear();
+                return "Đã xác nhận tem " + Convert.ToString(result.Rows[0]["LabelCode"]) +
+                    " đã được dán cho công đoạn " + _operationNo.Text + ".";
             });
         }
 
