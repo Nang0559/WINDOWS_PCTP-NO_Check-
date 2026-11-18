@@ -154,11 +154,14 @@ BEGIN TRY
         THROW 52806, 'Cannot convert IFS.usp_ApplySyncBatch to ALTER PROCEDURE.', 1;
     EXEC sys.sp_executesql @Definition;
 
+    /* Compile the index statement dynamically: ItemId5 may have been added
+       earlier in this same migration batch, and static DDL is compiled before ALTER TABLE. */
     IF NOT EXISTS (SELECT 1 FROM sys.indexes
                    WHERE object_id=OBJECT_ID(N'dbo.FVN_PartIdentity')
                      AND name=N'UX_FVN_PartIdentity_ItemId5')
-        CREATE UNIQUE INDEX UX_FVN_PartIdentity_ItemId5
-            ON dbo.FVN_PartIdentity(ItemId5) WHERE ItemId5 IS NOT NULL;
+        EXEC sys.sp_executesql
+            N'CREATE UNIQUE INDEX UX_FVN_PartIdentity_ItemId5
+              ON dbo.FVN_PartIdentity(ItemId5) WHERE ItemId5 IS NOT NULL;';
 
     EXEC(N'
     CREATE PROCEDURE dbo.usp_FVN_PartIdentity_AllocateItemId5
