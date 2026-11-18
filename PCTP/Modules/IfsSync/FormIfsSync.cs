@@ -170,9 +170,23 @@ namespace PCTP.Modules.IfsSync
                         OracleConnectionString.IndexOf("IFS_ORACLE", StringComparison.OrdinalIgnoreCase) >= 0)
                         throw new InvalidOperationException("Chưa cấu hình IFS_ORACLE.");
 
-                    if (string.IsNullOrWhiteSpace(TargetConnectionString) ||
-                        TargetConnectionString.IndexOf("FVN_PCTP", StringComparison.OrdinalIgnoreCase) >= 0)
-                        throw new InvalidOperationException("Chưa cấu hình FVN_PCTP.");
+                    if (string.IsNullOrWhiteSpace(TargetConnectionString))
+                        throw new InvalidOperationException("Thiếu connection string FVN_PCTP trong PCTP.Database.config.");
+
+                    SqlConnectionStringBuilder targetBuilder;
+                    try
+                    {
+                        targetBuilder = new SqlConnectionStringBuilder(TargetConnectionString);
+                    }
+                    catch (Exception ex)
+                    {
+                        throw new InvalidOperationException("Connection string FVN_PCTP không hợp lệ: " + ex.Message, ex);
+                    }
+
+                    if (!string.Equals(targetBuilder.InitialCatalog, "FVN_PCTP", StringComparison.OrdinalIgnoreCase))
+                        throw new InvalidOperationException(
+                            "Từ chối kết nối: Initial Catalog của FVN_PCTP phải là FVN_PCTP, hiện tại là '" +
+                            targetBuilder.InitialCatalog + "'.");
 
                     using (var oracle = new OracleConnection(OracleConnectionString))
                     using (var command = new OracleCommand("SELECT 1 FROM DUAL", oracle))
