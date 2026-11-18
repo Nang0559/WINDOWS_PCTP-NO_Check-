@@ -116,7 +116,7 @@ ORDER BY SiteCode;";
         {
             const string sql = @"
 SELECT SiteCode, PartNo, Description, UnitMeas, PartStatus
-FROM dbo.FVN_InventoryPart
+FROM [IFS].[FVN_InventoryPart]
 WHERE SiteCode = @SiteCode
 ORDER BY PartNo;";
             var table = new DataTable();
