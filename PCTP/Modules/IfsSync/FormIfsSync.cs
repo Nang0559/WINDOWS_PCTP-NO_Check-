@@ -1,5 +1,6 @@
 using DevExpress.XtraEditors;
 using Oracle.ManagedDataAccess.Client;
+using PCTP.Shared.Helpers;
 using System;
 using System.Configuration;
 using System.Data;
@@ -23,6 +24,7 @@ namespace PCTP.Modules.IfsSync
         private readonly SimpleButton _checkButton = new SimpleButton();
         private readonly SimpleButton _syncButton = new SimpleButton();
         private readonly SimpleButton _refreshButton = new SimpleButton();
+        private readonly IWaitFormService _waitForm;
         private bool _isRunning;
 
         private string OracleConnectionString
@@ -37,6 +39,7 @@ namespace PCTP.Modules.IfsSync
 
         public FormIfsSync()
         {
+            _waitForm = new WaitFormService(this);
             Text = "Đồng bộ dữ liệu IFS → FVN_PCTP";
             StartPosition = FormStartPosition.CenterParent;
             WindowState = FormWindowState.Maximized;
@@ -164,7 +167,7 @@ namespace PCTP.Modules.IfsSync
             SetBusy(true, "Đang kiểm tra kết nối Oracle IFS và SQL Server FVN_PCTP...");
             try
             {
-                string message = await Task.Run(() =>
+                string message = await _waitForm.RunAsync(() => Task.Run(() =>
                 {
                     if (string.IsNullOrWhiteSpace(OracleConnectionString) ||
                         OracleConnectionString.IndexOf("IFS_ORACLE", StringComparison.OrdinalIgnoreCase) >= 0)
@@ -236,7 +239,7 @@ SELECT TOP (0) SyncStageRowId FROM [IFS].[SyncStageRow];", sql))
                     }
 
                     return "Kết nối Oracle IFS OK; SQL Server FVN_PCTP OK; migration 012 đã có.";
-                });
+                }), "Đang kiểm tra kết nối Oracle IFS và SQL Server FVN_PCTP...");
 
                 _status.Text = message;
                 _details.Text = message;
@@ -274,7 +277,9 @@ SELECT TOP (0) SyncStageRowId FROM [IFS].[SyncStageRow];", sql))
             _details.Text = "Bắt đầu đồng bộ Full Snapshot. Đang đọc IFS và ghi staging theo từng nhóm.";
             try
             {
-                IfsSyncResult result = await Task.Run(() => new IfsSyncService().SyncAll());
+                IfsSyncResult result = await _waitForm.RunAsync(
+                    () => Task.Run(() => new IfsSyncService().SyncAll()),
+                    "Đang đồng bộ dữ liệu IFS → FVN_PCTP. Vui lòng chờ...");
                 _status.Text = "Đồng bộ thành công. Batch #" + result.SyncBatchId;
                 _details.Text =
                     "Trạng thái: " + result.Status + Environment.NewLine +
