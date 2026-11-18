@@ -24,6 +24,7 @@ namespace PCTP.Modules.MesPlanning.UI
         private readonly DataGridView _materials = new DataGridView();
         private readonly DataGridView _labels = new DataGridView();
         private readonly TextBox _labelQty = new TextBox(), _labelScan = new TextBox();
+        private readonly TextBox _labelVoidReason = new TextBox();
         private DataTable _printRows;
         private int _printIndex;
 
@@ -89,6 +90,8 @@ namespace PCTP.Modules.MesPlanning.UI
             operationPanel.Controls.Add(_labels);
             AddField(operationPanel, "Quét LabelCode để xác nhận dán tem", _labelScan);
             AddButton(operationPanel, "XÁC NHẬN ĐÃ DÁN TEM", ApplyLabelClick);
+            AddField(operationPanel, "Lý do hủy tem chưa sử dụng", _labelVoidReason);
+            AddButton(operationPanel, "HỦY TEM CHƯA DÙNG", VoidLabelClick);
             operationTab.Controls.Add(operationPanel);
 
             var consumePanel = Panel();
@@ -247,7 +250,8 @@ namespace PCTP.Modules.MesPlanning.UI
                         return "Đã hủy lệnh in; chưa gửi dữ liệu in.";
                     _printRows = _service.PrintLabels(
                         LongValue(_operationLotId, "ProductionLotId"), _operationNo.Text,
-                        Environment.UserName, true);
+                        Environment.UserName, _labels.DataSource is DataTable &&
+                            ((DataTable)_labels.DataSource).Select("Status = 'RESERVED'").Length == 0);
                     if (_printRows.Rows.Count == 0)
                         throw new InvalidOperationException("Không có tem hợp lệ để in.");
                     _printIndex = 0;
@@ -292,6 +296,18 @@ namespace PCTP.Modules.MesPlanning.UI
                 _labelScan.Clear();
                 return "Đã xác nhận tem " + Convert.ToString(result.Rows[0]["LabelCode"]) +
                     " đã được dán cho công đoạn " + _operationNo.Text + ".";
+            });
+        }
+
+        private void VoidLabelClick(object sender, EventArgs e)
+        {
+            Run(() =>
+            {
+                var result = _service.VoidLabel(_labelScan.Text, Environment.UserName, _labelVoidReason.Text);
+                _labelScan.Clear();
+                _labelVoidReason.Clear();
+                return "Đã hủy tem " + Convert.ToString(result.Rows[0]["LabelCode"]) +
+                    ". Tem đã dán không thể hủy.";
             });
         }
 
