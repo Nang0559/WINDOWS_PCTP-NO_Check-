@@ -313,7 +313,7 @@ VALUES ('FULL', 'RUNNING', SYSUTCDATETIME(), @InitiatedBy);", connection))
                                     parameter = command.Parameters.Add(parameterName, SqlDbType.NVarChar, 200);
                                     break;
                                 case 9:
-                                    parameter = command.Parameters.Add(parameterName, SqlDbType.NVarChar, 30);
+                                    parameter = command.Parameters.Add(parameterName, SqlDbType.NVarChar, 56);
                                     break;
                                 case 10:
                                     parameter = command.Parameters.Add(parameterName, SqlDbType.NVarChar, -1);
