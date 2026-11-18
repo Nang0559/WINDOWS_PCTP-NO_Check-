@@ -4,6 +4,8 @@ using System.Drawing;
 using System.Globalization;
 using System.Windows.Forms;
 using System.Drawing.Printing;
+using DevExpress.XtraEditors;
+using DevExpress.XtraPrinting.BarCode;
 
 namespace PCTP.Modules.MesPlanning.UI
 {
@@ -246,6 +248,8 @@ namespace PCTP.Modules.MesPlanning.UI
                 using (var dialog = new PrintDialog { Document = document, UseEXDialog = true })
                 {
                     dialog.Document.DefaultPageSettings.Landscape = false;
+                    dialog.Document.DefaultPageSettings.PaperSize = new PaperSize("MES product label 75x50mm", 295, 197);
+                    dialog.Document.DefaultPageSettings.Margins = new Margins(8, 8, 8, 8);
                     if (dialog.ShowDialog(this) != DialogResult.OK)
                         return "Đã hủy lệnh in; chưa gửi dữ liệu in.";
                     _printRows = _service.PrintLabels(
@@ -272,18 +276,34 @@ namespace PCTP.Modules.MesPlanning.UI
                             args.Graphics.DrawString("PROCESS: " + Convert.ToString(row["OperationNo"]) +
                                 " - " + Convert.ToString(row["OperationName"]), bodyFont, Brushes.Black, 25, y);
                             y += 24;
-                            args.Graphics.DrawString("QR PAYLOAD: " + Convert.ToString(row["QrPayload"]),
-                                bodyFont, Brushes.Black, new RectangleF(25, y, 360, 90));
-                            y += 100;
-                            args.Graphics.DrawString("Each label identifies one product. Scan the QR payload with MES.",
-                                bodyFont, Brushes.Black, 25, y);
+                            var qrPayload = Convert.ToString(row["QrPayload"]);
+                            using (var qrControl = new BarCodeControl())
+                            using (var qrBitmap = new Bitmap(150, 150))
+                            {
+                                qrControl.Size = new Size(150, 150);
+                                qrControl.AutoModule = true;
+                                qrControl.Text = qrPayload;
+                                var qrGenerator = new QRCodeGenerator
+                                {
+                                    CompactionMode = QRCodeCompactionMode.Byte,
+                                    ErrorCorrectionLevel = QRCodeErrorCorrectionLevel.H,
+                                    Version = QRCodeVersion.AutoVersion
+                                };
+                                qrControl.Symbology = qrGenerator;
+                                qrControl.CreateControl();
+                                qrControl.DrawToBitmap(qrBitmap, new Rectangle(0, 0, 150, 150));
+                                args.Graphics.DrawImage(qrBitmap, 25, y, 115, 115);
+                            }
+                            args.Graphics.DrawString("SCAN QR", bodyFont, Brushes.Black, 155, y + 15);
+                            args.Graphics.DrawString(qrPayload, bodyFont, Brushes.Black,
+                                new RectangleF(155, y + 35, 120, 90));
                         }
                         args.HasMorePages = _printIndex < _printRows.Rows.Count;
                     };
                     document.Print();
                     _labels.DataSource = _printRows;
                     return "Đã gửi " + _printRows.Rows.Count.ToString("N0") +
-                        " tem tới máy in. QR payload được in kèm dưới dạng dữ liệu văn bản.";
+                        " tem tới máy in. QR Code và dữ liệu tem đã được gửi tới máy in.";
                 }
             });
         }
