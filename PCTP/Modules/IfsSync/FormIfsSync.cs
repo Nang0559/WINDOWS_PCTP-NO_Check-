@@ -76,7 +76,7 @@ namespace PCTP.Modules.IfsSync
             _connectionInfo.Appearance.TextOptions.WordWrap = DevExpress.Utils.WordWrap.Wrap;
             _connectionInfo.Text =
                 "Nguồn: Oracle IFS (chỉ đọc)     →     Đích: SQL Server / FVN_PCTP\r\n" +
-                "Dữ liệu: Part Catalog, Inventory Part, BOM Header, Alternative, Component và Warehouse.";
+                "Dữ liệu: Part Catalog, Inventory Part, BOM, Warehouse và Supplier.";
             heading.Controls.Add(_connectionInfo);
             root.Controls.Add(heading, 0, 0);
 
@@ -248,7 +248,8 @@ namespace PCTP.Modules.IfsSync
                             using (var command = new SqlCommand(@"
 SELECT TOP (0) SyncBatchId, WarehouseRows FROM [IFS].[SyncBatch];
 SELECT TOP (0) SyncStageRowId FROM [IFS].[SyncStageRow];
-SELECT TOP (0) SiteCode, WarehouseCode, Description FROM [MES].[FVN_IfsWarehouse];", sql))
+SELECT TOP (0) SiteCode, WarehouseCode, Description FROM [MES].[FVN_IfsWarehouse];
+SELECT TOP (0) SupplierCode, SupplierName FROM [IFS].[FVN_Supplier];", sql))
                             {
                                 command.ExecuteNonQuery();
                             }
@@ -268,7 +269,7 @@ SELECT TOP (0) SiteCode, WarehouseCode, Description FROM [MES].[FVN_IfsWarehouse
                         }
                     }
 
-                    return "Kết nối Oracle IFS OK; SQL Server FVN_PCTP OK; migration 012 và 027 đã sẵn sàng.";
+                    return "Kết nối Oracle IFS OK; SQL Server FVN_PCTP OK; migration 012, 027 và 028 đã sẵn sàng.";
                 }), "Đang kiểm tra kết nối Oracle IFS và SQL Server FVN_PCTP...");
 
                 _status.Text = message;
@@ -294,7 +295,7 @@ SELECT TOP (0) SiteCode, WarehouseCode, Description FROM [MES].[FVN_IfsWarehouse
             if (_isRunning) return;
 
             var confirm = XtraMessageBox.Show(this,
-                "Chương trình sẽ đọc 6 IFS View/entity (bao gồm WAREHOUSE) và đồng bộ Full Snapshot vào FVN_PCTP.\r\n\r\n" +
+                "Chương trình sẽ đọc 7 IFS View/entity (bao gồm WAREHOUSE và SUPPLIER_INFO_GENERAL) và đồng bộ Full Snapshot vào FVN_PCTP.\r\n\r\n" +
                 "Dữ liệu không bị xóa chỉ vì không xuất hiện trong lần đọc này.\r\n" +
                 "Quá trình có thể mất nhiều thời gian. Bạn muốn tiếp tục?",
                 "Xác nhận đồng bộ IFS",
@@ -335,7 +336,8 @@ SELECT TOP (0) SiteCode, WarehouseCode, Description FROM [MES].[FVN_IfsWarehouse
                     "BOM_HEADER: " + result.BomHeaderRows + Environment.NewLine +
                     "BOM_ALTERNATIVE: " + result.BomAlternativeRows + Environment.NewLine +
                     "BOM_COMPONENT: " + result.BomComponentRows + Environment.NewLine +
-                    "WAREHOUSE: " + result.WarehouseRows;
+                    "WAREHOUSE: " + result.WarehouseRows + Environment.NewLine +
+                    "SUPPLIER: " + result.SupplierRows;
                 RefreshHistory();
                 XtraMessageBox.Show(this, _details.Text, "Đồng bộ hoàn tất",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -375,6 +377,7 @@ SELECT TOP (100)
        b.BomAlternativeRows,
        b.BomComponentRows,
        b.WarehouseRows,
+       b.SupplierRows,
        b.InsertCount,
        b.UpdateCount,
        b.ErrorSummary,
@@ -411,7 +414,7 @@ ORDER BY b.SyncBatchId DESC;", connection))
 (
     SELECT TOP (1) SyncBatchId, Status, StartedAtUtc, CompletedAtUtc, ErrorSummary,
            PartCatalogRows, InventoryPartRows, BomHeaderRows, BomAlternativeRows,
-           BomComponentRows, WarehouseRows
+           BomComponentRows, WarehouseRows, SupplierRows
     FROM IFS.SyncBatch
     ORDER BY SyncBatchId DESC
 )
@@ -448,6 +451,9 @@ CROSS APPLY
     UNION ALL
     SELECT N'WAREHOUSE', N'IFSAPP.WAREHOUSE', N'MES.FVN_IfsWarehouse',
            l.WarehouseRows, (SELECT COUNT_BIG(*) FROM MES.FVN_IfsWarehouse)
+    UNION ALL
+    SELECT N'SUPPLIER', N'IFSAPP.SUPPLIER_INFO_GENERAL', N'IFS.FVN_Supplier',
+           l.SupplierRows, (SELECT COUNT_BIG(*) FROM IFS.FVN_Supplier)
 ) v
 OUTER APPLY
 (
@@ -474,6 +480,8 @@ FROM
            (SELECT COUNT_BIG(*) FROM IFS.FVN_BomComponent)
     UNION ALL SELECT N'WAREHOUSE', N'IFSAPP.WAREHOUSE', N'MES.FVN_IfsWarehouse',
            (SELECT COUNT_BIG(*) FROM MES.FVN_IfsWarehouse)
+    UNION ALL SELECT N'SUPPLIER', N'IFSAPP.SUPPLIER_INFO_GENERAL', N'IFS.FVN_Supplier',
+           (SELECT COUNT_BIG(*) FROM IFS.FVN_Supplier)
 ) v
 WHERE NOT EXISTS (SELECT 1 FROM IFS.SyncBatch);";
                 using (var connection = new SqlConnection(TargetConnectionString))
