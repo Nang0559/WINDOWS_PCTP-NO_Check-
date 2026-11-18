@@ -497,7 +497,9 @@
     <Compile Include="Infrastructure\Sql\DataAccessException.cs" />
     <Compile Include="Infrastructure\Sql\DataAccessStatus.cs" />
     <Compile Include="Infrastructure\Sql\SQL.cs" />
-    <Compile Include="Modules\MesBom\FormProductStructureGraphic.cs">\n      <SubType>Form</SubType>\n    </Compile>\n    <Compile Include="Modules\IfsSync\IfsSyncService.cs" />
+    <Compile Include="Modules\MesBom\FormProductStructureGraphic.cs">
+      <SubType>Form</SubType>
+    </Compile>\n    <Compile Include="Modules\IfsSync\IfsSyncService.cs" />
     <Compile Include="Modules\IfsSync\FormIfsSync.cs">
       <SubType>Form</SubType>
     </Compile>
