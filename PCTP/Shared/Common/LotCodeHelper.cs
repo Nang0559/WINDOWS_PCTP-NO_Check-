@@ -48,11 +48,14 @@ namespace PCTP.Common
         public const int LEN_SHIFT = 1; // legacy compatibility
         public const int LEN_GEAR = 1; // legacy compatibility
         public const int LEN_SHIFT_CODE = 2;
-        public const int LEN_LinesCode = 3; // LineCode
-        public const int LEN_MachinesCode = 4; // legacy compatibility only
+        public const int LEN_LINE_CODE = 3;
+        public const int LEN_DEPARTMENT_CODE = 4;
+        // Legacy aliases retained so older callers continue to compile.
+        public const int LEN_LinesCode = LEN_LINE_CODE;
+        public const int LEN_MachinesCode = LEN_DEPARTMENT_CODE;
         public const int LEN_COUNTER = 4;
         public const int LEN_QTY = 4;
-        public const int LEN_HEAD_FIXED = LEN_DATE + LEN_ID_ITEM + LEN_SHIFT_CODE + LEN_LinesCode + LEN_MachinesCode;
+        public const int LEN_HEAD_FIXED = LEN_DATE + LEN_ID_ITEM + LEN_SHIFT_CODE + LEN_LINE_CODE + LEN_DEPARTMENT_CODE;
         public const int LEN_TAIL_FIXED = LEN_COUNTER + LEN_QTY;
         public const int MIN_TOTAL_LEN = LEN_HEAD_FIXED + LEN_TAIL_FIXED;
         public const int LEN_LEGACY_KEY = LEN_DATE + LEN_ID_ITEM + LEN_SHIFT + LEN_GEAR;
@@ -61,8 +64,8 @@ namespace PCTP.Common
         {
             if (string.IsNullOrWhiteSpace(fullLot)) return fullLot;
 
-            // STOCKTP.LOT uses the 20-character base key (Date + Item + Shift +
-            // Gear + Line + Machine). The UI and return-detail tables often pass
+            // The stock LOT uses the 20-character production identity:
+            // Date + ItemId5 + ShiftCode + LineCode + DepartmentCode. The UI and return-detail tables often pass
             // this key directly. Only strip Counter+Qty from a full printed LOT
             // that is longer than the base key; stripping every value longer than
             // 8 chars corrupts a valid 20-char key (e.g. 26080700748100851600)
