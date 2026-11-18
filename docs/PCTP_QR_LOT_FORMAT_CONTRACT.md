@@ -70,11 +70,13 @@ Purchased-component LOTs are not forced into the 20-character production LOT
 layout. They preserve supplier identity and use this semantic composition:
 
 ```text
-YYMMDD + SupplierCode + ItemId5 + DocNo
+YYMMDD + SupplierId5 + ItemId5 + DocNo
 ```
 
-- `SupplierCode` replaces the legacy Bravo field name `Code0`. It is the
-  supplier identifier from the IFS supplier master, not a free-text alias.
+- `SupplierCode` replaces the legacy Bravo field name `Code0`. It remains the exact
+  IFS `SUPPLIER_ID` business key, including alphanumeric values; it is not a free-text alias.
+- `SupplierId5` is a separate FVN_PCTP-generated five-character identity mapped uniquely
+  to `SupplierCode`; it is the token embedded in the component LOT.
 - `ItemId5` is a stable five-character MES identity mapped to the IFS
   `(SiteCode, PartNo)`. Existing Bravo QR item codes are preserved as legacy
   mappings; new identities are allocated once and reused.
@@ -86,7 +88,9 @@ YYMMDD + SupplierCode + ItemId5 + DocNo
 
 This is a separate LOT family from production/finished goods. Never inject
 SupplierCode into production LOTs, and never drop it from purchased-component
-LOTs. SQL generation is centralized in `MES.usp_FVN_BuildComponentLotNo`;
+LOTs. FVN_PCTP owns a numeric identity key and a stable five-character `SupplierId5` in
+`MES.FVN_SupplierIdentity`; the exact IFS SupplierCode is retained as its source key.
+SQL generation is centralized in `MES.usp_FVN_BuildComponentLotNo`;
 applications must not concatenate this format independently. Production/finished LOTs are generated separately by `MES.usp_FVN_BuildProductionLotNo` after validating the active `dbo.FVN_ProductionLine` and `dbo.FVN_ProductionDepartment` mapping. Their code lengths are ShiftCode=2 (shift + gear), LineCode=3, DepartmentCode=4.
 
 ## 3. Customer Gear validation
