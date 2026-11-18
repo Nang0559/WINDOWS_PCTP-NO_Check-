@@ -303,9 +303,22 @@ BEGIN TRY
  AS
  BEGIN
   SET NOCOUNT ON;
+  DECLARE @StateChanges TABLE(ProductionLotId bigint,RoutingStepId bigint,FromStatus int,ToStatus int,ActorCode nvarchar(100));
   UPDATE w SET StatusCode=50,UpdatedAtUtc=SYSUTCDATETIME(),UpdatedBy=i.OperatorCode
+  OUTPUT inserted.ProductionLotId,inserted.RoutingStepId,deleted.StatusCode,inserted.StatusCode,i.OperatorCode
+   INTO @StateChanges(ProductionLotId,RoutingStepId,FromStatus,ToStatus,ActorCode)
   FROM MES.FVN_ProductionOperationWorkflow w
-  JOIN inserted i ON i.ProductionLotId=w.ProductionLotId AND i.RoutingStepId=w.RoutingStepId;
+  JOIN inserted i ON i.ProductionLotId=w.ProductionLotId AND i.RoutingStepId=w.RoutingStepId
+  WHERE w.StatusCode<>50;
+
+  INSERT MES.FVN_ProductionWorkflowEvent(EntityType,EntityId,RelatedId,ProcessCode,
+   FromStatus,ToStatus,ActionName,ActorCode)
+  SELECT 'OPERATION',c.ProductionLotId,c.RoutingStepId,'MES_PRODUCTION_OPERATION',
+   c.FromStatus,c.ToStatus,t.ActionName,c.ActorCode
+  FROM @StateChanges c
+  JOIN dbo.FVN_sys_WorkflowTransitions t ON t.ProcessCode='MES_PRODUCTION_OPERATION'
+   AND t.FromStatus=c.FromStatus AND t.ToStatus=c.ToStatus AND t.IsActive=1;
+
   INSERT MES.FVN_ProductionOperationEvent(ProductionLotId,RoutingStepId,EventType,Quantity,ReferenceId,ActorCode)
   SELECT i.ProductionLotId,i.RoutingStepId,'ACTUAL_COMPLETED',i.GoodQty+i.NgQty,i.OperationExecutionId,i.OperatorCode
   FROM inserted i;
