@@ -19,6 +19,7 @@ namespace PCTP.Modules.IfsSync
     {
         private readonly LabelControl _connectionInfo = new LabelControl();
         private readonly Label _status = new Label();
+        private readonly DataGridView _entities = new DataGridView();
         private readonly DataGridView _batches = new DataGridView();
         private readonly TextBox _details = new TextBox();
         private readonly SimpleButton _checkButton = new SimpleButton();
@@ -56,11 +57,12 @@ namespace PCTP.Modules.IfsSync
                 Dock = DockStyle.Fill,
                 Padding = new Padding(12),
                 ColumnCount = 1,
-                RowCount = 4
+                RowCount = 5
             };
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 76));
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 64));
-            root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            root.RowStyles.Add(new RowStyle(SizeType.Percent, 36));
+            root.RowStyles.Add(new RowStyle(SizeType.Percent, 36));
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 142));
             Controls.Add(root);
 
@@ -74,7 +76,7 @@ namespace PCTP.Modules.IfsSync
             _connectionInfo.Appearance.TextOptions.WordWrap = DevExpress.Utils.WordWrap.Wrap;
             _connectionInfo.Text =
                 "Nguồn: Oracle IFS (chỉ đọc)     →     Đích: SQL Server / FVN_PCTP\r\n" +
-                "Dữ liệu: Part Catalog, Inventory Part, BOM Header, Alternative và Component.";
+                "Dữ liệu: Part Catalog, Inventory Part, BOM Header, Alternative, Component và Warehouse.";
             heading.Controls.Add(_connectionInfo);
             root.Controls.Add(heading, 0, 0);
 
@@ -123,6 +125,15 @@ namespace PCTP.Modules.IfsSync
             commandPanel.Controls.Add(buttons, 1, 0);
             root.Controls.Add(commandPanel, 0, 1);
 
+            var entityStatus = new GroupControl
+            {
+                Text = "Trạng thái đồng bộ theo entity (đối chiếu nguồn gần nhất và dữ liệu đích)",
+                Dock = DockStyle.Fill
+            };
+            ConfigureEntityGrid();
+            entityStatus.Controls.Add(_entities);
+            root.Controls.Add(entityStatus, 0, 2);
+
             var history = new GroupControl
             {
                 Text = "Lịch sử các lần đồng bộ (100 batch gần nhất)",
@@ -130,7 +141,7 @@ namespace PCTP.Modules.IfsSync
             };
             ConfigureBatchGrid();
             history.Controls.Add(_batches);
-            root.Controls.Add(history, 0, 2);
+            root.Controls.Add(history, 0, 3);
 
             var errorGroup = new GroupControl
             {
@@ -145,7 +156,22 @@ namespace PCTP.Modules.IfsSync
             _details.Font = new Font("Consolas", 9F);
             _details.Text = "Chọn một batch để xem lỗi ghi nhận (nếu có).";
             errorGroup.Controls.Add(_details);
-            root.Controls.Add(errorGroup, 0, 3);
+            root.Controls.Add(errorGroup, 0, 4);
+        }
+
+        private void ConfigureEntityGrid()
+        {
+            _entities.Dock = DockStyle.Fill;
+            _entities.ReadOnly = true;
+            _entities.AllowUserToAddRows = false;
+            _entities.AllowUserToDeleteRows = false;
+            _entities.AllowUserToResizeRows = false;
+            _entities.MultiSelect = false;
+            _entities.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+            _entities.AutoGenerateColumns = true;
+            _entities.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.DisplayedCells;
+            _entities.RowHeadersVisible = false;
+            _entities.BackgroundColor = SystemColors.Window;
         }
 
         private void ConfigureBatchGrid()
@@ -220,8 +246,9 @@ namespace PCTP.Modules.IfsSync
                         try
                         {
                             using (var command = new SqlCommand(@"
-SELECT TOP (0) SyncBatchId FROM [IFS].[SyncBatch];
-SELECT TOP (0) SyncStageRowId FROM [IFS].[SyncStageRow];", sql))
+SELECT TOP (0) SyncBatchId, WarehouseRows FROM [IFS].[SyncBatch];
+SELECT TOP (0) SyncStageRowId FROM [IFS].[SyncStageRow];
+SELECT TOP (0) SiteCode, WarehouseCode, Description FROM [MES].[FVN_IfsWarehouse];", sql))
                             {
                                 command.ExecuteNonQuery();
                             }
@@ -267,7 +294,7 @@ SELECT TOP (0) SyncStageRowId FROM [IFS].[SyncStageRow];", sql))
             if (_isRunning) return;
 
             var confirm = XtraMessageBox.Show(this,
-                "Chương trình sẽ đọc 5 IFS View và đồng bộ Full Snapshot vào FVN_PCTP.\r\n\r\n" +
+                "Chương trình sẽ đọc 6 IFS View/entity (bao gồm WAREHOUSE) và đồng bộ Full Snapshot vào FVN_PCTP.\r\n\r\n" +
                 "Dữ liệu không bị xóa chỉ vì không xuất hiện trong lần đọc này.\r\n" +
                 "Quá trình có thể mất nhiều thời gian. Bạn muốn tiếp tục?",
                 "Xác nhận đồng bộ IFS",
@@ -307,7 +334,8 @@ SELECT TOP (0) SyncStageRowId FROM [IFS].[SyncStageRow];", sql))
                     "INVENTORY_PART: " + result.InventoryPartRows + Environment.NewLine +
                     "BOM_HEADER: " + result.BomHeaderRows + Environment.NewLine +
                     "BOM_ALTERNATIVE: " + result.BomAlternativeRows + Environment.NewLine +
-                    "BOM_COMPONENT: " + result.BomComponentRows;
+                    "BOM_COMPONENT: " + result.BomComponentRows + Environment.NewLine +
+                    "WAREHOUSE: " + result.WarehouseRows;
                 RefreshHistory();
                 XtraMessageBox.Show(this, _details.Text, "Đồng bộ hoàn tất",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -345,6 +373,7 @@ SELECT TOP (100)
        b.BomHeaderRows,
        b.BomAlternativeRows,
        b.BomComponentRows,
+       b.WarehouseRows,
        b.InsertCount,
        b.UpdateCount,
        b.ErrorSummary,
@@ -355,6 +384,7 @@ ORDER BY b.SyncBatchId DESC;", connection))
                     var table = new DataTable();
                     adapter.Fill(table);
                     _batches.DataSource = table;
+                    RefreshEntityStatus();
                     if (_batches.Columns.Contains("StartedAtUtc"))
                         _batches.Columns["StartedAtUtc"].DefaultCellStyle.Format = "yyyy-MM-dd HH:mm:ss";
                     if (_batches.Columns.Contains("CompletedAtUtc"))
@@ -368,6 +398,88 @@ ORDER BY b.SyncBatchId DESC;", connection))
             {
                 _status.Text = "Không đọc được lịch sử. Kiểm tra kết nối và migration 012.";
                 _details.Text = ex.ToString();
+            }
+        }
+
+        private void RefreshEntityStatus()
+        {
+            try
+            {
+                const string sql = @"
+;WITH Latest AS
+(
+    SELECT TOP (1) SyncBatchId, Status, StartedAtUtc, CompletedAtUtc, ErrorSummary,
+           PartCatalogRows, InventoryPartRows, BomHeaderRows, BomAlternativeRows,
+           BomComponentRows, WarehouseRows
+    FROM IFS.SyncBatch
+    ORDER BY SyncBatchId DESC
+)
+SELECT v.EntityName, v.SourceObject, v.TargetObject, v.SourceRows, v.TargetRows,
+       CASE
+         WHEN l.SyncBatchId IS NULL THEN N'CHƯA ĐỒNG BỘ'
+         WHEN l.Status = 'FAILED' THEN N'LỖI'
+         WHEN l.Status <> 'APPLIED' THEN N'ĐANG XỬ LÝ / CHƯA APPLY'
+         WHEN v.TargetRows = 0 THEN N'ĐÃ ĐỌC - ĐÍCH CHƯA CÓ DỮ LIỆU'
+         ELSE N'ĐÃ ĐỒNG BỘ'
+       END AS SyncStatus,
+       l.SyncBatchId AS LatestBatchId, l.Status AS BatchStatus,
+       COALESCE(l.CompletedAtUtc, l.StartedAtUtc) AS LatestAtUtc,
+       l.ErrorSummary
+FROM Latest l
+CROSS APPLY
+(
+    SELECT N'PART_CATALOG' EntityName, N'IFSAPP.PART_CATALOG' SourceObject,
+           N'IFS.FVN_PartCatalog' TargetObject, l.PartCatalogRows SourceRows,
+           (SELECT COUNT_BIG(*) FROM IFS.FVN_PartCatalog) TargetRows
+    UNION ALL
+    SELECT N'INVENTORY_PART', N'IFSAPP.INVENTORY_PART', N'IFS.FVN_InventoryPart',
+           l.InventoryPartRows, (SELECT COUNT_BIG(*) FROM IFS.FVN_InventoryPart)
+    UNION ALL
+    SELECT N'BOM_HEADER', N'IFSAPP.MANUF_STRUCTURE_HEAD', N'IFS.FVN_BomHeader',
+           l.BomHeaderRows, (SELECT COUNT_BIG(*) FROM IFS.FVN_BomHeader)
+    UNION ALL
+    SELECT N'BOM_ALTERNATIVE', N'IFSAPP.MANUF_STRUCT_ALTERNATE', N'IFS.FVN_BomAlternative',
+           l.BomAlternativeRows, (SELECT COUNT_BIG(*) FROM IFS.FVN_BomAlternative)
+    UNION ALL
+    SELECT N'BOM_COMPONENT', N'IFSAPP.MANUF_STRUCTURE', N'IFS.FVN_BomComponent',
+           l.BomComponentRows, (SELECT COUNT_BIG(*) FROM IFS.FVN_BomComponent)
+    UNION ALL
+    SELECT N'WAREHOUSE', N'IFSAPP.WAREHOUSE', N'MES.FVN_IfsWarehouse',
+           l.WarehouseRows, (SELECT COUNT_BIG(*) FROM MES.FVN_IfsWarehouse)
+) v
+UNION ALL
+SELECT v.EntityName, v.SourceObject, v.TargetObject, 0 AS SourceRows, v.TargetRows,
+       N'CHƯA CÓ BATCH ĐỒNG BỘ' AS SyncStatus, NULL, NULL, NULL, NULL
+FROM
+(
+    SELECT N'PART_CATALOG' EntityName, N'IFSAPP.PART_CATALOG' SourceObject, N'IFS.FVN_PartCatalog' TargetObject,
+           (SELECT COUNT_BIG(*) FROM IFS.FVN_PartCatalog) TargetRows
+    UNION ALL SELECT N'INVENTORY_PART', N'IFSAPP.INVENTORY_PART', N'IFS.FVN_InventoryPart',
+           (SELECT COUNT_BIG(*) FROM IFS.FVN_InventoryPart)
+    UNION ALL SELECT N'BOM_HEADER', N'IFSAPP.MANUF_STRUCTURE_HEAD', N'IFS.FVN_BomHeader',
+           (SELECT COUNT_BIG(*) FROM IFS.FVN_BomHeader)
+    UNION ALL SELECT N'BOM_ALTERNATIVE', N'IFSAPP.MANUF_STRUCT_ALTERNATE', N'IFS.FVN_BomAlternative',
+           (SELECT COUNT_BIG(*) FROM IFS.FVN_BomAlternative)
+    UNION ALL SELECT N'BOM_COMPONENT', N'IFSAPP.MANUF_STRUCTURE', N'IFS.FVN_BomComponent',
+           (SELECT COUNT_BIG(*) FROM IFS.FVN_BomComponent)
+    UNION ALL SELECT N'WAREHOUSE', N'IFSAPP.WAREHOUSE', N'MES.FVN_IfsWarehouse',
+           (SELECT COUNT_BIG(*) FROM MES.FVN_IfsWarehouse)
+) v
+WHERE NOT EXISTS (SELECT 1 FROM IFS.SyncBatch);";
+                using (var connection = new SqlConnection(TargetConnectionString))
+                using (var adapter = new SqlDataAdapter(sql, connection))
+                {
+                    var table = new DataTable();
+                    adapter.Fill(table);
+                    _entities.DataSource = table;
+                    if (_entities.Columns.Contains("LatestAtUtc"))
+                        _entities.Columns["LatestAtUtc"].DefaultCellStyle.Format = "yyyy-MM-dd HH:mm:ss";
+                }
+            }
+            catch (Exception ex)
+            {
+                _entities.DataSource = null;
+                _details.Text = "Không tải được trạng thái entity. Kiểm tra migration 027 và quyền SELECT. " + ex.Message;
             }
         }
 
