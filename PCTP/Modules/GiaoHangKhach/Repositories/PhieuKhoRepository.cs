@@ -363,15 +363,23 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
                             maHang, stt), ex);
                 }
 
+                // Ghi Chú: chỉ chép khi cả TMP và LUUPHIEUGIAOHANG đều có cột Note.
+                bool coNote = Convert.ToInt32(ExecuteScalar(
+                    @"SELECT CASE WHEN COL_LENGTH(@t, 'Note') IS NOT NULL
+                                   AND COL_LENGTH('dbo.LUUPHIEUGIAOHANG', 'Note') IS NOT NULL THEN 1 ELSE 0 END",
+                    new SqlParameter("@t", SqlDbType.NVarChar, 256) { Value = "dbo." + tmpTable })) == 1;
+                string noteCol = coNote ? ", Note" : "";
+                string noteSel = coNote ? ", LEFT(Note, 250)" : "";
+
                 try
                 {
                     ExecuteNonQuery(
                         @"INSERT INTO LUUPHIEUGIAOHANG
                     (STT, CUA, TRUYEN, MAHANG, TENHANG, LOT, DV, SOLUONG,
-                     NGAYGIAO, GIOGIAO, STATUS, STATUSDOC, GearYMVN, NHAMAY, GIOGIAOFCC, PO_NO, TTPHIEU)
+                     NGAYGIAO, GIOGIAO, STATUS, STATUSDOC, GearYMVN, NHAMAY, GIOGIAOFCC, PO_NO, TTPHIEU" + noteCol + @")
                     SELECT STT, CUA, TRUYEN, MAHANG, TENHANG, LOT, DV, SOLUONG,
                            NGAYGIAO, GIOGIAO, 'OK', ISNULL(STATUSDOC, ''), ISNULL(GEAR,''), @nhaMay,
-                           CONVERT(VARCHAR(8), GETDATE(), 108), ISNULL(PO_NO,''), ISNULL(TTPHIEU,'')
+                           CONVERT(VARCHAR(8), GETDATE(), 108), ISNULL(PO_NO,''), ISNULL(TTPHIEU,'')" + noteSel + @"
                     FROM [" + tmpTable + @"]
                     WHERE STT = @stt AND STATUS = 'NG'",
                         new SqlParameter("@nhaMay", SqlDbType.NVarChar, 200) { Value = nhaMay ?? "" },

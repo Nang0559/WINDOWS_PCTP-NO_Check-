@@ -151,6 +151,11 @@ namespace PCTP.Modules.GiaoHangKhach.Services
                 _phieuRepo.PushIfsSnapshot(_tenBan, donHang);
             }
 
+            // Cột XE của lưới phải có giá trị như phiếu in. Tính SAU khi đã ghi TMP/snapshot ở trên
+            // để không làm đổi schema bảng snapshot (DropCreate theo cột của donHang).
+            if (_cfg.Delivery.CoGear)
+                FillXeTuQcdg(donHang);
+
             return BuildTableResult(context, donHang, gioMoTa, HasRows(sourceResult.Difference), sourceResult.Warning);
         }
 
@@ -213,6 +218,35 @@ namespace PCTP.Modules.GiaoHangKhach.Services
                 int hop = slGiao / qcDg;
                 if (slGiao % qcDg > 0) hop++;
                 row["HOP"] = hop.ToString();
+            }
+        }
+
+        // YMVN: cột XE của lưới = làm tròn lên (SOLUONG / QCDG), cùng công thức với phiếu in
+        // (InPhieuService.BuildReportDataYMVN → YmvnXe.Tinh). Bảng không có QCDG (vd. đọc lại từ TMP)
+        // thì giữ nguyên, không ghi đè.
+        private static void FillXeTuQcdg(DataTable donHang)
+        {
+            if (donHang == null || donHang.Rows.Count == 0) return;
+            if (!donHang.Columns.Contains("QCDG") || !donHang.Columns.Contains("SOLUONG")) return;
+
+            if (!donHang.Columns.Contains("XE")) donHang.Columns.Add("XE", typeof(string));
+            DataColumn colXe = donHang.Columns["XE"];
+
+            foreach (DataRow row in donHang.Rows)
+            {
+                string xe = PCTP.Applications.Services.YmvnXe.Tinh(
+                    Convert.ToString(row["SOLUONG"]),
+                    Convert.ToString(row["QCDG"]));
+
+                if (colXe.DataType == typeof(string))
+                {
+                    row[colXe] = xe;
+                }
+                else
+                {
+                    int n;
+                    row[colXe] = int.TryParse(xe, out n) ? (object)n : DBNull.Value;
+                }
             }
         }
 

@@ -254,12 +254,13 @@ namespace PCTP.Modules.BaoCao.UI
             var statusBar = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
-                ColumnCount = 3,
+                ColumnCount = 4,
                 RowCount = 1,
                 Margin = Padding.Empty,
                 Padding = Padding.Empty
             };
             statusBar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            statusBar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 150));
             statusBar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 150));
             statusBar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 150));
             _status.Text = "Đang chuẩn bị...";
@@ -276,7 +277,15 @@ namespace PCTP.Modules.BaoCao.UI
                 Enabled = false
             };
             exportButton.Click += ExportExcel_Click;
-            statusBar.Controls.Add(exportButton, 1, 0);
+            statusBar.Controls.Add(exportButton, 2, 0);
+            var buildTimelineButton = new SimpleButton
+            {
+                Text = "Dựng timeline",
+                Dock = DockStyle.Fill,
+                Margin = new Padding(3, 1, 3, 1)
+            };
+            buildTimelineButton.Click += BuildTimelineButton_Click;
+            statusBar.Controls.Add(buildTimelineButton, 1, 0);
             _exportButton = exportButton;
             var printButton = new SimpleButton
             {
@@ -286,7 +295,7 @@ namespace PCTP.Modules.BaoCao.UI
                 Enabled = false
             };
             printButton.Click += PrintReport_Click;
-            statusBar.Controls.Add(printButton, 2, 0);
+            statusBar.Controls.Add(printButton, 3, 0);
             _printButton = printButton;
             search.Controls.Add(statusBar, 0, 3);
             search.SetColumnSpan(statusBar, 6);
@@ -557,8 +566,25 @@ namespace PCTP.Modules.BaoCao.UI
             if (_bindingQrGrid) return;
             DeliveryTraceRow row = GetFocusedDelivery();
             BindQrRows(row == null ? null : row.DeliveryKey);
+            // Không tự dựng timeline khi đổi dòng (dựng gọi nhiều truy vấn sản xuất/kho nên làm tra cứu bị chờ lâu).
+            // Chỉ huỷ timeline cũ đang lệch dòng; dựng bằng nút "Dựng timeline" hoặc nhấp đúp dòng.
             _timelineDebounce.Stop();
-            if (row != null) _timelineDebounce.Start();
+            if (_timelineNodes.Count > 0)
+                ClearTimeline("Bấm \"Dựng timeline\" (hoặc nhấp đúp dòng giao hàng) để dựng timeline theo toàn bộ LOT ghép.");
+            else
+                _timelineVersion++;
+        }
+
+        private void BuildTimelineButton_Click(object sender, EventArgs e)
+        {
+            DeliveryTraceRow row = GetFocusedDelivery();
+            if (row == null)
+            {
+                XtraMessageBox.Show(this, "Hãy chọn một dòng giao hàng trước.", "Dựng timeline",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+            _ = BuildTimelineAsync(row);
         }
 
         private void TimelineDebounce_Tick(object sender, EventArgs e)

@@ -73,6 +73,7 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
             bandedGridColumn4 = new BandedGridColumn();
 
             ConfigureGrid();
+            GridViewDONHANG.CellValueChanged += GridViewDONHANG_NoteCellValueChanged;
 
             gridCtrDONHANG.Dock = DockStyle.Fill;
             Controls.Add(gridCtrDONHANG);
@@ -88,8 +89,22 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
             GridViewDONHANG.BestFitColumns();
         }
 
+        /// <summary>Bắn khi người dùng sửa xong ô Ghi Chú (Note) của 1 dòng: (STT, nội dung).</summary>
+        public event Action<int, string> NoteEdited;
+
+        private void GridViewDONHANG_NoteCellValueChanged(object sender, DevExpress.XtraGrid.Views.Base.CellValueChangedEventArgs e)
+        {
+            if (e.Column == null || !string.Equals(e.Column.FieldName, "Note", StringComparison.OrdinalIgnoreCase)) return;
+            if (!int.TryParse(Convert.ToString(GridViewDONHANG.GetRowCellValue(e.RowHandle, "STT"))?.Trim(), out int stt) || stt <= 0) return;
+            NoteEdited?.Invoke(stt, Convert.ToString(e.Value) ?? "");
+        }
+
         public DataTable GetDataTable()
         {
+            // Ô đang gõ (vd: Ghi Chú) chưa commit vào DataTable cho tới khi rời ô/dòng.
+            // Chốt trước khi snapshot để không mất giá trị vừa nhập.
+            GridViewDONHANG.CloseEditor();
+            GridViewDONHANG.UpdateCurrentRow();
             return gridCtrDONHANG.DataSource as DataTable;
         }
 
@@ -356,7 +371,7 @@ namespace PCTP.Modules.GiaoHangKhach.HVN.Controls
             ConfigureColumn(dovi, "Đơn Vị", "DV", 90, 24);
             ConfigureColumn(soluong, "Số Lượng", "SOLUONG", 90, 24);
             soluong.DisplayFormat.FormatType = DevExpress.Utils.FormatType.Numeric;
-            ConfigureColumn(xe, "Xe", null, 79, 24);
+            ConfigureColumn(xe, "Xe", "XE", 79, 24);
             ConfigureColumn(Hop, "Hộp", "HOP", 89, 24);
             Hop.DisplayFormat.FormatString = "n";
             Hop.DisplayFormat.FormatType = DevExpress.Utils.FormatType.Numeric;

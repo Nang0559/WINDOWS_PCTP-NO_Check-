@@ -18,6 +18,18 @@ public sealed class YmvnPrintHelpersTests
     public void PoFormat_PadsNumericPoItemToFiveDigits(string? input, string expected)
         => Assert.Equal(expected, YmvnPoFormat.Format(input!));
 
+    [Theory]
+    [InlineData("300", "50", "6")]
+    [InlineData("50", "50", "1")]
+    [InlineData("51", "50", "2")]
+    [InlineData("1", "50", "1")]
+    [InlineData("300", "0", "")]
+    [InlineData("300", "", "")]
+    [InlineData("", "50", "")]
+    [InlineData(null, null, "")]
+    public void Xe_IsCeilingOfQuantityOverVehicleCapacity(string? soLuong, string? qcdg, string expected)
+        => Assert.Equal(expected, YmvnXe.Tinh(soLuong!, qcdg!));
+
     [Fact]
     public void GioMatcher_NoCheckedHours_MatchesEverything()
         => Assert.True(YmvnGioMatcher.Create(null).Matches(null, "15"));

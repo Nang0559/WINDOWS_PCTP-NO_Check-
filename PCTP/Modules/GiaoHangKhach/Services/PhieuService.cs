@@ -181,6 +181,21 @@ namespace PCTP.Modules.GiaoHangKhach.Services
         public string CanhBaoLuoiRongGiaoDB(DateTime ngayGiao, int addNm) => _giaoDbService.CanhBaoLuoiRong(ngayGiao, addNm);
         public int LuuPhieuSP(string nhaMay, string ngayGiao, string gioGiaoFcc, string loaiPhieu) => _phieuRepo.LuuPhieuSP(nhaMay, ngayGiao, gioGiaoFcc, loaiPhieu);
         public void CapNhapTTPHIEU(string nhaMay, string ngayGiao, string gioGiaoFcc, int stt, string ghiChu) => _phieuRepo.CapNhapTTPHIEU(nhaMay, ngayGiao, gioGiaoFcc, stt, ghiChu);
+        // Bảng TMP mà các luồng Cập Nhập Kho đang đọc: YMVN (CoGear) luôn dùng TmpTable;
+        // các khách còn lại theo đúng cách PhieuKhoService.CapNhapKho chọn (SP / Giao DB).
+        private string ResolveTmpTableForNote()
+        {
+            if (_cfg.Delivery.CoGear) return _cfg.Delivery.TmpTable;
+            bool useGiaoDbTables = _isGiaoDb && _cfg.Delivery.CoConfigGiaoDB;
+            bool isSP = useGiaoDbTables ? false : _isLoaiSP;
+            return _cfg.Delivery.GetTmpTable(isSP, useGiaoDbTables);
+        }
+
+        public void LuuGhiChuTuLuoi(DataTable donHang)
+            => _phieuRepo.LuuGhiChuVaoTmp(ResolveTmpTableForNote(), donHang);
+
+        public void LuuGhiChuMotDong(int stt, string note)
+            => _phieuRepo.LuuGhiChuVaoTmp(ResolveTmpTableForNote(), stt, note);
         public void CapNhapKho(string gioGiaoFcc, string nhaMay, string gioMa = "") => _khoService.CapNhapKho(gioGiaoFcc, nhaMay, gioMa, _isLoaiSP, _isGiaoDb);
         public void CapNhapKhoYMVN(string ngayGiao, string gioXuat, string nhaMay, DataTable donHang) => _ymvnService.CapNhapKho(ngayGiao, gioXuat, nhaMay, donHang);
         public void HoanThanhYMVN(bool isLoaiSP = false) => _ymvnService.HoanThanh(isLoaiSP);

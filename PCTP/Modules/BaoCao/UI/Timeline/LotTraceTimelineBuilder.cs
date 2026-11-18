@@ -113,6 +113,24 @@ namespace PCTP.Modules.BaoCao.UI
             return result;
         }
 
+        private static List<DeliveryLotTraceRow> ParseAllocations(DeliveryTraceRow d)
+        {
+            var list = new List<DeliveryLotTraceRow>();
+            if (d == null || string.IsNullOrWhiteSpace(d.LotNoRaw)) return list;
+            foreach (LotAllocation part in LotCodeHelper.ParseCompositeLotTolerant(d.LotNoRaw, d.Quantity))
+            {
+                list.Add(new DeliveryLotTraceRow
+                {
+                    DeliveryKey = d.DeliveryKey,
+                    QRCode = string.Empty,
+                    LotNo = part.LotNo,
+                    Quantity = part.HasQuantity ? part.Quantity : 0m,
+                    ParseError = part.Error
+                });
+            }
+            return list;
+        }
+
         /// <summary>Truy vết xuôi: từ 1 LOT (hoặc LOT ghép nhập tay) + mã hàng.</summary>
         public async Task<TraceTimelineResult> BuildForLotAsync(
             string lotInput, string partNo, DateTime? deliveryFrom, DateTime? deliveryTo, CancellationToken ct)
@@ -148,7 +166,8 @@ namespace PCTP.Modules.BaoCao.UI
             foreach (DeliveryTraceRow d in deliveries)
             {
                 ct.ThrowIfCancellationRequested();
-                IReadOnlyList<DeliveryLotTraceRow> allocations = await _qrQuery.GetLotsAsync(d.DeliveryKey, null, ct);
+                // LOT ghép đã có sẵn trong d.LotNoRaw (cùng cách tách với GetLotsAsync): không truy vấn lại DB cho từng phiếu.
+                IReadOnlyList<DeliveryLotTraceRow> allocations = ParseAllocations(d);
                 var all = (allocations ?? new List<DeliveryLotTraceRow>())
                     .Where(x => x != null && string.IsNullOrWhiteSpace(x.ParseError) && !string.IsNullOrWhiteSpace(x.LotNo)).ToList();
                 var mine = all.Where(x => requested.Any(r => LotCodeHelper.AreLotKeysEquivalent(x.LotNo, r.LotNo))).ToList();

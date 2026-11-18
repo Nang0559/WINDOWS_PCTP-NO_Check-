@@ -70,6 +70,7 @@ namespace PCTP.Modules.GiaoHangKhach.OrderLoading.IFS
                 match["LOT"] = rDaLuu["LOT"];
                 if (donHang.Columns.Contains("STATUS"))
                     match["STATUS"] = rDaLuu["STATUS"];
+                if (donHang.Columns.Contains("Note") && daLuu.Columns.Contains("Note")) match["Note"] = rDaLuu["Note"];
             }
         }
 

@@ -30,6 +30,7 @@ namespace PCTP.Modules.BaoCao.UI
         private readonly IStockHistoryQuery _historyQuery;
         private readonly ICurrentStockQuery _currentStockQuery;
         private readonly ILotTraceQuery _deliveryTraceQuery;
+        private SimpleButton _btnBuildTimeline;
         private readonly IWaitFormService _waitForm;
         private readonly CancellationTokenSource _lifetime = new CancellationTokenSource();
         private StockLookupControl _stockLookup;
@@ -40,6 +41,82 @@ namespace PCTP.Modules.BaoCao.UI
         private GridControl _deliveryGrid;
         private GridView _deliveryView;
         private readonly List<DeliveryTraceRow> _deliveryRows = new List<DeliveryTraceRow>();
+        private string _traceLotKey;
+
+        /// <summary>1 dòng = 1 phiếu giao (đã gộp các lần đọc QR; truy vấn gốc nối phiếu với bảng QR nên nhân dòng theo số lần đọc).</summary>
+        public sealed class DeliveryGroupRow
+        {
+            public DateTime? DeliveryDate { get; set; }
+            public string DeliveryTime { get; set; }
+            public string Factory { get; set; }
+            public string DocumentNo { get; set; }
+            public string CustomerCode { get; set; }
+            public string CustomerName { get; set; }
+            public string PartNo { get; set; }
+            public string PartName { get; set; }
+            public string LotNoRaw { get; set; }
+            public decimal? Quantity { get; set; }
+            public decimal? LotQuantity { get; set; }
+            public string Unit { get; set; }
+            public int QrScanCount { get; set; }
+            public string QRCode { get; set; }
+            public string QrLotNo { get; set; }
+            public string CustomerLabelData { get; set; }
+            public DateTime? QrScanDate { get; set; }
+            public string QrScanTime { get; set; }
+            public string QrStatus { get; set; }
+            public string Status { get; set; }
+        }
+
+        private List<DeliveryGroupRow> GroupDeliveryRows()
+        {
+            var result = new List<DeliveryGroupRow>();
+            foreach (var g in _deliveryRows.Where(x => x != null)
+                .GroupBy(x => x.DeliveryKey ?? string.Empty, StringComparer.OrdinalIgnoreCase))
+            {
+                DeliveryTraceRow first = g.First();
+                var scans = g.Where(x => !string.IsNullOrWhiteSpace(x.QRCode) || !string.IsNullOrWhiteSpace(x.QrLotNo)
+                    || !string.IsNullOrWhiteSpace(x.CustomerLabelData)).ToList();
+                DeliveryTraceRow firstScan = scans.FirstOrDefault();
+                string more = scans.Count > 1 ? " (+" + (scans.Count - 1) + ")" : string.Empty;
+
+                decimal? lotQty = null;
+                if (!string.IsNullOrWhiteSpace(_traceLotKey))
+                {
+                    foreach (LotAllocation part in LotCodeHelper.ParseCompositeLotTolerant(first.LotNoRaw, first.Quantity))
+                    {
+                        if (part.IsValid && part.HasQuantity && LotCodeHelper.AreLotKeysEquivalent(part.LotNo, _traceLotKey))
+                            lotQty = (lotQty ?? 0m) + part.Quantity;
+                    }
+                }
+
+                result.Add(new DeliveryGroupRow
+                {
+                    DeliveryDate = first.DeliveryDate,
+                    DeliveryTime = first.DeliveryTime,
+                    Factory = first.Factory,
+                    DocumentNo = first.DocumentNo,
+                    CustomerCode = first.CustomerCode,
+                    CustomerName = first.CustomerName,
+                    PartNo = first.PartNo,
+                    PartName = first.PartName,
+                    LotNoRaw = first.LotNoRaw,
+                    Quantity = first.Quantity,
+                    LotQuantity = lotQty,
+                    Unit = first.Unit,
+                    QrScanCount = scans.Count,
+                    QRCode = firstScan == null ? null : firstScan.QRCode + more,
+                    QrLotNo = string.Join("; ", scans.Select(x => x.QrLotNo).Where(x => !string.IsNullOrWhiteSpace(x))
+                        .Distinct(StringComparer.OrdinalIgnoreCase)),
+                    CustomerLabelData = firstScan == null ? null : firstScan.CustomerLabelData + more,
+                    QrScanDate = firstScan == null ? (DateTime?)null : firstScan.QrScanDate,
+                    QrScanTime = firstScan == null ? null : firstScan.QrScanTime,
+                    QrStatus = firstScan == null ? null : firstScan.QrStatus,
+                    Status = first.Status
+                });
+            }
+            return result;
+        }
         private TraceTimelineControl _timelineView;
         private SplitContainer _bottomSplit;
         private TextBox _detailText;
@@ -106,6 +183,9 @@ namespace PCTP.Modules.BaoCao.UI
             _btnPrint.Click += PrintClick;
             _btnTraceDelivery = new SimpleButton { Left = 8, Top = 62, Width = 187, Text = "Truy vết giao hàng →" };
             _btnTraceDelivery.Click += async (s, e) => await TraceDeliveryAsync();
+            // Timeline tách riêng: chỉ dựng khi người dùng bấm nút / nhấp đúp dòng LOT (không tự chạy theo dòng focus).
+            _btnBuildTimeline = new SimpleButton { Left = 8, Top = 102, Width = 187, Text = "Dựng timeline LOT" };
+            _btnBuildTimeline.Click += async (s, e) => await BuildTimelineForFocusedRowAsync(true);
 
             historyGroup.Controls.Add(_stockLookup);
             // Anchor Right tính theo kích thước LÚC TẠO (group chưa dock xong) nên ô tra cứu bị tràn ra ngoài,
@@ -120,7 +200,7 @@ namespace PCTP.Modules.BaoCao.UI
             historyGroup.SizeChanged += fitLookup;
             historyGroup.HandleCreated += fitLookup;
             currentGroup.Controls.Add(_btnCurrentStock);
-            actionPanel.Controls.AddRange(new Control[] { _btnExport, _btnPrint, _btnTraceDelivery });
+            actionPanel.Controls.AddRange(new Control[] { _btnExport, _btnPrint, _btnTraceDelivery, _btnBuildTimeline });
             top.Controls.Add(historyGroup);
             top.Controls.Add(currentGroup);
             top.Controls.Add(actionPanel);
@@ -236,12 +316,24 @@ namespace PCTP.Modules.BaoCao.UI
             split.Panel2.Controls.Add(bottom);
 
             _timelineDebounce = new System.Windows.Forms.Timer { Interval = 250 };
-            _timelineDebounce.Tick += async (s2, e2) =>
+            _timelineDebounce.Tick += (s2, e2) => _timelineDebounce.Stop();
+            // Không tự dựng timeline khi đổi dòng/focus: dựng timeline gọi nhiều truy vấn (sản xuất, kho, giao hàng) nên
+            // làm tra cứu bị chờ lâu. Chỉ huỷ timeline cũ (đang lệch dòng) và nhắc người dùng.
+            _view.FocusedRowChanged += (s2, e2) =>
             {
-                _timelineDebounce.Stop();
-                await BuildTimelineForFocusedRowAsync();
+                _timelineVersion++;
+                if (_timelineNodes.Count > 0)
+                {
+                    _timelineNodes.Clear();
+                    _timelineView.Clear("Bấm \"Dựng timeline LOT\" (hoặc nhấp đúp dòng LOT) để xem timeline của dòng đang chọn.");
+                    _detailText.Text = string.Empty;
+                }
             };
-            _view.FocusedRowChanged += (s2, e2) => { _timelineDebounce.Stop(); _timelineDebounce.Start(); };
+            _view.DoubleClick += async (s2, e2) =>
+            {
+                var hit = _view.CalcHitInfo(_view.GridControl.PointToClient(Control.MousePosition));
+                if (hit != null && hit.InRow) await BuildTimelineForFocusedRowAsync(true);
+            };
             Controls.Add(split);
             Controls.Add(top);
         }
@@ -347,7 +439,7 @@ namespace PCTP.Modules.BaoCao.UI
                 _timelineVersion++;
                 _timelineView.Clear(rows == null || rows.Count == 0
                     ? "Không có giao dịch kho phù hợp. Kiểm tra khoảng ngày (Từ ngày/Đến ngày) và mã hàng/LOT."
-                    : "Chọn một dòng LOT trong lưới trên để xem timeline.");
+                    : "Chọn một dòng LOT rồi bấm \"Dựng timeline LOT\" (hoặc nhấp đúp dòng) để xem timeline.");
                 _detailText.Text = string.Empty;
             }
             catch (OperationCanceledException) { }
@@ -355,6 +447,71 @@ namespace PCTP.Modules.BaoCao.UI
             {
                 XtraMessageBox.Show(this, ex.Message, "Không thể tra cứu lịch sử kho", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+        }
+
+        /// <summary>
+        /// CHỈ chạy khi người dùng bấm "Truy vết giao hàng →" (đã có sẵn danh sách phiếu giao của LOT, không truy vấn lại):
+        /// so tổng SL giao theo phiếu giao (đã tách LOT ghép) với tổng SL xuất đã có trong lịch sử kho. Nếu phiếu giao nhiều hơn
+        /// thì thêm các dòng "DOI_SOAT_GIAO_HANG" (hướng "Khác", KHÔNG cộng vào SL nhập/xuất) vào lưới để thấy từng lần giao
+        /// (vd 93 pcs) mà lịch sử kho còn thiếu dòng xuất. Không nằm trong luồng tra cứu vì truy vấn phiếu giao chậm.
+        /// </summary>
+        private async Task ReconcileGridWithDeliveriesAsync(string lot, string part, IReadOnlyList<DeliveryTraceRow> hits)
+        {
+            try
+            {
+                string lotKey = LotCodeHelper.GetSearchKey(lot);
+                var current = _grid.DataSource as IEnumerable<ItemHistoryRow>;
+                if (string.IsNullOrWhiteSpace(lotKey) || current == null) return;
+
+                // Bỏ các dòng đối soát của lần trước (bấm truy vết nhiều lần không bị nhân đôi).
+                List<ItemHistoryRow> baseRows = current
+                    .Where(x => x != null && !string.Equals(x.ActionType, "DOI_SOAT_GIAO_HANG", StringComparison.OrdinalIgnoreCase)).ToList();
+
+                var deliveries = (hits ?? new List<DeliveryTraceRow>())
+                    .Where(x => x != null)
+                    .GroupBy(x => x.DeliveryKey ?? string.Empty, StringComparer.OrdinalIgnoreCase)
+                    .Select(g => g.First()).ToList();
+
+                var recon = new List<ItemHistoryRow>();
+                decimal delivered = 0m;
+                foreach (DeliveryTraceRow d in deliveries)
+                {
+                    // LOT ghép đã nằm sẵn trong d.LotNoRaw: tách tại chỗ, KHÔNG truy vấn lại DB cho từng phiếu.
+                    foreach (LotAllocation a in LotCodeHelper.ParseCompositeLotTolerant(d.LotNoRaw, d.Quantity))
+                    {
+                        if (a == null || !a.IsValid || !a.HasQuantity) continue;
+                        if (!LotCodeHelper.AreLotKeysEquivalent(a.LotNo, lotKey)) continue;
+                        delivered += a.Quantity;
+                        recon.Add(new ItemHistoryRow
+                        {
+                            ItemCode = d.PartNo ?? part,
+                            LotNo = a.LotNo,
+                            ActionType = "DOI_SOAT_GIAO_HANG",
+                            Quantity = a.Quantity,
+                            EventTime = d.DeliveryDate,
+                            DocumentNo = d.DocumentNo,
+                            UserName = "PHIẾU GIAO",
+                            Note = "Phiếu giao " + (d.DocumentNo ?? "-") + " - " + (d.CustomerName ?? "-") +
+                                   ": LOT này giao " + a.Quantity.ToString("N0")
+                        });
+                    }
+                }
+
+                decimal alreadyOut = baseRows.Where(x => !x.IsDefectTicketEvent
+                        && LotCodeHelper.AreLotKeysEquivalent(x.LotNo, lotKey)).Sum(x => x.QuantityOut);
+                if (recon.Count == 0 || delivered <= alreadyOut) return;
+
+                string deficit = (delivered - alreadyOut).ToString("N0");
+                foreach (ItemHistoryRow r in recon)
+                    r.Note += " | Phiếu giao tổng " + delivered.ToString("N0") + " > lịch sử kho đã xuất " +
+                              alreadyOut.ToString("N0") + " (thiếu " + deficit + ")";
+
+                List<ItemHistoryRow> merged = baseRows.Concat(recon)
+                    .OrderByDescending(x => x.EventTime.HasValue).ThenByDescending(x => x.EventTime).ToList();
+                Bind(merged, ConfigureHistoryColumns);
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception) { /* đối soát chỉ là thông tin bổ sung */ }
         }
 
         private async Task LoadCurrentStockAsync()
@@ -464,8 +621,13 @@ namespace PCTP.Modules.BaoCao.UI
 
                 _deliveryRows.Clear();
                 if (rows != null) _deliveryRows.AddRange(rows);
+                _traceLotKey = LotCodeHelper.GetSearchKey(lot);
                 BindDeliveryRows();
-                await BuildTimelineForLotAsync(lot, part);
+                if (_deliveryRows.Count > 0 && !_showingCurrentStock)
+                    await _waitForm.RunAsync(
+                        () => ReconcileGridWithDeliveriesAsync(lot, part, rows),
+                        "Đang đối soát SL giao với lịch sử kho...");
+                // Không tự dựng timeline ở đây: đã có nút "Dựng timeline LOT" (hoặc nhấp đúp dòng) riêng.
                 if (_deliveryRows.Count == 0)
                 {
                     XtraMessageBox.Show(this,
@@ -482,16 +644,28 @@ namespace PCTP.Modules.BaoCao.UI
             }
         }
 
-        private async Task BuildTimelineForFocusedRowAsync()
+        private async Task BuildTimelineForFocusedRowAsync(bool explicitRequest)
         {
             int handle = _view.FocusedRowHandle;
-            if (handle < 0) return;
+            if (handle < 0)
+            {
+                if (explicitRequest)
+                    XtraMessageBox.Show(this, "Hãy chọn một dòng có LOT trong lưới trước.", "Dựng timeline",
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
             string lot = null, part = null;
             var history = _view.GetRow(handle) as ItemHistoryRow;
             var stock = _view.GetRow(handle) as CurrentStockRow;
             if (history != null) { lot = history.LotNo; part = history.ItemCode; }
             else if (stock != null) { lot = stock.LotNo; part = stock.ItemCode; }
-            if (string.IsNullOrWhiteSpace(lot)) return;
+            if (string.IsNullOrWhiteSpace(lot))
+            {
+                if (explicitRequest)
+                    XtraMessageBox.Show(this, "Dòng đang chọn không có LOT để dựng timeline.", "Dựng timeline",
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
             await BuildTimelineForLotAsync(lot, part);
         }
 
@@ -530,7 +704,7 @@ namespace PCTP.Modules.BaoCao.UI
             try
             {
                 _deliveryView.Columns.Clear();
-                _deliveryGrid.DataSource = _deliveryRows.ToList();
+                _deliveryGrid.DataSource = GroupDeliveryRows();
                 _deliveryView.PopulateColumns();
                 ConfigureDeliveryColumns();
             }
@@ -558,8 +732,10 @@ namespace PCTP.Modules.BaoCao.UI
             SetDeliveryColumn("PartNo", "Mã hàng", 145, index++);
             SetDeliveryColumn("PartName", "Tên hàng", 180, index++);
             SetDeliveryColumn("LotNoRaw", "LOT giao (có thể ghép)", 260, index++);
-            SetDeliveryColumn("Quantity", "SL giao", 85, index++, "n0");
+            SetDeliveryColumn("Quantity", "SL phiếu giao", 95, index++, "n0");
+            SetDeliveryColumn("LotQuantity", "SL của LOT này", 105, index++, "n0");
             SetDeliveryColumn("Unit", "ĐVT", 55, index++);
+            SetDeliveryColumn("QrScanCount", "Số lần đọc QR", 100, index++, "n0");
             SetDeliveryColumn("QRCode", "QR FCC", 230, index++);
             SetDeliveryColumn("QrLotNo", "LOT QR FCC", 190, index++);
             SetDeliveryColumn("CustomerLabelData", "LOT tem KH", 180, index++);
@@ -583,6 +759,10 @@ namespace PCTP.Modules.BaoCao.UI
                 column.DisplayFormat.FormatType = DevExpress.Utils.FormatType.Custom;
                 column.DisplayFormat.FormatString = format;
             }
+            // Chỉ cộng SL của LOT đang truy vết (SL phiếu giao gồm cả LOT khác trong LOT ghép nên không cộng).
+            column.Summary.Clear();
+            if (field == "LotQuantity")
+                column.Summary.Add(new GridColumnSummaryItem(SummaryItemType.Sum, field, "SUM={0:n0}"));
         }
 
         private void ToggleBusy(bool enabled)
@@ -743,7 +923,7 @@ namespace PCTP.Modules.BaoCao.UI
                     rows.AddRow("Tổng SL xuất (theo lưới đang hiển thị)", totalOut.ToString("N0"));
                 }
             }
-            rows.AddRow("Số phiếu giao / QR (truy vết xuôi)", _deliveryRows.Count.ToString());
+            rows.AddRow("Số phiếu giao / lần đọc QR (truy vết xuôi)", _deliveryRows.Select(x => x.DeliveryKey ?? string.Empty).Distinct(StringComparer.OrdinalIgnoreCase).Count() + " / " + _deliveryRows.Count);
             rows.AddRow("Số node timeline", _timelineNodes.Count.ToString());
             return rows;
         }

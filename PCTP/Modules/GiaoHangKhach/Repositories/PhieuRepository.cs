@@ -107,6 +107,8 @@ namespace PCTP.Modules.GiaoHangKhach.Repositories
         public DataTable LuuVaLoad(string tenSPBang, string tenSP, DataTable donHang, string ngayGiao, string nhaMay, string gioFcc, int addNm, string tenBan, string docQRTable, string ifsView = "") => _tmp.LuuVaLoad(tenSPBang, tenSP, donHang, ngayGiao, nhaMay, gioFcc, addNm, tenBan, docQRTable, ifsView);
         public void PushIfsSnapshot(string ifsTable, DataTable donHang) => _tmp.PushIfsSnapshot(ifsTable, donHang);
         public DataTable LoadTuTmpTable(string tmpTable) => _tmp.LoadTuTmpTable(tmpTable);
+        public int LuuGhiChuVaoTmp(string tmpTable, DataTable donHang) => _tmp.LuuGhiChuVaoTmp(tmpTable, donHang);
+        public int LuuGhiChuVaoTmp(string tmpTable, int stt, string note) => _tmp.LuuGhiChuVaoTmp(tmpTable, stt, note);
         public DataTable GetDonHangHienTai(string tenBan) => _tmp.GetDonHangHienTai(tenBan);
         public DataTable LoadTmpOrderForGear(string tmpTable) => _tmp.LoadTmpOrderForGear(tmpTable);
         public void XoaTmpPhieu(string tenBan) => _tmp.XoaTmpPhieu(tenBan);

@@ -91,8 +91,30 @@ namespace PCTP.Modules.BaoCao.Infrastructure.Repositories
             // sp_GetStockHistory (không có định nghĩa đầy đủ trong Git) không trả QrData / MaPhieu / FromSlotId / ToSlotId
             // nên QR bị rơi về TemCode và vị trí/số phiếu trống. Đọc thẳng StockHistory (+ bổ sung từ SlotLot);
             // nếu truy vấn trực tiếp lỗi (schema khác) thì quay về SP như cũ.
+            // Lọc LOT ngay trong SQL (13 ký tự đầu = khóa tương đương của LOT 13/20 ký tự). Trước đây đọc cả bảng
+            // StockHistory rồi mới lọc trong bộ nhớ nên dựng timeline/tra cứu theo LOT rất chậm.
+            var lotKeys = new List<string>();
+            if (!string.IsNullOrWhiteSpace(criteria.LotNo)) lotKeys.Add(criteria.LotNo);
+            if (criteria.LotNos != null) lotKeys.AddRange(criteria.LotNos);
+            lotKeys = lotKeys.Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            string sqlText = HistorySql.Replace("/*LOTFILTER*/", string.Empty);
+            var sqlParams = parameters.ToList();
+            if (lotKeys.Count > 0 && lotKeys.Count <= 50 && lotKeys.All(k => LotCodeHelper.ClassifyLotKey(k) != LotKeyKind.Unknown))
+            {
+                var likes = new List<string>();
+                for (int i = 0; i < lotKeys.Count; i++)
+                {
+                    string key = LotCodeHelper.GetSearchKey(lotKeys[i]);
+                    if (key.Length > 13) key = key.Substring(0, 13);
+                    string escaped = key.Replace("[", "[[]").Replace("%", "[%]").Replace("_", "[_]");
+                    likes.Add("SH.LotNo LIKE @LotKey" + i);
+                    sqlParams.Add(new SqlParameter("@LotKey" + i, "%" + escaped + "%"));
+                }
+                sqlText = HistorySql.Replace("/*LOTFILTER*/", "AND (" + string.Join(" OR ", likes) + ")");
+            }
+
             DataTable table;
-            try { table = LoadData(HistorySql, CloneParameters(parameters)); }
+            try { table = LoadData(sqlText, CloneParameters(sqlParams.ToArray())); }
             catch (SqlException)
             {
                 table = ExecuteStoredProcedure("sp_GetStockHistory", CloneParameters(parameters));
@@ -299,6 +321,7 @@ namespace PCTP.Modules.BaoCao.Infrastructure.Repositories
             WHERE (@FromDate IS NULL OR SH.[Date] >= @FromDate)
               AND (@ToDate IS NULL OR SH.[Date] <= @ToDate)
               AND (@ItemCode IS NULL OR SH.ItemCode = @ItemCode)
+              /*LOTFILTER*/
             ORDER BY SH.[Date] DESC, SH.Id DESC";
 
         /// <summary>SlotId -> "Kho-Rack-SlotN" (cùng định dạng với sp_GetCurrentStockStatus). Lỗi/thiếu bảng thì trả rỗng, báo cáo vẫn chạy.</summary>

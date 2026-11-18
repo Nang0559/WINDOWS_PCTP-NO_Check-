@@ -99,7 +99,16 @@ namespace PCTP.Modules.GiaoHangKhach.Models
                 c.Row["LOT"] = match.Lot;
                 c.Row["STATUS"] = match.Row["STATUS"]?.ToString() ?? "NG";
                 c.Row["STATUSDOC"] = match.Row["STATUSDOC"]?.ToString() ?? "NG";
+                c.Row["STATUSDOC"] = match.Row["STATUSDOC"]?.ToString() ?? "NG";
 
+                // Ghi chú đã lưu: chỉ điền khi dòng đơn đang trống, không ghi đè ghi chú mới nhập.
+                if (orderRows.Columns.Contains("Note") && match.Row.Table.Columns.Contains("Note"))
+                {
+                    string noteHienTai = Text(c.Row, "Note");
+                    string noteLuu = Text(match.Row, "Note");
+                    if (noteHienTai.Length == 0 && noteLuu.Length > 0)
+                        c.Row["Note"] = noteLuu;
+                }
                 if (orderRows.Columns.Contains("GEAR"))
                 {
                     string gearHienTai = Text(c.Row, "GEAR");

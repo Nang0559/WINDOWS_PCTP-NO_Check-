@@ -18,6 +18,7 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
 
         protected override void OnLoad(EventArgs e)
         {
+            EnsureBottomStateControl();
             MigratePhieuHeaderToUserControl();
             MigrateHangThieuToUserControl();
             MigratePhieuOrderGridToUserControl();
@@ -148,7 +149,16 @@ namespace PCTP.Modules.GiaoHangKhach.HVN
             _phieuHeaderControl.CheckGX_ItemCheck += PhieuHeaderControl_CheckGX_ItemCheck;
             _phieuHeaderControl.LoaiPhieuChanged += PhieuHeaderControl_LoaiPhieuChanged;
         }
-
+        private void EnsureBottomStateControl()
+        {
+            if (_phieuBottomStateControl != null) return;
+            _phieuBottomStateControl = new PhieuBottomStateControl
+            {
+                Dock = DockStyle.Fill,
+                Name = "phieuBottomStateControl"
+            };
+            splitBottomLeftRight.Panel1.Controls.Add(_phieuBottomStateControl);
+        }
         private void PhieuHeaderControl_DateChanged(object sender, EventArgs e) => DateChanged.Invoke(this, EventArgs.Empty);
         private void PhieuHeaderControl_GioXuatChanged(object sender, EventArgs e) => GioXuatChanged.Invoke(this, EventArgs.Empty);
         private void PhieuHeaderControl_TabChanged(object sender, EventArgs e) => TabChanged.Invoke(this, EventArgs.Empty);
