@@ -140,8 +140,7 @@ YYMMDD + SupplierCode + ItemId5 + DocNo
 
 `ItemId5` is a stable five-character MES item identity linked to the IFS
 `(SiteCode, PartNo)`; it is not generated differently by each import or screen.
-Existing `LegacyQrItemCode` values are preserved. New values are allocated
-once by `dbo.usp_FVN_PartIdentity_AllocateItemId5`. The shared component LOT
+Existing `LegacyQrItemCode` values are preserved. Migration 028 extends the IFS apply procedure to allocate a stable `ItemId5` for every newly synchronized `(SiteCode, PartNo)`; `dbo.usp_FVN_PartIdentity_AllocateItemId5` is the serialized fallback for any part identity not yet assigned. The shared component LOT
 builder is `MES.usp_FVN_BuildComponentLotNo`. Production/finished LOTs use a separate builder, `MES.usp_FVN_BuildProductionLotNo`, and the configured 2+3+4-character shift/line/department codes. It requires a supplier already
 present in the synchronized IFS supplier master.
 
