@@ -489,6 +489,7 @@
     <Compile Include="Modules\KhoVatLy\NhapTpModuleFactory.cs" />
     <Compile Include="Modules\KhoCore\Repositories\BulkStockSlotRepository.cs" />
     <Compile Include="Modules\KhoCore\Repositories\IBulkStockSlotRepository.cs" />
+    <Compile Include="Modules\MesBom\FormProductStructureGraphic.cs" />
     <Compile Include="Modules\NhapKho\Application\Adapters\StockSlotRepositoryAdapter.cs" />
     <Compile Include="Modules\NhapKho\Interfaces\IWarehouseDashboardService.cs" />
     <Compile Include="Modules\NhapKho\Models\StockImportPurpose.cs" />
@@ -497,9 +498,7 @@
     <Compile Include="Infrastructure\Sql\DataAccessException.cs" />
     <Compile Include="Infrastructure\Sql\DataAccessStatus.cs" />
     <Compile Include="Infrastructure\Sql\SQL.cs" />
-    <Compile Include="Modules\MesBom\FormProductStructureGraphic.cs">
-      <SubType>Form</SubType>
-    </Compile>\n    <Compile Include="Modules\IfsSync\IfsSyncService.cs" />
+    <Compile Include="Modules\IfsSync\IfsSyncService.cs" />
     <Compile Include="Modules\IfsSync\FormIfsSync.cs">
       <SubType>Form</SubType>
     </Compile>
