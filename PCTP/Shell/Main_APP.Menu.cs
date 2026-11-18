@@ -17,6 +17,7 @@ using PCTP.Modules.KhoVatLy.Repositories;
 using PCTP.Modules.KhoCore.Repositories;
 using PCTP.Modules.KhoCore.UI;
 using PCTP.Modules.NhapKho.Repository;
+using PCTP.Modules.NhapKho.UI;
 using PCTP.Shared.Common;
 using PCTP.Shared.Helpers;
 
@@ -73,6 +74,7 @@ namespace PCTP
             _menuKho.Elements.Add(cmdRackControl);
 
             _menuKhoTonTP = CreateMenuItem("menuKhoTonTP", "Tồn kho thành phẩm", OpenTonKhoThanhPham);
+            _menuKho.Elements.Add(CreateMenuItem("menuNhanLinhKien", "Nhận linh kiện về kho (QR)", OpenNhanLinhKien));
             _menuKho.Elements.Add(_menuKhoTonTP);
 
             _menuKho.Elements.Add(CreateMenuItem(
