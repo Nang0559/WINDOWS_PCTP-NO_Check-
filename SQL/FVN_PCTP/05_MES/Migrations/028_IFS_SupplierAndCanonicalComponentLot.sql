@@ -1,0 +1,235 @@
+/*
+ Migration 028: authoritative IFS supplier master and canonical component LOT identity.
+ Prerequisites: migrations 000..027.
+ SQL Server 2016 compatible. IFS remains read-only.
+*/
+SET NOCOUNT ON;
+SET XACT_ABORT ON;
+
+IF DB_NAME() <> N'FVN_PCTP'
+    THROW 52800, 'Migration 028 may run only in FVN_PCTP.', 1;
+IF OBJECT_ID(N'MES.FVN_SchemaMigration', N'U') IS NULL
+    THROW 52801, 'MES.FVN_SchemaMigration is missing.', 1;
+IF NOT EXISTS (SELECT 1 FROM MES.FVN_SchemaMigration WHERE MigrationVersion='027')
+    THROW 52802, 'Migration 027 must be applied before migration 028.', 1;
+IF EXISTS (SELECT 1 FROM MES.FVN_SchemaMigration WHERE MigrationVersion='028')
+    RETURN;
+IF OBJECT_ID(N'IFS.FVN_SyncBatch',N'U') IS NULL
+   OR OBJECT_ID(N'IFS.FVN_SyncStageRow',N'U') IS NULL
+   OR OBJECT_ID(N'IFS.usp_ApplySyncBatch',N'P') IS NULL
+    THROW 52803, 'IFS synchronization objects are missing.', 1;
+IF OBJECT_ID(N'IFS.FVN_Supplier',N'U') IS NULL
+BEGIN
+    CREATE TABLE IFS.FVN_Supplier
+    (
+        SupplierCode nvarchar(60) NOT NULL,
+        SupplierName nvarchar(250) NOT NULL,
+        SourceRowKey nvarchar(200) NULL,
+        SourceObjVersion nvarchar(56) NULL,
+        SourceHash varbinary(32) NULL,
+        SourcePayloadJson nvarchar(max) NULL,
+        LastSeenBatchId bigint NULL,
+        SyncedAtUtc datetime2(3) NOT NULL CONSTRAINT DF_IFS_FVN_Supplier_Synced DEFAULT(SYSUTCDATETIME()),
+        CONSTRAINT PK_IFS_FVN_Supplier PRIMARY KEY(SupplierCode)
+    );
+END;
+
+BEGIN TRY
+    BEGIN TRANSACTION;
+
+    IF COL_LENGTH(N'IFS.FVN_SyncBatch',N'SupplierRows') IS NULL
+        ALTER TABLE IFS.FVN_SyncBatch ADD SupplierRows int NOT NULL
+            CONSTRAINT DF_IFS_FVN_SyncBatch_SupplierRows DEFAULT(0);
+
+    IF EXISTS
+    (
+        SELECT 1 FROM sys.check_constraints
+        WHERE parent_object_id=OBJECT_ID(N'IFS.FVN_SyncStageRow')
+          AND name=N'CK_IFS_Stage_Entity'
+    )
+        ALTER TABLE IFS.FVN_SyncStageRow DROP CONSTRAINT CK_IFS_Stage_Entity;
+
+    ALTER TABLE IFS.FVN_SyncStageRow WITH CHECK
+        ADD CONSTRAINT CK_IFS_Stage_Entity CHECK
+        (EntityName IN
+        ('PART_CATALOG','INVENTORY_PART','BOM_HEADER','BOM_ALTERNATIVE','BOM_COMPONENT','WAREHOUSE','SUPPLIER'));
+
+    DECLARE @Definition nvarchar(max), @At int, @Merge nvarchar(max);
+    SET @Definition=OBJECT_DEFINITION(OBJECT_ID(N'IFS.usp_ApplySyncBatch',N'P'));
+    IF @Definition IS NULL
+        THROW 52804, 'Cannot read IFS.usp_ApplySyncBatch.', 1;
+
+    IF CHARINDEX(N'MERGE IFS.FVN_Supplier AS T',@Definition)=0
+    BEGIN
+        SET @At=CHARINDEX(N'UPDATE IFS.SyncBatch',
+            @Definition,CHARINDEX(N'MERGE MES.FVN_IfsWarehouse',@Definition));
+        IF @At=0
+            THROW 52805, 'Cannot locate final batch update in IFS.usp_ApplySyncBatch.', 1;
+
+        SET @Merge=N'
+        MERGE IFS.FVN_Supplier AS T
+        USING
+        (
+            SELECT s.PartNo AS SupplierCode,
+                   JSON_VALUE(s.PayloadJson,''$.NAME'') AS SupplierName,
+                   s.SourceRowKey,s.SourceObjVersion,s.SourceHash,s.PayloadJson
+            FROM IFS.SyncStageRow AS s
+            WHERE s.SyncBatchId=@SyncBatchId AND s.EntityName=''SUPPLIER''
+        ) AS S
+          ON T.SupplierCode=S.SupplierCode
+        WHEN MATCHED THEN UPDATE SET
+            SupplierName=COALESCE(NULLIF(S.SupplierName,N''''),T.SupplierName),
+            SourceRowKey=S.SourceRowKey,SourceObjVersion=S.SourceObjVersion,
+            SourceHash=S.SourceHash,SourcePayloadJson=S.PayloadJson,
+            LastSeenBatchId=@SyncBatchId,SyncedAtUtc=SYSUTCDATETIME()
+        WHEN NOT MATCHED THEN INSERT
+            (SupplierCode,SupplierName,SourceRowKey,SourceObjVersion,SourceHash,
+             SourcePayloadJson,LastSeenBatchId,SyncedAtUtc)
+        VALUES
+            (S.SupplierCode,COALESCE(NULLIF(S.SupplierName,N''''),S.SupplierCode),
+             S.SourceRowKey,S.SourceObjVersion,S.SourceHash,S.PayloadJson,
+             @SyncBatchId,SYSUTCDATETIME())
+        OUTPUT ''IFS_SUPPLIER'',$action INTO @Changes;
+
+        ';
+        SET @Definition=STUFF(@Definition,@At,0,@Merge);
+    END;
+
+    SET @Definition=REPLACE(@Definition,N'CREATE PROCEDURE',N'ALTER PROCEDURE');
+    IF CHARINDEX(N'CREATE PROCEDURE',@Definition)>0
+        THROW 52806, 'Cannot convert IFS.usp_ApplySyncBatch to ALTER PROCEDURE.', 1;
+    EXEC sys.sp_executesql @Definition;
+
+    /* A five-character canonical item identity replaces the ambiguous Bravo name Code0/Id_Item.
+       Existing QR identity values are preserved; new values are allocated once and never recycled. */
+    IF COL_LENGTH(N'dbo.FVN_PartIdentity',N'ItemId5') IS NULL
+        ALTER TABLE dbo.FVN_PartIdentity ADD ItemId5 char(5) NULL;
+
+    UPDATE dbo.FVN_PartIdentity
+       SET ItemId5=LegacyQrItemCode
+     WHERE ItemId5 IS NULL AND LegacyQrItemCode IS NOT NULL;
+
+    IF NOT EXISTS (SELECT 1 FROM sys.indexes
+                   WHERE object_id=OBJECT_ID(N'dbo.FVN_PartIdentity')
+                     AND name=N'UX_FVN_PartIdentity_ItemId5')
+        CREATE UNIQUE INDEX UX_FVN_PartIdentity_ItemId5
+            ON dbo.FVN_PartIdentity(ItemId5) WHERE ItemId5 IS NOT NULL;
+
+    EXEC(N'
+    CREATE PROCEDURE dbo.usp_FVN_PartIdentity_AllocateItemId5
+        @SiteCode nvarchar(30),
+        @PartNo nvarchar(100),
+        @ItemId5 char(5) OUTPUT
+    AS
+    BEGIN
+        SET NOCOUNT ON;
+        SET XACT_ABORT ON;
+        SET @ItemId5=NULL;
+
+        IF NOT EXISTS (SELECT 1 FROM IFS.FVN_InventoryPart
+                       WHERE SiteCode=@SiteCode AND PartNo=@PartNo)
+            THROW 52810, ''Part does not exist in the synchronized IFS inventory-part master.'', 1;
+
+        BEGIN TRY
+            BEGIN TRANSACTION;
+            DECLARE @LockResult int, @Next int;
+            EXEC @LockResult=sys.sp_getapplock
+                @Resource=N''FVN_PartIdentity_ItemId5_Allocator'',
+                @LockMode=N''Exclusive'',@LockOwner=N''Transaction'',@LockTimeout=15000;
+            IF @LockResult<0 THROW 52811, ''Cannot lock the five-character item-code allocator.'', 1;
+
+            SELECT @ItemId5=ItemId5
+            FROM dbo.FVN_PartIdentity WITH(UPDLOCK,HOLDLOCK)
+            WHERE SiteCode=@SiteCode AND PartNo=@PartNo;
+
+            IF @ItemId5 IS NULL
+            BEGIN
+                SELECT @Next=ISNULL(MAX(TRY_CONVERT(int,ItemId5)),0)+1
+                FROM dbo.FVN_PartIdentity WITH(UPDLOCK,HOLDLOCK)
+                WHERE ItemId5 IS NOT NULL;
+                IF @Next>99999 THROW 52812, ''Five-character item-code space (00001..99999) is exhausted.'', 1;
+                SET @ItemId5=RIGHT(''00000''+CONVERT(varchar(5),@Next),5);
+
+                IF EXISTS(SELECT 1 FROM dbo.FVN_PartIdentity
+                          WHERE SiteCode=@SiteCode AND PartNo=@PartNo)
+                    UPDATE dbo.FVN_PartIdentity SET ItemId5=@ItemId5
+                    WHERE SiteCode=@SiteCode AND PartNo=@PartNo;
+                ELSE
+                    INSERT dbo.FVN_PartIdentity(SiteCode,PartNo,ItemId5)
+                    VALUES(@SiteCode,@PartNo,@ItemId5);
+            END;
+            COMMIT TRANSACTION;
+        END TRY
+        BEGIN CATCH
+            IF XACT_STATE()<>0 ROLLBACK TRANSACTION;
+            THROW;
+        END CATCH;
+    END;
+    ');
+
+    /* SupplierCode is now a real FK to IFS. Stop rather than orphan existing lot references. */
+    IF EXISTS
+    (
+        SELECT 1
+        FROM MES.FVN_MaterialLot ml
+        LEFT JOIN IFS.FVN_Supplier s ON s.SupplierCode=ml.SupplierCode
+        WHERE ml.SupplierCode IS NOT NULL AND s.SupplierCode IS NULL
+    )
+        THROW 52813, 'Existing MES LOT rows contain SupplierCode values not yet present in IFS.FVN_Supplier. Reconcile these codes before adding the supplier FK.', 1;
+
+    IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name=N'FK_FVN_MaterialLot_IFSSupplier')
+        ALTER TABLE MES.FVN_MaterialLot WITH CHECK
+            ADD CONSTRAINT FK_FVN_MaterialLot_IFSSupplier
+            FOREIGN KEY(SupplierCode) REFERENCES IFS.FVN_Supplier(SupplierCode);
+
+    EXEC(N'
+    CREATE PROCEDURE MES.usp_FVN_BuildComponentLotNo
+        @RequestDate date,
+        @SiteCode nvarchar(30),
+        @PartNo nvarchar(100),
+        @SupplierCode nvarchar(60),
+        @DocNo nvarchar(40),
+        @LotNo nvarchar(120) OUTPUT,
+        @ItemId5 char(5) OUTPUT
+    AS
+    BEGIN
+        SET NOCOUNT ON;
+        SET @LotNo=NULL;
+        SET @ItemId5=NULL;
+
+        IF @RequestDate IS NULL THROW 52820, ''RequestDate is required.'', 1;
+        IF NULLIF(LTRIM(RTRIM(@SupplierCode)),N'''') IS NULL
+            THROW 52821, ''SupplierCode is required for a component LOT.'', 1;
+        IF NULLIF(LTRIM(RTRIM(@DocNo)),N'''') IS NULL
+            THROW 52822, ''Receipt document number is required for a component LOT.'', 1;
+        IF NOT EXISTS(SELECT 1 FROM IFS.FVN_Supplier WHERE SupplierCode=@SupplierCode)
+            THROW 52823, ''SupplierCode does not exist in the synchronized IFS supplier master.'', 1;
+
+        EXEC dbo.usp_FVN_PartIdentity_AllocateItemId5
+            @SiteCode=@SiteCode,@PartNo=@PartNo,@ItemId5=@ItemId5 OUTPUT;
+
+        SET @LotNo=CONVERT(char(6),@RequestDate,12)+
+                   LTRIM(RTRIM(@SupplierCode))+
+                   @ItemId5+
+                   LTRIM(RTRIM(@DocNo));
+        IF LEN(@LotNo)>120
+            THROW 52824, ''Generated component LOT exceeds the 120-character storage limit.'', 1;
+    END;
+    ');
+
+    INSERT MES.FVN_SchemaMigration(MigrationVersion,MigrationName)
+    VALUES('028',N'IFS supplier master and canonical component LOT identity');
+
+    COMMIT TRANSACTION;
+END TRY
+BEGIN CATCH
+    IF XACT_STATE()<>0 ROLLBACK TRANSACTION;
+    THROW;
+END CATCH;
+GO
+
+SELECT MigrationVersion,MigrationName
+FROM MES.FVN_SchemaMigration WHERE MigrationVersion='028';
+SELECT TOP (20) SupplierCode,SupplierName,LastSeenBatchId,SyncedAtUtc
+FROM IFS.FVN_Supplier ORDER BY SupplierCode;
+GO
