@@ -225,7 +225,7 @@ BEGIN TRY
     DECLARE item_cursor CURSOR LOCAL FAST_FORWARD FOR
         SELECT ip.SiteCode,ip.PartNo
         FROM IFS.FVN_InventoryPart ip
-        INNER JOIN MES.FVN_ItemIdentity i
+        LEFT JOIN MES.FVN_ItemIdentity i
           ON i.SiteCode=ip.SiteCode AND i.PartNo=ip.PartNo
         WHERE i.ItemId5 IS NULL
         ORDER BY ip.SiteCode,ip.PartNo;
