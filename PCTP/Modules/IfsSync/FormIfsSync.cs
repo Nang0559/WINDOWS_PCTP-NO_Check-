@@ -198,20 +198,40 @@ namespace PCTP.Modules.IfsSync
                     using (var sql = new SqlConnection(TargetConnectionString))
                     {
                         sql.Open();
-                        using (var command = new SqlCommand(@"
-SELECT DB_NAME(),
-       CASE WHEN OBJECT_ID(N'IFS.SyncBatch',N'U') IS NULL THEN 0 ELSE 1 END,
-       CASE WHEN OBJECT_ID(N'IFS.SyncStageRow',N'U') IS NULL THEN 0 ELSE 1 END;", sql))
-                        using (var reader = command.ExecuteReader())
+                        string database;
+                        using (var command = new SqlCommand("SELECT DB_NAME();", sql))
                         {
-                            if (!reader.Read())
-                                throw new InvalidOperationException("Không đọc được trạng thái database đích.");
-                            string database = Convert.ToString(reader.GetValue(0));
-                            if (!string.Equals(database, "FVN_PCTP", StringComparison.OrdinalIgnoreCase))
-                                throw new InvalidOperationException("Từ chối: kết nối SQL hiện tại không trỏ đến FVN_PCTP.");
-                            if (Convert.ToInt32(reader.GetValue(1)) != 1 ||
-                                Convert.ToInt32(reader.GetValue(2)) != 1)
-                                throw new InvalidOperationException("Thiếu bảng đồng bộ. Cần chạy migration 012 trước.");
+                            database = Convert.ToString(command.ExecuteScalar());
+                        }
+
+                        if (!string.Equals(database, "FVN_PCTP", StringComparison.OrdinalIgnoreCase))
+                            throw new InvalidOperationException("Từ chối: kết nối SQL hiện tại không trỏ đến FVN_PCTP.");
+
+                        // Do not use OBJECT_ID here: SQL Server may return NULL when
+                        // the login cannot see object metadata, even when the tables exist.
+                        // Probe the real objects so missing-table and permission errors
+                        // are reported separately by SQL Server.
+                        try
+                        {
+                            using (var command = new SqlCommand(@"
+SELECT TOP (0) SyncBatchId FROM [IFS].[SyncBatch];
+SELECT TOP (0) SyncStageRowId FROM [IFS].[SyncStageRow];", sql))
+                            {
+                                command.ExecuteNonQuery();
+                            }
+                        }
+                        catch (SqlException ex)
+                        {
+                            if (ex.Number == 208)
+                                throw new InvalidOperationException(
+                                    "Không tìm thấy bảng IFS.SyncBatch hoặc IFS.SyncStageRow trong FVN_PCTP. " +
+                                    "Hãy kiểm tra đúng database/schema và trạng thái migration 012. " +
+                                    "SQL: " + ex.Message, ex);
+                            if (ex.Number == 229)
+                                throw new InvalidOperationException(
+                                    "Các bảng đồng bộ có thể đã tồn tại nhưng tài khoản SQL của ứng dụng thiếu quyền SELECT. " +
+                                    "Cấp quyền phù hợp trên schema IFS. SQL: " + ex.Message, ex);
+                            throw;
                         }
                     }
 
