@@ -87,7 +87,7 @@ YYMMDD + SupplierCode + ItemId5 + DocNo
 This is a separate LOT family from production/finished goods. Never inject
 SupplierCode into production LOTs, and never drop it from purchased-component
 LOTs. SQL generation is centralized in `MES.usp_FVN_BuildComponentLotNo`;
-applications must not concatenate this format independently. Production/finished LOTs are generated separately by `MES.usp_FVN_BuildProductionLotNo` after validating the active `dbo.FVN_ProductionLine` and `dbo.FVN_ProductionDepartment` mapping. Their code lengths are ShiftCode=2 (shift + gear), LineCode=3, MachineCode=4.
+applications must not concatenate this format independently. Production/finished LOTs are generated separately by `MES.usp_FVN_BuildProductionLotNo` after validating the active `dbo.FVN_ProductionLine` and `dbo.FVN_ProductionDepartment` mapping. Their code lengths are ShiftCode=2 (shift + gear), LineCode=3, DepartmentCode=4.
 
 ## 3. Customer Gear validation
 
