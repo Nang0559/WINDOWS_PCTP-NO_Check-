@@ -55,8 +55,9 @@ BEGIN TRY
             ('PART_CATALOG','INVENTORY_PART','BOM_HEADER','BOM_ALTERNATIVE','BOM_COMPONENT','WAREHOUSE')
         );
 
-    /* IFS DESCRIPTION is VARCHAR2(800). Do not truncate it to the old 250 chars. */
+    /* IFS DESCRIPTION is VARCHAR2(800); OBJVERSION is VARCHAR2(56). */
     ALTER TABLE MES.FVN_IfsWarehouse ALTER COLUMN Description nvarchar(800) NULL;
+    ALTER TABLE IFS.FVN_SyncStageRow ALTER COLUMN SourceObjVersion nvarchar(56) NULL;
 
     /*
       Extend the existing transactional apply procedure. The warehouse projection
