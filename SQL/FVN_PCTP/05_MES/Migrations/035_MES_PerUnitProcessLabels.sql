@@ -93,25 +93,20 @@ BEGIN TRY
    SET @Need=@TargetQty-@Existing;
    IF @Need>0
    BEGIN
-    DECLARE @Base int;
+    DECLARE @Base int,@i int=1,@LabelSerial bigint,@LabelCode varchar(16);
     SELECT @Base=ISNULL(MAX(LabelSequence),0) FROM MES.FVN_ProductionLabel WITH(UPDLOCK,HOLDLOCK)
      WHERE ProductionLotId=@ProductionLotId AND RoutingStepId=@StepId;
-    ;WITH N AS(
-     SELECT 1 AS n UNION ALL SELECT n+1 FROM N WHERE n<@Need
-    )
-    INSERT MES.FVN_ProductionLabel(ProductionLotId,RoutingStepId,LabelSequence,LabelCode,QrPayload,ReservedBy)
-    SELECT @ProductionLotId,@StepId,@Base+n,
-     ''L''+RIGHT(REPLICATE(''0'',15)+CONVERT(varchar(15),s.LabelSerial),15),
-     N''FVN2|L''+RIGHT(REPLICATE(''0'',15)+CONVERT(varchar(15),s.LabelSerial),15)
-      +N''|''+@LotNo+N''|''+@OperationNo,
-     @ActorCode
-    FROM N
-    CROSS APPLY(SELECT NEXT VALUE FOR MES.FVN_ProductionLabelSequence AS LabelSerial) s
-    OPTION(MAXRECURSION 0);
-    INSERT MES.FVN_ProductionLabelEvent(ProductionLabelId,EventType,ActorCode)
-    SELECT ProductionLabelId,''RESERVE'',@ActorCode FROM MES.FVN_ProductionLabel
-    WHERE ProductionLotId=@ProductionLotId AND RoutingStepId=@StepId
-     AND LabelSequence>@Base AND LabelSequence<=@Base+@Need;
+    WHILE @i<=@Need
+    BEGIN
+     SET @LabelSerial=NEXT VALUE FOR MES.FVN_ProductionLabelSequence;
+     SET @LabelCode=''L''+RIGHT(REPLICATE(''0'',15)+CONVERT(varchar(15),@LabelSerial),15);
+     INSERT MES.FVN_ProductionLabel(ProductionLotId,RoutingStepId,LabelSequence,LabelCode,QrPayload,ReservedBy)
+     VALUES(@ProductionLotId,@StepId,@Base+@i,@LabelCode,
+      N''FVN2|''+@LabelCode+N''|''+@LotNo+N''|''+@OperationNo,@ActorCode);
+     INSERT MES.FVN_ProductionLabelEvent(ProductionLabelId,EventType,ActorCode)
+     VALUES(SCOPE_IDENTITY(),''RESERVE'',@ActorCode);
+     SET @i=@i+1;
+    END;
    END;
    COMMIT;
    SELECT l.ProductionLabelId,l.LabelCode,l.QrPayload,l.Status,ml.LotNo,
