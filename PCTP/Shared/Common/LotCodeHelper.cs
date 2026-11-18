@@ -32,30 +32,24 @@ namespace PCTP.Common
     }
 
     /// <summary>
-    /// Nguồn xử lý DUY NHẤT cho cấu trúc chuỗi LOTNO, khớp 1-1 với SP SQL build LOT:
-    ///
-    ///   YY(2) + MM(2) + DD(2)                       -- LEN_DATE = 6
-    /// + Id_Item padded 5 ký tự (STUFF '00000',...)   -- LEN_ID_ITEM = 5
-    /// + ShiftCode (1 ký tự, mặc định '9' nếu null)   -- LEN_SHIFT = 1
-    /// + GearCode (1 ký tự, mặc định '0' nếu null)    -- LEN_GEAR = 1
-    /// + LinesCode (độ dài BIẾN ĐỘNG theo cấu hình)   -- LinesLen = 3
-    /// + MachinesCode (độ dài BIẾN ĐỘNG theo cấu hình)-- MachinesLen = 4
-    /// + TemCounter padded 4 ký tự (STUFF '0000',...) -- LEN_COUNTER = 4
-    /// + QuantityTem padded 4 ký tự (STUFF '0000',...)-- LEN_QTY = 4
-    ///
-    /// LinesCode/MachinesCode không có độ dài cố định toàn hệ thống (phụ thuộc dữ liệu
-    /// B20Lines/B30AccDoc thực tế), nên các hàm cần phân biệt phần "đầu cố định" (Date+Id+Shift+Gear,
-    /// luôn 9 ký tự) và "đuôi cố định" (Counter+Qty, luôn 8 ký tự) — phần giữa (Line+Machine)
-    /// được suy ra bằng phép trừ độ dài, KHÔNG hardcode.
+    /// Shared LOT normalization and matching rules.
+    /// Production/finished LOT identity is exactly 20 characters:
+    /// YYMMDD(6) + ItemId5(5) + ShiftCode(2: shift + gear)
+    /// + LineCode(3) + DepartmentCode(4).
+    /// Printed-label counter and quantity are suffixes, not part of stock LOT identity.
+    /// Legacy 13-character keys remain readable for historical records only.
+    /// New LOT generation is centralized in MES.usp_FVN_BuildComponentLotNo and
+    /// MES.usp_FVN_BuildProductionLotNo; C# must not concatenate new LOT values.
     /// </summary>
     public static class LotCodeHelper
     {
         public const int LEN_DATE = 6;
         public const int LEN_ID_ITEM = 5;
-        public const int LEN_SHIFT = 1;
-        public const int LEN_GEAR = 1;
-        public const int LEN_LinesCode = 3;
-        public const int LEN_MachinesCode = 4;
+        public const int LEN_SHIFT = 1; // legacy compatibility
+        public const int LEN_GEAR = 1; // legacy compatibility
+        public const int LEN_SHIFT_CODE = 2;
+        public const int LEN_LinesCode = 3; // LineCode
+        public const int LEN_MachinesCode = 4; // legacy compatibility only
         public const int LEN_COUNTER = 4;
         public const int LEN_QTY = 4;
         public const int LEN_HEAD_FIXED = LEN_DATE + LEN_ID_ITEM + LEN_SHIFT_CODE + LEN_LinesCode + LEN_MachinesCode;
