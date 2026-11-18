@@ -167,11 +167,11 @@ namespace PCTP.Modules.IfsSync
                 string message = await Task.Run(() =>
                 {
                     if (string.IsNullOrWhiteSpace(OracleConnectionString) ||
-                        OracleConnectionString.IndexOf("YOUR_IFS_", StringComparison.OrdinalIgnoreCase) >= 0)
+                        OracleConnectionString.IndexOf("IFS_ORACLE", StringComparison.OrdinalIgnoreCase) >= 0)
                         throw new InvalidOperationException("Chưa cấu hình IFS_ORACLE.");
 
                     if (string.IsNullOrWhiteSpace(TargetConnectionString) ||
-                        TargetConnectionString.IndexOf("YOUR_SQL_", StringComparison.OrdinalIgnoreCase) >= 0)
+                        TargetConnectionString.IndexOf("IFS_ORACLE", StringComparison.OrdinalIgnoreCase) >= 0)
                         throw new InvalidOperationException("Chưa cấu hình FVN_PCTP.");
 
                     using (var oracle = new OracleConnection(OracleConnectionString))
