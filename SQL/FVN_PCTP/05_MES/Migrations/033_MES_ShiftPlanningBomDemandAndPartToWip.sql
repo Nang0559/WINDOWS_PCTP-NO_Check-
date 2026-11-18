@@ -241,6 +241,10 @@ BEGIN TRY
    BEGIN TRANSACTION;
    IF EXISTS(SELECT 1 FROM MES.FVN_ComponentIssueLine WHERE IdempotencyKey=@IdempotencyKey)
    BEGIN
+    IF NOT EXISTS(SELECT 1 FROM MES.FVN_ComponentIssueLine
+      WHERE IdempotencyKey=@IdempotencyKey AND ComponentDemandLineId=@ComponentDemandLineId
+       AND MaterialLotId=@MaterialLotId AND FromSlotId=@FromSlotId AND ToSlotId=@ToSlotId AND Quantity=@Quantity)
+     THROW 53337,''IdempotencyKey was reused with different component issue input.'',1;
     SELECT ComponentIssueLineId,InventoryTransactionId,Quantity FROM MES.FVN_ComponentIssueLine WHERE IdempotencyKey=@IdempotencyKey;
     COMMIT; RETURN;
    END;

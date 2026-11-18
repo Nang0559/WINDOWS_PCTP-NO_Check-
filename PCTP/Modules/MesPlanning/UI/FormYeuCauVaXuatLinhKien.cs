@@ -23,8 +23,8 @@ namespace PCTP.Modules.MesPlanning.UI
         private void BuildUi()
         {
             var root=new TableLayoutPanel{Dock=DockStyle.Fill,ColumnCount=1,RowCount=4,Padding=new Padding(10)};
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute,45));root.RowStyles.Add(new RowStyle(SizeType.Percent,48));
-            root.RowStyles.Add(new RowStyle(SizeType.Percent,42));root.RowStyles.Add(new RowStyle(SizeType.Absolute,105));
+            root.RowCount=5; root.RowStyles.Add(new RowStyle(SizeType.Absolute,45));root.RowStyles.Add(new RowStyle(SizeType.Percent,46));
+            root.RowStyles.Add(new RowStyle(SizeType.Percent,39));root.RowStyles.Add(new RowStyle(SizeType.Absolute,105));root.RowStyles.Add(new RowStyle(SizeType.Absolute,28));
             var top=new FlowLayoutPanel{Dock=DockStyle.Fill};
             top.Controls.Add(new Label{Text="Site",AutoSize=true,Padding=new Padding(0,8,0,0)});
             _site.Width=100;top.Controls.Add(_site);
@@ -46,10 +46,11 @@ namespace PCTP.Modules.MesPlanning.UI
             var post=new Button{Text="XUẤT PART → WIP",Width=170,Height=32};post.Click+=PostClick;issue.Controls.Add(post);
             _status.Dock=DockStyle.Fill;_status.TextAlign=ContentAlignment.MiddleLeft;
             root.Controls.Add(top,0,0);root.Controls.Add(_plans,0,1);root.Controls.Add(_demands,0,2);root.Controls.Add(issue,0,3);
-            Controls.Add(root);Controls.Add(_status);
+            root.Controls.Add(_status,0,4); Controls.Add(root);
         }
         private DataGridViewRow Selected(DataGridView grid)=>grid.SelectedRows.Count>0?grid.SelectedRows[0]:null;
         private long CellLong(DataGridViewRow row,string name)=>row==null?0:Convert.ToInt64(row.Cells[name].Value);
+        private decimal CellDecimal(DataGridViewRow row,string name)=>row==null?0:Convert.ToDecimal(row.Cells[name].Value);
         private string CellText(DataGridViewRow row,string name)=>row==null?"":Convert.ToString(row.Cells[name].Value);
         private void LoadPlans()
         {
@@ -77,8 +78,11 @@ namespace PCTP.Modules.MesPlanning.UI
                 _lots.DisplayMember="LotSlotDisplay";_lots.ValueMember="MaterialLotId";
                 _wipSlots.DataSource=!string.IsNullOrWhiteSpace(site)?_service.GetWipSlots(site):new DataTable();
                 _wipSlots.DisplayMember="SlotDisplay";_wipSlots.ValueMember="SlotId";
-                var outstanding=CellLong(demand,"OutstandingQty");
-                if(outstanding>0)_qty.Value=Math.Min(_qty.Maximum,Convert.ToDecimal(outstanding));
+                var outstanding=CellDecimal(demand,"OutstandingQty");
+                var lot=_lots.SelectedItem as DataRowView;
+                var available=lot==null?0M:Convert.ToDecimal(lot["AvailableQty"]);
+                var suggested=Math.Min(outstanding,available);
+                if(suggested>=_qty.Minimum)_qty.Value=Math.Min(_qty.Maximum,suggested);
             }
             catch(Exception ex){_status.Text=ex.Message;}
         }

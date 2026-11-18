@@ -204,3 +204,25 @@ Run `032_MES_ComponentLotCanonicalReceiptPosting.sql` after 031. It links each M
 ## Migration 033 — Production shifts, BOM demand and PART-to-WIP issue
 
 Run `033_MES_ShiftPlanningBomDemandAndPartToWip.sql` after migration 032. Configure each active Site's shift codes in `MES.FVN_ProductionShift` and map physical Slots to exactly one inventory area using `dbo.FVN_InventoryAreaSlot` (`PART` or `WIP`). Upload rows carry Site, PlanNo, production date, shift, line, product, quantity and UOM; each upload batch is committed atomically. Demand generation reads the synchronized IFS BOM header/alternative/component snapshots, rejects missing or ambiguous effective alternatives, and calculates net requirements against unreserved PART-area on-hand. It does not use unverified cost-bucket staging. Component issue posts a single MES `MOVE` transaction from PART/AVAILABLE to WIP/WIP through the existing PCTP stock adapter; the stock ledger and balances remain the sole quantity authority.
+
+
+## Production shift setup
+
+Migration 033 intentionally does not assume a universal shift calendar. Configure the real Site-specific shifts before importing a plan, for example:
+
+```sql
+INSERT MES.FVN_ProductionShift(SiteCode,ShiftCode,ShiftName,StartTime,EndTime,CrossesMidnight)
+VALUES(N'<SITE>',N'<SHIFT_CODE>',N'<SHIFT_NAME>','07:00','15:00',0);
+```
+
+Use the actual times and codes approved by production; overnight shifts set `CrossesMidnight=1`. Map each physical slot to exactly one inventory area after checking its MES location mapping:
+
+```sql
+INSERT dbo.FVN_InventoryAreaSlot(SiteCode,SlotId,AreaCode,CreatedBy)
+VALUES(N'<SITE>',<SLOT_ID>,'PART',N'<USER>');
+-- Configure a separate destination slot as WIP:
+INSERT dbo.FVN_InventoryAreaSlot(SiteCode,SlotId,AreaCode,CreatedBy)
+VALUES(N'<SITE>',<WIP_SLOT_ID>,'WIP',N'<USER>');
+```
+
+Do not assign one slot to both areas. Shift setup and PART/WIP area assignment are explicit configuration, not inferred from slot or warehouse names.
