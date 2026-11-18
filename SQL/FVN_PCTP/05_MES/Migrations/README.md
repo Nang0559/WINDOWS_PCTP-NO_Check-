@@ -325,7 +325,7 @@ LabelCode and QR payload; they do not allocate another product identity.
 Label reservations and print/apply/void events are audited independently of
 actual production quantities and genealogy.
 
-The current WinForms print surface sends a readable label sheet containing
-LabelCode, production LOT, operation and QR payload text. A QR-capable label
-printer/template must encode the exact `QrPayload` value as a QR symbol;
-plain text printing is not a substitute for a scannable QR symbol.
+The WinForms print surface generates a real QR Code from the exact `QrPayload`
+using the project's DevExpress barcode controls and prints one 75x50 mm label
+per product. The process scan accepts either the scanned LabelCode or the full
+`FVN2|LabelCode|LOT|OperationNo` QR payload.
