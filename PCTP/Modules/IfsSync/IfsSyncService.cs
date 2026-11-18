@@ -226,22 +226,38 @@ VALUES ('FULL', 'RUNNING', SYSUTCDATETIME(), @InitiatedBy);", connection))
             // SqlBulkCopy asks SQL Server for destination-column collation metadata.
             // Use an explicitly database-qualified destination so metadata lookup
             // cannot resolve against a different current database/context.
-            using (var check = new SqlCommand(@"
-SELECT DB_NAME(), OBJECT_ID(N'[IFS].[SyncStageRow]', N'U');", connection))
-            using (var reader = check.ExecuteReader(CommandBehavior.SingleRow))
+            string databaseName;
+            using (var check = new SqlCommand("SELECT DB_NAME();", connection))
             {
-                if (!reader.Read())
-                    throw new InvalidOperationException("Không xác định được database đích khi stage IFS.");
+                databaseName = Convert.ToString(check.ExecuteScalar());
+            }
 
-                string databaseName = reader.IsDBNull(0) ? null : reader.GetString(0);
-                object tableObjectId = reader.IsDBNull(1) ? null : reader.GetValue(1);
-                if (!string.Equals(databaseName, "FVN_PCTP", StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(databaseName, "FVN_PCTP", StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException(
+                    "Từ chối stage IFS: database hiện tại là '" + (databaseName ?? "(NULL)") +
+                    "', yêu cầu FVN_PCTP.");
+
+            // Probe the actual destination table instead of OBJECT_ID, which can
+            // return NULL for a valid table when metadata visibility is restricted.
+            try
+            {
+                using (var check = new SqlCommand(
+                    "SELECT TOP (0) SyncStageRowId FROM [IFS].[SyncStageRow];", connection))
+                {
+                    check.ExecuteNonQuery();
+                }
+            }
+            catch (SqlException ex)
+            {
+                if (ex.Number == 208)
                     throw new InvalidOperationException(
-                        "Từ chối stage IFS: database hiện tại là '" + (databaseName ?? "(NULL)") +
-                        "', yêu cầu FVN_PCTP.");
-                if (tableObjectId == null || tableObjectId == DBNull.Value)
+                        "Không tìm thấy bảng [IFS].[SyncStageRow] trong FVN_PCTP. " +
+                        "Kiểm tra migration 012. SQL: " + ex.Message, ex);
+                if (ex.Number == 229)
                     throw new InvalidOperationException(
-                        "Không tìm thấy bảng [FVN_PCTP].[IFS].[SyncStageRow]. Hãy kiểm tra migration 012 trên FVN_PCTP.");
+                        "Tài khoản SQL của ứng dụng thiếu quyền SELECT trên [IFS].[SyncStageRow]. " +
+                        "SQL: " + ex.Message, ex);
+                throw;
             }
 
             using (var bulk = new SqlBulkCopy(connection, SqlBulkCopyOptions.TableLock, null))
