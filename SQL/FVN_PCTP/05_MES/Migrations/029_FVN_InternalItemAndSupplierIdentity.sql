@@ -225,11 +225,9 @@ BEGIN TRY
     DECLARE item_cursor CURSOR LOCAL FAST_FORWARD FOR
         SELECT ip.SiteCode,ip.PartNo
         FROM IFS.FVN_InventoryPart ip
-        WHERE NOT EXISTS
-        (
-            SELECT 1 FROM MES.FVN_ItemIdentity i
-            WHERE i.SiteCode=ip.SiteCode AND i.PartNo=ip.PartNo
-        )
+        INNER JOIN MES.FVN_ItemIdentity i
+          ON i.SiteCode=ip.SiteCode AND i.PartNo=ip.PartNo
+        WHERE i.ItemId5 IS NULL
         ORDER BY ip.SiteCode,ip.PartNo;
     OPEN item_cursor;
     FETCH NEXT FROM item_cursor INTO @Site,@Part;
@@ -254,6 +252,42 @@ BEGIN TRY
     END;
     CLOSE supplier_cursor;
     DEALLOCATE supplier_cursor;
+
+    /* Keep the compatibility dbo.FVN_PartIdentity projection synchronized with the MES identity master.
+       Migration 028's existing IFS Apply procedure still writes this legacy projection. */
+    EXEC(N'
+    CREATE TRIGGER dbo.tr_FVN_PartIdentity_IdentitySync
+    ON dbo.FVN_PartIdentity
+    AFTER INSERT, UPDATE
+    AS
+    BEGIN
+        SET NOCOUNT ON;
+        IF EXISTS
+        (
+            SELECT 1
+            FROM inserted i
+            INNER JOIN MES.FVN_ItemIdentity m
+              ON m.SiteCode=i.SiteCode AND m.PartNo=i.PartNo
+            WHERE i.ItemId5 IS NOT NULL AND m.ItemId5 IS NOT NULL
+              AND i.ItemId5<>m.ItemId5
+        )
+            THROW 52950, ''Attempt to change an already-issued ItemId5 is not allowed.'', 1;
+
+        INSERT MES.FVN_ItemIdentity(SiteCode,PartNo,ItemId5)
+        SELECT i.SiteCode,i.PartNo,i.ItemId5
+        FROM inserted i
+        WHERE i.ItemId5 IS NOT NULL
+          AND NOT EXISTS
+          (
+              SELECT 1 FROM MES.FVN_ItemIdentity m
+              WHERE m.SiteCode=i.SiteCode AND m.PartNo=i.PartNo
+          );
+
+        UPDATE m SET ItemId5=i.ItemId5
+        FROM MES.FVN_ItemIdentity m
+        INNER JOIN inserted i ON i.SiteCode=m.SiteCode AND i.PartNo=m.PartNo
+        WHERE m.ItemId5 IS NULL AND i.ItemId5 IS NOT NULL;
+    END;');
 
     /* Refresh supplier identity name/tokens whenever a supplier is inserted or updated by IFS Apply. */
     EXEC(N'
