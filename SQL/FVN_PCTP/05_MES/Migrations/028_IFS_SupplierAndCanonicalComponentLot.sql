@@ -267,8 +267,8 @@ BEGIN TRY
         IF NOT EXISTS(SELECT 1 FROM dbo.FVN_ProductionLine
                       WHERE SiteCode=@SiteCode AND LineCode=@LineCode AND IsActive=1)
             THROW 52834, ''Production line is not configured or inactive for this site.'', 1;
-        IF NOT EXISTS(SELECT 1 FROM dbo.FVN_ProductionMachine
-                      WHERE SiteCode=@SiteCode AND MachineCode=@MachineCode
+        IF NOT EXISTS(SELECT 1 FROM dbo.FVN_ProductionDepartment
+                      WHERE SiteCode=@SiteCode AND DepartmentCode=@DepartmentCode
                         AND LineCode=@LineCode AND IsActive=1)
             THROW 52835, ''Department is not configured or inactive for this site.'', 1;
 
@@ -279,7 +279,7 @@ BEGIN TRY
                    @ItemId5+
                    @ShiftCode+
                    @LineCode+
-                   @MachineCode;
+                   @DepartmentCode;
         IF LEN(@LotNo)<>20
             THROW 52836, ''Generated production LOT is not exactly 20 characters.'', 1;
     END;
