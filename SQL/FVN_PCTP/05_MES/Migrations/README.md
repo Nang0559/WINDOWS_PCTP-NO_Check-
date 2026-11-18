@@ -131,18 +131,20 @@ therefore keyed by `SupplierCode`, not by PCTP SiteCode. It adds
 The PCTP sync reads only `SUPPLIER_ID`, `NAME`, `OBJKEY`, and `OBJVERSION`.
 
 The old Bravo name `Code0` is not used in the new domain model. Use
-`SupplierCode` everywhere. Component LOTs retain the supplier identity and
-follow this semantic layout:
+`SupplierCode` for the exact IFS supplier key and `SupplierId5` for the FVN-owned
+five-character LOT token. Component LOTs retain the supplier identity using the FVN-owned SupplierId5 token
+and follow this semantic layout:
 
 ```text
-YYMMDD + SupplierCode + ItemId5 + DocNo
+YYMMDD + SupplierId5 + ItemId5 + DocNo
 ```
 
 `ItemId5` is a stable five-character MES item identity linked to the IFS
 `(SiteCode, PartNo)`; it is not generated differently by each import or screen.
 Existing `LegacyQrItemCode` values are preserved. Migration 028 extends the IFS apply procedure to allocate a stable `ItemId5` for every newly synchronized `(SiteCode, PartNo)`; `dbo.usp_FVN_PartIdentity_AllocateItemId5` is the serialized fallback for any part identity not yet assigned. The shared component LOT
 builder is `MES.usp_FVN_BuildComponentLotNo`. Production/finished LOTs use a separate builder, `MES.usp_FVN_BuildProductionLotNo`, and the configured 2+3+4-character shift/line/department codes. It requires a supplier already
-present in the synchronized IFS supplier master.
+present in the synchronized IFS supplier master; migration 029 resolves that IFS key
+to the stable internal `SupplierId5` before building the LOT.
 
 The supplier foreign key is added WITH NOCHECK to preserve historical Bravo
 LOT values while enforcing supplier validity for new/changed values. Reconcile
