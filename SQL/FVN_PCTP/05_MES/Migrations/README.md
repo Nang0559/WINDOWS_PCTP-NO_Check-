@@ -39,7 +39,7 @@ Run one file at a time, in order:
 | 027 | 027_IFS_WarehouseSyncAndEntityStatus.sql | Add IFS WAREHOUSE staging/apply, 800-character description and warehouse batch counts |
 | 028 | 028_IFS_SupplierAndCanonicalComponentLot.sql | IFS supplier master sync, five-character canonical item identity allocation and component LOT builder |
 | 029 | 029_FVN_InternalItemAndSupplierIdentity.sql | FVN-owned ItemId5 and SupplierId5 identity masters with internal IDENTITY keys and stable base-36 tokens |
-| 030 | 030_CanonicalItemIdentityInIfsApply.sql | Makes MES.FVN_ItemIdentity the only ItemId5 allocator used by IFS apply; dbo.FVN_PartIdentity remains compatibility-only |
+| 030 | 030_CanonicalItemIdentityInIfsApply.sql | Makes MES.FVN_ItemIdentity the only ItemId5 allocator used by IFS apply; dbo.FVN_PartIdentity remains compatibility-only |\n| 031 | 031_MES_ComponentPurchaseOrderReleaseAndLabels.sql | MES-owned component PO and component LOT release |\n| 032 | 032_MES_ComponentLotCanonicalReceiptPosting.sql | Component LOT receipt through canonical MES stock ledger |\n| 033 | 033_MES_ShiftPlanningBomDemandAndPartToWip.sql | Shift production plan, IFS BOM demand and PART-to-WIP issue |\n| 034 | 034_MES_ProductionExecutionRoutingAndComponentTrace.sql | Routing, production LOT execution, direct/WIP transfer and actual component genealogy |\n| 035 | 035_MES_PerUnitProcessLabels.sql | Unique per-product labels reserved and printed at each operation |\n| 036 | 036_MES_ProductionLifecycleWorkflow.sql | Shared workflow transitions for plan/order/operation, state projection, guards, audit and timeline |
 
 The applied versions are recorded in `MES.FVN_SchemaMigration` after migration 013. Before migration 013, query `MES.SchemaMigration`; after migration 013, use the physical table:
 
@@ -329,3 +329,42 @@ The WinForms print surface generates a real QR Code from the exact `QrPayload`
 using the project's DevExpress barcode controls and prints one 75x50 mm label
 per product. The process scan accepts either the scanned LabelCode or the full
 `FVN2|LabelCode|LOT|OperationNo` QR payload.
+
+
+## Migration 036 — production lifecycle workflow
+
+Run `036_MES_ProductionLifecycleWorkflow.sql` after 035. It reuses
+`dbo.FVN_sys_WorkflowTransitions` and the existing
+`IWorkflowTransitionService`; it does not create a second workflow engine.
+The three process codes are:
+
+- `MES_PRODUCTION_PLAN`: 0 IMPORTED → 10 VALIDATED → 20 FIRM; cancellation = 900.
+- `MES_PRODUCTION_ORDER`: 0 CREATED → 10 RELEASED → 20 RUNNING ↔ 30 PAUSED
+  → 40 COMPLETED → 50 CLOSED; cancellation = 900.
+- `MES_PRODUCTION_OPERATION`: 0 WAITING → 10 PREPARING → 20 READY
+  → 30 IN_PROGRESS ↔ 40 PAUSED → 50 COMPLETED; cancellation before execution = 900.
+
+The plan/order projections are kept aligned with existing legacy status writers.
+Each production LOT gets an independent state row for every active routing step;
+therefore one order may have different operations in different states. The
+migration adds immutable transition history in
+`MES.FVN_ProductionWorkflowEvent` and process execution evidence in
+`MES.FVN_ProductionOperationEvent`. Query a plan/order/operation history with
+`MES.usp_FVN_ProductionWorkflow_Timeline`.
+
+The application boundary is:
+`IProductionWorkflowService` → `IWorkflowTransitionService` →
+`IProductionWorkflowRepository` → `MES.usp_FVN_ProductionWorkflow_Transition`.
+The SQL procedure rechecks configured transitions and business guards inside
+the state/audit transaction. Plan FIRM is blocked until every plan line has
+component demand. Order completion is blocked while any LOT has unfinished
+routing operations; close is blocked while reserved/printed labels remain.
+Operation READY requires prior operations complete and labels prepared.
+Actual operation execution remains the source of production quantities and
+automatically updates the operation workflow projection.
+
+This migration is additive and does not post stock, consume material, issue
+labels or receive finished goods. Those facts remain owned by the existing MES
+production, label and canonical inventory procedures. Apply in a test database
+first, then configure/verify the shared transition rows and exercise all three
+workflow levels before production use.
