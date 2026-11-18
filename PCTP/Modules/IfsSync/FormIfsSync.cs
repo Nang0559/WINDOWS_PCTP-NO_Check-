@@ -277,9 +277,25 @@ SELECT TOP (0) SyncStageRowId FROM [IFS].[SyncStageRow];", sql))
             _details.Text = "Bắt đầu đồng bộ Full Snapshot. Đang đọc IFS và ghi staging theo từng nhóm.";
             try
             {
-                IfsSyncResult result = await _waitForm.RunAsync(
-                    () => Task.Run(() => new IfsSyncService().SyncAll()),
-                    "Đang đồng bộ dữ liệu IFS → FVN_PCTP. Vui lòng chờ...");
+                // Keep the standard PCTP WaitForm open for the whole operation.
+                // Phase captions are marshalled back to the UI thread before updating it.
+                var uiContext = System.Threading.SynchronizationContext.Current;
+                _waitForm.Show("Giai đoạn 1/2: Đang đọc Oracle IFS và ghi dữ liệu vào staging...");
+                IfsSyncResult result;
+                try
+                {
+                    result = await Task.Run(() => new IfsSyncService().SyncAll(phase =>
+                    {
+                        if (uiContext == null)
+                            _waitForm.SetCaption(phase);
+                        else
+                            uiContext.Post(_ => _waitForm.SetCaption(phase), null);
+                    }));
+                }
+                finally
+                {
+                    _waitForm.Close();
+                }
                 _status.Text = "Đồng bộ thành công. Batch #" + result.SyncBatchId;
                 _details.Text =
                     "Trạng thái: " + result.Status + Environment.NewLine +
