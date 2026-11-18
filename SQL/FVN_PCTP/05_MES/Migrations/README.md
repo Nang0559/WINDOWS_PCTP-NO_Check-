@@ -37,6 +37,7 @@ Run one file at a time, in order:
 | 025 | 025_PCTP_MESInventoryPostingAdapter.sql | PCTP slot-aware adapter to the canonical MES inventory posting procedure |
 | 026 | 026_PCTP_StockMovementGuardAndLotAdjustmentHistory.sql | Idempotency guard and LOT adjustment audit |
 | 027 | 027_IFS_WarehouseSyncAndEntityStatus.sql | Add IFS WAREHOUSE staging/apply, 800-character description and warehouse batch counts |
+| 028 | 028_IFS_SupplierAndCanonicalComponentLot.sql | IFS supplier master sync, five-character canonical item identity allocation and component LOT builder |
 
 The applied versions are recorded in `MES.FVN_SchemaMigration` after migration 013. Before migration 013, query `MES.SchemaMigration`; after migration 013, use the physical table:
 
@@ -45,7 +46,7 @@ SELECT MigrationVersion,MigrationName,AppliedAtUtc,AppliedBy
 FROM MES.FVN_SchemaMigration ORDER BY MigrationVersion;
 ```
 
-Run migration 013 only after 000–012 have completed successfully. Run 014–027 after 013 in version order; migration 024 is optional for source-data preflight, but 025 and later still require their documented prerequisites. Migration 027 requires migration 026.
+Run migration 013 only after 000–012 have completed successfully. Run 014–028 after 013 in version order; migration 024 is optional for source-data preflight, but 025 and later still require their documented prerequisites. Migration 027 requires migration 026; migration 028 requires 027.
 
 ## Architecture rules
 
@@ -119,3 +120,42 @@ Migration 025 requires the MES posting procedure from migration 004. It does not
 ## Migration 027 — IFS Warehouse synchronization
 
 Run `027_IFS_WarehouseSyncAndEntityStatus.sql` after migration 026 and after the FVN_ table-name standardization in migration 013. It extends the existing IFS sync batch/staging contract to include `IFSAPP.WAREHOUSE`, applies the warehouse snapshot to `MES.FVN_IfsWarehouse`, and keeps the IFS source read-only. Oracle `CONTRACT`, `WAREHOUSE_ID`, `DESCRIPTION`, `OBJKEY`, and `OBJVERSION` are mapped to SiteCode, WarehouseCode, Description, SourceRowKey, and source-payload version respectively. IFS WAREHOUSE has no active-state column; a row returned by IFS is projected as IsActive=1, and missing rows are not automatically deactivated. The IFS sync form displays per-entity source batch counts, target counts, latest batch state and errors.
+
+
+## Migration 028 — Supplier master and LOT identity
+
+Migration 028 adds the read-only mirror `IFS.FVN_Supplier` from
+`IFSAPP.SUPPLIER_INFO_GENERAL`. Supplier identity is global in IFS and is
+therefore keyed by `SupplierCode`, not by PCTP SiteCode. It adds
+`SupplierRows` to the sync batch and extends the existing IFS apply procedure.
+The PCTP sync reads only `SUPPLIER_ID`, `NAME`, `OBJKEY`, and `OBJVERSION`.
+
+The old Bravo name `Code0` is not used in the new domain model. Use
+`SupplierCode` everywhere. Component LOTs retain the supplier identity and
+follow this semantic layout:
+
+```text
+YYMMDD + SupplierCode + ItemId5 + DocNo
+```
+
+`ItemId5` is a stable five-character MES item identity linked to the IFS
+`(SiteCode, PartNo)`; it is not generated differently by each import or screen.
+Existing `LegacyQrItemCode` values are preserved. New values are allocated
+once by `dbo.usp_FVN_PartIdentity_AllocateItemId5`. The shared component LOT
+builder is `MES.usp_FVN_BuildComponentLotNo`. It requires a supplier already
+present in the synchronized IFS supplier master.
+
+The supplier foreign key is added WITH NOCHECK to preserve historical Bravo
+LOT values while enforcing supplier validity for new/changed values. Reconcile
+old supplier codes against IFS before trusting the legacy rows.
+
+The 20-character production/finished-goods LOT is a separate identity domain:
+date + five-character item identity + shift + gear + line code + machine code.
+It does not contain the printed-label sequence or quantity suffix. Do not add
+SupplierCode to production/finished-goods LOTs. The QR token may append those
+print-only fields, but the stock identity remains the first 20 characters.
+
+Important source prerequisite: confirm the live IFS view metadata for
+`SUPPLIER_INFO_GENERAL` before running the first sync. The C# extraction
+expects `SUPPLIER_ID`, `NAME`, `OBJKEY`, and `OBJVERSION`; a source-view
+column mismatch will stop the batch and record entity `SUPPLIER`.
