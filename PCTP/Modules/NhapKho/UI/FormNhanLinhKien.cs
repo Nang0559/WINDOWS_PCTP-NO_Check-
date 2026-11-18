@@ -13,20 +13,22 @@ namespace PCTP.Modules.NhapKho.UI
         private readonly TextBox _receiptNo = new TextBox();
         private readonly TextBox _qr = new TextBox();
         private readonly NumericUpDown _quantity = new NumericUpDown();
-        private readonly NumericUpDown _slot = new NumericUpDown();
+        private readonly ComboBox _slot = new ComboBox();
+        private readonly IComponentSlotLookupService _slotLookup;
         private readonly TextBox _receivedBy = new TextBox();
         private readonly Button _receive = new Button();
         private readonly Label _status = new Label();
         private string _idempotencyKey = Guid.NewGuid().ToString("N");
 
         public FormNhanLinhKien()
-            : this(new ComponentReceivingService(new ComponentReceivingRepository()))
+            : this(new ComponentReceivingService(new ComponentReceivingRepository()), new ComponentSlotLookupService(new ComponentSlotLookupRepository()))
         {
         }
 
-        public FormNhanLinhKien(IComponentReceivingService service)
+        public FormNhanLinhKien(IComponentReceivingService service, IComponentSlotLookupService slotLookup = null)
         {
             _service = service ?? throw new ArgumentNullException(nameof(service));
+            _slotLookup = slotLookup ?? new ComponentSlotLookupService(new ComponentSlotLookupRepository());
             Text = "Nhận linh kiện về kho";
             StartPosition = FormStartPosition.CenterParent;
             MinimumSize = new Size(720, 500);
@@ -59,8 +61,8 @@ namespace PCTP.Modules.NhapKho.UI
             _quantity.Maximum = 1000000000;
             _quantity.Minimum = 0.001M;
             _quantity.Value = 1;
-            _slot.Maximum = int.MaxValue;
-            _slot.Minimum = 1;
+            _slot.DropDownStyle = ComboBoxStyle.DropDownList;
+            _site.Leave += (s, e) => LoadSlots();
             _receivedBy.Text = Environment.UserName;
 
             _receive.Text = "XÁC NHẬN NHẬN LINH KIỆN";
@@ -91,7 +93,7 @@ namespace PCTP.Modules.NhapKho.UI
             panel.Controls.Add(control, 1, row);
         }
 
-        private void ReceiveClick(object sender, EventArgs e)
+        private void LoadSlots()\n        {\n            try\n            {\n                var slots = _slotLookup.GetActiveSlots(_site.Text);\n                _slot.DataSource = slots;\n                _slot.DisplayMember = "SlotDisplay";\n                _slot.ValueMember = "SlotId";\n                if (slots.Rows.Count == 0) _status.Text = "Site chưa có Slot hoạt động được map sang MES Location.";\n            }\n            catch (Exception ex) { _status.Text = "Không tải được Slot: " + ex.Message; }\n        }\n\n        private void ReceiveClick(object sender, EventArgs e)
         {
             _receive.Enabled = false;
             try
@@ -102,7 +104,7 @@ namespace PCTP.Modules.NhapKho.UI
                     ReceiptNo = _receiptNo.Text,
                     QrPayload = _qr.Text,
                     Quantity = _quantity.Value,
-                    TargetSlotId = Decimal.ToInt32(_slot.Value),
+                    TargetSlotId = Convert.ToInt32(_slot.SelectedValue),
                     ReceivedBy = _receivedBy.Text,
                     IdempotencyKey = _idempotencyKey
                 });
