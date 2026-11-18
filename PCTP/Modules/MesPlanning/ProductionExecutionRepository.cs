@@ -82,6 +82,48 @@ namespace PCTP.Modules.MesPlanning
             });
         }
 
+        public DataTable PrepareLabels(long productionLotId, string operationNo, int targetQty, string actor)
+        {
+            return Execute("MES.usp_FVN_ProductionLabel_Prepare", cmd =>
+            {
+                cmd.Parameters.Add("@ProductionLotId", SqlDbType.BigInt).Value = productionLotId;
+                cmd.Parameters.Add("@OperationNo", SqlDbType.NVarChar, 40).Value = operationNo;
+                cmd.Parameters.Add("@TargetQty", SqlDbType.Int).Value = targetQty;
+                cmd.Parameters.Add("@ActorCode", SqlDbType.NVarChar, 100).Value = actor;
+            });
+        }
+
+        public DataTable PrintLabels(long productionLotId, string operationNo, string actor, bool isReprint)
+        {
+            return Execute("MES.usp_FVN_ProductionLabel_Print", cmd =>
+            {
+                cmd.Parameters.Add("@ProductionLotId", SqlDbType.BigInt).Value = productionLotId;
+                cmd.Parameters.Add("@OperationNo", SqlDbType.NVarChar, 40).Value = operationNo;
+                cmd.Parameters.Add("@ActorCode", SqlDbType.NVarChar, 100).Value = actor;
+                cmd.Parameters.Add("@IsReprint", SqlDbType.Bit).Value = isReprint;
+            });
+        }
+
+        public DataTable ApplyLabel(string labelCode, string operationNo, string actor)
+        {
+            return Execute("MES.usp_FVN_ProductionLabel_Apply", cmd =>
+            {
+                cmd.Parameters.Add("@LabelCode", SqlDbType.VarChar, 16).Value = labelCode;
+                cmd.Parameters.Add("@OperationNo", SqlDbType.NVarChar, 40).Value = operationNo;
+                cmd.Parameters.Add("@ActorCode", SqlDbType.NVarChar, 100).Value = actor;
+            });
+        }
+
+        public DataTable VoidLabel(string labelCode, string actor, string reason)
+        {
+            return Execute("MES.usp_FVN_ProductionLabel_Void", cmd =>
+            {
+                cmd.Parameters.Add("@LabelCode", SqlDbType.VarChar, 16).Value = labelCode;
+                cmd.Parameters.Add("@ActorCode", SqlDbType.NVarChar, 100).Value = actor;
+                cmd.Parameters.Add("@Reason", SqlDbType.NVarChar, 300).Value = reason;
+            });
+        }
+
         private DataTable Execute(string procedure, Action<SqlCommand> bind)
         {
             using (var connection = new SqlConnection(_connectionString))
