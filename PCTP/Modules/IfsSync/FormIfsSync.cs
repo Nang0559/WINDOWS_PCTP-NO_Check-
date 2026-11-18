@@ -18,7 +18,7 @@ namespace PCTP.Modules.IfsSync
     public sealed class FormIfsSync : XtraForm
     {
         private readonly LabelControl _connectionInfo = new LabelControl();
-        private readonly LabelControl _status = new LabelControl();
+        private readonly Label _status = new Label();
         private readonly DataGridView _batches = new DataGridView();
         private readonly TextBox _details = new TextBox();
         private readonly SimpleButton _checkButton = new SimpleButton();
@@ -88,8 +88,11 @@ namespace PCTP.Modules.IfsSync
             commandPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
             commandPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 440));
             _status.Dock = DockStyle.Fill;
-            _status.AutoSizeMode = LabelAutoSizeMode.None;
-            _status.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
+            _status.AutoSize = false;
+            _status.TextAlign = ContentAlignment.MiddleLeft;
+            _status.Font = new Font("Segoe UI", 9F, FontStyle.Regular);
+            _status.Padding = new Padding(8, 0, 8, 0);
+            _status.AutoEllipsis = false;
             _status.Text = "Sẵn sàng. Chưa thực hiện đồng bộ trong phiên này.";
             commandPanel.Controls.Add(_status, 0, 0);
 
