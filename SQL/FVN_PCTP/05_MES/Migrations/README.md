@@ -174,7 +174,7 @@ FVN_PCTP owns separate identity tables:
 - `MES.FVN_ItemIdentity`: numeric `ItemIdentityId IDENTITY` plus stable unique `ItemId5` for each `(SiteCode, PartNo)`.
 - `MES.FVN_SupplierIdentity`: numeric `SupplierIdentityId IDENTITY` plus stable unique `SupplierId5` for each IFS `SupplierCode`.
 
-The 5-character tokens are FVN-generated base-36 identifiers. Existing `ItemId5` values issued by migration 028 are copied without change. New tokens are allocated under application locks and are never recycled. Supplier names are refreshed from the IFS mirror; the IFS `SUPPLIER_ID` is never cast to a number.
+The 5-character tokens are FVN-generated base-36 identifiers in an alphabetic namespace (`A0001` etc.) so they cannot collide with migration 028's legacy numeric `ItemId5` values. Existing `ItemId5` values issued by migration 028 are copied without change. New tokens are allocated under application locks and are never recycled. Supplier names are refreshed from the IFS mirror; the IFS `SUPPLIER_ID` is never cast to a number.
 
 Migration 029 replaces the component LOT builder to use:
 `YYMMDD + SupplierId5 + ItemId5 + DocNo`.
