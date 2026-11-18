@@ -6,8 +6,12 @@ SET NOCOUNT ON;
 SET XACT_ABORT ON;
 IF DB_NAME()<>N'FVN_PCTP' THROW 53400,'Migration 034 may run only in FVN_PCTP.',1;
 IF OBJECT_ID(N'MES.FVN_SchemaMigration',N'U') IS NULL THROW 53401,'MES migration registry is missing.',1;
+IF NOT EXISTS(SELECT 1 FROM MES.FVN_SchemaMigration WHERE MigrationVersion='032')
+ THROW 53402,'Migration 032 must be applied before 034.',1;
 IF NOT EXISTS(SELECT 1 FROM MES.FVN_SchemaMigration WHERE MigrationVersion='033')
- THROW 53402,'Migration 033 must be applied before 034.',1;
+ THROW 53403,'Migration 033 must be applied before 034.',1;
+IF OBJECT_ID(N'MES.FVN_ComponentLot',N'U') IS NULL OR OBJECT_ID(N'MES.FVN_SupplierIdentity',N'U') IS NULL
+ THROW 53404,'Canonical component LOT and supplier identity tables from migrations 029/031/032 are required.',1;
 IF OBJECT_ID(N'dbo.usp_FVN_PCTP_PostStockMovement',N'P') IS NULL
  THROW 53403,'Migration 025 stock posting adapter is required.',1;
 IF EXISTS(SELECT 1 FROM MES.FVN_SchemaMigration WHERE MigrationVersion='034') RETURN;
