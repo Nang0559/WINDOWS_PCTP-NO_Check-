@@ -215,11 +215,21 @@ BEGIN TRY
  AS
  BEGIN
   SET NOCOUNT ON;
-  SELECT e.WorkflowEventId,e.EntityType,e.EntityId,e.RelatedId,e.ProcessCode,
-   e.FromStatus,e.ToStatus,e.ActionName,e.Reason,e.ActorCode,e.OccurredAtUtc,e.CorrelationId
-  FROM MES.FVN_ProductionWorkflowEvent e
-  WHERE e.EntityType=@EntityType AND e.EntityId=@EntityId
-  ORDER BY e.OccurredAtUtc,e.WorkflowEventId;
+  ;WITH Timeline AS(
+   SELECT e.WorkflowEventId,e.EntityType,e.EntityId,e.RelatedId,e.ProcessCode,
+    e.FromStatus,e.ToStatus,e.ActionName,e.Reason,e.ActorCode,e.OccurredAtUtc,e.CorrelationId
+   FROM MES.FVN_ProductionWorkflowEvent e
+   WHERE e.EntityType=@EntityType AND e.EntityId=@EntityId
+   UNION ALL
+   SELECT -oe.OperationEventId,''OPERATION'',oe.ProductionLotId,oe.RoutingStepId,
+    ''MES_PRODUCTION_OPERATION'',CAST(NULL AS int),CAST(NULL AS int),oe.EventType,
+    oe.Remarks,oe.ActorCode,oe.OccurredAtUtc,CAST(NULL AS uniqueidentifier)
+   FROM MES.FVN_ProductionOperationEvent oe
+   WHERE @EntityType=''OPERATION'' AND oe.ProductionLotId=@EntityId
+  )
+  SELECT WorkflowEventId,EntityType,EntityId,RelatedId,ProcessCode,FromStatus,ToStatus,
+   ActionName,Reason,ActorCode,OccurredAtUtc,CorrelationId
+  FROM Timeline ORDER BY OccurredAtUtc,WorkflowEventId;
  END');
 
  /* Keep legacy plan/order writers aligned with the workflow projection.
