@@ -91,6 +91,52 @@ BEGIN TRY
              @SyncBatchId,SYSUTCDATETIME())
         OUTPUT ''IFS_SUPPLIER'',$action INTO @Changes;
 
+        /* Allocate one stable five-character MES item identity for every synchronized IFS part. */
+        DECLARE @ItemCodeLock int, @ItemCodeBase int, @PendingItemCount int;
+        EXEC @ItemCodeLock=sys.sp_getapplock
+            @Resource=N''FVN_PartIdentity_ItemId5_Allocator'',
+            @LockMode=N''Exclusive'',@LockOwner=N''Transaction'',@LockTimeout=15000;
+        IF @ItemCodeLock<0
+            THROW 52807, ''Cannot lock the five-character item-code allocator during IFS apply.'', 1;
+
+        SELECT @ItemCodeBase=ISNULL(MAX(TRY_CONVERT(int,ItemId5)),0)
+        FROM dbo.FVN_PartIdentity WITH(UPDLOCK,HOLDLOCK)
+        WHERE ItemId5 IS NOT NULL;
+
+        DECLARE @PendingItemCodes TABLE
+        (
+            RowNo int NOT NULL PRIMARY KEY,
+            SiteCode nvarchar(30) NOT NULL,
+            PartNo nvarchar(100) NOT NULL
+        );
+
+        INSERT @PendingItemCodes(RowNo,SiteCode,PartNo)
+        SELECT ROW_NUMBER() OVER(ORDER BY ip.SiteCode,ip.PartNo),ip.SiteCode,ip.PartNo
+        FROM IFS.FVN_InventoryPart ip
+        LEFT JOIN dbo.FVN_PartIdentity pi
+          ON pi.SiteCode=ip.SiteCode AND pi.PartNo=ip.PartNo
+        WHERE pi.ItemId5 IS NULL;
+
+        SELECT @PendingItemCount=COUNT(*) FROM @PendingItemCodes;
+        IF @ItemCodeBase+@PendingItemCount>99999
+            THROW 52808, ''Five-character item-code space (00001..99999) is exhausted.'', 1;
+
+        UPDATE pi
+           SET ItemId5=RIGHT(''00000''+CONVERT(varchar(5),@ItemCodeBase+p.RowNo),5)
+        FROM dbo.FVN_PartIdentity pi
+        INNER JOIN @PendingItemCodes p
+          ON p.SiteCode=pi.SiteCode AND p.PartNo=pi.PartNo;
+
+        INSERT dbo.FVN_PartIdentity(SiteCode,PartNo,ItemId5)
+        SELECT p.SiteCode,p.PartNo,
+               RIGHT(''00000''+CONVERT(varchar(5),@ItemCodeBase+p.RowNo),5)
+        FROM @PendingItemCodes p
+        WHERE NOT EXISTS
+        (
+            SELECT 1 FROM dbo.FVN_PartIdentity pi
+            WHERE pi.SiteCode=p.SiteCode AND pi.PartNo=p.PartNo
+        );
+
         ';
         SET @Definition=STUFF(@Definition,@At,0,@Merge);
     END;
