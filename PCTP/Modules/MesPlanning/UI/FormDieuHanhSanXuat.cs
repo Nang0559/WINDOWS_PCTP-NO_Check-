@@ -263,24 +263,24 @@ namespace PCTP.Modules.MesPlanning.UI
                     {
                         if (_printIndex >= _printRows.Rows.Count) { args.HasMorePages = false; return; }
                         var row = _printRows.Rows[_printIndex++];
-                        using (var titleFont = new Font("Arial", 13, FontStyle.Bold))
+                        using (var titleFont = new Font("Arial", 10, FontStyle.Bold))
                         using (var bodyFont = new Font("Arial", 9, FontStyle.Regular))
                         {
-                            float y = 35;
+                            float y = 8;
                             args.Graphics.DrawString("FVN MES - PRODUCT LABEL", titleFont, Brushes.Black, 25, y);
-                            y += 35;
+                            y += 20;
                             args.Graphics.DrawString("LABEL: " + Convert.ToString(row["LabelCode"]), titleFont, Brushes.Black, 25, y);
-                            y += 35;
+                            y += 18;
                             args.Graphics.DrawString("LOT: " + Convert.ToString(row["LotNo"]), bodyFont, Brushes.Black, 25, y);
-                            y += 24;
+                            y += 17;
                             args.Graphics.DrawString("PROCESS: " + Convert.ToString(row["OperationNo"]) +
                                 " - " + Convert.ToString(row["OperationName"]), bodyFont, Brushes.Black, 25, y);
-                            y += 24;
+                            y += 18;
                             var qrPayload = Convert.ToString(row["QrPayload"]);
                             using (var qrControl = new BarCodeControl())
-                            using (var qrBitmap = new Bitmap(150, 150))
+                            using (var qrBitmap = new Bitmap(120, 120))
                             {
-                                qrControl.Size = new Size(150, 150);
+                                qrControl.Size = new Size(120, 120);
                                 qrControl.AutoModule = true;
                                 qrControl.Text = qrPayload;
                                 var qrGenerator = new QRCodeGenerator
@@ -291,12 +291,12 @@ namespace PCTP.Modules.MesPlanning.UI
                                 };
                                 qrControl.Symbology = qrGenerator;
                                 qrControl.CreateControl();
-                                qrControl.DrawToBitmap(qrBitmap, new Rectangle(0, 0, 150, 150));
-                                args.Graphics.DrawImage(qrBitmap, 25, y, 115, 115);
+                                qrControl.DrawToBitmap(qrBitmap, new Rectangle(0, 0, 120, 120));
+                                args.Graphics.DrawImage(qrBitmap, 20, y, 95, 95);
                             }
-                            args.Graphics.DrawString("SCAN QR", bodyFont, Brushes.Black, 155, y + 15);
+                            args.Graphics.DrawString("SCAN QR", bodyFont, Brushes.Black, 125, y + 10);
                             args.Graphics.DrawString(qrPayload, bodyFont, Brushes.Black,
-                                new RectangleF(155, y + 35, 120, 90));
+                                new RectangleF(125, y + 28, 150, 65));
                         }
                         args.HasMorePages = _printIndex < _printRows.Rows.Count;
                     };
