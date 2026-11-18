@@ -258,7 +258,7 @@ BEGIN TRY
 
         IF @RequestDate IS NULL THROW 52830, ''Production date is required.'', 1;
         IF LEN(LTRIM(RTRIM(ISNULL(@ShiftCode,''''))))<>2
-            THROW 52831, ''ShiftCode must contain exactly two characters (shift + gear).' ', 1;
+            THROW 52831, ''ShiftCode must contain exactly two characters (shift + gear)'', 1;
         IF LEN(LTRIM(RTRIM(ISNULL(@LineCode,''''))))<>3
             THROW 52832, ''LineCode must contain exactly three characters.'', 1;
         IF LEN(LTRIM(RTRIM(ISNULL(@MachineCode,''''))))<>4
