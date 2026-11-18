@@ -93,7 +93,24 @@ namespace PCTP.Modules.NhapKho.UI
             panel.Controls.Add(control, 1, row);
         }
 
-        private void LoadSlots()\n        {\n            try\n            {\n                var slots = _slotLookup.GetActiveSlots(_site.Text);\n                _slot.DataSource = slots;\n                _slot.DisplayMember = "SlotDisplay";\n                _slot.ValueMember = "SlotId";\n                if (slots.Rows.Count == 0) _status.Text = "Site chưa có Slot hoạt động được map sang MES Location.";\n            }\n            catch (Exception ex) { _status.Text = "Không tải được Slot: " + ex.Message; }\n        }\n\n        private void ReceiveClick(object sender, EventArgs e)
+        private void LoadSlots()
+        {
+            try
+            {
+                var slots = _slotLookup.GetActiveSlots(_site.Text);
+                _slot.DataSource = slots;
+                _slot.DisplayMember = "SlotDisplay";
+                _slot.ValueMember = "SlotId";
+                if (slots.Rows.Count == 0)
+                    _status.Text = "Site chưa có Slot hoạt động được map sang MES Location.";
+            }
+            catch (Exception ex)
+            {
+                _status.Text = "Không tải được Slot: " + ex.Message;
+            }
+        }
+
+        private void ReceiveClick(object sender, EventArgs e)
         {
             _receive.Enabled = false;
             try

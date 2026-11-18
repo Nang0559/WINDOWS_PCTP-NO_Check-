@@ -199,3 +199,8 @@ Run `031_MES_ComponentPurchaseOrderReleaseAndLabels.sql` after migration 030. Co
 ## Migration 032 — Component LOT receiving
 
 Run `032_MES_ComponentLotCanonicalReceiptPosting.sql` after 031. It links each MES-issued component QR LOT to `MES.FVN_MaterialLot` at release time (initially BLOCKED), then posts every accepted receiving quantity through `dbo.usp_FVN_PCTP_PostStockMovement`. Partial receipts are supported across multiple receipt documents; the receipt-line idempotency key prevents duplicate posting. The procedure requires an active `dbo.FVN_SlotMesLocation` mapping for the selected Site/Slot. It does not write inventory balances directly. Use `MES.usp_FVN_ComponentReceipt_Post` for the receiving transaction.
+
+
+## Migration 033 — Production shifts, BOM demand and PART-to-WIP issue
+
+Run `033_MES_ShiftPlanningBomDemandAndPartToWip.sql` after migration 032. Configure each active Site's shift codes in `MES.FVN_ProductionShift` and map physical Slots to exactly one inventory area using `dbo.FVN_InventoryAreaSlot` (`PART` or `WIP`). Upload rows carry Site, PlanNo, production date, shift, line, product, quantity and UOM; each upload batch is committed atomically. Demand generation reads the synchronized IFS BOM header/alternative/component snapshots, rejects missing or ambiguous effective alternatives, and calculates net requirements against unreserved PART-area on-hand. It does not use unverified cost-bucket staging. Component issue posts a single MES `MOVE` transaction from PART/AVAILABLE to WIP/WIP through the existing PCTP stock adapter; the stock ledger and balances remain the sole quantity authority.
