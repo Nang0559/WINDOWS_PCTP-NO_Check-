@@ -37,7 +37,7 @@ Run one file at a time, in order:
 | 025 | 025_PCTP_MESInventoryPostingAdapter.sql | PCTP slot-aware adapter to the canonical MES inventory posting procedure |
 | 026 | 026_PCTP_StockMovementGuardAndLotAdjustmentHistory.sql | Idempotency guard and LOT adjustment audit |
 | 027 | 027_IFS_WarehouseSyncAndEntityStatus.sql | Add IFS WAREHOUSE staging/apply, 800-character description and warehouse batch counts |
-| 028 | 028_IFS_SupplierAndCanonicalComponentLot.sql | IFS supplier master sync, five-character canonical item identity allocation and component LOT builder |
+| 028 | 028_IFS_SupplierAndCanonicalComponentLot.sql | IFS supplier master sync, five-character canonical item identity allocation and component LOT builder |\n| 029 | 029_FVN_InternalItemAndSupplierIdentity.sql | FVN-owned ItemId5 and SupplierId5 identity masters with internal IDENTITY keys and stable base-36 tokens |\n| 030 | 030_CanonicalItemIdentityInIfsApply.sql | Makes MES.FVN_ItemIdentity the only ItemId5 allocator used by IFS apply; dbo.FVN_PartIdentity remains compatibility-only |
 
 The applied versions are recorded in `MES.FVN_SchemaMigration` after migration 013. Before migration 013, query `MES.SchemaMigration`; after migration 013, use the physical table:
 
@@ -46,7 +46,7 @@ SELECT MigrationVersion,MigrationName,AppliedAtUtc,AppliedBy
 FROM MES.FVN_SchemaMigration ORDER BY MigrationVersion;
 ```
 
-Run migration 013 only after 000–012 have completed successfully. Run 014–028 after 013 in version order; migration 024 is optional for source-data preflight, but 025 and later still require their documented prerequisites. Migration 027 requires migration 026; migration 028 requires 027.
+Run migration 013 only after 000–012 have completed successfully. Run 014–030 after 013 in version order; migration 024 is optional for source-data preflight, but 025 and later still require their documented prerequisites. Migration 027 requires migration 026; migration 028 requires 027; migration 029 requires 028; migration 030 requires 029.
 
 ## Architecture rules
 
@@ -182,3 +182,8 @@ Production LOT remains exactly 20 characters:
 `YYMMDD + ItemId5 + ShiftCode(2) + LineCode(3) + DepartmentCode(4)`.
 
 The compatibility procedure `dbo.usp_FVN_PartIdentity_AllocateItemId5` delegates to the new MES identity allocator. New application code should call the canonical MES procedures and must not generate the 5-character values itself.
+
+
+## Migration 030 — Canonical ItemId5 allocation
+
+Run `030_CanonicalItemIdentityInIfsApply.sql` after migration 029. Migration 028 originally embedded a second allocator in the IFS apply procedure and wrote new item tokens directly into `dbo.FVN_PartIdentity`. Migration 029 introduced the authoritative `MES.FVN_ItemIdentity` master, but the old IFS apply block must also be replaced to prevent two allocation authorities. Migration 030 patches `IFS.usp_ApplySyncBatch` so it delegates missing item tokens to `MES.usp_FVN_AllocateItemId5`. The old `dbo.FVN_PartIdentity` remains only as a compatibility projection for legacy readers; its trigger rejects changes to already-issued tokens. No IDENTITY columns are added to every IFS, BOM, inventory, or transaction table: the internal identity keys live only in the two dedicated identity masters.
