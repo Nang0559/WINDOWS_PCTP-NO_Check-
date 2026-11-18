@@ -10,6 +10,8 @@ namespace PCTP.Modules.NhapKho.Repository
 
         PhieuNhapInfo GetPhieuByFind(string find);
 
+        bool IsFinishedGoodsSlot(string siteCode, int slotId);
+
         List<PhieuNhapInfo> GetPhieuTong();
 
         List<PhieuNhapInfo> GetPhieuDangSanXuat(

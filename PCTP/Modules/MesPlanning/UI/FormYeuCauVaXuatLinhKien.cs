@@ -12,6 +12,7 @@ namespace PCTP.Modules.MesPlanning.UI
         private readonly ComboBox _lots=new ComboBox(),_wipSlots=new ComboBox();
         private readonly NumericUpDown _qty=new NumericUpDown();
         private readonly Label _status=new Label();
+        private readonly Button _postButton=new Button();
         public FormYeuCauVaXuatLinhKien():this(new ComponentDemandService(new ComponentDemandRepository())){}
         public FormYeuCauVaXuatLinhKien(IComponentDemandService service)
         {
@@ -35,7 +36,7 @@ namespace PCTP.Modules.MesPlanning.UI
             _demands.Dock=DockStyle.Fill;_demands.ReadOnly=true;_demands.AllowUserToAddRows=false;_demands.SelectionMode=DataGridViewSelectionMode.FullRowSelect;_demands.MultiSelect=false;_demands.AutoSizeColumnsMode=DataGridViewAutoSizeColumnsMode.DisplayedCells;
             _demands.SelectionChanged+=(s,e)=>LoadIssueOptions();
             var issue=new FlowLayoutPanel{Dock=DockStyle.Fill};
-            issue.Controls.Add(new Label{Text="LOT / Slot nguồn PART",AutoSize=true,Padding=new Padding(0,8,0,0)});
+            issue.Controls.Add(new Label{Text="LOT / Slot nguồn theo loại linh kiện",AutoSize=true,Padding=new Padding(0,8,0,0)});
             _lots.Width=300;_lots.DropDownStyle=ComboBoxStyle.DropDownList;issue.Controls.Add(_lots);
             issue.Controls.Add(new Label{Text="Slot đích WIP",AutoSize=true,Padding=new Padding(0,8,0,0)});
             _wipSlots.Width=300;_wipSlots.DropDownStyle=ComboBoxStyle.DropDownList;issue.Controls.Add(_wipSlots);
@@ -43,7 +44,7 @@ namespace PCTP.Modules.MesPlanning.UI
             _qty.Width=110;_qty.DecimalPlaces=3;_qty.Maximum=1000000000;_qty.Minimum=0.001M;_qty.Value=1;issue.Controls.Add(_qty);
             issue.Controls.Add(new Label{Text="Số phiếu",AutoSize=true,Padding=new Padding(0,8,0,0)});
             _issueNo.Width=150;_issueNo.Text="WIP-"+DateTime.Now.ToString("yyyyMMddHHmmss");issue.Controls.Add(_issueNo);
-            var post=new Button{Text="XUẤT PART → WIP",Width=170,Height=32};post.Click+=PostClick;issue.Controls.Add(post);
+            _postButton.Text="XUẤT PART → WIP";_postButton.Width=170;_postButton.Height=32;_postButton.Click+=PostClick;issue.Controls.Add(_postButton);
             _status.Dock=DockStyle.Fill;_status.TextAlign=ContentAlignment.MiddleLeft;
             root.Controls.Add(top,0,0);root.Controls.Add(_plans,0,1);root.Controls.Add(_demands,0,2);root.Controls.Add(issue,0,3);
             root.Controls.Add(_status,0,4); Controls.Add(root);
@@ -74,7 +75,15 @@ namespace PCTP.Modules.MesPlanning.UI
             {
                 var plan=Selected(_plans);var demand=Selected(_demands);
                 var site=CellText(plan,"SiteCode");var part=CellText(demand,"ComponentPartNo");
-                _lots.DataSource=(!string.IsNullOrWhiteSpace(site)&&!string.IsNullOrWhiteSpace(part))?_service.GetPartLots(site,part):new DataTable();
+                var supplyMode=CellText(demand,"SupplyMode");
+                var areaCode=CellText(demand,"SourceAreaCode");
+                if(string.IsNullOrWhiteSpace(areaCode)) areaCode=supplyMode=="MAKE"?"WIP":"PART";
+                _lots.DataSource=(!string.IsNullOrWhiteSpace(site)&&!string.IsNullOrWhiteSpace(part))?_service.GetPartLots(site,part,areaCode):new DataTable();
+                _postButton.Enabled=supplyMode!="MAKE";
+                _postButton.Text=supplyMode=="MAKE"?"MAKE: TIÊU HAO TẠI ĐIỀU HÀNH MES":"XUẤT PART → WIP";
+                _wipSlots.Enabled=supplyMode!="MAKE";
+                if(supplyMode=="MAKE")
+                    _status.Text="LOT sản xuất nội bộ: chọn LOT tại khu vực WIP/FG đã cấu hình và ghi nhận tiêu hao ở Điều hành sản xuất MES; không xuất từ PART.";
                 _lots.DisplayMember="LotSlotDisplay";_lots.ValueMember="MaterialLotId";
                 _wipSlots.DataSource=!string.IsNullOrWhiteSpace(site)?_service.GetWipSlots(site):new DataTable();
                 _wipSlots.DisplayMember="SlotDisplay";_wipSlots.ValueMember="SlotId";
@@ -93,7 +102,8 @@ namespace PCTP.Modules.MesPlanning.UI
                 var plan=Selected(_plans);var demand=Selected(_demands);
                 if(demand==null)throw new InvalidOperationException("Chọn dòng yêu cầu linh kiện.");
                 var lot=_lots.SelectedItem as DataRowView;
-                if(lot==null)throw new InvalidOperationException("Không có LOT khả dụng trong kho PART.");
+                if(lot==null)throw new InvalidOperationException("Không có LOT khả dụng trong khu vực nguồn đã cấu hình.");
+                if(CellText(demand,"SupplyMode")=="MAKE")throw new InvalidOperationException("LOT sản xuất MAKE không xuất từ PART; hãy ghi nhận tiêu hao trong Điều hành sản xuất MES.");
                 var result=_service.PostIssue(CellText(plan,"SiteCode"),_issueNo.Text,CellLong(demand,"ComponentDemandLineId"),
                     Convert.ToInt64(lot["MaterialLotId"]),Convert.ToInt32(lot["SlotId"]),
                     Convert.ToInt32(_wipSlots.SelectedValue),_qty.Value,Environment.UserName);

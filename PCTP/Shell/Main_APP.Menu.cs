@@ -77,6 +77,7 @@ namespace PCTP
             _menuKhoTonTP = CreateMenuItem("menuKhoTonTP", "Tồn kho thành phẩm", OpenTonKhoThanhPham);
             _menuKho.Elements.Add(CreateMenuItem("menuNhanLinhKien", "Nhận linh kiện về kho (QR)", OpenNhanLinhKien));
             _menuKho.Elements.Add(CreateMenuItem("menuUploadKeHoachSanXuat", "Upload kế hoạch sản xuất theo ca", OpenUploadKeHoachSanXuat));
+            _menuKho.Elements.Add(CreateMenuItem("menuDieuHanhSanXuat", "Điều hành sản xuất MES", OpenDieuHanhSanXuat));
             _menuKho.Elements.Add(CreateMenuItem("menuYeuCauXuatLinhKien", "Yêu cầu / Xuất linh kiện PART → WIP", OpenYeuCauXuatLinhKien));
             _menuKho.Elements.Add(_menuKhoTonTP);
 
@@ -123,6 +124,10 @@ namespace PCTP
                 "menuBcTruyXuat",
                 "Truy xuất giao hàng (QR / LOT)",
                 (s, e) => OpenFromMenu(() => BaoCaoNavigator.OpenTraceability(this, null), "Truy xuất giao hàng")));
+            accordionControlElement28.Elements.Add(CreateMenuItem(
+                "menuBcTruyXuatLinhKien",
+                "Truy xuất linh kiện / LOT sản xuất",
+                OpenBaoCaoTruyXuatLinhKien));
             _menuBcLichSuKho = CreateMenuItem("menuBcLichSuKho", "Lịch sử kho / Tồn hiện tại", OpenBaoCaoLichSuKho);
             _menuBcLichSuQC = CreateMenuItem("menuBcLichSuQC", "Lịch sử QC / Inspection", OpenBaoCaoLichSuQC);
             accordionControlElement28.Elements.Add(_menuBcLichSuKho);
@@ -194,6 +199,18 @@ namespace PCTP
         private void OpenBaoCaoTongHop()
         {
             OpenFromMenu(() => BaoCaoNavigator.OpenMain(this), "Thống kê / báo cáo");
+        }
+
+        private void OpenDieuHanhSanXuat(object sender, EventArgs e)
+        {
+            OpenFromMenu(() => FormWindowManager.ShowSingle(this,
+                () => new FormDieuHanhSanXuat()), "Điều hành sản xuất MES");
+        }
+
+        private void OpenBaoCaoTruyXuatLinhKien(object sender, EventArgs e)
+        {
+            OpenFromMenu(() => FormWindowManager.ShowSingle(this,
+                () => new FormTruyXuatLinhKien()), "Truy xuất linh kiện / LOT sản xuất");
         }
 
         private void OpenBaoCaoLichSuKho(object sender, EventArgs e)

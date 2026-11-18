@@ -6,7 +6,7 @@ namespace PCTP.Modules.MesPlanning
         DataTable GetPlanLines(string siteCode);
         long GenerateDemand(long planLineId,string user);
         DataTable GetDemandLines(long planLineId);
-        DataTable GetPartLots(string site,string partNo);
+        DataTable GetPartLots(string site,string partNo,string areaCode);
         DataTable GetWipSlots(string site);
         DataTable PostIssue(string site,string issueNo,long demandLineId,long lotId,int fromSlot,int toSlot,decimal qty,string user,string key);
     }

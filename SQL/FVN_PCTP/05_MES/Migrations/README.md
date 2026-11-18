@@ -226,3 +226,83 @@ VALUES(N'<SITE>',<WIP_SLOT_ID>,'WIP',N'<USER>');
 ```
 
 Do not assign one slot to both areas. Shift setup and PART/WIP area assignment are explicit configuration, not inferred from slot or warehouse names.
+
+
+## Migration 034 — production execution and component genealogy
+
+Run `034_MES_ProductionExecutionRoutingAndComponentTrace.sql` after 033.
+It extends the existing MES production-order/material and genealogy structures;
+it does not create a second stock ledger. Production output LOTs are canonical
+`MES.FVN_MaterialLot` records created through
+`MES.usp_FVN_BuildProductionLotNo`.
+
+Before releasing production orders, configure:
+- `MES.FVN_ProductionPartPolicy`: each internally produced (SiteCode, PartNo)
+  must be explicitly classified as `WIP` (manufactured subassembly) or `FG`
+  (finished product). A component with this policy is `MAKE`; a component
+  without it is treated as purchased `BUY`. MAKE demand reads available stock
+  from the configured WIP/FG area and is never issued from PART.
+  The policy is checked when a production LOT is created.
+- `MES.FVN_ProductionLotCodeMap`: map the plan's production line code to the
+  three-character LOT line code and four-character department code.
+- `MES.FVN_ProductionRouting` and `MES.FVN_ProductionRoutingStep`: configure
+  the effective operation sequence and `DIRECT` / `VIA_WIP` transfer mode.
+  Exactly one final step must have `IsFinalOutput=1`; all earlier steps must
+  have `IsFinalOutput=0`. The selected routing revision is snapshotted on
+  the production order so later route edits do not rewrite an active order.
+- Map WIP/FG physical Slots in `dbo.FVN_InventoryAreaSlot` and
+  `dbo.FVN_SlotMesLocation`. Migration 034 adds the `FG` area.
+
+`DIRECT` records the same production LOT handoff without a stock posting.
+`VIA_WIP` posts output into the WIP Slot and issues that same LOT when the next
+operation starts. Actual component consumption posts an ISSUE to the canonical
+MES ledger and inserts the matching `MES.FVN_FinishedLotGenealogy` edge.
+This supports multi-level trace because a manufactured subassembly LOT is
+itself the finished LOT of its own production order and the component LOT of
+its parent order.
+
+The 20-character LOT builder has no order sequence component. Therefore only
+one production order can exist for the same Site + Part + ProductionDate +
+Shift + mapped Line + Department identity. The create procedure and filtered
+unique index reject a second order with the same LOT identity; combine the
+plan quantity into one plan line/order for that identity.
+
+The PCTP production receipt lookup is switched to
+`dbo.vFVN_MES_ProductionReceiptWorklist`; the production repository no longer
+reads Bravo `vNhapTP`. The existing PCTP receipt service still performs the
+physical receipt through the canonical stock movement service, posting
+`PROD_RECEIPT` with reference type `NHAP_TP` into MES AVAILABLE stock. The
+worklist derives received quantity from those MES ledger transactions and
+current balance. The worklist exposes only completed FG production orders;
+finished product is not pre-received into WIP, preventing double stock when
+PCTP receives it.
+
+Trace report: `MES.usp_FVN_ComponentLot_Trace` supports `UPSTREAM` (produced
+LOT to its component LOTs, recursively) and `DOWNSTREAM` (component LOT to
+all produced LOTs using it, recursively). Quantities shown are actual
+genealogy allocations, not BOM planned quantities.
+
+Important: migration 034 does not configure site-specific routes, part output
+policies, line/department mappings, or WIP/FG slots automatically. These are
+master-data decisions and must be configured before production execution.
+
+
+### Multi-level manufactured components
+
+The demand generator is level-aware for the immediate BOM: a child with an
+active `FVN_ProductionPartPolicy` is identified as MAKE and its availability
+is read from WIP/FG, while an unclassified child is BUY and reads PART.
+MAKE lines cannot be posted through PART → WIP; actual use must be recorded
+with `usp_FVN_ProductionMaterial_Consume`, which issues the exact child LOT
+and writes the parent-to-child genealogy edge.
+
+BOM demand generation remains one direct IFS Structure level per plan line.
+A plan line is released only when exactly one effective routing revision and
+one final operation are configured. The 20-character LOT format has no order
+sequence; a second order with the same product/date/shift/line/department key
+is rejected.
+A manufactured child must have its own plan line/order and its own operation
+execution before its LOT can be consumed by the parent. Automatic recursive
+subassembly order scheduling is not inferred because each child may require a
+different production line, shift, route and effective schedule. The genealogy
+report itself traverses all recorded levels recursively.

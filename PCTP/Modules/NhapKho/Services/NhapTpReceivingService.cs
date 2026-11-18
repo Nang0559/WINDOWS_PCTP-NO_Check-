@@ -126,9 +126,13 @@ namespace PCTP.Modules.NhapKho.Services
                     return ScanResult.Fail("Mã hàng của phiếu không khớp với tem quét (Phiếu: " + phieuLive.MaSP + " / Tem: " + qr.ItemCode + ").");
             }
 
-            string lotNo = phieuLive != null
-                ? phieuLive.LotNo
-                : LotCodeHelper.StripCounterAndQty(qr.RawLotNoSL ?? qr.RawLotNo ?? qr.LotNo);
+            if (phieuLive == null)
+                return ScanResult.Fail("LOT không tồn tại trong danh sách sản xuất MES. Không còn nhận thành phẩm từ nguồn Bravo/QR rời.");
+            if (string.IsNullOrWhiteSpace(phieuLive.SiteCode) ||
+                !_productionRepo.IsFinishedGoodsSlot(phieuLive.SiteCode, slotId))
+                return ScanResult.Fail("Slot đích chưa được cấu hình AreaCode=FG cho Site của LOT. Hãy chọn Slot thành phẩm đã khai báo trong MES.");
+
+            string lotNo = phieuLive.LotNo;
             if (string.IsNullOrWhiteSpace(lotNo))
                 return ScanResult.Fail("Không xác định được LOT.");
 

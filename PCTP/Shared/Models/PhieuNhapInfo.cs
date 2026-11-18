@@ -6,6 +6,7 @@ namespace PCTP.Shared.Models
     public class PhieuNhapInfo
     {
         public int Stt { get; set; }
+        public string SiteCode { get; set; }
         public string Find { get; set; }   // FIND = LOT_NO 20 ký tự
         public string LotNo { get; set; }   // LOT_NO
         public string Model { get; set; }

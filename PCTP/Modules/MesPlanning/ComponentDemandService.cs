@@ -10,7 +10,7 @@ namespace PCTP.Modules.MesPlanning
         public long GenerateDemand(long id,string user)
         { if(id<=0) throw new ArgumentException("ProductionPlanLineId không hợp lệ."); if(string.IsNullOrWhiteSpace(user)) throw new ArgumentException("Thiếu người thao tác."); return _repo.GenerateDemand(id,user.Trim()); }
         public DataTable GetDemandLines(long id)=>_repo.GetDemandLines(id);
-        public DataTable GetPartLots(string site,string part)=>_repo.GetPartLots(site,part);
+        public DataTable GetPartLots(string site,string part,string areaCode)=>_repo.GetPartLots(site,part,areaCode);
         public DataTable GetWipSlots(string site)=>_repo.GetWipSlots(site);
         public DataTable PostIssue(string site,string no,long line,long lot,int from,int to,decimal qty,string user)
         {

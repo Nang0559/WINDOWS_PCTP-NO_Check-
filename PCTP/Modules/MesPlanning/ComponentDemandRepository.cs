@@ -25,7 +25,7 @@ namespace PCTP.Modules.MesPlanning
         public long GenerateDemand(long planLineId,string user)
         {
             using(var cn=new SqlConnection(_cs))
-            using(var cmd=new SqlCommand("MES.usp_FVN_GenerateComponentDemand",cn))
+            using(var cmd=new SqlCommand("MES.usp_FVN_GenerateComponentDemandV2",cn))
             {
                 cmd.CommandType=CommandType.StoredProcedure;
                 cmd.Parameters.Add("@ProductionPlanLineId",SqlDbType.BigInt).Value=planLineId;
@@ -37,13 +37,13 @@ namespace PCTP.Modules.MesPlanning
         public DataTable GetDemandLines(long planLineId)
         {
             using(var cn=new SqlConnection(_cs))
-            using(var cmd=new SqlCommand("MES.usp_FVN_ComponentDemand_List",cn))
+            using(var cmd=new SqlCommand("MES.usp_FVN_ComponentDemand_ListV2",cn))
             {
                 cmd.CommandType=CommandType.StoredProcedure; cmd.Parameters.Add("@ProductionPlanLineId",SqlDbType.BigInt).Value=planLineId;
                 var dt=new DataTable(); using(var da=new SqlDataAdapter(cmd)) da.Fill(dt); return dt;
             }
         }
-        public DataTable GetPartLots(string site,string partNo)
+        public DataTable GetPartLots(string site,string partNo,string areaCode)
         {
             using(var cn=new SqlConnection(_cs))
             using(var cmd=new SqlCommand(@"
@@ -53,13 +53,15 @@ SELECT b.MaterialLotId,lot.LotNo,sm.SlotId,
 FROM MES.FVN_InventoryBalance b
 JOIN MES.FVN_MaterialLot lot ON lot.MaterialLotId=b.MaterialLotId AND lot.SiteCode=b.SiteCode AND lot.PartNo=b.PartNo
 JOIN dbo.FVN_SlotMesLocation sm ON sm.SiteCode=b.SiteCode AND sm.LocationNo=b.LocationNo AND sm.IsPrimary=1 AND sm.IsActive=1
-JOIN dbo.FVN_InventoryAreaSlot ar ON ar.SiteCode=sm.SiteCode AND ar.SlotId=sm.SlotId AND ar.AreaCode='PART' AND ar.IsActive=1
-WHERE b.SiteCode=@SiteCode AND b.PartNo=@PartNo AND b.StockState='AVAILABLE'
+JOIN dbo.FVN_InventoryAreaSlot ar ON ar.SiteCode=sm.SiteCode AND ar.SlotId=sm.SlotId AND ar.AreaCode=@AreaCode AND ar.IsActive=1
+WHERE b.SiteCode=@SiteCode AND b.PartNo=@PartNo
+ AND b.StockState=CASE WHEN @AreaCode='WIP' THEN 'WIP' ELSE 'AVAILABLE' END
  AND b.OnHandQty>b.ReservedQty AND lot.LotStatus IN('AVAILABLE','RECEIVED')
 ORDER BY lot.LotNo,sm.SlotId;",cn))
             {
                 cmd.Parameters.Add("@SiteCode",SqlDbType.NVarChar,30).Value=site;
                 cmd.Parameters.Add("@PartNo",SqlDbType.NVarChar,100).Value=partNo;
+                cmd.Parameters.Add("@AreaCode",SqlDbType.VarChar,8).Value=areaCode;
                 var dt=new DataTable(); using(var da=new SqlDataAdapter(cmd)) da.Fill(dt); return dt;
             }
         }
