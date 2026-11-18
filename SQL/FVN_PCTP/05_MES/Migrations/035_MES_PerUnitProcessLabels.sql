@@ -209,6 +209,29 @@ BEGIN TRY
   BEGIN CATCH IF XACT_STATE()<>0 ROLLBACK; THROW; END CATCH
  END');
 
+ EXEC(N'
+ CREATE TRIGGER MES.tr_FVN_ProductionOperationExecution_LabelGate
+ ON MES.FVN_ProductionOperationExecution
+ AFTER INSERT
+ AS
+ BEGIN
+  SET NOCOUNT ON;
+  IF EXISTS(
+   SELECT 1
+   FROM inserted i
+   JOIN MES.FVN_ProductionLot pl ON pl.ProductionLotId=i.ProductionLotId
+   JOIN MES.FVN_ProductionRoutingStep rs ON rs.RoutingStepId=i.RoutingStepId
+   WHERE i.InputQty<>FLOOR(i.InputQty)
+      OR (SELECT COUNT(*) FROM MES.FVN_ProductionLabel l
+          WHERE l.ProductionLotId=i.ProductionLotId AND l.RoutingStepId=i.RoutingStepId
+            AND l.Status<>''VOID'')<>CONVERT(int,i.InputQty)
+      OR EXISTS(SELECT 1 FROM MES.FVN_ProductionLabel l
+          WHERE l.ProductionLotId=i.ProductionLotId AND l.RoutingStepId=i.RoutingStepId
+            AND l.Status<>''APPLIED'')
+  )
+   THROW 53550,''Every product must have exactly one applied MES label for this process before the operation can be completed.'',1;
+ END');
+
  INSERT MES.FVN_SchemaMigration(MigrationVersion,MigrationName)
  VALUES('035',N'Per-unit production labels reserved and printed at each process preparation');
  COMMIT TRANSACTION;
