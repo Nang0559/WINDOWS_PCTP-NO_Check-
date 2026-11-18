@@ -417,14 +417,15 @@ ORDER BY b.SyncBatchId DESC;", connection))
 SELECT v.EntityName, v.SourceObject, v.TargetObject, v.SourceRows, v.TargetRows,
        CASE
          WHEN l.SyncBatchId IS NULL THEN N'CHƯA ĐỒNG BỘ'
-         WHEN l.Status = 'FAILED' THEN N'LỖI'
+         WHEN entityError.SyncErrorId IS NOT NULL THEN N'LỖI ENTITY'
+         WHEN l.Status = 'FAILED' THEN N'LỖI BATCH'
          WHEN l.Status <> 'APPLIED' THEN N'ĐANG XỬ LÝ / CHƯA APPLY'
          WHEN v.TargetRows = 0 THEN N'ĐÃ ĐỌC - ĐÍCH CHƯA CÓ DỮ LIỆU'
          ELSE N'ĐÃ ĐỒNG BỘ'
        END AS SyncStatus,
        l.SyncBatchId AS LatestBatchId, l.Status AS BatchStatus,
        COALESCE(l.CompletedAtUtc, l.StartedAtUtc) AS LatestAtUtc,
-       l.ErrorSummary
+       COALESCE(entityError.ErrorMessage, l.ErrorSummary) AS ErrorSummary
 FROM Latest l
 CROSS APPLY
 (
@@ -447,6 +448,14 @@ CROSS APPLY
     SELECT N'WAREHOUSE', N'IFSAPP.WAREHOUSE', N'MES.FVN_IfsWarehouse',
            l.WarehouseRows, (SELECT COUNT_BIG(*) FROM MES.FVN_IfsWarehouse)
 ) v
+OUTER APPLY
+(
+    SELECT TOP (1) e.SyncErrorId, e.ErrorMessage
+    FROM IFS.SyncError AS e
+    WHERE e.SyncBatchId = l.SyncBatchId
+      AND e.EntityName = v.EntityName
+    ORDER BY e.SyncErrorId DESC
+) AS entityError
 UNION ALL
 SELECT v.EntityName, v.SourceObject, v.TargetObject, 0 AS SourceRows, v.TargetRows,
        N'CHƯA CÓ BATCH ĐỒNG BỘ' AS SyncStatus, NULL, NULL, NULL, NULL
