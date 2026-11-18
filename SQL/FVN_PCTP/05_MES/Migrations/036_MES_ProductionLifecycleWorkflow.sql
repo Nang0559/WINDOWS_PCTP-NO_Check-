@@ -257,12 +257,12 @@ BEGIN TRY
      WHEN ''PAUSED'' THEN 30 WHEN ''COMPLETED'' THEN 40 WHEN ''CLOSED'' THEN 50
      WHEN ''CANCELLED'' THEN 900 ELSE i.WorkflowStatusCode END TargetStatus,
     d.WorkflowStatusCode PreviousStatus,i.WorkflowStatusCode CurrentStatus,
-    COALESCE(i.ReleasedBy,i.CreatedBy) ActorCode
+    i.ProductionOrderId
    FROM inserted i LEFT JOIN deleted d ON d.ProductionOrderId=i.ProductionOrderId
   )
   UPDATE p SET WorkflowStatusCode=m.TargetStatus
-  OUTPUT inserted.ProductionOrderId,deleted.WorkflowStatusCode,inserted.WorkflowStatusCode,m.ActorCode
-   INTO @Changed(ProductionOrderId,FromStatus,ToStatus,ActorCode)
+  OUTPUT inserted.ProductionOrderId,deleted.WorkflowStatusCode,inserted.WorkflowStatusCode
+   INTO @Changed(ProductionOrderId,FromStatus,ToStatus)
   FROM MES.FVN_ProductionOrder p JOIN M m ON m.ProductionOrderId=p.ProductionOrderId
   WHERE m.TargetStatus IS NOT NULL AND ISNULL(m.CurrentStatus,-1)<>m.TargetStatus;
 
@@ -271,8 +271,8 @@ BEGIN TRY
   SELECT ''ORDER'',c.ProductionOrderId,''MES_PRODUCTION_ORDER'',ISNULL(c.FromStatus,0),c.ToStatus,
    CASE c.ToStatus WHEN 10 THEN ''RELEASE'' WHEN 20 THEN ''START'' WHEN 30 THEN ''PAUSE''
     WHEN 40 THEN ''COMPLETE'' WHEN 50 THEN ''CLOSE'' WHEN 900 THEN ''CANCEL'' ELSE ''SYNC'' END,
-   COALESCE(NULLIF(c.ActorCode,N''''),ORIGINAL_LOGIN())
-  FROM @Changed c
+   COALESCE(NULLIF(po.ReleasedBy,N''''),po.CreatedBy,ORIGINAL_LOGIN())
+  FROM @Changed c JOIN MES.FVN_ProductionOrder po ON po.ProductionOrderId=c.ProductionOrderId
   WHERE c.FromStatus IS NOT NULL AND EXISTS(SELECT 1 FROM dbo.FVN_sys_WorkflowTransitions t
    WHERE t.ProcessCode=''MES_PRODUCTION_ORDER'' AND t.FromStatus=c.FromStatus
     AND t.ToStatus=c.ToStatus AND t.IsActive=1);
