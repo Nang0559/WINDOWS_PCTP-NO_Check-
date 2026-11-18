@@ -167,6 +167,37 @@ BEGIN TRY
     END;
     ');
 
+    /* Production line/machine codes are PCTP operational masters, not IFS supplier/part data.
+       Their lengths are part of the 20-character finished LOT contract. */
+    IF OBJECT_ID(N'dbo.FVN_ProductionLine',N'U') IS NULL
+    BEGIN
+        CREATE TABLE dbo.FVN_ProductionLine
+        (
+            SiteCode nvarchar(30) NOT NULL,
+            LineCode varchar(3) NOT NULL,
+            LineName nvarchar(120) NOT NULL,
+            IsActive bit NOT NULL CONSTRAINT DF_FVN_ProductionLine_Active DEFAULT(1),
+            CONSTRAINT PK_FVN_ProductionLine PRIMARY KEY(SiteCode,LineCode),
+            CONSTRAINT CK_FVN_ProductionLine_Code CHECK(LEN(LineCode)=3)
+        );
+    END;
+
+    IF OBJECT_ID(N'dbo.FVN_ProductionMachine',N'U') IS NULL
+    BEGIN
+        CREATE TABLE dbo.FVN_ProductionMachine
+        (
+            SiteCode nvarchar(30) NOT NULL,
+            MachineCode varchar(4) NOT NULL,
+            MachineName nvarchar(120) NOT NULL,
+            LineCode varchar(3) NOT NULL,
+            IsActive bit NOT NULL CONSTRAINT DF_FVN_ProductionMachine_Active DEFAULT(1),
+            CONSTRAINT PK_FVN_ProductionMachine PRIMARY KEY(SiteCode,MachineCode),
+            CONSTRAINT FK_FVN_ProductionMachine_Line FOREIGN KEY(SiteCode,LineCode)
+                REFERENCES dbo.FVN_ProductionLine(SiteCode,LineCode),
+            CONSTRAINT CK_FVN_ProductionMachine_Code CHECK(LEN(MachineCode)=4)
+        );
+    END;
+
     /* Keep legacy LOT rows readable. The untrusted FK enforces every new/changed
        SupplierCode immediately while allowing pre-existing Bravo codes to be reconciled. */
     IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name=N'FK_FVN_MaterialLot_IFSSupplier')
@@ -206,6 +237,51 @@ BEGIN TRY
                    LTRIM(RTRIM(@DocNo));
         IF LEN(@LotNo)>120
             THROW 52824, ''Generated component LOT exceeds the 120-character storage limit.'', 1;
+    END;
+    ');
+
+    EXEC(N'
+    CREATE PROCEDURE MES.usp_FVN_BuildProductionLotNo
+        @RequestDate date,
+        @SiteCode nvarchar(30),
+        @PartNo nvarchar(100),
+        @ShiftCode varchar(2),
+        @LineCode varchar(3),
+        @MachineCode varchar(4),
+        @LotNo char(20) OUTPUT,
+        @ItemId5 char(5) OUTPUT
+    AS
+    BEGIN
+        SET NOCOUNT ON;
+        SET @LotNo=NULL;
+        SET @ItemId5=NULL;
+
+        IF @RequestDate IS NULL THROW 52830, ''Production date is required.'', 1;
+        IF LEN(LTRIM(RTRIM(ISNULL(@ShiftCode,''''))))<>2
+            THROW 52831, ''ShiftCode must contain exactly two characters (shift + gear).' ', 1;
+        IF LEN(LTRIM(RTRIM(ISNULL(@LineCode,''''))))<>3
+            THROW 52832, ''LineCode must contain exactly three characters.'', 1;
+        IF LEN(LTRIM(RTRIM(ISNULL(@MachineCode,''''))))<>4
+            THROW 52833, ''MachineCode must contain exactly four characters.'', 1;
+
+        IF NOT EXISTS(SELECT 1 FROM dbo.FVN_ProductionLine
+                      WHERE SiteCode=@SiteCode AND LineCode=@LineCode AND IsActive=1)
+            THROW 52834, ''Production line is not configured or inactive for this site.'', 1;
+        IF NOT EXISTS(SELECT 1 FROM dbo.FVN_ProductionMachine
+                      WHERE SiteCode=@SiteCode AND MachineCode=@MachineCode
+                        AND LineCode=@LineCode AND IsActive=1)
+            THROW 52835, ''Machine is not configured as active on the selected line/site.'', 1;
+
+        EXEC dbo.usp_FVN_PartIdentity_AllocateItemId5
+            @SiteCode=@SiteCode,@PartNo=@PartNo,@ItemId5=@ItemId5 OUTPUT;
+
+        SET @LotNo=CONVERT(char(6),@RequestDate,12)+
+                   @ItemId5+
+                   @ShiftCode+
+                   @LineCode+
+                   @MachineCode;
+        IF LEN(@LotNo)<>20
+            THROW 52836, ''Generated production LOT is not exactly 20 characters.'', 1;
     END;
     ');
 
