@@ -115,10 +115,10 @@ ORDER BY SiteCode;";
         private void LoadParts(string connectionString, string siteCode)
         {
             const string sql = @"
-SELECT SiteCode, PartNo, Description, UnitMeas, PartStatus
-FROM [IFS].[FVN_InventoryPart]
-WHERE SiteCode = @SiteCode
-ORDER BY PartNo;";
+            SELECT SiteCode, PartNo, Description, UnitMeas, PartStatus
+            FROM [IFS].[FVN_InventoryPart]
+            WHERE SiteCode = @SiteCode
+            ORDER BY PartNo;";
             var table = new DataTable();
             using (var connection = new SqlConnection(connectionString))
             using (var command = new SqlCommand(sql, connection))
