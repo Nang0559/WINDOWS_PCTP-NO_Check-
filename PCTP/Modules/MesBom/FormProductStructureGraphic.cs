@@ -9,6 +9,7 @@ using System.Globalization;
 using System.IO;
 using System.Text;
 using System.Windows.Forms;
+using PCTP.Shared.Lookup;
 
 namespace PCTP.Modules.MesBom
 {
@@ -17,8 +18,7 @@ namespace PCTP.Modules.MesBom
     /// </summary>
     public sealed class FormProductStructureGraphic : XtraForm
     {
-        private readonly TextBox _partNo = new TextBox();
-        private readonly TextBox _site = new TextBox();
+        private readonly FvnPartSiteLookupControl _partSiteLookup = new FvnPartSiteLookupControl();
         private readonly DateTimePicker _asOf = new DateTimePicker();
         private readonly Button _load = new Button();
         private readonly Button _exportSite = new Button();
@@ -53,6 +53,15 @@ namespace PCTP.Modules.MesBom
             StartPosition = FormStartPosition.CenterParent;
             MinimumSize = new Size(1100, 720);
             BuildLayout();
+            Load += (s, e) =>
+            {
+                try { _partSiteLookup.LoadSites(_connectionString); }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Không thể nạp danh sách Site/Part từ FVN_PCTP: " + ex.Message,
+                        "BOM Lookup", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            };
         }
 
         private void BuildLayout()
@@ -73,8 +82,9 @@ namespace PCTP.Modules.MesBom
             fields.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 20));
             fields.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 85));
             fields.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 320));
-            AddField(fields, "Part No:", _partNo, 0, 0);
-            AddField(fields, "Site:", _site, 2, 0);
+            _partSiteLookup.Dock = DockStyle.Fill;
+            fields.Controls.Add(_partSiteLookup, 0, 0);
+            fields.SetColumnSpan(_partSiteLookup, 4);
             AddField(fields, "As of:", _asOf, 4, 0);
             _asOf.Format = DateTimePickerFormat.Short;
             var actions = new FlowLayoutPanel
@@ -196,8 +206,8 @@ namespace PCTP.Modules.MesBom
                 MessageBox.Show("Thiếu connection string FVN_PCTP.", "BOM", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
-            string part = _partNo.Text.Trim();
-            string site = _site.Text.Trim();
+            string part = _partSiteLookup.SelectedPartNo;
+            string site = _partSiteLookup.SelectedSiteCode;
             if (part.Length == 0 || site.Length == 0)
             {
                 MessageBox.Show("Vui lòng nhập Part No và Site. Site là bắt buộc, không tự mặc định.", "BOM", MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -344,7 +354,7 @@ ORDER BY c.LineSequence,c.LineItemNo;";
         /// </summary>
         private void ExportBom(bool currentOnly)
         {
-            string site = _site.Text.Trim();
+            string site = _partSiteLookup.SelectedSiteCode;
             if (string.IsNullOrWhiteSpace(_connectionString))
             {
                 MessageBox.Show("Thiếu connection string FVN_PCTP.", "Export BOM", MessageBoxButtons.OK, MessageBoxIcon.Warning);
