@@ -117,7 +117,8 @@ WHERE SyncBatchId=@SyncBatchId AND Status='RUNNING';", connection))
                             throw new InvalidOperationException("Không thể chuyển SyncBatch sang STAGED.");
                     }
 
-                    currentEntity = null; // Apply errors are batch-level unless SQL reports a specific entity.\n                    if (phaseChanged != null) phaseChanged("Giai đoạn 2/2: Đang Apply dữ liệu vào các bảng IFS / MES trong FVN_PCTP. Vui lòng chờ...");
+                    currentEntity = null; // Apply errors are batch-level unless SQL reports a specific entity.
+                    if (phaseChanged != null) phaseChanged("Giai đoạn 2/2: Đang Apply dữ liệu vào các bảng IFS / MES trong FVN_PCTP. Vui lòng chờ...");
 
                     using (var command = new SqlCommand("IFS.usp_ApplySyncBatch", connection))
                     {
