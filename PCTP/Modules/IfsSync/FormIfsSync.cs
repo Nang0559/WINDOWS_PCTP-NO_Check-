@@ -258,7 +258,7 @@ SELECT TOP (0) SupplierCode, SupplierName FROM [IFS].[FVN_Supplier];", sql))
                         {
                             if (ex.Number == 208)
                                 throw new InvalidOperationException(
-                                    "Không tìm thấy bảng IFS.SyncBatch hoặc IFS.SyncStageRow trong FVN_PCTP. " +
+                                    "Không tìm thấy một hoặc nhiều bảng đồng bộ (IFS.SyncBatch, IFS.SyncStageRow, IFS.FVN_Supplier) trong FVN_PCTP. " +
                                     "Hãy kiểm tra đúng database/schema và trạng thái migration 012. " +
                                     "SQL: " + ex.Message, ex);
                             if (ex.Number == 229)
@@ -497,7 +497,7 @@ WHERE NOT EXISTS (SELECT 1 FROM IFS.SyncBatch);";
             catch (Exception ex)
             {
                 _entities.DataSource = null;
-                _details.Text = "Không tải được trạng thái entity. Kiểm tra migration 027 và quyền SELECT. " + ex.Message;
+                _details.Text = "Không tải được trạng thái entity. Kiểm tra migration 027–028 và quyền SELECT. " + ex.Message;
             }
         }
 
