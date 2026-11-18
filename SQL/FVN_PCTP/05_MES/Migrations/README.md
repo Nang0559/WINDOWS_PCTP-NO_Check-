@@ -142,7 +142,7 @@ YYMMDD + SupplierCode + ItemId5 + DocNo
 `(SiteCode, PartNo)`; it is not generated differently by each import or screen.
 Existing `LegacyQrItemCode` values are preserved. New values are allocated
 once by `dbo.usp_FVN_PartIdentity_AllocateItemId5`. The shared component LOT
-builder is `MES.usp_FVN_BuildComponentLotNo`. Production/finished LOTs use a separate builder, `MES.usp_FVN_BuildProductionLotNo`, and the configured 2+3+4-character shift/line/machine codes. It requires a supplier already
+builder is `MES.usp_FVN_BuildComponentLotNo`. Production/finished LOTs use a separate builder, `MES.usp_FVN_BuildProductionLotNo`, and the configured 2+3+4-character shift/line/department codes. It requires a supplier already
 present in the synchronized IFS supplier master.
 
 The supplier foreign key is added WITH NOCHECK to preserve historical Bravo
@@ -150,7 +150,7 @@ LOT values while enforcing supplier validity for new/changed values. Reconcile
 old supplier codes against IFS before trusting the legacy rows.
 
 The 20-character production/finished-goods LOT is a separate identity domain:
-YYMMDD (6) + ItemId5 (5) + ShiftCode (2: shift + gear) + LineCode (3) + MachineCode (4). Migration 028 creates `dbo.FVN_ProductionLine` and `dbo.FVN_ProductionMachine`; configure the active site/line/machine mapping before generating production LOTs. `MES.usp_FVN_BuildProductionLotNo` validates the mapping and returns exactly 20 characters.
+YYMMDD (6) + ItemId5 (5) + ShiftCode (2: shift + gear) + LineCode (3) + DepartmentCode (4). Migration 028 creates `dbo.FVN_ProductionLine` and `dbo.FVN_ProductionDepartment`; configure the active site/line/department mapping before generating production LOTs. `MES.usp_FVN_BuildProductionLotNo` validates the mapping and returns exactly 20 characters.
 It does not contain the printed-label sequence or quantity suffix. Do not add
 SupplierCode to production/finished-goods LOTs. The QR token may append those
 print-only fields, but the stock identity remains the first 20 characters.
