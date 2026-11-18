@@ -217,6 +217,10 @@ BEGIN TRY
    ) stock;
    IF NOT EXISTS(SELECT 1 FROM MES.FVN_ComponentDemandLine WHERE ComponentDemandId=@DemandId)
     THROW 53324,''IFS BOM has no usable inventory component rows for this Site.'',1;
+   UPDATE MES.FVN_ComponentDemandHeader SET Status=''FULFILLED''
+    WHERE ComponentDemandId=@DemandId
+     AND NOT EXISTS(SELECT 1 FROM MES.FVN_ComponentDemandLine
+       WHERE ComponentDemandId=@DemandId AND NetRequiredQty>0);
    COMMIT;
    SELECT @DemandId AS ComponentDemandId,COUNT(*) AS ComponentCount
    FROM MES.FVN_ComponentDemandLine WHERE ComponentDemandId=@DemandId;
@@ -236,6 +240,10 @@ BEGIN TRY
  BEGIN
   SET NOCOUNT ON; SET XACT_ABORT ON;
   IF @Quantity<=0 THROW 53330,''Issue quantity must be positive.'',1;
+  IF NULLIF(LTRIM(RTRIM(@IssueNo)),N'''') IS NULL THROW 53338,''IssueNo is required.'',1;
+  IF NULLIF(LTRIM(RTRIM(@IdempotencyKey)),N'''') IS NULL THROW 53339,''IdempotencyKey is required.'',1;
+  IF @FromSlotId=@ToSlotId THROW 53340,''Source PART Slot and destination WIP Slot must be different.'',1;
+  IF @ComponentDemandLineId>2147483647 THROW 53341,''Demand line ID exceeds the stock adapter reference-line range.'',1;
   IF NULLIF(LTRIM(RTRIM(@IssuedBy)),N'''') IS NULL THROW 53331,''IssuedBy is required.'',1;
   BEGIN TRY
    BEGIN TRANSACTION;
