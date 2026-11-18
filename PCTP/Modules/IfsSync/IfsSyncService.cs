@@ -21,6 +21,7 @@ namespace PCTP.Modules.IfsSync
         public int BomAlternativeRows { get; internal set; }
         public int BomComponentRows { get; internal set; }
         public int WarehouseRows { get; internal set; }
+        public int SupplierRows { get; internal set; }
         public string Status { get; internal set; }
     }
 
@@ -94,6 +95,9 @@ namespace PCTP.Modules.IfsSync
                     currentEntity = "WAREHOUSE";
                     int warehouse = StageEntity(connection, batchId, "WAREHOUSE",
                         "SELECT CONTRACT, WAREHOUSE_ID, DESCRIPTION, OBJKEY, OBJVERSION FROM IFSAPP.WAREHOUSE ORDER BY CONTRACT, WAREHOUSE_ID");
+                    currentEntity = "SUPPLIER";
+                    int supplier = StageEntity(connection, batchId, "SUPPLIER",
+                        "SELECT SUPPLIER_ID, NAME, OBJKEY, OBJVERSION FROM IFSAPP.SUPPLIER_INFO_GENERAL ORDER BY SUPPLIER_ID");
 
                     using (var command = new SqlCommand(@"
 UPDATE IFS.SyncBatch
@@ -103,7 +107,8 @@ SET Status='STAGED',
     BomHeaderRows=@BomHeaderRows,
     BomAlternativeRows=@BomAlternativeRows,
     BomComponentRows=@BomComponentRows,
-    WarehouseRows=@WarehouseRows
+    WarehouseRows=@WarehouseRows,
+    SupplierRows=@SupplierRows
 WHERE SyncBatchId=@SyncBatchId AND Status='RUNNING';", connection))
                     {
                         command.Parameters.AddWithValue("@PartCatalogRows", partCatalog);
@@ -112,6 +117,7 @@ WHERE SyncBatchId=@SyncBatchId AND Status='RUNNING';", connection))
                         command.Parameters.AddWithValue("@BomAlternativeRows", bomAlternative);
                         command.Parameters.AddWithValue("@BomComponentRows", bomComponent);
                         command.Parameters.AddWithValue("@WarehouseRows", warehouse);
+                        command.Parameters.AddWithValue("@SupplierRows", supplier);
                         command.Parameters.AddWithValue("@SyncBatchId", batchId);
                         if (command.ExecuteNonQuery() != 1)
                             throw new InvalidOperationException("Không thể chuyển SyncBatch sang STAGED.");
@@ -137,6 +143,7 @@ WHERE SyncBatchId=@SyncBatchId AND Status='RUNNING';", connection))
                         BomAlternativeRows = bomAlternative,
                         BomComponentRows = bomComponent,
                         WarehouseRows = warehouse,
+                        SupplierRows = supplier,
                         Status = "APPLIED"
                     };
                 }
@@ -358,14 +365,18 @@ VALUES ('FULL', 'RUNNING', SYSUTCDATETIME(), @InitiatedBy);", connection))
 
             string partNo = entityName == "WAREHOUSE"
                 ? ReadString(reader, "WAREHOUSE_ID")
-                : ReadString(reader, "PART_NO");
+                : entityName == "SUPPLIER"
+                    ? ReadString(reader, "SUPPLIER_ID")
+                    : ReadString(reader, "PART_NO");
             if (string.IsNullOrWhiteSpace(partNo))
                 throw new InvalidOperationException(entityName == "WAREHOUSE"
                     ? "WAREHOUSE có dòng thiếu WAREHOUSE_ID."
-                    : entityName + " có dòng thiếu PART_NO.");
+                    : entityName == "SUPPLIER"
+                        ? "SUPPLIER_INFO_GENERAL có dòng thiếu SUPPLIER_ID."
+                        : entityName + " có dòng thiếu PART_NO.");
 
-            string siteCode = entityName == "PART_CATALOG" ? null : ReadString(reader, "CONTRACT");
-            if (entityName != "PART_CATALOG" && string.IsNullOrWhiteSpace(siteCode))
+            string siteCode = (entityName == "PART_CATALOG" || entityName == "SUPPLIER") ? null : ReadString(reader, "CONTRACT");
+            if (entityName != "PART_CATALOG" && entityName != "SUPPLIER" && string.IsNullOrWhiteSpace(siteCode))
                 throw new InvalidOperationException(entityName + " có dòng thiếu CONTRACT.");
 
             string engChgLevel = ReadString(reader, "ENG_CHG_LEVEL");
