@@ -33,6 +33,7 @@ BEGIN
         CONSTRAINT PK_IFS_FVN_Supplier PRIMARY KEY(SupplierCode)
     );
 END;
+GO
 
 BEGIN TRY
     BEGIN TRANSACTION;
@@ -53,6 +54,13 @@ BEGIN TRY
         ADD CONSTRAINT CK_IFS_Stage_Entity CHECK
         (EntityName IN
         ('PART_CATALOG','INVENTORY_PART','BOM_HEADER','BOM_ALTERNATIVE','BOM_COMPONENT','WAREHOUSE','SUPPLIER'));
+
+    /* A five-character canonical item identity replaces the ambiguous Bravo name Code0/Id_Item.
+       Existing QR identity values are preserved; new values are allocated once and never recycled. */
+    IF COL_LENGTH(N'dbo.FVN_PartIdentity',N'ItemId5') IS NULL
+        ALTER TABLE dbo.FVN_PartIdentity ADD ItemId5 char(5) NULL;
+
+    EXEC sys.sp_executesql N'UPDATE dbo.FVN_PartIdentity SET ItemId5=LegacyQrItemCode WHERE ItemId5 IS NULL AND LegacyQrItemCode IS NOT NULL;';
 
     DECLARE @Definition nvarchar(max), @At int, @Merge nvarchar(max);
     SET @Definition=OBJECT_DEFINITION(OBJECT_ID(N'IFS.usp_ApplySyncBatch',N'P'));
@@ -145,15 +153,6 @@ BEGIN TRY
     IF CHARINDEX(N'CREATE PROCEDURE',@Definition)>0
         THROW 52806, 'Cannot convert IFS.usp_ApplySyncBatch to ALTER PROCEDURE.', 1;
     EXEC sys.sp_executesql @Definition;
-
-    /* A five-character canonical item identity replaces the ambiguous Bravo name Code0/Id_Item.
-       Existing QR identity values are preserved; new values are allocated once and never recycled. */
-    IF COL_LENGTH(N'dbo.FVN_PartIdentity',N'ItemId5') IS NULL
-        ALTER TABLE dbo.FVN_PartIdentity ADD ItemId5 char(5) NULL;
-
-    UPDATE dbo.FVN_PartIdentity
-       SET ItemId5=LegacyQrItemCode
-     WHERE ItemId5 IS NULL AND LegacyQrItemCode IS NOT NULL;
 
     IF NOT EXISTS (SELECT 1 FROM sys.indexes
                    WHERE object_id=OBJECT_ID(N'dbo.FVN_PartIdentity')
