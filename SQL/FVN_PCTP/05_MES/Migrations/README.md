@@ -189,3 +189,22 @@ The compatibility procedure `dbo.usp_FVN_PartIdentity_AllocateItemId5` delegates
 ## Migration 030 — Canonical ItemId5 allocation
 
 Run `030_CanonicalItemIdentityInIfsApply.sql` after migration 029. Migration 028 originally embedded a second allocator in the IFS apply procedure and wrote new item tokens directly into `dbo.FVN_PartIdentity`. Migration 029 introduced the authoritative `MES.FVN_ItemIdentity` master, but the old IFS apply block must also be replaced to prevent two allocation authorities. Migration 030 patches `IFS.usp_ApplySyncBatch` so it delegates missing item tokens to `MES.usp_FVN_AllocateItemId5`. The old `dbo.FVN_PartIdentity` remains only as a compatibility projection for legacy readers; its trigger rejects changes to already-issued tokens. No IDENTITY columns are added to every IFS, BOM, inventory, or transaction table: the internal identity keys live only in the two dedicated identity masters.
+
+
+## Migration 031 — Component requisition upload and PART receipt
+
+Run 031_ComponentRequestQrAndPartReceipt.sql after migration 030.
+
+- Upload creates a site-scoped component request and detail rows from validated JSON rows. Each line is checked against the synchronized active IFS inventory-part master and receives its stable ItemId5 from MES.usp_FVN_AllocateItemId5.
+- Every request line receives a persisted QR payload (FVNCR|...). This is a request-line identity only; it is not a supplier LOT, component LOT, or production LOT.
+- PART receipt scans that request-line QR, validates the site, supplier, remaining quantity and active IFS inventory location, then allocates SupplierId5 and ItemId5 and builds the component LOT using MES.usp_FVN_BuildComponentLotNo.
+- The receipt procedure creates the material LOT and posts a RECEIPT movement through MES.usp_PostInventoryMovement. It does not update inventory balances directly.
+- Receipt idempotency is keyed by site, receipt number and receipt line. A repeated receipt line is rejected; over-receipt is rejected while the request-line row is locked.
+- This migration provides the SQL contract only. The WinForms upload/scan screens, Excel reader, repository/service wiring, menu entry, QR label printing and end-to-end tests must be integrated and validated before operational use.
+
+Deployment checks:
+1. Confirm migrations 028, 029 and 030 are applied and MES.FVN_ItemIdentity / MES.FVN_SupplierIdentity are populated.
+2. Confirm the site is registered in dbo.FVN_PCTPSite.
+3. Confirm IFS.FVN_InventoryPart, IFS.FVN_Supplier, and MES.FVN_IfsInventoryLocation have been synchronized for the intended site.
+4. Test upload replay, invalid PartNo, duplicate QR, simultaneous scans, over-receipt, duplicate receipt line, unknown supplier, inactive location, and rollback after posting failure.
+5. Validate the resulting MES.FVN_InventoryTransaction and MES.FVN_InventoryBalance; never update the balance tables from the application.
