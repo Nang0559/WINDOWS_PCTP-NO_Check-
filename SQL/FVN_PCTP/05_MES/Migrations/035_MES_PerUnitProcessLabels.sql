@@ -13,6 +13,8 @@ IF EXISTS(SELECT 1 FROM MES.FVN_SchemaMigration WHERE MigrationVersion='035') RE
 BEGIN TRY
  BEGIN TRANSACTION;
 
+ IF OBJECT_ID(N'MES.FVN_ProductionLabelSequence',N'SO') IS NULL
+  EXEC(N'CREATE SEQUENCE MES.FVN_ProductionLabelSequence AS bigint START WITH 1 INCREMENT BY 1');
  IF OBJECT_ID(N'MES.FVN_ProductionLabel',N'U') IS NULL
  CREATE TABLE MES.FVN_ProductionLabel(
   ProductionLabelId bigint IDENTITY(1,1) NOT NULL CONSTRAINT PK_FVN_ProductionLabel PRIMARY KEY,
@@ -99,15 +101,17 @@ BEGIN TRY
     )
     INSERT MES.FVN_ProductionLabel(ProductionLotId,RoutingStepId,LabelSequence,LabelCode,QrPayload,ReservedBy)
     SELECT @ProductionLotId,@StepId,@Base+n,
-     ''L''+RIGHT(REPLICATE(''0'',15)+CONVERT(varchar(15),NEXT VALUE FOR MES.FVN_ProductionLabelSequence),15),
-     N''FVN2|''+N''L''+RIGHT(REPLICATE(''0'',15)+CONVERT(varchar(15),NEXT VALUE FOR MES.FVN_ProductionLabelSequence),15)
+     ''L''+RIGHT(REPLICATE(''0'',15)+CONVERT(varchar(15),s.LabelSerial),15),
+     N''FVN2|L''+RIGHT(REPLICATE(''0'',15)+CONVERT(varchar(15),s.LabelSerial),15)
       +N''|''+@LotNo+N''|''+@OperationNo,
      @ActorCode
-    FROM N OPTION(MAXRECURSION 0);
+    FROM N
+    CROSS APPLY(SELECT NEXT VALUE FOR MES.FVN_ProductionLabelSequence AS LabelSerial) s
+    OPTION(MAXRECURSION 0);
     INSERT MES.FVN_ProductionLabelEvent(ProductionLabelId,EventType,ActorCode)
     SELECT ProductionLabelId,''RESERVE'',@ActorCode FROM MES.FVN_ProductionLabel
-    WHERE ProductionLotId=@ProductionLotId AND RoutingStepId=@StepId AND Status=''RESERVED''
-     AND ReservedAtUtc>=DATEADD(SECOND,-5,SYSUTCDATETIME());
+    WHERE ProductionLotId=@ProductionLotId AND RoutingStepId=@StepId
+     AND LabelSequence>@Base AND LabelSequence<=@Base+@Need;
    END;
    COMMIT;
    SELECT l.ProductionLabelId,l.LabelCode,l.QrPayload,l.Status,ml.LotNo,
