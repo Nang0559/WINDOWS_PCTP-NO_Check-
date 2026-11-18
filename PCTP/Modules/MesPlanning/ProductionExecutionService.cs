@@ -91,7 +91,15 @@ namespace PCTP.Modules.MesPlanning
             if (string.IsNullOrWhiteSpace(labelCode) || string.IsNullOrWhiteSpace(actor) ||
                 string.IsNullOrWhiteSpace(reason))
                 throw new ArgumentException("Mã tem, người thao tác và lý do hủy là bắt buộc.");
-            return _repository.VoidLabel(labelCode.Trim(), actor.Trim(), reason.Trim());
+            var token = labelCode.Trim();
+            if (token.StartsWith("FVN2|", StringComparison.OrdinalIgnoreCase))
+            {
+                var parts = token.Split('|');
+                if (parts.Length != 4 || !parts[1].StartsWith("L", StringComparison.OrdinalIgnoreCase))
+                    throw new ArgumentException("QR tem MES không đúng định dạng FVN2|LabelCode|LOT|OperationNo.");
+                token = parts[1];
+            }
+            return _repository.VoidLabel(token, actor.Trim(), reason.Trim());
         }
 
     }
